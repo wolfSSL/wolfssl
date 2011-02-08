@@ -4,9 +4,10 @@ AM_INIT_AUTOMAKE(cyassl,1.8.8)
 AM_CONFIG_HEADER(ctaocrypt/include/config.h)
 
 
-dnl Include m4
-sinclude(lib_socket_nsl.m4)
-sinclude(acx_pthread.m4)
+#dnl Include m4
+#sinclude(lib_socket_nsl.m4)
+#sinclude(acx_pthread.m4)
+AC_CONFIG_MACRO_DIR([m4])
 
 
 # make sure configure doesn't add to CFLAGS

@@ -4,6 +4,8 @@ EXTRA_DIST = certs/*.pem certs/*.der certs/*.txt certs/*.raw \
     doc/*.pdf swig/README swig/*.i swig/cyassl_adds.c swig/*.sh swig/runme.* \
     swig/python_cyassl.vcproj swig/rsasign.py
 
+ACLOCAL_AMFLAGS = -I m4
+
 # !!!! first line of rule has to start with a hard (real) tab, not spaces
 basic:
 	cd src; $(MAKE); cd ../testsuite; $(MAKE); cd ../
