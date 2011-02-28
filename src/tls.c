@@ -136,10 +136,17 @@ static void PRF(byte* digest, word32 digLen, const byte* secret, word32 secLen,
 void BuildTlsFinished(SSL* ssl, Hashes* hashes, const byte* sender)
 {
     const byte* side;
-    byte handshake_hash[FINISHED_SZ];
+    byte        handshake_hash[FINISHED_SZ];
+    word32      hashSz = FINISHED_SZ;
 
     Md5Final(&ssl->hashMd5, handshake_hash);
     ShaFinal(&ssl->hashSha, &handshake_hash[MD5_DIGEST_SIZE]);
+#ifndef NO_SHA256
+    if (IsAtLeastTLSv1_2(ssl)) {
+        Sha256Final(&ssl->hashSha256, handshake_hash);
+        hashSz = SHA256_DIGEST_SIZE;
+    }
+#endif
    
     if ( XSTRNCMP((const char*)sender, (const char*)client, SIZEOF_SENDER) == 0)
         side = tls_client;
@@ -147,8 +154,7 @@ void BuildTlsFinished(SSL* ssl, Hashes* hashes, const byte* sender)
         side = tls_server;
 
     PRF(hashes->md5, TLS_FINISHED_SZ, ssl->arrays.masterSecret, SECRET_LEN,
-        side, FINISHED_LABEL_SZ, handshake_hash, FINISHED_SZ,
-        IsAtLeastTLSv1_2(ssl));
+        side, FINISHED_LABEL_SZ, handshake_hash, hashSz, IsAtLeastTLSv1_2(ssl));
 }
 
 

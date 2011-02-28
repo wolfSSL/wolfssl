@@ -13,6 +13,7 @@ Makefile
 depcomp
 missing
 libtool
+tags
 benchmark
 test
 client
@@ -22,3 +23,7 @@ server
 snifftest
 output
 testsuite
+diff
+*.gz
+*.zip
+*.bak

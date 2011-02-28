@@ -431,7 +431,7 @@ int SetCipherSpecs(SSL* ssl)
 #ifndef NO_TLS
         ssl->options.tls = 1;
         ssl->hmac = TLS_hmac;
-        if (ssl->version.minor == 2)
+        if (ssl->version.minor >= 2)
             ssl->options.tls1_1 = 1;
 #endif
     }
@@ -678,7 +678,7 @@ int MakeMasterSecret(SSL* ssl)
     byte   shaOutput[SHA_DIGEST_SIZE];
     byte   md5Input[ENCRYPT_LEN + SHA_DIGEST_SIZE];
     byte   shaInput[PREFIX + ENCRYPT_LEN + 2 * RAN_LEN];
-    int    i;
+    int    i, ret;
     word32 idx;
     word32 pmsSz = ssl->arrays.preMasterSz;
 
@@ -740,10 +740,10 @@ int MakeMasterSecret(SSL* ssl)
     }
 #endif
 
-    DeriveKeys(ssl);
+    ret = DeriveKeys(ssl);
     CleanPreMaster(ssl);
 
-    return 0;
+    return ret;
 }
 
 

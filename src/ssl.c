@@ -999,6 +999,10 @@ int SSL_CTX_set_cipher_list(SSL_CTX* ctx, const char* list)
                     /* re-init hashes, exclude first hello and verify request */
                     InitMd5(&ssl->hashMd5);
                     InitSha(&ssl->hashSha);
+                    #ifndef NO_SHA256
+                        if (IsAtLeastTLSv1_2(ssl))
+                            InitSha256(&ssl->hashSha256);
+                    #endif
                     if ( (ssl->error = SendClientHello(ssl)) != 0) {
                         CYASSL_ERROR(ssl->error);
                         return SSL_FATAL_ERROR;
@@ -1196,6 +1200,10 @@ int SSL_CTX_set_cipher_list(SSL_CTX* ctx, const char* list)
                     /* re-init hashes, exclude first hello and verify request */
                     InitMd5(&ssl->hashMd5);
                     InitSha(&ssl->hashSha);
+                    #ifndef NO_SHA256
+                        if (IsAtLeastTLSv1_2(ssl))
+                            InitSha256(&ssl->hashSha256);
+                    #endif
 
                     while (ssl->options.clientState < CLIENT_HELLO_COMPLETE)
                         if ( (ssl->error = ProcessReply(ssl)) < 0) {

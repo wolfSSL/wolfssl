@@ -36,6 +36,9 @@
 #ifdef HAVE_ECC
     #include "ctc_ecc.h"
 #endif
+#ifndef NO_SHA256
+    #include "sha256.h"
+#endif
 
 #ifdef CYASSL_CALLBACKS
     #include "cyassl_callbacks.h"
@@ -332,6 +335,10 @@ enum Misc {
     MAX_NTRU_BITS       =  256, /* max symmetric bit strength */
     NO_SNIFF           =   0,  /* not sniffing */
     SNIFF              =   1,  /* currently sniffing */
+
+    HASH_SIG_SIZE      =   2,  /* default SHA1 RSA */
+    SHA1_ID            =   2,  /* hash id */
+    RSA_ID             =   1,  /* sig id */
 
     NO_COPY            =   0,  /* should we copy static buffer for write */
     COPY               =   1   /* should we copy static buffer for write */
@@ -949,6 +956,9 @@ struct SSL {
     RNG             rng;
     Md5             hashMd5;            /* md5 hash of handshake msgs */
     Sha             hashSha;            /* sha hash of handshake msgs */
+#ifndef NO_SHA256
+    Sha256          hashSha256;         /* sha256 hash of handshake msgs */
+#endif
     Hashes          verifyHashes;
     Hashes          certHashes;         /* for cert verify */
     Signer*         caList;             /* SSL_CTX owns */

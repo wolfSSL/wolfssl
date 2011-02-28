@@ -621,6 +621,9 @@ int InitSSL(SSL* ssl, SSL_CTX* ctx)
 
     InitMd5(&ssl->hashMd5);
     InitSha(&ssl->hashSha);
+#ifndef NO_SHA256
+    InitSha256(&ssl->hashSha256);
+#endif
     InitRsaKey(&ssl->peerRsaKey, ctx->heap);
 
     ssl->peerRsaKeyPresent = 0;
@@ -904,6 +907,10 @@ static void HashOutput(SSL* ssl, const byte* output, int sz, int ivSz)
 
     Md5Update(&ssl->hashMd5, buffer, sz);
     ShaUpdate(&ssl->hashSha, buffer, sz);
+#ifndef NO_SHA256
+    if (IsAtLeastTLSv1_2(ssl))
+        Sha256Update(&ssl->hashSha256, buffer, sz);
+#endif
 }
 
 
@@ -922,6 +929,10 @@ static void HashInput(SSL* ssl, const byte* input, int sz)
 
     Md5Update(&ssl->hashMd5, buffer, sz);
     ShaUpdate(&ssl->hashSha, buffer, sz);
+#ifndef NO_SHA256
+    if (IsAtLeastTLSv1_2(ssl))
+        Sha256Update(&ssl->hashSha256, buffer, sz);
+#endif
 }
 
 
@@ -1322,6 +1333,11 @@ static void BuildFinished(SSL* ssl, Hashes* hashes, const byte* sender)
     /* store current states, building requires get_digest which resets state */
     Md5 md5 = ssl->hashMd5;
     Sha sha = ssl->hashSha;
+#ifndef NO_SHA256
+    Sha256 sha256;
+    if (IsAtLeastTLSv1_2(ssl))
+        sha256 = ssl->hashSha256;
+#endif
 
     if (ssl->options.tls)
         BuildTlsFinished(ssl, hashes, sender);
@@ -1333,6 +1349,10 @@ static void BuildFinished(SSL* ssl, Hashes* hashes, const byte* sender)
     /* restore */
     ssl->hashMd5 = md5;
     ssl->hashSha = sha;
+#ifndef NO_SHA256
+    if (IsAtLeastTLSv1_2(ssl))
+        ssl->hashSha256 = sha256;
+#endif
 }
 
 
@@ -2311,6 +2331,11 @@ static void BuildCertHashes(SSL* ssl, Hashes* hashes)
     /* store current states, building requires get_digest which resets state */
     Md5 md5 = ssl->hashMd5;
     Sha sha = ssl->hashSha;
+#ifndef NO_SHA256     /* for possible future changes */
+    Sha256 sha256;
+    if (IsAtLeastTLSv1_2(ssl))
+        sha256 = ssl->hashSha256;
+#endif
 
     if (ssl->options.tls) {
         Md5Final(&ssl->hashMd5, hashes->md5);
@@ -2324,6 +2349,10 @@ static void BuildCertHashes(SSL* ssl, Hashes* hashes)
     /* restore */
     ssl->hashMd5 = md5;
     ssl->hashSha = sha;
+#ifndef NO_SHA256
+    if (IsAtLeastTLSv1_2(ssl))
+        ssl->hashSha256 = sha256;
+#endif
 }
 
 
@@ -2528,6 +2557,9 @@ int SendCertificateRequest(SSL* ssl)
     int  typeTotal = 1;  /* only rsa for now */
     int  reqSz = ENUM_LEN + typeTotal + REQ_HEADER_SZ;  /* add auth later */
 
+    if (IsAtLeastTLSv1_2(ssl))
+        reqSz += LENGTH_SZ + HASH_SIG_SIZE;
+
     if (ssl->options.usingPSK_cipher) return 0;  /* not needed */
 
     sendSz = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ + reqSz;
@@ -2550,6 +2582,15 @@ int SendCertificateRequest(SSL* ssl)
     /* write to output */
     output[i++] = typeTotal;  /* # of types */
     output[i++] = rsa_sign;
+
+    /* supported hash/sig */
+    if (IsAtLeastTLSv1_2(ssl)) {
+        c16toa(HASH_SIG_SIZE, &output[i]);
+        i += LENGTH_SZ;
+
+        output[i++] = SHA1_ID;   /* hash */
+        output[i++] = RSA_ID;    /* sig  */ 
+    }
 
     c16toa(0, &output[i]);  /* auth's */
     i += REQ_HEADER_SZ;
@@ -3573,14 +3614,15 @@ int SetCipherList(SSL_CTX* ctx, const char* list)
             if (XMEMCMP(ssl->arrays.sessionID, ssl->session.sessionID, ID_LEN)
                                                                         == 0) {
                 if (SetCipherSpecs(ssl) == 0) {
+                    int ret; 
                     XMEMCPY(ssl->arrays.masterSecret, ssl->session.masterSecret,
                            SECRET_LEN);
                     if (ssl->options.tls)
-                        DeriveTlsKeys(ssl);
+                        ret = DeriveTlsKeys(ssl);
                     else
-                        DeriveKeys(ssl);
+                        ret = DeriveKeys(ssl);
                     ssl->options.serverState = SERVER_HELLODONE_COMPLETE;
-                    return 0;
+                    return ret;
                 }
                 else
                     return UNSUPPORTED_SUITE;
@@ -3611,6 +3653,13 @@ int SetCipherList(SSL_CTX* ctx, const char* list)
         *inOutIdx += len;
         ato16(&input[*inOutIdx], &len);
         *inOutIdx += LENGTH_SZ;
+
+        if (IsAtLeastTLSv1_2(ssl)) {
+            /* hash sig format */
+            *inOutIdx += len;
+            ato16(&input[*inOutIdx], &len);
+            *inOutIdx += LENGTH_SZ;
+        }
 
         /* authorities */
         while (len) {
@@ -3754,6 +3803,11 @@ int SetCipherList(SSL_CTX* ctx, const char* list)
         if (verifySz > sizeof(messageVerify))
             return BUFFER_ERROR;
         XMEMCPY(messageVerify, &input[*inOutIdx - verifySz], verifySz);
+
+        if (IsAtLeastTLSv1_2(ssl)) {
+            /* just advance for now TODO: validate hash algo params */
+            *inOutIdx += LENGTH_SZ;
+        }
 
         /* signature */
         ato16(&input[*inOutIdx], &length);
@@ -4071,14 +4125,20 @@ int SetCipherList(SSL_CTX* ctx, const char* list)
                                            HANDSHAKE_HEADER_SZ];
             byte*  signBuffer = ssl->certHashes.md5;
             word32 signSz = sizeof(Hashes);
-            byte  encodedSig[MAX_ENCODED_SIG_SZ];
+            byte   encodedSig[MAX_ENCODED_SIG_SZ];
+            word32 extraSz = 0;  /* tls 1.2 hash/sig */
 
             #ifdef CYASSL_DTLS
                 if (ssl->options.dtls)
                     verify += DTLS_RECORD_EXTRA + DTLS_HANDSHAKE_EXTRA;
             #endif
             length = RsaEncryptSize(&key);
-            c16toa((word16)length, verify);   /* prepend verify header */
+            if (IsAtLeastTLSv1_2(ssl)) {
+                verify[0] = SHA1_ID;
+                verify[1] = RSA_ID;
+                extraSz = HASH_SIG_SIZE;
+            }
+            c16toa((word16)length, verify + extraSz); /* prepend verify header*/
 
             if (IsAtLeastTLSv1_2(ssl)) {
                 byte* digest;
@@ -4094,17 +4154,17 @@ int SetCipherList(SSL_CTX* ctx, const char* list)
                 signBuffer = encodedSig;
             }
 
-            ret = RsaSSL_Sign(signBuffer, signSz, verify +
+            ret = RsaSSL_Sign(signBuffer, signSz, verify + extraSz +
                   VERIFY_HEADER, ENCRYPT_LEN, &key, &ssl->rng);
 
             if (ret > 0) {
                 ret = 0;  /* reset */
 
-                AddHeaders(output, length + VERIFY_HEADER, certificate_verify,
-                           ssl);
+                AddHeaders(output, length + extraSz + VERIFY_HEADER,
+                           certificate_verify, ssl);
 
                 sendSz = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ + length +
-                                            VERIFY_HEADER;
+                         extraSz + VERIFY_HEADER;
                 #ifdef CYASSL_DTLS
                     if (ssl->options.dtls)
                         sendSz += DTLS_RECORD_EXTRA + DTLS_HANDSHAKE_EXTRA;
@@ -4514,6 +4574,10 @@ int SetCipherList(SSL_CTX* ctx, const char* list)
         /* manually hash input since different format */
         Md5Update(&ssl->hashMd5, input + idx, sz);
         ShaUpdate(&ssl->hashSha, input + idx, sz);
+#ifndef NO_SHA256
+    if (IsAtLeastTLSv1_2(ssl))
+        Sha256Update(&ssl->hashSha256, input + idx, sz);
+#endif
 
         /* does this value mean client_hello? */
         idx++;
@@ -4589,6 +4653,7 @@ int SetCipherList(SSL_CTX* ctx, const char* list)
 
         /* DoClientHello uses same resume code */
         while (ssl->options.resuming) {  /* let's try */
+            int ret; 
             SSL_SESSION* session = GetSession(ssl, ssl->arrays.masterSecret);
             if (!session) {
                 ssl->options.resuming = 0;
@@ -4599,12 +4664,12 @@ int SetCipherList(SSL_CTX* ctx, const char* list)
 
             RNG_GenerateBlock(&ssl->rng, ssl->arrays.serverRandom, RAN_LEN);
             if (ssl->options.tls)
-                DeriveTlsKeys(ssl);
+                ret = DeriveTlsKeys(ssl);
             else
-                DeriveKeys(ssl);
+                ret = DeriveKeys(ssl);
             ssl->options.clientState = CLIENT_KEYEXCHANGE_COMPLETE;
 
-            return 0;
+            return ret;
         }
 
         return MatchSuite(ssl, &clSuites);
@@ -4719,6 +4784,7 @@ int SetCipherList(SSL_CTX* ctx, const char* list)
         
         /* ProcessOld uses same resume code */
         while (ssl->options.resuming) {  /* let's try */
+            int ret;            
             SSL_SESSION* session = GetSession(ssl, ssl->arrays.masterSecret);
             if (!session) {
                 ssl->options.resuming = 0;
@@ -4729,12 +4795,12 @@ int SetCipherList(SSL_CTX* ctx, const char* list)
 
             RNG_GenerateBlock(&ssl->rng, ssl->arrays.serverRandom, RAN_LEN);
             if (ssl->options.tls)
-                DeriveTlsKeys(ssl);
+                ret = DeriveTlsKeys(ssl);
             else
-                DeriveKeys(ssl);
+                ret = DeriveKeys(ssl);
             ssl->options.clientState = CLIENT_KEYEXCHANGE_COMPLETE;
 
-            return 0;
+            return ret;
         }
         return MatchSuite(ssl, &clSuites);
     }
@@ -4759,6 +4825,8 @@ int SetCipherList(SSL_CTX* ctx, const char* list)
         if ( (i + VERIFY_HEADER) > totalSz)
             return INCOMPLETE_DATA;
 
+        if (IsAtLeastTLSv1_2(ssl))
+           i += HASH_SIG_SIZE; 
         ato16(&input[i], &sz);
         i += VERIFY_HEADER;
 
