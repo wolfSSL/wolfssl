@@ -973,6 +973,8 @@ void AesEncrypt(Aes* aes, const byte* inBlock, byte* outBlock)
     word32 r = aes->rounds >> 1;
 
     const word32* rk = aes->key;
+    if (r > 7)
+        return;  /* stop instead of segfaulting, set up your keys! */
     /*
      * map byte array block to cipher state
      * and add initial round key:
@@ -1107,6 +1109,8 @@ void AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
     word32 r = aes->rounds >> 1;
 
     const word32* rk = aes->key;
+    if (r > 7)
+        return;  /* stop instead of segfaulting, set up your keys! */
     /*
      * map byte array block to cipher state
      * and add initial round key:
