@@ -1360,6 +1360,7 @@ static int DoCertificate(SSL* ssl, byte* input, word32* inOutIdx)
 {
     word32 listSz, i = *inOutIdx;
     int    ret = 0;
+    int    anyError = 0;
     int    firstTime = 1;  /* peer's is at front */
     char   domain[ASN_NAME_MAX];
 
@@ -1370,7 +1371,7 @@ static int DoCertificate(SSL* ssl, byte* input, word32* inOutIdx)
     c24to32(&input[i], &listSz);
     i += CERT_HEADER_SZ;
     
-    while (listSz && ret == 0) {
+    while (listSz) {
         /* cert size */
         buffer      myCert;
         word32      certSz;
@@ -1385,6 +1386,9 @@ static int DoCertificate(SSL* ssl, byte* input, word32* inOutIdx)
         i += certSz;
 
         listSz -= certSz + CERT_HEADER_SZ;
+
+        if (ret != 0 && anyError == 0)
+            anyError = ret;   /* save error from last time */
 
 #ifdef SESSION_CERTS
         if (ssl->session.chain.count < MAX_CHAIN_DEPTH &&
@@ -1475,6 +1479,9 @@ static int DoCertificate(SSL* ssl, byte* input, word32* inOutIdx)
 
         FreeDecodedCert(&dCert);
     }
+
+    if (anyError != 0)
+        ret = anyError;
 
     if (ret == 0 && ssl->options.side == CLIENT_END)
         ssl->options.serverState = SERVER_CERT_COMPLETE;
