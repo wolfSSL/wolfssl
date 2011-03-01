@@ -24,6 +24,7 @@ snifftest
 output
 testsuite
 diff
+sslSniffer/sslSnifferTest/tracefile.txt
 *.gz
 *.zip
 *.bak

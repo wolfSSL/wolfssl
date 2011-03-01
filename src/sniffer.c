@@ -1905,7 +1905,7 @@ static int CheckPreRecord(IpInfo* ipInfo, TcpInfo* tcpInfo,
     if ( (length = ssl->buffers.inputBuffer.length) ) {
         Trace(PARTIAL_ADD_STR);
         
-        if ( (*sslBytes + length) > sizeof(ssl->buffers.inputBuffer.buffer)) {
+        if ( (*sslBytes + length) > ssl->buffers.inputBuffer.bufferSize) {
             SetError(BUFFER_ERROR_STR, error, session, FATAL_ERROR_STATE);
             return -1;
         }
@@ -2010,7 +2010,7 @@ doMessage:
         
         /* store partial if not there already or we advanced */
         if (ssl->buffers.inputBuffer.length == 0 || sslBegin != sslFrame) {
-            if (sslBytes > sizeof(ssl->buffers.inputBuffer.buffer)) {
+            if (sslBytes > ssl->buffers.inputBuffer.bufferSize) {
                 SetError(BUFFER_ERROR_STR, error, session, FATAL_ERROR_STATE);
                 return -1;
             }
