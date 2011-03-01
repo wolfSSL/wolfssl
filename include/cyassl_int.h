@@ -337,8 +337,6 @@ enum Misc {
     SNIFF              =   1,  /* currently sniffing */
 
     HASH_SIG_SIZE      =   2,  /* default SHA1 RSA */
-    SHA1_ID            =   2,  /* hash id */
-    RSA_ID             =   1,  /* sig id */
 
     NO_COPY            =   0,  /* should we copy static buffer for write */
     COPY               =   1   /* should we copy static buffer for write */
@@ -642,11 +640,14 @@ enum BulkCipherAlgorithm {
 
 /* Supported Message Authentication Codes from page 43 */
 enum MACAlgorithm { 
-    no_mac,
+    no_mac = 0,
     md5_mac,
     sha_mac,
-    rmd_mac,
-    sha256_mac
+    sha224_mac,
+    sha256_mac,
+    sha384_mac,
+    sha512_mac,
+    rmd_mac
 };
 
 

@@ -2595,8 +2595,8 @@ int SendCertificateRequest(SSL* ssl)
         c16toa(HASH_SIG_SIZE, &output[i]);
         i += LENGTH_SZ;
 
-        output[i++] = SHA1_ID;   /* hash */
-        output[i++] = RSA_ID;    /* sig  */ 
+        output[i++] = sha_mac;      /* hash */
+        output[i++] = rsa_sa_algo;  /* sig  */
     }
 
     c16toa(0, &output[i]);  /* auth's */
@@ -4141,8 +4141,8 @@ int SetCipherList(SSL_CTX* ctx, const char* list)
             #endif
             length = RsaEncryptSize(&key);
             if (IsAtLeastTLSv1_2(ssl)) {
-                verify[0] = SHA1_ID;
-                verify[1] = RSA_ID;
+                verify[0] = sha_mac;
+                verify[1] = rsa_sa_algo;
                 extraSz = HASH_SIG_SIZE;
             }
             c16toa((word16)length, verify + extraSz); /* prepend verify header*/
@@ -4431,6 +4431,9 @@ int SetCipherList(SSL_CTX* ctx, const char* list)
             }
             length += sigSz;
 
+            if (IsAtLeastTLSv1_2(ssl))
+                length += HASH_SIG_SIZE;
+
             sendSz = length + HANDSHAKE_HEADER_SZ + RECORD_HEADER_SZ;
 
             #ifdef CYASSL_DTLS 
@@ -4459,6 +4462,10 @@ int SetCipherList(SSL_CTX* ctx, const char* list)
             output[idx++] = expSz;
             XMEMCPY(output + idx, export, expSz);
             idx += expSz;
+            if (IsAtLeastTLSv1_2(ssl)) {
+                output[idx++] = sha_mac;
+                output[idx++] = ssl->specs.sig_algo;
+            }
             c16toa(sigSz, output + idx);
             idx += LENGTH_SZ;
 
