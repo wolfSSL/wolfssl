@@ -25,9 +25,12 @@
 #include "cyassl_error.h"
 #include "coding.h"
 
+#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
+    #include "evp.h"
+#endif
+
 #ifdef OPENSSL_EXTRA
     /* openssl headers begin */
-    #include "evp.h"
     #include "hmac.h"
     #include "crypto.h"
     #include "des.h"
@@ -405,7 +408,7 @@ static int AddCA(SSL_CTX* ctx, buffer der)
         else
             return SSL_BAD_FILE;
 
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
     {
         /* remove encrypted header if there */
         char encHeader[] = "Proc-Type";
@@ -447,7 +450,7 @@ static int AddCA(SSL_CTX* ctx, buffer der)
             headerEnd = newline;
         }
     }
-#endif /* OPENSSL_EXTRA */
+#endif /* OPENSSL_EXTRA || HAVE_WEBSERVER */
 
         /* find footer */
         footerEnd = XSTRSTR((char*)buff, footer);
@@ -511,7 +514,7 @@ static int AddCA(SSL_CTX* ctx, buffer der)
             der.length = sz;
         }
 
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
         if (info.set) {
             /* decrypt */
             char password[80];
@@ -560,7 +563,7 @@ static int AddCA(SSL_CTX* ctx, buffer der)
             else 
                 return SSL_BAD_FILE;
         }
-#endif /* OPENSSL_EXTRA */
+#endif /* OPENSSL_EXTRA || HAVE_WEBSERVER */
 
         if (type == CA_TYPE)
             return AddCA(ctx, der);     /* takes der over */
@@ -2249,6 +2252,129 @@ int CyaSSL_set_compression(SSL* ssl)
 #endif /* OPENSSL_EXTRA || GOAHEAD_WS */
 
 
+#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
+
+    void SSL_CTX_set_default_passwd_cb_userdata(SSL_CTX* ctx, void* userdata)
+    {
+        ctx->userdata = userdata;
+    }
+
+
+    void SSL_CTX_set_default_passwd_cb(SSL_CTX* ctx, pem_password_cb cb)
+    {
+        ctx->passwd_cb = cb;
+    }
+
+    int CRYPTO_num_locks(void)
+    {
+        return 0;
+    }
+
+    void CRYPTO_set_locking_callback(void (*f)(int, int, const char*, int))
+    {
+      
+    }
+
+    void CRYPTO_set_id_callback(unsigned long (*f)(void))
+    {
+    
+    }
+
+    unsigned long ERR_get_error(void)
+    {
+        /* TODO: */
+        return 0;
+    }
+
+    int EVP_BytesToKey(const EVP_CIPHER* type, const EVP_MD* md,
+                       const byte* salt, const byte* data, int sz, int count,
+                       byte* key, byte* iv)
+    {
+        int keyLen = 0;
+        int ivLen  = 0;
+
+        Md5    myMD;
+        byte   digest[MD5_DIGEST_SIZE];
+
+        int j;
+        int keyLeft;
+        int ivLeft;
+        int keyOutput = 0;
+
+        InitMd5(&myMD);
+
+        /* only support MD5 for now */
+        if (XSTRNCMP(md, "MD5", 3)) return 0;
+
+        /* only support CBC DES and AES for now */
+        if (XSTRNCMP(type, "DES-CBC", 7) == 0) {
+            keyLen = DES_KEY_SIZE;
+            ivLen  = DES_IV_SIZE;
+        }
+        else if (XSTRNCMP(type, "DES-EDE3-CBC", 12) == 0) {
+            keyLen = DES3_KEY_SIZE;
+            ivLen  = DES_IV_SIZE;
+        }
+        else if (XSTRNCMP(type, "AES-128-CBC", 11) == 0) {
+            keyLen = AES_128_KEY_SIZE;
+            ivLen  = AES_IV_SIZE;
+        }
+        else if (XSTRNCMP(type, "AES-192-CBC", 11) == 0) {
+            keyLen = AES_192_KEY_SIZE;
+            ivLen  = AES_IV_SIZE;
+        }
+        else if (XSTRNCMP(type, "AES-256-CBC", 11) == 0) {
+            keyLen = AES_256_KEY_SIZE;
+            ivLen  = AES_IV_SIZE;
+        }
+        else
+            return 0;
+
+        keyLeft   = keyLen;
+        ivLeft    = ivLen;
+
+        while (keyOutput < (keyLen + ivLen)) {
+            int digestLeft = MD5_DIGEST_SIZE;
+            /* D_(i - 1) */
+            if (keyOutput)                      /* first time D_0 is empty */
+                Md5Update(&myMD, digest, MD5_DIGEST_SIZE);
+            /* data */
+            Md5Update(&myMD, data, sz);
+            /* salt */
+            if (salt)
+                Md5Update(&myMD, salt, EVP_SALT_SIZE);
+            Md5Final(&myMD, digest);
+            /* count */
+            for (j = 1; j < count; j++) {
+                Md5Update(&myMD, digest, MD5_DIGEST_SIZE);
+                Md5Final(&myMD, digest);
+            }
+
+            if (keyLeft) {
+                int store = min(keyLeft, MD5_DIGEST_SIZE);
+                XMEMCPY(&key[keyLen - keyLeft], digest, store);
+
+                keyOutput  += store;
+                keyLeft    -= store;
+                digestLeft -= store;
+            }
+
+            if (ivLeft && digestLeft) {
+                int store = min(ivLeft, digestLeft);
+                XMEMCPY(&iv[ivLen - ivLeft], &digest[MD5_DIGEST_SIZE -
+                                                    digestLeft], store);
+                keyOutput += store;
+                ivLeft    -= store;
+            }
+        }
+        if (keyOutput != (keyLen + ivLen))
+            return 0;
+        return keyOutput;
+    }
+
+#endif /* OPENSSL_EXTRA || HAVE_WEBSERVER */
+
+
 #ifdef OPENSSL_EXTRA
 
     unsigned long SSLeay(void)
@@ -2407,12 +2533,6 @@ int CyaSSL_set_compression(SSL* ssl)
         HmacFinal(&hmac, md);
     
         return md;
-    }
-
-    unsigned long ERR_get_error(void)
-    {
-        /* TODO: */
-        return 0;
     }
 
     void ERR_clear_error(void)
@@ -2848,24 +2968,6 @@ int CyaSSL_set_compression(SSL* ssl)
     }
 
 
-    int CRYPTO_num_locks(void)
-    {
-        return 0;
-    }
-
-
-    void CRYPTO_set_id_callback(unsigned long (*f)(void))
-    {
-    
-    }
-
-
-    void CRYPTO_set_locking_callback(void (*f)(int, int, const char*, int))
-    {
-      
-    }
-
-
     void CRYPTO_set_dynlock_create_callback(CRYPTO_dynlock_value* (*f)(
                                                               const char*, int))
     {
@@ -3067,18 +3169,6 @@ int CyaSSL_set_compression(SSL* ssl)
     }
 
 
-    void SSL_CTX_set_default_passwd_cb_userdata(SSL_CTX* ctx, void* userdata)
-    {
-        ctx->userdata = userdata;
-    }
-
-
-    void SSL_CTX_set_default_passwd_cb(SSL_CTX* ctx, pem_password_cb cb)
-    {
-        ctx->passwd_cb = cb;
-    }
-
-
     long SSL_CTX_set_timeout(SSL_CTX* ctx, long to)
     {
         return 0;
@@ -3244,92 +3334,6 @@ int CyaSSL_set_compression(SSL* ssl)
         return 0;
     }
 
-
-    int EVP_BytesToKey(const EVP_CIPHER* type, const EVP_MD* md,
-                       const byte* salt, const byte* data, int sz, int count,
-                       byte* key, byte* iv)
-    {
-        int keyLen = 0;
-        int ivLen  = 0;
-
-        Md5    myMD;
-        byte   digest[MD5_DIGEST_SIZE];
-
-        int j;
-        int keyLeft;
-        int ivLeft;
-        int keyOutput = 0;
-
-        InitMd5(&myMD);
-
-        /* only support MD5 for now */
-        if (XSTRNCMP(md, "MD5", 3)) return 0;
-
-        /* only support CBC DES and AES for now */
-        if (XSTRNCMP(type, "DES-CBC", 7) == 0) {
-            keyLen = DES_KEY_SIZE;
-            ivLen  = DES_IV_SIZE;
-        }
-        else if (XSTRNCMP(type, "DES-EDE3-CBC", 12) == 0) {
-            keyLen = DES3_KEY_SIZE;
-            ivLen  = DES_IV_SIZE;
-        }
-        else if (XSTRNCMP(type, "AES-128-CBC", 11) == 0) {
-            keyLen = AES_128_KEY_SIZE;
-            ivLen  = AES_IV_SIZE;
-        }
-        else if (XSTRNCMP(type, "AES-192-CBC", 11) == 0) {
-            keyLen = AES_192_KEY_SIZE;
-            ivLen  = AES_IV_SIZE;
-        }
-        else if (XSTRNCMP(type, "AES-256-CBC", 11) == 0) {
-            keyLen = AES_256_KEY_SIZE;
-            ivLen  = AES_IV_SIZE;
-        }
-        else
-            return 0;
-
-        keyLeft   = keyLen;
-        ivLeft    = ivLen;
-
-        while (keyOutput < (keyLen + ivLen)) {
-            int digestLeft = MD5_DIGEST_SIZE;
-            /* D_(i - 1) */
-            if (keyOutput)                      /* first time D_0 is empty */
-                Md5Update(&myMD, digest, MD5_DIGEST_SIZE);
-            /* data */
-            Md5Update(&myMD, data, sz);
-            /* salt */
-            if (salt)
-                Md5Update(&myMD, salt, EVP_SALT_SIZE);
-            Md5Final(&myMD, digest);
-            /* count */
-            for (j = 1; j < count; j++) {
-                Md5Update(&myMD, digest, MD5_DIGEST_SIZE);
-                Md5Final(&myMD, digest);
-            }
-
-            if (keyLeft) {
-                int store = min(keyLeft, MD5_DIGEST_SIZE);
-                XMEMCPY(&key[keyLen - keyLeft], digest, store);
-
-                keyOutput  += store;
-                keyLeft    -= store;
-                digestLeft -= store;
-            }
-
-            if (ivLeft && digestLeft) {
-                int store = min(ivLeft, digestLeft);
-                XMEMCPY(&iv[ivLen - ivLeft], &digest[MD5_DIGEST_SIZE -
-                                                    digestLeft], store);
-                keyOutput += store;
-                ivLeft    -= store;
-            }
-        }
-        if (keyOutput != (keyLen + ivLen))
-            return 0;
-        return keyOutput;
-    }
 
     /* stunnel 4.28 needs */
     void* SSL_CTX_get_ex_data(const SSL_CTX* ctx, int d)

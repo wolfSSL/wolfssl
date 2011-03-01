@@ -1,6 +1,6 @@
 AC_INIT
 AC_CANONICAL_SYSTEM
-AM_INIT_AUTOMAKE(cyassl,1.8.8) # !!! also change in ssl.h !!!
+AM_INIT_AUTOMAKE(cyassl,1.8.9) # !!! also change in ssl.h !!!
 AM_CONFIG_HEADER(ctaocrypt/include/config.h)
 
 
@@ -302,6 +302,19 @@ AC_ARG_ENABLE(psk,
 if test "$ENABLED_PSK" = "no"
 then
     CFLAGS="$CFLAGS -DNO_PSK"
+fi
+
+
+# Web Server Build 
+AC_ARG_ENABLE(webServer,
+    [  --enable-webServer      Enable Web Server (default: disabled)],
+    [ ENABLED_WEBSERVER=$enableval ],
+    [ ENABLED_WEBSERVER=no ]
+    )
+
+if test "$ENABLED_WEBSERVER" = "yes"
+then
+    CFLAGS="$CFLAGS -DHAVE_WEBSERVER"
 fi
 
 

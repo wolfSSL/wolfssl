@@ -594,7 +594,7 @@ struct SSL_CTX {
     psk_server_callback server_psk_cb;  /* server callback */
     char        server_hint[MAX_PSK_ID_LEN];
 #endif /* NO_PSK */
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
     pem_password_cb passwd_cb;
     void*            userdata;
 #endif /* OPENSSL_EXTRA */
