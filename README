@@ -13,7 +13,19 @@ before calling SSL_new();  Though it's not recommended.
 
 *** end Note ***
 
-CyaSSL Release 1.8.0 (12/23/2010)
+CyaSSL Release 1.9.0 (3/2/2011)
+
+Release 1.9.0 for CyaSSL adds bug fixes, improved TLSv1.2 through testing and
+better hash/sig algo ids, --enable-webServer for the yaSSL embedded web server,
+improper AES key setup detection, user cert verify callback improvements, and
+more.
+
+The CyaSSL manual offering is included in the doc/ directory.  For build
+instructions and comments about the new features please check the manual.
+
+Please send any comments or questions to support@yassl.com.
+
+****************** CyaSSL Release 1.8.0 (12/23/2010)
 
 Release 1.8.0 for CyaSSL adds bug fixes, x509 v3 CA signed certificate
 generation, a C standard library abstraction layer, lower memory use, increased

@@ -25,6 +25,8 @@
  */
 
 
+#include "os_settings.h"     /* in case user set USE_FAST_MATH there */
+
 #ifndef USE_FAST_MATH
 
 #include "integer.h"

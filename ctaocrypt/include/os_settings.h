@@ -64,6 +64,7 @@
 
 #ifdef MICRIUM
 
+    #include "stdlib.h"
     #include "net_cfg.h"
     #include "ssl_cfg.h"
     #include "net_secure_os.h"

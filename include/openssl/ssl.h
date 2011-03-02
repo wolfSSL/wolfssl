@@ -39,7 +39,7 @@
     #include "prefix_ssl.h"
 #endif
 
-#define CYASSL_VERSION "1.8.9"
+#define CYASSL_VERSION "1.9.0"
 
 #undef X509_NAME   /* wincrypt.h clash */
 
