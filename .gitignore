@@ -28,3 +28,5 @@ sslSniffer/sslSnifferTest/tracefile.txt
 *.gz
 *.zip
 *.bak
+NTRU_algorithm/
+build-test/
