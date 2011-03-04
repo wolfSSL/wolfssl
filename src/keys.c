@@ -267,6 +267,21 @@ int SetCipherSpecs(SSL* ssl)
         break;
 #endif
 
+#ifdef BUILD_TLS_RSA_WITH_AES_128_CBC_SHA256
+    case TLS_RSA_WITH_AES_128_CBC_SHA256 :
+        ssl->specs.bulk_cipher_algorithm = aes;
+        ssl->specs.cipher_type           = block;
+        ssl->specs.mac_algorithm         = sha256_mac;
+        ssl->specs.kea                   = rsa_kea;
+        ssl->specs.hash_size             = SHA256_DIGEST_SIZE;
+        ssl->specs.pad_size              = PAD_SHA;
+        ssl->specs.key_size              = AES_128_KEY_SIZE;
+        ssl->specs.block_size            = AES_BLOCK_SIZE;
+        ssl->specs.iv_size               = AES_IV_SIZE;
+
+        break;
+#endif
+
 #ifdef BUILD_TLS_NTRU_RSA_WITH_AES_128_CBC_SHA
     case TLS_NTRU_RSA_WITH_AES_128_CBC_SHA :
         ssl->specs.bulk_cipher_algorithm = aes;
@@ -289,6 +304,21 @@ int SetCipherSpecs(SSL* ssl)
         ssl->specs.mac_algorithm         = sha_mac;
         ssl->specs.kea                   = rsa_kea;
         ssl->specs.hash_size             = SHA_DIGEST_SIZE;
+        ssl->specs.pad_size              = PAD_SHA;
+        ssl->specs.key_size              = AES_256_KEY_SIZE;
+        ssl->specs.block_size            = AES_BLOCK_SIZE;
+        ssl->specs.iv_size               = AES_IV_SIZE;
+
+        break;
+#endif
+
+#ifdef BUILD_TLS_RSA_WITH_AES_256_CBC_SHA256
+    case TLS_RSA_WITH_AES_256_CBC_SHA256 :
+        ssl->specs.bulk_cipher_algorithm = aes;
+        ssl->specs.cipher_type           = block;
+        ssl->specs.mac_algorithm         = sha256_mac;
+        ssl->specs.kea                   = rsa_kea;
+        ssl->specs.hash_size             = SHA256_DIGEST_SIZE;
         ssl->specs.pad_size              = PAD_SHA;
         ssl->specs.key_size              = AES_256_KEY_SIZE;
         ssl->specs.block_size            = AES_BLOCK_SIZE;

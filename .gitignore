@@ -30,3 +30,5 @@ sslSniffer/sslSnifferTest/tracefile.txt
 *.bak
 NTRU_algorithm/
 build-test/
+build/
+cyassl.xcodeproj/

@@ -394,7 +394,8 @@ void InitSuites(Suites* suites, ProtocolVersion pv, byte haveDH, byte havePSK,
                 byte haveNTRU, byte haveECDSA, int side)
 {
     word32 idx = 0;
-    int    tls = pv.major == 3 && pv.minor >= 1;
+    int    tls    = pv.major == SSLv3_MAJOR && pv.minor >= TLSv1_MINOR;
+    int    tls1_2 = pv.major == SSLv3_MAJOR && pv.minor >= TLSv1_2_MINOR;
     int    haveRSA = 1;
 
     (void)tls;  /* shut up compiler */
@@ -504,6 +505,20 @@ void InitSuites(Suites* suites, ProtocolVersion pv, byte haveDH, byte havePSK,
     if (tls && haveDH && haveRSA) {
         suites->suites[idx++] = 0; 
         suites->suites[idx++] = TLS_DHE_RSA_WITH_AES_128_CBC_SHA;
+    }
+#endif
+
+#ifdef BUILD_TLS_RSA_WITH_AES_256_CBC_SHA256
+    if (tls1_2 && haveRSA) {
+        suites->suites[idx++] = 0; 
+        suites->suites[idx++] = TLS_RSA_WITH_AES_256_CBC_SHA256;
+    }
+#endif
+
+#ifdef BUILD_TLS_RSA_WITH_AES_128_CBC_SHA256
+    if (tls1_2 && haveRSA) {
+        suites->suites[idx++] = 0; 
+        suites->suites[idx++] = TLS_RSA_WITH_AES_128_CBC_SHA256;
     }
 #endif
 
@@ -1522,7 +1537,7 @@ static int DoCertificate(SSL* ssl, byte* input, word32* inOutIdx)
 
 int DoFinished(SSL* ssl, const byte* input, word32* inOutIdx, int sniff)
 {
-    byte   verifyMAC[SHA_DIGEST_SIZE];
+    byte   verifyMAC[SHA256_DIGEST_SIZE];
     int    finishedSz = ssl->options.tls ? TLS_FINISHED_SZ : FINISHED_SZ;
     int    headerSz = HANDSHAKE_HEADER_SZ;
     word32 macSz = finishedSz + HANDSHAKE_HEADER_SZ,
@@ -1795,7 +1810,7 @@ int DoApplicationData(SSL* ssl, byte* input, word32* inOutIdx)
     byte   decomp[MAX_RECORD_SIZE + MAX_COMP_EXTRA];
 #endif
 
-    byte        verify[SHA_DIGEST_SIZE];
+    byte        verify[SHA256_DIGEST_SIZE];
     const byte* mac;
 
     if (ssl->specs.cipher_type == block) {
@@ -1881,7 +1896,7 @@ static int DoAlert(SSL* ssl, byte* input, word32* inOutIdx, int* type)
     if (ssl->keys.encryptionOn) {
         int         aSz = ALERT_SIZE;
         const byte* mac;
-        byte        verify[SHA_DIGEST_SIZE];
+        byte        verify[SHA256_DIGEST_SIZE];
         int         padSz = ssl->keys.encryptSz - aSz - ssl->specs.hash_size;
         
         ssl->hmac(ssl, verify, input + *inOutIdx - aSz, aSz, alert, 1);
@@ -2246,7 +2261,7 @@ static INLINE const byte* GetMacSecret(SSL* ssl, int verify)
 static void Hmac(SSL* ssl, byte* digest, const byte* buffer, word32 sz,
                  int content, int verify)
 {
-    byte   result[SHA_DIGEST_SIZE];                    /* max possible sizes */
+    byte   result[SHA256_DIGEST_SIZE];                 /* max possible sizes */
     word32 digestSz = ssl->specs.hash_size;            /* actual sizes */
     word32 padSz    = ssl->specs.pad_size;
 
@@ -3155,6 +3170,13 @@ const char* const cipher_names[] =
     "ECDHE-ECDSA-DES-CBC3-SHA",
 #endif
 
+#ifdef BUILD_TLS_RSA_WITH_AES_128_CBC_SHA256
+    "AES128-SHA256",
+#endif
+
+#ifdef BUILD_TLS_RSA_WITH_AES_256_CBC_SHA256
+    "AES256-SHA256",
+#endif
 };
 
 
@@ -3259,6 +3281,13 @@ int cipher_name_idx[] =
     TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA,    
 #endif
 
+#ifdef BUILD_TLS_RSA_WITH_AES_128_CBC_SHA256
+    TLS_RSA_WITH_AES_128_CBC_SHA256,    
+#endif
+
+#ifdef BUILD_TLS_RSA_WITH_AES_256_CBC_SHA256
+    TLS_RSA_WITH_AES_256_CBC_SHA256,
+#endif
 };
 
 

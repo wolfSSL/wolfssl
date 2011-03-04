@@ -298,7 +298,7 @@ static INLINE const byte* GetMacSecret(SSL* ssl, int verify)
 /*** end copy ***/
 
 
-/* TLS type HAMC */
+/* TLS type HMAC */
 void TLS_hmac(SSL* ssl, byte* digest, const byte* buffer, word32 sz,
               int content, int verify)
 {
@@ -317,8 +317,10 @@ void TLS_hmac(SSL* ssl, byte* digest, const byte* buffer, word32 sz,
     
     if (ssl->specs.mac_algorithm == md5_mac)
         type = MD5;
-    else
+    else if (ssl->specs.mac_algorithm == sha_mac)
         type = SHA;
+    else
+        type = SHA256;
     HmacSetKey(&hmac, type, GetMacSecret(ssl, verify), ssl->specs.hash_size);
     
     HmacUpdate(&hmac, seq, SEQ_SZ);                               /* seq_num */

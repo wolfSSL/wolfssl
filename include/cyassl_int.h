@@ -123,6 +123,10 @@ typedef byte word24[3];
         #define BUILD_TLS_NTRU_RSA_WITH_AES_128_CBC_SHA
         #define BUILD_TLS_NTRU_RSA_WITH_AES_256_CBC_SHA
     #endif
+    #if !defined (NO_SHA256)
+        #define BUILD_TLS_RSA_WITH_AES_128_CBC_SHA256
+        #define BUILD_TLS_RSA_WITH_AES_256_CBC_SHA256
+    #endif
 #endif
 
 #if !defined(NO_HC128) && !defined(NO_TLS)
@@ -220,7 +224,11 @@ enum {
     TLS_NTRU_RSA_WITH_RC4_128_SHA      = 0x65,
     TLS_NTRU_RSA_WITH_3DES_EDE_CBC_SHA = 0x66,
     TLS_NTRU_RSA_WITH_AES_128_CBC_SHA  = 0x67,
-    TLS_NTRU_RSA_WITH_AES_256_CBC_SHA  = 0x68
+    TLS_NTRU_RSA_WITH_AES_256_CBC_SHA  = 0x68,
+
+    /* SHA256 */
+    TLS_RSA_WITH_AES_256_CBC_SHA256    = 0x3d,
+    TLS_RSA_WITH_AES_128_CBC_SHA256    = 0x3c
 };
 
 
@@ -292,7 +300,7 @@ enum Misc {
     KEY_LABEL_SZ        = 13,  /* TLS key block expansion sz */
     MAX_PRF_HALF        = 128, /* Maximum half secret len */
     MAX_PRF_LABSEED     = 80,  /* Maximum label + seed len */
-    MAX_PRF_DIG         = 148, /* Maximum digest len      */
+    MAX_PRF_DIG         = 224, /* Maximum digest len      */
     MAX_REQUEST_SZ      = 256, /* Maximum cert req len (no auth yet */
     SESSION_FLUSH_COUNT = 256, /* Flush session cache unless user turns off */ 
 
@@ -707,8 +715,8 @@ enum CipherType { stream, block };
 
 /* keys and secrets */
 typedef struct Keys {
-    byte client_write_MAC_secret[SHA_DIGEST_SIZE];   /* max sizes */
-    byte server_write_MAC_secret[SHA_DIGEST_SIZE]; 
+    byte client_write_MAC_secret[SHA256_DIGEST_SIZE];   /* max sizes */
+    byte server_write_MAC_secret[SHA256_DIGEST_SIZE]; 
     byte client_write_key[AES_256_KEY_SIZE];         /* max sizes */
     byte server_write_key[AES_256_KEY_SIZE]; 
     byte client_write_IV[AES_IV_SIZE];               /* max sizes */
