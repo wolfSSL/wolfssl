@@ -332,7 +332,7 @@ void SSL_CTX_set_default_passwd_cb(SSL_CTX*, pem_password_cb);
 
 
 long SSL_CTX_set_timeout(SSL_CTX*, long);
-void SSL_CTX_set_info_callback(SSL_CTX*, void (*)());
+void SSL_CTX_set_info_callback(SSL_CTX*, void (*)(void));
 
 unsigned long ERR_peek_error(void);
 int           ERR_GET_REASON(int);
@@ -450,8 +450,7 @@ enum {
     X509_V_OK = 0,
 
     CRYPTO_LOCK = 1,
-    CRYPTO_NUM_LOCKS = 10,
-
+    CRYPTO_NUM_LOCKS = 10
 };
 
 /* extras end */
@@ -512,7 +511,7 @@ enum { /* ssl Constants */
     SSL_R_SSLV3_ALERT_CERTIFICATE_UNKNOWN = 103,
     SSL_R_SSLV3_ALERT_BAD_CERTIFICATE     = 104,
 
-    PEM_BUFSIZE = 1024,
+    PEM_BUFSIZE = 1024
 };
 
 
@@ -540,7 +539,7 @@ enum { /* ssl Constants */
 /* extra begins */
 
 enum {  /* ERR Constants */
-    ERR_TXT_STRING = 1,
+    ERR_TXT_STRING = 1
 };
 
 unsigned long ERR_get_error_line_data(const char**, int*, const char**, int *);
