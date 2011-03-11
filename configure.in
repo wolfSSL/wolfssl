@@ -421,6 +421,41 @@ CFLAGS="$CFLAGS $PTHREAD_CFLAGS"
 
 LIB_SOCKET_NSL
 
+dnl Various GCC warnings that should never fire for release quality code
+GCCWARNINGS="-Wall -fno-strict-aliasing -W -Wfloat-equal -Wundef       \
+-Wpointer-arith -Wstrict-prototypes -Wmissing-prototypes                \
+-Wwrite-strings -Wredundant-decls -Wchar-subscripts -Wcomment           \
+-Wformat=2 -Wwrite-strings -Wmissing-declarations -Wredundant-decls     \
+-Wnested-externs -Wbad-function-cast -Wswitch-enum -Winit-self          \
+-Wmissing-field-initializers -Wdeclaration-after-statement              \
+-Wold-style-definition -Waddress -Wmissing-noreturn -Wnormalized=id     \
+-Woverride-init -Wstrict-overflow=1 -Wextra -Warray-bounds              \
+-Wstack-protector -Wformat -Wformat-security -Wpointer-sign"
+
+AC_ARG_ENABLE(gcc-lots-o-warnings,
+AS_HELP_STRING(--enable-gcc-lots-o-warnings, enable lots of gcc warnings),
+[if test x$enableval = xyes; then
+    CFLAGS="$CFLAGS $GCCWARNINGS"
+fi])
+
+AC_ARG_ENABLE(gcc-hardening,
+AS_HELP_STRING(--enable-gcc-hardening, enable compiler security checks),
+[if test x$enableval = xyes; then
+    CFLAGS="$CFLAGS -D_FORTIFY_SOURCE=2 -fstack-protector-all"
+    CFLAGS="$CFLAGS -fwrapv -fPIE -Wstack-protector"
+    CFLAGS="$CFLAGS --param ssp-buffer-size=1"
+    LDFLAGS="$LDFLAGS -pie"
+fi])
+
+dnl Linker hardening options
+dnl Currently these options are ELF specific - you can't use this with MacOSX
+AC_ARG_ENABLE(linker-hardening,
+AS_HELP_STRING(--enable-linker-hardening, enable linker security fixups),
+[if test x$enableval = xyes; then
+    LDFLAGS="$LDFLAGS -z relro -z now"
+fi])
+
+
 AC_SUBST(CFLAGS)
 AC_SUBST(LIBS)
 
