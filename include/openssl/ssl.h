@@ -385,6 +385,7 @@ enum {
     OCSP_BASICRESP = 16,
 
     ASN1_GENERALIZEDTIME = 4,
+    SERIAL_SZ            = 8,
 
     SSL_OP_MICROSOFT_SESS_ID_BUG = 1,
     SSL_OP_NETSCAPE_CHALLENGE_BUG = 2,
@@ -622,6 +623,7 @@ unsigned char* CyaSSL_get_chain_cert(X509_CHAIN*, int idx);   /* index cert */
 int  CyaSSL_get_chain_cert_pem(X509_CHAIN*, int idx, unsigned char* buffer,
                           int inLen, int* outLen); /* get index cert in PEM */
 const unsigned char* CyaSSL_get_sessionID(const SSL_SESSION* session);
+int  CyaSSL_X509_get_serial_number(X509*, unsigned char*);
 
 #ifndef _WIN32
     #ifndef NO_WRITEV

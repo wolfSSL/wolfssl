@@ -3404,6 +3404,18 @@ int CyaSSL_set_compression(SSL* ssl)
         return 0; 
     }
 
+    /* write X509 serial number in unsigned binary to buffer 
+       buffer needs to be at least SERIAL_SIZE
+       return 0 on success */
+    int CyaSSL_X509_get_serial_number(X509* x509, byte* buffer)
+    {
+        if (x509 == NULL || buffer == NULL)
+            return -1;
+
+        XMEMCPY(buffer, x509->serial, SERIAL_SIZE);
+
+        return 0;
+    }
 
 #endif /* OPENSSL_EXTRA */
 

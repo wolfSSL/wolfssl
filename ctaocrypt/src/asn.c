@@ -668,6 +668,7 @@ void InitDecodedCert(DecodedCert* cert, byte* source, void* heap)
     cert->source          = source;  /* don't own */
     cert->srcIdx          = 0;
     cert->heap            = heap;
+    XMEMSET(cert->serial, 0, SERIAL_SIZE);
 #ifdef CYASSL_CERT_GEN
     cert->subjectSN       = 0;
     cert->subjectSNLen    = 0;
@@ -717,6 +718,12 @@ static int GetCertHeader(DecodedCert* cert, word32 inSz)
 
     if (GetInt(&mpi, cert->source, &cert->srcIdx) < 0) 
         ret = ASN_PARSE_E;
+
+    len = mp_unsigned_bin_size(&mpi);
+    if (len > SERIAL_SIZE)
+        ret = MP_TO_E;
+    if (mp_to_unsigned_bin(&mpi, cert->serial + (SERIAL_SIZE - len)) != MP_OKAY)
+        ret = MP_TO_E;
 
     mp_clear(&mpi);
     return ret;

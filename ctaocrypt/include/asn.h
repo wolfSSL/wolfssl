@@ -41,6 +41,8 @@ enum {
     ISSUER  = 0,
     SUBJECT = 1,
 
+    SERIAL_SIZE  =  8,
+
     BEFORE  = 0,
     AFTER   = 1
 };
@@ -171,6 +173,7 @@ typedef struct DecodedCert {
     byte*   source;                  /* byte buffer holder cert, NOT owner */
     word32  srcIdx;                  /* current offset into buffer       */
     void*   heap;                    /* for user memory overrides        */
+    byte    serial[SERIAL_SIZE];     /* raw serial number                */
 #ifdef CYASSL_CERT_GEN
     /* easy access to sujbect info for other sign */
     char*   subjectSN;
@@ -250,7 +253,6 @@ int DerToPem(const byte* der, word32 derSz, byte* output, word32 outputSz,
 #ifdef CYASSL_CERT_GEN
 
 enum cert_enums {
-    SERIAL_SIZE     =  8,
     NAME_SIZE       = 64,
     NAME_ENTRIES    =  8,
     JOINT_LEN       =  2,

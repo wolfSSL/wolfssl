@@ -924,6 +924,7 @@ struct X509_NAME {
 struct X509 {
     X509_NAME issuer;
     X509_NAME subject;
+    byte      serial[SERIAL_SIZE];
 };
 
 

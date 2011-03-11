@@ -1446,6 +1446,7 @@ static int DoCertificate(SSL* ssl, byte* input, word32* inOutIdx)
         XSTRNCPY(ssl->peerCert.issuer.name, dCert.issuer, ASN_NAME_MAX);
         ssl->peerCert.subject.sz   = (int)XSTRLEN(dCert.subject) + 1;
         XSTRNCPY(ssl->peerCert.subject.name, dCert.subject, ASN_NAME_MAX);
+        XMEMCPY(ssl->peerCert.serial, dCert.serial, SERIAL_SIZE);
 #endif    
 
         XMEMCPY(domain, dCert.subjectCN, dCert.subjectCNLen);
