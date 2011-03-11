@@ -2718,18 +2718,20 @@ int CyaSSL_set_compression(SSL* ssl)
 
     const char* SSL_get_version(SSL* ssl)
     {
-        if (ssl->version.major == 3) {
+        if (ssl->version.major == SSLv3_MAJOR) {
             switch (ssl->version.minor) {
-                case 0 :
+                case SSLv3_MINOR :
                     return "SSLv3";
-                case 1 :
+                case TLSv1_MINOR :
                     return "TLSv1";
-                case 2 :
+                case TLSv1_1_MINOR :
                     return "TLSv1.1";
-                case 3 :
+                case TLSv1_2_MINOR :
                     return "TLSv1.2";
             }
         }
+        else if (ssl->version.major == DTLS_MAJOR)
+            return "DTLS";
         return "unknown";
     }
 

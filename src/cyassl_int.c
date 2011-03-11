@@ -1928,7 +1928,7 @@ static int GetInputData(SSL *ssl, size_t size)
 
 #ifdef CYASSL_DTLS
     if (ssl->options.dtls)
-        inSz = 1500;       /* read ahead up to MTU */
+        inSz = MAX_MTU;       /* read ahead up to MTU */
 #endif
     
     if (inSz > maxLength) {

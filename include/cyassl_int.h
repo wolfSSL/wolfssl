@@ -499,7 +499,7 @@ enum {
     #define RECORD_SIZE MAX_RECORD_SIZE
 #else
     #ifdef CYASSL_DTLS
-        #define RECORD_SIZE 1500
+        #define RECORD_SIZE MAX_MTU 
     #else
         #define RECORD_SIZE 128 
     #endif
