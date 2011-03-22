@@ -480,6 +480,7 @@ static int AddCA(SSL_CTX* ctx, buffer der)
         if (pkcs8)
             return ToTraditional(der->buffer, der->length);
 
+#ifdef OPENSSL_EXTRA
          if (pkcs8Enc) {
             int  passwordSz;
             char password[80];
@@ -491,6 +492,7 @@ static int AddCA(SSL_CTX* ctx, buffer der)
             return ToTraditionalEnc(der->buffer, der->length, password,
                                     passwordSz);
          }
+#endif
 
         return 0;
     }

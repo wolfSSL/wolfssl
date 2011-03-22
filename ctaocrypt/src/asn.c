@@ -880,7 +880,7 @@ static int GetCertHeader(DecodedCert* cert, word32 inSz)
 
     len = mp_unsigned_bin_size(&mpi);
     if (len > SERIAL_SIZE)
-        ret = MP_TO_E;
+        len = SERIAL_SIZE;    /* use first 64 bits for unique id */
     if (mp_to_unsigned_bin(&mpi, cert->serial + (SERIAL_SIZE - len)) != MP_OKAY)
         ret = MP_TO_E;
 
