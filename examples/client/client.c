@@ -62,10 +62,10 @@ void client_test(void* args)
     int          resumeSz    = sizeof(resumeMsg);
 #endif
 
-    char msg[] = "hello cyassl!";
+    char msg[64] = "hello cyassl!";
     char reply[1024];
     int  input;
-    int  msgSz = sizeof(msg);
+    int  msgSz = strlen(msg);
 
     int     argc = ((func_args*)args)->argc;
     char**  argv = ((func_args*)args)->argv;
@@ -182,8 +182,8 @@ void client_test(void* args)
     
     if (argc == 3) {
         printf("SSL connect ok, sending GET...\n");
-        strncpy(msg, "GET\r\n", 6);
-        msgSz = 6;
+        msgSz = 28;
+        strncpy(msg, "GET /index.html HTTP/1.0\r\n\r\n", msgSz);
     }
     if (SSL_write(ssl, msg, msgSz) != msgSz)
         err_sys("SSL_write failed");
@@ -192,8 +192,20 @@ void client_test(void* args)
     if (input > 0) {
         reply[input] = 0;
         printf("Server response: %s\n", reply);
+
+        if (argc == 3) {  /* get html */
+            while (1) {
+                input = SSL_read(ssl, reply, sizeof(reply));
+                if (input > 0) {
+                    reply[input] = 0;
+                    printf("%s\n", reply);
+                }
+                else
+                    break;
+            }
+        }
     }
-   
+  
 #ifdef TEST_RESUME
     #ifdef CYASSL_DTLS
         strncpy(msg, "break", 6);
