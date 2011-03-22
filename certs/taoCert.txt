@@ -69,6 +69,13 @@ openssl rsa -in 1024rsa.priv -pubout -out 1024rsa.pub
 openssl pkcs8 -nocrypt -topk8 -in server-key.pem -out server-keyPkcs8.pem
 
 
+**** To convert to pkcs8 encrypted *******
+
+openssl pkcs8 -topk8 -in server-key.pem -out server-keyPkcs8Enc.pem
+
+passwd: yassl123
+
+
 **** To convert from pkcs8 to traditional ****
 
 openssl pkcs8 -nocrypt -in server-keyPkcs8.pem -out server-key.pem

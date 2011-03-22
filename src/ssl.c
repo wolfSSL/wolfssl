@@ -210,8 +210,11 @@ int SSL_shutdown(SSL* ssl)
 }
 
 
-int SSL_get_error(SSL* ssl, int dummy)
+int SSL_get_error(SSL* ssl, int ret)
 {
+    if (ret > 0)
+        return SSL_ERROR_NONE;
+
     if (ssl->error == WANT_READ)
         return SSL_ERROR_WANT_READ;         /* convert to OpenSSL type */
     else if (ssl->error == WANT_WRITE)
@@ -360,7 +363,8 @@ static int AddCA(SSL_CTX* ctx, buffer der)
         char* headerEnd;
         char* footerEnd;
         long  neededSz;
-        int   pkcs8 = 0;
+        int   pkcs8    = 0;
+        int   pkcs8Enc = 0;
         int   dynamicType;
 
         if (type == CERT_TYPE || type == CA_TYPE)  {
@@ -383,10 +387,16 @@ static int AddCA(SSL_CTX* ctx, buffer der)
             headerEnd = XSTRSTR((char*)buff, header);
             if (headerEnd)
                 pkcs8 = 1;
-            /*
-            else
-                maybe encrypted "-----BEGIN ENCRYPTED PRIVATE KEY-----"
-            */
+            else {
+                XSTRNCPY(header, "-----BEGIN ENCRYPTED PRIVATE KEY-----",
+                        sizeof(header));
+                XSTRNCPY(footer, "-----END ENCRYPTED PRIVATE KEY-----",
+                        sizeof(footer));
+
+                headerEnd = XSTRSTR((char*)buff, header);
+                if (headerEnd)
+                    pkcs8Enc = 1;
+            }
         }
         if (!headerEnd && type == PRIVATEKEY_TYPE) {  /* may be ecc */
             XSTRNCPY(header, "-----BEGIN EC PRIVATE KEY-----", sizeof(header));
@@ -470,10 +480,17 @@ static int AddCA(SSL_CTX* ctx, buffer der)
         if (pkcs8)
             return ToTraditional(der->buffer, der->length);
 
-        /* not full support yet 
-         if (pkcs8Enc)
-            return ToTraditionalEnc(der->buffer, der->length);
-        */
+         if (pkcs8Enc) {
+            int  passwordSz;
+            char password[80];
+
+            if (!info->ctx->passwd_cb)
+                return SSL_BAD_FILE;  /* no callback error */
+            passwordSz = info->ctx->passwd_cb(password, sizeof(password), 0,
+                                              info->ctx->userdata);
+            return ToTraditionalEnc(der->buffer, der->length, password,
+                                    passwordSz);
+         }
 
         return 0;
     }
@@ -488,6 +505,7 @@ static int AddCA(SSL_CTX* ctx, buffer der)
         int           eccKey = 0;
 
         info.set   = 0;
+        info.ctx   = ctx;
         der.buffer = 0;
 
         if (format != SSL_FILETYPE_ASN1 && format != SSL_FILETYPE_PEM 
@@ -502,9 +520,10 @@ static int AddCA(SSL_CTX* ctx, buffer der)
             dynamicType = DYNAMIC_TYPE_KEY;
 
         if (format == SSL_FILETYPE_PEM) {
-            if (PemToDer(buff, sz, type, &der, ctx->heap, &info, &eccKey) < 0) {
+            int ret = PemToDer(buff, sz, type, &der, ctx->heap, &info, &eccKey);
+            if (ret < 0) {
                 XFREE(der.buffer, ctx->heap, dynamicType);
-                return SSL_BAD_FILE;
+                return ret;
             }
         }
         else {  /* ASN1 (DER) or RAW (NTRU) */
@@ -660,7 +679,7 @@ static int ProcessFile(SSL_CTX* ctx, const char* fname, int format, int type)
     sz = XFTELL(file);
     XREWIND(file);
 
-    if (sz > sizeof(staticBuffer)) {
+    if (sz > (long)sizeof(staticBuffer)) {
         buffer = (byte*) XMALLOC(sz, ctx->heap, DYNAMIC_TYPE_FILE);
         if (buffer == NULL) {
             XFCLOSE(file);
@@ -744,7 +763,7 @@ int CyaSSL_PemCertToDer(const char* fileName, unsigned char* derBuf, int derSz)
 
     if (ret == 0) {
         if (converted.length < derSz) {
-            memcpy(derBuf, converted.buffer, converted.length);
+            XMEMCPY(derBuf, converted.buffer, converted.length);
             ret = converted.length;
         }
         else
@@ -1574,7 +1593,7 @@ int CyaSSL_set_compression(SSL* ssl)
             for (i = 0; i < iovcnt; i++)
                 send += iov[i].iov_len;
 
-            if (send > sizeof(tmp)) {
+            if (send > (int)sizeof(tmp)) {
                 byte* tmp2 = (byte*) XMALLOC(send, ssl->heap,
                                              DYNAMIC_TYPE_WRITEV);
                 if (!tmp2)

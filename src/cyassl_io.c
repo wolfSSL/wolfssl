@@ -29,7 +29,7 @@
 
 /* if user writes own I/O callbacks they can define CYASSL_USER_IO to remove
    automatic setting of default I/O functions EmbedSend() and EmbedReceive()
-   but they'll still nedd SetCallback xxx() at end of file 
+   but they'll still need SetCallback xxx() at end of file 
 */
 #ifndef CYASSL_USER_IO
 

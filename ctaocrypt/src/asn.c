@@ -29,6 +29,8 @@
 #include "ctc_sha.h"
 #include "ctc_md5.h"
 #include "error.h"
+#include "pwdbased.h"
+#include "des3.h"
 
 #ifdef HAVE_NTRU
     #include "crypto_ntru.h"
@@ -67,7 +69,7 @@ enum {
     #define NO_TIME_H
     /* since Micrium not defining XTIME or XGMTIME, CERT_GEN not available */
 #elif defined(USER_TIME)
-    /* no <time.h> strucutres used */
+    /* no <time.h> structures used */
     #define NO_TIME_H
     /* user time, and gmtime compatible functions, there is a gmtime 
        implementation here that WINCE uses, so really just need some ticks
@@ -342,6 +344,31 @@ int GetMyVersion(const byte* input, word32* inOutIdx, int* version)
 }
 
 
+/* Get small count integer, 32 bits or less */
+int GetShortInt(const byte* input, word32* inOutIdx, int* number)
+{
+    word32 idx = *inOutIdx;
+    word32 len;
+
+    *number = 0;
+
+    if (input[idx++] != ASN_INTEGER)
+        return ASN_PARSE_E;
+
+    len = input[idx++];
+    if (len > 4)
+        return ASN_PARSE_E;
+
+    while (len--) {
+        *number  = *number << 8 | input[idx++];
+    }
+
+    *inOutIdx = idx;
+
+    return *number;
+}
+
+
 /* May not have one, not an error */
 int GetExplicitVersion(const byte* input, word32* inOutIdx, int* version)
 {
@@ -486,6 +513,138 @@ int ToTraditional(byte* input, word32 sz)
     XMEMMOVE(input, input + inOutIdx, length);
 
     return 0;
+}
+
+
+/* Check To see if PKCS version algo is supported, set id if it is return 0
+   < 0 on error */
+static int CheckAlgo(int version, int algo, int* id)
+{
+    if (version != PKCS5)
+        return ASN_INPUT_E;  /* VERSION ERROR */
+
+    switch (algo) {
+    case 3:                   /* see RFC 2898 for ids */
+        *id = PBE_MD5_DES;
+        return 0;
+    case 10:
+        *id = PBE_SHA1_DES;
+        return 0;
+    default:
+        return -1;
+
+    }
+}
+
+
+/* Decrypt intput in place from parameters based on id */
+static int DecryptKey(const char* password, int passwordSz, byte* salt,
+                    int saltSz, int iterations, int id, byte* input, int length)
+{
+    byte   key[MAX_KEY_SIZE];
+    int    hashType;
+    int    derivedLen;
+    int    decryptionType;
+
+    switch (id) {
+        case PBE_MD5_DES:
+            hashType = MD5;
+            derivedLen = 16;
+            decryptionType = DES_TYPE;
+            break;
+
+        case PBE_SHA1_DES:
+            hashType = SHA;
+            derivedLen = 16;
+            decryptionType = DES_TYPE;
+            break;
+
+        default:
+            return -1;  /* unknown algo id */
+    }
+
+    PBKDF1(key, (byte*)password, passwordSz, salt, saltSz, iterations,
+           derivedLen, hashType);
+
+    switch (decryptionType) {
+        case DES_TYPE:
+        {
+            Des    dec;
+            Des_SetKey(&dec, key, key + 8, DES_DECRYPTION);
+            Des_CbcDecrypt(&dec, input, input, length);
+            break;
+        }
+
+        default:
+            return -1;  /* unknown algo id */
+    }
+
+    return 0;
+}
+
+
+/* Remove Encrypted PKCS8 header, move beginning of traditional to beginning
+   of input */
+int ToTraditionalEnc(byte* input, word32 sz,const char* password,int passwordSz)
+{
+    word32 inOutIdx = 0, oid;
+    int    type, algo, version, length, iterations, saltSz, id;
+    byte   salt[MAX_SALT_SIZE];
+    
+    if (GetSequence(input, &inOutIdx, &length) < 0)
+        return ASN_PARSE_E;
+
+    if ((word32)length > (sz - inOutIdx))
+        return ASN_INPUT_E;
+
+    if (GetAlgoId(input, &inOutIdx, &oid) < 0)
+        return ASN_PARSE_E;
+    
+    version = input[inOutIdx - 2];   /* PKCS version alwyas 2nd to last byte */
+    algo    = input[inOutIdx - 1];   /* version.algo, algo id last byte */
+
+    if (CheckAlgo(version, algo, &id) < 0)
+        return ASN_INPUT_E;  /* Algo ID error */
+    
+    if (GetSequence(input, &inOutIdx, &length) < 0)
+        return ASN_PARSE_E;
+
+    if ((word32)length > (sz - inOutIdx))
+        return ASN_INPUT_E;
+
+    if (input[inOutIdx++] != ASN_OCTET_STRING)
+        return ASN_PARSE_E;
+    
+    if (GetLength(input, &inOutIdx, &saltSz) < 0)
+        return ASN_PARSE_E;
+
+    if (saltSz > MAX_SALT_SIZE)
+        return ASN_PARSE_E;
+     
+    if ((word32)length > (sz - inOutIdx))
+        return ASN_INPUT_E;
+    
+    XMEMCPY(salt, &input[inOutIdx], saltSz);
+    inOutIdx += saltSz;
+
+    if (GetShortInt(input, &inOutIdx, &iterations) < 0)
+        return ASN_PARSE_E;
+
+    if (input[inOutIdx++] != ASN_OCTET_STRING)
+        return ASN_PARSE_E;
+    
+    if (GetLength(input, &inOutIdx, &length) < 0)
+        return ASN_PARSE_E;
+
+    if ((word32)length > (sz - inOutIdx))
+        return ASN_INPUT_E;
+
+    if (DecryptKey(password, passwordSz, salt, saltSz, iterations, id,
+                   input + inOutIdx, length) < 0)
+        return ASN_INPUT_E;  /* decrypt failure */
+
+    XMEMMOVE(input, input + inOutIdx, length);
+    return ToTraditional(input, length);
 }
 
 
@@ -823,7 +982,7 @@ static int GetKey(DecodedCert* cert)
                                           DYNAMIC_TYPE_PUBLIC_KEY);
         if (cert->publicKey == NULL)
             return MEMORY_E;
-        memcpy(cert->publicKey, keyBlob, keyLen);
+        XMEMCPY(cert->publicKey, keyBlob, keyLen);
         cert->pubKeyStored = 1;
         cert->pubKeySize   = keyLen;
     }
@@ -861,7 +1020,7 @@ static int GetKey(DecodedCert* cert)
                                           DYNAMIC_TYPE_PUBLIC_KEY);
         if (cert->publicKey == NULL)
             return MEMORY_E;
-        memcpy(cert->publicKey, &cert->source[cert->srcIdx], length - 1);
+        XMEMCPY(cert->publicKey, &cert->source[cert->srcIdx], length - 1);
         cert->pubKeyStored = 1;
         cert->pubKeySize   = length - 1;
 

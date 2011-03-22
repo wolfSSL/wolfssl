@@ -77,8 +77,20 @@ enum DN_Tags {
     ASN_ORGUNIT_NAME  = 0x0b    /* OU */
 };
 
+enum PBES {
+    PBE_MD5_DES  = 0,
+    PBE_SHA1_DES = 1
+};
+
+enum ENCRYPTION_TYPES {
+    DES_TYPE = 0
+};
+
 enum Misc_ASN { 
-    ASN_NAME_MAX        = 256,    
+    ASN_NAME_MAX        = 256,
+    MAX_SALT_SIZE       =  64,     /* MAX PKCS Salt length */
+    MAX_KEY_SIZE        =  64,     /* MAX PKCS Key  length */
+    PKCS5               =   5,     /* PKCS oid tag */
     SHA_SIZE            =  20,
     RSA_INTS            =   8,     /* RSA ints in private key */
     MIN_DATE_SIZE       =  13,
@@ -222,6 +234,7 @@ void    FreeSigners(Signer*, void*);
 int RsaPrivateKeyDecode(const byte* input, word32* inOutIdx, RsaKey*, word32);
 int RsaPublicKeyDecode(const byte* input, word32* inOutIdx, RsaKey*, word32);
 int ToTraditional(byte* buffer, word32 length);
+int ToTraditionalEnc(byte* buffer, word32 length, const char*, int);
 
 #ifndef NO_DH
 int DhKeyDecode(const byte* input, word32* inOutIdx, DhKey* key, word32);

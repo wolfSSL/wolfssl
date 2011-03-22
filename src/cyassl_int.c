@@ -168,7 +168,7 @@ static INLINE void c32to48(word32 in, byte out[6])
 
 
 /* convert 16 bit integer to opaque */
-static void INLINE c16toa(word16 u16, byte* c)
+static INLINE void c16toa(word16 u16, byte* c)
 {
     c[0] = (u16 >> 8) & 0xff;
     c[1] =  u16 & 0xff;
@@ -1832,8 +1832,6 @@ int DoApplicationData(SSL* ssl, byte* input, word32* inOutIdx)
         ssl->hmac(ssl, verify, rawData, rawSz, application_data, 1);
 
 #ifdef HAVE_LIBZ
-        byte  decomp[MAX_RECORD_SIZE + MAX_COMP_EXTRA];
-        
         if (ssl->options.usingCompression) {
             dataSz = DeCompress(ssl, rawData, dataSz, decomp, sizeof(decomp));
             if (dataSz < 0) return dataSz;
@@ -1976,7 +1974,9 @@ int ProcessReply(SSL* ssl)
 {
     int    ret, type, readSz;
     word32 startIdx = 0;
+#ifndef NO_CYASSL_SERVER
     byte   b0, b1;
+#endif
 #ifdef CYASSL_DTLS
     int    used;
 #endif
@@ -3895,7 +3895,8 @@ int SetCipherList(SSL_CTX* ctx, const char* list)
 
                 encSigSz = EncodeSignature(encodedSig,digest,digestSz,hashType);
 
-                if (encSigSz != ret || XMEMCMP(out, encodedSig, encSigSz) != 0)
+                if (encSigSz != (word32)ret || XMEMCMP(out, encodedSig,
+                                                       encSigSz) != 0)
                     return VERIFY_SIGN_ERROR;
             }
             else { 
@@ -4900,7 +4901,7 @@ int SetCipherList(SSL_CTX* ctx, const char* list)
 
                 sigSz = EncodeSignature(encodedSig, digest, digestSz, hashType);
 
-                if (outLen == sigSz && XMEMCMP(out, encodedSig, sigSz) == 0)
+                if (outLen == (int)sigSz && XMEMCMP(out, encodedSig,sigSz) == 0)
                     ret = 0;
             }
             else {
