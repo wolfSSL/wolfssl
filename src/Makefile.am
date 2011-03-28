@@ -9,7 +9,7 @@ libcyassl_la_SOURCES = \
     ../ctaocrypt/src/aes.c ../ctaocrypt/src/sha256.c ../ctaocrypt/src/dh.c \
     ../ctaocrypt/src/dsa.c ../ctaocrypt/src/arc4.c ../ctaocrypt/src/rabbit.c \
     ../ctaocrypt/src/pwdbased.c
-libcyassl_la_LDFLAGS = -no-undefined -version-info 0:0:0
+libcyassl_la_LDFLAGS = -no-undefined -version-info 1:0:0
 EXTRA_DIST = ../include/*.h ../include/openssl/*.h ../include/*.rc
 
 if BUILD_AESNI
