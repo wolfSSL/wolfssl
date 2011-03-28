@@ -18,9 +18,13 @@ openssl-links:
 #  !!! test -e with a .name like .libs then a * like *dylib fails so just
 #      look for the .dylib on OS X, and .so otherwise but copy all parts
 install:
-	$(mkinstalldirs) $(DESTDIR)$(includedir) $(DESTDIR)$(libdir); \
-    cp -fpR include/* $(DESTDIR)$(includedir); \
-    cp -fpR ctaocrypt/include/* $(DESTDIR)$(includedir); \
+	$(mkinstalldirs) $(DESTDIR)$(includedir)/openssl $(DESTDIR)$(libdir); \
+    cp -fpR include/openssl/* $(DESTDIR)$(includedir)/openssl; \
+    cp -fpR ctaocrypt/include/*.h $(DESTDIR)$(includedir); \
+    rm $(DESTDIR)$(includedir)/asn.h; \
+    rm $(DESTDIR)$(includedir)/coding.h; \
+    rm $(DESTDIR)$(includedir)/error.h; \
+    rm $(DESTDIR)$(includedir)/misc.h; \
     cp -fpR src/libcyassl.la $(DESTDIR)$(libdir); \
     if test -e src/.libs/libcyassl.a; then \
     cp -fp src/.libs/libcyassl.a $(DESTDIR)$(libdir); fi; \
