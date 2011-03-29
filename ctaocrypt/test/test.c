@@ -1653,12 +1653,19 @@ int pbkdf2_test()
     const byte salt[] = { 0x78, 0x57, 0x8E, 0x5a, 0x5d, 0x63, 0xcb, 0x06 };
     int   iterations = 2048;
     int   kLen = 24;
+    byte  derived[64];
 
     const byte verify[] = {
         0xBF, 0xDE, 0x6B, 0xE9, 0x4D, 0xF7, 0xE1, 0x1D, 0xD4, 0x09, 0xBC, 0xE2,
         0x0A, 0x02, 0x55, 0xEC, 0x32, 0x7C, 0xB9, 0x36, 0xFF, 0xE9, 0x36, 0x43
 
     };
+
+    PBKDF2(derived, (byte*)passwd, strlen(passwd), salt, 8, iterations, kLen,
+           SHA);
+
+    if (memcmp(derived, verify, sizeof(verify)) != 0)
+        return -101;
 
     return 0;
 }
@@ -1689,7 +1696,8 @@ int pbkdf1_test()
 
 int pwdbased_test()
 {
-   return pbkdf1_test(); 
+   int ret =  pbkdf1_test();
+   return ret + pbkdf2_test(); 
 }
 
 #endif /* NO_PWDBASED */

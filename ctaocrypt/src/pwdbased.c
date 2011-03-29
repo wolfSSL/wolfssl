@@ -23,6 +23,26 @@
 #ifndef NO_PWDBASED
 
 #include "pwdbased.h"
+#include "ctc_hmac.h"
+#ifdef CYASSL_SHA512
+    #include "sha512.h"
+#endif
+#ifdef NO_INLINE
+    #include "misc.h"
+#else
+    #include "misc.c"
+#endif
+
+
+
+#ifndef min
+
+    static INLINE word32 min(word32 a, word32 b)
+    {
+        return a > b ? b : a;
+    }
+
+#endif /* min */
 
 
 int PBKDF1(byte* output, const byte* passwd, int pLen, const byte* salt,
@@ -71,6 +91,62 @@ int PBKDF1(byte* output, const byte* passwd, int pLen, const byte* salt,
     return 0;
 }
 
+
+int PBKDF2(byte* output, const byte* passwd, int pLen, const byte* salt,
+           int sLen, int iterations, int kLen, int hashType)
+{
+    word32 i = 1;
+    int    hLen;
+    int    j;
+    Hmac   hmac;
+    byte   buffer[INNER_HASH_SIZE];  /* max size */
+
+    if (hashType == MD5) {
+        hLen = MD5_DIGEST_SIZE;
+    }
+    else if (hashType == SHA) {
+        hLen = SHA_DIGEST_SIZE;
+    }
+    else if (hashType == SHA256) {
+        hLen = SHA256_DIGEST_SIZE;
+    }
+#ifdef CYASSL_SHA512
+    else if (hashType == SHA512) {
+        hLen = SHA512_DIGEST_SIZE;
+    }
+#endif
+    else
+        return -1;  /* bad HMAC hashType */
+
+    HmacSetKey(&hmac, hashType, passwd, pLen);
+
+    while (kLen) {
+        int currentLen;
+        HmacUpdate(&hmac, salt, sLen);
+
+        /* encode i */
+        for (j = 0; j < 4; j++) {
+            byte b = i >> ((3-j) * 8);
+            HmacUpdate(&hmac, &b, 1);
+        }
+        HmacFinal(&hmac, buffer);
+
+        currentLen = min(kLen, hLen);
+        XMEMCPY(output, buffer, currentLen);
+
+        for (j = 1; j < iterations; j++) {
+            HmacUpdate(&hmac, buffer, hLen);
+            HmacFinal(&hmac, buffer);
+            xorbuf(output, buffer, currentLen);
+        }
+
+        output += currentLen;
+        kLen   -= currentLen;
+        i++;
+    }
+
+    return 0;
+}
 
 #endif /* NO_PWDBASED */
 
