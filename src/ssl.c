@@ -2453,6 +2453,24 @@ int CyaSSL_set_compression(SSL* ssl)
     }
 
 
+    void SHA1_Init(SHA_CTX* sha)
+    {
+        SHA_Init(sha);
+    }
+
+
+    void SHA1_Update(SHA_CTX* sha, const void* input, unsigned long sz)
+    {
+        SHA_Update(sha, input, sz);
+    }
+
+
+    void SHA1_Final(byte* input, SHA_CTX* sha)
+    {
+        SHA_Final(input, sha);
+    }
+
+
     const EVP_MD* EVP_md5(void)
     {
         static const char* type = "MD5";
