@@ -63,24 +63,29 @@
 
 SSL_CTX* SSL_CTX_new(SSL_METHOD* method)
 {
+    CYASSL_ENTER("SSL_CTX_new");
     SSL_CTX* ctx = (SSL_CTX*) XMALLOC(sizeof(SSL_CTX), 0, DYNAMIC_TYPE_CTX);
     if (ctx)
         InitSSL_Ctx(ctx, method);
 
+    CYASSL_LEAVE("SSL_CTX_new", 0);
     return ctx;
 }
 
 
 void SSL_CTX_free(SSL_CTX* ctx)
 {
+    CYASSL_ENTER("SSL_CTX_free");
     if (ctx)
         FreeSSL_Ctx(ctx);
+    CYASSL_LEAVE("SSL_CTX_free", 0);
 }
 
 
 SSL* SSL_new(SSL_CTX* ctx)
 {
 
+    CYASSL_ENTER("SSL_new");
     SSL* ssl = (SSL*) XMALLOC(sizeof(SSL), ctx->heap, DYNAMIC_TYPE_SSL);
     if (ssl)
         if (InitSSL(ssl, ctx) < 0) {
@@ -88,6 +93,7 @@ SSL* SSL_new(SSL_CTX* ctx)
             ssl = 0;
         }
 
+    CYASSL_LEAVE("SSL_new", 0);
     return ssl;
 }
 
@@ -123,6 +129,7 @@ int CyaSSL_negotiate(SSL* ssl)
 {
     int err = -1;
 
+    CYASSL_ENTER("CyaSSL_negotiate()");
 #ifndef NO_CYASSL_SERVER
     if (ssl->options.side == SERVER_END)
         err = SSL_accept(ssl);
@@ -132,6 +139,8 @@ int CyaSSL_negotiate(SSL* ssl)
     if (ssl->options.side == CLIENT_END)
         err = SSL_connect(ssl);
 #endif
+
+    CYASSL_LEAVE("CyaSSL_negotiate()", err);
 
     if (err == SSL_SUCCESS)
         return 0;
@@ -1867,7 +1876,7 @@ int CyaSSL_set_compression(SSL* ssl)
 #endif /* NO_PSK */
 
 
-#if defined(NO_FILESYSTEM) || defined(MICRIUM)
+/* used to be defined on NO_FILESYSTEM only, but are generally useful */
 
     /* CyaSSL extension allows DER files to be loaded from buffers as well */
     int CyaSSL_CTX_load_verify_buffer(SSL_CTX* ctx, const unsigned char* buffer,
@@ -1898,7 +1907,7 @@ int CyaSSL_set_compression(SSL* ssl)
         return ProcessBuffer(ctx, buffer, sz, SSL_FILETYPE_PEM, CA_TYPE);
     }
 
-#endif /* NO_FILESYSTEM || MICRIUM */
+/* old NO_FILESYSTEM end */
 
 
 #if defined(OPENSSL_EXTRA) || defined(GOAHEAD_WS)

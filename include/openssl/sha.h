@@ -26,6 +26,9 @@ void SHA1_Init(SHA_CTX*);
 void SHA1_Update(SHA_CTX*, const void*, unsigned long);
 void SHA1_Final(unsigned char*, SHA_CTX*);
 
+enum {
+    SHA_DIGEST_LENGTH = 20
+};
 
 
 #ifdef __cplusplus

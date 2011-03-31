@@ -33,14 +33,15 @@
 #include "prefix_hmac.h"
 #endif
 
-unsigned char* HMAC(const EVP_MD* evp_md, const void* key, int key_len,
-    const unsigned char* d, int n, unsigned char* md, unsigned int* md_len);
-
+#include "evp.h"
 
 #ifdef __cplusplus
     extern "C" {
 #endif
 
+
+unsigned char* HMAC(const EVP_MD* evp_md, const void* key, int key_len,
+    const unsigned char* d, int n, unsigned char* md, unsigned int* md_len);
 
 
 #ifdef __cplusplus

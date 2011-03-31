@@ -41,6 +41,9 @@
 /* Uncomment next line if using Mbed */
 /* #define MBED */
 
+#ifdef USE_CYASSL_CONFIG
+    #include "config.h"   /* may not want global HAVE_CONFIG_H */
+#endif
 
 #ifdef IPHONE
     #define SIZEOF_LONG_LONG 8

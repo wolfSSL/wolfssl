@@ -612,6 +612,7 @@ int FreeCyaSSL(void);   /* call when done to free session cache mutex        */
 int  CyaSSL_Debugging_ON(void);   /* turn logging on, only if compiled in */
 void CyaSSL_Debugging_OFF(void);  /* turn logging off */
 
+int CyaSSL_negotiate(SSL* ssl);  /* do accept or connect depedning on side */
 int CyaSSL_set_compression(SSL* ssl);  /* turn on CyaSSL data compression */
 
 int CyaSSL_CTX_use_NTRUPrivateKey_file(SSL_CTX*, const char*); /* load NTRU
@@ -633,14 +634,12 @@ int  CyaSSL_X509_get_serial_number(X509*, unsigned char*);
     #endif
 #endif
 
-#if defined(NO_FILESYSTEM) || defined(MICRIUM)
 
 int CyaSSL_CTX_load_verify_buffer(SSL_CTX*, const unsigned char*, long, int);
 int CyaSSL_CTX_use_certificate_buffer(SSL_CTX*, const unsigned char*, long,int);
 int CyaSSL_CTX_use_PrivateKey_buffer(SSL_CTX*, const unsigned char*, long, int);
 int CyaSSL_CTX_use_certificate_chain_buffer(SSL_CTX*,const unsigned char*,long);
 
-#endif /* NO_FILESYSTEM || MICRIUM */
 
 
 /* I/O callbacks */
