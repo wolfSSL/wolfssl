@@ -698,6 +698,8 @@ int InitSSL(SSL* ssl, SSL_CTX* ctx)
     /* SSL_CTX still owns certificate, key, and caList buffers */
     ssl->buffers.certificate = ctx->certificate;
     ssl->buffers.key = ctx->privateKey;
+    ssl->buffers.weOwnCert = 0;
+    ssl->buffers.weOwnKey  = 0;
     ssl->caList = ctx->caList;
 
 #ifdef OPENSSL_EXTRA
@@ -782,6 +784,12 @@ void SSL_ResourceFree(SSL* ssl)
     XFREE(ssl->buffers.serverDH_G.buffer, ssl->heap, DYNAMIC_TYPE_DH);
     XFREE(ssl->buffers.serverDH_P.buffer, ssl->heap, DYNAMIC_TYPE_DH);
     XFREE(ssl->buffers.domainName.buffer, ssl->heap, DYNAMIC_TYPE_DOMAIN);
+
+    if (ssl->buffers.weOwnCert)
+        XFREE(ssl->buffers.certificate.buffer, ssl->heap, DYNAMIC_TYPE_CERT);
+    if (ssl->buffers.weOwnKey)
+        XFREE(ssl->buffers.key.buffer, ssl->heap, DYNAMIC_TYPE_KEY);
+
     FreeRsaKey(&ssl->peerRsaKey);
     if (ssl->buffers.inputBuffer.dynamicFlag)
         ShrinkInputBuffer(ssl, FORCED_FREE);
@@ -1395,7 +1403,10 @@ static int DoCertificate(SSL* ssl, byte* input, word32* inOutIdx)
 
         c24to32(&input[i], &certSz);
         i += CERT_HEADER_SZ;
-        
+       
+        if (listSz > MAX_RECORD_SIZE || certSz > MAX_RECORD_SIZE)
+            return BUFFER_E;
+
         myCert.length = certSz;
         myCert.buffer = input + i;
         i += certSz;
@@ -1912,7 +1923,7 @@ static int DoAlert(SSL* ssl, byte* input, word32* inOutIdx, int* type)
     return level;
 }
 
-static int GetInputData(SSL *ssl, size_t size)
+static int GetInputData(SSL *ssl, word32 size)
 {
     int in;
     int inSz;
@@ -3314,14 +3325,14 @@ int SetCipherList(SSL_CTX* ctx, const char* list)
     if (XSTRNCMP(haystack, "ALL", 3) == 0) return 1;  /* CyaSSL defualt */
 
     for(;;) {
-        size_t len;
+        word32 len;
         prev = haystack;
         haystack = XSTRSTR(haystack, needle);
 
         if (!haystack)    /* last cipher */
             len = min(sizeof(name), XSTRLEN(prev));
         else
-            len = min(sizeof(name), (size_t)(haystack - prev));
+            len = min(sizeof(name), (word32)(haystack - prev));
 
         XSTRNCPY(name, prev, len);
         name[(len == sizeof(name)) ? len - 1 : len] = 0;

@@ -64,7 +64,7 @@ void EVP_MD_CTX_init(EVP_MD_CTX* ctx);
 int  EVP_MD_CTX_cleanup(EVP_MD_CTX* ctx);
 
 int EVP_DigestInit(EVP_MD_CTX* ctx, const EVP_MD* type);
-int EVP_DigestUpdate(EVP_MD_CTX* ctx, const void* data, size_t sz);
+int EVP_DigestUpdate(EVP_MD_CTX* ctx, const void* data, unsigned long sz);
 int EVP_DigestFinal(EVP_MD_CTX* ctx, unsigned char* md, unsigned int* s);
 int EVP_DigestFinal_ex(EVP_MD_CTX* ctx, unsigned char* md, unsigned int* s);
 

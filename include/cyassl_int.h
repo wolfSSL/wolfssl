@@ -835,8 +835,8 @@ enum AcceptState {
 
 
 typedef struct Buffers {
-    buffer          certificate;            /* SSL_CTX owns */
-    buffer          key;                    /* SSL_CTX owns */
+    buffer          certificate;            /* SSL_CTX owns, unless we own */
+    buffer          key;                    /* SSL_CTX owns, unless we own */
     buffer          domainName;             /* for client check */
     buffer          serverDH_P;
     buffer          serverDH_G;
@@ -849,6 +849,8 @@ typedef struct Buffers {
                                               when got WANT_WRITE            */
     int             plainSz;               /* plain text bytes in buffer to send
                                               when got WANT_WRITE            */
+    byte            weOwnCert;             /* SSL own cert flag */
+    byte            weOwnKey;              /* SSL own key  flag */
 } Buffers;
 
 

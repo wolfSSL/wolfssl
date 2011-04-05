@@ -39,7 +39,7 @@
     #include "prefix_ssl.h"
 #endif
 
-#define CYASSL_VERSION "1.9.0"
+#define CYASSL_VERSION "1.9.5"
 
 #undef X509_NAME   /* wincrypt.h clash */
 
@@ -194,7 +194,7 @@ long SSL_CTX_set_session_cache_mode(SSL_CTX*, long);
 int  SSL_CTX_set_cipher_list(SSL_CTX*, const char*);
 
 char* ERR_error_string(unsigned long,char*);
-void  ERR_error_string_n(unsigned long e, char *buf, size_t len);
+void  ERR_error_string_n(unsigned long e, char *buf, unsigned long len);
 
 
 /* extras */
@@ -228,7 +228,7 @@ SSL_METHOD* SSLv2_client_method(void);
 SSL_METHOD* SSLv2_server_method(void);
 
 void MD4_Init(MD4_CTX*);
-void MD4_Update(MD4_CTX*, const void*, size_t);
+void MD4_Update(MD4_CTX*, const void*, unsigned long);
 void MD4_Final(unsigned char*, MD4_CTX*);
 
 BIO* BIO_new(BIO_METHOD*);
@@ -258,7 +258,7 @@ int  SSLeay_add_ssl_algorithms(void);
 int  SSLeay_add_all_algorithms(void);
 
 void        RAND_screen(void);
-const char* RAND_file_name(char*, size_t);
+const char* RAND_file_name(char*, unsigned long);
 int         RAND_write_file(const char*);
 int         RAND_load_file(const char*, long);
 int         RAND_egd(const char*);
@@ -635,11 +635,16 @@ int  CyaSSL_X509_get_serial_number(X509*, unsigned char*);
 #endif
 
 
+/* SSL_CTX versions */
 int CyaSSL_CTX_load_verify_buffer(SSL_CTX*, const unsigned char*, long, int);
 int CyaSSL_CTX_use_certificate_buffer(SSL_CTX*, const unsigned char*, long,int);
 int CyaSSL_CTX_use_PrivateKey_buffer(SSL_CTX*, const unsigned char*, long, int);
 int CyaSSL_CTX_use_certificate_chain_buffer(SSL_CTX*,const unsigned char*,long);
 
+/* SSL versions */
+int CyaSSL_use_certificate_buffer(SSL*, const unsigned char*, long,int);
+int CyaSSL_use_PrivateKey_buffer(SSL*, const unsigned char*, long, int);
+int CyaSSL_use_certificate_chain_buffer(SSL*,const unsigned char*,long);
 
 
 /* I/O callbacks */
