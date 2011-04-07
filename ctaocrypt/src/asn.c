@@ -876,7 +876,7 @@ static int GetCertHeader(DecodedCert* cert, word32 inSz)
         return ASN_PARSE_E;
 
     if (GetInt(&mpi, cert->source, &cert->srcIdx) < 0) 
-        ret = ASN_PARSE_E;
+        return ASN_PARSE_E;
 
     len = mp_unsigned_bin_size(&mpi);
     if (len > SERIAL_SIZE)
