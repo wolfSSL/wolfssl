@@ -31,6 +31,7 @@
 #include "error.h"
 #include "pwdbased.h"
 #include "des3.h"
+#include "sha256.h"
 
 #ifdef HAVE_NTRU
     #include "crypto_ntru.h"
@@ -1468,12 +1469,14 @@ static word32 SetAlgoID(int algoOID, byte* output, int type)
     /* adding TAG_NULL and 0 to end */
     
     /* hashTypes */
-    static const byte shaAlgoID[] = { 0x2b, 0x0e, 0x03, 0x02, 0x1a,
-                                      0x05, 0x00 };
-    static const byte md5AlgoID[] = { 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d,
-                                      0x02, 0x05, 0x05, 0x00  };
-    static const byte md2AlgoID[] = { 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d,
-                                      0x02, 0x02, 0x05, 0x00};
+    static const byte shaAlgoID[]    = { 0x2b, 0x0e, 0x03, 0x02, 0x1a,
+                                         0x05, 0x00 };
+    static const byte sha256AlgoID[] = { 0x60, 0x86, 0x48, 0x01, 0x65, 0x03,
+                                         0x04, 0x02, 0x01, 0x05, 0x00 };
+    static const byte md5AlgoID[]    = { 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d,
+                                         0x02, 0x05, 0x05, 0x00  };
+    static const byte md2AlgoID[]    = { 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d,
+                                         0x02, 0x02, 0x05, 0x00};
 
     /* sigTypes */
     static const byte md5wRSA_AlgoID[] = { 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d,
@@ -1494,6 +1497,11 @@ static word32 SetAlgoID(int algoOID, byte* output, int type)
         case SHAh:
             algoSz = sizeof(shaAlgoID);
             algoName = shaAlgoID;
+            break;
+
+        case SHA256h:
+            algoSz = sizeof(sha256AlgoID);
+            algoName = sha256AlgoID;
             break;
 
         case MD2h:
@@ -1572,7 +1580,11 @@ word32 EncodeSignature(byte* out, const byte* digest, word32 digSz, int hashOID)
 static int ConfirmSignature(DecodedCert* cert, const byte* key, word32 keySz,
                             word32 keyOID)
 {
-    byte digest[SHA_DIGEST_SIZE]; /* max size */
+#ifndef NO_SHA256
+    byte digest[SHA256_DIGEST_SIZE]; /* max size */
+#else
+    byte digest[SHA_DIGEST_SIZE];   /* max size */
+#endif
     int  hashType, digestSz, ret;
 
     if (cert->signatureOID == MD5wRSA) {
@@ -1594,6 +1606,17 @@ static int ConfirmSignature(DecodedCert* cert, const byte* key, word32 keySz,
         hashType = SHAh;
         digestSz = SHA_DIGEST_SIZE;
     }
+#ifndef NO_SHA256
+    else if (cert->signatureOID == SHA256wRSA) {
+        Sha256 sha256;
+        InitSha256(&sha256);
+        Sha256Update(&sha256, cert->source + cert->certBegin,
+                  cert->sigIndex - cert->certBegin);
+        Sha256Final(&sha256, digest);
+        hashType = SHA256h;
+        digestSz = SHA256_DIGEST_SIZE;
+    }
+#endif
     else
         return 0; /* ASN_SIG_HASH_E; */
 
@@ -1615,8 +1638,9 @@ static int ConfirmSignature(DecodedCert* cert, const byte* key, word32 keySz,
         else {
             XMEMCPY(plain, cert->signature, cert->sigLength);
             if ( (verifySz = RsaSSL_VerifyInline(plain, cert->sigLength, &out,
-                                           &pubKey)) < 0)
+                                           &pubKey)) < 0) {
                 ret = 0; /* ASN_VERIFY_E; */
+            }
             else {
                 /* make sure we're right justified */
                 sigSz = EncodeSignature(encodedSig, digest, digestSz, hashType);
@@ -1624,6 +1648,26 @@ static int ConfirmSignature(DecodedCert* cert, const byte* key, word32 keySz,
                     ret = 0; /* ASN_VERIFY_MATCH_E; */
                 else
                     ret = 1; /* match */
+
+#ifdef CYASSL_DEBUG_ENCODING
+                {
+                int x;
+                printf("cyassl encodedSig:\n");
+                for (x = 0; x < sigSz; x++) {
+                    printf("%02x ", encodedSig[x]);
+                    if ( (x % 16) == 15)
+                        printf("\n");
+                }
+                printf("\n");
+                printf("actual digest:\n");
+                for (x = 0; x < verifySz; x++) {
+                    printf("%02x ", out[x]);
+                    if ( (x % 16) == 15)
+                        printf("\n");
+                }
+                printf("\n");
+                }
+#endif /* CYASSL_DEBUG_ENCODING */
             }
         }
         FreeRsaKey(&pubKey);
@@ -1646,8 +1690,9 @@ static int ConfirmSignature(DecodedCert* cert, const byte* key, word32 keySz,
         return 0;  /* ASN_VERIFY_E */
     }
 #endif /* HAVE_ECC */
-    else
+    else {
         return 0; /* ASN_SIG_KEY_E; */
+    }
 }
 
 

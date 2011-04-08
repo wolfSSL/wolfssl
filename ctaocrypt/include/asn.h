@@ -102,7 +102,7 @@ enum Misc_ASN {
     MAX_SEQ_SZ          =   5,     /* enum(seq | con) + length(4) */  
     MAX_SET_SZ          =   5,     /* enum(set | con) + length(4) */  
     MAX_VERSION_SZ      =   5,     /* enum + id + version(byte) + (header(2))*/
-    MAX_ENCODED_DIG_SZ  =  25,     /* sha + enum(bit or octet) + legnth(4) */
+    MAX_ENCODED_DIG_SZ  =  73,     /* sha512 + enum(bit or octet) + legnth(4) */
     MAX_RSA_INT_SZ      = 517,     /* RSA raw sz 4096 for bits + tag + len(4) */
     MAX_NTRU_KEY_SZ     = 610,     /* NTRU 112 bit public key */
     MAX_NTRU_ENC_SZ     = 628,     /* NTRU 112 bit DER public encoding */
@@ -121,17 +121,19 @@ enum Oid_Types {
 
 
 enum Sig_Sum  {
-    SHAwDSA   = 517,
-    MD2wRSA   = 646,
-    MD5wRSA   = 648,
-    SHAwRSA   = 649,
-    SHAwECDSA = 520
+    SHAwDSA    = 517,
+    MD2wRSA    = 646,
+    MD5wRSA    = 648,
+    SHAwRSA    = 649,
+    SHAwECDSA  = 520,
+    SHA256wRSA = 655
 };
 
 enum Hash_Sum  {
-    MD2h  = 646,
-    MD5h  = 649,
-    SHAh  =  88
+    MD2h    = 646,
+    MD5h    = 649,
+    SHAh    =  88,
+    SHA256h = 414
 };
 
 enum Key_Sum {
