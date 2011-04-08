@@ -126,7 +126,8 @@ enum Sig_Sum  {
     MD5wRSA    = 648,
     SHAwRSA    = 649,
     SHAwECDSA  = 520,
-    SHA256wRSA = 655
+    SHA256wRSA   = 655,
+    SHA256wECDSA = 524
 };
 
 enum Hash_Sum  {

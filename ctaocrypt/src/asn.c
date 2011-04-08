@@ -1583,7 +1583,7 @@ static int ConfirmSignature(DecodedCert* cert, const byte* key, word32 keySz,
 #ifndef NO_SHA256
     byte digest[SHA256_DIGEST_SIZE]; /* max size */
 #else
-    byte digest[SHA_DIGEST_SIZE];   /* max size */
+    byte digest[SHA_DIGEST_SIZE];    /* max size */
 #endif
     int  hashType, digestSz, ret;
 
@@ -1607,7 +1607,8 @@ static int ConfirmSignature(DecodedCert* cert, const byte* key, word32 keySz,
         digestSz = SHA_DIGEST_SIZE;
     }
 #ifndef NO_SHA256
-    else if (cert->signatureOID == SHA256wRSA) {
+    else if (cert->signatureOID == SHA256wRSA ||
+             cert->signatureOID == SHA256wECDSA) {
         Sha256 sha256;
         InitSha256(&sha256);
         Sha256Update(&sha256, cert->source + cert->certBegin,
