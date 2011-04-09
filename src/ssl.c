@@ -523,7 +523,7 @@ static int AddCA(SSL_CTX* ctx, buffer der)
 
 
     static int ProcessBuffer(SSL_CTX* ctx, const unsigned char* buff,
-                             long sz, int format, int type, SSL* ssl)
+                        long sz, int format, int type, SSL* ssl, long* used)
     {
         EncryptedInfo info;
         buffer        der;        /* holds DER or RAW (for NTRU) */
@@ -534,6 +534,9 @@ static int AddCA(SSL_CTX* ctx, buffer der)
         info.ctx      = ctx;
         info.consumed = 0;
         der.buffer    = 0;
+
+        if (used)
+            *used = sz;     /* used bytes default to sz, PEM chain may shorten*/
 
         if (format != SSL_FILETYPE_ASN1 && format != SSL_FILETYPE_PEM 
                                         && format != SSL_FILETYPE_RAW)
@@ -552,6 +555,8 @@ static int AddCA(SSL_CTX* ctx, buffer der)
                 XFREE(der.buffer, ctx->heap, dynamicType);
                 return ret;
             }
+            if (used)
+                *used = info.consumed;
             /* we may have a cert chain */
             if (type == CERT_TYPE && info.consumed < sz) {
                 /* allow a chain of MAX_DEPTH plus subject, 5 by default */
@@ -577,7 +582,9 @@ static int AddCA(SSL_CTX* ctx, buffer der)
                             idx += CERT_HEADER_SZ;
                             XMEMCPY(&chainBuffer[idx], part.buffer,part.length);
                             idx += part.length;
-                            consumed += info.consumed;
+                            consumed  += info.consumed;
+                            if (used)
+                                *used += info.consumed;
                         }
                     }
 
@@ -753,6 +760,30 @@ static int AddCA(SSL_CTX* ctx, buffer der)
     #define XSEEK_END  FS_SEEK_END
 #endif
 
+
+/* CA PEM file, may have multiple/chain certs to process */
+static int ProcessChainBuffer(SSL_CTX* ctx, const unsigned char* buff,
+                            long sz, int format, int type, SSL* ssl)
+{
+    long used = 0;
+    int  ret  = 0;
+
+    CYASSL_MSG("Processing CA PEM file");
+    while (used < sz) {
+        long consumed = 0;
+
+        ret = ProcessBuffer(ctx, buff + used, sz - used, format, type, ssl,
+                            &consumed);
+        if (ret < 0)
+            break;
+
+        CYASSL_MSG("   Processed a CA");
+        used += consumed;
+    }
+    return ret;
+}
+
+
 static int ProcessFile(SSL_CTX* ctx, const char* fname, int format, int type,
                        SSL* ssl)
 {
@@ -779,8 +810,12 @@ static int ProcessFile(SSL_CTX* ctx, const char* fname, int format, int type,
 
     if ( (ret = XFREAD(buffer, sz, 1, file)) < 0)
         ret = SSL_BAD_FILE;
-    else
-        ret = ProcessBuffer(ctx, buffer, sz, format, type, ssl);
+    else {
+        if (type == CA_TYPE && format == SSL_FILETYPE_PEM) 
+            ret = ProcessChainBuffer(ctx, buffer, sz, format, type, ssl);
+        else
+            ret = ProcessBuffer(ctx, buffer, sz, format, type, ssl, NULL);
+    }
 
     XFCLOSE(file);
     if (dynamic) XFREE(buffer, ctx->heap, DYNAMIC_TYPE_FILE);
@@ -1986,21 +2021,24 @@ int CyaSSL_set_compression(SSL* ssl)
     int CyaSSL_CTX_load_verify_buffer(SSL_CTX* ctx, const unsigned char* buffer,
                                       long sz, int format)
     {
-        return ProcessBuffer(ctx, buffer, sz, format, CA_TYPE, NULL);
+        if (format == SSL_FILETYPE_PEM)
+            return ProcessChainBuffer(ctx, buffer, sz, format, CA_TYPE, NULL);
+        else
+            return ProcessBuffer(ctx, buffer, sz, format, CA_TYPE, NULL, NULL);
     }
 
 
     int CyaSSL_CTX_use_certificate_buffer(SSL_CTX* ctx,
                                  const unsigned char* buffer,long sz,int format)
     {
-        return ProcessBuffer(ctx, buffer, sz, format, CERT_TYPE, NULL);
+        return ProcessBuffer(ctx, buffer, sz, format, CERT_TYPE, NULL, NULL);
     }
 
 
     int CyaSSL_CTX_use_PrivateKey_buffer(SSL_CTX* ctx,
                                  const unsigned char* buffer,long sz,int format)
     {
-        return ProcessBuffer(ctx, buffer, sz, format, PRIVATEKEY_TYPE, NULL);
+        return ProcessBuffer(ctx, buffer, sz, format,PRIVATEKEY_TYPE,NULL,NULL);
     }
 
 
@@ -2008,20 +2046,22 @@ int CyaSSL_set_compression(SSL* ssl)
                                  const unsigned char* buffer, long sz)
     {
         /* add first to ctx, all tested implementations support this */
-        return ProcessBuffer(ctx, buffer, sz, SSL_FILETYPE_PEM, CA_TYPE, NULL);
+        return ProcessBuffer(ctx, buffer, sz, SSL_FILETYPE_PEM, CA_TYPE, NULL,
+                             NULL);
     }
 
     int CyaSSL_use_certificate_buffer(SSL* ssl,
                                  const unsigned char* buffer,long sz,int format)
     {
-        return ProcessBuffer(ssl->ctx, buffer, sz, format, CERT_TYPE, ssl);
+        return ProcessBuffer(ssl->ctx, buffer, sz, format, CERT_TYPE, ssl,NULL);
     }
 
 
     int CyaSSL_use_PrivateKey_buffer(SSL* ssl,
                                  const unsigned char* buffer,long sz,int format)
     {
-        return ProcessBuffer(ssl->ctx, buffer, sz, format, PRIVATEKEY_TYPE,ssl);
+        return ProcessBuffer(ssl->ctx, buffer, sz, format, PRIVATEKEY_TYPE, 
+                             ssl, NULL);
     }
 
 
@@ -2030,7 +2070,7 @@ int CyaSSL_set_compression(SSL* ssl)
     {
         /* add first to ctx, all tested implementations support this */
         return ProcessBuffer(ssl->ctx, buffer, sz, SSL_FILETYPE_PEM, CA_TYPE,
-                             ssl);
+                             ssl, NULL);
     }
 
 /* old NO_FILESYSTEM end */
