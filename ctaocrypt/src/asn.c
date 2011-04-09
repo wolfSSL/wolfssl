@@ -1180,10 +1180,14 @@ static int GetName(DecodedCert* cert, int nameType)
         else {
             /* skip */
             byte email = FALSE;
+            byte uid   = FALSE;
             int  adv;
 
             if (joint[0] == 0x2a && joint[1] == 0x86)  /* email id hdr */
                 email = TRUE;
+
+            if (joint[0] == 0x9  && joint[1] == 0x92)  /* uid id hdr */
+                uid = TRUE;
 
             cert->srcIdx += oidSz + 1;
 
@@ -1205,6 +1209,16 @@ static int GetName(DecodedCert* cert, int nameType)
                     cert->subjectEmailLen = adv;
                 }
 #endif /* CYASSL_CERT_GEN */
+
+                XMEMCPY(&full[idx], &cert->source[cert->srcIdx], adv);
+                idx += adv;
+            }
+
+            if (uid) {
+                if (5 > (ASN_NAME_MAX - idx))
+                    return ASN_PARSE_E; 
+                XMEMCPY(&full[idx], "/UID=", 5);
+                idx += 5;
 
                 XMEMCPY(&full[idx], &cert->source[cert->srcIdx], adv);
                 idx += adv;
