@@ -92,6 +92,9 @@
 
 typedef byte word24[3];
 
+/* used by ssl.c and cyassl_int.c */
+void c32to24(word32 in, word24 out);
+
 /* Define or comment out the cipher suites you'd like to be compiled in
    make sure to use at least one BUILD_SSL_xxx or BUILD_TLS_xxx is defined
 
@@ -576,6 +579,8 @@ struct SSL_CIPHER {
 struct SSL_CTX {
     SSL_METHOD* method;
     buffer      certificate;
+    buffer      certChain;
+                 /* chain after self, in DER, with leading size for each cert */
     buffer      privateKey;
     Signer*     caList;           /* SSL_CTX owns this, SSL will reference */
     Suites      suites;
@@ -837,6 +842,8 @@ enum AcceptState {
 typedef struct Buffers {
     buffer          certificate;            /* SSL_CTX owns, unless we own */
     buffer          key;                    /* SSL_CTX owns, unless we own */
+    buffer          certChain;              /* SSL_CTX owns */
+                 /* chain after self, in DER, with leading size for each cert */
     buffer          domainName;             /* for client check */
     buffer          serverDH_P;
     buffer          serverDH_G;
@@ -1029,11 +1036,12 @@ enum {
 
 
 typedef struct EncryptedInfo {
-    char     name[NAME_SZ];
-    byte     iv[IV_SZ];
-    word32   ivSz;
-    byte     set;
-    SSL_CTX* ctx;
+    char     name[NAME_SZ];    /* encryption name */
+    byte     iv[IV_SZ];        /* encrypted IV */
+    word32   ivSz;             /* encrypted IV size */
+    long     consumed;         /* tracks PEM bytes consumed */
+    byte     set;              /* if encryption set */
+    SSL_CTX* ctx;              /* CTX owner */
 } EncryptedInfo;
 
 

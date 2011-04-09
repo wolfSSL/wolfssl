@@ -364,6 +364,8 @@ static int AddCA(SSL_CTX* ctx, buffer der)
 #endif /* NO_SESSION_CACHE */
 
 
+    /* Remove PEM header/footer, convert to ASN1, store any encrypted data 
+       info->consumed tracks of PEM bytes consumed in case multiple parts */
     static int PemToDer(const unsigned char* buff, long sz, int type,
                       buffer* der, void* heap, EncryptedInfo* info, int* eccKey)
     {
@@ -371,6 +373,7 @@ static int AddCA(SSL_CTX* ctx, buffer der)
         char  footer[PEM_LINE_LEN];
         char* headerEnd;
         char* footerEnd;
+        char* consumedEnd;
         long  neededSz;
         int   pkcs8    = 0;
         int   pkcs8Enc = 0;
@@ -475,6 +478,18 @@ static int AddCA(SSL_CTX* ctx, buffer der)
         footerEnd = XSTRSTR((char*)buff, footer);
         if (!footerEnd) return SSL_BAD_FILE;
 
+        consumedEnd = footerEnd + XSTRLEN(footer);
+
+        /* get next line */
+        if (consumedEnd[0] == '\n')
+            consumedEnd++;
+        else if (consumedEnd[1] == '\n')
+            consumedEnd += 2;
+        else
+            return SSL_BAD_FILE;
+
+        info->consumed = (long)(consumedEnd - (char*)buff);
+
         /* set up der buffer */
         neededSz = (long)(footerEnd - headerEnd);
         if (neededSz > sz || neededSz < 0) return SSL_BAD_FILE;
@@ -515,9 +530,10 @@ static int AddCA(SSL_CTX* ctx, buffer der)
         int           dynamicType;
         int           eccKey = 0;
 
-        info.set   = 0;
-        info.ctx   = ctx;
-        der.buffer = 0;
+        info.set      = 0;
+        info.ctx      = ctx;
+        info.consumed = 0;
+        der.buffer    = 0;
 
         if (format != SSL_FILETYPE_ASN1 && format != SSL_FILETYPE_PEM 
                                         && format != SSL_FILETYPE_RAW)
@@ -535,6 +551,50 @@ static int AddCA(SSL_CTX* ctx, buffer der)
             if (ret < 0) {
                 XFREE(der.buffer, ctx->heap, dynamicType);
                 return ret;
+            }
+            /* we may have a cert chain */
+            if (type == CERT_TYPE && info.consumed < sz) {
+                /* allow a chain of MAX_DEPTH plus subject, 5 by default */
+                byte   chainBuffer[MAX_X509_SIZE * MAX_CHAIN_DEPTH];
+                long   consumed = info.consumed;
+                word32 idx = 0;
+
+                CYASSL_MSG("Processing Cert Chain");
+                while (consumed < sz) {
+                    buffer part;
+                    info.consumed = 0;
+                    part.buffer = 0;
+
+                    ret = PemToDer(buff + consumed, sz - consumed, type, &part,
+                                   ctx->heap, &info, &eccKey);
+                    if (ret == 0) {
+                        if ( (idx + part.length) > sizeof(chainBuffer)) {
+                            CYASSL_MSG("   Cert Chain bigger than buffer");
+                            ret = BUFFER_E;
+                        }
+                        else {
+                            c32to24(part.length, &chainBuffer[idx]);
+                            idx += CERT_HEADER_SZ;
+                            XMEMCPY(&chainBuffer[idx], part.buffer,part.length);
+                            idx += part.length;
+                            consumed += info.consumed;
+                        }
+                    }
+
+                    XFREE(part.buffer, ctx->heap, dynamicType);
+                    if (ret < 0) {
+                        CYASSL_MSG("   Error in Cert in Chain");
+                        return ret;
+                    }
+                    CYASSL_MSG("   Consumed another Cert in Chain");
+                }
+                CYASSL_MSG("Finished Processing Cert Chain");
+                ctx->certChain.buffer = (byte*)XMALLOC(idx, ctx->heap,
+                                                       dynamicType);
+                if (ctx->certChain.buffer == NULL)
+                    return MEMORY_E;
+                ctx->certChain.length = idx;
+                XMEMCPY(ctx->certChain.buffer, chainBuffer, idx);
             }
         }
         else {  /* ASN1 (DER) or RAW (NTRU) */
@@ -830,7 +890,7 @@ int SSL_CTX_use_PrivateKey_file(SSL_CTX* ctx, const char* file, int format)
 
 int SSL_CTX_use_certificate_chain_file(SSL_CTX* ctx, const char* file)
 {
-    /* add first to ctx, all tested implementations support this */
+   /* procces up to MAX_CHAIN_DEPTH plus subject cert */
    if (ProcessFile(ctx, file, SSL_FILETYPE_PEM, CERT_TYPE, NULL) == SSL_SUCCESS)
        return SSL_SUCCESS;
 

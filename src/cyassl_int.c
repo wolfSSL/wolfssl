@@ -148,7 +148,8 @@ static byte GetEntropy(ENTROPY_CMD cmd, byte* out)
 
 #endif /* HAVE_NTRU */
 
-static INLINE void c32to24(word32 in, word24 out)
+/* used by ssl.c too */
+void c32to24(word32 in, word24 out)
 {
     out[0] = (in >> 16) & 0xff;
     out[1] = (in >>  8) & 0xff;
@@ -318,6 +319,7 @@ void InitSSL_Ctx(SSL_CTX* ctx, SSL_METHOD* method)
 {
     ctx->method = method;
     ctx->certificate.buffer = 0;
+    ctx->certChain.buffer   = 0;
     ctx->privateKey.buffer  = 0;
     ctx->haveDH             = 0;
     ctx->haveNTRU           = 0;    /* start off */
@@ -376,6 +378,7 @@ void SSL_CtxResourceFree(SSL_CTX* ctx)
 {
     XFREE(ctx->privateKey.buffer, ctx->heap, DYNAMIC_TYPE_KEY);
     XFREE(ctx->certificate.buffer, ctx->heap, DYNAMIC_TYPE_CERT);
+    XFREE(ctx->certChain.buffer, ctx->heap, DYNAMIC_TYPE_CERT);
     XFREE(ctx->method, ctx->heap, DYNAMIC_TYPE_METHOD);
 
     FreeSigners(ctx->caList, ctx->heap);
@@ -611,6 +614,7 @@ int InitSSL(SSL* ssl, SSL_CTX* ctx)
    
     ssl->buffers.certificate.buffer   = 0;
     ssl->buffers.key.buffer           = 0;
+    ssl->buffers.certChain.buffer     = 0;
     ssl->buffers.inputBuffer.length   = 0;
     ssl->buffers.inputBuffer.idx      = 0;
     ssl->buffers.inputBuffer.buffer = ssl->buffers.inputBuffer.staticBuffer;
@@ -695,8 +699,9 @@ int InitSSL(SSL* ssl, SSL_CTX* ctx)
     ssl->options.partialWrite  = ctx->partialWrite;
     ssl->options.quietShutdown = ctx->quietShutdown;
 
-    /* SSL_CTX still owns certificate, key, and caList buffers */
+    /* SSL_CTX still owns certificate, certChain, key, and caList buffers */
     ssl->buffers.certificate = ctx->certificate;
+    ssl->buffers.certChain = ctx->certChain;
     ssl->buffers.key = ctx->privateKey;
     ssl->buffers.weOwnCert = 0;
     ssl->buffers.weOwnKey  = 0;
@@ -785,6 +790,7 @@ void SSL_ResourceFree(SSL* ssl)
     XFREE(ssl->buffers.serverDH_P.buffer, ssl->heap, DYNAMIC_TYPE_DH);
     XFREE(ssl->buffers.domainName.buffer, ssl->heap, DYNAMIC_TYPE_DOMAIN);
 
+    /* SSL_CTX always owns certChain */
     if (ssl->buffers.weOwnCert)
         XFREE(ssl->buffers.certificate.buffer, ssl->heap, DYNAMIC_TYPE_CERT);
     if (ssl->buffers.weOwnKey)
@@ -2534,6 +2540,12 @@ int SendCertificate(SSL* ssl)
         /* list + cert size */
         length = certSz + 2 * CERT_HEADER_SZ;
         listSz = certSz + CERT_HEADER_SZ;
+
+        /* may need to send rest of chain, already has leading size(s) */
+        if (ssl->buffers.certChain.buffer) {
+            length += ssl->buffers.certChain.length;
+            listSz += ssl->buffers.certChain.length;
+        }
     }
     sendSz = length + RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
 
@@ -2564,6 +2576,13 @@ int SendCertificate(SSL* ssl)
         i += CERT_HEADER_SZ;
         XMEMCPY(output + i, ssl->buffers.certificate.buffer, certSz);
         i += certSz;
+
+        /* send rest of chain? */
+        if (ssl->buffers.certChain.buffer) {
+            XMEMCPY(output + i, ssl->buffers.certChain.buffer,
+                                ssl->buffers.certChain.length);
+            i += ssl->buffers.certChain.length;
+        }
     }
     HashOutput(ssl, output, sendSz, 0);
     #ifdef CYASSL_CALLBACKS

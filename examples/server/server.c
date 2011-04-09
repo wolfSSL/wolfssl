@@ -96,9 +96,9 @@ THREAD_RETURN CYASSL_API server_test(void* args)
                 != SSL_SUCCESS)
             err_sys("can't load ntru key file");
     #else  /* normal */
-        if (SSL_CTX_use_certificate_file(ctx, svrCert, SSL_FILETYPE_PEM)
+        if (SSL_CTX_use_certificate_chain_file(ctx, svrCert)
                 != SSL_SUCCESS)
-            err_sys("can't load server cert file");
+            err_sys("can't load server cert chain file");
 
         if (SSL_CTX_use_PrivateKey_file(ctx, svrKey, SSL_FILETYPE_PEM)
                 != SSL_SUCCESS)
