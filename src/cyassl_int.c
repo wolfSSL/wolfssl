@@ -1390,8 +1390,11 @@ static int DoCertificate(SSL* ssl, byte* input, word32* inOutIdx)
     word32 listSz, i = *inOutIdx;
     int    ret = 0;
     int    anyError = 0;
-    int    firstTime = 1;  /* peer's is at front */
+    int    firstTime = 1;     /* peer's is at front */
+    int    totalCerts = 0;    /* number of certs in certs buffer */
+    int    count;
     char   domain[ASN_NAME_MAX];
+    buffer certs[MAX_CHAIN_DEPTH];
 
     #ifdef CYASSL_CALLBACKS
         if (ssl->hsInfoOn) AddPacketName("Certificate", &ssl->handShakeInfo);
@@ -1399,13 +1402,16 @@ static int DoCertificate(SSL* ssl, byte* input, word32* inOutIdx)
     #endif
     c24to32(&input[i], &listSz);
     i += CERT_HEADER_SZ;
-    
+
+    CYASSL_MSG("Loading peer's cert chain");
+    /* first put cert chain into buffer so can verify top down
+       we're sent bottom up */
     while (listSz) {
         /* cert size */
-        buffer      myCert;
-        word32      certSz;
-        DecodedCert dCert;
-        word32      idx = 0;
+        word32 certSz;
+
+        if (totalCerts >= MAX_CHAIN_DEPTH)
+            return BUFFER_E;
 
         c24to32(&input[i], &certSz);
         i += CERT_HEADER_SZ;
@@ -1413,49 +1419,70 @@ static int DoCertificate(SSL* ssl, byte* input, word32* inOutIdx)
         if (listSz > MAX_RECORD_SIZE || certSz > MAX_RECORD_SIZE)
             return BUFFER_E;
 
-        myCert.length = certSz;
-        myCert.buffer = input + i;
-        i += certSz;
-
-        listSz -= certSz + CERT_HEADER_SZ;
-
-        if (ret != 0 && anyError == 0)
-            anyError = ret;   /* save error from last time */
+        certs[totalCerts].length = certSz;
+        certs[totalCerts].buffer = input + i;
 
 #ifdef SESSION_CERTS
         if (ssl->session.chain.count < MAX_CHAIN_DEPTH &&
-                                       myCert.length < MAX_X509_SIZE) {
-            ssl->session.chain.certs[ssl->session.chain.count].length =
-                 myCert.length;
+                                       certSz < MAX_X509_SIZE) {
+            ssl->session.chain.certs[ssl->session.chain.count].length = certSz;
             XMEMCPY(ssl->session.chain.certs[ssl->session.chain.count].buffer,
-                   myCert.buffer, myCert.length);
+                    input + i, certSz);
             ssl->session.chain.count++;
         } else {
             CYASSL_MSG("Couldn't store chain cert for session");
         }
 #endif
 
+        i += certSz;
+        listSz -= certSz + CERT_HEADER_SZ;
+
+        totalCerts++;
+        CYASSL_MSG("    Put another cert into chain");
+    }
+
+    count = totalCerts;
+
+    /* verify up to peer's first */
+    while (count > 1) {
+        buffer myCert = certs[count - 1];
+        DecodedCert dCert;
+
         InitDecodedCert(&dCert, myCert.buffer, ssl->heap);
         ret = ParseCertRelative(&dCert, myCert.length, CERT_TYPE,
                                 !ssl->options.verifyNone, ssl->caList);
+        if (ret == 0 && !IsCA(ssl->ctx, dCert.subjectHash)) {
+            buffer add;
+            add.length = myCert.length;
+            add.buffer = (byte*)XMALLOC(myCert.length, ssl->heap,
+                                        DYNAMIC_TYPE_CA);
+            CYASSL_MSG("Adding CA from chain");
 
-        if (!firstTime) {
-            FreeDecodedCert(&dCert);
-            continue;
+            if (add.buffer == NULL)
+                return MEMORY_E;
+            XMEMCPY(add.buffer, myCert.buffer, myCert.length);
+
+            ret = AddCA(ssl->ctx, add, ssl);
+            if (ret == 1) ret = 0;   /* SSL_SUCCESS for external */
         }
 
-        /* get rest of peer info in case user wants to continue */
-        if (ret != 0) {
-            if (!(ret == ASN_BEFORE_DATE_E || ret == ASN_AFTER_DATE_E ||
-                                              ret == ASN_SIG_CONFIRM_E)) {
-                FreeDecodedCert(&dCert);
-                continue;
-            }
-        }
-        
-        /* first one has peer's key */
-        firstTime = 0;
+        if (ret != 0 && anyError == 0)
+            anyError = ret;   /* save error from last time */
 
+        FreeDecodedCert(&dCert);
+        count--;
+    }
+
+    /* peer's, may not have one if blank client cert sent by TLSv1.2 */
+    if (count) {
+        buffer myCert = certs[0];
+        DecodedCert dCert;
+
+        CYASSL_MSG("Veriying Peer's cert");
+
+        InitDecodedCert(&dCert, myCert.buffer, ssl->heap);
+        ret = ParseCertRelative(&dCert, myCert.length, CERT_TYPE,
+                                !ssl->options.verifyNone, ssl->caList);
         ssl->options.havePeerCert = 1;
         /* set X509 format */
 #ifdef OPENSSL_EXTRA
@@ -1463,7 +1490,8 @@ static int DoCertificate(SSL* ssl, byte* input, word32* inOutIdx)
         XSTRNCPY(ssl->peerCert.issuer.name, dCert.issuer, ASN_NAME_MAX);
         ssl->peerCert.subject.sz   = (int)XSTRLEN(dCert.subject) + 1;
         XSTRNCPY(ssl->peerCert.subject.name, dCert.subject, ASN_NAME_MAX);
-        XMEMCPY(ssl->peerCert.serial, dCert.serial, SERIAL_SIZE);
+        XMEMCPY(ssl->peerCert.serial, dCert.serial, EXTERNAL_SERIAL_SIZE);
+        ssl->peerCert.serialSz = dCert.serialSz;
 #endif    
 
         XMEMCPY(domain, dCert.subjectCN, dCert.subjectCNLen);
@@ -1478,11 +1506,10 @@ static int DoCertificate(SSL* ssl, byte* input, word32* inOutIdx)
 
         /* decode peer key */
         if (dCert.keyOID == RSAk) {
+            word32 idx = 0;
             if (RsaPublicKeyDecode(dCert.publicKey, &idx,
                                &ssl->peerRsaKey, dCert.pubKeySize) != 0) {
                 ret = PEER_KEY_ERROR;
-                FreeDecodedCert(&dCert);
-                continue;
             }
             ssl->peerRsaKeyPresent = 1;
         }
@@ -1490,8 +1517,6 @@ static int DoCertificate(SSL* ssl, byte* input, word32* inOutIdx)
         else if (dCert.keyOID == NTRUk) {
             if (dCert.pubKeySize > sizeof(ssl->peerNtruKey)) {
                 ret = PEER_KEY_ERROR;
-                FreeDecodedCert(&dCert);
-                continue;
             }
             XMEMCPY(ssl->peerNtruKey, dCert.publicKey, dCert.pubKeySize);
             ssl->peerNtruKeyLen = (word16)dCert.pubKeySize;
@@ -1503,8 +1528,6 @@ static int DoCertificate(SSL* ssl, byte* input, word32* inOutIdx)
             if (ecc_import_x963(dCert.publicKey, dCert.pubKeySize,
                                 &ssl->peerEccDsaKey) != 0) {
                 ret = PEER_KEY_ERROR;
-                FreeDecodedCert(&dCert);
-                continue;
             }
             ssl->peerEccDsaKeyPresent = 1;
         }
@@ -1512,8 +1535,8 @@ static int DoCertificate(SSL* ssl, byte* input, word32* inOutIdx)
 
         FreeDecodedCert(&dCert);
     }
-
-    if (anyError != 0)
+    
+    if (anyError != 0 && ret == 0)
         ret = anyError;
 
     if (ret == 0 && ssl->options.side == CLIENT_END)

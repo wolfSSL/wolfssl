@@ -828,7 +828,8 @@ void InitDecodedCert(DecodedCert* cert, byte* source, void* heap)
     cert->source          = source;  /* don't own */
     cert->srcIdx          = 0;
     cert->heap            = heap;
-    XMEMSET(cert->serial, 0, SERIAL_SIZE);
+    XMEMSET(cert->serial, 0, EXTERNAL_SERIAL_SIZE);
+    cert->serialSz        = 0;
 #ifdef CYASSL_CERT_GEN
     cert->subjectSN       = 0;
     cert->subjectSNLen    = 0;
@@ -861,6 +862,7 @@ static int GetCertHeader(DecodedCert* cert, word32 inSz)
 {
     int    ret = 0, version, len;
     word32 begin = cert->srcIdx;
+    byte   serialTmp[EXTERNAL_SERIAL_SIZE];
     mp_int mpi;
 
     if (GetSequence(cert->source, &cert->srcIdx, &len) < 0)
@@ -880,11 +882,14 @@ static int GetCertHeader(DecodedCert* cert, word32 inSz)
         return ASN_PARSE_E;
 
     len = mp_unsigned_bin_size(&mpi);
-    if (len > SERIAL_SIZE)
-        len = SERIAL_SIZE;    /* use first 64 bits for unique id */
-    if (mp_to_unsigned_bin(&mpi, cert->serial + (SERIAL_SIZE - len)) != MP_OKAY)
-        ret = MP_TO_E;
-
+    if (len < sizeof(serialTmp)) {
+        if (mp_to_unsigned_bin(&mpi, serialTmp) == MP_OKAY) {
+            if (len > EXTERNAL_SERIAL_SIZE)
+                len = EXTERNAL_SERIAL_SIZE;
+            XMEMCPY(cert->serial, serialTmp, len);
+            cert->serialSz = len;
+        }
+    }
     mp_clear(&mpi);
     return ret;
 }
@@ -1632,8 +1637,10 @@ static int ConfirmSignature(DecodedCert* cert, const byte* key, word32 keySz,
         digestSz = SHA256_DIGEST_SIZE;
     }
 #endif
-    else
+    else {
+        // TAO CYASSL_MSG("Verify Signautre has unsupported type");
         return 0; /* ASN_SIG_HASH_E; */
+    }
 
     if (keyOID == RSAk) {
         RsaKey pubKey;
@@ -1746,6 +1753,10 @@ int ParseCert(DecodedCert* cert, word32 inSz, int type, int verify,
 }
 
 
+/* from SSL proper, for locking can't do find here anymore */
+Signer* GetCA(Signer* signers, byte* hash);
+
+
 int ParseCertRelative(DecodedCert* cert, word32 inSz, int type, int verify,
               Signer* signers)
 {
@@ -1774,23 +1785,20 @@ int ParseCertRelative(DecodedCert* cert, word32 inSz, int type, int verify,
         return ASN_SIG_OID_E;
 
     if (verify && type != CA_TYPE) {
-        while (signers) {
-            if (XMEMCMP(cert->issuerHash, signers->hash, SHA_DIGEST_SIZE)
-                       == 0) {
-                /* other confirm */
-                if (!ConfirmSignature(cert, signers->publicKey,
-                                      signers->pubKeySize, signers->keyOID))
-                    return ASN_SIG_CONFIRM_E;
-                else {
-                    confirm = 1;
-                    break;
-                }
-            }
-            signers = signers->next;
+        Signer* signer = GetCA(signers, cert->issuerHash);
+
+        if (signer) {
+            /* try to confirm/verify signature */
+            if (!ConfirmSignature(cert, signers->publicKey,
+                                  signers->pubKeySize, signers->keyOID))
+                return ASN_SIG_CONFIRM_E;
         }
-        if (!confirm)
+        else {
+            /* no signer */
             return ASN_SIG_CONFIRM_E;
+        }
     }
+
     if (badDate != 0)
         return badDate;
 
@@ -2219,6 +2227,7 @@ void InitCert(Cert* cert)
     cert->bodySz     = 0;
     cert->keyType    = RSA_KEY;
     XMEMSET(cert->serial, 0, SERIAL_SIZE);
+    cert->serialSz   = 0;
 
     cert->issuer.country[0] = '\0';
     cert->issuer.state[0] = '\0';

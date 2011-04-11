@@ -174,16 +174,17 @@ static INLINE void showPeer(SSL* ssl)
     if (peer) {
         char* issuer  = X509_NAME_oneline(X509_get_issuer_name(peer), 0, 0);
         char* subject = X509_NAME_oneline(X509_get_subject_name(peer), 0, 0);
-        byte  serial[SERIAL_SZ];
+        byte  serial[32];
         int   ret;
+        int   sz = sizeof(serial);
         
         printf("peer's cert info:\n issuer : %s\n subject: %s\n", issuer,
                                                                   subject);
-        ret = CyaSSL_X509_get_serial_number(peer, serial);
+        ret = CyaSSL_X509_get_serial_number(peer, serial, &sz);
         if (ret == 0) {
             int i;
             printf(" serial number");
-            for (i = 0; i < sizeof(serial); i++)
+            for (i = 0; i < sz; i++)
                 printf(":%02x", serial[i]);
             printf("\n");
         }

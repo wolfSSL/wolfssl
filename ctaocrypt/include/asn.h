@@ -42,6 +42,7 @@ enum {
     SUBJECT = 1,
 
     SERIAL_SIZE  =  8,
+    EXTERNAL_SERIAL_SIZE = 32,
 
     BEFORE  = 0,
     AFTER   = 1
@@ -188,7 +189,8 @@ typedef struct DecodedCert {
     byte*   source;                  /* byte buffer holder cert, NOT owner */
     word32  srcIdx;                  /* current offset into buffer       */
     void*   heap;                    /* for user memory overrides        */
-    byte    serial[SERIAL_SIZE];     /* raw serial number                */
+    byte    serial[EXTERNAL_SERIAL_SIZE];  /* raw serial number          */
+    int     serialSz;                /* raw serial bytes stored */
 #ifdef CYASSL_CERT_GEN
     /* easy access to sujbect info for other sign */
     char*   subjectSN;

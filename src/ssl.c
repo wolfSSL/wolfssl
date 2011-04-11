@@ -290,15 +290,61 @@ int SSL_pending(SSL* ssl)
 }
 
 
-/* owns der */
-static int AddCA(SSL_CTX* ctx, buffer der)
+static CyaSSL_Mutex ca_mutex;   /* CA signers mutex */
+
+/* does CA already exist on list */
+int IsCA(SSL_CTX* ctx, byte* hash)
+{
+    Signer* signers;
+    int     ret = 0;
+
+    if (LockMutex(&ca_mutex) != 0)
+        return  ret;
+    signers = ctx->caList;
+    while (signers) {
+        if (XMEMCMP(hash, signers->hash, SHA_DIGEST_SIZE) == 0) {
+            ret = 1;
+            break;
+        }
+        signers = signers->next;
+    }
+    UnLockMutex(&ca_mutex);
+
+    return ret;
+}
+
+
+/* return CA if found, otherwise NULL */
+Signer* GetCA(Signer* signers, byte* hash)
+{
+    Signer* ret = 0;
+
+    if (LockMutex(&ca_mutex) != 0)
+        return ret;
+    while (signers) {
+        if (XMEMCMP(hash, signers->hash, SHA_DIGEST_SIZE) == 0) {
+            ret = signers;
+            break;
+        }
+        signers = signers->next;
+    }
+    UnLockMutex(&ca_mutex);
+
+    return ret;
+}
+
+
+/* owns der, cyassl_int now uses too */
+int AddCA(SSL_CTX* ctx, buffer der, SSL* ssl)
 {
     word32      ret;
     DecodedCert cert;
     Signer*     signer = 0;
 
+    CYASSL_MSG("Adding a CA");
     InitDecodedCert(&cert, der.buffer, ctx->heap);
     ret = ParseCert(&cert, der.length, CA_TYPE, ctx->verifyPeer, 0);
+    CYASSL_MSG("    Parsed new CA");
 
     if (ret == 0) {
         /* take over signer parts */
@@ -315,13 +361,23 @@ static int AddCA(SSL_CTX* ctx, buffer der)
             cert.publicKey = 0;  /* don't free here */
             cert.subjectCN = 0;
 
-            signer->next = ctx->caList;
-            ctx->caList  = signer;   /* takes ownership */
+            if (LockMutex(&ca_mutex) == 0) {
+                signer->next = ctx->caList;
+                ctx->caList  = signer;   /* takes ownership */
+                if (ssl)
+                    ssl->caList = ctx->caList;
+                UnLockMutex(&ca_mutex);
+            }
+            else
+                FreeSigners(signer, ctx->heap);
         }
     }
 
+    CYASSL_MSG("    Freeing Parsed CA");
     FreeDecodedCert(&cert);
+    CYASSL_MSG("    Freeing der CA");
     XFREE(der.buffer, ctx->heap, DYNAMIC_TYPE_CA);
+    CYASSL_MSG("        OK Freeing der CA");
 
     if (ret == 0) return SSL_SUCCESS;
     return ret;
@@ -359,7 +415,7 @@ static int AddCA(SSL_CTX* ctx, buffer der)
 
     static SessionRow SessionCache[SESSION_ROWS];
 
-    static CyaSSL_Mutex mutex;   /* SessionCache mutex */
+    static CyaSSL_Mutex session_mutex;   /* SessionCache mutex */
 
 #endif /* NO_SESSION_CACHE */
 
@@ -663,7 +719,7 @@ static int AddCA(SSL_CTX* ctx, buffer der)
 #endif /* OPENSSL_EXTRA || HAVE_WEBSERVER */
 
         if (type == CA_TYPE)
-            return AddCA(ctx, der);     /* takes der over */
+            return AddCA(ctx, der, ssl);     /* takes der over */
         else if (type == CERT_TYPE) {
             if (ssl) {
                 if (ssl->buffers.weOwnCert && ssl->buffers.certificate.buffer)
@@ -800,6 +856,7 @@ static int ProcessFile(SSL_CTX* ctx, const char* fname, int format, int type,
     XREWIND(file);
 
     if (sz > (long)sizeof(staticBuffer)) {
+        CYASSL_MSG("Getting dynamic buffer");
         buffer = (byte*) XMALLOC(sz, ctx->heap, DYNAMIC_TYPE_FILE);
         if (buffer == NULL) {
             XFCLOSE(file);
@@ -1488,27 +1545,29 @@ int SSL_CTX_set_cipher_list(SSL_CTX* ctx, const char* list)
 
 int InitCyaSSL(void)
 {
+    int ret = 0;
 #ifndef NO_SESSION_CACHE
-    if (InitMutex(&mutex) == 0)
-        return 0;
-    else
-        return -1;
-#else
-    return 0;
+    if (InitMutex(&session_mutex) != 0)
+        ret = -1;
 #endif
+    if (InitMutex(&ca_mutex) != 0)
+        ret = -1;
+
+    return ret;
 }
 
 
 int FreeCyaSSL(void)
 {
+    int ret = 0;
 #ifndef NO_SESSION_CACHE
-    if (FreeMutex(&mutex) == 0)
-        return 0;
-    else
-        return -1;
-#else
-    return 0;
+    if (FreeMutex(&session_mutex) != 0)
+        ret = -1;
 #endif
+    if (FreeMutex(&ca_mutex) != 0)
+        ret = -1;
+
+    return ret;
 }
 
 
@@ -1541,7 +1600,7 @@ SSL_SESSION* GetSession(SSL* ssl, byte* masterSecret)
 
     row = HashSession(id) % SESSION_ROWS;
 
-    if (LockMutex(&mutex) != 0)
+    if (LockMutex(&session_mutex) != 0)
         return 0;
    
     if (SessionCache[row].totalCount >= SESSIONS_PER_ROW)
@@ -1566,7 +1625,7 @@ SSL_SESSION* GetSession(SSL* ssl, byte* masterSecret)
         }   
     }
 
-    UnLockMutex(&mutex);
+    UnLockMutex(&session_mutex);
     
     return ret;
 }
@@ -1602,7 +1661,7 @@ int AddSession(SSL* ssl)
 
     row = HashSession(ssl->arrays.sessionID) % SESSION_ROWS;
 
-    if (LockMutex(&mutex) != 0)
+    if (LockMutex(&session_mutex) != 0)
         return -1;
 
     idx = SessionCache[row].nextIdx++;
@@ -1629,7 +1688,7 @@ int AddSession(SSL* ssl)
     if (SessionCache[row].nextIdx == SESSIONS_PER_ROW)
         SessionCache[row].nextIdx = 0;
 
-    if (UnLockMutex(&mutex) != 0)
+    if (UnLockMutex(&session_mutex) != 0)
         return -1;
 
     return 0;
@@ -3619,14 +3678,15 @@ int CyaSSL_set_compression(SSL* ssl)
     }
 
     /* write X509 serial number in unsigned binary to buffer 
-       buffer needs to be at least SERIAL_SIZE
+       buffer needs to be at least EXTERNAL_SERIAL_SIZE (32) for all cases
        return 0 on success */
-    int CyaSSL_X509_get_serial_number(X509* x509, byte* buffer)
+    int CyaSSL_X509_get_serial_number(X509* x509, byte* buffer, int* inOutSz)
     {
-        if (x509 == NULL || buffer == NULL)
+        if (x509 == NULL || buffer == NULL || *inOutSz < x509->serialSz)
             return -1;
 
-        XMEMCPY(buffer, x509->serial, SERIAL_SIZE);
+        XMEMCPY(buffer, x509->serial, x509->serialSz);
+        *inOutSz = x509->serialSz;
 
         return 0;
     }

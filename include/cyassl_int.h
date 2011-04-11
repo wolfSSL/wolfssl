@@ -619,6 +619,8 @@ void SSL_CtxResourceFree(SSL_CTX*);
 int DeriveTlsKeys(SSL* ssl);
 int ProcessOldClientHello(SSL* ssl, const byte* input, word32* inOutIdx,
                           word32 inSz, word16 sz);
+int AddCA(SSL_CTX* ctx, buffer der, SSL*);
+int IsCA(SSL_CTX* ctx, byte* hash);
 
 /* All cipher suite related info */
 typedef struct CipherSpecs {
@@ -933,7 +935,8 @@ struct X509_NAME {
 struct X509 {
     X509_NAME issuer;
     X509_NAME subject;
-    byte      serial[SERIAL_SIZE];
+    int       serialSz;
+    byte      serial[EXTERNAL_SERIAL_SIZE];
 };
 
 
