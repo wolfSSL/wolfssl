@@ -705,7 +705,6 @@ int InitSSL(SSL* ssl, SSL_CTX* ctx)
     ssl->buffers.key = ctx->privateKey;
     ssl->buffers.weOwnCert = 0;
     ssl->buffers.weOwnKey  = 0;
-    ssl->caList = ctx->caList;
 
 #ifdef OPENSSL_EXTRA
     ssl->peerCert.issuer.sz    = 0;
@@ -1450,7 +1449,7 @@ static int DoCertificate(SSL* ssl, byte* input, word32* inOutIdx)
 
         InitDecodedCert(&dCert, myCert.buffer, ssl->heap);
         ret = ParseCertRelative(&dCert, myCert.length, CERT_TYPE,
-                                !ssl->options.verifyNone, ssl->caList);
+                                !ssl->options.verifyNone, ssl->ctx->caList);
         if (ret == 0 && !IsCA(ssl->ctx, dCert.subjectHash)) {
             buffer add;
             add.length = myCert.length;
@@ -1462,9 +1461,13 @@ static int DoCertificate(SSL* ssl, byte* input, word32* inOutIdx)
                 return MEMORY_E;
             XMEMCPY(add.buffer, myCert.buffer, myCert.length);
 
-            ret = AddCA(ssl->ctx, add, ssl);
+            ret = AddCA(ssl->ctx, add);
             if (ret == 1) ret = 0;   /* SSL_SUCCESS for external */
         }
+        else if (ret != 0)
+            CYASSL_MSG("Failed to verify CA from chain");
+        else
+            CYASSL_MSG("Verified CA from chain and already had it");
 
         if (ret != 0 && anyError == 0)
             anyError = ret;   /* save error from last time */
@@ -1482,7 +1485,9 @@ static int DoCertificate(SSL* ssl, byte* input, word32* inOutIdx)
 
         InitDecodedCert(&dCert, myCert.buffer, ssl->heap);
         ret = ParseCertRelative(&dCert, myCert.length, CERT_TYPE,
-                                !ssl->options.verifyNone, ssl->caList);
+                                !ssl->options.verifyNone, ssl->ctx->caList);
+        if (ret != 0)
+            CYASSL_MSG("Failed to verify Peer's cert");
         ssl->options.havePeerCert = 1;
         /* set X509 format */
 #ifdef OPENSSL_EXTRA

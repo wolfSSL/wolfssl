@@ -335,7 +335,7 @@ Signer* GetCA(Signer* signers, byte* hash)
 
 
 /* owns der, cyassl_int now uses too */
-int AddCA(SSL_CTX* ctx, buffer der, SSL* ssl)
+int AddCA(SSL_CTX* ctx, buffer der)
 {
     word32      ret;
     DecodedCert cert;
@@ -364,8 +364,6 @@ int AddCA(SSL_CTX* ctx, buffer der, SSL* ssl)
             if (LockMutex(&ca_mutex) == 0) {
                 signer->next = ctx->caList;
                 ctx->caList  = signer;   /* takes ownership */
-                if (ssl)
-                    ssl->caList = ctx->caList;
                 UnLockMutex(&ca_mutex);
             }
             else
@@ -719,7 +717,7 @@ int AddCA(SSL_CTX* ctx, buffer der, SSL* ssl)
 #endif /* OPENSSL_EXTRA || HAVE_WEBSERVER */
 
         if (type == CA_TYPE)
-            return AddCA(ctx, der, ssl);     /* takes der over */
+            return AddCA(ctx, der);     /* takes der over */
         else if (type == CERT_TYPE) {
             if (ssl) {
                 if (ssl->buffers.weOwnCert && ssl->buffers.certificate.buffer)

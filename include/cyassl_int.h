@@ -619,7 +619,7 @@ void SSL_CtxResourceFree(SSL_CTX*);
 int DeriveTlsKeys(SSL* ssl);
 int ProcessOldClientHello(SSL* ssl, const byte* input, word32* inOutIdx,
                           word32 inSz, word16 sz);
-int AddCA(SSL_CTX* ctx, buffer der, SSL*);
+int AddCA(SSL_CTX* ctx, buffer der);
 int IsCA(SSL_CTX* ctx, byte* hash);
 
 /* All cipher suite related info */
@@ -983,7 +983,6 @@ struct SSL {
 #endif
     Hashes          verifyHashes;
     Hashes          certHashes;         /* for cert verify */
-    Signer*         caList;             /* SSL_CTX owns */
     Buffers         buffers;
     Options         options;
     Arrays          arrays;
