@@ -620,6 +620,7 @@ int AddCA(SSL_CTX* ctx, buffer der)
 
                 CYASSL_MSG("Processing Cert Chain");
                 while (consumed < sz) {
+                    long   left;
                     buffer part;
                     info.consumed = 0;
                     part.buffer = 0;
@@ -648,6 +649,12 @@ int AddCA(SSL_CTX* ctx, buffer der)
                         return ret;
                     }
                     CYASSL_MSG("   Consumed another Cert in Chain");
+
+                    left = sz - consumed;
+                    if (left > 0 && left < CERT_MIN_SIZE) {
+                        CYASSL_MSG("   Non Cert at end of file");
+                        break;
+                    }
                 }
                 CYASSL_MSG("Finished Processing Cert Chain");
                 ctx->certChain.buffer = (byte*)XMALLOC(idx, ctx->heap,
@@ -825,6 +832,7 @@ static int ProcessChainBuffer(SSL_CTX* ctx, const unsigned char* buff,
     CYASSL_MSG("Processing CA PEM file");
     while (used < sz) {
         long consumed = 0;
+        long left;
 
         ret = ProcessBuffer(ctx, buff + used, sz - used, format, type, ssl,
                             &consumed);
@@ -833,6 +841,12 @@ static int ProcessChainBuffer(SSL_CTX* ctx, const unsigned char* buff,
 
         CYASSL_MSG("   Processed a CA");
         used += consumed;
+
+        left = sz - used;
+        if (left > 0 && left < CERT_MIN_SIZE) { /* non cert stuff at eof */
+            CYASSL_MSG("   Non CA cert at eof");
+            break;
+        }
     }
     return ret;
 }
