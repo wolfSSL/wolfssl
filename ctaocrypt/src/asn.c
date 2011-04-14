@@ -1931,12 +1931,12 @@ int ParseCertRelative(DecodedCert* cert, word32 inSz, int type, int verify,
         return ASN_SIG_OID_E;
 
     if (verify && type != CA_TYPE) {
-        Signer* signer = GetCA(signers, cert->issuerHash);
+        Signer* ca = GetCA(signers, cert->issuerHash);
 
-        if (signer) {
+        if (ca) {
             /* try to confirm/verify signature */
-            if (!ConfirmSignature(cert, signers->publicKey,
-                                  signers->pubKeySize, signers->keyOID))
+            if (!ConfirmSignature(cert, ca->publicKey,
+                                  ca->pubKeySize, ca->keyOID))
                 return ASN_SIG_CONFIRM_E;
         }
         else {
@@ -2373,7 +2373,6 @@ void InitCert(Cert* cert)
     cert->bodySz     = 0;
     cert->keyType    = RSA_KEY;
     XMEMSET(cert->serial, 0, SERIAL_SIZE);
-    cert->serialSz   = 0;
 
     cert->issuer.country[0] = '\0';
     cert->issuer.state[0] = '\0';
