@@ -182,11 +182,16 @@ static INLINE void showPeer(SSL* ssl)
                                                                   subject);
         ret = CyaSSL_X509_get_serial_number(peer, serial, &sz);
         if (ret == 0) {
-            int i;
-            printf(" serial number");
+            int  i;
+            int  strLen;
+            char serialMsg[80];
+
+            /* testsuite has multiple threads writing to stdout, get output
+               message ready to write once */
+            strLen = snprintf(serialMsg, 16, " serial number");
             for (i = 0; i < sz; i++)
-                printf(":%02x", serial[i]);
-            printf("\n");
+                snprintf(serialMsg + strLen + (i*3), 4, ":%02x ", serial[i]);
+            printf("%s\n", serialMsg);
         }
 
         XFREE(subject, 0, DYNAMIC_TYPE_OPENSSL);

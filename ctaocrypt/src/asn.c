@@ -519,12 +519,35 @@ int ToTraditional(byte* input, word32 sz)
 
 /* Check To see if PKCS version algo is supported, set id if it is return 0
    < 0 on error */
-static int CheckAlgo(int version, int algo, int* id)
+static int CheckAlgo(int first, int second, int* id, int* version)
 {
-    if (version != PKCS5)
+    *id      = -1;
+    *version = PKCS5;   /* default */
+
+    if (first == 1) {
+        switch (second) {
+        case 1:
+            *id = PBE_SHA1_RC4_128;
+            *version = PKCS12;
+            return 0;
+        case 3:
+            *id = PBE_SHA1_DES3;
+            *version = PKCS12;
+            return 0;
+        default:
+            return -1;
+        }
+    }
+
+    if (first != PKCS5)
         return ASN_INPUT_E;  /* VERSION ERROR */
 
-    switch (algo) {
+    if (second == PBES2) {
+        *version = PKCS5v2;
+        return 0;
+    }
+
+    switch (second) {
     case 3:                   /* see RFC 2898 for ids */
         *id = PBE_MD5_DES;
         return 0;
@@ -538,41 +561,126 @@ static int CheckAlgo(int version, int algo, int* id)
 }
 
 
+/* Check To see if PKCS v2 algo is supported, set id if it is return 0
+   < 0 on error */
+static int CheckAlgoV2(int oid, int* id)
+{
+    switch (oid) {
+    case 69:
+        *id = PBE_SHA1_DES;
+        return 0;
+    case 652:
+        *id = PBE_SHA1_DES3;
+        return 0;
+    default:
+        return -1;
+
+    }
+}
+
+
 /* Decrypt intput in place from parameters based on id */
 static int DecryptKey(const char* password, int passwordSz, byte* salt,
-                    int saltSz, int iterations, int id, byte* input, int length)
+                      int saltSz, int iterations, int id, byte* input,
+                      int length, int version, byte* cbcIv)
 {
     byte   key[MAX_KEY_SIZE];
     int    hashType;
     int    derivedLen;
     int    decryptionType;
+    int    ret = 0; 
 
     switch (id) {
         case PBE_MD5_DES:
             hashType = MD5;
-            derivedLen = 16;
+            derivedLen = 16;           /* may need iv for v1.5 */
             decryptionType = DES_TYPE;
             break;
 
         case PBE_SHA1_DES:
             hashType = SHA;
-            derivedLen = 16;
+            derivedLen = 16;           /* may need iv for v1.5 */
             decryptionType = DES_TYPE;
+            break;
+
+        case PBE_SHA1_DES3:
+            hashType = SHA;
+            derivedLen = 32;           /* may need iv for v1.5 */
+            decryptionType = DES3_TYPE;
+            break;
+
+        case PBE_SHA1_RC4_128:
+            hashType = SHA;
+            derivedLen = 16;
+            decryptionType = RC4_TYPE;
             break;
 
         default:
             return -1;  /* unknown algo id */
     }
 
-    PBKDF1(key, (byte*)password, passwordSz, salt, saltSz, iterations,
-           derivedLen, hashType);
+    if (version == PKCS5v2)
+        ret = PBKDF2(key, (byte*)password, passwordSz, salt, saltSz, iterations,
+               derivedLen, hashType);
+    else if (version == PKCS5)
+        ret = PBKDF1(key, (byte*)password, passwordSz, salt, saltSz, iterations,
+               derivedLen, hashType);
+    else if (version == PKCS12) {
+        int  i, idx = 0;
+        byte unicodePasswd[MAX_UNICODE_SZ];
+
+        if ( (passwordSz * 2 + 2) > sizeof(unicodePasswd))
+            return -1; /* unicode passwd too big */
+
+        for (i = 0; i < passwordSz; i++) {
+            unicodePasswd[idx++] = 0x00;
+            unicodePasswd[idx++] = (byte)password[i];
+        }
+        /* add trailing NULL */
+        unicodePasswd[idx++] = 0x00;
+        unicodePasswd[idx++] = 0x00;
+
+        ret =  PKCS12_PBKDF(key, unicodePasswd, idx, salt, saltSz,
+                            iterations, derivedLen, hashType, 1);
+        if (decryptionType != RC4_TYPE)
+            ret += PKCS12_PBKDF(cbcIv, unicodePasswd, idx, salt, saltSz,
+                                iterations, 8, hashType, 2);
+    }
+
+    if (ret != 0)
+        return ret;
 
     switch (decryptionType) {
         case DES_TYPE:
         {
             Des    dec;
-            Des_SetKey(&dec, key, key + 8, DES_DECRYPTION);
+            byte*  desIv = key + 8;
+
+            if (version == PKCS5v2 || version == PKCS12)
+                desIv = cbcIv;
+            Des_SetKey(&dec, key, desIv, DES_DECRYPTION);
             Des_CbcDecrypt(&dec, input, input, length);
+            break;
+        }
+
+        case DES3_TYPE:
+        {
+            Des3   dec;
+            byte*  desIv = key + 24;
+
+            if (version == PKCS5v2 || version == PKCS12)
+                desIv = cbcIv;
+            Des3_SetKey(&dec, key, desIv, DES_DECRYPTION);
+            Des3_CbcDecrypt(&dec, input, input, length);
+            break;
+        }
+
+        case RC4_TYPE:
+        {
+            Arc4    dec;
+
+            Arc4SetKey(&dec, key, derivedLen);
+            Arc4Process(&dec, input, input, length);
             break;
         }
 
@@ -589,8 +697,10 @@ static int DecryptKey(const char* password, int passwordSz, byte* salt,
 int ToTraditionalEnc(byte* input, word32 sz,const char* password,int passwordSz)
 {
     word32 inOutIdx = 0, oid;
-    int    type, algo, version, length, iterations, saltSz, id;
+    int    type, first, second, length, iterations, saltSz, id;
+    int    version;
     byte   salt[MAX_SALT_SIZE];
+    byte   cbcIv[MAX_IV_SIZE];
     
     if (GetSequence(input, &inOutIdx, &length) < 0)
         return ASN_PARSE_E;
@@ -601,12 +711,27 @@ int ToTraditionalEnc(byte* input, word32 sz,const char* password,int passwordSz)
     if (GetAlgoId(input, &inOutIdx, &oid) < 0)
         return ASN_PARSE_E;
     
-    version = input[inOutIdx - 2];   /* PKCS version alwyas 2nd to last byte */
-    algo    = input[inOutIdx - 1];   /* version.algo, algo id last byte */
+    first  = input[inOutIdx - 2];   /* PKCS version alwyas 2nd to last byte */
+    second = input[inOutIdx - 1];   /* version.algo, algo id last byte */
 
-    if (CheckAlgo(version, algo, &id) < 0)
+    if (CheckAlgo(first, second, &id, &version) < 0)
         return ASN_INPUT_E;  /* Algo ID error */
-    
+
+    if (version == PKCS5v2) {
+
+        if (GetSequence(input, &inOutIdx, &length) < 0)
+            return ASN_PARSE_E;
+
+        if ((word32)length > (sz - inOutIdx))
+            return ASN_INPUT_E;
+
+        if (GetAlgoId(input, &inOutIdx, &oid) < 0)
+            return ASN_PARSE_E;
+
+        if (oid != PBKDF2_OID)
+            return ASN_PARSE_E;
+    }
+
     if (GetSequence(input, &inOutIdx, &length) < 0)
         return ASN_PARSE_E;
 
@@ -631,6 +756,27 @@ int ToTraditionalEnc(byte* input, word32 sz,const char* password,int passwordSz)
     if (GetShortInt(input, &inOutIdx, &iterations) < 0)
         return ASN_PARSE_E;
 
+    if (version == PKCS5v2) {
+        /* get encryption algo */
+        if (GetAlgoId(input, &inOutIdx, &oid) < 0)
+            return ASN_PARSE_E;
+
+        if (CheckAlgoV2(oid, &id) < 0)
+            return ASN_PARSE_E;  /* PKCS v2 algo id error */
+
+        if (input[inOutIdx++] != ASN_OCTET_STRING)
+            return ASN_PARSE_E;
+    
+        if (GetLength(input, &inOutIdx, &length) < 0)
+            return ASN_PARSE_E;
+
+        if ((word32)length > (sz - inOutIdx))
+            return ASN_INPUT_E;
+
+        XMEMCPY(cbcIv, &input[inOutIdx], length);
+        inOutIdx += length;
+    }
+
     if (input[inOutIdx++] != ASN_OCTET_STRING)
         return ASN_PARSE_E;
     
@@ -641,7 +787,7 @@ int ToTraditionalEnc(byte* input, word32 sz,const char* password,int passwordSz)
         return ASN_INPUT_E;
 
     if (DecryptKey(password, passwordSz, salt, saltSz, iterations, id,
-                   input + inOutIdx, length) < 0)
+                   input + inOutIdx, length, version, cbcIv) < 0)
         return ASN_INPUT_E;  /* decrypt failure */
 
     XMEMMOVE(input, input + inOutIdx, length);

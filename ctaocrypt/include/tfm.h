@@ -620,6 +620,7 @@ int mp_init_multi(mp_int* a, mp_int* b, mp_int* c, mp_int* d, mp_int* e, mp_int*
 
 int  mp_add (mp_int * a, mp_int * b, mp_int * c);
 int  mp_sub (mp_int * a, mp_int * b, mp_int * c);
+int  mp_add_d (mp_int * a, mp_digit b, mp_int * c);
 
 int  mp_mul (mp_int * a, mp_int * b, mp_int * c);
 int  mp_mulmod (mp_int * a, mp_int * b, mp_int * c, mp_int * d);

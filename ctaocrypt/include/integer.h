@@ -298,6 +298,7 @@ int  mp_mulmod (mp_int * a, mp_int * b, mp_int * c, mp_int * d);
 int  mp_mul_d (mp_int * a, mp_digit b, mp_int * c);
 int  mp_2expt (mp_int * a, int b);
 int  mp_reduce_2k_setup(mp_int *a, mp_digit *d);
+int  mp_add_d (mp_int* a, mp_digit b, mp_int* c);
 /* end support added functions */
 
 /* added */

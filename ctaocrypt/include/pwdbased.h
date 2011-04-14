@@ -39,6 +39,8 @@ int PBKDF1(byte* output, const byte* passwd, int pLen, const byte* salt,
 int PBKDF2(byte* output, const byte* passwd, int pLen, const byte* salt,
            int sLen, int iterations, int kLen, int hashType);
 
+int PKCS12_PBKDF(byte* output, const byte* passwd, int pLen, const byte* salt,
+                 int sLen, int iterations, int kLen, int hashType, int purpose);
 
 
 #ifdef __cplusplus

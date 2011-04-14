@@ -2302,11 +2302,7 @@ void fp_gcd(fp_int *a, fp_int *b, fp_int *c)
 #endif /* CYASSL_KEY_GEN */
 
 
-#ifdef HAVE_ECC
-
-/* chars used in radix conversions */
-const char *fp_s_rmap = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz+/";
-
+#if defined(HAVE_ECC) || !defined(NO_PWDBASED)
 /* c = a + b */
 void fp_add_d(fp_int *a, fp_digit b, fp_int *c)
 {
@@ -2315,6 +2311,20 @@ void fp_add_d(fp_int *a, fp_digit b, fp_int *c)
    fp_add(a,&tmp,c);
 }
 
+/* external compatibility */
+int mp_add_d(fp_int *a, fp_digit b, fp_int *c)
+{
+    fp_add_d(a, b, c);
+    return MP_OKAY;
+}
+
+#endif  /* HAVE_ECC || !NO_PWDBASED */
+
+
+#ifdef HAVE_ECC
+
+/* chars used in radix conversions */
+const char *fp_s_rmap = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz+/";
 
 int fp_read_radix(fp_int *a, const char *str, int radix)
 {

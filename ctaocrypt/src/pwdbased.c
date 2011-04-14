@@ -24,6 +24,7 @@
 
 #include "pwdbased.h"
 #include "ctc_hmac.h"
+#include "integer.h"
 #ifdef CYASSL_SHA512
     #include "sha512.h"
 #endif
@@ -146,6 +147,160 @@ int PBKDF2(byte* output, const byte* passwd, int pLen, const byte* salt,
     }
 
     return 0;
+}
+
+
+int PKCS12_PBKDF(byte* output, const byte* passwd, int passLen,const byte* salt,
+                 int saltLen, int iterations, int kLen, int hashType, int id)
+{
+    /* all in bytes instead of bits */
+    word32 u, v, dLen, pLen, iLen, sLen, totalLen;
+    int    dynamic = 0;
+    int    ret = 0;
+    int    i;
+    byte   *D, *S, *P, *I;
+    byte   staticBuffer[1024];
+    byte*  buffer = staticBuffer;
+#ifdef CYASSL_SHA512
+    byte   Ai[SHA512_DIGEST_SIZE];
+    byte   B[SHA512_BLOCK_SIZE];
+#else
+    byte   Ai[SHA256_DIGEST_SIZE];
+    byte   B[SHA256_BLOCK_SIZE];
+#endif
+
+    if (!iterations)
+        iterations = 1;
+
+    if (hashType == MD5) {
+        v = MD5_BLOCK_SIZE;
+        u = MD5_DIGEST_SIZE;
+    }
+    else if (hashType == SHA) {
+        v = SHA_BLOCK_SIZE;
+        u = SHA_DIGEST_SIZE;
+    }
+    else if (hashType == SHA256) {
+        v = SHA256_BLOCK_SIZE;
+        u = SHA256_DIGEST_SIZE;
+    }
+#ifdef CYASSL_SHA512
+    else if (hashType == SHA512) {
+        v = SHA512_BLOCK_SIZE;
+        u = SHA512_DIGEST_SIZE;
+    }
+#endif
+    else
+        return -1;  /* bad hashType */
+
+    dLen = v;
+    sLen =  v * ((saltLen + v - 1) / v);
+    if (passLen)
+        pLen = v * ((passLen + v - 1) / v);
+    else
+        pLen = 0;
+    iLen = sLen + pLen;
+
+    totalLen = dLen + sLen + pLen;
+
+    if (totalLen > sizeof(staticBuffer)) {
+        buffer = (byte*)XMALLOC(totalLen, 0, DYNAMIC_TYPE_KEY);
+        if (buffer == NULL) return -1;
+        dynamic = 1;
+    } 
+
+    D = buffer;
+    S = D + dLen;
+    P = S + sLen;
+    I = S;
+
+    XMEMSET(D, id, dLen);
+
+    for (i = 0; i < sLen; i++)
+        S[i] = salt[i % saltLen];
+    for (i = 0; i < pLen; i++)
+        P[i] = passwd[i % passLen];
+
+    while (kLen > 0) {
+        word32 currentLen;
+        mp_int B1;
+
+        if (hashType == MD5) {
+        }
+        else if (hashType == SHA) {
+            Sha sha;
+
+            InitSha(&sha);
+            ShaUpdate(&sha, buffer, totalLen);
+            ShaFinal(&sha, Ai);
+
+            for (i = 1; i < iterations; i++) {
+                ShaUpdate(&sha, Ai, u);
+                ShaFinal(&sha, Ai);
+            }
+        }
+        else if (hashType == SHA256) {
+        }
+#ifdef CYASSL_SHA512
+        else if (hashType == SHA512) {
+        }
+#endif
+
+        for (i = 0; i < v; i++)
+            B[i] = Ai[i % u];
+
+        mp_init(&B1);
+        if (mp_read_unsigned_bin(&B1, B, v) != MP_OKAY)
+            ret = -1;
+        else if (mp_add_d(&B1, (mp_digit)1, &B1) != MP_OKAY) {
+            ret = -1;
+            mp_clear(&B1);
+            break;
+        }
+
+        for (i = 0; i < iLen; i += v) {
+            int    outSz;
+            mp_int i1;
+            mp_int res;
+
+            mp_init(&i1);
+            mp_init(&res);
+
+            if (mp_read_unsigned_bin(&i1, I + i, v) != MP_OKAY)
+                ret = -1;
+            else if (mp_add(&i1, &B1, &res) != MP_OKAY)
+                ret = -1;
+            else if ( (outSz = mp_unsigned_bin_size(&res)) < 0)
+                ret = -1;
+            else {
+                if (outSz > v) {
+                    /* take off MSB */
+                    byte  tmp[129];
+                    mp_to_unsigned_bin(&res, tmp);
+                    XMEMCPY(I + i, tmp + 1, v);
+                }
+                else if (outSz < v) {
+                    XMEMSET(I + i, 0, v - outSz);
+                    mp_to_unsigned_bin(&res, I + i + v - outSz);
+                }
+                else
+                    mp_to_unsigned_bin(&res, I + i);
+            }
+
+            mp_clear(&i1);
+            mp_clear(&res);
+            if (ret < 0) break;
+        }
+
+        currentLen = min(kLen, u);
+        XMEMCPY(output, Ai, currentLen);
+        output += currentLen;
+        kLen   -= currentLen;
+        mp_clear(&B1);
+    }
+
+    if (dynamic) XFREE(buffer, 0, DYNAMIC_TYPE_KEY);
+    return ret;
 }
 
 #endif /* NO_PWDBASED */

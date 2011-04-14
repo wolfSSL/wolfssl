@@ -1348,7 +1348,7 @@ int SSL_CTX_set_cipher_list(SSL_CTX* ctx, const char* list)
         #endif
 
         #ifndef NO_PSK
-            havePSK = ssl->optoins.havePSK;
+            havePSK = ssl->options.havePSK;
         #endif
 
         if (ssl->options.side != SERVER_END) {

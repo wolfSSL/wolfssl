@@ -79,19 +79,28 @@ enum DN_Tags {
 };
 
 enum PBES {
-    PBE_MD5_DES  = 0,
-    PBE_SHA1_DES = 1
+    PBE_MD5_DES      = 0,
+    PBE_SHA1_DES     = 1,
+    PBE_SHA1_DES3    = 2,
+    PBE_SHA1_RC4_128 = 3,
+    PBES2            = 13       /* algo ID */
 };
 
 enum ENCRYPTION_TYPES {
-    DES_TYPE = 0
+    DES_TYPE  = 0,
+    DES3_TYPE = 1,
+    RC4_TYPE  = 2
 };
 
 enum Misc_ASN { 
     ASN_NAME_MAX        = 256,
     MAX_SALT_SIZE       =  64,     /* MAX PKCS Salt length */
+    MAX_IV_SIZE         =  64,     /* MAX PKCS Iv length */
     MAX_KEY_SIZE        =  64,     /* MAX PKCS Key  length */
     PKCS5               =   5,     /* PKCS oid tag */
+    PKCS5v2             =   6,     /* PKCS #5 v2.0 */
+    PKCS12              =  12,     /* PKCS #12 */
+    MAX_UNICODE_SZ      = 256,
     SHA_SIZE            =  20,
     RSA_INTS            =   8,     /* RSA ints in private key */
     MIN_DATE_SIZE       =  13,
@@ -152,6 +161,11 @@ enum Ecc_Sum {
     ECC_160R1 = 184,
     ECC_192R1 = 520,
     ECC_224R1 = 209
+};
+
+
+enum KDF_Sum {
+    PBKDF2_OID = 660
 };
 
 

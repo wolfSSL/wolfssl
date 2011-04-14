@@ -1647,6 +1647,48 @@ int openssl_test()
 
 #ifndef NO_PWDBASED
 
+int pkcs12_test()
+{
+    const byte passwd[] = { 0x00, 0x73, 0x00, 0x6d, 0x00, 0x65, 0x00, 0x67,
+                            0x00, 0x00 }; 
+    const byte salt[] =   { 0x0a, 0x58, 0xCF, 0x64, 0x53, 0x0d, 0x82, 0x3f };
+
+    const byte passwd2[] = { 0x00, 0x71, 0x00, 0x75, 0x00, 0x65, 0x00, 0x65,
+                             0x00, 0x67, 0x00, 0x00 }; 
+    const byte salt2[] =   { 0x16, 0x82, 0xC0, 0xfC, 0x5b, 0x3f, 0x7e, 0xc5 };
+    byte  derived[64];
+
+    const byte verify[] = {
+        0x8A, 0xAA, 0xE6, 0x29, 0x7B, 0x6C, 0xB0, 0x46,
+        0x42, 0xAB, 0x5B, 0x07, 0x78, 0x51, 0x28, 0x4E,
+        0xB7, 0x12, 0x8F, 0x1A, 0x2A, 0x7F, 0xBC, 0xA3
+    };
+
+    const byte verify2[] = {
+        0x48, 0x3D, 0xD6, 0xE9, 0x19, 0xD7, 0xDE, 0x2E,
+        0x8E, 0x64, 0x8B, 0xA8, 0xF8, 0x62, 0xF3, 0xFB,
+        0xFB, 0xDC, 0x2B, 0xCB, 0x2C, 0x02, 0x95, 0x7F
+    };
+
+    int id         =  1;
+    int kLen       = 24;
+    int iterations =  1;
+    int ret = PKCS12_PBKDF(derived, passwd, sizeof(passwd), salt, 8, iterations,
+                           kLen, SHA, id);
+
+    if ( (ret = memcmp(derived, verify, kLen)) != 0)
+        return -103;
+
+    iterations = 1000;
+    ret = PKCS12_PBKDF(derived, passwd2, sizeof(passwd2), salt2, 8, iterations, 
+                       kLen, SHA, id);
+    if ( (ret = memcmp(derived, verify2, 24)) != 0)
+        return -104;
+
+    return 0;
+}
+
+
 int pbkdf2_test()
 {
     char passwd[] = "password";
@@ -1665,7 +1707,7 @@ int pbkdf2_test()
            SHA);
 
     if (memcmp(derived, verify, sizeof(verify)) != 0)
-        return -101;
+        return -102;
 
     return 0;
 }
@@ -1697,7 +1739,9 @@ int pbkdf1_test()
 int pwdbased_test()
 {
    int ret =  pbkdf1_test();
-   return ret + pbkdf2_test(); 
+   ret += pbkdf2_test();
+
+   return ret + pkcs12_test();
 }
 
 #endif /* NO_PWDBASED */
