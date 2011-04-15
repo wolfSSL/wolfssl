@@ -19,6 +19,8 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  */
 
+/* submitted by eof */
+
 #ifndef CYASSL_LOGGING_H
 #define CYASSL_LOGGING_H
 
