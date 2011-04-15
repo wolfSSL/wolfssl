@@ -33,6 +33,7 @@
 #include "asn.h"
 #include "ctc_md5.h"
 #include "ctc_aes.h"
+#include "logging.h"
 #ifdef HAVE_ECC
     #include "ctc_ecc.h"
 #endif
@@ -1221,23 +1222,6 @@ int LockMutex(CyaSSL_Mutex*);
 int UnLockMutex(CyaSSL_Mutex*);
 
 
-#ifdef DEBUG_CYASSL
-
-    void CYASSL_ENTER(const char* msg);
-    void CYASSL_LEAVE(const char* msg, int ret);
-
-    void CYASSL_ERROR(int);
-    void CYASSL_MSG(const char* msg);
-
-#else /* DEBUG_CYASSL   */
-
-    #define CYASSL_ENTER(m)
-    #define CYASSL_LEAVE(m, r)
-
-    #define CYASSL_ERROR(e) 
-    #define CYASSL_MSG(m)
-
-#endif /* DEBUG_CYASSL  */
 
 
 #ifdef __cplusplus
