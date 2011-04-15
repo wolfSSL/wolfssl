@@ -1,4 +1,4 @@
-/* logging.h
+/* cyassl_memory.h
  *
  * Copyright (C) 2006-2011 Sawtooth Consulting Ltd.
  *
@@ -19,46 +19,31 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  */
 
-#ifndef CYASSL_LOGGING_H
-#define CYASSL_LOGGING_H
+#ifndef CYASSL_MEMORY_H
+#define CYASSL_MEMORY_H
 
+#include <stdlib.h>
 
 #ifdef __cplusplus
     extern "C" {
 #endif
 
 
-enum  CYA_Log_Levels {
-    ERROR_LOG = 0,
-    INFO_LOG,
-    ENTER_LOG,
-    LEAVE_LOG,
-    OTHER_LOG
-};
 
-typedef void (*CyaSSL_Logging_cb)(const int logLevel,
-                                  const char *const logMessage);
-
-int CyaSSL_SetLoggingCb(CyaSSL_Logging_cb log_function);
+typedef void *(*CyaSSL_Malloc_cb)(size_t size);
+typedef void (*CyaSSL_Free_cb)(void *ptr);
+typedef void *(*CyaSSL_Realloc_cb)(void *ptr, size_t size);
 
 
-#ifdef DEBUG_CYASSL
+int CyaSSL_SetAllocators(CyaSSL_Malloc_cb  malloc_function,
+                         CyaSSL_Free_cb    free_function,
+                         CyaSSL_Realloc_cb realloc_function);
 
-    void CYASSL_ENTER(const char* msg);
-    void CYASSL_LEAVE(const char* msg, int ret);
+void* CyaSSL_Malloc(size_t size);
+void  CyaSSL_Free(void *ptr);
+void* CyaSSL_Realloc(void *ptr, size_t size);
 
-    void CYASSL_ERROR(int);
-    void CYASSL_MSG(const char* msg);
 
-#else /* DEBUG_CYASSL   */
-
-    #define CYASSL_ENTER(m)
-    #define CYASSL_LEAVE(m, r)
-
-    #define CYASSL_ERROR(e) 
-    #define CYASSL_MSG(m)
-
-#endif /* DEBUG_CYASSL  */
 
 #ifdef __cplusplus
 }

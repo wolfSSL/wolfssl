@@ -260,6 +260,11 @@
 
 #endif /* MICRIUM */
 
+
+#if !defined(XMALLOC_USER) && !defined(MICRIUM_MALLOC)
+    #define USE_CYASSL_MEMORY
+#endif
+
 /* Place any other flags or defines here */
 
 

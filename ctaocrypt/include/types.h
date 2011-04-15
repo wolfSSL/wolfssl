@@ -134,11 +134,12 @@ enum {
     extern void *XREALLOC(void *p, size_t n, void* heap, int type);
     extern void XFREE(void *p, void* heap, int type);
 #elif !defined(MICRIUM_MALLOC)
-    /* defaults to C runtime if user doesn't override and not Micrium */
-    #include <stdlib.h>
-    #define XMALLOC(s, h, t)     malloc((s))
-    #define XFREE(p, h, t)       {void* xp = (p); if((xp)) free((xp));}
-    #define XREALLOC(p, n, h, t) realloc((p), (n))
+    /* default C runtime, can install different routines at runtime */
+    #define USE_CYASSL_MEMORY
+    #include <cyassl_memory.h>
+    #define XMALLOC(s, h, t)     CyaSSL_Malloc((s))
+    #define XFREE(p, h, t)       {void* xp = (p); if((xp)) CyaSSL_Free((xp));}
+    #define XREALLOC(p, n, h, t) CyaSSL_Realloc((p), (n))
 #endif
 
 #ifndef STRING_USER
