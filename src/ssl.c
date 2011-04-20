@@ -657,10 +657,24 @@ int AddCA(SSL_CTX* ctx, buffer der)
                 *used = info.consumed;
             /* we may have a cert chain */
             if (type == CERT_TYPE && info.consumed < sz) {
-                /* allow a chain of MAX_DEPTH plus subject, 5 by default */
-                byte   chainBuffer[MAX_X509_SIZE * MAX_CHAIN_DEPTH];
+                byte   staticBuffer[FILE_BUFFER_SIZE];  /* tmp chain buffer */
+                byte*  chainBuffer = staticBuffer;
+                int    dynamicBuffer = 0;
+                word32 bufferSz = sizeof(staticBuffer);
                 long   consumed = info.consumed;
                 word32 idx = 0;
+
+                if ( (sz - consumed) > bufferSz) {
+                    CYASSL_MSG("Growing Tmp Chain Buffer");
+                    bufferSz = sz - consumed;  /* will shrink to actual size */
+                    chainBuffer = (byte*)XMALLOC(bufferSz, ctx->heap,
+                                                 DYNAMIC_FILE_TYPE);
+                    if (chainBuffer == NULL) {
+                        XFREE(der.buffer, ctx->heap, dynamicType);
+                        return MEMORY_E;
+                    }
+                    dynamicBuffer = 1;
+                }
 
                 CYASSL_MSG("Processing Cert Chain");
                 while (consumed < sz) {
@@ -672,7 +686,7 @@ int AddCA(SSL_CTX* ctx, buffer der)
                     ret = PemToDer(buff + consumed, sz - consumed, type, &part,
                                    ctx->heap, &info, &eccKey);
                     if (ret == 0) {
-                        if ( (idx + part.length) > sizeof(chainBuffer)) {
+                        if ( (idx + part.length) > bufferSz) {
                             CYASSL_MSG("   Cert Chain bigger than buffer");
                             ret = BUFFER_E;
                         }
@@ -690,6 +704,7 @@ int AddCA(SSL_CTX* ctx, buffer der)
                     XFREE(part.buffer, ctx->heap, dynamicType);
                     if (ret < 0) {
                         CYASSL_MSG("   Error in Cert in Chain");
+                        XFREE(der.buffer, ctx->heap, dynamicType);
                         return ret;
                     }
                     CYASSL_MSG("   Consumed another Cert in Chain");
@@ -703,10 +718,16 @@ int AddCA(SSL_CTX* ctx, buffer der)
                 CYASSL_MSG("Finished Processing Cert Chain");
                 ctx->certChain.buffer = (byte*)XMALLOC(idx, ctx->heap,
                                                        dynamicType);
-                if (ctx->certChain.buffer == NULL)
+                if (ctx->certChain.buffer) {
+                    ctx->certChain.length = idx;
+                    XMEMCPY(ctx->certChain.buffer, chainBuffer, idx);
+                }
+                if (dynamicBuffer)
+                    XFREE(chainBuffer, ctx->heap, DYNAMIC_FILE_TYPE);
+                if (ctx->certChain.buffer == NULL) {
+                    XFREE(der.buffer, ctx->heap, dynamicType);
                     return MEMORY_E;
-                ctx->certChain.length = idx;
-                XMEMCPY(ctx->certChain.buffer, chainBuffer, idx);
+                }
             }
         }
         else {  /* ASN1 (DER) or RAW (NTRU) */
@@ -725,17 +746,24 @@ int AddCA(SSL_CTX* ctx, buffer der)
             byte key[AES_256_KEY_SIZE];
             byte  iv[AES_IV_SIZE];
 
-            if (!ctx->passwd_cb) return -1;
+            if (!ctx->passwd_cb) {
+                XFREE(der.buffer, ctx->heap, dynamicType);
+                return -1;
+            }
 
             /* use file's salt for key derivation, hex decode first */
-            if (Base16Decode(info.iv, info.ivSz, info.iv, &info.ivSz) != 0)
+            if (Base16Decode(info.iv, info.ivSz, info.iv, &info.ivSz) != 0) {
+                XFREE(der.buffer, ctx->heap, dynamicType);
                 return -1;
+            }
 
             passwordSz = ctx->passwd_cb(password, sizeof(password), 0,
                                     ctx->userdata);
             if (EVP_BytesToKey(info.name, "MD5", info.iv, (byte*)password,
-                               passwordSz, 1, key, iv) <= 0)
+                               passwordSz, 1, key, iv) <= 0) {
+                XFREE(der.buffer, ctx->heap, dynamicType);
                 return -1;
+            }
 
             if (XSTRNCMP(info.name, "DES-CBC", 7) == 0) {
                 Des des;
@@ -762,8 +790,10 @@ int AddCA(SSL_CTX* ctx, buffer der)
                 AesSetKey(&aes, key, AES_256_KEY_SIZE, info.iv, AES_DECRYPTION);
                 AesCbcDecrypt(&aes, der.buffer, der.buffer, der.length);
             }
-            else 
+            else { 
+                XFREE(der.buffer, ctx->heap, dynamicType);
                 return SSL_BAD_FILE;
+            }
         }
 #endif /* OPENSSL_EXTRA || HAVE_WEBSERVER */
 
