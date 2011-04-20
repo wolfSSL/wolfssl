@@ -88,6 +88,7 @@ enum CyaSSL_ErrorCodes {
     ECC_MAKEKEY_ERROR      = -253,            /* Bad Make ECC Key */
     ECC_EXPORT_ERROR       = -254,            /* Bad ECC Export Key */
     ECC_SHARED_ERROR       = -255,            /* Bad ECC Shared Secret */
+    BAD_MUTEX_ERROR        = -256,            /* Bad mutex */
     /* add strings to SetErrorString !!!!! */
 
     /* begin negotiation parameter errors */

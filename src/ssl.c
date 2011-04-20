@@ -127,7 +127,7 @@ int SSL_get_fd(const SSL* ssl)
 
 int CyaSSL_negotiate(SSL* ssl)
 {
-    int err = -1;
+    int err = SSL_FATAL_ERROR;
 
     CYASSL_ENTER("CyaSSL_negotiate()");
 #ifndef NO_CYASSL_SERVER
@@ -154,7 +154,7 @@ int CyaSSL_SetTmpDH(SSL* ssl, unsigned char* p,int pSz,unsigned char* g,int gSz)
 {
     byte havePSK = 0;
 
-    if (ssl == NULL || p == NULL || g == NULL) return -1;
+    if (ssl == NULL || p == NULL || g == NULL) return BAD_FUNC_ARG;
 
     if (ssl->options.side != SERVER_END)
         return SIDE_ERROR;
@@ -742,27 +742,28 @@ int AddCA(SSL_CTX* ctx, buffer der)
             /* decrypt */
             char password[80];
             int  passwordSz;
+            int  ret;
 
             byte key[AES_256_KEY_SIZE];
             byte  iv[AES_IV_SIZE];
 
             if (!ctx->passwd_cb) {
                 XFREE(der.buffer, ctx->heap, dynamicType);
-                return -1;
+                return NO_PASSWORD;
             }
 
             /* use file's salt for key derivation, hex decode first */
             if (Base16Decode(info.iv, info.ivSz, info.iv, &info.ivSz) != 0) {
                 XFREE(der.buffer, ctx->heap, dynamicType);
-                return -1;
+                return ASN_INPUT_E;
             }
 
             passwordSz = ctx->passwd_cb(password, sizeof(password), 0,
                                     ctx->userdata);
-            if (EVP_BytesToKey(info.name, "MD5", info.iv, (byte*)password,
-                               passwordSz, 1, key, iv) <= 0) {
+            if ( (ret = EVP_BytesToKey(info.name, "MD5", info.iv,
+                            (byte*)password, passwordSz, 1, key, iv)) <= 0) {
                 XFREE(der.buffer, ctx->heap, dynamicType);
-                return -1;
+                return ret;
             }
 
             if (XSTRNCMP(info.name, "DES-CBC", 7) == 0) {
@@ -1155,7 +1156,7 @@ int SSL_library_init(void)
     if (InitCyaSSL() == 0)
         return SSL_SUCCESS;
     else
-        return -1;
+        return SSL_FATAL_ERROR;
 }
 
 
@@ -1634,10 +1635,10 @@ int InitCyaSSL(void)
     int ret = 0;
 #ifndef NO_SESSION_CACHE
     if (InitMutex(&session_mutex) != 0)
-        ret = -1;
+        ret = BAD_MUTEX_ERROR;
 #endif
     if (InitMutex(&ca_mutex) != 0)
-        ret = -1;
+        ret = BAD_MUTEX_ERROR;
 
     return ret;
 }
@@ -1648,10 +1649,10 @@ int FreeCyaSSL(void)
     int ret = 0;
 #ifndef NO_SESSION_CACHE
     if (FreeMutex(&session_mutex) != 0)
-        ret = -1;
+        ret = BAD_MUTEX_ERROR;
 #endif
     if (FreeMutex(&ca_mutex) != 0)
-        ret = -1;
+        ret = BAD_MUTEX_ERROR;
 
     return ret;
 }
@@ -1748,7 +1749,7 @@ int AddSession(SSL* ssl)
     row = HashSession(ssl->arrays.sessionID) % SESSION_ROWS;
 
     if (LockMutex(&session_mutex) != 0)
-        return -1;
+        return BAD_MUTEX_ERROR;
 
     idx = SessionCache[row].nextIdx++;
 
@@ -1775,7 +1776,7 @@ int AddSession(SSL* ssl)
         SessionCache[row].nextIdx = 0;
 
     if (UnLockMutex(&session_mutex) != 0)
-        return -1;
+        return BAD_MUTEX_ERROR;
 
     return 0;
 }
@@ -1865,7 +1866,7 @@ int CyaSSL_set_compression(SSL* ssl)
     ssl->options.usingCompression = 1;
     return 0;
 #else
-    return -1;
+    return NOT_COMPILED_IN;
 #endif
 }
 
@@ -1956,7 +1957,7 @@ int CyaSSL_set_compression(SSL* ssl)
     static int CyaSSL_ex_wrapper(SSL* ssl, HandShakeCallBack hsCb,
                                  TimeoutCallBack toCb, Timeval timeout)
     {
-        int       ret        = -1;
+        int       ret        = SSL_FATAL_ERROR;
         int       oldTimerOn = 0;   /* was timer already on */
         Timeval   startTime;
         Timeval   endTime;
@@ -2527,12 +2528,12 @@ int CyaSSL_set_compression(SSL* ssl)
 
         /* already got eof, again is error */
         if (front->eof)
-            return -1;
+            return SSL_FATAL_ERROR;
 
         while(bio && ((ssl = bio->ssl) == 0) )
             bio = bio->next;
 
-        if (ssl == 0) return -1;
+        if (ssl == 0) return BAD_FUNC_ARG;
 
         ret = SSL_read(ssl, buf, len);
         if (ret == 0)
@@ -2554,12 +2555,12 @@ int CyaSSL_set_compression(SSL* ssl)
 
         /* already got eof, again is error */
         if (front->eof)
-            return -1;
+            return SSL_FATAL_ERROR;
 
         while(bio && ((ssl = bio->ssl) == 0) )
             bio = bio->next;
 
-        if (ssl == 0) return -1;
+        if (ssl == 0) return BAD_FUNC_ARG;
 
         ret = SSL_write(ssl, data, len);
         if (ret == 0)
@@ -2828,7 +2829,7 @@ int CyaSSL_set_compression(SSL* ssl)
              SHA_Init((SHA_CTX*)&ctx->hash);
         }
         else
-             return -1;
+             return BAD_FUNC_ARG;
 
         return 0;
     }
@@ -2841,7 +2842,7 @@ int CyaSSL_set_compression(SSL* ssl)
         else if (ctx->macType == SHA) 
             SHA_Update((SHA_CTX*)&ctx->hash, data, (unsigned long)sz);
         else
-            return -1;
+            return BAD_FUNC_ARG;
 
         return 0;
     }
@@ -2858,7 +2859,7 @@ int CyaSSL_set_compression(SSL* ssl)
             if (s) *s = SHA_DIGEST_SIZE;
         }
         else
-            return -1;
+            return BAD_FUNC_ARG;
 
         return 0;
     }
@@ -3769,7 +3770,7 @@ int CyaSSL_set_compression(SSL* ssl)
     int CyaSSL_X509_get_serial_number(X509* x509, byte* buffer, int* inOutSz)
     {
         if (x509 == NULL || buffer == NULL || *inOutSz < x509->serialSz)
-            return -1;
+            return BAD_FUNC_ARG;
 
         XMEMCPY(buffer, x509->serial, x509->serialSz);
         *inOutSz = x509->serialSz;
@@ -3834,13 +3835,14 @@ int  CyaSSL_get_chain_cert_pem(X509_CHAIN* chain, int idx,
     int headerLen = sizeof(header) - 1;
     int footerLen = sizeof(footer) - 1;
     int i;
+    int err;
 
     if (!chain || !outLen || !buffer)
-        return -1;
+        return BAD_FUNC_ARG;
 
     /* don't even try if inLen too short */
     if (inLen < headerLen + footerLen + chain->certs[idx].length)
-        return -1;
+        return BAD_FUNC_ARG;
 
     /* header */
     XMEMCPY(buffer, header, headerLen);
@@ -3848,14 +3850,14 @@ int  CyaSSL_get_chain_cert_pem(X509_CHAIN* chain, int idx,
 
     /* body */
     *outLen = inLen;  /* input to Base64Encode */
-    if (Base64Encode(chain->certs[idx].buffer, chain->certs[idx].length,
-                     buffer + i, (word32*)outLen) < 0)
-        return -1;
+    if ( (err = Base64Encode(chain->certs[idx].buffer, chain->certs[idx].length,
+                     buffer + i, (word32*)outLen)) < 0)
+        return err;
     i += *outLen;
 
     /* footer */
     if ( (i + footerLen) > inLen)
-        return -1;
+        return BAD_FUNC_ARG;
     XMEMCPY(buffer + i, footer, footerLen);
     *outLen += headerLen + footerLen; 
 

@@ -93,6 +93,7 @@ enum {
     BAD_FUNC_ARG       = -173,  /* Bad function argument provided */
     NOT_COMPILED_IN    = -174,  /* Feature not compiled in */
     UNICODE_SIZE_E     = -175,  /* Unicdoe password too big */
+    NO_PASSWORD        = -176,  /* no password provided by user */
 
     MIN_CODE_E         = -200   /* errors -101 - -199 */
 };

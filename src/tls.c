@@ -446,13 +446,13 @@ void BuildTlsFinished(SSL* ssl, Hashes* hashes, const byte* sender)
 
 int DeriveTlsKeys(SSL* ssl)
 {
-    return -1;
+    return NOT_COMPILED_IN;
 }
 
 
 int MakeTlsMasterSecret(SSL* ssl)
 { 
-    return -1;
+    return NOT_COMPILED_IN;
 }
 
 #endif /* NO_TLS */

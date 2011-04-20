@@ -2200,6 +2200,10 @@ void CTaoCryptErrorString(int error, char* buffer)
         XSTRNCPY(buffer, "Unicode password too big", max);
         break;
 
+    case NO_PASSWORD :
+        XSTRNCPY(buffer, "No password provided by user", max);
+        break;
+
     default:
         XSTRNCPY(buffer, "unknown error number", max);
 

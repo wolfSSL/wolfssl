@@ -1027,6 +1027,7 @@ static void AddHeaders(byte* output, word32 length, byte type, SSL* ssl)
 }
 
 
+/* return bytes received, -1 on error, 0 on timeout */
 static int Receive(SSL* ssl, byte* buf, word32 sz, int flags)
 {
     int recvd;
@@ -1167,7 +1168,7 @@ static INLINE int GrowOutputBuffer(SSL* ssl, int size)
                                 ssl->heap, DYNAMIC_TYPE_OUT_BUFFER);
     CYASSL_MSG("growing output buffer\n");
    
-    if (!tmp) return -1;
+    if (!tmp) return MEMORY_E;
 
     if (ssl->buffers.outputBuffer.length)
         XMEMCPY(tmp, ssl->buffers.outputBuffer.buffer,
@@ -1191,7 +1192,7 @@ static INLINE int GrowInputBuffer(SSL* ssl, int size, int usedLength)
                                 DYNAMIC_TYPE_IN_BUFFER);
     CYASSL_MSG("growing input buffer\n");
    
-    if (!tmp) return -1;
+    if (!tmp) return MEMORY_E;
 
     if (usedLength)
         XMEMCPY(tmp, ssl->buffers.inputBuffer.buffer +
@@ -2519,7 +2520,7 @@ int SendFinished(SSL* ssl)
                   server);
 
     if ( (sendSz = BuildMessage(ssl, output, input, headerSz +
-                                finishedSz, handshake)) == -1)
+                                finishedSz, handshake)) < 0)
         return BUILD_MSG_ERROR;
 
     if (!ssl->options.resuming) {
@@ -3114,15 +3115,19 @@ void SetErrorString(int error, char* buffer)
         break;
 
     case ECC_MAKEKEY_ERROR:
-        XSTRNCPY(buffer, "ECC Make Key failutre", max);
+        XSTRNCPY(buffer, "ECC Make Key failure", max);
         break;
 
     case ECC_EXPORT_ERROR:
-        XSTRNCPY(buffer, "ECC Export Key failutre", max);
+        XSTRNCPY(buffer, "ECC Export Key failure", max);
         break;
 
     case ECC_SHARED_ERROR:
-        XSTRNCPY(buffer, "ECC DHE shared failutre", max);
+        XSTRNCPY(buffer, "ECC DHE shared failure", max);
+        break;
+
+    case BAD_MUTEX_ERROR:
+        XSTRNCPY(buffer, "Bad mutex, operation failed", max);
         break;
 
     default :
@@ -3980,7 +3985,7 @@ int SetCipherList(SSL_CTX* ctx, const char* list)
         }
 #endif /* HAVE_ECC */
         else
-            return -1;
+            return ALGO_ID_E;
 
         ssl->options.serverState = SERVER_KEYEXCHANGE_COMPLETE;
 
@@ -3988,7 +3993,7 @@ int SetCipherList(SSL_CTX* ctx, const char* list)
 
     }
 #endif  /* HAVE_OPENSSL or HAVE_ECC */
-        return -1;  /* not supported by build */
+        return NOT_COMPILED_IN;  /* not supported by build */
     }
 
 
@@ -4131,7 +4136,7 @@ int SetCipherList(SSL_CTX* ctx, const char* list)
             ecc_free(&myKey);
         #endif /* HAVE_ECC */
         } else
-            return -1; /* unsupported kea */
+            return ALGO_ID_E; /* unsupported kea */
 
         if (ret == 0) {
             byte              *output;
@@ -4520,7 +4525,7 @@ int SetCipherList(SSL_CTX* ctx, const char* list)
             else {
                 FreeRsaKey(&rsaKey);
                 ecc_free(&dsaKey);
-                return -1;  /* unsupported type */
+                return ALGO_ID_E;  /* unsupported type */
             }
             length += sigSz;
 
@@ -5479,7 +5484,7 @@ int UnLockMutex(CyaSSL_Mutex* m)
             if (pthread_mutex_init(m, 0) == 0)
                 return 0;
             else
-                return -1;
+                return BAD_MUTEX_ERROR;
         }
 
 
@@ -5488,7 +5493,7 @@ int UnLockMutex(CyaSSL_Mutex* m)
             if (pthread_mutex_destroy(m) == 0)
                 return 0;
             else
-                return -1;
+                return BAD_MUTEX_ERROR;
         }
 
 
@@ -5497,7 +5502,7 @@ int UnLockMutex(CyaSSL_Mutex* m)
             if (pthread_mutex_lock(m) == 0)
                 return 0;
             else
-                return -1;
+                return BAD_MUTEX_ERROR;
         }
 
 
@@ -5506,7 +5511,7 @@ int UnLockMutex(CyaSSL_Mutex* m)
             if (pthread_mutex_unlock(m) == 0)
                 return 0;
             else
-                return -1;
+                return BAD_MUTEX_ERROR;
         }
 
     #elif defined(THREADX)
@@ -5516,7 +5521,7 @@ int UnLockMutex(CyaSSL_Mutex* m)
             if (tx_mutex_create(m, "CyaSSL Mutex", TX_NO_INHERIT) == 0)
                 return 0;
             else
-                return -1;
+                return BAD_MUTEX_ERROR;
         }
 
 
@@ -5525,7 +5530,7 @@ int UnLockMutex(CyaSSL_Mutex* m)
             if (tx_mutex_delete(m) == 0)
                 return 0;
             else
-                return -1;
+                return BAD_MUTEX_ERROR;
         }
 
 
@@ -5534,7 +5539,7 @@ int UnLockMutex(CyaSSL_Mutex* m)
             if (tx_mutex_get(m, TX_WAIT_FOREVER) == 0)
                 return 0;
             else
-                return -1;
+                return BAD_MUTEX_ERROR;
         }
 
 
@@ -5543,7 +5548,7 @@ int UnLockMutex(CyaSSL_Mutex* m)
             if (tx_mutex_put(m) == 0)
                 return 0;
             else
-                return -1;
+                return BAD_MUTEX_ERROR;
         }
 
     #elif defined(MICRIUM)
@@ -5554,7 +5559,7 @@ int UnLockMutex(CyaSSL_Mutex* m)
                 if (NetSecure_OS_MutexCreate(m) == 0)
                     return 0;
                 else
-                    return -1;
+                    return BAD_MUTEX_ERROR;
             #else
                 return 0;
             #endif
@@ -5567,7 +5572,7 @@ int UnLockMutex(CyaSSL_Mutex* m)
                 if (NetSecure_OS_FreeMutex(m) == 0)
                     return 0;
                 else
-                    return -1;
+                    return BAD_MUTEX_ERROR;
             #else
                 return 0;
             #endif
@@ -5580,7 +5585,7 @@ int UnLockMutex(CyaSSL_Mutex* m)
                 if (NetSecure_OS_LockMutex(m) == 0)
                     return 0;
                 else
-                    return -1;
+                    return BAD_MUTEX_ERROR;
             #else
                 return 0;
             #endif
@@ -5593,7 +5598,7 @@ int UnLockMutex(CyaSSL_Mutex* m)
                 if (NetSecure_OS_UnLockMutex(m) == 0)
                     return 0;
                 else
-                    return -1;
+                    return BAD_MUTEX_ERROR;
             #else
                 return 0;
             #endif
