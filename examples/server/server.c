@@ -117,6 +117,7 @@ THREAD_RETURN CYASSL_API server_test(void* args)
 #endif
 
     SSL_set_fd(ssl, clientfd);
+    SetDH(ssl);
 
 #ifdef NON_BLOCKING
     tcp_set_nonblocking(&clientfd);

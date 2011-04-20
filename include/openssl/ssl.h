@@ -625,6 +625,9 @@ int  CyaSSL_get_chain_cert_pem(X509_CHAIN*, int idx, unsigned char* buffer,
 const unsigned char* CyaSSL_get_sessionID(const SSL_SESSION* session);
 int  CyaSSL_X509_get_serial_number(X509*, unsigned char*, int*);
 
+/* server CTX Diffie-Hellman parameters */
+int  CyaSSL_SetTmpDH(SSL*, unsigned char* p, int pSz, unsigned char* g,int gSz);
+
 #ifndef _WIN32
     #ifndef NO_WRITEV
         #include <sys/uio.h>

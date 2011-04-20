@@ -149,6 +149,50 @@ int CyaSSL_negotiate(SSL* ssl)
 }
 
 
+/* server CTX Diffie-Hellman parameters */
+int CyaSSL_SetTmpDH(SSL* ssl, unsigned char* p,int pSz,unsigned char* g,int gSz)
+{
+    byte havePSK = 0;
+
+    if (ssl == NULL || p == NULL || g == NULL) return -1;
+
+    if (ssl->options.side != SERVER_END)
+        return SIDE_ERROR;
+
+    if (ssl->buffers.serverDH_P.buffer)
+        XFREE(ssl->buffers.serverDH_P.buffer, ssl->ctx->heap, DYNAMIC_TYPE_DH);
+    if (ssl->buffers.serverDH_G.buffer)
+        XFREE(ssl->buffers.serverDH_G.buffer, ssl->ctx->heap, DYNAMIC_TYPE_DH);
+
+    ssl->buffers.serverDH_P.buffer = (byte*)XMALLOC(pSz, ssl->ctx->heap,
+                                                    DYNAMIC_TYPE_DH);
+    if (ssl->buffers.serverDH_P.buffer == NULL)
+        return MEMORY_E;
+
+    ssl->buffers.serverDH_G.buffer = (byte*)XMALLOC(gSz, ssl->ctx->heap,
+                                                    DYNAMIC_TYPE_DH);
+    if (ssl->buffers.serverDH_G.buffer == NULL) {
+        XFREE(ssl->buffers.serverDH_P.buffer, ssl->ctx->heap, DYNAMIC_TYPE_DH);
+        return MEMORY_E;
+    }
+
+    ssl->buffers.serverDH_P.length = pSz;
+    ssl->buffers.serverDH_G.length = gSz;
+
+    XMEMCPY(ssl->buffers.serverDH_P.buffer, p, pSz);
+    XMEMCPY(ssl->buffers.serverDH_G.buffer, g, gSz);
+
+    ssl->options.haveDH = 1;
+    #ifndef NO_PSK
+        havePSK = ssl->options.havePSK;
+    #endif
+    InitSuites(&ssl->suites, ssl->version, ssl->options.haveDH,
+               havePSK, ssl->options.haveNTRU, ssl->options.haveECDSA,
+               ssl->ctx->method->side);
+    return 0;
+}
+
+
 int SSL_write(SSL* ssl, const void* buffer, int sz)
 {
     int ret;

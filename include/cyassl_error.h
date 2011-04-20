@@ -49,6 +49,7 @@ enum CyaSSL_ErrorCodes {
     NO_PEER_KEY            = -216,            /* need peer's key          */
     NO_PRIVATE_KEY         = -217,            /* need the private key     */
     RSA_PRIVATE_ERROR      = -218,            /* error during rsa priv op */
+    NO_DH_PARAMS           = -219,            /* server missging DH params */
     BUILD_MSG_ERROR        = -220,            /* build message failure    */
 
     BAD_HELLO              = -221,            /* client hello malformed   */

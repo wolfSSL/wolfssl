@@ -2977,6 +2977,10 @@ void SetErrorString(int error, char* buffer)
         XSTRNCPY(buffer, "need the private key", max);
         break;
 
+    case NO_DH_PARAMS :
+        XSTRNCPY(buffer, "server missing DH params", max);
+        break;
+
     case RSA_PRIVATE_ERROR :
         XSTRNCPY(buffer, "error during rsa priv op", max);
         break;
@@ -4610,6 +4614,7 @@ int SetCipherList(SSL_CTX* ctx, const char* list)
                     FreeRsaKey(&rsaKey);
                     ret = ecc_sign_hash(&hash[MD5_DIGEST_SIZE], SHA_DIGEST_SIZE,
                             output + idx, &sz, &ssl->rng, &dsaKey);
+                    if (ret < 0) return ret;
                 }
             }
 
@@ -4628,6 +4633,194 @@ int SetCipherList(SSL_CTX* ctx, const char* list)
             ssl->options.serverState = SERVER_KEYEXCHANGE_COMPLETE;
         }
         #endif /* HAVE_ECC */
+
+        #ifdef OPENSSL_EXTRA 
+        if (ssl->specs.kea == diffie_hellman_kea) {
+            byte    *output;
+            word32   length, idx = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
+            int      sendSz;
+            word32   sigSz, i = 0;
+            word32   preSigSz, preSigIdx;
+            RsaKey   rsaKey;
+            DhKey    dhKey;
+            
+            if (ssl->buffers.serverDH_P.buffer == NULL ||
+                ssl->buffers.serverDH_G.buffer == NULL)
+                return NO_DH_PARAMS;
+
+            if (ssl->buffers.serverDH_Pub.buffer == NULL) {
+                ssl->buffers.serverDH_Pub.buffer = (byte*)XMALLOC(
+                        ssl->buffers.serverDH_P.length + 2, ssl->ctx->heap,
+                        DYNAMIC_TYPE_DH);
+                if (ssl->buffers.serverDH_Pub.buffer == NULL)
+                    return MEMORY_E;
+            } 
+
+            if (ssl->buffers.serverDH_Priv.buffer == NULL) {
+                ssl->buffers.serverDH_Priv.buffer = (byte*)XMALLOC(
+                        ssl->buffers.serverDH_P.length + 2, ssl->ctx->heap,
+                        DYNAMIC_TYPE_DH);
+                if (ssl->buffers.serverDH_Priv.buffer == NULL)
+                    return MEMORY_E;
+            } 
+
+            InitDhKey(&dhKey);
+            ret = DhSetKey(&dhKey, ssl->buffers.serverDH_P.buffer,
+                                   ssl->buffers.serverDH_P.length,
+                                   ssl->buffers.serverDH_G.buffer,
+                                   ssl->buffers.serverDH_G.length);
+            if (ret == 0)
+                ret = DhGenerateKeyPair(&dhKey, &ssl->rng,
+                                         ssl->buffers.serverDH_Priv.buffer,
+                                        &ssl->buffers.serverDH_Priv.length,
+                                         ssl->buffers.serverDH_Pub.buffer,
+                                        &ssl->buffers.serverDH_Pub.length);
+            FreeDhKey(&dhKey);
+
+            if (ret == 0) {
+                length = LENGTH_SZ * 3;  /* p, g, pub */
+                length += ssl->buffers.serverDH_P.length +
+                          ssl->buffers.serverDH_G.length + 
+                          ssl->buffers.serverDH_Pub.length;
+
+                preSigIdx = idx;
+                preSigSz  = length;
+
+                /* sig length */
+                length += LENGTH_SZ;
+
+                if (!ssl->buffers.key.buffer)
+                    return NO_PRIVATE_KEY;
+
+                InitRsaKey(&rsaKey, ssl->heap);
+                ret = RsaPrivateKeyDecode(ssl->buffers.key.buffer, &i, &rsaKey,
+                                          ssl->buffers.key.length);
+                if (ret == 0) {
+                    sigSz = RsaEncryptSize(&rsaKey);
+                    length += sigSz;
+                }
+            }
+            if (ret != 0) {
+                FreeRsaKey(&rsaKey);
+                return ret;
+            }
+                                         
+            if (IsAtLeastTLSv1_2(ssl))
+                length += HASH_SIG_SIZE;
+
+            sendSz = length + HANDSHAKE_HEADER_SZ + RECORD_HEADER_SZ;
+
+            #ifdef CYASSL_DTLS 
+                if (ssl->options.dtls) {
+                    sendSz += DTLS_RECORD_EXTRA + DTLS_HANDSHAKE_EXTRA;
+                    idx    += DTLS_RECORD_EXTRA + DTLS_HANDSHAKE_EXTRA;
+                }
+            #endif
+            /* check for avalaible size */
+            if ((ret = CheckAvalaibleSize(ssl, sendSz)) != 0) {
+                FreeRsaKey(&rsaKey);
+                return ret;
+            } 
+
+            /* get ouput buffer */
+            output = ssl->buffers.outputBuffer.buffer + 
+                     ssl->buffers.outputBuffer.idx;
+
+            AddHeaders(output, length, server_key_exchange, ssl);
+
+            /* add p, g, pub */
+            c16toa((word16)ssl->buffers.serverDH_P.length, output + idx);
+            idx += LENGTH_SZ;
+            XMEMCPY(output + idx, ssl->buffers.serverDH_P.buffer,
+                                  ssl->buffers.serverDH_P.length);
+            idx += ssl->buffers.serverDH_P.length;
+
+            /*  g */
+            c16toa((word16)ssl->buffers.serverDH_G.length, output + idx);
+            idx += LENGTH_SZ;
+            XMEMCPY(output + idx, ssl->buffers.serverDH_G.buffer,
+                                  ssl->buffers.serverDH_G.length);
+            idx += ssl->buffers.serverDH_G.length;
+
+            /*  pub */
+            c16toa((word16)ssl->buffers.serverDH_Pub.length, output + idx);
+            idx += LENGTH_SZ;
+            XMEMCPY(output + idx, ssl->buffers.serverDH_Pub.buffer,
+                                  ssl->buffers.serverDH_Pub.length);
+            idx += ssl->buffers.serverDH_Pub.length;
+
+            /* Add signature */
+            if (IsAtLeastTLSv1_2(ssl)) {
+                output[idx++] = sha_mac;
+                output[idx++] = ssl->specs.sig_algo; 
+            }
+            /*    size */
+            c16toa(sigSz, output + idx);
+            idx += LENGTH_SZ;
+
+            /* do signature */
+            {
+                Md5    md5;
+                Sha    sha;
+                byte   hash[FINISHED_SZ];
+                byte*  signBuffer = hash;
+                word32 signSz    = sizeof(hash);
+
+                /* md5 */
+                InitMd5(&md5);
+                Md5Update(&md5, ssl->arrays.clientRandom, RAN_LEN);
+                Md5Update(&md5, ssl->arrays.serverRandom, RAN_LEN);
+                Md5Update(&md5, output + preSigIdx, preSigSz);
+                Md5Final(&md5, hash);
+
+                /* sha */
+                InitSha(&sha);
+                ShaUpdate(&sha, ssl->arrays.clientRandom, RAN_LEN);
+                ShaUpdate(&sha, ssl->arrays.serverRandom, RAN_LEN);
+                ShaUpdate(&sha, output + preSigIdx, preSigSz);
+                ShaFinal(&sha, &hash[MD5_DIGEST_SIZE]);
+
+                if (ssl->specs.sig_algo == rsa_sa_algo) {
+                    byte encodedSig[MAX_ENCODED_SIG_SZ];
+                    if (IsAtLeastTLSv1_2(ssl)) {
+                        byte* digest;
+                        int   hashType;
+                        int   digestSz;
+
+                        /* sha1 for now */
+                        digest   = &hash[MD5_DIGEST_SIZE];
+                        hashType = SHAh;
+                        digestSz = SHA_DIGEST_SIZE;
+
+                        signSz = EncodeSignature(encodedSig, digest, digestSz,
+                                                 hashType);
+                        signBuffer = encodedSig;
+                    }
+                    ret = RsaSSL_Sign(signBuffer, signSz, output + idx, sigSz,
+                                      &rsaKey, &ssl->rng);
+                    FreeRsaKey(&rsaKey);
+                    if (ret > 0)
+                        ret = 0;  /* reset on success */
+                    else
+                        return ret;
+                }
+            }
+
+            HashOutput(ssl, output, sendSz, 0);
+
+            #ifdef CYASSL_CALLBACKS
+                if (ssl->hsInfoOn)
+                    AddPacketName("ServerKeyExchange", &ssl->handShakeInfo);
+                if (ssl->toInfoOn)
+                    AddPacketInfo("ServerKeyExchange", &ssl->timeoutInfo,
+                                  output, sendSz, ssl->heap);
+            #endif
+
+            ssl->buffers.outputBuffer.length += sendSz;
+            ret = SendBuffered(ssl);
+            ssl->options.serverState = SERVER_KEYEXCHANGE_COMPLETE;
+        }
+        #endif /* OPENSSL_EXTRA */
 
         return ret;
     }
@@ -5182,6 +5375,33 @@ int SetCipherList(SSL_CTX* ctx, const char* list)
             ssl->arrays.preMasterSz = size;
             ret = MakeMasterSecret(ssl);
 #endif /* HAVE_ECC */
+#ifdef OPENSSL_EXTRA 
+        } else if (ssl->specs.kea == diffie_hellman_kea) {
+            byte*  clientPub;
+            word16 clientPubSz;
+            DhKey  dhKey;
+
+            ato16(&input[*inOutIdx], &clientPubSz);
+            *inOutIdx += LENGTH_SZ;
+
+            clientPub = &input[*inOutIdx];
+            *inOutIdx += clientPubSz;
+
+            InitDhKey(&dhKey);
+            ret = DhSetKey(&dhKey, ssl->buffers.serverDH_P.buffer,
+                                   ssl->buffers.serverDH_P.length,
+                                   ssl->buffers.serverDH_G.buffer,
+                                   ssl->buffers.serverDH_G.length);
+            if (ret == 0)
+                ret = DhAgree(&dhKey, ssl->arrays.preMasterSecret,
+                                     &ssl->arrays.preMasterSz,
+                                      ssl->buffers.serverDH_Priv.buffer,
+                                      ssl->buffers.serverDH_Priv.length,
+                                      clientPub, clientPubSz);
+            FreeDhKey(&dhKey);
+            if (ret == 0)
+                ret = MakeMasterSecret(ssl);
+#endif /* OPENSSL_EXTRA */
         }
 
         if (ret == 0) {

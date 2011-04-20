@@ -120,6 +120,7 @@ THREAD_RETURN CYASSL_API echoserver_test(void* args)
         ssl = SSL_new(ctx);
         if (ssl == NULL) err_sys("SSL_new failed");
         SSL_set_fd(ssl, clientfd);
+        SetDH(ssl);
         if (SSL_accept(ssl) != SSL_SUCCESS) {
             printf("SSL_accept failed");
             SSL_free(ssl);
