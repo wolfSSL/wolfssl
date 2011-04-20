@@ -23,6 +23,7 @@
 #ifndef NO_HMAC
 
 #include "ctc_hmac.h"
+#include "error.h"
 
 
 
@@ -32,7 +33,7 @@ static int InitHmac(Hmac* hmac, int type)
     hmac->macType = type;
 
     if (!(type == MD5 || type == SHA || type == SHA256))
-        return -1;
+        return BAD_FUNC_ARG;
 
     if (type == MD5)
         InitMd5(&hmac->hash.md5);

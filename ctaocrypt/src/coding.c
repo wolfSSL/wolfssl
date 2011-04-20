@@ -21,6 +21,7 @@
 
 
 #include "coding.h"
+#include "error.h"
 
 
 enum {
@@ -51,7 +52,7 @@ int Base64Decode(const byte* in, word32 inLen, byte* out, word32* outLen)
     word32 plainSz = inLen - ((inLen + (PEM_LINE_SZ - 1)) / PEM_LINE_SZ );
 
     plainSz = (plainSz * 3 + 3) / 4;
-    if (plainSz > *outLen) return -1;
+    if (plainSz > *outLen) return BAD_FUNC_ARG;
 
     while (inLen > 3) {
         byte b1, b2, b3;
@@ -100,7 +101,7 @@ int Base64Decode(const byte* in, word32 inLen, byte* out, word32* outLen)
                 inLen--;
             }
             if (endLine != '\n')
-                return -1;
+                return ASN_INPUT_E;
         }
     }
     *outLen = i;
@@ -133,7 +134,7 @@ int Base64Encode(const byte* in, word32 inLen, byte* out, word32* outLen)
     word32 outSz = (inLen + 3 - 1) / 3 * 4;
     outSz += (outSz + PEM_LINE_SZ - 1) / PEM_LINE_SZ;  /* new lines */
 
-    if (outSz > *outLen) return -1;
+    if (outSz > *outLen) return BAD_FUNC_ARG;
     
     while (inLen > 2) {
         byte b1 = in[j++];
@@ -177,7 +178,7 @@ int Base64Encode(const byte* in, word32 inLen, byte* out, word32* outLen)
 
     out[i++] = '\n';
     if (i != outSz)
-        return -1;
+        return ASN_INPUT_E; 
     *outLen = outSz;
 
     return 0; 
@@ -196,10 +197,10 @@ int Base16Decode(const byte* in, word32 inLen, byte* out, word32* outLen)
     word32 outIdx = 0;
 
     if (inLen % 2)
-        return -1;
+        return BAD_FUNC_ARG;
 
     if (*outLen < (inLen / 2))
-        return -1;
+        return BAD_FUNC_ARG;
 
     while (inLen) {
         byte b  = in[inIdx++] - 0x30;  /* 0 starts at 0x30 */
@@ -207,15 +208,15 @@ int Base16Decode(const byte* in, word32 inLen, byte* out, word32* outLen)
 
         /* sanity checks */
         if (b >=  sizeof(hexDecode)/sizeof(hexDecode[0]))
-            return -1;
+            return ASN_INPUT_E;
         if (b2 >= sizeof(hexDecode)/sizeof(hexDecode[0]))
-            return -1;
+            return ASN_INPUT_E;
 
         b  = hexDecode[b];
         b2 = hexDecode[b2];
 
         if (b == BAD || b2 == BAD)
-            return -1;
+            return ASN_INPUT_E;
         
         out[outIdx++] = (b << 4) | b2;
         inLen -= 2;

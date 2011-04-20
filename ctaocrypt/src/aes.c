@@ -22,6 +22,7 @@
 #ifndef NO_AES
 
 #include "ctc_aes.h"
+#include "error.h"
 #ifdef NO_INLINE
     #include "misc.h"
 #else
@@ -754,7 +755,7 @@ int AES_set_encrypt_key (const unsigned char *userKey, const int bits,
                          Aes* aes)
 { 
     if (!userKey || !aes)
-        return -1;
+        return BAD_FUNC_ARG;
     
     if (bits == 128) {
        AES_128_Key_Expansion (userKey,(byte*)aes->key); aes->rounds = 10;
@@ -768,7 +769,7 @@ int AES_set_encrypt_key (const unsigned char *userKey, const int bits,
        AES_256_Key_Expansion (userKey,(byte*)aes->key); aes->rounds = 14;
        return 0;
     }
-    return -1;
+    return BAD_FUNC_ARG;
 }
 
 
@@ -781,10 +782,10 @@ int AES_set_decrypt_key (const unsigned char* userKey, const int bits,
     __m128i *Temp_Key_Schedule = (__m128i*)temp_key.key;
     
     if (!userKey || !aes)
-        return -1;
+        return BAD_FUNC_ARG;
 
-    if (AES_set_encrypt_key(userKey,bits,&temp_key) == -1)
-        return -1;
+    if (AES_set_encrypt_key(userKey,bits,&temp_key) == BAD_FUNC_ARG)
+        return BAD_FUNC_ARG;
 
     nr = temp_key.rounds;
     aes->rounds = nr;
@@ -827,7 +828,7 @@ int AesSetKey(Aes* aes, const byte* userKey, word32 keylen, const byte* iv,
     unsigned int i = 0;
 
     if (!((keylen == 16) || (keylen == 24) || (keylen == 32)))
-        return -1;
+        return BAD_FUNC_ARG;
 
 #ifdef CYASSL_AESNI
     if (checkAESNI == 0) {

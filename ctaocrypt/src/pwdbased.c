@@ -25,6 +25,7 @@
 #include "pwdbased.h"
 #include "ctc_hmac.h"
 #include "integer.h"
+#include "error.h"
 #ifdef CYASSL_SHA512
     #include "sha512.h"
 #endif
@@ -56,13 +57,13 @@ int PBKDF1(byte* output, const byte* passwd, int pLen, const byte* salt,
     byte buffer[SHA_DIGEST_SIZE];  /* max size */
 
     if (hashType != MD5 && hashType != SHA)
-        return -1;
+        return BAD_FUNC_ARG;
 
     if (kLen > hLen)
-        return -1;
+        return BAD_FUNC_ARG;
 
     if (iterations < 1)
-        return -1;
+        return BAD_FUNC_ARG;
 
     if (hashType == MD5) {
         InitMd5(&md5);
@@ -117,7 +118,7 @@ int PBKDF2(byte* output, const byte* passwd, int pLen, const byte* salt,
     }
 #endif
     else
-        return -1;  /* bad HMAC hashType */
+        return BAD_FUNC_ARG;
 
     HmacSetKey(&hmac, hashType, passwd, pLen);
 
@@ -191,7 +192,7 @@ int PKCS12_PBKDF(byte* output, const byte* passwd, int passLen,const byte* salt,
     }
 #endif
     else
-        return -1;  /* bad hashType */
+        return BAD_FUNC_ARG; 
 
     dLen = v;
     sLen =  v * ((saltLen + v - 1) / v);
@@ -205,7 +206,7 @@ int PKCS12_PBKDF(byte* output, const byte* passwd, int passLen,const byte* salt,
 
     if (totalLen > sizeof(staticBuffer)) {
         buffer = (byte*)XMALLOC(totalLen, 0, DYNAMIC_TYPE_KEY);
-        if (buffer == NULL) return -1;
+        if (buffer == NULL) return MEMORY_E;
         dynamic = 1;
     } 
 
@@ -251,9 +252,9 @@ int PKCS12_PBKDF(byte* output, const byte* passwd, int passLen,const byte* salt,
 
         mp_init(&B1);
         if (mp_read_unsigned_bin(&B1, B, v) != MP_OKAY)
-            ret = -1;
+            ret = MP_READ_E;
         else if (mp_add_d(&B1, (mp_digit)1, &B1) != MP_OKAY) {
-            ret = -1;
+            ret = MP_ADD_E;
             mp_clear(&B1);
             break;
         }
@@ -267,11 +268,11 @@ int PKCS12_PBKDF(byte* output, const byte* passwd, int passLen,const byte* salt,
             mp_init(&res);
 
             if (mp_read_unsigned_bin(&i1, I + i, v) != MP_OKAY)
-                ret = -1;
+                ret = MP_READ_E;
             else if (mp_add(&i1, &B1, &res) != MP_OKAY)
-                ret = -1;
+                ret = MP_ADD_E;
             else if ( (outSz = mp_unsigned_bin_size(&res)) < 0)
-                ret = -1;
+                ret = MP_TO_E;
             else {
                 if (outSz > v) {
                     /* take off MSB */

@@ -23,6 +23,7 @@
 
 #include "os_settings.h"
 #include "logging.h"
+#include "error.h"
 
 
 /* Set these to default values initially. */
@@ -37,7 +38,7 @@ int CyaSSL_SetLoggingCb(CyaSSL_Logging_cb f)
     if (f)
         log_function = f;
     else
-        res = -1;
+        res = BAD_FUNC_ARG;
 
     return res;
 }
@@ -49,7 +50,7 @@ int CyaSSL_Debugging_ON(void)
     loggingEnabled = 1;
     return 0;
 #else
-    return -1;  /* not compiled in */
+    return NOT_COMPILED_IN;
 #endif
 }
 

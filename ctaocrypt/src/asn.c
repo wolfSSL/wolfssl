@@ -521,7 +521,7 @@ int ToTraditional(byte* input, word32 sz)
    < 0 on error */
 static int CheckAlgo(int first, int second, int* id, int* version)
 {
-    *id      = -1;
+    *id      = ALGO_ID_E;
     *version = PKCS5;   /* default */
 
     if (first == 1) {
@@ -535,7 +535,7 @@ static int CheckAlgo(int first, int second, int* id, int* version)
             *version = PKCS12;
             return 0;
         default:
-            return -1;
+            return ALGO_ID_E;
         }
     }
 
@@ -555,7 +555,7 @@ static int CheckAlgo(int first, int second, int* id, int* version)
         *id = PBE_SHA1_DES;
         return 0;
     default:
-        return -1;
+        return ALGO_ID_E;
 
     }
 }
@@ -573,7 +573,7 @@ static int CheckAlgoV2(int oid, int* id)
         *id = PBE_SHA1_DES3;
         return 0;
     default:
-        return -1;
+        return ALGO_ID_E;
 
     }
 }
@@ -616,7 +616,7 @@ static int DecryptKey(const char* password, int passwordSz, byte* salt,
             break;
 
         default:
-            return -1;  /* unknown algo id */
+            return ALGO_ID_E;
     }
 
     if (version == PKCS5v2)
@@ -630,7 +630,7 @@ static int DecryptKey(const char* password, int passwordSz, byte* salt,
         byte unicodePasswd[MAX_UNICODE_SZ];
 
         if ( (passwordSz * 2 + 2) > sizeof(unicodePasswd))
-            return -1; /* unicode passwd too big */
+            return UNICODE_SIZE_E; 
 
         for (i = 0; i < passwordSz; i++) {
             unicodePasswd[idx++] = 0x00;
@@ -685,7 +685,7 @@ static int DecryptKey(const char* password, int passwordSz, byte* salt,
         }
 
         default:
-            return -1;  /* unknown algo id */
+            return ALGO_ID_E; 
     }
 
     return 0;
@@ -1071,7 +1071,7 @@ static int StoreRsaKey(DecodedCert* cert)
     {
         if (oid != ECC_256R1 && oid != ECC_384R1 && oid != ECC_521R1 && oid !=
                    ECC_160R1 && oid != ECC_192R1 && oid != ECC_224R1)
-            return -1;
+            return ALGO_ID_E; 
 
         return 0;
     }
@@ -2055,6 +2055,10 @@ void CTaoCryptErrorString(int error, char* buffer)
         XSTRNCPY(buffer, "mp_cmp error state", max);
         break; 
         
+    case MP_ZERO_E :
+        XSTRNCPY(buffer, "mp zero result, not expected", max);
+        break; 
+        
     case MEMORY_E :
         XSTRNCPY(buffer, "out of memory error", max);
         break;
@@ -2184,6 +2188,18 @@ void CTaoCryptErrorString(int error, char* buffer)
         XSTRNCPY(buffer, "ECC curve sum OID unsupported, invalid input", max);
         break;
 
+    case BAD_FUNC_ARG :
+        XSTRNCPY(buffer, "Bad function argument", max);
+        break;
+
+    case NOT_COMPILED_IN :
+        XSTRNCPY(buffer, "Feature not compiled in", max);
+        break;
+
+    case UNICODE_SIZE_E :
+        XSTRNCPY(buffer, "Unicode password too big", max);
+        break;
+
     default:
         XSTRNCPY(buffer, "unknown error number", max);
 
@@ -2221,6 +2237,7 @@ int DerToPem(const byte* der, word32 derSz, byte* output, word32 outSz,
     int headerLen;
     int footerLen;
     int i;
+    int err;
     int outLen;   /* return length or error */
 
     if (type == CERT_TYPE) {
@@ -2235,11 +2252,11 @@ int DerToPem(const byte* der, word32 derSz, byte* output, word32 outSz,
     footerLen = XSTRLEN(footer);
 
     if (!der || !output)
-        return -1;
+        return BAD_FUNC_ARG;
 
     /* don't even try if outSz too short */
     if (outSz < headerLen + footerLen + derSz)
-        return -1;
+        return BAD_FUNC_ARG;
 
     /* header */
     XMEMCPY(output, header, headerLen);
@@ -2247,13 +2264,13 @@ int DerToPem(const byte* der, word32 derSz, byte* output, word32 outSz,
 
     /* body */
     outLen = outSz;  /* input to Base64Encode */
-    if (Base64Encode(der, derSz, output + i, (word32*)&outLen) < 0)
-        return -1;
+    if ( (err = Base64Encode(der, derSz, output + i, (word32*)&outLen)) < 0)
+        return ret;
     i += outLen;
 
     /* footer */
     if ( (i + footerLen) > (int)outSz)
-        return -1;
+        return BAD_FUNC_ARG;
     XMEMCPY(output + i, footer, footerLen);
 
     return outLen + headerLen + footerLen;
@@ -2302,10 +2319,10 @@ int RsaKeyToDer(RsaKey* key, byte* output, word32 inLen)
     byte tmps[RSA_INTS][MAX_RSA_INT_SZ];
 
     if (!key || !output)
-        return -1;
+        return BAD_FUNC_ARG;
 
     if (key->type != RSA_PRIVATE)
-        return -1;
+        return BAD_FUNC_ARG;
 
     /* write all big ints from key to DER tmps */
     for (i = 0; i < RSA_INTS; i++) {
@@ -2325,7 +2342,7 @@ int RsaKeyToDer(RsaKey* key, byte* output, word32 inLen)
                 return err;
         }
         else
-            return -1;
+            return ASN_INPUT_E; 
     }
 
     /* make headers */
@@ -2334,7 +2351,7 @@ int RsaKeyToDer(RsaKey* key, byte* output, word32 inLen)
 
     outLen = seqSz + verSz + intTotalLen;
     if (outLen > (int)inLen)
-        return -1;
+        return BAD_FUNC_ARG;
 
     /* write to output */
     XMEMCPY(output, seq, seqSz);
@@ -3108,7 +3125,7 @@ int StoreECC_DSA_Sig(byte* out, word32* outLen, mp_int* r, mp_int* s)
     int err;
 
     if (*outLen < (rLen + sLen + headerSz + 2))  /* SEQ_TAG + LEN(ENUM) */
-        return -1;
+        return BAD_FUNC_ARG;
 
     idx = SetSequence(rLen + sLen + headerSz, out);
 

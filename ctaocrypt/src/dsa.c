@@ -45,7 +45,7 @@ enum {
 
 void InitDsaKey(DsaKey* key)
 {
-    key->type = -1;  /* haven't decdied yet */
+    key->type = -1;  /* haven't decided yet */
 
 /* TomsFastMath doesn't use memory allocation */
 #ifndef USE_FAST_MATH

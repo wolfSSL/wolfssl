@@ -48,7 +48,7 @@ enum {
 
 void InitRsaKey(RsaKey* key, void* heap)
 {
-    key->type = -1;  /* haven't decdied yet */
+    key->type = -1;  /* haven't decided yet */
     key->heap = heap;
 
 /* TomsFastMath doesn't use memory allocation */
@@ -369,7 +369,7 @@ static int rand_prime(mp_int* N, int len, RNG* rng, void* heap)
     byte* buf;
 
     if (N == NULL || rng == NULL)
-       return -1; 
+       return BAD_FUNC_ARG; 
 
     /* get type */
     if (len < 0) {
@@ -381,13 +381,13 @@ static int rand_prime(mp_int* N, int len, RNG* rng, void* heap)
 
     /* allow sizes between 2 and 512 bytes for a prime size */
     if (len < 2 || len > 512) { 
-        return -1;
+        return BAD_FUNC_ARG;
     }
    
     /* allocate buffer to work with */
     buf = XMALLOC(len, heap, DYNAMIC_TYPE_RSA);
     if (buf == NULL) {
-        return -1;
+        return MEMORY_E;
     }
     XMEMSET(buf, 0, len);
 
@@ -432,13 +432,13 @@ int MakeRsaKey(RsaKey* key, int size, long e, RNG* rng)
     int    err;
 
     if (key == NULL || rng == NULL)
-        return -1;
+        return BAD_FUNC_ARG;
 
     if (size < RSA_MIN_SIZE || size > RSA_MAX_SIZE)
-        return -1;
+        return BAD_FUNC_ARG;
 
     if (e < 3 || (e & 1) == 0)
-        return -1;
+        return BAD_FUNC_ARG;
 
     if ((err = mp_init_multi(&p, &q, &tmp1, &tmp2, &tmp3, NULL)) != MP_OKAY)
         return err;

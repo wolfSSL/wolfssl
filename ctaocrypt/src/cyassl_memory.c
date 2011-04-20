@@ -27,6 +27,7 @@
 #ifdef USE_CYASSL_MEMORY
 
 #include "cyassl_memory.h"
+#include "error.h"
 
 
 /* Set these to default values initially. */
@@ -43,17 +44,17 @@ int CyaSSL_SetAllocators(CyaSSL_Malloc_cb  mf,
     if (mf)
         malloc_function = mf;
 	else
-        res = -1;
+        res = BAD_FUNC_ARG;
 
     if (ff)
         free_function = ff;
     else
-        res = -1;
+        res = BAD_FUNC_ARG;
 
     if (rf)
         realloc_function = rf;
     else
-        res = -1;
+        res = BAD_FUNC_ARG;
 
     return res;
 }

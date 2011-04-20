@@ -52,6 +52,7 @@ enum {
     MP_MOD_E           = -118,  /* mp_mod error state, can't mod */
     MP_INVMOD_E        = -119,  /* mp_invmod error state, can't inv mod */
     MP_CMP_E           = -120,  /* mp_cmp error state */
+    MP_ZERO_E          = -121,  /* got a mp zero result, not expected */
 
     MEMORY_E           = -125,  /* out of memory error */
 
@@ -86,10 +87,12 @@ enum {
     ASN_DH_KEY_E       = -158,  /* ASN key init error, invalid input */
     ASN_NTRU_KEY_E     = -159,  /* ASN ntru key decode error, invalid input */
 
-    /* TODO: TAO add ECC error strings to ErrorString() */
     ECC_BAD_ARG_E      = -170,  /* ECC input argument of wrong type */
     ASN_ECC_KEY_E      = -171,  /* ASN ECC bad input */
     ECC_CURVE_OID_E    = -172,  /* Unsupported ECC OID curve type */
+    BAD_FUNC_ARG       = -173,  /* Bad function argument provided */
+    NOT_COMPILED_IN    = -174,  /* Feature not compiled in */
+    UNICODE_SIZE_E     = -175,  /* Unicdoe password too big */
 
     MIN_CODE_E         = -200   /* errors -101 - -199 */
 };
