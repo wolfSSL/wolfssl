@@ -452,6 +452,7 @@ int SetCipherSpecs(SSL* ssl)
 #endif
 
     default:
+        CYASSL_MSG("Unsupported cipher suite");
         return UNSUPPORTED_SUITE;
     }
     }  /* ECC / Normal suites else */
@@ -510,6 +511,7 @@ static int SetPrefix(byte* sha_input, int index)
         XMEMCPY(sha_input, "GGGGGGG", 7);
         break;
     default:
+        CYASSL_MSG("Set Prefix error, bad input");
         return 0; 
     }
     return 1;

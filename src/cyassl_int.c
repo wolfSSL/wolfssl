@@ -713,8 +713,10 @@ int InitSSL(SSL* ssl, SSL_CTX* ctx)
    
     /* make sure server has cert and key unless using PSK */
     if (ssl->options.side == SERVER_END && !havePSK)
-        if (!ssl->buffers.certificate.buffer || !ssl->buffers.key.buffer)
+        if (!ssl->buffers.certificate.buffer || !ssl->buffers.key.buffer) {
+            CYASSL_MSG("Server missing certificate and/or private key"); 
             return NO_PRIVATE_KEY;
+        }
 
 #ifndef NO_PSK
     ssl->arrays.client_identity[0] = 0;
@@ -1027,7 +1029,7 @@ static void AddHeaders(byte* output, word32 length, byte type, SSL* ssl)
 }
 
 
-/* return bytes received, -1 on error, 0 on timeout */
+/* return bytes received, -1 on error */
 static int Receive(SSL* ssl, byte* buf, word32 sz, int flags)
 {
     int recvd;
@@ -1056,7 +1058,8 @@ retry:
                                                 timeout.it_value.tv_usec == 0) {
                             XSTRNCPY(ssl->timeoutInfo.timeoutName,
                                     "recv() timeout", MAX_TIMEOUT_NAME_SZ);
-                            return 0;
+                            CYASSL_MSG("Got our timeout"); 
+                            return WANT_READ;
                         }
                     }
                 #endif
@@ -1134,6 +1137,7 @@ int SendBuffered(SSL* ssl)
                                                 timeout.it_value.tv_usec == 0) {
                                 XSTRNCPY(ssl->timeoutInfo.timeoutName,
                                         "send() timeout", MAX_TIMEOUT_NAME_SZ);
+                                CYASSL_MSG("Got our timeout"); 
                                 return WANT_WRITE;
                             }
                         }
@@ -1258,8 +1262,10 @@ static int GetRecordHeader(SSL* ssl, const byte* input, word32* inOutIdx,
         if (ssl->options.side == SERVER_END && ssl->options.downgrade == 1 &&
             ssl->options.acceptState == ACCEPT_BEGIN)
             ;                                  /* haven't negotiated yet */
-        else
+        else {
+            CYASSL_MSG("SSL version error"); 
             return VERSION_ERROR;              /* only use requested version */
+        }
     }
 
     /* record layer length check */
@@ -1274,6 +1280,7 @@ static int GetRecordHeader(SSL* ssl, const byte* input, word32* inOutIdx,
         case alert:
             break;
         default:
+            CYASSL_MSG("Unknown Record Type"); 
             return UNKNOWN_RECORD_TYPE;
     }
 
@@ -1558,7 +1565,7 @@ static int DoCertificate(SSL* ssl, byte* input, word32* inOutIdx)
                 X509_STORE_CTX store;
 
                 store.error = ret;
-                store.error_depth = 1;
+                store.error_depth = totalCerts;
                 store.domain = domain;
 #ifdef OPENSSL_EXTRA
                 store.current_cert = &ssl->peerCert;
@@ -1566,8 +1573,10 @@ static int DoCertificate(SSL* ssl, byte* input, word32* inOutIdx)
                 store.current_cert = NULL;
 #endif
                 ok = ssl->ctx->verifyCallback(0, &store);
-                if (ok)
+                if (ok) {
+                    CYASSL_MSG("Verify callback overriding error!"); 
                     ret = 0;
+                }
             }
             if (ret != 0) {
                 SendAlert(ssl, alert_fatal, why);   /* try to send */
@@ -1606,8 +1615,10 @@ int DoFinished(SSL* ssl, const byte* input, word32* inOutIdx, int sniff)
         if (ssl->toInfoOn) AddLateName("Finished", &ssl->timeoutInfo);
     #endif
     if (sniff == NO_SNIFF) {
-        if (XMEMCMP(input + idx, &ssl->verifyHashes, finishedSz))
+        if (XMEMCMP(input + idx, &ssl->verifyHashes, finishedSz)) {
+            CYASSL_MSG("Verify finished error on hashes");
             return VERIFY_FINISHED_ERROR;
+        }
     }
 
     ssl->hmac(ssl, verifyMAC, input + idx - headerSz, macSz,
@@ -1624,8 +1635,10 @@ int DoFinished(SSL* ssl, const byte* input, word32* inOutIdx, int sniff)
     idx += padSz;
 
     /* verify mac */
-    if (XMEMCMP(mac, verifyMAC, ssl->specs.hash_size))
+    if (XMEMCMP(mac, verifyMAC, ssl->specs.hash_size)) {
+        CYASSL_MSG("Verify finished error on mac");
         return VERIFY_MAC_ERROR;
+    }
 
     if (ssl->options.side == CLIENT_END) {
         ssl->options.serverState = SERVER_FINISHED_COMPLETE;
@@ -1733,6 +1746,7 @@ static int DoHandShakeMsg(SSL* ssl, byte* input, word32* inOutIdx,
 #endif
 
     default:
+        CYASSL_MSG("Unknown handshake message type");
         ret = UNKNOWN_HANDSHAKE_TYPE;
     }
 
@@ -1868,8 +1882,10 @@ int DoApplicationData(SSL* ssl, byte* input, word32* inOutIdx)
     }
 
     dataSz = msgSz - ivExtra - digestSz - pad - padByte;
-    if (dataSz < 0)
+    if (dataSz < 0) {
+        CYASSL_MSG("App data buffer error, malicious input?"); 
         return BUFFER_ERROR;
+    }
 
     /* read data */
     if (dataSz) {
@@ -1908,8 +1924,10 @@ int DoApplicationData(SSL* ssl, byte* input, word32* inOutIdx)
 
     /* verify */
     if (dataSz) {
-        if (XMEMCMP(mac, verify, digestSz))
+        if (XMEMCMP(mac, verify, digestSz)) {
+            CYASSL_MSG("App data verify mac error"); 
             return VERIFY_MAC_ERROR;
+        }
     }
     else 
         GetSEQIncrement(ssl, 1);  /* even though no data, increment verify */
@@ -1935,8 +1953,12 @@ static int DoAlert(SSL* ssl, byte* input, word32* inOutIdx, int* type)
     level = input[(*inOutIdx)++];
     *type  = (int)input[(*inOutIdx)++];
 
-    if (*type == close_notify)
+    CYASSL_MSG("Got alert");
+    if (*type == close_notify) {
+        CYASSL_MSG("    close notify");
         ssl->options.closeNotify = 1;
+    }
+    CYASSL_ERROR(*type);
 
     if (ssl->keys.encryptionOn) {
         int         aSz = ALERT_SIZE;
@@ -1951,8 +1973,10 @@ static int DoAlert(SSL* ssl, byte* input, word32* inOutIdx, int* type)
         *inOutIdx += (ssl->specs.hash_size + padSz);
 
         /* verify */
-        if (XMEMCMP(mac, verify, ssl->specs.hash_size))
+        if (XMEMCMP(mac, verify, ssl->specs.hash_size)) {
+            CYASSL_MSG("    alert verify mac error");
             return VERIFY_MAC_ERROR;
+        }
     }
 
     return level;
@@ -2238,6 +2262,7 @@ int ProcessReply(SSL* ssl)
                 return 0;
             /* more messages per record */
             else if ((ssl->buffers.inputBuffer.idx - startIdx) < ssl->curSize) {
+                CYASSL_MSG("More messages in record");
                 #ifdef CYASSL_DTLS
                     /* read-ahead but dtls doesn't bundle messages per record */
                     if (ssl->options.dtls) {
@@ -2250,6 +2275,7 @@ int ProcessReply(SSL* ssl)
             }
             /* more records */
             else {
+                CYASSL_MSG("More records in input");
                 ssl->options.processReply = doProcessInit;
                 continue;
             }
@@ -2702,12 +2728,14 @@ int SendData(SSL* ssl, const void* buffer, int sz)
 
     if (ssl->options.handShakeState != HANDSHAKE_DONE) {
         int err;
+        CYASSL_MSG("handshake not complete, trying to finish");
         if ( (err = CyaSSL_negotiate(ssl)) != 0) 
             return  err;
     }
 
     /* last time system socket output buffer was full, try again to send */
     if (ssl->buffers.outputBuffer.length > 0) {
+        CYASSL_MSG("output buffer was full, trying to send again");
         if ( (ssl->error = SendBuffered(ssl)) < 0) {
             CYASSL_ERROR(ssl->error);
             if (ssl->error == SOCKET_ERROR_E && ssl->options.connReset)
@@ -2776,8 +2804,10 @@ int SendData(SSL* ssl, const void* buffer, int sz)
         sent += len;
 
         /* only one message per attempt */
-        if (ssl->options.partialWrite == 1)
+        if (ssl->options.partialWrite == 1) {
+            CYASSL_MSG("Paritial Write on, only sending one record");
             break;
+        }
     }
  
     return sent;
@@ -2795,6 +2825,7 @@ int ReceiveData(SSL* ssl, byte* output, int sz)
 
     if (ssl->options.handShakeState != HANDSHAKE_DONE) {
         int err;
+        CYASSL_MSG("Handshake not complete, trying to finish");
         if ( (err = CyaSSL_negotiate(ssl)) != 0)
             return  err;
     }
@@ -2803,12 +2834,16 @@ int ReceiveData(SSL* ssl, byte* output, int sz)
         if ( (ssl->error = ProcessReply(ssl)) < 0) {
             CYASSL_ERROR(ssl->error);
             if (ssl->error == ZERO_RETURN) {
+                CYASSL_MSG("Zero return, no more data coming");
                 ssl->options.isClosed = 1;
                 return 0;         /* no more data coming */
             }
-            if (ssl->error == SOCKET_ERROR_E)
-                if (ssl->options.connReset || ssl->options.isClosed)
+            if (ssl->error == SOCKET_ERROR_E) {
+                if (ssl->options.connReset || ssl->options.isClosed) {
+                    CYASSL_MSG("Peer reset or closed, connection done");
                     return 0;     /* peer reset or closed */
+                }
+            }
             return ssl->error;
         }
 
@@ -3707,8 +3742,10 @@ int SetCipherList(SSL_CTX* ctx, const char* list)
         ssl->options.cipherSuite  = input[i++];  
         compression = input[i++];
 
-        if (compression != ZLIB_COMPRESSION && ssl->options.usingCompression)
+        if (compression != ZLIB_COMPRESSION && ssl->options.usingCompression) {
+            CYASSL_MSG("Server refused compression, turning off"); 
             ssl->options.usingCompression = 0;  /* turn off if server refused */
+        }
         
         ssl->options.serverState = SERVER_HELLO_COMPLETE;
 
@@ -3731,8 +3768,10 @@ int SetCipherList(SSL_CTX* ctx, const char* list)
                 else
                     return UNSUPPORTED_SUITE;
             }
-            else
+            else {
+                CYASSL_MSG("Server denied resumption attempt"); 
                 ssl->options.resuming = 0; /* server denied resumption try */
+            }
         }
 
         return SetCipherSpecs(ssl);
@@ -4865,6 +4904,7 @@ int SetCipherList(SSL_CTX* ctx, const char* list)
         ProtocolVersion pv;
         Suites          clSuites;
 
+        CYASSL_MSG("Got old format client hello");
 #ifdef CYASSL_CALLBACKS
         if (ssl->hsInfoOn)
             AddPacketName("ClientHello", &ssl->handShakeInfo);
@@ -5029,6 +5069,7 @@ int SetCipherList(SSL_CTX* ctx, const char* list)
             XMEMCPY(ssl->arrays.sessionID, input + i, ID_LEN);
             i += b;
             ssl->options.resuming= 1; /* client wants to resume */
+            CYASSL_MSG("Client wants to resume session");
         }
         
         #ifdef CYASSL_DTLS
@@ -5071,8 +5112,10 @@ int SetCipherList(SSL_CTX* ctx, const char* list)
                 if (comp == ZLIB_COMPRESSION)
                     match = 1;
             }
-            if (!match)
+            if (!match) {
+                CYASSL_MSG("Not matching compression, turning off"); 
                 ssl->options.usingCompression = 0;  /* turn off */
+            }
         }
         else
             i += b;  /* ignore, since we're not on */
@@ -5089,6 +5132,7 @@ int SetCipherList(SSL_CTX* ctx, const char* list)
             SSL_SESSION* session = GetSession(ssl, ssl->arrays.masterSecret);
             if (!session) {
                 ssl->options.resuming = 0;
+                CYASSL_MSG("Session lookup for resume failed");
                 break;   /* session lookup failed */
             }
             if (MatchSuite(ssl, &clSuites) < 0)

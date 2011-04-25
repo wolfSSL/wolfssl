@@ -22,6 +22,7 @@
 
 #include "coding.h"
 #include "error.h"
+#include "logging.h"
 
 
 enum {
@@ -100,8 +101,10 @@ int Base64Decode(const byte* in, word32 inLen, byte* out, word32* outLen)
                 endLine = in[j++];
                 inLen--;
             }
-            if (endLine != '\n')
+            if (endLine != '\n') {
+                CYASSL_MSG("Bad end of line in Base64 Decode");
                 return ASN_INPUT_E;
+            }
         }
     }
     *outLen = i;

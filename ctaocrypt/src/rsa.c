@@ -24,6 +24,7 @@
 #include "ctc_rsa.h"
 #include "random.h"
 #include "error.h"
+#include "logging.h"
 
 #ifdef SHOW_GEN
     #include <stdio.h>
@@ -124,14 +125,18 @@ static word32 RsaUnPad(const byte *pkcsBlock, unsigned int pkcsBlockLen,
     /* skip past the padding until we find the separator */
     while (i<pkcsBlockLen && pkcsBlock[i++]) { /* null body */
         }
-    if(!(i==pkcsBlockLen || pkcsBlock[i-1]==0))
+    if(!(i==pkcsBlockLen || pkcsBlock[i-1]==0)) {
+        CYASSL_MSG("RsaUnPad error, bad formatting");
         return 0;
+    }
 
     outputLen = pkcsBlockLen - i;
     invalid = (outputLen > maxOutputLen) || invalid;
 
-    if (invalid)
+    if (invalid) {
+        CYASSL_MSG("RsaUnPad error, bad formatting");
         return 0;
+    }
 
     *output = (byte *)(pkcsBlock + i);
     return outputLen;

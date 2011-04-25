@@ -150,6 +150,8 @@ int GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 /* may block */
 int GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 {
+    int ret = 0;
+
     os->fd = open("/dev/urandom",O_RDONLY);
     if (os->fd == -1) {
         /* may still have /dev/random */
@@ -160,22 +162,26 @@ int GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 
     while (sz) {
         int len = read(os->fd, output, sz);
-        if (len == -1) 
-            return READ_RAN_E;
+        if (len == -1) { 
+            ret = READ_RAN_E;
+            break;
+        }
 
         sz     -= len;
         output += len;
 
-        if (sz)
+        if (sz) {
 #ifdef BLOCKING
             sleep(0);             /* context switch */
 #else
-            return RAN_BLOCK_E;
+            ret = RAN_BLOCK_E;
+            break;
 #endif
+        }
     }
     close(os->fd);
 
-    return 0;
+    return ret;
 }
 
 #endif /* USE_WINDOWS_API */

@@ -109,18 +109,22 @@ void SSL_free(SSL* ssl)
 
 int SSL_set_fd(SSL* ssl, int fd)
 {
+    CYASSL_ENTER("SSL_set_fd");
     ssl->rfd = fd;      /* not used directly to allow IO callbacks */
     ssl->wfd = fd;
 
     ssl->IOCB_ReadCtx  = &ssl->rfd;
     ssl->IOCB_WriteCtx = &ssl->wfd;
 
+    CYASSL_LEAVE("SSL_set_fd", SSL_SUCCESS);
     return SSL_SUCCESS;
 }
 
 
 int SSL_get_fd(const SSL* ssl)
 {
+    CYASSL_ENTER("SSL_get_fd");
+    CYASSL_LEAVE("SSL_get_fd", ssl->rfd);
     return ssl->rfd;
 }
 
@@ -129,7 +133,7 @@ int CyaSSL_negotiate(SSL* ssl)
 {
     int err = SSL_FATAL_ERROR;
 
-    CYASSL_ENTER("CyaSSL_negotiate()");
+    CYASSL_ENTER("CyaSSL_negotiate");
 #ifndef NO_CYASSL_SERVER
     if (ssl->options.side == SERVER_END)
         err = SSL_accept(ssl);
@@ -140,7 +144,7 @@ int CyaSSL_negotiate(SSL* ssl)
         err = SSL_connect(ssl);
 #endif
 
-    CYASSL_LEAVE("CyaSSL_negotiate()", err);
+    CYASSL_LEAVE("CyaSSL_negotiate", err);
 
     if (err == SSL_SUCCESS)
         return 0;
@@ -154,6 +158,7 @@ int CyaSSL_SetTmpDH(SSL* ssl, unsigned char* p,int pSz,unsigned char* g,int gSz)
 {
     byte havePSK = 0;
 
+    CYASSL_ENTER("CyaSSL_SetTmpDH");
     if (ssl == NULL || p == NULL || g == NULL) return BAD_FUNC_ARG;
 
     if (ssl->options.side != SERVER_END)
@@ -189,6 +194,7 @@ int CyaSSL_SetTmpDH(SSL* ssl, unsigned char* p,int pSz,unsigned char* g,int gSz)
     InitSuites(&ssl->suites, ssl->version, ssl->options.haveDH,
                havePSK, ssl->options.haveNTRU, ssl->options.haveECDSA,
                ssl->ctx->method->side);
+    CYASSL_LEAVE("CyaSSL_SetTmpDH", 0);
     return 0;
 }
 
@@ -265,6 +271,8 @@ int SSL_shutdown(SSL* ssl)
 
 int SSL_get_error(SSL* ssl, int ret)
 {
+    CYASSL_ENTER("SSL_get_error");
+    CYASSL_LEAVE("SSL_get_error", ssl->error);
     if (ret > 0)
         return SSL_ERROR_NONE;
 
@@ -280,6 +288,7 @@ int SSL_get_error(SSL* ssl, int ret)
 
 int SSL_want_read(SSL* ssl)
 {
+    CYASSL_ENTER("SSL_want_read");
     if (ssl->error == WANT_READ)
         return 1;
 
@@ -289,6 +298,7 @@ int SSL_want_read(SSL* ssl)
 
 int SSL_want_write(SSL* ssl)
 {
+    CYASSL_ENTER("SSL_want_write");
     if (ssl->error == WANT_WRITE)
         return 1;
 
@@ -300,6 +310,7 @@ char* ERR_error_string(unsigned long errNumber, char* buffer)
 {
     static char* msg = "Please supply a buffer for error string";
 
+    CYASSL_ENTER("ERR_error_string");
     if (buffer) {
         SetErrorString(errNumber, buffer);
         return buffer;
@@ -311,6 +322,7 @@ char* ERR_error_string(unsigned long errNumber, char* buffer)
 
 void ERR_error_string_n(unsigned long e, char* buf, unsigned long len)
 {
+    CYASSL_ENTER("ERR_error_string_n");
     if (len) ERR_error_string(e, buf);
 }
 
@@ -321,6 +333,7 @@ void ERR_print_errors_fp(FILE* fp, int err)
 {
     char buffer[MAX_ERROR_SZ + 1];
 
+    CYASSL_ENTER("ERR_print_errors_fp");
     SetErrorString(err, buffer);
     fprintf(fp, "%s", buffer);
 }
@@ -330,6 +343,7 @@ void ERR_print_errors_fp(FILE* fp, int err)
 
 int SSL_pending(SSL* ssl)
 {
+    CYASSL_ENTER("SSL_pending");
     return ssl->buffers.clearOutputBuffer.length;
 }
 
@@ -972,6 +986,7 @@ static int ProcessFile(SSL_CTX* ctx, const char* fname, int format, int type,
 int SSL_CTX_load_verify_locations(SSL_CTX* ctx, const char* file,
                                   const char* path)
 {
+    CYASSL_ENTER("SSL_CTX_load_verify_locations");
     if (ProcessFile(ctx, file, SSL_FILETYPE_PEM, CA_TYPE, NULL) == SSL_SUCCESS)
         return SSL_SUCCESS;
 
@@ -984,6 +999,7 @@ int SSL_CTX_load_verify_locations(SSL_CTX* ctx, const char* file,
 /* Add format parameter to allow DER load of CA files */
 int CyaSSL_CTX_load_verify_locations(SSL_CTX* ctx, const char* file, int format)
 {
+    CYASSL_ENTER("CyaSSL_CTX_load_verify_locations");
     if (ProcessFile(ctx, file, format, CA_TYPE, NULL) == SSL_SUCCESS)
         return SSL_SUCCESS;
 
@@ -1008,6 +1024,7 @@ int CyaSSL_PemCertToDer(const char* fileName, unsigned char* derBuf, int derSz)
     EncryptedInfo info;
     buffer        converted;
 
+    CYASSL_ENTER("CyaSSL_PemCertToDer");
     converted.buffer = 0;
 
     if (!file) return SSL_BAD_FILE;
@@ -1051,6 +1068,7 @@ int CyaSSL_PemCertToDer(const char* fileName, unsigned char* derBuf, int derSz)
 
 int SSL_CTX_use_certificate_file(SSL_CTX* ctx, const char* file, int format)
 {
+    CYASSL_ENTER("SSL_CTX_use_certificate_file");
     if (ProcessFile(ctx, file, format, CERT_TYPE, NULL) == SSL_SUCCESS)
         return SSL_SUCCESS;
 
@@ -1060,6 +1078,7 @@ int SSL_CTX_use_certificate_file(SSL_CTX* ctx, const char* file, int format)
 
 int SSL_CTX_use_PrivateKey_file(SSL_CTX* ctx, const char* file, int format)
 {
+    CYASSL_ENTER("SSL_CTX_use_PrivateKey_file");
     if (ProcessFile(ctx, file, format, PRIVATEKEY_TYPE, NULL) == SSL_SUCCESS)
         return SSL_SUCCESS;
 
@@ -1070,6 +1089,7 @@ int SSL_CTX_use_PrivateKey_file(SSL_CTX* ctx, const char* file, int format)
 int SSL_CTX_use_certificate_chain_file(SSL_CTX* ctx, const char* file)
 {
    /* procces up to MAX_CHAIN_DEPTH plus subject cert */
+   CYASSL_ENTER("SSL_CTX_use_certificate_chain_file");
    if (ProcessFile(ctx, file, SSL_FILETYPE_PEM, CERT_TYPE, NULL) == SSL_SUCCESS)
        return SSL_SUCCESS;
 
@@ -1081,6 +1101,7 @@ int SSL_CTX_use_certificate_chain_file(SSL_CTX* ctx, const char* file)
 
 int CyaSSL_CTX_use_NTRUPrivateKey_file(SSL_CTX* ctx, const char* file)
 {
+    CYASSL_ENTER("CyaSSL_CTX_use_NTRUPrivateKey_file");
     if (ProcessFile(ctx, file, SSL_FILETYPE_RAW, PRIVATEKEY_TYPE, NULL)
                          == SSL_SUCCESS) {
         ctx->haveNTRU = 1;
@@ -1098,6 +1119,7 @@ int CyaSSL_CTX_use_NTRUPrivateKey_file(SSL_CTX* ctx, const char* file)
 
     int SSL_CTX_use_RSAPrivateKey_file(SSL_CTX* ctx,const char* file,int format)
     {
+        CYASSL_ENTER("SSL_CTX_use_RSAPrivateKey_file");
         if (ProcessFile(ctx, file, format, PRIVATEKEY_TYPE,NULL) == SSL_SUCCESS)
             return SSL_SUCCESS;
 
@@ -1111,6 +1133,7 @@ int CyaSSL_CTX_use_NTRUPrivateKey_file(SSL_CTX* ctx, const char* file)
 
 void SSL_CTX_set_verify(SSL_CTX* ctx, int mode, VerifyCallback vc)
 {
+    CYASSL_ENTER("SSL_CTX_set_verify");
     if (mode & SSL_VERIFY_PEER) {
         ctx->verifyPeer = 1;
         ctx->verifyNone = 0;  /* in case perviously set */
@@ -1132,12 +1155,14 @@ void SSL_CTX_set_verify(SSL_CTX* ctx, int mode, VerifyCallback vc)
 
 SSL_SESSION* SSL_get_session(SSL* ssl)
 {
+    CYASSL_ENTER("SSL_get_session");
     return GetSession(ssl, 0);
 }
 
 
 int SSL_set_session(SSL* ssl, SSL_SESSION* session)
 {
+    CYASSL_ENTER("SSL_set_session");
     if (session)
         return SetSession(ssl, session);
 
@@ -1153,6 +1178,7 @@ void SSL_load_error_strings(void)   /* compatibility only */
 
 int SSL_library_init(void)
 {
+    CYASSL_ENTER("SSL_library_init");
     if (InitCyaSSL() == 0)
         return SSL_SUCCESS;
     else
@@ -1165,6 +1191,7 @@ int SSL_library_init(void)
 /* on by default if built in but allow user to turn off */
 long SSL_CTX_set_session_cache_mode(SSL_CTX* ctx, long mode)
 {
+    CYASSL_ENTER("SSL_CTX_set_session_cache_mode");
     if (mode == SSL_SESS_CACHE_OFF)
         ctx->sessionCacheOff = 1;
 
@@ -1179,6 +1206,7 @@ long SSL_CTX_set_session_cache_mode(SSL_CTX* ctx, long mode)
 
 int SSL_CTX_set_cipher_list(SSL_CTX* ctx, const char* list)
 {
+    CYASSL_ENTER("SSL_CTX_set_cipher_list");
     if (SetCipherList(ctx, list))
         return SSL_SUCCESS;
     else
@@ -1193,6 +1221,7 @@ int SSL_CTX_set_cipher_list(SSL_CTX* ctx, const char* list)
     {
         SSL_METHOD* method = (SSL_METHOD*) XMALLOC(sizeof(SSL_METHOD), 0,
                                                    DYNAMIC_TYPE_METHOD);
+        CYASSL_ENTER("SSLv3_client_method");
         if (method)
             InitSSL_Method(method, MakeSSLv3());
         return method;
@@ -1203,6 +1232,7 @@ int SSL_CTX_set_cipher_list(SSL_CTX* ctx, const char* list)
         {
             SSL_METHOD* method = (SSL_METHOD*) XMALLOC(sizeof(SSL_METHOD), 0,
                                                        DYNAMIC_TYPE_METHOD);
+            CYASSL_ENTER("DTLSv1_client_method");
             if (method)
                 InitSSL_Method(method, MakeDTLSv1());
             return method;
@@ -1405,6 +1435,7 @@ int SSL_CTX_set_cipher_list(SSL_CTX* ctx, const char* list)
     {
         SSL_METHOD* method = (SSL_METHOD*) XMALLOC(sizeof(SSL_METHOD), 0,
                                                    DYNAMIC_TYPE_METHOD);
+        CYASSL_ENTER("SSLv3_server_method");
         if (method) {
             InitSSL_Method(method, MakeSSLv3());
             method->side = SERVER_END;
@@ -1418,6 +1449,7 @@ int SSL_CTX_set_cipher_list(SSL_CTX* ctx, const char* list)
         {
             SSL_METHOD* method = (SSL_METHOD*) XMALLOC(sizeof(SSL_METHOD), 0,
                                                        DYNAMIC_TYPE_METHOD);
+            CYASSL_ENTER("DTLSv1_server_method");
             if (method) {
                 InitSSL_Method(method, MakeDTLSv1());
                 method->side = SERVER_END;
@@ -1633,6 +1665,7 @@ int SSL_CTX_set_cipher_list(SSL_CTX* ctx, const char* list)
 int InitCyaSSL(void)
 {
     int ret = 0;
+    CYASSL_ENTER("InitCyaSSL");
 #ifndef NO_SESSION_CACHE
     if (InitMutex(&session_mutex) != 0)
         ret = BAD_MUTEX_ERROR;
@@ -1647,6 +1680,7 @@ int InitCyaSSL(void)
 int FreeCyaSSL(void)
 {
     int ret = 0;
+    CYASSL_ENTER("FreeCyaSSL");
 #ifndef NO_SESSION_CACHE
     if (FreeMutex(&session_mutex) != 0)
         ret = BAD_MUTEX_ERROR;
@@ -1838,6 +1872,7 @@ int AddSession(SSL* ssl)
    date check and signature check */
 int CyaSSL_check_domain_name(SSL* ssl, const char* dn)
 {
+    CYASSL_ENTER("CyaSSL_check_domain_name");
     if (ssl->buffers.domainName.buffer)
         XFREE(ssl->buffers.domainName.buffer, ssl->heap, DYNAMIC_TYPE_DOMAIN);
 
@@ -1862,6 +1897,7 @@ int CyaSSL_check_domain_name(SSL* ssl, const char* dn)
 */
 int CyaSSL_set_compression(SSL* ssl)
 {
+    CYASSL_ENTER("CyaSSL_set_compression");
 #ifdef HAVE_LIBZ
     ssl->options.usingCompression = 1;
     return 0;
@@ -1885,6 +1921,8 @@ int CyaSSL_set_compression(SSL* ssl)
             int   idx       = 0;
             int   i;
             int   ret;
+
+            CYASSL_ENTER("CyaSSL_writev");
 
             for (i = 0; i < iovcnt; i++)
                 send += iov[i].iov_len;
@@ -2071,6 +2109,7 @@ int CyaSSL_set_compression(SSL* ssl)
     int CyaSSL_connect_ex(SSL* ssl, HandShakeCallBack hsCb,
                           TimeoutCallBack toCb, Timeval timeout)
     {
+        CYASSL_ENTER("CyaSSL_connect_ex");
         return CyaSSL_ex_wrapper(ssl, hsCb, toCb, timeout);
     }
 
@@ -2082,6 +2121,7 @@ int CyaSSL_set_compression(SSL* ssl)
     int CyaSSL_accept_ex(SSL* ssl, HandShakeCallBack hsCb,
                          TimeoutCallBack toCb,Timeval timeout)
     {
+        CYASSL_ENTER("CyaSSL_accept_ex");
         return CyaSSL_ex_wrapper(ssl, hsCb, toCb, timeout);
     }
 
@@ -2094,6 +2134,7 @@ int CyaSSL_set_compression(SSL* ssl)
 
     void SSL_CTX_set_psk_client_callback(SSL_CTX* ctx, psk_client_callback cb)
     {
+        CYASSL_ENTER("SSL_CTX_set_psk_client_callback");
         ctx->havePSK = 1;
         ctx->client_psk_cb = cb;
     }
@@ -2101,6 +2142,7 @@ int CyaSSL_set_compression(SSL* ssl)
 
     void SSL_set_psk_client_callback(SSL* ssl, psk_client_callback cb)
     {
+        CYASSL_ENTER("SSL_set_psk_client_callback");
         ssl->options.havePSK = 1;
         ssl->options.client_psk_cb = cb;
 
@@ -2111,6 +2153,7 @@ int CyaSSL_set_compression(SSL* ssl)
 
     void SSL_CTX_set_psk_server_callback(SSL_CTX* ctx, psk_server_callback cb)
     {
+        CYASSL_ENTER("SSL_CTX_set_psk_server_callback");
         ctx->havePSK = 1;
         ctx->server_psk_cb = cb;
     }
@@ -2118,6 +2161,7 @@ int CyaSSL_set_compression(SSL* ssl)
 
     void SSL_set_psk_server_callback(SSL* ssl, psk_server_callback cb)
     {
+        CYASSL_ENTER("SSL_set_psk_server_callback");
         ssl->options.havePSK = 1;
         ssl->options.server_psk_cb = cb;
 
@@ -2129,18 +2173,21 @@ int CyaSSL_set_compression(SSL* ssl)
 
     const char* SSL_get_psk_identity_hint(const SSL* ssl)
     {
+        CYASSL_ENTER("SSL_get_psk_identity_hint");
         return ssl->arrays.server_hint;
     }
 
 
     const char* SSL_get_psk_identity(const SSL* ssl)
     {
+        CYASSL_ENTER("SSL_get_psk_identity");
         return ssl->arrays.client_identity;
     }
 
 
     int SSL_CTX_use_psk_identity_hint(SSL_CTX* ctx, const char* hint)
     {
+        CYASSL_ENTER("SSL_CTX_use_psk_identity_hint");
         if (hint == 0)
             ctx->server_hint[0] = 0;
         else
@@ -2151,6 +2198,7 @@ int CyaSSL_set_compression(SSL* ssl)
 
     int SSL_use_psk_identity_hint(SSL* ssl, const char* hint)
     {
+        CYASSL_ENTER("SSL_use_psk_identity_hint");
         if (hint == 0)
             ssl->arrays.server_hint[0] = 0;
         else
@@ -2167,6 +2215,7 @@ int CyaSSL_set_compression(SSL* ssl)
     int CyaSSL_CTX_load_verify_buffer(SSL_CTX* ctx, const unsigned char* buffer,
                                       long sz, int format)
     {
+        CYASSL_ENTER("CyaSSL_CTX_load_verify_buffer");
         if (format == SSL_FILETYPE_PEM)
             return ProcessChainBuffer(ctx, buffer, sz, format, CA_TYPE, NULL);
         else
@@ -2177,6 +2226,7 @@ int CyaSSL_set_compression(SSL* ssl)
     int CyaSSL_CTX_use_certificate_buffer(SSL_CTX* ctx,
                                  const unsigned char* buffer,long sz,int format)
     {
+        CYASSL_ENTER("CyaSSL_CTX_use_certificate_buffer");
         return ProcessBuffer(ctx, buffer, sz, format, CERT_TYPE, NULL, NULL);
     }
 
@@ -2184,6 +2234,7 @@ int CyaSSL_set_compression(SSL* ssl)
     int CyaSSL_CTX_use_PrivateKey_buffer(SSL_CTX* ctx,
                                  const unsigned char* buffer,long sz,int format)
     {
+        CYASSL_ENTER("CyaSSL_CTX_use_PrivateKey_buffer");
         return ProcessBuffer(ctx, buffer, sz, format,PRIVATEKEY_TYPE,NULL,NULL);
     }
 
@@ -2191,7 +2242,7 @@ int CyaSSL_set_compression(SSL* ssl)
     int CyaSSL_CTX_use_certificate_chain_buffer(SSL_CTX* ctx,
                                  const unsigned char* buffer, long sz)
     {
-        /* add first to ctx, all tested implementations support this */
+        CYASSL_ENTER("CyaSSL_CTX_use_certificate_chain_buffer");
         return ProcessBuffer(ctx, buffer, sz, SSL_FILETYPE_PEM, CA_TYPE, NULL,
                              NULL);
     }
@@ -2199,6 +2250,7 @@ int CyaSSL_set_compression(SSL* ssl)
     int CyaSSL_use_certificate_buffer(SSL* ssl,
                                  const unsigned char* buffer,long sz,int format)
     {
+        CYASSL_ENTER("CyaSSL_use_certificate_buffer");
         return ProcessBuffer(ssl->ctx, buffer, sz, format, CERT_TYPE, ssl,NULL);
     }
 
@@ -2206,6 +2258,7 @@ int CyaSSL_set_compression(SSL* ssl)
     int CyaSSL_use_PrivateKey_buffer(SSL* ssl,
                                  const unsigned char* buffer,long sz,int format)
     {
+        CYASSL_ENTER("CyaSSL_use_PrivateKey_buffer");
         return ProcessBuffer(ssl->ctx, buffer, sz, format, PRIVATEKEY_TYPE, 
                              ssl, NULL);
     }
@@ -2214,7 +2267,7 @@ int CyaSSL_set_compression(SSL* ssl)
     int CyaSSL_use_certificate_chain_buffer(SSL* ssl,
                                  const unsigned char* buffer, long sz)
     {
-        /* add first to ctx, all tested implementations support this */
+        CYASSL_ENTER("CyaSSL_use_certificate_chain_buffer");
         return ProcessBuffer(ssl->ctx, buffer, sz, SSL_FILETYPE_PEM, CA_TYPE,
                              ssl, NULL);
     }
@@ -2227,6 +2280,7 @@ int CyaSSL_set_compression(SSL* ssl)
 
     int SSLeay_add_ssl_algorithms(void)
     {
+        CYASSL_ENTER("SSLeay_add_ssl_algorithms");
         OpenSSL_add_all_algorithms(); 
         return SSL_SUCCESS;
     }
@@ -2241,6 +2295,7 @@ int CyaSSL_set_compression(SSL* ssl)
 
     void SSL_CTX_set_quiet_shutdown(SSL_CTX* ctx, int mode)
     {
+        CYASSL_ENTER("SSL_CTX_set_quiet_shutdown");
         if (mode)
             ctx->quietShutdown = 1;
     }
@@ -2249,12 +2304,14 @@ int CyaSSL_set_compression(SSL* ssl)
     int SSL_CTX_check_private_key(SSL_CTX* ctx)
     {
         /* TODO: check private against public for RSA match */
+        CYASSL_ENTER("SSL_CTX_check_private_key");
         return SSL_SUCCESS;
     }
 
 
     void SSL_set_bio(SSL* ssl, BIO* rd, BIO* wr)
     {
+        CYASSL_ENTER("SSL_set_bio");
         SSL_set_rfd(ssl, rd->fd);
         SSL_set_wfd(ssl, wr->fd);
 
@@ -2286,6 +2343,7 @@ int CyaSSL_set_compression(SSL* ssl)
     {
         byte havePSK = 0;
 
+        CYASSL_ENTER("SSL_set_accept_state");
         ssl->options.side = SERVER_END;
         /* reset suites in case user switched */
 #ifndef NO_PSK
@@ -2299,12 +2357,14 @@ int CyaSSL_set_compression(SSL* ssl)
 
     void OpenSSL_add_all_algorithms(void)
     {
+        CYASSL_ENTER("OpenSSL_add_all_algorithms");
         InitCyaSSL(); 
     }
 
 
     int SSLeay_add_all_algorithms(void)
     {
+        CYASSL_ENTER("SSLeay_add_all_algorithms");
         OpenSSL_add_all_algorithms(); 
         return SSL_SUCCESS;
     }
@@ -2325,12 +2385,14 @@ int CyaSSL_set_compression(SSL* ssl)
     long SSL_CTX_set_options(SSL_CTX* ctx, long opt)
     {
         /* goahead calls with 0, do nothing */ 
+        CYASSL_ENTER("SSL_CTX_set_options");
         return opt;
     }
 
 
     int SSL_set_rfd(SSL* ssl, int rfd)
     {
+        CYASSL_ENTER("SSL_set_rfd");
         ssl->rfd = rfd;      /* not used directly to allow IO callbacks */
 
         ssl->IOCB_ReadCtx  = &ssl->rfd;
@@ -2341,6 +2403,7 @@ int CyaSSL_set_compression(SSL* ssl)
 
     int SSL_set_wfd(SSL* ssl, int wfd)
     {
+        CYASSL_ENTER("SSL_set_wfd");
         ssl->wfd = wfd;      /* not used directly to allow IO callbacks */
 
         ssl->IOCB_WriteCtx  = &ssl->wfd;
@@ -2353,18 +2416,21 @@ int CyaSSL_set_compression(SSL* ssl)
                                                         int, void*), void* data)
     {
         /* no tmp key needed, actual generation not supported */
+        CYASSL_ENTER("RSA_generate_key");
         return 0;
     }
 
 
     X509_NAME* X509_get_issuer_name(X509* cert)
     {
+        CYASSL_ENTER("X509_get_issuer_name");
         return &cert->issuer;
     }
 
 
     X509_NAME* X509_get_subject_name(X509* cert)
     {
+        CYASSL_ENTER("X509_get_subject_name");
         return &cert->subject;
     }
 
@@ -2374,6 +2440,8 @@ int CyaSSL_set_compression(SSL* ssl)
     char* X509_NAME_oneline(X509_NAME* name, char* buffer, int sz)
     {
         int copySz = min(sz, name->sz);
+
+        CYASSL_ENTER("X509_NAME_oneline");
         if (!name->sz) return buffer;
 
         if (!buffer) {
@@ -2413,6 +2481,8 @@ int CyaSSL_set_compression(SSL* ssl)
     BIO_METHOD* BIO_f_buffer(void)
     {
         static BIO_METHOD meth;
+
+        CYASSL_ENTER("BIO_f_buffer");
         meth.type = BIO_BUFFER;
 
         return &meth;
@@ -2422,6 +2492,7 @@ int CyaSSL_set_compression(SSL* ssl)
     long BIO_set_write_buffer_size(BIO* bio, long size)
     {
         /* CyaSSL has internal buffer, compatibility only */
+        CYASSL_ENTER("BIO_set_write_buffer_size");
         return size; 
     }
 
@@ -2429,6 +2500,8 @@ int CyaSSL_set_compression(SSL* ssl)
     BIO_METHOD* BIO_f_ssl(void)
     {
         static BIO_METHOD meth;
+
+        CYASSL_ENTER("BIO_f_ssl");
         meth.type = BIO_SSL;
 
         return &meth;
@@ -2438,6 +2511,8 @@ int CyaSSL_set_compression(SSL* ssl)
     BIO* BIO_new_socket(int sfd, int close)
     {
         BIO* bio = (BIO*) XMALLOC(sizeof(BIO), 0, DYNAMIC_TYPE_OPENSSL);
+
+        CYASSL_ENTER("BIO_new_socket");
         if (bio) { 
             bio->type  = BIO_SOCKET;
             bio->close = close;
@@ -2453,6 +2528,7 @@ int CyaSSL_set_compression(SSL* ssl)
 
     int BIO_eof(BIO* b)
     {
+        CYASSL_ENTER("BIO_eof");
         if (b->eof)
             return 1;
 
@@ -2462,6 +2538,7 @@ int CyaSSL_set_compression(SSL* ssl)
 
     long BIO_set_ssl(BIO* b, SSL* ssl, int close)
     {
+        CYASSL_ENTER("BIO_set_ssl");
         b->ssl   = ssl;
         b->close = close;
     /* add to ssl for bio free if SSL_free called before/instead of free_all? */
@@ -2473,6 +2550,7 @@ int CyaSSL_set_compression(SSL* ssl)
     BIO* BIO_new(BIO_METHOD* method)
     {
         BIO* bio = (BIO*) XMALLOC(sizeof(BIO), 0, DYNAMIC_TYPE_OPENSSL);
+        CYASSL_ENTER("BIO_new");
         if (bio) {
             bio->type  = method->type;
             bio->close = 0;
@@ -2495,6 +2573,7 @@ int CyaSSL_set_compression(SSL* ssl)
     int BIO_free(BIO* bio)
     {
         /* unchain?, doesn't matter in goahead since from free all */
+        CYASSL_ENTER("BIO_free");
         if (bio) {
             if (bio->close) {
                 if (bio->ssl)
@@ -2512,6 +2591,7 @@ int CyaSSL_set_compression(SSL* ssl)
     {
         BIO* next = bio;
 
+        CYASSL_ENTER("BIO_free_all");
         while ( (bio = next) ) {
             next = bio->next;
             BIO_free(bio);
@@ -2526,6 +2606,7 @@ int CyaSSL_set_compression(SSL* ssl)
         SSL* ssl = 0;
         BIO* front = bio;
 
+        CYASSL_ENTER("BIO_read");
         /* already got eof, again is error */
         if (front->eof)
             return SSL_FATAL_ERROR;
@@ -2553,6 +2634,7 @@ int CyaSSL_set_compression(SSL* ssl)
         SSL* ssl = 0;
         BIO* front = bio;
 
+        CYASSL_ENTER("BIO_write");
         /* already got eof, again is error */
         if (front->eof)
             return SSL_FATAL_ERROR;
@@ -2577,6 +2659,7 @@ int CyaSSL_set_compression(SSL* ssl)
 
     BIO* BIO_push(BIO* top, BIO* append)
     {
+        CYASSL_ENTER("BIO_push");
         top->next    = append;
         append->prev = top;
 
@@ -2587,6 +2670,7 @@ int CyaSSL_set_compression(SSL* ssl)
     int BIO_flush(BIO* bio)
     {
         /* for CyaSSL no flushing needed */
+        CYASSL_ENTER("BIO_flush");
         return 1;
     }
 
@@ -2598,12 +2682,14 @@ int CyaSSL_set_compression(SSL* ssl)
 
     void SSL_CTX_set_default_passwd_cb_userdata(SSL_CTX* ctx, void* userdata)
     {
+        CYASSL_ENTER("SSL_CTX_set_default_passwd_cb_userdata");
         ctx->userdata = userdata;
     }
 
 
     void SSL_CTX_set_default_passwd_cb(SSL_CTX* ctx, pem_password_cb cb)
     {
+        CYASSL_ENTER("SSL_CTX_set_default_passwd_cb");
         ctx->passwd_cb = cb;
     }
 
@@ -2643,6 +2729,7 @@ int CyaSSL_set_compression(SSL* ssl)
         int ivLeft;
         int keyOutput = 0;
 
+        CYASSL_ENTER("EVP_BytesToKey");
         InitMd5(&myMD);
 
         /* only support MD5 for now */
@@ -2737,18 +2824,21 @@ int CyaSSL_set_compression(SSL* ssl)
         typedef char md5_test[sizeof(MD5_CTX) >= sizeof(Md5) ? 1 : -1];
         (void)sizeof(md5_test);
 
+        CYASSL_ENTER("MD5_Init");
         InitMd5((Md5*)md5);
     }
 
 
     void MD5_Update(MD5_CTX* md5, const void* input, unsigned long sz)
     {
+        CYASSL_ENTER("MD5_Update");
         Md5Update((Md5*)md5, (const byte*)input, sz);
     }
 
 
     void MD5_Final(byte* input, MD5_CTX* md5)
     {
+        CYASSL_ENTER("MD5_Final");
         Md5Final((Md5*)md5, input);
     }
 
@@ -2758,36 +2848,42 @@ int CyaSSL_set_compression(SSL* ssl)
         typedef char sha_test[sizeof(SHA_CTX) >= sizeof(Sha) ? 1 : -1];
         (void)sizeof(sha_test);
 
+        CYASSL_ENTER("SHA_Init");
         InitSha((Sha*)sha);
     }
 
 
     void SHA_Update(SHA_CTX* sha, const void* input, unsigned long sz)
     {
+        CYASSL_ENTER("SHA_Update");
         ShaUpdate((Sha*)sha, (const byte*)input, sz);
     }
 
 
     void SHA_Final(byte* input, SHA_CTX* sha)
     {
+        CYASSL_ENTER("SHA_Final");
         ShaFinal((Sha*)sha, input);
     }
 
 
     void SHA1_Init(SHA_CTX* sha)
     {
+        CYASSL_ENTER("SHA1_Init");
         SHA_Init(sha);
     }
 
 
     void SHA1_Update(SHA_CTX* sha, const void* input, unsigned long sz)
     {
+        CYASSL_ENTER("SHA1_Update");
         SHA_Update(sha, input, sz);
     }
 
 
     void SHA1_Final(byte* input, SHA_CTX* sha)
     {
+        CYASSL_ENTER("SHA1_Final");
         SHA_Final(input, sha);
     }
 
@@ -2795,6 +2891,7 @@ int CyaSSL_set_compression(SSL* ssl)
     const EVP_MD* EVP_md5(void)
     {
         static const char* type = "MD5";
+        CYASSL_ENTER("EVP_md5");
         return type;
     }
 
@@ -2802,6 +2899,7 @@ int CyaSSL_set_compression(SSL* ssl)
     const EVP_MD* EVP_sha1(void)
     {
         static const char* type = "SHA";
+        CYASSL_ENTER("EVP_sha1");
         return type;
     }
 
@@ -2814,12 +2912,14 @@ int CyaSSL_set_compression(SSL* ssl)
 
     int EVP_MD_CTX_cleanup(EVP_MD_CTX* ctx)
     {
+        CYASSL_ENTER("EVP_MD_CTX_cleanup");
         return 0;
     }    
 
 
     int EVP_DigestInit(EVP_MD_CTX* ctx, const EVP_MD* type)
     {
+        CYASSL_ENTER("EVP_DigestInit");
         if (XSTRNCMP(type, "MD5", 3) == 0) {
              ctx->macType = MD5;
              MD5_Init((MD5_CTX*)&ctx->hash);
@@ -2837,6 +2937,7 @@ int CyaSSL_set_compression(SSL* ssl)
 
     int EVP_DigestUpdate(EVP_MD_CTX* ctx, const void* data, unsigned long sz)
     {
+        CYASSL_ENTER("EVP_DigestUpdate");
         if (ctx->macType == MD5) 
             MD5_Update((MD5_CTX*)&ctx->hash, data, (unsigned long)sz);
         else if (ctx->macType == SHA) 
@@ -2850,6 +2951,7 @@ int CyaSSL_set_compression(SSL* ssl)
 
     int EVP_DigestFinal(EVP_MD_CTX* ctx, unsigned char* md, unsigned int* s)
     {
+        CYASSL_ENTER("EVP_DigestFinal");
         if (ctx->macType == MD5) {
             MD5_Final(md, (MD5_CTX*)&ctx->hash);
             if (s) *s = MD5_DIGEST_SIZE;
@@ -2867,6 +2969,7 @@ int CyaSSL_set_compression(SSL* ssl)
 
     int EVP_DigestFinal_ex(EVP_MD_CTX* ctx, unsigned char* md, unsigned int* s)
     {
+        CYASSL_ENTER("EVP_DigestFinal_ex");
         return EVP_DigestFinal(ctx, md, s);
     }
 
@@ -2876,6 +2979,7 @@ int CyaSSL_set_compression(SSL* ssl)
     {
         Hmac hmac;
 
+        CYASSL_ENTER("HMAC");
         if (!md) return 0;  /* no static buffer support */
 
         if (XSTRNCMP(evp_md, "MD5", 3) == 0) {
@@ -2911,6 +3015,7 @@ int CyaSSL_set_compression(SSL* ssl)
     {
         RNG rng;
 
+        CYASSL_ENTER("RAND_bytes");
         if (InitRng(&rng))
            return 0;
 
@@ -2922,6 +3027,7 @@ int CyaSSL_set_compression(SSL* ssl)
 
     int DES_key_sched(const_DES_cblock* key, DES_key_schedule* schedule)
     {
+        CYASSL_ENTER("DES_key_sched");
         XMEMCPY(schedule, key, sizeof(const_DES_cblock));
         return 0;
     }
@@ -2932,6 +3038,7 @@ int CyaSSL_set_compression(SSL* ssl)
                      int enc)
     {
         Des des;
+        CYASSL_ENTER("DES_cbc_encrypt");
         Des_SetKey(&des, (const byte*)schedule, (const byte*)ivec, !enc);
 
         if (enc)
@@ -2947,6 +3054,7 @@ int CyaSSL_set_compression(SSL* ssl)
                      int enc)
     {
         Des des;
+        CYASSL_ENTER("DES_ncbc_encrypt");
         Des_SetKey(&des, (const byte*)schedule, (const byte*)ivec, !enc);
 
         if (enc)
@@ -2986,6 +3094,7 @@ int CyaSSL_set_compression(SSL* ssl)
     {
         /* SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER is CyaSSL default mode */
 
+        CYASSL_ENTER("SSL_CTX_set_mode");
         if (mode == SSL_MODE_ENABLE_PARTIAL_WRITE)
             ctx->partialWrite = 1;
 
@@ -3031,6 +3140,7 @@ int CyaSSL_set_compression(SSL* ssl)
 
     X509* SSL_get_peer_certificate(SSL* ssl)
     {
+        CYASSL_ENTER("SSL_get_peer_certificate");
         if (ssl->peerCert.issuer.sz)
             return &ssl->peerCert;
         else
@@ -3078,6 +3188,7 @@ int CyaSSL_set_compression(SSL* ssl)
 
     const char* SSL_get_version(SSL* ssl)
     {
+        CYASSL_ENTER("SSL_get_version");
         if (ssl->version.major == SSLv3_MAJOR) {
             switch (ssl->version.minor) {
                 case SSLv3_MINOR :
@@ -3098,12 +3209,14 @@ int CyaSSL_set_compression(SSL* ssl)
 
     SSL_CIPHER*  SSL_get_current_cipher(SSL* ssl)
     {
+        CYASSL_ENTER("SSL_get_current_cipher");
         return &ssl->cipher;
     }
 
 
     const char* SSL_CIPHER_get_name(const SSL_CIPHER* cipher)
     {
+        CYASSL_ENTER("SSL_CIPHER_get_name");
         if (cipher) {
             if (cipher->ssl->options.cipherSuite0 == ECC_BYTE) {
             /* ECC suites */
@@ -3223,18 +3336,21 @@ int CyaSSL_set_compression(SSL* ssl)
         typedef char ok[sizeof(md4->buffer) >= sizeof(Md4) ? 1 : -1];
         (void) sizeof(ok);
  
+        CYASSL_ENTER("MD4_Init");
         InitMd4((Md4*)md4);    
     }
 
 
     void MD4_Update(MD4_CTX* md4, const void* data, unsigned long len)
     {
+        CYASSL_ENTER("MD4_Update");
         Md4Update((Md4*)md4, (const byte*)data, (word32)len); 
     }
 
 
     void MD4_Final(unsigned char* digest, MD4_CTX* md4)
     {
+        CYASSL_ENTER("MD4_Final");
         Md4Final((Md4*)md4, digest); 
     }
 
@@ -3743,18 +3859,22 @@ int CyaSSL_set_compression(SSL* ssl)
     SSL_SESSION* d2i_SSL_SESSION(SSL_SESSION** sess, const unsigned char** p,
                                  long i)
     {
-        return *sess;
+        if (sess)
+            return *sess;
+        return NULL;
     }
 
 
     long SSL_SESSION_get_timeout(const SSL_SESSION* sess)
     {
+        CYASSL_ENTER("SSL_SESSION_get_timeout");
         return sess->timeout;
     }
 
 
     long SSL_SESSION_get_time(const SSL_SESSION* sess)
     {
+        CYASSL_ENTER("SSL_SESSION_get_time");
         return sess->bornOn;
     }
 
@@ -3769,6 +3889,7 @@ int CyaSSL_set_compression(SSL* ssl)
        return 0 on success */
     int CyaSSL_X509_get_serial_number(X509* x509, byte* buffer, int* inOutSz)
     {
+        CYASSL_ENTER("CyaSSL_X509_get_serial_number");
         if (x509 == NULL || buffer == NULL || *inOutSz < x509->serialSz)
             return BAD_FUNC_ARG;
 
@@ -3787,6 +3908,7 @@ int CyaSSL_set_compression(SSL* ssl)
 /* Get peer's certificate chain */
 X509_CHAIN* CyaSSL_get_peer_chain(SSL* ssl)
 {
+    CYASSL_ENTER("CyaSSL_get_peer_chain");
     if (ssl)
         return &ssl->session.chain;
 
@@ -3797,6 +3919,7 @@ X509_CHAIN* CyaSSL_get_peer_chain(SSL* ssl)
 /* Get peer's certificate chain total count */
 int CyaSSL_get_chain_count(X509_CHAIN* chain)
 {
+    CYASSL_ENTER("CyaSSL_get_chain_count");
     if (chain)
         return chain->count;
 
@@ -3807,6 +3930,7 @@ int CyaSSL_get_chain_count(X509_CHAIN* chain)
 /* Get peer's ASN.1 DER ceritifcate at index (idx) length in bytes */
 int CyaSSL_get_chain_length(X509_CHAIN* chain, int idx)
 {
+    CYASSL_ENTER("CyaSSL_get_chain_length");
     if (chain)
         return chain->certs[idx].length;
 
@@ -3817,6 +3941,7 @@ int CyaSSL_get_chain_length(X509_CHAIN* chain, int idx)
 /* Get peer's ASN.1 DER ceritifcate at index (idx) */
 byte* CyaSSL_get_chain_cert(X509_CHAIN* chain, int idx)
 {
+    CYASSL_ENTER("CyaSSL_get_chain_cert");
     if (chain)
         return chain->certs[idx].buffer;
 
@@ -3837,6 +3962,7 @@ int  CyaSSL_get_chain_cert_pem(X509_CHAIN* chain, int idx,
     int i;
     int err;
 
+    CYASSL_ENTER("CyaSSL_get_chain_cert_pem");
     if (!chain || !outLen || !buffer)
         return BAD_FUNC_ARG;
 
@@ -3868,6 +3994,7 @@ int  CyaSSL_get_chain_cert_pem(X509_CHAIN* chain, int idx,
 /* get session ID */
 const byte* CyaSSL_get_sessionID(const SSL_SESSION* session)
 {
+    CYASSL_ENTER("CyaSSL_get_sessionID");
     return session->sessionID;
 }
 

@@ -23,6 +23,7 @@
 
 #include "ctc_aes.h"
 #include "error.h"
+#include "logging.h"
 #ifdef NO_INLINE
     #include "misc.h"
 #else
@@ -974,8 +975,10 @@ void AesEncrypt(Aes* aes, const byte* inBlock, byte* outBlock)
     word32 r = aes->rounds >> 1;
 
     const word32* rk = aes->key;
-    if (r > 7)
+    if (r > 7) {
+        CYASSL_MSG("AesEncrypt encountered improper key, set it up");
         return;  /* stop instead of segfaulting, set up your keys! */
+    }
     /*
      * map byte array block to cipher state
      * and add initial round key:
@@ -1110,8 +1113,10 @@ void AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
     word32 r = aes->rounds >> 1;
 
     const word32* rk = aes->key;
-    if (r > 7)
+    if (r > 7) {
+        CYASSL_MSG("AesDecrypt encountered improper key, set it up");
         return;  /* stop instead of segfaulting, set up your keys! */
+    }
     /*
      * map byte array block to cipher state
      * and add initial round key:

@@ -111,21 +111,29 @@ int EmbedReceive(char *buf, int sz, void *ctx)
 
     if (recvd == -1) {
         err = LastError();
-        if (err == SOCKET_EWOULDBLOCK ||
-            err == SOCKET_EAGAIN)
+        CYASSL_MSG("Embed Receive error");
+
+        if (err == SOCKET_EWOULDBLOCK || err == SOCKET_EAGAIN) {
+            CYASSL_MSG("    Would block");
             return IO_ERR_WANT_READ;
-
-        else if (err == SOCKET_ECONNRESET)
+        }
+        else if (err == SOCKET_ECONNRESET) {
+            CYASSL_MSG("    Connection reset");
             return IO_ERR_CONN_RST;
-
-        else if (err == SOCKET_EINTR)
+        }
+        else if (err == SOCKET_EINTR) {
+            CYASSL_MSG("    Socket interrupted");
             return IO_ERR_ISR;
-
-        else
+        }
+        else {
+            CYASSL_MSG("    General error");
             return IO_ERR_GENERAL;
+        }
     }
-    else if (recvd == 0)
+    else if (recvd == 0) {
+        CYASSL_MSG("Embed receive connection closed");
         return IO_ERR_CONN_CLOSE;
+    }
 
     return recvd;
 }
@@ -138,25 +146,34 @@ int EmbedSend(char *buf, int sz, void *ctx)
     int socket = *(int*)ctx;
     int sent;
     int len = sz;
+    int err;
 
     sent = SEND_FUNCTION(socket, &buf[sz - len], len, 0);
 
     if (sent == -1) {
-        if (LastError() == SOCKET_EWOULDBLOCK || 
-            LastError() == SOCKET_EAGAIN)
+        err = LastError();
+        CYASSL_MSG("Embed Send error");
+
+        if (err == SOCKET_EWOULDBLOCK || err == SOCKET_EAGAIN) {
+            CYASSL_MSG("    Would Block");
             return IO_ERR_WANT_WRITE;
-
-        else if (LastError() == SOCKET_ECONNRESET)
+        }
+        else if (err == SOCKET_ECONNRESET) {
+            CYASSL_MSG("    Connection reset");
             return IO_ERR_CONN_RST;
-
-        else if (LastError() == SOCKET_EINTR)
+        }
+        else if (err == SOCKET_EINTR) {
+            CYASSL_MSG("    Socket interrupted");
             return IO_ERR_ISR;
-
-        else if (LastError() == SOCKET_EPIPE)
+        }
+        else if (err == SOCKET_EPIPE) {
+            CYASSL_MSG("    Socket EPIPE");
             return IO_ERR_CONN_CLOSE;
-
-        else
+        }
+        else {
+            CYASSL_MSG("    General error");
             return IO_ERR_GENERAL;
+        }
     }
  
     return sent;

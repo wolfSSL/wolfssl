@@ -32,6 +32,7 @@
 #include "pwdbased.h"
 #include "des3.h"
 #include "sha256.h"
+#include "logging.h"
 
 #ifdef HAVE_NTRU
     #include "crypto_ntru.h"
@@ -1458,8 +1459,10 @@ static int ValidateDate(const byte* date, byte format, int dateType)
     GetTime(&certTime.tm_min,  date, &i); 
     GetTime(&certTime.tm_sec,  date, &i); 
 
-    if (date[i] != 'Z')     /* only Zulu supported for this profile */
+    if (date[i] != 'Z') {     /* only Zulu supported for this profile */
+        CYASSL_MSG("Only Zulu time supported for this profile"); 
         return 0;
+    }
 
     localTime = XGMTIME(&ltime);
 
@@ -1680,6 +1683,7 @@ static word32 SetAlgoID(int algoOID, byte* output, int type)
             break;
 
         default:
+            CYASSL_MSG("Unknown Hash Algo");
             return 0;  /* UNKOWN_HASH_E; */
         }
     }
@@ -1691,7 +1695,8 @@ static word32 SetAlgoID(int algoOID, byte* output, int type)
             break;
 
         default:
-            return 0;  /* UNKOWN_HASH_E; */
+            CYASSL_MSG("Unknown Signature Algo");
+            return 0;
         }
     }
     else if (type == keyType) {    /* keyType */
@@ -1702,12 +1707,14 @@ static word32 SetAlgoID(int algoOID, byte* output, int type)
             break;
 
         default:
-            return 0;  /* UNKOWN_HASH_E; */
+            CYASSL_MSG("Unknown Key Algo");
+            return 0;
         }
     }
-    else
-        return 0;  /* UNKNOWN_TYPE */
-
+    else {
+        CYASSL_MSG("Unknown Algo type");
+        return 0;
+    }
 
     idSz  = SetLength(algoSz - 2, ID_Length); /* don't include TAG_NULL/0 */
     seqSz = SetSequence(idSz + algoSz + 1, seqArray);
@@ -1784,8 +1791,8 @@ static int ConfirmSignature(DecodedCert* cert, const byte* key, word32 keySz,
     }
 #endif
     else {
-        // TAO CYASSL_MSG("Verify Signautre has unsupported type");
-        return 0; /* ASN_SIG_HASH_E; */
+        CYASSL_MSG("Verify Signautre has unsupported type");
+        return 0;
     }
 
     if (keyOID == RSAk) {
@@ -1796,24 +1803,30 @@ static int ConfirmSignature(DecodedCert* cert, const byte* key, word32 keySz,
         int    sigSz, verifySz;
         byte*  out;
 
-        if (cert->sigLength > MAX_ENCODED_SIG_SZ)
-            return 0; /* the key is too big */
+        if (cert->sigLength > MAX_ENCODED_SIG_SZ) {
+            CYASSL_MSG("Verify Signautre is too big");
+            return 0;
+        }
             
         InitRsaKey(&pubKey, cert->heap);
-        if (RsaPublicKeyDecode(key, &idx, &pubKey, keySz) < 0)
-            ret = 0; /* ASN_KEY_DECODE_E; */
-
+        if (RsaPublicKeyDecode(key, &idx, &pubKey, keySz) < 0) {
+            CYASSL_MSG("ASN Key decode error RSA");
+            ret = 0;
+        }
         else {
             XMEMCPY(plain, cert->signature, cert->sigLength);
             if ( (verifySz = RsaSSL_VerifyInline(plain, cert->sigLength, &out,
                                            &pubKey)) < 0) {
-                ret = 0; /* ASN_VERIFY_E; */
+                CYASSL_MSG("Rsa SSL verify error");
+                ret = 0;
             }
             else {
                 /* make sure we're right justified */
                 sigSz = EncodeSignature(encodedSig, digest, digestSz, hashType);
-                if (sigSz != verifySz || XMEMCMP(out, encodedSig, sigSz) != 0)
-                    ret = 0; /* ASN_VERIFY_MATCH_E; */
+                if (sigSz != verifySz || XMEMCMP(out, encodedSig, sigSz) != 0){
+                    CYASSL_MSG("Rsa SSL verify match encode error");
+                    ret = 0;
+                }
                 else
                     ret = 1; /* match */
 
@@ -1846,8 +1859,10 @@ static int ConfirmSignature(DecodedCert* cert, const byte* key, word32 keySz,
         ecc_key pubKey;
         int     verify = 0;
         
-        if (ecc_import_x963(key, keySz, &pubKey) < 0)
-            return 0; /* ASN_KEY_DECODE_E */
+        if (ecc_import_x963(key, keySz, &pubKey) < 0) {
+            CYASSL_MSG("ASN Key import error ECC");
+            return 0;
+        }
     
         ret = ecc_verify_hash(cert->signature, cert->sigLength, digest,
                               digestSz, &verify, &pubKey);
@@ -1855,11 +1870,13 @@ static int ConfirmSignature(DecodedCert* cert, const byte* key, word32 keySz,
         if (ret == 0 && verify == 1)
             return 1;  /* match */
 
-        return 0;  /* ASN_VERIFY_E */
+        CYASSL_MSG("ECC Verify didn't match");
+        return 0;
     }
 #endif /* HAVE_ECC */
     else {
-        return 0; /* ASN_SIG_KEY_E; */
+        CYASSL_MSG("Verify Key type unknown");
+        return 0;
     }
 }
 
@@ -1932,15 +1949,19 @@ int ParseCertRelative(DecodedCert* cert, word32 inSz, int type, int verify,
 
     if (verify && type != CA_TYPE) {
         Signer* ca = GetCA(signers, cert->issuerHash);
-
+        CYASSL_MSG("About to verify certificate signature");
+ 
         if (ca) {
             /* try to confirm/verify signature */
             if (!ConfirmSignature(cert, ca->publicKey,
-                                  ca->pubKeySize, ca->keyOID))
+                                  ca->pubKeySize, ca->keyOID)) {
+                CYASSL_MSG("Confirm signature failed");
                 return ASN_SIG_CONFIRM_E;
+            }
         }
         else {
             /* no signer */
+            CYASSL_MSG("No CA signer to verify with");
             return ASN_SIG_CONFIRM_E;
         }
     }
@@ -2073,7 +2094,7 @@ void CTaoCryptErrorString(int error, char* buffer)
         break; 
 
     case BUFFER_E :
-        XSTRNCPY(buffer, "Buffer error, output too small or input too big", max);
+        XSTRNCPY(buffer, "Buffer error, output too small or input too big",max);
         break; 
 
     case ALGO_ID_E :
@@ -2566,7 +2587,7 @@ static void SetTime(struct tm* date, byte* output)
     output[i++] = itob(date->tm_sec / 10);
     output[i++] = itob(date->tm_sec % 10);
     
-    output[i] = 'Z';  /* Zulu profiel */
+    output[i] = 'Z';  /* Zulu profile */
 }
 
 
