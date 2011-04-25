@@ -63,16 +63,18 @@ THREAD_RETURN CYASSL_API server_test(void* args)
     ctx    = SSL_CTX_new(method);
 
 #ifndef NO_PSK
+    /* do PSK */
     SSL_CTX_set_psk_server_callback(ctx, my_psk_server_cb);
     SSL_CTX_use_psk_identity_hint(ctx, "cyassl server");
+    SSL_CTX_set_cipher_list(ctx, "PSK-AES256-CBC-SHA");
+#else
+    /* not using PSK, verify peer with certs */
+    SSL_CTX_set_verify(ctx,SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT,0);
 #endif
 
 #ifdef OPENSSL_EXTRA
     SSL_CTX_set_default_passwd_cb(ctx, PasswordCallBack);
 #endif
-
-    SSL_CTX_set_verify(ctx,SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT,0);
-
 
 #ifndef NO_FILESYSTEM
     /* for client auth */
@@ -117,7 +119,9 @@ THREAD_RETURN CYASSL_API server_test(void* args)
 #endif
 
     SSL_set_fd(ssl, clientfd);
-    SetDH(ssl);
+#ifdef NO_PSK
+    SetDH(ssl);   /* will repick suites with DHE, higher priority than PSK */
+#endif
 
 #ifdef NON_BLOCKING
     tcp_set_nonblocking(&clientfd);

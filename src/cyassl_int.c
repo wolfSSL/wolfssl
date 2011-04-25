@@ -4960,6 +4960,7 @@ int SetCipherList(SSL_CTX* ctx, const char* list)
         ssl->chVersion = pv;  /* store */
 
         if (ssl->version.minor > pv.minor) {
+            byte havePSK = 0;
             if (!ssl->options.downgrade) {
                 CYASSL_MSG("Client trying to connect with lesser version"); 
                 return VERSION_ERROR;
@@ -4981,7 +4982,11 @@ int SetCipherList(SSL_CTX* ctx, const char* list)
                 CYASSL_MSG("    downgrading to TLSv1.1");
                 ssl->version.minor  = TLSv1_1_MINOR;
             }
-            InitSuites(&ssl->suites, ssl->version, ssl->options.haveDH, FALSE,
+#ifndef NO_PSK
+            havePSK = ssl->options.havePSK;
+#endif
+
+            InitSuites(&ssl->suites, ssl->version, ssl->options.haveDH, havePSK,
                        ssl->options.haveNTRU, ssl->options.haveECDSA,
                        ssl->ctx->method->side);
         }
@@ -5084,6 +5089,7 @@ int SetCipherList(SSL_CTX* ctx, const char* list)
         ssl->chVersion = pv;   /* store */
         i += sizeof(pv);
         if (ssl->version.minor > pv.minor) {
+            byte havePSK = 0;
             if (!ssl->options.downgrade) {
                 CYASSL_MSG("Client trying to connect with lesser version"); 
                 return VERSION_ERROR;
@@ -5105,7 +5111,10 @@ int SetCipherList(SSL_CTX* ctx, const char* list)
                 CYASSL_MSG("    downgrading to TLSv1.1");
                 ssl->version.minor  = TLSv1_1_MINOR;
             }
-            InitSuites(&ssl->suites, ssl->version, ssl->options.haveDH, FALSE,
+#ifndef NO_PSK
+            havePSK = ssl->options.havePSK;
+#endif
+            InitSuites(&ssl->suites, ssl->version, ssl->options.haveDH, havePSK,
                        ssl->options.haveNTRU, ssl->options.haveECDSA,
                        ssl->ctx->method->side);
         }
