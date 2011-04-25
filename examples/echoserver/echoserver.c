@@ -122,11 +122,14 @@ THREAD_RETURN CYASSL_API echoserver_test(void* args)
         SSL_set_fd(ssl, clientfd);
         SetDH(ssl);
         if (SSL_accept(ssl) != SSL_SUCCESS) {
-            printf("SSL_accept failed");
+            printf("SSL_accept failed\n");
             SSL_free(ssl);
             CloseSocket(clientfd);
             continue;
         }
+#ifdef ECHO_OUT
+        showPeer(ssl);
+#endif
 
         while ( (echoSz = SSL_read(ssl, command, sizeof(command))) > 0) {
            

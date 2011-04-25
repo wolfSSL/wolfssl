@@ -1259,9 +1259,12 @@ static int GetRecordHeader(SSL* ssl, const byte* input, word32* inOutIdx,
     if (rh->version.major != ssl->version.major || 
         rh->version.minor != ssl->version.minor) {
         
-        if (ssl->options.side == SERVER_END && ssl->options.downgrade == 1 &&
+        if (ssl->options.side == SERVER_END &&
             ssl->options.acceptState == ACCEPT_BEGIN)
-            ;                                  /* haven't negotiated yet */
+            CYASSL_MSG("Client attempting to connect with different version"); 
+        else if (ssl->options.side == CLIENT_END && ssl->options.downgrade &&
+                 ssl->options.connectState < FIRST_REPLY_DONE)
+            CYASSL_MSG("Server attempting to accept with different version"); 
         else {
             CYASSL_MSG("SSL version error"); 
             return VERSION_ERROR;              /* only use requested version */
@@ -3731,6 +3734,34 @@ int SetCipherList(SSL_CTX* ctx, const char* list)
 #endif
         XMEMCPY(&pv, input + i, sizeof(pv));
         i += sizeof(pv);
+        if (pv.minor > ssl->version.minor) {
+            CYASSL_MSG("Server using higher version, fatal error");
+            return VERSION_ERROR;
+        }
+        else if (pv.minor < ssl->version.minor) {
+            CYASSL_MSG("server using lower version");
+            if (!ssl->options.downgrade) {
+                CYASSL_MSG("    no downgrade allowed, fatal error");
+                return VERSION_ERROR;
+            }
+            else if (pv.minor == SSLv3_MINOR) {
+                /* turn off tls */
+                CYASSL_MSG("    downgrading to SSLv3");
+                ssl->options.tls    = 0;
+                ssl->options.tls1_1 = 0;
+                ssl->version.minor  = SSLv3_MINOR;
+            }
+            else if (pv.minor == TLSv1_MINOR) {
+                /* turn off tls 1.1+ */
+                CYASSL_MSG("    downgrading to TLSv1");
+                ssl->options.tls1_1 = 0;
+                ssl->version.minor  = TLSv1_MINOR;
+            }
+            else if (pv.minor == TLSv1_1_MINOR) {
+                CYASSL_MSG("    downgrading to TLSv1.1");
+                ssl->version.minor  = TLSv1_1_MINOR;
+            }
+        }
         XMEMCPY(ssl->arrays.serverRandom, input + i, RAN_LEN);
         i += RAN_LEN;
         b = input[i++];
@@ -4928,13 +4959,28 @@ int SetCipherList(SSL_CTX* ctx, const char* list)
         pv.minor = input[idx++];
         ssl->chVersion = pv;  /* store */
 
-        if (ssl->version.minor > 0 && pv.minor == 0) {
-            if (!ssl->options.downgrade)
+        if (ssl->version.minor > pv.minor) {
+            if (!ssl->options.downgrade) {
+                CYASSL_MSG("Client trying to connect with lesser version"); 
                 return VERSION_ERROR;
-            /* turn off tls */
-            ssl->options.tls    = 0;
-            ssl->options.tls1_1 = 0;
-            ssl->version.minor  = 0;
+            }
+            if (pv.minor == SSLv3_MINOR) {
+                /* turn off tls */
+                CYASSL_MSG("    downgrading to SSLv3");
+                ssl->options.tls    = 0;
+                ssl->options.tls1_1 = 0;
+                ssl->version.minor  = SSLv3_MINOR;
+            }
+            else if (pv.minor == TLSv1_MINOR) {
+                CYASSL_MSG("    downgrading to TLSv1");
+                /* turn off tls 1.1+ */
+                ssl->options.tls1_1 = 0;
+                ssl->version.minor  = TLSv1_MINOR;
+            }
+            else if (pv.minor == TLSv1_1_MINOR) {
+                CYASSL_MSG("    downgrading to TLSv1.1");
+                ssl->version.minor  = TLSv1_1_MINOR;
+            }
             InitSuites(&ssl->suites, ssl->version, ssl->options.haveDH, FALSE,
                        ssl->options.haveNTRU, ssl->options.haveECDSA,
                        ssl->ctx->method->side);
@@ -5037,13 +5083,28 @@ int SetCipherList(SSL_CTX* ctx, const char* list)
         XMEMCPY(&pv, input + i, sizeof(pv));
         ssl->chVersion = pv;   /* store */
         i += sizeof(pv);
-        if (ssl->version.minor > 0 && pv.minor == 0) {
-            if (!ssl->options.downgrade)
+        if (ssl->version.minor > pv.minor) {
+            if (!ssl->options.downgrade) {
+                CYASSL_MSG("Client trying to connect with lesser version"); 
                 return VERSION_ERROR;
-            /* turn off tls */
-            ssl->options.tls    = 0;
-            ssl->options.tls1_1 = 0;
-            ssl->version.minor  = 0;
+            }
+            if (pv.minor == SSLv3_MINOR) {
+                /* turn off tls */
+                CYASSL_MSG("    downgrading to SSLv3");
+                ssl->options.tls    = 0;
+                ssl->options.tls1_1 = 0;
+                ssl->version.minor  = SSLv3_MINOR;
+            }
+            else if (pv.minor == TLSv1_MINOR) {
+                /* turn off tls 1.1+ */
+                CYASSL_MSG("    downgrading to TLSv1");
+                ssl->options.tls1_1 = 0;
+                ssl->version.minor  = TLSv1_MINOR;
+            }
+            else if (pv.minor == TLSv1_1_MINOR) {
+                CYASSL_MSG("    downgrading to TLSv1.1");
+                ssl->version.minor  = TLSv1_1_MINOR;
+            }
             InitSuites(&ssl->suites, ssl->version, ssl->options.haveDH, FALSE,
                        ssl->options.haveNTRU, ssl->options.haveECDSA,
                        ssl->ctx->method->side);

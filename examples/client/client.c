@@ -75,7 +75,7 @@ void client_test(void* args)
 #if defined(CYASSL_DTLS)
     method  = DTLSv1_client_method();
 #elif  !defined(NO_TLS)
-    method  = TLSv1_client_method();
+    method  = SSLv23_client_method();
 #else
     method  = SSLv3_client_method();
 #endif

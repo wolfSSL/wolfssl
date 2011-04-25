@@ -366,13 +366,14 @@ void TLS_hmac(SSL* ssl, byte* digest, const byte* buffer, word32 sz,
     }
 
 
-    /* TODO: add downgrade */
     SSL_METHOD* SSLv23_client_method(void)
     {
         SSL_METHOD* method = (SSL_METHOD*) XMALLOC(sizeof(SSL_METHOD), 0,
                                                    DYNAMIC_TYPE_METHOD);
-        if (method)
-            InitSSL_Method(method, MakeTLSv1());
+        if (method) {
+            InitSSL_Method(method, MakeTLSv1_2());
+            method->downgrade = 1;
+        }
         return method;
     }
 
@@ -424,7 +425,7 @@ void TLS_hmac(SSL* ssl, byte* digest, const byte* buffer, word32 sz,
         SSL_METHOD* method = (SSL_METHOD*) XMALLOC(sizeof(SSL_METHOD), 0,
                                                    DYNAMIC_TYPE_METHOD);
         if (method) {
-            InitSSL_Method(method, MakeTLSv1());
+            InitSSL_Method(method, MakeTLSv1_2());
             method->side      = SERVER_END;
             method->downgrade = 1;
         }
