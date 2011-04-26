@@ -79,6 +79,10 @@
     #endif
 #endif
 
+#ifdef NO_SHA256
+    #define SHA256_DIGEST_SIZE 32 
+#endif
+
 #ifdef __cplusplus
     extern "C" {
 #endif

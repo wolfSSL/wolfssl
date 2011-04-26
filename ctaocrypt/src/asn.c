@@ -518,6 +518,8 @@ int ToTraditional(byte* input, word32 sz)
 }
 
 
+#ifndef NO_PWDBASED
+
 /* Check To see if PKCS version algo is supported, set id if it is return 0
    < 0 on error */
 static int CheckAlgo(int first, int second, int* id, int* version)
@@ -652,6 +654,7 @@ static int DecryptKey(const char* password, int passwordSz, byte* salt,
         return ret;
 
     switch (decryptionType) {
+#ifndef NO_DES3
         case DES_TYPE:
         {
             Des    dec;
@@ -675,7 +678,7 @@ static int DecryptKey(const char* password, int passwordSz, byte* salt,
             Des3_CbcDecrypt(&dec, input, input, length);
             break;
         }
-
+#endif
         case RC4_TYPE:
         {
             Arc4    dec;
@@ -794,6 +797,8 @@ int ToTraditionalEnc(byte* input, word32 sz,const char* password,int passwordSz)
     XMEMMOVE(input, input + inOutIdx, length);
     return ToTraditional(input, length);
 }
+
+#endif /* NO_PWDBASED */
 
 
 int RsaPublicKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
