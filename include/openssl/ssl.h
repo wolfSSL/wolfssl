@@ -41,7 +41,12 @@
 
 #define CYASSL_VERSION "1.9.6"
 
-#undef X509_NAME   /* wincrypt.h clash */
+#ifdef _WIN32
+    /* wincrypt.h clashes */
+    #undef X509_NAME
+    #undef OCSP_REQUEST 
+    #undef OCSP_RESPONSE
+#endif
 
 #ifdef __cplusplus
     extern "C" {
