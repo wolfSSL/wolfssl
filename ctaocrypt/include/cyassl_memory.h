@@ -37,13 +37,13 @@ typedef void (*CyaSSL_Free_cb)(void *ptr);
 typedef void *(*CyaSSL_Realloc_cb)(void *ptr, size_t size);
 
 
-int CyaSSL_SetAllocators(CyaSSL_Malloc_cb  malloc_function,
-                         CyaSSL_Free_cb    free_function,
-                         CyaSSL_Realloc_cb realloc_function);
+CYASSL_API int CyaSSL_SetAllocators(CyaSSL_Malloc_cb  malloc_function,
+                                    CyaSSL_Free_cb    free_function,
+                                    CyaSSL_Realloc_cb realloc_function);
 
-void* CyaSSL_Malloc(size_t size);
-void  CyaSSL_Free(void *ptr);
-void* CyaSSL_Realloc(void *ptr, size_t size);
+CYASSL_API void* CyaSSL_Malloc(size_t size);
+CYASSL_API void  CyaSSL_Free(void *ptr);
+CYASSL_API void* CyaSSL_Realloc(void *ptr, size_t size);
 
 
 

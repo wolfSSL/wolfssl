@@ -27,7 +27,7 @@ static void SignalReady(void* args)
 }
 
 
-THREAD_RETURN CYASSL_API echoserver_test(void* args)
+THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
 {
     SOCKET_T    sockfd = 0;
     SSL_METHOD* method = 0;

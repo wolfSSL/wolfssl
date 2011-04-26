@@ -45,11 +45,12 @@ typedef struct DsaKey {
 } DsaKey;
 
 
-void InitDsaKey(DsaKey* key);
-void FreeDsaKey(DsaKey* key);
+CYASSL_API void InitDsaKey(DsaKey* key);
+CYASSL_API void FreeDsaKey(DsaKey* key);
 
-int DsaSign(const byte* digest, byte* out, DsaKey* key, RNG* rng);
-int DsaVerify(const byte* digest, const byte* sig, DsaKey* key, int* answer);
+CYASSL_API int DsaSign(const byte* digest, byte* out, DsaKey* key, RNG* rng);
+CYASSL_API int DsaVerify(const byte* digest, const byte* sig, DsaKey* key,
+                         int* answer);
 
 
 #ifdef __cplusplus

@@ -55,9 +55,9 @@ typedef struct Sha256 {
 } Sha256;
 
 
-void InitSha256(Sha256*);
-void Sha256Update(Sha256*, const byte*, word32);
-void Sha256Final(Sha256*, byte*);
+CYASSL_API void InitSha256(Sha256*);
+CYASSL_API void Sha256Update(Sha256*, const byte*, word32);
+CYASSL_API void Sha256Final(Sha256*, byte*);
 
 
 #ifdef __cplusplus

@@ -39,7 +39,7 @@
 #endif
 
 
-THREAD_RETURN CYASSL_API server_test(void* args)
+THREAD_RETURN CYASSL_THREAD server_test(void* args)
 {
     SOCKET_T sockfd   = 0;
     int      clientfd = 0;

@@ -52,9 +52,9 @@ typedef struct RipeMd {
 } RipeMd;
 
 
-void InitRipeMd(RipeMd*);
-void RipeMdUpdate(RipeMd*, const byte*, word32);
-void RipeMdFinal(RipeMd*, byte*);
+CYASSL_API void InitRipeMd(RipeMd*);
+CYASSL_API void RipeMdUpdate(RipeMd*, const byte*, word32);
+CYASSL_API void RipeMdFinal(RipeMd*, byte*);
 
 
 #ifdef __cplusplus

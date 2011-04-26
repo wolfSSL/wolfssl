@@ -11,6 +11,7 @@ libcyassl_la_SOURCES = \
     ../ctaocrypt/src/pwdbased.c ../ctaocrypt/src/logging.c \
     ../ctaocrypt/src/cyassl_memory.c
 libcyassl_la_LDFLAGS = -no-undefined -version-info 1:0:0
+libcyassl_la_CFLAGS = -DBUILDING_CYASSL
 EXTRA_DIST = ../include/*.h ../include/openssl/*.h ../include/*.rc
 
 if BUILD_AESNI

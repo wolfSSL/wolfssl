@@ -49,9 +49,9 @@ typedef struct Md5 {
 } Md5;
 
 
-void InitMd5(Md5*);
-void Md5Update(Md5*, const byte*, word32);
-void Md5Final(Md5*, byte*);
+CYASSL_API void InitMd5(Md5*);
+CYASSL_API void Md5Update(Md5*, const byte*, word32);
+CYASSL_API void Md5Final(Md5*, byte*);
 
 
 #ifdef __cplusplus

@@ -52,9 +52,9 @@ typedef struct Sha512 {
 } Sha512;
 
 
-void InitSha512(Sha512*);
-void Sha512Update(Sha512*, const byte*, word32);
-void Sha512Final(Sha512*, byte*);
+CYASSL_API void InitSha512(Sha512*);
+CYASSL_API void Sha512Update(Sha512*, const byte*, word32);
+CYASSL_API void Sha512Final(Sha512*, byte*);
 
 
 #ifdef __cplusplus

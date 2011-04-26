@@ -428,13 +428,13 @@ typedef struct ProtocolVersion {
 } ProtocolVersion;
 
 
-ProtocolVersion MakeSSLv3(void);
-ProtocolVersion MakeTLSv1(void);
-ProtocolVersion MakeTLSv1_1(void);
-ProtocolVersion MakeTLSv1_2(void);
+CYASSL_LOCAL ProtocolVersion MakeSSLv3(void);
+CYASSL_LOCAL ProtocolVersion MakeTLSv1(void);
+CYASSL_LOCAL ProtocolVersion MakeTLSv1_1(void);
+CYASSL_LOCAL ProtocolVersion MakeTLSv1_2(void);
 
 #ifdef CYASSL_DTLS
-    ProtocolVersion MakeDTLSv1(void);
+    CYASSL_LOCAL ProtocolVersion MakeDTLSv1(void);
 #endif
 
 
@@ -475,11 +475,12 @@ struct SSL_METHOD {
 
 
 /* defautls to client */
-void InitSSL_Method(SSL_METHOD*, ProtocolVersion);
+CYASSL_LOCAL void InitSSL_Method(SSL_METHOD*, ProtocolVersion);
 
 /* for sniffer */
-int DoFinished(SSL* ssl, const byte* input, word32* inOutIdx, int sniff);
-int DoApplicationData(SSL* ssl, byte* input, word32* inOutIdx);
+CYASSL_LOCAL int DoFinished(SSL* ssl, const byte* input, word32* inOutIdx,
+                            int sniff);
+CYASSL_LOCAL int DoApplicationData(SSL* ssl, byte* input, word32* inOutIdx);
 
 
 /* CyaSSL buffer type */
@@ -559,7 +560,9 @@ typedef struct Suites {
 } Suites;
 
 
+CYASSL_LOCAL
 void InitSuites(Suites*, ProtocolVersion, byte, byte, byte, byte, int);
+CYASSL_LOCAL
 int  SetCipherList(SSL_CTX* ctx, const char* list);
 
 #ifndef PSK_TYPES_DEFINED
@@ -572,11 +575,14 @@ int  SetCipherList(SSL_CTX* ctx, const char* list);
 
 #ifndef CYASSL_USER_IO
     /* default IO callbacks */
+    CYASSL_LOCAL
     int EmbedReceive(char *buf, int sz, void *ctx);
+    CYASSL_LOCAL 
     int EmbedSend(char *buf, int sz, void *ctx);
 #endif
 
 #ifdef CYASSL_DTLS
+    CYASSL_LOCAL
     int IsUDP(void*);
 #endif
 
@@ -624,14 +630,21 @@ struct SSL_CTX {
 };
 
 
+CYASSL_LOCAL
 void InitSSL_Ctx(SSL_CTX*, SSL_METHOD*);
+CYASSL_LOCAL
 void FreeSSL_Ctx(SSL_CTX*);
+CYASSL_LOCAL
 void SSL_CtxResourceFree(SSL_CTX*);
 
+CYASSL_LOCAL
 int DeriveTlsKeys(SSL* ssl);
+CYASSL_LOCAL
 int ProcessOldClientHello(SSL* ssl, const byte* input, word32* inOutIdx,
                           word32 inSz, word16 sz);
+CYASSL_LOCAL
 int AddCA(SSL_CTX* ctx, buffer der);
+CYASSL_LOCAL
 int IsCA(SSL_CTX* ctx, byte* hash);
 
 /* All cipher suite related info */
@@ -813,7 +826,9 @@ struct SSL_SESSION {
 };
 
 
+CYASSL_LOCAL
 SSL_SESSION* GetSession(SSL*, byte*);
+CYASSL_LOCAL
 int          SetSession(SSL*, SSL_SESSION*);
 
 typedef void (*hmacfp) (SSL*, byte*, const byte*, word32, int, int);
@@ -1038,9 +1053,11 @@ struct SSL {
 };
 
 
+CYASSL_LOCAL
 int  InitSSL(SSL*, SSL_CTX*);
+CYASSL_LOCAL
 void FreeSSL(SSL*);
-void SSL_ResourceFree(SSL*);
+CYASSL_API void SSL_ResourceFree(SSL*);   /* Micrium uses */
 
 
 enum {
@@ -1060,14 +1077,22 @@ typedef struct EncryptedInfo {
 
 
 #ifdef CYASSL_CALLBACKS
+    CYASSL_LOCAL
     void InitHandShakeInfo(HandShakeInfo*);
+    CYASSL_LOCAL 
     void FinishHandShakeInfo(HandShakeInfo*, const SSL*);
+    CYASSL_LOCAL 
     void AddPacketName(const char*, HandShakeInfo*);
 
+    CYASSL_LOCAL
     void InitTimeoutInfo(TimeoutInfo*);
+    CYASSL_LOCAL 
     void FreeTimeoutInfo(TimeoutInfo*, void*);
+    CYASSL_LOCAL 
     void AddPacketInfo(const char*, TimeoutInfo*, const byte*, int, void*);
+    CYASSL_LOCAL 
     void AddLateName(const char*, TimeoutInfo*);
+    CYASSL_LOCAL 
     void AddLateRecordHeader(const RecordLayerHeader* rl, TimeoutInfo* info);
 #endif
 
@@ -1158,41 +1183,41 @@ static const byte tls_server[FINISHED_LABEL_SZ + 1] = "server finished";
 
 
 /* internal functions */
-int SendChangeCipher(SSL*);
-int SendData(SSL*, const void*, int);
-int SendCertificate(SSL*);
-int SendCertificateRequest(SSL*);
-int SendServerKeyExchange(SSL*);
-int SendBuffered(SSL*);
-int ReceiveData(SSL*, byte*, int);
-int SendFinished(SSL*);
-int SendAlert(SSL*, int, int);
-int ProcessReply(SSL*);
+CYASSL_LOCAL int SendChangeCipher(SSL*);
+CYASSL_LOCAL int SendData(SSL*, const void*, int);
+CYASSL_LOCAL int SendCertificate(SSL*);
+CYASSL_LOCAL int SendCertificateRequest(SSL*);
+CYASSL_LOCAL int SendServerKeyExchange(SSL*);
+CYASSL_LOCAL int SendBuffered(SSL*);
+CYASSL_LOCAL int ReceiveData(SSL*, byte*, int);
+CYASSL_LOCAL int SendFinished(SSL*);
+CYASSL_LOCAL int SendAlert(SSL*, int, int);
+CYASSL_LOCAL int ProcessReply(SSL*);
 
-int SetCipherSpecs(SSL*);
-int MakeMasterSecret(SSL*);
+CYASSL_LOCAL int SetCipherSpecs(SSL*);
+CYASSL_LOCAL int MakeMasterSecret(SSL*);
 
-int  AddSession(SSL*);
-int  DeriveKeys(SSL* ssl);
-int  StoreKeys(SSL* ssl, const byte* keyData);
+CYASSL_LOCAL int  AddSession(SSL*);
+CYASSL_LOCAL int  DeriveKeys(SSL* ssl);
+CYASSL_LOCAL int  StoreKeys(SSL* ssl, const byte* keyData);
 
-int IsTLS(const SSL* ssl);
-int IsAtLeastTLSv1_2(const SSL* ssl);
+CYASSL_LOCAL int IsTLS(const SSL* ssl);
+CYASSL_LOCAL int IsAtLeastTLSv1_2(const SSL* ssl);
 
-void ShrinkInputBuffer(SSL* ssl, int forcedFree);
-void ShrinkOutputBuffer(SSL* ssl);
+CYASSL_LOCAL void ShrinkInputBuffer(SSL* ssl, int forcedFree);
+CYASSL_LOCAL void ShrinkOutputBuffer(SSL* ssl);
 
 #ifndef NO_CYASSL_CLIENT
-    int SendClientHello(SSL*);
-    int SendClientKeyExchange(SSL*);
-    int SendCertificateVerify(SSL*);
+    CYASSL_LOCAL int SendClientHello(SSL*);
+    CYASSL_LOCAL int SendClientKeyExchange(SSL*);
+    CYASSL_LOCAL int SendCertificateVerify(SSL*);
 #endif /* NO_CYASSL_CLIENT */
 
 #ifndef NO_CYASSL_SERVER
-    int SendServerHello(SSL*);
-    int SendServerHelloDone(SSL*);
+    CYASSL_LOCAL int SendServerHello(SSL*);
+    CYASSL_LOCAL int SendServerHelloDone(SSL*);
     #ifdef CYASSL_DTLS
-        int SendHelloVerifyRequest(SSL*);
+        CYASSL_LOCAL int SendHelloVerifyRequest(SSL*);
     #endif
 #endif /* NO_CYASSL_SERVER */
 
@@ -1206,8 +1231,8 @@ void ShrinkOutputBuffer(SSL* ssl);
 
 typedef double timer_d;
 
-timer_d Timer(void);
-word32  LowResTimer(void);
+CYASSL_LOCAL timer_d Timer(void);
+CYASSL_LOCAL word32  LowResTimer(void);
 
 
 #ifdef SINGLE_THREADED
@@ -1226,10 +1251,10 @@ word32  LowResTimer(void);
     #endif /* USE_WINDOWS_API */
 #endif /* SINGLE_THREADED */
 
-int InitMutex(CyaSSL_Mutex*);
-int FreeMutex(CyaSSL_Mutex*);
-int LockMutex(CyaSSL_Mutex*);
-int UnLockMutex(CyaSSL_Mutex*);
+CYASSL_LOCAL int InitMutex(CyaSSL_Mutex*);
+CYASSL_LOCAL int FreeMutex(CyaSSL_Mutex*);
+CYASSL_LOCAL int LockMutex(CyaSSL_Mutex*);
+CYASSL_LOCAL int UnLockMutex(CyaSSL_Mutex*);
 
 
 

@@ -238,48 +238,59 @@ struct Signer {
 };
 
 
-void InitDecodedCert(DecodedCert*, byte*, void*);
-void FreeDecodedCert(DecodedCert*);
-int  ParseCert(DecodedCert*, word32, int type, int verify, Signer* signer);
-int  ParseCertRelative(DecodedCert*, word32, int type, int verify,
-                       Signer* signer);
+CYASSL_API void InitDecodedCert(DecodedCert*, byte*, void*);
+CYASSL_API void FreeDecodedCert(DecodedCert*);
+CYASSL_API int  ParseCert(DecodedCert*, word32, int type, int verify,
+                          Signer* signer);
+CYASSL_LOCAL int ParseCertRelative(DecodedCert*, word32, int type, int verify,
+                                   Signer* signer);
 
-word32 EncodeSignature(byte* out, const byte* digest, word32 digSz,int hashOID);
+CYASSL_LOCAL word32 EncodeSignature(byte* out, const byte* digest, word32 digSz,
+                                    int hashOID);
 
-Signer* MakeSigner(void*);
-void    FreeSigners(Signer*, void*);
+CYASSL_LOCAL Signer* MakeSigner(void*);
+CYASSL_LOCAL void    FreeSigners(Signer*, void*);
 
 
-int RsaPrivateKeyDecode(const byte* input, word32* inOutIdx, RsaKey*, word32);
-int RsaPublicKeyDecode(const byte* input, word32* inOutIdx, RsaKey*, word32);
-int ToTraditional(byte* buffer, word32 length);
-int ToTraditionalEnc(byte* buffer, word32 length, const char*, int);
+CYASSL_API int RsaPrivateKeyDecode(const byte* input, word32* inOutIdx, RsaKey*,
+                                   word32);
+CYASSL_API int RsaPublicKeyDecode(const byte* input, word32* inOutIdx, RsaKey*,
+                                  word32);
+CYASSL_LOCAL int ToTraditional(byte* buffer, word32 length);
+CYASSL_LOCAL int ToTraditionalEnc(byte* buffer, word32 length,const char*, int);
 
 #ifndef NO_DH
-int DhKeyDecode(const byte* input, word32* inOutIdx, DhKey* key, word32);
-int DhSetKey(DhKey* key, const byte* p, word32 pSz, const byte* g, word32 gSz);
+CYASSL_API int DhKeyDecode(const byte* input, word32* inOutIdx, DhKey* key,
+                           word32);
+CYASSL_API int DhSetKey(DhKey* key, const byte* p, word32 pSz, const byte* g,
+                        word32 gSz);
 #endif
 
 #ifndef NO_DSA
-int DsaPublicKeyDecode(const byte* input, word32* inOutIdx, DsaKey*, word32);
-int DsaPrivateKeyDecode(const byte* input, word32* inOutIdx, DsaKey*, word32);
+CYASSL_API int DsaPublicKeyDecode(const byte* input, word32* inOutIdx, DsaKey*,
+                                  word32);
+CYASSL_API int DsaPrivateKeyDecode(const byte* input, word32* inOutIdx, DsaKey*,
+                                   word32);
 #endif
 
 #ifdef CYASSL_KEY_GEN
-int RsaKeyToDer(RsaKey*, byte* output, word32 inLen);
+CYASSL_API int RsaKeyToDer(RsaKey*, byte* output, word32 inLen);
 #endif
 
 #ifdef HAVE_ECC
     /* ASN sig helpers */
-    int StoreECC_DSA_Sig(byte* out, word32* outLen, mp_int* r, mp_int* s);
-    int DecodeECC_DSA_Sig(const byte* sig, word32 sigLen, mp_int* r, mp_int* s);
+    CYASSL_LOCAL int StoreECC_DSA_Sig(byte* out, word32* outLen, mp_int* r,
+                                      mp_int* s);
+    CYASSL_LOCAL int DecodeECC_DSA_Sig(const byte* sig, word32 sigLen,
+                                       mp_int* r, mp_int* s);
     /* private key helpers */
-    int EccPrivateKeyDecode(const byte* input,word32* inOutIdx,ecc_key*,word32);
+    CYASSL_LOCAL int EccPrivateKeyDecode(const byte* input,word32* inOutIdx,
+                                         ecc_key*,word32);
 #endif
 
 #if defined(CYASSL_KEY_GEN) || defined(CYASSL_CERT_GEN)
-int DerToPem(const byte* der, word32 derSz, byte* output, word32 outputSz,
-             int type);
+CYASSL_API int DerToPem(const byte* der, word32 derSz, byte* output,
+                        word32 outputSz, int type);
 #endif
 
 #ifdef CYASSL_CERT_GEN
@@ -331,14 +342,15 @@ typedef struct Cert {
    subject    = blank
    keyType    = RSA_KEY (default)
 */
-void InitCert(Cert*);
-int  MakeCert(Cert*, byte* derBuffer, word32 derSz, RsaKey*, RNG*);
-int  SignCert(Cert*, byte* derBuffer, word32 derSz, RsaKey*, RNG*);
-int  MakeSelfCert(Cert*, byte* derBuffer, word32 derSz, RsaKey*, RNG*);
-int  SetIssuer(Cert*, const char*);
+CYASSL_API void InitCert(Cert*);
+CYASSL_API int  MakeCert(Cert*, byte* derBuffer, word32 derSz, RsaKey*, RNG*);
+CYASSL_API int  SignCert(Cert*, byte* derBuffer, word32 derSz, RsaKey*, RNG*);
+CYASSL_API int  MakeSelfCert(Cert*, byte* derBuffer, word32 derSz, RsaKey*,
+                             RNG*);
+CYASSL_API int  SetIssuer(Cert*, const char*);
 #ifdef HAVE_NTRU
-int  MakeNtruCert(Cert*, byte* derBuffer, word32 derSz, const byte* ntruKey,
-                  word16 keySz, RNG*);
+CYASSL_API int  MakeNtruCert(Cert*, byte* derBuffer, word32 derSz,
+                             const byte* ntruKey, word16 keySz, RNG*);
 #endif
 
 

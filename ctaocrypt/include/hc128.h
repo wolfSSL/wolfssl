@@ -44,8 +44,8 @@ typedef struct HC128 {
 } HC128;
 
 
-void Hc128_Process(HC128*, byte*, const byte*, word32);
-void Hc128_SetKey(HC128*, const byte* key, const byte* iv);
+CYASSL_API void Hc128_Process(HC128*, byte*, const byte*, word32);
+CYASSL_API void Hc128_SetKey(HC128*, const byte* key, const byte* iv);
 
 
 #ifdef __cplusplus

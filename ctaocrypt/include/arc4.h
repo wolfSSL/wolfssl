@@ -43,8 +43,8 @@ typedef struct Arc4 {
     byte state[ARC4_STATE_SIZE];
 } Arc4;
 
-void Arc4Process(Arc4*, byte*, const byte*, word32);
-void Arc4SetKey(Arc4*, const byte*, word32);
+CYASSL_API void Arc4Process(Arc4*, byte*, const byte*, word32);
+CYASSL_API void Arc4SetKey(Arc4*, const byte*, word32);
 
 
 #ifdef __cplusplus

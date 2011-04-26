@@ -57,13 +57,13 @@ typedef struct Des3 {
 } Des3;
 
 
-void Des_SetKey(Des* des, const byte* key, const byte* iv, int dir);
-void Des_CbcEncrypt(Des* des, byte* out, const byte* in, word32 sz);
-void Des_CbcDecrypt(Des* des, byte* out, const byte* in, word32 sz);
+CYASSL_API void Des_SetKey(Des* des, const byte* key, const byte* iv, int dir);
+CYASSL_API void Des_CbcEncrypt(Des* des, byte* out, const byte* in, word32 sz);
+CYASSL_API void Des_CbcDecrypt(Des* des, byte* out, const byte* in, word32 sz);
 
-void Des3_SetKey(Des3* des, const byte* key, const byte* iv, int dir);
-void Des3_CbcEncrypt(Des3* des, byte* out, const byte* in, word32 sz);
-void Des3_CbcDecrypt(Des3* des, byte* out, const byte* in, word32 sz);
+CYASSL_API void Des3_SetKey(Des3* des, const byte* key, const byte* iv,int dir);
+CYASSL_API void Des3_CbcEncrypt(Des3* des, byte* out, const byte* in,word32 sz);
+CYASSL_API void Des3_CbcDecrypt(Des3* des, byte* out, const byte* in,word32 sz);
 
 
 #ifdef __cplusplus

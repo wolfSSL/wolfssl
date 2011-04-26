@@ -80,28 +80,36 @@ typedef struct {
 extern const ecc_set_type ecc_sets[];
 
 
+CYASSL_LOCAL
 int ecc_make_key(RNG* rng, int keysize, ecc_key* key);
+CYASSL_LOCAL
 int ecc_shared_secret(ecc_key* private_key, ecc_key* public_key, byte* out,
                       word32* outlen);
-
+CYASSL_LOCAL 
 int ecc_sign_hash(const byte* in, word32 inlen, byte* out, word32 *outlen, 
                   RNG* rng, ecc_key* key);
+CYASSL_LOCAL 
 int ecc_verify_hash(const byte* sig, word32 siglen, byte* hash, word32 hashlen, 
                     int* stat, ecc_key* key);
-
+CYASSL_LOCAL
 void ecc_init(ecc_key* key);
+CYASSL_LOCAL
 void ecc_free(ecc_key* key);
 
 
 /* ASN key helpers */
+CYASSL_LOCAL
 int ecc_export_x963(ecc_key*, byte* out, word32* outLen);
+CYASSL_LOCAL
 int ecc_import_x963(const byte* in, word32 inLen, ecc_key* key);
-
+CYASSL_LOCAL
 int ecc_import_private_key(const byte* priv, word32 privSz, const byte* pub,
                            word32 pubSz, ecc_key* key);
 
 /* size helper */
+CYASSL_LOCAL
 int ecc_size(ecc_key* key);
+CYASSL_LOCAL
 int ecc_sig_size(ecc_key* key);
 
 /* TODO: fix mutex types */

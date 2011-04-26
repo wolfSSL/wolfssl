@@ -71,16 +71,16 @@
 #ifdef SINGLE_THREADED
     typedef unsigned int  THREAD_RETURN;
     typedef void*         THREAD_TYPE;
-    #define CYASSL_API
+    #define CYASSL_THREAD
 #else
     #ifndef _POSIX_THREADS
         typedef unsigned int  THREAD_RETURN;
         typedef HANDLE        THREAD_TYPE;
-        #define CYASSL_API __stdcall
+        #define CYASSL_THREAD __stdcall
     #else
         typedef void*         THREAD_RETURN;
         typedef pthread_t     THREAD_TYPE;
-        #define CYASSL_API 
+        #define CYASSL_THREAD
     #endif
 #endif
 
@@ -137,7 +137,7 @@ typedef struct func_args {
 } func_args;
 
 
-typedef THREAD_RETURN CYASSL_API THREAD_FUNC(void*);
+typedef THREAD_RETURN CYASSL_THREAD THREAD_FUNC(void*);
 
 void start_thread(THREAD_FUNC, func_args*, THREAD_TYPE*);
 void join_thread(THREAD_TYPE);

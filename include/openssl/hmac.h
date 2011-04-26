@@ -40,8 +40,9 @@
 #endif
 
 
-unsigned char* HMAC(const EVP_MD* evp_md, const void* key, int key_len,
-    const unsigned char* d, int n, unsigned char* md, unsigned int* md_len);
+CYASSL_API unsigned char* HMAC(const EVP_MD* evp_md, const void* key,
+                               int key_len, const unsigned char* d, int n,
+                               unsigned char* md, unsigned int* md_len);
 
 
 #ifdef __cplusplus

@@ -45,24 +45,25 @@ typedef struct RsaKey {
 } RsaKey;
 
 
-void InitRsaKey(RsaKey* key, void*);
-void FreeRsaKey(RsaKey* key);
+CYASSL_API void InitRsaKey(RsaKey* key, void*);
+CYASSL_API void FreeRsaKey(RsaKey* key);
 
-int  RsaPublicEncrypt(const byte* in, word32 inLen, byte* out, word32 outLen,
-                      RsaKey* key, RNG* rng);
-int  RsaPrivateDecryptInline(byte* in, word32 inLen, byte** out, RsaKey* key);
-int  RsaPrivateDecrypt(const byte* in, word32 inLen, byte* out, word32 outLen,
-                       RsaKey* key);
-int  RsaSSL_Sign(const byte* in, word32 inLen, byte* out, word32 outLen,
-                 RsaKey* key, RNG* rng);
-int  RsaSSL_VerifyInline(byte* in, word32 inLen, byte** out, RsaKey* key);
-int  RsaSSL_Verify(const byte* in, word32 inLen, byte* out, word32 outLen,
-                   RsaKey* key);
-
-int  RsaEncryptSize(RsaKey* key);
+CYASSL_API int  RsaPublicEncrypt(const byte* in, word32 inLen, byte* out,
+                                 word32 outLen, RsaKey* key, RNG* rng);
+CYASSL_API int  RsaPrivateDecryptInline(byte* in, word32 inLen, byte** out,
+                                        RsaKey* key);
+CYASSL_API int  RsaPrivateDecrypt(const byte* in, word32 inLen, byte* out,
+                                  word32 outLen, RsaKey* key);
+CYASSL_API int  RsaSSL_Sign(const byte* in, word32 inLen, byte* out,
+                            word32 outLen, RsaKey* key, RNG* rng);
+CYASSL_API int  RsaSSL_VerifyInline(byte* in, word32 inLen, byte** out,
+                                    RsaKey* key);
+CYASSL_API int  RsaSSL_Verify(const byte* in, word32 inLen, byte* out,
+                              word32 outLen, RsaKey* key);
+CYASSL_API int  RsaEncryptSize(RsaKey* key);
 
 #ifdef CYASSL_KEY_GEN
-    int MakeRsaKey(RsaKey* key, int size, long e, RNG* rng);
+    CYASSL_API int MakeRsaKey(RsaKey* key, int size, long e, RNG* rng);
 #endif
 
 

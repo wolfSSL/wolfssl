@@ -50,9 +50,9 @@ typedef struct Md4 {
 } Md4;
 
 
-void InitMd4(Md4*);
-void Md4Update(Md4*, const byte*, word32);
-void Md4Final(Md4*, byte*);
+CYASSL_API void InitMd4(Md4*);
+CYASSL_API void Md4Update(Md4*, const byte*, word32);
+CYASSL_API void Md4Final(Md4*, byte*);
 
 
 #ifdef __cplusplus

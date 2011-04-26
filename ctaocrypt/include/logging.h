@@ -41,7 +41,7 @@ enum  CYA_Log_Levels {
 typedef void (*CyaSSL_Logging_cb)(const int logLevel,
                                   const char *const logMessage);
 
-int CyaSSL_SetLoggingCb(CyaSSL_Logging_cb log_function);
+CYASSL_API int CyaSSL_SetLoggingCb(CyaSSL_Logging_cb log_function);
 
 
 #ifdef DEBUG_CYASSL

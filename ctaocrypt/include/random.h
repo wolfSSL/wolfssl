@@ -49,6 +49,7 @@ typedef struct OS_Seed {
     #endif
 } OS_Seed;
 
+CYASSL_LOCAL
 int GenerateSeed(OS_Seed* os, byte* seed, word32 sz);
 
 
@@ -59,9 +60,9 @@ typedef struct RNG {
 } RNG;
 
 
-int  InitRng(RNG*);
-void RNG_GenerateBlock(RNG*, byte*, word32 sz);
-byte RNG_GenerateByte(RNG*);
+CYASSL_API int  InitRng(RNG*);
+CYASSL_API void RNG_GenerateBlock(RNG*, byte*, word32 sz);
+CYASSL_API byte RNG_GenerateByte(RNG*);
 
 
 #ifdef __cplusplus

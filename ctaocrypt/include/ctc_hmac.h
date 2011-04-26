@@ -70,9 +70,10 @@ typedef struct Hmac {
 } Hmac;
 
 
-void HmacSetKey(Hmac*, int type, const byte* key, word32 keySz); /* does init */
-void HmacUpdate(Hmac*, const byte*, word32);
-void HmacFinal(Hmac*, byte*);
+/* does init */
+CYASSL_API void HmacSetKey(Hmac*, int type, const byte* key, word32 keySz);
+CYASSL_API void HmacUpdate(Hmac*, const byte*, word32);
+CYASSL_API void HmacFinal(Hmac*, byte*);
 
 
 #ifdef __cplusplus

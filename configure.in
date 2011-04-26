@@ -33,6 +33,7 @@ AC_CHECK_LIBM
 
 AC_CHECK_HEADERS(errno.h)
 
+
 OPTIMIZE_CFLAGS="-Os -fomit-frame-pointer"
 OPTIMIZE_FAST_CFLAGS="-O3 -fomit-frame-pointer"
 OPTIMIZE_HUGE_CFLAGS="-funroll-loops -DTFM_SMALL_SET"
@@ -456,6 +457,9 @@ AS_HELP_STRING(--enable-linker-hardening, enable linker security fixups),
     LDFLAGS="$LDFLAGS -z relro -z now"
 fi])
 
+
+PANDORA_VISIBILITY
+CFLAGS="$CFLAGS $CFLAG_VISIBILITY"
 
 AC_SUBST(CFLAGS)
 AC_SUBST(LIBS)

@@ -34,13 +34,15 @@
 #endif
 
 
-int PBKDF1(byte* output, const byte* passwd, int pLen, const byte* salt,
-           int sLen, int iterations, int kLen, int hashType);
-int PBKDF2(byte* output, const byte* passwd, int pLen, const byte* salt,
-           int sLen, int iterations, int kLen, int hashType);
-
-int PKCS12_PBKDF(byte* output, const byte* passwd, int pLen, const byte* salt,
-                 int sLen, int iterations, int kLen, int hashType, int purpose);
+CYASSL_API int PBKDF1(byte* output, const byte* passwd, int pLen,
+                      const byte* salt, int sLen, int iterations, int kLen,
+                      int hashType);
+CYASSL_API int PBKDF2(byte* output, const byte* passwd, int pLen,
+                      const byte* salt, int sLen, int iterations, int kLen,
+                      int hashType);
+CYASSL_API int PKCS12_PBKDF(byte* output, const byte* passwd, int pLen,
+                            const byte* salt, int sLen, int iterations,
+                            int kLen, int hashType, int purpose);
 
 
 #ifdef __cplusplus

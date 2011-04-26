@@ -44,8 +44,8 @@
 typedef char EVP_MD;
 typedef char EVP_CIPHER;
 
-const EVP_MD* EVP_md5(void);
-const EVP_MD* EVP_sha1(void);
+CYASSL_API const EVP_MD* EVP_md5(void);
+CYASSL_API const EVP_MD* EVP_sha1(void);
 
 
 typedef union {
@@ -60,16 +60,19 @@ typedef struct EVP_MD_CTX {
 } EVP_MD_CTX;
 
 
-void EVP_MD_CTX_init(EVP_MD_CTX* ctx);
-int  EVP_MD_CTX_cleanup(EVP_MD_CTX* ctx);
+CYASSL_API void EVP_MD_CTX_init(EVP_MD_CTX* ctx);
+CYASSL_API int  EVP_MD_CTX_cleanup(EVP_MD_CTX* ctx);
 
-int EVP_DigestInit(EVP_MD_CTX* ctx, const EVP_MD* type);
-int EVP_DigestUpdate(EVP_MD_CTX* ctx, const void* data, unsigned long sz);
-int EVP_DigestFinal(EVP_MD_CTX* ctx, unsigned char* md, unsigned int* s);
-int EVP_DigestFinal_ex(EVP_MD_CTX* ctx, unsigned char* md, unsigned int* s);
-
-int EVP_BytesToKey(const EVP_CIPHER*, const EVP_MD*, const unsigned char*,
-                const unsigned char*, int, int, unsigned char*, unsigned char*);
+CYASSL_API int EVP_DigestInit(EVP_MD_CTX* ctx, const EVP_MD* type);
+CYASSL_API int EVP_DigestUpdate(EVP_MD_CTX* ctx, const void* data,
+                                unsigned long sz);
+CYASSL_API int EVP_DigestFinal(EVP_MD_CTX* ctx, unsigned char* md,
+                               unsigned int* s);
+CYASSL_API int EVP_DigestFinal_ex(EVP_MD_CTX* ctx, unsigned char* md,
+                                  unsigned int* s);
+CYASSL_API int EVP_BytesToKey(const EVP_CIPHER*, const EVP_MD*,
+                              const unsigned char*, const unsigned char*,
+                              int, int, unsigned char*, unsigned char*);
 
 #ifdef __cplusplus
     } /* extern "C" */

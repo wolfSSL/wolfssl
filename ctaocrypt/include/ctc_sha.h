@@ -50,9 +50,9 @@ typedef struct Sha {
 } Sha;
 
 
-void InitSha(Sha*);
-void ShaUpdate(Sha*, const byte*, word32);
-void ShaFinal(Sha*, byte*);
+CYASSL_API void InitSha(Sha*);
+CYASSL_API void ShaUpdate(Sha*, const byte*, word32);
+CYASSL_API void ShaFinal(Sha*, byte*);
 
 
 #ifdef __cplusplus

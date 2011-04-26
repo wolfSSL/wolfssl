@@ -17,9 +17,9 @@ typedef struct MD5_CTX {
     int holder[24];   /* big enough to hold ctaocrypt md5, but check on init */
 } MD5_CTX;
 
-void MD5_Init(MD5_CTX*);
-void MD5_Update(MD5_CTX*, const void*, unsigned long);
-void MD5_Final(unsigned char*, MD5_CTX*);
+CYASSL_API void MD5_Init(MD5_CTX*);
+CYASSL_API void MD5_Update(MD5_CTX*, const void*, unsigned long);
+CYASSL_API void MD5_Final(unsigned char*, MD5_CTX*);
 
 
 

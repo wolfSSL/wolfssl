@@ -40,13 +40,14 @@ typedef struct DhKey {
 } DhKey;
 
 
-void InitDhKey(DhKey* key);
-void FreeDhKey(DhKey* key);
+CYASSL_API void InitDhKey(DhKey* key);
+CYASSL_API void FreeDhKey(DhKey* key);
 
-int DhGenerateKeyPair(DhKey* key, RNG* rng, byte* priv, word32* privSz,
-                      byte* pub, word32* pubSz);
-int DhAgree(DhKey* key, byte* agree, word32* agreeSz, const byte* priv,
-            word32 privSz, const byte* otherPub, word32 pubSz);
+CYASSL_API int DhGenerateKeyPair(DhKey* key, RNG* rng, byte* priv,
+                                 word32* privSz, byte* pub, word32* pubSz);
+CYASSL_API int DhAgree(DhKey* key, byte* agree, word32* agreeSz,
+                       const byte* priv, word32 privSz, const byte* otherPub,
+                       word32 pubSz);
 
 
 #ifdef __cplusplus

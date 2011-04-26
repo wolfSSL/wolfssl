@@ -15,8 +15,8 @@ void ctaocrypt_test(void*);
 void client_test(void*);
 void echoclient_test(void*);
 
-THREAD_RETURN CYASSL_API server_test(void*);
-THREAD_RETURN CYASSL_API echoserver_test(void*);
+THREAD_RETURN CYASSL_THREAD server_test(void*);
+THREAD_RETURN CYASSL_THREAD echoserver_test(void*);
 
 void file_test(char* file, byte* hash);
 

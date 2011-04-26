@@ -107,6 +107,7 @@ enum CyaSSL_ErrorCodes {
 #endif
 
 
+CYASSL_LOCAL
 void SetErrorString(int error, char* buffer);
 
 

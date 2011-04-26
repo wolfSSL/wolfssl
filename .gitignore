@@ -1,13 +1,14 @@
 *.lo
 *.la
 *.o
-*.m4
 *.deps
 *.libs
 *sh
 *.cache
 config*
 stamp*
+libtool.m4
+lt*.m4
 Makefile.in
 Makefile
 depcomp

@@ -49,18 +49,18 @@ enum {
 };
 
 
-void DES_set_key_unchecked(const_DES_cblock*, DES_key_schedule*);
-int  DES_key_sched(const_DES_cblock* key, DES_key_schedule* schedule);
-void DES_cbc_encrypt(const unsigned char* input, unsigned char* output,
-                     long length, DES_key_schedule* schedule, DES_cblock* ivec,
-                     int enc);
-void DES_ncbc_encrypt(const unsigned char* input, unsigned char* output,
-                      long length, DES_key_schedule* schedule, DES_cblock* ivec,
-                      int enc);
+CYASSL_API void DES_set_key_unchecked(const_DES_cblock*, DES_key_schedule*);
+CYASSL_API int  DES_key_sched(const_DES_cblock* key,DES_key_schedule* schedule);
+CYASSL_API void DES_cbc_encrypt(const unsigned char* input,
+                     unsigned char* output, long length,
+                     DES_key_schedule* schedule, DES_cblock* ivec, int enc);
+CYASSL_API void DES_ncbc_encrypt(const unsigned char* input,
+                      unsigned char* output, long length,
+                      DES_key_schedule* schedule, DES_cblock* ivec, int enc);
 
-
-void DES_set_odd_parity(DES_cblock*);
-void DES_ecb_encrypt(DES_cblock*, DES_cblock*, DES_key_schedule*, int);
+CYASSL_API void DES_set_odd_parity(DES_cblock*);
+CYASSL_API void DES_ecb_encrypt(DES_cblock*, DES_cblock*, DES_key_schedule*,
+                                int);
 
 #ifdef __cplusplus
     } /* extern "C" */
