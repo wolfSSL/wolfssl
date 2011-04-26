@@ -145,6 +145,10 @@ void c32to24(word32 in, word24 out);
 #if !defined(NO_DH) && !defined(NO_AES) && !defined(NO_TLS) && defined(OPENSSL_EXTRA)
     #define BUILD_TLS_DHE_RSA_WITH_AES_128_CBC_SHA
     #define BUILD_TLS_DHE_RSA_WITH_AES_256_CBC_SHA
+    #if !defined (NO_SHA256)
+        #define BUILD_TLS_DHE_RSA_WITH_AES_128_CBC_SHA256
+        #define BUILD_TLS_DHE_RSA_WITH_AES_256_CBC_SHA256
+    #endif
 #endif
 
 #if defined(HAVE_ECC) && !defined(NO_TLS)
@@ -225,14 +229,16 @@ enum {
     TLS_RSA_WITH_RABBIT_CBC_SHA       = 0xFD,
 
     /* CyaSSL extension - NTRU */
-    TLS_NTRU_RSA_WITH_RC4_128_SHA      = 0x65,
-    TLS_NTRU_RSA_WITH_3DES_EDE_CBC_SHA = 0x66,
-    TLS_NTRU_RSA_WITH_AES_128_CBC_SHA  = 0x67,
-    TLS_NTRU_RSA_WITH_AES_256_CBC_SHA  = 0x68,
+    TLS_NTRU_RSA_WITH_RC4_128_SHA      = 0xe5,
+    TLS_NTRU_RSA_WITH_3DES_EDE_CBC_SHA = 0xe6,
+    TLS_NTRU_RSA_WITH_AES_128_CBC_SHA  = 0xe7,  /* clases w/ official SHA-256 */
+    TLS_NTRU_RSA_WITH_AES_256_CBC_SHA  = 0xe8,
 
     /* SHA256 */
-    TLS_RSA_WITH_AES_256_CBC_SHA256    = 0x3d,
-    TLS_RSA_WITH_AES_128_CBC_SHA256    = 0x3c
+    TLS_DHE_RSA_WITH_AES_256_CBC_SHA256 = 0x6b,
+    TLS_DHE_RSA_WITH_AES_128_CBC_SHA256 = 0x67,
+    TLS_RSA_WITH_AES_256_CBC_SHA256     = 0x3d,
+    TLS_RSA_WITH_AES_128_CBC_SHA256     = 0x3c
 };
 
 

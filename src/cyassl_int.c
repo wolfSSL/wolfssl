@@ -497,6 +497,20 @@ void InitSuites(Suites* suites, ProtocolVersion pv, byte haveDH, byte havePSK,
     }
 #endif
 
+#ifdef BUILD_TLS_DHE_RSA_WITH_AES_256_CBC_SHA256
+    if (tls1_2 && haveDH && haveRSA) {
+        suites->suites[idx++] = 0; 
+        suites->suites[idx++] = TLS_DHE_RSA_WITH_AES_256_CBC_SHA256;
+    }
+#endif
+
+#ifdef BUILD_TLS_DHE_RSA_WITH_AES_128_CBC_SHA256
+    if (tls1_2 && haveDH && haveRSA) {
+        suites->suites[idx++] = 0; 
+        suites->suites[idx++] = TLS_DHE_RSA_WITH_AES_128_CBC_SHA256;
+    }
+#endif
+
 #ifdef BUILD_TLS_DHE_RSA_WITH_AES_256_CBC_SHA
     if (tls && haveDH && haveRSA) {
         suites->suites[idx++] = 0; 
@@ -3283,6 +3297,14 @@ const char* const cipher_names[] =
 #ifdef BUILD_TLS_RSA_WITH_AES_256_CBC_SHA256
     "AES256-SHA256",
 #endif
+
+#ifdef BUILD_TLS_DHE_RSA_WITH_AES_128_CBC_SHA256
+    "DHE-RSA-AES128-SHA256",
+#endif
+
+#ifdef BUILD_TLS_DHE_RSA_WITH_AES_256_CBC_SHA256
+    "DHE-RSA-AES256-SHA256"
+#endif
 };
 
 
@@ -3393,6 +3415,14 @@ int cipher_name_idx[] =
 
 #ifdef BUILD_TLS_RSA_WITH_AES_256_CBC_SHA256
     TLS_RSA_WITH_AES_256_CBC_SHA256,
+#endif
+
+#ifdef BUILD_TLS_DHE_RSA_WITH_AES_128_CBC_SHA256
+    TLS_DHE_RSA_WITH_AES_128_CBC_SHA256,    
+#endif
+
+#ifdef BUILD_TLS_DHE_RSA_WITH_AES_256_CBC_SHA256
+    TLS_DHE_RSA_WITH_AES_256_CBC_SHA256
 #endif
 };
 
