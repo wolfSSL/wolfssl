@@ -8,6 +8,7 @@
 config*
 stamp*
 libtool.m4
+aclocal.m4
 lt*.m4
 Makefile.in
 Makefile
