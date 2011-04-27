@@ -24,6 +24,7 @@
 #ifndef CYASSL_SNIFFER_H
 #define CYASSL_SNIFFER_H
 
+#include "os_settings.h"
 
 #ifdef _WIN32
     #ifdef SSL_SNIFFER_EXPORTS
@@ -42,19 +43,22 @@
 
 
 
+CYASSL_API 
 SSL_SNIFFER_API int ssl_SetPrivateKey(const char* address, int port,
                                       const char* keyFile, int keyType,
                                       const char* password, char* error);
 
+CYASSL_API 
 SSL_SNIFFER_API int ssl_DecodePacket(const unsigned char* packet, int length,
                                      unsigned char* data, char* error);
 
+CYASSL_API 
 SSL_SNIFFER_API int ssl_Trace(const char* traceFile, char* error);
         
         
-void ssl_InitSniffer(void);
+CYASSL_API void ssl_InitSniffer(void);
         
-void ssl_FreeSniffer(void);
+CYASSL_API void ssl_FreeSniffer(void);
 
         
 /* ssl_SetPrivateKey keyTypes */

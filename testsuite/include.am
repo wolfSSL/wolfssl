@@ -1,0 +1,15 @@
+# vim:ft=automake
+# included from Top Level Makefile.am
+# All paths should be given relative to the root
+
+
+bin_PROGRAMS += testsuite/testsuite
+testsuite_testsuite_SOURCES = testsuite/testsuite.c ctaocrypt/test/test.c \
+    examples/client/client.c examples/server/server.c \
+    examples/echoclient/echoclient.c examples/echoserver/echoserver.c
+testsuite_testsuite_CFLAGS       = -DNO_MAIN_DRIVER
+testsuite_testsuite_LDFLAGS      = -Lsrc
+testsuite_testsuite_LDADD        = src/libcyassl.la
+testsuite_testsuite_DEPENDENCIES = src/libcyassl.la
+EXTRA_DIST += testsuite/testsuite.sln testsuite/*.vcproj testsuite/input \
+    testsuite/quit

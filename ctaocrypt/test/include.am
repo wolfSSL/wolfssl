@@ -1,0 +1,11 @@
+# vim:ft=automake
+# included from Top Level Makefile.am
+# All paths should be given relative to the root
+
+
+bin_PROGRAMS = ctaocrypt/test/test
+ctaocrypt_test_test_SOURCES      = ctaocrypt/test/test.c
+ctaocrypt_test_test_LDFLAGS      = -Lsrc
+ctaocrypt_test_test_LDADD        = src/libcyassl.la
+ctaocrypt_test_test_DEPENDENCIES = src/libcyassl.la
+EXTRA_DIST += ctaocrypt/test/test.sln ctaocrypt/test/test.vcproj

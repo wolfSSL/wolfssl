@@ -5,6 +5,7 @@
 *.libs
 *sh
 *.cache
+.dirstamp
 config*
 stamp*
 libtool.m4
@@ -31,6 +32,7 @@ sslSniffer/sslSnifferTest/tracefile.txt
 *.zip
 *.bak
 *.dummy
+compile
 NTRU_algorithm/
 build-test/
 build/
