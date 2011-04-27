@@ -468,19 +468,6 @@ AC_SUBST(LIBS)
 
 
 # FINAL
-AC_CONFIG_FILES(Makefile dnl
-        ctaocrypt/Makefile dnl
-        ctaocrypt/src/Makefile dnl
-        ctaocrypt/test/Makefile dnl
-        ctaocrypt/benchmark/Makefile dnl
-        src/Makefile dnl
-        examples/Makefile dnl
-        examples/client/Makefile dnl
-        examples/server/Makefile dnl
-        examples/echoclient/Makefile dnl
-        examples/echoserver/Makefile dnl
-        testsuite/Makefile dnl
-        sslSniffer/Makefile dnl
-        sslSniffer/sslSnifferTest/Makefile)
+AC_CONFIG_FILES(Makefile)
 AC_OUTPUT
 
