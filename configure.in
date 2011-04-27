@@ -1,14 +1,9 @@
-AC_INIT
+AC_INIT(cyassl,1.9.6)    # !!! also change in ssl.h !!!
 AC_CANONICAL_SYSTEM
-AC_CONFIG_AUX_DIR(config)
-AM_INIT_AUTOMAKE(cyassl,1.9.6) # !!! also change in ssl.h !!!
 AM_CONFIG_HEADER(ctaocrypt/include/config.h)
-
-
-#dnl Include m4
-#sinclude(lib_socket_nsl.m4)
-#sinclude(acx_pthread.m4)
 AC_CONFIG_MACRO_DIR([m4])
+AM_INIT_AUTOMAKE(subdir-objects)
+
 
 
 # make sure configure doesn't add to CFLAGS
