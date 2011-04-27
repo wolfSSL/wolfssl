@@ -1,5 +1,6 @@
 AC_INIT
 AC_CANONICAL_SYSTEM
+AC_CONFIG_AUX_DIR(config)
 AM_INIT_AUTOMAKE(cyassl,1.9.6) # !!! also change in ssl.h !!!
 AM_CONFIG_HEADER(ctaocrypt/include/config.h)
 
@@ -468,6 +469,6 @@ AC_SUBST(LIBS)
 
 
 # FINAL
-AC_CONFIG_FILES(Makefile)
+AC_CONFIG_FILES([Makefile])
 AC_OUTPUT
 
