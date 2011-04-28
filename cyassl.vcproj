@@ -179,6 +179,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\ctaocrypt\src\cyassl_memory.c"
+				>
+			</File>
+			<File
 				RelativePath=".\ctaocrypt\src\des3.c"
 				>
 			</File>
@@ -204,6 +208,10 @@
 			</File>
 			<File
 				RelativePath=".\src\keys.c"
+				>
+			</File>
+			<File
+				RelativePath=".\ctaocrypt\src\logging.c"
 				>
 			</File>
 			<File

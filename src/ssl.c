@@ -679,7 +679,7 @@ int AddCA(SSL_CTX* ctx, buffer der)
                 long   consumed = info.consumed;
                 word32 idx = 0;
 
-                if ( (sz - consumed) > bufferSz) {
+                if ( (sz - consumed) > (int)bufferSz) {
                     CYASSL_MSG("Growing Tmp Chain Buffer");
                     bufferSz = sz - consumed;  /* will shrink to actual size */
                     chainBuffer = (byte*)XMALLOC(bufferSz, ctx->heap,

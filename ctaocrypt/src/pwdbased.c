@@ -293,7 +293,7 @@ int PKCS12_PBKDF(byte* output, const byte* passwd, int passLen,const byte* salt,
             if (ret < 0) break;
         }
 
-        currentLen = min(kLen, u);
+        currentLen = min(kLen, (int)u);
         XMEMCPY(output, Ai, currentLen);
         output += currentLen;
         kLen   -= currentLen;
