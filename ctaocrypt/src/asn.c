@@ -272,7 +272,7 @@ CPU_INT32S NetSecure_ValidateDateHandler(CPU_INT08U *date, CPU_INT08U format,
 #endif /* MICRIUM */
 
 
-int GetLength(const byte* input, word32* inOutIdx, int* len)
+static int GetLength(const byte* input, word32* inOutIdx, int* len)
 {
     int     length = 0;
     word32  i = *inOutIdx;
@@ -296,7 +296,7 @@ int GetLength(const byte* input, word32* inOutIdx, int* len)
 }
 
 
-int GetSequence(const byte* input, word32* inOutIdx, int* len)
+static int GetSequence(const byte* input, word32* inOutIdx, int* len)
 {
     int    length = -1;
     word32 idx    = *inOutIdx;
@@ -312,7 +312,7 @@ int GetSequence(const byte* input, word32* inOutIdx, int* len)
 }
 
 
-int GetSet(const byte* input, word32* inOutIdx, int* len)
+static int GetSet(const byte* input, word32* inOutIdx, int* len)
 {
     int    length = -1;
     word32 idx    = *inOutIdx;
@@ -329,7 +329,7 @@ int GetSet(const byte* input, word32* inOutIdx, int* len)
 
 
 /* winodws header clash for WinCE using GetVersion */
-int GetMyVersion(const byte* input, word32* inOutIdx, int* version)
+static int GetMyVersion(const byte* input, word32* inOutIdx, int* version)
 {
     word32 idx = *inOutIdx;
 
@@ -347,7 +347,7 @@ int GetMyVersion(const byte* input, word32* inOutIdx, int* version)
 
 
 /* Get small count integer, 32 bits or less */
-int GetShortInt(const byte* input, word32* inOutIdx, int* number)
+static int GetShortInt(const byte* input, word32* inOutIdx, int* number)
 {
     word32 idx = *inOutIdx;
     word32 len;
@@ -372,7 +372,7 @@ int GetShortInt(const byte* input, word32* inOutIdx, int* number)
 
 
 /* May not have one, not an error */
-int GetExplicitVersion(const byte* input, word32* inOutIdx, int* version)
+static int GetExplicitVersion(const byte* input, word32* inOutIdx, int* version)
 {
     word32 idx = *inOutIdx;
 
@@ -388,7 +388,7 @@ int GetExplicitVersion(const byte* input, word32* inOutIdx, int* version)
 }
 
 
-int GetInt(mp_int* mpi, const byte* input, word32* inOutIdx )
+static int GetInt(mp_int* mpi, const byte* input, word32* inOutIdx )
 {
     word32 i = *inOutIdx;
     byte   b = input[i++];
@@ -632,7 +632,7 @@ static int DecryptKey(const char* password, int passwordSz, byte* salt,
         int  i, idx = 0;
         byte unicodePasswd[MAX_UNICODE_SZ];
 
-        if ( (passwordSz * 2 + 2) > sizeof(unicodePasswd))
+        if ( (passwordSz * 2 + 2) > (int)sizeof(unicodePasswd))
             return UNICODE_SIZE_E; 
 
         for (i = 0; i < passwordSz; i++) {
@@ -701,7 +701,7 @@ static int DecryptKey(const char* password, int passwordSz, byte* salt,
 int ToTraditionalEnc(byte* input, word32 sz,const char* password,int passwordSz)
 {
     word32 inOutIdx = 0, oid;
-    int    type, first, second, length, iterations, saltSz, id;
+    int    first, second, length, iterations, saltSz, id;
     int    version;
     byte   salt[MAX_SALT_SIZE];
     byte   cbcIv[MAX_IV_SIZE];
@@ -1034,7 +1034,7 @@ static int GetCertHeader(DecodedCert* cert, word32 inSz)
         return ASN_PARSE_E;
 
     len = mp_unsigned_bin_size(&mpi);
-    if (len < sizeof(serialTmp)) {
+    if (len < (int)sizeof(serialTmp)) {
         if (mp_to_unsigned_bin(&mpi, serialTmp) == MP_OKAY) {
             if (len > EXTERNAL_SERIAL_SIZE)
                 len = EXTERNAL_SERIAL_SIZE;
@@ -1922,7 +1922,7 @@ int ParseCert(DecodedCert* cert, word32 inSz, int type, int verify,
 
 
 /* from SSL proper, for locking can't do find here anymore */
-Signer* GetCA(Signer* signers, byte* hash);
+CYASSL_LOCAL Signer* GetCA(Signer* signers, byte* hash);
 
 
 int ParseCertRelative(DecodedCert* cert, word32 inSz, int type, int verify,
@@ -1931,7 +1931,6 @@ int ParseCertRelative(DecodedCert* cert, word32 inSz, int type, int verify,
     word32 confirmOID;
     int    ret;
     int    badDate = 0;
-    int    confirm = 0;
 
     if ((ret = DecodeToKey(cert, inSz, verify)) < 0) {
         if (ret == ASN_BEFORE_DATE_E || ret == ASN_AFTER_DATE_E)
@@ -1987,6 +1986,7 @@ Signer* MakeSigner(void* heap)
         signer->publicKey = 0;
         signer->next      = 0;
     }
+    (void)heap;
 
     return signer;
 }
@@ -2002,6 +2002,7 @@ void FreeSigners(Signer* signer, void* heap)
         XFREE(signer->publicKey, heap, DYNAMIC_TYPE_PUBLIC_KEY);
         XFREE(signer, heap, DYNAMIC_TYPE_SIGNER);
     }
+    (void)heap;
 }
 
 

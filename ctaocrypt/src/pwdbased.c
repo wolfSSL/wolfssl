@@ -217,9 +217,9 @@ int PKCS12_PBKDF(byte* output, const byte* passwd, int passLen,const byte* salt,
 
     XMEMSET(D, id, dLen);
 
-    for (i = 0; i < sLen; i++)
+    for (i = 0; i < (int)sLen; i++)
         S[i] = salt[i % saltLen];
-    for (i = 0; i < pLen; i++)
+    for (i = 0; i < (int)pLen; i++)
         P[i] = passwd[i % passLen];
 
     while (kLen > 0) {
@@ -247,7 +247,7 @@ int PKCS12_PBKDF(byte* output, const byte* passwd, int passLen,const byte* salt,
         }
 #endif
 
-        for (i = 0; i < v; i++)
+        for (i = 0; i < (int)v; i++)
             B[i] = Ai[i % u];
 
         mp_init(&B1);
@@ -259,7 +259,7 @@ int PKCS12_PBKDF(byte* output, const byte* passwd, int passLen,const byte* salt,
             break;
         }
 
-        for (i = 0; i < iLen; i += v) {
+        for (i = 0; i < (int)iLen; i += v) {
             int    outSz;
             mp_int i1;
             mp_int res;
@@ -274,13 +274,13 @@ int PKCS12_PBKDF(byte* output, const byte* passwd, int passLen,const byte* salt,
             else if ( (outSz = mp_unsigned_bin_size(&res)) < 0)
                 ret = MP_TO_E;
             else {
-                if (outSz > v) {
+                if (outSz > (int)v) {
                     /* take off MSB */
                     byte  tmp[129];
                     mp_to_unsigned_bin(&res, tmp);
                     XMEMCPY(I + i, tmp + 1, v);
                 }
-                else if (outSz < v) {
+                else if (outSz < (int)v) {
                     XMEMSET(I + i, 0, v - outSz);
                     mp_to_unsigned_bin(&res, I + i + v - outSz);
                 }

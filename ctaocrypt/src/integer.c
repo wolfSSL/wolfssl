@@ -3591,7 +3591,7 @@ int fast_s_mp_mul_high_digs (mp_int * a, mp_int * b, mp_int * c, int digs)
 }
 
 
-#if defined(CYASSL_KEY_GEN) || defined(HAVE_ECC) || !defined(NO_PWDBASED)
+#if defined(HAVE_ECC)
 
 /* c = a * a (mod b) */
 int mp_sqrmod (mp_int * a, mp_int * b, mp_int * c)
@@ -3612,6 +3612,10 @@ int mp_sqrmod (mp_int * a, mp_int * b, mp_int * c)
   return res;
 }
 
+#endif
+
+
+#if defined(CYASSL_KEY_GEN) || defined(HAVE_ECC) || !defined(NO_PWDBASED)
 
 int mp_sub_d (mp_int* a, mp_digit b, mp_int* c);
 

@@ -84,7 +84,6 @@ static void Hmac(SSL* ssl, byte* digest, const byte* buffer, word32 sz,
 static void BuildCertHashes(SSL* ssl, Hashes* hashes);
 
 
-void BuildTlsFinished(SSL* ssl, Hashes* hashes, const byte* sender);
 
 
 #ifndef min
@@ -402,6 +401,9 @@ void InitSuites(Suites* suites, ProtocolVersion pv, byte haveDH, byte havePSK,
     int    haveRSA = 1;
 
     (void)tls;  /* shut up compiler */
+    (void)haveDH;
+    (void)havePSK;
+    (void)haveNTRU;
 
     if (side == SERVER_END && haveECDSA)
         haveRSA = 0;   /* can't do RSA with ECDSA cert */
@@ -1010,6 +1012,7 @@ static void AddRecordHeader(byte* output, word32 length, byte type, SSL* ssl)
 static void AddHandShakeHeader(byte* output, word32 length, byte type, SSL* ssl)
 {
     HandShakeHeader* hs;
+    (void)ssl;
  
     /* handshake header */
     hs = (HandShakeHeader*)output;
@@ -1044,7 +1047,7 @@ static void AddHeaders(byte* output, word32 length, byte type, SSL* ssl)
 
 
 /* return bytes received, -1 on error */
-static int Receive(SSL* ssl, byte* buf, word32 sz, int flags)
+static int Receive(SSL* ssl, byte* buf, word32 sz)
 {
     int recvd;
 
@@ -1296,6 +1299,7 @@ static int GetRecordHeader(SSL* ssl, const byte* input, word32* inOutIdx,
         case application_data:
         case alert:
             break;
+        case no_type:
         default:
             CYASSL_MSG("Unknown Record Type"); 
             return UNKNOWN_RECORD_TYPE;
@@ -1309,6 +1313,7 @@ static int GetHandShakeHeader(SSL* ssl, const byte* input, word32* inOutIdx,
                               byte *type, word32 *size)
 {
     const byte *ptr = input + *inOutIdx;
+    (void)ssl;
     *inOutIdx += HANDSHAKE_HEADER_SZ;
     
 #ifdef CYASSL_DTLS
@@ -1414,7 +1419,6 @@ static int DoCertificate(SSL* ssl, byte* input, word32* inOutIdx)
     word32 listSz, i = *inOutIdx;
     int    ret = 0;
     int    anyError = 0;
-    int    firstTime = 1;     /* peer's is at front */
     int    totalCerts = 0;    /* number of certs in certs buffer */
     int    count;
     char   domain[ASN_NAME_MAX];
@@ -1489,10 +1493,14 @@ static int DoCertificate(SSL* ssl, byte* input, word32* inOutIdx)
             ret = AddCA(ssl->ctx, add);
             if (ret == 1) ret = 0;   /* SSL_SUCCESS for external */
         }
-        else if (ret != 0)
+        else if (ret != 0) {
             CYASSL_MSG("Failed to verify CA from chain");
-        else
+            (void)ret;
+        }
+        else {
             CYASSL_MSG("Verified CA from chain and already had it");
+            (void)ret;
+        }
 
         if (ret != 0 && anyError == 0)
             anyError = ret;   /* save error from last time */
@@ -1511,8 +1519,10 @@ static int DoCertificate(SSL* ssl, byte* input, word32* inOutIdx)
         InitDecodedCert(&dCert, myCert.buffer, ssl->heap);
         ret = ParseCertRelative(&dCert, myCert.length, CERT_TYPE,
                                 !ssl->options.verifyNone, ssl->ctx->caList);
-        if (ret != 0)
+        if (ret != 0) {
             CYASSL_MSG("Failed to verify Peer's cert");
+            (void)ret;
+        }
         ssl->options.havePeerCert = 1;
         /* set X509 format */
 #ifdef OPENSSL_EXTRA
@@ -2040,7 +2050,7 @@ static int GetInputData(SSL *ssl, word32 size)
         in = Receive(ssl, 
                      ssl->buffers.inputBuffer.buffer +
                      ssl->buffers.inputBuffer.length, 
-                     inSz, 0);
+                     inSz);
         if (in == -1)
             return SOCKET_ERROR_E;
    
@@ -2885,7 +2895,7 @@ int ReceiveData(SSL* ssl, byte* output, int sz)
 /* send alert message */
 int SendAlert(SSL* ssl, int severity, int type)
 {
-    byte input[ALERT_SIZE];
+    byte input[ALERT_SIZE + MAX_MSG_EXTRA];
     byte *output;
     int  sendSz;
     int  ret;
@@ -3893,6 +3903,9 @@ int SetCipherList(SSL_CTX* ctx, const char* list)
         word16 length;
         byte*  signature;
 
+        (void)length;
+        (void)ssl;
+        (void)input;
         sigLen    = 0;
         signature = 0;
 
@@ -4519,6 +4532,7 @@ int SetCipherList(SSL_CTX* ctx, const char* list)
     int SendServerKeyExchange(SSL* ssl)
     {
         int ret = 0;
+        (void)ssl;
 
         #ifndef NO_PSK
         if (ssl->specs.kea == psk_kea)
@@ -4954,7 +4968,7 @@ int SetCipherList(SSL_CTX* ctx, const char* list)
     }
 
 
-    /* process alert, return level */
+    /* process old style client hello, deprecate? */
     int ProcessOldClientHello(SSL* ssl, const byte* input, word32* inOutIdx,
                               word32 inSz, word16 sz)
     {
@@ -4965,6 +4979,7 @@ int SetCipherList(SSL_CTX* ctx, const char* list)
         ProtocolVersion pv;
         Suites          clSuites;
 
+        (void)inSz;
         CYASSL_MSG("Got old format client hello");
 #ifdef CYASSL_CALLBACKS
         if (ssl->hsInfoOn)

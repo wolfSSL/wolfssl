@@ -26,6 +26,9 @@
 #include "error.h"
 
 
+CYASSL_API int  CyaSSL_Debugging_ON(void);
+CYASSL_API void CyaSSL_Debugging_OFF(void);
+
 /* Set these to default values initially. */
 static CyaSSL_Logging_cb log_function = 0;
 static int loggingEnabled = 0;

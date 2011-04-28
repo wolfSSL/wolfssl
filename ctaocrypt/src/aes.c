@@ -968,7 +968,7 @@ int AesSetKey(Aes* aes, const byte* userKey, word32 keylen, const byte* iv,
 }
 
 
-void AesEncrypt(Aes* aes, const byte* inBlock, byte* outBlock)
+static void AesEncrypt(Aes* aes, const byte* inBlock, byte* outBlock)
 {
     word32 s0, s1, s2, s3;
     word32 t0, t1, t2, t3;
@@ -1106,7 +1106,7 @@ void AesEncrypt(Aes* aes, const byte* inBlock, byte* outBlock)
 }
 
 
-void AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
+static void AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
 {
     word32 s0, s1, s2, s3;
     word32 t0, t1, t2, t3;

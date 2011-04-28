@@ -341,7 +341,7 @@ void Des3_SetKey(Des3* des, const byte* key, const byte* iv, int dir)
 }
 
 
-void DesRawProcessBlock(word32* lIn, word32* rIn, const word32* kptr)
+static void DesRawProcessBlock(word32* lIn, word32* rIn, const word32* kptr)
 {
     word32 l = *lIn, r = *rIn, i;
 

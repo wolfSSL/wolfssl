@@ -28,12 +28,6 @@
 #endif
 
 
-#ifndef NO_TLS
-    int MakeTlsMasterSecret(SSL*);
-    void TLS_hmac(SSL* ssl, byte* digest, const byte* buffer, word32 sz,
-                  int content, int verify);
-#endif
-
 
 
 int SetCipherSpecs(SSL* ssl)
@@ -721,7 +715,7 @@ int DeriveKeys(SSL* ssl)
 }
 
 
-void CleanPreMaster(SSL* ssl)
+static void CleanPreMaster(SSL* ssl)
 {
     int i, sz = ssl->arrays.preMasterSz;
 

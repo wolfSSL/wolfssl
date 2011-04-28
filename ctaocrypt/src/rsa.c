@@ -288,7 +288,10 @@ int RsaPrivateDecrypt(const byte* in, word32 inLen, byte* out, word32 outLen,
         XFREE(tmp, key->heap, DYNAMIC_TYPE_RSA);
         return ret;
     }
-    XMEMCPY(out, pad, plainLen);
+    if (plainLen > (int)outLen)
+        plainLen = BAD_FUNC_ARG;
+    else
+        XMEMCPY(out, pad, plainLen);
     XMEMSET(tmp, 0x00, inLen); 
 
     XFREE(tmp, key->heap, DYNAMIC_TYPE_RSA);
@@ -328,8 +331,11 @@ int RsaSSL_Verify(const byte* in, word32 inLen, byte* out, word32 outLen,
         XFREE(tmp, key->heap, DYNAMIC_TYPE_RSA);
         return ret;
     }
-  
-    XMEMCPY(out, pad, plainLen);
+
+    if (plainLen > (int)outLen)
+        plainLen = BAD_FUNC_ARG;
+    else 
+        XMEMCPY(out, pad, plainLen);
     XMEMSET(tmp, 0x00, inLen); 
 
     XFREE(tmp, key->heap, DYNAMIC_TYPE_RSA);

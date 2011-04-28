@@ -307,7 +307,7 @@ int SSL_want_write(SSL* ssl)
 
 char* ERR_error_string(unsigned long errNumber, char* buffer)
 {
-    static char* msg = "Please supply a buffer for error string";
+    static const char* msg = "Please supply a buffer for error string";
 
     CYASSL_ENTER("ERR_error_string");
     if (buffer) {
@@ -315,7 +315,7 @@ char* ERR_error_string(unsigned long errNumber, char* buffer)
         return buffer;
     }
 
-    return msg;
+    return (char*)msg;
 }
 
 
@@ -489,6 +489,8 @@ int AddCA(SSL_CTX* ctx, buffer der)
         int   pkcs8    = 0;
         int   pkcs8Enc = 0;
         int   dynamicType;
+
+        (void)heap;
 
         if (type == CERT_TYPE || type == CA_TYPE)  {
             XSTRNCPY(header, "-----BEGIN CERTIFICATE-----", sizeof(header));
@@ -986,6 +988,8 @@ int SSL_CTX_load_verify_locations(SSL_CTX* ctx, const char* file,
                                   const char* path)
 {
     CYASSL_ENTER("SSL_CTX_load_verify_locations");
+    (void)path;
+
     if (ProcessFile(ctx, file, SSL_FILETYPE_PEM, CA_TYPE, NULL) == SSL_SUCCESS)
         return SSL_SUCCESS;
 
@@ -1705,6 +1709,8 @@ static INLINE word32 HashSession(const byte* sessionID)
 void SSL_flush_sessions(SSL_CTX* ctx, long tm)
 {
     /* static table now, no flusing needed */
+    (void)ctx;
+    (void)tm;
 }
 
 
@@ -1897,6 +1903,7 @@ int CyaSSL_check_domain_name(SSL* ssl, const char* dn)
 int CyaSSL_set_compression(SSL* ssl)
 {
     CYASSL_ENTER("CyaSSL_set_compression");
+    (void)ssl;
 #ifdef HAVE_LIBZ
     ssl->options.usingCompression = 1;
     return 0;

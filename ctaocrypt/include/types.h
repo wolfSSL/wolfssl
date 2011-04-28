@@ -188,6 +188,11 @@ enum {
     DYNAMIC_TYPE_OPENSSL    = 20 
 };
 
+/* stack protection */
+enum {
+    MIN_STACK_BUFFER = 8
+};
+
 
 #ifdef __cplusplus
     }   /* extern "C" */

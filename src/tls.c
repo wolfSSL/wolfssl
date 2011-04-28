@@ -52,8 +52,8 @@ static INLINE void get_xor(byte *digest, word32 digLen, byte* md5, byte* sha)
 
 
 /* compute p_hash for MD5, SHA-1, or SHA-256 for TLSv1 PRF */
-void p_hash(byte* result, word32 resLen, const byte* secret, word32 secLen,
-            const byte* seed, word32 seedLen, int hash)
+static void p_hash(byte* result, word32 resLen, const byte* secret,
+                   word32 secLen, const byte* seed, word32 seedLen, int hash)
 {
     word32   len = hash == md5_mac ? MD5_DIGEST_SIZE : hash == sha_mac ?
                                            SHA_DIGEST_SIZE : SHA256_DIGEST_SIZE;
@@ -239,7 +239,7 @@ int MakeTlsMasterSecret(SSL* ssl)
 /*** next for static INLINE s copied from cyassl_int.c ***/
 
 /* convert 16 bit integer to opaque */
-static void INLINE c16toa(word16 u16, byte* c)
+INLINE static void c16toa(word16 u16, byte* c)
 {
     c[0] = (u16 >> 8) & 0xff;
     c[1] =  u16 & 0xff;
