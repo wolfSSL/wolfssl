@@ -481,6 +481,7 @@ typedef struct TcpPseudoHdr {
 /* Password Setting Callback */
 static int SetPassword(char* passwd, int sz, int rw, void* userdata)
 {
+    (void)rw;
     XSTRNCPY(passwd, userdata, sz);
     return XSTRLEN(userdata);
 }
@@ -692,7 +693,7 @@ static void TraceAddedData(int newBytes, int existingBytes)
 
 
 /* Show Stale Session */
-static void TraceStaleSession(SnifferSession* session)
+static void TraceStaleSession(void)
 {
     if (TraceOn) {
         fprintf(TraceFile, "\tFound a stale session\n");
@@ -701,7 +702,7 @@ static void TraceStaleSession(SnifferSession* session)
 
 
 /* Show Finding Stale Sessions */
-static void TraceFindingStale()
+static void TraceFindingStale(void)
 {
     if (TraceOn) {
         fprintf(TraceFile, "\tTrying to find Stale Sessions\n");
@@ -710,7 +711,7 @@ static void TraceFindingStale()
 
 
 /* Show Removed Session */
-static void TraceRemovedSession()
+static void TraceRemovedSession(void)
 {
     if (TraceOn) {
         fprintf(TraceFile, "\tRemoved it\n");
@@ -763,7 +764,7 @@ static int IsPortRegistered(word32 port)
     
     sniffer = ServerList;
     while (sniffer) {
-        if (sniffer->port == port) {
+        if (sniffer->port == (int)port) {
             ret = 1; 
             break;
         }
@@ -978,7 +979,7 @@ static int ProcessClientKeyExchange(const byte* input, int* sslBytes,
     word32 idx = 0;
     RsaKey key;
     int    ret;
-    
+
     InitRsaKey(&key, 0);
    
     ret = RsaPrivateKeyDecode(session->context->ctx->privateKey.buffer,
@@ -988,7 +989,12 @@ static int ProcessClientKeyExchange(const byte* input, int* sslBytes,
         
         if (IsTLS(session->sslServer)) 
             input += 2;     /* tls pre length */
-        
+       
+        if (length > *sslBytes) { 
+            SetError(PARTIAL_INPUT_STR, error, session, FATAL_ERROR_STATE);
+            FreeRsaKey(&key);
+            return -1;
+        }
         ret = RsaPrivateDecrypt(input, length, 
                   session->sslServer->arrays.preMasterSecret, SECRET_LEN, &key);
         
@@ -1207,8 +1213,8 @@ static int ProcessClientHello(const byte* input, int* sslBytes,
 
 
 /* Process HandShake input */
-static int DoHandShake(const byte* input, int* sslBytes, IpInfo* ipInfo,
-                       TcpInfo* tcpInfo, SnifferSession* session, char* error)
+static int DoHandShake(const byte* input, int* sslBytes,
+                       SnifferSession* session, char* error)
 {
     byte type;
     int  size;
@@ -1379,7 +1385,7 @@ static void RemoveSession(SnifferSession* session, IpInfo* ipInfo,
 
 
 /* Remove stale sessions from the Session Table, have a lock */
-static void RemoveStaleSessions()
+static void RemoveStaleSessions(void)
 {
     word32 i;
     SnifferSession* session;
@@ -1389,7 +1395,7 @@ static void RemoveStaleSessions()
         while (session) {
             SnifferSession* next = session->next; 
             if (time(NULL) >= session->bornOn + SNIFFER_TIMEOUT) {
-                TraceStaleSession(session);
+                TraceStaleSession();
                 RemoveSession(session, NULL, NULL, i);
             }
             session = next;
@@ -1507,6 +1513,7 @@ static int DoOldHello(SnifferSession* session, const byte* sslFrame,
 }
 
 
+#if 0
 /* Calculate the TCP checksum, see RFC 1071 */
 /* return 0 for success, -1 on error */
 /* can be called from decode() with
@@ -1560,12 +1567,13 @@ int TcpChecksum(IpInfo* ipInfo, TcpInfo* tcpInfo, int dataLen,
         return 0;
     return -1;
 }
+#endif
 
 
 /* Check IP and TCP headers, set payload */
 /* returns 0 on success, -1 on error */
-int CheckHeaders(IpInfo* ipInfo, TcpInfo* tcpInfo, const byte* packet,
-                 int length, const byte** sslFrame, int* sslBytes, char* error)
+static int CheckHeaders(IpInfo* ipInfo, TcpInfo* tcpInfo, const byte* packet,
+                  int length, const byte** sslFrame, int* sslBytes, char* error)
 {
     TraceHeader();
     TracePacket();
@@ -1980,9 +1988,8 @@ static int HaveMoreInput(SnifferSession* session, const byte** sslFrame,
 
 /* Process Message(s) from sslFrame */
 /* return Number of bytes on success, 0 for no data yet, and -1 on error */
-static int ProcessMessage(IpInfo* ipInfo, TcpInfo* tcpInfo,const byte* sslFrame,
-                          SnifferSession* session, int sslBytes, byte* data,
-                          const byte* end, char* error)
+static int ProcessMessage(const byte* sslFrame, SnifferSession* session,
+                          int sslBytes, byte* data, const byte* end,char* error)
 {
     const byte*       sslBegin = sslFrame;
     const byte*       tmp;
@@ -2010,7 +2017,7 @@ doMessage:
         
         /* store partial if not there already or we advanced */
         if (ssl->buffers.inputBuffer.length == 0 || sslBegin != sslFrame) {
-            if (sslBytes > ssl->buffers.inputBuffer.bufferSize) {
+            if (sslBytes > (int)ssl->buffers.inputBuffer.bufferSize) {
                 SetError(BUFFER_ERROR_STR, error, session, FATAL_ERROR_STATE);
                 return -1;
             }
@@ -2036,8 +2043,7 @@ doMessage:
     switch ((enum ContentType)rh.type) {
         case handshake:
             Trace(GOT_HANDSHAKE_STR);
-            ret = DoHandShake(sslFrame, &sslBytes, ipInfo, tcpInfo, session,
-                              error);
+            ret = DoHandShake(sslFrame, &sslBytes, session, error);
             if (ret != 0) {
                 if (session->flags.fatalError == 0)
                     SetError(BAD_HANDSHAKE_STR,error,session,FATAL_ERROR_STATE);
@@ -2077,6 +2083,7 @@ doMessage:
         case alert:
             Trace(GOT_ALERT_STR);
             break;
+        case no_type:
         default:
             SetError(GOT_UNKNOWN_RECORD_STR, error, session, FATAL_ERROR_STATE);
             return -1;
@@ -2156,8 +2163,7 @@ int ssl_DecodePacket(const byte* packet, int length, byte* data, char* error)
     if (ret == -1)     return -1;
     else if (ret == 1) return  0;   /* done for now */
 
-    ret = ProcessMessage(&ipInfo, &tcpInfo, sslFrame, session, sslBytes, data,
-                         end, error);
+    ret = ProcessMessage(sslFrame, session, sslBytes, data, end, error);
     CheckFinCapture(&ipInfo, &tcpInfo, session);
     return ret;
 }

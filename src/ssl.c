@@ -2295,6 +2295,8 @@ int CyaSSL_set_compression(SSL* ssl)
     long SSL_CTX_sess_set_cache_size(SSL_CTX* ctx, long sz)
     {
         /* cache size fixed at compile time in CyaSSL */
+        (void)ctx;
+        (void)sz;
         return 0;
     }
 
@@ -2310,6 +2312,7 @@ int CyaSSL_set_compression(SSL* ssl)
     int SSL_CTX_check_private_key(SSL_CTX* ctx)
     {
         /* TODO: check private against public for RSA match */
+        (void)ctx; 
         CYASSL_ENTER("SSL_CTX_check_private_key");
         return SSL_SUCCESS;
     }
@@ -2328,12 +2331,14 @@ int CyaSSL_set_compression(SSL* ssl)
 
     void SSL_CTX_set_client_CA_list(SSL_CTX* ctx, STACK_OF(X509_NAME)* names)
     {
-   
+        (void)ctx; 
+        (void)names; 
     }
 
 
     STACK_OF(X509_NAME)* SSL_load_client_CA_file(const char* fname)
     {
+        (void)fname;
         return 0;
     }
 
@@ -2341,6 +2346,7 @@ int CyaSSL_set_compression(SSL* ssl)
     int SSL_CTX_set_default_verify_paths(SSL_CTX* ctx)
     {
         /* TODO:, not needed in goahead */
+        (void)ctx; 
         return SSL_NOT_IMPLEMENTED;
     }
 
@@ -2379,12 +2385,15 @@ int CyaSSL_set_compression(SSL* ssl)
     void SSL_CTX_set_tmp_rsa_callback(SSL_CTX* ctx, RSA*(*f)(SSL*, int, int))
     {
         /* CyaSSL verifies all these internally */   
+        (void)ctx; 
+        (void)f; 
     }
 
 
     void SSL_set_shutdown(SSL* ssl, int opt)
     {
-       
+        (void)ssl; 
+        (void)opt; 
     }
 
 
@@ -2392,6 +2401,7 @@ int CyaSSL_set_compression(SSL* ssl)
     {
         /* goahead calls with 0, do nothing */ 
         CYASSL_ENTER("SSL_CTX_set_options");
+        (void)ctx; 
         return opt;
     }
 
@@ -2423,6 +2433,10 @@ int CyaSSL_set_compression(SSL* ssl)
     {
         /* no tmp key needed, actual generation not supported */
         CYASSL_ENTER("RSA_generate_key");
+        (void)len; 
+        (void)bits; 
+        (void)f; 
+        (void)data; 
         return 0;
     }
 
@@ -2468,18 +2482,21 @@ int CyaSSL_set_compression(SSL* ssl)
 
     X509* X509_STORE_CTX_get_current_cert(X509_STORE_CTX* ctx)
     {
+        (void)ctx; 
         return 0;
     }
 
 
     int X509_STORE_CTX_get_error(X509_STORE_CTX* ctx)
     {
+        (void)ctx; 
         return 0;
     }
 
 
     int X509_STORE_CTX_get_error_depth(X509_STORE_CTX* ctx)
     {
+        (void)ctx; 
         return 0;
     }
 
@@ -2499,6 +2516,7 @@ int CyaSSL_set_compression(SSL* ssl)
     {
         /* CyaSSL has internal buffer, compatibility only */
         CYASSL_ENTER("BIO_set_write_buffer_size");
+        (void)bio; 
         return size; 
     }
 
@@ -2677,6 +2695,7 @@ int CyaSSL_set_compression(SSL* ssl)
     {
         /* for CyaSSL no flushing needed */
         CYASSL_ENTER("BIO_flush");
+        (void)bio; 
         return 1;
     }
 
@@ -2706,12 +2725,12 @@ int CyaSSL_set_compression(SSL* ssl)
 
     void CRYPTO_set_locking_callback(void (*f)(int, int, const char*, int))
     {
-      
+        (void)f; 
     }
 
     void CRYPTO_set_id_callback(unsigned long (*f)(void))
     {
-    
+        (void)f; 
     }
 
     unsigned long ERR_get_error(void)
@@ -2821,6 +2840,7 @@ int CyaSSL_set_compression(SSL* ssl)
     const char* SSLeay_version(int type)
     {
         static const char* version = "SSLeay CyaSSL compatibility";
+        (void)type; 
         return version;
     }
 
@@ -2912,6 +2932,7 @@ int CyaSSL_set_compression(SSL* ssl)
 
     void EVP_MD_CTX_init(EVP_MD_CTX* ctx)
     {
+        (void)ctx; 
         /* do nothing */ 
     }
 
@@ -2919,6 +2940,7 @@ int CyaSSL_set_compression(SSL* ssl)
     int EVP_MD_CTX_cleanup(EVP_MD_CTX* ctx)
     {
         CYASSL_ENTER("EVP_MD_CTX_cleanup");
+        (void)ctx; 
         return 0;
     }    
 
@@ -3081,6 +3103,7 @@ int CyaSSL_set_compression(SSL* ssl)
     void ERR_remove_state(unsigned long state)
     {
         /* TODO: GetErrors().Remove(); */
+        (void)state; 
     }
 
 
@@ -3111,6 +3134,7 @@ int CyaSSL_set_compression(SSL* ssl)
     long SSL_CTX_get_mode(SSL_CTX* ctx)
     {
         /* TODO: */
+        (void)ctx; 
         return 0;
     }
 
@@ -3118,6 +3142,8 @@ int CyaSSL_set_compression(SSL* ssl)
     void SSL_CTX_set_default_read_ahead(SSL_CTX* ctx, int m)
     {
         /* TODO: maybe? */
+        (void)ctx; 
+        (void)m; 
     }
 
 
@@ -3126,6 +3152,9 @@ int CyaSSL_set_compression(SSL* ssl)
                                        unsigned int sid_ctx_len)
     {
         /* No application specific context needed for cyaSSL */
+        (void)ctx; 
+        (void)sid_ctx; 
+        (void)sid_ctx_len; 
         return SSL_SUCCESS;
     }
 
@@ -3133,6 +3162,7 @@ int CyaSSL_set_compression(SSL* ssl)
     long SSL_CTX_sess_get_cache_size(SSL_CTX* ctx)
     {
         /* TODO: maybe? */
+        (void)ctx; 
         return (~0);
     }
 
@@ -3140,6 +3170,10 @@ int CyaSSL_set_compression(SSL* ssl)
                                           const char** data, int *flags)
     {
         /* Not implemented */
+        (void)file; 
+        (void)line; 
+        (void)data; 
+        (void)flags; 
         return 0;
     }
 
@@ -3157,12 +3191,16 @@ int CyaSSL_set_compression(SSL* ssl)
 
     int SSL_set_ex_data(SSL* ssl, int idx, void* data)
     {
+        (void)ssl;
+        (void)idx;
+        (void)data;
         return 0;
     }
 
 
     int SSL_get_shutdown(const SSL* ssl)
     {
+        (void)ssl;
         return 0;
     }
 
@@ -3170,12 +3208,16 @@ int CyaSSL_set_compression(SSL* ssl)
     int SSL_set_session_id_context(SSL* ssl, const unsigned char* id,
                                    unsigned int len)
     {
+        (void)ssl;
+        (void)id;
+        (void)len;
         return 0;
     }
 
 
     void SSL_set_connect_state(SSL* ssl)
     {
+        (void)ssl;
         /* client by default */ 
     }
 
@@ -3188,7 +3230,7 @@ int CyaSSL_set_compression(SSL* ssl)
 
     void SSL_SESSION_free(SSL_SESSION* session)
     {
-     
+        (void)session;
     }
 
 
@@ -3297,31 +3339,40 @@ int CyaSSL_set_compression(SSL* ssl)
 
     char* SSL_CIPHER_description(SSL_CIPHER* cipher, char* buffer, int len)
     {
+        (void)cipher;
+        (void)buffer;
+        (void)len;
         return 0;
     }
 
 
     SSL_SESSION* SSL_get1_session(SSL* ssl)  /* what's ref count */
     {
+        (void)ssl;
         return 0;
     }
 
 
     void X509_free(X509* buf)
     {
-       
+        (void)buf;
     }
 
 
     void OPENSSL_free(void* buf)
     {
-  
+        (void)buf;
     }
 
 
     int OCSP_parse_url(char* url, char** host, char** port, char** path,
                        int* ssl)
     {
+        (void)url;
+        (void)host;
+        (void)port;
+        (void)path;
+        (void)ssl;
         return 0;
     }
 
@@ -3369,12 +3420,14 @@ int CyaSSL_set_compression(SSL* ssl)
 
     BIO* BIO_pop(BIO* top)
     {
+        (void)top;
         return 0;
     }
 
 
     int BIO_pending(BIO* bio)
     {
+        (void)bio;
         return 0;
     }
 
@@ -3394,7 +3447,8 @@ int CyaSSL_set_compression(SSL* ssl)
 
     void BIO_set_flags(BIO* bio, int flags)
     {
-     
+        (void)bio;
+        (void)flags;
     }
 
 
@@ -3407,18 +3461,22 @@ int CyaSSL_set_compression(SSL* ssl)
 
     const char* RAND_file_name(char* fname, unsigned long len)
     {
+        (void)fname;
+        (void)len;
         return 0;
     }
 
 
     int RAND_write_file(const char* fname)
     {
+        (void)fname;
         return 0;
     }
 
 
     int RAND_load_file(const char* fname, long len)
     {
+        (void)fname;
         /* CTaoCrypt provides enough entropy internally or will report error */
         if (len == -1)
             return 1024;
@@ -3429,6 +3487,7 @@ int CyaSSL_set_compression(SSL* ssl)
 
     int RAND_egd(const char* path)
     {
+        (void)path;
         return 0;
     }
 
@@ -3448,6 +3507,8 @@ int CyaSSL_set_compression(SSL* ssl)
 
     int SSL_COMP_add_compression_method(int method, void* data)
     {
+        (void)method;
+        (void)data;
         return 0;
     }
 
@@ -3456,6 +3517,11 @@ int CyaSSL_set_compression(SSL* ssl)
     int SSL_get_ex_new_index(long idx, void* data, void* cb1, void* cb2,
                              void* cb3)
     {
+        (void)idx;
+        (void)data;
+        (void)cb1;
+        (void)cb2;
+        (void)cb3;
         return 0;
     }
 
@@ -3463,27 +3529,28 @@ int CyaSSL_set_compression(SSL* ssl)
     void CRYPTO_set_dynlock_create_callback(CRYPTO_dynlock_value* (*f)(
                                                               const char*, int))
     {
-     
+        (void)f;
     }
 
 
     void CRYPTO_set_dynlock_lock_callback(void (*f)(int, CRYPTO_dynlock_value*,
                                                 const char*, int))
     {
-     
+        (void)f;
     }
 
 
     void CRYPTO_set_dynlock_destroy_callback(void (*f)(CRYPTO_dynlock_value*,
                                                    const char*, int))
     {
-      
+        (void)f;
     }
 
 
 
     const char* X509_verify_cert_error_string(long err)
     {
+        (void)err;
         return 0;
     }
 
@@ -3491,12 +3558,18 @@ int CyaSSL_set_compression(SSL* ssl)
 
     int X509_LOOKUP_add_dir(X509_LOOKUP* lookup, const char* dir, long len)
     {
+        (void)lookup;
+        (void)dir;
+        (void)len;
         return 0;
     }
 
 
     int X509_LOOKUP_load_file(X509_LOOKUP* lookup, const char* file, long len)
     {
+        (void)lookup;
+        (void)file;
+        (void)len;
         return 0;
     }
 
@@ -3516,6 +3589,8 @@ int CyaSSL_set_compression(SSL* ssl)
 
     X509_LOOKUP* X509_STORE_add_lookup(X509_STORE* store, X509_LOOKUP_METHOD* m)
     {
+        (void)store;
+        (void)m;
         return 0;
     }
 
@@ -3529,6 +3604,10 @@ int CyaSSL_set_compression(SSL* ssl)
     int X509_STORE_get_by_subject(X509_STORE_CTX* ctx, int idx, X509_NAME* name,
                                        X509_OBJECT* obj)
     {
+        (void)ctx;
+        (void)idx;
+        (void)name;
+        (void)obj;
         return 0;
     }
 
@@ -3536,25 +3615,31 @@ int CyaSSL_set_compression(SSL* ssl)
     int X509_STORE_CTX_init(X509_STORE_CTX* ctx, X509_STORE* store, X509* x509,
                             STACK_OF(X509)* sk)
     {
+        (void)ctx;
+        (void)store;
+        (void)x509;
+        (void)sk;
         return 0;
     }
 
 
     void X509_STORE_CTX_cleanup(X509_STORE_CTX* ctx)
     {
- 
+        (void)ctx;
     }
 
 
 
     ASN1_TIME* X509_CRL_get_lastUpdate(X509_CRL* crl)
     {
+        (void)crl;
         return 0;
     }
 
 
     ASN1_TIME* X509_CRL_get_nextUpdate(X509_CRL* crl)
     {
+        (void)crl;
         return 0;
     }
 
@@ -3562,42 +3647,48 @@ int CyaSSL_set_compression(SSL* ssl)
 
     EVP_PKEY* X509_get_pubkey(X509* x509)
     {
+        (void)x509;
         return 0;
     }
 
 
     int X509_CRL_verify(X509_CRL* crl, EVP_PKEY* key)
     {
+        (void)crl;
+        (void)key;
         return 0;
     }
 
 
     void X509_STORE_CTX_set_error(X509_STORE_CTX* ctx, int err)
     {
- 
+        (void)ctx;
+        (void)err;
     }
 
 
     void X509_OBJECT_free_contents(X509_OBJECT* obj)
     {
-  
+        (void)obj;
     }
 
 
     void EVP_PKEY_free(EVP_PKEY* key)
     {
-     
+        (void)key;
     }
 
 
     int X509_cmp_current_time(const ASN1_TIME* time)
     {
+        (void)time;
         return 0;
     }
 
 
     int sk_X509_REVOKED_num(X509_REVOKED* revoked)
     {
+        (void)revoked;
         return 0;
     }
 
@@ -3605,12 +3696,15 @@ int CyaSSL_set_compression(SSL* ssl)
 
     X509_REVOKED* X509_CRL_get_REVOKED(X509_CRL* crl)
     {
+        (void)crl;
         return 0;
     }
 
 
     X509_REVOKED* sk_X509_REVOKED_value(X509_REVOKED* revoked, int value)
     {
+        (void)revoked;
+        (void)value;
         return 0;
     }
 
@@ -3618,6 +3712,7 @@ int CyaSSL_set_compression(SSL* ssl)
 
     ASN1_INTEGER* X509_get_serialNumber(X509* x509)
     {
+        (void)x509;
         return 0;
     }
 
@@ -3625,6 +3720,8 @@ int CyaSSL_set_compression(SSL* ssl)
 
     int ASN1_TIME_print(BIO* bio, const ASN1_TIME* time)
     {
+        (void)bio;
+        (void)time;
         return 0;
     }
 
@@ -3632,12 +3729,15 @@ int CyaSSL_set_compression(SSL* ssl)
 
     int ASN1_INTEGER_cmp(const ASN1_INTEGER* a, const ASN1_INTEGER* b)
     {
+        (void)a;
+        (void)b;
         return 0;
     }
 
 
     long ASN1_INTEGER_get(const ASN1_INTEGER* i)
     {
+        (void)i;
         return 0;
     }
 
@@ -3645,6 +3745,8 @@ int CyaSSL_set_compression(SSL* ssl)
 
     void* X509_STORE_CTX_get_ex_data(X509_STORE_CTX* ctx, int idx)
     {
+        (void)ctx;
+        (void)idx;
         return 0;
     }
 
@@ -3657,19 +3759,24 @@ int CyaSSL_set_compression(SSL* ssl)
 
     void* SSL_get_ex_data(const SSL* ssl, int idx)
     {
+        (void)ssl;
+        (void)idx;
         return 0;
     }
 
 
     long SSL_CTX_set_timeout(SSL_CTX* ctx, long to)
     {
+        (void)ctx;
+        (void)to;
         return 0;
     }
 
 
-    void SSL_CTX_set_info_callback(SSL_CTX* ctx, void (*f)())
+    void SSL_CTX_set_info_callback(SSL_CTX* ctx, void (*f)(void))
     {
-        
+        (void)ctx;
+        (void)f;
     }
 
 
@@ -3681,24 +3788,28 @@ int CyaSSL_set_compression(SSL* ssl)
 
     int ERR_GET_REASON(int err)
     {
+        (void)err;
         return 0;
     }
 
 
     char* SSL_alert_type_string_long(int alert)
     {
+        (void)alert;
         return 0;
     }
 
 
     char* SSL_alert_desc_string_long(int alert)
     {
+        (void)alert;
         return 0;
     }
 
 
     char* SSL_state_string_long(SSL* ssl)
     {
+        (void)ssl;
         return 0;
     }
 
@@ -3706,123 +3817,153 @@ int CyaSSL_set_compression(SSL* ssl)
 
     void RSA_free(RSA* rsa)
     {
-        
+        (void)rsa;
     }
 
 
     int PEM_def_callback(char* name, int num, int w, void* key)
     {
+        (void)name;
+        (void)num;
+        (void)w;
+        (void)key;
         return 0;
     }
     
 
     long SSL_CTX_sess_accept(SSL_CTX* ctx)
     {
+        (void)ctx;
         return 0;
     }
 
 
     long SSL_CTX_sess_connect(SSL_CTX* ctx)
     {
+        (void)ctx;
         return 0;
     }
 
 
     long SSL_CTX_sess_accept_good(SSL_CTX* ctx)
     {
+        (void)ctx;
         return 0;
     }
 
 
     long SSL_CTX_sess_connect_good(SSL_CTX* ctx)
     {
+        (void)ctx;
         return 0;
     }
 
 
     long SSL_CTX_sess_accept_renegotiate(SSL_CTX* ctx)
     {
+        (void)ctx;
         return 0;
     }
 
 
     long SSL_CTX_sess_connect_renegotiate(SSL_CTX* ctx)
     {
+        (void)ctx;
         return 0;
     }
 
 
     long SSL_CTX_sess_hits(SSL_CTX* ctx)
     {
+        (void)ctx;
         return 0;
     }
 
 
     long SSL_CTX_sess_cb_hits(SSL_CTX* ctx)
     {
+        (void)ctx;
         return 0;
     }
 
 
     long SSL_CTX_sess_cache_full(SSL_CTX* ctx)
     {
+        (void)ctx;
         return 0;
     }
 
 
     long SSL_CTX_sess_misses(SSL_CTX* ctx)
     {
+        (void)ctx;
         return 0;
     }
 
 
     long SSL_CTX_sess_timeouts(SSL_CTX* ctx)
     {
+        (void)ctx;
         return 0;
     }
 
 
     long SSL_CTX_sess_number(SSL_CTX* ctx)
     {
+        (void)ctx;
         return 0;
     }
 
 
     void DES_set_key_unchecked(const_DES_cblock* des, DES_key_schedule* key)
     {
+        (void)des;
+        (void)key;
     }
 
 
     void DES_set_odd_parity(DES_cblock* des)
     {
+        (void)des;
     }
 
     
     void DES_ecb_encrypt(DES_cblock* desa, DES_cblock* desb,
                          DES_key_schedule* key, int len)
     {
+        (void)desa;
+        (void)desb;
+        (void)key;
+        (void)len;
     }
 
     int BIO_printf(BIO* bio, const char* format, ...)
     {
+        (void)bio;
+        (void)format;
         return 0;
     }
 
 
     int ASN1_UTCTIME_print(BIO* bio, const ASN1_UTCTIME* a)
     {
+        (void)bio;
+        (void)a;
         return 0;
     }
     
 
     int  sk_num(X509_REVOKED* rev)
     {
+        (void)rev;
         return 0;
     }
 
 
     void* sk_value(X509_REVOKED* rev, int i)
     {
+        (void)rev;
+        (void)i;
         return 0;
     }
 
@@ -3830,12 +3971,17 @@ int CyaSSL_set_compression(SSL* ssl)
     /* stunnel 4.28 needs */
     void* SSL_CTX_get_ex_data(const SSL_CTX* ctx, int d)
     {
+        (void)ctx;
+        (void)d;
         return 0;
     }
 
 
     int SSL_CTX_set_ex_data(SSL_CTX* ctx, int d, void* p)
     {
+        (void)ctx;
+        (void)d;
+        (void)p;
         return SSL_SUCCESS;
     }
 
@@ -3843,25 +3989,30 @@ int CyaSSL_set_compression(SSL* ssl)
     void SSL_CTX_sess_set_get_cb(SSL_CTX* ctx, SSL_SESSION*(*f)(SSL*,
                                                     unsigned char*, int, int*))
     {
-       
+        (void)ctx;
+        (void)f;
     }
 
 
     void SSL_CTX_sess_set_new_cb(SSL_CTX* ctx, int (*f)(SSL*, SSL_SESSION*))
     {
-
+        (void)ctx;
+        (void)f;
     }
 
 
     void SSL_CTX_sess_set_remove_cb(SSL_CTX* ctx, void (*f)(SSL_CTX*,
                                                             SSL_SESSION*))
     {
-
+        (void)ctx;
+        (void)f;
     }
 
 
     int i2d_SSL_SESSION(SSL_SESSION* sess, unsigned char** p)
     {
+        (void)sess;
+        (void)p;
         return sizeof(SSL_SESSION);
     }
 
@@ -3869,6 +4020,8 @@ int CyaSSL_set_compression(SSL* ssl)
     SSL_SESSION* d2i_SSL_SESSION(SSL_SESSION** sess, const unsigned char** p,
                                  long i)
     {
+        (void)p;
+        (void)i;
         if (sess)
             return *sess;
         return NULL;
@@ -3891,6 +4044,11 @@ int CyaSSL_set_compression(SSL* ssl)
 
     int SSL_CTX_get_ex_new_index(long idx, void* arg, void* a, void* b, void* c)
     {
+        (void)idx;
+        (void)arg;
+        (void)a;
+        (void)b;
+        (void)c;
         return 0; 
     }
 

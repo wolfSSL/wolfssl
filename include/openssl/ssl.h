@@ -285,6 +285,7 @@ CYASSL_API void CRYPTO_set_dynlock_lock_callback(void (*f)(int,
                                       CRYPTO_dynlock_value*, const char*, int));
 CYASSL_API void CRYPTO_set_dynlock_destroy_callback(void (*f)
                                      (CRYPTO_dynlock_value*, const char*, int));
+CYASSL_API int  CRYPTO_num_locks(void);
 
 CYASSL_API X509* X509_STORE_CTX_get_current_cert(X509_STORE_CTX*);
 CYASSL_API int   X509_STORE_CTX_get_error(X509_STORE_CTX*);

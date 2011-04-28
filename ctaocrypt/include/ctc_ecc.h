@@ -46,12 +46,12 @@ enum {
 /* ECC set type defined a NIST GF(p) curve */
 typedef struct {
     int size;       /* The size of the curve in octets */
-    char* name;     /* name of this curve */
-    char* prime;    /* prime that defines the field the curve is in (hex) */
-    char* B;        /* fields B param (hex) */
-    char* order;    /* order of the curve (hex) */
-    char* Gx;       /* x coordinate of the base point on curve (hex) */
-    char* Gy;       /* y coordinate of the base point on curve (hex) */
+    const char* name;     /* name of this curve */
+    const char* prime;    /* prime that defines the field, curve is in (hex) */
+    const char* B;        /* fields B param (hex) */
+    const char* order;    /* order of the curve (hex) */
+    const char* Gx;       /* x coordinate of the base point on curve (hex) */
+    const char* Gy;       /* y coordinate of the base point on curve (hex) */
 } ecc_set_type;
 
 
