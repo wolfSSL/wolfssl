@@ -314,9 +314,11 @@ int mp_init_multi(mp_int* a, mp_int* b, mp_int* c, mp_int* d, mp_int* e,
     int mp_set_int (mp_int * a, unsigned long b);
     int mp_gcd (mp_int * a, mp_int * b, mp_int * c);
     int mp_lcm (mp_int * a, mp_int * b, mp_int * c);
-    int mp_sub_d (mp_int * a, mp_digit b, mp_int * c);
 #endif
 
+#if defined(CYASSL_KEY_GEN) || defined(HAVE_ECC) || !defined(NO_PWDBASED)
+    int mp_sub_d (mp_int * a, mp_digit b, mp_int * c);
+#endif
 
 #ifdef __cplusplus
    }

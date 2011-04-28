@@ -42,7 +42,7 @@
 
 /* Define to 1 or 0, depending whether the compiler supports simple visibility
    declarations. */
-#define HAVE_VISIBILITY 0
+#define HAVE_VISIBILITY 1
 
 /* Define to the sub-directory in which libtool stores uninstalled libraries.
    */
