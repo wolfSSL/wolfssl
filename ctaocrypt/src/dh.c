@@ -47,6 +47,7 @@
 
 void InitDhKey(DhKey* key)
 {
+    (void)key;
 /* TomsFastMath doesn't use memory allocation */
 #ifndef USE_FAST_MATH
     key->p.dp = 0;
@@ -57,6 +58,7 @@ void InitDhKey(DhKey* key)
 
 void FreeDhKey(DhKey* key)
 {
+    (void)key;
 /* TomsFastMath doesn't use memory allocation */
 #ifndef USE_FAST_MATH
     mp_clear(&key->p);

@@ -2296,7 +2296,7 @@ int DerToPem(const byte* der, word32 derSz, byte* output, word32 outSz,
     /* body */
     outLen = outSz;  /* input to Base64Encode */
     if ( (err = Base64Encode(der, derSz, output + i, (word32*)&outLen)) < 0)
-        return ret;
+        return err;
     i += outLen;
 
     /* footer */
@@ -2506,7 +2506,7 @@ static int SetPublicKey(byte* output, RsaKey* key)
     n[0] = ASN_INTEGER;
     nSz  = SetLength(rawLen, n + 1) + 1;  /* int tag */
 
-    if ( (nSz + rawLen) < sizeof(n)) {
+    if ( (nSz + rawLen) < (int)sizeof(n)) {
         int err = mp_to_unsigned_bin(&key->n, n + nSz);
         if (err == MP_OKAY)
             nSz += rawLen;
@@ -2521,7 +2521,7 @@ static int SetPublicKey(byte* output, RsaKey* key)
     e[0] = ASN_INTEGER;
     eSz  = SetLength(rawLen, e + 1) + 1;  /* int tag */
 
-    if ( (eSz + rawLen) < sizeof(e)) {
+    if ( (eSz + rawLen) < (int)sizeof(e)) {
         int err = mp_to_unsigned_bin(&key->e, e + eSz);
         if (err == MP_OKAY)
             eSz += rawLen;
@@ -2780,7 +2780,7 @@ static int SetName(byte* output, CertName* name)
             setSz = SetSet(thisLen, set);
             thisLen += setSz;
 
-            if (thisLen > sizeof(names[i].encoded))
+            if (thisLen > (int)sizeof(names[i].encoded))
                 return BUFFER_E;
 
             /* store it */
@@ -2847,6 +2847,8 @@ static int SetName(byte* output, CertName* name)
 static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, RNG* rng,
                       const byte* ntruKey, word16 ntruSz)
 {
+    (void)ntruKey;
+    (void)ntruSz;
     /* version */
     der->versionSz = SetMyVersion(cert->version, der->version, TRUE);
 

@@ -1972,6 +1972,7 @@ int mp_sub_d(fp_int *a, fp_digit b, fp_int *c)
 
 int mp_prime_is_prime(mp_int* a, int t, int* result)
 {
+    (void)t;
     *result = fp_isprime(a);
     return MP_OKAY;
 }
@@ -2006,7 +2007,7 @@ static int s_is_power_of_two(fp_digit b, int *p)
 }
 
 /* a/b => cb + d == a */
-int fp_div_d(fp_int *a, fp_digit b, fp_int *c, fp_digit *d)
+static int fp_div_d(fp_int *a, fp_digit b, fp_int *c, fp_digit *d)
 {
   fp_int   q;
   fp_word  w;
@@ -2072,7 +2073,7 @@ int fp_div_d(fp_int *a, fp_digit b, fp_int *c, fp_digit *d)
 
 
 /* c = a mod b, 0 <= c < b  */
-int fp_mod_d(fp_int *a, fp_digit b, fp_digit *c)
+static int fp_mod_d(fp_int *a, fp_digit b, fp_digit *c)
 {
    return fp_div_d(a, b, NULL, c);
 }
@@ -2085,7 +2086,7 @@ int fp_mod_d(fp_int *a, fp_digit b, fp_digit *c)
  * Randomly the chance of error is no more than 1/4 and often 
  * very much lower.
  */
-void fp_prime_miller_rabin (fp_int * a, fp_int * b, int *result)
+static void fp_prime_miller_rabin (fp_int * a, fp_int * b, int *result)
 {
   fp_int  n1, y, r;
   int     s, j;
@@ -2326,7 +2327,7 @@ int mp_add_d(fp_int *a, fp_digit b, fp_int *c)
 /* chars used in radix conversions */
 const char *fp_s_rmap = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz+/";
 
-int fp_read_radix(fp_int *a, const char *str, int radix)
+static int fp_read_radix(fp_int *a, const char *str, int radix)
 {
   int     y, neg;
   char    ch;

@@ -302,8 +302,10 @@ int  mp_add_d (mp_int* a, mp_digit b, mp_int* c);
 int mp_init_multi(mp_int* a, mp_int* b, mp_int* c, mp_int* d, mp_int* e,
                   mp_int* f);
 
-#ifdef HAVE_ECC
+#if defined(HAVE_ECC) || defined(CYASSL_KEY_GEN)
     int mp_sqrmod(mp_int* a, mp_int* b, mp_int* c);
+#endif
+#ifdef HAVE_ECC
     int mp_read_radix(mp_int* a, const char* str, int radix);
 #endif
 

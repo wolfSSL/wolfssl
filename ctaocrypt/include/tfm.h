@@ -427,7 +427,7 @@ void fp_mul_d(fp_int *a, fp_digit b, fp_int *c);
 int fp_mulmod(fp_int *a, fp_int *b, fp_int *c, fp_int *d);
 
 /* c = a * a (mod b) */
-/*int fp_sqrmod(fp_int *a, fp_int *b, fp_int *c);*/
+int fp_sqrmod(fp_int *a, fp_int *b, fp_int *c);
 
 /* c = 1/a (mod b) */
 int fp_invmod(fp_int *a, fp_int *b, fp_int *c);

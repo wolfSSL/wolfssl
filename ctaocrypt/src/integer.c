@@ -3591,7 +3591,7 @@ int fast_s_mp_mul_high_digs (mp_int * a, mp_int * b, mp_int * c, int digs)
 }
 
 
-#if defined(HAVE_ECC)
+#if defined(CYASSL_KEY_GEN) || defined(HAVE_ECC)
 
 /* c = a * a (mod b) */
 int mp_sqrmod (mp_int * a, mp_int * b, mp_int * c)
@@ -3616,8 +3616,6 @@ int mp_sqrmod (mp_int * a, mp_int * b, mp_int * c)
 
 
 #if defined(CYASSL_KEY_GEN) || defined(HAVE_ECC) || !defined(NO_PWDBASED)
-
-int mp_sub_d (mp_int* a, mp_digit b, mp_int* c);
 
 /* single digit addition */
 int mp_add_d (mp_int* a, mp_digit b, mp_int* c)
@@ -3805,7 +3803,7 @@ static int s_is_power_of_two(mp_digit b, int *p)
 }
 
 /* single digit division (based on routine from MPI) */
-int mp_div_d (mp_int * a, mp_digit b, mp_int * c, mp_digit * d)
+static int mp_div_d (mp_int * a, mp_digit b, mp_int * c, mp_digit * d)
 {
   mp_int  q;
   mp_word w;
@@ -3880,7 +3878,7 @@ int mp_div_d (mp_int * a, mp_digit b, mp_int * c, mp_digit * d)
 }
 
 
-int mp_mod_d (mp_int * a, mp_digit b, mp_digit * c)
+static int mp_mod_d (mp_int * a, mp_digit b, mp_digit * c)
 {
   return mp_div_d(a, b, NULL, c);
 }
@@ -3935,7 +3933,7 @@ const mp_digit ltm_prime_tab[] = {
  * Randomly the chance of error is no more than 1/4 and often 
  * very much lower.
  */
-int mp_prime_miller_rabin (mp_int * a, mp_int * b, int *result)
+static int mp_prime_miller_rabin (mp_int * a, mp_int * b, int *result)
 {
   mp_int  n1, y, r;
   int     s, j, err;
@@ -4016,7 +4014,7 @@ LBL_N1:mp_clear (&n1);
  *
  * sets result to 0 if not, 1 if yes
  */
-int mp_prime_is_divisible (mp_int * a, int *result)
+static int mp_prime_is_divisible (mp_int * a, int *result)
 {
   int     err, ix;
   mp_digit res;

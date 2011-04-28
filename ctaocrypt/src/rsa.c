@@ -65,6 +65,7 @@ void InitRsaKey(RsaKey* key, void* heap)
 
 void FreeRsaKey(RsaKey* key)
 {
+    (void)key;
 /* TomsFastMath doesn't use memory allocation */
 #ifndef USE_FAST_MATH
     if (key->type == RSA_PRIVATE) {
@@ -379,6 +380,7 @@ static int rand_prime(mp_int* N, int len, RNG* rng, void* heap)
     int   err, res, type;
     byte* buf;
 
+    (void)heap;
     if (N == NULL || rng == NULL)
        return BAD_FUNC_ARG; 
 

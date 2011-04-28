@@ -636,8 +636,6 @@ CYASSL_API int CyaSSL_negotiate(SSL* ssl);
 /* turn on CyaSSL data compression */
 CYASSL_API int CyaSSL_set_compression(SSL* ssl);
 
-/* load NTRU private key blob */
-CYASSL_API int CyaSSL_CTX_use_NTRUPrivateKey_file(SSL_CTX*, const char*);
 /* get CyaSSL peer X509_CHAIN */
 CYASSL_API X509_CHAIN* CyaSSL_get_peer_chain(SSL* ssl);
 /* peer chain count */
