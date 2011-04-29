@@ -18,7 +18,7 @@ CyaSSL Release 2.0.0rc1 (5/2/2011)
 Release 2.0.0rc1 for CyaSSL has many new features including:
 - bug fixes
 - SHA-256 cipher suites 
-- Root Certificate Verification (instead of needing all certs in chain) 
+- Root Certificate Verification (instead of needing all certs in the chain) 
 - PKCS #8 private key encryption (supports PKCS #5 v1-v2 and PKCS #12) 
 - Serial number retrieval for x509 
 - PBKDF2 and PKCS #12 PBKDF 
