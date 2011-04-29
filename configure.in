@@ -1,10 +1,24 @@
-AC_INIT(cyassl,1.9.6,http://www.yassl.com)    # !!! also change in ssl.h !!!
+AC_INIT(cyassl,2.0.0rc1,http://www.yassl.com)    # !!! also change in ssl.h !!!
 AC_CONFIG_AUX_DIR(config)
 AM_CONFIG_HEADER(ctaocrypt/include/config.h)
 AC_CONFIG_MACRO_DIR([m4])
 AC_CANONICAL_SYSTEM
 
 AM_INIT_AUTOMAKE(subdir-objects)
+
+#shared library versioning
+CYASSL_LIBRARY_VERSION=2:0:0
+#                         | | |
+#                  +------+ | +---+
+#                  |        |     |
+#                 current:revision:age
+#                  |        |     |
+#                  |        |     +- increment if interfaces have been added
+#                  |        |        set to zero if interfaces have been removed or changed
+#                  |        +- increment if source code has changed
+#                  |           set to zero if current is incremented
+#                  +- increment if interfaces have been added, removed or changed
+AC_SUBST(CYASSL_LIBRARY_VERSION)
 
 
 # make sure configure doesn't add to CFLAGS
