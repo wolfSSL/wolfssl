@@ -188,9 +188,9 @@ static INLINE void showPeer(SSL* ssl)
 
             /* testsuite has multiple threads writing to stdout, get output
                message ready to write once */
-            strLen = snprintf(serialMsg, 16, " serial number");
+            strLen = sprintf(serialMsg, " serial number");
             for (i = 0; i < sz; i++)
-                snprintf(serialMsg + strLen + (i*3), 4, ":%02x ", serial[i]);
+                sprintf(serialMsg + strLen + (i*3), ":%02x ", serial[i]);
             printf("%s\n", serialMsg);
         }
 

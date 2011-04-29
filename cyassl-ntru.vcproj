@@ -42,7 +42,7 @@
 				Name="VCCLCompilerTool"
 				Optimization="0"
 				AdditionalIncludeDirectories="ctaocrypt/include;include;NTRU/include;include/openssl"
-				PreprocessorDefinitions="OPENSSL_EXTRA;CYASSL_RIPEMD;CYASSL_SHA512;HAVE_NTRU;WIN32"
+				PreprocessorDefinitions="OPENSSL_EXTRA;CYASSL_RIPEMD;CYASSL_SHA512;HAVE_NTRU;NO_PSK;WIN32"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="3"
@@ -106,7 +106,7 @@
 				Optimization="2"
 				EnableIntrinsicFunctions="true"
 				AdditionalIncludeDirectories="ctaocrypt/include;include;NTRU/include;include/openssl"
-				PreprocessorDefinitions="OPENSSL_EXTRA;CYASSL_RIPEMD;CYASSL_SHA512;HAVE_NTRU;WIN32"
+				PreprocessorDefinitions="OPENSSL_EXTRA;CYASSL_RIPEMD;CYASSL_SHA512;HAVE_NTRU;NO_PSK;WIN32"
 				RuntimeLibrary="2"
 				EnableFunctionLevelLinking="true"
 				UsePrecompiledHeader="0"
@@ -179,6 +179,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\ctaocrypt\src\cyassl_memory.c"
+				>
+			</File>
+			<File
 				RelativePath=".\ctaocrypt\src\des3.c"
 				>
 			</File>
@@ -204,6 +208,10 @@
 			</File>
 			<File
 				RelativePath=".\src\keys.c"
+				>
+			</File>
+			<File
+				RelativePath=".\ctaocrypt\src\logging.c"
 				>
 			</File>
 			<File
