@@ -127,7 +127,7 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
             CloseSocket(clientfd);
             continue;
         }
-#ifdef ECHO_OUT
+#if defined(PEER_INFO)
         showPeer(ssl);
 #endif
 

@@ -89,6 +89,11 @@ void client_test(void* args)
     SSL_CTX_set_default_passwd_cb(ctx, PasswordCallBack);
 #endif
 
+#ifdef CYASSL_SNIFFER
+    /* don't use EDH, can't sniff tmp keys */
+    SSL_CTX_set_cipher_list(ctx, "AES256-SHA");
+#endif
+
 #ifndef NO_FILESYSTEM
     if (SSL_CTX_load_verify_locations(ctx, caCert, 0) != SSL_SUCCESS)
         err_sys("can't load ca file");

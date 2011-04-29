@@ -56,7 +56,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 #if defined(CYASSL_DTLS)
     method  = DTLSv1_server_method();
 #elif  !defined(NO_TLS)
-    method = TLSv1_server_method();
+    method = SSLv23_server_method();
 #else
     method = SSLv3_server_method();
 #endif

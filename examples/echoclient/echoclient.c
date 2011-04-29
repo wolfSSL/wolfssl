@@ -63,6 +63,11 @@ void echoclient_test(void* args)
     load_buffer(ctx, caCert, CYASSL_CA);
 #endif
 
+#ifdef CYASSL_SNIFFER
+    /* don't use EDH, can't sniff tmp keys */
+    SSL_CTX_set_cipher_list(ctx, "AES256-SHA");
+#endif
+
 #ifdef OPENSSL_EXTRA
     SSL_CTX_set_default_passwd_cb(ctx, PasswordCallBack);
 #endif
