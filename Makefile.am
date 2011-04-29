@@ -15,16 +15,24 @@ include examples/echoserver/include.am
 include testsuite/include.am
 include sslSniffer/sslSnifferTest/include.am
 
-# !!!! first line of rule has to start with a hard (real) tab, not spaces
-basic:
-	cd src; $(MAKE); cd ../testsuite; $(MAKE); cd ../
 
 # !!!! first line of rule has to start with a hard (real) tab, not spaces
+basic:
+	$(MAKE) src/libcyassl.la; \
+	$(MAKE) testsuite/testsuite; \
+    cd testsuite; \
+    ./testsuite; \
+    cd ../;
+
 egs:
 	$(MAKE) examples/client/client; \
 	$(MAKE) examples/echoclient/echoclient;\
 	$(MAKE) examples/server/server; \
 	$(MAKE) examples/echoserver/echoserver;
+
+ctc:
+	$(MAKE) ctaocrypt/test/test; \
+	$(MAKE) ctaocrypt/benchmark/benchmark; 
 
 openssl-links:
 	cd lib; ln -s ../src/.libs/libcyassl.a libcrypto.a; \
