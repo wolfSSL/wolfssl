@@ -13,7 +13,40 @@ before calling SSL_new();  Though it's not recommended.
 
 *** end Note ***
 
-CyaSSL Release 1.9.0 (3/2/2011)
+CyaSSL Release 2.0.0rc1 (5/2/2011)
+
+Release 2.0.0rc1 for CyaSSL has many new features including:
+- bug fixes
+- SHA-256 cipher suites 
+- Root Certificate Verification (instead of needing all certs in chain) 
+- PKCS #8 private key encryption (supports PKCS #5 v1-v2 and PKCS #12) 
+- Serial number retrieval for x509 
+- PBKDF2 and PKCS #12 PBKDF 
+- UID parsing for x509 
+- SHA-256 certificate signatures 
+- Client and server can send chains (SSL_CTX_use_certificate_chain_file) 
+- CA loading can now parse multiple certificates per file
+- Dynamic memory runtime hooks
+- Runtime hooks for logging
+- EDH on server side
+- More informative error codes
+- More informative logging messages
+- Version downgrade more robust (use SSL_v23*)
+- Shared build only by default through ./configure
+- Compiler visibility is now used, internal functions not polluting namespace
+- Single Makefile, no recursion, for faster and simpler building
+- Turn on all warnings possible build option, warning fixes
+- and more.
+
+Because of all the new features and the multiple OS, compiler, feature-set
+options that CyaSSL allows, there may be some configuration fixes needed.
+Please send any comments or questions to support@yassl.com.
+
+The CyaSSL manual is available at:
+http://www.yassl.com/documentation/CyaSSL-Manual.pdf.  For build instructions 
+and comments about the new features please check the manual.
+
+****************** CyaSSL Release 1.9.0 (3/2/2011)
 
 Release 1.9.0 for CyaSSL adds bug fixes, improved TLSv1.2 through testing and
 better hash/sig algo ids, --enable-webServer for the yaSSL embedded web server,
