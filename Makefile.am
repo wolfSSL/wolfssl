@@ -19,6 +19,13 @@ include sslSniffer/sslSnifferTest/include.am
 basic:
 	cd src; $(MAKE); cd ../testsuite; $(MAKE); cd ../
 
+# !!!! first line of rule has to start with a hard (real) tab, not spaces
+egs:
+	$(MAKE) examples/client/client; \
+	$(MAKE) examples/echoclient/echoclient;\
+	$(MAKE) examples/server/server; \
+	$(MAKE) examples/echoserver/echoserver;
+
 openssl-links:
 	cd lib; ln -s ../src/.libs/libcyassl.a libcrypto.a; \
     ln -s ../src/.libs/libcyassl.a libssl.a; \
