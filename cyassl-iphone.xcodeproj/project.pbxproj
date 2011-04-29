@@ -9,6 +9,8 @@
 /* Begin PBXBuildFile section */
 		43809E9B0FB7AD1C0050922E /* md4.c in Sources */ = {isa = PBXBuildFile; fileRef = 43809E9A0FB7AD1C0050922E /* md4.c */; };
 		43962ADF0DE7ED48003C5E5B /* ssl.c in Sources */ = {isa = PBXBuildFile; fileRef = 43C6C2790DDF984100F2D488 /* ssl.c */; };
+		439B381E136B390A004C965E /* cyassl_memory.c in Sources */ = {isa = PBXBuildFile; fileRef = 439B381D136B390A004C965E /* cyassl_memory.c */; };
+		439B3820136B391E004C965E /* logging.c in Sources */ = {isa = PBXBuildFile; fileRef = 439B381F136B391E004C965E /* logging.c */; };
 		43AC92CA0EB154210049F588 /* cyassl_io.c in Sources */ = {isa = PBXBuildFile; fileRef = 43AC92C90EB154210049F588 /* cyassl_io.c */; };
 		43C6C27B0DDF984100F2D488 /* cyassl_int.c in Sources */ = {isa = PBXBuildFile; fileRef = 43C6C2770DDF984100F2D488 /* cyassl_int.c */; };
 		43C6C27C0DDF984100F2D488 /* keys.c in Sources */ = {isa = PBXBuildFile; fileRef = 43C6C2780DDF984100F2D488 /* keys.c */; };
@@ -76,6 +78,8 @@
 /* Begin PBXFileReference section */
 		4368F6E40E9EA1140002A123 /* test.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; lineEnding = 2; name = test.c; path = ctaocrypt/test/test.c; sourceTree = "<group>"; };
 		43809E9A0FB7AD1C0050922E /* md4.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = md4.c; path = ctaocrypt/src/md4.c; sourceTree = "<group>"; };
+		439B381D136B390A004C965E /* cyassl_memory.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = cyassl_memory.c; path = ctaocrypt/src/cyassl_memory.c; sourceTree = "<group>"; };
+		439B381F136B391E004C965E /* logging.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = logging.c; path = ctaocrypt/src/logging.c; sourceTree = "<group>"; };
 		43AC92C90EB154210049F588 /* cyassl_io.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; lineEnding = 0; name = cyassl_io.c; path = src/cyassl_io.c; sourceTree = "<group>"; };
 		43C6C2770DDF984100F2D488 /* cyassl_int.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; lineEnding = 0; name = cyassl_int.c; path = src/cyassl_int.c; sourceTree = "<group>"; };
 		43C6C2780DDF984100F2D488 /* keys.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; lineEnding = 2; name = keys.c; path = src/keys.c; sourceTree = "<group>"; };
@@ -173,6 +177,8 @@
 		43CA25720EA3F9B20011ECA2 /* src */ = {
 			isa = PBXGroup;
 			children = (
+				439B381F136B391E004C965E /* logging.c */,
+				439B381D136B390A004C965E /* cyassl_memory.c */,
 				43809E9A0FB7AD1C0050922E /* md4.c */,
 				43D565660F1EC9CC00550C88 /* rabbit.c */,
 				43D565640F1EC9A600550C88 /* hc128.c */,
@@ -298,7 +304,14 @@
 			};
 			buildConfigurationList = 1DEB91EF08733DB70010E9CD /* Build configuration list for PBXProject "cyassl-iphone" */;
 			compatibilityVersion = "Xcode 3.1";
+			developmentRegion = English;
 			hasScannedForEncodings = 1;
+			knownRegions = (
+				English,
+				Japanese,
+				French,
+				German,
+			);
 			mainGroup = 08FB7794FE84155DC02AAC07 /* cyassl */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -336,6 +349,8 @@
 				43D565650F1EC9A600550C88 /* hc128.c in Sources */,
 				43D565670F1EC9CC00550C88 /* rabbit.c in Sources */,
 				43809E9B0FB7AD1C0050922E /* md4.c in Sources */,
+				439B381E136B390A004C965E /* cyassl_memory.c in Sources */,
+				439B3820136B391E004C965E /* logging.c in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -354,7 +369,7 @@
 				GCC_PREPROCESSOR_DEFINITIONS = IPHONE;
 				INSTALL_PATH = /usr/local/lib;
 				PRODUCT_NAME = cyassl;
-				SDKROOT = iphonesimulator3.1.2;
+				SDKROOT = iphoneos;
 				USER_HEADER_SEARCH_PATHS = "include/openssl include ctaocrypt/include";
 				WARNING_CFLAGS = "-Wall";
 				ZERO_LINK = YES;
@@ -384,7 +399,7 @@
 				GCC_WARN_ABOUT_RETURN_TYPE = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				PREBINDING = NO;
-				SDKROOT = iphonesimulator2.2;
+				SDKROOT = iphoneos;
 				USER_HEADER_SEARCH_PATHS = "include ctaocrypt/include";
 			};
 			name = Debug;
