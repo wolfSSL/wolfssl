@@ -19,7 +19,8 @@ src_libcyassl_la_SOURCES = \
 src_libcyassl_la_LDFLAGS = -no-undefined -version-info ${CYASSL_LIBRARY_VERSION}
 src_libcyassl_la_CFLAGS = -DBUILDING_CYASSL
 EXTRA_DIST += include/*.h include/openssl/*.h include/*.rc \
-              ctaocrypt/include/*.h ctaocrypt/src/misc.c
+              ctaocrypt/include/*.h ctaocrypt/src/misc.c ctaocrypt/src/asm.c \
+              ctaocrypt/src/*.i
 
 if BUILD_AESNI
 src_libcyassl_la_SOURCES += ctaocrypt/src/aes_asm.s
