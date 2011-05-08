@@ -2895,7 +2895,7 @@ int ReceiveData(SSL* ssl, byte* output, int sz)
 /* send alert message */
 int SendAlert(SSL* ssl, int severity, int type)
 {
-    byte input[ALERT_SIZE + MAX_MSG_EXTRA];
+    byte input[ALERT_SIZE];
     byte *output;
     int  sendSz;
     int  ret;
@@ -2920,15 +2920,15 @@ int SendAlert(SSL* ssl, int severity, int type)
     input[1] = type;
 
     if (ssl->keys.encryptionOn)
-        sendSz = BuildMessage(ssl, output, input, sizeof(input), alert);
+        sendSz = BuildMessage(ssl, output, input, ALERT_SIZE, alert);
     else {
         RecordLayerHeader *const rl = (RecordLayerHeader*)output;
         rl->type    = alert;
         rl->version = ssl->version;
         c16toa(ALERT_SIZE, rl->length);      
 
-        XMEMCPY(output + RECORD_HEADER_SZ, input, sizeof(input));
-        sendSz = RECORD_HEADER_SZ + sizeof(input);
+        XMEMCPY(output + RECORD_HEADER_SZ, input, ALERT_SIZE);
+        sendSz = RECORD_HEADER_SZ + ALERT_SIZE;
     }
 
     #ifdef CYASSL_CALLBACKS
