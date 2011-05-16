@@ -61,13 +61,13 @@
 #define PACKAGE_NAME "cyassl"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "cyassl 2.0.0rc1"
+#define PACKAGE_STRING "cyassl 2.0.0rc2"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "cyassl"
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "2.0.0rc1"
+#define PACKAGE_VERSION "2.0.0rc2"
 
 /* Define to necessary symbol if this constant uses a non-standard name on
    your system. */
@@ -83,7 +83,7 @@
 #define STDC_HEADERS 1
 
 /* Version number of package */
-#define VERSION "2.0.0rc1"
+#define VERSION "2.0.0rc2"
 
 /* Define to 1 if your processor stores words with the most significant byte
    first (like Motorola and SPARC, unlike Intel and VAX). */
