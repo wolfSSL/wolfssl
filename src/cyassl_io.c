@@ -37,20 +37,26 @@
     #include "zlib.h"
 #endif
 
-#ifndef USE_WINDOWS_API 
-    #include <sys/types.h>
-    #include <errno.h>
-    #include <unistd.h>
-    #include <fcntl.h>
-    #if !(defined(DEVKITPRO) || defined(THREADX))
-        #include <sys/socket.h>
-        #include <arpa/inet.h>
-        #include <netinet/in.h>
-        #include <netdb.h>
-        #include <sys/ioctl.h>
-    #endif
-    #ifdef THREADX
-        #include <socket.h>
+#ifndef USE_WINDOWS_API
+    #ifdef LWIP_SOCKETS
+        #define LWIP_SOCKET 1              /* use berkely API */
+        #define LWIP_COMPAT_SOCKETS 1
+        #include "sockets.h"
+    #else
+        #include <sys/types.h>
+        #include <errno.h>
+        #include <unistd.h>
+        #include <fcntl.h>
+        #if !(defined(DEVKITPRO) || defined(THREADX))
+            #include <sys/socket.h>
+            #include <arpa/inet.h>
+            #include <netinet/in.h>
+            #include <netdb.h>
+            #include <sys/ioctl.h>
+        #endif
+        #ifdef THREADX
+            #include <socket.h>
+        #endif
     #endif
 #endif /* USE_WINDOWS_API */
 
