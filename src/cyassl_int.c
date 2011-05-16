@@ -4652,6 +4652,7 @@ int SetCipherList(SSL_CTX* ctx, const char* list)
                 if (ssl->options.dtls) {
                     sendSz += DTLS_RECORD_EXTRA + DTLS_HANDSHAKE_EXTRA;
                     idx    += DTLS_RECORD_EXTRA + DTLS_HANDSHAKE_EXTRA;
+                    preSigIdx = idx;
                 }
             #endif
             /* check for avalaible size */
@@ -4833,6 +4834,7 @@ int SetCipherList(SSL_CTX* ctx, const char* list)
                 if (ssl->options.dtls) {
                     sendSz += DTLS_RECORD_EXTRA + DTLS_HANDSHAKE_EXTRA;
                     idx    += DTLS_RECORD_EXTRA + DTLS_HANDSHAKE_EXTRA;
+                    preSigIdx = idx;
                 }
             #endif
             /* check for avalaible size */
