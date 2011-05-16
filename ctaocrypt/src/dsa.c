@@ -61,6 +61,7 @@ void InitDsaKey(DsaKey* key)
 
 void FreeDsaKey(DsaKey* key)
 {
+    (void)key;
 /* TomsFastMath doesn't use memory allocation */
 #ifndef USE_FAST_MATH
     if (key->type == DSA_PRIVATE)
