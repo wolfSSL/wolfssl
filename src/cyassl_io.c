@@ -111,9 +111,9 @@ int EmbedReceive(char *buf, int sz, void *ctx)
 {
     int recvd;
     int err;
-    int socket = *(int*)ctx;
+    int sd = *(int*)ctx;
 
-    recvd = RECV_FUNCTION(socket, (char *)buf, sz, 0);
+    recvd = RECV_FUNCTION(sd, (char *)buf, sz, 0);
 
     if (recvd == -1) {
         err = LastError();
@@ -149,12 +149,12 @@ int EmbedReceive(char *buf, int sz, void *ctx)
  */
 int EmbedSend(char *buf, int sz, void *ctx)
 {
-    int socket = *(int*)ctx;
+    int sd = *(int*)ctx;
     int sent;
     int len = sz;
     int err;
 
-    sent = SEND_FUNCTION(socket, &buf[sz - len], len, 0);
+    sent = SEND_FUNCTION(sd, &buf[sz - len], len, 0);
 
     if (sent == -1) {
         err = LastError();
