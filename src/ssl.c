@@ -1013,6 +1013,9 @@ int SSL_CTX_load_verify_locations(SSL_CTX* ctx, const char* file,
 int CyaSSL_CTX_load_verify_locations(SSL_CTX* ctx, const char* file, int format)
 {
     CYASSL_ENTER("CyaSSL_CTX_load_verify_locations");
+    if (ctx == NULL || file == NULL)
+        return SSL_FAILURE;
+
     if (ProcessFile(ctx, file, format, CA_TYPE, NULL, 0) == SSL_SUCCESS)
         return SSL_SUCCESS;
 
