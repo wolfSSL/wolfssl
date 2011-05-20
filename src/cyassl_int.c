@@ -1039,10 +1039,12 @@ static void AddHeaders(byte* output, word32 length, byte type, SSL* ssl)
         AddRecordHeader(output, length + HANDSHAKE_HEADER_SZ, handshake, ssl);
         AddHandShakeHeader(output + RECORD_HEADER_SZ, length, type, ssl);
     }
+#ifdef CYASSL_DTLS
     else  {
         AddRecordHeader(output, length+DTLS_HANDSHAKE_HEADER_SZ, handshake,ssl);
         AddHandShakeHeader(output + DTLS_RECORD_HEADER_SZ, length, type, ssl);
     }
+#endif
 }
 
 
