@@ -41,6 +41,9 @@
 /* Uncomment next line if using Mbed */
 /* #define MBED */
 
+/* Uncomment next line if using FreeRTOS */
+/* #define FREERTOS */
+
 #if defined(USE_CYASSL_CONFIG) || defined(HAVE_CONFIG_H)
     #include "config.h"   /* may not want global HAVE_CONFIG_H */
 #endif
@@ -66,6 +69,16 @@
     #define NO_HC128
 #endif /* MBED */
 
+#ifdef FREERTOS 
+    #define SINGLE_THREADED
+    #define NO_WRITEV
+    #define NO_SHA512
+    #define NO_DH
+    #define NO_DSA
+    #define NO_HC128
+    #define LWIP_SOCKETS
+    #define LWIP_PROVIDE_ERRNO
+#endif
 
 #ifdef MICRIUM
 
