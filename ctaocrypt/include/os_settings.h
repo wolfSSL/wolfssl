@@ -44,6 +44,9 @@
 /* Uncomment next line if using FreeRTOS */
 /* #define FREERTOS */
 
+/* Uncomment next line if using lwip */
+/* #define CYASSL_LWIP */
+
 #if defined(USE_CYASSL_CONFIG) || defined(HAVE_CONFIG_H)
     #include "config.h"   /* may not want global HAVE_CONFIG_H */
 #endif
@@ -76,6 +79,10 @@
     #define NO_DH
     #define NO_DSA
     #define NO_HC128
+    #define CYASSL_LWIP      /* by default for now */
+#endif
+
+#ifdef CYASSL_LWIP
     #define LWIP_SOCKETS
     #define LWIP_PROVIDE_ERRNO
 #endif
