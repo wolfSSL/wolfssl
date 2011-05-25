@@ -512,9 +512,9 @@ enum KeyStuff {
 
 
 /* true or false, zero for error */
-static int SetPrefix(byte* sha_input, int index)
+static int SetPrefix(byte* sha_input, int idx)
 {
-    switch (index) {
+    switch (idx) {
     case 0:
         XMEMCPY(sha_input, "A", 1);
         break;
@@ -544,19 +544,19 @@ static int SetPrefix(byte* sha_input, int index)
 }
 
 
-static int SetKeys(Ciphers* encrypt, Ciphers* decrypt, Keys* keys,
-                   CipherSpecs* specs, byte side)
+static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
+                   byte side)
 {
 #ifdef BUILD_ARC4
     word32 sz = specs->key_size;
     if (specs->bulk_cipher_algorithm == rc4) {
         if (side == CLIENT_END) {
-            Arc4SetKey(&encrypt->arc4, keys->client_write_key, sz);
-            Arc4SetKey(&decrypt->arc4, keys->server_write_key, sz);
+            Arc4SetKey(&enc->arc4, keys->client_write_key, sz);
+            Arc4SetKey(&dec->arc4, keys->server_write_key, sz);
         }
         else {
-            Arc4SetKey(&encrypt->arc4, keys->server_write_key, sz);
-            Arc4SetKey(&decrypt->arc4, keys->client_write_key, sz);
+            Arc4SetKey(&enc->arc4, keys->server_write_key, sz);
+            Arc4SetKey(&dec->arc4, keys->client_write_key, sz);
         }
     }
 #endif
@@ -564,15 +564,15 @@ static int SetKeys(Ciphers* encrypt, Ciphers* decrypt, Keys* keys,
 #ifdef BUILD_HC128
     if (specs->bulk_cipher_algorithm == hc128) {
         if (side == CLIENT_END) {
-            Hc128_SetKey(&encrypt->hc128, keys->client_write_key,
+            Hc128_SetKey(&enc->hc128, keys->client_write_key,
                                           keys->client_write_IV);
-            Hc128_SetKey(&decrypt->hc128, keys->server_write_key,
+            Hc128_SetKey(&dec->hc128, keys->server_write_key,
                                           keys->server_write_IV);
         }
         else {
-            Hc128_SetKey(&encrypt->hc128, keys->server_write_key,
+            Hc128_SetKey(&enc->hc128, keys->server_write_key,
                                          keys->server_write_IV);
-            Hc128_SetKey(&decrypt->hc128, keys->client_write_key,
+            Hc128_SetKey(&dec->hc128, keys->client_write_key,
                                          keys->client_write_IV);
         }
     }
@@ -581,15 +581,15 @@ static int SetKeys(Ciphers* encrypt, Ciphers* decrypt, Keys* keys,
 #ifdef BUILD_RABBIT
     if (specs->bulk_cipher_algorithm == rabbit) {
         if (side == CLIENT_END) {
-            RabbitSetKey(&encrypt->rabbit, keys->client_write_key,
+            RabbitSetKey(&enc->rabbit, keys->client_write_key,
                                            keys->client_write_IV);
-            RabbitSetKey(&decrypt->rabbit, keys->server_write_key,
+            RabbitSetKey(&dec->rabbit, keys->server_write_key,
                                            keys->server_write_IV);
         }
         else {
-            RabbitSetKey(&encrypt->rabbit, keys->server_write_key,
+            RabbitSetKey(&enc->rabbit, keys->server_write_key,
                                            keys->server_write_IV);
-            RabbitSetKey(&decrypt->rabbit, keys->client_write_key,
+            RabbitSetKey(&dec->rabbit, keys->client_write_key,
                                            keys->client_write_IV);
         }
     }
@@ -598,15 +598,15 @@ static int SetKeys(Ciphers* encrypt, Ciphers* decrypt, Keys* keys,
 #ifdef BUILD_DES3
     if (specs->bulk_cipher_algorithm == triple_des) {
         if (side == CLIENT_END) {
-            Des3_SetKey(&encrypt->des3, keys->client_write_key,
+            Des3_SetKey(&enc->des3, keys->client_write_key,
                         keys->client_write_IV, DES_ENCRYPTION);
-            Des3_SetKey(&decrypt->des3, keys->server_write_key,
+            Des3_SetKey(&dec->des3, keys->server_write_key,
                         keys->server_write_IV, DES_DECRYPTION);
         }
         else {
-            Des3_SetKey(&encrypt->des3, keys->server_write_key,
+            Des3_SetKey(&enc->des3, keys->server_write_key,
                         keys->server_write_IV, DES_ENCRYPTION);
-            Des3_SetKey(&decrypt->des3, keys->client_write_key,
+            Des3_SetKey(&dec->des3, keys->client_write_key,
                 keys->client_write_IV, DES_DECRYPTION);
         }
     }
@@ -615,18 +615,18 @@ static int SetKeys(Ciphers* encrypt, Ciphers* decrypt, Keys* keys,
 #ifdef BUILD_AES
     if (specs->bulk_cipher_algorithm == aes) {
         if (side == CLIENT_END) {
-            AesSetKey(&encrypt->aes, keys->client_write_key,
+            AesSetKey(&enc->aes, keys->client_write_key,
                       specs->key_size, keys->client_write_IV,
                       AES_ENCRYPTION);
-            AesSetKey(&decrypt->aes, keys->server_write_key,
+            AesSetKey(&dec->aes, keys->server_write_key,
                       specs->key_size, keys->server_write_IV,
                       AES_DECRYPTION);
         }
         else {
-            AesSetKey(&encrypt->aes, keys->server_write_key,
+            AesSetKey(&enc->aes, keys->server_write_key,
                       specs->key_size, keys->server_write_IV,
                       AES_ENCRYPTION);
-            AesSetKey(&decrypt->aes, keys->client_write_key,
+            AesSetKey(&dec->aes, keys->client_write_key,
                       specs->key_size, keys->client_write_IV,
                       AES_DECRYPTION);
         }

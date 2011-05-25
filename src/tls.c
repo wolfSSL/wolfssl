@@ -299,7 +299,7 @@ static INLINE const byte* GetMacSecret(SSL* ssl, int verify)
 
 
 /* TLS type HMAC */
-void TLS_hmac(SSL* ssl, byte* digest, const byte* buffer, word32 sz,
+void TLS_hmac(SSL* ssl, byte* digest, const byte* in, word32 sz,
               int content, int verify)
 {
     Hmac hmac;
@@ -329,7 +329,7 @@ void TLS_hmac(SSL* ssl, byte* digest, const byte* buffer, word32 sz,
     inner[ENUM_LEN + ENUM_LEN] = ssl->version.minor;              /* version */
     XMEMCPY(&inner[ENUM_LEN + VERSION_SZ], length, LENGTH_SZ);     /* length */
     HmacUpdate(&hmac, inner, sizeof(inner));
-    HmacUpdate(&hmac, buffer, sz);                                /* content */
+    HmacUpdate(&hmac, in, sz);                                /* content */
     HmacFinal(&hmac, digest);
 }
 

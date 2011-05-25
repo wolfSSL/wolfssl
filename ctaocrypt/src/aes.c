@@ -926,7 +926,7 @@ int AesSetKey(Aes* aes, const byte* userKey, word32 keylen, const byte* iv,
 
     if (dir == AES_DECRYPTION)
     {
-        unsigned int i, j;
+        unsigned int j;
         rk = aes->key;
 
         /* invert the order of the round keys: */

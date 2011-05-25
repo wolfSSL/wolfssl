@@ -197,9 +197,9 @@ static const char* const msgTable[] =
 
 
 /* *nix version uses table above */
-static void GetError(int idx, char* buffer)
+static void GetError(int idx, char* str)
 {
-    XSTRNCPY(buffer, msgTable[idx - 1], MAX_ERROR_LEN);
+    XSTRNCPY(str, msgTable[idx - 1], MAX_ERROR_LEN);
 }
 
 
@@ -301,35 +301,35 @@ void ssl_InitSniffer(void)
 
 
 /* Free Sniffer Server's resources/self */
-static void FreeSnifferServer(SnifferServer* server)
+static void FreeSnifferServer(SnifferServer* srv)
 {
-    if (server)
-        SSL_CTX_free(server->ctx);
-    free(server);
+    if (srv)
+        SSL_CTX_free(srv->ctx);
+    free(srv);
 }
 
 
 /* free PacketBuffer's resources/self */
-static void FreePacketBuffer(PacketBuffer* remove)
+static void FreePacketBuffer(PacketBuffer* del)
 {
-    if (remove) {
-        free(remove->data);
-        free(remove);
+    if (del) {
+        free(del->data);
+        free(del);
     }
 }
 
 
 /* remove PacketBuffer List */
-static void FreePacketList(PacketBuffer* buffer)
+static void FreePacketList(PacketBuffer* in)
 {
-    if (buffer) {
-        PacketBuffer* remove;
-        PacketBuffer* packet = buffer;
+    if (in) {
+        PacketBuffer* del;
+        PacketBuffer* packet = in;
         
         while (packet) {
-            remove = packet;
+            del = packet;
             packet = packet->next;
-            FreePacketBuffer(remove);
+            FreePacketBuffer(del);
         }
     }
 }
@@ -352,7 +352,7 @@ static void FreeSnifferSession(SnifferSession* session)
 /* Free overall Sniffer */
 void ssl_FreeSniffer(void)
 {
-    SnifferServer*  server;
+    SnifferServer*  srv;
     SnifferServer*  removeServer;
     SnifferSession* session;
     SnifferSession* removeSession;
@@ -361,10 +361,10 @@ void ssl_FreeSniffer(void)
     LockMutex(&ServerListMutex);
     LockMutex(&SessionMutex);
     
-    server = ServerList;
-    while (server) {
-        removeServer = server;
-        server = server->next;
+    srv = ServerList;
+    while (srv) {
+        removeServer = srv;
+        srv = srv->next;
         FreeSnifferServer(removeServer);
     }
 
@@ -540,11 +540,11 @@ typedef struct TcpHdr {
 static void Trace(int idx) 
 {
     if (TraceOn) {
-        char buffer[MAX_ERROR_LEN];
-        GetError(idx, buffer);
-        fprintf(TraceFile, "\t%s\n", buffer);
+        char myBuffer[MAX_ERROR_LEN];
+        GetError(idx, myBuffer);
+        fprintf(TraceFile, "\t%s\n", myBuffer);
 #ifdef DEBUG_SNIFFER
-        fprintf(stderr,    "\t%s\n", buffer);
+        fprintf(stderr,    "\t%s\n", myBuffer);
 #endif
     }
 }
@@ -561,12 +561,12 @@ static void TraceHeader(void)
 
 
 /* Show Set Server info for Trace */
-static void TraceSetServer(const char* server, int port, const char* keyFile)
+static void TraceSetServer(const char* srv, int port, const char* keyFile)
 {
     if (TraceOn) {
         fprintf(TraceFile, "\tTrying to install a new Sniffer Server with\n");
-        fprintf(TraceFile, "\tserver: %s, port: %d, keyFile: %s\n", server,
-                port, keyFile);
+        fprintf(TraceFile, "\tserver: %s, port: %d, keyFile: %s\n", srv, port,
+                                                                    keyFile);
     }
 }
 
@@ -851,10 +851,10 @@ static SnifferSession* GetSnifferSession(IpInfo* ipInfo, TcpInfo* tcpInfo)
 /* Sets the private key for a specific server and port  */
 /* returns 0 on success, -1 on error */
 int ssl_SetPrivateKey(const char* serverAddress, int port, const char* keyFile,
-                      int keyType, const char* password, char* error)
+                      int typeKey, const char* password, char* error)
 {
     int            ret;
-    int            type = (keyType == FILETYPE_PEM) ? SSL_FILETYPE_PEM :
+    int            type = (typeKey == FILETYPE_PEM) ? SSL_FILETYPE_PEM :
                                                       SSL_FILETYPE_ASN1;
     SnifferServer* sniffer;
     
@@ -1952,7 +1952,7 @@ static int HaveMoreInput(SnifferSession* session, const byte** sslFrame,
     word32*        length = (session->flags.side == SERVER_END) ?
                                &session->sslServer->buffers.inputBuffer.length :
                                &session->sslClient->buffers.inputBuffer.length;
-    byte*          buffer = (session->flags.side == SERVER_END) ?
+    byte*          myBuffer = (session->flags.side == SERVER_END) ?
                                 session->sslServer->buffers.inputBuffer.buffer :
                                 session->sslClient->buffers.inputBuffer.buffer;
     
@@ -1961,15 +1961,15 @@ static int HaveMoreInput(SnifferSession* session, const byte** sslFrame,
         word32 packetLen = (*front)->end - (*front)->begin + 1;
         
         if (packetLen <= room) {
-            PacketBuffer* remove = *front;
+            PacketBuffer* del = *front;
             
-            XMEMCPY(&buffer[*length], (*front)->data, packetLen);
+            XMEMCPY(&myBuffer[*length], (*front)->data, packetLen);
             *length   += packetLen;
             *expected += packetLen;
             
             /* remove used packet */
             *front = (*front)->next;
-            FreePacketBuffer(remove);
+            FreePacketBuffer(del);
             
             moreInput = 1;
         }
@@ -1977,9 +1977,9 @@ static int HaveMoreInput(SnifferSession* session, const byte** sslFrame,
             break;
     }
     if (moreInput) {
-        *sslFrame = buffer;
+        *sslFrame = myBuffer;
         *sslBytes = *length;
-        *end      = buffer + *length;
+        *end      = myBuffer + *length;
     }
     return moreInput;
 }

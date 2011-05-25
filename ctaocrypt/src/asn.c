@@ -588,32 +588,32 @@ static int DecryptKey(const char* password, int passwordSz, byte* salt,
                       int length, int version, byte* cbcIv)
 {
     byte   key[MAX_KEY_SIZE];
-    int    hashType;
+    int    typeH;
     int    derivedLen;
     int    decryptionType;
     int    ret = 0; 
 
     switch (id) {
         case PBE_MD5_DES:
-            hashType = MD5;
+            typeH = MD5;
             derivedLen = 16;           /* may need iv for v1.5 */
             decryptionType = DES_TYPE;
             break;
 
         case PBE_SHA1_DES:
-            hashType = SHA;
+            typeH = SHA;
             derivedLen = 16;           /* may need iv for v1.5 */
             decryptionType = DES_TYPE;
             break;
 
         case PBE_SHA1_DES3:
-            hashType = SHA;
+            typeH = SHA;
             derivedLen = 32;           /* may need iv for v1.5 */
             decryptionType = DES3_TYPE;
             break;
 
         case PBE_SHA1_RC4_128:
-            hashType = SHA;
+            typeH = SHA;
             derivedLen = 16;
             decryptionType = RC4_TYPE;
             break;
@@ -624,10 +624,10 @@ static int DecryptKey(const char* password, int passwordSz, byte* salt,
 
     if (version == PKCS5v2)
         ret = PBKDF2(key, (byte*)password, passwordSz, salt, saltSz, iterations,
-               derivedLen, hashType);
+               derivedLen, typeH);
     else if (version == PKCS5)
         ret = PBKDF1(key, (byte*)password, passwordSz, salt, saltSz, iterations,
-               derivedLen, hashType);
+               derivedLen, typeH);
     else if (version == PKCS12) {
         int  i, idx = 0;
         byte unicodePasswd[MAX_UNICODE_SZ];
@@ -644,10 +644,10 @@ static int DecryptKey(const char* password, int passwordSz, byte* salt,
         unicodePasswd[idx++] = 0x00;
 
         ret =  PKCS12_PBKDF(key, unicodePasswd, idx, salt, saltSz,
-                            iterations, derivedLen, hashType, 1);
+                            iterations, derivedLen, typeH, 1);
         if (decryptionType != RC4_TYPE)
             ret += PKCS12_PBKDF(cbcIv, unicodePasswd, idx, salt, saltSz,
-                                iterations, 8, hashType, 2);
+                                iterations, 8, typeH, 2);
     }
 
     if (ret != 0)
@@ -1762,7 +1762,7 @@ static int ConfirmSignature(DecodedCert* cert, const byte* key, word32 keySz,
 #else
     byte digest[SHA_DIGEST_SIZE];    /* max size */
 #endif
-    int  hashType, digestSz, ret;
+    int  typeH, digestSz, ret;
 
     if (cert->signatureOID == MD5wRSA) {
         Md5 md5;
@@ -1770,7 +1770,7 @@ static int ConfirmSignature(DecodedCert* cert, const byte* key, word32 keySz,
         Md5Update(&md5, cert->source + cert->certBegin,
                   cert->sigIndex - cert->certBegin);
         Md5Final(&md5, digest);
-        hashType = MD5h;
+        typeH    = MD5h;
         digestSz = MD5_DIGEST_SIZE;
     }
     else if (cert->signatureOID == SHAwRSA || cert->signatureOID == SHAwDSA ||
@@ -1780,7 +1780,7 @@ static int ConfirmSignature(DecodedCert* cert, const byte* key, word32 keySz,
         ShaUpdate(&sha, cert->source + cert->certBegin,
                   cert->sigIndex - cert->certBegin);
         ShaFinal(&sha, digest);
-        hashType = SHAh;
+        typeH    = SHAh;
         digestSz = SHA_DIGEST_SIZE;
     }
 #ifndef NO_SHA256
@@ -1791,7 +1791,7 @@ static int ConfirmSignature(DecodedCert* cert, const byte* key, word32 keySz,
         Sha256Update(&sha256, cert->source + cert->certBegin,
                   cert->sigIndex - cert->certBegin);
         Sha256Final(&sha256, digest);
-        hashType = SHA256h;
+        typeH    = SHA256h;
         digestSz = SHA256_DIGEST_SIZE;
     }
 #endif
@@ -1827,7 +1827,7 @@ static int ConfirmSignature(DecodedCert* cert, const byte* key, word32 keySz,
             }
             else {
                 /* make sure we're right justified */
-                sigSz = EncodeSignature(encodedSig, digest, digestSz, hashType);
+                sigSz = EncodeSignature(encodedSig, digest, digestSz, typeH);
                 if (sigSz != verifySz || XMEMCMP(out, encodedSig, sigSz) != 0){
                     CYASSL_MSG("Rsa SSL verify match encode error");
                     ret = 0;
@@ -2314,23 +2314,23 @@ int DerToPem(const byte* der, word32 derSz, byte* output, word32 outSz,
 #ifdef CYASSL_KEY_GEN
 
 
-static mp_int* GetRsaInt(RsaKey* key, int index)
+static mp_int* GetRsaInt(RsaKey* key, int idx)
 {
-    if (index == 0)
+    if (idx == 0)
         return &key->n;
-    if (index == 1)
+    if (idx == 1)
         return &key->e;
-    if (index == 2)
+    if (idx == 2)
         return &key->d;
-    if (index == 3)
+    if (idx == 3)
         return &key->p;
-    if (index == 4)
+    if (idx == 4)
         return &key->q;
-    if (index == 5)
+    if (idx == 5)
         return &key->dP;
-    if (index == 6)
+    if (idx == 6)
         return &key->dQ;
-    if (index == 7)
+    if (idx == 7)
         return &key->u;
 
     return NULL;
@@ -2662,9 +2662,9 @@ typedef struct EncodedName {
 
 
 /* Get Which Name from index */
-static const char* GetOneName(CertName* name, int index)
+static const char* GetOneName(CertName* name, int idx)
 {
-    switch (index) {
+    switch (idx) {
     case 0:
        return name->country;
        break;
@@ -2698,9 +2698,9 @@ static const char* GetOneName(CertName* name, int index)
 
 
 /* Get ASN Name from index */
-static byte GetNameId(int index)
+static byte GetNameId(int idx)
 {
-    switch (index) {
+    switch (idx) {
     case 0:
        return ASN_COUNTRY_NAME;
        break;
@@ -2951,17 +2951,17 @@ static int MakeSignature(const byte* buffer, int sz, byte* sig, int sigSz,
 {
     byte    digest[SHA_DIGEST_SIZE];     /* max size */
     byte    encSig[MAX_ENCODED_DIG_SZ + MAX_ALGO_SZ + MAX_SEQ_SZ];
-    int     encSigSz, digestSz, hashType;
+    int     encSigSz, digestSz, typeH;
     Md5     md5;                         /* md5 for now */
 
     InitMd5(&md5);
     Md5Update(&md5, buffer, sz);
     Md5Final(&md5, digest);
     digestSz = MD5_DIGEST_SIZE;
-    hashType = MD5h;
+    typeH    = MD5h;
 
     /* signature */
-    encSigSz = EncodeSignature(encSig, digest, digestSz, hashType);
+    encSigSz = EncodeSignature(encSig, digest, digestSz, typeH);
     return RsaSSL_Sign(encSig, encSigSz, sig, sigSz, key, rng);
 }
 

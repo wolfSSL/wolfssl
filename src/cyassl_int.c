@@ -941,21 +941,21 @@ ProtocolVersion MakeDTLSv1(void)
 /* add output to md5 and sha handshake hashes, exclude record header */
 static void HashOutput(SSL* ssl, const byte* output, int sz, int ivSz)
 {
-    const byte* buffer = output + RECORD_HEADER_SZ + ivSz;
+    const byte* adj = output + RECORD_HEADER_SZ + ivSz;
     sz -= RECORD_HEADER_SZ;
     
 #ifdef CYASSL_DTLS
     if (ssl->options.dtls) {
-        buffer += DTLS_RECORD_EXTRA;
-        sz     -= DTLS_RECORD_EXTRA;
+        adj += DTLS_RECORD_EXTRA;
+        sz  -= DTLS_RECORD_EXTRA;
     }
 #endif
 
-    Md5Update(&ssl->hashMd5, buffer, sz);
-    ShaUpdate(&ssl->hashSha, buffer, sz);
+    Md5Update(&ssl->hashMd5, adj, sz);
+    ShaUpdate(&ssl->hashSha, adj, sz);
 #ifndef NO_SHA256
     if (IsAtLeastTLSv1_2(ssl))
-        Sha256Update(&ssl->hashSha256, buffer, sz);
+        Sha256Update(&ssl->hashSha256, adj, sz);
 #endif
 }
 
@@ -963,21 +963,21 @@ static void HashOutput(SSL* ssl, const byte* output, int sz, int ivSz)
 /* add input to md5 and sha handshake hashes, include handshake header */
 static void HashInput(SSL* ssl, const byte* input, int sz)
 {
-    const byte* buffer = input - HANDSHAKE_HEADER_SZ;
+    const byte* adj = input - HANDSHAKE_HEADER_SZ;
     sz += HANDSHAKE_HEADER_SZ;
     
 #ifdef CYASSL_DTLS
     if (ssl->options.dtls) {
-        buffer -= DTLS_HANDSHAKE_EXTRA;
-        sz     += DTLS_HANDSHAKE_EXTRA;
+        adj -= DTLS_HANDSHAKE_EXTRA;
+        sz  += DTLS_HANDSHAKE_EXTRA;
     }
 #endif
 
-    Md5Update(&ssl->hashMd5, buffer, sz);
-    ShaUpdate(&ssl->hashSha, buffer, sz);
+    Md5Update(&ssl->hashMd5, adj, sz);
+    ShaUpdate(&ssl->hashSha, adj, sz);
 #ifndef NO_SHA256
     if (IsAtLeastTLSv1_2(ssl))
-        Sha256Update(&ssl->hashSha256, buffer, sz);
+        Sha256Update(&ssl->hashSha256, adj, sz);
 #endif
 }
 
@@ -2358,7 +2358,7 @@ static INLINE const byte* GetMacSecret(SSL* ssl, int verify)
 }
 
 
-static void Hmac(SSL* ssl, byte* digest, const byte* buffer, word32 sz,
+static void Hmac(SSL* ssl, byte* digest, const byte* in, word32 sz,
                  int content, int verify)
 {
     byte   result[SHA256_DIGEST_SIZE];                 /* max possible sizes */
@@ -2384,8 +2384,8 @@ static void Hmac(SSL* ssl, byte* digest, const byte* buffer, word32 sz,
         Md5Update(&md5, PAD1, padSz);
         Md5Update(&md5, seq, SEQ_SZ);
         Md5Update(&md5, conLen, sizeof(conLen));
-        /* buffer */
-        Md5Update(&md5, buffer, sz);
+        /* in buffer */
+        Md5Update(&md5, in, sz);
         Md5Final(&md5, result);
         /* outer */
         Md5Update(&md5, macSecret, digestSz);
@@ -2400,8 +2400,8 @@ static void Hmac(SSL* ssl, byte* digest, const byte* buffer, word32 sz,
         ShaUpdate(&sha, PAD1, padSz);
         ShaUpdate(&sha, seq, SEQ_SZ);
         ShaUpdate(&sha, conLen, sizeof(conLen));
-        /* buffer */
-        ShaUpdate(&sha, buffer, sz);
+        /* in buffer */
+        ShaUpdate(&sha, in, sz);
         ShaFinal(&sha, result);
         /* outer */
         ShaUpdate(&sha, macSecret, digestSz);
@@ -2744,7 +2744,7 @@ int SendCertificateRequest(SSL* ssl)
 }
 
 
-int SendData(SSL* ssl, const void* buffer, int sz)
+int SendData(SSL* ssl, const void* data, int sz)
 {
     int sent = 0,  /* plainText size */
         sendSz,
@@ -2779,7 +2779,7 @@ int SendData(SSL* ssl, const void* buffer, int sz)
     for (;;) {
         int   len = min(sz - sent, OUTPUT_RECORD_SIZE);
         byte* out;
-        byte* sendBuffer = (byte*)buffer + sent;  /* may switch on comp */
+        byte* sendBuffer = (byte*)data + sent;  /* may switch on comp */
         int   buffSz = len;                       /* may switch on comp */
 #ifdef HAVE_LIBZ
         byte  comp[MAX_RECORD_SIZE + MAX_COMP_EXTRA];
@@ -2946,254 +2946,254 @@ int SendAlert(SSL* ssl, int severity, int type)
 
 
 
-void SetErrorString(int error, char* buffer)
+void SetErrorString(int error, char* str)
 {
     const int max = MAX_ERROR_SZ;  /* shorthand */
 
 #ifdef NO_ERROR_STRINGS
 
-    XSTRNCPY(buffer, "no support for error strings built in", max);
+    XSTRNCPY(str, "no support for error strings built in", max);
 
 #else
 
     /* pass to CTaoCrypt */
     if (error < MAX_CODE_E && error > MIN_CODE_E) {
-        CTaoCryptErrorString(error, buffer);
+        CTaoCryptErrorString(error, str);
         return;
     }
 
     switch (error) {
 
     case UNSUPPORTED_SUITE :
-        XSTRNCPY(buffer, "unsupported cipher suite", max);
+        XSTRNCPY(str, "unsupported cipher suite", max);
         break;
 
     case PREFIX_ERROR :
-        XSTRNCPY(buffer, "bad index to key rounds", max);
+        XSTRNCPY(str, "bad index to key rounds", max);
         break;
 
     case MEMORY_ERROR :
-        XSTRNCPY(buffer, "out of memory", max);
+        XSTRNCPY(str, "out of memory", max);
         break;
 
     case VERIFY_FINISHED_ERROR :
-        XSTRNCPY(buffer, "verify problem on finished", max);
+        XSTRNCPY(str, "verify problem on finished", max);
         break;
 
     case VERIFY_MAC_ERROR :
-        XSTRNCPY(buffer, "verify mac problem", max);
+        XSTRNCPY(str, "verify mac problem", max);
         break;
 
     case PARSE_ERROR :
-        XSTRNCPY(buffer, "parse error on header", max);
+        XSTRNCPY(str, "parse error on header", max);
         break;
 
     case SIDE_ERROR :
-        XSTRNCPY(buffer, "wrong client/server type", max);
+        XSTRNCPY(str, "wrong client/server type", max);
         break;
 
     case NO_PEER_CERT :
-        XSTRNCPY(buffer, "peer didn't send cert", max);
+        XSTRNCPY(str, "peer didn't send cert", max);
         break;
 
     case UNKNOWN_HANDSHAKE_TYPE :
-        XSTRNCPY(buffer, "weird handshake type", max);
+        XSTRNCPY(str, "weird handshake type", max);
         break;
 
     case SOCKET_ERROR_E :
-        XSTRNCPY(buffer, "error state on socket", max);
+        XSTRNCPY(str, "error state on socket", max);
         break;
 
     case SOCKET_NODATA :
-        XSTRNCPY(buffer, "expected data, not there", max);
+        XSTRNCPY(str, "expected data, not there", max);
         break;
 
     case INCOMPLETE_DATA :
-        XSTRNCPY(buffer, "don't have enough data to complete task", max);
+        XSTRNCPY(str, "don't have enough data to complete task", max);
         break;
 
     case UNKNOWN_RECORD_TYPE :
-        XSTRNCPY(buffer, "unknown type in record hdr", max);
+        XSTRNCPY(str, "unknown type in record hdr", max);
         break;
 
     case DECRYPT_ERROR :
-        XSTRNCPY(buffer, "error during decryption", max);
+        XSTRNCPY(str, "error during decryption", max);
         break;
 
     case FATAL_ERROR :
-        XSTRNCPY(buffer, "revcd alert fatal error", max);
+        XSTRNCPY(str, "revcd alert fatal error", max);
         break;
 
     case ENCRYPT_ERROR :
-        XSTRNCPY(buffer, "error during encryption", max);
+        XSTRNCPY(str, "error during encryption", max);
         break;
 
     case FREAD_ERROR :
-        XSTRNCPY(buffer, "fread problem", max);
+        XSTRNCPY(str, "fread problem", max);
         break;
 
     case NO_PEER_KEY :
-        XSTRNCPY(buffer, "need peer's key", max);
+        XSTRNCPY(str, "need peer's key", max);
         break;
 
     case NO_PRIVATE_KEY :
-        XSTRNCPY(buffer, "need the private key", max);
+        XSTRNCPY(str, "need the private key", max);
         break;
 
     case NO_DH_PARAMS :
-        XSTRNCPY(buffer, "server missing DH params", max);
+        XSTRNCPY(str, "server missing DH params", max);
         break;
 
     case RSA_PRIVATE_ERROR :
-        XSTRNCPY(buffer, "error during rsa priv op", max);
+        XSTRNCPY(str, "error during rsa priv op", max);
         break;
 
     case MATCH_SUITE_ERROR :
-        XSTRNCPY(buffer, "can't match cipher suite", max);
+        XSTRNCPY(str, "can't match cipher suite", max);
         break;
 
     case BUILD_MSG_ERROR :
-        XSTRNCPY(buffer, "build message failure", max);
+        XSTRNCPY(str, "build message failure", max);
         break;
 
     case BAD_HELLO :
-        XSTRNCPY(buffer, "client hello malformed", max);
+        XSTRNCPY(str, "client hello malformed", max);
         break;
 
     case DOMAIN_NAME_MISMATCH :
-        XSTRNCPY(buffer, "peer subject name mismatch", max);
+        XSTRNCPY(str, "peer subject name mismatch", max);
         break;
 
     case WANT_READ :
-        XSTRNCPY(buffer, "non-blocking socket wants data to be read", max);
+        XSTRNCPY(str, "non-blocking socket wants data to be read", max);
         break;
 
     case NOT_READY_ERROR :
-        XSTRNCPY(buffer, "handshake layer not ready yet, complete first", max);
+        XSTRNCPY(str, "handshake layer not ready yet, complete first", max);
         break;
 
     case PMS_VERSION_ERROR :
-        XSTRNCPY(buffer, "premaster secret version mismatch error", max);
+        XSTRNCPY(str, "premaster secret version mismatch error", max);
         break;
 
     case VERSION_ERROR :
-        XSTRNCPY(buffer, "record layer version error", max);
+        XSTRNCPY(str, "record layer version error", max);
         break;
 
     case WANT_WRITE :
-        XSTRNCPY(buffer, "non-blocking socket write buffer full", max);
+        XSTRNCPY(str, "non-blocking socket write buffer full", max);
         break;
 
     case BUFFER_ERROR :
-        XSTRNCPY(buffer, "malformed buffer input error", max);
+        XSTRNCPY(str, "malformed buffer input error", max);
         break;
 
     case VERIFY_CERT_ERROR :
-        XSTRNCPY(buffer, "verify problem on certificate", max);
+        XSTRNCPY(str, "verify problem on certificate", max);
         break;
 
     case VERIFY_SIGN_ERROR :
-        XSTRNCPY(buffer, "verify problem based on signature", max);
+        XSTRNCPY(str, "verify problem based on signature", max);
         break;
 
     case CLIENT_ID_ERROR :
-        XSTRNCPY(buffer, "psk client identity error", max);
+        XSTRNCPY(str, "psk client identity error", max);
         break;
 
     case SERVER_HINT_ERROR:
-        XSTRNCPY(buffer, "psk server hint error", max);
+        XSTRNCPY(str, "psk server hint error", max);
         break;
 
     case PSK_KEY_ERROR:
-        XSTRNCPY(buffer, "psk key callback error", max);
+        XSTRNCPY(str, "psk key callback error", max);
         break;
 
     case NTRU_KEY_ERROR:
-        XSTRNCPY(buffer, "NTRU key error", max);
+        XSTRNCPY(str, "NTRU key error", max);
         break;
 
     case NTRU_DRBG_ERROR:
-        XSTRNCPY(buffer, "NTRU drbg error", max);
+        XSTRNCPY(str, "NTRU drbg error", max);
         break;
 
     case NTRU_ENCRYPT_ERROR:
-        XSTRNCPY(buffer, "NTRU encrypt error", max);
+        XSTRNCPY(str, "NTRU encrypt error", max);
         break;
 
     case NTRU_DECRYPT_ERROR:
-        XSTRNCPY(buffer, "NTRU decrypt error", max);
+        XSTRNCPY(str, "NTRU decrypt error", max);
         break;
 
     case ZLIB_INIT_ERROR:
-        XSTRNCPY(buffer, "zlib init error", max);
+        XSTRNCPY(str, "zlib init error", max);
         break;
 
     case ZLIB_COMPRESS_ERROR:
-        XSTRNCPY(buffer, "zlib compress error", max);
+        XSTRNCPY(str, "zlib compress error", max);
         break;
 
     case ZLIB_DECOMPRESS_ERROR:
-        XSTRNCPY(buffer, "zlib decompress error", max);
+        XSTRNCPY(str, "zlib decompress error", max);
         break;
 
     case GETTIME_ERROR:
-        XSTRNCPY(buffer, "gettimeofday() error", max);
+        XSTRNCPY(str, "gettimeofday() error", max);
         break;
 
     case GETITIMER_ERROR:
-        XSTRNCPY(buffer, "getitimer() error", max);
+        XSTRNCPY(str, "getitimer() error", max);
         break;
 
     case SIGACT_ERROR:
-        XSTRNCPY(buffer, "sigaction() error", max);
+        XSTRNCPY(str, "sigaction() error", max);
         break;
 
     case SETITIMER_ERROR:
-        XSTRNCPY(buffer, "setitimer() error", max);
+        XSTRNCPY(str, "setitimer() error", max);
         break;
 
     case LENGTH_ERROR:
-        XSTRNCPY(buffer, "record layer length error", max);
+        XSTRNCPY(str, "record layer length error", max);
         break;
 
     case PEER_KEY_ERROR:
-        XSTRNCPY(buffer, "cant decode peer key", max);
+        XSTRNCPY(str, "cant decode peer key", max);
         break;
 
     case ZERO_RETURN:
-        XSTRNCPY(buffer, "peer sent close notify alert", max);
+        XSTRNCPY(str, "peer sent close notify alert", max);
         break;
 
     case ECC_CURVETYPE_ERROR:
-        XSTRNCPY(buffer, "Bad ECC Curve Type or unsupported", max);
+        XSTRNCPY(str, "Bad ECC Curve Type or unsupported", max);
         break;
 
     case ECC_CURVE_ERROR:
-        XSTRNCPY(buffer, "Bad ECC Curve or unsupported", max);
+        XSTRNCPY(str, "Bad ECC Curve or unsupported", max);
         break;
 
     case ECC_PEERKEY_ERROR:
-        XSTRNCPY(buffer, "Bad ECC Peer Key", max);
+        XSTRNCPY(str, "Bad ECC Peer Key", max);
         break;
 
     case ECC_MAKEKEY_ERROR:
-        XSTRNCPY(buffer, "ECC Make Key failure", max);
+        XSTRNCPY(str, "ECC Make Key failure", max);
         break;
 
     case ECC_EXPORT_ERROR:
-        XSTRNCPY(buffer, "ECC Export Key failure", max);
+        XSTRNCPY(str, "ECC Export Key failure", max);
         break;
 
     case ECC_SHARED_ERROR:
-        XSTRNCPY(buffer, "ECC DHE shared failure", max);
+        XSTRNCPY(str, "ECC DHE shared failure", max);
         break;
 
     case BAD_MUTEX_ERROR:
-        XSTRNCPY(buffer, "Bad mutex, operation failed", max);
+        XSTRNCPY(str, "Bad mutex, operation failed", max);
         break;
 
     default :
-        XSTRNCPY(buffer, "unknown error number", max);
+        XSTRNCPY(str, "unknown error number", max);
     }
 
 #endif /* NO_ERROR_STRINGS */
@@ -4065,15 +4065,15 @@ int SetCipherList(SSL_CTX* ctx, const char* list)
                 byte   encodedSig[MAX_ENCODED_SIG_SZ];
                 word32 encSigSz;
                 byte*  digest;
-                int    hashType;
+                int    typeH;
                 int    digestSz;
 
                 /* sha1 for now */
                 digest   = &hash[MD5_DIGEST_SIZE];
-                hashType = SHAh;
+                typeH    = SHAh;
                 digestSz = SHA_DIGEST_SIZE;
 
-                encSigSz = EncodeSignature(encodedSig,digest,digestSz,hashType);
+                encSigSz = EncodeSignature(encodedSig, digest, digestSz, typeH);
 
                 if (encSigSz != (word32)ret || XMEMCMP(out, encodedSig,
                                                        encSigSz) != 0)
@@ -4360,15 +4360,15 @@ int SetCipherList(SSL_CTX* ctx, const char* list)
 
             if (IsAtLeastTLSv1_2(ssl)) {
                 byte* digest;
-                int   hashType;
+                int   typeH;
                 int   digestSz;
 
                 /* sha1 for now */
                 digest   = ssl->certHashes.sha;
-                hashType = SHAh;
+                typeH    = SHAh;
                 digestSz = SHA_DIGEST_SIZE;
 
-                signSz = EncodeSignature(encodedSig, digest, digestSz,hashType);
+                signSz = EncodeSignature(encodedSig, digest, digestSz, typeH);
                 signBuffer = encodedSig;
             }
 
@@ -4905,16 +4905,16 @@ int SetCipherList(SSL_CTX* ctx, const char* list)
                     byte encodedSig[MAX_ENCODED_SIG_SZ];
                     if (IsAtLeastTLSv1_2(ssl)) {
                         byte* digest;
-                        int   hashType;
+                        int   typeH;
                         int   digestSz;
 
                         /* sha1 for now */
                         digest   = &hash[MD5_DIGEST_SIZE];
-                        hashType = SHAh;
+                        typeH    = SHAh;
                         digestSz = SHA_DIGEST_SIZE;
 
                         signSz = EncodeSignature(encodedSig, digest, digestSz,
-                                                 hashType);
+                                                 typeH);
                         signBuffer = encodedSig;
                     }
                     ret = RsaSSL_Sign(signBuffer, signSz, output + idx, sigSz,
@@ -5308,15 +5308,15 @@ int SetCipherList(SSL_CTX* ctx, const char* list)
                 byte   encodedSig[MAX_ENCODED_SIG_SZ];
                 word32 sigSz;
                 byte*  digest;
-                int    hashType;
+                int    typeH;
                 int    digestSz;
 
                 /* sha1 for now */
                 digest   = ssl->certHashes.sha;
-                hashType = SHAh;
+                typeH    = SHAh;
                 digestSz = SHA_DIGEST_SIZE;
 
-                sigSz = EncodeSignature(encodedSig, digest, digestSz, hashType);
+                sigSz = EncodeSignature(encodedSig, digest, digestSz, typeH);
 
                 if (outLen == (int)sigSz && XMEMCMP(out, encodedSig,sigSz) == 0)
                     ret = 0;
