@@ -79,12 +79,6 @@
     #define NO_DH
     #define NO_DSA
     #define NO_HC128
-    #define CYASSL_LWIP      /* by default for now */
-#endif
-
-#ifdef CYASSL_LWIP
-    #define LWIP_SOCKETS
-    #define LWIP_PROVIDE_ERRNO
 #endif
 
 #ifdef MICRIUM

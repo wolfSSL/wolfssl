@@ -38,9 +38,10 @@
 #endif
 
 #ifndef USE_WINDOWS_API
-    #ifdef LWIP_SOCKETS
-        #define LWIP_SOCKET 1              /* use berkely API */
-        #define LWIP_COMPAT_SOCKETS 1
+    #ifdef CYASSL_LWIP
+        /* lwIP needs to be configured to use sockets API in this mode */
+        /* LWIP_SOCKET 1 && LWIP_COMPAT_SOCKETS 1 in lwip/opt.h or in build */
+        #define LWIP_PROVIDE_ERRNO 1
         #include "sockets.h"
     #else
         #include <sys/types.h>
