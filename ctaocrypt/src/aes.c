@@ -975,7 +975,7 @@ static void AesEncrypt(Aes* aes, const byte* inBlock, byte* outBlock)
     word32 r = aes->rounds >> 1;
 
     const word32* rk = aes->key;
-    if (r > 7) {
+    if (r > 7 || r == 0) {
         CYASSL_MSG("AesEncrypt encountered improper key, set it up");
         return;  /* stop instead of segfaulting, set up your keys! */
     }
@@ -1113,7 +1113,7 @@ static void AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
     word32 r = aes->rounds >> 1;
 
     const word32* rk = aes->key;
-    if (r > 7) {
+    if (r > 7 || r == 0) {
         CYASSL_MSG("AesDecrypt encountered improper key, set it up");
         return;  /* stop instead of segfaulting, set up your keys! */
     }
