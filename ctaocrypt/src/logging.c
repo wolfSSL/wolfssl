@@ -23,7 +23,7 @@
 
 #include "os_settings.h"
 #include "logging.h"
-#include "error.h"
+#include "ctc_error.h"
 
 
 CYASSL_API int  CyaSSL_Debugging_ON(void);

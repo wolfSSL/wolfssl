@@ -28,7 +28,7 @@
 #include "coding.h"
 #include "ctc_sha.h"
 #include "ctc_md5.h"
-#include "error.h"
+#include "ctc_error.h"
 #include "pwdbased.h"
 #include "des3.h"
 #include "sha256.h"

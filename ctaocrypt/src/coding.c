@@ -21,7 +21,7 @@
 
 
 #include "coding.h"
-#include "error.h"
+#include "ctc_error.h"
 #include "logging.h"
 
 

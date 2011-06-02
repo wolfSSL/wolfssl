@@ -23,7 +23,7 @@
 
 #include "ctc_rsa.h"
 #include "ctc_random.h"
-#include "error.h"
+#include "ctc_error.h"
 #include "logging.h"
 
 #ifdef SHOW_GEN

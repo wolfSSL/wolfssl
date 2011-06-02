@@ -25,7 +25,7 @@
 #include "pwdbased.h"
 #include "ctc_hmac.h"
 #include "integer.h"
-#include "error.h"
+#include "ctc_error.h"
 #ifdef CYASSL_SHA512
     #include "sha512.h"
 #endif

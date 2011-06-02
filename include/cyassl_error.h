@@ -24,7 +24,7 @@
 #ifndef CYASSL_ERROR_H
 #define CYASSL_ERROR_H
 
-#include "error.h"   /* CTaoCrypt errors */
+#include "ctc_error.h"   /* CTaoCrypt errors */
 
 #ifdef __cplusplus
     extern "C" {

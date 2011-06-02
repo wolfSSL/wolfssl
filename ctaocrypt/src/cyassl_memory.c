@@ -27,7 +27,7 @@
 #ifdef USE_CYASSL_MEMORY
 
 #include "cyassl_memory.h"
-#include "error.h"
+#include "ctc_error.h"
 
 
 /* Set these to default values initially. */

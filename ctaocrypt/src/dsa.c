@@ -24,7 +24,7 @@
 #include "ctc_dsa.h"
 #include "ctc_sha.h"
 #include "ctc_random.h"
-#include "error.h"
+#include "ctc_error.h"
 
 
 enum {

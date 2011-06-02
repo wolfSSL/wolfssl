@@ -23,7 +23,7 @@
 #ifndef NO_HMAC
 
 #include "ctc_hmac.h"
-#include "error.h"
+#include "ctc_error.h"
 
 
 

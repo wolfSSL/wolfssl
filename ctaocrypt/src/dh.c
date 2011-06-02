@@ -22,7 +22,7 @@
 #ifndef NO_DH
 
 #include "ctc_dh.h"
-#include "error.h"
+#include "ctc_error.h"
 
 #ifndef USER_MATH_LIB
     #include <math.h>

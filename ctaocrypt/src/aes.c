@@ -22,7 +22,7 @@
 #ifndef NO_AES
 
 #include "ctc_aes.h"
-#include "error.h"
+#include "ctc_error.h"
 #include "logging.h"
 #ifdef NO_INLINE
     #include "ctc_misc.h"

@@ -26,7 +26,7 @@
 */
 
 #include "ctc_random.h"
-#include "error.h"
+#include "ctc_error.h"
 
 
 #if defined(USE_WINDOWS_API)
