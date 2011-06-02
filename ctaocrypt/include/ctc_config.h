@@ -1,89 +1,90 @@
-/* ctaocrypt/include/config.h.in.  Generated from configure.in by autoheader.  */
+/* ctaocrypt/include/ctc_config.h.  Generated from ctc_config.h.in by configure.  */
+/* ctaocrypt/include/ctc_config.h.in.  Generated from configure.in by autoheader.  */
 
 /* Define to 1 if you have the <dlfcn.h> header file. */
-#undef HAVE_DLFCN_H
+#define HAVE_DLFCN_H 1
 
 /* Define to 1 if you have the <errno.h> header file. */
-#undef HAVE_ERRNO_H
+#define HAVE_ERRNO_H 1
 
 /* Define to 1 if you have the <inttypes.h> header file. */
-#undef HAVE_INTTYPES_H
+#define HAVE_INTTYPES_H 1
 
 /* Define to 1 if you have the `network' library (-lnetwork). */
-#undef HAVE_LIBNETWORK
+/* #undef HAVE_LIBNETWORK */
 
 /* Define to 1 if you have the <memory.h> header file. */
-#undef HAVE_MEMORY_H
+#define HAVE_MEMORY_H 1
 
 /* Define if you have POSIX threads libraries and header files. */
-#undef HAVE_PTHREAD
+#define HAVE_PTHREAD 1
 
 /* Define to 1 if you have the <stdint.h> header file. */
-#undef HAVE_STDINT_H
+#define HAVE_STDINT_H 1
 
 /* Define to 1 if you have the <stdlib.h> header file. */
-#undef HAVE_STDLIB_H
+#define HAVE_STDLIB_H 1
 
 /* Define to 1 if you have the <strings.h> header file. */
-#undef HAVE_STRINGS_H
+#define HAVE_STRINGS_H 1
 
 /* Define to 1 if you have the <string.h> header file. */
-#undef HAVE_STRING_H
+#define HAVE_STRING_H 1
 
 /* Define to 1 if you have the <sys/stat.h> header file. */
-#undef HAVE_SYS_STAT_H
+#define HAVE_SYS_STAT_H 1
 
 /* Define to 1 if you have the <sys/types.h> header file. */
-#undef HAVE_SYS_TYPES_H
+#define HAVE_SYS_TYPES_H 1
 
 /* Define to 1 if you have the <unistd.h> header file. */
-#undef HAVE_UNISTD_H
+#define HAVE_UNISTD_H 1
 
 /* Define to 1 or 0, depending whether the compiler supports simple visibility
    declarations. */
-#undef HAVE_VISIBILITY
+#define HAVE_VISIBILITY 1
 
 /* Define to the sub-directory in which libtool stores uninstalled libraries.
    */
-#undef LT_OBJDIR
+#define LT_OBJDIR ".libs/"
 
 /* Define to 1 if your C compiler doesn't accept -c and -o together. */
-#undef NO_MINUS_C_MINUS_O
+/* #undef NO_MINUS_C_MINUS_O */
 
 /* Name of package */
-#undef PACKAGE
+#define PACKAGE "cyassl"
 
 /* Define to the address where bug reports for this package should be sent. */
-#undef PACKAGE_BUGREPORT
+#define PACKAGE_BUGREPORT "http://www.yassl.com"
 
 /* Define to the full name of this package. */
-#undef PACKAGE_NAME
+#define PACKAGE_NAME "cyassl"
 
 /* Define to the full name and version of this package. */
-#undef PACKAGE_STRING
+#define PACKAGE_STRING "cyassl 2.0.0rc1b"
 
 /* Define to the one symbol short name of this package. */
-#undef PACKAGE_TARNAME
+#define PACKAGE_TARNAME "cyassl"
 
 /* Define to the version of this package. */
-#undef PACKAGE_VERSION
+#define PACKAGE_VERSION "2.0.0rc1b"
 
 /* Define to necessary symbol if this constant uses a non-standard name on
    your system. */
-#undef PTHREAD_CREATE_JOINABLE
+/* #undef PTHREAD_CREATE_JOINABLE */
 
 /* The size of `long', as computed by sizeof. */
-#undef SIZEOF_LONG
+#define SIZEOF_LONG 8
 
 /* The size of `long long', as computed by sizeof. */
-#undef SIZEOF_LONG_LONG
+#define SIZEOF_LONG_LONG 8
 
 /* Define to 1 if you have the ANSI C header files. */
-#undef STDC_HEADERS
+#define STDC_HEADERS 1
 
 /* Version number of package */
-#undef VERSION
+#define VERSION "2.0.0rc1b"
 
 /* Define to 1 if your processor stores words with the most significant byte
    first (like Motorola and SPARC, unlike Intel and VAX). */
-#undef WORDS_BIGENDIAN
+/* #undef WORDS_BIGENDIAN */
