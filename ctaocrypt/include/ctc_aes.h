@@ -25,7 +25,7 @@
 #define CTAO_CRYPT_AES_H
 
 
-#include "types.h"
+#include "ctc_types.h"
 
 #ifdef CYASSL_AESNI
 

@@ -25,7 +25,7 @@
 #ifndef CTAO_CRYPT_HC128_H
 #define CTAO_CRYPT_HC128_H
 
-#include "types.h"
+#include "ctc_types.h"
 
 #ifdef __cplusplus
     extern "C" {

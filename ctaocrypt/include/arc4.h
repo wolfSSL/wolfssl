@@ -24,7 +24,7 @@
 #define CTAO_CRYPT_ARC4_H
 
 
-#include "types.h"
+#include "ctc_types.h"
 
 
 #ifdef __cplusplus

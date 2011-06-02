@@ -23,7 +23,7 @@
 #ifndef CTAO_CRYPT_RSA_H
 #define CTAO_CRYPT_RSA_H
 
-#include "types.h"
+#include "ctc_types.h"
 #include "integer.h"
 #include "ctc_random.h"
 

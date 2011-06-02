@@ -36,7 +36,7 @@
 #ifndef CTAO_CRYPT_TFM_H
 #define CTAO_CRYPT_TFM_H
 
-#include "types.h"
+#include "ctc_types.h"
 #ifndef CHAR_BIT
     #include <limits.h>
 #endif

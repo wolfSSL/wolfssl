@@ -25,7 +25,7 @@
 #define CYASSL_INT_H
 
 
-#include "types.h"
+#include "ctc_types.h"
 #include "ctc_random.h"
 #include "des3.h"
 #include "hc128.h"

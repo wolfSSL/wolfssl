@@ -25,7 +25,7 @@
 #ifndef CTAO_CRYPT_SHA512_H
 #define CTAO_CRYPT_SHA512_H
 
-#include "types.h"
+#include "ctc_types.h"
 
 #ifdef __cplusplus
     extern "C" {

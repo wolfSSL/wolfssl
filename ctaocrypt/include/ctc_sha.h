@@ -23,7 +23,7 @@
 #ifndef CTAO_CRYPT_SHA_H
 #define CTAO_CRYPT_SHA_H
 
-#include "types.h"
+#include "ctc_types.h"
 
 #ifdef __cplusplus
     extern "C" {

@@ -23,7 +23,7 @@
 #ifndef CTAO_CRYPT_ASN_H
 #define CTAO_CRYPT_ASN_H
 
-#include "types.h"
+#include "ctc_types.h"
 #include "ctc_rsa.h"
 #include "ctc_dh.h"
 #include "ctc_dsa.h"

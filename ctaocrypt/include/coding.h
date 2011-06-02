@@ -23,7 +23,7 @@
 #ifndef CTAO_CRYPT_CODING_H
 #define CTAO_CRYPT_CODING_H
 
-#include "types.h"
+#include "ctc_types.h"
 
 #ifdef __cplusplus
     extern "C" {

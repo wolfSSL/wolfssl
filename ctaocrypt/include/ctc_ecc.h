@@ -24,7 +24,7 @@
 #ifndef CTAO_CRYPT_ECC_H
 #define CTAO_CRYPT_ECC_H
 
-#include "types.h"
+#include "ctc_types.h"
 #include "integer.h"
 #include "ctc_random.h"
 

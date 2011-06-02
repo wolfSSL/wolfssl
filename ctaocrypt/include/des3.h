@@ -25,7 +25,7 @@
 #define CTAO_CRYPT_DES3_H
 
 
-#include "types.h"
+#include "ctc_types.h"
 
 
 #ifdef __cplusplus

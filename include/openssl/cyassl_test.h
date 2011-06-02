@@ -7,7 +7,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <ctype.h>
-#include "types.h"
+#include "ctc_types.h"
 
 #ifdef USE_WINDOWS_API 
     #include <winsock2.h>

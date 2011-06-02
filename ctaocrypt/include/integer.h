@@ -33,7 +33,7 @@
 /* may optionally use fast math instead, not yet supported on all platforms and
    may not be faster on all
 */
-#include "types.h"       /* will set MP_xxBIT if not default */
+#include "ctc_types.h"       /* will set MP_xxBIT if not default */
 #ifdef USE_FAST_MATH
     #include "tfm.h"
 #else
