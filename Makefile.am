@@ -45,10 +45,10 @@ install:
 	$(mkinstalldirs) $(DESTDIR)$(includedir)/openssl $(DESTDIR)$(libdir); \
     cp -fpR include/openssl/* $(DESTDIR)$(includedir)/openssl; \
     cp -fpR ctaocrypt/include/*.h $(DESTDIR)$(includedir); \
-    rm $(DESTDIR)$(includedir)/asn.h; \
-    rm $(DESTDIR)$(includedir)/coding.h; \
-    rm $(DESTDIR)$(includedir)/error.h; \
-    rm $(DESTDIR)$(includedir)/misc.h; \
+    rm $(DESTDIR)$(includedir)/ctc_asn.h; \
+    rm $(DESTDIR)$(includedir)/ctc_coding.h; \
+    rm $(DESTDIR)$(includedir)/ctc_error.h; \
+    rm $(DESTDIR)$(includedir)/ctc_misc.h; \
     cp -fpR src/libcyassl.la $(DESTDIR)$(libdir); \
     if test -e src/.libs/libcyassl.a; then \
     cp -fp src/.libs/libcyassl.a $(DESTDIR)$(libdir); fi; \
