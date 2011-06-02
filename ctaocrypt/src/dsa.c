@@ -23,7 +23,7 @@
 
 #include "ctc_dsa.h"
 #include "ctc_sha.h"
-#include "random.h"
+#include "ctc_random.h"
 #include "error.h"
 
 

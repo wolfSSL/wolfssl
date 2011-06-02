@@ -26,7 +26,7 @@
 
 
 #include "types.h"
-#include "random.h"
+#include "ctc_random.h"
 #include "des3.h"
 #include "hc128.h"
 #include "rabbit.h"

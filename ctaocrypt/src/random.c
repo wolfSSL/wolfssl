@@ -25,7 +25,7 @@
 
 */
 
-#include "random.h"
+#include "ctc_random.h"
 #include "error.h"
 
 

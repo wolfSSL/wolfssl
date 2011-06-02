@@ -22,7 +22,7 @@
 
 
 #include "ctc_rsa.h"
-#include "random.h"
+#include "ctc_random.h"
 #include "error.h"
 #include "logging.h"
 

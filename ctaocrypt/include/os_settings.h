@@ -48,7 +48,7 @@
 /* #define CYASSL_LWIP */
 
 #if defined(USE_CYASSL_CONFIG) || defined(HAVE_CONFIG_H)
-    #include "config.h"   /* may not want global HAVE_CONFIG_H */
+    #include "ctc_config.h"   /* may not want global HAVE_CONFIG_H */
 #endif
 
 #include "visibility.h"

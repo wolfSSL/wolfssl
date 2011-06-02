@@ -11,7 +11,7 @@
 #include "sha256.h"
 #include "sha512.h"
 #include "arc4.h"
-#include "random.h"
+#include "ctc_random.h"
 #include "coding.h"
 #include "asn.h"
 #include "des3.h"

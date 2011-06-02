@@ -26,7 +26,7 @@
 
 #include "types.h"
 #include "integer.h"
-#include "random.h"
+#include "ctc_random.h"
 
 #ifdef __cplusplus
     extern "C" {

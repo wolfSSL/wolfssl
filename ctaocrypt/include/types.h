@@ -26,7 +26,7 @@
 #include "os_settings.h"
 
 #ifdef HAVE_CONFIG_H
-    #include "config.h"
+    #include "ctc_config.h"
 #endif
 
 #ifdef __cplusplus
