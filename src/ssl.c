@@ -23,7 +23,7 @@
 #include "ssl.h"
 #include "cyassl_int.h"
 #include "cyassl_error.h"
-#include "coding.h"
+#include "ctc_coding.h"
 
 #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
     #include "evp.h"
@@ -39,7 +39,6 @@
     #include "ctc_random.h"
     #include "des3.h"
     #include "ctc_md4.h"
-    #include "coding.h"
 #endif
 
 #ifdef HAVE_ERRNO_H 

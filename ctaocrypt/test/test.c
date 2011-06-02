@@ -12,7 +12,7 @@
 #include "sha512.h"
 #include "ctc_arc4.h"
 #include "ctc_random.h"
-#include "coding.h"
+#include "ctc_coding.h"
 #include "ctc_asn.h"
 #include "des3.h"
 #include "ctc_aes.h"

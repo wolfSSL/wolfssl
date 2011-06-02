@@ -20,7 +20,7 @@
  */
 
 
-#include "coding.h"
+#include "ctc_coding.h"
 #include "ctc_error.h"
 #include "logging.h"
 
