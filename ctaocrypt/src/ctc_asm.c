@@ -1,4 +1,4 @@
-/* asm.c
+/* ctc_asm.c
  *
  * Copyright (C) 2006-2011 Sawtooth Consulting Ltd.
  *
