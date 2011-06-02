@@ -1,4 +1,4 @@
-/* misc.c
+/* ctc_misc.c
  *
  * Copyright (C) 2006-2011 Sawtooth Consulting Ltd.
  *

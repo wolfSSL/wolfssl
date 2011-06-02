@@ -27,7 +27,7 @@
 #ifdef NO_INLINE
     #include "ctc_misc.h"
 #else
-    #include "misc.c"
+    #include "ctc_misc.c"
 #endif
 
 

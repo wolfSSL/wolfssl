@@ -23,7 +23,11 @@
 #ifndef NO_RABBIT
 
 #include "ctc_rabbit.h"
-#include "misc.c"
+#ifdef NO_INLINE
+    #include "ctc_misc.h"
+#else
+    #include "ctc_misc.c"
+#endif
 
 
 #ifdef BIG_ENDIAN_ORDER
