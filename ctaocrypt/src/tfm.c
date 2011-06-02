@@ -33,7 +33,7 @@
 
 #ifdef USE_FAST_MATH
 
-#include "tfm.h"
+#include "ctc_tfm.h"
 #include "asm.c"  /* will define asm MACROS or C ones */
 
 

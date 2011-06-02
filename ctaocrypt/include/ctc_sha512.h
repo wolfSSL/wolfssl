@@ -1,4 +1,4 @@
-/* sha512.h
+/* ctc_sha512.h
  *
  * Copyright (C) 2006-2011 Sawtooth Consulting Ltd.
  *

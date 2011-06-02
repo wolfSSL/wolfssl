@@ -27,7 +27,7 @@
 #include "ctc_integer.h"
 #include "ctc_error.h"
 #ifdef CYASSL_SHA512
-    #include "sha512.h"
+    #include "ctc_sha512.h"
 #endif
 #ifdef NO_INLINE
     #include "ctc_misc.h"

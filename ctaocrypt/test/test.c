@@ -9,7 +9,7 @@
 #include "ctc_md4.h"
 #include "ctc_sha.h"
 #include "ctc_sha256.h"
-#include "sha512.h"
+#include "ctc_sha512.h"
 #include "ctc_arc4.h"
 #include "ctc_random.h"
 #include "ctc_coding.h"

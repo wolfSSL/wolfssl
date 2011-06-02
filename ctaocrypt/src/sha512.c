@@ -22,7 +22,7 @@
 
 #ifdef CYASSL_SHA512
 
-#include "sha512.h"
+#include "ctc_sha512.h"
 #ifdef NO_INLINE
     #include "ctc_misc.h"
 #else

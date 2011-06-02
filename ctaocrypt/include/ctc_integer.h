@@ -35,7 +35,7 @@
 */
 #include "ctc_types.h"       /* will set MP_xxBIT if not default */
 #ifdef USE_FAST_MATH
-    #include "tfm.h"
+    #include "ctc_tfm.h"
 #else
 
 #ifndef CHAR_BIT
