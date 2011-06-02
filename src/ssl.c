@@ -37,7 +37,7 @@
     /* openssl headers end, cyassl internal headers next */
     #include "ctc_hmac.h"
     #include "ctc_random.h"
-    #include "des3.h"
+    #include "ctc_des3.h"
     #include "ctc_md4.h"
 #endif
 

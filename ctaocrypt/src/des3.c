@@ -22,7 +22,7 @@
 
 #ifndef NO_DES3
 
-#include "des3.h"
+#include "ctc_des3.h"
 #ifdef NO_INLINE
     #include "ctc_misc.h"
 #else

@@ -14,7 +14,7 @@
 #include "ctc_random.h"
 #include "ctc_coding.h"
 #include "ctc_asn.h"
-#include "des3.h"
+#include "ctc_des3.h"
 #include "ctc_aes.h"
 #include "ctc_hmac.h"
 #include "ctc_dh.h"
