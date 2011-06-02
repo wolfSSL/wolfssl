@@ -1,4 +1,4 @@
-AC_INIT(cyassl,2.0.0rc1b,http://www.yassl.com)    # !!! also change in ssl.h !!!
+AC_INIT(cyassl,2.0.0rc2,http://www.yassl.com)    # !!! also change in ssl.h !!!
 AC_CONFIG_AUX_DIR(config)
 AM_CONFIG_HEADER(ctaocrypt/include/ctc_config.h)
 AC_CONFIG_MACRO_DIR([m4])

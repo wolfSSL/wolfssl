@@ -25,7 +25,6 @@
 		43C6C2990DDF98D400F2D488 /* hmac.c in Sources */ = {isa = PBXBuildFile; fileRef = 43C6C28A0DDF98D400F2D488 /* hmac.c */; };
 		43C6C29A0DDF98D400F2D488 /* integer.c in Sources */ = {isa = PBXBuildFile; fileRef = 43C6C28B0DDF98D400F2D488 /* integer.c */; };
 		43C6C29B0DDF98D400F2D488 /* md5.c in Sources */ = {isa = PBXBuildFile; fileRef = 43C6C28C0DDF98D400F2D488 /* md5.c */; };
-		43C6C29C0DDF98D400F2D488 /* misc.c in Sources */ = {isa = PBXBuildFile; fileRef = 43C6C28D0DDF98D400F2D488 /* misc.c */; };
 		43C6C29D0DDF98D400F2D488 /* random.c in Sources */ = {isa = PBXBuildFile; fileRef = 43C6C28E0DDF98D400F2D488 /* random.c */; };
 		43C6C29E0DDF98D400F2D488 /* rsa.c in Sources */ = {isa = PBXBuildFile; fileRef = 43C6C28F0DDF98D400F2D488 /* rsa.c */; };
 		43C6C29F0DDF98D400F2D488 /* sha.c in Sources */ = {isa = PBXBuildFile; fileRef = 43C6C2900DDF98D400F2D488 /* sha.c */; };
@@ -41,8 +40,6 @@
 		43CA4B4712C14EAE0001AF79 /* ctc_aes.h in Headers */ = {isa = PBXBuildFile; fileRef = 43CA4B3E12C14EAE0001AF79 /* ctc_aes.h */; };
 		43D565650F1EC9A600550C88 /* hc128.c in Sources */ = {isa = PBXBuildFile; fileRef = 43D565640F1EC9A600550C88 /* hc128.c */; };
 		43D565670F1EC9CC00550C88 /* rabbit.c in Sources */ = {isa = PBXBuildFile; fileRef = 43D565660F1EC9CC00550C88 /* rabbit.c */; };
-		43D565A40F29040000550C88 /* rabbit.h in Headers */ = {isa = PBXBuildFile; fileRef = 43D565A30F29040000550C88 /* rabbit.h */; };
-		43D565A60F29041C00550C88 /* hc128.h in Headers */ = {isa = PBXBuildFile; fileRef = 43D565A50F29041C00550C88 /* hc128.h */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -95,27 +92,14 @@
 		43C6C28A0DDF98D400F2D488 /* hmac.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; lineEnding = 0; name = hmac.c; path = ctaocrypt/src/hmac.c; sourceTree = "<group>"; };
 		43C6C28B0DDF98D400F2D488 /* integer.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; lineEnding = 2; name = integer.c; path = ctaocrypt/src/integer.c; sourceTree = "<group>"; };
 		43C6C28C0DDF98D400F2D488 /* md5.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; lineEnding = 2; name = md5.c; path = ctaocrypt/src/md5.c; sourceTree = "<group>"; };
-		43C6C28D0DDF98D400F2D488 /* misc.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; lineEnding = 2; name = misc.c; path = ctaocrypt/src/misc.c; sourceTree = "<group>"; };
 		43C6C28E0DDF98D400F2D488 /* random.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; lineEnding = 2; name = random.c; path = ctaocrypt/src/random.c; sourceTree = "<group>"; };
 		43C6C28F0DDF98D400F2D488 /* rsa.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; lineEnding = 2; name = rsa.c; path = ctaocrypt/src/rsa.c; sourceTree = "<group>"; };
 		43C6C2900DDF98D400F2D488 /* sha.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; lineEnding = 2; name = sha.c; path = ctaocrypt/src/sha.c; sourceTree = "<group>"; };
 		43C6C2910DDF98D400F2D488 /* sha256.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; lineEnding = 0; name = sha256.c; path = ctaocrypt/src/sha256.c; sourceTree = "<group>"; };
 		43CA25BA0EA400BE0011ECA2 /* cyassl_error.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.c.h; fileEncoding = 4; lineEnding = 2; name = cyassl_error.h; path = include/cyassl_error.h; sourceTree = "<group>"; };
 		43CA25BB0EA400BE0011ECA2 /* cyassl_int.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.c.h; fileEncoding = 4; lineEnding = 2; name = cyassl_int.h; path = include/cyassl_int.h; sourceTree = "<group>"; };
-		43CA25BC0EA400DC0011ECA2 /* test.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.c.h; fileEncoding = 4; lineEnding = 2; name = test.h; path = examples/test.h; sourceTree = "<group>"; };
-		43CA25BE0EA4010C0011ECA2 /* arc4.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.c.h; fileEncoding = 4; lineEnding = 2; name = arc4.h; path = ctaocrypt/include/arc4.h; sourceTree = "<group>"; };
 		43CA25C10EA4010C0011ECA2 /* mpi_superclass.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.c.h; fileEncoding = 4; lineEnding = 0; name = mpi_superclass.h; path = ctaocrypt/include/mpi_superclass.h; sourceTree = "<group>"; };
-		43CA25C20EA4010C0011ECA2 /* random.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.c.h; fileEncoding = 4; lineEnding = 2; name = random.h; path = ctaocrypt/include/random.h; sourceTree = "<group>"; };
-		43CA25C40EA4010C0011ECA2 /* sha256.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.c.h; fileEncoding = 4; lineEnding = 0; name = sha256.h; path = ctaocrypt/include/sha256.h; sourceTree = "<group>"; };
-		43CA25C50EA4010C0011ECA2 /* coding.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.c.h; fileEncoding = 4; lineEnding = 2; name = coding.h; path = ctaocrypt/include/coding.h; sourceTree = "<group>"; };
-		43CA25C60EA4010C0011ECA2 /* des3.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.c.h; fileEncoding = 4; lineEnding = 2; name = des3.h; path = ctaocrypt/include/des3.h; sourceTree = "<group>"; };
-		43CA25C70EA4010C0011ECA2 /* error.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.c.h; fileEncoding = 4; lineEnding = 2; name = error.h; path = ctaocrypt/include/error.h; sourceTree = "<group>"; };
-		43CA25C80EA4010C0011ECA2 /* misc.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.c.h; fileEncoding = 4; lineEnding = 2; name = misc.h; path = ctaocrypt/include/misc.h; sourceTree = "<group>"; };
-		43CA25C90EA4010C0011ECA2 /* integer.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.c.h; fileEncoding = 4; lineEnding = 2; name = integer.h; path = ctaocrypt/include/integer.h; sourceTree = "<group>"; };
-		43CA25CA0EA4010C0011ECA2 /* tfm.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.c.h; fileEncoding = 4; lineEnding = 0; name = tfm.h; path = ctaocrypt/include/tfm.h; sourceTree = "<group>"; };
-		43CA25CB0EA4010C0011ECA2 /* asn.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.c.h; fileEncoding = 4; lineEnding = 2; name = asn.h; path = ctaocrypt/include/asn.h; sourceTree = "<group>"; };
 		43CA25CD0EA4010C0011ECA2 /* mpi_class.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.c.h; fileEncoding = 4; lineEnding = 0; name = mpi_class.h; path = ctaocrypt/include/mpi_class.h; sourceTree = "<group>"; };
-		43CA25CE0EA4010C0011ECA2 /* types.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.c.h; fileEncoding = 4; lineEnding = 2; name = types.h; path = ctaocrypt/include/types.h; sourceTree = "<group>"; };
 		43CA25D10EA401550011ECA2 /* cyassl_callbacks.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.c.h; fileEncoding = 4; lineEnding = 2; name = cyassl_callbacks.h; path = include/openssl/cyassl_callbacks.h; sourceTree = "<group>"; };
 		43CA25D20EA401550011ECA2 /* ssl.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.c.h; fileEncoding = 4; lineEnding = 2; name = ssl.h; path = include/openssl/ssl.h; sourceTree = "<group>"; };
 		43CA4B3612C14EAE0001AF79 /* ctc_hmac.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; lineEnding = 0; name = ctc_hmac.h; path = ctaocrypt/include/ctc_hmac.h; sourceTree = "<group>"; };
@@ -130,8 +114,6 @@
 		43CB530D116E9FD5000A264B /* iphone-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "iphone-Info.plist"; sourceTree = "<group>"; };
 		43D565640F1EC9A600550C88 /* hc128.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; lineEnding = 2; name = hc128.c; path = ctaocrypt/src/hc128.c; sourceTree = "<group>"; };
 		43D565660F1EC9CC00550C88 /* rabbit.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; lineEnding = 2; name = rabbit.c; path = ctaocrypt/src/rabbit.c; sourceTree = "<group>"; };
-		43D565A30F29040000550C88 /* rabbit.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; lineEnding = 2; name = rabbit.h; path = ctaocrypt/include/rabbit.h; sourceTree = "<group>"; };
-		43D565A50F29041C00550C88 /* hc128.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; lineEnding = 2; name = hc128.h; path = ctaocrypt/include/hc128.h; sourceTree = "<group>"; };
 		D2AAC046055464E500DB518D /* libcyassl.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libcyassl.a; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -194,7 +176,6 @@
 				43C6C28A0DDF98D400F2D488 /* hmac.c */,
 				43C6C28B0DDF98D400F2D488 /* integer.c */,
 				43C6C28C0DDF98D400F2D488 /* md5.c */,
-				43C6C28D0DDF98D400F2D488 /* misc.c */,
 				43C6C28E0DDF98D400F2D488 /* random.c */,
 				43C6C28F0DDF98D400F2D488 /* rsa.c */,
 				43C6C2900DDF98D400F2D488 /* sha.c */,
@@ -219,24 +200,10 @@
 				43CA4B3C12C14EAE0001AF79 /* ctc_dsa.h */,
 				43CA4B3D12C14EAE0001AF79 /* ctc_dh.h */,
 				43CA4B3E12C14EAE0001AF79 /* ctc_aes.h */,
-				43D565A50F29041C00550C88 /* hc128.h */,
-				43D565A30F29040000550C88 /* rabbit.h */,
 				43CA25D10EA401550011ECA2 /* cyassl_callbacks.h */,
 				43CA25D20EA401550011ECA2 /* ssl.h */,
-				43CA25BE0EA4010C0011ECA2 /* arc4.h */,
 				43CA25C10EA4010C0011ECA2 /* mpi_superclass.h */,
-				43CA25C20EA4010C0011ECA2 /* random.h */,
-				43CA25C40EA4010C0011ECA2 /* sha256.h */,
-				43CA25C50EA4010C0011ECA2 /* coding.h */,
-				43CA25C60EA4010C0011ECA2 /* des3.h */,
-				43CA25C70EA4010C0011ECA2 /* error.h */,
-				43CA25C80EA4010C0011ECA2 /* misc.h */,
-				43CA25C90EA4010C0011ECA2 /* integer.h */,
-				43CA25CA0EA4010C0011ECA2 /* tfm.h */,
-				43CA25CB0EA4010C0011ECA2 /* asn.h */,
 				43CA25CD0EA4010C0011ECA2 /* mpi_class.h */,
-				43CA25CE0EA4010C0011ECA2 /* types.h */,
-				43CA25BC0EA400DC0011ECA2 /* test.h */,
 				43CA25BA0EA400BE0011ECA2 /* cyassl_error.h */,
 				43CA25BB0EA400BE0011ECA2 /* cyassl_int.h */,
 			);
@@ -257,8 +224,6 @@
 			isa = PBXHeadersBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				43D565A40F29040000550C88 /* rabbit.h in Headers */,
-				43D565A60F29041C00550C88 /* hc128.h in Headers */,
 				43CA4B3F12C14EAE0001AF79 /* ctc_hmac.h in Headers */,
 				43CA4B4012C14EAE0001AF79 /* ctc_sha.h in Headers */,
 				43CA4B4112C14EAE0001AF79 /* ctc_rsa.h in Headers */,
@@ -339,7 +304,6 @@
 				43C6C2990DDF98D400F2D488 /* hmac.c in Sources */,
 				43C6C29A0DDF98D400F2D488 /* integer.c in Sources */,
 				43C6C29B0DDF98D400F2D488 /* md5.c in Sources */,
-				43C6C29C0DDF98D400F2D488 /* misc.c in Sources */,
 				43C6C29D0DDF98D400F2D488 /* random.c in Sources */,
 				43C6C29E0DDF98D400F2D488 /* rsa.c in Sources */,
 				43C6C29F0DDF98D400F2D488 /* sha.c in Sources */,
