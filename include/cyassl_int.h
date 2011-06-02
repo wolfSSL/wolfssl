@@ -38,7 +38,7 @@
     #include "ctc_ecc.h"
 #endif
 #ifndef NO_SHA256
-    #include "sha256.h"
+    #include "ctc_sha256.h"
 #endif
 
 #ifdef CYASSL_CALLBACKS

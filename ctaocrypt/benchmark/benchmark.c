@@ -11,7 +11,7 @@
 #include "ctc_aes.h"
 #include "ctc_md5.h"
 #include "ctc_sha.h"
-#include "sha256.h"
+#include "ctc_sha256.h"
 #include "sha512.h"
 #include "ctc_rsa.h"
 #include "ctc_asn.h"

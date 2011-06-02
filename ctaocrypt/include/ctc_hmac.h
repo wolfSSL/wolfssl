@@ -28,7 +28,7 @@
 #include "ctc_sha.h"
 
 #ifndef NO_SHA256
-    #include "sha256.h"
+    #include "ctc_sha256.h"
 #endif
 
 #ifdef __cplusplus

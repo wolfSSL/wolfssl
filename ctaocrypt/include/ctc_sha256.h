@@ -1,4 +1,4 @@
-/* sha256.h
+/* ctc_sha256.h
  *
  * Copyright (C) 2006-2011 Sawtooth Consulting Ltd.
  *

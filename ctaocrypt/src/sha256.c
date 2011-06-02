@@ -25,7 +25,7 @@
 
 #ifndef NO_SHA256
 
-#include "sha256.h"
+#include "ctc_sha256.h"
 #ifdef NO_INLINE
     #include "ctc_misc.h"
 #else

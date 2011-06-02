@@ -31,7 +31,7 @@
 #include "ctc_error.h"
 #include "ctc_pwdbased.h"
 #include "ctc_des3.h"
-#include "sha256.h"
+#include "ctc_sha256.h"
 #include "logging.h"
 
 #ifdef HAVE_NTRU
