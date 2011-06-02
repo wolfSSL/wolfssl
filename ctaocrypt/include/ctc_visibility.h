@@ -1,4 +1,4 @@
-/* visibility.h
+/* ctc_visibility.h
  *
  * Copyright (C) 2006-2011 Sawtooth Consulting Ltd.
  *

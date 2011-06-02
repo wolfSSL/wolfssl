@@ -51,7 +51,7 @@
     #include "ctc_config.h"   /* may not want global HAVE_CONFIG_H */
 #endif
 
-#include "visibility.h"
+#include "ctc_visibility.h"
 
 #ifdef IPHONE
     #define SIZEOF_LONG_LONG 8
