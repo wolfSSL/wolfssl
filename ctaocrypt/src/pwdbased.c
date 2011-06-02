@@ -22,7 +22,7 @@
 
 #ifndef NO_PWDBASED
 
-#include "pwdbased.h"
+#include "ctc_pwdbased.h"
 #include "ctc_hmac.h"
 #include "ctc_integer.h"
 #include "ctc_error.h"

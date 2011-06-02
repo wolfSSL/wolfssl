@@ -21,7 +21,7 @@
 #include "ctc_dsa.h"
 #include "ctc_hc128.h"
 #include "rabbit.h"
-#include "pwdbased.h"
+#include "ctc_pwdbased.h"
 #include "ctc_ripemd.h"
 #ifdef HAVE_ECC
     #include "ctc_ecc.h"

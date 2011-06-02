@@ -29,7 +29,7 @@
 #include "ctc_sha.h"
 #include "ctc_md5.h"
 #include "ctc_error.h"
-#include "pwdbased.h"
+#include "ctc_pwdbased.h"
 #include "ctc_des3.h"
 #include "sha256.h"
 #include "logging.h"
