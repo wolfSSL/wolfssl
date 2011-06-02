@@ -21,7 +21,7 @@
 
 /* submitted by eof */
 
-#include "os_settings.h"
+#include "ctc_settings.h"
 #include "logging.h"
 #include "ctc_error.h"
 

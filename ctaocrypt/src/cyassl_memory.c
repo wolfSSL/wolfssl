@@ -22,7 +22,7 @@
 /* submitted by eof */
 
 
-#include "os_settings.h"
+#include "ctc_settings.h"
 
 #ifdef USE_CYASSL_MEMORY
 

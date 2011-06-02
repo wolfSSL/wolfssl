@@ -24,7 +24,7 @@
 #ifndef CYASSL_SNIFFER_H
 #define CYASSL_SNIFFER_H
 
-#include "os_settings.h"
+#include "ctc_settings.h"
 
 #ifdef _WIN32
     #ifdef SSL_SNIFFER_EXPORTS

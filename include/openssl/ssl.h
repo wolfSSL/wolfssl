@@ -29,7 +29,7 @@
 #ifndef CYASSL_OPENSSL_H_
 #define CYASSL_OPENSSL_H_
 
-#include "os_settings.h"   /* for users not using preprocessor flags */
+#include "ctc_settings.h"   /* for users not using preprocessor flags */
 
 #ifndef NO_FILESYSTEM
     #include <stdio.h>   /* ERR_print fp */

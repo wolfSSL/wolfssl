@@ -29,7 +29,7 @@
  *  to fit CyaSSL's needs.
  */
 
-#include "os_settings.h"     /* in case user set USE_FAST_MATH there */
+#include "ctc_settings.h"     /* in case user set USE_FAST_MATH there */
 
 #ifdef USE_FAST_MATH
 
