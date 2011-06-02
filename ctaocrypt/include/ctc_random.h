@@ -23,7 +23,7 @@
 #ifndef CTAO_CRYPT_RANDOM_H
 #define CTAO_CRYPT_RANDOM_H
 
-#include "arc4.h"
+#include "ctc_arc4.h"
 
 #ifdef __cplusplus
     extern "C" {

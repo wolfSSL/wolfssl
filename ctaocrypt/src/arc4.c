@@ -20,7 +20,7 @@
  */
 
 
-#include "arc4.h"
+#include "ctc_arc4.h"
 
 
 

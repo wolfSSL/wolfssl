@@ -5,7 +5,7 @@
 #include <stdio.h>
 
 #include "des3.h"
-#include "arc4.h"
+#include "ctc_arc4.h"
 #include "hc128.h"
 #include "rabbit.h"
 #include "ctc_aes.h"
