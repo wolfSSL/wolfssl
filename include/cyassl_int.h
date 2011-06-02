@@ -30,7 +30,7 @@
 #include "des3.h"
 #include "hc128.h"
 #include "rabbit.h"
-#include "asn.h"
+#include "ctc_asn.h"
 #include "ctc_md5.h"
 #include "ctc_aes.h"
 #include "logging.h"

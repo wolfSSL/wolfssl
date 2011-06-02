@@ -14,7 +14,7 @@
 #include "sha256.h"
 #include "sha512.h"
 #include "ctc_rsa.h"
-#include "asn.h"
+#include "ctc_asn.h"
 #include "ctc_ripemd.h"
 
 #include "ctc_dh.h"

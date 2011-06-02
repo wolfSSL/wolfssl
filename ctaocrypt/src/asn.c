@@ -24,7 +24,7 @@
     #include "os.h"           /* dc_rtc_api needs    */
     #include "dc_rtc_api.h"   /* to get current time */
 #endif
-#include "asn.h"
+#include "ctc_asn.h"
 #include "coding.h"
 #include "ctc_sha.h"
 #include "ctc_md5.h"

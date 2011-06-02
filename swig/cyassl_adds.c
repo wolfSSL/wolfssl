@@ -4,8 +4,8 @@
 #endif
 
 #include "openssl/ssl.h"
-#include "rsa.h"
-#include "asn.h"
+#include "ctc_rsa.h"
+#include "ctc_asn.h"
 
 #include <stdio.h>
 #include <stdlib.h>

@@ -23,7 +23,7 @@
 
 #include "cyassl_int.h"
 #include "cyassl_error.h"
-#include "asn.h"
+#include "ctc_asn.h"
 
 #ifdef HAVE_LIBZ
     #include "zlib.h"
