@@ -159,10 +159,6 @@
 				>
 			</File>
 			<File
-				RelativePath=".\ctaocrypt\src\asm.c"
-				>
-			</File>
-			<File
 				RelativePath=".\ctaocrypt\src\asn.c"
 				>
 			</File>
@@ -223,10 +219,6 @@
 				>
 			</File>
 			<File
-				RelativePath=".\ctaocrypt\src\misc.c"
-				>
-			</File>
-			<File
 				RelativePath=".\ctaocrypt\src\pwdbased.c"
 				>
 			</File>
@@ -273,18 +265,6 @@
 			UniqueIdentifier="{93995380-89BD-4b04-88EB-625FBE52EBFB}"
 			>
 			<File
-				RelativePath=".\ctaocrypt\include\arc4.h"
-				>
-			</File>
-			<File
-				RelativePath=".\ctaocrypt\include\asn.h"
-				>
-			</File>
-			<File
-				RelativePath=".\ctaocrypt\include\coding.h"
-				>
-			</File>
-			<File
 				RelativePath=".\ctaocrypt\include\ctc_aes.h"
 				>
 			</File>
@@ -326,50 +306,6 @@
 			</File>
 			<File
 				RelativePath=".\include\cyassl_int.h"
-				>
-			</File>
-			<File
-				RelativePath=".\ctaocrypt\include\des3.h"
-				>
-			</File>
-			<File
-				RelativePath=".\ctaocrypt\include\error.h"
-				>
-			</File>
-			<File
-				RelativePath=".\ctaocrypt\include\hc128.h"
-				>
-			</File>
-			<File
-				RelativePath=".\ctaocrypt\include\integer.h"
-				>
-			</File>
-			<File
-				RelativePath=".\ctaocrypt\include\misc.h"
-				>
-			</File>
-			<File
-				RelativePath=".\ctaocrypt\include\pwdbased.h"
-				>
-			</File>
-			<File
-				RelativePath=".\ctaocrypt\include\rabbit.h"
-				>
-			</File>
-			<File
-				RelativePath=".\ctaocrypt\include\random.h"
-				>
-			</File>
-			<File
-				RelativePath=".\ctaocrypt\include\sha256.h"
-				>
-			</File>
-			<File
-				RelativePath=".\ctaocrypt\include\tfm.h"
-				>
-			</File>
-			<File
-				RelativePath=".\ctaocrypt\include\types.h"
 				>
 			</File>
 		</Filter>
