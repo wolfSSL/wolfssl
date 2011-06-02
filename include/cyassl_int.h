@@ -28,7 +28,7 @@
 #include "ctc_types.h"
 #include "ctc_random.h"
 #include "ctc_des3.h"
-#include "hc128.h"
+#include "ctc_hc128.h"
 #include "rabbit.h"
 #include "ctc_asn.h"
 #include "ctc_md5.h"

@@ -22,7 +22,7 @@
 
 #ifndef NO_HC128
 
-#include "hc128.h"
+#include "ctc_hc128.h"
 #include "misc.c"
 
 

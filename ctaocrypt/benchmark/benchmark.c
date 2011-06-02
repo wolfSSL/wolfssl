@@ -6,7 +6,7 @@
 
 #include "ctc_des3.h"
 #include "ctc_arc4.h"
-#include "hc128.h"
+#include "ctc_hc128.h"
 #include "rabbit.h"
 #include "ctc_aes.h"
 #include "ctc_md5.h"
