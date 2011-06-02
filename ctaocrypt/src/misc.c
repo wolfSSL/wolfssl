@@ -20,7 +20,7 @@
  */
 
 
-#include "misc.h"
+#include "ctc_misc.h"
 
 /* inlining these functions is a huge speed increase and a small size decrease, 
    because the functions are smaller than function call setup/cleanup, e.g.,

@@ -22,7 +22,7 @@
 
 #include "ctc_sha.h"
 #ifdef NO_INLINE
-    #include "misc.h"
+    #include "ctc_misc.h"
 #else
     #include "misc.c"
 #endif

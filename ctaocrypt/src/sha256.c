@@ -27,7 +27,7 @@
 
 #include "sha256.h"
 #ifdef NO_INLINE
-    #include "misc.h"
+    #include "ctc_misc.h"
 #else
     #include "misc.c"
 #endif

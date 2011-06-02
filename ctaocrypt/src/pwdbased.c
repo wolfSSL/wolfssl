@@ -30,7 +30,7 @@
     #include "sha512.h"
 #endif
 #ifdef NO_INLINE
-    #include "misc.h"
+    #include "ctc_misc.h"
 #else
     #include "misc.c"
 #endif
