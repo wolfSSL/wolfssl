@@ -1062,7 +1062,7 @@ int CyaSSL_PemCertToDer(const char* fileName, unsigned char* derBuf, int derSz)
         ret = PemToDer(fileBuf, sz, CA_TYPE, &converted, 0, &info, &ecc);
 
     if (ret == 0) {
-        if (converted.length < derSz) {
+        if (converted.length < (word32)derSz) {
             XMEMCPY(derBuf, converted.buffer, converted.length);
             ret = converted.length;
         }

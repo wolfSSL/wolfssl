@@ -1145,7 +1145,7 @@ int rsa_test()
         if (derSz < 0)
             return -302;
 
-        keyFile = fopen("./ker.der", "wb");
+        keyFile = fopen("./key.der", "wb");
         if (!keyFile)
             return -303;
         ret = fwrite(der, derSz, 1, keyFile);

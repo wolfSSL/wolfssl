@@ -44,6 +44,8 @@ typedef struct RsaKey {
     void* heap;                               /* for user memory overrides */
 } RsaKey;
 
+#define CTC_RSA_KEY_DEFINED  /* redeclare guard */
+
 
 CYASSL_API void InitRsaKey(RsaKey* key, void*);
 CYASSL_API void FreeRsaKey(RsaKey* key);
@@ -64,8 +66,13 @@ CYASSL_API int  RsaEncryptSize(RsaKey* key);
 
 #ifdef CYASSL_KEY_GEN
     CYASSL_API int MakeRsaKey(RsaKey* key, int size, long e, RNG* rng);
+    CYASSL_API int RsaKeyToDer(RsaKey*, byte* output, word32 inLen);
 #endif
 
+CYASSL_API int RsaPrivateKeyDecode(const byte* input, word32* inOutIdx, RsaKey*,
+                                   word32);
+CYASSL_API int RsaPublicKeyDecode(const byte* input, word32* inOutIdx, RsaKey*,
+                                  word32);
 
 #ifdef __cplusplus
     } /* extern "C" */

@@ -59,6 +59,7 @@ typedef struct RNG {
     Arc4    cipher;
 } RNG;
 
+#define CTC_RNG_DEFINED  /* redeclare guard */
 
 CYASSL_API int  InitRng(RNG*);
 CYASSL_API void RNG_GenerateBlock(RNG*, byte*, word32 sz);

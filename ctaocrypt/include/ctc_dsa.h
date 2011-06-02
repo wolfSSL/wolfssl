@@ -52,6 +52,10 @@ CYASSL_API int DsaSign(const byte* digest, byte* out, DsaKey* key, RNG* rng);
 CYASSL_API int DsaVerify(const byte* digest, const byte* sig, DsaKey* key,
                          int* answer);
 
+CYASSL_API int DsaPublicKeyDecode(const byte* input, word32* inOutIdx, DsaKey*,
+                                  word32);
+CYASSL_API int DsaPrivateKeyDecode(const byte* input, word32* inOutIdx, DsaKey*,
+                                   word32);
 
 #ifdef __cplusplus
     } /* extern "C" */

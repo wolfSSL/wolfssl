@@ -49,6 +49,11 @@ CYASSL_API int DhAgree(DhKey* key, byte* agree, word32* agreeSz,
                        const byte* priv, word32 privSz, const byte* otherPub,
                        word32 pubSz);
 
+CYASSL_API int DhKeyDecode(const byte* input, word32* inOutIdx, DhKey* key,
+                           word32);
+CYASSL_API int DhSetKey(DhKey* key, const byte* p, word32 pSz, const byte* g,
+                        word32 gSz);
+
 
 #ifdef __cplusplus
     } /* extern "C" */
