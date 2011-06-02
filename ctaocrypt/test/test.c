@@ -20,7 +20,7 @@
 #include "ctc_dh.h"
 #include "ctc_dsa.h"
 #include "ctc_hc128.h"
-#include "rabbit.h"
+#include "ctc_rabbit.h"
 #include "ctc_pwdbased.h"
 #include "ctc_ripemd.h"
 #ifdef HAVE_ECC

@@ -29,7 +29,7 @@
 #include "ctc_random.h"
 #include "ctc_des3.h"
 #include "ctc_hc128.h"
-#include "rabbit.h"
+#include "ctc_rabbit.h"
 #include "ctc_asn.h"
 #include "ctc_md5.h"
 #include "ctc_aes.h"

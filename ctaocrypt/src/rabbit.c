@@ -22,7 +22,7 @@
 
 #ifndef NO_RABBIT
 
-#include "rabbit.h"
+#include "ctc_rabbit.h"
 #include "misc.c"
 
 
