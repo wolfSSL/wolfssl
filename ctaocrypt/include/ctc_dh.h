@@ -25,7 +25,7 @@
 #define CTAO_CRYPT_DH_H
 
 #include "ctc_types.h"
-#include "integer.h"
+#include "ctc_integer.h"
 #include "ctc_random.h"
 
 #ifdef __cplusplus

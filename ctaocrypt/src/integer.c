@@ -29,7 +29,7 @@
 
 #ifndef USE_FAST_MATH
 
-#include "integer.h"
+#include "ctc_integer.h"
 
 
 /* handle up to 6 inits */
