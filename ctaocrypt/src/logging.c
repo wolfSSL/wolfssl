@@ -22,7 +22,7 @@
 /* submitted by eof */
 
 #include "ctc_settings.h"
-#include "logging.h"
+#include "cyassl_logging.h"
 #include "ctc_error.h"
 
 

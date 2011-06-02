@@ -24,7 +24,7 @@
 #include "ctc_rsa.h"
 #include "ctc_random.h"
 #include "ctc_error.h"
-#include "logging.h"
+#include "cyassl_logging.h"
 
 #ifdef SHOW_GEN
     #include <stdio.h>

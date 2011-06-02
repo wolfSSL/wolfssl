@@ -23,7 +23,7 @@
 
 #include "ctc_aes.h"
 #include "ctc_error.h"
-#include "logging.h"
+#include "cyassl_logging.h"
 #ifdef NO_INLINE
     #include "ctc_misc.h"
 #else

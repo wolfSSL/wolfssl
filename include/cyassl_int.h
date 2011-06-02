@@ -33,7 +33,7 @@
 #include "ctc_asn.h"
 #include "ctc_md5.h"
 #include "ctc_aes.h"
-#include "logging.h"
+#include "cyassl_logging.h"
 #ifdef HAVE_ECC
     #include "ctc_ecc.h"
 #endif

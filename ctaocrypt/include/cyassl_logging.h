@@ -1,4 +1,4 @@
-/* logging.h
+/* cyassl_logging.h
  *
  * Copyright (C) 2006-2011 Sawtooth Consulting Ltd.
  *

@@ -32,7 +32,7 @@
 #include "ctc_pwdbased.h"
 #include "ctc_des3.h"
 #include "ctc_sha256.h"
-#include "logging.h"
+#include "cyassl_logging.h"
 
 #ifdef HAVE_NTRU
     #include "crypto_ntru.h"

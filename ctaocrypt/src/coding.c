@@ -22,7 +22,7 @@
 
 #include "ctc_coding.h"
 #include "ctc_error.h"
-#include "logging.h"
+#include "cyassl_logging.h"
 
 
 enum {
