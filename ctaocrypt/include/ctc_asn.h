@@ -42,7 +42,6 @@ enum {
     ISSUER  = 0,
     SUBJECT = 1,
 
-    SERIAL_SIZE  =  8,
     EXTERNAL_SERIAL_SIZE = 32,
 
     BEFORE  = 0,
@@ -170,18 +169,14 @@ enum KDF_Sum {
 };
 
 
-/* Certificate file Type */
-enum CertType {
-    CERT_TYPE       = 0, 
-    PRIVATEKEY_TYPE,
-    CA_TYPE
-};
-
-
 enum VerifyType {
     NO_VERIFY = 0,
     VERIFY    = 1
 };
+
+
+typedef struct DecodedCert DecodedCert;
+typedef struct Signer      Signer;
 
 
 struct DecodedCert {
@@ -237,6 +232,18 @@ struct Signer {
 };
 
 
+/* not for public consumption but may use for testing sometimes */
+#ifdef CYASSL_TEST_CERT
+    #define CYASSL_TEST_API CYASSL_API
+#else
+    #define CYASSL_TEST_API CYASSL_LOCAL
+#endif
+
+CYASSL_TEST_API void InitDecodedCert(DecodedCert*, byte*, void*);
+CYASSL_TEST_API void FreeDecodedCert(DecodedCert*);
+CYASSL_TEST_API int  ParseCert(DecodedCert*, word32, int type, int verify,
+                               Signer* signer);
+
 CYASSL_LOCAL int ParseCertRelative(DecodedCert*, word32, int type, int verify,
                                    Signer* signer);
 
@@ -265,42 +272,12 @@ CYASSL_LOCAL int ToTraditionalEnc(byte* buffer, word32 length,const char*, int);
 #ifdef CYASSL_CERT_GEN
 
 enum cert_enums {
-    NAME_SIZE       = 64,
     NAME_ENTRIES    =  8,
     JOINT_LEN       =  2,
     EMAIL_JOINT_LEN =  9,
     RSA_KEY         = 10,
     NTRU_KEY        = 11
 };
-
-
-typedef struct CertName {
-    char country[NAME_SIZE];
-    char state[NAME_SIZE];
-    char locality[NAME_SIZE];
-    char sur[NAME_SIZE];
-    char org[NAME_SIZE];
-    char unit[NAME_SIZE];
-    char commonName[NAME_SIZE];
-    char email[NAME_SIZE];  /* !!!! email has to be last !!!! */
-} CertName;
-
-
-/* for user to fill for certificate generation */
-struct Cert {
-    int      version;                   /* x509 version  */
-    byte     serial[SERIAL_SIZE];       /* serial number */
-    int      sigType;                   /* signature algo type */
-    CertName issuer;                    /* issuer info */
-    int      daysValid;                 /* validity days */
-    int      selfSigned;                /* self signed flag */
-    CertName subject;                   /* subject info */
-    /* internal use only */
-    int      bodySz;                    /* pre sign total size */
-    int      keyType;                   /* public key type of subject */
-};
-
-
 
 
 #endif /* CYASSL_CERT_GEN */

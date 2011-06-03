@@ -6,7 +6,9 @@
 *sh
 *.cache
 .dirstamp
+*.user
 config*
+*Debug/
 ctc_config*
 stamp*
 libtool.m4

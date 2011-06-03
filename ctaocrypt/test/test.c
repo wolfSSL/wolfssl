@@ -5,6 +5,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#ifdef CYASSL_TEST_CERT
+    #include "ctc_asn.h"
+#else
+    #include "ctc_asn_public.h"
+#endif
 #include "ctc_md5.h"
 #include "ctc_md4.h"
 #include "ctc_sha.h"
@@ -13,7 +18,7 @@
 #include "ctc_arc4.h"
 #include "ctc_random.h"
 #include "ctc_coding.h"
-#include "ctc_asn.h"
+#include "ctc_rsa.h"
 #include "ctc_des3.h"
 #include "ctc_aes.h"
 #include "ctc_hmac.h"
@@ -1081,7 +1086,9 @@ int rsa_test()
     word32 inLen = (word32)strlen((char*)in);
     byte   out[256];
     byte   plain[256];
+#ifdef CYASSL_TEST_CERT
     DecodedCert cert;
+#endif
 
     FILE*  file = fopen(clientKey, "rb"), * file2;
 
@@ -1115,12 +1122,14 @@ int rsa_test()
 
     bytes2 = fread(tmp2, 1, sizeof(tmp2), file2);
 
+#ifdef CYASSL_TEST_CERT
     InitDecodedCert(&cert, (byte*)&tmp2, 0);
 
     ret = ParseCert(&cert, (word32)bytes2, CERT_TYPE, NO_VERIFY, 0);
     if (ret != 0) return -48;
 
     FreeDecodedCert(&cert);
+#endif
 
     fclose(file2);
     fclose(file);
@@ -1179,31 +1188,35 @@ int rsa_test()
         Cert        myCert;
         byte        derCert[4096];
         byte        pem[4096];
-        DecodedCert decode;
         FILE*       derFile;
         FILE*       pemFile;
         int         certSz;
         int         pemSz;
+#ifdef CYASSL_TEST_CERT
+        DecodedCert decode;
+#endif
 
         InitCert(&myCert);
 
-        strncpy(myCert.subject.country, "US", NAME_SIZE);
-        strncpy(myCert.subject.state, "OR", NAME_SIZE);
-        strncpy(myCert.subject.locality, "Portland", NAME_SIZE);
-        strncpy(myCert.subject.org, "yaSSL", NAME_SIZE);
-        strncpy(myCert.subject.unit, "Development", NAME_SIZE);
-        strncpy(myCert.subject.commonName, "www.yassl.com", NAME_SIZE);
-        strncpy(myCert.subject.email, "info@yassl.com", NAME_SIZE);
+        strncpy(myCert.subject.country, "US", CTC_NAME_SIZE);
+        strncpy(myCert.subject.state, "OR", CTC_NAME_SIZE);
+        strncpy(myCert.subject.locality, "Portland", CTC_NAME_SIZE);
+        strncpy(myCert.subject.org, "yaSSL", CTC_NAME_SIZE);
+        strncpy(myCert.subject.unit, "Development", CTC_NAME_SIZE);
+        strncpy(myCert.subject.commonName, "www.yassl.com", CTC_NAME_SIZE);
+        strncpy(myCert.subject.email, "info@yassl.com", CTC_NAME_SIZE);
 
         certSz = MakeSelfCert(&myCert, derCert, sizeof(derCert), &key, &rng); 
         if (certSz < 0)
             return -401;
 
+#ifdef CYASSL_TEST_CERT
         InitDecodedCert(&decode, derCert, 0);
         ret = ParseCert(&decode, certSz, CERT_TYPE, NO_VERIFY, 0);
         if (ret != 0)
             return -402;
-
+        FreeDecodedCert(&decode);
+#endif
         derFile = fopen("./cert.der", "wb");
         if (!derFile)
             return -403;
@@ -1220,7 +1233,6 @@ int rsa_test()
         ret = fwrite(pem, pemSz, 1, pemFile);
         fclose(pemFile);
 
-        FreeDecodedCert(&decode);
 
     }
     /* CA style */
@@ -1229,7 +1241,6 @@ int rsa_test()
         Cert        myCert;
         byte        derCert[4096];
         byte        pem[4096];
-        DecodedCert decode;
         FILE*       derFile;
         FILE*       pemFile;
         int         certSz;
@@ -1237,6 +1248,9 @@ int rsa_test()
         byte        tmp[2048];
         size_t      bytes;
         word32      idx = 0;
+#ifdef CYASSL_TEST_CERT
+        DecodedCert decode;
+#endif
 
         FILE*  file = fopen(caKeyFile, "rb");
 
@@ -1251,13 +1265,13 @@ int rsa_test()
 
         InitCert(&myCert);
 
-        strncpy(myCert.subject.country, "US", NAME_SIZE);
-        strncpy(myCert.subject.state, "OR", NAME_SIZE);
-        strncpy(myCert.subject.locality, "Portland", NAME_SIZE);
-        strncpy(myCert.subject.org, "yaSSL", NAME_SIZE);
-        strncpy(myCert.subject.unit, "Development", NAME_SIZE);
-        strncpy(myCert.subject.commonName, "www.yassl.com", NAME_SIZE);
-        strncpy(myCert.subject.email, "info@yassl.com", NAME_SIZE);
+        strncpy(myCert.subject.country, "US", CTC_NAME_SIZE);
+        strncpy(myCert.subject.state, "OR", CTC_NAME_SIZE);
+        strncpy(myCert.subject.locality, "Portland", CTC_NAME_SIZE);
+        strncpy(myCert.subject.org, "yaSSL", CTC_NAME_SIZE);
+        strncpy(myCert.subject.unit, "Development", CTC_NAME_SIZE);
+        strncpy(myCert.subject.commonName, "www.yassl.com", CTC_NAME_SIZE);
+        strncpy(myCert.subject.email, "info@yassl.com", CTC_NAME_SIZE);
 
         ret = SetIssuer(&myCert, caCertFile);
         if (ret < 0)
@@ -1272,10 +1286,13 @@ int rsa_test()
             return -408;
 
 
+#ifdef CYASSL_TEST_CERT
         InitDecodedCert(&decode, derCert, 0);
         ret = ParseCert(&decode, certSz, CERT_TYPE, NO_VERIFY, 0);
         if (ret != 0)
             return -409;
+        FreeDecodedCert(&decode);
+#endif
 
         derFile = fopen("./othercert.der", "wb");
         if (!derFile)
@@ -1292,9 +1309,6 @@ int rsa_test()
             return -412;
         ret = fwrite(pem, pemSz, 1, pemFile);
         fclose(pemFile);
-
-        FreeDecodedCert(&decode);
-
     }
 #ifdef HAVE_NTRU
     {
@@ -1302,7 +1316,6 @@ int rsa_test()
         Cert        myCert;
         byte        derCert[4096];
         byte        pem[4096];
-        DecodedCert decode;
         FILE*       derFile;
         FILE*       pemFile;
         FILE*       caFile;
@@ -1312,6 +1325,9 @@ int rsa_test()
         byte        tmp[2048];
         size_t      bytes;
         word32      idx = 0;
+#ifdef CYASSL_TEST_CERT
+        DecodedCert decode;
+#endif
 
         byte   public_key[557];          /* sized for EES401EP2 */
         word16 public_key_len;           /* no. of octets in public key */
@@ -1352,13 +1368,13 @@ int rsa_test()
 
         InitCert(&myCert);
 
-        strncpy(myCert.subject.country, "US", NAME_SIZE);
-        strncpy(myCert.subject.state, "OR", NAME_SIZE);
-        strncpy(myCert.subject.locality, "Portland", NAME_SIZE);
-        strncpy(myCert.subject.org, "yaSSL", NAME_SIZE);
-        strncpy(myCert.subject.unit, "Development", NAME_SIZE);
-        strncpy(myCert.subject.commonName, "www.yassl.com", NAME_SIZE);
-        strncpy(myCert.subject.email, "info@yassl.com", NAME_SIZE);
+        strncpy(myCert.subject.country, "US", CTC_NAME_SIZE);
+        strncpy(myCert.subject.state, "OR", CTC_NAME_SIZE);
+        strncpy(myCert.subject.locality, "Portland", CTC_NAME_SIZE);
+        strncpy(myCert.subject.org, "yaSSL", CTC_NAME_SIZE);
+        strncpy(myCert.subject.unit, "Development", CTC_NAME_SIZE);
+        strncpy(myCert.subject.commonName, "www.yassl.com", CTC_NAME_SIZE);
+        strncpy(myCert.subject.email, "info@yassl.com", CTC_NAME_SIZE);
 
         ret = SetIssuer(&myCert, caCertFile);
         if (ret < 0)
@@ -1374,11 +1390,13 @@ int rsa_test()
             return -457;
 
 
+#ifdef CYASSL_TEST_CERT
         InitDecodedCert(&decode, derCert, 0);
         ret = ParseCert(&decode, certSz, CERT_TYPE, NO_VERIFY, 0);
         if (ret != 0)
             return -458;
-
+        FreeDecodedCert(&decode);
+#endif
         derFile = fopen("./ntru-cert.der", "wb");
         if (!derFile)
             return -459;
@@ -1400,10 +1418,6 @@ int rsa_test()
             return -462;
         ret = fwrite(private_key, private_key_len, 1, ntruPrivFile);
         fclose(ntruPrivFile);
-
-
-
-        FreeDecodedCert(&decode);
     }
 #endif /* HAVE_NTRU */
 #endif /* CYASSL_CERT_GEN */
