@@ -89,7 +89,7 @@ void client_test(void* args)
     SSL_CTX_set_default_passwd_cb(ctx, PasswordCallBack);
 #endif
 
-#ifdef CYASSL_SNIFFER
+#if defined(CYASSL_SNIFFER) && !defined(HAVE_NTRU)
     /* don't use EDH, can't sniff tmp keys */
     SSL_CTX_set_cipher_list(ctx, "AES256-SHA");
 #endif
