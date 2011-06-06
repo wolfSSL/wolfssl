@@ -1208,12 +1208,11 @@ CYASSL_LOCAL void ShrinkInputBuffer(SSL* ssl, int forcedFree);
 CYASSL_LOCAL void ShrinkOutputBuffer(SSL* ssl);
 CYASSL_LOCAL int SendHelloVerifyRequest(SSL* ssl);
 CYASSL_LOCAL Signer* GetCA(Signer* signers, byte* hash);
+CYASSL_LOCAL void BuildTlsFinished(SSL* ssl, Hashes* hashes,const byte* sender);
 #ifndef NO_TLS
     CYASSL_LOCAL int  MakeTlsMasterSecret(SSL*);
     CYASSL_LOCAL void TLS_hmac(SSL* ssl, byte* digest, const byte* buffer,
                                word32 sz, int content, int verify);
-    CYASSL_LOCAL void BuildTlsFinished(SSL* ssl, Hashes* hashes,
-                                       const byte* sender);
 #endif
 
 #ifndef NO_CYASSL_CLIENT
