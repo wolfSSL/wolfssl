@@ -13,7 +13,26 @@ before calling SSL_new();  Though it's not recommended.
 
 *** end Note ***
 
-CyaSSL Release 2.0.0rc1 (5/2/2011)
+CyaSSL Release 2.0.0rc2 (6/6/2011)
+
+Release 2.0.0rc2 for CyaSSL has bug fixes and a few new features including:
+- bug fixes (Alerts, DTLS with DHE)
+- FreeRTOS support
+- lwIP support
+- Wshadow warnings removed
+- asn public header
+- CTaoCrypt public headers now all have ctc_ prefix (the manual is still being
+        updated to relfect this change)
+- and more.
+
+This is the 2nd and perhaps final release candidate for version 2.
+Please send any comments or questions to support@yassl.com.
+
+The CyaSSL manual is available at:
+http://www.yassl.com/documentation/CyaSSL-Manual.pdf.  For build instructions 
+and comments about the new features please check the manual.
+
+***********CyaSSL Release 2.0.0rc1 (5/2/2011)
 
 Release 2.0.0rc1 for CyaSSL has many new features including:
 - bug fixes
