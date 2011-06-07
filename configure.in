@@ -8,16 +8,16 @@ AM_INIT_AUTOMAKE(subdir-objects)
 
 #shared library versioning
 CYASSL_LIBRARY_VERSION=2:1:0
-#                         | | |
-#                  +------+ | +---+
-#                  |        |     |
-#                 current:revision:age
-#                  |        |     |
-#                  |        |     +- increment if interfaces have been added
-#                  |        |        set to zero if interfaces have been removed or changed
-#                  |        +- increment if source code has changed
-#                  |           set to zero if current is incremented
-#                  +- increment if interfaces have been added, removed or changed
+#                      | | |
+#               +------+ | +---+
+#               |        |     |
+#              current:revision:age
+#               |        |     |
+#               |        |     +- increment if interfaces have been added
+#               |        |        set to zero if interfaces have been removed or changed
+#               |        +- increment if source code has changed
+#               |           set to zero if current is incremented
+#               +- increment if interfaces have been added, removed or changed
 AC_SUBST(CYASSL_LIBRARY_VERSION)
 
 
@@ -119,6 +119,11 @@ then
   CFLAGS="-DOPENSSL_EXTRA $CFLAGS"
 fi
 
+if test "$ENABLED_OPENSSLEXTRA" = "yes" && test "$ENABLED_SMALL" = "yes"
+then
+    AC_MSG_ERROR([can't enable small and opensslExtra, only one or the other.]) 
+fi
+
 
 # IPv6 Test Apps
 AC_ARG_ENABLE(ipv6,
@@ -135,7 +140,7 @@ fi
 
 # fastmath
 AC_ARG_ENABLE(fastmath,
-    [  --enable-fastmath       Enable fast math for BigInts(default: disabled)],
+    [  --enable-fastmath       Enable fast math for BigInts (default: disabled)],
     [ ENABLED_FASTMATH=$enableval ],
     [ ENABLED_FASTMATH=no ]
     )
@@ -148,7 +153,7 @@ fi
 
 # fast HUGE math
 AC_ARG_ENABLE(fasthugemath,
-    [  --enable-fasthugemath   Enable fast math + huge code for BigInts(def: off)],
+    [  --enable-fasthugemath   Enable fast math + huge code (default: disabled)],
     [ ENABLED_FASTHUGEMATH=$enableval ],
     [ ENABLED_FASTHUGEMATH=no ]
     )
@@ -347,6 +352,12 @@ fi
 AM_CONDITIONAL([BUILD_ECC], [test "x$ENABLED_ECC" = "xyes"])
 
 
+if test "$ENABLED_ECC" = "yes" && test "$ENABLED_SMALL" = "yes"
+then
+    AC_MSG_ERROR([can't enable ecc and small, ecc requires TLS which small turns off.]) 
+fi
+
+
 # NTRU
 ntruHome=`pwd`/NTRU_algorithm
 ntruInclude=$ntruHome/cryptolib
@@ -365,6 +376,11 @@ then
 fi
 
 AM_CONDITIONAL([BUILD_NTRU], [test "x$ENABLED_NTRU" = "xyes"])
+
+if test "$ENABLED_NTRU" = "yes" && test "$ENABLED_SMALL" = "yes"
+then
+    AC_MSG_ERROR([can't enable ntru and small, ntru requires TLS which small turns off.]) 
+fi
 
 
 # Test certs, use internal cert functions for extra testing 
@@ -460,13 +476,13 @@ GCCWARNINGS="-Wall -fno-strict-aliasing -W -Wfloat-equal -Wundef       \
 -Wstack-protector -Wformat -Wformat-security -Wpointer-sign -Wshadow"
 
 AC_ARG_ENABLE(gcc-lots-o-warnings,
-AS_HELP_STRING(--enable-gcc-lots-o-warnings, enable lots of gcc warnings),
+AS_HELP_STRING(--enable-gcc-lots-o-warnings, Enable lots of gcc warnings (default: disabled)),
 [if test x$enableval = xyes; then
     CFLAGS="$CFLAGS $GCCWARNINGS"
 fi])
 
 AC_ARG_ENABLE(gcc-hardening,
-AS_HELP_STRING(--enable-gcc-hardening, enable compiler security checks),
+AS_HELP_STRING(--enable-gcc-hardening, Enable compiler security checks (default: disabled)),
 [if test x$enableval = xyes; then
     CFLAGS="$CFLAGS -D_FORTIFY_SOURCE=2 -fstack-protector-all"
     CFLAGS="$CFLAGS -fwrapv -fPIE -Wstack-protector"
@@ -477,7 +493,7 @@ fi])
 dnl Linker hardening options
 dnl Currently these options are ELF specific - you can't use this with MacOSX
 AC_ARG_ENABLE(linker-hardening,
-AS_HELP_STRING(--enable-linker-hardening, enable linker security fixups),
+AS_HELP_STRING(--enable-linker-hardening, Enable linker security fixups (default: disabled)),
 [if test x$enableval = xyes; then
     LDFLAGS="$LDFLAGS -z relro -z now"
 fi])
