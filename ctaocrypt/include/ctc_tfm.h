@@ -54,73 +54,6 @@
    #define MAX(x,y) ((x)>(y)?(x):(y))
 #endif
 
-/* externally define this symbol to ignore the default settings, useful for changing the build from the make process */
-#ifndef TFM_ALREADY_SET
-
-/* do we want the large set of small multiplications ? 
-   Enable these if you are going to be doing a lot of small (<= 16 digit) multiplications say in ECC
-   Or if you're on a 64-bit machine doing RSA as a 1024-bit integer == 16 digits ;-)
- */
-/* need to refactor the function */
-/*#define TFM_SMALL_SET */
-
-/* do we want huge code 
-   Enable these if you are doing 20, 24, 28, 32, 48, 64 digit multiplications (useful for RSA)
-   Less important on 64-bit machines as 32 digits == 2048 bits
- */
-#if 0
-#define TFM_MUL3
-#define TFM_MUL4
-#define TFM_MUL6
-#define TFM_MUL7
-#define TFM_MUL8
-#define TFM_MUL9
-#define TFM_MUL12
-#define TFM_MUL17
-#endif
-#ifdef TFM_SMALL_SET
-#define TFM_MUL20
-#define TFM_MUL24
-#define TFM_MUL28
-#define TFM_MUL32
-#define TFM_MUL48
-#define TFM_MUL64
-#endif
-
-#if 0
-#define TFM_SQR3
-#define TFM_SQR4
-#define TFM_SQR6
-#define TFM_SQR7
-#define TFM_SQR8
-#define TFM_SQR9
-#define TFM_SQR12
-#define TFM_SQR17
-#endif
-#ifdef TFM_SMALL_SET
-#define TFM_SQR20
-#define TFM_SQR24
-#define TFM_SQR28
-#define TFM_SQR32
-#define TFM_SQR48
-#define TFM_SQR64
-#endif
-
-/* do we want some overflow checks
-   Not required if you make sure your numbers are within range (e.g. by default a modulus for fp_exptmod() can only be upto 2048 bits long)
- */
-/* #define TFM_CHECK */
-
-/* Is the target a P4 Prescott
- */
-/* #define TFM_PRESCOTT */
-
-/* Do we want timing resistant fp_exptmod() ?
- * This makes it slower but also timing invariant with respect to the exponent 
- */
-/* #define TFM_TIMING_RESISTANT */
-
-#endif
 
 /* autodetect x86-64 and make sure we are using 64-bit digits with x86-64 asm */
 #if defined(__x86_64__)
@@ -328,6 +261,78 @@ typedef struct {
     int      used, 
              sign;
 } fp_int;
+
+/* externally define this symbol to ignore the default settings, useful for changing the build from the make process */
+#ifndef TFM_ALREADY_SET
+
+/* do we want the large set of small multiplications ? 
+   Enable these if you are going to be doing a lot of small (<= 16 digit) multiplications say in ECC
+   Or if you're on a 64-bit machine doing RSA as a 1024-bit integer == 16 digits ;-)
+ */
+/* need to refactor the function */
+/*#define TFM_SMALL_SET */
+
+/* do we want huge code 
+   Enable these if you are doing 20, 24, 28, 32, 48, 64 digit multiplications (useful for RSA)
+   Less important on 64-bit machines as 32 digits == 2048 bits
+ */
+#if 0
+#define TFM_MUL3
+#define TFM_MUL4
+#define TFM_MUL6
+#define TFM_MUL7
+#define TFM_MUL8
+#define TFM_MUL9
+#define TFM_MUL12
+#define TFM_MUL17
+#endif
+#ifdef TFM_SMALL_SET
+#define TFM_MUL20
+#define TFM_MUL24
+#define TFM_MUL28
+#define TFM_MUL32
+#if (FP_MAX_BITS >= 6144)
+    #define TFM_MUL48
+#endif
+#if (FP_MAX_BITS >= 6144)
+    #define TFM_MUL64
+#endif
+#endif
+
+#if 0
+#define TFM_SQR3
+#define TFM_SQR4
+#define TFM_SQR6
+#define TFM_SQR7
+#define TFM_SQR8
+#define TFM_SQR9
+#define TFM_SQR12
+#define TFM_SQR17
+#endif
+#ifdef TFM_SMALL_SET
+#define TFM_SQR20
+#define TFM_SQR24
+#define TFM_SQR28
+#define TFM_SQR32
+#define TFM_SQR48
+#define TFM_SQR64
+#endif
+
+/* do we want some overflow checks
+   Not required if you make sure your numbers are within range (e.g. by default a modulus for fp_exptmod() can only be upto 2048 bits long)
+ */
+/* #define TFM_CHECK */
+
+/* Is the target a P4 Prescott
+ */
+/* #define TFM_PRESCOTT */
+
+/* Do we want timing resistant fp_exptmod() ?
+ * This makes it slower but also timing invariant with respect to the exponent 
+ */
+/* #define TFM_TIMING_RESISTANT */
+
+#endif /* TFM_ALREADY_SET */
 
 /* functions */
 
