@@ -291,10 +291,10 @@ typedef struct {
 #define TFM_MUL24
 #define TFM_MUL28
 #define TFM_MUL32
-#if (FP_MAX_BITS >= 6144)
+#if (FP_MAX_BITS >= 6144) && defined(FP_64BIT)
     #define TFM_MUL48
 #endif
-#if (FP_MAX_BITS >= 6144)
+#if (FP_MAX_BITS >= 8192) && defined(FP_64BIT)
     #define TFM_MUL64
 #endif
 #endif
