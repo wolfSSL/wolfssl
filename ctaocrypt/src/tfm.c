@@ -2185,7 +2185,7 @@ static const fp_digit primes[256] = {
 int fp_isprime(fp_int *a)
 {
    fp_int   b;
-   fp_digit d;
+   fp_digit d = 0;
    int      r, res;
 
    /* do trial division */
