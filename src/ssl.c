@@ -1194,7 +1194,7 @@ void SSL_load_error_strings(void)   /* compatibility only */
 int SSL_library_init(void)
 {
     CYASSL_ENTER("SSL_library_init");
-    if (InitCyaSSL() == 0)
+    if (CyaSSL_Init() == 0)
         return SSL_SUCCESS;
     else
         return SSL_FATAL_ERROR;
@@ -1677,10 +1677,10 @@ int SSL_CTX_set_cipher_list(SSL_CTX* ctx, const char* list)
 #endif /* NO_CYASSL_SERVER */
 
 
-int InitCyaSSL(void)
+int CyaSSL_Init(void)
 {
     int ret = 0;
-    CYASSL_ENTER("InitCyaSSL");
+    CYASSL_ENTER("CyaSSL_Init");
 #ifndef NO_SESSION_CACHE
     if (InitMutex(&session_mutex) != 0)
         ret = BAD_MUTEX_ERROR;
@@ -1692,10 +1692,10 @@ int InitCyaSSL(void)
 }
 
 
-int FreeCyaSSL(void)
+int CyaSSL_Cleanup(void)
 {
     int ret = 0;
-    CYASSL_ENTER("FreeCyaSSL");
+    CYASSL_ENTER("CyaSSL_Cleanup");
 #ifndef NO_SESSION_CACHE
     if (FreeMutex(&session_mutex) != 0)
         ret = BAD_MUTEX_ERROR;
@@ -2382,7 +2382,7 @@ int CyaSSL_set_compression(SSL* ssl)
     void OpenSSL_add_all_algorithms(void)
     {
         CYASSL_ENTER("OpenSSL_add_all_algorithms");
-        InitCyaSSL(); 
+        CyaSSL_Init(); 
     }
 
 

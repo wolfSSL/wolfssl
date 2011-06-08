@@ -622,9 +622,9 @@ CYASSL_API int  SSL_CTX_get_ex_new_index(long, void*, void*, void*, void*);
 CYASSL_API int CyaSSL_check_domain_name(SSL* ssl, const char* dn);
 
 /* need to call once to load library (session cache) */
-CYASSL_API int InitCyaSSL(void);
-/* call when done to free session cache mutex        */
-CYASSL_API int FreeCyaSSL(void);
+CYASSL_API int CyaSSL_Init(void);
+/* call when done to cleanup/free session cache mutex / resources  */
+CYASSL_API int CyaSSL_Cleanup(void);
 
 /* turn logging on, only if compiled in */
 CYASSL_API int  CyaSSL_Debugging_ON(void);

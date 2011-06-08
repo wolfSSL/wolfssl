@@ -141,9 +141,9 @@ void echoclient_test(void* args)
         args.argc = argc;
         args.argv = argv;
 
-        InitCyaSSL();
+        CyaSSL_Init();
         echoclient_test(&args);
-        FreeCyaSSL();
+        CyaSSL_Cleanup();
 
         return args.return_code;
     }

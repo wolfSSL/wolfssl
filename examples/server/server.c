@@ -171,12 +171,12 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
         args.argc = argc;
         args.argv = argv;
 
-        InitCyaSSL();
+        CyaSSL_Init();
 #ifdef DEBUG_CYASSL
         CyaSSL_Debugging_ON();
 #endif
         server_test(&args);
-        FreeCyaSSL();
+        CyaSSL_Cleanup();
 
         return args.return_code;
     }

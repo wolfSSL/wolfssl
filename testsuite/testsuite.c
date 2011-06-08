@@ -43,7 +43,7 @@ int main(int argc, char** argv)
     if (args.return_code != 0) return args.return_code;
  
     /* Simple CyaSSL client server test */
-    InitCyaSSL();
+    CyaSSL_Init();
     InitTcpReady(&ready);
     server_args.signal = &ready;
     start_thread(server_test, &server_args, &serverThread);
@@ -105,7 +105,7 @@ int main(int argc, char** argv)
             return -1;
     }
 
-    FreeCyaSSL();
+    CyaSSL_Cleanup();
     FreeTcpReady(&ready);
 
     printf("\nAll tests passed!\n");
