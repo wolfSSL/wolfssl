@@ -37,10 +37,12 @@ typedef void (*CyaSSL_Free_cb)(void *ptr);
 typedef void *(*CyaSSL_Realloc_cb)(void *ptr, size_t size);
 
 
+/* Public set function */
 CYASSL_API int CyaSSL_SetAllocators(CyaSSL_Malloc_cb  malloc_function,
                                     CyaSSL_Free_cb    free_function,
                                     CyaSSL_Realloc_cb realloc_function);
 
+/* Public in case user app wants to use XMALLOC/XFREE */
 CYASSL_API void* CyaSSL_Malloc(size_t size);
 CYASSL_API void  CyaSSL_Free(void *ptr);
 CYASSL_API void* CyaSSL_Realloc(void *ptr, size_t size);
