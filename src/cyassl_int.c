@@ -212,14 +212,16 @@ static INLINE void ato32(const byte* c, word32* u32)
 #ifdef HAVE_LIBZ
 
     /* alloc user allocs to work with zlib */
-    void* myAlloc(void* opaque, unsigned int item, unsigned int size)
+    static void* myAlloc(void* opaque, unsigned int item, unsigned int size)
     {
+        (void)opaque;
         return XMALLOC(item * size, opaque, DYNAMIC_TYPE_LIBZ);
     }
 
 
-    void myFree(void* opaque, void* memory)
+    static void myFree(void* opaque, void* memory)
     {
+        (void)opaque;
         XFREE(memory, opaque, DYNAMIC_TYPE_LIBZ);
     }
 

@@ -405,7 +405,7 @@ AC_ARG_WITH(libz,
         CPPFLAGS="$CPPFLAGS -DHAVE_LIBZ"
         LIBS="$LIBS -lz"
 
-        AC_TRY_LINK([#include <zlib.h>], [ deflateInit(NULL, 8); ],
+        AC_TRY_LINK([#include <zlib.h>], [ deflateInit(0, 8); ],
             [ libz_linked=yes ], [ libz_linked=no ])
 
         if test "x$libz_linked" == "xno" ; then
@@ -419,7 +419,7 @@ AC_ARG_WITH(libz,
             LDFLAGS="$LDFLAGS -L$trylibzdir/lib"
             CPPFLAGS="$CPPFLAGS -I$trylibzdir/include"
 
-            AC_TRY_LINK([#include <zlib.h>], [ deflateInit(NULL, 8); ],
+            AC_TRY_LINK([#include <zlib.h>], [ deflateInit(0, 8); ],
                 [ libz_linked=yes ], [ libz_linked=no ])
 
             if test "x$libz_linked" == "xno" ; then
