@@ -23,7 +23,11 @@
 #ifndef NO_HC128
 
 #include "ctc_hc128.h"
-#include "ctc_misc.c"
+#ifdef NO_INLINE
+    #include "ctc_misc.h"
+#else
+    #include "ctc_misc.c"
+#endif
 
 
 #ifdef BIG_ENDIAN_ORDER
