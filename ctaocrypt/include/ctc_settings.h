@@ -22,8 +22,8 @@
 /* Place OS specific preprocessor flags, defines, includes here, will be
    included into every file because ctc_types.h includes it */
 
-#ifndef CTAO_CRYPT_OS_SETTINGS_H
-#define CTAO_CRYPT_OS_SETTINGS_H
+#ifndef CTAO_CRYPT_SETTINGS_H
+#define CTAO_CRYPT_SETTINGS_H
 
 #ifdef __cplusplus
     extern "C" {
@@ -289,5 +289,5 @@
 #endif
 
 
-#endif /* CTAO_CRYPT_OS_SETTINGS_H */
+#endif /* CTAO_CRYPT_SETTINGS_H */
 
