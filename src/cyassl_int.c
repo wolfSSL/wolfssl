@@ -1089,6 +1089,9 @@ retry:
             case IO_ERR_CONN_CLOSE:     /* peer closed connection */
                 ssl->options.isClosed = 1;
                 return -1;
+
+            default:
+                return recvd;
         }
 
     return recvd;
@@ -1168,6 +1171,9 @@ int SendBuffered(SSL* ssl)
                 case IO_ERR_CONN_CLOSE: /* epipe / conn closed, same as reset */
                     ssl->options.connReset = 1;
                     break;
+
+                default:
+                    return SOCKET_ERROR_E;
             }
 
             return SOCKET_ERROR_E;
@@ -1827,6 +1833,9 @@ static INLINE void Encrypt(SSL* ssl, byte* out, const byte* input, word32 sz)
                 RabbitProcess(&ssl->encrypt.rabbit, out, input, sz);
                 break;
         #endif
+
+            default:
+                CYASSL_MSG("CyaSSL Encrypt programming error");
     }
 }
 
@@ -1863,6 +1872,9 @@ static INLINE void Decrypt(SSL* ssl, byte* plain, const byte* input, word32 sz)
                 RabbitProcess(&ssl->decrypt.rabbit, plain, input, sz);
                 break;
         #endif
+
+            default:
+                CYASSL_MSG("CyaSSL Decrypt programming error");
     }
 }
 
@@ -2310,6 +2322,9 @@ int ProcessReply(SSL* ssl)
                 ssl->options.processReply = doProcessInit;
                 continue;
             }
+        default:
+            CYASSL_MSG("Bad process input state, programming error");
+            return INPUT_CASE_ERROR;
         }
     }
 }
@@ -2970,6 +2985,10 @@ void SetErrorString(int error, char* str)
 
     case UNSUPPORTED_SUITE :
         XSTRNCPY(str, "unsupported cipher suite", max);
+        break;
+
+    case INPUT_CASE_ERROR :
+        XSTRNCPY(str, "input state error", max);
         break;
 
     case PREFIX_ERROR :

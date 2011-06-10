@@ -31,6 +31,7 @@
 #endif
 
 enum CyaSSL_ErrorCodes {
+    INPUT_CASE_ERROR       = -201,            /* process input state error */
     PREFIX_ERROR           = -202,            /* bad index to key rounds  */
     MEMORY_ERROR           = -203,            /* out of memory            */
     VERIFY_FINISHED_ERROR  = -204,            /* verify problem on finished */

@@ -465,7 +465,7 @@ CFLAGS="$CFLAGS $PTHREAD_CFLAGS"
 LIB_SOCKET_NSL
 
 dnl Various GCC warnings that should never fire for release quality code
-GCCWARNINGS="-Wall -fno-strict-aliasing -W -Wfloat-equal -Wundef       \
+GCCWARNINGS="-Wall -fno-strict-aliasing -W -Wfloat-equal -Wundef        \
 -Wpointer-arith -Wstrict-prototypes -Wmissing-prototypes                \
 -Wwrite-strings -Wredundant-decls -Wchar-subscripts -Wcomment           \
 -Wformat=2 -Wwrite-strings -Wmissing-declarations -Wredundant-decls     \
@@ -473,7 +473,8 @@ GCCWARNINGS="-Wall -fno-strict-aliasing -W -Wfloat-equal -Wundef       \
 -Wmissing-field-initializers -Wdeclaration-after-statement              \
 -Wold-style-definition -Waddress -Wmissing-noreturn -Wnormalized=id     \
 -Woverride-init -Wstrict-overflow=1 -Wextra -Warray-bounds              \
--Wstack-protector -Wformat -Wformat-security -Wpointer-sign -Wshadow"
+-Wstack-protector -Wformat -Wformat-security -Wpointer-sign -Wshadow    \
+-Wswitch-default"
 
 AC_ARG_ENABLE(gcc-lots-o-warnings,
 AS_HELP_STRING(--enable-gcc-lots-o-warnings, Enable lots of gcc warnings (default: disabled)),

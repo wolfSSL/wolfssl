@@ -922,6 +922,9 @@ int AesSetKey(Aes* aes, const byte* userKey, word32 keylen, const byte* iv,
             rk += 8;
         }
         break;
+
+    default:
+        return BAD_FUNC_ARG;
     }
 
     if (dir == AES_DECRYPTION)
