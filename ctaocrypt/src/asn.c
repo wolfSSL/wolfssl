@@ -483,9 +483,6 @@ int RsaPrivateKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
     if (GetSequence(input, inOutIdx, &length, inSz) < 0)
         return ASN_PARSE_E;
 
-    if ((word32)length > (inSz - (*inOutIdx - begin)))
-        return ASN_INPUT_E;
-
     if (GetMyVersion(input, inOutIdx, &version) < 0)
         return ASN_PARSE_E;
 
@@ -513,9 +510,6 @@ int ToTraditional(byte* input, word32 sz)
     if (GetSequence(input, &inOutIdx, &length, sz) < 0)
         return ASN_PARSE_E;
 
-    if ((word32)length > (sz - inOutIdx))
-        return ASN_INPUT_E;
-
     if (GetMyVersion(input, &inOutIdx, &version) < 0)
         return ASN_PARSE_E;
     
@@ -525,11 +519,8 @@ int ToTraditional(byte* input, word32 sz)
     if (input[inOutIdx++] != ASN_OCTET_STRING)
         return ASN_PARSE_E;
     
-    if (GetLength(input, &inOutIdx, &length, sz - 1) < 0)
+    if (GetLength(input, &inOutIdx, &length, sz) < 0)
         return ASN_PARSE_E;
-    
-    if ((word32)length > (sz - inOutIdx))
-        return ASN_INPUT_E;
     
     XMEMMOVE(input, input + inOutIdx, length);
 
@@ -728,9 +719,6 @@ int ToTraditionalEnc(byte* input, word32 sz,const char* password,int passwordSz)
     if (GetSequence(input, &inOutIdx, &length, sz) < 0)
         return ASN_PARSE_E;
 
-    if ((word32)length > (sz - inOutIdx))
-        return ASN_INPUT_E;
-
     if (GetAlgoId(input, &inOutIdx, &oid, sz) < 0)
         return ASN_PARSE_E;
     
@@ -745,9 +733,6 @@ int ToTraditionalEnc(byte* input, word32 sz,const char* password,int passwordSz)
         if (GetSequence(input, &inOutIdx, &length, sz) < 0)
             return ASN_PARSE_E;
 
-        if ((word32)length > (sz - inOutIdx))
-            return ASN_INPUT_E;
-
         if (GetAlgoId(input, &inOutIdx, &oid, sz) < 0)
             return ASN_PARSE_E;
 
@@ -758,21 +743,15 @@ int ToTraditionalEnc(byte* input, word32 sz,const char* password,int passwordSz)
     if (GetSequence(input, &inOutIdx, &length, sz) < 0)
         return ASN_PARSE_E;
 
-    if ((word32)length > (sz - inOutIdx))
-        return ASN_INPUT_E;
-
     if (input[inOutIdx++] != ASN_OCTET_STRING)
         return ASN_PARSE_E;
     
-    if (GetLength(input, &inOutIdx, &saltSz, sz - 1) < 0)
+    if (GetLength(input, &inOutIdx, &saltSz, sz) < 0)
         return ASN_PARSE_E;
 
     if (saltSz > MAX_SALT_SIZE)
         return ASN_PARSE_E;
      
-    if ((word32)length > (sz - inOutIdx))
-        return ASN_INPUT_E;
-    
     XMEMCPY(salt, &input[inOutIdx], saltSz);
     inOutIdx += saltSz;
 
@@ -790,11 +769,8 @@ int ToTraditionalEnc(byte* input, word32 sz,const char* password,int passwordSz)
         if (input[inOutIdx++] != ASN_OCTET_STRING)
             return ASN_PARSE_E;
     
-        if (GetLength(input, &inOutIdx, &length, sz - 1) < 0)
+        if (GetLength(input, &inOutIdx, &length, sz) < 0)
             return ASN_PARSE_E;
-
-        if ((word32)length > (sz - inOutIdx))
-            return ASN_INPUT_E;
 
         XMEMCPY(cbcIv, &input[inOutIdx], length);
         inOutIdx += length;
@@ -803,11 +779,8 @@ int ToTraditionalEnc(byte* input, word32 sz,const char* password,int passwordSz)
     if (input[inOutIdx++] != ASN_OCTET_STRING)
         return ASN_PARSE_E;
     
-    if (GetLength(input, &inOutIdx, &length, sz - 1) < 0)
+    if (GetLength(input, &inOutIdx, &length, sz) < 0)
         return ASN_PARSE_E;
-
-    if ((word32)length > (sz - inOutIdx))
-        return ASN_INPUT_E;
 
     if (DecryptKey(password, passwordSz, salt, saltSz, iterations, id,
                    input + inOutIdx, length, version, cbcIv) < 0)
@@ -830,9 +803,6 @@ int RsaPublicKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
     if (GetSequence(input, inOutIdx, &length, inSz) < 0)
         return ASN_PARSE_E;
 
-    if ((word32)length > (inSz - (*inOutIdx - begin)))
-        return ASN_INPUT_E;
-
     key->type = RSA_PUBLIC;
     b = input[*inOutIdx];
 
@@ -846,7 +816,7 @@ int RsaPublicKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
         if (b != ASN_OBJECT_ID) 
             return ASN_OBJECT_ID_E;
         
-        if (GetLength(input, inOutIdx, &length, inSz - 1) < 0)
+        if (GetLength(input, inOutIdx, &length, inSz) < 0)
             return ASN_PARSE_E;
         
         *inOutIdx += length;   /* skip past */
@@ -868,7 +838,7 @@ int RsaPublicKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
         if (b != ASN_BIT_STRING)
             return ASN_BITSTR_E;
         
-        if (GetLength(input, inOutIdx, &length, inSz - 1) < 0)
+        if (GetLength(input, inOutIdx, &length, inSz) < 0)
             return ASN_PARSE_E;
         
         /* could have 0 */
@@ -897,9 +867,6 @@ int DhKeyDecode(const byte* input, word32* inOutIdx, DhKey* key, word32 inSz)
 
     if (GetSequence(input, inOutIdx, &length, inSz) < 0)
         return ASN_PARSE_E;
-
-    if ((word32)length > (inSz - (*inOutIdx - begin)))
-        return ASN_INPUT_E;
 
     if (GetInt(&key->p,  input, inOutIdx, inSz) < 0 ||
         GetInt(&key->g,  input, inOutIdx, inSz) < 0 )  return ASN_DH_KEY_E;
@@ -948,9 +915,6 @@ int DsaPublicKeyDecode(const byte* input, word32* inOutIdx, DsaKey* key,
     if (GetSequence(input, inOutIdx, &length, inSz) < 0)
         return ASN_PARSE_E;
 
-    if ((word32)length > (inSz - (*inOutIdx - begin)))
-        return ASN_INPUT_E;
-
     if (GetInt(&key->p,  input, inOutIdx, inSz) < 0 ||
         GetInt(&key->q,  input, inOutIdx, inSz) < 0 ||
         GetInt(&key->g,  input, inOutIdx, inSz) < 0 ||
@@ -969,9 +933,6 @@ int DsaPrivateKeyDecode(const byte* input, word32* inOutIdx, DsaKey* key,
 
     if (GetSequence(input, inOutIdx, &length, inSz) < 0)
         return ASN_PARSE_E;
-
-    if ((word32)length > (inSz - (*inOutIdx - begin)))
-        return ASN_INPUT_E;
 
     if (GetMyVersion(input, inOutIdx, &version) < 0)
         return ASN_PARSE_E;
@@ -3242,9 +3203,6 @@ int EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
     if (GetSequence(input, inOutIdx, &length, inSz) < 0)
         return ASN_PARSE_E;
 
-    if ((word32)length > (inSz - (*inOutIdx - begin)))
-        return ASN_INPUT_E;
-
     if (GetMyVersion(input, inOutIdx, &version) < 0)
         return ASN_PARSE_E;
 
@@ -3255,7 +3213,7 @@ int EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
     if (b != 4 && b != 6 && b != 7) 
         return ASN_PARSE_E;
 
-    if (GetLength(input, inOutIdx, &length, inSz - 1) < 0)
+    if (GetLength(input, inOutIdx, &length, inSz) < 0)
         return ASN_PARSE_E;
 
     /* priv key */
@@ -3267,7 +3225,7 @@ int EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
     b = input[*inOutIdx];
     *inOutIdx += 1;
 
-    if (GetLength(input, inOutIdx, &length, inSz - 1) < 0)
+    if (GetLength(input, inOutIdx, &length, inSz) < 0)
         return ASN_PARSE_E;
 
     /* object id */
@@ -3277,7 +3235,7 @@ int EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
     if (b != ASN_OBJECT_ID) 
         return ASN_OBJECT_ID_E;
 
-    if (GetLength(input, inOutIdx, &length, inSz - 1) < 0)
+    if (GetLength(input, inOutIdx, &length, inSz) < 0)
         return ASN_PARSE_E;
 
     while(length--) {
@@ -3291,7 +3249,7 @@ int EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
     b = input[*inOutIdx];
     *inOutIdx += 1;
 
-    if (GetLength(input, inOutIdx, &length, inSz - 1) < 0)
+    if (GetLength(input, inOutIdx, &length, inSz) < 0)
         return ASN_PARSE_E;
 
     /* key header */
@@ -3300,7 +3258,7 @@ int EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
     if (b != ASN_BIT_STRING)
         return ASN_BITSTR_E;
 
-    if (GetLength(input, inOutIdx, &length, inSz - 1) < 0)
+    if (GetLength(input, inOutIdx, &length, inSz) < 0)
         return ASN_PARSE_E;
     b = input[*inOutIdx];
     *inOutIdx += 1;
