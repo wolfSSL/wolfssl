@@ -287,7 +287,7 @@ static int GetLength(const byte* input, word32* inOutIdx, int* len,
     if (b >= ASN_LONG_LENGTH) {        
         word32 bytes = b & 0x7F;
 
-        if ( (i+b) > maxIdx) {   /* for reading bytes */
+        if ( (i+bytes) > maxIdx) {   /* for reading bytes */
             CYASSL_MSG("GetLength bad long length");
             return BUFFER_E;
         }
