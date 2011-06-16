@@ -272,14 +272,25 @@ CPU_INT32S NetSecure_ValidateDateHandler(CPU_INT08U *date, CPU_INT08U format,
 #endif /* MICRIUM */
 
 
-static int GetLength(const byte* input, word32* inOutIdx, int* len)
+static int GetLength(const byte* input, word32* inOutIdx, int* len,
+                     word32 maxIdx)
 {
     int     length = 0;
     word32  i = *inOutIdx;
 
+    if ( (i+1) > maxIdx) {   /* for first read */
+        CYASSL_MSG("GetLength bad index on input");
+        return BUFFER_E;
+    }
+
     byte b = input[i++];
     if (b >= ASN_LONG_LENGTH) {        
         word32 bytes = b & 0x7F;
+
+        if ( (i+b) > maxIdx) {   /* for reading bytes */
+            CYASSL_MSG("GetLength bad long length");
+            return BUFFER_E;
+        }
 
         while (bytes--) {
             b = input[i++];
@@ -289,6 +300,11 @@ static int GetLength(const byte* input, word32* inOutIdx, int* len)
     else
         length = b;
     
+    if ( (i+length) > maxIdx) {   /* for user of length */
+        CYASSL_MSG("GetLength value exceeds buffer length");
+        return BUFFER_E;
+    }
+
     *inOutIdx = i;
     *len      = length;
 
@@ -296,13 +312,14 @@ static int GetLength(const byte* input, word32* inOutIdx, int* len)
 }
 
 
-static int GetSequence(const byte* input, word32* inOutIdx, int* len)
+static int GetSequence(const byte* input, word32* inOutIdx, int* len,
+                       word32 maxIdx)
 {
     int    length = -1;
     word32 idx    = *inOutIdx;
 
     if (input[idx++] != (ASN_SEQUENCE | ASN_CONSTRUCTED) ||
-            GetLength(input, &idx, &length) < 0)
+            GetLength(input, &idx, &length, maxIdx) < 0)
         return ASN_PARSE_E;
 
     *len      = length;
@@ -312,13 +329,13 @@ static int GetSequence(const byte* input, word32* inOutIdx, int* len)
 }
 
 
-static int GetSet(const byte* input, word32* inOutIdx, int* len)
+static int GetSet(const byte* input, word32* inOutIdx, int* len, word32 maxIdx)
 {
     int    length = -1;
     word32 idx    = *inOutIdx;
 
     if (input[idx++] != (ASN_SET | ASN_CONSTRUCTED) ||
-            GetLength(input, &idx, &length) < 0)
+            GetLength(input, &idx, &length, maxIdx) < 0)
         return ASN_PARSE_E;
 
     *len      = length;
@@ -388,7 +405,8 @@ static int GetExplicitVersion(const byte* input, word32* inOutIdx, int* version)
 }
 
 
-static int GetInt(mp_int* mpi, const byte* input, word32* inOutIdx )
+static int GetInt(mp_int* mpi, const byte* input, word32* inOutIdx,
+                  word32 maxIdx)
 {
     word32 i = *inOutIdx;
     byte   b = input[i++];
@@ -397,7 +415,7 @@ static int GetInt(mp_int* mpi, const byte* input, word32* inOutIdx )
     if (b != ASN_INTEGER)
         return ASN_PARSE_E;
 
-    if (GetLength(input, &i, &length) < 0)
+    if (GetLength(input, &i, &length, maxIdx) < 0)
         return ASN_PARSE_E;
 
     if ( (b = input[i++]) == 0x00)
@@ -416,21 +434,22 @@ static int GetInt(mp_int* mpi, const byte* input, word32* inOutIdx )
 }
 
 
-static int GetAlgoId(const byte* input, word32* inOutIdx, word32* oid)
+static int GetAlgoId(const byte* input, word32* inOutIdx, word32* oid,
+                     word32 maxIdx)
 {
     int    length;
     word32 i = *inOutIdx;
     byte   b;
     *oid = 0;
     
-    if (GetSequence(input, &i, &length) < 0)
+    if (GetSequence(input, &i, &length, maxIdx) < 0)
         return ASN_PARSE_E;
     
     b = input[i++];
     if (b != ASN_OBJECT_ID) 
         return ASN_OBJECT_ID_E;
     
-    if (GetLength(input, &i, &length) < 0)
+    if (GetLength(input, &i, &length, maxIdx) < 0)
         return ASN_PARSE_E;
     
     while(length--)
@@ -461,7 +480,7 @@ int RsaPrivateKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
     word32 begin = *inOutIdx;
     int    version, length;
 
-    if (GetSequence(input, inOutIdx, &length) < 0)
+    if (GetSequence(input, inOutIdx, &length, inSz) < 0)
         return ASN_PARSE_E;
 
     if ((word32)length > (inSz - (*inOutIdx - begin)))
@@ -472,14 +491,14 @@ int RsaPrivateKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
 
     key->type = RSA_PRIVATE;
 
-    if (GetInt(&key->n,  input, inOutIdx) < 0 ||
-        GetInt(&key->e,  input, inOutIdx) < 0 ||
-        GetInt(&key->d,  input, inOutIdx) < 0 ||
-        GetInt(&key->p,  input, inOutIdx) < 0 ||
-        GetInt(&key->q,  input, inOutIdx) < 0 ||
-        GetInt(&key->dP, input, inOutIdx) < 0 ||
-        GetInt(&key->dQ, input, inOutIdx) < 0 ||
-        GetInt(&key->u,  input, inOutIdx) < 0 )  return ASN_RSA_KEY_E;
+    if (GetInt(&key->n,  input, inOutIdx, inSz) < 0 ||
+        GetInt(&key->e,  input, inOutIdx, inSz) < 0 ||
+        GetInt(&key->d,  input, inOutIdx, inSz) < 0 ||
+        GetInt(&key->p,  input, inOutIdx, inSz) < 0 ||
+        GetInt(&key->q,  input, inOutIdx, inSz) < 0 ||
+        GetInt(&key->dP, input, inOutIdx, inSz) < 0 ||
+        GetInt(&key->dQ, input, inOutIdx, inSz) < 0 ||
+        GetInt(&key->u,  input, inOutIdx, inSz) < 0 )  return ASN_RSA_KEY_E;
 
     return 0;
 }
@@ -491,7 +510,7 @@ int ToTraditional(byte* input, word32 sz)
     word32 inOutIdx = 0, oid;
     int    version, length;
 
-    if (GetSequence(input, &inOutIdx, &length) < 0)
+    if (GetSequence(input, &inOutIdx, &length, sz) < 0)
         return ASN_PARSE_E;
 
     if ((word32)length > (sz - inOutIdx))
@@ -500,13 +519,13 @@ int ToTraditional(byte* input, word32 sz)
     if (GetMyVersion(input, &inOutIdx, &version) < 0)
         return ASN_PARSE_E;
     
-    if (GetAlgoId(input, &inOutIdx, &oid) < 0)
+    if (GetAlgoId(input, &inOutIdx, &oid, sz) < 0)
         return ASN_PARSE_E;
     
     if (input[inOutIdx++] != ASN_OCTET_STRING)
         return ASN_PARSE_E;
     
-    if (GetLength(input, &inOutIdx, &length) < 0)
+    if (GetLength(input, &inOutIdx, &length, sz - 1) < 0)
         return ASN_PARSE_E;
     
     if ((word32)length > (sz - inOutIdx))
@@ -706,13 +725,13 @@ int ToTraditionalEnc(byte* input, word32 sz,const char* password,int passwordSz)
     byte   salt[MAX_SALT_SIZE];
     byte   cbcIv[MAX_IV_SIZE];
     
-    if (GetSequence(input, &inOutIdx, &length) < 0)
+    if (GetSequence(input, &inOutIdx, &length, sz) < 0)
         return ASN_PARSE_E;
 
     if ((word32)length > (sz - inOutIdx))
         return ASN_INPUT_E;
 
-    if (GetAlgoId(input, &inOutIdx, &oid) < 0)
+    if (GetAlgoId(input, &inOutIdx, &oid, sz) < 0)
         return ASN_PARSE_E;
     
     first  = input[inOutIdx - 2];   /* PKCS version alwyas 2nd to last byte */
@@ -723,20 +742,20 @@ int ToTraditionalEnc(byte* input, word32 sz,const char* password,int passwordSz)
 
     if (version == PKCS5v2) {
 
-        if (GetSequence(input, &inOutIdx, &length) < 0)
+        if (GetSequence(input, &inOutIdx, &length, sz) < 0)
             return ASN_PARSE_E;
 
         if ((word32)length > (sz - inOutIdx))
             return ASN_INPUT_E;
 
-        if (GetAlgoId(input, &inOutIdx, &oid) < 0)
+        if (GetAlgoId(input, &inOutIdx, &oid, sz) < 0)
             return ASN_PARSE_E;
 
         if (oid != PBKDF2_OID)
             return ASN_PARSE_E;
     }
 
-    if (GetSequence(input, &inOutIdx, &length) < 0)
+    if (GetSequence(input, &inOutIdx, &length, sz) < 0)
         return ASN_PARSE_E;
 
     if ((word32)length > (sz - inOutIdx))
@@ -745,7 +764,7 @@ int ToTraditionalEnc(byte* input, word32 sz,const char* password,int passwordSz)
     if (input[inOutIdx++] != ASN_OCTET_STRING)
         return ASN_PARSE_E;
     
-    if (GetLength(input, &inOutIdx, &saltSz) < 0)
+    if (GetLength(input, &inOutIdx, &saltSz, sz - 1) < 0)
         return ASN_PARSE_E;
 
     if (saltSz > MAX_SALT_SIZE)
@@ -762,7 +781,7 @@ int ToTraditionalEnc(byte* input, word32 sz,const char* password,int passwordSz)
 
     if (version == PKCS5v2) {
         /* get encryption algo */
-        if (GetAlgoId(input, &inOutIdx, &oid) < 0)
+        if (GetAlgoId(input, &inOutIdx, &oid, sz) < 0)
             return ASN_PARSE_E;
 
         if (CheckAlgoV2(oid, &id) < 0)
@@ -771,7 +790,7 @@ int ToTraditionalEnc(byte* input, word32 sz,const char* password,int passwordSz)
         if (input[inOutIdx++] != ASN_OCTET_STRING)
             return ASN_PARSE_E;
     
-        if (GetLength(input, &inOutIdx, &length) < 0)
+        if (GetLength(input, &inOutIdx, &length, sz - 1) < 0)
             return ASN_PARSE_E;
 
         if ((word32)length > (sz - inOutIdx))
@@ -784,7 +803,7 @@ int ToTraditionalEnc(byte* input, word32 sz,const char* password,int passwordSz)
     if (input[inOutIdx++] != ASN_OCTET_STRING)
         return ASN_PARSE_E;
     
-    if (GetLength(input, &inOutIdx, &length) < 0)
+    if (GetLength(input, &inOutIdx, &length, sz - 1) < 0)
         return ASN_PARSE_E;
 
     if ((word32)length > (sz - inOutIdx))
@@ -808,7 +827,7 @@ int RsaPublicKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
     int    length;
     byte   b;
 
-    if (GetSequence(input, inOutIdx, &length) < 0)
+    if (GetSequence(input, inOutIdx, &length, inSz) < 0)
         return ASN_PARSE_E;
 
     if ((word32)length > (inSz - (*inOutIdx - begin)))
@@ -820,14 +839,14 @@ int RsaPublicKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
 #ifdef OPENSSL_EXTRA    
     if (b != ASN_INTEGER) {
         /* not from decoded cert, will have algo id, skip past */
-        if (GetSequence(input, inOutIdx, &length) < 0)
+        if (GetSequence(input, inOutIdx, &length, inSz) < 0)
             return ASN_PARSE_E;
         
         b = input[(*inOutIdx)++];
         if (b != ASN_OBJECT_ID) 
             return ASN_OBJECT_ID_E;
         
-        if (GetLength(input, inOutIdx, &length) < 0)
+        if (GetLength(input, inOutIdx, &length, inSz - 1) < 0)
             return ASN_PARSE_E;
         
         *inOutIdx += length;   /* skip past */
@@ -849,7 +868,7 @@ int RsaPublicKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
         if (b != ASN_BIT_STRING)
             return ASN_BITSTR_E;
         
-        if (GetLength(input, inOutIdx, &length) < 0)
+        if (GetLength(input, inOutIdx, &length, inSz - 1) < 0)
             return ASN_PARSE_E;
         
         /* could have 0 */
@@ -857,13 +876,13 @@ int RsaPublicKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
         if (b != 0)
             (*inOutIdx)--;
         
-        if (GetSequence(input, inOutIdx, &length) < 0)
+        if (GetSequence(input, inOutIdx, &length, inSz) < 0)
             return ASN_PARSE_E;
     }
 #endif /* OPENSSL_EXTRA */
 
-    if (GetInt(&key->n,  input, inOutIdx) < 0 ||
-        GetInt(&key->e,  input, inOutIdx) < 0 )  return ASN_RSA_KEY_E;
+    if (GetInt(&key->n,  input, inOutIdx, inSz) < 0 ||
+        GetInt(&key->e,  input, inOutIdx, inSz) < 0 )  return ASN_RSA_KEY_E;
 
     return 0;
 }
@@ -876,14 +895,14 @@ int DhKeyDecode(const byte* input, word32* inOutIdx, DhKey* key, word32 inSz)
     word32 begin = *inOutIdx;
     int    length;
 
-    if (GetSequence(input, inOutIdx, &length) < 0)
+    if (GetSequence(input, inOutIdx, &length, inSz) < 0)
         return ASN_PARSE_E;
 
     if ((word32)length > (inSz - (*inOutIdx - begin)))
         return ASN_INPUT_E;
 
-    if (GetInt(&key->p,  input, inOutIdx) < 0 ||
-        GetInt(&key->g,  input, inOutIdx) < 0 )  return ASN_DH_KEY_E;
+    if (GetInt(&key->p,  input, inOutIdx, inSz) < 0 ||
+        GetInt(&key->g,  input, inOutIdx, inSz) < 0 )  return ASN_DH_KEY_E;
 
     return 0;
 }
@@ -926,16 +945,16 @@ int DsaPublicKeyDecode(const byte* input, word32* inOutIdx, DsaKey* key,
     word32 begin = *inOutIdx;
     int    length;
 
-    if (GetSequence(input, inOutIdx, &length) < 0)
+    if (GetSequence(input, inOutIdx, &length, inSz) < 0)
         return ASN_PARSE_E;
 
     if ((word32)length > (inSz - (*inOutIdx - begin)))
         return ASN_INPUT_E;
 
-    if (GetInt(&key->p,  input, inOutIdx) < 0 ||
-        GetInt(&key->q,  input, inOutIdx) < 0 ||
-        GetInt(&key->g,  input, inOutIdx) < 0 ||
-        GetInt(&key->y,  input, inOutIdx) < 0 )  return ASN_DH_KEY_E;
+    if (GetInt(&key->p,  input, inOutIdx, inSz) < 0 ||
+        GetInt(&key->q,  input, inOutIdx, inSz) < 0 ||
+        GetInt(&key->g,  input, inOutIdx, inSz) < 0 ||
+        GetInt(&key->y,  input, inOutIdx, inSz) < 0 )  return ASN_DH_KEY_E;
 
     key->type = DSA_PUBLIC;
     return 0;
@@ -948,7 +967,7 @@ int DsaPrivateKeyDecode(const byte* input, word32* inOutIdx, DsaKey* key,
     word32 begin = *inOutIdx;
     int    length, version;
 
-    if (GetSequence(input, inOutIdx, &length) < 0)
+    if (GetSequence(input, inOutIdx, &length, inSz) < 0)
         return ASN_PARSE_E;
 
     if ((word32)length > (inSz - (*inOutIdx - begin)))
@@ -957,11 +976,11 @@ int DsaPrivateKeyDecode(const byte* input, word32* inOutIdx, DsaKey* key,
     if (GetMyVersion(input, inOutIdx, &version) < 0)
         return ASN_PARSE_E;
 
-    if (GetInt(&key->p,  input, inOutIdx) < 0 ||
-        GetInt(&key->q,  input, inOutIdx) < 0 ||
-        GetInt(&key->g,  input, inOutIdx) < 0 ||
-        GetInt(&key->y,  input, inOutIdx) < 0 ||
-        GetInt(&key->x,  input, inOutIdx) < 0 )  return ASN_DH_KEY_E;
+    if (GetInt(&key->p,  input, inOutIdx, inSz) < 0 ||
+        GetInt(&key->q,  input, inOutIdx, inSz) < 0 ||
+        GetInt(&key->g,  input, inOutIdx, inSz) < 0 ||
+        GetInt(&key->y,  input, inOutIdx, inSz) < 0 ||
+        GetInt(&key->x,  input, inOutIdx, inSz) < 0 )  return ASN_DH_KEY_E;
 
     key->type = DSA_PRIVATE;
     return 0;
@@ -970,7 +989,7 @@ int DsaPrivateKeyDecode(const byte* input, word32* inOutIdx, DsaKey* key,
 #endif /* NO_DSA */
 
 
-void InitDecodedCert(DecodedCert* cert, byte* source, void* heap)
+void InitDecodedCert(DecodedCert* cert, byte* source, word32 inSz, void* heap)
 {
     cert->publicKey       = 0;
     cert->pubKeyStored    = 0;
@@ -979,6 +998,7 @@ void InitDecodedCert(DecodedCert* cert, byte* source, void* heap)
     cert->subjectCNLen    = 0;
     cert->source          = source;  /* don't own */
     cert->srcIdx          = 0;
+    cert->maxIdx          = inSz;    /* can't go over this index */
     cert->heap            = heap;
     XMEMSET(cert->serial, 0, EXTERNAL_SERIAL_SIZE);
     cert->serialSz        = 0;
@@ -1010,27 +1030,26 @@ void FreeDecodedCert(DecodedCert* cert)
 }
 
 
-static int GetCertHeader(DecodedCert* cert, word32 inSz)
+static int GetCertHeader(DecodedCert* cert)
 {
     int    ret = 0, version, len;
     word32 begin = cert->srcIdx;
     byte   serialTmp[EXTERNAL_SERIAL_SIZE];
     mp_int mpi;
 
-    if (GetSequence(cert->source, &cert->srcIdx, &len) < 0)
+    if (GetSequence(cert->source, &cert->srcIdx, &len, cert->maxIdx) < 0)
         return ASN_PARSE_E;
-
-    if ((word32)len > (inSz - (cert->srcIdx - begin))) return ASN_INPUT_E;
 
     cert->certBegin = cert->srcIdx;
 
-    GetSequence(cert->source, &cert->srcIdx, &len);
+    if (GetSequence(cert->source, &cert->srcIdx, &len, cert->maxIdx) < 0)
+        return ASN_PARSE_E;
     cert->sigIndex = len + cert->srcIdx;
 
     if (GetExplicitVersion(cert->source, &cert->srcIdx, &version) < 0)
         return ASN_PARSE_E;
 
-    if (GetInt(&mpi, cert->source, &cert->srcIdx) < 0) 
+    if (GetInt(&mpi, cert->source, &cert->srcIdx, cert->maxIdx) < 0) 
         return ASN_PARSE_E;
 
     len = mp_unsigned_bin_size(&mpi);
@@ -1053,7 +1072,7 @@ static int StoreRsaKey(DecodedCert* cert)
     int    length;
     word32 read = cert->srcIdx;
 
-    if (GetSequence(cert->source, &cert->srcIdx, &length) < 0)
+    if (GetSequence(cert->source, &cert->srcIdx, &length, cert->maxIdx) < 0)
         return ASN_PARSE_E;
    
     read = cert->srcIdx - read;
@@ -1092,10 +1111,10 @@ static int GetKey(DecodedCert* cert)
     int tmpIdx = cert->srcIdx;
 #endif
 
-    if (GetSequence(cert->source, &cert->srcIdx, &length) < 0)
+    if (GetSequence(cert->source, &cert->srcIdx, &length, cert->maxIdx) < 0)
         return ASN_PARSE_E;
     
-    if (GetAlgoId(cert->source, &cert->srcIdx, &cert->keyOID) < 0)
+    if (GetAlgoId(cert->source, &cert->srcIdx, &cert->keyOID, cert->maxIdx) < 0)
         return ASN_PARSE_E;
 
     if (cert->keyOID == RSAk) {
@@ -1103,7 +1122,7 @@ static int GetKey(DecodedCert* cert)
         if (b != ASN_BIT_STRING)
             return ASN_BITSTR_E;
 
-        if (GetLength(cert->source, &cert->srcIdx, &length) < 0)
+        if (GetLength(cert->source, &cert->srcIdx, &length, cert->maxIdx) < 0)
             return ASN_PARSE_E;
         b = cert->source[cert->srcIdx++];
         if (b != 0x00)
@@ -1154,7 +1173,7 @@ static int GetKey(DecodedCert* cert)
         if (b != ASN_OBJECT_ID) 
             return ASN_OBJECT_ID_E;
 
-        if (GetLength(cert->source, &cert->srcIdx, &oidSz) < 0)
+        if (GetLength(cert->source, &cert->srcIdx, &oidSz, cert->maxIdx) < 0)
             return ASN_PARSE_E;
 
         while(oidSz--)
@@ -1167,7 +1186,7 @@ static int GetKey(DecodedCert* cert)
         if (b != ASN_BIT_STRING)
             return ASN_BITSTR_E;
 
-        if (GetLength(cert->source, &cert->srcIdx, &length) < 0)
+        if (GetLength(cert->source, &cert->srcIdx, &length, cert->maxIdx) < 0)
             return ASN_PARSE_E;
         b = cert->source[cert->srcIdx++];
         if (b != 0x00)
@@ -1205,7 +1224,7 @@ static int GetName(DecodedCert* cert, int nameType)
 
     InitSha(&sha);
 
-    if (GetSequence(cert->source, &cert->srcIdx, &length) < 0)
+    if (GetSequence(cert->source, &cert->srcIdx, &length, cert->maxIdx) < 0)
         return ASN_PARSE_E;
 
     length += cert->srcIdx;
@@ -1215,17 +1234,17 @@ static int GetName(DecodedCert* cert, int nameType)
         byte   joint[2];
         int    oidSz;
 
-        if (GetSet(cert->source, &cert->srcIdx, &dummy) < 0)
+        if (GetSet(cert->source, &cert->srcIdx, &dummy, cert->maxIdx) < 0)
             return ASN_PARSE_E;
 
-        if (GetSequence(cert->source, &cert->srcIdx, &dummy) < 0)
+        if (GetSequence(cert->source, &cert->srcIdx, &dummy, cert->maxIdx) < 0)
             return ASN_PARSE_E;
 
         b = cert->source[cert->srcIdx++];
         if (b != ASN_OBJECT_ID) 
             return ASN_OBJECT_ID_E;
 
-        if (GetLength(cert->source, &cert->srcIdx, &oidSz) < 0)
+        if (GetLength(cert->source, &cert->srcIdx, &oidSz, cert->maxIdx) < 0)
             return ASN_PARSE_E;
 
         XMEMCPY(joint, &cert->source[cert->srcIdx], sizeof(joint));
@@ -1240,7 +1259,8 @@ static int GetName(DecodedCert* cert, int nameType)
             id = cert->source[cert->srcIdx++]; 
             b  = cert->source[cert->srcIdx++];    /* strType */
 
-            if (GetLength(cert->source, &cert->srcIdx, &strLen) < 0)
+            if (GetLength(cert->source, &cert->srcIdx, &strLen,
+                          cert->maxIdx) < 0)
                 return ASN_PARSE_E;
 
             if (strLen > (int)(ASN_NAME_MAX - idx))
@@ -1348,7 +1368,7 @@ static int GetName(DecodedCert* cert, int nameType)
 
             cert->srcIdx += oidSz + 1;
 
-            if (GetLength(cert->source, &cert->srcIdx, &adv) < 0)
+            if (GetLength(cert->source, &cert->srcIdx, &adv, cert->maxIdx) < 0)
                 return ASN_PARSE_E;
 
             if (adv > (int)(ASN_NAME_MAX - idx))
@@ -1494,7 +1514,7 @@ static int GetDate(DecodedCert* cert, int dateType)
     if (b != ASN_UTC_TIME && b != ASN_GENERALIZED_TIME)
         return ASN_TIME_E;
 
-    if (GetLength(cert->source, &cert->srcIdx, &length) < 0)
+    if (GetLength(cert->source, &cert->srcIdx, &length, cert->maxIdx) < 0)
         return ASN_PARSE_E;
 
     if (length > MAX_DATE_SIZE || length < MIN_DATE_SIZE)
@@ -1519,7 +1539,7 @@ static int GetValidity(DecodedCert* cert, int verify)
     int length;
     int badDate = 0;
 
-    if (GetSequence(cert->source, &cert->srcIdx, &length) < 0)
+    if (GetSequence(cert->source, &cert->srcIdx, &length, cert->maxIdx) < 0)
         return ASN_PARSE_E;
 
     if (GetDate(cert, BEFORE) < 0 && verify)
@@ -1535,15 +1555,16 @@ static int GetValidity(DecodedCert* cert, int verify)
 }
 
 
-static int DecodeToKey(DecodedCert* cert, word32 inSz, int verify)
+static int DecodeToKey(DecodedCert* cert, int verify)
 {
     int badDate = 0;
     int ret;
 
-    if ( (ret = GetCertHeader(cert, inSz)) < 0)
+    if ( (ret = GetCertHeader(cert)) < 0)
         return ret;
 
-    if ( (ret = GetAlgoId(cert->source, &cert->srcIdx,&cert->signatureOID)) < 0)
+    if ( (ret = GetAlgoId(cert->source, &cert->srcIdx, &cert->signatureOID,
+                          cert->maxIdx)) < 0)
         return ret;
 
     if ( (ret = GetName(cert, ISSUER)) < 0)
@@ -1573,7 +1594,7 @@ static int GetSignature(DecodedCert* cert)
     if (b != ASN_BIT_STRING)
         return ASN_BITSTR_E;
 
-    if (GetLength(cert->source, &cert->srcIdx, &length) < 0)
+    if (GetLength(cert->source, &cert->srcIdx, &length, cert->maxIdx) < 0)
         return ASN_PARSE_E;
 
     cert->sigLength = length;
@@ -1886,13 +1907,13 @@ static int ConfirmSignature(DecodedCert* cert, const byte* key, word32 keySz,
 }
 
 
-int ParseCert(DecodedCert* cert, word32 inSz, int type, int verify,
+int ParseCert(DecodedCert* cert, int type, int verify,
               Signer* signers)
 {
     int   ret;
     char* ptr;
 
-    ret = ParseCertRelative(cert, inSz, type, verify, signers);
+    ret = ParseCertRelative(cert, type, verify, signers);
     if (ret < 0)
         return ret;
 
@@ -1925,14 +1946,14 @@ int ParseCert(DecodedCert* cert, word32 inSz, int type, int verify,
 CYASSL_LOCAL Signer* GetCA(Signer* signers, byte* hash);
 
 
-int ParseCertRelative(DecodedCert* cert, word32 inSz, int type, int verify,
+int ParseCertRelative(DecodedCert* cert, int type, int verify,
               Signer* signers)
 {
     word32 confirmOID;
     int    ret;
     int    badDate = 0;
 
-    if ((ret = DecodeToKey(cert, inSz, verify)) < 0) {
+    if ((ret = DecodeToKey(cert, verify)) < 0) {
         if (ret == ASN_BEFORE_DATE_E || ret == ASN_AFTER_DATE_E)
             badDate = ret;
         else
@@ -1942,7 +1963,8 @@ int ParseCertRelative(DecodedCert* cert, word32 inSz, int type, int verify,
     if (cert->srcIdx != cert->sigIndex)
         cert->srcIdx =  cert->sigIndex;
 
-    if ((ret = GetAlgoId(cert->source, &cert->srcIdx, &confirmOID)) < 0)
+    if ((ret = GetAlgoId(cert->source, &cert->srcIdx, &confirmOID,
+                         cert->maxIdx)) < 0)
         return ret;
 
     if ((ret = GetSignature(cert)) < 0)
@@ -3079,8 +3101,8 @@ int SetIssuer(Cert* cert, const char* issuerCertFile)
 
     cert->selfSigned = 0;
 
-    InitDecodedCert(&decoded, der, 0);
-    ret = ParseCertRelative(&decoded, derSz, CA_TYPE, NO_VERIFY, 0);
+    InitDecodedCert(&decoded, der, derSz, 0);
+    ret = ParseCertRelative(&decoded, CA_TYPE, NO_VERIFY, 0);
 
     if (ret < 0)
         return ret;
@@ -3190,16 +3212,16 @@ int DecodeECC_DSA_Sig(const byte* sig, word32 sigLen, mp_int* r, mp_int* s)
     word32 idx = 0;
     int    len = 0;
 
-    if (GetSequence(sig, &idx, &len) < 0)
+    if (GetSequence(sig, &idx, &len, sigLen) < 0)
         return ASN_ECC_KEY_E;
 
     if ((word32)len > (sigLen - idx))
         return ASN_ECC_KEY_E;
 
-    if (GetInt(r, sig, &idx) < 0)
+    if (GetInt(r, sig, &idx, sigLen) < 0)
         return ASN_ECC_KEY_E;
 
-    if (GetInt(s, sig, &idx) < 0)
+    if (GetInt(s, sig, &idx, sigLen) < 0)
         return ASN_ECC_KEY_E;
 
     return 0;
@@ -3217,7 +3239,7 @@ int EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
     byte   priv[ECC_MAXSIZE];
     byte   pub[ECC_MAXSIZE * 2 + 1]; /* public key has two parts plus header */
 
-    if (GetSequence(input, inOutIdx, &length) < 0)
+    if (GetSequence(input, inOutIdx, &length, inSz) < 0)
         return ASN_PARSE_E;
 
     if ((word32)length > (inSz - (*inOutIdx - begin)))
@@ -3233,7 +3255,7 @@ int EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
     if (b != 4 && b != 6 && b != 7) 
         return ASN_PARSE_E;
 
-    if (GetLength(input, inOutIdx, &length) < 0)
+    if (GetLength(input, inOutIdx, &length, inSz - 1) < 0)
         return ASN_PARSE_E;
 
     /* priv key */
@@ -3245,7 +3267,7 @@ int EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
     b = input[*inOutIdx];
     *inOutIdx += 1;
 
-    if (GetLength(input, inOutIdx, &length) < 0)
+    if (GetLength(input, inOutIdx, &length, inSz - 1) < 0)
         return ASN_PARSE_E;
 
     /* object id */
@@ -3255,7 +3277,7 @@ int EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
     if (b != ASN_OBJECT_ID) 
         return ASN_OBJECT_ID_E;
 
-    if (GetLength(input, inOutIdx, &length) < 0)
+    if (GetLength(input, inOutIdx, &length, inSz - 1) < 0)
         return ASN_PARSE_E;
 
     while(length--) {
@@ -3269,7 +3291,7 @@ int EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
     b = input[*inOutIdx];
     *inOutIdx += 1;
 
-    if (GetLength(input, inOutIdx, &length) < 0)
+    if (GetLength(input, inOutIdx, &length, inSz - 1) < 0)
         return ASN_PARSE_E;
 
     /* key header */
@@ -3278,7 +3300,7 @@ int EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
     if (b != ASN_BIT_STRING)
         return ASN_BITSTR_E;
 
-    if (GetLength(input, inOutIdx, &length) < 0)
+    if (GetLength(input, inOutIdx, &length, inSz - 1) < 0)
         return ASN_PARSE_E;
     b = input[*inOutIdx];
     *inOutIdx += 1;

@@ -1486,9 +1486,9 @@ static int DoCertificate(SSL* ssl, byte* input, word32* inOutIdx)
         buffer myCert = certs[count - 1];
         DecodedCert dCert;
 
-        InitDecodedCert(&dCert, myCert.buffer, ssl->heap);
-        ret = ParseCertRelative(&dCert, myCert.length, CERT_TYPE,
-                                !ssl->options.verifyNone, ssl->ctx->caList);
+        InitDecodedCert(&dCert, myCert.buffer, myCert.length, ssl->heap);
+        ret = ParseCertRelative(&dCert, CERT_TYPE, !ssl->options.verifyNone,
+                                ssl->ctx->caList);
         if (ret == 0 && !IsCA(ssl->ctx, dCert.subjectHash)) {
             buffer add;
             add.length = myCert.length;
@@ -1526,9 +1526,9 @@ static int DoCertificate(SSL* ssl, byte* input, word32* inOutIdx)
 
         CYASSL_MSG("Veriying Peer's cert");
 
-        InitDecodedCert(&dCert, myCert.buffer, ssl->heap);
-        ret = ParseCertRelative(&dCert, myCert.length, CERT_TYPE,
-                                !ssl->options.verifyNone, ssl->ctx->caList);
+        InitDecodedCert(&dCert, myCert.buffer, myCert.length, ssl->heap);
+        ret = ParseCertRelative(&dCert, CERT_TYPE, !ssl->options.verifyNone,
+                                ssl->ctx->caList);
         if (ret != 0) {
             CYASSL_MSG("Failed to verify Peer's cert");
             (void)ret;

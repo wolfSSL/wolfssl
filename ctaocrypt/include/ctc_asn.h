@@ -198,6 +198,7 @@ struct DecodedCert {
     int     verify;                  /* Default to yes, but could be off */
     byte*   source;                  /* byte buffer holder cert, NOT owner */
     word32  srcIdx;                  /* current offset into buffer       */
+    word32  maxIdx;                  /* max offset based on init size    */
     void*   heap;                    /* for user memory overrides        */
     byte    serial[EXTERNAL_SERIAL_SIZE];  /* raw serial number          */
     int     serialSz;                /* raw serial bytes stored */
@@ -239,12 +240,12 @@ struct Signer {
     #define CYASSL_TEST_API CYASSL_LOCAL
 #endif
 
-CYASSL_TEST_API void InitDecodedCert(DecodedCert*, byte*, void*);
+CYASSL_TEST_API void InitDecodedCert(DecodedCert*, byte*, word32, void*);
 CYASSL_TEST_API void FreeDecodedCert(DecodedCert*);
-CYASSL_TEST_API int  ParseCert(DecodedCert*, word32, int type, int verify,
+CYASSL_TEST_API int  ParseCert(DecodedCert*, int type, int verify,
                                Signer* signer);
 
-CYASSL_LOCAL int ParseCertRelative(DecodedCert*, word32, int type, int verify,
+CYASSL_LOCAL int ParseCertRelative(DecodedCert*, int type, int verify,
                                    Signer* signer);
 
 CYASSL_LOCAL word32 EncodeSignature(byte* out, const byte* digest, word32 digSz,

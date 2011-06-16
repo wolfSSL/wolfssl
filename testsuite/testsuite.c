@@ -37,13 +37,17 @@ int main(int argc, char** argv)
 
     args.argc = server_args.argc = argc;
     args.argv = server_args.argv = argv;
+
+    CyaSSL_Init();
+#ifdef DEBUG_CYASSL
+    CyaSSL_Debugging_ON();
+#endif
    
     /* CTaoCrypt test */
     ctaocrypt_test(&args);
     if (args.return_code != 0) return args.return_code;
  
     /* Simple CyaSSL client server test */
-    CyaSSL_Init();
     InitTcpReady(&ready);
     server_args.signal = &ready;
     start_thread(server_test, &server_args, &serverThread);

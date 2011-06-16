@@ -1123,9 +1123,9 @@ int rsa_test()
     bytes2 = fread(tmp2, 1, sizeof(tmp2), file2);
 
 #ifdef CYASSL_TEST_CERT
-    InitDecodedCert(&cert, (byte*)&tmp2, 0);
+    InitDecodedCert(&cert, (byte*)&tmp2, (word32)bytes2, 0);
 
-    ret = ParseCert(&cert, (word32)bytes2, CERT_TYPE, NO_VERIFY, 0);
+    ret = ParseCert(&cert, CERT_TYPE, NO_VERIFY, 0);
     if (ret != 0) return -48;
 
     FreeDecodedCert(&cert);
@@ -1211,8 +1211,8 @@ int rsa_test()
             return -401;
 
 #ifdef CYASSL_TEST_CERT
-        InitDecodedCert(&decode, derCert, 0);
-        ret = ParseCert(&decode, certSz, CERT_TYPE, NO_VERIFY, 0);
+        InitDecodedCert(&decode, derCert, certSz, 0);
+        ret = ParseCert(&decode, CERT_TYPE, NO_VERIFY, 0);
         if (ret != 0)
             return -402;
         FreeDecodedCert(&decode);
@@ -1287,8 +1287,8 @@ int rsa_test()
 
 
 #ifdef CYASSL_TEST_CERT
-        InitDecodedCert(&decode, derCert, 0);
-        ret = ParseCert(&decode, certSz, CERT_TYPE, NO_VERIFY, 0);
+        InitDecodedCert(&decode, derCert, certSz, 0);
+        ret = ParseCert(&decode, CERT_TYPE, NO_VERIFY, 0);
         if (ret != 0)
             return -409;
         FreeDecodedCert(&decode);
@@ -1391,8 +1391,8 @@ int rsa_test()
 
 
 #ifdef CYASSL_TEST_CERT
-        InitDecodedCert(&decode, derCert, 0);
-        ret = ParseCert(&decode, certSz, CERT_TYPE, NO_VERIFY, 0);
+        InitDecodedCert(&decode, derCert, certSz, 0);
+        ret = ParseCert(&decode, CERT_TYPE, NO_VERIFY, 0);
         if (ret != 0)
             return -458;
         FreeDecodedCert(&decode);

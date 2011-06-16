@@ -398,8 +398,8 @@ int AddCA(SSL_CTX* ctx, buffer der)
     Signer*     signer = 0;
 
     CYASSL_MSG("Adding a CA");
-    InitDecodedCert(&cert, der.buffer, ctx->heap);
-    ret = ParseCert(&cert, der.length, CA_TYPE, ctx->verifyPeer, 0);
+    InitDecodedCert(&cert, der.buffer, der.length, ctx->heap);
+    ret = ParseCert(&cert, CA_TYPE, ctx->verifyPeer, 0);
     CYASSL_MSG("    Parsed new CA");
 
     if (ret == 0) {
