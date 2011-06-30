@@ -891,30 +891,6 @@ int AddCA(SSL_CTX* ctx, buffer der)
     }
 
 
-#ifndef NO_FILESYSTEM
-
-#ifndef MICRIUM
-    #define XFILE      FILE
-    #define XFOPEN     fopen 
-    #define XFSEEK     fseek
-    #define XFTELL     ftell
-    #define XREWIND    rewind
-    #define XFREAD     fread
-    #define XFCLOSE    fclose
-    #define XSEEK_END  SEEK_END
-#else
-    #include <fs.h>
-    #define XFILE      FS_FILE
-    #define XFOPEN     fs_fopen 
-    #define XFSEEK     fs_fseek
-    #define XFTELL     fs_ftell
-    #define XREWIND    fs_rewind
-    #define XFREAD     fs_fread
-    #define XFCLOSE    fs_fclose
-    #define XSEEK_END  FS_SEEK_END
-#endif
-
-
 /* CA PEM file for verification, may have multiple/chain certs to process */
 static int ProcessChainBuffer(SSL_CTX* ctx, const unsigned char* buff,
                             long sz, int format, int type, SSL* ssl)
@@ -943,6 +919,30 @@ static int ProcessChainBuffer(SSL_CTX* ctx, const unsigned char* buff,
     }
     return ret;
 }
+
+
+#ifndef NO_FILESYSTEM
+
+#ifndef MICRIUM
+    #define XFILE      FILE
+    #define XFOPEN     fopen 
+    #define XFSEEK     fseek
+    #define XFTELL     ftell
+    #define XREWIND    rewind
+    #define XFREAD     fread
+    #define XFCLOSE    fclose
+    #define XSEEK_END  SEEK_END
+#else
+    #include <fs.h>
+    #define XFILE      FS_FILE
+    #define XFOPEN     fs_fopen 
+    #define XFSEEK     fs_fseek
+    #define XFTELL     fs_ftell
+    #define XREWIND    fs_rewind
+    #define XFREAD     fs_fread
+    #define XFCLOSE    fs_fclose
+    #define XSEEK_END  FS_SEEK_END
+#endif
 
 
 /* process a file with name fname into ctx of format and type
