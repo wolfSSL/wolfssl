@@ -294,7 +294,7 @@ static int SessionCount = 0;
 /* Initialize overall Sniffer */
 void ssl_InitSniffer(void)
 {
-    InitCyaSSL();
+    CyaSSL_Init();
     InitMutex(&ServerListMutex);
     InitMutex(&SessionMutex);
 }
@@ -382,7 +382,7 @@ void ssl_FreeSniffer(void)
 
     FreeMutex(&SessionMutex);
     FreeMutex(&ServerListMutex);
-    FreeCyaSSL();
+    CyaSSL_Cleanup();
 }
 
 
