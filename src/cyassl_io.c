@@ -53,7 +53,11 @@
             #include <arpa/inet.h>
             #include <netinet/in.h>
             #include <netdb.h>
-            #include <sys/ioctl.h>
+            #if __PPU
+                #include <netex/errno.h>
+            #else
+                #include <sys/ioctl.h>
+            #endif
         #endif
         #ifdef THREADX
             #include <socket.h>
@@ -75,6 +79,12 @@
     #define SOCKET_ECONNRESET  WSAECONNRESET
     #define SOCKET_EINTR       WSAEINTR
     #define SOCKET_EPIPE       WSAEPIPE
+#elif __PPU
+    #define SOCKET_EWOULDBLOCK SYS_NET_EWOULDBLOCK
+    #define SOCKET_EAGAIN      SYS_NET_EAGAIN
+    #define SOCKET_ECONNRESET  SYS_NET_ECONNRESET
+    #define SOCKET_EINTR       SYS_NET_EINTR
+    #define SOCKET_EPIPE       SYS_NET_EPIPE
 #else
     #define SOCKET_EWOULDBLOCK EWOULDBLOCK
     #define SOCKET_EAGAIN      EAGAIN
@@ -116,7 +126,7 @@ int EmbedReceive(char *buf, int sz, void *ctx)
 
     recvd = RECV_FUNCTION(sd, (char *)buf, sz, 0);
 
-    if (recvd == -1) {
+    if (recvd < 0) {
         err = LastError();
         CYASSL_MSG("Embed Receive error");
 
@@ -157,7 +167,7 @@ int EmbedSend(char *buf, int sz, void *ctx)
 
     sent = SEND_FUNCTION(sd, &buf[sz - len], len, 0);
 
-    if (sent == -1) {
+    if (sent < 0) {
         err = LastError();
         CYASSL_MSG("Embed Send error");
 
