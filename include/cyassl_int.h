@@ -470,11 +470,11 @@ struct BIO {
 /* OpenSSL method type */
 struct SSL_METHOD {
     ProtocolVersion version;
-    int             side;         /* connection side, server or client */
-    int             verifyPeer;   /* request or send certificate       */
-    int             verifyNone;   /* whether to verify certificate     */
-    int             failNoCert;   /* fail if no certificate            */
-    int             downgrade;    /* whether to downgrade version, default no */
+    byte            side;         /* connection side, server or client */
+    byte            verifyPeer;   /* request or send certificate       */
+    byte            verifyNone;   /* whether to verify certificate     */
+    byte            failNoCert;   /* fail if no certificate            */
+    byte            downgrade;    /* whether to downgrade version, default no */
 };
 
 

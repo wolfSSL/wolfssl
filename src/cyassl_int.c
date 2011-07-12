@@ -156,6 +156,8 @@ void c32to24(word32 in, word24 out)
 }
 
 
+#ifdef CYASLS_DTLS
+
 static INLINE void c32to48(word32 in, byte out[6])
 {
     out[0] = 0;
@@ -165,6 +167,8 @@ static INLINE void c32to48(word32 in, byte out[6])
     out[4] = (in >>  8) & 0xff;
     out[5] =  in & 0xff;
 }
+
+#endif /* CYASSL_DTLS */
 
 
 /* convert 16 bit integer to opaque */
@@ -201,12 +205,16 @@ static INLINE void ato16(const byte* c, word16* u16)
 }
 
 
+#ifdef CYASSL_DTLS
+
 /* convert opaque to 32 bit integer */
 static INLINE void ato32(const byte* c, word32* u32)
 {
     *u32 = 0;
     *u32 = (c[0] << 24) | (c[1] << 16) | (c[2] << 8) | c[3];
 }
+
+#endif /* CYASSL_DTLS */
 
 
 #ifdef HAVE_LIBZ
@@ -397,7 +405,7 @@ void FreeSSL_Ctx(SSL_CTX* ctx)
 void InitSuites(Suites* suites, ProtocolVersion pv, byte haveDH, byte havePSK,
                 byte haveNTRU, byte haveECDSA, int side)
 {
-    word32 idx = 0;
+    word16 idx = 0;
     int    tls    = pv.major == SSLv3_MAJOR && pv.minor >= TLSv1_MINOR;
     int    tls1_2 = pv.major == SSLv3_MAJOR && pv.minor >= TLSv1_2_MINOR;
     int    haveRSA = 1;
@@ -653,7 +661,7 @@ int InitSSL(SSL* ssl, SSL_CTX* ctx)
     ssl->buffers.prevSent                  = 0;
     ssl->buffers.plainSz                   = 0;
 
-    if ( (ret = InitRng(&ssl->rng)) )
+    if ( (ret = InitRng(&ssl->rng)) != 0)
         return ret;
 
     InitMd5(&ssl->hashMd5);
@@ -1401,9 +1409,10 @@ static void BuildFinished(SSL* ssl, Hashes* hashes, const byte* sender)
     /* store current states, building requires get_digest which resets state */
     Md5 md5 = ssl->hashMd5;
     Sha sha = ssl->hashSha;
+    const int isTls1_2 = IsAtLeastTLSv1_2(ssl);
 #ifndef NO_SHA256
     Sha256 sha256;
-    if (IsAtLeastTLSv1_2(ssl))
+    if (isTls1_2)
         sha256 = ssl->hashSha256;
 #endif
 
@@ -1418,7 +1427,7 @@ static void BuildFinished(SSL* ssl, Hashes* hashes, const byte* sender)
     ssl->hashMd5 = md5;
     ssl->hashSha = sha;
 #ifndef NO_SHA256
-    if (IsAtLeastTLSv1_2(ssl))
+    if (isTls1_2)
         ssl->hashSha256 = sha256;
 #endif
 }
@@ -2392,7 +2401,7 @@ static void Hmac(SSL* ssl, byte* digest, const byte* in, word32 sz,
     byte conLen[ENUM_LEN + LENGTH_SZ];     /* content & length */
     const byte* macSecret = GetMacSecret(ssl, verify);
     
-    conLen[0] = content;
+    conLen[0] = (byte)content;
     c16toa((word16)sz, &conLen[ENUM_LEN]);
     c32toa(GetSEQIncrement(ssl, verify), &seq[sizeof(word32)]);
 
@@ -2472,9 +2481,10 @@ static void BuildCertHashes(SSL* ssl, Hashes* hashes)
     /* store current states, building requires get_digest which resets state */
     Md5 md5 = ssl->hashMd5;
     Sha sha = ssl->hashSha;
+    const int isTls1_2 = IsAtLeastTLSv1_2(ssl);
 #ifndef NO_SHA256     /* for possible future changes */
     Sha256 sha256;
-    if (IsAtLeastTLSv1_2(ssl))
+    if (isTls1_2)
         sha256 = ssl->hashSha256;
 #endif
 
@@ -2491,7 +2501,7 @@ static void BuildCertHashes(SSL* ssl, Hashes* hashes)
     ssl->hashMd5 = md5;
     ssl->hashSha = sha;
 #ifndef NO_SHA256
-    if (IsAtLeastTLSv1_2(ssl))
+    if (isTls1_2)
         ssl->hashSha256 = sha256;
 #endif
 }
@@ -2531,8 +2541,8 @@ static int BuildMessage(SSL* ssl, byte* output, const byte* input, int inSz,
         sz += pad;
     }
 
-    size = sz - headerSz;    /* include mac and digest */
-    AddRecordHeader(output, size, type, ssl);    
+    size = (word16)(sz - headerSz);    /* include mac and digest */
+    AddRecordHeader(output, size, (byte)type, ssl);    
 
     /* write to output */
     if (ivSz) {
@@ -2548,8 +2558,9 @@ static int BuildMessage(SSL* ssl, byte* output, const byte* input, int inSz,
     idx += digestSz;
 
     if (ssl->specs.cipher_type == block)
-        for (i = 0; i <= pad; i++) output[idx++] = pad; /* pad byte gets */
-                                                        /* pad value too */
+        for (i = 0; i <= pad; i++)
+            output[idx++] = (byte)pad; /* pad byte gets pad value too */
+
     Encrypt(ssl, output + headerSz, output + headerSz, size);
 
     return sz;
@@ -2734,7 +2745,7 @@ int SendCertificateRequest(SSL* ssl)
     AddHeaders(output, reqSz, certificate_request, ssl);
 
     /* write to output */
-    output[i++] = typeTotal;  /* # of types */
+    output[i++] = (byte)typeTotal;  /* # of types */
     output[i++] = rsa_sign;
 
     /* supported hash/sig */
@@ -2935,8 +2946,8 @@ int SendAlert(SSL* ssl, int severity, int type)
     output = ssl->buffers.outputBuffer.buffer +
              ssl->buffers.outputBuffer.idx;
 
-    input[0] = severity;
-    input[1] = type;
+    input[0] = (byte)severity;
+    input[1] = (byte)type;
 
     if (ssl->keys.encryptionOn)
         sendSz = BuildMessage(ssl, output, input, ALERT_SIZE, alert);
@@ -3500,7 +3511,7 @@ int SetCipherList(SSL_CTX* ctx, const char* list)
                     ctx->suites.suites[idx++] = ECC_BYTE;  /* ECC suite */
                 else
                     ctx->suites.suites[idx++] = 0x00;      /* normal */
-                ctx->suites.suites[idx++] = cipher_name_idx[i];
+                ctx->suites.suites[idx++] = (byte)cipher_name_idx[i];
 
                 if (!ret) ret = 1;   /* found at least one */
                 break;
@@ -3511,7 +3522,7 @@ int SetCipherList(SSL_CTX* ctx, const char* list)
 
     if (ret) {
         ctx->suites.setSuites = 1;
-        ctx->suites.suiteSz   = idx;
+        ctx->suites.suiteSz   = (word16)idx;
     }
 
     return ret;
@@ -3718,7 +3729,7 @@ int SetCipherList(SSL_CTX* ctx, const char* list)
         idx += RAN_LEN;
 
             /* then session id */
-        output[idx++] = idSz;
+        output[idx++] = (byte)idSz;
         if (idSz) {
             XMEMCPY(output + idx, ssl->session.sessionID, ID_LEN);
             idx += ID_LEN;
@@ -3918,12 +3929,12 @@ int SetCipherList(SSL_CTX* ctx, const char* list)
     }
 
 
-    static int DoServerKeyExchange(SSL* ssl, const byte* input, word32*
-                                   inOutIdx)
+    static int DoServerKeyExchange(SSL* ssl, const byte* input,
+                                   word32* inOutIdx)
     {
         word16 sigLen;
         word16 verifySz;
-        word16 length;
+        word16 length = 0;
         byte*  signature;
 
         (void)length;
@@ -3933,7 +3944,7 @@ int SetCipherList(SSL_CTX* ctx, const char* list)
         signature = 0;
 
         /* keep start idx */
-        verifySz = *inOutIdx;
+        verifySz = (word16)*inOutIdx;
 
     #ifdef CYASSL_CALLBACKS
         if (ssl->hsInfoOn)
@@ -4037,7 +4048,7 @@ int SetCipherList(SSL_CTX* ctx, const char* list)
         byte   messageVerify[MAX_DH_SZ];
 
         /* adjust from start idx */
-        verifySz = *inOutIdx - verifySz;
+        verifySz = (word16)(*inOutIdx - verifySz);
 
         /* save message for hash verify */
         if (verifySz > sizeof(messageVerify))
@@ -4128,8 +4139,9 @@ int SetCipherList(SSL_CTX* ctx, const char* list)
         return 0;
 
     }
-#endif  /* HAVE_OPENSSL or HAVE_ECC */
+#else  /* HAVE_OPENSSL or HAVE_ECC */
         return NOT_COMPILED_IN;  /* not supported by build */
+#endif /* HAVE_OPENSSL or HAVE_ECC */
     }
 
 
@@ -4163,7 +4175,7 @@ int SetCipherList(SSL_CTX* ctx, const char* list)
             buffer  serverG   = ssl->buffers.serverDH_G;
             buffer  serverPub = ssl->buffers.serverDH_Pub;
             byte    priv[ENCRYPT_LEN];
-            word32  privSz;
+            word32  privSz = 0;
             DhKey   key;
 
             if (serverP.buffer == 0 || serverG.buffer == 0 ||
@@ -4780,10 +4792,10 @@ int SetCipherList(SSL_CTX* ctx, const char* list)
         #ifdef OPENSSL_EXTRA 
         if (ssl->specs.kea == diffie_hellman_kea) {
             byte    *output;
-            word32   length, idx = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
+            word32   length = 0, idx = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
             int      sendSz;
-            word32   sigSz, i = 0;
-            word32   preSigSz, preSigIdx;
+            word32   sigSz = 0, i = 0;
+            word32   preSigSz = 0, preSigIdx = 0;
             RsaKey   rsaKey;
             DhKey    dhKey;
             
@@ -4899,7 +4911,7 @@ int SetCipherList(SSL_CTX* ctx, const char* list)
                 output[idx++] = ssl->specs.sig_algo; 
             }
             /*    size */
-            c16toa(sigSz, output + idx);
+            c16toa((word16)sigSz, output + idx);
             idx += LENGTH_SZ;
 
             /* do signature */
