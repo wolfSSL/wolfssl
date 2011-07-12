@@ -1575,7 +1575,7 @@ static int GetSignature(DecodedCert* cert)
 static word32 SetDigest(const byte* digest, word32 digSz, byte* output)
 {
     output[0] = ASN_OCTET_STRING;
-    output[1] = digSz;
+    output[1] = (byte)digSz;
     XMEMCPY(&output[2], digest, digSz);
 
     return digSz + 2;
@@ -1598,12 +1598,12 @@ static word32 SetLength(word32 length, byte* output)
     word32 i = 0, j;
 
     if (length < ASN_LONG_LENGTH)
-        output[i++] = length;
+        output[i++] = (byte)length;
     else {
-        output[i++] = BytePrecision(length) | ASN_LONG_LENGTH;
+        output[i++] = (byte)(BytePrecision(length) | ASN_LONG_LENGTH);
       
         for (j = BytePrecision(length); j; --j) {
-            output[i] = length >> (j - 1) * 8;
+            output[i] = (byte)(length >> (j - 1) * 8);
             i++;
         }
     }
@@ -1977,13 +1977,14 @@ Signer* MakeSigner(void* heap)
 
 void FreeSigners(Signer* signer, void* heap)
 {
-    Signer* next = signer;
+    while (signer) {
+        Signer* next = signer->next;
 
-    while( (signer = next) ) {
-        next = signer->next;
         XFREE(signer->name, heap, DYNAMIC_TYPE_SUBJECT_CN);
         XFREE(signer->publicKey, heap, DYNAMIC_TYPE_PUBLIC_KEY);
         XFREE(signer, heap, DYNAMIC_TYPE_SIGNER);
+
+        signer = next;
     }
     (void)heap;
 }
