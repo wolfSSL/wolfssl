@@ -30,16 +30,6 @@
 #ifndef NO_TLS
 
 
-#ifndef min
-
-    static INLINE word32 min(word32 a, word32 b)
-    {
-        return a > b ? b : a;
-    }
-
-#endif /* min */
-
-
 /* calculate XOR for TLSv1 PRF */
 static INLINE void get_xor(byte *digest, word32 digLen, byte* md5, byte* sha)
 {
@@ -324,7 +314,7 @@ void TLS_hmac(SSL* ssl, byte* digest, const byte* in, word32 sz,
     HmacSetKey(&hmac, type, GetMacSecret(ssl, verify), ssl->specs.hash_size);
     
     HmacUpdate(&hmac, seq, SEQ_SZ);                               /* seq_num */
-    inner[0] = content;                                           /* type */
+    inner[0] = (byte)content;                                     /* type */
     inner[ENUM_LEN] = ssl->version.major;
     inner[ENUM_LEN + ENUM_LEN] = ssl->version.minor;              /* version */
     XMEMCPY(&inner[ENUM_LEN + VERSION_SZ], length, LENGTH_SZ);     /* length */
