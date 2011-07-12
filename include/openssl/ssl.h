@@ -656,7 +656,12 @@ CYASSL_API int  CyaSSL_SetTmpDH(SSL*, unsigned char* p, int pSz,
 
 #ifndef _WIN32
     #ifndef NO_WRITEV
-        #include <sys/uio.h>
+        #if __PPU
+            #include <sys/types.h>
+            #include <sys/socket.h>
+        #else
+            #include <sys/uio.h>
+        #endif
         /* allow writev style writing */
         CYASSL_API int CyaSSL_writev(SSL* ssl, const struct iovec* iov,
                                      int iovcnt);

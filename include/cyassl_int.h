@@ -47,7 +47,11 @@
 #endif
 
 #ifdef USE_WINDOWS_API 
-    #include <windows.h>
+    #ifdef CYASSL_GAME_BUILD
+        #include "system/xtl.h"
+    #else
+        #include <windows.h>
+    #endif
 #elif defined(THREADX)
     #ifndef SINGLE_THREADED
         #include "tx_api.h"
