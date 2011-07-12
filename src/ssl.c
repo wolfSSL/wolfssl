@@ -393,7 +393,7 @@ Signer* GetCA(Signer* signers, byte* hash)
 /* owns der, cyassl_int now uses too */
 int AddCA(SSL_CTX* ctx, buffer der)
 {
-    word32      ret;
+    int         ret;
     DecodedCert cert;
     Signer*     signer = 0;
 
@@ -487,9 +487,10 @@ int AddCA(SSL_CTX* ctx, buffer der)
         long  neededSz;
         int   pkcs8    = 0;
         int   pkcs8Enc = 0;
-        int   dynamicType;
+        int   dynamicType = 0;
 
         (void)heap;
+        (void)dynamicType;
 
         if (type == CERT_TYPE || type == CA_TYPE)  {
             XSTRNCPY(header, "-----BEGIN CERTIFICATE-----", sizeof(header));
@@ -643,13 +644,15 @@ int AddCA(SSL_CTX* ctx, buffer der)
     {
         EncryptedInfo info;
         buffer        der;        /* holds DER or RAW (for NTRU) */
-        int           dynamicType;
+        int           dynamicType = 0;
         int           eccKey = 0;
 
         info.set      = 0;
         info.ctx      = ctx;
         info.consumed = 0;
         der.buffer    = 0;
+
+        (void)dynamicType;
 
         if (used)
             *used = sz;     /* used bytes default to sz, PEM chain may shorten*/
@@ -2551,7 +2554,7 @@ int CyaSSL_set_compression(SSL* ssl)
         CYASSL_ENTER("BIO_new_socket");
         if (bio) { 
             bio->type  = BIO_SOCKET;
-            bio->close = closeF;
+            bio->close = (byte)closeF;
             bio->eof   = 0;
             bio->ssl   = 0;
             bio->fd    = sfd;
@@ -2576,7 +2579,7 @@ int CyaSSL_set_compression(SSL* ssl)
     {
         CYASSL_ENTER("BIO_set_ssl");
         b->ssl   = ssl;
-        b->close = closeF;
+        b->close = (byte)closeF;
     /* add to ssl for bio free if SSL_free called before/instead of free_all? */
 
         return 0;
@@ -2625,12 +2628,11 @@ int CyaSSL_set_compression(SSL* ssl)
 
     int BIO_free_all(BIO* bio)
     {
-        BIO* next = bio;
-
         CYASSL_ENTER("BIO_free_all");
-        while ( (bio = next) ) {
-            next = bio->next;
+        while (bio) {
+            BIO* next = bio->next;
             BIO_free(bio);
+            bio = next;
         }
         return 0;
     }
