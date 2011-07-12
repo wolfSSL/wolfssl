@@ -32,6 +32,7 @@
 
 int SetCipherSpecs(SSL* ssl)
 {
+#ifdef HAVE_ECC
     /* ECC extensions */
     if (ssl->options.cipherSuite0 == ECC_BYTE) {
     
@@ -168,7 +169,8 @@ int SetCipherSpecs(SSL* ssl)
     default:
         return UNSUPPORTED_SUITE;
     }
-    } else {  /* Normal suites */
+#endif /* HAVE_ECC */
+    if (ssl->options.cipherSuite0 != ECC_BYTE) {   /* normal suites */
     switch (ssl->options.cipherSuite) {
 
 #ifdef BUILD_SSL_RSA_WITH_RC4_128_SHA
