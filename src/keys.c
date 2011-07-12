@@ -168,7 +168,8 @@ int SetCipherSpecs(SSL* ssl)
 
     default:
         return UNSUPPORTED_SUITE;
-    }
+    }   /* switch */
+    }   /* if     */
 #endif /* HAVE_ECC */
     if (ssl->options.cipherSuite0 != ECC_BYTE) {   /* normal suites */
     switch (ssl->options.cipherSuite) {
@@ -482,8 +483,8 @@ int SetCipherSpecs(SSL* ssl)
     default:
         CYASSL_MSG("Unsupported cipher suite");
         return UNSUPPORTED_SUITE;
-    }
-    }  /* ECC / Normal suites else */
+    }  /* switch */
+    }  /* if ECC / Normal suites else */
 
     /* set TLS if it hasn't been turned off */
     if (ssl->version.major == 3 && ssl->version.minor >= 1) {
