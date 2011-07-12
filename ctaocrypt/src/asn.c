@@ -277,13 +277,14 @@ static int GetLength(const byte* input, word32* inOutIdx, int* len,
 {
     int     length = 0;
     word32  i = *inOutIdx;
+    byte    b;
 
     if ( (i+1) > maxIdx) {   /* for first read */
         CYASSL_MSG("GetLength bad index on input");
         return BUFFER_E;
     }
 
-    byte b = input[i++];
+    b = input[i++];
     if (b >= ASN_LONG_LENGTH) {        
         word32 bytes = b & 0x7F;
 
@@ -477,7 +478,6 @@ static int GetAlgoId(const byte* input, word32* inOutIdx, word32* oid,
 int RsaPrivateKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
                         word32 inSz)
 {
-    word32 begin = *inOutIdx;
     int    version, length;
 
     if (GetSequence(input, inOutIdx, &length, inSz) < 0)
@@ -796,7 +796,6 @@ int ToTraditionalEnc(byte* input, word32 sz,const char* password,int passwordSz)
 int RsaPublicKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
                        word32 inSz)
 {
-    word32 begin = *inOutIdx;
     int    length;
     byte   b;
 
@@ -862,7 +861,6 @@ int RsaPublicKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
 
 int DhKeyDecode(const byte* input, word32* inOutIdx, DhKey* key, word32 inSz)
 {
-    word32 begin = *inOutIdx;
     int    length;
 
     if (GetSequence(input, inOutIdx, &length, inSz) < 0)
@@ -909,7 +907,6 @@ int DhSetKey(DhKey* key, const byte* p, word32 pSz, const byte* g, word32 gSz)
 int DsaPublicKeyDecode(const byte* input, word32* inOutIdx, DsaKey* key,
                         word32 inSz)
 {
-    word32 begin = *inOutIdx;
     int    length;
 
     if (GetSequence(input, inOutIdx, &length, inSz) < 0)
@@ -928,7 +925,6 @@ int DsaPublicKeyDecode(const byte* input, word32* inOutIdx, DsaKey* key,
 int DsaPrivateKeyDecode(const byte* input, word32* inOutIdx, DsaKey* key,
                         word32 inSz)
 {
-    word32 begin = *inOutIdx;
     int    length, version;
 
     if (GetSequence(input, inOutIdx, &length, inSz) < 0)
@@ -994,7 +990,6 @@ void FreeDecodedCert(DecodedCert* cert)
 static int GetCertHeader(DecodedCert* cert)
 {
     int    ret = 0, version, len;
-    word32 begin = cert->srcIdx;
     byte   serialTmp[EXTERNAL_SERIAL_SIZE];
     mp_int mpi;
 
@@ -3193,7 +3188,6 @@ int DecodeECC_DSA_Sig(const byte* sig, word32 sigLen, mp_int* r, mp_int* s)
 int EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
                         word32 inSz)
 {
-    word32 begin = *inOutIdx;
     word32 oid = 0;
     int    version, length;
     int    privSz, pubSz;

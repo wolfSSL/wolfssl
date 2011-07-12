@@ -1409,10 +1409,9 @@ static void BuildFinished(SSL* ssl, Hashes* hashes, const byte* sender)
     /* store current states, building requires get_digest which resets state */
     Md5 md5 = ssl->hashMd5;
     Sha sha = ssl->hashSha;
-    const int isTls1_2 = IsAtLeastTLSv1_2(ssl);
 #ifndef NO_SHA256
-    Sha256 sha256;
-    if (isTls1_2)
+    Sha256 sha256 = {0};
+    if (IsAtLeastTLSv1_2(ssl))
         sha256 = ssl->hashSha256;
 #endif
 
@@ -1427,7 +1426,7 @@ static void BuildFinished(SSL* ssl, Hashes* hashes, const byte* sender)
     ssl->hashMd5 = md5;
     ssl->hashSha = sha;
 #ifndef NO_SHA256
-    if (isTls1_2)
+    if (IsAtLeastTLSv1_2(ssl))
         ssl->hashSha256 = sha256;
 #endif
 }
@@ -2481,10 +2480,9 @@ static void BuildCertHashes(SSL* ssl, Hashes* hashes)
     /* store current states, building requires get_digest which resets state */
     Md5 md5 = ssl->hashMd5;
     Sha sha = ssl->hashSha;
-    const int isTls1_2 = IsAtLeastTLSv1_2(ssl);
 #ifndef NO_SHA256     /* for possible future changes */
-    Sha256 sha256;
-    if (isTls1_2)
+    Sha256 sha256 = {0};
+    if (IsAtLeastTLSv1_2(ssl))
         sha256 = ssl->hashSha256;
 #endif
 
@@ -2501,7 +2499,7 @@ static void BuildCertHashes(SSL* ssl, Hashes* hashes)
     ssl->hashMd5 = md5;
     ssl->hashSha = sha;
 #ifndef NO_SHA256
-    if (isTls1_2)
+    if (IsAtLeastTLSv1_2(ssl))
         ssl->hashSha256 = sha256;
 #endif
 }
