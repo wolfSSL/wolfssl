@@ -33,14 +33,14 @@ void Arc4SetKey(Arc4* arc4, const byte* key, word32 length)
     arc4->y = 0;
 
     for (i = 0; i < ARC4_STATE_SIZE; i++)
-        arc4->state[i] = i;
+        arc4->state[i] = (byte)i;
 
     for (i = 0; i < ARC4_STATE_SIZE; i++) {
         word32 a = arc4->state[i];
         stateIndex += key[keyIndex] + a;
         stateIndex &= 0xFF;
         arc4->state[i] = arc4->state[stateIndex];
-        arc4->state[stateIndex] = a;
+        arc4->state[stateIndex] = (byte)a;
 
         if (++keyIndex >= length)
             keyIndex = 0;
@@ -48,14 +48,14 @@ void Arc4SetKey(Arc4* arc4, const byte* key, word32 length)
 }
 
 
-static INLINE word32 MakeByte(word32* x, word32* y, byte* s)
+static INLINE byte MakeByte(word32* x, word32* y, byte* s)
 {
     word32 a = s[*x], b;
     *y = (*y+a) & 0xff;
 
     b = s[*y];
-    s[*x] = b;
-    s[*y] = a;
+    s[*x] = (byte)b;
+    s[*y] = (byte)a;
     *x = (*x+1) & 0xff;
 
     return s[(a+b) & 0xff];
@@ -70,7 +70,7 @@ void Arc4Process(Arc4* arc4, byte* out, const byte* in, word32 length)
     while(length--)
         *out++ = *in++ ^ MakeByte(&x, &y, arc4->state);
 
-    arc4->x = x;
-    arc4->y = y;
+    arc4->x = (byte)x;
+    arc4->y = (byte)y;
 }
 
