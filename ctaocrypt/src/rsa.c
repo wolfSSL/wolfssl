@@ -279,8 +279,10 @@ int RsaPrivateDecrypt(const byte* in, word32 inLen, byte* out, word32 outLen,
     byte*  tmp;
     byte*  pad = 0;
 
-    if ( !(tmp = (byte*)XMALLOC(inLen, key->heap, DYNAMIC_TYPE_RSA)) )
+    tmp = (byte*)XMALLOC(inLen, key->heap, DYNAMIC_TYPE_RSA);
+    if (tmp == NULL) {
         return MEMORY_E;
+    }
 
     XMEMCPY(tmp, in, inLen);
 
@@ -322,8 +324,10 @@ int RsaSSL_Verify(const byte* in, word32 inLen, byte* out, word32 outLen,
     byte*  tmp;
     byte*  pad = 0;
 
-    if ( !(tmp = (byte*)XMALLOC(inLen, key->heap, DYNAMIC_TYPE_RSA)) )
+    tmp = (byte*)XMALLOC(inLen, key->heap, DYNAMIC_TYPE_RSA);
+    if (tmp == NULL) {
         return MEMORY_E;
+    }
 
     XMEMCPY(tmp, in, inLen);
 
