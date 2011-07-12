@@ -30,7 +30,7 @@
 static int InitHmac(Hmac* hmac, int type)
 {
     hmac->innerHashKeyed = 0;
-    hmac->macType = type;
+    hmac->macType = (byte)type;
 
     if (!(type == MD5 || type == SHA || type == SHA256))
         return BAD_FUNC_ARG;
