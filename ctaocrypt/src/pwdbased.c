@@ -128,7 +128,7 @@ int PBKDF2(byte* output, const byte* passwd, int pLen, const byte* salt,
 
         /* encode i */
         for (j = 0; j < 4; j++) {
-            byte b = i >> ((3-j) * 8);
+            byte b = (byte)(i >> ((3-j) * 8));
             HmacUpdate(&hmac, &b, 1);
         }
         HmacFinal(&hmac, buffer);
