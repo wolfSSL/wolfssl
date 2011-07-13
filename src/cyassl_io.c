@@ -53,7 +53,7 @@
             #include <arpa/inet.h>
             #include <netinet/in.h>
             #include <netdb.h>
-            #if __PPU
+            #ifdef __PPU
                 #include <netex/errno.h>
             #else
                 #include <sys/ioctl.h>
@@ -79,7 +79,7 @@
     #define SOCKET_ECONNRESET  WSAECONNRESET
     #define SOCKET_EINTR       WSAEINTR
     #define SOCKET_EPIPE       WSAEPIPE
-#elif __PPU
+#elif defined(__PPU)
     #define SOCKET_EWOULDBLOCK SYS_NET_EWOULDBLOCK
     #define SOCKET_EAGAIN      SYS_NET_EAGAIN
     #define SOCKET_ECONNRESET  SYS_NET_ECONNRESET

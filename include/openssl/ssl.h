@@ -656,7 +656,7 @@ CYASSL_API int  CyaSSL_SetTmpDH(SSL*, unsigned char* p, int pSz,
 
 #ifndef _WIN32
     #ifndef NO_WRITEV
-        #if __PPU
+        #ifdef __PPU
             #include <sys/types.h>
             #include <sys/socket.h>
         #else

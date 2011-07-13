@@ -29,13 +29,18 @@
 CYASSL_API int  CyaSSL_Debugging_ON(void);
 CYASSL_API void CyaSSL_Debugging_OFF(void);
 
+#ifdef DEBUG_CYASSL
+
 /* Set these to default values initially. */
 static CyaSSL_Logging_cb log_function = 0;
 static int loggingEnabled = 0;
 
+#endif /* DEBUG_CYASSL */
+
 
 int CyaSSL_SetLoggingCb(CyaSSL_Logging_cb f)
 {
+#ifdef DEBUG_CYASSL
     int res = 0;
 
     if (f)
@@ -44,6 +49,10 @@ int CyaSSL_SetLoggingCb(CyaSSL_Logging_cb f)
         res = BAD_FUNC_ARG;
 
     return res;
+#else
+    (void)f;
+    return NOT_COMPILED_IN;
+#endif
 }
 
 
@@ -60,7 +69,9 @@ int CyaSSL_Debugging_ON(void)
 
 void CyaSSL_Debugging_OFF(void)
 {
+#ifdef DEBUG_CYASSL
     loggingEnabled = 0;
+#endif
 }
 
 

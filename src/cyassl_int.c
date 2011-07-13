@@ -1410,7 +1410,8 @@ static void BuildFinished(SSL* ssl, Hashes* hashes, const byte* sender)
     Md5 md5 = ssl->hashMd5;
     Sha sha = ssl->hashSha;
 #ifndef NO_SHA256
-    Sha256 sha256 = {0};
+    Sha256 sha256;
+    InitSha256(&sha256);
     if (IsAtLeastTLSv1_2(ssl))
         sha256 = ssl->hashSha256;
 #endif
@@ -2481,7 +2482,8 @@ static void BuildCertHashes(SSL* ssl, Hashes* hashes)
     Md5 md5 = ssl->hashMd5;
     Sha sha = ssl->hashSha;
 #ifndef NO_SHA256     /* for possible future changes */
-    Sha256 sha256 = {0};
+    Sha256 sha256;
+    InitSha256(&sha256);
     if (IsAtLeastTLSv1_2(ssl))
         sha256 = ssl->hashSha256;
 #endif

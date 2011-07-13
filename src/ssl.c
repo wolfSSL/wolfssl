@@ -3261,6 +3261,8 @@ int CyaSSL_set_compression(SSL* ssl)
                     return "TLSv1.1";
                 case TLSv1_2_MINOR :
                     return "TLSv1.2";
+                default:
+                    return "unknown";
             }
         }
         else if (ssl->version.major == DTLS_MAJOR)
@@ -3280,6 +3282,7 @@ int CyaSSL_set_compression(SSL* ssl)
     {
         CYASSL_ENTER("SSL_CIPHER_get_name");
         if (cipher) {
+#ifdef HAVE_ECC
             if (cipher->ssl->options.cipherSuite0 == ECC_BYTE) {
             /* ECC suites */
             switch (cipher->ssl->options.cipherSuite) {
@@ -3299,8 +3302,11 @@ int CyaSSL_set_compression(SSL* ssl)
                     return "TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA";
                 case TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA :
                     return "TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA";
+                default:
+                    return "NONE";
             }
-            } else {
+#endif
+            if (cipher->ssl->options.cipherSuite0 != ECC_BYTE) {
             /* normal suites */
             switch (cipher->ssl->options.cipherSuite) {
                 case SSL_RSA_WITH_RC4_128_SHA :
@@ -3343,7 +3349,9 @@ int CyaSSL_set_compression(SSL* ssl)
                     return "TLS_NTRU_RSA_WITH_AES_128_CBC_SHA";
                 case TLS_NTRU_RSA_WITH_AES_256_CBC_SHA :
                     return "TLS_NTRU_RSA_WITH_AES_256_CBC_SHA";
-            }
+                default:
+                    return "NONE";
+            }  /* switch */
             }  /* normal / ECC */
         }
 
