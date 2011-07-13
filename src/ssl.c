@@ -491,6 +491,7 @@ int AddCA(SSL_CTX* ctx, buffer der)
 
         (void)heap;
         (void)dynamicType;
+        (void)pkcs8Enc;
 
         if (type == CERT_TYPE || type == CA_TYPE)  {
             XSTRNCPY(header, "-----BEGIN CERTIFICATE-----", sizeof(header));

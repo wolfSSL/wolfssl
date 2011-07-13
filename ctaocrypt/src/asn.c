@@ -797,15 +797,15 @@ int RsaPublicKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
                        word32 inSz)
 {
     int    length;
-    byte   b;
 
     if (GetSequence(input, inOutIdx, &length, inSz) < 0)
         return ASN_PARSE_E;
 
     key->type = RSA_PUBLIC;
-    b = input[*inOutIdx];
 
-#ifdef OPENSSL_EXTRA    
+#ifdef OPENSSL_EXTRA
+    {
+    byte b = input[*inOutIdx];
     if (b != ASN_INTEGER) {
         /* not from decoded cert, will have algo id, skip past */
         if (GetSequence(input, inOutIdx, &length, inSz) < 0)
@@ -847,7 +847,8 @@ int RsaPublicKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
         
         if (GetSequence(input, inOutIdx, &length, inSz) < 0)
             return ASN_PARSE_E;
-    }
+    }  /* end if */
+    }  /* openssl var block */
 #endif /* OPENSSL_EXTRA */
 
     if (GetInt(&key->n,  input, inOutIdx, inSz) < 0 ||
