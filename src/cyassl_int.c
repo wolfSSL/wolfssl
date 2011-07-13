@@ -3932,19 +3932,16 @@ int SetCipherList(SSL_CTX* ctx, const char* list)
     static int DoServerKeyExchange(SSL* ssl, const byte* input,
                                    word32* inOutIdx)
     {
-        word16 sigLen;
-        word16 verifySz;
-        word16 length = 0;
-        byte*  signature;
+    #if defined(OPENSSL_EXTRA) || defined(HAVE_ECC)
+        word16 length    = 0;
+        word16 sigLen    = 0;
+        word16 verifySz  = (word16)*inOutIdx;  /* keep start idx */
+        byte*  signature = 0;
+    #endif 
 
-        (void)length;
         (void)ssl;
         (void)input;
-        sigLen    = 0;
-        signature = 0;
-
-        /* keep start idx */
-        verifySz = (word16)*inOutIdx;
+        (void)inOutIdx;
 
     #ifdef CYASSL_CALLBACKS
         if (ssl->hsInfoOn)
@@ -3955,15 +3952,16 @@ int SetCipherList(SSL_CTX* ctx, const char* list)
 
     #ifndef NO_PSK
         if (ssl->specs.kea == psk_kea) {
-            ato16(&input[*inOutIdx], &length);
+            word16 pskLen = 0;
+            ato16(&input[*inOutIdx], &pskLen);
             *inOutIdx += LENGTH_SZ;
             XMEMCPY(ssl->arrays.server_hint, &input[*inOutIdx],
-                   min(length, MAX_PSK_ID_LEN));
-            if (length < MAX_PSK_ID_LEN)
-                ssl->arrays.server_hint[length] = 0;
+                   min(pskLen, MAX_PSK_ID_LEN));
+            if (pskLen < MAX_PSK_ID_LEN)
+                ssl->arrays.server_hint[pskLen] = 0;
             else
                 ssl->arrays.server_hint[MAX_PSK_ID_LEN - 1] = 0;
-            *inOutIdx += length;
+            *inOutIdx += pskLen;
 
             return 0;
         }
