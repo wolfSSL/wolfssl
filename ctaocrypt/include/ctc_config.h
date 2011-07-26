@@ -1,9 +1,6 @@
 /* ctaocrypt/include/ctc_config.h.  Generated from ctc_config.h.in by configure.  */
 /* ctaocrypt/include/ctc_config.h.in.  Generated from configure.in by autoheader.  */
 
-/* Define if building universal (internal helper macro) */
-/* #undef AC_APPLE_UNIVERSAL_BUILD */
-
 /* Define to 1 if you have the <dlfcn.h> header file. */
 #define HAVE_DLFCN_H 1
 
@@ -69,9 +66,6 @@
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "cyassl"
 
-/* Define to the home page for this package. */
-#define PACKAGE_URL ""
-
 /* Define to the version of this package. */
 #define PACKAGE_VERSION "2.0.0rc2"
 
@@ -91,14 +85,6 @@
 /* Version number of package */
 #define VERSION "2.0.0rc2"
 
-/* Define WORDS_BIGENDIAN to 1 if your processor stores words with the most
-   significant byte first (like Motorola and SPARC, unlike Intel). */
-#if defined AC_APPLE_UNIVERSAL_BUILD
-# if defined __BIG_ENDIAN__
-#  define WORDS_BIGENDIAN 1
-# endif
-#else
-# ifndef WORDS_BIGENDIAN
-/* #  undef WORDS_BIGENDIAN */
-# endif
-#endif
+/* Define to 1 if your processor stores words with the most significant byte
+   first (like Motorola and SPARC, unlike Intel and VAX). */
+/* #undef WORDS_BIGENDIAN */
