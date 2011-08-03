@@ -3,7 +3,6 @@
 *.o
 *.deps
 *.libs
-*sh
 *.cache
 .dirstamp
 *.user
