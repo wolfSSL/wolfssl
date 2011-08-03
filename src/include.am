@@ -42,6 +42,10 @@ if BUILD_HC128
 src_libcyassl_la_SOURCES += ctaocrypt/src/hc128.c
 endif
 
+if BUILD_NOINLINE
+src_libcyassl_la_SOURCES += ctaocrypt/src/ctc_misc.c
+endif
+
 if BUILD_FASTMATH
 src_libcyassl_la_SOURCES += ctaocrypt/src/tfm.c
 else

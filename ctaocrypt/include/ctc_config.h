@@ -1,5 +1,5 @@
 /* ctaocrypt/include/ctc_config.h.  Generated from ctc_config.h.in by configure.  */
-/* ctaocrypt/include/ctc_config.h.in.  Generated from configure.in by autoheader.  */
+/* ctaocrypt/include/ctc_config.h.in.  Generated from configure.ac by autoheader.  */
 
 /* Define to 1 if you have the <dlfcn.h> header file. */
 #define HAVE_DLFCN_H 1

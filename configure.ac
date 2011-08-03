@@ -372,6 +372,21 @@ then
 fi
 
 
+# No inline Build 
+AC_ARG_ENABLE(noInline,
+    [  --enable-noInline       Enable No inline (default: disabled)],
+    [ ENABLED_NOINLINE=$enableval ],
+    [ ENABLED_NOINLINE=no ]
+    )
+
+if test "$ENABLED_NOINLINE" = "yes"
+then
+    CFLAGS="$CFLAGS -DNO_INLINE"
+fi
+
+AM_CONDITIONAL([BUILD_NOINLINE], [test "x$ENABLED_NOINLINE" = "xyes"])
+
+
 # ECC 
 AC_ARG_ENABLE(ecc,
     [  --enable-ecc            Enable ECC (default: disabled)],
