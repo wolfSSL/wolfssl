@@ -19,6 +19,7 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  */
 
+
 #if defined(TFM_SMALL_SET)
 void fp_sqr_comba_small(fp_int *A, fp_int *B)
 {

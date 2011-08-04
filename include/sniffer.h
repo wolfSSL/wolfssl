@@ -20,7 +20,6 @@
  */
 
 
-
 #ifndef CYASSL_SNIFFER_H
 #define CYASSL_SNIFFER_H
 
@@ -40,7 +39,6 @@
 #ifdef __cplusplus
     extern "C" {
 #endif
-
 
 
 CYASSL_API 

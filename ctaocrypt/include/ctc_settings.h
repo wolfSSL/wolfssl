@@ -22,6 +22,7 @@
 /* Place OS specific preprocessor flags, defines, includes here, will be
    included into every file because ctc_types.h includes it */
 
+
 #ifndef CTAO_CRYPT_SETTINGS_H
 #define CTAO_CRYPT_SETTINGS_H
 

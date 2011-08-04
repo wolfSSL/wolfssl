@@ -25,7 +25,6 @@
  */
 
 
-
 #ifndef CYASSL_HMAC_H_
 #define CYASSL_HMAC_H_
 

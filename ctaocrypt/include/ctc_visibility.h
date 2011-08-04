@@ -21,8 +21,10 @@
 
 /* Visibility control macros */
 
+
 #ifndef CTAO_CRYPT_VISIBILITY_H
 #define CTAO_CRYPT_VISIBILITY_H
+
 
 /* CYASSL_API is used for the public API symbols.
         It either imports or exports (or does nothing for static builds)

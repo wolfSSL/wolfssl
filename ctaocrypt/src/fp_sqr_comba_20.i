@@ -19,6 +19,7 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  */
 
+
 #ifdef TFM_SQR20
 void fp_sqr_comba20(fp_int *A, fp_int *B)
 {

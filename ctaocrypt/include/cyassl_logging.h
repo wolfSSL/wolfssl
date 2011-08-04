@@ -21,6 +21,7 @@
 
 /* submitted by eof */
 
+
 #ifndef CYASSL_LOGGING_H
 #define CYASSL_LOGGING_H
 

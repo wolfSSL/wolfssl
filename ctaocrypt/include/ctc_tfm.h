@@ -20,7 +20,6 @@
  */
 
 
-
 /*
  * Based on public domain TomsFastMath 0.10 by Tom St Denis, tomstdenis@iahu.ca,
  * http://math.libtomcrypt.com

@@ -20,7 +20,6 @@
  */
 
 
-
 #ifndef CYASSL_SNIFFER_ERROR_H
 #define CYASSL_SNIFFER_ERROR_H
 

@@ -23,7 +23,6 @@
 #include "ctc_arc4.h"
 
 
-
 void Arc4SetKey(Arc4* arc4, const byte* key, word32 length)
 {
     word32 i;

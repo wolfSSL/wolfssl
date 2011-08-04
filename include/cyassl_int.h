@@ -20,7 +20,6 @@
  */
 
 
-
 #ifndef CYASSL_INT_H
 #define CYASSL_INT_H
 
@@ -854,7 +853,7 @@ enum ConnectState {
 };
 
 
-/* server accpet state for nonblocking restart */
+/* server accept state for nonblocking restart */
 enum AcceptState {
     ACCEPT_BEGIN = 0,
     ACCEPT_CLIENT_HELLO_DONE,

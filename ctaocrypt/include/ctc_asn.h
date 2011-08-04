@@ -62,7 +62,6 @@ enum ASN_Tags {
     ASN_LONG_LENGTH       = 0x80
 };
 
-
 enum  ASN_Flags{
     ASN_CONSTRUCTED       = 0x20,
     ASN_CONTEXT_SPECIFIC  = 0x80
@@ -203,7 +202,7 @@ struct DecodedCert {
     byte    serial[EXTERNAL_SERIAL_SIZE];  /* raw serial number          */
     int     serialSz;                /* raw serial bytes stored */
 #ifdef CYASSL_CERT_GEN
-    /* easy access to sujbect info for other sign */
+    /* easy access to subject info for other sign */
     char*   subjectSN;
     int     subjectSNLen;
     char*   subjectC;

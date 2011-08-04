@@ -20,14 +20,11 @@
  */
 
 
-
 #include "cyassl_int.h"
 #include "cyassl_error.h"
 #ifdef SHOW_SECRETS
     #include <stdio.h>
 #endif
-
-
 
 
 int SetCipherSpecs(SSL* ssl)
@@ -806,7 +803,4 @@ int MakeMasterSecret(SSL* ssl)
 
     return ret;
 }
-
-
-
 

@@ -20,7 +20,6 @@
  */
 
 
-
 #ifndef CYASSL_ERROR_H
 #define CYASSL_ERROR_H
 
@@ -44,13 +43,13 @@ enum CyaSSL_ErrorCodes {
                                                  complete task            */
     UNKNOWN_RECORD_TYPE    = -211,            /* unknown type in record hdr */
     DECRYPT_ERROR          = -212,            /* error during decryption  */
-    FATAL_ERROR            = -213,            /* revcd alert fatal error  */
+    FATAL_ERROR            = -213,            /* recvd alert fatal error  */
     ENCRYPT_ERROR          = -214,            /* error during encryption  */
     FREAD_ERROR            = -215,            /* fread problem            */
     NO_PEER_KEY            = -216,            /* need peer's key          */
     NO_PRIVATE_KEY         = -217,            /* need the private key     */
     RSA_PRIVATE_ERROR      = -218,            /* error during rsa priv op */
-    NO_DH_PARAMS           = -219,            /* server missging DH params */
+    NO_DH_PARAMS           = -219,            /* server missing DH params */
     BUILD_MSG_ERROR        = -220,            /* build message failure    */
 
     BAD_HELLO              = -221,            /* client hello malformed   */
@@ -75,7 +74,7 @@ enum CyaSSL_ErrorCodes {
     SIGACT_ERROR           = -239,            /* sigaction failed ??? */
     SETITIMER_ERROR        = -240,            /* setitimer failed ??? */
     LENGTH_ERROR           = -241,            /* record layer length error */
-    PEER_KEY_ERROR         = -242,            /* cant decode peer key */
+    PEER_KEY_ERROR         = -242,            /* can't decode peer key */
     ZERO_RETURN            = -243,            /* peer sent close notify */
     SIDE_ERROR             = -244,            /* wrong client/server type */
     NO_PEER_CERT           = -245,            /* peer didn't send key */
@@ -95,7 +94,7 @@ enum CyaSSL_ErrorCodes {
     /* begin negotiation parameter errors */
     UNSUPPORTED_SUITE      = -260,            /* unsupported cipher suite */
     MATCH_SUITE_ERROR      = -261             /* can't match cipher suite */
-    /* end   negotiation parameter errors only 10 for now */
+    /* end negotiation parameter errors only 10 for now */
     /* add strings to SetErrorString !!!!! */
 };
 

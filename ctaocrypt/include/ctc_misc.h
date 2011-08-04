@@ -27,7 +27,6 @@
 #include "ctc_types.h"
 
 
-
 #ifdef __cplusplus
     extern "C" {
 #endif

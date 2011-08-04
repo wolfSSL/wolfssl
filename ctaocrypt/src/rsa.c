@@ -20,7 +20,6 @@
  */
 
 
-
 #include "ctc_rsa.h"
 #include "ctc_random.h"
 #include "ctc_error.h"
@@ -237,7 +236,6 @@ done:
 }
 
 
-
 int RsaPublicEncrypt(const byte* in, word32 inLen, byte* out, word32 outLen,
                      RsaKey* key, RNG* rng)
 {
@@ -271,6 +269,7 @@ int RsaPrivateDecryptInline(byte* in, word32 inLen, byte** out, RsaKey* key)
 
     return plainLen;
 }
+
 
 int RsaPrivateDecrypt(const byte* in, word32 inLen, byte* out, word32 outLen,
                      RsaKey* key)
@@ -316,6 +315,7 @@ int RsaSSL_VerifyInline(byte* in, word32 inLen, byte** out, RsaKey* key)
 
     return plainLen;
 }
+
 
 int RsaSSL_Verify(const byte* in, word32 inLen, byte* out, word32 outLen,
                      RsaKey* key)

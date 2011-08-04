@@ -79,11 +79,11 @@ enum {
     ASN_BEFORE_DATE_E  = -150,  /* ASN date error, current date before */
     ASN_AFTER_DATE_E   = -151,  /* ASN date error, current date after */
     ASN_SIG_OID_E      = -152,  /* ASN signature error, mismatched oid */
-    ASN_TIME_E         = -153,  /* ASN time error, unkown time type */
+    ASN_TIME_E         = -153,  /* ASN time error, unknown time type */
     ASN_INPUT_E        = -154,  /* ASN input error, not enough data */
     ASN_SIG_CONFIRM_E  = -155,  /* ASN sig error, confirm failure */
     ASN_SIG_HASH_E     = -156,  /* ASN sig error, unsupported hash type */
-    ASN_SIG_KEY_E      = -157,  /* ASN sig error, unsupported key  type */
+    ASN_SIG_KEY_E      = -157,  /* ASN sig error, unsupported key type */
     ASN_DH_KEY_E       = -158,  /* ASN key init error, invalid input */
     ASN_NTRU_KEY_E     = -159,  /* ASN ntru key decode error, invalid input */
 
@@ -92,7 +92,7 @@ enum {
     ECC_CURVE_OID_E    = -172,  /* Unsupported ECC OID curve type */
     BAD_FUNC_ARG       = -173,  /* Bad function argument provided */
     NOT_COMPILED_IN    = -174,  /* Feature not compiled in */
-    UNICODE_SIZE_E     = -175,  /* Unicdoe password too big */
+    UNICODE_SIZE_E     = -175,  /* Unicode password too big */
     NO_PASSWORD        = -176,  /* no password provided by user */
 
     MIN_CODE_E         = -200   /* errors -101 - -199 */

@@ -25,7 +25,6 @@
  */
 
 
-
 #ifndef CYASSL_DES_H_
 #define CYASSL_DES_H_
 

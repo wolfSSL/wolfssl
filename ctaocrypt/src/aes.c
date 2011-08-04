@@ -19,6 +19,7 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  */
 
+
 #ifndef NO_AES
 
 #include "ctc_aes.h"
@@ -1295,7 +1296,7 @@ void AesCbcDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
             printf("sz = %d\n", sz);
         #endif
 
-        /* if input and output same will overwirte input iv */
+        /* if input and output same will overwrite input iv */
         XMEMCPY(aes->tmp, in + sz - AES_BLOCK_SIZE, AES_BLOCK_SIZE);
         AES_CBC_decrypt(in, out, (byte*)aes->reg, sz, (byte*)aes->key,
                         aes->rounds);

@@ -19,6 +19,7 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  */
 
+
 #ifndef NO_DH
 
 #ifndef CTAO_CRYPT_DH_H
@@ -31,7 +32,6 @@
 #ifdef __cplusplus
     extern "C" {
 #endif
-
 
 
 /* Diffie-Hellman Key */

@@ -25,7 +25,6 @@
  */
 
 
-
 #ifndef CYASSL_EVP_H_
 #define CYASSL_EVP_H_
 

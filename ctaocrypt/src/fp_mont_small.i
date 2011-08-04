@@ -19,6 +19,7 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  */
 
+
 #ifdef TFM_SMALL_MONT_SET
 /* computes x/R == x (mod N) via Montgomery Reduction */
 void fp_montgomery_reduce_small(fp_int *a, fp_int *m, fp_digit mp)

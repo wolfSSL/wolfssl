@@ -63,6 +63,7 @@ typedef struct {
     mp_int z;        /* The z coordinate */
 } ecc_point;
 
+
 /* An ECC Key */
 typedef struct {
     int type;           /* Public or Private */

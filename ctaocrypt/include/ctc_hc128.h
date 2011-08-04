@@ -32,7 +32,6 @@
 #endif
 
 
-
 /* HC-128 stream cipher */
 typedef struct HC128 {
     word32 T[1024];             /* P[i] = T[i];  Q[i] = T[1024 + i ]; */

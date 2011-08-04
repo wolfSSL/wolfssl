@@ -19,6 +19,7 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  */
 
+
 #ifndef NO_DH
 
 #include "ctc_dh.h"
@@ -33,7 +34,6 @@
 #endif
 
 
-
 #ifndef min
 
     static INLINE word32 min(word32 a, word32 b)
@@ -42,7 +42,6 @@
     }
 
 #endif /* min */
-
 
 
 void InitDhKey(DhKey* key)

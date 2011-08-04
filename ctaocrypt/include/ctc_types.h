@@ -125,7 +125,7 @@ enum {
 
 /* idea to add global alloc override by Moisés Guimarães  */
 /* default to libc stuff */
-/* XREALLOC is used once in mormal math lib, not in fast math lib */
+/* XREALLOC is used once in normal math lib, not in fast math lib */
 /* XFREE on some embeded systems doesn't like free(0) so test  */
 #ifdef XMALLOC_USER
     /* prototypes for user heap override functions */

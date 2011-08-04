@@ -19,6 +19,7 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  */
 
+
 #ifdef CYASSL_SNIFFER
 
 #include "ssl.h"
@@ -102,7 +103,7 @@ static int TraceOn = 0;         /* Trace is off by default */
 static FILE* TraceFile = 0;
 
 
-/* windows uses .rc talbe for this */
+/* windows uses .rc table for this */
 #ifndef _WIN32
 
 static const char* const msgTable[] =

@@ -36,7 +36,6 @@
 #endif
 
 
-
 #ifndef min
 
     static INLINE word32 min(word32 a, word32 b)

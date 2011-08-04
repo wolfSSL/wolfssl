@@ -35,7 +35,6 @@
 #endif
 
 
-
 /* in bytes */
 enum {
     SHA256              =  2,   /* hash type unique */

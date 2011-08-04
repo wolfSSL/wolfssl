@@ -169,7 +169,6 @@ struct tm* gmtime(const time_t* timer)
 #endif /* _WIN32_WCE */
 
 
-
 #ifdef  THREADX
 
 #define YEAR0          1900
@@ -2634,7 +2633,7 @@ static int SetValidity(byte* output, int daysValid)
 /* ASN Encoded Name field */
 typedef struct EncodedName {
     int  nameLen;                /* actual string value length */
-    int  totalLen;               /* total encodeding length */
+    int  totalLen;               /* total encoded length */
     int  type;                   /* type of name */
     int  used;                   /* are we actually using this one */
     byte encoded[CTC_NAME_SIZE * 2]; /* encoding */
@@ -3125,7 +3124,7 @@ int SetIssuer(Cert* cert, const char* issuerCertFile)
 
 #ifdef HAVE_ECC
 
-/* Der Eoncde r & s ints into out, outLen is (in/out) size */
+/* Der Encode r & s ints into out, outLen is (in/out) size */
 int StoreECC_DSA_Sig(byte* out, word32* outLen, mp_int* r, mp_int* s)
 {
     word32 idx = 0;

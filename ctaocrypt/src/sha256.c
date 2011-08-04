@@ -19,8 +19,8 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  */
 
-/* code submitted by raphael.huck@efixo.com */
 
+/* code submitted by raphael.huck@efixo.com */
 
 
 #ifndef NO_SHA256

@@ -21,6 +21,7 @@
 
 /* submitted by eof */
 
+
 #ifndef CYASSL_MEMORY_H
 #define CYASSL_MEMORY_H
 
@@ -29,7 +30,6 @@
 #ifdef __cplusplus
     extern "C" {
 #endif
-
 
 
 typedef void *(*CyaSSL_Malloc_cb)(size_t size);
@@ -46,7 +46,6 @@ CYASSL_API int CyaSSL_SetAllocators(CyaSSL_Malloc_cb  malloc_function,
 CYASSL_API void* CyaSSL_Malloc(size_t size);
 CYASSL_API void  CyaSSL_Free(void *ptr);
 CYASSL_API void* CyaSSL_Realloc(void *ptr, size_t size);
-
 
 
 #ifdef __cplusplus

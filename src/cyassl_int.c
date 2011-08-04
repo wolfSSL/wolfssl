@@ -20,7 +20,6 @@
  */
 
 
-
 #include "cyassl_int.h"
 #include "cyassl_error.h"
 #include "ctc_asn.h"
@@ -82,8 +81,6 @@ static void Hmac(SSL* ssl, byte* digest, const byte* buffer, word32 sz,
                  int content, int verify);
 
 static void BuildCertHashes(SSL* ssl, Hashes* hashes);
-
-
 
 
 #ifndef min
@@ -1250,7 +1247,7 @@ static INLINE int GrowInputBuffer(SSL* ssl, int size, int usedLength)
 }
 
 
-/* check avalaible size into outbut buffer */
+/* check avalaible size into output buffer */
 static INLINE int CheckAvalaibleSize(SSL *ssl, int size)
 {
     if ((word32)size > ssl->buffers.outputBuffer.bufferSize)
@@ -1719,7 +1716,7 @@ static int DoHandShakeMsg(SSL* ssl, byte* input, word32* inOutIdx,
     
     HashInput(ssl, input + *inOutIdx, size);
 #ifdef CYASSL_CALLBACKS
-    /* add name later, add on record and handshake header  part back on */
+    /* add name later, add on record and handshake header part back on */
     if (ssl->toInfoOn) {
         int add = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
         AddPacketInfo(0, &ssl->timeoutInfo, input + *inOutIdx - add,

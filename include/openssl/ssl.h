@@ -25,7 +25,6 @@
  */
 
 
-
 #ifndef CYASSL_OPENSSL_H_
 #define CYASSL_OPENSSL_H_
 
@@ -53,7 +52,6 @@
 #endif
 
 
-
 typedef struct SSL          SSL;          
 typedef struct SSL_SESSION  SSL_SESSION;
 typedef struct SSL_METHOD   SSL_METHOD;
@@ -66,8 +64,6 @@ typedef struct X509_CHAIN X509_CHAIN;
 
 /* redeclare guard */
 #define SSL_TYPES_DEFINED
-
-
 
 
 typedef struct EVP_PKEY       EVP_PKEY;

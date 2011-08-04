@@ -26,7 +26,6 @@
 #include "ctc_error.h"
 
 
-
 static int InitHmac(Hmac* hmac, int type)
 {
     hmac->innerHashKeyed = 0;

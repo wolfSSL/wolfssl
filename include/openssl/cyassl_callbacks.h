@@ -20,7 +20,6 @@
  */
 
 
-
 #ifndef CYASSL_CALLBACKS_H
 #define CYASSL_CALLBACKS_H
 

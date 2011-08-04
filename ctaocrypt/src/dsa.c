@@ -19,6 +19,7 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  */
 
+
 #ifndef NO_DSA
 
 #include "ctc_dsa.h"
@@ -29,7 +30,7 @@
 
 enum {
     DSA_HALF_SIZE = 20,   /* r and s size  */
-    DSA_SIG_SIZE  = 40    /* signaure size */
+    DSA_SIG_SIZE  = 40    /* signature size */
 };
 
 

@@ -32,7 +32,6 @@
 #endif
 
 
-
 /* in bytes */
 enum {
     RIPEMD             =  3,    /* hash type unique */

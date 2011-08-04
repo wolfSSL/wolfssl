@@ -19,6 +19,7 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  */
 
+
 #ifndef NO_HMAC
 
 #ifndef CTAO_CRYPT_HMAC_H
@@ -34,7 +35,6 @@
 #ifdef __cplusplus
     extern "C" {
 #endif
-
 
 
 enum {
