@@ -153,7 +153,7 @@ void c32to24(word32 in, word24 out)
 }
 
 
-#ifdef CYASLS_DTLS
+#ifdef CYASSL_DTLS
 
 static INLINE void c32to48(word32 in, byte out[6])
 {
