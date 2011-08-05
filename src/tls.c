@@ -346,6 +346,8 @@ void TLS_hmac(SSL* ssl, byte* digest, const byte* in, word32 sz,
     }
 
 
+#ifndef NO_SHA256   /* can't use without SHA256 */
+
     SSL_METHOD* TLSv1_2_client_method(void)
     {
         SSL_METHOD* method = (SSL_METHOD*) XMALLOC(sizeof(SSL_METHOD), 0,
@@ -355,13 +357,19 @@ void TLS_hmac(SSL* ssl, byte* digest, const byte* in, word32 sz,
         return method;
     }
 
+#endif
+
 
     SSL_METHOD* SSLv23_client_method(void)
     {
         SSL_METHOD* method = (SSL_METHOD*) XMALLOC(sizeof(SSL_METHOD), 0,
                                                    DYNAMIC_TYPE_METHOD);
         if (method) {
+#ifndef NO_SHA256         /* 1.2 requires SHA256 */
             InitSSL_Method(method, MakeTLSv1_2());
+#else
+            InitSSL_Method(method, MakeTLSv1_1());
+#endif
             method->downgrade = 1;
         }
         return method;
@@ -398,6 +406,8 @@ void TLS_hmac(SSL* ssl, byte* digest, const byte* in, word32 sz,
     }
 
 
+#ifndef NO_SHA256   /* can't use without SHA256 */
+
     SSL_METHOD* TLSv1_2_server_method(void)
     {
         SSL_METHOD* method = (SSL_METHOD*) XMALLOC(sizeof(SSL_METHOD), 0,
@@ -409,13 +419,19 @@ void TLS_hmac(SSL* ssl, byte* digest, const byte* in, word32 sz,
         return method;
     }
 
+#endif
+
 
     SSL_METHOD *SSLv23_server_method(void)
     {
         SSL_METHOD* method = (SSL_METHOD*) XMALLOC(sizeof(SSL_METHOD), 0,
                                                    DYNAMIC_TYPE_METHOD);
         if (method) {
+#ifndef NO_SHA256         /* 1.2 requires SHA256 */
             InitSSL_Method(method, MakeTLSv1_2());
+#else
+            InitSSL_Method(method, MakeTLSv1_1());
+#endif
             method->side      = SERVER_END;
             method->downgrade = 1;
         }

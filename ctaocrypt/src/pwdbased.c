@@ -108,9 +108,11 @@ int PBKDF2(byte* output, const byte* passwd, int pLen, const byte* salt,
     else if (hashType == SHA) {
         hLen = SHA_DIGEST_SIZE;
     }
+#ifndef NO_SHA256
     else if (hashType == SHA256) {
         hLen = SHA256_DIGEST_SIZE;
     }
+#endif
 #ifdef CYASSL_SHA512
     else if (hashType == SHA512) {
         hLen = SHA512_DIGEST_SIZE;
@@ -164,9 +166,12 @@ int PKCS12_PBKDF(byte* output, const byte* passwd, int passLen,const byte* salt,
 #ifdef CYASSL_SHA512
     byte   Ai[SHA512_DIGEST_SIZE];
     byte   B[SHA512_BLOCK_SIZE];
-#else
+#elif !defined(NO_SHA256)
     byte   Ai[SHA256_DIGEST_SIZE];
     byte   B[SHA256_BLOCK_SIZE];
+#else
+    byte   Ai[SHA_DIGEST_SIZE];
+    byte   B[SHA_BLOCK_SIZE];
 #endif
 
     if (!iterations)
@@ -180,10 +185,12 @@ int PKCS12_PBKDF(byte* output, const byte* passwd, int passLen,const byte* salt,
         v = SHA_BLOCK_SIZE;
         u = SHA_DIGEST_SIZE;
     }
+#ifndef NO_SHA256
     else if (hashType == SHA256) {
         v = SHA256_BLOCK_SIZE;
         u = SHA256_DIGEST_SIZE;
     }
+#endif
 #ifdef CYASSL_SHA512
     else if (hashType == SHA512) {
         v = SHA512_BLOCK_SIZE;
@@ -239,8 +246,10 @@ int PKCS12_PBKDF(byte* output, const byte* passwd, int passLen,const byte* salt,
                 ShaFinal(&sha, Ai);
             }
         }
+#ifndef NO_SHA256
         else if (hashType == SHA256) {
         }
+#endif
 #ifdef CYASSL_SHA512
         else if (hashType == SHA512) {
         }
