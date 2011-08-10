@@ -68,6 +68,10 @@
        #define FP_64BIT
     #endif
 #endif
+/* use 64-bit digit even if not using asm on x86_64 */
+#if defined(__x86_64__) && !defined(FP_64BIT)
+    #define FP_64BIT
+#endif
 
 /* try to detect x86-32 */
 #if defined(__i386__) && !defined(TFM_SSE2)
@@ -210,7 +214,7 @@
       typedef signed long long   long64;
    #endif
 #endif
-   typedef unsigned long      fp_digit;
+   typedef unsigned int       fp_digit;
    typedef ulong64            fp_word;
 #endif
 
