@@ -1886,6 +1886,14 @@ int AddSession(SSL* ssl)
 
     #endif /* SESSION_STATS */
 
+#else  /* NO_SESSION_CACHE */
+
+/* No session cache version */
+SSL_SESSION* GetSession(SSL* ssl, byte* masterSecret)
+{
+    return NULL;  
+}
+
 #endif /* NO_SESSION_CACHE */
 
 

@@ -2604,7 +2604,9 @@ int SendFinished(SSL* ssl)
         return BUILD_MSG_ERROR;
 
     if (!ssl->options.resuming) {
+#ifndef NO_SESSION_CACHE
         AddSession(ssl);    /* just try */
+#endif
         if (ssl->options.side == CLIENT_END)
             BuildFinished(ssl, &ssl->verifyHashes, server);
         else
