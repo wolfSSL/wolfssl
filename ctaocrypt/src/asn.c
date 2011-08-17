@@ -3045,18 +3045,17 @@ int CyaSSL_PemCertToDer(const char* fileName, unsigned char* derBuf, int derSz);
 
 #ifndef NO_FILESYSTEM
 
-int SetIssuer(Cert* cert, const char* issuerCertFile)
+static int SetNameFromCert(CertName* cn, const char* fromCertFile)
 {
     DecodedCert decoded;
     byte        der[8192];
-    int         derSz = CyaSSL_PemCertToDer(issuerCertFile, der, sizeof(der));
+    int         derSz = CyaSSL_PemCertToDer(fromCertFile, der, sizeof(der));
     int         ret;
     int         sz;
 
     if (derSz < 0)
         return derSz;
 
-    cert->selfSigned = 0;
 
     InitDecodedCert(&decoded, der, derSz, 0);
     ret = ParseCertRelative(&decoded, CA_TYPE, NO_VERIFY, 0);
@@ -3067,56 +3066,70 @@ int SetIssuer(Cert* cert, const char* issuerCertFile)
     if (decoded.subjectCN) {
         sz = (decoded.subjectCNLen < CTC_NAME_SIZE) ? decoded.subjectCNLen :
                                                   CTC_NAME_SIZE - 1;
-        strncpy(cert->issuer.commonName, decoded.subjectCN, CTC_NAME_SIZE);
-        cert->issuer.commonName[sz] = 0;
+        strncpy(cn->commonName, decoded.subjectCN, CTC_NAME_SIZE);
+        cn->commonName[sz] = 0;
     }
     if (decoded.subjectC) {
         sz = (decoded.subjectCLen < CTC_NAME_SIZE) ? decoded.subjectCLen :
                                                  CTC_NAME_SIZE - 1;
-        strncpy(cert->issuer.country, decoded.subjectC, CTC_NAME_SIZE);
-        cert->issuer.country[sz] = 0;
+        strncpy(cn->country, decoded.subjectC, CTC_NAME_SIZE);
+        cn->country[sz] = 0;
     }
     if (decoded.subjectST) {
         sz = (decoded.subjectSTLen < CTC_NAME_SIZE) ? decoded.subjectSTLen :
                                                   CTC_NAME_SIZE - 1;
-        strncpy(cert->issuer.state, decoded.subjectST, CTC_NAME_SIZE);
-        cert->issuer.state[sz] = 0;
+        strncpy(cn->state, decoded.subjectST, CTC_NAME_SIZE);
+        cn->state[sz] = 0;
     }
     if (decoded.subjectL) {
         sz = (decoded.subjectLLen < CTC_NAME_SIZE) ? decoded.subjectLLen :
                                                  CTC_NAME_SIZE - 1;
-        strncpy(cert->issuer.locality, decoded.subjectL, CTC_NAME_SIZE);
-        cert->issuer.locality[sz] = 0;
+        strncpy(cn->locality, decoded.subjectL, CTC_NAME_SIZE);
+        cn->locality[sz] = 0;
     }
     if (decoded.subjectO) {
         sz = (decoded.subjectOLen < CTC_NAME_SIZE) ? decoded.subjectOLen :
                                                  CTC_NAME_SIZE - 1;
-        strncpy(cert->issuer.org, decoded.subjectO, CTC_NAME_SIZE);
-        cert->issuer.org[sz] = 0;
+        strncpy(cn->org, decoded.subjectO, CTC_NAME_SIZE);
+        cn->org[sz] = 0;
     }
     if (decoded.subjectOU) {
         sz = (decoded.subjectOULen < CTC_NAME_SIZE) ? decoded.subjectOULen :
                                                   CTC_NAME_SIZE - 1;
-        strncpy(cert->issuer.unit, decoded.subjectOU, CTC_NAME_SIZE);
-        cert->issuer.unit[sz] = 0;
+        strncpy(cn->unit, decoded.subjectOU, CTC_NAME_SIZE);
+        cn->unit[sz] = 0;
     }
     if (decoded.subjectSN) {
         sz = (decoded.subjectSNLen < CTC_NAME_SIZE) ? decoded.subjectSNLen :
                                                   CTC_NAME_SIZE - 1;
-        strncpy(cert->issuer.sur, decoded.subjectSN, CTC_NAME_SIZE);
-        cert->issuer.sur[sz] = 0;
+        strncpy(cn->sur, decoded.subjectSN, CTC_NAME_SIZE);
+        cn->sur[sz] = 0;
     }
     if (decoded.subjectEmail) {
         sz = (decoded.subjectEmailLen < CTC_NAME_SIZE) ?
                               decoded.subjectEmailLen : CTC_NAME_SIZE - 1;
-        strncpy(cert->issuer.email, decoded.subjectEmail, CTC_NAME_SIZE);
-        cert->issuer.email[sz] = 0;
+        strncpy(cn->email, decoded.subjectEmail, CTC_NAME_SIZE);
+        cn->email[sz] = 0;
     }
 
     FreeDecodedCert(&decoded);
 
     return 0;
 }
+
+
+int SetIssuer(Cert* cert, const char* issuerFile)
+{
+    cert->selfSigned = 0;
+    return SetNameFromCert(&cert->issuer, issuerFile);
+}
+
+
+int SetSubject(Cert* cert, const char* subjectFile)
+{
+    return SetNameFromCert(&cert->subject, subjectFile);
+}
+
 
 #endif /* NO_FILESYSTEM */
 #endif /* CYASSL_CERT_GEN */
