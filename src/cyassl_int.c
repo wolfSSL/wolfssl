@@ -721,6 +721,7 @@ int InitSSL(SSL* ssl, SSL_CTX* ctx)
     ssl->options.dtls   = 0;
     ssl->options.partialWrite  = ctx->partialWrite;
     ssl->options.quietShutdown = ctx->quietShutdown;
+    ssl->options.certOnly = 0;
 
     /* SSL_CTX still owns certificate, certChain, key, and caList buffers */
     ssl->buffers.certificate = ctx->certificate;

@@ -646,6 +646,9 @@ CYASSL_API int  CyaSSL_get_chain_cert_pem(X509_CHAIN*, int idx,
 CYASSL_API const unsigned char* CyaSSL_get_sessionID(const SSL_SESSION* sess);
 CYASSL_API int  CyaSSL_X509_get_serial_number(X509*, unsigned char*, int*);
 
+/* connect enough to get peer cert */
+CYASSL_API int  CyaSSL_connect_cert(SSL* ssl);
+
 /* server CTX Diffie-Hellman parameters */
 CYASSL_API int  CyaSSL_SetTmpDH(SSL*, unsigned char* p, int pSz,
                                 unsigned char* g, int gSz);

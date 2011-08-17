@@ -927,6 +927,7 @@ typedef struct Options {
     byte            processReply;       /* nonblocking resume */
     byte            partialWrite;       /* only one msg per write call */
     byte            quietShutdown;      /* don't send close notify */
+    byte            certOnly;           /* stop once we get cert */
 #ifndef NO_PSK
     byte            havePSK;            /* psk key set by user */
     psk_client_callback client_psk_cb;

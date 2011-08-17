@@ -1333,6 +1333,9 @@ int SSL_CTX_set_cipher_list(SSL_CTX* ctx, const char* list)
             CYASSL_MSG("connect state: HELLO_AGAIN");
 
         case HELLO_AGAIN :
+            if (ssl->options.certOnly)
+                return SSL_SUCCESS;
+
             #ifdef CYASSL_DTLS
                 if (ssl->options.dtls && !ssl->options.resuming) {
                     /* re-init hashes, exclude first hello and verify request */
@@ -4197,6 +4200,27 @@ const byte* CyaSSL_get_sessionID(const SSL_SESSION* session)
     return session->sessionID;
 }
 
+
+/* connect enough to get peer cert chain, no validation */
+int CyaSSL_connect_cert(SSL* ssl)
+{
+    int  ret;
+    byte oldVerify;
+
+    if (ssl == NULL)
+        return SSL_FAILURE;
+
+    oldVerify = ssl->options.verifyNone;
+    ssl->options.verifyNone = 1;
+    ssl->options.certOnly   = 1;
+
+    ret = SSL_connect(ssl);
+
+    ssl->options.verifyNone = oldVerify;
+    ssl->options.certOnly   = 0;
+
+    return ret;
+}
 
 #endif /* SESSION_CERTS */
 
