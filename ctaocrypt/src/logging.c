@@ -106,7 +106,8 @@ static void cyassl_log(const int logLevel, const char *const logMessage)
 
 void CYASSL_MSG(const char* msg)
 {
-    cyassl_log(INFO_LOG , msg);
+    if (loggingEnabled)
+        cyassl_log(INFO_LOG , msg);
 }
 
 
