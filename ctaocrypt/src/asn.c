@@ -3040,24 +3040,17 @@ int MakeSelfCert(Cert* cert, byte* buffer, word32 buffSz, RsaKey* key, RNG* rng)
 }
 
 
-/* forward from CyaSSL */
-int CyaSSL_PemCertToDer(const char* fileName, unsigned char* derBuf, int derSz);
-
-#ifndef NO_FILESYSTEM
-
-static int SetNameFromCert(CertName* cn, const char* fromCertFile)
+/* Set cn name from der buffer, return 0 on success */
+static int SetNameFromCert(CertName* cn, const byte* der, int derSz)
 {
     DecodedCert decoded;
-    byte        der[8192];
-    int         derSz = CyaSSL_PemCertToDer(fromCertFile, der, sizeof(der));
     int         ret;
     int         sz;
 
     if (derSz < 0)
         return derSz;
 
-
-    InitDecodedCert(&decoded, der, derSz, 0);
+    InitDecodedCert(&decoded, (byte*)der, derSz, 0);
     ret = ParseCertRelative(&decoded, CA_TYPE, NO_VERIFY, 0);
 
     if (ret < 0)
@@ -3118,20 +3111,48 @@ static int SetNameFromCert(CertName* cn, const char* fromCertFile)
 }
 
 
+#ifndef NO_FILESYSTEM
+
+/* forward from CyaSSL */
+int CyaSSL_PemCertToDer(const char* fileName, unsigned char* derBuf, int derSz);
+
+/* Set cert issuer from issuerFile in PEM */
 int SetIssuer(Cert* cert, const char* issuerFile)
 {
+    byte        der[8192];
+    int         derSz = CyaSSL_PemCertToDer(issuerFile, der, sizeof(der));
+
     cert->selfSigned = 0;
-    return SetNameFromCert(&cert->issuer, issuerFile);
+    return SetNameFromCert(&cert->issuer, der, derSz);
 }
 
 
+/* Set cert subject from subjectFile in PEM */
 int SetSubject(Cert* cert, const char* subjectFile)
 {
-    return SetNameFromCert(&cert->subject, subjectFile);
+    byte        der[8192];
+    int         derSz = CyaSSL_PemCertToDer(subjectFile, der, sizeof(der));
+
+    return SetNameFromCert(&cert->subject, der, derSz);
+}
+
+#endif /* NO_FILESYSTEM */
+
+/* Set cert issuer from DER buffer */
+int SetIssuerBuffer(Cert* cert, const byte* der, int derSz)
+{
+    cert->selfSigned = 0;
+    return SetNameFromCert(&cert->issuer, der, derSz);
 }
 
 
-#endif /* NO_FILESYSTEM */
+/* Set cert subject from DER buffer */
+int SetSubjectBuffer(Cert* cert, const byte* der, int derSz)
+{
+    return SetNameFromCert(&cert->subject, der, derSz);
+}
+
+
 #endif /* CYASSL_CERT_GEN */
 
 

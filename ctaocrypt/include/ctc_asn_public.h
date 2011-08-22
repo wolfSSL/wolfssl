@@ -94,6 +94,8 @@ CYASSL_API int  MakeSelfCert(Cert*, byte* derBuffer, word32 derSz, RsaKey*,
                              RNG*);
 CYASSL_API int  SetIssuer(Cert*, const char*);
 CYASSL_API int  SetSubject(Cert*, const char*);
+CYASSL_API int  SetIssuerBuffer(Cert*, const byte*, int);
+CYASSL_API int  SetSubjectBuffer(Cert*, const byte*, int);
 
     #ifdef HAVE_NTRU
         CYASSL_API int  MakeNtruCert(Cert*, byte* derBuffer, word32 derSz,
