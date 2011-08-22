@@ -433,6 +433,7 @@ int AddCA(SSL_CTX* ctx, buffer der)
     XFREE(der.buffer, ctx->heap, DYNAMIC_TYPE_CA);
     CYASSL_MSG("        OK Freeing der CA");
 
+    CYASSL_LEAVE("AddCA", ret);
     if (ret == 0) return SSL_SUCCESS;
     return ret;
 }
