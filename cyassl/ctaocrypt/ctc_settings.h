@@ -51,6 +51,9 @@
 /* Uncomment next line if building CyaSSL for a game console */
 /* #define CYASSL_GAME_BUILD */
 
+/* Uncomment next line if builing yaSSL with autoconf and want version string */
+/* #define USE_CYASSL_VERSION */
+
 #include <cyassl/ctaocrypt/ctc_visibility.h>
 
 #ifdef IPHONE

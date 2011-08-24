@@ -28,8 +28,12 @@
 #ifndef CYASSL_OPENSSL_H_
 #define CYASSL_OPENSSL_H_
 
-#include <cyassl/ctaocrypt/ctc_settings.h>   /* for users not using preprocessor flags */
-#include <cyassl/version.h>
+/* for users not using preprocessor flags */
+#include <cyassl/ctaocrypt/ctc_settings.h>
+
+#ifdef USE_CYASSL_VERSION
+    #include <cyassl/version.h>
+#endif
 
 #ifndef NO_FILESYSTEM
     #include <stdio.h>   /* ERR_print fp */
@@ -39,7 +43,9 @@
     #include "prefix_ssl.h"
 #endif
 
-#define CYASSL_VERSION LIBCYASSL_VERSION_STRING
+#ifdef LIBCYASSL_VERSION_STRING
+    #define CYASSL_VERSION LIBCYASSL_VERSION_STRING
+#endif
 
 #ifdef _WIN32
     /* wincrypt.h clashes */
