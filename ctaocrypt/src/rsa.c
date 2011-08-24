@@ -20,7 +20,9 @@
  */
 
 
-#include <config.h>
+#ifdef HAVE_CONFIG_H
+    #include <config.h>
+#endif
 
 #include <cyassl/ctaocrypt/ctc_rsa.h>
 #include <cyassl/ctaocrypt/ctc_random.h>

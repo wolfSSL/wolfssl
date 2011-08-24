@@ -22,7 +22,9 @@
 
 /* code submitted by raphael.huck@efixo.com */
 
-#include <config.h>
+#ifdef HAVE_CONFIG_H
+    #include <config.h>
+#endif
 
 #ifndef NO_SHA256
 

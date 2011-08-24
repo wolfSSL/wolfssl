@@ -20,7 +20,9 @@
  */
 
 
-#include <config.h>
+#ifdef HAVE_CONFIG_H
+    #include <config.h>
+#endif
 
 #include <cyassl/cyassl_int.h>
 #include <cyassl/cyassl_error.h>

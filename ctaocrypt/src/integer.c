@@ -26,7 +26,10 @@
  */
 
 
-#include <config.h>
+#ifdef HAVE_CONFIG_H
+    #include <config.h>
+#endif
+
 /* in case user set USE_FAST_MATH there */
 #include <cyassl/ctaocrypt/ctc_settings.h>
 
