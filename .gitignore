@@ -8,8 +8,7 @@
 *.user
 config*
 *Debug/
-ctc_config*
-stamp*
+stamp-h
 libtool.m4
 aclocal.m4
 lt*.m4
@@ -21,7 +20,7 @@ missing
 libtool
 tags
 ctaocrypt/benchmark/benchmark
-ctaocrypt/test
+ctaocrypt/test/testctaocrypt
 examples/client/client
 examples/echoclient/echoclient
 examples/echoserver/echoserver
@@ -43,3 +42,10 @@ NTRU_algorithm/
 build-test/
 build/
 cyassl.xcodeproj/
+cyassl*rc*
+autoscan.log
+TAGS
+support/libcyassl.pc
+cyassl/version.h
+cyassl/ctaocrypt/stamp-h1
+stamp-h1

@@ -19,16 +19,17 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  */
 
+#include <config.h>
 
 /* submitted by eof */
 
 
-#include "ctc_settings.h"
+#include <cyassl/ctaocrypt/ctc_settings.h>
 
 #ifdef USE_CYASSL_MEMORY
 
-#include "cyassl_memory.h"
-#include "ctc_error.h"
+#include <cyassl/ctaocrypt/cyassl_memory.h>
+#include <cyassl/ctaocrypt/ctc_error.h>
 
 
 /* Set these to default values initially. */

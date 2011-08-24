@@ -1,12 +1,14 @@
-vim:ft=automake
+# vim:ft=automake
 # included from Top Level Makefile.am
 # All paths should be given relative to the root
 
 
-bin_PROGRAMS += examples/echoclient/echoclient
+noinst_PROGRAMS += examples/echoclient/echoclient
 examples_echoclient_echoclient_SOURCES      = examples/echoclient/echoclient.c
-examples_echoclient_echoclient_LDFLAGS      = -Lsrc
 examples_echoclient_echoclient_LDADD        = src/libcyassl.la
 examples_echoclient_echoclient_DEPENDENCIES = src/libcyassl.la
-EXTRA_DIST += examples/echoclient/echoclient.sln examples/echoclient/*.vcproj \
-    examples/echoclient/input examples/echoclient/quit
+EXTRA_DIST += examples/echoclient/echoclient.sln
+EXTRA_DIST += examples/echoclient/echoclient-ntru.vcproj
+EXTRA_DIST += examples/echoclient/echoclient.vcproj
+
+example_DATA+= examples/echoclient/echoclient.c

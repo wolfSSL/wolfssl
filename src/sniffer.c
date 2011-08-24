@@ -19,22 +19,14 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  */
 
+#include <config.h>
 
-#ifdef CYASSL_SNIFFER
-
-#include "ssl.h"
-#include "cyassl_int.h"
-#include "cyassl_error.h"
-#include "sniffer.h"
-#include "sniffer_error.h"
+#include <assert.h>
 #include <time.h>
 
 #ifndef _WIN32
-	#include <arpa/inet.h>
+  #include <arpa/inet.h>
 #endif
-
-#include <assert.h>
-
 
 #ifdef _WIN32
     #define SNPRINTF _snprintf
@@ -42,6 +34,13 @@
     #define SNPRINTF snprintf
 #endif
 
+#ifdef CYASSL_SNIFFER
+
+#include <ssl.h>
+#include <cyassl_int.h>
+#include <cyassl_error.h>
+#include <sniffer.h>
+#include <sniffer_error.h>
 
 /* Misc constants */
 enum {
@@ -1316,7 +1315,7 @@ static void Decrypt(SSL* ssl, byte* output, const byte* input, word32 sz)
             break;
         #endif
             
-        #ifdef BUILD_HC128
+        #ifdef HAVE_HC128
         case hc128:
             Hc128_Process(&ssl->decrypt.hc128, output, input, sz);
             break;

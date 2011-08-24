@@ -19,27 +19,7 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  */
 
-
-#include "ssl.h"
-#include "cyassl_int.h"
-#include "cyassl_error.h"
-#include "ctc_coding.h"
-
-#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
-    #include "evp.h"
-#endif
-
-#ifdef OPENSSL_EXTRA
-    /* openssl headers begin */
-    #include "hmac.h"
-    #include "crypto.h"
-    #include "des.h"
-    /* openssl headers end, cyassl internal headers next */
-    #include "ctc_hmac.h"
-    #include "ctc_random.h"
-    #include "ctc_des3.h"
-    #include "ctc_md4.h"
-#endif
+#include <config.h>
 
 #ifdef HAVE_ERRNO_H 
     #include <errno.h>
@@ -47,6 +27,27 @@
 
 #define TRUE  1
 #define FALSE 0
+
+#include <cyassl/openssl/ssl.h>
+#include <cyassl/cyassl_int.h>
+#include <cyassl/cyassl_error.h>
+#include <cyassl/ctaocrypt/ctc_coding.h>
+
+#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
+    #include <cyassl/openssl/evp.h>
+#endif
+
+#ifdef OPENSSL_EXTRA
+    /* openssl headers begin */
+    #include <cyassl/openssl/hmac.h>
+    #include <cyassl/openssl/crypto.h>
+    #include <cyassl/openssl/des.h>
+    /* openssl headers end, cyassl internal headers next */
+    #include <cyassl/ctaocrypt/ctc_hmac.h>
+    #include <cyassl/ctaocrypt/ctc_random.h>
+    #include <cyassl/ctaocrypt/ctc_des3.h>
+    #include <cyassl/ctaocrypt/ctc_md4.h>
+#endif
 
 
 #ifndef min

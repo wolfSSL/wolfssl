@@ -6,13 +6,23 @@
 #
 #
 
-AC_INIT(cyassl,2.0.0rc2,http://www.yassl.com)    # !!! also change in ssl.h !!!
-AC_CONFIG_AUX_DIR(config)
-AM_CONFIG_HEADER(ctaocrypt/include/ctc_config.h)
-AC_CONFIG_MACRO_DIR([m4])
-AC_CANONICAL_SYSTEM
+AC_INIT([cyassl],[2.0.0rc2],[http://www.yassl.com])
 
-AM_INIT_AUTOMAKE(subdir-objects)
+AC_CONFIG_AUX_DIR(config)
+
+AC_CANONICAL_TARGET
+
+AM_INIT_AUTOMAKE(-Wall -Werror -Wno-portability foreign tar-ustar subdir-objects)
+
+AC_CANONICAL_HOST
+AC_CANONICAL_BUILD
+
+AC_PREREQ([2.61])
+
+AC_CONFIG_MACRO_DIR(m4)
+
+AC_CONFIG_HEADERS([config.h:config.in])dnl Keep filename to 8.3 for MS-DOS.
+
 
 #shared library versioning
 CYASSL_LIBRARY_VERSION=2:1:0
@@ -29,31 +39,48 @@ CYASSL_LIBRARY_VERSION=2:1:0
 #               +- increment if interfaces have been added, removed or changed
 AC_SUBST(CYASSL_LIBRARY_VERSION)
 
+LT_INIT([win32-dll])
+LT_LANG([C++])
+LT_LANG([C])
+gl_VISIBILITY
 
-# make sure configure doesn't add to CFLAGS
-CFLAGS="$CFLAGS $C_EXTRA_FLAGS"    
+m4_ifdef([AM_SILENT_RULES],[AM_SILENT_RULES([yes])])
+
+AC_CHECK_FUNCS([gethostbyname])
+AC_CHECK_FUNCS([gettimeofday])
+AC_CHECK_FUNCS([inet_ntoa])
+AC_CHECK_FUNCS([memset])
+AC_CHECK_FUNCS([socket])
+AC_CHECK_HEADERS([arpa/inet.h])
+AC_CHECK_HEADERS([fcntl.h])
+AC_CHECK_HEADERS([limits.h])
+AC_CHECK_HEADERS([netdb.h])
+AC_CHECK_HEADERS([netinet/in.h])
+AC_CHECK_HEADERS([stddef.h])
+AC_CHECK_HEADERS([sys/ioctl.h])
+AC_CHECK_HEADERS([sys/socket.h])
+AC_CHECK_HEADERS([sys/time.h])
+AC_CHECK_HEADERS(errno.h)
+AC_CHECK_LIB(network,socket)
+AC_CHECK_SIZEOF(long long, 8)
+AC_CHECK_SIZEOF(long, 4)
+AC_C_BIGENDIAN
+AC_DISABLE_STATIC
+AC_DISABLE_STATIC
+AC_FUNC_MALLOC
+AC_FUNC_MKTIME
+AC_FUNC_REALLOC
 
 AC_PROG_CC
-AM_PROG_CC_C_O
 AC_PROG_CC_C_O
-AM_PROG_AS
+AC_PROG_CXX
 AC_PROG_INSTALL
-AC_LIBTOOL_WIN32_DLL
-AC_DISABLE_STATIC
-AC_PROG_LIBTOOL
-
-AC_PREFIX_DEFAULT(/usr/local/cyassl)
-
-AC_C_BIGENDIAN
-
-AC_CHECK_SIZEOF(long, 4)
-AC_CHECK_SIZEOF(long long, 8)
-
-AC_CHECK_LIB(network,socket)
-AC_CHECK_LIBM
-
-AC_CHECK_HEADERS(errno.h)
-
+LT_INIT
+AC_TYPE_SIZE_T
+AC_TYPE_UINT8_T
+AM_PROG_AS
+AM_PROG_CC_C_O
+LT_LIB_M
 
 OPTIMIZE_CFLAGS="-Os -fomit-frame-pointer"
 OPTIMIZE_FAST_CFLAGS="-O3 -fomit-frame-pointer"
@@ -70,10 +97,10 @@ AC_ARG_ENABLE(debug,
 if test "$ENABLED_DEBUG" = "yes"
 then
   # Full debug. Very slow in some cases
-  CFLAGS="$DEBUG_CFLAGS $CFLAGS"
+  AM_CFLAGS="$DEBUG_CFLAGS $AM_CFLAGS"
 else
   # Optimized version. No debug
-  CFLAGS="$CFLAGS -DNDEBUG"
+  AM_CFLAGS="$AM_CFLAGS -DNDEBUG"
 fi
 
 
@@ -89,7 +116,7 @@ then
   # if you only want server or client you can define NO_CYASSL_SERVER or
   # NO_CYASSL_CLIENT but then some of the examples and testsuite won't build
   # note that TLS needs HMAC
-  CFLAGS="-DNO_TLS -DNO_HMAC -DNO_AES -DNO_DES3 -DNO_SHA256 -DNO_ERROR_STRINGS -DNO_HC128 -DNO_RABBIT -DNO_PSK -DNO_DSA -DNO_DH -DNO_PWDBASED $CFLAGS" 
+  AM_CFLAGS="-DNO_TLS -DNO_HMAC -DNO_AES -DNO_DES3 -DNO_SHA256 -DNO_ERROR_STRINGS -DNO_RABBIT -DNO_PSK -DNO_DSA -DNO_DH -DNO_PWDBASED $AM_CFLAGS" 
 fi
 
 
@@ -101,7 +128,7 @@ AC_ARG_ENABLE(singleThreaded,
     )
 if test "$ENABLED_SINGLETHREADED" = "yes"
 then
-  CFLAGS="-DSINGLE_THREADED $CFLAGS"
+  AM_CFLAGS="-DSINGLE_THREADED $AM_CFLAGS"
 fi
 
 
@@ -113,7 +140,7 @@ AC_ARG_ENABLE(dtls,
     )
 if test "$ENABLED_DTLS" = "yes"
 then
-  CFLAGS="-DCYASSL_DTLS $CFLAGS"
+  AM_CFLAGS="-DCYASSL_DTLS $AM_CFLAGS"
 fi
 
 
@@ -125,7 +152,7 @@ AC_ARG_ENABLE(opensslExtra,
     )
 if test "$ENABLED_OPENSSLEXTRA" = "yes"
 then
-  CFLAGS="-DOPENSSL_EXTRA $CFLAGS"
+  AM_CFLAGS="-DOPENSSL_EXTRA $AM_CFLAGS"
 fi
 
 if test "$ENABLED_OPENSSLEXTRA" = "yes" && test "$ENABLED_SMALL" = "yes"
@@ -143,7 +170,7 @@ AC_ARG_ENABLE(ipv6,
 
 if test "$ENABLED_IPV6" = "yes"
 then
-    CFLAGS="$CFLAGS -DTEST_IPV6"
+    AM_CFLAGS="$AM_CFLAGS -DTEST_IPV6"
 fi
 
 
@@ -154,9 +181,9 @@ AC_ARG_ENABLE(fastmath,
     [ ENABLED_FASTMATH=no ]
     )
 
-if test "$ENABLED_FASTMATH" = "yes"
+if test "x$ENABLED_FASTMATH" = "xyes"
 then
-    CFLAGS="$CFLAGS -DUSE_FAST_MATH"
+    AM_CFLAGS="$AM_CFLAGS -DUSE_FAST_MATH"
 fi
 
 
@@ -170,7 +197,7 @@ AC_ARG_ENABLE(fasthugemath,
 if test "$ENABLED_FASTHUGEMATH" = "yes"
 then
     ENABLED_FASTMATH="yes"
-    CFLAGS="$CFLAGS -DUSE_FAST_MATH"
+    AM_CFLAGS="$AM_CFLAGS -DUSE_FAST_MATH"
 fi
 
 AM_CONDITIONAL([BUILD_FASTMATH], [test "x$ENABLED_FASTMATH" = "xyes"])
@@ -185,7 +212,7 @@ AC_ARG_ENABLE(bigcache,
 
 if test "$ENABLED_BIGCACHE" = "yes"
 then
-    CFLAGS="$CFLAGS -DBIG_SESSION_CACHE"
+    AM_CFLAGS="$AM_CFLAGS -DBIG_SESSION_CACHE"
 fi
 
 
@@ -198,7 +225,7 @@ AC_ARG_ENABLE(hugecache,
 
 if test "$ENABLED_HUGECACHE" = "yes"
 then
-    CFLAGS="$CFLAGS -DHUGE_SESSION_CACHE"
+    AM_CFLAGS="$AM_CFLAGS -DHUGE_SESSION_CACHE"
 fi
 
 
@@ -211,7 +238,7 @@ AC_ARG_ENABLE(sniffer,
 
 if test "$ENABLED_SNIFFER" = "yes"
 then
-    CFLAGS="$CFLAGS -DCYASSL_SNIFFER -DOPENSSL_EXTRA"
+    AM_CFLAGS="$AM_CFLAGS -DCYASSL_SNIFFER -DOPENSSL_EXTRA"
 fi
 
 AM_CONDITIONAL([BUILD_SNIFFER], [test "x$ENABLED_SNIFFER" = "xyes"])
@@ -225,11 +252,11 @@ AC_ARG_ENABLE(aesni,
 
 if test "$ENABLED_AESNI" = "yes"
 then
-    CFLAGS="$CFLAGS -DCYASSL_AESNI"
+    AM_CFLAGS="$AM_CFLAGS -DCYASSL_AESNI"
     if test "$GCC" = "yes"
     then
         # GCC needs these flags, icc doesn't
-        CFLAGS="$CFLAGS -maes -msse4"
+        AM_CFLAGS="$AM_CFLAGS -maes -msse4"
     fi
 fi
 
@@ -245,7 +272,7 @@ AC_ARG_ENABLE(ripemd,
 
 if test "$ENABLED_RIPEMD" = "yes"
 then
-    CFLAGS="$CFLAGS -DCYASSL_RIPEMD"
+    AM_CFLAGS="$AM_CFLAGS -DCYASSL_RIPEMD"
 fi
 
 AM_CONDITIONAL([BUILD_RIPEMD], [test "x$ENABLED_RIPEMD" = "xyes"])
@@ -260,7 +287,7 @@ AC_ARG_ENABLE(sha512,
 
 if test "$ENABLED_SHA512" = "yes"
 then
-    CFLAGS="$CFLAGS -DCYASSL_SHA512"
+    AM_CFLAGS="$AM_CFLAGS -DCYASSL_SHA512"
 fi
 
 AM_CONDITIONAL([BUILD_SHA512], [test "x$ENABLED_SHA512" = "xyes"])
@@ -275,7 +302,7 @@ AC_ARG_ENABLE(sessioncerts,
 
 if test "$ENABLED_SESSIONCERTS" = "yes"
 then
-    CFLAGS="$CFLAGS -DSESSION_CERTS"
+    AM_CFLAGS="$AM_CFLAGS -DSESSION_CERTS"
 fi
 
 
@@ -288,7 +315,7 @@ AC_ARG_ENABLE(keygen,
 
 if test "$ENABLED_KEYGEN" = "yes"
 then
-    CFLAGS="$CFLAGS -DCYASSL_KEY_GEN"
+    AM_CFLAGS="$AM_CFLAGS -DCYASSL_KEY_GEN"
 fi
 
 
@@ -301,23 +328,22 @@ AC_ARG_ENABLE(certgen,
 
 if test "$ENABLED_CERTGEN" = "yes"
 then
-    CFLAGS="$CFLAGS -DCYASSL_CERT_GEN"
+    AM_CFLAGS="$AM_CFLAGS -DCYASSL_CERT_GEN"
 fi
 
 
 # HC128
-AC_ARG_ENABLE(hc128,
-    [  --enable-hc128          Enable HC-128 (default: disabled)],
-    [ ENABLED_HC128=$enableval ],
-    [ ENABLED_HC128=no ]
-    )
-
-if test "$ENABLED_HC128" = "no"
-then
-    CFLAGS="$CFLAGS -DNO_HC128"
-fi
-
-AM_CONDITIONAL([BUILD_HC128], [test "x$ENABLED_HC128" = "xyes"])
+AC_ARG_ENABLE([hc128],
+              [  --enable-hc128          Enable HC-128 (default: disabled)],
+              [case "${enableval}" in
+                 yes) BUILD_HC128=true ;;
+                 no)  BUILD_HC128=false ;;
+                 *) AC_MSG_ERROR([bad value ${enableval} for --enable-hc128]) ;;
+               esac],[BUILD_HC128=false])
+AM_CONDITIONAL([BUILD_HC128], [test x$BUILD_HC128 = xtrue])
+AS_IF([test "x$BUILD_HC128" = "xyes"],
+      [ AC_DEFINE([HAVE_HC128], [1], [Have hc128])],
+      [ AC_DEFINE([HAVE_HC128], [0], [Have hc128])])
 
 
 # PSK 
@@ -329,7 +355,7 @@ AC_ARG_ENABLE(psk,
 
 if test "$ENABLED_PSK" = "no"
 then
-    CFLAGS="$CFLAGS -DNO_PSK"
+    AM_CFLAGS="$AM_CFLAGS -DNO_PSK"
 fi
 
 
@@ -342,7 +368,7 @@ AC_ARG_ENABLE(webServer,
 
 if test "$ENABLED_WEBSERVER" = "yes"
 then
-    CFLAGS="$CFLAGS -DHAVE_WEBSERVER"
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_WEBSERVER"
 fi
 
 
@@ -355,7 +381,7 @@ AC_ARG_ENABLE(noFilesystem,
 
 if test "$ENABLED_NOFILESYSTEM" = "yes"
 then
-    CFLAGS="$CFLAGS -DNO_FILESYSTEM"
+    AM_CFLAGS="$AM_CFLAGS -DNO_FILESYSTEM"
 fi
 
 
@@ -383,7 +409,7 @@ AC_ARG_ENABLE(ecc,
 
 if test "$ENABLED_ECC" = "yes"
 then
-    CFLAGS="$CFLAGS -DHAVE_ECC"
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_ECC"
 fi
 
 AM_CONDITIONAL([BUILD_ECC], [test "x$ENABLED_ECC" = "xyes"])
@@ -407,8 +433,8 @@ AC_ARG_ENABLE(ntru,
 
 if test "$ENABLED_NTRU" = "yes"
 then
-    CFLAGS="$CFLAGS -DHAVE_NTRU -I$ntruInclude"
-    LDFLAGS="$LDFLAGS -L$ntruLib"
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_NTRU -I$ntruInclude"
+    AM_LDFLAGS="$AM_LDFLAGS -L$ntruLib"
     LIBS="$LIBS -lntru_encrypt"
 fi
 
@@ -429,7 +455,7 @@ AC_ARG_ENABLE(testcert,
 
 if test "$ENABLED_TESTCERT" = "yes"
 then
-    CFLAGS="$CFLAGS -DCYASSL_TEST_CERT"
+    AM_CFLAGS="$AM_CFLAGS -DCYASSL_TEST_CERT"
 fi
 
 
@@ -442,8 +468,7 @@ AC_ARG_WITH(libz,
         CPPFLAGS="$CPPFLAGS -DHAVE_LIBZ"
         LIBS="$LIBS -lz"
 
-        AC_TRY_LINK([#include <zlib.h>], [ deflateInit(0, 8); ],
-            [ libz_linked=yes ], [ libz_linked=no ])
+        AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <zlib.h>]], [[ deflateInit(0, 8); ]])],[ libz_linked=yes ],[ libz_linked=no ])
 
         if test "x$libz_linked" == "xno" ; then
             if test "x$withval" != "xno" ; then
@@ -453,11 +478,10 @@ AC_ARG_WITH(libz,
                 trylibzdir="/usr"
             fi
 
-            LDFLAGS="$LDFLAGS -L$trylibzdir/lib"
+            AM_LDFLAGS="$AM_LDFLAGS -L$trylibzdir/lib"
             CPPFLAGS="$CPPFLAGS -I$trylibzdir/include"
 
-            AC_TRY_LINK([#include <zlib.h>], [ deflateInit(0, 8); ],
-                [ libz_linked=yes ], [ libz_linked=no ])
+            AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <zlib.h>]], [[ deflateInit(0, 8); ]])],[ libz_linked=yes ],[ libz_linked=no ])
 
             if test "x$libz_linked" == "xno" ; then
                 AC_MSG_ERROR([libz isn't found.
@@ -475,56 +499,55 @@ AC_ARG_WITH(libz,
 # OPTIMIZE FLAGS
 if test "$GCC" = "yes"
 then
-    CFLAGS="$CFLAGS -Wall -Wno-unused"
+    AM_CFLAGS="$AM_CFLAGS -Wall -Wno-unused"
     if test "$ENABLED_DEBUG" = "no"
     then
         if test "$ENABLED_FASTMATH" = "yes"
         then
-            CFLAGS="$CFLAGS $OPTIMIZE_FAST_CFLAGS"
+            AM_CFLAGS="$AM_CFLAGS $OPTIMIZE_FAST_CFLAGS"
             if test "$ENABLED_FASTHUGEMATH" = "yes"
             then
-                CFLAGS="$CFLAGS $OPTIMIZE_HUGE_CFLAGS"
+                AM_CFLAGS="$AM_CFLAGS $OPTIMIZE_HUGE_CFLAGS"
             fi
         else
-            CFLAGS="$CFLAGS $OPTIMIZE_CFLAGS"
+            AM_CFLAGS="$AM_CFLAGS $OPTIMIZE_CFLAGS"
         fi
     fi
 fi
 
-
-
-
-ACX_PTHREAD
-
-LIBS="$PTHREAD_LIBS $LIBM $LIBS"
-CFLAGS="$CFLAGS $PTHREAD_CFLAGS"
+AX_PTHREAD([
+            AC_DEFINE([HAVE_PTHREAD], [1], [Define if you have POSIX threads libraries and header files.])
+            ],
+            [
+             AC_DEFINE([HAVE_PTHREAD], [0], [Define if you have POSIX threads libraries and header files.])
+             ])
 
 LIB_SOCKET_NSL
 
 dnl Various GCC warnings that should never fire for release quality code
 GCCWARNINGS="-Wall -fno-strict-aliasing -W -Wfloat-equal -Wundef        \
--Wpointer-arith -Wstrict-prototypes -Wmissing-prototypes                \
--Wwrite-strings -Wredundant-decls -Wchar-subscripts -Wcomment           \
--Wformat=2 -Wwrite-strings -Wmissing-declarations -Wredundant-decls     \
--Wnested-externs -Wbad-function-cast -Wswitch-enum -Winit-self          \
--Wmissing-field-initializers -Wdeclaration-after-statement              \
--Wold-style-definition -Waddress -Wmissing-noreturn -Wnormalized=id     \
--Woverride-init -Wstrict-overflow=1 -Wextra -Warray-bounds              \
--Wstack-protector -Wformat -Wformat-security -Wpointer-sign -Wshadow    \
--Wswitch-default"
+  -Wpointer-arith -Wstrict-prototypes -Wmissing-prototypes                \
+  -Wwrite-strings -Wredundant-decls -Wchar-subscripts -Wcomment           \
+  -Wformat=2 -Wwrite-strings -Wmissing-declarations -Wredundant-decls     \
+  -Wnested-externs -Wbad-function-cast -Wswitch-enum -Winit-self          \
+  -Wmissing-field-initializers -Wdeclaration-after-statement              \
+  -Wold-style-definition -Waddress -Wmissing-noreturn -Wnormalized=id     \
+  -Woverride-init -Wstrict-overflow=1 -Wextra -Warray-bounds              \
+  -Wstack-protector -Wformat -Wformat-security -Wpointer-sign -Wshadow    \
+  -Wswitch-default"
 
 AC_ARG_ENABLE(gcc-lots-o-warnings,
 AS_HELP_STRING(--enable-gcc-lots-o-warnings, Enable lots of gcc warnings (default: disabled)),
 [if test x$enableval = xyes; then
-    CFLAGS="$CFLAGS $GCCWARNINGS"
+    AM_CFLAGS="$AM_CFLAGS $GCCWARNINGS"
 fi])
 
 AC_ARG_ENABLE(gcc-hardening,
 AS_HELP_STRING(--enable-gcc-hardening, Enable compiler security checks (default: disabled)),
 [if test x$enableval = xyes; then
-    CFLAGS="$CFLAGS -D_FORTIFY_SOURCE=2 -fstack-protector-all"
-    CFLAGS="$CFLAGS -fwrapv -fPIE -Wstack-protector"
-    CFLAGS="$CFLAGS --param ssp-buffer-size=1"
+    AM_CFLAGS="$AM_CFLAGS -D_FORTIFY_SOURCE=2 -fstack-protector-all"
+    AM_CFLAGS="$AM_CFLAGS -fwrapv -fPIE -Wstack-protector"
+    AM_CFLAGS="$AM_CFLAGS --param ssp-buffer-size=1"
     LDFLAGS="$LDFLAGS -pie"
 fi])
 
@@ -536,16 +559,16 @@ AS_HELP_STRING(--enable-linker-hardening, Enable linker security fixups (default
     LDFLAGS="$LDFLAGS -z relro -z now"
 fi])
 
-
-PANDORA_VISIBILITY
-CFLAGS="$CFLAGS $CFLAG_VISIBILITY"
-
-AC_SUBST(CFLAGS)
-AC_SUBST(LIBS)
-
-
+CREATE_HEX_VERSION
+AM_CFLAGS="$AM_CFLAGS $CFLAG_VISIBILITY"
+AC_SUBST(AM_CFLAGS)
+AC_SUBST(AM_LDFLAGS)
 
 # FINAL
+AC_CONFIG_FILES([stamp-h], [echo timestamp > stamp-h])
 AC_CONFIG_FILES([Makefile])
+AC_CONFIG_FILES([cyassl/version.h])
+AC_CONFIG_FILES([support/libcyassl.pc])
+
 AC_OUTPUT
 

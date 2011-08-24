@@ -19,6 +19,7 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  */
 
+#include <config.h>
 
 #ifdef _WIN32
     #define CYASSL_SNIFFER
@@ -28,10 +29,11 @@
 
 /* blank build */
 #include <stdio.h>
+#include <stdlib.h>
 int main()
 {
     printf("do ./configure --enable-sniffer to enable build support\n");
-    return 0;
+    return EXIT_SUCCESS;
 }
 
 #else
@@ -228,7 +230,7 @@ int main(int argc, char** argv)
         }
     }
 
-    return 0;
+    return EXIT_SUCCESS;
 }
 
 #endif /* full build */

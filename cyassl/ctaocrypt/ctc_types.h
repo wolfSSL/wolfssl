@@ -23,11 +23,7 @@
 #ifndef CTAO_CRYPT_TYPES_H
 #define CTAO_CRYPT_TYPES_H
 
-#include "ctc_settings.h"
-
-#ifdef HAVE_CONFIG_H
-    #include "ctc_config.h"
-#endif
+#include <cyassl/ctaocrypt/ctc_settings.h>
 
 #ifdef __cplusplus
     extern "C" {

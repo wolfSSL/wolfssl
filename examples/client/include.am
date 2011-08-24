@@ -1,11 +1,12 @@
 # vim:ft=automake
-# included from Top Level Makefile.am
 # All paths should be given relative to the root
 
-
-bin_PROGRAMS += examples/client/client
+noinst_PROGRAMS += examples/client/client
 examples_client_client_SOURCES      = examples/client/client.c
-examples_client_client_LDFLAGS      = -Lsrc
 examples_client_client_LDADD        = src/libcyassl.la
 examples_client_client_DEPENDENCIES = src/libcyassl.la
-EXTRA_DIST += examples/client/client.sln examples/client/*.vcproj
+EXTRA_DIST += examples/client/client.sln
+EXTRA_DIST += examples/client/client-ntru.vcproj
+EXTRA_DIST += examples/client/client.vcproj
+
+example_DATA+= examples/client/client.c

@@ -20,11 +20,13 @@
  */
 
 
+#include <config.h>
+
 #ifdef CYASSL_RIPEMD
 
 #include "ctc_ripemd.h"
 #ifdef NO_INLINE
-    #include "ctc_misc.h"
+    #include <cyassl/ctaocrypt/ctc_misc.h>
 #else
     #include "ctc_misc.c"
 #endif

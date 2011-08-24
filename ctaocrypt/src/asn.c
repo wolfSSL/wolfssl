@@ -19,20 +19,22 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  */
 
+#include <config.h>
 
 #ifdef THREADX
     #include "os.h"           /* dc_rtc_api needs    */
     #include "dc_rtc_api.h"   /* to get current time */
 #endif
-#include "ctc_asn.h"
-#include "ctc_coding.h"
-#include "ctc_sha.h"
-#include "ctc_md5.h"
-#include "ctc_error.h"
-#include "ctc_pwdbased.h"
-#include "ctc_des3.h"
-#include "ctc_sha256.h"
-#include "cyassl_logging.h"
+
+#include <cyassl/ctaocrypt/ctc_asn.h>
+#include <cyassl/ctaocrypt/ctc_coding.h>
+#include <cyassl/ctaocrypt/ctc_sha.h>
+#include <cyassl/ctaocrypt/ctc_md5.h>
+#include <cyassl/ctaocrypt/ctc_error.h>
+#include <cyassl/ctaocrypt/ctc_pwdbased.h>
+#include <cyassl/ctaocrypt/ctc_des3.h>
+#include <cyassl/ctaocrypt/ctc_sha256.h>
+#include <cyassl/ctaocrypt/cyassl_logging.h>
 
 #ifdef HAVE_NTRU
     #include "crypto_ntru.h"

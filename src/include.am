@@ -2,25 +2,35 @@
 # included from Top Level Makefile.am
 # All paths should be given relative to the root
 
-
-
-INCLUDES = -Iinclude -Ictaocrypt/include -Iinclude/openssl
-
-lib_LTLIBRARIES = src/libcyassl.la
+lib_LTLIBRARIES+= src/libcyassl.la
 src_libcyassl_la_SOURCES = \
-    src/cyassl_int.c src/cyassl_io.c src/keys.c src/ssl.c src/tls.c  \
-    ctaocrypt/src/asn.c ctaocrypt/src/coding.c ctaocrypt/src/des3.c \
-    ctaocrypt/src/hmac.c ctaocrypt/src/md5.c ctaocrypt/src/md4.c  \
-    ctaocrypt/src/random.c ctaocrypt/src/rsa.c ctaocrypt/src/sha.c \
-    ctaocrypt/src/aes.c ctaocrypt/src/sha256.c ctaocrypt/src/dh.c \
-    ctaocrypt/src/dsa.c ctaocrypt/src/arc4.c ctaocrypt/src/rabbit.c \
-    ctaocrypt/src/pwdbased.c ctaocrypt/src/logging.c \
-    ctaocrypt/src/cyassl_memory.c
-src_libcyassl_la_LDFLAGS = -no-undefined -version-info ${CYASSL_LIBRARY_VERSION}
-src_libcyassl_la_CFLAGS = -DBUILDING_CYASSL
-EXTRA_DIST += include/*.h include/openssl/*.h include/*.rc \
-              ctaocrypt/include/*.h ctaocrypt/src/ctc_misc.c \
-              ctaocrypt/src/ctc_asm.c ctaocrypt/src/*.i
+			   src/cyassl_int.c \
+			   src/cyassl_io.c \
+			   src/keys.c \
+			   src/ssl.c \
+			   src/tls.c  \
+			   ctaocrypt/src/asn.c \
+			   ctaocrypt/src/coding.c \
+			   ctaocrypt/src/des3.c \
+			   ctaocrypt/src/hmac.c \
+			   ctaocrypt/src/md5.c \
+			   ctaocrypt/src/md4.c \
+			   ctaocrypt/src/random.c \
+			   ctaocrypt/src/rsa.c \
+			   ctaocrypt/src/sha.c \
+			   ctaocrypt/src/aes.c \
+			   ctaocrypt/src/sha256.c \
+			   ctaocrypt/src/dh.c \
+			   ctaocrypt/src/dsa.c \
+			   ctaocrypt/src/arc4.c \
+			   ctaocrypt/src/rabbit.c \
+			   ctaocrypt/src/pwdbased.c \
+			   ctaocrypt/src/logging.c \
+			   ctaocrypt/src/cyassl_memory.c
+src_libcyassl_la_LDFLAGS = ${AM_LDFLAGS} -no-undefined -version-info ${CYASSL_LIBRARY_VERSION}
+src_libcyassl_la_LIBADD = $(LIBM)
+src_libcyassl_la_CFLAGS = -DBUILDING_CYASSL $(AM_CFLAGS)
+src_libcyassl_la_CPPFLAGS = -DBUILDING_CYASSL $(AM_CPPFLAGS)
 
 if BUILD_AESNI
 src_libcyassl_la_SOURCES += ctaocrypt/src/aes_asm.s

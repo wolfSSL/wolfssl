@@ -20,10 +20,11 @@
  */
 
 
+#pragma once
 #ifndef CTAO_CRYPT_SHA_H
 #define CTAO_CRYPT_SHA_H
 
-#include "ctc_types.h"
+#include <cyassl/ctaocrypt/ctc_types.h>
 
 #ifdef __cplusplus
     extern "C" {

@@ -19,14 +19,15 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  */
 
+#include <config.h>
 
-#ifndef NO_HC128
+#if HAVE_HC128
 
-#include "ctc_hc128.h"
+#include <cyassl/ctaocrypt/ctc_hc128.h>
 #ifdef NO_INLINE
-    #include "ctc_misc.h"
+    #include <cyassl/ctaocrypt/ctc_hc128.h>
 #else
-    #include "ctc_misc.c"
+    #include "ctaocrypt/src/ctc_misc.c"
 #endif
 
 

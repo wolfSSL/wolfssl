@@ -1,4 +1,4 @@
-/* ctc_hc128.h
+/* cyassl_error.h
  *
  * Copyright (C) 2006-2011 Sawtooth Consulting Ltd.
  *
@@ -20,37 +20,16 @@
  */
 
 
-#ifndef NO_HC128
-
-#ifndef CTAO_CRYPT_HC128_H
-#define CTAO_CRYPT_HC128_H
-
-#include "ctc_types.h"
+#pragma once
 
 #ifdef __cplusplus
-    extern "C" {
+extern "C" {
 #endif
 
-
-/* HC-128 stream cipher */
-typedef struct HC128 {
-    word32 T[1024];             /* P[i] = T[i];  Q[i] = T[1024 + i ]; */
-    word32 X[16];
-    word32 Y[16];
-    word32 counter1024;         /* counter1024 = i mod 1024 at the ith step */
-    word32 key[8];
-    word32 iv[8];
-} HC128;
-
-
-CYASSL_API void Hc128_Process(HC128*, byte*, const byte*, word32);
-CYASSL_API void Hc128_SetKey(HC128*, const byte* key, const byte* iv);
-
+#define LIBCYASSL_VERSION_STRING "@VERSION@"
+#define LIBCYASSL_VERSION_HEX @HEX_VERSION@
 
 #ifdef __cplusplus
-    } /* extern "C" */
+}
 #endif
 
-#endif /* CTAO_CRYPT_HC128_H */
-
-#endif /* NO_HC128 */

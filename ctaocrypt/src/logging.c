@@ -19,12 +19,13 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  */
 
+#include <config.h>
 
 /* submitted by eof */
 
-#include "ctc_settings.h"
-#include "cyassl_logging.h"
-#include "ctc_error.h"
+#include <cyassl/ctaocrypt/ctc_settings.h>
+#include <cyassl/ctaocrypt/cyassl_logging.h>
+#include <cyassl/ctaocrypt/ctc_error.h>
 
 
 CYASSL_API int  CyaSSL_Debugging_ON(void);

@@ -19,8 +19,9 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  */
 
+#include <config.h>
 
-#include "ctc_misc.h"
+#include <cyassl/ctaocrypt/ctc_misc.h>
 
 /* inlining these functions is a huge speed increase and a small size decrease, 
    because the functions are smaller than function call setup/cleanup, e.g.,

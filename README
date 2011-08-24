@@ -1,5 +1,21 @@
 *** Note, Please read ***
 
+Note 1)
+CyaSSL now needs all examples and tests to be run from the CyaSSL home
+directory.  This is because it finds certs and keys from ./certs/.  Trying to
+maintain the ability to run each program from its own directory, the testsuite
+directory, the main directory (for make check/test), and for the various
+different project layouts (with or without config) was becoming harder and 
+harder.  Now to run testsuite just do:
+
+./testsuite/testsuite
+
+or 
+
+make test    (when using autoconf)
+
+
+Note 2)
 CyaSSL takes a different approach to certificate verification than OpenSSL does.
 The default policy for the client is to verify the server, this means that if
 you don't load CAs to verify the server you'll get a connect error, unable to 

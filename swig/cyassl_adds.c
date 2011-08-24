@@ -19,14 +19,15 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  */
 
+#include <config.h>
 
 #ifndef _WIN32
     #define HAVE_CONFIG_H
 #endif
 
-#include "openssl/ssl.h"
-#include "ctc_rsa.h"
-#include "ctc_asn.h"
+#include <cyassl/openssl/ssl.h>
+#include <cyassl/ctaocrypt/ctc_rsa.h>
+#include <cyassl/ctaocrypt/ctc_asn.h>
 
 #include <stdio.h>
 #include <stdlib.h>

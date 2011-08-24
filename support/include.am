@@ -1,0 +1,8 @@
+# vim:ft=automake
+# All paths should be given relative to the root
+#
+
+pkgconfigdir = $(libdir)/pkgconfig
+pkgconfig_DATA = support/libcyassl.pc
+	     
+

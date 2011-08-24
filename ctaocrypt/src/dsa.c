@@ -19,13 +19,14 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  */
 
+#include <config.h>
 
 #ifndef NO_DSA
 
-#include "ctc_dsa.h"
-#include "ctc_sha.h"
-#include "ctc_random.h"
-#include "ctc_error.h"
+#include <cyassl/ctaocrypt/ctc_dsa.h>
+#include <cyassl/ctaocrypt/ctc_sha.h>
+#include <cyassl/ctaocrypt/ctc_random.h>
+#include <cyassl/ctaocrypt/ctc_error.h>
 
 
 enum {

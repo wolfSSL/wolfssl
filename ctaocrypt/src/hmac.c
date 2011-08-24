@@ -19,11 +19,12 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  */
 
+#include <config.h>
 
 #ifndef NO_HMAC
 
-#include "ctc_hmac.h"
-#include "ctc_error.h"
+#include <cyassl/ctaocrypt/ctc_hmac.h>
+#include <cyassl/ctaocrypt/ctc_error.h>
 
 
 static int InitHmac(Hmac* hmac, int type)

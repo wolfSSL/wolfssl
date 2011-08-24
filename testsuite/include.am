@@ -3,13 +3,20 @@
 # All paths should be given relative to the root
 
 
-bin_PROGRAMS += testsuite/testsuite
-testsuite_testsuite_SOURCES = testsuite/testsuite.c ctaocrypt/test/test.c \
-    examples/client/client.c examples/server/server.c \
-    examples/echoclient/echoclient.c examples/echoserver/echoserver.c
-testsuite_testsuite_CFLAGS       = -DNO_MAIN_DRIVER
-testsuite_testsuite_LDFLAGS      = -Lsrc
-testsuite_testsuite_LDADD        = src/libcyassl.la
+check_PROGRAMS += testsuite/testsuite
+noinst_PROGRAMS += testsuite/testsuite
+testsuite_testsuite_SOURCES = \
+			      ctaocrypt/test/test.c \
+			      examples/client/client.c \
+			      examples/echoclient/echoclient.c \
+			      examples/echoserver/echoserver.c \
+			      examples/server/server.c \
+			      testsuite/testsuite.c
+testsuite_testsuite_CFLAGS       = -DNO_MAIN_DRIVER $(AM_CFLAGS) $(PTHREAD_CFLAGS)
+testsuite_testsuite_LDADD        = src/libcyassl.la $(PTHREAD_LIBS)
 testsuite_testsuite_DEPENDENCIES = src/libcyassl.la
-EXTRA_DIST += testsuite/testsuite.sln testsuite/*.vcproj testsuite/input \
-    testsuite/quit
+EXTRA_DIST += testsuite/testsuite.sln
+EXTRA_DIST += testsuite/testsuite-ntru.vcproj
+EXTRA_DIST += testsuite/testsuite.vcproj
+EXTRA_DIST += input
+EXTRA_DIST += quit

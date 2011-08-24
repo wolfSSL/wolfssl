@@ -3,9 +3,12 @@
 # All paths should be given relative to the root
 
 
-bin_PROGRAMS += examples/server/server
+noinst_PROGRAMS += examples/server/server
 examples_server_server_SOURCES      = examples/server/server.c
-examples_server_server_LDFLAGS      = -Lsrc
 examples_server_server_LDADD        = src/libcyassl.la
 examples_server_server_DEPENDENCIES = src/libcyassl.la
-EXTRA_DIST += examples/server/server.sln examples/server/*.vcproj
+EXTRA_DIST += examples/server/server.sln
+EXTRA_DIST += examples/server/server-ntru.vcproj
+EXTRA_DIST += examples/server/server.vcproj
+
+example_DATA+= examples/server/server.c

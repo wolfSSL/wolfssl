@@ -19,9 +19,10 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  */
 
+#include <config.h>
 
-#include "ssl.h"
-#include "cyassl_test.h"
+#include <cyassl/openssl/ssl.h>
+#include <cyassl/openssl/cyassl_test.h>
 
 
 #ifdef CYASSL_CALLBACKS
@@ -100,32 +101,38 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 #ifndef NO_FILESYSTEM
     /* for client auth */
     if (SSL_CTX_load_verify_locations(ctx, cliCert, 0) != SSL_SUCCESS)
-        err_sys("can't load ca file");
+        err_sys("can't load ca file, Please run from CyaSSL home dir");
 
     #ifdef HAVE_ECC
         if (SSL_CTX_use_certificate_file(ctx, eccCert, SSL_FILETYPE_PEM)
                 != SSL_SUCCESS)
-            err_sys("can't load server ecc cert file");
+            err_sys("can't load server ecc cert file, "
+                    "Please run from CyaSSL home dir");
 
         if (SSL_CTX_use_PrivateKey_file(ctx, eccKey, SSL_FILETYPE_PEM)
                 != SSL_SUCCESS)
-            err_sys("can't load server ecc key file");
+            err_sys("can't load server ecc key file, "
+                    "Please run from CyaSSL home dir");
     #elif HAVE_NTRU
         if (SSL_CTX_use_certificate_file(ctx, ntruCert, SSL_FILETYPE_PEM)
                 != SSL_SUCCESS)
-            err_sys("can't load ntru cert file");
+            err_sys("can't load ntru cert file, "
+                    "Please run from CyaSSL home dir");
 
         if (CyaSSL_CTX_use_NTRUPrivateKey_file(ctx, ntruKey)
                 != SSL_SUCCESS)
-            err_sys("can't load ntru key file");
+            err_sys("can't load ntru key file, "
+                    "Please run from CyaSSL home dir");
     #else  /* normal */
         if (SSL_CTX_use_certificate_chain_file(ctx, svrCert)
                 != SSL_SUCCESS)
-            err_sys("can't load server cert chain file");
+            err_sys("can't load server cert chain file, "
+                    "Please run from CyaSSL home dir");
 
         if (SSL_CTX_use_PrivateKey_file(ctx, svrKey, SSL_FILETYPE_PEM)
                 != SSL_SUCCESS)
-            err_sys("can't load server key file");
+            err_sys("can't load server key file, "
+                    "Please run from CyaSSL home dir");
     #endif /* NTRU */
 #else
     load_buffer(ctx, cliCert, CYASSL_CA);

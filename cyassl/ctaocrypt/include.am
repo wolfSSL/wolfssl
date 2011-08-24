@@ -1,0 +1,36 @@
+# vim:ft=automake
+# All paths should be given relative to the root
+
+nobase_include_HEADERS+= \
+                         cyassl/ctaocrypt/ctc_aes.h \
+                         cyassl/ctaocrypt/ctc_arc4.h \
+                         cyassl/ctaocrypt/ctc_asn.h \
+                         cyassl/ctaocrypt/ctc_asn_public.h \
+                         cyassl/ctaocrypt/ctc_coding.h \
+                         cyassl/ctaocrypt/ctc_des3.h \
+                         cyassl/ctaocrypt/ctc_dh.h \
+                         cyassl/ctaocrypt/ctc_dsa.h \
+                         cyassl/ctaocrypt/ctc_ecc.h \
+                         cyassl/ctaocrypt/ctc_error.h \
+                         cyassl/ctaocrypt/ctc_hc128.h \
+                         cyassl/ctaocrypt/ctc_hmac.h \
+                         cyassl/ctaocrypt/ctc_integer.h \
+                         cyassl/ctaocrypt/ctc_md4.h \
+                         cyassl/ctaocrypt/ctc_md5.h \
+                         cyassl/ctaocrypt/ctc_misc.h \
+                         cyassl/ctaocrypt/ctc_pwdbased.h \
+                         cyassl/ctaocrypt/ctc_rabbit.h \
+                         cyassl/ctaocrypt/ctc_random.h \
+                         cyassl/ctaocrypt/ctc_ripemd.h \
+                         cyassl/ctaocrypt/ctc_rsa.h \
+                         cyassl/ctaocrypt/ctc_settings.h \
+                         cyassl/ctaocrypt/ctc_sha256.h \
+                         cyassl/ctaocrypt/ctc_sha512.h \
+                         cyassl/ctaocrypt/ctc_sha.h \
+                         cyassl/ctaocrypt/ctc_tfm.h \
+                         cyassl/ctaocrypt/ctc_types.h \
+                         cyassl/ctaocrypt/ctc_visibility.h \
+                         cyassl/ctaocrypt/cyassl_logging.h \
+                         cyassl/ctaocrypt/cyassl_memory.h \
+                         cyassl/ctaocrypt/mpi_class.h \
+                         cyassl/ctaocrypt/mpi_superclass.h

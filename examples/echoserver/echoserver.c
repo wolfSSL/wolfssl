@@ -19,9 +19,10 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  */
 
+#include <config.h>
 
-#include "ssl.h"
-#include "cyassl_test.h"
+#include <cyassl/openssl/ssl.h>
+#include <cyassl/openssl/cyassl_test.h>
 
 #ifndef NO_MAIN_DRIVER
     #define ECHO_OUT
@@ -90,29 +91,35 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
         /* ntru */
         if (SSL_CTX_use_certificate_file(ctx, ntruCert, SSL_FILETYPE_PEM)
                 != SSL_SUCCESS)
-            err_sys("can't load ntru cert file");
+            err_sys("can't load ntru cert file, "
+                    "Please run from CyaSSL home dir");
 
         if (CyaSSL_CTX_use_NTRUPrivateKey_file(ctx, ntruKey)
                 != SSL_SUCCESS)
-            err_sys("can't load ntru key file");
+            err_sys("can't load ntru key file, "
+                    "Please run from CyaSSL home dir");
     #elif HAVE_ECC
         /* ecc */
         if (SSL_CTX_use_certificate_file(ctx, eccCert, SSL_FILETYPE_PEM)
                 != SSL_SUCCESS)
-            err_sys("can't load server cert file");
+            err_sys("can't load server cert file, "
+                    "Please run from CyaSSL home dir");
 
         if (SSL_CTX_use_PrivateKey_file(ctx, eccKey, SSL_FILETYPE_PEM)
                 != SSL_SUCCESS)
-            err_sys("can't load server key file");
+            err_sys("can't load server key file, "
+                    "Please run from CyaSSL home dir");
     #else
         /* normal */
         if (SSL_CTX_use_certificate_file(ctx, svrCert, SSL_FILETYPE_PEM)
                 != SSL_SUCCESS)
-            err_sys("can't load server cert file");
+            err_sys("can't load server cert file, "
+                    "Please run from CyaSSL home dir");
 
         if (SSL_CTX_use_PrivateKey_file(ctx, svrKey, SSL_FILETYPE_PEM)
                 != SSL_SUCCESS)
-            err_sys("can't load server key file");
+            err_sys("can't load server key file, "
+                    "Please run from CyaSSL home dir");
     #endif
 #else
     load_buffer(ctx, svrCert, CYASSL_CERT);

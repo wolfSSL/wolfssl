@@ -19,10 +19,11 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  */
 
+#include <config.h>
 
-#include "ctc_coding.h"
-#include "ctc_error.h"
-#include "cyassl_logging.h"
+#include <cyassl/ctaocrypt/ctc_coding.h>
+#include <cyassl/ctaocrypt/ctc_error.h>
+#include <cyassl/ctaocrypt/cyassl_logging.h>
 
 
 enum {

@@ -24,20 +24,20 @@
 #define CYASSL_INT_H
 
 
-#include "ctc_types.h"
-#include "ctc_random.h"
-#include "ctc_des3.h"
-#include "ctc_hc128.h"
-#include "ctc_rabbit.h"
-#include "ctc_asn.h"
-#include "ctc_md5.h"
-#include "ctc_aes.h"
-#include "cyassl_logging.h"
+#include <cyassl/ctaocrypt/ctc_types.h>
+#include <cyassl/ctaocrypt/ctc_random.h>
+#include <cyassl/ctaocrypt/ctc_des3.h>
+#include <cyassl/ctaocrypt/ctc_hc128.h>
+#include <cyassl/ctaocrypt/ctc_rabbit.h>
+#include <cyassl/ctaocrypt/ctc_asn.h>
+#include <cyassl/ctaocrypt/ctc_md5.h>
+#include <cyassl/ctaocrypt/ctc_aes.h>
+#include <cyassl/ctaocrypt/cyassl_logging.h>
 #ifdef HAVE_ECC
-    #include "ctc_ecc.h"
+    #include <cyassl/ctaocrypt/ctc_ecc.h>
 #endif
 #ifndef NO_SHA256
-    #include "ctc_sha256.h"
+    #include <cyassl/ctaocrypt/ctc_sha256.h>
 #endif
 
 #ifdef CYASSL_CALLBACKS
@@ -784,7 +784,7 @@ typedef union {
 #ifdef BUILD_AES
     Aes    aes;
 #endif
-#ifdef BUILD_HC128
+#if HAVE_HC128
     HC128  hc128;
 #endif
 #ifdef BUILD_RABBIT

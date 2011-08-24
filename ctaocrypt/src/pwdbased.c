@@ -19,13 +19,14 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  */
 
+#include <config.h>
 
 #ifndef NO_PWDBASED
 
-#include "ctc_pwdbased.h"
-#include "ctc_hmac.h"
-#include "ctc_integer.h"
-#include "ctc_error.h"
+#include <cyassl/ctaocrypt/ctc_pwdbased.h>
+#include <cyassl/ctaocrypt/ctc_hmac.h>
+#include <cyassl/ctaocrypt/ctc_integer.h>
+#include <cyassl/ctaocrypt/ctc_error.h>
 #ifdef CYASSL_SHA512
     #include "ctc_sha512.h"
 #endif

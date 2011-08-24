@@ -19,14 +19,15 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  */
 
+#include <config.h>
 
 /* on HPUX 11 you may need to install /dev/random see
    http://h20293.www2.hp.com/portal/swdepot/displayProductInfo.do?productNumber=KRNG11I
 
 */
 
-#include "ctc_random.h"
-#include "ctc_error.h"
+#include <cyassl/ctaocrypt/ctc_random.h>
+#include <cyassl/ctaocrypt/ctc_error.h>
 
 
 #if defined(USE_WINDOWS_API)

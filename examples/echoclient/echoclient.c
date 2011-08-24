@@ -19,9 +19,10 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  */
 
+#include <config.h>
 
-#include "ssl.h"
-#include "cyassl_test.h"
+#include <cyassl/openssl/ssl.h>
+#include <cyassl/openssl/cyassl_test.h>
 
 
 void echoclient_test(void* args)
@@ -74,10 +75,10 @@ void echoclient_test(void* args)
 
 #ifndef NO_FILESYSTEM
     if (SSL_CTX_load_verify_locations(ctx, caCert, 0) != SSL_SUCCESS)
-        err_sys("can't load ca file");
+        err_sys("can't load ca file, Please run from CyaSSL home dir");
     #ifdef HAVE_ECC
         if (SSL_CTX_load_verify_locations(ctx, eccCert, 0) != SSL_SUCCESS)
-            err_sys("can't load ca file");
+            err_sys("can't load ca file, Please run from CyaSSL home dir");
     #endif
 #else
     load_buffer(ctx, caCert, CYASSL_CA);

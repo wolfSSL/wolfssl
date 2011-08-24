@@ -20,8 +20,10 @@
  */
 
 
-#include "cyassl_int.h"
-#include "cyassl_error.h"
+#include <config.h>
+
+#include <cyassl/cyassl_int.h>
+#include <cyassl/cyassl_error.h>
 #ifdef SHOW_SECRETS
     #include <stdio.h>
 #endif
@@ -561,7 +563,7 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
     }
 #endif
     
-#ifdef BUILD_HC128
+#if HAVE_HC128
     if (specs->bulk_cipher_algorithm == hc128) {
         if (side == CLIENT_END) {
             Hc128_SetKey(&enc->hc128, keys->client_write_key,

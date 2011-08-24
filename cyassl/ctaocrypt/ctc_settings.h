@@ -51,11 +51,7 @@
 /* Uncomment next line if building CyaSSL for a game console */
 /* #define CYASSL_GAME_BUILD */
 
-#if defined(USE_CYASSL_CONFIG) || defined(HAVE_CONFIG_H)
-    #include "ctc_config.h"   /* may not want global HAVE_CONFIG_H */
-#endif
-
-#include "ctc_visibility.h"
+#include <cyassl/ctaocrypt/ctc_visibility.h>
 
 #ifdef IPHONE
     #define SIZEOF_LONG_LONG 8

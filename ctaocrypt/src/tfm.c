@@ -30,12 +30,15 @@
  *  to fit CyaSSL's needs.
  */
 
-#include "ctc_settings.h"     /* in case user set USE_FAST_MATH there */
+#include <config.h>
+
+/* in case user set USE_FAST_MATH there */
+#include <cyassl/ctaocrypt/ctc_settings.h>
 
 #ifdef USE_FAST_MATH
 
-#include "ctc_tfm.h"
-#include "ctc_asm.c"  /* will define asm MACROS or C ones */
+#include <cyassl/ctaocrypt/ctc_tfm.h>
+#include <ctaocrypt/src/ctc_asm.c>  /* will define asm MACROS or C ones */
 
 
 

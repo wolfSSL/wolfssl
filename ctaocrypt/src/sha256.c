@@ -22,12 +22,13 @@
 
 /* code submitted by raphael.huck@efixo.com */
 
+#include <config.h>
 
 #ifndef NO_SHA256
 
-#include "ctc_sha256.h"
+#include <cyassl/ctaocrypt/ctc_sha256.h>
 #ifdef NO_INLINE
-    #include "ctc_misc.h"
+    #include <cyassl/ctaocrypt/ctc_misc.h>
 #else
     #include "ctc_misc.c"
 #endif

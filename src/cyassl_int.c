@@ -20,9 +20,11 @@
  */
 
 
-#include "cyassl_int.h"
-#include "cyassl_error.h"
-#include "ctc_asn.h"
+#include <config.h>
+
+#include <cyassl/cyassl_int.h>
+#include <cyassl/cyassl_error.h>
+#include <cyassl/ctaocrypt/ctc_asn.h>
 
 #ifdef HAVE_LIBZ
     #include "zlib.h"
@@ -1829,7 +1831,7 @@ static INLINE void Encrypt(SSL* ssl, byte* out, const byte* input, word32 sz)
                 break;
         #endif
 
-        #ifdef BUILD_HC128
+        #if HAVE_HC128
             case hc128:
                 Hc128_Process(&ssl->encrypt.hc128, out, input, sz);
                 break;
@@ -1868,7 +1870,7 @@ static INLINE void Decrypt(SSL* ssl, byte* plain, const byte* input, word32 sz)
                 break;
         #endif
 
-        #ifdef BUILD_HC128
+        #if HAVE_HC128
             case hc128:
                 Hc128_Process(&ssl->decrypt.hc128, plain, input, sz);
                 break;

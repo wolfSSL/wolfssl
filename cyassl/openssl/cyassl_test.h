@@ -7,7 +7,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <ctype.h>
-#include "ctc_types.h"
+#include <cyassl/ctaocrypt/ctc_types.h>
 
 #ifdef USE_WINDOWS_API 
     #include <winsock2.h>
@@ -73,14 +73,16 @@
     typedef void*         THREAD_TYPE;
     #define CYASSL_THREAD
 #else
-    #ifndef _POSIX_THREADS
-        typedef unsigned int  THREAD_RETURN;
-        typedef HANDLE        THREAD_TYPE;
-        #define CYASSL_THREAD __stdcall
-    #else
+    #ifdef _POSIX_THREADS
         typedef void*         THREAD_RETURN;
         typedef pthread_t     THREAD_TYPE;
         #define CYASSL_THREAD
+        #define INFINITE -1
+        #define WAIT_OBJECT_0 0L
+    #else
+        typedef unsigned int  THREAD_RETURN;
+        typedef HANDLE        THREAD_TYPE;
+        #define CYASSL_THREAD __stdcall
     #endif
 #endif
 
@@ -94,27 +96,16 @@
 #endif
    
 
-#ifndef NO_MAIN_DRIVER
-    const char* caCert   = "../../certs/ca-cert.pem";
-    const char* eccCert  = "../../certs/server-ecc.pem";
-    const char* eccKey   = "../../certs/ecc-key.pem";
-    const char* svrCert  = "../../certs/server-cert.pem";
-    const char* svrKey   = "../../certs/server-key.pem";
-    const char* cliCert  = "../../certs/client-cert.pem";
-    const char* cliKey   = "../../certs/client-key.pem";
-    const char* ntruCert = "../../certs/ntru-cert.pem";
-    const char* ntruKey  = "../../certs/ntru-key.raw";
-#else
-    static const char* caCert   = "../certs/ca-cert.pem";
-    static const char* eccCert  = "../certs/server-ecc.pem";
-    static const char* eccKey   = "../certs/ecc-key.pem";
-    static const char* svrCert  = "../certs/server-cert.pem";
-    static const char* svrKey   = "../certs/server-key.pem";
-    static const char* cliCert  = "../certs/client-cert.pem";
-    static const char* cliKey   = "../certs/client-key.pem";
-    static const char* ntruCert = "../certs/ntru-cert.pem";
-    static const char* ntruKey  = "../certs/ntru-key.raw";
-#endif
+/* all certs relative to CyaSSL home directory now */
+static const char* caCert   = "./certs/ca-cert.pem";
+static const char* eccCert  = "./certs/server-ecc.pem";
+static const char* eccKey   = "./certs/ecc-key.pem";
+static const char* svrCert  = "./certs/server-cert.pem";
+static const char* svrKey   = "./certs/server-key.pem";
+static const char* cliCert  = "./certs/client-cert.pem";
+static const char* cliKey   = "./certs/client-key.pem";
+static const char* ntruCert = "./certs/ntru-cert.pem";
+static const char* ntruKey  = "./certs/ntru-key.raw";
 
 typedef struct tcp_ready {
     int ready;              /* predicate */
@@ -520,7 +511,8 @@ static INLINE unsigned int my_psk_server_cb(SSL* ssl, const char* identity,
         FILE* file = fopen(fname, "rb");
 
         if (!file)
-            err_sys("can't open file for buffer load");
+            err_sys("can't open file for buffer load "
+                    "Please run from CyaSSL home directory if not");
         fseek(file, 0, SEEK_END);
         sz = ftell(file);
         rewind(file);

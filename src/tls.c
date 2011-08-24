@@ -19,11 +19,12 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  */
 
+#include <config.h>
 
-#include "ssl.h"
-#include "cyassl_int.h"
-#include "cyassl_error.h"
-#include "ctc_hmac.h"
+#include <cyassl/openssl/ssl.h>
+#include <cyassl/cyassl_int.h>
+#include <cyassl/cyassl_error.h>
+#include <cyassl/ctaocrypt/ctc_hmac.h>
 
 
 

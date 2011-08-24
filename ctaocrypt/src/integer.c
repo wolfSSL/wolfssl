@@ -26,11 +26,13 @@
  */
 
 
-#include "ctc_settings.h"     /* in case user set USE_FAST_MATH there */
+#include <config.h>
+/* in case user set USE_FAST_MATH there */
+#include <cyassl/ctaocrypt/ctc_settings.h>
 
 #ifndef USE_FAST_MATH
 
-#include "ctc_integer.h"
+#include <cyassl/ctaocrypt/ctc_integer.h>
 
 
 /* handle up to 6 inits */

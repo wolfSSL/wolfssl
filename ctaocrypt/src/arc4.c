@@ -19,8 +19,9 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  */
 
+#include <config.h>
 
-#include "ctc_arc4.h"
+#include <cyassl/ctaocrypt/ctc_arc4.h>
 
 
 void Arc4SetKey(Arc4* arc4, const byte* key, word32 length)

@@ -19,12 +19,14 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  */
 
+#include <config.h>
+
 
 #ifndef NO_MD4
 
-#include "ctc_md4.h"
+#include <cyassl/ctaocrypt/ctc_md4.h>
 #ifdef NO_INLINE
-    #include "ctc_misc.h"
+    #include <cyassl/ctaocrypt/ctc_misc.h>
 #else
     #include "ctc_misc.c"
 #endif
