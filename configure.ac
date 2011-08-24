@@ -39,6 +39,9 @@ CYASSL_LIBRARY_VERSION=2:1:0
 #               +- increment if interfaces have been added, removed or changed
 AC_SUBST(CYASSL_LIBRARY_VERSION)
 
+# Make sure configure doesn't add to CFLAGS
+CFLAGS="$CFLAGS $C_EXTRA_FLAGS"
+
 LT_INIT([win32-dll])
 LT_LANG([C++])
 LT_LANG([C])
