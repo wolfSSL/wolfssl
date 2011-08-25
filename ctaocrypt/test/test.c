@@ -118,7 +118,7 @@ void err_sys(const char* msg, int es)
 #endif
 }
 
-/* func_args from cyassl_test.h, so don't have to pull in other junk */
+/* func_args from test.h, so don't have to pull in other junk */
 typedef struct func_args {
     int    argc;
     char** argv;

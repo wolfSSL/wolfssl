@@ -7,8 +7,6 @@ nobase_include_HEADERS+= \
                          cyassl/openssl/bn.h \
                          cyassl/openssl/conf.h \
                          cyassl/openssl/crypto.h \
-                         cyassl/openssl/cyassl_callbacks.h \
-                         cyassl/openssl/cyassl_test.h \
                          cyassl/openssl/des.h \
                          cyassl/openssl/dh.h \
                          cyassl/openssl/dsa.h \

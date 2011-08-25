@@ -24,7 +24,7 @@
 #endif
 
 #include <cyassl/openssl/ssl.h>
-#include <cyassl/openssl/cyassl_test.h>
+#include <cyassl/test.h>
 
 #ifndef NO_MAIN_DRIVER
     #define ECHO_OUT

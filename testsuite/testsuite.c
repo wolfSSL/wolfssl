@@ -24,7 +24,7 @@
 #endif
 
 #include <cyassl/openssl/ssl.h>
-#include <cyassl/openssl/cyassl_test.h>
+#include <cyassl/test.h>
 #include <cyassl/ctaocrypt/md5.h>
 
 #ifdef SINGLE_THREADED
