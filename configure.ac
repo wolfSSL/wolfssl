@@ -398,11 +398,23 @@ AC_ARG_ENABLE(noInline,
 
 if test "$ENABLED_NOINLINE" = "yes"
 then
-    CFLAGS="$CFLAGS -DNO_INLINE"
+    AM_CFLAGS="$AM_CFLAGS -DNO_INLINE"
 fi
 
 AM_CONDITIONAL([BUILD_NOINLINE], [test "x$ENABLED_NOINLINE" = "xyes"])
 
+
+# ssl bump build 
+AC_ARG_ENABLE(bump,
+    [  --enable-bump           Enable SSL Bump build (default: disabled)],
+    [ ENABLED_BUMP=$enableval ],
+    [ ENABLED_BUMP=no ]
+    )
+
+if test "$ENABLED_BUMP" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DSESSION_CERTS -DLARGE_STATIC_BUFFERS -DCYASSL_CERT_GEN"
+fi
 
 # ECC 
 AC_ARG_ENABLE(ecc,
