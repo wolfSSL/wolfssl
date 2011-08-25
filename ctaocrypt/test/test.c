@@ -26,30 +26,30 @@
 #include <stdlib.h>
 
 #ifdef CYASSL_TEST_CERT
-    #include <cyassl/ctaocrypt/ctc_asn.h>
+    #include <cyassl/ctaocrypt/asn.h>
 #else
-    #include <cyassl/ctaocrypt/ctc_asn_public.h>
+    #include <cyassl/ctaocrypt/asn_public.h>
 #endif
-#include <cyassl/ctaocrypt/ctc_md5.h>
-#include <cyassl/ctaocrypt/ctc_md4.h>
-#include <cyassl/ctaocrypt/ctc_sha.h>
-#include <cyassl/ctaocrypt/ctc_sha256.h>
-#include <cyassl/ctaocrypt/ctc_sha512.h>
-#include <cyassl/ctaocrypt/ctc_arc4.h>
-#include <cyassl/ctaocrypt/ctc_random.h>
-#include <cyassl/ctaocrypt/ctc_coding.h>
-#include <cyassl/ctaocrypt/ctc_rsa.h>
-#include <cyassl/ctaocrypt/ctc_des3.h>
-#include <cyassl/ctaocrypt/ctc_aes.h>
-#include <cyassl/ctaocrypt/ctc_hmac.h>
-#include <cyassl/ctaocrypt/ctc_dh.h>
-#include <cyassl/ctaocrypt/ctc_dsa.h>
-#include <cyassl/ctaocrypt/ctc_hc128.h>
-#include <cyassl/ctaocrypt/ctc_rabbit.h>
-#include <cyassl/ctaocrypt/ctc_pwdbased.h>
-#include <cyassl/ctaocrypt/ctc_ripemd.h>
+#include <cyassl/ctaocrypt/md5.h>
+#include <cyassl/ctaocrypt/md4.h>
+#include <cyassl/ctaocrypt/sha.h>
+#include <cyassl/ctaocrypt/sha256.h>
+#include <cyassl/ctaocrypt/sha512.h>
+#include <cyassl/ctaocrypt/arc4.h>
+#include <cyassl/ctaocrypt/random.h>
+#include <cyassl/ctaocrypt/coding.h>
+#include <cyassl/ctaocrypt/rsa.h>
+#include <cyassl/ctaocrypt/des3.h>
+#include <cyassl/ctaocrypt/aes.h>
+#include <cyassl/ctaocrypt/hmac.h>
+#include <cyassl/ctaocrypt/dh.h>
+#include <cyassl/ctaocrypt/dsa.h>
+#include <cyassl/ctaocrypt/hc128.h>
+#include <cyassl/ctaocrypt/rabbit.h>
+#include <cyassl/ctaocrypt/pwdbased.h>
+#include <cyassl/ctaocrypt/ripemd.h>
 #ifdef HAVE_ECC
-    #include <cyassl/ctaocrypt/ctc_ecc.h>
+    #include <cyassl/ctaocrypt/ecc.h>
 #endif    
 
 #ifdef _MSC_VER

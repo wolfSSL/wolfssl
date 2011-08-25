@@ -25,10 +25,10 @@
 
 #ifndef NO_DSA
 
-#include <cyassl/ctaocrypt/ctc_dsa.h>
-#include <cyassl/ctaocrypt/ctc_sha.h>
-#include <cyassl/ctaocrypt/ctc_random.h>
-#include <cyassl/ctaocrypt/ctc_error.h>
+#include <cyassl/ctaocrypt/dsa.h>
+#include <cyassl/ctaocrypt/sha.h>
+#include <cyassl/ctaocrypt/random.h>
+#include <cyassl/ctaocrypt/error.h>
 
 
 enum {

@@ -25,9 +25,9 @@
 
 /* submitted by eof */
 
-#include <cyassl/ctaocrypt/ctc_settings.h>
-#include <cyassl/ctaocrypt/cyassl_logging.h>
-#include <cyassl/ctaocrypt/ctc_error.h>
+#include <cyassl/ctaocrypt/settings.h>
+#include <cyassl/ctaocrypt/logging.h>
+#include <cyassl/ctaocrypt/error.h>
 
 
 CYASSL_API int  CyaSSL_Debugging_ON(void);

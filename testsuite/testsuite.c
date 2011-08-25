@@ -25,7 +25,7 @@
 
 #include <cyassl/openssl/ssl.h>
 #include <cyassl/openssl/cyassl_test.h>
-#include <cyassl/ctaocrypt/ctc_md5.h>
+#include <cyassl/ctaocrypt/md5.h>
 
 #ifdef SINGLE_THREADED
     #error testsuite needs threads to run, please run ctaocrypt/test, \

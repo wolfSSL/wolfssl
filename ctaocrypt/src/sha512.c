@@ -26,11 +26,11 @@
 
 #ifdef CYASSL_SHA512
 
-#include "ctc_sha512.h"
+#include <cyassl/ctaocrypt/sha512.h>
 #ifdef NO_INLINE
-    #include "ctc_misc.h"
+    #include <cyassl/ctaocrypt/misc.h>
 #else
-    #include "ctc_misc.c"
+    #include <ctaocrypt/src/misc.c>
 #endif
 
 

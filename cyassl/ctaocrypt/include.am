@@ -2,35 +2,35 @@
 # All paths should be given relative to the root
 
 nobase_include_HEADERS+= \
-                         cyassl/ctaocrypt/ctc_aes.h \
-                         cyassl/ctaocrypt/ctc_arc4.h \
-                         cyassl/ctaocrypt/ctc_asn.h \
-                         cyassl/ctaocrypt/ctc_asn_public.h \
-                         cyassl/ctaocrypt/ctc_coding.h \
-                         cyassl/ctaocrypt/ctc_des3.h \
-                         cyassl/ctaocrypt/ctc_dh.h \
-                         cyassl/ctaocrypt/ctc_dsa.h \
-                         cyassl/ctaocrypt/ctc_ecc.h \
-                         cyassl/ctaocrypt/ctc_error.h \
-                         cyassl/ctaocrypt/ctc_hc128.h \
-                         cyassl/ctaocrypt/ctc_hmac.h \
-                         cyassl/ctaocrypt/ctc_integer.h \
-                         cyassl/ctaocrypt/ctc_md4.h \
-                         cyassl/ctaocrypt/ctc_md5.h \
-                         cyassl/ctaocrypt/ctc_misc.h \
-                         cyassl/ctaocrypt/ctc_pwdbased.h \
-                         cyassl/ctaocrypt/ctc_rabbit.h \
-                         cyassl/ctaocrypt/ctc_random.h \
-                         cyassl/ctaocrypt/ctc_ripemd.h \
-                         cyassl/ctaocrypt/ctc_rsa.h \
-                         cyassl/ctaocrypt/ctc_settings.h \
-                         cyassl/ctaocrypt/ctc_sha256.h \
-                         cyassl/ctaocrypt/ctc_sha512.h \
-                         cyassl/ctaocrypt/ctc_sha.h \
-                         cyassl/ctaocrypt/ctc_tfm.h \
-                         cyassl/ctaocrypt/ctc_types.h \
-                         cyassl/ctaocrypt/ctc_visibility.h \
-                         cyassl/ctaocrypt/cyassl_logging.h \
-                         cyassl/ctaocrypt/cyassl_memory.h \
+                         cyassl/ctaocrypt/aes.h \
+                         cyassl/ctaocrypt/arc4.h \
+                         cyassl/ctaocrypt/asn.h \
+                         cyassl/ctaocrypt/asn_public.h \
+                         cyassl/ctaocrypt/coding.h \
+                         cyassl/ctaocrypt/des3.h \
+                         cyassl/ctaocrypt/dh.h \
+                         cyassl/ctaocrypt/dsa.h \
+                         cyassl/ctaocrypt/ecc.h \
+                         cyassl/ctaocrypt/error.h \
+                         cyassl/ctaocrypt/hc128.h \
+                         cyassl/ctaocrypt/hmac.h \
+                         cyassl/ctaocrypt/integer.h \
+                         cyassl/ctaocrypt/md4.h \
+                         cyassl/ctaocrypt/md5.h \
+                         cyassl/ctaocrypt/misc.h \
+                         cyassl/ctaocrypt/pwdbased.h \
+                         cyassl/ctaocrypt/rabbit.h \
+                         cyassl/ctaocrypt/random.h \
+                         cyassl/ctaocrypt/ripemd.h \
+                         cyassl/ctaocrypt/rsa.h \
+                         cyassl/ctaocrypt/settings.h \
+                         cyassl/ctaocrypt/sha256.h \
+                         cyassl/ctaocrypt/sha512.h \
+                         cyassl/ctaocrypt/sha.h \
+                         cyassl/ctaocrypt/tfm.h \
+                         cyassl/ctaocrypt/types.h \
+                         cyassl/ctaocrypt/visibility.h \
+                         cyassl/ctaocrypt/logging.h \
+                         cyassl/ctaocrypt/memory.h \
                          cyassl/ctaocrypt/mpi_class.h \
                          cyassl/ctaocrypt/mpi_superclass.h

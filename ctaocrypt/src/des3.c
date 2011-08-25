@@ -25,12 +25,12 @@
 
 #ifndef NO_DES3
 
-#include <cyassl/ctaocrypt/ctc_des3.h>
+#include <cyassl/ctaocrypt/des3.h>
 
 #ifdef NO_INLINE
-    #include <cyassl/ctaocrypt/ctc_misc.h>
+    #include <cyassl/ctaocrypt/misc.h>
 #else
-    #include "ctc_misc.c"
+    #include <ctaocrypt/src/misc.c>
 #endif
 
 

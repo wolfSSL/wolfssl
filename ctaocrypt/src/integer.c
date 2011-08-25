@@ -31,11 +31,11 @@
 #endif
 
 /* in case user set USE_FAST_MATH there */
-#include <cyassl/ctaocrypt/ctc_settings.h>
+#include <cyassl/ctaocrypt/settings.h>
 
 #ifndef USE_FAST_MATH
 
-#include <cyassl/ctaocrypt/ctc_integer.h>
+#include <cyassl/ctaocrypt/integer.h>
 
 
 /* handle up to 6 inits */

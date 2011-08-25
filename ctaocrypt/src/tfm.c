@@ -35,12 +35,12 @@
 #endif
 
 /* in case user set USE_FAST_MATH there */
-#include <cyassl/ctaocrypt/ctc_settings.h>
+#include <cyassl/ctaocrypt/settings.h>
 
 #ifdef USE_FAST_MATH
 
-#include <cyassl/ctaocrypt/ctc_tfm.h>
-#include <ctaocrypt/src/ctc_asm.c>  /* will define asm MACROS or C ones */
+#include <cyassl/ctaocrypt/tfm.h>
+#include <ctaocrypt/src/asm.c>  /* will define asm MACROS or C ones */
 
 
 

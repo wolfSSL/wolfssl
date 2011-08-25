@@ -29,7 +29,7 @@
 #define CYASSL_OPENSSL_H_
 
 /* for users not using preprocessor flags */
-#include <cyassl/ctaocrypt/ctc_settings.h>
+#include <cyassl/ctaocrypt/settings.h>
 
 #ifdef USE_CYASSL_VERSION
     #include <cyassl/version.h>

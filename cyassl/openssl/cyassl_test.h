@@ -7,7 +7,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <ctype.h>
-#include <cyassl/ctaocrypt/ctc_types.h>
+#include <cyassl/ctaocrypt/types.h>
 
 #ifdef USE_WINDOWS_API 
     #include <winsock2.h>

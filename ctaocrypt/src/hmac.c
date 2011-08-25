@@ -25,8 +25,8 @@
 
 #ifndef NO_HMAC
 
-#include <cyassl/ctaocrypt/ctc_hmac.h>
-#include <cyassl/ctaocrypt/ctc_error.h>
+#include <cyassl/ctaocrypt/hmac.h>
+#include <cyassl/ctaocrypt/error.h>
 
 
 static int InitHmac(Hmac* hmac, int type)

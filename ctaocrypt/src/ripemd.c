@@ -26,11 +26,11 @@
 
 #ifdef CYASSL_RIPEMD
 
-#include "ctc_ripemd.h"
+#include <cyassl/ctaocrypt/ripemd.h>
 #ifdef NO_INLINE
-    #include <cyassl/ctaocrypt/ctc_misc.h>
+    #include <cyassl/ctaocrypt/misc.h>
 #else
-    #include "ctc_misc.c"
+    #include <ctaocrypt/src/misc.c>
 #endif
 
 

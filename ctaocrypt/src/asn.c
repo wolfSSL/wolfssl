@@ -28,22 +28,22 @@
     #include "dc_rtc_api.h"   /* to get current time */
 #endif
 
-#include <cyassl/ctaocrypt/ctc_asn.h>
-#include <cyassl/ctaocrypt/ctc_coding.h>
-#include <cyassl/ctaocrypt/ctc_sha.h>
-#include <cyassl/ctaocrypt/ctc_md5.h>
-#include <cyassl/ctaocrypt/ctc_error.h>
-#include <cyassl/ctaocrypt/ctc_pwdbased.h>
-#include <cyassl/ctaocrypt/ctc_des3.h>
-#include <cyassl/ctaocrypt/ctc_sha256.h>
-#include <cyassl/ctaocrypt/cyassl_logging.h>
+#include <cyassl/ctaocrypt/asn.h>
+#include <cyassl/ctaocrypt/coding.h>
+#include <cyassl/ctaocrypt/sha.h>
+#include <cyassl/ctaocrypt/md5.h>
+#include <cyassl/ctaocrypt/error.h>
+#include <cyassl/ctaocrypt/pwdbased.h>
+#include <cyassl/ctaocrypt/des3.h>
+#include <cyassl/ctaocrypt/sha256.h>
+#include <cyassl/ctaocrypt/logging.h>
 
 #ifdef HAVE_NTRU
     #include "crypto_ntru.h"
 #endif
 
 #ifdef HAVE_ECC
-    #include "ctc_ecc.h"
+    #include <cyassl/ctaocrypt/ecc.h>
 #endif
 
 

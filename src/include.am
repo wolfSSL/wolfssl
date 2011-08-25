@@ -4,8 +4,8 @@
 
 lib_LTLIBRARIES+= src/libcyassl.la
 src_libcyassl_la_SOURCES = \
-			   src/cyassl_int.c \
-			   src/cyassl_io.c \
+			   src/internal.c \
+			   src/io.c \
 			   src/keys.c \
 			   src/ssl.c \
 			   src/tls.c  \
@@ -53,7 +53,7 @@ src_libcyassl_la_SOURCES += ctaocrypt/src/hc128.c
 endif
 
 if BUILD_NOINLINE
-src_libcyassl_la_SOURCES += ctaocrypt/src/ctc_misc.c
+src_libcyassl_la_SOURCES += ctaocrypt/src/misc.c
 endif
 
 if BUILD_FASTMATH

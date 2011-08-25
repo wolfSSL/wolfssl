@@ -24,8 +24,8 @@
     #include <config.h>
 #endif
 
-#include <cyassl/cyassl_int.h>
-#include <cyassl/cyassl_error.h>
+#include <cyassl/internal.h>
+#include <cyassl/error.h>
 #ifdef SHOW_SECRETS
     #include <stdio.h>
 #endif

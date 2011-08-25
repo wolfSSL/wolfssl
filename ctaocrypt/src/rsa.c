@@ -24,10 +24,10 @@
     #include <config.h>
 #endif
 
-#include <cyassl/ctaocrypt/ctc_rsa.h>
-#include <cyassl/ctaocrypt/ctc_random.h>
-#include <cyassl/ctaocrypt/ctc_error.h>
-#include <cyassl/ctaocrypt/cyassl_logging.h>
+#include <cyassl/ctaocrypt/rsa.h>
+#include <cyassl/ctaocrypt/random.h>
+#include <cyassl/ctaocrypt/error.h>
+#include <cyassl/ctaocrypt/logging.h>
 
 #ifdef SHOW_GEN
     #include <stdio.h>

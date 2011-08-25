@@ -31,9 +31,9 @@
 #define FALSE 0
 
 #include <cyassl/openssl/ssl.h>
-#include <cyassl/cyassl_int.h>
-#include <cyassl/cyassl_error.h>
-#include <cyassl/ctaocrypt/ctc_coding.h>
+#include <cyassl/internal.h>
+#include <cyassl/error.h>
+#include <cyassl/ctaocrypt/coding.h>
 
 #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
     #include <cyassl/openssl/evp.h>
@@ -45,10 +45,10 @@
     #include <cyassl/openssl/crypto.h>
     #include <cyassl/openssl/des.h>
     /* openssl headers end, cyassl internal headers next */
-    #include <cyassl/ctaocrypt/ctc_hmac.h>
-    #include <cyassl/ctaocrypt/ctc_random.h>
-    #include <cyassl/ctaocrypt/ctc_des3.h>
-    #include <cyassl/ctaocrypt/ctc_md4.h>
+    #include <cyassl/ctaocrypt/hmac.h>
+    #include <cyassl/ctaocrypt/random.h>
+    #include <cyassl/ctaocrypt/des3.h>
+    #include <cyassl/ctaocrypt/md4.h>
 #endif
 
 

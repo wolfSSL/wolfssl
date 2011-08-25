@@ -25,11 +25,11 @@
 
 #ifndef NO_RABBIT
 
-#include <cyassl/ctaocrypt/ctc_rabbit.h>
+#include <cyassl/ctaocrypt/rabbit.h>
 #ifdef NO_INLINE
-    #include <cyassl/ctaocrypt/ctc_misc.h>
+    #include <cyassl/ctaocrypt/misc.h>
 #else
-    #include "ctc_misc.c"
+    #include <ctaocrypt/src/misc.c>
 #endif
 
 

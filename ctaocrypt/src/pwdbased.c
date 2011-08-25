@@ -25,17 +25,17 @@
 
 #ifndef NO_PWDBASED
 
-#include <cyassl/ctaocrypt/ctc_pwdbased.h>
-#include <cyassl/ctaocrypt/ctc_hmac.h>
-#include <cyassl/ctaocrypt/ctc_integer.h>
-#include <cyassl/ctaocrypt/ctc_error.h>
+#include <cyassl/ctaocrypt/pwdbased.h>
+#include <cyassl/ctaocrypt/hmac.h>
+#include <cyassl/ctaocrypt/integer.h>
+#include <cyassl/ctaocrypt/error.h>
 #ifdef CYASSL_SHA512
-    #include "ctc_sha512.h"
+    #include <cyassl/ctaocrypt/sha512.h>
 #endif
 #ifdef NO_INLINE
-    #include "ctc_misc.h"
+    #include <cyassl/ctaocrypt/misc.h>
 #else
-    #include "ctc_misc.c"
+    #include <ctaocrypt/src/misc.c>
 #endif
 
 

@@ -28,8 +28,8 @@
 
 */
 
-#include <cyassl/ctaocrypt/ctc_random.h>
-#include <cyassl/ctaocrypt/ctc_error.h>
+#include <cyassl/ctaocrypt/random.h>
+#include <cyassl/ctaocrypt/error.h>
 
 
 #if defined(USE_WINDOWS_API)

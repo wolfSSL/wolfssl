@@ -25,13 +25,13 @@
 
 #ifndef NO_AES
 
-#include <cyassl/ctaocrypt/ctc_aes.h>
-#include <cyassl/ctaocrypt/ctc_error.h>
-#include <cyassl/ctaocrypt/cyassl_logging.h>
+#include <cyassl/ctaocrypt/aes.h>
+#include <cyassl/ctaocrypt/error.h>
+#include <cyassl/ctaocrypt/logging.h>
 #ifdef NO_INLINE
-    #include <cyassl/ctaocrypt/ctc_misc.h>
+    #include <cyassl/ctaocrypt/misc.h>
 #else
-    #include "ctc_misc.c"
+    #include <ctaocrypt/src/misc.c>
 #endif
 
 

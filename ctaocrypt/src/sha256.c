@@ -28,11 +28,11 @@
 
 #ifndef NO_SHA256
 
-#include <cyassl/ctaocrypt/ctc_sha256.h>
+#include <cyassl/ctaocrypt/sha256.h>
 #ifdef NO_INLINE
-    #include <cyassl/ctaocrypt/ctc_misc.h>
+    #include <cyassl/ctaocrypt/misc.h>
 #else
-    #include "ctc_misc.c"
+    #include <ctaocrypt/src/misc.c>
 #endif
 
 

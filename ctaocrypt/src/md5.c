@@ -24,12 +24,12 @@
     #include <config.h>
 #endif
 
-#include <cyassl/ctaocrypt/ctc_md5.h>
+#include <cyassl/ctaocrypt/md5.h>
 
 #ifdef NO_INLINE
-    #include <cyassl/ctaocrypt/ctc_misc.h>
+    #include <cyassl/ctaocrypt/misc.h>
 #else
-    #include "ctc_misc.c"
+    #include <ctaocrypt/src/misc.c>
 #endif
 
 

@@ -24,9 +24,9 @@
 #endif
 
 #include <cyassl/openssl/ssl.h>
-#include <cyassl/cyassl_int.h>
-#include <cyassl/cyassl_error.h>
-#include <cyassl/ctaocrypt/ctc_hmac.h>
+#include <cyassl/internal.h>
+#include <cyassl/error.h>
+#include <cyassl/ctaocrypt/hmac.h>
 
 
 

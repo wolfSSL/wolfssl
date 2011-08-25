@@ -26,12 +26,12 @@
 /* submitted by eof */
 
 
-#include <cyassl/ctaocrypt/ctc_settings.h>
+#include <cyassl/ctaocrypt/settings.h>
 
 #ifdef USE_CYASSL_MEMORY
 
-#include <cyassl/ctaocrypt/cyassl_memory.h>
-#include <cyassl/ctaocrypt/ctc_error.h>
+#include <cyassl/ctaocrypt/memory.h>
+#include <cyassl/ctaocrypt/error.h>
 
 
 /* Set these to default values initially. */

@@ -23,7 +23,7 @@
     #include <config.h>
 #endif
 
-#include <cyassl/ctaocrypt/ctc_arc4.h>
+#include <cyassl/ctaocrypt/arc4.h>
 
 
 void Arc4SetKey(Arc4* arc4, const byte* key, word32 length)

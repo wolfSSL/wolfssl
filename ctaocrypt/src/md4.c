@@ -26,11 +26,11 @@
 
 #ifndef NO_MD4
 
-#include <cyassl/ctaocrypt/ctc_md4.h>
+#include <cyassl/ctaocrypt/md4.h>
 #ifdef NO_INLINE
-    #include <cyassl/ctaocrypt/ctc_misc.h>
+    #include <cyassl/ctaocrypt/misc.h>
 #else
-    #include "ctc_misc.c"
+    #include <ctaocrypt/src/misc.c>
 #endif
 
 

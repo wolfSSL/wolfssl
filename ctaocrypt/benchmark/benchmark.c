@@ -28,20 +28,20 @@
 #include <string.h>
 #include <stdio.h>
 
-#include <cyassl/ctaocrypt/ctc_des3.h>
-#include <cyassl/ctaocrypt/ctc_arc4.h>
-#include <cyassl/ctaocrypt/ctc_hc128.h>
-#include <cyassl/ctaocrypt/ctc_rabbit.h>
-#include <cyassl/ctaocrypt/ctc_aes.h>
-#include <cyassl/ctaocrypt/ctc_md5.h>
-#include <cyassl/ctaocrypt/ctc_sha.h>
-#include <cyassl/ctaocrypt/ctc_sha256.h>
-#include <cyassl/ctaocrypt/ctc_sha512.h>
-#include <cyassl/ctaocrypt/ctc_rsa.h>
-#include <cyassl/ctaocrypt/ctc_asn.h>
-#include <cyassl/ctaocrypt/ctc_ripemd.h>
+#include <cyassl/ctaocrypt/des3.h>
+#include <cyassl/ctaocrypt/arc4.h>
+#include <cyassl/ctaocrypt/hc128.h>
+#include <cyassl/ctaocrypt/rabbit.h>
+#include <cyassl/ctaocrypt/aes.h>
+#include <cyassl/ctaocrypt/md5.h>
+#include <cyassl/ctaocrypt/sha.h>
+#include <cyassl/ctaocrypt/sha256.h>
+#include <cyassl/ctaocrypt/sha512.h>
+#include <cyassl/ctaocrypt/rsa.h>
+#include <cyassl/ctaocrypt/asn.h>
+#include <cyassl/ctaocrypt/ripemd.h>
 
-#include <cyassl/ctaocrypt/ctc_dh.h>
+#include <cyassl/ctaocrypt/dh.h>
 
 
 #ifdef _MSC_VER

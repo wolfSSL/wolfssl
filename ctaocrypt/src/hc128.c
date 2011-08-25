@@ -25,11 +25,11 @@
 
 #if HAVE_HC128
 
-#include <cyassl/ctaocrypt/ctc_hc128.h>
+#include <cyassl/ctaocrypt/hc128.h>
 #ifdef NO_INLINE
-    #include <cyassl/ctaocrypt/ctc_hc128.h>
+    #include <cyassl/ctaocrypt/hc128.h>
 #else
-    #include "ctaocrypt/src/ctc_misc.c"
+    #include <ctaocrypt/src/misc.c>
 #endif
 
 

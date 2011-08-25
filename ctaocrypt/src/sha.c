@@ -23,11 +23,11 @@
     #include <config.h>
 #endif
 
-#include <cyassl/ctaocrypt/ctc_sha.h>
+#include <cyassl/ctaocrypt/sha.h>
 #ifdef NO_INLINE
-    #include <cyassl/ctaocrypt/ctc_misc.h>
+    #include <cyassl/ctaocrypt/misc.h>
 #else
-    #include "ctc_misc.c"
+    #include <ctaocrypt/src/misc.c>
 #endif
 
 

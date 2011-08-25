@@ -28,8 +28,8 @@
 #endif
 
 #include <cyassl/openssl/ssl.h>
-#include <cyassl/ctaocrypt/ctc_rsa.h>
-#include <cyassl/ctaocrypt/ctc_asn.h>
+#include <cyassl/ctaocrypt/rsa.h>
+#include <cyassl/ctaocrypt/asn.h>
 
 #include <stdio.h>
 #include <stdlib.h>
