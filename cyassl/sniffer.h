@@ -23,7 +23,7 @@
 #ifndef CYASSL_SNIFFER_H
 #define CYASSL_SNIFFER_H
 
-#include "ctc_settings.h"
+#include <cyassl/ctaocrypt/ctc_settings.h>
 
 #ifdef _WIN32
     #ifdef SSL_SNIFFER_EXPORTS

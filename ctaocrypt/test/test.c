@@ -182,17 +182,12 @@ void ctaocrypt_test(void* args)
     else
         printf( "ARC4     test passed!\n");
 
-    if (HAVE_HC128)
-    {
-      if ( (ret = hc128_test()) )
+#ifndef NO_HC128
+    if ( (ret = hc128_test()) )
         err_sys("HC-128   test failed!\n", ret);
-      else
-        printf( "HC-128   test passed!\n");
-    }
     else
-    {
-      printf( "HC-128   test skipped!\n");
-    }
+        printf( "HC-128   test passed!\n");
+#endif
 
 #ifndef NO_RABBIT
     if ( (ret = rabbit_test()) )

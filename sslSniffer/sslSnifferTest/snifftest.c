@@ -51,7 +51,7 @@ int main()
 #include <stdlib.h>        /* EXIT_SUCCESS */
 #include <signal.h>        /* signal */
 
-#include "sniffer.h"
+#include <cyassl/sniffer.h>
 
 
 #ifndef _WIN32

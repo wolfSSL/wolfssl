@@ -38,11 +38,11 @@
 
 #ifdef CYASSL_SNIFFER
 
-#include <ssl.h>
-#include <cyassl_int.h>
-#include <cyassl_error.h>
-#include <sniffer.h>
-#include <sniffer_error.h>
+#include <cyassl/openssl/ssl.h>
+#include <cyassl/cyassl_int.h>
+#include <cyassl/cyassl_error.h>
+#include <cyassl/sniffer.h>
+#include <cyassl/sniffer_error.h>
 
 /* Misc constants */
 enum {

@@ -335,18 +335,19 @@ then
 fi
 
 
-# HC128
-AC_ARG_ENABLE([hc128],
-              [  --enable-hc128          Enable HC-128 (default: disabled)],
-              [case "${enableval}" in
-                 yes) BUILD_HC128=true ;;
-                 no)  BUILD_HC128=false ;;
-                 *) AC_MSG_ERROR([bad value ${enableval} for --enable-hc128]) ;;
-               esac],[BUILD_HC128=false])
-AM_CONDITIONAL([BUILD_HC128], [test x$BUILD_HC128 = xtrue])
-AS_IF([test "x$BUILD_HC128" = "xyes"],
-      [ AC_DEFINE([HAVE_HC128], [1], [Have hc128])],
-      [ AC_DEFINE([HAVE_HC128], [0], [Have hc128])])
+# HC128 
+AC_ARG_ENABLE(hc128,
+    [  --enable-certgen        Enable HC-128 (default: disabled)],
+    [ ENABLED_HC128=$enableval ],
+    [ ENABLED_HC128=no ]
+    )
+
+if test "$ENABLED_HC128" = "no"
+then
+    AM_CFLAGS="$AM_CFLAGS -DNO_HC128"
+fi
+
+AM_CONDITIONAL([BUILD_HC128], [test "x$ENABLED_HC128" = "xyes"])
 
 
 # PSK 

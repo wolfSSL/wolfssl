@@ -31,6 +31,10 @@ testsuite/testsuite
 testsuite/*.der
 testsuite/*.pem
 testsuite/*.raw
+cert.der
+cert.pem
+othercert.der
+othercert.pem
 diff
 sslSniffer/sslSnifferTest/tracefile.txt
 *.gz

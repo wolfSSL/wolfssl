@@ -20,12 +20,12 @@
  */
 
 
-#if HAVE_HC128
+#ifndef NO_HC128
 
 #ifndef CTAO_CRYPT_HC128_H
 #define CTAO_CRYPT_HC128_H
 
-#include "ctc_types.h"
+#include <cyassl/ctaocrypt/ctc_types.h>
 
 #ifdef __cplusplus
     extern "C" {
