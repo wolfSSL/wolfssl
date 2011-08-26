@@ -31,7 +31,7 @@
 #endif
 
 
-int SetCipherSpecs(SSL* ssl)
+int SetCipherSpecs(CYASSL* ssl)
 {
 #ifdef HAVE_ECC
     /* ECC extensions */
@@ -646,7 +646,7 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
 
 
 /* TLS can call too */
-int StoreKeys(SSL* ssl, const byte* keyData)
+int StoreKeys(CYASSL* ssl, const byte* keyData)
 {
     int sz = ssl->specs.hash_size, i;
 
@@ -671,7 +671,7 @@ int StoreKeys(SSL* ssl, const byte* keyData)
 }
 
 
-int DeriveKeys(SSL* ssl)
+int DeriveKeys(CYASSL* ssl)
 {
     int length = 2 * ssl->specs.hash_size + 
                  2 * ssl->specs.key_size  +
@@ -719,7 +719,7 @@ int DeriveKeys(SSL* ssl)
 }
 
 
-static void CleanPreMaster(SSL* ssl)
+static void CleanPreMaster(CYASSL* ssl)
 {
     int i, sz = ssl->arrays.preMasterSz;
 
@@ -735,7 +735,7 @@ static void CleanPreMaster(SSL* ssl)
 
 
 /* Create and store the master secret see page 32, 6.1 */
-int MakeMasterSecret(SSL* ssl)
+int MakeMasterSecret(CYASSL* ssl)
 {
     byte   shaOutput[SHA_DIGEST_SIZE];
     byte   md5Input[ENCRYPT_LEN + SHA_DIGEST_SIZE];

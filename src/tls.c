@@ -23,7 +23,7 @@
     #include <config.h>
 #endif
 
-#include <cyassl/openssl/ssl.h>
+#include <cyassl/ssl.h>
 #include <cyassl/internal.h>
 #include <cyassl/error.h>
 #include <cyassl/ctaocrypt/hmac.h>
@@ -126,7 +126,7 @@ static void PRF(byte* digest, word32 digLen, const byte* secret, word32 secLen,
 }
 
 
-void BuildTlsFinished(SSL* ssl, Hashes* hashes, const byte* sender)
+void BuildTlsFinished(CYASSL* ssl, Hashes* hashes, const byte* sender)
 {
     const byte* side;
     byte        handshake_hash[FINISHED_SZ];
@@ -185,7 +185,7 @@ static const byte master_label[MASTER_LABEL_SZ + 1] = "master secret";
 static const byte key_label   [KEY_LABEL_SZ + 1]    = "key expansion";
 
 
-int DeriveTlsKeys(SSL* ssl)
+int DeriveTlsKeys(CYASSL* ssl)
 {
     int length = 2 * ssl->specs.hash_size + 
                  2 * ssl->specs.key_size  +
@@ -203,7 +203,7 @@ int DeriveTlsKeys(SSL* ssl)
 }
 
 
-int MakeTlsMasterSecret(SSL* ssl)
+int MakeTlsMasterSecret(CYASSL* ssl)
 {
     byte seed[SEED_LEN];
     
@@ -249,7 +249,7 @@ static INLINE void c32toa(word32 u32, byte* c)
 }
 
 
-static INLINE word32 GetSEQIncrement(SSL* ssl, int verify)
+static INLINE word32 GetSEQIncrement(CYASSL* ssl, int verify)
 {
 #ifdef CYASSL_DTLS
     if (ssl->options.dtls) {
@@ -268,7 +268,7 @@ static INLINE word32 GetSEQIncrement(SSL* ssl, int verify)
 
 #ifdef CYASSL_DTLS
 
-static INLINE word32 GetEpoch(SSL* ssl, int verify)
+static INLINE word32 GetEpoch(CYASSL* ssl, int verify)
 {
     if (verify)
         return ssl->keys.dtls_peer_epoch; 
@@ -279,7 +279,7 @@ static INLINE word32 GetEpoch(SSL* ssl, int verify)
 #endif /* CYASSL_DTLS */
 
 
-static INLINE const byte* GetMacSecret(SSL* ssl, int verify)
+static INLINE const byte* GetMacSecret(CYASSL* ssl, int verify)
 {
     if ( (ssl->options.side == CLIENT_END && !verify) ||
          (ssl->options.side == SERVER_END &&  verify) )
@@ -292,7 +292,7 @@ static INLINE const byte* GetMacSecret(SSL* ssl, int verify)
 
 
 /* TLS type HMAC */
-void TLS_hmac(SSL* ssl, byte* digest, const byte* in, word32 sz,
+void TLS_hmac(CYASSL* ssl, byte* digest, const byte* in, word32 sz,
               int content, int verify)
 {
     Hmac hmac;
@@ -329,20 +329,22 @@ void TLS_hmac(SSL* ssl, byte* digest, const byte* in, word32 sz,
 
 #ifndef NO_CYASSL_CLIENT
 
-    SSL_METHOD* TLSv1_client_method(void)
+    CYASSL_METHOD* CyaTLSv1_client_method(void)
     {
-        SSL_METHOD* method = (SSL_METHOD*) XMALLOC(sizeof(SSL_METHOD), 0,
-                                                   DYNAMIC_TYPE_METHOD);
+        CYASSL_METHOD* method =
+                             (CYASSL_METHOD*) XMALLOC(sizeof(CYASSL_METHOD), 0,
+                                                      DYNAMIC_TYPE_METHOD);
         if (method)
             InitSSL_Method(method, MakeTLSv1());
         return method;
     }
 
 
-    SSL_METHOD* TLSv1_1_client_method(void)
+    CYASSL_METHOD* CyaTLSv1_1_client_method(void)
     {
-        SSL_METHOD* method = (SSL_METHOD*) XMALLOC(sizeof(SSL_METHOD), 0,
-                                                   DYNAMIC_TYPE_METHOD);
+        CYASSL_METHOD* method =
+                              (CYASSL_METHOD*) XMALLOC(sizeof(CYASSL_METHOD), 0,
+                                                       DYNAMIC_TYPE_METHOD);
         if (method)
             InitSSL_Method(method, MakeTLSv1_1());
         return method;
@@ -351,10 +353,11 @@ void TLS_hmac(SSL* ssl, byte* digest, const byte* in, word32 sz,
 
 #ifndef NO_SHA256   /* can't use without SHA256 */
 
-    SSL_METHOD* TLSv1_2_client_method(void)
+    CYASSL_METHOD* CyaTLSv1_2_client_method(void)
     {
-        SSL_METHOD* method = (SSL_METHOD*) XMALLOC(sizeof(SSL_METHOD), 0,
-                                                   DYNAMIC_TYPE_METHOD);
+        CYASSL_METHOD* method =
+                              (CYASSL_METHOD*) XMALLOC(sizeof(CYASSL_METHOD), 0,
+                                                       DYNAMIC_TYPE_METHOD);
         if (method)
             InitSSL_Method(method, MakeTLSv1_2());
         return method;
@@ -363,10 +366,11 @@ void TLS_hmac(SSL* ssl, byte* digest, const byte* in, word32 sz,
 #endif
 
 
-    SSL_METHOD* SSLv23_client_method(void)
+    CYASSL_METHOD* CyaSSLv23_client_method(void)
     {
-        SSL_METHOD* method = (SSL_METHOD*) XMALLOC(sizeof(SSL_METHOD), 0,
-                                                   DYNAMIC_TYPE_METHOD);
+        CYASSL_METHOD* method =
+                              (CYASSL_METHOD*) XMALLOC(sizeof(CYASSL_METHOD), 0,
+                                                       DYNAMIC_TYPE_METHOD);
         if (method) {
 #ifndef NO_SHA256         /* 1.2 requires SHA256 */
             InitSSL_Method(method, MakeTLSv1_2());
@@ -385,10 +389,11 @@ void TLS_hmac(SSL* ssl, byte* digest, const byte* in, word32 sz,
 
 #ifndef NO_CYASSL_SERVER
 
-    SSL_METHOD* TLSv1_server_method(void)
+    CYASSL_METHOD* CyaTLSv1_server_method(void)
     {
-        SSL_METHOD* method = (SSL_METHOD*) XMALLOC(sizeof(SSL_METHOD), 0, 
-                                                   DYNAMIC_TYPE_METHOD);
+        CYASSL_METHOD* method =
+                              (CYASSL_METHOD*) XMALLOC(sizeof(CYASSL_METHOD), 0,
+                                                       DYNAMIC_TYPE_METHOD);
         if (method) {
             InitSSL_Method(method, MakeTLSv1());
             method->side = SERVER_END;
@@ -397,10 +402,11 @@ void TLS_hmac(SSL* ssl, byte* digest, const byte* in, word32 sz,
     }
 
 
-    SSL_METHOD* TLSv1_1_server_method(void)
+    CYASSL_METHOD* CyaTLSv1_1_server_method(void)
     {
-        SSL_METHOD* method = (SSL_METHOD*) XMALLOC(sizeof(SSL_METHOD), 0,
-                                                   DYNAMIC_TYPE_METHOD);
+        CYASSL_METHOD* method =
+                              (CYASSL_METHOD*) XMALLOC(sizeof(CYASSL_METHOD), 0,
+                                                       DYNAMIC_TYPE_METHOD);
         if (method) {
             InitSSL_Method(method, MakeTLSv1_1());
             method->side = SERVER_END;
@@ -411,10 +417,11 @@ void TLS_hmac(SSL* ssl, byte* digest, const byte* in, word32 sz,
 
 #ifndef NO_SHA256   /* can't use without SHA256 */
 
-    SSL_METHOD* TLSv1_2_server_method(void)
+    CYASSL_METHOD* CyaTLSv1_2_server_method(void)
     {
-        SSL_METHOD* method = (SSL_METHOD*) XMALLOC(sizeof(SSL_METHOD), 0,
-                                                   DYNAMIC_TYPE_METHOD);
+        CYASSL_METHOD* method =
+                              (CYASSL_METHOD*) XMALLOC(sizeof(CYASSL_METHOD), 0,
+                                                       DYNAMIC_TYPE_METHOD);
         if (method) {
             InitSSL_Method(method, MakeTLSv1_2());
             method->side = SERVER_END;
@@ -425,10 +432,11 @@ void TLS_hmac(SSL* ssl, byte* digest, const byte* in, word32 sz,
 #endif
 
 
-    SSL_METHOD *SSLv23_server_method(void)
+    CYASSL_METHOD* CyaSSLv23_server_method(void)
     {
-        SSL_METHOD* method = (SSL_METHOD*) XMALLOC(sizeof(SSL_METHOD), 0,
-                                                   DYNAMIC_TYPE_METHOD);
+        CYASSL_METHOD* method =
+                              (CYASSL_METHOD*) XMALLOC(sizeof(CYASSL_METHOD), 0,
+                                                       DYNAMIC_TYPE_METHOD);
         if (method) {
 #ifndef NO_SHA256         /* 1.2 requires SHA256 */
             InitSSL_Method(method, MakeTLSv1_2());
@@ -448,19 +456,19 @@ void TLS_hmac(SSL* ssl, byte* digest, const byte* in, word32 sz,
 #else /* NO_TLS */
 
 /* catch CyaSSL programming errors */
-void BuildTlsFinished(SSL* ssl, Hashes* hashes, const byte* sender)
+void BuildTlsFinished(CYASSL* ssl, Hashes* hashes, const byte* sender)
 {
    
 }
 
 
-int DeriveTlsKeys(SSL* ssl)
+int DeriveTlsKeys(CYASSL* ssl)
 {
     return NOT_COMPILED_IN;
 }
 
 
-int MakeTlsMasterSecret(SSL* ssl)
+int MakeTlsMasterSecret(CYASSL* ssl)
 { 
     return NOT_COMPILED_IN;
 }

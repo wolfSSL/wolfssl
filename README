@@ -29,7 +29,26 @@ before calling SSL_new();  Though it's not recommended.
 
 *** end Note ***
 
-CyaSSL Release 2.0.0rc2 (6/6/2011)
+CyaSSL Release 2.0.0rc3 (x/x/2011)
+
+Release 2.0.0rc3 for CyaSSL has bug fixes and a few new features including:
+- updated autoconf support
+- better make install and uninstall  (uses system directories)
+- make test / make check
+- CyaSSL headers now in <cyassl/*.h>
+- CTaocrypt headers now in <cyassl/ctaocrypt/*.h>
+- OpenSSL compatibility headers now in <cyassl/openssl/*.h>
+- examples and tests all run from home diretory so can use certs in ./certs
+        (see note 1)
+
+So previous applications that used the OpenSSL compatibility header
+<openssl/ssl.h> now need to include <cyassl/openssl/ssl.h> instead, no other
+changes are required.
+
+Special Thanks to Brian Aker for his autoconf, install, and header patches.
+
+
+************CyaSSL Release 2.0.0rc2 (6/6/2011)
 
 Release 2.0.0rc2 for CyaSSL has bug fixes and a few new features including:
 - bug fixes (Alerts, DTLS with DHE)

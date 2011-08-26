@@ -32,17 +32,20 @@
 #include "prefix_hmac.h"
 #endif
 
-#include "evp.h"
+#include <cyassl/openssl/evp.h>
 
 #ifdef __cplusplus
     extern "C" {
 #endif
 
 
-CYASSL_API unsigned char* HMAC(const EVP_MD* evp_md, const void* key,
-                               int key_len, const unsigned char* d, int n,
-                               unsigned char* md, unsigned int* md_len);
+CYASSL_API unsigned char* CyaSSL_HMAC(const CYASSL_EVP_MD* evp_md,
+                               const void* key, int key_len,
+                               const unsigned char* d, int n, unsigned char* md,
+                               unsigned int* md_len);
 
+
+#define HMAC(a,b,c,d,e,f,g) CyaSSL_HMAC((a),(b),(c),(d),(e),(f),(g))
 
 #ifdef __cplusplus
     } /* extern "C" */

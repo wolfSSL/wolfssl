@@ -37,9 +37,9 @@
     extern "C" {
 #endif
 
-typedef unsigned char DES_cblock[8];
-typedef /* const */ DES_cblock const_DES_cblock;
-typedef DES_cblock DES_key_schedule;
+typedef unsigned char CYASSL_DES_cblock[8];
+typedef /* const */ CYASSL_DES_cblock CYASSL_const_DES_cblock;
+typedef CYASSL_DES_cblock CYASSL_DES_key_schedule;
 
 
 enum {
@@ -48,18 +48,34 @@ enum {
 };
 
 
-CYASSL_API void DES_set_key_unchecked(const_DES_cblock*, DES_key_schedule*);
-CYASSL_API int  DES_key_sched(const_DES_cblock* key,DES_key_schedule* schedule);
-CYASSL_API void DES_cbc_encrypt(const unsigned char* input,
+CYASSL_API void CyaSSL_DES_set_key_unchecked(CYASSL_const_DES_cblock*,
+                                             CYASSL_DES_key_schedule*);
+CYASSL_API int  CyaSSL_DES_key_sched(CYASSL_const_DES_cblock* key,
+                                     CYASSL_DES_key_schedule* schedule);
+CYASSL_API void CyaSSL_DES_cbc_encrypt(const unsigned char* input,
                      unsigned char* output, long length,
-                     DES_key_schedule* schedule, DES_cblock* ivec, int enc);
-CYASSL_API void DES_ncbc_encrypt(const unsigned char* input,
+                     CYASSL_DES_key_schedule* schedule, CYASSL_DES_cblock* ivec,
+                     int enc);
+CYASSL_API void CyaSSL_DES_ncbc_encrypt(const unsigned char* input,
                       unsigned char* output, long length,
-                      DES_key_schedule* schedule, DES_cblock* ivec, int enc);
+                      CYASSL_DES_key_schedule* schedule,
+                      CYASSL_DES_cblock* ivec, int enc);
 
-CYASSL_API void DES_set_odd_parity(DES_cblock*);
-CYASSL_API void DES_ecb_encrypt(DES_cblock*, DES_cblock*, DES_key_schedule*,
-                                int);
+CYASSL_API void CyaSSL_DES_set_odd_parity(CYASSL_DES_cblock*);
+CYASSL_API void CyaSSL_DES_ecb_encrypt(CYASSL_DES_cblock*, CYASSL_DES_cblock*,
+                                       CYASSL_DES_key_schedule*, int);
+
+
+typedef CYASSL_DES_cblock DES_cblock;
+typedef CYASSL_const_DES_cblock const_DES_cblock;
+typedef CYASSL_DES_key_schedule DES_key_schedule;
+
+#define DES_set_key_unchecked CyaSSL_DES_set_key_unchecked
+#define DES_key_sched CyaSSL_DES_key_sched
+#define DES_cbc_encrypt CyaSSL_DES_cbc_encrypt
+#define DES_ncbc_encrypt CyaSSL_DES_ncbc_encrypt
+#define DES_set_odd_parity CyaSSL_DES_set_odd_parity
+#define DES_ecb_encrypt CyaSSL_DES_ecb_encrypt
 
 #ifdef __cplusplus
     } /* extern "C" */

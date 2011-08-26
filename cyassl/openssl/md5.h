@@ -13,15 +13,20 @@
 #endif
 
 
-typedef struct MD5_CTX {
+typedef struct CYASSL_MD5_CTX {
     int holder[24];   /* big enough to hold ctaocrypt md5, but check on init */
-} MD5_CTX;
+} CYASSL_MD5_CTX;
 
-CYASSL_API void MD5_Init(MD5_CTX*);
-CYASSL_API void MD5_Update(MD5_CTX*, const void*, unsigned long);
-CYASSL_API void MD5_Final(unsigned char*, MD5_CTX*);
+CYASSL_API void CyaSSL_MD5_Init(CYASSL_MD5_CTX*);
+CYASSL_API void CyaSSL_MD5_Update(CYASSL_MD5_CTX*, const void*, unsigned long);
+CYASSL_API void CyaSSL_MD5_Final(unsigned char*, CYASSL_MD5_CTX*);
 
 
+typedef CYASSL_MD5_CTX MD5_CTX;
+
+#define MD5_Init MD5_Init
+#define MD5_Update MD5_Update
+#define MD5_Final MD5_Final
 
 #ifdef __cplusplus
     }  /* extern "C" */ 

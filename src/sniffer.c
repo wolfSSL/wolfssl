@@ -39,8 +39,8 @@
 #ifdef CYASSL_SNIFFER
 
 #include <cyassl/openssl/ssl.h>
-#include <cyassl/cyassl_int.h>
-#include <cyassl/cyassl_error.h>
+#include <cyassl/internal.h>
+#include <cyassl/error.h>
 #include <cyassl/sniffer.h>
 #include <cyassl/sniffer_error.h>
 

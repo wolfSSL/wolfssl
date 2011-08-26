@@ -7,8 +7,11 @@
 #include "prefix_crypto.h"
 #endif
 
-CYASSL_API const char*   SSLeay_version(int type);
-CYASSL_API unsigned long SSLeay(void);
+CYASSL_API const char*   CyaSSLeay_version(int type);
+CYASSL_API unsigned long CyaSSLeay(void);
+
+#define SSLeay_version CyaSSLeay_version
+#define SSLeay CyaSSLeay
 
 
 #define SSLEAY_VERSION 0x0090600fL

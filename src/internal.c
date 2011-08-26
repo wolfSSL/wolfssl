@@ -53,22 +53,22 @@
 #endif
 
 
-int CyaSSL_negotiate(SSL*);
+int CyaSSL_negotiate(CYASSL*);
 
 
 #ifndef NO_CYASSL_CLIENT
-    static int DoHelloVerifyRequest(SSL* ssl, const byte* input, word32*);
-    static int DoServerHello(SSL* ssl, const byte* input, word32*);
-    static int DoCertificateRequest(SSL* ssl, const byte* input, word32*);
-    static int DoServerKeyExchange(SSL* ssl, const byte* input, word32*);
+    static int DoHelloVerifyRequest(CYASSL* ssl, const byte* input, word32*);
+    static int DoServerHello(CYASSL* ssl, const byte* input, word32*);
+    static int DoCertificateRequest(CYASSL* ssl, const byte* input, word32*);
+    static int DoServerKeyExchange(CYASSL* ssl, const byte* input, word32*);
 #endif
 
 
 #ifndef NO_CYASSL_SERVER
-    static int DoClientHello(SSL* ssl, const byte* input, word32*, word32,
+    static int DoClientHello(CYASSL* ssl, const byte* input, word32*, word32,
                              word32);
-    static int DoCertificateVerify(SSL* ssl, byte*, word32*, word32);
-    static int DoClientKeyExchange(SSL* ssl, byte* input, word32*);
+    static int DoCertificateVerify(CYASSL* ssl, byte*, word32*, word32);
+    static int DoClientKeyExchange(CYASSL* ssl, byte* input, word32*);
 #endif
 
 typedef enum {
@@ -81,10 +81,10 @@ typedef enum {
     runProcessingOneMessage
 } processReply;
 
-static void Hmac(SSL* ssl, byte* digest, const byte* buffer, word32 sz,
+static void Hmac(CYASSL* ssl, byte* digest, const byte* buffer, word32 sz,
                  int content, int verify);
 
-static void BuildCertHashes(SSL* ssl, Hashes* hashes);
+static void BuildCertHashes(CYASSL* ssl, Hashes* hashes);
 
 
 #ifndef min
@@ -97,7 +97,7 @@ static void BuildCertHashes(SSL* ssl, Hashes* hashes);
 #endif /* min */
 
 
-int IsTLS(const SSL* ssl)
+int IsTLS(const CYASSL* ssl)
 {
     if (ssl->version.major == SSLv3_MAJOR && ssl->version.minor >=TLSv1_MINOR)
         return 1;
@@ -106,7 +106,7 @@ int IsTLS(const SSL* ssl)
 }
 
 
-int IsAtLeastTLSv1_2(const SSL* ssl)
+int IsAtLeastTLSv1_2(const CYASSL* ssl)
 {
     if (ssl->version.major == SSLv3_MAJOR && ssl->version.minor >=TLSv1_2_MINOR)
         return 1;
@@ -236,7 +236,7 @@ static INLINE void ato32(const byte* c, word32* u32)
 
 
     /* init zlib comp/decomp streams, 0 on success */
-    static int InitStreams(SSL* ssl)
+    static int InitStreams(CYASSL* ssl)
     {
         ssl->c_stream.zalloc = (alloc_func)myAlloc;
         ssl->c_stream.zfree  = (free_func)myFree;
@@ -256,7 +256,7 @@ static INLINE void ato32(const byte* c, word32* u32)
     }
 
 
-    static void FreeStreams(SSL* ssl)
+    static void FreeStreams(CYASSL* ssl)
     {
         if (ssl->didStreamInit) {
             deflateEnd(&ssl->c_stream);
@@ -266,7 +266,7 @@ static INLINE void ato32(const byte* c, word32* u32)
 
 
     /* compress in to out, return out size or error */
-    static int Compress(SSL* ssl, byte* in, int inSz, byte* out, int outSz)
+    static int Compress(CYASSL* ssl, byte* in, int inSz, byte* out, int outSz)
     {
         int    err;
         int    currTotal = ssl->c_stream.total_out;
@@ -289,7 +289,7 @@ static INLINE void ato32(const byte* c, word32* u32)
         
 
     /* decompress in to out, returnn out size or error */
-    static int DeCompress(SSL* ssl, byte* in, int inSz, byte* out, int outSz)
+    static int DeCompress(CYASSL* ssl, byte* in, int inSz, byte* out, int outSz)
     {
         int    err;
         int    currTotal = ssl->d_stream.total_out;
@@ -314,7 +314,7 @@ static INLINE void ato32(const byte* c, word32* u32)
 #endif /* HAVE_LIBZ */
 
 
-void InitSSL_Method(SSL_METHOD* method, ProtocolVersion pv)
+void InitSSL_Method(CYASSL_METHOD* method, ProtocolVersion pv)
 {
     method->version    = pv;
     method->side       = CLIENT_END;
@@ -325,7 +325,7 @@ void InitSSL_Method(SSL_METHOD* method, ProtocolVersion pv)
 }
 
 
-void InitSSL_Ctx(SSL_CTX* ctx, SSL_METHOD* method)
+void InitSSL_Ctx(CYASSL_CTX* ctx, CYASSL_METHOD* method)
 {
     ctx->method = method;
     ctx->certificate.buffer = 0;
@@ -384,7 +384,7 @@ void InitSSL_Ctx(SSL_CTX* ctx, SSL_METHOD* method)
 
 
 /* In case contexts are held in array and don't want to free actual ctx */
-void SSL_CtxResourceFree(SSL_CTX* ctx)
+void SSL_CtxResourceFree(CYASSL_CTX* ctx)
 {
     XFREE(ctx->privateKey.buffer, ctx->heap, DYNAMIC_TYPE_KEY);
     XFREE(ctx->certificate.buffer, ctx->heap, DYNAMIC_TYPE_CERT);
@@ -395,7 +395,7 @@ void SSL_CtxResourceFree(SSL_CTX* ctx)
 }
 
 
-void FreeSSL_Ctx(SSL_CTX* ctx)
+void FreeSSL_Ctx(CYASSL_CTX* ctx)
 {
     SSL_CtxResourceFree(ctx);
     XFREE(ctx, ctx->heap, DYNAMIC_TYPE_CTX);
@@ -626,7 +626,7 @@ void InitSuites(Suites* suites, ProtocolVersion pv, byte haveDH, byte havePSK,
 }
 
 
-int InitSSL(SSL* ssl, SSL_CTX* ctx)
+int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
 {
     int  ret;
     byte havePSK = 0;
@@ -727,7 +727,7 @@ int InitSSL(SSL* ssl, SSL_CTX* ctx)
     ssl->options.quietShutdown = ctx->quietShutdown;
     ssl->options.certOnly = 0;
 
-    /* SSL_CTX still owns certificate, certChain, key, and caList buffers */
+    /* CYASSL_CTX still owns certificate, certChain, key, and caList buffers */
     ssl->buffers.certificate = ctx->certificate;
     ssl->buffers.certChain = ctx->certChain;
     ssl->buffers.key = ctx->privateKey;
@@ -807,11 +807,11 @@ int InitSSL(SSL* ssl, SSL_CTX* ctx)
 }
 
 
-int BIO_free(BIO*);  /* cyassl_int doesn't have */
+int CyaSSL_BIO_free(CYASSL_BIO*);  /* internal doesn't have */
 
 
 /* In case holding SSL object in array and don't want to free actual ssl */
-void SSL_ResourceFree(SSL* ssl)
+void SSL_ResourceFree(CYASSL* ssl)
 {
     XFREE(ssl->buffers.serverDH_Priv.buffer, ssl->heap, DYNAMIC_TYPE_DH);
     XFREE(ssl->buffers.serverDH_Pub.buffer, ssl->heap, DYNAMIC_TYPE_DH);
@@ -819,7 +819,7 @@ void SSL_ResourceFree(SSL* ssl)
     XFREE(ssl->buffers.serverDH_P.buffer, ssl->heap, DYNAMIC_TYPE_DH);
     XFREE(ssl->buffers.domainName.buffer, ssl->heap, DYNAMIC_TYPE_DOMAIN);
 
-    /* SSL_CTX always owns certChain */
+    /* CYASSL_CTX always owns certChain */
     if (ssl->buffers.weOwnCert)
         XFREE(ssl->buffers.certificate.buffer, ssl->heap, DYNAMIC_TYPE_CERT);
     if (ssl->buffers.weOwnKey)
@@ -831,9 +831,9 @@ void SSL_ResourceFree(SSL* ssl)
     if (ssl->buffers.outputBuffer.dynamicFlag)
         ShrinkOutputBuffer(ssl);
 #if defined(OPENSSL_EXTRA) || defined(GOAHEAD_WS)
-    BIO_free(ssl->biord);
+    CyaSSL_BIO_free(ssl->biord);
     if (ssl->biord != ssl->biowr)        /* in case same as write */
-        BIO_free(ssl->biowr);
+        CyaSSL_BIO_free(ssl->biowr);
 #endif
 #ifdef HAVE_LIBZ
     FreeStreams(ssl);
@@ -847,7 +847,7 @@ void SSL_ResourceFree(SSL* ssl)
 }
 
 
-void FreeSSL(SSL* ssl)
+void FreeSSL(CYASSL* ssl)
 {
     SSL_ResourceFree(ssl);
     XFREE(ssl, ssl->heap, DYNAMIC_TYPE_SSL);
@@ -951,7 +951,7 @@ ProtocolVersion MakeDTLSv1(void)
 
 
 /* add output to md5 and sha handshake hashes, exclude record header */
-static void HashOutput(SSL* ssl, const byte* output, int sz, int ivSz)
+static void HashOutput(CYASSL* ssl, const byte* output, int sz, int ivSz)
 {
     const byte* adj = output + RECORD_HEADER_SZ + ivSz;
     sz -= RECORD_HEADER_SZ;
@@ -973,7 +973,7 @@ static void HashOutput(SSL* ssl, const byte* output, int sz, int ivSz)
 
 
 /* add input to md5 and sha handshake hashes, include handshake header */
-static void HashInput(SSL* ssl, const byte* input, int sz)
+static void HashInput(CYASSL* ssl, const byte* input, int sz)
 {
     const byte* adj = input - HANDSHAKE_HEADER_SZ;
     sz += HANDSHAKE_HEADER_SZ;
@@ -995,7 +995,7 @@ static void HashInput(SSL* ssl, const byte* input, int sz)
 
 
 /* add record layer header for message */
-static void AddRecordHeader(byte* output, word32 length, byte type, SSL* ssl)
+static void AddRecordHeader(byte* output, word32 length, byte type, CYASSL* ssl)
 {
     RecordLayerHeader* rl;
   
@@ -1021,7 +1021,8 @@ static void AddRecordHeader(byte* output, word32 length, byte type, SSL* ssl)
 
 
 /* add handshake header for message */
-static void AddHandShakeHeader(byte* output, word32 length, byte type, SSL* ssl)
+static void AddHandShakeHeader(byte* output, word32 length, byte type,
+                               CYASSL* ssl)
 {
     HandShakeHeader* hs;
     (void)ssl;
@@ -1045,7 +1046,7 @@ static void AddHandShakeHeader(byte* output, word32 length, byte type, SSL* ssl)
 
 
 /* add both headers for handshake message */
-static void AddHeaders(byte* output, word32 length, byte type, SSL* ssl)
+static void AddHeaders(byte* output, word32 length, byte type, CYASSL* ssl)
 {
     if (!ssl->options.dtls) {
         AddRecordHeader(output, length + HANDSHAKE_HEADER_SZ, handshake, ssl);
@@ -1061,7 +1062,7 @@ static void AddHeaders(byte* output, word32 length, byte type, SSL* ssl)
 
 
 /* return bytes received, -1 on error */
-static int Receive(SSL* ssl, byte* buf, word32 sz)
+static int Receive(CYASSL* ssl, byte* buf, word32 sz)
 {
     int recvd;
 
@@ -1109,7 +1110,7 @@ retry:
 
 
 /* Switch dynamic output buffer back to static, buffer is assumed clear */
-void ShrinkOutputBuffer(SSL* ssl)
+void ShrinkOutputBuffer(CYASSL* ssl)
 {
     CYASSL_MSG("Shrinking output buffer\n");
     XFREE(ssl->buffers.outputBuffer.buffer, ssl->heap, DYNAMIC_TYPE_OUT_BUFFER);
@@ -1121,7 +1122,7 @@ void ShrinkOutputBuffer(SSL* ssl)
 
 /* Switch dynamic input buffer back to static, keep any remaining input */
 /* forced free means cleaning up */
-void ShrinkInputBuffer(SSL* ssl, int forcedFree)
+void ShrinkInputBuffer(CYASSL* ssl, int forcedFree)
 {
     int usedLength = ssl->buffers.inputBuffer.length -
                      ssl->buffers.inputBuffer.idx;
@@ -1144,7 +1145,7 @@ void ShrinkInputBuffer(SSL* ssl, int forcedFree)
 }
 
 
-int SendBuffered(SSL* ssl)
+int SendBuffered(CYASSL* ssl)
 {
     while (ssl->buffers.outputBuffer.length > 0) {
         int sent = ssl->ctx->CBIOSend((char*)ssl->buffers.outputBuffer.buffer +
@@ -1203,7 +1204,7 @@ int SendBuffered(SSL* ssl)
 
 
 /* Grow the output buffer, should only be to send cert, should be blank */
-static INLINE int GrowOutputBuffer(SSL* ssl, int size)
+static INLINE int GrowOutputBuffer(CYASSL* ssl, int size)
 {
     byte* tmp = (byte*) XMALLOC(size + ssl->buffers.outputBuffer.length,
                                 ssl->heap, DYNAMIC_TYPE_OUT_BUFFER);
@@ -1227,7 +1228,7 @@ static INLINE int GrowOutputBuffer(SSL* ssl, int size)
 
 
 /* Grow the input buffer, should only be to read cert or big app data */
-static INLINE int GrowInputBuffer(SSL* ssl, int size, int usedLength)
+static INLINE int GrowInputBuffer(CYASSL* ssl, int size, int usedLength)
 {
     byte* tmp = (byte*) XMALLOC(size + usedLength, ssl->heap,
                                 DYNAMIC_TYPE_IN_BUFFER);
@@ -1253,7 +1254,7 @@ static INLINE int GrowInputBuffer(SSL* ssl, int size, int usedLength)
 
 
 /* check avalaible size into output buffer */
-static INLINE int CheckAvalaibleSize(SSL *ssl, int size)
+static INLINE int CheckAvalaibleSize(CYASSL *ssl, int size)
 {
     if ((word32)size > ssl->buffers.outputBuffer.bufferSize)
         if (GrowOutputBuffer(ssl, size) < 0)
@@ -1271,7 +1272,7 @@ static INLINE int CheckAvalaibleSize(SSL *ssl, int size)
 }
 
 /* do all verify and sanity checks on record header */
-static int GetRecordHeader(SSL* ssl, const byte* input, word32* inOutIdx,
+static int GetRecordHeader(CYASSL* ssl, const byte* input, word32* inOutIdx,
                            RecordLayerHeader* rh, word16 *size)
 {
     if (!ssl->options.dtls) {
@@ -1329,7 +1330,7 @@ static int GetRecordHeader(SSL* ssl, const byte* input, word32* inOutIdx,
 }
 
 
-static int GetHandShakeHeader(SSL* ssl, const byte* input, word32* inOutIdx,
+static int GetHandShakeHeader(CYASSL* ssl, const byte* input, word32* inOutIdx,
                               byte *type, word32 *size)
 {
     const byte *ptr = input + *inOutIdx;
@@ -1367,7 +1368,7 @@ static const byte PAD2[PAD_MD5] =
                               };
 
 /* calculate MD5 hash for finished */
-static void BuildMD5(SSL* ssl, Hashes* hashes, const byte* sender)
+static void BuildMD5(CYASSL* ssl, Hashes* hashes, const byte* sender)
 {
     byte md5_result[MD5_DIGEST_SIZE];
 
@@ -1387,7 +1388,7 @@ static void BuildMD5(SSL* ssl, Hashes* hashes, const byte* sender)
 
 
 /* calculate SHA hash for finished */
-static void BuildSHA(SSL* ssl, Hashes* hashes, const byte* sender)
+static void BuildSHA(CYASSL* ssl, Hashes* hashes, const byte* sender)
 {
     byte sha_result[SHA_DIGEST_SIZE];
 
@@ -1406,7 +1407,7 @@ static void BuildSHA(SSL* ssl, Hashes* hashes, const byte* sender)
 }
 
 
-static void BuildFinished(SSL* ssl, Hashes* hashes, const byte* sender)
+static void BuildFinished(CYASSL* ssl, Hashes* hashes, const byte* sender)
 {
     /* store current states, building requires get_digest which resets state */
     Md5 md5 = ssl->hashMd5;
@@ -1435,7 +1436,7 @@ static void BuildFinished(SSL* ssl, Hashes* hashes, const byte* sender)
 }
 
 
-static int DoCertificate(SSL* ssl, byte* input, word32* inOutIdx)
+static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx)
 {
     word32 listSz, i = *inOutIdx;
     int    ret = 0;
@@ -1610,7 +1611,7 @@ static int DoCertificate(SSL* ssl, byte* input, word32* inOutIdx)
                 why = certificate_expired;
             if (ssl->ctx->verifyCallback) {
                 int            ok;
-                X509_STORE_CTX store;
+                CYASSL_X509_STORE_CTX store;
 
                 store.error = ret;
                 store.error_depth = totalCerts;
@@ -1639,7 +1640,7 @@ static int DoCertificate(SSL* ssl, byte* input, word32* inOutIdx)
 }
 
 
-int DoFinished(SSL* ssl, const byte* input, word32* inOutIdx, int sniff)
+int DoFinished(CYASSL* ssl, const byte* input, word32* inOutIdx, int sniff)
 {
     byte   verifyMAC[SHA256_DIGEST_SIZE];
     int    finishedSz = ssl->options.tls ? TLS_FINISHED_SZ : FINISHED_SZ;
@@ -1704,7 +1705,7 @@ int DoFinished(SSL* ssl, const byte* input, word32* inOutIdx, int sniff)
 }
 
 
-static int DoHandShakeMsg(SSL* ssl, byte* input, word32* inOutIdx,
+static int DoHandShakeMsg(CYASSL* ssl, byte* input, word32* inOutIdx,
                           word32 totalSz)
 {
     byte type;
@@ -1803,7 +1804,7 @@ static int DoHandShakeMsg(SSL* ssl, byte* input, word32* inOutIdx,
 }
 
 
-static INLINE void Encrypt(SSL* ssl, byte* out, const byte* input, word32 sz)
+static INLINE void Encrypt(CYASSL* ssl, byte* out, const byte* input, word32 sz)
 {
     switch (ssl->specs.bulk_cipher_algorithm) {
         #ifdef BUILD_ARC4
@@ -1851,7 +1852,8 @@ static INLINE void Encrypt(SSL* ssl, byte* out, const byte* input, word32 sz)
 }
 
 
-static INLINE void Decrypt(SSL* ssl, byte* plain, const byte* input, word32 sz)
+static INLINE void Decrypt(CYASSL* ssl, byte* plain, const byte* input,
+                           word32 sz)
 {
     switch (ssl->specs.bulk_cipher_algorithm) {
         #ifdef BUILD_ARC4
@@ -1891,7 +1893,7 @@ static INLINE void Decrypt(SSL* ssl, byte* plain, const byte* input, word32 sz)
 
 
 /* decrypt input message in place */
-static int DecryptMessage(SSL* ssl, byte* input, word32 sz, word32* idx)
+static int DecryptMessage(CYASSL* ssl, byte* input, word32 sz, word32* idx)
 {
     Decrypt(ssl, input, input, sz);
     ssl->keys.encryptSz = sz;
@@ -1902,7 +1904,7 @@ static int DecryptMessage(SSL* ssl, byte* input, word32 sz, word32* idx)
 }
 
 
-static INLINE word32 GetSEQIncrement(SSL* ssl, int verify)
+static INLINE word32 GetSEQIncrement(CYASSL* ssl, int verify)
 {
     if (verify)
         return ssl->keys.peer_sequence_number++; 
@@ -1911,7 +1913,7 @@ static INLINE word32 GetSEQIncrement(SSL* ssl, int verify)
 }
 
 
-int DoApplicationData(SSL* ssl, byte* input, word32* inOutIdx)
+int DoApplicationData(CYASSL* ssl, byte* input, word32* inOutIdx)
 {
     word32 msgSz   = ssl->keys.encryptSz;
     word32 pad     = 0, 
@@ -1992,7 +1994,7 @@ int DoApplicationData(SSL* ssl, byte* input, word32* inOutIdx)
 
 
 /* process alert, return level */
-static int DoAlert(SSL* ssl, byte* input, word32* inOutIdx, int* type)
+static int DoAlert(CYASSL* ssl, byte* input, word32* inOutIdx, int* type)
 {
     byte level;
 
@@ -2036,7 +2038,7 @@ static int DoAlert(SSL* ssl, byte* input, word32* inOutIdx, int* type)
     return level;
 }
 
-static int GetInputData(SSL *ssl, word32 size)
+static int GetInputData(CYASSL *ssl, word32 size)
 {
     int in;
     int inSz;
@@ -2094,7 +2096,7 @@ static int GetInputData(SSL *ssl, word32 size)
 
 /* process input requests, return 0 is done, 1 is call again to complete, and
    negative number is error */
-int ProcessReply(SSL* ssl)
+int ProcessReply(CYASSL* ssl)
 {
     int    ret, type, readSz;
     word32 startIdx = 0;
@@ -2341,7 +2343,7 @@ int ProcessReply(SSL* ssl)
 }
 
 
-int SendChangeCipher(SSL* ssl)
+int SendChangeCipher(CYASSL* ssl)
 {
     byte              *output;
     int                sendSz = RECORD_HEADER_SZ + ENUM_LEN;
@@ -2378,7 +2380,7 @@ int SendChangeCipher(SSL* ssl)
 }
 
 
-static INLINE const byte* GetMacSecret(SSL* ssl, int verify)
+static INLINE const byte* GetMacSecret(CYASSL* ssl, int verify)
 {
     if ( (ssl->options.side == CLIENT_END && !verify) ||
          (ssl->options.side == SERVER_END &&  verify) )
@@ -2388,7 +2390,7 @@ static INLINE const byte* GetMacSecret(SSL* ssl, int verify)
 }
 
 
-static void Hmac(SSL* ssl, byte* digest, const byte* in, word32 sz,
+static void Hmac(CYASSL* ssl, byte* digest, const byte* in, word32 sz,
                  int content, int verify)
 {
     byte   result[SHA256_DIGEST_SIZE];                 /* max possible sizes */
@@ -2442,7 +2444,7 @@ static void Hmac(SSL* ssl, byte* digest, const byte* in, word32 sz,
 }
 
 
-static void BuildMD5_CertVerify(SSL* ssl, byte* digest)
+static void BuildMD5_CertVerify(CYASSL* ssl, byte* digest)
 {
     byte md5_result[MD5_DIGEST_SIZE];
 
@@ -2460,7 +2462,7 @@ static void BuildMD5_CertVerify(SSL* ssl, byte* digest)
 }
 
 
-static void BuildSHA_CertVerify(SSL* ssl, byte* digest)
+static void BuildSHA_CertVerify(CYASSL* ssl, byte* digest)
 {
     byte sha_result[SHA_DIGEST_SIZE];
     
@@ -2478,7 +2480,7 @@ static void BuildSHA_CertVerify(SSL* ssl, byte* digest)
 }
 
 
-static void BuildCertHashes(SSL* ssl, Hashes* hashes)
+static void BuildCertHashes(CYASSL* ssl, Hashes* hashes)
 {
     /* store current states, building requires get_digest which resets state */
     Md5 md5 = ssl->hashMd5;
@@ -2510,7 +2512,7 @@ static void BuildCertHashes(SSL* ssl, Hashes* hashes)
 
 
 /* Build SSL Message, encrypted */
-static int BuildMessage(SSL* ssl, byte* output, const byte* input, int inSz,
+static int BuildMessage(CYASSL* ssl, byte* output, const byte* input, int inSz,
                         int type)
 {
     word32 digestSz = ssl->specs.hash_size;
@@ -2569,7 +2571,7 @@ static int BuildMessage(SSL* ssl, byte* output, const byte* input, int inSz,
 }
 
 
-int SendFinished(SSL* ssl)
+int SendFinished(CYASSL* ssl)
 {
     int              sendSz,
                      finishedSz = ssl->options.tls ? TLS_FINISHED_SZ :
@@ -2637,7 +2639,7 @@ int SendFinished(SSL* ssl)
 }
 
 
-int SendCertificate(SSL* ssl)
+int SendCertificate(CYASSL* ssl)
 {
     int    sendSz, length, ret = 0;
     word32 i = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
@@ -2716,7 +2718,7 @@ int SendCertificate(SSL* ssl)
 }
 
 
-int SendCertificateRequest(SSL* ssl)
+int SendCertificateRequest(CYASSL* ssl)
 {
     byte   *output;
     int    ret;
@@ -2778,7 +2780,7 @@ int SendCertificateRequest(SSL* ssl)
 }
 
 
-int SendData(SSL* ssl, const void* data, int sz)
+int SendData(CYASSL* ssl, const void* data, int sz)
 {
     int sent = 0,  /* plainText size */
         sendSz,
@@ -2875,7 +2877,7 @@ int SendData(SSL* ssl, const void* data, int sz)
 }
 
 /* process input data */
-int ReceiveData(SSL* ssl, byte* output, int sz)
+int ReceiveData(CYASSL* ssl, byte* output, int sz)
 {
     int size;
 
@@ -2927,7 +2929,7 @@ int ReceiveData(SSL* ssl, byte* output, int sz)
 
 
 /* send alert message */
-int SendAlert(SSL* ssl, int severity, int type)
+int SendAlert(CYASSL* ssl, int severity, int type)
 {
     byte input[ALERT_SIZE];
     byte *output;
@@ -3477,7 +3479,7 @@ int cipher_name_idx[] =
 
 /* return true if set, else false */
 /* only supports full name from cipher_name[] delimited by : */
-int SetCipherList(SSL_CTX* ctx, const char* list)
+int SetCipherList(CYASSL_CTX* ctx, const char* list)
 {
     int  ret = 0, i;
     char name[MAX_SUITE_NAME];
@@ -3548,7 +3550,7 @@ int SetCipherList(SSL_CTX* ctx, const char* list)
     }
 
     /* Set Final HandShakeInfo parameters */
-    void FinishHandShakeInfo(HandShakeInfo* info, const SSL* ssl)
+    void FinishHandShakeInfo(HandShakeInfo* info, const CYASSL* ssl)
     {
         int i;
         int sz = sizeof(cipher_name_idx)/sizeof(int); 
@@ -3680,7 +3682,7 @@ int SetCipherList(SSL_CTX* ctx, const char* list)
 /* client only parts */
 #ifndef NO_CYASSL_CLIENT
 
-    int SendClientHello(SSL* ssl)
+    int SendClientHello(CYASSL* ssl)
     {
         byte              *output;
         word32             length, idx = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
@@ -3775,7 +3777,7 @@ int SetCipherList(SSL_CTX* ctx, const char* list)
     }
 
 
-    static int DoHelloVerifyRequest(SSL* ssl, const byte* input,
+    static int DoHelloVerifyRequest(CYASSL* ssl, const byte* input,
                                     word32* inOutIdx)
     {
         ProtocolVersion pv;
@@ -3799,7 +3801,7 @@ int SetCipherList(SSL_CTX* ctx, const char* list)
     }
 
 
-    static int DoServerHello(SSL* ssl, const byte* input, word32* inOutIdx)
+    static int DoServerHello(CYASSL* ssl, const byte* input, word32* inOutIdx)
     {
         byte b;
         byte compression;
@@ -3888,7 +3890,7 @@ int SetCipherList(SSL_CTX* ctx, const char* list)
 
 
     /* just read in and ignore for now TODO: */
-    static int DoCertificateRequest(SSL* ssl, const byte* input, word32*
+    static int DoCertificateRequest(CYASSL* ssl, const byte* input, word32*
                                     inOutIdx)
     {
         word16 len;
@@ -3933,7 +3935,7 @@ int SetCipherList(SSL_CTX* ctx, const char* list)
     }
 
 
-    static int DoServerKeyExchange(SSL* ssl, const byte* input,
+    static int DoServerKeyExchange(CYASSL* ssl, const byte* input,
                                    word32* inOutIdx)
     {
     #if defined(OPENSSL_EXTRA) || defined(HAVE_ECC)
@@ -4147,7 +4149,7 @@ int SetCipherList(SSL_CTX* ctx, const char* list)
     }
 
 
-    int SendClientKeyExchange(SSL* ssl)
+    int SendClientKeyExchange(CYASSL* ssl)
     {
         byte   encSecret[MAX_NTRU_ENCRYPT_SZ];
         word32 encSz = 0;
@@ -4351,7 +4353,7 @@ int SetCipherList(SSL_CTX* ctx, const char* list)
         return ret;
     }
 
-    int SendCertificateVerify(SSL* ssl)
+    int SendCertificateVerify(CYASSL* ssl)
     {
         byte              *output;
         int                sendSz = 0, length, ret;
@@ -4452,7 +4454,7 @@ int SetCipherList(SSL_CTX* ctx, const char* list)
 
 #ifndef NO_CYASSL_SERVER
 
-    int SendServerHello(SSL* ssl)
+    int SendServerHello(CYASSL* ssl)
     {
         byte              *output;
         word32             length, idx = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
@@ -4566,7 +4568,7 @@ int SetCipherList(SSL_CTX* ctx, const char* list)
 #endif /* HAVE_ECC */
 
 
-    int SendServerKeyExchange(SSL* ssl)
+    int SendServerKeyExchange(CYASSL* ssl)
     {
         int ret = 0;
         (void)ssl;
@@ -4984,7 +4986,7 @@ int SetCipherList(SSL_CTX* ctx, const char* list)
     }
 
 
-    static int MatchSuite(SSL* ssl, Suites* peerSuites)
+    static int MatchSuite(CYASSL* ssl, Suites* peerSuites)
     {
         word16 i, j;
 
@@ -5008,7 +5010,7 @@ int SetCipherList(SSL_CTX* ctx, const char* list)
 
 
     /* process old style client hello, deprecate? */
-    int ProcessOldClientHello(SSL* ssl, const byte* input, word32* inOutIdx,
+    int ProcessOldClientHello(CYASSL* ssl, const byte* input, word32* inOutIdx,
                               word32 inSz, word16 sz)
     {
         word32          idx = *inOutIdx;
@@ -5130,7 +5132,7 @@ int SetCipherList(SSL_CTX* ctx, const char* list)
         /* DoClientHello uses same resume code */
         while (ssl->options.resuming) {  /* let's try */
             int ret; 
-            SSL_SESSION* session = GetSession(ssl, ssl->arrays.masterSecret);
+            CYASSL_SESSION* session = GetSession(ssl, ssl->arrays.masterSecret);
             if (!session) {
                 ssl->options.resuming = 0;
                 break;   /* session lookup failed */
@@ -5152,7 +5154,7 @@ int SetCipherList(SSL_CTX* ctx, const char* list)
     }
 
 
-    static int DoClientHello(SSL* ssl, const byte* input, word32* inOutIdx,
+    static int DoClientHello(CYASSL* ssl, const byte* input, word32* inOutIdx,
                              word32 totalSz, word32 helloSz)
     {
         byte b;
@@ -5283,7 +5285,7 @@ int SetCipherList(SSL_CTX* ctx, const char* list)
         /* ProcessOld uses same resume code */
         while (ssl->options.resuming) {  /* let's try */
             int ret;            
-            SSL_SESSION* session = GetSession(ssl, ssl->arrays.masterSecret);
+            CYASSL_SESSION* session = GetSession(ssl, ssl->arrays.masterSecret);
             if (!session) {
                 ssl->options.resuming = 0;
                 CYASSL_MSG("Session lookup for resume failed");
@@ -5305,7 +5307,7 @@ int SetCipherList(SSL_CTX* ctx, const char* list)
     }
 
 
-    static int DoCertificateVerify(SSL* ssl, byte* input, word32* inOutsz,
+    static int DoCertificateVerify(CYASSL* ssl, byte* input, word32* inOutsz,
                                    word32 totalSz)
     {
         word16      sz = 0;
@@ -5368,7 +5370,7 @@ int SetCipherList(SSL_CTX* ctx, const char* list)
     }
 
 
-    int SendServerHelloDone(SSL* ssl)
+    int SendServerHelloDone(CYASSL* ssl)
     {
         byte              *output;
         int                sendSz = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
@@ -5404,7 +5406,7 @@ int SetCipherList(SSL_CTX* ctx, const char* list)
     }
 
 
-    int SendHelloVerifyRequest(SSL* ssl)
+    int SendHelloVerifyRequest(CYASSL* ssl)
     {
         byte* output;
         int   length = VERSION_SZ + ENUM_LEN;
@@ -5442,7 +5444,7 @@ int SetCipherList(SSL_CTX* ctx, const char* list)
     }
 
 
-    static int DoClientKeyExchange(SSL* ssl, byte* input,
+    static int DoClientKeyExchange(CYASSL* ssl, byte* input,
                                    word32* inOutIdx)
     {
         int    ret = 0;
