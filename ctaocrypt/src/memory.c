@@ -1,4 +1,4 @@
-/* cyassl_memory.c 
+/* memory.c 
  *
  * Copyright (C) 2006-2011 Sawtooth Consulting Ltd.
  *
