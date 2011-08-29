@@ -44,6 +44,22 @@
     typedef unsigned int   word32;
 #endif
 
+
+/* try to set SIZEOF_LONG or LONG_LONG if user didn't */
+#if !defined(_MSC_VER) && !defined(__BCPLUSPLUS__)
+    #if !defined(SIZEOF_LONG_LONG) && !defined(SIZEOF_LONG)
+        #if (defined(__alpha__) || defined(__ia64__) || defined(_ARCH_PPC64) \
+                || defined(__mips64)  || defined(__x86_64__)) 
+            /* long should be 64bit */
+            #define SIZEOF_LONG 8
+        #elif (defined__i386__) 
+            /* long long should be 64bit */
+            #define SIZEOF_LONG_LONG 8
+        #endif
+    #endif
+#endif
+
+
 #if defined(_MSC_VER) || defined(__BCPLUSPLUS__)
     #define WORD64_AVAILABLE
     #define W64LIT(x) x##ui64
@@ -199,13 +215,13 @@ enum {
     CTC_SETTINGS = 0x1
 #elif !defined(USE_FAST_MATH) && defined(SIZEOF_LONG_LONG) && (SIZEOF_LONG_LONG == 8)
     CTC_SETTINGS = 0x2
-#elif defined(USE_FAST_MATH) && !defined(SIZEOF_LONG) && !defined(SIZEOF_LONG_LONG)
-    CTC_SETTINGS = 0x4
-#elif defined(USE_FAST_MATH) && defined(SIZEOF_LONG) && (SIZEOF_LONG == 8)
-    CTC_SETTINGS = 0x8
-#elif defined(USE_FAST_MATH) && defined(SIZEOF_LONG_LONG) && (SIZEOF_LONG_LONG == 8)
-    CTC_SETTINGS = 0x10
 #elif !defined(USE_FAST_MATH) && defined(SIZEOF_LONG_LONG) && (SIZEOF_LONG_LONG == 4)
+    CTC_SETTINGS = 0x4
+#elif defined(USE_FAST_MATH) && !defined(SIZEOF_LONG) && !defined(SIZEOF_LONG_LONG)
+    CTC_SETTINGS = 0x8
+#elif defined(USE_FAST_MATH) && defined(SIZEOF_LONG) && (SIZEOF_LONG == 8)
+    CTC_SETTINGS = 0x10
+#elif defined(USE_FAST_MATH) && defined(SIZEOF_LONG_LONG) && (SIZEOF_LONG_LONG == 8)
     CTC_SETTINGS = 0x20
 #elif defined(USE_FAST_MATH) && defined(SIZEOF_LONG_LONG) && (SIZEOF_LONG_LONG == 4)
     CTC_SETTINGS = 0x40
@@ -217,6 +233,9 @@ enum {
 
 CYASSL_API word32 CheckRunTimeSettings(void);
 
+/* If user uses RSA, DH, DSA, or ECC math lib and long types need to match
+   compile time and run time, CheckCtcSettings will return 1 if a match
+   otherwise 0 */
 #define CheckCtcSettings() (CTC_SETTINGS == CheckRunTimeSettings())
 
 
