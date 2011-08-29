@@ -131,6 +131,9 @@ void ctaocrypt_test(void* args)
     int ret = 0;
 
     ((func_args*)args)->return_code = -1; /* error state */
+
+    if (CheckCtcSettings() != 1)
+        err_sys("Build vs runtime math mismatch\n", -1234);
     
     if ( (ret = md5_test()) ) 
         err_sys("MD5      test failed!\n", ret);

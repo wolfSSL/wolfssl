@@ -43,6 +43,12 @@
 #include <ctaocrypt/src/asm.c>  /* will define asm MACROS or C ones */
 
 
+/* math settings check */
+word32 CheckRunTimeSettings(void)
+{
+    return CTC_SETTINGS;
+}
+
 
 /* Functions */
 

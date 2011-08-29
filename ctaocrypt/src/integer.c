@@ -38,6 +38,13 @@
 #include <cyassl/ctaocrypt/integer.h>
 
 
+/* math settings check */
+word32 CheckRunTimeSettings(void)
+{
+    return CTC_SETTINGS;
+}
+
+
 /* handle up to 6 inits */
 int mp_init_multi(mp_int* a, mp_int* b, mp_int* c, mp_int* d, mp_int* e,
                   mp_int* f)

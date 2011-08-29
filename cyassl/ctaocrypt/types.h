@@ -190,6 +190,30 @@ enum {
 };
 
 
+
+/* settings detection for compile vs runtime math incombatibilities */
+enum {
+#if !defined(USE_FAST_MATH) && !defined(SIZEOF_LONG) && !defined(SIZEOF_LONG_LONG)
+    CTC_SETTINGS = 0x0
+#elif !defined(USE_FAST_MATH) && defined(SIZEOF_LONG)
+    CTC_SETTINGS = 0x1
+#elif !defined(USE_FAST_MATH) && defined(SIZEOF_LONG_LONG)
+    CTC_SETTINGS = 0x2
+#elif defined(USE_FAST_MATH) && !defined(SIZEOF_LONG) && !defined(SIZEOF_LONG_LONG)
+    CTC_SETTINGS = 0x4
+#elif defined(USE_FAST_MATH) && defined(SIZEOF_LONG)
+    CTC_SETTINGS = 0x8
+#elif defined(USE_FAST_MATH) && defined(SIZEOF_LONG_LONG)
+    CTC_SETTINGS = 0x10
+#endif
+};
+
+
+CYASSL_API word32 CheckRunTimeSettings(void);
+
+#define CheckCtcSettings() (CTC_SETTINGS == CheckRunTimeSettings())
+
+
 #ifdef __cplusplus
     }   /* extern "C" */
 #endif
