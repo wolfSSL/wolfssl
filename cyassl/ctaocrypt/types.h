@@ -195,16 +195,22 @@ enum {
 enum {
 #if !defined(USE_FAST_MATH) && !defined(SIZEOF_LONG) && !defined(SIZEOF_LONG_LONG)
     CTC_SETTINGS = 0x0
-#elif !defined(USE_FAST_MATH) && defined(SIZEOF_LONG)
+#elif !defined(USE_FAST_MATH) && defined(SIZEOF_LONG) && (SIZEOF_LONG == 8)
     CTC_SETTINGS = 0x1
-#elif !defined(USE_FAST_MATH) && defined(SIZEOF_LONG_LONG)
+#elif !defined(USE_FAST_MATH) && defined(SIZEOF_LONG_LONG) && (SIZEOF_LONG_LONG == 8)
     CTC_SETTINGS = 0x2
 #elif defined(USE_FAST_MATH) && !defined(SIZEOF_LONG) && !defined(SIZEOF_LONG_LONG)
     CTC_SETTINGS = 0x4
-#elif defined(USE_FAST_MATH) && defined(SIZEOF_LONG)
+#elif defined(USE_FAST_MATH) && defined(SIZEOF_LONG) && (SIZEOF_LONG == 8)
     CTC_SETTINGS = 0x8
-#elif defined(USE_FAST_MATH) && defined(SIZEOF_LONG_LONG)
+#elif defined(USE_FAST_MATH) && defined(SIZEOF_LONG_LONG) && (SIZEOF_LONG_LONG == 8)
     CTC_SETTINGS = 0x10
+#elif !defined(USE_FAST_MATH) && defined(SIZEOF_LONG_LONG) && (SIZEOF_LONG_LONG == 4)
+    CTC_SETTINGS = 0x20
+#elif defined(USE_FAST_MATH) && defined(SIZEOF_LONG_LONG) && (SIZEOF_LONG_LONG == 4)
+    CTC_SETTINGS = 0x40
+#else
+    #error "bad math long / long long settings"
 #endif
 };
 
