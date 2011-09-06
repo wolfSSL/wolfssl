@@ -232,6 +232,19 @@ then
 fi
 
 
+# SMALL cache
+AC_ARG_ENABLE(smallcache,
+    [  --enable-smallcache     Enable small session cache (default: disabled)],
+    [ ENABLED_SMALLCACHE=$enableval ],
+    [ ENABLED_SMALLCACHE=no ]
+    )
+
+if test "$ENABLED_SMALLCACHE" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DSMALL_SESSION_CACHE"
+fi
+
+
 # SNIFFER
 AC_ARG_ENABLE(sniffer,
     [  --enable-sniffer        Enable CyaSSL sniffer support (default: disabled)],

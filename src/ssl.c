@@ -456,6 +456,10 @@ int AddCA(CYASSL_CTX* ctx, buffer der)
        HUGE_SESSION_CACHE yields 65,791 sessions, for servers under heavy load,
        allows over 13,000 new sessions per minute or over 200 new sessions per
        second
+
+       SMALL_SESSION_CACHE only stores 6 sessions, good for embedded clients
+       or systems where the default of nearly 3kB is too much RAM, this define
+       uses less than 500 bytes RAM
     */
     #ifdef HUGE_SESSION_CACHE
         #define SESSIONS_PER_ROW 11
@@ -463,6 +467,9 @@ int AddCA(CYASSL_CTX* ctx, buffer der)
     #elif defined(BIG_SESSION_CACHE)
         #define SESSIONS_PER_ROW 5
         #define SESSION_ROWS 211
+    #elif defined(SMALL_SESSION_CACHE)
+        #define SESSIONS_PER_ROW 2
+        #define SESSION_ROWS 3 
     #else
         #define SESSIONS_PER_ROW 3
         #define SESSION_ROWS 11
