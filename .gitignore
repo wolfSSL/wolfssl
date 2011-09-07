@@ -35,6 +35,8 @@ cert.der
 cert.pem
 othercert.der
 othercert.pem
+key.der
+key.pem
 diff
 sslSniffer/sslSnifferTest/tracefile.txt
 *.gz
