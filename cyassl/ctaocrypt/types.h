@@ -39,7 +39,9 @@
 #endif
 
 #ifndef CYASSL_TYPES
-    typedef unsigned char  byte;
+    #ifndef byte
+        typedef unsigned char  byte;
+    #endif
     typedef unsigned short word16;
     typedef unsigned int   word32;
 #endif
