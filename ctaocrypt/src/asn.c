@@ -2106,6 +2106,14 @@ void CTaoCryptErrorString(int error, char* buffer)
         XSTRNCPY(buffer, "Setting Cert Issuer name error", max);
         break; 
 
+    case CA_TRUE_E :
+        XSTRNCPY(buffer, "Setting basic constraint CA true error", max);
+        break; 
+
+    case EXTENSIONS_E :
+        XSTRNCPY(buffer, "Setting extensions error", max);
+        break; 
+
     case ASN_PARSE_E :
         XSTRNCPY(buffer, "ASN parsing error, invalid input", max);
         break;
@@ -2401,6 +2409,7 @@ void InitCert(Cert* cert)
     cert->sigType    = MD5wRSA;
     cert->daysValid  = 500;
     cert->selfSigned = 1;
+    cert->isCA       = 0;
     cert->bodySz     = 0;
     cert->keyType    = RSA_KEY;
     XMEMSET(cert->serial, 0, CTC_SERIAL_SIZE);
@@ -2435,6 +2444,8 @@ typedef struct DerCert {
     byte subject[ASN_NAME_MAX];        /* subject encoded */
     byte validity[MAX_DATE_SIZE*2 + MAX_SEQ_SZ*2];  /* before and after dates */
     byte publicKey[MAX_PUBLIC_KEY_SZ]; /* rsa / ntru public key encoded */
+    byte ca[MAX_CA_SZ];                /* basic constraint CA true size */
+    byte extensions[MAX_EXTENSIONS_SZ];  /* all extensions */
     int  sizeSz;                       /* encoded size length */
     int  versionSz;                    /* encoded version length */
     int  serialSz;                     /* encoded serial length */
@@ -2443,6 +2454,8 @@ typedef struct DerCert {
     int  subjectSz;                    /* encoded subject length */
     int  validitySz;                   /* encoded validity length */
     int  publicKeySz;                  /* encoded public key length */
+    int  caSz;                         /* encoded CA extension length */
+    int  extensionsSz;                 /* encoded extensions total length */
     int  total;                        /* total encoded lengths */
 } DerCert;
 
@@ -2717,6 +2730,41 @@ static byte GetNameId(int idx)
 }
 
 
+/* encode all extensions, return total bytes written */
+static int SetExtensions(byte* output, const byte* ca, int caSz)
+{
+    byte sequence[MAX_SEQ_SZ];
+    byte len[MAX_LENGTH_SZ];
+
+    int sz = 0;
+    int seqSz = SetSequence(caSz, sequence);
+    int lenSz = SetLength(seqSz + caSz, len);
+
+    output[0] = 0xa3; /* extensions id */
+    sz++;
+    memcpy(&output[sz], len, lenSz);  /* length */
+    sz += lenSz; 
+    memcpy(&output[sz], sequence, seqSz);  /* sequence */
+    sz += seqSz;
+    memcpy(&output[sz], ca, caSz);  /* ca */
+    sz += caSz;
+
+    return sz;
+}
+
+
+/* encode CA basic constraint true, return total bytes written */
+static int SetCa(byte* output)
+{
+    static const byte ca[] = { 0x30, 0x0c, 0x06, 0x03, 0x55, 0x1d, 0x13, 0x04,
+                               0x05, 0x30, 0x03, 0x01, 0x01, 0xff };
+    
+    memcpy(output, ca, sizeof(ca));
+
+    return (int)sizeof(ca);
+}
+
+
 /* encode CertName into output, return total bytes written */
 static int SetName(byte* output, CertName* name)
 {
@@ -2888,8 +2936,27 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, RNG* rng,
     if (der->issuerSz == 0)
         return ISSUER_E;
 
+    /* CA */
+    if (cert->isCA) {
+        der->caSz = SetCa(der->ca);
+        if (der->caSz == 0)
+            return CA_TRUE_E;
+    }
+    else
+        der->caSz = 0;
+
+    /* extensions, just CA now */
+    if (cert->isCA) {
+        der->extensionsSz = SetExtensions(der->extensions, der->ca, der->caSz);
+        if (der->extensionsSz == 0)
+            return EXTENSIONS_E;
+    }
+    else
+        der->extensionsSz = 0;
+
     der->total = der->versionSz + der->serialSz + der->sigAlgoSz +
-        der->publicKeySz + der->validitySz + der->subjectSz + der->issuerSz;
+        der->publicKeySz + der->validitySz + der->subjectSz + der->issuerSz +
+        der->extensionsSz;
 
     return 0;
 }
@@ -2923,6 +2990,11 @@ static int WriteCertBody(DerCert* der, byte* buffer)
     /* public key */
     XMEMCPY(buffer + idx, der->publicKey, der->publicKeySz);
     idx += der->publicKeySz;
+    if (der->extensionsSz) {
+        /* extensions */
+        XMEMCPY(buffer + idx, der->extensions, der->extensionsSz);
+        idx += der->extensionsSz;
+    }
 
     return idx;
 }

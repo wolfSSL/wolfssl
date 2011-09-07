@@ -69,6 +69,7 @@ typedef struct Cert {
     int      daysValid;                 /* validity days */
     int      selfSigned;                /* self signed flag */
     CertName subject;                   /* subject info */
+    int      isCA;                      /* is this going to be a CA */
     /* internal use only */
     int      bodySz;                    /* pre sign total size */
     int      keyType;                   /* public key type of subject */
@@ -85,6 +86,7 @@ typedef struct Cert {
    daysValid  = 500
    selfSigned = 1 (true) use subject as issuer
    subject    = blank
+   isCA       = 0 (false)
    keyType    = RSA_KEY (default)
 */
 CYASSL_API void InitCert(Cert*);

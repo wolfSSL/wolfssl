@@ -1220,6 +1220,7 @@ int rsa_test()
         strncpy(myCert.subject.unit, "Development", CTC_NAME_SIZE);
         strncpy(myCert.subject.commonName, "www.yassl.com", CTC_NAME_SIZE);
         strncpy(myCert.subject.email, "info@yassl.com", CTC_NAME_SIZE);
+        myCert.isCA = 1;
 
         certSz = MakeSelfCert(&myCert, derCert, sizeof(derCert), &key, &rng); 
         if (certSz < 0)

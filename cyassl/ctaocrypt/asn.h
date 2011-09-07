@@ -115,10 +115,13 @@ enum Misc_ASN {
     MAX_RSA_INT_SZ      = 517,     /* RSA raw sz 4096 for bits + tag + len(4) */
     MAX_NTRU_KEY_SZ     = 610,     /* NTRU 112 bit public key */
     MAX_NTRU_ENC_SZ     = 628,     /* NTRU 112 bit DER public encoding */
+    MAX_LENGTH_SZ       =   4,     /* Max length size for DER encoding */
     MAX_RSA_E_SZ        =  16,     /* Max RSA public e size */
-    MAX_PUBLIC_KEY_SZ   = MAX_NTRU_ENC_SZ + MAX_ALGO_SZ + MAX_SEQ_SZ * 2, 
+    MAX_CA_SZ           =  32,     /* Max encoded CA basic constraint length */
+    MAX_EXTENSIONS_SZ   = 1 + MAX_LENGTH_SZ + MAX_CA_SZ,
+                                   /* Max total extensions, id + len + others */
+    MAX_PUBLIC_KEY_SZ   = MAX_NTRU_ENC_SZ + MAX_ALGO_SZ + MAX_SEQ_SZ * 2
                                    /* use bigger NTRU size */
-    MAX_LENGTH_SZ       =   4 
 };
 
 

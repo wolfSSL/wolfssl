@@ -65,6 +65,8 @@ enum {
     DATE_E             = -135,  /* setting date validity error */
     SUBJECT_E          = -136,  /* setting subject name error */
     ISSUER_E           = -137,  /* setting issuer  name error */
+    CA_TRUE_E          = -138,  /* setting CA basic constraint true error */
+    EXTENSIONS_E       = -139,  /* setting extensions error */
 
     ASN_PARSE_E        = -140,  /* ASN parsing error, invalid input */
     ASN_VERSION_E      = -141,  /* ASN version error, invalid number */
