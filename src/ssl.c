@@ -1011,21 +1011,22 @@ static int ProcessFile(CYASSL_CTX* ctx, const char* fname, int format, int type,
 int CyaSSL_CTX_load_verify_locations(CYASSL_CTX* ctx, const char* file,
                                   const char* path)
 {
+    int ret;
+
     CYASSL_ENTER("SSL_CTX_load_verify_locations");
     (void)path;
 
     if (ctx == NULL || file == NULL)
         return SSL_FAILURE;
 
-    if (ProcessFile(ctx, file, SSL_FILETYPE_PEM, CA_TYPE,NULL,0) == SSL_SUCCESS)
-        return SSL_SUCCESS;
-
-    return SSL_FAILURE;
+    return ProcessFile(ctx, file, SSL_FILETYPE_PEM, CA_TYPE, NULL, 0);
 }
 
 
 #ifdef CYASSL_DER_LOAD
 
+/* TODO: TAO make different name now that using CyaSSL_ same as above, document,
+   add CYASSL_API ref, and test */
 /* Add format parameter to allow DER load of CA files */
 int CyaSSL_CTX_load_verify_locations(CYASSL_CTX* ctx, const char* file,
                                      int format)
@@ -4237,22 +4238,16 @@ const byte* CyaSSL_get_sessionID(const CYASSL_SESSION* session)
 }
 
 
-/* connect enough to get peer cert chain, no validation */
+/* connect enough to get peer cert chain */
 int CyaSSL_connect_cert(CYASSL* ssl)
 {
     int  ret;
-    byte oldVerify;
 
     if (ssl == NULL)
         return SSL_FAILURE;
 
-    oldVerify = ssl->options.verifyNone;
-    ssl->options.verifyNone = 1;
-    ssl->options.certOnly   = 1;
-
+    ssl->options.certOnly = 1;
     ret = CyaSSL_connect(ssl);
-
-    ssl->options.verifyNone = oldVerify;
     ssl->options.certOnly   = 0;
 
     return ret;
