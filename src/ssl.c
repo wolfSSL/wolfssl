@@ -66,9 +66,14 @@
 
 CYASSL_CTX* CyaSSL_CTX_new(CYASSL_METHOD* method)
 {
-    CYASSL_CTX* ctx = (CYASSL_CTX*) XMALLOC(sizeof(CYASSL_CTX), 0,
-                                         DYNAMIC_TYPE_CTX);
+    CYASSL_CTX* ctx = NULL;
+
     CYASSL_ENTER("CYASSL_CTX_new");
+
+    if (method == NULL)
+        return ctx;
+
+    ctx = (CYASSL_CTX*) XMALLOC(sizeof(CYASSL_CTX), 0, DYNAMIC_TYPE_CTX);
     if (ctx)
         InitSSL_Ctx(ctx, method);
 
@@ -88,8 +93,14 @@ void CyaSSL_CTX_free(CYASSL_CTX* ctx)
 
 CYASSL* CyaSSL_new(CYASSL_CTX* ctx)
 {
-    CYASSL* ssl = (CYASSL*) XMALLOC(sizeof(CYASSL), ctx->heap,DYNAMIC_TYPE_SSL);
+    CYASSL* ssl = NULL;
+
     CYASSL_ENTER("SSL_new");
+
+    if (ctx == NULL)
+        return ssl;
+
+    ssl = (CYASSL*) XMALLOC(sizeof(CYASSL), ctx->heap,DYNAMIC_TYPE_SSL);
     if (ssl)
         if (InitSSL(ssl, ctx) < 0) {
             FreeSSL(ssl);
