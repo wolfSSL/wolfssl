@@ -2012,7 +2012,11 @@ mp_montgomery_setup (mp_int * n, mp_digit * rho)
 int fast_mp_montgomery_reduce (mp_int * x, mp_int * n, mp_digit rho)
 {
   int     ix, res, olduse;
+#ifdef CYASSL_SMALL_STACK
+  mp_word* W;    /* uses dynamic memory and slower */
+#else
   mp_word W[MP_WARRAY];
+#endif
 
   /* get old used count */
   olduse = x->used;
@@ -2023,6 +2027,12 @@ int fast_mp_montgomery_reduce (mp_int * x, mp_int * n, mp_digit rho)
       return res;
     }
   }
+
+#ifdef CYASSL_SMALL_STACK
+  W = (mp_word*)XMALLOC(sizeof(mp_word) * MP_WARRAY, 0, DYNAMIC_TYPE_BIGINT);
+  if (W == NULL)    
+    return MP_MEM;
+#endif
 
   /* first we have to get the digits of the input into
    * an array of double precision words W[...]
@@ -2144,6 +2154,10 @@ int fast_mp_montgomery_reduce (mp_int * x, mp_int * n, mp_digit rho)
   /* set the max used and clamp */
   x->used = n->used + 1;
   mp_clamp (x);
+
+#ifdef CYASSL_SMALL_STACK
+  XFREE(W, 0, DYNAMIC_TYPE_BIGINT);
+#endif
 
   /* if A >= m then A = A - m */
   if (mp_cmp_mag (x, n) != MP_LT) {
