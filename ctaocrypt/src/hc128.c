@@ -321,4 +321,13 @@ void Hc128_Process(HC128* ctx, byte* output, const byte* input, word32 msglen)
 }
 
 
-#endif /* NO_HC128 */
+#else  /* HAVE_HC128 */
+
+
+#ifdef _MSC_VER
+    /* 4206 warning for blank file */
+    #pragma warning(disable: 4206)
+#endif
+
+
+#endif /* HAVE_HC128 */

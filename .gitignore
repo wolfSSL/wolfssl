@@ -8,6 +8,9 @@
 *.user
 config*
 *Debug/
+*Release/
+*.ncb
+*.suo
 stamp-h
 libtool.m4
 aclocal.m4
@@ -45,6 +48,7 @@ sslSniffer/sslSnifferTest/tracefile.txt
 *.dummy
 compile
 NTRU_algorithm/
+NTRU/
 build-test/
 build/
 cyassl.xcodeproj/

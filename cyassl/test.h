@@ -594,5 +594,77 @@ static INLINE void SetDH(SSL* ssl)
     CyaSSL_SetTmpDH(ssl, p, sizeof(p), g, sizeof(g));
 }
 
+#ifdef USE_WINDOWS_API 
+
+/* do back x number of directories */
+static INLINE void ChangeDirBack(int x)
+{
+    char path[MAX_PATH];
+
+    if (x == 1)
+        strncpy(path, "..\\", MAX_PATH);
+    else if (x == 2)
+        strncpy(path, "..\\..\\", MAX_PATH);
+    else if (x == 3)
+        strncpy(path, "..\\..\\..\\", MAX_PATH);
+    else if (x == 4)
+        strncpy(path, "..\\..\\..\\..\\", MAX_PATH);
+    else
+        strncpy(path, ".\\", MAX_PATH);
+    
+    SetCurrentDirectoryA(path);
+}
+
+/* does current dir contain str */
+static INLINE int CurrentDir(const char* str)
+{
+    char path[MAX_PATH];
+
+    GetCurrentDirectoryA(sizeof(path), path);
+    if (strstr(path, str))
+        return 1;
+
+    return 0;
+}
+
+#else
+
+#ifndef MAX_PATH
+    #define MAX_PATH 256
+#endif
+
+/* do back x number of directories */
+static INLINE void ChangeDirBack(int x)
+{
+    char path[MAX_PATH];
+
+    if (x == 1)
+        strncpy(path, "../", MAX_PATH);
+    else if (x == 2)
+        strncpy(path, "../../", MAX_PATH);
+    else if (x == 3)
+        strncpy(path, "../../../", MAX_PATH);
+    else if (x == 4)
+        strncpy(path, "../../../../", MAX_PATH);
+    else
+        strncpy(path, "./", MAX_PATH);
+    
+    chdir(path);
+}
+
+/* does current dir contain str */
+static INLINE int CurrentDir(const char* str)
+{
+    char path[MAX_PATH];
+
+    getcwd(path, sizeof(path));
+    if (strstr(path, str))
+        return 1;
+
+    return 0;
+}
+
+#endif /* USE_WINDOWS_API */
+
 #endif /* CyaSSL_TEST_H */
 

@@ -41,7 +41,7 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
-				AdditionalIncludeDirectories="../../ctaocrypt/include;../../include;../../include/openssl"
+				AdditionalIncludeDirectories="../../"
 				PreprocessorDefinitions="NO_PSK"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
@@ -117,7 +117,7 @@
 				Name="VCCLCompilerTool"
 				Optimization="2"
 				EnableIntrinsicFunctions="true"
-				AdditionalIncludeDirectories="../../ctaocrypt/include;../../include;../../include/openssl"
+				AdditionalIncludeDirectories="../../"
 				PreprocessorDefinitions="NO_PSK"
 				RuntimeLibrary="2"
 				EnableFunctionLevelLinking="true"

@@ -35,6 +35,12 @@
 #endif
 
 
+#ifdef _MSC_VER
+    /* 4127 warning constant while(1)  */
+    #pragma warning(disable: 4127)
+#endif
+
+
 static const word32 rcon[] = {
     0x01000000, 0x02000000, 0x04000000, 0x08000000,
     0x10000000, 0x20000000, 0x40000000, 0x80000000,

@@ -41,7 +41,7 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
-				AdditionalIncludeDirectories="../ctaocrypt/include;../include;../include/openssl"
+				AdditionalIncludeDirectories="../"
 				PreprocessorDefinitions="CYASSL_SNIFFER;SSL_SNIFFER_EXPORTS"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
@@ -117,7 +117,7 @@
 				Name="VCCLCompilerTool"
 				Optimization="2"
 				EnableIntrinsicFunctions="true"
-				AdditionalIncludeDirectories="../ctaocrypt/include;../include;../include/openssl"
+				AdditionalIncludeDirectories="../"
 				PreprocessorDefinitions="CYASSL_SNIFFER;SSL_SNIFFER_EXPORTS"
 				RuntimeLibrary="2"
 				EnableFunctionLevelLinking="true"
@@ -196,7 +196,7 @@
 			UniqueIdentifier="{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}"
 			>
 			<File
-				RelativePath="..\include\sniffer_error.rc"
+				RelativePath="..\cyassl\sniffer_error.rc"
 				>
 			</File>
 		</Filter>

@@ -65,6 +65,9 @@ int main(int argc, char** argv)
 #ifdef DEBUG_CYASSL
     CyaSSL_Debugging_ON();
 #endif
+
+    if (CurrentDir("testsuite"))
+        ChangeDirBack(1);
    
     /* CTaoCrypt test */
     ctaocrypt_test(&args);

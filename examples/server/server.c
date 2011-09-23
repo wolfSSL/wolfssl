@@ -205,6 +205,9 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 #ifdef DEBUG_CYASSL
         CyaSSL_Debugging_ON();
 #endif
+        if (CurrentDir("server"))
+            ChangeDirBack(2);
+   
         server_test(&args);
         CyaSSL_Cleanup();
 

@@ -30,26 +30,6 @@
 
 #include <cyassl/ssl.h>
 
-#ifdef USE_CYASSL_VERSION
-    #include <cyassl/version.h>
-#endif
-
-
-#ifdef YASSL_PREFIX
-    #include "prefix_ssl.h"
-#endif
-
-#ifdef LIBCYASSL_VERSION_STRING
-    #define CYASSL_VERSION LIBCYASSL_VERSION_STRING
-#endif
-
-#ifdef _WIN32
-    /* wincrypt.h clashes */
-    #undef X509_NAME
-    #undef OCSP_REQUEST 
-    #undef OCSP_RESPONSE
-#endif
-
 #ifdef __cplusplus
     extern "C" {
 #endif

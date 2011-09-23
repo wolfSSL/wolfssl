@@ -31,7 +31,27 @@
 
 
 #ifndef NO_FILESYSTEM
-    #include <stdio.h>   /* ERR_pr fp */
+    #include <stdio.h>   /* ERR_printf */
+#endif
+
+#ifdef USE_CYASSL_VERSION
+    #include <cyassl/version.h>
+#endif
+
+
+#ifdef YASSL_PREFIX
+    #include "prefix_ssl.h"
+#endif
+
+#ifdef LIBCYASSL_VERSION_STRING
+    #define CYASSL_VERSION LIBCYASSL_VERSION_STRING
+#endif
+
+#ifdef _WIN32
+    /* wincrypt.h clashes */
+    #undef X509_NAME
+    #undef OCSP_REQUEST 
+    #undef OCSP_RESPONSE
 #endif
 
 
@@ -175,9 +195,7 @@ typedef int (*pem_password_cb)(char*, int, int, void*);
 CYASSL_API void CyaSSL_CTX_set_verify(CYASSL_CTX*, int, 
                                       VerifyCallback verify_callback);
 
-
 CYASSL_API int  CyaSSL_pending(CYASSL*);
-
 
 CYASSL_API void CyaSSL_load_error_strings(void);
 CYASSL_API int  CyaSSL_library_init(void);

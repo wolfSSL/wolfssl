@@ -14,6 +14,11 @@ or
 
 make test    (when using autoconf)
 
+On *nix or Windows the examples and testsuite will check to see if the current
+directory is the source directory and if so, attempt to change to the CyaSSL
+home directory.  This should work in most setup cases, if not, just follow the
+beginning of the note and specify the full path.
+
 
 Note 2)
 CyaSSL takes a different approach to certificate verification than OpenSSL does.

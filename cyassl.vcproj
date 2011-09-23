@@ -41,7 +41,7 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
-				AdditionalIncludeDirectories="ctaocrypt/include;include;include/openssl"
+				AdditionalIncludeDirectories="./"
 				PreprocessorDefinitions="OPENSSL_EXTRA;CYASSL_RIPEMD;CYASSL_SHA512;NO_PSK"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
@@ -105,7 +105,7 @@
 				Name="VCCLCompilerTool"
 				Optimization="2"
 				EnableIntrinsicFunctions="true"
-				AdditionalIncludeDirectories="ctaocrypt/include;include;include/openssl"
+				AdditionalIncludeDirectories="./"
 				PreprocessorDefinitions="OPENSSL_EXTRA;CYASSL_RIPEMD;CYASSL_SHA512;NO_PSK"
 				RuntimeLibrary="2"
 				EnableFunctionLevelLinking="true"
@@ -167,18 +167,6 @@
 				>
 			</File>
 			<File
-				RelativePath=".\src\cyassl_int.c"
-				>
-			</File>
-			<File
-				RelativePath=".\src\cyassl_io.c"
-				>
-			</File>
-			<File
-				RelativePath=".\ctaocrypt\src\cyassl_memory.c"
-				>
-			</File>
-			<File
 				RelativePath=".\ctaocrypt\src\des3.c"
 				>
 			</File>
@@ -203,6 +191,14 @@
 				>
 			</File>
 			<File
+				RelativePath=".\src\internal.c"
+				>
+			</File>
+			<File
+				RelativePath=".\src\io.c"
+				>
+			</File>
+			<File
 				RelativePath=".\src\keys.c"
 				>
 			</File>
@@ -216,6 +212,10 @@
 			</File>
 			<File
 				RelativePath=".\ctaocrypt\src\md5.c"
+				>
+			</File>
+			<File
+				RelativePath=".\ctaocrypt\src\memory.c"
 				>
 			</File>
 			<File
@@ -264,50 +264,6 @@
 			Filter="h;hpp;hxx;hm;inl;inc;xsd"
 			UniqueIdentifier="{93995380-89BD-4b04-88EB-625FBE52EBFB}"
 			>
-			<File
-				RelativePath=".\ctaocrypt\include\ctc_aes.h"
-				>
-			</File>
-			<File
-				RelativePath=".\ctaocrypt\include\ctc_dh.h"
-				>
-			</File>
-			<File
-				RelativePath=".\ctaocrypt\include\ctc_dsa.h"
-				>
-			</File>
-			<File
-				RelativePath=".\ctaocrypt\include\ctc_hmac.h"
-				>
-			</File>
-			<File
-				RelativePath=".\ctaocrypt\include\ctc_md4.h"
-				>
-			</File>
-			<File
-				RelativePath=".\ctaocrypt\include\ctc_md5.h"
-				>
-			</File>
-			<File
-				RelativePath=".\ctaocrypt\include\ctc_ripemd.h"
-				>
-			</File>
-			<File
-				RelativePath=".\ctaocrypt\include\ctc_rsa.h"
-				>
-			</File>
-			<File
-				RelativePath=".\ctaocrypt\include\ctc_sha.h"
-				>
-			</File>
-			<File
-				RelativePath=".\include\cyassl_error.h"
-				>
-			</File>
-			<File
-				RelativePath=".\include\cyassl_int.h"
-				>
-			</File>
 		</Filter>
 		<Filter
 			Name="Resource Files"
