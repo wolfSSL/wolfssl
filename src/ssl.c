@@ -1022,8 +1022,6 @@ static int ProcessFile(CYASSL_CTX* ctx, const char* fname, int format, int type,
 int CyaSSL_CTX_load_verify_locations(CYASSL_CTX* ctx, const char* file,
                                   const char* path)
 {
-    int ret;
-
     CYASSL_ENTER("SSL_CTX_load_verify_locations");
     (void)path;
 

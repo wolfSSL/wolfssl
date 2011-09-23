@@ -235,9 +235,9 @@ enum {
 
 CYASSL_API word32 CheckRunTimeSettings(void);
 
-/* If user uses RSA, DH, DSA, or ECC math lib and long types need to match
-   compile time and run time, CheckCtcSettings will return 1 if a match
-   otherwise 0 */
+/* If user uses RSA, DH, DSA, or ECC math lib directly then fast math and long
+   types need to match at compile time and run time, CheckCtcSettings will
+   return 1 if a match otherwise 0 */
 #define CheckCtcSettings() (CTC_SETTINGS == CheckRunTimeSettings())
 
 

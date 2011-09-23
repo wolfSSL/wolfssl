@@ -47,6 +47,9 @@ changes are required.
 
 Special Thanks to Brian Aker for his autoconf, install, and header patches.
 
+The CyaSSL manual is available at:
+http://www.yassl.com/documentation/CyaSSL-Manual.pdf.  For build instructions 
+and comments about the new features please check the manual.
 
 ************CyaSSL Release 2.0.0rc2 (6/6/2011)
 
