@@ -1020,7 +1020,7 @@ static int ProcessFile(CYASSL_CTX* ctx, const char* fname, int format, int type,
 
 /* just one for now TODO: add dir support from path */
 int CyaSSL_CTX_load_verify_locations(CYASSL_CTX* ctx, const char* file,
-                                  const char* path)
+                                     const char* path)
 {
     CYASSL_ENTER("SSL_CTX_load_verify_locations");
     (void)path;
@@ -1034,13 +1034,11 @@ int CyaSSL_CTX_load_verify_locations(CYASSL_CTX* ctx, const char* file,
 
 #ifdef CYASSL_DER_LOAD
 
-/* TODO: TAO make different name now that using CyaSSL_ same as above, document,
-   add CYASSL_API ref, and test */
 /* Add format parameter to allow DER load of CA files */
-int CyaSSL_CTX_load_verify_locations(CYASSL_CTX* ctx, const char* file,
-                                     int format)
+int CyaSSL_CTX_der_load_verify_locations(CYASSL_CTX* ctx, const char* file,
+                                         int format)
 {
-    CYASSL_ENTER("CyaSSL_CTX_load_verify_locations");
+    CYASSL_ENTER("CyaSSL_CTX_der_load_verify_locations");
     if (ctx == NULL || file == NULL)
         return SSL_FAILURE;
 
