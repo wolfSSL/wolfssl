@@ -369,6 +369,7 @@ void InitSSL_Ctx(CYASSL_CTX* ctx, CYASSL_METHOD* method)
         ctx->haveECDSA = 1;          /* always on cliet side */
                                      /* server can turn on by loading key */
 #endif
+    ctx->suites.setSuites = 0;  /* user hasn't set yet */
     /* remove DH later if server didn't set, add psk later */
     InitSuites(&ctx->suites, method->version, TRUE, FALSE, ctx->haveNTRU,
                ctx->haveECDSA, method->side);  
@@ -416,6 +417,9 @@ void InitSuites(Suites* suites, ProtocolVersion pv, byte haveDH, byte havePSK,
     (void)havePSK;
     (void)haveNTRU;
 
+    if (suites->setSuites)
+        return;      /* trust user settings, don't override */
+
     if (side == SERVER_END && haveECDSA)
         haveRSA = 0;   /* can't do RSA with ECDSA cert */
 
@@ -423,8 +427,6 @@ void InitSuites(Suites* suites, ProtocolVersion pv, byte haveDH, byte havePSK,
     if (pv.major == DTLS_MAJOR && pv.minor == DTLS_MINOR)
         tls = 1;
 #endif
-
-    suites->setSuites = 0;  /* user hasn't set yet */
 
 #ifdef BUILD_TLS_NTRU_RSA_WITH_AES_256_CBC_SHA
     if (tls && haveNTRU && haveRSA) {
@@ -778,16 +780,14 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
 #endif
 
     /* make sure server has DH parms, and add PSK if there, add NTRU too */
-    if (!ssl->ctx->suites.setSuites) {    /* trust user override */
-        if (ssl->options.side == SERVER_END) 
-            InitSuites(&ssl->suites, ssl->version,ssl->options.haveDH, havePSK,
-                       ssl->options.haveNTRU, ssl->options.haveECDSA,
-                       ssl->ctx->method->side);
-        else 
-            InitSuites(&ssl->suites, ssl->version, TRUE, havePSK,
-                       ssl->options.haveNTRU, ssl->options.haveECDSA,
-                       ssl->ctx->method->side);
-    }
+    if (ssl->options.side == SERVER_END) 
+        InitSuites(&ssl->suites, ssl->version,ssl->options.haveDH, havePSK,
+                   ssl->options.haveNTRU, ssl->options.haveECDSA,
+                   ssl->ctx->method->side);
+    else 
+        InitSuites(&ssl->suites, ssl->version, TRUE, havePSK,
+                   ssl->options.haveNTRU, ssl->options.haveECDSA,
+                   ssl->ctx->method->side);
 
     ssl->rfd = -1;   /* set to invalid descriptor */
     ssl->wfd = -1;
