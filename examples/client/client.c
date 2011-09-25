@@ -316,7 +316,7 @@ void client_test(void* args)
 #ifdef DEBUG_CYASSL
         CyaSSL_Debugging_ON();
 #endif
-        if (CurrentDir("client"))
+        if (CurrentDir("client") || CurrentDir("build"))
             ChangeDirBack(2);
    
         client_test(&args);

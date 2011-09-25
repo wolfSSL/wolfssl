@@ -46,6 +46,8 @@ sslSniffer/sslSnifferTest/tracefile.txt
 *.zip
 *.bak
 *.dummy
+*.xcworkspace
+xcuserdata
 compile
 NTRU_algorithm/
 NTRU/

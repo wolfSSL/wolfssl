@@ -247,7 +247,7 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
 #ifdef DEBUG_CYASSL
         CyaSSL_Debugging_ON();
 #endif
-        if (CurrentDir("echoserver"))
+        if (CurrentDir("echoserver") || CurrentDir("build"))
             ChangeDirBack(2);
         echoserver_test(&args);
         CyaSSL_Cleanup();

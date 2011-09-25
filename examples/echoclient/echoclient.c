@@ -165,7 +165,7 @@ void echoclient_test(void* args)
         args.argv = argv;
 
         CyaSSL_Init();
-        if (CurrentDir("echoclient"))
+        if (CurrentDir("echoclient") || CurrentDir("build"))
             ChangeDirBack(2);
         echoclient_test(&args);
         CyaSSL_Cleanup();
