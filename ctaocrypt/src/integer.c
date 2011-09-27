@@ -2746,7 +2746,12 @@ After that loop you do the squares and add them in.
 int fast_s_mp_sqr (mp_int * a, mp_int * b)
 {
   int       olduse, res, pa, ix, iz;
-  mp_digit   W[MP_WARRAY], *tmpx;
+#ifdef CYASSL_SMALL_STACK
+  mp_digit* W;    /* uses dynamic memory and slower */
+#else
+  mp_digit W[MP_WARRAY];
+#endif
+  mp_digit  *tmpx;
   mp_word   W1;
 
   /* grow the destination as required */
@@ -2756,6 +2761,12 @@ int fast_s_mp_sqr (mp_int * a, mp_int * b)
       return res;
     }
   }
+
+#ifdef CYASSL_SMALL_STACK
+  W = (mp_digit*)XMALLOC(sizeof(mp_digit) * MP_WARRAY, 0, DYNAMIC_TYPE_BIGINT);
+  if (W == NULL)    
+    return MP_MEM;
+#endif
 
   /* number of output digits to produce */
   W1 = 0;
@@ -2823,6 +2834,11 @@ int fast_s_mp_sqr (mp_int * a, mp_int * b)
     }
   }
   mp_clamp (b);
+
+#ifdef CYASSL_SMALL_STACK
+  XFREE(W, 0, DYNAMIC_TYPE_BIGINT);
+#endif
+
   return MP_OKAY;
 }
 
@@ -2846,7 +2862,11 @@ int fast_s_mp_sqr (mp_int * a, mp_int * b)
 int fast_s_mp_mul_digs (mp_int * a, mp_int * b, mp_int * c, int digs)
 {
   int     olduse, res, pa, ix, iz;
+#ifdef CYASSL_SMALL_STACK
+  mp_digit* W;    /* uses dynamic memory and slower */
+#else
   mp_digit W[MP_WARRAY];
+#endif
   register mp_word  _W;
 
   /* grow the destination as required */
@@ -2858,6 +2878,12 @@ int fast_s_mp_mul_digs (mp_int * a, mp_int * b, mp_int * c, int digs)
 
   /* number of output digits to produce */
   pa = MIN(digs, a->used + b->used);
+
+#ifdef CYASSL_SMALL_STACK
+  W = (mp_digit*)XMALLOC(sizeof(mp_digit) * MP_WARRAY, 0, DYNAMIC_TYPE_BIGINT);
+  if (W == NULL)    
+    return MP_MEM;
+#endif
 
   /* clear the carry */
   _W = 0;
@@ -2910,6 +2936,11 @@ int fast_s_mp_mul_digs (mp_int * a, mp_int * b, mp_int * c, int digs)
     }
   }
   mp_clamp (c);
+
+#ifdef CYASSL_SMALL_STACK
+  XFREE(W, 0, DYNAMIC_TYPE_BIGINT);
+#endif
+
   return MP_OKAY;
 }
 
@@ -3552,7 +3583,11 @@ s_mp_mul_high_digs (mp_int * a, mp_int * b, mp_int * c, int digs)
 int fast_s_mp_mul_high_digs (mp_int * a, mp_int * b, mp_int * c, int digs)
 {
   int     olduse, res, pa, ix, iz;
+#ifdef CYASSL_SMALL_STACK
+  mp_digit* W;    /* uses dynamic memory and slower */
+#else
   mp_digit W[MP_WARRAY];
+#endif
   mp_word  _W;
 
   /* grow the destination as required */
@@ -3562,6 +3597,12 @@ int fast_s_mp_mul_high_digs (mp_int * a, mp_int * b, mp_int * c, int digs)
       return res;
     }
   }
+
+#ifdef CYASSL_SMALL_STACK
+  W = (mp_digit*)XMALLOC(sizeof(mp_digit) * MP_WARRAY, 0, DYNAMIC_TYPE_BIGINT);
+  if (W == NULL)    
+    return MP_MEM;
+#endif
 
   /* number of output digits to produce */
   pa = a->used + b->used;
@@ -3614,6 +3655,11 @@ int fast_s_mp_mul_high_digs (mp_int * a, mp_int * b, mp_int * c, int digs)
     }
   }
   mp_clamp (c);
+
+#ifdef CYASSL_SMALL_STACK
+  XFREE(W, 0, DYNAMIC_TYPE_BIGINT);
+#endif
+
   return MP_OKAY;
 }
 
