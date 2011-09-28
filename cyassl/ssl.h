@@ -28,16 +28,11 @@
 
 /* for users not using preprocessor flags*/
 #include <cyassl/ctaocrypt/settings.h>
-
+#include <cyassl/version.h>
 
 #ifndef NO_FILESYSTEM
     #include <stdio.h>   /* ERR_printf */
 #endif
-
-#ifdef USE_CYASSL_VERSION
-    #include <cyassl/version.h>
-#endif
-
 
 #ifdef YASSL_PREFIX
     #include "prefix_ssl.h"
