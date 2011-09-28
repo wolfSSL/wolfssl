@@ -57,6 +57,15 @@ TESTS += $(check_PROGRAMS)
 test: check
 
 # !!!! first line of rule has to start with a hard (real) tab, not spaces
+egs:
+	$(MAKE) examples/client/client; \
+	$(MAKE) examples/echoclient/echoclient;\
+	$(MAKE) examples/server/server; \
+	$(MAKE) examples/echoserver/echoserver;
+
+ctc:
+	$(MAKE) ctaocrypt/test/testctaocrypt; \
+	$(MAKE) ctaocrypt/benchmark/benchmark; 
 
 merge-clean:
 	@find ./ | $(GREP) \.gcda | xargs rm -f
