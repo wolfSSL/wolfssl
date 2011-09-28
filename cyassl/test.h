@@ -649,7 +649,8 @@ static INLINE void ChangeDirBack(int x)
     else
         strncpy(path, "./", MAX_PATH);
     
-    chdir(path);
+    if (chdir(path) < 0)
+        printf("chdir to %s failed\n", path);
 }
 
 /* does current dir contain str */
@@ -657,7 +658,10 @@ static INLINE int CurrentDir(const char* str)
 {
     char path[MAX_PATH];
 
-    getcwd(path, sizeof(path));
+    if (getcwd(path, sizeof(path)) == NULL) {
+        printf("no current dir?\n");
+        return 0;
+    }
     if (strstr(path, str))
         return 1;
 

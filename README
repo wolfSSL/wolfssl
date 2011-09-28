@@ -34,7 +34,7 @@ before calling SSL_new();  Though it's not recommended.
 
 *** end Note ***
 
-CyaSSL Release 2.0.0rc3 (x/x/2011)
+CyaSSL Release 2.0.0rc3 (9/28/2011)
 
 Release 2.0.0rc3 for CyaSSL has bug fixes and a few new features including:
 - updated autoconf support
