@@ -3349,6 +3349,7 @@ int CyaSSL_set_compression(CYASSL* ssl)
                 default:
                     return "NONE";
             }
+            }
 #endif
             if (cipher->ssl->options.cipherSuite0 != ECC_BYTE) {
             /* normal suites */
