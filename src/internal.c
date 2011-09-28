@@ -53,9 +53,6 @@
 #endif
 
 
-int CyaSSL_negotiate(CYASSL*);
-
-
 #ifndef NO_CYASSL_CLIENT
     static int DoHelloVerifyRequest(CYASSL* ssl, const byte* input, word32*);
     static int DoServerHello(CYASSL* ssl, const byte* input, word32*);
@@ -805,9 +802,6 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
 
     return 0;
 }
-
-
-int CyaSSL_BIO_free(CYASSL_BIO*);  /* internal doesn't have */
 
 
 /* In case holding SSL object in array and don't want to free actual ssl */
@@ -1821,7 +1815,7 @@ static INLINE void Encrypt(CYASSL* ssl, byte* out, const byte* input, word32 sz)
 
         #ifdef BUILD_AES
             case aes:
-#ifdef CYASSL_AESNI
+            #ifdef CYASSL_AESNI
                 if ((word)input % 16) {
                     byte buffer[MAX_RECORD_SIZE + MAX_COMP_EXTRA+MAX_MSG_EXTRA];
                     XMEMCPY(buffer, input, sz);
@@ -1829,12 +1823,12 @@ static INLINE void Encrypt(CYASSL* ssl, byte* out, const byte* input, word32 sz)
                     XMEMCPY(out, buffer, sz);
                     break;
                 }
-#endif
+            #endif
                 AesCbcEncrypt(&ssl->encrypt.aes, out, input, sz);
                 break;
         #endif
 
-        #if HAVE_HC128
+        #ifdef HAVE_HC128
             case hc128:
                 Hc128_Process(&ssl->encrypt.hc128, out, input, sz);
                 break;
@@ -1874,7 +1868,7 @@ static INLINE void Decrypt(CYASSL* ssl, byte* plain, const byte* input,
                 break;
         #endif
 
-        #if HAVE_HC128
+        #ifdef HAVE_HC128
             case hc128:
                 Hc128_Process(&ssl->decrypt.hc128, plain, input, sz);
                 break;
@@ -4539,7 +4533,7 @@ int SetCipherList(CYASSL_CTX* ctx, const char* list)
 
 #ifdef HAVE_ECC
 
-    byte SetCurveId(int size)
+    static byte SetCurveId(int size)
     {
         switch(size) {
             case 20:
@@ -4747,16 +4741,16 @@ int SetCipherList(CYASSL_CTX* ctx, const char* list)
                     byte encodedSig[MAX_ENCODED_SIG_SZ];
                     if (IsAtLeastTLSv1_2(ssl)) {
                         byte* digest;
-                        int   hashType;
+                        int   hType;
                         int   digestSz;
 
                         /* sha1 for now */
                         digest   = &hash[MD5_DIGEST_SIZE];
-                        hashType = SHAh;
+                        hType    = SHAh;
                         digestSz = SHA_DIGEST_SIZE;
 
                         signSz = EncodeSignature(encodedSig, digest, digestSz,
-                                                 hashType);
+                                                 hType);
                         signBuffer = encodedSig;
                     }
                     ret = RsaSSL_Sign(signBuffer, signSz, output + idx, sigSz,
@@ -5563,13 +5557,13 @@ int SetCipherList(CYASSL_CTX* ctx, const char* list)
 #ifdef HAVE_ECC
         } else if (ssl->specs.kea == ecc_diffie_hellman_kea) {
             word32 size;
-            word32 length = input[*inOutIdx];  /* one byte length */
+            word32 bLength = input[*inOutIdx];  /* one byte length */
             *inOutIdx += 1;
 
-            ret = ecc_import_x963(&input[*inOutIdx], length, &ssl->peerEccKey);
+            ret = ecc_import_x963(&input[*inOutIdx], bLength, &ssl->peerEccKey);
             if (ret != 0)
                 return ECC_PEERKEY_ERROR;
-            *inOutIdx += length;
+            *inOutIdx += bLength;
             ssl->peerEccKeyPresent = 1;
 
             size = sizeof(ssl->arrays.preMasterSecret);

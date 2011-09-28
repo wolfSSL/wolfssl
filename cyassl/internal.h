@@ -750,7 +750,7 @@ typedef union {
 #ifdef BUILD_AES
     Aes    aes;
 #endif
-#if HAVE_HC128
+#ifdef HAVE_HC128
     HC128  hc128;
 #endif
 #ifdef BUILD_RABBIT

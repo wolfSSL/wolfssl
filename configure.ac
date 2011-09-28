@@ -350,7 +350,7 @@ fi
 
 # HC128 
 AC_ARG_ENABLE(hc128,
-    [  --enable-certgen        Enable HC-128 (default: disabled)],
+    [  --enable-hc128          Enable HC-128 (default: disabled)],
     [ ENABLED_HC128=$enableval ],
     [ ENABLED_HC128=no ]
     )
@@ -358,6 +358,8 @@ AC_ARG_ENABLE(hc128,
 if test "$ENABLED_HC128" = "no"
 then
     AM_CFLAGS="$AM_CFLAGS -DNO_HC128"
+else
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_HC128"
 fi
 
 AM_CONDITIONAL([BUILD_HC128], [test "x$ENABLED_HC128" = "xyes"])

@@ -1194,8 +1194,10 @@ static int GetName(DecodedCert* cert, int nameType)
         byte   joint[2];
         int    oidSz;
 
-        if (GetSet(cert->source, &cert->srcIdx, &dummy, cert->maxIdx) < 0)
+        if (GetSet(cert->source, &cert->srcIdx, &dummy, cert->maxIdx) < 0) {
+            (void)b;  /* empty body warning w/o messages enabled */
             CYASSL_MSG("Cert name lacks set header, trying sequence");
+        }
 
         if (GetSequence(cert->source, &cert->srcIdx, &dummy, cert->maxIdx) < 0)
             return ASN_PARSE_E;

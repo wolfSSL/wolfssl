@@ -752,7 +752,7 @@ int arc4_test()
 
 int hc128_test()
 {
-#if defined(HAVE_HC128) && HAVE_HC128
+#ifdef HAVE_HC128
     byte cipher[16];
     byte plain[16];
 

@@ -3286,7 +3286,7 @@ int CyaSSL_set_compression(CYASSL* ssl)
     }
 
 
-    void CYASSL_SESSION_free(CYASSL_SESSION* session)
+    void CyaSSL_SESSION_free(CYASSL_SESSION* session)
     {
         (void)session;
     }

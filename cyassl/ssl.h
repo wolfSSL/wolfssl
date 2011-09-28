@@ -204,6 +204,7 @@ CYASSL_API long CyaSSL_CTX_set_session_cache_mode(CYASSL_CTX*, long);
 /* only supports full name from cipher_name[] delimited by : */
 CYASSL_API int  CyaSSL_CTX_set_cipher_list(CYASSL_CTX*, const char*);
 
+CYASSL_API int   CyaSSL_ERR_GET_REASON(int err);
 CYASSL_API char* CyaSSL_ERR_error_string(unsigned long,char*);
 CYASSL_API void  CyaSSL_ERR_error_string_n(unsigned long e, char* buf,
                                            unsigned long sz);

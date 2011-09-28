@@ -565,7 +565,7 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
     }
 #endif
     
-#if HAVE_HC128
+#ifdef HAVE_HC128
     if (specs->bulk_cipher_algorithm == hc128) {
         if (side == CLIENT_END) {
             Hc128_SetKey(&enc->hc128, keys->client_write_key,

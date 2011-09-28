@@ -23,7 +23,7 @@
     #include <config.h>
 #endif
 
-#if HAVE_HC128
+#ifdef HAVE_HC128
 
 #include <cyassl/ctaocrypt/hc128.h>
 #ifdef NO_INLINE

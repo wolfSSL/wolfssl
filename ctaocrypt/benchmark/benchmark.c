@@ -75,7 +75,7 @@ int main(int argc, char** argv)
     bench_aes(1);
 #endif
     bench_arc4();
-#if HAVE_HC128
+#ifdef HAVE_HC128
     bench_hc128();
 #endif
 #ifndef NO_RABBIT
@@ -204,7 +204,7 @@ void bench_arc4()
 }
 
 
-#if HAVE_HC128
+#ifdef HAVE_HC128
 void bench_hc128()
 {
     HC128  enc;
