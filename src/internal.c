@@ -1548,10 +1548,21 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx)
         XSTRNCPY(ssl->peerCert.subject.name, dCert.subject, ASN_NAME_MAX);
         XMEMCPY(ssl->peerCert.serial, dCert.serial, EXTERNAL_SERIAL_SIZE);
         ssl->peerCert.serialSz = dCert.serialSz;
+        if (dCert.subjectCNLen < ASN_NAME_MAX) {
+            XMEMCPY(ssl->peerCert.subjectCN,dCert.subjectCN,dCert.subjectCNLen);
+            ssl->peerCert.subjectCN[dCert.subjectCNLen] = '\0';
+        }
+        else
+            ssl->peerCert.subjectCN[0] = '\0';
 #endif    
 
-        XMEMCPY(domain, dCert.subjectCN, dCert.subjectCNLen);
-        domain[dCert.subjectCNLen] = '\0';
+        /* store for callback use */
+        if (dCert.subjectCNLen < ASN_NAME_MAX) {
+            XMEMCPY(domain, dCert.subjectCN, dCert.subjectCNLen);
+            domain[dCert.subjectCNLen] = '\0';
+        }
+        else
+            domain[0] = '\0';
 
         if (!ssl->options.verifyNone && ssl->buffers.domainName.buffer)
             if (XSTRNCMP((char*)ssl->buffers.domainName.buffer,

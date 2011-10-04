@@ -932,6 +932,7 @@ struct CYASSL_X509 {
     CYASSL_X509_NAME subject;
     int              serialSz;
     byte             serial[EXTERNAL_SERIAL_SIZE];
+    char             subjectCN[ASN_NAME_MAX];        /* common name short cut */
 };
 
 

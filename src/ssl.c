@@ -3792,7 +3792,6 @@ int CyaSSL_set_compression(CYASSL* ssl)
     }
 
 
-
     int CyaSSL_ASN1_TIME_print(CYASSL_BIO* bio, const CYASSL_ASN1_TIME* asnTime)
     {
         (void)bio;
@@ -4144,6 +4143,14 @@ int CyaSSL_set_compression(CYASSL* ssl)
         *inOutSz = x509->serialSz;
 
         return 0;
+    }
+
+    char*  CyaSSL_X509_get_subjectCN(CYASSL_X509* x509)
+    {
+        if (x509 == NULL)
+            return NULL;
+
+        return x509->subjectCN;
     }
 
 #endif /* OPENSSL_EXTRA */

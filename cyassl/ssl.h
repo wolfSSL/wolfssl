@@ -658,6 +658,7 @@ CYASSL_API int  CyaSSL_get_chain_cert_pem(CYASSL_X509_CHAIN*, int idx,
                                 unsigned char* buffer, int inLen, int* outLen);
 CYASSL_API const unsigned char* CyaSSL_get_sessionID(const CYASSL_SESSION* s);
 CYASSL_API int  CyaSSL_X509_get_serial_number(CYASSL_X509*,unsigned char*,int*);
+CYASSL_API char*  CyaSSL_X509_get_subjectCN(CYASSL_X509*);
 
 /* connect enough to get peer cert */
 CYASSL_API int  CyaSSL_connect_cert(CYASSL* ssl);
