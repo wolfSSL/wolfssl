@@ -50,6 +50,13 @@ word32 CheckRunTimeSettings(void)
 }
 
 
+/* math settings size check */
+word32 CheckRunTimeFastMath(void)
+{
+    return FP_SIZE;
+}
+
+
 /* Functions */
 
 void fp_add(fp_int *a, fp_int *b, fp_int *c)

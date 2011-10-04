@@ -226,7 +226,9 @@
  *
  * It defaults to 4096-bits [allowing multiplications upto 2048x2048 bits ]
  */
-#define FP_MAX_BITS           4096
+#ifndef FP_MAX_BITS
+    #define FP_MAX_BITS           4096
+#endif
 #define FP_MAX_SIZE           (FP_MAX_BITS+(8*DIGIT_BIT))
 
 /* will this lib work? */
@@ -668,6 +670,11 @@ int  mp_sub_d(fp_int *a, fp_digit b, fp_int *c);
 int  mp_prime_is_prime(mp_int* a, int t, int* result);
 #endif /* CYASSL_KEY_GEN */
 
+CYASSL_API word32 CheckRunTimeFastMath(void);
+
+/* If user uses RSA, DH, DSA, or ECC math lib directly then fast math FP_SIZE
+   must match, return 1 if a match otherwise 0 */
+#define CheckFastMathSettings() (FP_SIZE == CheckRunTimeFastMath())
 #ifdef __cplusplus
    }
 #endif

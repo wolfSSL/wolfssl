@@ -160,7 +160,7 @@ fi
 
 if test "$ENABLED_OPENSSLEXTRA" = "yes" && test "$ENABLED_SMALL" = "yes"
 then
-    AC_MSG_ERROR([can't enable small and opensslExtra, only one or the other.]) 
+    AC_MSG_ERROR([cannot enable small and opensslExtra, only one or the other.])
 fi
 
 
@@ -177,12 +177,29 @@ then
 fi
 
 
+# ssl bump build 
+AC_ARG_ENABLE(bump,
+    [  --enable-bump           Enable SSL Bump build (default: disabled)],
+    [ ENABLED_BUMP=$enableval ],
+    [ ENABLED_BUMP=no ]
+    )
+
+if test "$ENABLED_BUMP" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DSESSION_CERTS -DLARGE_STATIC_BUFFERS -DCYASSL_CERT_GEN -DCYASSL_KEY_GEN -DOPENSSL_EXTRA -DFP_MAX_BITS=8192"
+fi
+
 # fastmath
 AC_ARG_ENABLE(fastmath,
     [  --enable-fastmath       Enable fast math for BigInts (default: disabled)],
     [ ENABLED_FASTMATH=$enableval ],
     [ ENABLED_FASTMATH=no ]
     )
+
+if test "$ENABLED_BUMP" = "yes"
+then
+    ENABLED_FASTMATH="yes"
+fi
 
 if test "x$ENABLED_FASTMATH" = "xyes"
 then
@@ -419,18 +436,6 @@ fi
 AM_CONDITIONAL([BUILD_NOINLINE], [test "x$ENABLED_NOINLINE" = "xyes"])
 
 
-# ssl bump build 
-AC_ARG_ENABLE(bump,
-    [  --enable-bump           Enable SSL Bump build (default: disabled)],
-    [ ENABLED_BUMP=$enableval ],
-    [ ENABLED_BUMP=no ]
-    )
-
-if test "$ENABLED_BUMP" = "yes"
-then
-    AM_CFLAGS="$AM_CFLAGS -DSESSION_CERTS -DLARGE_STATIC_BUFFERS -DCYASSL_CERT_GEN -DCYASSL_KEY_GEN -DOPENSSL_EXTRA"
-fi
-
 # ECC 
 AC_ARG_ENABLE(ecc,
     [  --enable-ecc            Enable ECC (default: disabled)],
@@ -448,7 +453,7 @@ AM_CONDITIONAL([BUILD_ECC], [test "x$ENABLED_ECC" = "xyes"])
 
 if test "$ENABLED_ECC" = "yes" && test "$ENABLED_SMALL" = "yes"
 then
-    AC_MSG_ERROR([can't enable ecc and small, ecc requires TLS which small turns off.]) 
+    AC_MSG_ERROR([cannot enable ecc and small, ecc requires TLS which small turns off.]) 
 fi
 
 
@@ -473,7 +478,7 @@ AM_CONDITIONAL([BUILD_NTRU], [test "x$ENABLED_NTRU" = "xyes"])
 
 if test "$ENABLED_NTRU" = "yes" && test "$ENABLED_SMALL" = "yes"
 then
-    AC_MSG_ERROR([can't enable ntru and small, ntru requires TLS which small turns off.]) 
+    AC_MSG_ERROR([cannot enable ntru and small, ntru requires TLS which small turns off.]) 
 fi
 
 

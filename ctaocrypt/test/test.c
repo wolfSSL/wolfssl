@@ -136,6 +136,11 @@ void ctaocrypt_test(void* args)
 
     if (CheckCtcSettings() != 1)
         err_sys("Build vs runtime math mismatch\n", -1234);
+
+#ifdef USE_FAST_MATH
+    if (CheckFastMathSettings() != 1)
+        err_sys("Build vs runtime fastmath FP_MAX_BITS mismatch\n", -1235);
+#endif
     
     if ( (ret = md5_test()) ) 
         err_sys("MD5      test failed!\n", ret);
