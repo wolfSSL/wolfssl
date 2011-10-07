@@ -1298,7 +1298,7 @@ int rsa_test()
 
         ret = SetIssuer(&myCert, caCertFile);
         if (ret < 0)
-            return -406;
+            return -405;
 
         certSz = MakeCert(&myCert, derCert, sizeof(derCert), &key, &rng); 
         if (certSz < 0)

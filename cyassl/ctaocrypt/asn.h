@@ -59,6 +59,7 @@ enum ASN_Tags {
     ASN_SET               = 0x11,
     ASN_UTC_TIME          = 0x17,
     ASN_GENERALIZED_TIME  = 0x18,
+    ASN_EXTENSIONS        = 0xa3,
     ASN_LONG_LENGTH       = 0x80
 };
 
@@ -118,8 +119,10 @@ enum Misc_ASN {
     MAX_LENGTH_SZ       =   4,     /* Max length size for DER encoding */
     MAX_RSA_E_SZ        =  16,     /* Max RSA public e size */
     MAX_CA_SZ           =  32,     /* Max encoded CA basic constraint length */
-    MAX_EXTENSIONS_SZ   = 1 + MAX_LENGTH_SZ + MAX_CA_SZ,
+#ifdef CYASSL_CERT_GEN
+    MAX_EXTENSIONS_SZ   = 1 + MAX_LENGTH_SZ + CTC_MAX_ALT_SIZE,
                                    /* Max total extensions, id + len + others */
+#endif
     MAX_PUBLIC_KEY_SZ   = MAX_NTRU_ENC_SZ + MAX_ALGO_SZ + MAX_SEQ_SZ * 2
                                    /* use bigger NTRU size */
 };
@@ -171,6 +174,11 @@ enum KDF_Sum {
 };
 
 
+enum Extensions_Sum {
+    ALT_NAMES_OID = 131 
+};
+
+
 enum VerifyType {
     NO_VERIFY = 0,
     VERIFY    = 1
@@ -204,6 +212,9 @@ struct DecodedCert {
     void*   heap;                    /* for user memory overrides        */
     byte    serial[EXTERNAL_SERIAL_SIZE];  /* raw serial number          */
     int     serialSz;                /* raw serial bytes stored */
+    byte*   extensions;              /* not owned, points into raw cert  */
+    int     extensionsSz;            /* length of cert extensions */
+    word32  extensionsIdx;           /* if want to go back and parse later */
 #ifdef CYASSL_CERT_GEN
     /* easy access to subject info for other sign */
     char*   subjectSN;

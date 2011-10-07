@@ -963,6 +963,9 @@ void InitDecodedCert(DecodedCert* cert, byte* source, word32 inSz, void* heap)
     cert->heap            = heap;
     XMEMSET(cert->serial, 0, EXTERNAL_SERIAL_SIZE);
     cert->serialSz        = 0;
+    cert->extensions      = 0;
+    cert->extensionsSz    = 0;
+    cert->extensionsIdx   = 0;
 #ifdef CYASSL_CERT_GEN
     cert->subjectSN       = 0;
     cert->subjectSNLen    = 0;
@@ -1922,8 +1925,16 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify,
             return ret;
     }
 
-    if (cert->srcIdx != cert->sigIndex)
+    if (cert->srcIdx != cert->sigIndex) {
+        if (cert->srcIdx < cert->sigIndex) {
+            /* save extensions */
+            cert->extensions    = &cert->source[cert->srcIdx];
+            cert->extensionsSz  =  cert->sigIndex - cert->srcIdx;
+            cert->extensionsIdx = cert->srcIdx;   /* for potential later use */
+        }
+        /* advance past extensions */
         cert->srcIdx =  cert->sigIndex;
+    }
 
     if ((ret = GetAlgoId(cert->source, &cert->srcIdx, &confirmOID,
                          cert->maxIdx)) < 0)
@@ -2413,6 +2424,7 @@ void InitCert(Cert* cert)
     cert->selfSigned = 1;
     cert->isCA       = 0;
     cert->bodySz     = 0;
+    cert->altNamesSz = 0;
     cert->keyType    = RSA_KEY;
     XMEMSET(cert->serial, 0, CTC_SERIAL_SIZE);
 
@@ -2733,23 +2745,23 @@ static byte GetNameId(int idx)
 
 
 /* encode all extensions, return total bytes written */
-static int SetExtensions(byte* output, const byte* ca, int caSz)
+static int SetExtensions(byte* output, const byte* ext, int extSz)
 {
     byte sequence[MAX_SEQ_SZ];
     byte len[MAX_LENGTH_SZ];
 
     int sz = 0;
-    int seqSz = SetSequence(caSz, sequence);
-    int lenSz = SetLength(seqSz + caSz, len);
+    int seqSz = SetSequence(extSz, sequence);
+    int lenSz = SetLength(seqSz + extSz, len);
 
-    output[0] = 0xa3; /* extensions id */
+    output[0] = ASN_EXTENSIONS; /* extensions id */
     sz++;
-    memcpy(&output[sz], len, lenSz);  /* length */
+    XMEMCPY(&output[sz], len, lenSz);  /* length */
     sz += lenSz; 
-    memcpy(&output[sz], sequence, seqSz);  /* sequence */
+    XMEMCPY(&output[sz], sequence, seqSz);  /* sequence */
     sz += seqSz;
-    memcpy(&output[sz], ca, caSz);  /* ca */
-    sz += caSz;
+    XMEMCPY(&output[sz], ext, extSz);  /* extensions */
+    sz += extSz;
 
     return sz;
 }
@@ -2761,7 +2773,7 @@ static int SetCa(byte* output)
     static const byte ca[] = { 0x30, 0x0c, 0x06, 0x03, 0x55, 0x1d, 0x13, 0x04,
                                0x05, 0x30, 0x03, 0x01, 0x01, 0xff };
     
-    memcpy(output, ca, sizeof(ca));
+    XMEMCPY(output, ca, sizeof(ca));
 
     return (int)sizeof(ca);
 }
@@ -2956,6 +2968,13 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, RNG* rng,
     else
         der->extensionsSz = 0;
 
+    if (der->extensionsSz == 0 && cert->altNamesSz) {
+        der->extensionsSz = SetExtensions(der->extensions, cert->altNames,
+                                          cert->altNamesSz);
+        if (der->extensionsSz == 0)
+            return EXTENSIONS_E;
+    }
+
     der->total = der->versionSz + der->serialSz + der->sigAlgoSz +
         der->publicKeySz + der->validitySz + der->subjectSz + der->issuerSz +
         der->extensionsSz;
@@ -3118,6 +3137,88 @@ int MakeSelfCert(Cert* cert, byte* buffer, word32 buffSz, RsaKey* key, RNG* rng)
 }
 
 
+/* Set Alt Names from der cert, return 0 on success */
+static int SetAltNamesFromCert(Cert* cert, const byte* der, int derSz)
+{
+    DecodedCert decoded;
+    int         ret;
+    int         sz;
+
+    if (derSz < 0)
+        return derSz;
+
+    InitDecodedCert(&decoded, (byte*)der, derSz, 0);
+    ret = ParseCertRelative(&decoded, CA_TYPE, NO_VERIFY, 0);
+
+    if (ret < 0)
+        return ret;
+
+    if (decoded.extensions) {
+        byte   b;
+        int    length;
+        word32 maxExtensionsIdx;
+
+        decoded.srcIdx = decoded.extensionsIdx;
+        b = decoded.source[decoded.srcIdx++];
+        if (b != ASN_EXTENSIONS) {
+            FreeDecodedCert(&decoded);
+            return ASN_PARSE_E;
+        }
+
+        if (GetLength(decoded.source, &decoded.srcIdx, &length,
+                      decoded.maxIdx) < 0) {
+            FreeDecodedCert(&decoded);
+            return ASN_PARSE_E;
+        }
+
+        if (GetSequence(decoded.source, &decoded.srcIdx, &length,
+                        decoded.maxIdx) < 0) {
+            FreeDecodedCert(&decoded);
+            return ASN_PARSE_E;
+        }
+
+        maxExtensionsIdx = decoded.srcIdx + length;
+
+        while (decoded.srcIdx < maxExtensionsIdx) {
+            word32 oid;
+            word32 startIdx = decoded.srcIdx;
+            word32 tmpIdx;
+
+            if (GetSequence(decoded.source, &decoded.srcIdx, &length,
+                        decoded.maxIdx) < 0) {
+                FreeDecodedCert(&decoded);
+                return ASN_PARSE_E;
+            }
+
+            tmpIdx = decoded.srcIdx;
+            decoded.srcIdx = startIdx;
+
+            if (GetAlgoId(decoded.source, &decoded.srcIdx, &oid,
+                          decoded.maxIdx) < 0) {
+                FreeDecodedCert(&decoded);
+                return ASN_PARSE_E;
+            }
+
+            if (oid == ALT_NAMES_OID) {
+                cert->altNamesSz = length + (tmpIdx - startIdx);
+
+                if (cert->altNamesSz < sizeof(cert->altNames))
+                    XMEMCPY(cert->altNames, &decoded.source[startIdx],
+                        cert->altNamesSz);
+                else {
+                    cert->altNamesSz = 0;
+                    CYASSL_MSG("AltNames extensions too big");
+                }
+            }
+            decoded.srcIdx = tmpIdx + length;
+        }
+    }
+    FreeDecodedCert(&decoded);
+
+    return 0;
+}
+
+
 /* Set cn name from der buffer, return 0 on success */
 static int SetNameFromCert(CertName* cn, const byte* der, int derSz)
 {
@@ -3214,6 +3315,16 @@ int SetSubject(Cert* cert, const char* subjectFile)
     return SetNameFromCert(&cert->subject, der, derSz);
 }
 
+
+/* Set atl names from file in PEM */
+int SetAltNames(Cert* cert, const char* file)
+{
+    byte        der[8192];
+    int         derSz = CyaSSL_PemCertToDer(file, der, sizeof(der));
+
+    return SetAltNamesFromCert(cert, der, derSz);
+}
+
 #endif /* NO_FILESYSTEM */
 
 /* Set cert issuer from DER buffer */
@@ -3228,6 +3339,13 @@ int SetIssuerBuffer(Cert* cert, const byte* der, int derSz)
 int SetSubjectBuffer(Cert* cert, const byte* der, int derSz)
 {
     return SetNameFromCert(&cert->subject, der, derSz);
+}
+
+
+/* Set cert alt names from DER buffer */
+int SetAltNamesBuffer(Cert* cert, const byte* der, int derSz)
+{
+    return SetAltNamesFromCert(cert, der, derSz);
 }
 
 
