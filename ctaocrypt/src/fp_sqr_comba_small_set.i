@@ -1531,6 +1531,9 @@ void fp_sqr_comba_small(fp_int *A, fp_int *B)
       memcpy(B->dp, b, 32 * sizeof(fp_digit));
       fp_clamp(B);
       break;
+
+   default:
+      break;
 }
 }
 

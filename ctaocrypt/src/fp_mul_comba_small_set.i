@@ -1241,6 +1241,9 @@ void fp_mul_comba_small(fp_int *A, fp_int *B, fp_int *C)
       fp_clamp(C);
       COMBA_FINI;
       break;
+
+   default:
+      break;
    }
 }
 

@@ -4206,7 +4206,7 @@ byte* CyaSSL_get_chain_cert(CYASSL_X509_CHAIN* chain, int idx)
 /* Get peer's PEM ceritifcate at index (idx), output to buffer if inLen big
    enough else return error (-1), output length is in *outLen */
 int  CyaSSL_get_chain_cert_pem(CYASSL_X509_CHAIN* chain, int idx,
-                               unsigned char* buffer, int inLen, int* outLen)
+                               unsigned char* buf, int inLen, int* outLen)
 {
     const char header[] = "-----BEGIN CERTIFICATE-----\n";
     const char footer[] = "-----END CERTIFICATE-----\n";
@@ -4217,7 +4217,7 @@ int  CyaSSL_get_chain_cert_pem(CYASSL_X509_CHAIN* chain, int idx,
     int err;
 
     CYASSL_ENTER("CyaSSL_get_chain_cert_pem");
-    if (!chain || !outLen || !buffer)
+    if (!chain || !outLen || !buf)
         return BAD_FUNC_ARG;
 
     /* don't even try if inLen too short */
@@ -4225,20 +4225,20 @@ int  CyaSSL_get_chain_cert_pem(CYASSL_X509_CHAIN* chain, int idx,
         return BAD_FUNC_ARG;
 
     /* header */
-    XMEMCPY(buffer, header, headerLen);
+    XMEMCPY(buf, header, headerLen);
     i = headerLen;
 
     /* body */
     *outLen = inLen;  /* input to Base64Encode */
     if ( (err = Base64Encode(chain->certs[idx].buffer, chain->certs[idx].length,
-                     buffer + i, (word32*)outLen)) < 0)
+                             buf + i, (word32*)outLen)) < 0)
         return err;
     i += *outLen;
 
     /* footer */
     if ( (i + footerLen) > inLen)
         return BAD_FUNC_ARG;
-    XMEMCPY(buffer + i, footer, footerLen);
+    XMEMCPY(buf + i, footer, footerLen);
     *outLen += headerLen + footerLen; 
 
     return 0;

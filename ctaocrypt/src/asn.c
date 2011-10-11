@@ -3142,7 +3142,6 @@ static int SetAltNamesFromCert(Cert* cert, const byte* der, int derSz)
 {
     DecodedCert decoded;
     int         ret;
-    int         sz;
 
     if (derSz < 0)
         return derSz;
@@ -3202,7 +3201,7 @@ static int SetAltNamesFromCert(Cert* cert, const byte* der, int derSz)
             if (oid == ALT_NAMES_OID) {
                 cert->altNamesSz = length + (tmpIdx - startIdx);
 
-                if (cert->altNamesSz < sizeof(cert->altNames))
+                if (cert->altNamesSz < (int)sizeof(cert->altNames))
                     XMEMCPY(cert->altNames, &decoded.source[startIdx],
                         cert->altNamesSz);
                 else {

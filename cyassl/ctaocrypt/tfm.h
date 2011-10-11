@@ -646,8 +646,6 @@ int  mp_read_unsigned_bin (mp_int * a, const unsigned char *b, int c);
 int  mp_to_unsigned_bin (mp_int * a, unsigned char *b);
 
 #ifdef HAVE_ECC
-    int mp_sqrmod(mp_int* a, mp_int* b, mp_int* c);
-    int mp_montgomery_calc_normalization(mp_int *a, mp_int *b);
     int mp_read_radix(mp_int* a, const char* str, int radix);
     int mp_iszero(mp_int* a);
     int mp_set(fp_int *a, fp_digit b);
@@ -660,6 +658,8 @@ int  mp_to_unsigned_bin (mp_int * a, unsigned char *b);
 
 #if defined(HAVE_ECC) || defined(CYASSL_KEY_GEN)
     int  mp_copy(fp_int* a, fp_int* b);
+    int mp_sqrmod(mp_int* a, mp_int* b, mp_int* c);
+    int mp_montgomery_calc_normalization(mp_int *a, mp_int *b);
 #endif
 
 #ifdef CYASSL_KEY_GEN
