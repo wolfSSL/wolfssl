@@ -1636,15 +1636,16 @@ static word32 SetAlgoID(int algoOID, byte* output, int type)
                                          0x02, 0x05, 0x05, 0x00  };
     static const byte md2AlgoID[]    = { 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d,
                                          0x02, 0x02, 0x05, 0x00};
-
     /* sigTypes */
     static const byte md5wRSA_AlgoID[] = { 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d,
-                                      0x01, 0x01, 0x04, 0x05, 0x00};
-
+                                           0x01, 0x01, 0x04, 0x05, 0x00};
+    static const byte shawRSA_AlgoID[] = { 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d,
+                                           0x01, 0x01, 0x05, 0x05, 0x00};
+    static const byte sha256wRSA_AlgoID[] = { 0x2a, 0x86, 0x48, 0x86, 0xf7,
+                                            0x0d, 0x01, 0x01, 0x0b, 0x05, 0x00};
     /* keyTypes */
     static const byte RSA_AlgoID[] = { 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d,
                                       0x01, 0x01, 0x01, 0x05, 0x00};
-
     int    algoSz = 0;
     word32 idSz, seqSz;
     const  byte* algoName = 0;
@@ -1683,6 +1684,16 @@ static word32 SetAlgoID(int algoOID, byte* output, int type)
         case MD5wRSA:
             algoSz = sizeof(md5wRSA_AlgoID);
             algoName = md5wRSA_AlgoID;
+            break;
+
+        case SHAwRSA:
+            algoSz = sizeof(shawRSA_AlgoID);
+            algoName = shawRSA_AlgoID;
+            break;
+
+        case SHA256wRSA:
+            algoSz = sizeof(sha256wRSA_AlgoID);
+            algoName = sha256wRSA_AlgoID;
             break;
 
         default:
@@ -2410,7 +2421,7 @@ int RsaKeyToDer(RsaKey* key, byte* output, word32 inLen)
 /* Initialize and Set Certficate defaults:
    version    = 3 (0x2)
    serial     = 0
-   sigType    = MD5_WITH_RSA
+   sigType    = SHA_WITH_RSA
    issuer     = blank
    daysValid  = 500
    selfSigned = 1 (true) use subject as issuer
@@ -2419,7 +2430,7 @@ int RsaKeyToDer(RsaKey* key, byte* output, word32 inLen)
 void InitCert(Cert* cert)
 {
     cert->version    = 2;   /* version 3 is hex 2 */
-    cert->sigType    = MD5wRSA;
+    cert->sigType    = SHAwRSA;
     cert->daysValid  = 500;
     cert->selfSigned = 1;
     cert->isCA       = 0;
@@ -3021,20 +3032,40 @@ static int WriteCertBody(DerCert* der, byte* buffer)
 }
 
 
-/* Make MD5wRSA signature from buffer (sz), write to sig (sigSz) */
+/* Make RSA signature from buffer (sz), write to sig (sigSz) */
 static int MakeSignature(const byte* buffer, int sz, byte* sig, int sigSz,
-                         RsaKey* key, RNG* rng)
+                         RsaKey* key, RNG* rng, int sigAlgoType)
 {
-    byte    digest[SHA_DIGEST_SIZE];     /* max size */
+    byte    digest[SHA256_DIGEST_SIZE];     /* max size */
     byte    encSig[MAX_ENCODED_DIG_SZ + MAX_ALGO_SZ + MAX_SEQ_SZ];
     int     encSigSz, digestSz, typeH;
-    Md5     md5;                         /* md5 for now */
 
-    InitMd5(&md5);
-    Md5Update(&md5, buffer, sz);
-    Md5Final(&md5, digest);
-    digestSz = MD5_DIGEST_SIZE;
-    typeH    = MD5h;
+    if (sigAlgoType == MD5wRSA) {
+        Md5     md5;
+        InitMd5(&md5);
+        Md5Update(&md5, buffer, sz);
+        Md5Final(&md5, digest);
+        digestSz = MD5_DIGEST_SIZE;
+        typeH    = MD5h;
+    }
+    else if (sigAlgoType == SHAwRSA) {
+        Sha     sha;
+        InitSha(&sha);
+        ShaUpdate(&sha, buffer, sz);
+        ShaFinal(&sha, digest);
+        digestSz = SHA_DIGEST_SIZE;
+        typeH    = SHAh;
+    }
+    else if (sigAlgoType == SHA256wRSA) {
+        Sha256     sha256;
+        InitSha256(&sha256);
+        Sha256Update(&sha256, buffer, sz);
+        Sha256Final(&sha256, digest);
+        digestSz = SHA256_DIGEST_SIZE;
+        typeH    = SHA256h;
+    }
+    else
+        return ALGO_ID_E;
 
     /* signature */
     encSigSz = EncodeSignature(encSig, digest, digestSz, typeH);
@@ -3044,13 +3075,14 @@ static int MakeSignature(const byte* buffer, int sz, byte* sig, int sigSz,
 
 /* add signature to end of buffer, size of buffer assumed checked, return
    new length */
-static int AddSignature(byte* buffer, int bodySz, const byte* sig, int sigSz)
+static int AddSignature(byte* buffer, int bodySz, const byte* sig, int sigSz,
+                        int sigAlgoType)
 {
     byte seq[MAX_SEQ_SZ];
     int  idx = bodySz, seqSz;
 
     /* algo */
-    idx += SetAlgoID(MD5wRSA, buffer + idx, sigType);
+    idx += SetAlgoID(sigAlgoType, buffer + idx, sigType);
     /* bit string */
     buffer[idx++] = ASN_BIT_STRING;
     /* length */
@@ -3115,14 +3147,15 @@ int SignCert(Cert* cert, byte* buffer, word32 buffSz, RsaKey* key, RNG* rng)
     if (bodySz < 0)
         return bodySz;
 
-    sigSz  = MakeSignature(buffer, bodySz, sig, sizeof(sig), key, rng);
+    sigSz  = MakeSignature(buffer, bodySz, sig, sizeof(sig), key, rng,
+                           cert->sigType);
     if (sigSz < 0)
         return sigSz; 
 
     if (bodySz + MAX_SEQ_SZ * 2 + sigSz > (int)buffSz)
         return BUFFER_E; 
 
-    return AddSignature(buffer, bodySz, sig, sigSz);
+    return AddSignature(buffer, bodySz, sig, sigSz, cert->sigType);
 }
 
 

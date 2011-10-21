@@ -196,7 +196,7 @@ static INLINE void showPeer(SSL* ssl)
     printf("SSL cipher suite is %s\n", SSL_CIPHER_get_name(cipher));
 #endif
 
-#ifdef SESSION_CERTS
+#if defined(SESSION_CERTS) && defined(SHOW_CERTS)
     {
         X509_CHAIN* chain = CyaSSL_get_peer_chain(ssl);
         int         count = CyaSSL_get_chain_count(chain);
