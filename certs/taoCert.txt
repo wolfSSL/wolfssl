@@ -75,6 +75,14 @@ openssl pkcs8 -topk8 -in server-key.pem -out server-keyPkcs8Enc.pem
 
 passwd: yassl123
 
+to use PKCS#5 v2 instead of v1.5 which is default add
+
+-v2 des3       # file Pkcs8Enc2
+
+to use PKCS#12 instead use -v1 witch a 12 algo like
+
+-v1 PBE-SHA1-RC4-128   # file Pkcs8Enc12 , see man pkcs8 for more info
+
 
 **** To convert from pkcs8 to traditional ****
 
