@@ -8,8 +8,6 @@ certs_DATA+= \
 	     certs/client-cert.pem \
 	     certs/client-keyEnc.pem \
 	     certs/client-key.pem \
-	     certs/dsa512.pem \
-	     certs/dsa-cert.pem \
 	     certs/ecc-key.pem \
 	     certs/ntru-cert.pem \
 	     certs/server-cert.pem \
@@ -25,9 +23,9 @@ certs_DATA+= \
 	     certs/ca-key.der \
 	     certs/client-cert.der \
 	     certs/client-key.der \
-	     certs/dh1024.der \
-	     certs/rsa1024.der \
-	     certs/dsa512.der \
+	     certs/dh2048.der \
+	     certs/rsa2048.der \
+	     certs/dsa2048.der \
 	     certs/ecc-key.der
 
 EXTRA_DIST+= ${certs_DATA}

@@ -1451,7 +1451,7 @@ int rsa_test()
 }
 
 
-static const char* dhKey = "./certs/dh1024.der";
+static const char* dhKey = "./certs/dh2048.der";
 
 #ifndef NO_DH
 
@@ -1461,12 +1461,12 @@ int dh_test()
     word32 bytes;
     word32 idx = 0, privSz, pubSz, privSz2, pubSz2, agreeSz, agreeSz2;
     byte   tmp[1024];
-    byte   priv[128];
-    byte   pub[128];
-    byte   priv2[128];
-    byte   pub2[128];
-    byte   agree[128];
-    byte   agree2[128];
+    byte   priv[256];
+    byte   pub[256];
+    byte   priv2[256];
+    byte   pub2[256];
+    byte   agree[256];
+    byte   agree2[256];
     DhKey  key;
     DhKey  key2;
     RNG    rng;
@@ -1515,7 +1515,7 @@ int dh_test()
 #endif /* NO_DH */
 
 
-static const char* dsaKey = "./certs/dsa512.der";
+static const char* dsaKey = "./certs/dsa2048.der";
 
 #ifndef NO_DSA
 

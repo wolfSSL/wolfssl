@@ -383,10 +383,10 @@ void bench_rsa()
     double    start, total, each, milliEach;
     
     RsaKey key;
-    FILE*  file = fopen("./certs/rsa1024.der", "rb");
+    FILE*  file = fopen("./certs/rsa2048.der", "rb");
 
     if (!file) {
-        printf("can't find ./certs/rsa1024.der, "
+        printf("can't find ./certs/rsa2048.der, "
                "Please run from CyaSSL home dir\n");
         return;
     }
@@ -405,7 +405,7 @@ void bench_rsa()
     each  = total / times;   /* per second   */
     milliEach = each * 1000; /* milliseconds */
 
-    printf("RSA 1024 encryption took %6.2f milliseconds, avg over %d" 
+    printf("RSA 2048 encryption took %6.2f milliseconds, avg over %d" 
            " iterations\n", milliEach, times);
 
     start = current_time();
@@ -417,7 +417,7 @@ void bench_rsa()
     each  = total / times;   /* per second   */
     milliEach = each * 1000; /* milliseconds */
 
-    printf("RSA 1024 decryption took %6.2f milliseconds, avg over %d" 
+    printf("RSA 2048 decryption took %6.2f milliseconds, avg over %d" 
            " iterations\n", milliEach, times);
 
     fclose(file);
@@ -433,23 +433,23 @@ void bench_dh()
     size_t bytes;
     word32 idx = 0, pubSz, privSz, pubSz2, privSz2, agreeSz;
 
-    byte   pub[128];    /* for 1024 bit */
-    byte   priv[128];   /* for 1024 bit */
-    byte   pub2[128];   /* for 1024 bit */
-    byte   priv2[128];  /* for 1024 bit */
-    byte   agree[128];  /* for 1024 bit */
+    byte   pub[256];    /* for 2048 bit */
+    byte   priv[256];   /* for 2048 bit */
+    byte   pub2[256];   /* for 2048 bit */
+    byte   priv2[256];  /* for 2048 bit */
+    byte   agree[256];  /* for 2048 bit */
     
     double start, total, each, milliEach;
     DhKey  key;
-    FILE*  file = fopen("./certs/dh1024.der", "rb");
+    FILE*  file = fopen("./certs/dh2048.der", "rb");
 
     if (!file) {
-        printf("can't find ./certs/dh1024.der, "
+        printf("can't find ./certs/dh2048.der, "
                "Please run from CyaSSL home dir\n");
         return;
     }
 
-    bytes = fread(tmp, 1, 1024, file);
+    bytes = fread(tmp, 1, sizeof(tmp), file);
     InitDhKey(&key);
     bytes = DhKeyDecode(tmp, &idx, &key, (word32)bytes);
 
@@ -462,7 +462,7 @@ void bench_dh()
     each  = total / times;   /* per second   */
     milliEach = each * 1000; /* milliseconds */
 
-    printf("DH  1024 key generation  %6.2f milliseconds, avg over %d" 
+    printf("DH  2048 key generation  %6.2f milliseconds, avg over %d" 
            " iterations\n", milliEach, times);
 
     DhGenerateKeyPair(&key, &rng, priv2, &privSz2, pub2, &pubSz2);
@@ -475,7 +475,7 @@ void bench_dh()
     each  = total / times;   /* per second   */
     milliEach = each * 1000; /* milliseconds */
 
-    printf("DH  1024 key agreement   %6.2f milliseconds, avg over %d" 
+    printf("DH  2048 key agreement   %6.2f milliseconds, avg over %d" 
            " iterations\n", milliEach, times);
 
     fclose(file);
