@@ -2640,6 +2640,10 @@ static int SetValidity(byte* output, int daysValid)
     before[0] = ASN_GENERALIZED_TIME;
     beforeSz  = SetLength(ASN_GEN_TIME_SZ, before + 1) + 1;  /* gen tag */
 
+    /* subtract 1 day for more compliance */
+    local.tm_mday -= 1;
+    mktime(&local);
+
     /* adjust */
     local.tm_year += 1900;
     local.tm_mon  +=    1;
