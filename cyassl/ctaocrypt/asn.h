@@ -135,16 +135,6 @@ enum Oid_Types {
 };
 
 
-enum Sig_Sum  {
-    SHAwDSA    = 517,
-    MD2wRSA    = 646,
-    MD5wRSA    = 648,
-    SHAwRSA    = 649,
-    SHAwECDSA  = 520,
-    SHA256wRSA   = 655,
-    SHA256wECDSA = 524
-};
-
 enum Hash_Sum  {
     MD2h    = 646,
     MD5h    = 649,
@@ -152,12 +142,14 @@ enum Hash_Sum  {
     SHA256h = 414
 };
 
+
 enum Key_Sum {
     DSAk   = 515,
     RSAk   = 645,
     NTRUk  = 364,
     ECDSAk = 518
 };
+
 
 enum Ecc_Sum {
     ECC_256R1 = 526,

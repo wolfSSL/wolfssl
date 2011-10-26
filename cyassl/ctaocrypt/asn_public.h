@@ -41,12 +41,25 @@ enum CertType {
     CA_TYPE
 };
 
+
+/* Signature type, by OID sum */
+enum Ctc_SigType {
+    CTC_SHAwDSA      = 517,
+    CTC_MD2wRSA      = 646,
+    CTC_MD5wRSA      = 648,
+    CTC_SHAwRSA      = 649,
+    CTC_SHAwECDSA    = 520,
+    CTC_SHA256wRSA   = 655,
+    CTC_SHA256wECDSA = 524
+};
+
+
 #ifdef CYASSL_CERT_GEN
 
 enum Ctc_Misc {
-    CTC_NAME_SIZE       =  64,
-    CTC_MAX_ALT_SIZE    = 512,
-    CTC_SERIAL_SIZE     =   8
+    CTC_NAME_SIZE    =  64,
+    CTC_MAX_ALT_SIZE = 512,
+    CTC_SERIAL_SIZE  =   8
 };
 
 typedef struct CertName {
@@ -84,7 +97,7 @@ typedef struct Cert {
 /* Initialize and Set Certficate defaults:
    version    = 3 (0x2)
    serial     = 0 (Will be randomly generated)
-   sigType    = MD5_WITH_RSA
+   sigType    = SHA_WITH_RSA
    issuer     = blank
    daysValid  = 500
    selfSigned = 1 (true) use subject as issuer

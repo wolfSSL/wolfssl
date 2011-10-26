@@ -1681,17 +1681,17 @@ static word32 SetAlgoID(int algoOID, byte* output, int type)
     }
     else if (type == sigType) {    /* sigType */
         switch (algoOID) {
-        case MD5wRSA:
+        case CTC_MD5wRSA:
             algoSz = sizeof(md5wRSA_AlgoID);
             algoName = md5wRSA_AlgoID;
             break;
 
-        case SHAwRSA:
+        case CTC_SHAwRSA:
             algoSz = sizeof(shawRSA_AlgoID);
             algoName = shawRSA_AlgoID;
             break;
 
-        case SHA256wRSA:
+        case CTC_SHA256wRSA:
             algoSz = sizeof(sha256wRSA_AlgoID);
             algoName = sha256wRSA_AlgoID;
             break;
@@ -1761,7 +1761,7 @@ static int ConfirmSignature(DecodedCert* cert, const byte* key, word32 keySz,
 #endif
     int  typeH, digestSz, ret;
 
-    if (cert->signatureOID == MD5wRSA) {
+    if (cert->signatureOID == CTC_MD5wRSA) {
         Md5 md5;
         InitMd5(&md5);
         Md5Update(&md5, cert->source + cert->certBegin,
@@ -1770,8 +1770,9 @@ static int ConfirmSignature(DecodedCert* cert, const byte* key, word32 keySz,
         typeH    = MD5h;
         digestSz = MD5_DIGEST_SIZE;
     }
-    else if (cert->signatureOID == SHAwRSA || cert->signatureOID == SHAwDSA ||
-                                              cert->signatureOID == SHAwECDSA) {
+    else if (cert->signatureOID == CTC_SHAwRSA ||
+             cert->signatureOID == CTC_SHAwDSA ||
+             cert->signatureOID == CTC_SHAwECDSA) {
         Sha sha;
         InitSha(&sha);
         ShaUpdate(&sha, cert->source + cert->certBegin,
@@ -1781,8 +1782,8 @@ static int ConfirmSignature(DecodedCert* cert, const byte* key, word32 keySz,
         digestSz = SHA_DIGEST_SIZE;
     }
 #ifndef NO_SHA256
-    else if (cert->signatureOID == SHA256wRSA ||
-             cert->signatureOID == SHA256wECDSA) {
+    else if (cert->signatureOID == CTC_SHA256wRSA ||
+             cert->signatureOID == CTC_SHA256wECDSA) {
         Sha256 sha256;
         InitSha256(&sha256);
         Sha256Update(&sha256, cert->source + cert->certBegin,
@@ -2430,7 +2431,7 @@ int RsaKeyToDer(RsaKey* key, byte* output, word32 inLen)
 void InitCert(Cert* cert)
 {
     cert->version    = 2;   /* version 3 is hex 2 */
-    cert->sigType    = SHAwRSA;
+    cert->sigType    = CTC_SHAwRSA;
     cert->daysValid  = 500;
     cert->selfSigned = 1;
     cert->isCA       = 0;
@@ -3044,7 +3045,7 @@ static int MakeSignature(const byte* buffer, int sz, byte* sig, int sigSz,
     byte    encSig[MAX_ENCODED_DIG_SZ + MAX_ALGO_SZ + MAX_SEQ_SZ];
     int     encSigSz, digestSz, typeH;
 
-    if (sigAlgoType == MD5wRSA) {
+    if (sigAlgoType == CTC_MD5wRSA) {
         Md5     md5;
         InitMd5(&md5);
         Md5Update(&md5, buffer, sz);
@@ -3052,7 +3053,7 @@ static int MakeSignature(const byte* buffer, int sz, byte* sig, int sigSz,
         digestSz = MD5_DIGEST_SIZE;
         typeH    = MD5h;
     }
-    else if (sigAlgoType == SHAwRSA) {
+    else if (sigAlgoType == CTC_SHAwRSA) {
         Sha     sha;
         InitSha(&sha);
         ShaUpdate(&sha, buffer, sz);
@@ -3060,7 +3061,7 @@ static int MakeSignature(const byte* buffer, int sz, byte* sig, int sigSz,
         digestSz = SHA_DIGEST_SIZE;
         typeH    = SHAh;
     }
-    else if (sigAlgoType == SHA256wRSA) {
+    else if (sigAlgoType == CTC_SHA256wRSA) {
         Sha256     sha256;
         InitSha256(&sha256);
         Sha256Update(&sha256, buffer, sz);
