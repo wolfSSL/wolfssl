@@ -330,8 +330,9 @@ static INLINE int Reverse(int dir)
 void Des_SetKey(Des* des, const byte* key, const byte* iv, int dir)
 {
     DesSetKey(key, dir, des->key);
-    
-    XMEMCPY(des->reg, iv, DES_BLOCK_SIZE);
+
+    if (iv)  /* added ecb support so may not have iv */
+        XMEMCPY(des->reg, iv, DES_BLOCK_SIZE);
 }
 
 
@@ -492,6 +493,23 @@ void Des3_CbcDecrypt(Des3* des, byte* out, const byte* in, word32 sz)
         in  += DES_BLOCK_SIZE; 
     }
 }
+
+#ifdef CYASSL_DES_ECB
+
+/* One block, compatibility only */
+void Des_EcbEncrypt(Des* des, byte* out, const byte* in, word32 sz)
+{
+    word32 blocks = sz / DES_BLOCK_SIZE;
+
+    while (blocks--) {
+        DesProcessBlock(des, in, out);
+
+        out += DES_BLOCK_SIZE;
+        in  += DES_BLOCK_SIZE; 
+    }
+}
+
+#endif /* CYASSL_DES_ECB */
 
 
 #endif /* NO_DES3 */

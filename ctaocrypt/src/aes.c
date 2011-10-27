@@ -847,7 +847,8 @@ int AesSetKey(Aes* aes, const byte* userKey, word32 keylen, const byte* iv,
         checkAESNI = 1;
     }
     if (haveAESNI) {
-        XMEMCPY(aes->reg, iv, AES_BLOCK_SIZE);
+        if (iv)
+            XMEMCPY(aes->reg, iv, AES_BLOCK_SIZE);
         if (dir == AES_ENCRYPTION)
             return AES_set_encrypt_key(userKey, keylen * 8, aes);
         else
@@ -975,7 +976,8 @@ int AesSetKey(Aes* aes, const byte* userKey, word32 keylen, const byte* iv,
                 Td[3][Te[4][GETBYTE(rk[3], 0)] & 0xff];
         }
     }
-    XMEMCPY(aes->reg, iv, AES_BLOCK_SIZE);
+    if (iv)
+        XMEMCPY(aes->reg, iv, AES_BLOCK_SIZE);
 
     return 0;
 }
@@ -1325,6 +1327,25 @@ void AesCbcDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
         in  += AES_BLOCK_SIZE; 
     }
 }
+
+
+#ifdef CYASSL_AES_DIRECT
+
+/* Allow direct access to one block encrypt */
+void AesEncryptDirect(Aes* aes, byte* out, const byte* in)
+{
+    return AesEncrypt(aes, in, out);
+}
+
+
+/* Allow direct access to one block decrypt */
+void AesDecryptDirect(Aes* aes, byte* out, const byte* in)
+{
+    return AesDecrypt(aes, in, out);
+}
+
+
+#endif
 
 
 #endif /* NO_AES */

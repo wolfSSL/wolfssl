@@ -6,7 +6,7 @@
 #
 #
 
-AC_INIT([cyassl],[2.0.0rc3c],[http://www.yassl.com])
+AC_INIT([cyassl],[2.0.0rc3d],[http://www.yassl.com])
 
 AC_CONFIG_AUX_DIR(config)
 
@@ -174,6 +174,19 @@ AC_ARG_ENABLE(ipv6,
 if test "$ENABLED_IPV6" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DTEST_IPV6"
+fi
+
+
+# Fortress build 
+AC_ARG_ENABLE(fortress,
+    [  --enable-fortress       Enable SSL fortress build (default: disabled)],
+    [ ENABLED_FORTRESS=$enableval ],
+    [ ENABLED_FORTRESS=no ]
+    )
+
+if test "$ENABLED_FORTRESS" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DOPENSSL_EXTRA -DCYASSL_DES_ECB -DCYASSL_AES_DIRECT"
 fi
 
 

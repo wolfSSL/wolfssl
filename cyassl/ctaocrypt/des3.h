@@ -61,6 +61,7 @@ typedef struct Des3 {
 CYASSL_API void Des_SetKey(Des* des, const byte* key, const byte* iv, int dir);
 CYASSL_API void Des_CbcEncrypt(Des* des, byte* out, const byte* in, word32 sz);
 CYASSL_API void Des_CbcDecrypt(Des* des, byte* out, const byte* in, word32 sz);
+CYASSL_API void Des_EcbEncrypt(Des* des, byte* out, const byte* in, word32 sz);
 
 CYASSL_API void Des3_SetKey(Des3* des, const byte* key, const byte* iv,int dir);
 CYASSL_API void Des3_CbcEncrypt(Des3* des, byte* out, const byte* in,word32 sz);
