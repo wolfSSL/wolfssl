@@ -671,6 +671,7 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
 #endif
     InitRsaKey(&ssl->peerRsaKey, ctx->heap);
 
+    ssl->verifyCallback    = ctx->verifyCallback;
     ssl->peerRsaKeyPresent = 0;
     ssl->options.side      = ctx->method->side;
     ssl->options.downgrade = ctx->method->downgrade;
@@ -1614,7 +1615,7 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx)
             int why = bad_certificate;
             if (ret == ASN_AFTER_DATE_E || ret == ASN_BEFORE_DATE_E)
                 why = certificate_expired;
-            if (ssl->ctx->verifyCallback) {
+            if (ssl->verifyCallback) {
                 int            ok;
                 CYASSL_X509_STORE_CTX store;
 
@@ -1626,7 +1627,7 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx)
 #else
                 store.current_cert = NULL;
 #endif
-                ok = ssl->ctx->verifyCallback(0, &store);
+                ok = ssl->verifyCallback(0, &store);
                 if (ok) {
                     CYASSL_MSG("Verify callback overriding error!"); 
                     ret = 0;
@@ -3484,7 +3485,7 @@ int cipher_name_idx[] =
 
 /* return true if set, else false */
 /* only supports full name from cipher_name[] delimited by : */
-int SetCipherList(CYASSL_CTX* ctx, const char* list)
+int SetCipherList(Suites* s, const char* list)
 {
     int  ret = 0, i;
     char name[MAX_SUITE_NAME];
@@ -3519,10 +3520,10 @@ int SetCipherList(CYASSL_CTX* ctx, const char* list)
         for (i = 0; i < suiteSz; i++)
             if (XSTRNCMP(name, cipher_names[i], sizeof(name)) == 0) {
                 if (XSTRSTR(name, "EC"))
-                    ctx->suites.suites[idx++] = ECC_BYTE;  /* ECC suite */
+                    s->suites[idx++] = ECC_BYTE;  /* ECC suite */
                 else
-                    ctx->suites.suites[idx++] = 0x00;      /* normal */
-                ctx->suites.suites[idx++] = (byte)cipher_name_idx[i];
+                    s->suites[idx++] = 0x00;      /* normal */
+                s->suites[idx++] = (byte)cipher_name_idx[i];
 
                 if (!ret) ret = 1;   /* found at least one */
                 break;
@@ -3532,8 +3533,8 @@ int SetCipherList(CYASSL_CTX* ctx, const char* list)
     }
 
     if (ret) {
-        ctx->suites.setSuites = 1;
-        ctx->suites.suiteSz   = (word16)idx;
+        s->setSuites = 1;
+        s->suiteSz   = (word16)idx;
     }
 
     return ret;

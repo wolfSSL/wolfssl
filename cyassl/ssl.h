@@ -176,6 +176,7 @@ CYASSL_API void CyaSSL_free(CYASSL*);
 CYASSL_API int  CyaSSL_shutdown(CYASSL*);
 
 CYASSL_API void CyaSSL_CTX_set_quiet_shutdown(CYASSL_CTX*, int);
+CYASSL_API void CyaSSL_set_quiet_shutdown(CYASSL*, int);
 
 CYASSL_API int  CyaSSL_get_error(CYASSL*, int);
 
@@ -189,6 +190,7 @@ typedef int (*pem_password_cb)(char*, int, int, void*);
 
 CYASSL_API void CyaSSL_CTX_set_verify(CYASSL_CTX*, int, 
                                       VerifyCallback verify_callback);
+CYASSL_API void CyaSSL_set_verify(CYASSL*, int, VerifyCallback verify_callback);
 
 CYASSL_API int  CyaSSL_pending(CYASSL*);
 
@@ -198,6 +200,7 @@ CYASSL_API long CyaSSL_CTX_set_session_cache_mode(CYASSL_CTX*, long);
 
 /* only supports full name from cipher_name[] delimited by : */
 CYASSL_API int  CyaSSL_CTX_set_cipher_list(CYASSL_CTX*, const char*);
+CYASSL_API int  CyaSSL_set_cipher_list(CYASSL*, const char*);
 
 CYASSL_API int   CyaSSL_ERR_GET_REASON(int err);
 CYASSL_API char* CyaSSL_ERR_error_string(unsigned long,char*);
@@ -219,6 +222,7 @@ CYASSL_API void CyaSSL_set_connect_state(CYASSL*);
 CYASSL_API void CyaSSL_set_accept_state(CYASSL*);
 CYASSL_API int  CyaSSL_session_reused(CYASSL*);
 CYASSL_API void CyaSSL_SESSION_free(CYASSL_SESSION* session);
+CYASSL_API int  CyaSSL_is_init_finished(CYASSL*);
 
 CYASSL_API const char*  CyaSSL_get_version(CYASSL*);
 CYASSL_API CYASSL_CIPHER*  CyaSSL_get_current_cipher(CYASSL*);
@@ -666,6 +670,12 @@ CYASSL_API int  CyaSSL_connect_cert(CYASSL* ssl);
 /* server CTX Diffie-Hellman parameters */
 CYASSL_API int  CyaSSL_SetTmpDH(CYASSL*, unsigned char* p, int pSz,
                                 unsigned char* g, int gSz);
+
+/* keyblock size in bytes or -1 */
+CYASSL_API int CyaSSL_get_keyblock_size(CYASSL*);
+CYASSL_API int CyaSSL_get_keys(CYASSL*,unsigned char** ms, unsigned int* msLen,
+                                       unsigned char** sr, unsigned int* srLen,
+                                       unsigned char** cr, unsigned int* crLen);
 
 #ifndef _WIN32
     #ifndef NO_WRITEV

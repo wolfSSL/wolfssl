@@ -532,7 +532,7 @@ typedef struct Suites {
 CYASSL_LOCAL
 void InitSuites(Suites*, ProtocolVersion, byte, byte, byte, byte, int);
 CYASSL_LOCAL
-int  SetCipherList(CYASSL_CTX* ctx, const char* list);
+int  SetCipherList(Suites*, const char* list);
 
 #ifndef PSK_TYPES_DEFINED
     typedef unsigned int (*psk_client_callback)(CYASSL*, const char*, char*,
@@ -983,6 +983,7 @@ struct CYASSL {
     Options         options;
     Arrays          arrays;
     CYASSL_SESSION  session;
+    VerifyCallback  verifyCallback;      /* cert verification callback */
     RsaKey          peerRsaKey;
     byte            peerRsaKeyPresent;
 #ifdef HAVE_NTRU

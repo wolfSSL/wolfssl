@@ -1177,7 +1177,7 @@ int CyaSSL_CTX_use_NTRUPrivateKey_file(CYASSL_CTX* ctx, const char* file)
 
 void CyaSSL_CTX_set_verify(CYASSL_CTX* ctx, int mode, VerifyCallback vc)
 {
-    CYASSL_ENTER("SSL_CTX_set_verify");
+    CYASSL_ENTER("CyaSSL_CTX_set_verify");
     if (mode & SSL_VERIFY_PEER) {
         ctx->verifyPeer = 1;
         ctx->verifyNone = 0;  /* in case perviously set */
@@ -1192,6 +1192,26 @@ void CyaSSL_CTX_set_verify(CYASSL_CTX* ctx, int mode, VerifyCallback vc)
         ctx->failNoCert = 1;
 
     ctx->verifyCallback = vc;
+}
+
+
+void CyaSSL_set_verify(CYASSL* ssl, int mode, VerifyCallback vc)
+{
+    CYASSL_ENTER("CyaSSL_set_verify");
+    if (mode & SSL_VERIFY_PEER) {
+        ssl->options.verifyPeer = 1;
+        ssl->options.verifyNone = 0;  /* in case perviously set */
+    }
+
+    if (mode == SSL_VERIFY_NONE) {
+        ssl->options.verifyNone = 1;
+        ssl->options.verifyPeer = 0;  /* in case previously set */
+    }
+
+    if (mode & SSL_VERIFY_FAIL_IF_NO_PEER_CERT)
+        ssl->options.failNoCert = 1;
+
+    ssl->verifyCallback = vc;
 }
 
 
@@ -1250,9 +1270,30 @@ long CyaSSL_CTX_set_session_cache_mode(CYASSL_CTX* ctx, long mode)
 
 int CyaSSL_CTX_set_cipher_list(CYASSL_CTX* ctx, const char* list)
 {
-    CYASSL_ENTER("SSL_CTX_set_cipher_list");
-    if (SetCipherList(ctx, list))
+    CYASSL_ENTER("CyaSSL_CTX_set_cipher_list");
+    if (SetCipherList(&ctx->suites, list))
         return SSL_SUCCESS;
+    else
+        return SSL_FAILURE;
+}
+
+
+int CyaSSL_set_cipher_list(CYASSL* ssl, const char* list)
+{
+    CYASSL_ENTER("CyaSSL_set_cipher_list");
+    if (SetCipherList(&ssl->suites, list)) {
+        byte havePSK = 0;
+
+        #ifndef NO_PSK
+            havePSK = ssl->options.havePSK;
+        #endif
+
+        InitSuites(&ssl->suites, ssl->version, ssl->options.haveDH, havePSK,
+                   ssl->options.haveNTRU, ssl->options.haveECDSA,
+                   ssl->ctx->method->side);
+
+        return SSL_SUCCESS;
+    }
     else
         return SSL_FAILURE;
 }
@@ -2361,9 +2402,17 @@ int CyaSSL_set_compression(CYASSL* ssl)
 
     void CyaSSL_CTX_set_quiet_shutdown(CYASSL_CTX* ctx, int mode)
     {
-        CYASSL_ENTER("SSL_CTX_set_quiet_shutdown");
+        CYASSL_ENTER("CyaSSL_CTX_set_quiet_shutdown");
         if (mode)
             ctx->quietShutdown = 1;
+    }
+
+
+    void CyaSSL_set_quiet_shutdown(CYASSL* ssl, int mode)
+    {
+        CYASSL_ENTER("CyaSSL_CTX_set_quiet_shutdown");
+        if (mode)
+            ssl->options.quietShutdown = 1;
     }
 
 
@@ -2410,6 +2459,37 @@ int CyaSSL_set_compression(CYASSL* ssl)
     }
 
 
+    /* keyblock size in bytes or -1 */
+    int CyaSSL_get_keyblock_size(CYASSL* ssl)
+    {
+        if (ssl == NULL)
+            return -1;
+
+        return 2 * (ssl->specs.key_size + ssl->specs.iv_size +
+                    ssl->specs.hash_size);
+    }
+
+
+    /* store keys returns 0 or -1 on error */
+    int CyaSSL_get_keys(CYASSL* ssl, unsigned char** ms, unsigned int* msLen,
+                                     unsigned char** sr, unsigned int* srLen,
+                                     unsigned char** cr, unsigned int* crLen)
+    {
+        if (ssl == NULL)
+            return -1;
+
+        *ms = ssl->arrays.masterSecret;
+        *sr = ssl->arrays.serverRandom;
+        *cr = ssl->arrays.clientRandom;
+
+        *msLen = SECRET_LEN;
+        *srLen = RAN_LEN;
+        *crLen = RAN_LEN;
+    
+        return 0;
+    }
+
+
     void CyaSSL_set_accept_state(CYASSL* ssl)
     {
         byte havePSK = 0;
@@ -2423,6 +2503,19 @@ int CyaSSL_set_compression(CYASSL* ssl)
         InitSuites(&ssl->suites, ssl->version, ssl->options.haveDH, havePSK,
                    ssl->options.haveNTRU, ssl->options.haveECDSA,
                    ssl->ctx->method->side);
+    }
+
+   
+    /* return true if connection established */
+    int CyaSSL_is_init_finished(CYASSL* ssl)
+    {
+        if (ssl == NULL)
+            return 0;
+
+        if (ssl->options.handShakeState == HANDSHAKE_DONE)
+            return 1;
+
+        return 0;
     }
 
 

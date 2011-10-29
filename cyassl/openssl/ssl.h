@@ -111,17 +111,20 @@ typedef CYASSL_X509_STORE_CTX X509_STORE_CTX;
 #define SSL_shutdown CyaSSL_shutdown
 
 #define SSL_CTX_set_quiet_shutdown CyaSSL_CTX_set_quiet_shutdown
+#define SSL_set_quiet_shutdown CyaSSL_set_quiet_shutdown
 #define SSL_get_error CyaSSL_get_error
 #define SSL_set_session CyaSSL_set_session
 #define SSL_get_session CyaSSL_get_session
 #define SSL_flush_sessions CyaSSL_flush_sessions
 
 #define SSL_CTX_set_verify CyaSSL_CTX_set_verify
+#define SSL_set_verify CyaSSL_set_verify
 #define SSL_pending CyaSSL_pending
 #define SSL_load_error_strings CyaSSL_load_error_strings
 #define SSL_library_init CyaSSL_library_init
 #define SSL_CTX_set_session_cache_mode CyaSSL_CTX_set_session_cache_mode 
 #define SSL_CTX_set_cipher_list CyaSSL_CTX_set_cipher_list
+#define SSL_set_cipher_list     CyaSSL_set_cipher_list
 
 #define ERR_error_string CyaSSL_ERR_error_string
 #define ERR_error_string_n CyaSSL_ERR_error_string_n
@@ -136,12 +139,16 @@ typedef CYASSL_X509_STORE_CTX X509_STORE_CTX;
 #define SSL_set_accept_state CyaSSL_set_accept_state
 #define SSL_session_reused CyaSSL_session_reused
 #define SSL_SESSION_free CyaSSL_SESSION_free
+#define SSL_is_init_finished CyaSSL_is_init_finished
 
 #define SSL_get_version CyaSSL_get_version
 #define SSL_get_current_cipher CyaSSL_get_current_cipher
 #define SSL_CIPHER_description CyaSSL_CIPHER_description
 #define SSL_CIPHER_get_name CyaSSL_CIPHER_get_name
 #define SSL_get1_session CyaSSL_get1_session
+
+#define SSL_get_keyblock_size CyaSSL_get_keyblock_size
+#define SSL_get_keys          CyaSSL_get_keys
 
 #define X509_free CyaSSL_X509_free
 #define OPENSSL_free CyaSSL_OPENSSL_free
