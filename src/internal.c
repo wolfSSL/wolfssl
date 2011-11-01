@@ -328,6 +328,8 @@ void InitSSL_Ctx(CYASSL_CTX* ctx, CYASSL_METHOD* method)
     ctx->certificate.buffer = 0;
     ctx->certChain.buffer   = 0;
     ctx->privateKey.buffer  = 0;
+    ctx->serverDH_P.buffer  = 0;
+    ctx->serverDH_G.buffer  = 0;
     ctx->haveDH             = 0;
     ctx->haveNTRU           = 0;    /* start off */
     ctx->haveECDSA          = 0;    /* start off */
@@ -384,6 +386,8 @@ void InitSSL_Ctx(CYASSL_CTX* ctx, CYASSL_METHOD* method)
 /* In case contexts are held in array and don't want to free actual ctx */
 void SSL_CtxResourceFree(CYASSL_CTX* ctx)
 {
+    XFREE(ctx->serverDH_G.buffer, ctx->heap, DYNAMIC_TYPE_DH);
+    XFREE(ctx->serverDH_P.buffer, ctx->heap, DYNAMIC_TYPE_DH);
     XFREE(ctx->privateKey.buffer, ctx->heap, DYNAMIC_TYPE_KEY);
     XFREE(ctx->certificate.buffer, ctx->heap, DYNAMIC_TYPE_CERT);
     XFREE(ctx->certChain.buffer, ctx->heap, DYNAMIC_TYPE_CERT);
@@ -681,7 +685,10 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
     ssl->options.closeNotify  = 0;
     ssl->options.sentNotify   = 0;
     ssl->options.usingCompression = 0;
-    ssl->options.haveDH    = ctx->haveDH;
+    if (ssl->options.side == SERVER_END)
+        ssl->options.haveDH = ctx->haveDH;
+    else
+        ssl->options.haveDH = 0;
     ssl->options.haveNTRU  = ctx->haveNTRU;
     ssl->options.haveECDSA = ctx->haveECDSA;
     ssl->options.havePeerCert = 0; 
@@ -727,12 +734,17 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
     ssl->options.quietShutdown = ctx->quietShutdown;
     ssl->options.certOnly = 0;
 
-    /* CYASSL_CTX still owns certificate, certChain, key, and caList buffers */
+    /* ctx still owns certificate, certChain, key, dh, and caList buffers */
     ssl->buffers.certificate = ctx->certificate;
     ssl->buffers.certChain = ctx->certChain;
     ssl->buffers.key = ctx->privateKey;
+    if (ssl->options.side == SERVER_END) {
+        ssl->buffers.serverDH_P = ctx->serverDH_P;
+        ssl->buffers.serverDH_G = ctx->serverDH_G;
+    }
     ssl->buffers.weOwnCert = 0;
     ssl->buffers.weOwnKey  = 0;
+    ssl->buffers.weOwnDH   = 0;
 
 #ifdef OPENSSL_EXTRA
     ssl->peerCert.issuer.sz    = 0;
@@ -810,8 +822,11 @@ void SSL_ResourceFree(CYASSL* ssl)
 {
     XFREE(ssl->buffers.serverDH_Priv.buffer, ssl->heap, DYNAMIC_TYPE_DH);
     XFREE(ssl->buffers.serverDH_Pub.buffer, ssl->heap, DYNAMIC_TYPE_DH);
-    XFREE(ssl->buffers.serverDH_G.buffer, ssl->heap, DYNAMIC_TYPE_DH);
-    XFREE(ssl->buffers.serverDH_P.buffer, ssl->heap, DYNAMIC_TYPE_DH);
+    /* parameters (p,g) may be owned by ctx */
+    if (ssl->buffers.weOwnDH) {
+        XFREE(ssl->buffers.serverDH_G.buffer, ssl->heap, DYNAMIC_TYPE_DH);
+        XFREE(ssl->buffers.serverDH_P.buffer, ssl->heap, DYNAMIC_TYPE_DH);
+    }
     XFREE(ssl->buffers.domainName.buffer, ssl->heap, DYNAMIC_TYPE_DOMAIN);
 
     /* CYASSL_CTX always owns certChain */

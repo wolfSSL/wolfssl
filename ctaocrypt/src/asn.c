@@ -909,17 +909,23 @@ int DhParamsLoad(const byte* input, word32 inSz, byte* p, word32* pInOutSz,
                  byte* g, word32* gInOutSz)
 {
     word32 i = 0;
-    byte   b = input[i++];
+    byte   b;
     int    length;
 
     if (GetSequence(input, &i, &length, inSz) < 0)
         return ASN_PARSE_E;
 
+    b = input[i++];
     if (b != ASN_INTEGER)
         return ASN_PARSE_E;
 
     if (GetLength(input, &i, &length, inSz) < 0)
         return ASN_PARSE_E;
+
+    if ( (b = input[i++]) == 0x00)
+        length--;
+    else
+        i--;
 
     if (length <= *pInOutSz) {
         XMEMCPY(p, &input[i], length);
@@ -930,6 +936,7 @@ int DhParamsLoad(const byte* input, word32 inSz, byte* p, word32* pInOutSz,
 
     i += length;
 
+    b = input[i++];
     if (b != ASN_INTEGER)
         return ASN_PARSE_E;
 

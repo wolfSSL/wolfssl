@@ -149,7 +149,11 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
         ssl = SSL_new(ctx);
         if (ssl == NULL) err_sys("SSL_new failed");
         SSL_set_fd(ssl, clientfd);
-        SetDH(ssl);
+        #ifdef NO_FILESYSTEM
+            SetDH(ssl);
+        #else
+            CyaSSL_SetTmpDH_file(ssl, dhParam, SSL_FILETYPE_PEM);
+        #endif
         if (SSL_accept(ssl) != SSL_SUCCESS) {
             printf("SSL_accept failed\n");
             SSL_free(ssl);

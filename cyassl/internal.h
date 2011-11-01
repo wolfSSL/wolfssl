@@ -290,6 +290,7 @@ enum Misc {
     ALERT_SIZE     =  2,       /* level + description     */
     REQUEST_HEADER =  2,       /* always use 2 bytes      */
     VERIFY_HEADER  =  2,       /* always use 2 bytes      */
+    MAX_DH_SIZE    = 513,      /* 4096 bit plus possible leading 0 */
 
     MAX_SUITE_SZ = 200,        /* 100 suites for now! */
     RAN_LEN      = 32,         /* random length           */
@@ -569,6 +570,8 @@ struct CYASSL_CTX {
     buffer      certChain;
                  /* chain after self, in DER, with leading size for each cert */
     buffer      privateKey;
+    buffer      serverDH_P;
+    buffer      serverDH_G;
     Signer*     caList;           /* CYASSL_CTX owns this, SSL will reference */
     Suites      suites;
     void*       heap;             /* for user memory overrides */
@@ -843,8 +846,8 @@ typedef struct Buffers {
     buffer          certChain;              /* CYASSL_CTX owns */
                  /* chain after self, in DER, with leading size for each cert */
     buffer          domainName;             /* for client check */
-    buffer          serverDH_P;
-    buffer          serverDH_G;
+    buffer          serverDH_P;             /* CYASSL_CTX owns, unless we own */
+    buffer          serverDH_G;             /* CYASSL_CTX owns, unless we own */
     buffer          serverDH_Pub;
     buffer          serverDH_Priv;
     bufferStatic    inputBuffer;
@@ -856,6 +859,7 @@ typedef struct Buffers {
                                               when got WANT_WRITE            */
     byte            weOwnCert;             /* SSL own cert flag */
     byte            weOwnKey;              /* SSL own key  flag */
+    byte            weOwnDH;               /* SSL own dh (p,g)  flag */
 } Buffers;
 
 

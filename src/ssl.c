@@ -167,9 +167,6 @@ int CyaSSL_negotiate(CYASSL* ssl)
 }
 
 
-
-
-
 /* server Diffie-Hellman parameters */
 int CyaSSL_SetTmpDH(CYASSL* ssl, unsigned char* p, int pSz, unsigned char* g,
                     int gSz)
@@ -182,11 +179,12 @@ int CyaSSL_SetTmpDH(CYASSL* ssl, unsigned char* p, int pSz, unsigned char* g,
     if (ssl->options.side != SERVER_END)
         return SIDE_ERROR;
 
-    if (ssl->buffers.serverDH_P.buffer)
+    if (ssl->buffers.serverDH_P.buffer && ssl->buffers.weOwnDH)
         XFREE(ssl->buffers.serverDH_P.buffer, ssl->ctx->heap, DYNAMIC_TYPE_DH);
-    if (ssl->buffers.serverDH_G.buffer)
+    if (ssl->buffers.serverDH_G.buffer && ssl->buffers.weOwnDH)
         XFREE(ssl->buffers.serverDH_G.buffer, ssl->ctx->heap, DYNAMIC_TYPE_DH);
 
+    ssl->buffers.weOwnDH = 1;  /* SSL owns now */
     ssl->buffers.serverDH_P.buffer = (byte*)XMALLOC(pSz, ssl->ctx->heap,
                                                     DYNAMIC_TYPE_DH);
     if (ssl->buffers.serverDH_P.buffer == NULL)
@@ -212,6 +210,7 @@ int CyaSSL_SetTmpDH(CYASSL* ssl, unsigned char* p, int pSz, unsigned char* g,
     InitSuites(&ssl->suites, ssl->version, ssl->options.haveDH,
                havePSK, ssl->options.haveNTRU, ssl->options.haveECDSA,
                ssl->ctx->method->side);
+
     CYASSL_LEAVE("CyaSSL_SetTmpDH", 0);
     return 0;
 }
@@ -534,8 +533,9 @@ int AddCA(CYASSL_CTX* ctx, buffer der)
             dynamicType = (type == CA_TYPE) ? DYNAMIC_TYPE_CA :
                                               DYNAMIC_TYPE_CERT;
         } else if (type == DH_PARAM_TYPE) {
-
-
+            XSTRNCPY(header, "-----BEGIN DH PARAMETERS-----", sizeof(header));
+            XSTRNCPY(footer, "-----END DH PARAMETERS-----", sizeof(footer));
+            dynamicType = DYNAMIC_TYPE_KEY;
         } else {
             XSTRNCPY(header, "-----BEGIN RSA PRIVATE KEY-----", sizeof(header));
             XSTRNCPY(footer, "-----END RSA PRIVATE KEY-----", sizeof(footer));
@@ -640,7 +640,8 @@ int AddCA(CYASSL_CTX* ctx, buffer der)
         else
             return SSL_BAD_FILE;
 
-        info->consumed = (long)(consumedEnd - (char*)buff);
+        if (info)
+            info->consumed = (long)(consumedEnd - (char*)buff);
 
         /* set up der buffer */
         neededSz = (long)(footerEnd - headerEnd);
@@ -1189,16 +1190,17 @@ int CyaSSL_use_certificate_chain_file(CYASSL* ssl, const char* file)
 }
 
 
-/* server Diffie-Hellman parameters */
-int CyaSSL_SetTmpDH_buffer(CYASSL* ssl, unsigned char* buf, long sz, int format)
+/* server wrapper for ctx or ssl Diffie-Hellman parameters */
+static int CyaSSL_SetTmpDH_buffer_wrapper(CYASSL_CTX* ctx, CYASSL* ssl,
+                                        unsigned char* buf, long sz, int format)
 {
     buffer der;
     int    ret;
     int    weOwnDer = 0;
-    byte   p[1024];
-    byte   g[1024];
-    int    pSz = sizeof(p);
-    int    gSz = sizeof(g);
+    byte   p[MAX_DH_SIZE];
+    byte   g[MAX_DH_SIZE];
+    word32 pSz = sizeof(p);
+    word32 gSz = sizeof(g);
 
     der.buffer = buf;
     der.length = sz;
@@ -1207,7 +1209,8 @@ int CyaSSL_SetTmpDH_buffer(CYASSL* ssl, unsigned char* buf, long sz, int format)
         return SSL_BAD_FILETYPE;
 
     if (format == SSL_FILETYPE_PEM) {
-        ret = PemToDer(buf, sz, DH_PARAM_TYPE, &der, NULL, NULL, NULL);
+        der.buffer = NULL;
+        ret = PemToDer(buf, sz, DH_PARAM_TYPE, &der, ctx->heap, NULL,NULL);
         if (ret < 0) {
             XFREE(der.buffer, ctx->heap, DYNAMIC_TYPE_KEY);
             return ret;
@@ -1217,8 +1220,12 @@ int CyaSSL_SetTmpDH_buffer(CYASSL* ssl, unsigned char* buf, long sz, int format)
 
     if (DhParamsLoad(der.buffer, der.length, p, &pSz, g, &gSz) < 0)
         ret = SSL_BAD_FILETYPE;
-    else
-        ret = CyaSSL_SetTmpDH(ssl, p, pSz, g, gSz);
+    else {
+        if (ssl)
+            ret = CyaSSL_SetTmpDH(ssl, p, pSz, g, gSz);
+        else
+            ret = CyaSSL_CTX_SetTmpDH(ctx, p, pSz, g, gSz);
+    }
 
     if (weOwnDer)
         XFREE(der.buffer, ctx->heap, DYNAMIC_TYPE_KEY);
@@ -1226,11 +1233,26 @@ int CyaSSL_SetTmpDH_buffer(CYASSL* ssl, unsigned char* buf, long sz, int format)
     return ret;
 }
 
+/* server Diffie-Hellman parameters */
+int CyaSSL_SetTmpDH_buffer(CYASSL* ssl, unsigned char* buf, long sz, int format)
+{
+    return CyaSSL_SetTmpDH_buffer_wrapper(ssl->ctx, ssl, buf, sz, format);
+}
+
+
+/* server ctx Diffie-Hellman parameters */
+int CyaSSL_CTX_SetTmpDH_buffer(CYASSL_CTX* ctx, unsigned char* buf, long sz,
+                               int format)
+{
+    return CyaSSL_SetTmpDH_buffer_wrapper(ctx, NULL, buf, sz, format);
+}
+
 
 #if !defined(NO_FILESYSTEM)
 
 /* server Diffie-Hellman parameters */
-int CyaSSL_SetTmpDH_file(CYASSL* ssl, const char* fname, int format)
+static int CyaSSL_SetTmpDH_file_wrapper(CYASSL_CTX* ctx, CYASSL* ssl,
+                                        const char* fname, int format)
 {
     byte   staticBuffer[FILE_BUFFER_SIZE];
     byte*  myBuffer = staticBuffer;
@@ -1256,15 +1278,32 @@ int CyaSSL_SetTmpDH_file(CYASSL* ssl, const char* fname, int format)
 
     if ( (ret = XFREAD(myBuffer, sz, 1, file)) < 0)
         ret = SSL_BAD_FILE;
-    else
-        ret = CyaSSL_SetTmpDH_buffer(ssl, myBuffer, sz, format);
+    else {
+        if (ssl)
+            ret = CyaSSL_SetTmpDH_buffer(ssl, myBuffer, sz, format);
+        else
+            ret = CyaSSL_CTX_SetTmpDH_buffer(ctx, myBuffer, sz, format);
+    }
 
     XFCLOSE(file);
     if (dynamic) XFREE(myBuffer, ctx->heap, DYNAMIC_TYPE_FILE);
 
     return ret;
-
 }
+
+/* server Diffie-Hellman parameters */
+int CyaSSL_SetTmpDH_file(CYASSL* ssl, const char* fname, int format)
+{
+    return CyaSSL_SetTmpDH_file_wrapper(ssl->ctx, ssl, fname, format);
+}
+
+
+/* server Diffie-Hellman parameters */
+int CyaSSL_CTX_SetTmpDH_file(CYASSL_CTX* ctx, const char* fname, int format)
+{
+    return CyaSSL_SetTmpDH_file_wrapper(ctx, NULL, fname, format);
+}
+
 
 #endif /* !NO_FILESYSTEM */
 #endif /* OPENSSL_EXTRA */
@@ -2080,7 +2119,7 @@ int AddSession(CYASSL* ssl)
 
         for (i = 0; i < SESSION_ROWS; i++) {
             double diff = SessionCache[i].totalCount - E;
-            diff *= diff;                /* sqaure    */
+            diff *= diff;                /* square    */
             diff /= E;                   /* normalize */
 
             chiSquare += diff;
@@ -3633,6 +3672,39 @@ int CyaSSL_set_compression(CYASSL* ssl)
         }
 
         return "NONE";
+    }
+
+
+    /* server ctx Diffie-Hellman parameters */
+    int CyaSSL_CTX_SetTmpDH(CYASSL_CTX* ctx, unsigned char* p, int pSz,
+                            unsigned char* g, int gSz)
+    {
+        CYASSL_ENTER("CyaSSL_CTX_SetTmpDH");
+        if (ctx == NULL || p == NULL || g == NULL) return BAD_FUNC_ARG;
+
+        XFREE(ctx->serverDH_P.buffer, ctx->heap, DYNAMIC_TYPE_DH);
+        XFREE(ctx->serverDH_G.buffer, ctx->heap, DYNAMIC_TYPE_DH);
+
+        ctx->serverDH_P.buffer = (byte*)XMALLOC(pSz, ctx->heap,DYNAMIC_TYPE_DH);
+        if (ctx->serverDH_P.buffer == NULL)
+            return MEMORY_E;
+
+        ctx->serverDH_G.buffer = (byte*)XMALLOC(gSz, ctx->heap,DYNAMIC_TYPE_DH);
+        if (ctx->serverDH_G.buffer == NULL) {
+            XFREE(ctx->serverDH_P.buffer, ctx->heap, DYNAMIC_TYPE_DH);
+            return MEMORY_E;
+        }
+
+        ctx->serverDH_P.length = pSz;
+        ctx->serverDH_G.length = gSz;
+
+        XMEMCPY(ctx->serverDH_P.buffer, p, pSz);
+        XMEMCPY(ctx->serverDH_G.buffer, g, gSz);
+
+        ctx->haveDH = 1;
+
+        CYASSL_LEAVE("CyaSSL_CTX_SetTmpDH", 0);
+        return 0;
     }
 
 

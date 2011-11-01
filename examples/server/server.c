@@ -150,7 +150,11 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 
     SSL_set_fd(ssl, clientfd);
 #ifdef NO_PSK
-    SetDH(ssl);   /* will repick suites with DHE, higher priority than PSK */
+    #ifdef NO_FILESYSTEM
+        SetDH(ssl);  /* will repick suites with DHE, higher priority than PSK */
+    #else
+        CyaSSL_SetTmpDH_file(ssl, dhParam, SSL_FILETYPE_PEM);
+    #endif
 #endif
 
 #ifdef NON_BLOCKING
