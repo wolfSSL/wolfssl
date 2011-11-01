@@ -57,6 +57,7 @@ cyassl.xcodeproj/
 cyassl*rc*
 autoscan.log
 TAGS
+.DS_Store
 support/libcyassl.pc
 cyassl/version.h
 cyassl/ctaocrypt/stamp-h1

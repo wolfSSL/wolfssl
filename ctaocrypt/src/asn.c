@@ -903,6 +903,50 @@ int DhSetKey(DhKey* key, const byte* p, word32 pSz, const byte* g, word32 gSz)
 }
 
 
+#ifdef OPENSSL_EXTRA
+
+int DhParamsLoad(const byte* input, word32 inSz, byte* p, word32* pInOutSz,
+                 byte* g, word32* gInOutSz)
+{
+    word32 i = 0;
+    byte   b = input[i++];
+    int    length;
+
+    if (GetSequence(input, &i, &length, inSz) < 0)
+        return ASN_PARSE_E;
+
+    if (b != ASN_INTEGER)
+        return ASN_PARSE_E;
+
+    if (GetLength(input, &i, &length, inSz) < 0)
+        return ASN_PARSE_E;
+
+    if (length <= *pInOutSz) {
+        XMEMCPY(p, &input[i], length);
+        *pInOutSz = length;
+    }
+    else
+        return BUFFER_E;
+
+    i += length;
+
+    if (b != ASN_INTEGER)
+        return ASN_PARSE_E;
+
+    if (GetLength(input, &i, &length, inSz) < 0)
+        return ASN_PARSE_E;
+
+    if (length <= *gInOutSz) {
+        XMEMCPY(g, &input[i], length);
+        *gInOutSz = length;
+    }
+    else
+        return BUFFER_E;
+
+    return 0;
+}
+
+#endif /* OPENSSL_EXTRA */
 #endif /* NO_DH */
 
 

@@ -53,6 +53,8 @@ CYASSL_API int DhKeyDecode(const byte* input, word32* inOutIdx, DhKey* key,
                            word32);
 CYASSL_API int DhSetKey(DhKey* key, const byte* p, word32 pSz, const byte* g,
                         word32 gSz);
+CYASSL_API int DhParamsLoad(const byte* input, word32 inSz, byte* p,
+                            word32* pInOutSz, byte* g, word32* gInOutSz);
 
 
 #ifdef __cplusplus

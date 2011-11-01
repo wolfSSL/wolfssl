@@ -38,6 +38,7 @@
 enum CertType {
     CERT_TYPE       = 0, 
     PRIVATEKEY_TYPE,
+    DH_PARAM_TYPE,
     CA_TYPE
 };
 

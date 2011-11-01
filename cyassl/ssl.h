@@ -148,8 +148,13 @@ CYASSL_API int CyaSSL_CTX_use_certificate_chain_file(CYASSL_CTX *,
                                                      const char *file);
 CYASSL_API int CyaSSL_CTX_use_RSAPrivateKey_file(CYASSL_CTX*, const char*, int);
 
+CYASSL_API int CyaSSL_use_certificate_file(CYASSL*, const char*, int);
+CYASSL_API int CyaSSL_use_PrivateKey_file(CYASSL*, const char*, int);
+CYASSL_API int CyaSSL_use_certificate_chain_file(CYASSL*, const char *file);
+CYASSL_API int CyaSSL_use_RSAPrivateKey_file(CYASSL*, const char*, int);
+
 #ifdef CYASSL_DER_LOAD
-    CYASSL_API int CyaSSL_CTX_load_verify_locations(CYASSL_CTX*,
+    CYASSL_API int CyaSSL_CTX_der_load_verify_locations(CYASSL_CTX*,
                                                     const char*, int);
 #endif
 
@@ -670,6 +675,11 @@ CYASSL_API int  CyaSSL_connect_cert(CYASSL* ssl);
 /* server CTX Diffie-Hellman parameters */
 CYASSL_API int  CyaSSL_SetTmpDH(CYASSL*, unsigned char* p, int pSz,
                                 unsigned char* g, int gSz);
+CYASSL_API int  CyaSSL_SetTmpDH_buffer(CYASSL*, unsigned char* b, long sz,
+                                       int format);
+#ifndef NO_FILESYSTEM
+    CYASSL_API int  CyaSSL_SetTmpDH_file(CYASSL*, const char* f, int format);
+#endif
 
 /* keyblock size in bytes or -1 */
 CYASSL_API int CyaSSL_get_keyblock_size(CYASSL*);

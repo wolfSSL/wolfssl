@@ -95,6 +95,11 @@ typedef CYASSL_X509_STORE_CTX X509_STORE_CTX;
     #define SSL_CTX_load_verify_locations CyaSSL_CTX_load_verify_locations
     #define SSL_CTX_use_certificate_chain_file CyaSSL_CTX_use_certificate_chain_file
     #define SSL_CTX_use_RSAPrivateKey_file CyaSSL_CTX_use_RSAPrivateKey_file
+    
+    #define SSL_use_certificate_file CyaSSL_use_certificate_file
+    #define SSL_use_PrivateKey_file CyaSSL_use_PrivateKey_file
+    #define SSL_use_certificate_chain_file CyaSSL_use_certificate_chain_file
+    #define SSL_use_RSAPrivateKey_file CyaSSL_use_RSAPrivateKey_file
 #endif
 
 #define SSL_CTX_new CyaSSL_CTX_new

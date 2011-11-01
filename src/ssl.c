@@ -167,7 +167,10 @@ int CyaSSL_negotiate(CYASSL* ssl)
 }
 
 
-/* server CTX Diffie-Hellman parameters */
+
+
+
+/* server Diffie-Hellman parameters */
 int CyaSSL_SetTmpDH(CYASSL* ssl, unsigned char* p, int pSz, unsigned char* g,
                     int gSz)
 {
@@ -407,7 +410,7 @@ Signer* GetCA(Signer* signers, byte* hash)
 }
 
 
-/* owns der, cyassl_int now uses too */
+/* owns der, internal now uses too */
 int AddCA(CYASSL_CTX* ctx, buffer der)
 {
     int         ret;
@@ -419,7 +422,11 @@ int AddCA(CYASSL_CTX* ctx, buffer der)
     ret = ParseCert(&cert, CA_TYPE, ctx->verifyPeer, 0);
     CYASSL_MSG("    Parsed new CA");
 
-    if (ret == 0) {
+    if (ret == 0 && IsCA(ctx, cert.subjectHash)) {
+        CYASSL_MSG("    Already have this CA, not adding again");
+        (void)ret;
+    } 
+    else if (ret == 0) {
         /* take over signer parts */
         signer = MakeSigner(ctx->heap);
         if (!signer)
@@ -439,8 +446,11 @@ int AddCA(CYASSL_CTX* ctx, buffer der)
                 ctx->caList  = signer;   /* takes ownership */
                 UnLockMutex(&ca_mutex);
             }
-            else
+            else {
+                CYASSL_MSG("    CA Mutex Lock failed");
+                ret = -1;
                 FreeSigners(signer, ctx->heap);
+            }
         }
     }
 
@@ -523,6 +533,9 @@ int AddCA(CYASSL_CTX* ctx, buffer der)
             XSTRNCPY(footer, "-----END CERTIFICATE-----", sizeof(footer));
             dynamicType = (type == CA_TYPE) ? DYNAMIC_TYPE_CA :
                                               DYNAMIC_TYPE_CERT;
+        } else if (type == DH_PARAM_TYPE) {
+
+
         } else {
             XSTRNCPY(header, "-----BEGIN RSA PRIVATE KEY-----", sizeof(header));
             XSTRNCPY(footer, "-----END RSA PRIVATE KEY-----", sizeof(footer));
@@ -1111,7 +1124,7 @@ int CyaSSL_PemCertToDer(const char* fileName, unsigned char* derBuf, int derSz)
 int CyaSSL_CTX_use_certificate_file(CYASSL_CTX* ctx, const char* file,
                                     int format)
 {
-    CYASSL_ENTER("SSL_CTX_use_certificate_file");
+    CYASSL_ENTER("CyaSSL_CTX_use_certificate_file");
     if (ProcessFile(ctx, file, format, CERT_TYPE, NULL, 0) == SSL_SUCCESS)
         return SSL_SUCCESS;
 
@@ -1121,7 +1134,7 @@ int CyaSSL_CTX_use_certificate_file(CYASSL_CTX* ctx, const char* file,
 
 int CyaSSL_CTX_use_PrivateKey_file(CYASSL_CTX* ctx, const char* file,int format)
 {
-    CYASSL_ENTER("SSL_CTX_use_PrivateKey_file");
+    CYASSL_ENTER("CyaSSL_CTX_use_PrivateKey_file");
     if (ProcessFile(ctx, file, format, PRIVATEKEY_TYPE, NULL, 0) == SSL_SUCCESS)
         return SSL_SUCCESS;
 
@@ -1132,13 +1145,129 @@ int CyaSSL_CTX_use_PrivateKey_file(CYASSL_CTX* ctx, const char* file,int format)
 int CyaSSL_CTX_use_certificate_chain_file(CYASSL_CTX* ctx, const char* file)
 {
    /* procces up to MAX_CHAIN_DEPTH plus subject cert */
-   CYASSL_ENTER("SSL_CTX_use_certificate_chain_file");
+   CYASSL_ENTER("CyaSSL_CTX_use_certificate_chain_file");
    if (ProcessFile(ctx, file, SSL_FILETYPE_PEM,CERT_TYPE,NULL,1) == SSL_SUCCESS)
        return SSL_SUCCESS;
 
    return SSL_FAILURE;
 }
 
+
+#ifdef OPENSSL_EXTRA
+/* put SSL type in extra for now, not very common */
+
+int CyaSSL_use_certificate_file(CYASSL* ssl, const char* file, int format)
+{
+    CYASSL_ENTER("CyaSSL_use_certificate_file");
+    if (ProcessFile(ssl->ctx, file, format, CERT_TYPE, ssl, 0) == SSL_SUCCESS)
+        return SSL_SUCCESS;
+
+    return SSL_FAILURE;
+}
+
+
+int CyaSSL_use_PrivateKey_file(CYASSL* ssl, const char* file, int format)
+{
+    CYASSL_ENTER("CyaSSL_use_PrivateKey_file");
+    if (ProcessFile(ssl->ctx, file, format, PRIVATEKEY_TYPE, ssl, 0)
+                                                                 == SSL_SUCCESS)
+        return SSL_SUCCESS;
+
+    return SSL_FAILURE;
+}
+
+
+int CyaSSL_use_certificate_chain_file(CYASSL* ssl, const char* file)
+{
+   /* procces up to MAX_CHAIN_DEPTH plus subject cert */
+   CYASSL_ENTER("CyaSSL_use_certificate_chain_file");
+   if (ProcessFile(ssl->ctx, file, SSL_FILETYPE_PEM, CERT_TYPE, ssl, 1)
+                                                                 == SSL_SUCCESS)
+       return SSL_SUCCESS;
+
+   return SSL_FAILURE;
+}
+
+
+/* server Diffie-Hellman parameters */
+int CyaSSL_SetTmpDH_buffer(CYASSL* ssl, unsigned char* buf, long sz, int format)
+{
+    buffer der;
+    int    ret;
+    int    weOwnDer = 0;
+    byte   p[1024];
+    byte   g[1024];
+    int    pSz = sizeof(p);
+    int    gSz = sizeof(g);
+
+    der.buffer = buf;
+    der.length = sz;
+
+    if (format != SSL_FILETYPE_ASN1 && format != SSL_FILETYPE_PEM)
+        return SSL_BAD_FILETYPE;
+
+    if (format == SSL_FILETYPE_PEM) {
+        ret = PemToDer(buf, sz, DH_PARAM_TYPE, &der, NULL, NULL, NULL);
+        if (ret < 0) {
+            XFREE(der.buffer, ctx->heap, DYNAMIC_TYPE_KEY);
+            return ret;
+        }
+        weOwnDer = 1;
+    }
+
+    if (DhParamsLoad(der.buffer, der.length, p, &pSz, g, &gSz) < 0)
+        ret = SSL_BAD_FILETYPE;
+    else
+        ret = CyaSSL_SetTmpDH(ssl, p, pSz, g, gSz);
+
+    if (weOwnDer)
+        XFREE(der.buffer, ctx->heap, DYNAMIC_TYPE_KEY);
+
+    return ret;
+}
+
+
+#if !defined(NO_FILESYSTEM)
+
+/* server Diffie-Hellman parameters */
+int CyaSSL_SetTmpDH_file(CYASSL* ssl, const char* fname, int format)
+{
+    byte   staticBuffer[FILE_BUFFER_SIZE];
+    byte*  myBuffer = staticBuffer;
+    int    dynamic = 0;
+    int    ret;
+    long   sz = 0;
+    XFILE* file = XFOPEN(fname, "rb"); 
+
+    if (!file) return SSL_BAD_FILE;
+    XFSEEK(file, 0, XSEEK_END);
+    sz = XFTELL(file);
+    XREWIND(file);
+
+    if (sz > (long)sizeof(staticBuffer)) {
+        CYASSL_MSG("Getting dynamic buffer");
+        myBuffer = (byte*) XMALLOC(sz, ctx->heap, DYNAMIC_TYPE_FILE);
+        if (myBuffer == NULL) {
+            XFCLOSE(file);
+            return SSL_BAD_FILE;
+        }
+        dynamic = 1;
+    }
+
+    if ( (ret = XFREAD(myBuffer, sz, 1, file)) < 0)
+        ret = SSL_BAD_FILE;
+    else
+        ret = CyaSSL_SetTmpDH_buffer(ssl, myBuffer, sz, format);
+
+    XFCLOSE(file);
+    if (dynamic) XFREE(myBuffer, ctx->heap, DYNAMIC_TYPE_FILE);
+
+    return ret;
+
+}
+
+#endif /* !NO_FILESYSTEM */
+#endif /* OPENSSL_EXTRA */
 
 #ifdef HAVE_NTRU
 
@@ -1165,6 +1294,16 @@ int CyaSSL_CTX_use_NTRUPrivateKey_file(CYASSL_CTX* ctx, const char* file)
     {
         CYASSL_ENTER("SSL_CTX_use_RSAPrivateKey_file");
         if (ProcessFile(ctx, file,format,PRIVATEKEY_TYPE,NULL,0) == SSL_SUCCESS)
+            return SSL_SUCCESS;
+
+        return SSL_FAILURE;
+    }
+
+    int CyaSSL_use_RSAPrivateKey_file(CYASSL* ssl, const char* file, int format)
+    {
+        CYASSL_ENTER("CyaSSL_use_RSAPrivateKey_file");
+        if (ProcessFile(ssl->ctx, file, format, PRIVATEKEY_TYPE, ssl, 0)
+                                                                 == SSL_SUCCESS)
             return SSL_SUCCESS;
 
         return SSL_FAILURE;
