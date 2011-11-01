@@ -168,8 +168,8 @@ int CyaSSL_negotiate(CYASSL* ssl)
 
 
 /* server Diffie-Hellman parameters */
-int CyaSSL_SetTmpDH(CYASSL* ssl, unsigned char* p, int pSz, unsigned char* g,
-                    int gSz)
+int CyaSSL_SetTmpDH(CYASSL* ssl, const unsigned char* p, int pSz,
+                    const unsigned char* g, int gSz)
 {
     byte havePSK = 0;
 
@@ -1192,7 +1192,7 @@ int CyaSSL_use_certificate_chain_file(CYASSL* ssl, const char* file)
 
 /* server wrapper for ctx or ssl Diffie-Hellman parameters */
 static int CyaSSL_SetTmpDH_buffer_wrapper(CYASSL_CTX* ctx, CYASSL* ssl,
-                                        unsigned char* buf, long sz, int format)
+                                  const unsigned char* buf, long sz, int format)
 {
     buffer der;
     int    ret;
@@ -1234,15 +1234,16 @@ static int CyaSSL_SetTmpDH_buffer_wrapper(CYASSL_CTX* ctx, CYASSL* ssl,
 }
 
 /* server Diffie-Hellman parameters */
-int CyaSSL_SetTmpDH_buffer(CYASSL* ssl, unsigned char* buf, long sz, int format)
+int CyaSSL_SetTmpDH_buffer(CYASSL* ssl, const unsigned char* buf, long sz,
+                           int format)
 {
     return CyaSSL_SetTmpDH_buffer_wrapper(ssl->ctx, ssl, buf, sz, format);
 }
 
 
 /* server ctx Diffie-Hellman parameters */
-int CyaSSL_CTX_SetTmpDH_buffer(CYASSL_CTX* ctx, unsigned char* buf, long sz,
-                               int format)
+int CyaSSL_CTX_SetTmpDH_buffer(CYASSL_CTX* ctx, const unsigned char* buf,
+                               long sz, int format)
 {
     return CyaSSL_SetTmpDH_buffer_wrapper(ctx, NULL, buf, sz, format);
 }
@@ -3676,8 +3677,8 @@ int CyaSSL_set_compression(CYASSL* ssl)
 
 
     /* server ctx Diffie-Hellman parameters */
-    int CyaSSL_CTX_SetTmpDH(CYASSL_CTX* ctx, unsigned char* p, int pSz,
-                            unsigned char* g, int gSz)
+    int CyaSSL_CTX_SetTmpDH(CYASSL_CTX* ctx, const unsigned char* p, int pSz,
+                            const unsigned char* g, int gSz)
     {
         CYASSL_ENTER("CyaSSL_CTX_SetTmpDH");
         if (ctx == NULL || p == NULL || g == NULL) return BAD_FUNC_ARG;

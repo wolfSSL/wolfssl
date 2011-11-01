@@ -673,18 +673,18 @@ CYASSL_API char*  CyaSSL_X509_get_subjectCN(CYASSL_X509*);
 CYASSL_API int  CyaSSL_connect_cert(CYASSL* ssl);
 
 /* server Diffie-Hellman parameters */
-CYASSL_API int  CyaSSL_SetTmpDH(CYASSL*, unsigned char* p, int pSz,
-                                unsigned char* g, int gSz);
-CYASSL_API int  CyaSSL_SetTmpDH_buffer(CYASSL*, unsigned char* b, long sz,
+CYASSL_API int  CyaSSL_SetTmpDH(CYASSL*, const unsigned char* p, int pSz,
+                                const unsigned char* g, int gSz);
+CYASSL_API int  CyaSSL_SetTmpDH_buffer(CYASSL*, const unsigned char* b, long sz,
                                        int format);
 #ifndef NO_FILESYSTEM
     CYASSL_API int  CyaSSL_SetTmpDH_file(CYASSL*, const char* f, int format);
 #endif
 
 /* server ctx Diffie-Hellman parameters */
-CYASSL_API int  CyaSSL_CTX_SetTmpDH(CYASSL_CTX*, unsigned char* p, int pSz,
-                                    unsigned char* g, int gSz);
-CYASSL_API int  CyaSSL_CTX_SetTmpDH_buffer(CYASSL_CTX*, unsigned char* b,
+CYASSL_API int  CyaSSL_CTX_SetTmpDH(CYASSL_CTX*, const unsigned char* p,
+                                    int pSz, const unsigned char* g, int gSz);
+CYASSL_API int  CyaSSL_CTX_SetTmpDH_buffer(CYASSL_CTX*, const unsigned char* b,
                                            long sz, int format);
 #ifndef NO_FILESYSTEM
     CYASSL_API int  CyaSSL_CTX_SetTmpDH_file(CYASSL_CTX*, const char* f,
