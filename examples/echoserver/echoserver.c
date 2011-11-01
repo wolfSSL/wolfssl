@@ -149,10 +149,10 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
         ssl = SSL_new(ctx);
         if (ssl == NULL) err_sys("SSL_new failed");
         SSL_set_fd(ssl, clientfd);
-        #ifdef NO_FILESYSTEM
-            SetDH(ssl);
-        #else
+        #if !defined(NO_FILESYSTEM) && defined(OPENSSL_EXTRA)
             CyaSSL_SetTmpDH_file(ssl, dhParam, SSL_FILETYPE_PEM);
+        #else
+            SetDH(ssl);  /* will repick suites with DHE, higher than PSK */
         #endif
         if (SSL_accept(ssl) != SSL_SUCCESS) {
             printf("SSL_accept failed\n");

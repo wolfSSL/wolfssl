@@ -927,7 +927,7 @@ int DhParamsLoad(const byte* input, word32 inSz, byte* p, word32* pInOutSz,
     else
         i--;
 
-    if (length <= *pInOutSz) {
+    if (length <= (int)*pInOutSz) {
         XMEMCPY(p, &input[i], length);
         *pInOutSz = length;
     }
@@ -943,7 +943,7 @@ int DhParamsLoad(const byte* input, word32 inSz, byte* p, word32* pInOutSz,
     if (GetLength(input, &i, &length, inSz) < 0)
         return ASN_PARSE_E;
 
-    if (length <= *gInOutSz) {
+    if (length <= (int)*gInOutSz) {
         XMEMCPY(g, &input[i], length);
         *gInOutSz = length;
     }

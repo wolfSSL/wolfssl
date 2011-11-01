@@ -1202,7 +1202,7 @@ static int CyaSSL_SetTmpDH_buffer_wrapper(CYASSL_CTX* ctx, CYASSL* ssl,
     word32 pSz = sizeof(p);
     word32 gSz = sizeof(g);
 
-    der.buffer = buf;
+    der.buffer = (byte*)buf;
     der.length = sz;
 
     if (format != SSL_FILETYPE_ASN1 && format != SSL_FILETYPE_PEM)
