@@ -1511,7 +1511,11 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx)
         InitDecodedCert(&dCert, myCert.buffer, myCert.length, ssl->heap);
         ret = ParseCertRelative(&dCert, CERT_TYPE, !ssl->options.verifyNone,
                                 ssl->ctx->caList);
-        if (ret == 0 && !IsCA(ssl->ctx, dCert.subjectHash)) {
+        if (ret == 0 && dCert.isCA == 0) {
+            CYASSL_MSG("Chain cert is not a CA, not adding as one");
+            (void)ret;
+        }
+        else if (ret == 0 && !AlreadySigner(ssl->ctx, dCert.subjectHash)) {
             buffer add;
             add.length = myCert.length;
             add.buffer = (byte*)XMALLOC(myCert.length, ssl->heap,

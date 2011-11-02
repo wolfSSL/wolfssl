@@ -50,6 +50,7 @@ enum {
 
 /* ASN Tags   */
 enum ASN_Tags {        
+    ASN_BOOLEAN           = 0x01,
     ASN_INTEGER           = 0x02,
     ASN_BIT_STRING        = 0x03,
     ASN_OCTET_STRING      = 0x04,
@@ -167,6 +168,7 @@ enum KDF_Sum {
 
 
 enum Extensions_Sum {
+    BASIC_CA_OID  = 133,
     ALT_NAMES_OID = 131 
 };
 
@@ -207,6 +209,7 @@ struct DecodedCert {
     byte*   extensions;              /* not owned, points into raw cert  */
     int     extensionsSz;            /* length of cert extensions */
     word32  extensionsIdx;           /* if want to go back and parse later */
+    byte    isCA;                    /* CA basic constraint true */
 #ifdef CYASSL_CERT_GEN
     /* easy access to subject info for other sign */
     char*   subjectSN;

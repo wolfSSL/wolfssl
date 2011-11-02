@@ -1017,6 +1017,7 @@ void InitDecodedCert(DecodedCert* cert, byte* source, word32 inSz, void* heap)
     cert->extensions      = 0;
     cert->extensionsSz    = 0;
     cert->extensionsIdx   = 0;
+    cert->isCA            = 0;
 #ifdef CYASSL_CERT_GEN
     cert->subjectSN       = 0;
     cert->subjectSNLen    = 0;
@@ -1970,6 +1971,78 @@ int ParseCert(DecodedCert* cert, int type, int verify,
 }
 
 
+/* If extension CA basic constraint is turned on, flag it, not error if not */
+static void IsCa(DecodedCert* cert) 
+{
+    if (cert->extensions) {
+        byte   b;
+        int    length;
+        word32 maxExtensionsIdx;
+
+        cert->srcIdx = cert->extensionsIdx;
+        b = cert->source[cert->srcIdx++];
+        if (b != ASN_EXTENSIONS)
+            return;
+
+        if (GetLength(cert->source, &cert->srcIdx, &length,
+                      cert->maxIdx) < 0)
+            return;
+
+        if (GetSequence(cert->source, &cert->srcIdx, &length,
+                        cert->maxIdx) < 0)
+            return;
+
+        maxExtensionsIdx = cert->srcIdx + length;
+
+        while (cert->srcIdx < maxExtensionsIdx) {
+            word32 oid;
+            word32 startIdx = cert->srcIdx;
+            word32 tmpIdx;
+
+            if (GetSequence(cert->source, &cert->srcIdx, &length,
+                            cert->maxIdx) < 0)
+                return;
+
+            tmpIdx = cert->srcIdx;
+            cert->srcIdx = startIdx;
+
+            if (GetAlgoId(cert->source, &cert->srcIdx, &oid,
+                          cert->maxIdx) < 0) 
+                return;
+
+            if (oid == BASIC_CA_OID) {
+                b = cert->source[cert->srcIdx++];
+                if (b != ASN_OCTET_STRING)
+                    return;
+
+                if (GetLength(cert->source, &cert->srcIdx, &length,
+                              cert->maxIdx) < 0)
+                    return;
+
+                if (GetSequence(cert->source, &cert->srcIdx, &length,
+                                cert->maxIdx) < 0)
+                    return;
+
+                b = cert->source[cert->srcIdx++];
+                if (b != ASN_BOOLEAN)
+                    return;
+
+                if (GetLength(cert->source, &cert->srcIdx, &length,
+                              cert->maxIdx) < 0)
+                    return;
+
+                b = cert->source[cert->srcIdx++];
+                if (b)
+                    cert->isCA = 1;
+
+                return;  /* we're done checking */
+            }
+            cert->srcIdx = tmpIdx + length;
+        }
+    }
+}
+
+
 /* from SSL proper, for locking can't do find here anymore */
 CYASSL_LOCAL Signer* GetCA(Signer* signers, byte* hash);
 
@@ -1995,6 +2068,7 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify,
             cert->extensionsSz  =  cert->sigIndex - cert->srcIdx;
             cert->extensionsIdx = cert->srcIdx;   /* for potential later use */
         }
+        IsCa(cert);  /* turn on ca flag if there */
         /* advance past extensions */
         cert->srcIdx =  cert->sigIndex;
     }

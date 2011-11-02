@@ -617,7 +617,7 @@ int ProcessOldClientHello(CYASSL* ssl, const byte* input, word32* inOutIdx,
 CYASSL_LOCAL
 int AddCA(CYASSL_CTX* ctx, buffer der);
 CYASSL_LOCAL
-int IsCA(CYASSL_CTX* ctx, byte* hash);
+int AlreadySigner(CYASSL_CTX* ctx, byte* hash);
 
 /* All cipher suite related info */
 typedef struct CipherSpecs {

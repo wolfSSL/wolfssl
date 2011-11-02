@@ -367,8 +367,8 @@ int CyaSSL_pending(CYASSL* ssl)
 
 static CyaSSL_Mutex ca_mutex;   /* CA signers mutex */
 
-/* does CA already exist on list */
-int IsCA(CYASSL_CTX* ctx, byte* hash)
+/* does CA already exist on signer list */
+int AlreadySigner(CYASSL_CTX* ctx, byte* hash)
 {
     Signer* signers;
     int     ret = 0;
@@ -421,7 +421,11 @@ int AddCA(CYASSL_CTX* ctx, buffer der)
     ret = ParseCert(&cert, CA_TYPE, ctx->verifyPeer, 0);
     CYASSL_MSG("    Parsed new CA");
 
-    if (ret == 0 && IsCA(ctx, cert.subjectHash)) {
+    if (ret == 0 && cert.isCA == 0) {
+        CYASSL_MSG("    Can't add as CA if not actually one");
+        ret = -1;
+    }
+    else if (ret == 0 && AlreadySigner(ctx, cert.subjectHash)) {
         CYASSL_MSG("    Already have this CA, not adding again");
         (void)ret;
     } 
