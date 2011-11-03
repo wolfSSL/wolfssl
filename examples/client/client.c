@@ -23,7 +23,7 @@
     #include <config.h>
 #endif
 
-#include <cyassl/openssl/ssl.h>
+#include <cyassl/ssl.h>
 #include <cyassl/test.h>
 
 /*
@@ -38,14 +38,14 @@
 #endif
 
 #if defined(NON_BLOCKING) || defined(CYASSL_CALLBACKS)
-    void NonBlockingSSL_Connect(SSL* ssl)
+    void NonBlockingSSL_Connect(CyaSSL* ssl)
     {
 #ifndef CYASSL_CALLBACKS
-        int ret = SSL_connect(ssl);
+        int ret = CyaSSL_connect(ssl);
 #else
         int ret = CyaSSL_connect_ex(ssl, handShakeCB, timeoutCB, timeout);
 #endif
-        int error = SSL_get_error(ssl, 0);
+        int error = CyaSSL_get_error(ssl, 0);
         while (ret != SSL_SUCCESS && (error == SSL_ERROR_WANT_READ ||
                                       error == SSL_ERROR_WANT_WRITE)) {
             if (error == SSL_ERROR_WANT_READ)
@@ -58,11 +58,11 @@
                 sleep(1);
             #endif
             #ifndef CYASSL_CALLBACKS
-                ret = SSL_connect(ssl);
+                ret = CyaSSL_connect(ssl);
             #else
                 ret = CyaSSL_connect_ex(ssl, handShakeCB, timeoutCB, timeout);
             #endif
-            error = SSL_get_error(ssl, 0);
+            error = CyaSSL_get_error(ssl, 0);
         }
         if (ret != SSL_SUCCESS)
             err_sys("SSL_connect failed");
@@ -74,13 +74,13 @@ void client_test(void* args)
 {
     SOCKET_T sockfd = 0;
 
-    SSL_METHOD*  method  = 0;
-    SSL_CTX*     ctx     = 0;
-    SSL*         ssl     = 0;
+    CYASSL_METHOD*  method  = 0;
+    CYASSL_CTX*     ctx     = 0;
+    CYASSL*         ssl     = 0;
     
 #ifdef TEST_RESUME
-    SSL*         sslResume = 0;
-    SSL_SESSION* session = 0;
+    CYASSL*         sslResume = 0;
+    CYASSL_SESSION* session = 0;
     char         resumeMsg[] = "resuming cyassl!";
     int          resumeSz    = sizeof(resumeMsg);
 #endif
@@ -96,32 +96,32 @@ void client_test(void* args)
     ((func_args*)args)->return_code = -1; /* error state */
 
 #if defined(CYASSL_DTLS)
-    method  = DTLSv1_client_method();
+    method  = CyaDTLSv1_client_method();
 #elif  !defined(NO_TLS)
-    method  = SSLv23_client_method();
+    method  = CyaSSLv23_client_method();
 #else
-    method  = SSLv3_client_method();
+    method  = CyaSSLv3_client_method();
 #endif
-    ctx     = SSL_CTX_new(method);
+    ctx     = CyaSSL_CTX_new(method);
 
 #ifndef NO_PSK
-    SSL_CTX_set_psk_client_callback(ctx, my_psk_client_cb);
+    CyaSSL_CTX_set_psk_client_callback(ctx, my_psk_client_cb);
 #endif
 
 #ifdef OPENSSL_EXTRA
-    SSL_CTX_set_default_passwd_cb(ctx, PasswordCallBack);
+    CyaSSL_CTX_set_default_passwd_cb(ctx, PasswordCallBack);
 #endif
 
 #if defined(CYASSL_SNIFFER) && !defined(HAVE_NTRU) && !defined(HAVE_ECC)
     /* don't use EDH, can't sniff tmp keys */
-    SSL_CTX_set_cipher_list(ctx, "AES256-SHA");
+    CyaSSL_CTX_set_cipher_list(ctx, "AES256-SHA");
 #endif
 
 #ifndef NO_FILESYSTEM
-    if (SSL_CTX_load_verify_locations(ctx, caCert, 0) != SSL_SUCCESS)
+    if (CyaSSL_CTX_load_verify_locations(ctx, caCert, 0) != SSL_SUCCESS)
         err_sys("can't load ca file, Please run from CyaSSL home dir");
     #ifdef HAVE_ECC
-        if (SSL_CTX_load_verify_locations(ctx, eccCert, 0) != SSL_SUCCESS)
+        if (CyaSSL_CTX_load_verify_locations(ctx, eccCert, 0) != SSL_SUCCESS)
             err_sys("can't load ca file, Please run from CyaSSL home dir");
     #endif
 #else
@@ -129,12 +129,12 @@ void client_test(void* args)
 #endif
 
 #ifdef VERIFY_CALLBACK
-    SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, myVerify);
+    CyaSSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, myVerify);
 #endif
 
     if (argc == 3) {
         /*  ./client server securePort  */
-        SSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, 0);  /* TODO: add ca cert */
+        CyaSSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, 0);  /* TODO: add ca cert */
                     /* this is just to allow easy testing of other servers */
         tcp_connect(&sockfd, argv[1], (short)atoi(argv[2]));
     }
@@ -142,12 +142,12 @@ void client_test(void* args)
         /* ./client          // plain mode */
         /* for client cert authentication if server requests */
 #ifndef NO_FILESYSTEM
-        if (SSL_CTX_use_certificate_file(ctx, cliCert, SSL_FILETYPE_PEM)
+        if (CyaSSL_CTX_use_certificate_file(ctx, cliCert, SSL_FILETYPE_PEM)
                 != SSL_SUCCESS)
             err_sys("can't load client cert file, "
                     "Please run from CyaSSL home dir");
 
-        if (SSL_CTX_use_PrivateKey_file(ctx, cliKey, SSL_FILETYPE_PEM)
+        if (CyaSSL_CTX_use_PrivateKey_file(ctx, cliKey, SSL_FILETYPE_PEM)
                 != SSL_SUCCESS)
             err_sys("can't load client key file, "
                     "Please run from CyaSSL home dir");
@@ -167,13 +167,13 @@ void client_test(void* args)
 
         for (i = 0; i < times; i++) {
             tcp_connect(&sockfd, yasslIP, yasslPort);
-            ssl = SSL_new(ctx);
-            SSL_set_fd(ssl, sockfd);
-            if (SSL_connect(ssl) != SSL_SUCCESS)
+            ssl = CyaSSL_new(ctx);
+            CyaSSL_set_fd(ssl, sockfd);
+            if (CyaSSL_connect(ssl) != SSL_SUCCESS)
                 err_sys("SSL_connect failed");
 
-            SSL_shutdown(ssl);
-            SSL_free(ssl);
+            CyaSSL_shutdown(ssl);
+            CyaSSL_free(ssl);
             CloseSocket(sockfd);
         }
         avg = current_time() - start;
@@ -181,15 +181,15 @@ void client_test(void* args)
         avg *= 1000;    /* milliseconds */  
         printf("SSL_connect avg took:%6.3f milliseconds\n", avg);
 
-        SSL_CTX_free(ctx);
+        CyaSSL_CTX_free(ctx);
         ((func_args*)args)->return_code = 0;
         return;
     }
     else
         err_sys("usage: ./client server securePort");
 
-    ssl = SSL_new(ctx);
-    SSL_set_fd(ssl, sockfd);
+    ssl = CyaSSL_new(ctx);
+    CyaSSL_set_fd(ssl, sockfd);
     if (argc != 3)
         CyaSSL_check_domain_name(ssl, "www.yassl.com");
 #ifdef NON_BLOCKING
@@ -197,10 +197,10 @@ void client_test(void* args)
     NonBlockingSSL_Connect(ssl);
 #else
     #ifndef CYASSL_CALLBACKS
-        if (SSL_connect(ssl) != SSL_SUCCESS) { /* see note at top of README */
-            int  err = SSL_get_error(ssl, 0);
+        if (CyaSSL_connect(ssl) != SSL_SUCCESS) {/* see note at top of README */
+            int  err = CyaSSL_get_error(ssl, 0);
             char buffer[80];
-            printf("err = %d, %s\n", err, ERR_error_string(err, buffer));
+            printf("err = %d, %s\n", err, CyaSSL_ERR_error_string(err, buffer));
             err_sys("SSL_connect failed");/* if you're getting an error here  */
         }
     #else
@@ -216,17 +216,17 @@ void client_test(void* args)
         msgSz = 28;
         strncpy(msg, "GET /index.html HTTP/1.0\r\n\r\n", msgSz);
     }
-    if (SSL_write(ssl, msg, msgSz) != msgSz)
+    if (CyaSSL_write(ssl, msg, msgSz) != msgSz)
         err_sys("SSL_write failed");
 
-    input = SSL_read(ssl, reply, sizeof(reply));
+    input = CyaSSL_read(ssl, reply, sizeof(reply));
     if (input > 0) {
         reply[input] = 0;
         printf("Server response: %s\n", reply);
 
         if (argc == 3) {  /* get html */
             while (1) {
-                input = SSL_read(ssl, reply, sizeof(reply));
+                input = CyaSSL_read(ssl, reply, sizeof(reply));
                 if (input > 0) {
                     reply[input] = 0;
                     printf("%s\n", reply);
@@ -242,14 +242,14 @@ void client_test(void* args)
         strncpy(msg, "break", 6);
         msgSz = (int)strlen(msg);
         /* try to send session close */
-        SSL_write(ssl, msg, msgSz);
+        CyaSSL_write(ssl, msg, msgSz);
     #endif
-    session   = SSL_get_session(ssl);
-    sslResume = SSL_new(ctx);
+    session   = CyaSSL_get_session(ssl);
+    sslResume = CyaSSL_new(ctx);
 #endif
 
-    SSL_shutdown(ssl);
-    SSL_free(ssl);
+    CyaSSL_shutdown(ssl);
+    CyaSSL_free(ssl);
     CloseSocket(sockfd);
 
 #ifdef TEST_RESUME
@@ -264,36 +264,36 @@ void client_test(void* args)
         tcp_connect(&sockfd, argv[1], (short)atoi(argv[2]));
     else
         tcp_connect(&sockfd, yasslIP, yasslPort);
-    SSL_set_fd(sslResume, sockfd);
-    SSL_set_session(sslResume, session);
+    CyaSSL_set_fd(sslResume, sockfd);
+    CyaSSL_set_session(sslResume, session);
    
     showPeer(sslResume); 
-    if (SSL_connect(sslResume) != SSL_SUCCESS) err_sys("SSL resume failed");
+    if (CyaSSL_connect(sslResume) != SSL_SUCCESS) err_sys("SSL resume failed");
 
 #ifdef OPENSSL_EXTRA
-    if (SSL_session_reused(sslResume))
+    if (CyaSSL_session_reused(sslResume))
         printf("reused session id\n");
     else
         printf("didn't reuse session id!!!\n");
 #endif
   
-    if (SSL_write(sslResume, resumeMsg, resumeSz) != resumeSz)
+    if (CyaSSL_write(sslResume, resumeMsg, resumeSz) != resumeSz)
         err_sys("SSL_write failed");
 
-    input = SSL_read(sslResume, reply, sizeof(reply));
+    input = CyaSSL_read(sslResume, reply, sizeof(reply));
     if (input > 0) {
         reply[input] = 0;
         printf("Server resume response: %s\n", reply);
     }
 
     /* try to send session break */
-    SSL_write(sslResume, msg, msgSz); 
+    CyaSSL_write(sslResume, msg, msgSz); 
 
-    SSL_shutdown(sslResume);
-    SSL_free(sslResume);
+    CyaSSL_shutdown(sslResume);
+    CyaSSL_free(sslResume);
 #endif /* TEST_RESUME */
 
-    SSL_CTX_free(ctx);
+    CyaSSL_CTX_free(ctx);
     CloseSocket(sockfd);
 
     ((func_args*)args)->return_code = 0;

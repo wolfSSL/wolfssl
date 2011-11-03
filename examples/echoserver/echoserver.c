@@ -23,7 +23,7 @@
     #include <config.h>
 #endif
 
-#include <cyassl/openssl/ssl.h>
+#include <cyassl/ssl.h>
 #include <cyassl/test.h>
 
 #ifndef NO_MAIN_DRIVER
@@ -52,9 +52,9 @@ static void SignalReady(void* args)
 
 THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
 {
-    SOCKET_T    sockfd = 0;
-    SSL_METHOD* method = 0;
-    SSL_CTX*    ctx    = 0;
+    SOCKET_T       sockfd = 0;
+    CYASSL_METHOD* method = 0;
+    CYASSL_CTX*    ctx    = 0;
 
     int    outCreated = 0;
     int    shutdown = 0;
@@ -75,23 +75,23 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
     tcp_listen(&sockfd);
 
 #if defined(CYASSL_DTLS)
-    method  = DTLSv1_server_method();
+    method  = CyaDTLSv1_server_method();
 #elif  !defined(NO_TLS)
-    method = SSLv23_server_method();
+    method = CyaSSLv23_server_method();
 #else
-    method = SSLv3_server_method();
+    method = CyaSSLv3_server_method();
 #endif
-    ctx    = SSL_CTX_new(method);
-    /* SSL_CTX_set_session_cache_mode(ctx, SSL_SESS_CACHE_OFF); */
+    ctx    = CyaSSL_CTX_new(method);
+    /* CyaSSL_CTX_set_session_cache_mode(ctx, SSL_SESS_CACHE_OFF); */
 
 #ifdef OPENSSL_EXTRA
-    SSL_CTX_set_default_passwd_cb(ctx, PasswordCallBack);
+    CyaSSL_CTX_set_default_passwd_cb(ctx, PasswordCallBack);
 #endif
 
 #ifndef NO_FILESYSTEM
     #ifdef HAVE_NTRU
         /* ntru */
-        if (SSL_CTX_use_certificate_file(ctx, ntruCert, SSL_FILETYPE_PEM)
+        if (CyaSSL_CTX_use_certificate_file(ctx, ntruCert, SSL_FILETYPE_PEM)
                 != SSL_SUCCESS)
             err_sys("can't load ntru cert file, "
                     "Please run from CyaSSL home dir");
@@ -102,23 +102,23 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
                     "Please run from CyaSSL home dir");
     #elif HAVE_ECC
         /* ecc */
-        if (SSL_CTX_use_certificate_file(ctx, eccCert, SSL_FILETYPE_PEM)
+        if (CyaSSL_CTX_use_certificate_file(ctx, eccCert, SSL_FILETYPE_PEM)
                 != SSL_SUCCESS)
             err_sys("can't load server cert file, "
                     "Please run from CyaSSL home dir");
 
-        if (SSL_CTX_use_PrivateKey_file(ctx, eccKey, SSL_FILETYPE_PEM)
+        if (CyaSSL_CTX_use_PrivateKey_file(ctx, eccKey, SSL_FILETYPE_PEM)
                 != SSL_SUCCESS)
             err_sys("can't load server key file, "
                     "Please run from CyaSSL home dir");
     #else
         /* normal */
-        if (SSL_CTX_use_certificate_file(ctx, svrCert, SSL_FILETYPE_PEM)
+        if (CyaSSL_CTX_use_certificate_file(ctx, svrCert, SSL_FILETYPE_PEM)
                 != SSL_SUCCESS)
             err_sys("can't load server cert file, "
                     "Please run from CyaSSL home dir");
 
-        if (SSL_CTX_use_PrivateKey_file(ctx, svrKey, SSL_FILETYPE_PEM)
+        if (CyaSSL_CTX_use_PrivateKey_file(ctx, svrKey, SSL_FILETYPE_PEM)
                 != SSL_SUCCESS)
             err_sys("can't load server key file, "
                     "Please run from CyaSSL home dir");
@@ -131,10 +131,10 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
     SignalReady(args);
 
     while (!shutdown) {
-        SSL* ssl = 0;
-        char command[1024];
-        int  echoSz = 0;
-        int  clientfd;
+        CYASSL* ssl = 0;
+        char    command[1024];
+        int     echoSz = 0;
+        int     clientfd;
                 
 #ifndef CYASSL_DTLS 
         SOCKADDR_IN_T client;
@@ -146,17 +146,17 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
 #endif
         if (clientfd == -1) err_sys("tcp accept failed");
 
-        ssl = SSL_new(ctx);
+        ssl = CyaSSL_new(ctx);
         if (ssl == NULL) err_sys("SSL_new failed");
-        SSL_set_fd(ssl, clientfd);
+        CyaSSL_set_fd(ssl, clientfd);
         #if !defined(NO_FILESYSTEM) && defined(OPENSSL_EXTRA)
             CyaSSL_SetTmpDH_file(ssl, dhParam, SSL_FILETYPE_PEM);
         #else
             SetDH(ssl);  /* will repick suites with DHE, higher than PSK */
         #endif
-        if (SSL_accept(ssl) != SSL_SUCCESS) {
+        if (CyaSSL_accept(ssl) != SSL_SUCCESS) {
             printf("SSL_accept failed\n");
-            SSL_free(ssl);
+            CyaSSL_free(ssl);
             CloseSocket(clientfd);
             continue;
         }
@@ -164,7 +164,7 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
         showPeer(ssl);
 #endif
 
-        while ( (echoSz = SSL_read(ssl, command, sizeof(command))) > 0) {
+        while ( (echoSz = CyaSSL_read(ssl, command, sizeof(command))) > 0) {
            
             if ( strncmp(command, "quit", 4) == 0) {
                 printf("client sent quit command: shutting down!\n");
@@ -198,7 +198,7 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
                 strncpy(&command[echoSz], footer, sizeof(footer));
                 echoSz += sizeof(footer);
 
-                if (SSL_write(ssl, command, echoSz) != echoSz)
+                if (CyaSSL_write(ssl, command, echoSz) != echoSz)
                     err_sys("SSL_write failed");
                 break;
             }
@@ -208,13 +208,13 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
                 fputs(command, fout);
             #endif
 
-            if (SSL_write(ssl, command, echoSz) != echoSz)
+            if (CyaSSL_write(ssl, command, echoSz) != echoSz)
                 err_sys("SSL_write failed");
         }
 #ifndef CYASSL_DTLS
-        SSL_shutdown(ssl);
+        CyaSSL_shutdown(ssl);
 #endif
-        SSL_free(ssl);
+        CyaSSL_free(ssl);
         CloseSocket(clientfd);
 #ifdef CYASSL_DTLS
         tcp_listen(&sockfd);
@@ -223,7 +223,7 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
     }
 
     CloseSocket(sockfd);
-    SSL_CTX_free(ctx);
+    CyaSSL_CTX_free(ctx);
 
 #ifdef ECHO_OUT
     if (outCreated)

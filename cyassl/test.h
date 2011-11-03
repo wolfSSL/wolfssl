@@ -157,15 +157,17 @@ static int PasswordCallBack(char* passwd, int sz, int rw, void* userdata)
 #endif
 
 
-static INLINE void showPeer(SSL* ssl)
+static INLINE void showPeer(CYASSL* ssl)
 {
 #ifdef OPENSSL_EXTRA
 
-    SSL_CIPHER* cipher;
-    X509*       peer = SSL_get_peer_certificate(ssl);
+    CYASSL_CIPHER* cipher;
+    CYASSL_X509*   peer = CyaSSL_get_peer_certificate(ssl);
     if (peer) {
-        char* issuer  = X509_NAME_oneline(X509_get_issuer_name(peer), 0, 0);
-        char* subject = X509_NAME_oneline(X509_get_subject_name(peer), 0, 0);
+        char* issuer  = CyaSSL_X509_NAME_oneline(
+                                       CyaSSL_X509_get_issuer_name(peer), 0, 0);
+        char* subject = CyaSSL_X509_NAME_oneline(
+                                      CyaSSL_X509_get_subject_name(peer), 0, 0);
         byte  serial[32];
         int   ret;
         int   sz = sizeof(serial);
@@ -191,10 +193,10 @@ static INLINE void showPeer(SSL* ssl)
     }
     else
         printf("peer has no cert!\n");
-    printf("SSL version is %s\n", SSL_get_version(ssl));
+    printf("SSL version is %s\n", CyaSSL_get_version(ssl));
 
-    cipher = SSL_get_current_cipher(ssl);
-    printf("SSL cipher suite is %s\n", SSL_CIPHER_get_name(cipher));
+    cipher = CyaSSL_get_current_cipher(ssl);
+    printf("SSL cipher suite is %s\n", CyaSSL_CIPHER_get_name(cipher));
 #endif
 
 #if defined(SESSION_CERTS) && defined(SHOW_CERTS)
@@ -420,7 +422,7 @@ static INLINE void tcp_set_nonblocking(SOCKET_T* sockfd)
 
 #ifndef NO_PSK
 
-static INLINE unsigned int my_psk_client_cb(SSL* ssl, const char* hint,
+static INLINE unsigned int my_psk_client_cb(CYASSL* ssl, const char* hint,
         char* identity, unsigned int id_max_len, unsigned char* key,
         unsigned int key_max_len)
 {
@@ -439,7 +441,7 @@ static INLINE unsigned int my_psk_client_cb(SSL* ssl, const char* hint,
 }
 
 
-static INLINE unsigned int my_psk_server_cb(SSL* ssl, const char* identity,
+static INLINE unsigned int my_psk_server_cb(CYASSL* ssl, const char* identity,
         unsigned char* key, unsigned int key_max_len)
 {
     /* identity is OpenSSL testing default for openssl s_client, keep same */
@@ -545,13 +547,14 @@ static int myVerify(int preverify, X509_STORE_CTX* store)
     char buffer[80];
 
     printf("In verification callback, error = %d, %s\n", store->error,
-                                        ERR_error_string(store->error, buffer));
+                                 CyaSSL_ERR_error_string(store->error, buffer));
 #ifdef OPENSSL_EXTRA
-    X509* peer = store->current_cert;
+    CYASSL_X509* peer = store->current_cert;
     if (peer) {
-        char* issuer  = X509_NAME_oneline(X509_get_issuer_name(peer), 0, 0);
-        char* subject = X509_NAME_oneline(X509_get_subject_name(peer), 0, 0);
-        
+        char* issuer  = CYASS_X509_NAME_oneline(
+                                       CYASSL_X509_get_issuer_name(peer), 0, 0);
+        char* subject = CYASSL_X509_NAME_oneline(
+                                      CYASSL_X509_get_subject_name(peer), 0, 0);
         printf("peer's cert info:\n issuer : %s\n subject: %s\n", issuer,
                                                                   subject);
         XFREE(subject, 0, DYNAMIC_TYPE_OPENSSL);
@@ -568,7 +571,7 @@ static int myVerify(int preverify, X509_STORE_CTX* store)
 
 #endif /* VERIFY_CALLBACK */
 
-static INLINE void SetDH(SSL* ssl)
+static INLINE void SetDH(CYASSL* ssl)
 {
     /* dh1024 p */
     static unsigned char p[] =
@@ -595,7 +598,7 @@ static INLINE void SetDH(SSL* ssl)
     CyaSSL_SetTmpDH(ssl, p, sizeof(p), g, sizeof(g));
 }
 
-static INLINE void SetDHCtx(SSL_CTX* ctx)
+static INLINE void SetDHCtx(CYASSL_CTX* ctx)
 {
     /* dh1024 p */
     static unsigned char p[] =
