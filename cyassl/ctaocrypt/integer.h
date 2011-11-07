@@ -110,7 +110,7 @@ extern "C" {
    #endif
 #endif
 
-   typedef unsigned long      mp_digit;
+   typedef unsigned int       mp_digit;  /* long could be 64 now, changed TAO */
    typedef ulong64            mp_word;
 
 #ifdef MP_31BIT   
