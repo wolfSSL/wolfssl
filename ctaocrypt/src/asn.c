@@ -2435,8 +2435,8 @@ int DerToPem(const byte* der, word32 derSz, byte* output, word32 outSz,
     i = headerLen;
 
     /* body */
-    outLen = outSz;  /* input to Base64Encode */
-    if ( (err = Base64Encode(der, derSz, output + i, (word32*)&outLen)) < 0)
+    outLen = outSz;  /* input to Base64_Encode */
+    if ( (err = Base64_Encode(der, derSz, output + i, (word32*)&outLen)) < 0)
         return err;
     i += outLen;
 

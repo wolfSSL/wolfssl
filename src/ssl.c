@@ -654,8 +654,8 @@ int AddCA(CYASSL_CTX* ctx, buffer der)
         if (!der->buffer) return MEMORY_ERROR;
         der->length = neededSz;
 
-        if (Base64Decode((byte*)headerEnd, neededSz, der->buffer,
-                         &der->length) < 0)
+        if (Base64_Decode((byte*)headerEnd, neededSz, der->buffer,
+                          &der->length) < 0)
             return SSL_BAD_FILE;
 
         if (pkcs8)
@@ -818,7 +818,7 @@ int AddCA(CYASSL_CTX* ctx, buffer der)
             }
 
             /* use file's salt for key derivation, hex decode first */
-            if (Base16Decode(info.iv, info.ivSz, info.iv, &info.ivSz) != 0) {
+            if (Base16_Decode(info.iv, info.ivSz, info.iv, &info.ivSz) != 0) {
                 XFREE(der.buffer, ctx->heap, dynamicType);
                 return ASN_INPUT_E;
             }
@@ -4538,9 +4538,9 @@ int  CyaSSL_get_chain_cert_pem(CYASSL_X509_CHAIN* chain, int idx,
     i = headerLen;
 
     /* body */
-    *outLen = inLen;  /* input to Base64Encode */
-    if ( (err = Base64Encode(chain->certs[idx].buffer, chain->certs[idx].length,
-                             buf + i, (word32*)outLen)) < 0)
+    *outLen = inLen;  /* input to Base64_Encode */
+    if ( (err = Base64_Encode(chain->certs[idx].buffer,
+                       chain->certs[idx].length, buf + i, (word32*)outLen)) < 0)
         return err;
     i += *outLen;
 

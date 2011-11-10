@@ -42,6 +42,9 @@
 /* Uncomment next line if using Mbed */
 /* #define MBED */
 
+/* Uncomment next line if using Microchip PIC32 ethernet starter kit */
+/* #define MICROCHIP_PIC32 */
+
 /* Uncomment next line if using FreeRTOS */
 /* #define FREERTOS */
 
@@ -51,8 +54,6 @@
 /* Uncomment next line if building CyaSSL for a game console */
 /* #define CYASSL_GAME_BUILD */
 
-/* Uncomment next line if builing yaSSL with autoconf and want version string */
-/* #define USE_CYASSL_VERSION */
 
 #include <cyassl/ctaocrypt/visibility.h>
 
@@ -62,6 +63,12 @@
 
 #ifdef THREADX 
     #define SIZEOF_LONG_LONG 8
+#endif
+
+#ifdef MICROCHIP_PIC32
+    /* use MBED plus no filesystem */
+    #define MBED
+    #define NO_FILESYSTEM
 #endif
 
 #ifdef MBED

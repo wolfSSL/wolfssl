@@ -19,6 +19,9 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  */
 
+
+#ifdef CYASSL_SNIFFER
+
 #ifdef HAVE_CONFIG_H
     #include <config.h>
 #endif
@@ -35,8 +38,6 @@
 #else
     #define SNPRINTF snprintf
 #endif
-
-#ifdef CYASSL_SNIFFER
 
 #include <cyassl/openssl/ssl.h>
 #include <cyassl/internal.h>

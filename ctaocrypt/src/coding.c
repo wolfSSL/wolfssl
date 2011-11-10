@@ -49,7 +49,7 @@ const byte base64Decode[] = { 62, BAD, BAD, BAD, 63,   /* + starts at 0x2B */
                             };
 
 
-int Base64Decode(const byte* in, word32 inLen, byte* out, word32* outLen)
+int Base64_Decode(const byte* in, word32 inLen, byte* out, word32* outLen)
 {
     word32 i = 0;
     word32 j = 0;
@@ -131,7 +131,7 @@ const byte base64Encode[] = { 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J',
 
 
 /* porting assistance from yaSSL by Raphael HUCK */
-int Base64Encode(const byte* in, word32 inLen, byte* out, word32* outLen)
+int Base64_Encode(const byte* in, word32 inLen, byte* out, word32* outLen)
 {
     word32 i = 0,
            j = 0,
@@ -197,7 +197,7 @@ const byte hexDecode[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
                            10, 11, 12, 13, 14, 15 
                          };  /* A starts at 0x41 not 0x3A */
 
-int Base16Decode(const byte* in, word32 inLen, byte* out, word32* outLen)
+int Base16_Decode(const byte* in, word32 inLen, byte* out, word32* outLen)
 {
     word32 inIdx  = 0;
     word32 outIdx = 0;
