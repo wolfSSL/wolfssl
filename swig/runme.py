@@ -5,11 +5,21 @@ import cyassl
 print ""
 print "Trying to connect to the echo server..."
 
+cyassl.CyaSSL_Init()
+#cyassl.CyaSSL_Debugging_ON()
 ctx    = cyassl.SSL_CTX_new(cyassl.TLSv1_client_method())
-ret    = cyassl.SSL_CTX_load_verify_locations(ctx, "../certs/ca-cert.pem", None)
-ssl    = cyassl.SSL_new(ctx)
+if ctx == None:
+    print "Couldn't get SSL CTX for TLSv1"
+    exit(-1)
 
-ret    = cyassl.CyaSSL_connect(ssl, "localhost", 11111)
+ret    = cyassl.SSL_CTX_load_verify_locations(ctx, "../certs/ca-cert.pem", None)
+if ret != cyassl.SSL_SUCCESS:
+    print "Couldn't do SSL_CTX_load_verify_locations "
+    print "error string = ", ret 
+    exit(-1)
+
+ssl    = cyassl.SSL_new(ctx)
+ret    = cyassl.CyaSSL_swig_connect(ssl, "localhost", 11111)
 
 if ret != cyassl.SSL_SUCCESS:
     print "Couldn't do SSL connect"

@@ -21,12 +21,12 @@
 
 %module cyassl
 %{
-    #include "openssl/ssl.h"
-    #include "rsa.h"
+    #include <cyassl/openssl/ssl.h>
+    #include <cyassl/ctaocrypt/rsa.h>
 
     /* defn adds */
     char* CyaSSL_error_string(int err);
-    int   CyaSSL_connect(SSL*, const char* server, int port);
+    int   CyaSSL_swig_connect(SSL*, const char* server, int port);
     RNG*  GetRng(void);
     RsaKey* GetRsaPrivateKey(const char* file);
     void    FillSignStr(unsigned char*, const char*, int);
@@ -39,8 +39,10 @@ int         SSL_CTX_load_verify_locations(SSL_CTX*, const char*, const char*);
 SSL*        SSL_new(SSL_CTX*);
 int         SSL_get_error(SSL*, int);
 int         SSL_write(SSL*, const char*, int);
+int         CyaSSL_Debugging_ON(void);
+int         CyaSSL_Init(void);
 char*       CyaSSL_error_string(int);
-int         CyaSSL_connect(SSL*, const char* server, int port);
+int         CyaSSL_swig_connect(SSL*, const char* server, int port);
 
 int         RsaSSL_Sign(const unsigned char* in, int inLen, unsigned char* out, int outLen, RsaKey* key, RNG* rng);
 

@@ -61,4 +61,8 @@ TAGS
 support/libcyassl.pc
 cyassl/version.h
 cyassl/ctaocrypt/stamp-h1
+swig/_cyassl.so
+swig/cyassl.py
+swig/cyassl.pyc
+swig/cyassl_wrap.c
 stamp-h1

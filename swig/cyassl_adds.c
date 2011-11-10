@@ -160,7 +160,7 @@ static int tcp_connect(SOCKET_T* sockfd, const char* ip, short port)
 }
     
 
-int CyaSSL_connect(SSL* ssl, const char* server, int port)
+int CyaSSL_swig_connect(SSL* ssl, const char* server, int port)
 {
     SOCKET_T sockfd;
     int ret = tcp_connect(&sockfd, server, port);
