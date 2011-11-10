@@ -27,7 +27,7 @@
     #define HAVE_CONFIG_H
 #endif
 
-#include <cyassl/openssl/ssl.h>
+#include <cyassl/ssl.h>
 #include <cyassl/ctaocrypt/rsa.h>
 #include <cyassl/ctaocrypt/asn.h>
 
@@ -160,15 +160,15 @@ static int tcp_connect(SOCKET_T* sockfd, const char* ip, short port)
 }
     
 
-int CyaSSL_swig_connect(SSL* ssl, const char* server, int port)
+int CyaSSL_swig_connect(CYASSL* ssl, const char* server, int port)
 {
     SOCKET_T sockfd;
     int ret = tcp_connect(&sockfd, server, port);
     if (ret != 0) return ret;
     
-    SSL_set_fd(ssl, sockfd);
+    CyaSSL_set_fd(ssl, sockfd);
 
-    return SSL_connect(ssl);
+    return CyaSSL_connect(ssl);
 }
 
 
@@ -176,7 +176,7 @@ char* CyaSSL_error_string(int err)
 {
     static char buffer[80];
 
-    return ERR_error_string(err, buffer);
+    return CyaSSL_ERR_error_string(err, buffer);
 }
 
 
