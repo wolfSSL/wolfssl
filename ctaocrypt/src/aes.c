@@ -1345,8 +1345,39 @@ void AesDecryptDirect(Aes* aes, byte* out, const byte* in)
 }
 
 
-#endif
+#endif /* CYASSL_AES_DIRECT */
 
+
+#ifdef CYASSL_AES_COUNTER
+
+/* Increment AES counter */
+static INLINE void IncrementAesCounter(byte* inOutCtr)
+{
+    int i;
+
+    /* in network byte order so start at end and work back */
+    for (i = AES_BLOCK_SIZE - 1; i >= 0; i--) {
+        if (++inOutCtr[i])  /* we're done unless we overflow */
+            return;
+    }
+}
+  
+
+void AesCtrEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
+{
+    word32 blocks = sz / AES_BLOCK_SIZE;
+
+    while (blocks--) {
+        AesEncrypt(aes, aes->reg, out);
+        IncrementAesCounter((byte*)aes->reg);
+        xorbuf(out, in, AES_BLOCK_SIZE);
+
+        out += AES_BLOCK_SIZE;
+        in  += AES_BLOCK_SIZE; 
+    }
+}
+
+#endif /* CYASSL_AES_COUNTER */
 
 #endif /* NO_AES */
 
