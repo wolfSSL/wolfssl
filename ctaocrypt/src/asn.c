@@ -1207,14 +1207,16 @@ static int GetKey(DecodedCert* cert)
         if (b != 0x00)
             return ASN_EXPECT_0_E;
 
-        /* actual key, use length - 1 since preceding 0 */
-        cert->publicKey = (byte*) XMALLOC(length - 1, cert->heap,
+        /* actual key, use length - 1 since ate preceding 0 */
+        length -= 1;
+
+        cert->publicKey = (byte*) XMALLOC(length, cert->heap,
                                           DYNAMIC_TYPE_PUBLIC_KEY);
         if (cert->publicKey == NULL)
             return MEMORY_E;
-        XMEMCPY(cert->publicKey, &cert->source[cert->srcIdx], length - 1);
+        XMEMCPY(cert->publicKey, &cert->source[cert->srcIdx], length);
         cert->pubKeyStored = 1;
-        cert->pubKeySize   = length - 1;
+        cert->pubKeySize   = length;
 
         cert->srcIdx += length;
     }
