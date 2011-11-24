@@ -2455,6 +2455,15 @@ int mp_div_2(fp_int * a, fp_int * b)
     return MP_OKAY;
 }
 
+
+int mp_init_copy(fp_int * a, fp_int * b)
+{
+    fp_init_copy(a, b);
+    return MP_OKAY;
+}
+
+
+
 #endif /* HAVE_ECC */
 
 #endif /* USE_FAST_MATH */

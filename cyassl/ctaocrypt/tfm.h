@@ -654,6 +654,7 @@ int  mp_to_unsigned_bin (mp_int * a, unsigned char *b);
     int mp_montgomery_setup(fp_int *a, fp_digit *rho);
     int mp_isodd(mp_int* a);
     int mp_div_2(fp_int * a, fp_int * b);
+    int mp_init_copy(fp_int * a, fp_int * b); 
 #endif
 
 #if defined(HAVE_ECC) || defined(CYASSL_KEY_GEN)
