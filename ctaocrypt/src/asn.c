@@ -518,6 +518,14 @@ int ToTraditional(byte* input, word32 sz)
     
     if (GetAlgoId(input, &inOutIdx, &oid, sz) < 0)
         return ASN_PARSE_E;
+
+    if (input[inOutIdx] == ASN_OBJECT_ID) {
+        /* pkcs8 ecc uses slightly different format */
+        inOutIdx++;  /* past id */
+        if (GetLength(input, &inOutIdx, &length, sz) < 0)
+            return ASN_PARSE_E;
+        inOutIdx += length;  /* over sub id, key input will verify */
+    }
     
     if (input[inOutIdx++] != ASN_OCTET_STRING)
         return ASN_PARSE_E;
@@ -3610,33 +3618,37 @@ int EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
     XMEMCPY(priv, &input[*inOutIdx], privSz);
     *inOutIdx += length;
 
-    /* prefix 0 */
+    /* prefix 0, may have */
     b = input[*inOutIdx];
-    *inOutIdx += 1;
-
-    if (GetLength(input, inOutIdx, &length, inSz) < 0)
-        return ASN_PARSE_E;
-
-    /* object id */
-    b = input[*inOutIdx];
-    *inOutIdx += 1;
-    
-    if (b != ASN_OBJECT_ID) 
-        return ASN_OBJECT_ID_E;
-
-    if (GetLength(input, inOutIdx, &length, inSz) < 0)
-        return ASN_PARSE_E;
-
-    while(length--) {
-        oid += input[*inOutIdx];
+    if (b == ECC_PREFIX_0) {
         *inOutIdx += 1;
+
+        if (GetLength(input, inOutIdx, &length, inSz) < 0)
+            return ASN_PARSE_E;
+
+        /* object id */
+        b = input[*inOutIdx];
+        *inOutIdx += 1;
+    
+        if (b != ASN_OBJECT_ID) 
+            return ASN_OBJECT_ID_E;
+
+        if (GetLength(input, inOutIdx, &length, inSz) < 0)
+            return ASN_PARSE_E;
+
+        while(length--) {
+            oid += input[*inOutIdx];
+            *inOutIdx += 1;
+        }
+        if (CheckCurve(oid) < 0)
+            return ECC_CURVE_OID_E;
     }
-    if (CheckCurve(oid) < 0)
-        return ECC_CURVE_OID_E;
     
     /* prefix 1 */
     b = input[*inOutIdx];
     *inOutIdx += 1;
+    if (b != ECC_PREFIX_1)
+        return ASN_ECC_KEY_E;
 
     if (GetLength(input, inOutIdx, &length, inSz) < 0)
         return ASN_PARSE_E;

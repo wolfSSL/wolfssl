@@ -93,6 +93,11 @@ enum ENCRYPTION_TYPES {
     RC4_TYPE  = 2
 };
 
+enum ECC_TYPES {
+    ECC_PREFIX_0 = 160,
+    ECC_PREFIX_1 = 161
+};
+
 enum Misc_ASN { 
     ASN_NAME_MAX        = 256,
     MAX_SALT_SIZE       =  64,     /* MAX PKCS Salt length */

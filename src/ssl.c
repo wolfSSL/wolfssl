@@ -906,9 +906,8 @@ int AddCA(CYASSL_CTX* ctx, buffer der)
                 InitRsaKey(&key, 0);
                 if (RsaPrivateKeyDecode(der.buffer,&idx,&key,der.length) != 0) {
 #ifdef HAVE_ECC  
-                    /* could have DER ECC, no easy way to tell */
-                    if (format == SSL_FILETYPE_ASN1)
-                        eccKey = 1;  /* try it out */
+                    /* could have DER ECC (or pkcs8 ecc), no easy way to tell */
+                    eccKey = 1;  /* so try it out */
 #endif
                     if (!eccKey) {
                         FreeRsaKey(&key);
