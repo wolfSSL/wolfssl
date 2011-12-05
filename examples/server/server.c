@@ -126,7 +126,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
             err_sys("can't load ntru key file, "
                     "Please run from CyaSSL home dir");
     #else  /* normal */
-        if (SSL_CTX_use_certificate_chain_file(ctx, svrCert)
+        if (SSL_CTX_use_certificate_file(ctx, svrCert, SSL_FILETYPE_PEM)
                 != SSL_SUCCESS)
             err_sys("can't load server cert chain file, "
                     "Please run from CyaSSL home dir");

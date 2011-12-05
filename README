@@ -1,4 +1,4 @@
-*** Note, Please read ***
+*** Notes, Please read ***
 
 Note 1)
 CyaSSL now needs all examples and tests to be run from the CyaSSL home
@@ -34,7 +34,24 @@ before calling SSL_new();  Though it's not recommended.
 
 *** end Note ***
 
-CyaSSL Release 2.0.0rc3 (9/28/2011)
+CyaSSL Release 2.0.2 (12/05/2011)
+
+Release 2.0.2 CyaSSL has bug fixes and a few new features including:
+- CTaoCrypt Runtime library detection settings when directly using the crypto
+  library
+- Default certificate generation now uses SHAwRSA and adds SHA256wRSA generation
+- All test certificates now use 2048bit and SHA-1 for better modern browser
+  support
+- Direct AES block access and AES-CTR (counter) mode
+- Microchip pic32 support
+
+The CyaSSL manual is available at:
+http://www.yassl.com/documentation/CyaSSL-Manual.pdf.  For build instructions 
+and comments about the new features please check the manual.
+
+
+
+************* CyaSSL Release 2.0.0rc3 (9/28/2011)
 
 Release 2.0.0rc3 for CyaSSL has bug fixes and a few new features including:
 - updated autoconf support
