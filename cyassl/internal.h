@@ -615,7 +615,7 @@ CYASSL_LOCAL
 int ProcessOldClientHello(CYASSL* ssl, const byte* input, word32* inOutIdx,
                           word32 inSz, word16 sz);
 CYASSL_LOCAL
-int AddCA(CYASSL_CTX* ctx, buffer der);
+int AddCA(CYASSL_CTX* ctx, buffer der, int force);
 CYASSL_LOCAL
 int AlreadySigner(CYASSL_CTX* ctx, byte* hash);
 

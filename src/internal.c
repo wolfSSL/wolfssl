@@ -1526,7 +1526,7 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx)
                 return MEMORY_E;
             XMEMCPY(add.buffer, myCert.buffer, myCert.length);
 
-            ret = AddCA(ssl->ctx, add);
+            ret = AddCA(ssl->ctx, add, 0);  /* never force chain add */
             if (ret == 1) ret = 0;   /* SSL_SUCCESS for external */
         }
         else if (ret != 0) {
@@ -3255,6 +3255,10 @@ void SetErrorString(int error, char* str)
 
     case BAD_MUTEX_ERROR:
         XSTRNCPY(str, "Bad mutex, operation failed", max);
+        break;
+
+    case NOT_CA_ERROR:
+        XSTRNCPY(str, "Not a CA by basic constraint error", max);
         break;
 
     default :

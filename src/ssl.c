@@ -410,7 +410,9 @@ Signer* GetCA(Signer* signers, byte* hash)
 
 
 /* owns der, internal now uses too */
-int AddCA(CYASSL_CTX* ctx, buffer der)
+/* force flag means override CA check, ok for root certs that user requested
+   if they're from a chain we don't want to force, ever */
+int AddCA(CYASSL_CTX* ctx, buffer der, int force)
 {
     int         ret;
     DecodedCert cert;
@@ -421,9 +423,9 @@ int AddCA(CYASSL_CTX* ctx, buffer der)
     ret = ParseCert(&cert, CA_TYPE, ctx->verifyPeer, 0);
     CYASSL_MSG("    Parsed new CA");
 
-    if (ret == 0 && cert.isCA == 0) {
+    if (ret == 0 && cert.isCA == 0 && !force) {
         CYASSL_MSG("    Can't add as CA if not actually one");
-        ret = -1;
+        ret = NOT_CA_ERROR;
     }
     else if (ret == 0 && AlreadySigner(ctx, cert.subjectHash)) {
         CYASSL_MSG("    Already have this CA, not adding again");
@@ -864,7 +866,7 @@ int AddCA(CYASSL_CTX* ctx, buffer der)
 #endif /* OPENSSL_EXTRA || HAVE_WEBSERVER */
 
         if (type == CA_TYPE)
-            return AddCA(ctx, der);     /* takes der over */
+            return AddCA(ctx, der, 1);  /* takes der over, force user request */
         else if (type == CERT_TYPE) {
             if (ssl) {
                 if (ssl->buffers.weOwnCert && ssl->buffers.certificate.buffer)

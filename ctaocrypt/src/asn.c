@@ -2021,9 +2021,19 @@ static void IsCa(DecodedCert* cert)
                 return;
 
             if (oid == BASIC_CA_OID) {
+                CYASSL_MSG("Found Basic CA constraint");
                 b = cert->source[cert->srcIdx++];
-                if (b != ASN_OCTET_STRING)
-                    return;
+
+                if (b != ASN_OCTET_STRING) {
+                    CYASSL_MSG("Found optional critical flag, moving past");
+                    cert->srcIdx += ASN_BOOL_SIZE;
+                    b = cert->source[cert->srcIdx++];
+
+                    if (b != ASN_OCTET_STRING) {
+                        CYASSL_MSG("Unkown Basic CA constraint format");
+                        return;
+                    }
+                }
 
                 if (GetLength(cert->source, &cert->srcIdx, &length,
                               cert->maxIdx) < 0)
