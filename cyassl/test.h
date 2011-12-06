@@ -506,11 +506,11 @@ static INLINE unsigned int my_psk_server_cb(CYASSL* ssl, const char* identity,
         CYASSL_KEY  = 3
     };
 
-    static INLINE void load_buffer(SSL_CTX* ctx, const char* fname, int type)
+    static INLINE void load_buffer(CYASSL_CTX* ctx, const char* fname, int type)
     {
         /* test buffer load */
         long  sz = 0;
-        byte  buff[4096];
+        byte  buff[10000];
         FILE* file = fopen(fname, "rb");
 
         if (!file)
