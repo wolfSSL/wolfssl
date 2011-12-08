@@ -563,9 +563,33 @@ struct CYASSL_CIPHER {
 };
 
 
+#ifdef SINGLE_THREADED
+    typedef int CyaSSL_Mutex;
+#else /* MULTI_THREADED */
+    #ifdef USE_WINDOWS_API 
+        typedef CRITICAL_SECTION CyaSSL_Mutex;
+    #elif defined(CYASSL_PTHREADS)
+        typedef pthread_mutex_t CyaSSL_Mutex;
+    #elif defined(THREADX)
+        typedef TX_MUTEX CyaSSL_Mutex;
+    #elif defined(MICRIUM)
+        typedef OS_MUTEX CyaSSL_Mutex;
+    #else
+        #error Need a mutex type in multithreaded mode
+    #endif /* USE_WINDOWS_API */
+#endif /* SINGLE_THREADED */
+
+CYASSL_LOCAL int InitMutex(CyaSSL_Mutex*);
+CYASSL_LOCAL int FreeMutex(CyaSSL_Mutex*);
+CYASSL_LOCAL int LockMutex(CyaSSL_Mutex*);
+CYASSL_LOCAL int UnLockMutex(CyaSSL_Mutex*);
+
+
 /* CyaSSL context type */
 struct CYASSL_CTX {
     CYASSL_METHOD* method;
+    CyaSSL_Mutex   countMutex;    /* reference count mutex */
+    int         refCount;         /* reference count */
     buffer      certificate;
     buffer      certChain;
                  /* chain after self, in DER, with leading size for each cert */
@@ -603,7 +627,7 @@ struct CYASSL_CTX {
 
 
 CYASSL_LOCAL
-void InitSSL_Ctx(CYASSL_CTX*, CYASSL_METHOD*);
+int InitSSL_Ctx(CYASSL_CTX*, CYASSL_METHOD*);
 CYASSL_LOCAL
 void FreeSSL_Ctx(CYASSL_CTX*);
 CYASSL_LOCAL
@@ -1216,29 +1240,6 @@ typedef double timer_d;
 
 CYASSL_LOCAL timer_d Timer(void);
 CYASSL_LOCAL word32  LowResTimer(void);
-
-
-#ifdef SINGLE_THREADED
-    typedef int CyaSSL_Mutex;
-#else /* MULTI_THREADED */
-    #ifdef USE_WINDOWS_API 
-        typedef CRITICAL_SECTION CyaSSL_Mutex;
-    #elif defined(CYASSL_PTHREADS)
-        typedef pthread_mutex_t CyaSSL_Mutex;
-    #elif defined(THREADX)
-        typedef TX_MUTEX CyaSSL_Mutex;
-    #elif defined(MICRIUM)
-        typedef OS_MUTEX CyaSSL_Mutex;
-    #else
-        #error Need a mutex type in multithreaded mode
-    #endif /* USE_WINDOWS_API */
-#endif /* SINGLE_THREADED */
-
-CYASSL_LOCAL int InitMutex(CyaSSL_Mutex*);
-CYASSL_LOCAL int FreeMutex(CyaSSL_Mutex*);
-CYASSL_LOCAL int LockMutex(CyaSSL_Mutex*);
-CYASSL_LOCAL int UnLockMutex(CyaSSL_Mutex*);
-
 
 
 

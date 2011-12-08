@@ -322,9 +322,11 @@ void InitSSL_Method(CYASSL_METHOD* method, ProtocolVersion pv)
 }
 
 
-void InitSSL_Ctx(CYASSL_CTX* ctx, CYASSL_METHOD* method)
+/* Initialze SSL context, return 0 on success */
+int InitSSL_Ctx(CYASSL_CTX* ctx, CYASSL_METHOD* method)
 {
     ctx->method = method;
+    ctx->refCount = 1;          /* so either CTX_free or SSL_free can release */
     ctx->certificate.buffer = 0;
     ctx->certChain.buffer   = 0;
     ctx->privateKey.buffer  = 0;
@@ -380,6 +382,11 @@ void InitSSL_Ctx(CYASSL_CTX* ctx, CYASSL_METHOD* method)
     ctx->sendVerify = 0;
     ctx->quietShutdown = 0;
 
+    if (InitMutex(&ctx->countMutex) < 0) {
+        CYASSL_MSG("Mutex error on CTX init");
+        return BAD_MUTEX_ERROR;
+    } 
+    return 0;
 }
 
 
@@ -399,12 +406,29 @@ void SSL_CtxResourceFree(CYASSL_CTX* ctx)
 
 void FreeSSL_Ctx(CYASSL_CTX* ctx)
 {
-    SSL_CtxResourceFree(ctx);
-    XFREE(ctx, ctx->heap, DYNAMIC_TYPE_CTX);
+    int doFree = 0;
+
+    if (LockMutex(&ctx->countMutex) != 0) {
+        CYASSL_MSG("Couldn't lock count mutex");
+        return;
+    }
+    ctx->refCount--;
+    if (ctx->refCount == 0)
+        doFree = 1;
+    UnLockMutex(&ctx->countMutex);
+
+    if (doFree) {
+        CYASSL_MSG("CTX ref count down to 0, doing full free");
+        SSL_CtxResourceFree(ctx);
+        XFREE(ctx, ctx->heap, DYNAMIC_TYPE_CTX);
+    }
+    else {
+        (void)ctx;
+        CYASSL_MSG("CTX ref count not 0 yet, no free");
+    }
 }
 
     
-
 void InitSuites(Suites* suites, ProtocolVersion pv, byte haveDH, byte havePSK,
                 byte haveNTRU, byte haveECDSA, int side)
 {
@@ -638,6 +662,15 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
     ssl->version = ctx->method->version;
     ssl->suites  = ctx->suites;
 
+    /* increment CTX reference count */
+    if (LockMutex(&ctx->countMutex) != 0) {
+        CYASSL_MSG("Couldn't lock CTX count mutex");
+        return BAD_MUTEX_ERROR;
+    }
+    ctx->refCount++;
+    UnLockMutex(&ctx->countMutex);
+
+
 #ifdef HAVE_LIBZ
     ssl->didStreamInit = 0;
 #endif
@@ -859,6 +892,7 @@ void SSL_ResourceFree(CYASSL* ssl)
 
 void FreeSSL(CYASSL* ssl)
 {
+    FreeSSL_Ctx(ssl->ctx);  /* will decrement and free underyling CTX if 0 */
     SSL_ResourceFree(ssl);
     XFREE(ssl, ssl->heap, DYNAMIC_TYPE_SSL);
 }

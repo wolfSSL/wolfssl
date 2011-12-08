@@ -74,8 +74,13 @@ CYASSL_CTX* CyaSSL_CTX_new(CYASSL_METHOD* method)
         return ctx;
 
     ctx = (CYASSL_CTX*) XMALLOC(sizeof(CYASSL_CTX), 0, DYNAMIC_TYPE_CTX);
-    if (ctx)
-        InitSSL_Ctx(ctx, method);
+    if (ctx) {
+        if (InitSSL_Ctx(ctx, method) < 0) {
+            CYASSL_MSG("Init CTX failed");
+            CyaSSL_CTX_free(ctx);
+            ctx = NULL;
+        }
+    }
 
     CYASSL_LEAVE("CYASSL_CTX_new", 0);
     return ctx;
@@ -453,7 +458,7 @@ int AddCA(CYASSL_CTX* ctx, buffer der, int force)
             }
             else {
                 CYASSL_MSG("    CA Mutex Lock failed");
-                ret = -1;
+                ret = BAD_MUTEX_ERROR;
                 FreeSigners(signer, ctx->heap);
             }
         }
