@@ -1249,6 +1249,16 @@ static int GetName(DecodedCert* cert, int nameType)
 
     InitSha(&sha);
 
+    if (cert->source[cert->srcIdx] == ASN_OBJECT_ID) {
+        CYASSL_MSG("Trying optional prefix...");
+
+        if (GetLength(cert->source, &cert->srcIdx, &length, cert->maxIdx) < 0)
+            return ASN_PARSE_E;
+
+        cert->srcIdx += length;
+        CYASSL_MSG("Got optional prefix");
+    }
+
     if (GetSequence(cert->source, &cert->srcIdx, &length, cert->maxIdx) < 0)
         return ASN_PARSE_E;
 
