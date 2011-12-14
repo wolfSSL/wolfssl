@@ -1,0 +1,14 @@
+# vim:ft=automake
+# included from Top Level Makefile.am
+# All paths should be given relative to the root
+
+
+check_PROGRAMS += tests/unit
+noinst_PROGRAMS += tests/unit
+tests_unit_SOURCES = \
+			      tests/unit.c \
+			      tests/api.c \
+			      tests/suites.c
+tests_unit_CFLAGS       = $(AM_CFLAGS)
+tests_unit_LDADD        = src/libcyassl.la 
+tests_unit_DEPENDENCIES = src/libcyassl.la

@@ -51,6 +51,7 @@ include examples/server/include.am
 include examples/echoclient/include.am
 include examples/echoserver/include.am
 include testsuite/include.am
+include tests/include.am
 include sslSniffer/sslSnifferTest/include.am
 
 TESTS += $(check_PROGRAMS)
