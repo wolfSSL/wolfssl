@@ -2,4 +2,5 @@
 
 int ApiTest(void);
 int SuiteTest(void);
+int HashTest(void);
 
