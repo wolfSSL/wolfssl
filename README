@@ -24,9 +24,9 @@ Note 2)
 CyaSSL takes a different approach to certificate verification than OpenSSL does.
 The default policy for the client is to verify the server, this means that if
 you don't load CAs to verify the server you'll get a connect error, unable to 
-verify.  It you want to mimic OpenSSL behavior of having SSL_connect succeed
-even if verifying the server fails and reducing security you can do this by
-calling:
+verify (-155).  It you want to mimic OpenSSL behavior of having SSL_connect
+succeed even if verifying the server fails and reducing security you can do
+this by calling:
 
 SSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, 0);
 
