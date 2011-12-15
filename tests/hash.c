@@ -95,7 +95,7 @@ int HashTest(void)
 #endif
 
 #ifndef NO_HMAC
-    if ( (ret = ripemd_test()) ) {
+    if ( (ret = hmac_test()) ) {
         printf( "   HMAC     test failed!\n");
         return ret; 
     } else
