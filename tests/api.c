@@ -177,7 +177,8 @@ int test_CyaSSL_Method_Allocators(void)
     }
     free(method);
     method = NULL;
-    
+  
+#ifdef OPENSSL_EXTRA  
     method = CyaSSLv2_client_method();
     if (method == NULL)
     {
@@ -195,6 +196,7 @@ int test_CyaSSL_Method_Allocators(void)
     }
     free(method);
     method = NULL;
+#endif /* OPENSSL_EXTRA */
 
     return TEST_SUCCESS;
 }
@@ -229,7 +231,7 @@ int test_CyaSSL_CTX_new(CYASSL_METHOD *method)
 
 int test_CyaSSL_CTX_user_certificate_file(void)
 {
-    CYASSL_METHOD *method = CyaSSLv2_server_method();
+    CYASSL_METHOD *method = CyaSSLv23_server_method();
     if (method != NULL)
     {
         CYASSL_CTX *ctx = CyaSSL_CTX_new(method);
@@ -286,7 +288,7 @@ int test_CyaSSL_CTX_user_certificate_file(void)
 
 int test_CyaSSL_new(void)
 {
-    CYASSL_CTX *ctx = CyaSSL_CTX_new(CyaSSLv2_server_method());
+    CYASSL_CTX *ctx = CyaSSL_CTX_new(CyaSSLv23_server_method());
     if (ctx != NULL)
     {
         int result;
