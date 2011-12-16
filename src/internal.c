@@ -662,15 +662,6 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
     ssl->version = ctx->method->version;
     ssl->suites  = ctx->suites;
 
-    /* increment CTX reference count */
-    if (LockMutex(&ctx->countMutex) != 0) {
-        CYASSL_MSG("Couldn't lock CTX count mutex");
-        return BAD_MUTEX_ERROR;
-    }
-    ctx->refCount++;
-    UnLockMutex(&ctx->countMutex);
-
-
 #ifdef HAVE_LIBZ
     ssl->didStreamInit = 0;
 #endif
@@ -697,6 +688,22 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
     ssl->buffers.clearOutputBuffer.length  = 0;
     ssl->buffers.prevSent                  = 0;
     ssl->buffers.plainSz                   = 0;
+
+    ssl->rfd = -1;   /* set to invalid descriptor */
+    ssl->wfd = -1;
+    ssl->biord = 0;
+    ssl->biowr = 0;
+
+    ssl->IOCB_ReadCtx  = &ssl->rfd;   /* prevent invalid pointer acess if not */
+    ssl->IOCB_WriteCtx = &ssl->wfd;   /* correctly set */
+
+    /* increment CTX reference count */
+    if (LockMutex(&ctx->countMutex) != 0) {
+        CYASSL_MSG("Couldn't lock CTX count mutex");
+        return BAD_MUTEX_ERROR;
+    }
+    ctx->refCount++;
+    UnLockMutex(&ctx->countMutex);
 
     if ( (ret = InitRng(&ssl->rng)) != 0)
         return ret;
@@ -832,13 +839,6 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
                    ssl->options.haveNTRU, ssl->options.haveECDSA,
                    ssl->ctx->method->side);
 
-    ssl->rfd = -1;   /* set to invalid descriptor */
-    ssl->wfd = -1;
-    ssl->biord = 0;
-    ssl->biowr = 0;
-
-    ssl->IOCB_ReadCtx  = &ssl->rfd;   /* prevent invalid pointer acess if not */
-    ssl->IOCB_WriteCtx = &ssl->wfd;   /* correctly set */
 
 #ifdef SESSION_CERTS
     ssl->session.chain.count = 0;
