@@ -273,6 +273,7 @@ int test_CyaSSL_new(void)
     else
         printf(resultFmt, passed);
 
+#ifndef OPENSSL_EXTRA
     printf(testingFmt, "CyaSSL_new(bad_ctx)");
     ssl = CyaSSL_new(bad_ctx);
     if (ssl != NULL)
@@ -282,7 +283,8 @@ int test_CyaSSL_new(void)
     }
     else
         printf(resultFmt, passed);
-    
+#endif /* OPENSSL_EXTRA */
+
     printf(testingFmt, "CyaSSL_new(ctx)");
     ssl = CyaSSL_new(ctx);
     if (ssl == NULL)
