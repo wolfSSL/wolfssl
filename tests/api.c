@@ -65,10 +65,10 @@ int ApiTest(void)
 
 int test_CyaSSL_Init(void)
 {
-    printf(testingFmt, "CyaSSL_Init()");
+    int result;
 
-    int result = CyaSSL_Init();
-    
+    printf(testingFmt, "CyaSSL_Init()");
+    result = CyaSSL_Init();
     printf(resultFmt, result ? failed : passed);
 
     return result;
@@ -76,10 +76,10 @@ int test_CyaSSL_Init(void)
 
 static int test_CyaSSL_Cleanup(void)
 {
+    int result;
+
     printf(testingFmt, "CyaSSL_Cleanup()");
-
-    int result = CyaSSL_Cleanup();
-
+    result = CyaSSL_Cleanup();
     printf(resultFmt, result ? failed : passed);
 
     return result;
@@ -140,7 +140,7 @@ int test_CyaSSL_CTX_new(CYASSL_METHOD *method)
 {
     if (method != NULL)
     {
-        CYASSL_CTX *ctx = NULL;
+        CYASSL_CTX *ctx;
     
         printf(testingFmt, "CyaSSL_CTX_new(NULL)");
         ctx = CyaSSL_CTX_new(NULL);
@@ -176,8 +176,10 @@ int test_CyaSSL_CTX_new(CYASSL_METHOD *method)
 int test_cert(CYASSL_CTX *ctx, const char* path, int type, int cond,
     const char* name)
 {
+    int result;
+
     printf(testingFmt, name);
-    int result = CyaSSL_CTX_use_certificate_file(ctx, path, type);
+    result = CyaSSL_CTX_use_certificate_file(ctx, path, type);
     if (result != cond)
     {
         printf(resultFmt, failed);
@@ -189,14 +191,17 @@ int test_cert(CYASSL_CTX *ctx, const char* path, int type, int cond,
 
 int test_CyaSSL_CTX_use_certificate_file(void)
 {
-    CYASSL_METHOD *method = CyaSSLv23_server_method();
+    CYASSL_METHOD *method;
+    CYASSL_CTX *ctx;
+
+    method = CyaSSLv23_server_method();
     if (method == NULL)
     {
         printf("test_CyaSSL_CTX_use_certificate_file() cannot create method\n");
         return TEST_FAIL;
     }
 
-    CYASSL_CTX *ctx = CyaSSL_CTX_new(method);
+    ctx = CyaSSL_CTX_new(method);
     if (ctx == NULL)
     {
         printf("test_CyaSSL_CTX_use_certificate_file() cannot create context\n");
@@ -209,7 +214,6 @@ int test_CyaSSL_CTX_use_certificate_file(void)
     /* Then set the parameters to legit values but set each item to
         bogus and call again. Finish with a successful success. */
 #if 0
-    /* This test case is known to fail with a segfault */
     test_cert(NULL, NULL, 9999, SSL_FAILURE,
         "CyaSSL_CTX_use_certificate_file(NULL, NULL, 9999)");
     test_cert(NULL, svrCert, SSL_FILETYPE_PEM, SSL_FAILURE,
@@ -228,14 +232,17 @@ int test_CyaSSL_CTX_use_certificate_file(void)
 
 int test_CyaSSL_new(void)
 {
-    CYASSL_CTX *ctx = CyaSSL_CTX_new(CyaSSLv23_server_method());
+    int result;
+    CYASSL_CTX *ctx;
+    CYASSL_CTX *bad_ctx;
+    CYASSL *ssl;
+
+    ctx = CyaSSL_CTX_new(CyaSSLv23_server_method());
     if (ctx == NULL)
     {
         printf("test_CyaSSL_new() cannot create context\n");
         return TEST_FAIL;
     }
-
-    int result;
 
     result = CyaSSL_CTX_use_certificate_file(ctx, svrCert, SSL_FILETYPE_PEM);
     if (result == SSL_FAILURE)
@@ -253,15 +260,13 @@ int test_CyaSSL_new(void)
         return TEST_FAIL;
     }
 
-    CYASSL_CTX *bad_ctx = CyaSSL_CTX_new(CyaSSLv23_server_method());
+    bad_ctx = CyaSSL_CTX_new(CyaSSLv23_server_method());
     if (bad_ctx == NULL)
     {
         printf("test_CyaSSL_new() cannot create bogus context\n");
         CyaSSL_CTX_free(ctx);
         return TEST_FAIL;
     }
-
-    CYASSL *ssl;
 
     printf(testingFmt, "CyaSSL_new(NULL)");
     ssl = CyaSSL_new(NULL);
@@ -273,6 +278,7 @@ int test_CyaSSL_new(void)
     else
         printf(resultFmt, passed);
 
+#ifndef OPENSSL_EXTRA
     printf(testingFmt, "CyaSSL_new(bad_ctx)");
     ssl = CyaSSL_new(bad_ctx);
     if (ssl != NULL)
@@ -282,7 +288,8 @@ int test_CyaSSL_new(void)
     }
     else
         printf(resultFmt, passed);
-    
+#endif /* OPENSSL_EXTRA */
+
     printf(testingFmt, "CyaSSL_new(ctx)");
     ssl = CyaSSL_new(ctx);
     if (ssl == NULL)
