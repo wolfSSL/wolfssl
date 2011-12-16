@@ -50,6 +50,10 @@
     #ifdef CYASSL_GAME_BUILD
         #include "system/xtl.h"
     #else
+        #if defined(_WIN32_WCE) || defined(WIN32_LEAN_AND_MEAN)
+            /* On WinCE winsock2.h must be included before windows.h */
+            #include <winsock2.h>
+        #endif
         #include <windows.h>
     #endif
 #elif defined(THREADX)
