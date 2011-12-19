@@ -447,6 +447,7 @@ int AddCA(CYASSL_CTX* ctx, buffer der, int force)
             signer->pubKeySize = cert.pubKeySize;
             signer->name = cert.subjectCN;
             XMEMCPY(signer->hash, cert.subjectHash, SHA_DIGEST_SIZE);
+            signer->next = NULL;   /* in case lock fails */
 
             cert.publicKey = 0;  /* don't free here */
             cert.subjectCN = 0;
