@@ -21,6 +21,7 @@
 
 #include <stdlib.h>
 #include <cyassl/ssl.h>
+#include <cyassl/test.h>
 #include "unit.h"
 
 #define TEST_FAIL       (-1)
@@ -29,17 +30,31 @@
 static int test_CyaSSL_Init(void);
 static int test_CyaSSL_Cleanup(void);
 static int test_CyaSSL_Method_Allocators(void);
-static int test_meth(CYASSL_METHOD *meth, const char *name);
-static int test_meth2(CYASSL_METHOD *meth, const char *name);
 static int test_CyaSSL_CTX_new(CYASSL_METHOD *method);
 static int test_CyaSSL_CTX_use_certificate_file(void);
-static int test_cert(CYASSL_CTX *ctx, const char* path, int type, int cond,
-    const char* name);
-static int test_CyaSSL_new(void);
+static int test_CyaSSL_CTX_use_PrivateKey_file(void);
+static int test_CyaSSL_CTX_load_verify_locations(void);
+static int test_server_CyaSSL_new(void);
+static int test_client_CyaSSL_new(void);
+#ifndef SINGLE_THREADED
+static int test_CyaSSL_read_write(void);
+#endif
 
+/* test function helpers */
+static int test_method(CYASSL_METHOD *method, const char *name);
+static int test_method2(CYASSL_METHOD *method, const char *name);
+static int test_ucf(CYASSL_CTX *ctx, const char* file, int type,
+    int cond, const char* name);
+static int test_upkf(CYASSL_CTX *ctx, const char* file, int type,
+    int cond, const char* name);
+static int test_lvl(CYASSL_CTX *ctx, const char* file, const char* path,
+    int cond, const char* name);
+
+#if 0
 static const char* svrCert    = "./certs/server-cert.pem";
 static const char* svrKey     = "./certs/server-key.pem";
-static const char* bogusCert  = "/dev/null";
+#endif
+static const char* bogusFile  = "/dev/null";
 static const char* testingFmt = "   %s:";
 static const char* resultFmt  = " %s\n";
 static const char* passed     = "passed";
@@ -56,7 +71,13 @@ int ApiTest(void)
     test_CyaSSL_Method_Allocators();
     test_CyaSSL_CTX_new(CyaSSLv23_server_method());
     test_CyaSSL_CTX_use_certificate_file();
-    test_CyaSSL_new();
+    test_CyaSSL_CTX_use_PrivateKey_file();
+    test_CyaSSL_CTX_load_verify_locations();
+    test_server_CyaSSL_new();
+    test_client_CyaSSL_new();
+#ifndef SINGLE_THREADED
+    test_CyaSSL_read_write();
+#endif
     test_CyaSSL_Cleanup();
     printf(" End API Tests\n");
 
@@ -85,25 +106,25 @@ static int test_CyaSSL_Cleanup(void)
     return result;
 }
 
-int test_meth(CYASSL_METHOD *meth, const char *name)
+int test_method(CYASSL_METHOD *method, const char *name)
 {
     printf(testingFmt, name);
-    if (meth == NULL)
+    if (method == NULL)
     {
         printf(resultFmt, failed);
         return TEST_FAIL;
     }
-    free(meth);
+    XFREE(method, 0, DYNAMIC_TYPE_METHOD);
     printf(resultFmt, passed);
     return TEST_SUCCESS;
 }
 
-int test_meth2(CYASSL_METHOD *meth, const char *name)
+int test_method2(CYASSL_METHOD *method, const char *name)
 {
     printf(testingFmt, name);
-    if (meth != NULL)
+    if (method != NULL)
     {
-        free(meth);
+        XFREE(method, 0, DYNAMIC_TYPE_METHOD);
         printf(resultFmt, failed);
         return TEST_FAIL;
     }
@@ -113,24 +134,24 @@ int test_meth2(CYASSL_METHOD *meth, const char *name)
 
 int test_CyaSSL_Method_Allocators(void)
 {
-    test_meth(CyaSSLv3_server_method(), "CyaSSLv3_server_method()");
-    test_meth(CyaSSLv3_client_method(), "CyaSSLv3_client_method()");
-    test_meth(CyaTLSv1_server_method(), "CyaTLSv1_server_method()");
-    test_meth(CyaTLSv1_client_method(), "CyaTLSv1_client_method()");
-    test_meth(CyaTLSv1_1_server_method(), "CyaTLSv1_1_server_method()");
-    test_meth(CyaTLSv1_1_client_method(), "CyaTLSv1_1_client_method()");
-    test_meth(CyaTLSv1_2_server_method(), "CyaTLSv1_2_server_method()");
-    test_meth(CyaTLSv1_2_client_method(), "CyaTLSv1_2_client_method()");
-    test_meth(CyaSSLv23_client_method(), "CyaSSLv23_client_method()");
+    test_method(CyaSSLv3_server_method(), "CyaSSLv3_server_method()");
+    test_method(CyaSSLv3_client_method(), "CyaSSLv3_client_method()");
+    test_method(CyaTLSv1_server_method(), "CyaTLSv1_server_method()");
+    test_method(CyaTLSv1_client_method(), "CyaTLSv1_client_method()");
+    test_method(CyaTLSv1_1_server_method(), "CyaTLSv1_1_server_method()");
+    test_method(CyaTLSv1_1_client_method(), "CyaTLSv1_1_client_method()");
+    test_method(CyaTLSv1_2_server_method(), "CyaTLSv1_2_server_method()");
+    test_method(CyaTLSv1_2_client_method(), "CyaTLSv1_2_client_method()");
+    test_method(CyaSSLv23_client_method(), "CyaSSLv23_client_method()");
 
 #ifdef CYASSL_DTLS
-    test_meth(CyaDTLSv1_server_method(), "CyaDTLSv1_server_method()");
-    test_meth(CyaDTLSv1_client_method(), "CyaDTLSv1_client_method()");
+    test_method(CyaDTLSv1_server_method(), "CyaDTLSv1_server_method()");
+    test_method(CyaDTLSv1_client_method(), "CyaDTLSv1_client_method()");
 #endif /* CYASSL_DTLS */
 
 #ifdef OPENSSL_EXTRA
-    test_meth2(CyaSSLv2_server_method(), "CyaSSLv2_server_method()");
-    test_meth2(CyaSSLv2_client_method(), "CyaSSLv2_client_method()");
+    test_method2(CyaSSLv2_server_method(), "CyaSSLv2_server_method()");
+    test_method2(CyaSSLv2_client_method(), "CyaSSLv2_client_method()");
 #endif /* OPENSSL_EXTRA */
 
     return TEST_SUCCESS;
@@ -157,7 +178,7 @@ int test_CyaSSL_CTX_new(CYASSL_METHOD *method)
         if (ctx == NULL)
         {
             printf(resultFmt, failed);
-            free(method);
+            XFREE(method, 0, DYNAMIC_TYPE_METHOD);
             /* free the method data. if this was successful, freeing
                the CTX frees the method. */
         }
@@ -173,13 +194,14 @@ int test_CyaSSL_CTX_new(CYASSL_METHOD *method)
     return TEST_SUCCESS;
 }
 
-int test_cert(CYASSL_CTX *ctx, const char* path, int type, int cond,
+/* Helper for testing CyaSSL_CTX_use_certificate_file() */
+int test_ucf(CYASSL_CTX *ctx, const char* file, int type, int cond,
     const char* name)
 {
     int result;
 
     printf(testingFmt, name);
-    result = CyaSSL_CTX_use_certificate_file(ctx, path, type);
+    result = CyaSSL_CTX_use_certificate_file(ctx, file, type);
     if (result != cond)
     {
         printf(resultFmt, failed);
@@ -205,7 +227,7 @@ int test_CyaSSL_CTX_use_certificate_file(void)
     if (ctx == NULL)
     {
         printf("test_CyaSSL_CTX_use_certificate_file() cannot create context\n");
-        free(method);
+        XFREE(method, 0, DYNAMIC_TYPE_METHOD);
         return TEST_FAIL;
     }
 
@@ -213,41 +235,146 @@ int test_CyaSSL_CTX_use_certificate_file(void)
         failure */
     /* Then set the parameters to legit values but set each item to
         bogus and call again. Finish with a successful success. */
-#if 0
-    test_cert(NULL, NULL, 9999, SSL_FAILURE,
+
+    test_ucf(NULL, NULL, 9999, SSL_FAILURE,
         "CyaSSL_CTX_use_certificate_file(NULL, NULL, 9999)");
-    test_cert(NULL, svrCert, SSL_FILETYPE_PEM, SSL_FAILURE,
-        "CyaSSL_CTX_use_certificate_file(NULL, svrCert, SSL_FILETYPE_PEM)");
-#endif
-    test_cert(ctx, bogusCert, SSL_FILETYPE_PEM, SSL_FAILURE,
-        "CyaSSL_CTX_use_certificate_file(ctx, bogusCert, SSL_FILETYPE_PEM)");
-    test_cert(ctx, svrCert, 9999, SSL_FAILURE,
+/*  test_ucf(NULL, svrCert, SSL_FILETYPE_PEM, SSL_FAILURE,
+        "CyaSSL_CTX_use_certificate_file(NULL, svrCert, SSL_FILETYPE_PEM)");*/
+    test_ucf(ctx, bogusFile, SSL_FILETYPE_PEM, SSL_FAILURE,
+        "CyaSSL_CTX_use_certificate_file(ctx, bogusFile, SSL_FILETYPE_PEM)");
+    test_ucf(ctx, svrCert, 9999, SSL_FAILURE,
         "CyaSSL_CTX_use_certificate_file(ctx, svrCert, 9999)");
-    test_cert(ctx, svrCert, SSL_FILETYPE_PEM, SSL_SUCCESS,
+    test_ucf(ctx, svrCert, SSL_FILETYPE_PEM, SSL_SUCCESS,
         "CyaSSL_CTX_use_certificate_file(ctx, svrCert, SSL_FILETYPE_PEM)");
 
     CyaSSL_CTX_free(ctx);
     return TEST_SUCCESS;
 }
 
-int test_CyaSSL_new(void)
+/* Helper for testing CyaSSL_CTX_use_PrivateKey_file() */
+int test_upkf(CYASSL_CTX *ctx, const char* file, int type, int cond,
+    const char* name)
+{
+    int result;
+
+    printf(testingFmt, name);
+    result = CyaSSL_CTX_use_PrivateKey_file(ctx, file, type);
+    if (result != cond)
+    {
+        printf(resultFmt, failed);
+        return TEST_FAIL;
+    }
+    printf(resultFmt, passed);
+    return TEST_SUCCESS;
+}
+
+int test_CyaSSL_CTX_use_PrivateKey_file(void)
+{
+    CYASSL_METHOD *method;
+    CYASSL_CTX *ctx;
+
+    method = CyaSSLv23_server_method();
+    if (method == NULL)
+    {
+        printf("test_CyaSSL_CTX_use_PrivateKey_file() cannot create method\n");
+        return TEST_FAIL;
+    }
+
+    ctx = CyaSSL_CTX_new(method);
+    if (ctx == NULL)
+    {
+        printf("test_CyaSSL_CTX_use_PrivateKey_file() cannot create context\n");
+        XFREE(method, 0, DYNAMIC_TYPE_METHOD);
+        return TEST_FAIL;
+    }
+
+    test_upkf(NULL, NULL, 9999, SSL_FAILURE,
+        "CyaSSL_CTX_use_PrivateKey_file(NULL, NULL, 9999)");
+/*  test_upkf(NULL, svrKey, SSL_FILETYPE_PEM, SSL_FAILURE,
+        "CyaSSL_CTX_use_PrivateKey_file(NULL, svrKey, SSL_FILETYPE_PEM)");*/
+    test_upkf(ctx, bogusFile, SSL_FILETYPE_PEM, SSL_FAILURE,
+        "CyaSSL_CTX_use_PrivateKey_file(ctx, bogusFile, SSL_FILETYPE_PEM)");
+    test_upkf(ctx, svrKey, 9999, SSL_FAILURE,
+        "CyaSSL_CTX_use_PrivateKey_file(ctx, svrKey, 9999)");
+    test_upkf(ctx, svrKey, SSL_FILETYPE_PEM, SSL_SUCCESS,
+        "CyaSSL_CTX_use_PrivateKey_file(ctx, svrKey, SSL_FILETYPE_PEM)");
+
+    CyaSSL_CTX_free(ctx);
+    return TEST_SUCCESS;
+}
+
+/* Helper for testing CyaSSL_CTX_load_verify_locations() */
+int test_lvl(CYASSL_CTX *ctx, const char* file, const char* path, int cond,
+    const char* name)
+{
+    int result;
+
+    printf(testingFmt, name);
+    result = CyaSSL_CTX_load_verify_locations(ctx, file, path);
+    if (result != cond)
+    {
+        printf(resultFmt, failed);
+        return TEST_FAIL;
+    }
+    printf(resultFmt, passed);
+    return TEST_SUCCESS;
+}
+
+int test_CyaSSL_CTX_load_verify_locations(void)
+{
+    CYASSL_METHOD *method;
+    CYASSL_CTX *ctx;
+
+    method = CyaSSLv23_client_method();
+    if (method == NULL)
+    {
+        printf("test_CyaSSL_CTX_load_verify_locations() cannot create method\n");
+        return TEST_FAIL;
+    }
+
+    ctx = CyaSSL_CTX_new(method);
+    if (ctx == NULL)
+    {
+        printf("test_CyaSSL_CTX_load_verify_locations() cannot create context\n");
+        free(method);
+        return TEST_FAIL;
+    }
+    
+    test_lvl(NULL, NULL, NULL, SSL_FAILURE,
+        "CyaSSL_CTX_load_verify_locations(NULL, NULL, NULL)");
+    test_lvl(ctx, NULL, NULL, SSL_FAILURE,
+        "CyaSSL_CTX_load_verify_locations(ctx, NULL, NULL)");
+    test_lvl(NULL, caCert, NULL, SSL_FAILURE,
+        "CyaSSL_CTX_load_verify_locations(ctx, NULL, NULL)");
+    test_lvl(ctx, caCert, bogusFile, SSL_SUCCESS,
+        "CyaSSL_CTX_load_verify_locations(ctx, caCert, bogusFile)");
+    /* There is a leak here. If you load a second cert, the first one
+       is lost. */
+    test_lvl(ctx, caCert, 0, SSL_SUCCESS,
+        "CyaSSL_CTX_load_verify_locations(ctx, caCert, 0)");
+
+    CyaSSL_CTX_free(ctx);
+    return TEST_SUCCESS;
+}
+
+int test_server_CyaSSL_new(void)
 {
     int result;
     CYASSL_CTX *ctx;
-    CYASSL_CTX *bad_ctx;
+    CYASSL_CTX *ctx_nocert;
     CYASSL *ssl;
 
     ctx = CyaSSL_CTX_new(CyaSSLv23_server_method());
     if (ctx == NULL)
     {
-        printf("test_CyaSSL_new() cannot create context\n");
+        printf("test_server_CyaSSL_new() cannot create context\n");
         return TEST_FAIL;
     }
 
     result = CyaSSL_CTX_use_certificate_file(ctx, svrCert, SSL_FILETYPE_PEM);
     if (result == SSL_FAILURE)
     {
-        printf("test_CyaSSL_new() cannot obtain certificate\n");
+        printf("test_server_CyaSSL_new() cannot obtain certificate\n");
         CyaSSL_CTX_free(ctx);
         return TEST_FAIL;
     }
@@ -255,20 +382,20 @@ int test_CyaSSL_new(void)
     result = CyaSSL_CTX_use_PrivateKey_file(ctx, svrKey, SSL_FILETYPE_PEM);
     if (result == SSL_FAILURE)
     {
-        printf("test_CyaSSL_new() cannot obtain key\n");
+        printf("test_server_CyaSSL_new() cannot obtain key\n");
         CyaSSL_CTX_free(ctx);
         return TEST_FAIL;
     }
 
-    bad_ctx = CyaSSL_CTX_new(CyaSSLv23_server_method());
-    if (bad_ctx == NULL)
+    ctx_nocert = CyaSSL_CTX_new(CyaSSLv23_server_method());
+    if (ctx_nocert == NULL)
     {
-        printf("test_CyaSSL_new() cannot create bogus context\n");
+        printf("test_server_CyaSSL_new() cannot create bogus context\n");
         CyaSSL_CTX_free(ctx);
         return TEST_FAIL;
     }
 
-    printf(testingFmt, "CyaSSL_new(NULL)");
+    printf(testingFmt, "CyaSSL_new(NULL) server");
     ssl = CyaSSL_new(NULL);
     if (ssl != NULL)
     {
@@ -278,9 +405,8 @@ int test_CyaSSL_new(void)
     else
         printf(resultFmt, passed);
 
-#ifndef OPENSSL_EXTRA
-    printf(testingFmt, "CyaSSL_new(bad_ctx)");
-    ssl = CyaSSL_new(bad_ctx);
+    printf(testingFmt, "CyaSSL_new(ctx_nocert) server");
+    ssl = CyaSSL_new(ctx_nocert);
     if (ssl != NULL)
     {
         printf(resultFmt, failed);
@@ -288,9 +414,8 @@ int test_CyaSSL_new(void)
     }
     else
         printf(resultFmt, passed);
-#endif /* OPENSSL_EXTRA */
 
-    printf(testingFmt, "CyaSSL_new(ctx)");
+    printf(testingFmt, "CyaSSL_new(ctx) server");
     ssl = CyaSSL_new(ctx);
     if (ssl == NULL)
         printf(resultFmt, failed);
@@ -300,8 +425,81 @@ int test_CyaSSL_new(void)
         CyaSSL_free(ssl);
     }
     
-    CyaSSL_CTX_free(bad_ctx);
+    CyaSSL_CTX_free(ctx_nocert);
     CyaSSL_CTX_free(ctx);
     return TEST_SUCCESS;
 }
 
+int test_client_CyaSSL_new(void)
+{
+    int result;
+    CYASSL_CTX *ctx;
+    CYASSL_CTX *ctx_nocert;
+    CYASSL *ssl;
+
+    ctx = CyaSSL_CTX_new(CyaSSLv23_client_method());
+    if (ctx == NULL)
+    {
+        printf("test_client_CyaSSL_new() cannot create context\n");
+        return TEST_FAIL;
+    }
+
+    result = CyaSSL_CTX_load_verify_locations(ctx, caCert, 0);
+    if (result == SSL_FAILURE)
+    {
+        printf("test_client_CyaSSL_new() cannot obtain certificate\n");
+        CyaSSL_CTX_free(ctx);
+        return TEST_FAIL;
+    }
+
+    ctx_nocert = CyaSSL_CTX_new(CyaSSLv23_client_method());
+    if (ctx_nocert == NULL)
+    {
+        printf("test_client_CyaSSL_new() cannot create bogus context\n");
+        CyaSSL_CTX_free(ctx);
+        return TEST_FAIL;
+    }
+
+    printf(testingFmt, "CyaSSL_new(NULL) client");
+    ssl = CyaSSL_new(NULL);
+    if (ssl != NULL)
+    {
+        printf(resultFmt, failed);
+        CyaSSL_free(ssl);
+    }
+    else
+        printf(resultFmt, passed);
+
+    printf(testingFmt, "CyaSSL_new(ctx_nocert) client");
+    ssl = CyaSSL_new(ctx_nocert);
+    if (ssl == NULL)
+    {
+        printf(resultFmt, failed);
+        CyaSSL_free(ssl);
+    }
+    else
+        printf(resultFmt, passed);
+
+    printf(testingFmt, "CyaSSL_new(ctx) client");
+    ssl = CyaSSL_new(ctx);
+    if (ssl == NULL)
+        printf(resultFmt, failed);
+    else
+    {
+        printf(resultFmt, passed);
+        CyaSSL_free(ssl);
+    }
+    
+    CyaSSL_CTX_free(ctx_nocert);
+    CyaSSL_CTX_free(ctx);
+    return TEST_SUCCESS;
+}
+
+#ifndef SINGLE_THREADED
+static int test_CyaSSL_read_write(void)
+{
+    printf(testingFmt, "read and write");
+    printf(resultFmt, "undefined");
+    return TEST_SUCCESS;
+};
+#endif
