@@ -1088,18 +1088,6 @@ int aes_test()
 
         if (memcmp(cipher, ctrCipher, AES_BLOCK_SIZE*4))
             return -67;
-
-        /*
-        AesCtrEncrypt(&enc, cipher, ctrPlain + AES_BLOCK_SIZE, AES_BLOCK_SIZE);
-        AesCtrEncrypt(&dec, plain, cipher, AES_BLOCK_SIZE);
-
-        if (memcmp(plain, ctrPlain + AES_BLOCK_SIZE, AES_BLOCK_SIZE))
-            return -68;
-
-        if (memcmp(cipher, ctrCipher + AES_BLOCK_SIZE, AES_BLOCK_SIZE))
-            return -69;
-            */
-
     }
 #endif /* CYASSL_AES_COUNTER */
 
