@@ -40,6 +40,7 @@
 #include <cyassl/ctaocrypt/rsa.h>
 #include <cyassl/ctaocrypt/asn.h>
 #include <cyassl/ctaocrypt/ripemd.h>
+#include <cyassl/ctaocrypt/ecc.h>
 
 #include <cyassl/ctaocrypt/dh.h>
 
@@ -63,6 +64,10 @@ void bench_ripemd();
 void bench_rsa();
 void bench_rsaKeyGen();
 void bench_dh();
+#ifdef HAVE_ECC
+void bench_eccKeyGen();
+void bench_eccKeyAgree();
+#endif
 
 double current_time();
 
@@ -109,6 +114,11 @@ int main(int argc, char** argv)
 
 #ifdef CYASSL_KEY_GEN
     bench_rsaKeyGen();
+#endif
+
+#ifdef HAVE_ECC 
+    bench_eccKeyGen();
+    bench_eccKeyAgree();
 #endif
 
     return 0;
@@ -523,6 +533,82 @@ void bench_rsaKeyGen()
            " iterations\n", milliEach, genTimes);
 }
 #endif /* CYASSL_KEY_GEN */
+
+#ifdef HAVE_ECC 
+void bench_eccKeyGen()
+{
+    ecc_key genKey;
+    double start, total, each, milliEach;
+    int    i;
+    const int genTimes = 5;
+  
+    /* 256 bit */ 
+    start = current_time();
+
+    for(i = 0; i < genTimes; i++) {
+        int ret = ecc_make_key(&rng, 32, &genKey);
+        ecc_free(&genKey);
+    }
+
+    total = current_time() - start;
+    each  = total / genTimes;  /* per second  */
+    milliEach = each * 1000;   /* millisconds */
+    printf("\n");
+    printf("ECC  256 key generation  %6.2f milliseconds, avg over %d" 
+           " iterations\n", milliEach, genTimes);
+}
+
+
+void bench_eccKeyAgree()
+{
+    ecc_key genKey, genKey2;
+    double start, total, each, milliEach;
+    int    i;
+    const int agreeTimes = 5;
+    byte   shared[1024];
+    byte   sig[1024];
+    byte   digest[32];
+    word32 x;
+  
+    ecc_make_key(&rng, 32, &genKey);
+    ecc_make_key(&rng, 32, &genKey2);
+
+    /* 256 bit */ 
+    start = current_time();
+
+    for(i = 0; i < agreeTimes; i++) {
+        x = sizeof(shared);
+        ecc_shared_secret(&genKey, &genKey2, shared, &x);
+    }
+
+    total = current_time() - start;
+    each  = total / agreeTimes;  /* per second  */
+    milliEach = each * 1000;   /* millisconds */
+    printf("EC-DHE   key agreement   %6.2f milliseconds, avg over %d" 
+           " iterations\n", milliEach, agreeTimes);
+
+    /* make dummy digest */
+    for (i = 0; i < sizeof(digest); i++)
+        digest[i] = i;
+
+
+    start = current_time();
+
+    for(i = 0; i < agreeTimes; i++) {
+        x = sizeof(sig);
+        ecc_sign_hash(digest, sizeof(digest), sig, &x, &rng, &genKey);
+    }
+
+    total = current_time() - start;
+    each  = total / agreeTimes;  /* per second  */
+    milliEach = each * 1000;   /* millisconds */
+    printf("EC-DSA   sign time       %6.2f milliseconds, avg over %d" 
+           " iterations\n", milliEach, agreeTimes);
+
+    ecc_free(&genKey2);
+    ecc_free(&genKey);
+}
+#endif /* HAVE_ECC */
 
 
 #ifdef _WIN32
