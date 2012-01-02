@@ -10,7 +10,7 @@ tests_unit_SOURCES = \
 			      tests/api.c \
 			      tests/suites.c \
                   tests/hash.c
-tests_unit_CFLAGS       = $(AM_CFLAGS)
-tests_unit_LDADD        = src/libcyassl.la 
+tests_unit_CFLAGS       = $(AM_CFLAGS) $(PTHREAD_CFLAGS)
+tests_unit_LDADD        = src/libcyassl.la  $(PTHREAD_LIBS)
 tests_unit_DEPENDENCIES = src/libcyassl.la
 EXTRA_DIST+=tests/unit.h
