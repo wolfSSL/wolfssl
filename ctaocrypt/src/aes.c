@@ -1368,7 +1368,7 @@ void AesCtrEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     word32 blocks = sz / AES_BLOCK_SIZE;
 
     while (blocks--) {
-        AesEncrypt(aes, aes->reg, out);
+        AesEncrypt(aes, (byte*)aes->reg, out);
         IncrementAesCounter((byte*)aes->reg);
         xorbuf(out, in, AES_BLOCK_SIZE);
 
