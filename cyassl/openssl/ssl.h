@@ -148,6 +148,7 @@ typedef CYASSL_X509_STORE_CTX X509_STORE_CTX;
 
 #define SSL_get_version CyaSSL_get_version
 #define SSL_get_current_cipher CyaSSL_get_current_cipher
+#define SSL_get_cipher CyaSSL_get_cipher
 #define SSL_CIPHER_description CyaSSL_CIPHER_description
 #define SSL_CIPHER_get_name CyaSSL_CIPHER_get_name
 #define SSL_get1_session CyaSSL_get1_session

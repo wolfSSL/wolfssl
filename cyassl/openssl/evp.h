@@ -28,6 +28,8 @@
 #ifndef CYASSL_EVP_H_
 #define CYASSL_EVP_H_
 
+#include <cyassl/ctaocrypt/settings.h>
+
 #ifdef YASSL_PREFIX
 #include "prefix_evp.h"
 #endif

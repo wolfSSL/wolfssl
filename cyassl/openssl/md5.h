@@ -4,6 +4,8 @@
 #ifndef CYASSL_MD5_H_
 #define CYASSL_MD5_H_
 
+#include <cyassl/ctaocrypt/settings.h>
+
 #ifdef YASSL_PREFIX
 #include "prefix_md5.h"
 #endif

@@ -28,6 +28,8 @@
 #ifndef CYASSL_DES_H_
 #define CYASSL_DES_H_
 
+#include <cyassl/ctaocrypt/settings.h>
+
 #ifdef YASSL_PREFIX
 #include "prefix_des.h"
 #endif

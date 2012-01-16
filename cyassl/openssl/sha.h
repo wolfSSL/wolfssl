@@ -4,6 +4,8 @@
 #ifndef CYASSL_SHA_H_
 #define CYASSL_SHA_H_
 
+#include <cyassl/ctaocrypt/settings.h>
+
 #ifdef YASSL_PREFIX
 #include "prefix_sha.h"
 #endif

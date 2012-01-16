@@ -233,6 +233,7 @@ CYASSL_API const char*  CyaSSL_get_version(CYASSL*);
 CYASSL_API CYASSL_CIPHER*  CyaSSL_get_current_cipher(CYASSL*);
 CYASSL_API char*        CyaSSL_CIPHER_description(CYASSL_CIPHER*, char*, int);
 CYASSL_API const char*  CyaSSL_CIPHER_get_name(const CYASSL_CIPHER* cipher);
+CYASSL_API const char*  CyaSSL_get_cipher(CYASSL*);
 CYASSL_API CYASSL_SESSION* CyaSSL_get1_session(CYASSL* ssl);
                            /* what's ref count */
 

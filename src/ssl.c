@@ -3598,10 +3598,13 @@ int CyaSSL_set_compression(CYASSL* ssl)
     }
 
 
-    CYASSL_CIPHER*  CyaSSL_get_current_cipher(CYASSL* ssl)
+    CYASSL_CIPHER* CyaSSL_get_current_cipher(CYASSL* ssl)
     {
         CYASSL_ENTER("SSL_get_current_cipher");
-        return &ssl->cipher;
+        if (ssl)
+            return &ssl->cipher;
+        else
+            return NULL;
     }
 
 
@@ -3684,6 +3687,13 @@ int CyaSSL_set_compression(CYASSL* ssl)
         }
 
         return "NONE";
+    }
+
+
+    const char* CyaSSL_get_cipher(CYASSL* ssl)
+    {
+        CYASSL_ENTER("CyaSSL_get_cipher");
+        return CyaSSL_CIPHER_get_name(CyaSSL_get_current_cipher(ssl));
     }
 
 
