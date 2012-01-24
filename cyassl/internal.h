@@ -614,6 +614,7 @@ struct CYASSL_CTX {
     byte        haveECDSA;        /* server private ECDSA key loaded */
     byte        partialWrite;     /* only one msg per write call */
     byte        quietShutdown;    /* don't send close notify */
+    byte        groupMessages;    /* group handshake messages before sending */
     CallbackIORecv CBIORecv;
     CallbackIOSend CBIOSend;
     VerifyCallback verifyCallback;      /* cert verification callback */
@@ -926,6 +927,7 @@ typedef struct Options {
     byte            partialWrite;       /* only one msg per write call */
     byte            quietShutdown;      /* don't send close notify */
     byte            certOnly;           /* stop once we get cert */
+    byte            groupMessages;      /* group handshake messages */
 #ifndef NO_PSK
     byte            havePSK;            /* psk key set by user */
     psk_client_callback client_psk_cb;

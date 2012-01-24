@@ -370,6 +370,30 @@ int CyaSSL_pending(CYASSL* ssl)
 }
 
 
+/* trun on handshake group messages for context */
+int CyaSSL_CTX_set_group_messages(CYASSL_CTX* ctx)
+{
+    if (ctx == NULL)
+       return BAD_FUNC_ARG;
+
+    ctx->groupMessages = 1;
+
+    return SSL_SUCCESS;
+}
+
+
+/* trun on handshake group messages for ssl object */
+int CyaSSL_set_group_messages(CYASSL* ssl)
+{
+    if (ssl == NULL)
+       return BAD_FUNC_ARG;
+
+    ssl->options.groupMessages = 1;
+
+    return SSL_SUCCESS;
+}
+
+
 static CyaSSL_Mutex ca_mutex;   /* CA signers mutex */
 
 /* does CA already exist on signer list */

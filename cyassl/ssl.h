@@ -722,6 +722,8 @@ CYASSL_API int CyaSSL_CTX_use_PrivateKey_buffer(CYASSL_CTX*,
                                                const unsigned char*, long, int);
 CYASSL_API int CyaSSL_CTX_use_certificate_chain_buffer(CYASSL_CTX*, 
                                                     const unsigned char*, long);
+CYASSL_API int CyaSSL_CTX_set_group_messages(CYASSL_CTX*);
+
 /* SSL versions */
 CYASSL_API int CyaSSL_use_certificate_buffer(CYASSL*, const unsigned char*,
                                              long, int);
@@ -729,6 +731,7 @@ CYASSL_API int CyaSSL_use_PrivateKey_buffer(CYASSL*, const unsigned char*, long,
                                             int);
 CYASSL_API int CyaSSL_use_certificate_chain_buffer(CYASSL*, 
                                                     const unsigned char*, long);
+CYASSL_API int CyaSSL_set_group_messages(CYASSL*);
 
 /* I/O callbacks */
 typedef int (*CallbackIORecv)(char *buf, int sz, void *ctx);

@@ -381,6 +381,7 @@ int InitSSL_Ctx(CYASSL_CTX* ctx, CYASSL_METHOD* method)
     ctx->sessionCacheFlushOff = 0;  /* initially on */
     ctx->sendVerify = 0;
     ctx->quietShutdown = 0;
+    ctx->groupMessages = 0;
 
     if (InitMutex(&ctx->countMutex) < 0) {
         CYASSL_MSG("Mutex error on CTX init");
@@ -773,6 +774,7 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
     ssl->options.partialWrite  = ctx->partialWrite;
     ssl->options.quietShutdown = ctx->quietShutdown;
     ssl->options.certOnly = 0;
+    ssl->options.groupMessages = ctx->groupMessages;
 
     /* ctx still owns certificate, certChain, key, dh, and caList buffers */
     ssl->buffers.certificate = ctx->certificate;
@@ -1247,7 +1249,7 @@ int SendBuffered(CYASSL* ssl)
 }
 
 
-/* Grow the output buffer, should only be to send cert, should be blank */
+/* Grow the output buffer */
 static INLINE int GrowOutputBuffer(CYASSL* ssl, int size)
 {
     byte* tmp = (byte*) XMALLOC(size + ssl->buffers.outputBuffer.length,
@@ -1297,21 +1299,15 @@ static INLINE int GrowInputBuffer(CYASSL* ssl, int size, int usedLength)
 }
 
 
-/* check avalaible size into output buffer */
+/* check avalaible size into output buffer, make room if needed */
 static INLINE int CheckAvalaibleSize(CYASSL *ssl, int size)
 {
-    if ((word32)size > ssl->buffers.outputBuffer.bufferSize)
-        if (GrowOutputBuffer(ssl, size) < 0)
-            return MEMORY_E;
-
     if (ssl->buffers.outputBuffer.bufferSize - ssl->buffers.outputBuffer.length
                                              < (word32)size) {
-        if (SendBuffered(ssl) == SOCKET_ERROR_E)
-            return SOCKET_ERROR_E;
-        if (ssl->buffers.outputBuffer.bufferSize -
-                                ssl->buffers.outputBuffer.length < (word32)size)
-            return WANT_WRITE;
+        if (GrowOutputBuffer(ssl, size) < 0)
+            return MEMORY_E;
     }
+
     return 0;
 }
 
@@ -2422,7 +2418,7 @@ int SendChangeCipher(CYASSL* ssl)
 
     /* get ouput buffer */
     output = ssl->buffers.outputBuffer.buffer + 
-             ssl->buffers.outputBuffer.idx;
+             ssl->buffers.outputBuffer.length;
 
     AddRecordHeader(output, 1, change_cipher_spec, ssl);
 
@@ -2435,7 +2431,11 @@ int SendChangeCipher(CYASSL* ssl)
                            ssl->heap);
     #endif
     ssl->buffers.outputBuffer.length += sendSz;
-    return SendBuffered(ssl);
+
+    if (ssl->options.groupMessages)
+        return 0;
+    else
+        return SendBuffered(ssl);
 }
 
 
@@ -2656,7 +2656,7 @@ int SendFinished(CYASSL* ssl)
 
     /* get ouput buffer */
     output = ssl->buffers.outputBuffer.buffer + 
-             ssl->buffers.outputBuffer.idx;
+             ssl->buffers.outputBuffer.length;
 
     AddHandShakeHeader(input, finishedSz, finished, ssl);
 
@@ -2739,7 +2739,7 @@ int SendCertificate(CYASSL* ssl)
 
     /* get ouput buffer */
     output = ssl->buffers.outputBuffer.buffer +
-             ssl->buffers.outputBuffer.idx;
+             ssl->buffers.outputBuffer.length;
 
     AddHeaders(output, length, certificate, ssl);
 
@@ -2773,7 +2773,10 @@ int SendCertificate(CYASSL* ssl)
         ssl->options.serverState = SERVER_CERT_COMPLETE;
 
     ssl->buffers.outputBuffer.length += sendSz;
-    return SendBuffered(ssl);
+    if (ssl->options.groupMessages)
+        return 0;
+    else
+        return SendBuffered(ssl);
 }
 
 
@@ -2805,7 +2808,8 @@ int SendCertificateRequest(CYASSL* ssl)
         return ret;
 
     /* get ouput buffer */
-    output = ssl->buffers.outputBuffer.buffer + ssl->buffers.outputBuffer.idx;
+    output = ssl->buffers.outputBuffer.buffer +
+             ssl->buffers.outputBuffer.length;
 
     AddHeaders(output, reqSz, certificate_request, ssl);
 
@@ -2835,7 +2839,10 @@ int SendCertificateRequest(CYASSL* ssl)
                           sendSz, ssl->heap);
     #endif
     ssl->buffers.outputBuffer.length += sendSz;
-    return SendBuffered(ssl);
+    if (ssl->options.groupMessages)
+        return 0;
+    else
+        return SendBuffered(ssl);
 }
 
 
@@ -2896,7 +2903,7 @@ int SendData(CYASSL* ssl, const void* data, int sz)
 
         /* get ouput buffer */
         out = ssl->buffers.outputBuffer.buffer +
-              ssl->buffers.outputBuffer.idx;
+              ssl->buffers.outputBuffer.length;
 
 #ifdef HAVE_LIBZ
         if (ssl->options.usingCompression) {
@@ -3009,7 +3016,7 @@ int SendAlert(CYASSL* ssl, int severity, int type)
 
     /* get ouput buffer */
     output = ssl->buffers.outputBuffer.buffer +
-             ssl->buffers.outputBuffer.idx;
+             ssl->buffers.outputBuffer.length;
 
     input[0] = (byte)severity;
     input[1] = (byte)type;
@@ -3774,7 +3781,7 @@ int SetCipherList(Suites* s, const char* list)
 
         /* get ouput buffer */
         output = ssl->buffers.outputBuffer.buffer +
-                 ssl->buffers.outputBuffer.idx;
+                 ssl->buffers.outputBuffer.length;
 
         AddHeaders(output, length, client_hello, ssl);
 
@@ -4380,7 +4387,7 @@ int SetCipherList(Suites* s, const char* list)
 
             /* get ouput buffer */
             output = ssl->buffers.outputBuffer.buffer + 
-                     ssl->buffers.outputBuffer.idx;
+                     ssl->buffers.outputBuffer.length;
 
             AddHeaders(output, encSz + tlsSz, client_key_exchange, ssl);
 
@@ -4403,7 +4410,10 @@ int SetCipherList(Suites* s, const char* list)
 
             ssl->buffers.outputBuffer.length += sendSz;
 
-            ret = SendBuffered(ssl);
+            if (ssl->options.groupMessages)
+                ret = 0;
+            else
+                ret = SendBuffered(ssl);
         }
     
         if (ret == 0 || ret == WANT_WRITE) {
@@ -4432,7 +4442,7 @@ int SetCipherList(Suites* s, const char* list)
 
         /* get ouput buffer */
         output = ssl->buffers.outputBuffer.buffer +
-                 ssl->buffers.outputBuffer.idx;
+                 ssl->buffers.outputBuffer.length;
 
         BuildCertHashes(ssl, &ssl->certHashes);
 
@@ -4504,7 +4514,10 @@ int SetCipherList(Suites* s, const char* list)
                                   output, sendSz, ssl->heap);
             #endif
             ssl->buffers.outputBuffer.length += sendSz;
-            return SendBuffered(ssl);
+            if (ssl->options.groupMessages)
+                return 0;
+            else
+                return SendBuffered(ssl);
         }
         else
             return ret;
@@ -4535,7 +4548,7 @@ int SetCipherList(Suites* s, const char* list)
 
         /* get ouput buffer */
         output = ssl->buffers.outputBuffer.buffer + 
-                 ssl->buffers.outputBuffer.idx;
+                 ssl->buffers.outputBuffer.length;
 
         sendSz = length + HANDSHAKE_HEADER_SZ + RECORD_HEADER_SZ;
         AddHeaders(output, length, server_hello, ssl);
@@ -4596,7 +4609,10 @@ int SetCipherList(Suites* s, const char* list)
 
         ssl->options.serverState = SERVER_HELLO_COMPLETE;
 
-        return SendBuffered(ssl);
+        if (ssl->options.groupMessages)
+            return 0;
+        else
+            return SendBuffered(ssl);
     }
 
 
@@ -4662,7 +4678,7 @@ int SetCipherList(Suites* s, const char* list)
 
             /* get ouput buffer */
             output = ssl->buffers.outputBuffer.buffer + 
-                     ssl->buffers.outputBuffer.idx;
+                     ssl->buffers.outputBuffer.length;
 
             AddHeaders(output, length, server_key_exchange, ssl);
 
@@ -4682,7 +4698,10 @@ int SetCipherList(Suites* s, const char* list)
             #endif
 
             ssl->buffers.outputBuffer.length += sendSz;
-            ret = SendBuffered(ssl);
+            if (ssl->options.groupMessages)
+                ret = 0;
+            else
+                ret = SendBuffered(ssl);
             ssl->options.serverState = SERVER_KEYEXCHANGE_COMPLETE;
         }
         #endif /*NO_PSK */
@@ -4766,7 +4785,7 @@ int SetCipherList(Suites* s, const char* list)
 
             /* get ouput buffer */
             output = ssl->buffers.outputBuffer.buffer + 
-                     ssl->buffers.outputBuffer.idx;
+                     ssl->buffers.outputBuffer.length;
 
             AddHeaders(output, length, server_key_exchange, ssl);
 
@@ -4851,7 +4870,10 @@ int SetCipherList(Suites* s, const char* list)
             #endif
 
             ssl->buffers.outputBuffer.length += sendSz;
-            ret = SendBuffered(ssl);
+            if (ssl->options.groupMessages)
+                ret = 0;
+            else
+                ret = SendBuffered(ssl);
             ssl->options.serverState = SERVER_KEYEXCHANGE_COMPLETE;
         }
         #endif /* HAVE_ECC */
@@ -4947,7 +4969,7 @@ int SetCipherList(Suites* s, const char* list)
 
             /* get ouput buffer */
             output = ssl->buffers.outputBuffer.buffer + 
-                     ssl->buffers.outputBuffer.idx;
+                     ssl->buffers.outputBuffer.length;
 
             AddHeaders(output, length, server_key_exchange, ssl);
 
@@ -5040,7 +5062,10 @@ int SetCipherList(Suites* s, const char* list)
             #endif
 
             ssl->buffers.outputBuffer.length += sendSz;
-            ret = SendBuffered(ssl);
+            if (ssl->options.groupMessages)
+                ret = 0;
+            else
+                ret = SendBuffered(ssl);
             ssl->options.serverState = SERVER_KEYEXCHANGE_COMPLETE;
         }
         #endif /* OPENSSL_EXTRA */
@@ -5449,7 +5474,7 @@ int SetCipherList(Suites* s, const char* list)
 
         /* get ouput buffer */
         output = ssl->buffers.outputBuffer.buffer +
-                 ssl->buffers.outputBuffer.idx;
+                 ssl->buffers.outputBuffer.length;
 
         AddHeaders(output, 0, server_hello_done, ssl);
 
@@ -5483,7 +5508,7 @@ int SetCipherList(Suites* s, const char* list)
 
         /* get ouput buffer */
         output = ssl->buffers.outputBuffer.buffer +
-                 ssl->buffers.outputBuffer.idx;
+                 ssl->buffers.outputBuffer.length;
 
         AddHeaders(output, length, hello_verify_request, ssl);
 
