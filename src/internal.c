@@ -690,6 +690,10 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
     ssl->buffers.prevSent                  = 0;
     ssl->buffers.plainSz                   = 0;
 
+#ifdef OPENSSL_EXTRA
+    ssl->peerCert.derCert.buffer = 0;
+#endif
+
     ssl->rfd = -1;   /* set to invalid descriptor */
     ssl->wfd = -1;
     ssl->biord = 0;
@@ -876,6 +880,7 @@ void SSL_ResourceFree(CYASSL* ssl)
     if (ssl->buffers.outputBuffer.dynamicFlag)
         ShrinkOutputBuffer(ssl);
 #if defined(OPENSSL_EXTRA) || defined(GOAHEAD_WS)
+    XFREE(ssl->peerCert.derCert.buffer, ssl->heap, DYNAMIC_TYPE_CERT);
     CyaSSL_BIO_free(ssl->biord);
     if (ssl->biord != ssl->biowr)        /* in case same as write */
         CyaSSL_BIO_free(ssl->biowr);
@@ -1604,6 +1609,14 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx)
         }
         else
             ssl->peerCert.subjectCN[0] = '\0';
+
+        /* store cert for potential retrieval */
+        ssl->peerCert.derCert.buffer = (byte*)XMALLOC(myCert.length, ssl->heap,
+                                                      DYNAMIC_TYPE_CERT);
+        if (ssl->peerCert.derCert.buffer == NULL)
+            return MEMORY_E;
+        XMEMCPY(ssl->peerCert.derCert.buffer, myCert.buffer, myCert.length);
+        ssl->peerCert.derCert.length = myCert.length;
 #endif    
 
         /* store for callback use */

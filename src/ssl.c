@@ -382,6 +382,22 @@ int CyaSSL_CTX_set_group_messages(CYASSL_CTX* ctx)
 }
 
 
+/* connect enough to get peer cert chain */
+int CyaSSL_connect_cert(CYASSL* ssl)
+{
+    int  ret;
+
+    if (ssl == NULL)
+        return SSL_FAILURE;
+
+    ssl->options.certOnly = 1;
+    ret = CyaSSL_connect(ssl);
+    ssl->options.certOnly   = 0;
+
+    return ret;
+}
+
+
 /* trun on handshake group messages for ssl object */
 int CyaSSL_set_group_messages(CYASSL* ssl)
 {
@@ -4495,6 +4511,19 @@ int CyaSSL_set_compression(CYASSL* ssl)
         return 0;
     }
 
+
+    const byte* CyaSSL_X509_get_der(CYASSL_X509* x509, int* outSz)
+    { 
+        CYASSL_ENTER("CyaSSL_X509_get_der");
+        
+        if (x509 == NULL || outSz == NULL)
+            return NULL;
+
+        *outSz = (int)x509->derCert.length;
+        return x509->derCert.buffer;
+    }  
+
+
     char*  CyaSSL_X509_get_subjectCN(CYASSL_X509* x509)
     {
         if (x509 == NULL)
@@ -4602,21 +4631,6 @@ const byte* CyaSSL_get_sessionID(const CYASSL_SESSION* session)
     return session->sessionID;
 }
 
-
-/* connect enough to get peer cert chain */
-int CyaSSL_connect_cert(CYASSL* ssl)
-{
-    int  ret;
-
-    if (ssl == NULL)
-        return SSL_FAILURE;
-
-    ssl->options.certOnly = 1;
-    ret = CyaSSL_connect(ssl);
-    ssl->options.certOnly   = 0;
-
-    return ret;
-}
 
 #endif /* SESSION_CERTS */
 
