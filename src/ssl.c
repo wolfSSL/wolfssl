@@ -455,9 +455,9 @@ Signer* GetCA(Signer* signers, byte* hash)
 
 
 /* owns der, internal now uses too */
-/* force flag means override CA check, ok for root certs that user requested
-   if they're from a chain we don't want to force, ever */
-int AddCA(CYASSL_CTX* ctx, buffer der, int force)
+/* type flag ids from user or from chain received during verify
+   don't allow chain ones to be added w/o isCA extension */
+int AddCA(CYASSL_CTX* ctx, buffer der, int type)
 {
     int         ret;
     DecodedCert cert;
@@ -468,7 +468,7 @@ int AddCA(CYASSL_CTX* ctx, buffer der, int force)
     ret = ParseCert(&cert, CA_TYPE, ctx->verifyPeer, 0);
     CYASSL_MSG("    Parsed new CA");
 
-    if (ret == 0 && cert.isCA == 0 && !force) {
+    if (ret == 0 && cert.isCA == 0 && type != CYASSL_USER_CA) {
         CYASSL_MSG("    Can't add as CA if not actually one");
         ret = NOT_CA_ERROR;
     }
@@ -496,6 +496,8 @@ int AddCA(CYASSL_CTX* ctx, buffer der, int force)
                 signer->next = ctx->caList;
                 ctx->caList  = signer;   /* takes ownership */
                 UnLockMutex(&ca_mutex);
+                if (ctx->caCacheCallback)
+                    ctx->caCacheCallback(der.buffer, (int)der.length, type);
             }
             else {
                 CYASSL_MSG("    CA Mutex Lock failed");
@@ -912,7 +914,7 @@ int AddCA(CYASSL_CTX* ctx, buffer der, int force)
 #endif /* OPENSSL_EXTRA || HAVE_WEBSERVER */
 
         if (type == CA_TYPE)
-            return AddCA(ctx, der, 1);  /* takes der over, force user request */
+            return AddCA(ctx, der, CYASSL_USER_CA);  /* takes der over */
         else if (type == CERT_TYPE) {
             if (ssl) {
                 if (ssl->buffers.weOwnCert && ssl->buffers.certificate.buffer)
@@ -1442,6 +1444,14 @@ void CyaSSL_set_verify(CYASSL* ssl, int mode, VerifyCallback vc)
         ssl->options.failNoCert = 1;
 
     ssl->verifyCallback = vc;
+}
+
+
+/* store context CA Cache addition callback */
+void CyaSSL_CTX_SetCACb(CYASSL_CTX* ctx, CallbackCACache cb)
+{
+    if (ctx && cb)
+        ctx->caCacheCallback = cb;
 }
 
 

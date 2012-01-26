@@ -358,6 +358,7 @@ int InitSSL_Ctx(CYASSL_CTX* ctx, CYASSL_METHOD* method)
 #endif
     ctx->partialWrite   = 0;
     ctx->verifyCallback = 0;
+    ctx->caCacheCallback = 0;
 
     ctx->caList = 0;
 #ifdef HAVE_NTRU
@@ -1561,7 +1562,7 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx)
                 return MEMORY_E;
             XMEMCPY(add.buffer, myCert.buffer, myCert.length);
 
-            ret = AddCA(ssl->ctx, add, 0);  /* never force chain add */
+            ret = AddCA(ssl->ctx, add, CYASSL_CHAIN_CA);
             if (ret == 1) ret = 0;   /* SSL_SUCCESS for external */
         }
         else if (ret != 0) {

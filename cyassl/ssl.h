@@ -744,6 +744,16 @@ CYASSL_API void CyaSSL_SetIOSend(CYASSL_CTX*, CallbackIOSend);
 CYASSL_API void CyaSSL_SetIOReadCtx(CYASSL* ssl, void *ctx);
 CYASSL_API void CyaSSL_SetIOWriteCtx(CYASSL* ssl, void *ctx);
 
+/* CA cache callbacks */
+enum {
+    CYASSL_USER_CA  = 1,          /* user added as trusted */
+    CYASSL_CHAIN_CA = 2           /* added to cache from trusted chain */
+};
+
+typedef void (*CallbackCACache)(unsigned char* der, int sz, int type);
+
+CYASSL_API void CyaSSL_CTX_SetCACb(CYASSL_CTX*, CallbackCACache);
+
 
 #ifdef CYASSL_CALLBACKS
 

@@ -617,7 +617,8 @@ struct CYASSL_CTX {
     byte        groupMessages;    /* group handshake messages before sending */
     CallbackIORecv CBIORecv;
     CallbackIOSend CBIOSend;
-    VerifyCallback verifyCallback;      /* cert verification callback */
+    CallbackCACache caCacheCallback;    /* CA cache addition callback */
+    VerifyCallback  verifyCallback;     /* cert verification callback */
 #ifndef NO_PSK
     byte        havePSK;                /* psk key set by user */
     psk_client_callback client_psk_cb;  /* client callback */
