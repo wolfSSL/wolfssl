@@ -571,6 +571,13 @@ static int myVerify(int preverify, X509_STORE_CTX* store)
 
 #endif /* VERIFY_CALLBACK */
 
+
+static INLINE void CaCb(unsigned char* der, int sz, int type)
+{
+    printf("Got CA cache add callback, derSz = %d, type = %d\n", sz, type);
+}
+
+
 static INLINE void SetDH(CYASSL* ssl)
 {
     /* dh1024 p */

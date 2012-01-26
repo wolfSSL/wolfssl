@@ -117,6 +117,10 @@ void client_test(void* args)
     CyaSSL_CTX_set_cipher_list(ctx, "AES256-SHA");
 #endif
 
+#ifdef USER_CA_CB
+    CyaSSL_CTX_SetCACb(ctx, CaCb);
+#endif
+
 #ifndef NO_FILESYSTEM
     if (CyaSSL_CTX_load_verify_locations(ctx, caCert, 0) != SSL_SUCCESS)
         err_sys("can't load ca file, Please run from CyaSSL home dir");
