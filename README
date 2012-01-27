@@ -34,7 +34,26 @@ before calling SSL_new();  Though it's not recommended.
 
 *** end Note ***
 
-CyaSSL Release 2.0.2 (12/05/2011)
+CyaSSL Release 2.0.6 (1/27/2012)
+
+Release 2.0.6 CyaSSL has bug fixes and a few new features including:
+- Fixes for CA basis constraint check
+- CTX reference counting
+- Initial unit test additions
+- Lean and Mean Windows fix
+- ECC benchmarking
+- SSMTP build support
+- Ability to group handshake messages with set_group_messages(ctx/ssl)
+- CA cache addition callback
+- Export Base64_Encode for general use
+
+The CyaSSL manual is available at:
+http://www.yassl.com/documentation/CyaSSL-Manual.pdf.  For build instructions 
+and comments about the new features please check the manual.
+
+
+
+************* CyaSSL Release 2.0.2 (12/05/2011)
 
 Release 2.0.2 CyaSSL has bug fixes and a few new features including:
 - CTaoCrypt Runtime library detection settings when directly using the crypto
