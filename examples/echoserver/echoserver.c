@@ -135,6 +135,8 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
         char    command[1024];
         int     echoSz = 0;
         int     clientfd;
+        int     firstRead = 1;
+        int     gotFirstG = 0;
                 
 #ifndef CYASSL_DTLS 
         SOCKADDR_IN_T client;
@@ -165,6 +167,18 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
 #endif
 
         while ( (echoSz = CyaSSL_read(ssl, command, sizeof(command))) > 0) {
+
+            if (firstRead == 1) {
+                firstRead = 0;  /* browser may send 1 byte 'G' to start */
+                if (echoSz == 1 && command[0] == 'G') {
+                    gotFirstG = 1;
+                    continue;
+                }
+            }
+            else if (gotFirstG == 1 && strncmp(command, "ET /", 4) == 0) {
+                strncpy(command, "GET", 4);
+                /* fall through to normal GET */
+            }
            
             if ( strncmp(command, "quit", 4) == 0) {
                 printf("client sent quit command: shutting down!\n");
