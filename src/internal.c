@@ -1709,6 +1709,36 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx)
 }
 
 
+static int DoHelloRequest(CYASSL* ssl, const byte* input, word32* inOutIdx)
+{
+    if (ssl->keys.encryptionOn) {
+        const byte* mac;
+        int         padSz = ssl->keys.encryptSz - HANDSHAKE_HEADER_SZ - 
+                            ssl->specs.hash_size;
+        byte        verify[SHA256_DIGEST_SIZE];
+       
+        ssl->hmac(ssl, verify, input + *inOutIdx - HANDSHAKE_HEADER_SZ,
+                  HANDSHAKE_HEADER_SZ, handshake, 1);
+        /* read mac and fill */
+        mac = input + *inOutIdx;
+        *inOutIdx += ssl->specs.hash_size;
+
+        if (ssl->options.tls1_1 && ssl->specs.cipher_type == block)
+            padSz -= ssl->specs.block_size;
+
+        *inOutIdx += padSz;
+
+        /* verify */
+        if (XMEMCMP(mac, verify, ssl->specs.hash_size)) {
+            CYASSL_MSG("    hello_request verify mac error");
+            return VERIFY_MAC_ERROR;
+        }
+    }
+
+    return SendAlert(ssl, alert_warning, no_renegotiation);
+}
+
+
 int DoFinished(CYASSL* ssl, const byte* input, word32* inOutIdx, int sniff)
 {
     byte   verifyMAC[SHA256_DIGEST_SIZE];
@@ -1801,6 +1831,11 @@ static int DoHandShakeMsg(CYASSL* ssl, byte* input, word32* inOutIdx,
 #endif
 
     switch (type) {
+
+    case hello_request:
+        CYASSL_MSG("processing hello request");
+        ret = DoHelloRequest(ssl, input, inOutIdx);
+        break;
 
 #ifndef NO_CYASSL_CLIENT
     case hello_verify_request:
