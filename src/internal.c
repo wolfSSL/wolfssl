@@ -3351,6 +3351,10 @@ void SetErrorString(int error, char* str)
         XSTRNCPY(str, "Not a CA by basic constraint error", max);
         break;
 
+    case BAD_PATH_ERROR:
+        XSTRNCPY(str, "Bad path for opendir error", max);
+        break;
+
     default :
         XSTRNCPY(str, "unknown error number", max);
     }

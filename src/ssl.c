@@ -52,6 +52,14 @@
     #include <cyassl/ctaocrypt/md5.h>
 #endif
 
+#ifndef NO_FILESYSTEM
+    #ifdef USE_WINDOWS_API
+
+    #else
+        #include <dirent.h>
+    #endif /* USE_WINDOWS_API */
+#endif /* NO_FILESYSTEM */
+
 
 #ifndef min
 
@@ -1085,17 +1093,71 @@ static int ProcessFile(CYASSL_CTX* ctx, const char* fname, int format, int type,
 }
 
 
-/* just one for now TODO: add dir support from path */
+/* loads each file in path, no c_rehash */
 int CyaSSL_CTX_load_verify_locations(CYASSL_CTX* ctx, const char* file,
                                      const char* path)
 {
+    int ret;
+
     CYASSL_ENTER("SSL_CTX_load_verify_locations");
     (void)path;
 
     if (ctx == NULL || file == NULL)
         return SSL_FAILURE;
 
-    return ProcessFile(ctx, file, SSL_FILETYPE_PEM, CA_TYPE, NULL, 0);
+    ret = ProcessFile(ctx, file, SSL_FILETYPE_PEM, CA_TYPE, NULL, 0);
+
+    if (ret == SSL_SUCCESS && path) {
+        /* try to load each regular file in path */
+    #ifdef USE_WINDOWS_API 
+        WIN32_FIND_DATAA FindFileData;
+        HANDLE hFind;
+
+        char name[MAX_FILENAME_SZ];
+        XSTRNCPY(name, path, MAX_FILENAME_SZ - 4);
+        XSTRNCAT(name, "\\*", 3);
+
+        hFind = FindFirstFileA(name, &FindFileData);
+        if (hFind == INVALID_HANDLE_VALUE) {
+            CYASSL_MSG("FindFirstFile for path verify locations failed");
+            return BAD_PATH_ERROR;
+        }
+
+        do {
+            if (FindFileData.dwFileAttributes != FILE_ATTRIBUTE_DIRECTORY) {
+                XSTRNCPY(name, path, MAX_FILENAME_SZ/2 - 3);
+                XSTRNCAT(name, "\\", 2);
+                XSTRNCAT(name, FindFileData.cFileName, MAX_FILENAME_SZ/2);
+
+                ret = ProcessFile(ctx, name, SSL_FILETYPE_PEM, CA_TYPE, NULL,0);
+            }
+        } while (ret == SSL_SUCCESS && FindNextFileA(hFind, &FindFileData));
+
+        FindClose(hFind);
+    #else
+        struct dirent* entry;
+        DIR*   dir = opendir(path);
+
+        if (dir == NULL) {
+            CYASSL_MSG("opendir path verify locations failed");
+            return BAD_PATH_ERROR;
+        }
+        while ( ret == SSL_SUCCESS && (entry = readdir(dir)) != NULL) {
+            if (entry->d_type & DT_REG) {
+                char name[MAX_FILENAME_SZ];
+
+                XSTRNCPY(name, path, MAX_FILENAME_SZ/2 - 2);
+                XSTRNCAT(name, "/", 1);
+                XSTRNCAT(name, entry->d_name, MAX_FILENAME_SZ/2);
+                
+                ret = ProcessFile(ctx, name, SSL_FILETYPE_PEM, CA_TYPE, NULL,0);
+            }
+        }
+        closedir(dir);
+    #endif
+    }
+
+    return ret;
 }
 
 

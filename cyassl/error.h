@@ -90,6 +90,7 @@ enum CyaSSL_ErrorCodes {
     ECC_SHARED_ERROR       = -255,            /* Bad ECC Shared Secret */
     BAD_MUTEX_ERROR        = -256,            /* Bad mutex */
     NOT_CA_ERROR           = -257,            /* Not a CA cert error */
+    BAD_PATH_ERROR         = -258,            /* Bad path for opendir */
     /* add strings to SetErrorString !!!!! */
 
     /* begin negotiation parameter errors */

@@ -164,10 +164,11 @@ enum {
 
     #define XSTRLEN(s1)       strlen((s1))
     #define XSTRNCPY(s1,s2,n) strncpy((s1),(s2),(n))
-    /* strstr and strncmp only used by CyaSSL proper, not required for
+    /* strstr, strncmp, and strncat only used by CyaSSL proper, not required for
        CTaoCrypt only */
     #define XSTRSTR(s1,s2)    strstr((s1),(s2))
     #define XSTRNCMP(s1,s2,n) strncmp((s1),(s2),(n))
+    #define XSTRNCAT(s1,s2,n) strncat((s1),(s2),(n))
 #endif
 
 #ifdef HAVE_ECC

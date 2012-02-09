@@ -359,6 +359,7 @@ enum Misc {
     MAX_CHAIN_DEPTH    =   4,  /* max cert chain peer depth */
     MAX_X509_SIZE      = 2048, /* max static x509 buffer size */
     CERT_MIN_SIZE      =  256, /* min PEM cert size with header/footer */
+    MAX_FILENAME_SZ    =  256, /* max file name length */
     FILE_BUFFER_SIZE   = 1024, /* default static file buffer size for input,
                                   will use dynamic buffer if not big enough */
 
