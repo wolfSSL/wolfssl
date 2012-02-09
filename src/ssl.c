@@ -53,11 +53,9 @@
 #endif
 
 #ifndef NO_FILESYSTEM
-    #ifdef USE_WINDOWS_API
-
-    #else
+    #if !defined(USE_WINDOWS_API) && !defined(NO_CYASSL_DIR)
         #include <dirent.h>
-    #endif /* USE_WINDOWS_API */
+    #endif
 #endif /* NO_FILESYSTEM */
 
 
@@ -1093,19 +1091,20 @@ static int ProcessFile(CYASSL_CTX* ctx, const char* fname, int format, int type,
 }
 
 
-/* loads each file in path, no c_rehash */
+/* loads file then loads each file in path, no c_rehash */
 int CyaSSL_CTX_load_verify_locations(CYASSL_CTX* ctx, const char* file,
                                      const char* path)
 {
-    int ret;
+    int ret = SSL_SUCCESS;
 
-    CYASSL_ENTER("SSL_CTX_load_verify_locations");
+    CYASSL_ENTER("CyaSSL_CTX_load_verify_locations");
     (void)path;
 
-    if (ctx == NULL || file == NULL)
+    if (ctx == NULL || (file == NULL && path == NULL) )
         return SSL_FAILURE;
 
-    ret = ProcessFile(ctx, file, SSL_FILETYPE_PEM, CA_TYPE, NULL, 0);
+    if (file)
+        ret = ProcessFile(ctx, file, SSL_FILETYPE_PEM, CA_TYPE, NULL, 0);
 
     if (ret == SSL_SUCCESS && path) {
         /* try to load each regular file in path */
@@ -1134,7 +1133,7 @@ int CyaSSL_CTX_load_verify_locations(CYASSL_CTX* ctx, const char* file,
         } while (ret == SSL_SUCCESS && FindNextFileA(hFind, &FindFileData));
 
         FindClose(hFind);
-    #else
+    #elif !defined(NO_CYASSL_DIR)
         struct dirent* entry;
         DIR*   dir = opendir(path);
 
