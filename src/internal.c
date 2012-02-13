@@ -695,6 +695,17 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
     ssl->peerCert.derCert.buffer = 0;
 #endif
 
+#ifdef HAVE_ECC
+    ssl->peerEccKeyPresent = 0;
+    ecc_init(&ssl->peerEccKey);
+    ssl->peerEccDsaKeyPresent = 0;
+    ecc_init(&ssl->peerEccDsaKey);
+    ssl->eccDsaKeyPresent = 0;
+    ecc_init(&ssl->eccDsaKey);
+    ssl->eccTempKeyPresent = 0;
+    ecc_init(&ssl->eccTempKey);
+#endif
+
     ssl->rfd = -1;   /* set to invalid descriptor */
     ssl->wfd = -1;
     ssl->biord = 0;
@@ -819,15 +830,6 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
 #endif
 
 #ifdef HAVE_ECC
-    ssl->peerEccKeyPresent = 0;
-    ecc_init(&ssl->peerEccKey);
-    ssl->peerEccDsaKeyPresent = 0;
-    ecc_init(&ssl->peerEccDsaKey);
-    ssl->eccDsaKeyPresent = 0;
-    ecc_init(&ssl->eccDsaKey);
-    ssl->eccTempKeyPresent = 0;
-    ecc_init(&ssl->eccTempKey);
-
     /* make ECDHE for server side */
     if (ssl->options.side == SERVER_END) {
         if (ecc_make_key(&ssl->rng, ECDHE_SIZE, &ssl->eccTempKey) != 0)
