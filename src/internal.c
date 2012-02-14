@@ -342,6 +342,9 @@ int InitSSL_Ctx(CYASSL_CTX* ctx, CYASSL_METHOD* method)
     ctx->client_psk_cb      = 0;
     ctx->server_psk_cb      = 0;
 #endif /* NO_PSK */
+#ifdef HAVE_ECC
+    ctx->eccTempKeySz       = ECDHE_SIZE;   
+#endif
 
 #ifdef OPENSSL_EXTRA
     ctx->passwd_cb   = 0;
@@ -696,13 +699,14 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
 #endif
 
 #ifdef HAVE_ECC
+    ssl->eccTempKeySz = ctx->eccTempKeySz;
     ssl->peerEccKeyPresent = 0;
-    ecc_init(&ssl->peerEccKey);
     ssl->peerEccDsaKeyPresent = 0;
-    ecc_init(&ssl->peerEccDsaKey);
     ssl->eccDsaKeyPresent = 0;
-    ecc_init(&ssl->eccDsaKey);
     ssl->eccTempKeyPresent = 0;
+    ecc_init(&ssl->peerEccKey);
+    ecc_init(&ssl->peerEccDsaKey);
+    ecc_init(&ssl->eccDsaKey);
     ecc_init(&ssl->eccTempKey);
 #endif
 
@@ -827,15 +831,6 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
 #ifdef CYASSL_CALLBACKS
     ssl->hsInfoOn = 0;
     ssl->toInfoOn = 0;
-#endif
-
-#ifdef HAVE_ECC
-    /* make ECDHE for server side */
-    if (ssl->options.side == SERVER_END) {
-        if (ecc_make_key(&ssl->rng, ECDHE_SIZE, &ssl->eccTempKey) != 0)
-            return ECC_MAKEKEY_ERROR;
-        ssl->eccTempKeyPresent = 1;
-    }
 #endif
 
     /* make sure server has DH parms, and add PSK if there, add NTRU too */

@@ -620,6 +620,9 @@ struct CYASSL_CTX {
     CallbackIOSend CBIOSend;
     CallbackCACache caCacheCallback;    /* CA cache addition callback */
     VerifyCallback  verifyCallback;     /* cert verification callback */
+#ifdef HAVE_ECC
+    word16          eccTempKeySz;       /* in octets 20 - 66 */
+#endif
 #ifndef NO_PSK
     byte        havePSK;                /* psk key set by user */
     psk_client_callback client_psk_cb;  /* client callback */
@@ -1030,12 +1033,13 @@ struct CYASSL {
 #endif
 #ifdef HAVE_ECC
     ecc_key         peerEccKey;              /* peer's  ECDHE key */
-    byte            peerEccKeyPresent;
     ecc_key         peerEccDsaKey;           /* peer's  ECDSA key */
-    byte            peerEccDsaKeyPresent;
     ecc_key         eccTempKey;              /* private ECDHE key */
-    byte            eccTempKeyPresent;
     ecc_key         eccDsaKey;               /* private ECDSA key */
+    word16          eccTempKeySz;            /* in octets 20 - 66 */
+    byte            peerEccKeyPresent;
+    byte            peerEccDsaKeyPresent;
+    byte            eccTempKeyPresent;
     byte            eccDsaKeyPresent;
 #endif
     hmacfp          hmac;

@@ -1363,6 +1363,34 @@ int CyaSSL_CTX_SetTmpDH_buffer(CYASSL_CTX* ctx, const unsigned char* buf,
 }
 
 
+#ifdef HAVE_ECC
+
+/* Set Temp CTX EC-DHE size in octets, should be 20 - 66 for 160 - 521 bit */
+int CyaSSL_CTX_SetTmpEC_DHE_Sz(CYASSL_CTX* ctx, word16 sz)
+{
+    if (ctx == NULL || sz < ECC_MINSIZE || sz > ECC_MAXSIZE)
+        return BAD_FUNC_ARG;
+
+    ctx->eccTempKeySz = sz;
+
+    return SSL_SUCCESS;
+}
+
+
+/* Set Temp SSL EC-DHE size in octets, should be 20 - 66 for 160 - 521 bit */
+int CyaSSL_SetTmpEC_DHE_Sz(CYASSL* ssl, word16 sz)
+{
+    if (ssl == NULL || sz < ECC_MINSIZE || sz > ECC_MAXSIZE)
+        return BAD_FUNC_ARG;
+
+    ssl->eccTempKeySz = sz;
+
+    return SSL_SUCCESS;
+}
+
+#endif /* HAVE_ECC */
+
+
 #if !defined(NO_FILESYSTEM)
 
 /* server Diffie-Hellman parameters */
@@ -1882,7 +1910,8 @@ int CyaSSL_set_cipher_list(CYASSL* ssl, const char* list)
         #ifdef HAVE_ECC
             /* in case used set_accept_state after init */
             if (ssl->eccTempKeyPresent == 0) {
-                if (ecc_make_key(&ssl->rng, ECDHE_SIZE, &ssl->eccTempKey) != 0){
+                if (ecc_make_key(&ssl->rng, ssl->eccTempKeySz,
+                                 &ssl->eccTempKey) != 0) {
                     ssl->error = ECC_MAKEKEY_ERROR;
                     CYASSL_ERROR(ssl->error);
                     return SSL_FATAL_ERROR; 

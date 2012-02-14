@@ -39,7 +39,8 @@ enum {
     ECC_MAXNAME    = 16,     /* MAX CURVE NAME LENGTH */
     SIG_HEADER_SZ  =  6,     /* ECC signature header size */
     ECC_BUFSIZE    = 256,    /* for exported keys temp buffer */
-    ECC_MAXSIZE    = 66      /* MAX Private Key size  */
+    ECC_MINSIZE    = 20,     /* MIN Private Key size */
+    ECC_MAXSIZE    = 66      /* MAX Private Key size */
 };
 
 

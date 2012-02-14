@@ -679,6 +679,7 @@ CYASSL_API int  CyaSSL_SetTmpDH(CYASSL*, const unsigned char* p, int pSz,
                                 const unsigned char* g, int gSz);
 CYASSL_API int  CyaSSL_SetTmpDH_buffer(CYASSL*, const unsigned char* b, long sz,
                                        int format);
+CYASSL_API int  CyaSSL_SetTmpEC_DHE_Sz(CYASSL*, unsigned short);
 #ifndef NO_FILESYSTEM
     CYASSL_API int  CyaSSL_SetTmpDH_file(CYASSL*, const char* f, int format);
 #endif
@@ -688,6 +689,7 @@ CYASSL_API int  CyaSSL_CTX_SetTmpDH(CYASSL_CTX*, const unsigned char* p,
                                     int pSz, const unsigned char* g, int gSz);
 CYASSL_API int  CyaSSL_CTX_SetTmpDH_buffer(CYASSL_CTX*, const unsigned char* b,
                                            long sz, int format);
+CYASSL_API int  CyaSSL_CTX_SetTmpEC_DHE_Sz(CYASSL_CTX*, unsigned short);
 #ifndef NO_FILESYSTEM
     CYASSL_API int  CyaSSL_CTX_SetTmpDH_file(CYASSL_CTX*, const char* f,
                                              int format);
