@@ -359,7 +359,6 @@ CYASSL_API void CyaSSL_CTX_set_default_passwd_cb_userdata(CYASSL_CTX*,
 CYASSL_API void CyaSSL_CTX_set_default_passwd_cb(CYASSL_CTX*, pem_password_cb);
 
 
-CYASSL_API long CyaSSL_CTX_set_timeout(CYASSL_CTX*, long);
 CYASSL_API void CyaSSL_CTX_set_info_callback(CYASSL_CTX*, void (*)(void));
 
 CYASSL_API unsigned long CyaSSL_ERR_peek_error(void);
@@ -654,6 +653,9 @@ CYASSL_API void CyaSSL_Debugging_OFF(void);
 CYASSL_API int CyaSSL_negotiate(CYASSL* ssl);
 /* turn on CyaSSL data compression */
 CYASSL_API int CyaSSL_set_compression(CYASSL* ssl);
+
+CYASSL_API int CyaSSL_set_timeout(CYASSL*, unsigned int);
+CYASSL_API int CyaSSL_CTX_set_timeout(CYASSL_CTX*, unsigned int);
 
 /* get CyaSSL peer X509_CHAIN */
 CYASSL_API CYASSL_X509_CHAIN* CyaSSL_get_peer_chain(CYASSL* ssl);

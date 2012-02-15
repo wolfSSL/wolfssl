@@ -351,6 +351,8 @@ int InitSSL_Ctx(CYASSL_CTX* ctx, CYASSL_METHOD* method)
     ctx->userdata    = 0;
 #endif /* OPENSSL_EXTRA */
 
+    ctx->timeout = DEFAULT_TIMEOUT;
+
 #ifndef CYASSL_USER_IO
     ctx->CBIORecv = EmbedReceive;
     ctx->CBIOSend = EmbedSend;
@@ -710,6 +712,7 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
     ecc_init(&ssl->eccTempKey);
 #endif
 
+    ssl->timeout = ctx->timeout;
     ssl->rfd = -1;   /* set to invalid descriptor */
     ssl->wfd = -1;
     ssl->biord = 0;

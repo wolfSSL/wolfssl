@@ -620,6 +620,7 @@ struct CYASSL_CTX {
     CallbackIOSend CBIOSend;
     CallbackCACache caCacheCallback;    /* CA cache addition callback */
     VerifyCallback  verifyCallback;     /* cert verification callback */
+    word32          timeout;            /* session timeout */
 #ifdef HAVE_ECC
     word16          eccTempKeySz;       /* in octets 20 - 66 */
 #endif
@@ -1046,6 +1047,7 @@ struct CYASSL {
     void*           heap;               /* for user overrides */
     RecordLayerHeader curRL;
     word16            curSize;
+    word32          timeout;            /* session timeout */
     CYASSL_CIPHER   cipher;
 #ifdef HAVE_LIBZ
     z_stream        c_stream;           /* compression   stream */

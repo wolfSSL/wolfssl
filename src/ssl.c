@@ -2133,6 +2133,30 @@ void CyaSSL_flush_sessions(CYASSL_CTX* ctx, long tm)
 }
 
 
+/* set ssl session timeout in seconds */
+int CyaSSL_set_timeout(CYASSL* ssl, unsigned int to)
+{
+    if (ssl == NULL)
+        return BAD_FUNC_ARG;
+
+    ssl->timeout = to;
+
+    return SSL_SUCCESS;
+}
+
+
+/* set ctx session timeout in seconds */
+int CyaSSL_CTX_set_timeout(CYASSL_CTX* ctx, unsigned int to)
+{
+    if (ctx == NULL)
+        return BAD_FUNC_ARG;
+
+    ctx->timeout = to;
+
+    return SSL_SUCCESS;
+}
+
+
 CYASSL_SESSION* GetSession(CYASSL* ssl, byte* masterSecret)
 {
     CYASSL_SESSION* ret = 0;
@@ -2216,7 +2240,7 @@ int AddSession(CYASSL* ssl)
     XMEMCPY(SessionCache[row].Sessions[idx].sessionID, ssl->arrays.sessionID,
            ID_LEN);
 
-    SessionCache[row].Sessions[idx].timeout = DEFAULT_TIMEOUT;
+    SessionCache[row].Sessions[idx].timeout = ssl->timeout;
     SessionCache[row].Sessions[idx].bornOn  = LowResTimer();
 
 #ifdef SESSION_CERTS
@@ -4302,14 +4326,6 @@ int CyaSSL_set_compression(CYASSL* ssl)
     {
         (void)ssl;
         (void)idx;
-        return 0;
-    }
-
-
-    long CyaSSL_CTX_set_timeout(CYASSL_CTX* ctx, long to)
-    {
-        (void)ctx;
-        (void)to;
         return 0;
     }
 
