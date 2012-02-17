@@ -1180,21 +1180,26 @@ int rsa_test()
     ret = InitRng(&rng);
     if (ret != 0) return -42;
 
-    ret = RsaPublicEncrypt(in, inLen, out, sizeof(out), &key, &rng);  
+    ret = RsaPublicEncrypt(in, inLen, out, sizeof(out), &key, &rng);
+    if (ret < 0) return -43;
 
     ret = RsaPrivateDecrypt(out, ret, plain, sizeof(plain), &key);
+    if (ret < 0) return -44;
 
     if (memcmp(plain, in, inLen)) return -45;
 
     ret = RsaSSL_Sign(in, inLen, out, sizeof(out), &key, &rng);
+    if (ret < 0) return -46;
+
     memset(plain, 0, sizeof(plain));
     ret = RsaSSL_Verify(out, ret, plain, sizeof(plain), &key);
+    if (ret < 0) return -47;
 
-    if (memcmp(plain, in, ret)) return -46;
+    if (memcmp(plain, in, ret)) return -48;
 
     file2 = fopen(clientCert, "rb");
     if (!file2)
-        return -47;
+        return -49;
 
     bytes2 = fread(tmp2, 1, sizeof(tmp2), file2);
 
@@ -1202,7 +1207,7 @@ int rsa_test()
     InitDecodedCert(&cert, (byte*)&tmp2, (word32)bytes2, 0);
 
     ret = ParseCert(&cert, CERT_TYPE, NO_VERIFY, 0);
-    if (ret != 0) return -48;
+    if (ret != 0) return -491;
 
     FreeDecodedCert(&cert);
 #endif
