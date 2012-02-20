@@ -1551,6 +1551,10 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx)
             CYASSL_MSG("Chain cert is not a CA, not adding as one");
             (void)ret;
         }
+        else if (ret == 0 && ssl->options.verifyNone) {
+            CYASSL_MSG("Chain cert not verified by option, not adding as CA");
+            (void)ret;
+        }
         else if (ret == 0 && !AlreadySigner(ssl->ctx, dCert.subjectHash)) {
             buffer add;
             add.length = myCert.length;
@@ -1585,15 +1589,37 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx)
     if (count) {
         buffer myCert = certs[0];
         DecodedCert dCert;
+        int         fatal = 0;
 
         CYASSL_MSG("Veriying Peer's cert");
 
         InitDecodedCert(&dCert, myCert.buffer, myCert.length, ssl->heap);
         ret = ParseCertRelative(&dCert, CERT_TYPE, !ssl->options.verifyNone,
                                 ssl->ctx->caList);
-        if (ret != 0) {
+        if (ret == 0) {
+            CYASSL_MSG("Verified Peer's cert");
+            fatal = 0;
+        }
+        else if (ret == ASN_PARSE_E) {
+            CYASSL_MSG("Got Peer cert ASN PARSE ERROR, fatal");
+            fatal = 1;
+        }
+        else {
             CYASSL_MSG("Failed to verify Peer's cert");
-            (void)ret;
+            if (ssl->verifyCallback) {
+                CYASSL_MSG("\tCallback override availalbe, will continue");
+                fatal = 0;
+            }
+            else {
+                CYASSL_MSG("\tNo callback override availalbe, fatal");
+                fatal = 1;
+            }
+        }
+
+        if (fatal) {
+            FreeDecodedCert(&dCert);
+            ssl->error = ret;
+            return ret;
         }
         ssl->options.havePeerCert = 1;
         /* set X509 format */
@@ -1642,16 +1668,19 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx)
                                &ssl->peerRsaKey, dCert.pubKeySize) != 0) {
                 ret = PEER_KEY_ERROR;
             }
-            ssl->peerRsaKeyPresent = 1;
+            else
+                ssl->peerRsaKeyPresent = 1;
         }
 #ifdef HAVE_NTRU
         else if (dCert.keyOID == NTRUk) {
             if (dCert.pubKeySize > sizeof(ssl->peerNtruKey)) {
                 ret = PEER_KEY_ERROR;
             }
-            XMEMCPY(ssl->peerNtruKey, dCert.publicKey, dCert.pubKeySize);
-            ssl->peerNtruKeyLen = (word16)dCert.pubKeySize;
-            ssl->peerNtruKeyPresent = 1;
+            else {
+                XMEMCPY(ssl->peerNtruKey, dCert.publicKey, dCert.pubKeySize);
+                ssl->peerNtruKeyLen = (word16)dCert.pubKeySize;
+                ssl->peerNtruKeyPresent = 1;
+            }
         }
 #endif /* HAVE_NTRU */
 #ifdef HAVE_ECC
@@ -1660,7 +1689,8 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx)
                                 &ssl->peerEccDsaKey) != 0) {
                 ret = PEER_KEY_ERROR;
             }
-            ssl->peerEccDsaKeyPresent = 1;
+            else
+                ssl->peerEccDsaKeyPresent = 1;
         }
 #endif /* HAVE_ECC */
 

@@ -542,7 +542,7 @@ static INLINE unsigned int my_psk_server_cb(CYASSL* ssl, const char* identity,
 
 #ifdef VERIFY_CALLBACK
 
-static int myVerify(int preverify, X509_STORE_CTX* store)
+static int myVerify(int preverify, CYASSL_X509_STORE_CTX* store)
 {
     char buffer[80];
 
@@ -551,10 +551,10 @@ static int myVerify(int preverify, X509_STORE_CTX* store)
 #ifdef OPENSSL_EXTRA
     CYASSL_X509* peer = store->current_cert;
     if (peer) {
-        char* issuer  = CYASS_X509_NAME_oneline(
-                                       CYASSL_X509_get_issuer_name(peer), 0, 0);
-        char* subject = CYASSL_X509_NAME_oneline(
-                                      CYASSL_X509_get_subject_name(peer), 0, 0);
+        char* issuer  = CyaSSL_X509_NAME_oneline(
+                                       CyaSSL_X509_get_issuer_name(peer), 0, 0);
+        char* subject = CyaSSL_X509_NAME_oneline(
+                                      CyaSSL_X509_get_subject_name(peer), 0, 0);
         printf("peer's cert info:\n issuer : %s\n subject: %s\n", issuer,
                                                                   subject);
         XFREE(subject, 0, DYNAMIC_TYPE_OPENSSL);
