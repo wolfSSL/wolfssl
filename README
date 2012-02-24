@@ -34,7 +34,24 @@ before calling SSL_new();  Though it's not recommended.
 
 *** end Note ***
 
-CyaSSL Release 2.0.6 (1/27/2012)
+CyaSSL Release 2.0.8 (2/24/2012)
+
+Release 2.0.8 CyaSSL has bug fixes and a few new features including:
+- A fix for malicious certificates pointed out by Remi Gacogne (thanks)
+  resulting in NULL pointer use.
+- Respond to renegotiation attempt with no_renegoatation alert
+- Add basic path support for load_verify_locations()
+- Add set Temp EC-DHE key size
+- Extra checks on rsa test when porting into
+
+
+The CyaSSL manual is available at:
+http://www.yassl.com/documentation/CyaSSL-Manual.pdf.  For build instructions 
+and comments about the new features please check the manual.
+
+
+
+************* CyaSSL Release 2.0.6 (1/27/2012)
 
 Release 2.0.6 CyaSSL has bug fixes and a few new features including:
 - Fixes for CA basis constraint check
