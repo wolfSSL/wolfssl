@@ -825,8 +825,10 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
 
 #ifndef NO_PSK
     ssl->arrays.client_identity[0] = 0;
-    if (ctx->server_hint[0])   /* set in CTX */
+    if (ctx->server_hint[0]) {   /* set in CTX */
+        XMEMSET(ssl->arrays.server_hint, 0, MAX_PSK_ID_LEN);
         XSTRNCPY(ssl->arrays.server_hint, ctx->server_hint, MAX_PSK_ID_LEN);
+    }
     else
         ssl->arrays.server_hint[0] = 0;
 #endif /* NO_PSK */
@@ -1624,10 +1626,14 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx)
         ssl->options.havePeerCert = 1;
         /* set X509 format */
 #ifdef OPENSSL_EXTRA
-        ssl->peerCert.issuer.sz    = (int)XSTRLEN(dCert.issuer) + 1;
         XSTRNCPY(ssl->peerCert.issuer.name, dCert.issuer, ASN_NAME_MAX);
-        ssl->peerCert.subject.sz   = (int)XSTRLEN(dCert.subject) + 1;
+        ssl->peerCert.issuer.name[ASN_NAME_MAX - 1] = '\0';
+        ssl->peerCert.issuer.sz = (int)XSTRLEN(dCert.issuer) + 1;
+
         XSTRNCPY(ssl->peerCert.subject.name, dCert.subject, ASN_NAME_MAX);
+        ssl->peerCert.subject.name[ASN_NAME_MAX - 1] = '\0';
+        ssl->peerCert.subject.sz   = (int)XSTRLEN(dCert.subject) + 1;
+
         XMEMCPY(ssl->peerCert.serial, dCert.serial, EXTERNAL_SERIAL_SIZE);
         ssl->peerCert.serialSz = dCert.serialSz;
         if (dCert.subjectCNLen < ASN_NAME_MAX) {

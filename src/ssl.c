@@ -1111,8 +1111,9 @@ int CyaSSL_CTX_load_verify_locations(CYASSL_CTX* ctx, const char* file,
     #ifdef USE_WINDOWS_API 
         WIN32_FIND_DATAA FindFileData;
         HANDLE hFind;
+        char   name[MAX_FILENAME_SZ];
 
-        char name[MAX_FILENAME_SZ];
+        XMEMSET(name, 0, sizeof(name));
         XSTRNCPY(name, path, MAX_FILENAME_SZ - 4);
         XSTRNCAT(name, "\\*", 3);
 
@@ -1145,6 +1146,7 @@ int CyaSSL_CTX_load_verify_locations(CYASSL_CTX* ctx, const char* file,
             if (entry->d_type & DT_REG) {
                 char name[MAX_FILENAME_SZ];
 
+                XMEMSET(name, 0, sizeof(name));
                 XSTRNCPY(name, path, MAX_FILENAME_SZ/2 - 2);
                 XSTRNCAT(name, "/", 1);
                 XSTRNCAT(name, entry->d_name, MAX_FILENAME_SZ/2);
@@ -2649,8 +2651,10 @@ int CyaSSL_set_compression(CYASSL* ssl)
         CYASSL_ENTER("SSL_CTX_use_psk_identity_hint");
         if (hint == 0)
             ctx->server_hint[0] = 0;
-        else
+        else {
             XSTRNCPY(ctx->server_hint, hint, MAX_PSK_ID_LEN);
+            ctx->server_hint[MAX_PSK_ID_LEN - 1] = '\0';
+        }
         return SSL_SUCCESS;
     }
 
@@ -2660,8 +2664,10 @@ int CyaSSL_set_compression(CYASSL* ssl)
         CYASSL_ENTER("SSL_use_psk_identity_hint");
         if (hint == 0)
             ssl->arrays.server_hint[0] = 0;
-        else
+        else {
             XSTRNCPY(ssl->arrays.server_hint, hint, MAX_PSK_ID_LEN);
+            ssl->arrays.server_hint[MAX_PSK_ID_LEN - 1] = '\0';
+        }
         return SSL_SUCCESS;
     }
 
