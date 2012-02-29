@@ -826,8 +826,8 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
 #ifndef NO_PSK
     ssl->arrays.client_identity[0] = 0;
     if (ctx->server_hint[0]) {   /* set in CTX */
-        XMEMSET(ssl->arrays.server_hint, 0, MAX_PSK_ID_LEN);
         XSTRNCPY(ssl->arrays.server_hint, ctx->server_hint, MAX_PSK_ID_LEN);
+        ssl->arrays.server_hint[MAX_PSK_ID_LEN - 1] = '\0';
     }
     else
         ssl->arrays.server_hint[0] = 0;
