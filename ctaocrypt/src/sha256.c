@@ -182,9 +182,9 @@ void Sha256Final(Sha256* sha256, byte* hash)
     XMEMSET(&local[sha256->buffLen], 0, SHA256_PAD_SIZE - sha256->buffLen);
 
     /* put lengths in bits */
-    sha256->loLen = sha256->loLen << 3;
     sha256->hiLen = (sha256->loLen >> (8*sizeof(sha256->loLen) - 3)) +
                  (sha256->hiLen << 3);
+    sha256->loLen = sha256->loLen << 3;
 
     /* store lengths */
     #ifdef LITTLE_ENDIAN_ORDER

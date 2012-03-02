@@ -203,9 +203,9 @@ void Md5Final(Md5* md5, byte* hash)
     XMEMSET(&local[md5->buffLen], 0, MD5_PAD_SIZE - md5->buffLen);
    
     /* put lengths in bits */
-    md5->loLen = md5->loLen << 3;
     md5->hiLen = (md5->loLen >> (8*sizeof(md5->loLen) - 3)) + 
                  (md5->hiLen << 3);
+    md5->loLen = md5->loLen << 3;
 
     /* store lengths */
     #ifdef BIG_ENDIAN_ORDER

@@ -178,9 +178,9 @@ void ShaFinal(Sha* sha, byte* hash)
     XMEMSET(&local[sha->buffLen], 0, SHA_PAD_SIZE - sha->buffLen);
    
     /* put lengths in bits */
-    sha->loLen = sha->loLen << 3;
     sha->hiLen = (sha->loLen >> (8*sizeof(sha->loLen) - 3)) + 
                  (sha->hiLen << 3);
+    sha->loLen = sha->loLen << 3;
 
     /* store lengths */
     #ifdef LITTLE_ENDIAN_ORDER

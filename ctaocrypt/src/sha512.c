@@ -221,9 +221,9 @@ void Sha512Final(Sha512* sha512, byte* hash)
     XMEMSET(&local[sha512->buffLen], 0, SHA512_PAD_SIZE - sha512->buffLen);
    
     /* put lengths in bits */
-    sha512->loLen = sha512->loLen << 3;
     sha512->hiLen = (sha512->loLen >> (8*sizeof(sha512->loLen) - 3)) + 
                  (sha512->hiLen << 3);
+    sha512->loLen = sha512->loLen << 3;
 
     /* store lengths */
     #ifdef LITTLE_ENDIAN_ORDER

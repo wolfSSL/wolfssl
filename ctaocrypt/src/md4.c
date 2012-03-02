@@ -192,9 +192,9 @@ void Md4Final(Md4* md4, byte* hash)
     XMEMSET(&local[md4->buffLen], 0, MD4_PAD_SIZE - md4->buffLen);
    
     /* put lengths in bits */
-    md4->loLen = md4->loLen << 3;
     md4->hiLen = (md4->loLen >> (8*sizeof(md4->loLen) - 3)) + 
                  (md4->hiLen << 3);
+    md4->loLen = md4->loLen << 3;
 
     /* store lengths */
     #ifdef BIG_ENDIAN_ORDER
