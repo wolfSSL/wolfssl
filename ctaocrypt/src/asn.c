@@ -1300,6 +1300,10 @@ static int GetName(DecodedCert* cert, int nameType)
                           cert->maxIdx) < 0)
                 return ASN_PARSE_E;
 
+            if (strLen == 0) {
+                CYASSL_MSG("Zero length name"); 
+                return ASN_PARSE_E;
+            }
             if (strLen > (int)(ASN_NAME_MAX - idx))
                 return ASN_PARSE_E; 
 
