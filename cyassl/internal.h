@@ -356,7 +356,11 @@ enum Misc {
     MAX_PSK_ID_LEN     = 128,  /* max psk identity/hint supported */
     MAX_PSK_KEY_LEN    =  64,  /* max psk key supported */
 
+#ifdef FORTRESS
+    MAX_CHAIN_DEPTH    =   9,  /* max cert chain peer depth, FORTRESS option */
+#else
     MAX_CHAIN_DEPTH    =   4,  /* max cert chain peer depth */
+#endif
     MAX_X509_SIZE      = 2048, /* max static x509 buffer size */
     CERT_MIN_SIZE      =  256, /* min PEM cert size with header/footer */
     MAX_FILENAME_SZ    =  256, /* max file name length */

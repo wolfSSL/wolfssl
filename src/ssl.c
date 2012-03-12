@@ -530,8 +530,10 @@ int AddCA(CYASSL_CTX* ctx, buffer der, int type)
     /* basic config gives a cache with 33 sessions, adequate for clients and
        embedded servers
 
-       BIG_SESSION_CACHE allows 1055 sessions, adequate for servers that aren't
-       under heavy load, basically allows 200 new sessions per minute
+       MEDIUM_SESSION_CACHE allows 1055 sessions, adequate for servers that
+       aren't under heavy load, basically allows 200 new sessions per minute
+
+       BIG_SESSION_CACHE yields 20,0027 sessions
 
        HUGE_SESSION_CACHE yields 65,791 sessions, for servers under heavy load,
        allows over 13,000 new sessions per minute or over 200 new sessions per
@@ -545,6 +547,9 @@ int AddCA(CYASSL_CTX* ctx, buffer der, int type)
         #define SESSIONS_PER_ROW 11
         #define SESSION_ROWS 5981
     #elif defined(BIG_SESSION_CACHE)
+        #define SESSIONS_PER_ROW 7
+        #define SESSION_ROWS 2861
+    #elif defined(MEDIUM_SESSION_CACHE)
         #define SESSIONS_PER_ROW 5
         #define SESSION_ROWS 211
     #elif defined(SMALL_SESSION_CACHE)
