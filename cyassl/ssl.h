@@ -120,6 +120,7 @@ typedef struct CYASSL_X509_STORE_CTX {
     int   error_depth;
     CYASSL_X509* current_cert;   /* stunnel dereference */
     char* domain;                /* subject CN domain name */
+    void* ex_data;               /* For fortress build */
     /* in internal.h too, change there !! */
 } CYASSL_X509_STORE_CTX;
 
@@ -672,6 +673,8 @@ CYASSL_API const unsigned char* CyaSSL_get_sessionID(const CYASSL_SESSION* s);
 CYASSL_API int  CyaSSL_X509_get_serial_number(CYASSL_X509*,unsigned char*,int*);
 CYASSL_API char*  CyaSSL_X509_get_subjectCN(CYASSL_X509*);
 CYASSL_API const unsigned char* CyaSSL_X509_get_der(CYASSL_X509*, int*);
+
+CYASSL_API int CyaSSL_cmp_peer_cert_to_file(CYASSL*, const char*);
 
 /* connect enough to get peer cert */
 CYASSL_API int  CyaSSL_connect_cert(CYASSL* ssl);

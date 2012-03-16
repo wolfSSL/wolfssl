@@ -3707,9 +3707,17 @@ int CyaSSL_set_compression(CYASSL* ssl)
 
     int CyaSSL_set_ex_data(CYASSL* ssl, int idx, void* data)
     {
+#ifdef FORTRESS
+        if (ssl != NULL && idx < MAX_EX_DATA && data != NULL)
+        {
+            ssl->ex_data[idx] = data;
+            return 1;
+        }
+#else
         (void)ssl;
         (void)idx;
         (void)data;
+#endif
         return 0;
     }
 
@@ -4321,8 +4329,13 @@ int CyaSSL_set_compression(CYASSL* ssl)
 
     void* CyaSSL_X509_STORE_CTX_get_ex_data(CYASSL_X509_STORE_CTX* ctx, int idx)
     {
+#ifdef FORTRESS
+        if (ctx != NULL && idx == 0)
+            return ctx->ex_data;
+#else
         (void)ctx;
         (void)idx;
+#endif
         return 0;
     }
 
@@ -4335,8 +4348,13 @@ int CyaSSL_set_compression(CYASSL* ssl)
 
     void* CyaSSL_get_ex_data(const CYASSL* ssl, int idx)
     {
+#ifdef FORTRESS
+        if (ssl != NULL && idx < MAX_EX_DATA)
+            return ssl->ex_data[idx];
+#else
         (void)ssl;
         (void)idx;
+#endif
         return 0;
     }
 
@@ -4658,6 +4676,70 @@ int CyaSSL_set_compression(CYASSL* ssl)
 
         return x509->subjectCN;
     }
+
+
+#ifdef FORTRESS
+    int CyaSSL_cmp_peer_cert_to_file(CYASSL* ssl, const char *fname)
+    {
+        int ret = -1;
+
+        CYASSL_ENTER("CyaSSL_cmp_peer_cert_to_file");
+        if (ssl != NULL && fname != NULL)
+        {
+            XFILE*        file = NULL;
+            int           sz = 0;
+            byte          staticBuffer[FILE_BUFFER_SIZE];
+            byte*         myBuffer = staticBuffer;
+            CYASSL_CTX*   ctx = ssl->ctx;
+            EncryptedInfo info;
+            buffer        fileDer;
+            int           eccKey = 0;
+            CYASSL_X509*  peer_cert = &ssl->peerCert;
+
+            info.set = 0;
+            info.ctx = ctx;
+            info.consumed = 0;
+            fileDer.buffer = 0;
+
+            file = XFOPEN(fname, "rb"); 
+            if (!file) return SSL_BAD_FILE;
+            XFSEEK(file, 0, XSEEK_END);
+            sz = XFTELL(file);
+            XREWIND(file);
+            if (sz > (long)sizeof(staticBuffer)) {
+                CYASSL_MSG("Getting dynamic buffer");
+                myBuffer = (byte*) XMALLOC(sz, ctx->heap, DYNAMIC_TYPE_FILE);
+            }
+            
+            if ((myBuffer != NULL) &&
+                (XFREAD(myBuffer, sz, 1, file) > 0) &&
+                (PemToDer(myBuffer, sz, CERT_TYPE,
+                                &fileDer, ctx->heap, &info, &eccKey) == 0) &&
+                (fileDer.length != 0) &&
+                (fileDer.length == peer_cert->derCert.length) &&
+                (XMEMCMP(peer_cert->derCert.buffer, fileDer.buffer,
+                                                    fileDer.length) == 0))
+            {
+                ret = 0;
+            }
+
+            XFCLOSE(file);
+            if (fileDer.buffer)
+                XFREE(fileDer.buffer, ctx->heap, DYNAMIC_TYPE_CERT);
+            if (myBuffer && (myBuffer != staticBuffer))
+                XFREE(myBuffer, ctx->heap, DYNAMIC_TYPE_FILE);
+        }
+
+        return ret;
+    }
+#else
+    int CyaSSL_cmp_peer_cert_to_file(CYASSL* ssl, const char *fname)
+    {
+        (void)ssl;
+        (void)fname;
+        return -1;
+    }
+#endif
 
 #endif /* OPENSSL_EXTRA */
 

@@ -855,6 +855,12 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
 
     ssl->cipher.ssl = ssl;
 
+#ifdef FORTRESS
+    ssl->ex_data[0] = 0;
+    ssl->ex_data[1] = 0;
+    ssl->ex_data[2] = 0;
+#endif
+
     return 0;
 }
 
@@ -1726,6 +1732,9 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx)
 #else
                 store.current_cert = NULL;
 #endif
+#ifdef FORTRESS
+                store.ex_data = ssl;
+#endif
                 ok = ssl->verifyCallback(0, &store);
                 if (ok) {
                     CYASSL_MSG("Verify callback overriding error!"); 
@@ -1739,6 +1748,28 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx)
         }
         ssl->error = ret;
     }
+#ifdef FORTRESS
+    else {
+        if (ssl->verifyCallback) {
+            int ok;
+            CYASSL_X509_STORE_CTX store;
+
+            store.error = ret;
+            store.error_depth = totalCerts;
+            store.domain = domain;
+            store.current_cert = &ssl->peerCert;
+            store.ex_data = ssl;
+
+            ok = ssl->verifyCallback(1, &store);
+            if (!ok) {
+                CYASSL_MSG("Verify callback overriding valid certificate!");
+                ret = -1;
+                SendAlert(ssl, alert_fatal, bad_certificate);
+                ssl->options.isClosed = 1;
+            }
+        }
+    }
+#endif
 
     *inOutIdx = i;
     return ret;

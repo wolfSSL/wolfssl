@@ -376,7 +376,11 @@ enum Misc {
     HASH_SIG_SIZE      =   2,  /* default SHA1 RSA */
 
     NO_COPY            =   0,  /* should we copy static buffer for write */
-    COPY               =   1   /* should we copy static buffer for write */
+    COPY               =   1,  /* should we copy static buffer for write */
+
+#ifdef FORTRESS
+    MAX_EX_DATA        =   3,  /* allow for three items of ex_data */
+#endif
 };
 
 
@@ -1066,6 +1070,9 @@ struct CYASSL {
 #endif
 #ifdef OPENSSL_EXTRA
     CYASSL_X509     peerCert;           /* X509 peer cert */
+#endif
+#ifdef FORTRESS
+    void*           ex_data[MAX_EX_DATA];
 #endif
 };
 
