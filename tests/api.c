@@ -307,7 +307,12 @@ int test_lvl(CYASSL_CTX *ctx, const char* file, const char* path, int cond,
     int result;
 
     printf(testingFmt, name);
-    result = CyaSSL_CTX_load_verify_locations(ctx, file, path);
+    /*
+     * CyaSSL_CTX_load_verify_locations() returns SSL_SUCCESS (1) for 
+     * success, SSL_FAILURE (0) for a non-specific failure, or a specific
+     * failure code (<0). Need to normalize the return code to 1 or 0.
+     */
+    result = CyaSSL_CTX_load_verify_locations(ctx, file, path) >= SSL_SUCCESS;
     if (result != cond)
     {
         printf(resultFmt, failed);
@@ -343,8 +348,9 @@ int test_CyaSSL_CTX_load_verify_locations(void)
         "CyaSSL_CTX_load_verify_locations(ctx, NULL, NULL)");
     test_lvl(NULL, caCert, NULL, SSL_FAILURE,
         "CyaSSL_CTX_load_verify_locations(ctx, NULL, NULL)");
-    test_lvl(ctx, caCert, bogusFile, SSL_SUCCESS,
+    test_lvl(ctx, caCert, bogusFile, SSL_FAILURE,
         "CyaSSL_CTX_load_verify_locations(ctx, caCert, bogusFile)");
+    /* Add a test for the certs directory path loading. */
     /* There is a leak here. If you load a second cert, the first one
        is lost. */
     test_lvl(ctx, caCert, 0, SSL_SUCCESS,

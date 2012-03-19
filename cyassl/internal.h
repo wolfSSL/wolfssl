@@ -357,6 +357,7 @@ enum Misc {
     MAX_PSK_KEY_LEN    =  64,  /* max psk key supported */
 
 #ifdef FORTRESS
+    MAX_EX_DATA        =   3,  /* allow for three items of ex_data */
     MAX_CHAIN_DEPTH    =   9,  /* max cert chain peer depth, FORTRESS option */
 #else
     MAX_CHAIN_DEPTH    =   4,  /* max cert chain peer depth */
@@ -376,11 +377,7 @@ enum Misc {
     HASH_SIG_SIZE      =   2,  /* default SHA1 RSA */
 
     NO_COPY            =   0,  /* should we copy static buffer for write */
-    COPY               =   1,  /* should we copy static buffer for write */
-
-#ifdef FORTRESS
-    MAX_EX_DATA        =   3,  /* allow for three items of ex_data */
-#endif
+    COPY               =   1   /* should we copy static buffer for write */
 };
 
 
