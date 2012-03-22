@@ -2273,6 +2273,7 @@ int AddSession(CYASSL* ssl)
 
     #ifdef SESSION_STATS
 
+    CYASSL_API
     void PrintSessionStats(void)
     {
         word32 totalSessionsSeen = 0;
@@ -2315,6 +2316,10 @@ int AddSession(CYASSL* ssl)
             printf(".05 p value  = 244.8, chi-square should be less\n");
         else if (SESSION_ROWS == 5981)
             printf(".05 p value  = 6161.0, chi-square should be less\n");
+        else if (SESSION_ROWS == 3)
+            printf(".05 p value  =   6.0, chi-square should be less\n");
+        else if (SESSION_ROWS == 2861)
+            printf(".05 p value  = 2985.5, chi-square should be less\n");
         printf("\n");
     }
 

@@ -32,7 +32,7 @@
 
 
 #ifdef SESSION_STATS
-    void PrintSessionStats(void);
+    CYASSL_API void PrintSessionStats(void);
 #endif
 
 
