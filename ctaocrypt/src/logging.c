@@ -30,8 +30,15 @@
 #include <cyassl/ctaocrypt/error.h>
 
 
-CYASSL_API int  CyaSSL_Debugging_ON(void);
-CYASSL_API void CyaSSL_Debugging_OFF(void);
+#ifdef __cplusplus
+    extern "C" {
+#endif
+    CYASSL_API int  CyaSSL_Debugging_ON(void);
+    CYASSL_API void CyaSSL_Debugging_OFF(void);
+#ifdef __cplusplus
+    } 
+#endif
+
 
 #ifdef DEBUG_CYASSL
 

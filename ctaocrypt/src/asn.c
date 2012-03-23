@@ -2078,7 +2078,13 @@ static void IsCa(DecodedCert* cert)
 
 
 /* from SSL proper, for locking can't do find here anymore */
-CYASSL_LOCAL Signer* GetCA(Signer* signers, byte* hash);
+#ifdef __cplusplus
+    extern "C" {
+#endif
+    CYASSL_LOCAL Signer* GetCA(Signer* signers, byte* hash);
+#ifdef __cplusplus
+    } 
+#endif
 
 
 int ParseCertRelative(DecodedCert* cert, int type, int verify,

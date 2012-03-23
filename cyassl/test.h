@@ -117,8 +117,8 @@ typedef struct tcp_ready {
 } tcp_ready;    
 
 
-void InitTcpReady();
-void FreeTcpReady();
+void InitTcpReady(tcp_ready*);
+void FreeTcpReady(tcp_ready*);
 
 
 typedef struct func_args {
