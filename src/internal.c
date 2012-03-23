@@ -4832,8 +4832,8 @@ int SetCipherList(Suites* s, const char* list)
             byte    *output;
             word32   length, idx = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
             int      sendSz;
-            byte     export[MAX_EXPORT_ECC_SZ];
-            word32   expSz = sizeof(export);
+            byte     exportBuf[MAX_EXPORT_ECC_SZ];
+            word32   expSz = sizeof(exportBuf);
             word32   sigSz;
             word32   preSigSz, preSigIdx;
             RsaKey   rsaKey;
@@ -4842,7 +4842,7 @@ int SetCipherList(Suites* s, const char* list)
             /* curve type, named curve, length(1) */
             length = ENUM_LEN + CURVE_LEN + ENUM_LEN;
             /* pub key size */
-            if (ecc_export_x963(&ssl->eccTempKey, export, &expSz) != 0)
+            if (ecc_export_x963(&ssl->eccTempKey, exportBuf, &expSz) != 0)
                 return ECC_EXPORT_ERROR;
             length += expSz;
 
@@ -4913,14 +4913,14 @@ int SetCipherList(Suites* s, const char* list)
             output[idx++] = named_curve;
             output[idx++] = 0x00;          /* leading zero */
             output[idx++] = SetCurveId(ecc_size(&ssl->eccTempKey)); 
-            output[idx++] = expSz;
-            XMEMCPY(output + idx, export, expSz);
+            output[idx++] = (byte)expSz;
+            XMEMCPY(output + idx, exportBuf, expSz);
             idx += expSz;
             if (IsAtLeastTLSv1_2(ssl)) {
                 output[idx++] = sha_mac;
                 output[idx++] = ssl->specs.sig_algo;
             }
-            c16toa(sigSz, output + idx);
+            c16toa((word16)sigSz, output + idx);
             idx += LENGTH_SZ;
 
             /* do signature */

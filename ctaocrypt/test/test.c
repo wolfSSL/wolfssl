@@ -1845,7 +1845,7 @@ int ecc_test()
     byte    sharedB[1024];
     byte    sig[1024];
     byte    digest[20];
-    byte    export[1024];
+    byte    exportBuf[1024];
     word32  x, y;
     int     i, verify, ret;
     ecc_key userA, userB, pubKey;
@@ -1879,12 +1879,12 @@ int ecc_test()
     if (memcmp(sharedA, sharedB, x))
         return -1005;
 
-    x = sizeof(export);
-    ret = ecc_export_x963(&userA, export, &x);
+    x = sizeof(exportBuf);
+    ret = ecc_export_x963(&userA, exportBuf, &x);
     if (ret != 0)
         return -1006;
 
-    ret = ecc_import_x963(export, x, &pubKey);
+    ret = ecc_import_x963(exportBuf, x, &pubKey);
 
     if (ret != 0) 
         return -1007;

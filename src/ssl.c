@@ -3529,11 +3529,11 @@ int CyaSSL_set_compression(CYASSL* ssl)
         if (!md) return 0;  /* no static buffer support */
 
         if (XSTRNCMP(evp_md, "MD5", 3) == 0) {
-            HmacSetKey(&hmac, MD5, key, key_len);
+            HmacSetKey(&hmac, MD5, (const byte*)key, key_len);
             if (md_len) *md_len = MD5_DIGEST_SIZE;
         }
         else if (XSTRNCMP(evp_md, "SHA", 3) == 0) {
-            HmacSetKey(&hmac, SHA, key, key_len);    
+            HmacSetKey(&hmac, SHA, (const byte*)key, key_len);    
             if (md_len) *md_len = SHA_DIGEST_SIZE;
         }
         else
