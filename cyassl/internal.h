@@ -1069,7 +1069,7 @@ struct CYASSL {
     CYASSL_X509     peerCert;           /* X509 peer cert */
 #endif
 #ifdef FORTRESS
-    void*           ex_data[MAX_EX_DATA];
+    void*           ex_data[MAX_EX_DATA]; /* external data, for Fortress */
 #endif
 };
 

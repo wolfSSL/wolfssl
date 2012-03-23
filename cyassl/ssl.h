@@ -120,7 +120,7 @@ typedef struct CYASSL_X509_STORE_CTX {
     int   error_depth;
     CYASSL_X509* current_cert;   /* stunnel dereference */
     char* domain;                /* subject CN domain name */
-    void* ex_data;               /* For fortress build */
+    void* ex_data;               /* external data, for fortress build */
     /* in internal.h too, change there !! */
 } CYASSL_X509_STORE_CTX;
 

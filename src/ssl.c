@@ -3713,17 +3713,17 @@ int CyaSSL_set_compression(CYASSL* ssl)
     int CyaSSL_set_ex_data(CYASSL* ssl, int idx, void* data)
     {
 #ifdef FORTRESS
-        if (ssl != NULL && idx < MAX_EX_DATA && data != NULL)
+        if (ssl != NULL && idx < MAX_EX_DATA)
         {
             ssl->ex_data[idx] = data;
-            return 1;
+            return SSL_SUCCESS;
         }
 #else
         (void)ssl;
         (void)idx;
         (void)data;
 #endif
-        return 0;
+        return SSL_FAILURE;
     }
 
 
