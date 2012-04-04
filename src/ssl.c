@@ -2090,17 +2090,28 @@ int CyaSSL_set_cipher_list(CYASSL* ssl, const char* list)
 
 #endif /* NO_CYASSL_SERVER */
 
+/* prevent multiple mutex initializations */
+static volatile int initRefCount = 0;
 
 int CyaSSL_Init(void)
 {
     int ret = 0;
+
     CYASSL_ENTER("CyaSSL_Init");
+
+    if (initRefCount == 0) {
 #ifndef NO_SESSION_CACHE
-    if (InitMutex(&session_mutex) != 0)
-        ret = BAD_MUTEX_ERROR;
+        if (InitMutex(&session_mutex) != 0)
+            ret = BAD_MUTEX_ERROR;
 #endif
-    if (InitMutex(&ca_mutex) != 0)
-        ret = BAD_MUTEX_ERROR;
+        if (InitMutex(&ca_mutex) != 0)
+            ret = BAD_MUTEX_ERROR;
+    }
+    if (ret == 0) {
+        LockMutex(&ca_mutex);
+        initRefCount++;
+        UnLockMutex(&ca_mutex);
+    }
 
     return ret;
 }
@@ -2109,7 +2120,21 @@ int CyaSSL_Init(void)
 int CyaSSL_Cleanup(void)
 {
     int ret = 0;
+    int release = 0;
+
     CYASSL_ENTER("CyaSSL_Cleanup");
+
+    LockMutex(&ca_mutex);
+
+    release = initRefCount-- == 1;
+    if (initRefCount < 0)
+        initRefCount = 0;
+
+    UnLockMutex(&ca_mutex);
+
+    if (!release)
+        return ret;
+
 #ifndef NO_SESSION_CACHE
     if (FreeMutex(&session_mutex) != 0)
         ret = BAD_MUTEX_ERROR;
