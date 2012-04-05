@@ -96,6 +96,7 @@ enum {
     NOT_COMPILED_IN    = -174,  /* Feature not compiled in */
     UNICODE_SIZE_E     = -175,  /* Unicode password too big */
     NO_PASSWORD        = -176,  /* no password provided by user */
+    ALT_NAME_E         = -177,  /* alt name size problem, too big */
 
     MIN_CODE_E         = -200   /* errors -101 - -199 */
 };

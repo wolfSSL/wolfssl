@@ -2412,6 +2412,10 @@ void CTaoCryptErrorString(int error, char* buffer)
         XSTRNCPY(buffer, "No password provided by user", max);
         break;
 
+    case ALT_NAME_E :
+        XSTRNCPY(buffer, "Alt Name problem, too big", max);
+        break;
+
     default:
         XSTRNCPY(buffer, "unknown error number", max);
 
@@ -2601,7 +2605,9 @@ void InitCert(Cert* cert)
     cert->selfSigned = 1;
     cert->isCA       = 0;
     cert->bodySz     = 0;
+#ifdef CYASSL_ALT_NAMES
     cert->altNamesSz = 0;
+#endif
     cert->keyType    = RSA_KEY;
     XMEMSET(cert->serial, 0, CTC_SERIAL_SIZE);
 
@@ -3149,12 +3155,14 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, RNG* rng,
     else
         der->extensionsSz = 0;
 
+#ifdef CYASSL_ALT_NAMES
     if (der->extensionsSz == 0 && cert->altNamesSz) {
         der->extensionsSz = SetExtensions(der->extensions, cert->altNames,
                                           cert->altNamesSz);
         if (der->extensionsSz == 0)
             return EXTENSIONS_E;
     }
+#endif
 
     der->total = der->versionSz + der->serialSz + der->sigAlgoSz +
         der->publicKeySz + der->validitySz + der->subjectSz + der->issuerSz +
@@ -3340,6 +3348,8 @@ int MakeSelfCert(Cert* cert, byte* buffer, word32 buffSz, RsaKey* key, RNG* rng)
 }
 
 
+#ifdef CYASSL_ALT_NAMES 
+
 /* Set Alt Names from der cert, return 0 on success */
 static int SetAltNamesFromCert(Cert* cert, const byte* der, int derSz)
 {
@@ -3410,6 +3420,8 @@ static int SetAltNamesFromCert(Cert* cert, const byte* der, int derSz)
                 else {
                     cert->altNamesSz = 0;
                     CYASSL_MSG("AltNames extensions too big");
+                    FreeDecodedCert(&decoded);
+                    return ALT_NAME_E;
                 }
             }
             decoded.srcIdx = tmpIdx + length;
@@ -3419,6 +3431,8 @@ static int SetAltNamesFromCert(Cert* cert, const byte* der, int derSz)
 
     return 0;
 }
+
+#endif /* CYASSL_ALT_NAMES */
 
 
 /* Set cn name from der buffer, return 0 on success */
@@ -3518,6 +3532,8 @@ int SetSubject(Cert* cert, const char* subjectFile)
 }
 
 
+#ifdef CYASSL_ALT_NAMES
+
 /* Set atl names from file in PEM */
 int SetAltNames(Cert* cert, const char* file)
 {
@@ -3526,6 +3542,8 @@ int SetAltNames(Cert* cert, const char* file)
 
     return SetAltNamesFromCert(cert, der, derSz);
 }
+
+#endif /* CYASSL_ALT_NAMES */
 
 #endif /* NO_FILESYSTEM */
 
@@ -3544,12 +3562,15 @@ int SetSubjectBuffer(Cert* cert, const byte* der, int derSz)
 }
 
 
+#ifdef CYASSL_ALT_NAMES
+
 /* Set cert alt names from DER buffer */
 int SetAltNamesBuffer(Cert* cert, const byte* der, int derSz)
 {
     return SetAltNamesFromCert(cert, der, derSz);
 }
 
+#endif /* CYASSL_ALT_NAMES */
 
 #endif /* CYASSL_CERT_GEN */
 

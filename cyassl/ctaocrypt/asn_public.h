@@ -58,9 +58,9 @@ enum Ctc_SigType {
 #ifdef CYASSL_CERT_GEN
 
 enum Ctc_Misc {
-    CTC_NAME_SIZE    =  64,
-    CTC_MAX_ALT_SIZE = 512,
-    CTC_SERIAL_SIZE  =   8
+    CTC_NAME_SIZE    =   64,
+    CTC_MAX_ALT_SIZE = 8192,    /* may be huge */
+    CTC_SERIAL_SIZE  =    8
 };
 
 typedef struct CertName {
@@ -88,8 +88,10 @@ typedef struct Cert {
     /* internal use only */
     int      bodySz;                    /* pre sign total size */
     int      keyType;                   /* public key type of subject */
+#ifdef CYASSL_ALT_NAMES
     byte     altNames[CTC_MAX_ALT_SIZE]; /* altNames copy */
     int      altNamesSz;                 /* altNames size in bytes */
+#endif
 } Cert;
 
 
@@ -113,7 +115,9 @@ CYASSL_API int  MakeSelfCert(Cert*, byte* derBuffer, word32 derSz, RsaKey*,
                              RNG*);
 CYASSL_API int  SetIssuer(Cert*, const char*);
 CYASSL_API int  SetSubject(Cert*, const char*);
-CYASSL_API int  SetAltNames(Cert*, const char*);
+#ifdef CYASSL_ALT_NAMES
+    CYASSL_API int  SetAltNames(Cert*, const char*);
+#endif
 CYASSL_API int  SetIssuerBuffer(Cert*, const byte*, int);
 CYASSL_API int  SetSubjectBuffer(Cert*, const byte*, int);
 CYASSL_API int  SetAltNamesBuffer(Cert*, const byte*, int);
