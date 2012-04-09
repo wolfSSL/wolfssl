@@ -1016,6 +1016,8 @@ void InitDecodedCert(DecodedCert* cert, byte* source, word32 inSz, void* heap)
     cert->signature       = 0;
     cert->subjectCN       = 0;
     cert->subjectCNLen    = 0;
+    cert->issuer[0]       = '\0';
+    cert->subject[0]      = '\0';
     cert->source          = source;  /* don't own */
     cert->srcIdx          = 0;
     cert->maxIdx          = inSz;    /* can't go over this index */
