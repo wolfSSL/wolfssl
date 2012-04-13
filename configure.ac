@@ -470,6 +470,21 @@ then
 fi
 
 
+# OCSP
+AC_ARG_ENABLE(ocsp,
+    [  --enable-ocsp           Enable OCSP (default: disabled)],
+    [ ENABLED_OCSP=$enableval ],
+    [ ENABLED_OCSP=no ],
+    )
+
+if test "$ENABLED_OCSP" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_OCSP"
+fi
+
+AM_CONDITIONAL([BUILD_OCSP], [test "x$ENABLED_OCSP" = "xyes"])
+
+
 # NTRU
 ntruHome=`pwd`/NTRU_algorithm
 ntruInclude=$ntruHome/cryptolib
