@@ -91,6 +91,7 @@ int  md4_test();
 int  sha_test();
 int  sha256_test();
 int  sha512_test();
+int  sha384_test();
 int  hmac_test();
 int  arc4_test();
 int  hc128_test();
@@ -164,6 +165,13 @@ void ctaocrypt_test(void* args)
         err_sys("SHA-256  test failed!\n", ret);
     else
         printf( "SHA-256  test passed!\n");
+#endif
+
+#ifdef CYASSL_SHA384
+    if ( (ret = sha384_test()) ) 
+        err_sys("SHA-384  test failed!\n", ret);
+    else
+        printf( "SHA-384  test passed!\n");
 #endif
 
 #ifdef CYASSL_SHA512
@@ -630,6 +638,51 @@ int sha512_test()
     return 0;
 }
 #endif
+
+
+#ifdef CYASSL_SHA384
+int sha384_test()
+{
+    Sha384 sha;
+    byte   hash[SHA384_DIGEST_SIZE];
+
+    testVector a, b;
+    testVector test_sha[2];
+    int times = sizeof(test_sha) / sizeof(struct testVector), i;
+
+    a.input  = "abc";
+    a.output = "\xcb\x00\x75\x3f\x45\xa3\x5e\x8b\xb5\xa0\x3d\x69\x9a\xc6\x50"
+               "\x07\x27\x2c\x32\xab\x0e\xde\xd1\x63\x1a\x8b\x60\x5a\x43\xff"
+               "\x5b\xed\x80\x86\x07\x2b\xa1\xe7\xcc\x23\x58\xba\xec\xa1\x34"
+               "\xc8\x25\xa7";
+    a.inLen  = strlen(a.input);
+    a.outLen = strlen(a.output);
+
+    b.input  = "abcdefghbcdefghicdefghijdefghijkefghijklfghijklmghijklmnhi"
+               "jklmnoijklmnopjklmnopqklmnopqrlmnopqrsmnopqrstnopqrstu";
+    b.output = "\x09\x33\x0c\x33\xf7\x11\x47\xe8\x3d\x19\x2f\xc7\x82\xcd\x1b"
+               "\x47\x53\x11\x1b\x17\x3b\x3b\x05\xd2\x2f\xa0\x80\x86\xe3\xb0"
+               "\xf7\x12\xfc\xc7\xc7\x1a\x55\x7e\x2d\xb9\x66\xc3\xe9\xfa\x91"
+               "\x74\x60\x39";
+    b.inLen  = strlen(b.input);
+    b.outLen = strlen(b.output);
+
+    test_sha[0] = a;
+    test_sha[1] = b;
+
+    InitSha384(&sha);
+
+    for (i = 0; i < times; ++i) {
+        Sha384Update(&sha, (byte*)test_sha[i].input,(word32)test_sha[i].inLen);
+        Sha384Final(&sha, hash);
+
+        if (memcmp(hash, test_sha[i].output, SHA384_DIGEST_SIZE) != 0)
+            return -10 - i;
+    }
+
+    return 0;
+}
+#endif /* CYASSL_SHA384 */
 
 
 #ifndef NO_HMAC
@@ -1629,8 +1682,8 @@ int dsa_test()
 int openssl_test()
 {
     EVP_MD_CTX md_ctx;
-    testVector a, b, c;
-    byte       hash[SHA_DIGEST_SIZE];
+    testVector a, b, c, d, e, f;
+    byte       hash[SHA_DIGEST_SIZE*4];  /* max size */
 
     a.input  = "1234567890123456789012345678901234567890123456789012345678"
                "9012345678901234567890";
@@ -1664,6 +1717,70 @@ int openssl_test()
 
     if (memcmp(hash, b.output, SHA_DIGEST_SIZE) != 0)
         return -72;
+
+
+    d.input  = "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq";
+    d.output = "\x24\x8D\x6A\x61\xD2\x06\x38\xB8\xE5\xC0\x26\x93\x0C\x3E\x60"
+               "\x39\xA3\x3C\xE4\x59\x64\xFF\x21\x67\xF6\xEC\xED\xD4\x19\xDB"
+               "\x06\xC1";
+    d.inLen  = strlen(d.input);
+    d.outLen = strlen(d.output);
+
+    EVP_MD_CTX_init(&md_ctx);
+    EVP_DigestInit(&md_ctx, EVP_sha256());
+
+    EVP_DigestUpdate(&md_ctx, d.input, d.inLen);
+    EVP_DigestFinal(&md_ctx, hash, 0);
+
+    if (memcmp(hash, d.output, SHA256_DIGEST_SIZE) != 0)
+        return -78;
+
+#ifdef CYASSL_SHA384
+
+    e.input  = "abcdefghbcdefghicdefghijdefghijkefghijklfghijklmghijklmnhi"
+               "jklmnoijklmnopjklmnopqklmnopqrlmnopqrsmnopqrstnopqrstu";
+    e.output = "\x09\x33\x0c\x33\xf7\x11\x47\xe8\x3d\x19\x2f\xc7\x82\xcd\x1b"
+               "\x47\x53\x11\x1b\x17\x3b\x3b\x05\xd2\x2f\xa0\x80\x86\xe3\xb0"
+               "\xf7\x12\xfc\xc7\xc7\x1a\x55\x7e\x2d\xb9\x66\xc3\xe9\xfa\x91"
+               "\x74\x60\x39";    
+    e.inLen  = strlen(e.input);
+    e.outLen = strlen(e.output);
+
+    EVP_MD_CTX_init(&md_ctx);
+    EVP_DigestInit(&md_ctx, EVP_sha384());
+
+    EVP_DigestUpdate(&md_ctx, e.input, e.inLen);
+    EVP_DigestFinal(&md_ctx, hash, 0);
+
+    if (memcmp(hash, e.output, SHA384_DIGEST_SIZE) != 0)
+        return -79;
+
+#endif /* CYASSL_SHA384 */
+
+
+#ifdef CYASSL_SHA384
+
+    f.input  = "abcdefghbcdefghicdefghijdefghijkefghijklfghijklmghijklmnhi"
+               "jklmnoijklmnopjklmnopqklmnopqrlmnopqrsmnopqrstnopqrstu";
+    f.output = "\x8e\x95\x9b\x75\xda\xe3\x13\xda\x8c\xf4\xf7\x28\x14\xfc\x14"
+               "\x3f\x8f\x77\x79\xc6\xeb\x9f\x7f\xa1\x72\x99\xae\xad\xb6\x88"
+               "\x90\x18\x50\x1d\x28\x9e\x49\x00\xf7\xe4\x33\x1b\x99\xde\xc4"
+               "\xb5\x43\x3a\xc7\xd3\x29\xee\xb6\xdd\x26\x54\x5e\x96\xe5\x5b"
+               "\x87\x4b\xe9\x09"; 
+    f.inLen  = strlen(f.input);
+    f.outLen = strlen(f.output);
+
+    EVP_MD_CTX_init(&md_ctx);
+    EVP_DigestInit(&md_ctx, EVP_sha512());
+
+    EVP_DigestUpdate(&md_ctx, f.input, f.inLen);
+    EVP_DigestFinal(&md_ctx, hash, 0);
+
+    if (memcmp(hash, f.output, SHA512_DIGEST_SIZE) != 0)
+        return -80;
+
+#endif /* CYASSL_SHA384 */
+
 
     if (RAND_bytes(hash, sizeof(hash)) != 1)
         return -73;
@@ -1727,6 +1844,51 @@ int openssl_test()
         return -77;
 
     }  /* end des test */
+
+    {  /* evp_cipher test */
+        EVP_CIPHER_CTX ctx;
+
+
+        const byte msg[] = { /* "Now is the time for all " w/o trailing 0 */
+            0x6e,0x6f,0x77,0x20,0x69,0x73,0x20,0x74,
+            0x68,0x65,0x20,0x74,0x69,0x6d,0x65,0x20,
+            0x66,0x6f,0x72,0x20,0x61,0x6c,0x6c,0x20
+        };
+
+        const byte verify[] = 
+        {
+            0x95,0x94,0x92,0x57,0x5f,0x42,0x81,0x53,
+            0x2c,0xcc,0x9d,0x46,0x77,0xa2,0x33,0xcb
+        };
+
+        byte key[] = "0123456789abcdef   ";  /* align */
+        byte iv[]  = "1234567890abcdef   ";  /* align */
+
+        byte cipher[AES_BLOCK_SIZE * 4];
+        byte plain [AES_BLOCK_SIZE * 4];
+
+        EVP_CIPHER_CTX_init(&ctx);
+        if (EVP_CipherInit(&ctx, EVP_aes_128_cbc(), key, iv, 1) == 0)
+            return -81;
+
+        if (EVP_Cipher(&ctx, cipher, (byte*)msg, 16) == 0)
+            return -82;
+
+        if (memcmp(cipher, verify, AES_BLOCK_SIZE))
+            return -83;
+
+        EVP_CIPHER_CTX_init(&ctx);
+        if (EVP_CipherInit(&ctx, EVP_aes_128_cbc(), key, iv, 0) == 0)
+            return -84;
+
+        if (EVP_Cipher(&ctx, plain, cipher, 16) == 0)
+            return -85;
+
+        if (memcmp(plain, msg, AES_BLOCK_SIZE))
+            return -86;
+
+
+    }  /* end evp_cipher test */
 
     return 0;
 }

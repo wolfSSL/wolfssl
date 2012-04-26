@@ -421,7 +421,8 @@ CYASSL_LOCAL ProtocolVersion MakeTLSv1_2(void);
 enum BIO_TYPE {
     BIO_BUFFER = 1,
     BIO_SOCKET = 2,
-    BIO_SSL    = 3
+    BIO_SSL    = 3,
+    BIO_MEMORY = 4
 };
 
 
@@ -437,6 +438,8 @@ struct CYASSL_BIO {
     byte        close;         /* close flag */
     byte        eof;           /* eof flag */
     CYASSL*     ssl;           /* possible associated ssl */
+    byte*       mem;           /* memory buffer */
+    int         memLen;        /* memory buffer length */
     int         fd;            /* possible file descriptor */
     CYASSL_BIO* prev;          /* previous in chain */
     CYASSL_BIO* next;          /* next in chain */

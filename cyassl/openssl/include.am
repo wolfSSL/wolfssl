@@ -19,6 +19,7 @@ nobase_include_HEADERS+= \
                          cyassl/openssl/lhash.h \
                          cyassl/openssl/md4.h \
                          cyassl/openssl/md5.h \
+                         cyassl/openssl/ripemd.h \
                          cyassl/openssl/ocsp.h \
                          cyassl/openssl/opensslconf.h \
                          cyassl/openssl/opensslv.h \

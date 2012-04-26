@@ -30,6 +30,7 @@
 #include <cyassl/ctaocrypt/settings.h>
 #include <cyassl/version.h>
 
+
 #ifndef NO_FILESYSTEM
     #include <stdio.h>   /* ERR_printf */
 #endif
@@ -69,14 +70,14 @@ typedef struct CYASSL_X509_CHAIN CYASSL_X509_CHAIN;
 #define CYASSL_TYPES_DEFINED
 
 
-typedef struct CYASSL_EVP_PKEY       CYASSL_EVP_PKEY;
 typedef struct CYASSL_RSA            CYASSL_RSA;
-typedef struct CYASSL_BIO            CYASSL_BIO;
-typedef struct CYASSL_BIO_METHOD     CYASSL_BIO_METHOD;
+typedef struct CYASSL_DSA            CYASSL_DSA;
 typedef struct CYASSL_CIPHER         CYASSL_CIPHER;
 typedef struct CYASSL_X509_LOOKUP    CYASSL_X509_LOOKUP;
 typedef struct CYASSL_X509_LOOKUP_METHOD CYASSL_X509_LOOKUP_METHOD;
 typedef struct CYASSL_X509_CRL       CYASSL_X509_CRL;
+typedef struct CYASSL_BIO            CYASSL_BIO;
+typedef struct CYASSL_BIO_METHOD     CYASSL_BIO_METHOD;
 typedef struct CYASSL_X509_EXTENSION CYASSL_X509_EXTENSION;
 typedef struct CYASSL_ASN1_TIME      CYASSL_ASN1_TIME;
 typedef struct CYASSL_ASN1_INTEGER   CYASSL_ASN1_INTEGER;
@@ -85,6 +86,11 @@ typedef struct CYASSL_ASN1_STRING    CYASSL_ASN1_STRING;
 typedef struct CYASSL_dynlock_value  CYASSL_dynlock_value;
 
 #define CYASSL_ASN1_UTCTIME CYASSL_ASN1_TIME
+
+typedef struct CYASSL_EVP_PKEY {
+    int type;         /* openssh dereference */
+    int save_type;    /* openssh dereference */
+} CYASSL_EVP_PKEY;
 
 typedef struct CYASSL_MD4_CTX {
     int buffer[32];      /* big enough to hold, check size in Init */
@@ -252,6 +258,7 @@ CYASSL_API void CyaSSL_MD4_Init(CYASSL_MD4_CTX*);
 CYASSL_API void CyaSSL_MD4_Update(CYASSL_MD4_CTX*, const void*, unsigned long);
 CYASSL_API void CyaSSL_MD4_Final(unsigned char*, CYASSL_MD4_CTX*);
 
+
 CYASSL_API CYASSL_BIO* CyaSSL_BIO_new(CYASSL_BIO_METHOD*);
 CYASSL_API int  CyaSSL_BIO_free(CYASSL_BIO*);
 CYASSL_API int  CyaSSL_BIO_free_all(CYASSL_BIO*);
@@ -266,13 +273,18 @@ CYASSL_API CYASSL_BIO_METHOD* CyaSSL_BIO_f_buffer(void);
 CYASSL_API long CyaSSL_BIO_set_write_buffer_size(CYASSL_BIO*, long size);
 CYASSL_API CYASSL_BIO_METHOD* CyaSSL_BIO_f_ssl(void);
 CYASSL_API CYASSL_BIO*        CyaSSL_BIO_new_socket(int sfd, int flag);
-CYASSL_API void        CyaSSL_set_bio(CYASSL*, CYASSL_BIO* rd, CYASSL_BIO* wr);
 CYASSL_API int         CyaSSL_BIO_eof(CYASSL_BIO*);
-CYASSL_API long        CyaSSL_BIO_set_ssl(CYASSL_BIO*, CYASSL*, int flag);
 
 CYASSL_API CYASSL_BIO_METHOD* CyaSSL_BIO_s_mem(void);
 CYASSL_API CYASSL_BIO_METHOD* CyaSSL_BIO_f_base64(void);
 CYASSL_API void CyaSSL_BIO_set_flags(CYASSL_BIO*, int);
+
+CYASSL_API int CyaSSL_BIO_get_mem_data(CYASSL_BIO* bio,const unsigned char** p);
+CYASSL_API CYASSL_BIO* CyaSSL_BIO_new_mem_buf(void* buf, int len);
+
+
+CYASSL_API long        CyaSSL_BIO_set_ssl(CYASSL_BIO*, CYASSL*, int flag);
+CYASSL_API void        CyaSSL_set_bio(CYASSL*, CYASSL_BIO* rd, CYASSL_BIO* wr);
 
 CYASSL_API int  CyaSSL_add_all_algorithms(void);
 
@@ -281,6 +293,8 @@ CYASSL_API const char* CyaSSL_RAND_file_name(char*, unsigned long);
 CYASSL_API int         CyaSSL_RAND_write_file(const char*);
 CYASSL_API int         CyaSSL_RAND_load_file(const char*, long);
 CYASSL_API int         CyaSSL_RAND_egd(const char*);
+CYASSL_API int         CyaSSL_RAND_seed(const void*, int);
+CYASSL_API void        CyaSSL_RAND_add(const void*, int, double);
 
 CYASSL_API CYASSL_COMP_METHOD* CyaSSL_COMP_zlib(void);
 CYASSL_API CYASSL_COMP_METHOD* CyaSSL_COMP_rle(void);

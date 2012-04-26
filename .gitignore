@@ -22,6 +22,8 @@ depcomp
 missing
 libtool
 tags
+.tags*
+cyassl.sublime*
 ctaocrypt/benchmark/benchmark
 ctaocrypt/test/testctaocrypt
 examples/client/client

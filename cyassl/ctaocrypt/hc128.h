@@ -32,6 +32,10 @@
 #endif
 
 
+enum {
+	HC128_ENC_TYPE    =  6    /* cipher unique type */
+};
+
 /* HC-128 stream cipher */
 typedef struct HC128 {
     word32 T[1024];             /* P[i] = T[i];  Q[i] = T[1024 + i ]; */

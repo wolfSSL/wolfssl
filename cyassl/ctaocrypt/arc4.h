@@ -33,6 +33,7 @@
 
 
 enum {
+	ARC4_ENC_TYPE   = 4,    /* cipher unique type */
     ARC4_STATE_SIZE = 256
 };
 
