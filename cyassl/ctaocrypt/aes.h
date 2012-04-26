@@ -54,6 +54,7 @@
 
 
 enum {
+    AES_ENC_TYPE   = 1,   /* cipher unique type */
     AES_ENCRYPTION = 0,
     AES_DECRYPTION = 1,
     AES_BLOCK_SIZE = 16
@@ -72,6 +73,7 @@ typedef struct Aes {
 
 CYASSL_API int  AesSetKey(Aes* aes, const byte* key, word32 len, const byte* iv,
                           int dir);
+CYASSL_API int  AesSetIV(Aes* aes, const byte* iv);
 CYASSL_API void AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz);
 CYASSL_API void AesCbcDecrypt(Aes* aes, byte* out, const byte* in, word32 sz);
 CYASSL_API void AesCtrEncrypt(Aes* aes, byte* out, const byte* in, word32 sz);

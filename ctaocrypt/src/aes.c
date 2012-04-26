@@ -832,8 +832,20 @@ int AES_set_decrypt_key (const unsigned char* userKey, const int bits,
 #endif /* CYASSL_AESNI */
 
 
+int AesSetIV(Aes* aes, const byte* iv)
+{
+    if (aes == NULL)
+        return BAD_FUNC_ARG;
+
+    if (iv)
+        XMEMCPY(aes->reg, iv, AES_BLOCK_SIZE);
+
+    return 0;
+}
+
+
 int AesSetKey(Aes* aes, const byte* userKey, word32 keylen, const byte* iv,
-               int dir)
+              int dir)
 {
     word32 temp, *rk = aes->key;
     unsigned int i = 0;
@@ -976,10 +988,8 @@ int AesSetKey(Aes* aes, const byte* userKey, word32 keylen, const byte* iv,
                 Td[3][Te[4][GETBYTE(rk[3], 0)] & 0xff];
         }
     }
-    if (iv)
-        XMEMCPY(aes->reg, iv, AES_BLOCK_SIZE);
 
-    return 0;
+    return AesSetIV(aes, iv);
 }
 
 
