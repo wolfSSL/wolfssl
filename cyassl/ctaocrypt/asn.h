@@ -359,9 +359,9 @@ struct OcspResponse {
 };
 
 
-CYASSL_API void InitOcspResponse(OcspResponse*, byte*, word32, void*);
-CYASSL_API void FreeOcspResponse(OcspResponse*);
-CYASSL_API int  OcspResponseDecode(OcspResponse*);
+CYASSL_LOCAL void InitOcspResponse(OcspResponse*, byte*, word32, void*);
+CYASSL_LOCAL void FreeOcspResponse(OcspResponse*);
+CYASSL_LOCAL int  OcspResponseDecode(OcspResponse*);
 
 
 #endif /* HAVE_OCSP */
