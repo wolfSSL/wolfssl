@@ -6,7 +6,7 @@
 #
 #
 
-AC_INIT([cyassl],[2.1.0],[http://www.yassl.com])
+AC_INIT([cyassl],[2.1.1],[http://www.yassl.com])
 
 AC_CONFIG_AUX_DIR(config)
 
@@ -199,7 +199,7 @@ AC_ARG_ENABLE(bump,
 
 if test "$ENABLED_BUMP" = "yes"
 then
-    AM_CFLAGS="$AM_CFLAGS -DLARGE_STATIC_BUFFERS -DCYASSL_CERT_GEN -DCYASSL_KEY_GEN -DHUGE_SESSION_CACHE -DOPENSSL_EXTRA -DFP_MAX_BITS=8192 -DCYASSL_DER_LOAD"
+    AM_CFLAGS="$AM_CFLAGS -DLARGE_STATIC_BUFFERS -DCYASSL_CERT_GEN -DCYASSL_KEY_GEN -DHUGE_SESSION_CACHE -DOPENSSL_EXTRA -DFP_MAX_BITS=8192 -DCYASSL_DER_LOAD -DCYASSL_ALT_NAMES"
 fi
 
 # fastmath
@@ -468,6 +468,21 @@ if test "$ENABLED_ECC" = "yes" && test "$ENABLED_SMALL" = "yes"
 then
     AC_MSG_ERROR([cannot enable ecc and small, ecc requires TLS which small turns off.]) 
 fi
+
+
+# OCSP
+AC_ARG_ENABLE(ocsp,
+    [  --enable-ocsp           Enable OCSP (default: disabled)],
+    [ ENABLED_OCSP=$enableval ],
+    [ ENABLED_OCSP=no ],
+    )
+
+if test "$ENABLED_OCSP" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_OCSP"
+fi
+
+AM_CONDITIONAL([BUILD_OCSP], [test "x$ENABLED_OCSP" = "xyes"])
 
 
 # NTRU

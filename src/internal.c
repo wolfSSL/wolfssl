@@ -1624,21 +1624,15 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx)
             }
         }
 
-        if (fatal) {
-            FreeDecodedCert(&dCert);
-            ssl->error = ret;
-            return ret;
-        }
-        ssl->options.havePeerCert = 1;
-        /* set X509 format */
 #ifdef OPENSSL_EXTRA
+        /* set X509 format for peer cert even if fatal */
         XSTRNCPY(ssl->peerCert.issuer.name, dCert.issuer, ASN_NAME_MAX);
         ssl->peerCert.issuer.name[ASN_NAME_MAX - 1] = '\0';
-        ssl->peerCert.issuer.sz = (int)XSTRLEN(dCert.issuer) + 1;
+        ssl->peerCert.issuer.sz = (int)XSTRLEN(ssl->peerCert.issuer.name) + 1;
 
         XSTRNCPY(ssl->peerCert.subject.name, dCert.subject, ASN_NAME_MAX);
         ssl->peerCert.subject.name[ASN_NAME_MAX - 1] = '\0';
-        ssl->peerCert.subject.sz   = (int)XSTRLEN(dCert.subject) + 1;
+        ssl->peerCert.subject.sz = (int)XSTRLEN(ssl->peerCert.subject.name) + 1;
 
         XMEMCPY(ssl->peerCert.serial, dCert.serial, EXTERNAL_SERIAL_SIZE);
         ssl->peerCert.serialSz = dCert.serialSz;
@@ -1657,6 +1651,13 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx)
         XMEMCPY(ssl->peerCert.derCert.buffer, myCert.buffer, myCert.length);
         ssl->peerCert.derCert.length = myCert.length;
 #endif    
+
+        if (fatal) {
+            FreeDecodedCert(&dCert);
+            ssl->error = ret;
+            return ret;
+        }
+        ssl->options.havePeerCert = 1;
 
         /* store for callback use */
         if (dCert.subjectCNLen < ASN_NAME_MAX) {

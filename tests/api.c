@@ -32,16 +32,19 @@ static int test_CyaSSL_Init(void);
 static int test_CyaSSL_Cleanup(void);
 static int test_CyaSSL_Method_Allocators(void);
 static int test_CyaSSL_CTX_new(CYASSL_METHOD *method);
+#ifndef NO_FILESYSTEM
 static int test_CyaSSL_CTX_use_certificate_file(void);
 static int test_CyaSSL_CTX_use_PrivateKey_file(void);
 static int test_CyaSSL_CTX_load_verify_locations(void);
 static int test_server_CyaSSL_new(void);
 static int test_client_CyaSSL_new(void);
 static int test_CyaSSL_read_write(void);
+#endif
 
 /* test function helpers */
 static int test_method(CYASSL_METHOD *method, const char *name);
 static int test_method2(CYASSL_METHOD *method, const char *name);
+#ifndef NO_FILESYSTEM
 static int test_ucf(CYASSL_CTX *ctx, const char* file, int type,
     int cond, const char* name);
 static int test_upkf(CYASSL_CTX *ctx, const char* file, int type,
@@ -52,6 +55,7 @@ static int test_lvl(CYASSL_CTX *ctx, const char* file, const char* path,
 THREAD_RETURN CYASSL_THREAD test_server_nofail(void*);
 void test_client_nofail(void*);
 void wait_tcp_ready(func_args*);
+#endif
 
 static const char* bogusFile  = "/dev/null";
 static const char* testingFmt = "   %s:";
@@ -69,12 +73,14 @@ int ApiTest(void)
     test_CyaSSL_Init();
     test_CyaSSL_Method_Allocators();
     test_CyaSSL_CTX_new(CyaSSLv23_server_method());
+#ifndef NO_FILESYSTEM
     test_CyaSSL_CTX_use_certificate_file();
     test_CyaSSL_CTX_use_PrivateKey_file();
     test_CyaSSL_CTX_load_verify_locations();
     test_server_CyaSSL_new();
     test_client_CyaSSL_new();
     test_CyaSSL_read_write();
+#endif
     test_CyaSSL_Cleanup();
     printf(" End API Tests\n");
 
@@ -191,6 +197,7 @@ int test_CyaSSL_CTX_new(CYASSL_METHOD *method)
     return TEST_SUCCESS;
 }
 
+#ifndef NO_FILESYSTEM
 /* Helper for testing CyaSSL_CTX_use_certificate_file() */
 int test_ucf(CYASSL_CTX *ctx, const char* file, int type, int cond,
     const char* name)
@@ -771,6 +778,6 @@ void FreeTcpReady(tcp_ready* ready)
     pthread_cond_destroy(&ready->cond);
 #endif
 }
-
+#endif /* NO_FILESYSTEM */
 
 

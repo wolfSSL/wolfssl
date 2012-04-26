@@ -724,10 +724,25 @@ static const word32 Td[5][256] = {
 
 #ifdef CYASSL_AESNI
 
-#define cpuid(func,ax,bx,cx,dx)\
+#ifndef _MSC_VER
+
+    #define cpuid(func,ax,bx,cx,dx)\
         __asm__ __volatile__ ("cpuid":\
                        "=a" (ax), "=b" (bx), "=c" (cx), "=d" (dx) : "a" (func));
 
+#else
+
+    #define cpuid(func,ax,bx,cx,dx)\
+        __asm mov eax, func \
+        __asm cpuid \
+        __asm mov ax, eax \
+        __asm mov bx, ebx \
+        __asm mov cx, ecx \
+        __asm mov dx, edx
+
+#endif /* _MSC_VER */
+
+            
 static int Check_CPU_support_AES()
 {
     unsigned int a,b,c,d;
