@@ -56,6 +56,7 @@ enum ASN_Tags {
     ASN_OCTET_STRING      = 0x04,
     ASN_TAG_NULL          = 0x05,
     ASN_OBJECT_ID         = 0x06,
+    ASN_ENUMERATED        = 0x0a,
     ASN_SEQUENCE          = 0x10,
     ASN_SET               = 0x11,
     ASN_UTC_TIME          = 0x17,
@@ -300,6 +301,70 @@ enum cert_enums {
 
 
 #endif /* CYASSL_CERT_GEN */
+
+
+#ifdef HAVE_OCSP
+
+enum Ocsp_Response_Status {
+    OCSP_SUCCESSFUL        = 0, /* Response has valid confirmations */
+    OCSP_MALFORMED_REQUEST = 1, /* Illegal confirmation request */
+    OCSP_INTERNAL_ERROR    = 2, /* Internal error in issuer */
+    OCSP_TRY_LATER         = 3, /* Try again later */
+    OCSP_SIG_REQUIRED      = 5, /* Must sign the request (4 is skipped) */
+    OCSP_UNAUTHROIZED      = 6  /* Request unauthorized */
+};
+
+
+enum Ocsp_Cert_Status {
+    CERT_GOOD    = 0,
+    CERT_REVOKED = 1,
+    CERT_UNKNOWN = 2
+};
+
+
+enum Ocsp_Sums {
+    OCSP_BASIC_OID = 117
+};
+
+
+#define STATUS_LIST_SIZE 5
+
+
+typedef struct OcspResponse OcspResponse;
+
+struct OcspResponse {
+    int     responseStatus;  /* return code from Responder */
+
+    word32  respBegin;       /* index to beginning of OCSP Response */
+    word32  respLength;      /* length of the OCSP Response */
+
+    int     version;         /* Response version number */
+
+    word32  sigIndex;        /* Index into source for start of sig */
+    word32  sigLength;       /* Length in octets for the sig */
+    word32  sigOID;          /* OID for hash used for sig */
+
+    int     certStatusCount; /* Count of certificate statuses, Note
+                              * 1:1 correspondence between certStatus
+                              * and certSerialNumber */
+    byte    certSN[STATUS_LIST_SIZE][EXTERNAL_SERIAL_SIZE];
+    int     certSNsz[STATUS_LIST_SIZE];
+                             /* Certificate serial number array. */
+    word32  certStatus[STATUS_LIST_SIZE];
+                             /* Certificate status array */
+
+    byte*   source;          /* pointer to source buffer, not owned */
+    word32  maxIdx;          /* max offset based on init size */
+    void*   heap;            /* for user memory overrides */
+};
+
+
+CYASSL_API void InitOcspResponse(OcspResponse*, byte*, word32, void*);
+CYASSL_API void FreeOcspResponse(OcspResponse*);
+CYASSL_API int  OcspResponseDecode(OcspResponse*);
+
+
+#endif /* HAVE_OCSP */
 
 
 #ifdef __cplusplus

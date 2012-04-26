@@ -3728,3 +3728,331 @@ int EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
 }
 
 #endif  /* HAVE_ECC */
+
+
+#ifdef HAVE_OCSP
+
+static int GetEnumerated(const byte* input, word32* inOutIdx, int *value)
+{
+    word32 idx = *inOutIdx;
+    word32 len;
+
+    *value = 0;
+
+    if (input[idx++] != ASN_ENUMERATED)
+        return ASN_PARSE_E;
+
+    len = input[idx++];
+    if (len > 4)
+        return ASN_PARSE_E;
+
+    while (len--) {
+        *value  = *value << 8 | input[idx++];
+    }
+
+    *inOutIdx = idx;
+
+    return *value;
+}
+
+
+static int GetObjectId(const byte* input, word32* inOutIdx, word32* oid,
+                     word32 maxIdx)
+{
+    int    length;
+    word32 i = *inOutIdx;
+    byte   b;
+    *oid = 0;
+    
+    b = input[i++];
+    if (b != ASN_OBJECT_ID) 
+        return ASN_OBJECT_ID_E;
+    
+    if (GetLength(input, &i, &length, maxIdx) < 0)
+        return ASN_PARSE_E;
+    
+    while(length--)
+        *oid += input[i++];
+    /* just sum it up for now */
+    
+    *inOutIdx = i;
+    
+    return 0;
+}
+
+
+static int DecodeSingleResponse(byte* source,
+							word32* ioIndex, OcspResponse* resp, word32 size)
+{
+	word32 index = *ioIndex, prevIndex, oid, mpi_len;
+	int length, remainder, qty = 0;
+	mp_int mpi;
+	byte serialTmp[EXTERNAL_SERIAL_SIZE];
+
+	/* Outer wrapper of the SEQUENCE OF Single Responses. */
+	if (GetSequence(source, &index, &length, size) < 0)
+		return ASN_PARSE_E;
+	remainder = length;
+
+	/* First Single Response */
+	while (remainder != 0 && qty < STATUS_LIST_SIZE)
+	{
+		prevIndex = index;
+		/* Wrapper around the Single Response */
+		if (GetSequence(source, &index, &length, size) < 0)
+			return ASN_PARSE_E;
+
+		/* Wrapper around the CertID */
+		if (GetSequence(source, &index, &length, size) < 0)
+			return ASN_PARSE_E;
+		/* Skip the hash algorithm */
+		if (GetAlgoId(source, &index, &oid, size) < 0)
+			return ASN_PARSE_E;
+		/* Skip the hash of CN */
+		if (source[index++] != ASN_OCTET_STRING)
+			return ASN_PARSE_E;
+		if (GetLength(source, &index, &length, size) < 0)
+			return ASN_PARSE_E;
+		index += length;
+		/* Skip the hash of the issuer public key */
+		if (source[index++] != ASN_OCTET_STRING)
+			return ASN_PARSE_E;
+		if (GetLength(source, &index, &length, size) < 0)
+			return ASN_PARSE_E;
+		index += length;
+
+		/* Read the serial number */
+		if (GetInt(&mpi, source, &index, size) < 0)
+			return ASN_PARSE_E;
+		mpi_len = mp_unsigned_bin_size(&mpi);
+    	if (mpi_len < (int)sizeof(serialTmp)) {
+        	if (mp_to_unsigned_bin(&mpi, serialTmp) == MP_OKAY) {
+            	if (mpi_len > EXTERNAL_SERIAL_SIZE)
+                	mpi_len = EXTERNAL_SERIAL_SIZE;
+            	XMEMCPY(resp->certSN[qty], serialTmp, mpi_len);
+            	resp->certSNsz[qty] = mpi_len;
+        	}
+    	}
+    	mp_clear(&mpi);
+
+		/* CertStatus */
+		switch (source[index++])
+		{
+			case (ASN_CONTEXT_SPECIFIC | CERT_GOOD):
+				resp->certStatus[qty] = CERT_GOOD;
+				index++;
+				break;
+			case (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | CERT_REVOKED):
+				resp->certStatus[qty] = CERT_REVOKED;
+				GetLength(source, &index, &length, size);
+				index += length;
+				break;
+			case (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | CERT_UNKNOWN):
+				resp->certStatus[qty] = CERT_UNKNOWN;
+				index++;
+				break;
+			default:
+				return ASN_PARSE_E;
+		}
+
+		if (source[index++] != ASN_GENERALIZED_TIME)
+			return ASN_PARSE_E;
+
+		if (GetLength(source, &index, &length, size) < 0)
+			return ASN_PARSE_E;
+		index += length;
+
+		remainder = remainder + prevIndex - index;
+		qty++;
+	}
+	resp->certStatusCount = qty;
+
+	*ioIndex = index;
+
+	return 0;
+}
+
+static int DecodeResponseData(byte* source,
+							word32* ioIndex, OcspResponse* resp, word32 size)
+{
+	word32 index = *ioIndex;
+	int length, result;
+	int version;
+	word32 responderId = 0;
+
+	if (GetSequence(source, &index, &length, size) < 0)
+		return ASN_PARSE_E;
+	resp->respBegin = index;
+	resp->respLength = length;
+
+	/* Get version. It is an EXPLICIT[0] DEFAULT(0) value. If this
+	 * item isn't an EXPLICIT[0], then set version to zero and move
+	 * onto the next item.
+	 */
+	if (source[index] == (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED))
+	{	
+		index += 2; /* Eat the value and length */
+		if (GetMyVersion(source, &index, &version) < 0)
+			return ASN_PARSE_E;
+	} else
+		version = 0;
+
+	responderId = source[index++];
+	if ((responderId == (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | 1)) ||
+		(responderId == (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | 2)))
+	{
+		if (GetLength(source, &index, &length, size) < 0)
+			return ASN_PARSE_E;
+		index += length;
+	}
+	else
+		return ASN_PARSE_E;
+	
+	/* Skip GeneralizedTime */
+	if (source[index++] != ASN_GENERALIZED_TIME)
+		return ASN_PARSE_E;
+	if (GetLength(source, &index, &length, size) < 0)
+		return ASN_PARSE_E;
+	index += length;
+
+	if (DecodeSingleResponse(source, &index, resp, size) < 0)
+		return ASN_PARSE_E;
+
+	/* Skip the extensions */
+	if (source[index++] == (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | 1))
+	{
+		if (GetLength(source, &index, &length, size) < 0)
+			return ASN_PARSE_E;
+		index += length;
+	}
+
+	*ioIndex = index;
+	return 0;
+}
+
+static int DecodeCerts(byte* source,
+							word32* ioIndex, OcspResponse* resp, word32 size)
+{
+	word32 index = *ioIndex;
+	if (source[index++] == (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC))
+	{
+		int length;
+
+		if (GetLength(source, &index, &length, size) < 0)
+			return ASN_PARSE_E;
+		index += length;
+	}
+	*ioIndex = index;
+	return 0;
+}
+
+static int DecodeBasicOcspResponse(byte* source,
+							word32* ioIndex, OcspResponse* resp, word32 size)
+{
+	int length;
+	word32 index = *ioIndex;
+	word32 end_index;
+
+	if (GetSequence(source, &index, &length, size) < 0)
+		return ASN_PARSE_E;
+
+	if (index + length > size)
+		return ASN_INPUT_E;
+	end_index = index + length;
+
+	if (DecodeResponseData(source, &index, resp, size) < 0)
+		return ASN_PARSE_E;
+	
+	/* Get the signature algorithm */
+	if (GetAlgoId(source, &index, &resp->sigOID, size) < 0)
+		return ASN_PARSE_E;
+
+	/* Obtain pointer to the start of the signature, and save the size */
+	if (source[index++] == ASN_BIT_STRING)
+	{
+		int sigLength = 0;
+		if (GetLength(source, &index, &sigLength, size) < 0)
+			return ASN_PARSE_E;
+		resp->sigLength = sigLength;
+		resp->sigIndex = index;
+		index += sigLength;
+	}
+
+	/*
+	 * Check the length of the BasicOcspResponse against the current index to
+	 * see if there are certificates, they are optional.
+	 */
+	if (index < end_index)
+		return DecodeCerts(source, &index, resp, size);
+
+	*ioIndex = index;
+	return 0;
+}
+
+
+void InitOcspResponse(OcspResponse* resp, byte* source, word32 inSz, void* heap)
+{
+	XMEMSET(resp, 0, sizeof(*resp));
+    resp->source = source;
+    resp->maxIdx = inSz;
+    resp->heap = heap;
+}
+
+
+void FreeOcspResponse(OcspResponse* resp) {}
+
+
+int OcspResponseDecode(OcspResponse* resp)
+{
+	int length = 0;
+	word32 index = 0;
+	byte* source = resp->source;
+	word32 size = resp->maxIdx;
+	word32 oid;
+
+	/* peel the outer SEQUENCE wrapper */
+    if (GetSequence(source, &index, &length, size) < 0)
+        return ASN_PARSE_E;
+	
+	/* First get the responseStatus, an ENUMERATED */
+	if (GetEnumerated(source, &index, &resp->responseStatus) < 0)
+		return ASN_PARSE_E;
+
+	if (resp->responseStatus != OCSP_SUCCESSFUL)
+		return 0;
+
+	/* Next is an EXPLICIT record called ResponseBytes, OPTIONAL */
+	if (index >= size)
+		return ASN_INPUT_E;
+	if (source[index++] != (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC))
+		return ASN_PARSE_E;
+	if (GetLength(source, &index, &length, size) < 0)
+		return ASN_PARSE_E;
+
+	/* Get the responseBytes SEQUENCE */
+	if (GetSequence(source, &index, &length, size) < 0)
+		return ASN_PARSE_E;
+
+	/* Check ObjectID for the resposeBytes */
+	if (GetObjectId(source, &index, &oid, size) < 0)
+		return ASN_PARSE_E;
+	if (oid != OCSP_BASIC_OID)
+		return ASN_PARSE_E;
+	if (source[index++] != ASN_OCTET_STRING)
+		return ASN_PARSE_E;
+
+	if (GetLength(source, &index, &length, size) < 0)
+		return ASN_PARSE_E;
+
+	if (DecodeBasicOcspResponse(source, &index, resp, size) < 0)
+		return ASN_PARSE_E;
+	
+	return 0;
+}
+
+int EncodeOcspRequest(void)
+{
+	return 0;
+}
+
+#endif
