@@ -51,7 +51,11 @@ enum Ctc_SigType {
     CTC_SHAwRSA      = 649,
     CTC_SHAwECDSA    = 520,
     CTC_SHA256wRSA   = 655,
-    CTC_SHA256wECDSA = 524
+    CTC_SHA256wECDSA = 524,
+    CTC_SHA384wRSA   = 656,
+    CTC_SHA384wECDSA = 525,
+    CTC_SHA512wRSA   = 657,
+    CTC_SHA512wECDSA = 526
 };
 
 
