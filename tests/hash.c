@@ -47,6 +47,7 @@ int  md5_test(void);
 int  sha_test(void);
 int  sha256_test(void);
 int  sha512_test(void);
+int  sha384_test(void);
 int  ripemd_test(void);
 int  hmac_test(void);
 
@@ -88,6 +89,14 @@ int HashTest(void)
         return ret; 
     } else
         printf( "   SHA-512  test passed!\n");
+#endif
+
+#ifdef CYASSL_SHA384
+    if ( (ret = sha384_test()) ) {
+        printf( "   SHA-384  test failed!\n");
+        return ret; 
+    } else
+        printf( "   SHA-384  test passed!\n");
 #endif
 
 #ifdef CYASSL_RIPEMD
@@ -381,6 +390,50 @@ int sha512_test(void)
         Sha512Final(&sha, hash);
 
         if (memcmp(hash, test_sha[i].output, SHA512_DIGEST_SIZE) != 0)
+            return -10 - i;
+    }
+
+    return 0;
+}
+#endif
+
+#ifdef CYASSL_SHA384
+int sha384_test()
+{
+    Sha384 sha;
+    byte   hash[SHA384_DIGEST_SIZE];
+
+    testVector a, b;
+    testVector test_sha[2];
+    int times = sizeof(test_sha) / sizeof(struct testVector), i;
+
+    a.input  = "abc";
+    a.output = "\xcb\x00\x75\x3f\x45\xa3\x5e\x8b\xb5\xa0\x3d\x69\x9a\xc6\x50"
+               "\x07\x27\x2c\x32\xab\x0e\xde\xd1\x63\x1a\x8b\x60\x5a\x43\xff"
+               "\x5b\xed\x80\x86\x07\x2b\xa1\xe7\xcc\x23\x58\xba\xec\xa1\x34"
+               "\xc8\x25\xa7";
+    a.inLen  = strlen(a.input);
+    a.outLen = strlen(a.output);
+
+    b.input  = "abcdefghbcdefghicdefghijdefghijkefghijklfghijklmghijklmnhi"
+               "jklmnoijklmnopjklmnopqklmnopqrlmnopqrsmnopqrstnopqrstu";
+    b.output = "\x09\x33\x0c\x33\xf7\x11\x47\xe8\x3d\x19\x2f\xc7\x82\xcd\x1b"
+               "\x47\x53\x11\x1b\x17\x3b\x3b\x05\xd2\x2f\xa0\x80\x86\xe3\xb0"
+               "\xf7\x12\xfc\xc7\xc7\x1a\x55\x7e\x2d\xb9\x66\xc3\xe9\xfa\x91"
+               "\x74\x60\x39";
+    b.inLen  = strlen(b.input);
+    b.outLen = strlen(b.output);
+
+    test_sha[0] = a;
+    test_sha[1] = b;
+
+    InitSha384(&sha);
+
+    for (i = 0; i < times; ++i) {
+        Sha384Update(&sha, (byte*)test_sha[i].input,(word32)test_sha[i].inLen);
+        Sha384Final(&sha, hash);
+
+        if (memcmp(hash, test_sha[i].output, SHA384_DIGEST_SIZE) != 0)
             return -10 - i;
     }
 

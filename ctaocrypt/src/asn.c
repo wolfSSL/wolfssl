@@ -36,6 +36,7 @@
 #include <cyassl/ctaocrypt/pwdbased.h>
 #include <cyassl/ctaocrypt/des3.h>
 #include <cyassl/ctaocrypt/sha256.h>
+#include <cyassl/ctaocrypt/sha512.h>
 #include <cyassl/ctaocrypt/logging.h>
 
 #ifdef HAVE_NTRU
@@ -1710,6 +1711,10 @@ static word32 SetAlgoID(int algoOID, byte* output, int type)
                                          0x05, 0x00 };
     static const byte sha256AlgoID[] = { 0x60, 0x86, 0x48, 0x01, 0x65, 0x03,
                                          0x04, 0x02, 0x01, 0x05, 0x00 };
+    static const byte sha384AlgoID[] = { 0x60, 0x86, 0x48, 0x01, 0x65, 0x03,
+                                         0x04, 0x02, 0x02, 0x05, 0x00 };
+    static const byte sha512AlgoID[] = { 0x60, 0x86, 0x48, 0x01, 0x65, 0x03,
+                                         0x04, 0x02, 0x03, 0x05, 0x00 };
     static const byte md5AlgoID[]    = { 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d,
                                          0x02, 0x05, 0x05, 0x00  };
     static const byte md2AlgoID[]    = { 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d,
@@ -1721,6 +1726,10 @@ static word32 SetAlgoID(int algoOID, byte* output, int type)
                                            0x01, 0x01, 0x05, 0x05, 0x00};
     static const byte sha256wRSA_AlgoID[] = { 0x2a, 0x86, 0x48, 0x86, 0xf7,
                                             0x0d, 0x01, 0x01, 0x0b, 0x05, 0x00};
+    static const byte sha384wRSA_AlgoID[] = {0x2a, 0x86, 0x48, 0x86, 0xf7,
+                                            0x0d, 0x01, 0x01, 0x0c, 0x05, 0x00};
+    static const byte sha512wRSA_AlgoID[] = {0x2a, 0x86, 0x48, 0x86, 0xf7,
+                                            0x0d, 0x01, 0x01, 0x0d, 0x05, 0x00};
     /* keyTypes */
     static const byte RSA_AlgoID[] = { 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d,
                                       0x01, 0x01, 0x01, 0x05, 0x00};
@@ -1740,6 +1749,16 @@ static word32 SetAlgoID(int algoOID, byte* output, int type)
         case SHA256h:
             algoSz = sizeof(sha256AlgoID);
             algoName = sha256AlgoID;
+            break;
+
+        case SHA384h:
+            algoSz = sizeof(sha384AlgoID);
+            algoName = sha384AlgoID;
+            break;
+
+        case SHA512h:
+            algoSz = sizeof(sha512AlgoID);
+            algoName = sha512AlgoID;
             break;
 
         case MD2h:
@@ -1772,6 +1791,16 @@ static word32 SetAlgoID(int algoOID, byte* output, int type)
         case CTC_SHA256wRSA:
             algoSz = sizeof(sha256wRSA_AlgoID);
             algoName = sha256wRSA_AlgoID;
+            break;
+
+        case CTC_SHA384wRSA:
+            algoSz = sizeof(sha384wRSA_AlgoID);
+            algoName = sha384wRSA_AlgoID;
+            break;
+
+        case CTC_SHA512wRSA:
+            algoSz = sizeof(sha512wRSA_AlgoID);
+            algoName = sha512wRSA_AlgoID;
             break;
 
         default:
@@ -1832,7 +1861,9 @@ word32 EncodeSignature(byte* out, const byte* digest, word32 digSz, int hashOID)
 static int ConfirmSignature(DecodedCert* cert, const byte* key, word32 keySz,
                             word32 keyOID)
 {
-#ifndef NO_SHA256
+#ifdef CYASSL_SHA512
+    byte digest[SHA512_DIGEST_SIZE]; /* max size */
+#elif !defined(NO_SHA256)
     byte digest[SHA256_DIGEST_SIZE]; /* max size */
 #else
     byte digest[SHA_DIGEST_SIZE];    /* max size */
@@ -1869,6 +1900,30 @@ static int ConfirmSignature(DecodedCert* cert, const byte* key, word32 keySz,
         Sha256Final(&sha256, digest);
         typeH    = SHA256h;
         digestSz = SHA256_DIGEST_SIZE;
+    }
+#endif
+#ifdef CYASSL_SHA512
+    else if (cert->signatureOID == CTC_SHA512wRSA ||
+             cert->signatureOID == CTC_SHA512wECDSA) {
+        Sha512 sha512;
+        InitSha512(&sha512);
+        Sha512Update(&sha512, cert->source + cert->certBegin,
+                  cert->sigIndex - cert->certBegin);
+        Sha512Final(&sha512, digest);
+        typeH    = SHA512h;
+        digestSz = SHA512_DIGEST_SIZE;
+    }
+#endif
+#ifdef CYASSL_SHA384
+    else if (cert->signatureOID == CTC_SHA384wRSA ||
+             cert->signatureOID == CTC_SHA384wECDSA) {
+        Sha384 sha384;
+        InitSha384(&sha384);
+        Sha384Update(&sha384, cert->source + cert->certBegin,
+                  cert->sigIndex - cert->certBegin);
+        Sha384Final(&sha384, digest);
+        typeH    = SHA384h;
+        digestSz = SHA384_DIGEST_SIZE;
     }
 #endif
     else {
