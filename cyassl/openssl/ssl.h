@@ -51,6 +51,7 @@ typedef CYASSL_X509_CHAIN X509_CHAIN;
 
 typedef CYASSL_EVP_PKEY       EVP_PKEY;
 typedef CYASSL_RSA            RSA;
+typedef CYASSL_DSA            DSA;
 typedef CYASSL_BIO            BIO;
 typedef CYASSL_BIO_METHOD     BIO_METHOD;
 typedef CYASSL_CIPHER         SSL_CIPHER;
@@ -178,6 +179,9 @@ typedef CYASSL_X509_STORE_CTX X509_STORE_CTX;
 #define BIO_flush CyaSSL_BIO_flush
 #define BIO_pending CyaSSL_BIO_pending
 
+#define BIO_get_mem_data CyaSSL_BIO_get_mem_data
+#define BIO_new_mem_buf  CyaSSL_BIO_new_mem_buf
+
 #define BIO_f_buffer CyaSSL_BIO_f_buffer
 #define BIO_set_write_buffer_size CyaSSL_BIO_set_write_buffer_size
 #define BIO_f_ssl CyaSSL_BIO_f_ssl
@@ -199,6 +203,8 @@ typedef CYASSL_X509_STORE_CTX X509_STORE_CTX;
 #define RAND_write_file CyaSSL_RAND_write_file
 #define RAND_load_file CyaSSL_RAND_load_file
 #define RAND_egd CyaSSL_RAND_egd
+#define RAND_seed CyaSSL_RAND_seed
+#define RAND_add  CyaSSL_RAND_add
 
 #define COMP_zlib CyaSSL_COMP_zlib
 #define COMP_rle CyaSSL_COMP_rle
@@ -238,10 +244,10 @@ typedef CYASSL_X509_STORE_CTX X509_STORE_CTX;
 
 #define X509_get_pubkey CyaSSL_X509_get_pubkey
 #define X509_CRL_verify CyaSSL_X509_CRL_verify
-#define X509_STORE_CTX_set_error CyaSSL_X509_OBJECT_free_contents
-#define X509_OBJECT_free_contents CyaSSL_EVP_PKEY_free
-#define EVP_PKEY_free CyaSSL_X509_cmp_current_time
-#define X509_cmp_current_time CyaSSL_sk_X509_REVOKED_num
+#define X509_STORE_CTX_set_error CyaSSL_X509_STORE_CTX_set_error
+#define X509_OBJECT_free_contents CyaSSL_X509_OBJECT_free_contents
+#define EVP_PKEY_free CyaSSL_EVP_PKEY_free
+#define X509_cmp_current_time CyaSSL_X509_cmp_current_time
 #define sk_X509_REVOKED_num CyaSSL_sk_X509_REVOKED_num
 #define X509_CRL_get_REVOKED CyaSSL_X509_CRL_get_REVOKED
 #define sk_X509_REVOKED_value CyaSSL_sk_X509_REVOKED_value 

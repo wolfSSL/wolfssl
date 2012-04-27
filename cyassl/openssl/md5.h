@@ -26,9 +26,9 @@ CYASSL_API void CyaSSL_MD5_Final(unsigned char*, CYASSL_MD5_CTX*);
 
 typedef CYASSL_MD5_CTX MD5_CTX;
 
-#define MD5_Init MD5_Init
-#define MD5_Update MD5_Update
-#define MD5_Final MD5_Final
+#define MD5_Init CyaSSL_MD5_Init
+#define MD5_Update CyaSSL_MD5_Update
+#define MD5_Final CyaSSL_MD5_Final
 
 #ifdef __cplusplus
     }  /* extern "C" */ 

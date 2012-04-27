@@ -56,6 +56,33 @@ CYASSL_API void Sha512Update(Sha512*, const byte*, word32);
 CYASSL_API void Sha512Final(Sha512*, byte*);
 
 
+#ifdef CYASSL_SHA384
+
+/* in bytes */
+enum {
+    SHA384              =   5,   /* hash type unique */
+    SHA384_BLOCK_SIZE   = 128,
+    SHA384_DIGEST_SIZE  =  48,
+    SHA384_PAD_SIZE     = 112 
+};
+
+
+/* Sha384 digest */
+typedef struct Sha384 {
+    word32  buffLen;   /* in bytes          */
+    word32  loLen;     /* length in bytes   */
+    word32  hiLen;     /* length in bytes   */
+    word64  digest[SHA512_DIGEST_SIZE / sizeof(word64)]; /* for transform 512 */
+    word64  buffer[SHA384_BLOCK_SIZE  / sizeof(word64)];
+} Sha384;
+
+
+CYASSL_API void InitSha384(Sha384*);
+CYASSL_API void Sha384Update(Sha384*, const byte*, word32);
+CYASSL_API void Sha384Final(Sha384*, byte*);
+
+#endif /* CYASSL_SHA384 */
+
 #ifdef __cplusplus
     } /* extern "C" */
 #endif

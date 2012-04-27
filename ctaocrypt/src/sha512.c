@@ -128,6 +128,11 @@ static const word64 K512[80] = {
 #define R(i) h(i)+=S1(e(i))+Ch(e(i),f(i),g(i))+K[i+j]+(j?blk2(i):blk0(i));\
 	d(i)+=h(i);h(i)+=S0(a(i))+Maj(a(i),b(i),c(i))
 
+#define blk384(i) (W[i] = sha384->buffer[i])
+
+#define R2(i) h(i)+=S1(e(i))+Ch(e(i),f(i),g(i))+K[i+j]+(j?blk2(i):blk384(i));\
+	d(i)+=h(i);h(i)+=S0(a(i))+Maj(a(i),b(i),c(i))
+
 
 static void Transform(Sha512* sha512)
 {
@@ -209,7 +214,7 @@ void Sha512Final(Sha512* sha512, byte* hash)
 
     /* pad with zeros */
     if (sha512->buffLen > SHA512_PAD_SIZE) {
-        XMEMSET(&local[sha512->buffLen], 0, SHA512_BLOCK_SIZE - sha512->buffLen);
+        XMEMSET(&local[sha512->buffLen], 0, SHA512_BLOCK_SIZE -sha512->buffLen);
         sha512->buffLen += SHA512_BLOCK_SIZE - sha512->buffLen;
 
         #ifdef LITTLE_ENDIAN_ORDER
@@ -242,5 +247,140 @@ void Sha512Final(Sha512* sha512, byte* hash)
     InitSha512(sha512);  /* reset state */
 }
 
+
+
+#ifdef CYASSL_SHA384
+
+void InitSha384(Sha384* sha384)
+{
+    sha384->digest[0] = W64LIT(0xcbbb9d5dc1059ed8);
+    sha384->digest[1] = W64LIT(0x629a292a367cd507);
+    sha384->digest[2] = W64LIT(0x9159015a3070dd17);
+    sha384->digest[3] = W64LIT(0x152fecd8f70e5939);
+    sha384->digest[4] = W64LIT(0x67332667ffc00b31);
+    sha384->digest[5] = W64LIT(0x8eb44a8768581511);
+    sha384->digest[6] = W64LIT(0xdb0c2e0d64f98fa7);
+    sha384->digest[7] = W64LIT(0x47b5481dbefa4fa4);
+
+    sha384->buffLen = 0;
+    sha384->loLen   = 0;
+    sha384->hiLen   = 0;
+}
+
+
+static void Transform384(Sha384* sha384)
+{
+    const word64* K = K512;
+
+    word32 j;
+    word64 W[16];
+    word64 T[8];
+
+    /* Copy digest to working vars */
+    XMEMCPY(T, sha384->digest, sizeof(T));
+
+    /* 64 operations, partially loop unrolled */
+    for (j = 0; j < 80; j += 16) {
+        R2( 0); R2( 1); R2( 2); R2( 3);
+        R2( 4); R2( 5); R2( 6); R2( 7);
+        R2( 8); R2( 9); R2(10); R2(11);
+        R2(12); R2(13); R2(14); R2(15);
+    }
+
+    /* Add the working vars back into digest */
+
+    sha384->digest[0] += a(0);
+    sha384->digest[1] += b(0);
+    sha384->digest[2] += c(0);
+    sha384->digest[3] += d(0);
+    sha384->digest[4] += e(0);
+    sha384->digest[5] += f(0);
+    sha384->digest[6] += g(0);
+    sha384->digest[7] += h(0);
+
+    /* Wipe variables */
+    XMEMSET(W, 0, sizeof(W));
+    XMEMSET(T, 0, sizeof(T));
+}
+
+
+static INLINE void AddLength384(Sha384* sha384, word32 len)
+{
+    word32 tmp = sha384->loLen;
+    if ( (sha384->loLen += len) < tmp)
+        sha384->hiLen++;                       /* carry low to high */
+}
+
+
+void Sha384Update(Sha384* sha384, const byte* data, word32 len)
+{
+    /* do block size increments */
+    byte* local = (byte*)sha384->buffer;
+
+    while (len) {
+        word32 add = min(len, SHA384_BLOCK_SIZE - sha384->buffLen);
+        XMEMCPY(&local[sha384->buffLen], data, add);
+
+        sha384->buffLen += add;
+        data         += add;
+        len          -= add;
+
+        if (sha384->buffLen == SHA384_BLOCK_SIZE) {
+            #ifdef LITTLE_ENDIAN_ORDER
+                ByteReverseWords64(sha384->buffer, sha384->buffer,
+                                   SHA384_BLOCK_SIZE);
+            #endif
+            Transform384(sha384);
+            AddLength384(sha384, SHA384_BLOCK_SIZE);
+            sha384->buffLen = 0;
+        }
+    }
+}
+
+
+void Sha384Final(Sha384* sha384, byte* hash)
+{
+    byte* local = (byte*)sha384->buffer;
+
+    AddLength384(sha384, sha384->buffLen);              /* before adding pads */
+
+    local[sha384->buffLen++] = 0x80;  /* add 1 */
+
+    /* pad with zeros */
+    if (sha384->buffLen > SHA384_PAD_SIZE) {
+        XMEMSET(&local[sha384->buffLen], 0, SHA384_BLOCK_SIZE -sha384->buffLen);
+        sha384->buffLen += SHA384_BLOCK_SIZE - sha384->buffLen;
+
+        #ifdef LITTLE_ENDIAN_ORDER
+            ByteReverseWords64(sha384->buffer,sha384->buffer,SHA384_BLOCK_SIZE);
+        #endif
+        Transform384(sha384);
+        sha384->buffLen = 0;
+    }
+    XMEMSET(&local[sha384->buffLen], 0, SHA384_PAD_SIZE - sha384->buffLen);
+   
+    /* put lengths in bits */
+    sha384->hiLen = (sha384->loLen >> (8*sizeof(sha384->loLen) - 3)) + 
+                 (sha384->hiLen << 3);
+    sha384->loLen = sha384->loLen << 3;
+
+    /* store lengths */
+    #ifdef LITTLE_ENDIAN_ORDER
+        ByteReverseWords64(sha384->buffer, sha384->buffer, SHA384_PAD_SIZE);
+    #endif
+    /* ! length ordering dependent on digest endian type ! */
+    sha384->buffer[SHA384_BLOCK_SIZE / sizeof(word64) - 2] = sha384->hiLen;
+    sha384->buffer[SHA384_BLOCK_SIZE / sizeof(word64) - 1] = sha384->loLen;
+
+    Transform384(sha384);
+    #ifdef LITTLE_ENDIAN_ORDER
+        ByteReverseWords64(sha384->digest, sha384->digest, SHA384_DIGEST_SIZE);
+    #endif
+    XMEMCPY(hash, sha384->digest, SHA384_DIGEST_SIZE);
+
+    InitSha384(sha384);  /* reset state */
+}
+
+#endif /* CYASSL_SHA384 */
 
 #endif /* CYASSL_SHA512 */

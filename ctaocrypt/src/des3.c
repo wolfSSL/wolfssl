@@ -327,12 +327,25 @@ static INLINE int Reverse(int dir)
 }
 
 
+void Des_SetIV(Des* des, const byte* iv)
+{
+    if (des && iv)
+        XMEMCPY(des->reg, iv, DES_BLOCK_SIZE);
+}
+
+
+void Des3_SetIV(Des3* des, const byte* iv)
+{
+    if (des && iv)
+        XMEMCPY(des->reg, iv, DES_BLOCK_SIZE);
+}
+
+
 void Des_SetKey(Des* des, const byte* key, const byte* iv, int dir)
 {
     DesSetKey(key, dir, des->key);
 
-    if (iv)  /* added ecb support so may not have iv */
-        XMEMCPY(des->reg, iv, DES_BLOCK_SIZE);
+    Des_SetIV(des, iv);
 }
 
 
@@ -341,8 +354,8 @@ void Des3_SetKey(Des3* des, const byte* key, const byte* iv, int dir)
     DesSetKey(key + (dir == DES_ENCRYPTION ? 0 : 16), dir, des->key[0]);
     DesSetKey(key + 8, Reverse(dir), des->key[1]);
     DesSetKey(key + (dir == DES_DECRYPTION ? 0 : 16), dir, des->key[2]);
-    
-    XMEMCPY(des->reg, iv, DES_BLOCK_SIZE);
+
+    Des3_SetIV(des, iv);  
 }
 
 

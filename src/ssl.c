@@ -44,12 +44,17 @@
     #include <cyassl/openssl/hmac.h>
     #include <cyassl/openssl/crypto.h>
     #include <cyassl/openssl/des.h>
+    #include <cyassl/openssl/bn.h>
     /* openssl headers end, cyassl internal headers next */
     #include <cyassl/ctaocrypt/hmac.h>
     #include <cyassl/ctaocrypt/random.h>
     #include <cyassl/ctaocrypt/des3.h>
     #include <cyassl/ctaocrypt/md4.h>
     #include <cyassl/ctaocrypt/md5.h>
+    #include <cyassl/ctaocrypt/arc4.h>
+    #ifdef CYASSL_SHA512
+        #include <cyassl/ctaocrypt/sha512.h>
+    #endif
 #endif
 
 #ifndef NO_FILESYSTEM
@@ -3112,14 +3117,50 @@ int CyaSSL_set_compression(CYASSL* ssl)
                                                 DYNAMIC_TYPE_OPENSSL);
         CYASSL_ENTER("BIO_new");
         if (bio) {
-            bio->type  = method->type;
-            bio->close = 0;
-            bio->eof   = 0;
-            bio->ssl   = 0;
-            bio->fd    = 0;
-            bio->prev  = 0;
-            bio->next  = 0;
+            bio->type   = method->type;
+            bio->close  = 0;
+            bio->eof    = 0;
+            bio->ssl    = NULL;
+            bio->mem    = NULL;
+            bio->memLen = 0;
+            bio->fd     = 0;
+            bio->prev   = NULL;
+            bio->next   = NULL;
         }
+        return bio;
+    }
+
+
+    int CyaSSL_BIO_get_mem_data(CYASSL_BIO* bio, const byte** p)
+    {
+        if (bio == NULL || p == NULL)
+            return -1;
+
+        *p = bio->mem;
+
+        return bio->memLen;
+    }
+
+
+    CYASSL_BIO* CyaSSL_BIO_new_mem_buf(void* buf, int len)
+    {
+        CYASSL_BIO* bio = NULL;
+        if (buf == NULL)
+            return bio;
+
+        bio = CyaSSL_BIO_new(CyaSSL_BIO_s_mem());
+        if (bio == NULL)
+            return bio;
+
+        bio->memLen = len;
+        bio->mem    = (byte*)XMALLOC(len, 0, DYNAMIC_TYPE_OPENSSL);
+        if (bio->mem == NULL) {
+            XFREE(bio, 0, DYNAMIC_TYPE_OPENSSL);
+            return NULL;
+        }
+
+        XMEMCPY(bio->mem, buf, len);
+
         return bio;
     }
 
@@ -3141,6 +3182,8 @@ int CyaSSL_set_compression(CYASSL* ssl)
                 if (bio->fd)
                     CloseSocket(bio->fd);
             }
+            if (bio->mem)
+                XFREE(bio->mem, 0, DYNAMIC_TYPE_OPENSSL);
             XFREE(bio, 0, DYNAMIC_TYPE_OPENSSL);
         }
         return 0;
@@ -3453,6 +3496,89 @@ int CyaSSL_set_compression(CYASSL* ssl)
     }
 
 
+    void CyaSSL_SHA256_Init(CYASSL_SHA256_CTX* sha256)
+    {
+        typedef char sha_test[sizeof(SHA256_CTX) >= sizeof(Sha256) ? 1 : -1];
+        (void)sizeof(sha_test);
+
+        CYASSL_ENTER("SHA256_Init");
+        InitSha256((Sha256*)sha256);
+    }
+
+
+    void CyaSSL_SHA256_Update(CYASSL_SHA256_CTX* sha, const void* input,
+                              unsigned long sz)
+    {
+        CYASSL_ENTER("SHA256_Update");
+        Sha256Update((Sha256*)sha, (const byte*)input, sz);
+    }
+
+
+    void CyaSSL_SHA256_Final(byte* input, CYASSL_SHA256_CTX* sha)
+    {
+        CYASSL_ENTER("SHA256_Final");
+        Sha256Final((Sha256*)sha, input);
+    }
+
+
+    #ifdef CYASSL_SHA384
+
+    void CyaSSL_SHA384_Init(CYASSL_SHA384_CTX* sha)
+    {
+        typedef char sha_test[sizeof(SHA384_CTX) >= sizeof(Sha384) ? 1 : -1];
+        (void)sizeof(sha_test);
+
+        CYASSL_ENTER("SHA384_Init");
+        InitSha384((Sha384*)sha);
+    }
+
+
+    void CyaSSL_SHA384_Update(CYASSL_SHA384_CTX* sha, const void* input,
+                           unsigned long sz)
+    {
+        CYASSL_ENTER("SHA384_Update");
+        Sha384Update((Sha384*)sha, (const byte*)input, sz);
+    }
+
+
+    void CyaSSL_SHA384_Final(byte* input, CYASSL_SHA384_CTX* sha)
+    {
+        CYASSL_ENTER("SHA384_Final");
+        Sha384Final((Sha384*)sha, input);
+    }
+
+    #endif /* CYASSL_SHA384 */
+
+
+   #ifdef CYASSL_SHA512
+
+    void CyaSSL_SHA512_Init(CYASSL_SHA512_CTX* sha)
+    {
+        typedef char sha_test[sizeof(SHA512_CTX) >= sizeof(Sha512) ? 1 : -1];
+        (void)sizeof(sha_test);
+
+        CYASSL_ENTER("SHA512_Init");
+        InitSha512((Sha512*)sha);
+    }
+
+
+    void CyaSSL_SHA512_Update(CYASSL_SHA512_CTX* sha, const void* input,
+                           unsigned long sz)
+    {
+        CYASSL_ENTER("SHA512_Update");
+        Sha512Update((Sha512*)sha, (const byte*)input, sz);
+    }
+
+
+    void CyaSSL_SHA512_Final(byte* input, CYASSL_SHA512_CTX* sha)
+    {
+        CYASSL_ENTER("SHA512_Final");
+        Sha512Final((Sha512*)sha, input);
+    }
+
+    #endif /* CYASSL_SHA512 */
+
+
     const CYASSL_EVP_MD* CyaSSL_EVP_md5(void)
     {
         static const char* type = "MD5";
@@ -3469,10 +3595,113 @@ int CyaSSL_set_compression(CYASSL* ssl)
     }
 
 
+    const CYASSL_EVP_MD* CyaSSL_EVP_sha256(void)
+    {
+        static const char* type = "SHA256";
+        CYASSL_ENTER("EVP_sha256");
+        return type;
+    }
+
+    #ifdef CYASSL_SHA384
+
+    const CYASSL_EVP_MD* CyaSSL_EVP_sha384(void)
+    {
+        static const char* type = "SHA384";
+        CYASSL_ENTER("EVP_sha384");
+        return type;
+    }
+
+    #endif /* CYASSL_SHA384 */
+
+    #ifdef CYASSL_SHA512
+
+    const CYASSL_EVP_MD* CyaSSL_EVP_sha512(void)
+    {
+        static const char* type = "SHA512";
+        CYASSL_ENTER("EVP_sha512");
+        return type;
+    }
+
+    #endif /* CYASSL_SHA512 */
+
+
     void CyaSSL_EVP_MD_CTX_init(CYASSL_EVP_MD_CTX* ctx)
     {
+        CYASSL_ENTER("EVP_CIPHER_MD_CTX_init");
         (void)ctx; 
         /* do nothing */ 
+    }
+
+
+    const CYASSL_EVP_CIPHER* CyaSSL_EVP_aes_128_cbc(void)
+    {
+        static const char* type = "AES128-CBC";
+        CYASSL_ENTER("CyaSSL_EVP_aes_128_cbc");
+        return type;
+    }
+
+
+    const CYASSL_EVP_CIPHER* CyaSSL_EVP_aes_192_cbc(void)
+    {
+        static const char* type = "AES192-CBC";
+        CYASSL_ENTER("CyaSSL_EVP_aes_192_cbc");
+        return type;
+    }
+
+
+    const CYASSL_EVP_CIPHER* CyaSSL_EVP_aes_256_cbc(void)
+    {
+        static const char* type = "AES256-CBC";
+        CYASSL_ENTER("CyaSSL_EVP_aes_256_cbc");
+        return type;
+    }
+
+
+    const CYASSL_EVP_CIPHER* CyaSSL_EVP_aes_128_ctr(void)
+    {
+        static const char* type = "AES128-CTR";
+        CYASSL_ENTER("CyaSSL_EVP_aes_128_ctr");
+        return type;
+    }
+
+
+    const CYASSL_EVP_CIPHER* CyaSSL_EVP_aes_192_ctr(void)
+    {
+        static const char* type = "AES192-CTR";
+        CYASSL_ENTER("CyaSSL_EVP_aes_192_ctr");
+        return type;
+    }
+
+
+    const CYASSL_EVP_CIPHER* CyaSSL_EVP_aes_256_ctr(void)
+    {
+        static const char* type = "AES256-CTR";
+        CYASSL_ENTER("CyaSSL_EVP_aes_256_ctr");
+        return type;
+    }
+
+
+    const CYASSL_EVP_CIPHER* CyaSSL_EVP_des_cbc(void)
+    {
+        static const char* type = "DES-CBC";
+        CYASSL_ENTER("CyaSSL_EVP_des_cbc");
+        return type;
+    }
+
+
+    const CYASSL_EVP_CIPHER* CyaSSL_EVP_des_ede3_cbc(void)
+    {
+        static const char* type = "DES-EDE3-CBC";
+        CYASSL_ENTER("CyaSSL_EVP_des_ede3_cbc");
+        return type;
+    }
+
+
+    const CYASSL_EVP_CIPHER* CyaSSL_EVP_rc4(void)
+    {
+        static const char* type = "ARC4";
+        CYASSL_ENTER("CyaSSL_EVP_rc4");
+        return type;
     }
 
 
@@ -3481,7 +3710,222 @@ int CyaSSL_set_compression(CYASSL* ssl)
         CYASSL_ENTER("EVP_MD_CTX_cleanup");
         (void)ctx; 
         return 0;
+    }
+
+
+
+    void CyaSSL_EVP_CIPHER_CTX_init(CYASSL_EVP_CIPHER_CTX* ctx)
+    {
+        CYASSL_ENTER("EVP_CIPHER_CTX_init");
+        if (ctx) {
+            ctx->cipherType = 0xff;   /* no init */
+            ctx->keyLen     = 0;
+            ctx->enc        = 1;      /* start in encrypt mode */
+        }
+    }
+
+
+    int CyaSSL_EVP_CIPHER_CTX_cleanup(CYASSL_EVP_CIPHER_CTX* ctx)
+    {
+        CYASSL_ENTER("EVP_CIPHER_CTX_cleanup");
+        if (ctx) {
+            ctx->cipherType = 0xff;  /* no more init */
+            ctx->keyLen     = 0;
+        }
+
+        return 1;  /* success */
     }    
+
+    int  CyaSSL_EVP_CipherInit(CYASSL_EVP_CIPHER_CTX* ctx,
+                               const CYASSL_EVP_CIPHER* type, byte* key,
+                               byte* iv, int enc)
+    {
+        CYASSL_ENTER("CyaSSL_EVP_CipherInit");
+        if (ctx == NULL)
+            return 0;   /* failure */
+
+        if (type == NULL && ctx->cipherType == 0xff)
+            return 0;   /* failure */
+
+        if (ctx->cipherType == AES_128_CBC_TYPE || (type &&
+                                       XSTRNCMP(type, "AES128-CBC", 10) == 0)) {
+            ctx->cipherType = AES_128_CBC_TYPE;
+            ctx->keyLen     = 16;
+            if (enc == 0 || enc == 1)
+                ctx->enc = enc ? 1 : 0;
+            if (key)
+                AesSetKey(&ctx->cipher.aes, key, ctx->keyLen, iv,
+                          enc ? AES_ENCRYPTION : AES_DECRYPTION);
+            if (iv && key == NULL)
+                AesSetIV(&ctx->cipher.aes, iv);
+        }
+        else if (ctx->cipherType == AES_192_CBC_TYPE || (type &&
+                                       XSTRNCMP(type, "AES192-CBC", 10) == 0)) {
+            ctx->cipherType = AES_192_CBC_TYPE;
+            ctx->keyLen     = 24;
+            if (enc == 0 || enc == 1)
+                ctx->enc = enc ? 1 : 0;
+            if (key)
+                AesSetKey(&ctx->cipher.aes, key, ctx->keyLen, iv,
+                          enc ? AES_ENCRYPTION : AES_DECRYPTION);
+            if (iv && key == NULL)
+                AesSetIV(&ctx->cipher.aes, iv);
+        }
+        else if (ctx->cipherType == AES_256_CBC_TYPE || (type &&
+                                       XSTRNCMP(type, "AES256-CBC", 10) == 0)) {
+            ctx->cipherType = AES_256_CBC_TYPE;
+            ctx->keyLen     = 32;
+            if (enc == 0 || enc == 1)
+                ctx->enc = enc ? 1 : 0;
+            if (key)
+                AesSetKey(&ctx->cipher.aes, key, ctx->keyLen, iv,
+                          enc ? AES_ENCRYPTION : AES_DECRYPTION);
+            if (iv && key == NULL)
+                AesSetIV(&ctx->cipher.aes, iv);
+        }
+        else if (ctx->cipherType == AES_128_CTR_TYPE || (type &&
+                                       XSTRNCMP(type, "AES128-CTR", 10) == 0)) {
+            ctx->cipherType = AES_128_CTR_TYPE;
+            ctx->keyLen     = 16;
+            if (enc == 0 || enc == 1)
+                ctx->enc = enc ? 1 : 0;
+            if (key)
+                AesSetKey(&ctx->cipher.aes, key, ctx->keyLen, iv,
+                          enc ? AES_ENCRYPTION : AES_DECRYPTION);
+            if (iv && key == NULL)
+                AesSetIV(&ctx->cipher.aes, iv);
+        }
+        else if (ctx->cipherType == AES_192_CTR_TYPE || (type &&
+                                       XSTRNCMP(type, "AES192-CTR", 10) == 0)) {
+            ctx->cipherType = AES_192_CTR_TYPE;
+            ctx->keyLen     = 24;
+            if (enc == 0 || enc == 1)
+                ctx->enc = enc ? 1 : 0;
+            if (key)
+                AesSetKey(&ctx->cipher.aes, key, ctx->keyLen, iv,
+                          enc ? AES_ENCRYPTION : AES_DECRYPTION);
+            if (iv && key == NULL)
+                AesSetIV(&ctx->cipher.aes, iv);
+        }
+        else if (ctx->cipherType == AES_256_CTR_TYPE || (type &&
+                                       XSTRNCMP(type, "AES256-CTR", 10) == 0)) {
+            ctx->cipherType = AES_256_CTR_TYPE;
+            ctx->keyLen     = 32;
+            if (enc == 0 || enc == 1)
+                ctx->enc = enc ? 1 : 0;
+            if (key)
+                AesSetKey(&ctx->cipher.aes, key, ctx->keyLen, iv,
+                          enc ? AES_ENCRYPTION : AES_DECRYPTION);
+            if (iv && key == NULL)
+                AesSetIV(&ctx->cipher.aes, iv);
+        }
+        else if (ctx->cipherType == DES_CBC_TYPE || (type &&
+                                       XSTRNCMP(type, "DES-CBC", 7) == 0)) {
+            ctx->cipherType = DES_CBC_TYPE;
+            ctx->keyLen     = 8;
+            if (enc == 0 || enc == 1)
+                ctx->enc = enc ? 1 : 0;
+            if (key)
+                Des_SetKey(&ctx->cipher.des, key, iv,
+                          enc ? DES_ENCRYPTION : DES_DECRYPTION);
+            if (iv && key == NULL)
+                Des_SetIV(&ctx->cipher.des, iv);
+        }
+        else if (ctx->cipherType == DES_EDE3_CBC_TYPE || (type &&
+                                     XSTRNCMP(type, "DES-EDE3-CBC", 11) == 0)) {
+            ctx->cipherType = DES_EDE3_CBC_TYPE;
+            ctx->keyLen     = 24;
+            if (enc == 0 || enc == 1)
+                ctx->enc = enc ? 1 : 0;
+            if (key)
+                Des3_SetKey(&ctx->cipher.des3, key, iv,
+                          enc ? DES_ENCRYPTION : DES_DECRYPTION);
+            if (iv && key == NULL)
+                Des3_SetIV(&ctx->cipher.des3, iv);
+        }
+        else if (ctx->cipherType == ARC4_TYPE || (type &&
+                                     XSTRNCMP(type, "ARC4", 4) == 0)) {
+            ctx->cipherType = ARC4_TYPE;
+            if (ctx->keyLen == 0)  /* user may have already set */
+                ctx->keyLen = 16;  /* default to 128 */
+            if (key)
+                Arc4SetKey(&ctx->cipher.arc4, key, ctx->keyLen); 
+        }
+        else
+            return 0;   /* failure */
+
+
+        return 1;   /* success */
+    }
+
+
+    int CyaSSL_EVP_CIPHER_CTX_key_length(CYASSL_EVP_CIPHER_CTX* ctx)
+    {
+        if (ctx)
+            return ctx->keyLen;
+
+        return 0;   /* failure */
+    }
+
+
+    int CyaSSL_EVP_CIPHER_CTX_set_key_length(CYASSL_EVP_CIPHER_CTX* ctx,
+                                             int keylen)
+    {
+        if (ctx)
+            ctx->keyLen = keylen;
+        else
+            return 0;  /* failure */
+
+        return 1;  /* success */
+    }
+
+
+    int CyaSSL_EVP_Cipher(CYASSL_EVP_CIPHER_CTX* ctx, byte* dst, byte* src,
+                          word32 len)
+    {
+        if (ctx == NULL || dst == NULL || src == NULL)
+            return 0;  /* failure */
+
+        if (ctx->cipherType == 0xff) 
+            return 0;  /* failure */
+
+
+        switch (ctx->cipherType) {
+
+            case AES_128_CBC_TYPE :
+            case AES_192_CBC_TYPE :
+            case AES_256_CBC_TYPE :
+                if (ctx->enc)
+                    AesCbcEncrypt(&ctx->cipher.aes, dst, src, len);
+                else
+                    AesCbcDecrypt(&ctx->cipher.aes, dst, src, len);
+                break;
+
+            case DES_CBC_TYPE :
+                if (ctx->enc)
+                    Des_CbcEncrypt(&ctx->cipher.des, dst, src, len);
+                else
+                    Des_CbcDecrypt(&ctx->cipher.des, dst, src, len);
+                break;
+                
+            case DES_EDE3_CBC_TYPE :
+                if (ctx->enc)
+                    Des3_CbcEncrypt(&ctx->cipher.des3, dst, src, len);
+                else
+                    Des3_CbcDecrypt(&ctx->cipher.des3, dst, src, len);
+                break;
+
+            case ARC4_TYPE :
+                Arc4Process(&ctx->cipher.arc4, dst, src, len);
+                break;
+
+            default:
+                return 0;  /* failure */
+        }    
+
+
+        return 1;  /* success */ 
+    }
 
 
     int CyaSSL_EVP_DigestInit(CYASSL_EVP_MD_CTX* ctx, const CYASSL_EVP_MD* type)
@@ -3491,10 +3935,27 @@ int CyaSSL_set_compression(CYASSL* ssl)
              ctx->macType = MD5;
              CyaSSL_MD5_Init((MD5_CTX*)&ctx->hash);
         }
+        else if (XSTRNCMP(type, "SHA256", 6) == 0) {
+             ctx->macType = SHA256;
+             CyaSSL_SHA256_Init((SHA256_CTX*)&ctx->hash);
+        }
+    #ifdef CYASSL_SHA384
+        else if (XSTRNCMP(type, "SHA384", 6) == 0) {
+             ctx->macType = SHA384;
+             CyaSSL_SHA384_Init((SHA384_CTX*)&ctx->hash);
+        }
+    #endif
+    #ifdef CYASSL_SHA512
+        else if (XSTRNCMP(type, "SHA512", 6) == 0) {
+             ctx->macType = SHA512;
+             CyaSSL_SHA512_Init((SHA512_CTX*)&ctx->hash);
+        }
+    #endif
+        /* has to be last since would pick or 256, 384, or 512 too */
         else if (XSTRNCMP(type, "SHA", 3) == 0) {
              ctx->macType = SHA;
              CyaSSL_SHA_Init((SHA_CTX*)&ctx->hash);
-        }
+        }    
         else
              return BAD_FUNC_ARG;
 
@@ -3510,6 +3971,19 @@ int CyaSSL_set_compression(CYASSL* ssl)
             CyaSSL_MD5_Update((MD5_CTX*)&ctx->hash, data, (unsigned long)sz);
         else if (ctx->macType == SHA) 
             CyaSSL_SHA_Update((SHA_CTX*)&ctx->hash, data, (unsigned long)sz);
+        else if (ctx->macType == SHA256) 
+            CyaSSL_SHA256_Update((SHA256_CTX*)&ctx->hash, data,
+                                 (unsigned long)sz);
+    #ifdef CYASSL_SHA384
+        else if (ctx->macType == SHA384) 
+            CyaSSL_SHA384_Update((SHA384_CTX*)&ctx->hash, data,
+                                 (unsigned long)sz);
+    #endif
+    #ifdef CYASSL_SHA512
+        else if (ctx->macType == SHA512) 
+            CyaSSL_SHA512_Update((SHA512_CTX*)&ctx->hash, data,
+                                 (unsigned long)sz);
+    #endif
         else
             return BAD_FUNC_ARG;
 
@@ -3529,6 +4003,22 @@ int CyaSSL_set_compression(CYASSL* ssl)
             CyaSSL_SHA_Final(md, (SHA_CTX*)&ctx->hash);
             if (s) *s = SHA_DIGEST_SIZE;
         }
+        else if (ctx->macType == SHA256) {
+            CyaSSL_SHA256_Final(md, (SHA256_CTX*)&ctx->hash);
+            if (s) *s = SHA_DIGEST_SIZE;
+        }
+    #ifdef CYASSL_SHA384
+        else if (ctx->macType == SHA384) {
+            CyaSSL_SHA384_Final(md, (SHA384_CTX*)&ctx->hash);
+            if (s) *s = SHA_DIGEST_SIZE;
+        }
+    #endif
+    #ifdef CYASSL_SHA512
+        else if (ctx->macType == SHA512) {
+            CyaSSL_SHA512_Final(md, (SHA512_CTX*)&ctx->hash);
+            if (s) *s = SHA_DIGEST_SIZE;
+        }
+    #endif
         else
             return BAD_FUNC_ARG;
 
@@ -3593,6 +4083,17 @@ int CyaSSL_set_compression(CYASSL* ssl)
         RNG_GenerateBlock(&rng, buf, num);
 
         return 1;
+    }
+
+
+    void CyaSSL_RAND_add(const void* add, int len, double entropy)
+    {
+        (void)add;
+        (void)len;
+        (void)entropy;
+
+        /* CyaSSL seeds/adds internally, use explicit RNG if you want
+           to take control */
     }
 
 
@@ -4045,7 +4546,12 @@ int CyaSSL_set_compression(CYASSL* ssl)
 
     CYASSL_BIO_METHOD* CyaSSL_BIO_s_mem(void)
     {
-        return 0;
+        static CYASSL_BIO_METHOD meth;
+
+        CYASSL_ENTER("BIO_s_mem");
+        meth.type = BIO_MEMORY;
+
+        return &meth;
     }
 
 

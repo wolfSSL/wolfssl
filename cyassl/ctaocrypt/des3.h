@@ -34,6 +34,8 @@
 #endif
 
 enum {
+    DES_ENC_TYPE    = 2,     /* cipher unique type */
+    DES3_ENC_TYPE   = 3,     /* cipher unique type */
     DES_BLOCK_SIZE  = 8,
     DES_KS_SIZE     = 32,
 
@@ -59,11 +61,13 @@ typedef struct Des3 {
 
 
 CYASSL_API void Des_SetKey(Des* des, const byte* key, const byte* iv, int dir);
+CYASSL_API void Des_SetIV(Des* des, const byte* iv);
 CYASSL_API void Des_CbcEncrypt(Des* des, byte* out, const byte* in, word32 sz);
 CYASSL_API void Des_CbcDecrypt(Des* des, byte* out, const byte* in, word32 sz);
 CYASSL_API void Des_EcbEncrypt(Des* des, byte* out, const byte* in, word32 sz);
 
 CYASSL_API void Des3_SetKey(Des3* des, const byte* key, const byte* iv,int dir);
+CYASSL_API void Des3_SetIV(Des3* des, const byte* iv);
 CYASSL_API void Des3_CbcEncrypt(Des3* des, byte* out, const byte* in,word32 sz);
 CYASSL_API void Des3_CbcDecrypt(Des3* des, byte* out, const byte* in,word32 sz);
 
