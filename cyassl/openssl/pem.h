@@ -14,17 +14,17 @@
 #endif
 
 
-int CyaSSL_PEM_write_bio_RSAPrivateKey(CYASSL_BIO* bio, RSA* rsa,
+CYASSL_API int CyaSSL_PEM_write_bio_RSAPrivateKey(CYASSL_BIO* bio, RSA* rsa,
 	                                  const EVP_CIPHER* cipher,
 	                                  unsigned char* passwd, int len,
 	                                  pem_password_cb cb, void* arg);
 
-int CyaSSL_PEM_write_bio_DSAPrivateKey(CYASSL_BIO* bio, DSA* rsa,
+CYASSL_API int CyaSSL_PEM_write_bio_DSAPrivateKey(CYASSL_BIO* bio, DSA* rsa,
 	                                  const EVP_CIPHER* cipher,
 	                                  unsigned char* passwd, int len,
 	                                  pem_password_cb cb, void* arg);
 
-CYASSL_EVP_PKEY* CyaSSL_PEM_read_bio_PrivateKey(CYASSL_BIO* bio,
+CYASSL_API CYASSL_EVP_PKEY* CyaSSL_PEM_read_bio_PrivateKey(CYASSL_BIO* bio,
                         CYASSL_EVP_PKEY**, pem_password_cb cb, void* arg); 
 
 #define PEM_write_bio_RSAPrivateKey CyaSSL_PEM_write_bio_RSAPrivateKey

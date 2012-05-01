@@ -245,7 +245,7 @@ CYASSL_API CYASSL_SESSION* CyaSSL_get1_session(CYASSL* ssl);
                            /* what's ref count */
 
 CYASSL_API void CyaSSL_X509_free(CYASSL_X509*);
-CYASSL_API void CyaSSL_OpenSSL_free(void*);
+CYASSL_API void CyaSSL_OPENSSL_free(void*);
 
 CYASSL_API int CyaSSL_OCSP_parse_url(char* url, char** host, char** port,
                                      char** path, int* ssl);

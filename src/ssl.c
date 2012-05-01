@@ -45,6 +45,8 @@
     #include <cyassl/openssl/crypto.h>
     #include <cyassl/openssl/des.h>
     #include <cyassl/openssl/bn.h>
+    #include <cyassl/openssl/dh.h>
+    #include <cyassl/openssl/rsa.h>
     /* openssl headers end, cyassl internal headers next */
     #include <cyassl/ctaocrypt/hmac.h>
     #include <cyassl/ctaocrypt/random.h>
@@ -2975,7 +2977,7 @@ int CyaSSL_set_compression(CYASSL* ssl)
         (void)bits; 
         (void)f; 
         (void)data; 
-        return 0;
+        return NULL;
     }
 
 
@@ -3705,6 +3707,14 @@ int CyaSSL_set_compression(CYASSL* ssl)
     }
 
 
+    const CYASSL_EVP_CIPHER* CyaSSL_EVP_enc_null(void)
+    {
+        static const char* type = "NULL";
+        CYASSL_ENTER("CyaSSL_EVP_enc_null");
+        return type;
+    }
+
+
     int CyaSSL_EVP_MD_CTX_cleanup(CYASSL_EVP_MD_CTX* ctx)
     {
         CYASSL_ENTER("EVP_MD_CTX_cleanup");
@@ -3851,6 +3861,11 @@ int CyaSSL_set_compression(CYASSL* ssl)
             if (key)
                 Arc4SetKey(&ctx->cipher.arc4, key, ctx->keyLen); 
         }
+        else if (ctx->cipherType == NULL_CIPHER_TYPE || (type &&
+                                     XSTRNCMP(type, "NULL", 4) == 0)) {
+            ctx->cipherType = NULL_CIPHER_TYPE;
+            ctx->keyLen = 0; 
+        }
         else
             return 0;   /* failure */
 
@@ -3917,6 +3932,10 @@ int CyaSSL_set_compression(CYASSL* ssl)
 
             case ARC4_TYPE :
                 Arc4Process(&ctx->cipher.arc4, dst, src, len);
+                break;
+
+            case NULL_CIPHER_TYPE :
+                XMEMCPY(dst, src, len);
                 break;
 
             default:
@@ -4936,13 +4955,6 @@ int CyaSSL_set_compression(CYASSL* ssl)
     }
 
 
-
-    void CyaSSL_RSA_free(CYASSL_RSA* rsa)
-    {
-        (void)rsa;
-    }
-
-
     int CyaSSL_PEM_def_callback(char* name, int num, int w, void* key)
     {
         (void)name;
@@ -5276,6 +5288,663 @@ int CyaSSL_set_compression(CYASSL* ssl)
         return -1;
     }
 #endif
+
+
+    CYASSL_BN_CTX* CyaSSL_BN_CTX_new(void)
+    {
+        static int ctx;  /* ctaocrypt doesn't now need ctx */
+
+        CYASSL_MSG("CyaSSL_BN_CTX_new");
+
+        return (CYASSL_BN_CTX*)&ctx;
+    }
+
+    void CyaSSL_BN_CTX_init(CYASSL_BN_CTX* ctx)
+    {
+        CYASSL_MSG("CyaSSL_BN_CTX_init");
+    }
+
+
+    void CyaSSL_BN_CTX_free(CYASSL_BN_CTX* ctx)
+    {
+        CYASSL_MSG("CyaSSL_BN_CTX_free");
+
+        /* do free since static ctx that does nothing */
+    }
+
+
+    static void InitCyaSSL_BigNum(CYASSL_BIGNUM* bn)
+    { 
+        CYASSL_MSG("InitCyaSSL_BigNum");
+        if (bn) {
+            bn->neg      = 0;
+            bn->internal = NULL;
+        }
+    }
+
+
+    CYASSL_BIGNUM* CyaSSL_BN_new(void)
+    {
+        CYASSL_BIGNUM* external;
+        mp_int*        mpi;
+
+        CYASSL_MSG("CyaSSL_BN_new");
+
+        mpi = (mp_int*) XMALLOC(sizeof(mp_int), NULL, DYNAMIC_TYPE_BIGINT);
+        if (mpi == NULL) {
+            CYASSL_MSG("CyaSSL_BN_new malloc mpi failure");
+            return NULL;
+        }
+
+        external = (CYASSL_BIGNUM*) XMALLOC(sizeof(CYASSL_BIGNUM), NULL,
+                                            DYNAMIC_TYPE_BIGINT);
+        if (external == NULL) {
+            CYASSL_MSG("CyaSSL_BN_new malloc CYASSL_BIGNUM failure");
+            XFREE(mpi, NULL, DYNAMIC_TYPE_BIGINT);
+            return NULL;
+        }
+
+        InitCyaSSL_BigNum(external);
+        mp_init(mpi);
+        external->internal = mpi;
+
+        return external;
+    }
+
+
+    void CyaSSL_BN_free(CYASSL_BIGNUM* bn)
+    {
+        CYASSL_MSG("CyaSSL_BN_free");
+        if (bn) {
+            if (bn->internal) {
+                mp_clear(bn->internal);
+                XFREE(bn->internal, NULL, DYNAMIC_TYPE_BIGINT);
+                bn->internal = NULL;
+            }
+            XFREE(bn, NULL, DYNAMIC_TYPE_BIGINT);
+        }
+    }
+
+
+    void CyaSSL_BN_clear_free(CYASSL_BIGNUM* bn)
+    {
+        CYASSL_MSG("CyaSSL_BN_clear_free");
+
+        return CyaSSL_BN_free(bn);
+    }
+
+
+    int CyaSSL_BN_sub(CYASSL_BIGNUM* r, const CYASSL_BIGNUM* a,
+                      const CYASSL_BIGNUM* b)
+    {
+        CYASSL_MSG("CyaSSL_BN_sub");
+
+        return -1;
+    }
+
+
+    int CyaSSL_BN_mod(CYASSL_BIGNUM* r, const CYASSL_BIGNUM* a,
+	                  const CYASSL_BIGNUM* b, const CYASSL_BN_CTX* c)
+    {
+        CYASSL_MSG("CyaSSL_BN_mod");
+
+        return -1;
+    }
+
+
+    const CYASSL_BIGNUM* CyaSSL_BN_value_one(void)
+    {
+        CYASSL_MSG("CyaSSL_BN_value_one");
+
+        return NULL;
+    }
+
+
+    int CyaSSL_BN_num_bytes(const CYASSL_BIGNUM* bn)
+    {
+        CYASSL_MSG("CyaSSL_BN_num_bytes");
+
+        return -1;
+    }
+
+
+    int CyaSSL_BN_num_bits(const CYASSL_BIGNUM* bn)
+    {
+        CYASSL_MSG("CyaSSL_BN_num_bits");
+
+        return -1;
+    }
+
+
+    int CyaSSL_BN_is_zero(const CYASSL_BIGNUM* bn)
+    {
+        CYASSL_MSG("CyaSSL_BN_is_zero");
+
+        return -1;
+    }
+
+
+    int CyaSSL_BN_is_one(const CYASSL_BIGNUM* bn)
+    {
+        CYASSL_MSG("CyaSSL_BN_is_one");
+
+        return -1;
+    }
+
+
+    int CyaSSL_BN_is_odd(const CYASSL_BIGNUM* bn)
+    {
+        CYASSL_MSG("CyaSSL_BN_is_odd");
+
+        return -1;
+    }
+
+
+    int CyaSSL_BN_cmp(const CYASSL_BIGNUM* a, const CYASSL_BIGNUM* b)
+    {
+        CYASSL_MSG("CyaSSL_BN_cmp");
+
+        return -1;
+    }
+
+
+    int CyaSSL_BN_bn2bin(const CYASSL_BIGNUM* bn, unsigned char* r)
+    {
+        CYASSL_MSG("CyaSSL_BN_bn2bin");
+
+        return -1;
+    }
+
+
+    CYASSL_BIGNUM* CyaSSL_BN_bin2bn(const unsigned char* str, int len,
+	                            CYASSL_BIGNUM* ret)
+    {
+        CYASSL_MSG("CyaSSL_BN_bin2bn");
+
+        if (ret && ret->internal) {
+            if (mp_read_unsigned_bin((mp_int*)ret->internal, str, len) != 0) {
+                CYASSL_MSG("mp_read_unsigned_bin failure");
+                return NULL;
+            } 
+        }
+        else
+            CYASSL_MSG("CyaSSL_BN_bin2bn wants return bignum");
+
+        return ret;
+    }
+
+
+    int CyaSSL_mask_bits(CYASSL_BIGNUM* bn, int n)
+    {
+        CYASSL_MSG("CyaSSL_BN_mask_bits");
+
+        return -1;
+    }
+
+
+    int CyaSSL_BN_rand(CYASSL_BIGNUM* bn, int bits, int top, int bottom)
+    {
+        CYASSL_MSG("CyaSSL_BN_rand");
+
+        return -1;
+    }
+
+
+    int CyaSSL_BN_is_bit_set(const CYASSL_BIGNUM* bn, int n)
+    {
+        CYASSL_MSG("CyaSSL_BN_is_bit_set");
+
+        return -1;
+    }
+
+
+    int CyaSSL_BN_hex2bn(CYASSL_BIGNUM** bn, const char* str)
+    {
+        CYASSL_MSG("CyaSSL_BN_hex2bn");
+
+        return -1;
+    }
+
+
+    CYASSL_BIGNUM* CyaSSL_BN_dup(const CYASSL_BIGNUM* bn)
+    {
+        CYASSL_MSG("CyaSSL_BN_dup");
+
+        return NULL;
+    }
+
+
+    CYASSL_BIGNUM* CyaSSL_BN_copy(CYASSL_BIGNUM* r, const CYASSL_BIGNUM* bn)
+    {
+        CYASSL_MSG("CyaSSL_BN_copy");
+
+        return NULL;
+    }
+
+
+    int CyaSSL_BN_set_word(CYASSL_BIGNUM* bn, unsigned long w)
+    {
+        CYASSL_MSG("CyaSSL_BN_set_word");
+
+        return -1;
+    }
+
+
+    int CyaSSL_BN_dec2bn(CYASSL_BIGNUM** bn, const char* str)
+    {
+        CYASSL_MSG("CyaSSL_BN_dec2bn");
+
+        return -1;
+    }
+
+
+    char* CyaSSL_BN_bn2dec(const CYASSL_BIGNUM* bn)
+    {
+        CYASSL_MSG("CyaSSL_BN_bn2dec");
+
+        return NULL;
+    }
+
+
+    CYASSL_DH* CyaSSL_DH_new(void)
+    {
+        CYASSL_MSG("CyaSSL_DH_new");
+
+        return NULL;
+    }
+
+
+    void CyaSSL_DH_free(CYASSL_DH* dh)
+    {
+        CYASSL_MSG("CyaSSL_DH_free");
+    }
+
+
+    int CyaSSL_DH_size(CYASSL_DH* dh)
+    {
+        CYASSL_MSG("CyaSSL_DH_size");
+
+        return -1;
+    }
+
+
+    int CyaSSL_DH_generate_key(CYASSL_DH* dh)
+    {
+        CYASSL_MSG("CyaSSL_DH_generate_key");
+
+        return -1;
+    }
+
+
+    int CyaSSL_DH_compute_key(unsigned char* key, CYASSL_BIGNUM* pub,
+                              CYASSL_DH* dh)
+    {
+        CYASSL_MSG("CyaSSL_DH_compute_key");
+
+        return -1;
+    }
+
+
+    CYASSL_DSA* CyaSSL_DSA_new(void)
+    {
+        CYASSL_MSG("CyaSSL_DSA_new");
+
+        return NULL;
+    }
+
+
+    void CyaSSL_DSA_free(CYASSL_DSA* dsa)
+    {
+        CYASSL_MSG("CyaSSL_DSA_free");
+    }
+
+
+    int CyaSSL_DSA_generate_key(CYASSL_DSA* dsa)
+    {
+        CYASSL_MSG("CyaSSL_DSA_generate_key");
+
+        return -1;
+    }
+
+
+    int CyaSSL_DSA_generate_parameters_ex(CYASSL_DSA* dsa, int bits,
+                   unsigned char* seed, int seedLen, int* counterRet,
+                   unsigned long* hRet, void* cb)
+    {
+        CYASSL_MSG("CyaSSL_DSA_generate_parameters_ex");
+
+        return -1;
+    }
+
+
+    static void InitCyaSSL_Rsa(CYASSL_RSA* rsa)
+    {
+        if (rsa) {
+            rsa->n        = NULL;
+            rsa->e        = NULL;
+            rsa->d        = NULL;
+            rsa->p        = NULL;
+	        rsa->dmp1     = NULL;
+	        rsa->dmq1     = NULL;
+	        rsa->iqmp     = NULL;
+            rsa->internal = NULL;
+        }
+    }
+
+
+    CYASSL_RSA* CyaSSL_RSA_new(void)
+    {
+        CYASSL_RSA* external;
+        RsaKey*     key;
+
+        CYASSL_MSG("CyaSSL_RSA_new");
+
+        key = (RsaKey*) XMALLOC(sizeof(RsaKey), NULL, DYNAMIC_TYPE_RSA);
+        if (key == NULL) {
+            CYASSL_MSG("CyaSSL_RSA_new malloc RsaKey failure");
+            return NULL;
+        }
+
+        external = (CYASSL_RSA*) XMALLOC(sizeof(CYASSL_RSA), NULL,
+                                         DYNAMIC_TYPE_RSA);
+        if (external == NULL) {
+            CYASSL_MSG("CyaSSL_RSA_new malloc CYASSL_RSA failure");
+            XFREE(key, NULL, DYNAMIC_TYPE_RSA);
+            return NULL;
+        }
+
+        InitCyaSSL_Rsa(external);
+        InitRsaKey(key, NULL);
+        external->internal = key;
+
+        return external;
+    }
+
+
+    void CyaSSL_RSA_free(CYASSL_RSA* rsa)
+    {
+        CYASSL_MSG("CyaSSL_RSA_free");
+
+        if (rsa) {
+            if (rsa->internal) {
+                FreeRsaKey(rsa->internal);
+                XFREE(rsa->internal, NULL, DYNAMIC_TYPE_RSA);
+                rsa->internal = NULL;
+            }
+            XFREE(rsa, NULL, DYNAMIC_TYPE_RSA);
+        }
+    }
+
+
+    int CyaSSL_RSA_generate_key_ex(CYASSL_RSA* rsa, int bits, CYASSL_BIGNUM* bn,
+                                   void* cb)
+    {
+        CYASSL_MSG("CyaSSL_RSA_generate_key_ex");
+
+        return -1;
+    }
+
+
+    int CyaSSL_RSA_blinding_on(CYASSL_RSA* rsa, CYASSL_BN_CTX* bn)
+    {
+        CYASSL_MSG("CyaSSL_RSA_blinding_on");
+
+        return 1;  /* on by default */
+    }
+
+
+    int CyaSSL_RSA_public_encrypt(int len, unsigned char* fr,
+	                            unsigned char* to, CYASSL_RSA* rsa, int padding)
+    {
+        CYASSL_MSG("CyaSSL_RSA_public_encrypt");
+
+        return -1;
+    }
+
+
+    int CyaSSL_RSA_private_decrypt(int len, unsigned char* fr,
+	                            unsigned char* to, CYASSL_RSA* rsa, int padding)
+    {
+        CYASSL_MSG("CyaSSL_RSA_private_decrypt");
+
+        return -1;
+    }
+
+
+    int CyaSSL_RSA_size(const CYASSL_RSA* rsa)
+    {
+        CYASSL_MSG("CyaSSL_RSA_size");
+
+        return -1;
+    }
+
+
+    int CyaSSL_RSA_sign(int type, const unsigned char* m,
+                               unsigned int mLen, unsigned char* sigRet,
+                               unsigned int* sigLen, CYASSL_RSA* rsa)
+    {
+        CYASSL_MSG("CyaSSL_RSA_sign");
+
+        return -1;
+    }
+
+
+    int CyaSSL_RSA_public_decrypt(int flen, unsigned char* from,
+                              unsigned char* to, CYASSL_RSA* rsa, int padding)
+    {
+        CYASSL_MSG("CyaSSL_RSA_public_decrypt");
+
+        return -1;
+    }
+
+
+    /* generate p-1 and q-1 */
+    int CyaSSL_RSA_GenAdd(CYASSL_RSA* rsa)
+    {
+        int    err;
+        mp_int tmp;
+
+        CYASSL_MSG("CyaSSL_RsaGenAdd");
+
+        if (rsa == NULL || rsa->p == NULL || rsa->q == NULL || rsa->d == NULL ||
+                           rsa->dmp1 == NULL || rsa->dmq1 == NULL) {
+            CYASSL_MSG("rsa no init error");
+            return -1;
+        }
+
+        if (mp_init(&tmp) != MP_OKAY) {
+            CYASSL_MSG("mp_init error");
+            return -1;
+        }
+
+        err = mp_sub_d((mp_int*)rsa->p->internal, 1, &tmp);
+        if (err != MP_OKAY)
+            CYASSL_MSG("mp_sub_d error");
+        else
+            err = mp_mod((mp_int*)rsa->d->internal, &tmp,
+                         (mp_int*)rsa->dmp1->internal);
+
+        if (err != MP_OKAY)
+            CYASSL_MSG("mp_mod error");
+        else
+            err = mp_sub_d((mp_int*)rsa->q->internal, 1, &tmp);
+        if (err != MP_OKAY)
+            CYASSL_MSG("mp_sub_d error");
+        else
+            err = mp_mod((mp_int*)rsa->d->internal, &tmp,
+                         (mp_int*)rsa->dmq1->internal);
+
+        mp_clear(&tmp);
+
+        if (err == MP_OKAY)
+            return 0;
+        else
+            return -1;
+    }
+
+
+    void CyaSSL_HMAC_Init(CYASSL_HMAC_CTX* ctx, const void* key, int keylen,
+                      const EVP_MD* type)
+    {
+        CYASSL_MSG("CyaSSL_HMAC_Init");
+    }
+
+
+    void CyaSSL_HMAC_Update(CYASSL_HMAC_CTX* ctx, const unsigned char* data,
+                        int len)
+    {
+        CYASSL_MSG("CyaSSL_HMAC_Update");
+    }
+
+
+    void CyaSSL_HMAC_Final(CYASSL_HMAC_CTX* ctx, unsigned char* hash,
+                       unsigned int* len)
+    {
+        CYASSL_MSG("CyaSSL_HMAC_Final");
+    }
+
+
+    void CyaSSL_HMAC_cleanup(CYASSL_HMAC_CTX* ctx)
+    {
+        CYASSL_MSG("CyaSSL_HMAC_cleanup");
+    }
+
+
+    const CYASSL_EVP_MD* CyaSSL_EVP_get_digestbynid(int id)
+    {
+        CYASSL_MSG("CyaSSL_get_digestbynid");
+
+        return NULL;
+    }
+
+
+    CYASSL_RSA* CyaSSL_EVP_PKEY_get1_RSA(CYASSL_EVP_PKEY* key)
+    {
+        CYASSL_MSG("CyaSSL_EVP_PKEY_get1_RSA");
+
+        return NULL;
+    }
+
+
+    CYASSL_DSA* CyaSSL_EVP_PKEY_get1_DSA(CYASSL_EVP_PKEY* key)
+    {
+        CYASSL_MSG("CyaSSL_EVP_PKEY_get1_DSA");
+
+        return NULL;
+    }
+
+
+    void* CyaSSL_EVP_X_STATE(const CYASSL_EVP_CIPHER_CTX* ctx)
+    {
+        CYASSL_MSG("CyaSSL_EVP_X_STATE");
+
+        return NULL;
+    }
+
+
+    int CyaSSL_EVP_X_STATE_LEN(const CYASSL_EVP_CIPHER_CTX* ctx)
+    {
+        CYASSL_MSG("CyaSSL_EVP_X_STATE_LEN");
+
+        return -1;
+    }
+
+
+    int CyaSSL_3des_iv(CYASSL_EVP_CIPHER_CTX* ctx, int doset,
+                                unsigned char* iv, int len)
+    {
+        CYASSL_MSG("CyaSSL_3des_iv");
+
+        return -1;
+    }
+
+
+    int CyaSSL_aes_ctr_iv(CYASSL_EVP_CIPHER_CTX* ctx, int doset,
+                                unsigned char* iv, int len)
+    {
+        CYASSL_MSG("CyaSSL_aes_ctr_iv");
+
+        return -1;
+    }
+
+
+    const CYASSL_EVP_MD* CyaSSL_EVP_ripemd160(void)
+    {
+        CYASSL_MSG("CyaSSL_ripemd160");
+
+        return NULL;
+    }
+
+
+    int CyaSSL_EVP_MD_size(const CYASSL_EVP_MD* md)
+    {
+        CYASSL_MSG("CyaSSL_EVP_MD_size");
+
+        return -1;
+    }
+
+
+    int CyaSSL_EVP_CIPHER_CTX_iv_length(const CYASSL_EVP_CIPHER_CTX* ctx)
+    {
+        CYASSL_MSG("CyaSSL_EVP_CIPHER_CTX_iv_length");
+
+        return -1;
+    }
+
+
+    void CyaSSL_OPENSSL_free(void* p)
+    {
+        CYASSL_MSG("CyaSSL_OPENSSL_free");
+    }
+
+
+    int CyaSSL_RAND_seed(const void* seed, int len)
+    {
+        CYASSL_MSG("CyaSSL_RAND_seed");
+
+        return -1;
+    }
+
+
+    int CyaSSL_PEM_write_bio_RSAPrivateKey(CYASSL_BIO* bio, RSA* rsa,
+	                                  const EVP_CIPHER* cipher,
+	                                  unsigned char* passwd, int len,
+	                                  pem_password_cb cb, void* arg)
+    {
+        CYASSL_MSG("CyaSSL_PEM_write_bio_RSAPrivateKey");
+
+        return -1;
+    }
+
+
+
+    int CyaSSL_PEM_write_bio_DSAPrivateKey(CYASSL_BIO* bio, DSA* rsa,
+	                                  const EVP_CIPHER* cipher,
+	                                  unsigned char* passwd, int len,
+	                                  pem_password_cb cb, void* arg)
+    {
+        CYASSL_MSG("CyaSSL_PEM_write_bio_DSAPrivateKey");
+
+        return -1;
+    }
+
+
+
+    CYASSL_EVP_PKEY* CyaSSL_PEM_read_bio_PrivateKey(CYASSL_BIO* bio,
+                        CYASSL_EVP_PKEY** key, pem_password_cb cb, void* arg)
+    {
+        CYASSL_MSG("CyaSSL_PEM_read_bio_PrivateKey");
+
+        return NULL;
+    }
+
+
+
+
+
+
+
+
 
 #endif /* OPENSSL_EXTRA */
 

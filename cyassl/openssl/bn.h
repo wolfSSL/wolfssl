@@ -11,7 +11,8 @@
 #endif
 
 typedef struct CYASSL_BIGNUM {
-    int neg;         /* openssh deference */
+    int   neg;              /* openssh deference */
+    void* internal;         /* our big num */
 } CYASSL_BIGNUM;        
 
 
@@ -50,6 +51,18 @@ CYASSL_API CYASSL_BIGNUM* CyaSSL_BN_bin2bn(const unsigned char*, int len,
 
 CYASSL_API int CyaSSL_mask_bits(CYASSL_BIGNUM*, int n);
 
+CYASSL_API int CyaSSL_BN_rand(CYASSL_BIGNUM*, int bits, int top, int bottom);
+CYASSL_API int CyaSSL_BN_is_bit_set(const CYASSL_BIGNUM*, int n);
+CYASSL_API int CyaSSL_BN_hex2bn(CYASSL_BIGNUM**, const char* str);
+
+CYASSL_API CYASSL_BIGNUM* CyaSSL_BN_dup(const CYASSL_BIGNUM*);
+CYASSL_API CYASSL_BIGNUM* CyaSSL_BN_copy(CYASSL_BIGNUM*, const CYASSL_BIGNUM*);
+
+CYASSL_API int CyaSSL_BN_set_word(CYASSL_BIGNUM*, unsigned long w);
+
+CYASSL_API int   CyaSSL_BN_dec2bn(CYASSL_BIGNUM**, const char* str);
+CYASSL_API char* CyaSSL_BN_bn2dec(const CYASSL_BIGNUM*);
+
 
 typedef CYASSL_BIGNUM BIGNUM;
 typedef CYASSL_BN_CTX BN_CTX;
@@ -79,6 +92,19 @@ typedef CYASSL_BN_CTX BN_CTX;
 #define BN_value_one CyaSSL_BN_value_one
 
 #define BN_mask_bits CyaSSL_mask_bits
+
+#define BN_rand       CyaSSL_BN_rand
+#define BN_is_bit_set CyaSSL_BN_is_bit_set
+#define BN_hex2bn     CyaSSL_BN_hex2bn
+
+#define BN_dup  CyaSSL_BN_dup
+#define BN_copy CyaSSL_BN_copy
+
+#define BN_set_word CyaSSL_BN_set_word
+
+#define BN_dec2bn CyaSSL_BN_dec2bn
+#define BN_bn2dec CyaSSL_BN_bn2dec
+
 
 #ifdef __cplusplus
     }  /* extern "C" */ 

@@ -52,13 +52,13 @@ typedef struct CYASSL_HMAC_CTX {
 } CYASSL_HMAC_CTX;
 
 
-void CyaSSL_HMAC_Init(CYASSL_HMAC_CTX* ctx, const void* key, int keylen,
-                      const EVP_MD* type);
-void CyaSSL_HMAC_Update(CYASSL_HMAC_CTX* ctx, const unsigned char* data,
-                        int len);
-void CyaSSL_HMAC_Final(CYASSL_HMAC_CTX* ctx, unsigned char* hash,
-                       unsigned int* len);
-void CyaSSL_HMAC_cleanup(CYASSL_HMAC_CTX* ctx);
+CYASSL_API void CyaSSL_HMAC_Init(CYASSL_HMAC_CTX* ctx, const void* key,
+                                 int keylen, const EVP_MD* type);
+CYASSL_API void CyaSSL_HMAC_Update(CYASSL_HMAC_CTX* ctx,
+                                   const unsigned char* data, int len);
+CYASSL_API void CyaSSL_HMAC_Final(CYASSL_HMAC_CTX* ctx, unsigned char* hash,
+                                  unsigned int* len);
+CYASSL_API void CyaSSL_HMAC_cleanup(CYASSL_HMAC_CTX* ctx);
 
 
 typedef struct CYASSL_HMAC_CTX HMAC_CTX;

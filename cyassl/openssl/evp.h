@@ -68,6 +68,7 @@ CYASSL_API const CYASSL_EVP_CIPHER* CyaSSL_EVP_aes_256_ctr(void);
 CYASSL_API const CYASSL_EVP_CIPHER* CyaSSL_EVP_des_cbc(void);
 CYASSL_API const CYASSL_EVP_CIPHER* CyaSSL_EVP_des_ede3_cbc(void);
 CYASSL_API const CYASSL_EVP_CIPHER* CyaSSL_EVP_rc4(void);
+CYASSL_API const CYASSL_EVP_CIPHER* CyaSSL_EVP_enc_null(void);
 
 
 typedef union {
@@ -110,8 +111,9 @@ enum {
     DES_CBC_TYPE      = 7,
     DES_EDE3_CBC_TYPE = 8,
     ARC4_TYPE         = 9,
-    EVP_PKEY_RSA      = 10,
-    EVP_PKEY_DSA      = 10,
+    NULL_CIPHER_TYPE  = 10,
+    EVP_PKEY_RSA      = 11,
+    EVP_PKEY_DSA      = 12,
     NID_sha1          = 64,
     NID_md5           =  4
 };
@@ -160,6 +162,8 @@ CYASSL_API int  CyaSSL_EVP_Cipher(CYASSL_EVP_CIPHER_CTX* ctx,
                           unsigned char* dst, unsigned char* src,
                           unsigned int len);
 
+CYASSL_API const CYASSL_EVP_MD* CyaSSL_EVP_get_digestbynid(int);
+
 CYASSL_API CYASSL_RSA* CyaSSL_EVP_PKEY_get1_RSA(CYASSL_EVP_PKEY*);
 CYASSL_API CYASSL_DSA* CyaSSL_EVP_PKEY_get1_DSA(CYASSL_EVP_PKEY*);
 
@@ -195,6 +199,7 @@ typedef CYASSL_EVP_CIPHER_CTX EVP_CIPHER_CTX;
 #define EVP_des_cbc      CyaSSL_EVP_des_cbc
 #define EVP_des_ede3_cbc CyaSSL_EVP_des_ede3_cbc
 #define EVP_rc4          CyaSSL_EVP_rc4
+#define EVP_enc_null     CyaSSL_EVP_enc_null
 
 #define EVP_MD_size        CyaSSL_EVP_MD_size
 #define EVP_MD_CTX_init    CyaSSL_EVP_MD_CTX_init
@@ -212,6 +217,8 @@ typedef CYASSL_EVP_CIPHER_CTX EVP_CIPHER_CTX;
 #define EVP_CIPHER_CTX_set_key_length CyaSSL_EVP_CIPHER_CTX_set_key_length
 #define EVP_CipherInit                CyaSSL_EVP_CipherInit
 #define EVP_Cipher                    CyaSSL_EVP_Cipher
+
+#define EVP_get_digestbynid           CyaSSL_EVP_get_digestbynid
 
 #define EVP_PKEY_get1_RSA   CyaSSL_EVP_PKEY_get1_RSA
 #define EVP_PKEY_get1_DSA   CyaSSL_EVP_PKEY_get1_DSA
