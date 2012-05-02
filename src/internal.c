@@ -4563,7 +4563,12 @@ int SetCipherList(Suites* s, const char* list)
         byte              *output;
         int                sendSz = 0, length, ret;
         word32             idx = 0;
+        word32             sigOutSz = 0;
         RsaKey             key;
+        int                usingEcc = 0;
+#ifdef HAVE_ECC
+        ecc_key            eccKey;
+#endif
 
         if (ssl->options.sendVerify == SEND_BLANK_CERT)
             return 0;  /* sent blank cert, can't verify */
@@ -4578,10 +4583,31 @@ int SetCipherList(Suites* s, const char* list)
 
         BuildCertHashes(ssl, &ssl->certHashes);
 
-        /* TODO: when add DSS support check here  */
+#ifdef HAVE_ECC
+        ecc_init(&eccKey);
+#endif
         InitRsaKey(&key, ssl->heap);
         ret = RsaPrivateKeyDecode(ssl->buffers.key.buffer, &idx, &key,
-                                  ssl->buffers.key.length); 
+                                  ssl->buffers.key.length);
+        if (ret == 0)
+            sigOutSz = RsaEncryptSize(&key);
+        else {
+    #ifdef HAVE_ECC
+            CYASSL_MSG("Trying ECC client cert, RSA didn't work");
+           
+            idx = 0; 
+            ret = EccPrivateKeyDecode(ssl->buffers.key.buffer, &idx, &eccKey,
+                                      ssl->buffers.key.length);
+            if (ret == 0) {
+                CYASSL_MSG("Using ECC client cert");
+                usingEcc = 1;
+                sigOutSz = ecc_sig_size(&eccKey);
+            }
+            else {
+                CYASSL_MSG("Bad client cert type");
+            }
+    #endif
+        }
         if (ret == 0) {
             byte*  verify = (byte*)&output[RECORD_HEADER_SZ +
                                            HANDSHAKE_HEADER_SZ];
@@ -4594,34 +4620,45 @@ int SetCipherList(Suites* s, const char* list)
                 if (ssl->options.dtls)
                     verify += DTLS_RECORD_EXTRA + DTLS_HANDSHAKE_EXTRA;
             #endif
-            length = RsaEncryptSize(&key);
+            length = sigOutSz;
             if (IsAtLeastTLSv1_2(ssl)) {
                 verify[0] = sha_mac;
-                verify[1] = rsa_sa_algo;
+                verify[1] = usingEcc ? ecc_dsa_sa_algo : rsa_sa_algo;
                 extraSz = HASH_SIG_SIZE;
             }
             c16toa((word16)length, verify + extraSz); /* prepend verify header*/
 
-            if (IsAtLeastTLSv1_2(ssl)) {
-                byte* digest;
-                int   typeH;
-                int   digestSz;
-
-                /* sha1 for now */
-                digest   = ssl->certHashes.sha;
-                typeH    = SHAh;
-                digestSz = SHA_DIGEST_SIZE;
-
-                signSz = EncodeSignature(encodedSig, digest, digestSz, typeH);
-                signBuffer = encodedSig;
+            if (usingEcc) {
+#ifdef HAVE_ECC
+                word32 localSz = sigOutSz;
+                ret = ecc_sign_hash(signBuffer + MD5_DIGEST_SIZE,
+                              SHA_DIGEST_SIZE, verify + extraSz + VERIFY_HEADER,
+                              &localSz, &ssl->rng, &eccKey);
+#endif
             }
+            else {
+                if (IsAtLeastTLSv1_2(ssl)) {
+                    byte* digest;
+                    int   typeH;
+                    int   digestSz;
 
-            ret = RsaSSL_Sign(signBuffer, signSz, verify + extraSz +
-                  VERIFY_HEADER, ENCRYPT_LEN, &key, &ssl->rng);
+                    /* sha1 for now */
+                    digest   = ssl->certHashes.sha;
+                    typeH    = SHAh;
+                    digestSz = SHA_DIGEST_SIZE;
 
-            if (ret > 0) {
-                ret = 0;  /* reset */
+                    signSz = EncodeSignature(encodedSig, digest,digestSz,typeH);
+                    signBuffer = encodedSig;
+                }
 
+                ret = RsaSSL_Sign(signBuffer, signSz, verify + extraSz +
+                                  VERIFY_HEADER, ENCRYPT_LEN, &key, &ssl->rng);
+
+                if (ret > 0)
+                    ret = 0;  /* RSA reset */
+            }
+            
+            if (ret == 0) {
                 AddHeaders(output, length + extraSz + VERIFY_HEADER,
                            certificate_verify, ssl);
 
@@ -4636,6 +4673,9 @@ int SetCipherList(Suites* s, const char* list)
         }
 
         FreeRsaKey(&key);
+#ifdef HAVE_ECC
+        ecc_free(&eccKey);
+#endif
 
         if (ret == 0) {
             #ifdef CYASSL_CALLBACKS
@@ -5559,8 +5599,11 @@ int SetCipherList(Suites* s, const char* list)
 
         sig = &input[i];
         *inOutsz = i + sz;
-        /* TODO: when add DSS support check here  */
+
+        /* RSA */
         if (ssl->peerRsaKeyPresent != 0) {
+            CYASSL_MSG("Doing RSA peer cert verify");
+
             outLen = RsaSSL_VerifyInline(sig, sz, &out, &ssl->peerRsaKey);
 
             if (IsAtLeastTLSv1_2(ssl)) {
@@ -5578,14 +5621,28 @@ int SetCipherList(Suites* s, const char* list)
                 sigSz = EncodeSignature(encodedSig, digest, digestSz, typeH);
 
                 if (outLen == (int)sigSz && XMEMCMP(out, encodedSig,sigSz) == 0)
-                    ret = 0;
+                    ret = 0;  /* verified */
             }
             else {
                 if (outLen == sizeof(ssl->certHashes) && XMEMCMP(out,
                              ssl->certHashes.md5, sizeof(ssl->certHashes)) == 0)
-                    ret = 0;
+                    ret = 0;  /* verified */
             }
         }
+#ifdef HAVE_ECC
+        else if (ssl->peerEccDsaKeyPresent) {
+            int verify =  0;
+            int err    = -1;
+
+            CYASSL_MSG("Doing ECC peer cert verify");
+
+            err = ecc_verify_hash(sig, sz, ssl->certHashes.sha, SHA_DIGEST_SIZE,
+                                  &verify, &ssl->peerEccDsaKey);
+
+            if (err == 0 && verify == 1)
+               ret = 0;   /* verified */ 
+        }
+#endif
         return ret;
     }
 

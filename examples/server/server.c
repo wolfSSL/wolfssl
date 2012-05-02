@@ -115,6 +115,10 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
                 != SSL_SUCCESS)
             err_sys("can't load server ecc key file, "
                     "Please run from CyaSSL home dir");
+        /* for client auth */
+        if (SSL_CTX_load_verify_locations(ctx, cliEccCert, 0) != SSL_SUCCESS)
+            err_sys("can't load ecc ca file, Please run from CyaSSL home dir");
+
     #elif HAVE_NTRU
         if (SSL_CTX_use_certificate_file(ctx, ntruCert, SSL_FILETYPE_PEM)
                 != SSL_SUCCESS)

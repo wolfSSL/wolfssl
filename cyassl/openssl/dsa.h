@@ -16,15 +16,27 @@
 
 
 struct CYASSL_DSA {
-	BIGNUM* p;
-	BIGNUM* q;
-	BIGNUM* g;
-	BIGNUM* pub_key;
-	BIGNUM* priv_key;
+	CYASSL_BIGNUM* p;
+	CYASSL_BIGNUM* q;
+	CYASSL_BIGNUM* g;
+	CYASSL_BIGNUM* pub_key;
+	CYASSL_BIGNUM* priv_key;
 };
 
 
+CYASSL_API CYASSL_DSA* CyaSSL_DSA_new(void);
+CYASSL_API void        CyaSSL_DSA_free(CYASSL_DSA*);
 
+CYASSL_API int CyaSSL_DSA_generate_key(CYASSL_DSA*);
+CYASSL_API int CyaSSL_DSA_generate_parameters_ex(CYASSL_DSA*, int bits,
+                   unsigned char* seed, int seedLen, int* counterRet,
+                   unsigned long* hRet, void* cb);
+
+#define DSA_new CyaSSL_DSA_new
+#define DSA_free CyaSSL_DSA_free
+
+#define DSA_generate_key           CyaSSL_DSA_generate_key
+#define DSA_generate_parameters_ex CyaSSL_DSA_generate_parameters_ex
 
 
 #ifdef __cplusplus

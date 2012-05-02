@@ -17,12 +17,29 @@
 
 
 typedef struct CYASSL_DH {
-	BIGNUM* p;
-	BIGNUM* g;
+	CYASSL_BIGNUM* p;
+	CYASSL_BIGNUM* g;
+    CYASSL_BIGNUM* pub_key;      /* openssh deference g^x */
+    CYASSL_BIGNUM* priv_key;     /* openssh deference x   */
 } CYASSL_DH;
 
 
+CYASSL_API CYASSL_DH* CyaSSL_DH_new(void);
+CYASSL_API void       CyaSSL_DH_free(CYASSL_DH*);
+
+CYASSL_API int CyaSSL_DH_size(CYASSL_DH*);
+CYASSL_API int CyaSSL_DH_generate_key(CYASSL_DH*);
+CYASSL_API int CyaSSL_DH_compute_key(unsigned char* key, CYASSL_BIGNUM* pub,
+                                     CYASSL_DH*);
+
 typedef CYASSL_DH DH;
+
+#define DH_new  CyaSSL_DH_new 
+#define DH_free CyaSSL_DH_free
+
+#define DH_size         CyaSSL_DH_size
+#define DH_generate_key CyaSSL_DH_generate_key
+#define DH_compute_key  CyaSSL_DH_compute_key
 
 
 #ifdef __cplusplus
