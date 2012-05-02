@@ -5404,7 +5404,10 @@ int CyaSSL_set_compression(CYASSL* ssl)
     {
         CYASSL_MSG("CyaSSL_BN_num_bytes");
 
-        return -1;
+        if (bn == NULL || bn->internal == NULL)
+            return 0;
+
+        return mp_unsigned_bin_size((mp_int*)bn->internal);
     }
 
 
@@ -5412,7 +5415,10 @@ int CyaSSL_set_compression(CYASSL* ssl)
     {
         CYASSL_MSG("CyaSSL_BN_num_bits");
 
-        return -1;
+        if (bn == NULL || bn->internal == NULL)
+            return 0;
+
+        return mp_count_bits((mp_int*)bn->internal);
     }
 
 
@@ -5420,7 +5426,10 @@ int CyaSSL_set_compression(CYASSL* ssl)
     {
         CYASSL_MSG("CyaSSL_BN_is_zero");
 
-        return -1;
+        if (bn == NULL || bn->internal == NULL)
+            return 0;
+
+        return mp_iszero((mp_int*)bn->internal);
     }
 
 
@@ -5428,7 +5437,13 @@ int CyaSSL_set_compression(CYASSL* ssl)
     {
         CYASSL_MSG("CyaSSL_BN_is_one");
 
-        return -1;
+        if (bn == NULL || bn->internal == NULL)
+            return 0;
+
+        if (mp_cmp_d((mp_int*)bn->internal, 1) == 0);
+            return 1;
+
+        return 0;
     }
 
 
@@ -5436,7 +5451,10 @@ int CyaSSL_set_compression(CYASSL* ssl)
     {
         CYASSL_MSG("CyaSSL_BN_is_odd");
 
-        return -1;
+        if (bn == NULL || bn->internal == NULL)
+            return 0;
+
+        return mp_isodd((mp_int*)bn->internal);
     }
 
 
@@ -5444,7 +5462,10 @@ int CyaSSL_set_compression(CYASSL* ssl)
     {
         CYASSL_MSG("CyaSSL_BN_cmp");
 
-        return -1;
+        if (a == NULL || a->internal == NULL || b == NULL || b->internal ==NULL)
+            return 0;
+
+        return mp_cmp((mp_int*)a->internal, (mp_int*)b->internal);
     }
 
 
@@ -5452,7 +5473,17 @@ int CyaSSL_set_compression(CYASSL* ssl)
     {
         CYASSL_MSG("CyaSSL_BN_bn2bin");
 
-        return -1;
+        if (bn == NULL || bn->internal == NULL) {
+            CYASSL_MSG("NULL bn error");
+            return -1;
+        }
+
+        if (mp_to_unsigned_bin((mp_int*)bn->internal, r) != MP_OKAY) {
+            CYASSL_MSG("mp_to_unsigned_bin error");
+            return -1;
+        }
+
+        return mp_unsigned_bin_size((mp_int*)bn->internal);
     }
 
 
@@ -5508,9 +5539,28 @@ int CyaSSL_set_compression(CYASSL* ssl)
 
     CYASSL_BIGNUM* CyaSSL_BN_dup(const CYASSL_BIGNUM* bn)
     {
+        CYASSL_BIGNUM* ret;
+
         CYASSL_MSG("CyaSSL_BN_dup");
 
-        return NULL;
+        if (bn == NULL || bn->internal == NULL) {
+            CYASSL_MSG("bn NULL error");
+            return NULL;
+        }
+
+        ret = CyaSSL_BN_new();
+        if (ret == NULL) {
+            CYASSL_MSG("bn new error");
+            return NULL;
+        }
+
+        if (mp_copy((mp_int*)bn->internal, (mp_int*)ret->internal) != MP_OKAY) {
+            CYASSL_MSG("mp_copy error");
+            CyaSSL_BN_free(ret);
+            return NULL;
+        }
+
+        return ret;
     }
 
 
@@ -5624,10 +5674,13 @@ int CyaSSL_set_compression(CYASSL* ssl)
             rsa->e        = NULL;
             rsa->d        = NULL;
             rsa->p        = NULL;
+            rsa->q        = NULL;
 	        rsa->dmp1     = NULL;
 	        rsa->dmq1     = NULL;
 	        rsa->iqmp     = NULL;
             rsa->internal = NULL;
+            rsa->inSet    = 0;
+            rsa->exSet    = 0;
         }
     }
 
@@ -5671,17 +5724,135 @@ int CyaSSL_set_compression(CYASSL* ssl)
                 XFREE(rsa->internal, NULL, DYNAMIC_TYPE_RSA);
                 rsa->internal = NULL;
             }
+            CyaSSL_BN_free(rsa->iqmp);
+            CyaSSL_BN_free(rsa->dmq1);
+            CyaSSL_BN_free(rsa->dmp1);
+            CyaSSL_BN_free(rsa->q);
+            CyaSSL_BN_free(rsa->p);
+            CyaSSL_BN_free(rsa->d);
+            CyaSSL_BN_free(rsa->e);
+            CyaSSL_BN_free(rsa->n);
+            InitCyaSSL_Rsa(rsa);  /* set back to NULLs for safety */
+
             XFREE(rsa, NULL, DYNAMIC_TYPE_RSA);
         }
+    }
+
+
+    static int SetIndividualRsaExternal(CYASSL_BIGNUM** bn, mp_int* mpi)
+    {
+        CYASSL_MSG("Entering SetIndividualRsaExternal");
+
+        if (mpi == NULL) {
+            CYASSL_MSG("mpi NULL error");
+            return -1;
+        }
+
+        if (*bn == NULL) {
+            *bn = CyaSSL_BN_new();
+            if (*bn == NULL) {
+                CYASSL_MSG("SetIndividualRsaExternal alloc failed");
+                return -1;
+            }
+        }
+
+        if (mp_copy(mpi, (*bn)->internal) != MP_OKAY) {
+            CYASSL_MSG("mp_copy error");
+            return -1;
+        }
+
+        return 0;
+    }
+
+
+
+    static int SetRsaExternal(CYASSL_RSA* rsa)
+    {
+        RsaKey* key;
+        CYASSL_MSG("Entering SetRsaExternal");
+
+        if (rsa == NULL || rsa->internal == NULL) {
+            CYASSL_MSG("rsa key NULL error");
+            return -1;
+        }
+
+        key = (RsaKey*)rsa->internal;
+
+        if (SetIndividualRsaExternal(&rsa->n, &key->n) < 0) {
+            CYASSL_MSG("rsa n key error");
+            return -1;
+        }
+
+        if (SetIndividualRsaExternal(&rsa->e, &key->e) < 0) {
+            CYASSL_MSG("rsa e key error");
+            return -1;
+        }
+
+        if (SetIndividualRsaExternal(&rsa->d, &key->d) < 0) {
+            CYASSL_MSG("rsa d key error");
+            return -1;
+        }
+
+        if (SetIndividualRsaExternal(&rsa->p, &key->p) < 0) {
+            CYASSL_MSG("rsa p key error");
+            return -1;
+        }
+
+        if (SetIndividualRsaExternal(&rsa->q, &key->q) < 0) {
+            CYASSL_MSG("rsa q key error");
+            return -1;
+        }
+
+        if (SetIndividualRsaExternal(&rsa->dmp1, &key->dP) < 0) {
+            CYASSL_MSG("rsa dP key error");
+            return -1;
+        }
+
+        if (SetIndividualRsaExternal(&rsa->dmq1, &key->dQ) < 0) {
+            CYASSL_MSG("rsa dQ key error");
+            return -1;
+        }
+
+        if (SetIndividualRsaExternal(&rsa->iqmp, &key->u) < 0) {
+            CYASSL_MSG("rsa u key error");
+            return -1;
+        }
+
+        return 0;
     }
 
 
     int CyaSSL_RSA_generate_key_ex(CYASSL_RSA* rsa, int bits, CYASSL_BIGNUM* bn,
                                    void* cb)
     {
+        RNG rng;
+
         CYASSL_MSG("CyaSSL_RSA_generate_key_ex");
 
+        (void)cb;
+        (void)bn;
+    
+        if (InitRng(&rng) < 0) {
+            CYASSL_MSG("RNG init failed");
+            return -1;
+        }
+
+#ifdef CYASSL_KEY_GEN
+        if (MakeRsaKey(rsa->internal, bits, 65537, &rng) < 0) {
+            CYASSL_MSG("MakeRsaKey failed");
+            return -1;
+        }
+#else
+        CYASSL_MSG("No Key Gen built in");
         return -1;
+#endif
+
+        if (SetRsaExternal(rsa) < 0) {
+            CYASSL_MSG("SetRsaExternal failed");
+            return -1;
+        }
+
+        return 1;  /* success */
     }
 
 

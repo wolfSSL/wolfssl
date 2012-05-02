@@ -645,20 +645,23 @@ int  mp_unsigned_bin_size(mp_int * a);
 int  mp_read_unsigned_bin (mp_int * a, const unsigned char *b, int c);
 int  mp_to_unsigned_bin (mp_int * a, unsigned char *b);
 
+int  mp_sub_d(fp_int *a, fp_digit b, fp_int *c);
+int  mp_copy(fp_int* a, fp_int* b);
+int  mp_isodd(mp_int* a);
+int  mp_iszero(mp_int* a);
+int  mp_count_bits(mp_int *a);
+
 #ifdef HAVE_ECC
     int mp_read_radix(mp_int* a, const char* str, int radix);
-    int mp_iszero(mp_int* a);
     int mp_set(fp_int *a, fp_digit b);
     int mp_sqr(fp_int *A, fp_int *B);
     int mp_montgomery_reduce(fp_int *a, fp_int *m, fp_digit mp);
     int mp_montgomery_setup(fp_int *a, fp_digit *rho);
-    int mp_isodd(mp_int* a);
     int mp_div_2(fp_int * a, fp_int * b);
     int mp_init_copy(fp_int * a, fp_int * b); 
 #endif
 
 #if defined(HAVE_ECC) || defined(CYASSL_KEY_GEN)
-    int  mp_copy(fp_int* a, fp_int* b);
     int mp_sqrmod(mp_int* a, mp_int* b, mp_int* c);
     int mp_montgomery_calc_normalization(mp_int *a, mp_int *b);
 #endif
@@ -667,7 +670,6 @@ int  mp_to_unsigned_bin (mp_int * a, unsigned char *b);
 int  mp_set_int(fp_int *a, fp_digit b);
 int  mp_gcd(fp_int *a, fp_int *b, fp_int *c);
 int  mp_lcm(fp_int *a, fp_int *b, fp_int *c);
-int  mp_sub_d(fp_int *a, fp_digit b, fp_int *c);
 int  mp_prime_is_prime(mp_int* a, int t, int* result);
 #endif /* CYASSL_KEY_GEN */
 
