@@ -107,6 +107,8 @@ static const char* cliKey   = "./certs/client-key.pem";
 static const char* ntruCert = "./certs/ntru-cert.pem";
 static const char* ntruKey  = "./certs/ntru-key.raw";
 static const char* dhParam  = "./certs/dh2048.pem";
+static const char* cliEccKey  = "./certs/ecc-client-key.pem";
+static const char* cliEccCert = "./certs/client-ecc-cert.pem";
 
 typedef struct tcp_ready {
     int ready;              /* predicate */

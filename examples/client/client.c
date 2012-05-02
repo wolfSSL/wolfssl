@@ -146,6 +146,17 @@ void client_test(void* args)
         /* ./client          // plain mode */
         /* for client cert authentication if server requests */
 #ifndef NO_FILESYSTEM
+    #ifdef HAVE_ECC
+        if (CyaSSL_CTX_use_certificate_file(ctx, cliEccCert, SSL_FILETYPE_PEM)
+                != SSL_SUCCESS)
+            err_sys("can't load ecc client cert file, "
+                    "Please run from CyaSSL home dir");
+
+        if (CyaSSL_CTX_use_PrivateKey_file(ctx, cliEccKey, SSL_FILETYPE_PEM)
+                != SSL_SUCCESS)
+            err_sys("can't load ecc client key file, "
+                    "Please run from CyaSSL home dir");
+    #else
         if (CyaSSL_CTX_use_certificate_file(ctx, cliCert, SSL_FILETYPE_PEM)
                 != SSL_SUCCESS)
             err_sys("can't load client cert file, "
@@ -155,6 +166,7 @@ void client_test(void* args)
                 != SSL_SUCCESS)
             err_sys("can't load client key file, "
                     "Please run from CyaSSL home dir");
+    #endif /* HAVE_ECC */
 #else
         load_buffer(ctx, cliCert, CYASSL_CERT);
         load_buffer(ctx, cliKey, CYASSL_KEY);
