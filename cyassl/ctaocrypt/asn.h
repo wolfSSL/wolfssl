@@ -333,6 +333,14 @@ enum Ocsp_Sums {
 
 
 typedef struct OcspResponse OcspResponse;
+typedef struct OcspRequest OcspRequest;
+
+
+struct OcspRequest {
+    byte* serialNumber; /* not owned by us */
+    int serialSz;
+};
+
 
 struct OcspResponse {
     int     responseStatus;  /* return code from Responder */

@@ -388,6 +388,9 @@ int InitSSL_Ctx(CYASSL_CTX* ctx, CYASSL_METHOD* method)
     ctx->sendVerify = 0;
     ctx->quietShutdown = 0;
     ctx->groupMessages = 0;
+#ifdef HAVE_OCSP
+    CyaSSL_OCSP_Init(&ctx->ocsp);
+#endif
 
     if (InitMutex(&ctx->countMutex) < 0) {
         CYASSL_MSG("Mutex error on CTX init");
@@ -408,6 +411,10 @@ void SSL_CtxResourceFree(CYASSL_CTX* ctx)
     XFREE(ctx->method, ctx->heap, DYNAMIC_TYPE_METHOD);
 
     FreeSigners(ctx->caList, ctx->heap);
+
+#ifdef HAVE_OCSP
+    CyaSSL_OCSP_Cleanup(&ctx->ocsp);
+#endif
 }
 
 
@@ -1623,6 +1630,10 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx)
                 fatal = 1;
             }
         }
+
+#ifdef HAVE_OCSP
+        CyaSSL_OCSP_Lookup_Cert(&ssl->ctx->ocsp, &dCert);
+#endif
 
 #ifdef OPENSSL_EXTRA
         /* set X509 format for peer cert even if fatal */

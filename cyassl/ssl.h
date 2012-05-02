@@ -508,7 +508,7 @@ CYASSL_API void  CyaSSL_ERR_print_errors_fp(FILE*, int err);
 enum { /* ssl Constants */
     SSL_ERROR_NONE      =  0,   /* for most functions */
     SSL_FAILURE         =  0,   /* for some functions */
-    SSL_SUCCESS	        =  1,
+    SSL_SUCCESS         =  1,
 
     SSL_BAD_CERTTYPE    = -8,
     SSL_BAD_STAT        = -7,
@@ -794,6 +794,13 @@ CYASSL_API int CyaSSL_accept_ex(CYASSL*, HandShakeCallBack, TimeoutCallBack,
 #endif /* CYASSL_CALLBACKS */
 
 
+CYASSL_API long CyaSSL_CTX_OCSP_set_options(CYASSL_CTX*, long);
+CYASSL_API int  CyaSSL_CTX_OCSP_set_override_url(CYASSL_CTX*, const char*);
+
+/* OCSP Options */
+#define CYASSL_OCSP_ENABLE       0x0001 /* Enable OCSP lookups */
+#define CYASSL_OCSP_URL_OVERRIDE 0x0002 /* Use the override URL instead of URL
+                                         * in certificate */
 
 
 #ifdef __cplusplus

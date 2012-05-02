@@ -40,6 +40,9 @@
 #ifndef NO_SHA256
     #include <cyassl/ctaocrypt/sha256.h>
 #endif
+#ifdef HAVE_OCSP
+    #include <cyassl/ocsp.h>
+#endif
 
 #ifdef CYASSL_CALLBACKS
     #include <cyassl/openssl/cyassl_callbacks.h>
@@ -642,6 +645,9 @@ struct CYASSL_CTX {
     pem_password_cb passwd_cb;
     void*            userdata;
 #endif /* OPENSSL_EXTRA */
+#ifdef HAVE_OCSP
+    CYASSL_OCSP      ocsp;
+#endif
 };
 
 
