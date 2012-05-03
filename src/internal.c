@@ -5147,6 +5147,7 @@ int SetCipherList(Suites* s, const char* list)
                     ret = RsaSSL_Sign(signBuffer, signSz, output + idx, sigSz,
                                       &rsaKey, &ssl->rng);
                     FreeRsaKey(&rsaKey);
+                    ecc_free(&dsaKey);
                     if (ret > 0)
                         ret = 0;  /* reset on success */
                     else
@@ -5155,9 +5156,10 @@ int SetCipherList(Suites* s, const char* list)
                 else if (ssl->specs.sig_algo == ecc_dsa_sa_algo) {
                     word32 sz = sigSz;
 
-                    FreeRsaKey(&rsaKey);
                     ret = ecc_sign_hash(&hash[MD5_DIGEST_SIZE], SHA_DIGEST_SIZE,
                             output + idx, &sz, &ssl->rng, &dsaKey);
+                    FreeRsaKey(&rsaKey);
+                    ecc_free(&dsaKey);
                     if (ret < 0) return ret;
                 }
             }
