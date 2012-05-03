@@ -1599,7 +1599,7 @@ static int GetValidity(DecodedCert* cert, int verify)
 }
 
 
-static int DecodeToKey(DecodedCert* cert, int verify)
+int DecodeToKey(DecodedCert* cert, int verify)
 {
     int badDate = 0;
     int ret;

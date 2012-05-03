@@ -169,6 +169,8 @@ void c32to24(word32 in, word24 out);
         #define BUILD_TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA
         #define BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA
         #define BUILD_TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA
+
+        #define BUILD_TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA
     #endif
     #if !defined(NO_RC4)
         #define BUILD_TLS_ECDHE_RSA_WITH_RC4_128_SHA
@@ -234,6 +236,10 @@ enum {
     TLS_ECDHE_ECDSA_WITH_RC4_128_SHA      = 0x07,
     TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA   = 0x12,
     TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA = 0x08,
+
+        /* static ECDH, first byte is 0xC0 (ECC_BYTE) */
+    TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA  = 0x05,
+
 
     /* CyaSSL extension - eSTREAM */
     TLS_RSA_WITH_HC_128_CBC_MD5       = 0xFB,
@@ -620,7 +626,8 @@ struct CYASSL_CTX {
     byte        sendVerify;       /* for client side */
     byte        haveDH;           /* server DH parms set by user */
     byte        haveNTRU;         /* server private NTRU  key loaded */
-    byte        haveECDSA;        /* server private ECDSA key loaded */
+    byte        haveECDSA;        /* server cert signed w/ ECDSA loaded */
+    byte        haveStaticECC;    /* static server ECC private key */
     byte        partialWrite;     /* only one msg per write call */
     byte        quietShutdown;    /* don't send close notify */
     byte        groupMessages;    /* group handshake messages before sending */
@@ -671,6 +678,7 @@ typedef struct CipherSpecs {
     byte sig_algo;
     byte hash_size;
     byte pad_size;
+    byte static_ecdh;
     word16 key_size;
     word16 iv_size;
     word16 block_size;
@@ -933,7 +941,8 @@ typedef struct Options {
     byte            usingCompression;   /* are we using compression */
     byte            haveDH;             /* server DH parms set by user */
     byte            haveNTRU;           /* server NTRU  private key loaded */
-    byte            haveECDSA;          /* server ECDSA private key loaded */
+    byte            haveECDSA;          /* server ECDSA signed cert */
+    byte            haveStaticECC;      /* static server ECC private key */
     byte            havePeerCert;       /* do we have peer's cert */
     byte            usingPSK_cipher;    /* whether we're using psk as cipher */
     byte            sendAlertState;     /* nonblocking resume */ 

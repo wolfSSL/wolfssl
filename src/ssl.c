@@ -996,9 +996,36 @@ int AddCA(CYASSL_CTX* ctx, buffer der, int type)
                     return SSL_BAD_FILE;
                 }
                 ecc_free(&key);
-                ctx->haveECDSA = 1;
+                ctx->haveStaticECC = 1;
+                if (ssl)
+                    ssl->options.haveStaticECC = 1;
             }
 #endif /* HAVE_ECC */
+        }
+        else if (type == CERT_TYPE) {
+            int         ret;
+            DecodedCert cert;
+
+            CYASSL_MSG("Checking cert signature type");
+            InitDecodedCert(&cert, der.buffer, der.length, ctx->heap);
+
+            if ((ret = DecodeToKey(&cert, 0)) < 0) {
+                CYASSL_MSG("Decode to key failed");
+                return SSL_BAD_FILE; 
+            }            
+            switch (cert.signatureOID) {
+                case CTC_SHAwECDSA:
+                case CTC_SHA256wECDSA:
+                case CTC_SHA384wECDSA:
+                case CTC_SHA512wECDSA:
+                    CYASSL_MSG("ECDSA cert signature");
+                    ctx->haveECDSA = 1;
+                    if (ssl)
+                        ssl->options.haveECDSA = 1;
+                    break;
+            }
+
+            FreeDecodedCert(&cert);
         }
 
         return SSL_SUCCESS;
@@ -4365,6 +4392,9 @@ int CyaSSL_set_compression(CYASSL* ssl)
                     return "TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA";
                 case TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA :
                     return "TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA";
+
+                case TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA :
+                    return "TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA";
                 default:
                     return "NONE";
             }

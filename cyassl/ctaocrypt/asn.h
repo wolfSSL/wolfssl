@@ -267,6 +267,7 @@ CYASSL_TEST_API int  ParseCert(DecodedCert*, int type, int verify,
 
 CYASSL_LOCAL int ParseCertRelative(DecodedCert*, int type, int verify,
                                    Signer* signer);
+CYASSL_LOCAL int DecodeToKey(DecodedCert*, int verify);
 
 CYASSL_LOCAL word32 EncodeSignature(byte* out, const byte* digest, word32 digSz,
                                     int hashOID);
