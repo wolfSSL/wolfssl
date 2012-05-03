@@ -395,6 +395,7 @@ int CyaSSL_CTX_set_group_messages(CYASSL_CTX* ctx)
 }
 
 
+#ifndef NO_CYASSL_CLIENT
 /* connect enough to get peer cert chain */
 int CyaSSL_connect_cert(CYASSL* ssl)
 {
@@ -409,6 +410,7 @@ int CyaSSL_connect_cert(CYASSL* ssl)
 
     return ret;
 }
+#endif
 
 
 /* trun on handshake group messages for ssl object */
