@@ -227,7 +227,7 @@ int CyaSSL_SetTmpDH(CYASSL* ssl, const unsigned char* p, int pSz,
     #endif
     InitSuites(&ssl->suites, ssl->version, ssl->options.haveDH,
                havePSK, ssl->options.haveNTRU, ssl->options.haveECDSA,
-               ssl->ctx->method->side);
+               ssl->options.haveStaticECC, ssl->ctx->method->side);
 
     CYASSL_LEAVE("CyaSSL_SetTmpDH", 0);
     return 0;
@@ -1660,7 +1660,7 @@ int CyaSSL_set_cipher_list(CYASSL* ssl, const char* list)
 
         InitSuites(&ssl->suites, ssl->version, ssl->options.haveDH, havePSK,
                    ssl->options.haveNTRU, ssl->options.haveECDSA,
-                   ssl->ctx->method->side);
+                   ssl->options.haveStaticECC, ssl->ctx->method->side);
 
         return SSL_SUCCESS;
     }
@@ -2676,7 +2676,8 @@ int CyaSSL_set_compression(CYASSL* ssl)
         ssl->options.client_psk_cb = cb;
 
         InitSuites(&ssl->suites, ssl->version,TRUE,TRUE, ssl->options.haveNTRU,
-                   ssl->options.haveECDSA, ssl->ctx->method->side);
+                   ssl->options.haveECDSA, ssl->options.haveStaticECC,
+                   ssl->ctx->method->side);
     }
 
 
@@ -2697,7 +2698,7 @@ int CyaSSL_set_compression(CYASSL* ssl)
 
         InitSuites(&ssl->suites, ssl->version, ssl->options.haveDH, TRUE,
                    ssl->options.haveNTRU, ssl->options.haveECDSA,
-                   ssl->ctx->method->side);
+                   ssl->optoins.haveStaticECC, ssl->ctx->method->side);
     }
 
 
@@ -2931,7 +2932,7 @@ int CyaSSL_set_compression(CYASSL* ssl)
 #endif
         InitSuites(&ssl->suites, ssl->version, ssl->options.haveDH, havePSK,
                    ssl->options.haveNTRU, ssl->options.haveECDSA,
-                   ssl->ctx->method->side);
+                   ssl->options.haveStaticECC, ssl->ctx->method->side);
     }
 
    
@@ -4393,8 +4394,23 @@ int CyaSSL_set_compression(CYASSL* ssl)
                 case TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA :
                     return "TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA";
 
+                case TLS_ECDH_RSA_WITH_AES_128_CBC_SHA :
+                    return "TLS_ECDH_RSA_WITH_AES_128_CBC_SHA";
+                case TLS_ECDH_RSA_WITH_AES_256_CBC_SHA :
+                    return "TLS_ECDH_RSA_WITH_AES_256_CBC_SHA";
+                case TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA :
+                    return "TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA";
                 case TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA :
                     return "TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA";
+                case TLS_ECDH_RSA_WITH_RC4_128_SHA :
+                    return "TLS_ECDH_RSA_WITH_RC4_128_SHA";
+                case TLS_ECDH_ECDSA_WITH_RC4_128_SHA :
+                    return "TLS_ECDH_ECDSA_WITH_RC4_128_SHA";
+                case TLS_ECDH_RSA_WITH_3DES_EDE_CBC_SHA :
+                    return "TLS_ECDH_RSA_WITH_3DES_EDE_CBC_SHA";
+                case TLS_ECDH_ECDSA_WITH_3DES_EDE_CBC_SHA :
+                    return "TLS_ECDH_ECDSA_WITH_3DES_EDE_CBC_SHA";
+
                 default:
                     return "NONE";
             }

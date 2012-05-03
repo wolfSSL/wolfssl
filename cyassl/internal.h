@@ -170,15 +170,24 @@ void c32to24(word32 in, word24 out);
         #define BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA
         #define BUILD_TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA
 
+        #define BUILD_TLS_ECDH_RSA_WITH_AES_128_CBC_SHA
+        #define BUILD_TLS_ECDH_RSA_WITH_AES_256_CBC_SHA
+        #define BUILD_TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA
         #define BUILD_TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA
     #endif
     #if !defined(NO_RC4)
         #define BUILD_TLS_ECDHE_RSA_WITH_RC4_128_SHA
         #define BUILD_TLS_ECDHE_ECDSA_WITH_RC4_128_SHA
+
+        #define BUILD_TLS_ECDH_RSA_WITH_RC4_128_SHA
+        #define BUILD_TLS_ECDH_ECDSA_WITH_RC4_128_SHA
     #endif
     #if !defined(NO_DES3)
         #define BUILD_TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA
         #define BUILD_TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA
+
+        #define BUILD_TLS_ECDH_RSA_WITH_3DES_EDE_CBC_SHA
+        #define BUILD_TLS_ECDH_ECDSA_WITH_3DES_EDE_CBC_SHA
     #endif
 #endif
 
@@ -238,8 +247,14 @@ enum {
     TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA = 0x08,
 
         /* static ECDH, first byte is 0xC0 (ECC_BYTE) */
+    TLS_ECDH_RSA_WITH_AES_256_CBC_SHA    = 0x0F,
+    TLS_ECDH_RSA_WITH_AES_128_CBC_SHA    = 0x0E,
     TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA  = 0x05,
-
+    TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA  = 0x04,
+    TLS_ECDH_RSA_WITH_RC4_128_SHA        = 0x0C,
+    TLS_ECDH_ECDSA_WITH_RC4_128_SHA      = 0x02,
+    TLS_ECDH_RSA_WITH_3DES_EDE_CBC_SHA   = 0x0D,
+    TLS_ECDH_ECDSA_WITH_3DES_EDE_CBC_SHA = 0x03,
 
     /* CyaSSL extension - eSTREAM */
     TLS_RSA_WITH_HC_128_CBC_MD5       = 0xFB,
@@ -550,7 +565,7 @@ typedef struct Suites {
 
 
 CYASSL_LOCAL
-void InitSuites(Suites*, ProtocolVersion, byte, byte, byte, byte, int);
+void InitSuites(Suites*, ProtocolVersion, byte, byte, byte, byte, byte, int);
 CYASSL_LOCAL
 int  SetCipherList(Suites*, const char* list);
 
