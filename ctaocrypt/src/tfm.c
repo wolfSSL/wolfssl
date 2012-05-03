@@ -1800,6 +1800,15 @@ void fp_reverse (unsigned char *s, int len)
 }
 
 
+/* c = a - b */
+void fp_sub_d(fp_int *a, fp_digit b, fp_int *c)
+{
+   fp_int tmp;
+   fp_set(&tmp, b);
+   fp_sub(a, &tmp, c);
+}
+
+
 /* CyaSSL callers from normal lib */
 
 /* init a new mp_int */
@@ -1917,6 +1926,42 @@ int mp_read_unsigned_bin (mp_int * a, const unsigned char *b, int c)
 }
 
 
+int mp_sub_d(fp_int *a, fp_digit b, fp_int *c)
+{
+    fp_sub_d(a, b, c);
+    return MP_OKAY;
+}
+
+
+/* fast math conversion */
+int mp_copy(fp_int* a, fp_int* b)
+{
+    fp_copy(a, b);
+    return MP_OKAY;
+}
+
+
+/* fast math conversion */
+int mp_isodd(mp_int* a)
+{
+    return fp_isodd(a);
+}
+
+
+/* fast math conversion */
+int mp_iszero(mp_int* a)
+{
+    return fp_iszero(a);
+}
+
+
+/* fast math conversion */
+int mp_count_bits (mp_int* a)
+{
+    return fp_count_bits(a);
+}
+
+
 #if defined(CYASSL_KEY_GEN) || defined (HAVE_ECC)
 
 /* c = a * a (mod b) */
@@ -1941,14 +1986,6 @@ int mp_montgomery_calc_normalization(mp_int *a, mp_int *b)
     return MP_OKAY;
 }
 
-/* fast math conversion */
-int mp_copy(fp_int* a, fp_int* b)
-{
-    fp_copy(a, b);
-    return MP_OKAY;
-}
-
-
 #endif /* CYASSL_KEYGEN || HAVE_ECC */
 
 
@@ -1956,7 +1993,6 @@ int mp_copy(fp_int* a, fp_int* b)
 
 void fp_gcd(fp_int *a, fp_int *b, fp_int *c);
 void fp_lcm(fp_int *a, fp_int *b, fp_int *c);
-void fp_sub_d(fp_int *a, fp_digit b, fp_int *c);
 int  fp_isprime(fp_int *a);
 int  fp_cnt_lsb(fp_int *a);
 
@@ -1982,13 +2018,6 @@ int mp_lcm(fp_int *a, fp_int *b, fp_int *c)
 }
 
 
-int mp_sub_d(fp_int *a, fp_digit b, fp_int *c)
-{
-    fp_sub_d(a, b, c);
-    return MP_OKAY;
-}
-
-
 int mp_prime_is_prime(mp_int* a, int t, int* result)
 {
     (void)t;
@@ -1996,15 +2025,6 @@ int mp_prime_is_prime(mp_int* a, int t, int* result)
     return MP_OKAY;
 }
 
-
-
-/* c = a - b */
-void fp_sub_d(fp_int *a, fp_digit b, fp_int *c)
-{
-   fp_int tmp;
-   fp_set(&tmp, b);
-   fp_sub(a, &tmp, c);
-}
 
 
 static int s_is_power_of_two(fp_digit b, int *p)
@@ -2409,12 +2429,6 @@ int mp_read_radix(mp_int *a, const char *str, int radix)
 }
 
 /* fast math conversion */
-int mp_iszero(mp_int* a)
-{
-    return fp_iszero(a);
-}
-
-/* fast math conversion */
 int mp_set(fp_int *a, fp_digit b)
 {
     fp_set(a,b);
@@ -2441,13 +2455,6 @@ int mp_montgomery_setup(fp_int *a, fp_digit *rho)
 {
     return fp_montgomery_setup(a, rho);
 }
-
-/* fast math conversion */
-int mp_isodd(mp_int* a)
-{
-    return fp_isodd(a);
-}
-
 
 int mp_div_2(fp_int * a, fp_int * b)
 {

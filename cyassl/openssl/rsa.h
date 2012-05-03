@@ -27,6 +27,8 @@ struct CYASSL_RSA {
 	CYASSL_BIGNUM* dmq1;      /* dQ */
 	CYASSL_BIGNUM* iqmp;      /* u */
     void*          internal;  /* our RSA */
+    char           inSet;     /* internal set from external ? */
+    char           exSet;     /* external set from internal ? */
 };
 
 
