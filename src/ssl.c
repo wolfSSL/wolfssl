@@ -362,6 +362,45 @@ void CyaSSL_ERR_error_string_n(unsigned long e, char* buf, unsigned long len)
 }
 
 
+CYASSL_CERT_MANAGER* CyaSSL_CertManagerNew(void)
+{
+    CYASSL_CERT_MANAGER* cm = NULL;
+
+    CYASSL_ENTER("CyaSSL_CertManagerNew");
+
+    cm = (CYASSL_CERT_MANAGER*) XMALLOC(sizeof(CYASSL_CERT_MANAGER), 0,
+                                        DYNAMIC_TYPE_CERT_MANAGER);
+    if (cm) {
+        cm->caList          = NULL;
+        cm->heap            = NULL;
+        cm->caCacheCallback = NULL;
+
+        if (InitMutex(&cm->caLock) != 0) {
+            CYASSL_MSG("Bad mutex init");
+            CyaSSL_CertManagerFree(cm);
+            return NULL;
+        }
+    }
+
+    return cm;
+}
+
+
+void CyaSSL_CertManagerFree(CYASSL_CERT_MANAGER* cm)
+{
+    CYASSL_ENTER("CyaSSL_CertManagerFree");
+
+    if (cm) {
+        FreeSigners(cm->caList, NULL);
+        FreeMutex(&cm->caLock);
+        XFREE(cm, NULL, DYNAMIC_TYPE_CERT_MANAGER);
+    }
+
+}
+
+
+
+
 #ifndef NO_FILESYSTEM
 
 void CyaSSL_ERR_print_errors_fp(FILE* fp, int err)
@@ -423,17 +462,15 @@ int CyaSSL_set_group_messages(CYASSL* ssl)
 }
 
 
-static CyaSSL_Mutex ca_mutex;   /* CA signers mutex */
-
 /* does CA already exist on signer list */
-int AlreadySigner(CYASSL_CTX* ctx, byte* hash)
+int AlreadySigner(CYASSL_CERT_MANAGER* cm, byte* hash)
 {
     Signer* signers;
     int     ret = 0;
 
-    if (LockMutex(&ca_mutex) != 0)
+    if (LockMutex(&cm->caLock) != 0)
         return  ret;
-    signers = ctx->caList;
+    signers = cm->caList;
     while (signers) {
         if (XMEMCMP(hash, signers->hash, SHA_DIGEST_SIZE) == 0) {
             ret = 1;
@@ -441,18 +478,25 @@ int AlreadySigner(CYASSL_CTX* ctx, byte* hash)
         }
         signers = signers->next;
     }
-    UnLockMutex(&ca_mutex);
+    UnLockMutex(&cm->caLock);
 
     return ret;
 }
 
 
 /* return CA if found, otherwise NULL */
-Signer* GetCA(Signer* signers, byte* hash)
+Signer* GetCA(void* vp, byte* hash)
 {
-    Signer* ret = 0;
+    CYASSL_CERT_MANAGER* cm = (CYASSL_CERT_MANAGER*)vp;
+    Signer* ret = NULL;
+    Signer* signers;
 
-    if (LockMutex(&ca_mutex) != 0)
+    if (cm == NULL)
+        return NULL;
+
+    signers = cm->caList;
+
+    if (LockMutex(&cm->caLock) != 0)
         return ret;
     while (signers) {
         if (XMEMCMP(hash, signers->hash, SHA_DIGEST_SIZE) == 0) {
@@ -461,7 +505,7 @@ Signer* GetCA(Signer* signers, byte* hash)
         }
         signers = signers->next;
     }
-    UnLockMutex(&ca_mutex);
+    UnLockMutex(&cm->caLock);
 
     return ret;
 }
@@ -470,28 +514,28 @@ Signer* GetCA(Signer* signers, byte* hash)
 /* owns der, internal now uses too */
 /* type flag ids from user or from chain received during verify
    don't allow chain ones to be added w/o isCA extension */
-int AddCA(CYASSL_CTX* ctx, buffer der, int type)
+int AddCA(CYASSL_CERT_MANAGER* cm, buffer der, int type, int verify)
 {
     int         ret;
     DecodedCert cert;
     Signer*     signer = 0;
 
     CYASSL_MSG("Adding a CA");
-    InitDecodedCert(&cert, der.buffer, der.length, ctx->heap);
-    ret = ParseCert(&cert, CA_TYPE, ctx->verifyPeer, 0);
+    InitDecodedCert(&cert, der.buffer, der.length, cm->heap);
+    ret = ParseCert(&cert, CA_TYPE, verify, cm);
     CYASSL_MSG("    Parsed new CA");
 
     if (ret == 0 && cert.isCA == 0 && type != CYASSL_USER_CA) {
         CYASSL_MSG("    Can't add as CA if not actually one");
         ret = NOT_CA_ERROR;
     }
-    else if (ret == 0 && AlreadySigner(ctx, cert.subjectHash)) {
+    else if (ret == 0 && AlreadySigner(cm, cert.subjectHash)) {
         CYASSL_MSG("    Already have this CA, not adding again");
         (void)ret;
     } 
     else if (ret == 0) {
         /* take over signer parts */
-        signer = MakeSigner(ctx->heap);
+        signer = MakeSigner(cm->heap);
         if (!signer)
             ret = MEMORY_ERROR;
         else {
@@ -505,17 +549,17 @@ int AddCA(CYASSL_CTX* ctx, buffer der, int type)
             cert.publicKey = 0;  /* don't free here */
             cert.subjectCN = 0;
 
-            if (LockMutex(&ca_mutex) == 0) {
-                signer->next = ctx->caList;
-                ctx->caList  = signer;   /* takes ownership */
-                UnLockMutex(&ca_mutex);
-                if (ctx->caCacheCallback)
-                    ctx->caCacheCallback(der.buffer, (int)der.length, type);
+            if (LockMutex(&cm->caLock) == 0) {
+                signer->next = cm->caList;
+                cm->caList  = signer;   /* takes ownership */
+                UnLockMutex(&cm->caLock);
+                if (cm->caCacheCallback)
+                    cm->caCacheCallback(der.buffer, (int)der.length, type);
             }
             else {
                 CYASSL_MSG("    CA Mutex Lock failed");
                 ret = BAD_MUTEX_ERROR;
-                FreeSigners(signer, ctx->heap);
+                FreeSigners(signer, cm->heap);
             }
         }
     }
@@ -932,7 +976,8 @@ int AddCA(CYASSL_CTX* ctx, buffer der, int type)
 #endif /* OPENSSL_EXTRA || HAVE_WEBSERVER */
 
         if (type == CA_TYPE)
-            return AddCA(ctx, der, CYASSL_USER_CA);  /* takes der over */
+            return AddCA(ctx->cm, der, CYASSL_USER_CA, ctx->verifyPeer);
+                                                          /* takes der over */
         else if (type == CERT_TYPE) {
             if (ssl) {
                 if (ssl->buffers.weOwnCert && ssl->buffers.certificate.buffer)
@@ -1196,6 +1241,105 @@ int CyaSSL_CTX_load_verify_locations(CYASSL_CTX* ctx, const char* file,
         closedir(dir);
     #endif
     }
+
+    return ret;
+}
+
+
+/* Verify the ceritficate, 1 for success, < 0 for error */
+int CyaSSL_CertManagerVerify(CYASSL_CERT_MANAGER* cm, const char* fname,
+                             int format)
+{
+    int           ret = SSL_FATAL_ERROR;
+    int           eccKey = 0;  /* not used */
+    DecodedCert   cert;
+
+    byte   staticBuffer[FILE_BUFFER_SIZE];
+    byte*  myBuffer = staticBuffer;
+    int    dynamic = 0;
+    long   sz = 0;
+    buffer der;
+    XFILE* file = XFOPEN(fname, "rb"); 
+
+    if (!file) return SSL_BAD_FILE;
+    XFSEEK(file, 0, XSEEK_END);
+    sz = XFTELL(file);
+    XREWIND(file);
+
+    der.buffer = NULL;
+
+    if (sz > (long)sizeof(staticBuffer)) {
+        CYASSL_MSG("Getting dynamic buffer");
+        myBuffer = (byte*) XMALLOC(sz, cm->heap, DYNAMIC_TYPE_FILE);
+        if (myBuffer == NULL) {
+            XFCLOSE(file);
+            return SSL_BAD_FILE;
+        }
+        dynamic = 1;
+    }
+
+    if ( (ret = XFREAD(myBuffer, sz, 1, file)) < 0)
+        ret = SSL_BAD_FILE;
+    else {
+        ret = 0;  /* ok */
+        if (format == SSL_FILETYPE_PEM) { 
+            EncryptedInfo info;
+            
+            info.set       = 0;
+            info.ctx      = NULL;
+            info.consumed = 0;
+            ret = PemToDer(myBuffer, sz, CERT_TYPE, &der, cm->heap, &info,
+                           &eccKey);
+            InitDecodedCert(&cert, der.buffer, der.length, cm->heap);
+
+        }
+        else
+            InitDecodedCert(&cert, myBuffer, sz, cm->heap);
+
+        if (ret == 0)
+            ret = ParseCertRelative(&cert, CERT_TYPE, 1, cm);
+    }
+
+    FreeDecodedCert(&cert);
+    XFREE(der.buffer, cm->heap, DYNAMIC_TYPE_CERT);
+    XFCLOSE(file);
+    if (dynamic) XFREE(myBuffer, ctx->heap, DYNAMIC_TYPE_FILE);
+
+    if (ret == 0)
+        return SSL_SUCCESS;
+    return ret;
+}
+
+
+/* like load verify locations, 1 for success, < 0 for error */
+int CyaSSL_CertManagerLoadCA(CYASSL_CERT_MANAGER* cm, const char* file,
+                             const char* path)
+{
+    int ret = SSL_FATAL_ERROR;
+    CYASSL_CTX* tmp;
+
+    CYASSL_ENTER("CyaSSL_CertManagerLoadCA");
+
+    if (cm == NULL) {
+        CYASSL_MSG("No CertManager error");
+        return ret;
+    }
+    tmp = CyaSSL_CTX_new(CyaSSLv3_client_method());
+
+    if (tmp == NULL) {
+        CYASSL_MSG("CTX new failed");
+        return ret;
+    }
+
+    /* for tmp use */
+    CyaSSL_CertManagerFree(tmp->cm);
+    tmp->cm = cm;
+
+    ret = CyaSSL_CTX_load_verify_locations(tmp, file, path);
+
+    /* don't loose our good one */
+    tmp->cm = NULL;
+    CyaSSL_CTX_free(tmp);
 
     return ret;
 }
@@ -1580,8 +1724,8 @@ void CyaSSL_set_verify(CYASSL* ssl, int mode, VerifyCallback vc)
 /* store context CA Cache addition callback */
 void CyaSSL_CTX_SetCACb(CYASSL_CTX* ctx, CallbackCACache cb)
 {
-    if (ctx && cb)
-        ctx->caCacheCallback = cb;
+    if (ctx && ctx->cm)
+        ctx->cm->caCacheCallback = cb;
 }
 
 
@@ -2126,6 +2270,7 @@ int CyaSSL_set_cipher_list(CYASSL* ssl, const char* list)
 
 /* prevent multiple mutex initializations */
 static volatile int initRefCount = 0;
+static CyaSSL_Mutex count_mutex;   /* init ref count mutex */
 
 int CyaSSL_Init(void)
 {
@@ -2138,13 +2283,13 @@ int CyaSSL_Init(void)
         if (InitMutex(&session_mutex) != 0)
             ret = BAD_MUTEX_ERROR;
 #endif
-        if (InitMutex(&ca_mutex) != 0)
+        if (InitMutex(&count_mutex) != 0)
             ret = BAD_MUTEX_ERROR;
     }
     if (ret == 0) {
-        LockMutex(&ca_mutex);
+        LockMutex(&count_mutex);
         initRefCount++;
-        UnLockMutex(&ca_mutex);
+        UnLockMutex(&count_mutex);
     }
 
     return ret;
@@ -2158,13 +2303,13 @@ int CyaSSL_Cleanup(void)
 
     CYASSL_ENTER("CyaSSL_Cleanup");
 
-    LockMutex(&ca_mutex);
+    LockMutex(&count_mutex);
 
     release = initRefCount-- == 1;
     if (initRefCount < 0)
         initRefCount = 0;
 
-    UnLockMutex(&ca_mutex);
+    UnLockMutex(&count_mutex);
 
     if (!release)
         return ret;
@@ -2173,7 +2318,7 @@ int CyaSSL_Cleanup(void)
     if (FreeMutex(&session_mutex) != 0)
         ret = BAD_MUTEX_ERROR;
 #endif
-    if (FreeMutex(&ca_mutex) != 0)
+    if (FreeMutex(&count_mutex) != 0)
         ret = BAD_MUTEX_ERROR;
 
     return ret;

@@ -619,6 +619,15 @@ CYASSL_LOCAL int LockMutex(CyaSSL_Mutex*);
 CYASSL_LOCAL int UnLockMutex(CyaSSL_Mutex*);
 
 
+/* CyaSSL Certificate Manager */
+struct CYASSL_CERT_MANAGER {
+    Signer*         caList;             /* the CA signer list */
+    CyaSSL_Mutex    caLock;             /* CA list lock */
+    CallbackCACache caCacheCallback;    /* CA cache addition callback */
+    void*           heap;               /* heap helper */
+};
+
+
 /* CyaSSL context type */
 struct CYASSL_CTX {
     CYASSL_METHOD* method;
@@ -630,7 +639,7 @@ struct CYASSL_CTX {
     buffer      privateKey;
     buffer      serverDH_P;
     buffer      serverDH_G;
-    Signer*     caList;           /* CYASSL_CTX owns this, SSL will reference */
+    CYASSL_CERT_MANAGER* cm;      /* our cert manager, ctx owns SSL will use */
     Suites      suites;
     void*       heap;             /* for user memory overrides */
     byte        verifyPeer;
@@ -648,7 +657,6 @@ struct CYASSL_CTX {
     byte        groupMessages;    /* group handshake messages before sending */
     CallbackIORecv CBIORecv;
     CallbackIOSend CBIOSend;
-    CallbackCACache caCacheCallback;    /* CA cache addition callback */
     VerifyCallback  verifyCallback;     /* cert verification callback */
     word32          timeout;            /* session timeout */
 #ifdef HAVE_ECC
@@ -680,9 +688,9 @@ CYASSL_LOCAL
 int ProcessOldClientHello(CYASSL* ssl, const byte* input, word32* inOutIdx,
                           word32 inSz, word16 sz);
 CYASSL_LOCAL
-int AddCA(CYASSL_CTX* ctx, buffer der, int force);
+int AddCA(CYASSL_CERT_MANAGER* ctx, buffer der, int type, int verify);
 CYASSL_LOCAL
-int AlreadySigner(CYASSL_CTX* ctx, byte* hash);
+int AlreadySigner(CYASSL_CERT_MANAGER* cm, byte* hash);
 
 /* All cipher suite related info */
 typedef struct CipherSpecs {
@@ -1257,7 +1265,7 @@ CYASSL_LOCAL int IsAtLeastTLSv1_2(const CYASSL* ssl);
 CYASSL_LOCAL void ShrinkInputBuffer(CYASSL* ssl, int forcedFree);
 CYASSL_LOCAL void ShrinkOutputBuffer(CYASSL* ssl);
 CYASSL_LOCAL int SendHelloVerifyRequest(CYASSL* ssl);
-CYASSL_LOCAL Signer* GetCA(Signer* signers, byte* hash);
+CYASSL_LOCAL Signer* GetCA(void* cm, byte* hash);
 CYASSL_LOCAL void BuildTlsFinished(CYASSL* ssl, Hashes* hashes,
                                    const byte* sender);
 #ifndef NO_TLS

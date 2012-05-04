@@ -91,11 +91,12 @@ enum CyaSSL_ErrorCodes {
     BAD_MUTEX_ERROR        = -256,            /* Bad mutex */
     NOT_CA_ERROR           = -257,            /* Not a CA cert error */
     BAD_PATH_ERROR         = -258,            /* Bad path for opendir */
+    BAD_CERT_MANAGER_ERROR = -259,            /* Bad Cert Manager */
     /* add strings to SetErrorString !!!!! */
 
     /* begin negotiation parameter errors */
-    UNSUPPORTED_SUITE      = -260,            /* unsupported cipher suite */
-    MATCH_SUITE_ERROR      = -261             /* can't match cipher suite */
+    UNSUPPORTED_SUITE      = -270,            /* unsupported cipher suite */
+    MATCH_SUITE_ERROR      = -271             /* can't match cipher suite */
     /* end negotiation parameter errors only 10 for now */
     /* add strings to SetErrorString !!!!! */
 };

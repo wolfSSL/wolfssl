@@ -65,6 +65,7 @@ typedef struct CYASSL_X509       CYASSL_X509;
 typedef struct CYASSL_X509_NAME  CYASSL_X509_NAME;
 typedef struct CYASSL_X509_CHAIN CYASSL_X509_CHAIN;
 
+typedef struct CYASSL_CERT_MANAGER CYASSL_CERT_MANAGER;
 
 /* redeclare guard */
 #define CYASSL_TYPES_DEFINED
@@ -775,6 +776,14 @@ typedef void (*CallbackCACache)(unsigned char* der, int sz, int type);
 
 CYASSL_API void CyaSSL_CTX_SetCACb(CYASSL_CTX*, CallbackCACache);
 
+
+CYASSL_API CYASSL_CERT_MANAGER* CyaSSL_CertManagerNew(void);
+CYASSL_API void                 CyaSSL_CertManagerFree(CYASSL_CERT_MANAGER*);
+
+CYASSL_API int CyaSSL_CertManagerLoadCA(CYASSL_CERT_MANAGER*, const char* f,
+                                        const char* d);
+CYASSL_API int CyaSSL_CertManagerVerify(CYASSL_CERT_MANAGER*, const char* f,
+                                        int format);
 
 #ifdef CYASSL_CALLBACKS
 

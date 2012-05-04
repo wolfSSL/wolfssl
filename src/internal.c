@@ -364,9 +364,8 @@ int InitSSL_Ctx(CYASSL_CTX* ctx, CYASSL_METHOD* method)
 #endif
     ctx->partialWrite   = 0;
     ctx->verifyCallback = 0;
-    ctx->caCacheCallback = 0;
 
-    ctx->caList = 0;
+    ctx->cm = CyaSSL_CertManagerNew();
 #ifdef HAVE_NTRU
     if (method->side == CLIENT_END)
         ctx->haveNTRU = 1;           /* always on cliet side */
@@ -395,6 +394,10 @@ int InitSSL_Ctx(CYASSL_CTX* ctx, CYASSL_METHOD* method)
         CYASSL_MSG("Mutex error on CTX init");
         return BAD_MUTEX_ERROR;
     } 
+    if (ctx->cm == NULL) {
+        CYASSL_MSG("Bad Cert Manager New");
+        return BAD_CERT_MANAGER_ERROR;
+    }
     return 0;
 }
 
@@ -409,7 +412,7 @@ void SSL_CtxResourceFree(CYASSL_CTX* ctx)
     XFREE(ctx->certChain.buffer, ctx->heap, DYNAMIC_TYPE_CERT);
     XFREE(ctx->method, ctx->heap, DYNAMIC_TYPE_METHOD);
 
-    FreeSigners(ctx->caList, ctx->heap);
+    CyaSSL_CertManagerFree(ctx->cm);
 }
 
 
@@ -858,7 +861,7 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
     ssl->options.certOnly = 0;
     ssl->options.groupMessages = ctx->groupMessages;
 
-    /* ctx still owns certificate, certChain, key, dh, and caList buffers */
+    /* ctx still owns certificate, certChain, key, dh, and cm */
     ssl->buffers.certificate = ctx->certificate;
     ssl->buffers.certChain = ctx->certChain;
     ssl->buffers.key = ctx->privateKey;
@@ -1613,7 +1616,7 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx)
 
         InitDecodedCert(&dCert, myCert.buffer, myCert.length, ssl->heap);
         ret = ParseCertRelative(&dCert, CERT_TYPE, !ssl->options.verifyNone,
-                                ssl->ctx->caList);
+                                ssl->ctx->cm);
         if (ret == 0 && dCert.isCA == 0) {
             CYASSL_MSG("Chain cert is not a CA, not adding as one");
             (void)ret;
@@ -1622,7 +1625,7 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx)
             CYASSL_MSG("Chain cert not verified by option, not adding as CA");
             (void)ret;
         }
-        else if (ret == 0 && !AlreadySigner(ssl->ctx, dCert.subjectHash)) {
+        else if (ret == 0 && !AlreadySigner(ssl->ctx->cm, dCert.subjectHash)) {
             buffer add;
             add.length = myCert.length;
             add.buffer = (byte*)XMALLOC(myCert.length, ssl->heap,
@@ -1633,7 +1636,8 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx)
                 return MEMORY_E;
             XMEMCPY(add.buffer, myCert.buffer, myCert.length);
 
-            ret = AddCA(ssl->ctx, add, CYASSL_CHAIN_CA);
+            ret = AddCA(ssl->ctx->cm, add, CYASSL_CHAIN_CA,
+                        ssl->ctx->verifyPeer);
             if (ret == 1) ret = 0;   /* SSL_SUCCESS for external */
         }
         else if (ret != 0) {
@@ -1662,7 +1666,7 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx)
 
         InitDecodedCert(&dCert, myCert.buffer, myCert.length, ssl->heap);
         ret = ParseCertRelative(&dCert, CERT_TYPE, !ssl->options.verifyNone,
-                                ssl->ctx->caList);
+                                ssl->ctx->cm);
         if (ret == 0) {
             CYASSL_MSG("Verified Peer's cert");
             fatal = 0;
@@ -3480,6 +3484,10 @@ void SetErrorString(int error, char* str)
 
     case BAD_PATH_ERROR:
         XSTRNCPY(str, "Bad path for opendir error", max);
+        break;
+
+    case BAD_CERT_MANAGER_ERROR:
+        XSTRNCPY(str, "Bad Cert Manager error", max);
         break;
 
     default :
