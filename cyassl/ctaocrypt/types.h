@@ -200,7 +200,8 @@ enum {
     DYNAMIC_TYPE_SSL        = 17,
     DYNAMIC_TYPE_CTX        = 18,
     DYNAMIC_TYPE_WRITEV     = 19,
-    DYNAMIC_TYPE_OPENSSL    = 20 
+    DYNAMIC_TYPE_OPENSSL    = 20,
+    DYNAMIC_TYPE_CERT_MANAGER = 21 
 };
 
 /* stack protection */

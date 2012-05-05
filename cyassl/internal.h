@@ -172,14 +172,25 @@ void c32to24(word32 in, word24 out);
         #define BUILD_TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA
         #define BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA
         #define BUILD_TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA
+
+        #define BUILD_TLS_ECDH_RSA_WITH_AES_128_CBC_SHA
+        #define BUILD_TLS_ECDH_RSA_WITH_AES_256_CBC_SHA
+        #define BUILD_TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA
+        #define BUILD_TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA
     #endif
     #if !defined(NO_RC4)
         #define BUILD_TLS_ECDHE_RSA_WITH_RC4_128_SHA
         #define BUILD_TLS_ECDHE_ECDSA_WITH_RC4_128_SHA
+
+        #define BUILD_TLS_ECDH_RSA_WITH_RC4_128_SHA
+        #define BUILD_TLS_ECDH_ECDSA_WITH_RC4_128_SHA
     #endif
     #if !defined(NO_DES3)
         #define BUILD_TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA
         #define BUILD_TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA
+
+        #define BUILD_TLS_ECDH_RSA_WITH_3DES_EDE_CBC_SHA
+        #define BUILD_TLS_ECDH_ECDSA_WITH_3DES_EDE_CBC_SHA
     #endif
 #endif
 
@@ -237,6 +248,16 @@ enum {
     TLS_ECDHE_ECDSA_WITH_RC4_128_SHA      = 0x07,
     TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA   = 0x12,
     TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA = 0x08,
+
+        /* static ECDH, first byte is 0xC0 (ECC_BYTE) */
+    TLS_ECDH_RSA_WITH_AES_256_CBC_SHA    = 0x0F,
+    TLS_ECDH_RSA_WITH_AES_128_CBC_SHA    = 0x0E,
+    TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA  = 0x05,
+    TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA  = 0x04,
+    TLS_ECDH_RSA_WITH_RC4_128_SHA        = 0x0C,
+    TLS_ECDH_ECDSA_WITH_RC4_128_SHA      = 0x02,
+    TLS_ECDH_RSA_WITH_3DES_EDE_CBC_SHA   = 0x0D,
+    TLS_ECDH_ECDSA_WITH_3DES_EDE_CBC_SHA = 0x03,
 
     /* CyaSSL extension - eSTREAM */
     TLS_RSA_WITH_HC_128_CBC_MD5       = 0xFB,
@@ -547,7 +568,7 @@ typedef struct Suites {
 
 
 CYASSL_LOCAL
-void InitSuites(Suites*, ProtocolVersion, byte, byte, byte, byte, int);
+void InitSuites(Suites*, ProtocolVersion, byte, byte, byte, byte, byte, int);
 CYASSL_LOCAL
 int  SetCipherList(Suites*, const char* list);
 
@@ -601,6 +622,15 @@ CYASSL_LOCAL int LockMutex(CyaSSL_Mutex*);
 CYASSL_LOCAL int UnLockMutex(CyaSSL_Mutex*);
 
 
+/* CyaSSL Certificate Manager */
+struct CYASSL_CERT_MANAGER {
+    Signer*         caList;             /* the CA signer list */
+    CyaSSL_Mutex    caLock;             /* CA list lock */
+    CallbackCACache caCacheCallback;    /* CA cache addition callback */
+    void*           heap;               /* heap helper */
+};
+
+
 /* CyaSSL context type */
 struct CYASSL_CTX {
     CYASSL_METHOD* method;
@@ -612,7 +642,7 @@ struct CYASSL_CTX {
     buffer      privateKey;
     buffer      serverDH_P;
     buffer      serverDH_G;
-    Signer*     caList;           /* CYASSL_CTX owns this, SSL will reference */
+    CYASSL_CERT_MANAGER* cm;      /* our cert manager, ctx owns SSL will use */
     Suites      suites;
     void*       heap;             /* for user memory overrides */
     byte        verifyPeer;
@@ -623,13 +653,13 @@ struct CYASSL_CTX {
     byte        sendVerify;       /* for client side */
     byte        haveDH;           /* server DH parms set by user */
     byte        haveNTRU;         /* server private NTRU  key loaded */
-    byte        haveECDSA;        /* server private ECDSA key loaded */
+    byte        haveECDSA;        /* server cert signed w/ ECDSA loaded */
+    byte        haveStaticECC;    /* static server ECC private key */
     byte        partialWrite;     /* only one msg per write call */
     byte        quietShutdown;    /* don't send close notify */
     byte        groupMessages;    /* group handshake messages before sending */
     CallbackIORecv CBIORecv;
     CallbackIOSend CBIOSend;
-    CallbackCACache caCacheCallback;    /* CA cache addition callback */
     VerifyCallback  verifyCallback;     /* cert verification callback */
     word32          timeout;            /* session timeout */
 #ifdef HAVE_ECC
@@ -664,9 +694,9 @@ CYASSL_LOCAL
 int ProcessOldClientHello(CYASSL* ssl, const byte* input, word32* inOutIdx,
                           word32 inSz, word16 sz);
 CYASSL_LOCAL
-int AddCA(CYASSL_CTX* ctx, buffer der, int force);
+int AddCA(CYASSL_CERT_MANAGER* ctx, buffer der, int type, int verify);
 CYASSL_LOCAL
-int AlreadySigner(CYASSL_CTX* ctx, byte* hash);
+int AlreadySigner(CYASSL_CERT_MANAGER* cm, byte* hash);
 
 /* All cipher suite related info */
 typedef struct CipherSpecs {
@@ -677,6 +707,7 @@ typedef struct CipherSpecs {
     byte sig_algo;
     byte hash_size;
     byte pad_size;
+    byte static_ecdh;
     word16 key_size;
     word16 iv_size;
     word16 block_size;
@@ -939,7 +970,8 @@ typedef struct Options {
     byte            usingCompression;   /* are we using compression */
     byte            haveDH;             /* server DH parms set by user */
     byte            haveNTRU;           /* server NTRU  private key loaded */
-    byte            haveECDSA;          /* server ECDSA private key loaded */
+    byte            haveECDSA;          /* server ECDSA signed cert */
+    byte            haveStaticECC;      /* static server ECC private key */
     byte            havePeerCert;       /* do we have peer's cert */
     byte            usingPSK_cipher;    /* whether we're using psk as cipher */
     byte            sendAlertState;     /* nonblocking resume */ 
@@ -1239,7 +1271,7 @@ CYASSL_LOCAL int IsAtLeastTLSv1_2(const CYASSL* ssl);
 CYASSL_LOCAL void ShrinkInputBuffer(CYASSL* ssl, int forcedFree);
 CYASSL_LOCAL void ShrinkOutputBuffer(CYASSL* ssl);
 CYASSL_LOCAL int SendHelloVerifyRequest(CYASSL* ssl);
-CYASSL_LOCAL Signer* GetCA(Signer* signers, byte* hash);
+CYASSL_LOCAL Signer* GetCA(void* cm, byte* hash);
 CYASSL_LOCAL void BuildTlsFinished(CYASSL* ssl, Hashes* hashes,
                                    const byte* sender);
 #ifndef NO_TLS

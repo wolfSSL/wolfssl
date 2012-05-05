@@ -263,11 +263,10 @@ struct Signer {
 
 CYASSL_TEST_API void InitDecodedCert(DecodedCert*, byte*, word32, void*);
 CYASSL_TEST_API void FreeDecodedCert(DecodedCert*);
-CYASSL_TEST_API int  ParseCert(DecodedCert*, int type, int verify,
-                               Signer* signer);
+CYASSL_TEST_API int  ParseCert(DecodedCert*, int type, int verify, void* cm);
 
-CYASSL_LOCAL int ParseCertRelative(DecodedCert*, int type, int verify,
-                                   Signer* signer);
+CYASSL_LOCAL int ParseCertRelative(DecodedCert*, int type, int verify,void* cm);
+CYASSL_LOCAL int DecodeToKey(DecodedCert*, int verify);
 
 CYASSL_LOCAL word32 EncodeSignature(byte* out, const byte* digest, word32 digSz,
                                     int hashOID);

@@ -1599,7 +1599,7 @@ static int GetValidity(DecodedCert* cert, int verify)
 }
 
 
-static int DecodeToKey(DecodedCert* cert, int verify)
+int DecodeToKey(DecodedCert* cert, int verify)
 {
     int badDate = 0;
     int ret;
@@ -2017,13 +2017,12 @@ static int ConfirmSignature(DecodedCert* cert, const byte* key, word32 keySz,
 }
 
 
-int ParseCert(DecodedCert* cert, int type, int verify,
-              Signer* signers)
+int ParseCert(DecodedCert* cert, int type, int verify, void* cm)
 {
     int   ret;
     char* ptr;
 
-    ret = ParseCertRelative(cert, type, verify, signers);
+    ret = ParseCertRelative(cert, type, verify, cm);
     if (ret < 0)
         return ret;
 
@@ -2144,8 +2143,7 @@ static void IsCa(DecodedCert* cert)
 #endif
 
 
-int ParseCertRelative(DecodedCert* cert, int type, int verify,
-              Signer* signers)
+int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
 {
     word32 confirmOID;
     int    ret;
@@ -2181,7 +2179,7 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify,
         return ASN_SIG_OID_E;
 
     if (verify && type != CA_TYPE) {
-        Signer* ca = GetCA(signers, cert->issuerHash);
+        Signer* ca = GetCA(cm, cert->issuerHash);
         CYASSL_MSG("About to verify certificate signature");
  
         if (ca) {

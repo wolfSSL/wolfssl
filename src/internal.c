@@ -335,6 +335,7 @@ int InitSSL_Ctx(CYASSL_CTX* ctx, CYASSL_METHOD* method)
     ctx->haveDH             = 0;
     ctx->haveNTRU           = 0;    /* start off */
     ctx->haveECDSA          = 0;    /* start off */
+    ctx->haveStaticECC      = 0;    /* start off */
     ctx->heap               = ctx;  /* defaults to self */
 #ifndef NO_PSK
     ctx->havePSK            = 0;
@@ -363,23 +364,23 @@ int InitSSL_Ctx(CYASSL_CTX* ctx, CYASSL_METHOD* method)
 #endif
     ctx->partialWrite   = 0;
     ctx->verifyCallback = 0;
-    ctx->caCacheCallback = 0;
 
-    ctx->caList = 0;
+    ctx->cm = CyaSSL_CertManagerNew();
 #ifdef HAVE_NTRU
     if (method->side == CLIENT_END)
         ctx->haveNTRU = 1;           /* always on cliet side */
                                      /* server can turn on by loading key */
 #endif
 #ifdef HAVE_ECC
-    if (method->side == CLIENT_END)
-        ctx->haveECDSA = 1;          /* always on cliet side */
-                                     /* server can turn on by loading key */
+    if (method->side == CLIENT_END) {
+        ctx->haveECDSA     = 1;        /* always on cliet side */
+        ctx->haveStaticECC = 1;        /* server can turn on by loading key */
+    }
 #endif
     ctx->suites.setSuites = 0;  /* user hasn't set yet */
     /* remove DH later if server didn't set, add psk later */
     InitSuites(&ctx->suites, method->version, TRUE, FALSE, ctx->haveNTRU,
-               ctx->haveECDSA, method->side);  
+               ctx->haveECDSA, ctx->haveStaticECC, method->side);  
     ctx->verifyPeer = 0;
     ctx->verifyNone = 0;
     ctx->failNoCert = 0;
@@ -396,6 +397,10 @@ int InitSSL_Ctx(CYASSL_CTX* ctx, CYASSL_METHOD* method)
         CYASSL_MSG("Mutex error on CTX init");
         return BAD_MUTEX_ERROR;
     } 
+    if (ctx->cm == NULL) {
+        CYASSL_MSG("Bad Cert Manager New");
+        return BAD_CERT_MANAGER_ERROR;
+    }
     return 0;
 }
 
@@ -410,7 +415,7 @@ void SSL_CtxResourceFree(CYASSL_CTX* ctx)
     XFREE(ctx->certChain.buffer, ctx->heap, DYNAMIC_TYPE_CERT);
     XFREE(ctx->method, ctx->heap, DYNAMIC_TYPE_METHOD);
 
-    FreeSigners(ctx->caList, ctx->heap);
+    CyaSSL_CertManagerFree(ctx->cm);
 
 #ifdef HAVE_OCSP
     CyaSSL_OCSP_Cleanup(&ctx->ocsp);
@@ -444,7 +449,7 @@ void FreeSSL_Ctx(CYASSL_CTX* ctx)
 
     
 void InitSuites(Suites* suites, ProtocolVersion pv, byte haveDH, byte havePSK,
-                byte haveNTRU, byte haveECDSA, int side)
+                byte haveNTRU, byte haveStaticECC, byte haveECDSA, int side)
 {
     word16 idx = 0;
     int    tls    = pv.major == SSLv3_MAJOR && pv.minor >= TLSv1_MINOR;
@@ -502,10 +507,24 @@ void InitSuites(Suites* suites, ProtocolVersion pv, byte haveDH, byte havePSK,
     }
 #endif
 
+#ifdef BUILD_TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA
+    if (tls && haveECDSA && haveStaticECC) {
+        suites->suites[idx++] = ECC_BYTE; 
+        suites->suites[idx++] = TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA;
+    }
+#endif
+
 #ifdef BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA
     if (tls && haveECDSA) {
         suites->suites[idx++] = ECC_BYTE; 
         suites->suites[idx++] = TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA;
+    }
+#endif
+
+#ifdef BUILD_TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA
+    if (tls && haveECDSA && haveStaticECC) {
+        suites->suites[idx++] = ECC_BYTE; 
+        suites->suites[idx++] = TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA;
     }
 #endif
 
@@ -516,10 +535,24 @@ void InitSuites(Suites* suites, ProtocolVersion pv, byte haveDH, byte havePSK,
     }
 #endif
 
+#ifdef BUILD_TLS_ECDH_ECDSA_WITH_RC4_128_SHA
+    if (tls && haveECDSA && haveStaticECC) {
+        suites->suites[idx++] = ECC_BYTE; 
+        suites->suites[idx++] = TLS_ECDH_ECDSA_WITH_RC4_128_SHA;
+    }
+#endif
+
 #ifdef BUILD_TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA
     if (tls && haveECDSA) {
         suites->suites[idx++] = ECC_BYTE; 
         suites->suites[idx++] = TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA;
+    }
+#endif
+
+#ifdef BUILD_TLS_ECDH_ECDSA_WITH_3DES_EDE_CBC_SHA
+    if (tls && haveECDSA && haveStaticECC) {
+        suites->suites[idx++] = ECC_BYTE; 
+        suites->suites[idx++] = TLS_ECDH_ECDSA_WITH_3DES_EDE_CBC_SHA;
     }
 #endif
 
@@ -530,10 +563,24 @@ void InitSuites(Suites* suites, ProtocolVersion pv, byte haveDH, byte havePSK,
     }
 #endif
 
+#ifdef BUILD_TLS_ECDH_RSA_WITH_AES_256_CBC_SHA
+    if (tls && haveRSA && haveStaticECC) {
+        suites->suites[idx++] = ECC_BYTE; 
+        suites->suites[idx++] = TLS_ECDH_RSA_WITH_AES_256_CBC_SHA;
+    }
+#endif
+
 #ifdef BUILD_TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA
     if (tls && haveRSA) {
         suites->suites[idx++] = ECC_BYTE; 
         suites->suites[idx++] = TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA;
+    }
+#endif
+
+#ifdef BUILD_TLS_ECDH_RSA_WITH_AES_128_CBC_SHA
+    if (tls && haveRSA && haveStaticECC) {
+        suites->suites[idx++] = ECC_BYTE; 
+        suites->suites[idx++] = TLS_ECDH_RSA_WITH_AES_128_CBC_SHA;
     }
 #endif
 
@@ -544,10 +591,24 @@ void InitSuites(Suites* suites, ProtocolVersion pv, byte haveDH, byte havePSK,
     }
 #endif
 
+#ifdef BUILD_TLS_ECDH_RSA_WITH_RC4_128_SHA
+    if (tls && haveRSA && haveStaticECC) {
+        suites->suites[idx++] = ECC_BYTE; 
+        suites->suites[idx++] = TLS_ECDH_RSA_WITH_RC4_128_SHA;
+    }
+#endif
+
 #ifdef BUILD_TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA
     if (tls && haveRSA) {
         suites->suites[idx++] = ECC_BYTE; 
         suites->suites[idx++] = TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA;
+    }
+#endif
+
+#ifdef BUILD_TLS_ECDH_RSA_WITH_3DES_EDE_CBC_SHA
+    if (tls && haveRSA && haveStaticECC) {
+        suites->suites[idx++] = ECC_BYTE; 
+        suites->suites[idx++] = TLS_ECDH_RSA_WITH_3DES_EDE_CBC_SHA;
     }
 #endif
 
@@ -762,7 +823,8 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
         ssl->options.haveDH = 0;
     ssl->options.haveNTRU  = ctx->haveNTRU;
     ssl->options.haveECDSA = ctx->haveECDSA;
-    ssl->options.havePeerCert = 0; 
+    ssl->options.haveStaticECC = ctx->haveStaticECC;
+    ssl->options.havePeerCert  = 0; 
     ssl->options.usingPSK_cipher = 0;
     ssl->options.sendAlertState = 0;
 #ifndef NO_PSK
@@ -806,7 +868,7 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
     ssl->options.certOnly = 0;
     ssl->options.groupMessages = ctx->groupMessages;
 
-    /* ctx still owns certificate, certChain, key, dh, and caList buffers */
+    /* ctx still owns certificate, certChain, key, dh, and cm */
     ssl->buffers.certificate = ctx->certificate;
     ssl->buffers.certChain = ctx->certChain;
     ssl->buffers.key = ctx->privateKey;
@@ -849,11 +911,11 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
     if (ssl->options.side == SERVER_END) 
         InitSuites(&ssl->suites, ssl->version,ssl->options.haveDH, havePSK,
                    ssl->options.haveNTRU, ssl->options.haveECDSA,
-                   ssl->ctx->method->side);
+                   ssl->options.haveStaticECC, ssl->ctx->method->side);
     else 
         InitSuites(&ssl->suites, ssl->version, TRUE, havePSK,
                    ssl->options.haveNTRU, ssl->options.haveECDSA,
-                   ssl->ctx->method->side);
+                   ssl->options.haveStaticECC, ssl->ctx->method->side);
 
 
 #ifdef SESSION_CERTS
@@ -1561,7 +1623,7 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx)
 
         InitDecodedCert(&dCert, myCert.buffer, myCert.length, ssl->heap);
         ret = ParseCertRelative(&dCert, CERT_TYPE, !ssl->options.verifyNone,
-                                ssl->ctx->caList);
+                                ssl->ctx->cm);
         if (ret == 0 && dCert.isCA == 0) {
             CYASSL_MSG("Chain cert is not a CA, not adding as one");
             (void)ret;
@@ -1570,7 +1632,7 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx)
             CYASSL_MSG("Chain cert not verified by option, not adding as CA");
             (void)ret;
         }
-        else if (ret == 0 && !AlreadySigner(ssl->ctx, dCert.subjectHash)) {
+        else if (ret == 0 && !AlreadySigner(ssl->ctx->cm, dCert.subjectHash)) {
             buffer add;
             add.length = myCert.length;
             add.buffer = (byte*)XMALLOC(myCert.length, ssl->heap,
@@ -1581,7 +1643,8 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx)
                 return MEMORY_E;
             XMEMCPY(add.buffer, myCert.buffer, myCert.length);
 
-            ret = AddCA(ssl->ctx, add, CYASSL_CHAIN_CA);
+            ret = AddCA(ssl->ctx->cm, add, CYASSL_CHAIN_CA,
+                        ssl->ctx->verifyPeer);
             if (ret == 1) ret = 0;   /* SSL_SUCCESS for external */
         }
         else if (ret != 0) {
@@ -1610,7 +1673,7 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx)
 
         InitDecodedCert(&dCert, myCert.buffer, myCert.length, ssl->heap);
         ret = ParseCertRelative(&dCert, CERT_TYPE, !ssl->options.verifyNone,
-                                ssl->ctx->caList);
+                                ssl->ctx->cm);
         if (ret == 0) {
             CYASSL_MSG("Verified Peer's cert");
             fatal = 0;
@@ -3434,6 +3497,10 @@ void SetErrorString(int error, char* str)
         XSTRNCPY(str, "Bad path for opendir error", max);
         break;
 
+    case BAD_CERT_MANAGER_ERROR:
+        XSTRNCPY(str, "Bad Cert Manager error", max);
+        break;
+
     default :
         XSTRNCPY(str, "unknown error number", max);
     }
@@ -3555,8 +3622,41 @@ const char* const cipher_names[] =
 #endif
 
 #ifdef BUILD_TLS_DHE_RSA_WITH_AES_256_CBC_SHA256
-    "DHE-RSA-AES256-SHA256"
+    "DHE-RSA-AES256-SHA256",
 #endif
+
+#ifdef BUILD_TLS_ECDH_RSA_WITH_AES_128_CBC_SHA
+    "ECDH-RSA-AES128-SHA",
+#endif
+
+#ifdef BUILD_TLS_ECDH_RSA_WITH_AES_256_CBC_SHA
+    "ECDH-RSA-AES256-SHA",
+#endif
+
+#ifdef BUILD_TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA
+    "ECDH-ECDSA-AES128-SHA",
+#endif
+
+#ifdef BUILD_TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA
+    "ECDH-ECDSA-AES256-SHA",
+#endif
+
+#ifdef BUILD_TLS_ECDH_RSA_WITH_RC4_128_SHA
+    "ECDH-RSA-RC4-SHA",
+#endif
+
+#ifdef BUILD_TLS_ECDH_RSA_WITH_3DES_EDE_CBC_SHA
+    "ECDH-RSA-DES-CBC3-SHA",
+#endif
+
+#ifdef BUILD_TLS_ECDH_ECDSA_WITH_RC4_128_SHA
+    "ECDH-ECDSA-RC4-SHA",
+#endif
+
+#ifdef BUILD_TLS_ECDH_ECDSA_WITH_3DES_EDE_CBC_SHA
+    "ECDH-ECDSA-DES-CBC3-SHA"
+#endif
+
 };
 
 
@@ -3674,8 +3774,41 @@ int cipher_name_idx[] =
 #endif
 
 #ifdef BUILD_TLS_DHE_RSA_WITH_AES_256_CBC_SHA256
-    TLS_DHE_RSA_WITH_AES_256_CBC_SHA256
+    TLS_DHE_RSA_WITH_AES_256_CBC_SHA256,
 #endif
+
+#ifdef BUILD_TLS_ECDH_RSA_WITH_AES_128_CBC_SHA
+    TLS_ECDH_RSA_WITH_AES_128_CBC_SHA,
+#endif
+
+#ifdef BUILD_TLS_ECDH_RSA_WITH_AES_256_CBC_SHA
+    TLS_ECDH_RSA_WITH_AES_256_CBC_SHA,
+#endif
+
+#ifdef BUILD_TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA
+    TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA,
+#endif
+
+#ifdef BUILD_TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA
+    TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA,
+#endif
+
+#ifdef BUILD_TLS_ECDH_RSA_WITH_RC4_128_SHA
+    TLS_ECDH_RSA_WITH_RC4_128_SHA,
+#endif
+
+#ifdef BUILD_TLS_ECDH_RSA_WITH_3DES_EDE_CBC_SHA
+    TLS_ECDH_RSA_WITH_3DES_EDE_CBC_SHA,
+#endif
+
+#ifdef BUILD_TLS_ECDH_ECDSA_WITH_RC4_128_SHA
+    TLS_ECDH_ECDSA_WITH_RC4_128_SHA,
+#endif
+
+#ifdef BUILD_TLS_ECDH_ECDSA_WITH_3DES_EDE_CBC_SHA
+    TLS_ECDH_ECDSA_WITH_3DES_EDE_CBC_SHA
+#endif
+
 };
 
 
@@ -4079,6 +4212,7 @@ int SetCipherList(Suites* s, const char* list)
                     return ret;
                 }
                 else
+                    CYASSL_MSG("Unsupported cipher suite, DoServerHello");
                     return UNSUPPORTED_SUITE;
             }
             else {
@@ -4460,14 +4594,24 @@ int SetCipherList(Suites* s, const char* list)
         #endif /* HAVE_NTRU */
         #ifdef HAVE_ECC
         } else if (ssl->specs.kea == ecc_diffie_hellman_kea) {
-            ecc_key myKey;
-            word32  size = sizeof(encSecret);
+            ecc_key  myKey;
+            ecc_key* peerKey = &myKey;
+            word32   size = sizeof(encSecret);
 
-            if (!ssl->peerEccKeyPresent || !ssl->peerEccKey.dp)
-                return NO_PEER_KEY;
+            if (ssl->specs.static_ecdh) {
+                /* TODO: EccDsa is really fixed Ecc change naming */
+                if (!ssl->peerEccDsaKeyPresent || !ssl->peerEccDsaKey.dp)
+                    return NO_PEER_KEY;
+                peerKey = &ssl->peerEccDsaKey;
+            }
+            else {
+                if (!ssl->peerEccKeyPresent || !ssl->peerEccKey.dp)
+                    return NO_PEER_KEY;
+                peerKey = &ssl->peerEccKey;
+            }
 
             ecc_init(&myKey);
-            ret = ecc_make_key(&ssl->rng, ssl->peerEccKey.dp->size, &myKey);
+            ret = ecc_make_key(&ssl->rng, peerKey->dp->size, &myKey);
             if (ret != 0)
                 return ECC_MAKEKEY_ERROR;
 
@@ -4480,7 +4624,7 @@ int SetCipherList(Suites* s, const char* list)
                 ret = ECC_EXPORT_ERROR;
             else {
                 size = sizeof(ssl->arrays.preMasterSecret);
-                ret  = ecc_shared_secret(&myKey, &ssl->peerEccKey,
+                ret  = ecc_shared_secret(&myKey, peerKey,
                                          ssl->arrays.preMasterSecret, &size);
                 if (ret != 0)
                     ret = ECC_SHARED_ERROR;
@@ -4891,9 +5035,15 @@ int SetCipherList(Suites* s, const char* list)
             RsaKey   rsaKey;
             ecc_key  dsaKey;
 
+            if (ssl->specs.static_ecdh) {
+                CYASSL_MSG("Using Static ECDH, not sending ServerKeyExchagne");
+                return 0;
+            }
+
             /* curve type, named curve, length(1) */
             length = ENUM_LEN + CURVE_LEN + ENUM_LEN;
             /* pub key size */
+            CYASSL_MSG("Using ephemeral ECDH");
             if (ecc_export_x963(&ssl->eccTempKey, exportBuf, &expSz) != 0)
                 return ECC_EXPORT_ERROR;
             length += expSz;
@@ -5016,6 +5166,7 @@ int SetCipherList(Suites* s, const char* list)
                     ret = RsaSSL_Sign(signBuffer, signSz, output + idx, sigSz,
                                       &rsaKey, &ssl->rng);
                     FreeRsaKey(&rsaKey);
+                    ecc_free(&dsaKey);
                     if (ret > 0)
                         ret = 0;  /* reset on success */
                     else
@@ -5024,9 +5175,10 @@ int SetCipherList(Suites* s, const char* list)
                 else if (ssl->specs.sig_algo == ecc_dsa_sa_algo) {
                     word32 sz = sigSz;
 
-                    FreeRsaKey(&rsaKey);
                     ret = ecc_sign_hash(&hash[MD5_DIGEST_SIZE], SHA_DIGEST_SIZE,
                             output + idx, &sz, &ssl->rng, &dsaKey);
+                    FreeRsaKey(&rsaKey);
+                    ecc_free(&dsaKey);
                     if (ret < 0) return ret;
                 }
             }
@@ -5334,7 +5486,7 @@ int SetCipherList(Suites* s, const char* list)
 
             InitSuites(&ssl->suites, ssl->version, ssl->options.haveDH, havePSK,
                        ssl->options.haveNTRU, ssl->options.haveECDSA,
-                       ssl->ctx->method->side);
+                       ssl->options.haveStaticECC, ssl->ctx->method->side);
         }
 
         /* suite size */
@@ -5397,8 +5549,10 @@ int SetCipherList(Suites* s, const char* list)
                 ssl->options.resuming = 0;
                 break;   /* session lookup failed */
             }
-            if (MatchSuite(ssl, &clSuites) < 0)
+            if (MatchSuite(ssl, &clSuites) < 0) {
+                CYASSL_MSG("Unsupported cipher suite, OldClientHello");
                 return UNSUPPORTED_SUITE;
+            }
 
             RNG_GenerateBlock(&ssl->rng, ssl->arrays.serverRandom, RAN_LEN);
             if (ssl->options.tls)
@@ -5462,7 +5616,7 @@ int SetCipherList(Suites* s, const char* list)
 #endif
             InitSuites(&ssl->suites, ssl->version, ssl->options.haveDH, havePSK,
                        ssl->options.haveNTRU, ssl->options.haveECDSA,
-                       ssl->ctx->method->side);
+                       ssl->options.haveStaticECC, ssl->ctx->method->side);
         }
         /* random */
         XMEMCPY(ssl->arrays.clientRandom, input + i, RAN_LEN);
@@ -5551,8 +5705,10 @@ int SetCipherList(Suites* s, const char* list)
                 CYASSL_MSG("Session lookup for resume failed");
                 break;   /* session lookup failed */
             }
-            if (MatchSuite(ssl, &clSuites) < 0)
+            if (MatchSuite(ssl, &clSuites) < 0) {
+                CYASSL_MSG("Unsupported cipher suite, ClientHello");
                 return UNSUPPORTED_SUITE;
+            }
 
             RNG_GenerateBlock(&ssl->rng, ssl->arrays.serverRandom, RAN_LEN);
             if (ssl->options.tls)
@@ -5850,7 +6006,20 @@ int SetCipherList(Suites* s, const char* list)
             ssl->peerEccKeyPresent = 1;
 
             size = sizeof(ssl->arrays.preMasterSecret);
-            ret = ecc_shared_secret(&ssl->eccTempKey, &ssl->peerEccKey,
+            if (ssl->specs.static_ecdh) {
+                ecc_key staticKey;
+                word32 i = 0;
+
+                ecc_init(&staticKey);
+                ret = EccPrivateKeyDecode(ssl->buffers.key.buffer, &i,
+                                          &staticKey, ssl->buffers.key.length);
+                if (ret == 0)
+                    ret = ecc_shared_secret(&staticKey, &ssl->peerEccKey,
+                                            ssl->arrays.preMasterSecret, &size);
+                ecc_free(&staticKey);
+            }
+            else 
+                ret = ecc_shared_secret(&ssl->eccTempKey, &ssl->peerEccKey,
                                     ssl->arrays.preMasterSecret, &size);
             if (ret != 0)
                 return ECC_SHARED_ERROR;
