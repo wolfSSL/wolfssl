@@ -48,6 +48,7 @@ struct CYASSL_OCSP {
     byte enabled;
     byte useOverrideUrl;
     char overrideName[80];
+    char overridePath[80];
     int  overridePort;
     int statusLen;
     CertStatus status[1];

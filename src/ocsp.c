@@ -25,6 +25,19 @@
 
 #include <cyassl/error.h>
 #include <cyassl/ocsp.h>
+#include <cyassl/internal.h>
+#include <ctype.h>
+
+#include <string.h>
+#include <unistd.h>
+#include <netdb.h>
+#include <netinet/in.h>
+#include <netinet/tcp.h>
+#include <arpa/inet.h>
+#include <sys/ioctl.h>
+#include <sys/time.h>
+#include <sys/types.h>
+#include <sys/socket.h>
 
 
 #ifdef HAVE_OCSP
@@ -33,6 +46,10 @@ CYASSL_API int ocsp_test(unsigned char* buf, int sz);
 #define CYASSL_OCSP_URL_OVERRIDE 0x0002 /* Use the override URL instead of URL
                                          * in certificate */
 
+typedef struct sockaddr_in  SOCKADDR_IN_T;
+#define AF_INET_V    AF_INET
+#define SOCKET_T unsigned int
+   
 
 int ocsp_test(unsigned char* buf, int sz)
 {
@@ -45,7 +62,7 @@ int ocsp_test(unsigned char* buf, int sz)
 
     ocsp.enabled = 1;
     ocsp.useOverrideUrl = 1;
-    CyaSSL_OCSP_set_override_url(&ocsp, "http://ocsp.example.com:8080/");
+    CyaSSL_OCSP_set_override_url(&ocsp, "http://ocsp.example.com:8080/bob");
     CyaSSL_OCSP_Lookup_Cert(&ocsp, NULL);
 
     result = OcspResponseDecode(&resp);
@@ -91,6 +108,7 @@ int CyaSSL_OCSP_set_override_url(CYASSL_OCSP* ocsp, const char* url)
             ocsp->overrideName[i++] = url[cur++];
         }
         ocsp->overrideName[i] = 0;
+        /* Need to pick out the path after the domain name */
 
         if (url[cur] == ':') {
             char port[6];
@@ -118,8 +136,64 @@ int CyaSSL_OCSP_set_override_url(CYASSL_OCSP* ocsp, const char* url)
 }
 
 
+static INLINE void tcp_socket(SOCKET_T* sockfd, SOCKADDR_IN_T* addr,
+                              const char* peer, word16 port)
+{
+    const char* host = peer;
+
+    /* peer could be in human readable form */
+    if (peer != INADDR_ANY && isalpha(peer[0])) {
+        struct hostent* entry = gethostbyname(peer);
+
+        if (entry) {
+            struct sockaddr_in tmp;
+            memset(&tmp, 0, sizeof(struct sockaddr_in));
+            memcpy(&tmp.sin_addr.s_addr, entry->h_addr_list[0],
+                   entry->h_length);
+            host = inet_ntoa(tmp.sin_addr);
+        }
+        else
+            CYASSL_MSG("no entry for host");
+    }
+
+    *sockfd = socket(AF_INET_V, SOCK_STREAM, 0);
+    memset(addr, 0, sizeof(SOCKADDR_IN_T));
+
+    addr->sin_family = AF_INET_V;
+    addr->sin_port = htons(port);
+    if (host == INADDR_ANY)
+        addr->sin_addr.s_addr = INADDR_ANY;
+    else
+        addr->sin_addr.s_addr = inet_addr(host);
+}
+
+
+static INLINE void tcp_connect(SOCKET_T* sockfd, const char* ip, word16 port)
+{
+    SOCKADDR_IN_T addr;
+    tcp_socket(sockfd, &addr, ip, port);
+
+    if (connect(*sockfd, (const struct sockaddr*)&addr, sizeof(addr)) != 0)
+        CYASSL_MSG("tcp connect failed");
+}
+
+
+static void close_connection();
+
+const char http_ocsp_pre[]  = "POST ";
+const char http_ocsp_post[] = " HTTP/1.1\r\nHost: ";
+const char http_ocsp_len[]  = "\r\nContent-Length: ";
+const char http_ocsp_type[] = "\r\nContent-Type: application/ocsp-request"
+                              "\r\n\r\n";
+const char arglebargle[] = "arglebargle";
+
+
 int CyaSSL_OCSP_Lookup_Cert(CYASSL_OCSP* ocsp, DecodedCert* cert)
 {
+    SOCKET_T sfd = -1;
+	char buf[1024];
+	int bufRemainder = 1023;
+
     /* If OCSP lookups are disabled, return success. */
     if (!ocsp->enabled) return 1;
 
@@ -131,6 +205,36 @@ int CyaSSL_OCSP_Lookup_Cert(CYASSL_OCSP* ocsp, DecodedCert* cert)
     XMEMCPY(ocsp->status[0].issuerHash, cert->issuerHash, SHA_SIZE);
     XMEMCPY(ocsp->status[0].serial, cert->serial, cert->serialSz);
     ocsp->status[0].serialSz = cert->serialSz;
+
+//    tcp_connect(&sfd, ocsp->overrideName, ocsp->overridePort);
+
+	memset(buf, 0, sizeof(buf));
+
+    strncat(buf, http_ocsp_pre, bufRemainder);
+	bufRemainder -= strlen(http_ocsp_pre);
+
+	strncat(buf, "/", bufRemainder);
+	bufRemainder -= 1;
+    
+	strncat(buf, http_ocsp_post, bufRemainder);
+	bufRemainder -= strlen(http_ocsp_post);
+    
+	strncat(buf, ocsp->overrideName, bufRemainder);
+	bufRemainder -= strlen(ocsp->overrideName);
+    
+	strncat(buf, http_ocsp_len, bufRemainder);
+	bufRemainder -= strlen(http_ocsp_len);
+   
+	strncat(buf, "11", bufRemainder);
+	bufRemainder -= 2;
+
+	strncat(buf, http_ocsp_type, bufRemainder);
+	bufRemainder -= strlen(http_ocsp_type);
+
+	strncat(buf, arglebargle, bufRemainder);
+	bufRemainder -= strlen(arglebargle);
+
+//    close(sfd);
 
     return 1;
 }
