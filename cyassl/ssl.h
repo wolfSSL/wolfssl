@@ -772,6 +772,9 @@ enum {
     CYASSL_CHAIN_CA = 2           /* added to cache from trusted chain */
 };
 
+CYASSL_API int CyaSSL_KeyPemToDer(const unsigned char*, int sz, unsigned char*,
+                                  int, const char*);
+
 typedef void (*CallbackCACache)(unsigned char* der, int sz, int type);
 
 CYASSL_API void CyaSSL_CTX_SetCACb(CYASSL_CTX*, CallbackCACache);

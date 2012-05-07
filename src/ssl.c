@@ -688,6 +688,12 @@ int AddCA(CYASSL_CERT_MANAGER* cm, buffer der, int type, int verify)
             if (headerEnd)
                 *eccKey = 1;
         }
+        if (!headerEnd && type == PRIVATEKEY_TYPE) {  /* may be dsa */
+            XSTRNCPY(header, "-----BEGIN DSA PRIVATE KEY-----", sizeof(header));
+            XSTRNCPY(footer, "-----END DSA PRIVATE KEY-----", sizeof(footer));
+        
+            headerEnd = XSTRSTR((char*)buff, header);
+        }
         if (!headerEnd)
             return SSL_BAD_FILE;
         headerEnd += XSTRLEN(header);
@@ -780,7 +786,7 @@ int AddCA(CYASSL_CERT_MANAGER* cm, buffer der, int type, int verify)
             int  passwordSz;
             char password[80];
 
-            if (!info->ctx->passwd_cb)
+            if (!info->ctx || !info->ctx->passwd_cb)
                 return SSL_BAD_FILE;  /* no callback error */
             passwordSz = info->ctx->passwd_cb(password, sizeof(password), 0,
                                               info->ctx->userdata);
@@ -1079,6 +1085,8 @@ int AddCA(CYASSL_CERT_MANAGER* cm, buffer der, int type, int verify)
     }
 
 
+
+
 /* CA PEM file for verification, may have multiple/chain certs to process */
 static int ProcessChainBuffer(CYASSL_CTX* ctx, const unsigned char* buff,
                             long sz, int format, int type, CYASSL* ssl)
@@ -1305,7 +1313,7 @@ int CyaSSL_CertManagerVerify(CYASSL_CERT_MANAGER* cm, const char* fname,
     FreeDecodedCert(&cert);
     XFREE(der.buffer, cm->heap, DYNAMIC_TYPE_CERT);
     XFCLOSE(file);
-    if (dynamic) XFREE(myBuffer, ctx->heap, DYNAMIC_TYPE_FILE);
+    if (dynamic) XFREE(myBuffer, cm->heap, DYNAMIC_TYPE_FILE);
 
     if (ret == 0)
         return SSL_SUCCESS;
@@ -3926,110 +3934,145 @@ int CyaSSL_set_compression(CYASSL* ssl)
                                byte* iv, int enc)
     {
         CYASSL_ENTER("CyaSSL_EVP_CipherInit");
-        if (ctx == NULL)
+        if (ctx == NULL) {
+            CYASSL_MSG("no ctx");
             return 0;   /* failure */
+        }
 
-        if (type == NULL && ctx->cipherType == 0xff)
+        if (type == NULL && ctx->cipherType == 0xff) {
+            CYASSL_MSG("no type set");
             return 0;   /* failure */
+        }
+
+        if (key) 
+            CYASSL_MSG("have key");
+
+        if (iv) 
+            CYASSL_MSG("have iv");
+
+        if (enc == 1) {
+            CYASSL_MSG("encrypt side");
+        }
+        else if (enc == 0) {
+            CYASSL_MSG("decrypt side");
+        }
+        else {
+            CYASSL_MSG("no side");
+            if (ctx->enc)
+                CYASSL_MSG("no side enc");
+            else
+                CYASSL_MSG("no side dec");
+        }
 
         if (ctx->cipherType == AES_128_CBC_TYPE || (type &&
                                        XSTRNCMP(type, "AES128-CBC", 10) == 0)) {
+            CYASSL_MSG("AES-128-CBC");
             ctx->cipherType = AES_128_CBC_TYPE;
             ctx->keyLen     = 16;
             if (enc == 0 || enc == 1)
                 ctx->enc = enc ? 1 : 0;
             if (key)
                 AesSetKey(&ctx->cipher.aes, key, ctx->keyLen, iv,
-                          enc ? AES_ENCRYPTION : AES_DECRYPTION);
+                          ctx->enc ? AES_ENCRYPTION : AES_DECRYPTION);
             if (iv && key == NULL)
                 AesSetIV(&ctx->cipher.aes, iv);
         }
         else if (ctx->cipherType == AES_192_CBC_TYPE || (type &&
                                        XSTRNCMP(type, "AES192-CBC", 10) == 0)) {
+            CYASSL_MSG("AES-192-CBC");
             ctx->cipherType = AES_192_CBC_TYPE;
             ctx->keyLen     = 24;
             if (enc == 0 || enc == 1)
                 ctx->enc = enc ? 1 : 0;
             if (key)
                 AesSetKey(&ctx->cipher.aes, key, ctx->keyLen, iv,
-                          enc ? AES_ENCRYPTION : AES_DECRYPTION);
+                          ctx->enc ? AES_ENCRYPTION : AES_DECRYPTION);
             if (iv && key == NULL)
                 AesSetIV(&ctx->cipher.aes, iv);
         }
         else if (ctx->cipherType == AES_256_CBC_TYPE || (type &&
                                        XSTRNCMP(type, "AES256-CBC", 10) == 0)) {
+            CYASSL_MSG("AES-256-CBC");
             ctx->cipherType = AES_256_CBC_TYPE;
             ctx->keyLen     = 32;
             if (enc == 0 || enc == 1)
                 ctx->enc = enc ? 1 : 0;
             if (key)
                 AesSetKey(&ctx->cipher.aes, key, ctx->keyLen, iv,
-                          enc ? AES_ENCRYPTION : AES_DECRYPTION);
+                          ctx->enc ? AES_ENCRYPTION : AES_DECRYPTION);
             if (iv && key == NULL)
                 AesSetIV(&ctx->cipher.aes, iv);
         }
+#ifdef CYASSL_AES_COUNTER
         else if (ctx->cipherType == AES_128_CTR_TYPE || (type &&
                                        XSTRNCMP(type, "AES128-CTR", 10) == 0)) {
+            CYASSL_MSG("AES-128-CTR");
             ctx->cipherType = AES_128_CTR_TYPE;
             ctx->keyLen     = 16;
             if (enc == 0 || enc == 1)
                 ctx->enc = enc ? 1 : 0;
             if (key)
                 AesSetKey(&ctx->cipher.aes, key, ctx->keyLen, iv,
-                          enc ? AES_ENCRYPTION : AES_DECRYPTION);
+                          AES_ENCRYPTION);
             if (iv && key == NULL)
                 AesSetIV(&ctx->cipher.aes, iv);
         }
         else if (ctx->cipherType == AES_192_CTR_TYPE || (type &&
                                        XSTRNCMP(type, "AES192-CTR", 10) == 0)) {
+            CYASSL_MSG("AES-192-CTR");
             ctx->cipherType = AES_192_CTR_TYPE;
             ctx->keyLen     = 24;
             if (enc == 0 || enc == 1)
                 ctx->enc = enc ? 1 : 0;
             if (key)
                 AesSetKey(&ctx->cipher.aes, key, ctx->keyLen, iv,
-                          enc ? AES_ENCRYPTION : AES_DECRYPTION);
+                          AES_ENCRYPTION);
             if (iv && key == NULL)
                 AesSetIV(&ctx->cipher.aes, iv);
         }
         else if (ctx->cipherType == AES_256_CTR_TYPE || (type &&
                                        XSTRNCMP(type, "AES256-CTR", 10) == 0)) {
+            CYASSL_MSG("AES-256-CTR");
             ctx->cipherType = AES_256_CTR_TYPE;
             ctx->keyLen     = 32;
             if (enc == 0 || enc == 1)
                 ctx->enc = enc ? 1 : 0;
             if (key)
                 AesSetKey(&ctx->cipher.aes, key, ctx->keyLen, iv,
-                          enc ? AES_ENCRYPTION : AES_DECRYPTION);
+                          AES_ENCRYPTION);
             if (iv && key == NULL)
                 AesSetIV(&ctx->cipher.aes, iv);
         }
+#endif /* CYASSL_AES_CTR */
         else if (ctx->cipherType == DES_CBC_TYPE || (type &&
                                        XSTRNCMP(type, "DES-CBC", 7) == 0)) {
+            CYASSL_MSG("DES-CBC");
             ctx->cipherType = DES_CBC_TYPE;
             ctx->keyLen     = 8;
             if (enc == 0 || enc == 1)
                 ctx->enc = enc ? 1 : 0;
             if (key)
                 Des_SetKey(&ctx->cipher.des, key, iv,
-                          enc ? DES_ENCRYPTION : DES_DECRYPTION);
+                          ctx->enc ? DES_ENCRYPTION : DES_DECRYPTION);
             if (iv && key == NULL)
                 Des_SetIV(&ctx->cipher.des, iv);
         }
         else if (ctx->cipherType == DES_EDE3_CBC_TYPE || (type &&
                                      XSTRNCMP(type, "DES-EDE3-CBC", 11) == 0)) {
+            CYASSL_MSG("DES-EDE3-CBC");
             ctx->cipherType = DES_EDE3_CBC_TYPE;
             ctx->keyLen     = 24;
             if (enc == 0 || enc == 1)
                 ctx->enc = enc ? 1 : 0;
             if (key)
                 Des3_SetKey(&ctx->cipher.des3, key, iv,
-                          enc ? DES_ENCRYPTION : DES_DECRYPTION);
+                          ctx->enc ? DES_ENCRYPTION : DES_DECRYPTION);
             if (iv && key == NULL)
                 Des3_SetIV(&ctx->cipher.des3, iv);
         }
         else if (ctx->cipherType == ARC4_TYPE || (type &&
                                      XSTRNCMP(type, "ARC4", 4) == 0)) {
+            CYASSL_MSG("ARC4");
             ctx->cipherType = ARC4_TYPE;
             if (ctx->keyLen == 0)  /* user may have already set */
                 ctx->keyLen = 16;  /* default to 128 */
@@ -4038,6 +4081,7 @@ int CyaSSL_set_compression(CYASSL* ssl)
         }
         else if (ctx->cipherType == NULL_CIPHER_TYPE || (type &&
                                      XSTRNCMP(type, "NULL", 4) == 0)) {
+            CYASSL_MSG("NULL cipher");
             ctx->cipherType = NULL_CIPHER_TYPE;
             ctx->keyLen = 0; 
         }
@@ -4051,6 +4095,7 @@ int CyaSSL_set_compression(CYASSL* ssl)
 
     int CyaSSL_EVP_CIPHER_CTX_key_length(CYASSL_EVP_CIPHER_CTX* ctx)
     {
+        CYASSL_ENTER("CyaSSL_EVP_CIPHER_CTX_key_length");
         if (ctx)
             return ctx->keyLen;
 
@@ -4061,6 +4106,7 @@ int CyaSSL_set_compression(CYASSL* ssl)
     int CyaSSL_EVP_CIPHER_CTX_set_key_length(CYASSL_EVP_CIPHER_CTX* ctx,
                                              int keylen)
     {
+        CYASSL_ENTER("CyaSSL_EVP_CIPHER_CTX_set_key_length");
         if (ctx)
             ctx->keyLen = keylen;
         else
@@ -4073,11 +4119,23 @@ int CyaSSL_set_compression(CYASSL* ssl)
     int CyaSSL_EVP_Cipher(CYASSL_EVP_CIPHER_CTX* ctx, byte* dst, byte* src,
                           word32 len)
     {
-        if (ctx == NULL || dst == NULL || src == NULL)
-            return 0;  /* failure */
+        CYASSL_ENTER("CyaSSL_EVP_Cipher");
 
-        if (ctx->cipherType == 0xff) 
+        if (ctx == NULL || dst == NULL || src == NULL) {
+            CYASSL_MSG("Bad function argument");
             return 0;  /* failure */
+        }
+
+        if (ctx->cipherType == 0xff) { 
+            CYASSL_MSG("no init");
+            return 0;  /* failure */
+        }
+
+        if (ctx->enc)
+            CYASSL_MSG("encrypting");
+        else
+            CYASSL_MSG("decrypting");
+
 
 
         switch (ctx->cipherType) {
@@ -4085,11 +4143,21 @@ int CyaSSL_set_compression(CYASSL* ssl)
             case AES_128_CBC_TYPE :
             case AES_192_CBC_TYPE :
             case AES_256_CBC_TYPE :
+                CYASSL_MSG("AES CBC");
                 if (ctx->enc)
                     AesCbcEncrypt(&ctx->cipher.aes, dst, src, len);
                 else
                     AesCbcDecrypt(&ctx->cipher.aes, dst, src, len);
                 break;
+
+#ifdef CYASSL_AES_COUNTER
+            case AES_128_CTR_TYPE :
+            case AES_192_CTR_TYPE :
+            case AES_256_CTR_TYPE :
+                    CYASSL_MSG("AES CTR");
+                    AesCtrEncrypt(&ctx->cipher.aes, dst, src, len);
+                break;
+#endif
 
             case DES_CBC_TYPE :
                 if (ctx->enc)
@@ -4113,12 +4181,125 @@ int CyaSSL_set_compression(CYASSL* ssl)
                 XMEMCPY(dst, src, len);
                 break;
 
-            default:
+            default: {
+                CYASSL_MSG("bad type");
                 return 0;  /* failure */
+            }
         }    
 
-
+        CYASSL_MSG("CyaSSL_EVP_Cipher success");
         return 1;  /* success */ 
+    }
+
+
+    /* store for external read of iv, 0 on success */
+    int  CyaSSL_StoreExternalIV(CYASSL_EVP_CIPHER_CTX* ctx)
+    {
+        CYASSL_ENTER("CyaSSL_StoreExternalIV");
+
+        if (ctx == NULL) {
+            CYASSL_MSG("Bad function argument");
+            return -1;
+        }
+    
+        switch (ctx->cipherType) {
+
+            case AES_128_CBC_TYPE :
+            case AES_192_CBC_TYPE :
+            case AES_256_CBC_TYPE :
+                CYASSL_MSG("AES CBC");
+                memcpy(ctx->iv, &ctx->cipher.aes.reg, AES_BLOCK_SIZE);
+                break;
+
+#ifdef CYASSL_AES_COUNTER
+            case AES_128_CTR_TYPE :
+            case AES_192_CTR_TYPE :
+            case AES_256_CTR_TYPE :
+                CYASSL_MSG("AES CTR");
+                memcpy(ctx->iv, &ctx->cipher.aes.reg, AES_BLOCK_SIZE);
+                break;
+#endif
+
+            case DES_CBC_TYPE :
+                CYASSL_MSG("DES CBC");
+                memcpy(ctx->iv, &ctx->cipher.des.reg, DES_BLOCK_SIZE);
+                break;
+                
+            case DES_EDE3_CBC_TYPE :
+                CYASSL_MSG("DES EDE3 CBC");
+                memcpy(ctx->iv, &ctx->cipher.des.reg, DES_BLOCK_SIZE);
+                break;
+
+            case ARC4_TYPE :
+                CYASSL_MSG("ARC4");
+                break;
+
+            case NULL_CIPHER_TYPE :
+                CYASSL_MSG("NULL");
+                break;
+
+            default: {
+                CYASSL_MSG("bad type");
+                return -1;  /* failure */
+            }
+        }    
+        return 0;  /* success */
+    }
+
+
+    /* set internal IV from external, 0 on success */
+    int  CyaSSL_SetInternalIV(CYASSL_EVP_CIPHER_CTX* ctx)
+    {
+
+        CYASSL_ENTER("CyaSSL_SetInternalIV");
+
+        if (ctx == NULL) {
+            CYASSL_MSG("Bad function argument");
+            return -1;
+        }
+    
+        switch (ctx->cipherType) {
+
+            case AES_128_CBC_TYPE :
+            case AES_192_CBC_TYPE :
+            case AES_256_CBC_TYPE :
+                CYASSL_MSG("AES CBC");
+                memcpy(&ctx->cipher.aes.reg, ctx->iv, AES_BLOCK_SIZE);
+                break;
+
+#ifdef CYASSL_AES_COUNTER
+            case AES_128_CTR_TYPE :
+            case AES_192_CTR_TYPE :
+            case AES_256_CTR_TYPE :
+                CYASSL_MSG("AES CTR");
+                memcpy(&ctx->cipher.aes.reg, ctx->iv, AES_BLOCK_SIZE);
+                break;
+#endif
+
+            case DES_CBC_TYPE :
+                CYASSL_MSG("DES CBC");
+                memcpy(&ctx->cipher.des.reg, ctx->iv, DES_BLOCK_SIZE);
+                break;
+                
+            case DES_EDE3_CBC_TYPE :
+                CYASSL_MSG("DES EDE3 CBC");
+                memcpy(&ctx->cipher.des.reg, ctx->iv, DES_BLOCK_SIZE);
+                break;
+
+            case ARC4_TYPE :
+                CYASSL_MSG("ARC4");
+                break;
+
+            case NULL_CIPHER_TYPE :
+                CYASSL_MSG("NULL");
+                break;
+
+            default: {
+                CYASSL_MSG("bad type");
+                return -1;  /* failure */
+            }
+        }    
+        return 0;  /* success */
     }
 
 
@@ -4199,18 +4380,18 @@ int CyaSSL_set_compression(CYASSL* ssl)
         }
         else if (ctx->macType == SHA256) {
             CyaSSL_SHA256_Final(md, (SHA256_CTX*)&ctx->hash);
-            if (s) *s = SHA_DIGEST_SIZE;
+            if (s) *s = SHA256_DIGEST_SIZE;
         }
     #ifdef CYASSL_SHA384
         else if (ctx->macType == SHA384) {
             CyaSSL_SHA384_Final(md, (SHA384_CTX*)&ctx->hash);
-            if (s) *s = SHA_DIGEST_SIZE;
+            if (s) *s = SHA384_DIGEST_SIZE;
         }
     #endif
     #ifdef CYASSL_SHA512
         else if (ctx->macType == SHA512) {
             CyaSSL_SHA512_Final(md, (SHA512_CTX*)&ctx->hash);
-            if (s) *s = SHA_DIGEST_SIZE;
+            if (s) *s = SHA512_DIGEST_SIZE;
         }
     #endif
         else
@@ -5483,6 +5664,25 @@ int CyaSSL_set_compression(CYASSL* ssl)
 #endif
 
 
+static RNG globalRNG;
+static int initGlobalRNG = 0;
+
+    int CyaSSL_RAND_seed(const void* seed, int len)
+    {
+
+        CYASSL_MSG("CyaSSL_RAND_seed");
+
+        if (initGlobalRNG == 0) {
+            if (InitRng(&globalRNG) < 0) {
+                CYASSL_MSG("CyaSSL Init Global RNG failed");
+            }
+            initGlobalRNG = 1;
+        }
+
+        return 0;
+    }
+
+
     CYASSL_BN_CTX* CyaSSL_BN_CTX_new(void)
     {
         static int ctx;  /* ctaocrypt doesn't now need ctx */
@@ -5572,7 +5772,15 @@ int CyaSSL_set_compression(CYASSL* ssl)
     {
         CYASSL_MSG("CyaSSL_BN_sub");
 
-        return -1;
+        if (r == NULL || a == NULL || b == NULL)
+            return 0;
+
+        if (mp_sub((mp_int*)a->internal,(mp_int*)b->internal,
+                   (mp_int*)r->internal) == MP_OKAY)
+            return 1;
+
+        CYASSL_MSG("CyaSSL_BN_sub mp_sub failed");
+        return 0;
     }
 
 
@@ -5581,15 +5789,31 @@ int CyaSSL_set_compression(CYASSL* ssl)
     {
         CYASSL_MSG("CyaSSL_BN_mod");
 
-        return -1;
+        if (r == NULL || a == NULL || b == NULL)
+            return 0;
+
+        if (mp_mod((mp_int*)a->internal,(mp_int*)b->internal,
+                   (mp_int*)r->internal) == MP_OKAY)
+            return 1;
+
+        CYASSL_MSG("CyaSSL_BN_mod mp_mod failed");
+        return 0;
     }
 
 
     const CYASSL_BIGNUM* CyaSSL_BN_value_one(void)
     {
+        static CYASSL_BIGNUM* bn_one = NULL;
+
         CYASSL_MSG("CyaSSL_BN_value_one");
 
-        return NULL;
+        if (bn_one == NULL) {
+            bn_one = CyaSSL_BN_new();
+            if (bn_one)
+                mp_set_int((mp_int*)bn_one->internal, 1);
+        }
+
+        return bn_one;
     }
 
 
@@ -5653,6 +5877,7 @@ int CyaSSL_set_compression(CYASSL* ssl)
 
     int CyaSSL_BN_cmp(const CYASSL_BIGNUM* a, const CYASSL_BIGNUM* b)
     {
+        int ret;
         CYASSL_MSG("CyaSSL_BN_cmp");
 
         if (a == NULL || a->internal == NULL || b == NULL || b->internal ==NULL)
@@ -5670,6 +5895,9 @@ int CyaSSL_set_compression(CYASSL* ssl)
             CYASSL_MSG("NULL bn error");
             return -1;
         }
+
+        if (r == NULL)
+            return mp_unsigned_bin_size((mp_int*)bn->internal);
 
         if (mp_to_unsigned_bin((mp_int*)bn->internal, r) != MP_OKAY) {
             CYASSL_MSG("mp_to_unsigned_bin error");
@@ -5708,9 +5936,41 @@ int CyaSSL_set_compression(CYASSL* ssl)
 
     int CyaSSL_BN_rand(CYASSL_BIGNUM* bn, int bits, int top, int bottom)
     {
+        byte          buffer[1024];
+        RNG           tmpRNG;
+        RNG*          rng = &tmpRNG; 
+        int           ret;
+        int           len = bits/8;
+
         CYASSL_MSG("CyaSSL_BN_rand");
 
-        return -1;
+        if (bn == NULL || bn->internal == NULL) {
+            CYASSL_MSG("Bad function arguments");
+            return 0; 
+        }
+
+        if (bits % 8)
+            len++;
+
+        if ( (ret = InitRng(&tmpRNG)) != 0) {
+            CYASSL_MSG("Bad RNG Init, trying global");
+            if (initGlobalRNG == 0) {
+                CYASSL_MSG("Global RNG no Init");
+                return 0; 
+            }
+            rng = &globalRNG;
+        }
+
+        RNG_GenerateBlock(rng, buffer, len);
+        buffer[0]     |= 0x80 | 0x40;
+        buffer[len-1] |= 0x01;
+
+        if (mp_read_unsigned_bin(bn->internal, buffer, len) != MP_OKAY) {
+            CYASSL_MSG("mp read bin failed");
+            return 0;
+        }
+                
+        return 1;
     }
 
 
@@ -5718,15 +5978,45 @@ int CyaSSL_set_compression(CYASSL* ssl)
     {
         CYASSL_MSG("CyaSSL_BN_is_bit_set");
 
-        return -1;
+        return 0;
     }
 
 
     int CyaSSL_BN_hex2bn(CYASSL_BIGNUM** bn, const char* str)
     {
+        byte    decoded[1024];
+        word32  decSz = sizeof(decoded);
+        int  ret;
+
         CYASSL_MSG("CyaSSL_BN_hex2bn");
 
-        return -1;
+        if (str == NULL) {
+            CYASSL_MSG("Bad function argument");
+            return 0;
+        }
+
+        if (Base16_Decode((byte*)str, strlen(str), decoded, &decSz) < 0) {
+            CYASSL_MSG("Bad Base16_Decode error");
+            return 0;
+        }
+
+        if (bn == NULL)
+            return decSz;
+
+        if (*bn == NULL) {
+            *bn = CyaSSL_BN_new();
+            if (*bn == NULL) {
+                CYASSL_MSG("BN new failed");
+                return 0;
+            }
+        }
+
+        if (CyaSSL_BN_bin2bn(decoded, decSz, *bn) == NULL) {
+            CYASSL_MSG("Bad bin2bn error");
+            return 0;
+        }
+
+        return 1;  /* success */
     }
 
 
@@ -5789,17 +6079,110 @@ int CyaSSL_set_compression(CYASSL* ssl)
     }
 
 
+    static void InitCyaSSL_DH(CYASSL_DH* dh)
+    {
+        if (dh) {
+            dh->p        = NULL;
+            dh->g        = NULL;
+            dh->pub_key  = NULL;
+            dh->priv_key = NULL;
+            dh->internal = NULL;
+            dh->inSet    = 0;
+            dh->exSet    = 0;
+        }
+    }
+
+
     CYASSL_DH* CyaSSL_DH_new(void)
     {
+        CYASSL_DH* external;
+        DhKey*     key;
+
         CYASSL_MSG("CyaSSL_DH_new");
 
-        return NULL;
+        key = (DhKey*) XMALLOC(sizeof(DhKey), NULL, DYNAMIC_TYPE_DH);
+        if (key == NULL) {
+            CYASSL_MSG("CyaSSL_DH_new malloc DhKey failure");
+            return NULL;
+        }
+
+        external = (CYASSL_DH*) XMALLOC(sizeof(CYASSL_DH), NULL,
+                                        DYNAMIC_TYPE_DH);
+        if (external == NULL) {
+            CYASSL_MSG("CyaSSL_DH_new malloc CYASSL_DH failure");
+            XFREE(key, NULL, DYNAMIC_TYPE_DH);
+            return NULL;
+        }
+
+        InitCyaSSL_DH(external);
+        InitDhKey(key);
+        external->internal = key;
+
+        return external;
     }
 
 
     void CyaSSL_DH_free(CYASSL_DH* dh)
     {
         CYASSL_MSG("CyaSSL_DH_free");
+
+        if (dh) {
+            if (dh->internal) {
+                FreeDhKey(dh->internal);
+                XFREE(dh->internal, NULL, DYNAMIC_TYPE_DH);
+                dh->internal = NULL;
+            }
+            CyaSSL_BN_free(dh->priv_key);
+            CyaSSL_BN_free(dh->pub_key);
+            CyaSSL_BN_free(dh->g);
+            CyaSSL_BN_free(dh->p);
+            InitCyaSSL_DH(dh);  /* set back to NULLs for safety */
+
+            XFREE(dh, NULL, DYNAMIC_TYPE_DH);
+        }
+    }
+
+
+    static int SetDhInternal(CYASSL_DH* dh) 
+    {
+        unsigned char p[1024];
+        unsigned char g[1024];
+        int           pSz = sizeof(p);
+        int           gSz = sizeof(g);
+
+        CYASSL_ENTER("SetDhInternal");
+
+        if (dh == NULL || dh->p == NULL || dh->g == NULL) {
+            CYASSL_MSG("Bad function arguments");
+            return -1;
+        }
+
+        if (CyaSSL_BN_bn2bin(dh->p, NULL) > pSz) {
+            CYASSL_MSG("Bad p internal size");
+            return -1;
+        }
+
+        if (CyaSSL_BN_bn2bin(dh->g, NULL) > gSz) {
+            CYASSL_MSG("Bad g internal size");
+            return -1;
+        }
+
+        pSz = CyaSSL_BN_bn2bin(dh->p, p);
+        gSz = CyaSSL_BN_bn2bin(dh->g, g);
+        
+        if (pSz <= 0 || gSz <= 0) {
+            CYASSL_MSG("Bad BN2bin set");
+            return -1;
+        }
+
+        if (DhSetKey((DhKey*)dh->internal, p, pSz, g, gSz) < 0) {
+            CYASSL_MSG("Bad DH SetKey");
+            return -1;
+        }
+
+        dh->inSet = 1;
+
+        return 0;
     }
 
 
@@ -5807,38 +6190,200 @@ int CyaSSL_set_compression(CYASSL* ssl)
     {
         CYASSL_MSG("CyaSSL_DH_size");
 
-        return -1;
+        if (dh == NULL)
+            return 0;
+
+        return CyaSSL_BN_num_bytes(dh->p);
     }
 
 
+    /* return 1 on success else 0 */
     int CyaSSL_DH_generate_key(CYASSL_DH* dh)
     {
+        unsigned char pub [1024];
+        unsigned char priv[1024];
+        word32        pubSz  = sizeof(pub);
+        word32        privSz = sizeof(priv);
+        RNG           tmpRNG;
+        RNG*          rng = &tmpRNG; 
+        int           ret;
+
         CYASSL_MSG("CyaSSL_DH_generate_key");
 
-        return -1;
+        if (dh == NULL || dh->p == NULL || dh->g == NULL) {
+            CYASSL_MSG("Bad function arguments");
+            return 0; 
+        }
+
+        if (dh->inSet == 0) {
+            if (SetDhInternal(dh) < 0) {
+                CYASSL_MSG("Bad DH set internal");
+                return 0; 
+            }
+        }
+
+        if ( (ret = InitRng(&tmpRNG)) != 0) {
+            CYASSL_MSG("Bad RNG Init, trying global");
+            if (initGlobalRNG == 0) {
+                CYASSL_MSG("Global RNG no Init");
+                return 0; 
+            }
+            rng = &globalRNG;
+        }
+
+        if (DhGenerateKeyPair((DhKey*)dh->internal, rng, priv, &privSz,
+                                pub, &pubSz) < 0) {
+            CYASSL_MSG("Bad DhGenerateKeyPair");
+            return 0; 
+        }
+
+        if (dh->pub_key)
+            CyaSSL_BN_free(dh->pub_key);
+        dh->pub_key = CyaSSL_BN_new();
+        if (dh->pub_key == NULL) {
+            CYASSL_MSG("Bad DH new pub");
+            return 0; 
+        }
+
+        if (dh->priv_key)
+            CyaSSL_BN_free(dh->priv_key);
+        dh->priv_key = CyaSSL_BN_new();
+        if (dh->priv_key == NULL) {
+            CYASSL_MSG("Bad DH new priv");
+            return 0; 
+        }
+
+        if (CyaSSL_BN_bin2bn(pub, pubSz, dh->pub_key) == NULL) {
+            CYASSL_MSG("Bad DH bn2bin error pub");
+            return 0; 
+        }
+
+        if (CyaSSL_BN_bin2bn(priv, privSz, dh->priv_key) == NULL) {
+            CYASSL_MSG("Bad DH bn2bin error priv");
+            return 0; 
+        }
+
+        CYASSL_MSG("CyaSSL_generate_key success");
+        return 1;
     }
 
 
-    int CyaSSL_DH_compute_key(unsigned char* key, CYASSL_BIGNUM* pub,
+    /* return 1 on success, 0 otherwise */
+    int CyaSSL_DH_compute_key(unsigned char* key, CYASSL_BIGNUM* otherPub,
                               CYASSL_DH* dh)
     {
+        unsigned char pub [1024];
+        unsigned char priv[1024];
+        word32        pubSz  = sizeof(pub);
+        word32        privSz = sizeof(priv);
+        word32        keySz;
+        int           ret;
+
         CYASSL_MSG("CyaSSL_DH_compute_key");
 
-        return -1;
+        if (dh == NULL || dh->priv_key == NULL || otherPub == NULL) {
+            CYASSL_MSG("Bad function arguments");
+            return 0; 
+        }
+
+        keySz = (word32)DH_size(dh);
+        if (keySz == 0) {
+            CYASSL_MSG("Bad DH_size");
+            return 0;
+        }
+
+        if (CyaSSL_BN_bn2bin(dh->priv_key, NULL) > privSz) {
+            CYASSL_MSG("Bad priv internal size");
+            return 0;
+        }
+
+        if (CyaSSL_BN_bn2bin(otherPub, NULL) > pubSz) {
+            CYASSL_MSG("Bad otherPub size");
+            return 0;
+        }
+
+        privSz = CyaSSL_BN_bn2bin(dh->priv_key, priv);
+        pubSz  = CyaSSL_BN_bn2bin(otherPub, pub);
+        
+        if (privSz <= 0 || pubSz <= 0) {
+            CYASSL_MSG("Bad BN2bin set");
+            return 0;
+        }
+
+        if (DhAgree((DhKey*)dh->internal, key, &keySz, priv, privSz, pub,
+                    pubSz) < 0) {
+            CYASSL_MSG("DhAgree failed");
+            return 0;
+        }
+
+        CYASSL_MSG("CyaSSL_compute_key success");
+        return (int)keySz;
+    }
+
+
+    static void InitCyaSSL_DSA(CYASSL_DSA* dsa)
+    {
+        if (dsa) {
+            dsa->p        = NULL;
+            dsa->q        = NULL;
+            dsa->g        = NULL;
+            dsa->pub_key  = NULL;
+            dsa->priv_key = NULL;
+            dsa->internal = NULL;
+            dsa->inSet    = 0;
+            dsa->exSet    = 0;
+        }
     }
 
 
     CYASSL_DSA* CyaSSL_DSA_new(void)
     {
+        CYASSL_DSA* external;
+        DsaKey*     key;
+
         CYASSL_MSG("CyaSSL_DSA_new");
 
-        return NULL;
+        key = (DsaKey*) XMALLOC(sizeof(DsaKey), NULL, DYNAMIC_TYPE_DSA);
+        if (key == NULL) {
+            CYASSL_MSG("CyaSSL_DSA_new malloc DsaKey failure");
+            return NULL;
+        }
+
+        external = (CYASSL_DSA*) XMALLOC(sizeof(CYASSL_DSA), NULL,
+                                        DYNAMIC_TYPE_DSA);
+        if (external == NULL) {
+            CYASSL_MSG("CyaSSL_DSA_new malloc CYASSL_DSA failure");
+            XFREE(key, NULL, DYNAMIC_TYPE_DSA);
+            return NULL;
+        }
+
+        InitCyaSSL_DSA(external);
+        InitDsaKey(key);
+        external->internal = key;
+
+        return external;
     }
 
 
     void CyaSSL_DSA_free(CYASSL_DSA* dsa)
     {
         CYASSL_MSG("CyaSSL_DSA_free");
+
+        if (dsa) {
+            if (dsa->internal) {
+                FreeDsaKey(dsa->internal);
+                XFREE(dsa->internal, NULL, DYNAMIC_TYPE_DSA);
+                dsa->internal = NULL;
+            }
+            CyaSSL_BN_free(dsa->priv_key);
+            CyaSSL_BN_free(dsa->pub_key);
+            CyaSSL_BN_free(dsa->g);
+            CyaSSL_BN_free(dsa->q);
+            CyaSSL_BN_free(dsa->p);
+            InitCyaSSL_DSA(dsa);  /* set back to NULLs for safety */
+
+            XFREE(dsa, NULL, DYNAMIC_TYPE_DSA);
+        }
     }
 
 
@@ -5846,7 +6391,7 @@ int CyaSSL_set_compression(CYASSL* ssl)
     {
         CYASSL_MSG("CyaSSL_DSA_generate_key");
 
-        return -1;
+        return 0;  /* key gen not needed by server */
     }
 
 
@@ -5856,7 +6401,7 @@ int CyaSSL_set_compression(CYASSL* ssl)
     {
         CYASSL_MSG("CyaSSL_DSA_generate_parameters_ex");
 
-        return -1;
+        return 0;  /* key gen not needed by server */
     }
 
 
@@ -5932,9 +6477,9 @@ int CyaSSL_set_compression(CYASSL* ssl)
     }
 
 
-    static int SetIndividualRsaExternal(CYASSL_BIGNUM** bn, mp_int* mpi)
+    static int SetIndividualExternal(CYASSL_BIGNUM** bn, mp_int* mpi)
     {
-        CYASSL_MSG("Entering SetIndividualRsaExternal");
+        CYASSL_MSG("Entering SetIndividualExternal");
 
         if (mpi == NULL) {
             CYASSL_MSG("mpi NULL error");
@@ -5944,7 +6489,7 @@ int CyaSSL_set_compression(CYASSL* ssl)
         if (*bn == NULL) {
             *bn = CyaSSL_BN_new();
             if (*bn == NULL) {
-                CYASSL_MSG("SetIndividualRsaExternal alloc failed");
+                CYASSL_MSG("SetIndividualExternal alloc failed");
                 return -1;
             }
         }
@@ -5957,6 +6502,48 @@ int CyaSSL_set_compression(CYASSL* ssl)
         return 0;
     }
 
+
+    static int SetDsaExternal(CYASSL_DSA* dsa)
+    {
+        DsaKey* key;
+        CYASSL_MSG("Entering SetDsaExternal");
+
+        if (dsa == NULL || dsa->internal == NULL) {
+            CYASSL_MSG("dsa key NULL error");
+            return -1;
+        }
+
+        key = (DsaKey*)dsa->internal;
+
+        if (SetIndividualExternal(&dsa->p, &key->p) < 0) {
+            CYASSL_MSG("dsa p key error");
+            return -1;
+        }
+
+        if (SetIndividualExternal(&dsa->q, &key->q) < 0) {
+            CYASSL_MSG("dsa q key error");
+            return -1;
+        }
+
+        if (SetIndividualExternal(&dsa->g, &key->g) < 0) {
+            CYASSL_MSG("dsa g key error");
+            return -1;
+        }
+
+        if (SetIndividualExternal(&dsa->pub_key, &key->y) < 0) {
+            CYASSL_MSG("dsa y key error");
+            return -1;
+        }
+
+        if (SetIndividualExternal(&dsa->priv_key, &key->x) < 0) {
+            CYASSL_MSG("dsa x key error");
+            return -1;
+        }
+
+        dsa->exSet = 1;
+
+        return 0;
+    }
 
 
     static int SetRsaExternal(CYASSL_RSA* rsa)
@@ -5971,45 +6558,47 @@ int CyaSSL_set_compression(CYASSL* ssl)
 
         key = (RsaKey*)rsa->internal;
 
-        if (SetIndividualRsaExternal(&rsa->n, &key->n) < 0) {
+        if (SetIndividualExternal(&rsa->n, &key->n) < 0) {
             CYASSL_MSG("rsa n key error");
             return -1;
         }
 
-        if (SetIndividualRsaExternal(&rsa->e, &key->e) < 0) {
+        if (SetIndividualExternal(&rsa->e, &key->e) < 0) {
             CYASSL_MSG("rsa e key error");
             return -1;
         }
 
-        if (SetIndividualRsaExternal(&rsa->d, &key->d) < 0) {
+        if (SetIndividualExternal(&rsa->d, &key->d) < 0) {
             CYASSL_MSG("rsa d key error");
             return -1;
         }
 
-        if (SetIndividualRsaExternal(&rsa->p, &key->p) < 0) {
+        if (SetIndividualExternal(&rsa->p, &key->p) < 0) {
             CYASSL_MSG("rsa p key error");
             return -1;
         }
 
-        if (SetIndividualRsaExternal(&rsa->q, &key->q) < 0) {
+        if (SetIndividualExternal(&rsa->q, &key->q) < 0) {
             CYASSL_MSG("rsa q key error");
             return -1;
         }
 
-        if (SetIndividualRsaExternal(&rsa->dmp1, &key->dP) < 0) {
+        if (SetIndividualExternal(&rsa->dmp1, &key->dP) < 0) {
             CYASSL_MSG("rsa dP key error");
             return -1;
         }
 
-        if (SetIndividualRsaExternal(&rsa->dmq1, &key->dQ) < 0) {
+        if (SetIndividualExternal(&rsa->dmq1, &key->dQ) < 0) {
             CYASSL_MSG("rsa dQ key error");
             return -1;
         }
 
-        if (SetIndividualRsaExternal(&rsa->iqmp, &key->u) < 0) {
+        if (SetIndividualExternal(&rsa->iqmp, &key->u) < 0) {
             CYASSL_MSG("rsa u key error");
             return -1;
         }
+
+        rsa->exSet = 1;
 
         return 0;
     }
@@ -6045,6 +6634,8 @@ int CyaSSL_set_compression(CYASSL* ssl)
             return -1;
         }
 
+        rsa->inSet = 1;
+
         return 1;  /* success */
     }
 
@@ -6079,17 +6670,118 @@ int CyaSSL_set_compression(CYASSL* ssl)
     {
         CYASSL_MSG("CyaSSL_RSA_size");
 
-        return -1;
+        if (rsa == NULL)
+            return 0;
+
+        return CyaSSL_BN_num_bytes(rsa->n);
     }
 
 
+    /* return 0 on success, < 0 otherwise */
+    int CyaSSL_DSA_do_sign(const unsigned char* d, unsigned char* sigRet,
+                           CYASSL_DSA* dsa)
+    {
+        word32 signSz;
+        RNG    tmpRNG;
+        RNG*   rng = &tmpRNG; 
+
+        CYASSL_MSG("CyaSSL_DSA_do_sign");
+
+        if (d == NULL || sigRet == NULL || dsa == NULL) {
+            CYASSL_MSG("Bad function arguments");
+            return -1;
+        }
+
+        if (dsa->inSet == 0) {
+            CYASSL_MSG("No DSA internal set");
+            return -1;
+        }
+
+        if (InitRng(&tmpRNG) != 0) {
+            CYASSL_MSG("Bad RNG Init, trying global");
+            if (initGlobalRNG == 0) {
+                CYASSL_MSG("Global RNG no Init");
+                return -1; 
+            }
+            rng = &globalRNG;
+        }
+
+        if (DsaSign(d, sigRet, (DsaKey*)dsa->internal, rng) < 0) {
+            CYASSL_MSG("DsaSign failed");
+            return -1;
+        }
+
+        return 0;
+    }
+
+
+    /* return 1 on success, 0 otherwise */
     int CyaSSL_RSA_sign(int type, const unsigned char* m,
                                unsigned int mLen, unsigned char* sigRet,
                                unsigned int* sigLen, CYASSL_RSA* rsa)
     {
+        byte   encodedSig[MAX_ENCODED_SIG_SZ];
+        word32 outLen;
+        word32 signSz;
+        RNG    tmpRNG;
+        RNG*   rng = &tmpRNG; 
+
         CYASSL_MSG("CyaSSL_RSA_sign");
 
-        return -1;
+        if (m == NULL || sigRet == NULL || sigLen == NULL || rsa == NULL) {
+            CYASSL_MSG("Bad function arguments");
+            return 0;
+        }
+
+        if (rsa->inSet == 0) {
+            CYASSL_MSG("No RSA internal set");
+            return 0;
+        }
+
+        outLen = (word32)CyaSSL_BN_num_bytes(rsa->n);
+        if (outLen == 0) {
+            CYASSL_MSG("Bad RSA size");
+            return 0;
+        }
+       
+        if (InitRng(&tmpRNG) != 0) {
+            CYASSL_MSG("Bad RNG Init, trying global");
+            if (initGlobalRNG == 0) {
+                CYASSL_MSG("Global RNG no Init");
+                return 0; 
+            }
+            rng = &globalRNG;
+        }
+
+        switch (type) {
+            case NID_md5:
+                type = MD5h;
+                break;
+
+            case NID_sha1:
+                type = SHAh;
+                break;
+
+            default:
+                CYASSL_MSG("Bad md type");
+                return 0;
+        }
+
+        signSz = EncodeSignature(encodedSig, m, mLen, type);
+        if (signSz < 0) {
+            CYASSL_MSG("Bad Encode Signature");
+            return 0;
+        }
+
+        *sigLen = RsaSSL_Sign(encodedSig, signSz, sigRet, outLen,
+                              (RsaKey*)rsa->internal, rng);
+        if (sigLen < 0) {
+            CYASSL_MSG("Bad Rsa Sign");
+            return 0;
+        }
+
+        CYASSL_MSG("CyaSSL_RSA_sign success");
+        return 1;  /* success */
     }
 
 
@@ -6151,6 +6843,37 @@ int CyaSSL_set_compression(CYASSL* ssl)
                       const EVP_MD* type)
     {
         CYASSL_MSG("CyaSSL_HMAC_Init");
+
+        if (ctx == NULL) {
+            CYASSL_MSG("no ctx on init");
+            return;
+        }
+
+        if (type) {
+            CYASSL_MSG("init has type");
+
+            if (XSTRNCMP(type, "MD5", 3) == 0) {
+                CYASSL_MSG("md5 hmac");
+                ctx->type = MD5;
+            }
+            else if (XSTRNCMP(type, "SHA256", 6) == 0) {
+                CYASSL_MSG("sha256 hmac");
+                ctx->type = SHA256;
+            }
+            
+            /* has to be last since would pick or 256, 384, or 512 too */
+            else if (XSTRNCMP(type, "SHA", 3) == 0) {
+                CYASSL_MSG("sha hmac");
+                ctx->type = SHA;
+            }
+            else
+                CYASSL_MSG("bad init type");
+        }
+
+        if (key && keylen) {
+            CYASSL_MSG("keying hmac");
+            HmacSetKey(&ctx->hmac, ctx->type, key, (word32)keylen);
+        }
     }
 
 
@@ -6158,6 +6881,11 @@ int CyaSSL_set_compression(CYASSL* ssl)
                         int len)
     {
         CYASSL_MSG("CyaSSL_HMAC_Update");
+
+        if (ctx && data) {
+            CYASSL_MSG("updating hmac");
+            HmacUpdate(&ctx->hmac, data, (word32)len);
+        }
     }
 
 
@@ -6165,6 +6893,31 @@ int CyaSSL_set_compression(CYASSL* ssl)
                        unsigned int* len)
     {
         CYASSL_MSG("CyaSSL_HMAC_Final");
+
+        if (ctx && hash) {
+            CYASSL_MSG("final hmac");
+            HmacFinal(&ctx->hmac, hash);
+
+            if (len) {
+                CYASSL_MSG("setting output len");
+                switch (ctx->type) {
+                    case MD5:
+                        *len = MD5_DIGEST_SIZE;
+                        break;
+
+                    case SHA:
+                        *len = SHA_DIGEST_SIZE;
+                        break;
+
+                    case SHA256:
+                        *len = SHA256_DIGEST_SIZE;
+                        break;
+
+                    default:
+                        CYASSL_MSG("bad hmac type");
+                }
+            }
+        }
     }
 
 
@@ -6177,6 +6930,20 @@ int CyaSSL_set_compression(CYASSL* ssl)
     const CYASSL_EVP_MD* CyaSSL_EVP_get_digestbynid(int id)
     {
         CYASSL_MSG("CyaSSL_get_digestbynid");
+
+        switch(id) {
+            case NID_md5:
+                return CyaSSL_EVP_md5();
+                break;
+
+            case NID_sha1:
+                return CyaSSL_EVP_sha1();
+                break;
+
+            default:
+                CYASSL_MSG("Bad digest id value");
+                return NULL;
+        }
 
         return NULL;
     }
@@ -6202,6 +6969,19 @@ int CyaSSL_set_compression(CYASSL* ssl)
     {
         CYASSL_MSG("CyaSSL_EVP_X_STATE");
 
+        if (ctx) {
+            switch (ctx->cipherType) {
+                case ARC4_TYPE:
+                    CYASSL_MSG("returning arc4 state");
+                    return (void*)&ctx->cipher.arc4.x;
+                    break;
+
+                default:
+                    CYASSL_MSG("bad x state type");
+                    return 0;
+            }
+        }
+
         return NULL;
     }
 
@@ -6210,25 +6990,54 @@ int CyaSSL_set_compression(CYASSL* ssl)
     {
         CYASSL_MSG("CyaSSL_EVP_X_STATE_LEN");
 
-        return -1;
+        if (ctx) {
+            switch (ctx->cipherType) {
+                case ARC4_TYPE:
+                    CYASSL_MSG("returning arc4 state size");
+                    return sizeof(Arc4);
+                    break;
+
+                default:
+                    CYASSL_MSG("bad x state type");
+                    return 0;
+            }
+        }
+
+        return 0;
     }
 
 
-    int CyaSSL_3des_iv(CYASSL_EVP_CIPHER_CTX* ctx, int doset,
+    void CyaSSL_3des_iv(CYASSL_EVP_CIPHER_CTX* ctx, int doset,
                                 unsigned char* iv, int len)
     {
         CYASSL_MSG("CyaSSL_3des_iv");
 
-        return -1;
+        if (ctx == NULL || iv == NULL) {
+            CYASSL_MSG("Bad function argument");
+            return;
+        }
+
+        if (doset)
+            Des3_SetIV(&ctx->cipher.des3, iv);
+        else
+            memcpy(iv, &ctx->cipher.des3.reg, DES_BLOCK_SIZE);
     }
 
 
-    int CyaSSL_aes_ctr_iv(CYASSL_EVP_CIPHER_CTX* ctx, int doset,
-                                unsigned char* iv, int len)
+    void CyaSSL_aes_ctr_iv(CYASSL_EVP_CIPHER_CTX* ctx, int doset,
+                          unsigned char* iv, int len)
     {
         CYASSL_MSG("CyaSSL_aes_ctr_iv");
 
-        return -1;
+        if (ctx == NULL || iv == NULL) {
+            CYASSL_MSG("Bad function argument");
+            return;
+        }
+
+        if (doset)
+            AesSetIV(&ctx->cipher.aes, iv);
+        else
+            memcpy(iv, &ctx->cipher.aes.reg, AES_BLOCK_SIZE);
     }
 
 
@@ -6240,11 +7049,37 @@ int CyaSSL_set_compression(CYASSL* ssl)
     }
 
 
-    int CyaSSL_EVP_MD_size(const CYASSL_EVP_MD* md)
+    int CyaSSL_EVP_MD_size(const CYASSL_EVP_MD* type)
     {
         CYASSL_MSG("CyaSSL_EVP_MD_size");
 
-        return -1;
+        if (type == NULL) {
+            CYASSL_MSG("No md type arg");
+            return BAD_FUNC_ARG;
+        }
+
+        if (XSTRNCMP(type, "MD5", 3) == 0) {
+            return MD5_DIGEST_SIZE;
+        }
+        else if (XSTRNCMP(type, "SHA256", 6) == 0) {
+            return SHA256_DIGEST_SIZE;
+        }
+    #ifdef CYASSL_SHA384
+        else if (XSTRNCMP(type, "SHA384", 6) == 0) {
+            return SHA384_DIGEST_SIZE;
+        }
+    #endif
+    #ifdef CYASSL_SHA512
+        else if (XSTRNCMP(type, "SHA512", 6) == 0) {
+            return SHA512_DIGEST_SIZE;
+        }
+    #endif
+        /* has to be last since would pick or 256, 384, or 512 too */
+        else if (XSTRNCMP(type, "SHA", 3) == 0) {
+            return SHA_DIGEST_SIZE;
+        }   
+
+        return BAD_FUNC_ARG;
     }
 
 
@@ -6252,21 +7087,58 @@ int CyaSSL_set_compression(CYASSL* ssl)
     {
         CYASSL_MSG("CyaSSL_EVP_CIPHER_CTX_iv_length");
 
-        return -1;
+        switch (ctx->cipherType) {
+
+            case AES_128_CBC_TYPE :
+            case AES_192_CBC_TYPE :
+            case AES_256_CBC_TYPE :
+                CYASSL_MSG("AES CBC");
+                return AES_BLOCK_SIZE;
+                break;
+
+#ifdef CYASSL_AES_COUNTER
+            case AES_128_CTR_TYPE :
+            case AES_192_CTR_TYPE :
+            case AES_256_CTR_TYPE :
+                CYASSL_MSG("AES CTR");
+                return AES_BLOCK_SIZE;
+                break;
+#endif
+
+            case DES_CBC_TYPE :
+                CYASSL_MSG("DES CBC");
+                return DES_BLOCK_SIZE;
+                break;
+                
+            case DES_EDE3_CBC_TYPE :
+                CYASSL_MSG("DES EDE3 CBC");
+                return DES_BLOCK_SIZE;
+                break;
+
+            case ARC4_TYPE :
+                CYASSL_MSG("ARC4");
+                return 0;
+                break;
+
+            case NULL_CIPHER_TYPE :
+                CYASSL_MSG("NULL");
+                return 0;
+                break;
+
+            default: {
+                CYASSL_MSG("bad type");
+                return 0;
+            }
+        }    
+        return 0;
     }
 
 
     void CyaSSL_OPENSSL_free(void* p)
     {
         CYASSL_MSG("CyaSSL_OPENSSL_free");
-    }
 
-
-    int CyaSSL_RAND_seed(const void* seed, int len)
-    {
-        CYASSL_MSG("CyaSSL_RAND_seed");
-
-        return -1;
+        XFREE(p, NULL, 0);
     }
 
 
@@ -6304,7 +7176,106 @@ int CyaSSL_set_compression(CYASSL* ssl)
 
 
 
+/* Return bytes written to buff or < 0 for error */
+int CyaSSL_KeyPemToDer(const unsigned char* pem, int pemSz, unsigned char* buff,
+                       int buffSz, const char* pass)
+{
+    EncryptedInfo info;
+    int           eccKey = 0;
+    int           ret;
+    buffer        der;
 
+    CYASSL_ENTER("CyaSSL_KeyPemToDer");
+
+    if (pem == NULL || buff == NULL || buffSz <= 0) {
+        CYASSL_MSG("Bad pem der args"); 
+        return BAD_FUNC_ARG;
+    }
+
+    info.set       = 0;
+    info.ctx      = NULL;
+    info.consumed = 0;
+    der.buffer    = NULL;
+
+    ret = PemToDer(pem, pemSz, PRIVATEKEY_TYPE, &der, NULL, &info, &eccKey);
+    if (ret < 0) {
+        CYASSL_MSG("Bad Pem To Der"); 
+    }
+    else {
+        if (der.length <= buffSz) {
+            XMEMCPY(buff, der.buffer, der.length);
+            ret = der.length;
+        }
+        else {
+            CYASSL_MSG("Bad der length");
+            ret = BAD_FUNC_ARG;
+        }
+    }
+
+    XFREE(der.buffer, NULL, DYANMIC_KEY_TYPE);
+
+    return ret;
+}
+
+
+/* Load RSA from Der, 0 on success < 0 on error */
+int CyaSSL_RSA_LoadDer(CYASSL_RSA* rsa, const unsigned char* der,  int derSz)
+{
+    word32 idx = 0;
+    int    ret;
+
+    CYASSL_ENTER("CyaSSL_RSA_LoadDer");
+
+    if (rsa == NULL || rsa->internal == NULL || der == NULL || derSz <= 0) {
+        CYASSL_MSG("Bad function arguments");
+        return BAD_FUNC_ARG;
+    }
+
+    ret = RsaPrivateKeyDecode(der, &idx, rsa->internal, derSz);
+    if (ret < 0) {
+        CYASSL_MSG("RsaPrivateKeyDecode failed");
+        return ret;
+    }
+
+    if (SetRsaExternal(rsa) < 0) {
+        CYASSL_MSG("SetRsaExternal failed");
+        return -1;
+    }
+
+    rsa->inSet = 1;
+
+    return 0;
+}
+
+
+/* Load DSA from Der, 0 on success < 0 on error */
+int CyaSSL_DSA_LoadDer(CYASSL_DSA* dsa, const unsigned char* der,  int derSz)
+{
+    word32 idx = 0;
+    int    ret;
+
+    CYASSL_ENTER("CyaSSL_DSA_LoadDer");
+
+    if (dsa == NULL || dsa->internal == NULL || der == NULL || derSz <= 0) {
+        CYASSL_MSG("Bad function arguments");
+        return BAD_FUNC_ARG;
+    }
+
+    ret = DsaPrivateKeyDecode(der, &idx, dsa->internal, derSz);
+    if (ret < 0) {
+        CYASSL_MSG("DsaPrivateKeyDecode failed");
+        return ret;
+    }
+
+    if (SetDsaExternal(dsa) < 0) {
+        CYASSL_MSG("SetDsaExternal failed");
+        return -1;
+    }
+
+    dsa->inSet = 1;
+
+    return 0;
+}
 
 
 

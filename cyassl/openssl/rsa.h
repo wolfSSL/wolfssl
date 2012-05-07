@@ -51,6 +51,7 @@ CYASSL_API int CyaSSL_RSA_sign(int type, const unsigned char* m,
 CYASSL_API int CyaSSL_RSA_public_decrypt(int flen, unsigned char* from,
                                   unsigned char* to, CYASSL_RSA*, int padding);
 CYASSL_API int CyaSSL_RSA_GenAdd(CYASSL_RSA*);
+CYASSL_API int CyaSSL_RSA_LoadDer(CYASSL_RSA*, const unsigned char*, int sz);
 
 
 #define RSA_new  CyaSSL_RSA_new

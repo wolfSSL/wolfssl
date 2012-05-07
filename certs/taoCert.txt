@@ -107,3 +107,51 @@ openssl dhparam -in dh2048.param -text > dh2048.pem
     make a new key
         openssl ecparam -genkey -text -name secp256r1 -out ecc-key.pem
 
+
+*** CRL ***
+
+1) create a crl
+
+a) openssl ca -gencrl -out crl.pem -keyfile ./ca-key.pem -cert ./ca-cert.pem
+
+Error No ./CA root/index.txt so:
+
+b) touch ./CA root/index.txt
+
+a) again
+
+Error No ./CA root/crlnumber so:
+
+c) touch ./CA root/crlnumber
+
+a) again
+
+Error unable to load CRL number
+
+d) add '01' to crlnumber file
+
+a) again
+
+2)  view crl file
+
+openssl crl -in crl.pem -text
+
+3) revoke
+
+openssl ca -revoke server-cert.pem -keyfile ./ca-key.pem -cert ./ca-cert.pem
+
+Then regenerate crl with a)
+
+4) verify
+
+openssl verify -CAfile ./ca-cert.pem  ./server-cert.pem
+
+OK
+
+Make file with both ca and crl
+
+cat ca-cert.pem crl.pem > ca-crl.pem
+
+openssl verify -CAfile ./ca-crl.pem -crl_check ./ca-cert.pem
+
+revoked

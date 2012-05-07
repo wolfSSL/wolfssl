@@ -35,6 +35,7 @@
 #endif
 
 #include <cyassl/openssl/evp.h>
+#include <cyassl/ctaocrypt/hmac.h>
 
 #ifdef __cplusplus
     extern "C" {
@@ -48,7 +49,8 @@ CYASSL_API unsigned char* CyaSSL_HMAC(const CYASSL_EVP_MD* evp_md,
 
 
 typedef struct CYASSL_HMAC_CTX {
-    int stuff;    
+    Hmac hmac;
+    int  type;
 } CYASSL_HMAC_CTX;
 
 

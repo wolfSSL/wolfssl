@@ -88,8 +88,8 @@ typedef union {
 
 
 typedef struct CYASSL_EVP_MD_CTX {
-    CYASSL_Hasher hash;
     unsigned char macType;
+    CYASSL_Hasher hash;
 } CYASSL_EVP_MD_CTX;
 
 
@@ -120,11 +120,11 @@ enum {
 
 
 typedef struct CYASSL_EVP_CIPHER_CTX {
-    CYASSL_Cipher  cipher;
     int            keyLen;         /* user may set for variable */
-    unsigned char* iv;             /* working iv pointer into cipher */
     unsigned char  enc;            /* if encrypt side, then true */
     unsigned char  cipherType;
+    unsigned char  iv[64];         /* working iv pointer into cipher */
+    CYASSL_Cipher  cipher;
 } CYASSL_EVP_CIPHER_CTX;
 
 
@@ -171,10 +171,14 @@ CYASSL_API CYASSL_DSA* CyaSSL_EVP_PKEY_get1_DSA(CYASSL_EVP_PKEY*);
 CYASSL_API void* CyaSSL_EVP_X_STATE(const CYASSL_EVP_CIPHER_CTX* ctx);
 CYASSL_API int   CyaSSL_EVP_X_STATE_LEN(const CYASSL_EVP_CIPHER_CTX* ctx);
 
-CYASSL_API int   CyaSSL_3des_iv(CYASSL_EVP_CIPHER_CTX* ctx, int doset,
+CYASSL_API void  CyaSSL_3des_iv(CYASSL_EVP_CIPHER_CTX* ctx, int doset,
                                 unsigned char* iv, int len);
-CYASSL_API int   CyaSSL_aes_ctr_iv(CYASSL_EVP_CIPHER_CTX* ctx, int doset,
+CYASSL_API void  CyaSSL_aes_ctr_iv(CYASSL_EVP_CIPHER_CTX* ctx, int doset,
                                 unsigned char* iv, int len);
+
+CYASSL_API int  CyaSSL_StoreExternalIV(CYASSL_EVP_CIPHER_CTX* ctx);
+CYASSL_API int  CyaSSL_SetInternalIV(CYASSL_EVP_CIPHER_CTX* ctx);
+
 
 /* end OpenSSH compat */
 

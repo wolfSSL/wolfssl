@@ -3664,6 +3664,34 @@ int fast_s_mp_mul_high_digs (mp_int * a, mp_int * b, mp_int * c, int digs)
 }
 
 
+/* set a 32-bit const */
+int mp_set_int (mp_int * a, unsigned long b)
+{
+  int     x, res;
+
+  mp_zero (a);
+  
+  /* set four bits at a time */
+  for (x = 0; x < 8; x++) {
+    /* shift the number up four bits */
+    if ((res = mp_mul_2d (a, 4, a)) != MP_OKAY) {
+      return res;
+    }
+
+    /* OR in the top four bits of the source */
+    a->dp[0] |= (b >> 28) & 15;
+
+    /* shift the source up to the next four bits */
+    b <<= 4;
+
+    /* ensure that digits are not clamped off */
+    a->used += 1;
+  }
+  mp_clamp (a);
+  return MP_OKAY;
+}
+
+
 #if defined(CYASSL_KEY_GEN) || defined(HAVE_ECC)
 
 /* c = a * a (mod b) */
@@ -4329,32 +4357,6 @@ LBL_U:mp_clear (&v);
 }
 
 
-/* set a 32-bit const */
-int mp_set_int (mp_int * a, unsigned long b)
-{
-  int     x, res;
-
-  mp_zero (a);
-  
-  /* set four bits at a time */
-  for (x = 0; x < 8; x++) {
-    /* shift the number up four bits */
-    if ((res = mp_mul_2d (a, 4, a)) != MP_OKAY) {
-      return res;
-    }
-
-    /* OR in the top four bits of the source */
-    a->dp[0] |= (b >> 28) & 15;
-
-    /* shift the source up to the next four bits */
-    b <<= 4;
-
-    /* ensure that digits are not clamped off */
-    a->used += 1;
-  }
-  mp_clamp (a);
-  return MP_OKAY;
-}
 
 #endif /* CYASSL_KEY_GEN */
 
