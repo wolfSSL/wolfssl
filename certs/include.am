@@ -10,6 +10,8 @@ certs_DATA+= \
 	     certs/client-key.pem \
 	     certs/ecc-key.pem \
 	     certs/ecc-keyPkcs8.pem \
+	     certs/ecc-client-key.pem \
+	     certs/client-ecc-cert.pem \
 	     certs/ntru-cert.pem \
 	     certs/dh2048.pem \
 	     certs/server-cert.pem \
