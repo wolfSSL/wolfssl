@@ -88,7 +88,6 @@ int CyaSSL_OCSP_Init(CYASSL_OCSP* ocsp)
 void CyaSSL_OCSP_Cleanup(CYASSL_OCSP* ocsp)
 {
     ocsp->enabled = 0;
-    /* Deallocate memory */
 }
 
 
@@ -224,13 +223,14 @@ static int build_ocsp_request(CYASSL_OCSP* ocsp, byte* buf, int bufSz)
 }
 
 
-static char* decode_http_response(char* buf, int bufSize, int* ocspRespSize)
+static byte* decode_http_response(byte* httpBuf, int httpBufSz, int* ocspRespSz)
 {
     int idx = 0;
     int stop = 0;
     byte* contentType = NULL;
     byte* contentLength = NULL;
     byte* content = NULL;
+    char* buf = (char*)httpBuf; /* kludge so I'm not constantly casting */
 
     if (strncasecmp(buf, "HTTP/1", 6) != 0)
         return NULL;
@@ -243,7 +243,7 @@ static char* decode_http_response(char* buf, int bufSize, int* ocspRespSize)
     
     idx += 8;
 
-    while (idx < bufSize && !stop) {
+    while (idx < httpBufSz && !stop) {
         if (buf[idx] == '\r' && buf[idx+1] == '\n') {
             stop = 1;
             idx += 2;
@@ -261,11 +261,11 @@ static char* decode_http_response(char* buf, int bufSize, int* ocspRespSize)
                 int len = 0;
                 idx += 15;
                 if (buf[idx] == ' ') idx++;
-                while (buf[idx] > '0' && buf[idx] < '9' && idx < bufSize) {
+                while (buf[idx] > '0' && buf[idx] < '9' && idx < httpBufSz) {
                     len = (len * 10) + (buf[idx] - '0');
                     idx++;
                 }
-                *ocspRespSize = len;
+                *ocspRespSz = len;
                 idx += 2; /* skip the crlf */
             } else {
                 /* Advance idx past the next \r\n */
@@ -275,7 +275,7 @@ static char* decode_http_response(char* buf, int bufSize, int* ocspRespSize)
             }
         }
     }
-    return &buf[idx];
+    return &httpBuf[idx];
 }
 
 
