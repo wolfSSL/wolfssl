@@ -2183,6 +2183,15 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
         CYASSL_MSG("About to verify certificate signature");
  
         if (ca) {
+#ifdef HAVE_OCSP
+            /* Need the ca's public key hash for OCSP */
+            {
+                Sha sha;
+                InitSha(&sha);
+                ShaUpdate(&sha, ca->publicKey, ca->pubKeySize);
+                ShaFinal(&sha, cert->issuerKeyHash);
+            }
+#endif /* HAVE_OCSP */
             /* try to confirm/verify signature */
             if (!ConfirmSignature(cert, ca->publicKey,
                                   ca->pubKeySize, ca->keyOID)) {

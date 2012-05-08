@@ -207,6 +207,9 @@ struct DecodedCert {
     word32  keyOID;                  /* sum of key algo  object id       */
     byte    subjectHash[SHA_SIZE];   /* hash of all Names                */
     byte    issuerHash[SHA_SIZE];    /* hash of all Names                */
+#ifdef HAVE_OCSP
+    byte    issuerKeyHash[SHA_SIZE]; /* hash of the public Key           */
+#endif /* HAVE_OCSP */
     byte*   signature;               /* not owned, points into raw cert  */
     char*   subjectCN;               /* CommonName                       */
     int     subjectCNLen;
