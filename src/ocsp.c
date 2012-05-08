@@ -129,6 +129,19 @@ int CyaSSL_OCSP_set_override_url(CYASSL_OCSP* ocsp, const char* url)
         else
             ocsp->overridePort = 80;
 
+        if (url[cur] == '/') {
+            i = 0;
+            while (url[cur] != 0 && i < 80) {
+                ocsp->overridePath[i++] = url[cur++];
+            }
+            ocsp->overridePath[i] = 0;
+        }
+        else {
+            ocsp->overridePath[0] = '/';
+            ocsp->overridePath[1] = 0;
+        }
+            
+
         return 1;
     }
 
@@ -178,65 +191,159 @@ static INLINE void tcp_connect(SOCKET_T* sockfd, const char* ip, word16 port)
 }
 
 
-static void close_connection();
+static int build_http_request(CYASSL_OCSP* ocsp, int ocspReqSz,
+                                                        byte* buf, int bufSize)
+{
+    return snprintf((char*)buf, bufSize,
+        "POST %s HTTP/1.1\r\n"
+        "Host: %s\r\n"
+        "Content-Length: %d\r\n"
+        "Content-Type: application/ocsp-request\r\n"
+        "\r\n", 
+        ocsp->overridePath, ocsp->overrideName, ocspReqSz);
+}
 
-const char http_ocsp_pre[]  = "POST ";
-const char http_ocsp_post[] = " HTTP/1.1\r\nHost: ";
-const char http_ocsp_len[]  = "\r\nContent-Length: ";
-const char http_ocsp_type[] = "\r\nContent-Type: application/ocsp-request"
-                              "\r\n\r\n";
-const char arglebargle[] = "arglebargle";
 
+static const char foo[] = \
+        "\x30\x81\xB7\x30\x81\xB4\x30\x81\x8C\x30\x44\x30\x42\x30\x09\x06\x05\x2B\x0E\x03" \
+        "\x02\x1A\x05\x00\x04\x14\x49\x2D\x52\x83\x4B\x40\x37\xF5\xA9\x9E\x26\xA2\x3E\x48" \
+        "\x2F\x2E\x37\x34\xC9\x54\x04\x14\x21\xA2\x25\xEE\x57\x38\x34\x5A\x24\x9D\xF3\x7C" \
+        "\x18\x60\x59\x7A\x04\x3D\xF5\x69\x02\x09\x00\x89\x5A\xA2\xBD\xFE\x26\x8B\xEE\x30" \
+        "\x44\x30\x42\x30\x09\x06\x05\x2B\x0E\x03\x02\x1A\x05\x00\x04\x14\x49\x2D\x52\x83" \
+        "\x4B\x40\x37\xF5\xA9\x9E\x26\xA2\x3E\x48\x2F\x2E\x37\x34\xC9\x54\x04\x14\x21\xA2" \
+        "\x25\xEE\x57\x38\x34\x5A\x24\x9D\xF3\x7C\x18\x60\x59\x7A\x04\x3D\xF5\x69\x02\x09" \
+        "\x00\x89\x5A\xA2\xBD\xFE\x26\x8B\xEF\xA2\x23\x30\x21\x30\x1F\x06\x09\x2B\x06\x01" \
+        "\x05\x05\x07\x30\x01\x02\x04\x12\x04\x10\x20\x56\x47\x19\x65\x33\xB6\xB5\xAD\x39" \
+        "\x1F\x21\x65\xE0\x44\x1E";
+
+
+static int build_ocsp_request(CYASSL_OCSP* ocsp, byte* buf, int bufSz)
+{
+    memcpy(buf, foo, sizeof(foo));
+    return sizeof(foo) - 1;
+}
+
+
+static char* decode_http_response(char* buf, int bufSize, int* ocspRespSize)
+{
+    int idx = 0;
+    int stop = 0;
+    byte* contentType = NULL;
+    byte* contentLength = NULL;
+    byte* content = NULL;
+
+    if (strncasecmp(buf, "HTTP/1", 6) != 0)
+        return NULL;
+    
+    idx = 9; /* sets to the first byte after "HTTP/1.X ", which should be the
+              * HTTP result code */
+
+     if (strncasecmp(&buf[idx], "200 OK", 6) != 0)
+        return NULL;
+    
+    idx += 8;
+
+    while (idx < bufSize && !stop) {
+        if (buf[idx] == '\r' && buf[idx+1] == '\n') {
+            stop = 1;
+            idx += 2;
+        }
+        else {
+            if (contentType == NULL &&
+                strncasecmp(&buf[idx], "Content-Type:", 13) == 0) {
+                idx += 13;
+                if (buf[idx] == ' ') idx++;
+                if (strncasecmp(&buf[idx], "application/ocsp-response", 25) != 0)
+                    return NULL;
+                idx += 27;
+            } else if (contentLength == NULL &&
+                strncasecmp(&buf[idx], "Content-Length:", 15) == 0) {
+                int len = 0;
+                idx += 15;
+                if (buf[idx] == ' ') idx++;
+                while (buf[idx] > '0' && buf[idx] < '9' && idx < bufSize) {
+                    len = (len * 10) + (buf[idx] - '0');
+                    idx++;
+                }
+                *ocspRespSize = len;
+                idx += 2; /* skip the crlf */
+            } else {
+                /* Advance idx past the next \r\n */
+                char* end = strstr(&buf[idx], "\r\n");
+                idx = end - buf + 2;
+                stop = 1;
+            }
+        }
+    }
+    return &buf[idx];
+}
+
+
+#define SCRATCH_BUFFER_SIZE 2048
 
 int CyaSSL_OCSP_Lookup_Cert(CYASSL_OCSP* ocsp, DecodedCert* cert)
 {
     SOCKET_T sfd = -1;
-	char buf[1024];
-	int bufRemainder = 1023;
+    byte buf[SCRATCH_BUFFER_SIZE];
+    byte* httpBuf = &buf[0];
+    int httpBufSz = SCRATCH_BUFFER_SIZE/4;
+    byte* ocspReqBuf = &buf[httpBufSz];
+    int ocspReqSz = SCRATCH_BUFFER_SIZE - httpBufSz;
+    OcspResponse ocspResponse;
+    int result = CERT_UNKNOWN;
 
     /* If OCSP lookups are disabled, return success. */
-    if (!ocsp->enabled) return 1;
+    if (!ocsp->enabled) {
+        CYASSL_MSG("OCSP lookup disabled, assuming CERT_GOOD");
+        return CERT_GOOD;
+    }
 
     /* If OCSP lookups are enabled, but URL Override is disabled, return 
     ** a failure. Need to have an override URL for right now. */
-    if (!ocsp->useOverrideUrl || cert == NULL) return 0;
+    if (!ocsp->useOverrideUrl || cert == NULL) {
+        CYASSL_MSG("OCSP lookup enabled, but URL Override disabled");
+        return CERT_UNKNOWN;
+    }
 
     XMEMCPY(ocsp->status[0].subjectHash, cert->subjectHash, SHA_SIZE);
     XMEMCPY(ocsp->status[0].issuerHash, cert->issuerHash, SHA_SIZE);
     XMEMCPY(ocsp->status[0].serial, cert->serial, cert->serialSz);
     ocsp->status[0].serialSz = cert->serialSz;
+    ocsp->statusLen = 1;
 
-//    tcp_connect(&sfd, ocsp->overrideName, ocsp->overridePort);
+    ocspReqSz = build_ocsp_request(ocsp, ocspReqBuf, ocspReqSz);
+    httpBufSz = build_http_request(ocsp, ocspReqSz, httpBuf, httpBufSz);
 
-	memset(buf, 0, sizeof(buf));
+    tcp_connect(&sfd, ocsp->overrideName, ocsp->overridePort);
+    if (sfd > 0) {
+        int written;
+        written = write(sfd, httpBuf, httpBufSz);
+        written = write(sfd, ocspReqBuf, ocspReqSz);
+        httpBufSz = read(sfd, buf, SCRATCH_BUFFER_SIZE);
+        if (httpBufSz > 0) {
+            ocspReqBuf = decode_http_response(buf, httpBufSz, &ocspReqSz);
+            /* Need to check the lengths. There might be more data waiting. */
+        }
+        close(sfd);
+        if (ocspReqBuf == NULL) {
+            CYASSL_MSG("HTTP response was not OK, no OCSP response");
+            return CERT_UNKNOWN;
+        }
+    } else {
+        CYASSL_MSG("OCSP Responder connection failed");
+        return CERT_UNKNOWN;
+    }
 
-    strncat(buf, http_ocsp_pre, bufRemainder);
-	bufRemainder -= strlen(http_ocsp_pre);
+    InitOcspResponse(&ocspResponse, ocspReqBuf, ocspReqSz, NULL);
+    OcspResponseDecode(&ocspResponse);
+    if (ocspResponse.responseStatus != OCSP_SUCCESSFUL) {
+        CYASSL_MSG("OCSP Responder failure");
+    } else {
+        result = ocspResponse.certStatus[0];
+    }
+    FreeOcspResponse(&ocspResponse);
 
-	strncat(buf, "/", bufRemainder);
-	bufRemainder -= 1;
-    
-	strncat(buf, http_ocsp_post, bufRemainder);
-	bufRemainder -= strlen(http_ocsp_post);
-    
-	strncat(buf, ocsp->overrideName, bufRemainder);
-	bufRemainder -= strlen(ocsp->overrideName);
-    
-	strncat(buf, http_ocsp_len, bufRemainder);
-	bufRemainder -= strlen(http_ocsp_len);
-   
-	strncat(buf, "11", bufRemainder);
-	bufRemainder -= 2;
-
-	strncat(buf, http_ocsp_type, bufRemainder);
-	bufRemainder -= strlen(http_ocsp_type);
-
-	strncat(buf, arglebargle, bufRemainder);
-	bufRemainder -= strlen(arglebargle);
-
-//    close(sfd);
-
-    return 1;
+    return result;
 }
 
 
