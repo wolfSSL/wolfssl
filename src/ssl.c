@@ -47,6 +47,7 @@
     #include <cyassl/openssl/bn.h>
     #include <cyassl/openssl/dh.h>
     #include <cyassl/openssl/rsa.h>
+    #include <cyassl/openssl/pem.h>
     /* openssl headers end, cyassl internal headers next */
     #include <cyassl/ctaocrypt/hmac.h>
     #include <cyassl/ctaocrypt/random.h>
@@ -4447,19 +4448,6 @@ int CyaSSL_set_compression(CYASSL* ssl)
     }
 
 
-    int CyaSSL_RAND_bytes(unsigned char* buf, int num)
-    {
-        RNG rng;
-
-        CYASSL_ENTER("RAND_bytes");
-        if (InitRng(&rng))
-           return 0;
-
-        RNG_GenerateBlock(&rng, buf, num);
-
-        return 1;
-    }
-
 
     void CyaSSL_RAND_add(const void* add, int len, double entropy)
     {
@@ -5682,6 +5670,26 @@ static int initGlobalRNG = 0;
         return 0;
     }
 
+
+    int CyaSSL_RAND_bytes(unsigned char* buf, int num)
+    {
+        RNG    tmpRNG;
+        RNG*   rng = &tmpRNG; 
+
+        CYASSL_ENTER("RAND_bytes");
+        if (InitRng(&tmpRNG) != 0) {
+            CYASSL_MSG("Bad RNG Init, trying global");
+            if (initGlobalRNG == 0) {
+                CYASSL_MSG("Global RNG no Init");
+                return 0; 
+            }
+            rng = &globalRNG;
+        }
+
+        RNG_GenerateBlock(rng, buf, num);
+
+        return 1;
+    }
 
     CYASSL_BN_CTX* CyaSSL_BN_CTX_new(void)
     {
