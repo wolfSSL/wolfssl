@@ -36,6 +36,8 @@ CYASSL_API int CyaSSL_DSA_generate_parameters_ex(CYASSL_DSA*, int bits,
                    unsigned long* hRet, void* cb);
 
 CYASSL_API int CyaSSL_DSA_LoadDer(CYASSL_DSA*, const unsigned char*, int sz);
+CYASSL_API int CyaSSL_DSA_do_sign(const unsigned char* d, unsigned char* sigRet,
+                                  CYASSL_DSA* dsa);
 
 #define DSA_new CyaSSL_DSA_new
 #define DSA_free CyaSSL_DSA_free

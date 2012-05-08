@@ -47,6 +47,7 @@
     #include <cyassl/openssl/bn.h>
     #include <cyassl/openssl/dh.h>
     #include <cyassl/openssl/rsa.h>
+    #include <cyassl/openssl/pem.h>
     /* openssl headers end, cyassl internal headers next */
     #include <cyassl/ctaocrypt/hmac.h>
     #include <cyassl/ctaocrypt/random.h>
