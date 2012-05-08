@@ -202,6 +202,24 @@ int Base16_Decode(const byte* in, word32 inLen, byte* out, word32* outLen)
     word32 inIdx  = 0;
     word32 outIdx = 0;
 
+    if (inLen == 1 && *outLen && in) {
+        byte b = in[inIdx++] - 0x30;  /* 0 starts at 0x30 */
+
+        /* sanity check */
+        if (b >=  sizeof(hexDecode)/sizeof(hexDecode[0]))
+            return ASN_INPUT_E;
+
+        b  = hexDecode[b];
+
+        if (b == BAD)
+            return ASN_INPUT_E;
+        
+        out[outIdx++] = b;
+
+        *outLen = outIdx;
+        return 0;
+    }
+
     if (inLen % 2)
         return BAD_FUNC_ARG;
 

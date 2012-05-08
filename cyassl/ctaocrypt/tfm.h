@@ -650,6 +650,7 @@ int  mp_copy(fp_int* a, fp_int* b);
 int  mp_isodd(mp_int* a);
 int  mp_iszero(mp_int* a);
 int  mp_count_bits(mp_int *a);
+int  mp_set_int(fp_int *a, fp_digit b);
 
 #ifdef HAVE_ECC
     int mp_read_radix(mp_int* a, const char* str, int radix);
@@ -667,7 +668,6 @@ int  mp_count_bits(mp_int *a);
 #endif
 
 #ifdef CYASSL_KEY_GEN
-int  mp_set_int(fp_int *a, fp_digit b);
 int  mp_gcd(fp_int *a, fp_int *b, fp_int *c);
 int  mp_lcm(fp_int *a, fp_int *b, fp_int *c);
 int  mp_prime_is_prime(mp_int* a, int t, int* result);

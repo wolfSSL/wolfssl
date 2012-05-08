@@ -21,6 +21,9 @@ typedef struct CYASSL_DH {
 	CYASSL_BIGNUM* g;
     CYASSL_BIGNUM* pub_key;      /* openssh deference g^x */
     CYASSL_BIGNUM* priv_key;     /* openssh deference x   */
+    void*          internal;     /* our DH */
+    char           inSet;        /* internal set from external ? */
+    char           exSet;        /* external set from internal ? */
 } CYASSL_DH;
 
 

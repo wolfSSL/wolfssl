@@ -1962,6 +1962,14 @@ int mp_count_bits (mp_int* a)
 }
 
 
+/* fast math wrappers */
+int mp_set_int(fp_int *a, fp_digit b)
+{
+    fp_set(a, b);
+    return MP_OKAY;
+}
+
+
 #if defined(CYASSL_KEY_GEN) || defined (HAVE_ECC)
 
 /* c = a * a (mod b) */
@@ -1995,14 +2003,6 @@ void fp_gcd(fp_int *a, fp_int *b, fp_int *c);
 void fp_lcm(fp_int *a, fp_int *b, fp_int *c);
 int  fp_isprime(fp_int *a);
 int  fp_cnt_lsb(fp_int *a);
-
-/* fast math wrappers */
-int mp_set_int(fp_int *a, fp_digit b)
-{
-    fp_set(a, b);
-    return MP_OKAY;
-}
-
 
 int mp_gcd(fp_int *a, fp_int *b, fp_int *c)
 {

@@ -19,8 +19,11 @@ struct CYASSL_DSA {
 	CYASSL_BIGNUM* p;
 	CYASSL_BIGNUM* q;
 	CYASSL_BIGNUM* g;
-	CYASSL_BIGNUM* pub_key;
-	CYASSL_BIGNUM* priv_key;
+	CYASSL_BIGNUM* pub_key;      /* our y */
+	CYASSL_BIGNUM* priv_key;     /* our x */
+    void*          internal;     /* our Dsa Key */
+    char           inSet;        /* internal set from external ? */
+    char           exSet;        /* external set from internal ? */
 };
 
 
@@ -31,6 +34,8 @@ CYASSL_API int CyaSSL_DSA_generate_key(CYASSL_DSA*);
 CYASSL_API int CyaSSL_DSA_generate_parameters_ex(CYASSL_DSA*, int bits,
                    unsigned char* seed, int seedLen, int* counterRet,
                    unsigned long* hRet, void* cb);
+
+CYASSL_API int CyaSSL_DSA_LoadDer(CYASSL_DSA*, const unsigned char*, int sz);
 
 #define DSA_new CyaSSL_DSA_new
 #define DSA_free CyaSSL_DSA_free
