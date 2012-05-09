@@ -4119,7 +4119,7 @@ static int SetSerialNumber(const byte* sn, word32 snSz, byte* output)
 
     if (snSz <= EXTERNAL_SERIAL_SIZE) {
         output[0] = ASN_INTEGER;
-        output[1] = snSz;
+        output[1] = snSz + 1;
         output[2] = 0;
         XMEMCPY(&output[3], sn, snSz);
         result = snSz + 3;
