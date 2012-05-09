@@ -311,7 +311,7 @@ int CyaSSL_OCSP_Lookup_Cert(CYASSL_OCSP* ocsp, DecodedCert* cert)
     ocsp->status[0].serialSz = cert->serialSz;
     ocsp->statusLen = 1;
 
-	/*ocspReqSz = build_ocsp_request(ocsp, ocspReqBuf, ocspReqSz);*/
+    /*ocspReqSz = build_ocsp_request(ocsp, ocspReqBuf, ocspReqSz);*/
     ocspReqSz = EncodeOcspRequest(cert, ocspReqBuf, ocspReqSz);
     httpBufSz = build_http_request(ocsp, ocspReqSz, httpBuf, httpBufSz);
 
@@ -319,11 +319,15 @@ int CyaSSL_OCSP_Lookup_Cert(CYASSL_OCSP* ocsp, DecodedCert* cert)
     if (sfd > 0) {
         int written;
         written = write(sfd, httpBuf, httpBufSz);
-        written = write(sfd, ocspReqBuf, ocspReqSz);
-        httpBufSz = read(sfd, buf, SCRATCH_BUFFER_SIZE);
-        if (httpBufSz > 0) {
-            ocspReqBuf = decode_http_response(buf, httpBufSz, &ocspReqSz);
-            /* Need to check the lengths. There might be more data waiting. */
+        if (written == httpBufSz) {
+            written = write(sfd, ocspReqBuf, ocspReqSz);
+            if (written == ocspReqSz) {
+                httpBufSz = read(sfd, buf, SCRATCH_BUFFER_SIZE);
+                if (httpBufSz > 0) {
+                    ocspReqBuf = decode_http_response(buf, httpBufSz,
+                        &ocspReqSz);
+                }
+            }
         }
         close(sfd);
         if (ocspReqBuf == NULL) {
