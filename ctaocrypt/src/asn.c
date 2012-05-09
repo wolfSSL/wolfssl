@@ -4113,48 +4113,57 @@ int OcspResponseDecode(OcspResponse* resp)
 }
 
 
-static int SetInt(const byte* input, word32 inputSz, byte* output)
+static int SetSerialNumber(const byte* sn, word32 snSz, byte* output)
 {
-	return 0;
+    int result = 0;
+
+    if (snSz <= EXTERNAL_SERIAL_SIZE) {
+        output[0] = ASN_INTEGER;
+        output[1] = snSz;
+        output[2] = 0;
+        XMEMCPY(&output[3], sn, snSz);
+        result = snSz + 3;
+    }
+    return result;
 }
-#define MAX_INT_SZ 32
+
 
 int EncodeOcspRequest(DecodedCert* cert, byte* output, word32 outputSz)
 {
-	byte seqArray[5][MAX_SEQ_SZ];
-	/* The ASN.1 of the OCSP Request is an onion of sequences */
-	byte algoArray[MAX_ALGO_SZ];
-	byte issuerArray[MAX_ENCODED_DIG_SZ];
-	byte issuerKeyArray[MAX_ENCODED_DIG_SZ];
-	byte snArray[MAX_INT_SZ];
+    byte seqArray[5][MAX_SEQ_SZ];
+    /* The ASN.1 of the OCSP Request is an onion of sequences */
+    byte algoArray[MAX_ALGO_SZ];
+    byte issuerArray[MAX_ENCODED_DIG_SZ];
+    byte issuerKeyArray[MAX_ENCODED_DIG_SZ];
+    byte snArray[MAX_SN_SZ];
 
-	word32 seqSz[5], algoSz, issuerSz, issuerKeySz, snSz, totalSz;
-	int i;
+    word32 seqSz[5], algoSz, issuerSz, issuerKeySz, snSz, totalSz;
+    int i;
 
-	algoSz = SetAlgoID(SHAh, algoArray, hashType);
-	issuerSz = SetDigest(cert->issuerHash, SHA_SIZE, issuerArray);
-	issuerKeySz = SetDigest(cert->issuerKeyHash, SHA_SIZE, issuerKeyArray);
-	snSz = SetInt(cert->serial, cert->serialSz, snArray);
+    algoSz = SetAlgoID(SHAh, algoArray, hashType);
+    issuerSz = SetDigest(cert->issuerHash, SHA_SIZE, issuerArray);
+    issuerKeySz = SetDigest(cert->issuerKeyHash, SHA_SIZE, issuerKeyArray);
+    snSz = SetSerialNumber(cert->serial, cert->serialSz, snArray);
 
-	totalSz = algoSz + issuerSz + issuerKeySz + snSz;
+    totalSz = algoSz + issuerSz + issuerKeySz + snSz;
 
-	for (i = 4; i >= 0; i--) {
-		seqSz[i] = SetSequence(totalSz, seqArray[i]);
-		totalSz += seqSz[i];
-	}
-	totalSz = 0;
-	for (i = 0; i < 5; i++) {
-		XMEMCPY(output + totalSz, seqArray[i], seqSz[i]);
-		totalSz += seqSz[i];
-	}
-	XMEMCPY(output + totalSz, algoArray, algoSz);
-	totalSz += algoSz;
-	XMEMCPY(output + totalSz, issuerArray, issuerSz);
-	totalSz += issuerSz;
-	XMEMCPY(output + totalSz, issuerKeyArray, issuerKeySz);
-	totalSz += issuerKeySz;
-	XMEMCPY(output + totalSz, snArray, snSz);
-	totalSz += snSz;
+    for (i = 4; i >= 0; i--) {
+        seqSz[i] = SetSequence(totalSz, seqArray[i]);
+        totalSz += seqSz[i];
+    }
+    totalSz = 0;
+    for (i = 0; i < 5; i++) {
+        XMEMCPY(output + totalSz, seqArray[i], seqSz[i]);
+        totalSz += seqSz[i];
+    }
+    XMEMCPY(output + totalSz, algoArray, algoSz);
+    totalSz += algoSz;
+    XMEMCPY(output + totalSz, issuerArray, issuerSz);
+    totalSz += issuerSz;
+    XMEMCPY(output + totalSz, issuerKeyArray, issuerKeySz);
+    totalSz += issuerKeySz;
+    XMEMCPY(output + totalSz, snArray, snSz);
+    totalSz += snSz;
 
     return totalSz;
 }

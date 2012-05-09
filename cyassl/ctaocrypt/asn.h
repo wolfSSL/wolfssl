@@ -127,6 +127,7 @@ enum Misc_ASN {
     MAX_LENGTH_SZ       =   4,     /* Max length size for DER encoding */
     MAX_RSA_E_SZ        =  16,     /* Max RSA public e size */
     MAX_CA_SZ           =  32,     /* Max encoded CA basic constraint length */
+    MAX_SN_SZ           =  35,     /* Max encoded serial number (INT) length */
 #ifdef CYASSL_CERT_GEN
     #ifdef CYASSL_ALT_NAMES
         MAX_EXTENSIONS_SZ   = 1 + MAX_LENGTH_SZ + CTC_MAX_ALT_SIZE,

@@ -202,7 +202,7 @@ static int build_http_request(CYASSL_OCSP* ocsp, int ocspReqSz,
         ocsp->overridePath, ocsp->overrideName, ocspReqSz);
 }
 
-
+#if 0
 static const char foo[] = \
         "\x30\x81\xB7\x30\x81\xB4\x30\x81\x8C\x30\x44\x30\x42\x30\x09\x06\x05\x2B\x0E\x03" \
         "\x02\x1A\x05\x00\x04\x14\x49\x2D\x52\x83\x4B\x40\x37\xF5\xA9\x9E\x26\xA2\x3E\x48" \
@@ -221,7 +221,7 @@ static int build_ocsp_request(CYASSL_OCSP* ocsp, byte* buf, int bufSz)
     memcpy(buf, foo, sizeof(foo));
     return sizeof(foo) - 1;
 }
-
+#endif
 
 static byte* decode_http_response(byte* httpBuf, int httpBufSz, int* ocspRespSz)
 {
@@ -311,6 +311,7 @@ int CyaSSL_OCSP_Lookup_Cert(CYASSL_OCSP* ocsp, DecodedCert* cert)
     ocsp->status[0].serialSz = cert->serialSz;
     ocsp->statusLen = 1;
 
+	/*ocspReqSz = build_ocsp_request(ocsp, ocspReqBuf, ocspReqSz);*/
     ocspReqSz = EncodeOcspRequest(cert, ocspReqBuf, ocspReqSz);
     httpBufSz = build_http_request(ocsp, ocspReqSz, httpBuf, httpBufSz);
 
