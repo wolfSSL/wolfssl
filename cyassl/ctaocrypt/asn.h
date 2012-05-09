@@ -335,13 +335,6 @@ enum Ocsp_Sums {
 
 
 typedef struct OcspResponse OcspResponse;
-typedef struct OcspRequest OcspRequest;
-
-
-struct OcspRequest {
-    byte* serialNumber; /* not owned by us */
-    int serialSz;
-};
 
 
 struct OcspResponse {
@@ -374,6 +367,7 @@ struct OcspResponse {
 CYASSL_LOCAL void InitOcspResponse(OcspResponse*, byte*, word32, void*);
 CYASSL_LOCAL void FreeOcspResponse(OcspResponse*);
 CYASSL_LOCAL int  OcspResponseDecode(OcspResponse*);
+CYASSL_LOCAL int  EncodeOcspRequest(DecodedCert*, byte*, word32);
 
 
 #endif /* HAVE_OCSP */

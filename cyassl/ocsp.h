@@ -37,8 +37,8 @@ typedef struct CYASSL_OCSP CYASSL_OCSP;
 typedef struct CertStatus CertStatus;
 
 struct CertStatus {
-    byte subjectHash[SHA_SIZE];
     byte issuerHash[SHA_SIZE];
+    byte issuerKeyHash[SHA_SIZE];
     byte serial[EXTERNAL_SERIAL_SIZE];
     int serialSz;
     int status;

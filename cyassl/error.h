@@ -96,9 +96,10 @@ enum CyaSSL_ErrorCodes {
 
     /* begin negotiation parameter errors */
     UNSUPPORTED_SUITE      = -270,            /* unsupported cipher suite */
-    MATCH_SUITE_ERROR      = -271             /* can't match cipher suite */
+    MATCH_SUITE_ERROR      = -271,            /* can't match cipher suite */
     /* end negotiation parameter errors only 10 for now */
     /* add strings to SetErrorString !!!!! */
+    OCSP_CERT_REVOKED      = -272
 };
 
 

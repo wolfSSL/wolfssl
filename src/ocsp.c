@@ -305,13 +305,13 @@ int CyaSSL_OCSP_Lookup_Cert(CYASSL_OCSP* ocsp, DecodedCert* cert)
         return CERT_UNKNOWN;
     }
 
-    XMEMCPY(ocsp->status[0].subjectHash, cert->subjectHash, SHA_SIZE);
     XMEMCPY(ocsp->status[0].issuerHash, cert->issuerHash, SHA_SIZE);
+    XMEMCPY(ocsp->status[0].issuerKeyHash, cert->issuerKeyHash, SHA_SIZE);
     XMEMCPY(ocsp->status[0].serial, cert->serial, cert->serialSz);
     ocsp->status[0].serialSz = cert->serialSz;
     ocsp->statusLen = 1;
 
-    ocspReqSz = build_ocsp_request(ocsp, ocspReqBuf, ocspReqSz);
+    ocspReqSz = EncodeOcspRequest(cert, ocspReqBuf, ocspReqSz);
     httpBufSz = build_http_request(ocsp, ocspReqSz, httpBuf, httpBufSz);
 
     tcp_connect(&sfd, ocsp->overrideName, ocsp->overridePort);

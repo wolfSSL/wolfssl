@@ -1695,7 +1695,11 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx)
         }
 
 #ifdef HAVE_OCSP
-        CyaSSL_OCSP_Lookup_Cert(&ssl->ctx->ocsp, &dCert);
+        if (CyaSSL_OCSP_Lookup_Cert(&ssl->ctx->ocsp, &dCert) == CERT_REVOKED) {
+			CYASSL_MSG("\tOCSP Lookup returned revoked");
+			ret = OCSP_CERT_REVOKED;
+			fatal = 0;
+		}
 #endif
 
 #ifdef OPENSSL_EXTRA
@@ -3499,6 +3503,10 @@ void SetErrorString(int error, char* str)
 
     case BAD_CERT_MANAGER_ERROR:
         XSTRNCPY(str, "Bad Cert Manager error", max);
+        break;
+
+    case OCSP_CERT_REVOKED:
+        XSTRNCPY(str, "OCSP Cert revoked", max);
         break;
 
     default :
