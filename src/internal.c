@@ -4150,6 +4150,7 @@ int SetCipherList(Suites* s, const char* list)
         byte compression;
         ProtocolVersion pv;
         word32 i = *inOutIdx;
+        int serverResumption = 0;
 
 #ifdef CYASSL_CALLBACKS
         if (ssl->hsInfoOn) AddPacketName("ServerHello", &ssl->handShakeInfo);
@@ -4191,6 +4192,7 @@ int SetCipherList(Suites* s, const char* list)
         if (b) {
             XMEMCPY(ssl->arrays.sessionID, input + i, b);
             i += b;
+            serverResumption = 1;
         }
         ssl->options.cipherSuite0 = input[i++];
         ssl->options.cipherSuite  = input[i++];  
@@ -4206,8 +4208,8 @@ int SetCipherList(Suites* s, const char* list)
         *inOutIdx = i;
 
         if (ssl->options.resuming) {
-            if (XMEMCMP(ssl->arrays.sessionID, ssl->session.sessionID, ID_LEN)
-                                                                        == 0) {
+            if (serverResumption && XMEMCMP(ssl->arrays.sessionID,
+                                         ssl->session.sessionID, ID_LEN) == 0) {
                 if (SetCipherSpecs(ssl) == 0) {
                     int ret; 
                     XMEMCPY(ssl->arrays.masterSecret, ssl->session.masterSecret,
