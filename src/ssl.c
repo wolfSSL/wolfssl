@@ -1745,7 +1745,10 @@ void CyaSSL_CTX_SetCACb(CYASSL_CTX* ctx, CallbackCACache cb)
 CYASSL_SESSION* CyaSSL_get_session(CYASSL* ssl)
 {
     CYASSL_ENTER("SSL_get_session");
-    return GetSession(ssl, 0);
+    if (ssl)
+        return GetSession(ssl, 0);
+
+    return NULL;
 }
 
 
@@ -7385,7 +7388,10 @@ int  CyaSSL_get_chain_cert_pem(CYASSL_X509_CHAIN* chain, int idx,
 const byte* CyaSSL_get_sessionID(const CYASSL_SESSION* session)
 {
     CYASSL_ENTER("CyaSSL_get_sessionID");
-    return session->sessionID;
+    if (session)
+        return session->sessionID;
+
+    return NULL;
 }
 
 
