@@ -70,3 +70,7 @@ if BUILD_OCSP
 src_libcyassl_la_SOURCES += src/ocsp.c
 endif
 
+if BUILD_CRL
+src_libcyassl_la_SOURCES += src/crl.c
+endif
+

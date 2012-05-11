@@ -16,4 +16,5 @@ nobase_include_HEADERS+= \
                          cyassl/callbacks.h \
                          cyassl/test.h \
                          cyassl/version.h \
-                         cyassl/ocsp.h
+                         cyassl/ocsp.h \
+                         cyassl/crl.h
