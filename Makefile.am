@@ -39,6 +39,7 @@ EXTRA_DIST+= cyassl.sln
 
 include cyassl/include.am
 include certs/include.am
+include certs/crl/include.am
 include doc/include.am
 include swig/include.am
 

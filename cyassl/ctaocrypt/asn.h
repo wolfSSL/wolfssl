@@ -28,6 +28,7 @@
 #include <cyassl/ctaocrypt/dh.h>
 #include <cyassl/ctaocrypt/dsa.h>
 #include <cyassl/ctaocrypt/sha.h>
+#include <cyassl/ctaocrypt/md5.h>
 #include <cyassl/ctaocrypt/asn_public.h>   /* public interface */
 #ifdef HAVE_ECC
     #include <cyassl/ctaocrypt/ecc.h>
@@ -372,6 +373,41 @@ CYASSL_LOCAL int  EncodeOcspRequest(DecodedCert*, byte*, word32);
 
 
 #endif /* HAVE_OCSP */
+
+
+#ifdef HAVE_CRL
+
+
+typedef struct RevokedCert RevokedCert;
+
+struct RevokedCert {
+    byte         serialNumber[EXTERNAL_SERIAL_SIZE];
+    int          serialSz;
+    RevokedCert* next;
+};
+
+typedef struct DecodedCRL DecodedCRL;
+
+struct DecodedCRL {
+    word32  certBegin;               /* offset to start of cert          */
+    word32  sigIndex;                /* offset to start of signature     */
+    word32  sigLength;               /* length of signature              */
+    word32  signatureOID;            /* sum of algorithm object id       */
+    byte*   signature;               /* pointer into raw source, not owned */
+    byte    issuerHash[SHA_DIGEST_SIZE];  /* issuer hash                 */ 
+    byte    crlHash[MD5_DIGEST_SIZE];     /* raw crl data hash           */ 
+    byte    lastDate[MAX_DATE_SIZE]; /* last date updated  */
+    byte    nextDate[MAX_DATE_SIZE]; /* next update date   */
+    RevokedCert* certs;              /* revoked cert list  */
+    int          totalCerts;         /* number on list     */
+};
+
+CYASSL_LOCAL void InitDecodedCRL(DecodedCRL*);
+CYASSL_LOCAL int  ParseCRL(DecodedCRL*, const byte* buff, long sz);
+CYASSL_LOCAL void FreeDecodedCRL(DecodedCRL*);
+
+
+#endif /* HAVE_CRL */
 
 
 #ifdef __cplusplus

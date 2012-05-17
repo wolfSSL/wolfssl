@@ -375,6 +375,10 @@ CYASSL_CERT_MANAGER* CyaSSL_CertManagerNew(void)
         cm->caList          = NULL;
         cm->heap            = NULL;
         cm->caCacheCallback = NULL;
+        cm->crl             = NULL;
+        cm->crlEnabled      = 0;
+        cm->crlCheckAll     = 0;
+        cm->cbMissingCRL    = NULL;
 
         if (InitMutex(&cm->caLock) != 0) {
             CYASSL_MSG("Bad mutex init");
@@ -392,6 +396,10 @@ void CyaSSL_CertManagerFree(CYASSL_CERT_MANAGER* cm)
     CYASSL_ENTER("CyaSSL_CertManagerFree");
 
     if (cm) {
+        #ifdef HAVE_CRL
+            if (cm->crl) 
+                FreeCRL(cm->crl);
+        #endif
         FreeSigners(cm->caList, NULL);
         FreeMutex(&cm->caLock);
         XFREE(cm, NULL, DYNAMIC_TYPE_CERT_MANAGER);
@@ -629,7 +637,7 @@ int AddCA(CYASSL_CERT_MANAGER* cm, buffer der, int type, int verify)
 
     /* Remove PEM header/footer, convert to ASN1, store any encrypted data 
        info->consumed tracks of PEM bytes consumed in case multiple parts */
-    static int PemToDer(const unsigned char* buff, long sz, int type,
+    int PemToDer(const unsigned char* buff, long sz, int type,
                       buffer* der, void* heap, EncryptedInfo* info, int* eccKey)
     {
         char  header[PEM_LINE_LEN];
@@ -655,6 +663,10 @@ int AddCA(CYASSL_CERT_MANAGER* cm, buffer der, int type, int verify)
             XSTRNCPY(header, "-----BEGIN DH PARAMETERS-----", sizeof(header));
             XSTRNCPY(footer, "-----END DH PARAMETERS-----", sizeof(footer));
             dynamicType = DYNAMIC_TYPE_KEY;
+        } else if (type == CRL_TYPE) {
+            XSTRNCPY(header, "-----BEGIN X509 CRL-----", sizeof(header));
+            XSTRNCPY(footer, "-----END X509 CRL-----", sizeof(footer));
+            dynamicType = DYNAMIC_TYPE_CRL;
         } else {
             XSTRNCPY(header, "-----BEGIN RSA PRIVATE KEY-----", sizeof(header));
             XSTRNCPY(footer, "-----END RSA PRIVATE KEY-----", sizeof(footer));
@@ -1144,8 +1156,8 @@ static int ProcessChainBuffer(CYASSL_CTX* ctx, const unsigned char* buff,
 
 /* process a file with name fname into ctx of format and type
    userChain specifies a user certificate chain to pass during handshake */
-static int ProcessFile(CYASSL_CTX* ctx, const char* fname, int format, int type,
-                       CYASSL* ssl, int userChain)
+int ProcessFile(CYASSL_CTX* ctx, const char* fname, int format, int type,
+                CYASSL* ssl, int userChain, CYASSL_CRL* crl)
 {
     byte   staticBuffer[FILE_BUFFER_SIZE];
     byte*  myBuffer = staticBuffer;
@@ -1174,6 +1186,8 @@ static int ProcessFile(CYASSL_CTX* ctx, const char* fname, int format, int type,
     else {
         if (type == CA_TYPE && format == SSL_FILETYPE_PEM) 
             ret = ProcessChainBuffer(ctx, myBuffer, sz, format, type, ssl);
+        else if (type == CRL_TYPE)
+            ret = BufferLoadCRL(crl, myBuffer, sz, format);
         else
             ret = ProcessBuffer(ctx, myBuffer, sz, format, type, ssl, NULL,
                                 userChain);
@@ -1199,7 +1213,7 @@ int CyaSSL_CTX_load_verify_locations(CYASSL_CTX* ctx, const char* file,
         return SSL_FAILURE;
 
     if (file)
-        ret = ProcessFile(ctx, file, SSL_FILETYPE_PEM, CA_TYPE, NULL, 0);
+        ret = ProcessFile(ctx, file, SSL_FILETYPE_PEM, CA_TYPE, NULL, 0, NULL);
 
     if (ret == SSL_SUCCESS && path) {
         /* try to load each regular file in path */
@@ -1224,7 +1238,8 @@ int CyaSSL_CTX_load_verify_locations(CYASSL_CTX* ctx, const char* file,
                 XSTRNCAT(name, "\\", 2);
                 XSTRNCAT(name, FindFileData.cFileName, MAX_FILENAME_SZ/2);
 
-                ret = ProcessFile(ctx, name, SSL_FILETYPE_PEM, CA_TYPE, NULL,0);
+                ret = ProcessFile(ctx, name, SSL_FILETYPE_PEM, CA_TYPE, NULL,0,
+                                  NULL);
             }
         } while (ret == SSL_SUCCESS && FindNextFileA(hFind, &FindFileData));
 
@@ -1246,7 +1261,8 @@ int CyaSSL_CTX_load_verify_locations(CYASSL_CTX* ctx, const char* file,
                 XSTRNCAT(name, "/", 1);
                 XSTRNCAT(name, entry->d_name, MAX_FILENAME_SZ/2);
                 
-                ret = ProcessFile(ctx, name, SSL_FILETYPE_PEM, CA_TYPE, NULL,0);
+                ret = ProcessFile(ctx, name, SSL_FILETYPE_PEM, CA_TYPE, NULL,0,
+                                  NULL);
             }
         }
         closedir(dir);
@@ -1356,6 +1372,146 @@ int CyaSSL_CertManagerLoadCA(CYASSL_CERT_MANAGER* cm, const char* file,
 }
 
 
+/* turn on CRL if off and compiled in, set options */
+int CyaSSL_CertManagerEnableCRL(CYASSL_CERT_MANAGER* cm, int options)
+{
+    CYASSL_ENTER("CyaSSL_CertManagerEnableCRL");
+    if (cm == NULL)
+        return BAD_FUNC_ARG;
+
+    #ifndef HAVE_CRL
+        return NOT_COMPILED_IN;
+    #else
+        if (cm->crl == NULL) {
+            cm->crl = (CYASSL_CRL*)XMALLOC(sizeof(CYASSL_CRL), cm->heap,
+                                           DYNAMIC_TYPE_CRL);
+            if (cm->crl == NULL)
+                return MEMORY_E;
+
+            if (InitCRL(cm->crl, cm) != 0) {
+                CYASSL_MSG("Init CRL failed");
+                FreeCRL(cm->crl);
+                cm->crl = NULL;
+                return SSL_FAILURE;
+            }
+        }
+        cm->crlEnabled = 1;
+        if (options & CYASSL_CRL_CHECKALL)
+            cm->crlCheckAll = 1;
+    #endif
+
+    return SSL_SUCCESS;
+}
+
+
+int CyaSSL_CertManagerDisableCRL(CYASSL_CERT_MANAGER* cm)
+{
+    CYASSL_ENTER("CyaSSL_CertManagerDisableCRL");
+    if (cm == NULL)
+        return BAD_FUNC_ARG;
+
+    cm->crlEnabled = 0;
+
+    return SSL_SUCCESS;
+}
+
+
+#ifdef HAVE_CRL
+
+
+int CyaSSL_CertManagerSetCRL_Cb(CYASSL_CERT_MANAGER* cm, CbMissingCRL cb)
+{
+    CYASSL_ENTER("CyaSSL_CertManagerLoadCRL");
+    if (cm == NULL)
+        return BAD_FUNC_ARG;
+
+    cm->cbMissingCRL = cb;
+
+    return SSL_SUCCESS;
+}
+
+
+int CyaSSL_CertManagerLoadCRL(CYASSL_CERT_MANAGER* cm, const char* path,
+                              int type)
+{
+    CYASSL_ENTER("CyaSSL_CertManagerLoadCRL");
+    if (cm == NULL)
+        return BAD_FUNC_ARG;
+
+    if (cm->crl == NULL) {
+        if (CyaSSL_CertManagerEnableCRL(cm, 0) != SSL_SUCCESS) {
+            CYASSL_MSG("Enable CRL failed");
+            return -1;
+        }
+    }
+
+    return LoadCRL(cm->crl, path, type);
+}
+
+
+int CyaSSL_EnableCRL(CYASSL* ssl, int options)
+{
+    CYASSL_ENTER("CyaSSL_EnableCRL");
+    if (ssl)
+        return CyaSSL_CertManagerEnableCRL(ssl->ctx->cm, options);
+    else
+        return BAD_FUNC_ARG;
+}
+
+
+int CyaSSL_DisableCRL(CYASSL* ssl)
+{
+    CYASSL_ENTER("CyaSSL_DisableCRL");
+    if (ssl)
+        return CyaSSL_CertManagerDisableCRL(ssl->ctx->cm);
+    else
+        return BAD_FUNC_ARG;
+}
+
+
+int CyaSSL_LoadCRL(CYASSL* ssl, const char* path, int type)
+{
+    CYASSL_ENTER("CyaSSL_LoadCRL");
+    if (ssl)
+        return CyaSSL_CertManagerLoadCRL(ssl->ctx->cm, path, type);
+    else
+        return BAD_FUNC_ARG;
+}
+
+
+int CyaSSL_CTX_EnableCRL(CYASSL_CTX* ctx, int options)
+{
+    CYASSL_ENTER("CyaSSL_CTX_EnableCRL");
+    if (ctx)
+        return CyaSSL_CertManagerEnableCRL(ctx->cm, options);
+    else
+        return BAD_FUNC_ARG;
+}
+
+
+int CyaSSL_CTX_DisableCRL(CYASSL_CTX* ctx)
+{
+    CYASSL_ENTER("CyaSSL_CTX_DisableCRL");
+    if (ctx)
+        return CyaSSL_CertManagerDisableCRL(ctx->cm);
+    else
+        return BAD_FUNC_ARG;
+}
+
+
+int CyaSSL_CTX_LoadCRL(CYASSL_CTX* ctx, const char* path, int type)
+{
+    CYASSL_ENTER("CyaSSL_CTX_LoadCRL");
+    if (ctx)
+        return CyaSSL_CertManagerLoadCRL(ctx->cm, path, type);
+    else
+        return BAD_FUNC_ARG;
+}
+
+
+#endif /* HAVE_CRL */
+
+
 #ifdef CYASSL_DER_LOAD
 
 /* Add format parameter to allow DER load of CA files */
@@ -1366,7 +1522,7 @@ int CyaSSL_CTX_der_load_verify_locations(CYASSL_CTX* ctx, const char* file,
     if (ctx == NULL || file == NULL)
         return SSL_FAILURE;
 
-    if (ProcessFile(ctx, file, format, CA_TYPE, NULL, 0) == SSL_SUCCESS)
+    if (ProcessFile(ctx, file, format, CA_TYPE, NULL, 0, NULL) == SSL_SUCCESS)
         return SSL_SUCCESS;
 
     return SSL_FAILURE;
@@ -1436,7 +1592,7 @@ int CyaSSL_CTX_use_certificate_file(CYASSL_CTX* ctx, const char* file,
                                     int format)
 {
     CYASSL_ENTER("CyaSSL_CTX_use_certificate_file");
-    if (ProcessFile(ctx, file, format, CERT_TYPE, NULL, 0) == SSL_SUCCESS)
+    if (ProcessFile(ctx, file, format, CERT_TYPE, NULL, 0, NULL) == SSL_SUCCESS)
         return SSL_SUCCESS;
 
     return SSL_FAILURE;
@@ -1446,7 +1602,8 @@ int CyaSSL_CTX_use_certificate_file(CYASSL_CTX* ctx, const char* file,
 int CyaSSL_CTX_use_PrivateKey_file(CYASSL_CTX* ctx, const char* file,int format)
 {
     CYASSL_ENTER("CyaSSL_CTX_use_PrivateKey_file");
-    if (ProcessFile(ctx, file, format, PRIVATEKEY_TYPE, NULL, 0) == SSL_SUCCESS)
+    if (ProcessFile(ctx, file, format, PRIVATEKEY_TYPE, NULL, 0, NULL)
+                    == SSL_SUCCESS)
         return SSL_SUCCESS;
 
     return SSL_FAILURE;
@@ -1457,7 +1614,8 @@ int CyaSSL_CTX_use_certificate_chain_file(CYASSL_CTX* ctx, const char* file)
 {
    /* procces up to MAX_CHAIN_DEPTH plus subject cert */
    CYASSL_ENTER("CyaSSL_CTX_use_certificate_chain_file");
-   if (ProcessFile(ctx, file, SSL_FILETYPE_PEM,CERT_TYPE,NULL,1) == SSL_SUCCESS)
+   if (ProcessFile(ctx, file, SSL_FILETYPE_PEM,CERT_TYPE,NULL,1, NULL)
+                   == SSL_SUCCESS)
        return SSL_SUCCESS;
 
    return SSL_FAILURE;
@@ -1470,7 +1628,8 @@ int CyaSSL_CTX_use_certificate_chain_file(CYASSL_CTX* ctx, const char* file)
 int CyaSSL_use_certificate_file(CYASSL* ssl, const char* file, int format)
 {
     CYASSL_ENTER("CyaSSL_use_certificate_file");
-    if (ProcessFile(ssl->ctx, file, format, CERT_TYPE, ssl, 0) == SSL_SUCCESS)
+    if (ProcessFile(ssl->ctx, file, format, CERT_TYPE, ssl, 0, NULL)
+                    == SSL_SUCCESS)
         return SSL_SUCCESS;
 
     return SSL_FAILURE;
@@ -1480,7 +1639,7 @@ int CyaSSL_use_certificate_file(CYASSL* ssl, const char* file, int format)
 int CyaSSL_use_PrivateKey_file(CYASSL* ssl, const char* file, int format)
 {
     CYASSL_ENTER("CyaSSL_use_PrivateKey_file");
-    if (ProcessFile(ssl->ctx, file, format, PRIVATEKEY_TYPE, ssl, 0)
+    if (ProcessFile(ssl->ctx, file, format, PRIVATEKEY_TYPE, ssl, 0, NULL)
                                                                  == SSL_SUCCESS)
         return SSL_SUCCESS;
 
@@ -1492,7 +1651,7 @@ int CyaSSL_use_certificate_chain_file(CYASSL* ssl, const char* file)
 {
    /* procces up to MAX_CHAIN_DEPTH plus subject cert */
    CYASSL_ENTER("CyaSSL_use_certificate_chain_file");
-   if (ProcessFile(ssl->ctx, file, SSL_FILETYPE_PEM, CERT_TYPE, ssl, 1)
+   if (ProcessFile(ssl->ctx, file, SSL_FILETYPE_PEM, CERT_TYPE, ssl, 1, NULL)
                                                                  == SSL_SUCCESS)
        return SSL_SUCCESS;
 
@@ -1652,7 +1811,7 @@ int CyaSSL_CTX_SetTmpDH_file(CYASSL_CTX* ctx, const char* fname, int format)
 int CyaSSL_CTX_use_NTRUPrivateKey_file(CYASSL_CTX* ctx, const char* file)
 {
     CYASSL_ENTER("CyaSSL_CTX_use_NTRUPrivateKey_file");
-    if (ProcessFile(ctx, file, SSL_FILETYPE_RAW, PRIVATEKEY_TYPE, NULL, 0)
+    if (ProcessFile(ctx, file, SSL_FILETYPE_RAW, PRIVATEKEY_TYPE, NULL, 0, NULL)
                          == SSL_SUCCESS) {
         ctx->haveNTRU = 1;
         return SSL_SUCCESS;
@@ -1671,7 +1830,8 @@ int CyaSSL_CTX_use_NTRUPrivateKey_file(CYASSL_CTX* ctx, const char* file)
                                        int format)
     {
         CYASSL_ENTER("SSL_CTX_use_RSAPrivateKey_file");
-        if (ProcessFile(ctx, file,format,PRIVATEKEY_TYPE,NULL,0) == SSL_SUCCESS)
+        if (ProcessFile(ctx, file,format,PRIVATEKEY_TYPE,NULL,0, NULL)
+                        == SSL_SUCCESS)
             return SSL_SUCCESS;
 
         return SSL_FAILURE;
@@ -1680,7 +1840,7 @@ int CyaSSL_CTX_use_NTRUPrivateKey_file(CYASSL_CTX* ctx, const char* file)
     int CyaSSL_use_RSAPrivateKey_file(CYASSL* ssl, const char* file, int format)
     {
         CYASSL_ENTER("CyaSSL_use_RSAPrivateKey_file");
-        if (ProcessFile(ssl->ctx, file, format, PRIVATEKEY_TYPE, ssl, 0)
+        if (ProcessFile(ssl->ctx, file, format, PRIVATEKEY_TYPE, ssl, 0, NULL)
                                                                  == SSL_SUCCESS)
             return SSL_SUCCESS;
 
@@ -2857,7 +3017,7 @@ int CyaSSL_set_compression(CYASSL* ssl)
 
         InitSuites(&ssl->suites, ssl->version, ssl->options.haveDH, TRUE,
                    ssl->options.haveNTRU, ssl->options.haveECDSA,
-                   ssl->optoins.haveStaticECC, ssl->ctx->method->side);
+                   ssl->options.haveStaticECC, ssl->ctx->method->side);
     }
 
 
@@ -5868,7 +6028,7 @@ static int initGlobalRNG = 0;
         if (bn == NULL || bn->internal == NULL)
             return 0;
 
-        if (mp_cmp_d((mp_int*)bn->internal, 1) == 0);
+        if (mp_cmp_d((mp_int*)bn->internal, 1) == 0)
             return 1;
 
         return 0;
@@ -5888,7 +6048,6 @@ static int initGlobalRNG = 0;
 
     int CyaSSL_BN_cmp(const CYASSL_BIGNUM* a, const CYASSL_BIGNUM* b)
     {
-        int ret;
         CYASSL_MSG("CyaSSL_BN_cmp");
 
         if (a == NULL || a->internal == NULL || b == NULL || b->internal ==NULL)
@@ -5997,7 +6156,6 @@ static int initGlobalRNG = 0;
     {
         byte    decoded[1024];
         word32  decSz = sizeof(decoded);
-        int  ret;
 
         CYASSL_MSG("CyaSSL_BN_hex2bn");
 
@@ -6288,7 +6446,6 @@ static int initGlobalRNG = 0;
         word32        pubSz  = sizeof(pub);
         word32        privSz = sizeof(priv);
         word32        keySz;
-        int           ret;
 
         CYASSL_MSG("CyaSSL_DH_compute_key");
 
@@ -6692,7 +6849,6 @@ static int initGlobalRNG = 0;
     int CyaSSL_DSA_do_sign(const unsigned char* d, unsigned char* sigRet,
                            CYASSL_DSA* dsa)
     {
-        word32 signSz;
         RNG    tmpRNG;
         RNG*   rng = &tmpRNG; 
 
@@ -6779,7 +6935,7 @@ static int initGlobalRNG = 0;
         }
 
         signSz = EncodeSignature(encodedSig, m, mLen, type);
-        if (signSz < 0) {
+        if (signSz == 0) {
             CYASSL_MSG("Bad Encode Signature");
             return 0;
         }

@@ -19,12 +19,12 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  */
 
-#ifdef HAVE_CRL
 
 #ifndef CYASSL_CRL_H
 #define CYASSL_CRL_H
 
-#include <cyassl/ctaocrypt/types.h>
+#include <cyassl/ssl.h>
+#include <cyassl/ctaocrypt/asn.h>
 
 #ifdef __cplusplus
     extern "C" {
@@ -32,14 +32,12 @@
 
 typedef struct CYASSL_CRL CYASSL_CRL;
 
+CYASSL_LOCAL int  InitCRL(CYASSL_CRL*, CYASSL_CERT_MANAGER*);
+CYASSL_LOCAL void FreeCRL(CYASSL_CRL*);
 
-struct CYASSL_CRL {
-    byte  enabled;        /* are we on */
-    byte  watchingPEM;    /* are we monitoring PEM dir */
-    byte  watchingDER;    /* are we monitoring DER dir *
-    byte  checkAll;       /* always leaf, but all ? */
-
-};
+CYASSL_LOCAL int  LoadCRL(CYASSL_CRL* crl, const char* path, int type);
+CYASSL_LOCAL int  BufferLoadCRL(CYASSL_CRL*, const byte*, long, int);
+CYASSL_LOCAL int  CheckCertCRL(CYASSL_CRL*, DecodedCert*);
 
 
 #ifdef __cplusplus
@@ -47,4 +45,3 @@ struct CYASSL_CRL {
 #endif
 
 #endif /* CYASSL_CRL_H */
-#endif /* HAVE_CRL */

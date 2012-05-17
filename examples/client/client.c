@@ -136,6 +136,7 @@ void client_test(void* args)
     CyaSSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, myVerify);
 #endif
 
+
     if (argc == 3) {
         /*  ./client server securePort  */
         CyaSSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, 0);  /* TODO: add ca cert */
@@ -206,6 +207,10 @@ void client_test(void* args)
 
     ssl = CyaSSL_new(ctx);
     CyaSSL_set_fd(ssl, sockfd);
+#ifdef HAVE_CRL
+    CyaSSL_EnableCRL(ssl, 0);
+    CyaSSL_LoadCRL(ssl, crlPemDir, SSL_FILETYPE_PEM);
+#endif
     if (argc != 3)
         CyaSSL_check_domain_name(ssl, "www.yassl.com");
 #ifdef NON_BLOCKING

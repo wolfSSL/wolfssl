@@ -1696,11 +1696,22 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx)
 
 #ifdef HAVE_OCSP
         if (CyaSSL_OCSP_Lookup_Cert(&ssl->ctx->ocsp, &dCert) == CERT_REVOKED) {
-			CYASSL_MSG("\tOCSP Lookup returned revoked");
-			ret = OCSP_CERT_REVOKED;
-			fatal = 0;
-		}
+            CYASSL_MSG("\tOCSP Lookup returned revoked");
+            ret = OCSP_CERT_REVOKED;
+            fatal = 0;
+        }
 #endif
+
+#ifdef HAVE_CRL
+        if (ssl->ctx->cm->crlEnabled) {
+            ret = CheckCertCRL(ssl->ctx->cm->crl, &dCert);
+
+            if (ret != 0) {
+                CYASSL_MSG("\tCRL check not ok");
+                fatal = 0;
+            }
+        }
+#endif /* HAVE_CRL */
 
 #ifdef OPENSSL_EXTRA
         /* set X509 format for peer cert even if fatal */
@@ -3507,6 +3518,14 @@ void SetErrorString(int error, char* str)
 
     case OCSP_CERT_REVOKED:
         XSTRNCPY(str, "OCSP Cert revoked", max);
+        break;
+
+    case CRL_CERT_REVOKED:
+        XSTRNCPY(str, "CRL Cert revoked", max);
+        break;
+
+    case CRL_MISSING:
+        XSTRNCPY(str, "CRL missing, not loaded", max);
         break;
 
     default :

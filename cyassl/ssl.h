@@ -429,6 +429,8 @@ enum {
     OCSP_RESPONSE = 8,
     OCSP_BASICRESP = 16,
 
+    CYASSL_CRL_CHECKALL = 1,
+
     ASN1_GENERALIZEDTIME = 4,
 
     SSL_OP_MICROSOFT_SESS_ID_BUG = 1,
@@ -776,6 +778,7 @@ CYASSL_API int CyaSSL_KeyPemToDer(const unsigned char*, int sz, unsigned char*,
                                   int, const char*);
 
 typedef void (*CallbackCACache)(unsigned char* der, int sz, int type);
+typedef void (*CbMissingCRL)(const char* url);
 
 CYASSL_API void CyaSSL_CTX_SetCACb(CYASSL_CTX*, CallbackCACache);
 
@@ -787,6 +790,20 @@ CYASSL_API int CyaSSL_CertManagerLoadCA(CYASSL_CERT_MANAGER*, const char* f,
                                         const char* d);
 CYASSL_API int CyaSSL_CertManagerVerify(CYASSL_CERT_MANAGER*, const char* f,
                                         int format);
+CYASSL_API int CyaSSL_CertManagerEnableCRL(CYASSL_CERT_MANAGER*, int options);
+CYASSL_API int CyaSSL_CertManagerDisableCRL(CYASSL_CERT_MANAGER*);
+CYASSL_API int CyaSSL_CertManagerLoadCRL(CYASSL_CERT_MANAGER*, const char*,int);
+CYASSL_API int CyaSSL_CertManagerSetCRL_Cb(CYASSL_CERT_MANAGER*, CbMissingCRL);
+
+CYASSL_API int CyaSSL_EnableCRL(CYASSL* ssl, int options);
+CYASSL_API int CyaSSL_DisableCRL(CYASSL* ssl);
+CYASSL_API int CyaSSL_LoadCRL(CYASSL*, const char*, int);
+
+CYASSL_API int CyaSSL_CTX_EnableCRL(CYASSL_CTX* ctx, int options);
+CYASSL_API int CyaSSL_CTX_DisableCRL(CYASSL_CTX* ctx);
+CYASSL_API int CyaSSL_CTX_LoadCRL(CYASSL_CTX*, const char*, int);
+
+
 
 #ifdef CYASSL_CALLBACKS
 

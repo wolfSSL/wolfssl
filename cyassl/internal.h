@@ -25,6 +25,7 @@
 
 
 #include <cyassl/ssl.h>
+#include <cyassl/crl.h>
 #include <cyassl/ctaocrypt/types.h>
 #include <cyassl/ctaocrypt/random.h>
 #include <cyassl/ctaocrypt/des3.h>
@@ -622,12 +623,39 @@ CYASSL_LOCAL int LockMutex(CyaSSL_Mutex*);
 CYASSL_LOCAL int UnLockMutex(CyaSSL_Mutex*);
 
 
+
+typedef struct CRL_Entry CRL_Entry;
+
+/* Complete CRL */
+struct CRL_Entry {
+    CRL_Entry* next;                      /* next entry */
+    byte    issuerHash[SHA_DIGEST_SIZE];  /* issuer hash                 */ 
+    byte    crlHash[MD5_DIGEST_SIZE];     /* raw crl data hash           */ 
+    byte    lastDate[MAX_DATE_SIZE]; /* last date updated  */
+    byte    nextDate[MAX_DATE_SIZE]; /* next update date   */
+    RevokedCert* certs;              /* revoked cert list  */
+    int          totalCerts;         /* number on list     */
+};
+
+
+/* CyaSSL CRL controller */
+struct CYASSL_CRL {
+    CYASSL_CERT_MANAGER* cm;            /* pointer back to cert manager */
+    CRL_Entry*           crlList;       /* our CRL list */
+    CyaSSL_Mutex         crlLock;       /* CRL list lock */
+};
+
+
 /* CyaSSL Certificate Manager */
 struct CYASSL_CERT_MANAGER {
     Signer*         caList;             /* the CA signer list */
     CyaSSL_Mutex    caLock;             /* CA list lock */
     CallbackCACache caCacheCallback;    /* CA cache addition callback */
     void*           heap;               /* heap helper */
+    CYASSL_CRL*     crl;                /* CRL checker */
+    byte            crlEnabled;         /* is CRL on ? */
+    byte            crlCheckAll;        /* always leaf, but all ? */
+    CbMissingCRL    cbMissingCRL;       /* notify through cb of missing crl */
 };
 
 
@@ -1136,6 +1164,14 @@ typedef struct EncryptedInfo {
     byte     set;              /* if encryption set */
     CYASSL_CTX* ctx;              /* CTX owner */
 } EncryptedInfo;
+
+CYASSL_LOCAL int PemToDer(const unsigned char* buff, long sz, int type,
+                          buffer* der, void* heap, EncryptedInfo* info,
+                          int* eccKey);
+
+CYASSL_LOCAL int ProcessFile(CYASSL_CTX* ctx, const char* fname, int format,
+                             int type, CYASSL* ssl, int userChain,
+                            CYASSL_CRL* crl);
 
 
 #ifdef CYASSL_CALLBACKS
