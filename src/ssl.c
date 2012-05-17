@@ -5943,7 +5943,7 @@ static int initGlobalRNG = 0;
         CYASSL_MSG("CyaSSL_BN_free");
         if (bn) {
             if (bn->internal) {
-                mp_clear(bn->internal);
+                mp_clear((mp_int*)bn->internal);
                 XFREE(bn->internal, NULL, DYNAMIC_TYPE_BIGINT);
                 bn->internal = NULL;
             }
@@ -6157,7 +6157,7 @@ static int initGlobalRNG = 0;
         buffer[0]     |= 0x80 | 0x40;
         buffer[len-1] |= 0x01;
 
-        if (mp_read_unsigned_bin(bn->internal, buffer, len) != MP_OKAY) {
+        if (mp_read_unsigned_bin((mp_int*)bn->internal,buffer,len) != MP_OKAY) {
             CYASSL_MSG("mp read bin failed");
             return 0;
         }
@@ -6319,7 +6319,7 @@ static int initGlobalRNG = 0;
 
         if (dh) {
             if (dh->internal) {
-                FreeDhKey(dh->internal);
+                FreeDhKey((DhKey*)dh->internal);
                 XFREE(dh->internal, NULL, DYNAMIC_TYPE_DH);
                 dh->internal = NULL;
             }
@@ -6482,12 +6482,12 @@ static int initGlobalRNG = 0;
             return 0;
         }
 
-        if (CyaSSL_BN_bn2bin(dh->priv_key, NULL) > privSz) {
+        if (CyaSSL_BN_bn2bin(dh->priv_key, NULL) > (int)privSz) {
             CYASSL_MSG("Bad priv internal size");
             return 0;
         }
 
-        if (CyaSSL_BN_bn2bin(otherPub, NULL) > pubSz) {
+        if (CyaSSL_BN_bn2bin(otherPub, NULL) > (int)pubSz) {
             CYASSL_MSG("Bad otherPub size");
             return 0;
         }
@@ -6561,7 +6561,7 @@ static int initGlobalRNG = 0;
 
         if (dsa) {
             if (dsa->internal) {
-                FreeDsaKey(dsa->internal);
+                FreeDsaKey((DsaKey*)dsa->internal);
                 XFREE(dsa->internal, NULL, DYNAMIC_TYPE_DSA);
                 dsa->internal = NULL;
             }
@@ -6648,7 +6648,7 @@ static int initGlobalRNG = 0;
 
         if (rsa) {
             if (rsa->internal) {
-                FreeRsaKey(rsa->internal);
+                FreeRsaKey((RsaKey*)rsa->internal);
                 XFREE(rsa->internal, NULL, DYNAMIC_TYPE_RSA);
                 rsa->internal = NULL;
             }
@@ -6684,7 +6684,7 @@ static int initGlobalRNG = 0;
             }
         }
 
-        if (mp_copy(mpi, (*bn)->internal) != MP_OKAY) {
+        if (mp_copy(mpi, (mp_int*)((*bn)->internal)) != MP_OKAY) {
             CYASSL_MSG("mp_copy error");
             return -1;
         }
@@ -6810,7 +6810,7 @@ static int initGlobalRNG = 0;
         }
 
 #ifdef CYASSL_KEY_GEN
-        if (MakeRsaKey(rsa->internal, bits, 65537, &rng) < 0) {
+        if (MakeRsaKey((RsaKey*)rsa->internal, bits, 65537, &rng) < 0) {
             CYASSL_MSG("MakeRsaKey failed");
             return -1;
         }
@@ -7061,7 +7061,7 @@ static int initGlobalRNG = 0;
 
         if (key && keylen) {
             CYASSL_MSG("keying hmac");
-            HmacSetKey(&ctx->hmac, ctx->type, key, (word32)keylen);
+            HmacSetKey(&ctx->hmac, ctx->type, (const byte*)key, (word32)keylen);
         }
     }
 
@@ -7391,7 +7391,7 @@ int CyaSSL_KeyPemToDer(const unsigned char* pem, int pemSz, unsigned char* buff,
         CYASSL_MSG("Bad Pem To Der"); 
     }
     else {
-        if (der.length <= buffSz) {
+        if (der.length <= (word32)buffSz) {
             XMEMCPY(buff, der.buffer, der.length);
             ret = der.length;
         }
@@ -7420,7 +7420,7 @@ int CyaSSL_RSA_LoadDer(CYASSL_RSA* rsa, const unsigned char* der,  int derSz)
         return BAD_FUNC_ARG;
     }
 
-    ret = RsaPrivateKeyDecode(der, &idx, rsa->internal, derSz);
+    ret = RsaPrivateKeyDecode(der, &idx, (RsaKey*)rsa->internal, derSz);
     if (ret < 0) {
         CYASSL_MSG("RsaPrivateKeyDecode failed");
         return ret;
@@ -7450,7 +7450,7 @@ int CyaSSL_DSA_LoadDer(CYASSL_DSA* dsa, const unsigned char* der,  int derSz)
         return BAD_FUNC_ARG;
     }
 
-    ret = DsaPrivateKeyDecode(der, &idx, dsa->internal, derSz);
+    ret = DsaPrivateKeyDecode(der, &idx, (DsaKey*)dsa->internal, derSz);
     if (ret < 0) {
         CYASSL_MSG("DsaPrivateKeyDecode failed");
         return ret;

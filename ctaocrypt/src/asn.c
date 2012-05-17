@@ -2127,7 +2127,7 @@ static void DecodeCrlDist(byte* input, int sz, DecodedCert* cert)
     }
 
     /* Check for reasonFlags */
-    if (index < sz &&
+    if (index < (word32)sz &&
         input[index] == (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 1))
     {
         index++;
@@ -2136,7 +2136,7 @@ static void DecodeCrlDist(byte* input, int sz, DecodedCert* cert)
     }
 
     /* Check for cRLIssuer */
-    if (index < sz &&
+    if (index < (word32)sz &&
         input[index] == (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 2))
     {
         index++;
@@ -2144,7 +2144,7 @@ static void DecodeCrlDist(byte* input, int sz, DecodedCert* cert)
         index += length;
     }
 
-    if (index < sz)
+    if (index < (word32)sz)
     {
         CYASSL_MSG("\tThere are more CRL Distribution Point records, "
                    "but we only use the first one.");
@@ -2191,7 +2191,7 @@ static void DecodeAuthInfo(byte* input, int sz, DecodedCert* cert)
         index += length;
     }
 
-    if (index < sz)
+    if (index < (word32)sz)
     {
         CYASSL_MSG("\tThere are more Authority Information Access records, "
                    "but we only use first one.");
@@ -2223,7 +2223,7 @@ static void DecodeCertExtensions(DecodedCert* cert)
 
     if (GetSequence(input, &index, &length, sz) < 0) return;
     
-    while (index < sz) {
+    while (index < (word32)sz) {
         if (GetSequence(input, &index, &length, sz) < 0) {
             CYASSL_MSG("\tfail: should be a SEQUENCE");
             return;
@@ -2314,7 +2314,7 @@ int ParseCert(DecodedCert* cert, int type, int verify, void* cm)
 #ifdef __cplusplus
     extern "C" {
 #endif
-    CYASSL_LOCAL Signer* GetCA(Signer* signers, byte* hash);
+    CYASSL_LOCAL Signer* GetCA(void* signers, byte* hash);
 #ifdef __cplusplus
     } 
 #endif
