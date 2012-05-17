@@ -184,7 +184,10 @@ enum KDF_Sum {
 
 enum Extensions_Sum {
     BASIC_CA_OID  = 133,
-    ALT_NAMES_OID = 131 
+    ALT_NAMES_OID = 131,
+    CRL_DIST_OID  = 145,
+    AUTH_INFO_OID = 69,
+    CA_ISSUER_OID = 117
 };
 
 
@@ -227,6 +230,10 @@ struct DecodedCert {
     byte*   extensions;              /* not owned, points into raw cert  */
     int     extensionsSz;            /* length of cert extensions */
     word32  extensionsIdx;           /* if want to go back and parse later */
+    byte*   extAuthInfo;             /* Authority Information Access URI */
+    int     extAuthInfoSz;           /* length of the URI                */
+    byte*   extCrlInfo;              /* CRL Distribution Points          */
+    int     extCrlInfoSz;            /* length of the URI                */
     byte    isCA;                    /* CA basic constraint true */
 #ifdef CYASSL_CERT_GEN
     /* easy access to subject info for other sign */
