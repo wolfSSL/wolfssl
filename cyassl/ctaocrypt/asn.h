@@ -382,10 +382,10 @@ CYASSL_LOCAL int  EncodeOcspRequest(DecodedCert*, byte*, word32);
 #endif /* HAVE_OCSP */
 
 
-#ifdef HAVE_CRL
-
-
+/* for pointer use */
 typedef struct RevokedCert RevokedCert;
+
+#ifdef HAVE_CRL
 
 struct RevokedCert {
     byte         serialNumber[EXTERNAL_SERIAL_SIZE];

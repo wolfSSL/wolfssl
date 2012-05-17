@@ -1186,8 +1186,10 @@ int ProcessFile(CYASSL_CTX* ctx, const char* fname, int format, int type,
     else {
         if (type == CA_TYPE && format == SSL_FILETYPE_PEM) 
             ret = ProcessChainBuffer(ctx, myBuffer, sz, format, type, ssl);
+#ifdef HAVE_CRL
         else if (type == CRL_TYPE)
             ret = BufferLoadCRL(crl, myBuffer, sz, format);
+#endif
         else
             ret = ProcessBuffer(ctx, myBuffer, sz, format, type, ssl, NULL,
                                 userChain);
@@ -1479,6 +1481,16 @@ int CyaSSL_LoadCRL(CYASSL* ssl, const char* path, int type)
 }
 
 
+int CyaSSL_SetCRL_Cb(CYASSL* ssl, CbMissingCRL cb)
+{
+    CYASSL_ENTER("CyaSSL_SetCRL_Cb");
+    if (ssl)
+        return CyaSSL_CertManagerSetCRL_Cb(ssl->ctx->cm, cb);
+    else
+        return BAD_FUNC_ARG;
+}
+
+
 int CyaSSL_CTX_EnableCRL(CYASSL_CTX* ctx, int options)
 {
     CYASSL_ENTER("CyaSSL_CTX_EnableCRL");
@@ -1504,6 +1516,16 @@ int CyaSSL_CTX_LoadCRL(CYASSL_CTX* ctx, const char* path, int type)
     CYASSL_ENTER("CyaSSL_CTX_LoadCRL");
     if (ctx)
         return CyaSSL_CertManagerLoadCRL(ctx->cm, path, type);
+    else
+        return BAD_FUNC_ARG;
+}
+
+
+int CyaSSL_CTX_SetCRL_Cb(CYASSL_CTX* ctx, CbMissingCRL cb)
+{
+    CYASSL_ENTER("CyaSSL_CTX_SetCRL_Cb");
+    if (ctx)
+        return CyaSSL_CertManagerSetCRL_Cb(ctx->cm, cb);
     else
         return BAD_FUNC_ARG;
 }

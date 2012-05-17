@@ -144,8 +144,19 @@ int CheckCertCRL(CYASSL_CRL* crl, DecodedCert* cert)
 	if (foundEntry == 0) {
 		CYASSL_MSG("Couldn't find CRL for status check");
 		ret = CRL_MISSING;
-		if (crl->cm->cbMissingCRL)
-			crl->cm->cbMissingCRL(NULL);
+		if (crl->cm->cbMissingCRL) {
+			char url[256];
+
+			CYASSL_MSG("Issuing missing CRL callback");
+			url[0] = '\0';
+			if (cert->extCrlInfoSz < sizeof(url) -1 ) {
+				XMEMCPY(url, cert->extCrlInfo, cert->extCrlInfoSz);
+				url[cert->extCrlInfoSz] = '\0';
+			}
+			else 
+				CYASSL_MSG("CRL url too long");
+			crl->cm->cbMissingCRL(url);
+		}
 	}
 
 

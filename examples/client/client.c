@@ -210,6 +210,7 @@ void client_test(void* args)
 #ifdef HAVE_CRL
     CyaSSL_EnableCRL(ssl, 0);
     CyaSSL_LoadCRL(ssl, crlPemDir, SSL_FILETYPE_PEM);
+    CyaSSL_SetCRL_Cb(ssl, CRL_CallBack);
 #endif
     if (argc != 3)
         CyaSSL_check_domain_name(ssl, "www.yassl.com");

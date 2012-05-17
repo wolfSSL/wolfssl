@@ -575,6 +575,16 @@ static int myVerify(int preverify, CYASSL_X509_STORE_CTX* store)
 #endif /* VERIFY_CALLBACK */
 
 
+#ifdef HAVE_CRL
+
+static void CRL_CallBack(char* url)
+{
+    printf("CRL callback url = %s\n", url);
+}
+
+#endif
+
+
 static INLINE void CaCb(unsigned char* der, int sz, int type)
 {
     printf("Got CA cache add callback, derSz = %d, type = %d\n", sz, type);

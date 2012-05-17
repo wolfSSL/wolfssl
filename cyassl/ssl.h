@@ -798,10 +798,12 @@ CYASSL_API int CyaSSL_CertManagerSetCRL_Cb(CYASSL_CERT_MANAGER*, CbMissingCRL);
 CYASSL_API int CyaSSL_EnableCRL(CYASSL* ssl, int options);
 CYASSL_API int CyaSSL_DisableCRL(CYASSL* ssl);
 CYASSL_API int CyaSSL_LoadCRL(CYASSL*, const char*, int);
+CYASSL_API int CyaSSL_SetCRL_Cb(CYASSL*, CbMissingCRL);
 
 CYASSL_API int CyaSSL_CTX_EnableCRL(CYASSL_CTX* ctx, int options);
 CYASSL_API int CyaSSL_CTX_DisableCRL(CYASSL_CTX* ctx);
 CYASSL_API int CyaSSL_CTX_LoadCRL(CYASSL_CTX*, const char*, int);
+CYASSL_API int CyaSSL_CTX_SetCRL_Cb(CYASSL_CTX*, CbMissingCRL);
 
 
 
