@@ -4240,9 +4240,10 @@ int SetCipherList(Suites* s, const char* list)
                     ssl->options.serverState = SERVER_HELLODONE_COMPLETE;
                     return ret;
                 }
-                else
+                else {
                     CYASSL_MSG("Unsupported cipher suite, DoServerHello");
                     return UNSUPPORTED_SUITE;
+                }
             }
             else {
                 CYASSL_MSG("Server denied resumption attempt"); 
