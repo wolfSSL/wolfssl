@@ -251,6 +251,10 @@ struct DecodedCert {
     int     subjectOULen;
     char*   subjectEmail;
     int     subjectEmailLen;
+    byte*   beforeDate;
+    int     beforeDateLen;
+    byte*   afterDate;
+    int     afterDateLen;
 #endif /* CYASSL_CERT_GEN */
 };
 

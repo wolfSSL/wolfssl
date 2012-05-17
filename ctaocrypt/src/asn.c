@@ -1078,6 +1078,10 @@ void InitDecodedCert(DecodedCert* cert, byte* source, word32 inSz, void* heap)
     cert->subjectOULen    = 0;
     cert->subjectEmail    = 0;
     cert->subjectEmailLen = 0;
+    cert->beforeDate      = 0;
+    cert->beforeDateLen   = 0;
+    cert->afterDate       = 0;
+    cert->afterDateLen    = 0;
 #endif /* CYASSL_CERT_GEN */
 }
 
@@ -1586,8 +1590,18 @@ static int GetDate(DecodedCert* cert, int dateType)
 {
     int    length;
     byte   date[MAX_DATE_SIZE];
-    byte   b = cert->source[cert->srcIdx++];
+    byte   b;
+    word32 startIdx = 0;
 
+#ifdef CYASSL_CERT_GEN
+    if (dateType == BEFORE)
+        cert->beforeDate = &cert->source[cert->srcIdx];
+    else
+        cert->afterDate = &cert->source[cert->srcIdx];
+    startIdx = cert->srcIdx;
+#endif
+
+    b = cert->source[cert->srcIdx++];
     if (b != ASN_UTC_TIME && b != ASN_GENERALIZED_TIME)
         return ASN_TIME_E;
 
@@ -1599,6 +1613,13 @@ static int GetDate(DecodedCert* cert, int dateType)
 
     XMEMCPY(date, &cert->source[cert->srcIdx], length);
     cert->srcIdx += length;
+
+#ifdef CYASSL_CERT_GEN
+    if (dateType == BEFORE)
+        cert->beforeDateLen = cert->srcIdx - startIdx;
+    else
+        cert->afterDateLen  = cert->srcIdx - startIdx;
+#endif
 
     if (!XVALIDATE_DATE(date, b, dateType)) {
         if (dateType == BEFORE)
@@ -2847,7 +2868,9 @@ void InitCert(Cert* cert)
     cert->isCA       = 0;
     cert->bodySz     = 0;
 #ifdef CYASSL_ALT_NAMES
-    cert->altNamesSz = 0;
+    cert->altNamesSz   = 0;
+    cert->beforeDateSz = 0;
+    cert->afterDateSz  = 0;
 #endif
     cert->keyType    = RSA_KEY;
     XMEMSET(cert->serial, 0, CTC_SERIAL_SIZE);
@@ -3029,6 +3052,26 @@ static void SetTime(struct tm* date, byte* output)
     
     output[i] = 'Z';  /* Zulu profile */
 }
+
+
+#ifdef CYASSL_ALT_NAMES
+
+/* Copy Dates from cert, return bytes written */
+static int CopyValidity(byte* output, Cert* cert)
+{
+    int seqSz;
+
+    CYASSL_ENTER("CopyValidity");
+
+    /* headers and output */
+    seqSz = SetSequence(cert->beforeDateSz + cert->afterDateSz, output);
+    XMEMCPY(output + seqSz, cert->beforeDate, cert->beforeDateSz);
+    XMEMCPY(output + seqSz + cert->beforeDateSz, cert->afterDate,
+                                                 cert->afterDateSz);
+    return seqSz + cert->beforeDateSz + cert->afterDateSz;
+}
+
+#endif
 
 
 /* Set Date validity from now until now + daysValid */
@@ -3362,10 +3405,22 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, RNG* rng,
 #endif
     }
 
+    der->validitySz = 0;
+#ifdef CYASSL_ALT_NAMES
+    /* date validity copy ? */
+    if (cert->beforeDateSz && cert->afterDateSz) {
+        der->validitySz = CopyValidity(der->validity, cert);
+        if (der->validitySz == 0)
+            return DATE_E;
+    }
+#endif
+
     /* date validity */
-    der->validitySz = SetValidity(der->validity, cert->daysValid);
-    if (der->validitySz == 0)
-        return DATE_E;
+    if (der->validitySz == 0) {
+        der->validitySz = SetValidity(der->validity, cert->daysValid);
+        if (der->validitySz == 0)
+            return DATE_E;
+    }
 
     /* subject name */
     der->subjectSz = SetName(der->subject, &cert->subject);
@@ -3603,8 +3658,10 @@ static int SetAltNamesFromCert(Cert* cert, const byte* der, int derSz)
     InitDecodedCert(&decoded, (byte*)der, derSz, 0);
     ret = ParseCertRelative(&decoded, CA_TYPE, NO_VERIFY, 0);
 
-    if (ret < 0)
+    if (ret < 0) {
+        FreeDecodedCert(&decoded);
         return ret;
+    }
 
     if (decoded.extensions) {
         byte   b;
@@ -3672,6 +3729,49 @@ static int SetAltNamesFromCert(Cert* cert, const byte* der, int derSz)
 
     return 0;
 }
+
+
+/* Set Dates from der cert, return 0 on success */
+static int SetDatesFromCert(Cert* cert, const byte* der, int derSz)
+{
+    DecodedCert decoded;
+    int         ret;
+
+    CYASSL_ENTER("SetDatesFromCert");
+    if (derSz < 0)
+        return derSz;
+
+    InitDecodedCert(&decoded, (byte*)der, derSz, 0);
+    ret = ParseCertRelative(&decoded, CA_TYPE, NO_VERIFY, 0);
+
+    if (ret < 0) {
+        CYASSL_MSG("ParseCertRelative error");
+        FreeDecodedCert(&decoded);
+        return ret;
+    }
+
+    if (decoded.beforeDate == NULL || decoded.afterDate == NULL) {
+        CYASSL_MSG("Couldn't extract dates");
+        FreeDecodedCert(&decoded);
+        return -1;
+    }
+
+    if (decoded.beforeDateLen > MAX_DATE_SIZE || decoded.afterDateLen >
+                                                 MAX_DATE_SIZE) {
+        CYASSL_MSG("Bad date size");
+        FreeDecodedCert(&decoded);
+        return -1;
+    }
+
+    XMEMCPY(cert->beforeDate, decoded.beforeDate, decoded.beforeDateLen);
+    XMEMCPY(cert->afterDate,  decoded.afterDate,  decoded.afterDateLen);
+
+    cert->beforeDateSz = decoded.beforeDateLen;
+    cert->afterDateSz  = decoded.afterDateLen;
+
+    return 0;
+}
+
 
 #endif /* CYASSL_ALT_NAMES */
 
@@ -3809,6 +3909,12 @@ int SetSubjectBuffer(Cert* cert, const byte* der, int derSz)
 int SetAltNamesBuffer(Cert* cert, const byte* der, int derSz)
 {
     return SetAltNamesFromCert(cert, der, derSz);
+}
+
+/* Set cert dates from DER buffer */
+int SetDatesBuffer(Cert* cert, const byte* der, int derSz)
+{
+    return SetDatesFromCert(cert, der, derSz);
 }
 
 #endif /* CYASSL_ALT_NAMES */
