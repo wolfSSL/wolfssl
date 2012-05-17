@@ -858,6 +858,7 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
     ssl->options.sendVerify = ctx->sendVerify;
     
     ssl->options.resuming = 0;
+    ssl->options.haveSessionId = 0;
     ssl->hmac = Hmac;         /* default to SSLv3 */
     ssl->heap = ctx->heap;    /* defaults to self */
     ssl->options.tls    = 0;
@@ -4169,7 +4170,6 @@ int SetCipherList(Suites* s, const char* list)
         byte compression;
         ProtocolVersion pv;
         word32 i = *inOutIdx;
-        int serverResumption = 0;
 
 #ifdef CYASSL_CALLBACKS
         if (ssl->hsInfoOn) AddPacketName("ServerHello", &ssl->handShakeInfo);
@@ -4211,7 +4211,7 @@ int SetCipherList(Suites* s, const char* list)
         if (b) {
             XMEMCPY(ssl->arrays.sessionID, input + i, b);
             i += b;
-            serverResumption = 1;
+            ssl->options.haveSessionId = 1;
         }
         ssl->options.cipherSuite0 = input[i++];
         ssl->options.cipherSuite  = input[i++];  
@@ -4227,7 +4227,7 @@ int SetCipherList(Suites* s, const char* list)
         *inOutIdx = i;
 
         if (ssl->options.resuming) {
-            if (serverResumption && XMEMCMP(ssl->arrays.sessionID,
+            if (ssl->options.haveSessionId && XMEMCMP(ssl->arrays.sessionID,
                                          ssl->session.sessionID, ID_LEN) == 0) {
                 if (SetCipherSpecs(ssl) == 0) {
                     int ret; 
@@ -5571,6 +5571,7 @@ int SetCipherList(Suites* s, const char* list)
         ssl->options.clientState = CLIENT_HELLO_COMPLETE;
         *inOutIdx = idx;
 
+        ssl->options.haveSessionId = 1;
         /* DoClientHello uses same resume code */
         while (ssl->options.resuming) {  /* let's try */
             int ret; 
@@ -5726,6 +5727,7 @@ int SetCipherList(Suites* s, const char* list)
         if ( (i - begin) < helloSz)
             *inOutIdx = begin + helloSz;  /* skip extensions */
         
+        ssl->options.haveSessionId = 1;
         /* ProcessOld uses same resume code */
         while (ssl->options.resuming) {  /* let's try */
             int ret;            

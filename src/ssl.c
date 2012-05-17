@@ -2572,7 +2572,10 @@ CYASSL_SESSION* GetSession(CYASSL* ssl, byte* masterSecret)
     int          idx;
     
     if (ssl->options.sessionCacheOff)
-        return 0;
+        return NULL;
+
+    if (ssl->options.haveSessionId == 0)
+        return NULL;
 
     row = HashSession(id) % SESSION_ROWS;
 
@@ -2633,6 +2636,9 @@ int AddSession(CYASSL* ssl)
     word32 row, idx;
 
     if (ssl->options.sessionCacheOff)
+        return 0;
+
+    if (ssl->options.haveSessionId == 0)
         return 0;
 
     row = HashSession(ssl->arrays.sessionID) % SESSION_ROWS;

@@ -986,6 +986,7 @@ typedef struct Options {
     byte            downgrade;          /* allow downgrade of versions */
     byte            sendVerify;         /* false = 0, true = 1, sendBlank = 2 */
     byte            resuming;
+    byte            haveSessionId;      /* server may not send */
     byte            tls;                /* using TLS ? */
     byte            tls1_1;             /* using TLSv1.1+ ? */
     byte            dtls;               /* using datagrams ? */
