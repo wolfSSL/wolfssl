@@ -2857,7 +2857,7 @@ int CyaSSL_set_compression(CYASSL* ssl)
 
         InitSuites(&ssl->suites, ssl->version, ssl->options.haveDH, TRUE,
                    ssl->options.haveNTRU, ssl->options.haveECDSA,
-                   ssl->optoins.haveStaticECC, ssl->ctx->method->side);
+                   ssl->options.haveStaticECC, ssl->ctx->method->side);
     }
 
 
