@@ -4520,14 +4520,17 @@ static int GetBasicDate(const byte* source, word32* idx, byte* date, int maxIdx)
 static int GetRevoked(const byte* buff, word32* idx, DecodedCRL* dcrl,
                       int maxIdx)
 {
-    int  len;
-    byte b;
+    int    len;
+    word32 end;
+    byte   b;
     RevokedCert* rc;
 
     CYASSL_ENTER("GetRevoked");
 
     if (GetSequence(buff, idx, &len, maxIdx) < 0)
         return ASN_PARSE_E;
+
+    end = *idx + len;
 
     /* get serial number */
     b = buff[*idx];
@@ -4576,6 +4579,9 @@ static int GetRevoked(const byte* buff, word32* idx, DecodedCRL* dcrl,
 
     /* skip for now */
     *idx += len;
+
+    if (*idx != end)  /* skip extensions */
+        *idx = end;
 
     return 0;
 }
