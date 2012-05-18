@@ -136,6 +136,8 @@ enum Misc_ASN {
     #endif
                                    /* Max total extensions, id + len + others */
 #endif
+    MAX_OCSP_EXT_SZ     = 58,      /* Max OCSP Extension length */
+    MAX_OCSP_NONCE_SZ   = 18,      /* OCSP Nonce size           */
     MAX_PUBLIC_KEY_SZ   = MAX_NTRU_ENC_SZ + MAX_ALGO_SZ + MAX_SEQ_SZ * 2
                                    /* use bigger NTRU size */
 };
@@ -335,13 +337,15 @@ enum Ocsp_Cert_Status {
 
 
 enum Ocsp_Sums {
-    OCSP_BASIC_OID = 117
+    OCSP_BASIC_OID = 117,
+    OCSP_NONCE_OID = 118
 };
 
 
 #define STATUS_LIST_SIZE 5
 
 
+typedef struct OcspRequest  OcspRequest;
 typedef struct OcspResponse OcspResponse;
 
 
@@ -352,6 +356,10 @@ struct OcspResponse {
     word32  respLength;      /* length of the OCSP Response */
 
     int     version;         /* Response version number */
+
+    byte*   thisUpdate;      /* Time at which this status was set      */
+    byte*   nextUpdate;      /* Time for next update                   */
+    byte*   producedAt;      /* Time at which this response was signed */
 
     word32  sigIndex;        /* Index into source for start of sig */
     word32  sigLength;       /* Length in octets for the sig */
@@ -366,16 +374,34 @@ struct OcspResponse {
     word32  certStatus[STATUS_LIST_SIZE];
                              /* Certificate status array */
 
+    byte*   nonce;
+    int     nonceSz;
+
     byte*   source;          /* pointer to source buffer, not owned */
     word32  maxIdx;          /* max offset based on init size */
     void*   heap;            /* for user memory overrides */
 };
 
 
+struct OcspRequest {
+    byte*   nonce;
+    int     nonceSz;
+
+    byte*   dest;
+    word32  destSz;
+    void*   heap;
+};
+
+
 CYASSL_LOCAL void InitOcspResponse(OcspResponse*, byte*, word32, void*);
 CYASSL_LOCAL void FreeOcspResponse(OcspResponse*);
 CYASSL_LOCAL int  OcspResponseDecode(OcspResponse*);
+
+CYASSL_LOCAL void InitOcspRequest(OcspRequest*, byte*, word32, void*);
+CYASSL_LOCAL void FreeOcspRequest(OcspRequest*);
 CYASSL_LOCAL int  EncodeOcspRequest(DecodedCert*, byte*, word32);
+
+CYASSL_LOCAL int  CompareOcspReqResp(OcspRequest*, OcspResponse*);
 
 
 #endif /* HAVE_OCSP */

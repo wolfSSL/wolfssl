@@ -38,6 +38,7 @@
 #include <cyassl/ctaocrypt/sha256.h>
 #include <cyassl/ctaocrypt/sha512.h>
 #include <cyassl/ctaocrypt/logging.h>
+#include <cyassl/ctaocrypt/random.h>
 
 #ifdef HAVE_NTRU
     #include "crypto_ntru.h"
@@ -1887,8 +1888,10 @@ word32 EncodeSignature(byte* out, const byte* digest, word32 digSz, int hashOID)
                            
 
 /* return true (1) for Confirmation */
-static int ConfirmSignature(DecodedCert* cert, const byte* key, word32 keySz,
-                            word32 keyOID)
+static int ConfirmSignature(const byte* buf, word32 bufSz,
+    const byte* key, word32 keySz, word32 keyOID,
+    const byte* sig, word32 sigSz, word32 sigOID,
+    void* heap)
 {
 #ifdef CYASSL_SHA512
     byte digest[SHA512_DIGEST_SIZE]; /* max size */
@@ -1899,57 +1902,52 @@ static int ConfirmSignature(DecodedCert* cert, const byte* key, word32 keySz,
 #endif
     int  typeH, digestSz, ret;
 
-    if (cert->signatureOID == CTC_MD5wRSA) {
+    if (sigOID == CTC_MD5wRSA) {
         Md5 md5;
         InitMd5(&md5);
-        Md5Update(&md5, cert->source + cert->certBegin,
-                  cert->sigIndex - cert->certBegin);
+        Md5Update(&md5, buf, bufSz);
         Md5Final(&md5, digest);
         typeH    = MD5h;
         digestSz = MD5_DIGEST_SIZE;
     }
-    else if (cert->signatureOID == CTC_SHAwRSA ||
-             cert->signatureOID == CTC_SHAwDSA ||
-             cert->signatureOID == CTC_SHAwECDSA) {
+    else if (sigOID == CTC_SHAwRSA ||
+             sigOID == CTC_SHAwDSA ||
+             sigOID == CTC_SHAwECDSA) {
         Sha sha;
         InitSha(&sha);
-        ShaUpdate(&sha, cert->source + cert->certBegin,
-                  cert->sigIndex - cert->certBegin);
+        ShaUpdate(&sha, buf, bufSz);
         ShaFinal(&sha, digest);
         typeH    = SHAh;
         digestSz = SHA_DIGEST_SIZE;
     }
 #ifndef NO_SHA256
-    else if (cert->signatureOID == CTC_SHA256wRSA ||
-             cert->signatureOID == CTC_SHA256wECDSA) {
+    else if (sigOID == CTC_SHA256wRSA ||
+             sigOID == CTC_SHA256wECDSA) {
         Sha256 sha256;
         InitSha256(&sha256);
-        Sha256Update(&sha256, cert->source + cert->certBegin,
-                  cert->sigIndex - cert->certBegin);
+        Sha256Update(&sha256, buf, bufSz);
         Sha256Final(&sha256, digest);
         typeH    = SHA256h;
         digestSz = SHA256_DIGEST_SIZE;
     }
 #endif
 #ifdef CYASSL_SHA512
-    else if (cert->signatureOID == CTC_SHA512wRSA ||
-             cert->signatureOID == CTC_SHA512wECDSA) {
+    else if (sigOID == CTC_SHA512wRSA ||
+             sigOID == CTC_SHA512wECDSA) {
         Sha512 sha512;
         InitSha512(&sha512);
-        Sha512Update(&sha512, cert->source + cert->certBegin,
-                  cert->sigIndex - cert->certBegin);
+        Sha512Update(&sha512, buf, bufSz);
         Sha512Final(&sha512, digest);
         typeH    = SHA512h;
         digestSz = SHA512_DIGEST_SIZE;
     }
 #endif
 #ifdef CYASSL_SHA384
-    else if (cert->signatureOID == CTC_SHA384wRSA ||
-             cert->signatureOID == CTC_SHA384wECDSA) {
+    else if (sigOID == CTC_SHA384wRSA ||
+             sigOID == CTC_SHA384wECDSA) {
         Sha384 sha384;
         InitSha384(&sha384);
-        Sha384Update(&sha384, cert->source + cert->certBegin,
-                  cert->sigIndex - cert->certBegin);
+        Sha384Update(&sha384, buf, bufSz);
         Sha384Final(&sha384, digest);
         typeH    = SHA384h;
         digestSz = SHA384_DIGEST_SIZE;
@@ -1965,30 +1963,32 @@ static int ConfirmSignature(DecodedCert* cert, const byte* key, word32 keySz,
         byte   encodedSig[MAX_ENCODED_SIG_SZ];
         byte   plain[MAX_ENCODED_SIG_SZ];
         word32 idx = 0;
-        int    sigSz, verifySz;
+        int    encodedSigSz, verifySz;
         byte*  out;
 
-        if (cert->sigLength > MAX_ENCODED_SIG_SZ) {
+        if (sigSz > MAX_ENCODED_SIG_SZ) {
             CYASSL_MSG("Verify Signautre is too big");
             return 0;
         }
             
-        InitRsaKey(&pubKey, cert->heap);
+        InitRsaKey(&pubKey, heap);
         if (RsaPublicKeyDecode(key, &idx, &pubKey, keySz) < 0) {
             CYASSL_MSG("ASN Key decode error RSA");
             ret = 0;
         }
         else {
-            XMEMCPY(plain, cert->signature, cert->sigLength);
-            if ( (verifySz = RsaSSL_VerifyInline(plain, cert->sigLength, &out,
+            XMEMCPY(plain, sig, sigSz);
+            if ( (verifySz = RsaSSL_VerifyInline(plain, sigSz, &out,
                                            &pubKey)) < 0) {
                 CYASSL_MSG("Rsa SSL verify error");
                 ret = 0;
             }
             else {
                 /* make sure we're right justified */
-                sigSz = EncodeSignature(encodedSig, digest, digestSz, typeH);
-                if (sigSz != verifySz || XMEMCMP(out, encodedSig, sigSz) != 0){
+                encodedSigSz =
+                        EncodeSignature(encodedSig, digest, digestSz, typeH);
+                if (encodedSigSz != verifySz ||
+                                XMEMCMP(out, encodedSig, encodedSigSz) != 0) {
                     CYASSL_MSG("Rsa SSL verify match encode error");
                     ret = 0;
                 }
@@ -2029,8 +2029,7 @@ static int ConfirmSignature(DecodedCert* cert, const byte* key, word32 keySz,
             return 0;
         }
     
-        ret = ecc_verify_hash(cert->signature, cert->sigLength, digest,
-                              digestSz, &verify, &pubKey);
+        ret = ecc_verify_hash(sig, sigSz, digest, digestSz, &verify, &pubKey);
         ecc_free(&pubKey);
         if (ret == 0 && verify == 1)
             return 1;  /* match */
@@ -2213,7 +2212,7 @@ static void DecodeCertExtensions(DecodedCert* cert)
 
     if (input == NULL || sz == 0) return;
 
-    if (input[index++] != ASN_EXTENSIONS)return;
+    if (input[index++] != ASN_EXTENSIONS) return;
 
     if (GetLength(input, &index, &length, sz) < 0) return;
 
@@ -2366,8 +2365,11 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
             }
 #endif /* HAVE_OCSP */
             /* try to confirm/verify signature */
-            if (!ConfirmSignature(cert, ca->publicKey,
-                                  ca->pubKeySize, ca->keyOID)) {
+            if (!ConfirmSignature(cert->source + cert->certBegin,
+                        cert->sigIndex - cert->certBegin,
+                    ca->publicKey, ca->pubKeySize, ca->keyOID,
+                    cert->signature, cert->sigLength, cert->signatureOID,
+                    cert->heap)) {
                 CYASSL_MSG("Confirm signature failed");
                 return ASN_SIG_CONFIRM_E;
             }
@@ -3994,10 +3996,8 @@ static int GetEnumerated(const byte* input, word32* inOutIdx, int *value)
 static int DecodeSingleResponse(byte* source,
                             word32* ioIndex, OcspResponse* resp, word32 size)
 {
-    word32 index = *ioIndex, prevIndex, oid, mpi_len;
+    word32 index = *ioIndex, prevIndex, oid;
     int length, remainder, qty = 0;
-    mp_int mpi;
-    byte serialTmp[EXTERNAL_SERIAL_SIZE];
 
     /* Outer wrapper of the SEQUENCE OF Single Responses. */
     if (GetSequence(source, &index, &length, size) < 0)
@@ -4031,19 +4031,24 @@ static int DecodeSingleResponse(byte* source,
             return ASN_PARSE_E;
         index += length;
 
-        /* Read the serial number */
-        if (GetInt(&mpi, source, &index, size) < 0)
+        /* Read the serial number, it is handled as a string, not as a 
+         * proper number. Just XMEMCPY the data over, rather than load it
+         * as an mp_int. */
+        if (source[index++] != ASN_INTEGER)
             return ASN_PARSE_E;
-        mpi_len = mp_unsigned_bin_size(&mpi);
-        if (mpi_len < (int)sizeof(serialTmp)) {
-            if (mp_to_unsigned_bin(&mpi, serialTmp) == MP_OKAY) {
-                if (mpi_len > EXTERNAL_SERIAL_SIZE)
-                    mpi_len = EXTERNAL_SERIAL_SIZE;
-                XMEMCPY(resp->certSN[qty], serialTmp, mpi_len);
-                resp->certSNsz[qty] = mpi_len;
+        if (GetLength(source, &index, &length, size) < 0)
+            return ASN_PARSE_E;
+        if (length <= EXTERNAL_SERIAL_SIZE) {
+            if (source[index] == 0) {
+                index++;
+                length--;
             }
+            XMEMCPY(resp->certSN[qty], source + index, length);
+            resp->certSNsz[qty] = length;
+        } else {
+            return ASN_GETINT_E;
         }
-        mp_clear(&mpi);
+        index += length;
 
         /* CertStatus */
         switch (source[index++])
@@ -4057,7 +4062,7 @@ static int DecodeSingleResponse(byte* source,
                 GetLength(source, &index, &length, size);
                 index += length;
                 break;
-            case (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | CERT_UNKNOWN):
+            case (ASN_CONTEXT_SPECIFIC | CERT_UNKNOWN):
                 resp->certStatus[qty] = CERT_UNKNOWN;
                 index++;
                 break;
@@ -4070,6 +4075,7 @@ static int DecodeSingleResponse(byte* source,
 
         if (GetLength(source, &index, &length, size) < 0)
             return ASN_PARSE_E;
+        resp->thisUpdate = source + index;
         index += length;
 
         remainder = remainder + prevIndex - index;
@@ -4081,6 +4087,67 @@ static int DecodeSingleResponse(byte* source,
 
     return 0;
 }
+
+static int DecodeOcspRespExtensions(byte* source,
+                            word32* ioIndex, OcspResponse* resp, word32 sz)
+{
+    word32 index = *ioIndex;
+    int length;
+    int ext_bound; /* boundary index for the sequence of extensions */
+    word32 oid;
+
+    CYASSL_ENTER("DecodeOcspRespExtensions");
+
+    if (source[index++] != (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 1))
+        return ASN_PARSE_E;
+
+    if (GetLength(source, &index, &length, sz) < 0) return ASN_PARSE_E;
+
+    if (GetSequence(source, &index, &length, sz) < 0) return ASN_PARSE_E;
+   
+    ext_bound = index + length;
+
+    while (index < ext_bound) {
+        if (GetSequence(source, &index, &length, sz) < 0) {
+            CYASSL_MSG("\tfail: should be a SEQUENCE");
+            return ASN_PARSE_E;
+        }
+
+        oid = 0;
+        if (GetObjectId(source, &index, &oid, sz) < 0) {
+            CYASSL_MSG("\tfail: OBJECT ID");
+            return ASN_PARSE_E;
+        }
+
+        /* check for critical flag */
+        if (source[index] == ASN_BOOLEAN) {
+            CYASSL_MSG("\tfound optional critical flag, moving past");
+            index += (ASN_BOOL_SIZE + 1);
+        }
+
+        /* process the extension based on the OID */
+        if (source[index++] != ASN_OCTET_STRING) {
+            CYASSL_MSG("\tfail: should be an OCTET STRING");
+            return ASN_PARSE_E;
+        }
+
+        if (GetLength(source, &index, &length, sz) < 0) {
+            CYASSL_MSG("\tfail: extension data length");
+            return ASN_PARSE_E;
+        }
+
+        if (oid == OCSP_NONCE_OID) {
+            resp->nonce = source + index;
+            resp->nonceSz = length;
+        }
+
+        index += length;
+    }
+
+    *ioIndex = index;
+    return 0;
+}
+
 
 static int DecodeResponseData(byte* source,
                             word32* ioIndex, OcspResponse* resp, word32 size)
@@ -4118,27 +4185,24 @@ static int DecodeResponseData(byte* source,
     else
         return ASN_PARSE_E;
     
-    /* Skip GeneralizedTime */
+    /* save pointer to the producedAt time */
     if (source[index++] != ASN_GENERALIZED_TIME)
         return ASN_PARSE_E;
     if (GetLength(source, &index, &length, size) < 0)
         return ASN_PARSE_E;
+    resp->producedAt = source + index;
     index += length;
 
     if (DecodeSingleResponse(source, &index, resp, size) < 0)
         return ASN_PARSE_E;
 
-    /* Skip the extensions */
-    if (source[index++] == (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | 1))
-    {
-        if (GetLength(source, &index, &length, size) < 0)
-            return ASN_PARSE_E;
-        index += length;
-    }
+    if (DecodeOcspRespExtensions(source, &index, resp, size) < 0)
+        return ASN_PARSE_E;
 
     *ioIndex = index;
     return 0;
 }
+
 
 static int DecodeCerts(byte* source,
                             word32* ioIndex, OcspResponse* resp, word32 size)
@@ -4276,6 +4340,57 @@ static int SetSerialNumber(const byte* sn, word32 snSz, byte* output)
 }
 
 
+static word32 SetOcspReqExtensions(word32 extSz, byte* output,
+                                            const byte* nonce, word32 nonceSz)
+{
+    static const byte NonceObjId[] = { 0x2b, 0x06, 0x01, 0x05, 0x05, 0x07,
+                                       0x30, 0x01, 0x02 };
+    byte seqArray[5][MAX_SEQ_SZ];
+    word32 seqSz[5], totalSz;
+
+    if (nonce == NULL || nonceSz == 0) return 0;
+    
+    seqArray[0][0] = ASN_OCTET_STRING;
+    seqSz[0] = 1 + SetLength(nonceSz, &seqArray[0][1]);
+
+    seqArray[1][0] = ASN_OBJECT_ID;
+    seqSz[1] = 1 + SetLength(sizeof(NonceObjId), &seqArray[1][1]);
+
+    totalSz = seqSz[0] + seqSz[1] + nonceSz + sizeof(NonceObjId);
+
+    seqSz[2] = SetSequence(totalSz, seqArray[2]);
+    totalSz += seqSz[2];
+
+    seqSz[3] = SetSequence(totalSz, seqArray[3]);
+    totalSz += seqSz[3];
+
+    seqArray[4][0] = (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 2);
+    seqSz[4] = 1 + SetLength(totalSz, &seqArray[4][1]);
+    totalSz += seqSz[4];
+
+    if (totalSz < extSz)
+    {
+        totalSz = 0;
+        XMEMCPY(output + totalSz, seqArray[4], seqSz[4]);
+        totalSz += seqSz[4];
+        XMEMCPY(output + totalSz, seqArray[3], seqSz[3]);
+        totalSz += seqSz[3];
+        XMEMCPY(output + totalSz, seqArray[2], seqSz[2]);
+        totalSz += seqSz[2];
+        XMEMCPY(output + totalSz, seqArray[1], seqSz[1]);
+        totalSz += seqSz[1];
+        XMEMCPY(output + totalSz, NonceObjId, sizeof(NonceObjId));
+        totalSz += sizeof(NonceObjId);
+        XMEMCPY(output + totalSz, seqArray[0], seqSz[0]);
+        totalSz += seqSz[0];
+        XMEMCPY(output + totalSz, nonce, nonceSz);
+        totalSz += nonceSz;
+    }
+
+    return totalSz;
+}
+
+
 int EncodeOcspRequest(DecodedCert* cert, byte* output, word32 outputSz)
 {
     byte seqArray[5][MAX_SEQ_SZ];
@@ -4284,20 +4399,36 @@ int EncodeOcspRequest(DecodedCert* cert, byte* output, word32 outputSz)
     byte issuerArray[MAX_ENCODED_DIG_SZ];
     byte issuerKeyArray[MAX_ENCODED_DIG_SZ];
     byte snArray[MAX_SN_SZ];
-
-    word32 seqSz[5], algoSz, issuerSz, issuerKeySz, snSz, totalSz;
+    byte extArray[MAX_OCSP_EXT_SZ];
+    byte nonceArray[MAX_OCSP_NONCE_SZ];
+    RNG rng;
+    word32 seqSz[5], algoSz, issuerSz, issuerKeySz, snSz, nonceSz,
+        extSz, totalSz;
     int i;
 
+    CYASSL_ENTER("EncodeOcspRequest");
     algoSz = SetAlgoID(SHAh, algoArray, hashType);
     issuerSz = SetDigest(cert->issuerHash, SHA_SIZE, issuerArray);
     issuerKeySz = SetDigest(cert->issuerKeyHash, SHA_SIZE, issuerKeyArray);
     snSz = SetSerialNumber(cert->serial, cert->serialSz, snArray);
+
+    if (InitRng(&rng) != 0) {
+        CYASSL_MSG("\tCannot initialize RNG. Skipping the OSCP Nonce.");
+        nonceSz = 0;
+        extSz = 0;
+    } else {
+        nonceSz = MAX_OCSP_NONCE_SZ;
+        RNG_GenerateBlock(&rng, nonceArray, nonceSz);
+        extSz = SetOcspReqExtensions(MAX_OCSP_EXT_SZ, extArray,
+                                                        nonceArray, nonceSz);
+    }
 
     totalSz = algoSz + issuerSz + issuerKeySz + snSz;
 
     for (i = 4; i >= 0; i--) {
         seqSz[i] = SetSequence(totalSz, seqArray[i]);
         totalSz += seqSz[i];
+        if (i == 2) totalSz += extSz;
     }
     totalSz = 0;
     for (i = 0; i < 5; i++) {
@@ -4312,8 +4443,38 @@ int EncodeOcspRequest(DecodedCert* cert, byte* output, word32 outputSz)
     totalSz += issuerKeySz;
     XMEMCPY(output + totalSz, snArray, snSz);
     totalSz += snSz;
+    if (extSz != 0) {
+        XMEMCPY(output + totalSz, extArray, extSz);
+        totalSz += extSz;
+    }
 
     return totalSz;
+}
+
+
+void InitOcspRequest(OcspRequest* req, byte* dest, word32 destSz, void* heap)
+{
+    XMEMSET(req, 0, sizeof(*req));
+    req->dest = dest;
+    req->destSz = destSz;
+    req->heap = heap;
+}
+
+
+int CompareOcspReqResp(OcspRequest* req, OcspResponse* resp)
+{
+    int cmp;
+
+    if (req == NULL) return -1;
+    if (resp == NULL) return 1;
+
+    cmp = req->nonceSz - resp->nonceSz;
+    if (cmp != 0) return cmp;
+
+    cmp = XMEMCMP(req->nonce, resp->nonce, req->nonceSz);
+    if (cmp != 0) return cmp;
+
+    return 0;
 }
 
 #endif
