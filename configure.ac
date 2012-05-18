@@ -6,7 +6,7 @@
 #
 #
 
-AC_INIT([cyassl],[2.1.5],[http://www.yassl.com])
+AC_INIT([cyassl],[2.1.7],[http://www.yassl.com])
 
 AC_CONFIG_AUX_DIR(config)
 
@@ -489,6 +489,21 @@ then
 fi
 
 AM_CONDITIONAL([BUILD_OCSP], [test "x$ENABLED_OCSP" = "xyes"])
+
+
+# CRL 
+AC_ARG_ENABLE(crl,
+    [  --enable-crl            Enable CRL (default: disabled)],
+    [ ENABLED_CRL=$enableval ],
+    [ ENABLED_CRL=no ],
+    )
+
+if test "$ENABLED_CRL" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_CRL"
+fi
+
+AM_CONDITIONAL([BUILD_CRL], [test "x$ENABLED_CRL" = "xyes"])
 
 
 # NTRU

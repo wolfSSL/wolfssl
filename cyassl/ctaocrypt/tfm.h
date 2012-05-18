@@ -415,7 +415,7 @@ int fp_cmp_d(fp_int *a, fp_digit b);
 void fp_add_d(fp_int *a, fp_digit b, fp_int *c);
 
 /* c = a - b */
-/*void fp_sub_d(fp_int *a, fp_digit b, fp_int *c);*/
+void fp_sub_d(fp_int *a, fp_digit b, fp_int *c);
 
 /* c = a * b */
 void fp_mul_d(fp_int *a, fp_digit b, fp_int *c);

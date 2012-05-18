@@ -406,7 +406,7 @@ static int rand_prime(mp_int* N, int len, RNG* rng, void* heap)
     }
    
     /* allocate buffer to work with */
-    buf = XMALLOC(len, heap, DYNAMIC_TYPE_RSA);
+    buf = (byte*)XMALLOC(len, heap, DYNAMIC_TYPE_RSA);
     if (buf == NULL) {
         return MEMORY_E;
     }

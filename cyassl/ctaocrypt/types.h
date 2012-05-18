@@ -202,7 +202,10 @@ enum {
     DYNAMIC_TYPE_WRITEV     = 19,
     DYNAMIC_TYPE_OPENSSL    = 20,
     DYNAMIC_TYPE_DSA        = 21,
-    DYNAMIC_TYPE_CERT_MANAGER = 22
+    DYNAMIC_TYPE_CRL        = 22,
+    DYNAMIC_TYPE_REVOKED    = 23,
+    DYNAMIC_TYPE_CRL_ENTRY  = 24,
+    DYNAMIC_TYPE_CERT_MANAGER = 25
 };
 
 /* stack protection */

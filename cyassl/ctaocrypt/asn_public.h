@@ -39,6 +39,7 @@ enum CertType {
     CERT_TYPE       = 0, 
     PRIVATEKEY_TYPE,
     DH_PARAM_TYPE,
+    CRL_TYPE,
     CA_TYPE
 };
 
@@ -63,6 +64,7 @@ enum Ctc_SigType {
 
 enum Ctc_Misc {
     CTC_NAME_SIZE    =   64,
+    CTC_DATE_SIZE    =   32,
     CTC_MAX_ALT_SIZE = 8192,    /* may be huge */
     CTC_SERIAL_SIZE  =    8
 };
@@ -95,6 +97,10 @@ typedef struct Cert {
 #ifdef CYASSL_ALT_NAMES
     byte     altNames[CTC_MAX_ALT_SIZE]; /* altNames copy */
     int      altNamesSz;                 /* altNames size in bytes */
+    byte     beforeDate[CTC_DATE_SIZE];  /* before date copy */
+    int      beforeDateSz;               /* size of copy */
+    byte     afterDate[CTC_DATE_SIZE];   /* after date copy */
+    int      afterDateSz;                /* size of copy */
 #endif
 } Cert;
 
@@ -125,6 +131,7 @@ CYASSL_API int  SetSubject(Cert*, const char*);
 CYASSL_API int  SetIssuerBuffer(Cert*, const byte*, int);
 CYASSL_API int  SetSubjectBuffer(Cert*, const byte*, int);
 CYASSL_API int  SetAltNamesBuffer(Cert*, const byte*, int);
+CYASSL_API int  SetDatesBuffer(Cert*, const byte*, int);
 
     #ifdef HAVE_NTRU
         CYASSL_API int  MakeNtruCert(Cert*, byte* derBuffer, word32 derSz,

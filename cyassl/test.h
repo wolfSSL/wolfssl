@@ -109,6 +109,7 @@ static const char* ntruKey  = "./certs/ntru-key.raw";
 static const char* dhParam  = "./certs/dh2048.pem";
 static const char* cliEccKey  = "./certs/ecc-client-key.pem";
 static const char* cliEccCert = "./certs/client-ecc-cert.pem";
+static const char* crlPemDir  = "./certs/crl";
 
 typedef struct tcp_ready {
     int ready;              /* predicate */
@@ -572,6 +573,16 @@ static int myVerify(int preverify, CYASSL_X509_STORE_CTX* store)
 }
 
 #endif /* VERIFY_CALLBACK */
+
+
+#ifdef HAVE_CRL
+
+static void CRL_CallBack(char* url)
+{
+    printf("CRL callback url = %s\n", url);
+}
+
+#endif
 
 
 static INLINE void CaCb(unsigned char* der, int sz, int type)

@@ -92,14 +92,16 @@ enum CyaSSL_ErrorCodes {
     NOT_CA_ERROR           = -257,            /* Not a CA cert error */
     BAD_PATH_ERROR         = -258,            /* Bad path for opendir */
     BAD_CERT_MANAGER_ERROR = -259,            /* Bad Cert Manager */
+    OCSP_CERT_REVOKED      = -260,
+    CRL_CERT_REVOKED       = -261,            /* CRL Certificate revoked */
+    CRL_MISSING            = -262,            /* CRL Not loaded */
     /* add strings to SetErrorString !!!!! */
 
     /* begin negotiation parameter errors */
     UNSUPPORTED_SUITE      = -270,            /* unsupported cipher suite */
-    MATCH_SUITE_ERROR      = -271,            /* can't match cipher suite */
+    MATCH_SUITE_ERROR      = -271             /* can't match cipher suite */
     /* end negotiation parameter errors only 10 for now */
     /* add strings to SetErrorString !!!!! */
-    OCSP_CERT_REVOKED      = -272
 };
 
 

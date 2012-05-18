@@ -384,7 +384,6 @@ CYASSL_API char* CyaSSL_alert_type_string_long(int);
 CYASSL_API char* CyaSSL_alert_desc_string_long(int);
 CYASSL_API char* CyaSSL_state_string_long(CYASSL*);
 
-CYASSL_API void CyaSSL_RSA_free(CYASSL_RSA*);
 CYASSL_API CYASSL_RSA* CyaSSL_RSA_generate_key(int, unsigned long,
                                                void(*)(int, int, void*), void*);
 CYASSL_API void CyaSSL_CTX_set_tmp_rsa_callback(CYASSL_CTX*,
@@ -428,6 +427,8 @@ enum {
     OCSP_REQUEST  = 4,
     OCSP_RESPONSE = 8,
     OCSP_BASICRESP = 16,
+
+    CYASSL_CRL_CHECKALL = 1,
 
     ASN1_GENERALIZEDTIME = 4,
 
@@ -776,6 +777,7 @@ CYASSL_API int CyaSSL_KeyPemToDer(const unsigned char*, int sz, unsigned char*,
                                   int, const char*);
 
 typedef void (*CallbackCACache)(unsigned char* der, int sz, int type);
+typedef void (*CbMissingCRL)(const char* url);
 
 CYASSL_API void CyaSSL_CTX_SetCACb(CYASSL_CTX*, CallbackCACache);
 
@@ -787,6 +789,22 @@ CYASSL_API int CyaSSL_CertManagerLoadCA(CYASSL_CERT_MANAGER*, const char* f,
                                         const char* d);
 CYASSL_API int CyaSSL_CertManagerVerify(CYASSL_CERT_MANAGER*, const char* f,
                                         int format);
+CYASSL_API int CyaSSL_CertManagerEnableCRL(CYASSL_CERT_MANAGER*, int options);
+CYASSL_API int CyaSSL_CertManagerDisableCRL(CYASSL_CERT_MANAGER*);
+CYASSL_API int CyaSSL_CertManagerLoadCRL(CYASSL_CERT_MANAGER*, const char*,int);
+CYASSL_API int CyaSSL_CertManagerSetCRL_Cb(CYASSL_CERT_MANAGER*, CbMissingCRL);
+
+CYASSL_API int CyaSSL_EnableCRL(CYASSL* ssl, int options);
+CYASSL_API int CyaSSL_DisableCRL(CYASSL* ssl);
+CYASSL_API int CyaSSL_LoadCRL(CYASSL*, const char*, int);
+CYASSL_API int CyaSSL_SetCRL_Cb(CYASSL*, CbMissingCRL);
+
+CYASSL_API int CyaSSL_CTX_EnableCRL(CYASSL_CTX* ctx, int options);
+CYASSL_API int CyaSSL_CTX_DisableCRL(CYASSL_CTX* ctx);
+CYASSL_API int CyaSSL_CTX_LoadCRL(CYASSL_CTX*, const char*, int);
+CYASSL_API int CyaSSL_CTX_SetCRL_Cb(CYASSL_CTX*, CbMissingCRL);
+
+
 
 #ifdef CYASSL_CALLBACKS
 
