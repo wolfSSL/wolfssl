@@ -41,7 +41,7 @@ Release 2.2.0 CyaSSL has bug fixes and a few new features including:
 - Initial OCSP support (--enable-ocsp)
 - Add static ECDH suites
 - SHA-384 support
-- Add example ECC client certificate
+- ECC client certificate support
 - Add medium session cache size (1055 sessions) 
 - Updated unit tests
 - Protection against mutex reinitialization
