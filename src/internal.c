@@ -460,6 +460,7 @@ void InitSuites(Suites* suites, ProtocolVersion pv, byte haveDH, byte havePSK,
     (void)haveDH;
     (void)havePSK;
     (void)haveNTRU;
+    (void)haveStaticECC;
 
     if (suites->setSuites)
         return;      /* trust user settings, don't override */

@@ -1591,9 +1591,9 @@ static int GetDate(DecodedCert* cert, int dateType)
     int    length;
     byte   date[MAX_DATE_SIZE];
     byte   b;
-    word32 startIdx = 0;
 
 #ifdef CYASSL_CERT_GEN
+    word32 startIdx = 0;
     if (dateType == BEFORE)
         cert->beforeDate = &cert->source[cert->srcIdx];
     else
@@ -2073,25 +2073,25 @@ static int ConfirmSignature(DecodedCert* cert, const byte* key, word32 keySz,
 
 static void DecodeBasicCaConstraint(byte* input, int sz, DecodedCert* cert)
 {
-    word32 index = 0;
+    word32 idx = 0;
     int length = 0;
 
     CYASSL_ENTER("DecodeBasicCaConstraint");
-    if (GetSequence(input, &index, &length, sz) < 0) return;
+    if (GetSequence(input, &idx, &length, sz) < 0) return;
 
-    if (input[index++] != ASN_BOOLEAN)
+    if (input[idx++] != ASN_BOOLEAN)
     {
         CYASSL_MSG("\tfail: constraint not BOOLEAN");
         return;
     }
 
-    if (GetLength(input, &index, &length, sz) < 0)
+    if (GetLength(input, &idx, &length, sz) < 0)
     {
         CYASSL_MSG("\tfail: length");
         return;
     }
 
-    if (input[index])
+    if (input[idx])
         cert->isCA = 1;
 }
 
@@ -2103,69 +2103,68 @@ static void DecodeBasicCaConstraint(byte* input, int sz, DecodedCert* cert)
 
 static void DecodeCrlDist(byte* input, int sz, DecodedCert* cert)
 {
-    word32 index = 0;
+    word32 idx = 0;
     int length = 0;
-    word32 oid;
 
     CYASSL_ENTER("DecodeCrlDist");
 
     /* Unwrap the list of Distribution Points*/
-    if (GetSequence(input, &index, &length, sz) < 0) return;
+    if (GetSequence(input, &idx, &length, sz) < 0) return;
 
     /* Unwrap a single Distribution Point */
-    if (GetSequence(input, &index, &length, sz) < 0) return;
+    if (GetSequence(input, &idx, &length, sz) < 0) return;
 
     /* The Distribution Point has three explicit optional members
      *  First check for a DistributionPointName
      */
-    if (input[index] == (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 0))
+    if (input[idx] == (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 0))
     {
-        index++;
-        if (GetLength(input, &index, &length, sz) < 0) return;
+        idx++;
+        if (GetLength(input, &idx, &length, sz) < 0) return;
 
-        if (input[index] == 
+        if (input[idx] == 
                     (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | CRLDP_FULL_NAME))
         {
-            index++;
-            if (GetLength(input, &index, &length, sz) < 0) return;
+            idx++;
+            if (GetLength(input, &idx, &length, sz) < 0) return;
 
-            if (input[index] == (ASN_CONTEXT_SPECIFIC | GENERALNAME_URI))
+            if (input[idx] == (ASN_CONTEXT_SPECIFIC | GENERALNAME_URI))
             {
-                index++;
-                if (GetLength(input, &index, &length, sz) < 0) return;
+                idx++;
+                if (GetLength(input, &idx, &length, sz) < 0) return;
 
                 cert->extCrlInfoSz = length;
-                cert->extCrlInfo = input + index;
-                index += length;
+                cert->extCrlInfo = input + idx;
+                idx += length;
             }
             else
                 /* This isn't a URI, skip it. */
-                index += length;
+                idx += length;
         }
         else
             /* This isn't a FULLNAME, skip it. */
-            index += length;
+            idx += length;
     }
 
     /* Check for reasonFlags */
-    if (index < (word32)sz &&
-        input[index] == (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 1))
+    if (idx < (word32)sz &&
+        input[idx] == (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 1))
     {
-        index++;
-        if (GetLength(input, &index, &length, sz) < 0) return;
-        index += length;
+        idx++;
+        if (GetLength(input, &idx, &length, sz) < 0) return;
+        idx += length;
     }
 
     /* Check for cRLIssuer */
-    if (index < (word32)sz &&
-        input[index] == (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 2))
+    if (idx < (word32)sz &&
+        input[idx] == (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 2))
     {
-        index++;
-        if (GetLength(input, &index, &length, sz) < 0) return;
-        index += length;
+        idx++;
+        if (GetLength(input, &idx, &length, sz) < 0) return;
+        idx += length;
     }
 
-    if (index < (word32)sz)
+    if (idx < (word32)sz)
     {
         CYASSL_MSG("\tThere are more CRL Distribution Point records, "
                    "but we only use the first one.");
@@ -2181,38 +2180,38 @@ static void DecodeAuthInfo(byte* input, int sz, DecodedCert* cert)
  *  any issues, return without saving the record.
  */
 {
-    word32 index = 0;
+    word32 idx = 0;
     int length = 0;
     word32 oid;
 
     /* Unwrap the list of AIAs */
-    if (GetSequence(input, &index, &length, sz) < 0) return;
+    if (GetSequence(input, &idx, &length, sz) < 0) return;
 
     /* Unwrap a single AIA */
-    if (GetSequence(input, &index, &length, sz) < 0) return;
+    if (GetSequence(input, &idx, &length, sz) < 0) return;
 
     oid = 0;
-    if (GetObjectId(input, &index, &oid, sz) < 0) return;
+    if (GetObjectId(input, &idx, &oid, sz) < 0) return;
 
     /* Only supporting URIs right now. */
-    if (input[index] == (ASN_CONTEXT_SPECIFIC | GENERALNAME_URI))
+    if (input[idx] == (ASN_CONTEXT_SPECIFIC | GENERALNAME_URI))
     {
-        index++;
-        if (GetLength(input, &index, &length, sz) < 0) return;
+        idx++;
+        if (GetLength(input, &idx, &length, sz) < 0) return;
 
         cert->extAuthInfoSz = length;
-        cert->extAuthInfo = input + index;
-        index += length;
+        cert->extAuthInfo = input + idx;
+        idx += length;
     }
     else
     {
         /* Skip anything else. */
-        index++;
-        if (GetLength(input, &index, &length, sz) < 0) return;
-        index += length;
+        idx++;
+        if (GetLength(input, &idx, &length, sz) < 0) return;
+        idx += length;
     }
 
-    if (index < (word32)sz)
+    if (idx < (word32)sz)
     {
         CYASSL_MSG("\tThere are more Authority Information Access records, "
                    "but we only use first one.");
@@ -2228,7 +2227,7 @@ static void DecodeCertExtensions(DecodedCert* cert)
  *  index. It is works starting with the recorded extensions pointer.
  */
 {
-    word32 index = 0;
+    word32 idx = 0;
     int sz = cert->extensionsSz;
     byte* input = cert->extensions;
     int length;
@@ -2238,59 +2237,59 @@ static void DecodeCertExtensions(DecodedCert* cert)
 
     if (input == NULL || sz == 0) return;
 
-    if (input[index++] != ASN_EXTENSIONS)return;
+    if (input[idx++] != ASN_EXTENSIONS)return;
 
-    if (GetLength(input, &index, &length, sz) < 0) return;
+    if (GetLength(input, &idx, &length, sz) < 0) return;
 
-    if (GetSequence(input, &index, &length, sz) < 0) return;
+    if (GetSequence(input, &idx, &length, sz) < 0) return;
     
-    while (index < (word32)sz) {
-        if (GetSequence(input, &index, &length, sz) < 0) {
+    while (idx < (word32)sz) {
+        if (GetSequence(input, &idx, &length, sz) < 0) {
             CYASSL_MSG("\tfail: should be a SEQUENCE");
             return;
         }
 
         oid = 0;
-        if (GetObjectId(input, &index, &oid, sz) < 0) {
+        if (GetObjectId(input, &idx, &oid, sz) < 0) {
             CYASSL_MSG("\tfail: OBJECT ID");
             return;
         }
 
         /* check for critical flag */
-        if (input[index] == ASN_BOOLEAN) {
+        if (input[idx] == ASN_BOOLEAN) {
             CYASSL_MSG("\tfound optional critical flag, moving past");
-            index += (ASN_BOOL_SIZE + 1);
+            idx += (ASN_BOOL_SIZE + 1);
         }
 
         /* process the extension based on the OID */
-        if (input[index++] != ASN_OCTET_STRING) {
+        if (input[idx++] != ASN_OCTET_STRING) {
             CYASSL_MSG("\tfail: should be an OCTET STRING");
             return;
         }
 
-        if (GetLength(input, &index, &length, sz) < 0) {
+        if (GetLength(input, &idx, &length, sz) < 0) {
             CYASSL_MSG("\tfail: extension data length");
             return;
         }
 
         switch (oid) {
             case BASIC_CA_OID:
-                DecodeBasicCaConstraint(&input[index], length, cert);
+                DecodeBasicCaConstraint(&input[idx], length, cert);
                 break;
 
             case CRL_DIST_OID:
-                DecodeCrlDist(&input[index], length, cert);
+                DecodeCrlDist(&input[idx], length, cert);
                 break;
 
             case AUTH_INFO_OID:
-                DecodeAuthInfo(&input[index], length, cert);
+                DecodeAuthInfo(&input[idx], length, cert);
                 break;
 
             default:
                 CYASSL_MSG("\tExtension type not handled, skipping");
                 break;
         }
-        index += length;
+        idx += length;
     }
 
     return;
@@ -4668,7 +4667,7 @@ int ParseCRL(DecodedCRL* dcrl, const byte* buff, long sz)
 
         len += idx;
 
-        while (idx < len) {
+        while (idx < (word32)len) {
             if (GetRevoked(buff, &idx, dcrl, sz) < 0)
                 return ASN_PARSE_E;
         }

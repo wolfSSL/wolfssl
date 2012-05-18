@@ -384,7 +384,6 @@ CYASSL_API char* CyaSSL_alert_type_string_long(int);
 CYASSL_API char* CyaSSL_alert_desc_string_long(int);
 CYASSL_API char* CyaSSL_state_string_long(CYASSL*);
 
-CYASSL_API void CyaSSL_RSA_free(CYASSL_RSA*);
 CYASSL_API CYASSL_RSA* CyaSSL_RSA_generate_key(int, unsigned long,
                                                void(*)(int, int, void*), void*);
 CYASSL_API void CyaSSL_CTX_set_tmp_rsa_callback(CYASSL_CTX*,

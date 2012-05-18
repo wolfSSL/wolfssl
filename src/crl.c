@@ -149,12 +149,13 @@ int CheckCertCRL(CYASSL_CRL* crl, DecodedCert* cert)
 
 			CYASSL_MSG("Issuing missing CRL callback");
 			url[0] = '\0';
-			if (cert->extCrlInfoSz < sizeof(url) -1 ) {
+			if (cert->extCrlInfoSz < (int)sizeof(url) -1 ) {
 				XMEMCPY(url, cert->extCrlInfo, cert->extCrlInfoSz);
 				url[cert->extCrlInfoSz] = '\0';
 			}
-			else 
+			else  {
 				CYASSL_MSG("CRL url too long");
+            }
 			crl->cm->cbMissingCRL(url);
 		}
 	}
@@ -233,8 +234,9 @@ int BufferLoadCRL(CYASSL_CRL* crl, const byte* buff, long sz, int type)
 	}
 	else {
 		ret = AddCRL(crl, &dcrl);
-		if (ret != 0) 
+		if (ret != 0) {
 			CYASSL_MSG("AddCRL error");
+        }
 	}
 	FreeDecodedCRL(&dcrl);
 
