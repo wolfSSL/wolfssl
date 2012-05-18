@@ -326,7 +326,7 @@ AM_CONDITIONAL([BUILD_RIPEMD], [test "x$ENABLED_RIPEMD" = "xyes"])
 
 # SHA512
 AC_ARG_ENABLE(sha512,
-    [  --enable-sha512         Enable CyaSSL SHA-160 support (default: disabled)],
+    [  --enable-sha512         Enable CyaSSL SHA-512 support (default: disabled)],
     [ ENABLED_SHA512=$enableval ],
     [ ENABLED_SHA512=no ]
     )
