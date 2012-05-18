@@ -261,7 +261,7 @@ static byte* decode_http_response(byte* httpBuf, int httpBufSz, int* ocspRespSz)
                 int len = 0;
                 idx += 15;
                 if (buf[idx] == ' ') idx++;
-                while (buf[idx] > '0' && buf[idx] < '9' && idx < httpBufSz) {
+                while (buf[idx] >= '0' && buf[idx] <= '9' && idx < httpBufSz) {
                     len = (len * 10) + (buf[idx] - '0');
                     idx++;
                 }
