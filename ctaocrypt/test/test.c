@@ -1685,6 +1685,9 @@ int openssl_test()
     testVector a, b, c, d, e, f;
     byte       hash[SHA_DIGEST_SIZE*4];  /* max size */
 
+    (void)e;
+    (void)f;
+
     a.input  = "1234567890123456789012345678901234567890123456789012345678"
                "9012345678901234567890";
     a.output = "\x57\xed\xf4\xa2\x2b\xe3\xc9\x55\xac\x49\xda\x2e\x21\x07\xb6"
@@ -1758,7 +1761,7 @@ int openssl_test()
 #endif /* CYASSL_SHA384 */
 
 
-#ifdef CYASSL_SHA384
+#ifdef CYASSL_SHA512
 
     f.input  = "abcdefghbcdefghicdefghijdefghijkefghijklfghijklmghijklmnhi"
                "jklmnoijklmnopjklmnopqklmnopqrlmnopqrsmnopqrstnopqrstu";
@@ -1779,7 +1782,7 @@ int openssl_test()
     if (memcmp(hash, f.output, SHA512_DIGEST_SIZE) != 0)
         return -80;
 
-#endif /* CYASSL_SHA384 */
+#endif /* CYASSL_SHA512 */
 
 
     if (RAND_bytes(hash, sizeof(hash)) != 1)

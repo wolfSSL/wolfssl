@@ -35,7 +35,7 @@ typedef struct CYASSL_CRL CYASSL_CRL;
 CYASSL_LOCAL int  InitCRL(CYASSL_CRL*, CYASSL_CERT_MANAGER*);
 CYASSL_LOCAL void FreeCRL(CYASSL_CRL*);
 
-CYASSL_LOCAL int  LoadCRL(CYASSL_CRL* crl, const char* path, int type);
+CYASSL_LOCAL int  LoadCRL(CYASSL_CRL* crl, const char* path, int type, int mon);
 CYASSL_LOCAL int  BufferLoadCRL(CYASSL_CRL*, const byte*, long, int);
 CYASSL_LOCAL int  CheckCertCRL(CYASSL_CRL*, DecodedCert*);
 

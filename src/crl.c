@@ -250,7 +250,7 @@ int BufferLoadCRL(CYASSL_CRL* crl, const byte* buff, long sz, int type)
 
 
 /* Load CRL path files of type, SSL_SUCCESS on ok */ 
-int LoadCRL(CYASSL_CRL* crl, const char* path, int type)
+int LoadCRL(CYASSL_CRL* crl, const char* path, int type, int monitor)
 {
 	struct dirent* entry;
 	DIR*   dir;
@@ -292,6 +292,10 @@ int LoadCRL(CYASSL_CRL* crl, const char* path, int type)
 			ret = ProcessFile(NULL, name, type, CRL_TYPE, NULL, 0, crl);
 		}
 	}
+
+    if (monitor) {
+        CYASSL_MSG("monitor path requested");
+    }
 
 	return SSL_SUCCESS;
 }

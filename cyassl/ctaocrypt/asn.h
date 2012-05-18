@@ -62,6 +62,7 @@ enum ASN_Tags {
     ASN_SET               = 0x11,
     ASN_UTC_TIME          = 0x17,
     ASN_GENERALIZED_TIME  = 0x18,
+    CRL_EXTENSIONS        = 0xa0,
     ASN_EXTENSIONS        = 0xa3,
     ASN_LONG_LENGTH       = 0x80
 };

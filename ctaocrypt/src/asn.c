@@ -4821,8 +4821,7 @@ int ParseCRL(DecodedCRL* dcrl, const byte* buff, long sz)
     if (GetBasicDate(buff, &idx, dcrl->nextDate, sz) < 0)
         return ASN_PARSE_E;
 
-
-    if (idx != dcrl->sigIndex) {
+    if (idx != dcrl->sigIndex && buff[idx] != CRL_EXTENSIONS) {
         if (GetSequence(buff, &idx, &len, sz) < 0)
             return ASN_PARSE_E;
 

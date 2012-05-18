@@ -1332,6 +1332,10 @@ int CyaSSL_CertManagerVerify(CYASSL_CERT_MANAGER* cm, const char* fname,
 
         if (ret == 0)
             ret = ParseCertRelative(&cert, CERT_TYPE, 1, cm);
+#ifdef HAVE_CRL
+        if (ret == 0 && cm->crlEnabled)
+            ret = CheckCertCRL(cm->crl, &cert);
+#endif
     }
 
     FreeDecodedCert(&cert);
@@ -1379,18 +1383,19 @@ int CyaSSL_CertManagerLoadCA(CYASSL_CERT_MANAGER* cm, const char* file,
 }
 
 
+
 /* turn on CRL if off and compiled in, set options */
 int CyaSSL_CertManagerEnableCRL(CYASSL_CERT_MANAGER* cm, int options)
 {
+    int ret = SSL_SUCCESS;
+
     (void)options;
 
     CYASSL_ENTER("CyaSSL_CertManagerEnableCRL");
     if (cm == NULL)
         return BAD_FUNC_ARG;
 
-    #ifndef HAVE_CRL
-        return NOT_COMPILED_IN;
-    #else
+    #ifdef HAVE_CRL
         if (cm->crl == NULL) {
             cm->crl = (CYASSL_CRL*)XMALLOC(sizeof(CYASSL_CRL), cm->heap,
                                            DYNAMIC_TYPE_CRL);
@@ -1407,9 +1412,11 @@ int CyaSSL_CertManagerEnableCRL(CYASSL_CERT_MANAGER* cm, int options)
         cm->crlEnabled = 1;
         if (options & CYASSL_CRL_CHECKALL)
             cm->crlCheckAll = 1;
+    #else
+        ret = NOT_COMPILED_IN;
     #endif
 
-    return SSL_SUCCESS;
+    return ret;
 }
 
 
@@ -1428,6 +1435,43 @@ int CyaSSL_CertManagerDisableCRL(CYASSL_CERT_MANAGER* cm)
 #ifdef HAVE_CRL
 
 
+/* check CRL if enabled, SSL_SUCCESS  */
+int CyaSSL_CertManagerCheckCRL(CYASSL_CERT_MANAGER* cm, byte* der, int sz)
+{
+    int         ret;
+    DecodedCert cert;
+
+    CYASSL_ENTER("CyaSSL_CertManagerCheckCRL");
+
+    if (cm == NULL)
+        return BAD_FUNC_ARG;
+
+    if (cm->crlEnabled == 0)
+        return SSL_SUCCESS;
+
+    InitDecodedCert(&cert, der, sz, NULL);
+
+    ret = ParseCertRelative(&cert, CERT_TYPE, NO_VERIFY, cm);
+    if (ret != 0) {
+        CYASSL_MSG("ParseCert failed");
+        return ret;
+    }
+    else {
+        ret = CheckCertCRL(cm->crl, &cert);
+        if (ret != 0) {
+            CYASSL_MSG("CheckCertCRL failed");
+        }
+    }
+
+    FreeDecodedCert(&cert);
+
+    if (ret == 0)
+        return SSL_SUCCESS;  /* convert */
+
+    return ret;
+}
+
+
 int CyaSSL_CertManagerSetCRL_Cb(CYASSL_CERT_MANAGER* cm, CbMissingCRL cb)
 {
     CYASSL_ENTER("CyaSSL_CertManagerLoadCRL");
@@ -1441,7 +1485,7 @@ int CyaSSL_CertManagerSetCRL_Cb(CYASSL_CERT_MANAGER* cm, CbMissingCRL cb)
 
 
 int CyaSSL_CertManagerLoadCRL(CYASSL_CERT_MANAGER* cm, const char* path,
-                              int type)
+                              int type, int monitor)
 {
     CYASSL_ENTER("CyaSSL_CertManagerLoadCRL");
     if (cm == NULL)
@@ -1454,7 +1498,7 @@ int CyaSSL_CertManagerLoadCRL(CYASSL_CERT_MANAGER* cm, const char* path,
         }
     }
 
-    return LoadCRL(cm->crl, path, type);
+    return LoadCRL(cm->crl, path, type, monitor);
 }
 
 
@@ -1478,11 +1522,11 @@ int CyaSSL_DisableCRL(CYASSL* ssl)
 }
 
 
-int CyaSSL_LoadCRL(CYASSL* ssl, const char* path, int type)
+int CyaSSL_LoadCRL(CYASSL* ssl, const char* path, int type, int monitor)
 {
     CYASSL_ENTER("CyaSSL_LoadCRL");
     if (ssl)
-        return CyaSSL_CertManagerLoadCRL(ssl->ctx->cm, path, type);
+        return CyaSSL_CertManagerLoadCRL(ssl->ctx->cm, path, type, monitor);
     else
         return BAD_FUNC_ARG;
 }
@@ -1518,11 +1562,11 @@ int CyaSSL_CTX_DisableCRL(CYASSL_CTX* ctx)
 }
 
 
-int CyaSSL_CTX_LoadCRL(CYASSL_CTX* ctx, const char* path, int type)
+int CyaSSL_CTX_LoadCRL(CYASSL_CTX* ctx, const char* path, int type, int monitor)
 {
     CYASSL_ENTER("CyaSSL_CTX_LoadCRL");
     if (ctx)
-        return CyaSSL_CertManagerLoadCRL(ctx->cm, path, type);
+        return CyaSSL_CertManagerLoadCRL(ctx->cm, path, type, monitor);
     else
         return BAD_FUNC_ARG;
 }
@@ -5947,7 +5991,7 @@ static int initGlobalRNG = 0;
     {
         CYASSL_MSG("CyaSSL_BN_clear_free");
 
-        return CyaSSL_BN_free(bn);
+        CyaSSL_BN_free(bn);
     }
 
 
@@ -6822,6 +6866,8 @@ static int initGlobalRNG = 0;
 
         CYASSL_MSG("CyaSSL_RSA_generate_key_ex");
 
+        (void)rsa;
+        (void)bits;
         (void)cb;
         (void)bn;
     
@@ -6835,10 +6881,6 @@ static int initGlobalRNG = 0;
             CYASSL_MSG("MakeRsaKey failed");
             return -1;
         }
-#else
-        CYASSL_MSG("No Key Gen built in");
-        return -1;
-#endif
 
         if (SetRsaExternal(rsa) < 0) {
             CYASSL_MSG("SetRsaExternal failed");
@@ -6848,6 +6890,11 @@ static int initGlobalRNG = 0;
         rsa->inSet = 1;
 
         return 1;  /* success */
+#else
+        CYASSL_MSG("No Key Gen built in");
+        return -1;
+#endif
+
     }
 
 
@@ -7176,7 +7223,6 @@ static int initGlobalRNG = 0;
 
             default:
                 CYASSL_MSG("Bad digest id value");
-                return NULL;
         }
 
         return NULL;
@@ -7367,7 +7413,6 @@ static int initGlobalRNG = 0;
 
             default: {
                 CYASSL_MSG("bad type");
-                return 0;
             }
         }    
         return 0;

@@ -43,12 +43,6 @@
     #define CYASSL_VERSION LIBCYASSL_VERSION_STRING
 #endif
 
-#ifdef _WIN32
-    /* wincrypt.h clashes */
-    #undef X509_NAME
-    #undef OCSP_REQUEST 
-    #undef OCSP_RESPONSE
-#endif
 
 
 #ifdef __cplusplus
@@ -789,19 +783,22 @@ CYASSL_API int CyaSSL_CertManagerLoadCA(CYASSL_CERT_MANAGER*, const char* f,
                                         const char* d);
 CYASSL_API int CyaSSL_CertManagerVerify(CYASSL_CERT_MANAGER*, const char* f,
                                         int format);
+CYASSL_API int CyaSSL_CertManagerCheckCRL(CYASSL_CERT_MANAGER*, unsigned char*,
+                                          int sz);
 CYASSL_API int CyaSSL_CertManagerEnableCRL(CYASSL_CERT_MANAGER*, int options);
 CYASSL_API int CyaSSL_CertManagerDisableCRL(CYASSL_CERT_MANAGER*);
-CYASSL_API int CyaSSL_CertManagerLoadCRL(CYASSL_CERT_MANAGER*, const char*,int);
+CYASSL_API int CyaSSL_CertManagerLoadCRL(CYASSL_CERT_MANAGER*, const char*, int,
+                                         int);
 CYASSL_API int CyaSSL_CertManagerSetCRL_Cb(CYASSL_CERT_MANAGER*, CbMissingCRL);
 
 CYASSL_API int CyaSSL_EnableCRL(CYASSL* ssl, int options);
 CYASSL_API int CyaSSL_DisableCRL(CYASSL* ssl);
-CYASSL_API int CyaSSL_LoadCRL(CYASSL*, const char*, int);
+CYASSL_API int CyaSSL_LoadCRL(CYASSL*, const char*, int, int);
 CYASSL_API int CyaSSL_SetCRL_Cb(CYASSL*, CbMissingCRL);
 
 CYASSL_API int CyaSSL_CTX_EnableCRL(CYASSL_CTX* ctx, int options);
 CYASSL_API int CyaSSL_CTX_DisableCRL(CYASSL_CTX* ctx);
-CYASSL_API int CyaSSL_CTX_LoadCRL(CYASSL_CTX*, const char*, int);
+CYASSL_API int CyaSSL_CTX_LoadCRL(CYASSL_CTX*, const char*, int, int);
 CYASSL_API int CyaSSL_CTX_SetCRL_Cb(CYASSL_CTX*, CbMissingCRL);
 
 
