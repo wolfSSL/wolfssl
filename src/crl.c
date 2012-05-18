@@ -180,12 +180,14 @@ static int AddCRL(CYASSL_CRL* crl, DecodedCRL* dcrl)
 
 	if (InitCRL_Entry(crle, dcrl) < 0) {
 		CYASSL_MSG("Init CRL Entry failed");
+        XFREE(crle, NULL, DYNAMIC_TYPE_CRL_ENTRY);
 		return -1;
 	}
 
 	if (LockMutex(&crl->crlLock) != 0) {
 		CYASSL_MSG("LockMutex failed");
 		FreeCRL_Entry(crle);
+        XFREE(crle, NULL, DYNAMIC_TYPE_CRL_ENTRY);
 		return BAD_MUTEX_ERROR;
 	}
 	crle->next = crl->crlList;
