@@ -37,7 +37,15 @@ before calling SSL_new();  Though it's not recommended.
 CyaSSL Release 2.2.0 (5/18/2012)
 
 Release 2.2.0 CyaSSL has bug fixes and a few new features including:
-- 
+- Initial CRL support (--enable-crl)
+- Initial OCSP support (--enable-ocsp)
+- Add static ECDH suites
+- SHA-384 support
+- Add example ECC client certificate
+- Add medium session cache size (1055 sessions) 
+- Updated unit tests
+- Protection against mutex reinitialization
+
 
 The CyaSSL manual is available at:
 http://www.yassl.com/documentation/CyaSSL-Manual.pdf.  For build instructions 
