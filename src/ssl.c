@@ -1332,6 +1332,10 @@ int CyaSSL_CertManagerVerify(CYASSL_CERT_MANAGER* cm, const char* fname,
 
         if (ret == 0)
             ret = ParseCertRelative(&cert, CERT_TYPE, 1, cm);
+#ifdef HAVE_CRL
+        if (ret == 0 && cm->crlEnabled)
+            ret = CheckCertCRL(cm->crl, &cert);
+#endif
     }
 
     FreeDecodedCert(&cert);
@@ -1441,7 +1445,7 @@ int CyaSSL_CertManagerSetCRL_Cb(CYASSL_CERT_MANAGER* cm, CbMissingCRL cb)
 
 
 int CyaSSL_CertManagerLoadCRL(CYASSL_CERT_MANAGER* cm, const char* path,
-                              int type)
+                              int type, int monitor)
 {
     CYASSL_ENTER("CyaSSL_CertManagerLoadCRL");
     if (cm == NULL)
@@ -1454,7 +1458,7 @@ int CyaSSL_CertManagerLoadCRL(CYASSL_CERT_MANAGER* cm, const char* path,
         }
     }
 
-    return LoadCRL(cm->crl, path, type);
+    return LoadCRL(cm->crl, path, type, monitor);
 }
 
 
@@ -1478,11 +1482,11 @@ int CyaSSL_DisableCRL(CYASSL* ssl)
 }
 
 
-int CyaSSL_LoadCRL(CYASSL* ssl, const char* path, int type)
+int CyaSSL_LoadCRL(CYASSL* ssl, const char* path, int type, int monitor)
 {
     CYASSL_ENTER("CyaSSL_LoadCRL");
     if (ssl)
-        return CyaSSL_CertManagerLoadCRL(ssl->ctx->cm, path, type);
+        return CyaSSL_CertManagerLoadCRL(ssl->ctx->cm, path, type, monitor);
     else
         return BAD_FUNC_ARG;
 }
@@ -1518,11 +1522,11 @@ int CyaSSL_CTX_DisableCRL(CYASSL_CTX* ctx)
 }
 
 
-int CyaSSL_CTX_LoadCRL(CYASSL_CTX* ctx, const char* path, int type)
+int CyaSSL_CTX_LoadCRL(CYASSL_CTX* ctx, const char* path, int type, int monitor)
 {
     CYASSL_ENTER("CyaSSL_CTX_LoadCRL");
     if (ctx)
-        return CyaSSL_CertManagerLoadCRL(ctx->cm, path, type);
+        return CyaSSL_CertManagerLoadCRL(ctx->cm, path, type, monitor);
     else
         return BAD_FUNC_ARG;
 }
