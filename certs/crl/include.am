@@ -3,7 +3,11 @@
 #
 
 certs_DATA+= \
-	     certs/crl/crl.pem
+	     certs/crl/crl.pem \
+	     certs/crl/cliCrl.pem
+
+certs_DATA+= \
+	     certs/crl/crl.revoked
 
 EXTRA_DIST+= ${certs_DATA}
 
