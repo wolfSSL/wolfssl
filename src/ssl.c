@@ -6866,9 +6866,10 @@ static int initGlobalRNG = 0;
 
         CYASSL_MSG("CyaSSL_RSA_generate_key_ex");
 
+        (void)rsa;
+        (void)bits;
         (void)cb;
         (void)bn;
-        (void)bits;
     
         if (InitRng(&rng) < 0) {
             CYASSL_MSG("RNG init failed");
