@@ -43,12 +43,6 @@
     #define CYASSL_VERSION LIBCYASSL_VERSION_STRING
 #endif
 
-#ifdef _WIN32
-    /* wincrypt.h clashes */
-    #undef X509_NAME
-    #undef OCSP_REQUEST 
-    #undef OCSP_RESPONSE
-#endif
 
 
 #ifdef __cplusplus

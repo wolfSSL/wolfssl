@@ -1387,15 +1387,15 @@ int CyaSSL_CertManagerLoadCA(CYASSL_CERT_MANAGER* cm, const char* file,
 /* turn on CRL if off and compiled in, set options */
 int CyaSSL_CertManagerEnableCRL(CYASSL_CERT_MANAGER* cm, int options)
 {
+    int ret = SSL_SUCCESS;
+
     (void)options;
 
     CYASSL_ENTER("CyaSSL_CertManagerEnableCRL");
     if (cm == NULL)
         return BAD_FUNC_ARG;
 
-    #ifndef HAVE_CRL
-        return NOT_COMPILED_IN;
-    #else
+    #ifdef HAVE_CRL
         if (cm->crl == NULL) {
             cm->crl = (CYASSL_CRL*)XMALLOC(sizeof(CYASSL_CRL), cm->heap,
                                            DYNAMIC_TYPE_CRL);
@@ -1412,9 +1412,11 @@ int CyaSSL_CertManagerEnableCRL(CYASSL_CERT_MANAGER* cm, int options)
         cm->crlEnabled = 1;
         if (options & CYASSL_CRL_CHECKALL)
             cm->crlCheckAll = 1;
+    #else
+        ret = NOT_COMPILED_IN;
     #endif
 
-    return SSL_SUCCESS;
+    return ret;
 }
 
 
@@ -5989,7 +5991,7 @@ static int initGlobalRNG = 0;
     {
         CYASSL_MSG("CyaSSL_BN_clear_free");
 
-        return CyaSSL_BN_free(bn);
+        CyaSSL_BN_free(bn);
     }
 
 
@@ -6866,6 +6868,7 @@ static int initGlobalRNG = 0;
 
         (void)cb;
         (void)bn;
+        (void)bits;
     
         if (InitRng(&rng) < 0) {
             CYASSL_MSG("RNG init failed");
@@ -6877,10 +6880,6 @@ static int initGlobalRNG = 0;
             CYASSL_MSG("MakeRsaKey failed");
             return -1;
         }
-#else
-        CYASSL_MSG("No Key Gen built in");
-        return -1;
-#endif
 
         if (SetRsaExternal(rsa) < 0) {
             CYASSL_MSG("SetRsaExternal failed");
@@ -6890,6 +6889,11 @@ static int initGlobalRNG = 0;
         rsa->inSet = 1;
 
         return 1;  /* success */
+#else
+        CYASSL_MSG("No Key Gen built in");
+        return -1;
+#endif
+
     }
 
 
@@ -7218,7 +7222,6 @@ static int initGlobalRNG = 0;
 
             default:
                 CYASSL_MSG("Bad digest id value");
-                return NULL;
         }
 
         return NULL;
@@ -7409,7 +7412,6 @@ static int initGlobalRNG = 0;
 
             default: {
                 CYASSL_MSG("bad type");
-                return 0;
             }
         }    
         return 0;
