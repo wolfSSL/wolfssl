@@ -1383,6 +1383,7 @@ int CyaSSL_CertManagerLoadCA(CYASSL_CERT_MANAGER* cm, const char* file,
 }
 
 
+
 /* turn on CRL if off and compiled in, set options */
 int CyaSSL_CertManagerEnableCRL(CYASSL_CERT_MANAGER* cm, int options)
 {
@@ -1430,6 +1431,43 @@ int CyaSSL_CertManagerDisableCRL(CYASSL_CERT_MANAGER* cm)
 
 
 #ifdef HAVE_CRL
+
+
+/* check CRL if enabled, SSL_SUCCESS  */
+int CyaSSL_CertManagerCheckCRL(CYASSL_CERT_MANAGER* cm, byte* der, int sz)
+{
+    int         ret;
+    DecodedCert cert;
+
+    CYASSL_ENTER("CyaSSL_CertManagerCheckCRL");
+
+    if (cm == NULL)
+        return BAD_FUNC_ARG;
+
+    if (cm->crlEnabled == 0)
+        return SSL_SUCCESS;
+
+    InitDecodedCert(&cert, der, sz, NULL);
+
+    ret = ParseCertRelative(&cert, CERT_TYPE, NO_VERIFY, cm);
+    if (ret != 0) {
+        CYASSL_MSG("ParseCert failed");
+        return ret;
+    }
+    else {
+        ret = CheckCertCRL(cm->crl, &cert);
+        if (ret != 0) {
+            CYASSL_MSG("CheckCertCRL failed");
+        }
+    }
+
+    FreeDecodedCert(&cert);
+
+    if (ret == 0)
+        return SSL_SUCCESS;  /* convert */
+
+    return ret;
+}
 
 
 int CyaSSL_CertManagerSetCRL_Cb(CYASSL_CERT_MANAGER* cm, CbMissingCRL cb)

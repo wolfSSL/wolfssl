@@ -789,6 +789,8 @@ CYASSL_API int CyaSSL_CertManagerLoadCA(CYASSL_CERT_MANAGER*, const char* f,
                                         const char* d);
 CYASSL_API int CyaSSL_CertManagerVerify(CYASSL_CERT_MANAGER*, const char* f,
                                         int format);
+CYASSL_API int CyaSSL_CertManagerCheckCRL(CYASSL_CERT_MANAGER*, unsigned char*,
+                                          int sz);
 CYASSL_API int CyaSSL_CertManagerEnableCRL(CYASSL_CERT_MANAGER*, int options);
 CYASSL_API int CyaSSL_CertManagerDisableCRL(CYASSL_CERT_MANAGER*);
 CYASSL_API int CyaSSL_CertManagerLoadCRL(CYASSL_CERT_MANAGER*, const char*, int,
