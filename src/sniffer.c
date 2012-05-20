@@ -1110,6 +1110,8 @@ static int ProcessServerHello(const byte* input, int* sslBytes,
     XMEMCPY(session->sslServer->arrays.sessionID, input, ID_LEN);
     input     += b;
     *sslBytes -= b;
+    if (b)
+        session->sslServer->options.haveSessionId = 1;
     
     (void)*input++;  /* eat first byte, always 0 */
     b = *input++;
@@ -1117,8 +1119,9 @@ static int ProcessServerHello(const byte* input, int* sslBytes,
     session->sslClient->options.cipherSuite = b;
     *sslBytes -= SUITE_LEN;
     
-    if (XMEMCMP(session->sslServer->arrays.sessionID,
-               session->sslClient->arrays.sessionID, ID_LEN) == 0) {
+    if (session->sslServer->options.haveSessionId &&
+                XMEMCMP(session->sslServer->arrays.sessionID,
+                        session->sslClient->arrays.sessionID, ID_LEN) == 0) {
         /* resuming */
         SSL_SESSION* resume = GetSession(session->sslServer,
                                        session->sslServer->arrays.masterSecret);
@@ -1271,6 +1274,7 @@ static int DoHandShake(const byte* input, int* sslBytes,
                 ret = DoFinished(ssl, input, &inOutIdx, SNIFF);
                 
                 if (ret == 0 && session->flags.cached == 0) {
+                    session->sslServer->options.haveSessionId = 1;
                     AddSession(session->sslServer);
                     session->flags.cached = 1;
                 }

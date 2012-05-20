@@ -128,80 +128,113 @@ int main(int argc, char** argv)
 #endif
     ssl_Trace("./tracefile.txt", err);
 
-	if (pcap_findalldevs(&alldevs, err) == -1)
-		err_sys("Error in pcap_findalldevs");
+    if (argc == 1) {
+        /* normal case, user chooses device and port */
 
-	for (d = alldevs; d; d=d->next) {
-		printf("%d. %s", ++i, d->name);
-		if (d->description)
-			printf(" (%s)\n", d->description);
-		else
-			printf(" (No description available)\n");
-	}
+	    if (pcap_findalldevs(&alldevs, err) == -1)
+		    err_sys("Error in pcap_findalldevs");
 
-	if (i == 0)
-		err_sys("No interfaces found! Make sure pcap or WinPcap is installed "
-                "correctly and you have sufficient permissions");
+	    for (d = alldevs; d; d=d->next) {
+		    printf("%d. %s", ++i, d->name);
+		    if (d->description)
+			    printf(" (%s)\n", d->description);
+		    else
+			    printf(" (No description available)\n");
+	    }
 
-	printf("Enter the interface number (1-%d): ", i);
-	scanf("%d", &inum);
+	    if (i == 0)
+		    err_sys("No interfaces found! Make sure pcap or WinPcap is"
+                    " installed correctly and you have sufficient permissions");
 
-	if (inum < 1 || inum > i)
-		err_sys("Interface number out of range");
+	    printf("Enter the interface number (1-%d): ", i);
+	    scanf("%d", &inum);
 
-	/* Jump to the selected adapter */
-	for (d = alldevs, i = 0; i < inum - 1; d = d->next, i++);
+	    if (inum < 1 || inum > i)
+		    err_sys("Interface number out of range");
 
-	pcap = pcap_create(d->name, err);
+	    /* Jump to the selected adapter */
+	    for (d = alldevs, i = 0; i < inum - 1; d = d->next, i++);
 
-    if (pcap == NULL) printf("pcap_create failed %s\n", err);
+	    pcap = pcap_create(d->name, err);
 
-	if (d->flags & PCAP_IF_LOOPBACK)
-		loopback = 1;
+        if (pcap == NULL) printf("pcap_create failed %s\n", err);
 
-	/* get an IPv4 address */
-	for (a = d->addresses; a; a = a->next) {
-		switch(a->addr->sa_family)
-		{
-			case AF_INET:
-				server =iptos(((struct sockaddr_in *)a->addr)->sin_addr.s_addr);
-				printf("server = %s\n", server);
-				break;
-		}
-	}
-	if (server == NULL)
-		err_sys("Unable to get device IPv4 address");
+	    if (d->flags & PCAP_IF_LOOPBACK)
+		    loopback = 1;
 
-    ret = pcap_set_snaplen(pcap, 65536);
-    if (ret != 0) printf("pcap_set_snaplen failed %s\n", pcap_geterr(pcap));
+	    /* get an IPv4 address */
+	    for (a = d->addresses; a; a = a->next) {
+		    switch(a->addr->sa_family)
+		    {
+			    case AF_INET:
+				    server = 
+                        iptos(((struct sockaddr_in *)a->addr)->sin_addr.s_addr);
+				    printf("server = %s\n", server);
+				    break;
+		    }
+	    }
+	    if (server == NULL)
+		    err_sys("Unable to get device IPv4 address");
 
-    ret = pcap_set_timeout(pcap, 1000); 
-    if (ret != 0) printf("pcap_set_timeout failed %s\n", pcap_geterr(pcap));
+        ret = pcap_set_snaplen(pcap, 65536);
+        if (ret != 0) printf("pcap_set_snaplen failed %s\n", pcap_geterr(pcap));
 
-    ret = pcap_set_buffer_size(pcap, 1000000); 
-    if (ret != 0)
-		printf("pcap_set_buffer_size failed %s\n", pcap_geterr(pcap));
+        ret = pcap_set_timeout(pcap, 1000); 
+        if (ret != 0) printf("pcap_set_timeout failed %s\n", pcap_geterr(pcap));
 
-    ret = pcap_set_promisc(pcap, 1); 
-    if (ret != 0) printf("pcap_set_promisc failed %s\n", pcap_geterr(pcap));
+        ret = pcap_set_buffer_size(pcap, 1000000); 
+        if (ret != 0)
+		    printf("pcap_set_buffer_size failed %s\n", pcap_geterr(pcap));
+
+        ret = pcap_set_promisc(pcap, 1); 
+        if (ret != 0) printf("pcap_set_promisc failed %s\n", pcap_geterr(pcap));
 
 
-    ret = pcap_activate(pcap);
-    if (ret != 0) printf("pcap_activate failed %s\n", pcap_geterr(pcap));
+        ret = pcap_activate(pcap);
+        if (ret != 0) printf("pcap_activate failed %s\n", pcap_geterr(pcap));
 
-	printf("Enter the port to scan: ");
-	scanf("%d", &port);
+	    printf("Enter the port to scan: ");
+	    scanf("%d", &port);
 
-	SNPRINTF(filter, sizeof(filter), "tcp and port %d", port);
+	    SNPRINTF(filter, sizeof(filter), "tcp and port %d", port);
 
-	ret = pcap_compile(pcap, &fp, filter, 0, 0);
-    if (ret != 0) printf("pcap_compile failed %s\n", pcap_geterr(pcap));
+	    ret = pcap_compile(pcap, &fp, filter, 0, 0);
+        if (ret != 0) printf("pcap_compile failed %s\n", pcap_geterr(pcap));
 
-    ret = pcap_setfilter(pcap, &fp);
-    if (ret != 0) printf("pcap_setfilter failed %s\n", pcap_geterr(pcap));
+        ret = pcap_setfilter(pcap, &fp);
+        if (ret != 0) printf("pcap_setfilter failed %s\n", pcap_geterr(pcap));
 
-    ret = ssl_SetPrivateKey(server, port, "../../certs/server-key.pem",
-                            FILETYPE_PEM, NULL, err);
+        ret = ssl_SetPrivateKey(server, port, "../../certs/server-key.pem",
+                               FILETYPE_PEM, NULL, err);
+    }
+    else if (argc >= 3) {
+        pcap = pcap_open_offline(argv[1], err);
+        if (pcap == NULL) {
+            printf("pcap_open_offline failed %s\n", err);
+            ret = -1;
+        }
+        else {
+            /* defaults for server and port */
+            port = 443;
+            server = "127.0.0.1";
+
+            if (argc >= 4)
+                server = argv[3];
+
+            if (argc >= 5)
+                port = atoi(argv[4]);
+
+            ret = ssl_SetPrivateKey(server, port, argv[2],
+                                    FILETYPE_PEM, NULL, err);
+        }
+    }
+    else {
+        /* usage error */
+        printf(
+             "usage: ./snifftest or ./snifftest dump pemKey [server] [port]\n");
+        exit(EXIT_FAILURE);
+    }
+
     if (ret != 0)
         err_sys(err);
 
