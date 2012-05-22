@@ -92,9 +92,12 @@ enum CyaSSL_ErrorCodes {
     NOT_CA_ERROR           = -257,            /* Not a CA cert error */
     BAD_PATH_ERROR         = -258,            /* Bad path for opendir */
     BAD_CERT_MANAGER_ERROR = -259,            /* Bad Cert Manager */
-    OCSP_CERT_REVOKED      = -260,
+    OCSP_CERT_REVOKED      = -260,            /* OCSP Certificate revoked */
     CRL_CERT_REVOKED       = -261,            /* CRL Certificate revoked */
     CRL_MISSING            = -262,            /* CRL Not loaded */
+    OCSP_NEED_URL          = -263,            /* OCSP need an URL for lookup */
+    OCSP_CERT_UNKNOWN      = -264,            /* OCSP responder doesn't know */
+    OCSP_LOOKUP_FAIL       = -265,            /* OCSP lookup not successful */
     /* add strings to SetErrorString !!!!! */
 
     /* begin negotiation parameter errors */
