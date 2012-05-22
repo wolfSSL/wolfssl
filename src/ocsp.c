@@ -91,56 +91,77 @@ void CyaSSL_OCSP_Cleanup(CYASSL_OCSP* ocsp)
 }
 
 
+static int decode_url(const char* url, int urlSz,
+	char* outName, char* outPath, int* outPort)
+{
+	if (outName != NULL && outPath != NULL && outPort != NULL)
+	{
+		if (url == NULL || urlSz == 0)
+		{
+			*outName = 0;
+			*outPath = 0;
+			*outPort = 0;
+		}
+		else
+		{
+	        int i, cur, hostname;
+	
+	        /* need to break the url down into scheme, address, and port */
+	        /* "http://example.com:8080/" */
+	        if (XSTRNCMP(url, "http://", 7) == 0) {
+	            cur = 7;
+	        } else cur = 0;
+	
+	        i = 0;
+	        while (url[cur] != 0 && url[cur] != ':' && url[cur] != '/') {
+	            outName[i++] = url[cur++];
+	        }
+	        outName[i] = 0;
+	        /* Need to pick out the path after the domain name */
+	
+	        if (cur < urlSz && url[cur] == ':') {
+	            char port[6];
+	            int j;
+	            i = 0;
+	            cur++;
+	            while (cur < urlSz && url[cur] != 0 && url[cur] != '/' &&
+						i < 6) {
+	                port[i++] = url[cur++];
+	            }
+	
+	            *outPort = 0;
+	            for (j = 0; j < i; j++) {
+	                if (port[j] < '0' || port[j] > '9') return -1;
+	                *outPort = (*outPort * 10) + (port[j] - '0');
+	            }
+	        }
+	        else
+	            *outPort = 80;
+	
+	        if (cur < urlSz && url[cur] == '/') {
+	            i = 0;
+	            while (cur < urlSz && url[cur] != 0 && i < 80) {
+	                outPath[i++] = url[cur++];
+	            }
+	            outPath[i] = 0;
+	        }
+	        else {
+	            outPath[0] = '/';
+	            outPath[1] = 0;
+	        }
+		}
+	}
+
+	return 0;
+}
+
+
 int CyaSSL_OCSP_set_override_url(CYASSL_OCSP* ocsp, const char* url)
 {
-    if (ocsp != NULL && url != NULL) {
-        int i, cur, hostname;
-
-        /* need to break the url down into scheme, address, and port */
-        /* "http://example.com:8080/" */
-        if (XSTRNCMP(url, "http://", 7) == 0) {
-            cur = 7;
-        } else cur = 0;
-
-        i = 0;
-        while (url[cur] != 0 && url[cur] != ':' && url[cur] != '/') {
-            ocsp->overrideName[i++] = url[cur++];
-        }
-        ocsp->overrideName[i] = 0;
-        /* Need to pick out the path after the domain name */
-
-        if (url[cur] == ':') {
-            char port[6];
-            int j;
-            i = 0;
-            cur++;
-            while (url[cur] != 0 && url[cur] != '/' && i < 6) {
-                port[i++] = url[cur++];
-            }
-
-            ocsp->overridePort = 0;
-            for (j = 0; j < i; j++) {
-                if (port[j] < '0' || port[j] > '9') return -1;
-                ocsp->overridePort = 
-                            (ocsp->overridePort * 10) + (port[j] - '0');
-            }
-        }
-        else
-            ocsp->overridePort = 80;
-
-        if (url[cur] == '/') {
-            i = 0;
-            while (url[cur] != 0 && i < 80) {
-                ocsp->overridePath[i++] = url[cur++];
-            }
-            ocsp->overridePath[i] = 0;
-        }
-        else {
-            ocsp->overridePath[0] = '/';
-            ocsp->overridePath[1] = 0;
-        }
-            
-
+    if (ocsp != NULL) {
+		int urlSz = strlen(url);
+		decode_url(url, urlSz,
+			ocsp->overrideName, ocsp->overridePath, &ocsp->overridePort);
         return 1;
     }
 
@@ -190,8 +211,8 @@ static INLINE void tcp_connect(SOCKET_T* sockfd, const char* ip, word16 port)
 }
 
 
-static int build_http_request(CYASSL_OCSP* ocsp, int ocspReqSz,
-                                                        byte* buf, int bufSize)
+static int build_http_request(const char* domainName, const char* path,
+									int ocspReqSz, byte* buf, int bufSize)
 {
     return snprintf((char*)buf, bufSize,
         "POST %s HTTP/1.1\r\n"
@@ -199,29 +220,9 @@ static int build_http_request(CYASSL_OCSP* ocsp, int ocspReqSz,
         "Content-Length: %d\r\n"
         "Content-Type: application/ocsp-request\r\n"
         "\r\n", 
-        ocsp->overridePath, ocsp->overrideName, ocspReqSz);
+        path, domainName, ocspReqSz);
 }
 
-#if 0
-static const char foo[] = \
-        "\x30\x81\xB7\x30\x81\xB4\x30\x81\x8C\x30\x44\x30\x42\x30\x09\x06\x05\x2B\x0E\x03" \
-        "\x02\x1A\x05\x00\x04\x14\x49\x2D\x52\x83\x4B\x40\x37\xF5\xA9\x9E\x26\xA2\x3E\x48" \
-        "\x2F\x2E\x37\x34\xC9\x54\x04\x14\x21\xA2\x25\xEE\x57\x38\x34\x5A\x24\x9D\xF3\x7C" \
-        "\x18\x60\x59\x7A\x04\x3D\xF5\x69\x02\x09\x00\x89\x5A\xA2\xBD\xFE\x26\x8B\xEE\x30" \
-        "\x44\x30\x42\x30\x09\x06\x05\x2B\x0E\x03\x02\x1A\x05\x00\x04\x14\x49\x2D\x52\x83" \
-        "\x4B\x40\x37\xF5\xA9\x9E\x26\xA2\x3E\x48\x2F\x2E\x37\x34\xC9\x54\x04\x14\x21\xA2" \
-        "\x25\xEE\x57\x38\x34\x5A\x24\x9D\xF3\x7C\x18\x60\x59\x7A\x04\x3D\xF5\x69\x02\x09" \
-        "\x00\x89\x5A\xA2\xBD\xFE\x26\x8B\xEF\xA2\x23\x30\x21\x30\x1F\x06\x09\x2B\x06\x01" \
-        "\x05\x05\x07\x30\x01\x02\x04\x12\x04\x10\x20\x56\x47\x19\x65\x33\xB6\xB5\xAD\x39" \
-        "\x1F\x21\x65\xE0\x44\x1E";
-
-
-static int build_ocsp_request(CYASSL_OCSP* ocsp, byte* buf, int bufSz)
-{
-    memcpy(buf, foo, sizeof(foo));
-    return sizeof(foo) - 1;
-}
-#endif
 
 static byte* decode_http_response(byte* httpBuf, int httpBufSz, int* ocspRespSz)
 {
@@ -290,20 +291,28 @@ int CyaSSL_OCSP_Lookup_Cert(CYASSL_OCSP* ocsp, DecodedCert* cert)
     byte* ocspReqBuf = &buf[httpBufSz];
     int ocspReqSz = SCRATCH_BUFFER_SIZE - httpBufSz;
     OcspResponse ocspResponse;
-    int result = CERT_UNKNOWN;
+    int result = 0;
+	char domainName[80], path[80];
+	int port;
 
     /* If OCSP lookups are disabled, return success. */
     if (!ocsp->enabled) {
         CYASSL_MSG("OCSP lookup disabled, assuming CERT_GOOD");
-        return CERT_GOOD;
+        return 0;
     }
 
-    /* If OCSP lookups are enabled, but URL Override is disabled, return 
-    ** a failure. Need to have an override URL for right now. */
-    if (!ocsp->useOverrideUrl || cert == NULL) {
-        CYASSL_MSG("OCSP lookup enabled, but URL Override disabled");
-        return CERT_UNKNOWN;
-    }
+    if (ocsp->useOverrideUrl || cert->extAuthInfo == NULL) {
+    	if (ocsp->overrideName != NULL) {
+			XMEMCPY(domainName, ocsp->overrideName, 80);
+			XMEMCPY(path, ocsp->overridePath, 80);
+			port = ocsp->overridePort;
+		} else
+			return OCSP_NEED_URL;
+	} else {
+		if (!decode_url((const char*)cert->extAuthInfo, cert->extAuthInfoSz,
+													domainName, path, &port))
+			return OCSP_NEED_URL;
+	}
 
     XMEMCPY(ocsp->status[0].issuerHash, cert->issuerHash, SHA_SIZE);
     XMEMCPY(ocsp->status[0].issuerKeyHash, cert->issuerKeyHash, SHA_SIZE);
@@ -311,11 +320,11 @@ int CyaSSL_OCSP_Lookup_Cert(CYASSL_OCSP* ocsp, DecodedCert* cert)
     ocsp->status[0].serialSz = cert->serialSz;
     ocsp->statusLen = 1;
 
-    /*ocspReqSz = build_ocsp_request(ocsp, ocspReqBuf, ocspReqSz);*/
     ocspReqSz = EncodeOcspRequest(cert, ocspReqBuf, ocspReqSz);
-    httpBufSz = build_http_request(ocsp, ocspReqSz, httpBuf, httpBufSz);
+    httpBufSz = build_http_request(domainName, path, ocspReqSz,
+														httpBuf, httpBufSz);
 
-    tcp_connect(&sfd, ocsp->overrideName, ocsp->overridePort);
+    tcp_connect(&sfd, domainName, port);
     if (sfd > 0) {
         int written;
         written = write(sfd, httpBuf, httpBufSz);
@@ -332,19 +341,31 @@ int CyaSSL_OCSP_Lookup_Cert(CYASSL_OCSP* ocsp, DecodedCert* cert)
         close(sfd);
         if (ocspReqBuf == NULL) {
             CYASSL_MSG("HTTP response was not OK, no OCSP response");
-            return CERT_UNKNOWN;
+            return OCSP_LOOKUP_FAIL;
         }
     } else {
         CYASSL_MSG("OCSP Responder connection failed");
-        return CERT_UNKNOWN;
+        return OCSP_LOOKUP_FAIL;
     }
 
     InitOcspResponse(&ocspResponse, ocspReqBuf, ocspReqSz, NULL);
     OcspResponseDecode(&ocspResponse);
+
     if (ocspResponse.responseStatus != OCSP_SUCCESSFUL) {
         CYASSL_MSG("OCSP Responder failure");
+		result = OCSP_LOOKUP_FAIL;
     } else {
-        result = ocspResponse.certStatus[0];
+		switch (ocspResponse.certStatus[0]) {
+			case CERT_GOOD:
+				result = 0;
+				break;
+			case CERT_REVOKED:
+				result = OCSP_CERT_REVOKED;
+				break;
+			default:
+				result = OCSP_CERT_UNKNOWN;
+				break;
+		}
     }
     FreeOcspResponse(&ocspResponse);
 
