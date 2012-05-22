@@ -7701,8 +7701,8 @@ long CyaSSL_CTX_OCSP_set_options(CYASSL_CTX* ctx, long options)
 {
     CYASSL_ENTER("CyaSSL_CTX_OCSP_set_options");
     if (ctx != NULL) {
-        ctx->ocsp.enabled = (options && CYASSL_OCSP_ENABLE) != 0;
-        ctx->ocsp.useOverrideUrl = (options && CYASSL_OCSP_URL_OVERRIDE) != 0;
+        ctx->ocsp.enabled = (options & CYASSL_OCSP_ENABLE) != 0;
+        ctx->ocsp.useOverrideUrl = (options & CYASSL_OCSP_URL_OVERRIDE) != 0;
         return 1;
     }
     return 0;
