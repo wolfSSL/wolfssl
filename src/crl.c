@@ -393,7 +393,8 @@ static void* DoMonitor(void* arg)
 #elif __linux__
 
 #include <sys/types.h>
-#include <linux/inotify.h>
+#include <sys/inotify.h>
+#include <unistd.h>
 
 /* linux monitoring */
 static void* DoMonitor(void* arg)
@@ -411,7 +412,7 @@ static void* DoMonitor(void* arg)
     }
 
     if (crl->monitors[0].path) {
-        wd = inotify_add_watch(notifyFd, crl->monitors[0].path, IN_CREATE | 
+        wd = inotify_add_watch(notifyFd, crl->monitors[0].path, IN_CLOSE_WRITE |
                                                                 IN_DELETE);
         if (wd < 0) {
             CYASSL_MSG("PEM notify add watch failed");
@@ -420,7 +421,7 @@ static void* DoMonitor(void* arg)
     }
 
     if (crl->monitors[1].path) {
-        wd = inotify_add_watch(notifyFd, crl->monitors[1].path, IN_CREATE | 
+        wd = inotify_add_watch(notifyFd, crl->monitors[1].path, IN_CLOSE_WRITE |
                                                                 IN_DELETE);
         if (wd < 0) {
             CYASSL_MSG("DER notify add watch failed");
