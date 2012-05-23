@@ -638,11 +638,24 @@ struct CRL_Entry {
 };
 
 
+typedef struct CRL_Monitor CRL_Monitor;
+
+/* CRL directory monitor */
+struct CRL_Monitor {
+    char* path;      /* full dir path, if valid pointer we're using */
+    int   type;      /* PEM or ASN1 type */
+};
+
+
 /* CyaSSL CRL controller */
 struct CYASSL_CRL {
     CYASSL_CERT_MANAGER* cm;            /* pointer back to cert manager */
     CRL_Entry*           crlList;       /* our CRL list */
     CyaSSL_Mutex         crlLock;       /* CRL list lock */
+    CRL_Monitor          monitors[2];   /* PEM and DER possible */
+#ifdef HAVE_CRL_MONITOR
+    pthread_t            tid;           /* monitoring thread */
+#endif
 };
 
 

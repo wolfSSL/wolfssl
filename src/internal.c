@@ -3530,6 +3530,14 @@ void SetErrorString(int error, char* str)
         XSTRNCPY(str, "CRL missing, not loaded", max);
         break;
 
+    case MONITOR_RUNNING_E:
+        XSTRNCPY(str, "CRL monitor already running", max);
+        break;
+
+    case THREAD_CREATE_E:
+        XSTRNCPY(str, "Thread creation problem", max);
+        break;
+
     default :
         XSTRNCPY(str, "unknown error number", max);
     }

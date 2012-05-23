@@ -95,6 +95,8 @@ enum CyaSSL_ErrorCodes {
     OCSP_CERT_REVOKED      = -260,
     CRL_CERT_REVOKED       = -261,            /* CRL Certificate revoked */
     CRL_MISSING            = -262,            /* CRL Not loaded */
+    MONITOR_RUNNING_E      = -263,            /* CRL Monitor already running */
+    THREAD_CREATE_E        = -264,            /* Thread Create Error */
     /* add strings to SetErrorString !!!!! */
 
     /* begin negotiation parameter errors */

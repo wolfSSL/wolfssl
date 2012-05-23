@@ -40,6 +40,11 @@ int InitCRL(CYASSL_CRL* crl, CYASSL_CERT_MANAGER* cm)
 
 	crl->cm = cm;
 	crl->crlList = NULL;
+    crl->monitors[0].path = NULL;
+    crl->monitors[1].path = NULL;
+#ifdef HAVE_CRL_MONITOR
+    crl->tid = 0;
+#endif
 	if (InitMutex(&crl->crlLock) != 0)
 		return BAD_MUTEX_ERROR; 
 
@@ -88,6 +93,12 @@ void FreeCRL(CYASSL_CRL* crl)
 
 	CYASSL_ENTER("FreeCRL");
 
+    if (crl->monitors[0].path)
+        XFREE(crl->monitors[0].path, NULL, DYNAMIC_TYPE_CRL_MONITOR);
+
+    if (crl->monitors[1].path)
+        XFREE(crl->monitors[1].path, NULL, DYNAMIC_TYPE_CRL_MONITOR);
+
     while(tmp) {
         CRL_Entry* next = tmp->next;
         FreeCRL_Entry(tmp);
@@ -95,6 +106,12 @@ void FreeCRL(CYASSL_CRL* crl)
         tmp = next;
     }	
 
+#ifdef HAVE_CRL_MONITOR
+    if (crl->tid != 0) {
+        CYASSL_MSG("Canceling monitor thread");
+        pthread_cancel(crl->tid);
+    }
+#endif
     FreeMutex(&crl->crlLock);
 }
 
@@ -251,6 +268,226 @@ int BufferLoadCRL(CYASSL_CRL* crl, const byte* buff, long sz, int type)
 }
 
 
+#ifdef HAVE_CRL_MONITOR
+
+
+/* read in new CRL entries and save new list */
+static int SwapLists(CYASSL_CRL* crl)
+{
+    int        ret;
+    CYASSL_CRL tmp;
+    CRL_Entry* newList;
+
+    if (InitCRL(&tmp, crl->cm) < 0) {
+        CYASSL_MSG("Init tmp CRL failed");
+        return -1;
+    }
+
+    if (crl->monitors[0].path) {
+        ret = LoadCRL(&tmp, crl->monitors[0].path, SSL_FILETYPE_PEM, 0);
+        if (ret != SSL_SUCCESS) {
+            CYASSL_MSG("PEM LoadCRL on dir change failed");
+            FreeCRL(&tmp);
+            return -1;
+        }
+    }
+
+    if (crl->monitors[1].path) {
+        ret = LoadCRL(&tmp, crl->monitors[1].path, SSL_FILETYPE_ASN1, 0);
+        if (ret != SSL_SUCCESS) {
+            CYASSL_MSG("DER LoadCRL on dir change failed");
+            FreeCRL(&tmp);
+            return -1;
+        }
+    }
+
+    if (LockMutex(&crl->crlLock) != 0) {
+        CYASSL_MSG("LockMutex failed");
+        FreeCRL(&tmp);
+        return -1;
+    }
+
+    newList = tmp.crlList;
+
+    /* swap lists */
+    tmp.crlList  = crl->crlList;
+    crl->crlList = newList;
+
+    UnLockMutex(&crl->crlLock);
+
+    FreeCRL(&tmp);
+
+    return 0;
+}
+
+
+#ifdef __MACH__
+
+#include <sys/event.h>
+#include <sys/time.h>
+#include <fcntl.h>
+
+/* OS X  monitoring */
+static void* DoMonitor(void* arg)
+{
+    int fPEM, fDER, kq;
+    struct kevent change;
+
+    CYASSL_CRL* crl = (CYASSL_CRL*)arg;
+
+    CYASSL_ENTER("DoMonitor");
+
+    kq = kqueue();
+    if (kq == -1) {
+        CYASSL_MSG("kqueue failed");
+        return NULL;
+    }
+
+    fPEM = -1;
+    fDER = -1;
+
+    if (crl->monitors[0].path) {
+        fPEM = open(crl->monitors[0].path, O_EVTONLY);
+        if (fPEM == -1) {
+            CYASSL_MSG("PEM event dir open failed");
+            return NULL;
+        }
+    }
+
+    if (crl->monitors[1].path) {
+        fDER = open(crl->monitors[1].path, O_EVTONLY);
+        if (fDER == -1) {
+            CYASSL_MSG("DER event dir open failed");
+            return NULL;
+        }
+    }
+
+    if (fPEM != -1)
+        EV_SET(&change, fPEM, EVFILT_VNODE, EV_ADD | EV_ENABLE | EV_ONESHOT,
+                NOTE_DELETE | NOTE_EXTEND | NOTE_WRITE | NOTE_ATTRIB, 0, 0);
+
+    if (fDER != -1)
+        EV_SET(&change, fDER, EVFILT_VNODE, EV_ADD | EV_ENABLE | EV_ONESHOT,
+                NOTE_DELETE | NOTE_EXTEND | NOTE_WRITE | NOTE_ATTRIB, 0, 0);
+
+    for (;;) {
+        struct kevent event;
+        int           numEvents = kevent(kq, &change, 1, &event, 1, NULL);
+       
+        CYASSL_MSG("Got kevent");
+
+        if (numEvents == -1) {
+            CYASSL_MSG("kevent problem, continue");
+            continue;
+        }
+
+        if (SwapLists(crl) < 0) {
+            CYASSL_MSG("SwapLists problem, continue");
+        }
+    }
+
+    return NULL;
+}
+
+
+#elif __linux__
+
+#include <sys/types.h>
+#include <linux/inotify.h>
+
+/* linux monitoring */
+static void* DoMonitor(void* arg)
+{
+    int         notifyFd;
+    int         wd;
+    CYASSL_CRL* crl = (CYASSL_CRL*)arg;
+
+    CYASSL_ENTER("DoMonitor");
+
+    notifyFd = inotify_init();
+    if (notifyFd < 0) {
+        CYASSL_MSG("inotify failed");
+        return NULL;
+    }
+
+    if (crl->monitors[0].path) {
+        wd = inotify_add_watch(notifyFd, crl->monitors[0].path, IN_CREATE | 
+                                                                IN_DELETE);
+        if (wd < 0) {
+            CYASSL_MSG("PEM notify add watch failed");
+            return NULL;
+        }
+    }
+
+    if (crl->monitors[1].path) {
+        wd = inotify_add_watch(notifyFd, crl->monitors[1].path, IN_CREATE | 
+                                                                IN_DELETE);
+        if (wd < 0) {
+            CYASSL_MSG("DER notify add watch failed");
+            return NULL;
+        }
+    }
+
+    for (;;) {
+        char          buffer[8192];
+        int           length = read(notifyFd, buffer, sizeof(buffer));
+       
+        CYASSL_MSG("Got notify event");
+
+        if (length < 0) {
+            CYASSL_MSG("notify read problem, continue");
+            continue;
+        } 
+
+        if (SwapLists(crl) < 0) {
+            CYASSL_MSG("SwapLists problem, continue");
+        }
+    }
+
+    return NULL;
+}
+
+
+
+#endif /* MACH or linux */
+
+
+/* Start Monitoring the CRL path(s) in a thread */
+int StartMonitorCRL(CYASSL_CRL* crl)
+{
+    pthread_attr_t attr;
+
+    CYASSL_ENTER("StartMonitorCRL");
+
+    if (crl == NULL) 
+        return BAD_FUNC_ARG;
+
+    if (crl->tid != 0) {
+        CYASSL_MSG("Monitor thread already running");
+        return MONITOR_RUNNING_E;
+    }
+
+    pthread_attr_init(&attr);
+
+    if (pthread_create(&crl->tid, &attr, DoMonitor, crl) != 0) {
+        CYASSL_MSG("Thread creation error");
+        return THREAD_CREATE_E;
+    }
+
+    return SSL_SUCCESS;
+}
+
+
+#else /* HAVE_CRL_MONITOR */
+
+int StartMonitorCRL(CYASSL_CRL* crl)
+{
+    return NOT_COMPILED_IN;
+}
+
+#endif  /* HAVE_CRL_MONITOR */
+
+
 /* Load CRL path files of type, SSL_SUCCESS on ok */ 
 int LoadCRL(CYASSL_CRL* crl, const char* path, int type, int monitor)
 {
@@ -295,11 +532,29 @@ int LoadCRL(CYASSL_CRL* crl, const char* path, int type, int monitor)
 		}
 	}
 
-    if (monitor) {
+    if (monitor & CYASSL_CRL_MONITOR) {
         CYASSL_MSG("monitor path requested");
+
+        if (type == SSL_FILETYPE_PEM) {
+            crl->monitors[0].path = strdup(path);
+            crl->monitors[0].type = SSL_FILETYPE_PEM;
+            if (crl->monitors[0].path == NULL)
+                ret = MEMORY_E;
+        } else {
+            crl->monitors[1].path = strdup(path);
+            crl->monitors[1].type = SSL_FILETYPE_ASN1;
+            if (crl->monitors[1].path == NULL)
+                ret = MEMORY_E;
+        }
+      
+        if (monitor & CYASSL_CRL_START_MON) {
+            CYASSL_MSG("start monitoring requested");
+    
+            ret = StartMonitorCRL(crl);
+       } 
     }
 
-	return SSL_SUCCESS;
+	return ret;
 }
 
 #endif /* HAVE_CRL */

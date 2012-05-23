@@ -1474,7 +1474,7 @@ int CyaSSL_CertManagerCheckCRL(CYASSL_CERT_MANAGER* cm, byte* der, int sz)
 
 int CyaSSL_CertManagerSetCRL_Cb(CYASSL_CERT_MANAGER* cm, CbMissingCRL cb)
 {
-    CYASSL_ENTER("CyaSSL_CertManagerLoadCRL");
+    CYASSL_ENTER("CyaSSL_CertManagerSetCRL_Cb");
     if (cm == NULL)
         return BAD_FUNC_ARG;
 
