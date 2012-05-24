@@ -4782,11 +4782,12 @@ static int GetCRL_Signature(const byte* source, word32* idx, DecodedCRL* dcrl,
 
 
 /* prase crl buffer into decoded state, 0 on success */
-int ParseCRL(DecodedCRL* dcrl, const byte* buff, long sz)
+int ParseCRL(DecodedCRL* dcrl, const byte* buff, long sz, void* cm)
 {
-    int version, len;
-    word32 oid, idx = 0;
-    Md5 md5;
+    int     version, len;
+    word32  oid, idx = 0;
+    Md5     md5;
+    Signer* ca;
 
     CYASSL_MSG("ParseCRL");
 
@@ -4847,6 +4848,25 @@ int ParseCRL(DecodedCRL* dcrl, const byte* buff, long sz)
 
     if (GetCRL_Signature(buff, &idx, dcrl, sz) < 0)
         return ASN_PARSE_E;
+
+    ca = GetCA(cm, dcrl->issuerHash);
+    CYASSL_MSG("About to verify CRL signature");
+
+    if (ca) {
+        CYASSL_MSG("Found CRL issuer CA");
+        /* try to confirm/verify signature */
+        if (!ConfirmSignature(buff + dcrl->certBegin,
+                dcrl->sigIndex - dcrl->certBegin,
+                ca->publicKey, ca->pubKeySize, ca->keyOID,
+                dcrl->signature, dcrl->sigLength, dcrl->signatureOID, NULL)) {
+            CYASSL_MSG("CRL Confirm signature failed");
+            return ASN_SIG_CONFIRM_E;
+        }
+    }
+    else {
+        CYASSL_MSG("Did NOT find CRL issuer CA");
+        return ASN_SIG_CONFIRM_E;
+    }
 
     return 0;
 }

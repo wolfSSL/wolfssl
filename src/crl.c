@@ -256,7 +256,7 @@ int BufferLoadCRL(CYASSL_CRL* crl, const byte* buff, long sz, int type)
 	}
 
 	InitDecodedCRL(&dcrl);
-	ret = ParseCRL(&dcrl, myBuffer, sz);
+	ret = ParseCRL(&dcrl, myBuffer, sz, crl->cm);
 	if (ret != 0) {
 		CYASSL_MSG("ParseCRL error");
 	}
