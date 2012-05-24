@@ -205,7 +205,9 @@ enum {
     DYNAMIC_TYPE_CRL        = 22,
     DYNAMIC_TYPE_REVOKED    = 23,
     DYNAMIC_TYPE_CRL_ENTRY  = 24,
-    DYNAMIC_TYPE_CERT_MANAGER = 25
+    DYNAMIC_TYPE_CERT_MANAGER = 25,
+    DYNAMIC_TYPE_CERT_STATUS = 26,  /* OCSP Certificate Status */
+    DYNAMIC_TYPE_OCSP_ENTRY = 27    /* OCSP CA Entry           */
 };
 
 /* stack protection */
