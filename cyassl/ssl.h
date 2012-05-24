@@ -807,7 +807,8 @@ CYASSL_API int CyaSSL_CTX_DisableCRL(CYASSL_CTX* ctx);
 CYASSL_API int CyaSSL_CTX_LoadCRL(CYASSL_CTX*, const char*, int, int);
 CYASSL_API int CyaSSL_CTX_SetCRL_Cb(CYASSL_CTX*, CbMissingCRL);
 
-
+#define CYASSL_CRL_MONITOR   0x01   /* monitor this dir flag */
+#define CYASSL_CRL_START_MON 0x02   /* start monitoring flag */
 
 #ifdef CYASSL_CALLBACKS
 

@@ -95,9 +95,11 @@ enum CyaSSL_ErrorCodes {
     OCSP_CERT_REVOKED      = -260,            /* OCSP Certificate revoked */
     CRL_CERT_REVOKED       = -261,            /* CRL Certificate revoked */
     CRL_MISSING            = -262,            /* CRL Not loaded */
-    OCSP_NEED_URL          = -263,            /* OCSP need an URL for lookup */
-    OCSP_CERT_UNKNOWN      = -264,            /* OCSP responder doesn't know */
-    OCSP_LOOKUP_FAIL       = -265,            /* OCSP lookup not successful */
+    MONITOR_RUNNING_E      = -263,            /* CRL Monitor already running */
+    THREAD_CREATE_E        = -264,            /* Thread Create Error */
+    OCSP_NEED_URL          = -265,            /* OCSP need an URL for lookup */
+    OCSP_CERT_UNKNOWN      = -266,            /* OCSP responder doesn't know */
+    OCSP_LOOKUP_FAIL       = -267,            /* OCSP lookup not successful */
     /* add strings to SetErrorString !!!!! */
 
     /* begin negotiation parameter errors */

@@ -297,6 +297,7 @@ CYASSL_LOCAL void    FreeSigners(Signer*, void*);
 CYASSL_LOCAL int ToTraditional(byte* buffer, word32 length);
 CYASSL_LOCAL int ToTraditionalEnc(byte* buffer, word32 length,const char*, int);
 
+CYASSL_LOCAL int ValidateDate(const byte* date, byte format, int dateType);
 
 #ifdef HAVE_ECC
     /* ASN sig helpers */
@@ -436,6 +437,8 @@ struct DecodedCRL {
     byte    crlHash[MD5_DIGEST_SIZE];     /* raw crl data hash           */ 
     byte    lastDate[MAX_DATE_SIZE]; /* last date updated  */
     byte    nextDate[MAX_DATE_SIZE]; /* next update date   */
+    byte    lastDateFormat;          /* format of last date */
+    byte    nextDateFormat;          /* format of next date */
     RevokedCert* certs;              /* revoked cert list  */
     int          totalCerts;         /* number on list     */
 };

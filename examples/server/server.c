@@ -147,6 +147,12 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 #endif /* NO_FILESYSTEM */
 
     ssl = SSL_new(ctx);
+#ifdef HAVE_CRL
+    CyaSSL_EnableCRL(ssl, 0);
+    CyaSSL_LoadCRL(ssl, crlPemDir, SSL_FILETYPE_PEM, CYASSL_CRL_MONITOR |
+                                                     CYASSL_CRL_START_MON);
+    CyaSSL_SetCRL_Cb(ssl, CRL_CallBack);
+#endif
     tcp_accept(&sockfd, &clientfd, (func_args*)args);
 #ifndef CYASSL_DTLS
     CloseSocket(sockfd);

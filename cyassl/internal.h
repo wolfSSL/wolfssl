@@ -633,8 +633,19 @@ struct CRL_Entry {
     byte    crlHash[MD5_DIGEST_SIZE];     /* raw crl data hash           */ 
     byte    lastDate[MAX_DATE_SIZE]; /* last date updated  */
     byte    nextDate[MAX_DATE_SIZE]; /* next update date   */
+    byte    lastDateFormat;          /* last date format */
+    byte    nextDateFormat;          /* next date format */
     RevokedCert* certs;              /* revoked cert list  */
     int          totalCerts;         /* number on list     */
+};
+
+
+typedef struct CRL_Monitor CRL_Monitor;
+
+/* CRL directory monitor */
+struct CRL_Monitor {
+    char* path;      /* full dir path, if valid pointer we're using */
+    int   type;      /* PEM or ASN1 type */
 };
 
 
@@ -643,6 +654,10 @@ struct CYASSL_CRL {
     CYASSL_CERT_MANAGER* cm;            /* pointer back to cert manager */
     CRL_Entry*           crlList;       /* our CRL list */
     CyaSSL_Mutex         crlLock;       /* CRL list lock */
+    CRL_Monitor          monitors[2];   /* PEM and DER possible */
+#ifdef HAVE_CRL_MONITOR
+    pthread_t            tid;           /* monitoring thread */
+#endif
 };
 
 
