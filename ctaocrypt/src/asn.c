@@ -1537,7 +1537,7 @@ static INLINE int DateLessThan(const struct tm* a, const struct tm* b)
 
 /* like atoi but only use first byte */
 /* Make sure before and after dates are valid */
-static int ValidateDate(const byte* date, byte format, int dateType)
+int ValidateDate(const byte* date, byte format, int dateType)
 {
     time_t ltime;
     struct tm  certTime;
@@ -4491,15 +4491,16 @@ static int GetNameHash(const byte* source, word32* idx, byte* hash, int maxIdx)
 
 
 /* Get raw Date only, no processing, 0 on success */
-static int GetBasicDate(const byte* source, word32* idx, byte* date, int maxIdx)
+static int GetBasicDate(const byte* source, word32* idx, byte* date,
+                        byte* format, int maxIdx)
 {
     int    length;
-    byte   b = source[*idx];
 
     CYASSL_ENTER("GetBasicDate");
 
+    *format = source[*idx];
     *idx += 1;
-    if (b != ASN_UTC_TIME && b != ASN_GENERALIZED_TIME)
+    if (*format != ASN_UTC_TIME && *format != ASN_GENERALIZED_TIME)
         return ASN_TIME_E;
 
     if (GetLength(source, idx, &length, maxIdx) < 0)
@@ -4654,11 +4655,16 @@ int ParseCRL(DecodedCRL* dcrl, const byte* buff, long sz)
     if (GetNameHash(buff, &idx, dcrl->issuerHash, sz) < 0)
         return ASN_PARSE_E;
 
-    if (GetBasicDate(buff, &idx, dcrl->lastDate, sz) < 0)
+    if (GetBasicDate(buff, &idx, dcrl->lastDate, &dcrl->lastDateFormat, sz) < 0)
         return ASN_PARSE_E;
 
-    if (GetBasicDate(buff, &idx, dcrl->nextDate, sz) < 0)
+    if (GetBasicDate(buff, &idx, dcrl->nextDate, &dcrl->nextDateFormat, sz) < 0)
         return ASN_PARSE_E;
+
+    if (!XVALIDATE_DATE(dcrl->nextDate, dcrl->nextDateFormat, AFTER)) {
+        CYASSL_MSG("CRL after date is no longer valid");
+        return ASN_AFTER_DATE_E;
+    }
 
     if (idx != dcrl->sigIndex && buff[idx] != CRL_EXTENSIONS) {
         if (GetSequence(buff, &idx, &len, sz) < 0)

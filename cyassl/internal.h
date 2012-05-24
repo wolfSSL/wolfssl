@@ -633,6 +633,8 @@ struct CRL_Entry {
     byte    crlHash[MD5_DIGEST_SIZE];     /* raw crl data hash           */ 
     byte    lastDate[MAX_DATE_SIZE]; /* last date updated  */
     byte    nextDate[MAX_DATE_SIZE]; /* next update date   */
+    byte    lastDateFormat;          /* last date format */
+    byte    nextDateFormat;          /* next date format */
     RevokedCert* certs;              /* revoked cert list  */
     int          totalCerts;         /* number on list     */
 };

@@ -61,6 +61,8 @@ static int InitCRL_Entry(CRL_Entry* crle, DecodedCRL* dcrl)
 	XMEMCPY(crle->crlHash, dcrl->crlHash, MD5_DIGEST_SIZE);
 	XMEMCPY(crle->lastDate, dcrl->lastDate, MAX_DATE_SIZE);
 	XMEMCPY(crle->nextDate, dcrl->nextDate, MAX_DATE_SIZE);
+    crle->lastDateFormat = dcrl->lastDateFormat;
+    crle->nextDateFormat = dcrl->nextDateFormat;
 
 	crle->certs = dcrl->certs;   /* take ownsership */
 	dcrl->certs = NULL;
@@ -119,27 +121,34 @@ void FreeCRL(CYASSL_CRL* crl)
 /* Is the cert ok with CRL, return 0 on success */
 int CheckCertCRL(CYASSL_CRL* crl, DecodedCert* cert)
 {
-	CRL_Entry* crle;
-	int        foundEntry = 0;
-	int        revoked = 0;
-	int        ret = 0;
+    CRL_Entry* crle;
+    int        foundEntry = 0;
+    int        revoked = 0;
+    int        ret = 0;
 
-	CYASSL_ENTER("CheckCertCRL");
+    CYASSL_ENTER("CheckCertCRL");
 
-	if (LockMutex(&crl->crlLock) != 0) {
-		CYASSL_MSG("LockMutex failed");
-		return BAD_MUTEX_ERROR;
-	}
+    if (LockMutex(&crl->crlLock) != 0) {
+        CYASSL_MSG("LockMutex failed");
+        return BAD_MUTEX_ERROR;
+    }
 
-	crle = crl->crlList;
+    crle = crl->crlList;
 
 	while (crle) {
 		if (XMEMCMP(crle->issuerHash, cert->issuerHash, SHA_DIGEST_SIZE) == 0) {
 			CYASSL_MSG("Found CRL Entry on list");
-			foundEntry = 1;
-			break;
+            CYASSL_MSG("Checking next date validity");
+
+            if (!ValidateDate(crle->nextDate, crle->nextDateFormat, AFTER)) {
+                CYASSL_MSG("CRL next date is no longer valid");
+                ret = ASN_AFTER_DATE_E;
+            }
+            else
+                foundEntry = 1;
+            break;
 		}
-		crle = crle->next;
+        crle = crle->next;
 	}
 
 	if (foundEntry) {
@@ -505,7 +514,7 @@ int LoadCRL(CYASSL_CRL* crl, const char* path, int type, int monitor)
 		CYASSL_MSG("opendir path crl load failed");
 		return BAD_PATH_ERROR;
 	}
-	while ( ret == SSL_SUCCESS && (entry = readdir(dir)) != NULL) {
+	while ( (entry = readdir(dir)) != NULL) {
 		if (entry->d_type & DT_REG) {
 			char name[MAX_FILENAME_SZ];
 
@@ -529,7 +538,10 @@ int LoadCRL(CYASSL_CRL* crl, const char* path, int type, int monitor)
 			XSTRNCAT(name, "/", 1);
 			XSTRNCAT(name, entry->d_name, MAX_FILENAME_SZ/2);
 
-			ret = ProcessFile(NULL, name, type, CRL_TYPE, NULL, 0, crl);
+			if (ProcessFile(NULL, name, type, CRL_TYPE, NULL, 0, crl)
+                                                               != SSL_SUCCESS) {
+                CYASSL_MSG("CRL file load failed, continuing");
+            }
 		}
 	}
 
