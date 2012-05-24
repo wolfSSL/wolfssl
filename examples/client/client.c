@@ -208,7 +208,7 @@ void client_test(void* args)
     ssl = CyaSSL_new(ctx);
     CyaSSL_set_fd(ssl, sockfd);
 #ifdef HAVE_CRL
-    CyaSSL_EnableCRL(ssl, 0);
+    CyaSSL_EnableCRL(ssl, CYASSL_CRL_CHECKALL);
     CyaSSL_LoadCRL(ssl, crlPemDir, SSL_FILETYPE_PEM, 0);
     CyaSSL_SetCRL_Cb(ssl, CRL_CallBack);
 #endif

@@ -1628,11 +1628,9 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx)
                                 ssl->ctx->cm);
         if (ret == 0 && dCert.isCA == 0) {
             CYASSL_MSG("Chain cert is not a CA, not adding as one");
-            (void)ret;
         }
         else if (ret == 0 && ssl->options.verifyNone) {
             CYASSL_MSG("Chain cert not verified by option, not adding as CA");
-            (void)ret;
         }
         else if (ret == 0 && !AlreadySigner(ssl->ctx->cm, dCert.subjectHash)) {
             buffer add;
@@ -1651,12 +1649,21 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx)
         }
         else if (ret != 0) {
             CYASSL_MSG("Failed to verify CA from chain");
-            (void)ret;
         }
         else {
             CYASSL_MSG("Verified CA from chain and already had it");
-            (void)ret;
         }
+
+#ifdef HAVE_CRL
+        if (ret == 0 && ssl->ctx->cm->crlEnabled && ssl->ctx->cm->crlCheckAll) {
+            CYASSL_MSG("Doing Non Leaf CRL check");
+            ret = CheckCertCRL(ssl->ctx->cm->crl, &dCert);
+
+            if (ret != 0) {
+                CYASSL_MSG("\tCRL check not ok");
+            }
+        }
+#endif /* HAVE_CRL */
 
         if (ret != 0 && anyError == 0)
             anyError = ret;   /* save error from last time */
@@ -1705,7 +1712,8 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx)
 #endif
 
 #ifdef HAVE_CRL
-        if (ssl->ctx->cm->crlEnabled) {
+        if (fatal == 0 && ssl->ctx->cm->crlEnabled) {
+            CYASSL_MSG("Doing Leaf CRL check");
             ret = CheckCertCRL(ssl->ctx->cm->crl, &dCert);
 
             if (ret != 0) {
