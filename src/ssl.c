@@ -7695,25 +7695,34 @@ const byte* CyaSSL_get_sessionID(const CYASSL_SESSION* session)
 #endif /* SESSION_CERTS */
 
 
-#ifdef HAVE_OCSP
-
 long CyaSSL_CTX_OCSP_set_options(CYASSL_CTX* ctx, long options)
 {
     CYASSL_ENTER("CyaSSL_CTX_OCSP_set_options");
+#ifdef HAVE_OCSP
     if (ctx != NULL) {
         ctx->ocsp.enabled = (options & CYASSL_OCSP_ENABLE) != 0;
         ctx->ocsp.useOverrideUrl = (options & CYASSL_OCSP_URL_OVERRIDE) != 0;
         return 1;
     }
     return 0;
+#else
+    (void*)ctx;
+    (void*)options;
+    return NOT_COMPILED_IN;
+#endif
 }
 
 
 int CyaSSL_CTX_OCSP_set_override_url(CYASSL_CTX* ctx, const char* url)
 {
     CYASSL_ENTER("CyaSSL_CTX_OCSP_set_override_url");
+#ifdef HAVE_OCSP
     return CyaSSL_OCSP_set_override_url(&ctx->ocsp, url);
+#else
+    (void*)ctx;
+    (void*)url;
+    return NOT_COMPILED_IN;
+#endif
 }
 
-#endif
 
