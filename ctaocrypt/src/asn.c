@@ -4718,7 +4718,7 @@ static int GetRevoked(const byte* buff, word32* idx, DecodedCRL* dcrl,
         return ASN_PARSE_E;
     }
 
-    rc = XMALLOC(sizeof(RevokedCert), NULL, DYNAMIC_TYPE_CRL);
+    rc = (RevokedCert*)XMALLOC(sizeof(RevokedCert), NULL, DYNAMIC_TYPE_CRL);
     if (rc == NULL) {
         CYASSL_MSG("Alloc Revoked Cert failed");
         return MEMORY_E;
