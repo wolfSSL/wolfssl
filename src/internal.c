@@ -5457,9 +5457,308 @@ int SetCipherList(Suites* s, const char* list)
     }
 
 
+
+    /* Does this cipher suite (first, second) have the requirement
+       an ephemeral key exchange will still require the key for signing
+       the key exchange so ECHDE_RSA requires an rsa key thus rsa_kea */
+    static int CipherRequires(byte first, byte second, int requirement)
+    {
+        /* ECC extensions */
+        if (first == ECC_BYTE) {
+        
+        switch (second) {
+
+        case TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA :
+            if (requirement == rsa_kea)
+                return 1;
+            break;
+
+        case TLS_ECDH_RSA_WITH_AES_128_CBC_SHA :
+            if (requirement == ecc_static_diffie_hellman_kea)
+                return 1;
+            break;
+
+        case TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA :
+            if (requirement == rsa_kea)
+                return 1;
+            break;
+
+        case TLS_ECDH_RSA_WITH_3DES_EDE_CBC_SHA :
+            if (requirement == ecc_static_diffie_hellman_kea)
+                return 1;
+            break;
+
+        case TLS_ECDHE_RSA_WITH_RC4_128_SHA :
+            if (requirement == rsa_kea)
+                return 1;
+            break;
+
+        case TLS_ECDH_RSA_WITH_RC4_128_SHA :
+            if (requirement == ecc_static_diffie_hellman_kea)
+                return 1;
+            break;
+
+        case TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA :
+            if (requirement == ecc_dsa_sa_algo)
+                return 1;
+            break;
+
+        case TLS_ECDH_ECDSA_WITH_3DES_EDE_CBC_SHA :
+            if (requirement == ecc_static_diffie_hellman_kea)
+                return 1;
+            break;
+
+        case TLS_ECDHE_ECDSA_WITH_RC4_128_SHA :
+            if (requirement == ecc_dsa_sa_algo)
+                return 1;
+            break;
+
+        case TLS_ECDH_ECDSA_WITH_RC4_128_SHA :
+            if (requirement == ecc_static_diffie_hellman_kea)
+                return 1;
+            break;
+
+        case TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA :
+            if (requirement == rsa_kea)
+                return 1;
+            break;
+
+        case TLS_ECDH_RSA_WITH_AES_256_CBC_SHA :
+            if (requirement == ecc_static_diffie_hellman_kea)
+                return 1;
+            break;
+
+        case TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA :
+            if (requirement == ecc_dsa_sa_algo)
+                return 1;
+            break;
+
+        case TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA :
+            if (requirement == ecc_static_diffie_hellman_kea)
+                return 1;
+            break;
+
+        case TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA :
+            if (requirement == ecc_dsa_sa_algo)
+                return 1;
+            break;
+
+        case TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA :
+            if (requirement == ecc_static_diffie_hellman_kea)
+                return 1;
+            break;
+
+        default:
+            CYASSL_MSG("Unsupported cipher suite, CipherRequires ECC");
+            return 0;
+        }   /* switch */
+        }   /* if     */
+        if (first != ECC_BYTE) {   /* normal suites */
+        switch (second) {
+
+        case SSL_RSA_WITH_RC4_128_SHA :
+            if (requirement == rsa_kea)
+                return 1;
+            break;
+
+        case TLS_NTRU_RSA_WITH_RC4_128_SHA :
+            if (requirement == ntru_kea)
+                return 1;
+            break;
+
+        case SSL_RSA_WITH_RC4_128_MD5 :
+            if (requirement == rsa_kea)
+                return 1;
+            break;
+
+        case SSL_RSA_WITH_3DES_EDE_CBC_SHA :
+            if (requirement == rsa_kea)
+                return 1;
+            break;
+
+        case TLS_NTRU_RSA_WITH_3DES_EDE_CBC_SHA :
+            if (requirement == ntru_kea)
+                return 1;
+            break;
+
+        case TLS_RSA_WITH_AES_128_CBC_SHA :
+            if (requirement == rsa_kea)
+                return 1;
+            break;
+
+        case TLS_RSA_WITH_AES_128_CBC_SHA256 :
+            if (requirement == rsa_kea)
+                return 1;
+            break;
+
+        case TLS_NTRU_RSA_WITH_AES_128_CBC_SHA :
+            if (requirement == ntru_kea)
+                return 1;
+            break;
+
+        case TLS_RSA_WITH_AES_256_CBC_SHA :
+            if (requirement == rsa_kea)
+                return 1;
+            break;
+
+        case TLS_RSA_WITH_AES_256_CBC_SHA256 :
+            if (requirement == rsa_kea)
+                return 1;
+            break;
+
+        case TLS_NTRU_RSA_WITH_AES_256_CBC_SHA :
+            if (requirement == ntru_kea)
+                return 1;
+            break;
+
+        case TLS_PSK_WITH_AES_128_CBC_SHA :
+            if (requirement == psk_kea)
+                return 1;
+            break;
+
+        case TLS_PSK_WITH_AES_256_CBC_SHA :
+            if (requirement == psk_kea)
+                return 1;
+            break;
+
+        case TLS_DHE_RSA_WITH_AES_128_CBC_SHA256 :
+            if (requirement == rsa_kea)
+                return 1;
+            if (requirement == diffie_hellman_kea)
+                return 1;
+            break;
+
+        case TLS_DHE_RSA_WITH_AES_256_CBC_SHA256 :
+            if (requirement == rsa_kea)
+                return 1;
+            if (requirement == diffie_hellman_kea)
+                return 1;
+            break;
+
+        case TLS_DHE_RSA_WITH_AES_128_CBC_SHA :
+            if (requirement == rsa_kea)
+                return 1;
+            if (requirement == diffie_hellman_kea)
+                return 1;
+            break;
+
+        case TLS_DHE_RSA_WITH_AES_256_CBC_SHA :
+            if (requirement == rsa_kea)
+                return 1;
+            if (requirement == diffie_hellman_kea)
+                return 1;
+            break;
+
+        case TLS_RSA_WITH_HC_128_CBC_MD5 :
+            if (requirement == rsa_kea)
+                return 1;
+            break;
+                
+        case TLS_RSA_WITH_HC_128_CBC_SHA :
+            if (requirement == rsa_kea)
+                return 1;
+            break;
+
+        case TLS_RSA_WITH_RABBIT_CBC_SHA :
+            if (requirement == rsa_kea)
+                return 1;
+            break;
+
+        default:
+            CYASSL_MSG("Unsupported cipher suite, CipherRequires");
+            return 0;
+        }  /* switch */
+        }  /* if ECC / Normal suites else */
+
+        return 0;
+    }
+
+
+
+
+
+    /* Make sure cert/key are valid for this suite, true on success */
+    static int VerifySuite(CYASSL* ssl, word16 idx)
+    {
+        int  haveRSA = !ssl->options.haveECDSA;
+        int  havePSK = 0;
+        byte first   = ssl->suites.suites[idx];
+        byte second  = ssl->suites.suites[idx+1];
+
+        CYASSL_ENTER("VerifySuite");
+
+        #ifndef NO_PSK
+            havePSK = ssl->options.havePSK;
+        #endif
+
+        if (ssl->options.haveNTRU)
+            haveRSA = 0;
+
+        if (CipherRequires(first, second, rsa_kea)) {
+            CYASSL_MSG("Requires RSA");
+            if (haveRSA == 0) {
+                CYASSL_MSG("Don't have RSA");
+                return 0;
+            }
+            return 1;
+        }
+
+        if (CipherRequires(first, second, diffie_hellman_kea)) {
+            CYASSL_MSG("Requires DHE");
+            if (ssl->options.haveDH == 0) {
+                CYASSL_MSG("Don't have DHE");
+                return 0;
+            }
+            return 1;
+        }
+
+        if (CipherRequires(first, second, ecc_dsa_sa_algo)) {
+            CYASSL_MSG("Requires ECCDSA");
+            if (ssl->options.haveECDSA == 0) {
+                CYASSL_MSG("Don't have ECCDSA");
+                return 0;
+            }
+            return 1;
+        }
+
+        if (CipherRequires(first, second, ecc_static_diffie_hellman_kea)) {
+            CYASSL_MSG("Requires static ECC");
+            if (ssl->options.haveStaticECC == 0) {
+                CYASSL_MSG("Don't have static ECC");
+                return 0;
+            }
+            return 1;
+        }
+
+        if (CipherRequires(first, second, psk_kea)) {
+            CYASSL_MSG("Requires PSK");
+            if (havePSK == 0) {
+                CYASSL_MSG("Don't have PSK");
+                return 0;
+            }
+            return 1;
+        }
+
+        if (CipherRequires(first, second, ntru_kea)) {
+            CYASSL_MSG("Requires NTRU");
+            if (ssl->options.haveNTRU == 0) {
+                CYASSL_MSG("Don't have NTRU");
+                return 0;
+            }
+            return 1;
+        }
+
+        /* ECCDHE is always supported if ECC on */
+
+        return 1;
+    }
+
+
     static int MatchSuite(CYASSL* ssl, Suites* peerSuites)
     {
         word16 i, j;
+
+        CYASSL_ENTER("MatchSuite");
 
         /* & 0x1 equivalent % 2 */
         if (peerSuites->suiteSz == 0 || peerSuites->suiteSz & 0x1)
@@ -5471,9 +5770,15 @@ int SetCipherList(Suites* s, const char* list)
                 if (ssl->suites.suites[i]   == peerSuites->suites[j] &&
                     ssl->suites.suites[i+1] == peerSuites->suites[j+1] ) {
 
-                    ssl->options.cipherSuite0 = ssl->suites.suites[i];
-                    ssl->options.cipherSuite  = ssl->suites.suites[i+1];
-                    return SetCipherSpecs(ssl);
+                    if (VerifySuite(ssl, i)) {
+                        CYASSL_MSG("Verified suite validity");
+                        ssl->options.cipherSuite0 = ssl->suites.suites[i];
+                        ssl->options.cipherSuite  = ssl->suites.suites[i+1];
+                        return SetCipherSpecs(ssl);
+                    }
+                    else {
+                        CYASSL_MSG("Coult not verify suite validity, continue");
+                    }
                 }
 
         return MATCH_SUITE_ERROR;

@@ -7706,8 +7706,8 @@ long CyaSSL_CTX_OCSP_set_options(CYASSL_CTX* ctx, long options)
     }
     return 0;
 #else
-    (void*)ctx;
-    (void*)options;
+    (void)ctx;
+    (void)options;
     return NOT_COMPILED_IN;
 #endif
 }
@@ -7719,8 +7719,8 @@ int CyaSSL_CTX_OCSP_set_override_url(CYASSL_CTX* ctx, const char* url)
 #ifdef HAVE_OCSP
     return CyaSSL_OCSP_set_override_url(&ctx->ocsp, url);
 #else
-    (void*)ctx;
-    (void*)url;
+    (void)ctx;
+    (void)url;
     return NOT_COMPILED_IN;
 #endif
 }
