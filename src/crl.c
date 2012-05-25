@@ -463,7 +463,7 @@ static void* DoMonitor(void* arg)
 
 
 /* Start Monitoring the CRL path(s) in a thread */
-int StartMonitorCRL(CYASSL_CRL* crl)
+static int StartMonitorCRL(CYASSL_CRL* crl)
 {
     pthread_attr_t attr;
 
@@ -490,7 +490,7 @@ int StartMonitorCRL(CYASSL_CRL* crl)
 
 #else /* HAVE_CRL_MONITOR */
 
-int StartMonitorCRL(CYASSL_CRL* crl)
+static int StartMonitorCRL(CYASSL_CRL* crl)
 {
     return NOT_COMPILED_IN;
 }
