@@ -36,48 +36,48 @@
 /* Initialze CRL members */
 int InitCRL(CYASSL_CRL* crl, CYASSL_CERT_MANAGER* cm)
 {
-	CYASSL_ENTER("InitCRL");
+    CYASSL_ENTER("InitCRL");
 
-	crl->cm = cm;
-	crl->crlList = NULL;
+    crl->cm = cm;
+    crl->crlList = NULL;
     crl->monitors[0].path = NULL;
     crl->monitors[1].path = NULL;
 #ifdef HAVE_CRL_MONITOR
     crl->tid = 0;
 #endif
-	if (InitMutex(&crl->crlLock) != 0)
-		return BAD_MUTEX_ERROR; 
+    if (InitMutex(&crl->crlLock) != 0)
+        return BAD_MUTEX_ERROR; 
 
-	return 0;
+    return 0;
 }
 
 
 /* Initialze CRL Entry */
 static int InitCRL_Entry(CRL_Entry* crle, DecodedCRL* dcrl)
 {
-	CYASSL_ENTER("FreeCRL_Entry");
+    CYASSL_ENTER("FreeCRL_Entry");
 
-	XMEMCPY(crle->issuerHash, dcrl->issuerHash, SHA_DIGEST_SIZE);
-	XMEMCPY(crle->crlHash, dcrl->crlHash, MD5_DIGEST_SIZE);
-	XMEMCPY(crle->lastDate, dcrl->lastDate, MAX_DATE_SIZE);
-	XMEMCPY(crle->nextDate, dcrl->nextDate, MAX_DATE_SIZE);
+    XMEMCPY(crle->issuerHash, dcrl->issuerHash, SHA_DIGEST_SIZE);
+    XMEMCPY(crle->crlHash, dcrl->crlHash, MD5_DIGEST_SIZE);
+    XMEMCPY(crle->lastDate, dcrl->lastDate, MAX_DATE_SIZE);
+    XMEMCPY(crle->nextDate, dcrl->nextDate, MAX_DATE_SIZE);
     crle->lastDateFormat = dcrl->lastDateFormat;
     crle->nextDateFormat = dcrl->nextDateFormat;
 
-	crle->certs = dcrl->certs;   /* take ownsership */
-	dcrl->certs = NULL;
-	crle->totalCerts = dcrl->totalCerts;
+    crle->certs = dcrl->certs;   /* take ownsership */
+    dcrl->certs = NULL;
+    crle->totalCerts = dcrl->totalCerts;
 
-	return 0;
+    return 0;
 }
 
 
 /* Free all CRL Entry resources */
 static void FreeCRL_Entry(CRL_Entry* crle)
 {
-	RevokedCert* tmp = crle->certs; 
+    RevokedCert* tmp = crle->certs; 
 
-	CYASSL_ENTER("FreeCRL_Entry");
+    CYASSL_ENTER("FreeCRL_Entry");
 
     while(tmp) {
         RevokedCert* next = tmp->next;
@@ -91,9 +91,9 @@ static void FreeCRL_Entry(CRL_Entry* crle)
 /* Free all CRL resources */
 void FreeCRL(CYASSL_CRL* crl)
 {
-	CRL_Entry* tmp = crl->crlList;
+    CRL_Entry* tmp = crl->crlList;
 
-	CYASSL_ENTER("FreeCRL");
+    CYASSL_ENTER("FreeCRL");
 
     if (crl->monitors[0].path)
         XFREE(crl->monitors[0].path, NULL, DYNAMIC_TYPE_CRL_MONITOR);
@@ -135,9 +135,9 @@ int CheckCertCRL(CYASSL_CRL* crl, DecodedCert* cert)
 
     crle = crl->crlList;
 
-	while (crle) {
-		if (XMEMCMP(crle->issuerHash, cert->issuerHash, SHA_DIGEST_SIZE) == 0) {
-			CYASSL_MSG("Found CRL Entry on list");
+    while (crle) {
+        if (XMEMCMP(crle->issuerHash, cert->issuerHash, SHA_DIGEST_SIZE) == 0) {
+            CYASSL_MSG("Found CRL Entry on list");
             CYASSL_MSG("Checking next date validity");
 
             if (!ValidateDate(crle->nextDate, crle->nextDateFormat, AFTER)) {
@@ -147,133 +147,133 @@ int CheckCertCRL(CYASSL_CRL* crl, DecodedCert* cert)
             else
                 foundEntry = 1;
             break;
-		}
+        }
         crle = crle->next;
-	}
+    }
 
-	if (foundEntry) {
-		RevokedCert* rc = crle->certs;
+    if (foundEntry) {
+        RevokedCert* rc = crle->certs;
 
-		while (rc) {
-			if (XMEMCMP(rc->serialNumber, cert->serial, rc->serialSz) == 0) {
-				CYASSL_MSG("Cert revoked");
-				revoked = 1;
-				ret = CRL_CERT_REVOKED;
-				break;
-			}
-			rc = rc->next;	
-		}
-	}
-
-	UnLockMutex(&crl->crlLock);
-
-	if (foundEntry == 0) {
-		CYASSL_MSG("Couldn't find CRL for status check");
-		ret = CRL_MISSING;
-		if (crl->cm->cbMissingCRL) {
-			char url[256];
-
-			CYASSL_MSG("Issuing missing CRL callback");
-			url[0] = '\0';
-			if (cert->extCrlInfoSz < (int)sizeof(url) -1 ) {
-				XMEMCPY(url, cert->extCrlInfo, cert->extCrlInfoSz);
-				url[cert->extCrlInfoSz] = '\0';
-			}
-			else  {
-				CYASSL_MSG("CRL url too long");
+        while (rc) {
+            if (XMEMCMP(rc->serialNumber, cert->serial, rc->serialSz) == 0) {
+                CYASSL_MSG("Cert revoked");
+                revoked = 1;
+                ret = CRL_CERT_REVOKED;
+                break;
             }
-			crl->cm->cbMissingCRL(url);
-		}
-	}
+            rc = rc->next;	
+        }
+    }
+
+    UnLockMutex(&crl->crlLock);
+
+    if (foundEntry == 0) {
+        CYASSL_MSG("Couldn't find CRL for status check");
+        ret = CRL_MISSING;
+        if (crl->cm->cbMissingCRL) {
+            char url[256];
+
+            CYASSL_MSG("Issuing missing CRL callback");
+            url[0] = '\0';
+            if (cert->extCrlInfoSz < (int)sizeof(url) -1 ) {
+                XMEMCPY(url, cert->extCrlInfo, cert->extCrlInfoSz);
+                url[cert->extCrlInfoSz] = '\0';
+            }
+            else  {
+                CYASSL_MSG("CRL url too long");
+            }
+            crl->cm->cbMissingCRL(url);
+        }
+    }
 
 
-	return ret;	
+    return ret;	
 }
 
 
 /* Add Decoded CRL, 0 on success */
 static int AddCRL(CYASSL_CRL* crl, DecodedCRL* dcrl)
 {
-	CRL_Entry* crle;
+    CRL_Entry* crle;
 
-	CYASSL_ENTER("AddCRL");
+    CYASSL_ENTER("AddCRL");
 
-	crle = (CRL_Entry*)XMALLOC(sizeof(CRL_Entry), NULL, DYNAMIC_TYPE_CRL_ENTRY);
-	if (crle == NULL) {
-		CYASSL_MSG("alloc CRL Entry failed");
-		return -1;
-	}
+    crle = (CRL_Entry*)XMALLOC(sizeof(CRL_Entry), NULL, DYNAMIC_TYPE_CRL_ENTRY);
+    if (crle == NULL) {
+        CYASSL_MSG("alloc CRL Entry failed");
+        return -1;
+    }
 
-	if (InitCRL_Entry(crle, dcrl) < 0) {
-		CYASSL_MSG("Init CRL Entry failed");
+    if (InitCRL_Entry(crle, dcrl) < 0) {
+        CYASSL_MSG("Init CRL Entry failed");
         XFREE(crle, NULL, DYNAMIC_TYPE_CRL_ENTRY);
-		return -1;
-	}
+        return -1;
+    }
 
-	if (LockMutex(&crl->crlLock) != 0) {
-		CYASSL_MSG("LockMutex failed");
-		FreeCRL_Entry(crle);
+    if (LockMutex(&crl->crlLock) != 0) {
+        CYASSL_MSG("LockMutex failed");
+        FreeCRL_Entry(crle);
         XFREE(crle, NULL, DYNAMIC_TYPE_CRL_ENTRY);
-		return BAD_MUTEX_ERROR;
-	}
-	crle->next = crl->crlList;
-	crl->crlList = crle;
-	UnLockMutex(&crl->crlLock);
+        return BAD_MUTEX_ERROR;
+    }
+    crle->next = crl->crlList;
+    crl->crlList = crle;
+    UnLockMutex(&crl->crlLock);
 
-	return 0;
+    return 0;
 }
 
 
 /* Load CRL File of type, SSL_SUCCESS on ok */
 int BufferLoadCRL(CYASSL_CRL* crl, const byte* buff, long sz, int type)
 {
-	int          ret = SSL_SUCCESS;
-	const byte*  myBuffer = buff;    /* if DER ok, otherwise switch */
-	buffer       der;
-	DecodedCRL   dcrl;
+    int          ret = SSL_SUCCESS;
+    const byte*  myBuffer = buff;    /* if DER ok, otherwise switch */
+    buffer       der;
+    DecodedCRL   dcrl;
 
-	der.buffer = NULL;
+    der.buffer = NULL;
 
-	CYASSL_ENTER("BufferLoadCRL");
+    CYASSL_ENTER("BufferLoadCRL");
 
-	if (crl == NULL || buff == NULL || sz == 0)
-		return BAD_FUNC_ARG;
+    if (crl == NULL || buff == NULL || sz == 0)
+        return BAD_FUNC_ARG;
 
-	if (type == SSL_FILETYPE_PEM) {
-		int eccKey = 0;   /* not used */
-		EncryptedInfo info;
-		info.ctx = NULL;
+    if (type == SSL_FILETYPE_PEM) {
+        int eccKey = 0;   /* not used */
+        EncryptedInfo info;
+        info.ctx = NULL;
 
-		ret = PemToDer(buff, sz, CRL_TYPE, &der, NULL, &info, &eccKey);
-		if (ret == 0) {
-			myBuffer = der.buffer;
-			sz = der.length;
-		}
-		else {
-			CYASSL_MSG("Pem to Der failed");
-			return -1;
-		}
-	}
-
-	InitDecodedCRL(&dcrl);
-	ret = ParseCRL(&dcrl, myBuffer, sz, crl->cm);
-	if (ret != 0) {
-		CYASSL_MSG("ParseCRL error");
-	}
-	else {
-		ret = AddCRL(crl, &dcrl);
-		if (ret != 0) {
-			CYASSL_MSG("AddCRL error");
+        ret = PemToDer(buff, sz, CRL_TYPE, &der, NULL, &info, &eccKey);
+        if (ret == 0) {
+            myBuffer = der.buffer;
+            sz = der.length;
         }
-	}
-	FreeDecodedCRL(&dcrl);
+        else {
+            CYASSL_MSG("Pem to Der failed");
+            return -1;
+        }
+    }
 
-	if (der.buffer)
-		XFREE(der.buffer, NULL, DYNAMIC_TYPE_CRL);
+    InitDecodedCRL(&dcrl);
+    ret = ParseCRL(&dcrl, myBuffer, sz, crl->cm);
+    if (ret != 0) {
+        CYASSL_MSG("ParseCRL error");
+    }
+    else {
+        ret = AddCRL(crl, &dcrl);
+        if (ret != 0) {
+            CYASSL_MSG("AddCRL error");
+        }
+    }
+    FreeDecodedCRL(&dcrl);
 
-	if (ret == 0)
-		return SSL_SUCCESS;  /* convert */
-	return ret;
+    if (der.buffer)
+        XFREE(der.buffer, NULL, DYNAMIC_TYPE_CRL);
+
+    if (ret == 0)
+        return SSL_SUCCESS;  /* convert */
+    return ret;
 }
 
 
@@ -501,49 +501,49 @@ int StartMonitorCRL(CYASSL_CRL* crl)
 /* Load CRL path files of type, SSL_SUCCESS on ok */ 
 int LoadCRL(CYASSL_CRL* crl, const char* path, int type, int monitor)
 {
-	struct dirent* entry;
-	DIR*   dir;
-	int    ret = SSL_SUCCESS;
+    struct dirent* entry;
+    DIR*   dir;
+    int    ret = SSL_SUCCESS;
 
-	CYASSL_ENTER("LoadCRL");
-	if (crl == NULL)
-		return BAD_FUNC_ARG;
+    CYASSL_ENTER("LoadCRL");
+    if (crl == NULL)
+        return BAD_FUNC_ARG;
 
-	dir = opendir(path);
-	if (dir == NULL) {
-		CYASSL_MSG("opendir path crl load failed");
-		return BAD_PATH_ERROR;
-	}
-	while ( (entry = readdir(dir)) != NULL) {
-		if (entry->d_type & DT_REG) {
-			char name[MAX_FILENAME_SZ];
+    dir = opendir(path);
+    if (dir == NULL) {
+        CYASSL_MSG("opendir path crl load failed");
+        return BAD_PATH_ERROR;
+    }
+    while ( (entry = readdir(dir)) != NULL) {
+        if (entry->d_type & DT_REG) {
+            char name[MAX_FILENAME_SZ];
 
-			if (type == SSL_FILETYPE_PEM) {
-				if (strstr(entry->d_name, ".pem") == NULL) {
-					CYASSL_MSG("not .pem file, skipping");
-					continue;
-				}
-			}
-			else {
-				if (strstr(entry->d_name, ".der") == NULL &&
-					strstr(entry->d_name, ".crl") == NULL) {
+            if (type == SSL_FILETYPE_PEM) {
+                if (strstr(entry->d_name, ".pem") == NULL) {
+                    CYASSL_MSG("not .pem file, skipping");
+                    continue;
+                }
+            }
+            else {
+                if (strstr(entry->d_name, ".der") == NULL &&
+                    strstr(entry->d_name, ".crl") == NULL) {
 
-					CYASSL_MSG("not .der or .crl file, skipping");
-					continue;
-				}
-			}
+                    CYASSL_MSG("not .der or .crl file, skipping");
+                    continue;
+                }
+            }
 
-			XMEMSET(name, 0, sizeof(name));
-			XSTRNCPY(name, path, MAX_FILENAME_SZ/2 - 2);
-			XSTRNCAT(name, "/", 1);
-			XSTRNCAT(name, entry->d_name, MAX_FILENAME_SZ/2);
+            XMEMSET(name, 0, sizeof(name));
+            XSTRNCPY(name, path, MAX_FILENAME_SZ/2 - 2);
+            XSTRNCAT(name, "/", 1);
+            XSTRNCAT(name, entry->d_name, MAX_FILENAME_SZ/2);
 
-			if (ProcessFile(NULL, name, type, CRL_TYPE, NULL, 0, crl)
+            if (ProcessFile(NULL, name, type, CRL_TYPE, NULL, 0, crl)
                                                                != SSL_SUCCESS) {
                 CYASSL_MSG("CRL file load failed, continuing");
             }
-		}
-	}
+        }
+    }
 
     if (monitor & CYASSL_CRL_MONITOR) {
         CYASSL_MSG("monitor path requested");
@@ -567,7 +567,7 @@ int LoadCRL(CYASSL_CRL* crl, const char* path, int type, int monitor)
        } 
     }
 
-	return ret;
+    return ret;
 }
 
 #endif /* HAVE_CRL */
