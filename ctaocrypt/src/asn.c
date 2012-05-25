@@ -2078,6 +2078,10 @@ static void DecodeBasicCaConstraint(byte* input, int sz, DecodedCert* cert)
     CYASSL_ENTER("DecodeBasicCaConstraint");
     if (GetSequence(input, &idx, &length, sz) < 0) return;
 
+    if (length == 0) return;
+    /* If the basic ca constraint is false, this extension may be named, but
+     * left empty. So, if the length is 0, just return. */
+
     if (input[idx++] != ASN_BOOLEAN)
     {
         CYASSL_MSG("\tfail: constraint not BOOLEAN");
