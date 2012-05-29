@@ -314,11 +314,10 @@ int CyaSSL_OCSP_Lookup_Cert(CYASSL_OCSP* ocsp, DecodedCert* cert)
 			return OCSP_NEED_URL;
 	}
 
-    XMEMCPY(ocsp->status[0].issuerHash, cert->issuerHash, SHA_SIZE);
-    XMEMCPY(ocsp->status[0].issuerKeyHash, cert->issuerKeyHash, SHA_SIZE);
-    XMEMCPY(ocsp->status[0].serial, cert->serial, cert->serialSz);
-    ocsp->status[0].serialSz = cert->serialSz;
-    ocsp->statusLen = 1;
+    XMEMCPY(ocsp->ocspList->issuerHash, cert->issuerHash, SHA_SIZE);
+    XMEMCPY(ocsp->ocspList->issuerKeyHash, cert->issuerKeyHash, SHA_SIZE);
+    XMEMCPY(ocsp->ocspList->status->serial, cert->serial, cert->serialSz);
+    ocsp->ocspList->status->serialSz = cert->serialSz;
 
     ocspReqSz = EncodeOcspRequest(cert, ocspReqBuf, ocspReqSz);
     httpBufSz = build_http_request(domainName, path, ocspReqSz,
@@ -355,7 +354,7 @@ int CyaSSL_OCSP_Lookup_Cert(CYASSL_OCSP* ocsp, DecodedCert* cert)
         CYASSL_MSG("OCSP Responder failure");
 		result = OCSP_LOOKUP_FAIL;
     } else {
-		switch (ocspResponse.certStatus[0]) {
+		switch (ocspResponse.status[0].status) {
 			case CERT_GOOD:
 				result = 0;
 				break;

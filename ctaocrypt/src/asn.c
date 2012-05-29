@@ -1287,7 +1287,7 @@ static int GetName(DecodedCert* cert, int nameType)
     int    length;  /* length of all distinguished names */
     int    dummy;
     char* full = (nameType == ISSUER) ? cert->issuer : cert->subject;
-    word32 idx = 0;
+    word32 idx;
 
     if (cert->source[cert->srcIdx] == ASN_OBJECT_ID) {
         CYASSL_MSG("Trying optional prefix...");
@@ -1299,17 +1299,22 @@ static int GetName(DecodedCert* cert, int nameType)
         CYASSL_MSG("Got optional prefix");
     }
 
+    /* For OCSP, RFC2560 section 4.1.1 states the issuer hash should be
+     * calculated over the entire DER encoding of the Name field, including
+     * the tag and length. */
+    idx = cert->srcIdx;
     if (GetSequence(cert->source, &cert->srcIdx, &length, cert->maxIdx) < 0)
         return ASN_PARSE_E;
 
     InitSha(&sha);
-    ShaUpdate(&sha, &cert->source[cert->srcIdx], length);
+    ShaUpdate(&sha, &cert->source[idx], length + cert->srcIdx - idx);
     if (nameType == ISSUER)
         ShaFinal(&sha, cert->issuerHash);
     else
         ShaFinal(&sha, cert->subjectHash);
 
     length += cert->srcIdx;
+    idx = 0;
 
     while (cert->srcIdx < (word32)length) {
         byte   b;
@@ -4076,6 +4081,36 @@ int EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
 #endif  /* HAVE_ECC */
 
 
+#if defined(HAVE_OCSP) || defined(HAVE_CRL)
+
+/* Get raw Date only, no processing, 0 on success */
+static int GetBasicDate(const byte* source, word32* idx, byte* date,
+                        byte* format, int maxIdx)
+{
+    int    length;
+
+    CYASSL_ENTER("GetBasicDate");
+
+    *format = source[*idx];
+    *idx += 1;
+    if (*format != ASN_UTC_TIME && *format != ASN_GENERALIZED_TIME)
+        return ASN_TIME_E;
+
+    if (GetLength(source, idx, &length, maxIdx) < 0)
+        return ASN_PARSE_E;
+
+    if (length > MAX_DATE_SIZE || length < MIN_DATE_SIZE)
+        return ASN_DATE_SZ_E;
+
+    XMEMCPY(date, &source[*idx], length);
+    *idx += length;
+
+    return 0;
+}
+
+#endif
+
+
 #ifdef HAVE_OCSP
 
 static int GetEnumerated(const byte* input, word32* inOutIdx, int *value)
@@ -4106,91 +4141,109 @@ static int DecodeSingleResponse(byte* source,
                             word32* ioIndex, OcspResponse* resp, word32 size)
 {
     word32 index = *ioIndex, prevIndex, oid;
-    int length, remainder, qty = 0;
+    int length;
+    CertStatus* cs = NULL;
 
     /* Outer wrapper of the SEQUENCE OF Single Responses. */
     if (GetSequence(source, &index, &length, size) < 0)
         return ASN_PARSE_E;
-    remainder = length;
 
-    /* First Single Response */
-    while (remainder != 0 && qty < STATUS_LIST_SIZE)
+    /* When making a request, we only request one status on one certificate
+     * at a time. There should only be one SingleResponse */
+    cs = resp->status;/*XMALLOC(sizeof(CertStatus), NULL, DYNAMIC_TYPE_CERT_STATUS);
+    if (cs == NULL)
     {
-        prevIndex = index;
-        /* Wrapper around the Single Response */
-        if (GetSequence(source, &index, &length, size) < 0)
-            return ASN_PARSE_E;
-
-        /* Wrapper around the CertID */
-        if (GetSequence(source, &index, &length, size) < 0)
-            return ASN_PARSE_E;
-        /* Skip the hash algorithm */
-        if (GetAlgoId(source, &index, &oid, size) < 0)
-            return ASN_PARSE_E;
-        /* Skip the hash of CN */
-        if (source[index++] != ASN_OCTET_STRING)
-            return ASN_PARSE_E;
-        if (GetLength(source, &index, &length, size) < 0)
-            return ASN_PARSE_E;
-        index += length;
-        /* Skip the hash of the issuer public key */
-        if (source[index++] != ASN_OCTET_STRING)
-            return ASN_PARSE_E;
-        if (GetLength(source, &index, &length, size) < 0)
-            return ASN_PARSE_E;
-        index += length;
-
-        /* Read the serial number, it is handled as a string, not as a 
-         * proper number. Just XMEMCPY the data over, rather than load it
-         * as an mp_int. */
-        if (source[index++] != ASN_INTEGER)
-            return ASN_PARSE_E;
-        if (GetLength(source, &index, &length, size) < 0)
-            return ASN_PARSE_E;
-        if (length <= EXTERNAL_SERIAL_SIZE) {
-            if (source[index] == 0) {
-                index++;
-                length--;
-            }
-            XMEMCPY(resp->certSN[qty], source + index, length);
-            resp->certSNsz[qty] = length;
-        } else {
-            return ASN_GETINT_E;
-        }
-        index += length;
-
-        /* CertStatus */
-        switch (source[index++])
-        {
-            case (ASN_CONTEXT_SPECIFIC | CERT_GOOD):
-                resp->certStatus[qty] = CERT_GOOD;
-                index++;
-                break;
-            case (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | CERT_REVOKED):
-                resp->certStatus[qty] = CERT_REVOKED;
-                GetLength(source, &index, &length, size);
-                index += length;
-                break;
-            case (ASN_CONTEXT_SPECIFIC | CERT_UNKNOWN):
-                resp->certStatus[qty] = CERT_UNKNOWN;
-                index++;
-                break;
-            default:
-                return ASN_PARSE_E;
-        }
-
-        if (source[index++] != ASN_GENERALIZED_TIME)
-            return ASN_PARSE_E;
-
-        if (GetLength(source, &index, &length, size) < 0)
-            return ASN_PARSE_E;
-        resp->thisUpdate = source + index;
-        index += length;
-
-        remainder = remainder + prevIndex - index;
-        qty++;
+        CYASSL_MSG("\tAlloc Cert Status failed");
+        return MEMORY_E;
     }
-    resp->certStatusCount = qty;
+    cs->next = NULL; */
+
+    /* Wrapper around the Single Response */
+    if (GetSequence(source, &index, &length, size) < 0)
+        return ASN_PARSE_E;
+
+    /* Wrapper around the CertID */
+    if (GetSequence(source, &index, &length, size) < 0)
+        return ASN_PARSE_E;
+    /* Skip the hash algorithm */
+    if (GetAlgoId(source, &index, &oid, size) < 0)
+        return ASN_PARSE_E;
+    /* Skip the hash of CN */
+    if (source[index++] != ASN_OCTET_STRING)
+        return ASN_PARSE_E;
+    if (GetLength(source, &index, &length, size) < 0)
+        return ASN_PARSE_E;
+    index += length;
+    /* Skip the hash of the issuer public key */
+    if (source[index++] != ASN_OCTET_STRING)
+        return ASN_PARSE_E;
+    if (GetLength(source, &index, &length, size) < 0)
+        return ASN_PARSE_E;
+    index += length;
+
+    /* Read the serial number, it is handled as a string, not as a 
+     * proper number. Just XMEMCPY the data over, rather than load it
+     * as an mp_int. */
+    if (source[index++] != ASN_INTEGER)
+        return ASN_PARSE_E;
+    if (GetLength(source, &index, &length, size) < 0)
+        return ASN_PARSE_E;
+    if (length <= EXTERNAL_SERIAL_SIZE)
+    {
+        if (source[index] == 0)
+        {
+            index++;
+            length--;
+        }
+        XMEMCPY(cs->serial, source + index, length);
+        cs->serialSz = length;
+    }
+    else
+    {
+        return ASN_GETINT_E;
+    }
+    index += length;
+
+    /* CertStatus */
+    switch (source[index++])
+    {
+        case (ASN_CONTEXT_SPECIFIC | CERT_GOOD):
+            cs->status = CERT_GOOD;
+            index++;
+            break;
+        case (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | CERT_REVOKED):
+            cs->status = CERT_REVOKED;
+            GetLength(source, &index, &length, size);
+            index += length;
+            break;
+        case (ASN_CONTEXT_SPECIFIC | CERT_UNKNOWN):
+            cs->status = CERT_UNKNOWN;
+            index++;
+            break;
+        default:
+            return ASN_PARSE_E;
+    }
+
+    if (GetBasicDate(source, &index, cs->thisDate,
+                                                &cs->thisDateFormat, size) < 0)
+        return ASN_PARSE_E;
+
+    if (source[index] == (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 0))
+    {
+        index++;
+        if (GetLength(source, &index, &length, size) < 0)
+            return ASN_PARSE_E;
+        if (GetBasicDate(source, &index, cs->nextDate,
+                                                &cs->nextDateFormat, size) < 0)
+            return ASN_PARSE_E;
+    }
+    if (source[index] == (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 1))
+    {
+        index++;
+        if (GetLength(source, &index, &length, size) < 0)
+            return ASN_PARSE_E;
+        index += length;
+    }
 
     *ioIndex = index;
 
@@ -4625,6 +4678,7 @@ static int GetNameHash(const byte* source, word32* idx, byte* hash, int maxIdx)
 {
     Sha    sha;
     int    length;  /* length of all distinguished names */
+    word32 dummy;
 
     CYASSL_ENTER("GetNameHash");
 
@@ -4638,39 +4692,17 @@ static int GetNameHash(const byte* source, word32* idx, byte* hash, int maxIdx)
         CYASSL_MSG("Got optional prefix");
     }
 
+    /* For OCSP, RFC2560 section 4.1.1 states the issuer hash should be
+     * calculated over the entire DER encoding of the Name field, including
+     * the tag and length. */
+    dummy = *idx;
     if (GetSequence(source, idx, &length, maxIdx) < 0)
         return ASN_PARSE_E;
 
     InitSha(&sha);
-    ShaUpdate(&sha, &source[*idx], length);
+    ShaUpdate(&sha, source + dummy, length + *idx - dummy);
     ShaFinal(&sha, hash);
 
-    *idx += length;
-
-    return 0;
-}
-
-
-/* Get raw Date only, no processing, 0 on success */
-static int GetBasicDate(const byte* source, word32* idx, byte* date,
-                        byte* format, int maxIdx)
-{
-    int    length;
-
-    CYASSL_ENTER("GetBasicDate");
-
-    *format = source[*idx];
-    *idx += 1;
-    if (*format != ASN_UTC_TIME && *format != ASN_GENERALIZED_TIME)
-        return ASN_TIME_E;
-
-    if (GetLength(source, idx, &length, maxIdx) < 0)
-        return ASN_PARSE_E;
-
-    if (length > MAX_DATE_SIZE || length < MIN_DATE_SIZE)
-        return ASN_DATE_SZ_E;
-
-    XMEMCPY(date, &source[*idx], length);
     *idx += length;
 
     return 0;

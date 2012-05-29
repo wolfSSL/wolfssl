@@ -324,6 +324,10 @@ enum cert_enums {
 #endif /* CYASSL_CERT_GEN */
 
 
+
+/* for pointer use */
+typedef struct CertStatus CertStatus;
+
 #ifdef HAVE_OCSP
 
 enum Ocsp_Response_Status {
@@ -349,11 +353,23 @@ enum Ocsp_Sums {
 };
 
 
-#define STATUS_LIST_SIZE 5
-
-
 typedef struct OcspRequest  OcspRequest;
 typedef struct OcspResponse OcspResponse;
+
+
+struct CertStatus {
+	CertStatus* next;
+
+	byte serial[EXTERNAL_SERIAL_SIZE];
+	int serialSz;
+
+    int status;
+
+	byte thisDate[MAX_DATE_SIZE];
+	byte nextDate[MAX_DATE_SIZE];
+	byte thisDateFormat;
+	byte nextDateFormat;
+};
 
 
 struct OcspResponse {
@@ -364,25 +380,17 @@ struct OcspResponse {
 
     int     version;         /* Response version number */
 
-    byte*   thisUpdate;      /* Time at which this status was set      */
-    byte*   nextUpdate;      /* Time for next update                   */
     byte*   producedAt;      /* Time at which this response was signed */
+	byte    producedAtFormat;/* format of the producedAt date */
 
     word32  sigIndex;        /* Index into source for start of sig */
     word32  sigLength;       /* Length in octets for the sig */
     word32  sigOID;          /* OID for hash used for sig */
 
-    int     certStatusCount; /* Count of certificate statuses, Note
-                              * 1:1 correspondence between certStatus
-                              * and certSerialNumber */
-    byte    certSN[STATUS_LIST_SIZE][EXTERNAL_SERIAL_SIZE];
-    int     certSNsz[STATUS_LIST_SIZE];
-                             /* Certificate serial number array. */
-    word32  certStatus[STATUS_LIST_SIZE];
-                             /* Certificate status array */
+	CertStatus  status[1];   /* list of certificate status */
 
-    byte*   nonce;
-    int     nonceSz;
+    byte*   nonce;           /* pointer to nonce inside ASN.1 response */
+    int     nonceSz;         /* length of the nonce string */
 
     byte*   source;          /* pointer to source buffer, not owned */
     word32  maxIdx;          /* max offset based on init size */
@@ -394,8 +402,13 @@ struct OcspRequest {
     byte*   nonce;
     int     nonceSz;
 
-    byte*   dest;
-    word32  destSz;
+	byte*   issuerHash;      /* pointer to issuerHash in source cert */
+	byte*   issuerKeyHash;   /* pointer to issuerKeyHash in source cert */
+	byte*   serial;          /* pointer to serial number in source cert */
+	int     serialSz;        /* length of the serial number */
+
+    byte*   dest;            /* pointer to the destination ASN.1 buffer */
+    word32  destSz;          /* length of the destination buffer */
     void*   heap;
 };
 

@@ -624,6 +624,28 @@ CYASSL_LOCAL int UnLockMutex(CyaSSL_Mutex*);
 
 
 
+typedef struct OCSP_Entry OCSP_Entry;
+
+struct OCSP_Entry {
+    OCSP_Entry* next;                       /* next entry             */
+    byte    issuerHash[SHA_DIGEST_SIZE];    /* issuer hash            */ 
+    byte    issuerKeyHash[SHA_DIGEST_SIZE]; /* issuer public key hash */
+    CertStatus  status[1];                  /* OCSP response list     */
+    int         totalStatus;                /* number on list         */
+};
+
+
+/* CyaSSL OCSP controller */
+struct CYASSL_OCSP {
+    byte enabled;
+    byte useOverrideUrl;
+    char overrideName[80];
+    char overridePath[80];
+    int  overridePort;
+    OCSP_Entry ocspList[1];
+};
+
+
 typedef struct CRL_Entry CRL_Entry;
 
 /* Complete CRL */
