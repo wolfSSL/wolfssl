@@ -1281,26 +1281,62 @@ int CyaSSL_CTX_load_verify_locations(CYASSL_CTX* ctx, const char* file,
 
 
 /* Verify the ceritficate, 1 for success, < 0 for error */
+int CyaSSL_CertManagerVerifyBuffer(CYASSL_CERT_MANAGER* cm, const byte* buff,
+                                   int sz, int format)
+{
+    int ret = 0;
+    int eccKey = 0;  /* not used */
+
+    DecodedCert cert;
+    buffer      der;
+
+    CYASSL_ENTER("CyaSSL_CertManagerVerifyBuffer");
+
+    der.buffer = NULL;
+
+    if (format == SSL_FILETYPE_PEM) { 
+        EncryptedInfo info;
+            
+        info.set      = 0;
+        info.ctx      = NULL;
+        info.consumed = 0;
+        ret = PemToDer(buff, sz, CERT_TYPE, &der, cm->heap, &info, &eccKey);
+        InitDecodedCert(&cert, der.buffer, der.length, cm->heap);
+    }
+    else
+        InitDecodedCert(&cert, buff, sz, cm->heap);
+
+    if (ret == 0)
+        ret = ParseCertRelative(&cert, CERT_TYPE, 1, cm);
+#ifdef HAVE_CRL
+    if (ret == 0 && cm->crlEnabled)
+        ret = CheckCertCRL(cm->crl, &cert);
+#endif
+
+    FreeDecodedCert(&cert);
+    XFREE(der.buffer, cm->heap, DYNAMIC_TYPE_CERT);
+
+    return ret;
+}
+
+
+/* Verify the ceritficate, 1 for success, < 0 for error */
 int CyaSSL_CertManagerVerify(CYASSL_CERT_MANAGER* cm, const char* fname,
                              int format)
 {
-    int           ret = SSL_FATAL_ERROR;
-    int           eccKey = 0;  /* not used */
-    DecodedCert   cert;
-
+    int    ret = SSL_FATAL_ERROR;
     byte   staticBuffer[FILE_BUFFER_SIZE];
     byte*  myBuffer = staticBuffer;
     int    dynamic = 0;
     long   sz = 0;
-    buffer der;
     XFILE* file = XFOPEN(fname, "rb"); 
+
+    CYASSL_ENTER("CyaSSL_CertManagerVerify");
 
     if (!file) return SSL_BAD_FILE;
     XFSEEK(file, 0, XSEEK_END);
     sz = XFTELL(file);
     XREWIND(file);
-
-    der.buffer = NULL;
 
     if (sz > (long)sizeof(staticBuffer)) {
         CYASSL_MSG("Getting dynamic buffer");
@@ -1314,32 +1350,9 @@ int CyaSSL_CertManagerVerify(CYASSL_CERT_MANAGER* cm, const char* fname,
 
     if ( (ret = XFREAD(myBuffer, sz, 1, file)) < 0)
         ret = SSL_BAD_FILE;
-    else {
-        ret = 0;  /* ok */
-        if (format == SSL_FILETYPE_PEM) { 
-            EncryptedInfo info;
-            
-            info.set       = 0;
-            info.ctx      = NULL;
-            info.consumed = 0;
-            ret = PemToDer(myBuffer, sz, CERT_TYPE, &der, cm->heap, &info,
-                           &eccKey);
-            InitDecodedCert(&cert, der.buffer, der.length, cm->heap);
+    else 
+        ret = CyaSSL_CertManagerVerifyBuffer(cm, myBuffer, sz, format);
 
-        }
-        else
-            InitDecodedCert(&cert, myBuffer, sz, cm->heap);
-
-        if (ret == 0)
-            ret = ParseCertRelative(&cert, CERT_TYPE, 1, cm);
-#ifdef HAVE_CRL
-        if (ret == 0 && cm->crlEnabled)
-            ret = CheckCertCRL(cm->crl, &cert);
-#endif
-    }
-
-    FreeDecodedCert(&cert);
-    XFREE(der.buffer, cm->heap, DYNAMIC_TYPE_CERT);
     XFCLOSE(file);
     if (dynamic) XFREE(myBuffer, cm->heap, DYNAMIC_TYPE_FILE);
 
