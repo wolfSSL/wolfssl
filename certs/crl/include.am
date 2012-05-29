@@ -4,7 +4,9 @@
 
 EXTRA_DIST += \
 	     certs/crl/crl.pem \
-	     certs/crl/cliCrl.pem
+	     certs/crl/cliCrl.pem \
+	     certs/crl/eccSrvCRL.pem \
+	     certs/crl/eccCliCRL.pem
 
 EXTRA_DIST += \
 	     certs/crl/crl.revoked

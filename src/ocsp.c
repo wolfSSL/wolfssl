@@ -104,7 +104,7 @@ static int decode_url(const char* url, int urlSz,
 		}
 		else
 		{
-	        int i, cur, hostname;
+	        int i, cur;
 	
 	        /* need to break the url down into scheme, address, and port */
 	        /* "http://example.com:8080/" */
@@ -185,8 +185,9 @@ static INLINE void tcp_socket(SOCKET_T* sockfd, SOCKADDR_IN_T* addr,
                    entry->h_length);
             host = inet_ntoa(tmp.sin_addr);
         }
-        else
+        else {
             CYASSL_MSG("no entry for host");
+        }
     }
 
     *sockfd = socket(AF_INET_V, SOCK_STREAM, 0);
@@ -206,8 +207,9 @@ static INLINE void tcp_connect(SOCKET_T* sockfd, const char* ip, word16 port)
     SOCKADDR_IN_T addr;
     tcp_socket(sockfd, &addr, ip, port);
 
-    if (connect(*sockfd, (const struct sockaddr*)&addr, sizeof(addr)) != 0)
+    if (connect(*sockfd, (const struct sockaddr*)&addr, sizeof(addr)) != 0) {
         CYASSL_MSG("tcp connect failed");
+    }
 }
 
 
@@ -230,7 +232,6 @@ static byte* decode_http_response(byte* httpBuf, int httpBufSz, int* ocspRespSz)
     int stop = 0;
     byte* contentType = NULL;
     byte* contentLength = NULL;
-    byte* content = NULL;
     char* buf = (char*)httpBuf; /* kludge so I'm not constantly casting */
 
     if (strncasecmp(buf, "HTTP/1", 6) != 0)
