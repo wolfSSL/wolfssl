@@ -1304,7 +1304,7 @@ int CyaSSL_CertManagerVerifyBuffer(CYASSL_CERT_MANAGER* cm, const byte* buff,
         InitDecodedCert(&cert, der.buffer, der.length, cm->heap);
     }
     else
-        InitDecodedCert(&cert, buff, sz, cm->heap);
+        InitDecodedCert(&cert, (byte*)buff, sz, cm->heap);
 
     if (ret == 0)
         ret = ParseCertRelative(&cert, CERT_TYPE, 1, cm);
