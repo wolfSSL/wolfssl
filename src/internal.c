@@ -315,9 +315,6 @@ void InitSSL_Method(CYASSL_METHOD* method, ProtocolVersion pv)
 {
     method->version    = pv;
     method->side       = CLIENT_END;
-    method->verifyPeer = 0;
-    method->verifyNone = 0;
-    method->failNoCert = 0;
     method->downgrade  = 0;
 }
 
@@ -913,11 +910,11 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
     if (ssl->options.side == SERVER_END) 
         InitSuites(&ssl->suites, ssl->version,ssl->options.haveDH, havePSK,
                    ssl->options.haveNTRU, ssl->options.haveECDSA,
-                   ssl->options.haveStaticECC, ssl->ctx->method->side);
+                   ssl->options.haveStaticECC, ssl->options.side);
     else 
         InitSuites(&ssl->suites, ssl->version, TRUE, havePSK,
                    ssl->options.haveNTRU, ssl->options.haveECDSA,
-                   ssl->options.haveStaticECC, ssl->ctx->method->side);
+                   ssl->options.haveStaticECC, ssl->options.side);
 
 
 #ifdef SESSION_CERTS
@@ -5850,7 +5847,7 @@ int SetCipherList(Suites* s, const char* list)
 
             InitSuites(&ssl->suites, ssl->version, ssl->options.haveDH, havePSK,
                        ssl->options.haveNTRU, ssl->options.haveECDSA,
-                       ssl->options.haveStaticECC, ssl->ctx->method->side);
+                       ssl->options.haveStaticECC, ssl->options.side);
         }
 
         /* suite size */
@@ -5981,7 +5978,7 @@ int SetCipherList(Suites* s, const char* list)
 #endif
             InitSuites(&ssl->suites, ssl->version, ssl->options.haveDH, havePSK,
                        ssl->options.haveNTRU, ssl->options.haveECDSA,
-                       ssl->options.haveStaticECC, ssl->ctx->method->side);
+                       ssl->options.haveStaticECC, ssl->options.side);
         }
         /* random */
         XMEMCPY(ssl->arrays.clientRandom, input + i, RAN_LEN);

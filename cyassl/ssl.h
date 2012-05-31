@@ -769,10 +769,15 @@ CYASSL_API void CyaSSL_SetIOWriteCtx(CYASSL* ssl, void *ctx);
 
 /* CA cache callbacks */
 enum {
+    CYASSL_SSLV3    = 0,
+    CYASSL_TLSV1    = 1,
+    CYASSL_TLSV1_1  = 2,
+    CYASSL_TLSV1_2  = 3,
     CYASSL_USER_CA  = 1,          /* user added as trusted */
     CYASSL_CHAIN_CA = 2           /* added to cache from trusted chain */
 };
 
+CYASSL_API int CyaSSL_SetVersion(CYASSL* ssl, int version);
 CYASSL_API int CyaSSL_KeyPemToDer(const unsigned char*, int sz, unsigned char*,
                                   int, const char*);
 

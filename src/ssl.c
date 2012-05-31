@@ -228,7 +228,7 @@ int CyaSSL_SetTmpDH(CYASSL* ssl, const unsigned char* p, int pSz,
     #endif
     InitSuites(&ssl->suites, ssl->version, ssl->options.haveDH,
                havePSK, ssl->options.haveNTRU, ssl->options.haveECDSA,
-               ssl->options.haveStaticECC, ssl->ctx->method->side);
+               ssl->options.haveStaticECC, ssl->options.side);
 
     CYASSL_LEAVE("CyaSSL_SetTmpDH", 0);
     return 0;
@@ -468,6 +468,51 @@ int CyaSSL_set_group_messages(CYASSL* ssl)
        return BAD_FUNC_ARG;
 
     ssl->options.groupMessages = 1;
+
+    return SSL_SUCCESS;
+}
+
+
+int CyaSSL_SetVersion(CYASSL* ssl, int version)
+{
+    byte havePSK = 0;
+
+    CYASSL_ENTER("CyaSSL_SetVersion");
+
+    if (ssl == NULL) {
+        CYASSL_MSG("Bad function argument");
+        return BAD_FUNC_ARG;
+    }
+
+    switch (version) {
+        case CYASSL_SSLV3:
+            ssl->version = MakeSSLv3();
+            break;
+
+        case CYASSL_TLSV1:
+            ssl->version = MakeTLSv1();
+            break;
+
+        case CYASSL_TLSV1_1:
+            ssl->version = MakeTLSv1_1();
+            break;
+
+        case CYASSL_TLSV1_2:
+            ssl->version = MakeTLSv1_2();
+            break;
+
+        default:
+            CYASSL_MSG("Bad function argument");
+            return BAD_FUNC_ARG;
+    }
+
+    #ifndef NO_PSK
+        havePSK = ssl->options.havePSK;
+    #endif
+
+    InitSuites(&ssl->suites, ssl->version, ssl->options.haveDH, havePSK,
+                ssl->options.haveNTRU, ssl->options.haveECDSA,
+                ssl->options.haveStaticECC, ssl->options.side);
 
     return SSL_SUCCESS;
 }
@@ -2064,7 +2109,7 @@ int CyaSSL_set_cipher_list(CYASSL* ssl, const char* list)
 
         InitSuites(&ssl->suites, ssl->version, ssl->options.haveDH, havePSK,
                    ssl->options.haveNTRU, ssl->options.haveECDSA,
-                   ssl->options.haveStaticECC, ssl->ctx->method->side);
+                   ssl->options.haveStaticECC, ssl->options.side);
 
         return SSL_SUCCESS;
     }
@@ -3088,7 +3133,7 @@ int CyaSSL_set_compression(CYASSL* ssl)
 
         InitSuites(&ssl->suites, ssl->version,TRUE,TRUE, ssl->options.haveNTRU,
                    ssl->options.haveECDSA, ssl->options.haveStaticECC,
-                   ssl->ctx->method->side);
+                   ssl->options.side);
     }
 
 
@@ -3109,7 +3154,7 @@ int CyaSSL_set_compression(CYASSL* ssl)
 
         InitSuites(&ssl->suites, ssl->version, ssl->options.haveDH, TRUE,
                    ssl->options.haveNTRU, ssl->options.haveECDSA,
-                   ssl->options.haveStaticECC, ssl->ctx->method->side);
+                   ssl->options.haveStaticECC, ssl->options.side);
     }
 
 
@@ -3343,7 +3388,7 @@ int CyaSSL_set_compression(CYASSL* ssl)
 #endif
         InitSuites(&ssl->suites, ssl->version, ssl->options.haveDH, havePSK,
                    ssl->options.haveNTRU, ssl->options.haveECDSA,
-                   ssl->options.haveStaticECC, ssl->ctx->method->side);
+                   ssl->options.haveStaticECC, ssl->options.side);
     }
 
    

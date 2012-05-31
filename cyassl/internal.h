@@ -475,9 +475,6 @@ struct CYASSL_BIO {
 struct CYASSL_METHOD {
     ProtocolVersion version;
     byte            side;         /* connection side, server or client */
-    byte            verifyPeer;   /* request or send certificate       */
-    byte            verifyNone;   /* whether to verify certificate     */
-    byte            failNoCert;   /* fail if no certificate            */
     byte            downgrade;    /* whether to downgrade version, default no */
 };
 
