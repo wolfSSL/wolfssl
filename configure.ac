@@ -610,16 +610,21 @@ AX_PTHREAD([
 LIB_SOCKET_NSL
 
 dnl Various GCC warnings that should never fire for release quality code
-GCCWARNINGS="-Wall -fno-strict-aliasing -W -Wfloat-equal -Wundef        \
+GCCWARNINGS="-Wall -fno-strict-aliasing -W -Wfloat-equal -Wundef          \
   -Wpointer-arith -Wstrict-prototypes -Wmissing-prototypes                \
   -Wwrite-strings -Wredundant-decls -Wchar-subscripts -Wcomment           \
   -Wformat=2 -Wwrite-strings -Wmissing-declarations -Wredundant-decls     \
   -Wnested-externs -Wbad-function-cast -Wswitch-enum -Winit-self          \
   -Wmissing-field-initializers -Wdeclaration-after-statement              \
   -Wold-style-definition -Waddress -Wmissing-noreturn -Wnormalized=id     \
-  -Woverride-init -Wstrict-overflow=1 -Wextra -Warray-bounds              \
-  -Wstack-protector -Wformat -Wformat-security -Wpointer-sign -Wshadow    \
-  -Wswitch-default"
+  -Woverride-init -Wstrict-overflow=1 -Wextra -Wstack-protector -Wformat  \
+  -Wformat-security -Wpointer-sign -Wshadow -Wswitch-default"
+
+case "$host_os" in
+  *linux*)
+GCCWARNINGS="$GCCWARNINGS -Warray-bounds"
+  ;;
+esac
 
 AC_ARG_ENABLE(gcc-lots-o-warnings,
 AS_HELP_STRING(--enable-gcc-lots-o-warnings, Enable lots of gcc warnings (default: disabled)),
