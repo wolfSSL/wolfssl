@@ -4673,7 +4673,7 @@ int SetCipherList(Suites* s, const char* list)
 
             /* precede export with 1 byte length */
             ret = ecc_export_x963(&myKey, encSecret + 1, &size);
-            encSecret[0] = size;
+            encSecret[0] = (byte)size;
             encSz = size + 1;
 
             if (ret != 0)
