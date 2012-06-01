@@ -769,10 +769,15 @@ CYASSL_API void CyaSSL_SetIOWriteCtx(CYASSL* ssl, void *ctx);
 
 /* CA cache callbacks */
 enum {
+    CYASSL_SSLV3    = 0,
+    CYASSL_TLSV1    = 1,
+    CYASSL_TLSV1_1  = 2,
+    CYASSL_TLSV1_2  = 3,
     CYASSL_USER_CA  = 1,          /* user added as trusted */
     CYASSL_CHAIN_CA = 2           /* added to cache from trusted chain */
 };
 
+CYASSL_API int CyaSSL_SetVersion(CYASSL* ssl, int version);
 CYASSL_API int CyaSSL_KeyPemToDer(const unsigned char*, int sz, unsigned char*,
                                   int, const char*);
 
@@ -789,6 +794,8 @@ CYASSL_API int CyaSSL_CertManagerLoadCA(CYASSL_CERT_MANAGER*, const char* f,
                                         const char* d);
 CYASSL_API int CyaSSL_CertManagerVerify(CYASSL_CERT_MANAGER*, const char* f,
                                         int format);
+CYASSL_API int CyaSSL_CertManagerVerifyBuffer(CYASSL_CERT_MANAGER* cm,
+                                 const unsigned char* buff, int sz, int format);
 CYASSL_API int CyaSSL_CertManagerCheckCRL(CYASSL_CERT_MANAGER*, unsigned char*,
                                           int sz);
 CYASSL_API int CyaSSL_CertManagerEnableCRL(CYASSL_CERT_MANAGER*, int options);

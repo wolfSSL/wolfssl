@@ -23,6 +23,8 @@
     #include <config.h>
 #endif
 
+#ifdef HAVE_OCSP
+
 #include <cyassl/error.h>
 #include <cyassl/ocsp.h>
 #include <cyassl/internal.h>
@@ -40,7 +42,6 @@
 #include <sys/socket.h>
 
 
-#ifdef HAVE_OCSP
 CYASSL_API int ocsp_test(unsigned char* buf, int sz);
 #define CYASSL_OCSP_ENABLE       0x0001 /* Enable OCSP lookups */
 #define CYASSL_OCSP_URL_OVERRIDE 0x0002 /* Use the override URL instead of URL
