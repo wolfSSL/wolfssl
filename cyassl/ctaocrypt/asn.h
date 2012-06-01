@@ -358,68 +358,69 @@ typedef struct OcspResponse OcspResponse;
 
 
 struct CertStatus {
-	CertStatus* next;
+    CertStatus* next;
 
-	byte serial[EXTERNAL_SERIAL_SIZE];
-	int serialSz;
+    byte serial[EXTERNAL_SERIAL_SIZE];
+    int serialSz;
 
     int status;
 
-	byte thisDate[MAX_DATE_SIZE];
-	byte nextDate[MAX_DATE_SIZE];
-	byte thisDateFormat;
-	byte nextDateFormat;
+    byte thisDate[MAX_DATE_SIZE];
+    byte nextDate[MAX_DATE_SIZE];
+    byte thisDateFormat;
+    byte nextDateFormat;
 };
 
 
 struct OcspResponse {
     int     responseStatus;  /* return code from Responder */
 
-    word32  respBegin;       /* index to beginning of OCSP Response */
-    word32  respLength;      /* length of the OCSP Response */
-
-    int     version;         /* Response version number */
+    byte*   response;        /* Pointer to beginning of OCSP Response */
+    word32  responseSz;      /* length of the OCSP Response */
 
     byte*   producedAt;      /* Time at which this response was signed */
-	byte    producedAtFormat;/* format of the producedAt date */
+    byte    producedAtFormat;/* format of the producedAt date */
+    byte*   issuerHash;
+    byte*   issuerKeyHash;
 
-    word32  sigIndex;        /* Index into source for start of sig */
-    word32  sigLength;       /* Length in octets for the sig */
+    byte*   cert;
+    word32  certSz;
+
+    byte*   sig;             /* Pointer to sig in source */
+    word32  sigSz;           /* Length in octets for the sig */
     word32  sigOID;          /* OID for hash used for sig */
 
-	CertStatus  status[1];   /* list of certificate status */
+    CertStatus* status;      /* certificate status to fill out */
 
     byte*   nonce;           /* pointer to nonce inside ASN.1 response */
     int     nonceSz;         /* length of the nonce string */
 
     byte*   source;          /* pointer to source buffer, not owned */
     word32  maxIdx;          /* max offset based on init size */
-    void*   heap;            /* for user memory overrides */
 };
 
 
 struct OcspRequest {
-    byte*   nonce;
+    DecodedCert* cert;
+
+    byte    nonce[MAX_OCSP_NONCE_SZ];
     int     nonceSz;
 
-	byte*   issuerHash;      /* pointer to issuerHash in source cert */
-	byte*   issuerKeyHash;   /* pointer to issuerKeyHash in source cert */
-	byte*   serial;          /* pointer to serial number in source cert */
-	int     serialSz;        /* length of the serial number */
+    byte*   issuerHash;      /* pointer to issuerHash in source cert */
+    byte*   issuerKeyHash;   /* pointer to issuerKeyHash in source cert */
+    byte*   serial;          /* pointer to serial number in source cert */
+    int     serialSz;        /* length of the serial number */
 
     byte*   dest;            /* pointer to the destination ASN.1 buffer */
     word32  destSz;          /* length of the destination buffer */
-    void*   heap;
 };
 
 
-CYASSL_LOCAL void InitOcspResponse(OcspResponse*, byte*, word32, void*);
-CYASSL_LOCAL void FreeOcspResponse(OcspResponse*);
+CYASSL_LOCAL void InitOcspResponse(OcspResponse*, CertStatus*, byte*, word32);
 CYASSL_LOCAL int  OcspResponseDecode(OcspResponse*);
 
-CYASSL_LOCAL void InitOcspRequest(OcspRequest*, byte*, word32, void*);
-CYASSL_LOCAL void FreeOcspRequest(OcspRequest*);
-CYASSL_LOCAL int  EncodeOcspRequest(DecodedCert*, byte*, word32);
+CYASSL_LOCAL void InitOcspRequest(OcspRequest*, DecodedCert*, byte*, word32);
+CYASSL_LOCAL int  EncodeOcspRequest(OcspRequest*);
 
 CYASSL_LOCAL int  CompareOcspReqResp(OcspRequest*, OcspResponse*);
 

@@ -1916,7 +1916,7 @@ word32 EncodeSignature(byte* out, const byte* digest, word32 digSz, int hashOID)
     return encDigSz + algoSz + seqSz;
 }
                            
-
+#include <stdio.h>
 /* return true (1) for Confirmation */
 static int ConfirmSignature(const byte* buf, word32 bufSz,
     const byte* key, word32 keySz, word32 keyOID,
@@ -2029,7 +2029,7 @@ static int ConfirmSignature(const byte* buf, word32 bufSz,
                 {
                 int x;
                 printf("cyassl encodedSig:\n");
-                for (x = 0; x < sigSz; x++) {
+                for (x = 0; x < encodedSigSz; x++) {
                     printf("%02x ", encodedSig[x]);
                     if ( (x % 16) == 15)
                         printf("\n");
@@ -4122,6 +4122,8 @@ static int GetEnumerated(const byte* input, word32* inOutIdx, int *value)
     word32 idx = *inOutIdx;
     word32 len;
 
+    CYASSL_ENTER("GetEnumerated");
+
     *value = 0;
 
     if (input[idx++] != ASN_ENUMERATED)
@@ -4145,22 +4147,19 @@ static int DecodeSingleResponse(byte* source,
                             word32* ioIndex, OcspResponse* resp, word32 size)
 {
     word32 index = *ioIndex, prevIndex, oid;
-    int length;
-    CertStatus* cs = NULL;
+    int length, wrapperSz;
+    CertStatus* cs = resp->status;
+
+    CYASSL_ENTER("DecodeSingleResponse");
 
     /* Outer wrapper of the SEQUENCE OF Single Responses. */
-    if (GetSequence(source, &index, &length, size) < 0)
+    if (GetSequence(source, &index, &wrapperSz, size) < 0)
         return ASN_PARSE_E;
+
+    prevIndex = index;
 
     /* When making a request, we only request one status on one certificate
      * at a time. There should only be one SingleResponse */
-    cs = resp->status;/*XMALLOC(sizeof(CertStatus), NULL, DYNAMIC_TYPE_CERT_STATUS);
-    if (cs == NULL)
-    {
-        CYASSL_MSG("\tAlloc Cert Status failed");
-        return MEMORY_E;
-    }
-    cs->next = NULL; */
 
     /* Wrapper around the Single Response */
     if (GetSequence(source, &index, &length, size) < 0)
@@ -4172,17 +4171,19 @@ static int DecodeSingleResponse(byte* source,
     /* Skip the hash algorithm */
     if (GetAlgoId(source, &index, &oid, size) < 0)
         return ASN_PARSE_E;
-    /* Skip the hash of CN */
+    /* Save reference to the hash of CN */
     if (source[index++] != ASN_OCTET_STRING)
         return ASN_PARSE_E;
     if (GetLength(source, &index, &length, size) < 0)
         return ASN_PARSE_E;
+    resp->issuerHash = source + index;
     index += length;
-    /* Skip the hash of the issuer public key */
+    /* Save reference to the hash of the issuer public key */
     if (source[index++] != ASN_OCTET_STRING)
         return ASN_PARSE_E;
     if (GetLength(source, &index, &length, size) < 0)
         return ASN_PARSE_E;
+    resp->issuerKeyHash = source + index;
     index += length;
 
     /* Read the serial number, it is handled as a string, not as a 
@@ -4231,8 +4232,12 @@ static int DecodeSingleResponse(byte* source,
     if (GetBasicDate(source, &index, cs->thisDate,
                                                 &cs->thisDateFormat, size) < 0)
         return ASN_PARSE_E;
-
-    if (source[index] == (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 0))
+    
+    /* The following items are optional. Only check for them if there is more
+     * unprocessed data in the singleResponse wrapper. */
+    
+    if ((index - prevIndex < wrapperSz) &&
+        (source[index] == (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 0)))
     {
         index++;
         if (GetLength(source, &index, &length, size) < 0)
@@ -4241,7 +4246,8 @@ static int DecodeSingleResponse(byte* source,
                                                 &cs->nextDateFormat, size) < 0)
             return ASN_PARSE_E;
     }
-    if (source[index] == (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 1))
+    if ((index - prevIndex < wrapperSz) &&
+        (source[index] == (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 1)))
     {
         index++;
         if (GetLength(source, &index, &length, size) < 0)
@@ -4318,15 +4324,18 @@ static int DecodeOcspRespExtensions(byte* source,
 static int DecodeResponseData(byte* source,
                             word32* ioIndex, OcspResponse* resp, word32 size)
 {
-    word32 idx = *ioIndex;
+    word32 idx = *ioIndex, prev_idx;
     int length;
     int version;
     word32 responderId = 0;
 
+    CYASSL_ENTER("DecodeResponseData");
+
+    resp->response = source + idx;
+    prev_idx = idx;
     if (GetSequence(source, &idx, &length, size) < 0)
         return ASN_PARSE_E;
-    resp->respBegin = idx;
-    resp->respLength = length;
+    resp->responseSz = length + idx - prev_idx;
 
     /* Get version. It is an EXPLICIT[0] DEFAULT(0) value. If this
      * item isn't an EXPLICIT[0], then set version to zero and move
@@ -4375,7 +4384,7 @@ static int DecodeCerts(byte* source,
 {
     word32 idx = *ioIndex;
 
-    (void)resp;
+    CYASSL_ENTER("DecodeCerts");
 
     if (source[idx++] == (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC))
     {
@@ -4383,6 +4392,13 @@ static int DecodeCerts(byte* source,
 
         if (GetLength(source, &idx, &length, size) < 0)
             return ASN_PARSE_E;
+
+        if (GetSequence(source, &idx, &length, size) < 0)
+            return ASN_PARSE_E;
+
+        resp->cert = source + idx;
+        resp->certSz = length;
+
         idx += length;
     }
     *ioIndex = idx;
@@ -4395,6 +4411,8 @@ static int DecodeBasicOcspResponse(byte* source,
     int length;
     word32 idx = *ioIndex;
     word32 end_index;
+
+    CYASSL_ENTER("DecodeBasicOcspResponse");
 
     if (GetSequence(source, &idx, &length, size) < 0)
         return ASN_PARSE_E;
@@ -4416,8 +4434,8 @@ static int DecodeBasicOcspResponse(byte* source,
         int sigLength = 0;
         if (GetLength(source, &idx, &sigLength, size) < 0)
             return ASN_PARSE_E;
-        resp->sigLength = sigLength;
-        resp->sigIndex = idx;
+        resp->sigSz = sigLength;
+        resp->sig = source + idx;
         idx += sigLength;
     }
 
@@ -4426,25 +4444,55 @@ static int DecodeBasicOcspResponse(byte* source,
      * see if there are certificates, they are optional.
      */
     if (idx < end_index)
-        return DecodeCerts(source, &idx, resp, size);
+    {
+        DecodedCert cert;
+        int ret;
+
+        if (DecodeCerts(source, &idx, resp, size) < 0)
+            return ASN_PARSE_E;
+
+        InitDecodedCert(&cert, resp->cert, resp->certSz, 0);
+        ret = ParseCertRelative(&cert, CA_TYPE, NO_VERIFY, 0);
+        if (ret < 0)
+            return ret;
+
+        ret = ConfirmSignature(resp->response, resp->responseSz,
+                            cert.publicKey, cert.pubKeySize, cert.keyOID,
+                            resp->sig, resp->sigSz, resp->sigOID, NULL);
+        FreeDecodedCert(&cert);
+
+        if (ret == 0)
+        {
+            CYASSL_MSG("\tConfirm signature failed");
+            return ASN_SIG_CONFIRM_E;
+        }
+    }
 
     *ioIndex = idx;
     return 0;
 }
 
 
-void InitOcspResponse(OcspResponse* resp, byte* source, word32 inSz, void* heap)
+void InitOcspResponse(OcspResponse* resp, CertStatus* status,
+                                                    byte* source, word32 inSz)
 {
-    XMEMSET(resp, 0, sizeof(*resp));
+    CYASSL_ENTER("InitOcspResponse");
+
+    resp->responseStatus = -1;
+    resp->response = NULL;
+    resp->responseSz = 0;
+    resp->producedAt = NULL;
+    resp->producedAtFormat = 0;
+    resp->issuerHash = NULL;
+    resp->issuerKeyHash = NULL;
+    resp->sig = NULL;
+    resp->sigSz = 0;
+    resp->sigOID = 0;
+    resp->status = status;
+    resp->nonce = NULL;
+    resp->nonceSz = 0;
     resp->source = source;
     resp->maxIdx = inSz;
-    resp->heap = heap;
-}
-
-
-void FreeOcspResponse(OcspResponse* resp)
-{
-    (void)resp;
 }
 
 
@@ -4455,6 +4503,8 @@ int OcspResponseDecode(OcspResponse* resp)
     byte* source = resp->source;
     word32 size = resp->maxIdx;
     word32 oid;
+
+    CYASSL_ENTER("OcspResponseDecode");
 
     /* peel the outer SEQUENCE wrapper */
     if (GetSequence(source, &idx, &length, size) < 0)
@@ -4501,6 +4551,8 @@ static int SetSerialNumber(const byte* sn, word32 snSz, byte* output)
 {
     int result = 0;
 
+    CYASSL_ENTER("SetSerialNumber");
+
     if (snSz <= EXTERNAL_SERIAL_SIZE) {
         output[0] = ASN_INTEGER;
         output[1] = snSz + 1;
@@ -4519,6 +4571,8 @@ static word32 SetOcspReqExtensions(word32 extSz, byte* output,
                                        0x30, 0x01, 0x02 };
     byte seqArray[5][MAX_SEQ_SZ];
     word32 seqSz[5], totalSz;
+
+    CYASSL_ENTER("SetOcspReqExtensions");
 
     if (nonce == NULL || nonceSz == 0) return 0;
     
@@ -4563,7 +4617,7 @@ static word32 SetOcspReqExtensions(word32 extSz, byte* output,
 }
 
 
-int EncodeOcspRequest(DecodedCert* cert, byte* output, word32 outputSz)
+int EncodeOcspRequest(OcspRequest* req)
 {
     byte seqArray[5][MAX_SEQ_SZ];
     /* The ASN.1 of the OCSP Request is an onion of sequences */
@@ -4572,29 +4626,34 @@ int EncodeOcspRequest(DecodedCert* cert, byte* output, word32 outputSz)
     byte issuerKeyArray[MAX_ENCODED_DIG_SZ];
     byte snArray[MAX_SN_SZ];
     byte extArray[MAX_OCSP_EXT_SZ];
-    byte nonceArray[MAX_OCSP_NONCE_SZ];
+    byte* output = req->dest;
+    word32 outputSz = req->destSz;
     RNG rng;
-    word32 seqSz[5], algoSz, issuerSz, issuerKeySz, snSz, nonceSz,
-        extSz, totalSz;
+    word32 seqSz[5], algoSz, issuerSz, issuerKeySz, snSz, extSz, totalSz;
     int i;
 
-    (void)outputSz;
-
     CYASSL_ENTER("EncodeOcspRequest");
+
     algoSz = SetAlgoID(SHAh, algoArray, hashType);
-    issuerSz = SetDigest(cert->issuerHash, SHA_SIZE, issuerArray);
-    issuerKeySz = SetDigest(cert->issuerKeyHash, SHA_SIZE, issuerKeyArray);
-    snSz = SetSerialNumber(cert->serial, cert->serialSz, snArray);
+
+    req->issuerHash = req->cert->issuerHash;
+    issuerSz = SetDigest(req->cert->issuerHash, SHA_SIZE, issuerArray);
+    
+    req->issuerKeyHash = req->cert->issuerKeyHash;
+    issuerKeySz = SetDigest(req->cert->issuerKeyHash, SHA_SIZE, issuerKeyArray);
+
+    req->serial = req->cert->serial;
+    req->serialSz = req->cert->serialSz;
+    snSz = SetSerialNumber(req->cert->serial, req->cert->serialSz, snArray);
 
     if (InitRng(&rng) != 0) {
         CYASSL_MSG("\tCannot initialize RNG. Skipping the OSCP Nonce.");
-        nonceSz = 0;
         extSz = 0;
     } else {
-        nonceSz = MAX_OCSP_NONCE_SZ;
-        RNG_GenerateBlock(&rng, nonceArray, nonceSz);
+        req->nonceSz = MAX_OCSP_NONCE_SZ;
+        RNG_GenerateBlock(&rng, req->nonce, req->nonceSz);
         extSz = SetOcspReqExtensions(MAX_OCSP_EXT_SZ, extArray,
-                                                        nonceArray, nonceSz);
+                                                    req->nonce, req->nonceSz);
     }
 
     totalSz = algoSz + issuerSz + issuerKeySz + snSz;
@@ -4626,12 +4685,18 @@ int EncodeOcspRequest(DecodedCert* cert, byte* output, word32 outputSz)
 }
 
 
-void InitOcspRequest(OcspRequest* req, byte* dest, word32 destSz, void* heap)
+void InitOcspRequest(OcspRequest* req, DecodedCert* cert,
+                                                    byte* dest, word32 destSz)
 {
-    XMEMSET(req, 0, sizeof(*req));
+    CYASSL_ENTER("InitOcspRequest");
+
+    req->cert = cert;
+    req->nonceSz = 0;
+    req->issuerHash = NULL;
+    req->issuerKeyHash = NULL;
+    req->serial = NULL;
     req->dest = dest;
     req->destSz = destSz;
-    req->heap = heap;
 }
 
 
@@ -4639,14 +4704,61 @@ int CompareOcspReqResp(OcspRequest* req, OcspResponse* resp)
 {
     int cmp;
 
-    if (req == NULL) return -1;
-    if (resp == NULL) return 1;
+    CYASSL_ENTER("CompareOcspReqResp");
+
+    if (req == NULL)
+    {
+        CYASSL_MSG("\tReq missing");
+        return -1;
+    }
+
+    if (resp == NULL)
+    {
+        CYASSL_MSG("\tResp missing");
+        return 1;
+    }
 
     cmp = req->nonceSz - resp->nonceSz;
-    if (cmp != 0) return cmp;
+    if (cmp != 0)
+    {
+        CYASSL_MSG("\tnonceSz mismatch");
+        return cmp;
+    }
 
     cmp = XMEMCMP(req->nonce, resp->nonce, req->nonceSz);
-    if (cmp != 0) return cmp;
+    if (cmp != 0)
+    {
+        CYASSL_MSG("\tnonce mismatch");
+        return cmp;
+    }
+
+    cmp = XMEMCMP(req->issuerHash, resp->issuerHash, SHA_DIGEST_SIZE);
+    if (cmp != 0)
+    {
+        CYASSL_MSG("\tissuerHash mismatch");
+        return cmp;
+    }
+
+    cmp = XMEMCMP(req->issuerKeyHash, resp->issuerKeyHash, SHA_DIGEST_SIZE);
+    if (cmp != 0)
+    {
+        CYASSL_MSG("\tissuerKeyHash mismatch");
+        return cmp;
+    }
+
+    cmp = req->serialSz - resp->status->serialSz;
+    if (cmp != 0)
+    {
+        CYASSL_MSG("\tserialSz mismatch");
+        return cmp;
+    }
+
+    cmp = XMEMCMP(req->serial, resp->status->serial, req->serialSz);
+    if (cmp != 0)
+    {
+        CYASSL_MSG("\tserial mismatch");
+        return cmp;
+    }
 
     return 0;
 }
