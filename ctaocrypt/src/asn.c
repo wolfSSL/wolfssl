@@ -63,6 +63,16 @@ enum {
 #endif
 
 
+#ifndef min
+
+    static INLINE word32 min(word32 a, word32 b)
+    {
+        return a > b ? b : a;
+    }
+
+#endif /* min */
+
+
 #ifdef THREADX
     /* uses parital <time.h> structures */
     #define XTIME(tl)  (0)
@@ -2710,7 +2720,7 @@ static int SetMyVersion(word32 version, byte* output, int header)
     }
     output[i++] = ASN_INTEGER;
     output[i++] = 0x01;
-    output[i++] = version;
+    output[i++] = (byte)version;
 
     return i;
 }
@@ -3183,8 +3193,6 @@ static const char* GetOneName(CertName* name, int idx)
     default:
        return 0;
     }
-
-    return 0;
 }
 
 
@@ -3220,8 +3228,6 @@ static byte GetNameId(int idx)
     default:
        return 0;
     }
-
-    return 0;
 }
 
 
@@ -3508,7 +3514,8 @@ static int WriteCertBody(DerCert* der, byte* buffer)
     idx += der->publicKeySz;
     if (der->extensionsSz) {
         /* extensions */
-        XMEMCPY(buffer + idx, der->extensions, der->extensionsSz);
+        XMEMCPY(buffer + idx, der->extensions, min(der->extensionsSz,
+                                                   sizeof(der->extensions)));
         idx += der->extensionsSz;
     }
 
