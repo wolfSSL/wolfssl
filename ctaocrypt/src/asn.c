@@ -4232,6 +4232,8 @@ static int DecodeSingleResponse(byte* source,
     if (GetBasicDate(source, &index, cs->thisDate,
                                                 &cs->thisDateFormat, size) < 0)
         return ASN_PARSE_E;
+    if (!ValidateDate(cs->thisDate, cs->thisDateFormat, BEFORE))
+        return ASN_BEFORE_DATE_E;
     
     /* The following items are optional. Only check for them if there is more
      * unprocessed data in the singleResponse wrapper. */
@@ -4361,11 +4363,11 @@ static int DecodeResponseData(byte* source,
         return ASN_PARSE_E;
     
     /* save pointer to the producedAt time */
-    if (source[idx++] != ASN_GENERALIZED_TIME)
+    if (GetBasicDate(source, &idx, resp->producedDate,
+                                        &resp->producedDateFormat, size) < 0)
         return ASN_PARSE_E;
-    if (GetLength(source, &idx, &length, size) < 0)
-        return ASN_PARSE_E;
-    resp->producedAt = source + idx;
+    if (!ValidateDate(resp->producedDate, resp->producedDateFormat, BEFORE))
+        return ASN_BEFORE_DATE_E;
     idx += length;
 
     if (DecodeSingleResponse(source, &idx, resp, size) < 0)
@@ -4481,8 +4483,7 @@ void InitOcspResponse(OcspResponse* resp, CertStatus* status,
     resp->responseStatus = -1;
     resp->response = NULL;
     resp->responseSz = 0;
-    resp->producedAt = NULL;
-    resp->producedAtFormat = 0;
+    resp->producedDateFormat = 0;
     resp->issuerHash = NULL;
     resp->issuerKeyHash = NULL;
     resp->sig = NULL;

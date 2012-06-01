@@ -378,8 +378,9 @@ struct OcspResponse {
     byte*   response;        /* Pointer to beginning of OCSP Response */
     word32  responseSz;      /* length of the OCSP Response */
 
-    byte*   producedAt;      /* Time at which this response was signed */
-    byte    producedAtFormat;/* format of the producedAt date */
+    byte    producedDate[MAX_DATE_SIZE];
+							 /* Date at which this response was signed */
+    byte    producedDateFormat; /* format of the producedDate */
     byte*   issuerHash;
     byte*   issuerKeyHash;
 

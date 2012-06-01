@@ -361,6 +361,7 @@ static CertStatus* find_cert_status(OCSP_Entry* ocspe, DecodedCert* cert)
             XMEMCPY(stat->serial, cert->serial, cert->serialSz);
             stat->serialSz = cert->serialSz;
             stat->status = -1;
+            stat->nextDate[0] = 0;
             ocspe->totalStatus++;
 
             stat->next = ocspe->status;
@@ -427,6 +428,22 @@ static int http_ocsp_transaction(CYASSL_OCSP* ocsp, DecodedCert* cert,
 }
 
 
+static int xstat2err(int stat)
+{
+    switch (stat) {
+        case CERT_GOOD:
+            return 0;
+            break;
+        case CERT_REVOKED:
+            return OCSP_CERT_REVOKED;
+            break;
+        default:
+            return OCSP_CERT_UNKNOWN;
+            break;
+    }
+}
+
+
 int CyaSSL_OCSP_Lookup_Cert(CYASSL_OCSP* ocsp, DecodedCert* cert)
 {
     byte ocspReqBuf[SCRATCH_BUFFER_SIZE];
@@ -460,6 +477,21 @@ int CyaSSL_OCSP_Lookup_Cert(CYASSL_OCSP* ocsp, DecodedCert* cert)
 
     if (certStatus->status != -1)
     {
+        if (!ValidateDate(certStatus->thisDate,
+                                        certStatus->thisDateFormat, BEFORE) ||
+            (certStatus->nextDate[0] == 0) ||
+            !ValidateDate(certStatus->nextDate,
+                                        certStatus->nextDateFormat, AFTER))
+        {
+            CYASSL_MSG("\tinvalid status date, looking up cert");
+            certStatus->status = -1;
+        }
+        else
+        {
+            CYASSL_MSG("\tusing cached status");
+            result = xstat2err(certStatus->status);
+            return result;
+        }
     }
     
     InitOcspRequest(&ocspRequest, cert, ocspReqBuf, ocspReqSz);
@@ -478,17 +510,7 @@ int CyaSSL_OCSP_Lookup_Cert(CYASSL_OCSP* ocsp, DecodedCert* cert)
     } else {
         if (CompareOcspReqResp(&ocspRequest, &ocspResponse) == 0)
         {
-            switch (ocspResponse.status[0].status) {
-                case CERT_GOOD:
-                    result = 0;
-                    break;
-                case CERT_REVOKED:
-                    result = OCSP_CERT_REVOKED;
-                    break;
-                default:
-                    result = OCSP_CERT_UNKNOWN;
-                    break;
-            }
+            result = xstat2err(ocspResponse.status->status);
         }
         else
         {
