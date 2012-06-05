@@ -500,10 +500,25 @@ AC_ARG_ENABLE(crl,
 
 if test "$ENABLED_CRL" = "yes"
 then
-    AM_CFLAGS="$AM_CFLAGS -DHAVE_CRL -DHAVE_CRL_MONITOR"
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_CRL"
 fi
 
 AM_CONDITIONAL([BUILD_CRL], [test "x$ENABLED_CRL" = "xyes"])
+
+
+# CRL Monitor
+AC_ARG_ENABLE(crl-monitor,
+    [  --enable-crl-monitor    Enable CRL Monitor (default: disabled)],
+    [ ENABLED_CRL_MONITOR=$enableval ],
+    [ ENABLED_CRL_MONITOR=no ],
+    )
+
+if test "$ENABLED_CRL_MONITOR" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_CRL_MONITOR"
+fi
+
+AM_CONDITIONAL([BUILD_CRL_MONITOR], [test "x$ENABLED_CRL_MONITOR" = "xyes"])
 
 
 # NTRU

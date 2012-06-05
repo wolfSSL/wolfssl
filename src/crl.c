@@ -492,6 +492,9 @@ static int StartMonitorCRL(CYASSL_CRL* crl)
 
 static int StartMonitorCRL(CYASSL_CRL* crl)
 {
+    CYASSL_ENTER("StartMonitorCRL");
+    CYASSL_MSG("Not compiled in");
+
     return NOT_COMPILED_IN;
 }
 
