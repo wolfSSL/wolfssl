@@ -33,6 +33,16 @@
 #ifndef NO_TLS
 
 
+#ifndef min
+
+    static INLINE word32 min(word32 a, word32 b)
+    {
+        return a > b ? b : a;
+    }
+
+#endif /* min */
+
+
 /* calculate XOR for TLSv1 PRF */
 static INLINE void get_xor(byte *digest, word32 digLen, byte* md5, byte* sha)
 {
@@ -74,7 +84,7 @@ static void p_hash(byte* result, word32 resLen, const byte* secret,
         HmacFinal(&hmac, current);
 
         if ( (i == lastTime) && lastLen)
-            XMEMCPY(&result[idx], current, lastLen);
+            XMEMCPY(&result[idx], current, min(lastLen, sizeof(current)));
         else {
             XMEMCPY(&result[idx], current, len);
             idx += len;

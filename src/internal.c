@@ -2822,7 +2822,7 @@ static int BuildMessage(CYASSL* ssl, byte* output, const byte* input, int inSz,
 
     /* write to output */
     if (ivSz) {
-        XMEMCPY(output + idx, iv, ivSz);
+        XMEMCPY(output + idx, iv, min(ivSz, sizeof(iv)));
         idx += ivSz;
     }
     XMEMCPY(output + idx, input, inSz);
@@ -4235,7 +4235,7 @@ int SetCipherList(Suites* s, const char* list)
         i += RAN_LEN;
         b = input[i++];
         if (b) {
-            XMEMCPY(ssl->arrays.sessionID, input + i, b);
+            XMEMCPY(ssl->arrays.sessionID, input + i, min(b, ID_LEN));
             i += b;
             ssl->options.haveSessionId = 1;
         }
@@ -4506,7 +4506,7 @@ int SetCipherList(Suites* s, const char* list)
                 encSigSz = EncodeSignature(encodedSig, digest, digestSz, typeH);
 
                 if (encSigSz != (word32)ret || XMEMCMP(out, encodedSig,
-                                                       encSigSz) != 0)
+                                        min(encSigSz, MAX_ENCODED_SIG_SZ)) != 0)
                     return VERIFY_SIGN_ERROR;
             }
             else { 
@@ -4673,7 +4673,7 @@ int SetCipherList(Suites* s, const char* list)
 
             /* precede export with 1 byte length */
             ret = ecc_export_x963(&myKey, encSecret + 1, &size);
-            encSecret[0] = size;
+            encSecret[0] = (byte)size;
             encSz = size + 1;
 
             if (ret != 0)
@@ -6139,12 +6139,13 @@ int SetCipherList(Suites* s, const char* list)
 
                 sigSz = EncodeSignature(encodedSig, digest, digestSz, typeH);
 
-                if (outLen == (int)sigSz && XMEMCMP(out, encodedSig,sigSz) == 0)
+                if (outLen == (int)sigSz && XMEMCMP(out, encodedSig,
+                                           min(sigSz, MAX_ENCODED_SIG_SZ)) == 0)
                     ret = 0;  /* verified */
             }
             else {
                 if (outLen == sizeof(ssl->certHashes) && XMEMCMP(out,
-                             ssl->certHashes.md5, sizeof(ssl->certHashes)) == 0)
+                                &ssl->certHashes, sizeof(ssl->certHashes)) == 0)
                     ret = 0;  /* verified */
             }
         }
