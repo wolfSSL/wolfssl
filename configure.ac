@@ -6,7 +6,7 @@
 #
 #
 
-AC_INIT([cyassl],[2.2.3],[http://www.yassl.com])
+AC_INIT([cyassl],[2.2.4],[http://www.yassl.com])
 
 AC_CONFIG_AUX_DIR(config)
 
