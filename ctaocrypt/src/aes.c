@@ -1404,5 +1404,31 @@ void AesCtrEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 
 #endif /* CYASSL_AES_COUNTER */
 
+
+#ifdef HAVE_AESGCM
+
+void AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
+                   byte* authTag, word32 authTagSz,
+                   const byte* authIn, word32 authInSz)
+{
+	word32 blocks = sz / AES_BLOCK_SIZE;
+	
+	CYASSL_ENTER("AesGcmEncrypt");
+	while (blocks--) {
+	}
+}
+
+
+int  AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
+                   const byte* authTag, word32 authTagSz,
+                   const byte* authIn, word32 authInSz)
+{
+	CYASSL_ENTER("AesGcmDecrypt");
+	return 0;
+}
+
+#endif /* HAVE_AESGCM */
+
+
 #endif /* NO_AES */
 

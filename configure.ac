@@ -6,7 +6,7 @@
 #
 #
 
-AC_INIT([cyassl],[2.2.4],[http://www.yassl.com])
+AC_INIT([cyassl],[2.2.5],[http://www.yassl.com])
 
 AC_CONFIG_AUX_DIR(config)
 
@@ -288,6 +288,20 @@ then
 fi
 
 AM_CONDITIONAL([BUILD_SNIFFER], [test "x$ENABLED_SNIFFER" = "xyes"])
+
+# AES-GCM
+AC_ARG_ENABLE(aesgcm,
+    [  --enable-aesgcm         Enable CyaSSL AES-GCM support (default: disabled)],
+    [ ENABLED_AESGCM=$enableval ],
+    [ ENABLED_AESGCM=no ]
+    )
+
+if test "$ENABLED_AESGCM" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_AESGCM"
+fi
+
+AM_CONDITIONAL([BUILD_AESGCM], [test "x$ENABLED_AESGCM" = "xyes"])
 
 # AES-NI
 AC_ARG_ENABLE(aesni,

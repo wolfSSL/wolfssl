@@ -80,6 +80,15 @@ CYASSL_API void AesCtrEncrypt(Aes* aes, byte* out, const byte* in, word32 sz);
 CYASSL_API void AesEncryptDirect(Aes* aes, byte* out, const byte* in);
 CYASSL_API void AesDecryptDirect(Aes* aes, byte* out, const byte* in);
 
+#ifdef HAVE_AESGCM
+CYASSL_API void AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
+                              byte* authTag, word32 authTagSz,
+                              const byte* authIn, word32 authInSz);
+CYASSL_API int  AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
+                              const byte* authTag, word32 authTagSz,
+                              const byte* authIn, word32 authInSz);
+#endif /* HAVE_AESGCM */
+
 
 #ifdef __cplusplus
     } /* extern "C" */
