@@ -1407,15 +1407,182 @@ void AesCtrEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 
 #ifdef HAVE_AESGCM
 
+static INLINE void InitGcmCounter(byte* inOutCtr)
+{
+    inOutCtr[AES_BLOCK_SIZE - 4] = 0;
+    inOutCtr[AES_BLOCK_SIZE - 3] = 0;
+    inOutCtr[AES_BLOCK_SIZE - 2] = 0;
+    inOutCtr[AES_BLOCK_SIZE - 1] = 1;
+}
+
+
+static INLINE void IncrementGcmCounter(byte* inOutCtr)
+{
+    int i;
+
+    /* in network byte order so start at end and work back */
+    for (i = AES_BLOCK_SIZE - 1; i >= AES_BLOCK_SIZE - 4; i--) {
+        if (++inOutCtr[i])  /* we're done unless we overflow */
+            return;
+    }
+}
+
+
+static void RIGHTSHIFT(byte* x)
+{
+    int i;
+    int carryOut = 0;
+    int carryIn = 0;
+
+    for (i = 0; i < AES_BLOCK_SIZE; i++) {
+        carryOut = x[i] & 0x01;
+        x[i] = (x[i] >> 1) | (carryIn ? 0x80 : 0);
+        carryIn = carryOut;
+    }
+}
+
+
+static void GMULT(byte* X, byte* Y)
+{
+    byte R[AES_BLOCK_SIZE];
+    byte Z[AES_BLOCK_SIZE];
+    byte V[AES_BLOCK_SIZE];
+    int i, j;
+
+    XMEMSET(R, 0, AES_BLOCK_SIZE);
+    R[0] = 0xE1;
+    XMEMSET(Z, 0, AES_BLOCK_SIZE);
+    XMEMCPY(V, X, AES_BLOCK_SIZE);
+    for (i = 0; i < AES_BLOCK_SIZE; i++)
+    {
+        byte y = Y[i];
+        for (j = 0; j < 8; j++)
+        {
+            if (y & 0x80) {
+                xorbuf(Z, V, AES_BLOCK_SIZE);
+            }
+
+            if (V[15] & 0x01) {
+                RIGHTSHIFT(V);
+                xorbuf(V, R, AES_BLOCK_SIZE);
+            } else {
+                RIGHTSHIFT(V);
+            }
+            y = y << 1;
+        }
+    }
+    XMEMCPY(X, Z, AES_BLOCK_SIZE);
+}
+
+
+static void GHASH(byte* h, const byte* a, word32 aSz,
+                                const byte* c, word32 cSz, byte* s, word32 sSz)
+{
+    byte x[AES_BLOCK_SIZE];
+    word32 blocks, partial;
+
+    XMEMSET(x, 0, AES_BLOCK_SIZE);
+
+    /* Hash in A, the Additional Authentication Data */
+    if (aSz != 0 && a != NULL) {
+        blocks = aSz / AES_BLOCK_SIZE;
+        partial = aSz % AES_BLOCK_SIZE;
+        while (blocks--) {
+            xorbuf(x, a, AES_BLOCK_SIZE);
+            GMULT(x, h);
+            a += AES_BLOCK_SIZE;
+        }
+        if (partial != 0) {
+            byte scratch[AES_BLOCK_SIZE];
+            XMEMSET(scratch, 0, AES_BLOCK_SIZE);
+            XMEMCPY(scratch, a, partial);
+            xorbuf(x, scratch, AES_BLOCK_SIZE);
+            GMULT(x, h);
+        }
+    }
+
+    /* Hash in C, the Ciphertext */
+    if (cSz != 0 && c != NULL) {
+        blocks = cSz / AES_BLOCK_SIZE;
+        partial = cSz % AES_BLOCK_SIZE;
+        while (blocks--) {
+            xorbuf(x, c, AES_BLOCK_SIZE);
+            GMULT(x, h);
+            c += AES_BLOCK_SIZE;
+        }
+        if (partial != 0) {
+            byte scratch[AES_BLOCK_SIZE];
+            XMEMSET(scratch, 0, AES_BLOCK_SIZE);
+            XMEMCPY(scratch, c, partial);
+            xorbuf(x, scratch, AES_BLOCK_SIZE);
+            GMULT(x, h);
+        }
+    }
+
+    /* Hash in the lengths in bits of A and C */
+    {
+        byte len[AES_BLOCK_SIZE];
+        XMEMSET(len, 0, AES_BLOCK_SIZE);
+        len[3] = aSz >> 29;
+        len[4] = aSz >> 21;
+        len[5] = aSz >> 13;
+        len[6] = aSz >> 5;
+        len[7] = aSz << 3;
+
+        len[11] = cSz >> 29;
+        len[12] = cSz >> 21;
+        len[13] = cSz >> 13;
+        len[14] = cSz >> 5;
+        len[15] = cSz << 3;
+        xorbuf(x, len, AES_BLOCK_SIZE);
+        GMULT(x, h);
+    }
+    XMEMCPY(s, x, sSz);
+}
+
+
 void AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
                    byte* authTag, word32 authTagSz,
                    const byte* authIn, word32 authInSz)
 {
-	word32 blocks = sz / AES_BLOCK_SIZE;
-	
-	CYASSL_ENTER("AesGcmEncrypt");
-	while (blocks--) {
-	}
+    word32 blocks = sz / AES_BLOCK_SIZE;
+    word32 partial = sz % AES_BLOCK_SIZE;
+    const byte* p = in;
+    byte* c = out;
+    byte h[AES_BLOCK_SIZE];
+    byte ctr[AES_BLOCK_SIZE];
+    
+    CYASSL_ENTER("AesGcmEncrypt");
+
+    /* Set up the H block by encrypting an array of zeroes with the key. */
+    XMEMSET(ctr, 0, AES_BLOCK_SIZE);
+    AesEncrypt(aes, ctr, h);
+
+    /* Initialize the counter with the MS 96 bits of IV, and the counter
+     * portion set to "1". */
+    XMEMCPY(ctr, aes->reg, AES_BLOCK_SIZE - 4);
+    InitGcmCounter(ctr);
+
+    while (blocks--) {
+        IncrementGcmCounter(ctr);
+        AesEncrypt(aes, ctr, c);
+        xorbuf(c, p, AES_BLOCK_SIZE);
+
+        p += AES_BLOCK_SIZE;
+        c += AES_BLOCK_SIZE;
+    }
+    if (partial != 0) {
+        byte cPartial[AES_BLOCK_SIZE];
+
+        IncrementGcmCounter(ctr);
+        AesEncrypt(aes, ctr, cPartial);
+        XMEMCPY(c, cPartial, partial);
+        xorbuf(c, p, partial);
+    }
+    GHASH(h, authIn, authInSz, out, sz, authTag, authTagSz);
+    InitGcmCounter(ctr);
+    AesEncrypt(aes, ctr, h);
+    xorbuf(authTag, h, authTagSz);
 }
 
 
@@ -1423,8 +1590,8 @@ int  AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
                    const byte* authTag, word32 authTagSz,
                    const byte* authIn, word32 authInSz)
 {
-	CYASSL_ENTER("AesGcmDecrypt");
-	return 0;
+    CYASSL_ENTER("AesGcmDecrypt");
+    return 0;
 }
 
 #endif /* HAVE_AESGCM */
