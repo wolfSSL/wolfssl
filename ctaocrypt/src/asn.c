@@ -2698,6 +2698,10 @@ void CTaoCryptErrorString(int error, char* buffer)
         XSTRNCPY(buffer, "Alt Name problem, too big", max);
         break;
 
+    case AES_GCM_AUTH_E:
+        XSTRNCPY(buffer, "AES-GCM Authentication check fail", max);
+        break;
+
     default:
         XSTRNCPY(buffer, "unknown error number", max);
 

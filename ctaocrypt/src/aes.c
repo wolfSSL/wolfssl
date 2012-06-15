@@ -1551,7 +1551,7 @@ void AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     byte* c = out;
     byte h[AES_BLOCK_SIZE];
     byte ctr[AES_BLOCK_SIZE];
-    
+
     CYASSL_ENTER("AesGcmEncrypt");
 
     /* Set up the H block by encrypting an array of zeroes with the key. */
@@ -1590,7 +1590,55 @@ int  AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
                    const byte* authTag, word32 authTagSz,
                    const byte* authIn, word32 authInSz)
 {
+    word32 blocks = sz / AES_BLOCK_SIZE;
+    word32 partial = sz % AES_BLOCK_SIZE;
+    const byte* c = in;
+    byte* p = out;
+    byte h[AES_BLOCK_SIZE];
+    byte ctr[AES_BLOCK_SIZE];
+
     CYASSL_ENTER("AesGcmDecrypt");
+
+    /* Set up the H block by encrypting an array of zeroes with the key. */
+    XMEMSET(ctr, 0, AES_BLOCK_SIZE);
+    AesEncrypt(aes, ctr, h);
+
+    /* Initialize the counter with the MS 96 bits of IV, and the counter
+     * portion set to "1". */
+    XMEMCPY(ctr, aes->reg, AES_BLOCK_SIZE - 4);
+    InitGcmCounter(ctr);
+
+    /* Calculate the authTag again using the received auth data and the
+     * cipher text. */
+    {
+        byte Tprime[AES_BLOCK_SIZE];
+        byte EKY0[AES_BLOCK_SIZE];
+
+        GHASH(h, authIn, authInSz, in, sz, Tprime, sizeof(Tprime));
+        AesEncrypt(aes, ctr, EKY0);
+        xorbuf(Tprime, EKY0, sizeof(Tprime));
+        if (XMEMCMP(authTag, Tprime, authTagSz) != 0) {
+            return AES_GCM_AUTH_E;
+        }
+    }
+
+    while (blocks--) {
+        IncrementGcmCounter(ctr);
+        AesEncrypt(aes, ctr, p);
+        xorbuf(p, c, AES_BLOCK_SIZE);
+
+        p += AES_BLOCK_SIZE;
+        c += AES_BLOCK_SIZE;
+    }
+    if (partial != 0) {
+        byte pPartial[AES_BLOCK_SIZE];
+
+        IncrementGcmCounter(ctr);
+        AesEncrypt(aes, ctr, pPartial);
+        XMEMCPY(p, pPartial, partial);
+        xorbuf(p, c, partial);
+    }
+
     return 0;
 }
 
