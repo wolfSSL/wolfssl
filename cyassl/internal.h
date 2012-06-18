@@ -44,6 +44,9 @@
 #ifdef HAVE_OCSP
     #include <cyassl/ocsp.h>
 #endif
+#ifdef CYASSL_SHA512
+    #include <cyassl/ctaocrypt/sha512.h>
+#endif
 
 #ifdef CYASSL_CALLBACKS
     #include <cyassl/openssl/cyassl_callbacks.h>
@@ -147,6 +150,10 @@ void c32to24(word32 in, word24 out);
         #define BUILD_TLS_RSA_WITH_AES_128_CBC_SHA256
         #define BUILD_TLS_RSA_WITH_AES_256_CBC_SHA256
     #endif
+    #if defined (HAVE_AESGCM)
+        #define BUILD_TLS_RSA_WITH_AES_128_GCM_SHA256
+        #define BUILD_TLS_RSA_WITH_AES_256_GCM_SHA384
+    #endif
 #endif
 
 #if !defined(NO_HC128) && !defined(NO_TLS)
@@ -164,6 +171,10 @@ void c32to24(word32 in, word24 out);
     #if !defined (NO_SHA256)
         #define BUILD_TLS_DHE_RSA_WITH_AES_128_CBC_SHA256
         #define BUILD_TLS_DHE_RSA_WITH_AES_256_CBC_SHA256
+        #if defined (HAVE_AESGCM)
+            #define BUILD_TLS_DHE_RSA_WITH_AES_128_GCM_SHA256
+            #define BUILD_TLS_DHE_RSA_WITH_AES_256_GCM_SHA384
+        #endif
     #endif
 #endif
 
@@ -178,6 +189,18 @@ void c32to24(word32 in, word24 out);
         #define BUILD_TLS_ECDH_RSA_WITH_AES_256_CBC_SHA
         #define BUILD_TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA
         #define BUILD_TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA
+
+        #if defined (HAVE_AESGCM)
+            #define BUILD_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+            #define BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256
+            #define BUILD_TLS_ECDH_RSA_WITH_AES_128_GCM_SHA256
+            #define BUILD_TLS_ECDH_ECDSA_WITH_AES_128_GCM_SHA256
+
+            #define BUILD_TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
+            #define BUILD_TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384
+            #define BUILD_TLS_ECDH_RSA_WITH_AES_256_GCM_SHA384
+            #define BUILD_TLS_ECDH_ECDSA_WITH_AES_256_GCM_SHA384
+        #endif
     #endif
     #if !defined(NO_RC4)
         #define BUILD_TLS_ECDHE_RSA_WITH_RC4_128_SHA
@@ -275,7 +298,23 @@ enum {
     TLS_DHE_RSA_WITH_AES_256_CBC_SHA256 = 0x6b,
     TLS_DHE_RSA_WITH_AES_128_CBC_SHA256 = 0x67,
     TLS_RSA_WITH_AES_256_CBC_SHA256     = 0x3d,
-    TLS_RSA_WITH_AES_128_CBC_SHA256     = 0x3c
+    TLS_RSA_WITH_AES_128_CBC_SHA256     = 0x3c,
+
+    /* AES-GCM */
+    TLS_RSA_WITH_AES_128_GCM_SHA256          = 0x9c,
+    TLS_RSA_WITH_AES_256_GCM_SHA384          = 0x9d,
+    TLS_DHE_RSA_WITH_AES_128_GCM_SHA256      = 0x9e,
+    TLS_DHE_RSA_WITH_AES_256_GCM_SHA384      = 0x9f,
+
+    /* ECC AES-GCM, first byte is 0xC0 (ECC_BYTE) */
+    TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256  = 0x2b,
+    TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384  = 0x2c,
+    TLS_ECDH_ECDSA_WITH_AES_128_GCM_SHA256   = 0x2d,
+    TLS_ECDH_ECDSA_WITH_AES_256_GCM_SHA384   = 0x2e,
+    TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256    = 0x2f,
+    TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384    = 0x30,
+    TLS_ECDH_RSA_WITH_AES_128_GCM_SHA256     = 0x31,
+    TLS_ECDH_RSA_WITH_AES_256_GCM_SHA384     = 0x32
 };
 
 
@@ -763,7 +802,7 @@ int AlreadySigner(CYASSL_CERT_MANAGER* cm, byte* hash);
 /* All cipher suite related info */
 typedef struct CipherSpecs {
     byte bulk_cipher_algorithm;
-    byte cipher_type;               /* block or stream */
+    byte cipher_type;               /* block, stream, or aead */
     byte mac_algorithm;
     byte kea;                       /* key exchange algo */
     byte sig_algo;
@@ -787,6 +826,7 @@ enum BulkCipherAlgorithm {
     des40,
     idea,
     aes,
+    aes_gcm,
     hc128,                  /* CyaSSL extensions */
     rabbit
 };
@@ -857,7 +897,7 @@ enum ClientCertificateType {
 };
 
 
-enum CipherType { stream, block };
+enum CipherType { stream, block, aead };
 
 
 /* keys and secrets */

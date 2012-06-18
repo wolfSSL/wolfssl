@@ -470,6 +470,90 @@ void InitSuites(Suites* suites, ProtocolVersion pv, byte haveDH, byte havePSK,
         tls = 1;
 #endif
 
+#ifdef BUILD_TLS_RSA_WITH_AES_128_GCM_SHA256
+    if (tls1_2 && haveRSA) {
+        suites->suites[idx++] = 0;
+        suites->suites[idx++] = TLS_RSA_WITH_AES_128_GCM_SHA256;
+    }
+#endif
+
+#ifdef BUILD_TLS_RSA_WITH_AES_256_GCM_SHA384
+    if (tls1_2 && haveRSA) {
+        suites->suites[idx++] = 0;
+        suites->suites[idx++] = TLS_RSA_WITH_AES_256_GCM_SHA384;
+    }
+#endif
+
+#ifdef BUILD_TLS_DHE_RSA_WITH_AES_128_GCM_SHA256
+    if (tls1_2 && haveDH && haveRSA) {
+        suites->suites[idx++] = 0;
+        suites->suites[idx++] = TLS_DHE_RSA_WITH_AES_128_GCM_SHA256;
+    }
+#endif
+
+#ifdef BUILD_TLS_DHE_RSA_WITH_AES_256_GCM_SHA384
+    if (tls1_2 && haveDH && haveRSA) {
+        suites->suites[idx++] = 0;
+        suites->suites[idx++] = TLS_DHE_RSA_WITH_AES_256_GCM_SHA384;
+    }
+#endif
+
+#ifdef BUILD_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+    if (tls1_2 && haveRSA) {
+        suites->suites[idx++] = ECC_BYTE;
+        suites->suites[idx++] = TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256;
+    }
+#endif
+
+#ifdef BUILD_TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
+    if (tls1_2 && haveRSA) {
+        suites->suites[idx++] = ECC_BYTE;
+        suites->suites[idx++] = TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384;
+    }
+#endif
+
+#ifdef BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256
+    if (tls1_2 && haveECDSA) {
+        suites->suites[idx++] = ECC_BYTE;
+        suites->suites[idx++] = TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256;
+    }
+#endif
+
+#ifdef BUILD_TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384
+    if (tls1_2 && haveECDSA) {
+        suites->suites[idx++] = ECC_BYTE;
+        suites->suites[idx++] = TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384;
+    }
+#endif
+
+#ifdef BUILD_TLS_ECDH_RSA_WITH_AES_128_GCM_SHA256
+    if (tls1_2 && haveRSA && haveStaticECC) {
+        suites->suites[idx++] = ECC_BYTE;
+        suites->suites[idx++] = TLS_ECDH_RSA_WITH_AES_128_GCM_SHA256;
+    }
+#endif
+
+#ifdef BUILD_TLS_ECDH_RSA_WITH_AES_256_GCM_SHA384
+    if (tls1_2 && haveRSA && haveStaticECC) {
+        suites->suites[idx++] = ECC_BYTE;
+        suites->suites[idx++] = TLS_ECDH_RSA_WITH_AES_256_GCM_SHA384;
+    }
+#endif
+
+#ifdef BUILD_TLS_ECDH_ECDSA_WITH_AES_128_GCM_SHA256
+    if (tls1_2 && haveECDSA && haveStaticECC) {
+        suites->suites[idx++] = ECC_BYTE;
+        suites->suites[idx++] = TLS_ECDH_ECDSA_WITH_AES_128_GCM_SHA256;
+    }
+#endif
+
+#ifdef BUILD_TLS_ECDH_ECDSA_WITH_AES_256_GCM_SHA384
+    if (tls1_2 && haveECDSA && haveStaticECC) {
+        suites->suites[idx++] = ECC_BYTE;
+        suites->suites[idx++] = TLS_ECDH_ECDSA_WITH_AES_256_GCM_SHA384;
+    }
+#endif
+
 #ifdef BUILD_TLS_NTRU_RSA_WITH_AES_256_CBC_SHA
     if (tls && haveNTRU && haveRSA) {
         suites->suites[idx++] = 0; 
@@ -3708,7 +3792,55 @@ const char* const cipher_names[] =
 #endif
 
 #ifdef BUILD_TLS_ECDH_ECDSA_WITH_3DES_EDE_CBC_SHA
-    "ECDH-ECDSA-DES-CBC3-SHA"
+    "ECDH-ECDSA-DES-CBC3-SHA",
+#endif
+
+#ifdef BUILD_TLS_RSA_WITH_AES_128_GCM_SHA256
+    "AES128-GCM-SHA256",
+#endif
+
+#ifdef BUILD_TLS_RSA_WITH_AES_256_GCM_SHA384
+    "AES256-GCM-SHA384",
+#endif
+
+#ifdef BUILD_TLS_DHE_RSA_WITH_AES_128_GCM_SHA256
+    "DHE-RSA-AES128-GCM-SHA256",
+#endif
+
+#ifdef BUILD_TLS_DHE_RSA_WITH_AES_256_GCM_SHA384
+    "DHE-RSA-AES256-GCM-SHA384",
+#endif
+
+#ifdef BUILD_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+    "ECDHE-RSA-AES128-GCM-SHA256",
+#endif
+
+#ifdef BUILD_TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
+    "ECDHE-RSA-AES256-GCM-SHA384",
+#endif
+
+#ifdef BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256
+    "ECDHE-EDCSA-AES128-GCM-SHA256",
+#endif
+
+#ifdef BUILD_TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384
+    "ECDHE-ECDSA-AES256-GCM-SHA384",
+#endif
+
+#ifdef BUILD_TLS_ECDH_RSA_WITH_AES_128_GCM_SHA256
+    "ECDH-RSA-AES128-GCM-SHA256",
+#endif
+
+#ifdef BUILD_TLS_ECDH_RSA_WITH_AES_256_GCM_SHA384
+    "ECDH-RSA-AES128-GCM-SHA384",
+#endif
+
+#ifdef BUILD_TLS_ECDH_ECDSA_WITH_AES_128_GCM_SHA256
+    "ECDH-ECDSA-AES128-GCM-SHA256",
+#endif
+
+#ifdef BUILD_TLS_ECDH_ECDSA_WITH_AES_256_GCM_SHA384
+    "ECDH-ECDSA-AES256-GCM-SHA384"
 #endif
 
 };
@@ -3860,7 +3992,55 @@ int cipher_name_idx[] =
 #endif
 
 #ifdef BUILD_TLS_ECDH_ECDSA_WITH_3DES_EDE_CBC_SHA
-    TLS_ECDH_ECDSA_WITH_3DES_EDE_CBC_SHA
+    TLS_ECDH_ECDSA_WITH_3DES_EDE_CBC_SHA,
+#endif
+
+#ifdef BUILD_TLS_RSA_WITH_AES_128_GCM_SHA256
+    TLS_RSA_WITH_AES_128_GCM_SHA256,
+#endif
+
+#ifdef BUILD_TLS_RSA_WITH_AES_256_GCM_SHA384
+    TLS_RSA_WITH_AES_256_GCM_SHA384,
+#endif
+
+#ifdef BUILD_TLS_DHE_RSA_WITH_AES_128_GCM_SHA256
+    TLS_DHE_RSA_WITH_AES_128_GCM_SHA256,
+#endif
+
+#ifdef BUILD_DHE_TLS_RSA_WITH_AES_256_GCM_SHA384
+    TLS_DHE_RSA_WITH_AES_256_GCM_SHA384,
+#endif
+
+#ifdef BUILD_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+    TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+#endif
+
+#ifdef BUILD_TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
+    TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
+#endif
+
+#ifdef BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256
+    TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
+#endif
+
+#ifdef BUILD_TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384
+    TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
+#endif
+
+#ifdef BUILD_TLS_ECDH_RSA_WITH_AES_128_GCM_SHA256
+    TLS_ECDH_RSA_WITH_AES_128_GCM_SHA256,
+#endif
+
+#ifdef BUILD_TLS_ECDH_RSA_WITH_AES_256_GCM_SHA384
+    TLS_ECDH_RSA_WITH_AES_256_GCM_SHA384,
+#endif
+
+#ifdef BUILD_TLS_ECDH_ECDSA_WITH_AES_128_GCM_SHA256
+    TLS_ECDH_ECDSA_WITH_AES_128_GCM_SHA256,
+#endif
+
+#ifdef BUILD_TLS_ECDH_ECDSA_WITH_AES_256_GCM_SHA384
+    TLS_ECDH_ECDSA_WITH_AES_256_GCM_SHA384
 #endif
 
 };
@@ -5545,6 +5725,46 @@ int SetCipherList(Suites* s, const char* list)
                 return 1;
             break;
 
+        case TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256 :
+            if (requirement == ecc_dsa_sa_algo)
+                return 1;
+            break;
+
+        case TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384 :
+            if (requirement == ecc_dsa_sa_algo)
+                return 1;
+            break;
+
+        case TLS_ECDH_ECDSA_WITH_AES_128_GCM_SHA256 :
+            if (requirement == ecc_static_diffie_hellman_kea)
+                return 1;
+            break;
+
+        case TLS_ECDH_ECDSA_WITH_AES_256_GCM_SHA384 :
+            if (requirement == ecc_static_diffie_hellman_kea)
+                return 1;
+            break;
+
+        case TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256 :
+            if (requirement == rsa_kea)
+                return 1;
+            break;
+
+        case TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384 :
+            if (requirement == rsa_kea)
+                return 1;
+            break;
+
+        case TLS_ECDH_RSA_WITH_AES_128_GCM_SHA256 :
+            if (requirement == ecc_static_diffie_hellman_kea)
+                return 1;
+            break;
+
+        case TLS_ECDH_RSA_WITH_AES_256_GCM_SHA384 :
+            if (requirement == ecc_static_diffie_hellman_kea)
+                return 1;
+            break;
+
         default:
             CYASSL_MSG("Unsupported cipher suite, CipherRequires ECC");
             return 0;
@@ -5658,6 +5878,20 @@ int SetCipherList(Suites* s, const char* list)
 
         case TLS_RSA_WITH_RABBIT_CBC_SHA :
             if (requirement == rsa_kea)
+                return 1;
+            break;
+
+        case TLS_RSA_WITH_AES_128_GCM_SHA256 :
+        case TLS_RSA_WITH_AES_256_GCM_SHA384 :
+            if (requirement == rsa_kea)
+                return 1;
+            break;
+
+        case TLS_DHE_RSA_WITH_AES_128_GCM_SHA256 :
+        case TLS_DHE_RSA_WITH_AES_256_GCM_SHA384 :
+            if (requirement == rsa_kea)
+                return 1;
+            if (requirement == diffie_hellman_kea)
                 return 1;
             break;
 
