@@ -233,6 +233,11 @@ void c32to24(word32 in, word24 out);
     #define BUILD_AES
 #endif
 
+#if defined(BUILD_TLS_DHE_RSA_WITH_AES_128_GCM_SHA256) || \
+    defined(BUILD_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256)
+    #define BUILD_AESGCM
+#endif
+
 #if defined(BUILD_TLS_RSA_WITH_HC_128_CBC_SHA) || \
     defined(BUILD_TLS_RSA_WITH_HC_128_CBC_MD5)
     #define BUILD_HC128
@@ -398,6 +403,8 @@ enum Misc {
     AES_256_KEY_SIZE    = 32,  /* for 256 bit             */
     AES_192_KEY_SIZE    = 24,  /* for 192 bit             */
     AES_IV_SIZE         = 16,  /* always block size       */
+    AES_GCM_IMPLICIT_IV_SIZE = 4, /* Implicit half of IV  */
+    AES_GCM_EXPLICIT_IV_SIZE = 8, /* Explicit half of IV  */
     AES_128_KEY_SIZE    = 16,  /* for 128 bit             */
 
     HC_128_KEY_SIZE     = 16,  /* 128 bits                */
@@ -1167,6 +1174,9 @@ struct CYASSL {
     Sha             hashSha;            /* sha hash of handshake msgs */
 #ifndef NO_SHA256
     Sha256          hashSha256;         /* sha256 hash of handshake msgs */
+#endif
+#ifdef CYASSL_SHA384
+    Sha384          hashSha384;         /* sha384 hash of handshake msgs */
 #endif
     Hashes          verifyHashes;
     Hashes          certHashes;         /* for cert verify */

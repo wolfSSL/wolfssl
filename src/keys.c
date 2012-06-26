@@ -323,7 +323,7 @@ int SetCipherSpecs(CYASSL* ssl)
         ssl->specs.static_ecdh           = 0;
         ssl->specs.key_size              = AES_128_KEY_SIZE;
         ssl->specs.block_size            = AES_BLOCK_SIZE;
-        ssl->specs.iv_size               = AES_IV_SIZE;
+        ssl->specs.iv_size               = AES_GCM_IMPLICIT_IV_SIZE;
 
         break;
 #endif
@@ -340,7 +340,7 @@ int SetCipherSpecs(CYASSL* ssl)
         ssl->specs.static_ecdh           = 0;
         ssl->specs.key_size              = AES_256_KEY_SIZE;
         ssl->specs.block_size            = AES_BLOCK_SIZE;
-        ssl->specs.iv_size               = AES_IV_SIZE;
+        ssl->specs.iv_size               = AES_GCM_IMPLICIT_IV_SIZE;
 
         break;
 #endif
@@ -357,7 +357,7 @@ int SetCipherSpecs(CYASSL* ssl)
         ssl->specs.static_ecdh           = 0;
         ssl->specs.key_size              = AES_128_KEY_SIZE;
         ssl->specs.block_size            = AES_BLOCK_SIZE;
-        ssl->specs.iv_size               = AES_IV_SIZE;
+        ssl->specs.iv_size               = AES_GCM_IMPLICIT_IV_SIZE;
 
         break;
 #endif
@@ -374,7 +374,7 @@ int SetCipherSpecs(CYASSL* ssl)
         ssl->specs.static_ecdh           = 0;
         ssl->specs.key_size              = AES_256_KEY_SIZE;
         ssl->specs.block_size            = AES_BLOCK_SIZE;
-        ssl->specs.iv_size               = AES_IV_SIZE;
+        ssl->specs.iv_size               = AES_GCM_IMPLICIT_IV_SIZE;
 
         break;
 #endif
@@ -391,7 +391,7 @@ int SetCipherSpecs(CYASSL* ssl)
         ssl->specs.static_ecdh           = 1;
         ssl->specs.key_size              = AES_128_KEY_SIZE;
         ssl->specs.block_size            = AES_BLOCK_SIZE;
-        ssl->specs.iv_size               = AES_IV_SIZE;
+        ssl->specs.iv_size               = AES_GCM_IMPLICIT_IV_SIZE;
 
         break;
 #endif
@@ -408,7 +408,7 @@ int SetCipherSpecs(CYASSL* ssl)
         ssl->specs.static_ecdh           = 1;
         ssl->specs.key_size              = AES_256_KEY_SIZE;
         ssl->specs.block_size            = AES_BLOCK_SIZE;
-        ssl->specs.iv_size               = AES_IV_SIZE;
+        ssl->specs.iv_size               = AES_GCM_IMPLICIT_IV_SIZE;
 
         break;
 #endif
@@ -425,7 +425,7 @@ int SetCipherSpecs(CYASSL* ssl)
         ssl->specs.static_ecdh           = 1;
         ssl->specs.key_size              = AES_128_KEY_SIZE;
         ssl->specs.block_size            = AES_BLOCK_SIZE;
-        ssl->specs.iv_size               = AES_IV_SIZE;
+        ssl->specs.iv_size               = AES_GCM_IMPLICIT_IV_SIZE;
 
         break;
 #endif
@@ -442,7 +442,7 @@ int SetCipherSpecs(CYASSL* ssl)
         ssl->specs.static_ecdh           = 1;
         ssl->specs.key_size              = AES_256_KEY_SIZE;
         ssl->specs.block_size            = AES_BLOCK_SIZE;
-        ssl->specs.iv_size               = AES_IV_SIZE;
+        ssl->specs.iv_size               = AES_GCM_IMPLICIT_IV_SIZE;
 
         break;
 #endif
@@ -793,7 +793,7 @@ int SetCipherSpecs(CYASSL* ssl)
         ssl->specs.static_ecdh           = 0;
         ssl->specs.key_size              = AES_128_KEY_SIZE;
         ssl->specs.block_size            = AES_BLOCK_SIZE;
-        ssl->specs.iv_size               = AES_IV_SIZE;
+        ssl->specs.iv_size               = AES_GCM_IMPLICIT_IV_SIZE;
 
         break;
 #endif
@@ -809,7 +809,7 @@ int SetCipherSpecs(CYASSL* ssl)
         ssl->specs.static_ecdh           = 0;
         ssl->specs.key_size              = AES_256_KEY_SIZE;
         ssl->specs.block_size            = AES_BLOCK_SIZE;
-        ssl->specs.iv_size               = AES_IV_SIZE;
+        ssl->specs.iv_size               = AES_GCM_IMPLICIT_IV_SIZE;
 
         break;
 #endif
@@ -970,6 +970,27 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
     }
 #endif
 
+#ifdef BUILD_AESGCM
+    if (specs->bulk_cipher_algorithm == aes_gcm) {
+        if (side == CLIENT_END) {
+            AesSetKey(&enc->aes, keys->client_write_key,
+                      specs->key_size, keys->client_write_IV,
+                      AES_ENCRYPTION);
+            AesSetKey(&dec->aes, keys->server_write_key,
+                      specs->key_size, keys->server_write_IV,
+                      AES_ENCRYPTION);
+        }
+        else {
+            AesSetKey(&enc->aes, keys->server_write_key,
+                      specs->key_size, keys->server_write_IV,
+                      AES_ENCRYPTION);
+            AesSetKey(&dec->aes, keys->client_write_key,
+                      specs->key_size, keys->client_write_IV,
+                      AES_ENCRYPTION);
+        }
+    }
+#endif
+
     keys->sequence_number      = 0;
     keys->peer_sequence_number = 0;
     keys->encryptionOn         = 0;
@@ -983,10 +1004,15 @@ int StoreKeys(CYASSL* ssl, const byte* keyData)
 {
     int sz = ssl->specs.hash_size, i;
 
-    XMEMCPY(ssl->keys.client_write_MAC_secret, keyData, sz);
-    i = sz;
-    XMEMCPY(ssl->keys.server_write_MAC_secret,&keyData[i], sz);
-    i += sz;
+	if (ssl->specs.cipher_type != aead) {
+	    XMEMCPY(ssl->keys.client_write_MAC_secret, keyData, sz);
+	    i = sz;
+	    XMEMCPY(ssl->keys.server_write_MAC_secret,&keyData[i], sz);
+	    i += sz;
+	}
+	else {
+		sz = 0;
+	}
 
     sz = ssl->specs.key_size;
     XMEMCPY(ssl->keys.client_write_key, &keyData[i], sz);
