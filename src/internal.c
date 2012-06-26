@@ -1187,7 +1187,7 @@ static void HashOutput(CYASSL* ssl, const byte* output, int sz, int ivSz)
 #ifdef CYASSL_SHA384
         Sha384Update(&ssl->hashSha384, adj, sz);
 #endif
-	}
+    }
 }
 
 
@@ -1213,7 +1213,7 @@ static void HashInput(CYASSL* ssl, const byte* input, int sz)
 #ifdef CYASSL_SHA384
         Sha384Update(&ssl->hashSha384, adj, sz);
 #endif
-	}
+    }
 }
 
 
@@ -1636,8 +1636,8 @@ static void BuildFinished(CYASSL* ssl, Hashes* hashes, const byte* sender)
         sha256 = ssl->hashSha256;
 #endif
 #if CYASSL_SHA384
-	Sha384 sha384;
-	InitSha384(&sha384);
+    Sha384 sha384;
+    InitSha384(&sha384);
     if (IsAtLeastTLSv1_2(ssl))
         sha384 = ssl->hashSha384;
 #endif
@@ -2038,30 +2038,30 @@ int DoFinished(CYASSL* ssl, const byte* input, word32* inOutIdx, int sniff)
         }
     }
 
-	if (ssl->specs.cipher_type != aead) {
-	    ssl->hmac(ssl, verifyMAC, input + idx - headerSz, macSz,
-    	     handshake, 1);
-	    idx += finishedSz;
+    if (ssl->specs.cipher_type != aead) {
+        ssl->hmac(ssl, verifyMAC, input + idx - headerSz, macSz,
+             handshake, 1);
+        idx += finishedSz;
 
-	    /* read mac and fill */
-	    mac = input + idx;
-	    idx += ssl->specs.hash_size;
+        /* read mac and fill */
+        mac = input + idx;
+        idx += ssl->specs.hash_size;
 
-	    if (ssl->options.tls1_1 && ssl->specs.cipher_type == block)
-	        padSz -= ssl->specs.block_size;
+        if (ssl->options.tls1_1 && ssl->specs.cipher_type == block)
+            padSz -= ssl->specs.block_size;
 
-	    idx += padSz;
+        idx += padSz;
 
-	    /* verify mac */
-	    if (XMEMCMP(mac, verifyMAC, ssl->specs.hash_size)) {
-	        CYASSL_MSG("Verify finished error on mac");
-	        return VERIFY_MAC_ERROR;
-	    }
-	}
-	else {
-		idx = idx + finishedSz + 16;
-		/* XXX the 16 should be from specs */
-	}
+        /* verify mac */
+        if (XMEMCMP(mac, verifyMAC, ssl->specs.hash_size)) {
+            CYASSL_MSG("Verify finished error on mac");
+            return VERIFY_MAC_ERROR;
+        }
+    }
+    else {
+        idx = idx + finishedSz + 16;
+        /* XXX the 16 should be from specs */
+    }
 
     if (ssl->options.side == CLIENT_END) {
         ssl->options.serverState = SERVER_FINISHED_COMPLETE;
@@ -2222,34 +2222,35 @@ static INLINE void Encrypt(CYASSL* ssl, byte* out, const byte* input, word32 sz)
                 break;
         #endif
 
-		#ifdef BUILD_AESGCM
-			case aes_gcm:
-				{
-					byte additional[AES_BLOCK_SIZE];
-					byte nonce[AES_BLOCK_SIZE];
+        #ifdef BUILD_AESGCM
+            case aes_gcm:
+                {
+                    byte additional[AES_BLOCK_SIZE];
+                    byte nonce[AES_BLOCK_SIZE];
 
-					if (ssl->options.side == SERVER_END) {
-						XMEMCPY(nonce, ssl->keys.server_write_IV,
-													AES_GCM_IMPLICIT_IV_SIZE);
-					}
-					else {
-						XMEMCPY(nonce, ssl->keys.client_write_IV,
-													AES_GCM_IMPLICIT_IV_SIZE);
-					}
-					XMEMCPY(nonce + AES_GCM_IMPLICIT_IV_SIZE,
-											input, AES_GCM_EXPLICIT_IV_SIZE);
-					XMEMSET(nonce + AES_GCM_IMPLICIT_IV_SIZE +
-											AES_GCM_EXPLICIT_IV_SIZE, 0, 4);
-					AesSetIV(&ssl->encrypt.aes, nonce);
-					
-					XMEMSET(additional, 0, 16);
-					c32toa(GetSEQIncrement(ssl, 0), additional + 4);
-					XMEMCPY(additional+8, input - 5, 5);
-					AesGcmEncrypt(&ssl->encrypt.aes, out+8, input+8, sz-24,
-						out + 8 + (sz - 24), 16, additional, 13);
-				}
-				break;
-		#endif
+                    if (ssl->options.side == SERVER_END) {
+                        XMEMCPY(nonce, ssl->keys.server_write_IV,
+                                                    AES_GCM_IMPLICIT_IV_SIZE);
+                    }
+                    else {
+                        XMEMCPY(nonce, ssl->keys.client_write_IV,
+                                                    AES_GCM_IMPLICIT_IV_SIZE);
+                    }
+                    XMEMCPY(nonce + AES_GCM_IMPLICIT_IV_SIZE,
+                                            input, AES_GCM_EXPLICIT_IV_SIZE);
+                    XMEMSET(nonce + AES_GCM_IMPLICIT_IV_SIZE +
+                                            AES_GCM_EXPLICIT_IV_SIZE, 0, 4);
+                    AesSetIV(&ssl->encrypt.aes, nonce);
+                    
+                    XMEMSET(additional, 0, 16);
+                    c32toa(GetSEQIncrement(ssl, 0), additional + 4);
+                    XMEMCPY(additional+8, input - 5, 5);
+                    c16toa(sz - 24, additional+11);
+                    AesGcmEncrypt(&ssl->encrypt.aes, out+8, input+8, sz-24,
+                        out + sz - 16, 16, additional, 13);
+                }
+                break;
+        #endif
 
         #ifdef HAVE_HC128
             case hc128:
@@ -2293,37 +2294,37 @@ static INLINE int Decrypt(CYASSL* ssl, byte* plain, const byte* input,
 
         #ifdef BUILD_AESGCM
             case aes_gcm:
-			{
-				byte additional[16];
-				byte nonce[16];
+            {
+                byte additional[16];
+                byte nonce[16];
 
-				/* use the other side's IV */
-				if (ssl->options.side == SERVER_END) {
-					XMEMCPY(nonce, ssl->keys.client_write_IV,
-												AES_GCM_IMPLICIT_IV_SIZE);
-				}
-				else {
-					XMEMCPY(nonce, ssl->keys.server_write_IV,
-												AES_GCM_IMPLICIT_IV_SIZE);
-				}
-				XMEMCPY(nonce + AES_GCM_IMPLICIT_IV_SIZE,
-										input, AES_GCM_EXPLICIT_IV_SIZE);
-				XMEMSET(nonce + AES_GCM_IMPLICIT_IV_SIZE +
-										AES_GCM_EXPLICIT_IV_SIZE, 0, 4);
-				AesSetIV(&ssl->decrypt.aes, nonce);
-				XMEMSET(additional, 0, 4);
-				c32toa(GetSEQIncrement(ssl, 1), additional + 4);
-				additional[8] = ssl->curRL.type;
-				additional[9] = ssl->curRL.version.major;
-				additional[10] = ssl->curRL.version.minor;
-				c16toa(sz, additional + 11);
+                /* use the other side's IV */
+                if (ssl->options.side == SERVER_END) {
+                    XMEMCPY(nonce, ssl->keys.client_write_IV,
+                                                AES_GCM_IMPLICIT_IV_SIZE);
+                }
+                else {
+                    XMEMCPY(nonce, ssl->keys.server_write_IV,
+                                                AES_GCM_IMPLICIT_IV_SIZE);
+                }
+                XMEMCPY(nonce + AES_GCM_IMPLICIT_IV_SIZE,
+                                        input, AES_GCM_EXPLICIT_IV_SIZE);
+                XMEMSET(nonce + AES_GCM_IMPLICIT_IV_SIZE +
+                                        AES_GCM_EXPLICIT_IV_SIZE, 0, 4);
+                AesSetIV(&ssl->decrypt.aes, nonce);
+                XMEMSET(additional, 0, 4);
+                c32toa(GetSEQIncrement(ssl, 1), additional + 4);
+                additional[8] = ssl->curRL.type;
+                additional[9] = ssl->curRL.version.major;
+                additional[10] = ssl->curRL.version.minor;
+                c16toa(sz-24, additional + 11);
                 if (AesGcmDecrypt(&ssl->decrypt.aes, plain+8, input+8, sz-24,
-					input + 8 + (sz - 24), 16, additional, 13) < 0) {
-                	SendAlert(ssl, alert_fatal, bad_record_mac);
-					return VERIFY_MAC_ERROR;
-				}
+                    input + 8 + (sz - 24), 16, additional, 13) < 0) {
+                    SendAlert(ssl, alert_fatal, bad_record_mac);
+                    return VERIFY_MAC_ERROR;
+                }
                 break;
-			}
+            }
         #endif
 
         #ifdef HAVE_HC128
@@ -2341,23 +2342,23 @@ static INLINE int Decrypt(CYASSL* ssl, byte* plain, const byte* input,
             default:
                 CYASSL_MSG("CyaSSL Decrypt programming error");
     }
-	return 0;
+    return 0;
 }
 
 
 /* decrypt input message in place */
 static int DecryptMessage(CYASSL* ssl, byte* input, word32 sz, word32* idx)
 {
-	int decryptResult = Decrypt(ssl, input, input, sz);
+    int decryptResult = Decrypt(ssl, input, input, sz);
 
-	if (decryptResult == 0)
-	{
+    if (decryptResult == 0)
+    {
         ssl->keys.encryptSz = sz;
         if (ssl->options.tls1_1 && ssl->specs.cipher_type == block)
             *idx += ssl->specs.block_size;  /* go past TLSv1.1 IV */
-		if (ssl->specs.cipher_type == aead)
-			*idx += AES_GCM_EXPLICIT_IV_SIZE;
-	}
+        if (ssl->specs.cipher_type == aead)
+            *idx += AES_GCM_EXPLICIT_IV_SIZE;
+    }
 
     return decryptResult;
 }
@@ -2386,10 +2387,10 @@ int DoApplicationData(CYASSL* ssl, byte* input, word32* inOutIdx)
         pad = *(input + idx + msgSz - ivExtra - 1);
         padByte = 1;
     }
-	if (ssl->specs.cipher_type == aead) {
-		ivExtra = 8;
-		digestSz = 16;
-	}
+    if (ssl->specs.cipher_type == aead) {
+        ivExtra = 8;
+        digestSz = 16;
+    }
 
     dataSz = msgSz - ivExtra - digestSz - pad - padByte;
     if (dataSz < 0) {
@@ -2401,8 +2402,8 @@ int DoApplicationData(CYASSL* ssl, byte* input, word32* inOutIdx)
     if (dataSz) {
         int    rawSz   = dataSz;       /* keep raw size for hmac */
 
-		if (ssl->specs.cipher_type != aead)
-	        ssl->hmac(ssl, verify, rawData, rawSz, application_data, 1);
+        if (ssl->specs.cipher_type != aead)
+            ssl->hmac(ssl, verify, rawData, rawSz, application_data, 1);
 
 #ifdef HAVE_LIBZ
         if (ssl->options.usingCompression) {
@@ -2435,7 +2436,7 @@ int DoApplicationData(CYASSL* ssl, byte* input, word32* inOutIdx)
 
     /* verify */
     if (dataSz) {
-		if (ssl->specs.cipher_type != aead && XMEMCMP(mac, verify, digestSz)) {
+        if (ssl->specs.cipher_type != aead && XMEMCMP(mac, verify, digestSz)) {
             CYASSL_MSG("App data verify mac error"); 
             return VERIFY_MAC_ERROR;
         }
@@ -2471,30 +2472,30 @@ static int DoAlert(CYASSL* ssl, byte* input, word32* inOutIdx, int* type)
     }
     CYASSL_ERROR(*type);
 
-	if (ssl->keys.encryptionOn) {
-	    if (ssl->specs.cipher_type != aead) {
-	        int         aSz = ALERT_SIZE;
-	        const byte* mac;
-	        byte        verify[SHA256_DIGEST_SIZE];
-	        int         padSz = ssl->keys.encryptSz - aSz - ssl->specs.hash_size;
-	        
-	        ssl->hmac(ssl, verify, input + *inOutIdx - aSz, aSz, alert, 1);
-	
-	        /* read mac and fill */
-	        mac = input + *inOutIdx;
-	        *inOutIdx += (ssl->specs.hash_size + padSz);
-	
-	        /* verify */
-	        if (XMEMCMP(mac, verify, ssl->specs.hash_size)) {
-	            CYASSL_MSG("    alert verify mac error");
-	            return VERIFY_MAC_ERROR;
-	        }
-	    }
-		else {
-			*inOutIdx += 16;
-			/* XXX this should be a value out of the cipher specs */
-		}
-	}
+    if (ssl->keys.encryptionOn) {
+        if (ssl->specs.cipher_type != aead) {
+            int     aSz = ALERT_SIZE;
+            const byte* mac;
+            byte    verify[SHA256_DIGEST_SIZE];
+            int     padSz = ssl->keys.encryptSz - aSz - ssl->specs.hash_size;
+
+            ssl->hmac(ssl, verify, input + *inOutIdx - aSz, aSz, alert, 1);
+    
+            /* read mac and fill */
+            mac = input + *inOutIdx;
+            *inOutIdx += (ssl->specs.hash_size + padSz);
+    
+            /* verify */
+            if (XMEMCMP(mac, verify, ssl->specs.hash_size)) {
+                CYASSL_MSG("    alert verify mac error");
+                return VERIFY_MAC_ERROR;
+            }
+        }
+        else {
+            *inOutIdx += 16;
+            /* XXX this should be a value out of the cipher specs */
+        }
+    }
 
     return level;
 }
@@ -3010,11 +3011,11 @@ static int BuildMessage(CYASSL* ssl, byte* output, const byte* input, int inSz,
         sz += pad;
     }
 
-	if (ssl->specs.cipher_type == aead) {
-		ivSz = AES_GCM_EXPLICIT_IV_SIZE;
-		sz = sz + ivSz + 16 - digestSz;
-		RNG_GenerateBlock(&ssl->rng, iv, ivSz);
-	}
+    if (ssl->specs.cipher_type == aead) {
+        ivSz = AES_GCM_EXPLICIT_IV_SIZE;
+        sz = sz + ivSz + 16 - digestSz;
+        RNG_GenerateBlock(&ssl->rng, iv, ivSz);
+    }
     size = (word16)(sz - headerSz);    /* include mac and digest */
     AddRecordHeader(output, size, (byte)type, ssl);    
 
@@ -3028,10 +3029,10 @@ static int BuildMessage(CYASSL* ssl, byte* output, const byte* input, int inSz,
 
     if (type == handshake)
         HashOutput(ssl, output, headerSz + inSz, ivSz);
-	if (ssl->specs.cipher_type != aead) {
-	    ssl->hmac(ssl, output+idx, output + headerSz + ivSz, inSz, type, 0);
-    	idx += digestSz;
-	}
+    if (ssl->specs.cipher_type != aead) {
+        ssl->hmac(ssl, output+idx, output + headerSz + ivSz, inSz, type, 0);
+        idx += digestSz;
+    }
 
     if (ssl->specs.cipher_type == block)
         for (i = 0; i <= pad; i++)

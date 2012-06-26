@@ -1551,7 +1551,7 @@ void AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     byte* c = out;
     byte h[AES_BLOCK_SIZE];
     byte ctr[AES_BLOCK_SIZE];
-	byte scratch[AES_BLOCK_SIZE];
+    byte scratch[AES_BLOCK_SIZE];
 
     CYASSL_ENTER("AesGcmEncrypt");
 
@@ -1568,7 +1568,7 @@ void AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         IncrementGcmCounter(ctr);
         AesEncrypt(aes, ctr, scratch);
         xorbuf(scratch, p, AES_BLOCK_SIZE);
-		XMEMCPY(c, scratch, AES_BLOCK_SIZE);
+        XMEMCPY(c, scratch, AES_BLOCK_SIZE);
 
         p += AES_BLOCK_SIZE;
         c += AES_BLOCK_SIZE;
@@ -1576,7 +1576,7 @@ void AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     if (partial != 0) {
         IncrementGcmCounter(ctr);
         AesEncrypt(aes, ctr, scratch);
-		xorbuf(scratch, p, partial);
+        xorbuf(scratch, p, partial);
         XMEMCPY(c, scratch, partial);
     }
     GHASH(h, authIn, authInSz, out, sz, authTag, authTagSz);
@@ -1596,7 +1596,7 @@ int  AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     byte* p = out;
     byte h[AES_BLOCK_SIZE];
     byte ctr[AES_BLOCK_SIZE];
-	byte scratch[AES_BLOCK_SIZE];
+    byte scratch[AES_BLOCK_SIZE];
 
     CYASSL_ENTER("AesGcmDecrypt");
 
@@ -1627,7 +1627,7 @@ int  AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         IncrementGcmCounter(ctr);
         AesEncrypt(aes, ctr, scratch);
         xorbuf(scratch, c, AES_BLOCK_SIZE);
-		XMEMCPY(p, scratch, AES_BLOCK_SIZE);
+        XMEMCPY(p, scratch, AES_BLOCK_SIZE);
 
         p += AES_BLOCK_SIZE;
         c += AES_BLOCK_SIZE;

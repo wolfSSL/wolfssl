@@ -1002,17 +1002,15 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
 /* TLS can call too */
 int StoreKeys(CYASSL* ssl, const byte* keyData)
 {
-    int sz = ssl->specs.hash_size, i;
+    int sz, i = 0;
 
-	if (ssl->specs.cipher_type != aead) {
-	    XMEMCPY(ssl->keys.client_write_MAC_secret, keyData, sz);
-	    i = sz;
-	    XMEMCPY(ssl->keys.server_write_MAC_secret,&keyData[i], sz);
-	    i += sz;
-	}
-	else {
-		sz = 0;
-	}
+    if (ssl->specs.cipher_type != aead) {
+        sz = ssl->specs.hash_size;
+        XMEMCPY(ssl->keys.client_write_MAC_secret,&keyData[i], sz);
+        i += sz;
+        XMEMCPY(ssl->keys.server_write_MAC_secret,&keyData[i], sz);
+        i += sz;
+    }
 
     sz = ssl->specs.key_size;
     XMEMCPY(ssl->keys.client_write_key, &keyData[i], sz);
