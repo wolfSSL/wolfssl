@@ -1551,6 +1551,7 @@ void AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     byte* c = out;
     byte h[AES_BLOCK_SIZE];
     byte ctr[AES_BLOCK_SIZE];
+	byte scratch[AES_BLOCK_SIZE];
 
     CYASSL_ENTER("AesGcmEncrypt");
 
@@ -1565,19 +1566,18 @@ void AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 
     while (blocks--) {
         IncrementGcmCounter(ctr);
-        AesEncrypt(aes, ctr, c);
-        xorbuf(c, p, AES_BLOCK_SIZE);
+        AesEncrypt(aes, ctr, scratch);
+        xorbuf(scratch, p, AES_BLOCK_SIZE);
+		XMEMCPY(c, scratch, AES_BLOCK_SIZE);
 
         p += AES_BLOCK_SIZE;
         c += AES_BLOCK_SIZE;
     }
     if (partial != 0) {
-        byte cPartial[AES_BLOCK_SIZE];
-
         IncrementGcmCounter(ctr);
-        AesEncrypt(aes, ctr, cPartial);
-        XMEMCPY(c, cPartial, partial);
-        xorbuf(c, p, partial);
+        AesEncrypt(aes, ctr, scratch);
+		xorbuf(scratch, p, partial);
+        XMEMCPY(c, scratch, partial);
     }
     GHASH(h, authIn, authInSz, out, sz, authTag, authTagSz);
     InitGcmCounter(ctr);
@@ -1596,6 +1596,7 @@ int  AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     byte* p = out;
     byte h[AES_BLOCK_SIZE];
     byte ctr[AES_BLOCK_SIZE];
+	byte scratch[AES_BLOCK_SIZE];
 
     CYASSL_ENTER("AesGcmDecrypt");
 
@@ -1624,8 +1625,9 @@ int  AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 
     while (blocks--) {
         IncrementGcmCounter(ctr);
-        AesEncrypt(aes, ctr, p);
-        xorbuf(p, c, AES_BLOCK_SIZE);
+        AesEncrypt(aes, ctr, scratch);
+        xorbuf(scratch, c, AES_BLOCK_SIZE);
+		XMEMCPY(p, scratch, AES_BLOCK_SIZE);
 
         p += AES_BLOCK_SIZE;
         c += AES_BLOCK_SIZE;
@@ -1634,9 +1636,9 @@ int  AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         byte pPartial[AES_BLOCK_SIZE];
 
         IncrementGcmCounter(ctr);
-        AesEncrypt(aes, ctr, pPartial);
-        XMEMCPY(p, pPartial, partial);
-        xorbuf(p, c, partial);
+        AesEncrypt(aes, ctr, scratch);
+        xorbuf(scratch, c, partial);
+        XMEMCPY(p, scratch, partial);
     }
 
     return 0;
