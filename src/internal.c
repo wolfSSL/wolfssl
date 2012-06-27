@@ -1631,12 +1631,17 @@ static void BuildFinished(CYASSL* ssl, Hashes* hashes, const byte* sender)
     Sha sha = ssl->hashSha;
 #ifndef NO_SHA256
     Sha256 sha256;
+#endif
+#if CYASSL_SHA384
+    Sha384 sha384;
+#endif
+
+#ifndef NO_SHA256
     InitSha256(&sha256);
     if (IsAtLeastTLSv1_2(ssl))
         sha256 = ssl->hashSha256;
 #endif
 #if CYASSL_SHA384
-    Sha384 sha384;
     InitSha384(&sha384);
     if (IsAtLeastTLSv1_2(ssl))
         sha384 = ssl->hashSha384;
@@ -1652,14 +1657,14 @@ static void BuildFinished(CYASSL* ssl, Hashes* hashes, const byte* sender)
     /* restore */
     ssl->hashMd5 = md5;
     ssl->hashSha = sha;
+    if (IsAtLeastTLSv1_2(ssl)) {
 #ifndef NO_SHA256
-    if (IsAtLeastTLSv1_2(ssl))
         ssl->hashSha256 = sha256;
 #endif
 #ifdef CYASSL_SHA384
-    if (IsAtLeastTLSv1_2(ssl))
         ssl->hashSha384 = sha384;
 #endif
+    }
 }
 
 

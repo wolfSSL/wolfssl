@@ -315,7 +315,7 @@ int SetCipherSpecs(CYASSL* ssl)
     case TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256 :
         ssl->specs.bulk_cipher_algorithm = aes_gcm;
         ssl->specs.cipher_type           = aead;
-        ssl->specs.mac_algorithm         = no_mac;
+        ssl->specs.mac_algorithm         = sha256_mac;
         ssl->specs.kea                   = ecc_diffie_hellman_kea;
         ssl->specs.sig_algo              = rsa_sa_algo;
         ssl->specs.hash_size             = SHA256_DIGEST_SIZE;
@@ -332,7 +332,7 @@ int SetCipherSpecs(CYASSL* ssl)
     case TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384 :
         ssl->specs.bulk_cipher_algorithm = aes_gcm;
         ssl->specs.cipher_type           = aead;
-        ssl->specs.mac_algorithm         = no_mac;
+        ssl->specs.mac_algorithm         = sha384_mac;
         ssl->specs.kea                   = ecc_diffie_hellman_kea;
         ssl->specs.sig_algo              = rsa_sa_algo;
         ssl->specs.hash_size             = SHA384_DIGEST_SIZE;
@@ -349,7 +349,7 @@ int SetCipherSpecs(CYASSL* ssl)
     case TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256 :
         ssl->specs.bulk_cipher_algorithm = aes_gcm;
         ssl->specs.cipher_type           = aead;
-        ssl->specs.mac_algorithm         = no_mac;
+        ssl->specs.mac_algorithm         = sha256_mac;
         ssl->specs.kea                   = ecc_diffie_hellman_kea;
         ssl->specs.sig_algo              = ecc_dsa_sa_algo;
         ssl->specs.hash_size             = SHA256_DIGEST_SIZE;
@@ -366,7 +366,7 @@ int SetCipherSpecs(CYASSL* ssl)
     case TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384 :
         ssl->specs.bulk_cipher_algorithm = aes_gcm;
         ssl->specs.cipher_type           = aead;
-        ssl->specs.mac_algorithm         = no_mac;
+        ssl->specs.mac_algorithm         = sha384_mac;
         ssl->specs.kea                   = ecc_diffie_hellman_kea;
         ssl->specs.sig_algo              = ecc_dsa_sa_algo;
         ssl->specs.hash_size             = SHA384_DIGEST_SIZE;
@@ -383,7 +383,7 @@ int SetCipherSpecs(CYASSL* ssl)
     case TLS_ECDH_RSA_WITH_AES_128_GCM_SHA256 :
         ssl->specs.bulk_cipher_algorithm = aes_gcm;
         ssl->specs.cipher_type           = aead;
-        ssl->specs.mac_algorithm         = no_mac;
+        ssl->specs.mac_algorithm         = sha256_mac;
         ssl->specs.kea                   = ecc_diffie_hellman_kea;
         ssl->specs.sig_algo              = rsa_sa_algo;
         ssl->specs.hash_size             = SHA256_DIGEST_SIZE;
@@ -400,7 +400,7 @@ int SetCipherSpecs(CYASSL* ssl)
     case TLS_ECDH_RSA_WITH_AES_256_GCM_SHA384 :
         ssl->specs.bulk_cipher_algorithm = aes_gcm;
         ssl->specs.cipher_type           = aead;
-        ssl->specs.mac_algorithm         = no_mac;
+        ssl->specs.mac_algorithm         = sha384_mac;
         ssl->specs.kea                   = ecc_diffie_hellman_kea;
         ssl->specs.sig_algo              = rsa_sa_algo;
         ssl->specs.hash_size             = SHA384_DIGEST_SIZE;
@@ -417,7 +417,7 @@ int SetCipherSpecs(CYASSL* ssl)
     case TLS_ECDH_ECDSA_WITH_AES_128_GCM_SHA256 :
         ssl->specs.bulk_cipher_algorithm = aes_gcm;
         ssl->specs.cipher_type           = aead;
-        ssl->specs.mac_algorithm         = no_mac;
+        ssl->specs.mac_algorithm         = sha256_mac;
         ssl->specs.kea                   = ecc_diffie_hellman_kea;
         ssl->specs.sig_algo              = ecc_dsa_sa_algo;
         ssl->specs.hash_size             = SHA256_DIGEST_SIZE;
@@ -434,7 +434,7 @@ int SetCipherSpecs(CYASSL* ssl)
     case TLS_ECDH_ECDSA_WITH_AES_256_GCM_SHA384 :
         ssl->specs.bulk_cipher_algorithm = aes_gcm;
         ssl->specs.cipher_type           = aead;
-        ssl->specs.mac_algorithm         = no_mac;
+        ssl->specs.mac_algorithm         = sha384_mac;
         ssl->specs.kea                   = ecc_diffie_hellman_kea;
         ssl->specs.sig_algo              = ecc_dsa_sa_algo;
         ssl->specs.hash_size             = SHA384_DIGEST_SIZE;
@@ -786,7 +786,7 @@ int SetCipherSpecs(CYASSL* ssl)
     case TLS_RSA_WITH_AES_128_GCM_SHA256 :
         ssl->specs.bulk_cipher_algorithm = aes_gcm;
         ssl->specs.cipher_type           = aead;
-        ssl->specs.mac_algorithm         = no_mac;
+        ssl->specs.mac_algorithm         = sha256_mac;
         ssl->specs.kea                   = rsa_kea;
         ssl->specs.hash_size             = SHA256_DIGEST_SIZE;
         ssl->specs.pad_size              = PAD_SHA;
@@ -802,7 +802,7 @@ int SetCipherSpecs(CYASSL* ssl)
     case TLS_RSA_WITH_AES_256_GCM_SHA384 :
         ssl->specs.bulk_cipher_algorithm = aes_gcm;
         ssl->specs.cipher_type           = aead;
-        ssl->specs.mac_algorithm         = no_mac;
+        ssl->specs.mac_algorithm         = sha384_mac;
         ssl->specs.kea                   = rsa_kea;
         ssl->specs.hash_size             = SHA384_DIGEST_SIZE;
         ssl->specs.pad_size              = PAD_SHA;

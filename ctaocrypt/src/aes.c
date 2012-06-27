@@ -1633,8 +1633,6 @@ int  AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         c += AES_BLOCK_SIZE;
     }
     if (partial != 0) {
-        byte pPartial[AES_BLOCK_SIZE];
-
         IncrementGcmCounter(ctr);
         AesEncrypt(aes, ctr, scratch);
         xorbuf(scratch, c, partial);
