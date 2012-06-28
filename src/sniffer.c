@@ -45,6 +45,17 @@
 #include <cyassl/sniffer.h>
 #include <cyassl/sniffer_error.h>
 
+
+#ifndef min
+
+static INLINE word32 min(word32 a, word32 b)
+{
+    return a > b ? b : a;
+}
+
+#endif
+
+
 /* Misc constants */
 enum {
     MAX_SERVER_ADDRESS = 128, /* maximum server address length */
@@ -61,6 +72,9 @@ enum {
     PSEUDO_HDR_SZ      = 12,  /* TCP Pseudo Header size in bytes */
     FATAL_ERROR_STATE  =  1,  /* SnifferSession fatal error state */
     SNIFFER_TIMEOUT    = 900, /* Cache unclosed Sessions for 15 minutes */
+    TICKET_HINT_LEN    = 4,   /* Session Ticket Hint length */
+    EXT_TYPE_SZ        = 2,   /* Extension length */
+    TICKET_EXT_ID      = 0x23 /* Session Ticket Extension ID */
 };
 
 
@@ -196,6 +210,13 @@ static const char* const msgTable[] =
 
     /* 61 */
     "Missed the Client Hello Entirely",
+    "Got Hello Request msg",
+    "Got Session Ticket msg",
+    "Bad Input",
+    "Bad Decrypt Type",
+
+    /* 66 */
+    "Bad Finished Message Processing"
 };
 
 
@@ -248,7 +269,7 @@ typedef struct Flags {
     byte           cached;          /* have we cached this session yet */
     byte           clientHello;     /* processed client hello yet, for SSLv2 */
     byte           finCount;        /* get both FINs before removing */
-    byte           fatalError;      /* fatal error state */    
+    byte           fatalError;      /* fatal error state */
 } Flags;
 
 
@@ -279,7 +300,8 @@ typedef struct SnifferSession {
     time_t         bornOn;          /* born on ticks */
     PacketBuffer*  cliReassemblyList; /* client out of order packets */
     PacketBuffer*  srvReassemblyList; /* server out of order packets */
-    struct SnifferSession* next;    /* for hash table list */
+    struct SnifferSession* next;      /* for hash table list */
+    byte*          ticketID;          /* mac ID of session ticket */
 } SnifferSession;
 
 
@@ -347,6 +369,8 @@ static void FreeSnifferSession(SnifferSession* session)
         
         FreePacketList(session->cliReassemblyList);
         FreePacketList(session->srvReassemblyList);
+
+        free(session->ticketID);
     }
     free(session);
 }
@@ -442,6 +466,7 @@ static void InitSession(SnifferSession* session)
     session->cliReassemblyList = 0;
     session->srvReassemblyList = 0;
     session->next           = 0;
+    session->ticketID       = 0;
     
     InitFlags(&session->flags);
     InitFinCapture(&session->finCaputre);
@@ -1067,6 +1092,39 @@ static int ProcessClientKeyExchange(const byte* input, int* sslBytes,
 }
 
 
+/* Process Session Ticket */
+static int ProcessSessionTicket(const byte* input, int* sslBytes,
+                                SnifferSession* session, char* error)
+{
+    word16 len;
+
+    /* make sure can read through hint and len */
+    if (TICKET_HINT_LEN + LENGTH_SZ > *sslBytes) {
+        SetError(BAD_INPUT_STR, error, session, FATAL_ERROR_STATE);
+        return -1;
+    }
+    
+    input     += TICKET_HINT_LEN;  /* skip over hint */
+    *sslBytes -= TICKET_HINT_LEN;
+
+    len = (input[0] << 8) | input[1];
+    input     += LENGTH_SZ;
+    *sslBytes -= LENGTH_SZ;
+
+    /* make sure can read through ticket */
+    if (len > *sslBytes || len < ID_LEN) {
+        SetError(BAD_INPUT_STR, error, session, FATAL_ERROR_STATE);
+        return -1;
+    }
+
+    /* store session with macID as sessionID */
+    session->sslServer->options.haveSessionId = 1;
+    XMEMCPY(session->sslServer->arrays.sessionID, input + len - ID_LEN, ID_LEN);
+    
+    return 0;
+}
+
+
 /* Process Server Hello */
 static int ProcessServerHello(const byte* input, int* sslBytes,
                               SnifferSession* session, char* error)
@@ -1074,6 +1132,7 @@ static int ProcessServerHello(const byte* input, int* sslBytes,
     ProtocolVersion pv;
     byte            b;
     int             toRead = sizeof(ProtocolVersion) + RAN_LEN + ENUM_LEN;
+    int             doResume     = 0;
     
     /* make sure we didn't miss ClientHello */
     if (session->flags.clientHello == 0) {
@@ -1107,22 +1166,34 @@ static int ProcessServerHello(const byte* input, int* sslBytes,
         SetError(SERVER_HELLO_INPUT_STR, error, session, FATAL_ERROR_STATE);
         return -1;
     }
-    XMEMCPY(session->sslServer->arrays.sessionID, input, ID_LEN);
+    if (b) {
+        XMEMCPY(session->sslServer->arrays.sessionID, input, ID_LEN);
+        session->sslServer->options.haveSessionId = 1;
+    }
     input     += b;
     *sslBytes -= b;
-    if (b)
-        session->sslServer->options.haveSessionId = 1;
     
     (void)*input++;  /* eat first byte, always 0 */
     b = *input++;
     session->sslServer->options.cipherSuite = b;
     session->sslClient->options.cipherSuite = b;
     *sslBytes -= SUITE_LEN;
-    
+   
     if (session->sslServer->options.haveSessionId &&
-                XMEMCMP(session->sslServer->arrays.sessionID,
-                        session->sslClient->arrays.sessionID, ID_LEN) == 0) {
-        /* resuming */
+            XMEMCMP(session->sslServer->arrays.sessionID,
+                    session->sslClient->arrays.sessionID, ID_LEN) == 0)
+        doResume = 1;
+    else if (session->sslClient->options.haveSessionId == 0 &&
+             session->sslServer->options.haveSessionId == 0 &&
+             session->ticketID)
+        doResume = 1;
+
+    if (session->ticketID && doResume) {
+        /* use ticketID to retrieve from session */
+        XMEMCPY(session->sslServer->arrays.sessionID, session->ticketID,ID_LEN);
+    }
+
+    if (doResume ) {
         SSL_SESSION* resume = GetSession(session->sslServer,
                                        session->sslServer->arrays.masterSecret);
         if (resume == NULL) {
@@ -1173,8 +1244,9 @@ static int ProcessServerHello(const byte* input, int* sslBytes,
 static int ProcessClientHello(const byte* input, int* sslBytes, 
                               SnifferSession* session, char* error)
 {
-    byte sessionLen;
-    int  toRead = sizeof(ProtocolVersion) + RAN_LEN + ENUM_LEN;
+    byte   bLen;
+    word16 len;
+    int    toRead = sizeof(ProtocolVersion) + RAN_LEN + ENUM_LEN;
     
     session->flags.clientHello = 1;  /* don't process again */
     
@@ -1195,14 +1267,16 @@ static int ProcessClientHello(const byte* input, int* sslBytes,
     *sslBytes -= RAN_LEN;
     
     /* store session in case trying to resume */
-    sessionLen = *input++;
-    if (sessionLen) {
+    bLen = *input++;
+    *sslBytes -= ENUM_LEN;
+    if (bLen) {
         if (ID_LEN > *sslBytes) {
             SetError(CLIENT_HELLO_INPUT_STR, error, session, FATAL_ERROR_STATE);
             return -1;
         }
         Trace(CLIENT_RESUME_TRY_STR);
         XMEMCPY(session->sslClient->arrays.sessionID, input, ID_LEN);
+        session->sslClient->options.haveSessionId = 1;
     }
 #ifdef SHOW_SECRETS
     {
@@ -1213,8 +1287,139 @@ static int ProcessClientHello(const byte* input, int* sslBytes,
         printf("\n");
     }
 #endif
+
+    input     += bLen;
+    *sslBytes -= bLen;
+
+    /* skip cipher suites */
+    /* make sure can read len */
+    if (SUITE_LEN > *sslBytes) {
+        SetError(CLIENT_HELLO_INPUT_STR, error, session, FATAL_ERROR_STATE);
+        return -1;
+    }
+    len = (input[0] << 8) | input[1];
+    input     += SUITE_LEN;
+    *sslBytes -= SUITE_LEN;
+    /* make sure can read suites + comp len */
+    if (len + ENUM_LEN > *sslBytes) {
+        SetError(CLIENT_HELLO_INPUT_STR, error, session, FATAL_ERROR_STATE);
+        return -1;
+    }
+    input     += len;
+    *sslBytes -= len;
+
+    /* skip compression */
+    bLen       = *input++;
+    *sslBytes -= ENUM_LEN;
+    /* make sure can read len */
+    if (bLen > *sslBytes) {
+        SetError(CLIENT_HELLO_INPUT_STR, error, session, FATAL_ERROR_STATE);
+        return -1;
+    }
+    input     += bLen;
+    *sslBytes -= bLen;
+  
+    if (*sslBytes == 0) {
+        /* no extensions */
+        return 0;
+    }
     
+    /* skip extensions until session ticket */
+    /* make sure can read len */
+    if (SUITE_LEN > *sslBytes) {
+        SetError(CLIENT_HELLO_INPUT_STR, error, session, FATAL_ERROR_STATE);
+        return -1;
+    }
+    len = (input[0] << 8) | input[1];
+    input     += SUITE_LEN;
+    *sslBytes -= SUITE_LEN;
+    /* make sure can read through all extensions */
+    if (len > *sslBytes) {
+        SetError(CLIENT_HELLO_INPUT_STR, error, session, FATAL_ERROR_STATE);
+        return -1;
+    }
+
+    while (len > EXT_TYPE_SZ + LENGTH_SZ) {
+        byte   extType[EXT_TYPE_SZ];
+        word16 extLen;
+
+        extType[0] = input[0];
+        extType[1] = input[1];
+        input     += EXT_TYPE_SZ;
+        *sslBytes -= EXT_TYPE_SZ;
+
+        extLen = (input[0] << 8) | input[1];
+        input     += LENGTH_SZ;
+        *sslBytes -= LENGTH_SZ;
+
+        /* make sure can read through individual extension */
+        if (extLen > *sslBytes) {
+            SetError(CLIENT_HELLO_INPUT_STR, error, session, FATAL_ERROR_STATE);
+            return -1;
+        }
+
+        if (extType[0] == 0x00 && extType[1] == TICKET_EXT_ID) {
+
+            /* make sure can read through ticket if there is a non blank one */
+            if (extLen && extLen < ID_LEN) {
+                SetError(CLIENT_HELLO_INPUT_STR, error, session,
+                         FATAL_ERROR_STATE);
+                return -1;
+            }
+
+            if (extLen) {
+                if (session->ticketID == 0) {
+                    session->ticketID = (byte*)malloc(ID_LEN);
+                    if (session->ticketID == 0) {
+                        SetError(MEMORY_STR, error, session,
+                                 FATAL_ERROR_STATE);
+                        return -1;
+                    }
+                }
+                XMEMCPY(session->ticketID, input + extLen - ID_LEN, ID_LEN);
+            }
+        }
+
+        input     += extLen;
+        *sslBytes -= extLen;
+        len       -= extLen + EXT_TYPE_SZ + LENGTH_SZ;
+    }
+
     return 0;
+}
+
+
+/* Process Finished */
+static int ProcessFinished(const byte* input, int* sslBytes, 
+                           SnifferSession* session, char* error)
+{
+    SSL*   ssl;
+    word32 inOutIdx = 0;
+    int    ret;
+                
+    if (session->flags.side == SERVER_END)
+        ssl = session->sslServer;
+    else
+        ssl = session->sslClient;
+    ret = DoFinished(ssl, input, &inOutIdx, SNIFF);
+    *sslBytes -= (int)inOutIdx;
+
+    if (ret < 0) {
+        SetError(BAD_FINISHED_MSG, error, session, FATAL_ERROR_STATE);
+        return ret;
+    }
+                
+    if (ret == 0 && session->flags.cached == 0) {
+        if (session->sslServer->options.haveSessionId) {
+            CYASSL_SESSION* sess = GetSession(session->sslServer, NULL);
+            if (sess == NULL)
+                AddSession(session->sslServer);  /* don't re add */
+            session->flags.cached = 1;
+         }
+    }
+
+
+    return ret;
 }
 
 
@@ -1245,6 +1450,13 @@ static int DoHandShake(const byte* input, int* sslBytes,
         case hello_verify_request:
             Trace(GOT_HELLO_VERIFY_STR);
             break;
+        case hello_request:
+            Trace(GOT_HELLO_REQUEST_STR);
+            break;
+        case session_ticket:
+            Trace(GOT_SESSION_TICKET_STR);
+            ret = ProcessSessionTicket(input, sslBytes, session, error);
+            break;
         case server_hello:
             Trace(GOT_SERVER_HELLO_STR);
             ret = ProcessServerHello(input, sslBytes, session, error);
@@ -1263,22 +1475,7 @@ static int DoHandShake(const byte* input, int* sslBytes,
             break;
         case finished:
             Trace(GOT_FINISHED_STR);
-            {
-                SSL*   ssl;
-                word32 inOutIdx = 0;
-                
-                if (session->flags.side == SERVER_END)
-                    ssl = session->sslServer;
-                else
-                    ssl = session->sslClient;
-                ret = DoFinished(ssl, input, &inOutIdx, SNIFF);
-                
-                if (ret == 0 && session->flags.cached == 0) {
-                    session->sslServer->options.haveSessionId = 1;
-                    AddSession(session->sslServer);
-                    session->flags.cached = 1;
-                }
-            }
+            ret = ProcessFinished(input, sslBytes, session, error);
             break;
         case client_hello:
             Trace(GOT_CLIENT_HELLO_STR);
@@ -1333,6 +1530,10 @@ static void Decrypt(SSL* ssl, byte* output, const byte* input, word32 sz)
             RabbitProcess(&ssl->decrypt.rabbit, output, input, sz);
             break;
         #endif
+
+        default:
+            Trace(BAD_DECRYPT_TYPE);
+            break;
     }
 }
 
@@ -1646,16 +1847,6 @@ static int CheckSession(IpInfo* ipInfo, TcpInfo* tcpInfo, int sslBytes,
     }
     return 0;
 }
-
-
-#ifndef min
-
-static INLINE word32 min(word32 a, word32 b)
-{
-    return a > b ? b : a;
-}
-
-#endif
 
 
 /* Create a Packet Buffer from *begin - end, adjust new *begin and bytesLeft */

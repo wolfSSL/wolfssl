@@ -1264,6 +1264,7 @@ enum HandShakeType {
     client_hello        = 1, 
     server_hello        = 2,
     hello_verify_request = 3,       /* DTLS addition */
+    session_ticket      =  4,
     certificate         = 11, 
     server_key_exchange = 12,
     certificate_request = 13, 
