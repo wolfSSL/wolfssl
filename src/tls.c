@@ -164,10 +164,17 @@ static void PRF(byte* digest, word32 digLen, const byte* secret, word32 secLen,
 }
 
 
+#ifdef CYASSL_SHA384
+    #define HSHASH_SZ SHA384_DIGEST_SIZE
+#else
+    #define HSHASH_SZ FINISHED_SZ
+#endif
+
+
 void BuildTlsFinished(CYASSL* ssl, Hashes* hashes, const byte* sender)
 {
     const byte* side;
-    byte        handshake_hash[FINISHED_SZ];
+    byte        handshake_hash[HSHASH_SZ];
     word32      hashSz = FINISHED_SZ;
 
     Md5Final(&ssl->hashMd5, handshake_hash);
