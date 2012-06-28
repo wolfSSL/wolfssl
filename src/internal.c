@@ -1632,7 +1632,7 @@ static void BuildFinished(CYASSL* ssl, Hashes* hashes, const byte* sender)
 #ifndef NO_SHA256
     Sha256 sha256;
 #endif
-#if CYASSL_SHA384
+#ifdef CYASSL_SHA384
     Sha384 sha384;
 #endif
 
@@ -1641,7 +1641,7 @@ static void BuildFinished(CYASSL* ssl, Hashes* hashes, const byte* sender)
     if (IsAtLeastTLSv1_2(ssl))
         sha256 = ssl->hashSha256;
 #endif
-#if CYASSL_SHA384
+#ifdef CYASSL_SHA384
     InitSha384(&sha384);
     if (IsAtLeastTLSv1_2(ssl))
         sha384 = ssl->hashSha384;

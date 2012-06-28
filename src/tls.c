@@ -63,7 +63,7 @@ static INLINE void get_xor(byte *digest, word32 digLen, byte* md5, byte* sha)
 static void p_hash(byte* result, word32 resLen, const byte* secret,
                    word32 secLen, const byte* seed, word32 seedLen, int hash)
 {
-    word32   len;
+    word32   len = MD5_DIGEST_SIZE;
     word32   times;
     word32   lastLen;
     word32   lastTime;
@@ -75,7 +75,6 @@ static void p_hash(byte* result, word32 resLen, const byte* secret,
     Hmac hmac;
 
     if (hash == md5_mac) {
-        len = MD5_DIGEST_SIZE;
         hash = MD5;
     }
     else if (hash == sha_mac) {
