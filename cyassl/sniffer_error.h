@@ -98,6 +98,7 @@
 #define BAD_INPUT_STR 64
 #define BAD_DECRYPT_TYPE 65
 #define BAD_FINISHED_MSG 66
+#define BAD_COMPRESSION_STR 67
 
 /* !!!! also add to msgTable in sniffer.c and .rc file !!!! */
 

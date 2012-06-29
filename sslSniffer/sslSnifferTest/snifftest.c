@@ -63,7 +63,7 @@ typedef unsigned char byte;
 
 enum {
     ETHER_IF_FRAME_LEN = 14,   /* ethernet interface frame length */
-    LOCAL_IF_FRAME_LEN =  4,   /* localhost interface frame length  */
+    NULL_IF_FRAME_LEN =   4,   /* no link interface frame length  */
 };
 
 
@@ -241,8 +241,8 @@ int main(int argc, char** argv)
     if (ret != 0)
         err_sys(err);
 
-    if (pcap_datalink(pcap) == 0) 
-        frame = LOCAL_IF_FRAME_LEN;
+    if (pcap_datalink(pcap) == DLT_NULL) 
+        frame = NULL_IF_FRAME_LEN;
 
     while (1) {
         struct pcap_pkthdr header;

@@ -216,7 +216,8 @@ static const char* const msgTable[] =
     "Bad Decrypt Type",
 
     /* 66 */
-    "Bad Finished Message Processing"
+    "Bad Finished Message Processing",
+    "Bad Compression Type"
 };
 
 
@@ -1066,7 +1067,7 @@ static int ProcessClientKeyExchange(const byte* input, int* sslBytes,
         FreeRsaKey(&key);
         return -1;
     }
-    
+
     MakeMasterSecret(session->sslServer);
     MakeMasterSecret(session->sslClient);
 #ifdef SHOW_SECRETS
@@ -1172,12 +1173,22 @@ static int ProcessServerHello(const byte* input, int* sslBytes,
     }
     input     += b;
     *sslBytes -= b;
-    
+   
+    /* cipher suite */ 
     (void)*input++;  /* eat first byte, always 0 */
     b = *input++;
     session->sslServer->options.cipherSuite = b;
     session->sslClient->options.cipherSuite = b;
     *sslBytes -= SUITE_LEN;
+
+    /* compression */
+    b = *input++;
+    *sslBytes -= ENUM_LEN;
+
+    if (b) {
+        SetError(BAD_COMPRESSION_STR, error, session, FATAL_ERROR_STATE);
+        return -1;
+    }
    
     if (session->sslServer->options.haveSessionId &&
             XMEMCMP(session->sslServer->arrays.sessionID,
@@ -1466,6 +1477,9 @@ static int DoHandShake(const byte* input, int* sslBytes,
             break;
         case server_key_exchange:
             Trace(GOT_SERVER_KEY_EX_STR);
+            /* can't know temp key passively */
+            SetError(BAD_CIPHER_SPEC_STR, error, session, FATAL_ERROR_STATE);
+            ret = -1;
             break;
         case certificate:
             Trace(GOT_CERT_STR);
