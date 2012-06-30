@@ -146,6 +146,11 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     load_buffer(ctx, svrKey,  CYASSL_KEY);
 #endif /* NO_FILESYSTEM */
 
+#if defined(CYASSL_SNIFFER) && !defined(HAVE_NTRU) && !defined(HAVE_ECC)
+    /* don't use EDH, can't sniff tmp keys */
+    SSL_CTX_set_cipher_list(ctx, "AES256-SHA");
+#endif
+
     ssl = SSL_new(ctx);
 #ifdef HAVE_CRL
     CyaSSL_EnableCRL(ssl, 0);

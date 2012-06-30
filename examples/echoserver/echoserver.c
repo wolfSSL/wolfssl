@@ -128,6 +128,11 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
     load_buffer(ctx, svrKey,  CYASSL_KEY);
 #endif
 
+#if defined(CYASSL_SNIFFER) && !defined(HAVE_NTRU) && !defined(HAVE_ECC)
+    /* don't use EDH, can't sniff tmp keys */
+    CyaSSL_CTX_set_cipher_list(ctx, "AES256-SHA");
+#endif
+
     SignalReady(args);
 
     while (!shutdown) {
