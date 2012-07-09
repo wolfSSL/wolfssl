@@ -4522,7 +4522,6 @@ int SetCipherList(Suites* s, const char* list)
         byte b;
         byte compression;
         ProtocolVersion pv;
-        word16 extSz;
         word32 i = *inOutIdx;
         word32 begin = i;
 
