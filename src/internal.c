@@ -55,7 +55,7 @@
 
 #ifndef NO_CYASSL_CLIENT
     static int DoHelloVerifyRequest(CYASSL* ssl, const byte* input, word32*);
-    static int DoServerHello(CYASSL* ssl, const byte* input, word32*);
+    static int DoServerHello(CYASSL* ssl, const byte* input, word32*, word32);
     static int DoCertificateRequest(CYASSL* ssl, const byte* input, word32*);
     static int DoServerKeyExchange(CYASSL* ssl, const byte* input, word32*);
 #endif
@@ -2125,7 +2125,7 @@ static int DoHandShakeMsg(CYASSL* ssl, byte* input, word32* inOutIdx,
             
     case server_hello:
         CYASSL_MSG("processing server hello");
-        ret = DoServerHello(ssl, input, inOutIdx);
+        ret = DoServerHello(ssl, input, inOutIdx, size);
         break;
 
     case certificate_request:
@@ -4384,7 +4384,10 @@ int SetCipherList(Suites* s, const char* list)
         length = sizeof(ProtocolVersion) + RAN_LEN
                + idSz + ENUM_LEN                      
                + ssl->suites.suiteSz + SUITE_LEN
-               + COMP_LEN  + ENUM_LEN;
+               + COMP_LEN + ENUM_LEN;
+
+        if (IsAtLeastTLSv1_2(ssl))
+            length += HELLO_EXT_SZ;
 
         sendSz = length + HANDSHAKE_HEADER_SZ + RECORD_HEADER_SZ;
 
@@ -4450,7 +4453,28 @@ int SetCipherList(Suites* s, const char* list)
             output[idx++] = ZLIB_COMPRESSION;
         else
             output[idx++] = NO_COMPRESSION;
-            
+
+        if (IsAtLeastTLSv1_2(ssl))
+        {
+            /* add in the extensions length */
+            c16toa(HELLO_EXT_SZ-2, output + idx);
+            idx += 2;
+
+            c16toa(HELLO_EXT_SIG_ALGO, output + idx);
+            idx += 2;
+            c16toa(HELLO_EXT_SZ-6, output + idx);
+            idx += 2;
+
+            c16toa(HELLO_EXT_SZ-8, output + idx);
+            idx += 2;
+            output[idx++] = sha_mac;
+            output[idx++] = rsa_sa_algo;
+            output[idx++] = sha_mac;
+            output[idx++] = dsa_sa_algo;
+            output[idx++] = sha_mac;
+            output[idx++] = ecc_dsa_sa_algo;
+        }
+
         HashOutput(ssl, output, sendSz, 0);
 
         ssl->options.clientState = CLIENT_HELLO_COMPLETE;
@@ -4492,12 +4516,15 @@ int SetCipherList(Suites* s, const char* list)
     }
 
 
-    static int DoServerHello(CYASSL* ssl, const byte* input, word32* inOutIdx)
+    static int DoServerHello(CYASSL* ssl, const byte* input, word32* inOutIdx,
+                             word32 helloSz)
     {
         byte b;
         byte compression;
         ProtocolVersion pv;
+        word16 extSz;
         word32 i = *inOutIdx;
+        word32 begin = i;
 
 #ifdef CYASSL_CALLBACKS
         if (ssl->hsInfoOn) AddPacketName("ServerHello", &ssl->handShakeInfo);
@@ -4549,7 +4576,11 @@ int SetCipherList(Suites* s, const char* list)
             CYASSL_MSG("Server refused compression, turning off"); 
             ssl->options.usingCompression = 0;  /* turn off if server refused */
         }
-        
+
+        *inOutIdx = i;
+        if ( (i - begin) < helloSz)
+            *inOutIdx = begin + helloSz;  /* skip extensions */
+
         ssl->options.serverState = SERVER_HELLO_COMPLETE;
 
         *inOutIdx = i;

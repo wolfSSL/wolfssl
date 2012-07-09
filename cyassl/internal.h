@@ -341,6 +341,7 @@ enum Misc {
     TLSv1_2_MINOR   = 3,        /* TLSv1_2 minor version number */
     NO_COMPRESSION  =  0,
     ZLIB_COMPRESSION = 221,     /* CyaSSL zlib compression */
+    HELLO_EXT_SIG_ALGO = 13,    /* ID for the sig_algo hello extension */
     SECRET_LEN      = 48,       /* pre RSA and all master */
     ENCRYPT_LEN     = 512,      /* allow 4096 bit static buffer */
     SIZEOF_SENDER   =  4,       /* clnt or srvr           */
@@ -380,6 +381,7 @@ enum Misc {
     CERT_HEADER_SZ      = 3,   /* always 3 bytes          */
     REQ_HEADER_SZ       = 2,   /* cert request header sz  */
     HINT_LEN_SZ         = 2,   /* length of hint size field */
+    HELLO_EXT_SZ        = 14,  /* length of the lazy hello extensions */
 
     DTLS_HANDSHAKE_HEADER_SZ = 12, /* normal + seq(2) + offset(3) + length(3) */
     DTLS_RECORD_HEADER_SZ    = 13, /* normal + epoch(2) + seq_num(6) */
@@ -841,7 +843,7 @@ enum BulkCipherAlgorithm {
 
 /* Supported Message Authentication Codes from page 43 */
 enum MACAlgorithm { 
-    no_mac = 10,
+    no_mac = 0,
     md5_mac,
     sha_mac,
     sha224_mac,
@@ -854,7 +856,7 @@ enum MACAlgorithm {
 
 /* Supported Key Exchange Protocols */
 enum KeyExchangeAlgorithm { 
-    no_kea = 20,
+    no_kea = 0,
     rsa_kea, 
     diffie_hellman_kea, 
     fortezza_kea,
@@ -867,7 +869,7 @@ enum KeyExchangeAlgorithm {
 
 /* Supported Authentication Schemes */
 enum SignatureAlgorithm {
-    anonymous_sa_algo = 30,
+    anonymous_sa_algo = 0,
     rsa_sa_algo,
     dsa_sa_algo,
     ecc_dsa_sa_algo
