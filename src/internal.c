@@ -5786,6 +5786,17 @@ int SetCipherList(Suites* s, const char* list)
     }
 
 
+    /* cipher requirements */
+    enum {
+        REQUIRES_RSA,
+        REQUIRES_DHE,
+        REQUIRES_ECC_DSA,
+        REQUIRES_ECC_STATIC,
+        REQUIRES_PSK,
+        REQUIRES_NTRU
+    };
+
+
 
     /* Does this cipher suite (first, second) have the requirement
        an ephemeral key exchange will still require the key for signing
@@ -5798,82 +5809,82 @@ int SetCipherList(Suites* s, const char* list)
         switch (second) {
 
         case TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA :
-            if (requirement == rsa_kea)
+            if (requirement == REQUIRES_RSA)
                 return 1;
             break;
 
         case TLS_ECDH_RSA_WITH_AES_128_CBC_SHA :
-            if (requirement == ecc_static_diffie_hellman_kea)
+            if (requirement == REQUIRES_ECC_STATIC)
                 return 1;
             break;
 
         case TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA :
-            if (requirement == rsa_kea)
+            if (requirement == REQUIRES_RSA)
                 return 1;
             break;
 
         case TLS_ECDH_RSA_WITH_3DES_EDE_CBC_SHA :
-            if (requirement == ecc_static_diffie_hellman_kea)
+            if (requirement == REQUIRES_ECC_STATIC)
                 return 1;
             break;
 
         case TLS_ECDHE_RSA_WITH_RC4_128_SHA :
-            if (requirement == rsa_kea)
+            if (requirement == REQUIRES_RSA)
                 return 1;
             break;
 
         case TLS_ECDH_RSA_WITH_RC4_128_SHA :
-            if (requirement == ecc_static_diffie_hellman_kea)
+            if (requirement == REQUIRES_ECC_STATIC)
                 return 1;
             break;
 
         case TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA :
-            if (requirement == ecc_dsa_sa_algo)
+            if (requirement == REQUIRES_ECC_DSA)
                 return 1;
             break;
 
         case TLS_ECDH_ECDSA_WITH_3DES_EDE_CBC_SHA :
-            if (requirement == ecc_static_diffie_hellman_kea)
+            if (requirement == REQUIRES_ECC_STATIC)
                 return 1;
             break;
 
         case TLS_ECDHE_ECDSA_WITH_RC4_128_SHA :
-            if (requirement == ecc_dsa_sa_algo)
+            if (requirement == REQUIRES_ECC_DSA)
                 return 1;
             break;
 
         case TLS_ECDH_ECDSA_WITH_RC4_128_SHA :
-            if (requirement == ecc_static_diffie_hellman_kea)
+            if (requirement == REQUIRES_ECC_STATIC)
                 return 1;
             break;
 
         case TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA :
-            if (requirement == rsa_kea)
+            if (requirement == REQUIRES_RSA)
                 return 1;
             break;
 
         case TLS_ECDH_RSA_WITH_AES_256_CBC_SHA :
-            if (requirement == ecc_static_diffie_hellman_kea)
+            if (requirement == REQUIRES_ECC_STATIC)
                 return 1;
             break;
 
         case TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA :
-            if (requirement == ecc_dsa_sa_algo)
+            if (requirement == REQUIRES_ECC_DSA)
                 return 1;
             break;
 
         case TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA :
-            if (requirement == ecc_static_diffie_hellman_kea)
+            if (requirement == REQUIRES_ECC_STATIC)
                 return 1;
             break;
 
         case TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA :
-            if (requirement == ecc_dsa_sa_algo)
+            if (requirement == REQUIRES_ECC_DSA)
                 return 1;
             break;
 
         case TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA :
-            if (requirement == ecc_static_diffie_hellman_kea)
+            if (requirement == REQUIRES_ECC_STATIC)
                 return 1;
             break;
 
@@ -5926,110 +5937,110 @@ int SetCipherList(Suites* s, const char* list)
         switch (second) {
 
         case SSL_RSA_WITH_RC4_128_SHA :
-            if (requirement == rsa_kea)
+            if (requirement == REQUIRES_RSA)
                 return 1;
             break;
 
         case TLS_NTRU_RSA_WITH_RC4_128_SHA :
-            if (requirement == ntru_kea)
+            if (requirement == REQUIRES_NTRU)
                 return 1;
             break;
 
         case SSL_RSA_WITH_RC4_128_MD5 :
-            if (requirement == rsa_kea)
+            if (requirement == REQUIRES_RSA)
                 return 1;
             break;
 
         case SSL_RSA_WITH_3DES_EDE_CBC_SHA :
-            if (requirement == rsa_kea)
+            if (requirement == REQUIRES_RSA)
                 return 1;
             break;
 
         case TLS_NTRU_RSA_WITH_3DES_EDE_CBC_SHA :
-            if (requirement == ntru_kea)
+            if (requirement == REQUIRES_NTRU)
                 return 1;
             break;
 
         case TLS_RSA_WITH_AES_128_CBC_SHA :
-            if (requirement == rsa_kea)
+            if (requirement == REQUIRES_RSA)
                 return 1;
             break;
 
         case TLS_RSA_WITH_AES_128_CBC_SHA256 :
-            if (requirement == rsa_kea)
+            if (requirement == REQUIRES_RSA)
                 return 1;
             break;
 
         case TLS_NTRU_RSA_WITH_AES_128_CBC_SHA :
-            if (requirement == ntru_kea)
+            if (requirement == REQUIRES_NTRU)
                 return 1;
             break;
 
         case TLS_RSA_WITH_AES_256_CBC_SHA :
-            if (requirement == rsa_kea)
+            if (requirement == REQUIRES_RSA)
                 return 1;
             break;
 
         case TLS_RSA_WITH_AES_256_CBC_SHA256 :
-            if (requirement == rsa_kea)
+            if (requirement == REQUIRES_RSA)
                 return 1;
             break;
 
         case TLS_NTRU_RSA_WITH_AES_256_CBC_SHA :
-            if (requirement == ntru_kea)
+            if (requirement == REQUIRES_NTRU)
                 return 1;
             break;
 
         case TLS_PSK_WITH_AES_128_CBC_SHA :
-            if (requirement == psk_kea)
+            if (requirement == REQUIRES_PSK)
                 return 1;
             break;
 
         case TLS_PSK_WITH_AES_256_CBC_SHA :
-            if (requirement == psk_kea)
+            if (requirement == REQUIRES_PSK)
                 return 1;
             break;
 
         case TLS_DHE_RSA_WITH_AES_128_CBC_SHA256 :
-            if (requirement == rsa_kea)
+            if (requirement == REQUIRES_RSA)
                 return 1;
-            if (requirement == diffie_hellman_kea)
+            if (requirement == REQUIRES_DHE)
                 return 1;
             break;
 
         case TLS_DHE_RSA_WITH_AES_256_CBC_SHA256 :
-            if (requirement == rsa_kea)
+            if (requirement == REQUIRES_RSA)
                 return 1;
-            if (requirement == diffie_hellman_kea)
+            if (requirement == REQUIRES_DHE)
                 return 1;
             break;
 
         case TLS_DHE_RSA_WITH_AES_128_CBC_SHA :
-            if (requirement == rsa_kea)
+            if (requirement == REQUIRES_RSA)
                 return 1;
-            if (requirement == diffie_hellman_kea)
+            if (requirement == REQUIRES_DHE)
                 return 1;
             break;
 
         case TLS_DHE_RSA_WITH_AES_256_CBC_SHA :
-            if (requirement == rsa_kea)
+            if (requirement == REQUIRES_RSA)
                 return 1;
-            if (requirement == diffie_hellman_kea)
+            if (requirement == REQUIRES_DHE)
                 return 1;
             break;
 
         case TLS_RSA_WITH_HC_128_CBC_MD5 :
-            if (requirement == rsa_kea)
+            if (requirement == REQUIRES_RSA)
                 return 1;
             break;
                 
         case TLS_RSA_WITH_HC_128_CBC_SHA :
-            if (requirement == rsa_kea)
+            if (requirement == REQUIRES_RSA)
                 return 1;
             break;
 
         case TLS_RSA_WITH_RABBIT_CBC_SHA :
-            if (requirement == rsa_kea)
+            if (requirement == REQUIRES_RSA)
                 return 1;
             break;
 
@@ -6077,7 +6088,7 @@ int SetCipherList(Suites* s, const char* list)
         if (ssl->options.haveNTRU)
             haveRSA = 0;
 
-        if (CipherRequires(first, second, rsa_kea)) {
+        if (CipherRequires(first, second, REQUIRES_RSA)) {
             CYASSL_MSG("Requires RSA");
             if (haveRSA == 0) {
                 CYASSL_MSG("Don't have RSA");
@@ -6086,7 +6097,7 @@ int SetCipherList(Suites* s, const char* list)
             return 1;
         }
 
-        if (CipherRequires(first, second, diffie_hellman_kea)) {
+        if (CipherRequires(first, second, REQUIRES_DHE)) {
             CYASSL_MSG("Requires DHE");
             if (ssl->options.haveDH == 0) {
                 CYASSL_MSG("Don't have DHE");
@@ -6095,7 +6106,7 @@ int SetCipherList(Suites* s, const char* list)
             return 1;
         }
 
-        if (CipherRequires(first, second, ecc_dsa_sa_algo)) {
+        if (CipherRequires(first, second, REQUIRES_ECC_DSA)) {
             CYASSL_MSG("Requires ECCDSA");
             if (ssl->options.haveECDSA == 0) {
                 CYASSL_MSG("Don't have ECCDSA");
@@ -6104,7 +6115,7 @@ int SetCipherList(Suites* s, const char* list)
             return 1;
         }
 
-        if (CipherRequires(first, second, ecc_static_diffie_hellman_kea)) {
+        if (CipherRequires(first, second, REQUIRES_ECC_STATIC)) {
             CYASSL_MSG("Requires static ECC");
             if (ssl->options.haveStaticECC == 0) {
                 CYASSL_MSG("Don't have static ECC");
@@ -6113,7 +6124,7 @@ int SetCipherList(Suites* s, const char* list)
             return 1;
         }
 
-        if (CipherRequires(first, second, psk_kea)) {
+        if (CipherRequires(first, second, REQUIRES_PSK)) {
             CYASSL_MSG("Requires PSK");
             if (havePSK == 0) {
                 CYASSL_MSG("Don't have PSK");
@@ -6122,7 +6133,7 @@ int SetCipherList(Suites* s, const char* list)
             return 1;
         }
 
-        if (CipherRequires(first, second, ntru_kea)) {
+        if (CipherRequires(first, second, REQUIRES_NTRU)) {
             CYASSL_MSG("Requires NTRU");
             if (ssl->options.haveNTRU == 0) {
                 CYASSL_MSG("Don't have NTRU");
