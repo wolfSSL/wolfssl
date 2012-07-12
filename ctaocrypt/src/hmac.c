@@ -73,7 +73,8 @@ void HmacSetKey(Hmac* hmac, int type, const byte* key, word32 length)
         }
     }
     else if (hmac->macType == SHA) {
-        if (length <= MD5_BLOCK_SIZE) {
+		hmac_block_size = SHA_BLOCK_SIZE;
+        if (length <= SHA_BLOCK_SIZE) {
             XMEMCPY(ip, key, length);
         }
         else {
@@ -84,7 +85,8 @@ void HmacSetKey(Hmac* hmac, int type, const byte* key, word32 length)
     }
 #ifndef NO_SHA256
     else if (hmac->macType == SHA256) {
-        if (length <= MD5_BLOCK_SIZE) {
+		hmac_block_size = SHA256_BLOCK_SIZE;
+        if (length <= SHA256_BLOCK_SIZE) {
             XMEMCPY(ip, key, length);
         }
         else {
@@ -121,10 +123,10 @@ static void HmacKeyInnerHash(Hmac* hmac)
     if (hmac->macType == MD5)
         Md5Update(&hmac->hash.md5, (byte*) hmac->ipad, MD5_BLOCK_SIZE);
     else if (hmac->macType == SHA)
-        ShaUpdate(&hmac->hash.sha, (byte*) hmac->ipad, MD5_BLOCK_SIZE);
+        ShaUpdate(&hmac->hash.sha, (byte*) hmac->ipad, SHA_BLOCK_SIZE);
 #ifndef NO_SHA256
     else if (hmac->macType == SHA256)
-        Sha256Update(&hmac->hash.sha256, (byte*) hmac->ipad, MD5_BLOCK_SIZE);
+        Sha256Update(&hmac->hash.sha256, (byte*) hmac->ipad, SHA256_BLOCK_SIZE);
 #endif
 #ifdef CYASSL_SHA384
     else if (hmac->macType == SHA384)
@@ -172,7 +174,7 @@ void HmacFinal(Hmac* hmac, byte* hash)
     else if (hmac->macType == SHA) {
         ShaFinal(&hmac->hash.sha, (byte*) hmac->innerHash);
 
-        ShaUpdate(&hmac->hash.sha, (byte*) hmac->opad, MD5_BLOCK_SIZE);
+        ShaUpdate(&hmac->hash.sha, (byte*) hmac->opad, SHA_BLOCK_SIZE);
         ShaUpdate(&hmac->hash.sha, (byte*) hmac->innerHash, SHA_DIGEST_SIZE);
 
         ShaFinal(&hmac->hash.sha, hash);
@@ -181,7 +183,7 @@ void HmacFinal(Hmac* hmac, byte* hash)
     else if (hmac->macType == SHA256) {
         Sha256Final(&hmac->hash.sha256, (byte*) hmac->innerHash);
 
-        Sha256Update(&hmac->hash.sha256, (byte*) hmac->opad, MD5_BLOCK_SIZE);
+        Sha256Update(&hmac->hash.sha256, (byte*) hmac->opad, SHA256_BLOCK_SIZE);
         Sha256Update(&hmac->hash.sha256, (byte*) hmac->innerHash,
                      SHA256_DIGEST_SIZE);
 

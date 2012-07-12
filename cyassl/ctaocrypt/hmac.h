@@ -49,11 +49,11 @@ enum {
     HMAC_BLOCK_SIZE = SHA384_BLOCK_SIZE
 #elif !defined(NO_SHA256)
     INNER_HASH_SIZE = SHA256_DIGEST_SIZE,
-    HMAC_BLOCK_SIZE = MD5_BLOCK_SIZE,
+    HMAC_BLOCK_SIZE = SHA256_BLOCK_SIZE,
     SHA384          = 5
 #else
     INNER_HASH_SIZE = SHA_DIGEST_SIZE,
-    HMAC_BLOCK_SIZE = MD5_BLOCK_SIZE,
+    HMAC_BLOCK_SIZE = SHA_BLOCK_SIZE,
     SHA256          = 2,                     /* hash type unique */
     SHA384          = 5
 #endif
