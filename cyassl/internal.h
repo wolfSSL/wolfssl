@@ -779,7 +779,7 @@ typedef struct CipherSpecs {
 
 /* Supported Ciphers from page 43  */
 enum BulkCipherAlgorithm { 
-    cipher_null = 0,
+    cipher_null,
     rc4,
     rc2,
     des,
@@ -794,7 +794,7 @@ enum BulkCipherAlgorithm {
 
 /* Supported Message Authentication Codes from page 43 */
 enum MACAlgorithm { 
-    no_mac = 10,
+    no_mac,
     md5_mac,
     sha_mac,
     sha224_mac,
@@ -807,7 +807,7 @@ enum MACAlgorithm {
 
 /* Supported Key Exchange Protocols */
 enum KeyExchangeAlgorithm { 
-    no_kea = 20,
+    no_kea,
     rsa_kea, 
     diffie_hellman_kea, 
     fortezza_kea,
@@ -820,7 +820,7 @@ enum KeyExchangeAlgorithm {
 
 /* Supported Authentication Schemes */
 enum SignatureAlgorithm {
-    anonymous_sa_algo = 30,
+    anonymous_sa_algo,
     rsa_sa_algo,
     dsa_sa_algo,
     ecc_dsa_sa_algo
