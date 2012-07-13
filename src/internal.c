@@ -726,6 +726,8 @@ void InitSuites(Suites* suites, ProtocolVersion pv, byte haveDH, byte havePSK,
 }
 
 
+/* init everything to 0, NULL, default values before calling anything that may
+   fail so that desctructor has a "good" state to cleanup */
 int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
 {
     int  ret;
@@ -786,17 +788,6 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
 
     ssl->IOCB_ReadCtx  = &ssl->rfd;   /* prevent invalid pointer acess if not */
     ssl->IOCB_WriteCtx = &ssl->wfd;   /* correctly set */
-
-    /* increment CTX reference count */
-    if (LockMutex(&ctx->countMutex) != 0) {
-        CYASSL_MSG("Couldn't lock CTX count mutex");
-        return BAD_MUTEX_ERROR;
-    }
-    ctx->refCount++;
-    UnLockMutex(&ctx->countMutex);
-
-    if ( (ret = InitRng(&ssl->rng)) != 0)
-        return ret;
 
     InitMd5(&ssl->hashMd5);
     InitSha(&ssl->hashSha);
@@ -883,40 +874,7 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
     ssl->peerCert.issuer.sz    = 0;
     ssl->peerCert.subject.sz   = 0;
 #endif
-   
-    /* make sure server has cert and key unless using PSK */
-    if (ssl->options.side == SERVER_END && !havePSK)
-        if (!ssl->buffers.certificate.buffer || !ssl->buffers.key.buffer) {
-            CYASSL_MSG("Server missing certificate and/or private key"); 
-            return NO_PRIVATE_KEY;
-        }
-
-#ifndef NO_PSK
-    ssl->arrays.client_identity[0] = 0;
-    if (ctx->server_hint[0]) {   /* set in CTX */
-        XSTRNCPY(ssl->arrays.server_hint, ctx->server_hint, MAX_PSK_ID_LEN);
-        ssl->arrays.server_hint[MAX_PSK_ID_LEN - 1] = '\0';
-    }
-    else
-        ssl->arrays.server_hint[0] = 0;
-#endif /* NO_PSK */
-
-#ifdef CYASSL_CALLBACKS
-    ssl->hsInfoOn = 0;
-    ssl->toInfoOn = 0;
-#endif
-
-    /* make sure server has DH parms, and add PSK if there, add NTRU too */
-    if (ssl->options.side == SERVER_END) 
-        InitSuites(&ssl->suites, ssl->version,ssl->options.haveDH, havePSK,
-                   ssl->options.haveNTRU, ssl->options.haveECDSA,
-                   ssl->options.haveStaticECC, ssl->options.side);
-    else 
-        InitSuites(&ssl->suites, ssl->version, TRUE, havePSK,
-                   ssl->options.haveNTRU, ssl->options.haveECDSA,
-                   ssl->options.haveStaticECC, ssl->options.side);
-
-
+  
 #ifdef SESSION_CERTS
     ssl->session.chain.count = 0;
 #endif
@@ -928,6 +886,51 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
     ssl->ex_data[1] = 0;
     ssl->ex_data[2] = 0;
 #endif
+
+#ifdef CYASSL_CALLBACKS
+    ssl->hsInfoOn = 0;
+    ssl->toInfoOn = 0;
+#endif
+
+#ifndef NO_PSK
+    ssl->arrays.client_identity[0] = 0;
+    if (ctx->server_hint[0]) {   /* set in CTX */
+        XSTRNCPY(ssl->arrays.server_hint, ctx->server_hint, MAX_PSK_ID_LEN);
+        ssl->arrays.server_hint[MAX_PSK_ID_LEN - 1] = '\0';
+    }
+    else
+        ssl->arrays.server_hint[0] = 0;
+#endif /* NO_PSK */
+
+    /* all done with init, now can return errors, call other stuff */
+
+    /* increment CTX reference count */
+    if (LockMutex(&ctx->countMutex) != 0) {
+        CYASSL_MSG("Couldn't lock CTX count mutex");
+        return BAD_MUTEX_ERROR;
+    }
+    ctx->refCount++;
+    UnLockMutex(&ctx->countMutex);
+
+    if ( (ret = InitRng(&ssl->rng)) != 0)
+        return ret;
+
+    /* make sure server has cert and key unless using PSK */
+    if (ssl->options.side == SERVER_END && !havePSK)
+        if (!ssl->buffers.certificate.buffer || !ssl->buffers.key.buffer) {
+            CYASSL_MSG("Server missing certificate and/or private key"); 
+            return NO_PRIVATE_KEY;
+        }
+
+    /* make sure server has DH parms, and add PSK if there, add NTRU too */
+    if (ssl->options.side == SERVER_END) 
+        InitSuites(&ssl->suites, ssl->version,ssl->options.haveDH, havePSK,
+                   ssl->options.haveNTRU, ssl->options.haveECDSA,
+                   ssl->options.haveStaticECC, ssl->options.side);
+    else 
+        InitSuites(&ssl->suites, ssl->version, TRUE, havePSK,
+                   ssl->options.haveNTRU, ssl->options.haveECDSA,
+                   ssl->options.haveStaticECC, ssl->options.side);
 
     return 0;
 }
