@@ -302,7 +302,9 @@ enum Misc {
     SIZEOF_SENDER   =  4,       /* clnt or srvr           */
     FINISHED_SZ     = MD5_DIGEST_SIZE + SHA_DIGEST_SIZE,
     MAX_RECORD_SIZE = 16384,    /* 2^14, max size by standard */
-    MAX_MSG_EXTRA   = 68,       /* max added to msg, mac + pad */
+    MAX_MSG_EXTRA   = 70,       /* max added to msg, mac + pad  from */
+                                /* RECORD_HEADER_SZ + BLOCK_SZ (pad) + SHA_256
+                                   digest sz + BLOC_SZ (iv) + pad byte (1) */
     MAX_COMP_EXTRA  = 1024,     /* max compression extra */
     MAX_MTU         = 1500,     /* max expected MTU */
     MAX_UDP_SIZE    = MAX_MTU - 100,   /* don't exceed MTU w/ 100 byte header */
