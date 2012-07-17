@@ -77,6 +77,24 @@
 #endif /* min */
 
 
+char* mystrnstr(const char* s1, const char* s2, unsigned int n)
+{
+    unsigned int s2_len = XSTRLEN(s2);
+
+    if (s2_len == 0)
+        return (char*)s1;
+
+    while (n >= s2_len && s1[0]) {
+        if (s1[0] == s2[0])
+            if (XMEMCMP(s1, s2, s2_len) == 0)
+                return (char*)s1;
+        s1++;
+        n--;
+    }
+
+    return NULL;
+}
+
 
 CYASSL_CTX* CyaSSL_CTX_new(CYASSL_METHOD* method)
 {
@@ -719,12 +737,12 @@ int AddCA(CYASSL_CERT_MANAGER* cm, buffer der, int type, int verify)
         }
 
         /* find header */
-        headerEnd = XSTRSTR((char*)buff, header);
+        headerEnd = XSTRNSTR((char*)buff, header, sz);
         if (!headerEnd && type == PRIVATEKEY_TYPE) {  /* may be pkcs8 */
             XSTRNCPY(header, "-----BEGIN PRIVATE KEY-----", sizeof(header));
             XSTRNCPY(footer, "-----END PRIVATE KEY-----", sizeof(footer));
         
-            headerEnd = XSTRSTR((char*)buff, header);
+            headerEnd = XSTRNSTR((char*)buff, header, sz);
             if (headerEnd)
                 pkcs8 = 1;
             else {
@@ -733,7 +751,7 @@ int AddCA(CYASSL_CERT_MANAGER* cm, buffer der, int type, int verify)
                 XSTRNCPY(footer, "-----END ENCRYPTED PRIVATE KEY-----",
                         sizeof(footer));
 
-                headerEnd = XSTRSTR((char*)buff, header);
+                headerEnd = XSTRNSTR((char*)buff, header, sz);
                 if (headerEnd)
                     pkcs8Enc = 1;
             }
@@ -742,7 +760,7 @@ int AddCA(CYASSL_CERT_MANAGER* cm, buffer der, int type, int verify)
             XSTRNCPY(header, "-----BEGIN EC PRIVATE KEY-----", sizeof(header));
             XSTRNCPY(footer, "-----END EC PRIVATE KEY-----", sizeof(footer));
         
-            headerEnd = XSTRSTR((char*)buff, header);
+            headerEnd = XSTRNSTR((char*)buff, header, sz);
             if (headerEnd)
                 *eccKey = 1;
         }
@@ -750,7 +768,7 @@ int AddCA(CYASSL_CERT_MANAGER* cm, buffer der, int type, int verify)
             XSTRNCPY(header, "-----BEGIN DSA PRIVATE KEY-----", sizeof(header));
             XSTRNCPY(footer, "-----END DSA PRIVATE KEY-----", sizeof(footer));
         
-            headerEnd = XSTRSTR((char*)buff, header);
+            headerEnd = XSTRNSTR((char*)buff, header, sz);
         }
         if (!headerEnd)
             return SSL_BAD_FILE;
@@ -768,28 +786,28 @@ int AddCA(CYASSL_CERT_MANAGER* cm, buffer der, int type, int verify)
     {
         /* remove encrypted header if there */
         char encHeader[] = "Proc-Type";
-        char* line = XSTRSTR((char*)buff, encHeader);
+        char* line = XSTRNSTR((char*)buff, encHeader, PEM_LINE_LEN);
         if (line) {
             char* newline;
             char* finish;
-            char* start  = XSTRSTR(line, "DES");
+            char* start  = XSTRNSTR(line, "DES", PEM_LINE_LEN);
     
             if (!start)
-                start = XSTRSTR(line, "AES");
+                start = XSTRNSTR(line, "AES", PEM_LINE_LEN);
             
             if (!start) return SSL_BAD_FILE;
             if (!info)  return SSL_BAD_FILE;
             
-            finish = XSTRSTR(start, ",");
+            finish = XSTRNSTR(start, ",", PEM_LINE_LEN);
 
             if (start && finish && (start < finish)) {
-                newline = XSTRSTR(finish, "\r");
+                newline = XSTRNSTR(finish, "\r", PEM_LINE_LEN);
 
                 XMEMCPY(info->name, start, finish - start);
                 info->name[finish - start] = 0;
                 XMEMCPY(info->iv, finish + 1, sizeof(info->iv));
 
-                if (!newline) newline = XSTRSTR(finish, "\n");
+                if (!newline) newline = XSTRNSTR(finish, "\n", PEM_LINE_LEN);
                 if (newline && (newline > finish)) {
                     info->ivSz = (word32)(newline - (finish + 1));
                     info->set = 1;
@@ -809,7 +827,7 @@ int AddCA(CYASSL_CERT_MANAGER* cm, buffer der, int type, int verify)
 #endif /* OPENSSL_EXTRA || HAVE_WEBSERVER */
 
         /* find footer */
-        footerEnd = XSTRSTR((char*)buff, footer);
+        footerEnd = XSTRNSTR((char*)buff, footer, sz);
         if (!footerEnd) return SSL_BAD_FILE;
 
         consumedEnd = footerEnd + XSTRLEN(footer);
