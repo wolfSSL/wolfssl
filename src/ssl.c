@@ -1508,6 +1508,15 @@ int CyaSSL_CertManagerDisableCRL(CYASSL_CERT_MANAGER* cm)
 }
 
 
+int CyaSSL_CTX_check_private_key(CYASSL_CTX* ctx)
+{
+    /* TODO: check private against public for RSA match */
+    (void)ctx; 
+    CYASSL_ENTER("SSL_CTX_check_private_key");
+    return SSL_SUCCESS;
+}
+
+
 #ifdef HAVE_CRL
 
 
@@ -3317,15 +3326,6 @@ int CyaSSL_set_compression(CYASSL* ssl)
         CYASSL_ENTER("CyaSSL_CTX_set_quiet_shutdown");
         if (mode)
             ssl->options.quietShutdown = 1;
-    }
-
-
-    int CyaSSL_CTX_check_private_key(CYASSL_CTX* ctx)
-    {
-        /* TODO: check private against public for RSA match */
-        (void)ctx; 
-        CYASSL_ENTER("SSL_CTX_check_private_key");
-        return SSL_SUCCESS;
     }
 
 
