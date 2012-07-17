@@ -1475,10 +1475,29 @@ static void GMULT(byte* X, byte* Y)
 }
 
 
+static INLINE void FlattenSzInBits(byte* buf, word32 sz)
+{
+    /* Multiply the sz by 8 */
+    word32 szHi = (sz >> (8*sizeof(sz) - 3));
+    sz <<= 3;
+
+    /* copy over the words of the sz into the destination buffer */
+    buf[0] = (szHi >> 24) & 0xff;
+    buf[1] = (szHi >> 16) & 0xff;
+    buf[2] = (szHi >>  8) & 0xff;
+    buf[3] = szHi & 0xff;
+    buf[4] = (sz >> 24) & 0xff;
+    buf[5] = (sz >> 16) & 0xff;
+    buf[6] = (sz >>  8) & 0xff;
+    buf[7] = sz & 0xff;
+}
+
+
 static void GHASH(byte* h, const byte* a, word32 aSz,
                                 const byte* c, word32 cSz, byte* s, word32 sSz)
 {
     byte x[AES_BLOCK_SIZE];
+    byte scratch[AES_BLOCK_SIZE];
     word32 blocks, partial;
 
     XMEMSET(x, 0, AES_BLOCK_SIZE);
@@ -1493,7 +1512,6 @@ static void GHASH(byte* h, const byte* a, word32 aSz,
             a += AES_BLOCK_SIZE;
         }
         if (partial != 0) {
-            byte scratch[AES_BLOCK_SIZE];
             XMEMSET(scratch, 0, AES_BLOCK_SIZE);
             XMEMCPY(scratch, a, partial);
             xorbuf(x, scratch, AES_BLOCK_SIZE);
@@ -1511,7 +1529,6 @@ static void GHASH(byte* h, const byte* a, word32 aSz,
             c += AES_BLOCK_SIZE;
         }
         if (partial != 0) {
-            byte scratch[AES_BLOCK_SIZE];
             XMEMSET(scratch, 0, AES_BLOCK_SIZE);
             XMEMCPY(scratch, c, partial);
             xorbuf(x, scratch, AES_BLOCK_SIZE);
@@ -1519,24 +1536,13 @@ static void GHASH(byte* h, const byte* a, word32 aSz,
         }
     }
 
-    /* Hash in the lengths in bits of A and C */
-    {
-        byte len[AES_BLOCK_SIZE];
-        XMEMSET(len, 0, AES_BLOCK_SIZE);
-        len[3] = aSz >> 29;
-        len[4] = aSz >> 21;
-        len[5] = aSz >> 13;
-        len[6] = aSz >> 5;
-        len[7] = aSz << 3;
+    /* Hash in the lengths of A and C in bits */
+    FlattenSzInBits(&scratch[0], aSz);
+    FlattenSzInBits(&scratch[8], cSz);
+    xorbuf(x, scratch, AES_BLOCK_SIZE);
+    GMULT(x, h);
 
-        len[11] = cSz >> 29;
-        len[12] = cSz >> 21;
-        len[13] = cSz >> 13;
-        len[14] = cSz >> 5;
-        len[15] = cSz << 3;
-        xorbuf(x, len, AES_BLOCK_SIZE);
-        GMULT(x, h);
-    }
+    /* Copy the result into s. */
     XMEMCPY(s, x, sSz);
 }
 

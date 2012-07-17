@@ -381,7 +381,10 @@ enum Misc {
     CERT_HEADER_SZ      = 3,   /* always 3 bytes          */
     REQ_HEADER_SZ       = 2,   /* cert request header sz  */
     HINT_LEN_SZ         = 2,   /* length of hint size field */
-    HELLO_EXT_SZ        = 14,  /* length of the lazy hello extensions */
+    HELLO_EXT_SZ        = 14,  /* total length of the lazy hello extensions */
+    HELLO_EXT_LEN       = 12,  /* length of the lazy hello extensions */
+    HELLO_EXT_SIGALGO_SZ  = 8, /* length of signature algo extension  */
+    HELLO_EXT_SIGALGO_LEN = 6, /* number of items in the signature algo list */
 
     DTLS_HANDSHAKE_HEADER_SZ = 12, /* normal + seq(2) + offset(3) + length(3) */
     DTLS_RECORD_HEADER_SZ    = 13, /* normal + epoch(2) + seq_num(6) */
@@ -405,9 +408,18 @@ enum Misc {
     AES_256_KEY_SIZE    = 32,  /* for 256 bit             */
     AES_192_KEY_SIZE    = 24,  /* for 192 bit             */
     AES_IV_SIZE         = 16,  /* always block size       */
-    AES_GCM_IMPLICIT_IV_SIZE = 4, /* Implicit half of IV  */
-    AES_GCM_EXPLICIT_IV_SIZE = 8, /* Explicit half of IV  */
+    AES_GCM_IMP_IV_SZ   = 4,   /* Implicit part of IV     */
+    AES_GCM_EXP_IV_SZ   = 8,   /* Explicit part of IV     */
+    AES_GCM_CTR_IV_SZ   = 4,   /* Counter part of IV      */
     AES_128_KEY_SIZE    = 16,  /* for 128 bit             */
+
+    AEAD_SEQ_OFFSET     = 4,        /* Auth Data: Sequence number */
+    AEAD_TYPE_OFFSET    = 8,        /* Auth Data: Type            */
+    AEAD_VMAJ_OFFSET    = 9,        /* Auth Data: Major Version   */
+    AEAD_VMIN_OFFSET    = 10,       /* Auth Data: Minor Version   */
+    AEAD_LEN_OFFSET     = 11,       /* Auth Data: Length          */
+    AEAD_AUTH_TAG_SZ    = 16,       /* Size of the authentication tag   */
+    AEAD_AUTH_DATA_SZ   = 13,       /* Size of the data to authenticate */
 
     HC_128_KEY_SIZE     = 16,  /* 128 bits                */
     HC_128_IV_SIZE      = 16,  /* also 128 bits           */

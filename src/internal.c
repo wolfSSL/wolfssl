@@ -2064,8 +2064,7 @@ int DoFinished(CYASSL* ssl, const byte* input, word32* inOutIdx, int sniff)
         }
     }
     else {
-        idx = idx + finishedSz + 16;
-        /* XXX the 16 should be from specs */
+        idx += (finishedSz + AEAD_AUTH_TAG_SZ);
     }
 
     if (ssl->options.side == CLIENT_END) {
@@ -2233,26 +2232,40 @@ static INLINE void Encrypt(CYASSL* ssl, byte* out, const byte* input, word32 sz)
                     byte additional[AES_BLOCK_SIZE];
                     byte nonce[AES_BLOCK_SIZE];
 
+                    /* use this side's IV */
                     if (ssl->options.side == SERVER_END) {
                         XMEMCPY(nonce, ssl->keys.server_write_IV,
-                                                    AES_GCM_IMPLICIT_IV_SIZE);
+                                                    AES_GCM_IMP_IV_SZ);
                     }
                     else {
                         XMEMCPY(nonce, ssl->keys.client_write_IV,
-                                                    AES_GCM_IMPLICIT_IV_SIZE);
+                                                    AES_GCM_IMP_IV_SZ);
                     }
-                    XMEMCPY(nonce + AES_GCM_IMPLICIT_IV_SIZE,
-                                            input, AES_GCM_EXPLICIT_IV_SIZE);
-                    XMEMSET(nonce + AES_GCM_IMPLICIT_IV_SIZE +
-                                            AES_GCM_EXPLICIT_IV_SIZE, 0, 4);
+                    XMEMCPY(nonce + AES_GCM_IMP_IV_SZ,
+                                            input, AES_GCM_EXP_IV_SZ);
+                    XMEMSET(nonce + AES_GCM_IMP_IV_SZ + AES_GCM_EXP_IV_SZ,
+                                            0, AES_GCM_CTR_IV_SZ);
                     AesSetIV(&ssl->encrypt.aes, nonce);
-                    
-                    XMEMSET(additional, 0, 16);
-                    c32toa(GetSEQIncrement(ssl, 0), additional + 4);
-                    XMEMCPY(additional+8, input - 5, 5);
-                    c16toa(sz - 24, additional+11);
-                    AesGcmEncrypt(&ssl->encrypt.aes, out+8, input+8, sz-24,
-                        out + sz - 16, 16, additional, 13);
+
+                    XMEMSET(additional, 0, AES_BLOCK_SIZE);
+
+                    /* sequence number field is 64-bits, we only use 32-bits */
+                    c32toa(GetSEQIncrement(ssl, 0),
+                                            additional + AEAD_SEQ_OFFSET);
+
+                    /* Store the type, version. Unfortunately, they are in
+                     * the input buffer ahead of the plaintext. */
+                    XMEMCPY(additional + AEAD_TYPE_OFFSET, input - 5, 3);
+
+                    /* Store the length of the plain text minus the explicit
+                     * IV length minus the authentication tag size. */
+                    c16toa(sz - AES_GCM_EXP_IV_SZ - AEAD_AUTH_TAG_SZ,
+                                                additional + AEAD_LEN_OFFSET);
+                    AesGcmEncrypt(&ssl->encrypt.aes,
+                        out + AES_GCM_EXP_IV_SZ, input + AES_GCM_EXP_IV_SZ,
+                            sz - AES_GCM_EXP_IV_SZ - AEAD_AUTH_TAG_SZ,
+                        out + sz - AEAD_AUTH_TAG_SZ, AEAD_AUTH_TAG_SZ,
+                        additional, AEAD_AUTH_DATA_SZ);
                 }
                 break;
         #endif
@@ -2300,31 +2313,41 @@ static INLINE int Decrypt(CYASSL* ssl, byte* plain, const byte* input,
         #ifdef BUILD_AESGCM
             case aes_gcm:
             {
-                byte additional[16];
-                byte nonce[16];
+                byte additional[AES_BLOCK_SIZE];
+                byte nonce[AES_BLOCK_SIZE];
 
                 /* use the other side's IV */
                 if (ssl->options.side == SERVER_END) {
                     XMEMCPY(nonce, ssl->keys.client_write_IV,
-                                                AES_GCM_IMPLICIT_IV_SIZE);
+                                                AES_GCM_IMP_IV_SZ);
                 }
                 else {
                     XMEMCPY(nonce, ssl->keys.server_write_IV,
-                                                AES_GCM_IMPLICIT_IV_SIZE);
+                                                AES_GCM_IMP_IV_SZ);
                 }
-                XMEMCPY(nonce + AES_GCM_IMPLICIT_IV_SIZE,
-                                        input, AES_GCM_EXPLICIT_IV_SIZE);
-                XMEMSET(nonce + AES_GCM_IMPLICIT_IV_SIZE +
-                                        AES_GCM_EXPLICIT_IV_SIZE, 0, 4);
+                XMEMCPY(nonce + AES_GCM_IMP_IV_SZ,
+                                        input, AES_GCM_EXP_IV_SZ);
+                XMEMSET(nonce + AES_GCM_IMP_IV_SZ + AES_GCM_EXP_IV_SZ,
+                                        0, AES_GCM_CTR_IV_SZ);
                 AesSetIV(&ssl->decrypt.aes, nonce);
-                XMEMSET(additional, 0, 4);
-                c32toa(GetSEQIncrement(ssl, 1), additional + 4);
-                additional[8] = ssl->curRL.type;
-                additional[9] = ssl->curRL.version.major;
-                additional[10] = ssl->curRL.version.minor;
-                c16toa(sz-24, additional + 11);
-                if (AesGcmDecrypt(&ssl->decrypt.aes, plain+8, input+8, sz-24,
-                    input + 8 + (sz - 24), 16, additional, 13) < 0) {
+
+                XMEMSET(additional, 0, AES_BLOCK_SIZE);
+
+                /* sequence number field is 64-bits, we only use 32-bits */
+                c32toa(GetSEQIncrement(ssl, 1), additional + AEAD_SEQ_OFFSET);
+                
+                additional[AEAD_TYPE_OFFSET] = ssl->curRL.type;
+                additional[AEAD_VMAJ_OFFSET] = ssl->curRL.version.major;
+                additional[AEAD_VMIN_OFFSET] = ssl->curRL.version.minor;
+
+                c16toa(sz - AES_GCM_EXP_IV_SZ - AEAD_AUTH_TAG_SZ,
+                                        additional + AEAD_LEN_OFFSET);
+                if (AesGcmDecrypt(&ssl->decrypt.aes,
+                            plain + AES_GCM_EXP_IV_SZ,
+                            input + AES_GCM_EXP_IV_SZ,
+                                sz - AES_GCM_EXP_IV_SZ - AEAD_AUTH_TAG_SZ,
+                            input + sz - AEAD_AUTH_TAG_SZ, AEAD_AUTH_TAG_SZ,
+                            additional, AEAD_AUTH_DATA_SZ) < 0) {
                     SendAlert(ssl, alert_fatal, bad_record_mac);
                     return VERIFY_MAC_ERROR;
                 }
@@ -2362,7 +2385,7 @@ static int DecryptMessage(CYASSL* ssl, byte* input, word32 sz, word32* idx)
         if (ssl->options.tls1_1 && ssl->specs.cipher_type == block)
             *idx += ssl->specs.block_size;  /* go past TLSv1.1 IV */
         if (ssl->specs.cipher_type == aead)
-            *idx += AES_GCM_EXPLICIT_IV_SIZE;
+            *idx += AES_GCM_EXP_IV_SZ;
     }
 
     return decryptResult;
@@ -2393,8 +2416,8 @@ int DoApplicationData(CYASSL* ssl, byte* input, word32* inOutIdx)
         padByte = 1;
     }
     if (ssl->specs.cipher_type == aead) {
-        ivExtra = 8;
-        digestSz = 16;
+        ivExtra = AES_GCM_EXP_IV_SZ;
+        digestSz = AEAD_AUTH_TAG_SZ;
     }
 
     dataSz = msgSz - ivExtra - digestSz - pad - padByte;
@@ -2497,8 +2520,7 @@ static int DoAlert(CYASSL* ssl, byte* input, word32* inOutIdx, int* type)
             }
         }
         else {
-            *inOutIdx += 16;
-            /* XXX this should be a value out of the cipher specs */
+            *inOutIdx += AEAD_AUTH_TAG_SZ;
         }
     }
 
@@ -3017,8 +3039,8 @@ static int BuildMessage(CYASSL* ssl, byte* output, const byte* input, int inSz,
     }
 
     if (ssl->specs.cipher_type == aead) {
-        ivSz = AES_GCM_EXPLICIT_IV_SIZE;
-        sz = sz + ivSz + 16 - digestSz;
+        ivSz = AES_GCM_EXP_IV_SZ;
+        sz += (ivSz + 16 - digestSz);
         RNG_GenerateBlock(&ssl->rng, iv, ivSz);
     }
     size = (word16)(sz - headerSz);    /* include mac and digest */
@@ -4457,15 +4479,16 @@ int SetCipherList(Suites* s, const char* list)
         if (IsAtLeastTLSv1_2(ssl))
         {
             /* add in the extensions length */
-            c16toa(HELLO_EXT_SZ-2, output + idx);
+            c16toa(HELLO_EXT_LEN, output + idx);
             idx += 2;
 
             c16toa(HELLO_EXT_SIG_ALGO, output + idx);
             idx += 2;
-            c16toa(HELLO_EXT_SZ-6, output + idx);
+            c16toa(HELLO_EXT_SIGALGO_SZ, output + idx);
             idx += 2;
-
-            c16toa(HELLO_EXT_SZ-8, output + idx);
+            /* This is a lazy list setup. Eventually, we'll need to support
+             * using other hash types or even other extensions. */
+            c16toa(HELLO_EXT_SIGALGO_LEN, output + idx);
             idx += 2;
             output[idx++] = sha_mac;
             output[idx++] = rsa_sa_algo;
