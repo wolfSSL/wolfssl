@@ -186,7 +186,8 @@ void bench_aesgcm()
     double start, total, persec;
     int    i;
 
-    AesSetKey(&enc, key, 16, iv, AES_ENCRYPTION);
+    AesGcmSetKey(&enc, key, 16);
+    AesSetIV(&enc, iv);
     start = current_time();
 
     for(i = 0; i < megs; i++)

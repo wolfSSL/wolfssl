@@ -1009,20 +1009,12 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
 #ifdef BUILD_AESGCM
     if (specs->bulk_cipher_algorithm == aes_gcm) {
         if (side == CLIENT_END) {
-            AesSetKey(&enc->aes, keys->client_write_key,
-                      specs->key_size, keys->client_write_IV,
-                      AES_ENCRYPTION);
-            AesSetKey(&dec->aes, keys->server_write_key,
-                      specs->key_size, keys->server_write_IV,
-                      AES_ENCRYPTION);
+            AesGcmSetKey(&enc->aes, keys->client_write_key, specs->key_size);
+            AesGcmSetKey(&dec->aes, keys->server_write_key, specs->key_size);
         }
         else {
-            AesSetKey(&enc->aes, keys->server_write_key,
-                      specs->key_size, keys->server_write_IV,
-                      AES_ENCRYPTION);
-            AesSetKey(&dec->aes, keys->client_write_key,
-                      specs->key_size, keys->client_write_IV,
-                      AES_ENCRYPTION);
+            AesGcmSetKey(&enc->aes, keys->server_write_key, specs->key_size);
+            AesGcmSetKey(&dec->aes, keys->client_write_key, specs->key_size);
         }
     }
 #endif
