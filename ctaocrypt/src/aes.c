@@ -1590,7 +1590,7 @@ static void GHASH(Aes* aes, const byte* a, word32 aSz,
 /* end GCM_SMALL */
 #elif defined(GCM_TABLE)
 
-const static byte R[256][2] = {
+static const byte R[256][2] = {
     {0x00, 0x00}, {0x01, 0xc2}, {0x03, 0x84}, {0x02, 0x46},
     {0x07, 0x08}, {0x06, 0xca}, {0x04, 0x8c}, {0x05, 0x4e},
     {0x0e, 0x10}, {0x0f, 0xd2}, {0x0d, 0x94}, {0x0c, 0x56},
@@ -1779,9 +1779,11 @@ static void GHASH(Aes* aes, const byte* a, word32 aSz,
     word64 x[2] = {0,0};
     word32 blocks, partial;
     word64 bigH[2];
-    byte scratch[AES_BLOCK_SIZE];
 
-    ByteReverseWords64(bigH, (word64*)aes->H, AES_BLOCK_SIZE); 
+    XMEMCPY(bigH, aes->H, AES_BLOCK_SIZE);
+    #ifdef LITTLE_ENDIAN_ORDER
+        ByteReverseWords64(bigH, bigH, AES_BLOCK_SIZE); 
+    #endif
 
     /* Hash in A, the Additional Authentication Data */
     if (aSz != 0 && a != NULL) {
@@ -1789,16 +1791,21 @@ static void GHASH(Aes* aes, const byte* a, word32 aSz,
         blocks = aSz / AES_BLOCK_SIZE;
         partial = aSz % AES_BLOCK_SIZE;
         while (blocks--) {
-            ByteReverseWords64(bigA, (const word64*)a, AES_BLOCK_SIZE);
+            XMEMCPY(bigA, a, AES_BLOCK_SIZE);
+            #ifdef LITTLE_ENDIAN_ORDER
+                ByteReverseWords64(bigA, bigA, AES_BLOCK_SIZE);
+            #endif
             x[0] ^= bigA[0];
             x[1] ^= bigA[1];
             GMULT(x, bigH);
             a += AES_BLOCK_SIZE;
         }
         if (partial != 0) {
-            XMEMSET(scratch, 0, AES_BLOCK_SIZE);
-            XMEMCPY(scratch, a, partial);
-            ByteReverseWords64(bigA, (const word64*)scratch, AES_BLOCK_SIZE);
+            XMEMSET(bigA, 0, AES_BLOCK_SIZE);
+            XMEMCPY(bigA, a, partial);
+            #ifdef LITTLE_ENDIAN_ORDER
+                ByteReverseWords64(bigA, bigA, AES_BLOCK_SIZE);
+            #endif
             x[0] ^= bigA[0];
             x[1] ^= bigA[1];
             GMULT(x, bigH);
@@ -1811,16 +1818,21 @@ static void GHASH(Aes* aes, const byte* a, word32 aSz,
         blocks = cSz / AES_BLOCK_SIZE;
         partial = cSz % AES_BLOCK_SIZE;
         while (blocks--) {
-            ByteReverseWords64(bigC, (const word64*)c, AES_BLOCK_SIZE);
+            XMEMCPY(bigC, c, AES_BLOCK_SIZE);
+            #ifdef LITTLE_ENDIAN_ORDER
+                ByteReverseWords64(bigC, bigC, AES_BLOCK_SIZE);
+            #endif
             x[0] ^= bigC[0];
             x[1] ^= bigC[1];
             GMULT(x, bigH);
             c += AES_BLOCK_SIZE;
         }
         if (partial != 0) {
-            XMEMSET(scratch, 0, AES_BLOCK_SIZE);
-            XMEMCPY(scratch, c, partial);
-            ByteReverseWords64(bigC, (const word64*)scratch, AES_BLOCK_SIZE);
+            XMEMSET(bigC, 0, AES_BLOCK_SIZE);
+            XMEMCPY(bigC, c, partial);
+            #ifdef LITTLE_ENDIAN_ORDER
+                ByteReverseWords64(bigC, bigC, AES_BLOCK_SIZE);
+            #endif
             x[0] ^= bigC[0];
             x[1] ^= bigC[1];
             GMULT(x, bigH);
@@ -1839,8 +1851,10 @@ static void GHASH(Aes* aes, const byte* a, word32 aSz,
         x[1] ^= len[1];
         GMULT(x, bigH);
     }
-    ByteReverseWords64((word64*)scratch, (const word64*)x, AES_BLOCK_SIZE);
-    XMEMCPY(s, scratch, sSz);
+    #ifdef LITTLE_ENDIAN_ORDER
+        ByteReverseWords64(x, x, AES_BLOCK_SIZE);
+    #endif
+    XMEMCPY(s, x, sSz);
 }
 
 /* end defined(WORD64_AVAILABLE) && !defined(GCM_WORD32) */
@@ -1898,9 +1912,11 @@ static void GHASH(Aes* aes, const byte* a, word32 aSz,
     word32 x[4] = {0,0,0,0};
     word32 blocks, partial;
     word32 bigH[4];
-    byte scratch[AES_BLOCK_SIZE];
 
-    ByteReverseWords(bigH, (word32*)aes->H, AES_BLOCK_SIZE); 
+    XMEMCPY(bigH, aes->H, AES_BLOCK_SIZE);
+    #ifdef LITTLE_ENDIAN_ORDER
+        ByteReverseWords(bigH, bigH, AES_BLOCK_SIZE); 
+    #endif
 
     /* Hash in A, the Additional Authentication Data */
     if (aSz != 0 && a != NULL) {
@@ -1908,7 +1924,10 @@ static void GHASH(Aes* aes, const byte* a, word32 aSz,
         blocks = aSz / AES_BLOCK_SIZE;
         partial = aSz % AES_BLOCK_SIZE;
         while (blocks--) {
-            ByteReverseWords(bigA, (const word32*)a, AES_BLOCK_SIZE);
+            XMEMCPY(bigA, a, AES_BLOCK_SIZE);
+            #ifdef LITTLE_ENDIAN_ORDER
+                ByteReverseWords(bigA, bigA, AES_BLOCK_SIZE);
+            #endif
             x[0] ^= bigA[0];
             x[1] ^= bigA[1];
             x[2] ^= bigA[2];
@@ -1917,9 +1936,11 @@ static void GHASH(Aes* aes, const byte* a, word32 aSz,
             a += AES_BLOCK_SIZE;
         }
         if (partial != 0) {
-            XMEMSET(scratch, 0, AES_BLOCK_SIZE);
-            XMEMCPY(scratch, a, partial);
-            ByteReverseWords(bigA, (const word32*)scratch, AES_BLOCK_SIZE);
+            XMEMSET(bigA, 0, AES_BLOCK_SIZE);
+            XMEMCPY(bigA, a, partial);
+            #ifdef LITTLE_ENDIAN_ORDER
+                ByteReverseWords(bigA, bigA, AES_BLOCK_SIZE);
+            #endif
             x[0] ^= bigA[0];
             x[1] ^= bigA[1];
             x[2] ^= bigA[2];
@@ -1934,7 +1955,10 @@ static void GHASH(Aes* aes, const byte* a, word32 aSz,
         blocks = cSz / AES_BLOCK_SIZE;
         partial = cSz % AES_BLOCK_SIZE;
         while (blocks--) {
-            ByteReverseWords(bigC, (const word32*)c, AES_BLOCK_SIZE);
+            XMEMCPY(bigC, c, AES_BLOCK_SIZE);
+            #ifdef LITTLE_ENDIAN_ORDER
+                ByteReverseWords(bigC, bigC, AES_BLOCK_SIZE);
+            #endif
             x[0] ^= bigC[0];
             x[1] ^= bigC[1];
             x[2] ^= bigC[2];
@@ -1943,9 +1967,11 @@ static void GHASH(Aes* aes, const byte* a, word32 aSz,
             c += AES_BLOCK_SIZE;
         }
         if (partial != 0) {
-            XMEMSET(scratch, 0, AES_BLOCK_SIZE);
-            XMEMCPY(scratch, c, partial);
-            ByteReverseWords(bigC, (const word32*)scratch, AES_BLOCK_SIZE);
+            XMEMSET(bigC, 0, AES_BLOCK_SIZE);
+            XMEMCPY(bigC, c, partial);
+            #ifdef LITTLE_ENDIAN_ORDER
+                ByteReverseWords(bigC, bigC, AES_BLOCK_SIZE);
+            #endif
             x[0] ^= bigC[0];
             x[1] ^= bigC[1];
             x[2] ^= bigC[2];
@@ -1970,8 +1996,10 @@ static void GHASH(Aes* aes, const byte* a, word32 aSz,
         x[3] ^= len[3];
         GMULT(x, bigH);
     }
-    ByteReverseWords((word32*)scratch, (const word32*)x, AES_BLOCK_SIZE);
-    XMEMCPY(s, scratch, sSz);
+    #ifdef LITTLE_ENDIAN_ORDER
+        ByteReverseWords(x, x, AES_BLOCK_SIZE);
+    #endif
+    XMEMCPY(s, x, sSz);
 }
 
 #endif /* end GCM_WORD32 */
