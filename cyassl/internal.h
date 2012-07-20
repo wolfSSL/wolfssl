@@ -510,9 +510,9 @@ enum {
     #define COMP_EXTRA 0
 #endif
 
-/* only the sniffer needs space in the buffer for an extra MTU record */
+/* only the sniffer needs space in the buffer for extra MTU record(s) */
 #ifdef CYASSL_SNIFFER
-    #define MTU_EXTRA MAX_MTU
+    #define MTU_EXTRA MAX_MTU * 3 
 #else
     #define MTU_EXTRA 0
 #endif
