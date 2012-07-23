@@ -470,90 +470,6 @@ void InitSuites(Suites* suites, ProtocolVersion pv, byte haveDH, byte havePSK,
         tls = 1;
 #endif
 
-#ifdef BUILD_TLS_RSA_WITH_AES_128_GCM_SHA256
-    if (tls1_2 && haveRSA) {
-        suites->suites[idx++] = 0;
-        suites->suites[idx++] = TLS_RSA_WITH_AES_128_GCM_SHA256;
-    }
-#endif
-
-#ifdef BUILD_TLS_RSA_WITH_AES_256_GCM_SHA384
-    if (tls1_2 && haveRSA) {
-        suites->suites[idx++] = 0;
-        suites->suites[idx++] = TLS_RSA_WITH_AES_256_GCM_SHA384;
-    }
-#endif
-
-#ifdef BUILD_TLS_DHE_RSA_WITH_AES_128_GCM_SHA256
-    if (tls1_2 && haveDH && haveRSA) {
-        suites->suites[idx++] = 0;
-        suites->suites[idx++] = TLS_DHE_RSA_WITH_AES_128_GCM_SHA256;
-    }
-#endif
-
-#ifdef BUILD_TLS_DHE_RSA_WITH_AES_256_GCM_SHA384
-    if (tls1_2 && haveDH && haveRSA) {
-        suites->suites[idx++] = 0;
-        suites->suites[idx++] = TLS_DHE_RSA_WITH_AES_256_GCM_SHA384;
-    }
-#endif
-
-#ifdef BUILD_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
-    if (tls1_2 && haveRSA) {
-        suites->suites[idx++] = ECC_BYTE;
-        suites->suites[idx++] = TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256;
-    }
-#endif
-
-#ifdef BUILD_TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
-    if (tls1_2 && haveRSA) {
-        suites->suites[idx++] = ECC_BYTE;
-        suites->suites[idx++] = TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384;
-    }
-#endif
-
-#ifdef BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256
-    if (tls1_2 && haveECDSA) {
-        suites->suites[idx++] = ECC_BYTE;
-        suites->suites[idx++] = TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256;
-    }
-#endif
-
-#ifdef BUILD_TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384
-    if (tls1_2 && haveECDSA) {
-        suites->suites[idx++] = ECC_BYTE;
-        suites->suites[idx++] = TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384;
-    }
-#endif
-
-#ifdef BUILD_TLS_ECDH_RSA_WITH_AES_128_GCM_SHA256
-    if (tls1_2 && haveRSA && haveStaticECC) {
-        suites->suites[idx++] = ECC_BYTE;
-        suites->suites[idx++] = TLS_ECDH_RSA_WITH_AES_128_GCM_SHA256;
-    }
-#endif
-
-#ifdef BUILD_TLS_ECDH_RSA_WITH_AES_256_GCM_SHA384
-    if (tls1_2 && haveRSA && haveStaticECC) {
-        suites->suites[idx++] = ECC_BYTE;
-        suites->suites[idx++] = TLS_ECDH_RSA_WITH_AES_256_GCM_SHA384;
-    }
-#endif
-
-#ifdef BUILD_TLS_ECDH_ECDSA_WITH_AES_128_GCM_SHA256
-    if (tls1_2 && haveECDSA && haveStaticECC) {
-        suites->suites[idx++] = ECC_BYTE;
-        suites->suites[idx++] = TLS_ECDH_ECDSA_WITH_AES_128_GCM_SHA256;
-    }
-#endif
-
-#ifdef BUILD_TLS_ECDH_ECDSA_WITH_AES_256_GCM_SHA384
-    if (tls1_2 && haveECDSA && haveStaticECC) {
-        suites->suites[idx++] = ECC_BYTE;
-        suites->suites[idx++] = TLS_ECDH_ECDSA_WITH_AES_256_GCM_SHA384;
-    }
-#endif
-
 #ifdef BUILD_TLS_NTRU_RSA_WITH_AES_256_CBC_SHA
     if (tls && haveNTRU && haveRSA) {
         suites->suites[idx++] = 0; 
@@ -582,10 +498,24 @@ void InitSuites(Suites* suites, ProtocolVersion pv, byte haveDH, byte havePSK,
     }
 #endif
 
+#ifdef BUILD_TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384
+    if (tls1_2 && haveECDSA) {
+        suites->suites[idx++] = ECC_BYTE;
+        suites->suites[idx++] = TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384;
+    }
+#endif
+
 #ifdef BUILD_TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA
     if (tls && haveECDSA) {
         suites->suites[idx++] = ECC_BYTE; 
         suites->suites[idx++] = TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA;
+    }
+#endif
+
+#ifdef BUILD_TLS_ECDH_ECDSA_WITH_AES_256_GCM_SHA384
+    if (tls1_2 && haveECDSA && haveStaticECC) {
+        suites->suites[idx++] = ECC_BYTE;
+        suites->suites[idx++] = TLS_ECDH_ECDSA_WITH_AES_256_GCM_SHA384;
     }
 #endif
 
@@ -596,10 +526,24 @@ void InitSuites(Suites* suites, ProtocolVersion pv, byte haveDH, byte havePSK,
     }
 #endif
 
+#ifdef BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256
+    if (tls1_2 && haveECDSA) {
+        suites->suites[idx++] = ECC_BYTE;
+        suites->suites[idx++] = TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256;
+    }
+#endif
+
 #ifdef BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA
     if (tls && haveECDSA) {
         suites->suites[idx++] = ECC_BYTE; 
         suites->suites[idx++] = TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA;
+    }
+#endif
+
+#ifdef BUILD_TLS_ECDH_ECDSA_WITH_AES_128_GCM_SHA256
+    if (tls1_2 && haveECDSA && haveStaticECC) {
+        suites->suites[idx++] = ECC_BYTE;
+        suites->suites[idx++] = TLS_ECDH_ECDSA_WITH_AES_128_GCM_SHA256;
     }
 #endif
 
@@ -638,10 +582,24 @@ void InitSuites(Suites* suites, ProtocolVersion pv, byte haveDH, byte havePSK,
     }
 #endif
 
+#ifdef BUILD_TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
+    if (tls1_2 && haveRSA) {
+        suites->suites[idx++] = ECC_BYTE;
+        suites->suites[idx++] = TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384;
+    }
+#endif
+
 #ifdef BUILD_TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA
     if (tls && haveRSA) {
         suites->suites[idx++] = ECC_BYTE; 
         suites->suites[idx++] = TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA;
+    }
+#endif
+
+#ifdef BUILD_TLS_ECDH_RSA_WITH_AES_256_GCM_SHA384
+    if (tls1_2 && haveRSA && haveStaticECC) {
+        suites->suites[idx++] = ECC_BYTE;
+        suites->suites[idx++] = TLS_ECDH_RSA_WITH_AES_256_GCM_SHA384;
     }
 #endif
 
@@ -652,10 +610,24 @@ void InitSuites(Suites* suites, ProtocolVersion pv, byte haveDH, byte havePSK,
     }
 #endif
 
+#ifdef BUILD_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+    if (tls1_2 && haveRSA) {
+        suites->suites[idx++] = ECC_BYTE;
+        suites->suites[idx++] = TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256;
+    }
+#endif
+
 #ifdef BUILD_TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA
     if (tls && haveRSA) {
         suites->suites[idx++] = ECC_BYTE; 
         suites->suites[idx++] = TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA;
+    }
+#endif
+
+#ifdef BUILD_TLS_ECDH_RSA_WITH_AES_128_GCM_SHA256
+    if (tls1_2 && haveRSA && haveStaticECC) {
+        suites->suites[idx++] = ECC_BYTE;
+        suites->suites[idx++] = TLS_ECDH_RSA_WITH_AES_128_GCM_SHA256;
     }
 #endif
 
@@ -694,10 +666,24 @@ void InitSuites(Suites* suites, ProtocolVersion pv, byte haveDH, byte havePSK,
     }
 #endif
 
+#ifdef BUILD_TLS_DHE_RSA_WITH_AES_256_GCM_SHA384
+    if (tls1_2 && haveDH && haveRSA) {
+        suites->suites[idx++] = 0;
+        suites->suites[idx++] = TLS_DHE_RSA_WITH_AES_256_GCM_SHA384;
+    }
+#endif
+
 #ifdef BUILD_TLS_DHE_RSA_WITH_AES_256_CBC_SHA256
     if (tls1_2 && haveDH && haveRSA) {
         suites->suites[idx++] = 0; 
         suites->suites[idx++] = TLS_DHE_RSA_WITH_AES_256_CBC_SHA256;
+    }
+#endif
+
+#ifdef BUILD_TLS_DHE_RSA_WITH_AES_128_GCM_SHA256
+    if (tls1_2 && haveDH && haveRSA) {
+        suites->suites[idx++] = 0;
+        suites->suites[idx++] = TLS_DHE_RSA_WITH_AES_128_GCM_SHA256;
     }
 #endif
 
@@ -722,10 +708,24 @@ void InitSuites(Suites* suites, ProtocolVersion pv, byte haveDH, byte havePSK,
     }
 #endif
 
+#ifdef BUILD_TLS_RSA_WITH_AES_256_GCM_SHA384
+    if (tls1_2 && haveRSA) {
+        suites->suites[idx++] = 0;
+        suites->suites[idx++] = TLS_RSA_WITH_AES_256_GCM_SHA384;
+    }
+#endif
+
 #ifdef BUILD_TLS_RSA_WITH_AES_256_CBC_SHA256
     if (tls1_2 && haveRSA) {
         suites->suites[idx++] = 0; 
         suites->suites[idx++] = TLS_RSA_WITH_AES_256_CBC_SHA256;
+    }
+#endif
+
+#ifdef BUILD_TLS_RSA_WITH_AES_128_GCM_SHA256
+    if (tls1_2 && haveRSA) {
+        suites->suites[idx++] = 0;
+        suites->suites[idx++] = TLS_RSA_WITH_AES_128_GCM_SHA256;
     }
 #endif
 
