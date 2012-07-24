@@ -239,7 +239,8 @@ static INLINE void ato32(const byte* c, word32* u32)
         ssl->c_stream.zfree  = (free_func)myFree;
         ssl->c_stream.opaque = (voidpf)ssl->heap;
 
-        if (deflateInit(&ssl->c_stream, 8) != Z_OK) return ZLIB_INIT_ERROR;
+        if (deflateInit(&ssl->c_stream, Z_DEFAULT_COMPRESSION) != Z_OK)
+            return ZLIB_INIT_ERROR;
 
         ssl->didStreamInit = 1;
 
@@ -268,11 +269,6 @@ static INLINE void ato32(const byte* c, word32* u32)
         int    err;
         int    currTotal = ssl->c_stream.total_out;
 
-        /* put size in front of compression */
-        c16toa((word16)inSz, out);
-        out   += 2;
-        outSz -= 2;
-
         ssl->c_stream.next_in   = in;
         ssl->c_stream.avail_in  = inSz;
         ssl->c_stream.next_out  = out;
@@ -281,7 +277,7 @@ static INLINE void ato32(const byte* c, word32* u32)
         err = deflate(&ssl->c_stream, Z_SYNC_FLUSH);
         if (err != Z_OK && err != Z_STREAM_END) return ZLIB_COMPRESS_ERROR;
 
-        return ssl->c_stream.total_out - currTotal + sizeof(word16);
+        return ssl->c_stream.total_out - currTotal;
     }
         
 
@@ -290,12 +286,6 @@ static INLINE void ato32(const byte* c, word32* u32)
     {
         int    err;
         int    currTotal = ssl->d_stream.total_out;
-        word16 len;
-
-        /* find size in front of compression */
-        ato16(in, &len);
-        in   += 2;
-        inSz -= 2;
 
         ssl->d_stream.next_in   = in;
         ssl->d_stream.avail_in  = inSz;
@@ -2460,11 +2450,6 @@ int DoApplicationData(CYASSL* ssl, byte* input, word32* inOutIdx)
     if (padByte)
         idx++;
 
-#ifdef HAVE_LIBZ
-    if (ssl->options.usingCompression)
-        XMEMMOVE(rawData, decomp, dataSz);
-#endif
-
     /* verify */
     if (dataSz) {
         if (ssl->specs.cipher_type != aead && XMEMCMP(mac, verify, digestSz)) {
@@ -2474,6 +2459,12 @@ int DoApplicationData(CYASSL* ssl, byte* input, word32* inOutIdx)
     }
     else 
         GetSEQIncrement(ssl, 1);  /* even though no data, increment verify */
+
+#ifdef HAVE_LIBZ
+    /* decompress could be bigger, overwrite after verify */
+    if (ssl->options.usingCompression)
+        XMEMMOVE(rawData, decomp, dataSz);
+#endif
 
     *inOutIdx = idx;
     return 0;
