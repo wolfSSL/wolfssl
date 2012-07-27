@@ -55,7 +55,7 @@
 
 #ifndef NO_CYASSL_CLIENT
     static int DoHelloVerifyRequest(CYASSL* ssl, const byte* input, word32*);
-    static int DoServerHello(CYASSL* ssl, const byte* input, word32*);
+    static int DoServerHello(CYASSL* ssl, const byte* input, word32*, word32);
     static int DoCertificateRequest(CYASSL* ssl, const byte* input, word32*);
     static int DoServerKeyExchange(CYASSL* ssl, const byte* input, word32*);
 #endif
@@ -239,7 +239,8 @@ static INLINE void ato32(const byte* c, word32* u32)
         ssl->c_stream.zfree  = (free_func)myFree;
         ssl->c_stream.opaque = (voidpf)ssl->heap;
 
-        if (deflateInit(&ssl->c_stream, 8) != Z_OK) return ZLIB_INIT_ERROR;
+        if (deflateInit(&ssl->c_stream, Z_DEFAULT_COMPRESSION) != Z_OK)
+            return ZLIB_INIT_ERROR;
 
         ssl->didStreamInit = 1;
 
@@ -268,11 +269,6 @@ static INLINE void ato32(const byte* c, word32* u32)
         int    err;
         int    currTotal = ssl->c_stream.total_out;
 
-        /* put size in front of compression */
-        c16toa((word16)inSz, out);
-        out   += 2;
-        outSz -= 2;
-
         ssl->c_stream.next_in   = in;
         ssl->c_stream.avail_in  = inSz;
         ssl->c_stream.next_out  = out;
@@ -281,7 +277,7 @@ static INLINE void ato32(const byte* c, word32* u32)
         err = deflate(&ssl->c_stream, Z_SYNC_FLUSH);
         if (err != Z_OK && err != Z_STREAM_END) return ZLIB_COMPRESS_ERROR;
 
-        return ssl->c_stream.total_out - currTotal + sizeof(word16);
+        return ssl->c_stream.total_out - currTotal;
     }
         
 
@@ -290,12 +286,6 @@ static INLINE void ato32(const byte* c, word32* u32)
     {
         int    err;
         int    currTotal = ssl->d_stream.total_out;
-        word16 len;
-
-        /* find size in front of compression */
-        ato16(in, &len);
-        in   += 2;
-        inSz -= 2;
 
         ssl->d_stream.next_in   = in;
         ssl->d_stream.avail_in  = inSz;
@@ -498,10 +488,24 @@ void InitSuites(Suites* suites, ProtocolVersion pv, byte haveDH, byte havePSK,
     }
 #endif
 
+#ifdef BUILD_TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384
+    if (tls1_2 && haveECDSA) {
+        suites->suites[idx++] = ECC_BYTE;
+        suites->suites[idx++] = TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384;
+    }
+#endif
+
 #ifdef BUILD_TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA
     if (tls && haveECDSA) {
         suites->suites[idx++] = ECC_BYTE; 
         suites->suites[idx++] = TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA;
+    }
+#endif
+
+#ifdef BUILD_TLS_ECDH_ECDSA_WITH_AES_256_GCM_SHA384
+    if (tls1_2 && haveECDSA && haveStaticECC) {
+        suites->suites[idx++] = ECC_BYTE;
+        suites->suites[idx++] = TLS_ECDH_ECDSA_WITH_AES_256_GCM_SHA384;
     }
 #endif
 
@@ -512,10 +516,24 @@ void InitSuites(Suites* suites, ProtocolVersion pv, byte haveDH, byte havePSK,
     }
 #endif
 
+#ifdef BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256
+    if (tls1_2 && haveECDSA) {
+        suites->suites[idx++] = ECC_BYTE;
+        suites->suites[idx++] = TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256;
+    }
+#endif
+
 #ifdef BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA
     if (tls && haveECDSA) {
         suites->suites[idx++] = ECC_BYTE; 
         suites->suites[idx++] = TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA;
+    }
+#endif
+
+#ifdef BUILD_TLS_ECDH_ECDSA_WITH_AES_128_GCM_SHA256
+    if (tls1_2 && haveECDSA && haveStaticECC) {
+        suites->suites[idx++] = ECC_BYTE;
+        suites->suites[idx++] = TLS_ECDH_ECDSA_WITH_AES_128_GCM_SHA256;
     }
 #endif
 
@@ -554,10 +572,24 @@ void InitSuites(Suites* suites, ProtocolVersion pv, byte haveDH, byte havePSK,
     }
 #endif
 
+#ifdef BUILD_TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
+    if (tls1_2 && haveRSA) {
+        suites->suites[idx++] = ECC_BYTE;
+        suites->suites[idx++] = TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384;
+    }
+#endif
+
 #ifdef BUILD_TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA
     if (tls && haveRSA) {
         suites->suites[idx++] = ECC_BYTE; 
         suites->suites[idx++] = TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA;
+    }
+#endif
+
+#ifdef BUILD_TLS_ECDH_RSA_WITH_AES_256_GCM_SHA384
+    if (tls1_2 && haveRSA && haveStaticECC) {
+        suites->suites[idx++] = ECC_BYTE;
+        suites->suites[idx++] = TLS_ECDH_RSA_WITH_AES_256_GCM_SHA384;
     }
 #endif
 
@@ -568,10 +600,24 @@ void InitSuites(Suites* suites, ProtocolVersion pv, byte haveDH, byte havePSK,
     }
 #endif
 
+#ifdef BUILD_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+    if (tls1_2 && haveRSA) {
+        suites->suites[idx++] = ECC_BYTE;
+        suites->suites[idx++] = TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256;
+    }
+#endif
+
 #ifdef BUILD_TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA
     if (tls && haveRSA) {
         suites->suites[idx++] = ECC_BYTE; 
         suites->suites[idx++] = TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA;
+    }
+#endif
+
+#ifdef BUILD_TLS_ECDH_RSA_WITH_AES_128_GCM_SHA256
+    if (tls1_2 && haveRSA && haveStaticECC) {
+        suites->suites[idx++] = ECC_BYTE;
+        suites->suites[idx++] = TLS_ECDH_RSA_WITH_AES_128_GCM_SHA256;
     }
 #endif
 
@@ -610,10 +656,24 @@ void InitSuites(Suites* suites, ProtocolVersion pv, byte haveDH, byte havePSK,
     }
 #endif
 
+#ifdef BUILD_TLS_DHE_RSA_WITH_AES_256_GCM_SHA384
+    if (tls1_2 && haveDH && haveRSA) {
+        suites->suites[idx++] = 0;
+        suites->suites[idx++] = TLS_DHE_RSA_WITH_AES_256_GCM_SHA384;
+    }
+#endif
+
 #ifdef BUILD_TLS_DHE_RSA_WITH_AES_256_CBC_SHA256
     if (tls1_2 && haveDH && haveRSA) {
         suites->suites[idx++] = 0; 
         suites->suites[idx++] = TLS_DHE_RSA_WITH_AES_256_CBC_SHA256;
+    }
+#endif
+
+#ifdef BUILD_TLS_DHE_RSA_WITH_AES_128_GCM_SHA256
+    if (tls1_2 && haveDH && haveRSA) {
+        suites->suites[idx++] = 0;
+        suites->suites[idx++] = TLS_DHE_RSA_WITH_AES_128_GCM_SHA256;
     }
 #endif
 
@@ -638,10 +698,24 @@ void InitSuites(Suites* suites, ProtocolVersion pv, byte haveDH, byte havePSK,
     }
 #endif
 
+#ifdef BUILD_TLS_RSA_WITH_AES_256_GCM_SHA384
+    if (tls1_2 && haveRSA) {
+        suites->suites[idx++] = 0;
+        suites->suites[idx++] = TLS_RSA_WITH_AES_256_GCM_SHA384;
+    }
+#endif
+
 #ifdef BUILD_TLS_RSA_WITH_AES_256_CBC_SHA256
     if (tls1_2 && haveRSA) {
         suites->suites[idx++] = 0; 
         suites->suites[idx++] = TLS_RSA_WITH_AES_256_CBC_SHA256;
+    }
+#endif
+
+#ifdef BUILD_TLS_RSA_WITH_AES_128_GCM_SHA256
+    if (tls1_2 && haveRSA) {
+        suites->suites[idx++] = 0;
+        suites->suites[idx++] = TLS_RSA_WITH_AES_128_GCM_SHA256;
     }
 #endif
 
@@ -793,6 +867,9 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
     InitSha(&ssl->hashSha);
 #ifndef NO_SHA256
     InitSha256(&ssl->hashSha256);
+#endif
+#ifdef CYASSL_SHA384
+    InitSha384(&ssl->hashSha384);
 #endif
     InitRsaKey(&ssl->peerRsaKey, ctx->heap);
 
@@ -1096,10 +1173,14 @@ static void HashOutput(CYASSL* ssl, const byte* output, int sz, int ivSz)
 
     Md5Update(&ssl->hashMd5, adj, sz);
     ShaUpdate(&ssl->hashSha, adj, sz);
+    if (IsAtLeastTLSv1_2(ssl)) {
 #ifndef NO_SHA256
-    if (IsAtLeastTLSv1_2(ssl))
         Sha256Update(&ssl->hashSha256, adj, sz);
 #endif
+#ifdef CYASSL_SHA384
+        Sha384Update(&ssl->hashSha384, adj, sz);
+#endif
+    }
 }
 
 
@@ -1118,10 +1199,14 @@ static void HashInput(CYASSL* ssl, const byte* input, int sz)
 
     Md5Update(&ssl->hashMd5, adj, sz);
     ShaUpdate(&ssl->hashSha, adj, sz);
+    if (IsAtLeastTLSv1_2(ssl)) {
 #ifndef NO_SHA256
-    if (IsAtLeastTLSv1_2(ssl))
         Sha256Update(&ssl->hashSha256, adj, sz);
 #endif
+#ifdef CYASSL_SHA384
+        Sha384Update(&ssl->hashSha384, adj, sz);
+#endif
+    }
 }
 
 
@@ -1539,9 +1624,20 @@ static void BuildFinished(CYASSL* ssl, Hashes* hashes, const byte* sender)
     Sha sha = ssl->hashSha;
 #ifndef NO_SHA256
     Sha256 sha256;
+#endif
+#ifdef CYASSL_SHA384
+    Sha384 sha384;
+#endif
+
+#ifndef NO_SHA256
     InitSha256(&sha256);
     if (IsAtLeastTLSv1_2(ssl))
         sha256 = ssl->hashSha256;
+#endif
+#ifdef CYASSL_SHA384
+    InitSha384(&sha384);
+    if (IsAtLeastTLSv1_2(ssl))
+        sha384 = ssl->hashSha384;
 #endif
 
     if (ssl->options.tls)
@@ -1554,10 +1650,14 @@ static void BuildFinished(CYASSL* ssl, Hashes* hashes, const byte* sender)
     /* restore */
     ssl->hashMd5 = md5;
     ssl->hashSha = sha;
+    if (IsAtLeastTLSv1_2(ssl)) {
 #ifndef NO_SHA256
-    if (IsAtLeastTLSv1_2(ssl))
         ssl->hashSha256 = sha256;
 #endif
+#ifdef CYASSL_SHA384
+        ssl->hashSha384 = sha384;
+#endif
+    }
 }
 
 
@@ -1936,23 +2036,28 @@ int DoFinished(CYASSL* ssl, const byte* input, word32* inOutIdx, int sniff)
         }
     }
 
-    ssl->hmac(ssl, verifyMAC, input + idx - headerSz, macSz,
-         handshake, 1);
-    idx += finishedSz;
+    if (ssl->specs.cipher_type != aead) {
+        ssl->hmac(ssl, verifyMAC, input + idx - headerSz, macSz,
+             handshake, 1);
+        idx += finishedSz;
 
-    /* read mac and fill */
-    mac = input + idx;
-    idx += ssl->specs.hash_size;
+        /* read mac and fill */
+        mac = input + idx;
+        idx += ssl->specs.hash_size;
 
-    if (ssl->options.tls1_1 && ssl->specs.cipher_type == block)
-        padSz -= ssl->specs.block_size;
+        if (ssl->options.tls1_1 && ssl->specs.cipher_type == block)
+            padSz -= ssl->specs.block_size;
 
-    idx += padSz;
+        idx += padSz;
 
-    /* verify mac */
-    if (XMEMCMP(mac, verifyMAC, ssl->specs.hash_size)) {
-        CYASSL_MSG("Verify finished error on mac");
-        return VERIFY_MAC_ERROR;
+        /* verify mac */
+        if (XMEMCMP(mac, verifyMAC, ssl->specs.hash_size)) {
+            CYASSL_MSG("Verify finished error on mac");
+            return VERIFY_MAC_ERROR;
+        }
+    }
+    else {
+        idx += (finishedSz + AEAD_AUTH_TAG_SZ);
     }
 
     if (ssl->options.side == CLIENT_END) {
@@ -2012,7 +2117,7 @@ static int DoHandShakeMsg(CYASSL* ssl, byte* input, word32* inOutIdx,
             
     case server_hello:
         CYASSL_MSG("processing server hello");
-        ret = DoServerHello(ssl, input, inOutIdx);
+        ret = DoServerHello(ssl, input, inOutIdx, size);
         break;
 
     case certificate_request:
@@ -2075,6 +2180,15 @@ static int DoHandShakeMsg(CYASSL* ssl, byte* input, word32* inOutIdx,
 }
 
 
+static INLINE word32 GetSEQIncrement(CYASSL* ssl, int verify)
+{
+    if (verify)
+        return ssl->keys.peer_sequence_number++; 
+    else
+        return ssl->keys.sequence_number++; 
+}
+
+
 static INLINE void Encrypt(CYASSL* ssl, byte* out, const byte* input, word32 sz)
 {
     switch (ssl->specs.bulk_cipher_algorithm) {
@@ -2105,6 +2219,50 @@ static INLINE void Encrypt(CYASSL* ssl, byte* out, const byte* input, word32 sz)
                 break;
         #endif
 
+        #ifdef BUILD_AESGCM
+            case aes_gcm:
+                {
+                    byte additional[AES_BLOCK_SIZE];
+                    byte nonce[AES_BLOCK_SIZE];
+
+                    /* use this side's IV */
+                    if (ssl->options.side == SERVER_END) {
+                        XMEMCPY(nonce, ssl->keys.server_write_IV,
+                                                    AES_GCM_IMP_IV_SZ);
+                    }
+                    else {
+                        XMEMCPY(nonce, ssl->keys.client_write_IV,
+                                                    AES_GCM_IMP_IV_SZ);
+                    }
+                    XMEMCPY(nonce + AES_GCM_IMP_IV_SZ,
+                                            input, AES_GCM_EXP_IV_SZ);
+                    XMEMSET(nonce + AES_GCM_IMP_IV_SZ + AES_GCM_EXP_IV_SZ,
+                                            0, AES_GCM_CTR_IV_SZ);
+                    AesSetIV(&ssl->encrypt.aes, nonce);
+
+                    XMEMSET(additional, 0, AES_BLOCK_SIZE);
+
+                    /* sequence number field is 64-bits, we only use 32-bits */
+                    c32toa(GetSEQIncrement(ssl, 0),
+                                            additional + AEAD_SEQ_OFFSET);
+
+                    /* Store the type, version. Unfortunately, they are in
+                     * the input buffer ahead of the plaintext. */
+                    XMEMCPY(additional + AEAD_TYPE_OFFSET, input - 5, 3);
+
+                    /* Store the length of the plain text minus the explicit
+                     * IV length minus the authentication tag size. */
+                    c16toa(sz - AES_GCM_EXP_IV_SZ - AEAD_AUTH_TAG_SZ,
+                                                additional + AEAD_LEN_OFFSET);
+                    AesGcmEncrypt(&ssl->encrypt.aes,
+                        out + AES_GCM_EXP_IV_SZ, input + AES_GCM_EXP_IV_SZ,
+                            sz - AES_GCM_EXP_IV_SZ - AEAD_AUTH_TAG_SZ,
+                        out + sz - AEAD_AUTH_TAG_SZ, AEAD_AUTH_TAG_SZ,
+                        additional, AEAD_AUTH_DATA_SZ);
+                }
+                break;
+        #endif
+
         #ifdef HAVE_HC128
             case hc128:
                 Hc128_Process(&ssl->encrypt.hc128, out, input, sz);
@@ -2123,7 +2281,7 @@ static INLINE void Encrypt(CYASSL* ssl, byte* out, const byte* input, word32 sz)
 }
 
 
-static INLINE void Decrypt(CYASSL* ssl, byte* plain, const byte* input,
+static INLINE int Decrypt(CYASSL* ssl, byte* plain, const byte* input,
                            word32 sz)
 {
     switch (ssl->specs.bulk_cipher_algorithm) {
@@ -2145,6 +2303,51 @@ static INLINE void Decrypt(CYASSL* ssl, byte* plain, const byte* input,
                 break;
         #endif
 
+        #ifdef BUILD_AESGCM
+            case aes_gcm:
+            {
+                byte additional[AES_BLOCK_SIZE];
+                byte nonce[AES_BLOCK_SIZE];
+
+                /* use the other side's IV */
+                if (ssl->options.side == SERVER_END) {
+                    XMEMCPY(nonce, ssl->keys.client_write_IV,
+                                                AES_GCM_IMP_IV_SZ);
+                }
+                else {
+                    XMEMCPY(nonce, ssl->keys.server_write_IV,
+                                                AES_GCM_IMP_IV_SZ);
+                }
+                XMEMCPY(nonce + AES_GCM_IMP_IV_SZ,
+                                        input, AES_GCM_EXP_IV_SZ);
+                XMEMSET(nonce + AES_GCM_IMP_IV_SZ + AES_GCM_EXP_IV_SZ,
+                                        0, AES_GCM_CTR_IV_SZ);
+                AesSetIV(&ssl->decrypt.aes, nonce);
+
+                XMEMSET(additional, 0, AES_BLOCK_SIZE);
+
+                /* sequence number field is 64-bits, we only use 32-bits */
+                c32toa(GetSEQIncrement(ssl, 1), additional + AEAD_SEQ_OFFSET);
+                
+                additional[AEAD_TYPE_OFFSET] = ssl->curRL.type;
+                additional[AEAD_VMAJ_OFFSET] = ssl->curRL.version.major;
+                additional[AEAD_VMIN_OFFSET] = ssl->curRL.version.minor;
+
+                c16toa(sz - AES_GCM_EXP_IV_SZ - AEAD_AUTH_TAG_SZ,
+                                        additional + AEAD_LEN_OFFSET);
+                if (AesGcmDecrypt(&ssl->decrypt.aes,
+                            plain + AES_GCM_EXP_IV_SZ,
+                            input + AES_GCM_EXP_IV_SZ,
+                                sz - AES_GCM_EXP_IV_SZ - AEAD_AUTH_TAG_SZ,
+                            input + sz - AEAD_AUTH_TAG_SZ, AEAD_AUTH_TAG_SZ,
+                            additional, AEAD_AUTH_DATA_SZ) < 0) {
+                    SendAlert(ssl, alert_fatal, bad_record_mac);
+                    return VERIFY_MAC_ERROR;
+                }
+                break;
+            }
+        #endif
+
         #ifdef HAVE_HC128
             case hc128:
                 Hc128_Process(&ssl->decrypt.hc128, plain, input, sz);
@@ -2160,27 +2363,25 @@ static INLINE void Decrypt(CYASSL* ssl, byte* plain, const byte* input,
             default:
                 CYASSL_MSG("CyaSSL Decrypt programming error");
     }
+    return 0;
 }
 
 
 /* decrypt input message in place */
 static int DecryptMessage(CYASSL* ssl, byte* input, word32 sz, word32* idx)
 {
-    Decrypt(ssl, input, input, sz);
-    ssl->keys.encryptSz = sz;
-    if (ssl->options.tls1_1 && ssl->specs.cipher_type == block)
-        *idx += ssl->specs.block_size;  /* go past TLSv1.1 IV */
+    int decryptResult = Decrypt(ssl, input, input, sz);
 
-    return 0;
-}
+    if (decryptResult == 0)
+    {
+        ssl->keys.encryptSz = sz;
+        if (ssl->options.tls1_1 && ssl->specs.cipher_type == block)
+            *idx += ssl->specs.block_size;  /* go past TLSv1.1 IV */
+        if (ssl->specs.cipher_type == aead)
+            *idx += AES_GCM_EXP_IV_SZ;
+    }
 
-
-static INLINE word32 GetSEQIncrement(CYASSL* ssl, int verify)
-{
-    if (verify)
-        return ssl->keys.peer_sequence_number++; 
-    else
-        return ssl->keys.sequence_number++; 
+    return decryptResult;
 }
 
 
@@ -2207,6 +2408,10 @@ int DoApplicationData(CYASSL* ssl, byte* input, word32* inOutIdx)
         pad = *(input + idx + msgSz - ivExtra - 1);
         padByte = 1;
     }
+    if (ssl->specs.cipher_type == aead) {
+        ivExtra = AES_GCM_EXP_IV_SZ;
+        digestSz = AEAD_AUTH_TAG_SZ;
+    }
 
     dataSz = msgSz - ivExtra - digestSz - pad - padByte;
     if (dataSz < 0) {
@@ -2218,7 +2423,8 @@ int DoApplicationData(CYASSL* ssl, byte* input, word32* inOutIdx)
     if (dataSz) {
         int    rawSz   = dataSz;       /* keep raw size for hmac */
 
-        ssl->hmac(ssl, verify, rawData, rawSz, application_data, 1);
+        if (ssl->specs.cipher_type != aead)
+            ssl->hmac(ssl, verify, rawData, rawSz, application_data, 1);
 
 #ifdef HAVE_LIBZ
         if (ssl->options.usingCompression) {
@@ -2244,20 +2450,21 @@ int DoApplicationData(CYASSL* ssl, byte* input, word32* inOutIdx)
     if (padByte)
         idx++;
 
-#ifdef HAVE_LIBZ
-    if (ssl->options.usingCompression)
-        XMEMMOVE(rawData, decomp, dataSz);
-#endif
-
     /* verify */
     if (dataSz) {
-        if (XMEMCMP(mac, verify, digestSz)) {
+        if (ssl->specs.cipher_type != aead && XMEMCMP(mac, verify, digestSz)) {
             CYASSL_MSG("App data verify mac error"); 
             return VERIFY_MAC_ERROR;
         }
     }
     else 
         GetSEQIncrement(ssl, 1);  /* even though no data, increment verify */
+
+#ifdef HAVE_LIBZ
+    /* decompress could be bigger, overwrite after verify */
+    if (ssl->options.usingCompression)
+        XMEMMOVE(rawData, decomp, dataSz);
+#endif
 
     *inOutIdx = idx;
     return 0;
@@ -2288,21 +2495,26 @@ static int DoAlert(CYASSL* ssl, byte* input, word32* inOutIdx, int* type)
     CYASSL_ERROR(*type);
 
     if (ssl->keys.encryptionOn) {
-        int         aSz = ALERT_SIZE;
-        const byte* mac;
-        byte        verify[SHA256_DIGEST_SIZE];
-        int         padSz = ssl->keys.encryptSz - aSz - ssl->specs.hash_size;
-        
-        ssl->hmac(ssl, verify, input + *inOutIdx - aSz, aSz, alert, 1);
+        if (ssl->specs.cipher_type != aead) {
+            int     aSz = ALERT_SIZE;
+            const byte* mac;
+            byte    verify[SHA256_DIGEST_SIZE];
+            int     padSz = ssl->keys.encryptSz - aSz - ssl->specs.hash_size;
 
-        /* read mac and fill */
-        mac = input + *inOutIdx;
-        *inOutIdx += (ssl->specs.hash_size + padSz);
-
-        /* verify */
-        if (XMEMCMP(mac, verify, ssl->specs.hash_size)) {
-            CYASSL_MSG("    alert verify mac error");
-            return VERIFY_MAC_ERROR;
+            ssl->hmac(ssl, verify, input + *inOutIdx - aSz, aSz, alert, 1);
+    
+            /* read mac and fill */
+            mac = input + *inOutIdx;
+            *inOutIdx += (ssl->specs.hash_size + padSz);
+    
+            /* verify */
+            if (XMEMCMP(mac, verify, ssl->specs.hash_size)) {
+                CYASSL_MSG("    alert verify mac error");
+                return VERIFY_MAC_ERROR;
+            }
+        }
+        else {
+            *inOutIdx += AEAD_AUTH_TAG_SZ;
         }
     }
 
@@ -2820,6 +3032,11 @@ static int BuildMessage(CYASSL* ssl, byte* output, const byte* input, int inSz,
         sz += pad;
     }
 
+    if (ssl->specs.cipher_type == aead) {
+        ivSz = AES_GCM_EXP_IV_SZ;
+        sz += (ivSz + 16 - digestSz);
+        RNG_GenerateBlock(&ssl->rng, iv, ivSz);
+    }
     size = (word16)(sz - headerSz);    /* include mac and digest */
     AddRecordHeader(output, size, (byte)type, ssl);    
 
@@ -2833,8 +3050,10 @@ static int BuildMessage(CYASSL* ssl, byte* output, const byte* input, int inSz,
 
     if (type == handshake)
         HashOutput(ssl, output, headerSz + inSz, ivSz);
-    ssl->hmac(ssl, output+idx, output + headerSz + ivSz, inSz, type, 0);
-    idx += digestSz;
+    if (ssl->specs.cipher_type != aead) {
+        ssl->hmac(ssl, output+idx, output + headerSz + ivSz, inSz, type, 0);
+        idx += digestSz;
+    }
 
     if (ssl->specs.cipher_type == block)
         for (i = 0; i <= pad; i++)
@@ -3715,7 +3934,55 @@ const char* const cipher_names[] =
 #endif
 
 #ifdef BUILD_TLS_ECDH_ECDSA_WITH_3DES_EDE_CBC_SHA
-    "ECDH-ECDSA-DES-CBC3-SHA"
+    "ECDH-ECDSA-DES-CBC3-SHA",
+#endif
+
+#ifdef BUILD_TLS_RSA_WITH_AES_128_GCM_SHA256
+    "AES128-GCM-SHA256",
+#endif
+
+#ifdef BUILD_TLS_RSA_WITH_AES_256_GCM_SHA384
+    "AES256-GCM-SHA384",
+#endif
+
+#ifdef BUILD_TLS_DHE_RSA_WITH_AES_128_GCM_SHA256
+    "DHE-RSA-AES128-GCM-SHA256",
+#endif
+
+#ifdef BUILD_TLS_DHE_RSA_WITH_AES_256_GCM_SHA384
+    "DHE-RSA-AES256-GCM-SHA384",
+#endif
+
+#ifdef BUILD_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+    "ECDHE-RSA-AES128-GCM-SHA256",
+#endif
+
+#ifdef BUILD_TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
+    "ECDHE-RSA-AES256-GCM-SHA384",
+#endif
+
+#ifdef BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256
+    "ECDHE-ECDSA-AES128-GCM-SHA256",
+#endif
+
+#ifdef BUILD_TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384
+    "ECDHE-ECDSA-AES256-GCM-SHA384",
+#endif
+
+#ifdef BUILD_TLS_ECDH_RSA_WITH_AES_128_GCM_SHA256
+    "ECDH-RSA-AES128-GCM-SHA256",
+#endif
+
+#ifdef BUILD_TLS_ECDH_RSA_WITH_AES_256_GCM_SHA384
+    "ECDH-RSA-AES256-GCM-SHA384",
+#endif
+
+#ifdef BUILD_TLS_ECDH_ECDSA_WITH_AES_128_GCM_SHA256
+    "ECDH-ECDSA-AES128-GCM-SHA256",
+#endif
+
+#ifdef BUILD_TLS_ECDH_ECDSA_WITH_AES_256_GCM_SHA384
+    "ECDH-ECDSA-AES256-GCM-SHA384"
 #endif
 
 };
@@ -3867,7 +4134,55 @@ int cipher_name_idx[] =
 #endif
 
 #ifdef BUILD_TLS_ECDH_ECDSA_WITH_3DES_EDE_CBC_SHA
-    TLS_ECDH_ECDSA_WITH_3DES_EDE_CBC_SHA
+    TLS_ECDH_ECDSA_WITH_3DES_EDE_CBC_SHA,
+#endif
+
+#ifdef BUILD_TLS_RSA_WITH_AES_128_GCM_SHA256
+    TLS_RSA_WITH_AES_128_GCM_SHA256,
+#endif
+
+#ifdef BUILD_TLS_RSA_WITH_AES_256_GCM_SHA384
+    TLS_RSA_WITH_AES_256_GCM_SHA384,
+#endif
+
+#ifdef BUILD_TLS_DHE_RSA_WITH_AES_128_GCM_SHA256
+    TLS_DHE_RSA_WITH_AES_128_GCM_SHA256,
+#endif
+
+#ifdef BUILD_TLS_DHE_RSA_WITH_AES_256_GCM_SHA384
+    TLS_DHE_RSA_WITH_AES_256_GCM_SHA384,
+#endif
+
+#ifdef BUILD_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+    TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+#endif
+
+#ifdef BUILD_TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
+    TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
+#endif
+
+#ifdef BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256
+    TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
+#endif
+
+#ifdef BUILD_TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384
+    TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
+#endif
+
+#ifdef BUILD_TLS_ECDH_RSA_WITH_AES_128_GCM_SHA256
+    TLS_ECDH_RSA_WITH_AES_128_GCM_SHA256,
+#endif
+
+#ifdef BUILD_TLS_ECDH_RSA_WITH_AES_256_GCM_SHA384
+    TLS_ECDH_RSA_WITH_AES_256_GCM_SHA384,
+#endif
+
+#ifdef BUILD_TLS_ECDH_ECDSA_WITH_AES_128_GCM_SHA256
+    TLS_ECDH_ECDSA_WITH_AES_128_GCM_SHA256,
+#endif
+
+#ifdef BUILD_TLS_ECDH_ECDSA_WITH_AES_256_GCM_SHA384
+    TLS_ECDH_ECDSA_WITH_AES_256_GCM_SHA384
 #endif
 
 };
@@ -4089,7 +4404,10 @@ int SetCipherList(Suites* s, const char* list)
         length = sizeof(ProtocolVersion) + RAN_LEN
                + idSz + ENUM_LEN                      
                + ssl->suites.suiteSz + SUITE_LEN
-               + COMP_LEN  + ENUM_LEN;
+               + COMP_LEN + ENUM_LEN;
+
+        if (IsAtLeastTLSv1_2(ssl))
+            length += HELLO_EXT_SZ;
 
         sendSz = length + HANDSHAKE_HEADER_SZ + RECORD_HEADER_SZ;
 
@@ -4155,7 +4473,29 @@ int SetCipherList(Suites* s, const char* list)
             output[idx++] = ZLIB_COMPRESSION;
         else
             output[idx++] = NO_COMPRESSION;
-            
+
+        if (IsAtLeastTLSv1_2(ssl))
+        {
+            /* add in the extensions length */
+            c16toa(HELLO_EXT_LEN, output + idx);
+            idx += 2;
+
+            c16toa(HELLO_EXT_SIG_ALGO, output + idx);
+            idx += 2;
+            c16toa(HELLO_EXT_SIGALGO_SZ, output + idx);
+            idx += 2;
+            /* This is a lazy list setup. Eventually, we'll need to support
+             * using other hash types or even other extensions. */
+            c16toa(HELLO_EXT_SIGALGO_LEN, output + idx);
+            idx += 2;
+            output[idx++] = sha_mac;
+            output[idx++] = rsa_sa_algo;
+            output[idx++] = sha_mac;
+            output[idx++] = dsa_sa_algo;
+            output[idx++] = sha_mac;
+            output[idx++] = ecc_dsa_sa_algo;
+        }
+
         HashOutput(ssl, output, sendSz, 0);
 
         ssl->options.clientState = CLIENT_HELLO_COMPLETE;
@@ -4197,12 +4537,14 @@ int SetCipherList(Suites* s, const char* list)
     }
 
 
-    static int DoServerHello(CYASSL* ssl, const byte* input, word32* inOutIdx)
+    static int DoServerHello(CYASSL* ssl, const byte* input, word32* inOutIdx,
+                             word32 helloSz)
     {
         byte b;
         byte compression;
         ProtocolVersion pv;
         word32 i = *inOutIdx;
+        word32 begin = i;
 
 #ifdef CYASSL_CALLBACKS
         if (ssl->hsInfoOn) AddPacketName("ServerHello", &ssl->handShakeInfo);
@@ -4254,7 +4596,11 @@ int SetCipherList(Suites* s, const char* list)
             CYASSL_MSG("Server refused compression, turning off"); 
             ssl->options.usingCompression = 0;  /* turn off if server refused */
         }
-        
+
+        *inOutIdx = i;
+        if ( (i - begin) < helloSz)
+            *inOutIdx = begin + helloSz;  /* skip extensions */
+
         ssl->options.serverState = SERVER_HELLO_COMPLETE;
 
         *inOutIdx = i;
@@ -5563,6 +5909,46 @@ int SetCipherList(Suites* s, const char* list)
                 return 1;
             break;
 
+        case TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256 :
+            if (requirement == ecc_dsa_sa_algo)
+                return 1;
+            break;
+
+        case TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384 :
+            if (requirement == ecc_dsa_sa_algo)
+                return 1;
+            break;
+
+        case TLS_ECDH_ECDSA_WITH_AES_128_GCM_SHA256 :
+            if (requirement == ecc_static_diffie_hellman_kea)
+                return 1;
+            break;
+
+        case TLS_ECDH_ECDSA_WITH_AES_256_GCM_SHA384 :
+            if (requirement == ecc_static_diffie_hellman_kea)
+                return 1;
+            break;
+
+        case TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256 :
+            if (requirement == rsa_kea)
+                return 1;
+            break;
+
+        case TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384 :
+            if (requirement == rsa_kea)
+                return 1;
+            break;
+
+        case TLS_ECDH_RSA_WITH_AES_128_GCM_SHA256 :
+            if (requirement == ecc_static_diffie_hellman_kea)
+                return 1;
+            break;
+
+        case TLS_ECDH_RSA_WITH_AES_256_GCM_SHA384 :
+            if (requirement == ecc_static_diffie_hellman_kea)
+                return 1;
+            break;
+
         default:
             CYASSL_MSG("Unsupported cipher suite, CipherRequires ECC");
             return 0;
@@ -5676,6 +6062,20 @@ int SetCipherList(Suites* s, const char* list)
 
         case TLS_RSA_WITH_RABBIT_CBC_SHA :
             if (requirement == REQUIRES_RSA)
+                return 1;
+            break;
+
+        case TLS_RSA_WITH_AES_128_GCM_SHA256 :
+        case TLS_RSA_WITH_AES_256_GCM_SHA384 :
+            if (requirement == rsa_kea)
+                return 1;
+            break;
+
+        case TLS_DHE_RSA_WITH_AES_128_GCM_SHA256 :
+        case TLS_DHE_RSA_WITH_AES_256_GCM_SHA384 :
+            if (requirement == rsa_kea)
+                return 1;
+            if (requirement == diffie_hellman_kea)
                 return 1;
             break;
 

@@ -5018,6 +5018,23 @@ int CyaSSL_set_compression(CYASSL* ssl)
                 case TLS_ECDH_ECDSA_WITH_3DES_EDE_CBC_SHA :
                     return "TLS_ECDH_ECDSA_WITH_3DES_EDE_CBC_SHA";
 
+                case TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256 :
+                    return "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256";
+                case TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384 :
+                    return "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384";
+                case TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256 :
+                    return "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256";
+                case TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384 :
+                    return "TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384";
+                case TLS_ECDH_RSA_WITH_AES_128_GCM_SHA256 :
+                    return "TLS_ECDH_RSA_WITH_AES_128_GCM_SHA256";
+                case TLS_ECDH_RSA_WITH_AES_256_GCM_SHA384 :
+                    return "TLS_ECDH_RSA_WITH_AES_256_GCM_SHA384";
+                case TLS_ECDH_ECDSA_WITH_AES_128_GCM_SHA256 :
+                    return "TLS_ECDH_ECDSA_WITH_AES_128_GCM_SHA256";
+                case TLS_ECDH_ECDSA_WITH_AES_256_GCM_SHA384 :
+                    return "TLS_ECDH_ECDSA_WITH_AES_256_GCM_SHA384";
+
                 default:
                     return "NONE";
             }
@@ -5066,6 +5083,14 @@ int CyaSSL_set_compression(CYASSL* ssl)
                     return "TLS_NTRU_RSA_WITH_AES_128_CBC_SHA";
                 case TLS_NTRU_RSA_WITH_AES_256_CBC_SHA :
                     return "TLS_NTRU_RSA_WITH_AES_256_CBC_SHA";
+                case TLS_RSA_WITH_AES_128_GCM_SHA256 :
+                    return "TLS_RSA_WITH_AES_128_GCM_SHA256";
+                case TLS_RSA_WITH_AES_256_GCM_SHA384 :
+                    return "TLS_RSA_WITH_AES_256_GCM_SHA384";
+                case TLS_DHE_RSA_WITH_AES_128_GCM_SHA256 :
+                    return "TLS_DHE_RSA_WITH_AES_128_GCM_SHA256";
+                case TLS_DHE_RSA_WITH_AES_256_GCM_SHA384 :
+                    return "TLS_DHE_RSA_WITH_AES_256_GCM_SHA384";
                 default:
                     return "NONE";
             }  /* switch */

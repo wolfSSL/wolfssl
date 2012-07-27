@@ -296,9 +296,27 @@ AC_ARG_ENABLE(aesgcm,
     [ ENABLED_AESGCM=no ]
     )
 
+if test "$ENABLED_AESGCM" = "word32"
+then
+    AM_CFLAGS="$AM_CFLAGS -DGCM_WORD32"
+    ENABLED_AESGCM=yes
+fi
+
+if test "$ENABLED_AESGCM" = "small"
+then
+    AM_CFLAGS="$AM_CFLAGS -DGCM_SMALL"
+    ENABLED_AESGCM=yes
+fi
+
+if test "$ENABLED_AESGCM" = "table"
+then
+    AM_CFLAGS="$AM_CFLAGS -DGCM_TABLE"
+    ENABLED_AESGCM=yes
+fi
+
 if test "$ENABLED_AESGCM" = "yes"
 then
-    AM_CFLAGS="$AM_CFLAGS -DHAVE_AESGCM"
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_AESGCM -DCYASSL_SHA384 -DCYASSL_SHA512"
 fi
 
 AM_CONDITIONAL([BUILD_AESGCM], [test "x$ENABLED_AESGCM" = "xyes"])
@@ -351,6 +369,11 @@ then
 fi
 
 if test "$ENABLED_FORTRESS" = "yes"
+then
+    ENABLED_SHA512="yes"
+fi
+
+if test "$ENABLED_AESGCM" = "yes"
 then
     ENABLED_SHA512="yes"
 fi
