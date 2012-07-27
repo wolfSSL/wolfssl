@@ -100,6 +100,7 @@ enum CyaSSL_ErrorCodes {
     OCSP_NEED_URL          = -265,            /* OCSP need an URL for lookup */
     OCSP_CERT_UNKNOWN      = -266,            /* OCSP responder doesn't know */
     OCSP_LOOKUP_FAIL       = -267,            /* OCSP lookup not successful */
+    MAX_CHAIN_ERROR        = -268,            /* max chain depth exceeded */
     /* add strings to SetErrorString !!!!! */
 
     /* begin negotiation parameter errors */

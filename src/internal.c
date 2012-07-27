@@ -1586,7 +1586,7 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx)
         word32 certSz;
 
         if (totalCerts >= MAX_CHAIN_DEPTH)
-            return BUFFER_E;
+            return MAX_CHAIN_ERROR;
 
         c24to32(&input[i], &certSz);
         i += CERT_HEADER_SZ;
@@ -3556,6 +3556,10 @@ void SetErrorString(int error, char* str)
 
     case OCSP_LOOKUP_FAIL:
         XSTRNCPY(str, "OCSP Responder lookup fail", max);
+        break;
+
+    case MAX_CHAIN_ERROR:
+        XSTRNCPY(str, "Maximum Chain Depth Exceeded", max);
         break;
 
     default :
