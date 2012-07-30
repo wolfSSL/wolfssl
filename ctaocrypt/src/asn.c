@@ -32,6 +32,7 @@
 #include <cyassl/ctaocrypt/coding.h>
 #include <cyassl/ctaocrypt/sha.h>
 #include <cyassl/ctaocrypt/md5.h>
+#include <cyassl/ctaocrypt/md2.h>
 #include <cyassl/ctaocrypt/error.h>
 #include <cyassl/ctaocrypt/pwdbased.h>
 #include <cyassl/ctaocrypt/des3.h>
@@ -1058,6 +1059,7 @@ void InitDecodedCert(DecodedCert* cert, byte* source, word32 inSz, void* heap)
     cert->signature       = 0;
     cert->subjectCN       = 0;
     cert->subjectCNLen    = 0;
+    cert->subjectCNStored = 0;
     cert->issuer[0]       = '\0';
     cert->subject[0]      = '\0';
     cert->source          = source;  /* don't own */
@@ -1099,7 +1101,7 @@ void InitDecodedCert(DecodedCert* cert, byte* source, word32 inSz, void* heap)
 
 void FreeDecodedCert(DecodedCert* cert)
 {
-    if (cert->subjectCNLen == 0)  /* 0 means no longer pointer to raw, we own */
+    if (cert->subjectCNStored == 1)
         XFREE(cert->subjectCN, cert->heap, DYNAMIC_TYPE_SUBJECT_CN);
     if (cert->pubKeyStored == 1)
         XFREE(cert->publicKey, cert->heap, DYNAMIC_TYPE_PUBLIC_KEY);
@@ -1362,10 +1364,6 @@ static int GetName(DecodedCert* cert, int nameType)
                           cert->maxIdx) < 0)
                 return ASN_PARSE_E;
 
-            if (strLen == 0) {
-                CYASSL_MSG("Zero length name"); 
-                return ASN_PARSE_E;
-            }
             if (strLen > (int)(ASN_NAME_MAX - idx))
                 return ASN_PARSE_E; 
 
@@ -1950,6 +1948,16 @@ static int ConfirmSignature(const byte* buf, word32 bufSz,
         typeH    = MD5h;
         digestSz = MD5_DIGEST_SIZE;
     }
+#ifdef CYASSL_MD2
+    else if (sigOID == CTC_MD2wRSA) {
+        Md2 md2;
+        InitMd2(&md2);
+        Md2Update(&md2, buf, bufSz);
+        Md2Final(&md2, digest);
+        typeH    = MD2h;
+        digestSz = MD2_DIGEST_SIZE;
+    }
+#endif
     else if (sigOID == CTC_SHAwRSA ||
              sigOID == CTC_SHAwDSA ||
              sigOID == CTC_SHAwECDSA) {
@@ -2331,7 +2339,7 @@ int ParseCert(DecodedCert* cert, int type, int verify, void* cm)
         XMEMCPY(ptr, cert->subjectCN, cert->subjectCNLen);
         ptr[cert->subjectCNLen] = '\0';
         cert->subjectCN = ptr;
-        cert->subjectCNLen = 0;
+        cert->subjectCNStored = 1;
     }
 
     if (cert->keyOID == RSAk && cert->pubKeySize > 0) {
