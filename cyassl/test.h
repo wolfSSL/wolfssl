@@ -96,6 +96,8 @@
 #endif
    
 
+#define SERVER_DEFAULT_VERSION 3
+
 /* all certs relative to CyaSSL home directory now */
 static const char* caCert   = "./certs/ca-cert.pem";
 static const char* eccCert  = "./certs/server-ecc.pem";
@@ -298,17 +300,16 @@ static INLINE void tcp_connect(SOCKET_T* sockfd, const char* ip, word16 port)
 }
 
 
-static INLINE void tcp_listen(SOCKET_T* sockfd)
+static INLINE void tcp_listen(SOCKET_T* sockfd, int port, int useAnyAddr)
 {
     SOCKADDR_IN_T addr;
 
     /* don't use INADDR_ANY by default, firewall may block, make user switch
        on */
-#ifdef USE_ANY_ADDR
-    tcp_socket(sockfd, &addr, INADDR_ANY, yasslPort);
-#else
-    tcp_socket(sockfd, &addr, yasslIP, yasslPort);
-#endif
+    if (useAnyAddr)
+        tcp_socket(sockfd, &addr, INADDR_ANY, port);
+    else
+        tcp_socket(sockfd, &addr, yasslIP, port);
 
 #ifndef USE_WINDOWS_API 
     {
@@ -379,7 +380,8 @@ static INLINE void udp_accept(SOCKET_T* sockfd, int* clientfd, func_args* args)
     *clientfd = udp_read_connect(*sockfd);
 }
 
-static INLINE void tcp_accept(SOCKET_T* sockfd, int* clientfd, func_args* args)
+static INLINE void tcp_accept(SOCKET_T* sockfd, int* clientfd, func_args* args,
+                              int port, int useAnyAddr)
 {
     SOCKADDR_IN_T client;
     socklen_t client_len = sizeof(client);
@@ -389,7 +391,7 @@ static INLINE void tcp_accept(SOCKET_T* sockfd, int* clientfd, func_args* args)
         return;
     #endif
 
-    tcp_listen(sockfd);
+    tcp_listen(sockfd, port, useAnyAddr);
 
 #if defined(_POSIX_THREADS) && defined(NO_MAIN_DRIVER)
     /* signal ready to tcp_accept */

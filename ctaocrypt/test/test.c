@@ -32,6 +32,7 @@
 #else
     #include <cyassl/ctaocrypt/asn_public.h>
 #endif
+#include <cyassl/ctaocrypt/md2.h>
 #include <cyassl/ctaocrypt/md5.h>
 #include <cyassl/ctaocrypt/md4.h>
 #include <cyassl/ctaocrypt/sha.h>
@@ -86,6 +87,7 @@ typedef struct testVector {
     size_t outLen;
 } testVector;
 
+int  md2_test();
 int  md5_test();
 int  md4_test();
 int  sha_test();
@@ -148,6 +150,13 @@ void ctaocrypt_test(void* args)
         err_sys("MD5      test failed!\n", ret);
     else
         printf( "MD5      test passed!\n");
+
+#ifdef CYASSL_MD2
+    if ( (ret = md2_test()) ) 
+        err_sys("MD2      test failed!\n", ret);
+    else
+        printf( "MD2      test passed!\n");
+#endif
 
 #ifndef NO_MD4
     if ( (ret = md4_test()) ) 
@@ -307,6 +316,83 @@ void ctaocrypt_test(void* args)
     }
 
 #endif /* NO_MAIN_DRIVER */
+
+
+#ifdef CYASSL_MD2
+int md2_test()
+{
+    Md2  md2;
+    byte hash[MD2_DIGEST_SIZE];
+
+    testVector a, b, c, d, e, f, g;
+    testVector test_md2[7];
+    int times = sizeof(test_md2) / sizeof(testVector), i;
+
+    a.input  = "";
+    a.output = "\x83\x50\xe5\xa3\xe2\x4c\x15\x3d\xf2\x27\x5c\x9f\x80\x69"
+               "\x27\x73";
+    a.inLen  = strlen(a.input);
+    a.outLen = strlen(a.output);
+
+    b.input  = "a";
+    b.output = "\x32\xec\x01\xec\x4a\x6d\xac\x72\xc0\xab\x96\xfb\x34\xc0"
+               "\xb5\xd1";
+    b.inLen  = strlen(b.input);
+    b.outLen = strlen(b.output);
+
+    c.input  = "abc";
+    c.output = "\xda\x85\x3b\x0d\x3f\x88\xd9\x9b\x30\x28\x3a\x69\xe6\xde"
+               "\xd6\xbb";
+    c.inLen  = strlen(c.input);
+    c.outLen = strlen(c.output);
+
+    d.input  = "message digest";
+    d.output = "\xab\x4f\x49\x6b\xfb\x2a\x53\x0b\x21\x9f\xf3\x30\x31\xfe"
+               "\x06\xb0";
+    d.inLen  = strlen(d.input);
+    d.outLen = strlen(d.output);
+
+    e.input  = "abcdefghijklmnopqrstuvwxyz";
+    e.output = "\x4e\x8d\xdf\xf3\x65\x02\x92\xab\x5a\x41\x08\xc3\xaa\x47"
+               "\x94\x0b";
+    e.inLen  = strlen(e.input);
+    e.outLen = strlen(e.output);
+
+    f.input  = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz012345"
+               "6789";
+    f.output = "\xda\x33\xde\xf2\xa4\x2d\xf1\x39\x75\x35\x28\x46\xc3\x03"
+               "\x38\xcd";
+    f.inLen  = strlen(f.input);
+    f.outLen = strlen(f.output);
+
+    g.input  = "1234567890123456789012345678901234567890123456789012345678"
+               "9012345678901234567890";
+    g.output = "\xd5\x97\x6f\x79\xd8\x3d\x3a\x0d\xc9\x80\x6c\x3c\x66\xf3"
+               "\xef\xd8";
+    g.inLen  = strlen(g.input);
+    g.outLen = strlen(g.output);
+
+    test_md2[0] = a;
+    test_md2[1] = b;
+    test_md2[2] = c;
+    test_md2[3] = d;
+    test_md2[4] = e;
+    test_md2[5] = f;
+    test_md2[6] = g;
+
+    InitMd2(&md2);
+
+    for (i = 0; i < times; ++i) {
+        Md2Update(&md2, (byte*)test_md2[i].input, (word32)test_md2[i].inLen);
+        Md2Final(&md2, hash);
+
+        if (memcmp(hash, test_md2[i].output, MD2_DIGEST_SIZE) != 0)
+            return -155 - i;
+    }
+
+    return 0;
+}
+#endif 
 
 
 int md5_test()

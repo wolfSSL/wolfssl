@@ -341,6 +341,26 @@ fi
 AM_CONDITIONAL([BUILD_AESNI], [test "x$ENABLED_AESNI" = "xyes"])
 
 
+# MD2
+AC_ARG_ENABLE(md2,
+    [  --enable-md2            Enable CyaSSL MD2 support (default: disabled)],
+    [ ENABLED_MD2=$enableval ],
+    [ ENABLED_MD2=no ]
+    )
+
+if test "$ENABLED_BUMP" = "yes"
+then
+    ENABLED_MD2="yes"
+fi
+
+if test "$ENABLED_MD2" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DCYASSL_MD2"
+fi
+
+AM_CONDITIONAL([BUILD_MD2], [test "x$ENABLED_MD2" = "xyes"])
+
+
 # RIPEMD
 AC_ARG_ENABLE(ripemd,
     [  --enable-ripemd         Enable CyaSSL RIPEMD-160 support (default: disabled)],

@@ -446,7 +446,7 @@ enum Misc {
     MAX_EX_DATA        =   3,  /* allow for three items of ex_data */
     MAX_CHAIN_DEPTH    =   9,  /* max cert chain peer depth, FORTRESS option */
 #else
-    MAX_CHAIN_DEPTH    =   4,  /* max cert chain peer depth */
+    MAX_CHAIN_DEPTH    =   6,  /* max cert chain peer depth */
 #endif
     MAX_X509_SIZE      = 2048, /* max static x509 buffer size */
     CERT_MIN_SIZE      =  256, /* min PEM cert size with header/footer */
