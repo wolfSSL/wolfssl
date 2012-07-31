@@ -185,10 +185,16 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
             err_sys("Bad SSL version");
     }
 
+    if (method == NULL)
+        err_sys("unable to get method");
+
     ctx = SSL_CTX_new(method);
+    if (ctx == NULL)
+        err_sys("unable to get ctx");
 
     if (cipherList)
-        SSL_CTX_set_cipher_list(ctx, cipherList);
+        if (SSL_CTX_set_cipher_list(ctx, cipherList) != SSL_SUCCESS)
+            err_sys("can't set cipher list");
 
     if (SSL_CTX_use_certificate_file(ctx, ourCert, SSL_FILETYPE_PEM)
                                      != SSL_SUCCESS)
@@ -205,7 +211,8 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
         SSL_CTX_set_psk_server_callback(ctx, my_psk_server_cb);
         SSL_CTX_use_psk_identity_hint(ctx, "cyassl server");
         if (cipherList == NULL)
-            SSL_CTX_set_cipher_list(ctx, "PSK-AES256-CBC-SHA");
+            if (SSL_CTX_set_cipher_list(ctx,"PSK-AES256-CBC-SHA") !=SSL_SUCCESS)
+                err_sys("can't set cipher list");
     }
 #endif
 
@@ -223,10 +230,14 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 
 #if defined(CYASSL_SNIFFER) && !defined(HAVE_NTRU) && !defined(HAVE_ECC)
     /* don't use EDH, can't sniff tmp keys */
-    SSL_CTX_set_cipher_list(ctx, "AES256-SHA");
+    if (SSL_CTX_set_cipher_list(ctx, "AES256-SHA") != SSL_SUCCESS)
+        err_sys("can't set cipher list");
 #endif
 
     ssl = SSL_new(ctx);
+    if (ssl == NULL)
+        err_sys("unable to get SSL");
+
 #ifdef HAVE_CRL
     CyaSSL_EnableCRL(ssl, 0);
     CyaSSL_LoadCRL(ssl, crlPemDir, SSL_FILETYPE_PEM, CYASSL_CRL_MONITOR |
