@@ -3002,11 +3002,13 @@ static int BuildMessage(CYASSL* ssl, byte* output, const byte* input, int inSz,
         sz += pad;
     }
 
+#ifdef BUILD_AESGCM
     if (ssl->specs.cipher_type == aead) {
         ivSz = AES_GCM_EXP_IV_SZ;
         sz += (ivSz + 16 - digestSz);
         AesGcmGetExpIV(&ssl->encrypt.aes, iv);
     }
+#endif
     size = (word16)(sz - headerSz);    /* include mac and digest */
     AddRecordHeader(output, size, (byte)type, ssl);    
 

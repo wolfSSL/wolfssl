@@ -1043,6 +1043,7 @@ int StoreKeys(CYASSL* ssl, const byte* keyData)
         XMEMCPY(ssl->keys.server_write_MAC_secret,&keyData[i], sz);
         i += sz;
     }
+#ifdef BUILD_AESGCM
     else if (ssl->specs.bulk_cipher_algorithm == aes_gcm) {
         byte iv[AES_GCM_EXP_IV_SZ];
 
@@ -1050,6 +1051,7 @@ int StoreKeys(CYASSL* ssl, const byte* keyData)
         RNG_GenerateBlock(&ssl->rng, iv, sizeof(iv));
         AesGcmSetExpIV(&ssl->encrypt.aes, iv);
     }
+#endif
 
     sz = ssl->specs.key_size;
     XMEMCPY(ssl->keys.client_write_key, &keyData[i], sz);
