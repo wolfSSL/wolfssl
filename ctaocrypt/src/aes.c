@@ -1407,6 +1407,25 @@ void AesCtrEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 
 #ifdef HAVE_AESGCM
 
+/*
+ * The IV for AES GCM, stored in struct Aes's member reg, is comprised of
+ * three parts in order:
+ *   1. The implicit IV. This is generated from the PRF using the shared
+ *      secrets between endpoints. It is 4 bytes long.
+ *   2. The explicit IV. This is set by the user of the AES. It needs to be
+ *      unique for each call to encrypt. The explicit IV is shared with the
+ *      other end of the transaction in the clear.
+ *   3. The counter. Each block of data is encrypted with its own sequence
+ *      number counter.
+ */
+
+enum {
+    IMPLICIT_IV_SZ = 4,
+    EXPLICIT_IV_SZ = 8,
+    CTR_SZ = 4
+};
+
+
 static INLINE void InitGcmCounter(byte* inOutCtr)
 {
     inOutCtr[AES_BLOCK_SIZE - 4] = 0;
@@ -1421,8 +1440,38 @@ static INLINE void IncrementGcmCounter(byte* inOutCtr)
     int i;
 
     /* in network byte order so start at end and work back */
-    for (i = AES_BLOCK_SIZE - 1; i >= AES_BLOCK_SIZE - 4; i--) {
+    for (i = AES_BLOCK_SIZE - 1; i >= AES_BLOCK_SIZE - CTR_SZ; i--) {
         if (++inOutCtr[i])  /* we're done unless we overflow */
+            return;
+    }
+}
+
+
+/*
+ * The explicit IV is set by the caller. A common practice is to treat it as
+ * a sequence number seeded with a random number. The caller manages
+ * incrementing the explicit IV when appropriate.
+ */
+
+void AesGcmSetExpIV(Aes* aes, const byte* iv)
+{
+    XMEMCPY((byte*)aes->reg + IMPLICIT_IV_SZ, iv, EXPLICIT_IV_SZ);
+}
+
+
+void AesGcmGetExpIV(Aes* aes, byte* iv)
+{
+    XMEMCPY(iv, (byte*)aes->reg + IMPLICIT_IV_SZ, EXPLICIT_IV_SZ);
+}
+
+
+void AesGcmIncExpIV(Aes* aes)
+{
+    int i;
+    byte* iv = (byte*)aes->reg + IMPLICIT_IV_SZ;
+
+    for (i = EXPLICIT_IV_SZ - 1; i >= 0; i--) {
+        if (++iv[i])
             return;
     }
 }
@@ -1493,13 +1542,17 @@ static void GenerateM0(Aes* aes)
 #endif /* GCM_TABLE */
 
 
-void AesGcmSetKey(Aes* aes, const byte* key, word32 len)
+void AesGcmSetKey(Aes* aes, const byte* key, word32 len,
+                                                    const byte* implicitIV)
 {
-    byte iv[AES_BLOCK_SIZE];
+    byte fullIV[AES_BLOCK_SIZE];
 
-    XMEMSET(iv, 0, AES_BLOCK_SIZE);
-    AesSetKey(aes, key, len, iv, AES_ENCRYPTION);
-    AesEncrypt(aes, iv, aes->H);
+    XMEMSET(fullIV, 0, AES_BLOCK_SIZE);
+    XMEMCPY(fullIV, implicitIV, IMPLICIT_IV_SZ);
+    AesSetKey(aes, key, len, fullIV, AES_ENCRYPTION);
+
+    XMEMSET(fullIV, 0, AES_BLOCK_SIZE);
+    AesEncrypt(aes, fullIV, aes->H);
 #ifdef GCM_TABLE
     GenerateM0(aes);
 #endif /* GCM_TABLE */

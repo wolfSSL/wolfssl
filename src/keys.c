@@ -1009,12 +1009,16 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
 #ifdef BUILD_AESGCM
     if (specs->bulk_cipher_algorithm == aes_gcm) {
         if (side == CLIENT_END) {
-            AesGcmSetKey(&enc->aes, keys->client_write_key, specs->key_size);
-            AesGcmSetKey(&dec->aes, keys->server_write_key, specs->key_size);
+            AesGcmSetKey(&enc->aes, keys->client_write_key, specs->key_size,
+                        keys->client_write_IV);
+            AesGcmSetKey(&dec->aes, keys->server_write_key, specs->key_size,
+                        keys->server_write_IV);
         }
         else {
-            AesGcmSetKey(&enc->aes, keys->server_write_key, specs->key_size);
-            AesGcmSetKey(&dec->aes, keys->client_write_key, specs->key_size);
+            AesGcmSetKey(&enc->aes, keys->server_write_key, specs->key_size,
+                        keys->server_write_IV);
+            AesGcmSetKey(&dec->aes, keys->client_write_key, specs->key_size,
+                        keys->client_write_IV);
         }
     }
 #endif
@@ -1038,6 +1042,13 @@ int StoreKeys(CYASSL* ssl, const byte* keyData)
         i += sz;
         XMEMCPY(ssl->keys.server_write_MAC_secret,&keyData[i], sz);
         i += sz;
+    }
+    else if (ssl->specs.bulk_cipher_algorithm == aes_gcm) {
+        byte iv[AES_GCM_EXP_IV_SZ];
+
+        /* Initialize the AES-GCM explicit IV to a random number. */
+        RNG_GenerateBlock(&ssl->rng, iv, sizeof(iv));
+        AesGcmSetExpIV(&ssl->encrypt.aes, iv);
     }
 
     sz = ssl->specs.key_size;

@@ -89,7 +89,11 @@ CYASSL_API void AesEncryptDirect(Aes* aes, byte* out, const byte* in);
 CYASSL_API void AesDecryptDirect(Aes* aes, byte* out, const byte* in);
 
 #ifdef HAVE_AESGCM
-CYASSL_API void AesGcmSetKey(Aes* aes, const byte* key, word32 len);
+CYASSL_API void AesGcmSetKey(Aes* aes, const byte* key, word32 len,
+                              const byte* implicitIV);
+CYASSL_API void AesGcmSetExpIV(Aes* aes, const byte* iv);
+CYASSL_API void AesGcmGetExpIV(Aes* aes, byte* iv);
+CYASSL_API void AesGcmIncExpIV(Aes* aes);
 CYASSL_API void AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
                               byte* authTag, word32 authTagSz,
                               const byte* authIn, word32 authInSz);

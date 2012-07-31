@@ -2223,22 +2223,6 @@ static INLINE void Encrypt(CYASSL* ssl, byte* out, const byte* input, word32 sz)
             case aes_gcm:
                 {
                     byte additional[AES_BLOCK_SIZE];
-                    byte nonce[AES_BLOCK_SIZE];
-
-                    /* use this side's IV */
-                    if (ssl->options.side == SERVER_END) {
-                        XMEMCPY(nonce, ssl->keys.server_write_IV,
-                                                    AES_GCM_IMP_IV_SZ);
-                    }
-                    else {
-                        XMEMCPY(nonce, ssl->keys.client_write_IV,
-                                                    AES_GCM_IMP_IV_SZ);
-                    }
-                    XMEMCPY(nonce + AES_GCM_IMP_IV_SZ,
-                                            input, AES_GCM_EXP_IV_SZ);
-                    XMEMSET(nonce + AES_GCM_IMP_IV_SZ + AES_GCM_EXP_IV_SZ,
-                                            0, AES_GCM_CTR_IV_SZ);
-                    AesSetIV(&ssl->encrypt.aes, nonce);
 
                     XMEMSET(additional, 0, AES_BLOCK_SIZE);
 
@@ -2259,6 +2243,7 @@ static INLINE void Encrypt(CYASSL* ssl, byte* out, const byte* input, word32 sz)
                             sz - AES_GCM_EXP_IV_SZ - AEAD_AUTH_TAG_SZ,
                         out + sz - AEAD_AUTH_TAG_SZ, AEAD_AUTH_TAG_SZ,
                         additional, AEAD_AUTH_DATA_SZ);
+                    AesGcmIncExpIV(&ssl->encrypt.aes);
                 }
                 break;
         #endif
@@ -2307,23 +2292,8 @@ static INLINE int Decrypt(CYASSL* ssl, byte* plain, const byte* input,
             case aes_gcm:
             {
                 byte additional[AES_BLOCK_SIZE];
-                byte nonce[AES_BLOCK_SIZE];
 
-                /* use the other side's IV */
-                if (ssl->options.side == SERVER_END) {
-                    XMEMCPY(nonce, ssl->keys.client_write_IV,
-                                                AES_GCM_IMP_IV_SZ);
-                }
-                else {
-                    XMEMCPY(nonce, ssl->keys.server_write_IV,
-                                                AES_GCM_IMP_IV_SZ);
-                }
-                XMEMCPY(nonce + AES_GCM_IMP_IV_SZ,
-                                        input, AES_GCM_EXP_IV_SZ);
-                XMEMSET(nonce + AES_GCM_IMP_IV_SZ + AES_GCM_EXP_IV_SZ,
-                                        0, AES_GCM_CTR_IV_SZ);
-                AesSetIV(&ssl->decrypt.aes, nonce);
-
+                AesGcmSetExpIV(&ssl->decrypt.aes, input);
                 XMEMSET(additional, 0, AES_BLOCK_SIZE);
 
                 /* sequence number field is 64-bits, we only use 32-bits */
@@ -3035,7 +3005,7 @@ static int BuildMessage(CYASSL* ssl, byte* output, const byte* input, int inSz,
     if (ssl->specs.cipher_type == aead) {
         ivSz = AES_GCM_EXP_IV_SZ;
         sz += (ivSz + 16 - digestSz);
-        RNG_GenerateBlock(&ssl->rng, iv, ivSz);
+        AesGcmGetExpIV(&ssl->encrypt.aes, iv);
     }
     size = (word16)(sz - headerSz);    /* include mac and digest */
     AddRecordHeader(output, size, (byte)type, ssl);    
