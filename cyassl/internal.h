@@ -233,8 +233,7 @@ void c32to24(word32 in, word24 out);
     #define BUILD_AES
 #endif
 
-#if defined(BUILD_TLS_DHE_RSA_WITH_AES_128_GCM_SHA256) || \
-    defined(BUILD_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256)
+#if defined(BUILD_TLS_RSA_WITH_AES_128_GCM_SHA256)
     #define BUILD_AESGCM
 #endif
 

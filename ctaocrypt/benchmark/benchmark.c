@@ -186,8 +186,8 @@ void bench_aesgcm()
     double start, total, persec;
     int    i;
 
-    AesGcmSetKey(&enc, key, 16);
-    AesSetIV(&enc, iv);
+    AesGcmSetKey(&enc, key, 16, iv);
+    AesGcmSetExpIV(&enc, iv+4);
     start = current_time();
 
     for(i = 0; i < megs; i++)

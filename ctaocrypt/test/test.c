@@ -1312,8 +1312,8 @@ int aesgcm_test()
     memset(c2, 0, 60);
     memset(p2, 0, 60);
 
-    AesGcmSetKey(&enc, k, sizeof(k));
-    AesSetIV(&enc, iv);
+    AesGcmSetKey(&enc, k, sizeof(k), iv);
+    AesGcmSetExpIV(&enc, iv + /*AES_GCM_IMP_IV_SZ*/ 4);
     /* AES-GCM encrypt and decrypt both use AES encrypt internally */
     AesGcmEncrypt(&enc, c2, p, sizeof(c2), t2, sizeof(t2), a, sizeof(a));
     if (memcmp(c, c2, sizeof(c2)))
