@@ -692,6 +692,8 @@ CYASSL_API const unsigned char* CyaSSL_X509_get_der(CYASSL_X509*, int*);
 
 CYASSL_API int CyaSSL_cmp_peer_cert_to_file(CYASSL*, const char*);
 
+CYASSL_API char* CyaSSL_X509_get_next_altname(CYASSL_X509*);
+
 /* connect enough to get peer cert */
 CYASSL_API int  CyaSSL_connect_cert(CYASSL* ssl);
 

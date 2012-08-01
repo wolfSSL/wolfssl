@@ -61,6 +61,7 @@ enum ASN_Tags {
     ASN_SEQUENCE          = 0x10,
     ASN_SET               = 0x11,
     ASN_UTC_TIME          = 0x17,
+    ASN_DNS_TYPE          = 0x02,
     ASN_GENERALIZED_TIME  = 0x18,
     CRL_EXTENSIONS        = 0xa0,
     ASN_EXTENSIONS        = 0xa3,
@@ -200,6 +201,13 @@ enum VerifyType {
 };
 
 
+typedef struct DNS_entry   DNS_entry;
+
+struct DNS_entry {
+    DNS_entry* next;   /* next on DNS list */
+    char*      name;   /* actual DNS name */
+};
+
 typedef struct DecodedCert DecodedCert;
 typedef struct Signer      Signer;
 
@@ -213,6 +221,7 @@ struct DecodedCert {
     word32  sigLength;               /* length of signature              */
     word32  signatureOID;            /* sum of algorithm object id       */
     word32  keyOID;                  /* sum of key algo  object id       */
+    DNS_entry* altNames;             /* alt names list of dns entries    */
     byte    subjectHash[SHA_SIZE];   /* hash of all Names                */
     byte    issuerHash[SHA_SIZE];    /* hash of all Names                */
 #ifdef HAVE_OCSP
@@ -281,6 +290,7 @@ struct Signer {
     #define CYASSL_TEST_API CYASSL_LOCAL
 #endif
 
+CYASSL_TEST_API void FreeAltNames(DNS_entry*, void*);
 CYASSL_TEST_API void InitDecodedCert(DecodedCert*, byte*, word32, void*);
 CYASSL_TEST_API void FreeDecodedCert(DecodedCert*);
 CYASSL_TEST_API int  ParseCert(DecodedCert*, int type, int verify, void* cm);

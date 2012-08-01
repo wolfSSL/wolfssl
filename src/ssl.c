@@ -3483,6 +3483,27 @@ int CyaSSL_set_compression(CYASSL* ssl)
     }
 
 
+    /* return the next, if any, altname from the peer cert */
+    char* CyaSSL_X509_get_next_altname(CYASSL_X509* cert)
+    {
+        char* ret = NULL;
+        CYASSL_ENTER("CyaSSL_X509_get_next_altname");
+
+        /* don't have any to work with */
+        if (cert == NULL || cert->altNames == NULL)
+            return NULL;
+
+        /* already went through them */
+        if (cert->altNamesNext == NULL)
+            return NULL;
+
+        ret = cert->altNamesNext->name;
+        cert->altNamesNext = cert->altNamesNext->next;
+
+        return ret;
+    }
+
+
     CYASSL_X509_NAME* CyaSSL_X509_get_issuer_name(CYASSL_X509* cert)
     {
         CYASSL_ENTER("X509_get_issuer_name");

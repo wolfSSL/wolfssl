@@ -839,7 +839,9 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
     ssl->buffers.plainSz                   = 0;
 
 #ifdef OPENSSL_EXTRA
-    ssl->peerCert.derCert.buffer = 0;
+    ssl->peerCert.derCert.buffer = NULL;
+    ssl->peerCert.altNames     = NULL;
+    ssl->peerCert.altNamesNext = NULL;
 #endif
 
 #ifdef HAVE_ECC
@@ -1038,6 +1040,8 @@ void SSL_ResourceFree(CYASSL* ssl)
         ShrinkOutputBuffer(ssl);
 #if defined(OPENSSL_EXTRA) || defined(GOAHEAD_WS)
     XFREE(ssl->peerCert.derCert.buffer, ssl->heap, DYNAMIC_TYPE_CERT);
+    if (ssl->peerCert.altNames)
+        FreeAltNames(ssl->peerCert.altNames, ssl->heap);
     CyaSSL_BIO_free(ssl->biord);
     if (ssl->biord != ssl->biowr)        /* in case same as write */
         CyaSSL_BIO_free(ssl->biowr);
@@ -1845,10 +1849,18 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx)
         /* store cert for potential retrieval */
         ssl->peerCert.derCert.buffer = (byte*)XMALLOC(myCert.length, ssl->heap,
                                                       DYNAMIC_TYPE_CERT);
-        if (ssl->peerCert.derCert.buffer == NULL)
-            return MEMORY_E;
-        XMEMCPY(ssl->peerCert.derCert.buffer, myCert.buffer, myCert.length);
-        ssl->peerCert.derCert.length = myCert.length;
+        if (ssl->peerCert.derCert.buffer == NULL) {
+            ret   = MEMORY_E;
+            fatal = 1;
+        }
+        else {
+            XMEMCPY(ssl->peerCert.derCert.buffer, myCert.buffer, myCert.length);
+            ssl->peerCert.derCert.length = myCert.length;
+        }
+
+        ssl->peerCert.altNames = dCert.altNames;
+        dCert.altNames = NULL;     /* takes ownership */
+        ssl->peerCert.altNamesNext = ssl->peerCert.altNames;  /* index hint */
 #endif    
 
         if (fatal) {

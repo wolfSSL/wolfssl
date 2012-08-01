@@ -1146,6 +1146,8 @@ struct CYASSL_X509 {
     byte             serial[EXTERNAL_SERIAL_SIZE];
     char             subjectCN[ASN_NAME_MAX];        /* common name short cut */
     buffer           derCert;                        /* may need  */
+    DNS_entry*       altNames;                       /* alt names list */
+    DNS_entry*       altNamesNext;                   /* hint for retrieval */
 };
 
 
