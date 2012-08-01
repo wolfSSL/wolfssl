@@ -169,6 +169,7 @@ static INLINE void showPeer(CYASSL* ssl)
     CYASSL_CIPHER* cipher;
     CYASSL_X509*   peer = CyaSSL_get_peer_certificate(ssl);
     if (peer) {
+        char* altName;
         char* issuer  = CyaSSL_X509_NAME_oneline(
                                        CyaSSL_X509_get_issuer_name(peer), 0, 0);
         char* subject = CyaSSL_X509_NAME_oneline(
@@ -179,6 +180,10 @@ static INLINE void showPeer(CYASSL* ssl)
         
         printf("peer's cert info:\n issuer : %s\n subject: %s\n", issuer,
                                                                   subject);
+
+        while ( (altName = CyaSSL_X509_get_next_altname(peer)) )
+            printf(" altname = %s\n", altName);
+
         ret = CyaSSL_X509_get_serial_number(peer, serial, &sz);
         if (ret == 0) {
             int  i;

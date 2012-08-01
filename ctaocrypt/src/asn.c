@@ -1060,6 +1060,7 @@ void InitDecodedCert(DecodedCert* cert, byte* source, word32 inSz, void* heap)
     cert->subjectCN       = 0;
     cert->subjectCNLen    = 0;
     cert->subjectCNStored = 0;
+    cert->altNames        = NULL;
     cert->issuer[0]       = '\0';
     cert->subject[0]      = '\0';
     cert->source          = source;  /* don't own */
@@ -1099,12 +1100,26 @@ void InitDecodedCert(DecodedCert* cert, byte* source, word32 inSz, void* heap)
 }
 
 
+void FreeAltNames(DNS_entry* altNames, void* heap)
+{
+    while (altNames) {
+        DNS_entry* tmp = altNames->next;
+
+        XFREE(altNames->name, heap, DYNAMIC_TYPE_ALTNAME);
+        XFREE(altNames,       heap, DYNAMIC_TYPE_ALTNAME);
+        altNames = tmp;
+    }
+}
+
+
 void FreeDecodedCert(DecodedCert* cert)
 {
     if (cert->subjectCNStored == 1)
         XFREE(cert->subjectCN, cert->heap, DYNAMIC_TYPE_SUBJECT_CN);
     if (cert->pubKeyStored == 1)
         XFREE(cert->publicKey, cert->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+    if (cert->altNames)
+        FreeAltNames(cert->altNames, cert->heap);
 }
 
 
@@ -2093,6 +2108,62 @@ static int ConfirmSignature(const byte* buf, word32 bufSz,
 }
 
 
+static void DecodeAltNames(byte* input, int sz, DecodedCert* cert)
+{
+    word32 idx = 0;
+    int length = 0;
+
+    CYASSL_ENTER("DecodeAltNames");
+
+    if (GetSequence(input, &idx, &length, sz) < 0) {
+        CYASSL_MSG("\tBad Sequence");
+        return;
+    }
+
+    while (length > 0) {
+        DNS_entry* entry;
+        int        strLen;
+        byte       b = input[idx++];
+
+        length--;
+
+        if (b != (ASN_CONTEXT_SPECIFIC | ASN_DNS_TYPE)) {
+            CYASSL_MSG("\tNot DNS type");
+            return;
+        }
+
+        if (GetLength(input, &idx, &strLen, sz) < 0) {
+            CYASSL_MSG("\tfail: str length");
+            return;
+        }
+
+        entry = (DNS_entry*)XMALLOC(sizeof(DNS_entry), cert->heap,
+                                    DYNAMIC_TYPE_ALTNAME);
+        if (entry == NULL) {
+            CYASSL_MSG("\tOut of Memory");
+            return;
+        }
+
+        entry->name = (char*)XMALLOC(strLen + 1, cert->heap,
+                                     DYNAMIC_TYPE_ALTNAME);
+        if (entry->name == NULL) {
+            CYASSL_MSG("\tOut of Memory");
+            XFREE(entry, cert->heap, DYNAMIC_TYPE_ALTNAME);
+            return;
+        }
+
+        XMEMCPY(entry->name, &input[idx], strLen);
+        entry->name[strLen] = '\0';
+
+        entry->next    = cert->altNames;
+        cert->altNames = entry;
+
+        length -= strLen;
+        idx    += strLen;
+    }   
+}
+
+
 static void DecodeBasicCaConstraint(byte* input, int sz, DecodedCert* cert)
 {
     word32 idx = 0;
@@ -2310,6 +2381,9 @@ static void DecodeCertExtensions(DecodedCert* cert)
             case AUTH_INFO_OID:
                 DecodeAuthInfo(&input[idx], length, cert);
                 break;
+
+            case ALT_NAMES_OID:
+                DecodeAltNames(&input[idx], length, cert);
 
             default:
                 CYASSL_MSG("\tExtension type not handled, skipping");
