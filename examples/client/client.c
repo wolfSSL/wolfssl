@@ -25,6 +25,7 @@
 
 #include <cyassl/ssl.h>
 #include <cyassl/test.h>
+#include <sysexits.h>
 
 /*
 #define TEST_RESUME 
@@ -70,6 +71,26 @@
 #endif
 
 
+static void Usage(void)
+{
+    printf("client "    VERSION " NOTE: All files relative to CyaSSL home dir"
+                                "\n");
+    printf("-?          Help, print this usage\n");
+    printf("-h <host>   Host to connect to, default %s\n", yasslIP);
+    printf("-p <num>    Port to connect on, default %d\n", yasslPort);
+    printf("-v <num>    SSL version [0-3], SSLv3(0) - TLS1.2(3)), default %d\n",
+                                 CLIENT_DEFAULT_VERSION);
+    printf("-l <str>    Cipher list\n");
+    printf("-c <file>   Certificate file,           default %s\n", cliCert);
+    printf("-k <file>   Key file,                   default %s\n", cliKey);
+    printf("-A <file>   Certificate Authority file, default %s\n", caCert);
+    printf("-b <num>    Benchmark <num> connections and print stats\n");
+    printf("-s          Use pre Shared keys\n");
+    printf("-d          Disable peer checks\n");
+    printf("-g          Send server HTTP GET\n");
+}
+
+
 void client_test(void* args)
 {
     SOCKET_T sockfd = 0;
@@ -90,22 +111,129 @@ void client_test(void* args)
     int  input;
     int  msgSz = strlen(msg);
 
+    int   port   = yasslPort;
+    char* host   = (char*)yasslIP;
+    char* domain = "www.yassl.com";
+
+    int    ch;
+    int    version = CLIENT_DEFAULT_VERSION;
+    int    usePsk   = 0;
+    int    sendGET  = 0;
+    int    benchmark = 0;
+    int    doPeerCheck = 1;
+    char*  cipherList = NULL;
+    char*  verifyCert = (char*)caCert;
+    char*  ourCert    = (char*)cliCert;
+    char*  ourKey     = (char*)cliKey;
+
     int     argc = ((func_args*)args)->argc;
     char**  argv = ((func_args*)args)->argv;
 
     ((func_args*)args)->return_code = -1; /* error state */
 
-#if defined(CYASSL_DTLS)
-    method  = CyaDTLSv1_client_method();
-#elif  !defined(NO_TLS)
-    method  = CyaSSLv23_client_method();
-#else
-    method  = CyaSSLv3_client_method();
-#endif
-    ctx     = CyaSSL_CTX_new(method);
+    while ((ch = getopt(argc, argv, "?gdsh:p:v:l:A:c:k:b:")) != -1) {
+        switch (ch) {
+            case '?' :
+                Usage();
+                exit(EXIT_SUCCESS);
+
+            case 'g' :
+                sendGET = 1;
+                break;
+
+            case 'd' :
+                doPeerCheck = 0;
+                break;
+
+            case 's' :
+                usePsk = 1;
+                break;
+
+            case 'h' :
+                host   = optarg;
+                domain = optarg;
+                break;
+
+            case 'p' :
+                port = atoi(optarg);
+                break;
+
+            case 'v' :
+                version = atoi(optarg);
+                if (version < 0 || version > 3) {
+                    Usage();
+                    exit(EX_USAGE);
+                }
+                break;
+
+            case 'l' :
+                cipherList = optarg;
+                break;
+
+            case 'A' :
+                verifyCert = optarg;
+                break;
+
+            case 'c' :
+                ourCert = optarg;
+                break;
+
+            case 'k' :
+                ourKey = optarg;
+                break;
+
+            case 'b' :
+                benchmark = atoi(optarg);
+                if (benchmark < 0 || benchmark > 1000000) {
+                    Usage();
+                    exit(EX_USAGE);
+                }
+                break;
+
+            default:
+                Usage();
+                exit(EX_USAGE);
+        }
+    }
+
+    argc -= optind;
+    argv += optind;
+
+    switch (version) {
+        case 0:
+            method = CyaSSLv3_client_method();
+            break;
+
+        case 1:
+            method = CyaTLSv1_client_method();
+            break;
+
+        case 2:
+            method = CyaTLSv1_1_client_method();
+            break;
+
+        case 3:
+            method = CyaTLSv1_2_client_method();
+            break;
+
+        default:
+            err_sys("Bad SSL version");
+    }
+
+    if (method == NULL)
+        err_sys("unable to get method");
+
+    ctx = CyaSSL_CTX_new(method);
+    if (ctx == NULL)
+        err_sys("unable to get ctx");
+
+    if (cipherList)
+        if (CyaSSL_CTX_set_cipher_list(ctx, cipherList) != SSL_SUCCESS)
+            err_sys("can't set cipher list");
 
 #ifndef NO_PSK
-    CyaSSL_CTX_set_psk_client_callback(ctx, my_psk_client_cb);
+    if (usePsk)
+        CyaSSL_CTX_set_psk_client_callback(ctx, my_psk_client_cb);
 #endif
 
 #ifdef OPENSSL_EXTRA
@@ -114,76 +242,44 @@ void client_test(void* args)
 
 #if defined(CYASSL_SNIFFER) && !defined(HAVE_NTRU) && !defined(HAVE_ECC)
     /* don't use EDH, can't sniff tmp keys */
-    CyaSSL_CTX_set_cipher_list(ctx, "AES256-SHA");
+    if (cipherList == NULL)
+        if (CyaSSL_CTX_set_cipher_list(ctx, "AES256-SHA") != SSL_SUCCESS)
+            err_sys("can't set cipher list");
 #endif
 
 #ifdef USER_CA_CB
     CyaSSL_CTX_SetCACb(ctx, CaCb);
 #endif
 
-#ifndef NO_FILESYSTEM
-    if (CyaSSL_CTX_load_verify_locations(ctx, caCert, 0) != SSL_SUCCESS)
-        err_sys("can't load ca file, Please run from CyaSSL home dir");
-    #ifdef HAVE_ECC
-        if (CyaSSL_CTX_load_verify_locations(ctx, eccCert, 0) != SSL_SUCCESS)
-            err_sys("can't load ca file, Please run from CyaSSL home dir");
-    #endif
-#else
-    load_buffer(ctx, caCert, CYASSL_CA);
-#endif
-
 #ifdef VERIFY_CALLBACK
     CyaSSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, myVerify);
 #endif
 
+    if (CyaSSL_CTX_use_certificate_file(ctx, ourCert, SSL_FILETYPE_PEM)
+                                     != SSL_SUCCESS)
+        err_sys("can't load client cert file, check file and run from"
+                " CyaSSL home dir");
 
-    if (argc == 3) {
-        /*  ./client server securePort  */
-        CyaSSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, 0);  /* TODO: add ca cert */
-                    /* this is just to allow easy testing of other servers */
-        tcp_connect(&sockfd, argv[1], (short)atoi(argv[2]));
-    }
-    else if (argc == 1) {
-        /* ./client          // plain mode */
-        /* for client cert authentication if server requests */
-#ifndef NO_FILESYSTEM
-    #ifdef HAVE_ECC
-        if (CyaSSL_CTX_use_certificate_file(ctx, cliEccCert, SSL_FILETYPE_PEM)
-                != SSL_SUCCESS)
-            err_sys("can't load ecc client cert file, "
-                    "Please run from CyaSSL home dir");
+    if (CyaSSL_CTX_use_PrivateKey_file(ctx, ourKey, SSL_FILETYPE_PEM)
+                                     != SSL_SUCCESS)
+        err_sys("can't load client cert file, check file and run from"
+                " CyaSSL home dir");    
 
-        if (CyaSSL_CTX_use_PrivateKey_file(ctx, cliEccKey, SSL_FILETYPE_PEM)
-                != SSL_SUCCESS)
-            err_sys("can't load ecc client key file, "
-                    "Please run from CyaSSL home dir");
-    #else
-        if (CyaSSL_CTX_use_certificate_file(ctx, cliCert, SSL_FILETYPE_PEM)
-                != SSL_SUCCESS)
-            err_sys("can't load client cert file, "
-                    "Please run from CyaSSL home dir");
+    if (CyaSSL_CTX_load_verify_locations(ctx, verifyCert, 0) != SSL_SUCCESS)
+            err_sys("can't load ca file, Please run from CyaSSL home dir");
 
-        if (CyaSSL_CTX_use_PrivateKey_file(ctx, cliKey, SSL_FILETYPE_PEM)
-                != SSL_SUCCESS)
-            err_sys("can't load client key file, "
-                    "Please run from CyaSSL home dir");
-    #endif /* HAVE_ECC */
-#else
-        load_buffer(ctx, cliCert, CYASSL_CERT);
-        load_buffer(ctx, cliKey, CYASSL_KEY);
-#endif
+    if (doPeerCheck == 0)
+        CyaSSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, 0);
 
-        tcp_connect(&sockfd, yasslIP, yasslPort);
-    }
-    else if (argc == 2) {
+    if (benchmark) {
         /* time passed in number of connects give average */
-        int times = atoi(argv[1]);
+        int times = benchmark;
         int i = 0;
 
         double start = current_time(), avg;
 
         for (i = 0; i < times; i++) {
-            tcp_connect(&sockfd, yasslIP, yasslPort);
+            tcp_connect(&sockfd, host, port);
             ssl = CyaSSL_new(ctx);
             CyaSSL_set_fd(ssl, sockfd);
             if (CyaSSL_connect(ssl) != SSL_SUCCESS)
@@ -195,25 +291,27 @@ void client_test(void* args)
         }
         avg = current_time() - start;
         avg /= times;
-        avg *= 1000;    /* milliseconds */  
-        printf("SSL_connect avg took:%6.3f milliseconds\n", avg);
+        avg *= 1000;   /* milliseconds */
+        printf("CyaSSL_connect avg took: %8.3f milliseconds\n", avg);
 
         CyaSSL_CTX_free(ctx);
         ((func_args*)args)->return_code = 0;
-        return;
-    }
-    else
-        err_sys("usage: ./client server securePort");
 
+        exit(EXIT_SUCCESS);
+    }
+
+    tcp_connect(&sockfd, host, port);
     ssl = CyaSSL_new(ctx);
+    if (ssl == NULL)
+        err_sys("unable to get SSL object");
     CyaSSL_set_fd(ssl, sockfd);
 #ifdef HAVE_CRL
     CyaSSL_EnableCRL(ssl, CYASSL_CRL_CHECKALL);
     CyaSSL_LoadCRL(ssl, crlPemDir, SSL_FILETYPE_PEM, 0);
     CyaSSL_SetCRL_Cb(ssl, CRL_CallBack);
 #endif
-    if (argc != 3)
-        CyaSSL_check_domain_name(ssl, "www.yassl.com");
+    if (doPeerCheck)
+        CyaSSL_check_domain_name(ssl, domain);
 #ifdef NON_BLOCKING
     tcp_set_nonblocking(&sockfd);
     NonBlockingSSL_Connect(ssl);
@@ -233,7 +331,7 @@ void client_test(void* args)
 #endif
     showPeer(ssl);
     
-    if (argc == 3) {
+    if (sendGET) {
         printf("SSL connect ok, sending GET...\n");
         msgSz = 28;
         strncpy(msg, "GET /index.html HTTP/1.0\r\n\r\n", msgSz);
@@ -282,10 +380,7 @@ void client_test(void* args)
             sleep(1);
         #endif
     #endif
-    if (argc == 3)
-        tcp_connect(&sockfd, argv[1], (short)atoi(argv[2]));
-    else
-        tcp_connect(&sockfd, yasslIP, yasslPort);
+    tcp_connect(&sockfd, host, port);
     CyaSSL_set_fd(sslResume, sockfd);
     CyaSSL_set_session(sslResume, session);
    

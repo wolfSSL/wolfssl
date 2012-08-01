@@ -97,6 +97,7 @@
    
 
 #define SERVER_DEFAULT_VERSION 3
+#define CLIENT_DEFAULT_VERSION 3
 
 /* all certs relative to CyaSSL home directory now */
 static const char* caCert   = "./certs/ca-cert.pem";
