@@ -182,6 +182,9 @@ void echoclient_test(void* args)
         return args.return_code;
     }
 
+    int myoptind = 0;
+    char* myoptarg = NULL;
+
 #endif /* NO_MAIN_DRIVER */
 
 

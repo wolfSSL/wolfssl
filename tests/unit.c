@@ -2,6 +2,11 @@
 #include <stdio.h>
 #include "unit.h"
 
+
+int myoptind = 0;
+char* myoptarg = NULL;
+
+
 int main(int argc, char** argv)
 {
     printf("hello unit tests\n");

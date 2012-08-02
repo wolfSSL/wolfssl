@@ -284,6 +284,9 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
         return args.return_code;
     }
 
+    int myoptind = 0;
+    char* myoptarg = NULL;
+
 #endif /* NO_MAIN_DRIVER */
 
 
