@@ -6860,7 +6860,41 @@ int UnLockMutex(CyaSSL_Mutex* m)
 
 #else /* MULTI_THREAD */
 
-    #ifdef USE_WINDOWS_API
+    #if defined(FREERTOS)
+
+        int InitMutex(CyaSSL_Mutex* m)
+        {
+            int iReturn;
+
+            *m = ( CyaSSL_Mutex ) xSemaphoreCreateMutex();
+            if( *m != NULL )
+                iReturn = 0;
+            else
+                iReturn = BAD_MUTEX_ERROR;
+
+            return iReturn;
+        }
+
+        int FreeMutex(CyaSSL_Mutex* m)
+        {
+            vSemaphoreDelete( *m );
+            return 0;
+        }
+
+        int LockMutex(CyaSSL_Mutex* m)
+        {
+            /* Assume an infinite block, or should there be zero block? */
+            xSemaphoreTake( *m, portMAX_DELAY );
+            return 0;
+        }
+
+        int UnLockMutex(CyaSSL_Mutex* m)
+        {
+            xSemaphoreGive( *m );
+            return 0;
+        }
+
+    #elif defined(USE_WINDOWS_API)
 
         int InitMutex(CyaSSL_Mutex* m)
         {
