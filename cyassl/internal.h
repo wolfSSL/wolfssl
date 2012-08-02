@@ -69,6 +69,8 @@
     #endif
 #elif defined(MICRIUM)
     /* do nothing, just don't pick Unix */
+#elif defined(FREERTOS)
+    /* do nothing */
 #else
     #ifndef SINGLE_THREADED
         #define CYASSL_PTHREADS
@@ -662,7 +664,10 @@ struct CYASSL_CIPHER {
 #ifdef SINGLE_THREADED
     typedef int CyaSSL_Mutex;
 #else /* MULTI_THREADED */
-    #ifdef USE_WINDOWS_API 
+    /* FREERTOS comes first to enable use of FreeRTOS Windows simulator only */
+    #ifdef FREERTOS
+        typedef xSemaphoreHandle CyaSSL_Mutex;
+    #elif defined(USE_WINDOWS_API)
         typedef CRITICAL_SECTION CyaSSL_Mutex;
     #elif defined(CYASSL_PTHREADS)
         typedef pthread_mutex_t CyaSSL_Mutex;

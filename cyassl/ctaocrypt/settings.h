@@ -48,6 +48,9 @@
 /* Uncomment next line if using FreeRTOS */
 /* #define FREERTOS */
 
+/* Uncomment next line if using FreeRTOS Windows Simulator */
+/* #define FREERTOS_WINSIM */
+
 /* Uncomment next line if using lwip */
 /* #define CYASSL_LWIP */
 
@@ -82,13 +85,22 @@
     #define NO_HC128
 #endif /* MBED */
 
-#ifdef FREERTOS 
-    #define SINGLE_THREADED
+#ifdef FREERTOS_WINSIM
+    #define FREERTOS
+    #define USE_WINDOWS_API
+#endif
+
+#ifdef FREERTOS
     #define NO_WRITEV
     #define NO_SHA512
     #define NO_DH
     #define NO_DSA
     #define NO_HC128
+
+    #ifndef SINGLE_THREADED
+        #include "FreeRTOS.h"
+        #include "semphr.h"
+    #endif
 #endif
 
 #ifdef CYASSL_GAME_BUILD
