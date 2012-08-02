@@ -358,7 +358,7 @@ void client_test(void* args)
         reply[input] = 0;
         printf("Server response: %s\n", reply);
 
-        if (argc == 3) {  /* get html */
+        if (sendGET) {  /* get html */
             while (1) {
                 input = CyaSSL_read(ssl, reply, sizeof(reply));
                 if (input > 0) {
