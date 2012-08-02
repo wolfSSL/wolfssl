@@ -1102,6 +1102,8 @@ void InitDecodedCert(DecodedCert* cert, byte* source, word32 inSz, void* heap)
 
 void FreeAltNames(DNS_entry* altNames, void* heap)
 {
+    (void)heap;
+
     while (altNames) {
         DNS_entry* tmp = altNames->next;
 

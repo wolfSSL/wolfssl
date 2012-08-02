@@ -25,7 +25,6 @@
 
 #include <cyassl/ssl.h>
 #include <cyassl/test.h>
-#include <sysexits.h>
 
 /*
 #define TEST_RESUME 
@@ -73,8 +72,8 @@
 
 static void Usage(void)
 {
-    printf("client "    VERSION " NOTE: All files relative to CyaSSL home dir"
-                                "\n");
+    printf("client "    LIBCYASSL_VERSION_STRING
+           " NOTE: All files relative to CyaSSL home dir\n");
     printf("-?          Help, print this usage\n");
     printf("-h <host>   Host to connect to, default %s\n", yasslIP);
     printf("-p <num>    Port to connect on, default %d\n", yasslPort);
@@ -131,7 +130,7 @@ void client_test(void* args)
 
     ((func_args*)args)->return_code = -1; /* error state */
 
-    while ((ch = getopt(argc, argv, "?gdsh:p:v:l:A:c:k:b:")) != -1) {
+    while ((ch = mygetopt(argc, argv, "?gdsh:p:v:l:A:c:k:b:")) != -1) {
         switch (ch) {
             case '?' :
                 Usage();
@@ -150,54 +149,55 @@ void client_test(void* args)
                 break;
 
             case 'h' :
-                host   = optarg;
-                domain = optarg;
+                host   = myoptarg;
+                domain = myoptarg;
                 break;
 
             case 'p' :
-                port = atoi(optarg);
+                port = atoi(myoptarg);
                 break;
 
             case 'v' :
-                version = atoi(optarg);
+                version = atoi(myoptarg);
                 if (version < 0 || version > 3) {
                     Usage();
-                    exit(EX_USAGE);
+                    exit(MY_EX_USAGE);
                 }
                 break;
 
             case 'l' :
-                cipherList = optarg;
+                cipherList = myoptarg;
                 break;
 
             case 'A' :
-                verifyCert = optarg;
+                verifyCert = myoptarg;
                 break;
 
             case 'c' :
-                ourCert = optarg;
+                ourCert = myoptarg;
                 break;
 
             case 'k' :
-                ourKey = optarg;
+                ourKey = myoptarg;
                 break;
 
             case 'b' :
-                benchmark = atoi(optarg);
+                benchmark = atoi(myoptarg);
                 if (benchmark < 0 || benchmark > 1000000) {
                     Usage();
-                    exit(EX_USAGE);
+                    exit(MY_EX_USAGE);
                 }
                 break;
 
             default:
                 Usage();
-                exit(EX_USAGE);
+                exit(MY_EX_USAGE);
         }
     }
 
-    argc -= optind;
-    argv += optind;
+    argc -= myoptind;
+    argv += myoptind;
+    myoptind = 0;      /* reset for test cases */
 
     switch (version) {
         case 0:
@@ -441,6 +441,9 @@ void client_test(void* args)
 
         return args.return_code;
     }
+
+    int myoptind = 0;
+    char* myoptarg = NULL;
 
 #endif /* NO_MAIN_DRIVER */
 

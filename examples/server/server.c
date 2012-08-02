@@ -25,7 +25,6 @@
 
 #include <cyassl/openssl/ssl.h>
 #include <cyassl/test.h>
-#include <sysexits.h>
 
 
 #ifdef CYASSL_CALLBACKS
@@ -66,8 +65,8 @@
 
 static void Usage(void)
 {
-    printf("server "    VERSION " NOTE: All files relative to CyaSSL home dir"
-                                "\n");
+    printf("server "    LIBCYASSL_VERSION_STRING
+           " NOTE: All files relative to CyaSSL home dir\n");
     printf("-?          Help, print this usage\n");
     printf("-p <num>    Port to listen on, default %d\n", yasslPort);
     printf("-v <num>    SSL version [0-3], SSLv3(0) - TLS1.2(3)), default %d\n",
@@ -109,7 +108,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 
     ((func_args*)args)->return_code = -1; /* error state */
 
-    while ((ch = getopt(argc, argv, "?dbsp:v:l:A:c:k:")) != -1) {
+    while ((ch = mygetopt(argc, argv, "?dbsp:v:l:A:c:k:")) != -1) {
         switch (ch) {
             case '?' :
                 Usage();
@@ -128,41 +127,42 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
                 break;
 
             case 'p' :
-                port = atoi(optarg);
+                port = atoi(myoptarg);
                 break;
 
             case 'v' :
-                version = atoi(optarg);
+                version = atoi(myoptarg);
                 if (version < 0 || version > 3) {
                     Usage();
-                    exit(EX_USAGE);
+                    exit(MY_EX_USAGE);
                 }
                 break;
 
             case 'l' :
-                cipherList = optarg;
+                cipherList = myoptarg;
                 break;
 
             case 'A' :
-                verifyCert = optarg;
+                verifyCert = myoptarg;
                 break;
 
             case 'c' :
-                ourCert = optarg;
+                ourCert = myoptarg;
                 break;
 
             case 'k' :
-                ourKey = optarg;
+                ourKey = myoptarg;
                 break;
 
             default:
                 Usage();
-                exit(EX_USAGE);
+                exit(MY_EX_USAGE);
         }
     }
 
-    argc -= optind;
-    argv += optind;
+    argc -= myoptind;
+    argv += myoptind;
+    myoptind = 0;      /* reset for test cases */
 
     switch (version) {
         case 0:
@@ -318,6 +318,9 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 
         return args.return_code;
     }
+
+    int myoptind = 0;
+    char* myoptarg = NULL;
 
 #endif /* NO_MAIN_DRIVER */
 

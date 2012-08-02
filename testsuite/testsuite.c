@@ -48,6 +48,10 @@ enum {
 };
 
 
+int myoptind = 0;
+char* myoptarg = NULL;
+
+
 int main(int argc, char** argv)
 {
     func_args args;

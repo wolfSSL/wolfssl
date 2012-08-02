@@ -152,6 +152,74 @@ static INLINE void err_sys(const char* msg)
 }
 
 
+#define MY_EX_USAGE 2
+
+extern int   myoptind;
+extern char* myoptarg;
+
+static int mygetopt(int argc, char** argv, char* optstring)
+{
+    static char* next = NULL;
+
+    char  c;
+    char* cp;
+
+    if (myoptind == 0)
+        next = NULL;   /* we're starting new/over */
+
+    if (next == NULL || *next == '\0') {
+        if (myoptind == 0)
+            myoptind++;
+
+        if (myoptind >= argc || argv[myoptind][0] != '-' ||
+                                argv[myoptind][1] == '\0') {
+            myoptarg = NULL;
+            if (myoptind < argc)
+                myoptarg = argv[myoptind];
+
+            return -1;
+        }
+
+        if (strcmp(argv[myoptind], "--") == 0) {
+            myoptind++;
+            myoptarg = NULL;
+
+            if (myoptind < argc)
+                myoptarg = argv[myoptind];
+
+            return -1;
+        }
+
+        next = argv[myoptind];
+        next++;                  /* skip - */
+        myoptind++;
+    }
+
+    c  = *next++;
+    cp = strchr(optstring, c);
+
+    if (cp == NULL || c == ':') 
+        return '?';
+
+    cp++;
+
+    if (*cp == ':') {
+        if (*next != '\0') {
+            myoptarg = next;
+            next     = NULL;
+        }
+        else if (myoptind < argc) {
+            myoptarg = argv[myoptind];
+            myoptind++;
+        }
+        else 
+            return '?';
+    }
+
+    return c;
+}
+
+
 #ifdef OPENSSL_EXTRA
 
 static int PasswordCallBack(char* passwd, int sz, int rw, void* userdata)
