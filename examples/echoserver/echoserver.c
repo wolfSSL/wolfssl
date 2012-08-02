@@ -56,6 +56,7 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
     CYASSL_METHOD* method = 0;
     CYASSL_CTX*    ctx    = 0;
 
+    int    doDTLS = 0;
     int    outCreated = 0;
     int    shutdown = 0;
     int    useAnyAddr = 0;
@@ -73,7 +74,11 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
 
     ((func_args*)args)->return_code = -1; /* error state */
 
-    tcp_listen(&sockfd, yasslPort, useAnyAddr);
+#ifdef CYASSL_DTLS
+    doDTLS  = 1;
+#endif
+
+    tcp_listen(&sockfd, yasslPort, useAnyAddr, doDTLS);
 
 #if defined(CYASSL_DTLS)
     method  = CyaDTLSv1_server_method();
@@ -237,7 +242,7 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
         CyaSSL_free(ssl);
         CloseSocket(clientfd);
 #ifdef CYASSL_DTLS
-        tcp_listen(&sockfd, yasslPort, useAnyAddr);
+        tcp_listen(&sockfd, yasslPort, useAnyAddr, doDTLS);
         SignalReady(args);
 #endif
     }

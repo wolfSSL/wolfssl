@@ -299,7 +299,7 @@ static INLINE void showPeer(CYASSL* ssl)
 
 
 static INLINE void tcp_socket(SOCKET_T* sockfd, SOCKADDR_IN_T* addr,
-                              const char* peer, word16 port)
+                              const char* peer, word16 port, int udp)
 {
 #ifndef TEST_IPV6
     const char* host = peer;
@@ -320,11 +320,10 @@ static INLINE void tcp_socket(SOCKET_T* sockfd, SOCKADDR_IN_T* addr,
     }
 #endif
 
-#ifdef CYASSL_DTLS
-    *sockfd = socket(AF_INET_V, SOCK_DGRAM, 0);
-#else
-    *sockfd = socket(AF_INET_V, SOCK_STREAM, 0);
-#endif
+    if (udp)
+        *sockfd = socket(AF_INET_V, SOCK_DGRAM, 0);
+    else
+        *sockfd = socket(AF_INET_V, SOCK_STREAM, 0);
     memset(addr, 0, sizeof(SOCKADDR_IN_T));
 
 #ifndef TEST_IPV6
@@ -351,7 +350,8 @@ static INLINE void tcp_socket(SOCKET_T* sockfd, SOCKADDR_IN_T* addr,
     }
 #endif
 
-#if defined(TCP_NODELAY) && !defined(CYASSL_DTLS)
+#if defined(TCP_NODELAY)
+    if (!udp)
     {
         int       on = 1;
         socklen_t len = sizeof(on);
@@ -364,26 +364,28 @@ static INLINE void tcp_socket(SOCKET_T* sockfd, SOCKADDR_IN_T* addr,
 }
 
 
-static INLINE void tcp_connect(SOCKET_T* sockfd, const char* ip, word16 port)
+static INLINE void tcp_connect(SOCKET_T* sockfd, const char* ip, word16 port,
+                               int udp)
 {
     SOCKADDR_IN_T addr;
-    tcp_socket(sockfd, &addr, ip, port);
+    tcp_socket(sockfd, &addr, ip, port, udp);
 
     if (connect(*sockfd, (const struct sockaddr*)&addr, sizeof(addr)) != 0)
         err_sys("tcp connect failed");
 }
 
 
-static INLINE void tcp_listen(SOCKET_T* sockfd, int port, int useAnyAddr)
+static INLINE void tcp_listen(SOCKET_T* sockfd, int port, int useAnyAddr,
+                              int udp)
 {
     SOCKADDR_IN_T addr;
 
     /* don't use INADDR_ANY by default, firewall may block, make user switch
        on */
     if (useAnyAddr)
-        tcp_socket(sockfd, &addr, INADDR_ANY, port);
+        tcp_socket(sockfd, &addr, INADDR_ANY, port, udp);
     else
-        tcp_socket(sockfd, &addr, yasslIP, port);
+        tcp_socket(sockfd, &addr, yasslIP, port, udp);
 
 #ifndef USE_WINDOWS_API 
     {
@@ -395,10 +397,10 @@ static INLINE void tcp_listen(SOCKET_T* sockfd, int port, int useAnyAddr)
 
     if (bind(*sockfd, (const struct sockaddr*)&addr, sizeof(addr)) != 0)
         err_sys("tcp bind failed");
-#ifndef CYASSL_DTLS
-    if (listen(*sockfd, 5) != 0)
-        err_sys("tcp listen failed");
-#endif
+    if (!udp) {
+        if (listen(*sockfd, 5) != 0)
+            err_sys("tcp listen failed");
+    }
 }
 
 
@@ -426,7 +428,7 @@ static INLINE void udp_accept(SOCKET_T* sockfd, int* clientfd, func_args* args)
 {
     SOCKADDR_IN_T addr;
 
-    tcp_socket(sockfd, &addr, yasslIP, yasslPort);
+    tcp_socket(sockfd, &addr, yasslIP, yasslPort, 1);
 
 
 #ifndef USE_WINDOWS_API 
@@ -455,17 +457,17 @@ static INLINE void udp_accept(SOCKET_T* sockfd, int* clientfd, func_args* args)
 }
 
 static INLINE void tcp_accept(SOCKET_T* sockfd, int* clientfd, func_args* args,
-                              int port, int useAnyAddr)
+                              int port, int useAnyAddr, int udp)
 {
     SOCKADDR_IN_T client;
     socklen_t client_len = sizeof(client);
 
-    #ifdef CYASSL_DTLS
+    if (udp) {
         udp_accept(sockfd, clientfd, args);
         return;
-    #endif
+    }
 
-    tcp_listen(sockfd, port, useAnyAddr);
+    tcp_listen(sockfd, port, useAnyAddr, udp);
 
 #if defined(_POSIX_THREADS) && defined(NO_MAIN_DRIVER)
     /* signal ready to tcp_accept */

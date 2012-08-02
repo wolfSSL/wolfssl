@@ -119,6 +119,7 @@ void client_test(void* args)
     int    usePsk   = 0;
     int    sendGET  = 0;
     int    benchmark = 0;
+    int    doDTLS    = 0;
     int    doPeerCheck = 1;
     char*  cipherList = NULL;
     char*  verifyCert = (char*)caCert;
@@ -130,7 +131,7 @@ void client_test(void* args)
 
     ((func_args*)args)->return_code = -1; /* error state */
 
-    while ((ch = mygetopt(argc, argv, "?gdsh:p:v:l:A:c:k:b:")) != -1) {
+    while ((ch = mygetopt(argc, argv, "?gdush:p:v:l:A:c:k:b:")) != -1) {
         switch (ch) {
             case '?' :
                 Usage();
@@ -142,6 +143,11 @@ void client_test(void* args)
 
             case 'd' :
                 doPeerCheck = 0;
+                break;
+
+            case 'u' :
+                doDTLS  = 1;
+                version = -1;  /* DTLS flag */
                 break;
 
             case 's' :
@@ -163,6 +169,8 @@ void client_test(void* args)
                     Usage();
                     exit(MY_EX_USAGE);
                 }
+                if (doDTLS)
+                    version = -1;   /* DTLS flag */
                 break;
 
             case 'l' :
@@ -215,6 +223,12 @@ void client_test(void* args)
         case 3:
             method = CyaTLSv1_2_client_method();
             break;
+
+#ifdef CYASSL_DTLS
+        case -1:
+            method = CyaDTLSv1_client_method();
+            break;
+#endif
 
         default:
             err_sys("Bad SSL version");
@@ -279,7 +293,7 @@ void client_test(void* args)
         double start = current_time(), avg;
 
         for (i = 0; i < times; i++) {
-            tcp_connect(&sockfd, host, port);
+            tcp_connect(&sockfd, host, port, doDTLS);
             ssl = CyaSSL_new(ctx);
             CyaSSL_set_fd(ssl, sockfd);
             if (CyaSSL_connect(ssl) != SSL_SUCCESS)
@@ -300,7 +314,7 @@ void client_test(void* args)
         exit(EXIT_SUCCESS);
     }
 
-    tcp_connect(&sockfd, host, port);
+    tcp_connect(&sockfd, host, port, doDTLS);
     ssl = CyaSSL_new(ctx);
     if (ssl == NULL)
         err_sys("unable to get SSL object");
@@ -358,12 +372,12 @@ void client_test(void* args)
     }
   
 #ifdef TEST_RESUME
-    #ifdef CYASSL_DTLS
+    if (doDTLS) {
         strncpy(msg, "break", 6);
         msgSz = (int)strlen(msg);
         /* try to send session close */
         CyaSSL_write(ssl, msg, msgSz);
-    #endif
+    }
     session   = CyaSSL_get_session(ssl);
     sslResume = CyaSSL_new(ctx);
 #endif
@@ -373,13 +387,13 @@ void client_test(void* args)
     CloseSocket(sockfd);
 
 #ifdef TEST_RESUME
-    #ifdef CYASSL_DTLS
+    if (doDTLS) {
         #ifdef USE_WINDOWS_API 
             Sleep(500);
         #else
             sleep(1);
         #endif
-    #endif
+    }
     tcp_connect(&sockfd, host, port);
     CyaSSL_set_fd(sslResume, sockfd);
     CyaSSL_set_session(sslResume, session);

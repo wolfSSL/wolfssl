@@ -78,6 +78,7 @@ static void Usage(void)
     printf("-d          Disable client cert check\n");
     printf("-b          Bind to any interface instead of localhost only\n");
     printf("-s          Use pre Shared keys\n");
+    printf("-u          Use UDP DTLS\n");
 }
 
 
@@ -99,6 +100,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     int    useAnyAddr = 0;
     int    port = yasslPort;
     int    usePsk = 0;
+    int    doDTLS = 0;
     char*  cipherList = NULL;
     char*  verifyCert = (char*)cliCert;
     char*  ourCert    = (char*)svrCert;
@@ -108,7 +110,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 
     ((func_args*)args)->return_code = -1; /* error state */
 
-    while ((ch = mygetopt(argc, argv, "?dbsp:v:l:A:c:k:")) != -1) {
+    while ((ch = mygetopt(argc, argv, "?dbsup:v:l:A:c:k:")) != -1) {
         switch (ch) {
             case '?' :
                 Usage();
@@ -126,6 +128,11 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
                 usePsk = 1;
                 break;
 
+            case 'u' :
+                doDTLS  = 1;
+                version = -1;  /* DTLS flag */
+                break;
+
             case 'p' :
                 port = atoi(myoptarg);
                 break;
@@ -136,6 +143,8 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
                     Usage();
                     exit(MY_EX_USAGE);
                 }
+                if (doDTLS)
+                    version = -1;  /* stay with DTLS */
                 break;
 
             case 'l' :
@@ -180,6 +189,12 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
         case 3:
             method = TLSv1_2_server_method();
             break;
+
+#ifdef CYASSL_DTLS
+        case -1:
+            method = DTLSv1_server_method();
+            break;
+#endif
 
         default:
             err_sys("Bad SSL version");
@@ -244,10 +259,9 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
                                                      CYASSL_CRL_START_MON);
     CyaSSL_SetCRL_Cb(ssl, CRL_CallBack);
 #endif
-    tcp_accept(&sockfd, &clientfd, (func_args*)args, port, useAnyAddr);
-#ifndef CYASSL_DTLS
-    CloseSocket(sockfd);
-#endif
+    tcp_accept(&sockfd, &clientfd, (func_args*)args, port, useAnyAddr, doDTLS);
+    if (!doDTLS) 
+        CloseSocket(sockfd);
 
     SSL_set_fd(ssl, clientfd);
 #ifdef NO_PSK

@@ -44,6 +44,7 @@ void echoclient_test(void* args)
     SSL_CTX*    ctx    = 0;
     SSL*        ssl    = 0;
 
+    int doDTLS = 0;
     int sendSz;
     int argc    = 0;
     char** argv = 0;
@@ -64,7 +65,11 @@ void echoclient_test(void* args)
     if (!fin)  err_sys("can't open input file");
     if (!fout) err_sys("can't open output file");
 
-    tcp_connect(&sockfd, yasslIP, yasslPort);
+#ifdef CYASSL_DTLS
+    doDTLS  = 1;
+#endif
+
+    tcp_connect(&sockfd, yasslIP, yasslPort, doDTLS);
 
 #if defined(CYASSL_DTLS)
     method  = DTLSv1_client_method();
