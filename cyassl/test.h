@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <ctype.h>
+#include <cyassl/ssl.h>
 #include <cyassl/ctaocrypt/types.h>
 
 #ifdef USE_WINDOWS_API 
@@ -43,6 +44,7 @@
     /* 4996 warning to use MS extensions e.g., strcpy_s instead of strncpy */
     #pragma warning(disable:4244 4996)
 #endif
+
 
 #if defined(__MACH__) || defined(USE_WINDOWS_API)
     #ifndef _SOCKLEN_T
@@ -100,19 +102,19 @@
 #define CLIENT_DEFAULT_VERSION 3
 
 /* all certs relative to CyaSSL home directory now */
-static const char* caCert   = "./certs/ca-cert.pem";
-static const char* eccCert  = "./certs/server-ecc.pem";
-static const char* eccKey   = "./certs/ecc-key.pem";
-static const char* svrCert  = "./certs/server-cert.pem";
-static const char* svrKey   = "./certs/server-key.pem";
-static const char* cliCert  = "./certs/client-cert.pem";
-static const char* cliKey   = "./certs/client-key.pem";
-static const char* ntruCert = "./certs/ntru-cert.pem";
-static const char* ntruKey  = "./certs/ntru-key.raw";
-static const char* dhParam  = "./certs/dh2048.pem";
-static const char* cliEccKey  = "./certs/ecc-client-key.pem";
-static const char* cliEccCert = "./certs/client-ecc-cert.pem";
-static const char* crlPemDir  = "./certs/crl";
+#define caCert     "./certs/ca-cert.pem"
+#define eccCert    "./certs/server-ecc.pem"
+#define eccKey     "./certs/ecc-key.pem"
+#define svrCert    "./certs/server-cert.pem"
+#define svrKey     "./certs/server-key.pem"
+#define cliCert    "./certs/client-cert.pem"
+#define cliKey     "./certs/client-key.pem"
+#define ntruCert   "./certs/ntru-cert.pem"
+#define ntruKey    "./certs/ntru-key.raw"
+#define dhParam    "./certs/dh2048.pem"
+#define cliEccKey  "./certs/ecc-client-key.pem"
+#define cliEccCert "./certs/client-ecc-cert.pem"
+#define crlPemDir  "./certs/crl"
 
 typedef struct tcp_ready {
     int ready;              /* predicate */
@@ -157,7 +159,7 @@ static INLINE void err_sys(const char* msg)
 extern int   myoptind;
 extern char* myoptarg;
 
-static int mygetopt(int argc, char** argv, char* optstring)
+static INLINE int mygetopt(int argc, char** argv, char* optstring)
 {
     static char* next = NULL;
 
@@ -222,7 +224,7 @@ static int mygetopt(int argc, char** argv, char* optstring)
 
 #ifdef OPENSSL_EXTRA
 
-static int PasswordCallBack(char* passwd, int sz, int rw, void* userdata)
+static INLINE int PasswordCallBack(char* passwd, int sz, int rw, void* userdata)
 {
     strncpy(passwd, "yassl123", sz);
     return 8;
@@ -623,7 +625,7 @@ static INLINE unsigned int my_psk_server_cb(CYASSL* ssl, const char* identity,
 
 #ifdef VERIFY_CALLBACK
 
-static int myVerify(int preverify, CYASSL_X509_STORE_CTX* store)
+static INLINE int myVerify(int preverify, CYASSL_X509_STORE_CTX* store)
 {
     char buffer[80];
 
@@ -655,7 +657,7 @@ static int myVerify(int preverify, CYASSL_X509_STORE_CTX* store)
 
 #ifdef HAVE_CRL
 
-static void CRL_CallBack(const char* url)
+static void INLINE CRL_CallBack(const char* url)
 {
     printf("CRL callback url = %s\n", url);
 }
