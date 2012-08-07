@@ -136,6 +136,7 @@ typedef struct func_args {
     tcp_ready* signal;
 } func_args;
 
+void wait_tcp_ready(func_args*);
 
 typedef THREAD_RETURN CYASSL_THREAD THREAD_FUNC(void*);
 

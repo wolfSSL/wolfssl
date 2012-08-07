@@ -22,21 +22,58 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <cyassl/ssl.h>
-#include <cyassl/test.h>
+#include <tests/unit.h>
 
 
-#define NO_MAIN_DRIVER
 #define MAX_ARGS 40
+#define MAX_COMMAND_SZ 240
+
+
+void client_test(void*);
+THREAD_RETURN CYASSL_THREAD server_test(void*);
+
 
 static void execute_test_case(int argc, char** argv)
 {
     func_args cliArgs = {argc, argv, 0, NULL};
     func_args svrArgs = {argc, argv, 0, NULL};
-    int i;
 
-    printf("argc = %d\n", argc);
-        for (i = 0; i < argc; i++)
-            printf(" argv[%d] = %s\n", i, argv[i]);
+    tcp_ready   ready;
+    THREAD_TYPE serverThread;
+    char        commandLine[MAX_COMMAND_SZ];
+    int         i;
+    static      int tests = 0;
+
+    commandLine[0] = '\0';
+    for (i = 0; i < argc; i++) {
+        strcat(commandLine, argv[i]);
+        strcat(commandLine, " ");
+    }
+    printf("trying command line[%d]: %s\n", tests++, commandLine);
+
+    InitTcpReady(&ready);
+
+    /* start server */
+    svrArgs.signal = &ready;
+    start_thread(server_test, &svrArgs, &serverThread);
+    wait_tcp_ready(&svrArgs);
+
+    /* start client */
+    client_test(&cliArgs);
+
+    /* verify results */ 
+    if (cliArgs.return_code != 0) {
+        printf("client_test failed\n");
+        exit(EXIT_FAILURE);
+    }
+
+    join_thread(serverThread);
+    if (svrArgs.return_code != 0) { 
+        printf("server_test failed\n");
+        exit(EXIT_FAILURE);
+    }
+
+    FreeTcpReady(&ready);
 
 }
 
@@ -51,6 +88,7 @@ void test_harness(void* vargs)
     char* cursor;
     char* comment;
     char* fname = "tests/test.conf";
+
 
     if (args->argc == 1) {
         printf("notice: using default file %s\n", fname);
@@ -145,46 +183,43 @@ void test_harness(void* vargs)
 int SuiteTest(void)
 {
     func_args args;
-    char argv0[32];
-    char* myArgv[1];
+    char argv0[2][32];
+    char* myArgv[2];
 
-    args.argc = 1;
-    myArgv[0] = argv0;
+    printf(" Begin Cipher Suite Tests\n");
+
+    /* setup */
+    myArgv[0] = argv0[0];
+    myArgv[1] = argv0[1];
     args.argv = myArgv;
-    strcpy(argv0, "SuiteTest");
+    strcpy(argv0[0], "SuiteTest");
 
+    /* default case */
+    args.argc = 1;
+    printf("starting default cipher suite tests\n");
     test_harness(&args);
+    if (args.return_code != 0) {
+        printf("error from script %d\n", args.return_code);
+        exit(EXIT_FAILURE);  
+    }
+
+    /* any extra cases will need another argument */
+    args.argc = 2;
+
+#ifdef OPENSSL_EXTRA
+    /* add openssl extra suites */
+    strcpy(argv0[1], "tests/test-openssl.conf");
+    printf("starting openssl extra cipher suite tests\n");
+    test_harness(&args);
+    if (args.return_code != 0) {
+        printf("error from script %d\n", args.return_code);
+        exit(EXIT_FAILURE);  
+    }
+#endif
+
+    printf(" End Cipher Suite Tests\n");
 
     return args.return_code;
 }
 
 
-/* so overall tests can pull in test function */
-#ifndef NO_MAIN_DRIVER
-
-    int main(int argc, char** argv)
-    {
-        func_args args;
-
-        StartTCP();
-
-        args.argc = argc;
-        args.argv = argv;
-
-        CyaSSL_Init();
-#ifdef DEBUG_CYASSL
-        CyaSSL_Debugging_ON();
-#endif
-        if (CurrentDir("client") || CurrentDir("build"))
-            ChangeDirBack(2);
-   
-        test_harness(&args);
-        CyaSSL_Cleanup();
-
-        return args.return_code;
-    }
-
-    int myoptind = 0;
-    char* myoptarg = NULL;
-
-#endif /* NO_MAIN_DRIVER */

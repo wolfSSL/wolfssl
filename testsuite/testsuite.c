@@ -32,7 +32,6 @@
            and the examples/ individually
 #endif
 
-void wait_tcp_ready(func_args*);
 void ctaocrypt_test(void*);
 
 void client_test(void*);

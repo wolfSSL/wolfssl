@@ -87,6 +87,7 @@ static void Usage(void)
     printf("-s          Use pre Shared keys\n");
     printf("-d          Disable peer checks\n");
     printf("-g          Send server HTTP GET\n");
+    printf("-u          Use UDP DTLS\n");
 }
 
 
