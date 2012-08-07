@@ -33,23 +33,31 @@ void client_test(void*);
 THREAD_RETURN CYASSL_THREAD server_test(void*);
 
 
-static void execute_test_case(int argc, char** argv)
+static void execute_test_case(int svr_argc, char** svr_argv,
+                              int cli_argc, char** cli_argv)
 {
-    func_args cliArgs = {argc, argv, 0, NULL};
-    func_args svrArgs = {argc, argv, 0, NULL};
+    func_args cliArgs = {cli_argc, cli_argv, 0, NULL};
+    func_args svrArgs = {svr_argc, svr_argv, 0, NULL};
 
     tcp_ready   ready;
     THREAD_TYPE serverThread;
     char        commandLine[MAX_COMMAND_SZ];
     int         i;
-    static      int tests = 0;
+    static      int tests = 1;
 
     commandLine[0] = '\0';
-    for (i = 0; i < argc; i++) {
-        strcat(commandLine, argv[i]);
+    for (i = 0; i < svr_argc; i++) {
+        strcat(commandLine, svr_argv[i]);
         strcat(commandLine, " ");
     }
-    printf("trying command line[%d]: %s\n", tests++, commandLine);
+    printf("trying server command line[%d]: %s\n", tests, commandLine);
+
+    commandLine[0] = '\0';
+    for (i = 0; i < cli_argc; i++) {
+        strcat(commandLine, cli_argv[i]);
+        strcat(commandLine, " ");
+    }
+    printf("trying client command line[%d]: %s\n", tests++, commandLine);
 
     InitTcpReady(&ready);
 
@@ -81,10 +89,13 @@ void test_harness(void* vargs)
 {
     func_args* args = (func_args*)vargs;
     char* script;
-    long sz, len;
+    long  sz, len;
+    int   cliMode = 0;   /* server or client command flag, server first */
     FILE* file;
-    char* testArgs[MAX_ARGS];
-    int testArgsSz;
+    char* svrArgs[MAX_ARGS];
+    int   svrArgsSz;
+    char* cliArgs[MAX_ARGS];
+    int   cliArgsSz;
     char* cursor;
     char* comment;
     char* fname = "tests/test.conf";
@@ -138,21 +149,22 @@ void test_harness(void* vargs)
     script[sz] = 0;
 
     cursor = script;
-    testArgsSz = 1;
-    testArgs[0] = args->argv[0];
+    svrArgsSz = 1;
+    svrArgs[0] = args->argv[0];
+    cliArgsSz = 1;
+    cliArgs[0] = args->argv[0];
 
     while (*cursor != 0) {
-        if (testArgsSz == MAX_ARGS) {
-            fprintf(stderr, "too many arguments, forcing test run\n");
-            execute_test_case(testArgsSz, testArgs);
-            testArgsSz = 1;
-        }
+        int do_it = 0;
 
         switch (*cursor) {
             case '\n':
-                /* A blank line triggers test case execution. */
-                execute_test_case(testArgsSz, testArgs);
-                testArgsSz = 1;
+                /* A blank line triggers test case execution or switches
+                   to client mode if we don't have the client command yet */
+                if (cliMode == 0)
+                    cliMode = 1;  /* switch to client mode processing */
+                else
+                    do_it = 1;    /* Do It, we have server and client */
                 cursor++;
                 break;
             case '#':
@@ -162,16 +174,34 @@ void test_harness(void* vargs)
                 break;
             case '-':
                 /* Parameters start with a -. They end in either a newline
-                 * or a space. Capture until either, save in testArgs list. */
-                testArgs[testArgsSz++] = strsep(&cursor, " \n");
+                 * or a space. Capture until either, save in Args list. */
+                if (cliMode)
+                    cliArgs[cliArgsSz++] = strsep(&cursor, " \n");
+                else
+                    svrArgs[svrArgsSz++] = strsep(&cursor, " \n");
                 break;
             default:
                 /* Anything from cursor until end of line that isn't the above
                  * is data for a paramter. Just up until the next newline in
-                 * the testArgs list. */
-                testArgs[testArgsSz++] = strsep(&cursor, "\n");
-                if (*cursor == 0)
-                    execute_test_case(testArgsSz, testArgs);
+                 * the Args list. */
+                if (cliMode)
+                    cliArgs[cliArgsSz++] = strsep(&cursor, "\n");
+                else
+                    svrArgs[svrArgsSz++] = strsep(&cursor, "\n");
+                if (*cursor == 0)  /* eof */
+                    do_it = 1; 
+        }
+
+        if (svrArgsSz == MAX_ARGS || cliArgsSz == MAX_ARGS) {
+            fprintf(stderr, "too many arguments, forcing test run\n");
+            do_it = 1;
+        }
+
+        if (do_it) {
+            execute_test_case(svrArgsSz, svrArgs, cliArgsSz, cliArgs);
+            svrArgsSz = 1;
+            cliArgsSz = 1;
+            cliMode   = 0;
         }
     }
 
