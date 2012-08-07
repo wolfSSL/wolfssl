@@ -247,6 +247,17 @@ int SuiteTest(void)
     }
 #endif
 
+#ifdef HAVE_HC128 
+    /* add hc128 extra suites */
+    strcpy(argv0[1], "tests/test-hc128.conf");
+    printf("starting hc128 extra cipher suite tests\n");
+    test_harness(&args);
+    if (args.return_code != 0) {
+        printf("error from script %d\n", args.return_code);
+        exit(EXIT_FAILURE);  
+    }
+#endif
+
     printf(" End Cipher Suite Tests\n");
 
     return args.return_code;
