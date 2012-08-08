@@ -69,3 +69,5 @@ swig/cyassl.py
 swig/cyassl.pyc
 swig/cyassl_wrap.c
 stamp-h1
+clang_output_*
+internal.plist
