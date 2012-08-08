@@ -5921,44 +5921,44 @@ int SetCipherList(Suites* s, const char* list)
             break;
 
         case TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256 :
-            if (requirement == ecc_dsa_sa_algo)
+            if (requirement == REQUIRES_ECC_DSA)
                 return 1;
             break;
 
         case TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384 :
-            if (requirement == ecc_dsa_sa_algo)
+            if (requirement == REQUIRES_ECC_DSA)
                 return 1;
             break;
 
         case TLS_ECDH_ECDSA_WITH_AES_128_GCM_SHA256 :
-            if (requirement == ecc_static_diffie_hellman_kea)
+            if (requirement == REQUIRES_ECC_STATIC)
                 return 1;
             break;
 
         case TLS_ECDH_ECDSA_WITH_AES_256_GCM_SHA384 :
-            if (requirement == ecc_static_diffie_hellman_kea)
+            if (requirement == REQUIRES_ECC_STATIC)
                 return 1;
             break;
 
         case TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256 :
-            if (requirement == rsa_kea)
+            if (requirement == REQUIRES_RSA)
                 return 1;
             break;
 
         case TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384 :
-            if (requirement == rsa_kea)
+            if (requirement == REQUIRES_RSA)
                 return 1;
             break;
 
         case TLS_ECDH_RSA_WITH_AES_128_GCM_SHA256 :
-            if (requirement == ecc_static_diffie_hellman_kea)
+            if (requirement == REQUIRES_ECC_STATIC)
                 return 1;
             if (requirement == REQUIRES_RSA_SIG)
                 return 1;
             break;
 
         case TLS_ECDH_RSA_WITH_AES_256_GCM_SHA384 :
-            if (requirement == ecc_static_diffie_hellman_kea)
+            if (requirement == REQUIRES_ECC_STATIC)
                 return 1;
             if (requirement == REQUIRES_RSA_SIG)
                 return 1;
@@ -6082,15 +6082,15 @@ int SetCipherList(Suites* s, const char* list)
 
         case TLS_RSA_WITH_AES_128_GCM_SHA256 :
         case TLS_RSA_WITH_AES_256_GCM_SHA384 :
-            if (requirement == rsa_kea)
+            if (requirement == REQUIRES_RSA)
                 return 1;
             break;
 
         case TLS_DHE_RSA_WITH_AES_128_GCM_SHA256 :
         case TLS_DHE_RSA_WITH_AES_256_GCM_SHA384 :
-            if (requirement == rsa_kea)
+            if (requirement == REQUIRES_RSA)
                 return 1;
-            if (requirement == diffie_hellman_kea)
+            if (requirement == REQUIRES_DHE)
                 return 1;
             break;
 

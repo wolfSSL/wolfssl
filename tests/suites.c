@@ -292,9 +292,20 @@ int SuiteTest(void)
 #endif
 
 #ifdef HAVE_AESGCM
-    /* add ecc extra suites */
+    /* add aesgcm extra suites */
     strcpy(argv0[1], "tests/test-aesgcm.conf");
     printf("starting aesgcm extra cipher suite tests\n");
+    test_harness(&args);
+    if (args.return_code != 0) {
+        printf("error from script %d\n", args.return_code);
+        exit(EXIT_FAILURE);  
+    }
+#endif
+
+#if defined(HAVE_AESGCM) && defined(OPENSSL_EXTRA)
+    /* add aesgcm openssl extra suites */
+    strcpy(argv0[1], "tests/test-aesgcm-openssl.conf");
+    printf("starting aesgcm openssl extra cipher suite tests\n");
     test_harness(&args);
     if (args.return_code != 0) {
         printf("error from script %d\n", args.return_code);
