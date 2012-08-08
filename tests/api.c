@@ -21,7 +21,6 @@
 
 #include <stdlib.h>
 #include <cyassl/ssl.h>
-#define NO_MAIN_DRIVER
 #include <cyassl/test.h>
 #include <tests/unit.h>
 
