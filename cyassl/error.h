@@ -101,11 +101,12 @@ enum CyaSSL_ErrorCodes {
     OCSP_CERT_UNKNOWN      = -266,            /* OCSP responder doesn't know */
     OCSP_LOOKUP_FAIL       = -267,            /* OCSP lookup not successful */
     MAX_CHAIN_ERROR        = -268,            /* max chain depth exceeded */
+    COOKIE_ERROR           = -269,            /* dtls cookie error */
     /* add strings to SetErrorString !!!!! */
 
     /* begin negotiation parameter errors */
-    UNSUPPORTED_SUITE      = -270,            /* unsupported cipher suite */
-    MATCH_SUITE_ERROR      = -271             /* can't match cipher suite */
+    UNSUPPORTED_SUITE      = -290,            /* unsupported cipher suite */
+    MATCH_SUITE_ERROR      = -291             /* can't match cipher suite */
     /* end negotiation parameter errors only 10 for now */
     /* add strings to SetErrorString !!!!! */
 };

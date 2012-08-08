@@ -602,9 +602,7 @@ THREAD_RETURN CYASSL_THREAD test_server_nofail(void* args)
     }
     ssl = CyaSSL_new(ctx);
     tcp_accept(&sockfd, &clientfd, (func_args*)args, yasslPort, 0, 0);
-#ifndef CYASSL_DTLS
     CloseSocket(sockfd);
-#endif
 
     CyaSSL_set_fd(ssl, clientfd);
 

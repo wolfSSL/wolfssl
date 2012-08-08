@@ -919,6 +919,7 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
     ssl->keys.dtls_handshake_number      = 0;
     ssl->keys.dtls_epoch      = 0;
     ssl->keys.dtls_peer_epoch = 0;
+    ssl->arrays.cookieSz = 0;
 #endif
     ssl->keys.encryptionOn = 0;     /* initially off */
     ssl->options.sessionCacheOff      = ctx->sessionCacheOff;
@@ -3769,6 +3770,10 @@ void SetErrorString(int error, char* str)
         XSTRNCPY(str, "Maximum Chain Depth Exceeded", max);
         break;
 
+    case COOKIE_ERROR:
+        XSTRNCPY(str, "DTLS Cookie Error", max);
+        break;
+
     default :
         XSTRNCPY(str, "unknown error number", max);
     }
@@ -6453,7 +6458,7 @@ int SetCipherList(Suites* s, const char* list)
                         return INCOMPLETE_DATA;
                     cookieSz = EmbedGenerateCookie(cookie, COOKIE_SZ, ssl);
                     if ((b != cookieSz) || XMEMCMP(cookie, input + i, b) != 0)
-                        return PARSE_ERROR;
+                        return COOKIE_ERROR;
                     i += b;
                 }
             }
