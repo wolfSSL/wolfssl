@@ -283,8 +283,8 @@ static INLINE void showPeer(CYASSL* ssl)
 
 #if defined(SESSION_CERTS) && defined(SHOW_CERTS)
     {
-        X509_CHAIN* chain = CyaSSL_get_peer_chain(ssl);
-        int         count = CyaSSL_get_chain_count(chain);
+        CYASSL_X509_CHAIN* chain = CyaSSL_get_peer_chain(ssl);
+        int                count = CyaSSL_get_chain_count(chain);
         int i;
 
         for (i = 0; i < count; i++) {
