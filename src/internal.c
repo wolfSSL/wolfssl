@@ -4398,6 +4398,7 @@ int SetCipherList(Suites* s, const char* list)
 #ifdef CYASSL_DTLS
         if (ssl->options.dtls) {
             length += ENUM_LEN;   /* cookie */
+            if (ssl->arrays.cookieSz != 0) length += ssl->arrays.cookieSz;
             sendSz  = length + DTLS_HANDSHAKE_HEADER_SZ + DTLS_RECORD_HEADER_SZ;
             idx    += DTLS_HANDSHAKE_EXTRA + DTLS_RECORD_EXTRA;
         }
@@ -4442,7 +4443,13 @@ int SetCipherList(Suites* s, const char* list)
             /* then DTLS cookie */
 #ifdef CYASSL_DTLS
         if (ssl->options.dtls) {
-            output[idx++] = 0;
+            byte cookieSz = ssl->arrays.cookieSz;
+
+            output[idx++] = cookieSz;
+            if (cookieSz) {
+                XMEMCPY(&output[idx], ssl->arrays.cookie, cookieSz);
+                idx += cookieSz;
+            }
         }
 #endif
             /* then cipher suites */
@@ -4513,8 +4520,15 @@ int SetCipherList(Suites* s, const char* list)
         
         cookieSz = input[(*inOutIdx)++];
         
-        if (cookieSz)
-            *inOutIdx += cookieSz;   /* skip for now */
+        if (cookieSz) {
+#ifdef CYASSL_DTLS
+            if (cookieSz < MAX_COOKIE_LEN) {
+                XMEMCPY(ssl->arrays.cookie, input + *inOutIdx, cookieSz);
+                ssl->arrays.cookieSz = cookieSz;
+            }
+#endif
+            *inOutIdx += cookieSz;
+        }
         
         ssl->options.serverState = SERVER_HELLOVERIFYREQUEST_COMPLETE;
         return 0;
@@ -6411,11 +6425,16 @@ int SetCipherList(Suites* s, const char* list)
             if (ssl->options.dtls) {
                 b = input[i++];
                 if (b) {
+                    byte cookie[MAX_COOKIE_LEN];
+                    byte cookieSz;
+
                     if (b > MAX_COOKIE_LEN)
                         return BUFFER_ERROR;
                     if (i + b > totalSz)
                         return INCOMPLETE_DATA;
-                    XMEMCPY(ssl->arrays.cookie, input + i, b);
+                    cookieSz = EmbedGenerateCookie(cookie, COOKIE_SZ, ssl);
+                    if ((b != cookieSz) || XMEMCMP(cookie, input + i, b) != 0)
+                        return PARSE_ERROR;
                     i += b;
                 }
             }
@@ -6604,11 +6623,12 @@ int SetCipherList(Suites* s, const char* list)
         return SendBuffered(ssl);
     }
 
-
+#ifdef CYASSL_DTLS
     int SendHelloVerifyRequest(CYASSL* ssl)
     {
         byte* output;
-        int   length = VERSION_SZ + ENUM_LEN;
+        byte  cookieSz = COOKIE_SZ;
+        int   length = VERSION_SZ + ENUM_LEN + cookieSz;
         int   idx    = DTLS_RECORD_HEADER_SZ + DTLS_HANDSHAKE_HEADER_SZ;
         int   sendSz = length + idx;
         int   ret;
@@ -6625,7 +6645,10 @@ int SetCipherList(Suites* s, const char* list)
 
         XMEMCPY(output + idx, &ssl->chVersion, VERSION_SZ);
         idx += VERSION_SZ;
-        output[idx++] = 0;     /* no cookie for now */
+
+        output[idx++] = cookieSz;
+        if ((ret = EmbedGenerateCookie(output + idx, cookieSz, ssl)) < 0)
+            return ret;
 
         HashOutput(ssl, output, sendSz, 0);
 #ifdef CYASSL_CALLBACKS
@@ -6641,7 +6664,7 @@ int SetCipherList(Suites* s, const char* list)
 
         return SendBuffered(ssl);
     }
-
+#endif
 
     static int DoClientKeyExchange(CYASSL* ssl, byte* input,
                                    word32* inOutIdx)

@@ -374,6 +374,7 @@ enum Misc {
     SEED_LEN     = RAN_LEN * 2, /* tls prf seed length    */
     ID_LEN       = 32,         /* session id length       */
     MAX_COOKIE_LEN = 32,       /* max dtls cookie size    */
+    COOKIE_SZ    = 20,         /* use a 20 byte cookie    */
     SUITE_LEN    =  2,         /* cipher suite sz length  */
     ENUM_LEN     =  1,         /* always a byte           */
     COMP_LEN     =  1,         /* compression length      */
@@ -650,6 +651,8 @@ int  SetCipherList(Suites*, const char* list);
 #endif
 
 #ifdef CYASSL_DTLS
+    CYASSL_LOCAL
+    int EmbedGenerateCookie(byte *buf, int sz, void *ctx);
     CYASSL_LOCAL
     int IsUDP(void*);
 #endif
@@ -1127,6 +1130,7 @@ typedef struct Arrays {
     byte            masterSecret[SECRET_LEN];
 #ifdef CYASSL_DTLS
     byte            cookie[MAX_COOKIE_LEN];
+    byte            cookieSz;
 #endif
 #ifndef NO_PSK
     char            client_identity[MAX_PSK_ID_LEN];
