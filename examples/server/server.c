@@ -101,6 +101,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     int    port = yasslPort;
     int    usePsk = 0;
     int    doDTLS = 0;
+    int    useNtruKey = 0;
     char*  cipherList = NULL;
     char*  verifyCert = (char*)cliCert;
     char*  ourCert    = (char*)svrCert;
@@ -110,7 +111,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 
     ((func_args*)args)->return_code = -1; /* error state */
 
-    while ((ch = mygetopt(argc, argv, "?dbsup:v:l:A:c:k:")) != -1) {
+    while ((ch = mygetopt(argc, argv, "?dbsnup:v:l:A:c:k:")) != -1) {
         switch (ch) {
             case '?' :
                 Usage();
@@ -126,6 +127,10 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 
             case 's' :
                 usePsk = 1;
+                break;
+
+            case 'n' :
+                useNtruKey = 1;
                 break;
 
             case 'u' :
@@ -216,10 +221,22 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
         err_sys("can't load server cert file, check file and run from"
                 " CyaSSL home dir");
 
-    if (SSL_CTX_use_PrivateKey_file(ctx, ourKey, SSL_FILETYPE_PEM)
-                                     != SSL_SUCCESS)
-        err_sys("can't load server cert file, check file and run from"
+
+#ifdef HAVE_NTRU
+    if (useNtruKey) {
+        if (CyaSSL_CTX_use_NTRUPrivateKey_file(ctx, ourKey)
+                                               != SSL_SUCCESS)
+            err_sys("can't load ntru key file, "
+                    "Please run from CyaSSL home dir");
+    }
+#endif
+
+    if (!useNtruKey) {
+        if (SSL_CTX_use_PrivateKey_file(ctx, ourKey, SSL_FILETYPE_PEM)
+                                         != SSL_SUCCESS)
+            err_sys("can't load server cert file, check file and run from"
                 " CyaSSL home dir");
+    }
 
 #ifndef NO_PSK
     if (usePsk) {
