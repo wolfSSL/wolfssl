@@ -280,6 +280,17 @@ int SuiteTest(void)
     }
 #endif
 
+#ifdef HAVE_ECC
+    /* add ecc extra suites */
+    strcpy(argv0[1], "tests/test-ecc.conf");
+    printf("starting ecc extra cipher suite tests\n");
+    test_harness(&args);
+    if (args.return_code != 0) {
+        printf("error from script %d\n", args.return_code);
+        exit(EXIT_FAILURE);  
+    }
+#endif
+
     printf(" End Cipher Suite Tests\n");
 
     return args.return_code;
