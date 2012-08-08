@@ -321,7 +321,7 @@ int InitSSL_Ctx(CYASSL_CTX* ctx, CYASSL_METHOD* method)
     ctx->serverDH_G.buffer  = 0;
     ctx->haveDH             = 0;
     ctx->haveNTRU           = 0;    /* start off */
-    ctx->haveECDSA          = 0;    /* start off */
+    ctx->haveECDSAsig       = 0;    /* start off */
     ctx->haveStaticECC      = 0;    /* start off */
     ctx->heap               = ctx;  /* defaults to self */
 #ifndef NO_PSK
@@ -360,14 +360,14 @@ int InitSSL_Ctx(CYASSL_CTX* ctx, CYASSL_METHOD* method)
 #endif
 #ifdef HAVE_ECC
     if (method->side == CLIENT_END) {
-        ctx->haveECDSA     = 1;        /* always on cliet side */
+        ctx->haveECDSAsig  = 1;        /* always on cliet side */
         ctx->haveStaticECC = 1;        /* server can turn on by loading key */
     }
 #endif
     ctx->suites.setSuites = 0;  /* user hasn't set yet */
     /* remove DH later if server didn't set, add psk later */
     InitSuites(&ctx->suites, method->version, TRUE, FALSE, ctx->haveNTRU,
-               ctx->haveECDSA, ctx->haveStaticECC, method->side);  
+               ctx->haveECDSAsig, ctx->haveStaticECC, method->side);  
     ctx->verifyPeer = 0;
     ctx->verifyNone = 0;
     ctx->failNoCert = 0;
@@ -436,12 +436,13 @@ void FreeSSL_Ctx(CYASSL_CTX* ctx)
 
     
 void InitSuites(Suites* suites, ProtocolVersion pv, byte haveDH, byte havePSK,
-                byte haveNTRU, byte haveStaticECC, byte haveECDSA, int side)
+                byte haveNTRU, byte haveECDSAsig, byte haveStaticECC, int side)
 {
     word16 idx = 0;
     int    tls    = pv.major == SSLv3_MAJOR && pv.minor >= TLSv1_MINOR;
     int    tls1_2 = pv.major == SSLv3_MAJOR && pv.minor >= TLSv1_2_MINOR;
     int    haveRSA = 1;
+    int    haveRSAsig = 1;
 
     (void)tls;  /* shut up compiler */
     (void)haveDH;
@@ -452,8 +453,11 @@ void InitSuites(Suites* suites, ProtocolVersion pv, byte haveDH, byte havePSK,
     if (suites->setSuites)
         return;      /* trust user settings, don't override */
 
-    if (side == SERVER_END && haveECDSA)
-        haveRSA = 0;   /* can't do RSA with ECDSA cert */
+    if (side == SERVER_END && haveStaticECC)
+        haveRSA = 0;   /* can't do RSA with ECDSA key */
+
+    if (side == SERVER_END && haveECDSAsig)
+        haveRSAsig = 0;  /* can't have RSA sig if signed by ECDSA */
 
 #ifdef CYASSL_DTLS
     if (pv.major == DTLS_MAJOR && pv.minor == DTLS_MINOR)
@@ -489,84 +493,84 @@ void InitSuites(Suites* suites, ProtocolVersion pv, byte haveDH, byte havePSK,
 #endif
 
 #ifdef BUILD_TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384
-    if (tls1_2 && haveECDSA) {
+    if (tls1_2 && haveStaticECC) {
         suites->suites[idx++] = ECC_BYTE;
         suites->suites[idx++] = TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384;
     }
 #endif
 
 #ifdef BUILD_TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA
-    if (tls && haveECDSA) {
+    if (tls && haveStaticECC) {
         suites->suites[idx++] = ECC_BYTE; 
         suites->suites[idx++] = TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA;
     }
 #endif
 
 #ifdef BUILD_TLS_ECDH_ECDSA_WITH_AES_256_GCM_SHA384
-    if (tls1_2 && haveECDSA && haveStaticECC) {
+    if (tls1_2 && haveECDSAsig && haveStaticECC) {
         suites->suites[idx++] = ECC_BYTE;
         suites->suites[idx++] = TLS_ECDH_ECDSA_WITH_AES_256_GCM_SHA384;
     }
 #endif
 
 #ifdef BUILD_TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA
-    if (tls && haveECDSA && haveStaticECC) {
+    if (tls && haveECDSAsig && haveStaticECC) {
         suites->suites[idx++] = ECC_BYTE; 
         suites->suites[idx++] = TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA;
     }
 #endif
 
 #ifdef BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256
-    if (tls1_2 && haveECDSA) {
+    if (tls1_2 && haveStaticECC) {
         suites->suites[idx++] = ECC_BYTE;
         suites->suites[idx++] = TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256;
     }
 #endif
 
 #ifdef BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA
-    if (tls && haveECDSA) {
+    if (tls && haveStaticECC) {
         suites->suites[idx++] = ECC_BYTE; 
         suites->suites[idx++] = TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA;
     }
 #endif
 
 #ifdef BUILD_TLS_ECDH_ECDSA_WITH_AES_128_GCM_SHA256
-    if (tls1_2 && haveECDSA && haveStaticECC) {
+    if (tls1_2 && haveECDSAsig && haveStaticECC) {
         suites->suites[idx++] = ECC_BYTE;
         suites->suites[idx++] = TLS_ECDH_ECDSA_WITH_AES_128_GCM_SHA256;
     }
 #endif
 
 #ifdef BUILD_TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA
-    if (tls && haveECDSA && haveStaticECC) {
+    if (tls && haveECDSAsig && haveStaticECC) {
         suites->suites[idx++] = ECC_BYTE; 
         suites->suites[idx++] = TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA;
     }
 #endif
 
 #ifdef BUILD_TLS_ECDHE_ECDSA_WITH_RC4_128_SHA
-    if (tls && haveECDSA) {
+    if (tls && haveStaticECC) {
         suites->suites[idx++] = ECC_BYTE; 
         suites->suites[idx++] = TLS_ECDHE_ECDSA_WITH_RC4_128_SHA;
     }
 #endif
 
 #ifdef BUILD_TLS_ECDH_ECDSA_WITH_RC4_128_SHA
-    if (tls && haveECDSA && haveStaticECC) {
+    if (tls && haveECDSAsig && haveStaticECC) {
         suites->suites[idx++] = ECC_BYTE; 
         suites->suites[idx++] = TLS_ECDH_ECDSA_WITH_RC4_128_SHA;
     }
 #endif
 
 #ifdef BUILD_TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA
-    if (tls && haveECDSA) {
+    if (tls && haveStaticECC) {
         suites->suites[idx++] = ECC_BYTE; 
         suites->suites[idx++] = TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA;
     }
 #endif
 
 #ifdef BUILD_TLS_ECDH_ECDSA_WITH_3DES_EDE_CBC_SHA
-    if (tls && haveECDSA && haveStaticECC) {
+    if (tls && haveECDSAsig && haveStaticECC) {
         suites->suites[idx++] = ECC_BYTE; 
         suites->suites[idx++] = TLS_ECDH_ECDSA_WITH_3DES_EDE_CBC_SHA;
     }
@@ -587,14 +591,14 @@ void InitSuites(Suites* suites, ProtocolVersion pv, byte haveDH, byte havePSK,
 #endif
 
 #ifdef BUILD_TLS_ECDH_RSA_WITH_AES_256_GCM_SHA384
-    if (tls1_2 && haveRSA && haveStaticECC) {
+    if (tls1_2 && haveRSAsig && haveStaticECC) {
         suites->suites[idx++] = ECC_BYTE;
         suites->suites[idx++] = TLS_ECDH_RSA_WITH_AES_256_GCM_SHA384;
     }
 #endif
 
 #ifdef BUILD_TLS_ECDH_RSA_WITH_AES_256_CBC_SHA
-    if (tls && haveRSA && haveStaticECC) {
+    if (tls && haveRSAsig && haveStaticECC) {
         suites->suites[idx++] = ECC_BYTE; 
         suites->suites[idx++] = TLS_ECDH_RSA_WITH_AES_256_CBC_SHA;
     }
@@ -615,14 +619,14 @@ void InitSuites(Suites* suites, ProtocolVersion pv, byte haveDH, byte havePSK,
 #endif
 
 #ifdef BUILD_TLS_ECDH_RSA_WITH_AES_128_GCM_SHA256
-    if (tls1_2 && haveRSA && haveStaticECC) {
+    if (tls1_2 && haveRSAsig && haveStaticECC) {
         suites->suites[idx++] = ECC_BYTE;
         suites->suites[idx++] = TLS_ECDH_RSA_WITH_AES_128_GCM_SHA256;
     }
 #endif
 
 #ifdef BUILD_TLS_ECDH_RSA_WITH_AES_128_CBC_SHA
-    if (tls && haveRSA && haveStaticECC) {
+    if (tls && haveRSAsig && haveStaticECC) {
         suites->suites[idx++] = ECC_BYTE; 
         suites->suites[idx++] = TLS_ECDH_RSA_WITH_AES_128_CBC_SHA;
     }
@@ -636,7 +640,7 @@ void InitSuites(Suites* suites, ProtocolVersion pv, byte haveDH, byte havePSK,
 #endif
 
 #ifdef BUILD_TLS_ECDH_RSA_WITH_RC4_128_SHA
-    if (tls && haveRSA && haveStaticECC) {
+    if (tls && haveRSAsig && haveStaticECC) {
         suites->suites[idx++] = ECC_BYTE; 
         suites->suites[idx++] = TLS_ECDH_RSA_WITH_RC4_128_SHA;
     }
@@ -650,7 +654,7 @@ void InitSuites(Suites* suites, ProtocolVersion pv, byte haveDH, byte havePSK,
 #endif
 
 #ifdef BUILD_TLS_ECDH_RSA_WITH_3DES_EDE_CBC_SHA
-    if (tls && haveRSA && haveStaticECC) {
+    if (tls && haveRSAsig && haveStaticECC) {
         suites->suites[idx++] = ECC_BYTE; 
         suites->suites[idx++] = TLS_ECDH_RSA_WITH_3DES_EDE_CBC_SHA;
     }
@@ -889,8 +893,8 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
         ssl->options.haveDH = ctx->haveDH;
     else
         ssl->options.haveDH = 0;
-    ssl->options.haveNTRU  = ctx->haveNTRU;
-    ssl->options.haveECDSA = ctx->haveECDSA;
+    ssl->options.haveNTRU      = ctx->haveNTRU;
+    ssl->options.haveECDSAsig  = ctx->haveECDSAsig;
     ssl->options.haveStaticECC = ctx->haveStaticECC;
     ssl->options.havePeerCert  = 0; 
     ssl->options.usingPSK_cipher = 0;
@@ -1004,11 +1008,11 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
     /* make sure server has DH parms, and add PSK if there, add NTRU too */
     if (ssl->options.side == SERVER_END) 
         InitSuites(&ssl->suites, ssl->version,ssl->options.haveDH, havePSK,
-                   ssl->options.haveNTRU, ssl->options.haveECDSA,
+                   ssl->options.haveNTRU, ssl->options.haveECDSAsig,
                    ssl->options.haveStaticECC, ssl->options.side);
     else 
         InitSuites(&ssl->suites, ssl->version, TRUE, havePSK,
-                   ssl->options.haveNTRU, ssl->options.haveECDSA,
+                   ssl->options.haveNTRU, ssl->options.haveECDSAsig,
                    ssl->options.haveStaticECC, ssl->options.side);
 
     return 0;
@@ -5812,7 +5816,8 @@ int SetCipherList(Suites* s, const char* list)
         REQUIRES_ECC_DSA,
         REQUIRES_ECC_STATIC,
         REQUIRES_PSK,
-        REQUIRES_NTRU
+        REQUIRES_NTRU,
+        REQUIRES_RSA_SIG
     };
 
 
@@ -5835,6 +5840,8 @@ int SetCipherList(Suites* s, const char* list)
         case TLS_ECDH_RSA_WITH_AES_128_CBC_SHA :
             if (requirement == REQUIRES_ECC_STATIC)
                 return 1;
+            if (requirement == REQUIRES_RSA_SIG)
+                return 1;
             break;
 
         case TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA :
@@ -5845,6 +5852,8 @@ int SetCipherList(Suites* s, const char* list)
         case TLS_ECDH_RSA_WITH_3DES_EDE_CBC_SHA :
             if (requirement == REQUIRES_ECC_STATIC)
                 return 1;
+            if (requirement == REQUIRES_RSA_SIG)
+                return 1;
             break;
 
         case TLS_ECDHE_RSA_WITH_RC4_128_SHA :
@@ -5854,6 +5863,8 @@ int SetCipherList(Suites* s, const char* list)
 
         case TLS_ECDH_RSA_WITH_RC4_128_SHA :
             if (requirement == REQUIRES_ECC_STATIC)
+                return 1;
+            if (requirement == REQUIRES_RSA_SIG)
                 return 1;
             break;
 
@@ -5884,6 +5895,8 @@ int SetCipherList(Suites* s, const char* list)
 
         case TLS_ECDH_RSA_WITH_AES_256_CBC_SHA :
             if (requirement == REQUIRES_ECC_STATIC)
+                return 1;
+            if (requirement == REQUIRES_RSA_SIG)
                 return 1;
             break;
 
@@ -5940,10 +5953,14 @@ int SetCipherList(Suites* s, const char* list)
         case TLS_ECDH_RSA_WITH_AES_128_GCM_SHA256 :
             if (requirement == ecc_static_diffie_hellman_kea)
                 return 1;
+            if (requirement == REQUIRES_RSA_SIG)
+                return 1;
             break;
 
         case TLS_ECDH_RSA_WITH_AES_256_GCM_SHA384 :
             if (requirement == ecc_static_diffie_hellman_kea)
+                return 1;
+            if (requirement == REQUIRES_RSA_SIG)
                 return 1;
             break;
 
@@ -6093,7 +6110,7 @@ int SetCipherList(Suites* s, const char* list)
     /* Make sure cert/key are valid for this suite, true on success */
     static int VerifySuite(CYASSL* ssl, word16 idx)
     {
-        int  haveRSA = !ssl->options.haveECDSA;
+        int  haveRSA = !ssl->options.haveStaticECC;
         int  havePSK = 0;
         byte first   = ssl->suites.suites[idx];
         byte second  = ssl->suites.suites[idx+1];
@@ -6113,7 +6130,6 @@ int SetCipherList(Suites* s, const char* list)
                 CYASSL_MSG("Don't have RSA");
                 return 0;
             }
-            return 1;
         }
 
         if (CipherRequires(first, second, REQUIRES_DHE)) {
@@ -6122,16 +6138,14 @@ int SetCipherList(Suites* s, const char* list)
                 CYASSL_MSG("Don't have DHE");
                 return 0;
             }
-            return 1;
         }
 
         if (CipherRequires(first, second, REQUIRES_ECC_DSA)) {
             CYASSL_MSG("Requires ECCDSA");
-            if (ssl->options.haveECDSA == 0) {
+            if (ssl->options.haveECDSAsig == 0) {
                 CYASSL_MSG("Don't have ECCDSA");
                 return 0;
             }
-            return 1;
         }
 
         if (CipherRequires(first, second, REQUIRES_ECC_STATIC)) {
@@ -6140,7 +6154,6 @@ int SetCipherList(Suites* s, const char* list)
                 CYASSL_MSG("Don't have static ECC");
                 return 0;
             }
-            return 1;
         }
 
         if (CipherRequires(first, second, REQUIRES_PSK)) {
@@ -6149,7 +6162,6 @@ int SetCipherList(Suites* s, const char* list)
                 CYASSL_MSG("Don't have PSK");
                 return 0;
             }
-            return 1;
         }
 
         if (CipherRequires(first, second, REQUIRES_NTRU)) {
@@ -6158,7 +6170,14 @@ int SetCipherList(Suites* s, const char* list)
                 CYASSL_MSG("Don't have NTRU");
                 return 0;
             }
-            return 1;
+        }
+
+        if (CipherRequires(first, second, REQUIRES_RSA_SIG)) {
+            CYASSL_MSG("Requires RSA Signature");
+            if (ssl->options.side == SERVER_END && ssl->options.haveECDSAsig == 1) {
+                CYASSL_MSG("Don't have RSA Signature");
+                return 0;
+            }
         }
 
         /* ECCDHE is always supported if ECC on */
@@ -6262,7 +6281,7 @@ int SetCipherList(Suites* s, const char* list)
 #endif
 
             InitSuites(&ssl->suites, ssl->version, ssl->options.haveDH, havePSK,
-                       ssl->options.haveNTRU, ssl->options.haveECDSA,
+                       ssl->options.haveNTRU, ssl->options.haveECDSAsig,
                        ssl->options.haveStaticECC, ssl->options.side);
         }
 
@@ -6393,7 +6412,7 @@ int SetCipherList(Suites* s, const char* list)
             havePSK = ssl->options.havePSK;
 #endif
             InitSuites(&ssl->suites, ssl->version, ssl->options.haveDH, havePSK,
-                       ssl->options.haveNTRU, ssl->options.haveECDSA,
+                       ssl->options.haveNTRU, ssl->options.haveECDSAsig,
                        ssl->options.haveStaticECC, ssl->options.side);
         }
         /* random */
