@@ -313,6 +313,17 @@ int SuiteTest(void)
     }
 #endif
 
+#if defined(HAVE_AESGCM) && defined(HAVE_ECC)
+    /* add aesgcm ecc extra suites */
+    strcpy(argv0[1], "tests/test-aesgcm-ecc.conf");
+    printf("starting aesgcm ecc extra cipher suite tests\n");
+    test_harness(&args);
+    if (args.return_code != 0) {
+        printf("error from script %d\n", args.return_code);
+        exit(EXIT_FAILURE);  
+    }
+#endif
+
     printf(" End Cipher Suite Tests\n");
 
     return args.return_code;
