@@ -291,6 +291,50 @@ int SuiteTest(void)
     }
 #endif
 
+#ifdef HAVE_AESGCM
+    /* add aesgcm extra suites */
+    strcpy(argv0[1], "tests/test-aesgcm.conf");
+    printf("starting aesgcm extra cipher suite tests\n");
+    test_harness(&args);
+    if (args.return_code != 0) {
+        printf("error from script %d\n", args.return_code);
+        exit(EXIT_FAILURE);  
+    }
+#endif
+
+#if defined(HAVE_AESGCM) && defined(OPENSSL_EXTRA)
+    /* add aesgcm openssl extra suites */
+    strcpy(argv0[1], "tests/test-aesgcm-openssl.conf");
+    printf("starting aesgcm openssl extra cipher suite tests\n");
+    test_harness(&args);
+    if (args.return_code != 0) {
+        printf("error from script %d\n", args.return_code);
+        exit(EXIT_FAILURE);  
+    }
+#endif
+
+#if defined(HAVE_AESGCM) && defined(HAVE_ECC)
+    /* add aesgcm ecc extra suites */
+    strcpy(argv0[1], "tests/test-aesgcm-ecc.conf");
+    printf("starting aesgcm ecc extra cipher suite tests\n");
+    test_harness(&args);
+    if (args.return_code != 0) {
+        printf("error from script %d\n", args.return_code);
+        exit(EXIT_FAILURE);  
+    }
+#endif
+
+#ifdef CYASSL_DTLS 
+    /* add dtls extra suites */
+    strcpy(argv0[1], "tests/test-dtls.conf");
+    printf("starting dtls extra cipher suite tests\n");
+    test_harness(&args);
+    if (args.return_code != 0) {
+        printf("error from script %d\n", args.return_code);
+        exit(EXIT_FAILURE);  
+    }
+#endif
+
     printf(" End Cipher Suite Tests\n");
 
     return args.return_code;

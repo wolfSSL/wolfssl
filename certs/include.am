@@ -16,6 +16,7 @@ EXTRA_DIST += \
 	     certs/dh2048.pem \
 	     certs/server-cert.pem \
 	     certs/server-ecc.pem \
+	     certs/server-ecc-rsa.pem \
 	     certs/server-keyEnc.pem \
 	     certs/server-key.pem \
 	     certs/server-keyPkcs8Enc12.pem \

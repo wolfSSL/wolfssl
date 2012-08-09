@@ -784,7 +784,7 @@ struct CYASSL_CTX {
     byte        sendVerify;       /* for client side */
     byte        haveDH;           /* server DH parms set by user */
     byte        haveNTRU;         /* server private NTRU  key loaded */
-    byte        haveECDSA;        /* server cert signed w/ ECDSA loaded */
+    byte        haveECDSAsig;     /* server cert signed w/ ECDSA */
     byte        haveStaticECC;    /* static server ECC private key */
     byte        partialWrite;     /* only one msg per write call */
     byte        quietShutdown;    /* don't send close notify */
@@ -1104,7 +1104,7 @@ typedef struct Options {
     byte            usingCompression;   /* are we using compression */
     byte            haveDH;             /* server DH parms set by user */
     byte            haveNTRU;           /* server NTRU  private key loaded */
-    byte            haveECDSA;          /* server ECDSA signed cert */
+    byte            haveECDSAsig;       /* server ECDSA signed cert */
     byte            haveStaticECC;      /* static server ECC private key */
     byte            havePeerCert;       /* do we have peer's cert */
     byte            usingPSK_cipher;    /* whether we're using psk as cipher */
