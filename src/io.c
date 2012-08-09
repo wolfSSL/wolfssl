@@ -29,7 +29,6 @@
 #endif
 
 #include <cyassl/internal.h>
-#include <cyassl/ctaocrypt/sha.h>
 
 /* if user writes own I/O callbacks they can define CYASSL_USER_IO to remove
    automatic setting of default I/O functions EmbedSend() and EmbedReceive()
@@ -201,6 +200,10 @@ int EmbedSend(char *buf, int sz, void *ctx)
 }
 
 
+#ifdef CYASSL_DTLS
+
+#include <cyassl/ctaocrypt/sha.h>
+
 /* The DTLS Generate Cookie callback
  *  return : number of bytes copied into buf, or error
  */
@@ -239,6 +242,8 @@ int EmbedGenerateCookie(byte *buf, int sz, void *ctx)
 
     return SHA_DIGEST_SIZE;
 }
+
+#endif /* CYASSL_DTLS */
 
 
 #endif /* CYASSL_USER_IO */
