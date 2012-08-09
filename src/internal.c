@@ -1562,6 +1562,7 @@ static int GetHandShakeHeader(CYASSL* ssl, const byte* input, word32* inOutIdx,
     return 0;
 }
 
+
 #ifdef CYASSL_DTLS
 static int GetDtlsHandShakeHeader(CYASSL* ssl, const byte* input,
                                     word32* inOutIdx, byte *type, word32 *size,
@@ -1574,13 +1575,16 @@ static int GetDtlsHandShakeHeader(CYASSL* ssl, const byte* input,
     *inOutIdx += HANDSHAKE_HEADER_SZ + DTLS_HANDSHAKE_EXTRA;
     
     *type = input[idx++];
-    c24to32(input, size);
+    c24to32(input + idx, size);
     idx += BYTE3_LEN;
 
-    c24to32(input, fragOffset);
-    idx += BYTE3_LEN;
-    c24to32(input, fragSz);
-    idx += BYTE3_LEN;
+    /* skip the sequence number */
+    idx += DTLS_HANDSHAKE_SEQ_SZ;
+
+    c24to32(input + idx, fragOffset);
+    idx += DTLS_HANDSHAKE_FRAG_SZ;
+    c24to32(input + idx, fragSz);
+    idx += DTLS_HANDSHAKE_FRAG_SZ;
 
     return 0;
 }
@@ -2205,6 +2209,28 @@ static int DoHandShakeMsgType(CYASSL* ssl, byte* input, word32* inOutIdx,
 }
 
 
+static int DoHandShakeMsg(CYASSL* ssl, byte* input, word32* inOutIdx,
+                          word32 totalSz)
+{
+    byte type;
+    word32 size;
+    int ret = 0;
+
+    CYASSL_ENTER("DoHandShakeMsg()");
+
+    if (GetHandShakeHeader(ssl, input, inOutIdx, &type, &size) != 0)
+        return PARSE_ERROR;
+
+    if (*inOutIdx + size > totalSz)
+        return INCOMPLETE_DATA;
+
+    ret = DoHandShakeMsgType(ssl, input, inOutIdx, type, size, totalSz);
+
+    CYASSL_LEAVE("DoHandShakeMsg()", ret);
+    return ret;
+}
+
+
 #ifdef CYASSL_DTLS
 static int DoDtlsHandShakeMsg(CYASSL* ssl, byte* input, word32* inOutIdx,
                           word32 totalSz)
@@ -2229,29 +2255,6 @@ static int DoDtlsHandShakeMsg(CYASSL* ssl, byte* input, word32* inOutIdx,
     return ret;
 }
 #endif
-
-
-static int DoHandShakeMsg(CYASSL* ssl, byte* input, word32* inOutIdx,
-                          word32 totalSz)
-{
-    byte type;
-    word32 size;
-    word32 fragOffset, fragSz;
-    int ret = 0;
-
-    CYASSL_ENTER("DoHandShakeMsg()");
-
-    if (GetHandShakeHeader(ssl, input, inOutIdx, &type, &size) != 0)
-        return PARSE_ERROR;
-
-    if (*inOutIdx + size > totalSz)
-        return INCOMPLETE_DATA;
-
-    ret = DoHandShakeMsgType(ssl, input, inOutIdx, type, size, totalSz);
-
-    CYASSL_LEAVE("DoHandShakeMsg()", ret);
-    return ret;
-}
 
 
 static INLINE word32 GetSEQIncrement(CYASSL* ssl, int verify)
