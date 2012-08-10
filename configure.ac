@@ -1,12 +1,12 @@
 # configure.ac
 #
-# Copyright (C) 2006-2011 Sawtooth Consulting Ltd.
+# Copyright (C) 2006-2012 Sawtooth Consulting Ltd.
 #
 # This file is part of CyaSSL.
 #
 #
 
-AC_INIT([cyassl],[2.2.6],[http://www.yassl.com])
+AC_INIT([cyassl],[2.3.0],[http://www.yassl.com])
 
 AC_CONFIG_AUX_DIR(config)
 

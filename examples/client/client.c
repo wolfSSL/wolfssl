@@ -88,6 +88,7 @@ static void Usage(void)
     printf("-d          Disable peer checks\n");
     printf("-g          Send server HTTP GET\n");
     printf("-u          Use UDP DTLS\n");
+    printf("-m          Match domain name in cert\n");
 }
 
 
@@ -121,6 +122,7 @@ void client_test(void* args)
     int    sendGET  = 0;
     int    benchmark = 0;
     int    doDTLS    = 0;
+    int    matchName = 0;
     int    doPeerCheck = 1;
     char*  cipherList = NULL;
     char*  verifyCert = (char*)caCert;
@@ -132,7 +134,7 @@ void client_test(void* args)
 
     ((func_args*)args)->return_code = -1; /* error state */
 
-    while ((ch = mygetopt(argc, argv, "?gdush:p:v:l:A:c:k:b:")) != -1) {
+    while ((ch = mygetopt(argc, argv, "?gdusmh:p:v:l:A:c:k:b:")) != -1) {
         switch (ch) {
             case '?' :
                 Usage();
@@ -153,6 +155,10 @@ void client_test(void* args)
 
             case 's' :
                 usePsk = 1;
+                break;
+
+            case 'm' :
+                matchName = 1;
                 break;
 
             case 'h' :
@@ -325,7 +331,7 @@ void client_test(void* args)
     CyaSSL_LoadCRL(ssl, crlPemDir, SSL_FILETYPE_PEM, 0);
     CyaSSL_SetCRL_Cb(ssl, CRL_CallBack);
 #endif
-    if (doPeerCheck)
+    if (matchName && doPeerCheck)
         CyaSSL_check_domain_name(ssl, domain);
 #ifdef NON_BLOCKING
     tcp_set_nonblocking(&sockfd);
