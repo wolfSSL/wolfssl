@@ -1075,6 +1075,11 @@ typedef struct Buffers {
     byte            weOwnCert;             /* SSL own cert flag */
     byte            weOwnKey;              /* SSL own key  flag */
     byte            weOwnDH;               /* SSL own dh (p,g)  flag */
+#ifdef CYASSL_DTLS
+    buffer          dtlsHandshake;         /* DTLS handshake defragment buf */
+    word32          dtlsUsed;              /* DTLS bytes used in buffer */
+    byte            dtlsType;              /* DTLS handshake frag type */
+#endif
 } Buffers;
 
 

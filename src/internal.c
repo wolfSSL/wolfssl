@@ -954,6 +954,12 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
     ssl->buffers.weOwnKey  = 0;
     ssl->buffers.weOwnDH   = 0;
 
+#ifdef CYASSL_DTLS
+    ssl->buffers.dtlsHandshake.length = 0;
+    ssl->buffers.dtlsHandshake.buffer = NULL;
+    ssl->buffers.dtlsType = 0;
+#endif
+
 #ifdef OPENSSL_EXTRA
     ssl->peerCert.issuer.sz    = 0;
     ssl->peerCert.subject.sz   = 0;
@@ -1043,6 +1049,10 @@ void SSL_ResourceFree(CYASSL* ssl)
         ShrinkInputBuffer(ssl, FORCED_FREE);
     if (ssl->buffers.outputBuffer.dynamicFlag)
         ShrinkOutputBuffer(ssl);
+#ifdef CYASSL_DTLS
+    if (ssl->buffers.dtlsHandshake.buffer != NULL)
+        XFREE(ssl->buffers.dtlsHandshake.buffer, ssl->heap, DYNAMIC_TYPE_NONE);
+#endif
 #if defined(OPENSSL_EXTRA) || defined(GOAHEAD_WS)
     XFREE(ssl->peerCert.derCert.buffer, ssl->heap, DYNAMIC_TYPE_CERT);
     if (ssl->peerCert.altNames)
@@ -2121,6 +2131,8 @@ static int DoHandShakeMsgType(CYASSL* ssl, byte* input, word32* inOutIdx,
 {
     int ret = 0;
 
+    CYASSL_ENTER("DoHandShakeMsgType");
+
     HashInput(ssl, input + *inOutIdx, size);
 #ifdef CYASSL_CALLBACKS
     /* add name later, add on record and handshake header part back on */
@@ -2205,6 +2217,7 @@ static int DoHandShakeMsgType(CYASSL* ssl, byte* input, word32* inOutIdx,
         ret = UNKNOWN_HANDSHAKE_TYPE;
     }
 
+    CYASSL_LEAVE("DoHandShakeMsgType()", ret);
     return ret;
 }
 
@@ -2245,11 +2258,62 @@ static int DoDtlsHandShakeMsg(CYASSL* ssl, byte* input, word32* inOutIdx,
                                             &size, &fragOffset, &fragSz) != 0)
         return PARSE_ERROR;
 
-    if (*inOutIdx + size > totalSz)
+    if (*inOutIdx + fragSz > totalSz)
         return INCOMPLETE_DATA;
 
-    /* XXX if fragmented, knit back together. */
-    ret = DoHandShakeMsgType(ssl, input, inOutIdx, type, size, totalSz);
+    if (fragSz < size) {
+        /* message is fragmented, knit back together */
+        byte* buf = ssl->buffers.dtlsHandshake.buffer;
+        if (ssl->buffers.dtlsHandshake.length == 0) {
+            /* Need to add a header back into the data. The Hash is calculated
+             * as if this were a single message, not several fragments. */
+            buf = XMALLOC(size + DTLS_HANDSHAKE_HEADER_SZ,
+                                                ssl->heap, DYNAMIC_TYPE_NONE);
+            if (buf == NULL)
+                return MEMORY_ERROR;
+
+            ssl->buffers.dtlsHandshake.length = size;
+            ssl->buffers.dtlsHandshake.buffer = buf;
+            ssl->buffers.dtlsUsed = 0;
+            ssl->buffers.dtlsType = type;
+
+            /* Construct a new header for the reassembled message as if it
+             * were originally sent as one fragment for the hashing later. */
+            XMEMCPY(buf,
+                input + *inOutIdx - DTLS_HANDSHAKE_HEADER_SZ,
+                DTLS_HANDSHAKE_HEADER_SZ - DTLS_HANDSHAKE_FRAG_SZ);
+            XMEMCPY(buf + DTLS_HANDSHAKE_HEADER_SZ - DTLS_HANDSHAKE_FRAG_SZ,
+                input + *inOutIdx - DTLS_HANDSHAKE_HEADER_SZ + ENUM_LEN,
+                DTLS_HANDSHAKE_FRAG_SZ);
+        }
+        /* readjust the buf pointer past the header */
+        buf += DTLS_HANDSHAKE_HEADER_SZ;
+
+        XMEMCPY(buf + fragOffset, input + *inOutIdx, fragSz);
+        ssl->buffers.dtlsUsed += fragSz;
+        *inOutIdx += fragSz;
+
+        if (ssl->buffers.dtlsUsed != size) {
+            CYASSL_LEAVE("DoDtlsHandShakeMsg()", 1);
+            return 0;            
+        }
+        else {
+            word32 idx = 0;
+            totalSz = size;
+            ret = DoHandShakeMsgType(ssl, buf, &idx, type, size, totalSz);            
+        }
+
+    }
+    else
+        ret = DoHandShakeMsgType(ssl, input, inOutIdx, type, size, totalSz);
+
+    if (ssl->buffers.dtlsHandshake.buffer != NULL) {
+        XFREE(ssl->buffers.dtlsHandshake.buffer, ssl->heap, DYNAMIC_TYPE_NONE);
+        ssl->buffers.dtlsHandshake.length = 0;
+        ssl->buffers.dtlsHandshake.buffer = NULL;
+        ssl->buffers.dtlsUsed = 0;
+        ssl->buffers.dtlsType = 0;
+    }
 
     CYASSL_LEAVE("DoDtlsHandShakeMsg()", ret);
     return ret;
