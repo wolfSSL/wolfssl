@@ -45,6 +45,7 @@ Release 2.3.0 CyaSSL has bug fixes and a few new features including:
 - SHA-384 cipher suites
 - Verify cipher suite validity when user overrides
 - CRL dir monitoring
+- DTLS Cookie support, reliability coming soon
 
 The CyaSSL manual is available at:
 http://www.yassl.com/documentation/CyaSSL-Manual.pdf.  For build instructions 
