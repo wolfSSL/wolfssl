@@ -327,9 +327,12 @@ void client_test(void* args)
         err_sys("unable to get SSL object");
     CyaSSL_set_fd(ssl, sockfd);
 #ifdef HAVE_CRL
-    CyaSSL_EnableCRL(ssl, CYASSL_CRL_CHECKALL);
-    CyaSSL_LoadCRL(ssl, crlPemDir, SSL_FILETYPE_PEM, 0);
-    CyaSSL_SetCRL_Cb(ssl, CRL_CallBack);
+    if (CyaSSL_EnableCRL(ssl, CYASSL_CRL_CHECKALL) != SSL_SUCCESS)
+        err_sys("can't enable crl check");
+    if (CyaSSL_LoadCRL(ssl, crlPemDir, SSL_FILETYPE_PEM, 0) != SSL_SUCCESS)
+        err_sys("can't load crl, check crlfile and date validity");
+    if (CyaSSL_SetCRL_Cb(ssl, CRL_CallBack) != SSL_SUCCESS)
+        err_sys("can't set crl callback");
 #endif
     if (matchName && doPeerCheck)
         CyaSSL_check_domain_name(ssl, domain);
