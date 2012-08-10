@@ -507,6 +507,7 @@ int CyaSSL_SetVersion(CYASSL* ssl, int version)
             ssl->version = MakeSSLv3();
             break;
 
+#ifndef NO_TLS
         case CYASSL_TLSV1:
             ssl->version = MakeTLSv1();
             break;
@@ -518,6 +519,7 @@ int CyaSSL_SetVersion(CYASSL* ssl, int version)
         case CYASSL_TLSV1_2:
             ssl->version = MakeTLSv1_2();
             break;
+#endif
 
         default:
             CYASSL_MSG("Bad function argument");
