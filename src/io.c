@@ -204,6 +204,13 @@ int EmbedSend(char *buf, int sz, void *ctx)
 
 #include <cyassl/ctaocrypt/sha.h>
 
+#ifdef USE_WINDOWS_API
+   #define XSOCKLENT int
+#else
+   #define XSOCKLENT socklen_t
+#endif
+
+
 /* The DTLS Generate Cookie callback
  *  return : number of bytes copied into buf, or error
  */
@@ -211,15 +218,15 @@ int EmbedGenerateCookie(byte *buf, int sz, void *ctx)
 {
     CYASSL* ssl = (CYASSL*)ctx;
     int sd = ssl->wfd;
-    struct sockaddr_storage peer;
-    socklen_t peerSz = sizeof(peer);
-    byte cookieSrc[sizeof(struct in6_addr) + sizeof(int)];
+    struct sockaddr_in peer;
+    XSOCKLENT peerSz = sizeof(peer);
+    byte cookieSrc[sizeof(struct in_addr) + sizeof(int)];
     int cookieSrcSz = 0;
     Sha sha;
 
     getpeername(sd, (struct sockaddr*)&peer, &peerSz);
     
-    if (peer.ss_family == AF_INET) {
+    if (peer.sin_family == AF_INET) {
         struct sockaddr_in *s = (struct sockaddr_in*)&peer;
 
         cookieSrcSz = sizeof(struct in_addr) + sizeof(s->sin_port);
@@ -227,17 +234,17 @@ int EmbedGenerateCookie(byte *buf, int sz, void *ctx)
         XMEMCPY(cookieSrc + sizeof(s->sin_port),
                                      &s->sin_addr, sizeof(struct in_addr));
     }
-    else if (peer.ss_family == AF_INET6) {
-        struct sockaddr_in6 *s = (struct sockaddr_in6*)&peer;
-
-        cookieSrcSz = sizeof(struct in6_addr) + sizeof(s->sin6_port);
-        XMEMCPY(cookieSrc, &s->sin6_port, sizeof(s->sin6_port));
-        XMEMCPY(cookieSrc + sizeof(s->sin6_port),
-                                    &s->sin6_addr, sizeof(struct in6_addr));
-    }
 
     InitSha(&sha);
     ShaUpdate(&sha, cookieSrc, cookieSrcSz);
+
+    if (sz < SHA_DIGEST_SIZE) {
+        byte digest[SHA_DIGEST_SIZE];
+        ShaFinal(&sha, digest);
+        XMEMCPY(buf, digest, sz);
+        return sz;
+    }
+
     ShaFinal(&sha, buf);
 
     return SHA_DIGEST_SIZE;

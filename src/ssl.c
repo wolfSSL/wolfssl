@@ -1201,7 +1201,7 @@ static int ProcessChainBuffer(CYASSL_CTX* ctx, const unsigned char* buff,
 #ifndef NO_FILESYSTEM
 
 #ifndef MICRIUM
-    #define XFILE      FILE
+    #define XFILE      FILE*
     #define XFOPEN     fopen 
     #define XFSEEK     fseek
     #define XFTELL     ftell
@@ -1209,9 +1209,10 @@ static int ProcessChainBuffer(CYASSL_CTX* ctx, const unsigned char* buff,
     #define XFREAD     fread
     #define XFCLOSE    fclose
     #define XSEEK_END  SEEK_END
+    #define XBADFILE   NULL
 #else
     #include <fs.h>
-    #define XFILE      FS_FILE
+    #define XFILE      FS_FILE*
     #define XFOPEN     fs_fopen 
     #define XFSEEK     fs_fseek
     #define XFTELL     fs_ftell
@@ -1219,6 +1220,7 @@ static int ProcessChainBuffer(CYASSL_CTX* ctx, const unsigned char* buff,
     #define XFREAD     fs_fread
     #define XFCLOSE    fs_fclose
     #define XSEEK_END  FS_SEEK_END
+    #define XBADFILE   NULL
 #endif
 
 
@@ -1232,11 +1234,11 @@ int ProcessFile(CYASSL_CTX* ctx, const char* fname, int format, int type,
     int    dynamic = 0;
     int    ret;
     long   sz = 0;
-    XFILE* file = XFOPEN(fname, "rb"); 
+    XFILE  file = XFOPEN(fname, "rb"); 
 
     (void)crl;
 
-    if (!file) return SSL_BAD_FILE;
+    if (file == XBADFILE) return SSL_BAD_FILE;
     XFSEEK(file, 0, XSEEK_END);
     sz = XFTELL(file);
     XREWIND(file);
@@ -1394,11 +1396,11 @@ int CyaSSL_CertManagerVerify(CYASSL_CERT_MANAGER* cm, const char* fname,
     byte*  myBuffer = staticBuffer;
     int    dynamic = 0;
     long   sz = 0;
-    XFILE* file = XFOPEN(fname, "rb"); 
+    XFILE  file = XFOPEN(fname, "rb"); 
 
     CYASSL_ENTER("CyaSSL_CertManagerVerify");
 
-    if (!file) return SSL_BAD_FILE;
+    if (file == XBADFILE) return SSL_BAD_FILE;
     XFSEEK(file, 0, XSEEK_END);
     sz = XFTELL(file);
     XREWIND(file);
@@ -1702,14 +1704,14 @@ int CyaSSL_PemCertToDer(const char* fileName, unsigned char* derBuf, int derSz)
     int    ret;
     int    ecc = 0;
     long   sz = 0;
-    XFILE* file = XFOPEN(fileName, "rb"); 
+    XFILE  file = XFOPEN(fileName, "rb"); 
     EncryptedInfo info;
     buffer        converted;
 
     CYASSL_ENTER("CyaSSL_PemCertToDer");
     converted.buffer = 0;
 
-    if (!file) return SSL_BAD_FILE;
+    if (file == XBADFILE) return SSL_BAD_FILE;
     XFSEEK(file, 0, XSEEK_END);
     sz = XFTELL(file);
     XREWIND(file);
@@ -1917,9 +1919,9 @@ static int CyaSSL_SetTmpDH_file_wrapper(CYASSL_CTX* ctx, CYASSL* ssl,
     int    dynamic = 0;
     int    ret;
     long   sz = 0;
-    XFILE* file = XFOPEN(fname, "rb"); 
+    XFILE  file = XFOPEN(fname, "rb"); 
 
-    if (!file) return SSL_BAD_FILE;
+    if (file == XBADFILE) return SSL_BAD_FILE;
     XFSEEK(file, 0, XSEEK_END);
     sz = XFTELL(file);
     XREWIND(file);
@@ -5935,7 +5937,7 @@ int CyaSSL_set_compression(CYASSL* ssl)
         CYASSL_ENTER("CyaSSL_cmp_peer_cert_to_file");
         if (ssl != NULL && fname != NULL)
         {
-            XFILE*        file = NULL;
+            XFILE         file = XBADFILE;
             int           sz = 0;
             byte          staticBuffer[FILE_BUFFER_SIZE];
             byte*         myBuffer = staticBuffer;
@@ -5951,7 +5953,7 @@ int CyaSSL_set_compression(CYASSL* ssl)
             fileDer.buffer = 0;
 
             file = XFOPEN(fname, "rb"); 
-            if (!file) return SSL_BAD_FILE;
+            if (file == XBADFILE) return SSL_BAD_FILE;
             XFSEEK(file, 0, XSEEK_END);
             sz = XFTELL(file);
             XREWIND(file);
