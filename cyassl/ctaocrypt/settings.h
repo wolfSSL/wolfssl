@@ -51,6 +51,9 @@
 /* Uncomment next line if using FreeRTOS Windows Simulator */
 /* #define FREERTOS_WINSIM */
 
+/* Uncomment next line if using RTIP */
+/* #define EBSNET */
+
 /* Uncomment next line if using lwip */
 /* #define CYASSL_LWIP */
 
@@ -102,6 +105,39 @@
         #include "semphr.h"
     #endif
 #endif
+
+#ifdef EBSNET
+    #include "rtip.h"
+
+    /* #define DEBUG_CYASSL */
+    #define NO_CYASSL_DIR  /* tbd */
+
+    #if (POLLOS)
+        #define SINGLE_THREADED
+    #endif
+
+    #if (RTPLATFORM)
+        #if (!RTP_LITTLE_ENDIAN)
+            #define BIG_ENDIAN_ORDER
+        #endif
+    #else
+        #if (!KS_LITTLE_ENDIAN)
+            #define BIG_ENDIAN_ORDER
+        #endif
+    #endif
+
+    #if (WINMSP3)
+        #undef SIZEOF_LONG
+        #define SIZEOF_LONG_LONG 8
+    #else
+        #sslpro: settings.h - please implement SIZEOF_LONG and SIZEOF_LONG_LONG
+    #endif
+
+    #define XMALLOC(s, h, type) ((void *)rtp_malloc((s), SSL_PRO_MALLOC))
+    #define XFREE(p, h, type) (rtp_free(p))
+    #define XREALLOC(p, n, h, t) realloc((p), (n))
+
+#endif /* EBSNET */
 
 #ifdef CYASSL_GAME_BUILD
     #define SIZEOF_LONG_LONG 8

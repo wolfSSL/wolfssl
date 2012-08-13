@@ -25,21 +25,29 @@
 
 #ifdef HAVE_OCSP
 
+#ifdef EBSNET
+    #include "rtip.h"
+    #include "socket.h"
+#endif
+
 #include <cyassl/error.h>
 #include <cyassl/ocsp.h>
 #include <cyassl/internal.h>
 #include <ctype.h>
 
 #include <string.h>
-#include <unistd.h>
-#include <netdb.h>
-#include <netinet/in.h>
-#include <netinet/tcp.h>
-#include <arpa/inet.h>
-#include <sys/ioctl.h>
-#include <sys/time.h>
-#include <sys/types.h>
-#include <sys/socket.h>
+
+#ifndef EBSNET
+    #include <unistd.h>
+    #include <netdb.h>
+    #include <netinet/in.h>
+    #include <netinet/tcp.h>
+    #include <arpa/inet.h>
+    #include <sys/ioctl.h>
+    #include <sys/time.h>
+    #include <sys/types.h>
+    #include <sys/socket.h>
+#endif
 
 
 CYASSL_API int ocsp_test(unsigned char* buf, int sz);

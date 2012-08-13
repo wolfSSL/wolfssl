@@ -41,7 +41,9 @@
 #else
     #ifndef NO_DEV_RANDOM
         #include <fcntl.h>
-        #include <unistd.h>
+        #ifndef EBSNET
+            #include <unistd.h>
+        #endif
     #else
         /* include headers that may be needed to get good seed */
     #endif
@@ -101,7 +103,7 @@ int GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 }
 
 
-#elif defined(THREADX)
+#elif defined(THREADX) || defined(EBSNET)
 
 #include "rtprand.h"   /* rtp_rand () */
 #include "rtptime.h"   /* rtp_get_system_msec() */
