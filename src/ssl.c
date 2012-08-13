@@ -5937,7 +5937,7 @@ int CyaSSL_set_compression(CYASSL* ssl)
         CYASSL_ENTER("CyaSSL_cmp_peer_cert_to_file");
         if (ssl != NULL && fname != NULL)
         {
-            XFILE         file = NULL;
+            XFILE         file = XBADFILE;
             int           sz = 0;
             byte          staticBuffer[FILE_BUFFER_SIZE];
             byte*         myBuffer = staticBuffer;
