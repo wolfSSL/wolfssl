@@ -7122,7 +7122,7 @@ int UnLockMutex(CyaSSL_Mutex* m)
                 return BAD_MUTEX_ERROR;
         }
 
-        int UnlockMutex(CyaSSL_Mutex* m)
+        int UnLockMutex(CyaSSL_Mutex* m)
         {
             rtp_sig_mutex_release(*m);
             return 0;
