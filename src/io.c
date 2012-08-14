@@ -49,9 +49,11 @@
     #else
         #include <sys/types.h>
         #include <errno.h>
-        #include <unistd.h>
+        #ifndef EBSNET
+            #include <unistd.h>
+        #endif
         #include <fcntl.h>
-        #if !(defined(DEVKITPRO) || defined(THREADX))
+        #if !(defined(DEVKITPRO) || defined(THREADX)) || defined(EBSNET)
             #include <sys/socket.h>
             #include <arpa/inet.h>
             #include <netinet/in.h>
@@ -64,6 +66,10 @@
         #endif
         #ifdef THREADX
             #include <socket.h>
+        #endif
+        #ifdef EBSNET
+            #include "rtipapi.h"  /* errno */
+            #include "socket.h"
         #endif
     #endif
 #endif /* USE_WINDOWS_API */
@@ -113,6 +119,8 @@ static INLINE int LastError(void)
 {
 #ifdef USE_WINDOWS_API 
     return WSAGetLastError();
+#elif defined(EBSNET)
+    return un_getlasterror();
 #else
     return errno;
 #endif
