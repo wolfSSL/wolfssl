@@ -17,7 +17,7 @@
 	    #include <ws2tcpip.h>
         #include <wspiapi.h>
     #endif
-    #define SOCKET_T int
+    #define SOCKET_T unsigned int
 #else
     #include <string.h>
     #include <unistd.h>
@@ -36,7 +36,7 @@
     #ifdef TEST_IPV6
         #include <netdb.h>
     #endif
-    #define SOCKET_T unsigned int
+    #define SOCKET_T int
 #endif /* USE_WINDOWS_API */
 
 #ifdef _MSC_VER

@@ -1430,7 +1430,6 @@ CYASSL_LOCAL int IsAtLeastTLSv1_2(const CYASSL* ssl);
 
 CYASSL_LOCAL void ShrinkInputBuffer(CYASSL* ssl, int forcedFree);
 CYASSL_LOCAL void ShrinkOutputBuffer(CYASSL* ssl);
-CYASSL_LOCAL int SendHelloVerifyRequest(CYASSL* ssl);
 CYASSL_LOCAL Signer* GetCA(void* cm, byte* hash);
 CYASSL_LOCAL void BuildTlsFinished(CYASSL* ssl, Hashes* hashes,
                                    const byte* sender);
