@@ -71,6 +71,8 @@
     /* do nothing, just don't pick Unix */
 #elif defined(FREERTOS) || defined(CYASSL_SAFERTOS)
     /* do nothing */
+#elif defined(EBSNET)
+    /* do nothing */
 #else
     #ifndef SINGLE_THREADED
         #define CYASSL_PTHREADS
@@ -683,6 +685,8 @@ struct CYASSL_CIPHER {
         typedef TX_MUTEX CyaSSL_Mutex;
     #elif defined(MICRIUM)
         typedef OS_MUTEX CyaSSL_Mutex;
+    #elif defined(EBSNET)
+        typedef RTP_MUTEX CyaSSL_Mutex;
     #else
         #error Need a mutex type in multithreaded mode
     #endif /* USE_WINDOWS_API */

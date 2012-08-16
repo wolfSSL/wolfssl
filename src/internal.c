@@ -7130,5 +7130,35 @@ int UnLockMutex(CyaSSL_Mutex* m)
 
         }
 
+    #elif defined(EBSNET)
+
+        int InitMutex(CyaSSL_Mutex* m)
+        {
+            if (rtp_sig_mutex_alloc(m, "CyaSSL Mutex") == -1)
+                return BAD_MUTEX_ERROR;
+            else
+                return 0;
+        }
+
+        int FreeMutex(CyaSSL_Mutex* m)
+        {
+            rtp_sig_mutex_free(*m);
+            return 0;
+        }
+
+        int LockMutex(CyaSSL_Mutex* m)
+        {
+            if (rtp_sig_mutex_claim_timed(*m, RTIP_INF) == 0)
+                return 0;
+            else
+                return BAD_MUTEX_ERROR;
+        }
+
+        int UnLockMutex(CyaSSL_Mutex* m)
+        {
+            rtp_sig_mutex_release(*m);
+            return 0;
+        }
+
     #endif /* USE_WINDOWS_API */
 #endif /* SINGLE_THREADED */

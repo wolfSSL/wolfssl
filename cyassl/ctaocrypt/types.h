@@ -132,7 +132,8 @@ enum {
 
 
 /* Micrium will use Visual Studio for compilation but not the Win32 API */
-#if defined(_WIN32) && !defined(MICRIUM) && !defined(FREERTOS)
+#if defined(_WIN32) && !defined(MICRIUM) && !defined(FREERTOS) \
+        && !defined(EBSNET)
     #define USE_WINDOWS_API
 #endif
 
@@ -147,7 +148,7 @@ enum {
     extern void *XMALLOC(size_t n, void* heap, int type);
     extern void *XREALLOC(void *p, size_t n, void* heap, int type);
     extern void XFREE(void *p, void* heap, int type);
-#elif !defined(MICRIUM_MALLOC)
+#elif !defined(MICRIUM_MALLOC) && !defined(EBSNET)
     /* default C runtime, can install different routines at runtime */
     #include <cyassl/ctaocrypt/memory.h>
     #define XMALLOC(s, h, t)     CyaSSL_Malloc((s))

@@ -61,8 +61,13 @@
 #endif
 
 #ifndef NO_FILESYSTEM
-    #if !defined(USE_WINDOWS_API) && !defined(NO_CYASSL_DIR)
+    #if !defined(USE_WINDOWS_API) && !defined(NO_CYASSL_DIR) \
+            && !defined(EBSNET)
         #include <dirent.h>
+    #endif
+    #ifdef EBSNET
+        #include "vfapi.h"
+        #include "vfile.h"
     #endif
 #endif /* NO_FILESYSTEM */
 
@@ -1199,7 +1204,17 @@ static int ProcessChainBuffer(CYASSL_CTX* ctx, const unsigned char* buff,
 
 #ifndef NO_FILESYSTEM
 
-#ifndef MICRIUM
+#if defined(EBSNET)
+    #define XFILE                    int
+    #define XFOPEN(NAME, MODE)       vf_open((const char *)NAME, VO_RDONLY, 0);
+    #define XFSEEK                   vf_lseek
+    #define XFTELL                   vf_tell
+    #define XREWIND                  vf_rewind
+    #define XFREAD(BUF, SZ, AMT, FD) vf_read(FD, BUF, SZ*AMT)
+    #define XFCLOSE                  vf_close
+    #define XSEEK_END                VSEEK_END
+    #define XBADFILE                 -1
+#elif !defined(MICRIUM)
     #define XFILE      FILE*
     #define XFOPEN     fopen 
     #define XFSEEK     fseek
