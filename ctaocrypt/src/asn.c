@@ -64,16 +64,6 @@ enum {
 #endif
 
 
-#ifndef min
-
-    static INLINE word32 min(word32 a, word32 b)
-    {
-        return a > b ? b : a;
-    }
-
-#endif /* min */
-
-
 #ifdef THREADX
     /* uses parital <time.h> structures */
     #define XTIME(tl)  (0)
@@ -1351,7 +1341,6 @@ static int GetName(DecodedCert* cert, int nameType)
         int    oidSz;
 
         if (GetSet(cert->source, &cert->srcIdx, &dummy, cert->maxIdx) < 0) {
-            (void)b;  /* empty body warning w/o messages enabled */
             CYASSL_MSG("Cert name lacks set header, trying sequence");
         }
 
@@ -2957,6 +2946,17 @@ int RsaKeyToDer(RsaKey* key, byte* output, word32 inLen)
 
 
 #ifdef CYASSL_CERT_GEN
+
+
+#ifndef min
+
+    static INLINE word32 min(word32 a, word32 b)
+    {
+        return a > b ? b : a;
+    }
+
+#endif /* min */
+
 
 /* Initialize and Set Certficate defaults:
    version    = 3 (0x2)

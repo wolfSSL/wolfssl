@@ -1134,13 +1134,12 @@ int AddCA(CYASSL_CERT_MANAGER* cm, buffer der, int type, int verify)
 #endif /* HAVE_ECC */
         }
         else if (type == CERT_TYPE) {
-            int         ret;
             DecodedCert cert;
 
             CYASSL_MSG("Checking cert signature type");
             InitDecodedCert(&cert, der.buffer, der.length, ctx->heap);
 
-            if ((ret = DecodeToKey(&cert, 0)) < 0) {
+            if (DecodeToKey(&cert, 0) < 0) {
                 CYASSL_MSG("Decode to key failed");
                 return SSL_BAD_FILE; 
             }            

@@ -449,6 +449,7 @@ void InitSuites(Suites* suites, ProtocolVersion pv, byte haveDH, byte havePSK,
     (void)havePSK;
     (void)haveNTRU;
     (void)haveStaticECC;
+    (void)haveRSAsig;
 
     if (suites->setSuites)
         return;      /* trust user settings, don't override */
@@ -6940,6 +6941,37 @@ int UnLockMutex(CyaSSL_Mutex* m)
             xSemaphoreGive( *m );
             return 0;
         }
+
+    #elif defined(CYASSL_SAFERTOS)
+
+        int InitMutex(CyaSSL_Mutex* m)
+        {
+            vSemaphoreCreateBinary(m->mutexBuffer, m->mutex);
+            if (m->mutex == NULL)
+                return BAD_MUTEX_ERROR;
+
+            return 0;
+        }
+
+        int FreeMutex(CyaSSL_Mutex* m)
+        {
+            (void)m;
+            return 0;
+        }
+
+        int LockMutex(CyaSSL_Mutex* m)
+        {
+            /* Assume an infinite block */
+            xSemaphoreTake(m->mutex, portMAX_DELAY);
+            return 0;
+        }
+
+        int UnLockMutex(CyaSSL_Mutex* m)
+        {
+            xSemaphoreGive(m->mutex);
+            return 0;
+        }
+
 
     #elif defined(USE_WINDOWS_API)
 

@@ -43,9 +43,11 @@
 #ifndef USE_WINDOWS_API
     #ifdef CYASSL_LWIP
         /* lwIP needs to be configured to use sockets API in this mode */
-        /* LWIP_SOCKET 1 && LWIP_COMPAT_SOCKETS 1 in lwip/opt.h or in build */
-        #define LWIP_PROVIDE_ERRNO 1
-        #include "sockets.h"
+        /* LWIP_SOCKET 1 in lwip/opt.h or in build */
+        #include "lwip/sockets.h"
+        #ifndef LWIP_PROVIDE_ERRNO
+            #define LWIP_PROVIDE_ERRNO 1
+        #endif
     #else
         #include <sys/types.h>
         #include <errno.h>
@@ -103,6 +105,9 @@
     int net_recv(int, void*, int, unsigned int);
     #define SEND_FUNCTION net_send
     #define RECV_FUNCTION net_recv
+#elif defined(CYASSL_LWIP)
+    #define SEND_FUNCTION lwip_send
+    #define RECV_FUNCTION lwip_recv
 #else
     #define SEND_FUNCTION send
     #define RECV_FUNCTION recv
