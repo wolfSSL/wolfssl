@@ -60,6 +60,9 @@
 /* Uncomment next line if building CyaSSL for a game console */
 /* #define CYASSL_GAME_BUILD */
 
+/* Uncomment next line if building CyaSSL for LSR */
+/* #define CYASSL_LSR */
+
 
 #include <cyassl/ctaocrypt/visibility.h>
 
@@ -143,6 +146,29 @@
     #define SIZEOF_LONG_LONG 8
     #if defined(__PPU) || defined(__XENON)
         #define BIG_ENDIAN_ORDER
+    #endif
+#endif
+
+#ifdef CYASSL_LSR
+    #define NO_WRITEV
+    #define NO_SHA512
+    #define NO_DH
+    #define NO_DSA
+    #define NO_HC128
+    #define NO_DEV_RANDOM
+    #define NO_CYASSL_DIR
+    #define NO_RABBIT
+    #ifndef NO_FILESYSTEM
+        #define LSR_FS
+        #include "fs.h"
+    #endif
+    #define CYASSL_LWIP
+    #define CYASSL_SAFERTOS
+#endif
+
+#ifdef CYASSL_SAFERTOS
+    #ifndef SINGLE_THREADED
+        #include "SafeRTOS/semphr.h"
     #endif
 #endif
 

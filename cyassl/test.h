@@ -630,10 +630,14 @@ static INLINE int myVerify(int preverify, CYASSL_X509_STORE_CTX* store)
 {
     char buffer[80];
 
+#ifdef OPENSSL_EXTRA
+    CYASSL_X509* peer;
+#endif
+
     printf("In verification callback, error = %d, %s\n", store->error,
                                  CyaSSL_ERR_error_string(store->error, buffer));
 #ifdef OPENSSL_EXTRA
-    CYASSL_X509* peer = store->current_cert;
+    peer = store->current_cert;
     if (peer) {
         char* issuer  = CyaSSL_X509_NAME_oneline(
                                        CyaSSL_X509_get_issuer_name(peer), 0, 0);
