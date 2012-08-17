@@ -1214,17 +1214,18 @@ static int ProcessChainBuffer(CYASSL_CTX* ctx, const unsigned char* buff,
     #define XFCLOSE                  vf_close
     #define XSEEK_END                VSEEK_END
     #define XBADFILE                 -1
-#elif !defined(MICRIUM)
-    #define XFILE      FILE*
-    #define XFOPEN     fopen 
-    #define XFSEEK     fseek
-    #define XFTELL     ftell
-    #define XREWIND    rewind
-    #define XFREAD     fread
-    #define XFCLOSE    fclose
-    #define XSEEK_END  SEEK_END
-    #define XBADFILE   NULL
-#else
+#elif defined(LSR_FS)
+    #include <fs.h>
+    #define XFILE                   struct fs_file*
+    #define XFOPEN(NAME, MODE)      fs_open(NAME);
+    #define XFSEEK
+    #define XFTELL(F)               (F)->len
+    #define XREWIND
+    #define XFREAD(BUF, SZ, AMT, F) fs_read(F, BUF, SZ*AMT)
+    #define XFCLOSE                 fs_close
+    #define XSEEK_END               0
+    #define XBADFILE                NULL
+#elif defined(MICRIUM)
     #include <fs.h>
     #define XFILE      FS_FILE*
     #define XFOPEN     fs_fopen 
@@ -1234,6 +1235,17 @@ static int ProcessChainBuffer(CYASSL_CTX* ctx, const unsigned char* buff,
     #define XFREAD     fs_fread
     #define XFCLOSE    fs_fclose
     #define XSEEK_END  FS_SEEK_END
+    #define XBADFILE   NULL
+#else
+    /* stdio, default case */
+    #define XFILE      FILE*
+    #define XFOPEN     fopen 
+    #define XFSEEK     fseek
+    #define XFTELL     ftell
+    #define XREWIND    rewind
+    #define XFREAD     fread
+    #define XFCLOSE    fclose
+    #define XSEEK_END  SEEK_END
     #define XBADFILE   NULL
 #endif
 

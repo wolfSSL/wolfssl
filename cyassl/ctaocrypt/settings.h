@@ -158,8 +158,15 @@
     #define NO_DEV_RANDOM
     #define NO_CYASSL_DIR
     #define NO_RABBIT
+    #ifndef NO_FILESYSTEM
+        #define LSR_FS
+        #include "fs.h"
+    #endif
     #define CYASSL_LWIP
     #define CYASSL_SAFERTOS
+#endif
+
+#ifdef CYASSL_SAFERTOS
     #ifndef SINGLE_THREADED
         #include "SafeRTOS/semphr.h"
     #endif
