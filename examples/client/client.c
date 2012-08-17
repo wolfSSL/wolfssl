@@ -392,7 +392,8 @@ void client_test(void* args)
     sslResume = CyaSSL_new(ctx);
 #endif
 
-    CyaSSL_shutdown(ssl);
+    if (doDTLS == 0)            /* don't send alert after "break" command */
+        CyaSSL_shutdown(ssl);  /* echoserver will interpret as new conn */
     CyaSSL_free(ssl);
     CloseSocket(sockfd);
 
@@ -404,7 +405,7 @@ void client_test(void* args)
             sleep(1);
         #endif
     }
-    tcp_connect(&sockfd, host, port);
+    tcp_connect(&sockfd, host, port, doDTLS);
     CyaSSL_set_fd(sslResume, sockfd);
     CyaSSL_set_session(sslResume, session);
    
