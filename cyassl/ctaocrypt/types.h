@@ -148,7 +148,7 @@ enum {
     extern void *XMALLOC(size_t n, void* heap, int type);
     extern void *XREALLOC(void *p, size_t n, void* heap, int type);
     extern void XFREE(void *p, void* heap, int type);
-#elif !defined(MICRIUM_MALLOC) && !defined(EBSNET)
+#elif !defined(MICRIUM_MALLOC) && !defined(EBSNET) && !defined(CYASSL_SAFERTOS)
     /* default C runtime, can install different routines at runtime */
     #include <cyassl/ctaocrypt/memory.h>
     #define XMALLOC(s, h, t)     CyaSSL_Malloc((s))

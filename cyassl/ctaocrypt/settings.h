@@ -170,6 +170,11 @@
     #ifndef SINGLE_THREADED
         #include "SafeRTOS/semphr.h"
     #endif
+
+    #include "SafeRTOS/heap.h"
+    #define XMALLOC(s, h, type)  pvPortMalloc((s))
+    #define XFREE(p, h, type)    vPortFree((p)) 
+    #define XREALLOC(p, n, h, t) pvPortRealloc((p), (n))
 #endif
 
 #ifdef MICRIUM
