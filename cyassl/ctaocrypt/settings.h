@@ -164,6 +164,10 @@
     #endif
     #define CYASSL_LWIP
     #define CYASSL_SAFERTOS
+    #if defined(__IAR_SYSTEMS_ICC__)
+        /* enum uses enum */
+        #pragma diag_suppress=Pa089
+    #endif
 #endif
 
 #ifdef CYASSL_SAFERTOS

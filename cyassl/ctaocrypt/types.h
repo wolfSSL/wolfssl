@@ -108,6 +108,8 @@ enum {
         #define INLINE inline
     #elif defined(THREADX)
         #define INLINE _Inline
+    #elif defined(__IAR_SYSTEMS_ICC__)
+        #define INLINE inline
     #else
         #define INLINE 
     #endif
