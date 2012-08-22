@@ -150,6 +150,8 @@
 #endif
 
 #ifdef CYASSL_LSR
+    #define SIZEOF_LONG_LONG 8
+    #define CYASSL_LOW_MEMORY
     #define NO_WRITEV
     #define NO_SHA512
     #define NO_DH
@@ -160,16 +162,32 @@
     #define NO_RABBIT
     #ifndef NO_FILESYSTEM
         #define LSR_FS
+        #include "inc/hw_types.h"
         #include "fs.h"
     #endif
     #define CYASSL_LWIP
     #define CYASSL_SAFERTOS
+    #if defined(__IAR_SYSTEMS_ICC__)
+        /* enum uses enum */
+        #pragma diag_suppress=Pa089
+    #endif
 #endif
 
 #ifdef CYASSL_SAFERTOS
     #ifndef SINGLE_THREADED
         #include "SafeRTOS/semphr.h"
     #endif
+
+    #include "SafeRTOS/heap.h"
+    #define XMALLOC(s, h, type)  pvPortMalloc((s))
+    #define XFREE(p, h, type)    vPortFree((p)) 
+    #define XREALLOC(p, n, h, t) pvPortRealloc((p), (n))
+#endif
+
+#ifdef CYASSL_LOW_MEMORY
+    #define RSA_LOW_MEM
+    #define CYASSL_SMALL_STACK
+    #define TFM_TIMING_RESISTANT
 #endif
 
 #ifdef MICRIUM

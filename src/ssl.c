@@ -1217,11 +1217,11 @@ static int ProcessChainBuffer(CYASSL_CTX* ctx, const unsigned char* buff,
 #elif defined(LSR_FS)
     #include <fs.h>
     #define XFILE                   struct fs_file*
-    #define XFOPEN(NAME, MODE)      fs_open(NAME);
-    #define XFSEEK
+    #define XFOPEN(NAME, MODE)      fs_open((char*)NAME);
+    #define XFSEEK(F, O, W)         (void)F
     #define XFTELL(F)               (F)->len
-    #define XREWIND
-    #define XFREAD(BUF, SZ, AMT, F) fs_read(F, BUF, SZ*AMT)
+    #define XREWIND(F)              (void)F
+    #define XFREAD(BUF, SZ, AMT, F) fs_read(F, (char*)BUF, SZ*AMT)
     #define XFCLOSE                 fs_close
     #define XSEEK_END               0
     #define XBADFILE                NULL
@@ -2254,7 +2254,10 @@ int CyaSSL_set_cipher_list(CYASSL* ssl, const char* list)
             neededState = ssl->options.resuming ? SERVER_FINISHED_COMPLETE :
                                           SERVER_HELLODONE_COMPLETE;
             #ifdef CYASSL_DTLS
-                if (ssl->options.dtls && !ssl->options.resuming)
+                /* In DTLS, when resuming, we can go straight to FINISHED,
+                 * or do a cookie exchange and then skip to FINISHED, assume
+                 * we need the cookie exchange first. */
+                if (ssl->options.dtls)
                     neededState = SERVER_HELLOVERIFYREQUEST_COMPLETE;
             #endif
             /* get response */
@@ -2281,7 +2284,7 @@ int CyaSSL_set_cipher_list(CYASSL* ssl, const char* list)
                 return SSL_SUCCESS;
 
             #ifdef CYASSL_DTLS
-                if (ssl->options.dtls && !ssl->options.resuming) {
+                if (ssl->options.dtls) {
                     /* re-init hashes, exclude first hello and verify request */
                     InitMd5(&ssl->hashMd5);
                     InitSha(&ssl->hashSha);
@@ -2501,7 +2504,7 @@ int CyaSSL_set_cipher_list(CYASSL* ssl, const char* list)
 
         case ACCEPT_CLIENT_HELLO_DONE :
             #ifdef CYASSL_DTLS
-                if (ssl->options.dtls && !ssl->options.resuming)
+                if (ssl->options.dtls)
                     if ( (ssl->error = SendHelloVerifyRequest(ssl)) != 0) {
                         CYASSL_ERROR(ssl->error);
                         return SSL_FATAL_ERROR;
@@ -2512,7 +2515,7 @@ int CyaSSL_set_cipher_list(CYASSL* ssl, const char* list)
 
         case HELLO_VERIFY_SENT:
             #ifdef CYASSL_DTLS
-                if (ssl->options.dtls && !ssl->options.resuming) {
+                if (ssl->options.dtls) {
                     ssl->options.clientState = NULL_STATE;  /* get again */
                     /* re-init hashes, exclude first hello and verify request */
                     InitMd5(&ssl->hashMd5);
