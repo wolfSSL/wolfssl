@@ -1217,11 +1217,11 @@ static int ProcessChainBuffer(CYASSL_CTX* ctx, const unsigned char* buff,
 #elif defined(LSR_FS)
     #include <fs.h>
     #define XFILE                   struct fs_file*
-    #define XFOPEN(NAME, MODE)      fs_open(NAME);
-    #define XFSEEK
+    #define XFOPEN(NAME, MODE)      fs_open((char*)NAME);
+    #define XFSEEK(F, O, W)         (void)F
     #define XFTELL(F)               (F)->len
-    #define XREWIND
-    #define XFREAD(BUF, SZ, AMT, F) fs_read(F, BUF, SZ*AMT)
+    #define XREWIND(F)              (void)F
+    #define XFREAD(BUF, SZ, AMT, F) fs_read(F, (char*)BUF, SZ*AMT)
     #define XFCLOSE                 fs_close
     #define XSEEK_END               0
     #define XBADFILE                NULL
