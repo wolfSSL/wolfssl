@@ -102,6 +102,7 @@ enum CyaSSL_ErrorCodes {
     OCSP_LOOKUP_FAIL       = -267,            /* OCSP lookup not successful */
     MAX_CHAIN_ERROR        = -268,            /* max chain depth exceeded */
     COOKIE_ERROR           = -269,            /* dtls cookie error */
+    SEQUENCE_ERROR         = -270,            /* dtls sequence error */
     /* add strings to SetErrorString !!!!! */
 
     /* begin negotiation parameter errors */

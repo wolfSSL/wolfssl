@@ -956,9 +956,11 @@ typedef struct Keys {
 #ifdef CYASSL_DTLS
     word32 dtls_sequence_number;
     word32 dtls_peer_sequence_number;
+    word32 dtls_expected_peer_sequence_number;
     word16 dtls_handshake_number;
     word16 dtls_epoch;
     word16 dtls_peer_epoch;
+    word16 dtls_expected_peer_epoch;
 #endif
 
     word32 encryptSz;             /* last size of encrypted data   */

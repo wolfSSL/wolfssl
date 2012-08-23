@@ -915,12 +915,14 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
     ssl->options.processReply = doProcessInit;
 
 #ifdef CYASSL_DTLS
-    ssl->keys.dtls_sequence_number       = 0;
-    ssl->keys.dtls_peer_sequence_number  = 0;
-    ssl->keys.dtls_handshake_number      = 0;
-    ssl->keys.dtls_epoch      = 0;
-    ssl->keys.dtls_peer_epoch = 0;
-    ssl->arrays.cookieSz = 0;
+    ssl->keys.dtls_sequence_number      = 0;
+    ssl->keys.dtls_peer_sequence_number = 0;
+    ssl->keys.dtls_expected_peer_sequence_number = 0;
+    ssl->keys.dtls_handshake_number     = 0;
+    ssl->keys.dtls_epoch                = 0;
+    ssl->keys.dtls_peer_epoch           = 0;
+    ssl->keys.dtls_expected_peer_epoch  = 0;
+    ssl->arrays.cookieSz                = 0;
 #endif
     ssl->keys.encryptionOn = 0;     /* initially off */
     ssl->options.sessionCacheOff      = ctx->sessionCacheOff;
@@ -1515,7 +1517,8 @@ static int GetRecordHeader(CYASSL* ssl, const byte* input, word32* inOutIdx,
         /* type and version in same sport */
         XMEMCPY(rh, input + *inOutIdx, ENUM_LEN + VERSION_SZ);
         *inOutIdx += ENUM_LEN + VERSION_SZ;
-        *inOutIdx += 4;  /* skip epoch and first 2 seq bytes for now */
+        ato16(input + *inOutIdx, &ssl->keys.dtls_peer_epoch);
+        *inOutIdx += 4; /* advance past epoch, skip first 2 seq bytes for now */
         ato32(input + *inOutIdx, &ssl->keys.dtls_peer_sequence_number);
         *inOutIdx += 4;  /* advance past rest of seq */
         ato16(input + *inOutIdx, size);
@@ -1538,6 +1541,22 @@ static int GetRecordHeader(CYASSL* ssl, const byte* input, word32* inOutIdx,
             return VERSION_ERROR;              /* only use requested version */
         }
     }
+
+#ifdef CYASSL_DTLS
+    /* If DTLS, check the sequence number against expected. If out of
+     * order, drop the record. */
+    if (ssl->options.dtls) {
+        if ((ssl->keys.dtls_expected_peer_epoch ==
+                                        ssl->keys.dtls_peer_epoch) &&
+                (ssl->keys.dtls_expected_peer_sequence_number ==
+                                        ssl->keys.dtls_peer_sequence_number)) {
+            ssl->keys.dtls_expected_peer_sequence_number++;
+        }
+        else {
+            return SEQUENCE_ERROR;
+        }
+    }
+#endif
 
     /* record layer length check */
     if (*size > (MAX_RECORD_SIZE + MAX_COMP_EXTRA + MAX_MSG_EXTRA))
@@ -2793,6 +2812,15 @@ int ProcessReply(CYASSL* ssl)
             ret = GetRecordHeader(ssl, ssl->buffers.inputBuffer.buffer,
                                        &ssl->buffers.inputBuffer.idx,
                                        &ssl->curRL, &ssl->curSize);
+#ifdef CYASSL_DTLS
+            if (ssl->options.dtls && ret == SEQUENCE_ERROR) {
+                /* This message is out of order. Forget it ever happened. */
+                ssl->options.processReply = doProcessInit;
+                ssl->buffers.inputBuffer.length = 0;
+                ssl->buffers.inputBuffer.idx = 0;
+                continue;
+            }
+#endif
             if (ret != 0)
                 return ret;
 
@@ -2870,8 +2898,10 @@ int ProcessReply(CYASSL* ssl)
                     ssl->keys.encryptionOn = 1;
 
                     #ifdef CYASSL_DTLS
-                        if (ssl->options.dtls)
-                            ssl->keys.dtls_peer_epoch++;
+                        if (ssl->options.dtls) {
+                            ssl->keys.dtls_expected_peer_epoch++;
+                            ssl->keys.dtls_expected_peer_sequence_number = 0;
+                        }
                     #endif
 
                     #ifdef HAVE_LIBZ
@@ -3908,6 +3938,10 @@ void SetErrorString(int error, char* str)
 
     case COOKIE_ERROR:
         XSTRNCPY(str, "DTLS Cookie Error", max);
+        break;
+
+    case SEQUENCE_ERROR:
+        XSTRNCPY(str, "DTLS Sequence Error", max);
         break;
 
     default :
