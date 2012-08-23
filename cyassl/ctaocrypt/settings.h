@@ -166,6 +166,7 @@
         #include "fs.h"
     #endif
     #define CYASSL_LWIP
+    #include <errno.h>  /* for tcp errno */
     #define CYASSL_SAFERTOS
     #if defined(__IAR_SYSTEMS_ICC__)
         /* enum uses enum */
