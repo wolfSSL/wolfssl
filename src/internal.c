@@ -1598,7 +1598,6 @@ static int GetDtlsHandShakeHeader(CYASSL* ssl, const byte* input,
                                     word32* inOutIdx, byte *type, word32 *size,
                                     word32 *fragOffset, word32 *fragSz)
 {
-    word32 seq;
     word32 idx = *inOutIdx;
 
     (void)ssl;
