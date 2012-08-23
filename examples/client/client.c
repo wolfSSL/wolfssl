@@ -354,7 +354,7 @@ void client_test(void* args)
     #endif
 #endif
     showPeer(ssl);
-    
+
     if (sendGET) {
         printf("SSL connect ok, sending GET...\n");
         msgSz = 28;
@@ -409,8 +409,20 @@ void client_test(void* args)
     CyaSSL_set_fd(sslResume, sockfd);
     CyaSSL_set_session(sslResume, session);
    
-    showPeer(sslResume); 
-    if (CyaSSL_connect(sslResume) != SSL_SUCCESS) err_sys("SSL resume failed");
+    showPeer(sslResume);
+#ifdef NON_BLOCKING
+    tcp_set_nonblocking(&sockfd);
+    NonBlockingSSL_Connect(sslResume);
+#else
+    #ifndef CYASSL_CALLBACKS
+        if (CyaSSL_connect(sslResume) != SSL_SUCCESS)
+            err_sys("SSL resume failed");
+    #else
+        timeout.tv_sec  = 2;
+        timeout.tv_usec = 0;
+        NonBlockingSSL_Connect(ssl);  /* will keep retrying on timeout */
+    #endif
+#endif
 
 #ifdef OPENSSL_EXTRA
     if (CyaSSL_session_reused(sslResume))
@@ -421,6 +433,15 @@ void client_test(void* args)
   
     if (CyaSSL_write(sslResume, resumeMsg, resumeSz) != resumeSz)
         err_sys("SSL_write failed");
+
+#ifdef NON_BLOCKING
+    /* need to give server a chance to bounce a message back to client */
+    #ifdef USE_WINDOWS_API
+        Sleep(500);
+    #else
+        sleep(1);
+    #endif
+#endif
 
     input = CyaSSL_read(sslResume, reply, sizeof(reply));
     if (input > 0) {
