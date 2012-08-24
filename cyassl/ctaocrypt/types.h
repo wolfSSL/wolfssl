@@ -30,7 +30,7 @@
 #endif
 
 
-#if defined(WORDS_BIGENDIAN) || (defined(__MWERKS__) && !defined(__INTEL__))
+#if defined(WORDS_BIGENDIAN)
     #define BIG_ENDIAN_ORDER
 #endif
 
