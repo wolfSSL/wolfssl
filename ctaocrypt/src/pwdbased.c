@@ -261,11 +261,14 @@ int PKCS12_PBKDF(byte* output, const byte* passwd, int passLen,const byte* salt,
         for (i = 0; i < (int)v; i++)
             B[i] = Ai[i % u];
 
-        mp_init(&B1);
-        if (mp_read_unsigned_bin(&B1, B, v) != MP_OKAY)
+        if (mp_init(&B1) != MP_OKAY)
+            ret = MP_INIT_E;
+        else if (mp_read_unsigned_bin(&B1, B, v) != MP_OKAY)
             ret = MP_READ_E;
-        else if (mp_add_d(&B1, (mp_digit)1, &B1) != MP_OKAY) {
+        else if (mp_add_d(&B1, (mp_digit)1, &B1) != MP_OKAY)
             ret = MP_ADD_E;
+
+        if (ret != 0) {
             mp_clear(&B1);
             break;
         }
@@ -275,9 +278,10 @@ int PKCS12_PBKDF(byte* output, const byte* passwd, int passLen,const byte* salt,
             mp_int i1;
             mp_int res;
 
-            mp_init(&i1);
-            mp_init(&res);
-
+            if (mp_init_multi(&i1, &res, NULL, NULL, NULL, NULL) != MP_OKAY) {
+                ret = MP_INIT_E;
+                break;
+            }
             if (mp_read_unsigned_bin(&i1, I + i, v) != MP_OKAY)
                 ret = MP_READ_E;
             else if (mp_add(&i1, &B1, &res) != MP_OKAY)

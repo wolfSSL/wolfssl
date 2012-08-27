@@ -433,7 +433,9 @@ static int GetInt(mp_int* mpi, const byte* input, word32* inOutIdx,
     else
         i--;
 
-    mp_init(mpi); 
+    if (mp_init(mpi) != MP_OKAY)
+        return MP_INIT_E;
+
     if (mp_read_unsigned_bin(mpi, (byte*)input + i, length) != 0) {
         mp_clear(mpi);
         return ASN_GETINT_E;
@@ -928,14 +930,19 @@ int DhSetKey(DhKey* key, const byte* p, word32 pSz, const byte* g, word32 gSz)
         gSz--; g++;
     }
 
-    mp_init(&key->p);
+    if (mp_init(&key->p) != MP_OKAY)
+        return MP_INIT_E;
     if (mp_read_unsigned_bin(&key->p, p, pSz) != 0) {
         mp_clear(&key->p);
         return ASN_DH_KEY_E;
     }
 
-    mp_init(&key->g);
+    if (mp_init(&key->g) != MP_OKAY) {
+        mp_clear(&key->p);
+        return MP_INIT_E;
+    }
     if (mp_read_unsigned_bin(&key->g, g, gSz) != 0) {
+        mp_clear(&key->g);
         mp_clear(&key->p);
         return ASN_DH_KEY_E;
     }
