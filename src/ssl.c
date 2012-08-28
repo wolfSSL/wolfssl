@@ -6121,8 +6121,11 @@ static int initGlobalRNG = 0;
         }
 
         InitCyaSSL_BigNum(external);
-        mp_init(mpi);
         external->internal = mpi;
+        if (mp_init(mpi) != MP_OKAY) {
+            CyaSSL_BN_free(external); 
+            return NULL;
+        }
 
         return external;
     }
