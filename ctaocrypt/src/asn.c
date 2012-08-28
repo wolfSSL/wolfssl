@@ -49,6 +49,9 @@
     #include <cyassl/ctaocrypt/ecc.h>
 #endif
 
+#ifdef CYASSL_DEBUG_ENCODING
+    #include <stdio.h>
+#endif
 
 #ifdef _MSC_VER
     /* 4996 warning to use MS extensions e.g., strcpy_s instead of XSTRNCPY */
@@ -1936,8 +1939,8 @@ word32 EncodeSignature(byte* out, const byte* digest, word32 digSz, int hashOID)
 
     return encDigSz + algoSz + seqSz;
 }
-                           
-#include <stdio.h>
+
+
 /* return true (1) for Confirmation */
 static int ConfirmSignature(const byte* buf, word32 bufSz,
     const byte* key, word32 keySz, word32 keyOID,
