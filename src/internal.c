@@ -1544,13 +1544,15 @@ static int GetRecordHeader(CYASSL* ssl, const byte* input, word32* inOutIdx,
 
 #ifdef CYASSL_DTLS
     /* If DTLS, check the sequence number against expected. If out of
-     * order, drop the record. */
+     * order, drop the record. Allows newer records in and resets the
+     * expected to the next record. */
     if (ssl->options.dtls) {
         if ((ssl->keys.dtls_expected_peer_epoch ==
                                         ssl->keys.dtls_peer_epoch) &&
-                (ssl->keys.dtls_expected_peer_sequence_number ==
-                                        ssl->keys.dtls_peer_sequence_number)) {
-            ssl->keys.dtls_expected_peer_sequence_number++;
+                (ssl->keys.dtls_peer_sequence_number >=
+                                ssl->keys.dtls_expected_peer_sequence_number)) {
+            ssl->keys.dtls_expected_peer_sequence_number =
+                            ssl->keys.dtls_peer_sequence_number + 1;
         }
         else {
             return SEQUENCE_ERROR;
