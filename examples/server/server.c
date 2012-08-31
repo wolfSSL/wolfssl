@@ -262,8 +262,10 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 
 #if defined(CYASSL_SNIFFER) && !defined(HAVE_NTRU) && !defined(HAVE_ECC)
     /* don't use EDH, can't sniff tmp keys */
-    if (SSL_CTX_set_cipher_list(ctx, "AES256-SHA") != SSL_SUCCESS)
-        err_sys("can't set cipher list");
+    if (cipherList == NULL) {
+        if (SSL_CTX_set_cipher_list(ctx, "AES256-SHA") != SSL_SUCCESS)
+            err_sys("can't set cipher list");
+    }
 #endif
 
     ssl = SSL_new(ctx);
