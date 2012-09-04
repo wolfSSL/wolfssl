@@ -5088,7 +5088,7 @@ int SetCipherList(Suites* s, const char* list)
 
     int SendClientKeyExchange(CYASSL* ssl)
     {
-        byte   encSecret[MAX_NTRU_ENCRYPT_SZ];
+        byte   encSecret[MAX_ENCRYPT_SZ];
         word32 encSz = 0;
         word32 idx = 0;
         int    ret = 0;

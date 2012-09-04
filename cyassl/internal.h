@@ -474,6 +474,14 @@ enum Misc {
 };
 
 
+/* don't use extra 3/4k stack space unless need to */
+#ifdef HAVE_NTRU
+    #define MAX_ENCRYPT_SZ MAX_NTRU_ENCRYPT_SZ
+#else
+    #define MAX_ENCRYPT_SZ ENCRYPT_LEN
+#endif
+
+
 /* states */
 enum states {
     NULL_STATE = 0,
