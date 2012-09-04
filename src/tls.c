@@ -120,9 +120,9 @@ static void p_hash(byte* result, word32 resLen, const byte* secret,
 
 
 /* compute TLSv1 PRF (pseudo random function using HMAC) */
-static void PRF(byte* digest, word32 digLen, const byte* secret, word32 secLen,
+static void doPRF(byte* digest, word32 digLen, const byte* secret,word32 secLen,
             const byte* label, word32 labLen, const byte* seed, word32 seedLen,
-            int useAtLeastSha256, int hash_type)
+            int hash_type)
 {
     word32 half = (secLen + 1) / 2;
 
@@ -145,21 +145,39 @@ static void PRF(byte* digest, word32 digLen, const byte* secret, word32 secLen,
     XMEMCPY(labelSeed, label, labLen);
     XMEMCPY(labelSeed + labLen, seed, seedLen);
 
+    p_hash(md5_result, digLen, md5_half, half, labelSeed, labLen + seedLen,
+           md5_mac);
+    p_hash(sha_result, digLen, sha_half, half, labelSeed, labLen + seedLen,
+           sha_mac);
+    get_xor(digest, digLen, md5_result, sha_result);
+}
+
+
+/* Wrapper to call straight thru to p_hash in TSL 1.2 cases to remove stack
+   use */
+static void PRF(byte* digest, word32 digLen, const byte* secret, word32 secLen,
+            const byte* label, word32 labLen, const byte* seed, word32 seedLen,
+            int useAtLeastSha256, int hash_type)
+{
     if (useAtLeastSha256) {
+        byte labelSeed[MAX_PRF_LABSEED];    /* labLen + seedLen is real size */
+
+        if (labLen + seedLen > MAX_PRF_LABSEED)
+            return;
+
+        XMEMCPY(labelSeed, label, labLen);
+        XMEMCPY(labelSeed + labLen, seed, seedLen);
+
         /* If a cipher suite wants an algorithm better than sha256, it
          * should use better. */
         if (hash_type < sha256_mac)
             hash_type = sha256_mac;
         p_hash(digest, digLen, secret, secLen, labelSeed, labLen + seedLen,
                hash_type);
-        return;
     }
-
-    p_hash(md5_result, digLen, md5_half, half, labelSeed, labLen + seedLen,
-           md5_mac);
-    p_hash(sha_result, digLen, sha_half, half, labelSeed, labLen + seedLen,
-           sha_mac);
-    get_xor(digest, digLen, md5_result, sha_result);
+    else
+        doPRF(digest, digLen, secret, secLen, label, labLen, seed, seedLen,
+              hash_type);
 }
 
 
