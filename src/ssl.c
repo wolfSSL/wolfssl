@@ -870,7 +870,7 @@ int AddCA(CYASSL_CERT_MANAGER* cm, buffer der, int type, int verify)
             int  passwordSz;
             char password[80];
 
-            if (!info->ctx || !info->ctx->passwd_cb)
+            if (!info || !info->ctx || !info->ctx->passwd_cb)
                 return SSL_BAD_FILE;  /* no callback error */
             passwordSz = info->ctx->passwd_cb(password, sizeof(password), 0,
                                               info->ctx->userdata);

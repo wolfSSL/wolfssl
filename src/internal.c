@@ -5970,9 +5970,7 @@ int SetCipherList(Suites* s, const char* list)
                     ret = RsaSSL_Sign(signBuffer, signSz, output + idx, sigSz,
                                       &rsaKey, &ssl->rng);
                     FreeRsaKey(&rsaKey);
-                    if (ret > 0)
-                        ret = 0;  /* reset on success */
-                    else
+                    if (ret <= 0)
                         return ret;
                 }
             }
