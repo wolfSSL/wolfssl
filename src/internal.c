@@ -926,6 +926,7 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
     ssl->arrays.cookieSz                = 0;
 #endif
     ssl->keys.encryptionOn = 0;     /* initially off */
+    ssl->keys.decryptedCur = 0;     /* initially off */
     ssl->options.sessionCacheOff      = ctx->sessionCacheOff;
     ssl->options.sessionCacheFlushOff = ctx->sessionCacheFlushOff;
 
@@ -1577,6 +1578,9 @@ static int GetRecordHeader(CYASSL* ssl, const byte* input, word32* inOutIdx,
             CYASSL_MSG("Unknown Record Type"); 
             return UNKNOWN_RECORD_TYPE;
     }
+
+    /* haven't decrypted this record yet */
+    ssl->keys.decryptedCur = 0;
 
     return 0;
 }
@@ -2508,7 +2512,9 @@ static int DecryptMessage(CYASSL* ssl, byte* input, word32 sz, word32* idx)
 
     if (decryptResult == 0)
     {
-        ssl->keys.encryptSz = sz;
+        ssl->keys.encryptSz    = sz;
+        ssl->keys.decryptedCur = 1;
+
         if (ssl->options.tls1_1 && ssl->specs.cipher_type == block)
             *idx += ssl->specs.block_size;  /* go past TLSv1.1 IV */
         if (ssl->specs.cipher_type == aead)
@@ -2852,7 +2858,7 @@ int ProcessReply(CYASSL* ssl)
         /* the record layer is here */
         case runProcessingOneMessage:
 
-            if (ssl->keys.encryptionOn)
+            if (ssl->keys.encryptionOn && ssl->keys.decryptedCur == 0)
                 if (DecryptMessage(ssl, ssl->buffers.inputBuffer.buffer + 
                                         ssl->buffers.inputBuffer.idx,
                                         ssl->curSize,
@@ -2896,6 +2902,11 @@ int ProcessReply(CYASSL* ssl)
                             AddLateRecordHeader(&ssl->curRL, &ssl->timeoutInfo);
                         }
                     #endif
+
+                    if (ssl->curSize != 1) {
+                        CYASSL_MSG("Malicious or corrupted ChangeCipher msg");
+                        return LENGTH_ERROR;
+                    }
                     ssl->buffers.inputBuffer.idx++;
                     ssl->keys.encryptionOn = 1;
 

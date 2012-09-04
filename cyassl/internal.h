@@ -965,6 +965,7 @@ typedef struct Keys {
 
     word32 encryptSz;             /* last size of encrypted data   */
     byte   encryptionOn;          /* true after change cipher spec */
+    byte   decryptedCur;          /* only decrypt current record once */
 } Keys;
 
 
