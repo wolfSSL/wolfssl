@@ -1132,7 +1132,7 @@ static void CleanPreMaster(CYASSL* ssl)
 
 
 /* Create and store the master secret see page 32, 6.1 */
-int MakeMasterSecret(CYASSL* ssl)
+static int MakeSslMasterSecret(CYASSL* ssl)
 {
     byte   shaOutput[SHA_DIGEST_SIZE];
     byte   md5Input[ENCRYPT_LEN + SHA_DIGEST_SIZE];
@@ -1152,10 +1152,6 @@ int MakeMasterSecret(CYASSL* ssl)
             printf("%02x", ssl->arrays.preMasterSecret[j]);
         printf("\n");
     }
-#endif
-
-#ifndef NO_TLS
-    if (ssl->options.tls) return MakeTlsMasterSecret(ssl);
 #endif
 
     InitMd5(&md5);
@@ -1203,5 +1199,16 @@ int MakeMasterSecret(CYASSL* ssl)
     CleanPreMaster(ssl);
 
     return ret;
+}
+
+
+/* Master wrapper, doesn't use SSL stack space in TLS mode */
+int MakeMasterSecret(CYASSL* ssl)
+{
+#ifndef NO_TLS
+    if (ssl->options.tls) return MakeTlsMasterSecret(ssl);
+#endif
+
+    return MakeSslMasterSecret(ssl);
 }
 
