@@ -210,7 +210,7 @@ void RabbitProcess(Rabbit* ctx, byte* output, const byte* input, word32 msglen)
                    U32V(ctx->workCtx.x[1]<<16));
 
         /* Increment pointers and decrement length */
-        input += 16;
+        input  += 16;
         output += 16;
         msglen -= 16;
     }
@@ -219,25 +219,25 @@ void RabbitProcess(Rabbit* ctx, byte* output, const byte* input, word32 msglen)
     if (msglen) {
 
         word32 i;
-        word32 tmp[4];
-        byte*  buffer = (byte*)tmp;
+        byte   buffer[16];
 
         /* Iterate the system */
         RABBIT_next_state(&(ctx->workCtx));
 
         /* Generate 16 bytes of pseudo-random data */
-        tmp[0] = LITTLE32(ctx->workCtx.x[0] ^
+        *(word32*)(buffer+ 0) = LITTLE32(ctx->workCtx.x[0] ^
                   (ctx->workCtx.x[5]>>16) ^ U32V(ctx->workCtx.x[3]<<16));
-        tmp[1] = LITTLE32(ctx->workCtx.x[2] ^ 
+        *(word32*)(buffer+ 4) = LITTLE32(ctx->workCtx.x[2] ^ 
                   (ctx->workCtx.x[7]>>16) ^ U32V(ctx->workCtx.x[5]<<16));
-        tmp[2] = LITTLE32(ctx->workCtx.x[4] ^ 
+        *(word32*)(buffer+ 8) = LITTLE32(ctx->workCtx.x[4] ^ 
                   (ctx->workCtx.x[1]>>16) ^ U32V(ctx->workCtx.x[7]<<16));
-        tmp[3] = LITTLE32(ctx->workCtx.x[6] ^ 
+        *(word32*)(buffer+12) = LITTLE32(ctx->workCtx.x[6] ^ 
                   (ctx->workCtx.x[3]>>16) ^ U32V(ctx->workCtx.x[1]<<16));
 
         /* Encrypt/decrypt the data */
         for (i=0; i<msglen; i++)
-            output[i] = input[i] ^ buffer[i];
+            output[i] = input[i] ^ buffer[i];  /* scan-build thinks buffer[i] */
+                                               /* is garbage, it is not! */ 
     }
 }
 

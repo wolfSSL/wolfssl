@@ -760,8 +760,8 @@ static int DecryptKey(const char* password, int passwordSz, byte* salt,
 int ToTraditionalEnc(byte* input, word32 sz,const char* password,int passwordSz)
 {
     word32 inOutIdx = 0, oid;
-    int    first, second, length, iterations, saltSz, id;
-    int    version;
+    int    first, second, length, version, saltSz, id;
+    int    iterations = 0;
     byte   salt[MAX_SALT_SIZE];
     byte   cbcIv[MAX_IV_SIZE];
     
@@ -1375,6 +1375,7 @@ static int GetName(DecodedCert* cert, int nameType)
             cert->srcIdx += 2;
             id = cert->source[cert->srcIdx++]; 
             b  = cert->source[cert->srcIdx++];    /* strType */
+            (void)b;                              /* may want to validate? */
 
             if (GetLength(cert->source, &cert->srcIdx, &strLen,
                           cert->maxIdx) < 0)

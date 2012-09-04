@@ -1103,7 +1103,6 @@ int DeriveKeys(CYASSL* ssl)
         XMEMCPY(shaInput + idx, ssl->arrays.serverRandom, RAN_LEN);
         idx += RAN_LEN;
         XMEMCPY(shaInput + idx, ssl->arrays.clientRandom, RAN_LEN);
-        idx += RAN_LEN;
 
         ShaUpdate(&sha, shaInput, sizeof(shaInput) - KEY_PREFIX + j);
         ShaFinal(&sha, shaOutput);

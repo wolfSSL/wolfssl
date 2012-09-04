@@ -236,6 +236,16 @@ int PKCS12_PBKDF(byte* output, const byte* passwd, int passLen,const byte* salt,
         mp_int B1;
 
         if (hashType == MD5) {
+            Md5 md5;
+
+            InitMd5(&md5);
+            Md5Update(&md5, buffer, totalLen);
+            Md5Final(&md5, Ai);
+
+            for (i = 1; i < iterations; i++) {
+                Md5Update(&md5, Ai, u);
+                Md5Final(&md5, Ai);
+            }
         }
         else if (hashType == SHA) {
             Sha sha;
@@ -251,10 +261,30 @@ int PKCS12_PBKDF(byte* output, const byte* passwd, int passLen,const byte* salt,
         }
 #ifndef NO_SHA256
         else if (hashType == SHA256) {
+            Sha256 sha256;
+
+            InitSha256(&sha256);
+            Sha256Update(&sha256, buffer, totalLen);
+            Sha256Final(&sha256, Ai);
+
+            for (i = 1; i < iterations; i++) {
+                Sha256Update(&sha256, Ai, u);
+                Sha256Final(&sha256, Ai);
+            }
         }
 #endif
 #ifdef CYASSL_SHA512
         else if (hashType == SHA512) {
+            Sha512 sha512;
+
+            InitSha512(&sha512);
+            Sha512Update(&sha512, buffer, totalLen);
+            Sha512Final(&sha512, Ai);
+
+            for (i = 1; i < iterations; i++) {
+                Sha512Update(&sha512, Ai, u);
+                Sha512Final(&sha512, Ai);
+            }
         }
 #endif
 

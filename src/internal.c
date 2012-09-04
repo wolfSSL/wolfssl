@@ -449,7 +449,6 @@ void InitSuites(Suites* suites, ProtocolVersion pv, byte haveDH, byte havePSK,
     (void)havePSK;
     (void)haveNTRU;
     (void)haveStaticECC;
-    (void)haveRSAsig;
 
     if (suites->setSuites)
         return;      /* trust user settings, don't override */
@@ -457,8 +456,10 @@ void InitSuites(Suites* suites, ProtocolVersion pv, byte haveDH, byte havePSK,
     if (side == SERVER_END && haveStaticECC)
         haveRSA = 0;   /* can't do RSA with ECDSA key */
 
-    if (side == SERVER_END && haveECDSAsig)
-        haveRSAsig = 0;  /* can't have RSA sig if signed by ECDSA */
+    if (side == SERVER_END && haveECDSAsig) {
+        haveRSAsig = 0;     /* can't have RSA sig if signed by ECDSA */
+        (void)haveRSAsig;   /* non ecc builds won't read */
+    }
 
 #ifdef CYASSL_DTLS
     if (pv.major == DTLS_MAJOR && pv.minor == DTLS_MINOR)
@@ -3349,7 +3350,8 @@ int SendCertificate(CYASSL* ssl)
         if (ssl->buffers.certChain.buffer) {
             XMEMCPY(output + i, ssl->buffers.certChain.buffer,
                                 ssl->buffers.certChain.length);
-            i += ssl->buffers.certChain.length;
+            /* if add more to output adjust i
+               i += ssl->buffers.certChain.length; */
         }
     }
     HashOutput(ssl, output, sendSz, 0);
@@ -3418,7 +3420,8 @@ int SendCertificateRequest(CYASSL* ssl)
     }
 
     c16toa(0, &output[i]);  /* auth's */
-    i += REQ_HEADER_SZ;
+    /* if add more to output, adjust i
+    i += REQ_HEADER_SZ; */
 
     HashOutput(ssl, output, sendSz, 0);
 
@@ -5259,7 +5262,8 @@ int SetCipherList(Suites* s, const char* list)
                 idx += 2;
             }
             XMEMCPY(output + idx, encSecret, encSz);
-            idx += encSz;
+            /* if add more to output, adjust idx
+            idx += encSz; */
 
             HashOutput(ssl, output, sendSz, 0);
 

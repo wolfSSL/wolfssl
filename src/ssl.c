@@ -722,7 +722,6 @@ int AddCA(CYASSL_CERT_MANAGER* cm, buffer der, int type, int verify)
 
         (void)heap;
         (void)dynamicType;
-        (void)pkcs8Enc;
 
         if (type == CERT_TYPE || type == CA_TYPE)  {
             XSTRNCPY(header, "-----BEGIN CERTIFICATE-----", sizeof(header));
@@ -759,8 +758,10 @@ int AddCA(CYASSL_CERT_MANAGER* cm, buffer der, int type, int verify)
                         sizeof(footer));
 
                 headerEnd = XSTRNSTR((char*)buff, header, sz);
-                if (headerEnd)
+                if (headerEnd) {
                     pkcs8Enc = 1;
+                    (void)pkcs8Enc;  /* only opensslextra will read */
+                }
             }
         }
         if (!headerEnd && type == PRIVATEKEY_TYPE) {  /* may be ecc */
@@ -936,7 +937,7 @@ int AddCA(CYASSL_CERT_MANAGER* cm, buffer der, int type, int verify)
                     CYASSL_MSG("Growing Tmp Chain Buffer");
                     bufferSz = sz - consumed;  /* will shrink to actual size */
                     chainBuffer = (byte*)XMALLOC(bufferSz, ctx->heap,
-                                                 DYNAMIC_FILE_TYPE);
+                                                 DYNAMIC_TYPE_FILE);
                     if (chainBuffer == NULL) {
                         XFREE(der.buffer, ctx->heap, dynamicType);
                         return MEMORY_E;
@@ -1386,6 +1387,7 @@ int CyaSSL_CertManagerVerifyBuffer(CYASSL_CERT_MANAGER* cm, const byte* buff,
     CYASSL_ENTER("CyaSSL_CertManagerVerifyBuffer");
 
     der.buffer = NULL;
+    der.length = 0;
 
     if (format == SSL_FILETYPE_PEM) { 
         EncryptedInfo info;
