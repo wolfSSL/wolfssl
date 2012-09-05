@@ -213,25 +213,24 @@ int CyaSSL_negotiate(CYASSL* ssl)
 int CyaSSL_GetObjectSize(void)
 {
 #ifdef SHOW_SIZES
-    printf("sizeof suites           = %d\n", sizeof(Suites));
-    printf("sizeof ciphers(2)       = %d\n", sizeof(Ciphers));
-    printf("\tsizeof arc4           = %d\n", sizeof(Arc4));
-    printf("\tsizeof aes            = %d\n", sizeof(Aes));
-    printf("\tsizeof des3           = %d\n", sizeof(Des3));
-    printf("\tsizeof rabbit         = %d\n", sizeof(Rabbitj));
-    printf("sizeof cipher specs     = %d\n", sizeof(CipherSpecs));
-    printf("sizeof keys             = %d\n", sizeof(Keys));
-    printf("sizeof RNG              = %d\n", sizeof(RNG));
-    printf("sizeof MD5              = %d\n", sizeof(Md5));
-    printf("sizeof SHA              = %d\n", sizeof(Sha));
-    printf("sizeof SHA256           = %d\n", sizeof(Sha256));
-    printf("sizeof Hashes(2)        = %d\n", sizeof(Hashes));
-    printf("sizeof Buffers          = %d\n", sizeof(Buffers));
-    printf("sizeof Options          = %d\n", sizeof(Options));
-    printf("sizeof Arrays           = %d\n", sizeof(Arrays));
-    printf("sizeof Session          = %d\n", sizeof(CYASSL_SESSION));
-    printf("sizeof peerKey          = %d\n", sizeof(RsaKey));
-    printf("sizeof CYASSL_CIPHER    = %d\n", sizeof(CYASSL_CIPHER));
+    printf("sizeof suites           = %lu\n", sizeof(Suites));
+    printf("sizeof ciphers(2)       = %lu\n", sizeof(Ciphers));
+    printf("\tsizeof arc4           = %lu\n", sizeof(Arc4));
+    printf("\tsizeof aes            = %lu\n", sizeof(Aes));
+    printf("\tsizeof des3           = %lu\n", sizeof(Des3));
+    printf("\tsizeof rabbit         = %lu\n", sizeof(Rabbit));
+    printf("sizeof cipher specs     = %lu\n", sizeof(CipherSpecs));
+    printf("sizeof keys             = %lu\n", sizeof(Keys));
+    printf("sizeof MD5              = %lu\n", sizeof(Md5));
+    printf("sizeof SHA              = %lu\n", sizeof(Sha));
+    printf("sizeof SHA256           = %lu\n", sizeof(Sha256));
+    printf("sizeof Hashes(2)        = %lu\n", sizeof(Hashes));
+    printf("sizeof Buffers          = %lu\n", sizeof(Buffers));
+    printf("sizeof Options          = %lu\n", sizeof(Options));
+    printf("sizeof Arrays           = %lu\n", sizeof(Arrays));
+    printf("sizeof Session          = %lu\n", sizeof(CYASSL_SESSION));
+    printf("sizeof peerKey          = %lu\n", sizeof(RsaKey));
+    printf("sizeof CYASSL_CIPHER    = %lu\n", sizeof(CYASSL_CIPHER));
 #endif
 
     return sizeof(CYASSL);
@@ -2490,7 +2489,7 @@ int CyaSSL_set_cipher_list(CYASSL* ssl, const char* list)
         #ifdef HAVE_ECC
             /* in case used set_accept_state after init */
             if (ssl->eccTempKeyPresent == 0) {
-                if (ecc_make_key(&ssl->rng, ssl->eccTempKeySz,
+                if (ecc_make_key(ssl->rng, ssl->eccTempKeySz,
                                  &ssl->eccTempKey) != 0) {
                     ssl->error = ECC_MAKEKEY_ERROR;
                     CYASSL_ERROR(ssl->error);

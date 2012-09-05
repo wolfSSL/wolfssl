@@ -217,7 +217,8 @@ enum {
     DYNAMIC_TYPE_OCSP_ENTRY   = 28,
     DYNAMIC_TYPE_ALTNAME      = 29,
     DYNAMIC_TYPE_SUITES       = 30,
-    DYNAMIC_TYPE_CIPHER       = 31 
+    DYNAMIC_TYPE_CIPHER       = 31,
+    DYNAMIC_TYPE_RNG          = 32 
 };
 
 /* stack protection */

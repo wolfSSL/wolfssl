@@ -1098,7 +1098,7 @@ int StoreKeys(CYASSL* ssl, const byte* keyData)
     XMEMCPY(ssl->keys.server_write_IV, &keyData[i], sz);
 
     return SetKeys(&ssl->encrypt, &ssl->decrypt, &ssl->keys, &ssl->specs,
-                   ssl->options.side, ssl->heap, &ssl->rng);
+                   ssl->options.side, ssl->heap, ssl->rng);
 }
 
 
@@ -1156,7 +1156,7 @@ static void CleanPreMaster(CYASSL* ssl)
     for (i = 0; i < sz; i++)
         ssl->arrays.preMasterSecret[i] = 0;
 
-    RNG_GenerateBlock(&ssl->rng, ssl->arrays.preMasterSecret, sz);
+    RNG_GenerateBlock(ssl->rng, ssl->arrays.preMasterSecret, sz);
 
     for (i = 0; i < sz; i++)
         ssl->arrays.preMasterSecret[i] = 0;

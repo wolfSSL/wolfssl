@@ -1226,7 +1226,7 @@ struct CYASSL {
     CYASSL_BIO*     biowr;              /* socket bio write to free/close */
     void*           IOCB_ReadCtx;
     void*           IOCB_WriteCtx;
-    RNG             rng;
+    RNG*            rng;
     Md5             hashMd5;            /* md5 hash of handshake msgs */
     Sha             hashSha;            /* sha hash of handshake msgs */
 #ifndef NO_SHA256
