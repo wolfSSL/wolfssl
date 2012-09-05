@@ -978,23 +978,27 @@ typedef struct Keys {
 
 
 /* cipher for now */
-typedef union {
+typedef struct Ciphers {
 #ifdef BUILD_ARC4
-    Arc4   arc4;
+    Arc4*   arc4;
 #endif
 #ifdef BUILD_DES3
-    Des3   des3;
+    Des3*   des3;
 #endif
 #ifdef BUILD_AES
-    Aes    aes;
+    Aes*    aes;
 #endif
 #ifdef HAVE_HC128
-    HC128  hc128;
+    HC128*  hc128;
 #endif
 #ifdef BUILD_RABBIT
-    Rabbit rabbit;
+    Rabbit* rabbit;
 #endif
 } Ciphers;
+
+
+CYASSL_LOCAL void InitCiphers(CYASSL* ssl);
+CYASSL_LOCAL void FreeCiphers(CYASSL* ssl);
 
 
 /* hashes type */

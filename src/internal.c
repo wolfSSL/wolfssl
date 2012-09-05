@@ -434,7 +434,59 @@ void FreeSSL_Ctx(CYASSL_CTX* ctx)
     }
 }
 
-    
+
+/* Set cipher pointers to null */
+void InitCiphers(CYASSL* ssl)
+{
+#ifdef BUILD_ARC4
+    ssl->encrypt.arc4 = NULL;
+    ssl->decrypt.arc4 = NULL;
+#endif
+#ifdef BUILD_DES3
+    ssl->encrypt.des3 = NULL;
+    ssl->decrypt.des3 = NULL;
+#endif
+#ifdef BUILD_AES
+    ssl->encrypt.aes = NULL;
+    ssl->decrypt.aes = NULL;
+#endif
+#ifdef HAVE_HC128
+    ssl->encrypt.hc128 = NULL;
+    ssl->decrypt.hc128 = NULL;
+#endif
+#ifdef BUILD_RABBIT
+    ssl->encrypt.rabbit = NULL;
+    ssl->decrypt.rabbit = NULL;
+#endif
+}
+
+
+/* Free ciphers */
+void FreeCiphers(CYASSL* ssl)
+{
+#ifdef BUILD_ARC4
+    XFREE(ssl->encrypt.arc4, ssl->heap, DYNAMIC_TYPE_CIPHER);
+    XFREE(ssl->decrypt.arc4, ssl->heap, DYNAMIC_TYPE_CIPHER);
+#endif
+#ifdef BUILD_DES3
+    XFREE(ssl->encrypt.des3, ssl->heap, DYNAMIC_TYPE_CIPHER);
+    XFREE(ssl->decrypt.des3, ssl->heap, DYNAMIC_TYPE_CIPHER);
+#endif
+#ifdef BUILD_AES
+    XFREE(ssl->encrypt.aes, ssl->heap, DYNAMIC_TYPE_CIPHER);
+    XFREE(ssl->decrypt.aes, ssl->heap, DYNAMIC_TYPE_CIPHER);
+#endif
+#ifdef HAVE_HC128
+    XFREE(ssl->encrypt.hc128, ssl->heap, DYNAMIC_TYPE_CIPHER);
+    XFREE(ssl->decrypt.hc128, ssl->heap, DYNAMIC_TYPE_CIPHER);
+#endif
+#ifdef BUILD_RABBIT
+    XFREE(ssl->encrypt.rabbit, ssl->heap, DYNAMIC_TYPE_CIPHER);
+    XFREE(ssl->decrypt.rabbit, ssl->heap, DYNAMIC_TYPE_CIPHER);
+#endif
+}
+
+
 void InitSuites(Suites* suites, ProtocolVersion pv, byte haveDH, byte havePSK,
                 byte haveNTRU, byte haveECDSAsig, byte haveStaticECC, int side)
 {
@@ -1002,6 +1054,7 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
         ssl->arrays.server_hint[0] = 0;
 #endif /* NO_PSK */
 
+    InitCiphers(ssl);
     /* all done with init, now can return errors, call other stuff */
 
     /* increment CTX reference count */
@@ -1047,6 +1100,7 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
 /* In case holding SSL object in array and don't want to free actual ssl */
 void SSL_ResourceFree(CYASSL* ssl)
 {
+    FreeCiphers(ssl);
     XFREE(ssl->suites, ssl->heap, DYNAMIC_TYPE_SUITES);
     XFREE(ssl->buffers.serverDH_Priv.buffer, ssl->heap, DYNAMIC_TYPE_DH);
     XFREE(ssl->buffers.serverDH_Pub.buffer, ssl->heap, DYNAMIC_TYPE_DH);
@@ -2387,13 +2441,13 @@ static INLINE void Encrypt(CYASSL* ssl, byte* out, const byte* input, word32 sz)
     switch (ssl->specs.bulk_cipher_algorithm) {
         #ifdef BUILD_ARC4
             case rc4:
-                Arc4Process(&ssl->encrypt.arc4, out, input, sz);
+                Arc4Process(ssl->encrypt.arc4, out, input, sz);
                 break;
         #endif
 
         #ifdef BUILD_DES3
             case triple_des:
-                Des3_CbcEncrypt(&ssl->encrypt.des3, out, input, sz);
+                Des3_CbcEncrypt(ssl->encrypt.des3, out, input, sz);
                 break;
         #endif
 
@@ -2403,12 +2457,12 @@ static INLINE void Encrypt(CYASSL* ssl, byte* out, const byte* input, word32 sz)
                 if ((word)input % 16) {
                     byte buffer[MAX_RECORD_SIZE + MAX_COMP_EXTRA+MAX_MSG_EXTRA];
                     XMEMCPY(buffer, input, sz);
-                    AesCbcEncrypt(&ssl->encrypt.aes, buffer, buffer, sz);
+                    AesCbcEncrypt(ssl->encrypt.aes, buffer, buffer, sz);
                     XMEMCPY(out, buffer, sz);
                     break;
                 }
             #endif
-                AesCbcEncrypt(&ssl->encrypt.aes, out, input, sz);
+                AesCbcEncrypt(ssl->encrypt.aes, out, input, sz);
                 break;
         #endif
 
@@ -2431,25 +2485,25 @@ static INLINE void Encrypt(CYASSL* ssl, byte* out, const byte* input, word32 sz)
                      * IV length minus the authentication tag size. */
                     c16toa(sz - AES_GCM_EXP_IV_SZ - AEAD_AUTH_TAG_SZ,
                                                 additional + AEAD_LEN_OFFSET);
-                    AesGcmEncrypt(&ssl->encrypt.aes,
+                    AesGcmEncrypt(ssl->encrypt.aes,
                         out + AES_GCM_EXP_IV_SZ, input + AES_GCM_EXP_IV_SZ,
                             sz - AES_GCM_EXP_IV_SZ - AEAD_AUTH_TAG_SZ,
                         out + sz - AEAD_AUTH_TAG_SZ, AEAD_AUTH_TAG_SZ,
                         additional, AEAD_AUTH_DATA_SZ);
-                    AesGcmIncExpIV(&ssl->encrypt.aes);
+                    AesGcmIncExpIV(ssl->encrypt.aes);
                 }
                 break;
         #endif
 
         #ifdef HAVE_HC128
             case hc128:
-                Hc128_Process(&ssl->encrypt.hc128, out, input, sz);
+                Hc128_Process(ssl->encrypt.hc128, out, input, sz);
                 break;
         #endif
 
         #ifdef BUILD_RABBIT
             case rabbit:
-                RabbitProcess(&ssl->encrypt.rabbit, out, input, sz);
+                RabbitProcess(ssl->encrypt.rabbit, out, input, sz);
                 break;
         #endif
 
@@ -2465,19 +2519,19 @@ static INLINE int Decrypt(CYASSL* ssl, byte* plain, const byte* input,
     switch (ssl->specs.bulk_cipher_algorithm) {
         #ifdef BUILD_ARC4
             case rc4:
-                Arc4Process(&ssl->decrypt.arc4, plain, input, sz);
+                Arc4Process(ssl->decrypt.arc4, plain, input, sz);
                 break;
         #endif
 
         #ifdef BUILD_DES3
             case triple_des:
-                Des3_CbcDecrypt(&ssl->decrypt.des3, plain, input, sz);
+                Des3_CbcDecrypt(ssl->decrypt.des3, plain, input, sz);
                 break;
         #endif
 
         #ifdef BUILD_AES
             case aes:
-                AesCbcDecrypt(&ssl->decrypt.aes, plain, input, sz);
+                AesCbcDecrypt(ssl->decrypt.aes, plain, input, sz);
                 break;
         #endif
 
@@ -2486,7 +2540,7 @@ static INLINE int Decrypt(CYASSL* ssl, byte* plain, const byte* input,
             {
                 byte additional[AES_BLOCK_SIZE];
 
-                AesGcmSetExpIV(&ssl->decrypt.aes, input);
+                AesGcmSetExpIV(ssl->decrypt.aes, input);
                 XMEMSET(additional, 0, AES_BLOCK_SIZE);
 
                 /* sequence number field is 64-bits, we only use 32-bits */
@@ -2498,7 +2552,7 @@ static INLINE int Decrypt(CYASSL* ssl, byte* plain, const byte* input,
 
                 c16toa(sz - AES_GCM_EXP_IV_SZ - AEAD_AUTH_TAG_SZ,
                                         additional + AEAD_LEN_OFFSET);
-                if (AesGcmDecrypt(&ssl->decrypt.aes,
+                if (AesGcmDecrypt(ssl->decrypt.aes,
                             plain + AES_GCM_EXP_IV_SZ,
                             input + AES_GCM_EXP_IV_SZ,
                                 sz - AES_GCM_EXP_IV_SZ - AEAD_AUTH_TAG_SZ,
@@ -2513,13 +2567,13 @@ static INLINE int Decrypt(CYASSL* ssl, byte* plain, const byte* input,
 
         #ifdef HAVE_HC128
             case hc128:
-                Hc128_Process(&ssl->decrypt.hc128, plain, input, sz);
+                Hc128_Process(ssl->decrypt.hc128, plain, input, sz);
                 break;
         #endif
 
         #ifdef BUILD_RABBIT
             case rabbit:
-                RabbitProcess(&ssl->decrypt.rabbit, plain, input, sz);
+                RabbitProcess(ssl->decrypt.rabbit, plain, input, sz);
                 break;
         #endif
 
@@ -3227,7 +3281,7 @@ static int BuildMessage(CYASSL* ssl, byte* output, const byte* input, int inSz,
     if (ssl->specs.cipher_type == aead) {
         ivSz = AES_GCM_EXP_IV_SZ;
         sz += (ivSz + 16 - digestSz);
-        AesGcmGetExpIV(&ssl->encrypt.aes, iv);
+        AesGcmGetExpIV(ssl->encrypt.aes, iv);
     }
 #endif
     size = (word16)(sz - headerSz);    /* include mac and digest */

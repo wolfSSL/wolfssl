@@ -121,8 +121,7 @@ static void p_hash(byte* result, word32 resLen, const byte* secret,
 
 /* compute TLSv1 PRF (pseudo random function using HMAC) */
 static void doPRF(byte* digest, word32 digLen, const byte* secret,word32 secLen,
-            const byte* label, word32 labLen, const byte* seed, word32 seedLen,
-            int hash_type)
+            const byte* label, word32 labLen, const byte* seed, word32 seedLen)
 {
     word32 half = (secLen + 1) / 2;
 
@@ -176,8 +175,7 @@ static void PRF(byte* digest, word32 digLen, const byte* secret, word32 secLen,
                hash_type);
     }
     else
-        doPRF(digest, digLen, secret, secLen, label, labLen, seed, seedLen,
-              hash_type);
+        doPRF(digest, digLen, secret, secLen, label, labLen, seed, seedLen);
 }
 
 

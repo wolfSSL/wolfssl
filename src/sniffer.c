@@ -217,7 +217,8 @@ static const char* const msgTable[] =
 
     /* 66 */
     "Bad Finished Message Processing",
-    "Bad Compression Type"
+    "Bad Compression Type",
+    "Bad DeriveKeys Error"
 };
 
 
@@ -1205,6 +1206,7 @@ static int ProcessServerHello(const byte* input, int* sslBytes,
     }
 
     if (doResume ) {
+        int ret = 0;
         SSL_SESSION* resume = GetSession(session->sslServer,
                                        session->sslServer->arrays.masterSecret);
         if (resume == NULL) {
@@ -1228,12 +1230,16 @@ static int ProcessServerHello(const byte* input, int* sslBytes,
         }
         
         if (session->sslServer->options.tls) {
-            DeriveTlsKeys(session->sslServer);
-            DeriveTlsKeys(session->sslClient);
+            ret =  DeriveTlsKeys(session->sslServer);
+            ret += DeriveTlsKeys(session->sslClient);
         }
         else {
-            DeriveKeys(session->sslServer);
-            DeriveKeys(session->sslClient);
+            ret =  DeriveKeys(session->sslServer);
+            ret += DeriveKeys(session->sslClient);
+        }
+        if (ret != 0) {
+            SetError(BAD_DERIVE_STR, error, session, FATAL_ERROR_STATE);
+            return -1;
         }
     }
 #ifdef SHOW_SECRETS
@@ -1517,31 +1523,31 @@ static void Decrypt(SSL* ssl, byte* output, const byte* input, word32 sz)
     switch (ssl->specs.bulk_cipher_algorithm) {
         #ifdef BUILD_ARC4
         case rc4:
-            Arc4Process(&ssl->decrypt.arc4, output, input, sz);
+            Arc4Process(ssl->decrypt.arc4, output, input, sz);
             break;
         #endif
             
         #ifdef BUILD_DES3
         case triple_des:
-            Des3_CbcDecrypt(&ssl->decrypt.des3, output, input, sz);
+            Des3_CbcDecrypt(ssl->decrypt.des3, output, input, sz);
             break;
         #endif
             
         #ifdef BUILD_AES
         case aes:
-            AesCbcDecrypt(&ssl->decrypt.aes, output, input, sz);
+            AesCbcDecrypt(ssl->decrypt.aes, output, input, sz);
             break;
         #endif
             
         #ifdef HAVE_HC128
         case hc128:
-            Hc128_Process(&ssl->decrypt.hc128, output, input, sz);
+            Hc128_Process(ssl->decrypt.hc128, output, input, sz);
             break;
         #endif
             
         #ifdef BUILD_RABBIT
         case rabbit:
-            RabbitProcess(&ssl->decrypt.rabbit, output, input, sz);
+            RabbitProcess(ssl->decrypt.rabbit, output, input, sz);
             break;
         #endif
 

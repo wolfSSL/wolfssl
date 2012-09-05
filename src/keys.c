@@ -918,34 +918,46 @@ static int SetPrefix(byte* sha_input, int idx)
 
 
 static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
-                   byte side)
+                   byte side, void* heap, RNG* rng)
 {
 #ifdef BUILD_ARC4
     word32 sz = specs->key_size;
     if (specs->bulk_cipher_algorithm == rc4) {
+        enc->arc4 = (Arc4*)XMALLOC(sizeof(Arc4), heap, DYNAMIC_TYPE_CIPHER);
+        if (enc->arc4 == NULL)
+            return MEMORY_E;
+        dec->arc4 = (Arc4*)XMALLOC(sizeof(Arc4), heap, DYNAMIC_TYPE_CIPHER);
+        if (dec->arc4 == NULL)
+            return MEMORY_E;
         if (side == CLIENT_END) {
-            Arc4SetKey(&enc->arc4, keys->client_write_key, sz);
-            Arc4SetKey(&dec->arc4, keys->server_write_key, sz);
+            Arc4SetKey(enc->arc4, keys->client_write_key, sz);
+            Arc4SetKey(dec->arc4, keys->server_write_key, sz);
         }
         else {
-            Arc4SetKey(&enc->arc4, keys->server_write_key, sz);
-            Arc4SetKey(&dec->arc4, keys->client_write_key, sz);
+            Arc4SetKey(enc->arc4, keys->server_write_key, sz);
+            Arc4SetKey(dec->arc4, keys->client_write_key, sz);
         }
     }
 #endif
     
 #ifdef HAVE_HC128
     if (specs->bulk_cipher_algorithm == hc128) {
+        enc->hc128 = (HC128*)XMALLOC(sizeof(HC128), heap, DYNAMIC_TYPE_CIPHER);
+        if (enc->hc128 == NULL)
+            return MEMORY_E;
+        dec->hc128 = (HC128*)XMALLOC(sizeof(HC128), heap, DYNAMIC_TYPE_CIPHER);
+        if (dec->hc128 == NULL)
+            return MEMORY_E;
         if (side == CLIENT_END) {
-            Hc128_SetKey(&enc->hc128, keys->client_write_key,
+            Hc128_SetKey(enc->hc128, keys->client_write_key,
                                           keys->client_write_IV);
-            Hc128_SetKey(&dec->hc128, keys->server_write_key,
+            Hc128_SetKey(dec->hc128, keys->server_write_key,
                                           keys->server_write_IV);
         }
         else {
-            Hc128_SetKey(&enc->hc128, keys->server_write_key,
+            Hc128_SetKey(enc->hc128, keys->server_write_key,
                                          keys->server_write_IV);
-            Hc128_SetKey(&dec->hc128, keys->client_write_key,
+            Hc128_SetKey(dec->hc128, keys->client_write_key,
                                          keys->client_write_IV);
         }
     }
@@ -953,16 +965,22 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
     
 #ifdef BUILD_RABBIT
     if (specs->bulk_cipher_algorithm == rabbit) {
+        enc->rabbit = (Rabbit*)XMALLOC(sizeof(Rabbit),heap,DYNAMIC_TYPE_CIPHER);
+        if (enc->rabbit == NULL)
+            return MEMORY_E;
+        dec->rabbit = (Rabbit*)XMALLOC(sizeof(Rabbit),heap,DYNAMIC_TYPE_CIPHER);
+        if (dec->rabbit == NULL)
+            return MEMORY_E;
         if (side == CLIENT_END) {
-            RabbitSetKey(&enc->rabbit, keys->client_write_key,
+            RabbitSetKey(enc->rabbit, keys->client_write_key,
                                            keys->client_write_IV);
-            RabbitSetKey(&dec->rabbit, keys->server_write_key,
+            RabbitSetKey(dec->rabbit, keys->server_write_key,
                                            keys->server_write_IV);
         }
         else {
-            RabbitSetKey(&enc->rabbit, keys->server_write_key,
+            RabbitSetKey(enc->rabbit, keys->server_write_key,
                                            keys->server_write_IV);
-            RabbitSetKey(&dec->rabbit, keys->client_write_key,
+            RabbitSetKey(dec->rabbit, keys->client_write_key,
                                            keys->client_write_IV);
         }
     }
@@ -970,16 +988,22 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
     
 #ifdef BUILD_DES3
     if (specs->bulk_cipher_algorithm == triple_des) {
+        enc->des3 = (Des3*)XMALLOC(sizeof(Des3), heap, DYNAMIC_TYPE_CIPHER);
+        if (enc->des3 == NULL)
+            return MEMORY_E;
+        dec->des3 = (Des3*)XMALLOC(sizeof(Des3), heap, DYNAMIC_TYPE_CIPHER);
+        if (dec->des3 == NULL)
+            return MEMORY_E;
         if (side == CLIENT_END) {
-            Des3_SetKey(&enc->des3, keys->client_write_key,
+            Des3_SetKey(enc->des3, keys->client_write_key,
                         keys->client_write_IV, DES_ENCRYPTION);
-            Des3_SetKey(&dec->des3, keys->server_write_key,
+            Des3_SetKey(dec->des3, keys->server_write_key,
                         keys->server_write_IV, DES_DECRYPTION);
         }
         else {
-            Des3_SetKey(&enc->des3, keys->server_write_key,
+            Des3_SetKey(enc->des3, keys->server_write_key,
                         keys->server_write_IV, DES_ENCRYPTION);
-            Des3_SetKey(&dec->des3, keys->client_write_key,
+            Des3_SetKey(dec->des3, keys->client_write_key,
                 keys->client_write_IV, DES_DECRYPTION);
         }
     }
@@ -987,19 +1011,25 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
 
 #ifdef BUILD_AES
     if (specs->bulk_cipher_algorithm == aes) {
+        enc->aes = (Aes*)XMALLOC(sizeof(Aes), heap, DYNAMIC_TYPE_CIPHER);
+        if (enc->aes == NULL)
+            return MEMORY_E;
+        dec->aes = (Aes*)XMALLOC(sizeof(Aes), heap, DYNAMIC_TYPE_CIPHER);
+        if (dec->aes == NULL)
+            return MEMORY_E;
         if (side == CLIENT_END) {
-            AesSetKey(&enc->aes, keys->client_write_key,
+            AesSetKey(enc->aes, keys->client_write_key,
                       specs->key_size, keys->client_write_IV,
                       AES_ENCRYPTION);
-            AesSetKey(&dec->aes, keys->server_write_key,
+            AesSetKey(dec->aes, keys->server_write_key,
                       specs->key_size, keys->server_write_IV,
                       AES_DECRYPTION);
         }
         else {
-            AesSetKey(&enc->aes, keys->server_write_key,
+            AesSetKey(enc->aes, keys->server_write_key,
                       specs->key_size, keys->server_write_IV,
                       AES_ENCRYPTION);
-            AesSetKey(&dec->aes, keys->client_write_key,
+            AesSetKey(dec->aes, keys->client_write_key,
                       specs->key_size, keys->client_write_IV,
                       AES_DECRYPTION);
         }
@@ -1008,16 +1038,28 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
 
 #ifdef BUILD_AESGCM
     if (specs->bulk_cipher_algorithm == aes_gcm) {
+        byte iv[AES_GCM_EXP_IV_SZ];
+        enc->aes = (Aes*)XMALLOC(sizeof(Aes), heap, DYNAMIC_TYPE_CIPHER);
+        if (enc->aes == NULL)
+            return MEMORY_E;
+        dec->aes = (Aes*)XMALLOC(sizeof(Aes), heap, DYNAMIC_TYPE_CIPHER);
+        if (dec->aes == NULL)
+            return MEMORY_E;
+
+        /* Initialize the AES-GCM explicit IV to a random number. */
+        RNG_GenerateBlock(rng, iv, sizeof(iv));
+        AesGcmSetExpIV(enc->aes, iv);
+
         if (side == CLIENT_END) {
-            AesGcmSetKey(&enc->aes, keys->client_write_key, specs->key_size,
+            AesGcmSetKey(enc->aes, keys->client_write_key, specs->key_size,
                         keys->client_write_IV);
-            AesGcmSetKey(&dec->aes, keys->server_write_key, specs->key_size,
+            AesGcmSetKey(dec->aes, keys->server_write_key, specs->key_size,
                         keys->server_write_IV);
         }
         else {
-            AesGcmSetKey(&enc->aes, keys->server_write_key, specs->key_size,
+            AesGcmSetKey(enc->aes, keys->server_write_key, specs->key_size,
                         keys->server_write_IV);
-            AesGcmSetKey(&dec->aes, keys->client_write_key, specs->key_size,
+            AesGcmSetKey(dec->aes, keys->client_write_key, specs->key_size,
                         keys->client_write_IV);
         }
     }
@@ -1026,6 +1068,7 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
     keys->sequence_number      = 0;
     keys->peer_sequence_number = 0;
     keys->encryptionOn         = 0;
+    (void)rng;
 
     return 0;
 }
@@ -1043,16 +1086,6 @@ int StoreKeys(CYASSL* ssl, const byte* keyData)
         XMEMCPY(ssl->keys.server_write_MAC_secret,&keyData[i], sz);
         i += sz;
     }
-#ifdef BUILD_AESGCM
-    else if (ssl->specs.bulk_cipher_algorithm == aes_gcm) {
-        byte iv[AES_GCM_EXP_IV_SZ];
-
-        /* Initialize the AES-GCM explicit IV to a random number. */
-        RNG_GenerateBlock(&ssl->rng, iv, sizeof(iv));
-        AesGcmSetExpIV(&ssl->encrypt.aes, iv);
-    }
-#endif
-
     sz = ssl->specs.key_size;
     XMEMCPY(ssl->keys.client_write_key, &keyData[i], sz);
     i += sz;
@@ -1065,7 +1098,7 @@ int StoreKeys(CYASSL* ssl, const byte* keyData)
     XMEMCPY(ssl->keys.server_write_IV, &keyData[i], sz);
 
     return SetKeys(&ssl->encrypt, &ssl->decrypt, &ssl->keys, &ssl->specs,
-                   ssl->options.side);
+                   ssl->options.side, ssl->heap, &ssl->rng);
 }
 
 
