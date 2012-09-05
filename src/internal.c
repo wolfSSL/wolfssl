@@ -450,6 +450,11 @@ void InitSuites(Suites* suites, ProtocolVersion pv, byte haveDH, byte havePSK,
     (void)haveNTRU;
     (void)haveStaticECC;
 
+    if (suites == NULL) {
+        CYASSL_MSG("InitSuites pointer error");
+        return; 
+    }
+
     if (suites->setSuites)
         return;      /* trust user settings, don't override */
 
@@ -815,7 +820,7 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
 
     ssl->ctx     = ctx; /* only for passing to calls, options could change */
     ssl->version = ctx->method->version;
-    ssl->suites  = ctx->suites;
+    ssl->suites  = NULL;
 
 #ifdef HAVE_LIBZ
     ssl->didStreamInit = 0;
@@ -1010,6 +1015,14 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
     if ( (ret = InitRng(&ssl->rng)) != 0)
         return ret;
 
+    ssl->suites = (Suites*)XMALLOC(sizeof(Suites), ssl->heap,
+                                   DYNAMIC_TYPE_SUITES);
+    if (ssl->suites == NULL) {
+        CYASSL_MSG("Suites Memory error");
+        return MEMORY_E;
+    }
+    *ssl->suites = ctx->suites;
+
     /* make sure server has cert and key unless using PSK */
     if (ssl->options.side == SERVER_END && !havePSK)
         if (!ssl->buffers.certificate.buffer || !ssl->buffers.key.buffer) {
@@ -1019,11 +1032,11 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
 
     /* make sure server has DH parms, and add PSK if there, add NTRU too */
     if (ssl->options.side == SERVER_END) 
-        InitSuites(&ssl->suites, ssl->version,ssl->options.haveDH, havePSK,
+        InitSuites(ssl->suites, ssl->version,ssl->options.haveDH, havePSK,
                    ssl->options.haveNTRU, ssl->options.haveECDSAsig,
                    ssl->options.haveStaticECC, ssl->options.side);
     else 
-        InitSuites(&ssl->suites, ssl->version, TRUE, havePSK,
+        InitSuites(ssl->suites, ssl->version, TRUE, havePSK,
                    ssl->options.haveNTRU, ssl->options.haveECDSAsig,
                    ssl->options.haveStaticECC, ssl->options.side);
 
@@ -1034,6 +1047,7 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
 /* In case holding SSL object in array and don't want to free actual ssl */
 void SSL_ResourceFree(CYASSL* ssl)
 {
+    XFREE(ssl->suites, ssl->heap, DYNAMIC_TYPE_SUITES);
     XFREE(ssl->buffers.serverDH_Priv.buffer, ssl->heap, DYNAMIC_TYPE_DH);
     XFREE(ssl->buffers.serverDH_Pub.buffer, ssl->heap, DYNAMIC_TYPE_DH);
     /* parameters (p,g) may be owned by ctx */
@@ -1075,6 +1089,17 @@ void SSL_ResourceFree(CYASSL* ssl)
     ecc_free(&ssl->eccTempKey);
     ecc_free(&ssl->eccDsaKey);
 #endif
+}
+
+
+/* Free any handshake resources no longer needed */
+void FreeHandshakeResources(CYASSL* ssl)
+{
+    if (ssl->buffers.inputBuffer.dynamicFlag)
+        ShrinkInputBuffer(ssl, NO_FORCED_FREE);
+
+    XFREE(ssl->suites, ssl->heap, DYNAMIC_TYPE_SUITES);
+    ssl->suites = NULL;
 }
 
 
@@ -3959,6 +3984,10 @@ void SetErrorString(int error, char* str)
         XSTRNCPY(str, "DTLS Sequence Error", max);
         break;
 
+    case SUITES_ERROR:
+        XSTRNCPY(str, "Suites Pointer Error", max);
+        break;
+
     default :
         XSTRNCPY(str, "unknown error number", max);
     }
@@ -4380,6 +4409,11 @@ int SetCipherList(Suites* s, const char* list)
     const int suiteSz = sizeof(cipher_names) / sizeof(cipher_names[0]);
     int idx = 0;
 
+    if (s == NULL) {
+        CYASSL_MSG("SetCipherList suite pointer error");
+        return 0;    
+    }
+
     if (!list)
         return 0;
     
@@ -4579,9 +4613,14 @@ int SetCipherList(Suites* s, const char* list)
         int                idSz = ssl->options.resuming ? ID_LEN : 0;
         int                ret;
 
+        if (ssl->suites == NULL) {
+            CYASSL_MSG("Bad suites pointer in SendClientHello");
+            return SUITES_ERROR;
+        } 
+
         length = sizeof(ProtocolVersion) + RAN_LEN
                + idSz + ENUM_LEN                      
-               + ssl->suites.suiteSz + SUITE_LEN
+               + ssl->suites->suiteSz + SUITE_LEN
                + COMP_LEN + ENUM_LEN;
 
         if (IsAtLeastTLSv1_2(ssl))
@@ -4647,10 +4686,10 @@ int SetCipherList(Suites* s, const char* list)
         }
 #endif
             /* then cipher suites */
-        c16toa(ssl->suites.suiteSz, output + idx);
+        c16toa(ssl->suites->suiteSz, output + idx);
         idx += 2;
-        XMEMCPY(output + idx, &ssl->suites.suites, ssl->suites.suiteSz);
-        idx += ssl->suites.suiteSz;
+        XMEMCPY(output + idx, &ssl->suites->suites, ssl->suites->suiteSz);
+        idx += ssl->suites->suiteSz;
 
             /* last, compression */
         output[idx++] = COMP_LEN;
@@ -6301,10 +6340,18 @@ int SetCipherList(Suites* s, const char* list)
     {
         int  haveRSA = !ssl->options.haveStaticECC;
         int  havePSK = 0;
-        byte first   = ssl->suites.suites[idx];
-        byte second  = ssl->suites.suites[idx+1];
+        byte first;
+        byte second;
 
         CYASSL_ENTER("VerifySuite");
+
+        if (ssl->suites == NULL) {
+            CYASSL_MSG("Suites pointer error");
+            return 0;
+        }
+
+        first   = ssl->suites->suites[idx];
+        second  = ssl->suites->suites[idx+1];
 
         #ifndef NO_PSK
             havePSK = ssl->options.havePSK;
@@ -6385,16 +6432,19 @@ int SetCipherList(Suites* s, const char* list)
         if (peerSuites->suiteSz == 0 || peerSuites->suiteSz & 0x1)
             return MATCH_SUITE_ERROR;
 
+        if (ssl->suites == NULL)
+            return SUITES_ERROR;
+
         /* start with best, if a match we are good */
-        for (i = 0; i < ssl->suites.suiteSz; i += 2)
+        for (i = 0; i < ssl->suites->suiteSz; i += 2)
             for (j = 0; j < peerSuites->suiteSz; j += 2)
-                if (ssl->suites.suites[i]   == peerSuites->suites[j] &&
-                    ssl->suites.suites[i+1] == peerSuites->suites[j+1] ) {
+                if (ssl->suites->suites[i]   == peerSuites->suites[j] &&
+                    ssl->suites->suites[i+1] == peerSuites->suites[j+1] ) {
 
                     if (VerifySuite(ssl, i)) {
                         CYASSL_MSG("Verified suite validity");
-                        ssl->options.cipherSuite0 = ssl->suites.suites[i];
-                        ssl->options.cipherSuite  = ssl->suites.suites[i+1];
+                        ssl->options.cipherSuite0 = ssl->suites->suites[i];
+                        ssl->options.cipherSuite  = ssl->suites->suites[i+1];
                         return SetCipherSpecs(ssl);
                     }
                     else {
@@ -6469,7 +6519,7 @@ int SetCipherList(Suites* s, const char* list)
             havePSK = ssl->options.havePSK;
 #endif
 
-            InitSuites(&ssl->suites, ssl->version, ssl->options.haveDH, havePSK,
+            InitSuites(ssl->suites, ssl->version, ssl->options.haveDH, havePSK,
                        ssl->options.haveNTRU, ssl->options.haveECDSAsig,
                        ssl->options.haveStaticECC, ssl->options.side);
         }
@@ -6600,7 +6650,7 @@ int SetCipherList(Suites* s, const char* list)
 #ifndef NO_PSK
             havePSK = ssl->options.havePSK;
 #endif
-            InitSuites(&ssl->suites, ssl->version, ssl->options.haveDH, havePSK,
+            InitSuites(ssl->suites, ssl->version, ssl->options.haveDH, havePSK,
                        ssl->options.haveNTRU, ssl->options.haveECDSAsig,
                        ssl->options.haveStaticECC, ssl->options.side);
         }

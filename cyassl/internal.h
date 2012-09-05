@@ -1211,7 +1211,7 @@ struct CYASSL {
     int             error;
     ProtocolVersion version;            /* negotiated version */
     ProtocolVersion chVersion;          /* client hello version */
-    Suites          suites;
+    Suites*         suites;             /* only need during handshake */
     Ciphers         encrypt;
     Ciphers         decrypt;
     CipherSpecs     specs;
@@ -1444,6 +1444,7 @@ CYASSL_LOCAL int  StoreKeys(CYASSL* ssl, const byte* keyData);
 CYASSL_LOCAL int IsTLS(const CYASSL* ssl);
 CYASSL_LOCAL int IsAtLeastTLSv1_2(const CYASSL* ssl);
 
+CYASSL_LOCAL void FreeHandshakeResources(CYASSL* ssl);
 CYASSL_LOCAL void ShrinkInputBuffer(CYASSL* ssl, int forcedFree);
 CYASSL_LOCAL void ShrinkOutputBuffer(CYASSL* ssl);
 CYASSL_LOCAL Signer* GetCA(void* cm, byte* hash);

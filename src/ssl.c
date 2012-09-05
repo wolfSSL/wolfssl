@@ -278,7 +278,7 @@ int CyaSSL_SetTmpDH(CYASSL* ssl, const unsigned char* p, int pSz,
     #ifndef NO_PSK
         havePSK = ssl->options.havePSK;
     #endif
-    InitSuites(&ssl->suites, ssl->version, ssl->options.haveDH,
+    InitSuites(ssl->suites, ssl->version, ssl->options.haveDH,
                havePSK, ssl->options.haveNTRU, ssl->options.haveECDSAsig,
                ssl->options.haveStaticECC, ssl->options.side);
 
@@ -564,7 +564,7 @@ int CyaSSL_SetVersion(CYASSL* ssl, int version)
         havePSK = ssl->options.havePSK;
     #endif
 
-    InitSuites(&ssl->suites, ssl->version, ssl->options.haveDH, havePSK,
+    InitSuites(ssl->suites, ssl->version, ssl->options.haveDH, havePSK,
                 ssl->options.haveNTRU, ssl->options.haveECDSAsig,
                 ssl->options.haveStaticECC, ssl->options.side);
 
@@ -2188,14 +2188,14 @@ int CyaSSL_CTX_set_cipher_list(CYASSL_CTX* ctx, const char* list)
 int CyaSSL_set_cipher_list(CYASSL* ssl, const char* list)
 {
     CYASSL_ENTER("CyaSSL_set_cipher_list");
-    if (SetCipherList(&ssl->suites, list)) {
+    if (SetCipherList(ssl->suites, list)) {
         byte havePSK = 0;
 
         #ifndef NO_PSK
             havePSK = ssl->options.havePSK;
         #endif
 
-        InitSuites(&ssl->suites, ssl->version, ssl->options.haveDH, havePSK,
+        InitSuites(ssl->suites, ssl->version, ssl->options.haveDH, havePSK,
                    ssl->options.haveNTRU, ssl->options.haveECDSAsig,
                    ssl->options.haveStaticECC, ssl->options.side);
 
@@ -2414,8 +2414,7 @@ int CyaSSL_set_cipher_list(CYASSL* ssl, const char* list)
             CYASSL_MSG("connect state: SECOND_REPLY_DONE");
 
         case SECOND_REPLY_DONE:
-            if (ssl->buffers.inputBuffer.dynamicFlag)
-                ShrinkInputBuffer(ssl, NO_FORCED_FREE);
+            FreeHandshakeResources(ssl);
             CYASSL_LEAVE("SSL_connect()", SSL_SUCCESS);
             return SSL_SUCCESS;
 
@@ -2651,8 +2650,7 @@ int CyaSSL_set_cipher_list(CYASSL* ssl, const char* list)
             CYASSL_MSG("accept state ACCEPT_THIRD_REPLY_DONE");
 
         case ACCEPT_THIRD_REPLY_DONE :
-            if (ssl->buffers.inputBuffer.dynamicFlag)
-                ShrinkInputBuffer(ssl, NO_FORCED_FREE);
+            FreeHandshakeResources(ssl);
             CYASSL_LEAVE("SSL_accept()", SSL_SUCCESS);
             return SSL_SUCCESS;
 
@@ -3222,7 +3220,7 @@ int CyaSSL_set_compression(CYASSL* ssl)
         ssl->options.havePSK = 1;
         ssl->options.client_psk_cb = cb;
 
-        InitSuites(&ssl->suites, ssl->version,TRUE,TRUE, ssl->options.haveNTRU,
+        InitSuites(ssl->suites, ssl->version,TRUE,TRUE, ssl->options.haveNTRU,
                    ssl->options.haveECDSAsig, ssl->options.haveStaticECC,
                    ssl->options.side);
     }
@@ -3243,7 +3241,7 @@ int CyaSSL_set_compression(CYASSL* ssl)
         ssl->options.havePSK = 1;
         ssl->options.server_psk_cb = cb;
 
-        InitSuites(&ssl->suites, ssl->version, ssl->options.haveDH, TRUE,
+        InitSuites(ssl->suites, ssl->version, ssl->options.haveDH, TRUE,
                    ssl->options.haveNTRU, ssl->options.haveECDSAsig,
                    ssl->options.haveStaticECC, ssl->options.side);
     }
@@ -3468,7 +3466,7 @@ int CyaSSL_set_compression(CYASSL* ssl)
 #ifndef NO_PSK
         havePSK = ssl->options.havePSK;
 #endif
-        InitSuites(&ssl->suites, ssl->version, ssl->options.haveDH, havePSK,
+        InitSuites(ssl->suites, ssl->version, ssl->options.haveDH, havePSK,
                    ssl->options.haveNTRU, ssl->options.haveECDSAsig,
                    ssl->options.haveStaticECC, ssl->options.side);
     }
