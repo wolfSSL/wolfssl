@@ -209,6 +209,13 @@ int CyaSSL_negotiate(CYASSL* ssl)
 }
 
 
+/* object size based on build */
+int CyaSSL_GetObjectSize(void)
+{
+    return sizeof(CYASSL);
+}
+
+
 /* server Diffie-Hellman parameters */
 int CyaSSL_SetTmpDH(CYASSL* ssl, const unsigned char* p, int pSz,
                     const unsigned char* g, int gSz)
