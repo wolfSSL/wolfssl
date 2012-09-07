@@ -263,9 +263,10 @@ void client_test(void* args)
 
 #if defined(CYASSL_SNIFFER) && !defined(HAVE_NTRU) && !defined(HAVE_ECC)
     /* don't use EDH, can't sniff tmp keys */
-    if (cipherList == NULL)
+    if (cipherList == NULL) {
         if (CyaSSL_CTX_set_cipher_list(ctx, "AES256-SHA") != SSL_SUCCESS)
             err_sys("can't set cipher list");
+    }
 #endif
 
 #ifdef USER_CA_CB

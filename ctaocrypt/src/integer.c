@@ -116,6 +116,9 @@ mp_clear (mp_int * a)
 {
   int i;
 
+  if (a == NULL)
+      return;
+
   /* only do anything if a hasn't been freed previously */
   if (a->dp != NULL) {
     /* first zero the digits */

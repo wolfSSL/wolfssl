@@ -103,6 +103,7 @@ enum CyaSSL_ErrorCodes {
     MAX_CHAIN_ERROR        = -268,            /* max chain depth exceeded */
     COOKIE_ERROR           = -269,            /* dtls cookie error */
     SEQUENCE_ERROR         = -270,            /* dtls sequence error */
+    SUITES_ERROR           = -271,            /* suites pointer error */
     /* add strings to SetErrorString !!!!! */
 
     /* begin negotiation parameter errors */

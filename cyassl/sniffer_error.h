@@ -99,6 +99,7 @@
 #define BAD_DECRYPT_TYPE 65
 #define BAD_FINISHED_MSG 66
 #define BAD_COMPRESSION_STR 67
+#define BAD_DERIVE_STR 68
 
 /* !!!! also add to msgTable in sniffer.c and .rc file !!!! */
 

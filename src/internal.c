@@ -434,7 +434,59 @@ void FreeSSL_Ctx(CYASSL_CTX* ctx)
     }
 }
 
-    
+
+/* Set cipher pointers to null */
+void InitCiphers(CYASSL* ssl)
+{
+#ifdef BUILD_ARC4
+    ssl->encrypt.arc4 = NULL;
+    ssl->decrypt.arc4 = NULL;
+#endif
+#ifdef BUILD_DES3
+    ssl->encrypt.des3 = NULL;
+    ssl->decrypt.des3 = NULL;
+#endif
+#ifdef BUILD_AES
+    ssl->encrypt.aes = NULL;
+    ssl->decrypt.aes = NULL;
+#endif
+#ifdef HAVE_HC128
+    ssl->encrypt.hc128 = NULL;
+    ssl->decrypt.hc128 = NULL;
+#endif
+#ifdef BUILD_RABBIT
+    ssl->encrypt.rabbit = NULL;
+    ssl->decrypt.rabbit = NULL;
+#endif
+}
+
+
+/* Free ciphers */
+void FreeCiphers(CYASSL* ssl)
+{
+#ifdef BUILD_ARC4
+    XFREE(ssl->encrypt.arc4, ssl->heap, DYNAMIC_TYPE_CIPHER);
+    XFREE(ssl->decrypt.arc4, ssl->heap, DYNAMIC_TYPE_CIPHER);
+#endif
+#ifdef BUILD_DES3
+    XFREE(ssl->encrypt.des3, ssl->heap, DYNAMIC_TYPE_CIPHER);
+    XFREE(ssl->decrypt.des3, ssl->heap, DYNAMIC_TYPE_CIPHER);
+#endif
+#ifdef BUILD_AES
+    XFREE(ssl->encrypt.aes, ssl->heap, DYNAMIC_TYPE_CIPHER);
+    XFREE(ssl->decrypt.aes, ssl->heap, DYNAMIC_TYPE_CIPHER);
+#endif
+#ifdef HAVE_HC128
+    XFREE(ssl->encrypt.hc128, ssl->heap, DYNAMIC_TYPE_CIPHER);
+    XFREE(ssl->decrypt.hc128, ssl->heap, DYNAMIC_TYPE_CIPHER);
+#endif
+#ifdef BUILD_RABBIT
+    XFREE(ssl->encrypt.rabbit, ssl->heap, DYNAMIC_TYPE_CIPHER);
+    XFREE(ssl->decrypt.rabbit, ssl->heap, DYNAMIC_TYPE_CIPHER);
+#endif
+}
+
+
 void InitSuites(Suites* suites, ProtocolVersion pv, byte haveDH, byte havePSK,
                 byte haveNTRU, byte haveECDSAsig, byte haveStaticECC, int side)
 {
@@ -449,7 +501,11 @@ void InitSuites(Suites* suites, ProtocolVersion pv, byte haveDH, byte havePSK,
     (void)havePSK;
     (void)haveNTRU;
     (void)haveStaticECC;
-    (void)haveRSAsig;
+
+    if (suites == NULL) {
+        CYASSL_MSG("InitSuites pointer error");
+        return; 
+    }
 
     if (suites->setSuites)
         return;      /* trust user settings, don't override */
@@ -457,8 +513,10 @@ void InitSuites(Suites* suites, ProtocolVersion pv, byte haveDH, byte havePSK,
     if (side == SERVER_END && haveStaticECC)
         haveRSA = 0;   /* can't do RSA with ECDSA key */
 
-    if (side == SERVER_END && haveECDSAsig)
-        haveRSAsig = 0;  /* can't have RSA sig if signed by ECDSA */
+    if (side == SERVER_END && haveECDSAsig) {
+        haveRSAsig = 0;     /* can't have RSA sig if signed by ECDSA */
+        (void)haveRSAsig;   /* non ecc builds won't read */
+    }
 
 #ifdef CYASSL_DTLS
     if (pv.major == DTLS_MAJOR && pv.minor == DTLS_MINOR)
@@ -814,7 +872,7 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
 
     ssl->ctx     = ctx; /* only for passing to calls, options could change */
     ssl->version = ctx->method->version;
-    ssl->suites  = ctx->suites;
+    ssl->suites  = NULL;
 
 #ifdef HAVE_LIBZ
     ssl->didStreamInit = 0;
@@ -926,6 +984,7 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
     ssl->dtls_timeout                   = 2;
 #endif
     ssl->keys.encryptionOn = 0;     /* initially off */
+    ssl->keys.decryptedCur = 0;     /* initially off */
     ssl->options.sessionCacheOff      = ctx->sessionCacheOff;
     ssl->options.sessionCacheFlushOff = ctx->sessionCacheFlushOff;
 
@@ -997,6 +1056,8 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
         ssl->arrays.server_hint[0] = 0;
 #endif /* NO_PSK */
 
+    ssl->rng = NULL;
+    InitCiphers(ssl);
     /* all done with init, now can return errors, call other stuff */
 
     /* increment CTX reference count */
@@ -1007,8 +1068,22 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
     ctx->refCount++;
     UnLockMutex(&ctx->countMutex);
 
-    if ( (ret = InitRng(&ssl->rng)) != 0)
+    ssl->rng = (RNG*)XMALLOC(sizeof(RNG), ssl->heap, DYNAMIC_TYPE_RNG);
+    if (ssl->rng == NULL) {
+        CYASSL_MSG("RNG Memory error");
+        return MEMORY_E;
+    }
+
+    if ( (ret = InitRng(ssl->rng)) != 0)
         return ret;
+
+    ssl->suites = (Suites*)XMALLOC(sizeof(Suites), ssl->heap,
+                                   DYNAMIC_TYPE_SUITES);
+    if (ssl->suites == NULL) {
+        CYASSL_MSG("Suites Memory error");
+        return MEMORY_E;
+    }
+    *ssl->suites = ctx->suites;
 
     /* make sure server has cert and key unless using PSK */
     if (ssl->options.side == SERVER_END && !havePSK)
@@ -1019,11 +1094,11 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
 
     /* make sure server has DH parms, and add PSK if there, add NTRU too */
     if (ssl->options.side == SERVER_END) 
-        InitSuites(&ssl->suites, ssl->version,ssl->options.haveDH, havePSK,
+        InitSuites(ssl->suites, ssl->version,ssl->options.haveDH, havePSK,
                    ssl->options.haveNTRU, ssl->options.haveECDSAsig,
                    ssl->options.haveStaticECC, ssl->options.side);
     else 
-        InitSuites(&ssl->suites, ssl->version, TRUE, havePSK,
+        InitSuites(ssl->suites, ssl->version, TRUE, havePSK,
                    ssl->options.haveNTRU, ssl->options.haveECDSAsig,
                    ssl->options.haveStaticECC, ssl->options.side);
 
@@ -1034,6 +1109,9 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
 /* In case holding SSL object in array and don't want to free actual ssl */
 void SSL_ResourceFree(CYASSL* ssl)
 {
+    FreeCiphers(ssl);
+    XFREE(ssl->rng, ssl->heap, DYNAMIC_TYPE_RNG);
+    XFREE(ssl->suites, ssl->heap, DYNAMIC_TYPE_SUITES);
     XFREE(ssl->buffers.serverDH_Priv.buffer, ssl->heap, DYNAMIC_TYPE_DH);
     XFREE(ssl->buffers.serverDH_Pub.buffer, ssl->heap, DYNAMIC_TYPE_DH);
     /* parameters (p,g) may be owned by ctx */
@@ -1075,6 +1153,25 @@ void SSL_ResourceFree(CYASSL* ssl)
     ecc_free(&ssl->eccTempKey);
     ecc_free(&ssl->eccDsaKey);
 #endif
+}
+
+
+/* Free any handshake resources no longer needed */
+void FreeHandshakeResources(CYASSL* ssl)
+{
+    /* input buffer */
+    if (ssl->buffers.inputBuffer.dynamicFlag)
+        ShrinkInputBuffer(ssl, NO_FORCED_FREE);
+
+    /* suites */
+    XFREE(ssl->suites, ssl->heap, DYNAMIC_TYPE_SUITES);
+    ssl->suites = NULL;
+
+    /* RNG */
+    if (ssl->specs.cipher_type == stream || ssl->options.tls1_1 == 0) {
+        XFREE(ssl->rng, ssl->heap, DYNAMIC_TYPE_RNG);
+        ssl->rng = NULL;
+    }
 }
 
 
@@ -1583,6 +1680,9 @@ static int GetRecordHeader(CYASSL* ssl, const byte* input, word32* inOutIdx,
             CYASSL_MSG("Unknown Record Type"); 
             return UNKNOWN_RECORD_TYPE;
     }
+
+    /* haven't decrypted this record yet */
+    ssl->keys.decryptedCur = 0;
 
     return 0;
 }
@@ -2364,13 +2464,13 @@ static INLINE void Encrypt(CYASSL* ssl, byte* out, const byte* input, word32 sz)
     switch (ssl->specs.bulk_cipher_algorithm) {
         #ifdef BUILD_ARC4
             case rc4:
-                Arc4Process(&ssl->encrypt.arc4, out, input, sz);
+                Arc4Process(ssl->encrypt.arc4, out, input, sz);
                 break;
         #endif
 
         #ifdef BUILD_DES3
             case triple_des:
-                Des3_CbcEncrypt(&ssl->encrypt.des3, out, input, sz);
+                Des3_CbcEncrypt(ssl->encrypt.des3, out, input, sz);
                 break;
         #endif
 
@@ -2380,12 +2480,12 @@ static INLINE void Encrypt(CYASSL* ssl, byte* out, const byte* input, word32 sz)
                 if ((word)input % 16) {
                     byte buffer[MAX_RECORD_SIZE + MAX_COMP_EXTRA+MAX_MSG_EXTRA];
                     XMEMCPY(buffer, input, sz);
-                    AesCbcEncrypt(&ssl->encrypt.aes, buffer, buffer, sz);
+                    AesCbcEncrypt(ssl->encrypt.aes, buffer, buffer, sz);
                     XMEMCPY(out, buffer, sz);
                     break;
                 }
             #endif
-                AesCbcEncrypt(&ssl->encrypt.aes, out, input, sz);
+                AesCbcEncrypt(ssl->encrypt.aes, out, input, sz);
                 break;
         #endif
 
@@ -2408,25 +2508,25 @@ static INLINE void Encrypt(CYASSL* ssl, byte* out, const byte* input, word32 sz)
                      * IV length minus the authentication tag size. */
                     c16toa(sz - AES_GCM_EXP_IV_SZ - AEAD_AUTH_TAG_SZ,
                                                 additional + AEAD_LEN_OFFSET);
-                    AesGcmEncrypt(&ssl->encrypt.aes,
+                    AesGcmEncrypt(ssl->encrypt.aes,
                         out + AES_GCM_EXP_IV_SZ, input + AES_GCM_EXP_IV_SZ,
                             sz - AES_GCM_EXP_IV_SZ - AEAD_AUTH_TAG_SZ,
                         out + sz - AEAD_AUTH_TAG_SZ, AEAD_AUTH_TAG_SZ,
                         additional, AEAD_AUTH_DATA_SZ);
-                    AesGcmIncExpIV(&ssl->encrypt.aes);
+                    AesGcmIncExpIV(ssl->encrypt.aes);
                 }
                 break;
         #endif
 
         #ifdef HAVE_HC128
             case hc128:
-                Hc128_Process(&ssl->encrypt.hc128, out, input, sz);
+                Hc128_Process(ssl->encrypt.hc128, out, input, sz);
                 break;
         #endif
 
         #ifdef BUILD_RABBIT
             case rabbit:
-                RabbitProcess(&ssl->encrypt.rabbit, out, input, sz);
+                RabbitProcess(ssl->encrypt.rabbit, out, input, sz);
                 break;
         #endif
 
@@ -2442,19 +2542,19 @@ static INLINE int Decrypt(CYASSL* ssl, byte* plain, const byte* input,
     switch (ssl->specs.bulk_cipher_algorithm) {
         #ifdef BUILD_ARC4
             case rc4:
-                Arc4Process(&ssl->decrypt.arc4, plain, input, sz);
+                Arc4Process(ssl->decrypt.arc4, plain, input, sz);
                 break;
         #endif
 
         #ifdef BUILD_DES3
             case triple_des:
-                Des3_CbcDecrypt(&ssl->decrypt.des3, plain, input, sz);
+                Des3_CbcDecrypt(ssl->decrypt.des3, plain, input, sz);
                 break;
         #endif
 
         #ifdef BUILD_AES
             case aes:
-                AesCbcDecrypt(&ssl->decrypt.aes, plain, input, sz);
+                AesCbcDecrypt(ssl->decrypt.aes, plain, input, sz);
                 break;
         #endif
 
@@ -2463,7 +2563,7 @@ static INLINE int Decrypt(CYASSL* ssl, byte* plain, const byte* input,
             {
                 byte additional[AES_BLOCK_SIZE];
 
-                AesGcmSetExpIV(&ssl->decrypt.aes, input);
+                AesGcmSetExpIV(ssl->decrypt.aes, input);
                 XMEMSET(additional, 0, AES_BLOCK_SIZE);
 
                 /* sequence number field is 64-bits, we only use 32-bits */
@@ -2475,7 +2575,7 @@ static INLINE int Decrypt(CYASSL* ssl, byte* plain, const byte* input,
 
                 c16toa(sz - AES_GCM_EXP_IV_SZ - AEAD_AUTH_TAG_SZ,
                                         additional + AEAD_LEN_OFFSET);
-                if (AesGcmDecrypt(&ssl->decrypt.aes,
+                if (AesGcmDecrypt(ssl->decrypt.aes,
                             plain + AES_GCM_EXP_IV_SZ,
                             input + AES_GCM_EXP_IV_SZ,
                                 sz - AES_GCM_EXP_IV_SZ - AEAD_AUTH_TAG_SZ,
@@ -2490,13 +2590,13 @@ static INLINE int Decrypt(CYASSL* ssl, byte* plain, const byte* input,
 
         #ifdef HAVE_HC128
             case hc128:
-                Hc128_Process(&ssl->decrypt.hc128, plain, input, sz);
+                Hc128_Process(ssl->decrypt.hc128, plain, input, sz);
                 break;
         #endif
 
         #ifdef BUILD_RABBIT
             case rabbit:
-                RabbitProcess(&ssl->decrypt.rabbit, plain, input, sz);
+                RabbitProcess(ssl->decrypt.rabbit, plain, input, sz);
                 break;
         #endif
 
@@ -2514,7 +2614,9 @@ static int DecryptMessage(CYASSL* ssl, byte* input, word32 sz, word32* idx)
 
     if (decryptResult == 0)
     {
-        ssl->keys.encryptSz = sz;
+        ssl->keys.encryptSz    = sz;
+        ssl->keys.decryptedCur = 1;
+
         if (ssl->options.tls1_1 && ssl->specs.cipher_type == block)
             *idx += ssl->specs.block_size;  /* go past TLSv1.1 IV */
         if (ssl->specs.cipher_type == aead)
@@ -2858,7 +2960,7 @@ int ProcessReply(CYASSL* ssl)
         /* the record layer is here */
         case runProcessingOneMessage:
 
-            if (ssl->keys.encryptionOn)
+            if (ssl->keys.encryptionOn && ssl->keys.decryptedCur == 0)
                 if (DecryptMessage(ssl, ssl->buffers.inputBuffer.buffer + 
                                         ssl->buffers.inputBuffer.idx,
                                         ssl->curSize,
@@ -2902,6 +3004,11 @@ int ProcessReply(CYASSL* ssl)
                             AddLateRecordHeader(&ssl->curRL, &ssl->timeoutInfo);
                         }
                     #endif
+
+                    if (ssl->curSize != 1) {
+                        CYASSL_MSG("Malicious or corrupted ChangeCipher msg");
+                        return LENGTH_ERROR;
+                    }
                     ssl->buffers.inputBuffer.idx++;
                     ssl->keys.encryptionOn = 1;
 
@@ -3185,7 +3292,7 @@ static int BuildMessage(CYASSL* ssl, byte* output, const byte* input, int inSz,
         if (ssl->options.tls1_1) {
             ivSz = blockSz;
             sz  += ivSz;
-            RNG_GenerateBlock(&ssl->rng, iv, ivSz);
+            RNG_GenerateBlock(ssl->rng, iv, ivSz);
         }
         sz += 1;       /* pad byte */
         pad = (sz - headerSz) % blockSz;
@@ -3197,7 +3304,7 @@ static int BuildMessage(CYASSL* ssl, byte* output, const byte* input, int inSz,
     if (ssl->specs.cipher_type == aead) {
         ivSz = AES_GCM_EXP_IV_SZ;
         sz += (ivSz + 16 - digestSz);
-        AesGcmGetExpIV(&ssl->encrypt.aes, iv);
+        AesGcmGetExpIV(ssl->encrypt.aes, iv);
     }
 #endif
     size = (word16)(sz - headerSz);    /* include mac and digest */
@@ -3356,7 +3463,8 @@ int SendCertificate(CYASSL* ssl)
         if (ssl->buffers.certChain.buffer) {
             XMEMCPY(output + i, ssl->buffers.certChain.buffer,
                                 ssl->buffers.certChain.length);
-            i += ssl->buffers.certChain.length;
+            /* if add more to output adjust i
+               i += ssl->buffers.certChain.length; */
         }
     }
     HashOutput(ssl, output, sendSz, 0);
@@ -3425,7 +3533,8 @@ int SendCertificateRequest(CYASSL* ssl)
     }
 
     c16toa(0, &output[i]);  /* auth's */
-    i += REQ_HEADER_SZ;
+    /* if add more to output, adjust i
+    i += REQ_HEADER_SZ; */
 
     HashOutput(ssl, output, sendSz, 0);
 
@@ -3952,6 +4061,10 @@ void SetErrorString(int error, char* str)
         XSTRNCPY(str, "DTLS Sequence Error", max);
         break;
 
+    case SUITES_ERROR:
+        XSTRNCPY(str, "Suites Pointer Error", max);
+        break;
+
     default :
         XSTRNCPY(str, "unknown error number", max);
     }
@@ -4373,6 +4486,11 @@ int SetCipherList(Suites* s, const char* list)
     const int suiteSz = sizeof(cipher_names) / sizeof(cipher_names[0]);
     int idx = 0;
 
+    if (s == NULL) {
+        CYASSL_MSG("SetCipherList suite pointer error");
+        return 0;    
+    }
+
     if (!list)
         return 0;
     
@@ -4572,9 +4690,14 @@ int SetCipherList(Suites* s, const char* list)
         int                idSz = ssl->options.resuming ? ID_LEN : 0;
         int                ret;
 
+        if (ssl->suites == NULL) {
+            CYASSL_MSG("Bad suites pointer in SendClientHello");
+            return SUITES_ERROR;
+        } 
+
         length = sizeof(ProtocolVersion) + RAN_LEN
                + idSz + ENUM_LEN                      
-               + ssl->suites.suiteSz + SUITE_LEN
+               + ssl->suites->suiteSz + SUITE_LEN
                + COMP_LEN + ENUM_LEN;
 
         if (IsAtLeastTLSv1_2(ssl))
@@ -4608,7 +4731,7 @@ int SetCipherList(Suites* s, const char* list)
 
             /* then random */
         if (ssl->options.connectState == CONNECT_BEGIN) {
-            RNG_GenerateBlock(&ssl->rng, output + idx, RAN_LEN);
+            RNG_GenerateBlock(ssl->rng, output + idx, RAN_LEN);
             
                 /* store random */
             XMEMCPY(ssl->arrays.clientRandom, output + idx, RAN_LEN);
@@ -4640,10 +4763,10 @@ int SetCipherList(Suites* s, const char* list)
         }
 #endif
             /* then cipher suites */
-        c16toa(ssl->suites.suiteSz, output + idx);
+        c16toa(ssl->suites->suiteSz, output + idx);
         idx += 2;
-        XMEMCPY(output + idx, &ssl->suites.suites, ssl->suites.suiteSz);
-        idx += ssl->suites.suiteSz;
+        XMEMCPY(output + idx, &ssl->suites->suites, ssl->suites->suiteSz);
+        idx += ssl->suites->suiteSz;
 
             /* last, compression */
         output[idx++] = COMP_LEN;
@@ -5081,13 +5204,13 @@ int SetCipherList(Suites* s, const char* list)
 
     int SendClientKeyExchange(CYASSL* ssl)
     {
-        byte   encSecret[MAX_NTRU_ENCRYPT_SZ];
+        byte   encSecret[MAX_ENCRYPT_SZ];
         word32 encSz = 0;
         word32 idx = 0;
         int    ret = 0;
 
         if (ssl->specs.kea == rsa_kea) {
-            RNG_GenerateBlock(&ssl->rng, ssl->arrays.preMasterSecret,
+            RNG_GenerateBlock(ssl->rng, ssl->arrays.preMasterSecret,
                               SECRET_LEN);
             ssl->arrays.preMasterSecret[0] = ssl->chVersion.major;
             ssl->arrays.preMasterSecret[1] = ssl->chVersion.minor;
@@ -5098,7 +5221,7 @@ int SetCipherList(Suites* s, const char* list)
 
             ret = RsaPublicEncrypt(ssl->arrays.preMasterSecret, SECRET_LEN,
                              encSecret, sizeof(encSecret), &ssl->peerRsaKey,
-                             &ssl->rng);
+                             ssl->rng);
             if (ret > 0) {
                 encSz = ret;
                 ret = 0;   /* set success to 0 */
@@ -5121,7 +5244,7 @@ int SetCipherList(Suites* s, const char* list)
                            serverG.buffer, serverG.length);
             if (ret == 0)
                 /* for DH, encSecret is Yc, agree is pre-master */
-                ret = DhGenerateKeyPair(&key, &ssl->rng, priv, &privSz,
+                ret = DhGenerateKeyPair(&key, ssl->rng, priv, &privSz,
                                         encSecret, &encSz);
             if (ret == 0)
                 ret = DhAgree(&key, ssl->arrays.preMasterSecret,
@@ -5163,7 +5286,7 @@ int SetCipherList(Suites* s, const char* list)
                 'C', 'y', 'a', 'S', 'S', 'L', ' ', 'N', 'T', 'R', 'U'
             };
 
-            RNG_GenerateBlock(&ssl->rng, ssl->arrays.preMasterSecret,
+            RNG_GenerateBlock(ssl->rng, ssl->arrays.preMasterSecret,
                               SECRET_LEN);
             ssl->arrays.preMasterSz = SECRET_LEN;
 
@@ -5205,7 +5328,7 @@ int SetCipherList(Suites* s, const char* list)
             }
 
             ecc_init(&myKey);
-            ret = ecc_make_key(&ssl->rng, peerKey->dp->size, &myKey);
+            ret = ecc_make_key(ssl->rng, peerKey->dp->size, &myKey);
             if (ret != 0)
                 return ECC_MAKEKEY_ERROR;
 
@@ -5266,7 +5389,8 @@ int SetCipherList(Suites* s, const char* list)
                 idx += 2;
             }
             XMEMCPY(output + idx, encSecret, encSz);
-            idx += encSz;
+            /* if add more to output, adjust idx
+            idx += encSz; */
 
             HashOutput(ssl, output, sendSz, 0);
 
@@ -5371,7 +5495,7 @@ int SetCipherList(Suites* s, const char* list)
                 word32 localSz = sigOutSz;
                 ret = ecc_sign_hash(signBuffer + MD5_DIGEST_SIZE,
                               SHA_DIGEST_SIZE, verify + extraSz + VERIFY_HEADER,
-                              &localSz, &ssl->rng, &eccKey);
+                              &localSz, ssl->rng, &eccKey);
 #endif
             }
             else {
@@ -5390,7 +5514,7 @@ int SetCipherList(Suites* s, const char* list)
                 }
 
                 ret = RsaSSL_Sign(signBuffer, signSz, verify + extraSz +
-                                  VERIFY_HEADER, ENCRYPT_LEN, &key, &ssl->rng);
+                                  VERIFY_HEADER, ENCRYPT_LEN, &key, ssl->rng);
 
                 if (ret > 0)
                     ret = 0;  /* RSA reset */
@@ -5476,7 +5600,7 @@ int SetCipherList(Suites* s, const char* list)
 
             /* then random */
         if (!ssl->options.resuming)         
-            RNG_GenerateBlock(&ssl->rng, ssl->arrays.serverRandom, RAN_LEN);
+            RNG_GenerateBlock(ssl->rng, ssl->arrays.serverRandom, RAN_LEN);
         XMEMCPY(output + idx, ssl->arrays.serverRandom, RAN_LEN);
         idx += RAN_LEN;
 
@@ -5492,7 +5616,7 @@ int SetCipherList(Suites* s, const char* list)
             /* then session id */
         output[idx++] = ID_LEN;
         if (!ssl->options.resuming)
-            RNG_GenerateBlock(&ssl->rng, ssl->arrays.sessionID, ID_LEN);
+            RNG_GenerateBlock(ssl->rng, ssl->arrays.sessionID, ID_LEN);
         XMEMCPY(output + idx, ssl->arrays.sessionID, ID_LEN);
         idx += ID_LEN;
 
@@ -5758,7 +5882,7 @@ int SetCipherList(Suites* s, const char* list)
                         signBuffer = encodedSig;
                     }
                     ret = RsaSSL_Sign(signBuffer, signSz, output + idx, sigSz,
-                                      &rsaKey, &ssl->rng);
+                                      &rsaKey, ssl->rng);
                     FreeRsaKey(&rsaKey);
                     ecc_free(&dsaKey);
                     if (ret > 0)
@@ -5770,7 +5894,7 @@ int SetCipherList(Suites* s, const char* list)
                     word32 sz = sigSz;
 
                     ret = ecc_sign_hash(&hash[MD5_DIGEST_SIZE], SHA_DIGEST_SIZE,
-                            output + idx, &sz, &ssl->rng, &dsaKey);
+                            output + idx, &sz, ssl->rng, &dsaKey);
                     FreeRsaKey(&rsaKey);
                     ecc_free(&dsaKey);
                     if (ret < 0) return ret;
@@ -5832,7 +5956,7 @@ int SetCipherList(Suites* s, const char* list)
                                    ssl->buffers.serverDH_G.buffer,
                                    ssl->buffers.serverDH_G.length);
             if (ret == 0)
-                ret = DhGenerateKeyPair(&dhKey, &ssl->rng,
+                ret = DhGenerateKeyPair(&dhKey, ssl->rng,
                                          ssl->buffers.serverDH_Priv.buffer,
                                         &ssl->buffers.serverDH_Priv.length,
                                          ssl->buffers.serverDH_Pub.buffer,
@@ -5960,11 +6084,9 @@ int SetCipherList(Suites* s, const char* list)
                         signBuffer = encodedSig;
                     }
                     ret = RsaSSL_Sign(signBuffer, signSz, output + idx, sigSz,
-                                      &rsaKey, &ssl->rng);
+                                      &rsaKey, ssl->rng);
                     FreeRsaKey(&rsaKey);
-                    if (ret > 0)
-                        ret = 0;  /* reset on success */
-                    else
+                    if (ret <= 0)
                         return ret;
                 }
             }
@@ -6295,10 +6417,18 @@ int SetCipherList(Suites* s, const char* list)
     {
         int  haveRSA = !ssl->options.haveStaticECC;
         int  havePSK = 0;
-        byte first   = ssl->suites.suites[idx];
-        byte second  = ssl->suites.suites[idx+1];
+        byte first;
+        byte second;
 
         CYASSL_ENTER("VerifySuite");
+
+        if (ssl->suites == NULL) {
+            CYASSL_MSG("Suites pointer error");
+            return 0;
+        }
+
+        first   = ssl->suites->suites[idx];
+        second  = ssl->suites->suites[idx+1];
 
         #ifndef NO_PSK
             havePSK = ssl->options.havePSK;
@@ -6379,16 +6509,19 @@ int SetCipherList(Suites* s, const char* list)
         if (peerSuites->suiteSz == 0 || peerSuites->suiteSz & 0x1)
             return MATCH_SUITE_ERROR;
 
+        if (ssl->suites == NULL)
+            return SUITES_ERROR;
+
         /* start with best, if a match we are good */
-        for (i = 0; i < ssl->suites.suiteSz; i += 2)
+        for (i = 0; i < ssl->suites->suiteSz; i += 2)
             for (j = 0; j < peerSuites->suiteSz; j += 2)
-                if (ssl->suites.suites[i]   == peerSuites->suites[j] &&
-                    ssl->suites.suites[i+1] == peerSuites->suites[j+1] ) {
+                if (ssl->suites->suites[i]   == peerSuites->suites[j] &&
+                    ssl->suites->suites[i+1] == peerSuites->suites[j+1] ) {
 
                     if (VerifySuite(ssl, i)) {
                         CYASSL_MSG("Verified suite validity");
-                        ssl->options.cipherSuite0 = ssl->suites.suites[i];
-                        ssl->options.cipherSuite  = ssl->suites.suites[i+1];
+                        ssl->options.cipherSuite0 = ssl->suites->suites[i];
+                        ssl->options.cipherSuite  = ssl->suites->suites[i+1];
                         return SetCipherSpecs(ssl);
                     }
                     else {
@@ -6463,7 +6596,7 @@ int SetCipherList(Suites* s, const char* list)
             havePSK = ssl->options.havePSK;
 #endif
 
-            InitSuites(&ssl->suites, ssl->version, ssl->options.haveDH, havePSK,
+            InitSuites(ssl->suites, ssl->version, ssl->options.haveDH, havePSK,
                        ssl->options.haveNTRU, ssl->options.haveECDSAsig,
                        ssl->options.haveStaticECC, ssl->options.side);
         }
@@ -6534,7 +6667,7 @@ int SetCipherList(Suites* s, const char* list)
                 return UNSUPPORTED_SUITE;
             }
 
-            RNG_GenerateBlock(&ssl->rng, ssl->arrays.serverRandom, RAN_LEN);
+            RNG_GenerateBlock(ssl->rng, ssl->arrays.serverRandom, RAN_LEN);
             if (ssl->options.tls)
                 ret = DeriveTlsKeys(ssl);
             else
@@ -6594,7 +6727,7 @@ int SetCipherList(Suites* s, const char* list)
 #ifndef NO_PSK
             havePSK = ssl->options.havePSK;
 #endif
-            InitSuites(&ssl->suites, ssl->version, ssl->options.haveDH, havePSK,
+            InitSuites(ssl->suites, ssl->version, ssl->options.haveDH, havePSK,
                        ssl->options.haveNTRU, ssl->options.haveECDSAsig,
                        ssl->options.haveStaticECC, ssl->options.side);
         }
@@ -6696,7 +6829,7 @@ int SetCipherList(Suites* s, const char* list)
                 return UNSUPPORTED_SUITE;
             }
 
-            RNG_GenerateBlock(&ssl->rng, ssl->arrays.serverRandom, RAN_LEN);
+            RNG_GenerateBlock(ssl->rng, ssl->arrays.serverRandom, RAN_LEN);
             if (ssl->options.tls)
                 ret = DeriveTlsKeys(ssl);
             else

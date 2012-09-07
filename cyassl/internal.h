@@ -474,6 +474,14 @@ enum Misc {
 };
 
 
+/* don't use extra 3/4k stack space unless need to */
+#ifdef HAVE_NTRU
+    #define MAX_ENCRYPT_SZ MAX_NTRU_ENCRYPT_SZ
+#else
+    #define MAX_ENCRYPT_SZ ENCRYPT_LEN
+#endif
+
+
 /* states */
 enum states {
     NULL_STATE = 0,
@@ -965,27 +973,32 @@ typedef struct Keys {
 
     word32 encryptSz;             /* last size of encrypted data   */
     byte   encryptionOn;          /* true after change cipher spec */
+    byte   decryptedCur;          /* only decrypt current record once */
 } Keys;
 
 
 /* cipher for now */
-typedef union {
+typedef struct Ciphers {
 #ifdef BUILD_ARC4
-    Arc4   arc4;
+    Arc4*   arc4;
 #endif
 #ifdef BUILD_DES3
-    Des3   des3;
+    Des3*   des3;
 #endif
 #ifdef BUILD_AES
-    Aes    aes;
+    Aes*    aes;
 #endif
 #ifdef HAVE_HC128
-    HC128  hc128;
+    HC128*  hc128;
 #endif
 #ifdef BUILD_RABBIT
-    Rabbit rabbit;
+    Rabbit* rabbit;
 #endif
 } Ciphers;
+
+
+CYASSL_LOCAL void InitCiphers(CYASSL* ssl);
+CYASSL_LOCAL void FreeCiphers(CYASSL* ssl);
 
 
 /* hashes type */
@@ -1203,7 +1216,7 @@ struct CYASSL {
     int             error;
     ProtocolVersion version;            /* negotiated version */
     ProtocolVersion chVersion;          /* client hello version */
-    Suites          suites;
+    Suites*         suites;             /* only need during handshake */
     Ciphers         encrypt;
     Ciphers         decrypt;
     CipherSpecs     specs;
@@ -1214,7 +1227,7 @@ struct CYASSL {
     CYASSL_BIO*     biowr;              /* socket bio write to free/close */
     void*           IOCB_ReadCtx;
     void*           IOCB_WriteCtx;
-    RNG             rng;
+    RNG*            rng;
     Md5             hashMd5;            /* md5 hash of handshake msgs */
     Sha             hashSha;            /* sha hash of handshake msgs */
 #ifndef NO_SHA256
@@ -1440,6 +1453,7 @@ CYASSL_LOCAL int  StoreKeys(CYASSL* ssl, const byte* keyData);
 CYASSL_LOCAL int IsTLS(const CYASSL* ssl);
 CYASSL_LOCAL int IsAtLeastTLSv1_2(const CYASSL* ssl);
 
+CYASSL_LOCAL void FreeHandshakeResources(CYASSL* ssl);
 CYASSL_LOCAL void ShrinkInputBuffer(CYASSL* ssl, int forcedFree);
 CYASSL_LOCAL void ShrinkOutputBuffer(CYASSL* ssl);
 CYASSL_LOCAL Signer* GetCA(void* cm, byte* hash);

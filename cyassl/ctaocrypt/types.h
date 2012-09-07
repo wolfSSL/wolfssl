@@ -153,7 +153,7 @@ enum {
 #elif !defined(MICRIUM_MALLOC) && !defined(EBSNET) && !defined(CYASSL_SAFERTOS)
     /* default C runtime, can install different routines at runtime */
     #include <cyassl/ctaocrypt/memory.h>
-    #define XMALLOC(s, h, t)     CyaSSL_Malloc((s))
+    #define XMALLOC(s, h, t)     ((void)h, (void)t, CyaSSL_Malloc((s)))
     #define XFREE(p, h, t)       {void* xp = (p); if((xp)) CyaSSL_Free((xp));}
     #define XREALLOC(p, n, h, t) CyaSSL_Realloc((p), (n))
 #endif
@@ -215,7 +215,10 @@ enum {
     DYNAMIC_TYPE_CRL_MONITOR  = 26,
     DYNAMIC_TYPE_OCSP_STATUS  = 27,
     DYNAMIC_TYPE_OCSP_ENTRY   = 28,
-    DYNAMIC_TYPE_ALTNAME      = 29
+    DYNAMIC_TYPE_ALTNAME      = 29,
+    DYNAMIC_TYPE_SUITES       = 30,
+    DYNAMIC_TYPE_CIPHER       = 31,
+    DYNAMIC_TYPE_RNG          = 32 
 };
 
 /* stack protection */

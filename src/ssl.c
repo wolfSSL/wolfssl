@@ -216,6 +216,34 @@ int CyaSSL_negotiate(CYASSL* ssl)
 }
 
 
+/* object size based on build */
+int CyaSSL_GetObjectSize(void)
+{
+#ifdef SHOW_SIZES
+    printf("sizeof suites           = %lu\n", sizeof(Suites));
+    printf("sizeof ciphers(2)       = %lu\n", sizeof(Ciphers));
+    printf("\tsizeof arc4           = %lu\n", sizeof(Arc4));
+    printf("\tsizeof aes            = %lu\n", sizeof(Aes));
+    printf("\tsizeof des3           = %lu\n", sizeof(Des3));
+    printf("\tsizeof rabbit         = %lu\n", sizeof(Rabbit));
+    printf("sizeof cipher specs     = %lu\n", sizeof(CipherSpecs));
+    printf("sizeof keys             = %lu\n", sizeof(Keys));
+    printf("sizeof MD5              = %lu\n", sizeof(Md5));
+    printf("sizeof SHA              = %lu\n", sizeof(Sha));
+    printf("sizeof SHA256           = %lu\n", sizeof(Sha256));
+    printf("sizeof Hashes(2)        = %lu\n", sizeof(Hashes));
+    printf("sizeof Buffers          = %lu\n", sizeof(Buffers));
+    printf("sizeof Options          = %lu\n", sizeof(Options));
+    printf("sizeof Arrays           = %lu\n", sizeof(Arrays));
+    printf("sizeof Session          = %lu\n", sizeof(CYASSL_SESSION));
+    printf("sizeof peerKey          = %lu\n", sizeof(RsaKey));
+    printf("sizeof CYASSL_CIPHER    = %lu\n", sizeof(CYASSL_CIPHER));
+#endif
+
+    return sizeof(CYASSL);
+}
+
+
 /* server Diffie-Hellman parameters */
 int CyaSSL_SetTmpDH(CYASSL* ssl, const unsigned char* p, int pSz,
                     const unsigned char* g, int gSz)
@@ -256,7 +284,7 @@ int CyaSSL_SetTmpDH(CYASSL* ssl, const unsigned char* p, int pSz,
     #ifndef NO_PSK
         havePSK = ssl->options.havePSK;
     #endif
-    InitSuites(&ssl->suites, ssl->version, ssl->options.haveDH,
+    InitSuites(ssl->suites, ssl->version, ssl->options.haveDH,
                havePSK, ssl->options.haveNTRU, ssl->options.haveECDSAsig,
                ssl->options.haveStaticECC, ssl->options.side);
 
@@ -542,7 +570,7 @@ int CyaSSL_SetVersion(CYASSL* ssl, int version)
         havePSK = ssl->options.havePSK;
     #endif
 
-    InitSuites(&ssl->suites, ssl->version, ssl->options.haveDH, havePSK,
+    InitSuites(ssl->suites, ssl->version, ssl->options.haveDH, havePSK,
                 ssl->options.haveNTRU, ssl->options.haveECDSAsig,
                 ssl->options.haveStaticECC, ssl->options.side);
 
@@ -729,7 +757,6 @@ int AddCA(CYASSL_CERT_MANAGER* cm, buffer der, int type, int verify)
 
         (void)heap;
         (void)dynamicType;
-        (void)pkcs8Enc;
 
         if (type == CERT_TYPE || type == CA_TYPE)  {
             XSTRNCPY(header, "-----BEGIN CERTIFICATE-----", sizeof(header));
@@ -766,8 +793,10 @@ int AddCA(CYASSL_CERT_MANAGER* cm, buffer der, int type, int verify)
                         sizeof(footer));
 
                 headerEnd = XSTRNSTR((char*)buff, header, sz);
-                if (headerEnd)
+                if (headerEnd) {
                     pkcs8Enc = 1;
+                    (void)pkcs8Enc;  /* only opensslextra will read */
+                }
             }
         }
         if (!headerEnd && type == PRIVATEKEY_TYPE) {  /* may be ecc */
@@ -876,7 +905,7 @@ int AddCA(CYASSL_CERT_MANAGER* cm, buffer der, int type, int verify)
             int  passwordSz;
             char password[80];
 
-            if (!info->ctx || !info->ctx->passwd_cb)
+            if (!info || !info->ctx || !info->ctx->passwd_cb)
                 return SSL_BAD_FILE;  /* no callback error */
             passwordSz = info->ctx->passwd_cb(password, sizeof(password), 0,
                                               info->ctx->userdata);
@@ -943,7 +972,7 @@ int AddCA(CYASSL_CERT_MANAGER* cm, buffer der, int type, int verify)
                     CYASSL_MSG("Growing Tmp Chain Buffer");
                     bufferSz = sz - consumed;  /* will shrink to actual size */
                     chainBuffer = (byte*)XMALLOC(bufferSz, ctx->heap,
-                                                 DYNAMIC_FILE_TYPE);
+                                                 DYNAMIC_TYPE_FILE);
                     if (chainBuffer == NULL) {
                         XFREE(der.buffer, ctx->heap, dynamicType);
                         return MEMORY_E;
@@ -1393,6 +1422,7 @@ int CyaSSL_CertManagerVerifyBuffer(CYASSL_CERT_MANAGER* cm, const byte* buff,
     CYASSL_ENTER("CyaSSL_CertManagerVerifyBuffer");
 
     der.buffer = NULL;
+    der.length = 0;
 
     if (format == SSL_FILETYPE_PEM) { 
         EncryptedInfo info;
@@ -2164,14 +2194,14 @@ int CyaSSL_CTX_set_cipher_list(CYASSL_CTX* ctx, const char* list)
 int CyaSSL_set_cipher_list(CYASSL* ssl, const char* list)
 {
     CYASSL_ENTER("CyaSSL_set_cipher_list");
-    if (SetCipherList(&ssl->suites, list)) {
+    if (SetCipherList(ssl->suites, list)) {
         byte havePSK = 0;
 
         #ifndef NO_PSK
             havePSK = ssl->options.havePSK;
         #endif
 
-        InitSuites(&ssl->suites, ssl->version, ssl->options.haveDH, havePSK,
+        InitSuites(ssl->suites, ssl->version, ssl->options.haveDH, havePSK,
                    ssl->options.haveNTRU, ssl->options.haveECDSAsig,
                    ssl->options.haveStaticECC, ssl->options.side);
 
@@ -2413,8 +2443,7 @@ void CyaSSL_dtls_got_timeout(CYASSL* ssl)
             CYASSL_MSG("connect state: SECOND_REPLY_DONE");
 
         case SECOND_REPLY_DONE:
-            if (ssl->buffers.inputBuffer.dynamicFlag)
-                ShrinkInputBuffer(ssl, NO_FORCED_FREE);
+            FreeHandshakeResources(ssl);
             CYASSL_LEAVE("SSL_connect()", SSL_SUCCESS);
             return SSL_SUCCESS;
 
@@ -2490,7 +2519,7 @@ void CyaSSL_dtls_got_timeout(CYASSL* ssl)
         #ifdef HAVE_ECC
             /* in case used set_accept_state after init */
             if (ssl->eccTempKeyPresent == 0) {
-                if (ecc_make_key(&ssl->rng, ssl->eccTempKeySz,
+                if (ecc_make_key(ssl->rng, ssl->eccTempKeySz,
                                  &ssl->eccTempKey) != 0) {
                     ssl->error = ECC_MAKEKEY_ERROR;
                     CYASSL_ERROR(ssl->error);
@@ -2650,8 +2679,7 @@ void CyaSSL_dtls_got_timeout(CYASSL* ssl)
             CYASSL_MSG("accept state ACCEPT_THIRD_REPLY_DONE");
 
         case ACCEPT_THIRD_REPLY_DONE :
-            if (ssl->buffers.inputBuffer.dynamicFlag)
-                ShrinkInputBuffer(ssl, NO_FORCED_FREE);
+            FreeHandshakeResources(ssl);
             CYASSL_LEAVE("SSL_accept()", SSL_SUCCESS);
             return SSL_SUCCESS;
 
@@ -3221,7 +3249,7 @@ int CyaSSL_set_compression(CYASSL* ssl)
         ssl->options.havePSK = 1;
         ssl->options.client_psk_cb = cb;
 
-        InitSuites(&ssl->suites, ssl->version,TRUE,TRUE, ssl->options.haveNTRU,
+        InitSuites(ssl->suites, ssl->version,TRUE,TRUE, ssl->options.haveNTRU,
                    ssl->options.haveECDSAsig, ssl->options.haveStaticECC,
                    ssl->options.side);
     }
@@ -3242,7 +3270,7 @@ int CyaSSL_set_compression(CYASSL* ssl)
         ssl->options.havePSK = 1;
         ssl->options.server_psk_cb = cb;
 
-        InitSuites(&ssl->suites, ssl->version, ssl->options.haveDH, TRUE,
+        InitSuites(ssl->suites, ssl->version, ssl->options.haveDH, TRUE,
                    ssl->options.haveNTRU, ssl->options.haveECDSAsig,
                    ssl->options.haveStaticECC, ssl->options.side);
     }
@@ -3467,7 +3495,7 @@ int CyaSSL_set_compression(CYASSL* ssl)
 #ifndef NO_PSK
         havePSK = ssl->options.havePSK;
 #endif
-        InitSuites(&ssl->suites, ssl->version, ssl->options.haveDH, havePSK,
+        InitSuites(ssl->suites, ssl->version, ssl->options.haveDH, havePSK,
                    ssl->options.haveNTRU, ssl->options.haveECDSAsig,
                    ssl->options.haveStaticECC, ssl->options.side);
     }

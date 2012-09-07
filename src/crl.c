@@ -123,7 +123,6 @@ int CheckCertCRL(CYASSL_CRL* crl, DecodedCert* cert)
 {
     CRL_Entry* crle;
     int        foundEntry = 0;
-    int        revoked = 0;
     int        ret = 0;
 
     CYASSL_ENTER("CheckCertCRL");
@@ -157,7 +156,6 @@ int CheckCertCRL(CYASSL_CRL* crl, DecodedCert* cert)
         while (rc) {
             if (XMEMCMP(rc->serialNumber, cert->serial, rc->serialSz) == 0) {
                 CYASSL_MSG("Cert revoked");
-                revoked = 1;
                 ret = CRL_CERT_REVOKED;
                 break;
             }
