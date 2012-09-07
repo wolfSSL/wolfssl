@@ -179,6 +179,7 @@ CYASSL_API CYASSL_CTX* CyaSSL_CTX_new(CYASSL_METHOD*);
 CYASSL_API CYASSL* CyaSSL_new(CYASSL_CTX*);
 CYASSL_API int  CyaSSL_set_fd (CYASSL*, int);
 CYASSL_API int  CyaSSL_get_fd(const CYASSL*);
+CYASSL_API void CyaSSL_using_nonblock(CYASSL*);
 CYASSL_API int  CyaSSL_connect(CYASSL*);     /* please see note at top of README
                                              if you get an error from connect */
 CYASSL_API int  CyaSSL_write(CYASSL*, const void*, int);
@@ -760,8 +761,8 @@ CYASSL_API int CyaSSL_use_certificate_chain_buffer(CYASSL*,
 CYASSL_API int CyaSSL_set_group_messages(CYASSL*);
 
 /* I/O callbacks */
-typedef int (*CallbackIORecv)(char *buf, int sz, void *ctx);
-typedef int (*CallbackIOSend)(char *buf, int sz, void *ctx);
+typedef int (*CallbackIORecv)(CYASSL *ssl, char *buf, int sz, void *ctx);
+typedef int (*CallbackIOSend)(CYASSL *ssl, char *buf, int sz, void *ctx);
 
 CYASSL_API void CyaSSL_SetIORecv(CYASSL_CTX*, CallbackIORecv);
 CYASSL_API void CyaSSL_SetIOSend(CYASSL_CTX*, CallbackIOSend);

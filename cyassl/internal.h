@@ -649,9 +649,9 @@ int  SetCipherList(Suites*, const char* list);
 #ifndef CYASSL_USER_IO
     /* default IO callbacks */
     CYASSL_LOCAL
-    int EmbedReceive(char *buf, int sz, void *ctx);
+    int EmbedReceive(CYASSL *ssl, char *buf, int sz, void *ctx);
     CYASSL_LOCAL 
-    int EmbedSend(char *buf, int sz, void *ctx);
+    int EmbedSend(CYASSL *ssl, char *buf, int sz, void *ctx);
 #endif
 
 #ifdef CYASSL_DTLS
@@ -1132,6 +1132,7 @@ typedef struct Options {
     byte            quietShutdown;      /* don't send close notify */
     byte            certOnly;           /* stop once we get cert */
     byte            groupMessages;      /* group handshake messages */
+    byte            usingNonblock;      /* set when using nonblocking socket */
 #ifndef NO_PSK
     byte            havePSK;            /* psk key set by user */
     psk_client_callback client_psk_cb;
@@ -1257,6 +1258,9 @@ struct CYASSL {
     z_stream        c_stream;           /* compression   stream */
     z_stream        d_stream;           /* decompression stream */
     byte            didStreamInit;      /* for stream init and end */
+#endif
+#ifdef CYASSL_DTLS
+    int             dtls_timeout;
 #endif
 #ifdef CYASSL_CALLBACKS
     HandShakeInfo   handShakeInfo;      /* info saved during handshake */
@@ -1396,7 +1400,8 @@ enum IOerrors {
     IO_ERR_WANT_WRITE = -2,     /* need to call write again */
     IO_ERR_CONN_RST   = -3,     /* connection reset */
     IO_ERR_ISR        = -4,     /* interrupt */
-    IO_ERR_CONN_CLOSE = -5      /* connection closed or epipe */
+    IO_ERR_CONN_CLOSE = -5,     /* connection closed or epipe */
+    IO_ERR_TIMEOUT    = -6      /* socket timeout */
 };
 
 

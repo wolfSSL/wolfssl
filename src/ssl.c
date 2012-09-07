@@ -185,6 +185,13 @@ int CyaSSL_get_fd(const CYASSL* ssl)
 }
 
 
+void CyaSSL_using_nonblock(CYASSL* ssl)
+{
+    CYASSL_ENTER("CyaSSL_using_nonblock");
+    ssl->options.usingNonblock = 1;
+}
+
+
 int CyaSSL_negotiate(CYASSL* ssl)
 {
     int err = SSL_FATAL_ERROR;
@@ -2172,6 +2179,29 @@ int CyaSSL_set_cipher_list(CYASSL* ssl, const char* list)
     }
     else
         return SSL_FAILURE;
+}
+
+
+int CyaSSL_dtls_get_current_timeout(CYASSL* ssl)
+{
+    (void)ssl;
+
+#ifdef CYASSL_DTLS
+    return ssl->dtls_timeout;
+#else
+    return 0;
+#endif
+}
+
+
+void CyaSSL_dtls_got_timeout(CYASSL* ssl)
+{
+    (void)ssl;
+
+#ifdef CYASSL_DTLS
+    if (ssl->dtls_timeout < 64)
+        ssl->dtls_timeout *= 2;
+#endif
 }
 
 

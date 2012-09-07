@@ -923,6 +923,7 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
     ssl->keys.dtls_peer_epoch           = 0;
     ssl->keys.dtls_expected_peer_epoch  = 0;
     ssl->arrays.cookieSz                = 0;
+    ssl->dtls_timeout                   = 2;
 #endif
     ssl->keys.encryptionOn = 0;     /* initially off */
     ssl->options.sessionCacheOff      = ctx->sessionCacheOff;
@@ -944,6 +945,7 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
     ssl->options.quietShutdown = ctx->quietShutdown;
     ssl->options.certOnly = 0;
     ssl->options.groupMessages = ctx->groupMessages;
+    ssl->options.usingNonblock = 0;
 
     /* ctx still owns certificate, certChain, key, dh, and cm */
     ssl->buffers.certificate = ctx->certificate;
@@ -1305,7 +1307,7 @@ static int Receive(CYASSL* ssl, byte* buf, word32 sz)
     int recvd;
 
 retry:
-    recvd = ssl->ctx->CBIORecv((char *)buf, (int)sz, ssl->IOCB_ReadCtx);
+    recvd = ssl->ctx->CBIORecv(ssl, (char *)buf, (int)sz, ssl->IOCB_ReadCtx);
     if (recvd < 0)
         switch (recvd) {
             case IO_ERR_GENERAL:        /* general/unknown error */
@@ -1338,6 +1340,10 @@ retry:
             case IO_ERR_CONN_CLOSE:     /* peer closed connection */
                 ssl->options.isClosed = 1;
                 return -1;
+
+            case IO_ERR_TIMEOUT:
+                /* XXX More than retry. Need to resend. */
+                goto retry;
 
             default:
                 return recvd;
@@ -1386,7 +1392,8 @@ void ShrinkInputBuffer(CYASSL* ssl, int forcedFree)
 int SendBuffered(CYASSL* ssl)
 {
     while (ssl->buffers.outputBuffer.length > 0) {
-        int sent = ssl->ctx->CBIOSend((char*)ssl->buffers.outputBuffer.buffer +
+        int sent = ssl->ctx->CBIOSend(ssl,
+                                      (char*)ssl->buffers.outputBuffer.buffer +
                                       ssl->buffers.outputBuffer.idx,
                                       (int)ssl->buffers.outputBuffer.length,
                                       ssl->IOCB_WriteCtx);

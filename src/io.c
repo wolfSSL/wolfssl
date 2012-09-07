@@ -134,11 +134,23 @@ static INLINE int LastError(void)
 /* The receive embedded callback
  *  return : nb bytes read, or error
  */
-int EmbedReceive(char *buf, int sz, void *ctx)
+int EmbedReceive(CYASSL *ssl, char *buf, int sz, void *ctx)
 {
     int recvd;
     int err;
     int sd = *(int*)ctx;
+
+#ifdef CYASSL_DTLS
+    if (ssl->options.dtls
+                     && !ssl->options.usingNonblock && ssl->dtls_timeout != 0) {
+        #if USE_WINDOWS_API
+            DWORD timeout = ssl->dtls_timeout;
+        #else
+            struct timeval timeout = {ssl->dtls_timeout, 0};
+        #endif
+        setsockopt(sd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
+    }
+#endif
 
     recvd = RECV_FUNCTION(sd, (char *)buf, sz, 0);
 
@@ -147,8 +159,14 @@ int EmbedReceive(char *buf, int sz, void *ctx)
         CYASSL_MSG("Embed Receive error");
 
         if (err == SOCKET_EWOULDBLOCK || err == SOCKET_EAGAIN) {
-            CYASSL_MSG("    Would block");
-            return IO_ERR_WANT_READ;
+            if (ssl->options.usingNonblock) {
+                CYASSL_MSG("    Would block");
+                return IO_ERR_WANT_READ;
+            }
+            else {
+                CYASSL_MSG("    Socket timeout");
+                return IO_ERR_TIMEOUT;
+            }
         }
         else if (err == SOCKET_ECONNRESET) {
             CYASSL_MSG("    Connection reset");
@@ -174,12 +192,14 @@ int EmbedReceive(char *buf, int sz, void *ctx)
 /* The send embedded callback
  *  return : nb bytes sent, or error
  */
-int EmbedSend(char *buf, int sz, void *ctx)
+int EmbedSend(CYASSL* ssl, char *buf, int sz, void *ctx)
 {
     int sd = *(int*)ctx;
     int sent;
     int len = sz;
     int err;
+
+    (void)ssl;
 
     sent = SEND_FUNCTION(sd, &buf[sz - len], len, 0);
 
