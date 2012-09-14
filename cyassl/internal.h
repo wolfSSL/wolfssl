@@ -621,8 +621,14 @@ enum {
        The length (in bytes) of the following TLSPlaintext.fragment.
        The length should not exceed 2^14.
 */
-#define STATIC_BUFFER_LEN RECORD_HEADER_SZ + RECORD_SIZE + COMP_EXTRA + \
-        MTU_EXTRA + MAX_MSG_EXTRA
+#if defined(LARGE_STATIC_BUFFERS) || defined(CYASSL_SNIFFER) || \
+                                     defined(CYASSL_DTLS)
+    #define STATIC_BUFFER_LEN RECORD_HEADER_SZ + RECORD_SIZE + COMP_EXTRA + \
+             MTU_EXTRA + MAX_MSG_EXTRA
+#else
+    /* zero length arrays may not be supported */
+    #define STATIC_BUFFER_LEN 1
+#endif
 
 typedef struct {
     word32 length;       /* total buffer length used */
