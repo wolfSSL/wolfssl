@@ -218,7 +218,8 @@ enum {
     DYNAMIC_TYPE_ALTNAME      = 29,
     DYNAMIC_TYPE_SUITES       = 30,
     DYNAMIC_TYPE_CIPHER       = 31,
-    DYNAMIC_TYPE_RNG          = 32 
+    DYNAMIC_TYPE_RNG          = 32,
+    DYNAMIC_TYPE_DTLS_POOL    = 33
 };
 
 /* stack protection */

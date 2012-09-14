@@ -2219,19 +2219,30 @@ int CyaSSL_dtls_get_current_timeout(CYASSL* ssl)
 #ifdef CYASSL_DTLS
     return ssl->dtls_timeout;
 #else
-    return 0;
+    return SSL_NOT_IMPLEMENTED;
 #endif
 }
 
 
-void CyaSSL_dtls_got_timeout(CYASSL* ssl)
+int CyaSSL_dtls_got_timeout(CYASSL* ssl)
 {
+    int result = SSL_NOT_IMPLEMENTED;
     (void)ssl;
 
 #ifdef CYASSL_DTLS
-    if (ssl->dtls_timeout < 64)
+    if (ssl->dtls_timeout < 64) {
         ssl->dtls_timeout *= 2;
+        if (DtlsPoolSend(ssl) < 0)
+            result = SSL_FATAL_ERROR;
+        else
+            result = SSL_SUCCESS;
+    }
+    else {
+        result = SSL_FATAL_ERROR;
+    }
 #endif
+
+    return result;
 }
 
 
@@ -2285,6 +2296,12 @@ void CyaSSL_dtls_got_timeout(CYASSL* ssl)
                 ssl->options.dtls   = 1;
                 ssl->options.tls    = 1;
                 ssl->options.tls1_1 = 1;
+
+                if (DtlsPoolInit(ssl) != 0) {
+                    ssl->error = MEMORY_ERROR;
+                    CYASSL_ERROR(ssl->error);
+                    return SSL_FATAL_ERROR;
+                }
             }
         #endif
 
@@ -2535,6 +2552,12 @@ void CyaSSL_dtls_got_timeout(CYASSL* ssl)
                 ssl->options.dtls   = 1;
                 ssl->options.tls    = 1;
                 ssl->options.tls1_1 = 1;
+
+                if (DtlsPoolInit(ssl) != 0) {
+                    ssl->error = MEMORY_ERROR;
+                    CYASSL_ERROR(ssl->error);
+                    return SSL_FATAL_ERROR;
+                }
             }
         #endif
 

@@ -143,7 +143,7 @@ int EmbedReceive(CYASSL *ssl, char *buf, int sz, void *ctx)
 #ifdef CYASSL_DTLS
     if (ssl->options.dtls
                      && !ssl->options.usingNonblock && ssl->dtls_timeout != 0) {
-        #if USE_WINDOWS_API
+        #ifdef USE_WINDOWS_API
             DWORD timeout = ssl->dtls_timeout;
         #else
             struct timeval timeout = {ssl->dtls_timeout, 0};

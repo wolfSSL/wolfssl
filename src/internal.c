@@ -981,7 +981,8 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
     ssl->keys.dtls_peer_epoch           = 0;
     ssl->keys.dtls_expected_peer_epoch  = 0;
     ssl->arrays.cookieSz                = 0;
-    ssl->dtls_timeout                   = 2;
+    ssl->dtls_timeout                   = DTLS_DEFAULT_TIMEOUT;
+    ssl->dtls_pool                      = NULL;
 #endif
     ssl->keys.encryptionOn = 0;     /* initially off */
     ssl->keys.decryptedCur = 0;     /* initially off */
@@ -1135,6 +1136,8 @@ void SSL_ResourceFree(CYASSL* ssl)
 #ifdef CYASSL_DTLS
     if (ssl->buffers.dtlsHandshake.buffer != NULL)
         XFREE(ssl->buffers.dtlsHandshake.buffer, ssl->heap, DYNAMIC_TYPE_NONE);
+    if (ssl->dtls_pool != NULL)
+        XFREE(ssl->dtls_pool, ssl->heap, DYNAMIC_TYPE_NONE);
 #endif
 #if defined(OPENSSL_EXTRA) || defined(GOAHEAD_WS)
     XFREE(ssl->peerCert.derCert.buffer, ssl->heap, DYNAMIC_TYPE_CERT);
@@ -1172,6 +1175,14 @@ void FreeHandshakeResources(CYASSL* ssl)
         XFREE(ssl->rng, ssl->heap, DYNAMIC_TYPE_RNG);
         ssl->rng = NULL;
     }
+
+#ifdef CYASSL_DTLS
+    /* DTLS_POOL */
+    if (ssl->options.dtls && ssl->dtls_pool != NULL) {
+        XFREE(ssl->dtls_pool, ssl->heap, DYNAMIC_TYPE_DTLS_POOL);
+        ssl->dtls_pool = NULL;
+    }
+#endif
 }
 
 
@@ -1181,6 +1192,87 @@ void FreeSSL(CYASSL* ssl)
     SSL_ResourceFree(ssl);
     XFREE(ssl, ssl->heap, DYNAMIC_TYPE_SSL);
 }
+
+
+#ifdef CYASSL_DTLS
+
+int DtlsPoolInit(CYASSL* ssl)
+{
+    if (ssl->dtls_pool == NULL) {
+        DtlsPool *pool = (DtlsPool*)XMALLOC(sizeof(DtlsPool),
+                                             ssl->heap, DYNAMIC_TYPE_DTLS_POOL);
+        if (pool == NULL) {
+            CYASSL_MSG("DTLS Buffer Pool Memory error");
+            return MEMORY_E;
+        }
+        else {
+            int i;
+            
+            for (i = 0; i < DTLS_POOL_SZ; i++) {
+                pool->buf[i].length = 0;
+                pool->buf[i].buffer = pool->pool + (MAX_MTU * i);
+            }
+            pool->used = 0;
+            ssl->dtls_pool = pool;
+        }
+    }
+    return 0;
+}
+
+
+void DtlsPoolSave(CYASSL* ssl, const byte *src, int sz)
+{
+    DtlsPool *pool = ssl->dtls_pool;
+    if (pool != NULL && pool->used < DTLS_POOL_SZ) {
+        buffer *buf = &pool->buf[pool->used];
+        XMEMCPY(buf->buffer, src, sz);
+        buf->length = (word32)sz;
+        pool->used++;
+    }
+}
+
+
+void DtlsPoolReset(CYASSL* ssl)
+{
+    if (ssl->dtls_pool != NULL) {
+        ssl->dtls_pool->used = 0;
+        ssl->dtls_timeout = DTLS_DEFAULT_TIMEOUT;
+    }
+}
+
+
+int DtlsPoolSend(CYASSL* ssl)
+{
+    DtlsPool *pool = ssl->dtls_pool;
+
+    if (pool != NULL && pool->used > 0) {
+        int i;
+        for (i = 0; i < pool->used; i++) {
+            int sendResult;
+            buffer* buf = &pool->buf[i];
+            DtlsRecordLayerHeader* dtls = (DtlsRecordLayerHeader*)buf->buffer;
+
+            if (dtls->type == change_cipher_spec) {
+                ssl->keys.dtls_epoch++;
+                ssl->keys.dtls_sequence_number = 0;
+            }    
+            c16toa(ssl->keys.dtls_epoch, dtls->epoch);
+            c32to48(ssl->keys.dtls_sequence_number++, dtls->sequence_number);
+
+            XMEMCPY(ssl->buffers.outputBuffer.buffer, buf->buffer, buf->length);
+            ssl->buffers.outputBuffer.idx = 0;
+            ssl->buffers.outputBuffer.length = buf->length;
+
+            sendResult = SendBuffered(ssl);
+            if (sendResult < 0) {
+                return sendResult;
+            }
+        }
+    }
+    return 0;
+}
+
+#endif
 
 
 ProtocolVersion MakeSSLv3(void)
@@ -1438,9 +1530,11 @@ retry:
                 ssl->options.isClosed = 1;
                 return -1;
 
+#ifdef CYASSL_DTLS
             case IO_ERR_TIMEOUT:
-                /* XXX More than retry. Need to resend. */
+                DtlsPoolSend(ssl);
                 goto retry;
+#endif
 
             default:
                 return recvd;
@@ -3014,6 +3108,7 @@ int ProcessReply(CYASSL* ssl)
 
                     #ifdef CYASSL_DTLS
                         if (ssl->options.dtls) {
+                            DtlsPoolReset(ssl);
                             ssl->keys.dtls_expected_peer_epoch++;
                             ssl->keys.dtls_expected_peer_sequence_number = 0;
                         }
@@ -3120,6 +3215,11 @@ int SendChangeCipher(CYASSL* ssl)
 
     output[idx] = 1;             /* turn it on */
 
+    #ifdef CYASSL_DTLS
+        if (ssl->options.dtls) {
+            DtlsPoolSave(ssl, output, sendSz);
+        }
+    #endif
     #ifdef CYASSL_CALLBACKS
         if (ssl->hsInfoOn) AddPacketName("ChangeCipher", &ssl->handShakeInfo);
         if (ssl->toInfoOn)
@@ -3318,8 +3418,14 @@ static int BuildMessage(CYASSL* ssl, byte* output, const byte* input, int inSz,
     XMEMCPY(output + idx, input, inSz);
     idx += inSz;
 
-    if (type == handshake)
+    if (type == handshake) {
+#ifdef CYASSL_DTLS
+        if (ssl->options.dtls) {
+            DtlsPoolSave(ssl, output, headerSz+inSz);
+        }
+#endif
         HashOutput(ssl, output, headerSz + inSz, ivSz);
+    }
     if (ssl->specs.cipher_type != aead) {
         ssl->hmac(ssl, output+idx, output + headerSz + ivSz, inSz, type, 0);
         idx += digestSz;
@@ -3389,6 +3495,11 @@ int SendFinished(CYASSL* ssl)
         else
             BuildFinished(ssl, &ssl->verifyHashes, client);
     }
+    #ifdef CYASSL_DTLS
+        if (ssl->options.dtls) {
+            DtlsPoolSave(ssl, output, sendSz);
+        }
+    #endif
 
     #ifdef CYASSL_CALLBACKS
         if (ssl->hsInfoOn) AddPacketName("Finished", &ssl->handShakeInfo);
@@ -3467,6 +3578,11 @@ int SendCertificate(CYASSL* ssl)
                i += ssl->buffers.certChain.length; */
         }
     }
+    #ifdef CYASSL_DTLS
+        if (ssl->options.dtls) {
+            DtlsPoolSave(ssl, output, sendSz);
+        }
+    #endif
     HashOutput(ssl, output, sendSz, 0);
     #ifdef CYASSL_CALLBACKS
         if (ssl->hsInfoOn) AddPacketName("Certificate", &ssl->handShakeInfo);
@@ -3536,6 +3652,11 @@ int SendCertificateRequest(CYASSL* ssl)
     /* if add more to output, adjust i
     i += REQ_HEADER_SZ; */
 
+    #ifdef CYASSL_DTLS
+        if (ssl->options.dtls) {
+            DtlsPoolSave(ssl, output, sendSz);
+        }
+    #endif
     HashOutput(ssl, output, sendSz, 0);
 
     #ifdef CYASSL_CALLBACKS
@@ -4797,6 +4918,11 @@ int SetCipherList(Suites* s, const char* list)
             output[idx++] = ecc_dsa_sa_algo;
         }
 
+        #ifdef CYASSL_DTLS
+            if (ssl->options.dtls) {
+                DtlsPoolSave(ssl, output, sendSz);
+            }
+        #endif
         HashOutput(ssl, output, sendSz, 0);
 
         ssl->options.clientState = CLIENT_HELLO_COMPLETE;
@@ -4824,6 +4950,11 @@ int SetCipherList(Suites* s, const char* list)
         if (ssl->hsInfoOn) AddPacketName("HelloVerifyRequest",
                                          &ssl->handShakeInfo);
         if (ssl->toInfoOn) AddLateName("HelloVerifyRequest", &ssl->timeoutInfo);
+#endif
+#ifdef CYASSL_DTLS
+        if (ssl->options.dtls) {
+            DtlsPoolReset(ssl);
+        }
 #endif
         XMEMCPY(&pv, input + *inOutIdx, sizeof(pv));
         *inOutIdx += sizeof(pv);
@@ -4937,7 +5068,11 @@ int SetCipherList(Suites* s, const char* list)
                 ssl->options.resuming = 0; /* server denied resumption try */
             }
         }
-
+        #ifdef CYASSL_DTLS
+            if (ssl->options.dtls) {
+                DtlsPoolReset(ssl);
+            }
+        #endif
         return SetCipherSpecs(ssl);
     }
 
@@ -5391,7 +5526,11 @@ int SetCipherList(Suites* s, const char* list)
             XMEMCPY(output + idx, encSecret, encSz);
             /* if add more to output, adjust idx
             idx += encSz; */
-
+            #ifdef CYASSL_DTLS
+                if (ssl->options.dtls) {
+                    DtlsPoolSave(ssl, output, sendSz);
+                }
+            #endif
             HashOutput(ssl, output, sendSz, 0);
 
             #ifdef CYASSL_CALLBACKS
@@ -5527,8 +5666,10 @@ int SetCipherList(Suites* s, const char* list)
                 sendSz = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ + length +
                          extraSz + VERIFY_HEADER;
                 #ifdef CYASSL_DTLS
-                    if (ssl->options.dtls)
+                    if (ssl->options.dtls) {
                         sendSz += DTLS_RECORD_EXTRA + DTLS_HANDSHAKE_EXTRA;
+                        DtlsPoolSave(ssl, output, sendSz);
+                    }
                 #endif
                 HashOutput(ssl, output, sendSz, 0);
             }
@@ -5631,6 +5772,11 @@ int SetCipherList(Suites* s, const char* list)
             output[idx++] = NO_COMPRESSION;
             
         ssl->buffers.outputBuffer.length += sendSz;
+        #ifdef CYASSL_DTLS
+            if (ssl->options.dtls) {
+                DtlsPoolSave(ssl, output, sendSz);
+            }
+        #endif
         HashOutput(ssl, output, sendSz, 0);
 
         #ifdef CYASSL_CALLBACKS
@@ -6091,6 +6237,11 @@ int SetCipherList(Suites* s, const char* list)
                 }
             }
 
+            #ifdef CYASSL_DTLS
+                if (ssl->options.dtls) {
+                    DtlsPoolSave(ssl, output, sendSz);
+                }
+            #endif
             HashOutput(ssl, output, sendSz, 0);
 
             #ifdef CYASSL_CALLBACKS
@@ -6943,6 +7094,11 @@ int SetCipherList(Suites* s, const char* list)
 
         AddHeaders(output, 0, server_hello_done, ssl);
 
+        #ifdef CYASSL_DTLS
+            if (ssl->options.dtls) {
+                DtlsPoolSave(ssl, output, sendSz);
+            }
+        #endif
         HashOutput(ssl, output, sendSz, 0);
 #ifdef CYASSL_CALLBACKS
         if (ssl->hsInfoOn)

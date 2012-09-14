@@ -398,6 +398,7 @@ enum Misc {
     DTLS_RECORD_EXTRA        = 8,  /* diff from normal */
     DTLS_HANDSHAKE_SEQ_SZ    = 2,  /* handshake header sequence number */
     DTLS_HANDSHAKE_FRAG_SZ   = 3,  /* fragment offset and length are 24 bit */
+    DTLS_POOL_SZ             = 5,  /* buffers to hold in the retry pool */
 
     FINISHED_LABEL_SZ   = 15,  /* TLS finished label size */
     TLS_FINISHED_SZ     = 12,  /* TLS has a shorter size  */
@@ -445,6 +446,7 @@ enum Misc {
     CLIENT_HELLO_FIRST =  35,  /* Protocol + RAN_LEN + sizeof(id_len) */
     MAX_SUITE_NAME     =  48,  /* maximum length of cipher suite string */
     DEFAULT_TIMEOUT    = 500,  /* default resumption timeout in seconds */
+    DTLS_DEFAULT_TIMEOUT = 1,  /* default timeout for DTLS receive      */
 
     MAX_PSK_ID_LEN     = 128,  /* max psk identity/hint supported */
     MAX_PSK_KEY_LEN    =  64,  /* max psk key supported */
@@ -1210,6 +1212,13 @@ typedef struct DtlsRecordLayerHeader {
 } DtlsRecordLayerHeader;
 
 
+typedef struct DtlsPool {
+    buffer          buf[DTLS_POOL_SZ];
+    int             used;
+    byte            pool[MAX_MTU*DTLS_POOL_SZ];
+} DtlsPool;
+
+
 /* CyaSSL ssl type */
 struct CYASSL {
     CYASSL_CTX*     ctx;
@@ -1274,6 +1283,7 @@ struct CYASSL {
 #endif
 #ifdef CYASSL_DTLS
     int             dtls_timeout;
+    DtlsPool*       dtls_pool;
 #endif
 #ifdef CYASSL_CALLBACKS
     HandShakeInfo   handShakeInfo;      /* info saved during handshake */
@@ -1479,6 +1489,12 @@ CYASSL_LOCAL void BuildTlsFinished(CYASSL* ssl, Hashes* hashes,
     #endif
 #endif /* NO_CYASSL_SERVER */
 
+#ifdef CYASSL_DTLS
+    CYASSL_LOCAL int  DtlsPoolInit(CYASSL*);
+    CYASSL_LOCAL void DtlsPoolSave(CYASSL*, const byte*, int);
+    CYASSL_LOCAL int  DtlsPoolSend(CYASSL*);
+    CYASSL_LOCAL void DtlsPoolReset(CYASSL*);
+#endif /* CYASSL_DTLS */
 
 #ifndef NO_TLS
     
