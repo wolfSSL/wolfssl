@@ -1250,7 +1250,7 @@ struct CYASSL {
     Arrays*         arrays;
     CYASSL_SESSION  session;
     VerifyCallback  verifyCallback;      /* cert verification callback */
-    RsaKey          peerRsaKey;
+    RsaKey*         peerRsaKey;
     byte            peerRsaKeyPresent;
 #ifdef HAVE_NTRU
     word16          peerNtruKeyLen;

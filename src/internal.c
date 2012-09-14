@@ -936,7 +936,7 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
 #ifdef CYASSL_SHA384
     InitSha384(&ssl->hashSha384);
 #endif
-    InitRsaKey(&ssl->peerRsaKey, ctx->heap);
+    ssl->peerRsaKey = NULL;
 
     ssl->verifyCallback    = ctx->verifyCallback;
     ssl->peerRsaKeyPresent = 0;
@@ -1057,6 +1057,7 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
     ctx->refCount++;
     UnLockMutex(&ctx->countMutex);
 
+    /* arrays */
     ssl->arrays = (Arrays*)XMALLOC(sizeof(Arrays), ssl->heap,
                                    DYNAMIC_TYPE_ARRAYS);
     if (ssl->arrays == NULL) {
@@ -1078,6 +1079,7 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
     ssl->arrays->cookieSz = 0;
 #endif
 
+    /* RNG */
     ssl->rng = (RNG*)XMALLOC(sizeof(RNG), ssl->heap, DYNAMIC_TYPE_RNG);
     if (ssl->rng == NULL) {
         CYASSL_MSG("RNG Memory error");
@@ -1087,6 +1089,7 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
     if ( (ret = InitRng(ssl->rng)) != 0)
         return ret;
 
+    /* suites */
     ssl->suites = (Suites*)XMALLOC(sizeof(Suites), ssl->heap,
                                    DYNAMIC_TYPE_SUITES);
     if (ssl->suites == NULL) {
@@ -1094,6 +1097,15 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
         return MEMORY_E;
     }
     *ssl->suites = ctx->suites;
+
+    /* peer key */
+    ssl->peerRsaKey = (RsaKey*)XMALLOC(sizeof(RsaKey), ssl->heap,
+                                       DYNAMIC_TYPE_RSA);
+    if (ssl->peerRsaKey == NULL) {
+        CYASSL_MSG("PeerRsaKey Memory error");
+        return MEMORY_E;
+    }
+    InitRsaKey(ssl->peerRsaKey, ctx->heap);
 
     /* make sure server has cert and key unless using PSK */
     if (ssl->options.side == SERVER_END && !havePSK)
@@ -1150,7 +1162,10 @@ void SSL_ResourceFree(CYASSL* ssl)
     if (ssl->buffers.weOwnKey)
         XFREE(ssl->buffers.key.buffer, ssl->heap, DYNAMIC_TYPE_KEY);
 
-    FreeRsaKey(&ssl->peerRsaKey);
+    if (ssl->peerRsaKey) {
+        FreeRsaKey(ssl->peerRsaKey);
+        XFREE(ssl->peerRsaKey, ssl->heap, DYNAMIC_TYPE_RSA);
+    }
     if (ssl->buffers.inputBuffer.dynamicFlag)
         ShrinkInputBuffer(ssl, FORCED_FREE);
     if (ssl->buffers.outputBuffer.dynamicFlag)
@@ -1199,6 +1214,14 @@ void FreeHandshakeResources(CYASSL* ssl)
     /* arrays */
     if (ssl->options.saveArrays)
         FreeArrays(ssl, 1);
+
+    /* peerRsaKey */
+    if (ssl->peerRsaKey) {
+        FreeRsaKey(ssl->peerRsaKey);
+        XFREE(ssl->peerRsaKey, ssl->heap, DYNAMIC_TYPE_RSA);
+        ssl->peerRsaKey = NULL;
+    }
+
 }
 
 
@@ -2077,7 +2100,7 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx)
         if (dCert.keyOID == RSAk) {
             word32 idx = 0;
             if (RsaPublicKeyDecode(dCert.publicKey, &idx,
-                               &ssl->peerRsaKey, dCert.pubKeySize) != 0) {
+                               ssl->peerRsaKey, dCert.pubKeySize) != 0) {
                 ret = PEER_KEY_ERROR;
             }
             else
@@ -5172,7 +5195,7 @@ int SetCipherList(Suites* s, const char* list)
             if (!ssl->peerRsaKeyPresent)
                 return NO_PEER_KEY;
 
-            ret = RsaSSL_VerifyInline(signature, sigLen,&out, &ssl->peerRsaKey);
+            ret = RsaSSL_VerifyInline(signature, sigLen,&out, ssl->peerRsaKey);
 
             if (IsAtLeastTLSv1_2(ssl)) {
                 byte   encodedSig[MAX_ENCODED_SIG_SZ];
@@ -5242,7 +5265,7 @@ int SetCipherList(Suites* s, const char* list)
                 return NO_PEER_KEY;
 
             ret = RsaPublicEncrypt(ssl->arrays->preMasterSecret, SECRET_LEN,
-                             encSecret, sizeof(encSecret), &ssl->peerRsaKey,
+                             encSecret, sizeof(encSecret), ssl->peerRsaKey,
                              ssl->rng);
             if (ret > 0) {
                 encSz = ret;
@@ -6901,7 +6924,7 @@ int SetCipherList(Suites* s, const char* list)
         if (ssl->peerRsaKeyPresent != 0) {
             CYASSL_MSG("Doing RSA peer cert verify");
 
-            outLen = RsaSSL_VerifyInline(sig, sz, &out, &ssl->peerRsaKey);
+            outLen = RsaSSL_VerifyInline(sig, sz, &out, ssl->peerRsaKey);
 
             if (IsAtLeastTLSv1_2(ssl)) {
                 byte   encodedSig[MAX_ENCODED_SIG_SZ];
