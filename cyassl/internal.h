@@ -1145,6 +1145,8 @@ typedef struct Options {
     byte            quietShutdown;      /* don't send close notify */
     byte            certOnly;           /* stop once we get cert */
     byte            groupMessages;      /* group handshake messages */
+    byte            saveArrays;         /* save array Memory for user get keys
+                                           or psk */
 #ifndef NO_PSK
     byte            havePSK;            /* psk key set by user */
     psk_client_callback client_psk_cb;
@@ -1239,7 +1241,7 @@ struct CYASSL {
     Hashes          certHashes;         /* for cert verify */
     Buffers         buffers;
     Options         options;
-    Arrays          arrays;
+    Arrays*         arrays;
     CYASSL_SESSION  session;
     VerifyCallback  verifyCallback;      /* cert verification callback */
     RsaKey          peerRsaKey;
@@ -1454,6 +1456,8 @@ CYASSL_LOCAL void ShrinkOutputBuffer(CYASSL* ssl);
 CYASSL_LOCAL Signer* GetCA(void* cm, byte* hash);
 CYASSL_LOCAL void BuildTlsFinished(CYASSL* ssl, Hashes* hashes,
                                    const byte* sender);
+CYASSL_LOCAL void FreeArrays(CYASSL* ssl, int keep);
+
 #ifndef NO_TLS
     CYASSL_LOCAL int  MakeTlsMasterSecret(CYASSL*);
     CYASSL_LOCAL void TLS_hmac(CYASSL* ssl, byte* digest, const byte* buffer,

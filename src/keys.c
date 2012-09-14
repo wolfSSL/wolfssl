@@ -1121,7 +1121,7 @@ int DeriveKeys(CYASSL* ssl)
     InitMd5(&md5);
     InitSha(&sha);
 
-    XMEMCPY(md5Input, ssl->arrays.masterSecret, SECRET_LEN);
+    XMEMCPY(md5Input, ssl->arrays->masterSecret, SECRET_LEN);
 
     for (i = 0; i < rounds; ++i) {
         int j   = i + 1;
@@ -1131,11 +1131,11 @@ int DeriveKeys(CYASSL* ssl)
             return PREFIX_ERROR;
         }
 
-        XMEMCPY(shaInput + idx, ssl->arrays.masterSecret, SECRET_LEN);
+        XMEMCPY(shaInput + idx, ssl->arrays->masterSecret, SECRET_LEN);
         idx += SECRET_LEN;
-        XMEMCPY(shaInput + idx, ssl->arrays.serverRandom, RAN_LEN);
+        XMEMCPY(shaInput + idx, ssl->arrays->serverRandom, RAN_LEN);
         idx += RAN_LEN;
-        XMEMCPY(shaInput + idx, ssl->arrays.clientRandom, RAN_LEN);
+        XMEMCPY(shaInput + idx, ssl->arrays->clientRandom, RAN_LEN);
 
         ShaUpdate(&sha, shaInput, sizeof(shaInput) - KEY_PREFIX + j);
         ShaFinal(&sha, shaOutput);
@@ -1151,15 +1151,15 @@ int DeriveKeys(CYASSL* ssl)
 
 static void CleanPreMaster(CYASSL* ssl)
 {
-    int i, sz = ssl->arrays.preMasterSz;
+    int i, sz = ssl->arrays->preMasterSz;
 
     for (i = 0; i < sz; i++)
-        ssl->arrays.preMasterSecret[i] = 0;
+        ssl->arrays->preMasterSecret[i] = 0;
 
-    RNG_GenerateBlock(ssl->rng, ssl->arrays.preMasterSecret, sz);
+    RNG_GenerateBlock(ssl->rng, ssl->arrays->preMasterSecret, sz);
 
     for (i = 0; i < sz; i++)
-        ssl->arrays.preMasterSecret[i] = 0;
+        ssl->arrays->preMasterSecret[i] = 0;
 
 }
 
@@ -1172,7 +1172,7 @@ static int MakeSslMasterSecret(CYASSL* ssl)
     byte   shaInput[PREFIX + ENCRYPT_LEN + 2 * RAN_LEN];
     int    i, ret;
     word32 idx;
-    word32 pmsSz = ssl->arrays.preMasterSz;
+    word32 pmsSz = ssl->arrays->preMasterSz;
 
     Md5 md5;
     Sha sha;
@@ -1182,7 +1182,7 @@ static int MakeSslMasterSecret(CYASSL* ssl)
         int j;
         printf("pre master secret: ");
         for (j = 0; j < pmsSz; j++)
-            printf("%02x", ssl->arrays.preMasterSecret[j]);
+            printf("%02x", ssl->arrays->preMasterSecret[j]);
         printf("\n");
     }
 #endif
@@ -1190,7 +1190,7 @@ static int MakeSslMasterSecret(CYASSL* ssl)
     InitMd5(&md5);
     InitSha(&sha);
 
-    XMEMCPY(md5Input, ssl->arrays.preMasterSecret, pmsSz);
+    XMEMCPY(md5Input, ssl->arrays->preMasterSecret, pmsSz);
 
     for (i = 0; i < MASTER_ROUNDS; ++i) {
         byte prefix[PREFIX];
@@ -1202,11 +1202,11 @@ static int MakeSslMasterSecret(CYASSL* ssl)
         XMEMCPY(shaInput, prefix, i + 1);
         idx += i + 1;
 
-        XMEMCPY(shaInput + idx, ssl->arrays.preMasterSecret, pmsSz);
+        XMEMCPY(shaInput + idx, ssl->arrays->preMasterSecret, pmsSz);
         idx += pmsSz;
-        XMEMCPY(shaInput + idx, ssl->arrays.clientRandom, RAN_LEN);
+        XMEMCPY(shaInput + idx, ssl->arrays->clientRandom, RAN_LEN);
         idx += RAN_LEN;
-        XMEMCPY(shaInput + idx, ssl->arrays.serverRandom, RAN_LEN);
+        XMEMCPY(shaInput + idx, ssl->arrays->serverRandom, RAN_LEN);
         idx += RAN_LEN;
         ShaUpdate(&sha, shaInput, idx);
         ShaFinal(&sha, shaOutput);
@@ -1215,7 +1215,7 @@ static int MakeSslMasterSecret(CYASSL* ssl)
         XMEMCPY(md5Input + idx, shaOutput, SHA_DIGEST_SIZE);
         idx += SHA_DIGEST_SIZE;
         Md5Update(&md5, md5Input, idx);
-        Md5Final(&md5, &ssl->arrays.masterSecret[i * MD5_DIGEST_SIZE]);
+        Md5Final(&md5, &ssl->arrays->masterSecret[i * MD5_DIGEST_SIZE]);
     }
 
 #ifdef SHOW_SECRETS
@@ -1223,7 +1223,7 @@ static int MakeSslMasterSecret(CYASSL* ssl)
         int i;
         printf("master secret: ");
         for (i = 0; i < SECRET_LEN; i++)
-            printf("%02x", ssl->arrays.masterSecret[i]);
+            printf("%02x", ssl->arrays->masterSecret[i]);
         printf("\n");
     }
 #endif

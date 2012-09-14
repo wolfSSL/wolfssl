@@ -214,7 +214,7 @@ void BuildTlsFinished(CYASSL* ssl, Hashes* hashes, const byte* sender)
     else
         side = tls_server;
 
-    PRF(hashes->md5, TLS_FINISHED_SZ, ssl->arrays.masterSecret, SECRET_LEN,
+    PRF(hashes->md5, TLS_FINISHED_SZ, ssl->arrays->masterSecret, SECRET_LEN,
         side, FINISHED_LABEL_SZ, handshake_hash, hashSz, IsAtLeastTLSv1_2(ssl),
         ssl->specs.mac_algorithm);
 }
@@ -262,10 +262,10 @@ int DeriveTlsKeys(CYASSL* ssl)
     byte         seed[SEED_LEN];
     byte         key_data[MAX_PRF_DIG];
 
-    XMEMCPY(seed, ssl->arrays.serverRandom, RAN_LEN);
-    XMEMCPY(&seed[RAN_LEN], ssl->arrays.clientRandom, RAN_LEN);
+    XMEMCPY(seed, ssl->arrays->serverRandom, RAN_LEN);
+    XMEMCPY(&seed[RAN_LEN], ssl->arrays->clientRandom, RAN_LEN);
 
-    PRF(key_data, length, ssl->arrays.masterSecret, SECRET_LEN, key_label,
+    PRF(key_data, length, ssl->arrays->masterSecret, SECRET_LEN, key_label,
         KEY_LABEL_SZ, seed, SEED_LEN, IsAtLeastTLSv1_2(ssl),
         ssl->specs.mac_algorithm);
 
@@ -277,11 +277,11 @@ int MakeTlsMasterSecret(CYASSL* ssl)
 {
     byte seed[SEED_LEN];
     
-    XMEMCPY(seed, ssl->arrays.clientRandom, RAN_LEN);
-    XMEMCPY(&seed[RAN_LEN], ssl->arrays.serverRandom, RAN_LEN);
+    XMEMCPY(seed, ssl->arrays->clientRandom, RAN_LEN);
+    XMEMCPY(&seed[RAN_LEN], ssl->arrays->serverRandom, RAN_LEN);
 
-    PRF(ssl->arrays.masterSecret, SECRET_LEN,
-        ssl->arrays.preMasterSecret, ssl->arrays.preMasterSz,
+    PRF(ssl->arrays->masterSecret, SECRET_LEN,
+        ssl->arrays->preMasterSecret, ssl->arrays->preMasterSz,
         master_label, MASTER_LABEL_SZ, 
         seed, SEED_LEN, IsAtLeastTLSv1_2(ssl), ssl->specs.mac_algorithm);
 
@@ -290,7 +290,7 @@ int MakeTlsMasterSecret(CYASSL* ssl)
         int i;
         printf("master secret: ");
         for (i = 0; i < SECRET_LEN; i++)
-            printf("%02x", ssl->arrays.masterSecret[i]);
+            printf("%02x", ssl->arrays->masterSecret[i]);
         printf("\n");
     }
 #endif
