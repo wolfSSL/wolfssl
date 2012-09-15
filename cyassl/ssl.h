@@ -724,6 +724,7 @@ CYASSL_API int  CyaSSL_CTX_SetTmpEC_DHE_Sz(CYASSL_CTX*, unsigned short);
 #endif
 
 /* keyblock size in bytes or -1 */
+/* need to call CyaSSL_KeepArrays before handshake to save keys */
 CYASSL_API int CyaSSL_get_keyblock_size(CYASSL*);
 CYASSL_API int CyaSSL_get_keys(CYASSL*,unsigned char** ms, unsigned int* msLen,
                                        unsigned char** sr, unsigned int* srLen,
@@ -821,6 +822,13 @@ CYASSL_API int CyaSSL_CTX_EnableCRL(CYASSL_CTX* ctx, int options);
 CYASSL_API int CyaSSL_CTX_DisableCRL(CYASSL_CTX* ctx);
 CYASSL_API int CyaSSL_CTX_LoadCRL(CYASSL_CTX*, const char*, int, int);
 CYASSL_API int CyaSSL_CTX_SetCRL_Cb(CYASSL_CTX*, CbMissingCRL);
+
+/* end of handshake frees temporary arrays, if user needs for get_keys or
+   psk hints, call KeepArrays before handshake and then FreeArrays when done
+   if don't want to wait for object free */
+CYASSL_API void CyaSSL_KeepArrays(CYASSL*);
+CYASSL_API void CyaSSL_FreeArrays(CYASSL*);
+
 
 #define CYASSL_CRL_MONITOR   0x01   /* monitor this dir flag */
 #define CYASSL_CRL_START_MON 0x02   /* start monitoring flag */

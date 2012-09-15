@@ -623,8 +623,14 @@ enum {
        The length (in bytes) of the following TLSPlaintext.fragment.
        The length should not exceed 2^14.
 */
-#define STATIC_BUFFER_LEN RECORD_HEADER_SZ + RECORD_SIZE + COMP_EXTRA + \
-        MTU_EXTRA + MAX_MSG_EXTRA
+#if defined(LARGE_STATIC_BUFFERS) || defined(CYASSL_SNIFFER) || \
+                                     defined(CYASSL_DTLS)
+    #define STATIC_BUFFER_LEN RECORD_HEADER_SZ + RECORD_SIZE + COMP_EXTRA + \
+             MTU_EXTRA + MAX_MSG_EXTRA
+#else
+    /* zero length arrays may not be supported */
+    #define STATIC_BUFFER_LEN 1
+#endif
 
 typedef struct {
     word32 length;       /* total buffer length used */
@@ -1150,6 +1156,8 @@ typedef struct Options {
     byte            certOnly;           /* stop once we get cert */
     byte            groupMessages;      /* group handshake messages */
     byte            usingNonblock;      /* set when using nonblocking socket */
+    byte            saveArrays;         /* save array Memory for user get keys
+                                           or psk */
 #ifndef NO_PSK
     byte            havePSK;            /* psk key set by user */
     psk_client_callback client_psk_cb;
@@ -1251,10 +1259,10 @@ struct CYASSL {
     Hashes          certHashes;         /* for cert verify */
     Buffers         buffers;
     Options         options;
-    Arrays          arrays;
+    Arrays*         arrays;
     CYASSL_SESSION  session;
     VerifyCallback  verifyCallback;      /* cert verification callback */
-    RsaKey          peerRsaKey;
+    RsaKey*         peerRsaKey;
     byte            peerRsaKeyPresent;
 #ifdef HAVE_NTRU
     word16          peerNtruKeyLen;
@@ -1471,6 +1479,8 @@ CYASSL_LOCAL void ShrinkOutputBuffer(CYASSL* ssl);
 CYASSL_LOCAL Signer* GetCA(void* cm, byte* hash);
 CYASSL_LOCAL void BuildTlsFinished(CYASSL* ssl, Hashes* hashes,
                                    const byte* sender);
+CYASSL_LOCAL void FreeArrays(CYASSL* ssl, int keep);
+
 #ifndef NO_TLS
     CYASSL_LOCAL int  MakeTlsMasterSecret(CYASSL*);
     CYASSL_LOCAL void TLS_hmac(CYASSL* ssl, byte* digest, const byte* buffer,

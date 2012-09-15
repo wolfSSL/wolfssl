@@ -936,7 +936,7 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
 #ifdef CYASSL_SHA384
     InitSha384(&ssl->hashSha384);
 #endif
-    InitRsaKey(&ssl->peerRsaKey, ctx->heap);
+    ssl->peerRsaKey = NULL;
 
     ssl->verifyCallback    = ctx->verifyCallback;
     ssl->peerRsaKeyPresent = 0;
@@ -981,7 +981,6 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
     ssl->keys.dtls_epoch                = 0;
     ssl->keys.dtls_peer_epoch           = 0;
     ssl->keys.dtls_expected_peer_epoch  = 0;
-    ssl->arrays.cookieSz                = 0;
     ssl->dtls_timeout                   = DTLS_DEFAULT_TIMEOUT;
     ssl->dtls_pool                      = NULL;
 #endif
@@ -1007,6 +1006,7 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
     ssl->options.certOnly = 0;
     ssl->options.groupMessages = ctx->groupMessages;
     ssl->options.usingNonblock = 0;
+    ssl->options.saveArrays = 0;
 
     /* ctx still owns certificate, certChain, key, dh, and cm */
     ssl->buffers.certificate = ctx->certificate;
@@ -1048,17 +1048,8 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
     ssl->toInfoOn = 0;
 #endif
 
-#ifndef NO_PSK
-    ssl->arrays.client_identity[0] = 0;
-    if (ctx->server_hint[0]) {   /* set in CTX */
-        XSTRNCPY(ssl->arrays.server_hint, ctx->server_hint, MAX_PSK_ID_LEN);
-        ssl->arrays.server_hint[MAX_PSK_ID_LEN - 1] = '\0';
-    }
-    else
-        ssl->arrays.server_hint[0] = 0;
-#endif /* NO_PSK */
-
-    ssl->rng = NULL;
+    ssl->rng    = NULL;
+    ssl->arrays = NULL;
     InitCiphers(ssl);
     /* all done with init, now can return errors, call other stuff */
 
@@ -1070,6 +1061,29 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
     ctx->refCount++;
     UnLockMutex(&ctx->countMutex);
 
+    /* arrays */
+    ssl->arrays = (Arrays*)XMALLOC(sizeof(Arrays), ssl->heap,
+                                   DYNAMIC_TYPE_ARRAYS);
+    if (ssl->arrays == NULL) {
+        CYASSL_MSG("Arrays Memory error");
+        return MEMORY_E;
+    }
+
+#ifndef NO_PSK
+    ssl->arrays->client_identity[0] = 0;
+    if (ctx->server_hint[0]) {   /* set in CTX */
+        XSTRNCPY(ssl->arrays->server_hint, ctx->server_hint, MAX_PSK_ID_LEN);
+        ssl->arrays->server_hint[MAX_PSK_ID_LEN - 1] = '\0';
+    }
+    else
+        ssl->arrays->server_hint[0] = 0;
+#endif /* NO_PSK */
+
+#ifdef CYASSL_DTLS
+    ssl->arrays->cookieSz = 0;
+#endif
+
+    /* RNG */
     ssl->rng = (RNG*)XMALLOC(sizeof(RNG), ssl->heap, DYNAMIC_TYPE_RNG);
     if (ssl->rng == NULL) {
         CYASSL_MSG("RNG Memory error");
@@ -1079,6 +1093,7 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
     if ( (ret = InitRng(ssl->rng)) != 0)
         return ret;
 
+    /* suites */
     ssl->suites = (Suites*)XMALLOC(sizeof(Suites), ssl->heap,
                                    DYNAMIC_TYPE_SUITES);
     if (ssl->suites == NULL) {
@@ -1086,6 +1101,15 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
         return MEMORY_E;
     }
     *ssl->suites = ctx->suites;
+
+    /* peer key */
+    ssl->peerRsaKey = (RsaKey*)XMALLOC(sizeof(RsaKey), ssl->heap,
+                                       DYNAMIC_TYPE_RSA);
+    if (ssl->peerRsaKey == NULL) {
+        CYASSL_MSG("PeerRsaKey Memory error");
+        return MEMORY_E;
+    }
+    InitRsaKey(ssl->peerRsaKey, ctx->heap);
 
     /* make sure server has cert and key unless using PSK */
     if (ssl->options.side == SERVER_END && !havePSK)
@@ -1108,10 +1132,23 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
 }
 
 
+/* free use of temporary arrays */
+void FreeArrays(CYASSL* ssl, int keep)
+{
+    if (ssl->arrays && keep) {
+        /* keeps session id for user retrieval */
+        XMEMCPY(ssl->session.sessionID, ssl->arrays->sessionID, ID_LEN);
+    }
+    XFREE(ssl->arrays, ssl->heap, DYNAMIC_TYPE_ARRAYS);
+    ssl->arrays = NULL;
+}
+
+
 /* In case holding SSL object in array and don't want to free actual ssl */
 void SSL_ResourceFree(CYASSL* ssl)
 {
     FreeCiphers(ssl);
+    FreeArrays(ssl, 0);
     XFREE(ssl->rng, ssl->heap, DYNAMIC_TYPE_RNG);
     XFREE(ssl->suites, ssl->heap, DYNAMIC_TYPE_SUITES);
     XFREE(ssl->buffers.serverDH_Priv.buffer, ssl->heap, DYNAMIC_TYPE_DH);
@@ -1129,7 +1166,10 @@ void SSL_ResourceFree(CYASSL* ssl)
     if (ssl->buffers.weOwnKey)
         XFREE(ssl->buffers.key.buffer, ssl->heap, DYNAMIC_TYPE_KEY);
 
-    FreeRsaKey(&ssl->peerRsaKey);
+    if (ssl->peerRsaKey) {
+        FreeRsaKey(ssl->peerRsaKey);
+        XFREE(ssl->peerRsaKey, ssl->heap, DYNAMIC_TYPE_RSA);
+    }
     if (ssl->buffers.inputBuffer.dynamicFlag)
         ShrinkInputBuffer(ssl, FORCED_FREE);
     if (ssl->buffers.outputBuffer.dynamicFlag)
@@ -1184,6 +1224,17 @@ void FreeHandshakeResources(CYASSL* ssl)
         ssl->dtls_pool = NULL;
     }
 #endif
+
+    /* arrays */
+    if (ssl->options.saveArrays)
+        FreeArrays(ssl, 1);
+
+    /* peerRsaKey */
+    if (ssl->peerRsaKey) {
+        FreeRsaKey(ssl->peerRsaKey);
+        XFREE(ssl->peerRsaKey, ssl->heap, DYNAMIC_TYPE_RSA);
+        ssl->peerRsaKey = NULL;
+    }
 }
 
 
@@ -1861,12 +1912,12 @@ static void BuildMD5(CYASSL* ssl, Hashes* hashes, const byte* sender)
 
     /* make md5 inner */    
     Md5Update(&ssl->hashMd5, sender, SIZEOF_SENDER);
-    Md5Update(&ssl->hashMd5, ssl->arrays.masterSecret, SECRET_LEN);
+    Md5Update(&ssl->hashMd5, ssl->arrays->masterSecret, SECRET_LEN);
     Md5Update(&ssl->hashMd5, PAD1, PAD_MD5);
     Md5Final(&ssl->hashMd5, md5_result);
 
     /* make md5 outer */
-    Md5Update(&ssl->hashMd5, ssl->arrays.masterSecret, SECRET_LEN);
+    Md5Update(&ssl->hashMd5, ssl->arrays->masterSecret, SECRET_LEN);
     Md5Update(&ssl->hashMd5, PAD2, PAD_MD5);
     Md5Update(&ssl->hashMd5, md5_result, MD5_DIGEST_SIZE);
 
@@ -1881,12 +1932,12 @@ static void BuildSHA(CYASSL* ssl, Hashes* hashes, const byte* sender)
 
     /* make sha inner */
     ShaUpdate(&ssl->hashSha, sender, SIZEOF_SENDER);
-    ShaUpdate(&ssl->hashSha, ssl->arrays.masterSecret, SECRET_LEN);
+    ShaUpdate(&ssl->hashSha, ssl->arrays->masterSecret, SECRET_LEN);
     ShaUpdate(&ssl->hashSha, PAD1, PAD_SHA);
     ShaFinal(&ssl->hashSha, sha_result);
 
     /* make sha outer */
-    ShaUpdate(&ssl->hashSha, ssl->arrays.masterSecret, SECRET_LEN);
+    ShaUpdate(&ssl->hashSha, ssl->arrays->masterSecret, SECRET_LEN);
     ShaUpdate(&ssl->hashSha, PAD2, PAD_SHA);
     ShaUpdate(&ssl->hashSha, sha_result, SHA_DIGEST_SIZE);
 
@@ -2162,7 +2213,7 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx)
         if (dCert.keyOID == RSAk) {
             word32 idx = 0;
             if (RsaPublicKeyDecode(dCert.publicKey, &idx,
-                               &ssl->peerRsaKey, dCert.pubKeySize) != 0) {
+                               ssl->peerRsaKey, dCert.pubKeySize) != 0) {
                 ret = PEER_KEY_ERROR;
             }
             else
@@ -3326,12 +3377,12 @@ static void BuildMD5_CertVerify(CYASSL* ssl, byte* digest)
     byte md5_result[MD5_DIGEST_SIZE];
 
     /* make md5 inner */
-    Md5Update(&ssl->hashMd5, ssl->arrays.masterSecret, SECRET_LEN);
+    Md5Update(&ssl->hashMd5, ssl->arrays->masterSecret, SECRET_LEN);
     Md5Update(&ssl->hashMd5, PAD1, PAD_MD5);
     Md5Final(&ssl->hashMd5, md5_result);
 
     /* make md5 outer */
-    Md5Update(&ssl->hashMd5, ssl->arrays.masterSecret, SECRET_LEN);
+    Md5Update(&ssl->hashMd5, ssl->arrays->masterSecret, SECRET_LEN);
     Md5Update(&ssl->hashMd5, PAD2, PAD_MD5);
     Md5Update(&ssl->hashMd5, md5_result, MD5_DIGEST_SIZE);
 
@@ -3344,12 +3395,12 @@ static void BuildSHA_CertVerify(CYASSL* ssl, byte* digest)
     byte sha_result[SHA_DIGEST_SIZE];
     
     /* make sha inner */
-    ShaUpdate(&ssl->hashSha, ssl->arrays.masterSecret, SECRET_LEN);
+    ShaUpdate(&ssl->hashSha, ssl->arrays->masterSecret, SECRET_LEN);
     ShaUpdate(&ssl->hashSha, PAD1, PAD_SHA);
     ShaFinal(&ssl->hashSha, sha_result);
 
     /* make sha outer */
-    ShaUpdate(&ssl->hashSha, ssl->arrays.masterSecret, SECRET_LEN);
+    ShaUpdate(&ssl->hashSha, ssl->arrays->masterSecret, SECRET_LEN);
     ShaUpdate(&ssl->hashSha, PAD2, PAD_SHA);
     ShaUpdate(&ssl->hashSha, sha_result, SHA_DIGEST_SIZE);
 
@@ -4851,7 +4902,7 @@ int SetCipherList(Suites* s, const char* list)
 #ifdef CYASSL_DTLS
         if (ssl->options.dtls) {
             length += ENUM_LEN;   /* cookie */
-            if (ssl->arrays.cookieSz != 0) length += ssl->arrays.cookieSz;
+            if (ssl->arrays->cookieSz != 0) length += ssl->arrays->cookieSz;
             sendSz  = length + DTLS_HANDSHAKE_HEADER_SZ + DTLS_RECORD_HEADER_SZ;
             idx    += DTLS_HANDSHAKE_EXTRA + DTLS_RECORD_EXTRA;
         }
@@ -4877,11 +4928,11 @@ int SetCipherList(Suites* s, const char* list)
             RNG_GenerateBlock(ssl->rng, output + idx, RAN_LEN);
             
                 /* store random */
-            XMEMCPY(ssl->arrays.clientRandom, output + idx, RAN_LEN);
+            XMEMCPY(ssl->arrays->clientRandom, output + idx, RAN_LEN);
         } else {
 #ifdef CYASSL_DTLS
                 /* send same random on hello again */
-            XMEMCPY(output + idx, ssl->arrays.clientRandom, RAN_LEN);
+            XMEMCPY(output + idx, ssl->arrays->clientRandom, RAN_LEN);
 #endif
         }
         idx += RAN_LEN;
@@ -4896,11 +4947,11 @@ int SetCipherList(Suites* s, const char* list)
             /* then DTLS cookie */
 #ifdef CYASSL_DTLS
         if (ssl->options.dtls) {
-            byte cookieSz = ssl->arrays.cookieSz;
+            byte cookieSz = ssl->arrays->cookieSz;
 
             output[idx++] = cookieSz;
             if (cookieSz) {
-                XMEMCPY(&output[idx], ssl->arrays.cookie, cookieSz);
+                XMEMCPY(&output[idx], ssl->arrays->cookie, cookieSz);
                 idx += cookieSz;
             }
         }
@@ -4986,8 +5037,8 @@ int SetCipherList(Suites* s, const char* list)
         if (cookieSz) {
 #ifdef CYASSL_DTLS
             if (cookieSz < MAX_COOKIE_LEN) {
-                XMEMCPY(ssl->arrays.cookie, input + *inOutIdx, cookieSz);
-                ssl->arrays.cookieSz = cookieSz;
+                XMEMCPY(ssl->arrays->cookie, input + *inOutIdx, cookieSz);
+                ssl->arrays->cookieSz = cookieSz;
             }
 #endif
             *inOutIdx += cookieSz;
@@ -5041,11 +5092,11 @@ int SetCipherList(Suites* s, const char* list)
                 ssl->version.minor  = TLSv1_1_MINOR;
             }
         }
-        XMEMCPY(ssl->arrays.serverRandom, input + i, RAN_LEN);
+        XMEMCPY(ssl->arrays->serverRandom, input + i, RAN_LEN);
         i += RAN_LEN;
         b = input[i++];
         if (b) {
-            XMEMCPY(ssl->arrays.sessionID, input + i, min(b, ID_LEN));
+            XMEMCPY(ssl->arrays->sessionID, input + i, min(b, ID_LEN));
             i += b;
             ssl->options.haveSessionId = 1;
         }
@@ -5067,12 +5118,12 @@ int SetCipherList(Suites* s, const char* list)
         *inOutIdx = i;
 
         if (ssl->options.resuming) {
-            if (ssl->options.haveSessionId && XMEMCMP(ssl->arrays.sessionID,
+            if (ssl->options.haveSessionId && XMEMCMP(ssl->arrays->sessionID,
                                          ssl->session.sessionID, ID_LEN) == 0) {
                 if (SetCipherSpecs(ssl) == 0) {
                     int ret; 
-                    XMEMCPY(ssl->arrays.masterSecret, ssl->session.masterSecret,
-                           SECRET_LEN);
+                    XMEMCPY(ssl->arrays->masterSecret,
+                            ssl->session.masterSecret, SECRET_LEN);
                     if (ssl->options.tls)
                         ret = DeriveTlsKeys(ssl);
                     else
@@ -5171,12 +5222,12 @@ int SetCipherList(Suites* s, const char* list)
             word16 pskLen = 0;
             ato16(&input[*inOutIdx], &pskLen);
             *inOutIdx += LENGTH_SZ;
-            XMEMCPY(ssl->arrays.server_hint, &input[*inOutIdx],
+            XMEMCPY(ssl->arrays->server_hint, &input[*inOutIdx],
                    min(pskLen, MAX_PSK_ID_LEN));
             if (pskLen < MAX_PSK_ID_LEN)
-                ssl->arrays.server_hint[pskLen] = 0;
+                ssl->arrays->server_hint[pskLen] = 0;
             else
-                ssl->arrays.server_hint[MAX_PSK_ID_LEN - 1] = 0;
+                ssl->arrays->server_hint[MAX_PSK_ID_LEN - 1] = 0;
             *inOutIdx += pskLen;
 
             return 0;
@@ -5286,15 +5337,15 @@ int SetCipherList(Suites* s, const char* list)
 
         /* md5 */
         InitMd5(&md5);
-        Md5Update(&md5, ssl->arrays.clientRandom, RAN_LEN);
-        Md5Update(&md5, ssl->arrays.serverRandom, RAN_LEN);
+        Md5Update(&md5, ssl->arrays->clientRandom, RAN_LEN);
+        Md5Update(&md5, ssl->arrays->serverRandom, RAN_LEN);
         Md5Update(&md5, messageVerify, verifySz);
         Md5Final(&md5, hash);
 
         /* sha */
         InitSha(&sha);
-        ShaUpdate(&sha, ssl->arrays.clientRandom, RAN_LEN);
-        ShaUpdate(&sha, ssl->arrays.serverRandom, RAN_LEN);
+        ShaUpdate(&sha, ssl->arrays->clientRandom, RAN_LEN);
+        ShaUpdate(&sha, ssl->arrays->serverRandom, RAN_LEN);
         ShaUpdate(&sha, messageVerify, verifySz);
         ShaFinal(&sha, &hash[MD5_DIGEST_SIZE]);
 
@@ -5307,7 +5358,7 @@ int SetCipherList(Suites* s, const char* list)
             if (!ssl->peerRsaKeyPresent)
                 return NO_PEER_KEY;
 
-            ret = RsaSSL_VerifyInline(signature, sigLen,&out, &ssl->peerRsaKey);
+            ret = RsaSSL_VerifyInline(signature, sigLen,&out, ssl->peerRsaKey);
 
             if (IsAtLeastTLSv1_2(ssl)) {
                 byte   encodedSig[MAX_ENCODED_SIG_SZ];
@@ -5367,17 +5418,17 @@ int SetCipherList(Suites* s, const char* list)
         int    ret = 0;
 
         if (ssl->specs.kea == rsa_kea) {
-            RNG_GenerateBlock(ssl->rng, ssl->arrays.preMasterSecret,
+            RNG_GenerateBlock(ssl->rng, ssl->arrays->preMasterSecret,
                               SECRET_LEN);
-            ssl->arrays.preMasterSecret[0] = ssl->chVersion.major;
-            ssl->arrays.preMasterSecret[1] = ssl->chVersion.minor;
-            ssl->arrays.preMasterSz = SECRET_LEN;
+            ssl->arrays->preMasterSecret[0] = ssl->chVersion.major;
+            ssl->arrays->preMasterSecret[1] = ssl->chVersion.minor;
+            ssl->arrays->preMasterSz = SECRET_LEN;
 
             if (ssl->peerRsaKeyPresent == 0)
                 return NO_PEER_KEY;
 
-            ret = RsaPublicEncrypt(ssl->arrays.preMasterSecret, SECRET_LEN,
-                             encSecret, sizeof(encSecret), &ssl->peerRsaKey,
+            ret = RsaPublicEncrypt(ssl->arrays->preMasterSecret, SECRET_LEN,
+                             encSecret, sizeof(encSecret), ssl->peerRsaKey,
                              ssl->rng);
             if (ret > 0) {
                 encSz = ret;
@@ -5404,35 +5455,35 @@ int SetCipherList(Suites* s, const char* list)
                 ret = DhGenerateKeyPair(&key, ssl->rng, priv, &privSz,
                                         encSecret, &encSz);
             if (ret == 0)
-                ret = DhAgree(&key, ssl->arrays.preMasterSecret,
-                              &ssl->arrays.preMasterSz, priv, privSz,
+                ret = DhAgree(&key, ssl->arrays->preMasterSecret,
+                              &ssl->arrays->preMasterSz, priv, privSz,
                               serverPub.buffer, serverPub.length);
             FreeDhKey(&key);
         #endif /* OPENSSL_EXTRA */
         #ifndef NO_PSK
         } else if (ssl->specs.kea == psk_kea) {
-            byte* pms = ssl->arrays.preMasterSecret;
+            byte* pms = ssl->arrays->preMasterSecret;
 
-            ssl->arrays.psk_keySz = ssl->options.client_psk_cb(ssl,
-                ssl->arrays.server_hint, ssl->arrays.client_identity,
-                MAX_PSK_ID_LEN, ssl->arrays.psk_key, MAX_PSK_KEY_LEN);
-            if (ssl->arrays.psk_keySz == 0 || 
-                ssl->arrays.psk_keySz > MAX_PSK_KEY_LEN)
+            ssl->arrays->psk_keySz = ssl->options.client_psk_cb(ssl,
+                ssl->arrays->server_hint, ssl->arrays->client_identity,
+                MAX_PSK_ID_LEN, ssl->arrays->psk_key, MAX_PSK_KEY_LEN);
+            if (ssl->arrays->psk_keySz == 0 || 
+                ssl->arrays->psk_keySz > MAX_PSK_KEY_LEN)
                 return PSK_KEY_ERROR;
-            encSz = (word32)XSTRLEN(ssl->arrays.client_identity);
+            encSz = (word32)XSTRLEN(ssl->arrays->client_identity);
             if (encSz > MAX_PSK_ID_LEN) return CLIENT_ID_ERROR;
-            XMEMCPY(encSecret, ssl->arrays.client_identity, encSz);
+            XMEMCPY(encSecret, ssl->arrays->client_identity, encSz);
 
             /* make psk pre master secret */
             /* length of key + length 0s + length of key + key */
-            c16toa((word16)ssl->arrays.psk_keySz, pms);
+            c16toa((word16)ssl->arrays->psk_keySz, pms);
             pms += 2;
-            XMEMSET(pms, 0, ssl->arrays.psk_keySz);
-            pms += ssl->arrays.psk_keySz;
-            c16toa((word16)ssl->arrays.psk_keySz, pms);
+            XMEMSET(pms, 0, ssl->arrays->psk_keySz);
+            pms += ssl->arrays->psk_keySz;
+            c16toa((word16)ssl->arrays->psk_keySz, pms);
             pms += 2;
-            XMEMCPY(pms, ssl->arrays.psk_key, ssl->arrays.psk_keySz);
-            ssl->arrays.preMasterSz = ssl->arrays.psk_keySz * 2 + 4;
+            XMEMCPY(pms, ssl->arrays->psk_key, ssl->arrays->psk_keySz);
+            ssl->arrays->preMasterSz = ssl->arrays->psk_keySz * 2 + 4;
         #endif /* NO_PSK */
         #ifdef HAVE_NTRU
         } else if (ssl->specs.kea == ntru_kea) {
@@ -5443,9 +5494,9 @@ int SetCipherList(Suites* s, const char* list)
                 'C', 'y', 'a', 'S', 'S', 'L', ' ', 'N', 'T', 'R', 'U'
             };
 
-            RNG_GenerateBlock(ssl->rng, ssl->arrays.preMasterSecret,
+            RNG_GenerateBlock(ssl->rng, ssl->arrays->preMasterSecret,
                               SECRET_LEN);
-            ssl->arrays.preMasterSz = SECRET_LEN;
+            ssl->arrays->preMasterSz = SECRET_LEN;
 
             if (ssl->peerNtruKeyPresent == 0)
                 return NO_PEER_KEY;
@@ -5456,8 +5507,8 @@ int SetCipherList(Suites* s, const char* list)
                 return NTRU_DRBG_ERROR; 
 
             rc = crypto_ntru_encrypt(drbg, ssl->peerNtruKeyLen,ssl->peerNtruKey,
-                                     ssl->arrays.preMasterSz,
-                                     ssl->arrays.preMasterSecret,
+                                     ssl->arrays->preMasterSz,
+                                     ssl->arrays->preMasterSecret,
                                      &cipherLen, encSecret);
             crypto_drbg_uninstantiate(drbg);
             if (rc != NTRU_OK)
@@ -5497,14 +5548,14 @@ int SetCipherList(Suites* s, const char* list)
             if (ret != 0)
                 ret = ECC_EXPORT_ERROR;
             else {
-                size = sizeof(ssl->arrays.preMasterSecret);
+                size = sizeof(ssl->arrays->preMasterSecret);
                 ret  = ecc_shared_secret(&myKey, peerKey,
-                                         ssl->arrays.preMasterSecret, &size);
+                                         ssl->arrays->preMasterSecret, &size);
                 if (ret != 0)
                     ret = ECC_SHARED_ERROR;
             }
 
-            ssl->arrays.preMasterSz = size;
+            ssl->arrays->preMasterSz = size;
             ecc_free(&myKey);
         #endif /* HAVE_ECC */
         } else
@@ -5763,8 +5814,8 @@ int SetCipherList(Suites* s, const char* list)
 
             /* then random */
         if (!ssl->options.resuming)         
-            RNG_GenerateBlock(ssl->rng, ssl->arrays.serverRandom, RAN_LEN);
-        XMEMCPY(output + idx, ssl->arrays.serverRandom, RAN_LEN);
+            RNG_GenerateBlock(ssl->rng, ssl->arrays->serverRandom, RAN_LEN);
+        XMEMCPY(output + idx, ssl->arrays->serverRandom, RAN_LEN);
         idx += RAN_LEN;
 
 #ifdef SHOW_SECRETS
@@ -5772,15 +5823,15 @@ int SetCipherList(Suites* s, const char* list)
             int j;
             printf("server random: ");
             for (j = 0; j < RAN_LEN; j++)
-                printf("%02x", ssl->arrays.serverRandom[j]);
+                printf("%02x", ssl->arrays->serverRandom[j]);
             printf("\n");
         }
 #endif
             /* then session id */
         output[idx++] = ID_LEN;
         if (!ssl->options.resuming)
-            RNG_GenerateBlock(ssl->rng, ssl->arrays.sessionID, ID_LEN);
-        XMEMCPY(output + idx, ssl->arrays.sessionID, ID_LEN);
+            RNG_GenerateBlock(ssl->rng, ssl->arrays->sessionID, ID_LEN);
+        XMEMCPY(output + idx, ssl->arrays->sessionID, ID_LEN);
         idx += ID_LEN;
 
             /* then cipher suite */
@@ -5860,10 +5911,10 @@ int SetCipherList(Suites* s, const char* list)
             byte    *output;
             word32   length, idx = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
             int      sendSz;
-            if (ssl->arrays.server_hint[0] == 0) return 0; /* don't send */
+            if (ssl->arrays->server_hint[0] == 0) return 0; /* don't send */
 
             /* include size part */
-            length = (word32)XSTRLEN(ssl->arrays.server_hint);
+            length = (word32)XSTRLEN(ssl->arrays->server_hint);
             if (length > MAX_PSK_ID_LEN) return SERVER_HINT_ERROR;
             length += HINT_LEN_SZ;
             sendSz = length + HANDSHAKE_HEADER_SZ + RECORD_HEADER_SZ;
@@ -5887,7 +5938,7 @@ int SetCipherList(Suites* s, const char* list)
             /* key data */
             c16toa((word16)(length - HINT_LEN_SZ), output + idx);
             idx += HINT_LEN_SZ;
-            XMEMCPY(output + idx, ssl->arrays.server_hint, length -HINT_LEN_SZ);
+            XMEMCPY(output + idx, ssl->arrays->server_hint,length -HINT_LEN_SZ);
 
             HashOutput(ssl, output, sendSz, 0);
 
@@ -6021,15 +6072,15 @@ int SetCipherList(Suites* s, const char* list)
 
                 /* md5 */
                 InitMd5(&md5);
-                Md5Update(&md5, ssl->arrays.clientRandom, RAN_LEN);
-                Md5Update(&md5, ssl->arrays.serverRandom, RAN_LEN);
+                Md5Update(&md5, ssl->arrays->clientRandom, RAN_LEN);
+                Md5Update(&md5, ssl->arrays->serverRandom, RAN_LEN);
                 Md5Update(&md5, output + preSigIdx, preSigSz);
                 Md5Final(&md5, hash);
 
                 /* sha */
                 InitSha(&sha);
-                ShaUpdate(&sha, ssl->arrays.clientRandom, RAN_LEN);
-                ShaUpdate(&sha, ssl->arrays.serverRandom, RAN_LEN);
+                ShaUpdate(&sha, ssl->arrays->clientRandom, RAN_LEN);
+                ShaUpdate(&sha, ssl->arrays->serverRandom, RAN_LEN);
                 ShaUpdate(&sha, output + preSigIdx, preSigSz);
                 ShaFinal(&sha, &hash[MD5_DIGEST_SIZE]);
 
@@ -6223,15 +6274,15 @@ int SetCipherList(Suites* s, const char* list)
 
                 /* md5 */
                 InitMd5(&md5);
-                Md5Update(&md5, ssl->arrays.clientRandom, RAN_LEN);
-                Md5Update(&md5, ssl->arrays.serverRandom, RAN_LEN);
+                Md5Update(&md5, ssl->arrays->clientRandom, RAN_LEN);
+                Md5Update(&md5, ssl->arrays->serverRandom, RAN_LEN);
                 Md5Update(&md5, output + preSigIdx, preSigSz);
                 Md5Final(&md5, hash);
 
                 /* sha */
                 InitSha(&sha);
-                ShaUpdate(&sha, ssl->arrays.clientRandom, RAN_LEN);
-                ShaUpdate(&sha, ssl->arrays.serverRandom, RAN_LEN);
+                ShaUpdate(&sha, ssl->arrays->clientRandom, RAN_LEN);
+                ShaUpdate(&sha, ssl->arrays->serverRandom, RAN_LEN);
                 ShaUpdate(&sha, output + preSigIdx, preSigSz);
                 ShaFinal(&sha, &hash[MD5_DIGEST_SIZE]);
 
@@ -6808,15 +6859,15 @@ int SetCipherList(Suites* s, const char* list)
 
         /* session id */
         if (sessionSz) {
-            XMEMCPY(ssl->arrays.sessionID, input + idx, sessionSz);
+            XMEMCPY(ssl->arrays->sessionID, input + idx, sessionSz);
             idx += sessionSz;
             ssl->options.resuming = 1;
         }
 
         /* random */
         if (randomSz < RAN_LEN)
-            XMEMSET(ssl->arrays.clientRandom, 0, RAN_LEN - randomSz);
-        XMEMCPY(&ssl->arrays.clientRandom[RAN_LEN - randomSz], input + idx,
+            XMEMSET(ssl->arrays->clientRandom, 0, RAN_LEN - randomSz);
+        XMEMCPY(&ssl->arrays->clientRandom[RAN_LEN - randomSz], input + idx,
                randomSz);
         idx += randomSz;
 
@@ -6830,7 +6881,7 @@ int SetCipherList(Suites* s, const char* list)
         /* DoClientHello uses same resume code */
         while (ssl->options.resuming) {  /* let's try */
             int ret; 
-            CYASSL_SESSION* session = GetSession(ssl, ssl->arrays.masterSecret);
+            CYASSL_SESSION* session = GetSession(ssl,ssl->arrays->masterSecret);
             if (!session) {
                 ssl->options.resuming = 0;
                 break;   /* session lookup failed */
@@ -6840,7 +6891,7 @@ int SetCipherList(Suites* s, const char* list)
                 return UNSUPPORTED_SUITE;
             }
 
-            RNG_GenerateBlock(ssl->rng, ssl->arrays.serverRandom, RAN_LEN);
+            RNG_GenerateBlock(ssl->rng, ssl->arrays->serverRandom, RAN_LEN);
             if (ssl->options.tls)
                 ret = DeriveTlsKeys(ssl);
             else
@@ -6905,7 +6956,7 @@ int SetCipherList(Suites* s, const char* list)
                        ssl->options.haveStaticECC, ssl->options.side);
         }
         /* random */
-        XMEMCPY(ssl->arrays.clientRandom, input + i, RAN_LEN);
+        XMEMCPY(ssl->arrays->clientRandom, input + i, RAN_LEN);
         i += RAN_LEN;
 
 #ifdef SHOW_SECRETS
@@ -6913,7 +6964,7 @@ int SetCipherList(Suites* s, const char* list)
             int j;
             printf("client random: ");
             for (j = 0; j < RAN_LEN; j++)
-                printf("%02x", ssl->arrays.clientRandom[j]);
+                printf("%02x", ssl->arrays->clientRandom[j]);
             printf("\n");
         }
 #endif
@@ -6922,7 +6973,7 @@ int SetCipherList(Suites* s, const char* list)
         if (b) {
             if (i + ID_LEN > totalSz)
                 return INCOMPLETE_DATA;
-            XMEMCPY(ssl->arrays.sessionID, input + i, ID_LEN);
+            XMEMCPY(ssl->arrays->sessionID, input + i, ID_LEN);
             i += b;
             ssl->options.resuming= 1; /* client wants to resume */
             CYASSL_MSG("Client wants to resume session");
@@ -6991,7 +7042,7 @@ int SetCipherList(Suites* s, const char* list)
         /* ProcessOld uses same resume code */
         while (ssl->options.resuming) {  /* let's try */
             int ret;            
-            CYASSL_SESSION* session = GetSession(ssl, ssl->arrays.masterSecret);
+            CYASSL_SESSION* session = GetSession(ssl,ssl->arrays->masterSecret);
             if (!session) {
                 ssl->options.resuming = 0;
                 CYASSL_MSG("Session lookup for resume failed");
@@ -7002,7 +7053,7 @@ int SetCipherList(Suites* s, const char* list)
                 return UNSUPPORTED_SUITE;
             }
 
-            RNG_GenerateBlock(ssl->rng, ssl->arrays.serverRandom, RAN_LEN);
+            RNG_GenerateBlock(ssl->rng, ssl->arrays->serverRandom, RAN_LEN);
             if (ssl->options.tls)
                 ret = DeriveTlsKeys(ssl);
             else
@@ -7052,7 +7103,7 @@ int SetCipherList(Suites* s, const char* list)
         if (ssl->peerRsaKeyPresent != 0) {
             CYASSL_MSG("Doing RSA peer cert verify");
 
-            outLen = RsaSSL_VerifyInline(sig, sz, &out, &ssl->peerRsaKey);
+            outLen = RsaSSL_VerifyInline(sig, sz, &out, ssl->peerRsaKey);
 
             if (IsAtLeastTLSv1_2(ssl)) {
                 byte   encodedSig[MAX_ENCODED_SIG_SZ];
@@ -7213,7 +7264,7 @@ int SetCipherList(Suites* s, const char* list)
 
             if (ret == 0) {
                 length = RsaEncryptSize(&key);
-                ssl->arrays.preMasterSz = SECRET_LEN;
+                ssl->arrays->preMasterSz = SECRET_LEN;
 
                 if (ssl->options.tls)
                     (*inOutIdx) += 2;
@@ -7222,10 +7273,10 @@ int SetCipherList(Suites* s, const char* list)
 
                 if (RsaPrivateDecryptInline(tmp, length, &out, &key) ==
                                                              SECRET_LEN) {
-                    XMEMCPY(ssl->arrays.preMasterSecret, out, SECRET_LEN);
-                    if (ssl->arrays.preMasterSecret[0] != ssl->chVersion.major
+                    XMEMCPY(ssl->arrays->preMasterSecret, out, SECRET_LEN);
+                    if (ssl->arrays->preMasterSecret[0] != ssl->chVersion.major
                      ||
-                        ssl->arrays.preMasterSecret[1] != ssl->chVersion.minor)
+                        ssl->arrays->preMasterSecret[1] != ssl->chVersion.minor)
 
                         ret = PMS_VERSION_ERROR;
                     else
@@ -7238,33 +7289,33 @@ int SetCipherList(Suites* s, const char* list)
             FreeRsaKey(&key);
 #ifndef NO_PSK
         } else if (ssl->specs.kea == psk_kea) {
-            byte* pms = ssl->arrays.preMasterSecret;
+            byte* pms = ssl->arrays->preMasterSecret;
             word16 ci_sz;
 
             ato16(&input[*inOutIdx], &ci_sz);
             *inOutIdx += LENGTH_SZ;
             if (ci_sz > MAX_PSK_ID_LEN) return CLIENT_ID_ERROR;
 
-            XMEMCPY(ssl->arrays.client_identity, &input[*inOutIdx], ci_sz);
+            XMEMCPY(ssl->arrays->client_identity, &input[*inOutIdx], ci_sz);
             *inOutIdx += ci_sz;
-            ssl->arrays.client_identity[ci_sz] = 0;
+            ssl->arrays->client_identity[ci_sz] = 0;
 
-            ssl->arrays.psk_keySz = ssl->options.server_psk_cb(ssl,
-                ssl->arrays.client_identity, ssl->arrays.psk_key,
+            ssl->arrays->psk_keySz = ssl->options.server_psk_cb(ssl,
+                ssl->arrays->client_identity, ssl->arrays->psk_key,
                 MAX_PSK_KEY_LEN);
-            if (ssl->arrays.psk_keySz == 0 || 
-                ssl->arrays.psk_keySz > MAX_PSK_KEY_LEN) return PSK_KEY_ERROR;
+            if (ssl->arrays->psk_keySz == 0 || 
+                ssl->arrays->psk_keySz > MAX_PSK_KEY_LEN) return PSK_KEY_ERROR;
             
             /* make psk pre master secret */
             /* length of key + length 0s + length of key + key */
-            c16toa((word16)ssl->arrays.psk_keySz, pms);
+            c16toa((word16)ssl->arrays->psk_keySz, pms);
             pms += 2;
-            XMEMSET(pms, 0, ssl->arrays.psk_keySz);
-            pms += ssl->arrays.psk_keySz;
-            c16toa((word16)ssl->arrays.psk_keySz, pms);
+            XMEMSET(pms, 0, ssl->arrays->psk_keySz);
+            pms += ssl->arrays->psk_keySz;
+            c16toa((word16)ssl->arrays->psk_keySz, pms);
             pms += 2;
-            XMEMCPY(pms, ssl->arrays.psk_key, ssl->arrays.psk_keySz);
-            ssl->arrays.preMasterSz = ssl->arrays.psk_keySz * 2 + 4;
+            XMEMCPY(pms, ssl->arrays->psk_key, ssl->arrays->psk_keySz);
+            ssl->arrays->preMasterSz = ssl->arrays->psk_keySz * 2 + 4;
 
             ret = MakeMasterSecret(ssl);
 #endif /* NO_PSK */
@@ -7272,7 +7323,7 @@ int SetCipherList(Suites* s, const char* list)
         } else if (ssl->specs.kea == ntru_kea) {
             word32 rc;
             word16 cipherLen;
-            word16 plainLen = sizeof(ssl->arrays.preMasterSecret);
+            word16 plainLen = sizeof(ssl->arrays->preMasterSecret);
             byte*  tmp;
 
             if (!ssl->buffers.key.buffer)
@@ -7286,13 +7337,13 @@ int SetCipherList(Suites* s, const char* list)
             tmp = input + *inOutIdx;
             rc = crypto_ntru_decrypt((word16)ssl->buffers.key.length,
                         ssl->buffers.key.buffer, cipherLen, tmp, &plainLen,
-                        ssl->arrays.preMasterSecret);
+                        ssl->arrays->preMasterSecret);
 
             if (rc != NTRU_OK || plainLen != SECRET_LEN)
                 return NTRU_DECRYPT_ERROR;
             *inOutIdx += cipherLen;
 
-            ssl->arrays.preMasterSz = plainLen;
+            ssl->arrays->preMasterSz = plainLen;
             ret = MakeMasterSecret(ssl);
 #endif /* HAVE_NTRU */
 #ifdef HAVE_ECC
@@ -7307,7 +7358,7 @@ int SetCipherList(Suites* s, const char* list)
             *inOutIdx += bLength;
             ssl->peerEccKeyPresent = 1;
 
-            size = sizeof(ssl->arrays.preMasterSecret);
+            size = sizeof(ssl->arrays->preMasterSecret);
             if (ssl->specs.static_ecdh) {
                 ecc_key staticKey;
                 word32 i = 0;
@@ -7317,15 +7368,15 @@ int SetCipherList(Suites* s, const char* list)
                                           &staticKey, ssl->buffers.key.length);
                 if (ret == 0)
                     ret = ecc_shared_secret(&staticKey, &ssl->peerEccKey,
-                                            ssl->arrays.preMasterSecret, &size);
+                                           ssl->arrays->preMasterSecret, &size);
                 ecc_free(&staticKey);
             }
             else 
                 ret = ecc_shared_secret(&ssl->eccTempKey, &ssl->peerEccKey,
-                                    ssl->arrays.preMasterSecret, &size);
+                                    ssl->arrays->preMasterSecret, &size);
             if (ret != 0)
                 return ECC_SHARED_ERROR;
-            ssl->arrays.preMasterSz = size;
+            ssl->arrays->preMasterSz = size;
             ret = MakeMasterSecret(ssl);
 #endif /* HAVE_ECC */
 #ifdef OPENSSL_EXTRA 
@@ -7346,8 +7397,8 @@ int SetCipherList(Suites* s, const char* list)
                                    ssl->buffers.serverDH_G.buffer,
                                    ssl->buffers.serverDH_G.length);
             if (ret == 0)
-                ret = DhAgree(&dhKey, ssl->arrays.preMasterSecret,
-                                     &ssl->arrays.preMasterSz,
+                ret = DhAgree(&dhKey, ssl->arrays->preMasterSecret,
+                                     &ssl->arrays->preMasterSz,
                                       ssl->buffers.serverDH_Priv.buffer,
                                       ssl->buffers.serverDH_Priv.length,
                                       clientPub, clientPubSz);

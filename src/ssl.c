@@ -421,6 +421,24 @@ void CyaSSL_ERR_error_string_n(unsigned long e, char* buf, unsigned long len)
 }
 
 
+/* don't free temporary arrays at end of handshake */
+void CyaSSL_KeepArrays(CYASSL* ssl)
+{
+    if (ssl)
+        ssl->options.saveArrays = 1;
+}
+
+
+/* user doesn't need temporary arrays anymore, Free */
+void CyaSSL_FreeArrays(CYASSL* ssl)
+{
+    if (ssl && ssl->options.handShakeState == HANDSHAKE_DONE) {
+        ssl->options.saveArrays = 0;
+        FreeArrays(ssl, 1);
+    }
+}
+
+
 CYASSL_CERT_MANAGER* CyaSSL_CertManagerNew(void)
 {
     CYASSL_CERT_MANAGER* cm = NULL;
@@ -2810,7 +2828,7 @@ int CyaSSL_CTX_set_timeout(CYASSL_CTX* ctx, unsigned int to)
 CYASSL_SESSION* GetSession(CYASSL* ssl, byte* masterSecret)
 {
     CYASSL_SESSION* ret = 0;
-    const byte*  id = ssl->arrays.sessionID;
+    const byte*  id = NULL;
     word32       row;
     int          idx;
     
@@ -2819,6 +2837,11 @@ CYASSL_SESSION* GetSession(CYASSL* ssl, byte* masterSecret)
 
     if (ssl->options.haveSessionId == 0)
         return NULL;
+
+    if (ssl->arrays)
+        id = ssl->arrays->sessionID;
+    else
+        id = ssl->session.sessionID;
 
     row = HashSession(id) % SESSION_ROWS;
 
@@ -2884,7 +2907,7 @@ int AddSession(CYASSL* ssl)
     if (ssl->options.haveSessionId == 0)
         return 0;
 
-    row = HashSession(ssl->arrays.sessionID) % SESSION_ROWS;
+    row = HashSession(ssl->arrays->sessionID) % SESSION_ROWS;
 
     if (LockMutex(&session_mutex) != 0)
         return BAD_MUTEX_ERROR;
@@ -2892,8 +2915,8 @@ int AddSession(CYASSL* ssl)
     idx = SessionCache[row].nextIdx++;
 
     XMEMCPY(SessionCache[row].Sessions[idx].masterSecret,
-           ssl->arrays.masterSecret, SECRET_LEN);
-    XMEMCPY(SessionCache[row].Sessions[idx].sessionID, ssl->arrays.sessionID,
+           ssl->arrays->masterSecret, SECRET_LEN);
+    XMEMCPY(SessionCache[row].Sessions[idx].sessionID, ssl->arrays->sessionID,
            ID_LEN);
 
     SessionCache[row].Sessions[idx].timeout = ssl->timeout;
@@ -3295,14 +3318,22 @@ int CyaSSL_set_compression(CYASSL* ssl)
     const char* CyaSSL_get_psk_identity_hint(const CYASSL* ssl)
     {
         CYASSL_ENTER("SSL_get_psk_identity_hint");
-        return ssl->arrays.server_hint;
+
+        if (ssl == NULL || ssl->arrays == NULL)
+            return NULL;
+
+        return ssl->arrays->server_hint;
     }
 
 
     const char* CyaSSL_get_psk_identity(const CYASSL* ssl)
     {
         CYASSL_ENTER("SSL_get_psk_identity");
-        return ssl->arrays.client_identity;
+
+        if (ssl == NULL || ssl->arrays == NULL)
+            return NULL;
+
+        return ssl->arrays->client_identity;
     }
 
 
@@ -3322,11 +3353,15 @@ int CyaSSL_set_compression(CYASSL* ssl)
     int CyaSSL_use_psk_identity_hint(CYASSL* ssl, const char* hint)
     {
         CYASSL_ENTER("SSL_use_psk_identity_hint");
+
+        if (ssl == NULL || ssl->arrays == NULL)
+            return SSL_FAILURE;
+
         if (hint == 0)
-            ssl->arrays.server_hint[0] = 0;
+            ssl->arrays->server_hint[0] = 0;
         else {
-            XSTRNCPY(ssl->arrays.server_hint, hint, MAX_PSK_ID_LEN);
-            ssl->arrays.server_hint[MAX_PSK_ID_LEN - 1] = '\0';
+            XSTRNCPY(ssl->arrays->server_hint, hint, MAX_PSK_ID_LEN);
+            ssl->arrays->server_hint[MAX_PSK_ID_LEN - 1] = '\0';
         }
         return SSL_SUCCESS;
     }
@@ -3486,12 +3521,12 @@ int CyaSSL_set_compression(CYASSL* ssl)
                                      unsigned char** sr, unsigned int* srLen,
                                      unsigned char** cr, unsigned int* crLen)
     {
-        if (ssl == NULL)
+        if (ssl == NULL || ssl->arrays == NULL)
             return -1;
 
-        *ms = ssl->arrays.masterSecret;
-        *sr = ssl->arrays.serverRandom;
-        *cr = ssl->arrays.clientRandom;
+        *ms = ssl->arrays->masterSecret;
+        *sr = ssl->arrays->serverRandom;
+        *cr = ssl->arrays->clientRandom;
 
         *msLen = SECRET_LEN;
         *srLen = RAN_LEN;
