@@ -977,6 +977,7 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
     ssl->keys.dtls_peer_sequence_number = 0;
     ssl->keys.dtls_expected_peer_sequence_number = 0;
     ssl->keys.dtls_handshake_number     = 0;
+    ssl->keys.dtls_expected_peer_handshake_number = 0;
     ssl->keys.dtls_epoch                = 0;
     ssl->keys.dtls_peer_epoch           = 0;
     ssl->keys.dtls_expected_peer_epoch  = 0;
@@ -1238,6 +1239,17 @@ void DtlsPoolReset(CYASSL* ssl)
         ssl->dtls_pool->used = 0;
         ssl->dtls_timeout = DTLS_DEFAULT_TIMEOUT;
     }
+}
+
+
+int DtlsPoolTimeout(CYASSL* ssl)
+{
+    int result = -1;
+    if (ssl->dtls_timeout < 64) {
+        ssl->dtls_timeout *= 2;
+        result = 0;
+    }
+    return result;
 }
 
 
@@ -1532,8 +1544,10 @@ retry:
 
 #ifdef CYASSL_DTLS
             case IO_ERR_TIMEOUT:
-                DtlsPoolSend(ssl);
-                goto retry;
+                if (DtlsPoolTimeout(ssl) == 0 && DtlsPoolSend(ssl) == 0)
+                    goto retry;
+                else
+                    return -1;
 #endif
 
             default:
@@ -1803,14 +1817,13 @@ static int GetDtlsHandShakeHeader(CYASSL* ssl, const byte* input,
 {
     word32 idx = *inOutIdx;
 
-    (void)ssl;
     *inOutIdx += HANDSHAKE_HEADER_SZ + DTLS_HANDSHAKE_EXTRA;
     
     *type = input[idx++];
     c24to32(input + idx, size);
     idx += BYTE3_LEN;
 
-    /* skip the sequence number */
+    ato16(input + idx, &ssl->keys.dtls_peer_handshake_number);
     idx += DTLS_HANDSHAKE_SEQ_SZ;
 
     c24to32(input + idx, fragOffset);
@@ -2483,6 +2496,15 @@ static int DoDtlsHandShakeMsg(CYASSL* ssl, byte* input, word32* inOutIdx,
 
     if (*inOutIdx + fragSz > totalSz)
         return INCOMPLETE_DATA;
+
+    if (ssl->keys.dtls_peer_handshake_number ==
+                                ssl->keys.dtls_expected_peer_handshake_number) {
+        ssl->keys.dtls_expected_peer_handshake_number++;
+    }
+    else {
+        *inOutIdx += size;
+        return 0;
+    }
 
     if (fragSz < size) {
         /* message is fragmented, knit back together */

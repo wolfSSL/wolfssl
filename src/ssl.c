@@ -2226,23 +2226,16 @@ int CyaSSL_dtls_get_current_timeout(CYASSL* ssl)
 
 int CyaSSL_dtls_got_timeout(CYASSL* ssl)
 {
-    int result = SSL_NOT_IMPLEMENTED;
-    (void)ssl;
-
 #ifdef CYASSL_DTLS
-    if (ssl->dtls_timeout < 64) {
-        ssl->dtls_timeout *= 2;
-        if (DtlsPoolSend(ssl) < 0)
-            result = SSL_FATAL_ERROR;
-        else
-            result = SSL_SUCCESS;
-    }
-    else {
+    int result = SSL_SUCCESS;
+    if (DtlsPoolTimeout(ssl) < 0 || DtlsPoolSend(ssl) < 0) {
         result = SSL_FATAL_ERROR;
     }
-#endif
-
     return result;
+#else
+    (void)ssl;
+    return SSL_NOT_IMPLEMENTED;
+#endif
 }
 
 

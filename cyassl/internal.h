@@ -968,6 +968,8 @@ typedef struct Keys {
     word32 dtls_peer_sequence_number;
     word32 dtls_expected_peer_sequence_number;
     word16 dtls_handshake_number;
+    word16 dtls_peer_handshake_number;
+    word16 dtls_expected_peer_handshake_number;
     word16 dtls_epoch;
     word16 dtls_peer_epoch;
     word16 dtls_expected_peer_epoch;
@@ -1492,6 +1494,7 @@ CYASSL_LOCAL void BuildTlsFinished(CYASSL* ssl, Hashes* hashes,
 #ifdef CYASSL_DTLS
     CYASSL_LOCAL int  DtlsPoolInit(CYASSL*);
     CYASSL_LOCAL void DtlsPoolSave(CYASSL*, const byte*, int);
+    CYASSL_LOCAL int  DtlsPoolTimeout(CYASSL*);
     CYASSL_LOCAL int  DtlsPoolSend(CYASSL*);
     CYASSL_LOCAL void DtlsPoolReset(CYASSL*);
 #endif /* CYASSL_DTLS */
