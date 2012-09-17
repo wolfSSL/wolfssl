@@ -2567,15 +2567,6 @@ static int DoDtlsHandShakeMsg(CYASSL* ssl, byte* input, word32* inOutIdx,
     if (*inOutIdx + fragSz > totalSz)
         return INCOMPLETE_DATA;
 
-    if (ssl->keys.dtls_peer_handshake_number ==
-                                ssl->keys.dtls_expected_peer_handshake_number) {
-        ssl->keys.dtls_expected_peer_handshake_number++;
-    }
-    else {
-        *inOutIdx += size;
-        return 0;
-    }
-
     if (fragSz < size) {
         /* message is fragmented, knit back together */
         byte* buf = ssl->buffers.dtlsHandshake.buffer;
@@ -2609,18 +2600,34 @@ static int DoDtlsHandShakeMsg(CYASSL* ssl, byte* input, word32* inOutIdx,
         *inOutIdx += fragSz;
 
         if (ssl->buffers.dtlsUsed != size) {
-            CYASSL_LEAVE("DoDtlsHandShakeMsg()", 1);
+            CYASSL_LEAVE("DoDtlsHandShakeMsg()", 0);
             return 0;            
         }
         else {
-            word32 idx = 0;
-            totalSz = size;
-            ret = DoHandShakeMsgType(ssl, buf, &idx, type, size, totalSz);            
+            if (ssl->keys.dtls_peer_handshake_number ==
+                                ssl->keys.dtls_expected_peer_handshake_number) {
+                word32 idx = 0;
+                totalSz = size;
+                ssl->keys.dtls_expected_peer_handshake_number++;
+                ret = DoHandShakeMsgType(ssl, buf, &idx, type, size, totalSz);            
+            }
+            else {
+                *inOutIdx += size;
+                ret = 0;
+            }
         }
-
     }
-    else
-        ret = DoHandShakeMsgType(ssl, input, inOutIdx, type, size, totalSz);
+    else {
+        if (ssl->keys.dtls_peer_handshake_number ==
+                                ssl->keys.dtls_expected_peer_handshake_number) {
+            ssl->keys.dtls_expected_peer_handshake_number++;
+            ret = DoHandShakeMsgType(ssl, input, inOutIdx, type, size, totalSz);
+        }
+        else {
+            *inOutIdx += size;
+            ret = 0;
+        }
+    }
 
     if (ssl->buffers.dtlsHandshake.buffer != NULL) {
         XFREE(ssl->buffers.dtlsHandshake.buffer, ssl->heap, DYNAMIC_TYPE_NONE);
