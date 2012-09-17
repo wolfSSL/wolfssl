@@ -1225,7 +1225,6 @@ typedef struct DtlsRecordLayerHeader {
 typedef struct DtlsPool {
     buffer          buf[DTLS_POOL_SZ];
     int             used;
-    byte            pool[MAX_MTU*DTLS_POOL_SZ];
 } DtlsPool;
 
 
@@ -1503,7 +1502,7 @@ CYASSL_LOCAL void FreeArrays(CYASSL* ssl, int keep);
 
 #ifdef CYASSL_DTLS
     CYASSL_LOCAL int  DtlsPoolInit(CYASSL*);
-    CYASSL_LOCAL void DtlsPoolSave(CYASSL*, const byte*, int);
+    CYASSL_LOCAL int  DtlsPoolSave(CYASSL*, const byte*, int);
     CYASSL_LOCAL int  DtlsPoolTimeout(CYASSL*);
     CYASSL_LOCAL int  DtlsPoolSend(CYASSL*);
     CYASSL_LOCAL void DtlsPoolReset(CYASSL*);

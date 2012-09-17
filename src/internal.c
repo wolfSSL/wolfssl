@@ -1177,8 +1177,10 @@ void SSL_ResourceFree(CYASSL* ssl)
 #ifdef CYASSL_DTLS
     if (ssl->buffers.dtlsHandshake.buffer != NULL)
         XFREE(ssl->buffers.dtlsHandshake.buffer, ssl->heap, DYNAMIC_TYPE_NONE);
-    if (ssl->dtls_pool != NULL)
+    if (ssl->dtls_pool != NULL) {
+        DtlsPoolReset(ssl);
         XFREE(ssl->dtls_pool, ssl->heap, DYNAMIC_TYPE_NONE);
+    }
 #endif
 #if defined(OPENSSL_EXTRA) || defined(GOAHEAD_WS)
     XFREE(ssl->peerCert.derCert.buffer, ssl->heap, DYNAMIC_TYPE_CERT);
@@ -1220,6 +1222,7 @@ void FreeHandshakeResources(CYASSL* ssl)
 #ifdef CYASSL_DTLS
     /* DTLS_POOL */
     if (ssl->options.dtls && ssl->dtls_pool != NULL) {
+        DtlsPoolReset(ssl);
         XFREE(ssl->dtls_pool, ssl->heap, DYNAMIC_TYPE_DTLS_POOL);
         ssl->dtls_pool = NULL;
     }
@@ -1262,7 +1265,7 @@ int DtlsPoolInit(CYASSL* ssl)
             
             for (i = 0; i < DTLS_POOL_SZ; i++) {
                 pool->buf[i].length = 0;
-                pool->buf[i].buffer = pool->pool + (MAX_MTU * i);
+                pool->buf[i].buffer = NULL;
             }
             pool->used = 0;
             ssl->dtls_pool = pool;
@@ -1272,24 +1275,40 @@ int DtlsPoolInit(CYASSL* ssl)
 }
 
 
-void DtlsPoolSave(CYASSL* ssl, const byte *src, int sz)
+int DtlsPoolSave(CYASSL* ssl, const byte *src, int sz)
 {
     DtlsPool *pool = ssl->dtls_pool;
     if (pool != NULL && pool->used < DTLS_POOL_SZ) {
-        buffer *buf = &pool->buf[pool->used];
-        XMEMCPY(buf->buffer, src, sz);
-        buf->length = (word32)sz;
+        buffer *pBuf = &pool->buf[pool->used];
+        pBuf->buffer = (byte*)XMALLOC(sz, ssl->heap, DYNAMIC_TYPE_OUT_BUFFER);
+        if (pBuf->buffer == NULL) {
+            CYASSL_MSG("DTLS Buffer Memory error");
+            return MEMORY_E;
+        }
+        XMEMCPY(pBuf->buffer, src, sz);
+        pBuf->length = (word32)sz;
         pool->used++;
     }
+    return 0;
 }
 
 
 void DtlsPoolReset(CYASSL* ssl)
 {
-    if (ssl->dtls_pool != NULL) {
-        ssl->dtls_pool->used = 0;
-        ssl->dtls_timeout = DTLS_DEFAULT_TIMEOUT;
+    DtlsPool *pool = ssl->dtls_pool;
+    if (pool != NULL) {
+        buffer *pBuf;
+        int i, used;
+
+        used = pool->used;
+        for (i = 0, pBuf = &pool->buf[0]; i < used; i++, pBuf++) {
+            XFREE(pBuf->buffer, ssl->heap, DYNAMIC_TYPE_OUT_BUFFER);
+            pBuf->buffer = NULL;
+            pBuf->length = 0;
+        }
+        pool->used = 0;
     }
+    ssl->dtls_timeout = DTLS_DEFAULT_TIMEOUT;
 }
 
 
