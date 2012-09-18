@@ -148,7 +148,7 @@ int EmbedReceive(CYASSL *ssl, char *buf, int sz, void *ctx)
         #else
             struct timeval timeout = {ssl->dtls_timeout, 0};
         #endif
-        setsockopt(sd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
+        setsockopt(sd, SOL_SOCKET,SO_RCVTIMEO, (char*)&timeout,sizeof(timeout));
     }
 #endif
 
