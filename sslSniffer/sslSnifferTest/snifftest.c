@@ -217,6 +217,7 @@ int main(int argc, char** argv)
             ret = -1;
         }
         else {
+            const char* passwd = NULL;
             /* defaults for server and port */
             port = 443;
             server = "127.0.0.1";
@@ -227,14 +228,17 @@ int main(int argc, char** argv)
             if (argc >= 5)
                 port = atoi(argv[4]);
 
+            if (argc >= 6)
+                passwd = argv[5];
+
             ret = ssl_SetPrivateKey(server, port, argv[2],
-                                    FILETYPE_PEM, NULL, err);
+                                    FILETYPE_PEM, passwd, err);
         }
     }
     else {
         /* usage error */
-        printf(
-             "usage: ./snifftest or ./snifftest dump pemKey [server] [port]\n");
+        printf( "usage: ./snifftest or ./snifftest dump pemKey"
+                " [server] [port] [password]\n");
         exit(EXIT_FAILURE);
     }
 
