@@ -831,8 +831,10 @@ int AddCA(CYASSL_CERT_MANAGER* cm, buffer der, int type, int verify)
         
             headerEnd = XSTRNSTR((char*)buff, header, sz);
         }
-        if (!headerEnd)
-            return SSL_BAD_FILE;
+        if (!headerEnd) {
+            CYASSL_MSG("Couldn't find PEM header");
+            return SSL_NO_PEM_HEADER;
+        }
         headerEnd += XSTRLEN(header);
 
         /* get next line */
@@ -985,6 +987,7 @@ int AddCA(CYASSL_CERT_MANAGER* cm, buffer der, int type, int verify)
                 word32 bufferSz = sizeof(staticBuffer);
                 long   consumed = info.consumed;
                 word32 idx = 0;
+                int    gotOne = 0;
 
                 if ( (sz - consumed) > (int)bufferSz) {
                     CYASSL_MSG("Growing Tmp Chain Buffer");
@@ -1000,7 +1003,6 @@ int AddCA(CYASSL_CERT_MANAGER* cm, buffer der, int type, int verify)
 
                 CYASSL_MSG("Processing Cert Chain");
                 while (consumed < sz) {
-                    long   left;
                     buffer part;
                     info.consumed = 0;
                     part.buffer = 0;
@@ -1008,6 +1010,7 @@ int AddCA(CYASSL_CERT_MANAGER* cm, buffer der, int type, int verify)
                     ret = PemToDer(buff + consumed, sz - consumed, type, &part,
                                    ctx->heap, &info, &eccKey);
                     if (ret == 0) {
+                        gotOne = 1;
                         if ( (idx + part.length) > bufferSz) {
                             CYASSL_MSG("   Cert Chain bigger than buffer");
                             ret = BUFFER_E;
@@ -1024,18 +1027,19 @@ int AddCA(CYASSL_CERT_MANAGER* cm, buffer der, int type, int verify)
                     }
 
                     XFREE(part.buffer, ctx->heap, dynamicType);
+
+                    if (ret == SSL_NO_PEM_HEADER && gotOne) {
+                        CYASSL_MSG("We got one good PEM so stuff at end ok");
+                        ret = 0;
+                        break;
+                    }
+
                     if (ret < 0) {
                         CYASSL_MSG("   Error in Cert in Chain");
                         XFREE(der.buffer, ctx->heap, dynamicType);
                         return ret;
                     }
                     CYASSL_MSG("   Consumed another Cert in Chain");
-
-                    left = sz - consumed;
-                    if (left > 0 && left < CERT_MIN_SIZE) {
-                        CYASSL_MSG("   Non Cert at end of file");
-                        break;
-                    }
                 }
                 CYASSL_MSG("Finished Processing Cert Chain");
                 ctx->certChain.buffer = (byte*)XMALLOC(idx, ctx->heap,
@@ -1230,28 +1234,31 @@ int AddCA(CYASSL_CERT_MANAGER* cm, buffer der, int type, int verify)
 static int ProcessChainBuffer(CYASSL_CTX* ctx, const unsigned char* buff,
                             long sz, int format, int type, CYASSL* ssl)
 {
-    long used = 0;
-    int  ret  = 0;
+    long used   = 0;
+    int  ret    = 0;
+    int  gotOne = 0;
 
     CYASSL_MSG("Processing CA PEM file");
     while (used < sz) {
         long consumed = 0;
-        long left;
 
         ret = ProcessBuffer(ctx, buff + used, sz - used, format, type, ssl,
                             &consumed, 0);
+
+        if (ret == SSL_NO_PEM_HEADER && gotOne) {
+            CYASSL_MSG("We got one good PEM file so stuff at end ok");
+            ret = SSL_SUCCESS;
+            break;
+        }
+
         if (ret < 0)
             break;
 
         CYASSL_MSG("   Processed a CA");
+        gotOne = 1;
         used += consumed;
-
-        left = sz - used;
-        if (left > 0 && left < CERT_MIN_SIZE) { /* non cert stuff at eof */
-            CYASSL_MSG("   Non CA cert at eof");
-            break;
-        }
     }
+
     return ret;
 }
 
