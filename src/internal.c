@@ -4259,6 +4259,10 @@ void SetErrorString(int error, char* str)
         XSTRNCPY(str, "Suites Pointer Error", max);
         break;
 
+    case SSL_NO_PEM_HEADER:
+        XSTRNCPY(str, "No PEM Header Error", max);
+        break;
+
     default :
         XSTRNCPY(str, "unknown error number", max);
     }

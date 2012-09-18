@@ -104,6 +104,7 @@ enum CyaSSL_ErrorCodes {
     COOKIE_ERROR           = -269,            /* dtls cookie error */
     SEQUENCE_ERROR         = -270,            /* dtls sequence error */
     SUITES_ERROR           = -271,            /* suites pointer error */
+    SSL_NO_PEM_HEADER      = -272,            /* no PEM header found */
     /* add strings to SetErrorString !!!!! */
 
     /* begin negotiation parameter errors */
