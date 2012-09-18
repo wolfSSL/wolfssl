@@ -1026,7 +1026,7 @@ static int ProcessClientKeyExchange(const byte* input, int* sslBytes,
             return -1;
         }
         ret = RsaPrivateDecrypt(input, length, 
-                  session->sslServer->arrays.preMasterSecret, SECRET_LEN, &key);
+                  session->sslServer->arrays->preMasterSecret,SECRET_LEN, &key);
         
         if (ret != SECRET_LEN) {
             SetError(RSA_DECRYPT_STR, error, session, FATAL_ERROR_STATE);
@@ -1034,19 +1034,19 @@ static int ProcessClientKeyExchange(const byte* input, int* sslBytes,
             return -1;
         }
         ret = 0;  /* not in error state */
-        session->sslServer->arrays.preMasterSz = SECRET_LEN;
+        session->sslServer->arrays->preMasterSz = SECRET_LEN;
         
         /* store for client side as well */
-        XMEMCPY(session->sslClient->arrays.preMasterSecret,
-               session->sslServer->arrays.preMasterSecret, SECRET_LEN);
-        session->sslClient->arrays.preMasterSz = SECRET_LEN;
+        XMEMCPY(session->sslClient->arrays->preMasterSecret,
+               session->sslServer->arrays->preMasterSecret, SECRET_LEN);
+        session->sslClient->arrays->preMasterSz = SECRET_LEN;
         
         #ifdef SHOW_SECRETS
         {
             int i;
             printf("pre master secret: ");
             for (i = 0; i < SECRET_LEN; i++)
-                printf("%02x", session->sslServer->arrays.preMasterSecret[i]);
+                printf("%02x", session->sslServer->arrays->preMasterSecret[i]);
             printf("\n");
         }
         #endif
@@ -1076,12 +1076,12 @@ static int ProcessClientKeyExchange(const byte* input, int* sslBytes,
         int i;
         printf("server master secret: ");
         for (i = 0; i < SECRET_LEN; i++)
-            printf("%02x", session->sslServer->arrays.masterSecret[i]);
+            printf("%02x", session->sslServer->arrays->masterSecret[i]);
         printf("\n");
         
         printf("client master secret: ");
         for (i = 0; i < SECRET_LEN; i++)
-            printf("%02x", session->sslClient->arrays.masterSecret[i]);
+            printf("%02x", session->sslClient->arrays->masterSecret[i]);
         printf("\n");
 
         printf("server suite = %d\n", session->sslServer->options.cipherSuite);
@@ -1121,7 +1121,7 @@ static int ProcessSessionTicket(const byte* input, int* sslBytes,
 
     /* store session with macID as sessionID */
     session->sslServer->options.haveSessionId = 1;
-    XMEMCPY(session->sslServer->arrays.sessionID, input + len - ID_LEN, ID_LEN);
+    XMEMCPY(session->sslServer->arrays->sessionID, input + len - ID_LEN,ID_LEN);
     
     return 0;
 }
@@ -1155,8 +1155,8 @@ static int ProcessServerHello(const byte* input, int* sslBytes,
     session->sslServer->version = pv;
     session->sslClient->version = pv;
            
-    XMEMCPY(session->sslServer->arrays.serverRandom, input, RAN_LEN);
-    XMEMCPY(session->sslClient->arrays.serverRandom, input, RAN_LEN);
+    XMEMCPY(session->sslServer->arrays->serverRandom, input, RAN_LEN);
+    XMEMCPY(session->sslClient->arrays->serverRandom, input, RAN_LEN);
     input    += RAN_LEN;
     *sslBytes -= RAN_LEN;
     
@@ -1169,7 +1169,7 @@ static int ProcessServerHello(const byte* input, int* sslBytes,
         return -1;
     }
     if (b) {
-        XMEMCPY(session->sslServer->arrays.sessionID, input, ID_LEN);
+        XMEMCPY(session->sslServer->arrays->sessionID, input, ID_LEN);
         session->sslServer->options.haveSessionId = 1;
     }
     input     += b;
@@ -1192,8 +1192,8 @@ static int ProcessServerHello(const byte* input, int* sslBytes,
     }
    
     if (session->sslServer->options.haveSessionId &&
-            XMEMCMP(session->sslServer->arrays.sessionID,
-                    session->sslClient->arrays.sessionID, ID_LEN) == 0)
+            XMEMCMP(session->sslServer->arrays->sessionID,
+                    session->sslClient->arrays->sessionID, ID_LEN) == 0)
         doResume = 1;
     else if (session->sslClient->options.haveSessionId == 0 &&
              session->sslServer->options.haveSessionId == 0 &&
@@ -1202,20 +1202,20 @@ static int ProcessServerHello(const byte* input, int* sslBytes,
 
     if (session->ticketID && doResume) {
         /* use ticketID to retrieve from session */
-        XMEMCPY(session->sslServer->arrays.sessionID, session->ticketID,ID_LEN);
+        XMEMCPY(session->sslServer->arrays->sessionID,session->ticketID,ID_LEN);
     }
 
     if (doResume ) {
         int ret = 0;
         SSL_SESSION* resume = GetSession(session->sslServer,
-                                       session->sslServer->arrays.masterSecret);
+                                      session->sslServer->arrays->masterSecret);
         if (resume == NULL) {
             SetError(BAD_SESSION_RESUME_STR, error, session, FATAL_ERROR_STATE);
             return -1;
         }
         /* make sure client has master secret too */
-        XMEMCPY(session->sslClient->arrays.masterSecret,
-               session->sslServer->arrays.masterSecret, SECRET_LEN);
+        XMEMCPY(session->sslClient->arrays->masterSecret,
+               session->sslServer->arrays->masterSecret, SECRET_LEN);
         session->flags.resuming = 1;
         
         Trace(SERVER_DID_RESUMPTION_STR);
@@ -1249,7 +1249,7 @@ static int ProcessServerHello(const byte* input, int* sslBytes,
                session->sslServer->options.cipherSuite);
         printf("server random: ");
         for (i = 0; i < RAN_LEN; i++)
-            printf("%02x", session->sslServer->arrays.serverRandom[i]);
+            printf("%02x", session->sslServer->arrays->serverRandom[i]);
         printf("\n");
     }
 #endif   
@@ -1277,8 +1277,8 @@ static int ProcessClientHello(const byte* input, int* sslBytes,
     input     += sizeof(ProtocolVersion);
     *sslBytes -= sizeof(ProtocolVersion);
     
-    XMEMCPY(session->sslServer->arrays.clientRandom, input, RAN_LEN);
-    XMEMCPY(session->sslClient->arrays.clientRandom, input, RAN_LEN);
+    XMEMCPY(session->sslServer->arrays->clientRandom, input, RAN_LEN);
+    XMEMCPY(session->sslClient->arrays->clientRandom, input, RAN_LEN);
     
     input     += RAN_LEN;
     *sslBytes -= RAN_LEN;
@@ -1292,7 +1292,7 @@ static int ProcessClientHello(const byte* input, int* sslBytes,
             return -1;
         }
         Trace(CLIENT_RESUME_TRY_STR);
-        XMEMCPY(session->sslClient->arrays.sessionID, input, ID_LEN);
+        XMEMCPY(session->sslClient->arrays->sessionID, input, ID_LEN);
         session->sslClient->options.haveSessionId = 1;
     }
 #ifdef SHOW_SECRETS
@@ -1300,7 +1300,7 @@ static int ProcessClientHello(const byte* input, int* sslBytes,
         int i;
         printf("client random: ");
         for (i = 0; i < RAN_LEN; i++)
-            printf("%02x", session->sslServer->arrays.clientRandom[i]);
+            printf("%02x", session->sslServer->arrays->clientRandom[i]);
         printf("\n");
     }
 #endif
@@ -1733,8 +1733,8 @@ static int DoOldHello(SnifferSession* session, const byte* sslFrame,
     }
     
     Trace(OLD_CLIENT_OK_STR);
-    XMEMCPY(session->sslClient->arrays.clientRandom,
-           session->sslServer->arrays.clientRandom, RAN_LEN);
+    XMEMCPY(session->sslClient->arrays->clientRandom,
+           session->sslServer->arrays->clientRandom, RAN_LEN);
     
     *sslBytes -= *rhSize;
     return 0;
