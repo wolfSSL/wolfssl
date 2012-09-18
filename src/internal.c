@@ -2573,7 +2573,7 @@ static int DoDtlsHandShakeMsg(CYASSL* ssl, byte* input, word32* inOutIdx,
         if (ssl->buffers.dtlsHandshake.length == 0) {
             /* Need to add a header back into the data. The Hash is calculated
              * as if this were a single message, not several fragments. */
-            buf = XMALLOC(size + DTLS_HANDSHAKE_HEADER_SZ,
+            buf = (byte*)XMALLOC(size + DTLS_HANDSHAKE_HEADER_SZ,
                                                 ssl->heap, DYNAMIC_TYPE_NONE);
             if (buf == NULL)
                 return MEMORY_ERROR;
