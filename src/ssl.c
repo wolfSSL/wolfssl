@@ -2244,7 +2244,7 @@ int CyaSSL_dtls_get_current_timeout(CYASSL* ssl)
 #ifdef CYASSL_DTLS
     return ssl->dtls_timeout;
 #else
-    return SSL_NOT_IMPLEMENTED;
+    return NOT_COMPILED_IN;
 #endif
 }
 
@@ -2259,7 +2259,7 @@ int CyaSSL_dtls_got_timeout(CYASSL* ssl)
     return result;
 #else
     (void)ssl;
-    return SSL_NOT_IMPLEMENTED;
+    return NOT_COMPILED_IN;
 #endif
 }
 

@@ -1283,7 +1283,7 @@ int DtlsPoolSave(CYASSL* ssl, const byte *src, int sz)
         pBuf->buffer = (byte*)XMALLOC(sz, ssl->heap, DYNAMIC_TYPE_OUT_BUFFER);
         if (pBuf->buffer == NULL) {
             CYASSL_MSG("DTLS Buffer Memory error");
-            return MEMORY_E;
+            return MEMORY_ERROR;
         }
         XMEMCPY(pBuf->buffer, src, sz);
         pBuf->length = (word32)sz;
@@ -3316,7 +3316,8 @@ int SendChangeCipher(CYASSL* ssl)
 
     #ifdef CYASSL_DTLS
         if (ssl->options.dtls) {
-            DtlsPoolSave(ssl, output, sendSz);
+            if ((ret = DtlsPoolSave(ssl, output, sendSz)) != 0)
+                return ret;
         }
     #endif
     #ifdef CYASSL_CALLBACKS
@@ -3520,7 +3521,9 @@ static int BuildMessage(CYASSL* ssl, byte* output, const byte* input, int inSz,
     if (type == handshake) {
 #ifdef CYASSL_DTLS
         if (ssl->options.dtls) {
-            DtlsPoolSave(ssl, output, headerSz+inSz);
+            int ret;
+            if ((ret = DtlsPoolSave(ssl, output, headerSz+inSz)) != 0)
+                return ret;
         }
 #endif
         HashOutput(ssl, output, headerSz + inSz, ivSz);
@@ -3596,7 +3599,8 @@ int SendFinished(CYASSL* ssl)
     }
     #ifdef CYASSL_DTLS
         if (ssl->options.dtls) {
-            DtlsPoolSave(ssl, output, sendSz);
+            if ((ret = DtlsPoolSave(ssl, output, sendSz)) != 0)
+                return ret;
         }
     #endif
 
@@ -3679,7 +3683,8 @@ int SendCertificate(CYASSL* ssl)
     }
     #ifdef CYASSL_DTLS
         if (ssl->options.dtls) {
-            DtlsPoolSave(ssl, output, sendSz);
+            if ((ret = DtlsPoolSave(ssl, output, sendSz)) != 0)
+                return ret;
         }
     #endif
     HashOutput(ssl, output, sendSz, 0);
@@ -3753,7 +3758,8 @@ int SendCertificateRequest(CYASSL* ssl)
 
     #ifdef CYASSL_DTLS
         if (ssl->options.dtls) {
-            DtlsPoolSave(ssl, output, sendSz);
+            if ((ret = DtlsPoolSave(ssl, output, sendSz)) != 0)
+                return ret;
         }
     #endif
     HashOutput(ssl, output, sendSz, 0);
@@ -5023,7 +5029,8 @@ int SetCipherList(Suites* s, const char* list)
 
         #ifdef CYASSL_DTLS
             if (ssl->options.dtls) {
-                DtlsPoolSave(ssl, output, sendSz);
+                if ((ret = DtlsPoolSave(ssl, output, sendSz)) != 0)
+                    return ret;
             }
         #endif
         HashOutput(ssl, output, sendSz, 0);
@@ -5631,7 +5638,8 @@ int SetCipherList(Suites* s, const char* list)
             idx += encSz; */
             #ifdef CYASSL_DTLS
                 if (ssl->options.dtls) {
-                    DtlsPoolSave(ssl, output, sendSz);
+                    if ((ret = DtlsPoolSave(ssl, output, sendSz)) != 0)
+                        return ret;
                 }
             #endif
             HashOutput(ssl, output, sendSz, 0);
@@ -5771,7 +5779,8 @@ int SetCipherList(Suites* s, const char* list)
                 #ifdef CYASSL_DTLS
                     if (ssl->options.dtls) {
                         sendSz += DTLS_RECORD_EXTRA + DTLS_HANDSHAKE_EXTRA;
-                        DtlsPoolSave(ssl, output, sendSz);
+                        if ((ret = DtlsPoolSave(ssl, output, sendSz)) != 0)
+                            return ret;
                     }
                 #endif
                 HashOutput(ssl, output, sendSz, 0);
@@ -5877,7 +5886,8 @@ int SetCipherList(Suites* s, const char* list)
         ssl->buffers.outputBuffer.length += sendSz;
         #ifdef CYASSL_DTLS
             if (ssl->options.dtls) {
-                DtlsPoolSave(ssl, output, sendSz);
+                if ((ret = DtlsPoolSave(ssl, output, sendSz)) != 0)
+                    return ret;
             }
         #endif
         HashOutput(ssl, output, sendSz, 0);
@@ -6342,7 +6352,8 @@ int SetCipherList(Suites* s, const char* list)
 
             #ifdef CYASSL_DTLS
                 if (ssl->options.dtls) {
-                    DtlsPoolSave(ssl, output, sendSz);
+                    if ((ret = DtlsPoolSave(ssl, output, sendSz)) != 0)
+                        return ret;
                 }
             #endif
             HashOutput(ssl, output, sendSz, 0);
@@ -7199,7 +7210,8 @@ int SetCipherList(Suites* s, const char* list)
 
         #ifdef CYASSL_DTLS
             if (ssl->options.dtls) {
-                DtlsPoolSave(ssl, output, sendSz);
+                if ((ret = DtlsPoolSave(ssl, output, sendSz)) != 0)
+                    return 0;
             }
         #endif
         HashOutput(ssl, output, sendSz, 0);
