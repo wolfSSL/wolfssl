@@ -539,7 +539,7 @@ int md4_test(void)
 
 #endif /* NO_MD4 */
 
-int sha_test()
+int sha_test(void)
 {
     Sha  sha;
     byte hash[SHA_DIGEST_SIZE];
@@ -595,7 +595,7 @@ int sha_test()
 
 
 #ifdef CYASSL_RIPEMD
-int ripemd_test()
+int ripemd_test(void)
 {
     RipeMd  ripemd;
     byte hash[RIPEMD_DIGEST_SIZE];
@@ -651,7 +651,7 @@ int ripemd_test()
 
 
 #ifndef NO_SHA256
-int sha256_test()
+int sha256_test(void)
 {
     Sha256 sha;
     byte   hash[SHA256_DIGEST_SIZE];
@@ -693,7 +693,7 @@ int sha256_test()
 
 
 #ifdef CYASSL_SHA512
-int sha512_test()
+int sha512_test(void)
 {
     Sha512 sha;
     byte   hash[SHA512_DIGEST_SIZE];
@@ -740,7 +740,7 @@ int sha512_test()
 
 
 #ifdef CYASSL_SHA384
-int sha384_test()
+int sha384_test(void)
 {
     Sha384 sha;
     byte   hash[SHA384_DIGEST_SIZE];
@@ -785,7 +785,7 @@ int sha384_test()
 
 
 #ifndef NO_HMAC
-int hmac_test()
+int hmac_test(void)
 {
     Hmac hmac;
     byte hash[MD5_DIGEST_SIZE];
@@ -842,7 +842,7 @@ int hmac_test()
 #endif
 
 
-int arc4_test()
+int arc4_test(void)
 {
     byte cipher[16];
     byte plain[16];
@@ -907,7 +907,7 @@ int arc4_test()
 }
 
 
-int hc128_test()
+int hc128_test(void)
 {
 #ifdef HAVE_HC128
     byte cipher[16];
@@ -984,7 +984,7 @@ int hc128_test()
 
 
 #ifndef NO_RABBIT
-int rabbit_test()
+int rabbit_test(void)
 {
     byte cipher[16];
     byte plain[16];
@@ -1052,7 +1052,7 @@ int rabbit_test()
 
 
 #ifndef NO_DES3
-int des_test()
+int des_test(void)
 {
     const byte vector[] = { /* "now is the time for all " w/o trailing 0 */
         0x6e,0x6f,0x77,0x20,0x69,0x73,0x20,0x74,
@@ -1101,7 +1101,7 @@ int des_test()
 
 
 #ifndef NO_DES3
-int des3_test()
+int des3_test(void)
 {
     const byte vector[] = { /* "Now is the time for all " w/o trailing 0 */
         0x4e,0x6f,0x77,0x20,0x69,0x73,0x20,0x74,
@@ -1154,7 +1154,7 @@ int des3_test()
 
 
 #ifndef NO_AES
-int aes_test()
+int aes_test(void)
 {
     Aes enc;
     Aes dec;
@@ -1247,7 +1247,7 @@ int aes_test()
 }
 
 #ifdef HAVE_AESGCM
-int aesgcm_test()
+int aesgcm_test(void)
 {
     Aes enc;
 
@@ -1341,7 +1341,7 @@ int aesgcm_test()
 #endif /* NO_AES */
 
 
-int random_test()
+int random_test(void)
 {
     RNG  rng;
     byte block[32];
@@ -1394,7 +1394,7 @@ static byte GetEntropy(ENTROPY_CMD cmd, byte* out)
 
 #endif /* HAVE_NTRU */
 
-int rsa_test()
+int rsa_test(void)
 {
     byte   tmp[2048], tmp2[2048];
     size_t bytes, bytes2;
@@ -1760,7 +1760,7 @@ static const char* dhKey = "./certs/dh2048.der";
 
 #ifndef NO_DH
 
-int dh_test()
+int dh_test(void)
 {
     int    ret;
     word32 bytes;
@@ -1824,7 +1824,7 @@ static const char* dsaKey = "./certs/dsa2048.der";
 
 #ifndef NO_DSA
 
-int dsa_test()
+int dsa_test(void)
 {
     int    ret, answer;
     word32 bytes;
@@ -1871,7 +1871,7 @@ int dsa_test()
 
 #ifdef OPENSSL_EXTRA
 
-int openssl_test()
+int openssl_test(void)
 {
     EVP_MD_CTX md_ctx;
     testVector a, b, c, d, e, f;

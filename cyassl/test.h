@@ -576,7 +576,7 @@ static INLINE unsigned int my_psk_server_cb(CYASSL* ssl, const char* identity,
 
     #include <sys/time.h>
 
-    static INLINE double current_time()
+    static INLINE double current_time(void)
     {
         struct timeval tv;
         gettimeofday(&tv, 0);
