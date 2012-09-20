@@ -55,6 +55,5 @@ AC_DEFUN([AX_VCS_CHECKOUT],[
       AS_IF([test -d ".git"],[ac_cv_vcs_checkout=yes])
       ])
 
-    AS_IF([test "$ac_cv_vcs_checkout" = yes], [
-      ])
+    AS_IF([test "$ac_cv_vcs_checkout" = yes], [])
     ])
