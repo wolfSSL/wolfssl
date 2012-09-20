@@ -9,6 +9,8 @@ char* myoptarg = NULL;
 
 int main(int argc, char** argv)
 {
+    (void)argc;
+    (void)argv;
     int ret;
 
     printf("staring unit tests...\n");

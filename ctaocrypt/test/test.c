@@ -79,6 +79,8 @@
         #define printf dc_log_printf
 #endif
 
+#include "ctaocrypt/test/test.h"
+
 
 typedef struct testVector {
     char*  input;
@@ -87,36 +89,39 @@ typedef struct testVector {
     size_t outLen;
 } testVector;
 
-int  md2_test();
-int  md5_test();
-int  md4_test();
-int  sha_test();
-int  sha256_test();
-int  sha512_test();
-int  sha384_test();
-int  hmac_test();
-int  arc4_test();
-int  hc128_test();
-int  rabbit_test();
-int  des_test();
-int  des3_test();
-int  aes_test();
-int  aesgcm_test();
-int  rsa_test();
-int  dh_test();
-int  dsa_test();
-int  random_test();
-int  pwdbased_test();
-int  ripemd_test();
-int  openssl_test();   /* test mini api */
+int  md2_test(void);
+int  md5_test(void);
+int  md4_test(void);
+int  sha_test(void);
+int  sha256_test(void);
+int  sha512_test(void);
+int  sha384_test(void);
+int  hmac_test(void);
+int  arc4_test(void);
+int  hc128_test(void);
+int  rabbit_test(void);
+int  des_test(void);
+int  des3_test(void);
+int  aes_test(void);
+int  aesgcm_test(void);
+int  rsa_test(void);
+int  dh_test(void);
+int  dsa_test(void);
+int  random_test(void);
+int  pwdbased_test(void);
+int  ripemd_test(void);
+int  openssl_test(void);   /* test mini api */
+int pbkdf1_test(void);
+int pkcs12_test(void);
+int pbkdf2_test(void);
 #ifdef HAVE_ECC
-    int  ecc_test();
+    int  ecc_test(void);
 #endif
 
 int PemToDer(const char* inName, const char* outName);
 
 
-void err_sys(const char* msg, int es)
+static void err_sys(const char* msg, int es)
 {
     printf("%s error = %d\n", msg, es);
 #ifndef THREADX
@@ -395,7 +400,7 @@ int md2_test()
 #endif 
 
 
-int md5_test()
+int md5_test(void)
 {
     Md5  md5;
     byte hash[MD5_DIGEST_SIZE];
@@ -458,7 +463,7 @@ int md5_test()
 
 #ifndef NO_MD4
 
-int md4_test()
+int md4_test(void)
 {
     Md4  md4;
     byte hash[MD4_DIGEST_SIZE];
@@ -2088,7 +2093,7 @@ int openssl_test()
 
 #ifndef NO_PWDBASED
 
-int pkcs12_test()
+int pkcs12_test(void)
 {
     const byte passwd[] = { 0x00, 0x73, 0x00, 0x6d, 0x00, 0x65, 0x00, 0x67,
                             0x00, 0x00 }; 
@@ -2130,7 +2135,7 @@ int pkcs12_test()
 }
 
 
-int pbkdf2_test()
+int pbkdf2_test(void)
 {
     char passwd[] = "password";
     const byte salt[] = { 0x78, 0x57, 0x8E, 0x5a, 0x5d, 0x63, 0xcb, 0x06 };
@@ -2154,7 +2159,7 @@ int pbkdf2_test()
 }
 
 
-int pbkdf1_test()
+int pbkdf1_test(void)
 {
     char passwd[] = "password";
     const byte salt[] = { 0x78, 0x57, 0x8E, 0x5a, 0x5d, 0x63, 0xcb, 0x06 };
@@ -2177,7 +2182,7 @@ int pbkdf1_test()
 }
 
 
-int pwdbased_test()
+int pwdbased_test(void)
 {
    int ret =  pbkdf1_test();
    ret += pbkdf2_test();
@@ -2190,7 +2195,7 @@ int pwdbased_test()
 
 #ifdef HAVE_ECC
 
-int ecc_test()
+int ecc_test(void)
 {
     RNG     rng;
     byte    sharedA[1024];

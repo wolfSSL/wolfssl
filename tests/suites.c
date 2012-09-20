@@ -28,10 +28,8 @@
 #define MAX_ARGS 40
 #define MAX_COMMAND_SZ 240
 
-
-void client_test(void*);
-THREAD_RETURN CYASSL_THREAD server_test(void*);
-
+#include "examples/client/client.h"
+#include "examples/server/server.h"
 
 static void execute_test_case(int svr_argc, char** svr_argv,
                               int cli_argc, char** cli_argv)
@@ -85,7 +83,7 @@ static void execute_test_case(int svr_argc, char** svr_argv,
 
 }
 
-void test_harness(void* vargs)
+static void test_harness(void* vargs)
 {
     func_args* args = (func_args*)vargs;
     char* script;

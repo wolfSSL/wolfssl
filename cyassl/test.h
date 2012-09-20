@@ -227,6 +227,8 @@ static INLINE int mygetopt(int argc, char** argv, char* optstring)
 
 static INLINE int PasswordCallBack(char* passwd, int sz, int rw, void* userdata)
 {
+    (void)rw;
+    (void)userdata;
     strncpy(passwd, "yassl123", sz);
     return 8;
 }
@@ -236,6 +238,7 @@ static INLINE int PasswordCallBack(char* passwd, int sz, int rw, void* userdata)
 
 static INLINE void showPeer(CYASSL* ssl)
 {
+  (void)ssl;
 #ifdef OPENSSL_EXTRA
 
     CYASSL_CIPHER* cipher;
@@ -429,6 +432,7 @@ static INLINE int udp_read_connect(SOCKET_T sockfd)
 
 static INLINE void udp_accept(SOCKET_T* sockfd, int* clientfd, func_args* args)
 {
+   (void)args;
     SOCKADDR_IN_T addr;
 
     tcp_socket(sockfd, &addr, yasslIP, yasslPort, 1);
@@ -492,6 +496,7 @@ static INLINE void tcp_accept(SOCKET_T* sockfd, int* clientfd, func_args* args,
 
 static INLINE void tcp_set_nonblocking(SOCKET_T* sockfd)
 {
+    (void)sockfd;
 #ifdef NON_BLOCKING
     #ifdef USE_WINDOWS_API 
         unsigned long blocking = 1;
@@ -672,6 +677,7 @@ static void INLINE CRL_CallBack(const char* url)
 
 static INLINE void CaCb(unsigned char* der, int sz, int type)
 {
+    (void)der;
     printf("Got CA cache add callback, derSz = %d, type = %d\n", sz, type);
 }
 

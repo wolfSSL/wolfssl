@@ -49,6 +49,8 @@ gl_VISIBILITY
 
 m4_ifdef([AM_SILENT_RULES],[AM_SILENT_RULES([yes])])
 
+AX_CXX_COMPILER_VERSION
+
 AC_CHECK_FUNCS([gethostbyname])
 AC_CHECK_FUNCS([gettimeofday])
 AC_CHECK_FUNCS([inet_ntoa])
@@ -698,12 +700,6 @@ GCCWARNINGS="$GCCWARNINGS -Warray-bounds"
   ;;
 esac
 
-AC_ARG_ENABLE(gcc-lots-o-warnings,
-AS_HELP_STRING(--enable-gcc-lots-o-warnings, Enable lots of gcc warnings (default: disabled)),
-[if test x$enableval = xyes; then
-    AM_CFLAGS="$AM_CFLAGS $GCCWARNINGS"
-fi])
-
 AC_ARG_ENABLE(gcc-hardening,
 AS_HELP_STRING(--enable-gcc-hardening, Enable compiler security checks (default: disabled)),
 [if test x$enableval = xyes; then
@@ -713,13 +709,7 @@ AS_HELP_STRING(--enable-gcc-hardening, Enable compiler security checks (default:
     LDFLAGS="$LDFLAGS -pie"
 fi])
 
-dnl Linker hardening options
-dnl Currently these options are ELF specific - you can't use this with MacOSX
-AC_ARG_ENABLE(linker-hardening,
-AS_HELP_STRING(--enable-linker-hardening, Enable linker security fixups (default: disabled)),
-[if test x$enableval = xyes; then
-    LDFLAGS="$LDFLAGS -z relro -z now"
-fi])
+AX_HARDEN_CC_COMPILER_FLAGS
 
 CREATE_HEX_VERSION
 AM_CFLAGS="$AM_CFLAGS $CFLAG_VISIBILITY"
@@ -734,3 +724,20 @@ AC_CONFIG_FILES([support/libcyassl.pc])
 
 AC_OUTPUT
 
+echo "---"
+echo "Configuration summary for $PACKAGE_NAME version $VERSION"
+echo ""
+echo "   * Installation prefix:       $prefix"
+echo "   * System type:               $host_vendor-$host_os"
+echo "   * Host CPU:                  $host_cpu"
+echo "   * C Compiler:                $CC_VERSION"
+echo "   * C Flags:                   $CFLAGS"
+echo "   * C++ Compiler:              $CXX_VERSION"
+echo "   * C++ Flags:                 $CXXFLAGS"
+echo "   * CPP Flags:                 $CPPFLAGS"
+echo "   * Assertions enabled:        $ac_cv_assert"
+echo "   * Debug enabled:             $with_debug"
+echo "   * Warnings as failure:       $ac_cv_warnings_as_errors"
+echo "   * SASL support:              $ac_enable_sasl"
+echo ""
+echo "---"

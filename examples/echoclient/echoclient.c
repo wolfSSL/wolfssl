@@ -26,6 +26,7 @@
 #include <cyassl/openssl/ssl.h>
 #include <cyassl/test.h>
 
+#include "examples/echoclient/echoclient.h"
 
 void echoclient_test(void* args)
 {

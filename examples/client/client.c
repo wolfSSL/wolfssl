@@ -26,6 +26,8 @@
 #include <cyassl/ssl.h>
 #include <cyassl/test.h>
 
+#include "examples/client/client.h"
+
 /*
 #define TEST_RESUME 
 */

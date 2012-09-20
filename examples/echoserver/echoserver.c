@@ -30,6 +30,8 @@
     #define ECHO_OUT
 #endif
 
+#include "examples/echoserver/echoserver.h"
+
 
 #ifdef SESSION_STATS
     CYASSL_API void PrintSessionStats(void);
@@ -38,6 +40,7 @@
 
 static void SignalReady(void* args)
 {
+    (void)args;
 #if defined(_POSIX_THREADS) && defined(NO_MAIN_DRIVER)
     /* signal ready to tcp_accept */
     func_args* server_args = (func_args*)args;
@@ -58,10 +61,13 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
 
     int    doDTLS = 0;
     int    outCreated = 0;
+    (void)outCreated;
     int    shutdown = 0;
     int    useAnyAddr = 0;
     int    argc = ((func_args*)args)->argc;
+    (void)argc;
     char** argv = ((func_args*)args)->argv;
+    (void)argv;
 
 #ifdef ECHO_OUT
     FILE* fout = stdout;

@@ -41,7 +41,7 @@
    mu = c[x] * mp
 
 #define INNERMUL                                          \
-asm(                                                      \
+__asm__(                                                      \
    "movl %5,%%eax \n\t"                                   \
    "mull %4       \n\t"                                   \
    "addl %1,%%eax \n\t"                                   \
@@ -54,7 +54,7 @@ asm(                                                      \
 : "%eax", "%edx", "%cc")
 
 #define PROPCARRY                           \
-asm(                                        \
+__asm__(                                        \
    "addl   %1,%0    \n\t"                   \
    "setb   %%al     \n\t"                   \
    "movzbl %%al,%1 \n\t"                    \
@@ -73,7 +73,7 @@ asm(                                        \
    mu = c[x] * mp
 
 #define INNERMUL                                          \
-asm(                                                      \
+__asm__(                                                      \
    "movq %5,%%rax \n\t"                                   \
    "mulq %4       \n\t"                                   \
    "addq %1,%%rax \n\t"                                   \
@@ -86,7 +86,7 @@ asm(                                                      \
 : "%rax", "%rdx", "%cc")
 
 #define INNERMUL8 \
- asm(                  \
+ __asm__(                  \
  "movq 0(%5),%%rax    \n\t"  \
  "movq 0(%2),%%r10    \n\t"  \
  "movq 0x8(%5),%%r11  \n\t"  \
@@ -180,7 +180,7 @@ asm(                                                      \
 
 
 #define PROPCARRY                           \
-asm(                                        \
+__asm__(                                        \
    "addq   %1,%0    \n\t"                   \
    "setb   %%al     \n\t"                   \
    "movzbq %%al,%1 \n\t"                    \
@@ -200,13 +200,13 @@ asm(                                        \
  */
 
 #define MONT_START \
-   asm("movd %0,%%mm2"::"g"(mp))
+   __asm__("movd %0,%%mm2"::"g"(mp))
 
 #define MONT_FINI \
-   asm("emms")
+   __asm__("emms")
 
 #define LOOP_START          \
-asm(                        \
+__asm__(                        \
 "movd %0,%%mm1        \n\t" \
 "pxor %%mm3,%%mm3     \n\t" \
 "pmuludq %%mm2,%%mm1  \n\t" \
@@ -214,7 +214,7 @@ asm(                        \
 
 /* pmuludq on mmx registers does a 32x32->64 multiply. */
 #define INNERMUL               \
-asm(                           \
+__asm__(                           \
    "movd %1,%%mm4        \n\t" \
    "movd %2,%%mm0        \n\t" \
    "paddq %%mm4,%%mm3    \n\t" \
@@ -225,7 +225,7 @@ asm(                           \
 :"=g"(_c[LO]) : "0"(_c[LO]), "g"(*tmpm++) );
 
 #define INNERMUL8 \
-asm(                           \
+__asm__(                           \
    "movd 0(%1),%%mm4     \n\t" \
    "movd 0(%2),%%mm0     \n\t" \
    "paddq %%mm4,%%mm3    \n\t" \
@@ -295,10 +295,10 @@ asm(                           \
    pointer */
 
 #define LOOP_END \
-asm( "movd %%mm3,%0  \n" :"=r"(cy))
+__asm__( "movd %%mm3,%0  \n" :"=r"(cy))
 
 #define PROPCARRY                           \
-asm(                                        \
+__asm__(                                        \
    "addl   %1,%0    \n\t"                   \
    "setb   %%al     \n\t"                   \
    "movzbl %%al,%1 \n\t"                    \
@@ -317,7 +317,7 @@ asm(                                        \
    mu = c[x] * mp
 
 #define INNERMUL                    \
-asm(                                \
+__asm__(                                \
     " LDR    r0,%1            \n\t" \
     " ADDS   r0,r0,%0         \n\t" \
     " MOVCS  %0,#1            \n\t" \
@@ -327,7 +327,7 @@ asm(                                \
 :"=r"(cy),"=m"(_c[0]):"0"(cy),"r"(mu),"r"(*tmpm++),"1"(_c[0]):"r0","%cc");
 
 #define PROPCARRY                  \
-asm(                               \
+__asm__(                               \
     " LDR   r0,%1            \n\t" \
     " ADDS  r0,r0,%0         \n\t" \
     " STR   r0,%1            \n\t" \
@@ -345,7 +345,7 @@ asm(                               \
    mu = c[x] * mp
 
 #define INNERMUL                     \
-asm(                                 \
+__asm__(                                 \
    " mullw    16,%3,%4       \n\t"   \
    " mulhwu   17,%3,%4       \n\t"   \
    " addc     16,16,%0       \n\t"   \
@@ -357,7 +357,7 @@ asm(                                 \
 :"=r"(cy),"=m"(_c[0]):"0"(cy),"r"(mu),"r"(tmpm[0]),"1"(_c[0]):"16", "17", "18","%cc"); ++tmpm;
 
 #define PROPCARRY                    \
-asm(                                 \
+__asm__(                                 \
    " lwz      16,%1         \n\t"    \
    " addc     16,16,%0      \n\t"    \
    " stw      16,%1         \n\t"    \
@@ -375,7 +375,7 @@ asm(                                 \
    mu = c[x] * mp
 
 #define INNERMUL                     \
-asm(                                 \
+__asm__(                                 \
    " mulld    16,%3,%4       \n\t"   \
    " mulhdu   17,%3,%4       \n\t"   \
    " addc     16,16,%0       \n\t"   \
@@ -387,7 +387,7 @@ asm(                                 \
 :"=r"(cy),"=m"(_c[0]):"0"(cy),"r"(mu),"r"(tmpm[0]),"1"(_c[0]):"16", "17", "18","%cc"); ++tmpm;
 
 #define PROPCARRY                    \
-asm(                                 \
+__asm__(                                 \
    " ldx      16,0,%1       \n\t"    \
    " addc     16,16,%0      \n\t"    \
    " sdx      16,0,%1       \n\t"    \
@@ -407,7 +407,7 @@ asm(                                 \
    mu = c[x] * mp
 
 #define INNERMUL                    \
-asm(                                \
+__asm__(                                \
     " ld.w   r2,%1            \n\t" \
     " add    r2,%0            \n\t" \
     " eor    r3,r3            \n\t" \
@@ -418,7 +418,7 @@ asm(                                \
 :"=r"(cy),"=r"(_c):"0"(cy),"r"(mu),"r"(*tmpm++),"1"(_c):"r2","r3");
 
 #define PROPCARRY                    \
-asm(                                 \
+__asm__(                                 \
    " ld.w     r2,%1         \n\t"    \
    " add      r2,%0         \n\t"    \
    " st.w     %1,r2         \n\t"    \
@@ -475,7 +475,7 @@ asm(                                 \
 #define COMBA_FINI
 
 #define SQRADD(i, j)                                      \
-asm(                                            \
+__asm__(                                            \
      "movl  %6,%%eax     \n\t"                            \
      "mull  %%eax        \n\t"                            \
      "addl  %%eax,%0     \n\t"                            \
@@ -484,7 +484,7 @@ asm(                                            \
      :"=r"(c0), "=r"(c1), "=r"(c2): "0"(c0), "1"(c1), "2"(c2), "m"(i) :"%eax","%edx","%cc");
 
 #define SQRADD2(i, j)                                     \
-asm(                                            \
+__asm__(                                            \
      "movl  %6,%%eax     \n\t"                            \
      "mull  %7           \n\t"                            \
      "addl  %%eax,%0     \n\t"                            \
@@ -496,7 +496,7 @@ asm(                                            \
      :"=r"(c0), "=r"(c1), "=r"(c2): "0"(c0), "1"(c1), "2"(c2), "m"(i), "m"(j)  :"%eax","%edx", "%cc");
 
 #define SQRADDSC(i, j)                                    \
-asm(                                                     \
+__asm__(                                                     \
      "movl  %3,%%eax     \n\t"                            \
      "mull  %4           \n\t"                            \
      "movl  %%eax,%0     \n\t"                            \
@@ -507,7 +507,7 @@ asm(                                                     \
 /* TAO removed sc0,1,2 as input to remove warning so %6,%7 become %3,%4 */
 
 #define SQRADDAC(i, j)                                    \
-asm(                                                     \
+__asm__(                                                     \
      "movl  %6,%%eax     \n\t"                            \
      "mull  %7           \n\t"                            \
      "addl  %%eax,%0     \n\t"                            \
@@ -516,7 +516,7 @@ asm(                                                     \
      :"=r"(sc0), "=r"(sc1), "=r"(sc2): "0"(sc0), "1"(sc1), "2"(sc2), "g"(i), "g"(j) :"%eax","%edx","%cc");
 
 #define SQRADDDB                                          \
-asm(                                                     \
+__asm__(                                                     \
      "addl %6,%0         \n\t"                            \
      "adcl %7,%1         \n\t"                            \
      "adcl %8,%2         \n\t"                            \
@@ -545,7 +545,7 @@ asm(                                                     \
 #define COMBA_FINI
 
 #define SQRADD(i, j)                                      \
-asm(                                                     \
+__asm__(                                                     \
      "movq  %6,%%rax     \n\t"                            \
      "mulq  %%rax        \n\t"                            \
      "addq  %%rax,%0     \n\t"                            \
@@ -554,7 +554,7 @@ asm(                                                     \
      :"=r"(c0), "=r"(c1), "=r"(c2): "0"(c0), "1"(c1), "2"(c2), "g"(i) :"%rax","%rdx","%cc");
 
 #define SQRADD2(i, j)                                     \
-asm(                                                     \
+__asm__(                                                     \
      "movq  %6,%%rax     \n\t"                            \
      "mulq  %7           \n\t"                            \
      "addq  %%rax,%0     \n\t"                            \
@@ -566,7 +566,7 @@ asm(                                                     \
      :"=r"(c0), "=r"(c1), "=r"(c2): "0"(c0), "1"(c1), "2"(c2), "g"(i), "g"(j)  :"%rax","%rdx","%cc");
 
 #define SQRADDSC(i, j)                                    \
-asm(                                                     \
+__asm__(                                                     \
      "movq  %3,%%rax     \n\t"                            \
      "mulq  %4           \n\t"                            \
      "movq  %%rax,%0     \n\t"                            \
@@ -577,7 +577,7 @@ asm(                                                     \
 /* TAO removed sc0,1,2 as input to remove warning so %6,%7 become %3,%4 */
 
 #define SQRADDAC(i, j)                                                         \
-asm(                                                     \
+__asm__(                                                     \
      "movq  %6,%%rax     \n\t"                            \
      "mulq  %7           \n\t"                            \
      "addq  %%rax,%0     \n\t"                            \
@@ -586,7 +586,7 @@ asm(                                                     \
      :"=r"(sc0), "=r"(sc1), "=r"(sc2): "0"(sc0), "1"(sc1), "2"(sc2), "g"(i), "g"(j) :"%rax","%rdx","%cc");
 
 #define SQRADDDB                                          \
-asm(                                                     \
+__asm__(                                                     \
      "addq %6,%0         \n\t"                            \
      "adcq %7,%1         \n\t"                            \
      "adcq %8,%2         \n\t"                            \
@@ -613,10 +613,10 @@ asm(                                                     \
    do { c0 = c1; c1 = c2; c2 = 0; } while (0);
 
 #define COMBA_FINI \
-   asm("emms");
+   __asm__("emms");
 
 #define SQRADD(i, j)                                      \
-asm(                                            \
+__asm__(                                            \
      "movd  %6,%%mm0     \n\t"                            \
      "pmuludq %%mm0,%%mm0\n\t"                            \
      "movd  %%mm0,%%eax  \n\t"                            \
@@ -628,7 +628,7 @@ asm(                                            \
      :"=r"(c0), "=r"(c1), "=r"(c2): "0"(c0), "1"(c1), "2"(c2), "m"(i) :"%eax","%cc");
 
 #define SQRADD2(i, j)                                     \
-asm(                                            \
+__asm__(                                            \
      "movd  %6,%%mm0     \n\t"                            \
      "movd  %7,%%mm1     \n\t"                            \
      "pmuludq %%mm1,%%mm0\n\t"                            \
@@ -644,7 +644,7 @@ asm(                                            \
      :"=r"(c0), "=r"(c1), "=r"(c2): "0"(c0), "1"(c1), "2"(c2), "m"(i), "m"(j)  :"%eax","%edx","%cc");
 
 #define SQRADDSC(i, j)                                                         \
-asm(                                            \
+__asm__(                                            \
      "movd  %3,%%mm0     \n\t"                            \
      "movd  %4,%%mm1     \n\t"                            \
      "pmuludq %%mm1,%%mm0\n\t"                            \
@@ -657,7 +657,7 @@ asm(                                            \
 /* TAO removed sc0,1,2 as input to remove warning so %6,%7 become %3,%4 */
 
 #define SQRADDAC(i, j)                                                         \
-asm(                                            \
+__asm__(                                            \
      "movd  %6,%%mm0     \n\t"                            \
      "movd  %7,%%mm1     \n\t"                            \
      "pmuludq %%mm1,%%mm0\n\t"                            \
@@ -670,7 +670,7 @@ asm(                                            \
      :"=r"(sc0), "=r"(sc1), "=r"(sc2): "0"(sc0), "1"(sc1), "2"(sc2), "m"(i), "m"(j)  :"%eax","%edx","%cc");
 
 #define SQRADDDB                                          \
-asm(                                                     \
+__asm__(                                                     \
      "addl %6,%0         \n\t"                            \
      "adcl %7,%1         \n\t"                            \
      "adcl %8,%2         \n\t"                            \
@@ -701,7 +701,7 @@ asm(                                                     \
 
 /* multiplies point i and j, updates carry "c1" and digit c2 */
 #define SQRADD(i, j)                                             \
-asm(                                                             \
+__asm__(                                                             \
 "  UMULL  r0,r1,%6,%6              \n\t"                         \
 "  ADDS   %0,%0,r0                 \n\t"                         \
 "  ADCS   %1,%1,r1                 \n\t"                         \
@@ -710,7 +710,7 @@ asm(                                                             \
 	
 /* for squaring some of the terms are doubled... */
 #define SQRADD2(i, j)                                            \
-asm(                                                             \
+__asm__(                                                             \
 "  UMULL  r0,r1,%6,%7              \n\t"                         \
 "  ADDS   %0,%0,r0                 \n\t"                         \
 "  ADCS   %1,%1,r1                 \n\t"                         \
@@ -721,13 +721,13 @@ asm(                                                             \
 :"=r"(c0), "=r"(c1), "=r"(c2) : "0"(c0), "1"(c1), "2"(c2), "r"(i), "r"(j) : "r0", "r1", "%cc");
 
 #define SQRADDSC(i, j)                                           \
-asm(                                                             \
+__asm__(                                                             \
 "  UMULL  %0,%1,%6,%7              \n\t"                         \
 "  SUB    %2,%2,%2                 \n\t"                         \
 :"=r"(sc0), "=r"(sc1), "=r"(sc2) : "0"(sc0), "1"(sc1), "2"(sc2), "r"(i), "r"(j) : "%cc");
 
 #define SQRADDAC(i, j)                                           \
-asm(                                                             \
+__asm__(                                                             \
 "  UMULL  r0,r1,%6,%7              \n\t"                         \
 "  ADDS   %0,%0,r0                 \n\t"                         \
 "  ADCS   %1,%1,r1                 \n\t"                         \
@@ -735,7 +735,7 @@ asm(                                                             \
 :"=r"(sc0), "=r"(sc1), "=r"(sc2) : "0"(sc0), "1"(sc1), "2"(sc2), "r"(i), "r"(j) : "r0", "r1", "%cc");
 
 #define SQRADDDB                                                 \
-asm(                                                             \
+__asm__(                                                             \
 "  ADDS  %0,%0,%3                     \n\t"                      \
 "  ADCS  %1,%1,%4                     \n\t"                      \
 "  ADC   %2,%2,%5                     \n\t"                      \
@@ -766,7 +766,7 @@ asm(                                                             \
 
 /* multiplies point i and j, updates carry "c1" and digit c2 */
 #define SQRADD(i, j)             \
-asm(                             \
+__asm__(                             \
    " mullw  16,%6,%6       \n\t" \
    " addc   %0,%0,16       \n\t" \
    " mulhwu 16,%6,%6       \n\t" \
@@ -776,7 +776,7 @@ asm(                             \
 
 /* for squaring some of the terms are doubled... */
 #define SQRADD2(i, j)            \
-asm(                             \
+__asm__(                             \
    " mullw  16,%6,%7       \n\t" \
    " mulhwu 17,%6,%7       \n\t" \
    " addc   %0,%0,16       \n\t" \
@@ -788,14 +788,14 @@ asm(                             \
 :"=r"(c0), "=r"(c1), "=r"(c2):"0"(c0), "1"(c1), "2"(c2), "r"(i), "r"(j):"16", "17","%cc");
 
 #define SQRADDSC(i, j)            \
-asm(                              \
+__asm__(                              \
    " mullw  %0,%6,%7        \n\t" \
    " mulhwu %1,%6,%7        \n\t" \
    " xor    %2,%2,%2        \n\t" \
 :"=r"(sc0), "=r"(sc1), "=r"(sc2):"0"(sc0), "1"(sc1), "2"(sc2), "r"(i),"r"(j) : "%cc");
 
 #define SQRADDAC(i, j)           \
-asm(                             \
+__asm__(                             \
    " mullw  16,%6,%7       \n\t" \
    " addc   %0,%0,16       \n\t" \
    " mulhwu 16,%6,%7       \n\t" \
@@ -804,7 +804,7 @@ asm(                             \
 :"=r"(sc0), "=r"(sc1), "=r"(sc2):"0"(sc0), "1"(sc1), "2"(sc2), "r"(i), "r"(j):"16", "%cc");
 
 #define SQRADDDB                  \
-asm(                              \
+__asm__(                              \
    " addc   %0,%0,%3        \n\t" \
    " adde   %1,%1,%4        \n\t" \
    " adde   %2,%2,%5        \n\t" \
@@ -834,7 +834,7 @@ asm(                              \
 
 /* multiplies point i and j, updates carry "c1" and digit c2 */
 #define SQRADD(i, j)             \
-asm(                             \
+__asm__(                             \
    " mulld  16,%6,%6       \n\t" \
    " addc   %0,%0,16       \n\t" \
    " mulhdu 16,%6,%6       \n\t" \
@@ -844,7 +844,7 @@ asm(                             \
 
 /* for squaring some of the terms are doubled... */
 #define SQRADD2(i, j)            \
-asm(                             \
+__asm__(                             \
    " mulld  16,%6,%7       \n\t" \
    " mulhdu 17,%6,%7       \n\t" \
    " addc   %0,%0,16       \n\t" \
@@ -856,14 +856,14 @@ asm(                             \
 :"=r"(c0), "=r"(c1), "=r"(c2):"0"(c0), "1"(c1), "2"(c2), "r"(i), "r"(j):"16", "17","%cc");
 
 #define SQRADDSC(i, j)            \
-asm(                              \
+__asm__(                              \
    " mulld  %0,%6,%7        \n\t" \
    " mulhdu %1,%6,%7        \n\t" \
    " xor    %2,%2,%2        \n\t" \
 :"=r"(sc0), "=r"(sc1), "=r"(sc2):"0"(sc0), "1"(sc1), "2"(sc2), "r"(i),"r"(j) : "%cc");
 
 #define SQRADDAC(i, j)           \
-asm(                             \
+__asm__(                             \
    " mulld  16,%6,%7       \n\t" \
    " addc   %0,%0,16       \n\t" \
    " mulhdu 16,%6,%7       \n\t" \
@@ -872,7 +872,7 @@ asm(                             \
 :"=r"(sc0), "=r"(sc1), "=r"(sc2):"0"(sc0), "1"(sc1), "2"(sc2), "r"(i), "r"(j):"16", "%cc");
 
 #define SQRADDDB                  \
-asm(                              \
+__asm__(                              \
    " addc   %0,%0,%3        \n\t" \
    " adde   %1,%1,%4        \n\t" \
    " adde   %2,%2,%5        \n\t" \
@@ -904,7 +904,7 @@ asm(                              \
 
 /* multiplies point i and j, updates carry "c1" and digit c2 */
 #define SQRADD(i, j)             \
-asm(                             \
+__asm__(                             \
    " mulu.d r2,%6,%6       \n\t" \
    " add    %0,%0,r2       \n\t" \
    " adc    %1,%1,r3       \n\t" \
@@ -913,7 +913,7 @@ asm(                             \
 
 /* for squaring some of the terms are doubled... */
 #define SQRADD2(i, j)            \
-asm(                             \
+__asm__(                             \
    " mulu.d r2,%6,%7       \n\t" \
    " add    %0,%0,r2       \n\t" \
    " adc    %1,%1,r3       \n\t" \
@@ -924,7 +924,7 @@ asm(                             \
 :"=r"(c0), "=r"(c1), "=r"(c2):"0"(c0), "1"(c1), "2"(c2), "r"(i), "r"(j):"r2", "r3");
 
 #define SQRADDSC(i, j)            \
-asm(                              \
+__asm__(                              \
    " mulu.d r2,%6,%7        \n\t" \
    " mov    %0,r2           \n\t" \
    " mov    %1,r3           \n\t" \
@@ -932,7 +932,7 @@ asm(                              \
 :"=r"(sc0), "=r"(sc1), "=r"(sc2):"0"(sc0), "1"(sc1), "2"(sc2), "r"(i),"r"(j) : "r2", "r3");
 
 #define SQRADDAC(i, j)           \
-asm(                             \
+__asm__(                             \
    " mulu.d r2,%6,%7       \n\t" \
    " add    %0,%0,r2       \n\t" \
    " adc    %1,%1,r3       \n\t" \
@@ -940,7 +940,7 @@ asm(                             \
 :"=r"(sc0), "=r"(sc1), "=r"(sc2):"0"(sc0), "1"(sc1), "2"(sc2), "r"(i), "r"(j):"r2", "r3");
 
 #define SQRADDDB                  \
-asm(                              \
+__asm__(                              \
    " add    %0,%0,%3        \n\t" \
    " adc    %1,%1,%4        \n\t" \
    " adc    %2,%2,%5        \n\t" \
@@ -1059,7 +1059,7 @@ asm(                              \
 
 /* this should multiply i and j  */
 #define MULADD(i, j)                                      \
-asm(                                                      \
+__asm__(                                                      \
      "movl  %6,%%eax     \n\t"                            \
      "mull  %7           \n\t"                            \
      "addl  %%eax,%0     \n\t"                            \
@@ -1094,7 +1094,7 @@ asm(                                                      \
 
 /* this should multiply i and j  */
 #define MULADD(i, j)                                      \
-asm  (                                                    \
+__asm__  (                                                    \
      "movq  %6,%%rax     \n\t"                            \
      "mulq  %7           \n\t"                            \
      "addq  %%rax,%0     \n\t"                            \
@@ -1126,11 +1126,11 @@ asm  (                                                    \
 
 /* anything you need at the end */
 #define COMBA_FINI \
-   asm("emms");
+   __asm__("emms");
 
 /* this should multiply i and j  */
 #define MULADD(i, j)                                     \
-asm(                                                     \
+__asm__(                                                     \
     "movd  %6,%%mm0     \n\t"                            \
     "movd  %7,%%mm1     \n\t"                            \
     "pmuludq %%mm1,%%mm0\n\t"                            \
@@ -1162,7 +1162,7 @@ asm(                                                     \
 #define COMBA_FINI
 
 #define MULADD(i, j)                                          \
-asm(                                                          \
+__asm__(                                                          \
 "  UMULL  r0,r1,%6,%7           \n\t"                         \
 "  ADDS   %0,%0,r0              \n\t"                         \
 "  ADCS   %1,%1,r1              \n\t"                         \
@@ -1190,7 +1190,7 @@ asm(                                                          \
    
 /* untested: will mulhwu change the flags?  Docs say no */
 #define MULADD(i, j)              \
-asm(                              \
+__asm__(                              \
    " mullw  16,%6,%7       \n\t" \
    " addc   %0,%0,16       \n\t" \
    " mulhwu 16,%6,%7       \n\t" \
@@ -1219,7 +1219,7 @@ asm(                              \
    
 /* untested: will mulhwu change the flags?  Docs say no */
 #define MULADD(i, j)              \
-asm(                              \
+____asm__(                              \
    " mulld  16,%6,%7       \n\t" \
    " addc   %0,%0,16       \n\t" \
    " mulhdu 16,%6,%7       \n\t" \
@@ -1248,7 +1248,7 @@ asm(                              \
 #define COMBA_FINI 
    
 #define MULADD(i, j)             \
-asm(                             \
+____asm__(                             \
    " mulu.d r2,%6,%7        \n\t"\
    " add    %0,r2           \n\t"\
    " adc    %1,%1,r3        \n\t"\

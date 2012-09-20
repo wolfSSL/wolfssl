@@ -49,33 +49,35 @@
     #pragma warning(disable: 4996)
 #endif
 
-void bench_des();
-void bench_arc4();
-void bench_hc128();
-void bench_rabbit();
+void bench_des(void);
+void bench_arc4(void);
+void bench_hc128(void);
+void bench_rabbit(void);
 void bench_aes(int);
-void bench_aesgcm();
+void bench_aesgcm(void);
 
-void bench_md5();
-void bench_sha();
-void bench_sha256();
-void bench_sha512();
-void bench_ripemd();
+void bench_md5(void);
+void bench_sha(void);
+void bench_sha256(void);
+void bench_sha512(void);
+void bench_ripemd(void);
 
-void bench_rsa();
-void bench_rsaKeyGen();
-void bench_dh();
+void bench_rsa(void);
+void bench_rsaKeyGen(void);
+void bench_dh(void);
 #ifdef HAVE_ECC
-void bench_eccKeyGen();
-void bench_eccKeyAgree();
+void bench_eccKeyGen(void);
+void bench_eccKeyAgree(void);
 #endif
 
-double current_time();
+double current_time(void);
 
 
 
 int main(int argc, char** argv)
 {
+  (void)argc;
+  (void)argv;
 #ifndef NO_AES
     bench_aes(0);
     bench_aes(1);
@@ -180,7 +182,7 @@ byte tag[16];
 
 
 #ifdef HAVE_AESGCM
-void bench_aesgcm()
+void bench_aesgcm(void)
 {
     Aes    enc;
     double start, total, persec;
@@ -204,7 +206,7 @@ void bench_aesgcm()
 
 
 #ifndef NO_DES3
-void bench_des()
+void bench_des(void)
 {
     Des3   enc;
     double start, total, persec;
@@ -226,7 +228,7 @@ void bench_des()
 #endif
 
 
-void bench_arc4()
+void bench_arc4(void)
 {
     Arc4   enc;
     double start, total, persec;
@@ -247,7 +249,7 @@ void bench_arc4()
 
 
 #ifdef HAVE_HC128
-void bench_hc128()
+void bench_hc128(void)
 {
     HC128  enc;
     double start, total, persec;
@@ -269,7 +271,7 @@ void bench_hc128()
 
 
 #ifndef NO_RABBIT
-void bench_rabbit()
+void bench_rabbit(void)
 {
     Rabbit  enc;
     double start, total, persec;
@@ -290,7 +292,7 @@ void bench_rabbit()
 #endif /* NO_RABBIT */
 
 
-void bench_md5()
+void bench_md5(void)
 {
     Md5    hash;
     byte   digest[MD5_DIGEST_SIZE];
@@ -313,7 +315,7 @@ void bench_md5()
 }
 
 
-void bench_sha()
+void bench_sha(void)
 {
     Sha    hash;
     byte   digest[SHA_DIGEST_SIZE];
@@ -337,7 +339,7 @@ void bench_sha()
 
 
 #ifndef NO_SHA256
-void bench_sha256()
+void bench_sha256(void)
 {
     Sha256 hash;
     byte   digest[SHA256_DIGEST_SIZE];
@@ -361,7 +363,7 @@ void bench_sha256()
 #endif
 
 #ifdef CYASSL_SHA512
-void bench_sha512()
+void bench_sha512(void)
 {
     Sha512 hash;
     byte   digest[SHA512_DIGEST_SIZE];
@@ -385,7 +387,7 @@ void bench_sha512()
 #endif
 
 #ifdef CYASSL_RIPEMD
-void bench_ripemd()
+void bench_ripemd(void)
 {
     RipeMd hash;
     byte   digest[RIPEMD_DIGEST_SIZE];
@@ -411,7 +413,7 @@ void bench_ripemd()
 
 RNG rng;
 
-void bench_rsa()
+void bench_rsa(void)
 {
     int    i;
     byte   tmp[4096];
@@ -468,7 +470,7 @@ void bench_rsa()
 
 
 #ifndef NO_DH
-void bench_dh()
+void bench_dh(void)
 {
     int    i;
     byte   tmp[1024];
@@ -526,7 +528,7 @@ void bench_dh()
 #endif
 
 #ifdef CYASSL_KEY_GEN
-void bench_rsaKeyGen()
+void bench_rsaKeyGen(void)
 {
     RsaKey genKey;
     double start, total, each, milliEach;
@@ -567,7 +569,7 @@ void bench_rsaKeyGen()
 #endif /* CYASSL_KEY_GEN */
 
 #ifdef HAVE_ECC 
-void bench_eccKeyGen()
+void bench_eccKeyGen(void)
 {
     ecc_key genKey;
     double start, total, each, milliEach;
@@ -591,7 +593,7 @@ void bench_eccKeyGen()
 }
 
 
-void bench_eccKeyAgree()
+void bench_eccKeyAgree(void)
 {
     ecc_key genKey, genKey2;
     double start, total, each, milliEach;
@@ -669,7 +671,7 @@ void bench_eccKeyAgree()
 
     #include <sys/time.h>
 
-    double current_time()
+    double current_time(void)
     {
         struct timeval tv;
         gettimeofday(&tv, 0);

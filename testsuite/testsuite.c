@@ -27,18 +27,19 @@
 #include <cyassl/test.h>
 #include <cyassl/ctaocrypt/md5.h>
 
+#include "ctaocrypt/test/test.h"
+
 #ifdef SINGLE_THREADED
     #error testsuite needs threads to run, please run ctaocrypt/test, \
            and the examples/ individually
 #endif
 
-void ctaocrypt_test(void*);
+#include "examples/echoclient/echoclient.h"
+#include "examples/echoserver/echoserver.h"
+#include "examples/server/server.h"
+#include "ctaocrypt/test/test.h"
 
 void client_test(void*);
-void echoclient_test(void*);
-
-THREAD_RETURN CYASSL_THREAD server_test(void*);
-THREAD_RETURN CYASSL_THREAD echoserver_test(void*);
 
 void file_test(char* file, byte* hash);
 
