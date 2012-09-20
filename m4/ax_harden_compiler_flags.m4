@@ -75,12 +75,6 @@
         AX_APPEND_COMPILE_FLAGS([-O2])
         ])
 
-      ac_cv_warnings_as_errors=no
-      AS_IF([test "$ac_cv_vcs_checkout" = yes], [
-        AX_APPEND_COMPILE_FLAGS([-Werror])
-        ac_cv_warnings_as_errors=yes
-        ])
-
       AX_APPEND_COMPILE_FLAGS([-Wall])
       AX_APPEND_COMPILE_FLAGS([-Wextra])
       AX_APPEND_COMPILE_FLAGS([-std=c99])
@@ -91,6 +85,13 @@
       AX_APPEND_COMPILE_FLAGS([-Woverride-init])
       AX_APPEND_COMPILE_FLAGS([-Wstrict-prototypes])
       AX_APPEND_COMPILE_FLAGS([-Wlogical-op])
+
+      ac_cv_warnings_as_errors=no
+      AS_IF([test "$ac_cv_vcs_checkout" = yes], [
+        AX_APPEND_COMPILE_FLAGS([-Werror])
+        ac_cv_warnings_as_errors=yes
+        ])
+
       AC_LANG_POP
 
       ])
