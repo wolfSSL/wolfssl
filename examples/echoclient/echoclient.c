@@ -38,7 +38,7 @@ void echoclient_test(void* args)
     int inCreated  = 0;
     int outCreated = 0;
 
-    char send[1024];
+    char msg[1024];
     char reply[1024];
 
     SSL_METHOD* method = 0;
@@ -109,19 +109,19 @@ void echoclient_test(void* args)
 #endif
     if (SSL_connect(ssl) != SSL_SUCCESS) err_sys("SSL_connect failed");
 
-    while (fgets(send, sizeof(send), fin)) {
+    while (fgets(msg, sizeof(msg), fin)) {
 
-        sendSz = (int)strlen(send);
+        sendSz = (int)strlen(msg);
 
-        if (SSL_write(ssl, send, sendSz) != sendSz)
+        if (SSL_write(ssl, msg, sendSz) != sendSz)
             err_sys("SSL_write failed");
 
-        if (strncmp(send, "quit", 4) == 0) {
+        if (strncmp(msg, "quit", 4) == 0) {
             fputs("sending server shutdown command: quit!\n", fout);
             break;
         }
 
-        if (strncmp(send, "break", 5) == 0) {
+        if (strncmp(msg, "break", 5) == 0) {
             fputs("sending server session close: break!\n", fout);
             break;
         }
@@ -139,10 +139,10 @@ void echoclient_test(void* args)
     }
 
 #ifdef CYASSL_DTLS
-    strncpy(send, "break", 6);
-    sendSz = (int)strlen(send);
+    strncpy(msg, "break", 6);
+    sendSz = (int)strlen(msg);
     /* try to tell server done */
-    SSL_write(ssl, send, sendSz);
+    SSL_write(ssl, msg, sendSz);
 #else
     SSL_shutdown(ssl);
 #endif

@@ -41,7 +41,7 @@
 
 void client_test(void*);
 
-void file_test(char* file, byte* hash);
+void file_test(const char* file, byte* hash);
 
 enum {
     NUMARGS = 3
@@ -207,7 +207,7 @@ void FreeTcpReady(tcp_ready* ready)
 }
 
 
-void file_test(char* file, byte* check)
+void file_test(const char* file, byte* check)
 {
     FILE* f;
     int   i = 0, j;

@@ -52,6 +52,7 @@
 # AX_APPEND_COMPILE_FLAGS([-Wstack-protector]) -- Issues on 32bit compile
 # AX_APPEND_COMPILE_FLAGS([-fstack-protector-all]) -- Issues on 32bit compile
 # AX_APPEND_COMPILE_FLAGS([-Wlong-long]) -- Don't turn on for compatibility issues memcached_stat_st
+# AX_APPEND_COMPILE_FLAGS([-Wold-style-definition]) -- Mixed with -Werror either before or after is a problem because tests use main() instead of main(void)
 
 #serial 2
   AC_DEFUN([AX_HARDEN_LINKER_FLAGS], [
@@ -75,23 +76,45 @@
         AX_APPEND_COMPILE_FLAGS([-O2])
         ])
 
-      AX_APPEND_COMPILE_FLAGS([-Wall])
-      AX_APPEND_COMPILE_FLAGS([-Wextra])
-      AX_APPEND_COMPILE_FLAGS([-std=c99])
-      AX_APPEND_COMPILE_FLAGS([-Wbad-function-cast])
-      AX_APPEND_COMPILE_FLAGS([-Wmissing-prototypes])
-      AX_APPEND_COMPILE_FLAGS([-Wnested-externs])
-      AX_APPEND_COMPILE_FLAGS([-Wold-style-definition])
-      AX_APPEND_COMPILE_FLAGS([-Woverride-init])
-      AX_APPEND_COMPILE_FLAGS([-Wstrict-prototypes])
-      AX_APPEND_COMPILE_FLAGS([-Wlogical-op])
-
       ac_cv_warnings_as_errors=no
       AS_IF([test "$ac_cv_vcs_checkout" = yes], [
         AX_APPEND_COMPILE_FLAGS([-Werror])
         ac_cv_warnings_as_errors=yes
         ])
 
+      AX_APPEND_COMPILE_FLAGS([-Wall])
+      AX_APPEND_COMPILE_FLAGS([-Wextra])
+      AX_APPEND_COMPILE_FLAGS([-std=c99])
+      AX_APPEND_COMPILE_FLAGS([-Wbad-function-cast])
+      AX_APPEND_COMPILE_FLAGS([-Wmissing-prototypes])
+      AX_APPEND_COMPILE_FLAGS([-Wnested-externs])
+      AX_APPEND_COMPILE_FLAGS([-Woverride-init])
+      AX_APPEND_COMPILE_FLAGS([-Wstrict-prototypes])
+      AX_APPEND_COMPILE_FLAGS([-Wlogical-op])
+      AX_APPEND_COMPILE_FLAGS([-Wno-strict-aliasing])
+      AX_APPEND_COMPILE_FLAGS([-Wfloat-equal])
+      AX_APPEND_COMPILE_FLAGS([-Wundef])
+      AX_APPEND_COMPILE_FLAGS([-Wpointer-arith])
+      AX_APPEND_COMPILE_FLAGS([-Wwrite-strings])
+      AX_APPEND_COMPILE_FLAGS([-Wredundant-decls])
+      AX_APPEND_COMPILE_FLAGS([-Wchar-subscripts])
+      AX_APPEND_COMPILE_FLAGS([-Wcomment])
+      AX_APPEND_COMPILE_FLAGS([-Wformat=2])
+      AX_APPEND_COMPILE_FLAGS([-Wmissing-declarations])
+      AX_APPEND_COMPILE_FLAGS([-Wswitch-enum])
+      AX_APPEND_COMPILE_FLAGS([-Winit-self])
+      AX_APPEND_COMPILE_FLAGS([-Wmissing-field-initializers])
+      AX_APPEND_COMPILE_FLAGS([-Wdeclaration-after-statement])
+      AX_APPEND_COMPILE_FLAGS([-Waddress])
+      AX_APPEND_COMPILE_FLAGS([-Wmissing-noreturn])
+      AX_APPEND_COMPILE_FLAGS([-Wnormalized=id])
+      AX_APPEND_COMPILE_FLAGS([-Wstrict-overflow=1])
+      AX_APPEND_COMPILE_FLAGS([-Wformat])
+      AX_APPEND_COMPILE_FLAGS([-Wformat-security])
+      AX_APPEND_COMPILE_FLAGS([-Wpointer-sign])
+      AX_APPEND_COMPILE_FLAGS([-Wshadow])
+      AX_APPEND_COMPILE_FLAGS([-Wswitch-default])
+      AX_APPEND_COMPILE_FLAGS([-Warray-bounds])
       AC_LANG_POP
 
       ])

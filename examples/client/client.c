@@ -116,7 +116,7 @@ void client_test(void* args)
 
     int   port   = yasslPort;
     char* host   = (char*)yasslIP;
-    char* domain = "www.yassl.com";
+    char* domain = (char*)"www.yassl.com";
 
     int    ch;
     int    version = CLIENT_DEFAULT_VERSION;

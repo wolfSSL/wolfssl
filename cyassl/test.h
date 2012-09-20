@@ -160,7 +160,7 @@ static INLINE void err_sys(const char* msg)
 extern int   myoptind;
 extern char* myoptarg;
 
-static INLINE int mygetopt(int argc, char** argv, char* optstring)
+static INLINE int mygetopt(int argc, char** argv, const char* optstring)
 {
     static char* next = NULL;
 
@@ -238,7 +238,6 @@ static INLINE int PasswordCallBack(char* passwd, int sz, int rw, void* userdata)
 
 static INLINE void showPeer(CYASSL* ssl)
 {
-  (void)ssl;
 #ifdef OPENSSL_EXTRA
 
     CYASSL_CIPHER* cipher;
@@ -300,7 +299,7 @@ static INLINE void showPeer(CYASSL* ssl)
         }
     }
 #endif
-
+  (void)ssl;
 }
 
 
@@ -432,9 +431,9 @@ static INLINE int udp_read_connect(SOCKET_T sockfd)
 
 static INLINE void udp_accept(SOCKET_T* sockfd, int* clientfd, func_args* args)
 {
-   (void)args;
     SOCKADDR_IN_T addr;
 
+   (void)args;
     tcp_socket(sockfd, &addr, yasslIP, yasslPort, 1);
 
 

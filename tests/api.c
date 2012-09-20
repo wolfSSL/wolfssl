@@ -58,8 +58,8 @@ void test_client_nofail(void*);
 #endif
 
 static const char* bogusFile  = "/dev/null";
-static const char* testingFmt = "   %s:";
-static const char* resultFmt  = " %s\n";
+#define testingFmt "   %s:"
+#define resultFmt  " %s\n"
 static const char* passed     = "passed";
 static const char* failed     = "failed";
 
@@ -661,8 +661,8 @@ void test_client_nofail(void* args)
     int  msgSz = strlen(msg);
 
     int     argc = ((func_args*)args)->argc;
-    (void)argc;
     char**  argv = ((func_args*)args)->argv;
+    (void)argc;
     (void)argv;
 
     ((func_args*)args)->return_code = TEST_FAIL;

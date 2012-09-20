@@ -9,10 +9,10 @@ char* myoptarg = NULL;
 
 int main(int argc, char** argv)
 {
-    (void)argc;
-    (void)argv;
     int ret;
 
+    (void)argc;
+    (void)argv;
     printf("staring unit tests...\n");
 
     if ( (ret = ApiTest()) != 0) {

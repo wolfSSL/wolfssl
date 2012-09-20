@@ -96,7 +96,7 @@ static void test_harness(void* vargs)
     int   cliArgsSz;
     char* cursor;
     char* comment;
-    char* fname = "tests/test.conf";
+    const char* fname = "tests/test.conf";
 
 
     if (args->argc == 1) {

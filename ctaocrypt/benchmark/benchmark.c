@@ -421,12 +421,12 @@ void bench_rsa(void)
     word32 idx = 0;
 
     byte      message[] = "Everyone gets Friday off.";
-    byte      cipher[512];  /* for up to 4096 bit */
+    byte      enc[512];  /* for up to 4096 bit */
     byte*     output;
     const int len = (int)strlen((char*)message);
     double    start, total, each, milliEach;
     
-    RsaKey key;
+    RsaKey rsaKey;
     FILE*  file = fopen("./certs/rsa2048.der", "rb");
 
     if (!file) {
@@ -437,13 +437,13 @@ void bench_rsa(void)
 
     InitRng(&rng);
     bytes = fread(tmp, 1, sizeof(tmp), file);
-    InitRsaKey(&key, 0);
-    bytes = RsaPrivateKeyDecode(tmp, &idx, &key, (word32)bytes);
+    InitRsaKey(&rsaKey, 0);
+    bytes = RsaPrivateKeyDecode(tmp, &idx, &rsaKey, (word32)bytes);
     
     start = current_time();
 
     for (i = 0; i < times; i++)
-        bytes = RsaPublicEncrypt(message,len,cipher,sizeof(cipher), &key, &rng);
+        bytes = RsaPublicEncrypt(message,len,enc,sizeof(enc), &rsaKey, &rng);
 
     total = current_time() - start;
     each  = total / times;   /* per second   */
@@ -455,7 +455,7 @@ void bench_rsa(void)
     start = current_time();
 
     for (i = 0; i < times; i++)
-        RsaPrivateDecryptInline(cipher, (word32)bytes, &output, &key);
+        RsaPrivateDecryptInline(enc, (word32)bytes, &output, &rsaKey);
 
     total = current_time() - start;
     each  = total / times;   /* per second   */
@@ -465,7 +465,7 @@ void bench_rsa(void)
            " iterations\n", milliEach, times);
 
     fclose(file);
-    FreeRsaKey(&key);
+    FreeRsaKey(&rsaKey);
 }
 
 
@@ -484,7 +484,7 @@ void bench_dh(void)
     byte   agree[256];  /* for 2048 bit */
     
     double start, total, each, milliEach;
-    DhKey  key;
+    DhKey  dhKey;
     FILE*  file = fopen("./certs/dh2048.der", "rb");
 
     if (!file) {
@@ -494,13 +494,13 @@ void bench_dh(void)
     }
 
     bytes = fread(tmp, 1, sizeof(tmp), file);
-    InitDhKey(&key);
-    bytes = DhKeyDecode(tmp, &idx, &key, (word32)bytes);
+    InitDhKey(&dhKey);
+    bytes = DhKeyDecode(tmp, &idx, &dhKey, (word32)bytes);
 
     start = current_time();
 
     for (i = 0; i < times; i++)
-        DhGenerateKeyPair(&key, &rng, priv, &privSz, pub, &pubSz);
+        DhGenerateKeyPair(&dhKey, &rng, priv, &privSz, pub, &pubSz);
 
     total = current_time() - start;
     each  = total / times;   /* per second   */
@@ -509,11 +509,11 @@ void bench_dh(void)
     printf("DH  2048 key generation  %6.2f milliseconds, avg over %d" 
            " iterations\n", milliEach, times);
 
-    DhGenerateKeyPair(&key, &rng, priv2, &privSz2, pub2, &pubSz2);
+    DhGenerateKeyPair(&dhKey, &rng, priv2, &privSz2, pub2, &pubSz2);
     start = current_time();
 
     for (i = 0; i < times; i++)
-        DhAgree(&key, agree, &agreeSz, priv, privSz, pub2, pubSz2);
+        DhAgree(&dhKey, agree, &agreeSz, priv, privSz, pub2, pubSz2);
 
     total = current_time() - start;
     each  = total / times;   /* per second   */
@@ -523,7 +523,7 @@ void bench_dh(void)
            " iterations\n", milliEach, times);
 
     fclose(file);
-    FreeDhKey(&key);
+    FreeDhKey(&dhKey);
 }
 #endif
 
