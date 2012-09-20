@@ -54,7 +54,7 @@ int PBKDF1(byte* output, const byte* passwd, int pLen, const byte* salt,
 {
     Md5  md5;
     Sha  sha;
-    int  hLen = (hashType == MD5) ? MD5_DIGEST_SIZE : SHA_DIGEST_SIZE;
+    int  hLen = (hashType == MD5) ? (int)MD5_DIGEST_SIZE : (int)SHA_DIGEST_SIZE;
     int  i;
     byte buffer[SHA_DIGEST_SIZE];  /* max size */
 
