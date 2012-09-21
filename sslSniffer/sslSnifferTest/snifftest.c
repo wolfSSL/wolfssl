@@ -32,7 +32,7 @@
 /* blank build */
 #include <stdio.h>
 #include <stdlib.h>
-int main()
+int main(void)
 {
     printf("do ./configure --enable-sniffer to enable build support\n");
     return EXIT_SUCCESS;

@@ -36,8 +36,8 @@
 #include <tests/unit.h>
 
 typedef struct testVector {
-    char*  input;
-    char*  output; 
+    const char*  input;
+    const char*  output; 
     size_t inLen;
     size_t outLen;
 } testVector;

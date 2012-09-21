@@ -5,7 +5,7 @@
 
 # make sure current config is ok
 echo -e "\n\nTesting current config...\n\n"
-make -j 8 test;
+make clean; make -j 8 test;
 RESULT=$?
 [ $RESULT -ne 0 ] && echo -e "\n\nCurrent config make test failed" && exit 1
 

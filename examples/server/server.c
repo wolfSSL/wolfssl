@@ -26,6 +26,8 @@
 #include <cyassl/openssl/ssl.h>
 #include <cyassl/test.h>
 
+#include "examples/server/server.h"
+
 
 #ifdef CYASSL_CALLBACKS
     int srvHandShakeCB(HandShakeInfo*);

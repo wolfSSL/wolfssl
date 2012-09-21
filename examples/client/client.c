@@ -26,6 +26,8 @@
 #include <cyassl/ssl.h>
 #include <cyassl/test.h>
 
+#include "examples/client/client.h"
+
 /*
 #define TEST_RESUME 
 */
@@ -132,7 +134,7 @@ void client_test(void* args)
 
     int   port   = yasslPort;
     char* host   = (char*)yasslIP;
-    char* domain = "www.yassl.com";
+    char* domain = (char*)"www.yassl.com";
 
     int    ch;
     int    version = CLIENT_DEFAULT_VERSION;

@@ -262,4 +262,4 @@ int Base16_Decode(const byte* in, word32 inLen, byte* out, word32* outLen)
 }
 
 
-#endif  /* OPENSSL_EXTRA */
+#endif  /* defined(OPENSSL_EXTRA) || defined (SESSION_CERTS) || defined(CYASSL_KEY_GEN) || defined(CYASSL_CERT_GEN) || defined(HAVE_WEBSERVER) */

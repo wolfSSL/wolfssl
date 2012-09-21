@@ -30,6 +30,8 @@
     #define ECHO_OUT
 #endif
 
+#include "examples/echoserver/echoserver.h"
+
 
 #ifdef SESSION_STATS
     CYASSL_API void PrintSessionStats(void);
@@ -47,6 +49,7 @@ static void SignalReady(void* args)
     pthread_cond_signal(&ready->cond);
     pthread_mutex_unlock(&ready->mutex);
 #endif
+    (void)args;
 }
 
 
@@ -58,7 +61,7 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
 
     int    doDTLS = 0;
     int    outCreated = 0;
-    int    shutdown = 0;
+    int    shutDown = 0;
     int    useAnyAddr = 0;
     int    argc = ((func_args*)args)->argc;
     char** argv = ((func_args*)args)->argv;
@@ -71,6 +74,9 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
     }
     if (!fout) err_sys("can't open output file");
 #endif
+    (void)outCreated;
+    (void)argc;
+    (void)argv;
 
     ((func_args*)args)->return_code = -1; /* error state */
 
@@ -106,7 +112,7 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
                 != SSL_SUCCESS)
             err_sys("can't load ntru key file, "
                     "Please run from CyaSSL home dir");
-    #elif HAVE_ECC
+    #elif defined(HAVE_ECC)
         /* ecc */
         if (CyaSSL_CTX_use_certificate_file(ctx, eccCert, SSL_FILETYPE_PEM)
                 != SSL_SUCCESS)
@@ -141,7 +147,7 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
 
     SignalReady(args);
 
-    while (!shutdown) {
+    while (!shutDown) {
         CYASSL* ssl = 0;
         char    command[1024];
         int     echoSz = 0;
@@ -193,7 +199,7 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
            
             if ( strncmp(command, "quit", 4) == 0) {
                 printf("client sent quit command: shutting down!\n");
-                shutdown = 1;
+                shutDown = 1;
                 break;
             }
             if ( strncmp(command, "break", 5) == 0) {

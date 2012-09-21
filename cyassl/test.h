@@ -160,7 +160,7 @@ static INLINE void err_sys(const char* msg)
 extern int   myoptind;
 extern char* myoptarg;
 
-static INLINE int mygetopt(int argc, char** argv, char* optstring)
+static INLINE int mygetopt(int argc, char** argv, const char* optstring)
 {
     static char* next = NULL;
 
@@ -227,6 +227,8 @@ static INLINE int mygetopt(int argc, char** argv, char* optstring)
 
 static INLINE int PasswordCallBack(char* passwd, int sz, int rw, void* userdata)
 {
+    (void)rw;
+    (void)userdata;
     strncpy(passwd, "yassl123", sz);
     return 8;
 }
@@ -297,7 +299,7 @@ static INLINE void showPeer(CYASSL* ssl)
         }
     }
 #endif
-
+  (void)ssl;
 }
 
 
@@ -431,6 +433,7 @@ static INLINE void udp_accept(SOCKET_T* sockfd, int* clientfd, func_args* args)
 {
     SOCKADDR_IN_T addr;
 
+   (void)args;
     tcp_socket(sockfd, &addr, yasslIP, yasslPort, 1);
 
 
@@ -492,6 +495,7 @@ static INLINE void tcp_accept(SOCKET_T* sockfd, int* clientfd, func_args* args,
 
 static INLINE void tcp_set_nonblocking(SOCKET_T* sockfd)
 {
+    (void)sockfd;
 #ifdef NON_BLOCKING
     #ifdef USE_WINDOWS_API 
         unsigned long blocking = 1;
@@ -571,7 +575,7 @@ static INLINE unsigned int my_psk_server_cb(CYASSL* ssl, const char* identity,
 
     #include <sys/time.h>
 
-    static INLINE double current_time()
+    static INLINE double current_time(void)
     {
         struct timeval tv;
         gettimeofday(&tv, 0);
@@ -672,6 +676,7 @@ static void INLINE CRL_CallBack(const char* url)
 
 static INLINE void CaCb(unsigned char* der, int sz, int type)
 {
+    (void)der;
     printf("Got CA cache add callback, derSz = %d, type = %d\n", sz, type);
 }
 

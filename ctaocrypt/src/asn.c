@@ -1318,6 +1318,8 @@ static int GetName(DecodedCert* cert, int nameType)
     char* full = (nameType == ISSUER) ? cert->issuer : cert->subject;
     word32 idx;
 
+    CYASSL_MSG("Getting Cert Name");
+
     if (cert->source[cert->srcIdx] == ASN_OBJECT_ID) {
         CYASSL_MSG("Trying optional prefix...");
 
@@ -1348,6 +1350,7 @@ static int GetName(DecodedCert* cert, int nameType)
     while (cert->srcIdx < (word32)length) {
         byte   b;
         byte   joint[2];
+        byte   tooBig = FALSE;
         int    oidSz;
 
         if (GetSet(cert->source, &cert->srcIdx, &dummy, cert->maxIdx) < 0) {
@@ -1381,11 +1384,11 @@ static int GetName(DecodedCert* cert, int nameType)
                           cert->maxIdx) < 0)
                 return ASN_PARSE_E;
 
-            if (strLen > (int)(ASN_NAME_MAX - idx))
-                return ASN_PARSE_E; 
-
-            if (4  > (ASN_NAME_MAX - idx))  /* make sure room for biggest */
-                return ASN_PARSE_E;         /* pre fix header too "/CN=" */
+            if ( (strLen + 4) > (int)(ASN_NAME_MAX - idx)) {
+                /* include biggest pre fix header too 4 = "/CN=" */
+                CYASSL_MSG("ASN Name too big, skipping");
+                tooBig = TRUE;
+            }
 
             if (id == ASN_COMMON_NAME) {
                 if (nameType == SUBJECT) {
@@ -1393,14 +1396,18 @@ static int GetName(DecodedCert* cert, int nameType)
                     cert->subjectCNLen = strLen;
                 }
 
-                XMEMCPY(&full[idx], "/CN=", 4);
-                idx += 4;
-                copy = TRUE;
+                if (!tooBig) {
+                    XMEMCPY(&full[idx], "/CN=", 4);
+                    idx += 4;
+                    copy = TRUE;
+                }
             }
             else if (id == ASN_SUR_NAME) {
-                XMEMCPY(&full[idx], "/SN=", 4);
-                idx += 4;
-                copy = TRUE;
+                if (!tooBig) {
+                    XMEMCPY(&full[idx], "/SN=", 4);
+                    idx += 4;
+                    copy = TRUE;
+                }
 #ifdef CYASSL_CERT_GEN
                 if (nameType == SUBJECT) {
                     cert->subjectSN = (char*)&cert->source[cert->srcIdx];
@@ -1409,9 +1416,11 @@ static int GetName(DecodedCert* cert, int nameType)
 #endif /* CYASSL_CERT_GEN */
             }
             else if (id == ASN_COUNTRY_NAME) {
-                XMEMCPY(&full[idx], "/C=", 3);
-                idx += 3;
-                copy = TRUE;
+                if (!tooBig) {
+                    XMEMCPY(&full[idx], "/C=", 3);
+                    idx += 3;
+                    copy = TRUE;
+                }
 #ifdef CYASSL_CERT_GEN
                 if (nameType == SUBJECT) {
                     cert->subjectC = (char*)&cert->source[cert->srcIdx];
@@ -1420,9 +1429,11 @@ static int GetName(DecodedCert* cert, int nameType)
 #endif /* CYASSL_CERT_GEN */
             }
             else if (id == ASN_LOCALITY_NAME) {
-                XMEMCPY(&full[idx], "/L=", 3);
-                idx += 3;
-                copy = TRUE;
+                if (!tooBig) {
+                    XMEMCPY(&full[idx], "/L=", 3);
+                    idx += 3;
+                    copy = TRUE;
+                }
 #ifdef CYASSL_CERT_GEN
                 if (nameType == SUBJECT) {
                     cert->subjectL = (char*)&cert->source[cert->srcIdx];
@@ -1431,9 +1442,11 @@ static int GetName(DecodedCert* cert, int nameType)
 #endif /* CYASSL_CERT_GEN */
             }
             else if (id == ASN_STATE_NAME) {
-                XMEMCPY(&full[idx], "/ST=", 4);
-                idx += 4;
-                copy = TRUE;
+                if (!tooBig) {
+                    XMEMCPY(&full[idx], "/ST=", 4);
+                    idx += 4;
+                    copy = TRUE;
+                }
 #ifdef CYASSL_CERT_GEN
                 if (nameType == SUBJECT) {
                     cert->subjectST = (char*)&cert->source[cert->srcIdx];
@@ -1442,9 +1455,11 @@ static int GetName(DecodedCert* cert, int nameType)
 #endif /* CYASSL_CERT_GEN */
             }
             else if (id == ASN_ORG_NAME) {
-                XMEMCPY(&full[idx], "/O=", 3);
-                idx += 3;
-                copy = TRUE;
+                if (!tooBig) {
+                    XMEMCPY(&full[idx], "/O=", 3);
+                    idx += 3;
+                    copy = TRUE;
+                }
 #ifdef CYASSL_CERT_GEN
                 if (nameType == SUBJECT) {
                     cert->subjectO = (char*)&cert->source[cert->srcIdx];
@@ -1453,9 +1468,11 @@ static int GetName(DecodedCert* cert, int nameType)
 #endif /* CYASSL_CERT_GEN */
             }
             else if (id == ASN_ORGUNIT_NAME) {
-                XMEMCPY(&full[idx], "/OU=", 4);
-                idx += 4;
-                copy = TRUE;
+                if (!tooBig) {
+                    XMEMCPY(&full[idx], "/OU=", 4);
+                    idx += 4;
+                    copy = TRUE;
+                }
 #ifdef CYASSL_CERT_GEN
                 if (nameType == SUBJECT) {
                     cert->subjectOU = (char*)&cert->source[cert->srcIdx];
@@ -1464,7 +1481,7 @@ static int GetName(DecodedCert* cert, int nameType)
 #endif /* CYASSL_CERT_GEN */
             }
 
-            if (copy) {
+            if (copy && !tooBig) {
                 XMEMCPY(&full[idx], &cert->source[cert->srcIdx], strLen);
                 idx += strLen;
             }
@@ -1488,14 +1505,20 @@ static int GetName(DecodedCert* cert, int nameType)
             if (GetLength(cert->source, &cert->srcIdx, &adv, cert->maxIdx) < 0)
                 return ASN_PARSE_E;
 
-            if (adv > (int)(ASN_NAME_MAX - idx))
-                return ASN_PARSE_E; 
+            if (adv > (int)(ASN_NAME_MAX - idx)) {
+                CYASSL_MSG("ASN name too big, skipping");
+                tooBig = TRUE;
+            }
 
             if (email) {
-                if (14 > (ASN_NAME_MAX - idx))
-                    return ASN_PARSE_E; 
-                XMEMCPY(&full[idx], "/emailAddress=", 14);
-                idx += 14;
+                if (14 > (ASN_NAME_MAX - idx)) {
+                    CYASSL_MSG("ASN name too big, skipping");
+                    tooBig = TRUE;
+                }
+                if (!tooBig) {
+                    XMEMCPY(&full[idx], "/emailAddress=", 14);
+                    idx += 14;
+                }
 
 #ifdef CYASSL_CERT_GEN
                 if (nameType == SUBJECT) {
@@ -1504,18 +1527,24 @@ static int GetName(DecodedCert* cert, int nameType)
                 }
 #endif /* CYASSL_CERT_GEN */
 
-                XMEMCPY(&full[idx], &cert->source[cert->srcIdx], adv);
-                idx += adv;
+                if (!tooBig) {
+                    XMEMCPY(&full[idx], &cert->source[cert->srcIdx], adv);
+                    idx += adv;
+                }
             }
 
             if (uid) {
-                if (5 > (ASN_NAME_MAX - idx))
-                    return ASN_PARSE_E; 
-                XMEMCPY(&full[idx], "/UID=", 5);
-                idx += 5;
+                if (5 > (ASN_NAME_MAX - idx)) {
+                    CYASSL_MSG("ASN name too big, skipping");
+                    tooBig = TRUE;
+                }
+                if (!tooBig) {
+                    XMEMCPY(&full[idx], "/UID=", 5);
+                    idx += 5;
 
-                XMEMCPY(&full[idx], &cert->source[cert->srcIdx], adv);
-                idx += adv;
+                    XMEMCPY(&full[idx], &cert->source[cert->srcIdx], adv);
+                    idx += adv;
+                }
             }
 
             cert->srcIdx += adv;

@@ -42,7 +42,9 @@ static int test_CyaSSL_read_write(void);
 
 /* test function helpers */
 static int test_method(CYASSL_METHOD *method, const char *name);
+#ifdef OPENSSL_EXTRA
 static int test_method2(CYASSL_METHOD *method, const char *name);
+#endif
 #ifndef NO_FILESYSTEM
 static int test_ucf(CYASSL_CTX *ctx, const char* file, int type,
     int cond, const char* name);
@@ -56,8 +58,8 @@ void test_client_nofail(void*);
 #endif
 
 static const char* bogusFile  = "/dev/null";
-static const char* testingFmt = "   %s:";
-static const char* resultFmt  = " %s\n";
+#define testingFmt "   %s:"
+#define resultFmt  " %s\n"
 static const char* passed     = "passed";
 static const char* failed     = "failed";
 
@@ -120,6 +122,7 @@ int test_method(CYASSL_METHOD *method, const char *name)
     return TEST_SUCCESS;
 }
 
+#ifdef OPENSSL_EXTRA
 int test_method2(CYASSL_METHOD *method, const char *name)
 {
     printf(testingFmt, name);
@@ -132,6 +135,7 @@ int test_method2(CYASSL_METHOD *method, const char *name)
     printf(resultFmt, passed);
     return TEST_SUCCESS;
 }
+#endif
 
 int test_CyaSSL_Method_Allocators(void)
 {
@@ -658,6 +662,8 @@ void test_client_nofail(void* args)
 
     int     argc = ((func_args*)args)->argc;
     char**  argv = ((func_args*)args)->argv;
+    (void)argc;
+    (void)argv;
 
     ((func_args*)args)->return_code = TEST_FAIL;
     method = CyaSSLv23_client_method();

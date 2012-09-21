@@ -79,44 +79,49 @@
         #define printf dc_log_printf
 #endif
 
+#include "ctaocrypt/test/test.h"
+
 
 typedef struct testVector {
-    char*  input;
-    char*  output; 
+    const char*  input;
+    const char*  output; 
     size_t inLen;
     size_t outLen;
 } testVector;
 
-int  md2_test();
-int  md5_test();
-int  md4_test();
-int  sha_test();
-int  sha256_test();
-int  sha512_test();
-int  sha384_test();
-int  hmac_test();
-int  arc4_test();
-int  hc128_test();
-int  rabbit_test();
-int  des_test();
-int  des3_test();
-int  aes_test();
-int  aesgcm_test();
-int  rsa_test();
-int  dh_test();
-int  dsa_test();
-int  random_test();
-int  pwdbased_test();
-int  ripemd_test();
-int  openssl_test();   /* test mini api */
+int  md2_test(void);
+int  md5_test(void);
+int  md4_test(void);
+int  sha_test(void);
+int  sha256_test(void);
+int  sha512_test(void);
+int  sha384_test(void);
+int  hmac_test(void);
+int  arc4_test(void);
+int  hc128_test(void);
+int  rabbit_test(void);
+int  des_test(void);
+int  des3_test(void);
+int  aes_test(void);
+int  aesgcm_test(void);
+int  rsa_test(void);
+int  dh_test(void);
+int  dsa_test(void);
+int  random_test(void);
+int  pwdbased_test(void);
+int  ripemd_test(void);
+int  openssl_test(void);   /* test mini api */
+int pbkdf1_test(void);
+int pkcs12_test(void);
+int pbkdf2_test(void);
 #ifdef HAVE_ECC
-    int  ecc_test();
+    int  ecc_test(void);
 #endif
 
 int PemToDer(const char* inName, const char* outName);
 
 
-void err_sys(const char* msg, int es)
+static void err_sys(const char* msg, int es)
 {
     printf("%s error = %d\n", msg, es);
 #ifndef THREADX
@@ -395,7 +400,7 @@ int md2_test()
 #endif 
 
 
-int md5_test()
+int md5_test(void)
 {
     Md5  md5;
     byte hash[MD5_DIGEST_SIZE];
@@ -458,7 +463,7 @@ int md5_test()
 
 #ifndef NO_MD4
 
-int md4_test()
+int md4_test(void)
 {
     Md4  md4;
     byte hash[MD4_DIGEST_SIZE];
@@ -534,7 +539,7 @@ int md4_test()
 
 #endif /* NO_MD4 */
 
-int sha_test()
+int sha_test(void)
 {
     Sha  sha;
     byte hash[SHA_DIGEST_SIZE];
@@ -590,7 +595,7 @@ int sha_test()
 
 
 #ifdef CYASSL_RIPEMD
-int ripemd_test()
+int ripemd_test(void)
 {
     RipeMd  ripemd;
     byte hash[RIPEMD_DIGEST_SIZE];
@@ -646,7 +651,7 @@ int ripemd_test()
 
 
 #ifndef NO_SHA256
-int sha256_test()
+int sha256_test(void)
 {
     Sha256 sha;
     byte   hash[SHA256_DIGEST_SIZE];
@@ -688,7 +693,7 @@ int sha256_test()
 
 
 #ifdef CYASSL_SHA512
-int sha512_test()
+int sha512_test(void)
 {
     Sha512 sha;
     byte   hash[SHA512_DIGEST_SIZE];
@@ -735,7 +740,7 @@ int sha512_test()
 
 
 #ifdef CYASSL_SHA384
-int sha384_test()
+int sha384_test(void)
 {
     Sha384 sha;
     byte   hash[SHA384_DIGEST_SIZE];
@@ -780,7 +785,7 @@ int sha384_test()
 
 
 #ifndef NO_HMAC
-int hmac_test()
+int hmac_test(void)
 {
     Hmac hmac;
     byte hash[MD5_DIGEST_SIZE];
@@ -837,7 +842,7 @@ int hmac_test()
 #endif
 
 
-int arc4_test()
+int arc4_test(void)
 {
     byte cipher[16];
     byte plain[16];
@@ -902,7 +907,7 @@ int arc4_test()
 }
 
 
-int hc128_test()
+int hc128_test(void)
 {
 #ifdef HAVE_HC128
     byte cipher[16];
@@ -979,7 +984,7 @@ int hc128_test()
 
 
 #ifndef NO_RABBIT
-int rabbit_test()
+int rabbit_test(void)
 {
     byte cipher[16];
     byte plain[16];
@@ -1047,7 +1052,7 @@ int rabbit_test()
 
 
 #ifndef NO_DES3
-int des_test()
+int des_test(void)
 {
     const byte vector[] = { /* "now is the time for all " w/o trailing 0 */
         0x6e,0x6f,0x77,0x20,0x69,0x73,0x20,0x74,
@@ -1096,7 +1101,7 @@ int des_test()
 
 
 #ifndef NO_DES3
-int des3_test()
+int des3_test(void)
 {
     const byte vector[] = { /* "Now is the time for all " w/o trailing 0 */
         0x4e,0x6f,0x77,0x20,0x69,0x73,0x20,0x74,
@@ -1149,7 +1154,7 @@ int des3_test()
 
 
 #ifndef NO_AES
-int aes_test()
+int aes_test(void)
 {
     Aes enc;
     Aes dec;
@@ -1242,7 +1247,7 @@ int aes_test()
 }
 
 #ifdef HAVE_AESGCM
-int aesgcm_test()
+int aesgcm_test(void)
 {
     Aes enc;
 
@@ -1336,7 +1341,7 @@ int aesgcm_test()
 #endif /* NO_AES */
 
 
-int random_test()
+int random_test(void)
 {
     RNG  rng;
     byte block[32];
@@ -1389,7 +1394,7 @@ static byte GetEntropy(ENTROPY_CMD cmd, byte* out)
 
 #endif /* HAVE_NTRU */
 
-int rsa_test()
+int rsa_test(void)
 {
     byte   tmp[2048], tmp2[2048];
     size_t bytes, bytes2;
@@ -1755,7 +1760,7 @@ static const char* dhKey = "./certs/dh2048.der";
 
 #ifndef NO_DH
 
-int dh_test()
+int dh_test(void)
 {
     int    ret;
     word32 bytes;
@@ -1819,7 +1824,7 @@ static const char* dsaKey = "./certs/dsa2048.der";
 
 #ifndef NO_DSA
 
-int dsa_test()
+int dsa_test(void)
 {
     int    ret, answer;
     word32 bytes;
@@ -1866,7 +1871,7 @@ int dsa_test()
 
 #ifdef OPENSSL_EXTRA
 
-int openssl_test()
+int openssl_test(void)
 {
     EVP_MD_CTX md_ctx;
     testVector a, b, c, d, e, f;
@@ -2088,7 +2093,7 @@ int openssl_test()
 
 #ifndef NO_PWDBASED
 
-int pkcs12_test()
+int pkcs12_test(void)
 {
     const byte passwd[] = { 0x00, 0x73, 0x00, 0x6d, 0x00, 0x65, 0x00, 0x67,
                             0x00, 0x00 }; 
@@ -2130,7 +2135,7 @@ int pkcs12_test()
 }
 
 
-int pbkdf2_test()
+int pbkdf2_test(void)
 {
     char passwd[] = "password";
     const byte salt[] = { 0x78, 0x57, 0x8E, 0x5a, 0x5d, 0x63, 0xcb, 0x06 };
@@ -2154,7 +2159,7 @@ int pbkdf2_test()
 }
 
 
-int pbkdf1_test()
+int pbkdf1_test(void)
 {
     char passwd[] = "password";
     const byte salt[] = { 0x78, 0x57, 0x8E, 0x5a, 0x5d, 0x63, 0xcb, 0x06 };
@@ -2177,7 +2182,7 @@ int pbkdf1_test()
 }
 
 
-int pwdbased_test()
+int pwdbased_test(void)
 {
    int ret =  pbkdf1_test();
    ret += pbkdf2_test();
@@ -2190,7 +2195,7 @@ int pwdbased_test()
 
 #ifdef HAVE_ECC
 
-int ecc_test()
+int ecc_test(void)
 {
     RNG     rng;
     byte    sharedA[1024];

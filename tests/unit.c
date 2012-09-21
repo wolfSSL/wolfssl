@@ -11,6 +11,8 @@ int main(int argc, char** argv)
 {
     int ret;
 
+    (void)argc;
+    (void)argv;
     printf("staring unit tests...\n");
 
     if ( (ret = ApiTest()) != 0) {
