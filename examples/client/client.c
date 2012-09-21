@@ -46,6 +46,7 @@
         int ret = CyaSSL_connect_ex(ssl, handShakeCB, timeoutCB, timeout);
 #endif
         int error = CyaSSL_get_error(ssl, 0);
+        int timeout_count = CyaSSL_dtls_get_current_timeout(ssl) * 10;
         while (ret != SSL_SUCCESS && (error == SSL_ERROR_WANT_READ ||
                                       error == SSL_ERROR_WANT_WRITE)) {
             if (error == SSL_ERROR_WANT_READ)
@@ -55,7 +56,11 @@
             #ifdef USE_WINDOWS_API 
                 Sleep(100);
             #else
-                sleep(1);
+                #ifdef CYASSL_DTLS
+                    usleep(100000); /* 100ms */
+                #else
+                    sleep(1);
+                #endif
             #endif
             #ifndef CYASSL_CALLBACKS
                 ret = CyaSSL_connect(ssl);
@@ -63,6 +68,19 @@
                 ret = CyaSSL_connect_ex(ssl, handShakeCB, timeoutCB, timeout);
             #endif
             error = CyaSSL_get_error(ssl, 0);
+            #ifdef CYASSL_DTLS
+                if (timeout_count-- <= 0) {
+                    timeout_count = CyaSSL_dtls_got_timeout(ssl);
+                    if (timeout_count < 0) {
+                        error = SSL_FATAL_ERROR;
+                    }
+                    else {
+                        printf("... updating timeout\n");
+                        timeout_count =
+                                    CyaSSL_dtls_get_current_timeout(ssl) * 10;
+                    }
+                }
+            #endif
         }
         if (ret != SSL_SUCCESS)
             err_sys("SSL_connect failed");
