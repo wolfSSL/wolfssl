@@ -1,4 +1,8 @@
 /* unit.c unit tests driver */
+#ifdef HAVE_CONFIG_H
+    #include <config.h>
+#endif
+
 #include <stdio.h>
 #include <tests/unit.h>
 

@@ -54,7 +54,7 @@
                 || defined(__mips64)  || defined(__x86_64__)) 
             /* long should be 64bit */
             #define SIZEOF_LONG 8
-        #elif (defined__i386__) 
+        #elif defined(__i386__) 
             /* long long should be 64bit */
             #define SIZEOF_LONG_LONG 8
         #endif
@@ -66,11 +66,11 @@
     #define WORD64_AVAILABLE
     #define W64LIT(x) x##ui64
     typedef unsigned __int64 word64;
-#elif SIZEOF_LONG == 8
+#elif defined(SIZEOF_LONG) && SIZEOF_LONG == 8
     #define WORD64_AVAILABLE
     #define W64LIT(x) x##LL
     typedef unsigned long word64;
-#elif SIZEOF_LONG_LONG == 8 
+#elif defined(SIZEOF_LONG_LONG) && SIZEOF_LONG_LONG == 8 
     #define WORD64_AVAILABLE
     #define W64LIT(x) x##LL
     typedef unsigned long long word64;

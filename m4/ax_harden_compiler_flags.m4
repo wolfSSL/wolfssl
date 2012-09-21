@@ -53,6 +53,8 @@
 # AX_APPEND_COMPILE_FLAGS([-fstack-protector-all]) -- Issues on 32bit compile
 # AX_APPEND_COMPILE_FLAGS([-Wlong-long]) -- Don't turn on for compatibility issues memcached_stat_st
 # AX_APPEND_COMPILE_FLAGS([-Wold-style-definition]) -- Mixed with -Werror either before or after is a problem because tests use main() instead of main(void)
+# AX_APPEND_COMPILE_FLAGS([-std=c99])  -- problem seeing DT_REG from dirent.h on some systems
+# AX_APPEND_COMPILE_FLAGS([-Wlogical-op]) -- doesn't like strchr argument in mygetopt for now
 
 #serial 2
   AC_DEFUN([AX_HARDEN_LINKER_FLAGS], [
@@ -84,13 +86,11 @@
 
       AX_APPEND_COMPILE_FLAGS([-Wall])
       AX_APPEND_COMPILE_FLAGS([-Wextra])
-      AX_APPEND_COMPILE_FLAGS([-std=c99])
       AX_APPEND_COMPILE_FLAGS([-Wbad-function-cast])
       AX_APPEND_COMPILE_FLAGS([-Wmissing-prototypes])
       AX_APPEND_COMPILE_FLAGS([-Wnested-externs])
       AX_APPEND_COMPILE_FLAGS([-Woverride-init])
       AX_APPEND_COMPILE_FLAGS([-Wstrict-prototypes])
-      AX_APPEND_COMPILE_FLAGS([-Wlogical-op])
       AX_APPEND_COMPILE_FLAGS([-Wno-strict-aliasing])
       AX_APPEND_COMPILE_FLAGS([-Wfloat-equal])
       AX_APPEND_COMPILE_FLAGS([-Wundef])
@@ -147,7 +147,6 @@
       AX_APPEND_COMPILE_FLAGS([-Wmaybe-uninitialized])
       AX_APPEND_COMPILE_FLAGS([-Wmissing-field-initializers])
       AX_APPEND_COMPILE_FLAGS([-Wmissing-noreturn])
-      AX_APPEND_COMPILE_FLAGS([-Wlogical-op])
       AX_APPEND_COMPILE_FLAGS([-Wnon-virtual-dtor])
       AX_APPEND_COMPILE_FLAGS([-Wnormalized=id])
       AX_APPEND_COMPILE_FLAGS([-Woverloaded-virtual])

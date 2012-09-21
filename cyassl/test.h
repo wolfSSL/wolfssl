@@ -151,7 +151,8 @@ static const word16      yasslPort = 11111;
 static INLINE void err_sys(const char* msg)
 {
     printf("yassl error: %s\n", msg);
-    exit(EXIT_FAILURE);
+    if (msg)
+        exit(EXIT_FAILURE);
 }
 
 

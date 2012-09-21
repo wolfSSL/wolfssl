@@ -125,8 +125,10 @@ static void err_sys(const char* msg, int es)
 {
     printf("%s error = %d\n", msg, es);
 #ifndef THREADX
-    exit(es);
+    if (msg)
+        exit(es);
 #endif
+    return;
 }
 
 /* func_args from test.h, so don't have to pull in other junk */
