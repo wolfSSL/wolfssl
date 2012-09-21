@@ -2671,10 +2671,10 @@ static INLINE void Encrypt(CYASSL* ssl, byte* out, const byte* input, word32 sz)
             case aes:
             #ifdef CYASSL_AESNI
                 if ((word)input % 16) {
-                    byte buffer[MAX_RECORD_SIZE + MAX_COMP_EXTRA+MAX_MSG_EXTRA];
-                    XMEMCPY(buffer, input, sz);
-                    AesCbcEncrypt(ssl->encrypt.aes, buffer, buffer, sz);
-                    XMEMCPY(out, buffer, sz);
+                    byte buff[MAX_RECORD_SIZE + MAX_COMP_EXTRA+MAX_MSG_EXTRA];
+                    XMEMCPY(buff, input, sz);
+                    AesCbcEncrypt(ssl->encrypt.aes, buff, buff, sz);
+                    XMEMCPY(out, buff, sz);
                     break;
                 }
             #endif
@@ -3016,7 +3016,7 @@ static int GetInputData(CYASSL *ssl, word32 size)
    negative number is error */
 int ProcessReply(CYASSL* ssl)
 {
-    int    ret, type, readSz;
+    int    ret = 0, type, readSz;
     word32 startIdx = 0;
 #ifndef NO_CYASSL_SERVER
     byte   b0, b1;
