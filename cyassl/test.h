@@ -495,7 +495,6 @@ static INLINE void tcp_accept(SOCKET_T* sockfd, int* clientfd, func_args* args,
 
 static INLINE void tcp_set_nonblocking(SOCKET_T* sockfd)
 {
-    (void)sockfd;
 #ifdef NON_BLOCKING
     #ifdef USE_WINDOWS_API 
         unsigned long blocking = 1;
@@ -505,6 +504,7 @@ static INLINE void tcp_set_nonblocking(SOCKET_T* sockfd)
         int ret = fcntl(*sockfd, F_SETFL, flags | O_NONBLOCK);
     #endif
 #endif
+    (void)sockfd;
 }
 
 
