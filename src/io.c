@@ -90,18 +90,21 @@
     #define SOCKET_ECONNRESET  WSAECONNRESET
     #define SOCKET_EINTR       WSAEINTR
     #define SOCKET_EPIPE       WSAEPIPE
+    #define SOCKET_ECONNREFUSED WSAENOTCONN
 #elif defined(__PPU)
     #define SOCKET_EWOULDBLOCK SYS_NET_EWOULDBLOCK
     #define SOCKET_EAGAIN      SYS_NET_EAGAIN
     #define SOCKET_ECONNRESET  SYS_NET_ECONNRESET
     #define SOCKET_EINTR       SYS_NET_EINTR
     #define SOCKET_EPIPE       SYS_NET_EPIPE
+    #define SOCKET_ECONNREFUSED SYS_NET_ECONNREFUSED
 #else
     #define SOCKET_EWOULDBLOCK EWOULDBLOCK
     #define SOCKET_EAGAIN      EAGAIN
     #define SOCKET_ECONNRESET  ECONNRESET
     #define SOCKET_EINTR       EINTR
     #define SOCKET_EPIPE       EPIPE
+    #define SOCKET_ECONNREFUSED ECONNREFUSED
 #endif /* USE_WINDOWS_API */
 
 
@@ -175,6 +178,10 @@ int EmbedReceive(CYASSL *ssl, char *buf, int sz, void *ctx)
         else if (err == SOCKET_EINTR) {
             CYASSL_MSG("    Socket interrupted");
             return IO_ERR_ISR;
+        }
+        else if (err == SOCKET_ECONNREFUSED) {
+            CYASSL_MSG("    Connection refused");
+            return IO_ERR_WANT_READ;
         }
         else {
             CYASSL_MSG("    General error");

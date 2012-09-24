@@ -1588,6 +1588,11 @@ retry:
                 return WANT_READ;
 
             case IO_ERR_CONN_RST:       /* connection reset */
+                #ifdef USE_WINDOWS_API
+                if (ssl->options.dtls) {
+                    return WANT_READ;
+                }
+                #endif
                 ssl->options.connReset = 1;
                 return -1;
 
