@@ -144,14 +144,19 @@ int EmbedReceive(CYASSL *ssl, char *buf, int sz, void *ctx)
     int sd = *(int*)ctx;
 
 #ifdef CYASSL_DTLS
-    if (ssl->options.dtls
-                     && !ssl->options.usingNonblock && ssl->dtls_timeout != 0) {
-        #ifdef USE_WINDOWS_API
-            DWORD timeout = ssl->dtls_timeout;
-        #else
-            struct timeval timeout = {ssl->dtls_timeout, 0};
-        #endif
-        setsockopt(sd, SOL_SOCKET,SO_RCVTIMEO, (char*)&timeout,sizeof(timeout));
+    {
+        int dtls_timeout = CyaSSL_dtls_get_current_timeout(ssl);
+        if (CyaSSL_dtls(ssl)
+                     && !CyaSSL_get_using_nonblock(ssl)
+                     && dtls_timeout != 0) {
+            #ifdef USE_WINDOWS_API
+                DWORD timeout = dtls_timeout;
+            #else
+                struct timeval timeout = {dtls_timeout, 0};
+            #endif
+            setsockopt(sd, SOL_SOCKET, SO_RCVTIMEO,
+                                            (char*)&timeout, sizeof(timeout));
+        }
     }
 #endif
 
@@ -162,7 +167,7 @@ int EmbedReceive(CYASSL *ssl, char *buf, int sz, void *ctx)
         CYASSL_MSG("Embed Receive error");
 
         if (err == SOCKET_EWOULDBLOCK || err == SOCKET_EAGAIN) {
-            if (ssl->options.usingNonblock) {
+            if (CyaSSL_get_using_nonblock(ssl)) {
                 CYASSL_MSG("    Would block");
                 return IO_ERR_WANT_READ;
             }

@@ -179,7 +179,8 @@ CYASSL_API CYASSL_CTX* CyaSSL_CTX_new(CYASSL_METHOD*);
 CYASSL_API CYASSL* CyaSSL_new(CYASSL_CTX*);
 CYASSL_API int  CyaSSL_set_fd (CYASSL*, int);
 CYASSL_API int  CyaSSL_get_fd(const CYASSL*);
-CYASSL_API void CyaSSL_using_nonblock(CYASSL*);
+CYASSL_API void CyaSSL_set_using_nonblock(CYASSL*, int);
+CYASSL_API int  CyaSSL_get_using_nonblock(CYASSL*);
 CYASSL_API int  CyaSSL_connect(CYASSL*);     /* please see note at top of README
                                              if you get an error from connect */
 CYASSL_API int  CyaSSL_write(CYASSL*, const void*, int);
@@ -219,6 +220,7 @@ CYASSL_API int  CyaSSL_set_cipher_list(CYASSL*, const char*);
 /* Nonblocking DTLS helper functions */
 CYASSL_API int  CyaSSL_dtls_get_current_timeout(CYASSL* ssl);
 CYASSL_API int  CyaSSL_dtls_got_timeout(CYASSL* ssl);
+CYASSL_API int  CyaSSL_dtls(CYASSL* ssl);
 
 CYASSL_API int   CyaSSL_ERR_GET_REASON(int err);
 CYASSL_API char* CyaSSL_ERR_error_string(unsigned long,char*);
