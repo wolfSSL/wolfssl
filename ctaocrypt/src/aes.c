@@ -777,8 +777,8 @@ void AES_256_Key_Expansion(const unsigned char* userkey,
                            unsigned char* key_schedule);
 
 
-int AES_set_encrypt_key (const unsigned char *userKey, const int bits,
-                         Aes* aes)
+static int AES_set_encrypt_key(const unsigned char *userKey, const int bits,
+                               Aes* aes)
 { 
     if (!userKey || !aes)
         return BAD_FUNC_ARG;
@@ -799,8 +799,8 @@ int AES_set_encrypt_key (const unsigned char *userKey, const int bits,
 }
 
 
-int AES_set_decrypt_key (const unsigned char* userKey, const int bits,
-                         Aes* aes)
+static int AES_set_decrypt_key(const unsigned char* userKey, const int bits,
+                               Aes* aes)
 {
     int nr;
     Aes temp_key;
