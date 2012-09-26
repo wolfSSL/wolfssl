@@ -79,14 +79,16 @@ static void sig_handler(const int sig)
 #ifndef _WIN32
     ssl_FreeSniffer();
 #endif
-    exit(EXIT_SUCCESS);
+    if (sig)
+        exit(EXIT_SUCCESS);
 }
 
 
 static void err_sys(const char* msg)
 {
 	fprintf(stderr, "%s\n", msg);
-	exit(EXIT_FAILURE);
+    if (msg)
+	    exit(EXIT_FAILURE);
 }
 
 
@@ -149,7 +151,9 @@ int main(int argc, char** argv)
                     " installed correctly and you have sufficient permissions");
 
 	    printf("Enter the interface number (1-%d): ", i);
-	    scanf("%d", &inum);
+	    ret = scanf("%d", &inum);
+        if (ret != 1)
+            printf("scanf port failed\n");
 
 	    if (inum < 1 || inum > i)
 		    err_sys("Interface number out of range");
@@ -196,7 +200,9 @@ int main(int argc, char** argv)
         if (ret != 0) printf("pcap_activate failed %s\n", pcap_geterr(pcap));
 
 	    printf("Enter the port to scan: ");
-	    scanf("%d", &port);
+	    ret = scanf("%d", &port);
+        if (ret != 1)
+            printf("scanf port failed\n");
 
 	    SNPRINTF(filter, sizeof(filter), "tcp and port %d", port);
 

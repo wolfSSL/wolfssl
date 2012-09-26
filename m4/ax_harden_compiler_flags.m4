@@ -60,7 +60,6 @@
   AC_DEFUN([AX_HARDEN_LINKER_FLAGS], [
       AC_REQUIRE([AX_CHECK_LINK_FLAG])
       AC_REQUIRE([AX_VCS_CHECKOUT])
-      AC_REQUIRE([AX_DEBUG])
 
       AS_IF([test "$ac_cv_vcs_checkout" = yes], [
           AX_CHECK_LINK_FLAG([-Werror])
@@ -74,9 +73,7 @@
 
       AC_LANG_PUSH([C])
       AS_IF([test "$ax_with_debug" = yes], [
-        AX_APPEND_COMPILE_FLAGS([-O0])],[
-        AX_APPEND_COMPILE_FLAGS([-O2])
-        ])
+        AX_APPEND_COMPILE_FLAGS([-O0])],[])
 
       ac_cv_warnings_as_errors=no
       AS_IF([test "$ac_cv_vcs_checkout" = yes], [
