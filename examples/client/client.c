@@ -358,7 +358,7 @@ void client_test(void* args)
     if (matchName && doPeerCheck)
         CyaSSL_check_domain_name(ssl, domain);
 #ifdef NON_BLOCKING
-    CyaSSL_using_nonblock(ssl);
+    CyaSSL_set_using_nonblock(ssl, 1);
     tcp_set_nonblocking(&sockfd);
     NonBlockingSSL_Connect(ssl);
 #else
