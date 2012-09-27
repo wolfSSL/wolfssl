@@ -859,29 +859,11 @@ int AesSetIV(Aes* aes, const byte* iv)
 }
 
 
-int AesSetKey(Aes* aes, const byte* userKey, word32 keylen, const byte* iv,
-              int dir)
+static int AesSetKeyLocal(Aes* aes, const byte* userKey, word32 keylen,
+            const byte* iv, int dir)
 {
     word32 temp, *rk = aes->key;
     unsigned int i = 0;
-
-    if (!((keylen == 16) || (keylen == 24) || (keylen == 32)))
-        return BAD_FUNC_ARG;
-
-#ifdef CYASSL_AESNI
-    if (checkAESNI == 0) {
-        haveAESNI  = Check_CPU_support_AES();
-        checkAESNI = 1;
-    }
-    if (haveAESNI) {
-        if (iv)
-            XMEMCPY(aes->reg, iv, AES_BLOCK_SIZE);
-        if (dir == AES_ENCRYPTION)
-            return AES_set_encrypt_key(userKey, keylen * 8, aes);
-        else
-            return AES_set_decrypt_key(userKey, keylen * 8, aes);
-    }
-#endif /* CYASSL_AESNI */
 
     aes->rounds = keylen/4 + 6;
 
@@ -1005,6 +987,32 @@ int AesSetKey(Aes* aes, const byte* userKey, word32 keylen, const byte* iv,
     }
 
     return AesSetIV(aes, iv);
+}
+
+
+int AesSetKey(Aes* aes, const byte* userKey, word32 keylen, const byte* iv,
+              int dir)
+{
+
+    if (!((keylen == 16) || (keylen == 24) || (keylen == 32)))
+        return BAD_FUNC_ARG;
+
+#ifdef CYASSL_AESNI
+    if (checkAESNI == 0) {
+        haveAESNI  = Check_CPU_support_AES();
+        checkAESNI = 1;
+    }
+    if (haveAESNI) {
+        if (iv)
+            XMEMCPY(aes->reg, iv, AES_BLOCK_SIZE);
+        if (dir == AES_ENCRYPTION)
+            return AES_set_encrypt_key(userKey, keylen * 8, aes);
+        else
+            return AES_set_decrypt_key(userKey, keylen * 8, aes);
+    }
+#endif /* CYASSL_AESNI */
+
+    return AesSetKeyLocal(aes, userKey, keylen, iv, dir);
 }
 
 
@@ -1547,9 +1555,12 @@ void AesGcmSetKey(Aes* aes, const byte* key, word32 len,
 {
     byte fullIV[AES_BLOCK_SIZE];
 
+    if (!((len == 16) || (len == 24) || (len == 32)))
+        return;
+
     XMEMSET(fullIV, 0, AES_BLOCK_SIZE);
     XMEMCPY(fullIV, implicitIV, IMPLICIT_IV_SZ);
-    AesSetKey(aes, key, len, fullIV, AES_ENCRYPTION);
+    AesSetKeyLocal(aes, key, len, fullIV, AES_ENCRYPTION);
 
     XMEMSET(fullIV, 0, AES_BLOCK_SIZE);
     AesEncrypt(aes, fullIV, aes->H);
