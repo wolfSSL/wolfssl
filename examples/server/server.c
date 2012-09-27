@@ -294,7 +294,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 #endif
 
 #ifdef NON_BLOCKING
-    CyaSSL_using_nonblock(ssl);
+    CyaSSL_set_using_nonblock(ssl, 1);
     tcp_set_nonblocking(&clientfd);
     NonBlockingSSL_Accept(ssl);
 #else
