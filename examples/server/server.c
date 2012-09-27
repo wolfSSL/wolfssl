@@ -36,7 +36,7 @@
 #endif
 
 #if defined(NON_BLOCKING) || defined(CYASSL_CALLBACKS)
-    void NonBlockingSSL_Accept(SSL* ssl)
+    static void NonBlockingSSL_Accept(SSL* ssl)
     {
     #ifndef CYASSL_CALLBACKS
         int ret = SSL_accept(ssl);
