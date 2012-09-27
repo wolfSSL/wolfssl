@@ -40,7 +40,7 @@
 #endif
 
 #if defined(NON_BLOCKING) || defined(CYASSL_CALLBACKS)
-    void NonBlockingSSL_Connect(CYASSL* ssl)
+    static void NonBlockingSSL_Connect(CYASSL* ssl)
     {
 #ifndef CYASSL_CALLBACKS
         int ret = CyaSSL_connect(ssl);

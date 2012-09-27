@@ -502,7 +502,7 @@ static INLINE void tcp_set_nonblocking(SOCKET_T* sockfd)
         int ret = ioctlsocket(*sockfd, FIONBIO, &blocking);
     #else
         int flags = fcntl(*sockfd, F_GETFL, 0);
-        int ret = fcntl(*sockfd, F_SETFL, flags | O_NONBLOCK);
+        fcntl(*sockfd, F_SETFL, flags | O_NONBLOCK);
     #endif
 #endif
     (void)sockfd;
