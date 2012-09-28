@@ -1666,8 +1666,8 @@ static SnifferSession* CreateSession(IpInfo* ipInfo, TcpInfo* tcpInfo,
     session->sslClient = SSL_new(session->context->ctx);
     if (session->sslClient == NULL) {
         if (session->sslServer) {
-            SSL_free(session->sslClient);
-            session->sslClient = 0;
+            SSL_free(session->sslServer);
+            session->sslServer= 0;
         }
         SetError(BAD_NEW_SSL_STR, error, session, FATAL_ERROR_STATE);
         free(session);
