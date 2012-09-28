@@ -167,7 +167,7 @@ int EmbedReceive(CYASSL *ssl, char *buf, int sz, void *ctx)
         CYASSL_MSG("Embed Receive error");
 
         if (err == SOCKET_EWOULDBLOCK || err == SOCKET_EAGAIN) {
-            if (CyaSSL_get_using_nonblock(ssl)) {
+            if (!CyaSSL_dtls(ssl) || CyaSSL_get_using_nonblock(ssl)) {
                 CYASSL_MSG("    Would block");
                 return IO_ERR_WANT_READ;
             }

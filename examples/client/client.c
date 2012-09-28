@@ -51,6 +51,7 @@
         int timeout_count = CyaSSL_dtls_get_current_timeout(ssl) * 10;
         while (ret != SSL_SUCCESS && (error == SSL_ERROR_WANT_READ ||
                                       error == SSL_ERROR_WANT_WRITE)) {
+            (void)timeout_count;
             if (error == SSL_ERROR_WANT_READ)
                 printf("... client would read block\n");
             else
