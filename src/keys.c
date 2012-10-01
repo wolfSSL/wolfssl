@@ -937,6 +937,8 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
             Arc4SetKey(enc->arc4, keys->server_write_key, sz);
             Arc4SetKey(dec->arc4, keys->client_write_key, sz);
         }
+        enc->setup = 1;
+        dec->setup = 1;
     }
 #endif
     
@@ -960,6 +962,8 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
             Hc128_SetKey(dec->hc128, keys->client_write_key,
                                          keys->client_write_IV);
         }
+        enc->setup = 1;
+        dec->setup = 1;
     }
 #endif
     
@@ -983,6 +987,8 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
             RabbitSetKey(dec->rabbit, keys->client_write_key,
                                            keys->client_write_IV);
         }
+        enc->setup = 1;
+        dec->setup = 1;
     }
 #endif
     
@@ -1006,6 +1012,8 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
             Des3_SetKey(dec->des3, keys->client_write_key,
                 keys->client_write_IV, DES_DECRYPTION);
         }
+        enc->setup = 1;
+        dec->setup = 1;
     }
 #endif
 
@@ -1033,6 +1041,8 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
                       specs->key_size, keys->client_write_IV,
                       AES_DECRYPTION);
         }
+        enc->setup = 1;
+        dec->setup = 1;
     }
 #endif
 
@@ -1062,6 +1072,8 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
             AesGcmSetKey(dec->aes, keys->client_write_key, specs->key_size,
                         keys->client_write_IV);
         }
+        enc->setup = 1;
+        dec->setup = 1;
     }
 #endif
 
