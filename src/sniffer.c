@@ -845,7 +845,7 @@ static SnifferSession* GetSnifferSession(IpInfo* ipInfo, TcpInfo* tcpInfo)
     SnifferSession* session;
     
     word32 row = SessionHash(ipInfo, tcpInfo);
-    assert(row >= 0 && row <= HASH_SIZE);
+    assert(row <= HASH_SIZE);
     
     LockMutex(&SessionMutex);
     
@@ -1585,7 +1585,7 @@ static void RemoveSession(SnifferSession* session, IpInfo* ipInfo,
     else
         haveLock = 1;
     
-    assert(row >= 0 && row <= HASH_SIZE);
+    assert(row <= HASH_SIZE);
     Trace(REMOVE_SESSION_STR);
     
     if (!haveLock)
