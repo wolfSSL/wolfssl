@@ -845,7 +845,7 @@ static SnifferSession* GetSnifferSession(IpInfo* ipInfo, TcpInfo* tcpInfo)
     SnifferSession* session;
     
     word32 row = SessionHash(ipInfo, tcpInfo);
-    assert(row >= 0 && row <= HASH_SIZE);
+    assert(row <= HASH_SIZE);
     
     LockMutex(&SessionMutex);
     
@@ -1585,7 +1585,7 @@ static void RemoveSession(SnifferSession* session, IpInfo* ipInfo,
     else
         haveLock = 1;
     
-    assert(row >= 0 && row <= HASH_SIZE);
+    assert(row <= HASH_SIZE);
     Trace(REMOVE_SESSION_STR);
     
     if (!haveLock)
@@ -1663,12 +1663,16 @@ static SnifferSession* CreateSession(IpInfo* ipInfo, TcpInfo* tcpInfo,
     }
         
     session->sslServer = SSL_new(session->context->ctx);
+    if (session->sslServer == NULL) {
+        SetError(BAD_NEW_SSL_STR, error, session, FATAL_ERROR_STATE);
+        free(session);
+        return 0;
+    }
     session->sslClient = SSL_new(session->context->ctx);
     if (session->sslClient == NULL) {
-        if (session->sslServer) {
-            SSL_free(session->sslClient);
-            session->sslClient = 0;
-        }
+        SSL_free(session->sslServer);
+        session->sslServer = 0;
+
         SetError(BAD_NEW_SSL_STR, error, session, FATAL_ERROR_STATE);
         free(session);
         return 0;

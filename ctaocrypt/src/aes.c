@@ -1027,6 +1027,13 @@ static void AesEncrypt(Aes* aes, const byte* inBlock, byte* outBlock)
         CYASSL_MSG("AesEncrypt encountered improper key, set it up");
         return;  /* stop instead of segfaulting, set up your keys! */
     }
+#ifdef CYASSL_AESNI
+    if (haveAESNI) {
+        CYASSL_MSG("AesEncrypt encountered aesni keysetup, don't use direct");
+        return;  /* just stop now */
+    } 
+#endif
+
     /*
      * map byte array block to cipher state
      * and add initial round key:
@@ -1165,6 +1172,13 @@ static void AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
         CYASSL_MSG("AesDecrypt encountered improper key, set it up");
         return;  /* stop instead of segfaulting, set up your keys! */
     }
+#ifdef CYASSL_AESNI
+    if (haveAESNI) {
+        CYASSL_MSG("AesEncrypt encountered aesni keysetup, don't use direct");
+        return;  /* just stop now */
+    } 
+#endif
+
     /*
      * map byte array block to cipher state
      * and add initial round key:
@@ -1379,6 +1393,18 @@ void AesDecryptDirect(Aes* aes, byte* out, const byte* in)
 
 
 #endif /* CYASSL_AES_DIRECT */
+
+
+#if defined(CYASSL_AES_DIRECT) || defined(CYASSL_AES_COUNTER)
+
+/* AES-CTR and AES-DIRECT need to use this for key setup, no aesni yet */
+int AesSetKeyDirect(Aes* aes, const byte* userKey, word32 keylen,
+                    const byte* iv, int dir)
+{
+    return AesSetKeyLocal(aes, userKey, keylen, iv, dir);
+}
+
+#endif /* CYASSL_AES_DIRECT || CYASSL_AES_COUNTER */
 
 
 #ifdef CYASSL_AES_COUNTER

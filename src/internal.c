@@ -465,6 +465,8 @@ void InitCiphers(CYASSL* ssl)
     ssl->encrypt.rabbit = NULL;
     ssl->decrypt.rabbit = NULL;
 #endif
+    ssl->encrypt.setup = 0;
+    ssl->decrypt.setup = 0;
 }
 
 
@@ -2672,8 +2674,13 @@ static INLINE word32 GetSEQIncrement(CYASSL* ssl, int verify)
 }
 
 
-static INLINE void Encrypt(CYASSL* ssl, byte* out, const byte* input, word32 sz)
+static INLINE int Encrypt(CYASSL* ssl, byte* out, const byte* input, word32 sz)
 {
+    if (ssl->encrypt.setup == 0) {
+        CYASSL_MSG("Encrypt ciphers not setup");
+        return ENCRYPT_ERROR;
+    }
+
     switch (ssl->specs.bulk_cipher_algorithm) {
         #ifdef BUILD_ARC4
             case rc4:
@@ -2745,13 +2752,21 @@ static INLINE void Encrypt(CYASSL* ssl, byte* out, const byte* input, word32 sz)
 
             default:
                 CYASSL_MSG("CyaSSL Encrypt programming error");
+                return ENCRYPT_ERROR;
     }
+
+    return 0;
 }
 
 
 static INLINE int Decrypt(CYASSL* ssl, byte* plain, const byte* input,
                            word32 sz)
 {
+    if (ssl->decrypt.setup == 0) {
+        CYASSL_MSG("Decrypt ciphers not setup");
+        return DECRYPT_ERROR;
+    }
+
     switch (ssl->specs.bulk_cipher_algorithm) {
         #ifdef BUILD_ARC4
             case rc4:
@@ -2815,6 +2830,7 @@ static INLINE int Decrypt(CYASSL* ssl, byte* plain, const byte* input,
 
             default:
                 CYASSL_MSG("CyaSSL Decrypt programming error");
+                return DECRYPT_ERROR;
     }
     return 0;
 }
@@ -3498,6 +3514,7 @@ static int BuildMessage(CYASSL* ssl, byte* output, const byte* input, int inSz,
     word32 headerSz = RECORD_HEADER_SZ;
     word16 size;
     byte               iv[AES_BLOCK_SIZE];                  /* max size */
+    int ret  = 0;
 
 #ifdef CYASSL_DTLS
     if (ssl->options.dtls) {
@@ -3541,7 +3558,6 @@ static int BuildMessage(CYASSL* ssl, byte* output, const byte* input, int inSz,
     if (type == handshake) {
 #ifdef CYASSL_DTLS
         if (ssl->options.dtls) {
-            int ret;
             if ((ret = DtlsPoolSave(ssl, output, headerSz+inSz)) != 0)
                 return ret;
         }
@@ -3557,7 +3573,8 @@ static int BuildMessage(CYASSL* ssl, byte* output, const byte* input, int inSz,
         for (i = 0; i <= pad; i++)
             output[idx++] = (byte)pad; /* pad byte gets pad value too */
 
-    Encrypt(ssl, output + headerSz, output + headerSz, size);
+    if ( (ret = Encrypt(ssl, output + headerSz, output + headerSz, size)) != 0)
+        return ret;
 
     return sz;
 }

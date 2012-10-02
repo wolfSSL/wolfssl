@@ -1020,6 +1020,7 @@ typedef struct Ciphers {
 #ifdef BUILD_RABBIT
     Rabbit* rabbit;
 #endif
+    byte    setup;       /* have we set it up flag for detection */
 } Ciphers;
 
 

@@ -87,7 +87,8 @@ CYASSL_API void AesCbcDecrypt(Aes* aes, byte* out, const byte* in, word32 sz);
 CYASSL_API void AesCtrEncrypt(Aes* aes, byte* out, const byte* in, word32 sz);
 CYASSL_API void AesEncryptDirect(Aes* aes, byte* out, const byte* in);
 CYASSL_API void AesDecryptDirect(Aes* aes, byte* out, const byte* in);
-
+CYASSL_API int  AesSetKeyDirect(Aes* aes, const byte* key, word32 len,
+                                const byte* iv, int dir);
 #ifdef HAVE_AESGCM
 CYASSL_API void AesGcmSetKey(Aes* aes, const byte* key, word32 len,
                               const byte* implicitIV);
