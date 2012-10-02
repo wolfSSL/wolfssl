@@ -342,10 +342,18 @@ void client_test(void* args)
         exit(EXIT_SUCCESS);
     }
 
-    tcp_connect(&sockfd, host, port, doDTLS);
     ssl = CyaSSL_new(ctx);
     if (ssl == NULL)
         err_sys("unable to get SSL object");
+    if (doDTLS) {
+        SOCKADDR_IN_T addr;
+        build_addr(&addr, host, port);
+        CyaSSL_dtls_set_peer(ssl, &addr, sizeof(addr));
+        tcp_socket(&sockfd, 1);
+    }
+    else {
+        tcp_connect(&sockfd, host, port, 0);
+    }
     CyaSSL_set_fd(ssl, sockfd);
 #ifdef HAVE_CRL
     if (CyaSSL_EnableCRL(ssl, CYASSL_CRL_CHECKALL) != SSL_SUCCESS)

@@ -66,6 +66,7 @@ typedef struct CYASSL_X509_NAME  CYASSL_X509_NAME;
 typedef struct CYASSL_X509_CHAIN CYASSL_X509_CHAIN;
 
 typedef struct CYASSL_CERT_MANAGER CYASSL_CERT_MANAGER;
+typedef struct CYASSL_SOCKADDR     CYASSL_SOCKADDR;
 
 /* redeclare guard */
 #define CYASSL_TYPES_DEFINED
@@ -221,6 +222,9 @@ CYASSL_API int  CyaSSL_set_cipher_list(CYASSL*, const char*);
 CYASSL_API int  CyaSSL_dtls_get_current_timeout(CYASSL* ssl);
 CYASSL_API int  CyaSSL_dtls_got_timeout(CYASSL* ssl);
 CYASSL_API int  CyaSSL_dtls(CYASSL* ssl);
+
+CYASSL_API int  CyaSSL_dtls_set_peer(CYASSL*, void*, unsigned int);
+CYASSL_API int  CyaSSL_dtls_get_peer(CYASSL*, void*, unsigned int*);
 
 CYASSL_API int   CyaSSL_ERR_GET_REASON(int err);
 CYASSL_API char* CyaSSL_ERR_error_string(unsigned long,char*);

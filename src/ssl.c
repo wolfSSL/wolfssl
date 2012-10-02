@@ -172,6 +172,14 @@ int CyaSSL_set_fd(CYASSL* ssl, int fd)
     ssl->IOCB_ReadCtx  = &ssl->rfd;
     ssl->IOCB_WriteCtx = &ssl->wfd;
 
+    #ifdef CYASSL_DTLS
+        if (ssl->options.dtls) {
+            ssl->IOCB_ReadCtx = &ssl->buffers.dtlsCtx;
+            ssl->IOCB_WriteCtx = &ssl->buffers.dtlsCtx;
+            ssl->buffers.dtlsCtx.fd = fd;
+        }
+    #endif
+
     CYASSL_LEAVE("SSL_set_fd", SSL_SUCCESS);
     return SSL_SUCCESS;
 }
@@ -203,6 +211,44 @@ int CyaSSL_get_using_nonblock(CYASSL* ssl)
 int CyaSSL_dtls(CYASSL* ssl)
 {
     return ssl->options.dtls;
+}
+
+
+int CyaSSL_dtls_set_peer(CYASSL* ssl, void* peer, unsigned int peerSz)
+{
+#ifdef CYASSL_DTLS
+    void* sa = (void*)XMALLOC(peerSz, ssl->heap, DYNAMIC_TYPE_SOCKADDR);
+    if (sa != NULL) {
+        XMEMCPY(sa, peer, peerSz);
+        ssl->buffers.dtlsCtx.peer.sa = sa;
+        ssl->buffers.dtlsCtx.peer.sz = peerSz;
+        return SSL_SUCCESS;
+    }
+    return SSL_FAILURE;
+#else
+    (void)ssl;
+    (void)peer;
+    (void)peerSz;
+    return SSL_NOT_IMPLEMENTED;
+#endif
+}
+
+int CyaSSL_dtls_get_peer(CYASSL* ssl, void* peer, unsigned int* peerSz)
+{
+#ifdef CYASSL_DTLS
+    if (peer != NULL && peerSz != NULL 
+            && *peerSz >= ssl->buffers.dtlsCtx.peer.sz) {
+        *peerSz = ssl->buffers.dtlsCtx.peer.sz;
+        XMEMCPY(peer, ssl->buffers.dtlsCtx.peer.sa, *peerSz);
+        return SSL_SUCCESS;
+    }
+    return SSL_FAILURE;
+#else
+    (void)ssl;
+    (void)peer;
+    (void)peerSz;
+    return SSL_NOT_IMPLEMENTED;
+#endif
 }
 
 
