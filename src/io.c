@@ -150,7 +150,7 @@ int EmbedReceive(CYASSL *ssl, char *buf, int sz, void *ctx)
                      && !CyaSSL_get_using_nonblock(ssl)
                      && dtls_timeout != 0) {
             #ifdef USE_WINDOWS_API
-                DWORD timeout = dtls_timeout;
+                DWORD timeout = dtls_timeout * 1000;
             #else
                 struct timeval timeout = {dtls_timeout, 0};
             #endif
@@ -275,7 +275,7 @@ int EmbedReceiveFrom(CYASSL *ssl, char *buf, int sz, void *ctx)
     CYASSL_ENTER("EmbedReceiveFrom()");
     if (!CyaSSL_get_using_nonblock(ssl) && dtls_timeout != 0) {
         #ifdef USE_WINDOWS_API
-            DWORD timeout = dtls_timeout;
+            DWORD timeout = dtls_timeout * 1000;
         #else
             struct timeval timeout = {dtls_timeout, 0};
         #endif
