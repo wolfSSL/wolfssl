@@ -489,6 +489,22 @@ void FreeCiphers(CYASSL* ssl)
 }
 
 
+void InitCipherSpecs(CipherSpecs* cs)
+{
+    cs->bulk_cipher_algorithm = -1;
+    cs->cipher_type           = -1;
+    cs->mac_algorithm         = -1;
+    cs->kea                   = -1;
+    cs->sig_algo              = -1;
+
+    cs->hash_size   = 0;
+    cs->static_ecdh = 0;
+    cs->key_size    = 0;
+    cs->iv_size     = 0;
+    cs->block_size  = 0;
+}
+
+
 void InitSuites(Suites* suites, ProtocolVersion pv, byte haveDH, byte havePSK,
                 byte haveNTRU, byte haveECDSAsig, byte haveStaticECC, int side)
 {
@@ -4317,6 +4333,14 @@ void SetErrorString(int error, char* str)
         XSTRNCPY(str, "No PEM Header Error", max);
         break;
 
+    case OUT_OF_ORDER_E:
+        XSTRNCPY(str, "Out of order message, fatal", max);
+        break;
+
+    case BAD_KEA_TYPE_E:
+        XSTRNCPY(str, "Bad KEA type found", max);
+        break;
+
     default :
         XSTRNCPY(str, "unknown error number", max);
     }
@@ -7301,6 +7325,11 @@ int SetCipherList(Suites* s, const char* list)
         word32 length = 0;
         byte*  out;
 
+        if (ssl->options.clientState < CLIENT_HELLO_COMPLETE) {
+            CYASSL_MSG("Client sending keyexchange at wrong time");
+            return OUT_OF_ORDER_E;
+        }
+
         if (ssl->options.verifyPeer && ssl->options.failNoCert)
             if (!ssl->options.havePeerCert) {
                 CYASSL_MSG("client didn't present peer cert");
@@ -7470,6 +7499,10 @@ int SetCipherList(Suites* s, const char* list)
             if (ret == 0)
                 ret = MakeMasterSecret(ssl);
 #endif /* OPENSSL_EXTRA */
+        }
+        else {
+            CYASSL_MSG("Bad kea type");
+            return BAD_KEA_TYPE_E; 
         }
 
         if (ret == 0) {
