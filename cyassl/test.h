@@ -37,6 +37,9 @@
         #include <netdb.h>
     #endif
     #define SOCKET_T int
+    #ifndef SO_NOSIGPIPE
+        #include <signal.h>  /* ignore SIGPIPE */
+    #endif
 #endif /* USE_WINDOWS_API */
 
 #ifdef _MSC_VER
@@ -359,7 +362,9 @@ static INLINE void tcp_socket(SOCKET_T* sockfd, int udp)
         if (res < 0)
             err_sys("setsockopt SO_NOSIGPIPE failed\n");
     }
-#endif
+#else  /* no S_NOSIGPIPE */
+    signal(SIGPIPE, SIG_IGN);
+#endif /* S_NOSIGPIPE */
 
 #if defined(TCP_NODELAY)
     if (!udp)
