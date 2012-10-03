@@ -2874,6 +2874,11 @@ int DoApplicationData(CYASSL* ssl, byte* input, word32* inOutIdx)
     byte        verify[SHA256_DIGEST_SIZE];
     const byte* mac;
 
+    if (ssl->options.handShakeState != HANDSHAKE_DONE) {
+        CYASSL_MSG("Received App data before handshake complete");
+        return OUT_OF_ORDER_E;
+    }
+
     if (ssl->specs.cipher_type == block) {
         if (ssl->options.tls1_1)
             ivExtra = ssl->specs.block_size;
