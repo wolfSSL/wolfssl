@@ -105,6 +105,8 @@ enum CyaSSL_ErrorCodes {
     SEQUENCE_ERROR         = -270,            /* dtls sequence error */
     SUITES_ERROR           = -271,            /* suites pointer error */
     SSL_NO_PEM_HEADER      = -272,            /* no PEM header found */
+    OUT_OF_ORDER_E         = -273,            /* out of order message */
+    BAD_KEA_TYPE_E         = -274,            /* bad KEA type found */
     /* add strings to SetErrorString !!!!! */
 
     /* begin negotiation parameter errors */

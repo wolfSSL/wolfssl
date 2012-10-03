@@ -888,6 +888,8 @@ typedef struct CipherSpecs {
 } CipherSpecs;
 
 
+void InitCipherSpecs(CipherSpecs* cs);
+
 
 /* Supported Ciphers from page 43  */
 enum BulkCipherAlgorithm { 
