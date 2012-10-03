@@ -2473,6 +2473,11 @@ static int DoHandShakeMsgType(CYASSL* ssl, byte* input, word32* inOutIdx,
     }
 #endif
 
+    if (ssl->options.handShakeState == HANDSHAKE_DONE && type != hello_request){
+        CYASSL_MSG("HandShake message after handshake complete");
+        return OUT_OF_ORDER_E;
+    }
+
     switch (type) {
 
     case hello_request:
