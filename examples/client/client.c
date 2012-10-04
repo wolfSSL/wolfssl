@@ -343,10 +343,18 @@ void client_test(void* args)
         exit(EXIT_SUCCESS);
     }
 
-    tcp_connect(&sockfd, host, port, doDTLS);
     ssl = CyaSSL_new(ctx);
     if (ssl == NULL)
         err_sys("unable to get SSL object");
+    if (doDTLS) {
+        SOCKADDR_IN_T addr;
+        build_addr(&addr, host, port);
+        CyaSSL_dtls_set_peer(ssl, &addr, sizeof(addr));
+        tcp_socket(&sockfd, 1);
+    }
+    else {
+        tcp_connect(&sockfd, host, port, 0);
+    }
     CyaSSL_set_fd(ssl, sockfd);
 #ifdef HAVE_CRL
     if (CyaSSL_EnableCRL(ssl, CYASSL_CRL_CHECKALL) != SSL_SUCCESS)
@@ -422,19 +430,25 @@ void client_test(void* args)
 
 #ifdef TEST_RESUME
     if (doDTLS) {
+        SOCKADDR_IN_T addr;
         #ifdef USE_WINDOWS_API 
             Sleep(500);
         #else
             sleep(1);
         #endif
+        build_addr(&addr, host, port);
+        CyaSSL_dtls_set_peer(sslResume, &addr, sizeof(addr));
+        tcp_socket(&sockfd, 1);
     }
-    tcp_connect(&sockfd, host, port, doDTLS);
+    else {
+        tcp_connect(&sockfd, host, port, 0);
+    }
     CyaSSL_set_fd(sslResume, sockfd);
     CyaSSL_set_session(sslResume, session);
    
     showPeer(sslResume);
 #ifdef NON_BLOCKING
-    CyaSSL_using_nonblock(sslResume);
+    CyaSSL_set_using_nonblock(sslResume, 1);
     tcp_set_nonblocking(&sockfd);
     NonBlockingSSL_Connect(sslResume);
 #else

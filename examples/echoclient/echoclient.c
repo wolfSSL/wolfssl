@@ -70,8 +70,6 @@ void echoclient_test(void* args)
     doDTLS  = 1;
 #endif
 
-    tcp_connect(&sockfd, yasslIP, yasslPort, doDTLS);
-
 #if defined(CYASSL_DTLS)
     method  = DTLSv1_client_method();
 #elif  !defined(NO_TLS)
@@ -101,6 +99,16 @@ void echoclient_test(void* args)
     SSL_CTX_set_default_passwd_cb(ctx, PasswordCallBack);
 #endif
     ssl = SSL_new(ctx);
+
+    if (doDTLS) {
+        SOCKADDR_IN_T addr;
+        build_addr(&addr, yasslIP, yasslPort);
+        CyaSSL_dtls_set_peer(ssl, &addr, sizeof(addr));
+        tcp_socket(&sockfd, 1);
+    }
+    else {
+        tcp_connect(&sockfd, yasslIP, yasslPort, 0);
+    }
 
     SSL_set_fd(ssl, sockfd);
 #if defined(USE_WINDOWS_API) && defined(CYASSL_DTLS) && defined(NO_MAIN_DRIVER)

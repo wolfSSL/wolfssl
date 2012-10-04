@@ -86,7 +86,7 @@
         #define WSAEPIPE       -12345
     #endif
     #define SOCKET_EWOULDBLOCK WSAEWOULDBLOCK
-    #define SOCKET_EAGAIN      WSAEWOULDBLOCK
+    #define SOCKET_EAGAIN      WSAETIMEDOUT
     #define SOCKET_ECONNRESET  WSAECONNRESET
     #define SOCKET_EINTR       WSAEINTR
     #define SOCKET_EPIPE       WSAEPIPE
@@ -150,7 +150,7 @@ int EmbedReceive(CYASSL *ssl, char *buf, int sz, void *ctx)
                      && !CyaSSL_get_using_nonblock(ssl)
                      && dtls_timeout != 0) {
             #ifdef USE_WINDOWS_API
-                DWORD timeout = dtls_timeout;
+                DWORD timeout = dtls_timeout * 1000;
             #else
                 struct timeval timeout = {dtls_timeout, 0};
             #endif
@@ -254,6 +254,128 @@ int EmbedSend(CYASSL* ssl, char *buf, int sz, void *ctx)
 #else
    #define XSOCKLENT socklen_t
 #endif
+
+#define SENDTO_FUNCTION sendto
+#define RECVFROM_FUNCTION recvfrom
+
+
+/* The receive embedded callback
+ *  return : nb bytes read, or error
+ */
+int EmbedReceiveFrom(CYASSL *ssl, char *buf, int sz, void *ctx)
+{
+    CYASSL_DTLS_CTX* dtlsCtx = (CYASSL_DTLS_CTX*)ctx;
+    int recvd;
+    int err;
+    int sd = dtlsCtx->fd;
+    int dtls_timeout = CyaSSL_dtls_get_current_timeout(ssl);
+    struct sockaddr_in peer;
+    XSOCKLENT peerSz = sizeof(peer);
+
+    CYASSL_ENTER("EmbedReceiveFrom()");
+    if (!CyaSSL_get_using_nonblock(ssl) && dtls_timeout != 0) {
+        #ifdef USE_WINDOWS_API
+            DWORD timeout = dtls_timeout * 1000;
+        #else
+            struct timeval timeout = {dtls_timeout, 0};
+        #endif
+        setsockopt(sd, SOL_SOCKET, SO_RCVTIMEO,
+                                            (char*)&timeout, sizeof(timeout));
+    }
+
+    recvd = RECVFROM_FUNCTION(sd, (char *)buf, sz, 0,
+                                            (struct sockaddr*)&peer, &peerSz);
+
+    if (recvd < 0) {
+        err = LastError();
+        CYASSL_MSG("Embed Receive From error");
+
+        if (err == SOCKET_EWOULDBLOCK || err == SOCKET_EAGAIN) {
+            if (CyaSSL_get_using_nonblock(ssl)) {
+                CYASSL_MSG("    Would block");
+                return IO_ERR_WANT_READ;
+            }
+            else {
+                CYASSL_MSG("    Socket timeout");
+                return IO_ERR_TIMEOUT;
+            }
+        }
+        else if (err == SOCKET_ECONNRESET) {
+            CYASSL_MSG("    Connection reset");
+            return IO_ERR_CONN_RST;
+        }
+        else if (err == SOCKET_EINTR) {
+            CYASSL_MSG("    Socket interrupted");
+            return IO_ERR_ISR;
+        }
+        else if (err == SOCKET_ECONNREFUSED) {
+            CYASSL_MSG("    Connection refused");
+            return IO_ERR_WANT_READ;
+        }
+        else {
+            CYASSL_MSG("    General error");
+            return IO_ERR_GENERAL;
+        }
+    }
+    else {
+        if (dtlsCtx != NULL
+                && dtlsCtx->peer.sz > 0
+                && peerSz != dtlsCtx->peer.sz
+                && memcmp(&peer, dtlsCtx->peer.sa, peerSz) != 0) {
+            CYASSL_MSG("    Ignored packet from invalid peer");
+            return IO_ERR_WANT_READ;
+        }
+    }
+
+    return recvd;
+}
+
+
+/* The send embedded callback
+ *  return : nb bytes sent, or error
+ */
+int EmbedSendTo(CYASSL* ssl, char *buf, int sz, void *ctx)
+{
+    CYASSL_DTLS_CTX* dtlsCtx = (CYASSL_DTLS_CTX*)ctx;
+    int sd = dtlsCtx->fd;
+    int sent;
+    int len = sz;
+    int err;
+
+    (void)ssl;
+
+    CYASSL_ENTER("EmbedSendTo()");
+    sent = SENDTO_FUNCTION(sd, &buf[sz - len], len, 0,
+                                            dtlsCtx->peer.sa, dtlsCtx->peer.sz);
+
+    if (sent < 0) {
+        err = LastError();
+        CYASSL_MSG("Embed Send To error");
+
+        if (err == SOCKET_EWOULDBLOCK || err == SOCKET_EAGAIN) {
+            CYASSL_MSG("    Would Block");
+            return IO_ERR_WANT_WRITE;
+        }
+        else if (err == SOCKET_ECONNRESET) {
+            CYASSL_MSG("    Connection reset");
+            return IO_ERR_CONN_RST;
+        }
+        else if (err == SOCKET_EINTR) {
+            CYASSL_MSG("    Socket interrupted");
+            return IO_ERR_ISR;
+        }
+        else if (err == SOCKET_EPIPE) {
+            CYASSL_MSG("    Socket EPIPE");
+            return IO_ERR_CONN_CLOSE;
+        }
+        else {
+            CYASSL_MSG("    General error");
+            return IO_ERR_GENERAL;
+        }
+    }
+ 
+    return sent;
+}
 
 
 /* The DTLS Generate Cookie callback

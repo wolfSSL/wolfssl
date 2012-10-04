@@ -672,6 +672,10 @@ int  SetCipherList(Suites*, const char* list);
 
 #ifdef CYASSL_DTLS
     CYASSL_LOCAL
+    int EmbedReceiveFrom(CYASSL *ssl, char *buf, int sz, void *ctx);
+    CYASSL_LOCAL 
+    int EmbedSendTo(CYASSL *ssl, char *buf, int sz, void *ctx);
+    CYASSL_LOCAL
     int EmbedGenerateCookie(byte *buf, int sz, void *ctx);
     CYASSL_LOCAL
     int IsUDP(void*);
@@ -787,6 +791,18 @@ struct CYASSL_CERT_MANAGER {
     byte            crlCheckAll;        /* always leaf, but all ? */
     CbMissingCRL    cbMissingCRL;       /* notify through cb of missing crl */
 };
+
+
+/* CyaSSL Sock Addr */
+struct CYASSL_SOCKADDR {
+    unsigned int sz; /* sockaddr size */
+    void*        sa; /* pointer to the sockaddr_in or sockaddr_in6 */
+};
+
+typedef struct CYASSL_DTLS_CTX {
+    CYASSL_SOCKADDR peer;
+    int fd;
+} CYASSL_DTLS_CTX;
 
 
 /* CyaSSL context type */
@@ -1116,6 +1132,7 @@ typedef struct Buffers {
     buffer          dtlsHandshake;         /* DTLS handshake defragment buf */
     word32          dtlsUsed;              /* DTLS bytes used in buffer */
     byte            dtlsType;              /* DTLS handshake frag type */
+    CYASSL_DTLS_CTX dtlsCtx;               /* DTLS connection context */
 #endif
 } Buffers;
 

@@ -344,6 +344,13 @@ int InitSSL_Ctx(CYASSL_CTX* ctx, CYASSL_METHOD* method)
 #ifndef CYASSL_USER_IO
     ctx->CBIORecv = EmbedReceive;
     ctx->CBIOSend = EmbedSend;
+    #ifdef CYASSL_DTLS
+        if (method->version.major == DTLS_MAJOR
+                                    && method->version.minor == DTLS_MINOR) {
+            ctx->CBIORecv = EmbedReceiveFrom;
+            ctx->CBIOSend = EmbedSendTo;
+        }
+    #endif
 #else
     /* user will set */
     ctx->CBIORecv = NULL;
@@ -1018,7 +1025,10 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
     ssl->heap = ctx->heap;    /* defaults to self */
     ssl->options.tls    = 0;
     ssl->options.tls1_1 = 0;
-    ssl->options.dtls   = 0;
+    if (ssl->version.major == DTLS_MAJOR && ssl->version.minor == DTLS_MINOR)
+        ssl->options.dtls = 1;
+    else
+        ssl->options.dtls = 0;
     ssl->options.partialWrite  = ctx->partialWrite;
     ssl->options.quietShutdown = ctx->quietShutdown;
     ssl->options.certOnly = 0;
@@ -1042,6 +1052,9 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
     ssl->buffers.dtlsHandshake.length = 0;
     ssl->buffers.dtlsHandshake.buffer = NULL;
     ssl->buffers.dtlsType = 0;
+    ssl->buffers.dtlsCtx.fd = -1;
+    ssl->buffers.dtlsCtx.peer.sa = NULL;
+    ssl->buffers.dtlsCtx.peer.sz = 0;
 #endif
 
 #ifdef OPENSSL_EXTRA
@@ -1199,6 +1212,8 @@ void SSL_ResourceFree(CYASSL* ssl)
         DtlsPoolReset(ssl);
         XFREE(ssl->dtls_pool, ssl->heap, DYNAMIC_TYPE_NONE);
     }
+    XFREE(ssl->buffers.dtlsCtx.peer.sa, ssl->heap, DYNAMIC_TYPE_SOCKADDR);
+    ssl->buffers.dtlsCtx.peer.sa = NULL;
 #endif
 #if defined(OPENSSL_EXTRA) || defined(GOAHEAD_WS)
     XFREE(ssl->peerCert.derCert.buffer, ssl->heap, DYNAMIC_TYPE_CERT);
@@ -1608,7 +1623,7 @@ retry:
             case IO_ERR_CONN_RST:       /* connection reset */
                 #ifdef USE_WINDOWS_API
                 if (ssl->options.dtls) {
-                    return WANT_READ;
+                    goto retry;
                 }
                 #endif
                 ssl->options.connReset = 1;
