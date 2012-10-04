@@ -2478,6 +2478,19 @@ static int DoHandShakeMsgType(CYASSL* ssl, byte* input, word32* inOutIdx,
         return OUT_OF_ORDER_E;
     }
 
+    if (ssl->options.side == CLIENT_END && ssl->options.dtls == 0 &&
+               ssl->options.serverState == NULL_STATE && type != server_hello) {
+        CYASSL_MSG("First server message not server hello");
+        return OUT_OF_ORDER_E;
+    }
+
+    if (ssl->options.side == SERVER_END &&
+               ssl->options.clientState == NULL_STATE && type != client_hello) {
+        CYASSL_MSG("First client message not client hello");
+        return OUT_OF_ORDER_E;
+    }
+
+
     switch (type) {
 
     case hello_request:
