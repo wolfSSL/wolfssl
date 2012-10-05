@@ -2278,6 +2278,7 @@ doMessage:
             else
                 session->flags.clientCipherOn = 1;
             Trace(GOT_CHANGE_CIPHER_STR);
+            ssl->options.handShakeState = HANDSHAKE_DONE;
             break;
         case application_data:
             Trace(GOT_APP_DATA_STR);
