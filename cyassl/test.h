@@ -401,6 +401,40 @@ static INLINE void udp_connect(SOCKET_T* sockfd, void* addr, int addrSz)
 }
 
 
+enum {
+    TEST_SELECT_FAIL,
+    TEST_TIMEOUT,
+    TEST_RECV_READY,
+    TEST_ERROR_READY
+};
+
+static INLINE int tcp_select(SOCKET_T socketfd, unsigned int to_sec)
+{
+    fd_set recvfds, errfds;
+    SOCKET_T nfds = socketfd + 1;
+    struct timeval timeout = {to_sec, 0};
+    int result;
+
+    FD_ZERO(&recvfds);
+    FD_SET(socketfd, &recvfds);
+    FD_ZERO(&errfds);
+    FD_SET(socketfd, &errfds);
+
+    result = select(nfds, &recvfds, NULL, &errfds, &timeout);
+
+    if (result == 0)
+        return TEST_TIMEOUT;
+    else if (result > 0) {
+        if (FD_ISSET(socketfd, &recvfds))
+            return TEST_RECV_READY;
+        else if(FD_ISSET(socketfd, &errfds))
+            return TEST_ERROR_READY;
+    }
+
+    return TEST_SELECT_FAIL;
+}
+
+
 static INLINE void tcp_listen(SOCKET_T* sockfd, int port, int useAnyAddr,
                               int udp)
 {

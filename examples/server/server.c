@@ -44,20 +44,37 @@
         int ret = CyaSSL_accept_ex(ssl, srvHandShakeCB, srvTimeoutCB, srvTo);
     #endif
         int error = SSL_get_error(ssl, 0);
+        SOCKET_T sockfd = (SOCKET_T)CyaSSL_get_fd(ssl);
+        int select_ret;
+
         while (ret != SSL_SUCCESS && (error == SSL_ERROR_WANT_READ ||
                                       error == SSL_ERROR_WANT_WRITE)) {
             printf("... server would block\n");
-            #ifdef USE_WINDOWS_API 
-                Sleep(1000);
-            #else
-                sleep(1);
-            #endif
-            #ifndef CYASSL_CALLBACKS
-                ret = SSL_accept(ssl);
-            #else
-                ret = CyaSSL_accept_ex(ssl, srvHandShakeCB, srvTimeoutCB,srvTo);
-            #endif
-            error = SSL_get_error(ssl, 0);
+
+            if (CyaSSL_dtls(ssl))
+                select_ret = tcp_select(sockfd,
+                                        CyaSSL_dtls_get_current_timeout(ssl));
+            else
+                select_ret = tcp_select(sockfd, 1);
+
+            if ((select_ret == TEST_RECV_READY) ||
+                                            (select_ret == TEST_ERROR_READY)) {
+                #ifndef CYASSL_CALLBACKS
+                    ret = SSL_accept(ssl);
+                #else
+                    ret = CyaSSL_accept_ex(ssl,
+                                        srvHandShakeCB, srvTimeoutCB, srvTo);
+                #endif
+                error = SSL_get_error(ssl, 0);
+            }
+            else if (select_ret == TEST_TIMEOUT &&
+                        (!CyaSSL_dtls(ssl) ||
+                        (CyaSSL_dtls_got_timeout(ssl) >= 0))) {
+                error = SSL_ERROR_WANT_READ;
+            }
+            else {
+                error = SSL_FATAL_ERROR;
+            }
         }
         if (ret != SSL_SUCCESS)
             err_sys("SSL_accept failed");
