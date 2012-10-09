@@ -498,11 +498,11 @@ void FreeCiphers(CYASSL* ssl)
 
 void InitCipherSpecs(CipherSpecs* cs)
 {
-    cs->bulk_cipher_algorithm = -1;
-    cs->cipher_type           = -1;
-    cs->mac_algorithm         = -1;
-    cs->kea                   = -1;
-    cs->sig_algo              = -1;
+    cs->bulk_cipher_algorithm = INVALID_BYTE;
+    cs->cipher_type           = INVALID_BYTE;
+    cs->mac_algorithm         = INVALID_BYTE;
+    cs->kea                   = INVALID_BYTE;
+    cs->sig_algo              = INVALID_BYTE;
 
     cs->hash_size   = 0;
     cs->static_ecdh = 0;
@@ -7110,15 +7110,17 @@ int SetCipherList(Suites* s, const char* list)
                 b = input[i++];
                 if (b) {
                     byte cookie[MAX_COOKIE_LEN];
-                    byte cookieSz;
 
                     if (b > MAX_COOKIE_LEN)
                         return BUFFER_ERROR;
                     if (i + b > totalSz)
                         return INCOMPLETE_DATA;
-                    cookieSz = EmbedGenerateCookie(cookie, COOKIE_SZ, ssl);
-                    if ((b != cookieSz) || XMEMCMP(cookie, input + i, b) != 0)
+                    if ((EmbedGenerateCookie(cookie, COOKIE_SZ, ssl)
+                                                                 != COOKIE_SZ)
+                            || (b != COOKIE_SZ)
+                            || (XMEMCMP(cookie, input + i, b) != 0)) {
                         return COOKIE_ERROR;
+                    }
                     i += b;
                 }
             }
