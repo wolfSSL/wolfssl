@@ -580,7 +580,7 @@ void bench_eccKeyGen(void)
     start = current_time();
 
     for(i = 0; i < genTimes; i++) {
-        int ret = ecc_make_key(&rng, 32, &genKey);
+        ecc_make_key(&rng, 32, &genKey);
         ecc_free(&genKey);
     }
 
@@ -622,7 +622,7 @@ void bench_eccKeyAgree(void)
            " iterations\n", milliEach, agreeTimes);
 
     /* make dummy digest */
-    for (i = 0; i < sizeof(digest); i++)
+    for (i = 0; i < (int)sizeof(digest); i++)
         digest[i] = i;
 
 
