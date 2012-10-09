@@ -1466,8 +1466,8 @@ int rsa_test(void)
     {
         byte   der[4096];
         byte   pem[4096];
-        word32 derSz = 0;
-        word32 pemSz = 0;
+        int    derSz = 0;
+        int    pemSz = 0;
         RsaKey derIn;
         RsaKey genKey;
         FILE* keyFile;
@@ -1575,22 +1575,23 @@ int rsa_test(void)
         FILE*       pemFile;
         int         certSz;
         int         pemSz;
-        byte        tmp[2048];
-        size_t      bytes;
-        word32      idx = 0;
+        byte        tmp3[2048];
+        size_t      bytes3;
+        word32      idx3 = 0;
 #ifdef CYASSL_TEST_CERT
         DecodedCert decode;
 #endif
 
-        FILE*  file = fopen(caKeyFile, "rb");
+        FILE* file3 = fopen(caKeyFile, "rb");
 
-        if (!file)
+        if (!file3)
             return -412;
 
-        bytes = fread(tmp, 1, sizeof(tmp), file);
+        bytes3 = fread(tmp3, 1, sizeof(tmp3), file3);
+        fclose(file3);
   
         InitRsaKey(&caKey, 0);  
-        ret = RsaPrivateKeyDecode(tmp, &idx, &caKey, (word32)bytes);
+        ret = RsaPrivateKeyDecode(tmp3, &idx3, &caKey, (word32)bytes3);
         if (ret != 0) return -413;
 
         InitCert(&myCert);
