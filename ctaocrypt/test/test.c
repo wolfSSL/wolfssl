@@ -2259,7 +2259,7 @@ int ecc_test(void)
         return -1010;
 
     /* test DSA sign hash */
-    for (i = 0; i < sizeof(digest); i++)
+    for (i = 0; i < (int)sizeof(digest); i++)
         digest[i] = i;
 
     x = sizeof(sig);
