@@ -26,8 +26,8 @@
 extern "C" {
 #endif
 
-#define LIBCYASSL_VERSION_STRING "2.3.1"
-#define LIBCYASSL_VERSION_HEX 0x02003001
+#define LIBCYASSL_VERSION_STRING "2.4.0"
+#define LIBCYASSL_VERSION_HEX 0x02004000
 
 #ifdef __cplusplus
 }
