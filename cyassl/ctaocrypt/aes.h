@@ -76,6 +76,9 @@ typedef struct Aes {
     ALIGN16 byte M0[256][AES_BLOCK_SIZE];
 #endif /* GCM_TABLE */
 #endif /* HAVE_AESGCM */
+#ifdef CYASSL_AESNI
+    byte use_aesni;
+#endif /* CYASSL_AESNI */
 } Aes;
 
 

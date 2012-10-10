@@ -743,7 +743,7 @@ static const word32 Td[5][256] = {
 #endif /* _MSC_VER */
 
             
-static int Check_CPU_support_AES()
+static int Check_CPU_support_AES(void)
 {
     unsigned int a,b,c,d;
     cpuid(1,a,b,c,d);
@@ -865,6 +865,9 @@ static int AesSetKeyLocal(Aes* aes, const byte* userKey, word32 keylen,
     word32 temp, *rk = aes->key;
     unsigned int i = 0;
 
+    #ifdef CYASSL_AESNI
+        aes->use_aesni = 0;
+    #endif /* CYASSL_AESNI */
     aes->rounds = keylen/4 + 6;
 
     XMEMCPY(rk, userKey, keylen);
@@ -1003,6 +1006,7 @@ int AesSetKey(Aes* aes, const byte* userKey, word32 keylen, const byte* iv,
         checkAESNI = 1;
     }
     if (haveAESNI) {
+        aes->use_aesni = 1;
         if (iv)
             XMEMCPY(aes->reg, iv, AES_BLOCK_SIZE);
         if (dir == AES_ENCRYPTION)
@@ -1028,7 +1032,7 @@ static void AesEncrypt(Aes* aes, const byte* inBlock, byte* outBlock)
         return;  /* stop instead of segfaulting, set up your keys! */
     }
 #ifdef CYASSL_AESNI
-    if (haveAESNI) {
+    if (aes->use_aesni) {
         CYASSL_MSG("AesEncrypt encountered aesni keysetup, don't use direct");
         return;  /* just stop now */
     } 
@@ -1173,7 +1177,7 @@ static void AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
         return;  /* stop instead of segfaulting, set up your keys! */
     }
 #ifdef CYASSL_AESNI
-    if (haveAESNI) {
+    if (aes->use_aesni) {
         CYASSL_MSG("AesEncrypt encountered aesni keysetup, don't use direct");
         return;  /* just stop now */
     } 
