@@ -28,10 +28,6 @@
 
 #include "examples/client/client.h"
 
-/*
-#define TEST_RESUME 
-*/
-
 
 #ifdef CYASSL_CALLBACKS
     int handShakeCB(HandShakeInfo*);
@@ -39,53 +35,51 @@
     Timeval timeout;
 #endif
 
-#if defined(NON_BLOCKING) || defined(CYASSL_CALLBACKS)
-    static void NonBlockingSSL_Connect(CYASSL* ssl)
-    {
+static void NonBlockingSSL_Connect(CYASSL* ssl)
+{
 #ifndef CYASSL_CALLBACKS
-        int ret = CyaSSL_connect(ssl);
+    int ret = CyaSSL_connect(ssl);
 #else
-        int ret = CyaSSL_connect_ex(ssl, handShakeCB, timeoutCB, timeout);
+    int ret = CyaSSL_connect_ex(ssl, handShakeCB, timeoutCB, timeout);
 #endif
-        int error = CyaSSL_get_error(ssl, 0);
-        SOCKET_T sockfd = (SOCKET_T)CyaSSL_get_fd(ssl);
-        int select_ret;
+    int error = CyaSSL_get_error(ssl, 0);
+    SOCKET_T sockfd = (SOCKET_T)CyaSSL_get_fd(ssl);
+    int select_ret;
 
-        while (ret != SSL_SUCCESS && (error == SSL_ERROR_WANT_READ ||
-                                      error == SSL_ERROR_WANT_WRITE)) {
-            if (error == SSL_ERROR_WANT_READ)
-                printf("... client would read block\n");
-            else
-                printf("... client would write block\n");
+    while (ret != SSL_SUCCESS && (error == SSL_ERROR_WANT_READ ||
+                                  error == SSL_ERROR_WANT_WRITE)) {
+        if (error == SSL_ERROR_WANT_READ)
+            printf("... client would read block\n");
+        else
+            printf("... client would write block\n");
 
-            if (CyaSSL_dtls(ssl))
-                select_ret = tcp_select(sockfd,
-                                        CyaSSL_dtls_get_current_timeout(ssl));
-            else
-                select_ret = tcp_select(sockfd, 1);
+        if (CyaSSL_dtls(ssl))
+            select_ret = tcp_select(sockfd,
+                                    CyaSSL_dtls_get_current_timeout(ssl));
+        else
+            select_ret = tcp_select(sockfd, 1);
 
-            if ((select_ret == TEST_RECV_READY) ||
-                                            (select_ret == TEST_ERROR_READY)) {
-                #ifndef CYASSL_CALLBACKS
-                        ret = CyaSSL_connect(ssl);
-                #else
-                    ret = CyaSSL_connect_ex(ssl,handShakeCB,timeoutCB,timeout);
-                #endif
-                error = CyaSSL_get_error(ssl, 0);
-            }
-            else if (select_ret == TEST_TIMEOUT &&
-                        (!CyaSSL_dtls(ssl) ||
-                        (CyaSSL_dtls_got_timeout(ssl) >= 0))) {
-                error = SSL_ERROR_WANT_READ;
-            }
-            else {
-                error = SSL_FATAL_ERROR;
-            }
+        if ((select_ret == TEST_RECV_READY) ||
+                                        (select_ret == TEST_ERROR_READY)) {
+            #ifndef CYASSL_CALLBACKS
+                    ret = CyaSSL_connect(ssl);
+            #else
+                ret = CyaSSL_connect_ex(ssl,handShakeCB,timeoutCB,timeout);
+            #endif
+            error = CyaSSL_get_error(ssl, 0);
         }
-        if (ret != SSL_SUCCESS)
-            err_sys("SSL_connect failed");
+        else if (select_ret == TEST_TIMEOUT &&
+                    (!CyaSSL_dtls(ssl) ||
+                    (CyaSSL_dtls_got_timeout(ssl) >= 0))) {
+            error = SSL_ERROR_WANT_READ;
+        }
+        else {
+            error = SSL_FATAL_ERROR;
+        }
     }
-#endif
+    if (ret != SSL_SUCCESS)
+        err_sys("SSL_connect failed");
+}
 
 
 static void Usage(void)
@@ -107,6 +101,8 @@ static void Usage(void)
     printf("-g          Send server HTTP GET\n");
     printf("-u          Use UDP DTLS\n");
     printf("-m          Match domain name in cert\n");
+    printf("-n          Use non-blocking sockets\n");
+    printf("-r          Resume session\n");
 }
 
 
@@ -118,12 +114,10 @@ void client_test(void* args)
     CYASSL_CTX*     ctx     = 0;
     CYASSL*         ssl     = 0;
     
-#ifdef TEST_RESUME
     CYASSL*         sslResume = 0;
     CYASSL_SESSION* session = 0;
     char         resumeMsg[] = "resuming cyassl!";
     int          resumeSz    = sizeof(resumeMsg);
-#endif
 
     char msg[64] = "hello cyassl!";
     char reply[1024];
@@ -142,6 +136,8 @@ void client_test(void* args)
     int    doDTLS    = 0;
     int    matchName = 0;
     int    doPeerCheck = 1;
+    int    nonBlocking = 0;
+    int    resumeSession = 0;
     char*  cipherList = NULL;
     char*  verifyCert = (char*)caCert;
     char*  ourCert    = (char*)cliCert;
@@ -152,7 +148,7 @@ void client_test(void* args)
 
     ((func_args*)args)->return_code = -1; /* error state */
 
-    while ((ch = mygetopt(argc, argv, "?gdusmh:p:v:l:A:c:k:b:")) != -1) {
+    while ((ch = mygetopt(argc, argv, "?gdusmNrh:p:v:l:A:c:k:b:")) != -1) {
         switch (ch) {
             case '?' :
                 Usage();
@@ -220,6 +216,14 @@ void client_test(void* args)
                     Usage();
                     exit(MY_EX_USAGE);
                 }
+                break;
+
+            case 'N' :
+                nonBlocking = 1;
+                break;
+
+            case 'r' :
+                resumeSession = 1;
                 break;
 
             default:
@@ -363,23 +367,25 @@ void client_test(void* args)
 #endif
     if (matchName && doPeerCheck)
         CyaSSL_check_domain_name(ssl, domain);
-#ifdef NON_BLOCKING
-    CyaSSL_set_using_nonblock(ssl, 1);
-    tcp_set_nonblocking(&sockfd);
-    NonBlockingSSL_Connect(ssl);
+#ifndef CYASSL_CALLBACKS
+    if (nonBlocking) {
+        CyaSSL_set_using_nonblock(ssl, 1);
+        tcp_set_nonblocking(&sockfd);
+        NonBlockingSSL_Connect(ssl);
+    }
+    else if (CyaSSL_connect(ssl) != SSL_SUCCESS) {
+        /* see note at top of README */
+        int  err = CyaSSL_get_error(ssl, 0);
+        char buffer[80];
+        printf("err = %d, %s\n", err,
+                                CyaSSL_ERR_error_string(err, buffer));
+        err_sys("SSL_connect failed");
+        /* if you're getting an error here  */
+    }
 #else
-    #ifndef CYASSL_CALLBACKS
-        if (CyaSSL_connect(ssl) != SSL_SUCCESS) {/* see note at top of README */
-            int  err = CyaSSL_get_error(ssl, 0);
-            char buffer[80];
-            printf("err = %d, %s\n", err, CyaSSL_ERR_error_string(err, buffer));
-            err_sys("SSL_connect failed");/* if you're getting an error here  */
-        }
-    #else
-        timeout.tv_sec  = 2;
-        timeout.tv_usec = 0;
-        NonBlockingSSL_Connect(ssl);  /* will keep retrying on timeout */
-    #endif
+    timeout.tv_sec  = 2;
+    timeout.tv_usec = 0;
+    NonBlockingSSL_Connect(ssl);  /* will keep retrying on timeout */
 #endif
     showPeer(ssl);
 
@@ -408,88 +414,87 @@ void client_test(void* args)
             }
         }
     }
-  
-#ifdef TEST_RESUME
-    if (doDTLS) {
-        strncpy(msg, "break", 6);
-        msgSz = (int)strlen(msg);
-        /* try to send session close */
-        CyaSSL_write(ssl, msg, msgSz);
+
+    if (resumeSession) {
+        if (doDTLS) {
+            strncpy(msg, "break", 6);
+            msgSz = (int)strlen(msg);
+            /* try to send session close */
+            CyaSSL_write(ssl, msg, msgSz);
+        }
+        session   = CyaSSL_get_session(ssl);
+        sslResume = CyaSSL_new(ctx);
     }
-    session   = CyaSSL_get_session(ssl);
-    sslResume = CyaSSL_new(ctx);
-#endif
 
     if (doDTLS == 0)            /* don't send alert after "break" command */
         CyaSSL_shutdown(ssl);  /* echoserver will interpret as new conn */
     CyaSSL_free(ssl);
     CloseSocket(sockfd);
 
-#ifdef TEST_RESUME
-    if (doDTLS) {
-        SOCKADDR_IN_T addr;
-        #ifdef USE_WINDOWS_API 
-            Sleep(500);
-        #else
-            sleep(1);
-        #endif
-        build_addr(&addr, host, port);
-        CyaSSL_dtls_set_peer(sslResume, &addr, sizeof(addr));
-        tcp_socket(&sockfd, 1);
-    }
-    else {
-        tcp_connect(&sockfd, host, port, 0);
-    }
-    CyaSSL_set_fd(sslResume, sockfd);
-    CyaSSL_set_session(sslResume, session);
-   
-    showPeer(sslResume);
-#ifdef NON_BLOCKING
-    CyaSSL_set_using_nonblock(sslResume, 1);
-    tcp_set_nonblocking(&sockfd);
-    NonBlockingSSL_Connect(sslResume);
-#else
-    #ifndef CYASSL_CALLBACKS
-        if (CyaSSL_connect(sslResume) != SSL_SUCCESS)
+    if (resumeSession) {
+        if (doDTLS) {
+            SOCKADDR_IN_T addr;
+            #ifdef USE_WINDOWS_API 
+                Sleep(500);
+            #else
+                sleep(1);
+            #endif
+            build_addr(&addr, host, port);
+            CyaSSL_dtls_set_peer(sslResume, &addr, sizeof(addr));
+            tcp_socket(&sockfd, 1);
+        }
+        else {
+            tcp_connect(&sockfd, host, port, 0);
+        }
+        CyaSSL_set_fd(sslResume, sockfd);
+        CyaSSL_set_session(sslResume, session);
+       
+        showPeer(sslResume);
+#ifndef CYASSL_CALLBACKS
+        if (nonBlocking) {
+            CyaSSL_set_using_nonblock(sslResume, 1);
+            tcp_set_nonblocking(&sockfd);
+            NonBlockingSSL_Connect(sslResume);
+        }
+        else if (CyaSSL_connect(sslResume) != SSL_SUCCESS)
             err_sys("SSL resume failed");
-    #else
+#else
         timeout.tv_sec  = 2;
         timeout.tv_usec = 0;
         NonBlockingSSL_Connect(ssl);  /* will keep retrying on timeout */
-    #endif
 #endif
 
 #ifdef OPENSSL_EXTRA
-    if (CyaSSL_session_reused(sslResume))
-        printf("reused session id\n");
-    else
-        printf("didn't reuse session id!!!\n");
+        if (CyaSSL_session_reused(sslResume))
+            printf("reused session id\n");
+        else
+            printf("didn't reuse session id!!!\n");
 #endif
-  
-    if (CyaSSL_write(sslResume, resumeMsg, resumeSz) != resumeSz)
-        err_sys("SSL_write failed");
+      
+        if (CyaSSL_write(sslResume, resumeMsg, resumeSz) != resumeSz)
+            err_sys("SSL_write failed");
 
-#ifdef NON_BLOCKING
-    /* need to give server a chance to bounce a message back to client */
-    #ifdef USE_WINDOWS_API
-        Sleep(500);
-    #else
-        sleep(1);
-    #endif
-#endif
+        if (nonBlocking) {
+            /* need to give server a chance to bounce a message back to client */
+            #ifdef USE_WINDOWS_API
+                Sleep(500);
+            #else
+                sleep(1);
+            #endif
+        }
 
-    input = CyaSSL_read(sslResume, reply, sizeof(reply));
-    if (input > 0) {
-        reply[input] = 0;
-        printf("Server resume response: %s\n", reply);
+        input = CyaSSL_read(sslResume, reply, sizeof(reply));
+        if (input > 0) {
+            reply[input] = 0;
+            printf("Server resume response: %s\n", reply);
+        }
+
+        /* try to send session break */
+        CyaSSL_write(sslResume, msg, msgSz); 
+
+        CyaSSL_shutdown(sslResume);
+        CyaSSL_free(sslResume);
     }
-
-    /* try to send session break */
-    CyaSSL_write(sslResume, msg, msgSz); 
-
-    CyaSSL_shutdown(sslResume);
-    CyaSSL_free(sslResume);
-#endif /* TEST_RESUME */
 
     CyaSSL_CTX_free(ctx);
     CloseSocket(sockfd);
