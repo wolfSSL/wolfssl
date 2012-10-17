@@ -101,7 +101,7 @@ static void Usage(void)
     printf("-g          Send server HTTP GET\n");
     printf("-u          Use UDP DTLS\n");
     printf("-m          Match domain name in cert\n");
-    printf("-n          Use non-blocking sockets\n");
+    printf("-N          Use Non-blocking sockets\n");
     printf("-r          Resume session\n");
 }
 

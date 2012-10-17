@@ -96,7 +96,7 @@ static void Usage(void)
     printf("-b          Bind to any interface instead of localhost only\n");
     printf("-s          Use pre Shared keys\n");
     printf("-u          Use UDP DTLS\n");
-    printf("-N          Use non-blocking sockets\n");
+    printf("-N          Use Non-blocking sockets\n");
 }
 
 
