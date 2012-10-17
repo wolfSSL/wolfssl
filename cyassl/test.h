@@ -30,9 +30,7 @@
     #include <sys/types.h>
     #include <sys/socket.h>
     #include <pthread.h>
-    #ifdef NON_BLOCKING
-        #include <fcntl.h>
-    #endif
+    #include <fcntl.h>
     #ifdef TEST_IPV6
         #include <netdb.h>
     #endif
@@ -549,7 +547,6 @@ static INLINE void tcp_accept(SOCKET_T* sockfd, int* clientfd, func_args* args,
 
 static INLINE void tcp_set_nonblocking(SOCKET_T* sockfd)
 {
-#ifdef NON_BLOCKING
     #ifdef USE_WINDOWS_API 
         unsigned long blocking = 1;
         int ret = ioctlsocket(*sockfd, FIONBIO, &blocking);
@@ -557,8 +554,6 @@ static INLINE void tcp_set_nonblocking(SOCKET_T* sockfd)
         int flags = fcntl(*sockfd, F_GETFL, 0);
         fcntl(*sockfd, F_SETFL, flags | O_NONBLOCK);
     #endif
-#endif
-    (void)sockfd;
 }
 
 

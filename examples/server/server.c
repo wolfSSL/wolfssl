@@ -35,51 +35,49 @@
     Timeval srvTo;
 #endif
 
-#if defined(NON_BLOCKING) || defined(CYASSL_CALLBACKS)
-    static void NonBlockingSSL_Accept(SSL* ssl)
-    {
-    #ifndef CYASSL_CALLBACKS
-        int ret = SSL_accept(ssl);
-    #else
-        int ret = CyaSSL_accept_ex(ssl, srvHandShakeCB, srvTimeoutCB, srvTo);
-    #endif
-        int error = SSL_get_error(ssl, 0);
-        SOCKET_T sockfd = (SOCKET_T)CyaSSL_get_fd(ssl);
-        int select_ret;
-
-        while (ret != SSL_SUCCESS && (error == SSL_ERROR_WANT_READ ||
-                                      error == SSL_ERROR_WANT_WRITE)) {
-            printf("... server would block\n");
-
-            if (CyaSSL_dtls(ssl))
-                select_ret = tcp_select(sockfd,
-                                        CyaSSL_dtls_get_current_timeout(ssl));
-            else
-                select_ret = tcp_select(sockfd, 1);
-
-            if ((select_ret == TEST_RECV_READY) ||
-                                            (select_ret == TEST_ERROR_READY)) {
-                #ifndef CYASSL_CALLBACKS
-                    ret = SSL_accept(ssl);
-                #else
-                    ret = CyaSSL_accept_ex(ssl,
-                                        srvHandShakeCB, srvTimeoutCB, srvTo);
-                #endif
-                error = SSL_get_error(ssl, 0);
-            }
-            else if (select_ret == TEST_TIMEOUT &&
-                        (!CyaSSL_dtls(ssl) ||
-                        (CyaSSL_dtls_got_timeout(ssl) >= 0))) {
-                error = SSL_ERROR_WANT_READ;
-            }
-            else {
-                error = SSL_FATAL_ERROR;
-            }
-        }
-        if (ret != SSL_SUCCESS)
-            err_sys("SSL_accept failed");
-    }
+static void NonBlockingSSL_Accept(SSL* ssl)
+{
+#ifndef CYASSL_CALLBACKS
+    int ret = SSL_accept(ssl);
+#else
+    int ret = CyaSSL_accept_ex(ssl, srvHandShakeCB, srvTimeoutCB, srvTo);
 #endif
+    int error = SSL_get_error(ssl, 0);
+    SOCKET_T sockfd = (SOCKET_T)CyaSSL_get_fd(ssl);
+    int select_ret;
+
+    while (ret != SSL_SUCCESS && (error == SSL_ERROR_WANT_READ ||
+                                  error == SSL_ERROR_WANT_WRITE)) {
+        printf("... server would block\n");
+
+        if (CyaSSL_dtls(ssl))
+            select_ret = tcp_select(sockfd,
+                                    CyaSSL_dtls_get_current_timeout(ssl));
+        else
+            select_ret = tcp_select(sockfd, 1);
+
+        if ((select_ret == TEST_RECV_READY) ||
+                                        (select_ret == TEST_ERROR_READY)) {
+            #ifndef CYASSL_CALLBACKS
+                ret = SSL_accept(ssl);
+            #else
+                ret = CyaSSL_accept_ex(ssl,
+                                    srvHandShakeCB, srvTimeoutCB, srvTo);
+            #endif
+            error = SSL_get_error(ssl, 0);
+        }
+        else if (select_ret == TEST_TIMEOUT &&
+                    (!CyaSSL_dtls(ssl) ||
+                    (CyaSSL_dtls_got_timeout(ssl) >= 0))) {
+            error = SSL_ERROR_WANT_READ;
+        }
+        else {
+            error = SSL_FATAL_ERROR;
+        }
+    }
+    if (ret != SSL_SUCCESS)
+        err_sys("SSL_accept failed");
+}
 
 
 static void Usage(void)
@@ -98,6 +96,7 @@ static void Usage(void)
     printf("-b          Bind to any interface instead of localhost only\n");
     printf("-s          Use pre Shared keys\n");
     printf("-u          Use UDP DTLS\n");
+    printf("-N          Use non-blocking sockets\n");
 }
 
 
@@ -121,6 +120,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     int    usePsk = 0;
     int    doDTLS = 0;
     int    useNtruKey = 0;
+    int    nonBlocking = 0;
     char*  cipherList = NULL;
     char*  verifyCert = (char*)cliCert;
     char*  ourCert    = (char*)svrCert;
@@ -130,7 +130,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 
     ((func_args*)args)->return_code = -1; /* error state */
 
-    while ((ch = mygetopt(argc, argv, "?dbsnup:v:l:A:c:k:")) != -1) {
+    while ((ch = mygetopt(argc, argv, "?dbsnNup:v:l:A:c:k:")) != -1) {
         switch (ch) {
             case '?' :
                 Usage();
@@ -185,6 +185,10 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 
             case 'k' :
                 ourKey = myoptarg;
+                break;
+
+            case 'N':
+                nonBlocking = 1;
                 break;
 
             default:
@@ -310,21 +314,19 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     #endif
 #endif
 
-#ifdef NON_BLOCKING
-    CyaSSL_set_using_nonblock(ssl, 1);
-    tcp_set_nonblocking(&clientfd);
-    NonBlockingSSL_Accept(ssl);
-#else
-    #ifndef CYASSL_CALLBACKS
-        if (SSL_accept(ssl) != SSL_SUCCESS) {
-            int err = SSL_get_error(ssl, 0);
-            char buffer[80];
-            printf("error = %d, %s\n", err, ERR_error_string(err, buffer));
-            err_sys("SSL_accept failed");
-        }
-    #else
+#ifndef CYASSL_CALLBACKS
+    if (nonBlocking) {
+        CyaSSL_set_using_nonblock(ssl, 1);
+        tcp_set_nonblocking(&clientfd);
         NonBlockingSSL_Accept(ssl);
-    #endif
+    } else if (SSL_accept(ssl) != SSL_SUCCESS) {
+        int err = SSL_get_error(ssl, 0);
+        char buffer[80];
+        printf("error = %d, %s\n", err, ERR_error_string(err, buffer));
+        err_sys("SSL_accept failed");
+    }
+#else
+    NonBlockingSSL_Accept(ssl);
 #endif
     showPeer(ssl);
 
