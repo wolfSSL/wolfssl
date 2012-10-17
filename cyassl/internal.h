@@ -342,6 +342,7 @@ enum Misc {
     TLSv1_MINOR     = 1,        /* TLSv1   minor version number */
     TLSv1_1_MINOR   = 2,        /* TLSv1_1 minor version number */
     TLSv1_2_MINOR   = 3,        /* TLSv1_2 minor version number */
+    INVALID_BYTE    = 0xff,     /* Used to initialize cipher specs values */
     NO_COMPRESSION  =  0,
     ZLIB_COMPRESSION = 221,     /* CyaSSL zlib compression */
     HELLO_EXT_SIG_ALGO = 13,    /* ID for the sig_algo hello extension */

@@ -320,7 +320,7 @@ int EmbedReceiveFrom(CYASSL *ssl, char *buf, int sz, void *ctx)
     else {
         if (dtlsCtx != NULL
                 && dtlsCtx->peer.sz > 0
-                && peerSz != dtlsCtx->peer.sz
+                && peerSz != (XSOCKLENT)dtlsCtx->peer.sz
                 && memcmp(&peer, dtlsCtx->peer.sa, peerSz) != 0) {
             CYASSL_MSG("    Ignored packet from invalid peer");
             return IO_ERR_WANT_READ;
