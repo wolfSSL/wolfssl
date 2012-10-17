@@ -221,7 +221,8 @@ enum {
     DYNAMIC_TYPE_RNG          = 32,
     DYNAMIC_TYPE_ARRAYS       = 33,
     DYNAMIC_TYPE_DTLS_POOL    = 34,
-    DYNAMIC_TYPE_SOCKADDR     = 35
+    DYNAMIC_TYPE_SOCKADDR     = 35,
+    DYNAMIC_TYPE_LIBZ         = 36
 };
 
 /* stack protection */

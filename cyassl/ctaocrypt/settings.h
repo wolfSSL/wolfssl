@@ -150,6 +150,7 @@
 #endif
 
 #ifdef CYASSL_LSR
+    #define HAVE_WEBSERVER
     #define SIZEOF_LONG_LONG 8
     #define CYASSL_LOW_MEMORY
     #define NO_WRITEV
