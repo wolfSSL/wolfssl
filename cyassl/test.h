@@ -568,6 +568,10 @@ static INLINE unsigned int my_psk_client_cb(CYASSL* ssl, const char* hint,
         char* identity, unsigned int id_max_len, unsigned char* key,
         unsigned int key_max_len)
 {
+    (void)ssl;
+    (void)hint;
+    (void)key_max_len;
+
     /* identity is OpenSSL testing default for openssl s_client, keep same */
     strncpy(identity, "Client_identity", id_max_len);
 
@@ -586,6 +590,9 @@ static INLINE unsigned int my_psk_client_cb(CYASSL* ssl, const char* hint,
 static INLINE unsigned int my_psk_server_cb(CYASSL* ssl, const char* identity,
         unsigned char* key, unsigned int key_max_len)
 {
+    (void)ssl;
+    (void)key_max_len;
+
     /* identity is OpenSSL testing default for openssl s_client, keep same */
     if (strncmp(identity, "Client_identity", 15) != 0)
         return 0;
