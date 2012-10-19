@@ -81,7 +81,7 @@ static const word32 K[64] = {
 #define Ch(x,y,z)       (z ^ (x & (y ^ z)))
 #define Maj(x,y,z)      (((x | y) & z) | (x & y))
 #define S(x, n)         rotrFixed(x, n)
-#define R(x, n)         (((x)&0xFFFFFFFFL)>>(n))
+#define R(x, n)         (((x)&0xFFFFFFFFU)>>(n))
 #define Sigma0(x)       (S(x, 2) ^ S(x, 13) ^ S(x, 22))
 #define Sigma1(x)       (S(x, 6) ^ S(x, 11) ^ S(x, 25))
 #define Gamma0(x)       (S(x, 7) ^ S(x, 18) ^ R(x, 3))

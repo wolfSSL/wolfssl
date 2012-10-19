@@ -1486,7 +1486,7 @@ ProtocolVersion MakeDTLSv1(void)
 
     word32 LowResTimer(void)
     {
-        return time(0); 
+        return (word32)time(0); 
     }
 
 
@@ -4843,7 +4843,7 @@ int SetCipherList(Suites* s, const char* list)
         haystack = XSTRSTR(haystack, needle);
 
         if (!haystack)    /* last cipher */
-            len = min(sizeof(name), XSTRLEN(prev));
+            len = min(sizeof(name), (word32)XSTRLEN(prev));
         else
             len = min(sizeof(name), (word32)(haystack - prev));
 
@@ -5034,7 +5034,7 @@ int SetCipherList(Suites* s, const char* list)
             return SUITES_ERROR;
         } 
 
-        length = sizeof(ProtocolVersion) + RAN_LEN
+        length = (word32)sizeof(ProtocolVersion) + RAN_LEN
                + idSz + ENUM_LEN                      
                + ssl->suites->suiteSz + SUITE_LEN
                + COMP_LEN + ENUM_LEN;
@@ -5065,7 +5065,7 @@ int SetCipherList(Suites* s, const char* list)
 
             /* client hello, first version */
         XMEMCPY(output + idx, &ssl->version, sizeof(ProtocolVersion));
-        idx += sizeof(ProtocolVersion);
+        idx += (int)sizeof(ProtocolVersion);
         ssl->chVersion = ssl->version;  /* store in case changed */
 
             /* then random */
@@ -5176,7 +5176,7 @@ int SetCipherList(Suites* s, const char* list)
         }
 #endif
         XMEMCPY(&pv, input + *inOutIdx, sizeof(pv));
-        *inOutIdx += sizeof(pv);
+        *inOutIdx += (word32)sizeof(pv);
         
         cookieSz = input[(*inOutIdx)++];
         
@@ -5209,7 +5209,7 @@ int SetCipherList(Suites* s, const char* list)
         if (ssl->toInfoOn) AddLateName("ServerHello", &ssl->timeoutInfo);
 #endif
         XMEMCPY(&pv, input + i, sizeof(pv));
-        i += sizeof(pv);
+        i += (word32)sizeof(pv);
         if (pv.minor > ssl->version.minor) {
             CYASSL_MSG("Server using higher version, fatal error");
             return VERSION_ERROR;
@@ -5958,7 +5958,7 @@ int SetCipherList(Suites* s, const char* list)
         /* now write to output */
             /* first version */
         XMEMCPY(output + idx, &ssl->version, sizeof(ProtocolVersion));
-        idx += sizeof(ProtocolVersion);
+        idx += (word32)sizeof(ProtocolVersion);
 
             /* then random */
         if (!ssl->options.resuming)         
@@ -7079,7 +7079,7 @@ int SetCipherList(Suites* s, const char* list)
 
         XMEMCPY(&pv, input + i, sizeof(pv));
         ssl->chVersion = pv;   /* store */
-        i += sizeof(pv);
+        i += (word32)sizeof(pv);
         if (ssl->version.minor > pv.minor) {
             byte havePSK = 0;
             if (!ssl->options.downgrade) {

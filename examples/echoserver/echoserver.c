@@ -223,11 +223,11 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
                 echoSz = sizeof(type) - 1;
 
                 strncpy(&command[echoSz], header, sizeof(header));
-                echoSz += sizeof(header) - 1;
+                echoSz += (int)sizeof(header) - 1;
                 strncpy(&command[echoSz], body, sizeof(body));
-                echoSz += sizeof(body) - 1;
+                echoSz += (int)sizeof(body) - 1;
                 strncpy(&command[echoSz], footer, sizeof(footer));
-                echoSz += sizeof(footer);
+                echoSz += (int)sizeof(footer);
 
                 if (CyaSSL_write(ssl, command, echoSz) != echoSz)
                     err_sys("SSL_write failed");

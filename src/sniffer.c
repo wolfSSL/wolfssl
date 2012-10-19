@@ -513,7 +513,7 @@ static int SetPassword(char* passwd, int sz, int rw, void* userdata)
 {
     (void)rw;
     XSTRNCPY(passwd, userdata, sz);
-    return XSTRLEN(userdata);
+    return (int)XSTRLEN(userdata);
 }
 
 
@@ -1150,7 +1150,7 @@ static int ProcessServerHello(const byte* input, int* sslBytes,
     
     XMEMCPY(&pv, input, sizeof(ProtocolVersion));
     input     += sizeof(ProtocolVersion);
-    *sslBytes -= sizeof(ProtocolVersion);
+    *sslBytes -= (int)sizeof(ProtocolVersion);
            
     session->sslServer->version = pv;
     session->sslClient->version = pv;
@@ -1275,7 +1275,7 @@ static int ProcessClientHello(const byte* input, int* sslBytes,
     
     /* skip, get negotiated one from server hello */
     input     += sizeof(ProtocolVersion);
-    *sslBytes -= sizeof(ProtocolVersion);
+    *sslBytes -= (int)sizeof(ProtocolVersion);
     
     XMEMCPY(session->sslServer->arrays->clientRandom, input, RAN_LEN);
     XMEMCPY(session->sslClient->arrays->clientRandom, input, RAN_LEN);
@@ -1828,7 +1828,7 @@ static int CheckHeaders(IpInfo* ipInfo, TcpInfo* tcpInfo, const byte* packet,
         SetError(PACKET_HDR_SHORT_STR, error, NULL, 0);
         return -1;
     }
-    *sslBytes = packet + length - *sslFrame;
+    *sslBytes = (int)(packet + length - *sslFrame);
     
     return 0;
 }
@@ -2315,7 +2315,7 @@ doMessage:
     if (tmp < end) {
         Trace(ANOTHER_MSG_STR);
         sslFrame = tmp;
-        sslBytes = end - tmp;
+        sslBytes = (int)(end - tmp);
         goto doMessage;
     }
     

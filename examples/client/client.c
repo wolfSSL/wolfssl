@@ -122,7 +122,7 @@ void client_test(void* args)
     char msg[64] = "hello cyassl!";
     char reply[1024];
     int  input;
-    int  msgSz = strlen(msg);
+    int  msgSz = (int)strlen(msg);
 
     int   port   = yasslPort;
     char* host   = (char*)yasslIP;

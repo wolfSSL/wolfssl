@@ -2154,8 +2154,8 @@ int pbkdf2_test(void)
 
     };
 
-    PBKDF2(derived, (byte*)passwd, strlen(passwd), salt, 8, iterations, kLen,
-           SHA);
+    PBKDF2(derived, (byte*)passwd, (int)strlen(passwd), salt, 8, iterations,
+           kLen, SHA);
 
     if (memcmp(derived, verify, sizeof(verify)) != 0)
         return -102;
@@ -2177,8 +2177,8 @@ int pbkdf1_test(void)
         0x4A, 0x3D, 0x2A, 0x20
     };
 
-    PBKDF1(derived, (byte*)passwd, strlen(passwd), salt, 8, iterations, kLen,
-           SHA);
+    PBKDF1(derived, (byte*)passwd, (int)strlen(passwd), salt, 8, iterations,
+           kLen, SHA);
 
     if (memcmp(derived, verify, sizeof(verify)) != 0)
         return -101;

@@ -160,7 +160,7 @@ int EmbedReceive(CYASSL *ssl, char *buf, int sz, void *ctx)
     }
 #endif
 
-    recvd = RECV_FUNCTION(sd, (char *)buf, sz, 0);
+    recvd = (int)RECV_FUNCTION(sd, (char *)buf, sz, 0);
 
     if (recvd < 0) {
         err = LastError();
@@ -213,7 +213,7 @@ int EmbedSend(CYASSL* ssl, char *buf, int sz, void *ctx)
 
     (void)ssl;
 
-    sent = SEND_FUNCTION(sd, &buf[sz - len], len, 0);
+    sent = (int)SEND_FUNCTION(sd, &buf[sz - len], len, 0);
 
     if (sent < 0) {
         err = LastError();
@@ -283,8 +283,8 @@ int EmbedReceiveFrom(CYASSL *ssl, char *buf, int sz, void *ctx)
                                             (char*)&timeout, sizeof(timeout));
     }
 
-    recvd = RECVFROM_FUNCTION(sd, (char *)buf, sz, 0,
-                                            (struct sockaddr*)&peer, &peerSz);
+    recvd = (int)RECVFROM_FUNCTION(sd, (char *)buf, sz, 0,
+                                  (struct sockaddr*)&peer, &peerSz);
 
     if (recvd < 0) {
         err = LastError();
@@ -345,8 +345,8 @@ int EmbedSendTo(CYASSL* ssl, char *buf, int sz, void *ctx)
     (void)ssl;
 
     CYASSL_ENTER("EmbedSendTo()");
-    sent = SENDTO_FUNCTION(sd, &buf[sz - len], len, 0,
-                                            dtlsCtx->peer.sa, dtlsCtx->peer.sz);
+    sent = (int)SENDTO_FUNCTION(sd, &buf[sz - len], len, 0,
+                                dtlsCtx->peer.sa, dtlsCtx->peer.sz);
 
     if (sent < 0) {
         err = LastError();

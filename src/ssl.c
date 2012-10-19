@@ -84,7 +84,7 @@
 
 char* mystrnstr(const char* s1, const char* s2, unsigned int n)
 {
-    unsigned int s2_len = XSTRLEN(s2);
+    unsigned int s2_len = (unsigned int)XSTRLEN(s2);
 
     if (s2_len == 0)
         return (char*)s1;
@@ -466,7 +466,7 @@ char* CyaSSL_ERR_error_string(unsigned long errNumber, char* data)
 
     CYASSL_ENTER("ERR_error_string");
     if (data) {
-        SetErrorString(errNumber, data);
+        SetErrorString((int)errNumber, data);
         return data;
     }
 
@@ -820,7 +820,7 @@ int AddCA(CYASSL_CERT_MANAGER* cm, buffer der, int type, int verify)
 
     /* Remove PEM header/footer, convert to ASN1, store any encrypted data 
        info->consumed tracks of PEM bytes consumed in case multiple parts */
-    int PemToDer(const unsigned char* buff, long sz, int type,
+    int PemToDer(const unsigned char* buff, long longSz, int type,
                       buffer* der, void* heap, EncryptedInfo* info, int* eccKey)
     {
         char  header[PEM_LINE_LEN];
@@ -832,6 +832,7 @@ int AddCA(CYASSL_CERT_MANAGER* cm, buffer der, int type, int verify)
         int   pkcs8    = 0;
         int   pkcs8Enc = 0;
         int   dynamicType = 0;
+        int   sz = (int)longSz;
 
         (void)heap;
         (void)dynamicType;
@@ -971,9 +972,9 @@ int AddCA(CYASSL_CERT_MANAGER* cm, buffer der, int type, int verify)
         if (neededSz > sz || neededSz < 0) return SSL_BAD_FILE;
         der->buffer = (byte*) XMALLOC(neededSz, heap, dynamicType);
         if (!der->buffer) return MEMORY_ERROR;
-        der->length = neededSz;
+        der->length = (word32)neededSz;
 
-        if (Base64_Decode((byte*)headerEnd, neededSz, der->buffer,
+        if (Base64_Decode((byte*)headerEnd, (word32)neededSz, der->buffer,
                           &der->length) < 0)
             return SSL_BAD_FILE;
 
@@ -1051,7 +1052,8 @@ int AddCA(CYASSL_CERT_MANAGER* cm, buffer der, int type, int verify)
 
                 if ( (sz - consumed) > (int)bufferSz) {
                     CYASSL_MSG("Growing Tmp Chain Buffer");
-                    bufferSz = sz - consumed;  /* will shrink to actual size */
+                    bufferSz = (word32)(sz - consumed);
+                               /* will shrink to actual size */
                     chainBuffer = (byte*)XMALLOC(bufferSz, ctx->heap,
                                                  DYNAMIC_TYPE_FILE);
                     if (chainBuffer == NULL) {
@@ -1120,7 +1122,7 @@ int AddCA(CYASSL_CERT_MANAGER* cm, buffer der, int type, int verify)
             der.buffer = (byte*) XMALLOC(sz, ctx->heap, dynamicType);
             if (!der.buffer) return MEMORY_ERROR;
             XMEMCPY(der.buffer, buff, sz);
-            der.length = sz;
+            der.length = (word32)sz;
         }
 
 #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
@@ -1400,7 +1402,7 @@ int ProcessFile(CYASSL_CTX* ctx, const char* fname, int format, int type,
         dynamic = 1;
     }
 
-    if ( (ret = XFREAD(myBuffer, sz, 1, file)) < 0)
+    if ( (ret = (int)XFREAD(myBuffer, sz, 1, file)) < 0)
         ret = SSL_BAD_FILE;
     else {
         if (type == CA_TYPE && format == SSL_FILETYPE_PEM) 
@@ -1563,10 +1565,10 @@ int CyaSSL_CertManagerVerify(CYASSL_CERT_MANAGER* cm, const char* fname,
         dynamic = 1;
     }
 
-    if ( (ret = XFREAD(myBuffer, sz, 1, file)) < 0)
+    if ( (ret = (int)XFREAD(myBuffer, sz, 1, file)) < 0)
         ret = SSL_BAD_FILE;
     else 
-        ret = CyaSSL_CertManagerVerifyBuffer(cm, myBuffer, sz, format);
+        ret = CyaSSL_CertManagerVerifyBuffer(cm, myBuffer, (int)sz, format);
 
     XFCLOSE(file);
     if (dynamic) XFREE(myBuffer, cm->heap, DYNAMIC_TYPE_FILE);
@@ -1982,7 +1984,7 @@ static int CyaSSL_SetTmpDH_buffer_wrapper(CYASSL_CTX* ctx, CYASSL* ssl,
     word32 gSz = sizeof(g);
 
     der.buffer = (byte*)buf;
-    der.length = sz;
+    der.length = (word32)sz;
 
     if (format != SSL_FILETYPE_ASN1 && format != SSL_FILETYPE_PEM)
         return SSL_BAD_FILETYPE;
@@ -2084,7 +2086,7 @@ static int CyaSSL_SetTmpDH_file_wrapper(CYASSL_CTX* ctx, CYASSL* ssl,
         dynamic = 1;
     }
 
-    if ( (ret = XFREAD(myBuffer, sz, 1, file)) < 0)
+    if ( (ret = (int)XFREAD(myBuffer, sz, 1, file)) < 0)
         ret = SSL_BAD_FILE;
     else {
         if (ssl)
@@ -3133,7 +3135,7 @@ int CyaSSL_set_compression(CYASSL* ssl)
             CYASSL_ENTER("CyaSSL_writev");
 
             for (i = 0; i < iovcnt; i++)
-                send += iov[i].iov_len;
+                send += (int)iov[i].iov_len;
 
             if (send > (int)sizeof(tmp)) {
                 byte* tmp2 = (byte*) XMALLOC(send, ssl->heap,
@@ -3146,7 +3148,7 @@ int CyaSSL_set_compression(CYASSL* ssl)
 
             for (i = 0; i < iovcnt; i++) {
                 XMEMCPY(&myBuffer[idx], iov[i].iov_base, iov[i].iov_len);
-                idx += iov[i].iov_len;
+                idx += (int)iov[i].iov_len;
             }
 
             ret = CyaSSL_write(ssl, myBuffer, send);
@@ -4172,7 +4174,7 @@ int CyaSSL_set_compression(CYASSL* ssl)
                            unsigned long sz)
     {
         CYASSL_ENTER("CyaSSL_MD5_Update");
-        Md5Update((Md5*)md5, (const byte*)input, sz);
+        Md5Update((Md5*)md5, (const byte*)input, (word32)sz);
     }
 
 
@@ -4197,7 +4199,7 @@ int CyaSSL_set_compression(CYASSL* ssl)
                            unsigned long sz)
     {
         CYASSL_ENTER("SHA_Update");
-        ShaUpdate((Sha*)sha, (const byte*)input, sz);
+        ShaUpdate((Sha*)sha, (const byte*)input, (word32)sz);
     }
 
 
@@ -4244,7 +4246,7 @@ int CyaSSL_set_compression(CYASSL* ssl)
                               unsigned long sz)
     {
         CYASSL_ENTER("SHA256_Update");
-        Sha256Update((Sha256*)sha, (const byte*)input, sz);
+        Sha256Update((Sha256*)sha, (const byte*)input, (word32)sz);
     }
 
 
@@ -4271,7 +4273,7 @@ int CyaSSL_set_compression(CYASSL* ssl)
                            unsigned long sz)
     {
         CYASSL_ENTER("SHA384_Update");
-        Sha384Update((Sha384*)sha, (const byte*)input, sz);
+        Sha384Update((Sha384*)sha, (const byte*)input, (word32)sz);
     }
 
 
@@ -4300,7 +4302,7 @@ int CyaSSL_set_compression(CYASSL* ssl)
                            unsigned long sz)
     {
         CYASSL_ENTER("SHA512_Update");
-        Sha512Update((Sha512*)sha, (const byte*)input, sz);
+        Sha512Update((Sha512*)sha, (const byte*)input, (word32)sz);
     }
 
 
@@ -5000,9 +5002,9 @@ int CyaSSL_set_compression(CYASSL* ssl)
         Des_SetKey(&myDes, (const byte*)schedule, (const byte*)ivec, !enc);
 
         if (enc)
-            Des_CbcEncrypt(&myDes, output, input, length);
+            Des_CbcEncrypt(&myDes, output, input, (word32)length);
         else
-            Des_CbcDecrypt(&myDes, output, input, length);
+            Des_CbcDecrypt(&myDes, output, input, (word32)length);
     }
 
 
@@ -5017,9 +5019,9 @@ int CyaSSL_set_compression(CYASSL* ssl)
         Des_SetKey(&myDes, (const byte*)schedule, (const byte*)ivec, !enc);
 
         if (enc)
-            Des_CbcEncrypt(&myDes, output, input, length);
+            Des_CbcEncrypt(&myDes, output, input, (word32)length);
         else
-            Des_CbcDecrypt(&myDes, output, input, length);
+            Des_CbcDecrypt(&myDes, output, input, (word32)length);
 
         XMEMCPY(ivec, output + length - sizeof(DES_cblock), sizeof(DES_cblock));
     }
@@ -6564,7 +6566,7 @@ static int initGlobalRNG = 0;
             return 0;
         }
 
-        if (Base16_Decode((byte*)str, strlen(str), decoded, &decSz) < 0) {
+        if (Base16_Decode((byte*)str, (int)strlen(str), decoded, &decSz) < 0) {
             CYASSL_MSG("Bad Base16_Decode error");
             return 0;
         }

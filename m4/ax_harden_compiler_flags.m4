@@ -58,7 +58,7 @@
 # AX_APPEND_COMPILE_FLAGS([-Wold-style-definition],,[$ax_append_compile_flags_extra])
 # AX_APPEND_COMPILE_FLAGS([-std=c99],,[$ax_append_compile_flags_extra])
 # AX_APPEND_COMPILE_FLAGS([-Wlogical-op],,[$ax_append_compile_flags_extra])
-# AX_APPEND_COMPILE_FLAGS([-Wshorten-64-to-32],,[$ax_append_compile_flags_extra]) -- Fix these TAO, put back after -Wshadow when done
+# AX_APPEND_COMPILE_FLAGS([-Wshorten-64-to-32],,[$ax_append_compile_flags_extra])
 
 #serial 3
 
@@ -128,6 +128,7 @@
       AX_APPEND_COMPILE_FLAGS([-Wpointer-sign],,[$ax_append_compile_flags_extra])
       AX_APPEND_COMPILE_FLAGS([-Wredundant-decls],,[$ax_append_compile_flags_extra])
       AX_APPEND_COMPILE_FLAGS([-Wshadow],,[$ax_append_compile_flags_extra])
+      AX_APPEND_COMPILE_FLAGS([-Wshorten-64-to-32],,[$ax_append_compile_flags_extra])
       AX_APPEND_COMPILE_FLAGS([-Wsign-compare],,[$ax_append_compile_flags_extra])
       AX_APPEND_COMPILE_FLAGS([-Wstrict-overflow=1],,[$ax_append_compile_flags_extra])
       AX_APPEND_COMPILE_FLAGS([-Wstrict-prototypes],,[$ax_append_compile_flags_extra])
@@ -185,6 +186,7 @@
       AX_APPEND_COMPILE_FLAGS([-Wpointer-arith],,[$ax_append_compile_flags_extra])
       AX_APPEND_COMPILE_FLAGS([-Wredundant-decls],,[$ax_append_compile_flags_extra])
       AX_APPEND_COMPILE_FLAGS([-Wshadow],,[$ax_append_compile_flags_extra])
+      AX_APPEND_COMPILE_FLAGS([-Wshorten-64-to-32],,[$ax_append_compile_flags_extra])
       AX_APPEND_COMPILE_FLAGS([-Wsign-compare],,[$ax_append_compile_flags_extra])
       AX_APPEND_COMPILE_FLAGS([-Wstrict-overflow=1],,[$ax_append_compile_flags_extra])
       AX_APPEND_COMPILE_FLAGS([-Wswitch-enum],,[$ax_append_compile_flags_extra])

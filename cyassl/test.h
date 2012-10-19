@@ -467,8 +467,8 @@ static INLINE int udp_read_connect(SOCKET_T sockfd)
     int           n;
     socklen_t     len = sizeof(cliaddr);
 
-    n = recvfrom(sockfd, (char*)b, sizeof(b), MSG_PEEK,
-                (struct sockaddr*)&cliaddr, &len);
+    n = (int)recvfrom(sockfd, (char*)b, sizeof(b), MSG_PEEK,
+                      (struct sockaddr*)&cliaddr, &len);
     if (n > 0) {
         if (connect(sockfd, (const struct sockaddr*)&cliaddr,
                     sizeof(cliaddr)) != 0)

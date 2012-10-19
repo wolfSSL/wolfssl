@@ -91,7 +91,7 @@ STATIC INLINE word32 ByteReverseWord32(word32 value)
 STATIC INLINE void ByteReverseWords(word32* out, const word32* in,
                                     word32 byteCount)
 {
-    word32 count = byteCount/sizeof(word32), i;
+    word32 count = byteCount/(word32)sizeof(word32), i;
 
     for (i = 0; i < count; i++)
         out[i] = ByteReverseWord32(in[i]);
@@ -132,7 +132,7 @@ STATIC INLINE word64 ByteReverseWord64(word64 value)
 STATIC INLINE void ByteReverseWords64(word64* out, const word64* in,
                                       word32 byteCount)
 {
-    word32 count = byteCount/sizeof(word64), i;
+    word32 count = byteCount/(word32)sizeof(word64), i;
 
     for (i = 0; i < count; i++)
         out[i] = ByteReverseWord64(in[i]);

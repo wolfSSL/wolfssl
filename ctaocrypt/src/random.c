@@ -181,7 +181,7 @@ int GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     }
 
     while (sz) {
-        int len = read(os->fd, output, sz);
+        int len = (int)read(os->fd, output, sz);
         if (len == -1) { 
             ret = READ_RAN_E;
             break;

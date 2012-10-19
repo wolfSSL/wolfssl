@@ -1860,7 +1860,7 @@ int mp_exptmod_fast (mp_int * G, mp_int * X, mp_int * P, mp_int * Y,
     }
 
     /* grab the next msb from the exponent */
-    y     = (mp_digit)(buf >> (DIGIT_BIT - 1)) & 1;
+    y     = (int)(buf >> (DIGIT_BIT - 1)) & 1;
     buf <<= (mp_digit)1;
 
     /* if the bit is zero and mode == 0 then we ignore it
@@ -3268,7 +3268,7 @@ int s_mp_exptmod (mp_int * G, mp_int * X, mp_int * P, mp_int * Y, int redmode)
     }
 
     /* grab the next msb from the exponent */
-    y     = (buf >> (mp_digit)(DIGIT_BIT - 1)) & 1;
+    y     = (int)(buf >> (mp_digit)(DIGIT_BIT - 1)) & 1;
     buf <<= (mp_digit)1;
 
     /* if the bit is zero and mode == 0 then we ignore it

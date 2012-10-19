@@ -662,7 +662,7 @@ void test_client_nofail(void* args)
     char msg[64] = "hello cyassl!";
     char reply[1024];
     int  input;
-    int  msgSz = strlen(msg);
+    int  msgSz = (int)strlen(msg);
 
     int     argc = ((func_args*)args)->argc;
     char**  argv = ((func_args*)args)->argv;
