@@ -270,6 +270,15 @@ int SuiteTest(void)
         printf("error from script %d\n", args.return_code);
         exit(EXIT_FAILURE);  
     }
+    #ifdef HAVE_NULL_CIPHER
+        strcpy(argv0[1], "tests/test-psk-null.conf");
+        printf("starting psk extra null cipher suite tests\n");
+        test_harness(&args);
+        if (args.return_code != 0) {
+            printf("error from script %d\n", args.return_code);
+            exit(EXIT_FAILURE);  
+        }
+    #endif
 #endif
 
 #ifdef HAVE_NTRU

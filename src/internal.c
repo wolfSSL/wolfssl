@@ -842,6 +842,13 @@ void InitSuites(Suites* suites, ProtocolVersion pv, byte haveDH, byte havePSK,
     }
 #endif
 
+#ifdef BUILD_TLS_PSK_WITH_NULL_SHA
+    if (tls & havePSK) {
+        suites->suites[idx++] = 0;
+        suites->suites[idx++] = TLS_PSK_WITH_NULL_SHA;
+    }
+#endif
+
 #ifdef BUILD_SSL_RSA_WITH_RC4_128_SHA
     if (haveRSA ) {
         suites->suites[idx++] = 0; 
@@ -2784,6 +2791,11 @@ static INLINE int Encrypt(CYASSL* ssl, byte* out, const byte* input, word32 sz)
                 break;
         #endif
 
+        #ifdef HAVE_NULL_CIPHER
+            case cipher_null:
+                break;
+        #endif
+
             default:
                 CYASSL_MSG("CyaSSL Encrypt programming error");
                 return ENCRYPT_ERROR;
@@ -2862,6 +2874,11 @@ static INLINE int Decrypt(CYASSL* ssl, byte* plain, const byte* input,
                 break;
         #endif
 
+        #ifdef HAVE_NULL_CIPHER
+            case cipher_null:
+                break;
+        #endif
+                
             default:
                 CYASSL_MSG("CyaSSL Decrypt programming error");
                 return DECRYPT_ERROR;
@@ -4427,6 +4444,10 @@ const char* const cipher_names[] =
     "PSK-AES256-CBC-SHA",
 #endif
 
+#ifdef BUILD_TLS_PSK_WITH_NULL_SHA
+    "PSK-NULL-SHA",
+#endif
+
 #ifdef BUILD_TLS_RSA_WITH_HC_128_CBC_MD5
     "HC128-MD5",
 #endif
@@ -4625,6 +4646,10 @@ int cipher_name_idx[] =
 
 #ifdef BUILD_TLS_PSK_WITH_AES_256_CBC_SHA
     TLS_PSK_WITH_AES_256_CBC_SHA,
+#endif
+
+#ifdef BUILD_TLS_PSK_WITH_NULL_SHA
+    TLS_PSK_WITH_NULL_SHA,
 #endif
 
 #ifdef BUILD_TLS_RSA_WITH_HC_128_CBC_MD5
@@ -6687,6 +6712,11 @@ int SetCipherList(Suites* s, const char* list)
             break;
 
         case TLS_PSK_WITH_AES_256_CBC_SHA :
+            if (requirement == REQUIRES_PSK)
+                return 1;
+            break;
+
+        case TLS_PSK_WITH_NULL_SHA :
             if (requirement == REQUIRES_PSK)
                 return 1;
             break;

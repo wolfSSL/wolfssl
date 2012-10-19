@@ -160,6 +160,10 @@ void c32to24(word32 in, word24 out);
     #endif
 #endif
 
+#if !defined(NO_TLS) && !defined(NO_PSK) && defined(HAVE_NULL_CIPHER)
+   #define BUILD_TLS_PSK_WITH_NULL_SHA
+#endif
+
 #if !defined(NO_HC128) && !defined(NO_TLS)
     #define BUILD_TLS_RSA_WITH_HC_128_CBC_MD5
     #define BUILD_TLS_RSA_WITH_HC_128_CBC_SHA
@@ -267,6 +271,7 @@ enum {
     TLS_RSA_WITH_AES_128_CBC_SHA      = 0x2F,
     TLS_PSK_WITH_AES_256_CBC_SHA      = 0x8d,
     TLS_PSK_WITH_AES_128_CBC_SHA      = 0x8c,
+    TLS_PSK_WITH_NULL_SHA             = 0x2c,
     SSL_RSA_WITH_RC4_128_SHA          = 0x05,
     SSL_RSA_WITH_RC4_128_MD5          = 0x04,
     SSL_RSA_WITH_3DES_EDE_CBC_SHA     = 0x0A,
