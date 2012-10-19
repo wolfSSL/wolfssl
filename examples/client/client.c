@@ -277,6 +277,8 @@ void client_test(void* args)
 #ifndef NO_PSK
     if (usePsk)
         CyaSSL_CTX_set_psk_client_callback(ctx, my_psk_client_cb);
+#else
+    (void)usePsk;
 #endif
 
 #ifdef OPENSSL_EXTRA

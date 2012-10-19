@@ -8,18 +8,19 @@
 
 AC_INIT([cyassl],[2.4.0],[http://www.yassl.com])
 
-AC_CONFIG_AUX_DIR(config)
+AC_CONFIG_AUX_DIR([build-aux])
+AC_CONFIG_MACRO_DIR([m4])
 
 AC_CANONICAL_TARGET
+AC_USE_SYSTEM_EXTENSIONS
 
-AM_INIT_AUTOMAKE(-Wall -Werror -Wno-portability foreign tar-ustar subdir-objects)
+AM_INIT_AUTOMAKE([-Wall -Werror -Wno-portability foreign tar-ustar subdir-objects])
 
 AC_CANONICAL_HOST
 AC_CANONICAL_BUILD
 
 AC_PREREQ([2.61])
 
-AC_CONFIG_MACRO_DIR(m4)
 
 AC_CONFIG_HEADERS([config.h:config.in])dnl Keep filename to 8.3 for MS-DOS.
 
@@ -38,9 +39,6 @@ CYASSL_LIBRARY_VERSION=3:3:0
 #               |           set to zero if current is incremented
 #               +- increment if interfaces have been added, removed or changed
 AC_SUBST(CYASSL_LIBRARY_VERSION)
-
-# Make sure configure doesn't add to CFLAGS
-CFLAGS="$CFLAGS $C_EXTRA_FLAGS"
 
 LT_INIT([win32-dll])
 LT_LANG([C++])
@@ -65,7 +63,7 @@ AC_CHECK_HEADERS([stddef.h])
 AC_CHECK_HEADERS([sys/ioctl.h])
 AC_CHECK_HEADERS([sys/socket.h])
 AC_CHECK_HEADERS([sys/time.h])
-AC_CHECK_HEADERS(errno.h)
+AC_CHECK_HEADERS([errno.h])
 AC_CHECK_LIB(network,socket)
 AC_CHECK_SIZEOF(long long, 8)
 AC_CHECK_SIZEOF(long, 4)
@@ -94,19 +92,11 @@ DEBUG_CFLAGS="-g -DDEBUG -DDEBUG_CYASSL"
 
 
 # DEBUG
-AC_ARG_ENABLE(debug,
-    [  --enable-debug          Enable CyaSSL debugging support (default: disabled)],
-    [ ENABLED_DEBUG=$enableval ],
-    [ ENABLED_DEBUG=no ]
-    )
-if test "$ENABLED_DEBUG" = "yes"
-then
-  # Full debug. Very slow in some cases
-  AM_CFLAGS="$DEBUG_CFLAGS $AM_CFLAGS"
-else
-  # Optimized version. No debug
-  AM_CFLAGS="$AM_CFLAGS -DNDEBUG"
-fi
+AX_DEBUG
+AS_IF([ test "$ax_enable_debug" = "yes" ],[
+       AM_CFLAGS="$DEBUG_CFLAGS $AM_CFLAGS" ],[
+          AM_CFLAGS="$AM_CFLAGS -DNDEBUG"
+          ])
 
 
 # SMALL BUILD
@@ -682,23 +672,6 @@ AX_PTHREAD([
              ])
 
 LIB_SOCKET_NSL
-
-dnl Various GCC warnings that should never fire for release quality code
-GCCWARNINGS="-Wall -fno-strict-aliasing -W -Wfloat-equal -Wundef          \
-  -Wpointer-arith -Wstrict-prototypes -Wmissing-prototypes                \
-  -Wwrite-strings -Wredundant-decls -Wchar-subscripts -Wcomment           \
-  -Wformat=2 -Wwrite-strings -Wmissing-declarations -Wredundant-decls     \
-  -Wnested-externs -Wbad-function-cast -Wswitch-enum -Winit-self          \
-  -Wmissing-field-initializers -Wdeclaration-after-statement              \
-  -Wold-style-definition -Waddress -Wmissing-noreturn -Wnormalized=id     \
-  -Woverride-init -Wstrict-overflow=1 -Wextra -Wstack-protector -Wformat  \
-  -Wformat-security -Wpointer-sign -Wshadow -Wswitch-default"
-
-case "$host_os" in
-  *linux*)
-GCCWARNINGS="$GCCWARNINGS -Warray-bounds"
-  ;;
-esac
 
 AC_ARG_ENABLE(gcc-hardening,
 AS_HELP_STRING(--enable-gcc-hardening, Enable compiler security checks (default: disabled)),
