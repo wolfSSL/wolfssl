@@ -58,6 +58,7 @@
 # AX_APPEND_COMPILE_FLAGS([-Wold-style-definition],,[$ax_append_compile_flags_extra])
 # AX_APPEND_COMPILE_FLAGS([-std=c99],,[$ax_append_compile_flags_extra])
 # AX_APPEND_COMPILE_FLAGS([-Wlogical-op],,[$ax_append_compile_flags_extra])
+# AX_APPEND_COMPILE_FLAGS([-Wshorten-64-to-32],,[$ax_append_compile_flags_extra]) -- Fix these TAO, put back after -Wshadow when done
 
 #serial 3
 
@@ -85,13 +86,11 @@
       AC_LANG_PUSH([C])
       CFLAGS=
 
-      AX_APPEND_COMPILE_FLAGS([-g])
       AS_IF([test "$ax_enable_debug" = "yes"], [
+        AX_APPEND_COMPILE_FLAGS([-g])
         AX_APPEND_COMPILE_FLAGS([-ggdb],,[$ax_append_compile_flags_extra])
         AX_APPEND_COMPILE_FLAGS([-O0],,[$ax_append_compile_flags_extra])
-        ],[
-        AX_APPEND_COMPILE_FLAGS([-O2],,[$ax_append_compile_flags_extra])
-        ])
+        ],[])
 
       ac_cv_warnings_as_errors=no
       AS_IF([test "$ac_cv_vcs_checkout" = "yes"], [
@@ -129,7 +128,6 @@
       AX_APPEND_COMPILE_FLAGS([-Wpointer-sign],,[$ax_append_compile_flags_extra])
       AX_APPEND_COMPILE_FLAGS([-Wredundant-decls],,[$ax_append_compile_flags_extra])
       AX_APPEND_COMPILE_FLAGS([-Wshadow],,[$ax_append_compile_flags_extra])
-      AX_APPEND_COMPILE_FLAGS([-Wshorten-64-to-32],,[$ax_append_compile_flags_extra])
       AX_APPEND_COMPILE_FLAGS([-Wsign-compare],,[$ax_append_compile_flags_extra])
       AX_APPEND_COMPILE_FLAGS([-Wstrict-overflow=1],,[$ax_append_compile_flags_extra])
       AX_APPEND_COMPILE_FLAGS([-Wstrict-prototypes],,[$ax_append_compile_flags_extra])
@@ -149,12 +147,11 @@
       AC_LANG_PUSH([C++])
       CXXFLAGS=
 
-      AX_APPEND_COMPILE_FLAGS([-g],,[$ax_append_compile_flags_extra])
       AS_IF([test "$ax_enable_debug" = "yes" ], [
+        AX_APPEND_COMPILE_FLAGS([-g],,[$ax_append_compile_flags_extra])
         AX_APPEND_COMPILE_FLAGS([-O0],,[$ax_append_compile_flags_extra])
         AX_APPEND_COMPILE_FLAGS([-ggdb],,[$ax_append_compile_flags_extra])
         ],[
-        AX_APPEND_COMPILE_FLAGS([-O2],,[$ax_append_compile_flags_extra])
         AX_APPEND_COMPILE_FLAGS([-D_FORTIFY_SOURCE=2],,[$ax_append_compile_flags_extra])
         ])
 
@@ -188,7 +185,6 @@
       AX_APPEND_COMPILE_FLAGS([-Wpointer-arith],,[$ax_append_compile_flags_extra])
       AX_APPEND_COMPILE_FLAGS([-Wredundant-decls],,[$ax_append_compile_flags_extra])
       AX_APPEND_COMPILE_FLAGS([-Wshadow],,[$ax_append_compile_flags_extra])
-      AX_APPEND_COMPILE_FLAGS([-Wshorten-64-to-32],,[$ax_append_compile_flags_extra])
       AX_APPEND_COMPILE_FLAGS([-Wsign-compare],,[$ax_append_compile_flags_extra])
       AX_APPEND_COMPILE_FLAGS([-Wstrict-overflow=1],,[$ax_append_compile_flags_extra])
       AX_APPEND_COMPILE_FLAGS([-Wswitch-enum],,[$ax_append_compile_flags_extra])

@@ -12,6 +12,7 @@ config*
 *Release/
 *.ncb
 *.suo
+build-aux/
 stamp-h
 libtool.m4
 aclocal.m4
