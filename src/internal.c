@@ -6904,7 +6904,7 @@ int SetCipherList(Suites* s, const char* list)
                         return SetCipherSpecs(ssl);
                     }
                     else {
-                        CYASSL_MSG("Coult not verify suite validity, continue");
+                        CYASSL_MSG("Could not verify suite validity, continue");
                     }
                 }
 

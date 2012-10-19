@@ -309,13 +309,13 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
         CloseSocket(sockfd);
 
     SSL_set_fd(ssl, clientfd);
-#ifdef NO_PSK
-    #if !defined(NO_FILESYSTEM) && defined(OPENSSL_EXTRA)
-        CyaSSL_SetTmpDH_file(ssl, dhParam, SSL_FILETYPE_PEM);
-    #else
-        SetDH(ssl);  /* will repick suites with DHE, higher priority than PSK */
-    #endif
-#endif
+    if (usePsk == 0) {
+        #if !defined(NO_FILESYSTEM) && defined(OPENSSL_EXTRA)
+            CyaSSL_SetTmpDH_file(ssl, dhParam, SSL_FILETYPE_PEM);
+        #else
+            SetDH(ssl);  /* repick suites with DHE, higher priority than PSK */
+        #endif
+    }
 
 #ifndef CYASSL_CALLBACKS
     if (nonBlocking) {
