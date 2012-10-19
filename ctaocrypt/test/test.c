@@ -1457,6 +1457,8 @@ int rsa_test(void)
     if (ret != 0) return -491;
 
     FreeDecodedCert(&cert);
+#else
+    (void)bytes2;
 #endif
 
     fclose(file2);
