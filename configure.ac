@@ -268,18 +268,17 @@ fi
 
 
 # SNIFFER
-AC_ARG_ENABLE(sniffer,
-    [  --enable-sniffer        Enable CyaSSL sniffer support (default: disabled)],
-    [ ENABLED_SNIFFER=$enableval ],
-    [ ENABLED_SNIFFER=no ]
-    )
+AC_ARG_ENABLE([sniffer],
+              [AS_HELP_STRING([--enable-sniffer],[ Enable CyaSSL sniffer support (default: disabled) ])],[
+               AS_IF([ test "x$enableval" = "xyes" ],[ AC_CHECK_HEADERS([pcap/pcap.h],[ 
+                      ENABLED_SNIFFER=yes 
+                      AM_CFLAGS="$AM_CFLAGS -DCYASSL_SNIFFER -DOPENSSL_EXTRA"
+                      ],[ ENABLED_SNIFFER=no ]) ])
+               ],[
+                  ENABLED_SNIFFER=no
+                  ])
 
-if test "$ENABLED_SNIFFER" = "yes"
-then
-    AM_CFLAGS="$AM_CFLAGS -DCYASSL_SNIFFER -DOPENSSL_EXTRA"
-fi
-
-AM_CONDITIONAL([BUILD_SNIFFER], [test "x$ENABLED_SNIFFER" = "xyes"])
+AM_CONDITIONAL([BUILD_SNIFFER], [ test "x$ENABLED_SNIFFER" = "xyes" ])
 
 # AES-GCM
 AC_ARG_ENABLE(aesgcm,
@@ -711,5 +710,12 @@ echo "   * CPP Flags:                 $CPPFLAGS"
 echo "   * Assertions enabled:        $ac_cv_assert"
 echo "   * Debug enabled:             $with_debug"
 echo "   * Warnings as failure:       $ac_cv_warnings_as_errors"
+echo 
+echo "   Features "
+echo "   * sniffer:                   $ENABLED_SNIFFER"
+echo "   * Enable smallest build:     $ENABLED_SMALL"
+echo "   * Single threaded:           $ENABLED_SINGLETHREADED"
+echo "   * DTLS:                      $ENABLED_DTLS"
+echo "   * Enable extra OpenSSL API:  $ENABLED_OPENSSLEXTRA"
 echo ""
 echo "---"
