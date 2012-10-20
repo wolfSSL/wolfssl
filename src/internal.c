@@ -828,6 +828,20 @@ void InitSuites(Suites* suites, ProtocolVersion pv, byte haveDH, byte havePSK,
     }
 #endif
 
+#ifdef BUILD_TLS_RSA_WITH_NULL_SHA
+    if (tls && haveRSA) {
+        suites->suites[idx++] = 0; 
+        suites->suites[idx++] = TLS_RSA_WITH_NULL_SHA;
+    }
+#endif
+
+#ifdef BUILD_TLS_RSA_WITH_NULL_SHA256
+    if (tls && haveRSA) {
+        suites->suites[idx++] = 0; 
+        suites->suites[idx++] = TLS_RSA_WITH_NULL_SHA256;
+    }
+#endif
+
 #ifdef BUILD_TLS_PSK_WITH_AES_256_CBC_SHA
     if (tls && havePSK) {
         suites->suites[idx++] = 0; 
@@ -4428,6 +4442,14 @@ const char* const cipher_names[] =
     "AES256-SHA",
 #endif
 
+#ifdef BUILD_TLS_RSA_WITH_NULL_SHA
+    "NULL-SHA",
+#endif
+
+#ifdef BUILD_TLS_RSA_WITH_NULL_SHA256
+    "NULL-SHA256",
+#endif
+
 #ifdef BUILD_TLS_DHE_RSA_WITH_AES_128_CBC_SHA
     "DHE-RSA-AES128-SHA",
 #endif
@@ -4630,6 +4652,14 @@ int cipher_name_idx[] =
 
 #ifdef BUILD_TLS_RSA_WITH_AES_256_CBC_SHA
     TLS_RSA_WITH_AES_256_CBC_SHA,
+#endif
+
+#ifdef BUILD_TLS_RSA_WITH_NULL_SHA
+    TLS_RSA_WITH_NULL_SHA,
+#endif
+
+#ifdef BUILD_TLS_RSA_WITH_NULL_SHA256
+    TLS_RSA_WITH_NULL_SHA256,
 #endif
 
 #ifdef BUILD_TLS_DHE_RSA_WITH_AES_128_CBC_SHA
@@ -6697,6 +6727,12 @@ int SetCipherList(Suites* s, const char* list)
             break;
 
         case TLS_RSA_WITH_AES_256_CBC_SHA256 :
+            if (requirement == REQUIRES_RSA)
+                return 1;
+            break;
+
+        case TLS_RSA_WITH_NULL_SHA :
+        case TLS_RSA_WITH_NULL_SHA256 :
             if (requirement == REQUIRES_RSA)
                 return 1;
             break;

@@ -5289,6 +5289,10 @@ int CyaSSL_set_compression(CYASSL* ssl)
                     return "TLS_RSA_WITH_AES_128_CBC_SHA256";
                 case TLS_RSA_WITH_AES_256_CBC_SHA256 :
                     return "TLS_RSA_WITH_AES_256_CBC_SHA256";
+                case TLS_RSA_WITH_NULL_SHA :
+                    return "TLS_RSA_WITH_NULL_SHA";
+                case TLS_RSA_WITH_NULL_SHA256 :
+                    return "TLS_RSA_WITH_NULL_SHA256";
                 case TLS_PSK_WITH_AES_128_CBC_SHA :
                     return "TLS_PSK_WITH_AES_128_CBC_SHA";
                 case TLS_PSK_WITH_AES_256_CBC_SHA :

@@ -250,6 +250,17 @@ int SuiteTest(void)
     }
 #endif
 
+#ifdef HAVE_NULL_CIPHER
+    /* add rsa null cipher suites */
+    strcpy(argv0[1], "tests/test-null.conf");
+    printf("starting null cipher suite tests\n");
+    test_harness(&args);
+    if (args.return_code != 0) {
+        printf("error from script %d\n", args.return_code);
+        exit(EXIT_FAILURE);  
+    }
+#endif
+
 #ifdef HAVE_HC128 
     /* add hc128 extra suites */
     strcpy(argv0[1], "tests/test-hc128.conf");
