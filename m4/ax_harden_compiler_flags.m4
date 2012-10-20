@@ -70,10 +70,12 @@
 
       ax_append_compile_link_flags_extra=
       AS_IF([test "$ac_cv_vcs_checkout" = "yes"], [
-          AX_CHECK_LINK_FLAG([-Werror])
-          ],[
-          AX_CHECK_LINK_FLAG([-Werror],[ax_append_compile_link_flags_extra])
+        AX_CHECK_LINK_FLAG([-Werror])
+        ],[
+        AX_CHECK_LINK_FLAG([-Werror],[
+          ax_append_compile_link_flags_extra=$ax_cv_check_ldflags___Werror
           ])
+        ])
       AX_CHECK_LINK_FLAG([-z relro -z now],,[$ax_append_compile_link_flags_extra])
       AX_CHECK_LINK_FLAG([-pie],,[$ax_append_compile_link_flags_extra])
       ])

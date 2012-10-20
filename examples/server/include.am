@@ -12,4 +12,4 @@ EXTRA_DIST += examples/server/server.sln
 EXTRA_DIST += examples/server/server-ntru.vcproj
 EXTRA_DIST += examples/server/server.vcproj
 
-example_DATA+= examples/server/server.c
+dist_example_DATA+= examples/server/server.c

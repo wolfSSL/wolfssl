@@ -692,6 +692,7 @@ AC_CONFIG_FILES([stamp-h], [echo timestamp > stamp-h])
 AC_CONFIG_FILES([Makefile])
 AC_CONFIG_FILES([cyassl/version.h])
 AC_CONFIG_FILES([support/libcyassl.pc])
+AC_CONFIG_FILES([rpm/spec])
 
 AC_OUTPUT
 
