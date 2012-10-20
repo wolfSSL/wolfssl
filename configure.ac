@@ -119,12 +119,18 @@ fi
 AC_ARG_ENABLE(singleThreaded,
     [  --enable-singleThreaded Enable CyaSSL single threaded (default: disabled)],
     [ ENABLED_SINGLETHREADED=$enableval ],
-    [ ENABLED_SINGLETHREADED=no ]
-    )
-if test "$ENABLED_SINGLETHREADED" = "yes"
-then
-  AM_CFLAGS="-DSINGLE_THREADED $AM_CFLAGS"
-fi
+    [ ENABLED_SINGLETHREADED=no ])
+
+AS_IF([ test "x$ENABLED_SINGLETHREADED" = "xno" ],[
+       AX_PTHREAD([
+                   AC_DEFINE([HAVE_PTHREAD], [1], [Define if you have POSIX threads libraries and header files.])
+                   AM_CFLAGS="-D_POSIX_THREADS $AM_CFLAGS"
+                   ],[
+                      ENABLED_SINGLETHREADED=yes
+                      ])
+       ])
+
+AS_IF([ test "x$ENABLED_SINGLETHREADED" = "xyes" ],[ AM_CFLAGS="-DSINGLE_THREADED $AM_CFLAGS" ])
 
 
 # DTLS
@@ -662,13 +668,6 @@ then
         fi
     fi
 fi
-
-AX_PTHREAD([
-            AC_DEFINE([HAVE_PTHREAD], [1], [Define if you have POSIX threads libraries and header files.])
-            ],
-            [
-             AC_DEFINE([HAVE_PTHREAD], [0], [Define if you have POSIX threads libraries and header files.])
-             ])
 
 LIB_SOCKET_NSL
 
