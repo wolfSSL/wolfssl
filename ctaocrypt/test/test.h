@@ -1,4 +1,4 @@
-/* test.c
+/* ctaocrypt/test/test.h
  *
  * Copyright (C) 2006-2012 Sawtooth Consulting Ltd.
  *
@@ -21,5 +21,13 @@
 
 #pragma once
 
+#ifdef __cplusplus
+    extern "C" {
+#endif
+
 void ctaocrypt_test(void* args);
+
+#ifdef __cplusplus
+    }  /* extern "C" */
+#endif
 

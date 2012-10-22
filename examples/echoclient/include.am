@@ -12,4 +12,4 @@ EXTRA_DIST += examples/echoclient/echoclient.sln
 EXTRA_DIST += examples/echoclient/echoclient-ntru.vcproj
 EXTRA_DIST += examples/echoclient/echoclient.vcproj
 
-example_DATA+= examples/echoclient/echoclient.c
+dist_example_DATA+= examples/echoclient/echoclient.c

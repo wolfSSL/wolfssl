@@ -15,13 +15,10 @@ check_PROGRAMS =
 EXTRA_HEADERS =
 BUILT_SOURCES=
 EXTRA_DIST=
-doc_DATA=
+dist_doc_DATA=
 
-exampledir = $(docdir)/@PACKAGE@/example
-example_DATA=
-EXTRA_DIST+= $(example_DATA)
-
-EXTRA_DIST+= $(doc_DATA)
+exampledir = $(docdir)/example
+dist_example_DATA=
 
 ACLOCAL_AMFLAGS= -I m4
 
@@ -50,6 +47,7 @@ include examples/echoserver/include.am
 include testsuite/include.am
 include tests/include.am
 include sslSniffer/sslSnifferTest/include.am
+include rpm/include.am
 
 TESTS += $(check_PROGRAMS)
 test: check
