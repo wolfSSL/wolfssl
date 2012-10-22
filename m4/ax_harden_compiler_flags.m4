@@ -107,13 +107,11 @@
         AX_APPEND_COMPILE_FLAGS([-Werror],[ax_append_compile_cflags_extra])
         ])
 
-      AX_APPEND_COMPILE_FLAGS([-g])
       AS_IF([test "$ax_enable_debug" = "yes"], [
+        AX_APPEND_COMPILE_FLAGS([-g])
         AX_APPEND_COMPILE_FLAGS([-ggdb],,[$ax_append_compile_cflags_extra])
         AX_APPEND_COMPILE_FLAGS([-O0],,[$ax_append_compile_cflags_extra])
-        ],[
-        AX_APPEND_COMPILE_FLAGS([-O2],,[$ax_append_compile_cflags_extra])
-        ])
+        ],[])
 
       AX_APPEND_COMPILE_FLAGS([-fstack-check],,[$ax_append_compile_cflags_extra])
       AX_APPEND_COMPILE_FLAGS([-Wno-pragmas],,[$ax_append_compile_cflags_extra])
@@ -169,12 +167,11 @@
         AX_APPEND_COMPILE_FLAGS([-Werror],[ax_append_compile_cxxflags_extra])
         ])
 
-      AX_APPEND_COMPILE_FLAGS([-g],,[$ax_append_compile_cxxflags_extra])
       AS_IF([test "$ax_enable_debug" = "yes" ], [
+        AX_APPEND_COMPILE_FLAGS([-g],,[$ax_append_compile_cxxflags_extra])
         AX_APPEND_COMPILE_FLAGS([-O0],,[$ax_append_compile_cxxflags_extra])
         AX_APPEND_COMPILE_FLAGS([-ggdb],,[$ax_append_compile_cxxflags_extra])
         ],[
-        AX_APPEND_COMPILE_FLAGS([-O2],,[$ax_append_compile_cxxflags_extra])
         AX_APPEND_COMPILE_FLAGS([-D_FORTIFY_SOURCE=2],,[$ax_append_compile_cxxflags_extra])
         ])
 

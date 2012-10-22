@@ -201,7 +201,7 @@ static INLINE int mygetopt(int argc, char** argv, const char* optstring)
     }
 
     c  = *next++;
-    // The C++ strchr returns a different value
+    /* The C++ strchr can return a different value */
     cp = (char*)strchr(optstring, c);
 
     if (cp == NULL || c == ':') 

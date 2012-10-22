@@ -658,7 +658,7 @@ AC_ARG_WITH(libz,
 if test "$GCC" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -Wall -Wno-unused"
-    if test "$ENABLED_DEBUG" = "no"
+    if test "$ax_enable_debug" = "no"
     then
         if test "$ENABLED_FASTMATH" = "yes"
         then
@@ -712,8 +712,7 @@ echo "   * C++ Compiler:              $CXX_VERSION"
 echo "   * C++ Flags:                 $CXXFLAGS"
 echo "   * CPP Flags:                 $CPPFLAGS"
 echo "   * LIB Flags:                 $LIB"
-echo "   * Assertions enabled:        $ac_cv_assert"
-echo "   * Debug enabled:             $with_debug"
+echo "   * Debug enabled:             $ax_enable_debug"
 echo "   * Warnings as failure:       $ac_cv_warnings_as_errors"
 echo 
 echo "   Features "

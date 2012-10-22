@@ -13,6 +13,7 @@ config*
 *.ncb
 *.suo
 build-aux/
+rpm/spec
 stamp-h
 libtool.m4
 aclocal.m4
