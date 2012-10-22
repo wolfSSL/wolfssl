@@ -7627,24 +7627,28 @@ int SetCipherList(Suites* s, const char* list)
 
 int InitMutex(CyaSSL_Mutex* m)
 {
+    (void)m;
     return 0;
 }
 
 
-int FreeMutex(CyaSSL_Mutex* m)
+int FreeMutex(CyaSSL_Mutex *m)
 {
+    (void)m;
     return 0;
 }
 
 
-int LockMutex(CyaSSL_Mutex* m)
+int LockMutex(CyaSSL_Mutex *m)
 {
+    (void)m;
     return 0;
 }
 
 
-int UnLockMutex(CyaSSL_Mutex* m)
+int UnLockMutex(CyaSSL_Mutex *m)
 {
+    (void)m;
     return 0;
 }
 

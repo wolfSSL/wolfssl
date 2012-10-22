@@ -34,7 +34,7 @@ EXTRA_DIST += \
 	     certs/ecc-key.der
 
 
-doc_DATA+= certs/taoCert.txt
+dist_doc_DATA+= certs/taoCert.txt
 
 EXTRA_DIST+= certs/ntru-key.raw
 

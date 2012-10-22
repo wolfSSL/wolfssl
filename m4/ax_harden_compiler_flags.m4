@@ -55,12 +55,12 @@
 # AX_APPEND_COMPILE_FLAGS([-Wstack-protector]) -- Issues on 32bit compile
 # AX_APPEND_COMPILE_FLAGS([-fstack-protector-all]) -- Issues on 32bit compile
 # AX_APPEND_COMPILE_FLAGS([-Wlong-long]) -- Don't turn on for compatibility issues memcached_stat_st
-# AX_APPEND_COMPILE_FLAGS([-Wold-style-definition],,[$ax_append_compile_flags_extra])
-# AX_APPEND_COMPILE_FLAGS([-std=c99],,[$ax_append_compile_flags_extra])
-# AX_APPEND_COMPILE_FLAGS([-Wlogical-op],,[$ax_append_compile_flags_extra])
-# AX_APPEND_COMPILE_FLAGS([-Wshorten-64-to-32],,[$ax_append_compile_flags_extra])
+# AX_APPEND_COMPILE_FLAGS([-Wold-style-definition],,[$ax_append_compile_cflags_extra])
+# AX_APPEND_COMPILE_FLAGS([-std=c99],,[$ax_append_compile_cflags_extra])
+# AX_APPEND_COMPILE_FLAGS([-Wlogical-op],,[$ax_append_compile_cflags_extra])
+# AX_APPEND_COMPILE_FLAGS([-Wshorten-64-to-32],,[$ax_append_compile_cflags_extra])
 
-#serial 3
+#serial 4
 
   AC_DEFUN([AX_HARDEN_LINKER_FLAGS], [
       AC_REQUIRE([AX_CHECK_LINK_FLAG])
@@ -68,15 +68,28 @@
       AC_REQUIRE([AX_DEBUG])
       AC_REQUIRE([AX_CXX_COMPILER_VERSION])
 
-      ax_append_compile_flags_extra=
-      AS_IF([test "$CLANG" = "yes"],[ax_append_compile_flags_extra="-Werror"])
-
-      AS_IF([test "$ac_cv_vcs_checkout" = "yes"], [
-          AX_CHECK_LINK_FLAG([-Werror])
-          ax_append_compile_flags_extra=
+      dnl If we are inside of VCS we append -Werror, otherwise we just use it to test other flags
+      AX_HARDEN_LIB=
+      ax_append_compile_link_flags_extra=
+      AS_IF([test "x$ac_cv_vcs_checkout" = "xyes"],[
+        AX_CHECK_LINK_FLAG([-Werror],[
+          AX_HARDEN_LIB="-Werror $AX_HARDEN_LIB"
           ])
-      AX_CHECK_LINK_FLAG([-z relro -z now],,[$ax_append_compile_flags_extra])
-      AX_CHECK_LINK_FLAG([-pie],,[$ax_append_compile_flags_extra])
+        ],[
+        AX_CHECK_LINK_FLAG([-Werror],[
+          ax_append_compile_link_flags_extra='-Werror'
+          ])
+        ])
+
+      AX_CHECK_LINK_FLAG([-z relro -z now],[
+        AX_HARDEN_LIB="-z relro -z now $AX_HARDEN_LIB"
+        ],,[$ax_append_compile_link_flags_extra])
+
+      AX_CHECK_LINK_FLAG([-pie],[
+          AX_HARDEN_LIB="-pie $AX_HARDEN_LIB"
+          ],,[$ax_append_compile_link_flags_extra])
+
+      LIB="$LIB $AX_HARDEN_LIB"
       ])
 
   AC_DEFUN([AX_HARDEN_CC_COMPILER_FLAGS], [
@@ -84,132 +97,140 @@
       AC_REQUIRE([AX_HARDEN_LINKER_FLAGS])
 
       AC_LANG_PUSH([C])
-      CFLAGS=
-
-      AS_IF([test "$ax_enable_debug" = "yes"], [
-        AX_APPEND_COMPILE_FLAGS([-g])
-        AX_APPEND_COMPILE_FLAGS([-ggdb],,[$ax_append_compile_flags_extra])
-        AX_APPEND_COMPILE_FLAGS([-O0],,[$ax_append_compile_flags_extra])
-        ],[])
 
       ac_cv_warnings_as_errors=no
-      AS_IF([test "$ac_cv_vcs_checkout" = "yes"], [
-        AX_APPEND_COMPILE_FLAGS([-Werror],,[$ax_append_compile_flags_extra])
-        AX_APPEND_COMPILE_FLAGS([-fstack-check],,[$ax_append_compile_flags_extra])
+      ax_append_compile_cflags_extra=
+      AS_IF([test "$ac_cv_vcs_checkout" = "yes"],[
+        AX_APPEND_COMPILE_FLAGS([-Werror])
         ac_cv_warnings_as_errors=yes
         ],[
-        AX_APPEND_COMPILE_FLAGS([-Wno-pragmas],,[$ax_append_compile_flags_extra])
+        AX_APPEND_COMPILE_FLAGS([-Werror],[ax_append_compile_cflags_extra])
         ])
 
-      AX_APPEND_COMPILE_FLAGS([-Wall],,[$ax_append_compile_flags_extra])
-      AX_APPEND_COMPILE_FLAGS([-Wno-strict-aliasing],,,[$ax_append_compile_flags_extra])
-      AX_APPEND_COMPILE_FLAGS([-Wextra],,[$ax_append_compile_flags_extra])
-      AX_APPEND_COMPILE_FLAGS([-Wunknown-pragmas],,[$ax_append_compile_flags_extra])
-      AX_APPEND_COMPILE_FLAGS([-Wthis-test-should-fail],,[$ax_append_compile_flags_extra])
-      dnl Anything below this comment please keep sorted.
-      AX_APPEND_COMPILE_FLAGS([--param=ssp-buffer-size=1],,[$ax_append_compile_flags_extra])
-      AX_APPEND_COMPILE_FLAGS([-Waddress],,[$ax_append_compile_flags_extra])
-      AX_APPEND_COMPILE_FLAGS([-Warray-bounds],,[$ax_append_compile_flags_extra])
-      AX_APPEND_COMPILE_FLAGS([-Wbad-function-cast],,[$ax_append_compile_flags_extra])
-      dnl Not in use -Wc++-compat
-      AX_APPEND_COMPILE_FLAGS([-Wchar-subscripts],,[$ax_append_compile_flags_extra])
-      AX_APPEND_COMPILE_FLAGS([-Wcomment],,[$ax_append_compile_flags_extra])
-      AX_APPEND_COMPILE_FLAGS([-Wfloat-equal],,[$ax_append_compile_flags_extra])
-      AX_APPEND_COMPILE_FLAGS([-Wformat-security],,[$ax_append_compile_flags_extra])
-      AX_APPEND_COMPILE_FLAGS([-Wformat=2],,[$ax_append_compile_flags_extra])
-      AX_APPEND_COMPILE_FLAGS([-Wmaybe-uninitialized],,[$ax_append_compile_flags_extra])
-      AX_APPEND_COMPILE_FLAGS([-Wmissing-field-initializers],,[$ax_append_compile_flags_extra])
-      AX_APPEND_COMPILE_FLAGS([-Wmissing-noreturn],,[$ax_append_compile_flags_extra])
-      AX_APPEND_COMPILE_FLAGS([-Wmissing-prototypes],,[$ax_append_compile_flags_extra])
-      AX_APPEND_COMPILE_FLAGS([-Wnested-externs],,[$ax_append_compile_flags_extra])
-      AX_APPEND_COMPILE_FLAGS([-Wnormalized=id],,[$ax_append_compile_flags_extra])
-      AX_APPEND_COMPILE_FLAGS([-Woverride-init],,[$ax_append_compile_flags_extra])
-      AX_APPEND_COMPILE_FLAGS([-Wpointer-arith],,[$ax_append_compile_flags_extra])
-      AX_APPEND_COMPILE_FLAGS([-Wpointer-sign],,[$ax_append_compile_flags_extra])
-      AX_APPEND_COMPILE_FLAGS([-Wredundant-decls],,[$ax_append_compile_flags_extra])
-      AX_APPEND_COMPILE_FLAGS([-Wshadow],,[$ax_append_compile_flags_extra])
-      AX_APPEND_COMPILE_FLAGS([-Wshorten-64-to-32],,[$ax_append_compile_flags_extra])
-      AX_APPEND_COMPILE_FLAGS([-Wsign-compare],,[$ax_append_compile_flags_extra])
-      AX_APPEND_COMPILE_FLAGS([-Wstrict-overflow=1],,[$ax_append_compile_flags_extra])
-      AX_APPEND_COMPILE_FLAGS([-Wstrict-prototypes],,[$ax_append_compile_flags_extra])
-      AX_APPEND_COMPILE_FLAGS([-Wswitch-enum],,[$ax_append_compile_flags_extra])
-      AX_APPEND_COMPILE_FLAGS([-Wundef],,[$ax_append_compile_flags_extra])
-      AX_APPEND_COMPILE_FLAGS([-Wunused-result],,[$ax_append_compile_flags_extra])
-      AX_APPEND_COMPILE_FLAGS([-Wunused-variable],,[$ax_append_compile_flags_extra])
-      AX_APPEND_COMPILE_FLAGS([-Wwrite-strings],,[$ax_append_compile_flags_extra])
-      AX_APPEND_COMPILE_FLAGS([-floop-parallelize-all],,[$ax_append_compile_flags_extra])
-      AX_APPEND_COMPILE_FLAGS([-fwrapv],,[$ax_append_compile_flags_extra])
-      AC_LANG_POP
+      AX_APPEND_COMPILE_FLAGS([-g])
+      AS_IF([test "$ax_enable_debug" = "yes"], [
+        AX_APPEND_COMPILE_FLAGS([-ggdb],,[$ax_append_compile_cflags_extra])
+        AX_APPEND_COMPILE_FLAGS([-O0],,[$ax_append_compile_cflags_extra])
+        ],[
+        AX_APPEND_COMPILE_FLAGS([-O2],,[$ax_append_compile_cflags_extra])
+        ])
 
+      AX_APPEND_COMPILE_FLAGS([-fstack-check],,[$ax_append_compile_cflags_extra])
+      AX_APPEND_COMPILE_FLAGS([-Wno-pragmas],,[$ax_append_compile_cflags_extra])
+
+      AX_APPEND_COMPILE_FLAGS([-Wall],,[$ax_append_compile_cflags_extra])
+      AX_APPEND_COMPILE_FLAGS([-Wno-strict-aliasing],,,[$ax_append_compile_cflags_extra])
+      AX_APPEND_COMPILE_FLAGS([-Wextra],,[$ax_append_compile_cflags_extra])
+      AX_APPEND_COMPILE_FLAGS([-Wunknown-pragmas],,[$ax_append_compile_cflags_extra])
+      AX_APPEND_COMPILE_FLAGS([-Wthis-test-should-fail],,[$ax_append_compile_cflags_extra])
+      dnl Anything below this comment please keep sorted.
+      AX_APPEND_COMPILE_FLAGS([--param=ssp-buffer-size=1],,[$ax_append_compile_cflags_extra])
+      AX_APPEND_COMPILE_FLAGS([-Waddress],,[$ax_append_compile_cflags_extra])
+      AX_APPEND_COMPILE_FLAGS([-Warray-bounds],,[$ax_append_compile_cflags_extra])
+      AX_APPEND_COMPILE_FLAGS([-Wbad-function-cast],,[$ax_append_compile_cflags_extra])
+      dnl Not in use -Wc++-compat
+      AX_APPEND_COMPILE_FLAGS([-Wchar-subscripts],,[$ax_append_compile_cflags_extra])
+      AX_APPEND_COMPILE_FLAGS([-Wcomment],,[$ax_append_compile_cflags_extra])
+      AX_APPEND_COMPILE_FLAGS([-Wfloat-equal],,[$ax_append_compile_cflags_extra])
+      AX_APPEND_COMPILE_FLAGS([-Wformat-security],,[$ax_append_compile_cflags_extra])
+      AX_APPEND_COMPILE_FLAGS([-Wformat=2],,[$ax_append_compile_cflags_extra])
+      AX_APPEND_COMPILE_FLAGS([-Wmaybe-uninitialized],,[$ax_append_compile_cflags_extra])
+      AX_APPEND_COMPILE_FLAGS([-Wmissing-field-initializers],,[$ax_append_compile_cflags_extra])
+      AX_APPEND_COMPILE_FLAGS([-Wmissing-noreturn],,[$ax_append_compile_cflags_extra])
+      AX_APPEND_COMPILE_FLAGS([-Wmissing-prototypes],,[$ax_append_compile_cflags_extra])
+      AX_APPEND_COMPILE_FLAGS([-Wnested-externs],,[$ax_append_compile_cflags_extra])
+      AX_APPEND_COMPILE_FLAGS([-Wnormalized=id],,[$ax_append_compile_cflags_extra])
+      AX_APPEND_COMPILE_FLAGS([-Woverride-init],,[$ax_append_compile_cflags_extra])
+      AX_APPEND_COMPILE_FLAGS([-Wpointer-arith],,[$ax_append_compile_cflags_extra])
+      AX_APPEND_COMPILE_FLAGS([-Wpointer-sign],,[$ax_append_compile_cflags_extra])
+      AX_APPEND_COMPILE_FLAGS([-Wredundant-decls],,[$ax_append_compile_cflags_extra])
+      AX_APPEND_COMPILE_FLAGS([-Wshadow],,[$ax_append_compile_cflags_extra])
+      AX_APPEND_COMPILE_FLAGS([-Wsign-compare],,[$ax_append_compile_cflags_extra])
+      AX_APPEND_COMPILE_FLAGS([-Wstrict-overflow=1],,[$ax_append_compile_cflags_extra])
+      AX_APPEND_COMPILE_FLAGS([-Wstrict-prototypes],,[$ax_append_compile_cflags_extra])
+      AX_APPEND_COMPILE_FLAGS([-Wswitch-enum],,[$ax_append_compile_cflags_extra])
+      AX_APPEND_COMPILE_FLAGS([-Wundef],,[$ax_append_compile_cflags_extra])
+      AX_APPEND_COMPILE_FLAGS([-Wunused-result],,[$ax_append_compile_cflags_extra])
+      AX_APPEND_COMPILE_FLAGS([-Wunused-variable],,[$ax_append_compile_cflags_extra])
+      AX_APPEND_COMPILE_FLAGS([-Wwrite-strings],,[$ax_append_compile_cflags_extra])
+      AX_APPEND_COMPILE_FLAGS([-floop-parallelize-all],,[$ax_append_compile_cflags_extra])
+      AX_APPEND_COMPILE_FLAGS([-fwrapv],,[$ax_append_compile_cflags_extra])
+      AC_LANG_POP
       ])
 
   AC_DEFUN([AX_HARDEN_CXX_COMPILER_FLAGS], [
       AC_REQUIRE([AX_HARDEN_CC_COMPILER_FLAGS])
       AC_LANG_PUSH([C++])
-      CXXFLAGS=
 
-      AS_IF([test "$ax_enable_debug" = "yes" ], [
-        AX_APPEND_COMPILE_FLAGS([-g],,[$ax_append_compile_flags_extra])
-        AX_APPEND_COMPILE_FLAGS([-O0],,[$ax_append_compile_flags_extra])
-        AX_APPEND_COMPILE_FLAGS([-ggdb],,[$ax_append_compile_flags_extra])
+      ax_append_compile_cxxflags_extra=
+      AS_IF([test "$ac_cv_warnings_as_errors" = "yes"],[
+        AX_APPEND_COMPILE_FLAGS([-Werror])
         ],[
-        AX_APPEND_COMPILE_FLAGS([-D_FORTIFY_SOURCE=2],,[$ax_append_compile_flags_extra])
+        AX_APPEND_COMPILE_FLAGS([-Werror],[ax_append_compile_cxxflags_extra])
+        ])
+
+      AX_APPEND_COMPILE_FLAGS([-g],,[$ax_append_compile_cxxflags_extra])
+      AS_IF([test "$ax_enable_debug" = "yes" ], [
+        AX_APPEND_COMPILE_FLAGS([-O0],,[$ax_append_compile_cxxflags_extra])
+        AX_APPEND_COMPILE_FLAGS([-ggdb],,[$ax_append_compile_cxxflags_extra])
+        ],[
+        AX_APPEND_COMPILE_FLAGS([-O2],,[$ax_append_compile_cxxflags_extra])
+        AX_APPEND_COMPILE_FLAGS([-D_FORTIFY_SOURCE=2],,[$ax_append_compile_cxxflags_extra])
         ])
 
       AS_IF([test "$ac_cv_vcs_checkout" = "yes" ], [
-        AX_APPEND_COMPILE_FLAGS([-Werror],,[$ax_append_compile_flags_extra])
-        AX_APPEND_COMPILE_FLAGS([-fstack-check],,[$ax_append_compile_flags_extra])
+        AX_APPEND_COMPILE_FLAGS([-Werror],,[$ax_append_compile_cxxflags_extra])
+        AX_APPEND_COMPILE_FLAGS([-fstack-check],,[$ax_append_compile_cxxflags_extra])
         ],[
-        AX_APPEND_COMPILE_FLAGS([-Wno-pragmas],,[$ax_append_compile_flags_extra])
+        AX_APPEND_COMPILE_FLAGS([-Wno-pragmas],,[$ax_append_compile_cxxflags_extra])
         ])
 
-      AX_APPEND_COMPILE_FLAGS([-Wall],,[$ax_append_compile_flags_extra])
-      AX_APPEND_COMPILE_FLAGS([-Wno-strict-aliasing],,,[$ax_append_compile_flags_extra])
-      AX_APPEND_COMPILE_FLAGS([-Wextra],,[$ax_append_compile_flags_extra])
-      AX_APPEND_COMPILE_FLAGS([-Wunknown-pragmas],,[$ax_append_compile_flags_extra])
-      AX_APPEND_COMPILE_FLAGS([-Wthis-test-should-fail],,[$ax_append_compile_flags_extra])
+      AX_APPEND_COMPILE_FLAGS([-Wall],,[$ax_append_compile_cxxflags_extra])
+      AX_APPEND_COMPILE_FLAGS([-Wno-strict-aliasing],,,[$ax_append_compile_cxxflags_extra])
+      AX_APPEND_COMPILE_FLAGS([-Wextra],,[$ax_append_compile_cxxflags_extra])
+      AX_APPEND_COMPILE_FLAGS([-Wunknown-pragmas],,[$ax_append_compile_cxxflags_extra])
+      AX_APPEND_COMPILE_FLAGS([-Wthis-test-should-fail],,[$ax_append_compile_cxxflags_extra])
       dnl Anything below this comment please keep sorted.
-      AX_APPEND_COMPILE_FLAGS([--param=ssp-buffer-size=1],,[$ax_append_compile_flags_extra])
-      AX_APPEND_COMPILE_FLAGS([-Waddress],,[$ax_append_compile_flags_extra])
-      AX_APPEND_COMPILE_FLAGS([-Warray-bounds],,[$ax_append_compile_flags_extra])
-      AX_APPEND_COMPILE_FLAGS([-Wchar-subscripts],,[$ax_append_compile_flags_extra])
-      AX_APPEND_COMPILE_FLAGS([-Wcomment],,[$ax_append_compile_flags_extra])
-      AX_APPEND_COMPILE_FLAGS([-Wctor-dtor-privacy],,[$ax_append_compile_flags_extra])
-      AX_APPEND_COMPILE_FLAGS([-Wfloat-equal],,[$ax_append_compile_flags_extra])
-      AX_APPEND_COMPILE_FLAGS([-Wformat=2],,[$ax_append_compile_flags_extra])
-      AX_APPEND_COMPILE_FLAGS([-Wmaybe-uninitialized],,[$ax_append_compile_flags_extra])
-      AX_APPEND_COMPILE_FLAGS([-Wmissing-field-initializers],,[$ax_append_compile_flags_extra])
-      AX_APPEND_COMPILE_FLAGS([-Wmissing-noreturn],,[$ax_append_compile_flags_extra])
-      AX_APPEND_COMPILE_FLAGS([-Wnon-virtual-dtor],,[$ax_append_compile_flags_extra])
-      AX_APPEND_COMPILE_FLAGS([-Wnormalized=id],,[$ax_append_compile_flags_extra])
-      AX_APPEND_COMPILE_FLAGS([-Woverloaded-virtual],,[$ax_append_compile_flags_extra])
-      AX_APPEND_COMPILE_FLAGS([-Wpointer-arith],,[$ax_append_compile_flags_extra])
-      AX_APPEND_COMPILE_FLAGS([-Wredundant-decls],,[$ax_append_compile_flags_extra])
-      AX_APPEND_COMPILE_FLAGS([-Wshadow],,[$ax_append_compile_flags_extra])
-      AX_APPEND_COMPILE_FLAGS([-Wshorten-64-to-32],,[$ax_append_compile_flags_extra])
-      AX_APPEND_COMPILE_FLAGS([-Wsign-compare],,[$ax_append_compile_flags_extra])
-      AX_APPEND_COMPILE_FLAGS([-Wstrict-overflow=1],,[$ax_append_compile_flags_extra])
-      AX_APPEND_COMPILE_FLAGS([-Wswitch-enum],,[$ax_append_compile_flags_extra])
-      AX_APPEND_COMPILE_FLAGS([-Wundef],,[$ax_append_compile_flags_extra])
-      AX_APPEND_COMPILE_FLAGS([-Wc++11-compat],,[$ax_append_compile_flags_extra])
-      AX_APPEND_COMPILE_FLAGS([-Wunused-result],,[$ax_append_compile_flags_extra])
-      AX_APPEND_COMPILE_FLAGS([-Wunused-variable],,[$ax_append_compile_flags_extra])
-      AX_APPEND_COMPILE_FLAGS([-Wwrite-strings],,[$ax_append_compile_flags_extra])
-      AX_APPEND_COMPILE_FLAGS([-Wformat-security],,[$ax_append_compile_flags_extra])
-      AX_APPEND_COMPILE_FLAGS([-floop-parallelize-all],,[$ax_append_compile_flags_extra])
-      AX_APPEND_COMPILE_FLAGS([-fwrapv],,[$ax_append_compile_flags_extra])
+      AX_APPEND_COMPILE_FLAGS([--param=ssp-buffer-size=1],,[$ax_append_compile_cxxflags_extra])
+      AX_APPEND_COMPILE_FLAGS([-Waddress],,[$ax_append_compile_cxxflags_extra])
+      AX_APPEND_COMPILE_FLAGS([-Warray-bounds],,[$ax_append_compile_cxxflags_extra])
+      AX_APPEND_COMPILE_FLAGS([-Wchar-subscripts],,[$ax_append_compile_cxxflags_extra])
+      AX_APPEND_COMPILE_FLAGS([-Wcomment],,[$ax_append_compile_cxxflags_extra])
+      AX_APPEND_COMPILE_FLAGS([-Wctor-dtor-privacy],,[$ax_append_compile_cxxflags_extra])
+      AX_APPEND_COMPILE_FLAGS([-Wfloat-equal],,[$ax_append_compile_cxxflags_extra])
+      AX_APPEND_COMPILE_FLAGS([-Wformat=2],,[$ax_append_compile_cxxflags_extra])
+      AX_APPEND_COMPILE_FLAGS([-Wmaybe-uninitialized],,[$ax_append_compile_cxxflags_extra])
+      AX_APPEND_COMPILE_FLAGS([-Wmissing-field-initializers],,[$ax_append_compile_cxxflags_extra])
+      AX_APPEND_COMPILE_FLAGS([-Wmissing-noreturn],,[$ax_append_compile_cxxflags_extra])
+      AX_APPEND_COMPILE_FLAGS([-Wnon-virtual-dtor],,[$ax_append_compile_cxxflags_extra])
+      AX_APPEND_COMPILE_FLAGS([-Wnormalized=id],,[$ax_append_compile_cxxflags_extra])
+      AX_APPEND_COMPILE_FLAGS([-Woverloaded-virtual],,[$ax_append_compile_cxxflags_extra])
+      AX_APPEND_COMPILE_FLAGS([-Wpointer-arith],,[$ax_append_compile_cxxflags_extra])
+      AX_APPEND_COMPILE_FLAGS([-Wredundant-decls],,[$ax_append_compile_cxxflags_extra])
+      AX_APPEND_COMPILE_FLAGS([-Wshadow],,[$ax_append_compile_cxxflags_extra])
+      AX_APPEND_COMPILE_FLAGS([-Wsign-compare],,[$ax_append_compile_cxxflags_extra])
+      AX_APPEND_COMPILE_FLAGS([-Wstrict-overflow=1],,[$ax_append_compile_cxxflags_extra])
+      AX_APPEND_COMPILE_FLAGS([-Wswitch-enum],,[$ax_append_compile_cxxflags_extra])
+      AX_APPEND_COMPILE_FLAGS([-Wundef],,[$ax_append_compile_cxxflags_extra])
+      AX_APPEND_COMPILE_FLAGS([-Wc++11-compat],,[$ax_append_compile_cxxflags_extra])
+      AX_APPEND_COMPILE_FLAGS([-Wunused-result],,[$ax_append_compile_cxxflags_extra])
+      AX_APPEND_COMPILE_FLAGS([-Wunused-variable],,[$ax_append_compile_cxxflags_extra])
+      AX_APPEND_COMPILE_FLAGS([-Wwrite-strings],,[$ax_append_compile_cxxflags_extra])
+      AX_APPEND_COMPILE_FLAGS([-Wformat-security],,[$ax_append_compile_cxxflags_extra])
+      AX_APPEND_COMPILE_FLAGS([-floop-parallelize-all],,[$ax_append_compile_cxxflags_extra])
+      AX_APPEND_COMPILE_FLAGS([-fwrapv],,[$ax_append_compile_cxxflags_extra])
       AC_LANG_POP
   ])
 
   AC_DEFUN([AX_HARDEN_COMPILER_FLAGS], [
-      AC_REQUIRE([AX_HARDEN_CXX_COMPILER_FLAGS],,[$ax_append_compile_flags_extra])
+      AC_REQUIRE([AX_HARDEN_CXX_COMPILER_FLAGS])
       ])
 
   AC_DEFUN([AX_CC_OTHER_FLAGS], [
       AC_REQUIRE([AX_APPEND_COMPILE_FLAGS])
-      AC_REQUIRE([AX_HARDEN_LINKER_FLAGS])
+      AC_REQUIRE([AX_HARDEN_CC_COMPILER_FLAGS])
 
       AC_LANG_PUSH([C])
-      AX_APPEND_COMPILE_FLAGS([-pipe],,[$ax_append_compile_flags_extra])
+      AX_APPEND_COMPILE_FLAGS([-pipe],,[$ax_append_compile_cflags_extra])
       AC_LANG_POP
       ])

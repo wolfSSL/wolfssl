@@ -10,4 +10,4 @@ EXTRA_DIST += examples/client/client.sln
 EXTRA_DIST += examples/client/client-ntru.vcproj
 EXTRA_DIST += examples/client/client.vcproj
 
-example_DATA+= examples/client/client.c
+dist_example_DATA+= examples/client/client.c

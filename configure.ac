@@ -44,6 +44,10 @@ LT_INIT([win32-dll])
 LT_LANG([C++])
 LT_LANG([C])
 gl_VISIBILITY
+AS_IF([ test -n "$CFLAG_VISIBILITY" ], [
+       AM_CPPFLAGS="$AM_CPPFLAGS $CFLAG_VISIBILITY"
+       CPPFLAGS="$CPPFLAGS $CFLAG_VISIBILITY"
+       ])
 
 m4_ifdef([AM_SILENT_RULES],[AM_SILENT_RULES([yes])])
 
@@ -119,12 +123,18 @@ fi
 AC_ARG_ENABLE(singleThreaded,
     [  --enable-singleThreaded Enable CyaSSL single threaded (default: disabled)],
     [ ENABLED_SINGLETHREADED=$enableval ],
-    [ ENABLED_SINGLETHREADED=no ]
-    )
-if test "$ENABLED_SINGLETHREADED" = "yes"
-then
-  AM_CFLAGS="-DSINGLE_THREADED $AM_CFLAGS"
-fi
+    [ ENABLED_SINGLETHREADED=no ])
+
+AS_IF([ test "x$ENABLED_SINGLETHREADED" = "xno" ],[
+       AX_PTHREAD([
+                   AC_DEFINE([HAVE_PTHREAD], [1], [Define if you have POSIX threads libraries and header files.])
+                   AM_CFLAGS="-D_POSIX_THREADS $AM_CFLAGS"
+                   ],[
+                      ENABLED_SINGLETHREADED=yes
+                      ])
+       ])
+
+AS_IF([ test "x$ENABLED_SINGLETHREADED" = "xyes" ],[ AM_CFLAGS="-DSINGLE_THREADED $AM_CFLAGS" ])
 
 
 # DTLS
@@ -268,18 +278,17 @@ fi
 
 
 # SNIFFER
-AC_ARG_ENABLE(sniffer,
-    [  --enable-sniffer        Enable CyaSSL sniffer support (default: disabled)],
-    [ ENABLED_SNIFFER=$enableval ],
-    [ ENABLED_SNIFFER=no ]
-    )
+AC_ARG_ENABLE([sniffer],
+              [AS_HELP_STRING([--enable-sniffer],[ Enable CyaSSL sniffer support (default: disabled) ])],[
+               AS_IF([ test "x$enableval" = "xyes" ],[ AC_CHECK_HEADERS([pcap/pcap.h],[ 
+                      ENABLED_SNIFFER=yes 
+                      AM_CFLAGS="$AM_CFLAGS -DCYASSL_SNIFFER -DOPENSSL_EXTRA"
+                      ],[ ENABLED_SNIFFER=no ]) ])
+               ],[
+                  ENABLED_SNIFFER=no
+                  ])
 
-if test "$ENABLED_SNIFFER" = "yes"
-then
-    AM_CFLAGS="$AM_CFLAGS -DCYASSL_SNIFFER -DOPENSSL_EXTRA"
-fi
-
-AM_CONDITIONAL([BUILD_SNIFFER], [test "x$ENABLED_SNIFFER" = "xyes"])
+AM_CONDITIONAL([BUILD_SNIFFER], [ test "x$ENABLED_SNIFFER" = "xyes" ])
 
 # AES-GCM
 AC_ARG_ENABLE(aesgcm,
@@ -664,13 +673,6 @@ then
     fi
 fi
 
-AX_PTHREAD([
-            AC_DEFINE([HAVE_PTHREAD], [1], [Define if you have POSIX threads libraries and header files.])
-            ],
-            [
-             AC_DEFINE([HAVE_PTHREAD], [0], [Define if you have POSIX threads libraries and header files.])
-             ])
-
 LIB_SOCKET_NSL
 
 AC_ARG_ENABLE(gcc-hardening,
@@ -685,7 +687,7 @@ fi])
 AX_HARDEN_CC_COMPILER_FLAGS
 
 CREATE_HEX_VERSION
-AM_CFLAGS="$AM_CFLAGS $CFLAG_VISIBILITY"
+AC_SUBST(AM_CPPFLAGS)
 AC_SUBST(AM_CFLAGS)
 AC_SUBST(AM_LDFLAGS)
 
@@ -694,6 +696,7 @@ AC_CONFIG_FILES([stamp-h], [echo timestamp > stamp-h])
 AC_CONFIG_FILES([Makefile])
 AC_CONFIG_FILES([cyassl/version.h])
 AC_CONFIG_FILES([support/libcyassl.pc])
+AC_CONFIG_FILES([rpm/spec])
 
 AC_OUTPUT
 
@@ -708,8 +711,16 @@ echo "   * C Flags:                   $CFLAGS"
 echo "   * C++ Compiler:              $CXX_VERSION"
 echo "   * C++ Flags:                 $CXXFLAGS"
 echo "   * CPP Flags:                 $CPPFLAGS"
+echo "   * LIB Flags:                 $LIB"
 echo "   * Assertions enabled:        $ac_cv_assert"
 echo "   * Debug enabled:             $with_debug"
 echo "   * Warnings as failure:       $ac_cv_warnings_as_errors"
+echo 
+echo "   Features "
+echo "   * sniffer:                   $ENABLED_SNIFFER"
+echo "   * Enable smallest build:     $ENABLED_SMALL"
+echo "   * Single threaded:           $ENABLED_SINGLETHREADED"
+echo "   * DTLS:                      $ENABLED_DTLS"
+echo "   * Enable extra OpenSSL API:  $ENABLED_OPENSSLEXTRA"
 echo ""
 echo "---"
