@@ -568,6 +568,38 @@ int SetCipherSpecs(CYASSL* ssl)
         break;
 #endif
 
+#ifdef BUILD_TLS_RSA_WITH_NULL_SHA
+    case TLS_RSA_WITH_NULL_SHA :
+        ssl->specs.bulk_cipher_algorithm = cipher_null;
+        ssl->specs.cipher_type           = stream;
+        ssl->specs.mac_algorithm         = sha_mac;
+        ssl->specs.kea                   = rsa_kea;
+        ssl->specs.hash_size             = SHA_DIGEST_SIZE;
+        ssl->specs.pad_size              = PAD_SHA;
+        ssl->specs.static_ecdh           = 0;
+        ssl->specs.key_size              = 0;
+        ssl->specs.block_size            = 0;
+        ssl->specs.iv_size               = 0;
+
+        break;
+#endif
+
+#ifdef BUILD_TLS_RSA_WITH_NULL_SHA256
+    case TLS_RSA_WITH_NULL_SHA256 :
+        ssl->specs.bulk_cipher_algorithm = cipher_null;
+        ssl->specs.cipher_type           = stream;
+        ssl->specs.mac_algorithm         = sha256_mac;
+        ssl->specs.kea                   = rsa_kea;
+        ssl->specs.hash_size             = SHA256_DIGEST_SIZE;
+        ssl->specs.pad_size              = PAD_SHA;
+        ssl->specs.static_ecdh           = 0;
+        ssl->specs.key_size              = 0;
+        ssl->specs.block_size            = 0;
+        ssl->specs.iv_size               = 0;
+
+        break;
+#endif
+
 #ifdef BUILD_TLS_NTRU_RSA_WITH_AES_128_CBC_SHA
     case TLS_NTRU_RSA_WITH_AES_128_CBC_SHA :
         ssl->specs.bulk_cipher_algorithm = aes;

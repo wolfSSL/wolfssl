@@ -160,8 +160,12 @@ void c32to24(word32 in, word24 out);
     #endif
 #endif
 
-#if !defined(NO_TLS) && !defined(NO_PSK) && defined(HAVE_NULL_CIPHER)
-   #define BUILD_TLS_PSK_WITH_NULL_SHA
+#if !defined(NO_TLS) && defined(HAVE_NULL_CIPHER)
+    #define BUILD_TLS_RSA_WITH_NULL_SHA
+    #define BUILD_TLS_RSA_WITH_NULL_SHA256
+    #if !defined(NO_PSK)
+        #define BUILD_TLS_PSK_WITH_NULL_SHA
+    #endif
 #endif
 
 #if !defined(NO_HC128) && !defined(NO_TLS)
@@ -269,6 +273,7 @@ enum {
     TLS_DHE_RSA_WITH_AES_128_CBC_SHA  = 0x33,
     TLS_RSA_WITH_AES_256_CBC_SHA      = 0x35,
     TLS_RSA_WITH_AES_128_CBC_SHA      = 0x2F,
+    TLS_RSA_WITH_NULL_SHA             = 0x02,
     TLS_PSK_WITH_AES_256_CBC_SHA      = 0x8d,
     TLS_PSK_WITH_AES_128_CBC_SHA      = 0x8c,
     TLS_PSK_WITH_NULL_SHA             = 0x2c,
@@ -312,6 +317,7 @@ enum {
     TLS_DHE_RSA_WITH_AES_128_CBC_SHA256 = 0x67,
     TLS_RSA_WITH_AES_256_CBC_SHA256     = 0x3d,
     TLS_RSA_WITH_AES_128_CBC_SHA256     = 0x3c,
+    TLS_RSA_WITH_NULL_SHA256            = 0x3b,
 
     /* AES-GCM */
     TLS_RSA_WITH_AES_128_GCM_SHA256          = 0x9c,
