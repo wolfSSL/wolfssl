@@ -477,7 +477,7 @@ void client_test(void* args)
             err_sys("SSL_write failed");
 
         if (nonBlocking) {
-            /* need to give server a chance to bounce a message back to client */
+            /* give server a chance to bounce a message back to client */
             #ifdef USE_WINDOWS_API
                 Sleep(500);
             #else

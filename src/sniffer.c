@@ -2101,27 +2101,28 @@ static int CheckSequence(IpInfo* ipInfo, TcpInfo* tcpInfo,
 /* Check Status before record processing */
 /* returns 0 on success (continue), -1 on error, 1 on success (end) */
 static int CheckPreRecord(IpInfo* ipInfo, TcpInfo* tcpInfo,
-                          const byte** sslFrame, SnifferSession* session,
+                          const byte** sslFrame, SnifferSession** session,
                           int* sslBytes, const byte** end, char* error)
 {
     word32 length;
-    SSL*   ssl = (session->flags.side == SERVER_END) ? session->sslServer :
-                                                       session->sslClient;
+    SSL*  ssl = ((*session)->flags.side == SERVER_END) ? (*session)->sslServer :
+                                                         (*session)->sslClient;
     /* remove SnifferSession on 2nd FIN or RST */
     if (tcpInfo->fin || tcpInfo->rst) {
         /* flag FIN and RST */
         if (tcpInfo->fin)
-            session->flags.finCount += 1;
+            (*session)->flags.finCount += 1;
         else if (tcpInfo->rst)
-            session->flags.finCount += 2;
+            (*session)->flags.finCount += 2;
         
-        if (session->flags.finCount >= 2) {
-            RemoveSession(session, ipInfo, tcpInfo, 0);
+        if ((*session)->flags.finCount >= 2) {
+            RemoveSession(*session, ipInfo, tcpInfo, 0);
+            *session = NULL;
             return 1;
         }
     }
     
-    if (session->flags.fatalError == FATAL_ERROR_STATE) {
+    if ((*session)->flags.fatalError == FATAL_ERROR_STATE) {
         SetError(FATAL_ERROR_STR, error, NULL, 0);
         return -1;
     }
@@ -2136,7 +2137,7 @@ static int CheckPreRecord(IpInfo* ipInfo, TcpInfo* tcpInfo,
         Trace(PARTIAL_ADD_STR);
         
         if ( (*sslBytes + length) > ssl->buffers.inputBuffer.bufferSize) {
-            SetError(BUFFER_ERROR_STR, error, session, FATAL_ERROR_STATE);
+            SetError(BUFFER_ERROR_STR, error, *session, FATAL_ERROR_STATE);
             return -1;
         }
         XMEMCPY(&ssl->buffers.inputBuffer.buffer[length], *sslFrame, *sslBytes);
@@ -2146,9 +2147,9 @@ static int CheckPreRecord(IpInfo* ipInfo, TcpInfo* tcpInfo,
         *end = *sslFrame + *sslBytes;
     }
     
-    if (session->flags.clientHello == 0 && **sslFrame != handshake) {
+    if ((*session)->flags.clientHello == 0 && **sslFrame != handshake) {
         int rhSize;
-        int ret = DoOldHello(session, *sslFrame, &rhSize, sslBytes, error);
+        int ret = DoOldHello(*session, *sslFrame, &rhSize, sslBytes, error);
         if (ret < 0)
             return -1;  /* error already set */
         if (*sslBytes <= 0)
@@ -2357,6 +2358,20 @@ static void CheckFinCapture(IpInfo* ipInfo, TcpInfo* tcpInfo,
 }
 
 
+/* If session is in fatal error state free resources now 
+   return true if removed, 0 otherwise */
+static int RemoveFatalSession(IpInfo* ipInfo, TcpInfo* tcpInfo,
+                              SnifferSession* session, char* error)
+{
+    if (session && session->flags.fatalError == FATAL_ERROR_STATE) {
+        RemoveSession(session, ipInfo, tcpInfo, 0);
+        SetError(FATAL_ERROR_STR, error, NULL, 0);
+        return 1;
+    }
+    return 0;
+}
+
+
 /* Passes in an IP/TCP packet for decoding (ethernet/localhost frame) removed */
 /* returns Number of bytes on success, 0 for no data yet, and -1 on error */
 int ssl_DecodePacket(const byte* packet, int length, byte* data, char* error)
@@ -2374,19 +2389,23 @@ int ssl_DecodePacket(const byte* packet, int length, byte* data, char* error)
         return -1;
     
     ret = CheckSession(&ipInfo, &tcpInfo, sslBytes, &session, error);
-    if (ret == -1)     return -1;
-    else if (ret == 1) return  0;   /* done for now */
+    if (RemoveFatalSession(&ipInfo, &tcpInfo, session, error)) return -1;
+    else if (ret == -1) return -1;
+    else if (ret ==  1) return  0;   /* done for now */
     
     ret = CheckSequence(&ipInfo, &tcpInfo, session, &sslBytes, &sslFrame,error);
-    if (ret == -1)     return -1;
-    else if (ret == 1) return  0;   /* done for now */
+    if (RemoveFatalSession(&ipInfo, &tcpInfo, session, error)) return -1;
+    else if (ret == -1) return -1;
+    else if (ret ==  1) return  0;   /* done for now */
     
-    ret = CheckPreRecord(&ipInfo, &tcpInfo, &sslFrame, session, &sslBytes,
+    ret = CheckPreRecord(&ipInfo, &tcpInfo, &sslFrame, &session, &sslBytes,
                          &end, error);
-    if (ret == -1)     return -1;
-    else if (ret == 1) return  0;   /* done for now */
+    if (RemoveFatalSession(&ipInfo, &tcpInfo, session, error)) return -1;
+    else if (ret == -1) return -1;
+    else if (ret ==  1) return  0;   /* done for now */
 
     ret = ProcessMessage(sslFrame, session, sslBytes, data, end, error);
+    if (RemoveFatalSession(&ipInfo, &tcpInfo, session, error)) return -1;
     CheckFinCapture(&ipInfo, &tcpInfo, session);
     return ret;
 }
