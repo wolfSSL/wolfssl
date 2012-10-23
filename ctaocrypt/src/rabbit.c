@@ -39,7 +39,7 @@
     #define LITTLE32(x) (x)
 #endif
 
-#define U32V(x) (word32)(x)
+#define U32V(x) ((word32)(x) & 0xFFFFFFFFU)
 
 
 /* Square a 32-bit unsigned integer to obtain the 64-bit result and return */

@@ -23,7 +23,6 @@ src_libcyassl_la_SOURCES = \
 			   ctaocrypt/src/dh.c \
 			   ctaocrypt/src/dsa.c \
 			   ctaocrypt/src/arc4.c \
-			   ctaocrypt/src/rabbit.c \
 			   ctaocrypt/src/pwdbased.c \
 			   ctaocrypt/src/logging.c \
 			   ctaocrypt/src/memory.c
@@ -54,6 +53,10 @@ endif
 
 if BUILD_HC128
 src_libcyassl_la_SOURCES += ctaocrypt/src/hc128.c
+endif
+
+if BUILD_RABBIT
+src_libcyassl_la_SOURCES += ctaocrypt/src/rabbit.c
 endif
 
 if BUILD_NOINLINE

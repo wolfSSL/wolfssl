@@ -272,6 +272,17 @@ int SuiteTest(void)
     }
 #endif
 
+#ifdef HAVE_RABBIT
+    /* add rabbit extra suites */
+    strcpy(argv0[1], "tests/test-rabbit.conf");
+    printf("starting rabbit extra cipher suite tests\n");
+    test_harness(&args);
+    if (args.return_code != 0) {
+        printf("error from script %d\n", args.return_code);
+        exit(EXIT_FAILURE);  
+    }
+#endif
+
 #ifndef NO_PSK
     /* add psk extra suites */
     strcpy(argv0[1], "tests/test-psk.conf");

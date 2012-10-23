@@ -459,6 +459,23 @@ fi
 AM_CONDITIONAL([BUILD_HC128], [test "x$ENABLED_HC128" = "xyes"])
 
 
+# RABBIT
+AC_ARG_ENABLE(rabbit,
+    [  --enable-rabbit         Enable RABBIT (default: disabled)],
+    [ ENABLED_RABBIT=$enableval ],
+    [ ENABLED_RABBIT=no ]
+    )
+
+if test "$ENABLED_RABBIT" = "no"
+then
+    AM_CFLAGS="$AM_CFLAGS -DNO_RABBIT"
+else
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_RABBIT"
+fi
+
+AM_CONDITIONAL([BUILD_RABBIT], [test "x$ENABLED_RABBIT" = "xyes"])
+
+
 # PSK 
 AC_ARG_ENABLE(psk,
     [  --enable-psk            Enable PSK (default: disabled)],
