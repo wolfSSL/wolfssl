@@ -2807,6 +2807,9 @@ static INLINE int Encrypt(CYASSL* ssl, byte* out, const byte* input, word32 sz)
 
         #ifdef HAVE_NULL_CIPHER
             case cipher_null:
+                if (input != out) {
+                    XMEMMOVE(out, input, sz);
+                }
                 break;
         #endif
 
@@ -2890,6 +2893,9 @@ static INLINE int Decrypt(CYASSL* ssl, byte* plain, const byte* input,
 
         #ifdef HAVE_NULL_CIPHER
             case cipher_null:
+                if (input != plain) {
+                    XMEMMOVE(plain, input, sz);
+                }
                 break;
         #endif
                 
