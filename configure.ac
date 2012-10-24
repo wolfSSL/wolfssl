@@ -40,6 +40,10 @@ CYASSL_LIBRARY_VERSION=3:3:0
 #               +- increment if interfaces have been added, removed or changed
 AC_SUBST(CYASSL_LIBRARY_VERSION)
 
+# capture user C_EXTRA_FLAGS from ./configure line, CFLAGS may hold -g -O2 even
+# if user doesn't override, no way to tell
+USER_C_EXTRA_FLAGS="$C_EXTRA_FLAGS"
+
 LT_INIT([win32-dll])
 LT_LANG([C++])
 LT_LANG([C])
@@ -699,6 +703,9 @@ AS_HELP_STRING(--enable-gcc-hardening, Enable compiler security checks (default:
 fi])
 
 AX_HARDEN_CC_COMPILER_FLAGS
+
+# add user C_EXTRA_FLAGS back
+CFLAGS="$CFLAGS $USER_C_EXTRA_FLAGS"
 
 CREATE_HEX_VERSION
 AC_SUBST([AM_CPPFLAGS])

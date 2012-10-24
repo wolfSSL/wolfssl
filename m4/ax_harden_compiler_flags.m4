@@ -97,6 +97,7 @@
 
       AC_LANG_PUSH([C])
 
+      CFLAGS=
       ac_cv_warnings_as_errors=no
       ax_append_compile_cflags_extra=
       AS_IF([test "$ac_cv_vcs_checkout" = "yes"],[
