@@ -1448,6 +1448,7 @@ static int ProcessFinished(const byte* input, int* sslBytes,
          }
     }
 
+    FreeHandshakeResources(ssl);
 
     return ret;
 }
