@@ -473,6 +473,7 @@ void InitCiphers(CYASSL* ssl)
 /* Free ciphers */
 void FreeCiphers(CYASSL* ssl)
 {
+    (void)ssl;
 #ifdef BUILD_ARC4
     XFREE(ssl->encrypt.arc4, ssl->heap, DYNAMIC_TYPE_CIPHER);
     XFREE(ssl->decrypt.arc4, ssl->heap, DYNAMIC_TYPE_CIPHER);
@@ -522,6 +523,7 @@ void InitSuites(Suites* suites, ProtocolVersion pv, byte haveDH, byte havePSK,
     int    haveRSAsig = 1;
 
     (void)tls;  /* shut up compiler */
+    (void)tls1_2;
     (void)haveDH;
     (void)havePSK;
     (void)haveNTRU;
@@ -5218,7 +5220,7 @@ int SetCipherList(Suites* s, const char* list)
         
         if (cookieSz) {
 #ifdef CYASSL_DTLS
-            if (cookieSz < MAX_COOKIE_LEN) {
+            if (cookieSz <= MAX_COOKIE_LEN) {
                 XMEMCPY(ssl->arrays->cookie, input + *inOutIdx, cookieSz);
                 ssl->arrays->cookieSz = cookieSz;
             }
