@@ -77,8 +77,9 @@ AC_CHECK_SIZEOF(long long, 8)
 AC_CHECK_SIZEOF(long, 4)
 AC_C_BIGENDIAN
 AC_DISABLE_STATIC
-AC_DISABLE_STATIC
-AC_FUNC_MKTIME
+# mktime check takes forever on some systems, if time supported it would be
+# highly unusual for mktime to be missing
+#AC_FUNC_MKTIME 
 
 AC_PROG_CC
 AC_PROG_CC_C_O
