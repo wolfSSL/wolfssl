@@ -218,7 +218,8 @@ static const char* const msgTable[] =
     /* 66 */
     "Bad Finished Message Processing",
     "Bad Compression Type",
-    "Bad DeriveKeys Error"
+    "Bad DeriveKeys Error",
+    "Saw ACK for Missing Packet Error"
 };
 
 
@@ -490,6 +491,7 @@ typedef struct TcpInfo {
     int    dstPort;       /* source port */
     int    length;        /* length of this header */
     word32 sequence;      /* sequence number */
+    word32 ackNumber;     /* ack number */
     byte   fin;           /* FIN set */
     byte   rst;           /* RST set */
     byte   syn;           /* SYN set */
@@ -650,6 +652,15 @@ static void TraceSequence(word32 seq, int len)
 {
     if (TraceOn) {
         fprintf(TraceFile, "\tSequence:%u, payload length:%d\n", seq, len);
+    }
+}
+
+
+/* Show sequence and payload length for Trace */
+static void TraceAck(word32 ack, word32 expected)
+{
+    if (TraceOn) {
+        fprintf(TraceFile, "\tAck:%u Expected:%u\n", ack, expected);
     }
 }
 
@@ -979,6 +990,8 @@ static int CheckTcpHdr(TcpHdr* tcphdr, TcpInfo* info, char* error)
     info->rst       = tcphdr->flags & TCP_RST;
     info->syn       = tcphdr->flags & TCP_SYN;
     info->ack       = tcphdr->flags & TCP_ACK;
+    if (info->ack)
+        info->ackNumber = ntohl(tcphdr->ack); 
 
     if (!IsPortRegistered(info->srcPort) && !IsPortRegistered(info->dstPort)) {
         SetError(SERVER_PORT_NOT_REG_STR, error, NULL, 0);
@@ -2070,6 +2083,30 @@ static int AdjustSequence(TcpInfo* tcpInfo, SnifferSession* session,
 }
 
 
+/* Check latest ack number for missing packets
+   return 0 ok, <0 on error */
+static int CheckAck(TcpInfo* tcpInfo, SnifferSession* session)
+{
+    if (tcpInfo->ack) {
+        word32  seqStart = (session->flags.side == SERVER_END) ? 
+                                     session->srvSeqStart :session->cliSeqStart;
+        word32  real     = tcpInfo->ackNumber - seqStart;
+        word32  expected = (session->flags.side == SERVER_END) ?
+                                  session->srvExpected : session->cliExpected;
+    
+        /* handle rollover of sequence */
+        if (tcpInfo->ackNumber < seqStart)
+            real = 0xffffffffU - seqStart + tcpInfo->ackNumber;
+        
+        TraceAck(real, expected);
+
+        if (real > expected)
+            return -1;  /* we missed a packet, ACKing data we never saw */
+    }
+    return 0;
+}
+
+
 /* Check TCP Sequence status */
 /* returns 0 on success (continue), -1 on error, 1 on success (end) */
 static int CheckSequence(IpInfo* ipInfo, TcpInfo* tcpInfo,
@@ -2093,6 +2130,10 @@ static int CheckSequence(IpInfo* ipInfo, TcpInfo* tcpInfo,
     }
     
     TraceSequence(tcpInfo->sequence, *sslBytes);
+    if (CheckAck(tcpInfo, session) < 0) {
+        SetError(ACK_MISSED_STR, error, session, FATAL_ERROR_STATE);
+        return -1;
+    }
     
     return AdjustSequence(tcpInfo, session, sslBytes, sslFrame, error);    
 }
