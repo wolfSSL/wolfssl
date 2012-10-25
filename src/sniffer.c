@@ -74,6 +74,8 @@ enum {
     SNIFFER_TIMEOUT    = 900, /* Cache unclosed Sessions for 15 minutes */
     TICKET_HINT_LEN    = 4,   /* Session Ticket Hint length */
     EXT_TYPE_SZ        = 2,   /* Extension length */
+    MAX_INPUT_SZ       = MAX_RECORD_SIZE + COMP_EXTRA + MAX_MSG_EXTRA + 
+                         MTU_EXTRA,  /* Max input sz of reassembly */
     TICKET_EXT_ID      = 0x23 /* Session Ticket Extension ID */
 };
 
@@ -1008,7 +1010,7 @@ static int GetRecordHeader(const byte* input, RecordLayerHeader* rh, int* size)
     XMEMCPY(rh, input, RECORD_HEADER_SZ);
     *size = (rh->length[0] << 8) | rh->length[1];
 
-    if (*size > (RECORD_SIZE + MAX_COMP_EXTRA + MAX_MSG_EXTRA))
+    if (*size > (MAX_RECORD_SIZE + COMP_EXTRA + MAX_MSG_EXTRA))
         return LENGTH_ERROR;
 
     return 0;
@@ -2179,8 +2181,10 @@ static int CheckPreRecord(IpInfo* ipInfo, TcpInfo* tcpInfo,
         Trace(PARTIAL_ADD_STR);
         
         if ( (*sslBytes + length) > ssl->buffers.inputBuffer.bufferSize) {
-            SetError(BUFFER_ERROR_STR, error, *session, FATAL_ERROR_STATE);
-            return -1;
+            if (GrowInputBuffer(ssl, *sslBytes, length) < 0) {
+                SetError(MEMORY_STR, error, *session, FATAL_ERROR_STATE);
+                return -1;
+            }
         }
         XMEMCPY(&ssl->buffers.inputBuffer.buffer[length], *sslFrame, *sslBytes);
         *sslBytes += length;
@@ -2205,7 +2209,7 @@ static int CheckPreRecord(IpInfo* ipInfo, TcpInfo* tcpInfo,
 /* See if input on the reassembly list is ready for consuming */
 /* returns 1 for TRUE, 0 for FALSE */
 static int HaveMoreInput(SnifferSession* session, const byte** sslFrame,
-                         int* sslBytes, const byte** end)
+                         int* sslBytes, const byte** end, char* error)
 {
     /* sequence and reassembly based on from, not to */
     int            moreInput = 0;
@@ -2220,10 +2224,22 @@ static int HaveMoreInput(SnifferSession* session, const byte** sslFrame,
     byte*          myBuffer = (session->flags.side == SERVER_END) ?
                                 session->sslServer->buffers.inputBuffer.buffer :
                                 session->sslClient->buffers.inputBuffer.buffer;
+    word32       bufferSize = (session->flags.side == SERVER_END) ?
+                            session->sslServer->buffers.inputBuffer.bufferSize :
+                            session->sslClient->buffers.inputBuffer.bufferSize;
+    SSL*               ssl  = (session->flags.side == SERVER_END) ?
+                            session->sslServer : session->sslClient;
     
     while (*front && ((*front)->begin == *expected) ) {
-        word32 room = STATIC_BUFFER_LEN - *length;
+        word32 room = bufferSize - *length;
         word32 packetLen = (*front)->end - (*front)->begin + 1;
+
+        if (packetLen > room && bufferSize < MAX_INPUT_SZ) {
+            if (GrowInputBuffer(ssl, packetLen, *length) < 0) {
+                SetError(MEMORY_STR, error, session, FATAL_ERROR_STATE);
+                return 0;
+            }
+        }
         
         if (packetLen <= room) {
             PacketBuffer* del = *front;
@@ -2283,13 +2299,15 @@ doMessage:
         /* store partial if not there already or we advanced */
         if (ssl->buffers.inputBuffer.length == 0 || sslBegin != sslFrame) {
             if (sslBytes > (int)ssl->buffers.inputBuffer.bufferSize) {
-                SetError(BUFFER_ERROR_STR, error, session, FATAL_ERROR_STATE);
-                return -1;
+                if (GrowInputBuffer(ssl, sslBytes, 0) < 0) { 
+                    SetError(MEMORY_STR, error, session, FATAL_ERROR_STATE);
+                    return -1;
+                }
             }
             XMEMCPY(ssl->buffers.inputBuffer.buffer, sslFrame, sslBytes);
             ssl->buffers.inputBuffer.length = sslBytes;
         }
-        if (HaveMoreInput(session, &sslFrame, &sslBytes, &end))
+        if (HaveMoreInput(session, &sslFrame, &sslBytes, &end, error))
             goto doMessage;
         return decoded;
     }
@@ -2298,12 +2316,15 @@ doMessage:
     tmp = sslFrame + rhSize;   /* may have more than one record to process */
     
     /* decrypt if needed */
-    if (session->flags.side == SERVER_END && session->flags.serverCipherOn)
+    if ((session->flags.side == SERVER_END && session->flags.serverCipherOn)
+     || (session->flags.side == CLIENT_END && session->flags.clientCipherOn)) {
+        if (CheckAvalaibleSize(ssl, rhSize) < 0) {
+            SetError(MEMORY_STR, error, session, FATAL_ERROR_STATE);
+            return -1;
+        }
         sslFrame = DecryptMessage(ssl, sslFrame, rhSize,
                                   ssl->buffers.outputBuffer.buffer);
-    else if (session->flags.side == CLIENT_END && session->flags.clientCipherOn)
-        sslFrame = DecryptMessage(ssl, sslFrame, rhSize,
-                                  ssl->buffers.outputBuffer.buffer);
+    }
             
     switch ((enum ContentType)rh.type) {
         case handshake:
@@ -2344,6 +2365,8 @@ doMessage:
                     SetError(BAD_APP_DATA_STR, error,session,FATAL_ERROR_STATE);
                     return -1;
                 }
+                if (ssl->buffers.outputBuffer.dynamicFlag)
+                    ShrinkOutputBuffer(ssl);
             }
             break;
         case alert:
@@ -2366,8 +2389,11 @@ doMessage:
     ssl->buffers.inputBuffer.length = 0;
     
     /* could have more input ready now */
-    if (HaveMoreInput(session, &sslFrame, &sslBytes, &end))
+    if (HaveMoreInput(session, &sslFrame, &sslBytes, &end, error))
         goto doMessage;
+
+    if (ssl->buffers.inputBuffer.dynamicFlag)
+        ShrinkInputBuffer(ssl, NO_FORCED_FREE);
     
     return decoded;
 }

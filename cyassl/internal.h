@@ -605,8 +605,8 @@ enum {
     #define MTU_EXTRA 0
 #endif
 
-/* give user option to use 16K static buffers, sniffer needs them too */
-#if defined(LARGE_STATIC_BUFFERS) || defined(CYASSL_SNIFFER)
+/* give user option to use 16K static buffers */
+#if defined(LARGE_STATIC_BUFFERS)
     #define RECORD_SIZE MAX_RECORD_SIZE
 #else
     #ifdef CYASSL_DTLS
@@ -635,8 +635,7 @@ enum {
        The length (in bytes) of the following TLSPlaintext.fragment.
        The length should not exceed 2^14.
 */
-#if defined(LARGE_STATIC_BUFFERS) || defined(CYASSL_SNIFFER) || \
-                                     defined(CYASSL_DTLS)
+#if defined(LARGE_STATIC_BUFFERS) || defined(CYASSL_DTLS)
     #define STATIC_BUFFER_LEN RECORD_HEADER_SZ + RECORD_SIZE + COMP_EXTRA + \
              MTU_EXTRA + MAX_MSG_EXTRA
 #else
@@ -1511,6 +1510,8 @@ CYASSL_LOCAL Signer* GetCA(void* cm, byte* hash);
 CYASSL_LOCAL void BuildTlsFinished(CYASSL* ssl, Hashes* hashes,
                                    const byte* sender);
 CYASSL_LOCAL void FreeArrays(CYASSL* ssl, int keep);
+CYASSL_LOCAL  int CheckAvalaibleSize(CYASSL *ssl, int size);
+CYASSL_LOCAL  int GrowInputBuffer(CYASSL* ssl, int size, int usedLength);
 
 #ifndef NO_TLS
     CYASSL_LOCAL int  MakeTlsMasterSecret(CYASSL*);

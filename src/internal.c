@@ -1809,7 +1809,7 @@ static INLINE int GrowOutputBuffer(CYASSL* ssl, int size)
 
 
 /* Grow the input buffer, should only be to read cert or big app data */
-static INLINE int GrowInputBuffer(CYASSL* ssl, int size, int usedLength)
+int GrowInputBuffer(CYASSL* ssl, int size, int usedLength)
 {
     byte* tmp = (byte*) XMALLOC(size + usedLength, ssl->heap,
                                 DYNAMIC_TYPE_IN_BUFFER);
@@ -1835,7 +1835,7 @@ static INLINE int GrowInputBuffer(CYASSL* ssl, int size, int usedLength)
 
 
 /* check avalaible size into output buffer, make room if needed */
-static INLINE int CheckAvalaibleSize(CYASSL *ssl, int size)
+int CheckAvalaibleSize(CYASSL *ssl, int size)
 {
     if (ssl->buffers.outputBuffer.bufferSize - ssl->buffers.outputBuffer.length
                                              < (word32)size) {
@@ -1845,6 +1845,7 @@ static INLINE int CheckAvalaibleSize(CYASSL *ssl, int size)
 
     return 0;
 }
+
 
 /* do all verify and sanity checks on record header */
 static int GetRecordHeader(CYASSL* ssl, const byte* input, word32* inOutIdx,
