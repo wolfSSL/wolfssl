@@ -1272,6 +1272,8 @@ struct CYASSL {
     Keys            keys;
     int             rfd;                /* read  file descriptor */
     int             wfd;                /* write file descriptor */
+    int             rflags;             /* user read  flags */
+    int             wflags;             /* user write flags */
     CYASSL_BIO*     biord;              /* socket bio read  to free/close */
     CYASSL_BIO*     biowr;              /* socket bio write to free/close */
     void*           IOCB_ReadCtx;

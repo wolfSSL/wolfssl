@@ -160,7 +160,7 @@ int EmbedReceive(CYASSL *ssl, char *buf, int sz, void *ctx)
     }
 #endif
 
-    recvd = (int)RECV_FUNCTION(sd, (char *)buf, sz, 0);
+    recvd = (int)RECV_FUNCTION(sd, buf, sz, ssl->rflags);
 
     if (recvd < 0) {
         err = LastError();
@@ -211,9 +211,7 @@ int EmbedSend(CYASSL* ssl, char *buf, int sz, void *ctx)
     int len = sz;
     int err;
 
-    (void)ssl;
-
-    sent = (int)SEND_FUNCTION(sd, &buf[sz - len], len, 0);
+    sent = (int)SEND_FUNCTION(sd, &buf[sz - len], len, ssl->wflags);
 
     if (sent < 0) {
         err = LastError();
@@ -283,7 +281,7 @@ int EmbedReceiveFrom(CYASSL *ssl, char *buf, int sz, void *ctx)
                                             (char*)&timeout, sizeof(timeout));
     }
 
-    recvd = (int)RECVFROM_FUNCTION(sd, (char *)buf, sz, 0,
+    recvd = (int)RECVFROM_FUNCTION(sd, buf, sz, ssl->rflags,
                                   (struct sockaddr*)&peer, &peerSz);
 
     if (recvd < 0) {
@@ -342,12 +340,9 @@ int EmbedSendTo(CYASSL* ssl, char *buf, int sz, void *ctx)
     int len = sz;
     int err;
 
-    (void)ssl;
-
     CYASSL_ENTER("EmbedSendTo()");
-    sent = (int)SENDTO_FUNCTION(sd, &buf[sz - len], len, 0,
+    sent = (int)SENDTO_FUNCTION(sd, &buf[sz - len], len, ssl->wflags,
                                 dtlsCtx->peer.sa, dtlsCtx->peer.sz);
-
     if (sent < 0) {
         err = LastError();
         CYASSL_MSG("Embed Send To error");
@@ -443,5 +438,17 @@ CYASSL_API void CyaSSL_SetIOReadCtx(CYASSL* ssl, void *rctx)
 CYASSL_API void CyaSSL_SetIOWriteCtx(CYASSL* ssl, void *wctx)
 {
 	ssl->IOCB_WriteCtx = wctx;
+}
+
+
+CYASSL_API void CyaSSL_SetIOReadFlags(CYASSL* ssl, int flags)
+{
+    ssl->rflags = flags; 
+}
+
+
+CYASSL_API void CyaSSL_SetIOWriteFlags(CYASSL* ssl, int flags)
+{
+    ssl->wflags = flags;
 }
 

@@ -970,11 +970,13 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
     ssl->timeout = ctx->timeout;
     ssl->rfd = -1;   /* set to invalid descriptor */
     ssl->wfd = -1;
+    ssl->rflags = 0;    /* no user flags yet */
+    ssl->wflags = 0;    /* no user flags yet */
     ssl->biord = 0;
     ssl->biowr = 0;
 
-    ssl->IOCB_ReadCtx  = &ssl->rfd;   /* prevent invalid pointer acess if not */
-    ssl->IOCB_WriteCtx = &ssl->wfd;   /* correctly set */
+    ssl->IOCB_ReadCtx  = &ssl->rfd;  /* prevent invalid pointer access if not */
+    ssl->IOCB_WriteCtx = &ssl->wfd;  /* correctly set */
 
     InitMd5(&ssl->hashMd5);
     InitSha(&ssl->hashSha);

@@ -778,8 +778,11 @@ typedef int (*CallbackIOSend)(CYASSL *ssl, char *buf, int sz, void *ctx);
 CYASSL_API void CyaSSL_SetIORecv(CYASSL_CTX*, CallbackIORecv);
 CYASSL_API void CyaSSL_SetIOSend(CYASSL_CTX*, CallbackIOSend);
 
-CYASSL_API void CyaSSL_SetIOReadCtx(CYASSL* ssl, void *ctx);
+CYASSL_API void CyaSSL_SetIOReadCtx( CYASSL* ssl, void *ctx);
 CYASSL_API void CyaSSL_SetIOWriteCtx(CYASSL* ssl, void *ctx);
+
+CYASSL_API void CyaSSL_SetIOReadFlags( CYASSL* ssl, int flags);
+CYASSL_API void CyaSSL_SetIOWriteFlags(CYASSL* ssl, int flags);
 
 /* CA cache callbacks */
 enum {
