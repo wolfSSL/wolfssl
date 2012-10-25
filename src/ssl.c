@@ -1875,7 +1875,7 @@ int CyaSSL_PemCertToDer(const char* fileName, unsigned char* derBuf, int derSz)
         dynamic = 1;
     }
 
-    if ( (ret = XFREAD(fileBuf, sz, 1, file)) < 0)
+    if ( (ret = (int)XFREAD(fileBuf, sz, 1, file)) < 0)
         ret = SSL_BAD_FILE;
     else
         ret = PemToDer(fileBuf, sz, CA_TYPE, &converted, 0, &info, &ecc);

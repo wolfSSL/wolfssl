@@ -1491,7 +1491,7 @@ int rsa_test(void)
         keyFile = fopen("./key.der", "wb");
         if (!keyFile)
             return -303;
-        ret = fwrite(der, derSz, 1, keyFile);
+        ret = (int)fwrite(der, derSz, 1, keyFile);
         fclose(keyFile);
 
         pemSz = DerToPem(der, derSz, pem, sizeof(pem), PRIVATEKEY_TYPE);
@@ -1501,7 +1501,7 @@ int rsa_test(void)
         pemFile = fopen("./key.pem", "wb");
         if (!pemFile) 
             return -305;
-        ret = fwrite(pem, pemSz, 1, pemFile);
+        ret = (int)fwrite(pem, pemSz, 1, pemFile);
         fclose(pemFile);
 
         InitRsaKey(&derIn, 0);
@@ -1556,7 +1556,7 @@ int rsa_test(void)
         derFile = fopen("./cert.der", "wb");
         if (!derFile)
             return -403;
-        ret = fwrite(derCert, certSz, 1, derFile);
+        ret = (int)fwrite(derCert, certSz, 1, derFile);
         fclose(derFile);
 
         pemSz = DerToPem(derCert, certSz, pem, sizeof(pem), CERT_TYPE);
@@ -1566,7 +1566,7 @@ int rsa_test(void)
         pemFile = fopen("./cert.pem", "wb");
         if (!pemFile)
             return -405;
-        ret = fwrite(pem, pemSz, 1, pemFile);
+        ret = (int)fwrite(pem, pemSz, 1, pemFile);
         fclose(pemFile);
 
 
@@ -1634,7 +1634,7 @@ int rsa_test(void)
         derFile = fopen("./othercert.der", "wb");
         if (!derFile)
             return -410;
-        ret = fwrite(derCert, certSz, 1, derFile);
+        ret = (int)fwrite(derCert, certSz, 1, derFile);
         fclose(derFile);
 
         pemSz = DerToPem(derCert, certSz, pem, sizeof(pem), CERT_TYPE);
@@ -1644,7 +1644,7 @@ int rsa_test(void)
         pemFile = fopen("./othercert.pem", "wb");
         if (!pemFile)
             return -412;
-        ret = fwrite(pem, pemSz, 1, pemFile);
+        ret = (int)fwrite(pem, pemSz, 1, pemFile);
         fclose(pemFile);
     }
 #ifdef HAVE_NTRU

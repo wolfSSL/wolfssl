@@ -2863,8 +2863,8 @@ int DerToPem(const byte* der, word32 derSz, byte* output, word32 outSz,
         XSTRNCPY(footer, "-----END RSA PRIVATE KEY-----\n", sizeof(footer));
     }
 
-    headerLen = XSTRLEN(header);
-    footerLen = XSTRLEN(footer);
+    headerLen = (int)XSTRLEN(header);
+    footerLen = (int)XSTRLEN(footer);
 
     if (!der || !output)
         return BAD_FUNC_ARG;
@@ -3410,7 +3410,7 @@ static int SetName(byte* output, CertName* name)
             byte set[MAX_SET_SZ];
 
             int email = i == (NAME_ENTRIES - 1) ? 1 : 0;
-            int strLen  = XSTRLEN(nameStr);
+            int strLen  = (int)XSTRLEN(nameStr);
             int thisLen = strLen;
             int firstSz, secondSz, seqSz, setSz;
 
@@ -3461,7 +3461,7 @@ static int SetName(byte* output, CertName* name)
                                            0x01, 0x09, 0x01, 0x16 };
                 /* email joint id */
                 XMEMCPY(names[i].encoded + idx, EMAIL_OID, sizeof(EMAIL_OID));
-                idx += sizeof(EMAIL_OID);
+                idx += (int)sizeof(EMAIL_OID);
             }
             else {
                 /* joint id */
