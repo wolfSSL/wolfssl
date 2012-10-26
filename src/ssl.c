@@ -395,6 +395,40 @@ int CyaSSL_read(CYASSL* ssl, void* data, int sz)
 }
 
 
+int CyaSSL_send(CYASSL* ssl, const void* data, int sz, int flags)
+{
+    int ret; 
+    int oldFlags = ssl->wflags;
+
+    CYASSL_ENTER("CyaSSL_send()");
+
+    ssl->wflags = flags;
+    ret = CyaSSL_write(ssl, data, sz);
+    ssl->wflags = oldFlags;
+
+    CYASSL_LEAVE("CyaSSL_send()", ret);
+
+    return ret;
+}
+
+
+int CyaSSL_recv(CYASSL* ssl, void* data, int sz, int flags)
+{
+    int ret; 
+    int oldFlags = ssl->rflags;
+
+    CYASSL_ENTER("CyaSSL_recv()");
+
+    ssl->rflags = flags;
+    ret = CyaSSL_read(ssl, data, sz);
+    ssl->rflags = oldFlags;
+
+    CYASSL_LEAVE("CyaSSL_recv()", ret);
+
+    return ret;
+}
+
+
 int CyaSSL_shutdown(CYASSL* ssl)
 {
     CYASSL_ENTER("SSL_shutdown()");

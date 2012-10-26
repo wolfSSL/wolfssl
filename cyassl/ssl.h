@@ -190,6 +190,8 @@ CYASSL_API int  CyaSSL_accept(CYASSL*);
 CYASSL_API void CyaSSL_CTX_free(CYASSL_CTX*);
 CYASSL_API void CyaSSL_free(CYASSL*);
 CYASSL_API int  CyaSSL_shutdown(CYASSL*);
+CYASSL_API int  CyaSSL_send(CYASSL*, const void*, int sz, int flags);
+CYASSL_API int  CyaSSL_recv(CYASSL*, void*, int sz, int flags);
 
 CYASSL_API void CyaSSL_CTX_set_quiet_shutdown(CYASSL_CTX*, int);
 CYASSL_API void CyaSSL_set_quiet_shutdown(CYASSL*, int);
