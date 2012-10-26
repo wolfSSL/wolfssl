@@ -45,6 +45,10 @@ mkdir -p $RPM_BUILD_ROOT/
 %clean
 %{__rm} -rf %{buildroot}
 
+%post -p /sbin/ldconfig
+
+%postun -p /sbin/ldconfig
+
 %files
 %defattr(-,root,root,-)
 %doc AUTHORS ChangeLog COPYING NEWS README
@@ -54,15 +58,15 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_docdir}/cyassl/example/echoclient.c
 %{_docdir}/cyassl/example/client.c
 %{_docdir}/cyassl/README.txt
-
-%files devel
-%defattr(-,root,root,-)
-%doc AUTHORS ChangeLog COPYING NEWS README
 %{_libdir}/libcyassl.a
 %{_libdir}/libcyassl.la
 %{_libdir}/libcyassl.so
 %{_libdir}/libcyassl.so.3
 %{_libdir}/libcyassl.so.3.0.3
+
+%files devel
+%defattr(-,root,root,-)
+%doc AUTHORS ChangeLog COPYING NEWS README
 %{_includedir}/cyassl/callbacks.h
 %{_includedir}/cyassl/crl.h
 %{_includedir}/cyassl/ctaocrypt/aes.h
