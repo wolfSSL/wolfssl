@@ -17,6 +17,10 @@ BUILT_SOURCES=
 EXTRA_DIST=
 dist_doc_DATA=
 
+#includes additional rules from aminclude.am
+@INC_AMINCLUDE@
+DISTCLEANFILES+= aminclude.am
+
 exampledir = $(docdir)/example
 dist_example_DATA=
 
@@ -55,6 +59,7 @@ test: check
 maintainer-clean-local:
 	-rm Makefile.in
 	-rm aclocal.m4
+	-rm build-aux/compile
 	-rm build-aux/config.guess
 	-rm build-aux/config.sub
 	-rm build-aux/depcomp

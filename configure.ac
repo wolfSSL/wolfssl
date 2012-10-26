@@ -720,6 +720,8 @@ AC_CONFIG_FILES([cyassl/version.h])
 AC_CONFIG_FILES([support/libcyassl.pc])
 AC_CONFIG_FILES([rpm/spec])
 
+AX_AM_JOBSERVER([yes])
+
 AC_OUTPUT
 
 echo "---"
@@ -736,6 +738,8 @@ echo "   * CPP Flags:                 $CPPFLAGS"
 echo "   * LIB Flags:                 $LIB"
 echo "   * Debug enabled:             $ax_enable_debug"
 echo "   * Warnings as failure:       $ac_cv_warnings_as_errors"
+echo "   * make -j:                   $enable_jobserver"
+echo "   * VCS checkout:              $ac_cv_vcs_checkout"
 echo 
 echo "   Features "
 echo "   * Enable smallest build:     $ENABLED_SMALL"
