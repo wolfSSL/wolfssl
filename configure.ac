@@ -720,6 +720,7 @@ AC_CONFIG_FILES([cyassl/version.h])
 AC_CONFIG_FILES([support/libcyassl.pc])
 AC_CONFIG_FILES([rpm/spec])
 
+AX_CREATE_GENERIC_CONFIG
 AX_AM_JOBSERVER([yes])
 
 AC_OUTPUT

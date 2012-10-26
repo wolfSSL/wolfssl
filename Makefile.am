@@ -66,6 +66,7 @@ maintainer-clean-local:
 	-rm build-aux/install-sh
 	-rm build-aux/ltmain.sh
 	-rm build-aux/missing
+	-rm cyassl-config
 	-rmdir build-aux
 	-rm configure
 	-rm config.log
@@ -90,6 +91,12 @@ egs:
 ctc:
 	$(MAKE) ctaocrypt/test/testctaocrypt; \
 	$(MAKE) ctaocrypt/benchmark/benchmark; 
+
+install-exec-local:	install-generic-config
+
+install-generic-config:
+	$(mkinstalldirs) $(DESTDIR)$(bindir)
+	$(INSTALL_SCRIPT) @GENERIC_CONFIG@ $(DESTDIR)$(bindir)
 
 merge-clean:
 	@find ./ | $(GREP) \.gcda | xargs rm -f

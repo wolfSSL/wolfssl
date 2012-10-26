@@ -67,6 +67,7 @@ mkdir -p $RPM_BUILD_ROOT/
 %files devel
 %defattr(-,root,root,-)
 %doc AUTHORS ChangeLog COPYING NEWS README
+%{_bindir}/cyassl-config
 %{_includedir}/cyassl/callbacks.h
 %{_includedir}/cyassl/crl.h
 %{_includedir}/cyassl/ctaocrypt/aes.h
