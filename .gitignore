@@ -26,6 +26,7 @@ missing
 libtool
 tags
 .tags*
+cyassl-config
 cyassl.sublime*
 ctaocrypt/benchmark/benchmark
 ctaocrypt/test/testctaocrypt
