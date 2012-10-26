@@ -17,6 +17,7 @@ rpm/spec
 stamp-h
 libtool.m4
 aclocal.m4
+aminclude.am
 lt*.m4
 INSTALL
 Makefile.in

@@ -18,7 +18,7 @@ EXTRA_DIST=
 dist_doc_DATA=
 
 #includes additional rules from aminclude.am
-#@INC_AMINCLUDE@
+@INC_AMINCLUDE@
 DISTCLEANFILES+= aminclude.am
 
 exampledir = $(docdir)/example
