@@ -300,21 +300,23 @@ void client_test(void* args)
 #ifdef VERIFY_CALLBACK
     CyaSSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, myVerify);
 #endif
-
-    if (CyaSSL_CTX_use_certificate_file(ctx, ourCert, SSL_FILETYPE_PEM)
+#ifndef NO_FILESYSTEM   
+    if (!usePsk){
+        if (CyaSSL_CTX_use_certificate_file(ctx, ourCert, SSL_FILETYPE_PEM)
                                      != SSL_SUCCESS)
-        err_sys("can't load client cert file, check file and run from"
-                " CyaSSL home dir");
+            err_sys("can't load client cert file, check file and run from"
+                    " CyaSSL home dir");
 
-    if (CyaSSL_CTX_use_PrivateKey_file(ctx, ourKey, SSL_FILETYPE_PEM)
-                                     != SSL_SUCCESS)
-        err_sys("can't load client cert file, check file and run from"
-                " CyaSSL home dir");    
+        if (CyaSSL_CTX_use_PrivateKey_file(ctx, ourKey, SSL_FILETYPE_PEM)
+                                         != SSL_SUCCESS)
+            err_sys("can't load client cert file, check file and run from"
+                    " CyaSSL home dir");    
 
-    if (CyaSSL_CTX_load_verify_locations(ctx, verifyCert, 0) != SSL_SUCCESS)
-            err_sys("can't load ca file, Please run from CyaSSL home dir");
-
-    if (doPeerCheck == 0)
+        if (CyaSSL_CTX_load_verify_locations(ctx, verifyCert, 0) != SSL_SUCCESS)
+                err_sys("can't load ca file, Please run from CyaSSL home dir");
+    }
+#endif
+    if (!usePsk && doPeerCheck == 0)
         CyaSSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, 0);
 
     if (benchmark) {

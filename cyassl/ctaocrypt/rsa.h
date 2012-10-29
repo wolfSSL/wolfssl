@@ -19,6 +19,7 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  */
 
+#ifndef NO_RSA
 
 #ifndef CTAO_CRYPT_RSA_H
 #define CTAO_CRYPT_RSA_H
@@ -79,3 +80,4 @@ CYASSL_API int RsaPublicKeyDecode(const byte* input, word32* inOutIdx, RsaKey*,
 
 #endif /* CTAO_CRYPT_RSA_H */
 
+#endif /* NO_RSA */

@@ -206,6 +206,22 @@ then
     AM_CFLAGS="$AM_CFLAGS -DLARGE_STATIC_BUFFERS -DCYASSL_CERT_GEN -DCYASSL_KEY_GEN -DHUGE_SESSION_CACHE -DOPENSSL_EXTRA -DFP_MAX_BITS=8192 -DCYASSL_DER_LOAD -DCYASSL_ALT_NAMES -DCYASSL_TEST_CERT"
 fi
 
+
+# lean psk build 
+AC_ARG_ENABLE(leanpsk,
+    [  --enable-leanpsk        Enable Lean PSK build (default: disabled)],
+    [ ENABLED_LEANPSK=$enableval ],
+    [ ENABLED_LEANPSK=no ]
+    )
+
+if test "$ENABLED_LEANPSK" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DCYASSL_LEANPSK -DHAVE_NULL_CIPHER -DNO_AES -DNO_FILESYSTEM -DNO_RSA -DNO_DSA -DNO_DH"
+fi
+
+AM_CONDITIONAL([BUILD_LEANPSK], [test "x$ENABLED_LEANPSK" = "xyes"])
+
+
 # fastmath
 AC_ARG_ENABLE(fastmath,
     [  --enable-fastmath       Enable fast math for BigInts (default: disabled)],
@@ -485,7 +501,7 @@ AC_ARG_ENABLE(psk,
     [ ENABLED_PSK=no ]
     )
 
-if test "$ENABLED_PSK" = "no"
+if test "$ENABLED_PSK" = "no" && test "$ENABLED_LEANPSK" = "no"
 then
     AM_CFLAGS="$AM_CFLAGS -DNO_PSK"
 fi
@@ -758,6 +774,7 @@ echo "   * certgen:                   $ENABLED_CERTGEN"
 echo "   * HC-128:                    $ENABLED_HC128"
 echo "   * RABBIT:                    $ENABLED_RABBIT"
 echo "   * PSK:                       $ENABLED_PSK"
+echo "   * LEANPSK:                   $ENABLED_LEANPSK"
 echo "   * ECC:                       $ENABLED_ECC"
 echo "   * OCSP:                      $ENABLED_OCSP"
 echo "   * CRL:                       $ENABLED_CRL"

@@ -264,10 +264,12 @@ void ctaocrypt_test(void* args)
     else
         printf( "RANDOM   test passed!\n");
 
+#ifndef NO_RSA
     if ( (ret = rsa_test()) ) 
         err_sys("RSA      test failed!\n", ret);
     else
         printf( "RSA      test passed!\n");
+#endif
 
 #ifndef NO_DH
     if ( (ret = dh_test()) ) 
@@ -1360,14 +1362,6 @@ int random_test(void)
 }
 
 
-static const char* clientKey  = "./certs/client-key.der";
-static const char* clientCert = "./certs/client-cert.der";
-#ifdef CYASSL_CERT_GEN
-    static const char* caKeyFile  = "./certs/ca-key.der";
-    static const char* caCertFile = "./certs/ca-cert.pem";
-#endif
-
-
 #ifdef HAVE_NTRU
 
 static byte GetEntropy(ENTROPY_CMD cmd, byte* out)
@@ -1399,6 +1393,16 @@ static byte GetEntropy(ENTROPY_CMD cmd, byte* out)
 }
 
 #endif /* HAVE_NTRU */
+
+#ifndef NO_RSA
+
+static const char* clientKey  = "./certs/client-key.der";
+static const char* clientCert = "./certs/client-cert.der";
+#ifdef CYASSL_CERT_GEN
+    static const char* caKeyFile  = "./certs/ca-key.der";
+    static const char* caCertFile = "./certs/ca-cert.pem";
+#endif
+
 
 int rsa_test(void)
 {
@@ -1764,10 +1768,12 @@ int rsa_test(void)
     return 0;
 }
 
+#endif
 
-static const char* dhKey = "./certs/dh2048.der";
 
 #ifndef NO_DH
+
+static const char* dhKey = "./certs/dh2048.der";
 
 int dh_test(void)
 {
@@ -1829,9 +1835,9 @@ int dh_test(void)
 #endif /* NO_DH */
 
 
-static const char* dsaKey = "./certs/dsa2048.der";
-
 #ifndef NO_DSA
+
+static const char* dsaKey = "./certs/dsa2048.der";
 
 int dsa_test(void)
 {

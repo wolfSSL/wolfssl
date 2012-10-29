@@ -242,11 +242,14 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
         if (SSL_CTX_set_cipher_list(ctx, cipherList) != SSL_SUCCESS)
             err_sys("can't set cipher list");
 
-    if (SSL_CTX_use_certificate_file(ctx, ourCert, SSL_FILETYPE_PEM)
-                                     != SSL_SUCCESS)
-        err_sys("can't load server cert file, check file and run from"
-                " CyaSSL home dir");
-
+#ifndef NO_FILESYSTEM
+    if (!usePsk) {
+        if (SSL_CTX_use_certificate_file(ctx, ourCert, SSL_FILETYPE_PEM)
+                                         != SSL_SUCCESS)
+            err_sys("can't load server cert file, check file and run from"
+                    " CyaSSL home dir");
+    }
+#endif
 
 #ifdef HAVE_NTRU
     if (useNtruKey) {
@@ -257,12 +260,14 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     }
 #endif
 
-    if (!useNtruKey) {
+#ifndef NO_FILESYSTEM
+    if (!useNtruKey && !usePsk) {
         if (SSL_CTX_use_PrivateKey_file(ctx, ourKey, SSL_FILETYPE_PEM)
                                          != SSL_SUCCESS)
             err_sys("can't load server cert file, check file and run from"
                 " CyaSSL home dir");
     }
+#endif
 
 #ifndef NO_PSK
     if (usePsk) {
@@ -274,6 +279,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     }
 #endif
 
+#ifndef NO_FILESYSTEM
     /* if not using PSK, verify peer with certs */
     if (doCliCertCheck && usePsk == 0) {
         SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER |
@@ -281,6 +287,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
         if (SSL_CTX_load_verify_locations(ctx, verifyCert, 0) != SSL_SUCCESS)
             err_sys("can't load ca file, Please run from CyaSSL home dir");
     }
+#endif
 
 #ifdef OPENSSL_EXTRA
     SSL_CTX_set_default_passwd_cb(ctx, PasswordCallBack);

@@ -39,10 +39,12 @@ static int test_CyaSSL_CTX_new(CYASSL_METHOD *method);
 static int test_CyaSSL_CTX_use_certificate_file(void);
 static int test_CyaSSL_CTX_use_PrivateKey_file(void);
 static int test_CyaSSL_CTX_load_verify_locations(void);
+#ifndef NO_RSA
 static int test_server_CyaSSL_new(void);
 static int test_client_CyaSSL_new(void);
 static int test_CyaSSL_read_write(void);
-#endif
+#endif /* NO_RSA */
+#endif /* NO_FILESYSTEM */
 
 /* test function helpers */
 static int test_method(CYASSL_METHOD *method, const char *name);
@@ -59,9 +61,9 @@ static int test_lvl(CYASSL_CTX *ctx, const char* file, const char* path,
 
 THREAD_RETURN CYASSL_THREAD test_server_nofail(void*);
 void test_client_nofail(void*);
+static const char* bogusFile  = "/dev/null";
 #endif
 
-static const char* bogusFile  = "/dev/null";
 #define testingFmt "   %s:"
 #define resultFmt  " %s\n"
 static const char* passed     = "passed";
@@ -81,10 +83,12 @@ int ApiTest(void)
     test_CyaSSL_CTX_use_certificate_file();
     test_CyaSSL_CTX_use_PrivateKey_file();
     test_CyaSSL_CTX_load_verify_locations();
+#ifndef NO_RSA
     test_server_CyaSSL_new();
     test_client_CyaSSL_new();
     test_CyaSSL_read_write();
-#endif
+#endif /* NO_RSA */
+#endif /* NO_FILESYSTEM */
     test_CyaSSL_Cleanup();
     printf(" End API Tests\n");
 
@@ -245,6 +249,8 @@ int test_CyaSSL_CTX_use_certificate_file(void)
         failure */
     /* Then set the parameters to legit values but set each item to
         bogus and call again. Finish with a successful success. */
+    /* If the build is configured to not have RSA, loading the
+       certificate files will fail. */
 
     test_ucf(NULL, NULL, 9999, SSL_FAILURE,
         "CyaSSL_CTX_use_certificate_file(NULL, NULL, 9999)");
@@ -254,8 +260,13 @@ int test_CyaSSL_CTX_use_certificate_file(void)
         "CyaSSL_CTX_use_certificate_file(ctx, bogusFile, SSL_FILETYPE_PEM)");
     test_ucf(ctx, svrCert, 9999, SSL_FAILURE,
         "CyaSSL_CTX_use_certificate_file(ctx, svrCert, 9999)");
+#ifndef NO_RSA
     test_ucf(ctx, svrCert, SSL_FILETYPE_PEM, SSL_SUCCESS,
         "CyaSSL_CTX_use_certificate_file(ctx, svrCert, SSL_FILETYPE_PEM)");
+#else
+    test_ucf(ctx, svrCert, SSL_FILETYPE_PEM, SSL_FAILURE,
+        "NO_RSA: CyaSSL_CTX_use_certificate_file(ctx, svrCert, SSL_FILETYPE_PEM)");
+#endif
 
     CyaSSL_CTX_free(ctx);
     return TEST_SUCCESS;
@@ -366,12 +377,19 @@ int test_CyaSSL_CTX_load_verify_locations(void)
     /* Add a test for the certs directory path loading. */
     /* There is a leak here. If you load a second cert, the first one
        is lost. */
+#ifndef NO_RSA
     test_lvl(ctx, caCert, 0, SSL_SUCCESS,
         "CyaSSL_CTX_load_verify_locations(ctx, caCert, 0)");
+#else
+    test_lvl(ctx, caCert, 0, SSL_FAILURE,
+        "NO_RSA: CyaSSL_CTX_load_verify_locations(ctx, caCert, 0)");
+#endif
 
     CyaSSL_CTX_free(ctx);
     return TEST_SUCCESS;
 }
+
+#ifndef NO_RSA
 
 int test_server_CyaSSL_new(void)
 {
@@ -564,6 +582,7 @@ static int test_CyaSSL_read_write(void)
     return test_result;
 };
 
+#endif
 
 THREAD_RETURN CYASSL_THREAD test_server_nofail(void* args)
 {

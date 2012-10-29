@@ -64,8 +64,10 @@
 #ifndef NO_CYASSL_SERVER
     static int DoClientHello(CYASSL* ssl, const byte* input, word32*, word32,
                              word32);
-    static int DoCertificateVerify(CYASSL* ssl, byte*, word32*, word32);
     static int DoClientKeyExchange(CYASSL* ssl, byte* input, word32*);
+    #if !defined(NO_RSA) || defined(HAVE_ECC)
+        static int DoCertificateVerify(CYASSL* ssl, byte*, word32*, word32);
+    #endif
 #endif
 
 typedef enum {
@@ -373,7 +375,7 @@ int InitSSL_Ctx(CYASSL_CTX* ctx, CYASSL_METHOD* method)
 #endif
     ctx->suites.setSuites = 0;  /* user hasn't set yet */
     /* remove DH later if server didn't set, add psk later */
-    InitSuites(&ctx->suites, method->version, TRUE, FALSE, ctx->haveNTRU,
+    InitSuites(&ctx->suites, method->version, TRUE, FALSE, TRUE, ctx->haveNTRU,
                ctx->haveECDSAsig, ctx->haveStaticECC, method->side);  
     ctx->verifyPeer = 0;
     ctx->verifyNone = 0;
@@ -513,13 +515,13 @@ void InitCipherSpecs(CipherSpecs* cs)
 }
 
 
-void InitSuites(Suites* suites, ProtocolVersion pv, byte haveDH, byte havePSK,
-                byte haveNTRU, byte haveECDSAsig, byte haveStaticECC, int side)
+void InitSuites(Suites* suites, ProtocolVersion pv, byte haveRSA, byte havePSK,
+                byte haveDH, byte haveNTRU, byte haveECDSAsig,
+                byte haveStaticECC, int side)
 {
     word16 idx = 0;
     int    tls    = pv.major == SSLv3_MAJOR && pv.minor >= TLSv1_MINOR;
     int    tls1_2 = pv.major == SSLv3_MAJOR && pv.minor >= TLSv1_2_MINOR;
-    int    haveRSA = 1;
     int    haveRSAsig = 1;
 
     (void)tls;  /* shut up compiler */
@@ -916,6 +918,7 @@ void InitSuites(Suites* suites, ProtocolVersion pv, byte haveDH, byte havePSK,
 int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
 {
     int  ret;
+    byte haveRSA = 0;
     byte havePSK = 0;
 
     ssl->ctx     = ctx; /* only for passing to calls, options could change */
@@ -924,6 +927,9 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
 
 #ifdef HAVE_LIBZ
     ssl->didStreamInit = 0;
+#endif
+#ifndef NO_RSA
+    haveRSA = 1;
 #endif
    
     ssl->buffers.certificate.buffer   = 0;
@@ -986,10 +992,11 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
 #ifdef CYASSL_SHA384
     InitSha384(&ssl->hashSha384);
 #endif
+#ifndef NO_RSA
     ssl->peerRsaKey = NULL;
-
-    ssl->verifyCallback    = ctx->verifyCallback;
     ssl->peerRsaKeyPresent = 0;
+#endif
+    ssl->verifyCallback    = ctx->verifyCallback;
     ssl->options.side      = ctx->method->side;
     ssl->options.downgrade = ctx->method->downgrade;
     ssl->error = 0;
@@ -1159,6 +1166,7 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
     *ssl->suites = ctx->suites;
 
     /* peer key */
+#ifndef NO_RSA
     ssl->peerRsaKey = (RsaKey*)XMALLOC(sizeof(RsaKey), ssl->heap,
                                        DYNAMIC_TYPE_RSA);
     if (ssl->peerRsaKey == NULL) {
@@ -1166,7 +1174,7 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
         return MEMORY_E;
     }
     InitRsaKey(ssl->peerRsaKey, ctx->heap);
-
+#endif
     /* make sure server has cert and key unless using PSK */
     if (ssl->options.side == SERVER_END && !havePSK)
         if (!ssl->buffers.certificate.buffer || !ssl->buffers.key.buffer) {
@@ -1176,11 +1184,12 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
 
     /* make sure server has DH parms, and add PSK if there, add NTRU too */
     if (ssl->options.side == SERVER_END) 
-        InitSuites(ssl->suites, ssl->version,ssl->options.haveDH, havePSK,
-                   ssl->options.haveNTRU, ssl->options.haveECDSAsig,
-                   ssl->options.haveStaticECC, ssl->options.side);
+        InitSuites(ssl->suites, ssl->version, haveRSA, havePSK,
+                   ssl->options.haveDH, ssl->options.haveNTRU,
+                   ssl->options.haveECDSAsig, ssl->options.haveStaticECC,
+                   ssl->options.side);
     else 
-        InitSuites(ssl->suites, ssl->version, TRUE, havePSK,
+        InitSuites(ssl->suites, ssl->version, haveRSA, havePSK, TRUE,
                    ssl->options.haveNTRU, ssl->options.haveECDSAsig,
                    ssl->options.haveStaticECC, ssl->options.side);
 
@@ -1222,10 +1231,12 @@ void SSL_ResourceFree(CYASSL* ssl)
     if (ssl->buffers.weOwnKey)
         XFREE(ssl->buffers.key.buffer, ssl->heap, DYNAMIC_TYPE_KEY);
 
+#ifndef NO_RSA
     if (ssl->peerRsaKey) {
         FreeRsaKey(ssl->peerRsaKey);
         XFREE(ssl->peerRsaKey, ssl->heap, DYNAMIC_TYPE_RSA);
     }
+#endif
     if (ssl->buffers.inputBuffer.dynamicFlag)
         ShrinkInputBuffer(ssl, FORCED_FREE);
     if (ssl->buffers.outputBuffer.dynamicFlag)
@@ -1290,12 +1301,14 @@ void FreeHandshakeResources(CYASSL* ssl)
     if (ssl->options.saveArrays)
         FreeArrays(ssl, 1);
 
+#ifndef NO_RSA
     /* peerRsaKey */
     if (ssl->peerRsaKey) {
         FreeRsaKey(ssl->peerRsaKey);
         XFREE(ssl->peerRsaKey, ssl->heap, DYNAMIC_TYPE_RSA);
         ssl->peerRsaKey = NULL;
     }
+#endif
 }
 
 
@@ -2293,37 +2306,49 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx)
             }
 
         /* decode peer key */
-        if (dCert.keyOID == RSAk) {
-            word32 idx = 0;
-            if (RsaPublicKeyDecode(dCert.publicKey, &idx,
-                               ssl->peerRsaKey, dCert.pubKeySize) != 0) {
-                ret = PEER_KEY_ERROR;
-            }
-            else
-                ssl->peerRsaKeyPresent = 1;
+        switch (dCert.keyOID) {
+        #ifndef NO_RSA
+            case RSAk:
+                {
+                    word32 idx = 0;
+                    if (RsaPublicKeyDecode(dCert.publicKey, &idx,
+                                      ssl->peerRsaKey, dCert.pubKeySize) != 0) {
+                        ret = PEER_KEY_ERROR;
+                    }
+                    else
+                        ssl->peerRsaKeyPresent = 1;
+                }
+                break;
+        #endif /* NO_RSA */
+        #ifdef HAVE_NTRU
+            case NTRUk:
+                {
+                    if (dCert.pubKeySize > sizeof(ssl->peerNtruKey)) {
+                        ret = PEER_KEY_ERROR;
+                    }
+                    else {
+                        XMEMCPY(ssl->peerNtruKey, dCert.publicKey, dCert.pubKeySize);
+                        ssl->peerNtruKeyLen = (word16)dCert.pubKeySize;
+                        ssl->peerNtruKeyPresent = 1;
+                    }
+                }
+                break;
+        #endif /* HAVE_NTRU */
+        #ifdef HAVE_ECC
+            case ECDSAk:
+                {
+                    if (ecc_import_x963(dCert.publicKey, dCert.pubKeySize,
+                                        &ssl->peerEccDsaKey) != 0) {
+                        ret = PEER_KEY_ERROR;
+                    }
+                    else
+                        ssl->peerEccDsaKeyPresent = 1;
+                }
+                break;
+        #endif /* HAVE_ECC */
+            default:
+                break;
         }
-#ifdef HAVE_NTRU
-        else if (dCert.keyOID == NTRUk) {
-            if (dCert.pubKeySize > sizeof(ssl->peerNtruKey)) {
-                ret = PEER_KEY_ERROR;
-            }
-            else {
-                XMEMCPY(ssl->peerNtruKey, dCert.publicKey, dCert.pubKeySize);
-                ssl->peerNtruKeyLen = (word16)dCert.pubKeySize;
-                ssl->peerNtruKeyPresent = 1;
-            }
-        }
-#endif /* HAVE_NTRU */
-#ifdef HAVE_ECC
-        else if (dCert.keyOID == ECDSAk) {
-            if (ecc_import_x963(dCert.publicKey, dCert.pubKeySize,
-                                &ssl->peerEccDsaKey) != 0) {
-                ret = PEER_KEY_ERROR;
-            }
-            else
-                ssl->peerEccDsaKeyPresent = 1;
-        }
-#endif /* HAVE_ECC */
 
         FreeDecodedCert(&dCert);
     }
@@ -2593,12 +2618,14 @@ static int DoHandShakeMsgType(CYASSL* ssl, byte* input, word32* inOutIdx,
         ret = DoClientKeyExchange(ssl, input, inOutIdx);
         break;
 
+#if !defined(NO_RSA) || defined(HAVE_ECC)
     case certificate_verify:
         CYASSL_MSG("processing certificate verify");
         ret = DoCertificateVerify(ssl, input, inOutIdx, totalSz);
         break;
+#endif /* !NO_RSA || HAVE_ECC */
 
-#endif
+#endif /* !NO_CYASSL_SERVER */
 
     default:
         CYASSL_MSG("Unknown handshake message type");
@@ -2736,6 +2763,10 @@ static INLINE word32 GetSEQIncrement(CYASSL* ssl, int verify)
 
 static INLINE int Encrypt(CYASSL* ssl, byte* out, const byte* input, word32 sz)
 {
+    (void)out;
+    (void)input;
+    (void)sz;
+
     if (ssl->encrypt.setup == 0) {
         CYASSL_MSG("Encrypt ciphers not setup");
         return ENCRYPT_ERROR;
@@ -2830,6 +2861,10 @@ static INLINE int Encrypt(CYASSL* ssl, byte* out, const byte* input, word32 sz)
 static INLINE int Decrypt(CYASSL* ssl, byte* plain, const byte* input,
                            word32 sz)
 {
+    (void)plain;
+    (void)input;
+    (void)sz;
+
     if (ssl->decrypt.setup == 0) {
         CYASSL_MSG("Decrypt ciphers not setup");
         return DECRYPT_ERROR;
@@ -5604,149 +5639,168 @@ int SetCipherList(Suites* s, const char* list)
         word32 idx = 0;
         int    ret = 0;
 
-        if (ssl->specs.kea == rsa_kea) {
-            RNG_GenerateBlock(ssl->rng, ssl->arrays->preMasterSecret,
-                              SECRET_LEN);
-            ssl->arrays->preMasterSecret[0] = ssl->chVersion.major;
-            ssl->arrays->preMasterSecret[1] = ssl->chVersion.minor;
-            ssl->arrays->preMasterSz = SECRET_LEN;
+        switch (ssl->specs.kea) {
+        #ifndef NO_RSA
+            case rsa_kea:
+                RNG_GenerateBlock(ssl->rng, ssl->arrays->preMasterSecret,
+                                  SECRET_LEN);
+                ssl->arrays->preMasterSecret[0] = ssl->chVersion.major;
+                ssl->arrays->preMasterSecret[1] = ssl->chVersion.minor;
+                ssl->arrays->preMasterSz = SECRET_LEN;
 
-            if (ssl->peerRsaKeyPresent == 0)
-                return NO_PEER_KEY;
+                if (ssl->peerRsaKeyPresent == 0)
+                    return NO_PEER_KEY;
 
-            ret = RsaPublicEncrypt(ssl->arrays->preMasterSecret, SECRET_LEN,
-                             encSecret, sizeof(encSecret), ssl->peerRsaKey,
-                             ssl->rng);
-            if (ret > 0) {
-                encSz = ret;
-                ret = 0;   /* set success to 0 */
-            }
+                ret = RsaPublicEncrypt(ssl->arrays->preMasterSecret, SECRET_LEN,
+                                 encSecret, sizeof(encSecret), ssl->peerRsaKey,
+                                 ssl->rng);
+                if (ret > 0) {
+                    encSz = ret;
+                    ret = 0;   /* set success to 0 */
+                }
+                break;
+        #endif
         #ifdef OPENSSL_EXTRA
-        } else if (ssl->specs.kea == diffie_hellman_kea) {
-            buffer  serverP   = ssl->buffers.serverDH_P;
-            buffer  serverG   = ssl->buffers.serverDH_G;
-            buffer  serverPub = ssl->buffers.serverDH_Pub;
-            byte    priv[ENCRYPT_LEN];
-            word32  privSz = 0;
-            DhKey   key;
+            case diffie_hellman_kea:
+                {
+                    buffer  serverP   = ssl->buffers.serverDH_P;
+                    buffer  serverG   = ssl->buffers.serverDH_G;
+                    buffer  serverPub = ssl->buffers.serverDH_Pub;
+                    byte    priv[ENCRYPT_LEN];
+                    word32  privSz = 0;
+                    DhKey   key;
 
-            if (serverP.buffer == 0 || serverG.buffer == 0 ||
-                                       serverPub.buffer == 0)
-                return NO_PEER_KEY;
+                    if (serverP.buffer == 0 || serverG.buffer == 0 ||
+                                               serverPub.buffer == 0)
+                        return NO_PEER_KEY;
 
-            InitDhKey(&key);
-            ret = DhSetKey(&key, serverP.buffer, serverP.length,
-                           serverG.buffer, serverG.length);
-            if (ret == 0)
-                /* for DH, encSecret is Yc, agree is pre-master */
-                ret = DhGenerateKeyPair(&key, ssl->rng, priv, &privSz,
-                                        encSecret, &encSz);
-            if (ret == 0)
-                ret = DhAgree(&key, ssl->arrays->preMasterSecret,
-                              &ssl->arrays->preMasterSz, priv, privSz,
-                              serverPub.buffer, serverPub.length);
-            FreeDhKey(&key);
+                    InitDhKey(&key);
+                    ret = DhSetKey(&key, serverP.buffer, serverP.length,
+                                   serverG.buffer, serverG.length);
+                    if (ret == 0)
+                        /* for DH, encSecret is Yc, agree is pre-master */
+                        ret = DhGenerateKeyPair(&key, ssl->rng, priv, &privSz,
+                                                encSecret, &encSz);
+                    if (ret == 0)
+                        ret = DhAgree(&key, ssl->arrays->preMasterSecret,
+                                      &ssl->arrays->preMasterSz, priv, privSz,
+                                      serverPub.buffer, serverPub.length);
+                    FreeDhKey(&key);
+                }
+                break;
         #endif /* OPENSSL_EXTRA */
         #ifndef NO_PSK
-        } else if (ssl->specs.kea == psk_kea) {
-            byte* pms = ssl->arrays->preMasterSecret;
+            case psk_kea:
+                {
+                    byte* pms = ssl->arrays->preMasterSecret;
 
-            ssl->arrays->psk_keySz = ssl->options.client_psk_cb(ssl,
-                ssl->arrays->server_hint, ssl->arrays->client_identity,
-                MAX_PSK_ID_LEN, ssl->arrays->psk_key, MAX_PSK_KEY_LEN);
-            if (ssl->arrays->psk_keySz == 0 || 
-                ssl->arrays->psk_keySz > MAX_PSK_KEY_LEN)
-                return PSK_KEY_ERROR;
-            encSz = (word32)XSTRLEN(ssl->arrays->client_identity);
-            if (encSz > MAX_PSK_ID_LEN) return CLIENT_ID_ERROR;
-            XMEMCPY(encSecret, ssl->arrays->client_identity, encSz);
+                    ssl->arrays->psk_keySz = ssl->options.client_psk_cb(ssl,
+                        ssl->arrays->server_hint, ssl->arrays->client_identity,
+                        MAX_PSK_ID_LEN, ssl->arrays->psk_key, MAX_PSK_KEY_LEN);
+                    if (ssl->arrays->psk_keySz == 0 || 
+                        ssl->arrays->psk_keySz > MAX_PSK_KEY_LEN)
+                        return PSK_KEY_ERROR;
+                    encSz = (word32)XSTRLEN(ssl->arrays->client_identity);
+                    if (encSz > MAX_PSK_ID_LEN) return CLIENT_ID_ERROR;
+                    XMEMCPY(encSecret, ssl->arrays->client_identity, encSz);
 
-            /* make psk pre master secret */
-            /* length of key + length 0s + length of key + key */
-            c16toa((word16)ssl->arrays->psk_keySz, pms);
-            pms += 2;
-            XMEMSET(pms, 0, ssl->arrays->psk_keySz);
-            pms += ssl->arrays->psk_keySz;
-            c16toa((word16)ssl->arrays->psk_keySz, pms);
-            pms += 2;
-            XMEMCPY(pms, ssl->arrays->psk_key, ssl->arrays->psk_keySz);
-            ssl->arrays->preMasterSz = ssl->arrays->psk_keySz * 2 + 4;
+                    /* make psk pre master secret */
+                    /* length of key + length 0s + length of key + key */
+                    c16toa((word16)ssl->arrays->psk_keySz, pms);
+                    pms += 2;
+                    XMEMSET(pms, 0, ssl->arrays->psk_keySz);
+                    pms += ssl->arrays->psk_keySz;
+                    c16toa((word16)ssl->arrays->psk_keySz, pms);
+                    pms += 2;
+                    XMEMCPY(pms, ssl->arrays->psk_key, ssl->arrays->psk_keySz);
+                    ssl->arrays->preMasterSz = ssl->arrays->psk_keySz * 2 + 4;
+                }
+                break;
         #endif /* NO_PSK */
         #ifdef HAVE_NTRU
-        } else if (ssl->specs.kea == ntru_kea) {
-            word32 rc;
-            word16 cipherLen = sizeof(encSecret);
-            DRBG_HANDLE drbg;
-            static uint8_t const cyasslStr[] = {
-                'C', 'y', 'a', 'S', 'S', 'L', ' ', 'N', 'T', 'R', 'U'
-            };
+            case ntru_kea:
+                {
+                    word32 rc;
+                    word16 cipherLen = sizeof(encSecret);
+                    DRBG_HANDLE drbg;
+                    static uint8_t const cyasslStr[] = {
+                        'C', 'y', 'a', 'S', 'S', 'L', ' ', 'N', 'T', 'R', 'U'
+                    };
 
-            RNG_GenerateBlock(ssl->rng, ssl->arrays->preMasterSecret,
-                              SECRET_LEN);
-            ssl->arrays->preMasterSz = SECRET_LEN;
+                    RNG_GenerateBlock(ssl->rng, ssl->arrays->preMasterSecret,
+                                      SECRET_LEN);
+                    ssl->arrays->preMasterSz = SECRET_LEN;
 
-            if (ssl->peerNtruKeyPresent == 0)
-                return NO_PEER_KEY;
+                    if (ssl->peerNtruKeyPresent == 0)
+                        return NO_PEER_KEY;
 
-            rc = crypto_drbg_instantiate(MAX_NTRU_BITS, cyasslStr,
-                                          sizeof(cyasslStr), GetEntropy, &drbg);
-            if (rc != DRBG_OK)
-                return NTRU_DRBG_ERROR; 
+                    rc = crypto_drbg_instantiate(MAX_NTRU_BITS, cyasslStr,
+                                                  sizeof(cyasslStr), GetEntropy,
+                                                  &drbg);
+                    if (rc != DRBG_OK)
+                        return NTRU_DRBG_ERROR; 
 
-            rc = crypto_ntru_encrypt(drbg, ssl->peerNtruKeyLen,ssl->peerNtruKey,
-                                     ssl->arrays->preMasterSz,
-                                     ssl->arrays->preMasterSecret,
-                                     &cipherLen, encSecret);
-            crypto_drbg_uninstantiate(drbg);
-            if (rc != NTRU_OK)
-                return NTRU_ENCRYPT_ERROR;
+                    rc = crypto_ntru_encrypt(drbg, ssl->peerNtruKeyLen,
+                                             ssl->peerNtruKey,
+                                             ssl->arrays->preMasterSz,
+                                             ssl->arrays->preMasterSecret,
+                                             &cipherLen, encSecret);
+                    crypto_drbg_uninstantiate(drbg);
+                    if (rc != NTRU_OK)
+                        return NTRU_ENCRYPT_ERROR;
 
-            encSz = cipherLen;
-            ret = 0;
+                    encSz = cipherLen;
+                    ret = 0;
+                }
+                break;
         #endif /* HAVE_NTRU */
         #ifdef HAVE_ECC
-        } else if (ssl->specs.kea == ecc_diffie_hellman_kea) {
-            ecc_key  myKey;
-            ecc_key* peerKey = &myKey;
-            word32   size = sizeof(encSecret);
+            case ecc_diffie_hellman_kea:
+                {
+                    ecc_key  myKey;
+                    ecc_key* peerKey = &myKey;
+                    word32   size = sizeof(encSecret);
 
-            if (ssl->specs.static_ecdh) {
-                /* TODO: EccDsa is really fixed Ecc change naming */
-                if (!ssl->peerEccDsaKeyPresent || !ssl->peerEccDsaKey.dp)
-                    return NO_PEER_KEY;
-                peerKey = &ssl->peerEccDsaKey;
-            }
-            else {
-                if (!ssl->peerEccKeyPresent || !ssl->peerEccKey.dp)
-                    return NO_PEER_KEY;
-                peerKey = &ssl->peerEccKey;
-            }
+                    if (ssl->specs.static_ecdh) {
+                        /* TODO: EccDsa is really fixed Ecc change naming */
+                        if (!ssl->peerEccDsaKeyPresent || !ssl->peerEccDsaKey.dp)
+                            return NO_PEER_KEY;
+                        peerKey = &ssl->peerEccDsaKey;
+                    }
+                    else {
+                        if (!ssl->peerEccKeyPresent || !ssl->peerEccKey.dp)
+                            return NO_PEER_KEY;
+                        peerKey = &ssl->peerEccKey;
+                    }
 
-            ecc_init(&myKey);
-            ret = ecc_make_key(ssl->rng, peerKey->dp->size, &myKey);
-            if (ret != 0)
-                return ECC_MAKEKEY_ERROR;
+                    ecc_init(&myKey);
+                    ret = ecc_make_key(ssl->rng, peerKey->dp->size, &myKey);
+                    if (ret != 0)
+                        return ECC_MAKEKEY_ERROR;
 
-            /* precede export with 1 byte length */
-            ret = ecc_export_x963(&myKey, encSecret + 1, &size);
-            encSecret[0] = (byte)size;
-            encSz = size + 1;
+                    /* precede export with 1 byte length */
+                    ret = ecc_export_x963(&myKey, encSecret + 1, &size);
+                    encSecret[0] = (byte)size;
+                    encSz = size + 1;
 
-            if (ret != 0)
-                ret = ECC_EXPORT_ERROR;
-            else {
-                size = sizeof(ssl->arrays->preMasterSecret);
-                ret  = ecc_shared_secret(&myKey, peerKey,
-                                         ssl->arrays->preMasterSecret, &size);
-                if (ret != 0)
-                    ret = ECC_SHARED_ERROR;
-            }
+                    if (ret != 0)
+                        ret = ECC_EXPORT_ERROR;
+                    else {
+                        size = sizeof(ssl->arrays->preMasterSecret);
+                        ret  = ecc_shared_secret(&myKey, peerKey,
+                                                 ssl->arrays->preMasterSecret, &size);
+                        if (ret != 0)
+                            ret = ECC_SHARED_ERROR;
+                    }
 
-            ssl->arrays->preMasterSz = size;
-            ecc_free(&myKey);
+                    ssl->arrays->preMasterSz = size;
+                    ecc_free(&myKey);
+                }
+                break;
         #endif /* HAVE_ECC */
-        } else
-            return ALGO_ID_E; /* unsupported kea */
+            default:
+                return ALGO_ID_E; /* unsupported kea */
+        }
 
         if (ret == 0) {
             byte              *output;
@@ -5820,6 +5874,7 @@ int SetCipherList(Suites* s, const char* list)
         return ret;
     }
 
+#ifndef NO_RSA
     int SendCertificateVerify(CYASSL* ssl)
     {
         byte              *output;
@@ -5959,7 +6014,7 @@ int SetCipherList(Suites* s, const char* list)
         else
             return ret;
     }
-
+#endif /* NO_RSA */
 
 
 #endif /* NO_CYASSL_CLIENT */
@@ -6996,6 +7051,7 @@ int SetCipherList(Suites* s, const char* list)
         ssl->chVersion = pv;  /* store */
 
         if (ssl->version.minor > pv.minor) {
+            byte haveRSA = 0;
             byte havePSK = 0;
             if (!ssl->options.downgrade) {
                 CYASSL_MSG("Client trying to connect with lesser version"); 
@@ -7018,13 +7074,17 @@ int SetCipherList(Suites* s, const char* list)
                 CYASSL_MSG("    downgrading to TLSv1.1");
                 ssl->version.minor  = TLSv1_1_MINOR;
             }
+#ifndef NO_RSA
+            haveRSA = 1;
+#endif
 #ifndef NO_PSK
             havePSK = ssl->options.havePSK;
 #endif
 
-            InitSuites(ssl->suites, ssl->version, ssl->options.haveDH, havePSK,
-                       ssl->options.haveNTRU, ssl->options.haveECDSAsig,
-                       ssl->options.haveStaticECC, ssl->options.side);
+            InitSuites(ssl->suites, ssl->version, haveRSA, havePSK,
+                       ssl->options.haveDH, ssl->options.haveNTRU,
+                       ssl->options.haveECDSAsig, ssl->options.haveStaticECC,
+                       ssl->options.side);
         }
 
         /* suite size */
@@ -7128,6 +7188,7 @@ int SetCipherList(Suites* s, const char* list)
         ssl->chVersion = pv;   /* store */
         i += (word32)sizeof(pv);
         if (ssl->version.minor > pv.minor) {
+            byte haveRSA = 0;
             byte havePSK = 0;
             if (!ssl->options.downgrade) {
                 CYASSL_MSG("Client trying to connect with lesser version"); 
@@ -7150,12 +7211,16 @@ int SetCipherList(Suites* s, const char* list)
                 CYASSL_MSG("    downgrading to TLSv1.1");
                 ssl->version.minor  = TLSv1_1_MINOR;
             }
+#ifndef NO_RSA
+            haveRSA = 1;
+#endif
 #ifndef NO_PSK
             havePSK = ssl->options.havePSK;
 #endif
-            InitSuites(ssl->suites, ssl->version, ssl->options.haveDH, havePSK,
-                       ssl->options.haveNTRU, ssl->options.haveECDSAsig,
-                       ssl->options.haveStaticECC, ssl->options.side);
+            InitSuites(ssl->suites, ssl->version, haveRSA, havePSK,
+                       ssl->options.haveDH, ssl->options.haveNTRU,
+                       ssl->options.haveECDSAsig, ssl->options.haveStaticECC,
+                       ssl->options.side);
         }
         /* random */
         XMEMCPY(ssl->arrays->clientRandom, input + i, RAN_LEN);
@@ -7269,7 +7334,7 @@ int SetCipherList(Suites* s, const char* list)
         return MatchSuite(ssl, &clSuites);
     }
 
-
+#if !defined(NO_RSA) || defined(HAVE_ECC)
     static int DoCertificateVerify(CYASSL* ssl, byte* input, word32* inOutsz,
                                    word32 totalSz)
     {
@@ -7304,6 +7369,7 @@ int SetCipherList(Suites* s, const char* list)
         *inOutsz = i + sz;
 
         /* RSA */
+#ifndef NO_RSA
         if (ssl->peerRsaKeyPresent != 0) {
             CYASSL_MSG("Doing RSA peer cert verify");
 
@@ -7333,8 +7399,9 @@ int SetCipherList(Suites* s, const char* list)
                     ret = 0;  /* verified */
             }
         }
+#endif
 #ifdef HAVE_ECC
-        else if (ssl->peerEccDsaKeyPresent) {
+        if (ssl->peerEccDsaKeyPresent) {
             int verify =  0;
             int err    = -1;
 
@@ -7349,7 +7416,7 @@ int SetCipherList(Suites* s, const char* list)
 #endif
         return ret;
     }
-
+#endif /* !NO_RSA || HAVE_ECC */
 
     int SendServerHelloDone(CYASSL* ssl)
     {
@@ -7442,6 +7509,11 @@ int SetCipherList(Suites* s, const char* list)
         word32 length = 0;
         byte*  out;
 
+        (void)length; /* shut up compiler warnings */
+        (void)out;
+        (void)input;
+        (void)inOutIdx;
+
         if (ssl->options.clientState < CLIENT_HELLO_COMPLETE) {
             CYASSL_MSG("Client sending keyexchange at wrong time");
             return OUT_OF_ORDER_E;
@@ -7459,167 +7531,189 @@ int SetCipherList(Suites* s, const char* list)
             if (ssl->toInfoOn)
                 AddLateName("ClientKeyExchange", &ssl->timeoutInfo);
         #endif
-        if (ssl->specs.kea == rsa_kea) {
-            word32 idx = 0;
-            RsaKey key;
-            byte*  tmp = 0;
 
-            InitRsaKey(&key, ssl->heap);
+        switch (ssl->specs.kea) {
+        #ifndef NO_RSA
+            case rsa_kea: 
+            {
+                word32 idx = 0;
+                RsaKey key;
+                byte*  tmp = 0;
 
-            if (ssl->buffers.key.buffer)
-                ret = RsaPrivateKeyDecode(ssl->buffers.key.buffer, &idx, &key,
-                                          ssl->buffers.key.length);
-            else
-                return NO_PRIVATE_KEY;
+                InitRsaKey(&key, ssl->heap);
 
-            if (ret == 0) {
-                length = RsaEncryptSize(&key);
-                ssl->arrays->preMasterSz = SECRET_LEN;
-
-                if (ssl->options.tls)
-                    (*inOutIdx) += 2;
-                tmp = input + *inOutIdx;
-                *inOutIdx += length;
-
-                if (RsaPrivateDecryptInline(tmp, length, &out, &key) ==
-                                                             SECRET_LEN) {
-                    XMEMCPY(ssl->arrays->preMasterSecret, out, SECRET_LEN);
-                    if (ssl->arrays->preMasterSecret[0] != ssl->chVersion.major
-                     ||
-                        ssl->arrays->preMasterSecret[1] != ssl->chVersion.minor)
-
-                        ret = PMS_VERSION_ERROR;
-                    else
-                        ret = MakeMasterSecret(ssl);
-                }
+                if (ssl->buffers.key.buffer)
+                    ret = RsaPrivateKeyDecode(ssl->buffers.key.buffer, &idx,
+                                             &key, ssl->buffers.key.length);
                 else
-                    ret = RSA_PRIVATE_ERROR;
+                    return NO_PRIVATE_KEY;
+
+                if (ret == 0) {
+                    length = RsaEncryptSize(&key);
+                    ssl->arrays->preMasterSz = SECRET_LEN;
+
+                    if (ssl->options.tls)
+                        (*inOutIdx) += 2;
+                    tmp = input + *inOutIdx;
+                    *inOutIdx += length;
+
+                    if (RsaPrivateDecryptInline(tmp, length, &out, &key) ==
+                                                                   SECRET_LEN) {
+                        XMEMCPY(ssl->arrays->preMasterSecret, out, SECRET_LEN);
+                        if (ssl->arrays->preMasterSecret[0] !=
+                                                           ssl->chVersion.major
+                            || ssl->arrays->preMasterSecret[1] != 
+                                                           ssl->chVersion.minor)
+                            ret = PMS_VERSION_ERROR;
+                        else
+                            ret = MakeMasterSecret(ssl);
+                    }
+                    else
+                        ret = RSA_PRIVATE_ERROR;
+                }
+
+                FreeRsaKey(&key);
             }
+            break;
+        #endif
+        #ifndef NO_PSK
+            case psk_kea:
+            {
+                byte* pms = ssl->arrays->preMasterSecret;
+                word16 ci_sz;
 
-            FreeRsaKey(&key);
-#ifndef NO_PSK
-        } else if (ssl->specs.kea == psk_kea) {
-            byte* pms = ssl->arrays->preMasterSecret;
-            word16 ci_sz;
+                ato16(&input[*inOutIdx], &ci_sz);
+                *inOutIdx += LENGTH_SZ;
+                if (ci_sz > MAX_PSK_ID_LEN) return CLIENT_ID_ERROR;
 
-            ato16(&input[*inOutIdx], &ci_sz);
-            *inOutIdx += LENGTH_SZ;
-            if (ci_sz > MAX_PSK_ID_LEN) return CLIENT_ID_ERROR;
+                XMEMCPY(ssl->arrays->client_identity, &input[*inOutIdx], ci_sz);
+                *inOutIdx += ci_sz;
+                ssl->arrays->client_identity[ci_sz] = 0;
 
-            XMEMCPY(ssl->arrays->client_identity, &input[*inOutIdx], ci_sz);
-            *inOutIdx += ci_sz;
-            ssl->arrays->client_identity[ci_sz] = 0;
+                ssl->arrays->psk_keySz = ssl->options.server_psk_cb(ssl,
+                    ssl->arrays->client_identity, ssl->arrays->psk_key,
+                    MAX_PSK_KEY_LEN);
+                if (ssl->arrays->psk_keySz == 0 || 
+                    ssl->arrays->psk_keySz > MAX_PSK_KEY_LEN)
+                    return PSK_KEY_ERROR;
+                
+                /* make psk pre master secret */
+                /* length of key + length 0s + length of key + key */
+                c16toa((word16)ssl->arrays->psk_keySz, pms);
+                pms += 2;
+                XMEMSET(pms, 0, ssl->arrays->psk_keySz);
+                pms += ssl->arrays->psk_keySz;
+                c16toa((word16)ssl->arrays->psk_keySz, pms);
+                pms += 2;
+                XMEMCPY(pms, ssl->arrays->psk_key, ssl->arrays->psk_keySz);
+                ssl->arrays->preMasterSz = ssl->arrays->psk_keySz * 2 + 4;
 
-            ssl->arrays->psk_keySz = ssl->options.server_psk_cb(ssl,
-                ssl->arrays->client_identity, ssl->arrays->psk_key,
-                MAX_PSK_KEY_LEN);
-            if (ssl->arrays->psk_keySz == 0 || 
-                ssl->arrays->psk_keySz > MAX_PSK_KEY_LEN) return PSK_KEY_ERROR;
-            
-            /* make psk pre master secret */
-            /* length of key + length 0s + length of key + key */
-            c16toa((word16)ssl->arrays->psk_keySz, pms);
-            pms += 2;
-            XMEMSET(pms, 0, ssl->arrays->psk_keySz);
-            pms += ssl->arrays->psk_keySz;
-            c16toa((word16)ssl->arrays->psk_keySz, pms);
-            pms += 2;
-            XMEMCPY(pms, ssl->arrays->psk_key, ssl->arrays->psk_keySz);
-            ssl->arrays->preMasterSz = ssl->arrays->psk_keySz * 2 + 4;
-
-            ret = MakeMasterSecret(ssl);
-#endif /* NO_PSK */
-#ifdef HAVE_NTRU
-        } else if (ssl->specs.kea == ntru_kea) {
-            word32 rc;
-            word16 cipherLen;
-            word16 plainLen = sizeof(ssl->arrays->preMasterSecret);
-            byte*  tmp;
-
-            if (!ssl->buffers.key.buffer)
-                return NO_PRIVATE_KEY;
-
-            ato16(&input[*inOutIdx], &cipherLen);
-            *inOutIdx += LENGTH_SZ;
-            if (cipherLen > MAX_NTRU_ENCRYPT_SZ)
-                return NTRU_KEY_ERROR;
-
-            tmp = input + *inOutIdx;
-            rc = crypto_ntru_decrypt((word16)ssl->buffers.key.length,
-                        ssl->buffers.key.buffer, cipherLen, tmp, &plainLen,
-                        ssl->arrays->preMasterSecret);
-
-            if (rc != NTRU_OK || plainLen != SECRET_LEN)
-                return NTRU_DECRYPT_ERROR;
-            *inOutIdx += cipherLen;
-
-            ssl->arrays->preMasterSz = plainLen;
-            ret = MakeMasterSecret(ssl);
-#endif /* HAVE_NTRU */
-#ifdef HAVE_ECC
-        } else if (ssl->specs.kea == ecc_diffie_hellman_kea) {
-            word32 size;
-            word32 bLength = input[*inOutIdx];  /* one byte length */
-            *inOutIdx += 1;
-
-            ret = ecc_import_x963(&input[*inOutIdx], bLength, &ssl->peerEccKey);
-            if (ret != 0)
-                return ECC_PEERKEY_ERROR;
-            *inOutIdx += bLength;
-            ssl->peerEccKeyPresent = 1;
-
-            size = sizeof(ssl->arrays->preMasterSecret);
-            if (ssl->specs.static_ecdh) {
-                ecc_key staticKey;
-                word32 i = 0;
-
-                ecc_init(&staticKey);
-                ret = EccPrivateKeyDecode(ssl->buffers.key.buffer, &i,
-                                          &staticKey, ssl->buffers.key.length);
-                if (ret == 0)
-                    ret = ecc_shared_secret(&staticKey, &ssl->peerEccKey,
-                                           ssl->arrays->preMasterSecret, &size);
-                ecc_free(&staticKey);
-            }
-            else 
-                ret = ecc_shared_secret(&ssl->eccTempKey, &ssl->peerEccKey,
-                                    ssl->arrays->preMasterSecret, &size);
-            if (ret != 0)
-                return ECC_SHARED_ERROR;
-            ssl->arrays->preMasterSz = size;
-            ret = MakeMasterSecret(ssl);
-#endif /* HAVE_ECC */
-#ifdef OPENSSL_EXTRA 
-        } else if (ssl->specs.kea == diffie_hellman_kea) {
-            byte*  clientPub;
-            word16 clientPubSz;
-            DhKey  dhKey;
-
-            ato16(&input[*inOutIdx], &clientPubSz);
-            *inOutIdx += LENGTH_SZ;
-
-            clientPub = &input[*inOutIdx];
-            *inOutIdx += clientPubSz;
-
-            InitDhKey(&dhKey);
-            ret = DhSetKey(&dhKey, ssl->buffers.serverDH_P.buffer,
-                                   ssl->buffers.serverDH_P.length,
-                                   ssl->buffers.serverDH_G.buffer,
-                                   ssl->buffers.serverDH_G.length);
-            if (ret == 0)
-                ret = DhAgree(&dhKey, ssl->arrays->preMasterSecret,
-                                     &ssl->arrays->preMasterSz,
-                                      ssl->buffers.serverDH_Priv.buffer,
-                                      ssl->buffers.serverDH_Priv.length,
-                                      clientPub, clientPubSz);
-            FreeDhKey(&dhKey);
-            if (ret == 0)
                 ret = MakeMasterSecret(ssl);
-#endif /* OPENSSL_EXTRA */
-        }
-        else {
-            CYASSL_MSG("Bad kea type");
-            return BAD_KEA_TYPE_E; 
+            }
+            break;
+        #endif /* NO_PSK */
+        #ifdef HAVE_NTRU
+            case ntru_kea:
+            {
+                word32 rc;
+                word16 cipherLen;
+                word16 plainLen = sizeof(ssl->arrays->preMasterSecret);
+                byte*  tmp;
+
+                if (!ssl->buffers.key.buffer)
+                    return NO_PRIVATE_KEY;
+
+                ato16(&input[*inOutIdx], &cipherLen);
+                *inOutIdx += LENGTH_SZ;
+                if (cipherLen > MAX_NTRU_ENCRYPT_SZ)
+                    return NTRU_KEY_ERROR;
+
+                tmp = input + *inOutIdx;
+                rc = crypto_ntru_decrypt((word16)ssl->buffers.key.length,
+                            ssl->buffers.key.buffer, cipherLen, tmp, &plainLen,
+                            ssl->arrays->preMasterSecret);
+
+                if (rc != NTRU_OK || plainLen != SECRET_LEN)
+                    return NTRU_DECRYPT_ERROR;
+                *inOutIdx += cipherLen;
+
+                ssl->arrays->preMasterSz = plainLen;
+                ret = MakeMasterSecret(ssl);
+            }
+            break;
+        #endif /* HAVE_NTRU */
+        #ifdef HAVE_ECC
+            case ecc_diffie_hellman_kea:
+            {
+                word32 size;
+                word32 bLength = input[*inOutIdx];  /* one byte length */
+                *inOutIdx += 1;
+
+                ret = ecc_import_x963(&input[*inOutIdx], bLength, &ssl->peerEccKey);
+                if (ret != 0)
+                    return ECC_PEERKEY_ERROR;
+                *inOutIdx += bLength;
+                ssl->peerEccKeyPresent = 1;
+
+                size = sizeof(ssl->arrays->preMasterSecret);
+                if (ssl->specs.static_ecdh) {
+                    ecc_key staticKey;
+                    word32 i = 0;
+
+                    ecc_init(&staticKey);
+                    ret = EccPrivateKeyDecode(ssl->buffers.key.buffer, &i,
+                                              &staticKey, ssl->buffers.key.length);
+                    if (ret == 0)
+                        ret = ecc_shared_secret(&staticKey, &ssl->peerEccKey,
+                                               ssl->arrays->preMasterSecret, &size);
+                    ecc_free(&staticKey);
+                }
+                else 
+                    ret = ecc_shared_secret(&ssl->eccTempKey, &ssl->peerEccKey,
+                                        ssl->arrays->preMasterSecret, &size);
+                if (ret != 0)
+                    return ECC_SHARED_ERROR;
+                ssl->arrays->preMasterSz = size;
+                ret = MakeMasterSecret(ssl);
+            }
+            break;
+        #endif /* HAVE_ECC */
+        #ifdef OPENSSL_EXTRA 
+            case diffie_hellman_kea:
+            {
+                byte*  clientPub;
+                word16 clientPubSz;
+                DhKey  dhKey;
+
+                ato16(&input[*inOutIdx], &clientPubSz);
+                *inOutIdx += LENGTH_SZ;
+
+                clientPub = &input[*inOutIdx];
+                *inOutIdx += clientPubSz;
+
+                InitDhKey(&dhKey);
+                ret = DhSetKey(&dhKey, ssl->buffers.serverDH_P.buffer,
+                                       ssl->buffers.serverDH_P.length,
+                                       ssl->buffers.serverDH_G.buffer,
+                                       ssl->buffers.serverDH_G.length);
+                if (ret == 0)
+                    ret = DhAgree(&dhKey, ssl->arrays->preMasterSecret,
+                                         &ssl->arrays->preMasterSz,
+                                          ssl->buffers.serverDH_Priv.buffer,
+                                          ssl->buffers.serverDH_Priv.length,
+                                          clientPub, clientPubSz);
+                FreeDhKey(&dhKey);
+                if (ret == 0)
+                    ret = MakeMasterSecret(ssl);
+            }
+            break;
+        #endif /* OPENSSL_EXTRA */
+            default:
+            {
+                CYASSL_MSG("Bad kea type");
+                ret = BAD_KEA_TYPE_E; 
+            }
+            break;
         }
 
         if (ret == 0) {

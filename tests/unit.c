@@ -17,7 +17,7 @@ int main(int argc, char** argv)
 
     (void)argc;
     (void)argv;
-    printf("staring unit tests...\n");
+    printf("starting unit tests...\n");
 
     if ( (ret = ApiTest()) != 0) {
         printf("api test failed with %d\n", ret);

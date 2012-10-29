@@ -24,6 +24,8 @@
     #include <config.h>
 #endif
 
+#ifndef NO_RSA
+
 #include <cyassl/ctaocrypt/rsa.h>
 #include <cyassl/ctaocrypt/random.h>
 #include <cyassl/ctaocrypt/error.h>
@@ -553,5 +555,6 @@ int MakeRsaKey(RsaKey* key, int size, long e, RNG* rng)
 }
 
 
-#endif /* CYASLS_KEY_GEN */
+#endif /* CYASSL_KEY_GEN */
 
+#endif /* NO_RSA */

@@ -19,6 +19,7 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  */
 
+//#ifndef NO_ASN
 
 #ifndef CTAO_CRYPT_ASN_H
 #define CTAO_CRYPT_ASN_H
@@ -483,3 +484,4 @@ CYASSL_LOCAL void FreeDecodedCRL(DecodedCRL*);
 
 #endif /* CTAO_CRYPT_ASN_H */
 
+//#endif /* NO_ASN */

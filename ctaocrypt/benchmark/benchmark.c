@@ -111,14 +111,16 @@ int main(int argc, char** argv)
 #endif
 
     printf("\n");
-    
+
+#ifndef NO_RSA
     bench_rsa();
+#endif
 
 #ifndef NO_DH
     bench_dh();
 #endif
 
-#ifdef CYASSL_KEY_GEN
+#if defined(CYASSL_KEY_GEN) && !defined(NO_RSA)
     bench_rsaKeyGen();
 #endif
 
@@ -411,8 +413,12 @@ void bench_ripemd(void)
 #endif
 
 
+#if !defined(NO_RSA) || !defined(NO_DH) \
+                                || defined(CYASSL_KEYGEN) || defined(HAVE_ECC)
 RNG rng;
+#endif
 
+#ifndef NO_RSA
 void bench_rsa(void)
 {
     int    i;
@@ -467,6 +473,7 @@ void bench_rsa(void)
     fclose(file);
     FreeRsaKey(&rsaKey);
 }
+#endif
 
 
 #ifndef NO_DH
@@ -527,7 +534,7 @@ void bench_dh(void)
 }
 #endif
 
-#ifdef CYASSL_KEY_GEN
+#if defined(CYASSL_KEY_GEN) && !defined(NO_RSA)
 void bench_rsaKeyGen(void)
 {
     RsaKey genKey;

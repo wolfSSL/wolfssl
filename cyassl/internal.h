@@ -24,9 +24,9 @@
 #define CYASSL_INT_H
 
 
+#include <cyassl/ctaocrypt/types.h>
 #include <cyassl/ssl.h>
 #include <cyassl/crl.h>
-#include <cyassl/ctaocrypt/types.h>
 #include <cyassl/ctaocrypt/random.h>
 #include <cyassl/ctaocrypt/des3.h>
 #include <cyassl/ctaocrypt/hc128.h>
@@ -124,7 +124,7 @@ void c32to24(word32 in, word24 out);
 
    When adding cipher suites, add name to cipher_names, idx to cipher_name_idx
 */
-#ifndef NO_RC4
+#if !defined(NO_RSA) && !defined(NO_RC4)
     #define BUILD_SSL_RSA_WITH_RC4_128_SHA
     #define BUILD_SSL_RSA_WITH_RC4_128_MD5
     #if !defined(NO_TLS) && defined(HAVE_NTRU)
@@ -132,20 +132,16 @@ void c32to24(word32 in, word24 out);
     #endif
 #endif
 
-#ifndef NO_DES3
+#if !defined(NO_RSA) && !defined(NO_DES3)
     #define BUILD_SSL_RSA_WITH_3DES_EDE_CBC_SHA
     #if !defined(NO_TLS) && defined(HAVE_NTRU)
         #define BUILD_TLS_NTRU_RSA_WITH_3DES_EDE_CBC_SHA
     #endif
 #endif
 
-#if !defined(NO_AES) && !defined(NO_TLS)
+#if !defined(NO_RSA) && !defined(NO_AES) && !defined(NO_TLS)
     #define BUILD_TLS_RSA_WITH_AES_128_CBC_SHA
     #define BUILD_TLS_RSA_WITH_AES_256_CBC_SHA
-    #if !defined (NO_PSK)
-        #define BUILD_TLS_PSK_WITH_AES_128_CBC_SHA
-        #define BUILD_TLS_PSK_WITH_AES_256_CBC_SHA
-    #endif
     #if defined(HAVE_NTRU)
         #define BUILD_TLS_NTRU_RSA_WITH_AES_128_CBC_SHA
         #define BUILD_TLS_NTRU_RSA_WITH_AES_256_CBC_SHA
@@ -160,24 +156,31 @@ void c32to24(word32 in, word24 out);
     #endif
 #endif
 
+#if !defined(NO_PSK) && !defined(NO_AES) && !defined(NO_TLS)
+    #define BUILD_TLS_PSK_WITH_AES_128_CBC_SHA
+    #define BUILD_TLS_PSK_WITH_AES_256_CBC_SHA
+#endif
+
 #if !defined(NO_TLS) && defined(HAVE_NULL_CIPHER)
-    #define BUILD_TLS_RSA_WITH_NULL_SHA
-    #define BUILD_TLS_RSA_WITH_NULL_SHA256
+    #if !defined(NO_RSA)
+        #define BUILD_TLS_RSA_WITH_NULL_SHA
+        #define BUILD_TLS_RSA_WITH_NULL_SHA256
+    #endif
     #if !defined(NO_PSK)
         #define BUILD_TLS_PSK_WITH_NULL_SHA
     #endif
 #endif
 
-#if !defined(NO_HC128) && !defined(NO_TLS)
+#if !defined(NO_HC128) && !defined(NO_RSA) && !defined(NO_TLS)
     #define BUILD_TLS_RSA_WITH_HC_128_CBC_MD5
     #define BUILD_TLS_RSA_WITH_HC_128_CBC_SHA
 #endif
 
-#if !defined(NO_RABBIT) && !defined(NO_TLS)
+#if !defined(NO_RABBIT) && !defined(NO_TLS) && !defined(NO_RSA)
     #define BUILD_TLS_RSA_WITH_RABBIT_CBC_SHA
 #endif
 
-#if !defined(NO_DH) && !defined(NO_AES) && !defined(NO_TLS) && defined(OPENSSL_EXTRA)
+#if !defined(NO_DH) && !defined(NO_AES) && !defined(NO_TLS) && !defined(NO_RSA) && defined(OPENSSL_EXTRA)
     #define BUILD_TLS_DHE_RSA_WITH_AES_128_CBC_SHA
     #define BUILD_TLS_DHE_RSA_WITH_AES_256_CBC_SHA
     #if !defined (NO_SHA256)
@@ -661,7 +664,8 @@ typedef struct Suites {
 
 
 CYASSL_LOCAL
-void InitSuites(Suites*, ProtocolVersion, byte, byte, byte, byte, byte, int);
+void InitSuites(Suites*, ProtocolVersion,
+                                     byte, byte, byte, byte, byte, byte, int);
 CYASSL_LOCAL
 int  SetCipherList(Suites*, const char* list);
 
@@ -836,6 +840,7 @@ struct CYASSL_CTX {
     byte        sessionCacheOff;
     byte        sessionCacheFlushOff;
     byte        sendVerify;       /* for client side */
+    byte        haveRSA;          /* RSA available */
     byte        haveDH;           /* server DH parms set by user */
     byte        haveNTRU;         /* server private NTRU  key loaded */
     byte        haveECDSAsig;     /* server cert signed w/ ECDSA */
@@ -1174,6 +1179,7 @@ typedef struct Options {
     byte            connectState;       /* nonblocking resume */
     byte            acceptState;        /* nonblocking resume */
     byte            usingCompression;   /* are we using compression */
+    byte            haveRSA;            /* RSA available */
     byte            haveDH;             /* server DH parms set by user */
     byte            haveNTRU;           /* server NTRU  private key loaded */
     byte            haveECDSAsig;       /* server ECDSA signed cert */
@@ -1294,8 +1300,10 @@ struct CYASSL {
     Arrays*         arrays;
     CYASSL_SESSION  session;
     VerifyCallback  verifyCallback;      /* cert verification callback */
+#ifndef NO_RSA
     RsaKey*         peerRsaKey;
     byte            peerRsaKeyPresent;
+#endif
 #ifdef HAVE_NTRU
     word16          peerNtruKeyLen;
     byte            peerNtruKey[MAX_NTRU_PUB_KEY_SZ];

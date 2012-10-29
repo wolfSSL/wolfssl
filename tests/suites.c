@@ -103,7 +103,6 @@ static void test_harness(void* vargs)
     char* comment;
     const char* fname = "tests/test.conf";
 
-
     if (args->argc == 1) {
         printf("notice: using default file %s\n", fname);
     }
@@ -227,6 +226,7 @@ int SuiteTest(void)
     args.argv = myArgv;
     strcpy(argv0[0], "SuiteTest");
 
+#if !defined(NO_RSA)
     /* default case */
     args.argc = 1;
     printf("starting default cipher suite tests\n");
@@ -235,6 +235,7 @@ int SuiteTest(void)
         printf("error from script %d\n", args.return_code);
         exit(EXIT_FAILURE);  
     }
+#endif
 
     /* any extra cases will need another argument */
     args.argc = 2;
@@ -250,7 +251,7 @@ int SuiteTest(void)
     }
 #endif
 
-#ifdef HAVE_NULL_CIPHER
+#if !defined(NO_RSA) && defined(HAVE_NULL_CIPHER)
     /* add rsa null cipher suites */
     strcpy(argv0[1], "tests/test-null.conf");
     printf("starting null cipher suite tests\n");
@@ -283,7 +284,7 @@ int SuiteTest(void)
     }
 #endif
 
-#ifndef NO_PSK
+#if !defined(NO_PSK) && !defined(NO_AES)
     /* add psk extra suites */
     strcpy(argv0[1], "tests/test-psk.conf");
     printf("starting psk extra cipher suite tests\n");
@@ -292,15 +293,16 @@ int SuiteTest(void)
         printf("error from script %d\n", args.return_code);
         exit(EXIT_FAILURE);  
     }
-    #ifdef HAVE_NULL_CIPHER
-        strcpy(argv0[1], "tests/test-psk-null.conf");
-        printf("starting psk extra null cipher suite tests\n");
-        test_harness(&args);
-        if (args.return_code != 0) {
-            printf("error from script %d\n", args.return_code);
-            exit(EXIT_FAILURE);  
-        }
-    #endif
+#endif
+
+#if !defined(NO_PSK) && defined(HAVE_NULL_CIPHER)
+    strcpy(argv0[1], "tests/test-psk-null.conf");
+    printf("starting psk extra null cipher suite tests\n");
+    test_harness(&args);
+    if (args.return_code != 0) {
+        printf("error from script %d\n", args.return_code);
+        exit(EXIT_FAILURE);  
+    }
 #endif
 
 #ifdef HAVE_NTRU

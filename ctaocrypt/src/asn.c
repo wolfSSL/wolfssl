@@ -23,11 +23,14 @@
     #include <config.h>
 #endif
 
+#ifndef NO_ASN
+
 #ifdef THREADX
     #include "os.h"           /* dc_rtc_api needs    */
     #include "dc_rtc_api.h"   /* to get current time */
 #endif
 
+#include <cyassl/ctaocrypt/integer.h>
 #include <cyassl/ctaocrypt/asn.h>
 #include <cyassl/ctaocrypt/coding.h>
 #include <cyassl/ctaocrypt/sha.h>
@@ -515,6 +518,7 @@ static int GetAlgoId(const byte* input, word32* inOutIdx, word32* oid,
     return 0;
 }
 
+#ifndef NO_RSA
 
 int RsaPrivateKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
                         word32 inSz)
@@ -541,6 +545,7 @@ int RsaPrivateKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
     return 0;
 }
 
+#endif /* NO_RSA */
 
 /* Remove PKCS8 header, move beginning of traditional to beginning of input */
 int ToTraditional(byte* input, word32 sz)
@@ -841,6 +846,7 @@ int ToTraditionalEnc(byte* input, word32 sz,const char* password,int passwordSz)
 
 #endif /* NO_PWDBASED */
 
+#ifndef NO_RSA
 
 int RsaPublicKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
                        word32 inSz)
@@ -906,6 +912,7 @@ int RsaPublicKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
     return 0;
 }
 
+#endif
 
 #ifndef NO_DH
 
@@ -1159,7 +1166,7 @@ static int GetCertHeader(DecodedCert* cert)
     return ret;
 }
 
-
+#if !defined(NO_RSA)
 /* Store Rsa Key, may save later, Dsa could use in future */
 static int StoreRsaKey(DecodedCert* cert)
 {
@@ -1181,6 +1188,7 @@ static int StoreRsaKey(DecodedCert* cert)
 
     return 0;
 }
+#endif
 
 
 #ifdef HAVE_ECC
@@ -1211,100 +1219,111 @@ static int GetKey(DecodedCert* cert)
     if (GetAlgoId(cert->source, &cert->srcIdx, &cert->keyOID, cert->maxIdx) < 0)
         return ASN_PARSE_E;
 
-    if (cert->keyOID == RSAk) {
-        byte b = cert->source[cert->srcIdx++];
-        if (b != ASN_BIT_STRING)
-            return ASN_BITSTR_E;
+    switch (cert->keyOID) {
+        case DSAk:
+            /* do nothing */
+        break;
+   #ifndef NO_RSA
+        case RSAk:
+        {
+            byte b = cert->source[cert->srcIdx++];
+            if (b != ASN_BIT_STRING)
+                return ASN_BITSTR_E;
 
-        if (GetLength(cert->source, &cert->srcIdx, &length, cert->maxIdx) < 0)
-            return ASN_PARSE_E;
-        b = cert->source[cert->srcIdx++];
-        if (b != 0x00)
-            return ASN_EXPECT_0_E;
-    }
-    else if (cert->keyOID == DSAk )
-        ;   /* do nothing */
-#ifdef HAVE_NTRU
-    else if (cert->keyOID == NTRUk ) {
-        const byte* key = &cert->source[tmpIdx];
-        byte*       next = (byte*)key;
-        word16      keyLen;
-        byte        keyBlob[MAX_NTRU_KEY_SZ];
-
-        word32 rc = crypto_ntru_encrypt_subjectPublicKeyInfo2PublicKey(key,
-                            &keyLen, NULL, &next);
-
-        if (rc != NTRU_OK)
-            return ASN_NTRU_KEY_E;
-        if (keyLen > sizeof(keyBlob))
-            return ASN_NTRU_KEY_E;
-
-        rc = crypto_ntru_encrypt_subjectPublicKeyInfo2PublicKey(key, &keyLen,
-                                                                keyBlob, &next);
-        if (rc != NTRU_OK)
-            return ASN_NTRU_KEY_E;
-
-        if ( (next - key) < 0)
-            return ASN_NTRU_KEY_E;
-
-        cert->srcIdx = tmpIdx + (next - key);
-
-        cert->publicKey = (byte*) XMALLOC(keyLen, cert->heap,
-                                          DYNAMIC_TYPE_PUBLIC_KEY);
-        if (cert->publicKey == NULL)
-            return MEMORY_E;
-        XMEMCPY(cert->publicKey, keyBlob, keyLen);
-        cert->pubKeyStored = 1;
-        cert->pubKeySize   = keyLen;
-    }
-#endif /* HAVE_NTRU */
-#ifdef HAVE_ECC
-    else if (cert->keyOID == ECDSAk ) {
-        word32 oid = 0;
-        int    oidSz = 0;
-        byte   b = cert->source[cert->srcIdx++];
+            if (GetLength(cert->source, &cert->srcIdx, &length, cert->maxIdx) < 0)
+                return ASN_PARSE_E;
+            b = cert->source[cert->srcIdx++];
+            if (b != 0x00)
+                return ASN_EXPECT_0_E;
     
-        if (b != ASN_OBJECT_ID) 
-            return ASN_OBJECT_ID_E;
+            return StoreRsaKey(cert);
+        }
+        break;
+    #endif /* NO_RSA */
+    #ifdef HAVE_NTRU
+        case NTRUk:
+        {
+            const byte* key = &cert->source[tmpIdx];
+            byte*       next = (byte*)key;
+            word16      keyLen;
+            byte        keyBlob[MAX_NTRU_KEY_SZ];
 
-        if (GetLength(cert->source, &cert->srcIdx, &oidSz, cert->maxIdx) < 0)
-            return ASN_PARSE_E;
+            word32 rc = crypto_ntru_encrypt_subjectPublicKeyInfo2PublicKey(key,
+                                &keyLen, NULL, &next);
 
-        while(oidSz--)
-            oid += cert->source[cert->srcIdx++];
-        if (CheckCurve(oid) < 0)
-            return ECC_CURVE_OID_E;
+            if (rc != NTRU_OK)
+                return ASN_NTRU_KEY_E;
+            if (keyLen > sizeof(keyBlob))
+                return ASN_NTRU_KEY_E;
 
-        /* key header */
-        b = cert->source[cert->srcIdx++];
-        if (b != ASN_BIT_STRING)
-            return ASN_BITSTR_E;
+            rc = crypto_ntru_encrypt_subjectPublicKeyInfo2PublicKey(key,&keyLen,
+                                                                keyBlob, &next);
+            if (rc != NTRU_OK)
+                return ASN_NTRU_KEY_E;
 
-        if (GetLength(cert->source, &cert->srcIdx, &length, cert->maxIdx) < 0)
-            return ASN_PARSE_E;
-        b = cert->source[cert->srcIdx++];
-        if (b != 0x00)
-            return ASN_EXPECT_0_E;
+            if ( (next - key) < 0)
+                return ASN_NTRU_KEY_E;
 
-        /* actual key, use length - 1 since ate preceding 0 */
-        length -= 1;
+            cert->srcIdx = tmpIdx + (next - key);
 
-        cert->publicKey = (byte*) XMALLOC(length, cert->heap,
-                                          DYNAMIC_TYPE_PUBLIC_KEY);
-        if (cert->publicKey == NULL)
-            return MEMORY_E;
-        XMEMCPY(cert->publicKey, &cert->source[cert->srcIdx], length);
-        cert->pubKeyStored = 1;
-        cert->pubKeySize   = length;
+            cert->publicKey = (byte*) XMALLOC(keyLen, cert->heap,
+                                              DYNAMIC_TYPE_PUBLIC_KEY);
+            if (cert->publicKey == NULL)
+                return MEMORY_E;
+            XMEMCPY(cert->publicKey, keyBlob, keyLen);
+            cert->pubKeyStored = 1;
+            cert->pubKeySize   = keyLen;
+        }
+        break;
+    #endif /* HAVE_NTRU */
+    #ifdef HAVE_ECC
+        case ECDSAk:
+        {
+            word32 oid = 0;
+            int    oidSz = 0;
+            byte   b = cert->source[cert->srcIdx++];
+        
+            if (b != ASN_OBJECT_ID) 
+                return ASN_OBJECT_ID_E;
 
-        cert->srcIdx += length;
+            if (GetLength(cert->source,&cert->srcIdx,&oidSz,cert->maxIdx) < 0)
+                return ASN_PARSE_E;
+
+            while(oidSz--)
+                oid += cert->source[cert->srcIdx++];
+            if (CheckCurve(oid) < 0)
+                return ECC_CURVE_OID_E;
+
+            /* key header */
+            b = cert->source[cert->srcIdx++];
+            if (b != ASN_BIT_STRING)
+                return ASN_BITSTR_E;
+
+            if (GetLength(cert->source,&cert->srcIdx,&length,cert->maxIdx) < 0)
+                return ASN_PARSE_E;
+            b = cert->source[cert->srcIdx++];
+            if (b != 0x00)
+                return ASN_EXPECT_0_E;
+
+            /* actual key, use length - 1 since ate preceding 0 */
+            length -= 1;
+
+            cert->publicKey = (byte*) XMALLOC(length, cert->heap,
+                                              DYNAMIC_TYPE_PUBLIC_KEY);
+            if (cert->publicKey == NULL)
+                return MEMORY_E;
+            XMEMCPY(cert->publicKey, &cert->source[cert->srcIdx], length);
+            cert->pubKeyStored = 1;
+            cert->pubKeySize   = length;
+
+            cert->srcIdx += length;
+        }
+        break;
+    #endif /* HAVE_ECC */
+        default:
+            return ASN_UNKNOWN_OID_E;
     }
-#endif /* HAVE_ECC */
-    else
-        return ASN_UNKNOWN_OID_E;
    
-    if (cert->keyOID == RSAk) 
-        return StoreRsaKey(cert);
     return 0;
 }
 
@@ -1833,20 +1852,27 @@ static word32 SetAlgoID(int algoOID, byte* output, int type)
                                          0x02, 0x05, 0x05, 0x00  };
     static const byte md2AlgoID[]    = { 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d,
                                          0x02, 0x02, 0x05, 0x00};
+
     /* sigTypes */
-    static const byte md5wRSA_AlgoID[] = { 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d,
-                                           0x01, 0x01, 0x04, 0x05, 0x00};
-    static const byte shawRSA_AlgoID[] = { 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d,
-                                           0x01, 0x01, 0x05, 0x05, 0x00};
-    static const byte sha256wRSA_AlgoID[] = { 0x2a, 0x86, 0x48, 0x86, 0xf7,
+    #ifndef NO_RSA
+        static const byte md5wRSA_AlgoID[] = { 0x2a, 0x86, 0x48, 0x86, 0xf7,
+                                            0x0d, 0x01, 0x01, 0x04, 0x05, 0x00};
+        static const byte shawRSA_AlgoID[] = { 0x2a, 0x86, 0x48, 0x86, 0xf7,
+                                            0x0d, 0x01, 0x01, 0x05, 0x05, 0x00};
+        static const byte sha256wRSA_AlgoID[] = { 0x2a, 0x86, 0x48, 0x86, 0xf7,
                                             0x0d, 0x01, 0x01, 0x0b, 0x05, 0x00};
-    static const byte sha384wRSA_AlgoID[] = {0x2a, 0x86, 0x48, 0x86, 0xf7,
+        static const byte sha384wRSA_AlgoID[] = {0x2a, 0x86, 0x48, 0x86, 0xf7,
                                             0x0d, 0x01, 0x01, 0x0c, 0x05, 0x00};
-    static const byte sha512wRSA_AlgoID[] = {0x2a, 0x86, 0x48, 0x86, 0xf7,
+        static const byte sha512wRSA_AlgoID[] = {0x2a, 0x86, 0x48, 0x86, 0xf7,
                                             0x0d, 0x01, 0x01, 0x0d, 0x05, 0x00};
+    #endif /* NO_RSA */
+ 
     /* keyTypes */
-    static const byte RSA_AlgoID[] = { 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d,
-                                      0x01, 0x01, 0x01, 0x05, 0x00};
+    #ifndef NO_RSA
+        static const byte RSA_AlgoID[] = { 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d,
+                                            0x01, 0x01, 0x01, 0x05, 0x00};
+    #endif /* NO_RSA */
+
     int    algoSz = 0;
     word32 idSz, seqSz;
     const  byte* algoName = 0;
@@ -1892,31 +1918,32 @@ static word32 SetAlgoID(int algoOID, byte* output, int type)
     }
     else if (type == sigType) {    /* sigType */
         switch (algoOID) {
-        case CTC_MD5wRSA:
-            algoSz = sizeof(md5wRSA_AlgoID);
-            algoName = md5wRSA_AlgoID;
-            break;
+        #ifndef NO_RSA
+            case CTC_MD5wRSA:
+                algoSz = sizeof(md5wRSA_AlgoID);
+                algoName = md5wRSA_AlgoID;
+                break;
 
-        case CTC_SHAwRSA:
-            algoSz = sizeof(shawRSA_AlgoID);
-            algoName = shawRSA_AlgoID;
-            break;
+            case CTC_SHAwRSA:
+                algoSz = sizeof(shawRSA_AlgoID);
+                algoName = shawRSA_AlgoID;
+                break;
 
-        case CTC_SHA256wRSA:
-            algoSz = sizeof(sha256wRSA_AlgoID);
-            algoName = sha256wRSA_AlgoID;
-            break;
+            case CTC_SHA256wRSA:
+                algoSz = sizeof(sha256wRSA_AlgoID);
+                algoName = sha256wRSA_AlgoID;
+                break;
 
-        case CTC_SHA384wRSA:
-            algoSz = sizeof(sha384wRSA_AlgoID);
-            algoName = sha384wRSA_AlgoID;
-            break;
+            case CTC_SHA384wRSA:
+                algoSz = sizeof(sha384wRSA_AlgoID);
+                algoName = sha384wRSA_AlgoID;
+                break;
 
-        case CTC_SHA512wRSA:
-            algoSz = sizeof(sha512wRSA_AlgoID);
-            algoName = sha512wRSA_AlgoID;
-            break;
-
+            case CTC_SHA512wRSA:
+                algoSz = sizeof(sha512wRSA_AlgoID);
+                algoName = sha512wRSA_AlgoID;
+                break;
+        #endif /* NO_RSA */
         default:
             CYASSL_MSG("Unknown Signature Algo");
             return 0;
@@ -1924,11 +1951,12 @@ static word32 SetAlgoID(int algoOID, byte* output, int type)
     }
     else if (type == keyType) {    /* keyType */
         switch (algoOID) {
-        case RSAk:
-            algoSz = sizeof(RSA_AlgoID);
-            algoName = RSA_AlgoID;
-            break;
-
+        #ifndef NO_RSA
+            case RSAk:
+                algoSz = sizeof(RSA_AlgoID);
+                algoName = RSA_AlgoID;
+                break;
+        #endif /* NO_RSA */
         default:
             CYASSL_MSG("Unknown Key Algo");
             return 0;
@@ -1984,158 +2012,181 @@ static int ConfirmSignature(const byte* buf, word32 bufSz,
 #else
     byte digest[SHA_DIGEST_SIZE];    /* max size */
 #endif
-    int  typeH, digestSz, ret;
+    int  typeH, digestSz, ret = 0;
 
-    if (sigOID == CTC_MD5wRSA) {
-        Md5 md5;
-        InitMd5(&md5);
-        Md5Update(&md5, buf, bufSz);
-        Md5Final(&md5, digest);
-        typeH    = MD5h;
-        digestSz = MD5_DIGEST_SIZE;
-    }
-#ifdef CYASSL_MD2
-    else if (sigOID == CTC_MD2wRSA) {
-        Md2 md2;
-        InitMd2(&md2);
-        Md2Update(&md2, buf, bufSz);
-        Md2Final(&md2, digest);
-        typeH    = MD2h;
-        digestSz = MD2_DIGEST_SIZE;
-    }
-#endif
-    else if (sigOID == CTC_SHAwRSA ||
-             sigOID == CTC_SHAwDSA ||
-             sigOID == CTC_SHAwECDSA) {
-        Sha sha;
-        InitSha(&sha);
-        ShaUpdate(&sha, buf, bufSz);
-        ShaFinal(&sha, digest);
-        typeH    = SHAh;
-        digestSz = SHA_DIGEST_SIZE;
-    }
-#ifndef NO_SHA256
-    else if (sigOID == CTC_SHA256wRSA ||
-             sigOID == CTC_SHA256wECDSA) {
-        Sha256 sha256;
-        InitSha256(&sha256);
-        Sha256Update(&sha256, buf, bufSz);
-        Sha256Final(&sha256, digest);
-        typeH    = SHA256h;
-        digestSz = SHA256_DIGEST_SIZE;
-    }
-#endif
-#ifdef CYASSL_SHA512
-    else if (sigOID == CTC_SHA512wRSA ||
-             sigOID == CTC_SHA512wECDSA) {
-        Sha512 sha512;
-        InitSha512(&sha512);
-        Sha512Update(&sha512, buf, bufSz);
-        Sha512Final(&sha512, digest);
-        typeH    = SHA512h;
-        digestSz = SHA512_DIGEST_SIZE;
-    }
-#endif
-#ifdef CYASSL_SHA384
-    else if (sigOID == CTC_SHA384wRSA ||
-             sigOID == CTC_SHA384wECDSA) {
-        Sha384 sha384;
-        InitSha384(&sha384);
-        Sha384Update(&sha384, buf, bufSz);
-        Sha384Final(&sha384, digest);
-        typeH    = SHA384h;
-        digestSz = SHA384_DIGEST_SIZE;
-    }
-#endif
-    else {
-        CYASSL_MSG("Verify Signautre has unsupported type");
-        return 0;
-    }
+    (void)key;
+    (void)keySz;
+    (void)sig;
+    (void)sigSz;
+    (void)heap;
 
-    if (keyOID == RSAk) {
-        RsaKey pubKey;
-        byte   encodedSig[MAX_ENCODED_SIG_SZ];
-        byte   plain[MAX_ENCODED_SIG_SZ];
-        word32 idx = 0;
-        int    encodedSigSz, verifySz;
-        byte*  out;
-
-        if (sigSz > MAX_ENCODED_SIG_SZ) {
-            CYASSL_MSG("Verify Signautre is too big");
+    switch (sigOID) {
+        case CTC_MD5wRSA:
+        {
+            Md5 md5;
+            InitMd5(&md5);
+            Md5Update(&md5, buf, bufSz);
+            Md5Final(&md5, digest);
+            typeH    = MD5h;
+            digestSz = MD5_DIGEST_SIZE;
+        }
+        break;
+    #if defined(CYASSL_MD2)
+        case CTC_MD2wRSA:
+        {
+            Md2 md2;
+            InitMd2(&md2);
+            Md2Update(&md2, buf, bufSz);
+            Md2Final(&md2, digest);
+            typeH    = MD2h;
+            digestSz = MD2_DIGEST_SIZE;
+        }
+        break;
+    #endif
+        case CTC_SHAwRSA:
+        case CTC_SHAwDSA:
+        case CTC_SHAwECDSA:
+        {
+            Sha sha;
+            InitSha(&sha);
+            ShaUpdate(&sha, buf, bufSz);
+            ShaFinal(&sha, digest);
+            typeH    = SHAh;
+            digestSz = SHA_DIGEST_SIZE;
+        }
+        break;
+    #ifndef NO_SHA256
+        case CTC_SHA256wRSA:
+        case CTC_SHA256wECDSA:
+        {
+            Sha256 sha256;
+            InitSha256(&sha256);
+            Sha256Update(&sha256, buf, bufSz);
+            Sha256Final(&sha256, digest);
+            typeH    = SHA256h;
+            digestSz = SHA256_DIGEST_SIZE;
+        }
+    #endif
+    #ifdef CYASSL_SHA512
+        case CTC_SHA512wRSA:
+        case CTC_SHA512wECDSA:
+        {
+            Sha512 sha512;
+            InitSha512(&sha512);
+            Sha512Update(&sha512, buf, bufSz);
+            Sha512Final(&sha512, digest);
+            typeH    = SHA512h;
+            digestSz = SHA512_DIGEST_SIZE;
+        }
+    #endif
+    #ifdef CYASSL_SHA384
+        case CTC_SHA384wRSA:
+        case CTC_SHA384wECDSA:
+        {
+            Sha384 sha384;
+            InitSha384(&sha384);
+            Sha384Update(&sha384, buf, bufSz);
+            Sha384Final(&sha384, digest);
+            typeH    = SHA384h;
+            digestSz = SHA384_DIGEST_SIZE;
+        }
+    #endif
+        default:
+            CYASSL_MSG("Verify Signautre has unsupported type");
             return 0;
-        }
-            
-        InitRsaKey(&pubKey, heap);
-        if (RsaPublicKeyDecode(key, &idx, &pubKey, keySz) < 0) {
-            CYASSL_MSG("ASN Key decode error RSA");
-            ret = 0;
-        }
-        else {
-            XMEMCPY(plain, sig, sigSz);
-            if ( (verifySz = RsaSSL_VerifyInline(plain, sigSz, &out,
-                                           &pubKey)) < 0) {
-                CYASSL_MSG("Rsa SSL verify error");
+    }
+
+    switch (keyOID) {
+    #ifndef NO_RSA
+        case RSAk:
+        {
+            RsaKey pubKey;
+            byte   encodedSig[MAX_ENCODED_SIG_SZ];
+            byte   plain[MAX_ENCODED_SIG_SZ];
+            word32 idx = 0;
+            int    encodedSigSz, verifySz;
+            byte*  out;
+
+            if (sigSz > MAX_ENCODED_SIG_SZ) {
+                CYASSL_MSG("Verify Signautre is too big");
+                return 0;
+            }
+                
+            InitRsaKey(&pubKey, heap);
+            if (RsaPublicKeyDecode(key, &idx, &pubKey, keySz) < 0) {
+                CYASSL_MSG("ASN Key decode error RSA");
                 ret = 0;
             }
             else {
-                /* make sure we're right justified */
-                encodedSigSz =
-                        EncodeSignature(encodedSig, digest, digestSz, typeH);
-                if (encodedSigSz != verifySz ||
-                                XMEMCMP(out, encodedSig, encodedSigSz) != 0) {
-                    CYASSL_MSG("Rsa SSL verify match encode error");
+                XMEMCPY(plain, sig, sigSz);
+                if ( (verifySz = RsaSSL_VerifyInline(plain, sigSz, &out,
+                                               &pubKey)) < 0) {
+                    CYASSL_MSG("Rsa SSL verify error");
                     ret = 0;
                 }
-                else
-                    ret = 1; /* match */
+                else {
+                    /* make sure we're right justified */
+                    encodedSigSz =
+                            EncodeSignature(encodedSig, digest, digestSz, typeH);
+                    if (encodedSigSz != verifySz ||
+                                    XMEMCMP(out, encodedSig, encodedSigSz) != 0) {
+                        CYASSL_MSG("Rsa SSL verify match encode error");
+                        ret = 0;
+                    }
+                    else
+                        ret = 1; /* match */
 
-#ifdef CYASSL_DEBUG_ENCODING
-                {
-                int x;
-                printf("cyassl encodedSig:\n");
-                for (x = 0; x < encodedSigSz; x++) {
-                    printf("%02x ", encodedSig[x]);
-                    if ( (x % 16) == 15)
-                        printf("\n");
+                    #ifdef CYASSL_DEBUG_ENCODING
+                    {
+                    int x;
+                    printf("cyassl encodedSig:\n");
+                    for (x = 0; x < encodedSigSz; x++) {
+                        printf("%02x ", encodedSig[x]);
+                        if ( (x % 16) == 15)
+                            printf("\n");
+                    }
+                    printf("\n");
+                    printf("actual digest:\n");
+                    for (x = 0; x < verifySz; x++) {
+                        printf("%02x ", out[x]);
+                        if ( (x % 16) == 15)
+                            printf("\n");
+                    }
+                    printf("\n");
+                    }
+                    #endif /* CYASSL_DEBUG_ENCODING */
                 }
-                printf("\n");
-                printf("actual digest:\n");
-                for (x = 0; x < verifySz; x++) {
-                    printf("%02x ", out[x]);
-                    if ( (x % 16) == 15)
-                        printf("\n");
-                }
-                printf("\n");
-                }
-#endif /* CYASSL_DEBUG_ENCODING */
             }
+            FreeRsaKey(&pubKey);
+            return ret;
         }
-        FreeRsaKey(&pubKey);
-        return ret;
-    }
-#ifdef HAVE_ECC
-    else if (keyOID == ECDSAk) {
-        ecc_key pubKey;
-        int     verify = 0;
+        break;
+    #endif /* NO_RSA */
+    #ifdef HAVE_ECC
+        case ECDSAk:
+        {
+            ecc_key pubKey;
+            int     verify = 0;
+            
+            if (ecc_import_x963(key, keySz, &pubKey) < 0) {
+                CYASSL_MSG("ASN Key import error ECC");
+                return 0;
+            }
         
-        if (ecc_import_x963(key, keySz, &pubKey) < 0) {
-            CYASSL_MSG("ASN Key import error ECC");
+            ret = ecc_verify_hash(sig, sigSz, digest, digestSz, &verify, &pubKey);
+            ecc_free(&pubKey);
+            if (ret == 0 && verify == 1)
+                return 1;  /* match */
+
+            CYASSL_MSG("ECC Verify didn't match");
             return 0;
         }
-    
-        ret = ecc_verify_hash(sig, sigSz, digest, digestSz, &verify, &pubKey);
-        ecc_free(&pubKey);
-        if (ret == 0 && verify == 1)
-            return 1;  /* match */
-
-        CYASSL_MSG("ECC Verify didn't match");
-        return 0;
+    #endif /* HAVE_ECC */
+        default:
+            CYASSL_MSG("Verify Key type unknown");
+            return 0;
     }
-#endif /* HAVE_ECC */
-    else {
-        CYASSL_MSG("Verify Key type unknown");
-        return 0;
-    }
+    return ret;
 }
 
 
@@ -2895,7 +2946,7 @@ int DerToPem(const byte* der, word32 derSz, byte* output, word32 outSz,
 #endif /* CYASSL_KEY_GEN || CYASSL_CERT_GEN */
 
 
-#ifdef CYASSL_KEY_GEN
+#if defined(CYASSL_KEY_GEN) && !defined(NO_RSA)
 
 
 static mp_int* GetRsaInt(RsaKey* key, int idx)
@@ -2982,10 +3033,10 @@ int RsaKeyToDer(RsaKey* key, byte* output, word32 inLen)
     return outLen;
 }
 
-#endif /* CYASSL_KEY_GEN */
+#endif /* CYASSL_KEY_GEN && !NO_RSA */
 
 
-#ifdef CYASSL_CERT_GEN
+#if defined(CYASSL_CERT_GEN) && !defined(NO_RSA)
 
 
 #ifndef min
@@ -3918,7 +3969,7 @@ static int SetDatesFromCert(Cert* cert, const byte* der, int derSz)
 }
 
 
-#endif /* CYASSL_ALT_NAMES */
+#endif /* CYASSL_ALT_NAMES && !NO_RSA */
 
 
 /* Set cn name from der buffer, return 0 on success */
@@ -5164,3 +5215,5 @@ int ParseCRL(DecodedCRL* dcrl, const byte* buff, long sz, void* cm)
 }
 
 #endif /* HAVE_CRL */
+
+#endif

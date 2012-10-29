@@ -16,12 +16,8 @@ src_libcyassl_la_SOURCES = \
 			   ctaocrypt/src/md5.c \
 			   ctaocrypt/src/md4.c \
 			   ctaocrypt/src/random.c \
-			   ctaocrypt/src/rsa.c \
 			   ctaocrypt/src/sha.c \
-			   ctaocrypt/src/aes.c \
 			   ctaocrypt/src/sha256.c \
-			   ctaocrypt/src/dh.c \
-			   ctaocrypt/src/dsa.c \
 			   ctaocrypt/src/arc4.c \
 			   ctaocrypt/src/pwdbased.c \
 			   ctaocrypt/src/logging.c \
@@ -30,6 +26,13 @@ src_libcyassl_la_LDFLAGS = ${AM_LDFLAGS} -no-undefined -version-info ${CYASSL_LI
 src_libcyassl_la_LIBADD = $(LIBM)
 src_libcyassl_la_CFLAGS = -DBUILDING_CYASSL $(AM_CFLAGS)
 src_libcyassl_la_CPPFLAGS = -DBUILDING_CYASSL $(AM_CPPFLAGS)
+
+if !BUILD_LEANPSK
+src_libcyassl_la_SOURCES += ctaocrypt/src/rsa.c \
+			   				ctaocrypt/src/dh.c \
+			   				ctaocrypt/src/dsa.c \
+			   				ctaocrypt/src/aes.c
+endif
 
 if BUILD_AESNI
 src_libcyassl_la_SOURCES += ctaocrypt/src/aes_asm.s

@@ -1137,6 +1137,11 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
     keys->peer_sequence_number = 0;
     keys->encryptionOn         = 0;
     (void)rng;
+    (void)side;
+    (void)heap;
+    (void)enc;
+    (void)dec;
+    (void)specs;
 
     return 0;
 }

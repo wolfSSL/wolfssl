@@ -309,6 +309,7 @@ int CyaSSL_SetTmpDH(CYASSL* ssl, const unsigned char* p, int pSz,
                     const unsigned char* g, int gSz)
 {
     byte havePSK = 0;
+    byte haveRSA = 1;
 
     CYASSL_ENTER("CyaSSL_SetTmpDH");
     if (ssl == NULL || p == NULL || g == NULL) return BAD_FUNC_ARG;
@@ -344,8 +345,11 @@ int CyaSSL_SetTmpDH(CYASSL* ssl, const unsigned char* p, int pSz,
     #ifndef NO_PSK
         havePSK = ssl->options.havePSK;
     #endif
-    InitSuites(ssl->suites, ssl->version, ssl->options.haveDH,
-               havePSK, ssl->options.haveNTRU, ssl->options.haveECDSAsig,
+    #ifdef NO_RSA
+        haveRSA = 0;
+    #endif
+    InitSuites(ssl->suites, ssl->version, haveRSA, havePSK, ssl->options.haveDH,
+               ssl->options.haveNTRU, ssl->options.haveECDSAsig,
                ssl->options.haveStaticECC, ssl->options.side);
 
     CYASSL_LEAVE("CyaSSL_SetTmpDH", 0);
@@ -645,6 +649,7 @@ int CyaSSL_set_group_messages(CYASSL* ssl)
 
 int CyaSSL_SetVersion(CYASSL* ssl, int version)
 {
+    byte haveRSA = 1;
     byte havePSK = 0;
 
     CYASSL_ENTER("CyaSSL_SetVersion");
@@ -678,11 +683,14 @@ int CyaSSL_SetVersion(CYASSL* ssl, int version)
             return BAD_FUNC_ARG;
     }
 
+    #ifdef NO_RSA
+        haveRSA = 0;
+    #endif
     #ifndef NO_PSK
         havePSK = ssl->options.havePSK;
     #endif
 
-    InitSuites(ssl->suites, ssl->version, ssl->options.haveDH, havePSK,
+    InitSuites(ssl->suites, ssl->version, haveRSA, havePSK, ssl->options.haveDH,
                 ssl->options.haveNTRU, ssl->options.haveECDSAsig,
                 ssl->options.haveStaticECC, ssl->options.side);
 
@@ -1256,6 +1264,7 @@ int AddCA(CYASSL_CERT_MANAGER* cm, buffer der, int type, int verify)
         }
 
         if (type == PRIVATEKEY_TYPE && format != SSL_FILETYPE_RAW) {
+#ifndef NO_RSA
             if (!eccKey) { 
                 /* make sure RSA key can be used */
                 RsaKey key;
@@ -1274,6 +1283,7 @@ int AddCA(CYASSL_CERT_MANAGER* cm, buffer der, int type, int verify)
                 }
                 FreeRsaKey(&key);
             }
+#endif
 #ifdef HAVE_ECC  
             if (eccKey ) {
                 /* make sure ECC key can be used */
@@ -2316,15 +2326,20 @@ int CyaSSL_set_cipher_list(CYASSL* ssl, const char* list)
 {
     CYASSL_ENTER("CyaSSL_set_cipher_list");
     if (SetCipherList(ssl->suites, list)) {
+        byte haveRSA = 1;
         byte havePSK = 0;
 
+        #ifdef NO_RSA
+            haveRSA = 0;
+        #endif
         #ifndef NO_PSK
             havePSK = ssl->options.havePSK;
         #endif
 
-        InitSuites(ssl->suites, ssl->version, ssl->options.haveDH, havePSK,
-                   ssl->options.haveNTRU, ssl->options.haveECDSAsig,
-                   ssl->options.haveStaticECC, ssl->options.side);
+        InitSuites(ssl->suites, ssl->version, haveRSA, havePSK,
+                   ssl->options.haveDH, ssl->options.haveNTRU,
+                   ssl->options.haveECDSAsig, ssl->options.haveStaticECC,
+                   ssl->options.side);
 
         return SSL_SUCCESS;
     }
@@ -2537,11 +2552,13 @@ int CyaSSL_dtls_got_timeout(CYASSL* ssl)
             CYASSL_MSG("connect state: FIRST_REPLY_SECOND");
 
         case FIRST_REPLY_SECOND :
-            if (ssl->options.sendVerify)
-                if ( (ssl->error = SendCertificateVerify(ssl)) != 0) {
-                    CYASSL_ERROR(ssl->error);
-                    return SSL_FATAL_ERROR;
-            }
+            #ifndef NO_RSA
+                if (ssl->options.sendVerify)
+                    if ( (ssl->error = SendCertificateVerify(ssl)) != 0) {
+                        CYASSL_ERROR(ssl->error);
+                        return SSL_FATAL_ERROR;
+                }
+            #endif
             ssl->options.connectState = FIRST_REPLY_THIRD;
             CYASSL_MSG("connect state: FIRST_REPLY_THIRD");
 
@@ -3387,11 +3404,17 @@ int CyaSSL_set_compression(CYASSL* ssl)
 
     void CyaSSL_set_psk_client_callback(CYASSL* ssl, psk_client_callback cb)
     {
+        byte haveRSA = 1;
+
         CYASSL_ENTER("SSL_set_psk_client_callback");
         ssl->options.havePSK = 1;
         ssl->options.client_psk_cb = cb;
 
-        InitSuites(ssl->suites, ssl->version,TRUE,TRUE, ssl->options.haveNTRU,
+        #ifdef NO_RSA
+            haveRSA = 0;
+        #endif
+        InitSuites(ssl->suites, ssl->version, haveRSA, TRUE,
+                   ssl->options.haveDH, ssl->options.haveNTRU,
                    ssl->options.haveECDSAsig, ssl->options.haveStaticECC,
                    ssl->options.side);
     }
@@ -3408,13 +3431,19 @@ int CyaSSL_set_compression(CYASSL* ssl)
 
     void CyaSSL_set_psk_server_callback(CYASSL* ssl, psk_server_callback cb)
     {
+        byte haveRSA = 1;
+
         CYASSL_ENTER("SSL_set_psk_server_callback");
         ssl->options.havePSK = 1;
         ssl->options.server_psk_cb = cb;
 
-        InitSuites(ssl->suites, ssl->version, ssl->options.haveDH, TRUE,
-                   ssl->options.haveNTRU, ssl->options.haveECDSAsig,
-                   ssl->options.haveStaticECC, ssl->options.side);
+        #ifdef NO_RSA
+            haveRSA = 0;
+        #endif
+        InitSuites(ssl->suites, ssl->version, haveRSA, TRUE,
+                   ssl->options.haveDH, ssl->options.haveNTRU,
+                   ssl->options.haveECDSAsig, ssl->options.haveStaticECC,
+                   ssl->options.side);
     }
 
 
@@ -3641,17 +3670,23 @@ int CyaSSL_set_compression(CYASSL* ssl)
 
     void CyaSSL_set_accept_state(CYASSL* ssl)
     {
+        byte haveRSA = 1;
         byte havePSK = 0;
 
         CYASSL_ENTER("SSL_set_accept_state");
         ssl->options.side = SERVER_END;
         /* reset suites in case user switched */
-#ifndef NO_PSK
-        havePSK = ssl->options.havePSK;
-#endif
-        InitSuites(ssl->suites, ssl->version, ssl->options.haveDH, havePSK,
-                   ssl->options.haveNTRU, ssl->options.haveECDSAsig,
-                   ssl->options.haveStaticECC, ssl->options.side);
+
+        #ifdef NO_RSA
+            haveRSA = 0;
+        #endif
+        #ifndef NO_PSK
+            havePSK = ssl->options.havePSK;
+        #endif
+        InitSuites(ssl->suites, ssl->version, haveRSA, havePSK,
+                   ssl->options.haveDH, ssl->options.haveNTRU,
+                   ssl->options.haveECDSAsig, ssl->options.haveStaticECC,
+                   ssl->options.side);
     }
 
    
