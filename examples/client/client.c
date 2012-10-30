@@ -274,22 +274,37 @@ void client_test(void* args)
         if (CyaSSL_CTX_set_cipher_list(ctx, cipherList) != SSL_SUCCESS)
             err_sys("can't set cipher list");
 
-#ifndef NO_PSK
-    if (usePsk)
-        CyaSSL_CTX_set_psk_client_callback(ctx, my_psk_client_cb);
-#else
-    (void)usePsk;
+#ifdef CYASSL_LEANPSK
+    usePsk = 1;
 #endif
+
+    if (usePsk) {
+#ifndef NO_PSK
+        CyaSSL_CTX_set_psk_client_callback(ctx, my_psk_client_cb);
+        CyaSSL_CTX_use_psk_identity_hint(ctx, "cyassl_client");
+        if (cipherList == NULL) {
+            const char *defaultCipherList;
+            #ifdef HAVE_NULL_CIPHER
+                defaultCipherList = "PSK-NULL-SHA";
+            #else
+                defaultCipherList = "PSK-AES256-CBC-SHA";
+            #endif
+            if (CyaSSL_CTX_set_cipher_list(ctx,defaultCipherList) !=SSL_SUCCESS)
+                err_sys("can't set cipher list");
+        }
+#endif
+    }
 
 #ifdef OPENSSL_EXTRA
     CyaSSL_CTX_set_default_passwd_cb(ctx, PasswordCallBack);
 #endif
 
 #if defined(CYASSL_SNIFFER) && !defined(HAVE_NTRU) && !defined(HAVE_ECC)
-    /* don't use EDH, can't sniff tmp keys */
     if (cipherList == NULL) {
-        if (CyaSSL_CTX_set_cipher_list(ctx, "AES256-SHA") != SSL_SUCCESS)
+        /* don't use EDH, can't sniff tmp keys */
+        if (CyaSSL_CTX_set_cipher_list(ctx, "AES256-SHA") != SSL_SUCCESS) {
             err_sys("can't set cipher list");
+        }
     }
 #endif
 

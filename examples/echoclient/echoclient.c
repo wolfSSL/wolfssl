@@ -46,6 +46,7 @@ void echoclient_test(void* args)
     SSL*        ssl    = 0;
 
     int doDTLS = 0;
+    int doLeanPSK = 0;
     int sendSz;
     int argc    = 0;
     char** argv = 0;
@@ -70,6 +71,10 @@ void echoclient_test(void* args)
     doDTLS  = 1;
 #endif
 
+#ifdef CYASSL_LEANPSK 
+    doLeanPSK = 1;
+#endif
+
 #if defined(CYASSL_DTLS)
     method  = DTLSv1_client_method();
 #elif  !defined(NO_TLS)
@@ -87,13 +92,20 @@ void echoclient_test(void* args)
             err_sys("can't load ca file, Please run from CyaSSL home dir");
     #endif
 #else
-    load_buffer(ctx, caCert, CYASSL_CA);
+    if (!doLeanPSK)
+        load_buffer(ctx, caCert, CYASSL_CA);
 #endif
 
 #if defined(CYASSL_SNIFFER) && !defined(HAVE_NTRU) && !defined(HAVE_ECC)
     /* don't use EDH, can't sniff tmp keys */
     SSL_CTX_set_cipher_list(ctx, "AES256-SHA");
 #endif
+    if (doLeanPSK) {
+#ifdef CYASSL_LEANPSK
+        CyaSSL_CTX_set_psk_client_callback(ctx, my_psk_client_cb);
+        SSL_CTX_set_cipher_list(ctx, "PSK-NULL-SHA");
+#endif
+    }
 
 #ifdef OPENSSL_EXTRA
     SSL_CTX_set_default_passwd_cb(ctx, PasswordCallBack);

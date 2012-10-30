@@ -242,6 +242,10 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
         if (SSL_CTX_set_cipher_list(ctx, cipherList) != SSL_SUCCESS)
             err_sys("can't set cipher list");
 
+#ifdef CYASSL_LEANPSK
+    usePsk = 1;
+#endif
+
 #ifndef NO_FILESYSTEM
     if (!usePsk) {
         if (SSL_CTX_use_certificate_file(ctx, ourCert, SSL_FILETYPE_PEM)
@@ -269,15 +273,22 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     }
 #endif
 
-#ifndef NO_PSK
     if (usePsk) {
+#ifndef NO_PSK
         SSL_CTX_set_psk_server_callback(ctx, my_psk_server_cb);
         SSL_CTX_use_psk_identity_hint(ctx, "cyassl server");
-        if (cipherList == NULL)
-            if (SSL_CTX_set_cipher_list(ctx,"PSK-AES256-CBC-SHA") !=SSL_SUCCESS)
+        if (cipherList == NULL) {
+            const char *defaultCipherList;
+            #ifdef HAVE_NULL_CIPHER
+                defaultCipherList = "PSK-NULL-SHA";
+            #else
+                defaultCipherList = "PSK-AES256-CBC-SHA";
+            #endif
+            if (SSL_CTX_set_cipher_list(ctx, defaultCipherList) != SSL_SUCCESS)
                 err_sys("can't set cipher list");
-    }
+        }
 #endif
+    }
 
 #ifndef NO_FILESYSTEM
     /* if not using PSK, verify peer with certs */

@@ -60,6 +60,7 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
     CYASSL_CTX*    ctx    = 0;
 
     int    doDTLS = 0;
+    int    doLeanPSK = 0;
     int    outCreated = 0;
     int    shutDown = 0;
     int    useAnyAddr = 0;
@@ -82,6 +83,10 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
 
 #ifdef CYASSL_DTLS
     doDTLS  = 1;
+#endif
+
+#ifdef CYASSL_LEANPSK
+    doLeanPSK = 1;
 #endif
 
     tcp_listen(&sockfd, yasslPort, useAnyAddr, doDTLS);
@@ -136,14 +141,23 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
                     "Please run from CyaSSL home dir");
     #endif
 #else
-    load_buffer(ctx, svrCert, CYASSL_CERT);
-    load_buffer(ctx, svrKey,  CYASSL_KEY);
+    if (!doLeanPSK) {
+        load_buffer(ctx, svrCert, CYASSL_CERT);
+        load_buffer(ctx, svrKey,  CYASSL_KEY);
+    }
 #endif
 
 #if defined(CYASSL_SNIFFER) && !defined(HAVE_NTRU) && !defined(HAVE_ECC)
     /* don't use EDH, can't sniff tmp keys */
     CyaSSL_CTX_set_cipher_list(ctx, "AES256-SHA");
 #endif
+
+    if (doLeanPSK) {
+#ifdef CYASSL_LEANPSK
+        CyaSSL_CTX_set_psk_server_callback(ctx, my_psk_server_cb);
+        CyaSSL_CTX_set_cipher_list(ctx, "PSK-NULL-SHA");
+#endif
+    }
 
     SignalReady(args);
 
