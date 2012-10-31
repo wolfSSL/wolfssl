@@ -123,6 +123,16 @@
 #endif
 
 
+#ifdef CYASSL_DTLS
+    /* sizeof(struct timeval) will pass uninit bytes to setsockopt if padded */
+    #ifdef USE_WINDOWS_API
+        #define TIMEVAL_BYTES sizeof(timeout)
+    #else
+        #define TIMEVAL_BYTES sizeof(timeout.tv_sec) + sizeof(timeout.tv_usec)
+    #endif
+#endif
+
+
 static INLINE int LastError(void)
 {
 #ifdef USE_WINDOWS_API 
@@ -152,12 +162,10 @@ int EmbedReceive(CYASSL *ssl, char *buf, int sz, void *ctx)
             #ifdef USE_WINDOWS_API
                 DWORD timeout = dtls_timeout * 1000;
             #else
-                struct timeval timeout;
-                XMEMSET(&timeout, 0, sizeof(struct timeval));
-                timeout.tv_sec = dtls_timeout;
+                struct timeval timeout = {dtls_timeout, 0};
             #endif
             setsockopt(sd, SOL_SOCKET, SO_RCVTIMEO,
-                                            (char*)&timeout, sizeof(timeout));
+                                            (char*)&timeout, TIMEVAL_BYTES);
         }
     }
 #endif
@@ -277,12 +285,10 @@ int EmbedReceiveFrom(CYASSL *ssl, char *buf, int sz, void *ctx)
         #ifdef USE_WINDOWS_API
             DWORD timeout = dtls_timeout * 1000;
         #else
-            struct timeval timeout;
-            XMEMSET(&timeout, 0, sizeof(struct timeval));
-            timeout.tv_sec = dtls_timeout;
+            struct timeval timeout = { dtls_timeout, 0 };
         #endif
         setsockopt(sd, SOL_SOCKET, SO_RCVTIMEO,
-                                            (char*)&timeout, sizeof(timeout));
+                                            (char*)&timeout, TIMEVAL_BYTES);
     }
 
     recvd = (int)RECVFROM_FUNCTION(sd, buf, sz, ssl->rflags,
