@@ -215,7 +215,7 @@ static void test_harness(void* vargs)
 int SuiteTest(void)
 {
     func_args args;
-    char argv0[2][32];
+    char argv0[2][80];
     char* myArgv[2];
 
     printf(" Begin Cipher Suite Tests\n");
