@@ -152,7 +152,9 @@ int EmbedReceive(CYASSL *ssl, char *buf, int sz, void *ctx)
             #ifdef USE_WINDOWS_API
                 DWORD timeout = dtls_timeout * 1000;
             #else
-                struct timeval timeout = {dtls_timeout, 0};
+                struct timeval timeout;
+                XMEMSET(&timeout, 0, sizeof(struct timeval));
+                timeout.tv_sec = dtls_timeout;
             #endif
             setsockopt(sd, SOL_SOCKET, SO_RCVTIMEO,
                                             (char*)&timeout, sizeof(timeout));
@@ -275,7 +277,9 @@ int EmbedReceiveFrom(CYASSL *ssl, char *buf, int sz, void *ctx)
         #ifdef USE_WINDOWS_API
             DWORD timeout = dtls_timeout * 1000;
         #else
-            struct timeval timeout = {dtls_timeout, 0};
+            struct timeval timeout;
+            XMEMSET(&timeout, 0, sizeof(struct timeval));
+            timeout.tv_sec = dtls_timeout;
         #endif
         setsockopt(sd, SOL_SOCKET, SO_RCVTIMEO,
                                             (char*)&timeout, sizeof(timeout));
