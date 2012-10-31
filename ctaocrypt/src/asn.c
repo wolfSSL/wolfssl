@@ -4082,6 +4082,7 @@ int CyaSSL_PemCertToDer(const char* fileName, unsigned char* derBuf, int derSz);
 /* Set cert issuer from issuerFile in PEM */
 int SetIssuer(Cert* cert, const char* issuerFile)
 {
+    int         ret;
     int         derSz;
     byte*       der = (byte*)XMALLOC(EIGHTK_BUF, NULL, DYNAMIC_TYPE_CERT);
 
@@ -4091,16 +4092,17 @@ int SetIssuer(Cert* cert, const char* issuerFile)
     }
     derSz = CyaSSL_PemCertToDer(issuerFile, der, EIGHTK_BUF);
     cert->selfSigned = 0;
-
+    ret = SetNameFromCert(&cert->issuer, der, derSz);
     XFREE(der, NULL, DYNAMIC_TYPE_CERT);
 
-    return SetNameFromCert(&cert->issuer, der, derSz);
+    return ret;
 }
 
 
 /* Set cert subject from subjectFile in PEM */
 int SetSubject(Cert* cert, const char* subjectFile)
 {
+    int         ret;
     int         derSz;
     byte*       der = (byte*)XMALLOC(EIGHTK_BUF, NULL, DYNAMIC_TYPE_CERT);
 
@@ -4109,10 +4111,10 @@ int SetSubject(Cert* cert, const char* subjectFile)
         return MEMORY_E;
     }
     derSz = CyaSSL_PemCertToDer(subjectFile, der, EIGHTK_BUF);
-
+    ret = SetNameFromCert(&cert->subject, der, derSz);
     XFREE(der, NULL, DYNAMIC_TYPE_CERT);
 
-    return SetNameFromCert(&cert->subject, der, derSz);
+    return ret;
 }
 
 
@@ -4121,6 +4123,7 @@ int SetSubject(Cert* cert, const char* subjectFile)
 /* Set atl names from file in PEM */
 int SetAltNames(Cert* cert, const char* file)
 {
+    int         ret;
     int         derSz;
     byte*       der = (byte*)XMALLOC(EIGHTK_BUF, NULL, DYNAMIC_TYPE_CERT);
 
@@ -4129,9 +4132,10 @@ int SetAltNames(Cert* cert, const char* file)
         return MEMORY_E;
     }
     derSz = CyaSSL_PemCertToDer(file, der, EIGHTK_BUF);
+    ret = SetAltNamesFromCert(cert, der, derSz);
     XFREE(der, NULL, DYNAMIC_TYPE_CERT);
 
-    return SetAltNamesFromCert(cert, der, derSz);
+    return ret;
 }
 
 #endif /* CYASSL_ALT_NAMES */

@@ -1679,6 +1679,7 @@ int rsa_test(void)
         fclose(pemFile);
         free(pem);
         free(derCert);
+        FreeRsaKey(&caKey);
     }
 #ifdef HAVE_NTRU
     {
@@ -1795,6 +1796,7 @@ int rsa_test(void)
         fclose(ntruPrivFile);
         free(pem);
         free(derCert);
+        FreeRsaKey(&caKey);
     }
 #endif /* HAVE_NTRU */
 #endif /* CYASSL_CERT_GEN */

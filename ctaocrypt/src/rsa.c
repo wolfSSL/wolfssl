@@ -498,7 +498,7 @@ int MakeRsaKey(RsaKey* key, int size, long e, RNG* rng)
         err = mp_init_multi(&key->n, &key->e, &key->d, &key->p, &key->q, NULL);
 
     if (err == MP_OKAY)
-        err = mp_init_multi(&key->dP, &key->dP, &key->u, NULL, NULL, NULL);
+        err = mp_init_multi(&key->dP, &key->dQ, &key->u, NULL, NULL, NULL);
 
     if (err == MP_OKAY)
         err = mp_sub_d(&p, 1, &tmp2);  /* tmp2 = p-1 */
