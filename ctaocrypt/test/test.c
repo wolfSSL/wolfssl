@@ -1364,7 +1364,9 @@ int random_test(void)
 
 #ifdef HAVE_NTRU
 
-static byte GetEntropy(ENTROPY_CMD cmd, byte* out)
+byte GetEntropy(ENTROPY_CMD cmd, byte* out);
+
+byte GetEntropy(ENTROPY_CMD cmd, byte* out)
 {
     static RNG rng;
 
@@ -1403,11 +1405,12 @@ static const char* clientCert = "./certs/client-cert.der";
     static const char* caCertFile = "./certs/ca-cert.pem";
 #endif
 
+#define FOURK_BUF 4096
 
 int rsa_test(void)
 {
-    byte   tmp[2048], tmp2[2048];
-    size_t bytes, bytes2;
+    byte*   tmp;
+    size_t bytes;
     RsaKey key;
     RNG    rng;
     word32 idx = 0;
@@ -1420,13 +1423,17 @@ int rsa_test(void)
     DecodedCert cert;
 #endif
 
+    tmp = (byte*)malloc(FOURK_BUF);
+    if (tmp == NULL)
+        return -40;
+
     FILE*  file = fopen(clientKey, "rb"), * file2;
 
     if (!file)
         err_sys("can't open ./certs/client-key.der, "
                 "Please run from CyaSSL home dir", -40);
 
-    bytes = fread(tmp, 1, sizeof(tmp), file);
+    bytes = fread(tmp, 1, FOURK_BUF, file);
   
     InitRsaKey(&key, 0);  
     ret = RsaPrivateKeyDecode(tmp, &idx, &key, (word32)bytes);
@@ -1456,17 +1463,15 @@ int rsa_test(void)
     if (!file2)
         return -49;
 
-    bytes2 = fread(tmp2, 1, sizeof(tmp2), file2);
+    bytes = fread(tmp, 1, FOURK_BUF, file2);
 
 #ifdef CYASSL_TEST_CERT
-    InitDecodedCert(&cert, (byte*)&tmp2, (word32)bytes2, 0);
+    InitDecodedCert(&cert, (byte*)&tmp, (word32)bytes2, 0);
 
     ret = ParseCert(&cert, CERT_TYPE, NO_VERIFY, 0);
     if (ret != 0) return -491;
 
     FreeDecodedCert(&cert);
-#else
-    (void)bytes2;
 #endif
 
     fclose(file2);
@@ -1474,8 +1479,8 @@ int rsa_test(void)
 
 #ifdef CYASSL_KEY_GEN
     {
-        byte   der[4096];
-        byte   pem[4096];
+        byte*  der;
+        byte*  pem;
         int    derSz = 0;
         int    pemSz = 0;
         RsaKey derIn;
@@ -1488,7 +1493,14 @@ int rsa_test(void)
         if (ret != 0)
             return -301;
 
-        derSz = RsaKeyToDer(&genKey, der, sizeof(der));
+        der = (byte*)malloc(FOURK_BUF);
+        if (der == NULL)
+            return -307;
+        pem = (byte*)malloc(FOURK_BUF);
+        if (pem == NULL)
+            return -308;
+
+        derSz = RsaKeyToDer(&genKey, der, FOURK_BUF);
         if (derSz < 0)
             return -302;
 
@@ -1498,7 +1510,7 @@ int rsa_test(void)
         ret = (int)fwrite(der, derSz, 1, keyFile);
         fclose(keyFile);
 
-        pemSz = DerToPem(der, derSz, pem, sizeof(pem), PRIVATEKEY_TYPE);
+        pemSz = DerToPem(der, derSz, pem, FOURK_BUF, PRIVATEKEY_TYPE);
         if (pemSz < 0)
             return -304;
 
@@ -1516,6 +1528,8 @@ int rsa_test(void)
 
         FreeRsaKey(&derIn);
         FreeRsaKey(&genKey);
+        free(pem);
+        free(der);
     }
 #endif /* CYASSL_KEY_GEN */
 
@@ -1524,8 +1538,8 @@ int rsa_test(void)
     /* self signed */
     {
         Cert        myCert;
-        byte        derCert[4096];
-        byte        pem[4096];
+        byte*       derCert;
+        byte*       pem;
         FILE*       derFile;
         FILE*       pemFile;
         int         certSz;
@@ -1533,6 +1547,13 @@ int rsa_test(void)
 #ifdef CYASSL_TEST_CERT
         DecodedCert decode;
 #endif
+
+        derCert = (byte*)malloc(FOURK_BUF);
+        if (derCert == NULL)
+            return -309;
+        pem = (byte*)malloc(FOURK_BUF);
+        if (pem == NULL)
+            return -310;
 
         InitCert(&myCert);
 
@@ -1546,7 +1567,7 @@ int rsa_test(void)
         myCert.isCA    = 1;
         myCert.sigType = CTC_SHA256wRSA;
 
-        certSz = MakeSelfCert(&myCert, derCert, sizeof(derCert), &key, &rng); 
+        certSz = MakeSelfCert(&myCert, derCert, FOURK_BUF, &key, &rng); 
         if (certSz < 0)
             return -401;
 
@@ -1563,7 +1584,7 @@ int rsa_test(void)
         ret = (int)fwrite(derCert, certSz, 1, derFile);
         fclose(derFile);
 
-        pemSz = DerToPem(derCert, certSz, pem, sizeof(pem), CERT_TYPE);
+        pemSz = DerToPem(derCert, certSz, pem, FOURK_BUF, CERT_TYPE);
         if (pemSz < 0)
             return -404;
 
@@ -1572,36 +1593,42 @@ int rsa_test(void)
             return -405;
         ret = (int)fwrite(pem, pemSz, 1, pemFile);
         fclose(pemFile);
-
-
+        free(pem);
+        free(derCert);
     }
     /* CA style */
     {
         RsaKey      caKey;
         Cert        myCert;
-        byte        derCert[4096];
-        byte        pem[4096];
+        byte*       derCert;
+        byte*       pem;
         FILE*       derFile;
         FILE*       pemFile;
         int         certSz;
         int         pemSz;
-        byte        tmp3[2048];
         size_t      bytes3;
         word32      idx3 = 0;
 #ifdef CYASSL_TEST_CERT
         DecodedCert decode;
 #endif
 
+        derCert = (byte*)malloc(FOURK_BUF);
+        if (derCert == NULL)
+            return -311;
+        pem = (byte*)malloc(FOURK_BUF);
+        if (pem == NULL)
+            return -312;
+
         FILE* file3 = fopen(caKeyFile, "rb");
 
         if (!file3)
             return -412;
 
-        bytes3 = fread(tmp3, 1, sizeof(tmp3), file3);
+        bytes3 = fread(tmp, 1, FOURK_BUF, file3);
         fclose(file3);
   
         InitRsaKey(&caKey, 0);  
-        ret = RsaPrivateKeyDecode(tmp3, &idx3, &caKey, (word32)bytes3);
+        ret = RsaPrivateKeyDecode(tmp, &idx3, &caKey, (word32)bytes3);
         if (ret != 0) return -413;
 
         InitCert(&myCert);
@@ -1618,11 +1645,11 @@ int rsa_test(void)
         if (ret < 0)
             return -405;
 
-        certSz = MakeCert(&myCert, derCert, sizeof(derCert), &key, &rng); 
+        certSz = MakeCert(&myCert, derCert, FOURK_BUF, &key, &rng); 
         if (certSz < 0)
             return -407;
 
-        certSz = SignCert(&myCert, derCert, sizeof(derCert), &caKey, &rng);
+        certSz = SignCert(&myCert, derCert, FOURK_BUF, &caKey, &rng);
         if (certSz < 0)
             return -408;
 
@@ -1641,7 +1668,7 @@ int rsa_test(void)
         ret = (int)fwrite(derCert, certSz, 1, derFile);
         fclose(derFile);
 
-        pemSz = DerToPem(derCert, certSz, pem, sizeof(pem), CERT_TYPE);
+        pemSz = DerToPem(derCert, certSz, pem, FOURK_BUF, CERT_TYPE);
         if (pemSz < 0)
             return -411;
 
@@ -1650,25 +1677,32 @@ int rsa_test(void)
             return -412;
         ret = (int)fwrite(pem, pemSz, 1, pemFile);
         fclose(pemFile);
+        free(pem);
+        free(derCert);
     }
 #ifdef HAVE_NTRU
     {
         RsaKey      caKey;
         Cert        myCert;
-        byte        derCert[4096];
-        byte        pem[4096];
+        byte*       derCert;
+        byte*       pem;
         FILE*       derFile;
         FILE*       pemFile;
         FILE*       caFile;
         FILE*       ntruPrivFile;
         int         certSz;
         int         pemSz;
-        byte        tmp[2048];
         size_t      bytes;
         word32      idx = 0;
 #ifdef CYASSL_TEST_CERT
         DecodedCert decode;
 #endif
+        derCert = (byte*)malloc(FOURK_BUF);
+        if (derCert == NULL)
+            return -311;
+        pem = (byte*)malloc(FOURK_BUF);
+        if (pem == NULL)
+            return -312;
 
         byte   public_key[557];          /* sized for EES401EP2 */
         word16 public_key_len;           /* no. of octets in public key */
@@ -1700,7 +1734,7 @@ int rsa_test(void)
         if (!caFile)
             return -453;
 
-        bytes = fread(tmp, 1, sizeof(tmp), caFile);
+        bytes = fread(tmp, 1, FOURK_BUF, caFile);
         fclose(caFile);
   
         InitRsaKey(&caKey, 0);  
@@ -1721,12 +1755,12 @@ int rsa_test(void)
         if (ret < 0)
             return -455;
 
-        certSz = MakeNtruCert(&myCert, derCert, sizeof(derCert), public_key,
+        certSz = MakeNtruCert(&myCert, derCert, FOURK_BUF, public_key,
                               public_key_len, &rng); 
         if (certSz < 0)
             return -456;
 
-        certSz = SignCert(&myCert, derCert, sizeof(derCert), &caKey, &rng);
+        certSz = SignCert(&myCert, derCert, FOURK_BUF, &caKey, &rng);
         if (certSz < 0)
             return -457;
 
@@ -1744,7 +1778,7 @@ int rsa_test(void)
         ret = fwrite(derCert, certSz, 1, derFile);
         fclose(derFile);
 
-        pemSz = DerToPem(derCert, certSz, pem, sizeof(pem), CERT_TYPE);
+        pemSz = DerToPem(derCert, certSz, pem, FOURK_BUF, CERT_TYPE);
         if (pemSz < 0)
             return -460;
 
@@ -1759,11 +1793,14 @@ int rsa_test(void)
             return -462;
         ret = fwrite(private_key, private_key_len, 1, ntruPrivFile);
         fclose(ntruPrivFile);
+        free(pem);
+        free(derCert);
     }
 #endif /* HAVE_NTRU */
 #endif /* CYASSL_CERT_GEN */
 
     FreeRsaKey(&key);
+    free(tmp);
 
     return 0;
 }

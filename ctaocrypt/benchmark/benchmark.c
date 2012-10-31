@@ -422,7 +422,7 @@ RNG rng;
 void bench_rsa(void)
 {
     int    i;
-    byte   tmp[4096];
+    byte   tmp[3072];
     size_t bytes;
     word32 idx = 0;
 

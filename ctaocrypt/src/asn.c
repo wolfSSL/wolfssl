@@ -1264,7 +1264,7 @@ static int GetKey(DecodedCert* cert)
             if ( (next - key) < 0)
                 return ASN_NTRU_KEY_E;
 
-            cert->srcIdx = tmpIdx + (next - key);
+            cert->srcIdx = tmpIdx + (int)(next - key);
 
             cert->publicKey = (byte*) XMALLOC(keyLen, cert->heap,
                                               DYNAMIC_TYPE_PUBLIC_KEY);
@@ -2972,17 +2972,29 @@ static mp_int* GetRsaInt(RsaKey* key, int idx)
 }
 
 
+/* Release Tmp RSA resources */
+static INLINE void FreeTmpRsas(byte** tmps, void* heap)
+{
+    int i;
+
+    (void)heap;
+
+    for (i = 0; i < RSA_INTS; i++) 
+        XFREE(tmps[i], heap, DYNAMIC_TYPE_RSA);
+}
+
+
 /* Convert RsaKey key to DER format, write to output (inLen), return bytes
    written */
 int RsaKeyToDer(RsaKey* key, byte* output, word32 inLen)
 {
     word32 seqSz, verSz, rawLen, intTotalLen = 0;
     word32 sizes[RSA_INTS];
-    int    i, j, outLen;
+    int    i, j, outLen, ret = 0;
 
-    byte seq[MAX_SEQ_SZ];
-    byte ver[MAX_VERSION_SZ];
-    byte tmps[RSA_INTS][MAX_RSA_INT_SZ];
+    byte  seq[MAX_SEQ_SZ];
+    byte  ver[MAX_VERSION_SZ];
+    byte* tmps[RSA_INTS];
 
     if (!key || !output)
         return BAD_FUNC_ARG;
@@ -2990,25 +3002,43 @@ int RsaKeyToDer(RsaKey* key, byte* output, word32 inLen)
     if (key->type != RSA_PRIVATE)
         return BAD_FUNC_ARG;
 
+    for (i = 0; i < RSA_INTS; i++)
+        tmps[i] = NULL;
+
     /* write all big ints from key to DER tmps */
     for (i = 0; i < RSA_INTS; i++) {
         mp_int* keyInt = GetRsaInt(key, i);
         rawLen = mp_unsigned_bin_size(keyInt);
+        tmps[i] = (byte*)XMALLOC(rawLen + MAX_SEQ_SZ, key->heap,
+                                 DYNAMIC_TYPE_RSA);
+        if (tmps[i] == NULL) {
+            ret = MEMORY_E;
+            break;
+        }
 
         tmps[i][0] = ASN_INTEGER;
         sizes[i] = SetLength(rawLen, tmps[i] + 1) + 1;  /* int tag */
 
-        if ( (sizes[i] + rawLen) < sizeof(tmps[i])) {
+        if (sizes[i] <= MAX_SEQ_SZ) {
             int err = mp_to_unsigned_bin(keyInt, tmps[i] + sizes[i]);
             if (err == MP_OKAY) {
                 sizes[i] += rawLen;
                 intTotalLen += sizes[i];
             }
-            else
-                return err;
+            else {
+                ret = err;
+                break;
+            }
         }
-        else
-            return ASN_INPUT_E; 
+        else {
+            ret = ASN_INPUT_E;
+            break;
+        }
+    }
+
+    if (ret != 0) {
+        FreeTmpRsas(tmps, key->heap);
+        return ret;
     }
 
     /* make headers */
@@ -3029,6 +3059,7 @@ int RsaKeyToDer(RsaKey* key, byte* output, word32 inLen)
         XMEMCPY(output + j, tmps[i], sizes[i]);
         j += sizes[i];
     }
+    FreeTmpRsas(tmps, key->heap);
 
     return outLen;
 }
@@ -4051,10 +4082,18 @@ int CyaSSL_PemCertToDer(const char* fileName, unsigned char* derBuf, int derSz);
 /* Set cert issuer from issuerFile in PEM */
 int SetIssuer(Cert* cert, const char* issuerFile)
 {
-    byte        der[8192];
-    int         derSz = CyaSSL_PemCertToDer(issuerFile, der, sizeof(der));
+    int         derSz;
+    byte*       der = (byte*)XMALLOC(EIGHTK_BUF, NULL, DYNAMIC_TYPE_CERT);
 
+    if (der == NULL) {
+        CYASSL_MSG("SetIssuer OOF Problem");
+        return MEMORY_E;
+    }
+    derSz = CyaSSL_PemCertToDer(issuerFile, der, EIGHTK_BUF);
     cert->selfSigned = 0;
+
+    XFREE(der, NULL, DYNAMIC_TYPE_CERT);
+
     return SetNameFromCert(&cert->issuer, der, derSz);
 }
 
@@ -4062,8 +4101,16 @@ int SetIssuer(Cert* cert, const char* issuerFile)
 /* Set cert subject from subjectFile in PEM */
 int SetSubject(Cert* cert, const char* subjectFile)
 {
-    byte        der[8192];
-    int         derSz = CyaSSL_PemCertToDer(subjectFile, der, sizeof(der));
+    int         derSz;
+    byte*       der = (byte*)XMALLOC(EIGHTK_BUF, NULL, DYNAMIC_TYPE_CERT);
+
+    if (der == NULL) {
+        CYASSL_MSG("SetSubject OOF Problem");
+        return MEMORY_E;
+    }
+    derSz = CyaSSL_PemCertToDer(subjectFile, der, EIGHTK_BUF);
+
+    XFREE(der, NULL, DYNAMIC_TYPE_CERT);
 
     return SetNameFromCert(&cert->subject, der, derSz);
 }
@@ -4074,8 +4121,15 @@ int SetSubject(Cert* cert, const char* subjectFile)
 /* Set atl names from file in PEM */
 int SetAltNames(Cert* cert, const char* file)
 {
-    byte        der[8192];
-    int         derSz = CyaSSL_PemCertToDer(file, der, sizeof(der));
+    int         derSz;
+    byte*       der = (byte*)XMALLOC(EIGHTK_BUF, NULL, DYNAMIC_TYPE_CERT);
+
+    if (der == NULL) {
+        CYASSL_MSG("SetAltNames OOF Problem");
+        return MEMORY_E;
+    }
+    derSz = CyaSSL_PemCertToDer(file, der, EIGHTK_BUF);
+    XFREE(der, NULL, DYNAMIC_TYPE_CERT);
 
     return SetAltNamesFromCert(cert, der, derSz);
 }

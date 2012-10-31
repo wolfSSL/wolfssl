@@ -37,6 +37,11 @@
 
 #include <cyassl/ctaocrypt/integer.h>
 
+#ifndef NO_CYASSL_SMALL_STACK
+    #ifndef CYASSL_SMALL_STACK
+        #define CYASSL_SMALL_STACK
+    #endif
+#endif
 
 /* math settings check */
 word32 CheckRunTimeSettings(void)

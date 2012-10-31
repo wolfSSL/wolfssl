@@ -3175,7 +3175,7 @@ int CyaSSL_set_compression(CYASSL* ssl)
            because of SSL_write behavior and because front adds may be small */
         int CyaSSL_writev(CYASSL* ssl, const struct iovec* iov, int iovcnt)
         {
-            byte  tmp[OUTPUT_RECORD_SIZE];
+            byte  tmp[FILE_BUFFER_SIZE];
             byte* myBuffer    = tmp;
             int   send      = 0;
             int   newBuffer = 0;
@@ -6855,8 +6855,8 @@ static int initGlobalRNG = 0;
     /* return 1 on success else 0 */
     int CyaSSL_DH_generate_key(CYASSL_DH* dh)
     {
-        unsigned char pub [1024];
-        unsigned char priv[1024];
+        unsigned char pub [768];
+        unsigned char priv[768];
         word32        pubSz  = sizeof(pub);
         word32        privSz = sizeof(priv);
         RNG           tmpRNG;

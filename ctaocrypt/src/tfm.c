@@ -1005,7 +1005,7 @@ static int _fp_exptmod(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
     }
 
     /* grab the next msb from the exponent */
-    y     = (fp_digit)(buf >> (DIGIT_BIT - 1)) & 1;
+    y     = (int)(buf >> (DIGIT_BIT - 1)) & 1;
     buf <<= (fp_digit)1;
 
     /* do ops */
