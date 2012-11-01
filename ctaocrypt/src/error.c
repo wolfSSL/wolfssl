@@ -25,6 +25,12 @@
  
 #include <cyassl/ctaocrypt/error.h>
 
+#ifdef _MSC_VER
+    /* 4996 warning to use MS extensions e.g., strcpy_s instead of XSTRNCPY */
+    #pragma warning(disable: 4996)
+#endif
+
+
 void CTaoCryptErrorString(int error, char* buffer)
 {
     const int max = MAX_ERROR_SZ;   /* shorthand */
