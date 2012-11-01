@@ -457,7 +457,7 @@ int CyaSSL_OCSP_Lookup_Cert(CYASSL_OCSP* ocsp, DecodedCert* cert)
     byte ocspReqBuf[SCRATCH_BUFFER_SIZE];
     int ocspReqSz = SCRATCH_BUFFER_SIZE;
     byte* ocspRespBuf = NULL;
-    int ocspRespSz;
+    int ocspRespSz = 0;
     OcspRequest ocspRequest;
     OcspResponse ocspResponse;
     int result = 0;
