@@ -147,7 +147,7 @@ CYASSL_API CYASSL_METHOD *CyaTLSv1_2_client_method(void);
     CYASSL_API CYASSL_METHOD *CyaDTLSv1_server_method(void);
 #endif
 
-#ifndef NO_FILESYSTEM
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
 
 CYASSL_API int CyaSSL_CTX_use_certificate_file(CYASSL_CTX*, const char*, int);
 CYASSL_API int CyaSSL_CTX_use_PrivateKey_file(CYASSL_CTX*, const char*, int);
@@ -174,7 +174,7 @@ CYASSL_API int CyaSSL_use_RSAPrivateKey_file(CYASSL*, const char*, int);
 
 CYASSL_API int CyaSSL_PemCertToDer(const char*, unsigned char*, int);
 
-#endif /* NO_FILESYSTEM */
+#endif /* !NO_FILESYSTEM && !NO_CERTS */
 
 CYASSL_API CYASSL_CTX* CyaSSL_CTX_new(CYASSL_METHOD*);
 CYASSL_API CYASSL* CyaSSL_new(CYASSL_CTX*);
@@ -614,8 +614,9 @@ CYASSL_API int  CyaSSL_RAND_status(void);
 CYASSL_API int  CyaSSL_RAND_bytes(unsigned char* buf, int num);
 CYASSL_API CYASSL_METHOD *CyaSSLv23_server_method(void);
 CYASSL_API long CyaSSL_CTX_set_options(CYASSL_CTX*, long);
-CYASSL_API int  CyaSSL_CTX_check_private_key(CYASSL_CTX*);
-
+#ifndef NO_CERTS
+  CYASSL_API int  CyaSSL_CTX_check_private_key(CYASSL_CTX*);
+#endif /* !NO_CERTS */
 
 CYASSL_API void CyaSSL_ERR_free_strings(void);
 CYASSL_API void CyaSSL_ERR_remove_state(unsigned long);
@@ -710,6 +711,8 @@ CYASSL_API char* CyaSSL_X509_get_next_altname(CYASSL_X509*);
 /* connect enough to get peer cert */
 CYASSL_API int  CyaSSL_connect_cert(CYASSL* ssl);
 
+/* XXX This should be #ifndef NO_DH */
+#ifndef NO_CERTS
 /* server Diffie-Hellman parameters */
 CYASSL_API int  CyaSSL_SetTmpDH(CYASSL*, const unsigned char* p, int pSz,
                                 const unsigned char* g, int gSz);
@@ -729,6 +732,7 @@ CYASSL_API int  CyaSSL_CTX_SetTmpEC_DHE_Sz(CYASSL_CTX*, unsigned short);
 #ifndef NO_FILESYSTEM
     CYASSL_API int  CyaSSL_CTX_SetTmpDH_file(CYASSL_CTX*, const char* f,
                                              int format);
+#endif
 #endif
 
 /* keyblock size in bytes or -1 */
@@ -753,24 +757,27 @@ CYASSL_API int CyaSSL_get_keys(CYASSL*,unsigned char** ms, unsigned int* msLen,
 #endif
 
 
-/* SSL_CTX versions */
-CYASSL_API int CyaSSL_CTX_load_verify_buffer(CYASSL_CTX*, const unsigned char*,
-                                             long, int);
-CYASSL_API int CyaSSL_CTX_use_certificate_buffer(CYASSL_CTX*,
+#ifndef NO_CERTS
+    /* SSL_CTX versions */
+    CYASSL_API int CyaSSL_CTX_load_verify_buffer(CYASSL_CTX*, 
                                                const unsigned char*, long, int);
-CYASSL_API int CyaSSL_CTX_use_PrivateKey_buffer(CYASSL_CTX*,
+    CYASSL_API int CyaSSL_CTX_use_certificate_buffer(CYASSL_CTX*,
                                                const unsigned char*, long, int);
-CYASSL_API int CyaSSL_CTX_use_certificate_chain_buffer(CYASSL_CTX*, 
+    CYASSL_API int CyaSSL_CTX_use_PrivateKey_buffer(CYASSL_CTX*,
+                                               const unsigned char*, long, int);
+    CYASSL_API int CyaSSL_CTX_use_certificate_chain_buffer(CYASSL_CTX*, 
                                                     const unsigned char*, long);
-CYASSL_API int CyaSSL_CTX_set_group_messages(CYASSL_CTX*);
 
-/* SSL versions */
-CYASSL_API int CyaSSL_use_certificate_buffer(CYASSL*, const unsigned char*,
-                                             long, int);
-CYASSL_API int CyaSSL_use_PrivateKey_buffer(CYASSL*, const unsigned char*, long,
-                                            int);
-CYASSL_API int CyaSSL_use_certificate_chain_buffer(CYASSL*, 
-                                                    const unsigned char*, long);
+    /* SSL versions */
+    CYASSL_API int CyaSSL_use_certificate_buffer(CYASSL*, const unsigned char*,
+                                               long, int);
+    CYASSL_API int CyaSSL_use_PrivateKey_buffer(CYASSL*, const unsigned char*,
+                                               long, int);
+    CYASSL_API int CyaSSL_use_certificate_chain_buffer(CYASSL*, 
+                                               const unsigned char*, long);
+#endif
+
+CYASSL_API int CyaSSL_CTX_set_group_messages(CYASSL_CTX*);
 CYASSL_API int CyaSSL_set_group_messages(CYASSL*);
 
 /* I/O callbacks */
@@ -804,35 +811,39 @@ CYASSL_API int CyaSSL_KeyPemToDer(const unsigned char*, int sz, unsigned char*,
 typedef void (*CallbackCACache)(unsigned char* der, int sz, int type);
 typedef void (*CbMissingCRL)(const char* url);
 
-CYASSL_API void CyaSSL_CTX_SetCACb(CYASSL_CTX*, CallbackCACache);
 
+#ifndef NO_CERTS
+	CYASSL_API void CyaSSL_CTX_SetCACb(CYASSL_CTX*, CallbackCACache);
 
-CYASSL_API CYASSL_CERT_MANAGER* CyaSSL_CertManagerNew(void);
-CYASSL_API void                 CyaSSL_CertManagerFree(CYASSL_CERT_MANAGER*);
+    CYASSL_API CYASSL_CERT_MANAGER* CyaSSL_CertManagerNew(void);
+    CYASSL_API void CyaSSL_CertManagerFree(CYASSL_CERT_MANAGER*);
 
-CYASSL_API int CyaSSL_CertManagerLoadCA(CYASSL_CERT_MANAGER*, const char* f,
-                                        const char* d);
-CYASSL_API int CyaSSL_CertManagerVerify(CYASSL_CERT_MANAGER*, const char* f,
-                                        int format);
-CYASSL_API int CyaSSL_CertManagerVerifyBuffer(CYASSL_CERT_MANAGER* cm,
+    CYASSL_API int CyaSSL_CertManagerLoadCA(CYASSL_CERT_MANAGER*, const char* f,
+                                                                 const char* d);
+    CYASSL_API int CyaSSL_CertManagerVerify(CYASSL_CERT_MANAGER*, const char* f,
+                                                                    int format);
+    CYASSL_API int CyaSSL_CertManagerVerifyBuffer(CYASSL_CERT_MANAGER* cm,
                                  const unsigned char* buff, int sz, int format);
-CYASSL_API int CyaSSL_CertManagerCheckCRL(CYASSL_CERT_MANAGER*, unsigned char*,
-                                          int sz);
-CYASSL_API int CyaSSL_CertManagerEnableCRL(CYASSL_CERT_MANAGER*, int options);
-CYASSL_API int CyaSSL_CertManagerDisableCRL(CYASSL_CERT_MANAGER*);
-CYASSL_API int CyaSSL_CertManagerLoadCRL(CYASSL_CERT_MANAGER*, const char*, int,
-                                         int);
-CYASSL_API int CyaSSL_CertManagerSetCRL_Cb(CYASSL_CERT_MANAGER*, CbMissingCRL);
+    CYASSL_API int CyaSSL_CertManagerCheckCRL(CYASSL_CERT_MANAGER*,
+                                                        unsigned char*, int sz);
+    CYASSL_API int CyaSSL_CertManagerEnableCRL(CYASSL_CERT_MANAGER*,
+                                                                   int options);
+    CYASSL_API int CyaSSL_CertManagerDisableCRL(CYASSL_CERT_MANAGER*);
+    CYASSL_API int CyaSSL_CertManagerLoadCRL(CYASSL_CERT_MANAGER*, const char*,
+                                                                      int, int);
+    CYASSL_API int CyaSSL_CertManagerSetCRL_Cb(CYASSL_CERT_MANAGER*,
+                                                                  CbMissingCRL);
 
-CYASSL_API int CyaSSL_EnableCRL(CYASSL* ssl, int options);
-CYASSL_API int CyaSSL_DisableCRL(CYASSL* ssl);
-CYASSL_API int CyaSSL_LoadCRL(CYASSL*, const char*, int, int);
-CYASSL_API int CyaSSL_SetCRL_Cb(CYASSL*, CbMissingCRL);
+    CYASSL_API int CyaSSL_EnableCRL(CYASSL* ssl, int options);
+    CYASSL_API int CyaSSL_DisableCRL(CYASSL* ssl);
+    CYASSL_API int CyaSSL_LoadCRL(CYASSL*, const char*, int, int);
+    CYASSL_API int CyaSSL_SetCRL_Cb(CYASSL*, CbMissingCRL);
 
-CYASSL_API int CyaSSL_CTX_EnableCRL(CYASSL_CTX* ctx, int options);
-CYASSL_API int CyaSSL_CTX_DisableCRL(CYASSL_CTX* ctx);
-CYASSL_API int CyaSSL_CTX_LoadCRL(CYASSL_CTX*, const char*, int, int);
-CYASSL_API int CyaSSL_CTX_SetCRL_Cb(CYASSL_CTX*, CbMissingCRL);
+    CYASSL_API int CyaSSL_CTX_EnableCRL(CYASSL_CTX* ctx, int options);
+    CYASSL_API int CyaSSL_CTX_DisableCRL(CYASSL_CTX* ctx);
+    CYASSL_API int CyaSSL_CTX_LoadCRL(CYASSL_CTX*, const char*, int, int);
+    CYASSL_API int CyaSSL_CTX_SetCRL_Cb(CYASSL_CTX*, CbMissingCRL);
+#endif /* !NO_CERTS */
 
 /* end of handshake frees temporary arrays, if user needs for get_keys or
    psk hints, call KeepArrays before handshake and then FreeArrays when done

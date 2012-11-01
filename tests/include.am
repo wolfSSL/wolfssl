@@ -6,12 +6,12 @@
 check_PROGRAMS += tests/unit
 noinst_PROGRAMS += tests/unit
 tests_unit_SOURCES = \
-			      tests/unit.c \
-			      tests/api.c \
-			      tests/suites.c \
+                  tests/unit.c \
+                  tests/api.c \
+                  tests/suites.c \
                   tests/hash.c \
-			      examples/client/client.c \
-			      examples/server/server.c
+                  examples/client/client.c \
+                  examples/server/server.c
 tests_unit_CFLAGS       = -DNO_MAIN_DRIVER $(AM_CFLAGS) $(PTHREAD_CFLAGS)
 tests_unit_LDADD        = src/libcyassl.la  $(PTHREAD_LIBS)
 tests_unit_DEPENDENCIES = src/libcyassl.la
@@ -26,4 +26,4 @@ EXTRA_DIST += tests/test.conf \
               tests/test-aesgcm-ecc.conf \
               tests/test-aesgcm-openssl.conf \
               tests/test-dtls.conf \
-			  tests/test-psk-null.conf
+              tests/test-psk-null.conf

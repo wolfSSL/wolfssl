@@ -330,7 +330,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     if (usePsk == 0) {
         #if !defined(NO_FILESYSTEM) && defined(OPENSSL_EXTRA)
             CyaSSL_SetTmpDH_file(ssl, dhParam, SSL_FILETYPE_PEM);
-        #else
+        #elif !defined(NO_CERTS)
             SetDH(ssl);  /* repick suites with DHE, higher priority than PSK */
         #endif
     }

@@ -825,6 +825,7 @@ struct CYASSL_CTX {
     CYASSL_METHOD* method;
     CyaSSL_Mutex   countMutex;    /* reference count mutex */
     int         refCount;         /* reference count */
+#ifndef NO_CERTS
     buffer      certificate;
     buffer      certChain;
                  /* chain after self, in DER, with leading size for each cert */
@@ -832,6 +833,7 @@ struct CYASSL_CTX {
     buffer      serverDH_P;
     buffer      serverDH_G;
     CYASSL_CERT_MANAGER* cm;      /* our cert manager, ctx owns SSL will use */
+#endif
     Suites      suites;
     void*       heap;             /* for user memory overrides */
     byte        verifyPeer;
@@ -883,10 +885,12 @@ int DeriveTlsKeys(CYASSL* ssl);
 CYASSL_LOCAL
 int ProcessOldClientHello(CYASSL* ssl, const byte* input, word32* inOutIdx,
                           word32 inSz, word16 sz);
-CYASSL_LOCAL
-int AddCA(CYASSL_CERT_MANAGER* ctx, buffer der, int type, int verify);
-CYASSL_LOCAL
-int AlreadySigner(CYASSL_CERT_MANAGER* cm, byte* hash);
+#ifndef NO_CERTS
+    CYASSL_LOCAL
+    int AddCA(CYASSL_CERT_MANAGER* ctx, buffer der, int type, int verify);
+    CYASSL_LOCAL
+    int AlreadySigner(CYASSL_CERT_MANAGER* cm, byte* hash);
+#endif
 
 /* All cipher suite related info */
 typedef struct CipherSpecs {
@@ -1125,15 +1129,17 @@ enum AcceptState {
 
 
 typedef struct Buffers {
+#ifndef NO_CERTS
     buffer          certificate;            /* CYASSL_CTX owns, unless we own */
     buffer          key;                    /* CYASSL_CTX owns, unless we own */
     buffer          certChain;              /* CYASSL_CTX owns */
                  /* chain after self, in DER, with leading size for each cert */
-    buffer          domainName;             /* for client check */
     buffer          serverDH_P;             /* CYASSL_CTX owns, unless we own */
     buffer          serverDH_G;             /* CYASSL_CTX owns, unless we own */
     buffer          serverDH_Pub;
     buffer          serverDH_Priv;
+#endif
+    buffer          domainName;             /* for client check */
     bufferStatic    inputBuffer;
     bufferStatic    outputBuffer;
     buffer          clearOutputBuffer;
@@ -1372,13 +1378,16 @@ typedef struct EncryptedInfo {
     CYASSL_CTX* ctx;              /* CTX owner */
 } EncryptedInfo;
 
-CYASSL_LOCAL int PemToDer(const unsigned char* buff, long sz, int type,
-                          buffer* der, void* heap, EncryptedInfo* info,
-                          int* eccKey);
 
-CYASSL_LOCAL int ProcessFile(CYASSL_CTX* ctx, const char* fname, int format,
-                             int type, CYASSL* ssl, int userChain,
-                            CYASSL_CRL* crl);
+#ifndef NO_CERTS
+    CYASSL_LOCAL int PemToDer(const unsigned char* buff, long sz, int type,
+                              buffer* der, void* heap, EncryptedInfo* info,
+                              int* eccKey);
+
+    CYASSL_LOCAL int ProcessFile(CYASSL_CTX* ctx, const char* fname, int format,
+                                 int type, CYASSL* ssl, int userChain,
+                                CYASSL_CRL* crl);
+#endif
 
 
 #ifdef CYASSL_CALLBACKS
@@ -1516,7 +1525,9 @@ CYASSL_LOCAL int IsAtLeastTLSv1_2(const CYASSL* ssl);
 CYASSL_LOCAL void FreeHandshakeResources(CYASSL* ssl);
 CYASSL_LOCAL void ShrinkInputBuffer(CYASSL* ssl, int forcedFree);
 CYASSL_LOCAL void ShrinkOutputBuffer(CYASSL* ssl);
-CYASSL_LOCAL Signer* GetCA(void* cm, byte* hash);
+#ifndef NO_CERTS
+    CYASSL_LOCAL Signer* GetCA(void* cm, byte* hash);
+#endif
 CYASSL_LOCAL void BuildTlsFinished(CYASSL* ssl, Hashes* hashes,
                                    const byte* sender);
 CYASSL_LOCAL void FreeArrays(CYASSL* ssl, int keep);

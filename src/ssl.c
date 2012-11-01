@@ -303,7 +303,8 @@ int CyaSSL_GetObjectSize(void)
     return sizeof(CYASSL);
 }
 
-
+/* XXX should be NO_DH */
+#ifndef NO_CERTS
 /* server Diffie-Hellman parameters */
 int CyaSSL_SetTmpDH(CYASSL* ssl, const unsigned char* p, int pSz,
                     const unsigned char* g, int gSz)
@@ -355,6 +356,7 @@ int CyaSSL_SetTmpDH(CYASSL* ssl, const unsigned char* p, int pSz,
     CYASSL_LEAVE("CyaSSL_SetTmpDH", 0);
     return 0;
 }
+#endif /* !NO_CERTS */
 
 
 int CyaSSL_write(CYASSL* ssl, const void* data, int sz)
@@ -537,6 +539,8 @@ void CyaSSL_FreeArrays(CYASSL* ssl)
 }
 
 
+#ifndef NO_CERTS
+
 CYASSL_CERT_MANAGER* CyaSSL_CertManagerNew(void)
 {
     CYASSL_CERT_MANAGER* cm = NULL;
@@ -581,6 +585,7 @@ void CyaSSL_CertManagerFree(CYASSL_CERT_MANAGER* cm)
 
 }
 
+#endif /* !NO_CERTS */
 
 
 
@@ -697,6 +702,7 @@ int CyaSSL_SetVersion(CYASSL* ssl, int version)
     return SSL_SUCCESS;
 }
 
+#ifndef NO_CERTS
 
 /* does CA already exist on signer list */
 int AlreadySigner(CYASSL_CERT_MANAGER* cm, byte* hash)
@@ -811,6 +817,8 @@ int AddCA(CYASSL_CERT_MANAGER* cm, buffer der, int type, int verify)
     return ret;
 }
 
+#endif /* !NO_CERTS */
+
 
 #ifndef NO_SESSION_CACHE
 
@@ -859,6 +867,7 @@ int AddCA(CYASSL_CERT_MANAGER* cm, buffer der, int type, int verify)
 
 #endif /* NO_SESSION_CACHE */
 
+#ifndef NO_CERTS
 
     /* Remove PEM header/footer, convert to ASN1, store any encrypted data 
        info->consumed tracks of PEM bytes consumed in case multiple parts */
@@ -2180,7 +2189,7 @@ int CyaSSL_CTX_use_NTRUPrivateKey_file(CYASSL_CTX* ctx, const char* file)
 
 
 
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA)
 
     int CyaSSL_CTX_use_RSAPrivateKey_file(CYASSL_CTX* ctx,const char* file,
                                        int format)
@@ -2207,6 +2216,7 @@ int CyaSSL_CTX_use_NTRUPrivateKey_file(CYASSL_CTX* ctx, const char* file)
 
 #endif /* NO_FILESYSTEM */
 
+#endif /* !NO_CERTS */
 
 void CyaSSL_CTX_set_verify(CYASSL_CTX* ctx, int mode, VerifyCallback vc)
 {
@@ -2248,12 +2258,16 @@ void CyaSSL_set_verify(CYASSL* ssl, int mode, VerifyCallback vc)
 }
 
 
+#ifndef NO_CERTS
+
 /* store context CA Cache addition callback */
 void CyaSSL_CTX_SetCACb(CYASSL_CTX* ctx, CallbackCACache cb)
 {
     if (ctx && ctx->cm)
         ctx->cm->caCacheCallback = cb;
 }
+
+#endif /* !NO_CERTS */
 
 
 #ifndef NO_SESSION_CACHE
@@ -2532,12 +2546,13 @@ int CyaSSL_dtls_got_timeout(CYASSL* ssl)
             CYASSL_MSG("connect state: FIRST_REPLY_DONE");
 
         case FIRST_REPLY_DONE :
-            if (ssl->options.sendVerify)
-                if ( (ssl->error = SendCertificate(ssl)) != 0) {
-                    CYASSL_ERROR(ssl->error);
-                    return SSL_FATAL_ERROR;
-                }
-
+            #ifndef NO_CERTS
+                if (ssl->options.sendVerify)
+                    if ( (ssl->error = SendCertificate(ssl)) != 0) {
+                        CYASSL_ERROR(ssl->error);
+                        return SSL_FATAL_ERROR;
+                    }
+            #endif
             ssl->options.connectState = FIRST_REPLY_FIRST;
             CYASSL_MSG("connect state: FIRST_REPLY_FIRST");
 
@@ -2655,14 +2670,16 @@ int CyaSSL_dtls_got_timeout(CYASSL* ssl)
             return SSL_FATAL_ERROR;
         }
 
-        /* in case used set_accept_state after init */
-        if (!havePSK && (ssl->buffers.certificate.buffer == NULL ||
-                         ssl->buffers.key.buffer == NULL)) {
-            CYASSL_MSG("accept error: don't have server cert and key");
-            ssl->error = NO_PRIVATE_KEY;
-            CYASSL_ERROR(ssl->error);
-            return SSL_FATAL_ERROR;
-        }
+		#ifndef NO_CERTS
+            /* in case used set_accept_state after init */
+            if (!havePSK && (ssl->buffers.certificate.buffer == NULL ||
+                             ssl->buffers.key.buffer == NULL)) {
+                CYASSL_MSG("accept error: don't have server cert and key");
+                ssl->error = NO_PRIVATE_KEY;
+                CYASSL_ERROR(ssl->error);
+                return SSL_FATAL_ERROR;
+            }
+		#endif
 
         #ifdef HAVE_ECC
             /* in case used set_accept_state after init */
@@ -2757,11 +2774,13 @@ int CyaSSL_dtls_got_timeout(CYASSL* ssl)
             CYASSL_MSG("accept state SERVER_HELLO_SENT");
 
         case SERVER_HELLO_SENT :
-            if (!ssl->options.resuming) 
-                if ( (ssl->error = SendCertificate(ssl)) != 0) {
-                    CYASSL_ERROR(ssl->error);
-                    return SSL_FATAL_ERROR;
-                }
+            #ifndef NO_CERTS
+                if (!ssl->options.resuming) 
+                    if ( (ssl->error = SendCertificate(ssl)) != 0) {
+                        CYASSL_ERROR(ssl->error);
+                        return SSL_FATAL_ERROR;
+                    }
+            #endif
             ssl->options.acceptState = CERT_SENT;
             CYASSL_MSG("accept state CERT_SENT");
 
@@ -2775,12 +2794,14 @@ int CyaSSL_dtls_got_timeout(CYASSL* ssl)
             CYASSL_MSG("accept state KEY_EXCHANGE_SENT");
 
         case KEY_EXCHANGE_SENT :
-            if (!ssl->options.resuming) 
-                if (ssl->options.verifyPeer)
-                    if ( (ssl->error = SendCertificateRequest(ssl)) != 0) {
-                        CYASSL_ERROR(ssl->error);
-                        return SSL_FATAL_ERROR;
-                    }
+            #ifndef NO_CERTS
+                if (!ssl->options.resuming) 
+                    if (ssl->options.verifyPeer)
+                        if ( (ssl->error = SendCertificateRequest(ssl)) != 0) {
+                            CYASSL_ERROR(ssl->error);
+                            return SSL_FATAL_ERROR;
+                        }
+            #endif
             ssl->options.acceptState = CERT_REQ_SENT;
             CYASSL_MSG("accept state CERT_REQ_SENT");
 
@@ -3501,6 +3522,7 @@ int CyaSSL_set_compression(CYASSL* ssl)
 #endif /* NO_PSK */
 
 
+#ifndef NO_CERTS
 /* used to be defined on NO_FILESYSTEM only, but are generally useful */
 
     /* CyaSSL extension allows DER files to be loaded from buffers as well */
@@ -3565,6 +3587,7 @@ int CyaSSL_set_compression(CYASSL* ssl)
     }
 
 /* old NO_FILESYSTEM end */
+#endif /* !NO_CERTS */
 
 
 #if defined(OPENSSL_EXTRA) || defined(GOAHEAD_WS)
@@ -5413,6 +5436,8 @@ int CyaSSL_set_compression(CYASSL* ssl)
     }
 
 
+/* XXX shuld be NO_DH */
+#ifndef NO_CERTS
     /* server ctx Diffie-Hellman parameters */
     int CyaSSL_CTX_SetTmpDH(CYASSL_CTX* ctx, const unsigned char* p, int pSz,
                             const unsigned char* g, int gSz)
@@ -5444,6 +5469,7 @@ int CyaSSL_set_compression(CYASSL* ssl)
         CYASSL_LEAVE("CyaSSL_CTX_SetTmpDH", 0);
         return 0;
     }
+#endif /* !NO_CERTS */
 
 
     char* CyaSSL_CIPHER_description(CYASSL_CIPHER* cipher, char* in, int len)
