@@ -1419,6 +1419,7 @@ int rsa_test(void)
     word32 inLen = (word32)strlen((char*)in);
     byte   out[256];
     byte   plain[256];
+    FILE*  file, * file2;
 #ifdef CYASSL_TEST_CERT
     DecodedCert cert;
 #endif
@@ -1427,7 +1428,7 @@ int rsa_test(void)
     if (tmp == NULL)
         return -40;
 
-    FILE*  file = fopen(clientKey, "rb"), * file2;
+    file = fopen(clientKey, "rb");
 
     if (!file)
         err_sys("can't open ./certs/client-key.der, "

@@ -2193,7 +2193,6 @@ static int ConfirmSignature(const byte* buf, word32 bufSz,
             CYASSL_MSG("Verify Key type unknown");
             return 0;
     }
-    return ret;
 }
 
 
