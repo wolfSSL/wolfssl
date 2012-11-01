@@ -179,6 +179,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\ctaocrypt\src\error.c"
+				>
+			</File>
+			<File
 				RelativePath=".\ctaocrypt\src\hc128.c"
 				>
 			</File>
