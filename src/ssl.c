@@ -6254,7 +6254,7 @@ int CyaSSL_set_compression(CYASSL* ssl)
         if (ssl != NULL && fname != NULL)
         {
             XFILE         file = XBADFILE;
-            int           sz = 0;
+            long          sz = 0;
             byte          staticBuffer[FILE_BUFFER_SIZE];
             byte*         myBuffer = staticBuffer;
             CYASSL_CTX*   ctx = ssl->ctx;
