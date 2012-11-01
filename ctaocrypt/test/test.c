@@ -23,10 +23,6 @@
     #include <config.h>
 #endif
 
-#include <string.h>
-#include <stdio.h>
-#include <stdlib.h>
-
 #ifdef CYASSL_TEST_CERT
     #include <cyassl/ctaocrypt/asn.h>
 #else
@@ -70,6 +66,15 @@
 #ifdef HAVE_NTRU
     #include "crypto_ntru.h"
 #endif
+
+#include <string.h>
+#ifdef FREESCALE_MQX
+    #include <mqx.h>
+    #include <fio.h>
+#else
+    #include <stdio.h>
+#endif
+#include <stdlib.h>
 
 
 #ifdef THREADX
@@ -1398,11 +1403,20 @@ byte GetEntropy(ENTROPY_CMD cmd, byte* out)
 
 #ifndef NO_RSA
 
-static const char* clientKey  = "./certs/client-key.der";
-static const char* clientCert = "./certs/client-cert.der";
-#ifdef CYASSL_CERT_GEN
-    static const char* caKeyFile  = "./certs/ca-key.der";
-    static const char* caCertFile = "./certs/ca-cert.pem";
+#ifdef FREESCALE_MQX
+    static const char* clientKey  = "a:\certs\\client-key.der";
+    static const char* clientCert = "a:\certs\\client-cert.der";
+    #ifdef CYASSL_CERT_GEN
+        static const char* caKeyFile  = "a:\certs\\ca-key.der";
+        static const char* caCertFile = "a:\certs\\ca-cert.pem";
+    #endif
+    #else
+    static const char* clientKey  = "./certs/client-key.der";
+    static const char* clientCert = "./certs/client-cert.der";
+    #ifdef CYASSL_CERT_GEN
+        static const char* caKeyFile  = "./certs/ca-key.der";
+        static const char* caCertFile = "./certs/ca-cert.pem";
+    #endif
 #endif
 
 #define FOURK_BUF 4096
@@ -1813,7 +1827,11 @@ int rsa_test(void)
 
 #ifndef NO_DH
 
-static const char* dhKey = "./certs/dh2048.der";
+#ifdef FREESCALE_MQX
+    static const char* dhKey = "a:\certs\\dh2048.der";
+#else
+    static const char* dhKey = "./certs/dh2048.der";
+#endif
 
 int dh_test(void)
 {
@@ -1877,7 +1895,11 @@ int dh_test(void)
 
 #ifndef NO_DSA
 
-static const char* dsaKey = "./certs/dsa2048.der";
+#ifdef FREESCALE_MQX
+    static const char* dsaKey = "a:\certs\\dsa2048.der";
+#else
+    static const char* dsaKey = "./certs/dsa2048.der";
+#endif
 
 int dsa_test(void)
 {
