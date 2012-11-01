@@ -88,7 +88,11 @@ void CyaSSL_Debugging_OFF(void)
 
 #ifdef DEBUG_CYASSL
 
-#include <stdio.h>   /* for default printf stuff */
+#ifdef FREESCALE_MQX
+    #include <fio.h>
+#else
+    #include <stdio.h>   /* for default printf stuff */
+#endif
 
 #ifdef THREADX
     int dc_log_printf(char*, ...);

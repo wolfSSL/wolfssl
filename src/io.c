@@ -48,6 +48,9 @@
         #ifndef LWIP_PROVIDE_ERRNO
             #define LWIP_PROVIDE_ERRNO 1
         #endif
+    #elif defined(FREESCALE_MQX)
+        #include <errno.h>
+        #include <rtcs.h>
     #else
         #include <sys/types.h>
         #include <errno.h>
@@ -98,6 +101,14 @@
     #define SOCKET_EINTR       SYS_NET_EINTR
     #define SOCKET_EPIPE       SYS_NET_EPIPE
     #define SOCKET_ECONNREFUSED SYS_NET_ECONNREFUSED
+#elif defined(FREESCALE_MQX)
+    /* RTCS doesn't have an EWOULDBLOCK error */
+    #define SOCKET_EWOULDBLOCK EAGAIN
+    #define SOCKET_EAGAIN      EAGAIN
+    #define SOCKET_ECONNRESET  RTCSERR_TCP_CONN_RESET
+    #define SOCKET_EINTR       EINTR
+    #define SOCKET_EPIPE       EPIPE
+    #define SOCKET_ECONNREFUSED RTCSERR_TCP_CONN_REFUSED
 #else
     #define SOCKET_EWOULDBLOCK EWOULDBLOCK
     #define SOCKET_EAGAIN      EAGAIN
@@ -132,6 +143,29 @@
     #endif
 #endif
 
+
+/* Translates return codes returned from 
+ * send() and recv() if need be. 
+ */
+static INLINE int TranslateReturnCode(int old, int sd)
+{
+    (void)sd;
+
+#ifdef FREESCALE_MQX
+    if (old == 0) {
+        errno = SOCKET_EWOULDBLOCK;
+        return -1;  /* convert to BSD style wouldblock as error */
+    }
+
+    if (old < 0) {
+        errno = RTCS_geterror(sd);
+        if (errno == RTCSERR_TCP_CONN_CLOSING)
+            return 0;   /* convert to BSD style closing */
+    }
+#endif
+
+    return old;
+}
 
 static INLINE int LastError(void)
 {
@@ -171,6 +205,8 @@ int EmbedReceive(CYASSL *ssl, char *buf, int sz, void *ctx)
 #endif
 
     recvd = (int)RECV_FUNCTION(sd, buf, sz, ssl->rflags);
+
+    recvd = TranslateReturnCode(recvd, sd);
 
     if (recvd < 0) {
         err = LastError();
@@ -293,6 +329,8 @@ int EmbedReceiveFrom(CYASSL *ssl, char *buf, int sz, void *ctx)
 
     recvd = (int)RECVFROM_FUNCTION(sd, buf, sz, ssl->rflags,
                                   (struct sockaddr*)&peer, &peerSz);
+
+    recvd = TranslateReturnCode(recvd, sd);
 
     if (recvd < 0) {
         err = LastError();

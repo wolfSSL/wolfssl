@@ -37,15 +37,23 @@
 #endif
 
 #if defined(DEBUG_CYASSL) || defined(SHOW_SECRETS)
-    #include <stdio.h>
+    #ifdef FREESCALE_MQX
+        #include <fio.h>
+    #else
+        #include <stdio.h>
+    #endif
 #endif
 
 #ifdef __sun
     #include <sys/filio.h>
 #endif
 
-#define TRUE  1
-#define FALSE 0
+#ifndef TRUE
+    #define TRUE  1
+#endif
+#ifndef FALSE
+    #define FALSE 0
+#endif
 
 
 #if defined(OPENSSL_EXTRA) && defined(NO_DH)
@@ -8009,6 +8017,40 @@ int UnLockMutex(CyaSSL_Mutex *m)
         {
             rtp_sig_mutex_release(*m);
             return 0;
+        }
+
+    #elif defined(FREESCALE_MQX)
+
+        int InitMutex(CyaSSL_Mutex* m)
+        {
+            if (_mutex_init(m, NULL) == MQX_EOK)
+                return 0;
+            else
+                return BAD_MUTEX_ERROR;
+        }
+
+        int FreeMutex(CyaSSL_Mutex* m)
+        {
+            if (_mutex_destroy(m) == MQX_EOK)
+                return 0;
+            else
+                return BAD_MUTEX_ERROR;
+        }
+
+        int LockMutex(CyaSSL_Mutex* m)
+        {
+            if (_mutex_lock(m) == MQX_EOK)
+                return 0;
+            else
+                return BAD_MUTEX_ERROR;
+        }
+
+        int UnLockMutex(CyaSSL_Mutex* m)
+        {
+            if (_mutex_unlock(m) == MQX_EOK)
+                return 0;
+            else
+                return BAD_MUTEX_ERROR;
         }
 
     #endif /* USE_WINDOWS_API */

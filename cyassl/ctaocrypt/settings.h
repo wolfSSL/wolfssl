@@ -63,6 +63,9 @@
 /* Uncomment next line if building CyaSSL for LSR */
 /* #define CYASSL_LSR */
 
+/* Uncomment next line if building CyaSSL for Freescale MQX/RTCS/MFS */
+/* #define FREESCALE_MQX */
+
 
 #include <cyassl/ctaocrypt/visibility.h>
 
@@ -190,6 +193,27 @@
     #define RSA_LOW_MEM
     #define CYASSL_SMALL_STACK
     #define TFM_TIMING_RESISTANT
+#endif
+
+#ifdef FREESCALE_MQX
+    #define SIZEOF_LONG_LONG 8
+    #define NO_WRITEV
+    #define NO_DEV_RANDOM
+    #define NO_RABBIT
+    #define NO_CYASSL_DIR
+    #define USE_FAST_MATH
+    #define TFM_TIMING_RESISTANT
+    #ifndef NO_FILESYSTEM
+        #include "mfs.h"
+        #include "fio.h"
+    #endif
+    #ifndef SINGLE_THREADED
+        #include "mutex.h"
+    #endif
+
+    #define XMALLOC(s, h, type) (void *)_mem_alloc_system((s))
+    #define XFREE(p, h, type)   _mem_free(p)
+    /* Note: MQX has no realloc, using fastmath above */
 #endif
 
 #ifdef MICRIUM

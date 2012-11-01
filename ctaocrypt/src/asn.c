@@ -53,7 +53,11 @@
 #endif
 
 #ifdef CYASSL_DEBUG_ENCODING
-    #include <stdio.h>
+    #ifdef FREESCALE_MQX
+        #include <fio.h>
+    #else
+        #include <stdio.h>
+    #endif
 #endif
 
 #ifdef _MSC_VER
@@ -497,8 +501,11 @@ static int GetAlgoId(const byte* input, word32* inOutIdx, word32* oid,
     if (GetLength(input, &i, &length, maxIdx) < 0)
         return ASN_PARSE_E;
     
-    while(length--)
-        *oid += input[i++];
+    while(length--) {
+        /* odd HC08 compiler behavior here when input[i++] */
+        *oid += input[i];
+        i++;
+    }
     /* just sum it up for now */
     
     /* could have NULL tag and 0 terminator, but may not */

@@ -73,6 +73,8 @@
     /* do nothing */
 #elif defined(EBSNET)
     /* do nothing */
+#elif defined(FREESCALE_MQX)
+    /* do nothing */
 #else
     #ifndef SINGLE_THREADED
         #define CYASSL_PTHREADS
@@ -724,6 +726,8 @@ struct CYASSL_CIPHER {
         typedef OS_MUTEX CyaSSL_Mutex;
     #elif defined(EBSNET)
         typedef RTP_MUTEX CyaSSL_Mutex;
+    #elif defined(FREESCALE_MQX)
+        typedef MUTEX_STRUCT CyaSSL_Mutex;
     #else
         #error Need a mutex type in multithreaded mode
     #endif /* USE_WINDOWS_API */
@@ -1359,7 +1363,7 @@ CYASSL_API void SSL_ResourceFree(CYASSL*);   /* Micrium uses */
 
 enum {
     IV_SZ   = 32,          /* max iv sz */
-    NAME_SZ = 80,          /* max one line */
+    NAME_SZ = 80          /* max one line */
 };
 
 

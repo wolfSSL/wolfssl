@@ -32,7 +32,11 @@
 #include <cyassl/ctaocrypt/logging.h>
 
 #ifdef SHOW_GEN
-    #include <stdio.h>
+    #ifdef FREESCALE_MQX
+        #include <fio.h>
+    #else
+        #include <stdio.h>
+    #endif
 #endif
 
 

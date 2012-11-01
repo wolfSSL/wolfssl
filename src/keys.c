@@ -27,7 +27,11 @@
 #include <cyassl/internal.h>
 #include <cyassl/error.h>
 #ifdef SHOW_SECRETS
-    #include <stdio.h>
+    #ifdef FREESCALE_MQX
+        #include <fio.h>
+    #else
+        #include <stdio.h>
+    #endif
 #endif
 
 

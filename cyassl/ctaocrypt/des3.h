@@ -40,7 +40,7 @@ enum {
     DES_KS_SIZE     = 32,
 
     DES_ENCRYPTION  = 0,
-    DES_DECRYPTION  = 1,
+    DES_DECRYPTION  = 1
 };
 
 

@@ -1392,6 +1392,16 @@ static int ProcessChainBuffer(CYASSL_CTX* ctx, const unsigned char* buff,
     #define XFCLOSE                 fs_close
     #define XSEEK_END               0
     #define XBADFILE                NULL
+#elif defined(FREESCALE_MQX)
+    #define XFILE                   MQX_FILE_PTR
+    #define XFOPEN                  fopen
+    #define XFSEEK                  fseek
+    #define XFTELL                  ftell
+    #define XREWIND(F)              fseek(F, 0, IO_SEEK_SET)
+    #define XFREAD                  fread
+    #define XFCLOSE                 fclose
+    #define XSEEK_END               IO_SEEK_END
+    #define XBADFILE                NULL
 #elif defined(MICRIUM)
     #include <fs.h>
     #define XFILE      FS_FILE*

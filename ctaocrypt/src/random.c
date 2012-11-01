@@ -159,6 +159,19 @@ int GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     return 0;
 }
 
+#elif defined(FREESCALE_MQX)
+
+#warning "write a real random seed!!!!, just for testing now"
+
+int GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+{
+    int i;
+    for (i = 0; i < sz; i++ )
+        output[i] = i;
+
+    return 0;
+}
+
 #elif defined(NO_DEV_RANDOM)
 
 #error "you need to write an os specific GenerateSeed() here"

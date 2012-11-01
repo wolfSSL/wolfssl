@@ -32,7 +32,11 @@
 
 
 #ifndef NO_FILESYSTEM
-    #include <stdio.h>   /* ERR_printf */
+    #ifdef FREESCALE_MQX
+        #include <fio.h>
+    #else
+        #include <stdio.h>   /* ERR_printf */
+    #endif
 #endif
 
 #ifdef YASSL_PREFIX
