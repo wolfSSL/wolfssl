@@ -6649,7 +6649,7 @@ static int initGlobalRNG = 0;
             return 0;
         }
 
-        if (Base16_Decode((byte*)str, (int)strlen(str), decoded, &decSz) < 0) {
+        if (Base16_Decode((byte*)str, (int)XSTRLEN(str), decoded, &decSz) < 0) {
             CYASSL_MSG("Bad Base16_Decode error");
             return 0;
         }

@@ -82,7 +82,7 @@
 
 /* These platforms have 64-bit CPU registers.  */
 #if (defined(__alpha__) || defined(__ia64__) || defined(_ARCH_PPC64) || \
-     defined(__mips64)  || defined(__x86_64__)) 
+     defined(__mips64)  || defined(__x86_64__) || defined(_M_X64)) 
     typedef word64 word;
 #else
     typedef word32 word;

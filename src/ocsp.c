@@ -167,7 +167,7 @@ static int decode_url(const char* url, int urlSz,
 int CyaSSL_OCSP_set_override_url(CYASSL_OCSP* ocsp, const char* url)
 {
     if (ocsp != NULL) {
-        int urlSz = strlen(url);
+        int urlSz = (int)XSTRLEN(url);
         decode_url(url, urlSz,
             ocsp->overrideName, ocsp->overridePath, &ocsp->overridePort);
         return 1;
