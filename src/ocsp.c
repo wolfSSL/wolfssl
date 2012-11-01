@@ -167,7 +167,7 @@ static int decode_url(const char* url, int urlSz,
 int CyaSSL_OCSP_set_override_url(CYASSL_OCSP* ocsp, const char* url)
 {
     if (ocsp != NULL) {
-        int urlSz = strlen(url);
+        int urlSz = (int)XSTRLEN(url);
         decode_url(url, urlSz,
             ocsp->overrideName, ocsp->overridePath, &ocsp->overridePort);
         return 1;
@@ -278,8 +278,8 @@ static int decode_http_response(byte* httpBuf, int httpBufSz, byte** dst)
                 idx += 2; /* skip the crlf */
             } else {
                 /* Advance idx past the next \r\n */
-                char* end = strstr(&buf[idx], "\r\n");
-                idx = end - buf + 2;
+                char* end = XSTRSTR(&buf[idx], "\r\n");
+                idx = (int)(end - buf + 2);
                 stop = 1;
             }
         }
@@ -411,11 +411,11 @@ static int http_ocsp_transaction(CYASSL_OCSP* ocsp, DecodedCert* cert,
     tcp_connect(&sfd, domainName, port);
     if (sfd > 0) {
         int written;
-        written = write(sfd, httpBuf, httpBufSz);
+        written = (int)write(sfd, httpBuf, httpBufSz);
         if (written == httpBufSz) {
-            written = write(sfd, ocspReqBuf, ocspReqSz);
+            written = (int)write(sfd, ocspReqBuf, ocspReqSz);
             if (written == ocspReqSz) {
-                httpBufSz = read(sfd, httpBuf, SCRATCH_BUFFER_SIZE);
+                httpBufSz = (int)read(sfd, httpBuf, SCRATCH_BUFFER_SIZE);
                 if (httpBufSz > 0) {
                     ocspRespSz = decode_http_response(httpBuf, httpBufSz,
                         ocspRespBuf);

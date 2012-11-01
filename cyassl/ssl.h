@@ -654,8 +654,8 @@ CYASSL_API void  CyaSSL_CTX_sess_set_remove_cb(CYASSL_CTX*,
                                        void (*f)(CYASSL_CTX*, CYASSL_SESSION*));
 
 CYASSL_API int          CyaSSL_i2d_SSL_SESSION(CYASSL_SESSION*,unsigned char**);
-CYASSL_API CYASSL_SESSION* CyaSSL_d2i_SSL_SESSION(CYASSL_SESSION**,const unsigned char**,
-                                        long);
+CYASSL_API CYASSL_SESSION* CyaSSL_d2i_SSL_SESSION(CYASSL_SESSION**,
+                                                   const unsigned char**, long);
 
 CYASSL_API long CyaSSL_SESSION_get_timeout(const CYASSL_SESSION*);
 CYASSL_API long CyaSSL_SESSION_get_time(const CYASSL_SESSION*);

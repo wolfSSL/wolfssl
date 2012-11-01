@@ -180,7 +180,8 @@ void c32to24(word32 in, word24 out);
     #define BUILD_TLS_RSA_WITH_RABBIT_CBC_SHA
 #endif
 
-#if !defined(NO_DH) && !defined(NO_AES) && !defined(NO_TLS) && !defined(NO_RSA) && defined(OPENSSL_EXTRA)
+#if !defined(NO_DH) && !defined(NO_AES) && !defined(NO_TLS) && \
+    !defined(NO_RSA) && defined(OPENSSL_EXTRA)
     #define BUILD_TLS_DHE_RSA_WITH_AES_128_CBC_SHA
     #define BUILD_TLS_DHE_RSA_WITH_AES_256_CBC_SHA
     #if !defined (NO_SHA256)

@@ -1230,7 +1230,7 @@ static int GetKey(DecodedCert* cert)
             if (b != ASN_BIT_STRING)
                 return ASN_BITSTR_E;
 
-            if (GetLength(cert->source, &cert->srcIdx, &length, cert->maxIdx) < 0)
+            if (GetLength(cert->source,&cert->srcIdx,&length,cert->maxIdx) < 0)
                 return ASN_PARSE_E;
             b = cert->source[cert->srcIdx++];
             if (b != 0x00)
@@ -2127,9 +2127,9 @@ static int ConfirmSignature(const byte* buf, word32 bufSz,
                 else {
                     /* make sure we're right justified */
                     encodedSigSz =
-                            EncodeSignature(encodedSig, digest, digestSz, typeH);
+                        EncodeSignature(encodedSig, digest, digestSz, typeH);
                     if (encodedSigSz != verifySz ||
-                                    XMEMCMP(out, encodedSig, encodedSigSz) != 0) {
+                                XMEMCMP(out, encodedSig, encodedSigSz) != 0) {
                         CYASSL_MSG("Rsa SSL verify match encode error");
                         ret = 0;
                     }
@@ -2173,7 +2173,7 @@ static int ConfirmSignature(const byte* buf, word32 bufSz,
                 return 0;
             }
         
-            ret = ecc_verify_hash(sig, sigSz, digest, digestSz, &verify, &pubKey);
+            ret = ecc_verify_hash(sig,sigSz,digest,digestSz,&verify,&pubKey);
             ecc_free(&pubKey);
             if (ret == 0 && verify == 1)
                 return 1;  /* match */
@@ -4135,90 +4135,90 @@ static int GetEnumerated(const byte* input, word32* inOutIdx, int *value)
 static int DecodeSingleResponse(byte* source,
                             word32* ioIndex, OcspResponse* resp, word32 size)
 {
-    word32 index = *ioIndex, prevIndex, oid;
+    word32 idx = *ioIndex, prevIndex, oid;
     int length, wrapperSz;
     CertStatus* cs = resp->status;
 
     CYASSL_ENTER("DecodeSingleResponse");
 
     /* Outer wrapper of the SEQUENCE OF Single Responses. */
-    if (GetSequence(source, &index, &wrapperSz, size) < 0)
+    if (GetSequence(source, &idx, &wrapperSz, size) < 0)
         return ASN_PARSE_E;
 
-    prevIndex = index;
+    prevIndex = idx;
 
     /* When making a request, we only request one status on one certificate
      * at a time. There should only be one SingleResponse */
 
     /* Wrapper around the Single Response */
-    if (GetSequence(source, &index, &length, size) < 0)
+    if (GetSequence(source, &idx, &length, size) < 0)
         return ASN_PARSE_E;
 
     /* Wrapper around the CertID */
-    if (GetSequence(source, &index, &length, size) < 0)
+    if (GetSequence(source, &idx, &length, size) < 0)
         return ASN_PARSE_E;
     /* Skip the hash algorithm */
-    if (GetAlgoId(source, &index, &oid, size) < 0)
+    if (GetAlgoId(source, &idx, &oid, size) < 0)
         return ASN_PARSE_E;
     /* Save reference to the hash of CN */
-    if (source[index++] != ASN_OCTET_STRING)
+    if (source[idx++] != ASN_OCTET_STRING)
         return ASN_PARSE_E;
-    if (GetLength(source, &index, &length, size) < 0)
+    if (GetLength(source, &idx, &length, size) < 0)
         return ASN_PARSE_E;
-    resp->issuerHash = source + index;
-    index += length;
+    resp->issuerHash = source + idx;
+    idx += length;
     /* Save reference to the hash of the issuer public key */
-    if (source[index++] != ASN_OCTET_STRING)
+    if (source[idx++] != ASN_OCTET_STRING)
         return ASN_PARSE_E;
-    if (GetLength(source, &index, &length, size) < 0)
+    if (GetLength(source, &idx, &length, size) < 0)
         return ASN_PARSE_E;
-    resp->issuerKeyHash = source + index;
-    index += length;
+    resp->issuerKeyHash = source + idx;
+    idx += length;
 
     /* Read the serial number, it is handled as a string, not as a 
      * proper number. Just XMEMCPY the data over, rather than load it
      * as an mp_int. */
-    if (source[index++] != ASN_INTEGER)
+    if (source[idx++] != ASN_INTEGER)
         return ASN_PARSE_E;
-    if (GetLength(source, &index, &length, size) < 0)
+    if (GetLength(source, &idx, &length, size) < 0)
         return ASN_PARSE_E;
     if (length <= EXTERNAL_SERIAL_SIZE)
     {
-        if (source[index] == 0)
+        if (source[idx] == 0)
         {
-            index++;
+            idx++;
             length--;
         }
-        XMEMCPY(cs->serial, source + index, length);
+        XMEMCPY(cs->serial, source + idx, length);
         cs->serialSz = length;
     }
     else
     {
         return ASN_GETINT_E;
     }
-    index += length;
+    idx += length;
 
     /* CertStatus */
-    switch (source[index++])
+    switch (source[idx++])
     {
         case (ASN_CONTEXT_SPECIFIC | CERT_GOOD):
             cs->status = CERT_GOOD;
-            index++;
+            idx++;
             break;
         case (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | CERT_REVOKED):
             cs->status = CERT_REVOKED;
-            GetLength(source, &index, &length, size);
-            index += length;
+            GetLength(source, &idx, &length, size);
+            idx += length;
             break;
         case (ASN_CONTEXT_SPECIFIC | CERT_UNKNOWN):
             cs->status = CERT_UNKNOWN;
-            index++;
+            idx++;
             break;
         default:
             return ASN_PARSE_E;
     }
 
-    if (GetBasicDate(source, &index, cs->thisDate,
+    if (GetBasicDate(source, &idx, cs->thisDate,
                                                 &cs->thisDateFormat, size) < 0)
         return ASN_PARSE_E;
     if (!ValidateDate(cs->thisDate, cs->thisDateFormat, BEFORE))
@@ -4227,26 +4227,26 @@ static int DecodeSingleResponse(byte* source,
     /* The following items are optional. Only check for them if there is more
      * unprocessed data in the singleResponse wrapper. */
     
-    if ((index - prevIndex < wrapperSz) &&
-        (source[index] == (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 0)))
+    if (((int)(idx - prevIndex) < wrapperSz) &&
+        (source[idx] == (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 0)))
     {
-        index++;
-        if (GetLength(source, &index, &length, size) < 0)
+        idx++;
+        if (GetLength(source, &idx, &length, size) < 0)
             return ASN_PARSE_E;
-        if (GetBasicDate(source, &index, cs->nextDate,
+        if (GetBasicDate(source, &idx, cs->nextDate,
                                                 &cs->nextDateFormat, size) < 0)
             return ASN_PARSE_E;
     }
-    if ((index - prevIndex < wrapperSz) &&
-        (source[index] == (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 1)))
+    if (((int)(idx - prevIndex) < wrapperSz) &&
+        (source[idx] == (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 1)))
     {
-        index++;
-        if (GetLength(source, &index, &length, size) < 0)
+        idx++;
+        if (GetLength(source, &idx, &length, size) < 0)
             return ASN_PARSE_E;
-        index += length;
+        idx += length;
     }
 
-    *ioIndex = index;
+    *ioIndex = idx;
 
     return 0;
 }
@@ -4572,7 +4572,7 @@ static word32 SetOcspReqExtensions(word32 extSz, byte* output,
     seqArray[1][0] = ASN_OBJECT_ID;
     seqSz[1] = 1 + SetLength(sizeof(NonceObjId), &seqArray[1][1]);
 
-    totalSz = seqSz[0] + seqSz[1] + nonceSz + sizeof(NonceObjId);
+    totalSz = seqSz[0] + seqSz[1] + nonceSz + (word32)sizeof(NonceObjId);
 
     seqSz[2] = SetSequence(totalSz, seqArray[2]);
     totalSz += seqSz[2];
@@ -4596,7 +4596,7 @@ static word32 SetOcspReqExtensions(word32 extSz, byte* output,
         XMEMCPY(output + totalSz, seqArray[1], seqSz[1]);
         totalSz += seqSz[1];
         XMEMCPY(output + totalSz, NonceObjId, sizeof(NonceObjId));
-        totalSz += sizeof(NonceObjId);
+        totalSz += (word32)sizeof(NonceObjId);
         XMEMCPY(output + totalSz, seqArray[0], seqSz[0]);
         totalSz += seqSz[0];
         XMEMCPY(output + totalSz, nonce, nonceSz);
@@ -4617,7 +4617,6 @@ int EncodeOcspRequest(OcspRequest* req)
     byte snArray[MAX_SN_SZ];
     byte extArray[MAX_OCSP_EXT_SZ];
     byte* output = req->dest;
-    word32 outputSz = req->destSz;
     RNG rng;
     word32 seqSz[5], algoSz, issuerSz, issuerKeySz, snSz, extSz, totalSz;
     int i;
