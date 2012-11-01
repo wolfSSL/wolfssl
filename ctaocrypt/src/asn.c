@@ -5189,7 +5189,7 @@ static int GetCRL_Signature(const byte* source, word32* idx, DecodedCRL* dcrl,
 
 
 /* prase crl buffer into decoded state, 0 on success */
-int ParseCRL(DecodedCRL* dcrl, const byte* buff, long sz, void* cm)
+int ParseCRL(DecodedCRL* dcrl, const byte* buff, word32 sz, void* cm)
 {
     int     version, len;
     word32  oid, idx = 0;

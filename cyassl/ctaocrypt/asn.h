@@ -472,7 +472,7 @@ struct DecodedCRL {
 };
 
 CYASSL_LOCAL void InitDecodedCRL(DecodedCRL*);
-CYASSL_LOCAL int  ParseCRL(DecodedCRL*, const byte* buff, long sz, void* cm);
+CYASSL_LOCAL int  ParseCRL(DecodedCRL*, const byte* buff, word32 sz, void* cm);
 CYASSL_LOCAL void FreeDecodedCRL(DecodedCRL*);
 
 

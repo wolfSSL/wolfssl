@@ -723,7 +723,7 @@ static INLINE int myVerify(int preverify, CYASSL_X509_STORE_CTX* store)
 
 #ifdef HAVE_CRL
 
-static void INLINE CRL_CallBack(const char* url)
+static INLINE void CRL_CallBack(const char* url)
 {
     printf("CRL callback url = %s\n", url);
 }

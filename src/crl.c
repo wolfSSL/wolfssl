@@ -254,7 +254,7 @@ int BufferLoadCRL(CYASSL_CRL* crl, const byte* buff, long sz, int type)
     }
 
     InitDecodedCRL(&dcrl);
-    ret = ParseCRL(&dcrl, myBuffer, sz, crl->cm);
+    ret = ParseCRL(&dcrl, myBuffer, (word32)sz, crl->cm);
     if (ret != 0) {
         CYASSL_MSG("ParseCRL error");
     }
@@ -490,6 +490,8 @@ static int StartMonitorCRL(CYASSL_CRL* crl)
 
 static int StartMonitorCRL(CYASSL_CRL* crl)
 {
+    (void)crl;
+
     CYASSL_ENTER("StartMonitorCRL");
     CYASSL_MSG("Not compiled in");
 
