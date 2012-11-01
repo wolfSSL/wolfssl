@@ -643,7 +643,7 @@ static INLINE unsigned int my_psk_server_cb(CYASSL* ssl, const char* identity,
 #endif /* USE_WINDOWS_API */
 
 
-#ifdef NO_FILESYSTEM
+#if defined(NO_FILESYSTEM) && !defined(NO_CERTS)
 
     enum {
         CYASSL_CA   = 1,
@@ -731,6 +731,8 @@ static INLINE void CRL_CallBack(const char* url)
 #endif
 
 
+#ifndef NO_CERTS
+
 static INLINE void CaCb(unsigned char* der, int sz, int type)
 {
     (void)der;
@@ -791,6 +793,8 @@ static INLINE void SetDHCtx(CYASSL_CTX* ctx)
 
     CyaSSL_CTX_SetTmpDH(ctx, p, sizeof(p), g, sizeof(g));
 }
+
+#endif /* !NO_CERTS */
 
 #ifdef USE_WINDOWS_API 
 

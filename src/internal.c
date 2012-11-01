@@ -64,8 +64,10 @@
 #ifndef NO_CYASSL_CLIENT
     static int DoHelloVerifyRequest(CYASSL* ssl, const byte* input, word32*);
     static int DoServerHello(CYASSL* ssl, const byte* input, word32*, word32);
-    static int DoCertificateRequest(CYASSL* ssl, const byte* input, word32*);
     static int DoServerKeyExchange(CYASSL* ssl, const byte* input, word32*);
+    #ifndef NO_CERTS
+        static int DoCertificateRequest(CYASSL* ssl, const byte* input,word32*);
+    #endif
 #endif
 
 
@@ -324,11 +326,13 @@ int InitSSL_Ctx(CYASSL_CTX* ctx, CYASSL_METHOD* method)
 {
     ctx->method = method;
     ctx->refCount = 1;          /* so either CTX_free or SSL_free can release */
+#ifndef NO_CERTS
     ctx->certificate.buffer = 0;
     ctx->certChain.buffer   = 0;
     ctx->privateKey.buffer  = 0;
     ctx->serverDH_P.buffer  = 0;
     ctx->serverDH_G.buffer  = 0;
+#endif
     ctx->haveDH             = 0;
     ctx->haveNTRU           = 0;    /* start off */
     ctx->haveECDSAsig       = 0;    /* start off */
@@ -369,7 +373,9 @@ int InitSSL_Ctx(CYASSL_CTX* ctx, CYASSL_METHOD* method)
     ctx->partialWrite   = 0;
     ctx->verifyCallback = 0;
 
+#ifndef NO_CERTS
     ctx->cm = CyaSSL_CertManagerNew();
+#endif
 #ifdef HAVE_NTRU
     if (method->side == CLIENT_END)
         ctx->haveNTRU = 1;           /* always on cliet side */
@@ -401,10 +407,12 @@ int InitSSL_Ctx(CYASSL_CTX* ctx, CYASSL_METHOD* method)
         CYASSL_MSG("Mutex error on CTX init");
         return BAD_MUTEX_ERROR;
     } 
+#ifndef NO_CERTS
     if (ctx->cm == NULL) {
         CYASSL_MSG("Bad Cert Manager New");
         return BAD_CERT_MANAGER_ERROR;
     }
+#endif
     return 0;
 }
 
@@ -412,15 +420,16 @@ int InitSSL_Ctx(CYASSL_CTX* ctx, CYASSL_METHOD* method)
 /* In case contexts are held in array and don't want to free actual ctx */
 void SSL_CtxResourceFree(CYASSL_CTX* ctx)
 {
+    XFREE(ctx->method, ctx->heap, DYNAMIC_TYPE_METHOD);
+
+#ifndef NO_CERTS
     XFREE(ctx->serverDH_G.buffer, ctx->heap, DYNAMIC_TYPE_DH);
     XFREE(ctx->serverDH_P.buffer, ctx->heap, DYNAMIC_TYPE_DH);
     XFREE(ctx->privateKey.buffer, ctx->heap, DYNAMIC_TYPE_KEY);
     XFREE(ctx->certificate.buffer, ctx->heap, DYNAMIC_TYPE_CERT);
     XFREE(ctx->certChain.buffer, ctx->heap, DYNAMIC_TYPE_CERT);
-    XFREE(ctx->method, ctx->heap, DYNAMIC_TYPE_METHOD);
-
     CyaSSL_CertManagerFree(ctx->cm);
-
+#endif
 #ifdef HAVE_OCSP
     CyaSSL_OCSP_Cleanup(&ctx->ocsp);
 #endif
@@ -940,9 +949,11 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
     haveRSA = 1;
 #endif
    
+#ifndef NO_CERTS
     ssl->buffers.certificate.buffer   = 0;
     ssl->buffers.key.buffer           = 0;
     ssl->buffers.certChain.buffer     = 0;
+#endif
     ssl->buffers.inputBuffer.length   = 0;
     ssl->buffers.inputBuffer.idx      = 0;
     ssl->buffers.inputBuffer.buffer = ssl->buffers.inputBuffer.staticBuffer;
@@ -954,10 +965,12 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
     ssl->buffers.outputBuffer.bufferSize  = STATIC_BUFFER_LEN;
     ssl->buffers.outputBuffer.dynamicFlag = 0;
     ssl->buffers.domainName.buffer    = 0;
+#ifndef NO_CERTS
     ssl->buffers.serverDH_P.buffer    = 0;
     ssl->buffers.serverDH_G.buffer    = 0;
     ssl->buffers.serverDH_Pub.buffer  = 0;
     ssl->buffers.serverDH_Priv.buffer = 0;
+#endif
     ssl->buffers.clearOutputBuffer.buffer  = 0;
     ssl->buffers.clearOutputBuffer.length  = 0;
     ssl->buffers.prevSent                  = 0;
@@ -1076,6 +1089,7 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
     ssl->options.usingNonblock = 0;
     ssl->options.saveArrays = 0;
 
+#ifndef NO_CERTS
     /* ctx still owns certificate, certChain, key, dh, and cm */
     ssl->buffers.certificate = ctx->certificate;
     ssl->buffers.certChain = ctx->certChain;
@@ -1084,6 +1098,7 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
         ssl->buffers.serverDH_P = ctx->serverDH_P;
         ssl->buffers.serverDH_G = ctx->serverDH_G;
     }
+#endif
     ssl->buffers.weOwnCert = 0;
     ssl->buffers.weOwnKey  = 0;
     ssl->buffers.weOwnDH   = 0;
@@ -1183,12 +1198,14 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
     }
     InitRsaKey(ssl->peerRsaKey, ctx->heap);
 #endif
+#ifndef NO_CERTS
     /* make sure server has cert and key unless using PSK */
     if (ssl->options.side == SERVER_END && !havePSK)
         if (!ssl->buffers.certificate.buffer || !ssl->buffers.key.buffer) {
             CYASSL_MSG("Server missing certificate and/or private key"); 
             return NO_PRIVATE_KEY;
         }
+#endif
 
     /* make sure server has DH parms, and add PSK if there, add NTRU too */
     if (ssl->options.side == SERVER_END) 
@@ -1224,6 +1241,9 @@ void SSL_ResourceFree(CYASSL* ssl)
     FreeArrays(ssl, 0);
     XFREE(ssl->rng, ssl->heap, DYNAMIC_TYPE_RNG);
     XFREE(ssl->suites, ssl->heap, DYNAMIC_TYPE_SUITES);
+    XFREE(ssl->buffers.domainName.buffer, ssl->heap, DYNAMIC_TYPE_DOMAIN);
+
+#ifndef NO_CERTS
     XFREE(ssl->buffers.serverDH_Priv.buffer, ssl->heap, DYNAMIC_TYPE_DH);
     XFREE(ssl->buffers.serverDH_Pub.buffer, ssl->heap, DYNAMIC_TYPE_DH);
     /* parameters (p,g) may be owned by ctx */
@@ -1231,14 +1251,13 @@ void SSL_ResourceFree(CYASSL* ssl)
         XFREE(ssl->buffers.serverDH_G.buffer, ssl->heap, DYNAMIC_TYPE_DH);
         XFREE(ssl->buffers.serverDH_P.buffer, ssl->heap, DYNAMIC_TYPE_DH);
     }
-    XFREE(ssl->buffers.domainName.buffer, ssl->heap, DYNAMIC_TYPE_DOMAIN);
 
     /* CYASSL_CTX always owns certChain */
     if (ssl->buffers.weOwnCert)
         XFREE(ssl->buffers.certificate.buffer, ssl->heap, DYNAMIC_TYPE_CERT);
     if (ssl->buffers.weOwnKey)
         XFREE(ssl->buffers.key.buffer, ssl->heap, DYNAMIC_TYPE_KEY);
-
+#endif
 #ifndef NO_RSA
     if (ssl->peerRsaKey) {
         FreeRsaKey(ssl->peerRsaKey);
@@ -2093,6 +2112,8 @@ static void BuildFinished(CYASSL* ssl, Hashes* hashes, const byte* sender)
 }
 
 
+#ifndef NO_CERTS
+
 static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx)
 {
     word32 listSz, i = *inOutIdx;
@@ -2427,6 +2448,8 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx)
     return ret;
 }
 
+#endif /* !NO_CERTS */
+
 
 static int DoHelloRequest(CYASSL* ssl, const byte* input, word32* inOutIdx)
 {
@@ -2583,10 +2606,12 @@ static int DoHandShakeMsgType(CYASSL* ssl, byte* input, word32* inOutIdx,
         ret = DoServerHello(ssl, input, inOutIdx, size);
         break;
 
+#ifndef NO_CERTS
     case certificate_request:
         CYASSL_MSG("processing certificate request");
         ret = DoCertificateRequest(ssl, input, inOutIdx);
         break;
+#endif
 
     case server_key_exchange:
         CYASSL_MSG("processing server key exchange");
@@ -2594,10 +2619,12 @@ static int DoHandShakeMsgType(CYASSL* ssl, byte* input, word32* inOutIdx,
         break;
 #endif
 
+#ifndef NO_CERTS
     case certificate:
         CYASSL_MSG("processing certificate");
         ret =  DoCertificate(ssl, input, inOutIdx);
         break;
+#endif
 
     case server_hello_done:
         CYASSL_MSG("processing server hello done");
@@ -3777,7 +3804,7 @@ int SendFinished(CYASSL* ssl)
     return SendBuffered(ssl);
 }
 
-
+#ifndef NO_CERTS
 int SendCertificate(CYASSL* ssl)
 {
     int    sendSz, length, ret = 0;
@@ -3938,6 +3965,7 @@ int SendCertificateRequest(CYASSL* ssl)
     else
         return SendBuffered(ssl);
 }
+#endif /* !NO_CERTS */
 
 
 int SendData(CYASSL* ssl, const void* data, int sz)
@@ -5380,6 +5408,7 @@ int SetCipherList(Suites* s, const char* list)
     }
 
 
+#ifndef NO_CERTS
     /* just read in and ignore for now TODO: */
     static int DoCertificateRequest(CYASSL* ssl, const byte* input, word32*
                                     inOutIdx)
@@ -5424,6 +5453,7 @@ int SetCipherList(Suites* s, const char* list)
 
         return 0;
     }
+#endif /* !NO_CERTS */
 
 
     static int DoServerKeyExchange(CYASSL* ssl, const byte* input,

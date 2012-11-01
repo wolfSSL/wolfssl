@@ -140,7 +140,7 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
             err_sys("can't load server key file, "
                     "Please run from CyaSSL home dir");
     #endif
-#else
+#elif !defined(NO_CERTS)
     if (!doLeanPSK) {
         load_buffer(ctx, svrCert, CYASSL_CERT);
         load_buffer(ctx, svrKey,  CYASSL_KEY);
@@ -184,7 +184,7 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
         CyaSSL_set_fd(ssl, clientfd);
         #if !defined(NO_FILESYSTEM) && defined(OPENSSL_EXTRA)
             CyaSSL_SetTmpDH_file(ssl, dhParam, SSL_FILETYPE_PEM);
-        #else
+        #elif !defined(NO_CERTS)
             SetDH(ssl);  /* will repick suites with DHE, higher than PSK */
         #endif
         if (CyaSSL_accept(ssl) != SSL_SUCCESS) {
