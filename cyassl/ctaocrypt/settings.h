@@ -203,6 +203,7 @@
     #define NO_CYASSL_DIR
     #define USE_FAST_MATH
     #define TFM_TIMING_RESISTANT
+    #define FREESCALE_K70_RNGA
     #ifndef NO_FILESYSTEM
         #include "mfs.h"
         #include "fio.h"

@@ -161,16 +161,51 @@ int GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 
 #elif defined(FREESCALE_MQX)
 
-#warning "write a real random seed!!!!, just for testing now"
+    #ifdef FREESCALE_K70_RNGA
+        /*
+         * Generates a RNG seed using the Random Number Generator Accelerator
+         * on the Kinetis K70. Documentation located in Chapter 37 of
+         * K70 Sub-Family Reference Manual (see Note 3 in the README for link).
+         */
+        int GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+        {
+            int i;
 
-int GenerateSeed(OS_Seed* os, byte* output, word32 sz)
-{
-    int i;
-    for (i = 0; i < sz; i++ )
-        output[i] = i;
+            /* turn on RNGA module */
+            SIM_SCGC3 |= SIM_SCGC3_RNGA_MASK;
 
-    return 0;
-}
+            /* set SLP bit to 0 - "RNGA is not in sleep mode" */
+            RNG_CR &= ~RNG_CR_SLP_MASK;
+
+            /* set HA bit to 1 - "security violations masked" */
+            RNG_CR |= RNG_CR_HA_MASK;
+
+            /* set GO bit to 1 - "output register loaded with data" */
+            RNG_CR |= RNG_CR_GO_MASK;
+
+            for (i = 0; i < sz; i++) {
+
+                /* wait for RNG FIFO to be full */
+                while((RNG_SR & RNG_SR_OREG_LVL(0xF)) == 0) {}
+
+                /* get value */
+                output[i] = RNG_OR;
+            }
+
+            return 0;
+        }
+	#else
+        #warning "write a real random seed!!!!, just for testing now"
+
+        int GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+        {
+            int i;
+            for (i = 0; i < sz; i++ )
+                output[i] = i;
+
+            return 0;
+        }
+	#endif /* FREESCALE_K70_RNGA */
 
 #elif defined(NO_DEV_RANDOM)
 

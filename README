@@ -32,6 +32,12 @@ SSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, 0);
 
 before calling SSL_new();  Though it's not recommended.
 
+
+Note 3)
+The Freescale Kinetis K70 RNGA documentation can be found in Chapter 37 of the
+K70 Sub-Family Reference Manual:
+http://cache.freescale.com/files/microcontrollers/doc/ref_manual/K70P256M150SF3RM.pdf
+
 *** end Note ***
 
 CyaSSL Release 2.4.0 (10/10/2012)
