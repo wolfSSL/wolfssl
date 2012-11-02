@@ -37,6 +37,7 @@ void CTaoCryptErrorString(int error, char* buffer)
 
 #ifdef NO_ERROR_STRINGS
 
+    (void)error;
     XSTRNCPY(buffer, "no support for error strings built in", max);
 
 #else

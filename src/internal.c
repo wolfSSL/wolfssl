@@ -4176,6 +4176,7 @@ void SetErrorString(int error, char* str)
 
 #ifdef NO_ERROR_STRINGS
 
+    (void)error;
     XSTRNCPY(str, "no support for error strings built in", max);
 
 #else

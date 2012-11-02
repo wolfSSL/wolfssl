@@ -150,18 +150,22 @@ void ctaocrypt_test(void* args)
 
     ((func_args*)args)->return_code = -1; /* error state */
 
+#if !defined(CYASSL_LEANPSK)
     if (CheckCtcSettings() != 1)
         err_sys("Build vs runtime math mismatch\n", -1234);
 
 #ifdef USE_FAST_MATH
     if (CheckFastMathSettings() != 1)
         err_sys("Build vs runtime fastmath FP_MAX_BITS mismatch\n", -1235);
-#endif
-    
+#endif /* USE_FAST_MATH */
+#endif /* !CYASSL_LEANPSK */
+
+#ifdef NO_MD5
     if ( (ret = md5_test()) ) 
         err_sys("MD5      test failed!\n", ret);
     else
         printf( "MD5      test passed!\n");
+#endif
 
 #ifdef CYASSL_MD2
     if ( (ret = md2_test()) ) 

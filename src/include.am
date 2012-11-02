@@ -10,15 +10,12 @@ src_libcyassl_la_SOURCES = \
                src/ssl.c \
                src/tls.c  \
                ctaocrypt/src/coding.c \
-               ctaocrypt/src/des3.c \
-               ctaocrypt/src/hmac.c \
                ctaocrypt/src/md5.c \
-               ctaocrypt/src/md4.c \
+               ctaocrypt/src/hmac.c \
                ctaocrypt/src/random.c \
                ctaocrypt/src/sha.c \
                ctaocrypt/src/sha256.c \
                ctaocrypt/src/arc4.c \
-               ctaocrypt/src/pwdbased.c \
                ctaocrypt/src/logging.c \
                ctaocrypt/src/error.c \
                ctaocrypt/src/memory.c
@@ -29,9 +26,12 @@ src_libcyassl_la_CPPFLAGS = -DBUILDING_CYASSL $(AM_CPPFLAGS)
 
 if !BUILD_LEANPSK
 src_libcyassl_la_SOURCES += ctaocrypt/src/rsa.c \
+                            ctaocrypt/src/des3.c \
+                            ctaocrypt/src/md4.c \
                             ctaocrypt/src/asn.c \
                             ctaocrypt/src/dh.c \
                             ctaocrypt/src/dsa.c \
+                            ctaocrypt/src/pwdbased.c \
                             ctaocrypt/src/aes.c
 endif
 
@@ -69,7 +69,9 @@ endif
 
 if BUILD_FASTMATH
 src_libcyassl_la_SOURCES += ctaocrypt/src/tfm.c
-else
+endif
+
+if BUILD_SLOWMATH
 src_libcyassl_la_SOURCES += ctaocrypt/src/integer.c
 endif
 
