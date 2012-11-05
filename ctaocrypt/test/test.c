@@ -1481,7 +1481,7 @@ int rsa_test(void)
     bytes = fread(tmp, 1, FOURK_BUF, file2);
 
 #ifdef CYASSL_TEST_CERT
-    InitDecodedCert(&cert, (byte*)&tmp, (word32)bytes2, 0);
+    InitDecodedCert(&cert, tmp, (word32)bytes, 0);
 
     ret = ParseCert(&cert, CERT_TYPE, NO_VERIFY, 0);
     if (ret != 0) return -491;
