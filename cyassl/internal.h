@@ -471,10 +471,8 @@ enum Misc {
 
 #ifdef FORTRESS
     MAX_EX_DATA        =   3,  /* allow for three items of ex_data */
-    MAX_CHAIN_DEPTH    =   9,  /* max cert chain peer depth, FORTRESS option */
-#else
-    MAX_CHAIN_DEPTH    =   6,  /* max cert chain peer depth */
 #endif
+
     MAX_X509_SIZE      = 2048, /* max static x509 buffer size */
     CERT_MIN_SIZE      =  256, /* min PEM cert size with header/footer */
     MAX_FILENAME_SZ    =  256, /* max file name length */
@@ -492,6 +490,12 @@ enum Misc {
     NO_COPY            =   0,  /* should we copy static buffer for write */
     COPY               =   1   /* should we copy static buffer for write */
 };
+
+
+/* max cert chain peer depth */
+#ifndef MAX_CHAIN_DEPTH
+    #define MAX_CHAIN_DEPTH 9
+#endif
 
 
 /* don't use extra 3/4k stack space unless need to */
