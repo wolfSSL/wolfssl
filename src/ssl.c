@@ -809,7 +809,7 @@ int AddCA(CYASSL_CERT_MANAGER* cm, buffer der, int type, int verify)
     CYASSL_MSG("    Freeing Parsed CA");
     FreeDecodedCert(&cert);
     CYASSL_MSG("    Freeing der CA");
-    XFREE(der.buffer, ctx->heap, DYNAMIC_TYPE_CA);
+    XFREE(der.buffer, cm->heap, DYNAMIC_TYPE_CA);
     CYASSL_MSG("        OK Freeing der CA");
 
     CYASSL_LEAVE("AddCA", ret);
@@ -1162,7 +1162,7 @@ int AddCA(CYASSL_CERT_MANAGER* cm, buffer der, int type, int verify)
                     XMEMCPY(ctx->certChain.buffer, chainBuffer, idx);
                 }
                 if (dynamicBuffer)
-                    XFREE(chainBuffer, ctx->heap, DYNAMIC_FILE_TYPE);
+                    XFREE(chainBuffer, ctx->heap, DYNAMIC_TYPE_FILE);
                 if (ctx->certChain.buffer == NULL) {
                     XFREE(der.buffer, ctx->heap, dynamicType);
                     return MEMORY_E;
