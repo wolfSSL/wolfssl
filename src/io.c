@@ -49,7 +49,7 @@
             #define LWIP_PROVIDE_ERRNO 1
         #endif
     #elif defined(FREESCALE_MQX)
-        #include <errno.h>
+        #include <posix.h>
         #include <rtcs.h>
     #else
         #include <sys/types.h>
