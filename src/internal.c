@@ -7546,7 +7546,7 @@ int SetCipherList(Suites* s, const char* list)
     {
         int    ret = 0;
         word32 length = 0;
-        byte*  out;
+        byte*  out = NULL;
 
         (void)length; /* shut up compiler warnings */
         (void)out;

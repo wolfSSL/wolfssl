@@ -1548,7 +1548,7 @@ void fp_montgomery_calc_normalization(fp_int *a, fp_int *b)
 /* computes x/R == x (mod N) via Montgomery Reduction */
 void fp_montgomery_reduce(fp_int *a, fp_int *m, fp_digit mp)
 {
-   fp_digit c[FP_SIZE], *_c, *tmpm, mu;
+   fp_digit c[FP_SIZE], *_c, *tmpm, mu = 0;
    int      oldused, x, y, pa;
 
    /* bail if too large */
