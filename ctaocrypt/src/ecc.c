@@ -20,11 +20,14 @@
  */
 
 
-#ifdef HAVE_ECC
-
 #ifdef HAVE_CONFIG_H
     #include <config.h>
 #endif
+
+/* in case user set HAVE_ECC there */
+#include <cyassl/ctaocrypt/settings.h>
+
+#ifdef HAVE_ECC
 
 #include <cyassl/ctaocrypt/ecc.h>
 #include <cyassl/ctaocrypt/asn.h>
