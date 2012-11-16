@@ -190,6 +190,7 @@ CYASSL_API int  CyaSSL_connect(CYASSL*);     /* please see note at top of README
                                              if you get an error from connect */
 CYASSL_API int  CyaSSL_write(CYASSL*, const void*, int);
 CYASSL_API int  CyaSSL_read(CYASSL*, void*, int);
+CYASSL_API int  CyaSSL_peek(CYASSL*, void*, int);
 CYASSL_API int  CyaSSL_accept(CYASSL*);
 CYASSL_API void CyaSSL_CTX_free(CYASSL_CTX*);
 CYASSL_API void CyaSSL_free(CYASSL*);

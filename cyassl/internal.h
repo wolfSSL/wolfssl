@@ -1516,7 +1516,7 @@ CYASSL_LOCAL int SendCertificate(CYASSL*);
 CYASSL_LOCAL int SendCertificateRequest(CYASSL*);
 CYASSL_LOCAL int SendServerKeyExchange(CYASSL*);
 CYASSL_LOCAL int SendBuffered(CYASSL*);
-CYASSL_LOCAL int ReceiveData(CYASSL*, byte*, int);
+CYASSL_LOCAL int ReceiveData(CYASSL*, byte*, int, int);
 CYASSL_LOCAL int SendFinished(CYASSL*);
 CYASSL_LOCAL int SendAlert(CYASSL*, int, int);
 CYASSL_LOCAL int ProcessReply(CYASSL*);

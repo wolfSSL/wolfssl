@@ -380,24 +380,40 @@ int CyaSSL_write(CYASSL* ssl, const void* data, int sz)
 }
 
 
-int CyaSSL_read(CYASSL* ssl, void* data, int sz)
+static int CyaSSL_read_internal(CYASSL* ssl, void* data, int sz, int peek)
 {
     int ret; 
 
-    CYASSL_ENTER("SSL_read()");
+    CYASSL_ENTER("CyaSSL_read_internal()");
 
 #ifdef HAVE_ERRNO_H 
         errno = 0;
 #endif
 
-    ret = ReceiveData(ssl, (byte*)data, min(sz, OUTPUT_RECORD_SIZE));
+    ret = ReceiveData(ssl, (byte*)data, min(sz, OUTPUT_RECORD_SIZE), peek);
 
-    CYASSL_LEAVE("SSL_read()", ret);
+    CYASSL_LEAVE("CyaSSL_read_internal()", ret);
 
     if (ret < 0)
         return SSL_FATAL_ERROR;
     else
         return ret;
+}
+
+
+int CyaSSL_peek(CYASSL* ssl, void* data, int sz)
+{
+    CYASSL_ENTER("CyaSSL_peek()");
+
+    return CyaSSL_read_internal(ssl, data, sz, TRUE);
+}
+
+
+int CyaSSL_read(CYASSL* ssl, void* data, int sz)
+{
+    CYASSL_ENTER("CyaSSL_read()");
+
+    return CyaSSL_read_internal(ssl, data, sz, FALSE);
 }
 
 

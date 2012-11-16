@@ -4065,7 +4065,7 @@ int SendData(CYASSL* ssl, const void* data, int sz)
 }
 
 /* process input data */
-int ReceiveData(CYASSL* ssl, byte* output, int sz)
+int ReceiveData(CYASSL* ssl, byte* output, int sz, int peek)
 {
     int size;
 
@@ -4104,8 +4104,11 @@ int ReceiveData(CYASSL* ssl, byte* output, int sz)
         size = ssl->buffers.clearOutputBuffer.length;
 
     XMEMCPY(output, ssl->buffers.clearOutputBuffer.buffer, size);
-    ssl->buffers.clearOutputBuffer.length -= size;
-    ssl->buffers.clearOutputBuffer.buffer += size;
+
+    if (peek == 0) {
+        ssl->buffers.clearOutputBuffer.length -= size;
+        ssl->buffers.clearOutputBuffer.buffer += size;
+    }
    
     if (ssl->buffers.clearOutputBuffer.length == 0 && 
                                            ssl->buffers.inputBuffer.dynamicFlag)

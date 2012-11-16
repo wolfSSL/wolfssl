@@ -116,6 +116,7 @@ typedef CYASSL_X509_STORE_CTX X509_STORE_CTX;
 
 #define SSL_write    CyaSSL_write
 #define SSL_read     CyaSSL_read
+#define SSL_peek     CyaSSL_peek
 #define SSL_accept   CyaSSL_accept
 #define SSL_CTX_free CyaSSL_CTX_free
 #define SSL_free     CyaSSL_free
