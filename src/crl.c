@@ -437,8 +437,8 @@ static void* DoMonitor(void* arg)
     }
 
     for (;;) {
-        char          buffer[8192];
-        int           length = read(notifyFd, buffer, sizeof(buffer));
+        char          buff[8192];
+        int           length = read(notifyFd, buff, sizeof(buff));
        
         CYASSL_MSG("Got notify event");
 
