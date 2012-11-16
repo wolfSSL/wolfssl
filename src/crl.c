@@ -328,11 +328,19 @@ static int SwapLists(CYASSL_CRL* crl)
 }
 
 
-#ifdef __MACH__
+#if (defined(__MACH__) || defined(__FreeBSD__))
 
+#include <sys/types.h>
 #include <sys/event.h>
 #include <sys/time.h>
 #include <fcntl.h>
+
+#ifdef __MACH__
+    #define XEVENT_MODE O_EVTONLY
+#elif defined(__FreeBSD__)
+    #define XEVENT_MODE EVFILT_VNODE
+#endif
+
 
 /* OS X  monitoring */
 static void* DoMonitor(void* arg)
@@ -354,7 +362,7 @@ static void* DoMonitor(void* arg)
     fDER = -1;
 
     if (crl->monitors[0].path) {
-        fPEM = open(crl->monitors[0].path, O_EVTONLY);
+        fPEM = open(crl->monitors[0].path, XEVENT_MODE);
         if (fPEM == -1) {
             CYASSL_MSG("PEM event dir open failed");
             return NULL;
@@ -362,7 +370,7 @@ static void* DoMonitor(void* arg)
     }
 
     if (crl->monitors[1].path) {
-        fDER = open(crl->monitors[1].path, O_EVTONLY);
+        fDER = open(crl->monitors[1].path, XEVENT_MODE);
         if (fDER == -1) {
             CYASSL_MSG("DER event dir open failed");
             return NULL;

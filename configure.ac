@@ -613,10 +613,10 @@ AC_ARG_ENABLE(crl-monitor,
 if test "$ENABLED_CRL_MONITOR" = "yes"
 then
     case $host_os in
-    *linux* | *darwin*)
+    *linux* | *darwin* | *freebsd*)
         AM_CFLAGS="$AM_CFLAGS -DHAVE_CRL_MONITOR" ;;
     *)
-        AC_MSG_ERROR([crl monitor only allowed on linux or OS X]) ;;
+        AC_MSG_ERROR([crl monitor only allowed on linux, OS X, or freebsd]) ;;
     esac
 fi
 
@@ -787,6 +787,7 @@ echo "   * LEANPSK:                   $ENABLED_LEANPSK"
 echo "   * ECC:                       $ENABLED_ECC"
 echo "   * OCSP:                      $ENABLED_OCSP"
 echo "   * CRL:                       $ENABLED_CRL"
+echo "   * CRL-MONITOR:               $ENABLED_CRL_MONITOR"
 echo "   * NTRU:                      $ENABLED_NTRU"
 echo ""
 echo "---"
