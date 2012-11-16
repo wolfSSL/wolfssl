@@ -397,7 +397,7 @@ static void* DoMonitor(void* arg)
 }
 
 
-#elif __linux__
+#elif defined(__linux__)
 
 #include <sys/types.h>
 #include <sys/inotify.h>
@@ -456,6 +456,9 @@ static void* DoMonitor(void* arg)
 }
 
 
+#else
+
+#error "CRL monitor only currently supported on linux or mach"
 
 #endif /* MACH or linux */
 

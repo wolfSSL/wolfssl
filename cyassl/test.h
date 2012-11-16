@@ -338,6 +338,7 @@ static INLINE void build_addr(SOCKADDR_IN_T* addr,
     else
         addr->sin_addr.s_addr = inet_addr(host);
 #else
+    (void)peer;
     addr->sin6_family = AF_INET_V;
     addr->sin6_port = htons(port);
     addr->sin6_addr = in6addr_loopback;

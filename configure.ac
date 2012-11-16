@@ -612,7 +612,12 @@ AC_ARG_ENABLE(crl-monitor,
 
 if test "$ENABLED_CRL_MONITOR" = "yes"
 then
-    AM_CFLAGS="$AM_CFLAGS -DHAVE_CRL_MONITOR"
+    case $host_os in
+    *linux* | *darwin*)
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_CRL_MONITOR" ;;
+    *)
+        AC_MSG_ERROR([crl monitor only allowed on linux or OS X]) ;;
+    esac
 fi
 
 AM_CONDITIONAL([BUILD_CRL_MONITOR], [test "x$ENABLED_CRL_MONITOR" = "xyes"])
