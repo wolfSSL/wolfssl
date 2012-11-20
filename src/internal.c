@@ -870,10 +870,24 @@ void InitSuites(Suites* suites, ProtocolVersion pv, byte haveRSA, byte havePSK,
     }
 #endif
 
+#ifdef BUILD_TLS_PSK_WITH_AES_128_CBC_SHA256
+    if (tls && havePSK) {
+        suites->suites[idx++] = 0; 
+        suites->suites[idx++] = TLS_PSK_WITH_AES_128_CBC_SHA256;
+    }
+#endif
+
 #ifdef BUILD_TLS_PSK_WITH_AES_128_CBC_SHA
     if (tls && havePSK) {
         suites->suites[idx++] = 0; 
         suites->suites[idx++] = TLS_PSK_WITH_AES_128_CBC_SHA;
+    }
+#endif
+
+#ifdef BUILD_TLS_PSK_WITH_NULL_SHA256
+    if (tls & havePSK) {
+        suites->suites[idx++] = 0;
+        suites->suites[idx++] = TLS_PSK_WITH_NULL_SHA256;
     }
 #endif
 
@@ -4544,12 +4558,20 @@ const char* const cipher_names[] =
     "DHE-RSA-AES256-SHA",
 #endif
 
+#ifdef BUILD_TLS_PSK_WITH_AES_128_CBC_SHA256
+    "PSK-AES128-CBC-SHA256",
+#endif
+
 #ifdef BUILD_TLS_PSK_WITH_AES_128_CBC_SHA
     "PSK-AES128-CBC-SHA",
 #endif
 
 #ifdef BUILD_TLS_PSK_WITH_AES_256_CBC_SHA
     "PSK-AES256-CBC-SHA",
+#endif
+
+#ifdef BUILD_TLS_PSK_WITH_NULL_SHA256
+    "PSK-NULL-SHA256",
 #endif
 
 #ifdef BUILD_TLS_PSK_WITH_NULL_SHA
@@ -4756,12 +4778,20 @@ int cipher_name_idx[] =
     TLS_DHE_RSA_WITH_AES_256_CBC_SHA,
 #endif
 
+#ifdef BUILD_TLS_PSK_WITH_AES_128_CBC_SHA256
+    TLS_PSK_WITH_AES_128_CBC_SHA256,    
+#endif
+
 #ifdef BUILD_TLS_PSK_WITH_AES_128_CBC_SHA
     TLS_PSK_WITH_AES_128_CBC_SHA,    
 #endif
 
 #ifdef BUILD_TLS_PSK_WITH_AES_256_CBC_SHA
     TLS_PSK_WITH_AES_256_CBC_SHA,
+#endif
+
+#ifdef BUILD_TLS_PSK_WITH_NULL_SHA256
+    TLS_PSK_WITH_NULL_SHA256,
 #endif
 
 #ifdef BUILD_TLS_PSK_WITH_NULL_SHA
@@ -6850,12 +6880,22 @@ int SetCipherList(Suites* s, const char* list)
                 return 1;
             break;
 
+        case TLS_PSK_WITH_AES_128_CBC_SHA256 :
+            if (requirement == REQUIRES_PSK)
+                return 1;
+            break;
+
         case TLS_PSK_WITH_AES_128_CBC_SHA :
             if (requirement == REQUIRES_PSK)
                 return 1;
             break;
 
         case TLS_PSK_WITH_AES_256_CBC_SHA :
+            if (requirement == REQUIRES_PSK)
+                return 1;
+            break;
+
+        case TLS_PSK_WITH_NULL_SHA256 :
             if (requirement == REQUIRES_PSK)
                 return 1;
             break;

@@ -2696,7 +2696,7 @@ int CyaSSL_dtls_got_timeout(CYASSL* ssl)
             return SSL_FATAL_ERROR;
         }
 
-		#ifndef NO_CERTS
+        #ifndef NO_CERTS
             /* in case used set_accept_state after init */
             if (!havePSK && (ssl->buffers.certificate.buffer == NULL ||
                              ssl->buffers.key.buffer == NULL)) {
@@ -2705,7 +2705,7 @@ int CyaSSL_dtls_got_timeout(CYASSL* ssl)
                 CYASSL_ERROR(ssl->error);
                 return SSL_FATAL_ERROR;
             }
-		#endif
+        #endif
 
         #ifdef HAVE_ECC
             /* in case used set_accept_state after init */
@@ -5411,10 +5411,16 @@ int CyaSSL_set_compression(CYASSL* ssl)
                     return "TLS_RSA_WITH_NULL_SHA";
                 case TLS_RSA_WITH_NULL_SHA256 :
                     return "TLS_RSA_WITH_NULL_SHA256";
+                case TLS_PSK_WITH_AES_128_CBC_SHA256 :
+                    return "TLS_PSK_WITH_AES_128_CBC_SHA256";
                 case TLS_PSK_WITH_AES_128_CBC_SHA :
                     return "TLS_PSK_WITH_AES_128_CBC_SHA";
                 case TLS_PSK_WITH_AES_256_CBC_SHA :
                     return "TLS_PSK_WITH_AES_256_CBC_SHA";
+                case TLS_PSK_WITH_NULL_SHA256 :
+                    return "TLS_PSK_WITH_NULL_SHA256";
+                case TLS_PSK_WITH_NULL_SHA :
+                    return "TLS_PSK_WITH_NULL_SHA";
                 case TLS_DHE_RSA_WITH_AES_128_CBC_SHA256 :
                     return "TLS_DHE_RSA_WITH_AES_128_CBC_SHA256";
                 case TLS_DHE_RSA_WITH_AES_256_CBC_SHA256 :
