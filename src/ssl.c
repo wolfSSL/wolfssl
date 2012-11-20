@@ -895,6 +895,7 @@ int AddCA(CYASSL_CERT_MANAGER* cm, buffer der, int type, int verify)
         char* headerEnd;
         char* footerEnd;
         char* consumedEnd;
+        char* bufferEnd = (char*)(buff + longSz);
         long  neededSz;
         int   pkcs8    = 0;
         int   pkcs8Enc = 0;
@@ -965,7 +966,7 @@ int AddCA(CYASSL_CERT_MANAGER* cm, buffer der, int type, int verify)
         }
         headerEnd += XSTRLEN(header);
 
-        /* get next line */
+        /* eat end of line */
         if (headerEnd[0] == '\n')
             headerEnd++;
         else if (headerEnd[1] == '\n')
@@ -1023,13 +1024,15 @@ int AddCA(CYASSL_CERT_MANAGER* cm, buffer der, int type, int verify)
 
         consumedEnd = footerEnd + XSTRLEN(footer);
 
-        /* get next line */
-        if (consumedEnd[0] == '\n')
-            consumedEnd++;
-        else if (consumedEnd[1] == '\n')
-            consumedEnd += 2;
-        else
-            return SSL_BAD_FILE;
+        if (consumedEnd < bufferEnd) {  /* handle no end of line on last line */
+            /* eat end of line */
+            if (consumedEnd[0] == '\n')
+                consumedEnd++;
+            else if (consumedEnd[1] == '\n')
+                consumedEnd += 2;
+            else
+                return SSL_BAD_FILE;
+        }
 
         if (info)
             info->consumed = (long)(consumedEnd - (char*)buff);
