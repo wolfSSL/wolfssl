@@ -123,7 +123,6 @@ int pbkdf2_test(void);
     int  ecc_test(void);
 #endif
 
-int PemToDer(const char* inName, const char* outName);
 
 
 static void err_sys(const char* msg, int es)
