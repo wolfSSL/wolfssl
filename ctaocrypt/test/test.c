@@ -101,7 +101,8 @@ int  sha_test(void);
 int  sha256_test(void);
 int  sha512_test(void);
 int  sha384_test(void);
-int  hmac_test(void);
+int  hmac_md5_test(void);
+int  hmac_sha_test(void);
 int  arc4_test(void);
 int  hc128_test(void);
 int  rabbit_test(void);
@@ -159,7 +160,7 @@ void ctaocrypt_test(void* args)
 #endif /* USE_FAST_MATH */
 #endif /* !CYASSL_LEANPSK */
 
-#ifdef NO_MD5
+#ifndef NO_MD5
     if ( (ret = md5_test()) ) 
         err_sys("MD5      test failed!\n", ret);
     else
@@ -214,10 +215,17 @@ void ctaocrypt_test(void* args)
 #endif
 
 #ifndef NO_HMAC
-    if ( (ret = hmac_test()) ) 
-        err_sys("HMAC     test failed!\n", ret);
+    #ifndef NO_MD5
+        if ( (ret = hmac_md5_test()) ) 
+            err_sys("HMAC-MD5 test failed!\n", ret);
+        else
+            printf( "HMAC-MD5 test passed!\n");
+    #endif
+
+    if ( (ret = hmac_sha_test()) ) 
+        err_sys("HMAC-SHA test failed!\n", ret);
     else
-        printf( "HMAC     test passed!\n");
+        printf( "HMAC-SHA test passed!\n");
 #endif
 
     if ( (ret = arc4_test()) )
@@ -411,7 +419,7 @@ int md2_test()
 }
 #endif 
 
-
+#ifndef NO_MD5
 int md5_test(void)
 {
     Md5  md5;
@@ -471,6 +479,7 @@ int md5_test(void)
 
     return 0;
 }
+#endif /* NO_MD5 */
 
 
 #ifndef NO_MD4
@@ -796,8 +805,8 @@ int sha384_test(void)
 #endif /* CYASSL_SHA384 */
 
 
-#ifndef NO_HMAC
-int hmac_test(void)
+#if !defined(NO_HMAC) && !defined(NO_MD5)
+int hmac_md5_test(void)
 {
     Hmac hmac;
     byte hash[MD5_DIGEST_SIZE];
@@ -846,6 +855,65 @@ int hmac_test(void)
         HmacFinal(&hmac, hash);
 
         if (memcmp(hash, test_hmac[i].output, MD5_DIGEST_SIZE) != 0)
+            return -20 - i;
+    }
+
+    return 0;
+}
+#endif /* NO_HMAC && NO_MD5 */
+
+#ifndef NO_HMAC
+int hmac_sha_test(void)
+{
+    Hmac hmac;
+    byte hash[SHA_DIGEST_SIZE];
+
+    const char* keys[]=
+    {
+        "\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b"
+                                                                "\x0b\x0b\x0b",
+        "Jefe",
+        "\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA"
+                                                                "\xAA\xAA\xAA"
+    };
+
+    testVector a, b, c;
+    testVector test_hmac[3];
+
+    int times = sizeof(test_hmac) / sizeof(testVector), i;
+
+    a.input  = "Hi There";
+    a.output = "\xb6\x17\x31\x86\x55\x05\x72\x64\xe2\x8b\xc0\xb6\xfb\x37\x8c"
+               "\x8e\xf1\x46\xbe\x00";
+    a.inLen  = strlen(a.input);
+    a.outLen = strlen(a.output);
+
+    b.input  = "what do ya want for nothing?";
+    b.output = "\xef\xfc\xdf\x6a\xe5\xeb\x2f\xa2\xd2\x74\x16\xd5\xf1\x84\xdf"
+               "\x9c\x25\x9a\x7c\x79";
+    b.inLen  = strlen(b.input);
+    b.outLen = strlen(b.output);
+
+    c.input  = "\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD"
+               "\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD"
+               "\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD"
+               "\xDD\xDD\xDD\xDD\xDD\xDD";
+    c.output = "\x12\x5d\x73\x42\xb9\xac\x11\xcd\x91\xa3\x9a\xf4\x8a\xa1\x7b"
+               "\x4f\x63\xf1\x75\xd3";
+    c.inLen  = strlen(c.input);
+    c.outLen = strlen(c.output);
+
+    test_hmac[0] = a;
+    test_hmac[1] = b;
+    test_hmac[2] = c;
+
+    for (i = 0; i < times; ++i) {
+        HmacSetKey(&hmac, SHA, (byte*)keys[i], (word32)strlen(keys[i]));
+        HmacUpdate(&hmac, (byte*)test_hmac[i].input,
+                   (word32)test_hmac[i].inLen);
+        HmacFinal(&hmac, hash);
+
+        if (memcmp(hash, test_hmac[i].output, SHA_DIGEST_SIZE) != 0)
             return -20 - i;
     }
 
