@@ -281,7 +281,6 @@ void client_test(void* args)
     if (usePsk) {
 #ifndef NO_PSK
         CyaSSL_CTX_set_psk_client_callback(ctx, my_psk_client_cb);
-        CyaSSL_CTX_use_psk_identity_hint(ctx, "cyassl_client");
         if (cipherList == NULL) {
             const char *defaultCipherList;
             #ifdef HAVE_NULL_CIPHER
