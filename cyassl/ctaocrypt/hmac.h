@@ -25,7 +25,10 @@
 #ifndef CTAO_CRYPT_HMAC_H
 #define CTAO_CRYPT_HMAC_H
 
-#include <cyassl/ctaocrypt/md5.h>
+#ifndef NO_MD5
+    #include <cyassl/ctaocrypt/md5.h>
+#endif
+
 #include <cyassl/ctaocrypt/sha.h>
 
 #ifndef NO_SHA256
@@ -44,6 +47,9 @@
 enum {
     IPAD    = 0x36,
     OPAD    = 0x5C,
+#ifdef NO_MD5
+    MD5     = 0,
+#endif
 #if defined(CYASSL_SHA384)
     INNER_HASH_SIZE = SHA384_DIGEST_SIZE,
     HMAC_BLOCK_SIZE = SHA384_BLOCK_SIZE
@@ -62,7 +68,9 @@ enum {
 
 /* hash union */
 typedef union {
-    Md5 md5;
+    #ifndef NO_MD5
+        Md5 md5;
+    #endif
     Sha sha;
     #ifndef NO_SHA256
         Sha256 sha256;

@@ -147,12 +147,14 @@ int test_method2(CYASSL_METHOD *method, const char *name)
 
 int test_CyaSSL_Method_Allocators(void)
 {
+#ifndef NO_OLD_TLS
     test_method(CyaSSLv3_server_method(), "CyaSSLv3_server_method()");
     test_method(CyaSSLv3_client_method(), "CyaSSLv3_client_method()");
     test_method(CyaTLSv1_server_method(), "CyaTLSv1_server_method()");
     test_method(CyaTLSv1_client_method(), "CyaTLSv1_client_method()");
     test_method(CyaTLSv1_1_server_method(), "CyaTLSv1_1_server_method()");
     test_method(CyaTLSv1_1_client_method(), "CyaTLSv1_1_client_method()");
+#endif /* NO_OLD_TLS */
     test_method(CyaTLSv1_2_server_method(), "CyaTLSv1_2_server_method()");
     test_method(CyaTLSv1_2_client_method(), "CyaTLSv1_2_client_method()");
     test_method(CyaSSLv23_client_method(), "CyaSSLv23_client_method()");

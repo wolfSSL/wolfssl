@@ -374,7 +374,11 @@ enum Misc {
     SECRET_LEN      = 48,       /* pre RSA and all master */
     ENCRYPT_LEN     = 512,      /* allow 4096 bit static buffer */
     SIZEOF_SENDER   =  4,       /* clnt or srvr           */
+#ifndef NO_MD5
     FINISHED_SZ     = MD5_DIGEST_SIZE + SHA_DIGEST_SIZE,
+#else
+    FINISHED_SZ     = 36,
+#endif
     MAX_RECORD_SIZE = 16384,    /* 2^14, max size by standard */
     MAX_MSG_EXTRA   = 70,       /* max added to msg, mac + pad  from */
                                 /* RECORD_HEADER_SZ + BLOCK_SZ (pad) + SHA_256
@@ -781,7 +785,8 @@ typedef struct CRL_Entry CRL_Entry;
 struct CRL_Entry {
     CRL_Entry* next;                      /* next entry */
     byte    issuerHash[SHA_DIGEST_SIZE];  /* issuer hash                 */ 
-    byte    crlHash[MD5_DIGEST_SIZE];     /* raw crl data hash           */ 
+    /* byte    crlHash[SHA_DIGEST_SIZE];      raw crl data hash           */ 
+    /* restore the hash here if needed for optimized comparisons */
     byte    lastDate[MAX_DATE_SIZE]; /* last date updated  */
     byte    nextDate[MAX_DATE_SIZE]; /* next update date   */
     byte    lastDateFormat;          /* last date format */
@@ -1069,8 +1074,12 @@ CYASSL_LOCAL void FreeCiphers(CYASSL* ssl);
 
 /* hashes type */
 typedef struct Hashes {
-    byte md5[MD5_DIGEST_SIZE];
-    byte sha[SHA_DIGEST_SIZE];
+    #ifndef NO_MD5
+        byte md5[MD5_DIGEST_SIZE];
+        byte sha[SHA_DIGEST_SIZE];
+    #else
+        byte hash[FINISHED_SZ];
+    #endif
 } Hashes;
 
 
@@ -1308,8 +1317,10 @@ struct CYASSL {
     void*           IOCB_ReadCtx;
     void*           IOCB_WriteCtx;
     RNG*            rng;
-    Md5             hashMd5;            /* md5 hash of handshake msgs */
     Sha             hashSha;            /* sha hash of handshake msgs */
+#ifndef NO_MD5
+    Md5             hashMd5;            /* md5 hash of handshake msgs */
+#endif
 #ifndef NO_SHA256
     Sha256          hashSha256;         /* sha256 hash of handshake msgs */
 #endif

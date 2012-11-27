@@ -58,7 +58,8 @@ static int InitCRL_Entry(CRL_Entry* crle, DecodedCRL* dcrl)
     CYASSL_ENTER("InitCRL_Entry");
 
     XMEMCPY(crle->issuerHash, dcrl->issuerHash, SHA_DIGEST_SIZE);
-    XMEMCPY(crle->crlHash, dcrl->crlHash, MD5_DIGEST_SIZE);
+    /* XMEMCPY(crle->crlHash, dcrl->crlHash, SHA_DIGEST_SIZE);
+     *   copy the hash here if needed for optimized comparisons */
     XMEMCPY(crle->lastDate, dcrl->lastDate, MAX_DATE_SIZE);
     XMEMCPY(crle->nextDate, dcrl->nextDate, MAX_DATE_SIZE);
     crle->lastDateFormat = dcrl->lastDateFormat;

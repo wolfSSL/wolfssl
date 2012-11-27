@@ -4941,15 +4941,16 @@ int ParseCRL(DecodedCRL* dcrl, const byte* buff, word32 sz, void* cm)
 {
     int     version, len;
     word32  oid, idx = 0;
-    Md5     md5;
+    Sha     sha;
     Signer* ca;
 
     CYASSL_MSG("ParseCRL");
 
     /* raw crl hash */
-    InitMd5(&md5);
-    Md5Update(&md5, buff, sz);
-    Md5Final(&md5, dcrl->crlHash);
+    /* hash here if needed for optimized comparisons
+     * InitSha(&sha);
+     * ShaUpdate(&sha, buff, sz);
+     * ShaFinal(&sha, dcrl->crlHash); */
 
     if (GetSequence(buff, &idx, &len, sz) < 0)
         return ASN_PARSE_E;

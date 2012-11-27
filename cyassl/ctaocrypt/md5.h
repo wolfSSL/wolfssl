@@ -19,6 +19,7 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  */
 
+#ifndef NO_MD5
 
 #ifndef CTAO_CRYPT_MD5_H
 #define CTAO_CRYPT_MD5_H
@@ -59,4 +60,4 @@ CYASSL_API void Md5Final(Md5*, byte*);
 #endif
 
 #endif /* CTAO_CRYPT_MD5_H */
-
+#endif /* NO_MD5 */

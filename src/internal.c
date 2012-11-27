@@ -90,10 +90,12 @@ typedef enum {
     runProcessingOneMessage
 } processReply;
 
+#ifndef NO_MD5
 static void Hmac(CYASSL* ssl, byte* digest, const byte* buffer, word32 sz,
                  int content, int verify);
 
 static void BuildCertHashes(CYASSL* ssl, Hashes* hashes);
+#endif
 
 
 #ifndef min
@@ -1019,7 +1021,9 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
     ssl->IOCB_ReadCtx  = &ssl->rfd;  /* prevent invalid pointer access if not */
     ssl->IOCB_WriteCtx = &ssl->wfd;  /* correctly set */
 
+#ifndef NO_MD5
     InitMd5(&ssl->hashMd5);
+#endif
     InitSha(&ssl->hashSha);
 #ifndef NO_SHA256
     InitSha256(&ssl->hashSha256);
@@ -1088,7 +1092,11 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
     
     ssl->options.resuming = 0;
     ssl->options.haveSessionId = 0;
-    ssl->hmac = Hmac;         /* default to SSLv3 */
+    #ifndef NO_OLD_TLS
+        ssl->hmac = Hmac;         /* default to SSLv3 */
+    #else
+        ssl->hmac = TLS_hmac;
+    #endif
     ssl->heap = ctx->heap;    /* defaults to self */
     ssl->options.tls    = 0;
     ssl->options.tls1_1 = 0;
@@ -1578,8 +1586,11 @@ static void HashOutput(CYASSL* ssl, const byte* output, int sz, int ivSz)
     }
 #endif
 
-    Md5Update(&ssl->hashMd5, adj, sz);
     ShaUpdate(&ssl->hashSha, adj, sz);
+#ifndef NO_MD5
+    Md5Update(&ssl->hashMd5, adj, sz);
+#endif
+
     if (IsAtLeastTLSv1_2(ssl)) {
 #ifndef NO_SHA256
         Sha256Update(&ssl->hashSha256, adj, sz);
@@ -1604,8 +1615,11 @@ static void HashInput(CYASSL* ssl, const byte* input, int sz)
     }
 #endif
 
-    Md5Update(&ssl->hashMd5, adj, sz);
     ShaUpdate(&ssl->hashSha, adj, sz);
+#ifndef NO_MD5
+    Md5Update(&ssl->hashMd5, adj, sz);
+#endif
+
     if (IsAtLeastTLSv1_2(ssl)) {
 #ifndef NO_SHA256
         Sha256Update(&ssl->hashSha256, adj, sz);
@@ -2024,6 +2038,7 @@ static int GetDtlsHandShakeHeader(CYASSL* ssl, const byte* input,
 #endif
 
 
+#ifndef NO_MD5
 /* fill with MD5 pad size since biggest required */
 static const byte PAD1[PAD_MD5] = 
                               { 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36,
@@ -2080,12 +2095,15 @@ static void BuildSHA(CYASSL* ssl, Hashes* hashes, const byte* sender)
 
     ShaFinal(&ssl->hashSha, hashes->sha);
 }
+#endif
 
 
 static void BuildFinished(CYASSL* ssl, Hashes* hashes, const byte* sender)
 {
     /* store current states, building requires get_digest which resets state */
+#ifndef NO_MD5
     Md5 md5 = ssl->hashMd5;
+#endif
     Sha sha = ssl->hashSha;
 #ifndef NO_SHA256
     Sha256 sha256;
@@ -2107,13 +2125,17 @@ static void BuildFinished(CYASSL* ssl, Hashes* hashes, const byte* sender)
 
     if (ssl->options.tls)
         BuildTlsFinished(ssl, hashes, sender);
+#ifndef NO_MD5
     else {
         BuildMD5(ssl, hashes, sender);
         BuildSHA(ssl, hashes, sender);
     }
+#endif
     
     /* restore */
+#ifndef NO_MD5
     ssl->hashMd5 = md5;
+#endif
     ssl->hashSha = sha;
     if (IsAtLeastTLSv1_2(ssl)) {
 #ifndef NO_SHA256
@@ -3545,7 +3567,7 @@ static INLINE const byte* GetMacSecret(CYASSL* ssl, int verify)
         return ssl->keys.server_write_MAC_secret;
 }
 
-
+#ifndef NO_OLD_TLS
 static void Hmac(CYASSL* ssl, byte* digest, const byte* in, word32 sz,
                  int content, int verify)
 {
@@ -3665,7 +3687,7 @@ static void BuildCertHashes(CYASSL* ssl, Hashes* hashes)
         ssl->hashSha256 = sha256;
 #endif
 }
-
+#endif
 
 /* Build SSL Message, encrypted */
 static int BuildMessage(CYASSL* ssl, byte* output, const byte* input, int inSz,
@@ -5416,10 +5438,14 @@ int SetCipherList(Suites* s, const char* list)
                     int ret; 
                     XMEMCPY(ssl->arrays->masterSecret,
                             ssl->session.masterSecret, SECRET_LEN);
-                    if (ssl->options.tls)
+                    #ifndef NO_OLD_TLS
+                        if (ssl->options.tls)
+                            ret = DeriveTlsKeys(ssl);
+                        else
+                            ret = DeriveKeys(ssl);
+                    #else
                         ret = DeriveTlsKeys(ssl);
-                    else
-                        ret = DeriveKeys(ssl);
+                    #endif
                     ssl->options.serverState = SERVER_HELLODONE_COMPLETE;
                     return ret;
                 }
@@ -7117,7 +7143,9 @@ int SetCipherList(Suites* s, const char* list)
 #endif
 
         /* manually hash input since different format */
+#ifndef NO_MD5
         Md5Update(&ssl->hashMd5, input + idx, sz);
+#endif
         ShaUpdate(&ssl->hashSha, input + idx, sz);
 #ifndef NO_SHA256
     if (IsAtLeastTLSv1_2(ssl))
@@ -7236,10 +7264,14 @@ int SetCipherList(Suites* s, const char* list)
             }
 
             RNG_GenerateBlock(ssl->rng, ssl->arrays->serverRandom, RAN_LEN);
-            if (ssl->options.tls)
+            #ifndef NO_OLD_TLS
+                if (ssl->options.tls)
+                    ret = DeriveTlsKeys(ssl);
+                else
+                    ret = DeriveKeys(ssl);
+            #else
                 ret = DeriveTlsKeys(ssl);
-            else
-                ret = DeriveKeys(ssl);
+            #endif
             ssl->options.clientState = CLIENT_KEYEXCHANGE_COMPLETE;
 
             return ret;
@@ -7405,10 +7437,14 @@ int SetCipherList(Suites* s, const char* list)
             }
 
             RNG_GenerateBlock(ssl->rng, ssl->arrays->serverRandom, RAN_LEN);
-            if (ssl->options.tls)
+            #ifndef NO_OLD_TLS
+                if (ssl->options.tls)
+                    ret = DeriveTlsKeys(ssl);
+                else
+                    ret = DeriveKeys(ssl);
+            #else
                 ret = DeriveTlsKeys(ssl);
-            else
-                ret = DeriveKeys(ssl);
+            #endif
             ssl->options.clientState = CLIENT_KEYEXCHANGE_COMPLETE;
 
             return ret;
@@ -7800,8 +7836,10 @@ int SetCipherList(Suites* s, const char* list)
 
         if (ret == 0) {
             ssl->options.clientState = CLIENT_KEYEXCHANGE_COMPLETE;
-            if (ssl->options.verifyPeer)
-                BuildCertHashes(ssl, &ssl->certHashes);
+            #ifndef NO_CERTS
+                if (ssl->options.verifyPeer)
+                    BuildCertHashes(ssl, &ssl->certHashes);
+            #endif
         }
 
         return ret;

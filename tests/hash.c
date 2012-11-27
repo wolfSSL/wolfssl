@@ -68,11 +68,13 @@ int HashTest(void)
         printf( "   MD4      test passed!\n");
 #endif
 
+#ifndef NO_MD5
     if ( (ret = md5_test()) ) {
         printf( "   MD5      test failed!\n");
         return ret; 
     } else
         printf( "   MD5      test passed!\n");
+#endif
     
     if ( (ret = sha_test()) ) {
         printf( "   SHA      test failed!\n");
@@ -224,6 +226,8 @@ int md4_test(void)
 
 #endif /* NO_MD4 */
 
+#ifndef NO_MD5
+
 int md5_test(void)
 {
     Md5  md5;
@@ -283,6 +287,8 @@ int md5_test(void)
 
     return 0;
 }
+
+#endif /* NO_MD5 */
 
 int sha_test(void)
 {

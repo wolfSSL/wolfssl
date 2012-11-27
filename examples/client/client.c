@@ -237,6 +237,7 @@ void client_test(void* args)
     myoptind = 0;      /* reset for test cases */
 
     switch (version) {
+#ifndef NO_OLD_TLS
         case 0:
             method = CyaSSLv3_client_method();
             break;
@@ -248,6 +249,7 @@ void client_test(void* args)
         case 2:
             method = CyaTLSv1_1_client_method();
             break;
+#endif
 
         case 3:
             method = CyaTLSv1_2_client_method();

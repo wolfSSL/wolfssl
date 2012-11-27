@@ -295,9 +295,19 @@ int SuiteTest(void)
     }
 #endif
 
-#if !defined(NO_PSK) && defined(HAVE_NULL_CIPHER)
+#if !defined(NO_PSK) && defined(HAVE_NULL_CIPHER) && !defined(NO_OLD_TLS)
     strcpy(argv0[1], "tests/test-psk-null.conf");
     printf("starting psk extra null cipher suite tests\n");
+    test_harness(&args);
+    if (args.return_code != 0) {
+        printf("error from script %d\n", args.return_code);
+        exit(EXIT_FAILURE);  
+    }
+#endif
+
+#ifdef CYASSL_LEANPSK
+    strcpy(argv0[1], "tests/test-leanpsk.conf");
+    printf("starting lean-psk cipher suite tests\n");
     test_harness(&args);
     if (args.return_code != 0) {
         printf("error from script %d\n", args.return_code);

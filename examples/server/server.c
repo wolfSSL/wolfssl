@@ -205,6 +205,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     myoptind = 0;      /* reset for test cases */
 
     switch (version) {
+#ifndef NO_OLD_TLS
         case 0:
             method = SSLv3_server_method();
             break;
@@ -216,6 +217,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
         case 2:
             method = TLSv1_1_server_method();
             break;
+#endif
 
         case 3:
             method = TLSv1_2_server_method();

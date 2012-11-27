@@ -43,16 +43,6 @@
 #endif /* min */
 
 
-/* calculate XOR for TLSv1 PRF */
-static INLINE void get_xor(byte *digest, word32 digLen, byte* md5, byte* sha)
-{
-    word32 i;
-
-    for (i = 0; i < digLen; i++) 
-        digest[i] = md5[i] ^ sha[i];
-}
-
-
 #ifdef CYASSL_SHA384
     #define PHASH_MAX_DIGEST_SIZE SHA384_DIGEST_SIZE
 #else
@@ -63,7 +53,7 @@ static INLINE void get_xor(byte *digest, word32 digLen, byte* md5, byte* sha)
 static void p_hash(byte* result, word32 resLen, const byte* secret,
                    word32 secLen, const byte* seed, word32 seedLen, int hash)
 {
-    word32   len = MD5_DIGEST_SIZE;
+    word32   len = SHA_DIGEST_SIZE;
     word32   times;
     word32   lastLen;
     word32   lastTime;
@@ -74,23 +64,39 @@ static void p_hash(byte* result, word32 resLen, const byte* secret,
 
     Hmac hmac;
 
-    if (hash == md5_mac) {
-        hash = MD5;
+    switch (hash) {
+        #ifndef NO_MD5
+        case md5_mac:
+        {
+            len = MD5_DIGEST_SIZE;
+            hash = MD5;
+        }
+        break;
+        #endif
+        #ifndef NO_SHA256
+        case sha256_mac:
+        {
+            len = SHA256_DIGEST_SIZE;
+            hash = SHA256;
+        }
+        break;
+        #endif
+        #ifdef CYASSL_SHA384
+        case sha384_mac:
+        {
+            len = SHA384_DIGEST_SIZE;
+            hash = SHA384;
+        }
+        break;
+        #endif
+        case sha_mac:
+        default:
+        {
+            len = SHA_DIGEST_SIZE;
+            hash = SHA;
+        }
+        break;
     }
-    else if (hash == sha_mac) {
-        len = SHA_DIGEST_SIZE;
-        hash = SHA;
-    } else if (hash == sha256_mac) {
-        len = SHA256_DIGEST_SIZE;
-        hash = SHA256;
-    }
-#ifdef CYASSL_SHA384
-    else if (hash == sha384_mac)
-    {
-        len = SHA384_DIGEST_SIZE;
-        hash = SHA384;
-    }
-#endif
 
     times = resLen / len;
     lastLen = resLen % len;
@@ -117,6 +123,18 @@ static void p_hash(byte* result, word32 resLen, const byte* secret,
     }
 }
 
+
+
+#ifndef NO_MD5
+
+/* calculate XOR for TLSv1 PRF */
+static INLINE void get_xor(byte *digest, word32 digLen, byte* md5, byte* sha)
+{
+    word32 i;
+
+    for (i = 0; i < digLen; i++) 
+        digest[i] = md5[i] ^ sha[i];
+}
 
 
 /* compute TLSv1 PRF (pseudo random function using HMAC) */
@@ -151,6 +169,8 @@ static void doPRF(byte* digest, word32 digLen, const byte* secret,word32 secLen,
     get_xor(digest, digLen, md5_result, sha_result);
 }
 
+#endif
+
 
 /* Wrapper to call straight thru to p_hash in TSL 1.2 cases to remove stack
    use */
@@ -174,8 +194,10 @@ static void PRF(byte* digest, word32 digLen, const byte* secret, word32 secLen,
         p_hash(digest, digLen, secret, secLen, labelSeed, labLen + seedLen,
                hash_type);
     }
+#ifndef NO_MD5
     else
         doPRF(digest, digLen, secret, secLen, label, labLen, seed, seedLen);
+#endif
 }
 
 
@@ -192,8 +214,11 @@ void BuildTlsFinished(CYASSL* ssl, Hashes* hashes, const byte* sender)
     byte        handshake_hash[HSHASH_SZ];
     word32      hashSz = FINISHED_SZ;
 
+#ifndef NO_MD5
     Md5Final(&ssl->hashMd5, handshake_hash);
     ShaFinal(&ssl->hashSha, &handshake_hash[MD5_DIGEST_SIZE]);
+#endif
+    
     if (IsAtLeastTLSv1_2(ssl)) {
 #ifndef NO_SHA256
         if (ssl->specs.mac_algorithm <= sha256_mac) {
@@ -214,9 +239,15 @@ void BuildTlsFinished(CYASSL* ssl, Hashes* hashes, const byte* sender)
     else
         side = tls_server;
 
+#ifndef NO_MD5
     PRF(hashes->md5, TLS_FINISHED_SZ, ssl->arrays->masterSecret, SECRET_LEN,
         side, FINISHED_LABEL_SZ, handshake_hash, hashSz, IsAtLeastTLSv1_2(ssl),
         ssl->specs.mac_algorithm);
+#else
+    PRF(hashes->hash, TLS_FINISHED_SZ, ssl->arrays->masterSecret, SECRET_LEN,
+        side, FINISHED_LABEL_SZ, handshake_hash, hashSz, IsAtLeastTLSv1_2(ssl),
+        ssl->specs.mac_algorithm);
+#endif
 }
 
 
@@ -378,12 +409,28 @@ void TLS_hmac(CYASSL* ssl, byte* digest, const byte* in, word32 sz,
 #endif
     c32toa(GetSEQIncrement(ssl, verify), &seq[sizeof(word32)]);
     
-    if (ssl->specs.mac_algorithm == md5_mac)
-        type = MD5;
-    else if (ssl->specs.mac_algorithm == sha_mac)
-        type = SHA;
-    else
-        type = SHA256;
+    switch (ssl->specs.mac_algorithm) {
+        #ifndef NO_MD5
+        case md5_mac:
+        {
+            type = MD5;
+        }
+        break;
+        #endif
+        #ifndef NO_SHA256
+        case sha256_mac:
+        {
+            type = SHA256;
+        }
+        break;
+        #endif
+        case sha_mac:
+        default:
+        {
+            type = SHA;
+        }
+        break;
+    }
     HmacSetKey(&hmac, type, GetMacSecret(ssl, verify), ssl->specs.hash_size);
     
     HmacUpdate(&hmac, seq, SEQ_SZ);                               /* seq_num */
@@ -398,6 +445,8 @@ void TLS_hmac(CYASSL* ssl, byte* digest, const byte* in, word32 sz,
 
 
 #ifndef NO_CYASSL_CLIENT
+
+#ifndef NO_OLD_TLS
 
     CYASSL_METHOD* CyaTLSv1_client_method(void)
     {
@@ -420,6 +469,7 @@ void TLS_hmac(CYASSL* ssl, byte* digest, const byte* in, word32 sz,
         return method;
     }
 
+#endif /* !NO_OLD_TLS */
 
 #ifndef NO_SHA256   /* can't use without SHA256 */
 
@@ -447,7 +497,9 @@ void TLS_hmac(CYASSL* ssl, byte* digest, const byte* in, word32 sz,
 #else
             InitSSL_Method(method, MakeTLSv1_1());
 #endif
+#ifndef NO_OLD_TLS
             method->downgrade = 1;
+#endif 
         }
         return method;
     }
@@ -458,6 +510,8 @@ void TLS_hmac(CYASSL* ssl, byte* digest, const byte* in, word32 sz,
 
 
 #ifndef NO_CYASSL_SERVER
+
+#ifndef NO_OLD_TLS
 
     CYASSL_METHOD* CyaTLSv1_server_method(void)
     {
@@ -484,6 +538,7 @@ void TLS_hmac(CYASSL* ssl, byte* digest, const byte* in, word32 sz,
         return method;
     }
 
+#endif /* !NO_OLD_TLS */
 
 #ifndef NO_SHA256   /* can't use without SHA256 */
 
@@ -514,7 +569,9 @@ void TLS_hmac(CYASSL* ssl, byte* digest, const byte* in, word32 sz,
             InitSSL_Method(method, MakeTLSv1_1());
 #endif
             method->side      = SERVER_END;
+#ifndef NO_OLD_TLS
             method->downgrade = 1;
+#endif /* !NO_OLD_TLS */
         }
         return method;
     }

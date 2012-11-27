@@ -970,7 +970,7 @@ enum KeyStuff {
 
 };
 
-
+#ifndef NO_OLD_TLS
 /* true or false, zero for error */
 static int SetPrefix(byte* sha_input, int idx)
 {
@@ -1002,6 +1002,7 @@ static int SetPrefix(byte* sha_input, int idx)
     }
     return 1;
 }
+#endif
 
 
 static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
@@ -1212,7 +1213,7 @@ int StoreKeys(CYASSL* ssl, const byte* keyData)
                    ssl->options.side, ssl->heap, ssl->rng);
 }
 
-
+#ifndef NO_OLD_TLS
 int DeriveKeys(CYASSL* ssl)
 {
     int length = 2 * ssl->specs.hash_size + 
@@ -1344,15 +1345,20 @@ static int MakeSslMasterSecret(CYASSL* ssl)
 
     return ret;
 }
+#endif
 
 
 /* Master wrapper, doesn't use SSL stack space in TLS mode */
 int MakeMasterSecret(CYASSL* ssl)
 {
-#ifndef NO_TLS
+#ifdef NO_OLD_TLS
+    return MakeTlsMasterSecret(ssl);
+#elif !defined(NO_TLS)
     if (ssl->options.tls) return MakeTlsMasterSecret(ssl);
 #endif
 
+#ifndef NO_OLD_TLS
     return MakeSslMasterSecret(ssl);
+#endif
 }
 

@@ -462,7 +462,7 @@ struct DecodedCRL {
     word32  signatureOID;            /* sum of algorithm object id       */
     byte*   signature;               /* pointer into raw source, not owned */
     byte    issuerHash[SHA_DIGEST_SIZE];  /* issuer hash                 */ 
-    byte    crlHash[MD5_DIGEST_SIZE];     /* raw crl data hash           */ 
+    byte    crlHash[SHA_DIGEST_SIZE];     /* raw crl data hash           */ 
     byte    lastDate[MAX_DATE_SIZE]; /* last date updated  */
     byte    nextDate[MAX_DATE_SIZE]; /* next update date   */
     byte    lastDateFormat;          /* format of last date */
