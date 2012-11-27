@@ -98,7 +98,9 @@ int main(int argc, char** argv)
     
     printf("\n");
 
+#ifndef NO_MD5
     bench_md5();
+#endif
     bench_sha();
 #ifndef NO_SHA256
     bench_sha256();
@@ -294,6 +296,7 @@ void bench_rabbit(void)
 #endif /* NO_RABBIT */
 
 
+#ifndef NO_MD5
 void bench_md5(void)
 {
     Md5    hash;
@@ -315,6 +318,7 @@ void bench_md5(void)
     printf("MD5      %d megs took %5.3f seconds, %6.2f MB/s\n", megs, total,
                                                              persec);
 }
+#endif /* NO_MD5 */
 
 
 void bench_sha(void)
