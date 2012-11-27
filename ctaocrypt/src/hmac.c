@@ -279,6 +279,7 @@ void HmacFinal(Hmac* hmac, byte* hash)
 
             Sha384Final(&hmac->hash.sha384, hash);
         }
+        break;
         #endif
 
         default:
