@@ -4941,13 +4941,13 @@ int ParseCRL(DecodedCRL* dcrl, const byte* buff, word32 sz, void* cm)
 {
     int     version, len;
     word32  oid, idx = 0;
-    Sha     sha;
     Signer* ca;
 
     CYASSL_MSG("ParseCRL");
 
     /* raw crl hash */
     /* hash here if needed for optimized comparisons
+     * Sha     sha;
      * InitSha(&sha);
      * ShaUpdate(&sha, buff, sz);
      * ShaFinal(&sha, dcrl->crlHash); */
