@@ -3172,6 +3172,9 @@ int AddSession(CYASSL* ssl)
 /* No session cache version */
 CYASSL_SESSION* GetSession(CYASSL* ssl, byte* masterSecret)
 {
+    (void)ssl;
+    (void)masterSecret;
+
     return NULL;  
 }
 
