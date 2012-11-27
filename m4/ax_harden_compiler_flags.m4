@@ -59,6 +59,7 @@
 # AX_APPEND_COMPILE_FLAGS([-std=c99],,[$ax_append_compile_cflags_extra])
 # AX_APPEND_COMPILE_FLAGS([-Wlogical-op],,[$ax_append_compile_cflags_extra])
 # AX_APPEND_COMPILE_FLAGS([-fstack-check],,[$ax_append_compile_cflags_extra]) -- problems with fastmath stack size checks
+# AX_APPEND_COMPILE_FLAGS([-floop-parallelize-all],,[$ax_append_compile_cflags_extra]) -- causes RSA verify problem on x64
 
 #serial 4
 
@@ -153,7 +154,6 @@
       AX_APPEND_COMPILE_FLAGS([-Wunused-result],,[$ax_append_compile_cflags_extra])
       AX_APPEND_COMPILE_FLAGS([-Wunused-variable],,[$ax_append_compile_cflags_extra])
       AX_APPEND_COMPILE_FLAGS([-Wwrite-strings],,[$ax_append_compile_cflags_extra])
-      AX_APPEND_COMPILE_FLAGS([-floop-parallelize-all],,[$ax_append_compile_cflags_extra])
       AX_APPEND_COMPILE_FLAGS([-fwrapv],,[$ax_append_compile_cflags_extra])
       AC_LANG_POP
       ])
@@ -217,7 +217,6 @@
       AX_APPEND_COMPILE_FLAGS([-Wunused-variable],,[$ax_append_compile_cxxflags_extra])
       AX_APPEND_COMPILE_FLAGS([-Wwrite-strings],,[$ax_append_compile_cxxflags_extra])
       AX_APPEND_COMPILE_FLAGS([-Wformat-security],,[$ax_append_compile_cxxflags_extra])
-      AX_APPEND_COMPILE_FLAGS([-floop-parallelize-all],,[$ax_append_compile_cxxflags_extra])
       AX_APPEND_COMPILE_FLAGS([-fwrapv],,[$ax_append_compile_cxxflags_extra])
       AC_LANG_POP
   ])
