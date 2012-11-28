@@ -4336,6 +4336,7 @@ void SetErrorString(int error, char* str)
         break;
 
     case WANT_READ :
+    case SSL_ERROR_WANT_READ :
         XSTRNCPY(str, "non-blocking socket wants data to be read", max);
         break;
 
@@ -4352,6 +4353,7 @@ void SetErrorString(int error, char* str)
         break;
 
     case WANT_WRITE :
+    case SSL_ERROR_WANT_WRITE :
         XSTRNCPY(str, "non-blocking socket write buffer full", max);
         break;
 
@@ -4432,6 +4434,7 @@ void SetErrorString(int error, char* str)
         break;
 
     case ZERO_RETURN:
+    case SSL_ERROR_ZERO_RETURN:
         XSTRNCPY(str, "peer sent close notify alert", max);
         break;
 

@@ -486,6 +486,7 @@ int CyaSSL_get_error(CYASSL* ssl, int ret)
     if (ret > 0)
         return SSL_ERROR_NONE;
 
+    /* make sure converted types are handled in SetErrorString() too */
     if (ssl->error == WANT_READ)
         return SSL_ERROR_WANT_READ;         /* convert to OpenSSL type */
     else if (ssl->error == WANT_WRITE)
