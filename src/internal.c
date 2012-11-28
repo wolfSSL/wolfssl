@@ -1476,6 +1476,7 @@ int DtlsPoolSend(CYASSL* ssl)
 
 #endif
 
+#ifndef NO_OLD_TLS
 
 ProtocolVersion MakeSSLv3(void)
 {
@@ -1485,6 +1486,8 @@ ProtocolVersion MakeSSLv3(void)
 
     return pv;
 }
+
+#endif /* NO_OLD_TLS */
 
 
 #ifdef CYASSL_DTLS

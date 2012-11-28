@@ -251,6 +251,8 @@ void BuildTlsFinished(CYASSL* ssl, Hashes* hashes, const byte* sender)
 }
 
 
+#ifndef NO_OLD_TLS
+
 ProtocolVersion MakeTLSv1(void)
 {
     ProtocolVersion pv;
@@ -269,6 +271,8 @@ ProtocolVersion MakeTLSv1_1(void)
 
     return pv;
 }
+
+#endif
 
 
 ProtocolVersion MakeTLSv1_2(void)

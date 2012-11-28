@@ -23,7 +23,11 @@
 #ifndef CTAO_CRYPT_RANDOM_H
 #define CTAO_CRYPT_RANDOM_H
 
-#include <cyassl/ctaocrypt/arc4.h>
+#include <cyassl/ctaocrypt/types.h>
+
+#ifndef NO_RC4
+    #include <cyassl/ctaocrypt/arc4.h>
+#endif
 
 #ifdef __cplusplus
     extern "C" {
@@ -49,9 +53,11 @@ typedef struct OS_Seed {
     #endif
 } OS_Seed;
 
+
 CYASSL_LOCAL
 int GenerateSeed(OS_Seed* os, byte* seed, word32 sz);
 
+#ifndef NO_RC4
 
 /* secure Random Nnumber Generator */
 typedef struct RNG {
@@ -59,11 +65,28 @@ typedef struct RNG {
     Arc4    cipher;
 } RNG;
 
+#else /* NO_RC4 */
+
+#define DBRG_SEED_LEN (440/8)
+
+/* secure Random Nnumber Generator */
+typedef struct RNG {
+    OS_Seed seed;
+
+    byte V[DBRG_SEED_LEN];
+    byte C[DBRG_SEED_LEN];
+    word64 reseed_ctr;
+} RNG;
+
+#endif
 
 CYASSL_API int  InitRng(RNG*);
 CYASSL_API void RNG_GenerateBlock(RNG*, byte*, word32 sz);
 CYASSL_API byte RNG_GenerateByte(RNG*);
 
+#ifdef NO_RC4
+    CYASSL_API void FreeRng(RNG*);
+#endif
 
 #ifdef __cplusplus
     } /* extern "C" */

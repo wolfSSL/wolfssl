@@ -44,6 +44,10 @@
 #include <cyassl/ctaocrypt/logging.h>
 #include <cyassl/ctaocrypt/random.h>
 
+#ifndef NO_RC4
+    #include <cyassl/ctaocrypt/arc4.h>
+#endif
+
 #ifdef HAVE_NTRU
     #include "crypto_ntru.h"
 #endif
@@ -750,6 +754,7 @@ static int DecryptKey(const char* password, int passwordSz, byte* salt,
             break;
         }
 #endif
+#ifndef NO_RC4
         case RC4_TYPE:
         {
             Arc4    dec;
@@ -758,6 +763,7 @@ static int DecryptKey(const char* password, int passwordSz, byte* salt,
             Arc4Process(&dec, input, input, length);
             break;
         }
+#endif
 
         default:
             return ALGO_ID_E; 

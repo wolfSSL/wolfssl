@@ -681,11 +681,14 @@ int CyaSSL_SetVersion(CYASSL* ssl, int version)
     }
 
     switch (version) {
+#ifndef NO_OLD_TLS
         case CYASSL_SSLV3:
             ssl->version = MakeSSLv3();
             break;
+#endif
 
 #ifndef NO_TLS
+    #ifndef NO_OLD_TLS
         case CYASSL_TLSV1:
             ssl->version = MakeTLSv1();
             break;
@@ -693,7 +696,7 @@ int CyaSSL_SetVersion(CYASSL* ssl, int version)
         case CYASSL_TLSV1_1:
             ssl->version = MakeTLSv1_1();
             break;
-
+    #endif
         case CYASSL_TLSV1_2:
             ssl->version = MakeTLSv1_2();
             break;
@@ -2421,6 +2424,7 @@ int CyaSSL_dtls_got_timeout(CYASSL* ssl)
 /* client only parts */
 #ifndef NO_CYASSL_CLIENT
 
+    #ifndef NO_OLD_TLS
     CYASSL_METHOD* CyaSSLv3_client_method(void)
     {
         CYASSL_METHOD* method =
@@ -2431,6 +2435,7 @@ int CyaSSL_dtls_got_timeout(CYASSL* ssl)
             InitSSL_Method(method, MakeSSLv3());
         return method;
     }
+    #endif
 
     #ifdef CYASSL_DTLS
         CYASSL_METHOD* CyaDTLSv1_client_method(void)
@@ -2651,6 +2656,7 @@ int CyaSSL_dtls_got_timeout(CYASSL* ssl)
 /* server only parts */
 #ifndef NO_CYASSL_SERVER
 
+    #ifndef NO_OLD_TLS
     CYASSL_METHOD* CyaSSLv3_server_method(void)
     {
         CYASSL_METHOD* method =
@@ -2663,6 +2669,7 @@ int CyaSSL_dtls_got_timeout(CYASSL* ssl)
         }
         return method;
     }
+    #endif
 
 
     #ifdef CYASSL_DTLS

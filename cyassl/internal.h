@@ -35,6 +35,9 @@
 #include <cyassl/ctaocrypt/md5.h>
 #include <cyassl/ctaocrypt/aes.h>
 #include <cyassl/ctaocrypt/logging.h>
+#ifndef NO_RC4
+    #include <cyassl/ctaocrypt/arc4.h>
+#endif
 #ifdef HAVE_ECC
     #include <cyassl/ctaocrypt/ecc.h>
 #endif
