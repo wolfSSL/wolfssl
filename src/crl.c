@@ -90,7 +90,7 @@ static void FreeCRL_Entry(CRL_Entry* crle)
 
 
 /* Free all CRL resources */
-void FreeCRL(CYASSL_CRL* crl)
+void FreeCRL(CYASSL_CRL* crl, int dynamic)
 {
     CRL_Entry* tmp = crl->crlList;
 
@@ -116,6 +116,8 @@ void FreeCRL(CYASSL_CRL* crl)
     }
 #endif
     FreeMutex(&crl->crlLock);
+    if (dynamic)   /* free self */
+        XFREE(crl, NULL, DYNAMIC_TYPE_CRL);
 }
 
 
@@ -295,7 +297,7 @@ static int SwapLists(CYASSL_CRL* crl)
         ret = LoadCRL(&tmp, crl->monitors[0].path, SSL_FILETYPE_PEM, 0);
         if (ret != SSL_SUCCESS) {
             CYASSL_MSG("PEM LoadCRL on dir change failed");
-            FreeCRL(&tmp);
+            FreeCRL(&tmp, 0);
             return -1;
         }
     }
@@ -304,14 +306,14 @@ static int SwapLists(CYASSL_CRL* crl)
         ret = LoadCRL(&tmp, crl->monitors[1].path, SSL_FILETYPE_ASN1, 0);
         if (ret != SSL_SUCCESS) {
             CYASSL_MSG("DER LoadCRL on dir change failed");
-            FreeCRL(&tmp);
+            FreeCRL(&tmp, 0);
             return -1;
         }
     }
 
     if (LockMutex(&crl->crlLock) != 0) {
         CYASSL_MSG("LockMutex failed");
-        FreeCRL(&tmp);
+        FreeCRL(&tmp, 0);
         return -1;
     }
 
@@ -323,7 +325,7 @@ static int SwapLists(CYASSL_CRL* crl)
 
     UnLockMutex(&crl->crlLock);
 
-    FreeCRL(&tmp);
+    FreeCRL(&tmp, 0);
 
     return 0;
 }
@@ -581,6 +583,8 @@ int LoadCRL(CYASSL_CRL* crl, const char* path, int type, int monitor)
             ret = StartMonitorCRL(crl);
        } 
     }
+    
+    closedir(dir);
 
     return ret;
 }

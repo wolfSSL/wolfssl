@@ -592,7 +592,7 @@ void CyaSSL_CertManagerFree(CYASSL_CERT_MANAGER* cm)
     if (cm) {
         #ifdef HAVE_CRL
             if (cm->crl) 
-                FreeCRL(cm->crl);
+                FreeCRL(cm->crl, 1);
         #endif
         FreeSigners(cm->caList, NULL);
         FreeMutex(&cm->caLock);
@@ -1719,7 +1719,7 @@ int CyaSSL_CertManagerEnableCRL(CYASSL_CERT_MANAGER* cm, int options)
 
             if (InitCRL(cm->crl, cm) != 0) {
                 CYASSL_MSG("Init CRL failed");
-                FreeCRL(cm->crl);
+                FreeCRL(cm->crl, 1);
                 cm->crl = NULL;
                 return SSL_FAILURE;
             }
@@ -3179,6 +3179,9 @@ int AddSession(CYASSL* ssl)
 /* No session cache version */
 CYASSL_SESSION* GetSession(CYASSL* ssl, byte* masterSecret)
 {
+    (void)ssl;
+    (void)masterSecret;
+
     return NULL;  
 }
 
