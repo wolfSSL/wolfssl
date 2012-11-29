@@ -762,7 +762,7 @@ AC_OUTPUT
 
 echo "---"
 echo "Running make clean..."
-make clean
+make clean >/dev/null 2>&1
 echo
 
 echo "---"
