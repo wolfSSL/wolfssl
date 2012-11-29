@@ -661,6 +661,16 @@ then
 fi
 
 
+# Enable Examples, used to disable examples
+AC_ARG_ENABLE(examples,
+    [  --enable-examples       Enable Examples  (default: enabled)],
+    [ ENABLED_EXAMPLES=$enableval ],
+    [ ENABLED_EXAMPLES=yes ]
+    )
+
+AS_IF([test "x$ENABLED_SINGLETHREADED" = "xyes"], [ENABLED_EXAMPLES="no"])
+AM_CONDITIONAL([BUILD_EXAMPLES], [test "x$ENABLED_EXAMPLES" = "xyes"])
+
 # LIBZ
 trylibzdir=""
 AC_ARG_WITH(libz,
@@ -751,6 +761,11 @@ AX_AM_JOBSERVER([yes])
 AC_OUTPUT
 
 echo "---"
+echo "Running make clean..."
+make clean
+echo
+
+echo "---"
 echo "Configuration summary for $PACKAGE_NAME version $VERSION"
 echo ""
 echo "   * Installation prefix:       $prefix"
@@ -789,5 +804,7 @@ echo "   * OCSP:                      $ENABLED_OCSP"
 echo "   * CRL:                       $ENABLED_CRL"
 echo "   * CRL-MONITOR:               $ENABLED_CRL_MONITOR"
 echo "   * NTRU:                      $ENABLED_NTRU"
+echo "   * Examples:                  $ENABLED_EXAMPLES"
 echo ""
 echo "---"
+
