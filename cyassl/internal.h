@@ -1279,7 +1279,8 @@ struct CYASSL_X509 {
 /* record layer header for PlainText, Compressed, and CipherText */
 typedef struct RecordLayerHeader {
     byte            type;
-    ProtocolVersion version;
+    byte            pvMajor;
+    byte            pvMinor;
     byte            length[2];
 } RecordLayerHeader;
 
@@ -1287,7 +1288,8 @@ typedef struct RecordLayerHeader {
 /* record layer header for DTLS PlainText, Compressed, and CipherText */
 typedef struct DtlsRecordLayerHeader {
     byte            type;
-    ProtocolVersion version;
+    byte            pvMajor;
+    byte            pvMinor;
     byte            epoch[2];             /* increment on cipher state change */
     byte            sequence_number[6];   /* per record */
     byte            length[2];

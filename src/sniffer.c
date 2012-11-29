@@ -1148,7 +1148,7 @@ static int ProcessServerHello(const byte* input, int* sslBytes,
 {
     ProtocolVersion pv;
     byte            b;
-    int             toRead = sizeof(ProtocolVersion) + RAN_LEN + ENUM_LEN;
+    int             toRead = VERSION_SZ + RAN_LEN + ENUM_LEN;
     int             doResume     = 0;
     
     /* make sure we didn't miss ClientHello */
@@ -1163,9 +1163,9 @@ static int ProcessServerHello(const byte* input, int* sslBytes,
         return -1;
     }
     
-    XMEMCPY(&pv, input, sizeof(ProtocolVersion));
-    input     += sizeof(ProtocolVersion);
-    *sslBytes -= (int)sizeof(ProtocolVersion);
+    XMEMCPY(&pv, input, VERSION_SZ);
+    input     += VERSION_SZ;
+    *sslBytes -= VERSION_SZ;
            
     session->sslServer->version = pv;
     session->sslClient->version = pv;
@@ -1278,7 +1278,7 @@ static int ProcessClientHello(const byte* input, int* sslBytes,
 {
     byte   bLen;
     word16 len;
-    int    toRead = sizeof(ProtocolVersion) + RAN_LEN + ENUM_LEN;
+    int    toRead = VERSION_SZ + RAN_LEN + ENUM_LEN;
     
     session->flags.clientHello = 1;  /* don't process again */
     
@@ -1289,8 +1289,8 @@ static int ProcessClientHello(const byte* input, int* sslBytes,
     }
     
     /* skip, get negotiated one from server hello */
-    input     += sizeof(ProtocolVersion);
-    *sslBytes -= (int)sizeof(ProtocolVersion);
+    input     += VERSION_SZ;
+    *sslBytes -= VERSION_SZ;
     
     XMEMCPY(session->sslServer->arrays->clientRandom, input, RAN_LEN);
     XMEMCPY(session->sslClient->arrays->clientRandom, input, RAN_LEN);

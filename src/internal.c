@@ -1642,7 +1642,8 @@ static void AddRecordHeader(byte* output, word32 length, byte type, CYASSL* ssl)
     /* record layer header */
     rl = (RecordLayerHeader*)output;
     rl->type    = type;
-    rl->version = ssl->version;           /* type and version same in each */
+    rl->pvMajor = ssl->version.major;       /* type and version same in each */
+    rl->pvMinor = ssl->version.minor;
 
     if (!ssl->options.dtls)
         c16toa((word16)length, rl->length);
@@ -1944,9 +1945,7 @@ static int GetRecordHeader(CYASSL* ssl, const byte* input, word32* inOutIdx,
     }
 
     /* catch version mismatch */
-    if (rh->version.major != ssl->version.major || 
-        rh->version.minor != ssl->version.minor) {
-        
+    if (rh->pvMajor != ssl->version.major || rh->pvMinor != ssl->version.minor){
         if (ssl->options.side == SERVER_END &&
             ssl->options.acceptState == ACCEPT_BEGIN)
             CYASSL_MSG("Client attempting to connect with different version"); 
@@ -2975,8 +2974,8 @@ static INLINE int Decrypt(CYASSL* ssl, byte* plain, const byte* input,
                 c32toa(GetSEQIncrement(ssl, 1), additional + AEAD_SEQ_OFFSET);
                 
                 additional[AEAD_TYPE_OFFSET] = ssl->curRL.type;
-                additional[AEAD_VMAJ_OFFSET] = ssl->curRL.version.major;
-                additional[AEAD_VMIN_OFFSET] = ssl->curRL.version.minor;
+                additional[AEAD_VMAJ_OFFSET] = ssl->curRL.pvMajor;
+                additional[AEAD_VMIN_OFFSET] = ssl->curRL.pvMinor;
 
                 c16toa(sz - AES_GCM_EXP_IV_SZ - AEAD_AUTH_TAG_SZ,
                                         additional + AEAD_LEN_OFFSET);
@@ -4190,7 +4189,8 @@ int SendAlert(CYASSL* ssl, int severity, int type)
     else {
         RecordLayerHeader *const rl = (RecordLayerHeader*)output;
         rl->type    = alert;
-        rl->version = ssl->version;
+        rl->pvMajor = ssl->version.major;
+        rl->pvMinor = ssl->version.minor;
         c16toa(ALERT_SIZE, rl->length);      
 
         XMEMCPY(output + RECORD_HEADER_SZ, input, ALERT_SIZE);
@@ -5208,7 +5208,7 @@ int SetCipherList(Suites* s, const char* list)
             return SUITES_ERROR;
         } 
 
-        length = (word32)sizeof(ProtocolVersion) + RAN_LEN
+        length = VERSION_SZ + RAN_LEN
                + idSz + ENUM_LEN                      
                + ssl->suites->suiteSz + SUITE_LEN
                + COMP_LEN + ENUM_LEN;
@@ -5238,8 +5238,8 @@ int SetCipherList(Suites* s, const char* list)
         AddHeaders(output, length, client_hello, ssl);
 
             /* client hello, first version */
-        XMEMCPY(output + idx, &ssl->version, sizeof(ProtocolVersion));
-        idx += (int)sizeof(ProtocolVersion);
+        output[idx++] = ssl->version.major;
+        output[idx++] = ssl->version.minor;
         ssl->chVersion = ssl->version;  /* store in case changed */
 
             /* then random */
@@ -6133,7 +6133,7 @@ int SetCipherList(Suites* s, const char* list)
         int                sendSz;
         int                ret;
 
-        length = sizeof(ProtocolVersion) + RAN_LEN
+        length = VERSION_SZ + RAN_LEN
                + ID_LEN + ENUM_LEN                 
                + SUITE_LEN 
                + ENUM_LEN;
@@ -6157,8 +6157,8 @@ int SetCipherList(Suites* s, const char* list)
         #endif
         /* now write to output */
             /* first version */
-        XMEMCPY(output + idx, &ssl->version, sizeof(ProtocolVersion));
-        idx += (word32)sizeof(ProtocolVersion);
+        output[idx++] = ssl->version.major;
+        output[idx++] = ssl->version.minor;
 
             /* then random */
         if (!ssl->options.resuming)         
@@ -7603,8 +7603,8 @@ int SetCipherList(Suites* s, const char* list)
 
         AddHeaders(output, length, hello_verify_request, ssl);
 
-        XMEMCPY(output + idx, &ssl->chVersion, VERSION_SZ);
-        idx += VERSION_SZ;
+        output[idx++] =  ssl->chVersion.major;
+        output[idx++] =  ssl->chVersion.minor;
 
         output[idx++] = cookieSz;
         if ((ret = EmbedGenerateCookie(output + idx, cookieSz, ssl)) < 0)
