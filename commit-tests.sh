@@ -16,7 +16,7 @@ echo -e "\n\nTesting basic config too...\n\n"
 RESULT=$?
 [ $RESULT -ne 0 ] && echo -e "\n\nBasic config ./configure failed" && exit 1
 
-make clean; make -j 8 test;
+make -j 8 test;
 RESULT=$?
 [ $RESULT -ne 0 ] && echo -e "\n\nBasic config make test failed" && exit 1
 
@@ -27,7 +27,7 @@ echo -e "\n\nTesting full config as well...\n\n"
 RESULT=$?
 [ $RESULT -ne 0 ] && echo -e "\n\nFull config ./configure failed" && exit 1
 
-make clean; make -j 8 test;
+make -j 8 test;
 RESULT=$?
 [ $RESULT -ne 0 ] && echo -e "\n\nFull config make test failed" && exit 1
 
