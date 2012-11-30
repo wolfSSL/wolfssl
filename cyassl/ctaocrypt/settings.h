@@ -99,6 +99,15 @@
     #define USE_WINDOWS_API
 #endif
 
+
+#ifdef CYASSL_LEANPSK
+    #include <stdlib.h>
+    #define XMALLOC(s, h, type)  malloc((s))
+    #define XFREE(p, h, type)    free((p)) 
+    #define XREALLOC(p, n, h, t) realloc((p), (n))
+#endif
+
+
 #ifdef FREERTOS
     #define NO_WRITEV
     #define NO_SHA512
@@ -413,7 +422,8 @@
 #endif /* MICRIUM */
 
 
-#if !defined(XMALLOC_USER) && !defined(MICRIUM_MALLOC)
+#if !defined(XMALLOC_USER) && !defined(MICRIUM_MALLOC) && \
+                              !defined(CYASSL_LEANPSK)
     #define USE_CYASSL_MEMORY
 #endif
 
