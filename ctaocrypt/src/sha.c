@@ -87,6 +87,34 @@ static void Transform(Sha* sha)
     word32 d = sha->digest[3];
     word32 e = sha->digest[4];
 
+#ifdef USE_SLOW_SHA
+    word32 t, i;
+
+    for (i = 0; i < 16; i++) {
+        R0(a, b, c, d, e, i);
+        t = e; e = d; d = c; c = b; b = a; a = t;
+    }
+
+    for (; i < 20; i++) {
+        R1(a, b, c, d, e, i);
+        t = e; e = d; d = c; c = b; b = a; a = t;
+    }
+
+    for (; i < 40; i++) {
+        R2(a, b, c, d, e, i);
+        t = e; e = d; d = c; c = b; b = a; a = t;
+    }
+
+    for (; i < 60; i++) {
+        R3(a, b, c, d, e, i);
+        t = e; e = d; d = c; c = b; b = a; a = t;
+    }
+
+    for (; i < 80; i++) {
+        R4(a, b, c, d, e, i);
+        t = e; e = d; d = c; c = b; b = a; a = t;
+    }
+#else
     /* nearly 1 K bigger in code size but 25% faster  */
     /* 4 rounds of 20 operations each. Loop unrolled. */
     R0(a,b,c,d,e, 0); R0(e,a,b,c,d, 1); R0(d,e,a,b,c, 2); R0(c,d,e,a,b, 3);
@@ -113,6 +141,7 @@ static void Transform(Sha* sha)
     R4(c,d,e,a,b,68); R4(b,c,d,e,a,69); R4(a,b,c,d,e,70); R4(e,a,b,c,d,71);
     R4(d,e,a,b,c,72); R4(c,d,e,a,b,73); R4(b,c,d,e,a,74); R4(a,b,c,d,e,75);
     R4(e,a,b,c,d,76); R4(d,e,a,b,c,77); R4(c,d,e,a,b,78); R4(b,c,d,e,a,79);
+#endif
 
     /* Add the working vars back into digest state[] */
     sha->digest[0] += a;

@@ -27,6 +27,8 @@
 
 #ifndef NO_RC4
     #include <cyassl/ctaocrypt/arc4.h>
+#else
+    #include <cyassl/ctaocrypt/sha256.h>
 #endif
 
 #ifdef __cplusplus
@@ -73,6 +75,8 @@ typedef struct RNG {
 typedef struct RNG {
     OS_Seed seed;
 
+    Sha256 sha;
+    byte digest[SHA256_DIGEST_SIZE];
     byte V[DBRG_SEED_LEN];
     byte C[DBRG_SEED_LEN];
     word64 reseed_ctr;

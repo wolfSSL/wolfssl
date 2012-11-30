@@ -85,7 +85,9 @@ int main(int argc, char** argv)
 #ifdef HAVE_AESGCM
     bench_aesgcm();
 #endif
+#ifndef NO_RC4
     bench_arc4();
+#endif
 #ifdef HAVE_HC128
     bench_hc128();
 #endif
@@ -232,6 +234,7 @@ void bench_des(void)
 #endif
 
 
+#ifndef NO_RC4
 void bench_arc4(void)
 {
     Arc4   enc;
@@ -250,6 +253,7 @@ void bench_arc4(void)
     printf("ARC4     %d megs took %5.3f seconds, %6.2f MB/s\n", megs, total,
                                                              persec);
 }
+#endif
 
 
 #ifdef HAVE_HC128

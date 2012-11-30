@@ -83,14 +83,12 @@ enum {
 };
 
 
-static int Hash_df(byte* out, word32 outSz, byte type, byte* inA, word32 inASz,
+static int Hash_df(RNG* rng, byte* out, word32 outSz, byte type, byte* inA, word32 inASz,
                                byte* inB, word32 inBSz, byte* inC, word32 inCSz)
 {
     byte ctr;
     int i;
     int len;
-    Sha256 sha;
-    byte digest[SHA256_DIGEST_SIZE];
     word32 bits = (outSz * 8); // reverse byte order
 
     #ifdef LITTLE_ENDIAN_ORDER
@@ -101,31 +99,29 @@ static int Hash_df(byte* out, word32 outSz, byte type, byte* inA, word32 inASz,
 
     for (i = 0, ctr = 1; i < len; i++, ctr++)
     {
-        InitSha256(&sha);
-        Sha256Update(&sha, &ctr, sizeof(ctr));
-        Sha256Update(&sha, (byte*)&bits, sizeof(bits));
+        InitSha256(&rng->sha);
+        Sha256Update(&rng->sha, &ctr, sizeof(ctr));
+        Sha256Update(&rng->sha, (byte*)&bits, sizeof(bits));
         /* churning V is the only string that doesn't have 
          * the type added */
         if (type != dbrgInitV)
-            Sha256Update(&sha, &type, sizeof(type));
-        Sha256Update(&sha, inA, inASz);
+            Sha256Update(&rng->sha, &type, sizeof(type));
+        Sha256Update(&rng->sha, inA, inASz);
         if (inB != NULL && inBSz > 0)
-            Sha256Update(&sha, inB, inBSz);
+            Sha256Update(&rng->sha, inB, inBSz);
         if (inC != NULL && inCSz > 0)
-            Sha256Update(&sha, inC, inCSz);
-        Sha256Final(&sha, digest);
+            Sha256Update(&rng->sha, inC, inCSz);
+        Sha256Final(&rng->sha, rng->digest);
 
         if (outSz > SHA256_DIGEST_SIZE) {
-            XMEMCPY(out, digest, SHA256_DIGEST_SIZE);
+            XMEMCPY(out, rng->digest, SHA256_DIGEST_SIZE);
             outSz -= SHA256_DIGEST_SIZE;
             out += SHA256_DIGEST_SIZE;
         }
         else {
-            XMEMCPY(out, digest, outSz);
+            XMEMCPY(out, rng->digest, outSz);
         }
     }
-    XMEMSET(digest, 0, SHA256_DIGEST_SIZE);
-    XMEMSET(&sha, 0, sizeof(sha));
 
     return DBRG_SUCCESS;
 }
@@ -135,12 +131,12 @@ static int Hash_DBRG_Reseed(RNG* rng, byte* entropy, word32 entropySz)
 {
     byte seed[DBRG_SEED_LEN];
 
-    Hash_df(seed, sizeof(seed), dbrgInitV, rng->V, sizeof(rng->V),
+    Hash_df(rng, seed, sizeof(seed), dbrgInitV, rng->V, sizeof(rng->V),
                                                   entropy, entropySz, NULL, 0);
     XMEMCPY(rng->V, seed, sizeof(rng->V));
     XMEMSET(seed, 0, sizeof(seed));
 
-    Hash_df(rng->C, sizeof(rng->C), dbrgInitC, rng->V, sizeof(rng->V),
+    Hash_df(rng, rng->C, sizeof(rng->C), dbrgInitC, rng->V, sizeof(rng->V),
                                                              NULL, 0, NULL, 0);
     rng->reseed_ctr = 1;
     return 0;
@@ -157,33 +153,29 @@ static INLINE void array_add_one(byte* data, word32 dataSz)
     }
 }
 
-static void Hash_gen(byte* out, word32 outSz, byte* V)
+static void Hash_gen(RNG* rng, byte* out, word32 outSz, byte* V)
 {
-    Sha256 sha;
     byte data[DBRG_SEED_LEN];
-    byte digest[SHA256_DIGEST_SIZE];
     int i;
     int len = (outSz / SHA256_DIGEST_SIZE)
         + ((outSz % SHA256_DIGEST_SIZE) ? 1 : 0);
 
     XMEMCPY(data, V, sizeof(data));
     for (i = 0; i < len; i++) {
-        InitSha256(&sha);
-        Sha256Update(&sha, data, sizeof(data));
-        Sha256Final(&sha, digest);
+        InitSha256(&rng->sha);
+        Sha256Update(&rng->sha, data, sizeof(data));
+        Sha256Final(&rng->sha, rng->digest);
         if (outSz > SHA256_DIGEST_SIZE) {
-            XMEMCPY(out, digest, SHA256_DIGEST_SIZE);
+            XMEMCPY(out, rng->digest, SHA256_DIGEST_SIZE);
             outSz -= SHA256_DIGEST_SIZE;
             out += SHA256_DIGEST_SIZE;
             array_add_one(data, DBRG_SEED_LEN);
         }
         else {
-            XMEMCPY(out, digest, outSz);
+            XMEMCPY(out, rng->digest, outSz);
         }
     }
     XMEMSET(data, 0, sizeof(data));
-    XMEMSET(digest, 0, sizeof(digest));
-    XMEMSET(&sha, 0, sizeof(sha));
 }
 
 
@@ -211,22 +203,18 @@ static int Hash_DBRG_Generate(RNG* rng, byte* out, word32 outSz)
     int ret;
 
     if (rng->reseed_ctr != RESEED_MAX) {
-        Sha256 sha;
-        byte digest[SHA256_DIGEST_SIZE];
         byte type = dbrgGenerateH;
 
-        Hash_gen(out, outSz, rng->V);
-        InitSha256(&sha);
-        Sha256Update(&sha, &type, sizeof(type));
-        Sha256Update(&sha, rng->V, sizeof(rng->V));
-        Sha256Final(&sha, digest);
-        array_add(rng->V, sizeof(rng->V), digest, sizeof(digest));
+        Hash_gen(rng, out, outSz, rng->V);
+        InitSha256(&rng->sha);
+        Sha256Update(&rng->sha, &type, sizeof(type));
+        Sha256Update(&rng->sha, rng->V, sizeof(rng->V));
+        Sha256Final(&rng->sha, rng->digest);
+        array_add(rng->V, sizeof(rng->V), rng->digest, sizeof(rng->digest));
         array_add(rng->V, sizeof(rng->V), rng->C, sizeof(rng->C));
         array_add(rng->V, sizeof(rng->V),
                               (byte*)&rng->reseed_ctr, sizeof(rng->reseed_ctr));
         rng->reseed_ctr++;
-        XMEMSET(&sha, 0, sizeof(sha));
-        XMEMSET(digest, 0, sizeof(digest));
         ret = DBRG_SUCCESS;
     }
     else {
@@ -239,8 +227,8 @@ static int Hash_DBRG_Generate(RNG* rng, byte* out, word32 outSz)
 static void Hash_DBRG_Instantiate(RNG* rng, byte* seed, word32 seedSz)
 {
     XMEMSET(rng, 0, sizeof(*rng));
-    Hash_df(rng->V, sizeof(rng->V), dbrgInitV, seed, seedSz, NULL, 0, NULL, 0);
-    Hash_df(rng->C, sizeof(rng->C), dbrgInitC, rng->V, sizeof(rng->V),
+    Hash_df(rng, rng->V, sizeof(rng->V), dbrgInitV, seed, seedSz, NULL, 0, NULL, 0);
+    Hash_df(rng, rng->C, sizeof(rng->C), dbrgInitC, rng->V, sizeof(rng->V),
                                                              NULL, 0, NULL, 0);
     rng->reseed_ctr = 1;
 }

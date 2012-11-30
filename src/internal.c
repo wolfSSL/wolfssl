@@ -7643,11 +7643,13 @@ int SetCipherList(Suites* s, const char* list)
             return OUT_OF_ORDER_E;
         }
 
-        if (ssl->options.verifyPeer && ssl->options.failNoCert)
-            if (!ssl->options.havePeerCert) {
-                CYASSL_MSG("client didn't present peer cert");
-                return NO_PEER_CERT;
-            }
+        #ifndef NO_CERTS
+            if (ssl->options.verifyPeer && ssl->options.failNoCert)
+                if (!ssl->options.havePeerCert) {
+                    CYASSL_MSG("client didn't present peer cert");
+                    return NO_PEER_CERT;
+                }
+        #endif
 
         #ifdef CYASSL_CALLBACKS
             if (ssl->hsInfoOn)

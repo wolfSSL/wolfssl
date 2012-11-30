@@ -245,10 +245,12 @@ void ctaocrypt_test(void* args)
 
 #endif
 
+#ifndef NO_RC4
     if ( (ret = arc4_test()) )
         err_sys("ARC4     test failed!\n", ret);
     else
         printf( "ARC4     test passed!\n");
+#endif
 
 #ifndef NO_HC128
     if ( (ret = hc128_test()) )
@@ -1068,6 +1070,7 @@ int hmac_sha384_test(void)
 #endif
 
 
+#ifndef NO_RC4
 int arc4_test(void)
 {
     byte cipher[16];
@@ -1131,6 +1134,7 @@ int arc4_test(void)
 
     return 0;
 }
+#endif
 
 
 int hc128_test(void)

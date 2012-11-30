@@ -82,6 +82,7 @@
 #endif /* min */
 
 
+#ifndef CYASSL_LEANPSK
 char* mystrnstr(const char* s1, const char* s2, unsigned int n)
 {
     unsigned int s2_len = (unsigned int)XSTRLEN(s2);
@@ -99,6 +100,7 @@ char* mystrnstr(const char* s1, const char* s2, unsigned int n)
 
     return NULL;
 }
+#endif
 
 
 CYASSL_CTX* CyaSSL_CTX_new(CYASSL_METHOD* method)
@@ -163,6 +165,7 @@ void CyaSSL_free(CYASSL* ssl)
 }
 
 
+#ifndef CYASSL_LEANPSK
 int CyaSSL_set_fd(CYASSL* ssl, int fd)
 {
     CYASSL_ENTER("SSL_set_fd");
@@ -191,8 +194,10 @@ int CyaSSL_get_fd(const CYASSL* ssl)
     CYASSL_LEAVE("SSL_get_fd", ssl->rfd);
     return ssl->rfd;
 }
+#endif
 
 
+#ifndef CYASSL_LEANPSK
 void CyaSSL_set_using_nonblock(CYASSL* ssl, int nonblock)
 {
     CYASSL_ENTER("CyaSSL_set_using_nonblock");
@@ -250,6 +255,7 @@ int CyaSSL_dtls_get_peer(CYASSL* ssl, void* peer, unsigned int* peerSz)
     return SSL_NOT_IMPLEMENTED;
 #endif
 }
+#endif /* CYASSL_LEANPSK */
 
 
 int CyaSSL_negotiate(CYASSL* ssl)
@@ -276,6 +282,7 @@ int CyaSSL_negotiate(CYASSL* ssl)
 }
 
 
+#ifndef CYASSL_LEANPSK
 /* object size based on build */
 int CyaSSL_GetObjectSize(void)
 {
@@ -302,6 +309,7 @@ int CyaSSL_GetObjectSize(void)
 
     return sizeof(CYASSL);
 }
+#endif
 
 /* XXX should be NO_DH */
 #ifndef NO_CERTS
@@ -416,7 +424,7 @@ int CyaSSL_read(CYASSL* ssl, void* data, int sz)
     return CyaSSL_read_internal(ssl, data, sz, FALSE);
 }
 
-
+#ifndef CYASSL_LEANPSK
 int CyaSSL_send(CYASSL* ssl, const void* data, int sz, int flags)
 {
     int ret; 
@@ -449,7 +457,7 @@ int CyaSSL_recv(CYASSL* ssl, void* data, int sz, int flags)
 
     return ret;
 }
-
+#endif
 
 int CyaSSL_shutdown(CYASSL* ssl)
 {
@@ -627,6 +635,7 @@ int CyaSSL_pending(CYASSL* ssl)
 }
 
 
+#ifndef CYASSL_LEANPSK
 /* trun on handshake group messages for context */
 int CyaSSL_CTX_set_group_messages(CYASSL_CTX* ctx)
 {
@@ -637,6 +646,7 @@ int CyaSSL_CTX_set_group_messages(CYASSL_CTX* ctx)
 
     return SSL_SUCCESS;
 }
+#endif
 
 
 #ifndef NO_CYASSL_CLIENT
@@ -657,6 +667,7 @@ int CyaSSL_connect_cert(CYASSL* ssl)
 #endif
 
 
+#ifndef CYASSL_LEANPSK
 /* trun on handshake group messages for ssl object */
 int CyaSSL_set_group_messages(CYASSL* ssl)
 {
@@ -721,6 +732,7 @@ int CyaSSL_SetVersion(CYASSL* ssl, int version)
 
     return SSL_SUCCESS;
 }
+#endif
 
 #ifndef NO_CERTS
 
@@ -2249,7 +2261,6 @@ int CyaSSL_CTX_use_NTRUPrivateKey_file(CYASSL_CTX* ctx, const char* file)
 
 #endif /* NO_FILESYSTEM */
 
-#endif /* !NO_CERTS */
 
 void CyaSSL_CTX_set_verify(CYASSL_CTX* ctx, int mode, VerifyCallback vc)
 {
@@ -2290,8 +2301,6 @@ void CyaSSL_set_verify(CYASSL* ssl, int mode, VerifyCallback vc)
     ssl->verifyCallback = vc;
 }
 
-
-#ifndef NO_CERTS
 
 /* store context CA Cache addition callback */
 void CyaSSL_CTX_SetCACb(CYASSL_CTX* ctx, CallbackCACache cb)
@@ -2395,6 +2404,8 @@ int CyaSSL_set_cipher_list(CYASSL* ssl, const char* list)
 }
 
 
+#ifndef CYASSL_LEANPSK
+
 int CyaSSL_dtls_get_current_timeout(CYASSL* ssl)
 {
     (void)ssl;
@@ -2420,6 +2431,8 @@ int CyaSSL_dtls_got_timeout(CYASSL* ssl)
     return NOT_COMPILED_IN;
 #endif
 }
+
+#endif
 
 
 /* client only parts */
