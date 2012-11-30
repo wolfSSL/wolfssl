@@ -194,7 +194,7 @@ static INLINE void array_add(byte* d, word32 dLen, byte* s, word32 sLen)
     if (dLen > 0 && sLen > 0 && dLen >= sLen) {
         int sIdx, dIdx;
             
-        for (sIdx = dLen - 1, dIdx = dLen - 1; sIdx >= 0; dIdx--, sIdx--)
+        for (sIdx = sLen - 1, dIdx = dLen - 1; sIdx >= 0; dIdx--, sIdx--)
         {
             carry += d[dIdx] + s[sIdx];
             d[dIdx] = carry;
