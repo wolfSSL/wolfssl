@@ -649,6 +649,26 @@ then
 fi
 
 
+#valgrind
+AC_ARG_ENABLE(valgrind,
+    [  --enable-valgrind       Enable valgrind for unit tests (default: disabled)],
+    [ ENABLED_VALGRIND=$enableval ],
+    [ ENABLED_VALGRIND=no ]
+    )
+
+if test "$ENABLED_VALGRIND" = "yes"
+then
+    AC_CHECK_PROG(HAVE_VALGRIND,valgrind,yes,no)
+
+    if [["$HAVE_VALGRIND" = "no" ]]; then
+        AC_MSG_ERROR([Valgrind not found.])
+    fi
+    enable_shared=no
+fi
+
+AM_CONDITIONAL([USE_VALGRIND], [test "x$ENABLED_VALGRIND" = "xyes"])
+
+
 # Test certs, use internal cert functions for extra testing 
 AC_ARG_ENABLE(testcert,
     [  --enable-testcert       Enable Test Cert (default: disabled)],

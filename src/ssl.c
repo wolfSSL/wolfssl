@@ -1481,10 +1481,15 @@ int ProcessFile(CYASSL_CTX* ctx, const char* fname, int format, int type,
     int    dynamic = 0;
     int    ret;
     long   sz = 0;
-    XFILE  file = XFOPEN(fname, "rb"); 
+    XFILE  file; 
+    void*  heapHint = ctx ? ctx->heap : NULL;
 
     (void)crl;
+    (void)heapHint;
 
+    if (fname == NULL) return SSL_BAD_FILE;
+
+    file = XFOPEN(fname, "rb"); 
     if (file == XBADFILE) return SSL_BAD_FILE;
     XFSEEK(file, 0, XSEEK_END);
     sz = XFTELL(file);
@@ -1492,7 +1497,7 @@ int ProcessFile(CYASSL_CTX* ctx, const char* fname, int format, int type,
 
     if (sz > (long)sizeof(staticBuffer)) {
         CYASSL_MSG("Getting dynamic buffer");
-        myBuffer = (byte*) XMALLOC(sz, ctx->heap, DYNAMIC_TYPE_FILE);
+        myBuffer = (byte*)XMALLOC(sz, heapHint, DYNAMIC_TYPE_FILE);
         if (myBuffer == NULL) {
             XFCLOSE(file);
             return SSL_BAD_FILE;
@@ -1515,7 +1520,7 @@ int ProcessFile(CYASSL_CTX* ctx, const char* fname, int format, int type,
     }
 
     XFCLOSE(file);
-    if (dynamic) XFREE(myBuffer, ctx->heap, DYNAMIC_TYPE_FILE);
+    if (dynamic) XFREE(myBuffer, heapHint, DYNAMIC_TYPE_FILE);
 
     return ret;
 }

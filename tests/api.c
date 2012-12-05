@@ -744,6 +744,10 @@ void test_client_nofail(void* args)
         printf("Server response: %s\n", reply);
     }
 
+    CyaSSL_free(ssl);
+    CyaSSL_CTX_free(ctx);
+    
+    CloseSocket(sockfd);
     ((func_args*)args)->return_code = TEST_SUCCESS;
     return;
 }

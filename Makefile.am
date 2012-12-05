@@ -53,6 +53,10 @@ include tests/include.am
 include sslSniffer/sslSnifferTest/include.am
 include rpm/include.am
 
+if USE_VALGRIND
+TESTS_ENVIRONMENT=./valgrind-error.sh
+endif
+
 TESTS += $(check_PROGRAMS)
 test: check
 
