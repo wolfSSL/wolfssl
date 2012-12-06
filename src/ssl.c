@@ -103,11 +103,20 @@ char* mystrnstr(const char* s1, const char* s2, unsigned int n)
 #endif
 
 
+/* prevent multiple mutex initializations */
+static volatile int initRefCount = 0;
+static CyaSSL_Mutex count_mutex;   /* init ref count mutex */
+
+
+
 CYASSL_CTX* CyaSSL_CTX_new(CYASSL_METHOD* method)
 {
     CYASSL_CTX* ctx = NULL;
 
     CYASSL_ENTER("CYASSL_CTX_new");
+
+    if (initRefCount == 0)
+        CyaSSL_Init(); /* user no longer forced to call Init themselves */
 
     if (method == NULL)
         return ctx;
@@ -898,6 +907,31 @@ int AddCA(CYASSL_CERT_MANAGER* cm, buffer der, int type, int verify)
     static CyaSSL_Mutex session_mutex;   /* SessionCache mutex */
 
 #endif /* NO_SESSION_CACHE */
+
+
+int CyaSSL_Init(void)
+{
+    int ret = 0;
+
+    CYASSL_ENTER("CyaSSL_Init");
+
+    if (initRefCount == 0) {
+#ifndef NO_SESSION_CACHE
+        if (InitMutex(&session_mutex) != 0)
+            ret = BAD_MUTEX_ERROR;
+#endif
+        if (InitMutex(&count_mutex) != 0)
+            ret = BAD_MUTEX_ERROR;
+    }
+    if (ret == 0) {
+        LockMutex(&count_mutex);
+        initRefCount++;
+        UnLockMutex(&count_mutex);
+    }
+
+    return ret;
+}
+
 
 #ifndef NO_CERTS
 
@@ -2920,33 +2954,6 @@ int CyaSSL_dtls_got_timeout(CYASSL* ssl)
     }
 
 #endif /* NO_CYASSL_SERVER */
-
-/* prevent multiple mutex initializations */
-static volatile int initRefCount = 0;
-static CyaSSL_Mutex count_mutex;   /* init ref count mutex */
-
-int CyaSSL_Init(void)
-{
-    int ret = 0;
-
-    CYASSL_ENTER("CyaSSL_Init");
-
-    if (initRefCount == 0) {
-#ifndef NO_SESSION_CACHE
-        if (InitMutex(&session_mutex) != 0)
-            ret = BAD_MUTEX_ERROR;
-#endif
-        if (InitMutex(&count_mutex) != 0)
-            ret = BAD_MUTEX_ERROR;
-    }
-    if (ret == 0) {
-        LockMutex(&count_mutex);
-        initRefCount++;
-        UnLockMutex(&count_mutex);
-    }
-
-    return ret;
-}
 
 
 int CyaSSL_Cleanup(void)
