@@ -60,6 +60,8 @@ endif
 TESTS += $(check_PROGRAMS)
 test: check
 
+DISTCLEANFILES+= cyassl-config 
+
 maintainer-clean-local:
 	-rm Makefile.in
 	-rm aclocal.m4

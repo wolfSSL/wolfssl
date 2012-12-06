@@ -19,6 +19,11 @@ int main(int argc, char** argv)
     (void)argv;
     printf("starting unit tests...\n");
 
+    if (CurrentDir("tests"))
+        ChangeDirBack(1);
+    else if (CurrentDir("build"))
+        ChangeDirBack(2);
+
     if ( (ret = ApiTest()) != 0) {
         printf("api test failed with %d\n", ret);
         return ret;
