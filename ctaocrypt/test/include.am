@@ -8,3 +8,4 @@ ctaocrypt_test_testctaocrypt_DEPENDENCIES = src/libcyassl.la
 noinst_HEADERS += ctaocrypt/test/test.h
 EXTRA_DIST += ctaocrypt/test/test.sln
 EXTRA_DIST += ctaocrypt/test/test.vcproj
+DISTCLEANFILES+= ctaocrypt/test/.libs/testctaocrypt

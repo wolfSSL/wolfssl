@@ -15,3 +15,5 @@ EXTRA_DIST += examples/echoclient/echoclient-ntru.vcproj
 EXTRA_DIST += examples/echoclient/echoclient.vcproj
 
 dist_example_DATA+= examples/echoclient/echoclient.c
+DISTCLEANFILES+= examples/echoclient/.libs/echoclient
+

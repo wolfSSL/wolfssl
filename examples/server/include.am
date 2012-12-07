@@ -15,3 +15,5 @@ EXTRA_DIST += examples/server/server-ntru.vcproj
 EXTRA_DIST += examples/server/server.vcproj
 
 dist_example_DATA+= examples/server/server.c
+DISTCLEANFILES+= examples/server/.libs/server
+

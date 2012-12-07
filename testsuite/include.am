@@ -22,3 +22,4 @@ EXTRA_DIST += testsuite/testsuite-ntru.vcproj
 EXTRA_DIST += testsuite/testsuite.vcproj
 EXTRA_DIST += input
 EXTRA_DIST += quit
+DISTCLEANFILES+= testsuite/.libs/testsuite

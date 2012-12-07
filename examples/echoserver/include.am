@@ -15,3 +15,4 @@ EXTRA_DIST += examples/echoserver/echoserver-ntru.vcproj
 EXTRA_DIST += examples/echoserver/echoserver.vcproj
 
 dist_example_DATA+= examples/echoserver/echoserver.c
+DISTCLEANFILES+= examples/echoserver/.libs/echoserver

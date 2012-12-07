@@ -32,3 +32,4 @@ EXTRA_DIST += tests/test.conf \
               tests/test-null.conf \
               tests/test-psk-null.conf \
               tests/test-leanpsk.conf
+DISTCLEANFILES+= tests/.libs/unit
