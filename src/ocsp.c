@@ -526,7 +526,7 @@ int CyaSSL_OCSP_Lookup_Cert(CYASSL_OCSP* ocsp, DecodedCert* cert)
             result = OCSP_LOOKUP_FAIL;
         }
     }
-    if (ocspReqBuf != NULL) {
+    if (ocspRespBuf != NULL) {
         XFREE(ocspRespBuf, NULL, DYNAMIC_TYPE_IN_BUFFER);
     }
 
