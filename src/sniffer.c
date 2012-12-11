@@ -2275,7 +2275,7 @@ static int ProcessMessage(const byte* sslFrame, SnifferSession* session,
     const byte*       sslBegin = sslFrame;
     const byte*       tmp;
     RecordLayerHeader rh;
-    int               rhSize;
+    int               rhSize = 0;
     int               ret;
     int               decoded = 0;      /* bytes stored for user in data */
     int               notEnough;        /* notEnough bytes yet flag */

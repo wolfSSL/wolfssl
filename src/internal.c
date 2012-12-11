@@ -7257,30 +7257,31 @@ int SetCipherList(Suites* s, const char* list)
 
         ssl->options.haveSessionId = 1;
         /* DoClientHello uses same resume code */
-        while (ssl->options.resuming) {  /* let's try */
+        if (ssl->options.resuming) {  /* let's try */
             int ret; 
             CYASSL_SESSION* session = GetSession(ssl,ssl->arrays->masterSecret);
             if (!session) {
+                CYASSL_MSG("Session lookup for resume failed");
                 ssl->options.resuming = 0;
-                break;   /* session lookup failed */
-            }
-            if (MatchSuite(ssl, &clSuites) < 0) {
-                CYASSL_MSG("Unsupported cipher suite, OldClientHello");
-                return UNSUPPORTED_SUITE;
-            }
+            } else {
+                if (MatchSuite(ssl, &clSuites) < 0) {
+                    CYASSL_MSG("Unsupported cipher suite, OldClientHello");
+                    return UNSUPPORTED_SUITE;
+                }
 
-            RNG_GenerateBlock(ssl->rng, ssl->arrays->serverRandom, RAN_LEN);
-            #ifndef NO_OLD_TLS
-                if (ssl->options.tls)
+                RNG_GenerateBlock(ssl->rng, ssl->arrays->serverRandom, RAN_LEN);
+                #ifndef NO_OLD_TLS
+                    if (ssl->options.tls)
+                        ret = DeriveTlsKeys(ssl);
+                    else
+                        ret = DeriveKeys(ssl);
+                #else
                     ret = DeriveTlsKeys(ssl);
-                else
-                    ret = DeriveKeys(ssl);
-            #else
-                ret = DeriveTlsKeys(ssl);
-            #endif
-            ssl->options.clientState = CLIENT_KEYEXCHANGE_COMPLETE;
+                #endif
+                ssl->options.clientState = CLIENT_KEYEXCHANGE_COMPLETE;
 
-            return ret;
+                return ret;
+            }
         }
 
         return MatchSuite(ssl, &clSuites);
@@ -7429,31 +7430,31 @@ int SetCipherList(Suites* s, const char* list)
         
         ssl->options.haveSessionId = 1;
         /* ProcessOld uses same resume code */
-        while (ssl->options.resuming) {  /* let's try */
+        if (ssl->options.resuming) {  /* let's try */
             int ret;            
             CYASSL_SESSION* session = GetSession(ssl,ssl->arrays->masterSecret);
             if (!session) {
-                ssl->options.resuming = 0;
                 CYASSL_MSG("Session lookup for resume failed");
-                break;   /* session lookup failed */
-            }
-            if (MatchSuite(ssl, &clSuites) < 0) {
-                CYASSL_MSG("Unsupported cipher suite, ClientHello");
-                return UNSUPPORTED_SUITE;
-            }
+                ssl->options.resuming = 0;
+            } else {
+                if (MatchSuite(ssl, &clSuites) < 0) {
+                    CYASSL_MSG("Unsupported cipher suite, ClientHello");
+                    return UNSUPPORTED_SUITE;
+                }
 
-            RNG_GenerateBlock(ssl->rng, ssl->arrays->serverRandom, RAN_LEN);
-            #ifndef NO_OLD_TLS
-                if (ssl->options.tls)
+                RNG_GenerateBlock(ssl->rng, ssl->arrays->serverRandom, RAN_LEN);
+                #ifndef NO_OLD_TLS
+                    if (ssl->options.tls)
+                        ret = DeriveTlsKeys(ssl);
+                    else
+                        ret = DeriveKeys(ssl);
+                #else
                     ret = DeriveTlsKeys(ssl);
-                else
-                    ret = DeriveKeys(ssl);
-            #else
-                ret = DeriveTlsKeys(ssl);
-            #endif
-            ssl->options.clientState = CLIENT_KEYEXCHANGE_COMPLETE;
+                #endif
+                ssl->options.clientState = CLIENT_KEYEXCHANGE_COMPLETE;
 
-            return ret;
+                return ret;
+            }
         }
         return MatchSuite(ssl, &clSuites);
     }
