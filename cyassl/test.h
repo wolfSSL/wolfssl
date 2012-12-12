@@ -821,10 +821,18 @@ static INLINE void ChangeDirBack(int x)
 /* does current dir contain str */
 static INLINE int CurrentDir(const char* str)
 {
-    char path[MAX_PATH];
+    char  path[MAX_PATH];
+    char* baseName;
 
     GetCurrentDirectoryA(sizeof(path), path);
-    if (strstr(path, str))
+
+    baseName = strrchr(path, '\\');
+    if (baseName)
+        baseName++;
+    else
+        baseName = path;
+
+    if (strstr(baseName, str))
         return 1;
 
     return 0;
@@ -859,13 +867,21 @@ static INLINE void ChangeDirBack(int x)
 /* does current dir contain str */
 static INLINE int CurrentDir(const char* str)
 {
-    char path[MAX_PATH];
+    char  path[MAX_PATH];
+    char* baseName;
 
     if (getcwd(path, sizeof(path)) == NULL) {
         printf("no current dir?\n");
         return 0;
     }
-    if (strstr(path, str))
+
+    baseName = strrchr(path, '/');
+    if (baseName)
+        baseName++;
+    else
+        baseName = path;
+
+    if (strstr(baseName, str))
         return 1;
 
     return 0;
