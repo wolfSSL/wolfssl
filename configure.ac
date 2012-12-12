@@ -38,7 +38,7 @@ CYASSL_LIBRARY_VERSION=3:3:0
 #               |        +- increment if source code has changed
 #               |           set to zero if current is incremented
 #               +- increment if interfaces have been added, removed or changed
-AC_SUBST(CYASSL_LIBRARY_VERSION)
+AC_SUBST([CYASSL_LIBRARY_VERSION])
 
 # capture user C_EXTRA_FLAGS from ./configure line, CFLAGS may hold -g -O2 even
 # if user doesn't override, no way to tell
@@ -106,7 +106,7 @@ AS_IF([test "$ax_enable_debug" = "yes"],
 
 
 # SMALL BUILD
-AC_ARG_ENABLE(small,
+AC_ARG_ENABLE([small],
     [  --enable-small          Enable smallest build (default: disabled)],
     [ ENABLED_SMALL=$enableval ],
     [ ENABLED_SMALL=no ]
@@ -122,7 +122,7 @@ fi
 
 
 # SINGLE THREADED
-AC_ARG_ENABLE(singleThreaded,
+AC_ARG_ENABLE([singleThreaded],
     [  --enable-singleThreaded Enable CyaSSL single threaded (default: disabled)],
     [ ENABLED_SINGLETHREADED=$enableval ],
     [ ENABLED_SINGLETHREADED=no ])
@@ -140,7 +140,7 @@ AS_IF([ test "x$ENABLED_SINGLETHREADED" = "xyes" ],[ AM_CFLAGS="-DSINGLE_THREADE
 
 
 # DTLS
-AC_ARG_ENABLE(dtls,
+AC_ARG_ENABLE([dtls],
     [  --enable-dtls           Enable CyaSSL DTLS (default: disabled)],
     [ ENABLED_DTLS=$enableval ],
     [ ENABLED_DTLS=no ]
@@ -152,7 +152,7 @@ fi
 
 
 # OPENSSL Extra Compatibility
-AC_ARG_ENABLE(opensslExtra,
+AC_ARG_ENABLE([opensslExtra],
     [  --enable-opensslExtra   Enable extra OpenSSL API, size+ (default: disabled)],
     [ ENABLED_OPENSSLEXTRA=$enableval ],
     [ ENABLED_OPENSSLEXTRA=no ]
@@ -169,7 +169,7 @@ fi
 
 
 # IPv6 Test Apps
-AC_ARG_ENABLE(ipv6,
+AC_ARG_ENABLE([ipv6],
     [  --enable-ipv6           Enable testing of IPV6 (default: disabled)],
     [ ENABLED_IPV6=$enableval ],
     [ ENABLED_IPV6=no ]
@@ -182,7 +182,7 @@ fi
 
 
 # Fortress build 
-AC_ARG_ENABLE(fortress,
+AC_ARG_ENABLE([fortress],
     [  --enable-fortress       Enable SSL fortress build (default: disabled)],
     [ ENABLED_FORTRESS=$enableval ],
     [ ENABLED_FORTRESS=no ]
@@ -195,7 +195,7 @@ fi
 
 
 # ssl bump build 
-AC_ARG_ENABLE(bump,
+AC_ARG_ENABLE([bump],
     [  --enable-bump           Enable SSL Bump build (default: disabled)],
     [ ENABLED_BUMP=$enableval ],
     [ ENABLED_BUMP=no ]
@@ -209,7 +209,7 @@ fi
 ENABLED_SLOWMATH="yes"
 
 # lean psk build 
-AC_ARG_ENABLE(leanpsk,
+AC_ARG_ENABLE([leanpsk],
     [  --enable-leanpsk        Enable Lean PSK build (default: disabled)],
     [ ENABLED_LEANPSK=$enableval ],
     [ ENABLED_LEANPSK=no ]
@@ -226,7 +226,7 @@ AM_CONDITIONAL([BUILD_LEANPSK], [test "x$ENABLED_LEANPSK" = "xyes"])
 
 
 # fastmath
-AC_ARG_ENABLE(fastmath,
+AC_ARG_ENABLE([fastmath],
     [  --enable-fastmath       Enable fast math for BigInts (default: disabled)],
     [ ENABLED_FASTMATH=$enableval ],
     [ ENABLED_FASTMATH=no ]
@@ -240,7 +240,7 @@ fi
 
 
 # fast HUGE math
-AC_ARG_ENABLE(fasthugemath,
+AC_ARG_ENABLE([fasthugemath],
     [  --enable-fasthugemath   Enable fast math + huge code (default: disabled)],
     [ ENABLED_FASTHUGEMATH=$enableval ],
     [ ENABLED_FASTHUGEMATH=no ]
@@ -262,7 +262,7 @@ AM_CONDITIONAL([BUILD_FASTMATH], [test "x$ENABLED_FASTMATH" = "xyes"])
 AM_CONDITIONAL([BUILD_SLOWMATH], [test "x$ENABLED_SLOWMATH" = "xyes"])
 
 # big cache
-AC_ARG_ENABLE(bigcache,
+AC_ARG_ENABLE([bigcache],
     [  --enable-bigcache       Enable big session cache (default: disabled)],
     [ ENABLED_BIGCACHE=$enableval ],
     [ ENABLED_BIGCACHE=no ]
@@ -275,7 +275,7 @@ fi
 
 
 # HUGE cache
-AC_ARG_ENABLE(hugecache,
+AC_ARG_ENABLE([hugecache],
     [  --enable-hugecache      Enable huge session cache (default: disabled)],
     [ ENABLED_HUGECACHE=$enableval ],
     [ ENABLED_HUGECACHE=no ]
@@ -288,7 +288,7 @@ fi
 
 
 # SMALL cache
-AC_ARG_ENABLE(smallcache,
+AC_ARG_ENABLE([smallcache],
     [  --enable-smallcache     Enable small session cache (default: disabled)],
     [ ENABLED_SMALLCACHE=$enableval ],
     [ ENABLED_SMALLCACHE=no ]
@@ -314,7 +314,7 @@ AC_ARG_ENABLE([sniffer],
 AM_CONDITIONAL([BUILD_SNIFFER], [ test "x$ENABLED_SNIFFER" = "xyes" ])
 
 # AES-GCM
-AC_ARG_ENABLE(aesgcm,
+AC_ARG_ENABLE([aesgcm],
     [  --enable-aesgcm         Enable CyaSSL AES-GCM support (default: disabled)],
     [ ENABLED_AESGCM=$enableval ],
     [ ENABLED_AESGCM=no ]
@@ -346,7 +346,7 @@ fi
 AM_CONDITIONAL([BUILD_AESGCM], [test "x$ENABLED_AESGCM" = "xyes"])
 
 # AES-NI
-AC_ARG_ENABLE(aesni,
+AC_ARG_ENABLE([aesni],
     [  --enable-aesni          Enable CyaSSL AES-NI support (default: disabled)],
     [ ENABLED_AESNI=$enableval ],
     [ ENABLED_AESNI=no ]
@@ -366,7 +366,7 @@ AM_CONDITIONAL([BUILD_AESNI], [test "x$ENABLED_AESNI" = "xyes"])
 
 
 # MD2
-AC_ARG_ENABLE(md2,
+AC_ARG_ENABLE([md2],
     [  --enable-md2            Enable CyaSSL MD2 support (default: disabled)],
     [ ENABLED_MD2=$enableval ],
     [ ENABLED_MD2=no ]
@@ -386,7 +386,7 @@ AM_CONDITIONAL([BUILD_MD2], [test "x$ENABLED_MD2" = "xyes"])
 
 
 # RIPEMD
-AC_ARG_ENABLE(ripemd,
+AC_ARG_ENABLE([ripemd],
     [  --enable-ripemd         Enable CyaSSL RIPEMD-160 support (default: disabled)],
     [ ENABLED_RIPEMD=$enableval ],
     [ ENABLED_RIPEMD=no ]
@@ -401,7 +401,7 @@ AM_CONDITIONAL([BUILD_RIPEMD], [test "x$ENABLED_RIPEMD" = "xyes"])
 
 
 # SHA512
-AC_ARG_ENABLE(sha512,
+AC_ARG_ENABLE([sha512],
     [  --enable-sha512         Enable CyaSSL SHA-512 support (default: disabled)],
     [ ENABLED_SHA512=$enableval ],
     [ ENABLED_SHA512=no ]
@@ -427,7 +427,7 @@ AM_CONDITIONAL([BUILD_SHA512], [test "x$ENABLED_SHA512" = "xyes"])
 
 
 # SESSION CERTS
-AC_ARG_ENABLE(sessioncerts,
+AC_ARG_ENABLE([sessioncerts],
     [  --enable-sessioncerts   Enable session cert storing (default: disabled)],
     [ ENABLED_SESSIONCERTS=$enableval ],
     [ ENABLED_SESSIONCERTS=no ]
@@ -440,7 +440,7 @@ fi
 
 
 # KEY GENERATION
-AC_ARG_ENABLE(keygen,
+AC_ARG_ENABLE([keygen],
     [  --enable-keygen         Enable key generation (default: disabled)],
     [ ENABLED_KEYGEN=$enableval ],
     [ ENABLED_KEYGEN=no ]
@@ -453,7 +453,7 @@ fi
 
 
 # CERT GENERATION
-AC_ARG_ENABLE(certgen,
+AC_ARG_ENABLE([certgen],
     [  --enable-certgen        Enable cert generation (default: disabled)],
     [ ENABLED_CERTGEN=$enableval ],
     [ ENABLED_CERTGEN=no ]
@@ -466,7 +466,7 @@ fi
 
 
 # HC128 
-AC_ARG_ENABLE(hc128,
+AC_ARG_ENABLE([hc128],
     [  --enable-hc128          Enable HC-128 (default: disabled)],
     [ ENABLED_HC128=$enableval ],
     [ ENABLED_HC128=no ]
@@ -483,7 +483,7 @@ AM_CONDITIONAL([BUILD_HC128], [test "x$ENABLED_HC128" = "xyes"])
 
 
 # RABBIT
-AC_ARG_ENABLE(rabbit,
+AC_ARG_ENABLE([rabbit],
     [  --enable-rabbit         Enable RABBIT (default: disabled)],
     [ ENABLED_RABBIT=$enableval ],
     [ ENABLED_RABBIT=no ]
@@ -500,7 +500,7 @@ AM_CONDITIONAL([BUILD_RABBIT], [test "x$ENABLED_RABBIT" = "xyes"])
 
 
 # PSK 
-AC_ARG_ENABLE(psk,
+AC_ARG_ENABLE([psk],
     [  --enable-psk            Enable PSK (default: disabled)],
     [ ENABLED_PSK=$enableval ],
     [ ENABLED_PSK=no ]
@@ -513,7 +513,7 @@ fi
 
 
 # Web Server Build 
-AC_ARG_ENABLE(webServer,
+AC_ARG_ENABLE([webServer],
     [  --enable-webServer      Enable Web Server (default: disabled)],
     [ ENABLED_WEBSERVER=$enableval ],
     [ ENABLED_WEBSERVER=no ]
@@ -526,7 +526,7 @@ fi
 
 
 # No Filesystem Build 
-AC_ARG_ENABLE(noFilesystem,
+AC_ARG_ENABLE([noFilesystem],
     [  --enable-noFilesystem   Enable No Filesystem (default: disabled)],
     [ ENABLED_NOFILESYSTEM=$enableval ],
     [ ENABLED_NOFILESYSTEM=no ]
@@ -539,7 +539,7 @@ fi
 
 
 # No inline Build 
-AC_ARG_ENABLE(noInline,
+AC_ARG_ENABLE([noInline],
     [  --enable-noInline       Enable No inline (default: disabled)],
     [ ENABLED_NOINLINE=$enableval ],
     [ ENABLED_NOINLINE=no ]
@@ -554,7 +554,7 @@ AM_CONDITIONAL([BUILD_NOINLINE], [test "x$ENABLED_NOINLINE" = "xyes"])
 
 
 # ECC 
-AC_ARG_ENABLE(ecc,
+AC_ARG_ENABLE([ecc],
     [  --enable-ecc            Enable ECC (default: disabled)],
     [ ENABLED_ECC=$enableval ],
     [ ENABLED_ECC=no ]
@@ -575,7 +575,7 @@ fi
 
 
 # OCSP
-AC_ARG_ENABLE(ocsp,
+AC_ARG_ENABLE([ocsp],
     [  --enable-ocsp           Enable OCSP (default: disabled)],
     [ ENABLED_OCSP=$enableval ],
     [ ENABLED_OCSP=no ],
@@ -590,7 +590,7 @@ AM_CONDITIONAL([BUILD_OCSP], [test "x$ENABLED_OCSP" = "xyes"])
 
 
 # CRL 
-AC_ARG_ENABLE(crl,
+AC_ARG_ENABLE([crl],
     [  --enable-crl            Enable CRL (default: disabled)],
     [ ENABLED_CRL=$enableval ],
     [ ENABLED_CRL=no ],
@@ -605,7 +605,7 @@ AM_CONDITIONAL([BUILD_CRL], [test "x$ENABLED_CRL" = "xyes"])
 
 
 # CRL Monitor
-AC_ARG_ENABLE(crl-monitor,
+AC_ARG_ENABLE([crl-monitor],
     [  --enable-crl-monitor    Enable CRL Monitor (default: disabled)],
     [ ENABLED_CRL_MONITOR=$enableval ],
     [ ENABLED_CRL_MONITOR=no ],
@@ -628,7 +628,7 @@ AM_CONDITIONAL([BUILD_CRL_MONITOR], [test "x$ENABLED_CRL_MONITOR" = "xyes"])
 ntruHome=`pwd`/NTRU_algorithm
 ntruInclude=$ntruHome/cryptolib
 ntruLib=$ntruHome
-AC_ARG_ENABLE(ntru,
+AC_ARG_ENABLE([ntru],
     [  --enable-ntru           Enable NTRU (default: disabled)],
     [ ENABLED_NTRU=$enableval ],
     [ ENABLED_NTRU=no ]
@@ -650,7 +650,7 @@ fi
 
 
 #valgrind
-AC_ARG_ENABLE(valgrind,
+AC_ARG_ENABLE([valgrind],
     [  --enable-valgrind       Enable valgrind for unit tests (default: disabled)],
     [ ENABLED_VALGRIND=$enableval ],
     [ ENABLED_VALGRIND=no ]
@@ -658,7 +658,7 @@ AC_ARG_ENABLE(valgrind,
 
 if test "$ENABLED_VALGRIND" = "yes"
 then
-    AC_CHECK_PROG(HAVE_VALGRIND,valgrind,yes,no)
+    AC_CHECK_PROG([HAVE_VALGRIND],[valgrind],[yes],[no])
 
     if [["$HAVE_VALGRIND" = "no" ]]; then
         AC_MSG_ERROR([Valgrind not found.])
@@ -670,7 +670,7 @@ AM_CONDITIONAL([USE_VALGRIND], [test "x$ENABLED_VALGRIND" = "xyes"])
 
 
 # Test certs, use internal cert functions for extra testing 
-AC_ARG_ENABLE(testcert,
+AC_ARG_ENABLE([testcert],
     [  --enable-testcert       Enable Test Cert (default: disabled)],
     [ ENABLED_TESTCERT=$enableval ],
     [ ENABLED_TESTCERT=no ]
@@ -683,7 +683,7 @@ fi
 
 
 # Enable Examples, used to disable examples
-AC_ARG_ENABLE(examples,
+AC_ARG_ENABLE([examples],
     [  --enable-examples       Enable Examples  (default: enabled)],
     [ ENABLED_EXAMPLES=$enableval ],
     [ ENABLED_EXAMPLES=yes ]
@@ -694,7 +694,7 @@ AM_CONDITIONAL([BUILD_EXAMPLES], [test "x$ENABLED_EXAMPLES" = "xyes"])
 
 # LIBZ
 trylibzdir=""
-AC_ARG_WITH(libz,
+AC_ARG_WITH([libz],
     [  --with-libz=PATH        PATH to libz install (default /usr/) ],
     [
         AC_MSG_CHECKING([for libz])
@@ -750,7 +750,7 @@ fi
 
 LIB_SOCKET_NSL
 
-AC_ARG_ENABLE(gcc-hardening,
+AC_ARG_ENABLE([gcc-hardening],
 AS_HELP_STRING(--enable-gcc-hardening, Enable compiler security checks (default: disabled)),
 [if test x$enableval = xyes; then
     AM_CFLAGS="$AM_CFLAGS -D_FORTIFY_SOURCE=2 -fstack-protector-all"
