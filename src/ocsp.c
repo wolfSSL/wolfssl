@@ -457,7 +457,6 @@ int CyaSSL_OCSP_Lookup_Cert(CYASSL_OCSP* ocsp, DecodedCert* cert)
     byte ocspReqBuf[SCRATCH_BUFFER_SIZE];
     int ocspReqSz = SCRATCH_BUFFER_SIZE;
     byte* ocspRespBuf = NULL;
-    int ocspRespSz = 0;
     OcspRequest ocspRequest;
     OcspResponse ocspResponse;
     int result = 0;
@@ -509,7 +508,7 @@ int CyaSSL_OCSP_Lookup_Cert(CYASSL_OCSP* ocsp, DecodedCert* cert)
     if (result < 0) return result;
         /* If the transaction failed, return that result. */
 
-    InitOcspResponse(&ocspResponse, certStatus, ocspRespBuf, ocspRespSz);
+    InitOcspResponse(&ocspResponse, certStatus, ocspRespBuf, result);
     OcspResponseDecode(&ocspResponse);
 
     if (ocspResponse.responseStatus != OCSP_SUCCESSFUL) {
