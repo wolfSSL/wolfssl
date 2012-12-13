@@ -1128,8 +1128,10 @@ int CyaSSL_Init(void)
     {
         EncryptedInfo info;
         buffer        der;        /* holds DER or RAW (for NTRU) */
+        int           ret;
         int           dynamicType = 0;
         int           eccKey = 0;
+        void*         heap = ctx ? ctx->heap : NULL;
 
         info.set      = 0;
         info.ctx      = ctx;
@@ -1153,9 +1155,9 @@ int CyaSSL_Init(void)
             dynamicType = DYNAMIC_TYPE_KEY;
 
         if (format == SSL_FILETYPE_PEM) {
-            int ret = PemToDer(buff, sz, type, &der, ctx->heap, &info, &eccKey);
+            ret = PemToDer(buff, sz, type, &der, heap, &info, &eccKey);
             if (ret < 0) {
-                XFREE(der.buffer, ctx->heap, dynamicType);
+                XFREE(der.buffer, heap, dynamicType);
                 return ret;
             }
             if (used)
@@ -1174,10 +1176,10 @@ int CyaSSL_Init(void)
                     CYASSL_MSG("Growing Tmp Chain Buffer");
                     bufferSz = (word32)(sz - consumed);
                                /* will shrink to actual size */
-                    chainBuffer = (byte*)XMALLOC(bufferSz, ctx->heap,
+                    chainBuffer = (byte*)XMALLOC(bufferSz, heap,
                                                  DYNAMIC_TYPE_FILE);
                     if (chainBuffer == NULL) {
-                        XFREE(der.buffer, ctx->heap, dynamicType);
+                        XFREE(der.buffer, heap, dynamicType);
                         return MEMORY_E;
                     }
                     dynamicBuffer = 1;
@@ -1190,7 +1192,7 @@ int CyaSSL_Init(void)
                     part.buffer = 0;
 
                     ret = PemToDer(buff + consumed, sz - consumed, type, &part,
-                                   ctx->heap, &info, &eccKey);
+                                   heap, &info, &eccKey);
                     if (ret == 0) {
                         gotOne = 1;
                         if ( (idx + part.length) > bufferSz) {
@@ -1208,38 +1210,42 @@ int CyaSSL_Init(void)
                         }
                     }
 
-                    XFREE(part.buffer, ctx->heap, dynamicType);
+                    XFREE(part.buffer, heap, dynamicType);
 
                     if (ret == SSL_NO_PEM_HEADER && gotOne) {
                         CYASSL_MSG("We got one good PEM so stuff at end ok");
-                        ret = 0;
                         break;
                     }
 
                     if (ret < 0) {
                         CYASSL_MSG("   Error in Cert in Chain");
-                        XFREE(der.buffer, ctx->heap, dynamicType);
+                        XFREE(der.buffer, heap, dynamicType);
                         return ret;
                     }
                     CYASSL_MSG("   Consumed another Cert in Chain");
                 }
                 CYASSL_MSG("Finished Processing Cert Chain");
-                ctx->certChain.buffer = (byte*)XMALLOC(idx, ctx->heap,
+
+                if (ctx == NULL) {
+                    CYASSL_MSG("certChain needs context");
+                    return BAD_FUNC_ARG;
+                }
+                ctx->certChain.buffer = (byte*)XMALLOC(idx, heap,
                                                        dynamicType);
                 if (ctx->certChain.buffer) {
                     ctx->certChain.length = idx;
                     XMEMCPY(ctx->certChain.buffer, chainBuffer, idx);
                 }
                 if (dynamicBuffer)
-                    XFREE(chainBuffer, ctx->heap, DYNAMIC_TYPE_FILE);
+                    XFREE(chainBuffer, heap, DYNAMIC_TYPE_FILE);
                 if (ctx->certChain.buffer == NULL) {
-                    XFREE(der.buffer, ctx->heap, dynamicType);
+                    XFREE(der.buffer, heap, dynamicType);
                     return MEMORY_E;
                 }
             }
         }
         else {  /* ASN1 (DER) or RAW (NTRU) */
-            der.buffer = (byte*) XMALLOC(sz, ctx->heap, dynamicType);
+            der.buffer = (byte*) XMALLOC(sz, heap, dynamicType);
             if (!der.buffer) return MEMORY_ERROR;
             XMEMCPY(der.buffer, buff, sz);
             der.length = (word32)sz;
@@ -1250,19 +1256,18 @@ int CyaSSL_Init(void)
             /* decrypt */
             char password[80];
             int  passwordSz;
-            int  ret;
 
             byte key[AES_256_KEY_SIZE];
             byte  iv[AES_IV_SIZE];
 
             if (!ctx->passwd_cb) {
-                XFREE(der.buffer, ctx->heap, dynamicType);
+                XFREE(der.buffer, heap, dynamicType);
                 return NO_PASSWORD;
             }
 
             /* use file's salt for key derivation, hex decode first */
             if (Base16_Decode(info.iv, info.ivSz, info.iv, &info.ivSz) != 0) {
-                XFREE(der.buffer, ctx->heap, dynamicType);
+                XFREE(der.buffer, heap, dynamicType);
                 return ASN_INPUT_E;
             }
 
@@ -1270,7 +1275,7 @@ int CyaSSL_Init(void)
                                     ctx->userdata);
             if ( (ret = EVP_BytesToKey(info.name, "MD5", info.iv,
                             (byte*)password, passwordSz, 1, key, iv)) <= 0) {
-                XFREE(der.buffer, ctx->heap, dynamicType);
+                XFREE(der.buffer, heap, dynamicType);
                 return ret;
             }
 
@@ -1300,7 +1305,7 @@ int CyaSSL_Init(void)
                 AesCbcDecrypt(&enc, der.buffer, der.buffer, der.length);
             }
             else { 
-                XFREE(der.buffer, ctx->heap, dynamicType);
+                XFREE(der.buffer, heap, dynamicType);
                 return SSL_BAD_FILE;
             }
         }
@@ -1312,32 +1317,32 @@ int CyaSSL_Init(void)
         else if (type == CERT_TYPE) {
             if (ssl) {
                 if (ssl->buffers.weOwnCert && ssl->buffers.certificate.buffer)
-                    XFREE(ssl->buffers.certificate.buffer, ctx->heap,
+                    XFREE(ssl->buffers.certificate.buffer, heap,
                           dynamicType);
                 ssl->buffers.certificate = der;
                 ssl->buffers.weOwnCert = 1;
             }
-            else {
+            else if (ctx) {
                 if (ctx->certificate.buffer)
-                    XFREE(ctx->certificate.buffer, ctx->heap, dynamicType);
+                    XFREE(ctx->certificate.buffer, heap, dynamicType);
                 ctx->certificate = der;     /* takes der over */
             }
         }
         else if (type == PRIVATEKEY_TYPE) {
             if (ssl) {
                 if (ssl->buffers.weOwnKey && ssl->buffers.key.buffer)
-                    XFREE(ssl->buffers.key.buffer, ctx->heap, dynamicType);
+                    XFREE(ssl->buffers.key.buffer, heap, dynamicType);
                 ssl->buffers.key = der;
                 ssl->buffers.weOwnKey = 1;
             }
-            else {
+            else if (ctx) {
                 if (ctx->privateKey.buffer)
-                    XFREE(ctx->privateKey.buffer, ctx->heap, dynamicType);
+                    XFREE(ctx->privateKey.buffer, heap, dynamicType);
                 ctx->privateKey = der;      /* takes der over */
             }
         }
         else {
-            XFREE(der.buffer, ctx->heap, dynamicType);
+            XFREE(der.buffer, heap, dynamicType);
             return SSL_BAD_CERTTYPE;
         }
 
@@ -1384,7 +1389,7 @@ int CyaSSL_Init(void)
             DecodedCert cert;
 
             CYASSL_MSG("Checking cert signature type");
-            InitDecodedCert(&cert, der.buffer, der.length, ctx->heap);
+            InitDecodedCert(&cert, der.buffer, der.length, heap);
 
             if (DecodeToKey(&cert, 0) < 0) {
                 CYASSL_MSG("Decode to key failed");
@@ -1396,7 +1401,8 @@ int CyaSSL_Init(void)
                 case CTC_SHA384wECDSA:
                 case CTC_SHA512wECDSA:
                     CYASSL_MSG("ECDSA cert signature");
-                    ctx->haveECDSAsig = 1;
+                    if (ctx)
+                        ctx->haveECDSAsig = 1;
                     if (ssl)
                         ssl->options.haveECDSAsig = 1;
                     break;

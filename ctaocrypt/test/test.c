@@ -1708,6 +1708,8 @@ int rsa_test(void)
     if (ret != 0) return -491;
 
     FreeDecodedCert(&cert);
+#else
+    (void)bytes;
 #endif
 
     fclose(file2);
@@ -2091,13 +2093,13 @@ int dh_test(void)
     if (ret != 0)
         return -53;
     
-    ret = DhGenerateKeyPair(&key, &rng, priv, &privSz, pub, &pubSz);
-    ret = DhGenerateKeyPair(&key2, &rng, priv2, &privSz2, pub2, &pubSz2);
+    ret =  DhGenerateKeyPair(&key, &rng, priv, &privSz, pub, &pubSz);
+    ret += DhGenerateKeyPair(&key2, &rng, priv2, &privSz2, pub2, &pubSz2);
     if (ret != 0)
         return -54;
 
-    ret = DhAgree(&key, agree, &agreeSz, priv, privSz, pub2, pubSz2);
-    ret = DhAgree(&key2, agree2, &agreeSz2, priv2, privSz2, pub, pubSz);
+    ret =  DhAgree(&key, agree, &agreeSz, priv, privSz, pub2, pubSz2);
+    ret += DhAgree(&key2, agree2, &agreeSz2, priv2, privSz2, pub, pubSz);
     if (ret != 0)
         return -55;
 
@@ -2420,14 +2422,20 @@ int pkcs12_test(void)
     int ret = PKCS12_PBKDF(derived, passwd, sizeof(passwd), salt, 8, iterations,
                            kLen, SHA, id);
 
-    if ( (ret = memcmp(derived, verify, kLen)) != 0)
+    if (ret < 0)
         return -103;
+
+    if ( (ret = memcmp(derived, verify, kLen)) != 0)
+        return -104;
 
     iterations = 1000;
     ret = PKCS12_PBKDF(derived, passwd2, sizeof(passwd2), salt2, 8, iterations, 
                        kLen, SHA, id);
+    if (ret < 0)
+        return -105;
+
     if ( (ret = memcmp(derived, verify2, 24)) != 0)
-        return -104;
+        return -106;
 
     return 0;
 }
