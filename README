@@ -12,7 +12,7 @@ harder.  Now to run testsuite just do:
 
 or 
 
-make test    (when using autoconf)
+make check    (when using autoconf)
 
 On *nix or Windows the examples and testsuite will check to see if the current
 directory is the source directory and if so, attempt to change to the CyaSSL
@@ -32,15 +32,37 @@ SSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, 0);
 
 before calling SSL_new();  Though it's not recommended.
 
+*** end Notes ***
 
-Note 3)
+
+CyaSSL Release 2.4.4 (12/12/2012)
+
+Release 2.4.4 CyaSSL has bug fixes and a few new features including:
+- ECC into main version
+- Lean PSK build (reduced code size, RAM usage, and stack usage)
+- FreeBSD CRL monitor support
+- CyaSSL_peek()
+- CyaSSL_send() and CyaSSL_recv() for I/O flag setting
+- CodeWarrior Support
+- MQX Support
+- Freescale Kinetis support including Hardware RNG
+- autconf builds use jobserver
+- cyassl-config
+- Sniffer memory reductions
+
+Thanks to Brian Aker for the improved autoconf system, make rpm, cyassl-config,
+warning system, and general good ideas for improving CyaSSL!
+
 The Freescale Kinetis K70 RNGA documentation can be found in Chapter 37 of the
 K70 Sub-Family Reference Manual:
 http://cache.freescale.com/files/microcontrollers/doc/ref_manual/K70P256M150SF3RM.pdf
 
-*** end Note ***
+The CyaSSL manual is available at:
+http://www.yassl.com/documentation/CyaSSL-Manual.pdf.  For build instructions 
+and comments about the new features please check the manual.
 
-CyaSSL Release 2.4.0 (10/10/2012)
+
+*************** CyaSSL Release 2.4.0 (10/10/2012)
 
 Release 2.4.0 CyaSSL has bug fixes and a few new features including:
 - DTLS reliability
