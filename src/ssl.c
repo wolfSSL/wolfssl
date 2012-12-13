@@ -1260,7 +1260,7 @@ int CyaSSL_Init(void)
             byte key[AES_256_KEY_SIZE];
             byte  iv[AES_IV_SIZE];
 
-            if (!ctx->passwd_cb) {
+            if (!ctx || !ctx->passwd_cb) {
                 XFREE(der.buffer, heap, dynamicType);
                 return NO_PASSWORD;
             }
@@ -1311,9 +1311,15 @@ int CyaSSL_Init(void)
         }
 #endif /* OPENSSL_EXTRA || HAVE_WEBSERVER */
 
-        if (type == CA_TYPE)
+        if (type == CA_TYPE) {
+            if (ctx == NULL) {
+                CYASSL_MSG("Need context for CA load");
+                XFREE(der.buffer, heap, dynamicType);
+                return BAD_FUNC_ARG;
+            }
             return AddCA(ctx->cm, der, CYASSL_USER_CA, ctx->verifyPeer);
                                                           /* takes der over */
+        }
         else if (type == CERT_TYPE) {
             if (ssl) {
                 if (ssl->buffers.weOwnCert && ssl->buffers.certificate.buffer)
