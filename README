@@ -46,7 +46,7 @@ Release 2.4.4 CyaSSL has bug fixes and a few new features including:
 - CodeWarrior Support
 - MQX Support
 - Freescale Kinetis support including Hardware RNG
-- autconf builds use jobserver
+- autoconf builds use jobserver
 - cyassl-config
 - Sniffer memory reductions
 
