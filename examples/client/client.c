@@ -232,8 +232,6 @@ void client_test(void* args)
         }
     }
 
-    argc -= myoptind;
-    argv += myoptind;
     myoptind = 0;      /* reset for test cases */
 
     switch (version) {

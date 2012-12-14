@@ -200,8 +200,6 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
         }
     }
 
-    argc -= myoptind;
-    argv += myoptind;
     myoptind = 0;      /* reset for test cases */
 
     switch (version) {

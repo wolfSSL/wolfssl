@@ -2079,6 +2079,7 @@ static int ConfirmSignature(const byte* buf, word32 bufSz,
             typeH    = SHA256h;
             digestSz = SHA256_DIGEST_SIZE;
         }
+        break;
     #endif
     #ifdef CYASSL_SHA512
         case CTC_SHA512wRSA:
@@ -2091,6 +2092,7 @@ static int ConfirmSignature(const byte* buf, word32 bufSz,
             typeH    = SHA512h;
             digestSz = SHA512_DIGEST_SIZE;
         }
+        break;
     #endif
     #ifdef CYASSL_SHA384
         case CTC_SHA384wRSA:
@@ -2103,6 +2105,7 @@ static int ConfirmSignature(const byte* buf, word32 bufSz,
             typeH    = SHA384h;
             digestSz = SHA384_DIGEST_SIZE;
         }
+        break;
     #endif
         default:
             CYASSL_MSG("Verify Signautre has unsupported type");

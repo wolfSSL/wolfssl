@@ -511,6 +511,10 @@ void bench_dh(void)
     bytes = fread(tmp, 1, sizeof(tmp), file);
     InitDhKey(&dhKey);
     bytes = DhKeyDecode(tmp, &idx, &dhKey, (word32)bytes);
+    if (bytes != 0) {
+        printf("dhekydecode failed, can't benchmark\n");
+        return;
+    }
 
     start = current_time();
 
