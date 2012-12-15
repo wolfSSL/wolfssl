@@ -401,11 +401,12 @@ void TLS_hmac(CYASSL* ssl, byte* digest, const byte* in, word32 sz,
               int content, int verify)
 {
     Hmac hmac;
-    byte seq[SEQ_SZ] = { 0x00, 0x00, 0x00, 0x00 };
+    byte seq[SEQ_SZ];
     byte length[LENGTH_SZ];
     byte inner[ENUM_LEN + VERSION_SZ + LENGTH_SZ]; /* type + version +len */
     int  type;
 
+    XMEMSET(seq, 0, SEQ_SZ);
     c16toa((word16)sz, length);
 #ifdef CYASSL_DTLS
     if (ssl->options.dtls)

@@ -3581,10 +3581,11 @@ static void Hmac(CYASSL* ssl, byte* digest, const byte* in, word32 sz,
     Sha sha;
 
     /* data */
-    byte seq[SEQ_SZ] = { 0x00, 0x00, 0x00, 0x00 };
+    byte seq[SEQ_SZ];
     byte conLen[ENUM_LEN + LENGTH_SZ];     /* content & length */
     const byte* macSecret = GetMacSecret(ssl, verify);
     
+    XMEMSET(seq, 0, SEQ_SZ);
     conLen[0] = (byte)content;
     c16toa((word16)sz, &conLen[ENUM_LEN]);
     c32toa(GetSEQIncrement(ssl, verify), &seq[sizeof(word32)]);
