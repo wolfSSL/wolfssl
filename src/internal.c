@@ -2285,33 +2285,46 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx)
         else {
             CYASSL_MSG("Failed to verify Peer's cert");
             if (ssl->verifyCallback) {
-                CYASSL_MSG("\tCallback override availalbe, will continue");
+                CYASSL_MSG("\tCallback override available, will continue");
                 fatal = 0;
             }
             else {
-                CYASSL_MSG("\tNo callback override availalbe, fatal");
+                CYASSL_MSG("\tNo callback override available, fatal");
                 fatal = 1;
             }
         }
 
 #ifdef HAVE_OCSP
-        ret = CyaSSL_OCSP_Lookup_Cert(&ssl->ctx->ocsp, &dCert);
-        if (ret != 0) {
-            CYASSL_MSG("\tOCSP Lookup not ok");
-            fatal = 0;
+        if (fatal == 0) {
+            ret = CyaSSL_OCSP_Lookup_Cert(&ssl->ctx->ocsp, &dCert);
+            if (ret != 0) {
+                CYASSL_MSG("\tOCSP Lookup not ok");
+                fatal = 0;
+            }
         }
 #endif
 
 #ifdef HAVE_CRL
         if (fatal == 0 && ssl->ctx->cm->crlEnabled) {
-            CYASSL_MSG("Doing Leaf CRL check");
-            ret = CheckCertCRL(ssl->ctx->cm->crl, &dCert);
+            int doCrlLookup = 1;
 
-            if (ret != 0) {
-                CYASSL_MSG("\tCRL check not ok");
-                fatal = 0;
+            #ifdef HAVE_OCSP
+            if (ssl->ctx->ocsp.enabled) {
+                doCrlLookup = (ret == OCSP_CERT_UNKNOWN);
+            }
+            #endif /* HAVE_OCSP */
+
+            if (doCrlLookup) {
+                CYASSL_MSG("Doing Leaf CRL check");
+                ret = CheckCertCRL(ssl->ctx->cm->crl, &dCert);
+    
+                if (ret != 0) {
+                    CYASSL_MSG("\tCRL check not ok");
+                    fatal = 0;
+                }
             }
         }
+
 #endif /* HAVE_CRL */
 
 #ifdef OPENSSL_EXTRA
