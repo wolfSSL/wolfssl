@@ -64,6 +64,7 @@ int CyaSSL_OCSP_Init(CYASSL_OCSP* ocsp)
 {
     if (ocsp != NULL) {
         XMEMSET(ocsp, 0, sizeof(*ocsp));
+        ocsp->useNonce = 1;
         return 0;
     }
 
@@ -501,7 +502,7 @@ int CyaSSL_OCSP_Lookup_Cert(CYASSL_OCSP* ocsp, DecodedCert* cert)
         }
     }
     
-    InitOcspRequest(&ocspRequest, cert, ocspReqBuf, ocspReqSz);
+    InitOcspRequest(&ocspRequest, cert, ocsp->useNonce, ocspReqBuf, ocspReqSz);
     ocspReqSz = EncodeOcspRequest(&ocspRequest);
     result = http_ocsp_transaction(ocsp, cert,
                                         ocspReqBuf, ocspReqSz, &ocspRespBuf);

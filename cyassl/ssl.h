@@ -885,6 +885,7 @@ CYASSL_API int  CyaSSL_CTX_OCSP_set_override_url(CYASSL_CTX*, const char*);
 #define CYASSL_OCSP_ENABLE       0x0001 /* Enable OCSP lookups */
 #define CYASSL_OCSP_URL_OVERRIDE 0x0002 /* Use the override URL instead of URL
                                          * in certificate */
+#define CYASSL_OCSP_NO_NONCE     0x0004 /* Disables the request nonce. */
 
 
 #ifdef __cplusplus

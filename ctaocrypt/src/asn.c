@@ -4635,7 +4635,6 @@ int EncodeOcspRequest(OcspRequest* req)
     byte snArray[MAX_SN_SZ];
     byte extArray[MAX_OCSP_EXT_SZ];
     byte* output = req->dest;
-    RNG rng;
     word32 seqSz[5], algoSz, issuerSz, issuerKeySz, snSz, extSz, totalSz;
     int i;
 
@@ -4653,14 +4652,17 @@ int EncodeOcspRequest(OcspRequest* req)
     req->serialSz = req->cert->serialSz;
     snSz = SetSerialNumber(req->cert->serial, req->cert->serialSz, snArray);
 
-    if (InitRng(&rng) != 0) {
-        CYASSL_MSG("\tCannot initialize RNG. Skipping the OSCP Nonce.");
-        extSz = 0;
-    } else {
-        req->nonceSz = MAX_OCSP_NONCE_SZ;
-        RNG_GenerateBlock(&rng, req->nonce, req->nonceSz);
-        extSz = SetOcspReqExtensions(MAX_OCSP_EXT_SZ, extArray,
-                                                    req->nonce, req->nonceSz);
+    if (req->useNonce) {
+        RNG rng;
+        if (InitRng(&rng) != 0) {
+            CYASSL_MSG("\tCannot initialize RNG. Skipping the OSCP Nonce.");
+            extSz = 0;
+        } else {
+            req->nonceSz = MAX_OCSP_NONCE_SZ;
+            RNG_GenerateBlock(&rng, req->nonce, req->nonceSz);
+            extSz = SetOcspReqExtensions(MAX_OCSP_EXT_SZ, extArray,
+                                                      req->nonce, req->nonceSz);
+        }
     }
 
     totalSz = algoSz + issuerSz + issuerKeySz + snSz;
@@ -4692,12 +4694,13 @@ int EncodeOcspRequest(OcspRequest* req)
 }
 
 
-void InitOcspRequest(OcspRequest* req, DecodedCert* cert,
+void InitOcspRequest(OcspRequest* req, DecodedCert* cert, byte useNonce,
                                                     byte* dest, word32 destSz)
 {
     CYASSL_ENTER("InitOcspRequest");
 
     req->cert = cert;
+    req->useNonce = useNonce;
     req->nonceSz = 0;
     req->issuerHash = NULL;
     req->issuerKeyHash = NULL;
@@ -4725,18 +4728,20 @@ int CompareOcspReqResp(OcspRequest* req, OcspResponse* resp)
         return 1;
     }
 
-    cmp = req->nonceSz - resp->nonceSz;
-    if (cmp != 0)
-    {
-        CYASSL_MSG("\tnonceSz mismatch");
-        return cmp;
-    }
-
-    cmp = XMEMCMP(req->nonce, resp->nonce, req->nonceSz);
-    if (cmp != 0)
-    {
-        CYASSL_MSG("\tnonce mismatch");
-        return cmp;
+    if (req->useNonce) {
+        cmp = req->nonceSz - resp->nonceSz;
+        if (cmp != 0)
+        {
+            CYASSL_MSG("\tnonceSz mismatch");
+            return cmp;
+        }
+    
+        cmp = XMEMCMP(req->nonce, resp->nonce, req->nonceSz);
+        if (cmp != 0)
+        {
+            CYASSL_MSG("\tnonce mismatch");
+            return cmp;
+        }
     }
 
     cmp = XMEMCMP(req->issuerHash, resp->issuerHash, SHA_DIGEST_SIZE);

@@ -775,6 +775,7 @@ struct OCSP_Entry {
 struct CYASSL_OCSP {
     byte enabled;
     byte useOverrideUrl;
+    byte useNonce;
     char overrideName[80];
     char overridePath[80];
     int  overridePort;
