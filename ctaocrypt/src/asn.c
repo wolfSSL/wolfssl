@@ -4374,8 +4374,6 @@ static int DecodeResponseData(byte* source,
     if (GetBasicDate(source, &idx, resp->producedDate,
                                         &resp->producedDateFormat, size) < 0)
         return ASN_PARSE_E;
-    if (!ValidateDate(resp->producedDate, resp->producedDateFormat, BEFORE))
-        return ASN_BEFORE_DATE_E;
 
     if (DecodeSingleResponse(source, &idx, resp, size) < 0)
         return ASN_PARSE_E;
