@@ -399,15 +399,17 @@ int GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     return 0;
 }
 
-#elif defined(CYASSL_SAFERTOS)
+#elif defined(CYASSL_SAFERTOS) || defined(CYASSL_LEANPSK)
 
 #warning "write a real random seed!!!!, just for testing now"
 
 int GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 {
-    int i;
+    word32 i;
     for (i = 0; i < sz; i++ )
         output[i] = i;
+
+    (void)os;
 
     return 0;
 }
