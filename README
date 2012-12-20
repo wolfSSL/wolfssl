@@ -35,9 +35,9 @@ before calling SSL_new();  Though it's not recommended.
 *** end Notes ***
 
 
-CyaSSL Release 2.4.4 (12/12/2012)
+CyaSSL Release 2.4.6 (12/20/2012)
 
-Release 2.4.4 CyaSSL has bug fixes and a few new features including:
+Release 2.4.6 CyaSSL has bug fixes and a few new features including:
 - ECC into main version
 - Lean PSK build (reduced code size, RAM usage, and stack usage)
 - FreeBSD CRL monitor support

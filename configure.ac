@@ -6,7 +6,7 @@
 #
 #
 
-AC_INIT([cyassl],[2.4.4],[http://www.yassl.com])
+AC_INIT([cyassl],[2.4.6],[http://www.yassl.com])
 
 AC_CONFIG_AUX_DIR([build-aux])
 AC_CONFIG_MACRO_DIR([m4])
@@ -26,7 +26,7 @@ AC_CONFIG_HEADERS([config.h:config.in])dnl Keep filename to 8.3 for MS-DOS.
 
 
 #shared library versioning
-CYASSL_LIBRARY_VERSION=3:3:0
+CYASSL_LIBRARY_VERSION=4:0:0
 #                      | | |
 #               +------+ | +---+
 #               |        |     |
@@ -103,22 +103,6 @@ AX_DEBUG
 AS_IF([test "$ax_enable_debug" = "yes"],
       [AM_CFLAGS="$DEBUG_CFLAGS $AM_CFLAGS"],
       [AM_CFLAGS="$AM_CFLAGS -DNDEBUG"])
-
-
-# SMALL BUILD
-AC_ARG_ENABLE([small],
-    [  --enable-small          Enable smallest build (default: disabled)],
-    [ ENABLED_SMALL=$enableval ],
-    [ ENABLED_SMALL=no ]
-    )
-if test "$ENABLED_SMALL" = "yes"
-then
-  # make small no tls build with smallest cipher
-  # if you only want server or client you can define NO_CYASSL_SERVER or
-  # NO_CYASSL_CLIENT but then some of the examples and testsuite won't build
-  # note that TLS needs HMAC
-  AM_CFLAGS="-DNO_TLS -DNO_HMAC -DNO_AES -DNO_DES3 -DNO_SHA256 -DNO_ERROR_STRINGS -DNO_RABBIT -DNO_PSK -DNO_DSA -DNO_DH -DNO_PWDBASED $AM_CFLAGS" 
-fi
 
 
 # SINGLE THREADED
@@ -690,6 +674,7 @@ AC_ARG_ENABLE([examples],
     )
 
 AS_IF([test "x$ENABLED_SINGLETHREADED" = "xyes"], [ENABLED_EXAMPLES="no"])
+AS_IF([test "x$ENABLED_NOFILESYSTEM" = "xyes"], [ENABLED_EXAMPLES="no"])
 AM_CONDITIONAL([BUILD_EXAMPLES], [test "x$ENABLED_EXAMPLES" = "xyes"])
 
 # LIBZ
@@ -804,7 +789,6 @@ echo "   * make -j:                   $enable_jobserver"
 echo "   * VCS checkout:              $ac_cv_vcs_checkout"
 echo 
 echo "   Features "
-echo "   * Enable smallest build:     $ENABLED_SMALL"
 echo "   * Single threaded:           $ENABLED_SINGLETHREADED"
 echo "   * DTLS:                      $ENABLED_DTLS"
 echo "   * Enable extra OpenSSL API:  $ENABLED_OPENSSLEXTRA"
