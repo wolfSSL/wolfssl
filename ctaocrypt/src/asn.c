@@ -4650,11 +4650,11 @@ int EncodeOcspRequest(OcspRequest* req)
     req->serialSz = req->cert->serialSz;
     snSz = SetSerialNumber(req->cert->serial, req->cert->serialSz, snArray);
 
+    extSz = 0;
     if (req->useNonce) {
         RNG rng;
         if (InitRng(&rng) != 0) {
             CYASSL_MSG("\tCannot initialize RNG. Skipping the OSCP Nonce.");
-            extSz = 0;
         } else {
             req->nonceSz = MAX_OCSP_NONCE_SZ;
             RNG_GenerateBlock(&rng, req->nonce, req->nonceSz);
