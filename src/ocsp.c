@@ -455,7 +455,7 @@ static int xstat2err(int stat)
 
 int CyaSSL_OCSP_Lookup_Cert(CYASSL_OCSP* ocsp, DecodedCert* cert)
 {
-    byte ocspReqBuf[SCRATCH_BUFFER_SIZE];
+    byte* ocspReqBuf = NULL;
     int ocspReqSz = SCRATCH_BUFFER_SIZE;
     byte* ocspRespBuf = NULL;
     OcspRequest ocspRequest;
@@ -502,29 +502,36 @@ int CyaSSL_OCSP_Lookup_Cert(CYASSL_OCSP* ocsp, DecodedCert* cert)
         }
     }
     
+    ocspReqBuf = (byte*)XMALLOC(ocspReqSz, NULL, DYNAMIC_TYPE_IN_BUFFER);
+    if (ocspReqBuf == NULL) {
+        CYASSL_MSG("\talloc OCSP request buffer failed");
+        return MEMORY_ERROR;
+    }
     InitOcspRequest(&ocspRequest, cert, ocsp->useNonce, ocspReqBuf, ocspReqSz);
     ocspReqSz = EncodeOcspRequest(&ocspRequest);
     result = http_ocsp_transaction(ocsp, cert,
                                         ocspReqBuf, ocspReqSz, &ocspRespBuf);
-    if (result < 0) return result;
-        /* If the transaction failed, return that result. */
-
-    InitOcspResponse(&ocspResponse, certStatus, ocspRespBuf, result);
-    OcspResponseDecode(&ocspResponse);
-
-    if (ocspResponse.responseStatus != OCSP_SUCCESSFUL) {
-        CYASSL_MSG("OCSP Responder failure");
-        result = OCSP_LOOKUP_FAIL;
-    } else {
-        if (CompareOcspReqResp(&ocspRequest, &ocspResponse) == 0)
-        {
-            result = xstat2err(ocspResponse.status->status);
-        }
-        else
-        {
-            CYASSL_MSG("OCSP Response incorrect for Request");
+    if (result >= 0) {
+        InitOcspResponse(&ocspResponse, certStatus, ocspRespBuf, result);
+        OcspResponseDecode(&ocspResponse);
+    
+        if (ocspResponse.responseStatus != OCSP_SUCCESSFUL) {
+            CYASSL_MSG("OCSP Responder failure");
             result = OCSP_LOOKUP_FAIL;
+        } else {
+            if (CompareOcspReqResp(&ocspRequest, &ocspResponse) == 0)
+            {
+                result = xstat2err(ocspResponse.status->status);
+            }
+            else
+            {
+                CYASSL_MSG("OCSP Response incorrect for Request");
+                result = OCSP_LOOKUP_FAIL;
+            }
         }
+    }
+    if (ocspReqBuf != NULL) {
+        XFREE(ocspReqBuf, NULL, DYNAMIC_TYPE_IN_BUFFER);
     }
     if (ocspRespBuf != NULL) {
         XFREE(ocspRespBuf, NULL, DYNAMIC_TYPE_IN_BUFFER);
