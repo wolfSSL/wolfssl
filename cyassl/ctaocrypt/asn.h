@@ -417,6 +417,7 @@ struct OcspResponse {
 struct OcspRequest {
     DecodedCert* cert;
 
+    byte    useNonce;
     byte    nonce[MAX_OCSP_NONCE_SZ];
     int     nonceSz;
 
@@ -433,7 +434,8 @@ struct OcspRequest {
 CYASSL_LOCAL void InitOcspResponse(OcspResponse*, CertStatus*, byte*, word32);
 CYASSL_LOCAL int  OcspResponseDecode(OcspResponse*);
 
-CYASSL_LOCAL void InitOcspRequest(OcspRequest*, DecodedCert*, byte*, word32);
+CYASSL_LOCAL void InitOcspRequest(OcspRequest*, DecodedCert*,
+                                                          byte, byte*, word32);
 CYASSL_LOCAL int  EncodeOcspRequest(OcspRequest*);
 
 CYASSL_LOCAL int  CompareOcspReqResp(OcspRequest*, OcspResponse*);
