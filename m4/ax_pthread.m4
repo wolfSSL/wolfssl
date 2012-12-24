@@ -159,7 +159,7 @@ case ${host_os} in
         ax_pthread_flags="-pthreads pthread -mt -pthread $ax_pthread_flags"
         ;;
 
-        darwin12*)
+        darwin12* | darwin11.4*)
         ax_pthread_flags="$ax_pthread_flags"
         ;;
 
