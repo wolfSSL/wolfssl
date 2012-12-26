@@ -685,11 +685,6 @@ void test_client_nofail(void* args)
     int  input;
     int  msgSz = (int)strlen(msg);
 
-    int     argc = ((func_args*)args)->argc;
-    char**  argv = ((func_args*)args)->argv;
-    (void)argc;
-    (void)argv;
-
     ((func_args*)args)->return_code = TEST_FAIL;
     method = CyaSSLv23_client_method();
     ctx = CyaSSL_CTX_new(method);

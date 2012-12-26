@@ -3033,10 +3033,49 @@ static INLINE int Decrypt(CYASSL* ssl, byte* plain, const byte* input,
 }
 
 
+/* check cipher text size for sanity */
+static int SanityCheckCipherText(CYASSL* ssl, word32 encryptSz)
+{
+    word32 minLength = 0;
+
+    if (ssl->specs.cipher_type == block) {
+        if (encryptSz % ssl->specs.block_size) {
+            CYASSL_MSG("Block ciphertext not block size");
+            return SANITY_CIPHER_E;
+        }
+        minLength = ssl->specs.hash_size + 1;  /* pad byte */
+        if (ssl->specs.block_size > minLength)
+            minLength = ssl->specs.block_size;
+
+        if (ssl->options.tls1_1)
+            minLength += ssl->specs.block_size;  /* explicit IV */
+    }
+    else if (ssl->specs.cipher_type == stream) {
+        minLength = ssl->specs.hash_size;
+    }
+    else if (ssl->specs.cipher_type == aead) {
+        minLength = ssl->specs.block_size;   /* actual min? */
+    }
+
+    if (encryptSz < minLength) {
+        CYASSL_MSG("Ciphertext not minimum size");
+        return SANITY_CIPHER_E;
+    }
+
+    return 0;
+}
+
+
 /* decrypt input message in place */
 static int DecryptMessage(CYASSL* ssl, byte* input, word32 sz, word32* idx)
 {
-    int decryptResult = Decrypt(ssl, input, input, sz);
+    int decryptResult;
+    int sanityResult = SanityCheckCipherText(ssl, sz);
+
+    if (sanityResult != 0)
+        return sanityResult;
+
+    decryptResult = Decrypt(ssl, input, input, sz);
 
     if (decryptResult == 0)
     {
@@ -4550,6 +4589,10 @@ void SetErrorString(int error, char* str)
 
     case BAD_KEA_TYPE_E:
         XSTRNCPY(str, "Bad KEA type found", max);
+        break;
+
+    case SANITY_CIPHER_E:
+        XSTRNCPY(str, "Sanity check on ciphertext failed", max);
         break;
 
     default :

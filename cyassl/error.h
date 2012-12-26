@@ -107,6 +107,7 @@ enum CyaSSL_ErrorCodes {
     SSL_NO_PEM_HEADER      = -272,            /* no PEM header found */
     OUT_OF_ORDER_E         = -273,            /* out of order message */
     BAD_KEA_TYPE_E         = -274,            /* bad KEA type found */
+    SANITY_CIPHER_E        = -275,            /* sanity check on cipher error */
     /* add strings to SetErrorString !!!!! */
 
     /* begin negotiation parameter errors */
