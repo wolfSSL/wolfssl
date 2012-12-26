@@ -31,6 +31,121 @@
 #endif
 
 
+#ifdef STM32F2_CRYPTO
+    /*
+     * STM32F2 hardware SHA1 support through the STM32F2 standard peripheral
+     * library. Documentation located in STM32F2xx Standard Peripheral Library
+     * document (See note in README).
+     */
+    #include "stm32f2xx.h"
+
+    void InitSha(Sha* sha)
+    {
+        /* STM32F2 struct notes:
+         * sha->buffer  = first 4 bytes used to hold partial block if needed 
+         * sha->buffLen = num bytes currently stored in sha->buffer
+         * sha->loLen   = num bytes that have been written to STM32 FIFO
+         */
+        XMEMSET(sha->buffer, 0, SHA_REG_SIZE);
+        sha->buffLen = 0;
+        sha->loLen = 0;
+
+        /* initialize HASH peripheral */
+        HASH_DeInit();
+
+        /* configure algo used, algo mode, datatype */
+        HASH->CR &= ~ (HASH_CR_ALGO | HASH_CR_DATATYPE | HASH_CR_MODE);
+        HASH->CR |= (HASH_AlgoSelection_SHA1 | HASH_AlgoMode_HASH 
+                 | HASH_DataType_8b);
+
+        /* reset HASH processor */
+        HASH->CR |= HASH_CR_INIT;
+    }
+
+    void ShaUpdate(Sha* sha, const byte* data, word32 len)
+    {
+        word32 i = 0;
+        word32 fill = 0;
+        word32 diff = 0;
+
+        /* if saved partial block is available */
+        if (sha->buffLen) {
+            fill = 4 - sha->buffLen;
+
+            /* if enough data to fill, fill and push to FIFO */
+            if (fill <= len) {
+                XMEMCPY((byte*)sha->buffer + sha->buffLen, data, fill);
+                HASH_DataIn(*(uint32_t*)sha->buffer);
+
+                data += fill;
+                len -= fill;
+                sha->loLen += 4;
+                sha->buffLen = 0;
+            } else {
+                /* append partial to existing stored block */
+                XMEMCPY((byte*)sha->buffer + sha->buffLen, data, len);
+                sha->buffLen += len;
+                return;
+            }
+        }
+       
+        /* write input block in the IN FIFO */
+        for(i = 0; i < len; i += 4)
+        {
+            diff = len - i;
+            if ( diff < 4) {
+                /* store incomplete last block, not yet in FIFO */
+                XMEMSET(sha->buffer, 0, SHA_REG_SIZE);
+                XMEMCPY((byte*)sha->buffer, data, diff);
+                sha->buffLen = diff;
+            } else {
+                HASH_DataIn(*(uint32_t*)data);
+                data+=4;
+            }
+        }
+
+        /* keep track of total data length thus far */ 
+        sha->loLen += (len - sha->buffLen);
+    }
+
+    void ShaFinal(Sha* sha, byte* hash)
+    {
+        __IO uint16_t nbvalidbitsdata = 0;
+        
+        /* finish reading any trailing bytes into FIFO */
+        if (sha->buffLen) {
+            HASH_DataIn(*(uint32_t*)sha->buffer);
+            sha->loLen += sha->buffLen;
+        }
+
+        /* calculate number of valid bits in last word of input data */
+        nbvalidbitsdata = 8 * (sha->loLen % SHA_REG_SIZE);
+
+        /* configure number of valid bits in last word of the data */
+        HASH_SetLastWordValidBitsNbr(nbvalidbitsdata);
+
+        /* start HASH processor */
+        HASH_StartDigest();
+
+        /* wait until Busy flag == RESET */
+        while (HASH_GetFlagStatus(HASH_FLAG_BUSY) != RESET) {}
+
+        /* read message digest */
+        sha->digest[0] = HASH->HR[0];
+        sha->digest[1] = HASH->HR[1];
+        sha->digest[2] = HASH->HR[2];
+        sha->digest[3] = HASH->HR[3];
+        sha->digest[4] = HASH->HR[4];
+        
+        ByteReverseWords(sha->digest, sha->digest, SHA_DIGEST_SIZE);
+
+        XMEMCPY(hash, sha->digest, SHA_DIGEST_SIZE);
+
+        InitSha(sha);  /* reset state */
+    }
+
+#else /* CTaoCrypt software implementation */
+
 #ifndef min
 
     static INLINE word32 min(word32 a, word32 b)
@@ -227,4 +342,6 @@ void ShaFinal(Sha* sha, byte* hash)
 
     InitSha(sha);  /* reset state */
 }
+
+#endif /* STM32F2_CRYPTO */
 

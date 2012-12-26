@@ -33,6 +33,9 @@
 
 /* in bytes */
 enum {
+#ifdef STM32F2_CRYPTO
+    MD5_REG_SIZE    =  4,      /* STM32 register size, bytes */
+#endif
     MD5             =  0,      /* hash type unique */
     MD5_BLOCK_SIZE  = 64,
     MD5_DIGEST_SIZE = 16,
