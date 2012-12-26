@@ -1312,10 +1312,14 @@ void SSL_ResourceFree(CYASSL* ssl)
     FreeStreams(ssl);
 #endif
 #ifdef HAVE_ECC
-    ecc_free(&ssl->peerEccKey);
-    ecc_free(&ssl->peerEccDsaKey);
-    ecc_free(&ssl->eccTempKey);
-    ecc_free(&ssl->eccDsaKey);
+    if (ssl->peerEccKeyPresent)
+        ecc_free(&ssl->peerEccKey);
+    if (ssl->peerEccDsaKeyPresent)
+        ecc_free(&ssl->peerEccDsaKey);
+    if (ssl->eccTempKeyPresent)
+        ecc_free(&ssl->eccTempKey);
+    if (ssl->eccDsaKeyPresent)
+        ecc_free(&ssl->eccDsaKey);
 #endif
 }
 
@@ -1356,6 +1360,25 @@ void FreeHandshakeResources(CYASSL* ssl)
         FreeRsaKey(ssl->peerRsaKey);
         XFREE(ssl->peerRsaKey, ssl->heap, DYNAMIC_TYPE_RSA);
         ssl->peerRsaKey = NULL;
+    }
+#endif
+
+#ifdef HAVE_ECC
+    if (ssl->peerEccKeyPresent) {
+        ecc_free(&ssl->peerEccKey);
+        ssl->peerEccKeyPresent = 0;
+    }
+    if (ssl->peerEccDsaKeyPresent) {
+        ecc_free(&ssl->peerEccDsaKey);
+        ssl->peerEccDsaKeyPresent = 0;
+    }
+    if (ssl->eccTempKeyPresent) {
+        ecc_free(&ssl->eccTempKey);
+        ssl->eccTempKeyPresent = 0;
+    }
+    if (ssl->eccDsaKeyPresent) {
+        ecc_free(&ssl->eccDsaKey);
+        ssl->eccDsaKeyPresent = 0;
     }
 #endif
 }
