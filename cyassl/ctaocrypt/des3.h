@@ -43,6 +43,13 @@ enum {
     DES_DECRYPTION  = 1
 };
 
+#ifdef STM32F2_CRYPTO
+enum {
+    DES_CBC = 0,
+    DES_ECB = 1
+};
+#endif
+
 
 /* DES encryption and decryption */
 typedef struct Des {

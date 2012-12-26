@@ -34,6 +34,223 @@
 #endif
 
 
+#ifdef STM32F2_CRYPTO
+    /*
+     * STM32F2 hardware DES/3DES support through the STM32F2 standard
+     * peripheral library. Documentation located in STM32F2xx Standard
+     * Peripheral Library document (See note in README).
+     */
+    #include "stm32f2xx.h"
+
+    void Des_SetKey(Des* des, const byte* key, const byte* iv, int dir)
+    {
+        word32 *dkey = des->key;
+
+        XMEMCPY(dkey, key, 8);
+        ByteReverseWords(dkey, dkey, 8);
+
+        Des_SetIV(des, iv);
+    }
+
+    void Des3_SetKey(Des3* des, const byte* key, const byte* iv, int dir)
+    {
+        word32 *dkey1 = des->key[0];
+        word32 *dkey2 = des->key[1];
+        word32 *dkey3 = des->key[2];
+
+        XMEMCPY(dkey1, key, 8);         /* set key 1 */
+        XMEMCPY(dkey2, key + 8, 8);     /* set key 2 */
+        XMEMCPY(dkey3, key + 16, 8);    /* set key 3 */
+
+        ByteReverseWords(dkey1, dkey1, 8);
+        ByteReverseWords(dkey2, dkey2, 8);
+        ByteReverseWords(dkey3, dkey3, 8);
+
+        Des3_SetIV(des, iv);
+    }
+
+    void DesCrypt(Des* des, byte* out, const byte* in, word32 sz,
+                  int dir, int mode)
+    {
+        word32 *dkey, *iv;
+        CRYP_InitTypeDef DES_CRYP_InitStructure;
+        CRYP_KeyInitTypeDef DES_CRYP_KeyInitStructure;
+        CRYP_IVInitTypeDef DES_CRYP_IVInitStructure;
+
+        dkey = des->key;
+        iv = des->reg;
+
+        /* crypto structure initialization */
+        CRYP_KeyStructInit(&DES_CRYP_KeyInitStructure);
+        CRYP_StructInit(&DES_CRYP_InitStructure);
+        CRYP_IVStructInit(&DES_CRYP_IVInitStructure);
+
+        /* reset registers to their default values */
+        CRYP_DeInit();
+
+        /* set direction, mode, and datatype */
+        if (dir == DES_ENCRYPTION) {
+            DES_CRYP_InitStructure.CRYP_AlgoDir  = CRYP_AlgoDir_Encrypt;
+        } else { /* DES_DECRYPTION */
+            DES_CRYP_InitStructure.CRYP_AlgoDir  = CRYP_AlgoDir_Decrypt;
+        }
+
+        if (mode == DES_CBC) {
+            DES_CRYP_InitStructure.CRYP_AlgoMode = CRYP_AlgoMode_DES_CBC;
+        } else { /* DES_ECB */
+            DES_CRYP_InitStructure.CRYP_AlgoMode = CRYP_AlgoMode_DES_ECB;
+        }
+
+        DES_CRYP_InitStructure.CRYP_DataType = CRYP_DataType_8b;
+        CRYP_Init(&DES_CRYP_InitStructure);
+
+        /* load key into correct registers */
+        DES_CRYP_KeyInitStructure.CRYP_Key1Left  = dkey[0];
+        DES_CRYP_KeyInitStructure.CRYP_Key1Right = dkey[1];
+        CRYP_KeyInit(&DES_CRYP_KeyInitStructure);
+
+        /* set iv */
+        ByteReverseWords(iv, iv, DES_BLOCK_SIZE);
+        DES_CRYP_IVInitStructure.CRYP_IV0Left  = iv[0];
+        DES_CRYP_IVInitStructure.CRYP_IV0Right = iv[1];
+        CRYP_IVInit(&DES_CRYP_IVInitStructure);
+
+        /* enable crypto processor */
+        CRYP_Cmd(ENABLE);
+
+        while (sz > 0)
+        {
+            /* flush IN/OUT FIFOs */
+            CRYP_FIFOFlush();
+
+            /* if input and output same will overwrite input iv */
+            XMEMCPY(des->tmp, in + sz - DES_BLOCK_SIZE, DES_BLOCK_SIZE);
+
+            CRYP_DataIn(*(uint32_t*)&in[0]);
+            CRYP_DataIn(*(uint32_t*)&in[4]);
+
+            /* wait until the complete message has been processed */
+            while(CRYP_GetFlagStatus(CRYP_FLAG_BUSY) != RESET) {}
+
+            *(uint32_t*)&out[0]  = CRYP_DataOut();
+            *(uint32_t*)&out[4]  = CRYP_DataOut();
+
+            /* store iv for next call */
+            XMEMCPY(des->reg, des->tmp, DES_BLOCK_SIZE);
+
+            sz  -= DES_BLOCK_SIZE;
+            in  += DES_BLOCK_SIZE;
+            out += DES_BLOCK_SIZE;
+        }
+
+        /* disable crypto processor */
+        CRYP_Cmd(DISABLE);
+    }
+
+    void Des_CbcEncrypt(Des* des, byte* out, const byte* in, word32 sz)
+    {
+        DesCrypt(des, out, in, sz, DES_ENCRYPTION, DES_CBC);
+    }
+
+    void Des_CbcDecrypt(Des* des, byte* out, const byte* in, word32 sz)
+    {
+        DesCrypt(des, out, in, sz, DES_DECRYPTION, DES_CBC);
+    }
+
+    void Des_EcbEncrypt(Des* des, byte* out, const byte* in, word32 sz)
+    {
+        DesCrypt(des, out, in, sz, DES_ENCRYPTION, DES_ECB);
+    }
+
+    void Des3Crypt(Des3* des, byte* out, const byte* in, word32 sz,
+                   int dir)
+    {
+        word32 *dkey1, *dkey2, *dkey3, *iv;
+        CRYP_InitTypeDef DES3_CRYP_InitStructure;
+        CRYP_KeyInitTypeDef DES3_CRYP_KeyInitStructure;
+        CRYP_IVInitTypeDef DES3_CRYP_IVInitStructure;
+
+        dkey1 = des->key[0];
+        dkey2 = des->key[1];
+        dkey3 = des->key[2];
+        iv = des->reg;
+
+        /* crypto structure initialization */
+        CRYP_KeyStructInit(&DES3_CRYP_KeyInitStructure);
+        CRYP_StructInit(&DES3_CRYP_InitStructure);
+        CRYP_IVStructInit(&DES3_CRYP_IVInitStructure);
+
+        /* reset registers to their default values */
+        CRYP_DeInit();
+
+        /* set direction, mode, and datatype */
+        if (dir == DES_ENCRYPTION) {
+            DES3_CRYP_InitStructure.CRYP_AlgoDir  = CRYP_AlgoDir_Encrypt;
+        } else {
+            DES3_CRYP_InitStructure.CRYP_AlgoDir  = CRYP_AlgoDir_Decrypt;
+        }
+
+        DES3_CRYP_InitStructure.CRYP_AlgoMode = CRYP_AlgoMode_TDES_CBC;
+        DES3_CRYP_InitStructure.CRYP_DataType = CRYP_DataType_8b;
+        CRYP_Init(&DES3_CRYP_InitStructure);
+
+        /* load key into correct registers */
+        DES3_CRYP_KeyInitStructure.CRYP_Key1Left  = dkey1[0];
+        DES3_CRYP_KeyInitStructure.CRYP_Key1Right = dkey1[1];
+        DES3_CRYP_KeyInitStructure.CRYP_Key2Left  = dkey2[0];
+        DES3_CRYP_KeyInitStructure.CRYP_Key2Right = dkey2[1];
+        DES3_CRYP_KeyInitStructure.CRYP_Key3Left  = dkey3[0];
+        DES3_CRYP_KeyInitStructure.CRYP_Key3Right = dkey3[1];
+        CRYP_KeyInit(&DES3_CRYP_KeyInitStructure);
+
+        /* set iv */
+        ByteReverseWords(iv, iv, DES_BLOCK_SIZE);
+        DES3_CRYP_IVInitStructure.CRYP_IV0Left  = iv[0];
+        DES3_CRYP_IVInitStructure.CRYP_IV0Right = iv[1];
+        CRYP_IVInit(&DES3_CRYP_IVInitStructure);
+
+        /* enable crypto processor */
+        CRYP_Cmd(ENABLE);
+
+        while (sz > 0)
+        {
+            /* flush IN/OUT FIFOs */
+            CRYP_FIFOFlush();
+
+            CRYP_DataIn(*(uint32_t*)&in[0]);
+            CRYP_DataIn(*(uint32_t*)&in[4]);
+
+            /* wait until the complete message has been processed */
+            while(CRYP_GetFlagStatus(CRYP_FLAG_BUSY) != RESET) {}
+
+            *(uint32_t*)&out[0]  = CRYP_DataOut();
+            *(uint32_t*)&out[4]  = CRYP_DataOut();
+
+            /* store iv for next call */
+            XMEMCPY(des->reg, out + sz - DES_BLOCK_SIZE, DES_BLOCK_SIZE);
+
+            sz  -= DES_BLOCK_SIZE;
+            in  += DES_BLOCK_SIZE;
+            out += DES_BLOCK_SIZE;
+        }
+
+        /* disable crypto processor */
+        CRYP_Cmd(DISABLE);
+
+    }
+
+    void Des3_CbcEncrypt(Des3* des, byte* out, const byte* in, word32 sz)
+    {
+        Des3Crypt(des, out, in, sz, DES_ENCRYPTION);
+    }
+
+    void Des3_CbcDecrypt(Des3* des, byte* out, const byte* in, word32 sz)
+    {
+        Des3Crypt(des, out, in, sz, DES_DECRYPTION);
+    }
+
+#else /* CTaoCrypt software implementation */
+
 /* permuted choice table (key) */
 static const byte pc1[] = {
        57, 49, 41, 33, 25, 17,  9,
@@ -327,20 +544,6 @@ static INLINE int Reverse(int dir)
 }
 
 
-void Des_SetIV(Des* des, const byte* iv)
-{
-    if (des && iv)
-        XMEMCPY(des->reg, iv, DES_BLOCK_SIZE);
-}
-
-
-void Des3_SetIV(Des3* des, const byte* iv)
-{
-    if (des && iv)
-        XMEMCPY(des->reg, iv, DES_BLOCK_SIZE);
-}
-
-
 void Des_SetKey(Des* des, const byte* key, const byte* iv, int dir)
 {
     DesSetKey(key, dir, des->key);
@@ -523,6 +726,21 @@ void Des_EcbEncrypt(Des* des, byte* out, const byte* in, word32 sz)
 }
 
 #endif /* CYASSL_DES_ECB */
+
+#endif /* STM32F2_CRYPTO */
+
+void Des_SetIV(Des* des, const byte* iv)
+{
+    if (des && iv)
+        XMEMCPY(des->reg, iv, DES_BLOCK_SIZE);
+}
+
+
+void Des3_SetIV(Des3* des, const byte* iv)
+{
+    if (des && iv)
+        XMEMCPY(des->reg, iv, DES_BLOCK_SIZE);
+}
 
 
 #endif /* NO_DES3 */
