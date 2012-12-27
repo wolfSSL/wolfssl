@@ -4240,8 +4240,7 @@ static int DecodeSingleResponse(byte* source,
     if (GetBasicDate(source, &idx, cs->thisDate,
                                                 &cs->thisDateFormat, size) < 0)
         return ASN_PARSE_E;
-    /* Check thisDate <= now, or treat thisDate > now as a failure */
-    if (ValidateDate(cs->thisDate, cs->thisDateFormat, AFTER))
+    if (!ValidateDate(cs->thisDate, cs->thisDateFormat, BEFORE))
         return ASN_BEFORE_DATE_E;
     
     /* The following items are optional. Only check for them if there is more
