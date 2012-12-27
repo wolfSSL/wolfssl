@@ -1004,10 +1004,10 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
     ssl->peerEccDsaKeyPresent = 0;
     ssl->eccDsaKeyPresent = 0;
     ssl->eccTempKeyPresent = 0;
-    ecc_init(&ssl->peerEccKey);
-    ecc_init(&ssl->peerEccDsaKey);
-    ecc_init(&ssl->eccDsaKey);
-    ecc_init(&ssl->eccTempKey);
+    ssl->peerEccKey = NULL;
+    ssl->peerEccDsaKey = NULL;
+    ssl->eccDsaKey = NULL;
+    ssl->eccTempKey = NULL;
 #endif
 
     ssl->timeout = ctx->timeout;
@@ -1228,6 +1228,36 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
             return NO_PRIVATE_KEY;
         }
 #endif
+#ifdef HAVE_ECC
+    ssl->peerEccKey = (ecc_key*)XMALLOC(sizeof(ecc_key),
+                                                   ctx->heap, DYNAMIC_TYPE_ECC);
+    if (ssl->peerEccKey == NULL) {
+        CYASSL_MSG("PeerEccKey Memory error");
+        return MEMORY_E;
+    }
+    ssl->peerEccDsaKey = (ecc_key*)XMALLOC(sizeof(ecc_key),
+                                                   ctx->heap, DYNAMIC_TYPE_ECC);
+    if (ssl->peerEccDsaKey == NULL) {
+        CYASSL_MSG("PeerEccDsaKey Memory error");
+        return MEMORY_E;
+    }
+    ssl->eccDsaKey = (ecc_key*)XMALLOC(sizeof(ecc_key),
+                                                   ctx->heap, DYNAMIC_TYPE_ECC);
+    if (ssl->eccDsaKey == NULL) {
+        CYASSL_MSG("EccDsaKey Memory error");
+        return MEMORY_E;
+    }
+    ssl->eccTempKey = (ecc_key*)XMALLOC(sizeof(ecc_key),
+                                                   ctx->heap, DYNAMIC_TYPE_ECC);
+    if (ssl->eccTempKey == NULL) {
+        CYASSL_MSG("EccTempKey Memory error");
+        return MEMORY_E;
+    }
+    ecc_init(ssl->peerEccKey);
+    ecc_init(ssl->peerEccDsaKey);
+    ecc_init(ssl->eccDsaKey);
+    ecc_init(ssl->eccTempKey);
+#endif
 
     /* make sure server has DH parms, and add PSK if there, add NTRU too */
     if (ssl->options.side == SERVER_END) 
@@ -1312,10 +1342,26 @@ void SSL_ResourceFree(CYASSL* ssl)
     FreeStreams(ssl);
 #endif
 #ifdef HAVE_ECC
-    ecc_free(&ssl->peerEccKey);
-    ecc_free(&ssl->peerEccDsaKey);
-    ecc_free(&ssl->eccTempKey);
-    ecc_free(&ssl->eccDsaKey);
+    if (ssl->peerEccKey) {
+        if (ssl->peerEccKeyPresent)
+            ecc_free(ssl->peerEccKey);
+        XFREE(ssl->peerEccKey, ssl->heap, DYNAMIC_TYPE_ECC);
+    }
+    if (ssl->peerEccDsaKey) {
+        if (ssl->peerEccDsaKeyPresent)
+            ecc_free(ssl->peerEccDsaKey);
+        XFREE(ssl->peerEccDsaKey, ssl->heap, DYNAMIC_TYPE_ECC);
+    }
+    if (ssl->eccTempKey) {
+        if (ssl->eccTempKeyPresent)
+            ecc_free(ssl->eccTempKey);
+        XFREE(ssl->eccTempKey, ssl->heap, DYNAMIC_TYPE_ECC);
+    }
+    if (ssl->eccDsaKey) {
+        if (ssl->eccDsaKeyPresent)
+            ecc_free(ssl->eccDsaKey);
+        XFREE(ssl->eccDsaKey, ssl->heap, DYNAMIC_TYPE_ECC);
+    }
 #endif
 }
 
@@ -1356,6 +1402,45 @@ void FreeHandshakeResources(CYASSL* ssl)
         FreeRsaKey(ssl->peerRsaKey);
         XFREE(ssl->peerRsaKey, ssl->heap, DYNAMIC_TYPE_RSA);
         ssl->peerRsaKey = NULL;
+    }
+#endif
+
+#ifdef HAVE_ECC
+    if (ssl->peerEccKey)
+    {
+        if (ssl->peerEccKeyPresent) {
+            ecc_free(ssl->peerEccKey);
+            ssl->peerEccKeyPresent = 0;
+        }
+        XFREE(ssl->peerEccKey, ssl->heap, DYNAMIC_TYPE_ECC);
+        ssl->peerEccKey = NULL;
+    }
+    if (ssl->peerEccDsaKey)
+    {
+        if (ssl->peerEccDsaKeyPresent) {
+            ecc_free(ssl->peerEccDsaKey);
+            ssl->peerEccDsaKeyPresent = 0;
+        }
+        XFREE(ssl->peerEccDsaKey, ssl->heap, DYNAMIC_TYPE_ECC);
+        ssl->peerEccDsaKey = NULL;
+    }
+    if (ssl->eccTempKey)
+    {
+        if (ssl->eccTempKeyPresent) {
+            ecc_free(ssl->eccTempKey);
+            ssl->eccTempKeyPresent = 0;
+        }
+        XFREE(ssl->eccTempKey, ssl->heap, DYNAMIC_TYPE_ECC);
+        ssl->eccTempKey = NULL;
+    }
+    if (ssl->eccDsaKey)
+    {
+        if (ssl->eccDsaKeyPresent) {
+            ecc_free(ssl->eccDsaKey);
+            ssl->eccDsaKeyPresent = 0;
+        }
+        XFREE(ssl->eccDsaKey, ssl->heap, DYNAMIC_TYPE_ECC);
+        ssl->eccDsaKey = NULL;
     }
 #endif
 }
@@ -2418,7 +2503,7 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx)
             case ECDSAk:
                 {
                     if (ecc_import_x963(dCert.publicKey, dCert.pubKeySize,
-                                        &ssl->peerEccDsaKey) != 0) {
+                                        ssl->peerEccDsaKey) != 0) {
                         ret = PEER_KEY_ERROR;
                     }
                     else
@@ -5680,7 +5765,7 @@ int SetCipherList(Suites* s, const char* list)
         length = input[*inOutIdx];
         *inOutIdx += 1;
 
-        if (ecc_import_x963(&input[*inOutIdx], length, &ssl->peerEccKey) != 0)
+        if (ecc_import_x963(&input[*inOutIdx], length, ssl->peerEccKey) != 0)
             return ECC_PEERKEY_ERROR;
 
         *inOutIdx += length;
@@ -5774,7 +5859,7 @@ int SetCipherList(Suites* s, const char* list)
                 return NO_PEER_KEY;
 
             ret = ecc_verify_hash(signature, sigLen, &hash[MD5_DIGEST_SIZE],
-                                 SHA_DIGEST_SIZE, &verify, &ssl->peerEccDsaKey);
+                                 SHA_DIGEST_SIZE, &verify, ssl->peerEccDsaKey);
             if (ret != 0 || verify == 0)
                 return VERIFY_SIGN_ERROR;
         }
@@ -5924,14 +6009,14 @@ int SetCipherList(Suites* s, const char* list)
 
                     if (ssl->specs.static_ecdh) {
                         /* TODO: EccDsa is really fixed Ecc change naming */
-                        if (!ssl->peerEccDsaKeyPresent || !ssl->peerEccDsaKey.dp)
+                        if (!ssl->peerEccDsaKeyPresent || !ssl->peerEccDsaKey->dp)
                             return NO_PEER_KEY;
-                        peerKey = &ssl->peerEccDsaKey;
+                        peerKey = ssl->peerEccDsaKey;
                     }
                     else {
-                        if (!ssl->peerEccKeyPresent || !ssl->peerEccKey.dp)
+                        if (!ssl->peerEccKeyPresent || !ssl->peerEccKey->dp)
                             return NO_PEER_KEY;
-                        peerKey = &ssl->peerEccKey;
+                        peerKey = ssl->peerEccKey;
                     }
 
                     ecc_init(&myKey);
@@ -6387,7 +6472,7 @@ int SetCipherList(Suites* s, const char* list)
             length = ENUM_LEN + CURVE_LEN + ENUM_LEN;
             /* pub key size */
             CYASSL_MSG("Using ephemeral ECDH");
-            if (ecc_export_x963(&ssl->eccTempKey, exportBuf, &expSz) != 0)
+            if (ecc_export_x963(ssl->eccTempKey, exportBuf, &expSz) != 0)
                 return ECC_EXPORT_ERROR;
             length += expSz;
 
@@ -6457,7 +6542,7 @@ int SetCipherList(Suites* s, const char* list)
             /* key exchange data */
             output[idx++] = named_curve;
             output[idx++] = 0x00;          /* leading zero */
-            output[idx++] = SetCurveId(ecc_size(&ssl->eccTempKey)); 
+            output[idx++] = SetCurveId(ecc_size(ssl->eccTempKey)); 
             output[idx++] = (byte)expSz;
             XMEMCPY(output + idx, exportBuf, expSz);
             idx += expSz;
@@ -7590,7 +7675,7 @@ int SetCipherList(Suites* s, const char* list)
             CYASSL_MSG("Doing ECC peer cert verify");
 
             err = ecc_verify_hash(sig, sz, ssl->certHashes.sha, SHA_DIGEST_SIZE,
-                                  &verify, &ssl->peerEccDsaKey);
+                                  &verify, ssl->peerEccDsaKey);
 
             if (err == 0 && verify == 1)
                ret = 0;   /* verified */ 
@@ -7833,7 +7918,8 @@ int SetCipherList(Suites* s, const char* list)
                 word32 bLength = input[*inOutIdx];  /* one byte length */
                 *inOutIdx += 1;
 
-                ret = ecc_import_x963(&input[*inOutIdx], bLength, &ssl->peerEccKey);
+                ret = ecc_import_x963(&input[*inOutIdx],
+                                                      bLength, ssl->peerEccKey);
                 if (ret != 0)
                     return ECC_PEERKEY_ERROR;
                 *inOutIdx += bLength;
@@ -7846,14 +7932,14 @@ int SetCipherList(Suites* s, const char* list)
 
                     ecc_init(&staticKey);
                     ret = EccPrivateKeyDecode(ssl->buffers.key.buffer, &i,
-                                              &staticKey, ssl->buffers.key.length);
+                                           &staticKey, ssl->buffers.key.length);
                     if (ret == 0)
-                        ret = ecc_shared_secret(&staticKey, &ssl->peerEccKey,
-                                               ssl->arrays->preMasterSecret, &size);
+                        ret = ecc_shared_secret(&staticKey, ssl->peerEccKey,
+                                           ssl->arrays->preMasterSecret, &size);
                     ecc_free(&staticKey);
                 }
                 else 
-                    ret = ecc_shared_secret(&ssl->eccTempKey, &ssl->peerEccKey,
+                    ret = ecc_shared_secret(ssl->eccTempKey, ssl->peerEccKey,
                                         ssl->arrays->preMasterSecret, &size);
                 if (ret != 0)
                     return ECC_SHARED_ERROR;
