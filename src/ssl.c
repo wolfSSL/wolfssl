@@ -2786,7 +2786,7 @@ int CyaSSL_dtls_got_timeout(CYASSL* ssl)
             /* in case used set_accept_state after init */
             if (ssl->eccTempKeyPresent == 0) {
                 if (ecc_make_key(ssl->rng, ssl->eccTempKeySz,
-                                 &ssl->eccTempKey) != 0) {
+                                 ssl->eccTempKey) != 0) {
                     ssl->error = ECC_MAKEKEY_ERROR;
                     CYASSL_ERROR(ssl->error);
                     return SSL_FATAL_ERROR; 

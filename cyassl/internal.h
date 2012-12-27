@@ -1350,10 +1350,10 @@ struct CYASSL {
     byte            peerNtruKeyPresent;
 #endif
 #ifdef HAVE_ECC
-    ecc_key         peerEccKey;              /* peer's  ECDHE key */
-    ecc_key         peerEccDsaKey;           /* peer's  ECDSA key */
-    ecc_key         eccTempKey;              /* private ECDHE key */
-    ecc_key         eccDsaKey;               /* private ECDSA key */
+    ecc_key*        peerEccKey;              /* peer's  ECDHE key */
+    ecc_key*        peerEccDsaKey;           /* peer's  ECDSA key */
+    ecc_key*        eccTempKey;              /* private ECDHE key */
+    ecc_key*        eccDsaKey;               /* private ECDSA key */
     word16          eccTempKeySz;            /* in octets 20 - 66 */
     byte            peerEccKeyPresent;
     byte            peerEccDsaKeyPresent;
