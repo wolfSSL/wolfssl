@@ -66,6 +66,9 @@
 /* Uncomment next line if building CyaSSL for Freescale MQX/RTCS/MFS */
 /* #define FREESCALE_MQX */
 
+/* Uncomment next line if using STM32F2 */
+/* #define CYASSL_STM32F2 */
+
 
 #include <cyassl/ctaocrypt/visibility.h>
 
@@ -224,6 +227,16 @@
     #define XMALLOC(s, h, type) (void *)_mem_alloc_system((s))
     #define XFREE(p, h, type)   _mem_free(p)
     /* Note: MQX has no realloc, using fastmath above */
+#endif
+
+#ifdef CYASSL_STM32F2
+    #define SIZEOF_LONG_LONG 8
+    #define NO_DEV_RANDOM
+    #define NO_CYASSL_DIR
+    #define NO_RABBIT
+    #define STM32F2_RNG
+    #define STM32F2_CRYPTO
+    #define KEIL_INTRINSICS
 #endif
 
 #ifdef MICRIUM
