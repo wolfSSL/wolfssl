@@ -32,6 +32,14 @@ SSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, 0);
 
 before calling SSL_new();  Though it's not recommended.
 
+
+Note 3)
+CyaSSL is able to use the STM32F2 hardware-based cryptography and random number
+generator through the STM32F2 Standard Peripheral Library. For necessary
+defines, see the CYASSL_STM32F2 define in settings.h. Documentation for the
+STM32F2 Standard Peripheral Library can be found in the following document: 
+http://www.st.com/internet/com/TECHNICAL_RESOURCES/TECHNICAL_LITERATURE/USER_MANUAL/DM00023896.pdf
+
 *** end Notes ***
 
 
