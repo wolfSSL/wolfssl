@@ -76,6 +76,8 @@ STATIC INLINE word32 ByteReverseWord32(word32 value)
 #ifdef PPC_INTRINSICS
     /* PPC: load reverse indexed instruction */
     return (word32)__lwbrx(&value,0);
+#elif defined(KEIL_INTRINSICS)
+    return (word32)__rev(value);
 #elif defined(FAST_ROTATE)
     /* 5 instructions with rotate instruction, 9 without */
     return (rotrFixed(value, 8U) & 0xff00ff00) |

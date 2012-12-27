@@ -41,6 +41,367 @@
 #endif
 
 
+#ifdef STM32F2_CRYPTO
+    /*
+     * STM32F2 hardware AES support through the STM32F2 standard peripheral
+     * library. Documentation located in STM32F2xx Standard Peripheral Library
+     * document (See note in README).
+     */
+    #include "stm32f2xx.h"
+
+    int AesSetKey(Aes* aes, const byte* userKey, word32 keylen, const byte* iv,
+                  int dir)
+    {
+        word32 *rk = aes->key;
+
+        if (!((keylen == 16) || (keylen == 24) || (keylen == 32)))
+            return BAD_FUNC_ARG;
+
+        aes->rounds = keylen/4 + 6;
+        XMEMCPY(rk, userKey, keylen);
+        ByteReverseWords(rk, rk, keylen);
+
+        return AesSetIV(aes, iv);
+    }
+
+    void AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
+    {
+        word32 *enc_key, *iv;
+        CRYP_InitTypeDef AES_CRYP_InitStructure;
+        CRYP_KeyInitTypeDef AES_CRYP_KeyInitStructure;
+        CRYP_IVInitTypeDef AES_CRYP_IVInitStructure;
+
+        enc_key = aes->key;
+        iv = aes->reg;
+
+        /* crypto structure initialization */
+        CRYP_KeyStructInit(&AES_CRYP_KeyInitStructure);
+        CRYP_StructInit(&AES_CRYP_InitStructure);
+        CRYP_IVStructInit(&AES_CRYP_IVInitStructure);
+
+        /* reset registers to their default values */
+        CRYP_DeInit();
+
+        /* load key into correct registers */
+        switch(aes->rounds)
+        {
+            case 10: /* 128-bit key */
+                AES_CRYP_InitStructure.CRYP_KeySize = CRYP_KeySize_128b;
+                AES_CRYP_KeyInitStructure.CRYP_Key2Left  = enc_key[0];
+                AES_CRYP_KeyInitStructure.CRYP_Key2Right = enc_key[1];
+                AES_CRYP_KeyInitStructure.CRYP_Key3Left  = enc_key[2];
+                AES_CRYP_KeyInitStructure.CRYP_Key3Right = enc_key[3];
+                break;
+
+            case 12: /* 192-bit key */
+                AES_CRYP_InitStructure.CRYP_KeySize = CRYP_KeySize_192b;
+                AES_CRYP_KeyInitStructure.CRYP_Key1Left  = enc_key[0];
+                AES_CRYP_KeyInitStructure.CRYP_Key1Right = enc_key[1];
+                AES_CRYP_KeyInitStructure.CRYP_Key2Left  = enc_key[2];
+                AES_CRYP_KeyInitStructure.CRYP_Key2Right = enc_key[3];
+                AES_CRYP_KeyInitStructure.CRYP_Key3Left  = enc_key[4];
+                AES_CRYP_KeyInitStructure.CRYP_Key3Right = enc_key[5];
+                break;
+
+            case 14: /* 256-bit key */
+                AES_CRYP_InitStructure.CRYP_KeySize = CRYP_KeySize_256b;
+                AES_CRYP_KeyInitStructure.CRYP_Key0Left  = enc_key[0];
+                AES_CRYP_KeyInitStructure.CRYP_Key0Right = enc_key[1];
+                AES_CRYP_KeyInitStructure.CRYP_Key1Left  = enc_key[2];
+                AES_CRYP_KeyInitStructure.CRYP_Key1Right = enc_key[3];
+                AES_CRYP_KeyInitStructure.CRYP_Key2Left  = enc_key[4];
+                AES_CRYP_KeyInitStructure.CRYP_Key2Right = enc_key[5];
+                AES_CRYP_KeyInitStructure.CRYP_Key3Left  = enc_key[6];
+                AES_CRYP_KeyInitStructure.CRYP_Key3Right = enc_key[7];
+                break;
+
+            default:
+                break;
+        }
+        CRYP_KeyInit(&AES_CRYP_KeyInitStructure);
+
+        /* set iv */
+        ByteReverseWords(iv, iv, AES_BLOCK_SIZE);
+        AES_CRYP_IVInitStructure.CRYP_IV0Left  = iv[0];
+        AES_CRYP_IVInitStructure.CRYP_IV0Right = iv[1];
+        AES_CRYP_IVInitStructure.CRYP_IV1Left  = iv[2];
+        AES_CRYP_IVInitStructure.CRYP_IV1Right = iv[3];
+        CRYP_IVInit(&AES_CRYP_IVInitStructure);
+
+        /* set direction, mode, and datatype */
+        AES_CRYP_InitStructure.CRYP_AlgoDir  = CRYP_AlgoDir_Encrypt;
+        AES_CRYP_InitStructure.CRYP_AlgoMode = CRYP_AlgoMode_AES_CBC;
+        AES_CRYP_InitStructure.CRYP_DataType = CRYP_DataType_8b;
+        CRYP_Init(&AES_CRYP_InitStructure);
+
+        /* enable crypto processor */
+        CRYP_Cmd(ENABLE);
+
+        while (sz > 0)
+        {
+            /* flush IN/OUT FIFOs */
+            CRYP_FIFOFlush();
+
+            CRYP_DataIn(*(uint32_t*)&in[0]);
+            CRYP_DataIn(*(uint32_t*)&in[4]);
+            CRYP_DataIn(*(uint32_t*)&in[8]);
+            CRYP_DataIn(*(uint32_t*)&in[12]);
+
+            /* wait until the complete message has been processed */
+            while(CRYP_GetFlagStatus(CRYP_FLAG_BUSY) != RESET) {}
+
+            *(uint32_t*)&out[0]  = CRYP_DataOut();
+            *(uint32_t*)&out[4]  = CRYP_DataOut();
+            *(uint32_t*)&out[8]  = CRYP_DataOut();
+            *(uint32_t*)&out[12] = CRYP_DataOut();
+
+            /* store iv for next call */
+            XMEMCPY(aes->reg, out + sz - AES_BLOCK_SIZE, AES_BLOCK_SIZE);
+
+            sz  -= 16;
+            in  += 16;
+            out += 16;
+        }
+
+        /* disable crypto processor */
+        CRYP_Cmd(DISABLE);
+    }
+
+    void AesCbcDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
+    {
+        word32 *dec_key, *iv;
+        CRYP_InitTypeDef AES_CRYP_InitStructure;
+        CRYP_KeyInitTypeDef AES_CRYP_KeyInitStructure;
+        CRYP_IVInitTypeDef AES_CRYP_IVInitStructure;
+
+        dec_key = aes->key;
+        iv = aes->reg;
+
+        /* crypto structure initialization */
+        CRYP_KeyStructInit(&AES_CRYP_KeyInitStructure);
+        CRYP_StructInit(&AES_CRYP_InitStructure);
+        CRYP_IVStructInit(&AES_CRYP_IVInitStructure);
+
+        /* if input and output same will overwrite input iv */
+        XMEMCPY(aes->tmp, in + sz - AES_BLOCK_SIZE, AES_BLOCK_SIZE);
+
+        /* reset registers to their default values */
+        CRYP_DeInit();
+
+        /* load key into correct registers */
+        switch(aes->rounds)
+        {
+            case 10: /* 128-bit key */
+                AES_CRYP_InitStructure.CRYP_KeySize = CRYP_KeySize_128b;
+                AES_CRYP_KeyInitStructure.CRYP_Key2Left  = dec_key[0];
+                AES_CRYP_KeyInitStructure.CRYP_Key2Right = dec_key[1];
+                AES_CRYP_KeyInitStructure.CRYP_Key3Left  = dec_key[2];
+                AES_CRYP_KeyInitStructure.CRYP_Key3Right = dec_key[3];
+                break;
+
+            case 12: /* 192-bit key */
+                AES_CRYP_InitStructure.CRYP_KeySize = CRYP_KeySize_192b;
+                AES_CRYP_KeyInitStructure.CRYP_Key1Left  = dec_key[0];
+                AES_CRYP_KeyInitStructure.CRYP_Key1Right = dec_key[1];
+                AES_CRYP_KeyInitStructure.CRYP_Key2Left  = dec_key[2];
+                AES_CRYP_KeyInitStructure.CRYP_Key2Right = dec_key[3];
+                AES_CRYP_KeyInitStructure.CRYP_Key3Left  = dec_key[4];
+                AES_CRYP_KeyInitStructure.CRYP_Key3Right = dec_key[5];
+                break;
+
+            case 14: /* 256-bit key */
+                AES_CRYP_InitStructure.CRYP_KeySize = CRYP_KeySize_256b;
+                AES_CRYP_KeyInitStructure.CRYP_Key0Left  = dec_key[0];
+                AES_CRYP_KeyInitStructure.CRYP_Key0Right = dec_key[1];
+                AES_CRYP_KeyInitStructure.CRYP_Key1Left  = dec_key[2];
+                AES_CRYP_KeyInitStructure.CRYP_Key1Right = dec_key[3];
+                AES_CRYP_KeyInitStructure.CRYP_Key2Left  = dec_key[4];
+                AES_CRYP_KeyInitStructure.CRYP_Key2Right = dec_key[5];
+                AES_CRYP_KeyInitStructure.CRYP_Key3Left  = dec_key[6];
+                AES_CRYP_KeyInitStructure.CRYP_Key3Right = dec_key[7];
+                break;
+
+            default:
+                break;
+        }
+
+        /* set direction, mode, and datatype for key preparation */
+        AES_CRYP_InitStructure.CRYP_AlgoDir  = CRYP_AlgoDir_Decrypt;
+        AES_CRYP_InitStructure.CRYP_AlgoMode = CRYP_AlgoMode_AES_Key;
+        AES_CRYP_InitStructure.CRYP_DataType = CRYP_DataType_32b;
+        CRYP_Init(&AES_CRYP_InitStructure);
+        CRYP_KeyInit(&AES_CRYP_KeyInitStructure);
+
+        /* enable crypto processor */
+        CRYP_Cmd(ENABLE);
+
+        /* wait until key has been prepared */
+        while(CRYP_GetFlagStatus(CRYP_FLAG_BUSY) != RESET) {}
+
+        /* set direction, mode, and datatype for decryption */
+        AES_CRYP_InitStructure.CRYP_AlgoDir  = CRYP_AlgoDir_Decrypt;
+        AES_CRYP_InitStructure.CRYP_AlgoMode = CRYP_AlgoMode_AES_CBC;
+        AES_CRYP_InitStructure.CRYP_DataType = CRYP_DataType_8b;
+        CRYP_Init(&AES_CRYP_InitStructure);
+
+        /* set iv */
+        ByteReverseWords(iv, iv, AES_BLOCK_SIZE);
+
+        AES_CRYP_IVInitStructure.CRYP_IV0Left  = iv[0];
+        AES_CRYP_IVInitStructure.CRYP_IV0Right = iv[1];
+        AES_CRYP_IVInitStructure.CRYP_IV1Left  = iv[2];
+        AES_CRYP_IVInitStructure.CRYP_IV1Right = iv[3];
+        CRYP_IVInit(&AES_CRYP_IVInitStructure);
+
+        /* enable crypto processor */
+        CRYP_Cmd(ENABLE);
+
+        while (sz > 0)
+        {
+            /* flush IN/OUT FIFOs */
+            CRYP_FIFOFlush();
+
+            CRYP_DataIn(*(uint32_t*)&in[0]);
+            CRYP_DataIn(*(uint32_t*)&in[4]);
+            CRYP_DataIn(*(uint32_t*)&in[8]);
+            CRYP_DataIn(*(uint32_t*)&in[12]);
+
+            /* wait until the complete message has been processed */
+            while(CRYP_GetFlagStatus(CRYP_FLAG_BUSY) != RESET) {}
+
+            *(uint32_t*)&out[0]  = CRYP_DataOut();
+            *(uint32_t*)&out[4]  = CRYP_DataOut();
+            *(uint32_t*)&out[8]  = CRYP_DataOut();
+            *(uint32_t*)&out[12] = CRYP_DataOut();
+
+            /* store iv for next call */
+            XMEMCPY(aes->reg, aes->tmp, AES_BLOCK_SIZE);
+
+            sz -= 16;
+            in += 16;
+            out += 16;
+        }
+
+        /* disable crypto processor */
+        CRYP_Cmd(DISABLE);
+    }
+
+    #ifdef CYASSL_AES_COUNTER
+
+    /* AES-CTR calls this for key setup */
+    int AesSetKeyDirect(Aes* aes, const byte* userKey, word32 keylen,
+                        const byte* iv, int dir)
+    {
+        return AesSetKey(aes, userKey, keylen, iv, dir);
+    }
+
+    void AesCtrEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
+    {
+        word32 *enc_key, *iv;
+        CRYP_InitTypeDef AES_CRYP_InitStructure;
+        CRYP_KeyInitTypeDef AES_CRYP_KeyInitStructure;
+        CRYP_IVInitTypeDef AES_CRYP_IVInitStructure;
+
+        enc_key = aes->key;
+        iv = aes->reg;
+
+        /* crypto structure initialization */
+        CRYP_KeyStructInit(&AES_CRYP_KeyInitStructure);
+        CRYP_StructInit(&AES_CRYP_InitStructure);
+        CRYP_IVStructInit(&AES_CRYP_IVInitStructure);
+
+        /* reset registers to their default values */
+        CRYP_DeInit();
+
+        /* load key into correct registers */
+        switch(aes->rounds)
+        {
+            case 10: /* 128-bit key */
+                AES_CRYP_InitStructure.CRYP_KeySize = CRYP_KeySize_128b;
+                AES_CRYP_KeyInitStructure.CRYP_Key2Left  = enc_key[0];
+                AES_CRYP_KeyInitStructure.CRYP_Key2Right = enc_key[1];
+                AES_CRYP_KeyInitStructure.CRYP_Key3Left  = enc_key[2];
+                AES_CRYP_KeyInitStructure.CRYP_Key3Right = enc_key[3];
+                break;
+
+            case 12: /* 192-bit key */
+                AES_CRYP_InitStructure.CRYP_KeySize = CRYP_KeySize_192b;
+                AES_CRYP_KeyInitStructure.CRYP_Key1Left  = enc_key[0];
+                AES_CRYP_KeyInitStructure.CRYP_Key1Right = enc_key[1];
+                AES_CRYP_KeyInitStructure.CRYP_Key2Left  = enc_key[2];
+                AES_CRYP_KeyInitStructure.CRYP_Key2Right = enc_key[3];
+                AES_CRYP_KeyInitStructure.CRYP_Key3Left  = enc_key[4];
+                AES_CRYP_KeyInitStructure.CRYP_Key3Right = enc_key[5];
+                break;
+
+            case 14: /* 256-bit key */
+                AES_CRYP_InitStructure.CRYP_KeySize = CRYP_KeySize_256b;
+                AES_CRYP_KeyInitStructure.CRYP_Key0Left  = enc_key[0];
+                AES_CRYP_KeyInitStructure.CRYP_Key0Right = enc_key[1];
+                AES_CRYP_KeyInitStructure.CRYP_Key1Left  = enc_key[2];
+                AES_CRYP_KeyInitStructure.CRYP_Key1Right = enc_key[3];
+                AES_CRYP_KeyInitStructure.CRYP_Key2Left  = enc_key[4];
+                AES_CRYP_KeyInitStructure.CRYP_Key2Right = enc_key[5];
+                AES_CRYP_KeyInitStructure.CRYP_Key3Left  = enc_key[6];
+                AES_CRYP_KeyInitStructure.CRYP_Key3Right = enc_key[7];
+                break;
+
+            default:
+                break;
+        }
+        CRYP_KeyInit(&AES_CRYP_KeyInitStructure);
+
+        /* set iv */
+        ByteReverseWords(iv, iv, AES_BLOCK_SIZE);
+        AES_CRYP_IVInitStructure.CRYP_IV0Left  = iv[0];
+        AES_CRYP_IVInitStructure.CRYP_IV0Right = iv[1];
+        AES_CRYP_IVInitStructure.CRYP_IV1Left  = iv[2];
+        AES_CRYP_IVInitStructure.CRYP_IV1Right = iv[3];
+        CRYP_IVInit(&AES_CRYP_IVInitStructure);
+
+        /* set direction, mode, and datatype */
+        AES_CRYP_InitStructure.CRYP_AlgoDir  = CRYP_AlgoDir_Encrypt;
+        AES_CRYP_InitStructure.CRYP_AlgoMode = CRYP_AlgoMode_AES_CTR;
+        AES_CRYP_InitStructure.CRYP_DataType = CRYP_DataType_8b;
+        CRYP_Init(&AES_CRYP_InitStructure);
+
+        /* enable crypto processor */
+        CRYP_Cmd(ENABLE);
+
+        while (sz > 0)
+        {
+            /* flush IN/OUT FIFOs */
+            CRYP_FIFOFlush();
+
+            CRYP_DataIn(*(uint32_t*)&in[0]);
+            CRYP_DataIn(*(uint32_t*)&in[4]);
+            CRYP_DataIn(*(uint32_t*)&in[8]);
+            CRYP_DataIn(*(uint32_t*)&in[12]);
+
+            /* wait until the complete message has been processed */
+            while(CRYP_GetFlagStatus(CRYP_FLAG_BUSY) != RESET) {}
+
+            *(uint32_t*)&out[0]  = CRYP_DataOut();
+            *(uint32_t*)&out[4]  = CRYP_DataOut();
+            *(uint32_t*)&out[8]  = CRYP_DataOut();
+            *(uint32_t*)&out[12] = CRYP_DataOut();
+
+            /* store iv for next call */
+            XMEMCPY(aes->reg, out + sz - AES_BLOCK_SIZE, AES_BLOCK_SIZE);
+
+            sz  -= 16;
+            in  += 16;
+            out += 16;
+        }
+
+        /* disable crypto processor */
+        CRYP_Cmd(DISABLE);
+    }
+
+    #endif /* CYASSL_AES_COUNTER */
+
+#else /* CTaoCrypt software implementation */
+
 static const word32 rcon[] = {
     0x01000000, 0x02000000, 0x04000000, 0x08000000,
     0x10000000, 0x20000000, 0x40000000, 0x80000000,
@@ -845,18 +1206,6 @@ static int AES_set_decrypt_key(const unsigned char* userKey, const int bits,
 
 
 #endif /* CYASSL_AESNI */
-
-
-int AesSetIV(Aes* aes, const byte* iv)
-{
-    if (aes == NULL)
-        return BAD_FUNC_ARG;
-
-    if (iv)
-        XMEMCPY(aes->reg, iv, AES_BLOCK_SIZE);
-
-    return 0;
-}
 
 
 static int AesSetKeyLocal(Aes* aes, const byte* userKey, word32 keylen,
@@ -2191,6 +2540,19 @@ int  AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 }
 
 #endif /* HAVE_AESGCM */
+
+#endif /* STM32F2_CRYPTO */
+
+int AesSetIV(Aes* aes, const byte* iv)
+{
+    if (aes == NULL)
+        return BAD_FUNC_ARG;
+
+    if (iv)
+        XMEMCPY(aes->reg, iv, AES_BLOCK_SIZE);
+
+    return 0;
+}
 
 
 #endif /* NO_AES */

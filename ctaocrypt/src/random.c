@@ -462,6 +462,35 @@ int GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         }
 	#endif /* FREESCALE_K70_RNGA */
 
+#elif defined(STM32F2_RNG)
+
+    #include "stm32f2xx_rng.h"
+    /*
+     * Generate a RNG seed using the hardware random number generator 
+     * on the STM32F2. Documentation located in STM32F2xx Standard Peripheral 
+     * Library document (See note in README).
+     */
+    int GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+    {
+        int i;
+
+        /* enable RNG clock source */
+        RCC_AHB2PeriphClockCmd(RCC_AHB2Periph_RNG, ENABLE);
+
+        /* enable RNG peripheral */
+        RNG_Cmd(ENABLE);
+
+        for (i = 0; i < sz; i++) {
+            /* wait until RNG number is ready */
+            while(RNG_GetFlagStatus(RNG_FLAG_DRDY)== RESET) { }
+
+            /* get value */
+            output[i] = RNG_GetRandomNumber();
+        }
+
+        return 0;
+    }
+
 #elif defined(NO_DEV_RANDOM)
 
 #error "you need to write an os specific GenerateSeed() here"
