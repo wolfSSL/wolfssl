@@ -1266,17 +1266,17 @@ int ecc_verify_hash(const byte* sig, word32 siglen, byte* hash, word32 hashlen,
    }
 
    /* allocate ints */
-   if ((err = mp_init_multi(&r, &s, &v, &w, &u1, &u2)) != MP_OKAY) {
+   if ((err = mp_init_multi(&v, &w, &u1, &u2, &p, &e)) != MP_OKAY) {
       return MEMORY_E;
    }
 
-   if ((err = mp_init_multi(&p, &e, &m, NULL, NULL, NULL)) != MP_OKAY) {
-      mp_clear(&r);
-      mp_clear(&s);
+   if ((err = mp_init(&m)) != MP_OKAY) {
       mp_clear(&v);
       mp_clear(&w);
       mp_clear(&u1);
       mp_clear(&u2);
+      mp_clear(&p);
+      mp_clear(&e);
       return MEMORY_E;
    }
 
@@ -1286,6 +1286,12 @@ int ecc_verify_hash(const byte* sig, word32 siglen, byte* hash, word32 hashlen,
    if (mQ  == NULL || mG == NULL)
       err = MEMORY_E;
 
+   /* Note, DecodeECC_DSA_Sig() calls mp_init() on r and s.
+    * If either of those don't allocate correctly, none of
+    * the rest of this function will execute, and everything
+    * gets cleaned up at the end. */
+   XMEMSET(&r, 0, sizeof(r));
+   XMEMSET(&s, 0, sizeof(s));
    if (err == MP_OKAY) 
        err = DecodeECC_DSA_Sig(sig, siglen, &r, &s);
 
