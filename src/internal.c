@@ -74,7 +74,7 @@
 #ifndef NO_CYASSL_SERVER
     static int DoClientHello(CYASSL* ssl, const byte* input, word32*, word32,
                              word32);
-    static int DoClientKeyExchange(CYASSL* ssl, byte* input, word32*);
+    static int DoClientKeyExchange(CYASSL* ssl, byte* input, word32*, word32);
     #if !defined(NO_RSA) || defined(HAVE_ECC)
         static int DoCertificateVerify(CYASSL* ssl, byte*, word32*, word32);
     #endif
@@ -217,16 +217,12 @@ static INLINE void ato16(const byte* c, word16* u16)
 }
 
 
-#ifdef CYASSL_DTLS
-
 /* convert opaque to 32 bit integer */
 static INLINE void ato32(const byte* c, word32* u32)
 {
     *u32 = 0;
     *u32 = (c[0] << 24) | (c[1] << 16) | (c[2] << 8) | c[3];
 }
-
-#endif /* CYASSL_DTLS */
 
 
 #ifdef HAVE_LIBZ
@@ -2786,7 +2782,7 @@ static int DoHandShakeMsgType(CYASSL* ssl, byte* input, word32* inOutIdx,
 
     case client_key_exchange:
         CYASSL_MSG("processing client key exchange");
-        ret = DoClientKeyExchange(ssl, input, inOutIdx);
+        ret = DoClientKeyExchange(ssl, input, inOutIdx, totalSz);
         break;
 
 #if !defined(NO_RSA) || defined(HAVE_ECC)
@@ -8000,7 +7996,7 @@ int SetCipherList(Suites* s, const char* list)
 #endif
 
     static int DoClientKeyExchange(CYASSL* ssl, byte* input,
-                                   word32* inOutIdx)
+                                   word32* inOutIdx, word32 totalSz)
     {
         int    ret = 0;
         word32 length = 0;
@@ -8010,6 +8006,7 @@ int SetCipherList(Suites* s, const char* list)
         (void)out;
         (void)input;
         (void)inOutIdx;
+        (void)totalSz;
 
         if (ssl->options.clientState < CLIENT_HELLO_COMPLETE) {
             CYASSL_MSG("Client sending keyexchange at wrong time");
@@ -8051,10 +8048,24 @@ int SetCipherList(Suites* s, const char* list)
                     length = RsaEncryptSize(&key);
                     ssl->arrays->preMasterSz = SECRET_LEN;
 
-                    if (ssl->options.tls)
+                    if (ssl->options.tls) {
+                        word16 check;
+                        ato16(input + *inOutIdx, &check);
+                        if ((word32)check != length) {
+                            CYASSL_MSG("RSA explicit size doesn't match");
+                            FreeRsaKey(&key);
+                            return RSA_PRIVATE_ERROR;
+                        }
                         (*inOutIdx) += 2;
+                    }
                     tmp = input + *inOutIdx;
                     *inOutIdx += length;
+
+                    if (*inOutIdx > totalSz) {
+                        CYASSL_MSG("RSA message too big");
+                        FreeRsaKey(&key);
+                        return INCOMPLETE_DATA;
+                    }
 
                     if (RsaPrivateDecryptInline(tmp, length, &out, &key) ==
                                                                    SECRET_LEN) {
