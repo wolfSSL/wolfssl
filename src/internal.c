@@ -4548,7 +4548,9 @@ int SendAlert(CYASSL* ssl, int severity, int type)
     input[0] = (byte)severity;
     input[1] = (byte)type;
 
-    if (ssl->keys.encryptionOn)
+    /* only send encrypted alert if handshake actually complete, otherwise
+       other side may not be able to handle it */
+    if (ssl->keys.encryptionOn && ssl->options.handShakeState == HANDSHAKE_DONE)
         sendSz = BuildMessage(ssl, output, input, ALERT_SIZE, alert);
     else {
         RecordLayerHeader *const rl = (RecordLayerHeader*)output;
