@@ -50,6 +50,9 @@
 #ifdef CYASSL_SHA512
     #include <cyassl/ctaocrypt/sha512.h>
 #endif
+#ifdef CYASSL_RIPEMD
+    #include <cyassl/ctaocrypt/ripemd.h>
+#endif
 
 #ifdef CYASSL_CALLBACKS
     #include <cyassl/openssl/cyassl_callbacks.h>

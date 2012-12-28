@@ -3238,10 +3238,10 @@ static INLINE void Sha512Round(const byte* data, int sz)
 
 static INLINE void RmdRound(const byte* data, int sz)
 {
-    Ripemd ripemd;
+    RipeMd ripemd;
 
-    InitRipemd(&ripemd);
-    RipemdUpdate(&ripemd, data, sz);
+    InitRipeMd(&ripemd);
+    RipeMdUpdate(&ripemd, data, sz);
 }
 
 #endif
