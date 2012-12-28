@@ -3139,7 +3139,7 @@ static int SanityCheckCipherText(CYASSL* ssl, word32 encryptSz)
         minLength = ssl->specs.hash_size;
     }
     else if (ssl->specs.cipher_type == aead) {
-        minLength = ssl->specs.block_size;   /* actual min? */
+        minLength = ssl->specs.block_size;  /* explicit IV + implicit IV + CTR*/
     }
 
     if (encryptSz < minLength) {
