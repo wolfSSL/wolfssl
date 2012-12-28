@@ -394,6 +394,12 @@ enum Misc {
 
     PAD_MD5        = 48,       /* pad length for finished */
     PAD_SHA        = 40,       /* pad length for finished */
+    MAX_PAD_SIZE   = 256,      /* maximum length of padding */
+    COMPRESS_DUMMY_SIZE = 64,  /* compression dummy round size */
+    COMPRESS_CONSTANT   = 13,  /* compression calc constant */
+    COMPRESS_UPPER      = 55,  /* compression calc numerator */
+    COMPRESS_LOWER      = 64,  /* compression calc denominator */
+
     PEM_LINE_LEN   = 80,       /* PEM line max + fudge */
     LENGTH_SZ      =  2,       /* length field for HMAC, data only */
     VERSION_SZ     =  2,       /* length of proctocol version */

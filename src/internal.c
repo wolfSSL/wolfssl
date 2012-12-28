@@ -3092,6 +3092,252 @@ static int DecryptMessage(CYASSL* ssl, byte* input, word32 sz, word32* idx)
 }
 
 
+#ifndef NO_MD5
+
+static INLINE void Md5Round(byte* data, int sz)
+{
+    Md5 md5;
+
+    InitMd5(&md5);
+    Md5Update(&md5, data, sz);
+}
+
+#endif
+
+
+static INLINE void ShaRound(byte* data, int sz)
+{
+    Sha sha;
+
+    InitSha(&sha);
+    ShaUpdate(&sha, data, sz);
+}
+
+
+#ifndef NO_SHA256
+
+static INLINE void Sha256Round(byte* data, int sz)
+{
+    Sha256 sha256;
+
+    InitSha256(&sha256);
+    Sha256Update(&sha256, data, sz);
+}
+
+#endif
+
+
+#ifdef CYASSL_SHA384
+
+static INLINE void Sha384Round(byte* data, int sz)
+{
+    Sha384 sha384;
+
+    InitSha384(&sha384);
+    Sha384Update(&sha384, data, sz);
+}
+
+#endif
+
+
+#ifdef CYASSL_SHA512
+
+static INLINE void Sha512Round(byte* data, int sz)
+{
+    Sha512 sha512;
+
+    InitSha512(&sha512);
+    Sha512Update(&sha512, data, sz);
+}
+
+#endif
+
+
+#ifdef CYASSL_RIPEMD
+
+static INLINE void RmdRound(byte* data, int sz)
+{
+    Ripemd ripemd;
+
+    InitRipemd(&ripemd);
+    RipemdUpdate(&ripemd, data, sz);
+}
+
+#endif
+
+
+static INLINE void DoRound(int type, byte* data, int sz)
+{
+    switch (type) {
+    
+        case no_mac :
+            break;
+
+#ifndef NO_MD5
+        case md5_mac :
+            Md5Round(data, sz);
+            break;
+#endif
+
+        case sha_mac :
+            ShaRound(data, sz);
+            break;
+
+#ifndef NO_SHA256
+        case sha256_mac :
+            Sha256Round(data, sz);
+            break;
+#endif
+
+#ifdef CYASSL_SHA384
+        case sha384_mac :
+            Sha384Round(data, sz);
+            break;
+#endif
+
+#ifdef CYASSL_SHA512
+        case sha512_mac :
+            Sha512Round(data, sz);
+            break;
+#endif
+
+#ifdef CYASSL_RIPEMD 
+        case rmd_mac :
+            RmdRound(data, sz);
+            break;
+#endif
+
+        default:
+            CYASSL_MSG("Bad round type");
+            break;
+    }
+}
+
+
+/* do number of compression rounds on dummy data */
+static INLINE void CompressRounds(CYASSL* ssl, int rounds)
+{
+    int i;
+    byte dummy[COMPRESS_DUMMY_SIZE];
+
+    XMEMSET(dummy, 1, sizeof(dummy));
+
+    for (i = 0; i < rounds; i++)
+        DoRound(ssl->specs.mac_algorithm, dummy, sizeof(dummy));
+}
+
+
+
+/* check all length bytes for equality, return 0 on success */
+static int ConstantCompare(const byte* a, const byte* b, int length)
+{
+    int i;
+    int good = 0;
+    int bad  = 0;
+
+    for (i = 0; i < length; i++) {
+        if (a[i] == b[i])
+            good++;
+        else
+            bad++;
+    }
+
+    if (good == length)
+        return 0;
+    else
+        return 0 - bad;  /* compare failed */
+}
+
+
+/* check all length bytes for the pad value, return 0 on success */
+static int PadCheck(const byte* input, byte pad, int length)
+{
+    int i;
+    int good = 0;
+    int bad  = 0;
+
+    for (i = 0; i < length; i++) {
+        if (input[i] == pad)
+            good++;
+        else
+            bad++;
+    }
+
+    if (good == length)
+        return 0;
+    else
+        return 0 - bad;  /* pad check failed */
+}
+
+
+/* get compression extra rounds */
+static int GetRounds(int pLen, int padLen, int t)
+{
+    int  roundL1 = 1;  /* round up flags */
+    int  roundL2 = 1;
+
+    int L1 = COMPRESS_CONSTANT + pLen - t;
+    int L2 = COMPRESS_CONSTANT + pLen - padLen - 1 - t;
+
+    L1 -= COMPRESS_UPPER;
+    L2 -= COMPRESS_UPPER;
+
+    if ( (L1 % COMPRESS_LOWER) == 0)
+        roundL1 = 0;
+    if ( (L2 % COMPRESS_LOWER) == 0)
+        roundL2 = 0;
+
+    L1 /= COMPRESS_LOWER;
+    L2 /= COMPRESS_LOWER;
+
+    L1 += roundL1;
+    L2 += roundL2;
+
+    return L1 - L2;
+}
+
+
+/* timing resistant pad/verify check, return 0 on success */
+static int TimingPadVerify(CYASSL* ssl, const byte* input, int padLen, int t,
+                           int pLen)
+{
+    byte verify[SHA256_DIGEST_SIZE];
+    byte dummy[MAX_PAD_SIZE];
+
+    XMEMSET(dummy, 1, sizeof(dummy));
+
+    if ( (t + padLen + 1) > pLen) {
+        CYASSL_MSG("Plain Len not long enough for pad/mac");
+        PadCheck(dummy, (byte)padLen, MAX_PAD_SIZE);
+        ssl->hmac(ssl, verify, input, pLen - t, application_data, 1);
+        ConstantCompare(verify, input + pLen - t, t);
+
+        return VERIFY_MAC_ERROR;
+    }
+
+    if (PadCheck(input + pLen - (padLen + 1), (byte)padLen, padLen + 1) != 0) {
+        CYASSL_MSG("PadCheck failed");
+        PadCheck(dummy, (byte)padLen, MAX_PAD_SIZE - padLen - 1);
+        ssl->hmac(ssl, verify, input, pLen - t, application_data, 1);
+        ConstantCompare(verify, input + pLen - t, t);
+
+        return VERIFY_MAC_ERROR;
+    }
+
+    PadCheck(dummy, (byte)padLen, MAX_PAD_SIZE - padLen - 1);
+    ssl->hmac(ssl, verify, input, pLen - padLen - 1 - t, application_data, 1);
+
+    CompressRounds(ssl, GetRounds(pLen, padLen, t));
+
+    if (ConstantCompare(verify, input + (pLen - padLen - 1 - t), t) != 0) {
+        CYASSL_MSG("Verify MAC compare failed");
+        return VERIFY_MAC_ERROR;
+    }
+
+    return 0;
+}
+
+
 int DoApplicationData(CYASSL* ssl, byte* input, word32* inOutIdx)
 {
     word32 msgSz   = ssl->keys.encryptSz;
@@ -3099,15 +3345,13 @@ int DoApplicationData(CYASSL* ssl, byte* input, word32* inOutIdx)
            padByte = 0,
            idx     = *inOutIdx,
            digestSz = ssl->specs.hash_size;
-    int    dataSz;
+    int    dataSz, ret;
     int    ivExtra = 0;
     byte*  rawData = input + idx;  /* keep current  for hmac */
 #ifdef HAVE_LIBZ
     byte   decomp[MAX_RECORD_SIZE + MAX_COMP_EXTRA];
 #endif
-
-    byte        verify[SHA256_DIGEST_SIZE];
-    const byte* mac;
+    byte   verify[SHA256_DIGEST_SIZE];
 
     if (ssl->options.handShakeState != HANDSHAKE_DONE) {
         CYASSL_MSG("Received App data before handshake complete");
@@ -3119,8 +3363,17 @@ int DoApplicationData(CYASSL* ssl, byte* input, word32* inOutIdx)
             ivExtra = ssl->specs.block_size;
         pad = *(input + idx + msgSz - ivExtra - 1);
         padByte = 1;
+        ret = TimingPadVerify(ssl, input + idx, pad, digestSz, msgSz - ivExtra);
+        if (ret != 0)
+            return ret;
     }
-    if (ssl->specs.cipher_type == aead) {
+    else if (ssl->specs.cipher_type == stream) {
+        ssl->hmac(ssl, verify, rawData, msgSz - digestSz, application_data, 1);
+        if (ConstantCompare(verify, input + msgSz - digestSz, digestSz) != 0) {
+            return VERIFY_MAC_ERROR;
+        }
+    }
+    else if (ssl->specs.cipher_type == aead) {
         ivExtra = AES_GCM_EXP_IV_SZ;
         digestSz = AEAD_AUTH_TAG_SZ;
     }
@@ -3133,10 +3386,7 @@ int DoApplicationData(CYASSL* ssl, byte* input, word32* inOutIdx)
 
     /* read data */
     if (dataSz) {
-        int    rawSz   = dataSz;       /* keep raw size for hmac */
-
-        if (ssl->specs.cipher_type != aead)
-            ssl->hmac(ssl, verify, rawData, rawSz, application_data, 1);
+        int rawSz = dataSz;       /* keep raw size for idx adjustment */
 
 #ifdef HAVE_LIBZ
         if (ssl->options.usingCompression) {
@@ -3144,33 +3394,16 @@ int DoApplicationData(CYASSL* ssl, byte* input, word32* inOutIdx)
             if (dataSz < 0) return dataSz;
         }
 #endif
-
-        if (ssl->options.usingCompression)
-            idx += rawSz;
-        else
-            idx += dataSz;
+        idx += rawSz;
 
         ssl->buffers.clearOutputBuffer.buffer = rawData;
         ssl->buffers.clearOutputBuffer.length = dataSz;
     }
 
-    /* read mac and fill */
-    mac = input + idx;
     idx += digestSz;
-   
     idx += pad;
     if (padByte)
         idx++;
-
-    /* verify */
-    if (dataSz) {
-        if (ssl->specs.cipher_type != aead && XMEMCMP(mac, verify, digestSz)) {
-            CYASSL_MSG("App data verify mac error"); 
-            return VERIFY_MAC_ERROR;
-        }
-    }
-    else 
-        GetSEQIncrement(ssl, 1);  /* even though no data, increment verify */
 
 #ifdef HAVE_LIBZ
     /* decompress could be bigger, overwrite after verify */
