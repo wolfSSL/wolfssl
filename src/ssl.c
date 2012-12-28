@@ -2786,7 +2786,7 @@ int CyaSSL_dtls_got_timeout(CYASSL* ssl)
             /* in case used set_accept_state after init */
             if (ssl->eccTempKeyPresent == 0) {
                 if (ecc_make_key(ssl->rng, ssl->eccTempKeySz,
-                                 &ssl->eccTempKey) != 0) {
+                                 ssl->eccTempKey) != 0) {
                     ssl->error = ECC_MAKEKEY_ERROR;
                     CYASSL_ERROR(ssl->error);
                     return SSL_FATAL_ERROR; 
@@ -8220,6 +8220,7 @@ long CyaSSL_CTX_OCSP_set_options(CYASSL_CTX* ctx, long options)
     if (ctx != NULL) {
         ctx->ocsp.enabled = (options & CYASSL_OCSP_ENABLE) != 0;
         ctx->ocsp.useOverrideUrl = (options & CYASSL_OCSP_URL_OVERRIDE) != 0;
+        ctx->ocsp.useNonce = (options & CYASSL_OCSP_NO_NONCE) == 0;
         return 1;
     }
     return 0;
