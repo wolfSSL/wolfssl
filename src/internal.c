@@ -3179,7 +3179,7 @@ static int DecryptMessage(CYASSL* ssl, byte* input, word32 sz, word32* idx)
 
 #ifndef NO_MD5
 
-static INLINE void Md5Round(byte* data, int sz)
+static INLINE void Md5Round(const byte* data, int sz)
 {
     Md5 md5;
 
@@ -3190,7 +3190,7 @@ static INLINE void Md5Round(byte* data, int sz)
 #endif
 
 
-static INLINE void ShaRound(byte* data, int sz)
+static INLINE void ShaRound(const byte* data, int sz)
 {
     Sha sha;
 
@@ -3201,7 +3201,7 @@ static INLINE void ShaRound(byte* data, int sz)
 
 #ifndef NO_SHA256
 
-static INLINE void Sha256Round(byte* data, int sz)
+static INLINE void Sha256Round(const byte* data, int sz)
 {
     Sha256 sha256;
 
@@ -3214,7 +3214,7 @@ static INLINE void Sha256Round(byte* data, int sz)
 
 #ifdef CYASSL_SHA384
 
-static INLINE void Sha384Round(byte* data, int sz)
+static INLINE void Sha384Round(const byte* data, int sz)
 {
     Sha384 sha384;
 
@@ -3227,7 +3227,7 @@ static INLINE void Sha384Round(byte* data, int sz)
 
 #ifdef CYASSL_SHA512
 
-static INLINE void Sha512Round(byte* data, int sz)
+static INLINE void Sha512Round(const byte* data, int sz)
 {
     Sha512 sha512;
 
@@ -3240,7 +3240,7 @@ static INLINE void Sha512Round(byte* data, int sz)
 
 #ifdef CYASSL_RIPEMD
 
-static INLINE void RmdRound(byte* data, int sz)
+static INLINE void RmdRound(const byte* data, int sz)
 {
     Ripemd ripemd;
 
@@ -3251,7 +3251,7 @@ static INLINE void RmdRound(byte* data, int sz)
 #endif
 
 
-static INLINE void DoRound(int type, byte* data, int sz)
+static INLINE void DoRound(int type, const byte* data, int sz)
 {
     switch (type) {
     
@@ -3300,15 +3300,12 @@ static INLINE void DoRound(int type, byte* data, int sz)
 
 
 /* do number of compression rounds on dummy data */
-static INLINE void CompressRounds(CYASSL* ssl, int rounds)
+static INLINE void CompressRounds(CYASSL* ssl, int rounds, const byte* dummy)
 {
     int i;
-    byte dummy[COMPRESS_DUMMY_SIZE];
-
-    XMEMSET(dummy, 1, sizeof(dummy));
 
     for (i = 0; i < rounds; i++)
-        DoRound(ssl->specs.mac_algorithm, dummy, sizeof(dummy));
+        DoRound(ssl->specs.mac_algorithm, dummy, COMPRESS_LOWER);
 }
 
 
@@ -3356,7 +3353,7 @@ static int PadCheck(const byte* input, byte pad, int length)
 
 
 /* get compression extra rounds */
-static int GetRounds(int pLen, int padLen, int t)
+static INLINE int GetRounds(int pLen, int padLen, int t)
 {
     int  roundL1 = 1;  /* round up flags */
     int  roundL2 = 1;
@@ -3412,7 +3409,7 @@ static int TimingPadVerify(CYASSL* ssl, const byte* input, int padLen, int t,
     PadCheck(dummy, (byte)padLen, MAX_PAD_SIZE - padLen - 1);
     ssl->hmac(ssl, verify, input, pLen - padLen - 1 - t, application_data, 1);
 
-    CompressRounds(ssl, GetRounds(pLen, padLen, t));
+    CompressRounds(ssl, GetRounds(pLen, padLen, t), dummy);
 
     if (ConstantCompare(verify, input + (pLen - padLen - 1 - t), t) != 0) {
         CYASSL_MSG("Verify MAC compare failed");
