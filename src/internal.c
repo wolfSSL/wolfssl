@@ -2609,7 +2609,12 @@ static int DoHelloRequest(CYASSL* ssl, const byte* input, word32* inOutIdx)
         }
     }
 
-    return SendAlert(ssl, alert_warning, no_renegotiation);
+    if (ssl->options.side == SERVER_END) {
+        SendAlert(ssl, alert_fatal, unexpected_message); /* try */
+        return FATAL_ERROR;
+    }
+    else
+        return SendAlert(ssl, alert_warning, no_renegotiation);
 }
 
 
