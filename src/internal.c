@@ -3180,34 +3180,43 @@ static int DecryptMessage(CYASSL* ssl, byte* input, word32 sz, word32* idx)
 
 #ifndef NO_MD5
 
-static INLINE void Md5Round(const byte* data, int sz)
+static INLINE void Md5Rounds(int rounds, const byte* data, int sz)
 {
     Md5 md5;
+    int i;
 
     InitMd5(&md5);
-    Md5Update(&md5, data, sz);
+
+    for (i = 0; i < rounds; i++);
+        Md5Update(&md5, data, sz);
 }
 
 #endif
 
 
-static INLINE void ShaRound(const byte* data, int sz)
+static INLINE void ShaRounds(int rounds, const byte* data, int sz)
 {
     Sha sha;
+    int i;
 
     InitSha(&sha);
-    ShaUpdate(&sha, data, sz);
+
+    for (i = 0; i < rounds; i++);
+        ShaUpdate(&sha, data, sz);
 }
 
 
 #ifndef NO_SHA256
 
-static INLINE void Sha256Round(const byte* data, int sz)
+static INLINE void Sha256Rounds(int rounds, const byte* data, int sz)
 {
     Sha256 sha256;
+    int i;
 
     InitSha256(&sha256);
-    Sha256Update(&sha256, data, sz);
+
+    for (i = 0; i < rounds; i++);
+        Sha256Update(&sha256, data, sz);
 }
 
 #endif
@@ -3215,12 +3224,15 @@ static INLINE void Sha256Round(const byte* data, int sz)
 
 #ifdef CYASSL_SHA384
 
-static INLINE void Sha384Round(const byte* data, int sz)
+static INLINE void Sha384Rounds(int rounds, const byte* data, int sz)
 {
     Sha384 sha384;
+    int i;
 
     InitSha384(&sha384);
-    Sha384Update(&sha384, data, sz);
+
+    for (i = 0; i < rounds; i++);
+        Sha384Update(&sha384, data, sz);
 }
 
 #endif
@@ -3228,12 +3240,15 @@ static INLINE void Sha384Round(const byte* data, int sz)
 
 #ifdef CYASSL_SHA512
 
-static INLINE void Sha512Round(const byte* data, int sz)
+static INLINE void Sha512Rounds(int rounds, const byte* data, int sz)
 {
     Sha512 sha512;
+    int i;
 
     InitSha512(&sha512);
-    Sha512Update(&sha512, data, sz);
+
+    for (i = 0; i < rounds; i++);
+        Sha512Update(&sha512, data, sz);
 }
 
 #endif
@@ -3241,18 +3256,21 @@ static INLINE void Sha512Round(const byte* data, int sz)
 
 #ifdef CYASSL_RIPEMD
 
-static INLINE void RmdRound(const byte* data, int sz)
+static INLINE void RmdRounds(int rounds, const byte* data, int sz)
 {
     RipeMd ripemd;
+    int i;
 
     InitRipeMd(&ripemd);
-    RipeMdUpdate(&ripemd, data, sz);
+
+    for (i = 0; i < rounds; i++);
+        RipeMdUpdate(&ripemd, data, sz);
 }
 
 #endif
 
 
-static INLINE void DoRound(int type, const byte* data, int sz)
+static INLINE void DoRounds(int type, int rounds, const byte* data, int sz)
 {
     switch (type) {
     
@@ -3261,35 +3279,35 @@ static INLINE void DoRound(int type, const byte* data, int sz)
 
 #ifndef NO_MD5
         case md5_mac :
-            Md5Round(data, sz);
+            Md5Rounds(rounds, data, sz);
             break;
 #endif
 
         case sha_mac :
-            ShaRound(data, sz);
+            ShaRounds(rounds, data, sz);
             break;
 
 #ifndef NO_SHA256
         case sha256_mac :
-            Sha256Round(data, sz);
+            Sha256Rounds(rounds, data, sz);
             break;
 #endif
 
 #ifdef CYASSL_SHA384
         case sha384_mac :
-            Sha384Round(data, sz);
+            Sha384Rounds(rounds, data, sz);
             break;
 #endif
 
 #ifdef CYASSL_SHA512
         case sha512_mac :
-            Sha512Round(data, sz);
+            Sha512Rounds(rounds, data, sz);
             break;
 #endif
 
 #ifdef CYASSL_RIPEMD 
         case rmd_mac :
-            RmdRound(data, sz);
+            RmdRounds(rounds, data, sz);
             break;
 #endif
 
@@ -3303,12 +3321,9 @@ static INLINE void DoRound(int type, const byte* data, int sz)
 /* do number of compression rounds on dummy data */
 static INLINE void CompressRounds(CYASSL* ssl, int rounds, const byte* dummy)
 {
-    int i;
-
-    for (i = 0; i < rounds; i++)
-        DoRound(ssl->specs.mac_algorithm, dummy, COMPRESS_LOWER);
+    if (rounds)
+        DoRounds(ssl->specs.mac_algorithm, rounds, dummy, COMPRESS_LOWER);
 }
-
 
 
 /* check all length bytes for equality, return 0 on success */
