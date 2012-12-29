@@ -3452,7 +3452,7 @@ int DoApplicationData(CYASSL* ssl, byte* input, word32* inOutIdx)
     }
     else if (ssl->specs.cipher_type == stream) {
         ssl->hmac(ssl, verify, rawData, msgSz - digestSz, application_data, 1);
-        if (ConstantCompare(verify, input + msgSz - digestSz, digestSz) != 0) {
+        if (ConstantCompare(verify, rawData + msgSz - digestSz, digestSz) != 0){
             return VERIFY_MAC_ERROR;
         }
     }
