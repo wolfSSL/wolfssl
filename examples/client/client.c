@@ -432,6 +432,11 @@ void client_test(void* args)
             }
         }
     }
+    else if (input < 0) {
+        int readErr = CyaSSL_get_error(ssl, 0);
+        if (readErr != SSL_ERROR_WANT_READ)
+            err_sys("CyaSSL_read failed");
+    }
 
     if (resumeSession) {
         if (doDTLS) {

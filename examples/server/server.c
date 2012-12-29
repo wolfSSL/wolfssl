@@ -355,8 +355,14 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     if (idx > 0) {
         input[idx] = 0;
         printf("Client message: %s\n", input);
+
     }
-    
+    else if (idx < 0) {
+        int readErr = SSL_get_error(ssl, 0);
+        if (readErr != SSL_ERROR_WANT_READ)
+            err_sys("SSL_read failed");
+    }
+
     if (SSL_write(ssl, msg, sizeof(msg)) != sizeof(msg))
         err_sys("SSL_write failed");
 
