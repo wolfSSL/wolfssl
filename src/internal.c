@@ -3446,9 +3446,20 @@ int DoApplicationData(CYASSL* ssl, byte* input, word32* inOutIdx)
             ivExtra = ssl->specs.block_size;
         pad = *(input + idx + msgSz - ivExtra - 1);
         padByte = 1;
-        ret = TimingPadVerify(ssl, input + idx, pad, digestSz, msgSz - ivExtra);
-        if (ret != 0)
-            return ret;
+
+        if (ssl->options.tls) {
+            ret = TimingPadVerify(ssl, input + idx, pad, digestSz,
+                                  msgSz - ivExtra);
+            if (ret != 0)
+                return ret;
+        }
+        else {  /* sslv3, some implementations have pad padding */
+            ssl->hmac(ssl, verify, rawData, msgSz - digestSz - pad - 1,
+                      application_data, 1);
+            if (ConstantCompare(verify,rawData + msgSz - digestSz - pad - 1,
+                                digestSz) != 0)
+                return VERIFY_MAC_ERROR;
+        }
     }
     else if (ssl->specs.cipher_type == stream) {
         ssl->hmac(ssl, verify, rawData, msgSz - digestSz, application_data, 1);
