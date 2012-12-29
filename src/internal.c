@@ -3468,10 +3468,10 @@ int DoApplicationData(CYASSL* ssl, byte* input, word32* inOutIdx)
             if (ret != 0)
                 return ret;
         }
-        else {  /* sslv3, some implementations have pad padding */
+        else {  /* sslv3, some implementations have bad padding */
             ssl->hmac(ssl, verify, rawData, msgSz - digestSz - pad - 1,
                       application_data, 1);
-            if (ConstantCompare(verify,rawData + msgSz - digestSz - pad - 1,
+            if (ConstantCompare(verify, rawData + msgSz - digestSz - pad - 1,
                                 digestSz) != 0)
                 return VERIFY_MAC_ERROR;
         }
