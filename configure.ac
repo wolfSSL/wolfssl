@@ -384,6 +384,21 @@ fi
 AM_CONDITIONAL([BUILD_RIPEMD], [test "x$ENABLED_RIPEMD" = "xyes"])
 
 
+# BLAKE2
+AC_ARG_ENABLE([blake2],
+    [  --enable-blake2         Enable CyaSSL BLAKE2 support (default: disabled)],
+    [ ENABLED_BLAKE2=$enableval ],
+    [ ENABLED_BLAKE2=no ]
+    )
+
+if test "$ENABLED_BLAKE2" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DCYASSL_BLAKE2"
+fi
+
+AM_CONDITIONAL([BUILD_BLAKE2], [test "x$ENABLED_BLAKE2" = "xyes"])
+
+
 # SHA512
 AC_ARG_ENABLE([sha512],
     [  --enable-sha512         Enable CyaSSL SHA-512 support (default: disabled)],

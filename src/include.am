@@ -51,6 +51,10 @@ if BUILD_SHA512
 src_libcyassl_la_SOURCES += ctaocrypt/src/sha512.c
 endif
 
+if BUILD_BLAKE2
+src_libcyassl_la_SOURCES += ctaocrypt/src/blake2b.c
+endif
+
 if BUILD_SNIFFER
 src_libcyassl_la_SOURCES += src/sniffer.c
 endif

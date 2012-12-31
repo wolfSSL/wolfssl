@@ -44,6 +44,11 @@
 
 #include <cyassl/ctaocrypt/dh.h>
 
+#ifdef CYASSL_BLAKE2
+    #include <cyassl/ctaocrypt/blake2.h>
+    void bench_blake2(void);
+#endif
+
 #ifdef _MSC_VER
     /* 4996 warning to use MS extensions e.g., strcpy_s instead of strncpy */
     #pragma warning(disable: 4996)
@@ -112,6 +117,9 @@ int main(int argc, char** argv)
 #endif
 #ifdef CYASSL_RIPEMD
     bench_ripemd();
+#endif
+#ifdef CYASSL_BLAKE2
+    bench_blake2();
 #endif
 
     printf("\n");
@@ -416,6 +424,31 @@ void bench_ripemd(void)
     persec = 1 / total * megs;
 
     printf("RIPEMD   %d megs took %5.3f seconds, %6.2f MB/s\n", megs, total,
+                                                             persec);
+}
+#endif
+
+
+#ifdef CYASSL_BLAKE2
+void bench_blake2(void)
+{
+    blake2b_state S[1];
+    byte   digest[32];
+    double start, total, persec;
+    int    i;
+        
+    blake2b_init(S, 32); 
+    start = current_time();
+    
+    for(i = 0; i < megs; i++)
+        blake2b_update(S, plain, sizeof(plain));
+   
+    blake2b_final(S, digest, 32);
+
+    total = current_time() - start;
+    persec = 1 / total * megs;
+
+    printf("BLAKE2   %d megs took %5.3f seconds, %6.2f MB/s\n", megs, total,
                                                              persec);
 }
 #endif
