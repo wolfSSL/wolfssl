@@ -663,7 +663,7 @@ void Des_CbcEncrypt(Des* des, byte* out, const byte* in, word32 sz)
 void Des_CbcDecrypt(Des* des, byte* out, const byte* in, word32 sz)
 {
     word32 blocks = sz / DES_BLOCK_SIZE;
-    byte   hold[16];
+    byte   hold[DES_BLOCK_SIZE];
 
     while (blocks--) {
         XMEMCPY(des->tmp, in, DES_BLOCK_SIZE);

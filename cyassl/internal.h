@@ -681,9 +681,9 @@ typedef struct {
     word32 length;       /* total buffer length used */
     word32 idx;          /* idx to part of length already consumed */
     byte*  buffer;       /* place holder for static or dynamic buffer */
-    ALIGN16 byte staticBuffer[STATIC_BUFFER_LEN];
     word32 bufferSize;   /* current buffer size */
     byte   dynamicFlag;  /* dynamic memory currently in use */
+    ALIGN16 byte staticBuffer[STATIC_BUFFER_LEN];
 } bufferStatic;
 
 /* Cipher Suites holder */

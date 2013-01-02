@@ -204,7 +204,6 @@ static INLINE void c32toa(word32 u32, byte* c)
 /* convert a 24 bit integer into a 32 bit one */
 static INLINE void c24to32(const word24 u24, word32* u32)
 {
-    *u32 = 0;
     *u32 = (u24[0] << 16) | (u24[1] << 8) | u24[2];
 }
 
@@ -212,7 +211,6 @@ static INLINE void c24to32(const word24 u24, word32* u32)
 /* convert opaque to 16 bit integer */
 static INLINE void ato16(const byte* c, word16* u16)
 {
-    *u16 = 0;
     *u16 = (c[0] << 8) | (c[1]);
 }
 
@@ -220,7 +218,6 @@ static INLINE void ato16(const byte* c, word16* u16)
 /* convert opaque to 32 bit integer */
 static INLINE void ato32(const byte* c, word32* u32)
 {
-    *u32 = 0;
     *u32 = (c[0] << 24) | (c[1] << 16) | (c[2] << 8) | c[3];
 }
 
@@ -2462,7 +2459,7 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx)
         if (!ssl->options.verifyNone && ssl->buffers.domainName.buffer)
             if (XSTRNCMP((char*)ssl->buffers.domainName.buffer,
                         dCert.subjectCN,
-                        ssl->buffers.domainName.length - 1)) {
+                        ssl->buffers.domainName.length - 1) != 0) {
                 ret = DOMAIN_NAME_MISMATCH;   /* try to get peer key still */
             }
 
@@ -2603,7 +2600,7 @@ static int DoHelloRequest(CYASSL* ssl, const byte* input, word32* inOutIdx)
         *inOutIdx += padSz;
 
         /* verify */
-        if (XMEMCMP(mac, verify, ssl->specs.hash_size)) {
+        if (XMEMCMP(mac, verify, ssl->specs.hash_size) != 0) {
             CYASSL_MSG("    hello_request verify mac error");
             return VERIFY_MAC_ERROR;
         }
@@ -2642,7 +2639,7 @@ int DoFinished(CYASSL* ssl, const byte* input, word32* inOutIdx, int sniff)
         if (ssl->toInfoOn) AddLateName("Finished", &ssl->timeoutInfo);
     #endif
     if (sniff == NO_SNIFF) {
-        if (XMEMCMP(input + idx, &ssl->verifyHashes, finishedSz)) {
+        if (XMEMCMP(input + idx, &ssl->verifyHashes, finishedSz) != 0) {
             CYASSL_MSG("Verify finished error on hashes");
             return VERIFY_FINISHED_ERROR;
         }
@@ -2663,7 +2660,7 @@ int DoFinished(CYASSL* ssl, const byte* input, word32* inOutIdx, int sniff)
         idx += padSz;
 
         /* verify mac */
-        if (XMEMCMP(mac, verifyMAC, ssl->specs.hash_size)) {
+        if (XMEMCMP(mac, verifyMAC, ssl->specs.hash_size) != 0) {
             CYASSL_MSG("Verify finished error on mac");
             return VERIFY_MAC_ERROR;
         }
@@ -3562,7 +3559,7 @@ static int DoAlert(CYASSL* ssl, byte* input, word32* inOutIdx, int* type)
             *inOutIdx += (ssl->specs.hash_size + padSz);
     
             /* verify */
-            if (XMEMCMP(mac, verify, ssl->specs.hash_size)) {
+            if (XMEMCMP(mac, verify, ssl->specs.hash_size) != 0) {
                 CYASSL_MSG("    alert verify mac error");
                 return VERIFY_MAC_ERROR;
             }
@@ -6106,7 +6103,7 @@ int SetCipherList(Suites* s, const char* list)
                     return VERIFY_SIGN_ERROR;
             }
             else { 
-                if (ret != sizeof(hash) || XMEMCMP(out, hash, sizeof(hash)))
+                if (ret != sizeof(hash) || XMEMCMP(out, hash,sizeof(hash)) != 0)
                     return VERIFY_SIGN_ERROR;
             }
         }
@@ -6817,8 +6814,6 @@ int SetCipherList(Suites* s, const char* list)
                 Md5    md5;
                 Sha    sha;
                 byte   hash[FINISHED_SZ];
-                byte*  signBuffer = hash;
-                word32 signSz    = sizeof(hash);
 
                 /* md5 */
                 InitMd5(&md5);
@@ -6835,7 +6830,9 @@ int SetCipherList(Suites* s, const char* list)
                 ShaFinal(&sha, &hash[MD5_DIGEST_SIZE]);
 
                 if (ssl->specs.sig_algo == rsa_sa_algo) {
-                    byte encodedSig[MAX_ENCODED_SIG_SZ];
+                    byte*  signBuffer = hash;
+                    word32 signSz    = sizeof(hash);
+                    byte   encodedSig[MAX_ENCODED_SIG_SZ];
                     if (IsAtLeastTLSv1_2(ssl)) {
                         byte* digest;
                         int   hType;
@@ -7019,8 +7016,6 @@ int SetCipherList(Suites* s, const char* list)
                 Md5    md5;
                 Sha    sha;
                 byte   hash[FINISHED_SZ];
-                byte*  signBuffer = hash;
-                word32 signSz    = sizeof(hash);
 
                 /* md5 */
                 InitMd5(&md5);
@@ -7037,7 +7032,9 @@ int SetCipherList(Suites* s, const char* list)
                 ShaFinal(&sha, &hash[MD5_DIGEST_SIZE]);
 
                 if (ssl->specs.sig_algo == rsa_sa_algo) {
-                    byte encodedSig[MAX_ENCODED_SIG_SZ];
+                    byte*  signBuffer = hash;
+                    word32 signSz    = sizeof(hash);
+                    byte   encodedSig[MAX_ENCODED_SIG_SZ];
                     if (IsAtLeastTLSv1_2(ssl)) {
                         byte* digest;
                         int   typeH;
