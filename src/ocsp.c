@@ -298,8 +298,6 @@ int CyaSSL_OCSP_Lookup_Cert(CYASSL_OCSP* ocsp, DecodedCert* cert)
         result = ocsp->CBIOOcsp(ocsp->IOCB_OcspCtx, url, urlSz,
                                           ocspReqBuf, ocspReqSz, &ocspRespBuf);
     }
-    else
-        return OCSP_LOOKUP_FAIL;
 
     if (result >= 0) {
         InitOcspResponse(&ocspResponse, certStatus, ocspRespBuf, result);
@@ -320,6 +318,10 @@ int CyaSSL_OCSP_Lookup_Cert(CYASSL_OCSP* ocsp, DecodedCert* cert)
             }
         }
     }
+    else {
+        result = OCSP_LOOKUP_FAIL;
+    }
+
     if (ocspReqBuf != NULL) {
         XFREE(ocspReqBuf, NULL, DYNAMIC_TYPE_IN_BUFFER);
     }
