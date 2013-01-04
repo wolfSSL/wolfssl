@@ -474,14 +474,14 @@ int EmbedGenerateCookie(byte *buf, int sz, void *ctx)
 #endif
 
 
-static INLINE void tcp_socket(SOCKET_T* sockfd, SOCKADDR_IN_T* addr,
-                              const char* peer, word16 port)
+static INLINE int tcp_connect(SOCKET_T* sockfd, const char* ip, word16 port)
 {
-    const char* host = peer;
+    SOCKADDR_IN_T addr;
+    const char* host = ip;
 
     /* peer could be in human readable form */
-    if (peer != INADDR_ANY && isalpha(peer[0])) {
-        struct hostent* entry = gethostbyname(peer);
+    if (ip != INADDR_ANY && isalpha(ip[0])) {
+        struct hostent* entry = gethostbyname(ip);
 
         if (entry) {
             struct sockaddr_in tmp;
@@ -491,30 +491,27 @@ static INLINE void tcp_socket(SOCKET_T* sockfd, SOCKADDR_IN_T* addr,
             host = inet_ntoa(tmp.sin_addr);
         }
         else {
-            CYASSL_MSG("no entry for host");
+            CYASSL_MSG("no addr entry for OCSP responder");
+            return -1;
         }
     }
 
     *sockfd = socket(AF_INET_V, SOCK_STREAM, 0);
-    XMEMSET(addr, 0, sizeof(SOCKADDR_IN_T));
+    XMEMSET(&addr, 0, sizeof(SOCKADDR_IN_T));
 
-    addr->sin_family = AF_INET_V;
-    addr->sin_port = htons(port);
+    addr.sin_family = AF_INET_V;
+    addr.sin_port = htons(port);
     if (host == INADDR_ANY)
-        addr->sin_addr.s_addr = INADDR_ANY;
+        addr.sin_addr.s_addr = INADDR_ANY;
     else
-        addr->sin_addr.s_addr = inet_addr(host);
-}
-
-
-static INLINE void tcp_connect(SOCKET_T* sockfd, const char* ip, word16 port)
-{
-    SOCKADDR_IN_T addr;
-    tcp_socket(sockfd, &addr, ip, port);
+        addr.sin_addr.s_addr = inet_addr(host);
 
     if (connect(*sockfd, (const struct sockaddr*)&addr, sizeof(addr)) != 0) {
-        CYASSL_MSG("tcp connect failed");
+        CYASSL_MSG("OCSP responder tcp connect failed");
+        return -1;
     }
+
+    return 0;
 }
 
 
@@ -699,8 +696,7 @@ int EmbedOcspLookup(void* ctx, const char* url, int urlSz,
     httpBufSz = build_http_request(domainName, path, ocspReqSz,
                                                         httpBuf, httpBufSz);
 
-    tcp_connect(&sfd, domainName, port);
-    if (sfd > 0) {
+    if ((tcp_connect(&sfd, domainName, port) == 0) && (sfd > 0)) {
         int written;
         written = (int)write(sfd, httpBuf, httpBufSz);
         if (written == httpBufSz) {
