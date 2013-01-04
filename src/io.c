@@ -666,10 +666,21 @@ int EmbedOcspLookup(void* ctx, const char* url, int urlSz,
                         byte* ocspReqBuf, int ocspReqSz, byte** ocspRespBuf)
 {
     char domainName[80], path[80];
-    int port, ocspRespSz, httpBufSz, sfd;
+    int port, httpBufSz, sfd;
+    int ocspRespSz = 0;
     byte* httpBuf = NULL;
 
     (void)ctx;
+
+    if (ocspReqBuf == NULL || ocspReqSz == 0) {
+        CYASSL_MSG("OCSP request is required for lookup");
+        return -1;
+    }
+
+    if (ocspRespBuf == NULL) {
+        CYASSL_MSG("Cannot save OCSP response");
+        return -1;
+    }
 
     if (decode_url(url, urlSz, domainName, path, &port) < 0) {
         CYASSL_MSG("Unable to decode OCSP URL");
@@ -683,6 +694,7 @@ int EmbedOcspLookup(void* ctx, const char* url, int urlSz,
         CYASSL_MSG("Unable to create OCSP response buffer");
         return -1;
     }
+    *ocspRespBuf = httpBuf;
 
     httpBufSz = build_http_request(domainName, path, ocspReqSz,
                                                         httpBuf, httpBufSz);
