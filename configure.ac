@@ -648,6 +648,7 @@ then
         AC_MSG_ERROR([Valgrind not found.])
     fi
     enable_shared=no
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_VALGRIND"
 fi
 
 AM_CONDITIONAL([USE_VALGRIND], [test "x$ENABLED_VALGRIND" = "xyes"])

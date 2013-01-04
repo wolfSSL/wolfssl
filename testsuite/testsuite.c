@@ -66,7 +66,7 @@ int main(int argc, char** argv)
     args.argv = server_args.argv = argv;
 
     CyaSSL_Init();
-#ifdef DEBUG_CYASSL
+#if defined(DEBUG_CYASSL) && !defined(HAVE_VALGRIND)
     CyaSSL_Debugging_ON();
 #endif
 
