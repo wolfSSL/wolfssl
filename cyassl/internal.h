@@ -714,6 +714,13 @@ int  SetCipherList(Suites*, const char* list);
     int EmbedReceive(CYASSL *ssl, char *buf, int sz, void *ctx);
     CYASSL_LOCAL 
     int EmbedSend(CYASSL *ssl, char *buf, int sz, void *ctx);
+
+    #ifdef HAVE_OCSP
+        CYASSL_LOCAL
+        int EmbedOcspLookup(void*, const char*, int, byte*, int, byte**);
+        CYASSL_LOCAL
+        void EmbedOcspRespFree(void*, byte*);
+    #endif
 #endif
 
 #ifdef CYASSL_DTLS
@@ -785,10 +792,11 @@ struct CYASSL_OCSP {
     byte enabled;
     byte useOverrideUrl;
     byte useNonce;
-    char overrideName[80];
-    char overridePath[80];
-    int  overridePort;
+    char overrideUrl[80];
     OCSP_Entry* ocspList;
+    void* IOCB_OcspCtx;
+    CallbackIOOcsp CBIOOcsp;
+    CallbackIOOcspRespFree CBIOOcspRespFree;
 };
 
 
