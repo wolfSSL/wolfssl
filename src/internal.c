@@ -2958,10 +2958,13 @@ static INLINE int Encrypt(CYASSL* ssl, byte* out, const byte* input, word32 sz)
             case aes:
             #ifdef CYASSL_AESNI
                 if ((word)input % 16) {
-                    byte buff[MAX_RECORD_SIZE + MAX_COMP_EXTRA+MAX_MSG_EXTRA];
-                    XMEMCPY(buff, input, sz);
-                    AesCbcEncrypt(ssl->encrypt.aes, buff, buff, sz);
-                    XMEMCPY(out, buff, sz);
+                    byte* tmp = (byte*)XMALLOC(sz, ssl->heap,
+                                               DYNAMIC_TYPE_TMP_BUFFER);
+                    if (tmp == NULL) return MEMORY_E;
+                    XMEMCPY(tmp, input, sz);
+                    AesCbcEncrypt(ssl->encrypt.aes, tmp, tmp, sz);
+                    XMEMCPY(out, tmp, sz);
+                    XFREE(tmp, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
                     break;
                 }
             #endif
