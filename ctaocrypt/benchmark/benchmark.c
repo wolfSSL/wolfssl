@@ -435,8 +435,8 @@ void bench_rsa(void)
     word32 idx = 0;
 
     byte      message[] = "Everyone gets Friday off.";
-    byte      enc[512];  /* for up to 4096 bit */
     byte*     output;
+    byte      enc[512];  /* for up to 4096 bit */
     const int len = (int)strlen((char*)message);
     double    start, total, each, milliEach;
     
