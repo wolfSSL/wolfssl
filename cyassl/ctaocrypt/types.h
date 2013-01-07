@@ -227,7 +227,8 @@ enum {
     DYNAMIC_TYPE_DTLS_POOL    = 34,
     DYNAMIC_TYPE_SOCKADDR     = 35,
     DYNAMIC_TYPE_LIBZ         = 36,
-    DYNAMIC_TYPE_ECC          = 37
+    DYNAMIC_TYPE_ECC          = 37,
+    DYNAMIC_TYPE_TMP_BUFFER   = 38
 };
 
 /* stack protection */

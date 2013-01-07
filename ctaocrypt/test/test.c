@@ -1194,11 +1194,16 @@ int hc128_test(void)
         HC128 enc;
         HC128 dec;
 
-        Hc128_SetKey(&enc, (byte*)keys[i], (byte*)ivs[i]);
-        Hc128_SetKey(&dec, (byte*)keys[i], (byte*)ivs[i]);
+        /* align keys/ivs in plain/cipher buffers */
+        memcpy(plain,  keys[i], 16); 
+        memcpy(cipher, ivs[i],  16); 
 
-        Hc128_Process(&enc, cipher, (byte*)test_hc128[i].input,
-                    (word32)test_hc128[i].outLen);
+        Hc128_SetKey(&enc, plain, cipher);
+        Hc128_SetKey(&dec, plain, cipher);
+
+        /* align input */
+        memcpy(plain, test_hc128[i].input, test_hc128[i].outLen);
+        Hc128_Process(&enc, cipher, plain,  (word32)test_hc128[i].outLen);
         Hc128_Process(&dec, plain,  cipher, (word32)test_hc128[i].outLen);
 
         if (memcmp(plain, test_hc128[i].input, test_hc128[i].outLen))
@@ -1219,22 +1224,17 @@ int rabbit_test(void)
     byte cipher[16];
     byte plain[16];
 
-    const char* keys[] =   /* align with 3 extra bytes cause null is added */
+    const char* keys[] = 
     {           
-        "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
-            "\x00\x00\x00",
-        "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
-            "\x00\x00\x00",
+        "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00",
+        "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00",
         "\xAC\xC3\x51\xDC\xF1\x62\xFC\x3B\xFE\x36\x3D\x2E\x29\x13\x28\x91"
-            "\x00\x00\x00"
     };
 
-    const char* ivs[] = /* align with 3 extra bytes casue null is added */
+    const char* ivs[] =
     {
-        "\x00\x00\x00\x00\x00\x00\x00\x00"
-            "\x00\x00\x00",
-        "\x59\x7E\x26\xC1\x75\xF5\x73\xC3"
-            "\x00\x00\x00",
+        "\x00\x00\x00\x00\x00\x00\x00\x00",
+        "\x59\x7E\x26\xC1\x75\xF5\x73\xC3",
         0
     };
 
@@ -1265,12 +1265,21 @@ int rabbit_test(void)
     for (i = 0; i < times; ++i) {
         Rabbit enc;
         Rabbit dec;
+        byte*  iv;
 
-        RabbitSetKey(&enc, (byte*)keys[i], (byte*)ivs[i]);
-        RabbitSetKey(&dec, (byte*)keys[i], (byte*)ivs[i]);
+        /* align keys/ivs in plain/cipher buffers */
+        memcpy(plain,  keys[i], 16);
+        if (ivs[i]) {
+            memcpy(cipher, ivs[i],   8);
+            iv = cipher;
+        } else
+            iv = NULL;
+        RabbitSetKey(&enc, plain, iv);
+        RabbitSetKey(&dec, plain, iv);
 
-        RabbitProcess(&enc, cipher, (byte*)test_rabbit[i].input,
-                    (word32)test_rabbit[i].outLen);
+        /* align input */
+        memcpy(plain, test_rabbit[i].input, test_rabbit[i].outLen);
+        RabbitProcess(&enc, cipher, plain,  (word32)test_rabbit[i].outLen);
         RabbitProcess(&dec, plain,  cipher, (word32)test_rabbit[i].outLen);
 
         if (memcmp(plain, test_rabbit[i].input, test_rabbit[i].outLen))

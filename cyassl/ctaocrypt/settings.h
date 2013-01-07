@@ -72,6 +72,13 @@
 
 #include <cyassl/ctaocrypt/visibility.h>
 
+/* stream ciphers except arc4 need 32bit alignment, intel ok without */
+#if defined(__x86_64__) || defined(__ia64__) || defined(__i386__)
+    #define NO_XSTREAM_ALIGNMENT
+#else
+    #define XSTREAM_ALIGNMENT
+#endif
+
 #ifdef IPHONE
     #define SIZEOF_LONG_LONG 8
 #endif
