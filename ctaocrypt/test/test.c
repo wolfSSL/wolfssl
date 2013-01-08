@@ -112,6 +112,7 @@ int  des_test(void);
 int  des3_test(void);
 int  aes_test(void);
 int  aesgcm_test(void);
+int  aesccm_test(void);
 int  rsa_test(void);
 int  dh_test(void);
 int  dsa_test(void);
@@ -291,6 +292,13 @@ void ctaocrypt_test(void* args)
         err_sys("AES-GCM  test failed!\n", ret);
     else
         printf( "AES-GCM  test passed!\n");
+#endif
+
+#ifdef HAVE_AESCCM
+    if ( (ret = aesccm_test()) )
+        err_sys("AES-CCM  test failed!\n", ret);
+    else
+        printf( "AES-CCM  test passed!\n");
 #endif
 #endif
 
@@ -1570,6 +1578,80 @@ int aesgcm_test(void)
     return 0;
 }
 #endif /* HAVE_AESGCM */
+
+#ifdef HAVE_AESCCM
+int aesccm_test(void)
+{
+    Aes enc;
+
+    /* key */
+    const byte k[] =
+    {
+        0xc0, 0xc1, 0xc2, 0xc3, 0xc4, 0xc5, 0xc6, 0xc7,
+        0xc8, 0xc9, 0xca, 0xcb, 0xcc, 0xcd, 0xce, 0xcf
+    };
+
+    /* nonce */
+    const byte iv[] =
+    {
+        0x00, 0x00, 0x00, 0x03, 0x02, 0x01, 0x00, 0xa0,
+        0xa1, 0xa2, 0xa3, 0xa4, 0xa5
+    };
+
+    /* plaintext */
+    const byte p[] =
+    {
+        0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
+        0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
+        0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e
+    };
+
+    const byte a[] =
+    {
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07
+    };
+
+    const byte c[] =
+    {
+        0x58, 0x8c, 0x97, 0x9a, 0x61, 0xc6, 0x63, 0xd2,
+        0xf0, 0x66, 0xd0, 0xc2, 0xc0, 0xf9, 0x89, 0x80,
+        0x6d, 0x5f, 0x6b, 0x61, 0xda, 0xc3, 0x84, 0x17,
+        0xe8, 0xd1, 0x2c, 0xfd, 0xf9, 0x26, 0xe0
+    };
+
+    const byte t[] =
+    {
+        0x3a, 0x2e, 0x46, 0xc8, 0xec, 0x33, 0xa5, 0x48
+    };
+
+    byte t2[sizeof(t)];
+    byte p2[sizeof(p)];
+    byte c2[sizeof(c)];
+
+    int result;
+
+    memset(t2, 0, sizeof(t2));
+    memset(c2, 0, sizeof(c2));
+    memset(p2, 0, sizeof(p2));
+
+    AesCcmSetKey(&enc, k, sizeof(k), iv, sizeof(iv));
+    /* AES-CCM encrypt and decrypt both use AES encrypt internally */
+    AesCcmEncrypt(&enc, c2, p, sizeof(c2), t2, sizeof(t2), a, sizeof(a));
+    if (memcmp(c, c2, sizeof(c2)))
+        return -107;
+    if (memcmp(t, t2, sizeof(t2)))
+        return -108;
+
+    result = AesCcmDecrypt(&enc,
+                        p2, c2, sizeof(p2), t2, sizeof(t2), a, sizeof(a));
+    if (result != 0)
+        return -109;
+    if (memcmp(p, p2, sizeof(p2)))
+        return -110;
+
+    return 0;
+}
+#endif /* HAVE_AESCCM */
 
 
 #endif /* NO_AES */

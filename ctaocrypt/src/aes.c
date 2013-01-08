@@ -2541,6 +2541,73 @@ int  AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 
 #endif /* HAVE_AESGCM */
 
+#ifdef HAVE_AESCCM
+
+void AesCcmSetKey(Aes* aes, const byte* key, word32 keySz,
+                              const byte* implicitIV, word32 ivSz)
+{
+    (void)aes;
+    (void)key;
+    (void)keySz;
+    (void)implicitIV;
+    (void)ivSz;
+}
+
+
+void AesCcmSetExpIV(Aes* aes, const byte* iv, word32 ivSz)
+{
+    (void)aes;
+    (void)iv;
+    (void)ivSz;
+}
+
+
+void AesCcmGetExpIV(Aes* aes, byte* iv, word32 ivSz)
+{
+    (void)aes;
+    (void)iv;
+    (void)ivSz;
+}
+
+
+void AesCcmIncExpIV(Aes* aes)
+{
+    (void)aes;
+}
+
+
+void AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
+                   byte* authTag, word32 authTagSz,
+                   const byte* authIn, word32 authInSz)
+{
+    (void)aes;
+    (void)out;
+    (void)in;
+    (void)sz;
+    (void)authTag;
+    (void)authTagSz;
+    (void)authIn;
+    (void)authInSz;
+}
+
+
+int  AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
+                   const byte* authTag, word32 authTagSz,
+                   const byte* authIn, word32 authInSz)
+{
+    (void)aes;
+    (void)out;
+    (void)in;
+    (void)sz;
+    (void)authTag;
+    (void)authTagSz;
+    (void)authIn;
+    (void)authInSz;
+    return 0;
+}
+
+#endif
+
 #endif /* STM32F2_CRYPTO */
 
 int AesSetIV(Aes* aes, const byte* iv)

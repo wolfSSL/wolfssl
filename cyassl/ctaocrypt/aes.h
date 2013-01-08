@@ -105,6 +105,19 @@ CYASSL_API int  AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
                               const byte* authTag, word32 authTagSz,
                               const byte* authIn, word32 authInSz);
 #endif /* HAVE_AESGCM */
+#ifdef HAVE_AESCCM
+CYASSL_API void AesCcmSetKey(Aes* aes, const byte* key, word32 keySz,
+                              const byte* implicitIV, word32 ivSz);
+CYASSL_API void AesCcmSetExpIV(Aes* aes, const byte* iv, word32 ivSz);
+CYASSL_API void AesCcmGetExpIV(Aes* aes, byte* iv, word32 ivSz);
+CYASSL_API void AesCcmIncExpIV(Aes* aes);
+CYASSL_API void AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
+                   byte* authTag, word32 authTagSz,
+                   const byte* authIn, word32 authInSz);
+CYASSL_API int  AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
+                   const byte* authTag, word32 authTagSz,
+                   const byte* authIn, word32 authInSz);
+#endif /* HAVE_AESCCM */
 
 
 #ifdef __cplusplus
