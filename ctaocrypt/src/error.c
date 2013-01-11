@@ -273,6 +273,10 @@ void CTaoCryptErrorString(int error, char* buffer)
         XSTRNCPY(buffer, "AES-GCM Authentication check fail", max);
         break;
 
+    case AES_CCM_AUTH_E:
+        XSTRNCPY(buffer, "AES-CCM Authentication check fail", max);
+        break;
+
     default:
         XSTRNCPY(buffer, "unknown error number", max);
 
