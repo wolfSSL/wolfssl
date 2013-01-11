@@ -1657,6 +1657,19 @@ int aesccm_test(void)
     if (memcmp(p, p2, sizeof(p2)))
         return -110;
 
+    /* Test the authentication failure */
+    t2[0]++; /* Corrupt the authentication tag. */
+    result = AesCcmDecrypt(&enc,
+                        p2, c, sizeof(p2), t2, sizeof(t2), a, sizeof(a));
+    if (result == 0)
+        return -111;
+
+    /* Clear c2 to compare against p2. p2 should be set to zero in case of
+     * authentication fail. */
+    memset(c2, 0, sizeof(c2));
+    if (memcmp(p2, c2, sizeof(p2)))
+        return -112;
+
     return 0;
 }
 #endif /* HAVE_AESCCM */
