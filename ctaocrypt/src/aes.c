@@ -2541,6 +2541,229 @@ int  AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 
 #endif /* HAVE_AESGCM */
 
+#ifdef HAVE_AESCCM
+
+void AesCcmSetKey(Aes* aes, const byte* key, word32 keySz,
+                              const byte* implicitIV, word32 ivSz)
+{
+    byte fullIV[AES_BLOCK_SIZE];
+
+    if (!((keySz == 16) || (keySz == 24) || (keySz == 32)))
+        return;
+
+    if (ivSz > AES_BLOCK_SIZE - 2) {
+        CYASSL_MSG("AES-CCM IV is too long");
+        return;
+    }
+
+    XMEMSET(fullIV, 0, sizeof(fullIV));
+    XMEMCPY(fullIV + 1, implicitIV, ivSz);
+
+    AesSetKeyLocal(aes, key, keySz, fullIV, AES_ENCRYPTION);
+    aes->lenSz = AES_BLOCK_SIZE - 1 - ivSz;
+
+    XMEMSET(fullIV, 0, sizeof(fullIV));
+}
+
+
+static void roll_x(Aes* aes, const byte* in, word32 inSz, byte* out)
+{
+    /* process the bulk of the data */
+    while (inSz >= AES_BLOCK_SIZE) {
+        xorbuf(out, in, AES_BLOCK_SIZE);
+        in += AES_BLOCK_SIZE;
+        inSz -= AES_BLOCK_SIZE;
+
+        AesEncrypt(aes, out, out);
+    }
+
+    /* process remainder of the data */
+    if (inSz > 0) {
+        xorbuf(out, in, inSz);
+        AesEncrypt(aes, out, out);
+    }
+}
+
+
+static void roll_auth(Aes* aes, const byte* in, word32 inSz, byte* out)
+{
+    word32 authLenSz;
+    word32 remainder;
+
+    /* encode the length in */
+    if (inSz <= 0xFEFF) {
+        authLenSz = 2;
+        out[0] ^= ((inSz & 0xFF00) >> 8);
+        out[1] ^=  (inSz & 0x00FF);
+    }
+    else if (inSz <= 0xFFFFFFFF) {
+        authLenSz = 6;
+        out[0] ^= 0xFF; out[1] ^= 0xFE;
+        out[2] ^= ((inSz & 0xFF000000) >> 24);
+        out[3] ^= ((inSz & 0x00FF0000) >> 16);
+        out[4] ^= ((inSz & 0x0000FF00) >>  8);
+        out[5] ^=  (inSz & 0x000000FF);
+    }
+    /* Note, the protocol handles auth data up to 2^64, but we are
+     * using 32-bit sizes right now, so the bigger data isn't handled
+     * else if (inSz <= 0xFFFFFFFFFFFFFFFF) {} */
+    else
+        return;
+
+    /* start fill out the rest of the first block */
+    remainder = AES_BLOCK_SIZE - authLenSz;
+    if (inSz >= remainder) {
+        /* plenty of bulk data to fill the remainder of this block */
+        xorbuf(out + authLenSz, in, remainder);
+        inSz -= remainder;
+        in += remainder;
+    }
+    else {
+        /* not enough bulk data, copy what is available, and pad zero */
+        xorbuf(out + authLenSz, in, inSz);
+        inSz = 0;
+    }
+    AesEncrypt(aes, out, out);
+
+    if (inSz > 0)
+        roll_x(aes, in, inSz, out);
+}
+
+
+static INLINE void AesCcmCtrInc(byte* B, word32 lenSz)
+{
+    word32 i;
+
+    for (i = 0; i < lenSz; i++) {
+        if (++B[AES_BLOCK_SIZE - 1 - i] != 0) return;
+    }
+}
+
+
+void AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
+                   byte* authTag, word32 authTagSz,
+                   const byte* authIn, word32 authInSz)
+{
+    byte A[AES_BLOCK_SIZE];
+    byte B[AES_BLOCK_SIZE];
+    word32 i;
+
+    XMEMCPY(B, aes->reg, AES_BLOCK_SIZE);
+    B[0] = (authInSz > 0 ? 64 : 0)
+         + (8 * ((authTagSz - 2) / 2))
+         + (aes->lenSz - 1);
+    for (i = 0; i < aes->lenSz; i++)
+        B[AES_BLOCK_SIZE - 1 - i] = (inSz >> (8 * i)) & 0xFF;
+
+    AesEncrypt(aes, B, A);
+    if (authInSz > 0)
+        roll_auth(aes, authIn, authInSz, A);
+    if (inSz > 0)
+        roll_x(aes, in, inSz, A);
+    XMEMCPY(authTag, A, authTagSz);
+
+    B[0] = (aes->lenSz - 1);
+    for (i = 0; i < aes->lenSz; i++)
+        B[AES_BLOCK_SIZE - 1 - i] = 0;
+    AesEncrypt(aes, B, A);
+    xorbuf(authTag, A, authTagSz);
+
+    B[15] = 1;
+    while (inSz >= AES_BLOCK_SIZE) {
+        AesEncrypt(aes, B, A);
+        xorbuf(A, in, AES_BLOCK_SIZE);
+        XMEMCPY(out, A, AES_BLOCK_SIZE);
+
+        AesCcmCtrInc(B, aes->lenSz);
+        inSz -= AES_BLOCK_SIZE;
+        in += AES_BLOCK_SIZE;
+        out += AES_BLOCK_SIZE;
+    }
+    if (inSz > 0) {
+        AesEncrypt(aes, B, A);
+        xorbuf(A, in, inSz);
+        XMEMCPY(out, A, inSz);
+    }
+
+    XMEMSET(A, 0, AES_BLOCK_SIZE);
+    XMEMSET(B, 0, AES_BLOCK_SIZE);
+}
+
+
+int  AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
+                   const byte* authTag, word32 authTagSz,
+                   const byte* authIn, word32 authInSz)
+{
+    byte A[AES_BLOCK_SIZE];
+    byte B[AES_BLOCK_SIZE];
+    byte* o;
+    word32 i, oSz, result = 0;
+
+    o = out;
+    oSz = inSz;
+    XMEMCPY(B, aes->reg, AES_BLOCK_SIZE);
+    B[0] = (aes->lenSz - 1);
+    for (i = 0; i < aes->lenSz - 1; i++)
+        B[AES_BLOCK_SIZE - 1 - i] = 0;
+    B[15] = 1;
+    while (oSz >= AES_BLOCK_SIZE) {
+        AesEncrypt(aes, B, A);
+        xorbuf(A, in, AES_BLOCK_SIZE);
+        XMEMCPY(o, A, AES_BLOCK_SIZE);
+
+        AesCcmCtrInc(B, aes->lenSz);
+        oSz -= AES_BLOCK_SIZE;
+        in += AES_BLOCK_SIZE;
+        o += AES_BLOCK_SIZE;
+    }
+    if (inSz > 0) {
+        AesEncrypt(aes, B, A);
+        xorbuf(A, in, oSz);
+        XMEMCPY(o, A, oSz);
+    }
+
+    for (i = 0; i < aes->lenSz; i++)
+        B[AES_BLOCK_SIZE - 1 - i] = 0;
+    AesEncrypt(aes, B, A);
+
+    o = out;
+    oSz = inSz;
+
+    B[0] = (authInSz > 0 ? 64 : 0)
+         + (8 * ((authTagSz - 2) / 2))
+         + (aes->lenSz - 1);
+    for (i = 0; i < aes->lenSz; i++)
+        B[AES_BLOCK_SIZE - 1 - i] = (inSz >> (8 * i)) & 0xFF;
+
+    AesEncrypt(aes, B, A);
+    if (authInSz > 0)
+        roll_auth(aes, authIn, authInSz, A);
+    if (inSz > 0)
+        roll_x(aes, o, oSz, A);
+
+    B[0] = (aes->lenSz - 1);
+    for (i = 0; i < aes->lenSz; i++)
+        B[AES_BLOCK_SIZE - 1 - i] = 0;
+    AesEncrypt(aes, B, B);
+    xorbuf(A, B, authTagSz);
+
+    if (XMEMCMP(A, authTag, authTagSz) != 0) {
+        /* If the authTag check fails, don't keep the decrypted data.
+         * Unfortunately, you need the decrypted data to calculate the
+         * check value. */
+        XMEMSET(out, 0, inSz);
+        result = AES_CCM_AUTH_E;
+    }
+
+    XMEMSET(A, 0, AES_BLOCK_SIZE);
+    XMEMSET(B, 0, AES_BLOCK_SIZE);
+    o = NULL;
+
+    return result;
+}
+
+#endif
+
 #endif /* STM32F2_CRYPTO */
 
 int AesSetIV(Aes* aes, const byte* iv)
