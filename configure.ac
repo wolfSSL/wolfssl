@@ -329,6 +329,22 @@ fi
 
 AM_CONDITIONAL([BUILD_AESGCM], [test "x$ENABLED_AESGCM" = "xyes"])
 
+
+# AES-CCM
+AC_ARG_ENABLE([aesccm],
+    [  --enable-aesccm         Enable CyaSSL AES-CCM support (default: disabled)],
+    [ ENABLED_AESCCM=$enableval ],
+    [ ENABLED_AESCCM=no ]
+    )
+
+if test "$ENABLED_AESCCM" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_AESCCM"
+fi
+
+AM_CONDITIONAL([BUILD_AESGCM], [test "x$ENABLED_AESGCM" = "xyes"])
+
+
 # AES-NI
 AC_ARG_ENABLE([aesni],
     [  --enable-aesni          Enable CyaSSL AES-NI support (default: disabled)],
@@ -797,6 +813,7 @@ echo "   * fastmath:                  $ENABLED_FASTMATH"
 echo "   * sniffer:                   $ENABLED_SNIFFER"
 echo "   * AES-NI:                    $ENABLED_AESNI"
 echo "   * AES-GCM:                   $ENABLED_AESGCM"
+echo "   * AES-CCM:                   $ENABLED_AESCCM"
 echo "   * RIPEMD:                    $ENABLED_RIPEMD"
 echo "   * SHA-512:                   $ENABLED_SHA512"
 echo "   * keygen:                    $ENABLED_KEYGEN"
