@@ -2930,6 +2930,17 @@ static INLINE word32 GetSEQIncrement(CYASSL* ssl, int verify)
 }
 
 
+#ifdef HAVE_AEAD
+static INLINE void AeadIncrementExpIV(CYASSL* ssl)
+{
+    int i;
+    for (i = AES_GCM_EXP_IV_SZ-1; i >= 0; i--) {
+        if (++ssl->keys.aead_exp_IV[i]) return;
+    }
+}
+#endif
+
+
 static INLINE int Encrypt(CYASSL* ssl, byte* out, const byte* input, word32 sz)
 {
     (void)out;
@@ -2976,6 +2987,7 @@ static INLINE int Encrypt(CYASSL* ssl, byte* out, const byte* input, word32 sz)
             case aes_gcm:
                 {
                     byte additional[AES_BLOCK_SIZE];
+                    byte nonce[AEAD_NONCE_SZ];
 
                     XMEMSET(additional, 0, AES_BLOCK_SIZE);
 
@@ -2991,12 +3003,18 @@ static INLINE int Encrypt(CYASSL* ssl, byte* out, const byte* input, word32 sz)
                      * IV length minus the authentication tag size. */
                     c16toa(sz - AES_GCM_EXP_IV_SZ - AEAD_AUTH_TAG_SZ,
                                                 additional + AEAD_LEN_OFFSET);
+                    XMEMCPY(nonce,
+                                 ssl->keys.aead_enc_imp_IV, AES_GCM_IMP_IV_SZ);
+                    XMEMCPY(nonce + AES_GCM_IMP_IV_SZ,
+                                     ssl->keys.aead_exp_IV, AES_GCM_EXP_IV_SZ);
                     AesGcmEncrypt(ssl->encrypt.aes,
                         out + AES_GCM_EXP_IV_SZ, input + AES_GCM_EXP_IV_SZ,
                             sz - AES_GCM_EXP_IV_SZ - AEAD_AUTH_TAG_SZ,
+                        nonce, AEAD_NONCE_SZ,
                         out + sz - AEAD_AUTH_TAG_SZ, AEAD_AUTH_TAG_SZ,
                         additional, AEAD_AUTH_DATA_SZ);
-                    AesGcmIncExpIV(ssl->encrypt.aes);
+                    AeadIncrementExpIV(ssl);
+                    XMEMSET(nonce, 0, AEAD_NONCE_SZ);
                 }
                 break;
         #endif
@@ -3089,8 +3107,8 @@ static INLINE int Decrypt(CYASSL* ssl, byte* plain, const byte* input,
             case aes_gcm:
             {
                 byte additional[AES_BLOCK_SIZE];
+                byte nonce[AEAD_NONCE_SZ];
 
-                AesGcmSetExpIV(ssl->decrypt.aes, input);
                 XMEMSET(additional, 0, AES_BLOCK_SIZE);
 
                 /* sequence number field is 64-bits, we only use 32-bits */
@@ -3102,15 +3120,20 @@ static INLINE int Decrypt(CYASSL* ssl, byte* plain, const byte* input,
 
                 c16toa(sz - AES_GCM_EXP_IV_SZ - AEAD_AUTH_TAG_SZ,
                                         additional + AEAD_LEN_OFFSET);
+                XMEMCPY(nonce, ssl->keys.aead_dec_imp_IV, AES_GCM_IMP_IV_SZ);
+                XMEMCPY(nonce + AES_GCM_IMP_IV_SZ, input, AES_GCM_EXP_IV_SZ);
                 if (AesGcmDecrypt(ssl->decrypt.aes,
                             plain + AES_GCM_EXP_IV_SZ,
                             input + AES_GCM_EXP_IV_SZ,
                                 sz - AES_GCM_EXP_IV_SZ - AEAD_AUTH_TAG_SZ,
+                            nonce, AEAD_NONCE_SZ,
                             input + sz - AEAD_AUTH_TAG_SZ, AEAD_AUTH_TAG_SZ,
                             additional, AEAD_AUTH_DATA_SZ) < 0) {
                     SendAlert(ssl, alert_fatal, bad_record_mac);
+                    XMEMSET(nonce, 0, AEAD_NONCE_SZ);
                     return VERIFY_MAC_ERROR;
                 }
+                XMEMSET(nonce, 0, AEAD_NONCE_SZ);
                 break;
             }
         #endif
@@ -4149,7 +4172,7 @@ static int BuildMessage(CYASSL* ssl, byte* output, const byte* input, int inSz,
     if (ssl->specs.cipher_type == aead) {
         ivSz = AES_GCM_EXP_IV_SZ;
         sz += (ivSz + 16 - digestSz);
-        AesGcmGetExpIV(ssl->encrypt.aes, iv);
+        XMEMCPY(iv, ssl->keys.aead_exp_IV, AES_GCM_EXP_IV_SZ);
     }
 #endif
     size = (word16)(sz - headerSz);    /* include mac and digest */

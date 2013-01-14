@@ -284,6 +284,10 @@ void c32to24(word32 in, word24 out);
     #define AES_BLOCK_SIZE 16
 #endif
 
+#if defined(BUILD_AESGCM) || defined(HAVE_AESCCM)
+    #define HAVE_AEAD
+#endif
+
 
 /* actual cipher values, 2nd byte */
 enum {
@@ -471,6 +475,7 @@ enum Misc {
     AEAD_LEN_OFFSET     = 11,       /* Auth Data: Length          */
     AEAD_AUTH_TAG_SZ    = 16,       /* Size of the authentication tag   */
     AEAD_AUTH_DATA_SZ   = 13,       /* Size of the data to authenticate */
+    AEAD_NONCE_SZ       = AES_GCM_EXP_IV_SZ + AES_GCM_IMP_IV_SZ,
 
     HC_128_KEY_SIZE     = 16,  /* 128 bits                */
     HC_128_IV_SIZE      = 16,  /* also 128 bits           */
@@ -1046,6 +1051,11 @@ typedef struct Keys {
     byte server_write_key[AES_256_KEY_SIZE]; 
     byte client_write_IV[AES_IV_SIZE];               /* max sizes */
     byte server_write_IV[AES_IV_SIZE];
+#ifdef HAVE_AEAD
+    byte aead_exp_IV[AES_GCM_EXP_IV_SZ];
+    byte aead_enc_imp_IV[AES_GCM_IMP_IV_SZ];
+    byte aead_dec_imp_IV[AES_GCM_IMP_IV_SZ];
+#endif
 
     word32 peer_sequence_number;
     word32 sequence_number;

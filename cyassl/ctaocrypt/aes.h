@@ -76,9 +76,6 @@ typedef struct Aes {
     ALIGN16 byte M0[256][AES_BLOCK_SIZE];
 #endif /* GCM_TABLE */
 #endif /* HAVE_AESGCM */
-#ifdef HAVE_AESCCM
-    word32 lenSz;
-#endif
 #ifdef CYASSL_AESNI
     byte use_aesni;
 #endif /* CYASSL_AESNI */
@@ -96,27 +93,26 @@ CYASSL_API void AesDecryptDirect(Aes* aes, byte* out, const byte* in);
 CYASSL_API int  AesSetKeyDirect(Aes* aes, const byte* key, word32 len,
                                 const byte* iv, int dir);
 #ifdef HAVE_AESGCM
-CYASSL_API void AesGcmSetKey(Aes* aes, const byte* key, word32 len,
-                              const byte* implicitIV);
-CYASSL_API void AesGcmSetExpIV(Aes* aes, const byte* iv);
-CYASSL_API void AesGcmGetExpIV(Aes* aes, byte* iv);
-CYASSL_API void AesGcmIncExpIV(Aes* aes);
+CYASSL_API void AesGcmSetKey(Aes* aes, const byte* key, word32 len);
 CYASSL_API void AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
+                              const byte* iv, word32 ivSz,
                               byte* authTag, word32 authTagSz,
                               const byte* authIn, word32 authInSz);
 CYASSL_API int  AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
+                              const byte* iv, word32 ivSz,
                               const byte* authTag, word32 authTagSz,
                               const byte* authIn, word32 authInSz);
 #endif /* HAVE_AESGCM */
 #ifdef HAVE_AESCCM
-CYASSL_API void AesCcmSetKey(Aes* aes, const byte* key, word32 keySz,
-                              const byte* implicitIV, word32 ivSz);
+CYASSL_API void AesCcmSetKey(Aes* aes, const byte* key, word32 keySz);
 CYASSL_API void AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
-                   byte* authTag, word32 authTagSz,
-                   const byte* authIn, word32 authInSz);
+                              const byte* nonce, word32 nonceSz,
+                              byte* authTag, word32 authTagSz,
+                              const byte* authIn, word32 authInSz);
 CYASSL_API int  AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
-                   const byte* authTag, word32 authTagSz,
-                   const byte* authIn, word32 authInSz);
+                              const byte* nonce, word32 nonceSz,
+                              const byte* authTag, word32 authTagSz,
+                              const byte* authIn, word32 authInSz);
 #endif /* HAVE_AESCCM */
 
 

@@ -198,12 +198,11 @@ void bench_aesgcm(void)
     double start, total, persec;
     int    i;
 
-    AesGcmSetKey(&enc, key, 16, iv);
-    AesGcmSetExpIV(&enc, iv+4);
+    AesGcmSetKey(&enc, key, 16);
     start = current_time();
 
     for(i = 0; i < megs; i++)
-        AesGcmEncrypt(&enc, cipher, plain, sizeof(plain),
+        AesGcmEncrypt(&enc, cipher, plain, sizeof(plain), iv, 12,
                         tag, 16, additional, 13);
 
     total = current_time() - start;
@@ -222,11 +221,11 @@ void bench_aesccm(void)
     double start, total, persec;
     int    i;
 
-    AesCcmSetKey(&enc, key, 16, iv, 12);
+    AesCcmSetKey(&enc, key, 16);
     start = current_time();
 
     for(i = 0; i < megs; i++)
-        AesCcmEncrypt(&enc, cipher, plain, sizeof(plain),
+        AesCcmEncrypt(&enc, cipher, plain, sizeof(plain), iv, 12,
                         tag, 16, additional, 13);
 
     total = current_time() - start;

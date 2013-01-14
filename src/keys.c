@@ -1006,7 +1006,7 @@ static int SetPrefix(byte* sha_input, int idx)
 
 
 static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
-                   byte side, void* heap, RNG* rng)
+                   byte side, void* heap)
 {
 #ifdef BUILD_ARC4
     word32 sz = specs->key_size;
@@ -1136,7 +1136,6 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
 
 #ifdef BUILD_AESGCM
     if (specs->bulk_cipher_algorithm == aes_gcm) {
-        byte iv[AES_GCM_EXP_IV_SZ];
         enc->aes = (Aes*)XMALLOC(sizeof(Aes), heap, DYNAMIC_TYPE_CIPHER);
         if (enc->aes == NULL)
             return MEMORY_E;
@@ -1144,21 +1143,21 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
         if (dec->aes == NULL)
             return MEMORY_E;
 
-        /* Initialize the AES-GCM explicit IV to a random number. */
-        RNG_GenerateBlock(rng, iv, sizeof(iv));
-        AesGcmSetExpIV(enc->aes, iv);
-
         if (side == CLIENT_END) {
-            AesGcmSetKey(enc->aes, keys->client_write_key, specs->key_size,
-                        keys->client_write_IV);
-            AesGcmSetKey(dec->aes, keys->server_write_key, specs->key_size,
-                        keys->server_write_IV);
+            AesGcmSetKey(enc->aes, keys->client_write_key, specs->key_size);
+            XMEMCPY(keys->aead_enc_imp_IV,
+                                     keys->client_write_IV, AES_GCM_IMP_IV_SZ);
+            AesGcmSetKey(dec->aes, keys->server_write_key, specs->key_size);
+            XMEMCPY(keys->aead_dec_imp_IV,
+                                     keys->server_write_IV, AES_GCM_IMP_IV_SZ);
         }
         else {
-            AesGcmSetKey(enc->aes, keys->server_write_key, specs->key_size,
-                        keys->server_write_IV);
-            AesGcmSetKey(dec->aes, keys->client_write_key, specs->key_size,
-                        keys->client_write_IV);
+            AesGcmSetKey(enc->aes, keys->server_write_key, specs->key_size);
+            XMEMCPY(keys->aead_enc_imp_IV,
+                                     keys->server_write_IV, AES_GCM_IMP_IV_SZ);
+            AesGcmSetKey(dec->aes, keys->client_write_key, specs->key_size);
+            XMEMCPY(keys->aead_dec_imp_IV,
+                                     keys->client_write_IV, AES_GCM_IMP_IV_SZ);
         }
         enc->setup = 1;
         dec->setup = 1;
@@ -1175,7 +1174,6 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
     keys->sequence_number      = 0;
     keys->peer_sequence_number = 0;
     keys->encryptionOn         = 0;
-    (void)rng;
     (void)side;
     (void)heap;
     (void)enc;
@@ -1209,8 +1207,15 @@ int StoreKeys(CYASSL* ssl, const byte* keyData)
     i += sz;
     XMEMCPY(ssl->keys.server_write_IV, &keyData[i], sz);
 
+#ifdef HAVE_AEAD
+    if (ssl->specs.cipher_type == aead) {
+        /* Initialize the AES-GCM explicit IV to a random number. */
+        RNG_GenerateBlock(ssl->rng, ssl->keys.aead_exp_IV, AES_GCM_EXP_IV_SZ);
+    }
+#endif
+
     return SetKeys(&ssl->encrypt, &ssl->decrypt, &ssl->keys, &ssl->specs,
-                   ssl->options.side, ssl->heap, ssl->rng);
+                   ssl->options.side, ssl->heap);
 }
 
 #ifndef NO_OLD_TLS
