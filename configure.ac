@@ -19,7 +19,7 @@ AM_INIT_AUTOMAKE([-Wall -Werror -Wno-portability foreign tar-ustar subdir-object
 AC_CANONICAL_HOST
 AC_CANONICAL_BUILD
 
-AC_PREREQ([2.61])
+AC_PREREQ([2.69])
 
 
 AC_CONFIG_HEADERS([config.h:config.in])dnl Keep filename to 8.3 for MS-DOS.
