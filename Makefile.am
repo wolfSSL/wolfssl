@@ -105,6 +105,9 @@ install-generic-config:
 	$(mkinstalldirs) $(DESTDIR)$(bindir)
 	$(INSTALL_SCRIPT) @GENERIC_CONFIG@ $(DESTDIR)$(bindir)
 
+uninstall-local:
+	-rm -f $(DESTDIR)$(bindir)/@GENERIC_CONFIG@
+
 merge-clean:
 	@find ./ | $(GREP) \.gcda | xargs rm -f
 	@find ./ | $(GREP) \.gcno | xargs rm -f
