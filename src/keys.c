@@ -37,11 +37,12 @@
 
 int SetCipherSpecs(CYASSL* ssl)
 {
-#ifdef HAVE_ECC
-    /* ECC extensions */
+    /* ECC extensions, or AES-CCM */
     if (ssl->options.cipherSuite0 == ECC_BYTE) {
     
     switch (ssl->options.cipherSuite) {
+
+#ifdef HAVE_ECC
 
 #ifdef BUILD_TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA
     case TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA :
@@ -327,7 +328,7 @@ int SetCipherSpecs(CYASSL* ssl)
         ssl->specs.static_ecdh           = 0;
         ssl->specs.key_size              = AES_128_KEY_SIZE;
         ssl->specs.block_size            = AES_BLOCK_SIZE;
-        ssl->specs.iv_size               = AES_GCM_IMP_IV_SZ;
+        ssl->specs.iv_size               = AEAD_IMP_IV_SZ;
 
         break;
 #endif
@@ -344,7 +345,7 @@ int SetCipherSpecs(CYASSL* ssl)
         ssl->specs.static_ecdh           = 0;
         ssl->specs.key_size              = AES_256_KEY_SIZE;
         ssl->specs.block_size            = AES_BLOCK_SIZE;
-        ssl->specs.iv_size               = AES_GCM_IMP_IV_SZ;
+        ssl->specs.iv_size               = AEAD_IMP_IV_SZ;
 
         break;
 #endif
@@ -361,7 +362,7 @@ int SetCipherSpecs(CYASSL* ssl)
         ssl->specs.static_ecdh           = 0;
         ssl->specs.key_size              = AES_128_KEY_SIZE;
         ssl->specs.block_size            = AES_BLOCK_SIZE;
-        ssl->specs.iv_size               = AES_GCM_IMP_IV_SZ;
+        ssl->specs.iv_size               = AEAD_IMP_IV_SZ;
 
         break;
 #endif
@@ -378,7 +379,7 @@ int SetCipherSpecs(CYASSL* ssl)
         ssl->specs.static_ecdh           = 0;
         ssl->specs.key_size              = AES_256_KEY_SIZE;
         ssl->specs.block_size            = AES_BLOCK_SIZE;
-        ssl->specs.iv_size               = AES_GCM_IMP_IV_SZ;
+        ssl->specs.iv_size               = AEAD_IMP_IV_SZ;
 
         break;
 #endif
@@ -395,7 +396,7 @@ int SetCipherSpecs(CYASSL* ssl)
         ssl->specs.static_ecdh           = 1;
         ssl->specs.key_size              = AES_128_KEY_SIZE;
         ssl->specs.block_size            = AES_BLOCK_SIZE;
-        ssl->specs.iv_size               = AES_GCM_IMP_IV_SZ;
+        ssl->specs.iv_size               = AEAD_IMP_IV_SZ;
 
         break;
 #endif
@@ -412,7 +413,7 @@ int SetCipherSpecs(CYASSL* ssl)
         ssl->specs.static_ecdh           = 1;
         ssl->specs.key_size              = AES_256_KEY_SIZE;
         ssl->specs.block_size            = AES_BLOCK_SIZE;
-        ssl->specs.iv_size               = AES_GCM_IMP_IV_SZ;
+        ssl->specs.iv_size               = AEAD_IMP_IV_SZ;
 
         break;
 #endif
@@ -429,7 +430,7 @@ int SetCipherSpecs(CYASSL* ssl)
         ssl->specs.static_ecdh           = 1;
         ssl->specs.key_size              = AES_128_KEY_SIZE;
         ssl->specs.block_size            = AES_BLOCK_SIZE;
-        ssl->specs.iv_size               = AES_GCM_IMP_IV_SZ;
+        ssl->specs.iv_size               = AEAD_IMP_IV_SZ;
 
         break;
 #endif
@@ -446,8 +447,41 @@ int SetCipherSpecs(CYASSL* ssl)
         ssl->specs.static_ecdh           = 1;
         ssl->specs.key_size              = AES_256_KEY_SIZE;
         ssl->specs.block_size            = AES_BLOCK_SIZE;
-        ssl->specs.iv_size               = AES_GCM_IMP_IV_SZ;
+        ssl->specs.iv_size               = AEAD_IMP_IV_SZ;
 
+        break;
+#endif
+#endif /* HAVE_ECC */
+
+#ifdef BUILD_TLS_RSA_WITH_AES_128_CCM_8_SHA256
+    case TLS_RSA_WITH_AES_128_CCM_8_SHA256 :
+        ssl->specs.bulk_cipher_algorithm = aes_ccm;
+        ssl->specs.cipher_type           = aead;
+        ssl->specs.mac_algorithm         = sha256_mac;
+        ssl->specs.kea                   = rsa_kea;
+        ssl->specs.sig_algo              = rsa_sa_algo;
+        ssl->specs.hash_size             = SHA256_DIGEST_SIZE;
+        ssl->specs.pad_size              = PAD_SHA;
+        ssl->specs.static_ecdh           = 0;
+        ssl->specs.key_size              = AES_128_KEY_SIZE;
+        ssl->specs.block_size            = AES_BLOCK_SIZE;
+        ssl->specs.iv_size               = AEAD_IMP_IV_SZ;
+        break;
+#endif
+
+#ifdef BUILD_TLS_RSA_WITH_AES_256_CCM_8_SHA384
+    case TLS_RSA_WITH_AES_256_CCM_8_SHA384 :
+        ssl->specs.bulk_cipher_algorithm = aes_ccm;
+        ssl->specs.cipher_type           = aead;
+        ssl->specs.mac_algorithm         = sha384_mac;
+        ssl->specs.kea                   = rsa_kea;
+        ssl->specs.sig_algo              = rsa_sa_algo;
+        ssl->specs.hash_size             = SHA384_DIGEST_SIZE;
+        ssl->specs.pad_size              = PAD_SHA;
+        ssl->specs.static_ecdh           = 0;
+        ssl->specs.key_size              = AES_256_KEY_SIZE;
+        ssl->specs.block_size            = AES_BLOCK_SIZE;
+        ssl->specs.iv_size               = AEAD_IMP_IV_SZ;
         break;
 #endif
 
@@ -456,7 +490,6 @@ int SetCipherSpecs(CYASSL* ssl)
         return UNSUPPORTED_SUITE;
     }   /* switch */
     }   /* if     */
-#endif /* HAVE_ECC */
     if (ssl->options.cipherSuite0 != ECC_BYTE) {   /* normal suites */
     switch (ssl->options.cipherSuite) {
 
@@ -881,7 +914,7 @@ int SetCipherSpecs(CYASSL* ssl)
         ssl->specs.static_ecdh           = 0;
         ssl->specs.key_size              = AES_128_KEY_SIZE;
         ssl->specs.block_size            = AES_BLOCK_SIZE;
-        ssl->specs.iv_size               = AES_GCM_IMP_IV_SZ;
+        ssl->specs.iv_size               = AEAD_IMP_IV_SZ;
 
         break;
 #endif
@@ -898,7 +931,7 @@ int SetCipherSpecs(CYASSL* ssl)
         ssl->specs.static_ecdh           = 0;
         ssl->specs.key_size              = AES_256_KEY_SIZE;
         ssl->specs.block_size            = AES_BLOCK_SIZE;
-        ssl->specs.iv_size               = AES_GCM_IMP_IV_SZ;
+        ssl->specs.iv_size               = AEAD_IMP_IV_SZ;
 
         break;
 #endif
@@ -915,7 +948,7 @@ int SetCipherSpecs(CYASSL* ssl)
         ssl->specs.static_ecdh           = 0;
         ssl->specs.key_size              = AES_128_KEY_SIZE;
         ssl->specs.block_size            = AES_BLOCK_SIZE;
-        ssl->specs.iv_size               = AES_GCM_IMP_IV_SZ;
+        ssl->specs.iv_size               = AEAD_IMP_IV_SZ;
 
         break;
 #endif
@@ -932,7 +965,7 @@ int SetCipherSpecs(CYASSL* ssl)
         ssl->specs.static_ecdh           = 0;
         ssl->specs.key_size              = AES_256_KEY_SIZE;
         ssl->specs.block_size            = AES_BLOCK_SIZE;
-        ssl->specs.iv_size               = AES_GCM_IMP_IV_SZ;
+        ssl->specs.iv_size               = AEAD_IMP_IV_SZ;
 
         break;
 #endif
@@ -1146,18 +1179,48 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
         if (side == CLIENT_END) {
             AesGcmSetKey(enc->aes, keys->client_write_key, specs->key_size);
             XMEMCPY(keys->aead_enc_imp_IV,
-                                     keys->client_write_IV, AES_GCM_IMP_IV_SZ);
+                                     keys->client_write_IV, AEAD_IMP_IV_SZ);
             AesGcmSetKey(dec->aes, keys->server_write_key, specs->key_size);
             XMEMCPY(keys->aead_dec_imp_IV,
-                                     keys->server_write_IV, AES_GCM_IMP_IV_SZ);
+                                     keys->server_write_IV, AEAD_IMP_IV_SZ);
         }
         else {
             AesGcmSetKey(enc->aes, keys->server_write_key, specs->key_size);
             XMEMCPY(keys->aead_enc_imp_IV,
-                                     keys->server_write_IV, AES_GCM_IMP_IV_SZ);
+                                     keys->server_write_IV, AEAD_IMP_IV_SZ);
             AesGcmSetKey(dec->aes, keys->client_write_key, specs->key_size);
             XMEMCPY(keys->aead_dec_imp_IV,
-                                     keys->client_write_IV, AES_GCM_IMP_IV_SZ);
+                                     keys->client_write_IV, AEAD_IMP_IV_SZ);
+        }
+        enc->setup = 1;
+        dec->setup = 1;
+    }
+#endif
+
+#ifdef HAVE_AESCCM
+    if (specs->bulk_cipher_algorithm == aes_ccm) {
+        enc->aes = (Aes*)XMALLOC(sizeof(Aes), heap, DYNAMIC_TYPE_CIPHER);
+        if (enc->aes == NULL)
+            return MEMORY_E;
+        dec->aes = (Aes*)XMALLOC(sizeof(Aes), heap, DYNAMIC_TYPE_CIPHER);
+        if (dec->aes == NULL)
+            return MEMORY_E;
+
+        if (side == CLIENT_END) {
+            AesCcmSetKey(enc->aes, keys->client_write_key, specs->key_size);
+            XMEMCPY(keys->aead_enc_imp_IV,
+                                     keys->client_write_IV, AEAD_IMP_IV_SZ);
+            AesCcmSetKey(dec->aes, keys->server_write_key, specs->key_size);
+            XMEMCPY(keys->aead_dec_imp_IV,
+                                     keys->server_write_IV, AEAD_IMP_IV_SZ);
+        }
+        else {
+            AesCcmSetKey(enc->aes, keys->server_write_key, specs->key_size);
+            XMEMCPY(keys->aead_enc_imp_IV,
+                                     keys->server_write_IV, AEAD_IMP_IV_SZ);
+            AesCcmSetKey(dec->aes, keys->client_write_key, specs->key_size);
+            XMEMCPY(keys->aead_dec_imp_IV,
+                                     keys->client_write_IV, AEAD_IMP_IV_SZ);
         }
         enc->setup = 1;
         dec->setup = 1;
@@ -1210,7 +1273,7 @@ int StoreKeys(CYASSL* ssl, const byte* keyData)
 #ifdef HAVE_AEAD
     if (ssl->specs.cipher_type == aead) {
         /* Initialize the AES-GCM explicit IV to a random number. */
-        RNG_GenerateBlock(ssl->rng, ssl->keys.aead_exp_IV, AES_GCM_EXP_IV_SZ);
+        RNG_GenerateBlock(ssl->rng, ssl->keys.aead_exp_IV, AEAD_EXP_IV_SZ);
     }
 #endif
 

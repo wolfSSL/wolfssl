@@ -2660,10 +2660,12 @@ int  AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
     oSz = inSz;
     XMEMCPY(B+1, nonce, AES_BLOCK_SIZE);
     lenSz = AES_BLOCK_SIZE - 1 - nonceSz;
+
     B[0] = (lenSz - 1);
-    for (i = 0; i < lenSz - 1; i++)
+    for (i = 0; i < lenSz; i++)
         B[AES_BLOCK_SIZE - 1 - i] = 0;
     B[15] = 1;
+    
     while (oSz >= AES_BLOCK_SIZE) {
         AesEncrypt(aes, B, A);
         xorbuf(A, in, AES_BLOCK_SIZE);

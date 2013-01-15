@@ -27,6 +27,7 @@ EXTRA_DIST += tests/test.conf \
               tests/test-aesgcm.conf \
               tests/test-aesgcm-ecc.conf \
               tests/test-aesgcm-openssl.conf \
+              tests/test-aesccm.conf \
               tests/test-dtls.conf \
               tests/test-rabbit.conf \
               tests/test-null.conf \
