@@ -2658,7 +2658,7 @@ int  AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
 
     o = out;
     oSz = inSz;
-    XMEMCPY(B+1, nonce, AES_BLOCK_SIZE);
+    XMEMCPY(B+1, nonce, nonceSz);
     lenSz = AES_BLOCK_SIZE - 1 - nonceSz;
 
     B[0] = (lenSz - 1);
