@@ -1807,8 +1807,6 @@ void AesCtrEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
  */
 
 enum {
-    IMPLICIT_IV_SZ = 4,
-    EXPLICIT_IV_SZ = 8,
     CTR_SZ = 4
 };
 
@@ -1829,36 +1827,6 @@ static INLINE void IncrementGcmCounter(byte* inOutCtr)
     /* in network byte order so start at end and work back */
     for (i = AES_BLOCK_SIZE - 1; i >= AES_BLOCK_SIZE - CTR_SZ; i--) {
         if (++inOutCtr[i])  /* we're done unless we overflow */
-            return;
-    }
-}
-
-
-/*
- * The explicit IV is set by the caller. A common practice is to treat it as
- * a sequence number seeded with a random number. The caller manages
- * incrementing the explicit IV when appropriate.
- */
-
-void AesGcmSetExpIV(Aes* aes, const byte* iv)
-{
-    XMEMCPY((byte*)aes->reg + IMPLICIT_IV_SZ, iv, EXPLICIT_IV_SZ);
-}
-
-
-void AesGcmGetExpIV(Aes* aes, byte* iv)
-{
-    XMEMCPY(iv, (byte*)aes->reg + IMPLICIT_IV_SZ, EXPLICIT_IV_SZ);
-}
-
-
-void AesGcmIncExpIV(Aes* aes)
-{
-    int i;
-    byte* iv = (byte*)aes->reg + IMPLICIT_IV_SZ;
-
-    for (i = EXPLICIT_IV_SZ - 1; i >= 0; i--) {
-        if (++iv[i])
             return;
     }
 }
@@ -1929,20 +1897,17 @@ static void GenerateM0(Aes* aes)
 #endif /* GCM_TABLE */
 
 
-void AesGcmSetKey(Aes* aes, const byte* key, word32 len,
-                                                    const byte* implicitIV)
+void AesGcmSetKey(Aes* aes, const byte* key, word32 len)
 {
-    byte fullIV[AES_BLOCK_SIZE];
+    byte iv[AES_BLOCK_SIZE];
 
     if (!((len == 16) || (len == 24) || (len == 32)))
         return;
 
-    XMEMSET(fullIV, 0, AES_BLOCK_SIZE);
-    XMEMCPY(fullIV, implicitIV, IMPLICIT_IV_SZ);
-    AesSetKeyLocal(aes, key, len, fullIV, AES_ENCRYPTION);
+    XMEMSET(iv, 0, AES_BLOCK_SIZE);
+    AesSetKeyLocal(aes, key, len, iv, AES_ENCRYPTION);
 
-    XMEMSET(fullIV, 0, AES_BLOCK_SIZE);
-    AesEncrypt(aes, fullIV, aes->H);
+    AesEncrypt(aes, iv, aes->H);
 #ifdef GCM_TABLE
     GenerateM0(aes);
 #endif /* GCM_TABLE */
@@ -2449,6 +2414,7 @@ static void GHASH(Aes* aes, const byte* a, word32 aSz,
 
 
 void AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
+                   const byte* iv, word32 ivSz,
                    byte* authTag, word32 authTagSz,
                    const byte* authIn, word32 authInSz)
 {
@@ -2461,9 +2427,8 @@ void AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 
     CYASSL_ENTER("AesGcmEncrypt");
 
-    /* Initialize the counter with the MS 96 bits of IV, and the counter
-     * portion set to "1". */
-    XMEMCPY(ctr, aes->reg, AES_BLOCK_SIZE);
+    XMEMSET(ctr, 0, AES_BLOCK_SIZE);
+    XMEMCPY(ctr, iv, ivSz);
     InitGcmCounter(ctr);
 
     while (blocks--) {
@@ -2489,6 +2454,7 @@ void AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 
 
 int  AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
+                   const byte* iv, word32 ivSz,
                    const byte* authTag, word32 authTagSz,
                    const byte* authIn, word32 authInSz)
 {
@@ -2501,9 +2467,8 @@ int  AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 
     CYASSL_ENTER("AesGcmDecrypt");
 
-    /* Initialize the counter with the MS 96 bits of IV, and the counter
-     * portion set to "1". */
-    XMEMCPY(ctr, aes->reg, AES_BLOCK_SIZE);
+    XMEMSET(ctr, 0, AES_BLOCK_SIZE);
+    XMEMCPY(ctr, iv, ivSz);
     InitGcmCounter(ctr);
 
     /* Calculate the authTag again using the received auth data and the
@@ -2543,26 +2508,15 @@ int  AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 
 #ifdef HAVE_AESCCM
 
-void AesCcmSetKey(Aes* aes, const byte* key, word32 keySz,
-                              const byte* implicitIV, word32 ivSz)
+void AesCcmSetKey(Aes* aes, const byte* key, word32 keySz)
 {
-    byte fullIV[AES_BLOCK_SIZE];
+    byte nonce[AES_BLOCK_SIZE];
 
     if (!((keySz == 16) || (keySz == 24) || (keySz == 32)))
         return;
 
-    if (ivSz > AES_BLOCK_SIZE - 2) {
-        CYASSL_MSG("AES-CCM IV is too long");
-        return;
-    }
-
-    XMEMSET(fullIV, 0, sizeof(fullIV));
-    XMEMCPY(fullIV + 1, implicitIV, ivSz);
-
-    AesSetKeyLocal(aes, key, keySz, fullIV, AES_ENCRYPTION);
-    aes->lenSz = AES_BLOCK_SIZE - 1 - ivSz;
-
-    XMEMSET(fullIV, 0, sizeof(fullIV));
+    XMEMSET(nonce, 0, sizeof(nonce));
+    AesSetKeyLocal(aes, key, keySz, nonce, AES_ENCRYPTION);
 }
 
 
@@ -2641,18 +2595,20 @@ static INLINE void AesCcmCtrInc(byte* B, word32 lenSz)
 
 
 void AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
+                   const byte* nonce, word32 nonceSz,
                    byte* authTag, word32 authTagSz,
                    const byte* authIn, word32 authInSz)
 {
     byte A[AES_BLOCK_SIZE];
     byte B[AES_BLOCK_SIZE];
-    word32 i;
+    word32 i, lenSz;
 
-    XMEMCPY(B, aes->reg, AES_BLOCK_SIZE);
+    XMEMCPY(B+1, nonce, nonceSz);
+    lenSz = AES_BLOCK_SIZE - 1 - nonceSz;
     B[0] = (authInSz > 0 ? 64 : 0)
          + (8 * ((authTagSz - 2) / 2))
-         + (aes->lenSz - 1);
-    for (i = 0; i < aes->lenSz; i++)
+         + (lenSz - 1);
+    for (i = 0; i < lenSz; i++)
         B[AES_BLOCK_SIZE - 1 - i] = (inSz >> (8 * i)) & 0xFF;
 
     AesEncrypt(aes, B, A);
@@ -2662,8 +2618,8 @@ void AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
         roll_x(aes, in, inSz, A);
     XMEMCPY(authTag, A, authTagSz);
 
-    B[0] = (aes->lenSz - 1);
-    for (i = 0; i < aes->lenSz; i++)
+    B[0] = (lenSz - 1);
+    for (i = 0; i < lenSz; i++)
         B[AES_BLOCK_SIZE - 1 - i] = 0;
     AesEncrypt(aes, B, A);
     xorbuf(authTag, A, authTagSz);
@@ -2674,7 +2630,7 @@ void AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
         xorbuf(A, in, AES_BLOCK_SIZE);
         XMEMCPY(out, A, AES_BLOCK_SIZE);
 
-        AesCcmCtrInc(B, aes->lenSz);
+        AesCcmCtrInc(B, lenSz);
         inSz -= AES_BLOCK_SIZE;
         in += AES_BLOCK_SIZE;
         out += AES_BLOCK_SIZE;
@@ -2691,27 +2647,31 @@ void AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
 
 
 int  AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
+                   const byte* nonce, word32 nonceSz,
                    const byte* authTag, word32 authTagSz,
                    const byte* authIn, word32 authInSz)
 {
     byte A[AES_BLOCK_SIZE];
     byte B[AES_BLOCK_SIZE];
     byte* o;
-    word32 i, oSz, result = 0;
+    word32 i, lenSz, oSz, result = 0;
 
     o = out;
     oSz = inSz;
-    XMEMCPY(B, aes->reg, AES_BLOCK_SIZE);
-    B[0] = (aes->lenSz - 1);
-    for (i = 0; i < aes->lenSz - 1; i++)
+    XMEMCPY(B+1, nonce, nonceSz);
+    lenSz = AES_BLOCK_SIZE - 1 - nonceSz;
+
+    B[0] = (lenSz - 1);
+    for (i = 0; i < lenSz; i++)
         B[AES_BLOCK_SIZE - 1 - i] = 0;
     B[15] = 1;
+    
     while (oSz >= AES_BLOCK_SIZE) {
         AesEncrypt(aes, B, A);
         xorbuf(A, in, AES_BLOCK_SIZE);
         XMEMCPY(o, A, AES_BLOCK_SIZE);
 
-        AesCcmCtrInc(B, aes->lenSz);
+        AesCcmCtrInc(B, lenSz);
         oSz -= AES_BLOCK_SIZE;
         in += AES_BLOCK_SIZE;
         o += AES_BLOCK_SIZE;
@@ -2722,7 +2682,7 @@ int  AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
         XMEMCPY(o, A, oSz);
     }
 
-    for (i = 0; i < aes->lenSz; i++)
+    for (i = 0; i < lenSz; i++)
         B[AES_BLOCK_SIZE - 1 - i] = 0;
     AesEncrypt(aes, B, A);
 
@@ -2731,8 +2691,8 @@ int  AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
 
     B[0] = (authInSz > 0 ? 64 : 0)
          + (8 * ((authTagSz - 2) / 2))
-         + (aes->lenSz - 1);
-    for (i = 0; i < aes->lenSz; i++)
+         + (lenSz - 1);
+    for (i = 0; i < lenSz; i++)
         B[AES_BLOCK_SIZE - 1 - i] = (inSz >> (8 * i)) & 0xFF;
 
     AesEncrypt(aes, B, A);
@@ -2741,8 +2701,8 @@ int  AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
     if (inSz > 0)
         roll_x(aes, o, oSz, A);
 
-    B[0] = (aes->lenSz - 1);
-    for (i = 0; i < aes->lenSz; i++)
+    B[0] = (lenSz - 1);
+    for (i = 0; i < lenSz; i++)
         B[AES_BLOCK_SIZE - 1 - i] = 0;
     AesEncrypt(aes, B, B);
     xorbuf(A, B, authTagSz);
