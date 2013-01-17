@@ -2720,18 +2720,29 @@ static int DoHandShakeMsgType(CYASSL* ssl, byte* input, word32* inOutIdx,
 
     if (ssl->options.handShakeState == HANDSHAKE_DONE && type != hello_request){
         CYASSL_MSG("HandShake message after handshake complete");
+        SendAlert(ssl, alert_fatal, unexpected_message);
         return OUT_OF_ORDER_E;
     }
 
     if (ssl->options.side == CLIENT_END && ssl->options.dtls == 0 &&
                ssl->options.serverState == NULL_STATE && type != server_hello) {
         CYASSL_MSG("First server message not server hello");
+        SendAlert(ssl, alert_fatal, unexpected_message);
+        return OUT_OF_ORDER_E;
+    }
+
+    if (ssl->options.side == CLIENT_END && ssl->options.dtls &&
+            type == server_hello_done &&
+            ssl->options.serverState < SERVER_HELLO_COMPLETE) {
+        CYASSL_MSG("Server hello done received before server hello in DTLS");
+        SendAlert(ssl, alert_fatal, unexpected_message);
         return OUT_OF_ORDER_E;
     }
 
     if (ssl->options.side == SERVER_END &&
                ssl->options.clientState == NULL_STATE && type != client_hello) {
         CYASSL_MSG("First client message not client hello");
+        SendAlert(ssl, alert_fatal, unexpected_message);
         return OUT_OF_ORDER_E;
     }
 
@@ -3214,7 +3225,6 @@ static INLINE int Decrypt(CYASSL* ssl, byte* plain, const byte* input,
                             nonce, AEAD_NONCE_SZ,
                             input + sz - AEAD_AUTH_TAG_SZ, AEAD_AUTH_TAG_SZ,
                             additional, AEAD_AUTH_DATA_SZ) < 0) {
-                    /* XXX HERE!@ */
                     SendAlert(ssl, alert_fatal, bad_record_mac);
                     XMEMSET(nonce, 0, AEAD_NONCE_SZ);
                     return VERIFY_MAC_ERROR;
@@ -3586,6 +3596,7 @@ int DoApplicationData(CYASSL* ssl, byte* input, word32* inOutIdx)
 
     if (ssl->options.handShakeState != HANDSHAKE_DONE) {
         CYASSL_MSG("Received App data before handshake complete");
+        SendAlert(ssl, alert_fatal, unexpected_message);
         return OUT_OF_ORDER_E;
     }
 
@@ -4717,14 +4728,18 @@ int SendAlert(CYASSL* ssl, int severity, int type)
     if (ssl->keys.encryptionOn && ssl->options.handShakeState == HANDSHAKE_DONE)
         sendSz = BuildMessage(ssl, output, input, ALERT_SIZE, alert);
     else {
-        RecordLayerHeader *const rl = (RecordLayerHeader*)output;
-        rl->type    = alert;
-        rl->pvMajor = ssl->version.major;
-        rl->pvMinor = ssl->version.minor;
-        c16toa(ALERT_SIZE, rl->length);      
 
-        XMEMCPY(output + RECORD_HEADER_SZ, input, ALERT_SIZE);
+        AddRecordHeader(output, ALERT_SIZE, alert, ssl);
+        output += RECORD_HEADER_SZ;
+        #ifdef CYASSL_DTLS
+            output += DTLS_RECORD_EXTRA;
+        #endif
+        XMEMCPY(output, input, ALERT_SIZE);
+
         sendSz = RECORD_HEADER_SZ + ALERT_SIZE;
+        #ifdef CYASSL_DTLS
+            sendSz += DTLS_RECORD_EXTRA;
+        #endif
     }
 
     #ifdef CYASSL_CALLBACKS
@@ -8200,6 +8215,7 @@ int SetCipherList(Suites* s, const char* list)
 
         if (ssl->options.clientState < CLIENT_HELLO_COMPLETE) {
             CYASSL_MSG("Client sending keyexchange at wrong time");
+            SendAlert(ssl, alert_fatal, unexpected_message);
             return OUT_OF_ORDER_E;
         }
 
