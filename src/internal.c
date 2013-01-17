@@ -767,6 +767,20 @@ void InitSuites(Suites* suites, ProtocolVersion pv, byte haveRSA, byte havePSK,
     }
 #endif
 
+#ifdef BUILD_TLS_RSA_WITH_AES_128_CCM_8_SHA256
+    if (tls1_2 && haveRSA) {
+        suites->suites[idx++] = ECC_BYTE; 
+        suites->suites[idx++] = TLS_RSA_WITH_AES_128_CCM_8_SHA256;
+    }
+#endif
+
+#ifdef BUILD_TLS_RSA_WITH_AES_256_CCM_8_SHA384
+    if (tls1_2 && haveRSA) {
+        suites->suites[idx++] = ECC_BYTE; 
+        suites->suites[idx++] = TLS_RSA_WITH_AES_256_CCM_8_SHA384;
+    }
+#endif
+
 #ifdef BUILD_TLS_DHE_RSA_WITH_AES_256_CBC_SHA256
     if (tls1_2 && haveDH && haveRSA) {
         suites->suites[idx++] = 0; 
@@ -2706,18 +2720,29 @@ static int DoHandShakeMsgType(CYASSL* ssl, byte* input, word32* inOutIdx,
 
     if (ssl->options.handShakeState == HANDSHAKE_DONE && type != hello_request){
         CYASSL_MSG("HandShake message after handshake complete");
+        SendAlert(ssl, alert_fatal, unexpected_message);
         return OUT_OF_ORDER_E;
     }
 
     if (ssl->options.side == CLIENT_END && ssl->options.dtls == 0 &&
                ssl->options.serverState == NULL_STATE && type != server_hello) {
         CYASSL_MSG("First server message not server hello");
+        SendAlert(ssl, alert_fatal, unexpected_message);
+        return OUT_OF_ORDER_E;
+    }
+
+    if (ssl->options.side == CLIENT_END && ssl->options.dtls &&
+            type == server_hello_done &&
+            ssl->options.serverState < SERVER_HELLO_COMPLETE) {
+        CYASSL_MSG("Server hello done received before server hello in DTLS");
+        SendAlert(ssl, alert_fatal, unexpected_message);
         return OUT_OF_ORDER_E;
     }
 
     if (ssl->options.side == SERVER_END &&
                ssl->options.clientState == NULL_STATE && type != client_hello) {
         CYASSL_MSG("First client message not client hello");
+        SendAlert(ssl, alert_fatal, unexpected_message);
         return OUT_OF_ORDER_E;
     }
 
@@ -2930,6 +2955,17 @@ static INLINE word32 GetSEQIncrement(CYASSL* ssl, int verify)
 }
 
 
+#ifdef HAVE_AEAD
+static INLINE void AeadIncrementExpIV(CYASSL* ssl)
+{
+    int i;
+    for (i = AEAD_EXP_IV_SZ-1; i >= 0; i--) {
+        if (++ssl->keys.aead_exp_IV[i]) return;
+    }
+}
+#endif
+
+
 static INLINE int Encrypt(CYASSL* ssl, byte* out, const byte* input, word32 sz)
 {
     (void)out;
@@ -2976,6 +3012,7 @@ static INLINE int Encrypt(CYASSL* ssl, byte* out, const byte* input, word32 sz)
             case aes_gcm:
                 {
                     byte additional[AES_BLOCK_SIZE];
+                    byte nonce[AEAD_NONCE_SZ];
 
                     XMEMSET(additional, 0, AES_BLOCK_SIZE);
 
@@ -2989,14 +3026,56 @@ static INLINE int Encrypt(CYASSL* ssl, byte* out, const byte* input, word32 sz)
 
                     /* Store the length of the plain text minus the explicit
                      * IV length minus the authentication tag size. */
-                    c16toa(sz - AES_GCM_EXP_IV_SZ - AEAD_AUTH_TAG_SZ,
+                    c16toa(sz - AEAD_EXP_IV_SZ - AEAD_AUTH_TAG_SZ,
                                                 additional + AEAD_LEN_OFFSET);
+                    XMEMCPY(nonce,
+                                 ssl->keys.aead_enc_imp_IV, AEAD_IMP_IV_SZ);
+                    XMEMCPY(nonce + AEAD_IMP_IV_SZ,
+                                     ssl->keys.aead_exp_IV, AEAD_EXP_IV_SZ);
                     AesGcmEncrypt(ssl->encrypt.aes,
-                        out + AES_GCM_EXP_IV_SZ, input + AES_GCM_EXP_IV_SZ,
-                            sz - AES_GCM_EXP_IV_SZ - AEAD_AUTH_TAG_SZ,
+                        out + AEAD_EXP_IV_SZ, input + AEAD_EXP_IV_SZ,
+                            sz - AEAD_EXP_IV_SZ - AEAD_AUTH_TAG_SZ,
+                        nonce, AEAD_NONCE_SZ,
                         out + sz - AEAD_AUTH_TAG_SZ, AEAD_AUTH_TAG_SZ,
                         additional, AEAD_AUTH_DATA_SZ);
-                    AesGcmIncExpIV(ssl->encrypt.aes);
+                    AeadIncrementExpIV(ssl);
+                    XMEMSET(nonce, 0, AEAD_NONCE_SZ);
+                }
+                break;
+        #endif
+
+        #ifdef HAVE_AESCCM
+            case aes_ccm:
+                {
+                    byte additional[AES_BLOCK_SIZE];
+                    byte nonce[AEAD_NONCE_SZ];
+
+                    XMEMSET(additional, 0, AES_BLOCK_SIZE);
+
+                    /* sequence number field is 64-bits, we only use 32-bits */
+                    c32toa(GetSEQIncrement(ssl, 0),
+                                            additional + AEAD_SEQ_OFFSET);
+
+                    /* Store the type, version. Unfortunately, they are in
+                     * the input buffer ahead of the plaintext. */
+                    XMEMCPY(additional + AEAD_TYPE_OFFSET, input - 5, 3);
+
+                    /* Store the length of the plain text minus the explicit
+                     * IV length minus the authentication tag size. */
+                    c16toa(sz - AEAD_EXP_IV_SZ - AEAD_AUTH_TAG_SZ,
+                                                additional + AEAD_LEN_OFFSET);
+                    XMEMCPY(nonce,
+                                 ssl->keys.aead_enc_imp_IV, AEAD_IMP_IV_SZ);
+                    XMEMCPY(nonce + AEAD_IMP_IV_SZ,
+                                     ssl->keys.aead_exp_IV, AEAD_EXP_IV_SZ);
+                    AesCcmEncrypt(ssl->encrypt.aes,
+                        out + AEAD_EXP_IV_SZ, input + AEAD_EXP_IV_SZ,
+                            sz - AEAD_EXP_IV_SZ - AEAD_AUTH_TAG_SZ,
+                        nonce, AEAD_NONCE_SZ,
+                        out + sz - AEAD_AUTH_TAG_SZ, AEAD_AUTH_TAG_SZ,
+                        additional, AEAD_AUTH_DATA_SZ);
+                    AeadIncrementExpIV(ssl);
+                    XMEMSET(nonce, 0, AEAD_NONCE_SZ);
                 }
                 break;
         #endif
@@ -3089,8 +3168,8 @@ static INLINE int Decrypt(CYASSL* ssl, byte* plain, const byte* input,
             case aes_gcm:
             {
                 byte additional[AES_BLOCK_SIZE];
+                byte nonce[AEAD_NONCE_SZ];
 
-                AesGcmSetExpIV(ssl->decrypt.aes, input);
                 XMEMSET(additional, 0, AES_BLOCK_SIZE);
 
                 /* sequence number field is 64-bits, we only use 32-bits */
@@ -3100,17 +3179,57 @@ static INLINE int Decrypt(CYASSL* ssl, byte* plain, const byte* input,
                 additional[AEAD_VMAJ_OFFSET] = ssl->curRL.pvMajor;
                 additional[AEAD_VMIN_OFFSET] = ssl->curRL.pvMinor;
 
-                c16toa(sz - AES_GCM_EXP_IV_SZ - AEAD_AUTH_TAG_SZ,
+                c16toa(sz - AEAD_EXP_IV_SZ - AEAD_AUTH_TAG_SZ,
                                         additional + AEAD_LEN_OFFSET);
+                XMEMCPY(nonce, ssl->keys.aead_dec_imp_IV, AEAD_IMP_IV_SZ);
+                XMEMCPY(nonce + AEAD_IMP_IV_SZ, input, AEAD_EXP_IV_SZ);
                 if (AesGcmDecrypt(ssl->decrypt.aes,
-                            plain + AES_GCM_EXP_IV_SZ,
-                            input + AES_GCM_EXP_IV_SZ,
-                                sz - AES_GCM_EXP_IV_SZ - AEAD_AUTH_TAG_SZ,
+                            plain + AEAD_EXP_IV_SZ,
+                            input + AEAD_EXP_IV_SZ,
+                                sz - AEAD_EXP_IV_SZ - AEAD_AUTH_TAG_SZ,
+                            nonce, AEAD_NONCE_SZ,
                             input + sz - AEAD_AUTH_TAG_SZ, AEAD_AUTH_TAG_SZ,
                             additional, AEAD_AUTH_DATA_SZ) < 0) {
                     SendAlert(ssl, alert_fatal, bad_record_mac);
+                    XMEMSET(nonce, 0, AEAD_NONCE_SZ);
                     return VERIFY_MAC_ERROR;
                 }
+                XMEMSET(nonce, 0, AEAD_NONCE_SZ);
+                break;
+            }
+        #endif
+
+        #ifdef HAVE_AESCCM
+            case aes_ccm:
+            {
+                byte additional[AES_BLOCK_SIZE];
+                byte nonce[AEAD_NONCE_SZ];
+
+                XMEMSET(additional, 0, AES_BLOCK_SIZE);
+
+                /* sequence number field is 64-bits, we only use 32-bits */
+                c32toa(GetSEQIncrement(ssl, 1), additional + AEAD_SEQ_OFFSET);
+                
+                additional[AEAD_TYPE_OFFSET] = ssl->curRL.type;
+                additional[AEAD_VMAJ_OFFSET] = ssl->curRL.pvMajor;
+                additional[AEAD_VMIN_OFFSET] = ssl->curRL.pvMinor;
+
+                c16toa(sz - AEAD_EXP_IV_SZ - AEAD_AUTH_TAG_SZ,
+                                        additional + AEAD_LEN_OFFSET);
+                XMEMCPY(nonce, ssl->keys.aead_dec_imp_IV, AEAD_IMP_IV_SZ);
+                XMEMCPY(nonce + AEAD_IMP_IV_SZ, input, AEAD_EXP_IV_SZ);
+                if (AesCcmDecrypt(ssl->decrypt.aes,
+                            plain + AEAD_EXP_IV_SZ,
+                            input + AEAD_EXP_IV_SZ,
+                                sz - AEAD_EXP_IV_SZ - AEAD_AUTH_TAG_SZ,
+                            nonce, AEAD_NONCE_SZ,
+                            input + sz - AEAD_AUTH_TAG_SZ, AEAD_AUTH_TAG_SZ,
+                            additional, AEAD_AUTH_DATA_SZ) < 0) {
+                    SendAlert(ssl, alert_fatal, bad_record_mac);
+                    XMEMSET(nonce, 0, AEAD_NONCE_SZ);
+                    return VERIFY_MAC_ERROR;
+                }
+                XMEMSET(nonce, 0, AEAD_NONCE_SZ);
                 break;
             }
         #endif
@@ -3195,7 +3314,7 @@ static int DecryptMessage(CYASSL* ssl, byte* input, word32 sz, word32* idx)
         if (ssl->options.tls1_1 && ssl->specs.cipher_type == block)
             *idx += ssl->specs.block_size;  /* go past TLSv1.1 IV */
         if (ssl->specs.cipher_type == aead)
-            *idx += AES_GCM_EXP_IV_SZ;
+            *idx += AEAD_EXP_IV_SZ;
     }
 
     return decryptResult;
@@ -3477,6 +3596,7 @@ int DoApplicationData(CYASSL* ssl, byte* input, word32* inOutIdx)
 
     if (ssl->options.handShakeState != HANDSHAKE_DONE) {
         CYASSL_MSG("Received App data before handshake complete");
+        SendAlert(ssl, alert_fatal, unexpected_message);
         return OUT_OF_ORDER_E;
     }
 
@@ -3507,7 +3627,7 @@ int DoApplicationData(CYASSL* ssl, byte* input, word32* inOutIdx)
         }
     }
     else if (ssl->specs.cipher_type == aead) {
-        ivExtra = AES_GCM_EXP_IV_SZ;
+        ivExtra = AEAD_EXP_IV_SZ;
         digestSz = AEAD_AUTH_TAG_SZ;
     }
 
@@ -4145,11 +4265,11 @@ static int BuildMessage(CYASSL* ssl, byte* output, const byte* input, int inSz,
         sz += pad;
     }
 
-#ifdef BUILD_AESGCM
+#ifdef HAVE_AEAD
     if (ssl->specs.cipher_type == aead) {
-        ivSz = AES_GCM_EXP_IV_SZ;
+        ivSz = AEAD_EXP_IV_SZ;
         sz += (ivSz + 16 - digestSz);
-        AesGcmGetExpIV(ssl->encrypt.aes, iv);
+        XMEMCPY(iv, ssl->keys.aead_exp_IV, AEAD_EXP_IV_SZ);
     }
 #endif
     size = (word16)(sz - headerSz);    /* include mac and digest */
@@ -4608,14 +4728,18 @@ int SendAlert(CYASSL* ssl, int severity, int type)
     if (ssl->keys.encryptionOn && ssl->options.handShakeState == HANDSHAKE_DONE)
         sendSz = BuildMessage(ssl, output, input, ALERT_SIZE, alert);
     else {
-        RecordLayerHeader *const rl = (RecordLayerHeader*)output;
-        rl->type    = alert;
-        rl->pvMajor = ssl->version.major;
-        rl->pvMinor = ssl->version.minor;
-        c16toa(ALERT_SIZE, rl->length);      
 
-        XMEMCPY(output + RECORD_HEADER_SZ, input, ALERT_SIZE);
+        AddRecordHeader(output, ALERT_SIZE, alert, ssl);
+        output += RECORD_HEADER_SZ;
+        #ifdef CYASSL_DTLS
+            output += DTLS_RECORD_EXTRA;
+        #endif
+        XMEMCPY(output, input, ALERT_SIZE);
+
         sendSz = RECORD_HEADER_SZ + ALERT_SIZE;
+        #ifdef CYASSL_DTLS
+            sendSz += DTLS_RECORD_EXTRA;
+        #endif
     }
 
     #ifdef CYASSL_CALLBACKS
@@ -5059,6 +5183,14 @@ const char* const cipher_names[] =
     "NTRU-AES256-SHA",
 #endif
 
+#ifdef BUILD_TLS_RSA_WITH_AES_128_CCM_8_SHA256
+    "AES128-CCM-8-SHA256",
+#endif
+
+#ifdef BUILD_TLS_RSA_WITH_AES_256_CCM_8_SHA384
+    "AES256-CCM-8-SHA384",
+#endif
+
 #ifdef BUILD_TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA
     "ECDHE-RSA-AES128-SHA",
 #endif
@@ -5279,6 +5411,14 @@ int cipher_name_idx[] =
     TLS_NTRU_RSA_WITH_AES_256_CBC_SHA,    
 #endif
 
+#ifdef BUILD_TLS_RSA_WITH_AES_128_CCM_8_SHA256
+    TLS_RSA_WITH_AES_128_CCM_8_SHA256,
+#endif
+
+#ifdef BUILD_TLS_RSA_WITH_AES_256_CCM_8_SHA384
+    TLS_RSA_WITH_AES_256_CCM_8_SHA384,
+#endif
+
 #ifdef BUILD_TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA
     TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA,    
 #endif
@@ -5451,7 +5591,7 @@ int SetCipherList(Suites* s, const char* list)
 
         for (i = 0; i < suiteSz; i++)
             if (XSTRNCMP(name, cipher_names[i], sizeof(name)) == 0) {
-                if (XSTRSTR(name, "EC"))
+                if (XSTRSTR(name, "EC") || XSTRSTR(name, "CCM"))
                     s->suites[idx++] = ECC_BYTE;  /* ECC suite */
                 else
                     s->suites[idx++] = 0x00;      /* normal */
@@ -7268,6 +7408,14 @@ int SetCipherList(Suites* s, const char* list)
                 return 1;
             break;
 
+        case TLS_RSA_WITH_AES_128_CCM_8_SHA256 :
+        case TLS_RSA_WITH_AES_256_CCM_8_SHA384 :
+            if (requirement == REQUIRES_RSA)
+                return 1;
+            if (requirement == REQUIRES_RSA_SIG)
+                return 1;
+            break;
+
         default:
             CYASSL_MSG("Unsupported cipher suite, CipherRequires ECC");
             return 0;
@@ -8067,6 +8215,7 @@ int SetCipherList(Suites* s, const char* list)
 
         if (ssl->options.clientState < CLIENT_HELLO_COMPLETE) {
             CYASSL_MSG("Client sending keyexchange at wrong time");
+            SendAlert(ssl, alert_fatal, unexpected_message);
             return OUT_OF_ORDER_E;
         }
 

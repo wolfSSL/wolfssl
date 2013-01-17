@@ -1518,7 +1518,7 @@ int aesgcm_test(void)
     const byte iv[] =
     {
         0xca, 0xfe, 0xba, 0xbe, 0xfa, 0xce, 0xdb, 0xad,
-        0xde, 0xca, 0xf8, 0x88, 0x00, 0x00, 0x00, 0x00
+        0xde, 0xca, 0xf8, 0x88
     };
     
     const byte p[] =
@@ -1558,27 +1558,27 @@ int aesgcm_test(void)
         0xcd, 0xdf, 0x88, 0x53, 0xbb, 0x2d, 0x55, 0x1b
     };
 
-    byte t2[16];
-    byte p2[60];
-    byte c2[60];
+    byte t2[sizeof(t)];
+    byte p2[sizeof(c)];
+    byte c2[sizeof(p)];
 
     int result;
 
-    memset(t2, 0, 16);
-    memset(c2, 0, 60);
-    memset(p2, 0, 60);
+    memset(t2, 0, sizeof(t2));
+    memset(c2, 0, sizeof(c2));
+    memset(p2, 0, sizeof(p2));
 
-    AesGcmSetKey(&enc, k, sizeof(k), iv);
-    AesGcmSetExpIV(&enc, iv + /*AES_GCM_IMP_IV_SZ*/ 4);
+    AesGcmSetKey(&enc, k, sizeof(k));
     /* AES-GCM encrypt and decrypt both use AES encrypt internally */
-    AesGcmEncrypt(&enc, c2, p, sizeof(c2), t2, sizeof(t2), a, sizeof(a));
+    AesGcmEncrypt(&enc, c2, p, sizeof(c2), iv, sizeof(iv),
+                                                 t2, sizeof(t2), a, sizeof(a));
     if (memcmp(c, c2, sizeof(c2)))
         return -68;
     if (memcmp(t, t2, sizeof(t2)))
         return -69;
 
-    result = AesGcmDecrypt(&enc,
-                        p2, c2, sizeof(p2), t2, sizeof(t2), a, sizeof(a));
+    result = AesGcmDecrypt(&enc, p2, c2, sizeof(p2), iv, sizeof(iv),
+                                                 t2, sizeof(t2), a, sizeof(a));
     if (result != 0)
         return -70;
     if (memcmp(p, p2, sizeof(p2)))
@@ -1642,20 +1642,34 @@ int aesccm_test(void)
     memset(c2, 0, sizeof(c2));
     memset(p2, 0, sizeof(p2));
 
-    AesCcmSetKey(&enc, k, sizeof(k), iv, sizeof(iv));
+    AesCcmSetKey(&enc, k, sizeof(k));
     /* AES-CCM encrypt and decrypt both use AES encrypt internally */
-    AesCcmEncrypt(&enc, c2, p, sizeof(c2), t2, sizeof(t2), a, sizeof(a));
+    AesCcmEncrypt(&enc, c2, p, sizeof(c2), iv, sizeof(iv),
+                                                 t2, sizeof(t2), a, sizeof(a));
     if (memcmp(c, c2, sizeof(c2)))
         return -107;
     if (memcmp(t, t2, sizeof(t2)))
         return -108;
 
-    result = AesCcmDecrypt(&enc,
-                        p2, c2, sizeof(p2), t2, sizeof(t2), a, sizeof(a));
+    result = AesCcmDecrypt(&enc, p2, c2, sizeof(p2), iv, sizeof(iv),
+                                                 t2, sizeof(t2), a, sizeof(a));
     if (result != 0)
         return -109;
     if (memcmp(p, p2, sizeof(p2)))
         return -110;
+
+    /* Test the authentication failure */
+    t2[0]++; /* Corrupt the authentication tag. */
+    result = AesCcmDecrypt(&enc, p2, c, sizeof(p2), iv, sizeof(iv),
+                                                 t2, sizeof(t2), a, sizeof(a));
+    if (result == 0)
+        return -111;
+
+    /* Clear c2 to compare against p2. p2 should be set to zero in case of
+     * authentication fail. */
+    memset(c2, 0, sizeof(c2));
+    if (memcmp(p2, c2, sizeof(p2)))
+        return -112;
 
     return 0;
 }
