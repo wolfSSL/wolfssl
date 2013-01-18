@@ -1815,7 +1815,7 @@ static word32 BytePrecision(word32 value)
 {
     word32 i;
     for (i = sizeof(value); i; --i)
-        if (value >> (i - 1) * 8)
+        if (value >> ((i - 1) * BIT_SIZE))
             break;
 
     return i;
@@ -1832,7 +1832,7 @@ static word32 SetLength(word32 length, byte* output)
         output[i++] = (byte)(BytePrecision(length) | ASN_LONG_LENGTH);
       
         for (j = BytePrecision(length); j; --j) {
-            output[i] = (byte)(length >> (j - 1) * 8);
+            output[i] = (byte)(length >> ((j - 1) * BIT_SIZE));
             i++;
         }
     }

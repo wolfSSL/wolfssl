@@ -463,6 +463,276 @@ int EmbedGenerateCookie(byte *buf, int sz, void *ctx)
 
 #endif /* CYASSL_DTLS */
 
+#ifdef HAVE_OCSP
+
+#ifdef TEST_IPV6
+    typedef struct sockaddr_in6 SOCKADDR_IN_T;
+    #define AF_INET_V    AF_INET6
+#else
+    typedef struct sockaddr_in  SOCKADDR_IN_T;
+    #define AF_INET_V    AF_INET
+#endif
+
+
+static INLINE int tcp_connect(SOCKET_T* sockfd, const char* ip, word16 port)
+{
+    SOCKADDR_IN_T addr;
+    const char* host = ip;
+
+    /* peer could be in human readable form */
+    if (ip != INADDR_ANY && isalpha(ip[0])) {
+        struct hostent* entry = gethostbyname(ip);
+
+        if (entry) {
+            struct sockaddr_in tmp;
+            XMEMSET(&tmp, 0, sizeof(struct sockaddr_in));
+            XMEMCPY(&tmp.sin_addr.s_addr, entry->h_addr_list[0],
+                   entry->h_length);
+            host = inet_ntoa(tmp.sin_addr);
+        }
+        else {
+            CYASSL_MSG("no addr entry for OCSP responder");
+            return -1;
+        }
+    }
+
+    *sockfd = socket(AF_INET_V, SOCK_STREAM, 0);
+    XMEMSET(&addr, 0, sizeof(SOCKADDR_IN_T));
+
+    addr.sin_family = AF_INET_V;
+    addr.sin_port = htons(port);
+    if (host == INADDR_ANY)
+        addr.sin_addr.s_addr = INADDR_ANY;
+    else
+        addr.sin_addr.s_addr = inet_addr(host);
+
+    if (connect(*sockfd, (const struct sockaddr*)&addr, sizeof(addr)) != 0) {
+        CYASSL_MSG("OCSP responder tcp connect failed");
+        return -1;
+    }
+
+    return 0;
+}
+
+
+static int build_http_request(const char* domainName, const char* path,
+                                    int ocspReqSz, byte* buf, int bufSize)
+{
+    return snprintf((char*)buf, bufSize,
+        "POST %s HTTP/1.1\r\n"
+        "Host: %s\r\n"
+        "Content-Length: %d\r\n"
+        "Content-Type: application/ocsp-request\r\n"
+        "\r\n", 
+        path, domainName, ocspReqSz);
+}
+
+
+static int decode_http_response(byte* httpBuf, int httpBufSz, byte** dst)
+{
+    int idx = 0;
+    int stop = 0;
+    int len = 0;
+    byte* contentType = NULL;
+    byte* contentLength = NULL;
+    char* buf = (char*)httpBuf; /* kludge so I'm not constantly casting */
+
+    if (XSTRNCASECMP(buf, "HTTP/1", 6) != 0)
+        return 0;
+    
+    idx = 9; /* sets to the first byte after "HTTP/1.X ", which should be the
+              * HTTP result code */
+
+     if (XSTRNCASECMP(&buf[idx], "200 OK", 6) != 0)
+        return 0;
+    
+    idx += 8;
+
+    while (idx < httpBufSz && !stop) {
+        if (buf[idx] == '\r' && buf[idx+1] == '\n') {
+            stop = 1;
+            idx += 2;
+        }
+        else {
+            if (contentType == NULL &&
+                           XSTRNCASECMP(&buf[idx], "Content-Type:", 13) == 0) {
+                idx += 13;
+                if (buf[idx] == ' ') idx++;
+                if (XSTRNCASECMP(&buf[idx],
+                                       "application/ocsp-response", 25) != 0) {
+                    return 0;
+                }
+                idx += 27;
+            }
+            else if (contentLength == NULL &&
+                         XSTRNCASECMP(&buf[idx], "Content-Length:", 15) == 0) {
+                idx += 15;
+                if (buf[idx] == ' ') idx++;
+                while (buf[idx] >= '0' && buf[idx] <= '9' && idx < httpBufSz) {
+                    len = (len * 10) + (buf[idx] - '0');
+                    idx++;
+                }
+                idx += 2; /* skip the crlf */
+            }
+            else {
+                /* Advance idx past the next \r\n */
+                char* end = XSTRSTR(&buf[idx], "\r\n");
+                idx = (int)(end - buf + 2);
+                stop = 1;
+            }
+        }
+    }
+    
+    if (len > 0) {
+        *dst = (byte*)XMALLOC(len, NULL, DYNAMIC_TYPE_IN_BUFFER);
+        XMEMCPY(*dst, httpBuf + idx, len);
+    }
+
+    return len;
+}
+
+
+static int decode_url(const char* url, int urlSz,
+    char* outName, char* outPath, int* outPort)
+{
+    if (outName != NULL && outPath != NULL && outPort != NULL)
+    {
+        if (url == NULL || urlSz == 0)
+        {
+            *outName = 0;
+            *outPath = 0;
+            *outPort = 0;
+        }
+        else
+        {
+            int i, cur;
+    
+            /* need to break the url down into scheme, address, and port */
+            /* "http://example.com:8080/" */
+            if (XSTRNCMP(url, "http://", 7) == 0) {
+                cur = 7;
+            } else cur = 0;
+    
+            i = 0;
+            while (url[cur] != 0 && url[cur] != ':' && url[cur] != '/') {
+                outName[i++] = url[cur++];
+            }
+            outName[i] = 0;
+            /* Need to pick out the path after the domain name */
+    
+            if (cur < urlSz && url[cur] == ':') {
+                char port[6];
+                int j;
+                i = 0;
+                cur++;
+                while (cur < urlSz && url[cur] != 0 && url[cur] != '/' &&
+                        i < 6) {
+                    port[i++] = url[cur++];
+                }
+    
+                *outPort = 0;
+                for (j = 0; j < i; j++) {
+                    if (port[j] < '0' || port[j] > '9') return -1;
+                    *outPort = (*outPort * 10) + (port[j] - '0');
+                }
+            }
+            else
+                *outPort = 80;
+    
+            if (cur < urlSz && url[cur] == '/') {
+                i = 0;
+                while (cur < urlSz && url[cur] != 0 && i < 80) {
+                    outPath[i++] = url[cur++];
+                }
+                outPath[i] = 0;
+            }
+            else {
+                outPath[0] = '/';
+                outPath[1] = 0;
+            }
+        }
+    }
+
+    return 0;
+}
+
+
+#define SCRATCH_BUFFER_SIZE 2048
+
+int EmbedOcspLookup(void* ctx, const char* url, int urlSz,
+                        byte* ocspReqBuf, int ocspReqSz, byte** ocspRespBuf)
+{
+    char domainName[80], path[80];
+    int port, httpBufSz, sfd;
+    int ocspRespSz = 0;
+    byte* httpBuf = NULL;
+
+    (void)ctx;
+
+    if (ocspReqBuf == NULL || ocspReqSz == 0) {
+        CYASSL_MSG("OCSP request is required for lookup");
+        return -1;
+    }
+
+    if (ocspRespBuf == NULL) {
+        CYASSL_MSG("Cannot save OCSP response");
+        return -1;
+    }
+
+    if (decode_url(url, urlSz, domainName, path, &port) < 0) {
+        CYASSL_MSG("Unable to decode OCSP URL");
+        return -1;
+    }
+    
+    httpBufSz = SCRATCH_BUFFER_SIZE;
+    httpBuf = (byte*)XMALLOC(httpBufSz, NULL, DYNAMIC_TYPE_IN_BUFFER);
+
+    if (httpBuf == NULL) {
+        CYASSL_MSG("Unable to create OCSP response buffer");
+        return -1;
+    }
+    *ocspRespBuf = httpBuf;
+
+    httpBufSz = build_http_request(domainName, path, ocspReqSz,
+                                                        httpBuf, httpBufSz);
+
+    if ((tcp_connect(&sfd, domainName, port) == 0) && (sfd > 0)) {
+        int written;
+        written = (int)write(sfd, httpBuf, httpBufSz);
+        if (written == httpBufSz) {
+            written = (int)write(sfd, ocspReqBuf, ocspReqSz);
+            if (written == ocspReqSz) {
+                httpBufSz = (int)read(sfd, httpBuf, SCRATCH_BUFFER_SIZE);
+                if (httpBufSz > 0) {
+                    ocspRespSz = decode_http_response(httpBuf, httpBufSz,
+                        ocspRespBuf);
+                }
+            }
+        }
+        close(sfd);
+        if (ocspRespSz == 0) {
+            CYASSL_MSG("OCSP response was not OK, no OCSP response");
+            return -1;
+        }
+    } else {
+        CYASSL_MSG("OCSP Responder connection failed");
+        return -1;
+    }
+
+    return ocspRespSz;
+}
+
+
+void EmbedOcspRespFree(void* ctx, byte *resp)
+{
+    (void)ctx;
+
+    if (resp)
+        XFREE(resp, NULL, DYNAMIC_TYPE_IN_BUFFER);
+}
+
+
+#endif
 
 #endif /* CYASSL_USER_IO */
 
@@ -501,3 +771,22 @@ CYASSL_API void CyaSSL_SetIOWriteFlags(CYASSL* ssl, int flags)
     ssl->wflags = flags;
 }
 
+#ifdef HAVE_OCSP
+
+CYASSL_API void CyaSSL_SetIOOcsp(CYASSL_CTX* ctx, CallbackIOOcsp cb)
+{
+    ctx->ocsp.CBIOOcsp = cb;
+}
+
+CYASSL_API void CyaSSL_SetIOOcspRespFree(CYASSL_CTX* ctx,
+                                                     CallbackIOOcspRespFree cb)
+{
+    ctx->ocsp.CBIOOcspRespFree = cb;
+}
+
+CYASSL_API void CyaSSL_SetIOOcspCtx(CYASSL_CTX* ctx, void *octx)
+{
+    ctx->ocsp.IOCB_OcspCtx = octx;
+}
+
+#endif

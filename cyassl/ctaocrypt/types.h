@@ -177,12 +177,14 @@ enum {
     #define XSTRNSTR(s1,s2,n) mystrnstr((s1),(s2),(n))
     #define XSTRNCMP(s1,s2,n) strncmp((s1),(s2),(n))
     #define XSTRNCAT(s1,s2,n) strncat((s1),(s2),(n))
+    #define XSTRNCASECMP(s1,s2,n) strncasecmp((s1),(s2),(n))
 #endif
 
-#ifdef HAVE_ECC
+#if defined(HAVE_ECC) || defined(HAVE_OCSP)
     #ifndef CTYPE_USER
         #include <ctype.h>
         #define XTOUPPER(c)     toupper((c))
+        #define XISALPHA(c)     isalpha((c))
     #endif
 #endif
 
@@ -225,7 +227,8 @@ enum {
     DYNAMIC_TYPE_DTLS_POOL    = 34,
     DYNAMIC_TYPE_SOCKADDR     = 35,
     DYNAMIC_TYPE_LIBZ         = 36,
-    DYNAMIC_TYPE_ECC          = 37
+    DYNAMIC_TYPE_ECC          = 37,
+    DYNAMIC_TYPE_TMP_BUFFER   = 38
 };
 
 /* stack protection */

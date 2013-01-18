@@ -162,6 +162,10 @@ void c32to24(word32 in, word24 out);
         #define BUILD_TLS_RSA_WITH_AES_128_GCM_SHA256
         #define BUILD_TLS_RSA_WITH_AES_256_GCM_SHA384
     #endif
+    #if defined (HAVE_AESCCM)
+        #define BUILD_TLS_RSA_WITH_AES_128_CCM_8_SHA256
+        #define BUILD_TLS_RSA_WITH_AES_256_CCM_8_SHA384
+    #endif
 #endif
 
 #if !defined(NO_PSK) && !defined(NO_AES) && !defined(NO_TLS)
@@ -284,6 +288,10 @@ void c32to24(word32 in, word24 out);
     #define AES_BLOCK_SIZE 16
 #endif
 
+#if defined(BUILD_AESGCM) || defined(HAVE_AESCCM)
+    #define HAVE_AEAD
+#endif
+
 
 /* actual cipher values, 2nd byte */
 enum {
@@ -353,7 +361,14 @@ enum {
     TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256    = 0x2f,
     TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384    = 0x30,
     TLS_ECDH_RSA_WITH_AES_128_GCM_SHA256     = 0x31,
-    TLS_ECDH_RSA_WITH_AES_256_GCM_SHA384     = 0x32
+    TLS_ECDH_RSA_WITH_AES_256_GCM_SHA384     = 0x32,
+
+    /* AES-CCM, first byte is 0xC0 but isn't ECC,
+     * also, in some of the other AES-CCM suites
+     * there will be second byte number conflicts
+     * with non-ECC AES-GCM */
+    TLS_RSA_WITH_AES_128_CCM_8_SHA256        = 0xa0,
+    TLS_RSA_WITH_AES_256_CCM_8_SHA384        = 0xa1
 };
 
 
@@ -459,9 +474,6 @@ enum Misc {
     AES_256_KEY_SIZE    = 32,  /* for 256 bit             */
     AES_192_KEY_SIZE    = 24,  /* for 192 bit             */
     AES_IV_SIZE         = 16,  /* always block size       */
-    AES_GCM_IMP_IV_SZ   = 4,   /* Implicit part of IV     */
-    AES_GCM_EXP_IV_SZ   = 8,   /* Explicit part of IV     */
-    AES_GCM_CTR_IV_SZ   = 4,   /* Counter part of IV      */
     AES_128_KEY_SIZE    = 16,  /* for 128 bit             */
 
     AEAD_SEQ_OFFSET     = 4,        /* Auth Data: Sequence number */
@@ -471,6 +483,9 @@ enum Misc {
     AEAD_LEN_OFFSET     = 11,       /* Auth Data: Length          */
     AEAD_AUTH_TAG_SZ    = 16,       /* Size of the authentication tag   */
     AEAD_AUTH_DATA_SZ   = 13,       /* Size of the data to authenticate */
+    AEAD_IMP_IV_SZ      = 4,        /* Size of the implicit IV     */
+    AEAD_EXP_IV_SZ      = 8,        /* Size of the explicit IV     */
+    AEAD_NONCE_SZ       = AEAD_EXP_IV_SZ + AEAD_IMP_IV_SZ,
 
     HC_128_KEY_SIZE     = 16,  /* 128 bits                */
     HC_128_IV_SIZE      = 16,  /* also 128 bits           */
@@ -681,9 +696,9 @@ typedef struct {
     word32 length;       /* total buffer length used */
     word32 idx;          /* idx to part of length already consumed */
     byte*  buffer;       /* place holder for static or dynamic buffer */
-    ALIGN16 byte staticBuffer[STATIC_BUFFER_LEN];
     word32 bufferSize;   /* current buffer size */
     byte   dynamicFlag;  /* dynamic memory currently in use */
+    ALIGN16 byte staticBuffer[STATIC_BUFFER_LEN];
 } bufferStatic;
 
 /* Cipher Suites holder */
@@ -714,6 +729,13 @@ int  SetCipherList(Suites*, const char* list);
     int EmbedReceive(CYASSL *ssl, char *buf, int sz, void *ctx);
     CYASSL_LOCAL 
     int EmbedSend(CYASSL *ssl, char *buf, int sz, void *ctx);
+
+    #ifdef HAVE_OCSP
+        CYASSL_LOCAL
+        int EmbedOcspLookup(void*, const char*, int, byte*, int, byte**);
+        CYASSL_LOCAL
+        void EmbedOcspRespFree(void*, byte*);
+    #endif
 #endif
 
 #ifdef CYASSL_DTLS
@@ -785,10 +807,11 @@ struct CYASSL_OCSP {
     byte enabled;
     byte useOverrideUrl;
     byte useNonce;
-    char overrideName[80];
-    char overridePath[80];
-    int  overridePort;
+    char overrideUrl[80];
     OCSP_Entry* ocspList;
+    void* IOCB_OcspCtx;
+    CallbackIOOcsp CBIOOcsp;
+    CallbackIOOcspRespFree CBIOOcspRespFree;
 };
 
 
@@ -957,6 +980,7 @@ enum BulkCipherAlgorithm {
     idea,
     aes,
     aes_gcm,
+    aes_ccm,
     hc128,                  /* CyaSSL extensions */
     rabbit
 };
@@ -1038,6 +1062,11 @@ typedef struct Keys {
     byte server_write_key[AES_256_KEY_SIZE]; 
     byte client_write_IV[AES_IV_SIZE];               /* max sizes */
     byte server_write_IV[AES_IV_SIZE];
+#ifdef HAVE_AEAD
+    byte aead_exp_IV[AEAD_EXP_IV_SZ];
+    byte aead_enc_imp_IV[AEAD_IMP_IV_SZ];
+    byte aead_dec_imp_IV[AEAD_IMP_IV_SZ];
+#endif
 
     word32 peer_sequence_number;
     word32 sequence_number;

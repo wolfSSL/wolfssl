@@ -54,6 +54,7 @@ CYASSL_API int ocsp_test(unsigned char* buf, int sz);
 #define CYASSL_OCSP_ENABLE       0x0001 /* Enable OCSP lookups */
 #define CYASSL_OCSP_URL_OVERRIDE 0x0002 /* Use the override URL instead of URL
                                          * in certificate */
+#define CYASSL_OCSP_NO_NONCE     0x0004 /* Disables the request nonce */
 
 typedef struct sockaddr_in  SOCKADDR_IN_T;
 #define AF_INET_V    AF_INET
@@ -65,6 +66,10 @@ int CyaSSL_OCSP_Init(CYASSL_OCSP* ocsp)
     if (ocsp != NULL) {
         XMEMSET(ocsp, 0, sizeof(*ocsp));
         ocsp->useNonce = 1;
+        #ifndef CYASSL_USER_IO
+            ocsp->CBIOOcsp = EmbedOcspLookup;
+            ocsp->CBIOOcspRespFree = EmbedOcspRespFree;
+        #endif
         return 0;
     }
 
@@ -100,198 +105,17 @@ void CyaSSL_OCSP_Cleanup(CYASSL_OCSP* ocsp)
 }
 
 
-static int decode_url(const char* url, int urlSz,
-    char* outName, char* outPath, int* outPort)
-{
-    if (outName != NULL && outPath != NULL && outPort != NULL)
-    {
-        if (url == NULL || urlSz == 0)
-        {
-            *outName = 0;
-            *outPath = 0;
-            *outPort = 0;
-        }
-        else
-        {
-            int i, cur;
-    
-            /* need to break the url down into scheme, address, and port */
-            /* "http://example.com:8080/" */
-            if (XSTRNCMP(url, "http://", 7) == 0) {
-                cur = 7;
-            } else cur = 0;
-    
-            i = 0;
-            while (url[cur] != 0 && url[cur] != ':' && url[cur] != '/') {
-                outName[i++] = url[cur++];
-            }
-            outName[i] = 0;
-            /* Need to pick out the path after the domain name */
-    
-            if (cur < urlSz && url[cur] == ':') {
-                char port[6];
-                int j;
-                i = 0;
-                cur++;
-                while (cur < urlSz && url[cur] != 0 && url[cur] != '/' &&
-                        i < 6) {
-                    port[i++] = url[cur++];
-                }
-    
-                *outPort = 0;
-                for (j = 0; j < i; j++) {
-                    if (port[j] < '0' || port[j] > '9') return -1;
-                    *outPort = (*outPort * 10) + (port[j] - '0');
-                }
-            }
-            else
-                *outPort = 80;
-    
-            if (cur < urlSz && url[cur] == '/') {
-                i = 0;
-                while (cur < urlSz && url[cur] != 0 && i < 80) {
-                    outPath[i++] = url[cur++];
-                }
-                outPath[i] = 0;
-            }
-            else {
-                outPath[0] = '/';
-                outPath[1] = 0;
-            }
-        }
-    }
-
-    return 0;
-}
-
-
 int CyaSSL_OCSP_set_override_url(CYASSL_OCSP* ocsp, const char* url)
 {
     if (ocsp != NULL) {
         int urlSz = (int)XSTRLEN(url);
-        decode_url(url, urlSz,
-            ocsp->overrideName, ocsp->overridePath, &ocsp->overridePort);
-        return 1;
+        if (urlSz < (int)sizeof(ocsp->overrideUrl)) {
+            XSTRNCPY(ocsp->overrideUrl, url, urlSz);
+            return 1;
+        }
     }
 
     return 0;
-}
-
-
-static INLINE void tcp_socket(SOCKET_T* sockfd, SOCKADDR_IN_T* addr,
-                              const char* peer, word16 port)
-{
-    const char* host = peer;
-
-    /* peer could be in human readable form */
-    if (peer != INADDR_ANY && isalpha(peer[0])) {
-        struct hostent* entry = gethostbyname(peer);
-
-        if (entry) {
-            struct sockaddr_in tmp;
-            memset(&tmp, 0, sizeof(struct sockaddr_in));
-            memcpy(&tmp.sin_addr.s_addr, entry->h_addr_list[0],
-                   entry->h_length);
-            host = inet_ntoa(tmp.sin_addr);
-        }
-        else {
-            CYASSL_MSG("no entry for host");
-        }
-    }
-
-    *sockfd = socket(AF_INET_V, SOCK_STREAM, 0);
-    memset(addr, 0, sizeof(SOCKADDR_IN_T));
-
-    addr->sin_family = AF_INET_V;
-    addr->sin_port = htons(port);
-    if (host == INADDR_ANY)
-        addr->sin_addr.s_addr = INADDR_ANY;
-    else
-        addr->sin_addr.s_addr = inet_addr(host);
-}
-
-
-static INLINE void tcp_connect(SOCKET_T* sockfd, const char* ip, word16 port)
-{
-    SOCKADDR_IN_T addr;
-    tcp_socket(sockfd, &addr, ip, port);
-
-    if (connect(*sockfd, (const struct sockaddr*)&addr, sizeof(addr)) != 0) {
-        CYASSL_MSG("tcp connect failed");
-    }
-}
-
-
-static int build_http_request(const char* domainName, const char* path,
-                                    int ocspReqSz, byte* buf, int bufSize)
-{
-    return snprintf((char*)buf, bufSize,
-        "POST %s HTTP/1.1\r\n"
-        "Host: %s\r\n"
-        "Content-Length: %d\r\n"
-        "Content-Type: application/ocsp-request\r\n"
-        "\r\n", 
-        path, domainName, ocspReqSz);
-}
-
-
-static int decode_http_response(byte* httpBuf, int httpBufSz, byte** dst)
-{
-    int idx = 0;
-    int stop = 0;
-    int len = 0;
-    byte* contentType = NULL;
-    byte* contentLength = NULL;
-    char* buf = (char*)httpBuf; /* kludge so I'm not constantly casting */
-
-    if (strncasecmp(buf, "HTTP/1", 6) != 0)
-        return 0;
-    
-    idx = 9; /* sets to the first byte after "HTTP/1.X ", which should be the
-              * HTTP result code */
-
-     if (strncasecmp(&buf[idx], "200 OK", 6) != 0)
-        return 0;
-    
-    idx += 8;
-
-    while (idx < httpBufSz && !stop) {
-        if (buf[idx] == '\r' && buf[idx+1] == '\n') {
-            stop = 1;
-            idx += 2;
-        }
-        else {
-            if (contentType == NULL &&
-                strncasecmp(&buf[idx], "Content-Type:", 13) == 0) {
-                idx += 13;
-                if (buf[idx] == ' ') idx++;
-                if (strncasecmp(&buf[idx], "application/ocsp-response", 25) != 0)
-                    return 0;
-                idx += 27;
-            } else if (contentLength == NULL &&
-                strncasecmp(&buf[idx], "Content-Length:", 15) == 0) {
-                idx += 15;
-                if (buf[idx] == ' ') idx++;
-                while (buf[idx] >= '0' && buf[idx] <= '9' && idx < httpBufSz) {
-                    len = (len * 10) + (buf[idx] - '0');
-                    idx++;
-                }
-                idx += 2; /* skip the crlf */
-            } else {
-                /* Advance idx past the next \r\n */
-                char* end = XSTRSTR(&buf[idx], "\r\n");
-                idx = (int)(end - buf + 2);
-                stop = 1;
-            }
-        }
-    }
-    
-    if (len > 0) {
-        *dst = (byte*)XMALLOC(len, NULL, DYNAMIC_TYPE_IN_BUFFER);
-        XMEMCPY(*dst, httpBuf + idx, len);
-    }
-
-    return len;
 }
 
 
@@ -382,61 +206,6 @@ static CertStatus* find_cert_status(OCSP_Entry* ocspe, DecodedCert* cert)
 }
 
 
-#define SCRATCH_BUFFER_SIZE 2048
-
-static int http_ocsp_transaction(CYASSL_OCSP* ocsp, DecodedCert* cert,
-                        byte* ocspReqBuf, int ocspReqSz, byte** ocspRespBuf)
-{
-    SOCKET_T sfd = -1;
-    byte httpBuf[SCRATCH_BUFFER_SIZE];
-    int httpBufSz = SCRATCH_BUFFER_SIZE;
-    char domainName[80], path[80];
-    int port, ocspRespSz;
-
-    if (ocsp->useOverrideUrl || cert->extAuthInfo == NULL) {
-        if (ocsp->overrideName != NULL) {
-            XMEMCPY(domainName, ocsp->overrideName, 80);
-            XMEMCPY(path, ocsp->overridePath, 80);
-            port = ocsp->overridePort;
-        } else
-            return OCSP_NEED_URL;
-    } else {
-        if (!decode_url((const char*)cert->extAuthInfo, cert->extAuthInfoSz,
-                                                    domainName, path, &port))
-            return OCSP_NEED_URL;
-    }
-
-    httpBufSz = build_http_request(domainName, path, ocspReqSz,
-                                                        httpBuf, httpBufSz);
-
-    tcp_connect(&sfd, domainName, port);
-    if (sfd > 0) {
-        int written;
-        written = (int)write(sfd, httpBuf, httpBufSz);
-        if (written == httpBufSz) {
-            written = (int)write(sfd, ocspReqBuf, ocspReqSz);
-            if (written == ocspReqSz) {
-                httpBufSz = (int)read(sfd, httpBuf, SCRATCH_BUFFER_SIZE);
-                if (httpBufSz > 0) {
-                    ocspRespSz = decode_http_response(httpBuf, httpBufSz,
-                        ocspRespBuf);
-                }
-            }
-        }
-        close(sfd);
-        if (ocspRespSz == 0) {
-            CYASSL_MSG("HTTP response was not OK, no OCSP response");
-            return OCSP_LOOKUP_FAIL;
-        }
-    } else {
-        CYASSL_MSG("OCSP Responder connection failed");
-        return OCSP_LOOKUP_FAIL;
-    }
-
-    return ocspRespSz;
-}
-
-
 static int xstat2err(int stat)
 {
     switch (stat) {
@@ -456,13 +225,15 @@ static int xstat2err(int stat)
 int CyaSSL_OCSP_Lookup_Cert(CYASSL_OCSP* ocsp, DecodedCert* cert)
 {
     byte* ocspReqBuf = NULL;
-    int ocspReqSz = SCRATCH_BUFFER_SIZE;
+    int ocspReqSz = 2048;
     byte* ocspRespBuf = NULL;
     OcspRequest ocspRequest;
     OcspResponse ocspResponse;
     int result = 0;
     OCSP_Entry* ocspe;
     CertStatus* certStatus;
+    const char *url;
+    int urlSz;
 
     /* If OCSP lookups are disabled, return success. */
     if (!ocsp->enabled) {
@@ -501,7 +272,20 @@ int CyaSSL_OCSP_Lookup_Cert(CYASSL_OCSP* ocsp, DecodedCert* cert)
             return result;
         }
     }
-    
+
+    if (ocsp->useOverrideUrl || cert->extAuthInfo == NULL) {
+        if (ocsp->overrideUrl != NULL) {
+            url = ocsp->overrideUrl;
+            urlSz = (int)XSTRLEN(url);
+        }
+        else
+            return OCSP_NEED_URL;
+    }
+    else {
+        url = (const char *)cert->extAuthInfo;
+        urlSz = cert->extAuthInfoSz;
+    }
+
     ocspReqBuf = (byte*)XMALLOC(ocspReqSz, NULL, DYNAMIC_TYPE_IN_BUFFER);
     if (ocspReqBuf == NULL) {
         CYASSL_MSG("\talloc OCSP request buffer failed");
@@ -509,8 +293,12 @@ int CyaSSL_OCSP_Lookup_Cert(CYASSL_OCSP* ocsp, DecodedCert* cert)
     }
     InitOcspRequest(&ocspRequest, cert, ocsp->useNonce, ocspReqBuf, ocspReqSz);
     ocspReqSz = EncodeOcspRequest(&ocspRequest);
-    result = http_ocsp_transaction(ocsp, cert,
-                                        ocspReqBuf, ocspReqSz, &ocspRespBuf);
+    
+    if (ocsp->CBIOOcsp) {
+        result = ocsp->CBIOOcsp(ocsp->IOCB_OcspCtx, url, urlSz,
+                                          ocspReqBuf, ocspReqSz, &ocspRespBuf);
+    }
+
     if (result >= 0) {
         InitOcspResponse(&ocspResponse, certStatus, ocspRespBuf, result);
         OcspResponseDecode(&ocspResponse);
@@ -530,11 +318,15 @@ int CyaSSL_OCSP_Lookup_Cert(CYASSL_OCSP* ocsp, DecodedCert* cert)
             }
         }
     }
+    else {
+        result = OCSP_LOOKUP_FAIL;
+    }
+
     if (ocspReqBuf != NULL) {
         XFREE(ocspReqBuf, NULL, DYNAMIC_TYPE_IN_BUFFER);
     }
-    if (ocspRespBuf != NULL) {
-        XFREE(ocspRespBuf, NULL, DYNAMIC_TYPE_IN_BUFFER);
+    if (ocspRespBuf != NULL && ocsp->CBIOOcspRespFree) {
+        ocsp->CBIOOcspRespFree(ocsp->IOCB_OcspCtx, ocspRespBuf);
     }
 
     return result;

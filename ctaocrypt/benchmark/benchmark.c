@@ -60,6 +60,7 @@ void bench_hc128(void);
 void bench_rabbit(void);
 void bench_aes(int);
 void bench_aesgcm(void);
+void bench_aesccm(void);
 
 void bench_md5(void);
 void bench_sha(void);
@@ -89,6 +90,9 @@ int main(int argc, char** argv)
 #endif
 #ifdef HAVE_AESGCM
     bench_aesgcm();
+#endif
+#ifdef HAVE_AESCCM
+    bench_aesccm();
 #endif
 #ifndef NO_RC4
     bench_arc4();
@@ -202,18 +206,40 @@ void bench_aesgcm(void)
     double start, total, persec;
     int    i;
 
-    AesGcmSetKey(&enc, key, 16, iv);
-    AesGcmSetExpIV(&enc, iv+4);
+    AesGcmSetKey(&enc, key, 16);
     start = current_time();
 
     for(i = 0; i < megs; i++)
-        AesGcmEncrypt(&enc, cipher, plain, sizeof(plain),
+        AesGcmEncrypt(&enc, cipher, plain, sizeof(plain), iv, 12,
                         tag, 16, additional, 13);
 
     total = current_time() - start;
 
     persec = 1 / total * megs;
     printf("AES-GCM  %d megs took %5.3f seconds, %6.2f MB/s\n", megs, total,
+                                                                    persec);
+}
+#endif
+
+
+#ifdef HAVE_AESCCM
+void bench_aesccm(void)
+{
+    Aes    enc;
+    double start, total, persec;
+    int    i;
+
+    AesCcmSetKey(&enc, key, 16);
+    start = current_time();
+
+    for(i = 0; i < megs; i++)
+        AesCcmEncrypt(&enc, cipher, plain, sizeof(plain), iv, 12,
+                        tag, 16, additional, 13);
+
+    total = current_time() - start;
+
+    persec = 1 / total * megs;
+    printf("AES-CCM  %d megs took %5.3f seconds, %6.2f MB/s\n", megs, total,
                                                                     persec);
 }
 #endif
@@ -469,7 +495,6 @@ void bench_rsa(void)
 
     byte      message[] = "Everyone gets Friday off.";
     byte      enc[512];  /* for up to 4096 bit */
-    byte*     output;
     const int len = (int)strlen((char*)message);
     double    start, total, each, milliEach;
     
@@ -501,8 +526,10 @@ void bench_rsa(void)
 
     start = current_time();
 
-    for (i = 0; i < times; i++)
-        RsaPrivateDecryptInline(enc, (word32)bytes, &output, &rsaKey);
+    for (i = 0; i < times; i++) {
+         byte  out[512];  /* for up to 4096 bit */
+         RsaPrivateDecrypt(enc, (word32)bytes, out, sizeof(out), &rsaKey);
+    }
 
     total = current_time() - start;
     each  = total / times;   /* per second   */

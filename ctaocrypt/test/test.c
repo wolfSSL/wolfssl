@@ -112,6 +112,7 @@ int  des_test(void);
 int  des3_test(void);
 int  aes_test(void);
 int  aesgcm_test(void);
+int  aesccm_test(void);
 int  rsa_test(void);
 int  dh_test(void);
 int  dsa_test(void);
@@ -291,6 +292,13 @@ void ctaocrypt_test(void* args)
         err_sys("AES-GCM  test failed!\n", ret);
     else
         printf( "AES-GCM  test passed!\n");
+#endif
+
+#ifdef HAVE_AESCCM
+    if ( (ret = aesccm_test()) )
+        err_sys("AES-CCM  test failed!\n", ret);
+    else
+        printf( "AES-CCM  test passed!\n");
 #endif
 #endif
 
@@ -1194,11 +1202,16 @@ int hc128_test(void)
         HC128 enc;
         HC128 dec;
 
-        Hc128_SetKey(&enc, (byte*)keys[i], (byte*)ivs[i]);
-        Hc128_SetKey(&dec, (byte*)keys[i], (byte*)ivs[i]);
+        /* align keys/ivs in plain/cipher buffers */
+        memcpy(plain,  keys[i], 16); 
+        memcpy(cipher, ivs[i],  16); 
 
-        Hc128_Process(&enc, cipher, (byte*)test_hc128[i].input,
-                    (word32)test_hc128[i].outLen);
+        Hc128_SetKey(&enc, plain, cipher);
+        Hc128_SetKey(&dec, plain, cipher);
+
+        /* align input */
+        memcpy(plain, test_hc128[i].input, test_hc128[i].outLen);
+        Hc128_Process(&enc, cipher, plain,  (word32)test_hc128[i].outLen);
         Hc128_Process(&dec, plain,  cipher, (word32)test_hc128[i].outLen);
 
         if (memcmp(plain, test_hc128[i].input, test_hc128[i].outLen))
@@ -1219,22 +1232,17 @@ int rabbit_test(void)
     byte cipher[16];
     byte plain[16];
 
-    const char* keys[] =   /* align with 3 extra bytes cause null is added */
+    const char* keys[] = 
     {           
-        "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
-            "\x00\x00\x00",
-        "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
-            "\x00\x00\x00",
+        "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00",
+        "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00",
         "\xAC\xC3\x51\xDC\xF1\x62\xFC\x3B\xFE\x36\x3D\x2E\x29\x13\x28\x91"
-            "\x00\x00\x00"
     };
 
-    const char* ivs[] = /* align with 3 extra bytes casue null is added */
+    const char* ivs[] =
     {
-        "\x00\x00\x00\x00\x00\x00\x00\x00"
-            "\x00\x00\x00",
-        "\x59\x7E\x26\xC1\x75\xF5\x73\xC3"
-            "\x00\x00\x00",
+        "\x00\x00\x00\x00\x00\x00\x00\x00",
+        "\x59\x7E\x26\xC1\x75\xF5\x73\xC3",
         0
     };
 
@@ -1265,12 +1273,21 @@ int rabbit_test(void)
     for (i = 0; i < times; ++i) {
         Rabbit enc;
         Rabbit dec;
+        byte*  iv;
 
-        RabbitSetKey(&enc, (byte*)keys[i], (byte*)ivs[i]);
-        RabbitSetKey(&dec, (byte*)keys[i], (byte*)ivs[i]);
+        /* align keys/ivs in plain/cipher buffers */
+        memcpy(plain,  keys[i], 16);
+        if (ivs[i]) {
+            memcpy(cipher, ivs[i],   8);
+            iv = cipher;
+        } else
+            iv = NULL;
+        RabbitSetKey(&enc, plain, iv);
+        RabbitSetKey(&dec, plain, iv);
 
-        RabbitProcess(&enc, cipher, (byte*)test_rabbit[i].input,
-                    (word32)test_rabbit[i].outLen);
+        /* align input */
+        memcpy(plain, test_rabbit[i].input, test_rabbit[i].outLen);
+        RabbitProcess(&enc, cipher, plain,  (word32)test_rabbit[i].outLen);
         RabbitProcess(&dec, plain,  cipher, (word32)test_rabbit[i].outLen);
 
         if (memcmp(plain, test_rabbit[i].input, test_rabbit[i].outLen))
@@ -1501,7 +1518,7 @@ int aesgcm_test(void)
     const byte iv[] =
     {
         0xca, 0xfe, 0xba, 0xbe, 0xfa, 0xce, 0xdb, 0xad,
-        0xde, 0xca, 0xf8, 0x88, 0x00, 0x00, 0x00, 0x00
+        0xde, 0xca, 0xf8, 0x88
     };
     
     const byte p[] =
@@ -1541,27 +1558,27 @@ int aesgcm_test(void)
         0xcd, 0xdf, 0x88, 0x53, 0xbb, 0x2d, 0x55, 0x1b
     };
 
-    byte t2[16];
-    byte p2[60];
-    byte c2[60];
+    byte t2[sizeof(t)];
+    byte p2[sizeof(c)];
+    byte c2[sizeof(p)];
 
     int result;
 
-    memset(t2, 0, 16);
-    memset(c2, 0, 60);
-    memset(p2, 0, 60);
+    memset(t2, 0, sizeof(t2));
+    memset(c2, 0, sizeof(c2));
+    memset(p2, 0, sizeof(p2));
 
-    AesGcmSetKey(&enc, k, sizeof(k), iv);
-    AesGcmSetExpIV(&enc, iv + /*AES_GCM_IMP_IV_SZ*/ 4);
+    AesGcmSetKey(&enc, k, sizeof(k));
     /* AES-GCM encrypt and decrypt both use AES encrypt internally */
-    AesGcmEncrypt(&enc, c2, p, sizeof(c2), t2, sizeof(t2), a, sizeof(a));
+    AesGcmEncrypt(&enc, c2, p, sizeof(c2), iv, sizeof(iv),
+                                                 t2, sizeof(t2), a, sizeof(a));
     if (memcmp(c, c2, sizeof(c2)))
         return -68;
     if (memcmp(t, t2, sizeof(t2)))
         return -69;
 
-    result = AesGcmDecrypt(&enc,
-                        p2, c2, sizeof(p2), t2, sizeof(t2), a, sizeof(a));
+    result = AesGcmDecrypt(&enc, p2, c2, sizeof(p2), iv, sizeof(iv),
+                                                 t2, sizeof(t2), a, sizeof(a));
     if (result != 0)
         return -70;
     if (memcmp(p, p2, sizeof(p2)))
@@ -1570,6 +1587,93 @@ int aesgcm_test(void)
     return 0;
 }
 #endif /* HAVE_AESGCM */
+
+#ifdef HAVE_AESCCM
+int aesccm_test(void)
+{
+    Aes enc;
+
+    /* key */
+    const byte k[] =
+    {
+        0xc0, 0xc1, 0xc2, 0xc3, 0xc4, 0xc5, 0xc6, 0xc7,
+        0xc8, 0xc9, 0xca, 0xcb, 0xcc, 0xcd, 0xce, 0xcf
+    };
+
+    /* nonce */
+    const byte iv[] =
+    {
+        0x00, 0x00, 0x00, 0x03, 0x02, 0x01, 0x00, 0xa0,
+        0xa1, 0xa2, 0xa3, 0xa4, 0xa5
+    };
+
+    /* plaintext */
+    const byte p[] =
+    {
+        0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
+        0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
+        0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e
+    };
+
+    const byte a[] =
+    {
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07
+    };
+
+    const byte c[] =
+    {
+        0x58, 0x8c, 0x97, 0x9a, 0x61, 0xc6, 0x63, 0xd2,
+        0xf0, 0x66, 0xd0, 0xc2, 0xc0, 0xf9, 0x89, 0x80,
+        0x6d, 0x5f, 0x6b, 0x61, 0xda, 0xc3, 0x84
+    };
+
+    const byte t[] =
+    {
+        0x17, 0xe8, 0xd1, 0x2c, 0xfd, 0xf9, 0x26, 0xe0 
+    };
+
+    byte t2[sizeof(t)];
+    byte p2[sizeof(p)];
+    byte c2[sizeof(c)];
+
+    int result;
+
+    memset(t2, 0, sizeof(t2));
+    memset(c2, 0, sizeof(c2));
+    memset(p2, 0, sizeof(p2));
+
+    AesCcmSetKey(&enc, k, sizeof(k));
+    /* AES-CCM encrypt and decrypt both use AES encrypt internally */
+    AesCcmEncrypt(&enc, c2, p, sizeof(c2), iv, sizeof(iv),
+                                                 t2, sizeof(t2), a, sizeof(a));
+    if (memcmp(c, c2, sizeof(c2)))
+        return -107;
+    if (memcmp(t, t2, sizeof(t2)))
+        return -108;
+
+    result = AesCcmDecrypt(&enc, p2, c2, sizeof(p2), iv, sizeof(iv),
+                                                 t2, sizeof(t2), a, sizeof(a));
+    if (result != 0)
+        return -109;
+    if (memcmp(p, p2, sizeof(p2)))
+        return -110;
+
+    /* Test the authentication failure */
+    t2[0]++; /* Corrupt the authentication tag. */
+    result = AesCcmDecrypt(&enc, p2, c, sizeof(p2), iv, sizeof(iv),
+                                                 t2, sizeof(t2), a, sizeof(a));
+    if (result == 0)
+        return -111;
+
+    /* Clear c2 to compare against p2. p2 should be set to zero in case of
+     * authentication fail. */
+    memset(c2, 0, sizeof(c2));
+    if (memcmp(p2, c2, sizeof(p2)))
+        return -112;
+
+    return 0;
+}
+#endif /* HAVE_AESCCM */
 
 
 #endif /* NO_AES */

@@ -123,7 +123,7 @@ typedef struct CYASSL_EVP_CIPHER_CTX {
     int            keyLen;         /* user may set for variable */
     unsigned char  enc;            /* if encrypt side, then true */
     unsigned char  cipherType;
-    unsigned char  iv[64];         /* working iv pointer into cipher */
+    unsigned char  iv[AES_BLOCK_SIZE];    /* working iv pointer into cipher */
     CYASSL_Cipher  cipher;
 } CYASSL_EVP_CIPHER_CTX;
 

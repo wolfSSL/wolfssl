@@ -370,6 +370,17 @@ int SuiteTest(void)
     }
 #endif
 
+#if defined(HAVE_AESCCM)
+    /* add aesccm extra suites */
+    strcpy(argv0[1], "tests/test-aesccm.conf");
+    printf("starting aesccm extra cipher suite tests\n");
+    test_harness(&args);
+    if (args.return_code != 0) {
+        printf("error from script %d\n", args.return_code);
+        exit(EXIT_FAILURE);  
+    }
+#endif
+
 #ifdef CYASSL_DTLS 
     /* add dtls extra suites */
     strcpy(argv0[1], "tests/test-dtls.conf");

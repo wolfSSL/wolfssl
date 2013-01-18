@@ -2291,21 +2291,15 @@ int CyaSSL_CTX_use_NTRUPrivateKey_file(CYASSL_CTX* ctx, const char* file)
                                        int format)
     {
         CYASSL_ENTER("SSL_CTX_use_RSAPrivateKey_file");
-        if (ProcessFile(ctx, file,format,PRIVATEKEY_TYPE,NULL,0, NULL)
-                        == SSL_SUCCESS)
-            return SSL_SUCCESS;
 
-        return SSL_FAILURE;
+        return CyaSSL_CTX_use_PrivateKey_file(ctx, file, format);
     }
 
     int CyaSSL_use_RSAPrivateKey_file(CYASSL* ssl, const char* file, int format)
     {
         CYASSL_ENTER("CyaSSL_use_RSAPrivateKey_file");
-        if (ProcessFile(ssl->ctx, file, format, PRIVATEKEY_TYPE, ssl, 0, NULL)
-                                                                 == SSL_SUCCESS)
-            return SSL_SUCCESS;
 
-        return SSL_FAILURE;
+        return CyaSSL_use_PrivateKey_file(ssl, file, format);
     }
 
 #endif /* OPENSSL_EXTRA */
@@ -4242,7 +4236,7 @@ int CyaSSL_set_compression(CYASSL* ssl)
         InitMd5(&myMD);
 
         /* only support MD5 for now */
-        if (XSTRNCMP(md, "MD5", 3)) return 0;
+        if (XSTRNCMP(md, "MD5", 3) != 0) return 0;
 
         /* only support CBC DES and AES for now */
         if (XSTRNCMP(type, "DES-CBC", 7) == 0) {
@@ -5435,6 +5429,11 @@ int CyaSSL_set_compression(CYASSL* ssl)
                     return "TLS_ECDH_ECDSA_WITH_AES_128_GCM_SHA256";
                 case TLS_ECDH_ECDSA_WITH_AES_256_GCM_SHA384 :
                     return "TLS_ECDH_ECDSA_WITH_AES_256_GCM_SHA384";
+
+                case TLS_RSA_WITH_AES_128_CCM_8_SHA256 :
+                    return "TLS_RSA_WITH_AES_128_CCM_8_SHA256";
+                case TLS_RSA_WITH_AES_256_CCM_8_SHA384 :
+                    return "TLS_RSA_WITH_AES_256_CCM_8_SHA384";
 
                 default:
                     return "NONE";

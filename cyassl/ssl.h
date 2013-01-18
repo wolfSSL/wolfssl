@@ -798,6 +798,16 @@ CYASSL_API void CyaSSL_SetIOWriteCtx(CYASSL* ssl, void *ctx);
 CYASSL_API void CyaSSL_SetIOReadFlags( CYASSL* ssl, int flags);
 CYASSL_API void CyaSSL_SetIOWriteFlags(CYASSL* ssl, int flags);
 
+typedef int (*CallbackIOOcsp)(void*, const char*, int,
+                                         unsigned char*, int, unsigned char**);
+typedef void (*CallbackIOOcspRespFree)(void*,unsigned char*); 
+#ifdef HAVE_OCSP 
+CYASSL_API void CyaSSL_SetIOOcsp(CYASSL_CTX *ocsp, CallbackIOOcsp cb);
+CYASSL_API void CyaSSL_SetIOOcspRespFree(CYASSL_CTX *ocsp,
+                                                    CallbackIOOcspRespFree cb);
+CYASSL_API void CyaSSL_SetIOOcspCtx(CYASSL_CTX *ocsp, void *octx);
+#endif
+
 /* CA cache callbacks */
 enum {
     CYASSL_SSLV3    = 0,

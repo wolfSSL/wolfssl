@@ -482,12 +482,13 @@ static INLINE int udp_read_connect(SOCKET_T sockfd)
     return sockfd;
 }
 
-static INLINE void udp_accept(SOCKET_T* sockfd, int* clientfd, func_args* args)
+static INLINE void udp_accept(SOCKET_T* sockfd, int* clientfd, int useAnyAddr,
+                              func_args* args)
 {
     SOCKADDR_IN_T addr;
 
     (void)args;
-    build_addr(&addr, yasslIP, yasslPort);
+    build_addr(&addr, (useAnyAddr ? INADDR_ANY : yasslIP), yasslPort);
     tcp_socket(sockfd, 1);
 
 
@@ -523,7 +524,7 @@ static INLINE void tcp_accept(SOCKET_T* sockfd, int* clientfd, func_args* args,
     socklen_t client_len = sizeof(client);
 
     if (udp) {
-        udp_accept(sockfd, clientfd, args);
+        udp_accept(sockfd, clientfd, useAnyAddr, args);
         return;
     }
 
