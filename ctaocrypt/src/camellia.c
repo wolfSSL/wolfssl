@@ -42,6 +42,20 @@ int CamelliaSetKey(Camellia* cam,
     (void)cam;
     (void)key;
     (void)dir;
+
+    if (cam == NULL) return BAD_FUNC_ARG;
+
+    switch (len) {
+        case CAMELLIA_KEY_128_BITS:
+            break;
+        case CAMELLIA_KEY_192_BITS:
+            break;
+        case CAMELLIA_KEY_256_BITS:
+            break;
+        default:
+            return BAD_FUNC_ARG;
+    }
+
     cam->keySz = len;
     return CamelliaSetIV(cam, iv);
 }

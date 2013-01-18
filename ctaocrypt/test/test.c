@@ -1854,6 +1854,28 @@ int camellia_test(void)
             return testVectors[i].plainErrorCode;
     }
 
+    /* Setting the IV and checking it was actually set. */
+    CamelliaSetIV(&enc, ivc);
+    if (XMEMCMP(enc.reg, ivc, CAMELLIA_BLOCK_SIZE))
+        return -1;
+
+    /* Setting the IV to NULL should leave the IV unchanged */
+    if (CamelliaSetIV(&enc, NULL) != 0 ||
+                                    XMEMCMP(enc.reg, ivc, CAMELLIA_BLOCK_SIZE))
+        return -1;
+    
+    /* First parameter should never be null */
+    if (CamelliaSetIV(NULL, NULL) == 0)
+        return -1;
+
+    /* First parameter should never be null, check it fails */
+    if (CamelliaSetKey(NULL, k1, sizeof(k1), NULL, CAMELLIA_ENCRYPTION) == 0)
+        return -1;
+
+    /* Key should have a size of 16, 24, or 32 */
+    if (CamelliaSetKey(&enc, k1, 0, NULL, CAMELLIA_ENCRYPTION) == 0)
+        return -1;
+
     return 0;
 }
 #endif /* HAVE_CAMELLIA */
