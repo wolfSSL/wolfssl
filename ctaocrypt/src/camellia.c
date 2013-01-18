@@ -1,6 +1,6 @@
-/* aes.c
+/* camellia.c
  *
- * Copyright (C) 2006-2012 Sawtooth Consulting Ltd.
+ * Copyright (C) 2006-2013 Sawtooth Consulting Ltd.
  *
  * This file is part of CyaSSL.
  *
@@ -34,20 +34,32 @@
     #include <ctaocrypt/src/misc.c>
 #endif
 
+#define STILL_DEVELOPING
 
 int CamelliaSetKey(Camellia* cam,
                    const byte* key, word32 len, const byte* iv, int dir)
 {
     (void)cam;
     (void)key;
-    (void)iv;
     (void)dir;
     cam->keySz = len;
+    return CamelliaSetIV(cam, iv);
+}
+
+
+int CamelliaSetIV(Camellia* cam, const byte* iv)
+{
+    if (cam == NULL)
+        return BAD_FUNC_ARG;
+
+    if (iv)
+        XMEMCPY(cam->reg, iv, CAMELLIA_BLOCK_SIZE);
+
     return 0;
 }
 
 
-void CamelliaEncrypt(Camellia* cam, byte* out, const byte* in, word32 sz)
+static void CamelliaEncrypt(Camellia* cam, byte* out, const byte* in)
 {
     const byte c1[] =
     {
@@ -67,7 +79,6 @@ void CamelliaEncrypt(Camellia* cam, byte* out, const byte* in, word32 sz)
 
     (void)cam;
     (void)in;
-    (void)sz;
 
     switch (cam->keySz) {
         case 16:
@@ -83,7 +94,7 @@ void CamelliaEncrypt(Camellia* cam, byte* out, const byte* in, word32 sz)
 }
 
 
-void CamelliaDecrypt(Camellia* cam, byte* out, const byte* in, word32 sz)
+static void CamelliaDecrypt(Camellia* cam, byte* out, const byte* in)
 {
     const byte pte[] = 
     {
@@ -93,14 +104,37 @@ void CamelliaDecrypt(Camellia* cam, byte* out, const byte* in, word32 sz)
 
     (void)cam;
     (void)in;
-    (void)sz;
 
     XMEMCPY(out, pte, CAMELLIA_BLOCK_SIZE);
 }
 
 
+void CamelliaEncryptDirect(Camellia* cam, byte* out, const byte* in)
+{
+    CamelliaEncrypt(cam, out, in);
+}
+
+
+void CamelliaDecryptDirect(Camellia* cam, byte* out, const byte* in)
+{
+    CamelliaDecrypt(cam, out, in);
+}
+
+
 void CamelliaCbcEncrypt(Camellia* cam, byte* out, const byte* in, word32 sz)
 {
+#ifndef STILL_DEVELOPING
+    word32 blocks = sz / CAMELLIA_BLOCK_SIZE;
+
+    while (blocks--) {
+        xorbuf((byte*)cam->reg, in, CAMELLIA_BLOCK_SIZE);
+        CamelliaEncrypt(cam, (byte*)cam->reg, (byte*)cam->reg);
+        XMEMCPY(out, cam->reg, CAMELLIA_BLOCK_SIZE);
+
+        out += CAMELLIA_BLOCK_SIZE;
+        in  += CAMELLIA_BLOCK_SIZE; 
+    }
+#else
     const byte c4[] =
     {
         0x16, 0x07, 0xCF, 0x49, 0x4B, 0x36, 0xBB, 0xF0,
@@ -132,11 +166,25 @@ void CamelliaCbcEncrypt(Camellia* cam, byte* out, const byte* in, word32 sz)
             XMEMCPY(out, c6, CAMELLIA_BLOCK_SIZE);
             break;
     }
+#endif
 }
 
 
 void CamelliaCbcDecrypt(Camellia* cam, byte* out, const byte* in, word32 sz)
 {
+#ifndef STILL_DEVELOPING
+    word32 blocks = sz / CAMELLIA_BLOCK_SIZE;
+
+    while (blocks--) {
+        XMEMCPY(cam->tmp, in, CAMELLIA_BLOCK_SIZE);
+        CamelliaDecrypt(cam, (byte*)cam->tmp, out);
+        xorbuf(out, (byte*)cam->reg, CAMELLIA_BLOCK_SIZE);
+        XMEMCPY(cam->reg, cam->tmp, CAMELLIA_BLOCK_SIZE);
+
+        out += CAMELLIA_BLOCK_SIZE;
+        in  += CAMELLIA_BLOCK_SIZE; 
+    }
+#else
     const byte ptc[] =
     {
         0x6B, 0xC1, 0xBE, 0xE2, 0x2E, 0x40, 0x9F, 0x96,
@@ -148,6 +196,7 @@ void CamelliaCbcDecrypt(Camellia* cam, byte* out, const byte* in, word32 sz)
     (void)sz;
 
     XMEMCPY(out, ptc, CAMELLIA_BLOCK_SIZE);
+#endif
 }
 
 

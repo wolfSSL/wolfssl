@@ -1838,10 +1838,8 @@ int camellia_test(void)
                                         testVectors[i].iv, CAMELLIA_DECRYPTION);
 
         if (testVectors[i].type == CAM_ECB) {
-            CamelliaEncrypt(&enc, c, testVectors[i].plaintext,
-                                                           CAMELLIA_BLOCK_SIZE);
-            CamelliaDecrypt(&dec, p, testVectors[i].ciphertext,
-                                                           CAMELLIA_BLOCK_SIZE);
+            CamelliaEncryptDirect(&enc, c, testVectors[i].plaintext);
+            CamelliaDecryptDirect(&dec, p, testVectors[i].ciphertext);
         }
         else {
             CamelliaCbcEncrypt(&enc, c, testVectors[i].plaintext,
