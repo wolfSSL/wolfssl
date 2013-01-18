@@ -1849,11 +1849,11 @@ int camellia_test(void)
             CamelliaCbcDecrypt(&dec, p, testVectors[i].ciphertext,
                                                            CAMELLIA_BLOCK_SIZE);
         }
-/*
+
         if (memcmp(c, testVectors[i].ciphertext, CAMELLIA_BLOCK_SIZE))
             return testVectors[i].cipherErrorCode;
         if (memcmp(p, testVectors[i].plaintext, CAMELLIA_BLOCK_SIZE))
-            return testVectors[i].plainErrorCode;*/
+            return testVectors[i].plainErrorCode;
     }
 
     return 0;

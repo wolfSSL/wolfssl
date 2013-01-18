@@ -40,6 +40,7 @@ enum {
 
 
 typedef struct Camellia {
+    word32 keySz;
     word32 reg[CAMELLIA_BLOCK_SIZE / sizeof(word32)]; /* for CBC mode */
     word32 tmp[CAMELLIA_BLOCK_SIZE / sizeof(word32)]; /* for CBC mode */
 } Camellia;
