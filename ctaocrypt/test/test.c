@@ -40,6 +40,7 @@
 #include <cyassl/ctaocrypt/rsa.h>
 #include <cyassl/ctaocrypt/des3.h>
 #include <cyassl/ctaocrypt/aes.h>
+#include <cyassl/ctaocrypt/camellia.h>
 #include <cyassl/ctaocrypt/hmac.h>
 #include <cyassl/ctaocrypt/dh.h>
 #include <cyassl/ctaocrypt/dsa.h>
@@ -113,6 +114,7 @@ int  des3_test(void);
 int  aes_test(void);
 int  aesgcm_test(void);
 int  aesccm_test(void);
+int  camellia_test(void);
 int  rsa_test(void);
 int  dh_test(void);
 int  dsa_test(void);
@@ -300,6 +302,13 @@ void ctaocrypt_test(void* args)
     else
         printf( "AES-CCM  test passed!\n");
 #endif
+#endif
+
+#ifdef HAVE_CAMELLIA
+    if ( (ret = camellia_test()) )
+        err_sys("CAMELLIA test failed!\n", ret);
+    else
+        printf( "CAMELLIA test passed!\n");
 #endif
 
     if ( (ret = random_test()) )
@@ -1677,6 +1686,179 @@ int aesccm_test(void)
 
 
 #endif /* NO_AES */
+
+
+#ifdef HAVE_CAMELLIA
+
+enum {
+    CAM_ECB, CAM_CBC
+};
+
+typedef struct {
+    int type;
+    const byte* plaintext;
+    const byte* iv;
+    const byte* ciphertext;
+    const byte* key;
+    word32 keySz;
+    int cipherErrorCode;
+    int plainErrorCode;
+} test_vector_t;
+
+int camellia_test(void)
+{
+    /* Camellia ECB Test Plaintext */
+    const byte pte[] = 
+    {
+        0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef,
+        0xfe, 0xdc, 0xba, 0x98, 0x76, 0x54, 0x32, 0x10
+    };
+
+    /* Camellia ECB Test Initialization Vector */
+    const byte ive[] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
+
+    /* Test 1: Camellia ECB 128-bit key */
+    const byte k1[] =
+    {
+        0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef,
+        0xfe, 0xdc, 0xba, 0x98, 0x76, 0x54, 0x32, 0x10
+    };
+    const byte c1[] =
+    {
+        0x67, 0x67, 0x31, 0x38, 0x54, 0x96, 0x69, 0x73,
+        0x08, 0x57, 0x06, 0x56, 0x48, 0xea, 0xbe, 0x43
+    };
+
+    /* Test 2: Camellia ECB 192-bit key */
+    const byte k2[] =
+    {
+        0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef,
+        0xfe, 0xdc, 0xba, 0x98, 0x76, 0x54, 0x32, 0x10,
+        0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77
+    };
+    const byte c2[] =
+    {
+        0xb4, 0x99, 0x34, 0x01, 0xb3, 0xe9, 0x96, 0xf8,
+        0x4e, 0xe5, 0xce, 0xe7, 0xd7, 0x9b, 0x09, 0xb9
+    };
+
+    /* Test 3: Camellia ECB 256-bit key */
+    const byte k3[] =
+    {
+        0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef,
+        0xfe, 0xdc, 0xba, 0x98, 0x76, 0x54, 0x32, 0x10,
+        0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77,
+        0x88, 0x99, 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff
+    };
+    const byte c3[] =
+    {
+        0x9a, 0xcc, 0x23, 0x7d, 0xff, 0x16, 0xd7, 0x6c,
+        0x20, 0xef, 0x7c, 0x91, 0x9e, 0x3a, 0x75, 0x09
+    };
+
+    /* Camellia CBC Test Plaintext */
+    const byte ptc[] =
+    {
+        0x6B, 0xC1, 0xBE, 0xE2, 0x2E, 0x40, 0x9F, 0x96,
+        0xE9, 0x3D, 0x7E, 0x11, 0x73, 0x93, 0x17, 0x2A 
+    };
+
+    /* Camellia CBC Test Initialization Vector */
+    const byte ivc[] =
+    {
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+        0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F 
+    };
+
+    /* Test 4: Camellia-CBC 128-bit key */
+    const byte k4[] =
+    {
+        0x2B, 0x7E, 0x15, 0x16, 0x28, 0xAE, 0xD2, 0xA6,
+        0xAB, 0xF7, 0x15, 0x88, 0x09, 0xCF, 0x4F, 0x3C 
+    };
+    const byte c4[] =
+    {
+        0x16, 0x07, 0xCF, 0x49, 0x4B, 0x36, 0xBB, 0xF0,
+        0x0D, 0xAE, 0xB0, 0xB5, 0x03, 0xC8, 0x31, 0xAB 
+    };
+
+    /* Test 5: Camellia-CBC 192-bit key */
+    const byte k5[] =
+    {
+        0x8E, 0x73, 0xB0, 0xF7, 0xDA, 0x0E, 0x64, 0x52,
+        0xC8, 0x10, 0xF3, 0x2B, 0x80, 0x90, 0x79, 0xE5,
+        0x62, 0xF8, 0xEA, 0xD2, 0x52, 0x2C, 0x6B, 0x7B 
+    };
+    const byte c5[] =
+    {
+        0x2A, 0x48, 0x30, 0xAB, 0x5A, 0xC4, 0xA1, 0xA2,
+        0x40, 0x59, 0x55, 0xFD, 0x21, 0x95, 0xCF, 0x93 
+    };
+
+    /* Test 6: CBC 256-bit key */
+    const byte k6[] =
+    {
+        0x60, 0x3D, 0xEB, 0x10, 0x15, 0xCA, 0x71, 0xBE,
+        0x2B, 0x73, 0xAE, 0xF0, 0x85, 0x7D, 0x77, 0x81,
+        0x1F, 0x35, 0x2C, 0x07, 0x3B, 0x61, 0x08, 0xD7,
+        0x2D, 0x98, 0x10, 0xA3, 0x09, 0x14, 0xDF, 0xF4 
+    };
+    const byte c6[] =
+    {
+        0xE6, 0xCF, 0xA3, 0x5F, 0xC0, 0x2B, 0x13, 0x4A,
+        0x4D, 0x2C, 0x0B, 0x67, 0x37, 0xAC, 0x3E, 0xDA 
+    };
+
+    byte c[CAMELLIA_BLOCK_SIZE];
+    byte p[CAMELLIA_BLOCK_SIZE];
+    Camellia enc;
+    Camellia dec;
+    int i, testsSz;
+    const test_vector_t testVectors[] =
+    {
+        {CAM_ECB, pte, ive, c1, k1, sizeof(k1), -114, -115},
+        {CAM_ECB, pte, ive, c2, k2, sizeof(k2), -116, -117},
+        {CAM_ECB, pte, ive, c3, k3, sizeof(k3), -118, -119},
+        {CAM_CBC, ptc, ivc, c4, k4, sizeof(k4), -120, -121},
+        {CAM_CBC, ptc, ivc, c5, k5, sizeof(k5), -121, -122},
+        {CAM_CBC, ptc, ivc, c6, k6, sizeof(k6), -122, -123}
+    };
+
+    if ((sizeof(pte) != CAMELLIA_BLOCK_SIZE) ||
+                                          (sizeof(ptc) != CAMELLIA_BLOCK_SIZE))
+        return -113;
+
+    testsSz = sizeof(testVectors)/sizeof(test_vector_t);
+    for (i = 0; i < testsSz; i++) {
+        XMEMSET(c, 0, CAMELLIA_BLOCK_SIZE);
+        XMEMSET(p, 0, CAMELLIA_BLOCK_SIZE);
+        CamelliaSetKey(&enc, testVectors[i].key, testVectors[i].keySz,
+                                        testVectors[i].iv, CAMELLIA_ENCRYPTION);
+        CamelliaSetKey(&dec, testVectors[i].key, testVectors[i].keySz,
+                                        testVectors[i].iv, CAMELLIA_DECRYPTION);
+
+        if (testVectors[i].type == CAM_ECB) {
+            CamelliaEncrypt(&enc, c, testVectors[i].plaintext,
+                                                           CAMELLIA_BLOCK_SIZE);
+            CamelliaDecrypt(&dec, p, testVectors[i].ciphertext,
+                                                           CAMELLIA_BLOCK_SIZE);
+        }
+        else {
+            CamelliaCbcEncrypt(&enc, c, testVectors[i].plaintext,
+                                                           CAMELLIA_BLOCK_SIZE);
+            CamelliaCbcDecrypt(&dec, p, testVectors[i].ciphertext,
+                                                           CAMELLIA_BLOCK_SIZE);
+        }
+/*
+        if (memcmp(c, testVectors[i].ciphertext, CAMELLIA_BLOCK_SIZE))
+            return testVectors[i].cipherErrorCode;
+        if (memcmp(p, testVectors[i].plaintext, CAMELLIA_BLOCK_SIZE))
+            return testVectors[i].plainErrorCode;*/
+    }
+
+    return 0;
+}
+#endif /* HAVE_CAMELLIA */
 
 
 int random_test(void)

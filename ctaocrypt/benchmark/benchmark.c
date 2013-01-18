@@ -33,6 +33,7 @@
 #include <cyassl/ctaocrypt/hc128.h>
 #include <cyassl/ctaocrypt/rabbit.h>
 #include <cyassl/ctaocrypt/aes.h>
+#include <cyassl/ctaocrypt/camellia.h>
 #include <cyassl/ctaocrypt/md5.h>
 #include <cyassl/ctaocrypt/sha.h>
 #include <cyassl/ctaocrypt/sha256.h>
@@ -56,6 +57,7 @@ void bench_rabbit(void);
 void bench_aes(int);
 void bench_aesgcm(void);
 void bench_aesccm(void);
+void bench_camellia(void);
 
 void bench_md5(void);
 void bench_sha(void);
@@ -88,6 +90,9 @@ int main(int argc, char** argv)
 #endif
 #ifdef HAVE_AESCCM
     bench_aesccm();
+#endif
+#ifdef HAVE_CAMELLIA
+    bench_camellia();
 #endif
 #ifndef NO_RC4
     bench_arc4();
@@ -232,6 +237,28 @@ void bench_aesccm(void)
 
     persec = 1 / total * megs;
     printf("AES-CCM  %d megs took %5.3f seconds, %6.2f MB/s\n", megs, total,
+                                                                    persec);
+}
+#endif
+
+
+#ifdef HAVE_CAMELLIA
+void bench_camellia(void)
+{
+    Camellia cam;
+    double start, total, persec;
+    int    i;
+
+    CamelliaSetKey(&cam, key, 16, iv, CAMELLIA_ENCRYPTION);
+    start = current_time();
+
+    for(i = 0; i < megs; i++)
+        CamelliaCbcEncrypt(&cam, plain, cipher, sizeof(plain));
+
+    total = current_time() - start;
+
+    persec = 1 / total * megs;
+    printf("Camellia %d megs took %5.3f seconds, %6.2f MB/s\n", megs, total,
                                                                     persec);
 }
 #endif
