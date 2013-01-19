@@ -249,7 +249,7 @@ void bench_camellia(void)
     double start, total, persec;
     int    i;
 
-    CamelliaSetKey(&cam, key, 16, iv, CAMELLIA_ENCRYPTION);
+    CamelliaSetKey(&cam, key, 16, iv);
     start = current_time();
 
     for(i = 0; i < megs; i++)

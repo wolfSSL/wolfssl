@@ -1691,7 +1691,7 @@ int aesccm_test(void)
 #ifdef HAVE_CAMELLIA
 
 enum {
-    CAM_ECB, CAM_CBC
+    CAM_ECB_ENC, CAM_ECB_DEC, CAM_CBC_ENC, CAM_CBC_DEC
 };
 
 typedef struct {
@@ -1701,8 +1701,7 @@ typedef struct {
     const byte* ciphertext;
     const byte* key;
     word32 keySz;
-    int cipherErrorCode;
-    int plainErrorCode;
+    int errorCode;
 } test_vector_t;
 
 int camellia_test(void)
@@ -1809,19 +1808,23 @@ int camellia_test(void)
         0x4D, 0x2C, 0x0B, 0x67, 0x37, 0xAC, 0x3E, 0xDA 
     };
 
-    byte c[CAMELLIA_BLOCK_SIZE];
-    byte p[CAMELLIA_BLOCK_SIZE];
-    Camellia enc;
-    Camellia dec;
+    byte out[CAMELLIA_BLOCK_SIZE];
+    Camellia cam;
     int i, testsSz;
     const test_vector_t testVectors[] =
     {
-        {CAM_ECB, pte, ive, c1, k1, sizeof(k1), -114, -115},
-        {CAM_ECB, pte, ive, c2, k2, sizeof(k2), -116, -117},
-        {CAM_ECB, pte, ive, c3, k3, sizeof(k3), -118, -119},
-        {CAM_CBC, ptc, ivc, c4, k4, sizeof(k4), -120, -121},
-        {CAM_CBC, ptc, ivc, c5, k5, sizeof(k5), -121, -122},
-        {CAM_CBC, ptc, ivc, c6, k6, sizeof(k6), -122, -123}
+        {CAM_ECB_ENC, pte, ive, c1, k1, sizeof(k1), -114},
+        {CAM_ECB_ENC, pte, ive, c2, k2, sizeof(k2), -115},
+        {CAM_ECB_ENC, pte, ive, c3, k3, sizeof(k3), -116},
+        {CAM_ECB_DEC, pte, ive, c1, k1, sizeof(k1), -117},
+        {CAM_ECB_DEC, pte, ive, c2, k2, sizeof(k2), -118},
+        {CAM_ECB_DEC, pte, ive, c3, k3, sizeof(k3), -119},
+        {CAM_CBC_ENC, ptc, ivc, c4, k4, sizeof(k4), -120},
+        {CAM_CBC_ENC, ptc, ivc, c5, k5, sizeof(k5), -121},
+        {CAM_CBC_ENC, ptc, ivc, c6, k6, sizeof(k6), -122},
+        {CAM_CBC_DEC, ptc, ivc, c4, k4, sizeof(k4), -123},
+        {CAM_CBC_DEC, ptc, ivc, c5, k5, sizeof(k5), -124},
+        {CAM_CBC_DEC, ptc, ivc, c6, k6, sizeof(k6), -125}
     };
 
     if ((sizeof(pte) != CAMELLIA_BLOCK_SIZE) ||
@@ -1830,38 +1833,45 @@ int camellia_test(void)
 
     testsSz = sizeof(testVectors)/sizeof(test_vector_t);
     for (i = 0; i < testsSz; i++) {
-        XMEMSET(c, 0, CAMELLIA_BLOCK_SIZE);
-        XMEMSET(p, 0, CAMELLIA_BLOCK_SIZE);
-        CamelliaSetKey(&enc, testVectors[i].key, testVectors[i].keySz,
-                                        testVectors[i].iv, CAMELLIA_ENCRYPTION);
-        CamelliaSetKey(&dec, testVectors[i].key, testVectors[i].keySz,
-                                        testVectors[i].iv, CAMELLIA_DECRYPTION);
+        CamelliaSetKey(&cam, testVectors[i].key, testVectors[i].keySz,
+                                                             testVectors[i].iv);
 
-        if (testVectors[i].type == CAM_ECB) {
-            CamelliaEncryptDirect(&enc, c, testVectors[i].plaintext);
-            CamelliaDecryptDirect(&dec, p, testVectors[i].ciphertext);
-        }
-        else {
-            CamelliaCbcEncrypt(&enc, c, testVectors[i].plaintext,
+        switch (testVectors[i].type) {
+            case CAM_ECB_ENC:
+                CamelliaEncryptDirect(&cam, out, testVectors[i].plaintext);
+                if (memcmp(out, testVectors[i].ciphertext, CAMELLIA_BLOCK_SIZE))
+                    return testVectors[i].errorCode;
+                break;
+            case CAM_ECB_DEC:
+                CamelliaDecryptDirect(&cam, out, testVectors[i].ciphertext);
+                if (memcmp(out, testVectors[i].plaintext, CAMELLIA_BLOCK_SIZE))
+                    return testVectors[i].errorCode;
+                break;
+            case CAM_CBC_ENC:
+                CamelliaCbcEncrypt(&cam, out, testVectors[i].plaintext,
                                                            CAMELLIA_BLOCK_SIZE);
-            CamelliaCbcDecrypt(&dec, p, testVectors[i].ciphertext,
+                if (memcmp(out, testVectors[i].ciphertext, CAMELLIA_BLOCK_SIZE))
+                    return testVectors[i].errorCode;
+                break;
+            case CAM_CBC_DEC:
+                CamelliaCbcDecrypt(&cam, out, testVectors[i].ciphertext,
                                                            CAMELLIA_BLOCK_SIZE);
+                if (memcmp(out, testVectors[i].plaintext, CAMELLIA_BLOCK_SIZE))
+                    return testVectors[i].errorCode;
+                break;
+            default:
+                break;
         }
-
-        if (memcmp(c, testVectors[i].ciphertext, CAMELLIA_BLOCK_SIZE))
-            return testVectors[i].cipherErrorCode;
-        if (memcmp(p, testVectors[i].plaintext, CAMELLIA_BLOCK_SIZE))
-            return testVectors[i].plainErrorCode;
     }
 
     /* Setting the IV and checking it was actually set. */
-    CamelliaSetIV(&enc, ivc);
-    if (XMEMCMP(enc.reg, ivc, CAMELLIA_BLOCK_SIZE))
+    CamelliaSetIV(&cam, ivc);
+    if (XMEMCMP(cam.reg, ivc, CAMELLIA_BLOCK_SIZE))
         return -1;
 
     /* Setting the IV to NULL should leave the IV unchanged */
-    if (CamelliaSetIV(&enc, NULL) != 0 ||
-                                    XMEMCMP(enc.reg, ivc, CAMELLIA_BLOCK_SIZE))
+    if (CamelliaSetIV(&cam, NULL) != 0 ||
+                                    XMEMCMP(cam.reg, ivc, CAMELLIA_BLOCK_SIZE))
         return -1;
     
     /* First parameter should never be null */
@@ -1869,11 +1879,11 @@ int camellia_test(void)
         return -1;
 
     /* First parameter should never be null, check it fails */
-    if (CamelliaSetKey(NULL, k1, sizeof(k1), NULL, CAMELLIA_ENCRYPTION) == 0)
+    if (CamelliaSetKey(NULL, k1, sizeof(k1), NULL) == 0)
         return -1;
 
     /* Key should have a size of 16, 24, or 32 */
-    if (CamelliaSetKey(&enc, k1, 0, NULL, CAMELLIA_ENCRYPTION) == 0)
+    if (CamelliaSetKey(&cam, k1, 0, NULL) == 0)
         return -1;
 
     return 0;
