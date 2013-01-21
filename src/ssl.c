@@ -5501,6 +5501,22 @@ int CyaSSL_set_compression(CYASSL* ssl)
                     return "TLS_DHE_RSA_WITH_AES_128_GCM_SHA256";
                 case TLS_DHE_RSA_WITH_AES_256_GCM_SHA384 :
                     return "TLS_DHE_RSA_WITH_AES_256_GCM_SHA384";
+                case TLS_RSA_WITH_CAMELLIA_128_CBC_SHA :
+                    return "TLS_RSA_WITH_CAMELLIA_128_CBC_SHA";
+                case TLS_RSA_WITH_CAMELLIA_256_CBC_SHA :
+                    return "TLS_RSA_WITH_CAMELLIA_256_CBC_SHA";
+                case TLS_RSA_WITH_CAMELLIA_128_CBC_SHA256 :
+                    return "TLS_RSA_WITH_CAMELLIA_128_CBC_SHA256";
+                case TLS_RSA_WITH_CAMELLIA_256_CBC_SHA256 :
+                    return "TLS_RSA_WITH_CAMELLIA_256_CBC_SHA256";
+                case TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA :
+                    return "TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA";
+                case TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA :
+                    return "TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA";
+                case TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA256 :
+                    return "TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA256";
+                case TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA256 :
+                    return "TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA256";
                 default:
                     return "NONE";
             }  /* switch */

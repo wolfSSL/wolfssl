@@ -272,7 +272,7 @@ void client_test(void* args)
 
     if (cipherList)
         if (CyaSSL_CTX_set_cipher_list(ctx, cipherList) != SSL_SUCCESS)
-            err_sys("can't set cipher list");
+            err_sys("client can't set cipher list 1");
 
 #ifdef CYASSL_LEANPSK
     usePsk = 1;
@@ -289,7 +289,7 @@ void client_test(void* args)
                 defaultCipherList = "PSK-AES256-CBC-SHA";
             #endif
             if (CyaSSL_CTX_set_cipher_list(ctx,defaultCipherList) !=SSL_SUCCESS)
-                err_sys("can't set cipher list");
+                err_sys("client can't set cipher list 2");
         }
 #endif
     }
@@ -302,7 +302,7 @@ void client_test(void* args)
     if (cipherList == NULL) {
         /* don't use EDH, can't sniff tmp keys */
         if (CyaSSL_CTX_set_cipher_list(ctx, "AES256-SHA") != SSL_SUCCESS) {
-            err_sys("can't set cipher list");
+            err_sys("client can't set cipher list 3");
         }
     }
 #endif

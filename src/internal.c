@@ -471,6 +471,10 @@ void InitCiphers(CYASSL* ssl)
     ssl->encrypt.aes = NULL;
     ssl->decrypt.aes = NULL;
 #endif
+#ifdef HAVE_CAMELLIA
+    ssl->encrypt.cam = NULL;
+    ssl->decrypt.cam = NULL;
+#endif
 #ifdef HAVE_HC128
     ssl->encrypt.hc128 = NULL;
     ssl->decrypt.hc128 = NULL;
@@ -499,6 +503,10 @@ void FreeCiphers(CYASSL* ssl)
 #ifdef BUILD_AES
     XFREE(ssl->encrypt.aes, ssl->heap, DYNAMIC_TYPE_CIPHER);
     XFREE(ssl->decrypt.aes, ssl->heap, DYNAMIC_TYPE_CIPHER);
+#endif
+#ifdef BUILD_CAMELLIA
+    XFREE(ssl->encrypt.cam, ssl->heap, DYNAMIC_TYPE_CIPHER);
+    XFREE(ssl->decrypt.cam, ssl->heap, DYNAMIC_TYPE_CIPHER);
 #endif
 #ifdef HAVE_HC128
     XFREE(ssl->encrypt.hc128, ssl->heap, DYNAMIC_TYPE_CIPHER);
@@ -946,6 +954,62 @@ void InitSuites(Suites* suites, ProtocolVersion pv, byte haveRSA, byte havePSK,
     if (tls && haveRSA) {
         suites->suites[idx++] = 0; 
         suites->suites[idx++] = TLS_RSA_WITH_RABBIT_CBC_SHA;
+    }
+#endif
+
+#ifdef BUILD_TLS_RSA_WITH_CAMELLIA_128_CBC_SHA
+    if (tls && haveRSA) {
+        suites->suites[idx++] = 0; 
+        suites->suites[idx++] = TLS_RSA_WITH_CAMELLIA_128_CBC_SHA;
+    }
+#endif
+
+#ifdef BUILD_TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA
+    if (tls && haveDH && haveRSA) {
+        suites->suites[idx++] = 0; 
+        suites->suites[idx++] = TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA;
+    }
+#endif
+
+#ifdef BUILD_TLS_RSA_WITH_CAMELLIA_256_CBC_SHA
+    if (tls && haveRSA) {
+        suites->suites[idx++] = 0; 
+        suites->suites[idx++] = TLS_RSA_WITH_CAMELLIA_256_CBC_SHA;
+    }
+#endif
+
+#ifdef BUILD_TLS_DHE_WITH_RSA_CAMELLIA_256_CBC_SHA
+    if (tls && haveDH && haveRSA) {
+        suites->suites[idx++] = 0; 
+        suites->suites[idx++] = TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA;
+    }
+#endif
+
+#ifdef BUILD_TLS_RSA_WITH_CAMELLIA_128_CBC_SHA256
+    if (tls && haveRSA) {
+        suites->suites[idx++] = 0; 
+        suites->suites[idx++] = TLS_RSA_WITH_CAMELLIA_128_CBC_SHA256;
+    }
+#endif
+
+#ifdef BUILD_TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA256
+    if (tls && haveDH && haveRSA) {
+        suites->suites[idx++] = 0; 
+        suites->suites[idx++] = TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA256;
+    }
+#endif
+
+#ifdef BUILD_TLS_RSA_WITH_CAMELLIA_256_CBC_SHA256
+    if (tls && haveRSA) {
+        suites->suites[idx++] = 0; 
+        suites->suites[idx++] = TLS_RSA_WITH_CAMELLIA_256_CBC_SHA256;
+    }
+#endif
+
+#ifdef BUILD_TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA256
+    if (tls && haveDH && haveRSA) {
+        suites->suites[idx++] = 0; 
+        suites->suites[idx++] = TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA256;
     }
 #endif
 
@@ -3080,6 +3144,12 @@ static INLINE int Encrypt(CYASSL* ssl, byte* out, const byte* input, word32 sz)
                 break;
         #endif
 
+        #ifdef HAVE_CAMELLIA
+            case camellia:
+                CamelliaCbcEncrypt(ssl->encrypt.cam, out, input, sz);
+                break;
+        #endif
+
         #ifdef HAVE_HC128
             case hc128:
                 #ifdef XSTREAM_ALIGNMENT
@@ -3232,6 +3302,12 @@ static INLINE int Decrypt(CYASSL* ssl, byte* plain, const byte* input,
                 XMEMSET(nonce, 0, AEAD_NONCE_SZ);
                 break;
             }
+        #endif
+
+        #ifdef HAVE_CAMELLIA
+            case camellia:
+                CamelliaCbcDecrypt(ssl->decrypt.cam, plain, input, sz);
+                break;
         #endif
 
         #ifdef HAVE_HC128
@@ -5316,7 +5392,39 @@ const char* const cipher_names[] =
 #endif
 
 #ifdef BUILD_TLS_ECDH_ECDSA_WITH_AES_256_GCM_SHA384
-    "ECDH-ECDSA-AES256-GCM-SHA384"
+    "ECDH-ECDSA-AES256-GCM-SHA384",
+#endif
+
+#ifdef BUILD_TLS_RSA_WITH_CAMELLIA_128_CBC_SHA
+    "RSA-CAMELLIA128-CBC-SHA",
+#endif
+
+#ifdef BUILD_TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA
+    "DHE-RSA-CAMELLIA128-CBC-SHA",
+#endif
+
+#ifdef BUILD_TLS_RSA_WITH_CAMELLIA_256_CBC_SHA
+    "RSA-CAMELLIA256-CBC-SHA",
+#endif
+
+#ifdef BUILD_TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA
+    "DHE-RSA-CAMELLIA256-CBC-SHA",
+#endif
+
+#ifdef BUILD_TLS_RSA_WITH_CAMELLIA_128_CBC_SHA256
+    "RSA-CAMELLIA128-CBC-SHA256",
+#endif
+
+#ifdef BUILD_TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA256
+    "DHE-RSA-CAMELLIA128-CBC-SHA256",
+#endif
+
+#ifdef BUILD_TLS_RSA_WITH_CAMELLIA_256_CBC_SHA256
+    "RSA-CAMELLIA256-CBC-SHA256",
+#endif
+
+#ifdef BUILD_TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA256
+    "DHE-RSA-CAMELLIA256-CBC-SHA256"
 #endif
 
 };
@@ -5544,7 +5652,39 @@ int cipher_name_idx[] =
 #endif
 
 #ifdef BUILD_TLS_ECDH_ECDSA_WITH_AES_256_GCM_SHA384
-    TLS_ECDH_ECDSA_WITH_AES_256_GCM_SHA384
+    TLS_ECDH_ECDSA_WITH_AES_256_GCM_SHA384,
+#endif
+
+#ifdef BUILD_TLS_RSA_WITH_CAMELLIA_128_CBC_SHA
+    TLS_RSA_WITH_CAMELLIA_128_CBC_SHA,
+#endif
+
+#ifdef BUILD_TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA
+    TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA,
+#endif
+
+#ifdef BUILD_TLS_RSA_WITH_CAMELLIA_256_CBC_SHA
+    TLS_RSA_WITH_CAMELLIA_256_CBC_SHA,
+#endif
+
+#ifdef BUILD_TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA
+    TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA,
+#endif
+
+#ifdef BUILD_TLS_RSA_WITH_CAMELLIA_128_CBC_SHA256
+    TLS_RSA_WITH_CAMELLIA_128_CBC_SHA256,
+#endif
+
+#ifdef BUILD_TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA256
+    TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA256,
+#endif
+
+#ifdef BUILD_TLS_RSA_WITH_CAMELLIA_256_CBC_SHA256
+    TLS_RSA_WITH_CAMELLIA_256_CBC_SHA256,
+#endif
+
+#ifdef BUILD_TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA256
+    TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA256
 #endif
 
 };
@@ -7562,6 +7702,26 @@ int SetCipherList(Suites* s, const char* list)
         case TLS_DHE_RSA_WITH_AES_128_GCM_SHA256 :
         case TLS_DHE_RSA_WITH_AES_256_GCM_SHA384 :
             if (requirement == REQUIRES_RSA)
+                return 1;
+            if (requirement == REQUIRES_DHE)
+                return 1;
+            break;
+
+        case TLS_RSA_WITH_CAMELLIA_128_CBC_SHA :
+        case TLS_RSA_WITH_CAMELLIA_256_CBC_SHA :
+        case TLS_RSA_WITH_CAMELLIA_128_CBC_SHA256 :
+        case TLS_RSA_WITH_CAMELLIA_256_CBC_SHA256 :
+            if (requirement == REQUIRES_RSA)
+                return 1;
+            break;
+
+        case TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA :
+        case TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA :
+        case TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA256 :
+        case TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA256 :
+            if (requirement == REQUIRES_RSA)
+                return 1;
+            if (requirement == REQUIRES_RSA_SIG)
                 return 1;
             if (requirement == REQUIRES_DHE)
                 return 1;

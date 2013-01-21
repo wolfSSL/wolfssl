@@ -381,6 +381,28 @@ int SuiteTest(void)
     }
 #endif
 
+#ifdef HAVE_CAMELLIA
+    /* add camellia suites */
+    strcpy(argv0[1], "tests/test-camellia.conf");
+    printf("starting camellia suite tests\n");
+    test_harness(&args);
+    if (args.return_code != 0) {
+        printf("error from script %d\n", args.return_code);
+        exit(EXIT_FAILURE);  
+    }
+    #ifdef OPENSSL_EXTRA
+        /* add camellia openssl extra suites */
+        strcpy(argv0[1], "tests/test-camellia-openssl.conf");
+        printf("starting camellia openssl extra suite tests\n");
+        test_harness(&args);
+        if (args.return_code != 0) {
+            printf("error from script %d\n", args.return_code);
+            exit(EXIT_FAILURE);  
+        }
+    
+    #endif
+#endif
+
 #ifdef CYASSL_DTLS 
     /* add dtls extra suites */
     strcpy(argv0[1], "tests/test-dtls.conf");

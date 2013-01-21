@@ -34,6 +34,7 @@
 #include <cyassl/ctaocrypt/asn.h>
 #include <cyassl/ctaocrypt/md5.h>
 #include <cyassl/ctaocrypt/aes.h>
+#include <cyassl/ctaocrypt/camellia.h>
 #include <cyassl/ctaocrypt/logging.h>
 #ifndef NO_RC4
     #include <cyassl/ctaocrypt/arc4.h>
@@ -165,6 +166,25 @@ void c32to24(word32 in, word24 out);
     #if defined (HAVE_AESCCM)
         #define BUILD_TLS_RSA_WITH_AES_128_CCM_8_SHA256
         #define BUILD_TLS_RSA_WITH_AES_256_CCM_8_SHA384
+    #endif
+#endif
+
+#if defined(HAVE_CAMELLIA) && !defined(NO_TLS)
+    #ifndef NO_RSA
+        #define BUILD_TLS_RSA_WITH_CAMELLIA_128_CBC_SHA
+        #define BUILD_TLS_RSA_WITH_CAMELLIA_256_CBC_SHA
+        #ifndef NO_SHA256
+            #define BUILD_TLS_RSA_WITH_CAMELLIA_128_CBC_SHA256
+            #define BUILD_TLS_RSA_WITH_CAMELLIA_256_CBC_SHA256
+        #endif
+        #if !defined(NO_DH) && defined(OPENSSL_EXTRA)
+            #define BUILD_TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA
+            #define BUILD_TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA
+            #ifndef NO_SHA256
+                #define BUILD_TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA256
+                #define BUILD_TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA256
+            #endif
+        #endif
     #endif
 #endif
 
@@ -368,7 +388,17 @@ enum {
      * there will be second byte number conflicts
      * with non-ECC AES-GCM */
     TLS_RSA_WITH_AES_128_CCM_8_SHA256        = 0xa0,
-    TLS_RSA_WITH_AES_256_CCM_8_SHA384        = 0xa1
+    TLS_RSA_WITH_AES_256_CCM_8_SHA384        = 0xa1,
+
+    TLS_RSA_WITH_CAMELLIA_128_CBC_SHA        = 0x41,
+    TLS_RSA_WITH_CAMELLIA_256_CBC_SHA        = 0x84,
+    TLS_RSA_WITH_CAMELLIA_128_CBC_SHA256     = 0xba,
+    TLS_RSA_WITH_CAMELLIA_256_CBC_SHA256     = 0xc0,
+    TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA    = 0x45,
+    TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA    = 0x88,
+    TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA256 = 0xbe,
+    TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA256 = 0xc4
+
 };
 
 
@@ -486,6 +516,11 @@ enum Misc {
     AEAD_IMP_IV_SZ      = 4,        /* Size of the implicit IV     */
     AEAD_EXP_IV_SZ      = 8,        /* Size of the explicit IV     */
     AEAD_NONCE_SZ       = AEAD_EXP_IV_SZ + AEAD_IMP_IV_SZ,
+
+    CAMELLIA_128_KEY_SIZE = 16, /* for 128 bit */
+    CAMELLIA_192_KEY_SIZE = 24, /* for 192 bit */
+    CAMELLIA_256_KEY_SIZE = 32, /* for 256 bit */
+    CAMELLIA_IV_SIZE      = 16, /* always block size */
 
     HC_128_KEY_SIZE     = 16,  /* 128 bits                */
     HC_128_IV_SIZE      = 16,  /* also 128 bits           */
@@ -981,6 +1016,7 @@ enum BulkCipherAlgorithm {
     aes,
     aes_gcm,
     aes_ccm,
+    camellia,
     hc128,                  /* CyaSSL extensions */
     rabbit
 };
@@ -1099,6 +1135,9 @@ typedef struct Ciphers {
 #endif
 #ifdef BUILD_AES
     Aes*    aes;
+#endif
+#ifdef HAVE_CAMELLIA
+    Camellia* cam;
 #endif
 #ifdef HAVE_HC128
     HC128*  hc128;

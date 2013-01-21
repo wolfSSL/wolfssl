@@ -240,7 +240,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 
     if (cipherList)
         if (SSL_CTX_set_cipher_list(ctx, cipherList) != SSL_SUCCESS)
-            err_sys("can't set cipher list");
+            err_sys("server can't set cipher list 1");
 
 #ifdef CYASSL_LEANPSK
     usePsk = 1;
@@ -285,7 +285,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
                 defaultCipherList = "PSK-AES256-CBC-SHA";
             #endif
             if (SSL_CTX_set_cipher_list(ctx, defaultCipherList) != SSL_SUCCESS)
-                err_sys("can't set cipher list");
+                err_sys("server can't set cipher list 2");
         }
 #endif
     }
@@ -308,7 +308,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     /* don't use EDH, can't sniff tmp keys */
     if (cipherList == NULL) {
         if (SSL_CTX_set_cipher_list(ctx, "AES256-SHA") != SSL_SUCCESS)
-            err_sys("can't set cipher list");
+            err_sys("server can't set cipher list 3");
     }
 #endif
 

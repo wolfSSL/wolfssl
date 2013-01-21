@@ -970,6 +970,138 @@ int SetCipherSpecs(CYASSL* ssl)
         break;
 #endif
 
+#ifdef BUILD_TLS_RSA_WITH_CAMELLIA_128_CBC_SHA
+    case TLS_RSA_WITH_CAMELLIA_128_CBC_SHA :
+        ssl->specs.bulk_cipher_algorithm = camellia;
+        ssl->specs.cipher_type           = block;
+        ssl->specs.mac_algorithm         = sha_mac;
+        ssl->specs.kea                   = rsa_kea;
+        ssl->specs.hash_size             = SHA_DIGEST_SIZE;
+        ssl->specs.pad_size              = PAD_SHA;
+        ssl->specs.static_ecdh           = 0;
+        ssl->specs.key_size              = CAMELLIA_128_KEY_SIZE;
+        ssl->specs.block_size            = CAMELLIA_BLOCK_SIZE;
+        ssl->specs.iv_size               = CAMELLIA_IV_SIZE;
+
+        break;
+#endif
+    
+#ifdef BUILD_TLS_RSA_WITH_CAMELLIA_256_CBC_SHA
+    case TLS_RSA_WITH_CAMELLIA_256_CBC_SHA :
+        ssl->specs.bulk_cipher_algorithm = camellia;
+        ssl->specs.cipher_type           = block;
+        ssl->specs.mac_algorithm         = sha_mac;
+        ssl->specs.kea                   = rsa_kea;
+        ssl->specs.hash_size             = SHA_DIGEST_SIZE;
+        ssl->specs.pad_size              = PAD_SHA;
+        ssl->specs.static_ecdh           = 0;
+        ssl->specs.key_size              = CAMELLIA_256_KEY_SIZE;
+        ssl->specs.block_size            = CAMELLIA_BLOCK_SIZE;
+        ssl->specs.iv_size               = CAMELLIA_IV_SIZE;
+
+        break;
+#endif
+
+#ifdef BUILD_TLS_RSA_WITH_CAMELLIA_128_CBC_SHA256
+    case TLS_RSA_WITH_CAMELLIA_128_CBC_SHA256 :
+        ssl->specs.bulk_cipher_algorithm = camellia;
+        ssl->specs.cipher_type           = block;
+        ssl->specs.mac_algorithm         = sha256_mac;
+        ssl->specs.kea                   = rsa_kea;
+        ssl->specs.hash_size             = SHA256_DIGEST_SIZE;
+        ssl->specs.pad_size              = PAD_SHA;
+        ssl->specs.static_ecdh           = 0;
+        ssl->specs.key_size              = CAMELLIA_128_KEY_SIZE;
+        ssl->specs.block_size            = CAMELLIA_BLOCK_SIZE;
+        ssl->specs.iv_size               = CAMELLIA_IV_SIZE;
+
+        break;
+#endif
+
+#ifdef BUILD_TLS_RSA_WITH_CAMELLIA_256_CBC_SHA256
+    case TLS_RSA_WITH_CAMELLIA_256_CBC_SHA256 :
+        ssl->specs.bulk_cipher_algorithm = camellia;
+        ssl->specs.cipher_type           = block;
+        ssl->specs.mac_algorithm         = sha256_mac;
+        ssl->specs.kea                   = rsa_kea;
+        ssl->specs.hash_size             = SHA256_DIGEST_SIZE;
+        ssl->specs.pad_size              = PAD_SHA;
+        ssl->specs.static_ecdh           = 0;
+        ssl->specs.key_size              = CAMELLIA_256_KEY_SIZE;
+        ssl->specs.block_size            = CAMELLIA_BLOCK_SIZE;
+        ssl->specs.iv_size               = CAMELLIA_IV_SIZE;
+
+        break;
+#endif
+
+#ifdef BUILD_TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA
+    case TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA :
+        ssl->specs.bulk_cipher_algorithm = camellia;
+        ssl->specs.cipher_type           = block;
+        ssl->specs.mac_algorithm         = sha_mac;
+        ssl->specs.kea                   = diffie_hellman_kea;
+        ssl->specs.sig_algo              = rsa_sa_algo;
+        ssl->specs.hash_size             = SHA_DIGEST_SIZE;
+        ssl->specs.pad_size              = PAD_SHA;
+        ssl->specs.static_ecdh           = 0;
+        ssl->specs.key_size              = CAMELLIA_128_KEY_SIZE;
+        ssl->specs.block_size            = CAMELLIA_BLOCK_SIZE;
+        ssl->specs.iv_size               = CAMELLIA_IV_SIZE;
+
+        break;
+#endif
+
+#ifdef BUILD_TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA
+    case TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA :
+        ssl->specs.bulk_cipher_algorithm = camellia;
+        ssl->specs.cipher_type           = block;
+        ssl->specs.mac_algorithm         = sha_mac;
+        ssl->specs.kea                   = diffie_hellman_kea;
+        ssl->specs.sig_algo              = rsa_sa_algo;
+        ssl->specs.hash_size             = SHA_DIGEST_SIZE;
+        ssl->specs.pad_size              = PAD_SHA;
+        ssl->specs.static_ecdh           = 0;
+        ssl->specs.key_size              = CAMELLIA_256_KEY_SIZE;
+        ssl->specs.block_size            = CAMELLIA_BLOCK_SIZE;
+        ssl->specs.iv_size               = CAMELLIA_IV_SIZE;
+
+        break;
+#endif
+
+#ifdef BUILD_TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA256
+    case TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA256 :
+        ssl->specs.bulk_cipher_algorithm = camellia;
+        ssl->specs.cipher_type           = block;
+        ssl->specs.mac_algorithm         = sha256_mac;
+        ssl->specs.kea                   = diffie_hellman_kea;
+        ssl->specs.sig_algo              = rsa_sa_algo;
+        ssl->specs.hash_size             = SHA256_DIGEST_SIZE;
+        ssl->specs.pad_size              = PAD_SHA;
+        ssl->specs.static_ecdh           = 0;
+        ssl->specs.key_size              = CAMELLIA_128_KEY_SIZE;
+        ssl->specs.block_size            = CAMELLIA_BLOCK_SIZE;
+        ssl->specs.iv_size               = CAMELLIA_IV_SIZE;
+
+        break;
+#endif
+
+#ifdef BUILD_TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA256
+    case TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA256 :
+        ssl->specs.bulk_cipher_algorithm = camellia;
+        ssl->specs.cipher_type           = block;
+        ssl->specs.mac_algorithm         = sha256_mac;
+        ssl->specs.kea                   = diffie_hellman_kea;
+        ssl->specs.sig_algo              = rsa_sa_algo;
+        ssl->specs.hash_size             = SHA256_DIGEST_SIZE;
+        ssl->specs.pad_size              = PAD_SHA;
+        ssl->specs.static_ecdh           = 0;
+        ssl->specs.key_size              = CAMELLIA_256_KEY_SIZE;
+        ssl->specs.block_size            = CAMELLIA_BLOCK_SIZE;
+        ssl->specs.iv_size               = CAMELLIA_IV_SIZE;
+
+        break;
+#endif
+
     default:
         CYASSL_MSG("Unsupported cipher suite, SetCipherSpecs");
         return UNSUPPORTED_SUITE;
@@ -1221,6 +1353,33 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
             AesCcmSetKey(dec->aes, keys->client_write_key, specs->key_size);
             XMEMCPY(keys->aead_dec_imp_IV,
                                      keys->client_write_IV, AEAD_IMP_IV_SZ);
+        }
+        enc->setup = 1;
+        dec->setup = 1;
+    }
+#endif
+
+#ifdef HAVE_CAMELLIA
+    if (specs->bulk_cipher_algorithm == camellia) {
+        enc->cam = (Camellia*)XMALLOC(sizeof(Camellia),
+                                                     heap, DYNAMIC_TYPE_CIPHER);
+        if (enc->cam == NULL)
+            return MEMORY_E;
+        dec->cam = (Camellia*)XMALLOC(sizeof(Camellia),
+                                                     heap, DYNAMIC_TYPE_CIPHER);
+        if (dec->cam == NULL)
+            return MEMORY_E;
+        if (side == CLIENT_END) {
+            CamelliaSetKey(enc->cam, keys->client_write_key,
+                      specs->key_size, keys->client_write_IV);
+            CamelliaSetKey(dec->cam, keys->server_write_key,
+                      specs->key_size, keys->server_write_IV);
+        }
+        else {
+            CamelliaSetKey(enc->cam, keys->server_write_key,
+                      specs->key_size, keys->server_write_IV);
+            CamelliaSetKey(dec->cam, keys->client_write_key,
+                      specs->key_size, keys->client_write_IV);
         }
         enc->setup = 1;
         dec->setup = 1;
