@@ -365,6 +365,21 @@ fi
 AM_CONDITIONAL([BUILD_AESNI], [test "x$ENABLED_AESNI" = "xyes"])
 
 
+# Camellia
+AC_ARG_ENABLE([camellia],
+    [  --enable-camellia       Enable CyaSSL Camellia support (default: disabled)],
+    [ ENABLED_CAMELLIA=$enableval ],
+    [ ENABLED_CAMELLIA=no ]
+    )
+
+if test "$ENABLED_CAMELLIA" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_CAMELLIA"
+fi
+
+AM_CONDITIONAL([BUILD_CAMELLIA], [test "x$ENABLED_CAMELLIA" = "xyes"])
+
+
 # MD2
 AC_ARG_ENABLE([md2],
     [  --enable-md2            Enable CyaSSL MD2 support (default: disabled)],
@@ -834,6 +849,7 @@ echo "   * sniffer:                   $ENABLED_SNIFFER"
 echo "   * AES-NI:                    $ENABLED_AESNI"
 echo "   * AES-GCM:                   $ENABLED_AESGCM"
 echo "   * AES-CCM:                   $ENABLED_AESCCM"
+echo "   * Camellia:                  $ENABLED_CAMELLIA"
 echo "   * RIPEMD:                    $ENABLED_RIPEMD"
 echo "   * SHA-512:                   $ENABLED_SHA512"
 echo "   * keygen:                    $ENABLED_KEYGEN"
