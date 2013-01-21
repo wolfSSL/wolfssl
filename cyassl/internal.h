@@ -255,6 +255,10 @@ void c32to24(word32 in, word24 out);
             #define BUILD_TLS_ECDH_RSA_WITH_AES_256_GCM_SHA384
             #define BUILD_TLS_ECDH_ECDSA_WITH_AES_256_GCM_SHA384
         #endif
+        #if defined (HAVE_AESCCM)
+            #define BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8_SHA256
+            #define BUILD_TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8_SHA384
+        #endif
     #endif
     #if !defined(NO_RC4)
         #define BUILD_TLS_ECDHE_RSA_WITH_RC4_128_SHA
@@ -387,8 +391,10 @@ enum {
      * also, in some of the other AES-CCM suites
      * there will be second byte number conflicts
      * with non-ECC AES-GCM */
-    TLS_RSA_WITH_AES_128_CCM_8_SHA256        = 0xa0,
-    TLS_RSA_WITH_AES_256_CCM_8_SHA384        = 0xa1,
+    TLS_RSA_WITH_AES_128_CCM_8_SHA256         = 0xa0,
+    TLS_RSA_WITH_AES_256_CCM_8_SHA384         = 0xa1,
+    TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8_SHA256 = 0xac, /* Still TBD, made up */
+    TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8_SHA384 = 0xad, /* Still TBD, made up */
 
     TLS_RSA_WITH_CAMELLIA_128_CBC_SHA        = 0x41,
     TLS_RSA_WITH_CAMELLIA_256_CBC_SHA        = 0x84,

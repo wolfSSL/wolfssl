@@ -373,12 +373,22 @@ int SuiteTest(void)
 #if defined(HAVE_AESCCM)
     /* add aesccm extra suites */
     strcpy(argv0[1], "tests/test-aesccm.conf");
-    printf("starting aesccm extra cipher suite tests\n");
+    printf("starting aesccm cipher suite tests\n");
     test_harness(&args);
     if (args.return_code != 0) {
         printf("error from script %d\n", args.return_code);
         exit(EXIT_FAILURE);  
     }
+    #ifdef HAVE_ECC
+        /* add aesccm ecc extra suites */
+        strcpy(argv0[1], "tests/test-aesccm-ecc.conf");
+        printf("starting aesccm ecc cipher suite tests\n");
+        test_harness(&args);
+        if (args.return_code != 0) {
+            printf("error from script %d\n", args.return_code);
+            exit(EXIT_FAILURE);  
+        }
+    #endif
 #endif
 
 #ifdef HAVE_CAMELLIA

@@ -775,6 +775,20 @@ void InitSuites(Suites* suites, ProtocolVersion pv, byte haveRSA, byte havePSK,
     }
 #endif
 
+#ifdef BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8_SHA256
+    if (tls1_2 && haveECDSAsig && haveDH) {
+        suites->suites[idx++] = ECC_BYTE; 
+        suites->suites[idx++] = TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8_SHA256;
+    }
+#endif
+
+#ifdef BUILD_TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8_SHA384
+    if (tls1_2 && haveECDSAsig && haveDH) {
+        suites->suites[idx++] = ECC_BYTE; 
+        suites->suites[idx++] = TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8_SHA384;
+    }
+#endif
+
 #ifdef BUILD_TLS_RSA_WITH_AES_128_CCM_8_SHA256
     if (tls1_2 && haveRSA) {
         suites->suites[idx++] = ECC_BYTE; 
@@ -5267,6 +5281,14 @@ const char* const cipher_names[] =
     "AES256-CCM-8-SHA384",
 #endif
 
+#ifdef BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8_SHA256
+    "ECDHE-ECDSA-AES128-CCM-8-SHA256",
+#endif
+
+#ifdef BUILD_TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8_SHA384
+    "ECDHE-ECDSA-AES256-CCM-8-SHA384",
+#endif
+
 #ifdef BUILD_TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA
     "ECDHE-RSA-AES128-SHA",
 #endif
@@ -5525,6 +5547,14 @@ int cipher_name_idx[] =
 
 #ifdef BUILD_TLS_RSA_WITH_AES_256_CCM_8_SHA384
     TLS_RSA_WITH_AES_256_CCM_8_SHA384,
+#endif
+
+#ifdef BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8_SHA256
+    TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8_SHA256,
+#endif
+
+#ifdef BUILD_TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8_SHA384
+    TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8_SHA384,
 #endif
 
 #ifdef BUILD_TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA
@@ -7553,6 +7583,12 @@ int SetCipherList(Suites* s, const char* list)
             if (requirement == REQUIRES_RSA)
                 return 1;
             if (requirement == REQUIRES_RSA_SIG)
+                return 1;
+            break;
+
+        case TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8_SHA256 :
+        case TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8_SHA384 :
+            if (requirement == REQUIRES_ECC_DSA)
                 return 1;
             break;
 
