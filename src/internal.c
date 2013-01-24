@@ -3856,6 +3856,9 @@ static int GetInputData(CYASSL *ssl, word32 size)
    
         if (in == WANT_READ)
             return WANT_READ;
+
+        if (in > inSz)
+            return RECV_OVERFLOW_E;
         
         ssl->buffers.inputBuffer.length += in;
         inSz -= in;
@@ -5175,6 +5178,10 @@ void SetErrorString(int error, char* str)
 
     case SANITY_CIPHER_E:
         XSTRNCPY(str, "Sanity check on ciphertext failed", max);
+        break;
+
+    case RECV_OVERFLOW_E:
+        XSTRNCPY(str, "Receive callback returned more than requested", max);
         break;
 
     default :
