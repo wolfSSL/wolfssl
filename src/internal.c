@@ -274,7 +274,7 @@ static INLINE void ato32(const byte* c, word32* u32)
     static int Compress(CYASSL* ssl, byte* in, int inSz, byte* out, int outSz)
     {
         int    err;
-        int    currTotal = ssl->c_stream.total_out;
+        int    currTotal = (int)ssl->c_stream.total_out;
 
         ssl->c_stream.next_in   = in;
         ssl->c_stream.avail_in  = inSz;
@@ -284,7 +284,7 @@ static INLINE void ato32(const byte* c, word32* u32)
         err = deflate(&ssl->c_stream, Z_SYNC_FLUSH);
         if (err != Z_OK && err != Z_STREAM_END) return ZLIB_COMPRESS_ERROR;
 
-        return ssl->c_stream.total_out - currTotal;
+        return (int)ssl->c_stream.total_out - currTotal;
     }
         
 
@@ -292,7 +292,7 @@ static INLINE void ato32(const byte* c, word32* u32)
     static int DeCompress(CYASSL* ssl, byte* in, int inSz, byte* out, int outSz)
     {
         int    err;
-        int    currTotal = ssl->d_stream.total_out;
+        int    currTotal = (int)ssl->d_stream.total_out;
 
         ssl->d_stream.next_in   = in;
         ssl->d_stream.avail_in  = inSz;
@@ -302,7 +302,7 @@ static INLINE void ato32(const byte* c, word32* u32)
         err = inflate(&ssl->d_stream, Z_SYNC_FLUSH);
         if (err != Z_OK && err != Z_STREAM_END) return ZLIB_DECOMPRESS_ERROR;
 
-        return ssl->d_stream.total_out - currTotal;
+        return (int)ssl->d_stream.total_out - currTotal;
     }
         
 #endif /* HAVE_LIBZ */
