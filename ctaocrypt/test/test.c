@@ -64,6 +64,11 @@
     #include <cyassl/openssl/des.h>
 #endif
 
+#if defined(USE_CERT_BUFFERS_1024) || defined(USE_CERT_BUFFERS_2048)
+    /* include test cert and key buffers for use with NO_FILESYSTEM */
+    #include <cyassl/certs_test.h>
+#endif
+
 #ifdef HAVE_NTRU
     #include "crypto_ntru.h"
 #endif
@@ -2054,7 +2059,7 @@ byte GetEntropy(ENTROPY_CMD cmd, byte* out)
         static const char* caKeyFile  = "a:\certs\\ca-key.der";
         static const char* caCertFile = "a:\certs\\ca-cert.pem";
     #endif
-    #else
+#elif !defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048)
     static const char* clientKey  = "./certs/client-key.der";
     static const char* clientCert = "./certs/client-cert.der";
     #ifdef CYASSL_CERT_GEN
@@ -2077,7 +2082,9 @@ int rsa_test(void)
     word32 inLen = (word32)strlen((char*)in);
     byte   out[256];
     byte   plain[256];
+#if !defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048)
     FILE*  file, * file2;
+#endif
 #ifdef CYASSL_TEST_CERT
     DecodedCert cert;
 #endif
@@ -2086,6 +2093,13 @@ int rsa_test(void)
     if (tmp == NULL)
         return -40;
 
+#ifdef USE_CERT_BUFFERS_1024
+    XMEMCPY(tmp, client_key_der_1024, sizeof(client_key_der_1024));
+    bytes = sizeof(client_key_der_1024);
+#elif defined(USE_CERT_BUFFERS_2048)
+    XMEMCPY(tmp, client_key_der_2048, sizeof(client_key_der_2048));
+    bytes = sizeof(client_key_der_2048);
+#else
     file = fopen(clientKey, "rb");
 
     if (!file)
@@ -2093,6 +2107,7 @@ int rsa_test(void)
                 "Please run from CyaSSL home dir", -40);
 
     bytes = fread(tmp, 1, FOURK_BUF, file);
+#endif /* USE_CERT_BUFFERS */
   
     InitRsaKey(&key, 0);  
     ret = RsaPrivateKeyDecode(tmp, &idx, &key, (word32)bytes);
@@ -2118,11 +2133,19 @@ int rsa_test(void)
 
     if (memcmp(plain, in, ret)) return -48;
 
+#ifdef USE_CERT_BUFFERS_1024
+    XMEMCPY(tmp, client_cert_der_1024, sizeof(client_cert_der_1024));
+    bytes = sizeof(client_cert_der_1024);
+#elif defined(USE_CERT_BUFFERS_2048)
+    XMEMCPY(tmp, client_cert_der_2048, sizeof(client_cert_der_2048));
+    bytes = sizeof(client_cert_der_2048);
+#else
     file2 = fopen(clientCert, "rb");
     if (!file2)
         return -49;
 
     bytes = fread(tmp, 1, FOURK_BUF, file2);
+#endif
 
 #ifdef CYASSL_TEST_CERT
     InitDecodedCert(&cert, tmp, (word32)bytes, 0);
@@ -2135,8 +2158,10 @@ int rsa_test(void)
     (void)bytes;
 #endif
 
+#if !defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048)
     fclose(file2);
     fclose(file);
+#endif
 
 #ifdef CYASSL_KEY_GEN
     {
@@ -2475,7 +2500,7 @@ int rsa_test(void)
 
 #ifdef FREESCALE_MQX
     static const char* dhKey = "a:\certs\\dh2048.der";
-#else
+#elif !defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048)
     static const char* dhKey = "./certs/dh2048.der";
 #endif
 
@@ -2494,12 +2519,20 @@ int dh_test(void)
     DhKey  key;
     DhKey  key2;
     RNG    rng;
+#ifdef USE_CERT_BUFFERS_1024
+    XMEMCPY(tmp, dh_key_der_1024, sizeof(dh_key_der_1024));
+    bytes = sizeof(dh_key_der_1024);
+#elif defined(USE_CERT_BUFFERS_2048)
+    XMEMCPY(tmp, dh_key_der_2048, sizeof(dh_key_der_2048));
+    bytes = sizeof(dh_key_der_2048);
+#else
     FILE*  file = fopen(dhKey, "rb");
 
     if (!file)
         return -50;
 
     bytes = (word32) fread(tmp, 1, sizeof(tmp), file);
+#endif /* USE_CERT_BUFFERS */
 
     InitDhKey(&key);  
     InitDhKey(&key2);  
@@ -2531,7 +2564,9 @@ int dh_test(void)
 
     FreeDhKey(&key);
     FreeDhKey(&key2);
+#if !defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048)
     fclose(file);
+#endif
 
     return 0;
 }
@@ -2543,7 +2578,7 @@ int dh_test(void)
 
 #ifdef FREESCALE_MQX
     static const char* dsaKey = "a:\certs\\dsa2048.der";
-#else
+#elif !defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048)
     static const char* dsaKey = "./certs/dsa2048.der";
 #endif
 
@@ -2555,15 +2590,23 @@ int dsa_test(void)
     byte   tmp[1024];
     DsaKey key;
     RNG    rng;
-    FILE*  file = fopen(dsaKey, "rb");
     Sha    sha;
     byte   hash[SHA_DIGEST_SIZE];
     byte   signature[40];
+#ifdef USE_CERT_BUFFERS_1024
+    XMEMCPY(tmp, dsa_key_der_1024, sizeof(dsa_key_der_1024));
+    bytes = sizeof(dsa_key_der_1024);
+#elif defined(USE_CERT_BUFFERS_2048)
+    XMEMCPY(tmp, dsa_key_der_2048, sizeof(dsa_key_der_2048));
+    bytes = sizeof(dsa_key_der_2048);
+#else
+    FILE*  file = fopen(dsaKey, "rb");
 
     if (!file)
         return -60;
 
     bytes = (word32) fread(tmp, 1, sizeof(tmp), file);
+#endif /* USE_CERT_BUFFERS */
   
     InitSha(&sha);
     ShaUpdate(&sha, tmp, bytes);
@@ -2584,7 +2627,9 @@ int dsa_test(void)
     if (answer != 1) return -65;
     
     FreeDsaKey(&key);
+#if !defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048)
     fclose(file);
+#endif
     
     return 0;
 }

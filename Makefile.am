@@ -34,9 +34,11 @@ EXTRA_DIST+= cyassl-iphone.xcodeproj/project.pbxproj
 EXTRA_DIST+= cyassl-ntru.sln
 EXTRA_DIST+= cyassl.sln
 EXTRA_DIST+= valgrind-error.sh
+EXTRA_DIST+= gencertbuf.pl
 
 include cyassl/include.am
 include certs/include.am
+include certs/1024/include.am
 include certs/crl/include.am
 include doc/include.am
 include swig/include.am
