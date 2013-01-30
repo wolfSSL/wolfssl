@@ -1139,12 +1139,6 @@ int hmac_sha384_test(void)
     test_hmac[2] = c;
 
     for (i = 0; i < times; ++i) {
-#ifdef HAVE_CAVIUM
-        if (i == 1)
-            continue; /* driver can't handle keys <= bytes */
-        if (HmacInitCavium(&hmac, CAVIUM_DEV_ID) != 0)
-            return -20012;
-#endif
         HmacSetKey(&hmac, SHA384, (byte*)keys[i], (word32)strlen(keys[i]));
         HmacUpdate(&hmac, (byte*)test_hmac[i].input,
                    (word32)test_hmac[i].inLen);
@@ -1152,9 +1146,6 @@ int hmac_sha384_test(void)
 
         if (memcmp(hash, test_hmac[i].output, SHA384_DIGEST_SIZE) != 0)
             return -20 - i;
-#ifdef HAVE_CAVIUM
-        HmacFreeCavium(&hmac);
-#endif
     }
 
     return 0;
