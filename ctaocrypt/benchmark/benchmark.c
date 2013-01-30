@@ -44,6 +44,12 @@
 #include <cyassl/ctaocrypt/ecc.h>
 
 #include <cyassl/ctaocrypt/dh.h>
+#ifdef HAVE_CAVIUM
+    #include "cavium_sysdep.h"
+    #include "cavium_common.h"
+    #include "cavium_ioctl.h"
+#endif
+
 
 #ifdef _MSC_VER
     /* 4996 warning to use MS extensions e.g., strcpy_s instead of strncpy */
@@ -76,11 +82,42 @@ void bench_eccKeyAgree(void);
 double current_time(void);
 
 
+#ifdef HAVE_CAVIUM
+
+static int OpenNitroxDevice(int dma_mode,int dev_id)
+{
+   Csp1CoreAssignment core_assign;
+   Uint32             device;
+
+   if (CspInitialize(CAVIUM_DIRECT,CAVIUM_DEV_ID))
+      return -1;
+   if (Csp1GetDevType(&device))
+      return -1;
+   if (device != NPX_DEVICE) {
+      if (ioctl(gpkpdev_hdlr[CAVIUM_DEV_ID], IOCTL_CSP1_GET_CORE_ASSIGNMENT,
+                (Uint32 *)&core_assign)!= 0)
+         return -1;
+   }
+   CspShutdown(CAVIUM_DEV_ID);
+
+   return CspInitialize(dma_mode, dev_id);
+}
+
+#endif
+
+
 
 int main(int argc, char** argv)
 {
   (void)argc;
   (void)argv;
+#ifdef HAVE_CAVIUM
+    int ret = OpenNitroxDevice(CAVIUM_DIRECT, CAVIUM_DEV_ID);
+    if (ret != 0) {
+        printf("Cavium OpenNitroxDevice failed\n");
+        exit(-1);
+    }
+#endif /* HAVE_CAVIUM */
 #ifndef NO_AES
     bench_aes(0);
     bench_aes(1);
@@ -175,6 +212,11 @@ void bench_aes(int show)
     double start, total, persec;
     int    i;
 
+#ifdef HAVE_CAVIUM
+    if (AesInitCavium(&enc, CAVIUM_DEV_ID) != 0)
+        printf("aes init cavium failed\n");
+#endif
+
     AesSetKey(&enc, key, 16, iv, AES_ENCRYPTION);
     start = current_time();
 
@@ -188,6 +230,9 @@ void bench_aes(int show)
     if (show)
         printf("AES      %d megs took %5.3f seconds, %6.2f MB/s\n", megs, total,
                                                                     persec);
+#ifdef HAVE_CAVIUM
+    AesFreeCavium(&enc);
+#endif
 }
 #endif
 
@@ -271,6 +316,10 @@ void bench_des(void)
     double start, total, persec;
     int    i;
 
+#ifdef HAVE_CAVIUM
+    if (Des3_InitCavium(&enc, CAVIUM_DEV_ID) != 0)
+        printf("des3 init cavium failed\n");
+#endif
     Des3_SetKey(&enc, key, iv, DES_ENCRYPTION);
     start = current_time();
 
@@ -283,6 +332,9 @@ void bench_des(void)
 
     printf("3DES     %d megs took %5.3f seconds, %6.2f MB/s\n", megs, total,
                                                              persec);
+#ifdef HAVE_CAVIUM
+    Des3_FreeCavium(&enc);
+#endif
 }
 #endif
 
@@ -294,6 +346,11 @@ void bench_arc4(void)
     double start, total, persec;
     int    i;
     
+#ifdef HAVE_CAVIUM
+    if (Arc4InitCavium(&enc, CAVIUM_DEV_ID) != 0)
+        printf("arc4 init cavium failed\n");
+#endif
+
     Arc4SetKey(&enc, key, 16);
     start = current_time();
 
@@ -305,6 +362,9 @@ void bench_arc4(void)
 
     printf("ARC4     %d megs took %5.3f seconds, %6.2f MB/s\n", megs, total,
                                                              persec);
+#ifdef HAVE_CAVIUM
+    Arc4FreeCavium(&enc);
+#endif
 }
 #endif
 

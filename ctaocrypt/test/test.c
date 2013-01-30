@@ -67,6 +67,11 @@
 #ifdef HAVE_NTRU
     #include "crypto_ntru.h"
 #endif
+#ifdef HAVE_CAVIUM
+    #include "cavium_sysdep.h"
+    #include "cavium_common.h"
+    #include "cavium_ioctl.h"
+#endif
 
 #include <string.h>
 #ifdef FREESCALE_MQX
@@ -149,6 +154,30 @@ typedef struct func_args {
 } func_args;
 
 
+
+#ifdef HAVE_CAVIUM
+
+static int OpenNitroxDevice(int dma_mode,int dev_id)
+{
+   Csp1CoreAssignment core_assign;
+   Uint32             device;
+
+   if (CspInitialize(CAVIUM_DIRECT,CAVIUM_DEV_ID))
+      return -1;
+   if (Csp1GetDevType(&device))
+      return -1;
+   if (device != NPX_DEVICE) {
+      if (ioctl(gpkpdev_hdlr[CAVIUM_DEV_ID], IOCTL_CSP1_GET_CORE_ASSIGNMENT,
+                (Uint32 *)&core_assign)!= 0)
+         return -1;
+   }
+   CspShutdown(CAVIUM_DEV_ID);
+
+   return CspInitialize(dma_mode, dev_id);
+}
+
+#endif
+
 void ctaocrypt_test(void* args)
 {
     int ret = 0;
@@ -164,6 +193,12 @@ void ctaocrypt_test(void* args)
         err_sys("Build vs runtime fastmath FP_MAX_BITS mismatch\n", -1235);
 #endif /* USE_FAST_MATH */
 #endif /* !CYASSL_LEANPSK */
+
+#ifdef HAVE_CAVIUM
+    ret = OpenNitroxDevice(CAVIUM_DIRECT, CAVIUM_DEV_ID);
+    if (ret != 0)
+        err_sys("Cavium OpenNitroxDevice failed", -1236);
+#endif /* HAVE_CAVIUM */
 
 #ifndef NO_MD5
     if ( (ret = md5_test()) ) 
@@ -356,6 +391,10 @@ void ctaocrypt_test(void* args)
         err_sys("ECC      test failed!\n", ret);
     else
         printf( "ECC      test passed!\n");
+#endif
+
+#ifdef HAVE_CAVIUM
+    CspShutdown(CAVIUM_DEV_ID);
 #endif
 
     ((func_args*)args)->return_code = ret;
@@ -885,6 +924,12 @@ int hmac_md5_test(void)
     test_hmac[2] = c;
 
     for (i = 0; i < times; ++i) {
+#ifdef HAVE_CAVIUM
+        if (i == 1)
+            continue; /* driver can't handle keys <= bytes */
+        if (HmacInitCavium(&hmac, CAVIUM_DEV_ID) != 0)
+            return -20009; 
+#endif
         HmacSetKey(&hmac, MD5, (byte*)keys[i], (word32)strlen(keys[i]));
         HmacUpdate(&hmac, (byte*)test_hmac[i].input,
                    (word32)test_hmac[i].inLen);
@@ -892,6 +937,9 @@ int hmac_md5_test(void)
 
         if (memcmp(hash, test_hmac[i].output, MD5_DIGEST_SIZE) != 0)
             return -20 - i;
+#ifdef HAVE_CAVIUM
+        HmacFreeCavium(&hmac);
+#endif
     }
 
     return 0;
@@ -944,6 +992,12 @@ int hmac_sha_test(void)
     test_hmac[2] = c;
 
     for (i = 0; i < times; ++i) {
+#ifdef HAVE_CAVIUM
+        if (i == 1)
+            continue; /* driver can't handle keys <= bytes */
+        if (HmacInitCavium(&hmac, CAVIUM_DEV_ID) != 0)
+            return -20010; 
+#endif
         HmacSetKey(&hmac, SHA, (byte*)keys[i], (word32)strlen(keys[i]));
         HmacUpdate(&hmac, (byte*)test_hmac[i].input,
                    (word32)test_hmac[i].inLen);
@@ -951,6 +1005,9 @@ int hmac_sha_test(void)
 
         if (memcmp(hash, test_hmac[i].output, SHA_DIGEST_SIZE) != 0)
             return -20 - i;
+#ifdef HAVE_CAVIUM
+        HmacFreeCavium(&hmac);
+#endif
     }
 
     return 0;
@@ -1007,6 +1064,12 @@ int hmac_sha256_test(void)
     test_hmac[2] = c;
 
     for (i = 0; i < times; ++i) {
+#ifdef HAVE_CAVIUM
+        if (i == 1)
+            continue; /* driver can't handle keys <= bytes */
+        if (HmacInitCavium(&hmac, CAVIUM_DEV_ID) != 0)
+            return -20011; 
+#endif
         HmacSetKey(&hmac, SHA256, (byte*)keys[i], (word32)strlen(keys[i]));
         HmacUpdate(&hmac, (byte*)test_hmac[i].input,
                    (word32)test_hmac[i].inLen);
@@ -1014,6 +1077,9 @@ int hmac_sha256_test(void)
 
         if (memcmp(hash, test_hmac[i].output, SHA256_DIGEST_SIZE) != 0)
             return -20 - i;
+#ifdef HAVE_CAVIUM
+        HmacFreeCavium(&hmac);
+#endif
     }
 
     return 0;
@@ -1073,6 +1139,12 @@ int hmac_sha384_test(void)
     test_hmac[2] = c;
 
     for (i = 0; i < times; ++i) {
+#ifdef HAVE_CAVIUM
+        if (i == 1)
+            continue; /* driver can't handle keys <= bytes */
+        if (HmacInitCavium(&hmac, CAVIUM_DEV_ID) != 0)
+            return -20012;
+#endif
         HmacSetKey(&hmac, SHA384, (byte*)keys[i], (word32)strlen(keys[i]));
         HmacUpdate(&hmac, (byte*)test_hmac[i].input,
                    (word32)test_hmac[i].inLen);
@@ -1080,6 +1152,9 @@ int hmac_sha384_test(void)
 
         if (memcmp(hash, test_hmac[i].output, SHA384_DIGEST_SIZE) != 0)
             return -20 - i;
+#ifdef HAVE_CAVIUM
+        HmacFreeCavium(&hmac);
+#endif
     }
 
     return 0;
@@ -1134,9 +1209,19 @@ int arc4_test(void)
     for (i = 0; i < times; ++i) {
         Arc4 enc;
         Arc4 dec;
+        int  keylen = 8;  /* strlen with key 0x00 not good */
+        if (i == 3)
+            keylen = 4;
 
-        Arc4SetKey(&enc, (byte*)keys[i], (word32)strlen(keys[i]));
-        Arc4SetKey(&dec, (byte*)keys[i], (word32)strlen(keys[i]));
+#ifdef HAVE_CAVIUM
+        if (Arc4InitCavium(&enc, CAVIUM_DEV_ID) != 0)
+            return -20001; 
+        if (Arc4InitCavium(&dec, CAVIUM_DEV_ID) != 0)
+            return -20002; 
+#endif
+
+        Arc4SetKey(&enc, (byte*)keys[i], keylen);
+        Arc4SetKey(&dec, (byte*)keys[i], keylen);
 
         Arc4Process(&enc, cipher, (byte*)test_arc4[i].input,
                     (word32)test_arc4[i].outLen);
@@ -1147,6 +1232,11 @@ int arc4_test(void)
 
         if (memcmp(cipher, test_arc4[i].output, test_arc4[i].outLen))
             return -20 - 5 - i;
+
+#ifdef HAVE_CAVIUM
+        Arc4FreeCavium(&enc);
+        Arc4FreeCavium(&dec);
+#endif
     }
 
     return 0;
@@ -1397,6 +1487,12 @@ int des3_test(void)
     };
 
 
+#ifdef HAVE_CAVIUM
+    if (Des3_InitCavium(&enc, CAVIUM_DEV_ID) != 0)
+        return -20005; 
+    if (Des3_InitCavium(&dec, CAVIUM_DEV_ID) != 0)
+        return -20006; 
+#endif
     Des3_SetKey(&enc, key3, iv3, DES_ENCRYPTION);
     Des3_CbcEncrypt(&enc, cipher, vector, sizeof(vector));
     Des3_SetKey(&dec, key3, iv3, DES_DECRYPTION);
@@ -1408,6 +1504,10 @@ int des3_test(void)
     if (memcmp(cipher, verify3, sizeof(cipher)))
         return -34;
 
+#ifdef HAVE_CAVIUM
+    Des3_FreeCavium(&enc);
+    Des3_FreeCavium(&dec);
+#endif
     return 0;
 }
 #endif /* NO_DES */
@@ -1437,6 +1537,12 @@ int aes_test(void)
     byte cipher[AES_BLOCK_SIZE * 4];
     byte plain [AES_BLOCK_SIZE * 4];
 
+#ifdef HAVE_CAVIUM
+        if (AesInitCavium(&enc, CAVIUM_DEV_ID) != 0)
+            return -20003; 
+        if (AesInitCavium(&dec, CAVIUM_DEV_ID) != 0)
+            return -20004; 
+#endif
     AesSetKey(&enc, key, AES_BLOCK_SIZE, iv, AES_ENCRYPTION);
     AesSetKey(&dec, key, AES_BLOCK_SIZE, iv, AES_DECRYPTION);
 
@@ -1449,6 +1555,10 @@ int aes_test(void)
     if (memcmp(cipher, verify, AES_BLOCK_SIZE))
         return -61;
 
+#ifdef HAVE_CAVIUM
+        AesFreeCavium(&enc);
+        AesFreeCavium(&dec);
+#endif
 #ifdef CYASSL_AES_COUNTER
     {
         const byte ctrKey[] = 
@@ -1895,7 +2005,13 @@ int random_test(void)
 {
     RNG  rng;
     byte block[32];
-    int ret = InitRng(&rng);
+    int ret;
+
+#ifdef HAVE_CAVIUM
+    ret = InitRngCavium(&rng, CAVIUM_DEV_ID);
+    if (ret != 0) return -2007;
+#endif
+    ret = InitRng(&rng);
     if (ret != 0) return -39;
 
     RNG_GenerateBlock(&rng, block, sizeof(block));

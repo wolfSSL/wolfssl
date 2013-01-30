@@ -29,6 +29,14 @@
 #include <cyassl/ctaocrypt/error.h>
 
 
+#ifdef HAVE_CAVIUM
+    static void HmacCaviumFinal(Hmac* hmac, byte* hash);
+    static void HmacCaviumUpdate(Hmac* hmac, const byte* msg, word32 length);
+    static void HmacCaviumSetKey(Hmac* hmac, int type, const byte* key,
+                                 word32 length);
+#endif
+
+
 static int InitHmac(Hmac* hmac, int type)
 {
     hmac->innerHashKeyed = 0;
@@ -73,6 +81,11 @@ void HmacSetKey(Hmac* hmac, int type, const byte* key, word32 length)
     byte*  ip = (byte*) hmac->ipad;
     byte*  op = (byte*) hmac->opad;
     word32 i, hmac_block_size = SHA_BLOCK_SIZE;
+
+#ifdef HAVE_CAVIUM
+    if (hmac->magic == CYASSL_HMAC_CAVIUM_MAGIC)
+        return HmacCaviumSetKey(hmac, type, key, length);
+#endif
 
     InitHmac(hmac, type);
 
@@ -187,6 +200,11 @@ static void HmacKeyInnerHash(Hmac* hmac)
 
 void HmacUpdate(Hmac* hmac, const byte* msg, word32 length)
 {
+#ifdef HAVE_CAVIUM
+    if (hmac->magic == CYASSL_HMAC_CAVIUM_MAGIC)
+        return HmacCaviumUpdate(hmac, msg, length);
+#endif
+
     if (!hmac->innerHashKeyed)
         HmacKeyInnerHash(hmac);
 
@@ -222,6 +240,11 @@ void HmacUpdate(Hmac* hmac, const byte* msg, word32 length)
 
 void HmacFinal(Hmac* hmac, byte* hash)
 {
+#ifdef HAVE_CAVIUM
+    if (hmac->magic == CYASSL_HMAC_CAVIUM_MAGIC)
+        return HmacCaviumFinal(hmac, hash);
+#endif
+
     if (!hmac->innerHashKeyed)
         HmacKeyInnerHash(hmac);
 
@@ -289,6 +312,116 @@ void HmacFinal(Hmac* hmac, byte* hash)
     hmac->innerHashKeyed = 0;
 }
 
+
+#ifdef HAVE_CAVIUM
+
+/* Initiliaze Hmac for use with Nitrox device */
+int HmacInitCavium(Hmac* hmac, int devId)
+{
+    if (hmac == NULL)
+        return -1;
+
+    if (CspAllocContext(CONTEXT_SSL, &hmac->contextHandle, devId) != 0)
+        return -1;
+
+    hmac->keyLen  = 0;
+    hmac->dataLen = 0;
+    hmac->type    = 0;
+    hmac->devId   = devId;
+    hmac->magic   = CYASSL_HMAC_CAVIUM_MAGIC;
+    hmac->data    = NULL;        /* buffered input data */
+   
+    hmac->innerHashKeyed = 0;
+
+    return 0;
+}
+
+
+/* Free Hmac from use with Nitrox device */
+void HmacFreeCavium(Hmac* hmac)
+{
+    if (hmac == NULL)
+        return;
+
+    CspFreeContext(CONTEXT_SSL, hmac->contextHandle, hmac->devId);
+    hmac->magic = 0;
+    XFREE(hmac->data, NULL, DYNAMIC_TYPE_CAVIUM_TMP);
+    hmac->data = NULL;
+}
+
+
+static void HmacCaviumFinal(Hmac* hmac, byte* hash)
+{
+    word32 requestId;
+
+    if (CspHmac(CAVIUM_BLOCKING, hmac->type, NULL, hmac->keyLen,
+                (byte*)hmac->ipad, hmac->dataLen, hmac->data, hash, &requestId,
+                hmac->devId) != 0) {
+        CYASSL_MSG("Cavium Hmac failed");
+    } 
+    hmac->innerHashKeyed = 0;  /* tell update to start over if used again */
+}
+
+
+static void HmacCaviumUpdate(Hmac* hmac, const byte* msg, word32 length)
+{
+    word16 add = (word16)length;
+    word32 total;
+    byte*  tmp;
+
+    if (length > CYASSL_MAX_16BIT) {
+        CYASSL_MSG("Too big msg for cavium hmac");
+        return;
+    }
+
+    if (hmac->innerHashKeyed == 0) {  /* starting new */
+        hmac->dataLen        = 0;
+        hmac->innerHashKeyed = 1;
+    }
+
+    total = add + hmac->dataLen;
+    if (total > CYASSL_MAX_16BIT) {
+        CYASSL_MSG("Too big msg for cavium hmac");
+        return;
+    }
+
+    tmp = XMALLOC(hmac->dataLen + add, NULL,DYNAMIC_TYPE_CAVIUM_TMP);
+    if (tmp == NULL) {
+        CYASSL_MSG("Out of memory for cavium update");
+        return;
+    }
+    if (hmac->dataLen)
+        XMEMCPY(tmp, hmac->data,  hmac->dataLen);
+    XMEMCPY(tmp + hmac->dataLen, msg, add);
+        
+    hmac->dataLen += add;
+    XFREE(hmac->data, NULL, DYNAMIC_TYPE_CAVIUM_TMP);
+    hmac->data = tmp;
+}
+
+
+static void HmacCaviumSetKey(Hmac* hmac, int type, const byte* key,
+                             word32 length)
+{
+    hmac->macType = (byte)type;
+    if (type == MD5)
+        hmac->type = MD5_TYPE;
+    else if (type == SHA)
+        hmac->type = SHA1_TYPE;
+    else if (type == SHA256)
+        hmac->type = SHA256_TYPE;
+    else  {
+        CYASSL_MSG("unsupported cavium hmac type");
+    }
+
+    hmac->innerHashKeyed = 0;  /* should we key Startup flag */
+
+    hmac->keyLen = (word16)length;
+    /* store key in ipad */
+    XMEMCPY(hmac->ipad, key, length);
+}
+
+#endif /* HAVE_CAVIUM */
 
 #endif /* NO_HMAC */
 

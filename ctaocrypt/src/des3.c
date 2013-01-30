@@ -34,6 +34,14 @@
 #endif
 
 
+#ifdef HAVE_CAVIUM
+    static void Des3_CaviumSetKey(Des3* des3, const byte* key, const byte* iv);
+    static void Des3_CaviumCbcEncrypt(Des3* des3, byte* out, const byte* in,
+                                      word32 length);
+    static void Des3_CaviumCbcDecrypt(Des3* des3, byte* out, const byte* in,
+                                      word32 length);
+#endif
+
 #ifdef STM32F2_CRYPTO
     /*
      * STM32F2 hardware DES/3DES support through the STM32F2 standard
@@ -554,6 +562,11 @@ void Des_SetKey(Des* des, const byte* key, const byte* iv, int dir)
 
 void Des3_SetKey(Des3* des, const byte* key, const byte* iv, int dir)
 {
+#ifdef HAVE_CAVIUM
+    if (des->magic == CYASSL_3DES_CAVIUM_MAGIC)
+        return Des3_CaviumSetKey(des, key, iv);
+#endif
+
     DesSetKey(key + (dir == DES_ENCRYPTION ? 0 : 16), dir, des->key[0]);
     DesSetKey(key + 8, Reverse(dir), des->key[1]);
     DesSetKey(key + (dir == DES_DECRYPTION ? 0 : 16), dir, des->key[2]);
@@ -682,8 +695,14 @@ void Des_CbcDecrypt(Des* des, byte* out, const byte* in, word32 sz)
 
 void Des3_CbcEncrypt(Des3* des, byte* out, const byte* in, word32 sz)
 {
-    word32 blocks = sz / DES_BLOCK_SIZE;
+    word32 blocks;
 
+#ifdef HAVE_CAVIUM
+    if (des->magic == CYASSL_3DES_CAVIUM_MAGIC)
+        return Des3_CaviumCbcEncrypt(des, out, in, sz);
+#endif
+
+    blocks = sz / DES_BLOCK_SIZE;
     while (blocks--) {
         xorbuf((byte*)des->reg, in, DES_BLOCK_SIZE);
         Des3ProcessBlock(des, (byte*)des->reg, (byte*)des->reg);
@@ -697,8 +716,14 @@ void Des3_CbcEncrypt(Des3* des, byte* out, const byte* in, word32 sz)
 
 void Des3_CbcDecrypt(Des3* des, byte* out, const byte* in, word32 sz)
 {
-    word32 blocks = sz / DES_BLOCK_SIZE;
+    word32 blocks;
 
+#ifdef HAVE_CAVIUM
+    if (des->magic == CYASSL_3DES_CAVIUM_MAGIC)
+        return Des3_CaviumCbcDecrypt(des, out, in, sz);
+#endif
+
+    blocks = sz / DES_BLOCK_SIZE;
     while (blocks--) {
         XMEMCPY(des->tmp, in, DES_BLOCK_SIZE);
         Des3ProcessBlock(des, (byte*)des->tmp, out);
@@ -742,5 +767,105 @@ void Des3_SetIV(Des3* des, const byte* iv)
         XMEMCPY(des->reg, iv, DES_BLOCK_SIZE);
 }
 
+
+#ifdef HAVE_CAVIUM
+
+#include <cyassl/ctaocrypt/logging.h>
+#include "cavium_common.h"
+
+/* Initiliaze Des3 for use with Nitrox device */
+int Des3_InitCavium(Des3* des3, int devId)
+{
+    if (des3 == NULL)
+        return -1;
+
+    if (CspAllocContext(CONTEXT_SSL, &des3->contextHandle, devId) != 0)
+        return -1;
+
+    des3->devId = devId;
+    des3->magic = CYASSL_3DES_CAVIUM_MAGIC;
+   
+    return 0;
+}
+
+
+/* Free Des3 from use with Nitrox device */
+void Des3_FreeCavium(Des3* des3)
+{
+    if (des3 == NULL)
+        return;
+
+    CspFreeContext(CONTEXT_SSL, des3->contextHandle, des3->devId);
+    des3->magic = 0;
+}
+
+
+static void Des3_CaviumSetKey(Des3* des3, const byte* key, const byte* iv)
+{
+    if (des3 == NULL)
+        return;
+
+    /* key[0] holds key, iv in reg */
+    XMEMCPY(des3->key[0], key, DES_BLOCK_SIZE*3);
+
+    Des3_SetIV(des3, iv);
+}
+
+
+static void Des3_CaviumCbcEncrypt(Des3* des3, byte* out, const byte* in,
+                                  word32 length)
+{
+    word   offset = 0;
+    word32 requestId;
+    
+    while (length > CYASSL_MAX_16BIT) {
+        word16 slen = (word16)CYASSL_MAX_16BIT;
+        if (CspEncrypt3Des(CAVIUM_BLOCKING, des3->contextHandle,
+                           CAVIUM_NO_UPDATE, slen, (byte*)in + offset,
+                           out + offset, (byte*)des3->reg, (byte*)des3->key[0],
+                           &requestId, des3->devId) != 0) {
+            CYASSL_MSG("Bad Cavium 3DES Cbc Encrypt");
+        }
+        length -= CYASSL_MAX_16BIT;
+    }
+    if (length) {
+        word16 slen = (word16)length;
+
+        if (CspEncrypt3Des(CAVIUM_BLOCKING, des3->contextHandle,
+                           CAVIUM_NO_UPDATE, slen, (byte*)in + offset,
+                           out + offset, (byte*)des3->reg, (byte*)des3->key[0],
+                           &requestId, des3->devId) != 0) {
+            CYASSL_MSG("Bad Cavium 3DES Cbc Encrypt");
+        }
+    }
+}
+
+static void Des3_CaviumCbcDecrypt(Des3* des3, byte* out, const byte* in,
+                                  word32 length)
+{
+    word32 requestId;
+
+    while (length > CYASSL_MAX_16BIT) {
+        word16 slen = (word16)CYASSL_MAX_16BIT;
+        if (CspDecrypt3Des(CAVIUM_BLOCKING, des3->contextHandle,
+                           CAVIUM_NO_UPDATE, slen, (byte*)in, out,
+                           (byte*)des3->reg, (byte*)des3->key[0], &requestId,
+                           des3->devId) != 0) {
+            CYASSL_MSG("Bad Cavium 3Des Decrypt");
+        }
+        length -= CYASSL_MAX_16BIT;
+    }
+    if (length) {
+        word16 slen = (word16)length;
+        if (CspDecrypt3Des(CAVIUM_BLOCKING, des3->contextHandle,
+                           CAVIUM_NO_UPDATE, slen, (byte*)in, out,
+                           (byte*)des3->reg, (byte*)des3->key[0], &requestId,
+                           des3->devId) != 0) {
+            CYASSL_MSG("Bad Cavium 3Des Decrypt");
+        }
+    }
+}
+
+#endif /* HAVE_CAVIUM */
 
 #endif /* NO_DES3 */

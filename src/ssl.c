@@ -3269,7 +3269,7 @@ int CyaSSL_set_compression(CYASSL* ssl)
         {
             byte  tmp[FILE_BUFFER_SIZE];
             byte* myBuffer    = tmp;
-            int   send      = 0;
+            int   sending   = 0;
             int   newBuffer = 0;
             int   idx       = 0;
             int   i;
@@ -3278,10 +3278,10 @@ int CyaSSL_set_compression(CYASSL* ssl)
             CYASSL_ENTER("CyaSSL_writev");
 
             for (i = 0; i < iovcnt; i++)
-                send += (int)iov[i].iov_len;
+                sending += (int)iov[i].iov_len;
 
-            if (send > (int)sizeof(tmp)) {
-                byte* tmp2 = (byte*) XMALLOC(send, ssl->heap,
+            if (sending > (int)sizeof(tmp)) {
+                byte* tmp2 = (byte*) XMALLOC(sending, ssl->heap,
                                              DYNAMIC_TYPE_WRITEV);
                 if (!tmp2)
                     return MEMORY_ERROR;
@@ -3294,7 +3294,7 @@ int CyaSSL_set_compression(CYASSL* ssl)
                 idx += (int)iov[i].iov_len;
             }
 
-            ret = CyaSSL_write(ssl, myBuffer, send);
+            ret = CyaSSL_write(ssl, myBuffer, sending);
 
             if (newBuffer) XFREE(myBuffer, ssl->heap, DYNAMIC_TYPE_WRITEV);
 

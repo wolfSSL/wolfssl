@@ -41,6 +41,15 @@
 #endif
 
 
+#ifdef HAVE_CAVIUM
+    static int  AesCaviumSetKey(Aes* aes, const byte* key, word32 length,
+                                const byte* iv);
+    static void AesCaviumCbcEncrypt(Aes* aes, byte* out, const byte* in,
+                                    word32 length);
+    static void AesCaviumCbcDecrypt(Aes* aes, byte* out, const byte* in,
+                                    word32 length);
+#endif
+
 #ifdef STM32F2_CRYPTO
     /*
      * STM32F2 hardware AES support through the STM32F2 standard peripheral
@@ -1349,6 +1358,11 @@ int AesSetKey(Aes* aes, const byte* userKey, word32 keylen, const byte* iv,
     if (!((keylen == 16) || (keylen == 24) || (keylen == 32)))
         return BAD_FUNC_ARG;
 
+#ifdef HAVE_CAVIUM
+    if (aes->magic == CYASSL_AES_CAVIUM_MAGIC)
+        return AesCaviumSetKey(aes, userKey, keylen, iv);
+#endif
+
 #ifdef CYASSL_AESNI
     if (checkAESNI == 0) {
         haveAESNI  = Check_CPU_support_AES();
@@ -1661,6 +1675,11 @@ void AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 {
     word32 blocks = sz / AES_BLOCK_SIZE;
 
+#ifdef HAVE_CAVIUM
+    if (aes->magic == CYASSL_AES_CAVIUM_MAGIC)
+        return AesCaviumCbcEncrypt(aes, out, in, sz);
+#endif
+
 #ifdef CYASSL_AESNI
     if (haveAESNI) {
         #ifdef DEBUG_AESNI
@@ -1694,6 +1713,11 @@ void AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 void AesCbcDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 {
     word32 blocks = sz / AES_BLOCK_SIZE;
+
+#ifdef HAVE_CAVIUM
+    if (aes->magic == CYASSL_AES_CAVIUM_MAGIC)
+        return AesCaviumCbcDecrypt(aes, out, in, sz);
+#endif
 
 #ifdef CYASSL_AESNI
     if (haveAESNI) {
@@ -2737,6 +2761,109 @@ int AesSetIV(Aes* aes, const byte* iv)
     return 0;
 }
 
+
+#ifdef HAVE_CAVIUM
+
+#include <cyassl/ctaocrypt/logging.h>
+#include "cavium_common.h"
+
+/* Initiliaze Aes for use with Nitrox device */
+int AesInitCavium(Aes* aes, int devId)
+{
+    if (aes == NULL)
+        return -1;
+
+    if (CspAllocContext(CONTEXT_SSL, &aes->contextHandle, devId) != 0)
+        return -1;
+
+    aes->devId = devId;
+    aes->magic = CYASSL_AES_CAVIUM_MAGIC;
+   
+    return 0;
+}
+
+
+/* Free Aes from use with Nitrox device */
+void AesFreeCavium(Aes* aes)
+{
+    if (aes == NULL)
+        return;
+
+    CspFreeContext(CONTEXT_SSL, aes->contextHandle, aes->devId);
+    aes->magic = 0;
+}
+
+
+static int AesCaviumSetKey(Aes* aes, const byte* key, word32 length,
+                           const byte* iv)
+{
+    if (aes == NULL)
+        return -1;
+
+    XMEMCPY(aes->key, key, length);   /* key still holds key, iv still in reg */
+    if (length == 16)
+        aes->type = AES_128;
+    else if (length == 24)
+        aes->type = AES_192;
+    else if (length == 32)
+        aes->type = AES_256;
+
+    return AesSetIV(aes, iv);
+}
+
+
+static void AesCaviumCbcEncrypt(Aes* aes, byte* out, const byte* in,
+                                word32 length)
+{
+    word   offset = 0;
+    word32 requestId;
+
+    while (length > CYASSL_MAX_16BIT) {
+        word16 slen = (word16)CYASSL_MAX_16BIT;
+        if (CspEncryptAes(CAVIUM_BLOCKING, aes->contextHandle, CAVIUM_NO_UPDATE,
+                          aes->type, slen, (byte*)in + offset, out + offset,
+                          (byte*)aes->reg, (byte*)aes->key, &requestId,
+                          aes->devId) != 0) {
+            CYASSL_MSG("Bad Cavium Aes Encrypt");
+        }
+        length -= CYASSL_MAX_16BIT;
+    }
+    if (length) {
+        word16 slen = (word16)length;
+        if (CspEncryptAes(CAVIUM_BLOCKING, aes->contextHandle, CAVIUM_NO_UPDATE,
+                          aes->type, slen, (byte*)in + offset, out + offset,
+                          (byte*)aes->reg, (byte*)aes->key, &requestId,
+                          aes->devId) != 0) {
+            CYASSL_MSG("Bad Cavium Aes Encrypt");
+        }
+    }
+}
+
+static void AesCaviumCbcDecrypt(Aes* aes, byte* out, const byte* in,
+                                word32 length)
+{
+    word32 requestId;
+
+    while (length > CYASSL_MAX_16BIT) {
+        word16 slen = (word16)CYASSL_MAX_16BIT;
+        if (CspDecryptAes(CAVIUM_BLOCKING, aes->contextHandle, CAVIUM_NO_UPDATE,
+                          aes->type, slen, (byte*)in, out, (byte*)aes->reg,
+                          (byte*)aes->key, &requestId, aes->devId) != 0) {
+            CYASSL_MSG("Bad Cavium Aes Decrypt");
+        }
+        length -= CYASSL_MAX_16BIT;
+    }
+    if (length) {
+        word16 slen = (word16)length;
+        if (CspDecryptAes(CAVIUM_BLOCKING, aes->contextHandle, CAVIUM_NO_UPDATE,
+                          aes->type, slen, (byte*)in, out, (byte*)aes->reg,
+                          (byte*)aes->key, &requestId, aes->devId) != 0) {
+            CYASSL_MSG("Bad Cavium Aes Decrypt");
+        }
+    }
+}
+
+#endif /* HAVE_CAVIUM */
 
 #endif /* NO_AES */
 

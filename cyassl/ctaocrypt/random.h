@@ -61,11 +61,22 @@ int GenerateSeed(OS_Seed* os, byte* seed, word32 sz);
 
 #ifndef NO_RC4
 
+#define CYASSL_RNG_CAVIUM_MAGIC 0xBEEF0004
+
 /* secure Random Nnumber Generator */
 typedef struct RNG {
     OS_Seed seed;
     Arc4    cipher;
+#ifdef HAVE_CAVIUM
+    int    devId;           /* nitrox device id */
+    word32 magic;           /* using cavium magic */
+#endif
 } RNG;
+
+
+#ifdef HAVE_CAVIUM
+    CYASSL_API int  InitRngCavium(RNG*, int);
+#endif
 
 #else /* NO_RC4 */
 

@@ -39,10 +39,17 @@
     #include <cyassl/ctaocrypt/sha512.h>
 #endif
 
+#ifdef HAVE_CAVIUM
+    #include <cyassl/ctaocrypt/logging.h>
+    #include "cavium_common.h"
+#endif
+
 #ifdef __cplusplus
     extern "C" {
 #endif
 
+
+#define CYASSL_HMAC_CAVIUM_MAGIC 0xBEEF0005
 
 enum {
     IPAD    = 0x36,
@@ -88,6 +95,15 @@ typedef struct Hmac {
     word32  innerHash[INNER_HASH_SIZE / sizeof(word32)]; /* max size */
     byte    macType;                                     /* md5 sha or sha256 */
     byte    innerHashKeyed;                              /* keyed flag */
+#ifdef HAVE_CAVIUM
+    word16   keyLen;          /* hmac key length */
+    word16   dataLen;
+    HashType type;            /* hmac key type */
+    int      devId;           /* nitrox device id */
+    word32   magic;           /* using cavium magic */
+    word64   contextHandle;   /* nitrox context memory handle */
+    byte*    data;            /* buffered input data for one call */
+#endif
 } Hmac;
 
 
@@ -95,6 +111,11 @@ typedef struct Hmac {
 CYASSL_API void HmacSetKey(Hmac*, int type, const byte* key, word32 keySz);
 CYASSL_API void HmacUpdate(Hmac*, const byte*, word32);
 CYASSL_API void HmacFinal(Hmac*, byte*);
+
+#ifdef HAVE_CAVIUM
+    CYASSL_API int  HmacInitCavium(Hmac*, int);
+    CYASSL_API void HmacFreeCavium(Hmac*);
+#endif
 
 
 #ifdef __cplusplus

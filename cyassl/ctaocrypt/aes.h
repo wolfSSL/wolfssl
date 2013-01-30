@@ -28,6 +28,11 @@
 
 #include <cyassl/ctaocrypt/types.h>
 
+#ifdef HAVE_CAVIUM
+    #include <cyassl/ctaocrypt/logging.h>
+    #include "cavium_common.h"
+#endif
+
 #ifdef CYASSL_AESNI
 
 #include <wmmintrin.h>
@@ -52,6 +57,8 @@
     extern "C" {
 #endif
 
+
+#define CYASSL_AES_CAVIUM_MAGIC 0xBEEF0002
 
 enum {
     AES_ENC_TYPE   = 1,   /* cipher unique type */
@@ -79,6 +86,12 @@ typedef struct Aes {
 #ifdef CYASSL_AESNI
     byte use_aesni;
 #endif /* CYASSL_AESNI */
+#ifdef HAVE_CAVIUM
+    AesType type;            /* aes key type */
+    int     devId;           /* nitrox device id */
+    word32  magic;           /* using cavium magic */
+    word64  contextHandle;   /* nitrox context memory handle */
+#endif
 } Aes;
 
 
@@ -115,6 +128,10 @@ CYASSL_API int  AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
                               const byte* authIn, word32 authInSz);
 #endif /* HAVE_AESCCM */
 
+#ifdef HAVE_CAVIUM
+    CYASSL_API int  AesInitCavium(Aes*, int);
+    CYASSL_API void AesFreeCavium(Aes*);
+#endif
 
 #ifdef __cplusplus
     } /* extern "C" */
