@@ -12,7 +12,8 @@ EXTRA_DIST += \
 	     certs/1024/client-cert.der \
          certs/1024/client-key.der \
          certs/1024/dh1024.der \
-         certs/1024/dsa1024.der
+         certs/1024/dsa1024.der \
+         certs/1024/rsa1024.der
 
 dist_doc_DATA+= certs/taoCert.txt
 

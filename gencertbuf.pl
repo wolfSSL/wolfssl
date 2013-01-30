@@ -22,7 +22,8 @@ my @fileList_1024 = (
         [ "./certs/1024/client-key.der", "client_key_der_1024" ],
         [ "./certs/1024/client-cert.der", "client_cert_der_1024" ],
         [ "./certs/1024/dh1024.der", "dh_key_der_1024" ],
-        [ "./certs/1024/dsa1024.der", "dsa_key_der_1024" ]
+        [ "./certs/1024/dsa1024.der", "dsa_key_der_1024" ],
+        [ "./certs/1024/rsa1024.der", "rsa_key_der_1024" ]
         );
 
 # 2048-bit certs/keys to be converted
@@ -32,7 +33,8 @@ my @fileList_2048 = (
         [ "./certs/client-key.der", "client_key_der_2048" ],
         [ "./certs/client-cert.der", "client_cert_der_2048" ],
         [ "./certs/dh2048.der", "dh_key_der_2048" ],
-        [ "./certs/dsa2048.der", "dsa_key_der_2048" ]
+        [ "./certs/dsa2048.der", "dsa_key_der_2048" ],
+        [ "./certs/rsa2048.der", "rsa_key_der_2048" ]
         );
 
 # ----------------------------------------------------------------------------

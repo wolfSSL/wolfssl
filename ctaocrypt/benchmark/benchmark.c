@@ -49,6 +49,10 @@
     #include "cavium_common.h"
     #include "cavium_ioctl.h"
 #endif
+#if defined(USE_CERT_BUFFERS_1024) || defined(USE_CERT_BUFFERS_2048)
+    /* include test cert and key buffers for use with NO_FILESYSTEM */
+    #include <cyassl/certs_test.h>
+#endif
 
 
 #ifdef _MSC_VER
@@ -553,6 +557,16 @@ void bench_rsa(void)
     double    start, total, each, milliEach;
     
     RsaKey rsaKey;
+    int    rsaKeySz = 2048; /* used in printf */
+
+#ifdef USE_CERT_BUFFERS_1024
+    XMEMCPY(tmp, rsa_key_der_1024, sizeof(rsa_key_der_1024));
+    bytes = sizeof(rsa_key_der_1024);
+    rsaKeySz = 1024;
+#elif defined(USE_CERT_BUFFERS_2048)
+    XMEMCPY(tmp, rsa_key_der_2048, sizeof(rsa_key_der_2048));
+    bytes = sizeof(rsa_key_der_2048);
+#else
     FILE*  file = fopen("./certs/rsa2048.der", "rb");
 
     if (!file) {
@@ -560,9 +574,11 @@ void bench_rsa(void)
                "Please run from CyaSSL home dir\n");
         return;
     }
+    
+    bytes = fread(tmp, 1, sizeof(tmp), file);
+#endif /* USE_CERT_BUFFERS */
 
     InitRng(&rng);
-    bytes = fread(tmp, 1, sizeof(tmp), file);
     InitRsaKey(&rsaKey, 0);
     bytes = RsaPrivateKeyDecode(tmp, &idx, &rsaKey, (word32)bytes);
     
@@ -575,8 +591,8 @@ void bench_rsa(void)
     each  = total / times;   /* per second   */
     milliEach = each * 1000; /* milliseconds */
 
-    printf("RSA 2048 encryption took %6.2f milliseconds, avg over %d" 
-           " iterations\n", milliEach, times);
+    printf("RSA %d encryption took %6.2f milliseconds, avg over %d" 
+           " iterations\n", rsaKeySz, milliEach, times);
 
     start = current_time();
 
@@ -589,10 +605,12 @@ void bench_rsa(void)
     each  = total / times;   /* per second   */
     milliEach = each * 1000; /* milliseconds */
 
-    printf("RSA 2048 decryption took %6.2f milliseconds, avg over %d" 
-           " iterations\n", milliEach, times);
+    printf("RSA %d decryption took %6.2f milliseconds, avg over %d" 
+           " iterations\n", rsaKeySz, milliEach, times);
 
+#if !defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048)
     fclose(file);
+#endif
     FreeRsaKey(&rsaKey);
 }
 #endif
@@ -614,6 +632,14 @@ void bench_dh(void)
     
     double start, total, each, milliEach;
     DhKey  dhKey;
+
+#ifdef USE_CERT_BUFFERS_1024
+    XMEMCPY(tmp, dh_key_der_1024, sizeof(dh_key_der_1024));
+    bytes = sizeof(dh_key_der_1024);
+#elif defined(USE_CERT_BUFFERS_2048)
+    XMEMCPY(tmp, dh_key_der_2048, sizeof(dh_key_der_2048));
+    bytes = sizeof(dh_key_der_2048);
+#else
     FILE*  file = fopen("./certs/dh2048.der", "rb");
 
     if (!file) {
@@ -623,6 +649,8 @@ void bench_dh(void)
     }
 
     bytes = fread(tmp, 1, sizeof(tmp), file);
+#endif /* USE_CERT_BUFFERS */
+
     InitDhKey(&dhKey);
     bytes = DhKeyDecode(tmp, &idx, &dhKey, (word32)bytes);
     if (bytes != 0) {
@@ -655,7 +683,9 @@ void bench_dh(void)
     printf("DH  2048 key agreement   %6.2f milliseconds, avg over %d" 
            " iterations\n", milliEach, times);
 
+#if !defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048)
     fclose(file);
+#endif
     FreeDhKey(&dhKey);
 }
 #endif
