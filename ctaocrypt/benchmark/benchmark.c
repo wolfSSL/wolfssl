@@ -83,7 +83,7 @@ void bench_eccKeyGen(void);
 void bench_eccKeyAgree(void);
 #endif
 
-double current_time(void);
+double current_time(int);
 
 
 #ifdef HAVE_CAVIUM
@@ -239,12 +239,12 @@ void bench_aes(int show)
 #endif
 
     AesSetKey(&enc, key, 16, iv, AES_ENCRYPTION);
-    start = current_time();
+    start = current_time(1);
 
     for(i = 0; i < numBlocks; i++)
         AesCbcEncrypt(&enc, plain, cipher, sizeof(plain));
 
-    total = current_time() - start;
+    total = current_time(0) - start;
 
     persec = 1 / total * numBlocks;
 #ifdef BENCH_EMBEDDED
@@ -274,13 +274,13 @@ void bench_aesgcm(void)
     int    i;
 
     AesGcmSetKey(&enc, key, 16);
-    start = current_time();
+    start = current_time(1);
 
     for(i = 0; i < numBlocks; i++)
         AesGcmEncrypt(&enc, cipher, plain, sizeof(plain), iv, 12,
                         tag, 16, additional, 13);
 
-    total = current_time() - start;
+    total = current_time(0) - start;
 
     persec = 1 / total * numBlocks;
 #ifdef BENCH_EMBEDDED
@@ -302,13 +302,13 @@ void bench_aesccm(void)
     int    i;
 
     AesCcmSetKey(&enc, key, 16);
-    start = current_time();
+    start = current_time(1);
 
     for(i = 0; i < numBlocks; i++)
         AesCcmEncrypt(&enc, cipher, plain, sizeof(plain), iv, 12,
                         tag, 16, additional, 13);
 
-    total = current_time() - start;
+    total = current_time(0) - start;
 
     persec = 1 / total * numBlocks;
 #ifdef BENCH_EMBEDDED
@@ -330,12 +330,12 @@ void bench_camellia(void)
     int    i;
 
     CamelliaSetKey(&cam, key, 16, iv);
-    start = current_time();
+    start = current_time(1);
 
     for(i = 0; i < numBlocks; i++)
         CamelliaCbcEncrypt(&cam, plain, cipher, sizeof(plain));
 
-    total = current_time() - start;
+    total = current_time(0) - start;
 
     persec = 1 / total * numBlocks;
 #ifdef BENCH_EMBEDDED
@@ -361,12 +361,12 @@ void bench_des(void)
         printf("des3 init cavium failed\n");
 #endif
     Des3_SetKey(&enc, key, iv, DES_ENCRYPTION);
-    start = current_time();
+    start = current_time(1);
 
     for(i = 0; i < numBlocks; i++)
         Des3_CbcEncrypt(&enc, plain, cipher, sizeof(plain));
 
-    total = current_time() - start;
+    total = current_time(0) - start;
 
     persec = 1 / total * numBlocks;
 #ifdef BENCH_EMBEDDED
@@ -396,12 +396,12 @@ void bench_arc4(void)
 #endif
 
     Arc4SetKey(&enc, key, 16);
-    start = current_time();
+    start = current_time(1);
 
     for(i = 0; i < numBlocks; i++)
         Arc4Process(&enc, cipher, plain, sizeof(plain));
 
-    total = current_time() - start;
+    total = current_time(0) - start;
     persec = 1 / total * numBlocks;
 #ifdef BENCH_EMBEDDED
     /* since using kB, convert to MB/s */
@@ -425,12 +425,12 @@ void bench_hc128(void)
     int    i;
     
     Hc128_SetKey(&enc, key, iv);
-    start = current_time();
+    start = current_time(1);
 
     for(i = 0; i < numBlocks; i++)
         Hc128_Process(&enc, cipher, plain, sizeof(plain));
 
-    total = current_time() - start;
+    total = current_time(0) - start;
     persec = 1 / total * numBlocks;
 #ifdef BENCH_EMBEDDED
     /* since using kB, convert to MB/s */
@@ -451,12 +451,12 @@ void bench_rabbit(void)
     int    i;
     
     RabbitSetKey(&enc, key, iv);
-    start = current_time();
+    start = current_time(1);
 
     for(i = 0; i < numBlocks; i++)
         RabbitProcess(&enc, cipher, plain, sizeof(plain));
 
-    total = current_time() - start;
+    total = current_time(0) - start;
     persec = 1 / total * numBlocks;
 #ifdef BENCH_EMBEDDED
     /* since using kB, convert to MB/s */
@@ -478,14 +478,14 @@ void bench_md5(void)
     int    i;
 
     InitMd5(&hash);
-    start = current_time();
+    start = current_time(1);
 
     for(i = 0; i < numBlocks; i++)
         Md5Update(&hash, plain, sizeof(plain));
    
     Md5Final(&hash, digest);
 
-    total = current_time() - start;
+    total = current_time(0) - start;
     persec = 1 / total * numBlocks;
 #ifdef BENCH_EMBEDDED
     /* since using kB, convert to MB/s */
@@ -506,14 +506,14 @@ void bench_sha(void)
     int    i;
         
     InitSha(&hash);
-    start = current_time();
+    start = current_time(1);
     
     for(i = 0; i < numBlocks; i++)
         ShaUpdate(&hash, plain, sizeof(plain));
    
     ShaFinal(&hash, digest);
 
-    total = current_time() - start;
+    total = current_time(0) - start;
     persec = 1 / total * numBlocks;
 #ifdef BENCH_EMBEDDED
     /* since using kB, convert to MB/s */
@@ -534,14 +534,14 @@ void bench_sha256(void)
     int    i;
         
     InitSha256(&hash);
-    start = current_time();
+    start = current_time(1);
     
     for(i = 0; i < numBlocks; i++)
         Sha256Update(&hash, plain, sizeof(plain));
    
     Sha256Final(&hash, digest);
 
-    total = current_time() - start;
+    total = current_time(0) - start;
     persec = 1 / total * numBlocks;
 #ifdef BENCH_EMBEDDED
     /* since using kB, convert to MB/s */
@@ -562,14 +562,14 @@ void bench_sha512(void)
     int    i;
         
     InitSha512(&hash);
-    start = current_time();
+    start = current_time(1);
     
     for(i = 0; i < numBlocks; i++)
         Sha512Update(&hash, plain, sizeof(plain));
    
     Sha512Final(&hash, digest);
 
-    total = current_time() - start;
+    total = current_time(0) - start;
     persec = 1 / total * numBlocks;
 #ifdef BENCH_EMBEDDED
     /* since using kB, convert to MB/s */
@@ -590,14 +590,14 @@ void bench_ripemd(void)
     int    i;
         
     InitRipeMd(&hash);
-    start = current_time();
+    start = current_time(1);
     
     for(i = 0; i < numBlocks; i++)
         RipeMdUpdate(&hash, plain, sizeof(plain));
    
     RipeMdFinal(&hash, digest);
 
-    total = current_time() - start;
+    total = current_time(0) - start;
     persec = 1 / total * numBlocks;
 #ifdef BENCH_EMBEDDED
     /* since using kB, convert to MB/s */
@@ -654,26 +654,26 @@ void bench_rsa(void)
     InitRsaKey(&rsaKey, 0);
     bytes = RsaPrivateKeyDecode(tmp, &idx, &rsaKey, (word32)bytes);
     
-    start = current_time();
+    start = current_time(1);
 
     for (i = 0; i < times; i++)
         bytes = RsaPublicEncrypt(message,len,enc,sizeof(enc), &rsaKey, &rng);
 
-    total = current_time() - start;
+    total = current_time(0) - start;
     each  = total / times;   /* per second   */
     milliEach = each * 1000; /* milliseconds */
 
     printf("RSA %d encryption took %6.2f milliseconds, avg over %d" 
            " iterations\n", rsaKeySz, milliEach, times);
 
-    start = current_time();
+    start = current_time(1);
 
     for (i = 0; i < times; i++) {
          byte  out[512];  /* for up to 4096 bit */
          RsaPrivateDecrypt(enc, (word32)bytes, out, sizeof(out), &rsaKey);
     }
 
-    total = current_time() - start;
+    total = current_time(0) - start;
     each  = total / times;   /* per second   */
     milliEach = each * 1000; /* milliseconds */
 
@@ -730,12 +730,12 @@ void bench_dh(void)
         return;
     }
 
-    start = current_time();
+    start = current_time(1);
 
     for (i = 0; i < times; i++)
         DhGenerateKeyPair(&dhKey, &rng, priv, &privSz, pub, &pubSz);
 
-    total = current_time() - start;
+    total = current_time(0) - start;
     each  = total / times;   /* per second   */
     milliEach = each * 1000; /* milliseconds */
 
@@ -743,12 +743,12 @@ void bench_dh(void)
            " iterations\n", milliEach, times);
 
     DhGenerateKeyPair(&dhKey, &rng, priv2, &privSz2, pub2, &pubSz2);
-    start = current_time();
+    start = current_time(1);
 
     for (i = 0; i < times; i++)
         DhAgree(&dhKey, agree, &agreeSz, priv, privSz, pub2, pubSz2);
 
-    total = current_time() - start;
+    total = current_time(0) - start;
     each  = total / times;   /* per second   */
     milliEach = each * 1000; /* milliseconds */
 
@@ -771,7 +771,7 @@ void bench_rsaKeyGen(void)
     const int genTimes = 5;
   
     /* 1024 bit */ 
-    start = current_time();
+    start = current_time(1);
 
     for(i = 0; i < genTimes; i++) {
         InitRsaKey(&genKey, 0); 
@@ -779,7 +779,7 @@ void bench_rsaKeyGen(void)
         FreeRsaKey(&genKey);
     }
 
-    total = current_time() - start;
+    total = current_time(0) - start;
     each  = total / genTimes;  /* per second  */
     milliEach = each * 1000;   /* millisconds */
     printf("\n");
@@ -787,7 +787,7 @@ void bench_rsaKeyGen(void)
            " iterations\n", milliEach, genTimes);
 
     /* 2048 bit */
-    start = current_time();
+    start = current_time(1);
 
     for(i = 0; i < genTimes; i++) {
         InitRsaKey(&genKey, 0); 
@@ -795,7 +795,7 @@ void bench_rsaKeyGen(void)
         FreeRsaKey(&genKey);
     }
 
-    total = current_time() - start;
+    total = current_time(0) - start;
     each  = total / genTimes;  /* per second  */
     milliEach = each * 1000;   /* millisconds */
     printf("RSA 2048 key generation  %6.2f milliseconds, avg over %d" 
@@ -812,14 +812,14 @@ void bench_eccKeyGen(void)
     const int genTimes = 5;
   
     /* 256 bit */ 
-    start = current_time();
+    start = current_time(1);
 
     for(i = 0; i < genTimes; i++) {
         ecc_make_key(&rng, 32, &genKey);
         ecc_free(&genKey);
     }
 
-    total = current_time() - start;
+    total = current_time(0) - start;
     each  = total / genTimes;  /* per second  */
     milliEach = each * 1000;   /* millisconds */
     printf("\n");
@@ -843,14 +843,14 @@ void bench_eccKeyAgree(void)
     ecc_make_key(&rng, 32, &genKey2);
 
     /* 256 bit */ 
-    start = current_time();
+    start = current_time(1);
 
     for(i = 0; i < agreeTimes; i++) {
         x = sizeof(shared);
         ecc_shared_secret(&genKey, &genKey2, shared, &x);
     }
 
-    total = current_time() - start;
+    total = current_time(0) - start;
     each  = total / agreeTimes;  /* per second  */
     milliEach = each * 1000;   /* millisconds */
     printf("EC-DHE   key agreement   %6.2f milliseconds, avg over %d" 
@@ -861,14 +861,14 @@ void bench_eccKeyAgree(void)
         digest[i] = i;
 
 
-    start = current_time();
+    start = current_time(1);
 
     for(i = 0; i < agreeTimes; i++) {
         x = sizeof(sig);
         ecc_sign_hash(digest, sizeof(digest), sig, &x, &rng, &genKey);
     }
 
-    total = current_time() - start;
+    total = current_time(0) - start;
     each  = total / agreeTimes;  /* per second  */
     milliEach = each * 1000;   /* millisconds */
     printf("EC-DSA   sign time       %6.2f milliseconds, avg over %d" 
@@ -885,8 +885,10 @@ void bench_eccKeyAgree(void)
     #define WIN32_LEAN_AND_MEAN
     #include <windows.h>
 
-    double current_time()
+    double current_time(int reset)
     {
+        (void)reset;
+
         static int init = 0;
         static LARGE_INTEGER freq;
     
@@ -902,12 +904,38 @@ void bench_eccKeyAgree(void)
         return (double)count.QuadPart / freq.QuadPart;
     }
 
+#elif defined MICROCHIP_PIC32
+
+    #include <peripheral/timer.h>
+
+    double current_time(int reset)
+    {
+        /* NOTE: core timer tick rate = 40 Mhz, 1 tick = 25 ns */
+
+        unsigned int ns;
+
+        /* should we reset our timer back to zero? Helps prevent timer
+           rollover */
+
+        if (reset) {
+            WriteCoreTimer(0);
+        }
+
+        /* get timer in ns */
+        ns = ReadCoreTimer() * 25;
+
+        /* return seconds as a double */
+        return ( ns / 1000000000.0 );
+    }
+
 #else
 
     #include <sys/time.h>
 
-    double current_time(void)
+    double current_time(int reset)
     {
+        (void) reset;
+
         struct timeval tv;
         gettimeofday(&tv, 0);
 
