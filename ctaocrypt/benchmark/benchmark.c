@@ -110,6 +110,8 @@ static int OpenNitroxDevice(int dma_mode,int dev_id)
 #endif
 
 
+/* so embedded projects can pull in tests on their own */
+#ifndef NO_MAIN_DRIVER
 
 int main(int argc, char** argv)
 {
@@ -185,6 +187,8 @@ int main(int argc, char** argv)
 
     return 0;
 }
+
+#endif /* NO_MAIN_DRIVER */
 
 const int megs  = 5;     /* how many megs to test (en/de)cryption */
 const int times = 100;   /* public key iterations */
