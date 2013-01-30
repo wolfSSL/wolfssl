@@ -190,8 +190,15 @@ int main(int argc, char** argv)
 
 #endif /* NO_MAIN_DRIVER */
 
-const int megs  = 5;     /* how many megs to test (en/de)cryption */
-const int times = 100;   /* public key iterations */
+#ifdef BENCH_EMBEDDED
+const int numBlocks = 25;       /* how many kB/megs to test (en/de)cryption */
+const char blockType[] = "kB";  /* used in printf output */
+const int times     = 1;        /* public key iterations */
+#else
+const int numBlocks = 5;
+const char blockType[] = "megs";
+const int times     = 100;
+#endif
 
 const byte key[] = 
 {
@@ -209,8 +216,14 @@ const byte iv[] =
 };
 
 
+/* use kB instead of mB for embedded benchmarking */
+#ifdef BENCH_EMBEDDED
+byte plain [1024];
+byte cipher[1024];
+#else
 byte plain [1024*1024];
 byte cipher[1024*1024];
+#endif
 
 
 #ifndef NO_AES
@@ -228,16 +241,20 @@ void bench_aes(int show)
     AesSetKey(&enc, key, 16, iv, AES_ENCRYPTION);
     start = current_time();
 
-    for(i = 0; i < megs; i++)
+    for(i = 0; i < numBlocks; i++)
         AesCbcEncrypt(&enc, plain, cipher, sizeof(plain));
 
     total = current_time() - start;
 
-    persec = 1 / total * megs;
+    persec = 1 / total * numBlocks;
+#ifdef BENCH_EMBEDDED
+    /* since using kB, convert to MB/s */
+    persec = persec / 1024;
+#endif
 
     if (show)
-        printf("AES      %d megs took %5.3f seconds, %6.2f MB/s\n", megs, total,
-                                                                    persec);
+        printf("AES      %d %s took %5.3f seconds, %6.2f MB/s\n", numBlocks,
+                                                  blockType, total, persec);
 #ifdef HAVE_CAVIUM
     AesFreeCavium(&enc);
 #endif
@@ -259,15 +276,20 @@ void bench_aesgcm(void)
     AesGcmSetKey(&enc, key, 16);
     start = current_time();
 
-    for(i = 0; i < megs; i++)
+    for(i = 0; i < numBlocks; i++)
         AesGcmEncrypt(&enc, cipher, plain, sizeof(plain), iv, 12,
                         tag, 16, additional, 13);
 
     total = current_time() - start;
 
-    persec = 1 / total * megs;
-    printf("AES-GCM  %d megs took %5.3f seconds, %6.2f MB/s\n", megs, total,
-                                                                    persec);
+    persec = 1 / total * numBlocks;
+#ifdef BENCH_EMBEDDED
+    /* since using kB, convert to MB/s */
+    persec = persec / 1024;
+#endif
+
+    printf("AES-GCM  %d %s took %5.3f seconds, %6.2f MB/s\n", numBlocks,
+                                              blockType, total, persec);
 }
 #endif
 
@@ -282,15 +304,20 @@ void bench_aesccm(void)
     AesCcmSetKey(&enc, key, 16);
     start = current_time();
 
-    for(i = 0; i < megs; i++)
+    for(i = 0; i < numBlocks; i++)
         AesCcmEncrypt(&enc, cipher, plain, sizeof(plain), iv, 12,
                         tag, 16, additional, 13);
 
     total = current_time() - start;
 
-    persec = 1 / total * megs;
-    printf("AES-CCM  %d megs took %5.3f seconds, %6.2f MB/s\n", megs, total,
-                                                                    persec);
+    persec = 1 / total * numBlocks;
+#ifdef BENCH_EMBEDDED
+    /* since using kB, convert to MB/s */
+    persec = persec / 1024;
+#endif
+
+    printf("AES-CCM  %d %s took %5.3f seconds, %6.2f MB/s\n", numBlocks,
+                                              blockType, total, persec);
 }
 #endif
 
@@ -305,14 +332,19 @@ void bench_camellia(void)
     CamelliaSetKey(&cam, key, 16, iv);
     start = current_time();
 
-    for(i = 0; i < megs; i++)
+    for(i = 0; i < numBlocks; i++)
         CamelliaCbcEncrypt(&cam, plain, cipher, sizeof(plain));
 
     total = current_time() - start;
 
-    persec = 1 / total * megs;
-    printf("Camellia %d megs took %5.3f seconds, %6.2f MB/s\n", megs, total,
-                                                                    persec);
+    persec = 1 / total * numBlocks;
+#ifdef BENCH_EMBEDDED
+    /* since using kB, convert to MB/s */
+    persec = persec / 1024;
+#endif
+
+    printf("Camellia %d %s took %5.3f seconds, %6.2f MB/s\n", numBlocks,
+                                              blockType, total, persec);
 }
 #endif
 
@@ -331,15 +363,19 @@ void bench_des(void)
     Des3_SetKey(&enc, key, iv, DES_ENCRYPTION);
     start = current_time();
 
-    for(i = 0; i < megs; i++)
+    for(i = 0; i < numBlocks; i++)
         Des3_CbcEncrypt(&enc, plain, cipher, sizeof(plain));
 
     total = current_time() - start;
 
-    persec = 1 / total * megs;
+    persec = 1 / total * numBlocks;
+#ifdef BENCH_EMBEDDED
+    /* since using kB, convert to MB/s */
+    persec = persec / 1024;
+#endif
 
-    printf("3DES     %d megs took %5.3f seconds, %6.2f MB/s\n", megs, total,
-                                                             persec);
+    printf("3DES     %d %s took %5.3f seconds, %6.2f MB/s\n", numBlocks,
+                                              blockType, total, persec);
 #ifdef HAVE_CAVIUM
     Des3_FreeCavium(&enc);
 #endif
@@ -362,14 +398,18 @@ void bench_arc4(void)
     Arc4SetKey(&enc, key, 16);
     start = current_time();
 
-    for(i = 0; i < megs; i++)
+    for(i = 0; i < numBlocks; i++)
         Arc4Process(&enc, cipher, plain, sizeof(plain));
 
     total = current_time() - start;
-    persec = 1 / total * megs;
+    persec = 1 / total * numBlocks;
+#ifdef BENCH_EMBEDDED
+    /* since using kB, convert to MB/s */
+    persec = persec / 1024;
+#endif
 
-    printf("ARC4     %d megs took %5.3f seconds, %6.2f MB/s\n", megs, total,
-                                                             persec);
+    printf("ARC4     %d %s took %5.3f seconds, %6.2f MB/s\n", numBlocks,
+                                              blockType, total, persec);
 #ifdef HAVE_CAVIUM
     Arc4FreeCavium(&enc);
 #endif
@@ -387,14 +427,18 @@ void bench_hc128(void)
     Hc128_SetKey(&enc, key, iv);
     start = current_time();
 
-    for(i = 0; i < megs; i++)
+    for(i = 0; i < numBlocks; i++)
         Hc128_Process(&enc, cipher, plain, sizeof(plain));
 
     total = current_time() - start;
-    persec = 1 / total * megs;
+    persec = 1 / total * numBlocks;
+#ifdef BENCH_EMBEDDED
+    /* since using kB, convert to MB/s */
+    persec = persec / 1024;
+#endif
 
-    printf("HC128    %d megs took %5.3f seconds, %6.2f MB/s\n", megs, total,
-                                                             persec);
+    printf("HC128    %d %s took %5.3f seconds, %6.2f MB/s\n", numBlocks,
+                                              blockType, total, persec);
 }
 #endif /* HAVE_HC128 */
 
@@ -409,14 +453,18 @@ void bench_rabbit(void)
     RabbitSetKey(&enc, key, iv);
     start = current_time();
 
-    for(i = 0; i < megs; i++)
+    for(i = 0; i < numBlocks; i++)
         RabbitProcess(&enc, cipher, plain, sizeof(plain));
 
     total = current_time() - start;
-    persec = 1 / total * megs;
+    persec = 1 / total * numBlocks;
+#ifdef BENCH_EMBEDDED
+    /* since using kB, convert to MB/s */
+    persec = persec / 1024;
+#endif
 
-    printf("RABBIT   %d megs took %5.3f seconds, %6.2f MB/s\n", megs, total,
-                                                             persec);
+    printf("RABBIT   %d %s took %5.3f seconds, %6.2f MB/s\n", numBlocks,
+                                              blockType, total, persec);
 }
 #endif /* NO_RABBIT */
 
@@ -432,16 +480,20 @@ void bench_md5(void)
     InitMd5(&hash);
     start = current_time();
 
-    for(i = 0; i < megs; i++)
+    for(i = 0; i < numBlocks; i++)
         Md5Update(&hash, plain, sizeof(plain));
    
     Md5Final(&hash, digest);
 
     total = current_time() - start;
-    persec = 1 / total * megs;
+    persec = 1 / total * numBlocks;
+#ifdef BENCH_EMBEDDED
+    /* since using kB, convert to MB/s */
+    persec = persec / 1024;
+#endif
 
-    printf("MD5      %d megs took %5.3f seconds, %6.2f MB/s\n", megs, total,
-                                                             persec);
+    printf("MD5      %d %s took %5.3f seconds, %6.2f MB/s\n", numBlocks,
+                                              blockType, total, persec);
 }
 #endif /* NO_MD5 */
 
@@ -456,16 +508,20 @@ void bench_sha(void)
     InitSha(&hash);
     start = current_time();
     
-    for(i = 0; i < megs; i++)
+    for(i = 0; i < numBlocks; i++)
         ShaUpdate(&hash, plain, sizeof(plain));
    
     ShaFinal(&hash, digest);
 
     total = current_time() - start;
-    persec = 1 / total * megs;
+    persec = 1 / total * numBlocks;
+#ifdef BENCH_EMBEDDED
+    /* since using kB, convert to MB/s */
+    persec = persec / 1024;
+#endif
 
-    printf("SHA      %d megs took %5.3f seconds, %6.2f MB/s\n", megs, total,
-                                                             persec);
+    printf("SHA      %d %s took %5.3f seconds, %6.2f MB/s\n", numBlocks,
+                                              blockType, total, persec);
 }
 
 
@@ -480,16 +536,20 @@ void bench_sha256(void)
     InitSha256(&hash);
     start = current_time();
     
-    for(i = 0; i < megs; i++)
+    for(i = 0; i < numBlocks; i++)
         Sha256Update(&hash, plain, sizeof(plain));
    
     Sha256Final(&hash, digest);
 
     total = current_time() - start;
-    persec = 1 / total * megs;
+    persec = 1 / total * numBlocks;
+#ifdef BENCH_EMBEDDED
+    /* since using kB, convert to MB/s */
+    persec = persec / 1024;
+#endif
 
-    printf("SHA-256  %d megs took %5.3f seconds, %6.2f MB/s\n", megs, total,
-                                                             persec);
+    printf("SHA-256  %d %s took %5.3f seconds, %6.2f MB/s\n", numBlocks,
+                                              blockType, total, persec);
 }
 #endif
 
@@ -504,16 +564,20 @@ void bench_sha512(void)
     InitSha512(&hash);
     start = current_time();
     
-    for(i = 0; i < megs; i++)
+    for(i = 0; i < numBlocks; i++)
         Sha512Update(&hash, plain, sizeof(plain));
    
     Sha512Final(&hash, digest);
 
     total = current_time() - start;
-    persec = 1 / total * megs;
+    persec = 1 / total * numBlocks;
+#ifdef BENCH_EMBEDDED
+    /* since using kB, convert to MB/s */
+    persec = persec / 1024;
+#endif
 
-    printf("SHA-512  %d megs took %5.3f seconds, %6.2f MB/s\n", megs, total,
-                                                             persec);
+    printf("SHA-512  %d %s took %5.3f seconds, %6.2f MB/s\n", numBlocks,
+                                              blockType, total, persec);
 }
 #endif
 
@@ -528,16 +592,20 @@ void bench_ripemd(void)
     InitRipeMd(&hash);
     start = current_time();
     
-    for(i = 0; i < megs; i++)
+    for(i = 0; i < numBlocks; i++)
         RipeMdUpdate(&hash, plain, sizeof(plain));
    
     RipeMdFinal(&hash, digest);
 
     total = current_time() - start;
-    persec = 1 / total * megs;
+    persec = 1 / total * numBlocks;
+#ifdef BENCH_EMBEDDED
+    /* since using kB, convert to MB/s */
+    persec = persec / 1024;
+#endif
 
-    printf("RIPEMD   %d megs took %5.3f seconds, %6.2f MB/s\n", megs, total,
-                                                             persec);
+    printf("RIPEMD   %d %s took %5.3f seconds, %6.2f MB/s\n", numBlocks,
+                                              blockType, total, persec);
 }
 #endif
 
