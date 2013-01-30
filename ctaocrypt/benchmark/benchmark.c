@@ -704,10 +704,12 @@ void bench_dh(void)
     
     double start, total, each, milliEach;
     DhKey  dhKey;
+    int    dhKeySz = 2048; /* used in printf */
 
 #ifdef USE_CERT_BUFFERS_1024
     XMEMCPY(tmp, dh_key_der_1024, sizeof(dh_key_der_1024));
     bytes = sizeof(dh_key_der_1024);
+    dhKeySz = 1024;
 #elif defined(USE_CERT_BUFFERS_2048)
     XMEMCPY(tmp, dh_key_der_2048, sizeof(dh_key_der_2048));
     bytes = sizeof(dh_key_der_2048);
@@ -739,8 +741,8 @@ void bench_dh(void)
     each  = total / times;   /* per second   */
     milliEach = each * 1000; /* milliseconds */
 
-    printf("DH  2048 key generation  %6.2f milliseconds, avg over %d" 
-           " iterations\n", milliEach, times);
+    printf("DH  %d key generation  %6.2f milliseconds, avg over %d" 
+           " iterations\n", dhKeySz, milliEach, times);
 
     DhGenerateKeyPair(&dhKey, &rng, priv2, &privSz2, pub2, &pubSz2);
     start = current_time(1);
@@ -752,8 +754,8 @@ void bench_dh(void)
     each  = total / times;   /* per second   */
     milliEach = each * 1000; /* milliseconds */
 
-    printf("DH  2048 key agreement   %6.2f milliseconds, avg over %d" 
-           " iterations\n", milliEach, times);
+    printf("DH  %d key agreement   %6.2f milliseconds, avg over %d" 
+           " iterations\n", dhKeySz, milliEach, times);
 
 #if !defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048)
     fclose(file);
