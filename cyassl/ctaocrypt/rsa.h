@@ -32,6 +32,7 @@
     extern "C" {
 #endif
 
+#define CYASSL_RSA_CAVIUM_MAGIC 0xBEEF0006
 
 enum {
     RSA_PUBLIC   = 0,
@@ -43,6 +44,20 @@ typedef struct RsaKey {
     mp_int n, e, d, p, q, dP, dQ, u;
     int   type;                               /* public or private */
     void* heap;                               /* for user memory overrides */
+#ifdef HAVE_CAVIUM
+    int    devId;           /* nitrox device id */
+    word32 magic;           /* using cavium magic */
+    word64 contextHandle;   /* nitrox context memory handle */
+    byte*  c_n;             /* cavium byte buffers for key parts */
+    byte*  c_e;
+    byte*  c_d;
+    byte*  c_p;
+    byte*  c_q;
+    byte*  c_dP;
+    byte*  c_dQ;
+    byte*  c_u;             /* sizes in bytes */
+    word16 c_nSz, c_eSz, c_dSz, c_pSz, c_qSz, c_dP_Sz, c_dQ_Sz, c_uSz;
+#endif
 } RsaKey;
 
 
@@ -72,6 +87,10 @@ CYASSL_API int RsaPublicKeyDecode(const byte* input, word32* inOutIdx, RsaKey*,
     CYASSL_API int RsaKeyToDer(RsaKey*, byte* output, word32 inLen);
 #endif
 
+#ifdef HAVE_CAVIUM
+    CYASSL_API int  RsaInitCavium(RsaKey*, int);
+    CYASSL_API void RsaFreeCavium(RsaKey*);
+#endif
 
 
 #ifdef __cplusplus

@@ -230,7 +230,8 @@ enum {
     DYNAMIC_TYPE_LIBZ         = 36,
     DYNAMIC_TYPE_ECC          = 37,
     DYNAMIC_TYPE_TMP_BUFFER   = 38,
-    DYNAMIC_TYPE_CAVIUM_TMP   = 40 
+    DYNAMIC_TYPE_CAVIUM_TMP   = 40,
+    DYNAMIC_TYPE_CAVIUM_RSA   = 41 
 };
 
 /* stack protection */

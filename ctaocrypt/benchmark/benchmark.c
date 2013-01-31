@@ -650,6 +650,10 @@ void bench_rsa(void)
     bytes = fread(tmp, 1, sizeof(tmp), file);
 #endif /* USE_CERT_BUFFERS */
 
+#ifdef HAVE_CAVIUM
+    if (RsaInitCavium(&rsaKey, CAVIUM_DEV_ID) != 0)
+        printf("RSA init cavium failed\n");
+#endif
     InitRng(&rng);
     InitRsaKey(&rsaKey, 0);
     bytes = RsaPrivateKeyDecode(tmp, &idx, &rsaKey, (word32)bytes);
@@ -684,6 +688,9 @@ void bench_rsa(void)
     fclose(file);
 #endif
     FreeRsaKey(&rsaKey);
+#ifdef HAVE_CAVIUM
+    RsaFreeCavium(&rsaKey);
+#endif
 }
 #endif
 

@@ -531,10 +531,77 @@ static int GetAlgoId(const byte* input, word32* inOutIdx, word32* oid,
 
 #ifndef NO_RSA
 
+
+#ifdef HAVE_CAVIUM
+
+static int GetCaviumInt(byte** buff, word16* buffSz, const byte* input,
+                        word32* inOutIdx, word32 maxIdx, void* heap)
+{
+    word32 i = *inOutIdx;
+    byte   b = input[i++];
+    int    length;
+
+    if (b != ASN_INTEGER)
+        return ASN_PARSE_E;
+
+    if (GetLength(input, &i, &length, maxIdx) < 0)
+        return ASN_PARSE_E;
+
+    if ( (b = input[i++]) == 0x00)
+        length--;
+    else
+        i--;
+
+    *buffSz = (word16)length;
+    *buff   = XMALLOC(*buffSz, heap, DYNAMIC_TYPE_CAVIUM_RSA);
+    if (*buff == NULL)
+        return MEMORY_E;
+
+    XMEMCPY(*buff, input + i, *buffSz);
+
+    *inOutIdx = i + length;
+    return 0;
+}
+
+static int CaviumRsaPrivateKeyDecode(const byte* input, word32* inOutIdx,
+                                     RsaKey* key, word32 inSz)
+{
+    int   version, length;
+    void* h = key->heap;
+
+    if (GetSequence(input, inOutIdx, &length, inSz) < 0)
+        return ASN_PARSE_E;
+
+    if (GetMyVersion(input, inOutIdx, &version) < 0)
+        return ASN_PARSE_E;
+
+    key->type = RSA_PRIVATE;
+
+    if (GetCaviumInt(&key->c_n,  &key->c_nSz,   input, inOutIdx, inSz, h) < 0 ||
+        GetCaviumInt(&key->c_e,  &key->c_eSz,   input, inOutIdx, inSz, h) < 0 ||
+        GetCaviumInt(&key->c_d,  &key->c_dSz,   input, inOutIdx, inSz, h) < 0 ||
+        GetCaviumInt(&key->c_p,  &key->c_pSz,   input, inOutIdx, inSz, h) < 0 ||
+        GetCaviumInt(&key->c_q,  &key->c_qSz,   input, inOutIdx, inSz, h) < 0 ||
+        GetCaviumInt(&key->c_dP, &key->c_dP_Sz, input, inOutIdx, inSz, h) < 0 ||
+        GetCaviumInt(&key->c_dQ, &key->c_dQ_Sz, input, inOutIdx, inSz, h) < 0 ||
+        GetCaviumInt(&key->c_u,  &key->c_uSz,   input, inOutIdx, inSz, h) < 0 )
+            return ASN_RSA_KEY_E;
+
+    return 0;
+}
+
+
+#endif /* HAVE_CAVIUM */
+
 int RsaPrivateKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
                         word32 inSz)
 {
     int    version, length;
+
+#ifdef HAVE_CAVIUM
+    if (key->magic == CYASSL_RSA_CAVIUM_MAGIC)
+        return CaviumRsaPrivateKeyDecode(input, inOutIdx, key, inSz);
+#endif
 
     if (GetSequence(input, inOutIdx, &length, inSz) < 0)
         return ASN_PARSE_E;

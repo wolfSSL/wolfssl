@@ -39,6 +39,18 @@
     #endif
 #endif
 
+#ifdef HAVE_CAVIUM
+    static void InitCaviumRsaKey(RsaKey* key, void* heap);
+    static void FreeCaviumRsaKey(RsaKey* key);
+    static int  CaviumRsaPublicEncrypt(const byte* in, word32 inLen, byte* out,
+                                       word32 outLen, RsaKey* key);
+    static int  CaviumRsaPrivateDecrypt(const byte* in, word32 inLen, byte* out,
+                                        word32 outLen, RsaKey* key);
+    static int  CaviumRsaSSL_Sign(const byte* in, word32 inLen, byte* out,
+                                  word32 outLen, RsaKey* key);
+    static int  CaviumRsaSSL_Verify(const byte* in, word32 inLen, byte* out,
+                                    word32 outLen, RsaKey* key);
+#endif
 
 enum {
     RSA_PUBLIC_ENCRYPT  = 0,
@@ -58,6 +70,11 @@ enum {
 
 void InitRsaKey(RsaKey* key, void* heap)
 {
+#ifdef HAVE_CAVIUM
+    if (key->magic == CYASSL_RSA_CAVIUM_MAGIC)
+        return InitCaviumRsaKey(key, heap);
+#endif
+
     key->type = -1;  /* haven't decided yet */
     key->heap = heap;
 
@@ -75,6 +92,12 @@ void InitRsaKey(RsaKey* key, void* heap)
 void FreeRsaKey(RsaKey* key)
 {
     (void)key;
+
+#ifdef HAVE_CAVIUM
+    if (key->magic == CYASSL_RSA_CAVIUM_MAGIC)
+        return FreeCaviumRsaKey(key);
+#endif
+
 /* TomsFastMath doesn't use memory allocation */
 #ifndef USE_FAST_MATH
     if (key->type == RSA_PRIVATE) {
@@ -249,8 +272,14 @@ done:
 int RsaPublicEncrypt(const byte* in, word32 inLen, byte* out, word32 outLen,
                      RsaKey* key, RNG* rng)
 {
-    int sz = mp_unsigned_bin_size(&key->n), ret;
+    int sz, ret;
 
+#ifdef HAVE_CAVIUM
+    if (key->magic == CYASSL_RSA_CAVIUM_MAGIC)
+        return CaviumRsaPublicEncrypt(in, inLen, out, outLen, key);
+#endif
+
+    sz = mp_unsigned_bin_size(&key->n);
     if (sz > (int)outLen)
         return RSA_BUFFER_E;
 
@@ -270,6 +299,15 @@ int RsaPrivateDecryptInline(byte* in, word32 inLen, byte** out, RsaKey* key)
 {
     int plainLen, ret;
 
+#ifdef HAVE_CAVIUM
+    if (key->magic == CYASSL_RSA_CAVIUM_MAGIC) {
+        ret = CaviumRsaPrivateDecrypt(in, inLen, in, inLen, key);
+        if (ret > 0)
+            *out = in;
+        return ret;
+    }
+#endif
+
     if ((ret = RsaFunction(in, inLen, in, &inLen, RSA_PRIVATE_DECRYPT, key))
             < 0) {
         return ret;
@@ -287,6 +325,11 @@ int RsaPrivateDecrypt(const byte* in, word32 inLen, byte* out, word32 outLen,
     int plainLen, ret;
     byte*  tmp;
     byte*  pad = 0;
+
+#ifdef HAVE_CAVIUM
+    if (key->magic == CYASSL_RSA_CAVIUM_MAGIC)
+        return CaviumRsaPrivateDecrypt(in, inLen, out, outLen, key);
+#endif
 
     tmp = (byte*)XMALLOC(inLen, key->heap, DYNAMIC_TYPE_RSA);
     if (tmp == NULL) {
@@ -316,6 +359,15 @@ int RsaSSL_VerifyInline(byte* in, word32 inLen, byte** out, RsaKey* key)
 {
     int plainLen, ret;
 
+#ifdef HAVE_CAVIUM
+    if (key->magic == CYASSL_RSA_CAVIUM_MAGIC) {
+        ret = CaviumRsaSSL_Verify(in, inLen, in, inLen, key);
+        if (ret > 0)
+            *out = in;
+        return ret;
+    }
+#endif
+
     if ((ret = RsaFunction(in, inLen, in, &inLen, RSA_PUBLIC_DECRYPT, key))
             < 0) {
         return ret;
@@ -333,6 +385,11 @@ int RsaSSL_Verify(const byte* in, word32 inLen, byte* out, word32 outLen,
     int plainLen, ret;
     byte*  tmp;
     byte*  pad = 0;
+
+#ifdef HAVE_CAVIUM
+    if (key->magic == CYASSL_RSA_CAVIUM_MAGIC)
+        return CaviumRsaSSL_Verify(in, inLen, out, outLen, key);
+#endif
 
     tmp = (byte*)XMALLOC(inLen, key->heap, DYNAMIC_TYPE_RSA);
     if (tmp == NULL) {
@@ -362,8 +419,14 @@ int RsaSSL_Verify(const byte* in, word32 inLen, byte* out, word32 outLen,
 int RsaSSL_Sign(const byte* in, word32 inLen, byte* out, word32 outLen,
                       RsaKey* key, RNG* rng)
 {
-    int sz = mp_unsigned_bin_size(&key->n), ret;
+    int sz, ret;
 
+#ifdef HAVE_CAVIUM
+    if (key->magic == CYASSL_RSA_CAVIUM_MAGIC)
+        return CaviumRsaSSL_Sign(in, inLen, out, outLen, key);
+#endif
+
+    sz = mp_unsigned_bin_size(&key->n);
     if (sz > (int)outLen)
         return RSA_BUFFER_E;
 
@@ -381,6 +444,10 @@ int RsaSSL_Sign(const byte* in, word32 inLen, byte* out, word32 outLen,
 
 int RsaEncryptSize(RsaKey* key)
 {
+#ifdef HAVE_CAVIUM
+    if (key->magic == CYASSL_RSA_CAVIUM_MAGIC)
+        return key->c_nSz;
+#endif
     return mp_unsigned_bin_size(&key->n);
 }
 
@@ -560,5 +627,181 @@ int MakeRsaKey(RsaKey* key, int size, long e, RNG* rng)
 
 
 #endif /* CYASSL_KEY_GEN */
+
+
+#ifdef HAVE_CAVIUM
+
+#include <cyassl/ctaocrypt/logging.h>
+#include "cavium_common.h"
+
+/* Initiliaze RSA for use with Nitrox device */
+int RsaInitCavium(RsaKey* rsa, int devId)
+{
+    if (rsa == NULL)
+        return -1;
+
+    if (CspAllocContext(CONTEXT_SSL, &rsa->contextHandle, devId) != 0)
+        return -1;
+
+    rsa->devId = devId;
+    rsa->magic = CYASSL_RSA_CAVIUM_MAGIC;
+   
+    return 0;
+}
+
+
+/* Free RSA from use with Nitrox device */
+void RsaFreeCavium(RsaKey* rsa)
+{
+    if (rsa == NULL)
+        return;
+
+    CspFreeContext(CONTEXT_SSL, rsa->contextHandle, rsa->devId);
+    rsa->magic = 0;
+}
+
+
+/* Initialize cavium RSA key */
+static void InitCaviumRsaKey(RsaKey* key, void* heap)
+{
+    if (key == NULL)
+        return;
+
+    key->heap = heap;
+    key->type = -1;   /* don't know yet */
+
+    key->c_n  = NULL;
+    key->c_e  = NULL;
+    key->c_d  = NULL;
+    key->c_p  = NULL;
+    key->c_q  = NULL;
+    key->c_dP = NULL;
+    key->c_dQ = NULL;
+    key->c_u  = NULL;
+
+    key->c_nSz   = 0;
+    key->c_eSz   = 0;
+    key->c_dSz   = 0;
+    key->c_pSz   = 0;
+    key->c_qSz   = 0;
+    key->c_dP_Sz = 0;
+    key->c_dQ_Sz = 0;
+    key->c_uSz   = 0;
+}
+
+
+/* Free cavium RSA key */
+static void FreeCaviumRsaKey(RsaKey* key)
+{
+    if (key == NULL)
+        return;
+
+    XFREE(key->c_n,  key->heap, DYNAMIC_TYPE_CAVIUM_TMP);
+    XFREE(key->c_e,  key->heap, DYNAMIC_TYPE_CAVIUM_TMP);
+    XFREE(key->c_d,  key->heap, DYNAMIC_TYPE_CAVIUM_TMP);
+    XFREE(key->c_p,  key->heap, DYNAMIC_TYPE_CAVIUM_TMP);
+    XFREE(key->c_q,  key->heap, DYNAMIC_TYPE_CAVIUM_TMP);
+    XFREE(key->c_dP, key->heap, DYNAMIC_TYPE_CAVIUM_TMP);
+    XFREE(key->c_dQ, key->heap, DYNAMIC_TYPE_CAVIUM_TMP);
+    XFREE(key->c_u,  key->heap, DYNAMIC_TYPE_CAVIUM_TMP);
+
+    InitCaviumRsaKey(key, key->heap);  /* reset pointers */
+}
+
+
+static int CaviumRsaPublicEncrypt(const byte* in, word32 inLen, byte* out,
+                                   word32 outLen, RsaKey* key)
+{
+    word32 requestId;
+    word32 ret;
+
+    if (key == NULL || in == NULL || out == NULL || outLen < (word32)key->c_nSz)
+        return -1;
+
+    ret = CspPkcs1v15Enc(CAVIUM_BLOCKING, BT2, key->c_nSz, key->c_eSz,
+                         (word16)inLen, key->c_n, key->c_e, (byte*)in, out,
+                         &requestId, key->devId);
+    if (ret != 0) {
+        CYASSL_MSG("Cavium Enc BT2 failed");
+        return -1;
+    }
+    return key->c_nSz;
+}
+
+
+static INLINE void ato16(const byte* c, word16* u16)
+{
+    *u16 = (c[0] << 8) | (c[1]);
+}
+
+
+static int CaviumRsaPrivateDecrypt(const byte* in, word32 inLen, byte* out,
+                                    word32 outLen, RsaKey* key)
+{
+    word32 requestId;
+    word32 ret;
+    word16 outSz = (word16)outLen;
+
+    if (key == NULL || in == NULL || out == NULL || inLen != (word32)key->c_nSz)
+        return -1;
+
+    ret = CspPkcs1v15CrtDec(CAVIUM_BLOCKING, BT2, key->c_nSz, key->c_q,
+                            key->c_dQ, key->c_p, key->c_dP, key->c_u,
+                            (byte*)in, &outSz, out, &requestId, key->devId);
+    if (ret != 0) {
+        CYASSL_MSG("Cavium CRT Dec BT2 failed");
+        return -1;
+    }
+    ato16((const byte*)&outSz, &outSz); 
+
+    return outSz;
+}
+
+
+static int CaviumRsaSSL_Sign(const byte* in, word32 inLen, byte* out,
+                             word32 outLen, RsaKey* key)
+{
+    word32 requestId;
+    word32 ret;
+
+    if (key == NULL || in == NULL || out == NULL || inLen == 0 || outLen <
+                                                             (word32)key->c_nSz)
+        return -1;
+
+    ret = CspPkcs1v15CrtEnc(CAVIUM_BLOCKING, BT1, key->c_nSz, (word16)inLen,
+                            key->c_q, key->c_dQ, key->c_p, key->c_dP, key->c_u,
+                            (byte*)in, out, &requestId, key->devId);
+    if (ret != 0) {
+        CYASSL_MSG("Cavium CRT Enc BT1 failed");
+        return -1;
+    }
+    return key->c_nSz;
+}
+
+
+static int CaviumRsaSSL_Verify(const byte* in, word32 inLen, byte* out,
+                               word32 outLen, RsaKey* key)
+{
+    word32 requestId;
+    word32 ret;
+    word16 outSz = (word16)outLen;
+
+    if (key == NULL || in == NULL || out == NULL || inLen != (word32)key->c_nSz)
+        return -1;
+
+    ret = CspPkcs1v15Dec(CAVIUM_BLOCKING, BT1, key->c_nSz, key->c_eSz,
+                         key->c_n, key->c_e, (byte*)in, &outSz, out,
+                         &requestId, key->devId);
+    if (ret != 0) {
+        CYASSL_MSG("Cavium Dec BT1 failed");
+        return -1;
+    }
+    outSz = ntohs(outSz);
+
+    return outSz;
+}
+
+
+#endif /* HAVE_CAVIUM */
 
 #endif /* NO_RSA */

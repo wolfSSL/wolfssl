@@ -2108,7 +2108,10 @@ int rsa_test(void)
 
     bytes = fread(tmp, 1, FOURK_BUF, file);
 #endif /* USE_CERT_BUFFERS */
-  
+ 
+#ifdef HAVE_CAVIUM
+    RsaInitCavium(&key, CAVIUM_DEV_ID);
+#endif 
     InitRsaKey(&key, 0);  
     ret = RsaPrivateKeyDecode(tmp, &idx, &key, (word32)bytes);
     if (ret != 0) return -41;
@@ -2488,6 +2491,9 @@ int rsa_test(void)
 #endif /* CYASSL_CERT_GEN */
 
     FreeRsaKey(&key);
+#ifdef HAVE_CAVIUM
+    RsaFreeCavium(&key);
+#endif 
     free(tmp);
 
     return 0;
