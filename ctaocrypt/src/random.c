@@ -455,6 +455,25 @@ int GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     return 0;
 }
 
+#elif defined(MICROCHIP_PIC32)
+
+#include <peripheral/timer.h>
+
+/* uses the core timer, in nanoseconds to seed srand */
+int GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+{
+    int i;
+    srand(ReadCoreTimer() * 25);
+
+    for (i = 0; i < sz; i++ ) {
+        output[i] = rand() % 256;
+        if ( (i % 8) == 7)
+            srand(ReadCoreTimer() * 25);
+    }
+
+    return 0;
+}
+
 #elif defined(CYASSL_SAFERTOS) || defined(CYASSL_LEANPSK)
 
 #warning "write a real random seed!!!!, just for testing now"

@@ -55,6 +55,9 @@ include testsuite/include.am
 include tests/include.am
 include sslSniffer/sslSnifferTest/include.am
 include rpm/include.am
+include mplabx/ctaocrypt_benchmark.X/nbproject/include.am
+include mplabx/ctaocrypt_test.X/nbproject/include.am
+include mplabx/cyassl.X/nbproject/include.am
 
 if USE_VALGRIND
 TESTS_ENVIRONMENT=./valgrind-error.sh
