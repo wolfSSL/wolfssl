@@ -49,7 +49,7 @@ AC_DEFUN([AX_DEBUG],[
     AC_ARG_ENABLE([debug],
       [AS_HELP_STRING([--enable-debug],
         [Add debug code/turns off optimizations (yes|no) @<:@default=no@:>@])],[
-      ax_enable_debug=yes
+      ax_enable_debug=$enableval
       AC_DEFINE(DEBUG, [ 1 ], [Define to 1 to enable debugging code.])
       ],[
       ax_enable_debug=no
