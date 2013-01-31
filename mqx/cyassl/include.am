@@ -3,6 +3,9 @@
 #
 
 EXTRA_DIST += \
+         mqx/README
+
+EXTRA_DIST += \
          mqx/cyassl/.cproject \
          mqx/cyassl/.project
 
