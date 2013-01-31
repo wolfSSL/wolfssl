@@ -13,7 +13,7 @@ Included Project Files
 
 1. CyaSSL library (cyassl.X)
 
-    This project build a static CyaSSL library. Prior to building this
+    This project builds a static CyaSSL library. Prior to building this
     project, uncomment the MICROCHIP_PIC32 define located in:
 
     <cyassl_root>/cyassl/ctaocrypt/settings.h

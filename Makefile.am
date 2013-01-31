@@ -55,6 +55,10 @@ include testsuite/include.am
 include tests/include.am
 include sslSniffer/sslSnifferTest/include.am
 include rpm/include.am
+include mqx/ctaocrypt_test/Sources/include.am
+include mqx/cyassl/include.am
+include mqx/cyassl_client/Sources/include.am
+include mqx/util_lib/Sources/include.am
 include mplabx/ctaocrypt_benchmark.X/nbproject/include.am
 include mplabx/ctaocrypt_test.X/nbproject/include.am
 include mplabx/cyassl.X/nbproject/include.am
