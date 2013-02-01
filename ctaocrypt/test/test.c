@@ -160,29 +160,6 @@ typedef struct func_args {
 
 
 
-#ifdef HAVE_CAVIUM
-
-static int OpenNitroxDevice(int dma_mode,int dev_id)
-{
-   Csp1CoreAssignment core_assign;
-   Uint32             device;
-
-   if (CspInitialize(CAVIUM_DIRECT,CAVIUM_DEV_ID))
-      return -1;
-   if (Csp1GetDevType(&device))
-      return -1;
-   if (device != NPX_DEVICE) {
-      if (ioctl(gpkpdev_hdlr[CAVIUM_DEV_ID], IOCTL_CSP1_GET_CORE_ASSIGNMENT,
-                (Uint32 *)&core_assign)!= 0)
-         return -1;
-   }
-   CspShutdown(CAVIUM_DEV_ID);
-
-   return CspInitialize(dma_mode, dev_id);
-}
-
-#endif
-
 void ctaocrypt_test(void* args)
 {
     int ret = 0;
@@ -199,11 +176,6 @@ void ctaocrypt_test(void* args)
 #endif /* USE_FAST_MATH */
 #endif /* !CYASSL_LEANPSK */
 
-#ifdef HAVE_CAVIUM
-    ret = OpenNitroxDevice(CAVIUM_DIRECT, CAVIUM_DEV_ID);
-    if (ret != 0)
-        err_sys("Cavium OpenNitroxDevice failed", -1236);
-#endif /* HAVE_CAVIUM */
 
 #ifndef NO_MD5
     if ( (ret = md5_test()) ) 
@@ -398,25 +370,56 @@ void ctaocrypt_test(void* args)
         printf( "ECC      test passed!\n");
 #endif
 
-#ifdef HAVE_CAVIUM
-    CspShutdown(CAVIUM_DEV_ID);
-#endif
 
     ((func_args*)args)->return_code = ret;
 }
 
 
-/* so overall tests can pull in test function */
 #ifndef NO_MAIN_DRIVER
+
+#ifdef HAVE_CAVIUM
+
+static int OpenNitroxDevice(int dma_mode,int dev_id)
+{
+   Csp1CoreAssignment core_assign;
+   Uint32             device;
+
+   if (CspInitialize(CAVIUM_DIRECT,CAVIUM_DEV_ID))
+      return -1;
+   if (Csp1GetDevType(&device))
+      return -1;
+   if (device != NPX_DEVICE) {
+      if (ioctl(gpkpdev_hdlr[CAVIUM_DEV_ID], IOCTL_CSP1_GET_CORE_ASSIGNMENT,
+                (Uint32 *)&core_assign)!= 0)
+         return -1;
+   }
+   CspShutdown(CAVIUM_DEV_ID);
+
+   return CspInitialize(dma_mode, dev_id);
+}
+
+#endif /* HAVE_CAVIUM */
+
+    /* so overall tests can pull in test function */
 
     int main(int argc, char** argv)
     {
         func_args args;
 
+#ifdef HAVE_CAVIUM
+        int ret = OpenNitroxDevice(CAVIUM_DIRECT, CAVIUM_DEV_ID);
+        if (ret != 0)
+            err_sys("Cavium OpenNitroxDevice failed", -1236);
+#endif /* HAVE_CAVIUM */
+
         args.argc = argc;
         args.argv = argv;
 
         ctaocrypt_test(&args);
+
+#ifdef HAVE_CAVIUM
+        CspShutdown(CAVIUM_DEV_ID);
+#endif
         return args.return_code;
     }
 
@@ -1490,8 +1493,8 @@ int des3_test(void)
         return -20006; 
 #endif
     Des3_SetKey(&enc, key3, iv3, DES_ENCRYPTION);
-    Des3_CbcEncrypt(&enc, cipher, vector, sizeof(vector));
     Des3_SetKey(&dec, key3, iv3, DES_DECRYPTION);
+    Des3_CbcEncrypt(&enc, cipher, vector, sizeof(vector));
     Des3_CbcDecrypt(&dec, plain, cipher, sizeof(cipher));
 
     if (memcmp(plain, vector, sizeof(plain)))

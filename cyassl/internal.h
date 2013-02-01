@@ -567,6 +567,8 @@ enum Misc {
 
     HASH_SIG_SIZE      =   2,  /* default SHA1 RSA */
 
+    NO_CAVIUM_DEVICE   =  -2,  /* invalid cavium device id */
+
     NO_COPY            =   0,  /* should we copy static buffer for write */
     COPY               =   1   /* should we copy static buffer for write */
 };
@@ -968,6 +970,9 @@ struct CYASSL_CTX {
 #endif /* OPENSSL_EXTRA */
 #ifdef HAVE_OCSP
     CYASSL_OCSP      ocsp;
+#endif
+#ifdef HAVE_CAVIUM
+    int              devId;            /* cavium device id to use */
 #endif
 };
 
@@ -1469,6 +1474,9 @@ struct CYASSL {
 #endif
 #ifdef FORTRESS
     void*           ex_data[MAX_EX_DATA]; /* external data, for Fortress */
+#endif
+#ifdef HAVE_CAVIUM
+    int              devId;            /* cavium device id to use */
 #endif
 };
 

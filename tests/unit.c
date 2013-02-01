@@ -19,6 +19,12 @@ int main(int argc, char** argv)
     (void)argv;
     printf("starting unit tests...\n");
 
+#ifdef HAVE_CAVIUM
+    ret = OpenNitroxDevice(CAVIUM_DIRECT, CAVIUM_DEV_ID);
+    if (ret != 0)
+        err_sys("Cavium OpenNitroxDevice failed");
+#endif /* HAVE_CAVIUM */
+
     if (CurrentDir("tests"))
         ChangeDirBack(1);
     else if (CurrentDir("build"))
@@ -38,6 +44,10 @@ int main(int argc, char** argv)
         printf("suite test failed with %d\n", ret);
         return ret;
     }
+
+#ifdef HAVE_CAVIUM
+        CspShutdown(CAVIUM_DEV_ID);
+#endif
 
     return 0;
 }

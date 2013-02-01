@@ -40,6 +40,12 @@
     #endif
 #endif /* USE_WINDOWS_API */
 
+#ifdef HAVE_CAVIUM
+    #include "cavium_sysdep.h"
+    #include "cavium_common.h"
+    #include "cavium_ioctl.h"
+#endif
+
 #ifdef _MSC_VER
     /* disable conversion warning */
     /* 4996 warning to use MS extensions e.g., strcpy_s instead of strncpy */
@@ -797,6 +803,30 @@ static INLINE void SetDHCtx(CYASSL_CTX* ctx)
 }
 
 #endif /* !NO_CERTS */
+
+#ifdef HAVE_CAVIUM
+
+static INLINE int OpenNitroxDevice(int dma_mode,int dev_id)
+{
+   Csp1CoreAssignment core_assign;
+   Uint32             device;
+
+   if (CspInitialize(CAVIUM_DIRECT,CAVIUM_DEV_ID))
+      return -1;
+   if (Csp1GetDevType(&device))
+      return -1;
+   if (device != NPX_DEVICE) {
+      if (ioctl(gpkpdev_hdlr[CAVIUM_DEV_ID], IOCTL_CSP1_GET_CORE_ASSIGNMENT,
+                (Uint32 *)&core_assign)!= 0)
+         return -1;
+   }
+   CspShutdown(CAVIUM_DEV_ID);
+
+   return CspInitialize(dma_mode, dev_id);
+}
+
+#endif /* HAVE_CAVIUM */
+
 
 #ifdef USE_WINDOWS_API 
 

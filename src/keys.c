@@ -1203,8 +1203,9 @@ static int SetPrefix(byte* sha_input, int idx)
 
 
 static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
-                   byte side, void* heap)
+                   byte side, void* heap, int devId)
 {
+    (void)devId;
 #ifdef BUILD_ARC4
     word32 sz = specs->key_size;
     if (specs->bulk_cipher_algorithm == rc4) {
@@ -1214,6 +1215,18 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
         dec->arc4 = (Arc4*)XMALLOC(sizeof(Arc4), heap, DYNAMIC_TYPE_CIPHER);
         if (dec->arc4 == NULL)
             return MEMORY_E;
+#ifdef HAVE_CAVIUM
+        if (devId != NO_CAVIUM_DEVICE) {
+            if (Arc4InitCavium(enc->arc4, devId) != 0) {
+                CYASSL_MSG("Arc4InitCavium failed in SetKeys");
+                return CAVIUM_INIT_E;
+            }
+            if (Arc4InitCavium(dec->arc4, devId) != 0) {
+                CYASSL_MSG("Arc4InitCavium failed in SetKeys");
+                return CAVIUM_INIT_E;
+            }
+        }
+#endif
         if (side == CLIENT_END) {
             Arc4SetKey(enc->arc4, keys->client_write_key, sz);
             Arc4SetKey(dec->arc4, keys->server_write_key, sz);
@@ -1285,6 +1298,18 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
         dec->des3 = (Des3*)XMALLOC(sizeof(Des3), heap, DYNAMIC_TYPE_CIPHER);
         if (dec->des3 == NULL)
             return MEMORY_E;
+#ifdef HAVE_CAVIUM
+        if (devId != NO_CAVIUM_DEVICE) {
+            if (Des3_InitCavium(enc->des3, devId) != 0) {
+                CYASSL_MSG("Des3_InitCavium failed in SetKeys");
+                return CAVIUM_INIT_E;
+            }
+            if (Des3_InitCavium(dec->des3, devId) != 0) {
+                CYASSL_MSG("Des3_InitCavium failed in SetKeys");
+                return CAVIUM_INIT_E;
+            }
+        }
+#endif
         if (side == CLIENT_END) {
             Des3_SetKey(enc->des3, keys->client_write_key,
                         keys->client_write_IV, DES_ENCRYPTION);
@@ -1310,6 +1335,18 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
         dec->aes = (Aes*)XMALLOC(sizeof(Aes), heap, DYNAMIC_TYPE_CIPHER);
         if (dec->aes == NULL)
             return MEMORY_E;
+#ifdef HAVE_CAVIUM
+        if (devId != NO_CAVIUM_DEVICE) {
+            if (AesInitCavium(enc->aes, devId) != 0) {
+                CYASSL_MSG("AesInitCavium failed in SetKeys");
+                return CAVIUM_INIT_E;
+            }
+            if (AesInitCavium(dec->aes, devId) != 0) {
+                CYASSL_MSG("AesInitCavium failed in SetKeys");
+                return CAVIUM_INIT_E;
+            }
+        }
+#endif
         if (side == CLIENT_END) {
             AesSetKey(enc->aes, keys->client_write_key,
                       specs->key_size, keys->client_write_IV,
@@ -1442,6 +1479,11 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
 int StoreKeys(CYASSL* ssl, const byte* keyData)
 {
     int sz, i = 0;
+    int devId = NO_CAVIUM_DEVICE;
+
+#ifdef HAVE_CAVIUM
+    devId = ssl->devId;
+#endif
 
     if (ssl->specs.cipher_type != aead) {
         sz = ssl->specs.hash_size;
@@ -1469,7 +1511,7 @@ int StoreKeys(CYASSL* ssl, const byte* keyData)
 #endif
 
     return SetKeys(&ssl->encrypt, &ssl->decrypt, &ssl->keys, &ssl->specs,
-                   ssl->options.side, ssl->heap);
+                   ssl->options.side, ssl->heap, devId);
 }
 
 #ifndef NO_OLD_TLS

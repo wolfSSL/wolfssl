@@ -277,6 +277,10 @@ void CTaoCryptErrorString(int error, char* buffer)
         XSTRNCPY(buffer, "AES-CCM Authentication check fail", max);
         break;
 
+    case CAVIUM_INIT_E:
+        XSTRNCPY(buffer, "Cavium Init type error", max);
+        break;
+
     default:
         XSTRNCPY(buffer, "unknown error number", max);
 

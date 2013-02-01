@@ -148,7 +148,7 @@ static void Arc4CaviumProcess(Arc4* arc4, byte* out, const byte* in,
 
     while (length > CYASSL_MAX_16BIT) {
         word16 slen = (word16)CYASSL_MAX_16BIT;
-        if (CspEncryptRc4(CAVIUM_BLOCKING, arc4->contextHandle,CAVIUM_NO_UPDATE,
+        if (CspEncryptRc4(CAVIUM_BLOCKING, arc4->contextHandle,CAVIUM_UPDATE,
                           slen, (byte*)in + offset, out + offset, &requestId,
                           arc4->devId) != 0) {
             CYASSL_MSG("Bad Cavium Arc4 Encrypt");
@@ -158,7 +158,7 @@ static void Arc4CaviumProcess(Arc4* arc4, byte* out, const byte* in,
     }
     if (length) {
         word16 slen = (word16)length;
-        if (CspEncryptRc4(CAVIUM_BLOCKING, arc4->contextHandle,CAVIUM_NO_UPDATE,
+        if (CspEncryptRc4(CAVIUM_BLOCKING, arc4->contextHandle,CAVIUM_UPDATE,
                           slen, (byte*)in + offset, out + offset, &requestId,
                           arc4->devId) != 0) {
             CYASSL_MSG("Bad Cavium Arc4 Encrypt");

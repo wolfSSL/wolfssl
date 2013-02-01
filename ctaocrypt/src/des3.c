@@ -817,7 +817,7 @@ static void Des3_CaviumCbcEncrypt(Des3* des3, byte* out, const byte* in,
 {
     word   offset = 0;
     word32 requestId;
-    
+   
     while (length > CYASSL_MAX_16BIT) {
         word16 slen = (word16)CYASSL_MAX_16BIT;
         if (CspEncrypt3Des(CAVIUM_BLOCKING, des3->contextHandle,
@@ -827,6 +827,8 @@ static void Des3_CaviumCbcEncrypt(Des3* des3, byte* out, const byte* in,
             CYASSL_MSG("Bad Cavium 3DES Cbc Encrypt");
         }
         length -= CYASSL_MAX_16BIT;
+        offset += CYASSL_MAX_16BIT;
+        XMEMCPY(des3->reg, out + offset - DES_BLOCK_SIZE, DES_BLOCK_SIZE);
     }
     if (length) {
         word16 slen = (word16)length;
@@ -837,6 +839,7 @@ static void Des3_CaviumCbcEncrypt(Des3* des3, byte* out, const byte* in,
                            &requestId, des3->devId) != 0) {
             CYASSL_MSG("Bad Cavium 3DES Cbc Encrypt");
         }
+        XMEMCPY(des3->reg, out+offset+length - DES_BLOCK_SIZE, DES_BLOCK_SIZE);
     }
 }
 
@@ -844,25 +847,31 @@ static void Des3_CaviumCbcDecrypt(Des3* des3, byte* out, const byte* in,
                                   word32 length)
 {
     word32 requestId;
+    word   offset = 0;
 
     while (length > CYASSL_MAX_16BIT) {
         word16 slen = (word16)CYASSL_MAX_16BIT;
+        XMEMCPY(des3->tmp, in + offset + slen - DES_BLOCK_SIZE, DES_BLOCK_SIZE);
         if (CspDecrypt3Des(CAVIUM_BLOCKING, des3->contextHandle,
-                           CAVIUM_NO_UPDATE, slen, (byte*)in, out,
+                           CAVIUM_NO_UPDATE, slen, (byte*)in+offset, out+offset,
                            (byte*)des3->reg, (byte*)des3->key[0], &requestId,
                            des3->devId) != 0) {
             CYASSL_MSG("Bad Cavium 3Des Decrypt");
         }
         length -= CYASSL_MAX_16BIT;
+        offset += CYASSL_MAX_16BIT;
+        XMEMCPY(des3->reg, des3->tmp, DES_BLOCK_SIZE);
     }
     if (length) {
         word16 slen = (word16)length;
+        XMEMCPY(des3->tmp, in + offset + slen - DES_BLOCK_SIZE,DES_BLOCK_SIZE);
         if (CspDecrypt3Des(CAVIUM_BLOCKING, des3->contextHandle,
-                           CAVIUM_NO_UPDATE, slen, (byte*)in, out,
+                           CAVIUM_NO_UPDATE, slen, (byte*)in+offset, out+offset,
                            (byte*)des3->reg, (byte*)des3->key[0], &requestId,
                            des3->devId) != 0) {
             CYASSL_MSG("Bad Cavium 3Des Decrypt");
         }
+        XMEMCPY(des3->reg, des3->tmp, DES_BLOCK_SIZE);
     }
 }
 

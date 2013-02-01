@@ -433,6 +433,34 @@ int CyaSSL_read(CYASSL* ssl, void* data, int sz)
     return CyaSSL_read_internal(ssl, data, sz, FALSE);
 }
 
+
+#ifdef HAVE_CAVIUM
+
+int CyaSSL_UseCavium(CYASSL* ssl, int devId)
+{
+    if (ssl == NULL)
+        return BAD_FUNC_ARG;
+
+    ssl->devId = devId;
+
+    return 0;
+}
+
+
+int CyaSSL_CTX_UseCavium(CYASSL_CTX* ctx, int devId)
+{
+    if (ctx == NULL)
+        return BAD_FUNC_ARG;
+
+    ctx->devId = devId;
+
+    return 0;
+}
+
+
+#endif /* HAVE_CAVIUM */
+
+
 #ifndef CYASSL_LEANPSK
 int CyaSSL_send(CYASSL* ssl, const void* data, int sz, int flags)
 {

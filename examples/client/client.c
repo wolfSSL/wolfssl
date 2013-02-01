@@ -333,6 +333,10 @@ void client_test(void* args)
     if (!usePsk && doPeerCheck == 0)
         CyaSSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, 0);
 
+#ifdef HAVE_CAVIUM
+    CyaSSL_CTX_UseCavium(ctx, CAVIUM_DEV_ID);
+#endif
+
     if (benchmark) {
         /* time passed in number of connects give average */
         int times = benchmark;
@@ -533,6 +537,12 @@ void client_test(void* args)
     {
         func_args args;
 
+#ifdef HAVE_CAVIUM
+        int ret = OpenNitroxDevice(CAVIUM_DIRECT, CAVIUM_DEV_ID);
+        if (ret != 0)
+            err_sys("Cavium OpenNitroxDevice failed");
+#endif /* HAVE_CAVIUM */
+
         StartTCP();
 
         args.argc = argc;
@@ -548,6 +558,9 @@ void client_test(void* args)
         client_test(&args);
         CyaSSL_Cleanup();
 
+#ifdef HAVE_CAVIUM
+        CspShutdown(CAVIUM_DEV_ID);
+#endif
         return args.return_code;
     }
 

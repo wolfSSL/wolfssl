@@ -397,6 +397,9 @@ int InitSSL_Ctx(CYASSL_CTX* ctx, CYASSL_METHOD* method)
 #ifdef HAVE_OCSP
     CyaSSL_OCSP_Init(&ctx->ocsp);
 #endif
+#ifdef HAVE_CAVIUM
+    ctx->devId = NO_CAVIUM_DEVICE; 
+#endif
 
     if (InitMutex(&ctx->countMutex) < 0) {
         CYASSL_MSG("Mutex error on CTX init");
@@ -1239,6 +1242,10 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
 #ifdef CYASSL_CALLBACKS
     ssl->hsInfoOn = 0;
     ssl->toInfoOn = 0;
+#endif
+
+#ifdef HAVE_CAVIUM
+    ssl->devId = ctx->devId; 
 #endif
 
     ssl->rng    = NULL;

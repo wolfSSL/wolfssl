@@ -867,6 +867,11 @@ CYASSL_API void CyaSSL_KeepArrays(CYASSL*);
 CYASSL_API void CyaSSL_FreeArrays(CYASSL*);
 
 
+/* cavium additions */
+CYASSL_API int CyaSSL_UseCavium(CYASSL*, int devId);
+CYASSL_API int CyaSSL_CTX_UseCavium(CYASSL_CTX*, int devId);
+
+
 #define CYASSL_CRL_MONITOR   0x01   /* monitor this dir flag */
 #define CYASSL_CRL_START_MON 0x02   /* start monitoring flag */
 

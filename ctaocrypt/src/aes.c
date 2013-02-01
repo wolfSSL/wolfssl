@@ -2827,6 +2827,8 @@ static void AesCaviumCbcEncrypt(Aes* aes, byte* out, const byte* in,
             CYASSL_MSG("Bad Cavium Aes Encrypt");
         }
         length -= CYASSL_MAX_16BIT;
+        offset += CYASSL_MAX_16BIT;
+        XMEMCPY(aes->reg, out + offset - AES_BLOCK_SIZE, AES_BLOCK_SIZE);
     }
     if (length) {
         word16 slen = (word16)length;
@@ -2836,6 +2838,7 @@ static void AesCaviumCbcEncrypt(Aes* aes, byte* out, const byte* in,
                           aes->devId) != 0) {
             CYASSL_MSG("Bad Cavium Aes Encrypt");
         }
+        XMEMCPY(aes->reg, out + offset+length - AES_BLOCK_SIZE, AES_BLOCK_SIZE);
     }
 }
 
@@ -2843,23 +2846,31 @@ static void AesCaviumCbcDecrypt(Aes* aes, byte* out, const byte* in,
                                 word32 length)
 {
     word32 requestId;
+    word   offset = 0;
 
     while (length > CYASSL_MAX_16BIT) {
         word16 slen = (word16)CYASSL_MAX_16BIT;
+        XMEMCPY(aes->tmp, in + offset + slen - AES_BLOCK_SIZE, AES_BLOCK_SIZE);
         if (CspDecryptAes(CAVIUM_BLOCKING, aes->contextHandle, CAVIUM_NO_UPDATE,
-                          aes->type, slen, (byte*)in, out, (byte*)aes->reg,
-                          (byte*)aes->key, &requestId, aes->devId) != 0) {
+                          aes->type, slen, (byte*)in + offset, out + offset,
+                          (byte*)aes->reg, (byte*)aes->key, &requestId,
+                          aes->devId) != 0) {
             CYASSL_MSG("Bad Cavium Aes Decrypt");
         }
         length -= CYASSL_MAX_16BIT;
+        offset += CYASSL_MAX_16BIT;
+        XMEMCPY(aes->reg, aes->tmp, AES_BLOCK_SIZE);
     }
     if (length) {
         word16 slen = (word16)length;
+        XMEMCPY(aes->tmp, in + offset + slen - AES_BLOCK_SIZE, AES_BLOCK_SIZE);
         if (CspDecryptAes(CAVIUM_BLOCKING, aes->contextHandle, CAVIUM_NO_UPDATE,
-                          aes->type, slen, (byte*)in, out, (byte*)aes->reg,
-                          (byte*)aes->key, &requestId, aes->devId) != 0) {
+                          aes->type, slen, (byte*)in + offset, out + offset,
+                          (byte*)aes->reg, (byte*)aes->key, &requestId,
+                          aes->devId) != 0) {
             CYASSL_MSG("Bad Cavium Aes Decrypt");
         }
+        XMEMCPY(aes->reg, aes->tmp, AES_BLOCK_SIZE);
     }
 }
 
