@@ -2789,6 +2789,9 @@ void AesFreeCavium(Aes* aes)
     if (aes == NULL)
         return;
 
+    if (aes->magic != CYASSL_AES_CAVIUM_MAGIC)
+        return;
+
     CspFreeContext(CONTEXT_SSL, aes->contextHandle, aes->devId);
     aes->magic = 0;
 }

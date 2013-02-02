@@ -124,6 +124,9 @@ void Arc4FreeCavium(Arc4* arc4)
     if (arc4 == NULL)
         return;
 
+    if (arc4->magic != CYASSL_ARC4_CAVIUM_MAGIC)
+        return;
+
     CspFreeContext(CONTEXT_SSL, arc4->contextHandle, arc4->devId);
     arc4->magic = 0;
 }

@@ -42,17 +42,32 @@ Release 2.5.0 CyaSSL has bug fixes and new features including:
 - Microchip MPLAB X example projects for PIC32 Ethernet Starter Kit
 - Updated CTaoCrypt benchmark app for embedded systems
 - 1024-bit test certs/keys and cert/key buffers
-- Initial Cavium Nitrox support
 - AES-CCM-8 crypto and cipher suites
 - Camellia crypto and cipher suites
 - Bumped minimum autoconf version to 2.65, automake version to 1.12
 - Addition of OCSP callbacks
 - STM32F2 support with hardware crypto and RNG 
+- Cavium NITROX support
 
 CTaoCrypt now has support for the Microchip PIC32 and has been tested with
 the Microchip PIC32 Ethernet Starter Kit, the XC32 compiler and
 MPLAB X IDE in both MIPS16 and MIPS32 instruction set modes. See the README
 located under the <cyassl_root>/mplabx directory for more details.
+
+To add Cavium NITROX support do:
+
+./configure --with-cavium=/home/user/cavium/software
+
+pointing to your licensed cavium/software directory.  Since Cavium doesn't
+build a library we pull in the cavium_common.o file which gives a libtool 
+warning about the portability of this.  Also, if you're using the github source
+tree you'll need to remove the -Wredundant-decls warning from the generated
+Makefile because the cavium headers don't conform to this warning.  Currently
+CyaSSL supports Cavium RNG, AES, 3DES, RC4, HMAC, and RSA directly at the crypto
+layer.  Support at the SSL level is parital and currently just does AES, 3DES,
+and RC4.  RSA and HMAC are slower until the Cavium calls can be utilized in non
+blocking mode.  The example client turns on cavium support as does the crypto
+test and benchmark.  Please see the HAVE_CAVIUM define.
 
 CyaSSL is able to use the STM32F2 hardware-based cryptography and random number
 generator through the STM32F2 Standard Peripheral Library. For necessary

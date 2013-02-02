@@ -795,6 +795,9 @@ void Des3_FreeCavium(Des3* des3)
     if (des3 == NULL)
         return;
 
+    if (des3->magic != CYASSL_3DES_CAVIUM_MAGIC)
+        return;
+
     CspFreeContext(CONTEXT_SSL, des3->contextHandle, des3->devId);
     des3->magic = 0;
 }

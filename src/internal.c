@@ -496,14 +496,32 @@ void FreeCiphers(CYASSL* ssl)
 {
     (void)ssl;
 #ifdef BUILD_ARC4
+    #ifdef HAVE_CAVIUM
+    if (ssl->devId != NO_CAVIUM_DEVICE) {
+        Arc4FreeCavium(ssl->encrypt.arc4);
+        Arc4FreeCavium(ssl->decrypt.arc4);
+    }
+    #endif
     XFREE(ssl->encrypt.arc4, ssl->heap, DYNAMIC_TYPE_CIPHER);
     XFREE(ssl->decrypt.arc4, ssl->heap, DYNAMIC_TYPE_CIPHER);
 #endif
 #ifdef BUILD_DES3
+    #ifdef HAVE_CAVIUM
+    if (ssl->devId != NO_CAVIUM_DEVICE) {
+        Des3_FreeCavium(ssl->encrypt.des3);
+        Des3_FreeCavium(ssl->decrypt.des3);
+    }
+    #endif
     XFREE(ssl->encrypt.des3, ssl->heap, DYNAMIC_TYPE_CIPHER);
     XFREE(ssl->decrypt.des3, ssl->heap, DYNAMIC_TYPE_CIPHER);
 #endif
 #ifdef BUILD_AES
+    #ifdef HAVE_CAVIUM
+    if (ssl->devId != NO_CAVIUM_DEVICE) {
+        AesFreeCavium(ssl->encrypt.aes);
+        AesFreeCavium(ssl->decrypt.aes);
+    }
+    #endif
     XFREE(ssl->encrypt.aes, ssl->heap, DYNAMIC_TYPE_CIPHER);
     XFREE(ssl->decrypt.aes, ssl->heap, DYNAMIC_TYPE_CIPHER);
 #endif
