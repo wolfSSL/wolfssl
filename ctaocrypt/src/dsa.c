@@ -1,6 +1,6 @@
 /* dsa.c
  *
- * Copyright (C) 2006-2012 Sawtooth Consulting Ltd.
+ * Copyright (C) 2006-2013 Sawtooth Consulting Ltd.
  *
  * This file is part of CyaSSL.
  *

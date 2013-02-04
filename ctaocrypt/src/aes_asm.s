@@ -1,6 +1,6 @@
 /* aes_asm.s
  *
- * Copyright (C) 2006-2011 Sawtooth Consulting Ltd.
+ * Copyright (C) 2006-2013 Sawtooth Consulting Ltd.
  *
  * This file is part of CyaSSL.
  *
