@@ -4716,7 +4716,7 @@ int SendData(CYASSL* ssl, const void* data, int sz)
         /* check for avalaible size */
         if ((ret = CheckAvalaibleSize(ssl, len + COMP_EXTRA +
                                       MAX_MSG_EXTRA)) != 0)
-            return ret;
+            return ssl->error = ret;
 
         /* get ouput buffer */
         out = ssl->buffers.outputBuffer.buffer +
