@@ -38,6 +38,8 @@ before calling SSL_new();  Though it's not recommended.
 CyaSSL Release 2.5.0 (02/04/2013)
 
 Release 2.5.0 CyaSSL has bug fixes and new features including:
+- Fix for TLS CBC padding timing attack identified by Nadhem Alfardan and
+  Kenny Paterson: http://www.isg.rhul.ac.uk/tls/
 - Microchip PIC32 (MIPS16, MIPS32) support
 - Microchip MPLAB X example projects for PIC32 Ethernet Starter Kit
 - Updated CTaoCrypt benchmark app for embedded systems

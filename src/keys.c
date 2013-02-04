@@ -1205,7 +1205,6 @@ static int SetPrefix(byte* sha_input, int idx)
 static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
                    byte side, void* heap, int devId)
 {
-    (void)devId;
 #ifdef BUILD_ARC4
     word32 sz = specs->key_size;
     if (specs->bulk_cipher_algorithm == rc4) {
@@ -1470,6 +1469,7 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
     (void)enc;
     (void)dec;
     (void)specs;
+    (void)devId;
 
     return 0;
 }

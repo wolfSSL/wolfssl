@@ -3445,7 +3445,7 @@ static INLINE void Md5Rounds(int rounds, const byte* data, int sz)
 
     InitMd5(&md5);
 
-    for (i = 0; i < rounds; i++);
+    for (i = 0; i < rounds; i++)
         Md5Update(&md5, data, sz);
 }
 
@@ -3459,7 +3459,7 @@ static INLINE void ShaRounds(int rounds, const byte* data, int sz)
 
     InitSha(&sha);
 
-    for (i = 0; i < rounds; i++);
+    for (i = 0; i < rounds; i++)
         ShaUpdate(&sha, data, sz);
 }
 
@@ -3473,7 +3473,7 @@ static INLINE void Sha256Rounds(int rounds, const byte* data, int sz)
 
     InitSha256(&sha256);
 
-    for (i = 0; i < rounds; i++);
+    for (i = 0; i < rounds; i++)
         Sha256Update(&sha256, data, sz);
 }
 
@@ -3489,7 +3489,7 @@ static INLINE void Sha384Rounds(int rounds, const byte* data, int sz)
 
     InitSha384(&sha384);
 
-    for (i = 0; i < rounds; i++);
+    for (i = 0; i < rounds; i++)
         Sha384Update(&sha384, data, sz);
 }
 
@@ -3505,7 +3505,7 @@ static INLINE void Sha512Rounds(int rounds, const byte* data, int sz)
 
     InitSha512(&sha512);
 
-    for (i = 0; i < rounds; i++);
+    for (i = 0; i < rounds; i++)
         Sha512Update(&sha512, data, sz);
 }
 
@@ -3521,7 +3521,7 @@ static INLINE void RmdRounds(int rounds, const byte* data, int sz)
 
     InitRipeMd(&ripemd);
 
-    for (i = 0; i < rounds; i++);
+    for (i = 0; i < rounds; i++)
         RipeMdUpdate(&ripemd, data, sz);
 }
 
