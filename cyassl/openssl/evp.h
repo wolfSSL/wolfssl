@@ -1,6 +1,6 @@
 /* evp.h
  *
- * Copyright (C) 2013 Sawtooth Consulting Ltd.
+ * Copyright (C) 2013 wolfSSL Inc.
  *
  * This file is part of CyaSSL.
  *
