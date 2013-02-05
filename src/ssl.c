@@ -4012,6 +4012,8 @@ int CyaSSL_set_compression(CYASSL* ssl)
             bio->fd    = sfd;
             bio->prev  = 0;
             bio->next  = 0;
+            bio->mem   = NULL;
+            bio->memLen = 0;
         }
         return bio; 
     }
