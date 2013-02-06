@@ -1164,14 +1164,15 @@ CYASSL_LOCAL void InitCiphers(CYASSL* ssl);
 CYASSL_LOCAL void FreeCiphers(CYASSL* ssl);
 
 
+#ifdef CYASSL_SHA384
+    #define HASHES_SZ SHA384_DIGEST_SIZE
+#else
+    #define HASHES_SZ FINISHED_SZ
+#endif
+
 /* hashes type */
 typedef struct Hashes {
-    #ifndef NO_MD5
-        byte md5[MD5_DIGEST_SIZE];
-        byte sha[SHA_DIGEST_SIZE];
-    #else
-        byte hash[FINISHED_SZ];
-    #endif
+    byte hash[HASHES_SZ];
 } Hashes;
 
 

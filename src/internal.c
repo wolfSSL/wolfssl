@@ -2270,7 +2270,7 @@ static void BuildMD5(CYASSL* ssl, Hashes* hashes, const byte* sender)
     Md5Update(&ssl->hashMd5, PAD2, PAD_MD5);
     Md5Update(&ssl->hashMd5, md5_result, MD5_DIGEST_SIZE);
 
-    Md5Final(&ssl->hashMd5, hashes->md5);
+    Md5Final(&ssl->hashMd5, &hashes->hash[0]);
 }
 
 
@@ -2290,7 +2290,7 @@ static void BuildSHA(CYASSL* ssl, Hashes* hashes, const byte* sender)
     ShaUpdate(&ssl->hashSha, PAD2, PAD_SHA);
     ShaUpdate(&ssl->hashSha, sha_result, SHA_DIGEST_SIZE);
 
-    ShaFinal(&ssl->hashSha, hashes->sha);
+    ShaFinal(&ssl->hashSha, &hashes->hash[MD5_DIGEST_SIZE]);
 }
 #endif
 
@@ -4322,29 +4322,58 @@ static void BuildCertHashes(CYASSL* ssl, Hashes* hashes)
     /* store current states, building requires get_digest which resets state */
     Md5 md5 = ssl->hashMd5;
     Sha sha = ssl->hashSha;
-#ifndef NO_SHA256     /* for possible future changes */
-    Sha256 sha256;
-    InitSha256(&sha256);
-    if (IsAtLeastTLSv1_2(ssl))
-        sha256 = ssl->hashSha256;
-#endif
+    #ifndef NO_SHA256
+        Sha256 sha256;
+    #endif
+    #ifdef CYASSL_SHA384
+        Sha384 sha384;
+    #endif
+    
+    #ifndef NO_SHA256
+        InitSha256(&sha256);
+        if (IsAtLeastTLSv1_2(ssl))
+            sha256 = ssl->hashSha256;
+    #endif
+    #ifdef CYASSL_SHA384
+        InitSha384(&sha384);
+        if (IsAtLeastTLSv1_2(ssl))
+            sha384 = ssl->hashSha384;
+    #endif
 
     if (ssl->options.tls) {
-        Md5Final(&ssl->hashMd5, hashes->md5);
-        ShaFinal(&ssl->hashSha, hashes->sha);
+        if (IsAtLeastTLSv1_2(ssl)) {
+            if (ssl->specs.mac_algorithm <= sha256_mac) {
+                #ifndef NO_SHA256
+                    Sha256Final(&ssl->hashSha256, hashes->hash);
+                #endif
+            }
+            else if (ssl->specs.mac_algorithm == sha384_mac) {
+                #ifdef CYASSL_SHA384
+                    Sha384Final(&ssl->hashSha384, hashes->hash);
+                #endif
+            }
+        }
+        else {
+            Md5Final(&ssl->hashMd5, &hashes->hash[0]);
+            ShaFinal(&ssl->hashSha, &hashes->hash[MD5_DIGEST_SIZE]);
+        }
     }
     else {
-        BuildMD5_CertVerify(ssl, hashes->md5);
-        BuildSHA_CertVerify(ssl, hashes->sha);
+        BuildMD5_CertVerify(ssl, &hashes->hash[0]);
+        BuildSHA_CertVerify(ssl, &hashes->hash[MD5_DIGEST_SIZE]);
     }
     
     /* restore */
     ssl->hashMd5 = md5;
     ssl->hashSha = sha;
-#ifndef NO_SHA256
-    if (IsAtLeastTLSv1_2(ssl))
-        ssl->hashSha256 = sha256;
-#endif
+    #ifndef NO_SHA256
+        if (IsAtLeastTLSv1_2(ssl))
+            ssl->hashSha256 = sha256;
+    #endif
+    #ifdef CYASSL_SHA384
+        if (IsAtLeastTLSv1_2(ssl))
+            ssl->hashSha384 = sha384;
+    #endif
 }
 #endif
 
@@ -6403,6 +6432,14 @@ int SetCipherList(Suites* s, const char* list)
         Md5    md5;
         Sha    sha;
         byte   hash[FINISHED_SZ];
+        #ifndef NO_SHA256
+            Sha256 sha256;
+            byte hash256[SHA256_DIGEST_SIZE];
+        #endif
+        #ifdef CYASSL_SHA384
+            Sha384 sha384;
+            byte hash384[SHA384_DIGEST_SIZE];
+        #endif
         byte   messageVerify[MAX_DH_SZ];
 
         /* adjust from start idx */
@@ -6442,6 +6479,22 @@ int SetCipherList(Suites* s, const char* list)
         ShaUpdate(&sha, messageVerify, verifySz);
         ShaFinal(&sha, &hash[MD5_DIGEST_SIZE]);
 
+        #ifndef NO_SHA256
+            InitSha256(&sha256);
+            Sha256Update(&sha256, ssl->arrays->clientRandom, RAN_LEN);
+            Sha256Update(&sha256, ssl->arrays->serverRandom, RAN_LEN);
+            Sha256Update(&sha256, messageVerify, verifySz);
+            Sha256Final(&sha256, hash256);
+        #endif
+
+        #ifdef CYASSL_SHA384
+            InitSha384(&sha384);
+            Sha384Update(&sha384, ssl->arrays->clientRandom, RAN_LEN);
+            Sha384Update(&sha384, ssl->arrays->serverRandom, RAN_LEN);
+            Sha384Update(&sha384, messageVerify, verifySz);
+            Sha384Final(&sha384, hash384);
+        #endif
+
         /* rsa */
         if (ssl->specs.sig_algo == rsa_sa_algo)
         {
@@ -6456,14 +6509,24 @@ int SetCipherList(Suites* s, const char* list)
             if (IsAtLeastTLSv1_2(ssl)) {
                 byte   encodedSig[MAX_ENCODED_SIG_SZ];
                 word32 encSigSz;
-                byte*  digest;
-                int    typeH;
-                int    digestSz;
+                byte*  digest = &hash[MD5_DIGEST_SIZE];
+                int    typeH = SHAh;
+                int    digestSz = SHA_DIGEST_SIZE;
 
-                /* sha1 for now */
-                digest   = &hash[MD5_DIGEST_SIZE];
-                typeH    = SHAh;
-                digestSz = SHA_DIGEST_SIZE;
+                if (ssl->specs.mac_algorithm <= sha256_mac) {
+                    #ifndef NO_SHA256
+                        digest   = hash256;
+                        typeH    = SHA256h;
+                        digestSz = SHA256_DIGEST_SIZE;
+                    #endif
+                }
+                else if (ssl->specs.mac_algorithm == sha384_mac) {
+                    #ifdef CYASSL_SHA384
+                        digest   = hash384;
+                        typeH    = SHA384h;
+                        digestSz = SHA384_DIGEST_SIZE;
+                    #endif
+                }
 
                 encSigSz = EncodeSignature(encodedSig, digest, digestSz, typeH);
 
@@ -6480,11 +6543,28 @@ int SetCipherList(Suites* s, const char* list)
         /* ecdsa */
         else if (ssl->specs.sig_algo == ecc_dsa_sa_algo) {
             int verify = 0, ret;
+            byte* digest = &hash[MD5_DIGEST_SIZE];
+            word32 digestSz = SHA_DIGEST_SIZE;
             if (!ssl->peerEccDsaKeyPresent)
                 return NO_PEER_KEY;
 
-            ret = ecc_verify_hash(signature, sigLen, &hash[MD5_DIGEST_SIZE],
-                                 SHA_DIGEST_SIZE, &verify, ssl->peerEccDsaKey);
+            if (IsAtLeastTLSv1_2(ssl)) {
+                if (ssl->specs.mac_algorithm <= sha256_mac) {
+                    #ifndef NO_SHA256
+                        digest   = hash256;
+                        digestSz = SHA256_DIGEST_SIZE;
+                    #endif
+                }
+                else if (ssl->specs.mac_algorithm == sha384_mac) {
+                    #ifdef CYASSL_SHA384
+                        digest   = hash384;
+                        digestSz = SHA384_DIGEST_SIZE;
+                    #endif
+                }
+            }
+
+            ret = ecc_verify_hash(signature, sigLen, digest, digestSz,
+                                  &verify, ssl->peerEccDsaKey);
             if (ret != 0 || verify == 0)
                 return VERIFY_SIGN_ERROR;
         }
@@ -6799,8 +6879,8 @@ int SetCipherList(Suites* s, const char* list)
         if (ret == 0) {
             byte*  verify = (byte*)&output[RECORD_HEADER_SZ +
                                            HANDSHAKE_HEADER_SZ];
-            byte*  signBuffer = ssl->certHashes.md5;
-            word32 signSz = sizeof(Hashes);
+            byte*  signBuffer = ssl->certHashes.hash;
+            word32 signSz = FINISHED_SZ;
             byte   encodedSig[MAX_ENCODED_SIG_SZ];
             word32 extraSz = 0;  /* tls 1.2 hash/sig */
 
@@ -6810,7 +6890,7 @@ int SetCipherList(Suites* s, const char* list)
             #endif
             length = sigOutSz;
             if (IsAtLeastTLSv1_2(ssl)) {
-                verify[0] = sha_mac;
+                verify[0] = ssl->specs.mac_algorithm;
                 verify[1] = usingEcc ? ecc_dsa_sa_algo : rsa_sa_algo;
                 extraSz = HASH_SIG_SIZE;
             }
@@ -6819,21 +6899,46 @@ int SetCipherList(Suites* s, const char* list)
             if (usingEcc) {
 #ifdef HAVE_ECC
                 word32 localSz = sigOutSz;
-                ret = ecc_sign_hash(signBuffer + MD5_DIGEST_SIZE,
-                              SHA_DIGEST_SIZE, verify + extraSz + VERIFY_HEADER,
+                word32 digestSz = SHA_DIGEST_SIZE;
+                byte* digest = signBuffer + MD5_DIGEST_SIZE;
+
+                if (IsAtLeastTLSv1_2(ssl)) {
+                    digest = ssl->certHashes.hash;
+                    if (ssl->specs.mac_algorithm <= sha256_mac) {
+                        #ifndef NO_SHA256
+                            digestSz = SHA256_DIGEST_SIZE;
+                        #endif
+                    }
+                    else if (ssl->specs.mac_algorithm == sha384_mac) {
+                        #ifdef CYASSL_SHA384
+                            digestSz = SHA384_DIGEST_SIZE;
+                        #endif
+                    }
+                }
+
+                ret = ecc_sign_hash(digest, digestSz,
+                              verify + extraSz + VERIFY_HEADER,
                               &localSz, ssl->rng, &eccKey);
 #endif
             }
             else {
                 if (IsAtLeastTLSv1_2(ssl)) {
-                    byte* digest;
-                    int   typeH;
-                    int   digestSz;
+                    byte* digest = ssl->certHashes.hash;
+                    int   digestSz = SHA_DIGEST_SIZE;
+                    int   typeH = SHAh;
 
-                    /* sha1 for now */
-                    digest   = ssl->certHashes.sha;
-                    typeH    = SHAh;
-                    digestSz = SHA_DIGEST_SIZE;
+                    if (ssl->specs.mac_algorithm <= sha256_mac) {
+                        #ifndef NO_SHA256
+                            typeH    = SHA256h;
+                            digestSz = SHA256_DIGEST_SIZE;
+                        #endif
+                    }
+                    else if (ssl->specs.mac_algorithm == sha384_mac) {
+                        #ifdef CYASSL_SHA384
+                            typeH    = SHA384h;
+                            digestSz = SHA384_DIGEST_SIZE;
+                        #endif
+                    }
 
                     signSz = EncodeSignature(encodedSig, digest,digestSz,typeH);
                     signBuffer = encodedSig;
@@ -7183,6 +7288,14 @@ int SetCipherList(Suites* s, const char* list)
                 Md5    md5;
                 Sha    sha;
                 byte   hash[FINISHED_SZ];
+                #ifndef NO_SHA256
+                    Sha256 sha256;
+                    byte hash256[SHA256_DIGEST_SIZE];
+                #endif
+                #ifdef CYASSL_SHA384
+                    Sha384 sha384;
+                    byte hash384[SHA384_DIGEST_SIZE];
+                #endif
 
                 /* md5 */
                 InitMd5(&md5);
@@ -7198,22 +7311,48 @@ int SetCipherList(Suites* s, const char* list)
                 ShaUpdate(&sha, output + preSigIdx, preSigSz);
                 ShaFinal(&sha, &hash[MD5_DIGEST_SIZE]);
 
+                #ifndef NO_SHA256
+                    InitSha256(&sha256);
+                    Sha256Update(&sha256, ssl->arrays->clientRandom, RAN_LEN);
+                    Sha256Update(&sha256, ssl->arrays->serverRandom, RAN_LEN);
+                    Sha256Update(&sha256, output + preSigIdx, preSigSz);
+                    Sha256Final(&sha256, hash256);
+                #endif
+
+                #ifdef CYASSL_SHA384
+                    InitSha384(&sha384);
+                    Sha384Update(&sha384, ssl->arrays->clientRandom, RAN_LEN);
+                    Sha384Update(&sha384, ssl->arrays->serverRandom, RAN_LEN);
+                    Sha384Update(&sha384, output + preSigIdx, preSigSz);
+                    Sha384Final(&sha384, hash384);
+                #endif
+
                 if (ssl->specs.sig_algo == rsa_sa_algo) {
                     byte*  signBuffer = hash;
                     word32 signSz    = sizeof(hash);
                     byte   encodedSig[MAX_ENCODED_SIG_SZ];
                     if (IsAtLeastTLSv1_2(ssl)) {
-                        byte* digest;
-                        int   hType;
-                        int   digestSz;
+                        byte* digest   = &hash[MD5_DIGEST_SIZE];
+                        int   typeH    = SHAh;
+                        int   digestSz = SHA_DIGEST_SIZE;
 
-                        /* sha1 for now */
-                        digest   = &hash[MD5_DIGEST_SIZE];
-                        hType    = SHAh;
-                        digestSz = SHA_DIGEST_SIZE;
+                        if (ssl->specs.mac_algorithm <= sha256_mac) {
+                            #ifndef NO_SHA256
+                                digest   = hash256;
+                                typeH    = SHA256h;
+                                digestSz = SHA256_DIGEST_SIZE;
+                            #endif
+                        }
+                        else if (ssl->specs.mac_algorithm == sha384_mac) {
+                            #ifdef CYASSL_SHA384
+                                digest   = hash384;
+                                typeH    = SHA384h;
+                                digestSz = SHA384_DIGEST_SIZE;
+                            #endif
+                        }
 
                         signSz = EncodeSignature(encodedSig, digest, digestSz,
-                                                 hType);
+                                                 typeH);
                         signBuffer = encodedSig;
                     }
                     ret = RsaSSL_Sign(signBuffer, signSz, output + idx, sigSz,
@@ -7226,9 +7365,26 @@ int SetCipherList(Suites* s, const char* list)
                         return ret;
                 }
                 else if (ssl->specs.sig_algo == ecc_dsa_sa_algo) {
+                    byte* digest = &hash[MD5_DIGEST_SIZE];
+                    word32 digestSz = SHA_DIGEST_SIZE;
                     word32 sz = sigSz;
 
-                    ret = ecc_sign_hash(&hash[MD5_DIGEST_SIZE], SHA_DIGEST_SIZE,
+                    if (IsAtLeastTLSv1_2(ssl)) {
+                        if (ssl->specs.mac_algorithm <= sha256_mac) {
+                            #ifndef NO_SHA256
+                                digest   = hash256;
+                                digestSz = SHA256_DIGEST_SIZE;
+                            #endif
+                        }
+                        else if (ssl->specs.mac_algorithm == sha384_mac) {
+                            #ifdef CYASSL_SHA384
+                                digest   = hash384;
+                                digestSz = SHA384_DIGEST_SIZE;
+                            #endif
+                        }
+                    }
+
+                    ret = ecc_sign_hash(digest, digestSz,
                             output + idx, &sz, ssl->rng, &dsaKey);
                     FreeRsaKey(&rsaKey);
                     ecc_free(&dsaKey);
@@ -7385,6 +7541,14 @@ int SetCipherList(Suites* s, const char* list)
                 Md5    md5;
                 Sha    sha;
                 byte   hash[FINISHED_SZ];
+                #ifndef NO_SHA256
+                    Sha256 sha256;
+                    byte hash256[SHA256_DIGEST_SIZE];
+                #endif
+                #ifdef CYASSL_SHA384
+                    Sha384 sha384;
+                    byte hash384[SHA384_DIGEST_SIZE];
+                #endif
 
                 /* md5 */
                 InitMd5(&md5);
@@ -7400,19 +7564,45 @@ int SetCipherList(Suites* s, const char* list)
                 ShaUpdate(&sha, output + preSigIdx, preSigSz);
                 ShaFinal(&sha, &hash[MD5_DIGEST_SIZE]);
 
+                #ifndef NO_SHA256
+                    InitSha256(&sha256);
+                    Sha256Update(&sha256, ssl->arrays->clientRandom, RAN_LEN);
+                    Sha256Update(&sha256, ssl->arrays->serverRandom, RAN_LEN);
+                    Sha256Update(&sha256, output + preSigIdx, preSigSz);
+                    Sha256Final(&sha256, hash256);
+                #endif
+
+                #ifdef CYASSL_SHA384
+                    InitSha384(&sha384);
+                    Sha384Update(&sha384, ssl->arrays->clientRandom, RAN_LEN);
+                    Sha384Update(&sha384, ssl->arrays->serverRandom, RAN_LEN);
+                    Sha384Update(&sha384, output + preSigIdx, preSigSz);
+                    Sha384Final(&sha384, hash384);
+                #endif
+
                 if (ssl->specs.sig_algo == rsa_sa_algo) {
                     byte*  signBuffer = hash;
                     word32 signSz    = sizeof(hash);
                     byte   encodedSig[MAX_ENCODED_SIG_SZ];
                     if (IsAtLeastTLSv1_2(ssl)) {
-                        byte* digest;
-                        int   typeH;
-                        int   digestSz;
+                        byte* digest   = &hash[MD5_DIGEST_SIZE];
+                        int   typeH    = SHAh;
+                        int   digestSz = SHA_DIGEST_SIZE;
 
-                        /* sha1 for now */
-                        digest   = &hash[MD5_DIGEST_SIZE];
-                        typeH    = SHAh;
-                        digestSz = SHA_DIGEST_SIZE;
+                        if (ssl->specs.mac_algorithm <= sha256_mac) {
+                            #ifndef NO_SHA256
+                                digest   = hash256;
+                                typeH    = SHA256h;
+                                digestSz = SHA256_DIGEST_SIZE;
+                            #endif
+                        }
+                        else if (ssl->specs.mac_algorithm == sha384_mac) {
+                            #ifdef CYASSL_SHA384
+                                digest   = hash384;
+                                typeH    = SHA384h;
+                                digestSz = SHA384_DIGEST_SIZE;
+                            #endif
+                        }
 
                         signSz = EncodeSignature(encodedSig, digest, digestSz,
                                                  typeH);
@@ -8304,14 +8494,22 @@ int SetCipherList(Suites* s, const char* list)
             if (IsAtLeastTLSv1_2(ssl)) {
                 byte   encodedSig[MAX_ENCODED_SIG_SZ];
                 word32 sigSz;
-                byte*  digest;
-                int    typeH;
-                int    digestSz;
+                byte*  digest = ssl->certHashes.hash;
+                int    typeH = SHAh;
+                int    digestSz = SHA_DIGEST_SIZE;
 
-                /* sha1 for now */
-                digest   = ssl->certHashes.sha;
-                typeH    = SHAh;
-                digestSz = SHA_DIGEST_SIZE;
+                if (ssl->specs.mac_algorithm <= sha256_mac) {
+                    #ifndef NO_SHA256
+                        typeH    = SHA256h;
+                        digestSz = SHA256_DIGEST_SIZE;
+                    #endif
+                }
+                else if (ssl->specs.mac_algorithm == sha384_mac) {
+                    #ifdef CYASSL_SHA384
+                        typeH    = SHA384h;
+                        digestSz = SHA384_DIGEST_SIZE;
+                    #endif
+                }
 
                 sigSz = EncodeSignature(encodedSig, digest, digestSz, typeH);
 
@@ -8320,8 +8518,8 @@ int SetCipherList(Suites* s, const char* list)
                     ret = 0;  /* verified */
             }
             else {
-                if (outLen == sizeof(ssl->certHashes) && XMEMCMP(out,
-                                &ssl->certHashes, sizeof(ssl->certHashes)) == 0)
+                if (outLen == FINISHED_SZ && XMEMCMP(out,
+                                &ssl->certHashes, FINISHED_SZ) == 0)
                     ret = 0;  /* verified */
             }
         }
@@ -8330,10 +8528,24 @@ int SetCipherList(Suites* s, const char* list)
         if (ssl->peerEccDsaKeyPresent) {
             int verify =  0;
             int err    = -1;
+            byte* digest = ssl->certHashes.hash;
+            word32 digestSz = SHA_DIGEST_SIZE;
 
             CYASSL_MSG("Doing ECC peer cert verify");
 
-            err = ecc_verify_hash(sig, sz, ssl->certHashes.sha, SHA_DIGEST_SIZE,
+            if (IsAtLeastTLSv1_2(ssl)) {
+                if (ssl->specs.mac_algorithm <= sha256_mac) {
+                    #ifndef NO_SHA256
+                        digestSz = SHA256_DIGEST_SIZE;
+                    #endif
+                }
+                else if (ssl->specs.mac_algorithm == sha384_mac) {
+                    #ifdef CYASSL_SHA384
+                        digestSz = SHA384_DIGEST_SIZE;
+                    #endif
+                }
+            }
+            err = ecc_verify_hash(sig, sz, digest, digestSz,
                                   &verify, ssl->peerEccDsaKey);
 
             if (err == 0 && verify == 1)
