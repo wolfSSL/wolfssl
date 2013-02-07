@@ -1164,6 +1164,7 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
     ssl->keys.dtls_expected_peer_epoch  = 0;
     ssl->dtls_timeout                   = DTLS_DEFAULT_TIMEOUT;
     ssl->dtls_pool                      = NULL;
+    ssl->dtls_msg_list                  = NULL;
 #endif
     ssl->keys.encryptionOn = 0;     /* initially off */
     ssl->keys.decryptedCur = 0;     /* initially off */
@@ -1412,6 +1413,10 @@ void SSL_ResourceFree(CYASSL* ssl)
         DtlsPoolReset(ssl);
         XFREE(ssl->dtls_pool, ssl->heap, DYNAMIC_TYPE_NONE);
     }
+    if (ssl->dtls_msg_list != NULL) {
+        DtlsMsgListFree(ssl->dtls_msg_list, ssl->heap);
+        ssl->dtls_msg_list = NULL;
+    }
     XFREE(ssl->buffers.dtlsCtx.peer.sa, ssl->heap, DYNAMIC_TYPE_SOCKADDR);
     ssl->buffers.dtlsCtx.peer.sa = NULL;
 #endif
@@ -1644,7 +1649,76 @@ int DtlsPoolSend(CYASSL* ssl)
     return 0;
 }
 
-#endif
+
+/* functions for managing DTLS datagram reordering */
+
+DtlsMsg* DtlsMsgNew(word32 dataSz, byte* data, word32 seq, void* heap)
+{
+    DtlsMsg* msg = NULL;
+    
+    if (dataSz > 0)
+        msg = (DtlsMsg*)XMALLOC(sizeof(DtlsMsg), heap, DYNAMIC_TYPE_DTLS_MSG);
+
+    if (msg != NULL) {
+        msg->next = NULL;
+        msg->seq = seq;
+        msg->sz = dataSz;
+        XMEMCPY(msg->msg, data, dataSz);
+    }
+
+    return msg;
+}
+
+
+void DtlsMsgDelete(DtlsMsg* msg, void* heap)
+{
+    (void)heap;
+    if (msg != NULL)
+        XFREE(msg, heap, DYNAMIC_TYPE_DTLS_MSG);
+}
+
+
+void DtlsMsgListFree(DtlsMsg* head, void* heap)
+{
+    DtlsMsg* next;
+    while (head) {
+        next = head->next;
+        DtlsMsgDelete(head, heap);
+        head = next;
+    }
+}
+
+
+DtlsMsg* DtlsMsgInsert(DtlsMsg* head, DtlsMsg* item)
+{
+    if (head == NULL || item->seq < head->seq) {
+        item->next = head;
+        head = item;
+    }
+    else if (head->next == NULL) {
+        head->next = item;
+    }
+    else {
+        DtlsMsg* cur = head->next;
+        DtlsMsg* prev = head;
+        while (cur) {
+            if (item->seq < cur->seq) {
+                item->next = cur;
+                prev->next = item;
+                break;
+            }
+            prev = cur;
+            cur = cur->next;
+        }
+        if (cur == NULL) {
+            prev->next = item;
+        }
+    }
+
+    return head;
+}
+
+#endif /* CYASSL_DTLS */
 
 #ifndef NO_OLD_TLS
 
