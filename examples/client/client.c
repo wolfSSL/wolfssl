@@ -419,14 +419,14 @@ void client_test(void* args)
     if (CyaSSL_write(ssl, msg, msgSz) != msgSz)
         err_sys("SSL_write failed");
 
-    input = CyaSSL_read(ssl, reply, sizeof(reply));
+    input = CyaSSL_read(ssl, reply, sizeof(reply)-1);
     if (input > 0) {
         reply[input] = 0;
         printf("Server response: %s\n", reply);
 
         if (sendGET) {  /* get html */
             while (1) {
-                input = CyaSSL_read(ssl, reply, sizeof(reply));
+                input = CyaSSL_read(ssl, reply, sizeof(reply)-1);
                 if (input > 0) {
                     reply[input] = 0;
                     printf("%s\n", reply);
@@ -510,7 +510,7 @@ void client_test(void* args)
             #endif
         }
 
-        input = CyaSSL_read(sslResume, reply, sizeof(reply));
+        input = CyaSSL_read(sslResume, reply, sizeof(reply)-1);
         if (input > 0) {
             reply[input] = 0;
             printf("Server resume response: %s\n", reply);

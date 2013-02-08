@@ -163,7 +163,7 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
 
     while (!shutDown) {
         CYASSL* ssl = 0;
-        char    command[1024];
+        char    command[1024+1];
         int     echoSz = 0;
         int     clientfd;
         int     firstRead = 1;
@@ -197,7 +197,7 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
         showPeer(ssl);
 #endif
 
-        while ( (echoSz = CyaSSL_read(ssl, command, sizeof(command))) > 0) {
+        while ( (echoSz = CyaSSL_read(ssl, command, sizeof(command)-1)) > 0) {
 
             if (firstRead == 1) {
                 firstRead = 0;  /* browser may send 1 byte 'G' to start */

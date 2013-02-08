@@ -351,7 +351,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 #endif
     showPeer(ssl);
 
-    idx = SSL_read(ssl, input, sizeof(input));
+    idx = SSL_read(ssl, input, sizeof(input)-1);
     if (idx > 0) {
         input[idx] = 0;
         printf("Client message: %s\n", input);

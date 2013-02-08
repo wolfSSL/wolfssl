@@ -39,7 +39,7 @@ void echoclient_test(void* args)
     int outCreated = 0;
 
     char msg[1024];
-    char reply[1024];
+    char reply[1024+1];
 
     SSL_METHOD* method = 0;
     SSL_CTX*    ctx    = 0;
@@ -148,7 +148,7 @@ void echoclient_test(void* args)
 
         while (sendSz) {
             int got;
-            if ( (got = SSL_read(ssl, reply, sizeof(reply))) > 0) {
+            if ( (got = SSL_read(ssl, reply, sizeof(reply)-1)) > 0) {
                 reply[got] = 0;
                 fputs(reply, fout);
                 sendSz -= got;

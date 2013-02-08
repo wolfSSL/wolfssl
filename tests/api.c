@@ -651,7 +651,7 @@ THREAD_RETURN CYASSL_THREAD test_server_nofail(void* args)
         return 0;
     }
 
-    idx = CyaSSL_read(ssl, input, sizeof(input));
+    idx = CyaSSL_read(ssl, input, sizeof(input)-1);
     if (idx > 0) {
         input[idx] = 0;
         printf("Client message: %s\n", input);
@@ -732,7 +732,7 @@ void test_client_nofail(void* args)
         return;
     }
 
-    input = CyaSSL_read(ssl, reply, sizeof(reply));
+    input = CyaSSL_read(ssl, reply, sizeof(reply)-1);
     if (input > 0)
     {
         reply[input] = 0;
