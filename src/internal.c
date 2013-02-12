@@ -1049,6 +1049,38 @@ void InitSuites(Suites* suites, ProtocolVersion pv, byte haveRSA, byte havePSK,
 #endif
 
     suites->suiteSz = idx;
+
+    {
+        idx = 0;
+        
+        if (haveECDSAsig) {
+            #ifdef CYASSL_SHA384
+                suites->hashSigAlgo[idx++] = sha384_mac;
+                suites->hashSigAlgo[idx++] = ecc_dsa_sa_algo;
+            #endif
+            #ifndef NO_SHA256
+                suites->hashSigAlgo[idx++] = sha256_mac;
+                suites->hashSigAlgo[idx++] = ecc_dsa_sa_algo;
+            #endif
+            suites->hashSigAlgo[idx++] = sha_mac;
+            suites->hashSigAlgo[idx++] = ecc_dsa_sa_algo;
+        }
+
+        if (haveRSAsig) {
+            #ifdef CYASSL_SHA384
+                suites->hashSigAlgo[idx++] = sha384_mac;
+                suites->hashSigAlgo[idx++] = rsa_sa_algo;
+            #endif
+            #ifndef NO_SHA256
+                suites->hashSigAlgo[idx++] = sha256_mac;
+                suites->hashSigAlgo[idx++] = rsa_sa_algo;
+            #endif
+            suites->hashSigAlgo[idx++] = sha_mac;
+            suites->hashSigAlgo[idx++] = rsa_sa_algo;
+        }
+
+        suites->hashSigAlgoSz = idx;
+    }
 }
 
 
@@ -5794,6 +5826,7 @@ int SetCipherList(Suites* s, const char* list)
 
     const int suiteSz = sizeof(cipher_names) / sizeof(cipher_names[0]);
     int idx = 0;
+    int haveRSA = 0, haveECDSA = 0;
 
     if (s == NULL) {
         CYASSL_MSG("SetCipherList suite pointer error");
@@ -5805,7 +5838,7 @@ int SetCipherList(Suites* s, const char* list)
     
     if (*list == 0) return 1;   /* CyaSSL default */
 
-    if (XSTRNCMP(haystack, "ALL", 3) == 0) return 1;  /* CyaSSL defualt */
+    if (XSTRNCMP(haystack, "ALL", 3) == 0) return 1;  /* CyaSSL default */
 
     for(;;) {
         word32 len;
@@ -5828,6 +5861,15 @@ int SetCipherList(Suites* s, const char* list)
                     s->suites[idx++] = 0x00;      /* normal */
                 s->suites[idx++] = (byte)cipher_name_idx[i];
 
+                /* The suites are either ECDSA, RSA, or PSK. The RSA suites
+                 * don't necessarily have RSA in the name. */
+                if ((haveECDSA == 0) && XSTRSTR(name, "ECDSA")) {
+                    haveECDSA = 1;
+                }
+                else if ((haveRSA == 0) && (XSTRSTR(name, "PSK") == NULL)) {
+                    haveRSA = 1;
+                }
+
                 if (!ret) ret = 1;   /* found at least one */
                 break;
             }
@@ -5838,6 +5880,36 @@ int SetCipherList(Suites* s, const char* list)
     if (ret) {
         s->setSuites = 1;
         s->suiteSz   = (word16)idx;
+
+        idx = 0;
+        
+        if (haveECDSA) {
+            #ifdef CYASSL_SHA384
+                s->hashSigAlgo[idx++] = sha384_mac;
+                s->hashSigAlgo[idx++] = ecc_dsa_sa_algo;
+            #endif
+            #ifndef NO_SHA256
+                s->hashSigAlgo[idx++] = sha256_mac;
+                s->hashSigAlgo[idx++] = ecc_dsa_sa_algo;
+            #endif
+            s->hashSigAlgo[idx++] = sha_mac;
+            s->hashSigAlgo[idx++] = ecc_dsa_sa_algo;
+        }
+
+        if (haveRSA) {
+            #ifdef CYASSL_SHA384
+                s->hashSigAlgo[idx++] = sha384_mac;
+                s->hashSigAlgo[idx++] = rsa_sa_algo;
+            #endif
+            #ifndef NO_SHA256
+                s->hashSigAlgo[idx++] = sha256_mac;
+                s->hashSigAlgo[idx++] = rsa_sa_algo;
+            #endif
+            s->hashSigAlgo[idx++] = sha_mac;
+            s->hashSigAlgo[idx++] = rsa_sa_algo;
+        }
+
+        s->hashSigAlgoSz = idx;
     }
 
     return ret;
@@ -6009,9 +6081,11 @@ int SetCipherList(Suites* s, const char* list)
                + ssl->suites->suiteSz + SUITE_LEN
                + COMP_LEN + ENUM_LEN;
 
-        if (IsAtLeastTLSv1_2(ssl))
-            length += HELLO_EXT_SZ;
-
+        if (IsAtLeastTLSv1_2(ssl)) {
+            if (ssl->suites->hashSigAlgoSz) {
+                length += ssl->suites->hashSigAlgoSz + HELLO_EXT_SZ;
+            }
+        }
         sendSz = length + HANDSHAKE_HEADER_SZ + RECORD_HEADER_SZ;
 
 #ifdef CYASSL_DTLS
@@ -6084,26 +6158,25 @@ int SetCipherList(Suites* s, const char* list)
         else
             output[idx++] = NO_COMPRESSION;
 
-        if (IsAtLeastTLSv1_2(ssl))
+        if (IsAtLeastTLSv1_2(ssl) && ssl->suites->hashSigAlgoSz)
         {
+            int i;
             /* add in the extensions length */
-            c16toa(HELLO_EXT_LEN, output + idx);
+            c16toa(HELLO_EXT_LEN + ssl->suites->hashSigAlgoSz, output + idx);
             idx += 2;
 
             c16toa(HELLO_EXT_SIG_ALGO, output + idx);
             idx += 2;
-            c16toa(HELLO_EXT_SIGALGO_SZ, output + idx);
+            c16toa(HELLO_EXT_SIGALGO_SZ+ssl->suites->hashSigAlgoSz, output+idx);
             idx += 2;
             /* This is a lazy list setup. Eventually, we'll need to support
              * using other hash types or even other extensions. */
-            c16toa(HELLO_EXT_SIGALGO_LEN, output + idx);
+            c16toa(ssl->suites->hashSigAlgoSz, output + idx);
             idx += 2;
-            output[idx++] = sha_mac;
-            output[idx++] = rsa_sa_algo;
-            output[idx++] = sha_mac;
-            output[idx++] = dsa_sa_algo;
-            output[idx++] = sha_mac;
-            output[idx++] = ecc_dsa_sa_algo;
+            for (i = 0; i < ssl->suites->hashSigAlgoSz; i++, idx++) {
+                output[idx] = ssl->suites->hashSigAlgo[i];
+            }
+            idx += i;
         }
 
         #ifdef CYASSL_DTLS

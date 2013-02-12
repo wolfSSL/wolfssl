@@ -480,10 +480,10 @@ enum Misc {
     CERT_HEADER_SZ      = 3,   /* always 3 bytes          */
     REQ_HEADER_SZ       = 2,   /* cert request header sz  */
     HINT_LEN_SZ         = 2,   /* length of hint size field */
-    HELLO_EXT_SZ        = 14,  /* total length of the lazy hello extensions */
-    HELLO_EXT_LEN       = 12,  /* length of the lazy hello extensions */
-    HELLO_EXT_SIGALGO_SZ  = 8, /* length of signature algo extension  */
-    HELLO_EXT_SIGALGO_LEN = 6, /* number of items in the signature algo list */
+    HELLO_EXT_SZ        = 8,  /* total length of the lazy hello extensions */
+    HELLO_EXT_LEN       = 6,  /* length of the lazy hello extensions */
+    HELLO_EXT_SIGALGO_SZ  = 2, /* length of signature algo extension  */
+    HELLO_EXT_SIGALGO_MAX = 32, /* number of items in the signature algo list */
 
     DTLS_HANDSHAKE_HEADER_SZ = 12, /* normal + seq(2) + offset(3) + length(3) */
     DTLS_RECORD_HEADER_SZ    = 13, /* normal + epoch(2) + seq_num(6) */
@@ -749,6 +749,10 @@ typedef struct Suites {
     int    setSuites;               /* user set suites from default */
     byte   suites[MAX_SUITE_SZ];  
     word16 suiteSz;                 /* suite length in bytes        */
+    byte   hashSigAlgo[HELLO_EXT_SIGALGO_MAX];
+    word16 hashSigAlgoSz;           /* SigAlgo extension length in bytes */
+    byte   hashAlgo;                /* selected hash algorithm */
+    byte   signAlgo;                /* selected sig algorithm */
 } Suites;
 
 
