@@ -4374,15 +4374,15 @@ static void BuildCertHashes(CYASSL* ssl, Hashes* hashes)
 
     if (ssl->options.tls) {
         if (IsAtLeastTLSv1_2(ssl)) {
-            if (ssl->specs.mac_algorithm <= sha_mac) {
+            if (ssl->suites->hashAlgo <= sha_mac) {
                 ShaFinal(&ssl->hashSha, &hashes->hash[MD5_DIGEST_SIZE]);
             }
-            else if (ssl->specs.mac_algorithm == sha256_mac) {
+            else if (ssl->suites->hashAlgo == sha256_mac) {
                 #ifndef NO_SHA256
                     Sha256Final(&ssl->hashSha256, hashes->hash);
                 #endif
             }
-            else if (ssl->specs.mac_algorithm == sha384_mac) {
+            else if (ssl->suites->hashAlgo == sha384_mac) {
                 #ifdef CYASSL_SHA384
                     Sha384Final(&ssl->hashSha384, hashes->hash);
                 #endif
@@ -4695,8 +4695,8 @@ int SendCertificateRequest(CYASSL* ssl)
         c16toa(HASH_SIG_SIZE, &output[i]);
         i += LENGTH_SZ;
 
-        output[i++] = sha_mac;      /* hash */
-        output[i++] = rsa_sa_algo;  /* sig  */
+        output[i++] = ssl->suites->hashAlgo; /* hash */
+        output[i++] = ssl->specs.sig_algo;   /* sig  */
     }
 
     c16toa(0, &output[i]);  /* auth's */
@@ -6358,17 +6358,20 @@ int SetCipherList(Suites* s, const char* list)
 
         /* types, read in here */
         *inOutIdx += len;
-        ato16(&input[*inOutIdx], &len);
-        *inOutIdx += LENGTH_SZ;
 
         if (IsAtLeastTLSv1_2(ssl)) {
             /* hash sig format */
-            *inOutIdx += len;
             ato16(&input[*inOutIdx], &len);
             *inOutIdx += LENGTH_SZ;
+            /* XXX Read the hash sig format, can be more than one pair. */
+            ssl->suites->hashAlgo = input[(*inOutIdx)++];
+            ssl->suites->signAlgo = input[(*inOutIdx)++];
+            /**inOutIdx += len;*/
         }
 
         /* authorities */
+        ato16(&input[*inOutIdx], &len);
+        *inOutIdx += LENGTH_SZ;
         while (len) {
             word16 dnSz;
        
@@ -6970,7 +6973,7 @@ int SetCipherList(Suites* s, const char* list)
             #endif
             length = sigOutSz;
             if (IsAtLeastTLSv1_2(ssl)) {
-                verify[0] = ssl->specs.mac_algorithm;
+                verify[0] = ssl->suites->hashAlgo;
                 verify[1] = ssl->specs.sig_algo;
                 extraSz = HASH_SIG_SIZE;
             }
@@ -6984,12 +6987,12 @@ int SetCipherList(Suites* s, const char* list)
 
                 if (IsAtLeastTLSv1_2(ssl)) {
                     digest = ssl->certHashes.hash;
-                    if (ssl->specs.mac_algorithm == sha256_mac) {
+                    if (ssl->suites->hashAlgo == sha256_mac) {
                         #ifndef NO_SHA256
                             digestSz = SHA256_DIGEST_SIZE;
                         #endif
                     }
-                    else if (ssl->specs.mac_algorithm == sha384_mac) {
+                    else if (ssl->suites->hashAlgo == sha384_mac) {
                         #ifdef CYASSL_SHA384
                             digestSz = SHA384_DIGEST_SIZE;
                         #endif
@@ -7007,14 +7010,14 @@ int SetCipherList(Suites* s, const char* list)
                     int   digestSz = SHA_DIGEST_SIZE;
                     int   typeH = SHAh;
 
-                    if (ssl->specs.mac_algorithm == sha256_mac) {
+                    if (ssl->suites->hashAlgo == sha256_mac) {
                         #ifndef NO_SHA256
                             digest = ssl->certHashes.hash;
                             typeH    = SHA256h;
                             digestSz = SHA256_DIGEST_SIZE;
                         #endif
                     }
-                    else if (ssl->specs.mac_algorithm == sha384_mac) {
+                    else if (ssl->suites->hashAlgo == sha384_mac) {
                         #ifdef CYASSL_SHA384
                             digest = ssl->certHashes.hash;
                             typeH    = SHA384h;
@@ -7359,7 +7362,7 @@ int SetCipherList(Suites* s, const char* list)
             XMEMCPY(output + idx, exportBuf, expSz);
             idx += expSz;
             if (IsAtLeastTLSv1_2(ssl)) {
-                output[idx++] = ssl->specs.mac_algorithm;
+                output[idx++] = ssl->suites->hashAlgo;
                 output[idx++] = ssl->specs.sig_algo;
             }
             c16toa((word16)sigSz, output + idx);
@@ -7418,14 +7421,14 @@ int SetCipherList(Suites* s, const char* list)
                         int   typeH    = SHAh;
                         int   digestSz = SHA_DIGEST_SIZE;
 
-                        if (ssl->specs.mac_algorithm == sha256_mac) {
+                        if (ssl->suites->hashAlgo == sha256_mac) {
                             #ifndef NO_SHA256
                                 digest   = hash256;
                                 typeH    = SHA256h;
                                 digestSz = SHA256_DIGEST_SIZE;
                             #endif
                         }
-                        else if (ssl->specs.mac_algorithm == sha384_mac) {
+                        else if (ssl->suites->hashAlgo == sha384_mac) {
                             #ifdef CYASSL_SHA384
                                 digest   = hash384;
                                 typeH    = SHA384h;
@@ -7452,13 +7455,13 @@ int SetCipherList(Suites* s, const char* list)
                     word32 sz = sigSz;
 
                     if (IsAtLeastTLSv1_2(ssl)) {
-                        if (ssl->specs.mac_algorithm == sha256_mac) {
+                        if (ssl->suites->hashAlgo == sha256_mac) {
                             #ifndef NO_SHA256
                                 digest   = hash256;
                                 digestSz = SHA256_DIGEST_SIZE;
                             #endif
                         }
-                        else if (ssl->specs.mac_algorithm == sha384_mac) {
+                        else if (ssl->suites->hashAlgo == sha384_mac) {
                             #ifdef CYASSL_SHA384
                                 digest   = hash384;
                                 digestSz = SHA384_DIGEST_SIZE;
@@ -7611,7 +7614,7 @@ int SetCipherList(Suites* s, const char* list)
 
             /* Add signature */
             if (IsAtLeastTLSv1_2(ssl)) {
-                output[idx++] = ssl->specs.mac_algorithm;
+                output[idx++] = ssl->suites->hashAlgo;
                 output[idx++] = ssl->specs.sig_algo; 
             }
             /*    size */
@@ -7671,14 +7674,14 @@ int SetCipherList(Suites* s, const char* list)
                         int   typeH    = SHAh;
                         int   digestSz = SHA_DIGEST_SIZE;
 
-                        if (ssl->specs.mac_algorithm == sha256_mac) {
+                        if (ssl->suites->hashAlgo == sha256_mac) {
                             #ifndef NO_SHA256
                                 digest   = hash256;
                                 typeH    = SHA256h;
                                 digestSz = SHA256_DIGEST_SIZE;
                             #endif
                         }
-                        else if (ssl->specs.mac_algorithm == sha384_mac) {
+                        else if (ssl->suites->hashAlgo == sha384_mac) {
                             #ifdef CYASSL_SHA384
                                 digest   = hash384;
                                 typeH    = SHA384h;
@@ -8179,7 +8182,6 @@ int SetCipherList(Suites* s, const char* list)
 
         if (ssl->suites == NULL)
             return SUITES_ERROR;
-
         /* start with best, if a match we are good */
         for (i = 0; i < ssl->suites->suiteSz; i += 2)
             for (j = 0; j < peerSuites->suiteSz; j += 2)
@@ -8187,10 +8189,17 @@ int SetCipherList(Suites* s, const char* list)
                     ssl->suites->suites[i+1] == peerSuites->suites[j+1] ) {
 
                     if (VerifySuite(ssl, i)) {
+                        int result;
                         CYASSL_MSG("Verified suite validity");
                         ssl->options.cipherSuite0 = ssl->suites->suites[i];
                         ssl->options.cipherSuite  = ssl->suites->suites[i+1];
-                        return SetCipherSpecs(ssl);
+                        result = SetCipherSpecs(ssl);
+                        if (result == 0) {
+                            /* XXX */
+                            ssl->suites->hashAlgo = sha256_mac;
+                            ssl->suites->signAlgo = ssl->specs.sig_algo;
+                        }
+                        return result;
                     }
                     else {
                         CYASSL_MSG("Could not verify suite validity, continue");
@@ -8508,16 +8517,21 @@ int SetCipherList(Suites* s, const char* list)
                 i += 2;
                 ato16(&input[i], &extSz);
                 i += 2;
-                ato16(&input[i], &clSuites.hashSigAlgoSz);
-                i += 2;
-
-                if (i + clSuites.hashSigAlgoSz > totalSz)
-                    return INCOMPLETE_DATA;
-                if (clSuites.hashSigAlgoSz > HELLO_EXT_SIGALGO_MAX)
-                    return BUFFER_ERROR;
-
-                XMEMCPY(clSuites.hashSigAlgo, input+i, clSuites.hashSigAlgoSz);
-                i += clSuites.hashSigAlgoSz;
+                if (extId == HELLO_EXT_SIG_ALGO) {
+                    ato16(&input[i], &clSuites.hashSigAlgoSz);
+                    i += 2;
+    
+                    if (i + clSuites.hashSigAlgoSz > totalSz)
+                        return INCOMPLETE_DATA;
+                    if (clSuites.hashSigAlgoSz > HELLO_EXT_SIGALGO_MAX)
+                        return BUFFER_ERROR;
+    
+                    XMEMCPY(clSuites.hashSigAlgo,
+                                              input+i, clSuites.hashSigAlgoSz);
+                    i += clSuites.hashSigAlgoSz;
+                }
+                else
+                    i += extSz;
 
                 *inOutIdx = i;
             }
@@ -8609,14 +8623,14 @@ int SetCipherList(Suites* s, const char* list)
                 int    typeH = SHAh;
                 int    digestSz = SHA_DIGEST_SIZE;
 
-                if (ssl->specs.mac_algorithm == sha256_mac) {
+                if (ssl->suites->hashAlgo == sha256_mac) {
                     #ifndef NO_SHA256
                         digest = ssl->certHashes.hash;
                         typeH    = SHA256h;
                         digestSz = SHA256_DIGEST_SIZE;
                     #endif
                 }
-                else if (ssl->specs.mac_algorithm == sha384_mac) {
+                else if (ssl->suites->hashAlgo == sha384_mac) {
                     #ifdef CYASSL_SHA384
                         digest = ssl->certHashes.hash;
                         typeH    = SHA384h;
@@ -8647,12 +8661,12 @@ int SetCipherList(Suites* s, const char* list)
             CYASSL_MSG("Doing ECC peer cert verify");
 
             if (IsAtLeastTLSv1_2(ssl)) {
-                if (ssl->specs.mac_algorithm == sha256_mac) {
+                if (ssl->suites->hashAlgo == sha256_mac) {
                     #ifndef NO_SHA256
                         digestSz = SHA256_DIGEST_SIZE;
                     #endif
                 }
-                else if (ssl->specs.mac_algorithm == sha384_mac) {
+                else if (ssl->suites->hashAlgo == sha384_mac) {
                     #ifdef CYASSL_SHA384
                         digestSz = SHA384_DIGEST_SIZE;
                     #endif
