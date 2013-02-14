@@ -359,6 +359,9 @@ static INLINE void tcp_socket(SOCKET_T* sockfd, int udp)
     else
         *sockfd = socket(AF_INET_V, SOCK_STREAM, 0);
 
+    if (*sockfd < 0)
+        err_sys("socket failed\n");
+
 #ifndef USE_WINDOWS_API 
 #ifdef SO_NOSIGPIPE
     {
@@ -414,7 +417,7 @@ enum {
     TEST_ERROR_READY
 };
 
-static INLINE int tcp_select(SOCKET_T socketfd, unsigned int to_sec)
+static INLINE int tcp_select(SOCKET_T socketfd, int to_sec)
 {
     fd_set recvfds, errfds;
     SOCKET_T nfds = socketfd + 1;
@@ -453,9 +456,11 @@ static INLINE void tcp_listen(SOCKET_T* sockfd, int port, int useAnyAddr,
 
 #ifndef USE_WINDOWS_API 
     {
-        int       on  = 1;
+        int       res, on  = 1;
         socklen_t len = sizeof(on);
-        setsockopt(*sockfd, SOL_SOCKET, SO_REUSEADDR, &on, len);
+        res = setsockopt(*sockfd, SOL_SOCKET, SO_REUSEADDR, &on, len);
+        if (res < 0)
+            err_sys("setsockopt SO_REUSEADDR failed\n");
     }
 #endif
 
@@ -500,9 +505,11 @@ static INLINE void udp_accept(SOCKET_T* sockfd, int* clientfd, int useAnyAddr,
 
 #ifndef USE_WINDOWS_API 
     {
-        int       on  = 1;
+        int       res, on  = 1;
         socklen_t len = sizeof(on);
-        setsockopt(*sockfd, SOL_SOCKET, SO_REUSEADDR, &on, len);
+        res = setsockopt(*sockfd, SOL_SOCKET, SO_REUSEADDR, &on, len);
+        if (res < 0)
+            err_sys("setsockopt SO_REUSEADDR failed\n");
     }
 #endif
 
@@ -561,7 +568,11 @@ static INLINE void tcp_set_nonblocking(SOCKET_T* sockfd)
         int ret = ioctlsocket(*sockfd, FIONBIO, &blocking);
     #else
         int flags = fcntl(*sockfd, F_GETFL, 0);
+        if (flags < 0)
+            err_sys("fcntl get failed");
         fcntl(*sockfd, F_SETFL, flags | O_NONBLOCK);
+        if (flags < 0)
+            err_sys("fcntl set failed");
     #endif
 }
 

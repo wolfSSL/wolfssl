@@ -2110,6 +2110,7 @@ int rsa_test(void)
                 "Please run from CyaSSL home dir", -40);
 
     bytes = fread(tmp, 1, FOURK_BUF, file);
+    fclose(file);
 #endif /* USE_CERT_BUFFERS */
  
 #ifdef HAVE_CAVIUM
@@ -2151,6 +2152,7 @@ int rsa_test(void)
         return -49;
 
     bytes = fread(tmp, 1, FOURK_BUF, file2);
+    fclose(file2);
 #endif
 
 #ifdef CYASSL_TEST_CERT
@@ -2164,10 +2166,6 @@ int rsa_test(void)
     (void)bytes;
 #endif
 
-#if !defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048)
-    fclose(file2);
-    fclose(file);
-#endif
 
 #ifdef CYASSL_KEY_GEN
     {
@@ -2541,6 +2539,7 @@ int dh_test(void)
         return -50;
 
     bytes = (word32) fread(tmp, 1, sizeof(tmp), file);
+    fclose(file);
 #endif /* USE_CERT_BUFFERS */
 
     InitDhKey(&key);  
@@ -2573,9 +2572,6 @@ int dh_test(void)
 
     FreeDhKey(&key);
     FreeDhKey(&key2);
-#if !defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048)
-    fclose(file);
-#endif
 
     return 0;
 }
@@ -2615,6 +2611,7 @@ int dsa_test(void)
         return -60;
 
     bytes = (word32) fread(tmp, 1, sizeof(tmp), file);
+    fclose(file);
 #endif /* USE_CERT_BUFFERS */
   
     InitSha(&sha);
@@ -2636,9 +2633,6 @@ int dsa_test(void)
     if (answer != 1) return -65;
     
     FreeDsaKey(&key);
-#if !defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048)
-    fclose(file);
-#endif
     
     return 0;
 }

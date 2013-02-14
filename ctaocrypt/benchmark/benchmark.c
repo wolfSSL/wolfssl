@@ -619,6 +619,7 @@ RNG rng;
 void bench_rsa(void)
 {
     int    i;
+    int    ret;
     byte   tmp[3072];
     size_t bytes;
     word32 idx = 0;
@@ -654,14 +655,18 @@ void bench_rsa(void)
     if (RsaInitCavium(&rsaKey, CAVIUM_DEV_ID) != 0)
         printf("RSA init cavium failed\n");
 #endif
-    InitRng(&rng);
+    ret = InitRng(&rng);
+    if (ret < 0) {
+        printf("InitRNG failed\n");
+        return;
+    }
     InitRsaKey(&rsaKey, 0);
-    bytes = RsaPrivateKeyDecode(tmp, &idx, &rsaKey, (word32)bytes);
+    ret = RsaPrivateKeyDecode(tmp, &idx, &rsaKey, (word32)bytes);
     
     start = current_time(1);
 
     for (i = 0; i < times; i++)
-        bytes = RsaPublicEncrypt(message,len,enc,sizeof(enc), &rsaKey, &rng);
+        ret = RsaPublicEncrypt(message,len,enc,sizeof(enc), &rsaKey, &rng);
 
     total = current_time(0) - start;
     each  = total / times;   /* per second   */
@@ -670,11 +675,16 @@ void bench_rsa(void)
     printf("RSA %d encryption took %6.2f milliseconds, avg over %d" 
            " iterations\n", rsaKeySz, milliEach, times);
 
+    if (ret < 0) {
+        printf("Rsa Public Encrypt failed\n");
+        return;
+    }
+
     start = current_time(1);
 
     for (i = 0; i < times; i++) {
          byte  out[512];  /* for up to 4096 bit */
-         RsaPrivateDecrypt(enc, (word32)bytes, out, sizeof(out), &rsaKey);
+         RsaPrivateDecrypt(enc, (word32)ret, out, sizeof(out), &rsaKey);
     }
 
     total = current_time(0) - start;
@@ -736,6 +746,9 @@ void bench_dh(void)
     bytes = DhKeyDecode(tmp, &idx, &dhKey, (word32)bytes);
     if (bytes != 0) {
         printf("dhekydecode failed, can't benchmark\n");
+        #if !defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048)
+            fclose(file);
+        #endif
         return;
     }
 

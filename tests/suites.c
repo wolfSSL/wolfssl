@@ -46,17 +46,29 @@ static void execute_test_case(int svr_argc, char** svr_argv,
     THREAD_TYPE serverThread;
     char        commandLine[MAX_COMMAND_SZ];
     int         i;
+    size_t      added = 0;
     static      int tests = 1;
 
     commandLine[0] = '\0';
     for (i = 0; i < svr_argc; i++) {
+        added += strlen(svr_argv[i]) + 2;
+        if (added >= MAX_COMMAND_SZ) {
+            printf("server command line too long\n"); 
+            break;
+        }
         strcat(commandLine, svr_argv[i]);
         strcat(commandLine, " ");
     }
     printf("trying server command line[%d]: %s\n", tests, commandLine);
 
     commandLine[0] = '\0';
+    added = 0;
     for (i = 0; i < cli_argc; i++) {
+        added += strlen(cli_argv[i]) + 2;
+        if (added >= MAX_COMMAND_SZ) {
+            printf("client command line too long\n"); 
+            break;
+        }
         strcat(commandLine, cli_argv[i]);
         strcat(commandLine, " ");
     }
@@ -124,7 +136,7 @@ static void test_harness(void* vargs)
     fseek(file, 0, SEEK_END);
     sz = ftell(file);
     rewind(file);
-    if (sz == 0) {
+    if (sz <= 0) {
         fprintf(stderr, "%s is empty\n", fname);
         fclose(file);
         args->return_code = 1;
@@ -143,6 +155,7 @@ static void test_harness(void* vargs)
     if (len != sz) {
         fprintf(stderr, "read error\n");
         fclose(file);
+        free(script);
         args->return_code = 1;
         return;
     }

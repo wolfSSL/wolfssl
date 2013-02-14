@@ -500,6 +500,9 @@ int CyaSSL_shutdown(CYASSL* ssl)
 {
     CYASSL_ENTER("SSL_shutdown()");
 
+    if (ssl == NULL)
+        return 0;
+
     if (ssl->options.quietShutdown) {
         CYASSL_MSG("quiet shutdown, no close notify sent"); 
         return 0;
@@ -1578,6 +1581,10 @@ int ProcessFile(CYASSL_CTX* ctx, const char* fname, int format, int type,
         }
         dynamic = 1;
     }
+    else if (sz < 0) {
+        XFCLOSE(file);
+        return SSL_BAD_FILE;
+    }
 
     if ( (ret = (int)XFREAD(myBuffer, sz, 1, file)) < 0)
         ret = SSL_BAD_FILE;
@@ -1740,6 +1747,10 @@ int CyaSSL_CertManagerVerify(CYASSL_CERT_MANAGER* cm, const char* fname,
             return SSL_BAD_FILE;
         }
         dynamic = 1;
+    }
+    else if (sz < 0) {
+        XFCLOSE(file);
+        return SSL_BAD_FILE;
     }
 
     if ( (ret = (int)XFREAD(myBuffer, sz, 1, file)) < 0)
@@ -2051,6 +2062,10 @@ int CyaSSL_PemCertToDer(const char* fileName, unsigned char* derBuf, int derSz)
         }
         dynamic = 1;
     }
+    else if (sz < 0) {
+        XFCLOSE(file);
+        return SSL_BAD_FILE;
+    }
 
     if ( (ret = (int)XFREAD(fileBuf, sz, 1, file)) < 0)
         ret = SSL_BAD_FILE;
@@ -2261,6 +2276,10 @@ static int CyaSSL_SetTmpDH_file_wrapper(CYASSL_CTX* ctx, CYASSL* ssl,
             return SSL_BAD_FILE;
         }
         dynamic = 1;
+    }
+    else if (sz < 0) {
+        XFCLOSE(file);
+        return SSL_BAD_FILE;
     }
 
     if ( (ret = (int)XFREAD(myBuffer, sz, 1, file)) < 0)
@@ -6401,6 +6420,7 @@ int CyaSSL_set_compression(CYASSL* ssl)
             }
             
             if ((myBuffer != NULL) &&
+                (sz > 0) &&
                 (XFREAD(myBuffer, sz, 1, file) > 0) &&
                 (PemToDer(myBuffer, sz, CERT_TYPE,
                                 &fileDer, ctx->heap, &info, &eccKey) == 0) &&

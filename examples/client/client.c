@@ -415,6 +415,7 @@ void client_test(void* args)
         printf("SSL connect ok, sending GET...\n");
         msgSz = 28;
         strncpy(msg, "GET /index.html HTTP/1.0\r\n\r\n", msgSz);
+        msg[msgSz] = '\0';
     }
     if (CyaSSL_write(ssl, msg, msgSz) != msgSz)
         err_sys("SSL_write failed");
@@ -521,10 +522,10 @@ void client_test(void* args)
 
         CyaSSL_shutdown(sslResume);
         CyaSSL_free(sslResume);
+        CloseSocket(sockfd);
     }
 
     CyaSSL_CTX_free(ctx);
-    CloseSocket(sockfd);
 
     ((func_args*)args)->return_code = 0;
 }

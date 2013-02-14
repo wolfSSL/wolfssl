@@ -791,6 +791,8 @@ static int DecryptKey(const char* password, int passwordSz, byte* salt,
             ret += PKCS12_PBKDF(cbcIv, unicodePasswd, idx, salt, saltSz,
                                 iterations, 8, typeH, 2);
     }
+    else
+        return ALGO_ID_E;
 
     if (ret != 0)
         return ret;
@@ -1610,7 +1612,7 @@ static int GetName(DecodedCert* cert, int nameType)
             }
 
             if (email) {
-                if (14 > (ASN_NAME_MAX - idx)) {
+                if ( (14 + adv) > (int)(ASN_NAME_MAX - idx)) {
                     CYASSL_MSG("ASN name too big, skipping");
                     tooBig = TRUE;
                 }
@@ -1633,7 +1635,7 @@ static int GetName(DecodedCert* cert, int nameType)
             }
 
             if (uid) {
-                if (5 > (ASN_NAME_MAX - idx)) {
+                if ( (5 + adv) > (int)(ASN_NAME_MAX - idx)) {
                     CYASSL_MSG("ASN name too big, skipping");
                     tooBig = TRUE;
                 }

@@ -154,7 +154,8 @@ void HmacSetKey(Hmac* hmac, int type, const byte* key, word32 length)
         default:
         break;
     }
-    XMEMSET(ip + length, 0, hmac_block_size - length);
+    if ( (hmac_block_size - length) > 0)
+        XMEMSET(ip + length, 0, hmac_block_size - length);
 
     for(i = 0; i < hmac_block_size; i++) {
         op[i] = ip[i] ^ OPAD;
