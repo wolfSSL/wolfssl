@@ -1682,7 +1682,7 @@ int CyaSSL_CTX_load_verify_locations(CYASSL_CTX* ctx, const char* file,
 
 /* Verify the ceritficate, 1 for success, < 0 for error */
 int CyaSSL_CertManagerVerifyBuffer(CYASSL_CERT_MANAGER* cm, const byte* buff,
-                                   int sz, int format)
+                                   long sz, int format)
 {
     int ret = 0;
     int eccKey = 0;  /* not used */
@@ -1705,7 +1705,7 @@ int CyaSSL_CertManagerVerifyBuffer(CYASSL_CERT_MANAGER* cm, const byte* buff,
         InitDecodedCert(&cert, der.buffer, der.length, cm->heap);
     }
     else
-        InitDecodedCert(&cert, (byte*)buff, sz, cm->heap);
+        InitDecodedCert(&cert, (byte*)buff, (word32)sz, cm->heap);
 
     if (ret == 0)
         ret = ParseCertRelative(&cert, CERT_TYPE, 1, cm);
@@ -1739,8 +1739,8 @@ int CyaSSL_CertManagerVerify(CYASSL_CERT_MANAGER* cm, const char* fname,
     sz = XFTELL(file);
     XREWIND(file);
 
-    if (sz > MAX_CYASSL_FILE_SIZE) {
-        CYASSL_MSG("CertManagerVerify file too big");
+    if (sz > MAX_CYASSL_FILE_SIZE || sz < 0) {
+        CYASSL_MSG("CertManagerVerify file bad size");
         XFCLOSE(file);
         return SSL_BAD_FILE;
     }
@@ -1754,15 +1754,11 @@ int CyaSSL_CertManagerVerify(CYASSL_CERT_MANAGER* cm, const char* fname,
         }
         dynamic = 1;
     }
-    else if (sz < 0) {
-        XFCLOSE(file);
-        return SSL_BAD_FILE;
-    }
 
     if ( (ret = (int)XFREAD(myBuffer, sz, 1, file)) < 0)
         ret = SSL_BAD_FILE;
     else 
-        ret = CyaSSL_CertManagerVerifyBuffer(cm, myBuffer, (int)sz, format);
+        ret = CyaSSL_CertManagerVerifyBuffer(cm, myBuffer, sz, format);
 
     XFCLOSE(file);
     if (dynamic) XFREE(myBuffer, cm->heap, DYNAMIC_TYPE_FILE);

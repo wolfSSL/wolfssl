@@ -838,7 +838,7 @@ typedef void (*CbMissingCRL)(const char* url);
     CYASSL_API int CyaSSL_CertManagerVerify(CYASSL_CERT_MANAGER*, const char* f,
                                                                     int format);
     CYASSL_API int CyaSSL_CertManagerVerifyBuffer(CYASSL_CERT_MANAGER* cm,
-                                 const unsigned char* buff, int sz, int format);
+                                const unsigned char* buff, long sz, int format);
     CYASSL_API int CyaSSL_CertManagerCheckCRL(CYASSL_CERT_MANAGER*,
                                                         unsigned char*, int sz);
     CYASSL_API int CyaSSL_CertManagerEnableCRL(CYASSL_CERT_MANAGER*,
