@@ -421,7 +421,7 @@ static INLINE int tcp_select(SOCKET_T socketfd, int to_sec)
 {
     fd_set recvfds, errfds;
     SOCKET_T nfds = socketfd + 1;
-    struct timeval timeout = {to_sec, 0};
+    struct timeval timeout = { (to_sec > 0) ? to_sec : 0, 0};
     int result;
 
     FD_ZERO(&recvfds);
@@ -570,7 +570,7 @@ static INLINE void tcp_set_nonblocking(SOCKET_T* sockfd)
         int flags = fcntl(*sockfd, F_GETFL, 0);
         if (flags < 0)
             err_sys("fcntl get failed");
-        fcntl(*sockfd, F_SETFL, flags | O_NONBLOCK);
+        flags = fcntl(*sockfd, F_SETFL, flags | O_NONBLOCK);
         if (flags < 0)
             err_sys("fcntl set failed");
     #endif

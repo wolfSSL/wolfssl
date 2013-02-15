@@ -1739,6 +1739,12 @@ int CyaSSL_CertManagerVerify(CYASSL_CERT_MANAGER* cm, const char* fname,
     sz = XFTELL(file);
     XREWIND(file);
 
+    if (sz > MAX_CYASSL_FILE_SIZE) {
+        CYASSL_MSG("CertManagerVerify file too big");
+        XFCLOSE(file);
+        return SSL_BAD_FILE;
+    }
+
     if (sz > (long)sizeof(staticBuffer)) {
         CYASSL_MSG("Getting dynamic buffer");
         myBuffer = (byte*) XMALLOC(sz, cm->heap, DYNAMIC_TYPE_FILE);

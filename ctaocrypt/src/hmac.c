@@ -154,7 +154,7 @@ void HmacSetKey(Hmac* hmac, int type, const byte* key, word32 length)
         default:
         break;
     }
-    if ( (hmac_block_size - length) > 0)
+    if (length < hmac_block_size)
         XMEMSET(ip + length, 0, hmac_block_size - length);
 
     for(i = 0; i < hmac_block_size; i++) {

@@ -649,6 +649,7 @@ void bench_rsa(void)
     }
     
     bytes = fread(tmp, 1, sizeof(tmp), file);
+    fclose(file);
 #endif /* USE_CERT_BUFFERS */
 
 #ifdef HAVE_CAVIUM
@@ -694,9 +695,6 @@ void bench_rsa(void)
     printf("RSA %d decryption took %6.2f milliseconds, avg over %d" 
            " iterations\n", rsaKeySz, milliEach, times);
 
-#if !defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048)
-    fclose(file);
-#endif
     FreeRsaKey(&rsaKey);
 #ifdef HAVE_CAVIUM
     RsaFreeCavium(&rsaKey);

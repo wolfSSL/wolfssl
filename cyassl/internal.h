@@ -549,6 +549,8 @@ enum Misc {
     MAX_PSK_ID_LEN     = 128,  /* max psk identity/hint supported */
     MAX_PSK_KEY_LEN    =  64,  /* max psk key supported */
 
+    MAX_CYASSL_FILE_SIZE = 1024 * 1024 * 4,  /* 4 mb file size alloc limit */
+
 #ifdef FORTRESS
     MAX_EX_DATA        =   3,  /* allow for three items of ex_data */
 #endif
