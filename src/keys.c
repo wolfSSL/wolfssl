@@ -531,6 +531,7 @@ int SetCipherSpecs(CYASSL* ssl)
         ssl->specs.cipher_type           = stream;
         ssl->specs.mac_algorithm         = sha_mac;
         ssl->specs.kea                   = rsa_kea;
+        ssl->specs.sig_algo              = rsa_sa_algo;
         ssl->specs.hash_size             = SHA_DIGEST_SIZE;
         ssl->specs.pad_size              = PAD_SHA;
         ssl->specs.static_ecdh           = 0;
@@ -547,6 +548,7 @@ int SetCipherSpecs(CYASSL* ssl)
         ssl->specs.cipher_type           = stream;
         ssl->specs.mac_algorithm         = sha_mac;
         ssl->specs.kea                   = ntru_kea;
+        ssl->specs.sig_algo              = rsa_sa_algo;
         ssl->specs.hash_size             = SHA_DIGEST_SIZE;
         ssl->specs.pad_size              = PAD_SHA;
         ssl->specs.static_ecdh           = 0;
@@ -563,6 +565,7 @@ int SetCipherSpecs(CYASSL* ssl)
         ssl->specs.cipher_type           = stream;
         ssl->specs.mac_algorithm         = md5_mac;
         ssl->specs.kea                   = rsa_kea;
+        ssl->specs.sig_algo              = rsa_sa_algo;
         ssl->specs.hash_size             = MD5_DIGEST_SIZE;
         ssl->specs.pad_size              = PAD_MD5;
         ssl->specs.static_ecdh           = 0;
@@ -579,6 +582,7 @@ int SetCipherSpecs(CYASSL* ssl)
         ssl->specs.cipher_type           = block;
         ssl->specs.mac_algorithm         = sha_mac;
         ssl->specs.kea                   = rsa_kea;
+        ssl->specs.sig_algo              = rsa_sa_algo;
         ssl->specs.hash_size             = SHA_DIGEST_SIZE;
         ssl->specs.pad_size              = PAD_SHA;
         ssl->specs.static_ecdh           = 0;
@@ -595,6 +599,7 @@ int SetCipherSpecs(CYASSL* ssl)
         ssl->specs.cipher_type           = block;
         ssl->specs.mac_algorithm         = sha_mac;
         ssl->specs.kea                   = ntru_kea;
+        ssl->specs.sig_algo              = rsa_sa_algo;
         ssl->specs.hash_size             = SHA_DIGEST_SIZE;
         ssl->specs.pad_size              = PAD_SHA;
         ssl->specs.static_ecdh           = 0;
@@ -611,6 +616,7 @@ int SetCipherSpecs(CYASSL* ssl)
         ssl->specs.cipher_type           = block;
         ssl->specs.mac_algorithm         = sha_mac;
         ssl->specs.kea                   = rsa_kea;
+        ssl->specs.sig_algo              = rsa_sa_algo;
         ssl->specs.hash_size             = SHA_DIGEST_SIZE;
         ssl->specs.pad_size              = PAD_SHA;
         ssl->specs.static_ecdh           = 0;
@@ -627,6 +633,7 @@ int SetCipherSpecs(CYASSL* ssl)
         ssl->specs.cipher_type           = block;
         ssl->specs.mac_algorithm         = sha256_mac;
         ssl->specs.kea                   = rsa_kea;
+        ssl->specs.sig_algo              = rsa_sa_algo;
         ssl->specs.hash_size             = SHA256_DIGEST_SIZE;
         ssl->specs.pad_size              = PAD_SHA;
         ssl->specs.static_ecdh           = 0;
@@ -643,6 +650,7 @@ int SetCipherSpecs(CYASSL* ssl)
         ssl->specs.cipher_type           = stream;
         ssl->specs.mac_algorithm         = sha_mac;
         ssl->specs.kea                   = rsa_kea;
+        ssl->specs.sig_algo              = rsa_sa_algo;
         ssl->specs.hash_size             = SHA_DIGEST_SIZE;
         ssl->specs.pad_size              = PAD_SHA;
         ssl->specs.static_ecdh           = 0;
@@ -659,6 +667,7 @@ int SetCipherSpecs(CYASSL* ssl)
         ssl->specs.cipher_type           = stream;
         ssl->specs.mac_algorithm         = sha256_mac;
         ssl->specs.kea                   = rsa_kea;
+        ssl->specs.sig_algo              = rsa_sa_algo;
         ssl->specs.hash_size             = SHA256_DIGEST_SIZE;
         ssl->specs.pad_size              = PAD_SHA;
         ssl->specs.static_ecdh           = 0;
@@ -675,6 +684,7 @@ int SetCipherSpecs(CYASSL* ssl)
         ssl->specs.cipher_type           = block;
         ssl->specs.mac_algorithm         = sha_mac;
         ssl->specs.kea                   = ntru_kea;
+        ssl->specs.sig_algo              = rsa_sa_algo;
         ssl->specs.hash_size             = SHA_DIGEST_SIZE;
         ssl->specs.pad_size              = PAD_SHA;
         ssl->specs.static_ecdh           = 0;
@@ -691,6 +701,7 @@ int SetCipherSpecs(CYASSL* ssl)
         ssl->specs.cipher_type           = block;
         ssl->specs.mac_algorithm         = sha_mac;
         ssl->specs.kea                   = rsa_kea;
+        ssl->specs.sig_algo              = rsa_sa_algo;
         ssl->specs.hash_size             = SHA_DIGEST_SIZE;
         ssl->specs.pad_size              = PAD_SHA;
         ssl->specs.static_ecdh           = 0;
@@ -707,6 +718,7 @@ int SetCipherSpecs(CYASSL* ssl)
         ssl->specs.cipher_type           = block;
         ssl->specs.mac_algorithm         = sha256_mac;
         ssl->specs.kea                   = rsa_kea;
+        ssl->specs.sig_algo              = rsa_sa_algo;
         ssl->specs.hash_size             = SHA256_DIGEST_SIZE;
         ssl->specs.pad_size              = PAD_SHA;
         ssl->specs.static_ecdh           = 0;
@@ -723,6 +735,7 @@ int SetCipherSpecs(CYASSL* ssl)
         ssl->specs.cipher_type           = block;
         ssl->specs.mac_algorithm         = sha_mac;
         ssl->specs.kea                   = ntru_kea;
+        ssl->specs.sig_algo              = rsa_sa_algo;
         ssl->specs.hash_size             = SHA_DIGEST_SIZE;
         ssl->specs.pad_size              = PAD_SHA;
         ssl->specs.static_ecdh           = 0;
@@ -739,6 +752,7 @@ int SetCipherSpecs(CYASSL* ssl)
         ssl->specs.cipher_type           = block;
         ssl->specs.mac_algorithm         = sha256_mac;
         ssl->specs.kea                   = psk_kea;
+        ssl->specs.sig_algo              = anonymous_sa_algo;
         ssl->specs.hash_size             = SHA256_DIGEST_SIZE;
         ssl->specs.pad_size              = PAD_SHA;
         ssl->specs.static_ecdh           = 0;
@@ -756,6 +770,7 @@ int SetCipherSpecs(CYASSL* ssl)
         ssl->specs.cipher_type           = block;
         ssl->specs.mac_algorithm         = sha_mac;
         ssl->specs.kea                   = psk_kea;
+        ssl->specs.sig_algo              = anonymous_sa_algo;
         ssl->specs.hash_size             = SHA_DIGEST_SIZE;
         ssl->specs.pad_size              = PAD_SHA;
         ssl->specs.static_ecdh           = 0;
@@ -773,6 +788,7 @@ int SetCipherSpecs(CYASSL* ssl)
         ssl->specs.cipher_type           = block;
         ssl->specs.mac_algorithm         = sha_mac;
         ssl->specs.kea                   = psk_kea;
+        ssl->specs.sig_algo              = anonymous_sa_algo;
         ssl->specs.hash_size             = SHA_DIGEST_SIZE;
         ssl->specs.pad_size              = PAD_SHA;
         ssl->specs.static_ecdh           = 0;
@@ -790,6 +806,7 @@ int SetCipherSpecs(CYASSL* ssl)
         ssl->specs.cipher_type           = stream;
         ssl->specs.mac_algorithm         = sha256_mac;
         ssl->specs.kea                   = psk_kea;
+        ssl->specs.sig_algo              = anonymous_sa_algo;
         ssl->specs.hash_size             = SHA256_DIGEST_SIZE;
         ssl->specs.pad_size              = PAD_SHA;
         ssl->specs.static_ecdh           = 0;
@@ -807,6 +824,7 @@ int SetCipherSpecs(CYASSL* ssl)
         ssl->specs.cipher_type           = stream;
         ssl->specs.mac_algorithm         = sha_mac;
         ssl->specs.kea                   = psk_kea;
+        ssl->specs.sig_algo              = anonymous_sa_algo;
         ssl->specs.hash_size             = SHA_DIGEST_SIZE;
         ssl->specs.pad_size              = PAD_SHA;
         ssl->specs.static_ecdh           = 0;
@@ -892,6 +910,7 @@ int SetCipherSpecs(CYASSL* ssl)
         ssl->specs.cipher_type           = stream;
         ssl->specs.mac_algorithm         = md5_mac;
         ssl->specs.kea                   = rsa_kea;
+        ssl->specs.sig_algo              = rsa_sa_algo;
         ssl->specs.hash_size             = MD5_DIGEST_SIZE;
         ssl->specs.pad_size              = PAD_MD5;
         ssl->specs.static_ecdh           = 0;
@@ -908,6 +927,7 @@ int SetCipherSpecs(CYASSL* ssl)
             ssl->specs.cipher_type           = stream;
             ssl->specs.mac_algorithm         = sha_mac;
             ssl->specs.kea                   = rsa_kea;
+            ssl->specs.sig_algo              = rsa_sa_algo;
             ssl->specs.hash_size             = SHA_DIGEST_SIZE;
             ssl->specs.pad_size              = PAD_SHA;
             ssl->specs.static_ecdh           = 0;
@@ -924,6 +944,7 @@ int SetCipherSpecs(CYASSL* ssl)
         ssl->specs.cipher_type           = stream;
         ssl->specs.mac_algorithm         = sha_mac;
         ssl->specs.kea                   = rsa_kea;
+        ssl->specs.sig_algo              = rsa_sa_algo;
         ssl->specs.hash_size             = SHA_DIGEST_SIZE;
         ssl->specs.pad_size              = PAD_SHA;
         ssl->specs.static_ecdh           = 0;
@@ -1008,6 +1029,7 @@ int SetCipherSpecs(CYASSL* ssl)
         ssl->specs.cipher_type           = block;
         ssl->specs.mac_algorithm         = sha_mac;
         ssl->specs.kea                   = rsa_kea;
+        ssl->specs.sig_algo              = rsa_sa_algo;
         ssl->specs.hash_size             = SHA_DIGEST_SIZE;
         ssl->specs.pad_size              = PAD_SHA;
         ssl->specs.static_ecdh           = 0;
@@ -1024,6 +1046,7 @@ int SetCipherSpecs(CYASSL* ssl)
         ssl->specs.cipher_type           = block;
         ssl->specs.mac_algorithm         = sha_mac;
         ssl->specs.kea                   = rsa_kea;
+        ssl->specs.sig_algo              = rsa_sa_algo;
         ssl->specs.hash_size             = SHA_DIGEST_SIZE;
         ssl->specs.pad_size              = PAD_SHA;
         ssl->specs.static_ecdh           = 0;
@@ -1040,6 +1063,7 @@ int SetCipherSpecs(CYASSL* ssl)
         ssl->specs.cipher_type           = block;
         ssl->specs.mac_algorithm         = sha256_mac;
         ssl->specs.kea                   = rsa_kea;
+        ssl->specs.sig_algo              = rsa_sa_algo;
         ssl->specs.hash_size             = SHA256_DIGEST_SIZE;
         ssl->specs.pad_size              = PAD_SHA;
         ssl->specs.static_ecdh           = 0;
@@ -1056,6 +1080,7 @@ int SetCipherSpecs(CYASSL* ssl)
         ssl->specs.cipher_type           = block;
         ssl->specs.mac_algorithm         = sha256_mac;
         ssl->specs.kea                   = rsa_kea;
+        ssl->specs.sig_algo              = rsa_sa_algo;
         ssl->specs.hash_size             = SHA256_DIGEST_SIZE;
         ssl->specs.pad_size              = PAD_SHA;
         ssl->specs.static_ecdh           = 0;
