@@ -7298,6 +7298,7 @@ int SetCipherList(Suites* s, const char* list)
                                         &ssl->buffers.serverDH_Pub.length);
             FreeDhKey(&dhKey);
 
+            InitRsaKey(&rsaKey, ssl->heap);
             if (ret == 0) {
                 length = LENGTH_SZ * 3;  /* p, g, pub */
                 length += ssl->buffers.serverDH_P.length +
@@ -7313,7 +7314,6 @@ int SetCipherList(Suites* s, const char* list)
                 if (!ssl->buffers.key.buffer)
                     return NO_PRIVATE_KEY;
 
-                InitRsaKey(&rsaKey, ssl->heap);
                 ret = RsaPrivateKeyDecode(ssl->buffers.key.buffer, &i, &rsaKey,
                                           ssl->buffers.key.length);
                 if (ret == 0) {
