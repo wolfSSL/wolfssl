@@ -462,6 +462,7 @@ enum Misc {
     ALERT_SIZE     =  2,       /* level + description     */
     REQUEST_HEADER =  2,       /* always use 2 bytes      */
     VERIFY_HEADER  =  2,       /* always use 2 bytes      */
+    EXT_ID_SZ      =  2,       /* always use 2 bytes      */
     MAX_DH_SIZE    = 513,      /* 4096 bit plus possible leading 0 */
 
     MAX_SUITE_SZ = 200,        /* 100 suites for now! */

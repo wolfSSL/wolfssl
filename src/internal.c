@@ -8500,6 +8500,7 @@ int SetCipherList(Suites* s, const char* list)
             return BUFFER_ERROR;
         XMEMCPY(clSuites.suites, input + i, clSuites.suiteSz);
         i += clSuites.suiteSz;
+        clSuites.hashSigAlgoSz = 0;
 
         b = input[i++];  /* comp len */
         if (i + b > totalSz)
@@ -8523,45 +8524,44 @@ int SetCipherList(Suites* s, const char* list)
         ssl->options.clientState = CLIENT_HELLO_COMPLETE;
 
         *inOutIdx = i;
-        clSuites.hashSigAlgoSz = 0;
         if ( (i - begin) < helloSz) {
             if (IsAtLeastTLSv1_2(ssl)) {
-            /* Need to process all extensions, i.e. skip the ones we don't
-             * support. */
-                word16 totalExtSz, extId, extSz;
+                /* Process the hello extension. Skip unsupported. */
+                word16 totalExtSz;
 
                 ato16(&input[i], &totalExtSz);
-                i += 2;
+                i += LENGTH_SZ;
+                if (totalExtSz > helloSz + begin - i)
+                    return INCOMPLETE_DATA;
                 while (totalExtSz) {
+                    word16 extId, extSz;
+                   
                     ato16(&input[i], &extId);
-                    i += 2;
+                    i += LENGTH_SZ;
                     ato16(&input[i], &extSz);
-                    i += 2;
-                    totalExtSz -= 4 + extSz;
+                    i += EXT_ID_SZ;
+                    if (extSz > totalExtSz - LENGTH_SZ - EXT_ID_SZ)
+                        return INCOMPLETE_DATA;
+
                     if (extId == HELLO_EXT_SIG_ALGO) {
                         ato16(&input[i], &clSuites.hashSigAlgoSz);
-                        i += 2;
-        
-                        if (i + clSuites.hashSigAlgoSz > totalSz)
+                        i += LENGTH_SZ;
+                        if (clSuites.hashSigAlgoSz > extSz - LENGTH_SZ)
                             return INCOMPLETE_DATA;
-                        if (clSuites.hashSigAlgoSz > HELLO_EXT_SIGALGO_MAX)
-                            return BUFFER_ERROR;
-        
-                        XMEMCPY(clSuites.hashSigAlgo,
-                                                  input+i, clSuites.hashSigAlgoSz);
+
+                        XMEMCPY(clSuites.hashSigAlgo, &input[i],
+                            min(clSuites.hashSigAlgoSz, HELLO_EXT_SIGALGO_MAX));
                         i += clSuites.hashSigAlgoSz;
                     }
                     else
                         i += extSz;
-                
+
+                    totalExtSz -= LENGTH_SZ + EXT_ID_SZ + extSz;
                 }
                 *inOutIdx = i;
             }
             else
                 *inOutIdx = begin + helloSz;  /* skip extensions */
-        }
-        else {
-            clSuites.hashSigAlgoSz = 0;
         }
         
         ssl->options.haveSessionId = 1;
