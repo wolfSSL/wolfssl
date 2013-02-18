@@ -37,7 +37,7 @@
 #include "examples/server/server.h"
 
 static void execute_test_case(int svr_argc, char** svr_argv,
-                              int cli_argc, char** cli_argv)
+                              int cli_argc, char** cli_argv, int addNoVerify)
 {
     func_args cliArgs = {cli_argc, cli_argv, 0, NULL};
     func_args svrArgs = {svr_argc, svr_argv, 0, NULL};
@@ -58,6 +58,14 @@ static void execute_test_case(int svr_argc, char** svr_argv,
         }
         strcat(commandLine, svr_argv[i]);
         strcat(commandLine, " ");
+    }
+    if (addNoVerify) {
+        printf("repeating test with client cert request off\n"); 
+        added += 3;   /* -d plus terminator */
+        if (added >= MAX_COMMAND_SZ)
+            printf("server command line too long\n");
+        else
+            strcat(commandLine, "-d");
     }
     printf("trying server command line[%d]: %s\n", tests, commandLine);
 
@@ -213,7 +221,8 @@ static void test_harness(void* vargs)
         }
 
         if (do_it) {
-            execute_test_case(svrArgsSz, svrArgs, cliArgsSz, cliArgs);
+            execute_test_case(svrArgsSz, svrArgs, cliArgsSz, cliArgs, 0);
+            execute_test_case(svrArgsSz, svrArgs, cliArgsSz, cliArgs, 1);
             svrArgsSz = 1;
             cliArgsSz = 1;
             cliMode   = 0;
