@@ -239,15 +239,9 @@ void BuildTlsFinished(CYASSL* ssl, Hashes* hashes, const byte* sender)
     else
         side = tls_server;
 
-#ifndef NO_MD5
-    PRF(hashes->md5, TLS_FINISHED_SZ, ssl->arrays->masterSecret, SECRET_LEN,
+    PRF((byte*)hashes, TLS_FINISHED_SZ, ssl->arrays->masterSecret, SECRET_LEN,
         side, FINISHED_LABEL_SZ, handshake_hash, hashSz, IsAtLeastTLSv1_2(ssl),
         ssl->specs.mac_algorithm);
-#else
-    PRF(hashes->hash, TLS_FINISHED_SZ, ssl->arrays->masterSecret, SECRET_LEN,
-        side, FINISHED_LABEL_SZ, handshake_hash, hashSz, IsAtLeastTLSv1_2(ssl),
-        ssl->specs.mac_algorithm);
-#endif
 }
 
 

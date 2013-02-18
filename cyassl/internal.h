@@ -462,6 +462,7 @@ enum Misc {
     ALERT_SIZE     =  2,       /* level + description     */
     REQUEST_HEADER =  2,       /* always use 2 bytes      */
     VERIFY_HEADER  =  2,       /* always use 2 bytes      */
+    EXT_ID_SZ      =  2,       /* always use 2 bytes      */
     MAX_DH_SIZE    = 513,      /* 4096 bit plus possible leading 0 */
 
     MAX_SUITE_SZ = 200,        /* 100 suites for now! */
@@ -480,10 +481,10 @@ enum Misc {
     CERT_HEADER_SZ      = 3,   /* always 3 bytes          */
     REQ_HEADER_SZ       = 2,   /* cert request header sz  */
     HINT_LEN_SZ         = 2,   /* length of hint size field */
-    HELLO_EXT_SZ        = 14,  /* total length of the lazy hello extensions */
-    HELLO_EXT_LEN       = 12,  /* length of the lazy hello extensions */
-    HELLO_EXT_SIGALGO_SZ  = 8, /* length of signature algo extension  */
-    HELLO_EXT_SIGALGO_LEN = 6, /* number of items in the signature algo list */
+    HELLO_EXT_SZ        = 8,  /* total length of the lazy hello extensions */
+    HELLO_EXT_LEN       = 6,  /* length of the lazy hello extensions */
+    HELLO_EXT_SIGALGO_SZ  = 2, /* length of signature algo extension  */
+    HELLO_EXT_SIGALGO_MAX = 32, /* number of items in the signature algo list */
 
     DTLS_HANDSHAKE_HEADER_SZ = 12, /* normal + seq(2) + offset(3) + length(3) */
     DTLS_RECORD_HEADER_SZ    = 13, /* normal + epoch(2) + seq_num(6) */
@@ -751,6 +752,10 @@ typedef struct Suites {
     int    setSuites;               /* user set suites from default */
     byte   suites[MAX_SUITE_SZ];  
     word16 suiteSz;                 /* suite length in bytes        */
+    byte   hashSigAlgo[HELLO_EXT_SIGALGO_MAX]; /* sig/algo to offer */
+    word16 hashSigAlgoSz;           /* SigAlgo extension length in bytes */
+    byte   hashAlgo;                /* selected hash algorithm */
+    byte   sigAlgo;                 /* selected sig algorithm */
 } Suites;
 
 
@@ -1170,9 +1175,13 @@ CYASSL_LOCAL void FreeCiphers(CYASSL* ssl);
 typedef struct Hashes {
     #ifndef NO_MD5
         byte md5[MD5_DIGEST_SIZE];
-        byte sha[SHA_DIGEST_SIZE];
-    #else
-        byte hash[FINISHED_SZ];
+    #endif
+    byte sha[SHA_DIGEST_SIZE];
+    #ifndef NO_SHA256
+        byte sha256[SHA256_DIGEST_SIZE];
+    #endif
+    #ifdef CYASSL_SHA384
+        byte sha384[SHA384_DIGEST_SIZE];
     #endif
 } Hashes;
 
