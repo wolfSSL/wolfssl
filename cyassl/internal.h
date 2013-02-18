@@ -749,10 +749,10 @@ typedef struct Suites {
     int    setSuites;               /* user set suites from default */
     byte   suites[MAX_SUITE_SZ];  
     word16 suiteSz;                 /* suite length in bytes        */
-    byte   hashSigAlgo[HELLO_EXT_SIGALGO_MAX];
+    byte   hashSigAlgo[HELLO_EXT_SIGALGO_MAX]; /* sig/algo to offer */
     word16 hashSigAlgoSz;           /* SigAlgo extension length in bytes */
     byte   hashAlgo;                /* selected hash algorithm */
-    byte   signAlgo;                /* selected sig algorithm */
+    byte   sigAlgo;                 /* selected sig algorithm */
 } Suites;
 
 
@@ -1168,15 +1168,18 @@ CYASSL_LOCAL void InitCiphers(CYASSL* ssl);
 CYASSL_LOCAL void FreeCiphers(CYASSL* ssl);
 
 
-#ifdef CYASSL_SHA384
-    #define HASHES_SZ SHA384_DIGEST_SIZE
-#else
-    #define HASHES_SZ FINISHED_SZ
-#endif
-
 /* hashes type */
 typedef struct Hashes {
-    byte hash[HASHES_SZ];
+    #ifndef NO_MD5
+        byte md5[MD5_DIGEST_SIZE];
+    #endif
+    byte sha[SHA_DIGEST_SIZE];
+    #ifndef NO_SHA256
+        byte sha256[SHA256_DIGEST_SIZE];
+    #endif
+    #ifdef CYASSL_SHA384
+        byte sha384[SHA384_DIGEST_SIZE];
+    #endif
 } Hashes;
 
 
