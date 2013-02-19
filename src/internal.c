@@ -5267,6 +5267,10 @@ void SetErrorString(int error, char* str)
         XSTRNCPY(str, "Receive callback returned more than requested", max);
         break;
 
+    case GEN_COOKIE_E:
+        XSTRNCPY(str, "Generate Cookie Error", max);
+        break;
+
     default :
         XSTRNCPY(str, "unknown error number", max);
     }
@@ -8897,7 +8901,10 @@ int SetCipherList(Suites* s, const char* list)
 
                 XMEMCPY(ssl->arrays->client_identity, &input[*inOutIdx], ci_sz);
                 *inOutIdx += ci_sz;
-                ssl->arrays->client_identity[ci_sz] = 0;
+                if (ci_sz < MAX_PSK_ID_LEN)
+                    ssl->arrays->client_identity[ci_sz] = 0;
+                else
+                    ssl->arrays->client_identity[MAX_PSK_ID_LEN-1] = 0;
 
                 ssl->arrays->psk_keySz = ssl->options.server_psk_cb(ssl,
                     ssl->arrays->client_identity, ssl->arrays->psk_key,

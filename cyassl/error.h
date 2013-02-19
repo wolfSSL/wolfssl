@@ -109,6 +109,7 @@ enum CyaSSL_ErrorCodes {
     BAD_KEA_TYPE_E         = -274,            /* bad KEA type found */
     SANITY_CIPHER_E        = -275,            /* sanity check on cipher error */
     RECV_OVERFLOW_E        = -276,            /* RXCB returned more than rqed */
+    GEN_COOKIE_E           = -277,            /* Generate Cookie Error */
     /* add strings to SetErrorString !!!!! */
 
     /* begin negotiation parameter errors */

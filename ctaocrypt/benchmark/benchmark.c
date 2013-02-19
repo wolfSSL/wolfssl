@@ -852,15 +852,26 @@ void bench_eccKeyAgree(void)
 {
     ecc_key genKey, genKey2;
     double start, total, each, milliEach;
-    int    i;
+    int    i, ret;
     const int agreeTimes = 5;
     byte   shared[1024];
     byte   sig[1024];
     byte   digest[32];
     word32 x;
-  
-    ecc_make_key(&rng, 32, &genKey);
-    ecc_make_key(&rng, 32, &genKey2);
+ 
+    ecc_init(&genKey);
+    ecc_init(&genKey2);
+
+    ret = ecc_make_key(&rng, 32, &genKey);
+    if (ret != 0) {
+        printf("ecc_make_key failed\n");
+        return;
+    }
+    ret = ecc_make_key(&rng, 32, &genKey2);
+    if (ret != 0) {
+        printf("ecc_make_key failed\n");
+        return;
+    }
 
     /* 256 bit */ 
     start = current_time(1);
