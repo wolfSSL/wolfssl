@@ -1414,7 +1414,7 @@ void SSL_ResourceFree(CYASSL* ssl)
         XFREE(ssl->dtls_pool, ssl->heap, DYNAMIC_TYPE_NONE);
     }
     if (ssl->dtls_msg_list != NULL) {
-        DtlsMsgListFree(ssl->dtls_msg_list, ssl->heap);
+        DtlsMsgListDelete(ssl->dtls_msg_list, ssl->heap);
         ssl->dtls_msg_list = NULL;
     }
     XFREE(ssl->buffers.dtlsCtx.peer.sa, ssl->heap, DYNAMIC_TYPE_SOCKADDR);
@@ -1652,33 +1652,43 @@ int DtlsPoolSend(CYASSL* ssl)
 
 /* functions for managing DTLS datagram reordering */
 
-DtlsMsg* DtlsMsgNew(word32 dataSz, byte* data, word32 seq, void* heap)
+DtlsMsg* DtlsMsgNew(word32 sz, void* heap)
 {
     DtlsMsg* msg = NULL;
     
-    if (dataSz > 0)
+    if (sz > 0)
         msg = (DtlsMsg*)XMALLOC(sizeof(DtlsMsg), heap, DYNAMIC_TYPE_DTLS_MSG);
 
     if (msg != NULL) {
-        msg->next = NULL;
-        msg->seq = seq;
-        msg->sz = dataSz;
-        XMEMCPY(msg->msg, data, dataSz);
+        msg->msg = (byte*)XMALLOC(sz, heap, DYNAMIC_TYPE_NONE);
+        if (msg->msg != NULL) {
+            msg->next = NULL;
+            msg->seq = 0;
+            msg->sz = sz;
+            msg->fragSz = 0;
+        }
+        else {
+            XFREE(msg, heap, DYNAMIC_TYPE_DTLS_MSG);
+            msg = NULL;
+        }
     }
 
     return msg;
 }
 
-
-void DtlsMsgDelete(DtlsMsg* msg, void* heap)
+void DtlsMsgDelete(DtlsMsg* item, void* heap)
 {
     (void)heap;
-    if (msg != NULL)
-        XFREE(msg, heap, DYNAMIC_TYPE_DTLS_MSG);
+
+    if (item != NULL) {
+        if (item->msg != NULL)
+            XFREE(item->msg, heap, DYNAMIC_TYPE_NONE);
+        XFREE(item, heap, DYNAMIC_TYPE_DTLS_MSG);
+    }
 }
 
 
-void DtlsMsgListFree(DtlsMsg* head, void* heap)
+void DtlsMsgListDelete(DtlsMsg* head, void* heap)
 {
     DtlsMsg* next;
     while (head) {
@@ -1689,6 +1699,66 @@ void DtlsMsgListFree(DtlsMsg* head, void* heap)
 }
 
 
+void DtlsMsgSet(DtlsMsg* msg, word32 seq, const byte* data,
+                                              word32 fragOffset, word32 fragSz)
+{
+    if (msg != NULL && data != NULL && msg->fragSz <= msg->sz) {
+        msg->seq = seq;
+        msg->fragSz += fragSz;
+        XMEMCPY(&msg->msg[fragOffset], data, fragSz);
+    }
+}
+
+
+DtlsMsg* DtlsMsgFind(DtlsMsg* head, word32 seq)
+{
+    while (head != NULL && head->seq != seq) {
+        head = head->next;
+    }
+    return head;
+}
+
+
+DtlsMsg* DtlsMsgStore(DtlsMsg* head, word32 seq, const byte* data, word32 dataSz,
+                      word32 fragOffset, word32 fragSz, void* heap)
+{
+
+    /* See if seq exists in the list. If it isn't in the list, make
+     * a new item of size dataSz, copy fragSz bytes from data to msg->msg
+     * starting at offset fragOffset, and add fragSz to msg->fragSz. If
+     * the seq is in the list and it isn't full, copy fragSz bytes from
+     * data to msg->msg starting at offset fragOffset, and add fragSz to
+     * msg->fragSz. The new item should be inserted into the list in its
+     * proper position.
+     *
+     * 1. Find seq in list, or where seq should go in list. If seq not in
+     *    list, create new item and insert into list. Either case, keep
+     *    pointer to item.
+     * 2. If msg->fragSz + fragSz < sz, copy data to msg->msg at offset
+     *    fragOffset. Add fragSz to msg->fragSz.
+     */
+
+    if (head != NULL) {
+        DtlsMsg* cur = DtlsMsgFind(head, seq);
+        if (cur == NULL) {
+            cur = DtlsMsgNew(dataSz, heap);
+            DtlsMsgSet(cur, seq, data, fragOffset, fragSz);
+            head = DtlsMsgInsert(head, cur);
+        }
+        else {
+            DtlsMsgSet(cur, seq, data, fragOffset, fragSz);
+        }
+    }
+    else {
+        head = DtlsMsgNew(dataSz, heap);
+        DtlsMsgSet(head, seq, data, fragOffset, fragSz);
+    }
+
+    return head;
+}
+
+
+/* DtlsMsgInsert() is an in-order insert. */
 DtlsMsg* DtlsMsgInsert(DtlsMsg* head, DtlsMsg* item)
 {
     if (head == NULL || item->seq < head->seq) {
@@ -2201,7 +2271,9 @@ static int GetRecordHeader(CYASSL* ssl, const byte* input, word32* inOutIdx,
             return VERSION_ERROR;              /* only use requested version */
         }
     }
-
+#if 0
+    /* Instead of this, check the datagram against the sliding window of
+     * received datagram goodness. */
 #ifdef CYASSL_DTLS
     /* If DTLS, check the sequence number against expected. If out of
      * order, drop the record. Allows newer records in and resets the
@@ -2219,7 +2291,7 @@ static int GetRecordHeader(CYASSL* ssl, const byte* input, word32* inOutIdx,
         }
     }
 #endif
-
+#endif
     /* record layer length check */
     if (*size > (MAX_RECORD_SIZE + MAX_COMP_EXTRA + MAX_MSG_EXTRA))
         return LENGTH_ERROR;
@@ -4044,7 +4116,8 @@ int ProcessReply(CYASSL* ssl)
                                        &ssl->curRL, &ssl->curSize);
 #ifdef CYASSL_DTLS
             if (ssl->options.dtls && ret == SEQUENCE_ERROR) {
-                /* This message is out of order. Forget it ever happened. */
+                /* This message is out of order. If we are handshaking, save
+                 *it for later. Otherwise go ahead and process it. */
                 ssl->options.processReply = doProcessInit;
                 ssl->buffers.inputBuffer.length = 0;
                 ssl->buffers.inputBuffer.idx = 0;
