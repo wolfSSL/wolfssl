@@ -440,45 +440,45 @@ int md2_test()
     a.output = "\x83\x50\xe5\xa3\xe2\x4c\x15\x3d\xf2\x27\x5c\x9f\x80\x69"
                "\x27\x73";
     a.inLen  = strlen(a.input);
-    a.outLen = strlen(a.output);
+    a.outLen = MD2_DIGEST_SIZE;
 
     b.input  = "a";
     b.output = "\x32\xec\x01\xec\x4a\x6d\xac\x72\xc0\xab\x96\xfb\x34\xc0"
                "\xb5\xd1";
     b.inLen  = strlen(b.input);
-    b.outLen = strlen(b.output);
+    b.outLen = MD2_DIGEST_SIZE;
 
     c.input  = "abc";
     c.output = "\xda\x85\x3b\x0d\x3f\x88\xd9\x9b\x30\x28\x3a\x69\xe6\xde"
                "\xd6\xbb";
     c.inLen  = strlen(c.input);
-    c.outLen = strlen(c.output);
+    c.outLen = MD2_DIGEST_SIZE;
 
     d.input  = "message digest";
     d.output = "\xab\x4f\x49\x6b\xfb\x2a\x53\x0b\x21\x9f\xf3\x30\x31\xfe"
                "\x06\xb0";
     d.inLen  = strlen(d.input);
-    d.outLen = strlen(d.output);
+    d.outLen = MD2_DIGEST_SIZE;
 
     e.input  = "abcdefghijklmnopqrstuvwxyz";
     e.output = "\x4e\x8d\xdf\xf3\x65\x02\x92\xab\x5a\x41\x08\xc3\xaa\x47"
                "\x94\x0b";
     e.inLen  = strlen(e.input);
-    e.outLen = strlen(e.output);
+    e.outLen = MD2_DIGEST_SIZE;
 
     f.input  = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz012345"
                "6789";
     f.output = "\xda\x33\xde\xf2\xa4\x2d\xf1\x39\x75\x35\x28\x46\xc3\x03"
                "\x38\xcd";
     f.inLen  = strlen(f.input);
-    f.outLen = strlen(f.output);
+    f.outLen = MD2_DIGEST_SIZE;
 
     g.input  = "1234567890123456789012345678901234567890123456789012345678"
                "9012345678901234567890";
     g.output = "\xd5\x97\x6f\x79\xd8\x3d\x3a\x0d\xc9\x80\x6c\x3c\x66\xf3"
                "\xef\xd8";
     g.inLen  = strlen(g.input);
-    g.outLen = strlen(g.output);
+    g.outLen = MD2_DIGEST_SIZE;
 
     test_md2[0] = a;
     test_md2[1] = b;
@@ -516,33 +516,33 @@ int md5_test(void)
     a.output = "\x90\x01\x50\x98\x3c\xd2\x4f\xb0\xd6\x96\x3f\x7d\x28\xe1\x7f"
                "\x72";
     a.inLen  = strlen(a.input);
-    a.outLen = strlen(a.output);
+    a.outLen = MD5_DIGEST_SIZE;
 
     b.input  = "message digest";
     b.output = "\xf9\x6b\x69\x7d\x7c\xb7\x93\x8d\x52\x5a\x2f\x31\xaa\xf1\x61"
                "\xd0";
     b.inLen  = strlen(b.input);
-    b.outLen = strlen(b.output);
+    b.outLen = MD5_DIGEST_SIZE;
 
     c.input  = "abcdefghijklmnopqrstuvwxyz";
     c.output = "\xc3\xfc\xd3\xd7\x61\x92\xe4\x00\x7d\xfb\x49\x6c\xca\x67\xe1"
                "\x3b";
     c.inLen  = strlen(c.input);
-    c.outLen = strlen(c.output);
+    c.outLen = MD5_DIGEST_SIZE; 
 
     d.input  = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz012345"
                "6789";
     d.output = "\xd1\x74\xab\x98\xd2\x77\xd9\xf5\xa5\x61\x1c\x2c\x9f\x41\x9d"
                "\x9f";
     d.inLen  = strlen(d.input);
-    d.outLen = strlen(d.output);
+    d.outLen = MD5_DIGEST_SIZE; 
 
     e.input  = "1234567890123456789012345678901234567890123456789012345678"
                "9012345678901234567890";
     e.output = "\x57\xed\xf4\xa2\x2b\xe3\xc9\x55\xac\x49\xda\x2e\x21\x07\xb6"
                "\x7a";
     e.inLen  = strlen(e.input);
-    e.outLen = strlen(e.output);
+    e.outLen = MD5_DIGEST_SIZE; 
 
     test_md5[0] = a;
     test_md5[1] = b;
@@ -580,45 +580,45 @@ int md4_test(void)
     a.output = "\x31\xd6\xcf\xe0\xd1\x6a\xe9\x31\xb7\x3c\x59\xd7\xe0\xc0\x89" 
                "\xc0";
     a.inLen  = strlen(a.input);
-    a.outLen = strlen(a.output);
+    a.outLen = MD4_DIGEST_SIZE;
 
     b.input  = "a";
     b.output = "\xbd\xe5\x2c\xb3\x1d\xe3\x3e\x46\x24\x5e\x05\xfb\xdb\xd6\xfb" 
                "\x24";
     b.inLen  = strlen(b.input);
-    b.outLen = strlen(b.output);
+    b.outLen = MD4_DIGEST_SIZE; 
 
     c.input  = "abc";
     c.output = "\xa4\x48\x01\x7a\xaf\x21\xd8\x52\x5f\xc1\x0a\xe8\x7a\xa6\x72" 
                "\x9d";
     c.inLen  = strlen(c.input);
-    c.outLen = strlen(c.output);
+    c.outLen = MD4_DIGEST_SIZE;
 
     d.input  = "message digest";
     d.output = "\xd9\x13\x0a\x81\x64\x54\x9f\xe8\x18\x87\x48\x06\xe1\xc7\x01" 
                "\x4b";
     d.inLen  = strlen(d.input);
-    d.outLen = strlen(d.output);
+    d.outLen = MD4_DIGEST_SIZE;
 
     e.input  = "abcdefghijklmnopqrstuvwxyz";
     e.output = "\xd7\x9e\x1c\x30\x8a\xa5\xbb\xcd\xee\xa8\xed\x63\xdf\x41\x2d" 
                "\xa9";
     e.inLen  = strlen(e.input);
-    e.outLen = strlen(e.output);
+    e.outLen = MD4_DIGEST_SIZE;
 
     f.input  = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz012345"
                "6789";
     f.output = "\x04\x3f\x85\x82\xf2\x41\xdb\x35\x1c\xe6\x27\xe1\x53\xe7\xf0" 
                "\xe4";
     f.inLen  = strlen(f.input);
-    f.outLen = strlen(f.output);
+    f.outLen = MD4_DIGEST_SIZE;
 
     g.input  = "1234567890123456789012345678901234567890123456789012345678"
                "9012345678901234567890";
     g.output = "\xe3\x3b\x4d\xdc\x9c\x38\xf2\x19\x9c\x3e\x7b\x16\x4f\xcc\x05" 
                "\x36";
     g.inLen  = strlen(g.input);
-    g.outLen = strlen(g.output);
+    g.outLen = MD4_DIGEST_SIZE;
 
     test_md4[0] = a;
     test_md4[1] = b;
@@ -656,20 +656,20 @@ int sha_test(void)
     a.output = "\xA9\x99\x3E\x36\x47\x06\x81\x6A\xBA\x3E\x25\x71\x78\x50\xC2"
                "\x6C\x9C\xD0\xD8\x9D";
     a.inLen  = strlen(a.input);
-    a.outLen = strlen(a.output);
+    a.outLen = SHA_DIGEST_SIZE;
 
     b.input  = "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq";
     b.output = "\x84\x98\x3E\x44\x1C\x3B\xD2\x6E\xBA\xAE\x4A\xA1\xF9\x51\x29"
                "\xE5\xE5\x46\x70\xF1";
     b.inLen  = strlen(b.input);
-    b.outLen = strlen(b.output);
+    b.outLen = SHA_DIGEST_SIZE;
 
     c.input  = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
                "aaaaaa";
     c.output = "\x00\x98\xBA\x82\x4B\x5C\x16\x42\x7B\xD7\xA1\x12\x2A\x5A\x44"
                "\x2A\x25\xEC\x64\x4D";
     c.inLen  = strlen(c.input);
-    c.outLen = strlen(c.output);
+    c.outLen = SHA_DIGEST_SIZE; 
 
     d.input  = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
                "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
@@ -677,7 +677,7 @@ int sha_test(void)
     d.output = "\xAD\x5B\x3F\xDB\xCB\x52\x67\x78\xC2\x83\x9D\x2F\x15\x1E\xA7"
                "\x53\x99\x5E\x26\xA0";
     d.inLen  = strlen(d.input);
-    d.outLen = strlen(d.output);
+    d.outLen = SHA_DIGEST_SIZE;
 
     test_sha[0] = a;
     test_sha[1] = b;
@@ -712,26 +712,26 @@ int ripemd_test(void)
     a.output = "\x8e\xb2\x08\xf7\xe0\x5d\x98\x7a\x9b\x04\x4a\x8e\x98\xc6"
                "\xb0\x87\xf1\x5a\x0b\xfc";
     a.inLen  = strlen(a.input);
-    a.outLen = strlen(a.output);
+    a.outLen = RIPEMD_DIGEST_SIZE;
 
     b.input  = "message digest";
     b.output = "\x5d\x06\x89\xef\x49\xd2\xfa\xe5\x72\xb8\x81\xb1\x23\xa8"
                "\x5f\xfa\x21\x59\x5f\x36";
     b.inLen  = strlen(b.input);
-    b.outLen = strlen(b.output);
+    b.outLen = RIPEMD_DIGEST_SIZE;
 
     c.input  = "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq"; 
     c.output = "\x12\xa0\x53\x38\x4a\x9c\x0c\x88\xe4\x05\xa0\x6c\x27\xdc"
                "\xf4\x9a\xda\x62\xeb\x2b";
     c.inLen  = strlen(c.input);
-    c.outLen = strlen(c.output);
+    c.outLen = RIPEMD_DIGEST_SIZE;
 
     d.input  = "12345678901234567890123456789012345678901234567890123456"
                "789012345678901234567890";
     d.output = "\x9b\x75\x2e\x45\x57\x3d\x4b\x39\xf4\xdb\xd3\x32\x3c\xab"
                "\x82\xbf\x63\x32\x6b\xfb"; 
     d.inLen  = strlen(d.input);
-    d.outLen = strlen(d.output);
+    d.outLen = RIPEMD_DIGEST_SIZE;
 
     test_ripemd[0] = a;
     test_ripemd[1] = b;
@@ -769,14 +769,14 @@ int sha256_test(void)
                "\x23\xB0\x03\x61\xA3\x96\x17\x7A\x9C\xB4\x10\xFF\x61\xF2\x00"
                "\x15\xAD";
     a.inLen  = strlen(a.input);
-    a.outLen = strlen(a.output);
+    a.outLen = SHA256_DIGEST_SIZE;
 
     b.input  = "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq";
     b.output = "\x24\x8D\x6A\x61\xD2\x06\x38\xB8\xE5\xC0\x26\x93\x0C\x3E\x60"
                "\x39\xA3\x3C\xE4\x59\x64\xFF\x21\x67\xF6\xEC\xED\xD4\x19\xDB"
                "\x06\xC1";
     b.inLen  = strlen(b.input);
-    b.outLen = strlen(b.output);
+    b.outLen = SHA256_DIGEST_SIZE;
 
     test_sha[0] = a;
     test_sha[1] = b;
@@ -813,7 +813,7 @@ int sha512_test(void)
                "\xfe\xeb\xbd\x45\x4d\x44\x23\x64\x3c\xe8\x0e\x2a\x9a\xc9\x4f"
                "\xa5\x4c\xa4\x9f";
     a.inLen  = strlen(a.input);
-    a.outLen = strlen(a.output);
+    a.outLen = SHA512_DIGEST_SIZE;
 
     b.input  = "abcdefghbcdefghicdefghijdefghijkefghijklfghijklmghijklmnhi"
                "jklmnoijklmnopjklmnopqklmnopqrlmnopqrsmnopqrstnopqrstu";
@@ -823,7 +823,7 @@ int sha512_test(void)
                "\xb5\x43\x3a\xc7\xd3\x29\xee\xb6\xdd\x26\x54\x5e\x96\xe5\x5b"
                "\x87\x4b\xe9\x09"; 
     b.inLen  = strlen(b.input);
-    b.outLen = strlen(b.output);
+    b.outLen = SHA512_DIGEST_SIZE;
 
     test_sha[0] = a;
     test_sha[1] = b;
@@ -859,7 +859,7 @@ int sha384_test(void)
                "\x5b\xed\x80\x86\x07\x2b\xa1\xe7\xcc\x23\x58\xba\xec\xa1\x34"
                "\xc8\x25\xa7";
     a.inLen  = strlen(a.input);
-    a.outLen = strlen(a.output);
+    a.outLen = SHA384_DIGEST_SIZE;
 
     b.input  = "abcdefghbcdefghicdefghijdefghijkefghijklfghijklmghijklmnhi"
                "jklmnoijklmnopjklmnopqklmnopqrlmnopqrsmnopqrstnopqrstu";
@@ -868,7 +868,7 @@ int sha384_test(void)
                "\xf7\x12\xfc\xc7\xc7\x1a\x55\x7e\x2d\xb9\x66\xc3\xe9\xfa\x91"
                "\x74\x60\x39";
     b.inLen  = strlen(b.input);
-    b.outLen = strlen(b.output);
+    b.outLen = SHA384_DIGEST_SIZE; 
 
     test_sha[0] = a;
     test_sha[1] = b;
@@ -910,13 +910,13 @@ int hmac_md5_test(void)
     a.output = "\x92\x94\x72\x7a\x36\x38\xbb\x1c\x13\xf4\x8e\xf8\x15\x8b\xfc"
                "\x9d";
     a.inLen  = strlen(a.input);
-    a.outLen = strlen(a.output);
+    a.outLen = MD5_DIGEST_SIZE;
 
     b.input  = "what do ya want for nothing?";
     b.output = "\x75\x0c\x78\x3e\x6a\xb0\xb5\x03\xea\xa8\x6e\x31\x0a\x5d\xb7"
                "\x38";
     b.inLen  = strlen(b.input);
-    b.outLen = strlen(b.output);
+    b.outLen = MD5_DIGEST_SIZE;
 
     c.input  = "\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD"
                "\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD"
@@ -925,7 +925,7 @@ int hmac_md5_test(void)
     c.output = "\x56\xbe\x34\x52\x1d\x14\x4c\x88\xdb\xb8\xc7\x33\xf0\xe8\xb3"
                "\xf6";
     c.inLen  = strlen(c.input);
-    c.outLen = strlen(c.output);
+    c.outLen = MD5_DIGEST_SIZE;
 
     test_hmac[0] = a;
     test_hmac[1] = b;
@@ -978,13 +978,13 @@ int hmac_sha_test(void)
     a.output = "\xb6\x17\x31\x86\x55\x05\x72\x64\xe2\x8b\xc0\xb6\xfb\x37\x8c"
                "\x8e\xf1\x46\xbe\x00";
     a.inLen  = strlen(a.input);
-    a.outLen = strlen(a.output);
+    a.outLen = SHA_DIGEST_SIZE;
 
     b.input  = "what do ya want for nothing?";
     b.output = "\xef\xfc\xdf\x6a\xe5\xeb\x2f\xa2\xd2\x74\x16\xd5\xf1\x84\xdf"
                "\x9c\x25\x9a\x7c\x79";
     b.inLen  = strlen(b.input);
-    b.outLen = strlen(b.output);
+    b.outLen = SHA_DIGEST_SIZE;
 
     c.input  = "\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD"
                "\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD"
@@ -993,7 +993,7 @@ int hmac_sha_test(void)
     c.output = "\x12\x5d\x73\x42\xb9\xac\x11\xcd\x91\xa3\x9a\xf4\x8a\xa1\x7b"
                "\x4f\x63\xf1\x75\xd3";
     c.inLen  = strlen(c.input);
-    c.outLen = strlen(c.output);
+    c.outLen = SHA_DIGEST_SIZE;
 
     test_hmac[0] = a;
     test_hmac[1] = b;
@@ -1048,14 +1048,14 @@ int hmac_sha256_test(void)
                "\x2b\x88\x1d\xc2\x00\xc9\x83\x3d\xa7\x26\xe9\x37\x6c\x2e\x32"
                "\xcf\xf7";
     a.inLen  = strlen(a.input);
-    a.outLen = strlen(a.output);
+    a.outLen = SHA256_DIGEST_SIZE;
 
     b.input  = "what do ya want for nothing?";
     b.output = "\x5b\xdc\xc1\x46\xbf\x60\x75\x4e\x6a\x04\x24\x26\x08\x95\x75"
                "\xc7\x5a\x00\x3f\x08\x9d\x27\x39\x83\x9d\xec\x58\xb9\x64\xec"
                "\x38\x43";
     b.inLen  = strlen(b.input);
-    b.outLen = strlen(b.output);
+    b.outLen = SHA256_DIGEST_SIZE;
 
     c.input  = "\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD"
                "\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD"
@@ -1065,7 +1065,7 @@ int hmac_sha256_test(void)
                "\xa7\x29\x59\x09\x8b\x3e\xf8\xc1\x22\xd9\x63\x55\x14\xce\xd5"
                "\x65\xfe";
     c.inLen  = strlen(c.input);
-    c.outLen = strlen(c.output);
+    c.outLen = SHA256_DIGEST_SIZE;
 
     test_hmac[0] = a;
     test_hmac[1] = b;
@@ -1121,7 +1121,7 @@ int hmac_sha384_test(void)
                "\xc5\x9c\xfa\xea\x9e\xa9\x07\x6e\xde\x7f\x4a\xf1\x52\xe8\xb2"
                "\xfa\x9c\xb6";
     a.inLen  = strlen(a.input);
-    a.outLen = strlen(a.output);
+    a.outLen = SHA384_DIGEST_SIZE;
 
     b.input  = "what do ya want for nothing?";
     b.output = "\xaf\x45\xd2\xe3\x76\x48\x40\x31\x61\x7f\x78\xd2\xb5\x8a\x6b"
@@ -1129,7 +1129,7 @@ int hmac_sha384_test(void)
                "\x44\x5e\x8e\x22\x40\xca\x5e\x69\xe2\xc7\x8b\x32\x39\xec\xfa"
                "\xb2\x16\x49";
     b.inLen  = strlen(b.input);
-    b.outLen = strlen(b.output);
+    b.outLen = SHA384_DIGEST_SIZE;
 
     c.input  = "\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD"
                "\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD"
@@ -1140,7 +1140,7 @@ int hmac_sha384_test(void)
                "\x14\x4b\x2a\x5a\xb3\x9d\xc1\x38\x14\xb9\x4e\x3a\xb6\xe1\x01"
                "\xa3\x4f\x27";
     c.inLen  = strlen(c.input);
-    c.outLen = strlen(c.output);
+    c.outLen = SHA384_DIGEST_SIZE;
 
     test_hmac[0] = a;
     test_hmac[1] = b;
@@ -1182,23 +1182,23 @@ int arc4_test(void)
 
     a.input  = "\x01\x23\x45\x67\x89\xab\xcd\xef";
     a.output = "\x75\xb7\x87\x80\x99\xe0\xc5\x96";
-    a.inLen  = strlen(a.input);
-    a.outLen = strlen(a.output);
+    a.inLen  = 8;
+    a.outLen = 8;
 
     b.input  = "\x00\x00\x00\x00\x00\x00\x00\x00";
     b.output = "\x74\x94\xc2\xe7\x10\x4b\x08\x79";
-    b.inLen  = strlen(b.input);
-    b.outLen = strlen(b.output);
+    b.inLen  = 8;
+    b.outLen = 8;
 
     c.input  = "\x00\x00\x00\x00\x00\x00\x00\x00";
     c.output = "\xde\x18\x89\x41\xa3\x37\x5d\x3a";
-    c.inLen  = strlen(c.input);
-    c.outLen = strlen(c.output);
+    c.inLen  = 8;
+    c.outLen = 8;
 
     d.input  = "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00";
     d.output = "\xd6\xa1\x41\xa7\xec\x3c\x38\xdf\xbd\x61";
-    d.inLen  = strlen(d.input);
-    d.outLen = strlen(d.output);
+    d.inLen  = 10;
+    d.outLen = 10;
 
     test_arc4[0] = a;
     test_arc4[1] = b;
@@ -1273,23 +1273,23 @@ int hc128_test(void)
 
     a.input  = "\x00\x00\x00\x00\x00\x00\x00\x00";
     a.output = "\x37\x86\x02\xB9\x8F\x32\xA7\x48";
-    a.inLen  = strlen(a.input);
-    a.outLen = strlen(a.output);
+    a.inLen  = 8;
+    a.outLen = 8;
 
     b.input  = "\x00\x00\x00\x00\x00\x00\x00\x00";
     b.output = "\x33\x7F\x86\x11\xC6\xED\x61\x5F";
-    b.inLen  = strlen(b.input);
-    b.outLen = strlen(b.output);
+    b.inLen  = 8;
+    b.outLen = 8;
 
     c.input  = "\x00\x00\x00\x00\x00\x00\x00\x00";
     c.output = "\x2E\x1E\xD1\x2A\x85\x51\xC0\x5A";
-    c.inLen  = strlen(c.input);
-    c.outLen = strlen(c.output);
+    c.inLen  = 8;
+    c.outLen = 8;
 
     d.input  = "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00";
     d.output = "\x1C\xD8\xAE\xDD\xFE\x52\xE2\x17\xE8\x35\xD0\xB7\xE8\x4E\x29";
-    d.inLen  = strlen(d.input);
-    d.outLen = strlen(d.output);
+    d.inLen  = 15;
+    d.outLen = 15;
 
     test_hc128[0] = a;
     test_hc128[1] = b;
@@ -1351,18 +1351,18 @@ int rabbit_test(void)
 
     a.input  = "\x00\x00\x00\x00\x00\x00\x00\x00";
     a.output = "\xED\xB7\x05\x67\x37\x5D\xCD\x7C";
-    a.inLen  = strlen(a.input);
-    a.outLen = strlen(a.output);
+    a.inLen  = 8;
+    a.outLen = 8;
 
     b.input  = "\x00\x00\x00\x00\x00\x00\x00\x00";
     b.output = "\x6D\x7D\x01\x22\x92\xCC\xDC\xE0";
-    b.inLen  = strlen(b.input);
-    b.outLen = strlen(b.output);
+    b.inLen  = 8;
+    b.outLen = 8;
 
     c.input  = "\x00\x00\x00\x00\x00\x00\x00\x00";
     c.output = "\x9C\x51\xE2\x87\x84\xC3\x7F\xE9";
-    c.inLen  = strlen(c.input);
-    c.outLen = strlen(c.output);
+    c.inLen  = 8;
+    c.outLen = 8;
 
     test_rabbit[0] = a;
     test_rabbit[1] = b;
@@ -2656,7 +2656,7 @@ int openssl_test(void)
     a.output = "\x57\xed\xf4\xa2\x2b\xe3\xc9\x55\xac\x49\xda\x2e\x21\x07\xb6"
                "\x7a";
     a.inLen  = strlen(a.input);
-    a.outLen = strlen(a.output);
+    a.outLen = MD5_DIGEST_SIZE;
 
     EVP_MD_CTX_init(&md_ctx);
     EVP_DigestInit(&md_ctx, EVP_md5());
@@ -2673,7 +2673,7 @@ int openssl_test(void)
     b.output = "\xAD\x5B\x3F\xDB\xCB\x52\x67\x78\xC2\x83\x9D\x2F\x15\x1E\xA7"
                "\x53\x99\x5E\x26\xA0";
     b.inLen  = strlen(b.input);
-    b.outLen = strlen(b.output);
+    b.outLen = SHA_DIGEST_SIZE;
 
     EVP_MD_CTX_init(&md_ctx);
     EVP_DigestInit(&md_ctx, EVP_sha1());
@@ -2690,7 +2690,7 @@ int openssl_test(void)
                "\x39\xA3\x3C\xE4\x59\x64\xFF\x21\x67\xF6\xEC\xED\xD4\x19\xDB"
                "\x06\xC1";
     d.inLen  = strlen(d.input);
-    d.outLen = strlen(d.output);
+    d.outLen = SHA256_DIGEST_SIZE;
 
     EVP_MD_CTX_init(&md_ctx);
     EVP_DigestInit(&md_ctx, EVP_sha256());
@@ -2710,7 +2710,7 @@ int openssl_test(void)
                "\xf7\x12\xfc\xc7\xc7\x1a\x55\x7e\x2d\xb9\x66\xc3\xe9\xfa\x91"
                "\x74\x60\x39";    
     e.inLen  = strlen(e.input);
-    e.outLen = strlen(e.output);
+    e.outLen = SHA384_DIGEST_SIZE;
 
     EVP_MD_CTX_init(&md_ctx);
     EVP_DigestInit(&md_ctx, EVP_sha384());
@@ -2734,7 +2734,7 @@ int openssl_test(void)
                "\xb5\x43\x3a\xc7\xd3\x29\xee\xb6\xdd\x26\x54\x5e\x96\xe5\x5b"
                "\x87\x4b\xe9\x09"; 
     f.inLen  = strlen(f.input);
-    f.outLen = strlen(f.output);
+    f.outLen = SHA512_DIGEST_SIZE; 
 
     EVP_MD_CTX_init(&md_ctx);
     EVP_DigestInit(&md_ctx, EVP_sha512());
@@ -2755,7 +2755,7 @@ int openssl_test(void)
     c.output = "\x75\x0c\x78\x3e\x6a\xb0\xb5\x03\xea\xa8\x6e\x31\x0a\x5d\xb7"
                "\x38";
     c.inLen  = strlen(c.input);
-    c.outLen = strlen(c.output);
+    c.outLen = MD5_DIGEST_SIZE;
 
     HMAC(EVP_md5(), "Jefe", 4, (byte*)c.input, (int)c.inLen, hash, 0);
 
