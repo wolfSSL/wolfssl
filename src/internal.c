@@ -3094,6 +3094,31 @@ static int DoHandShakeMsg(CYASSL* ssl, byte* input, word32* inOutIdx,
 
 
 #ifdef CYASSL_DTLS
+static int DtlsMsgDrain(CYASSL* ssl)
+{
+    DtlsMsg* item = ssl->dtls_msg_list;
+    int ret = 0;
+    word32 idx = 0;
+
+    /* While there is an item in the store list, and it is the expected
+     * message, and it is complete, and there hasn't been an error in the
+     * last messge... */
+    while (item != NULL &&
+            ssl->keys.dtls_expected_peer_handshake_number == item->seq &&
+            item->fragSz == item->sz &&
+            ret == 0) {
+        ssl->keys.dtls_expected_peer_handshake_number++;
+        ret = DoHandShakeMsgType(ssl, item->msg,
+                                 &idx, item->type, item->sz, item->sz);
+        ssl->dtls_msg_list = item->next;
+        DtlsMsgDelete(item, ssl->heap);
+        item = ssl->dtls_msg_list;
+    }
+
+    return ret;
+}
+
+
 static int DoDtlsHandShakeMsg(CYASSL* ssl, byte* input, word32* inOutIdx,
                           word32 totalSz)
 {
@@ -3118,8 +3143,6 @@ static int DoDtlsHandShakeMsg(CYASSL* ssl, byte* input, word32* inOutIdx,
      * order, process it. Check the head of the list to see if it is in
      * order, if so, process it. (Repeat until list exhausted.) If the
      * head is out of order, return for more processing.
-     * NOTE: The hash is calculated on the data, not the header. In
-     *  DoHandShakeMsgType(), HashInput starts with inOutIdx.
      */
     if (ssl->keys.dtls_peer_handshake_number >
                                 ssl->keys.dtls_expected_peer_handshake_number) {
@@ -3146,20 +3169,15 @@ static int DoDtlsHandShakeMsg(CYASSL* ssl, byte* input, word32* inOutIdx,
                         size, type, fragOffset, fragSz, ssl->heap);
         *inOutIdx += fragSz;
         ret = 0;
-        if (ssl->dtls_msg_list->fragSz >= ssl->dtls_msg_list->sz) {
-            DtlsMsg* item = ssl->dtls_msg_list;
-            word32 idx = 0;
-            ssl->keys.dtls_expected_peer_handshake_number++;
-            ret = DoHandShakeMsgType(ssl, item->msg,
-                                         &idx, item->type, item->sz, item->sz);
-            ssl->dtls_msg_list = item->next;
-            DtlsMsgDelete(item, ssl->heap);
-        }
+        if (ssl->dtls_msg_list->fragSz >= ssl->dtls_msg_list->sz)
+            ret = DtlsMsgDrain(ssl);
     }
     else {
         /* This branch is in order next, and a complete message. */
         ssl->keys.dtls_expected_peer_handshake_number++;
         ret = DoHandShakeMsgType(ssl, input, inOutIdx, type, size, totalSz);
+        if (ret == 0 && ssl->dtls_msg_list != NULL)
+            ret = DtlsMsgDrain(ssl);
     }
 
     CYASSL_LEAVE("DoDtlsHandShakeMsg()", ret);
