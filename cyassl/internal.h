@@ -1264,9 +1264,6 @@ typedef struct Buffers {
     byte            weOwnKey;              /* SSL own key  flag */
     byte            weOwnDH;               /* SSL own dh (p,g)  flag */
 #ifdef CYASSL_DTLS
-    buffer          dtlsHandshake;         /* DTLS handshake defragment buf */
-    word32          dtlsUsed;              /* DTLS bytes used in buffer */
-    byte            dtlsType;              /* DTLS handshake frag type */
     CYASSL_DTLS_CTX dtlsCtx;               /* DTLS connection context */
 #endif
 } Buffers;
@@ -1391,6 +1388,7 @@ typedef struct DtlsMsg {
     word32          sz;        /* Length of whole mesage       */
     word32          fragSz;    /* Length of fragments received */
     byte            type;
+    byte*           buf;
     byte*           msg;
 } DtlsMsg;
 
