@@ -3424,6 +3424,10 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, RNG* rng,
 {
     (void)ntruKey;
     (void)ntruSz;
+
+    /* init */
+    XMEMSET(der, 0, sizeof(DerCert));
+
     /* version */
     der->versionSz = SetMyVersion(cert->version, der->version, TRUE);
 
