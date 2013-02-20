@@ -1390,6 +1390,7 @@ typedef struct DtlsMsg {
     word32          seq;       /* Handshake sequence number    */
     word32          sz;        /* Length of whole mesage       */
     word32          fragSz;    /* Length of fragments received */
+    byte            type;
     byte*           msg;
 } DtlsMsg;
 
@@ -1690,10 +1691,11 @@ CYASSL_LOCAL  int GrowInputBuffer(CYASSL* ssl, int size, int usedLength);
     CYASSL_LOCAL DtlsMsg* DtlsMsgNew(word32, void*);
     CYASSL_LOCAL void DtlsMsgDelete(DtlsMsg*, void*);
     CYASSL_LOCAL void DtlsMsgListDelete(DtlsMsg*, void*);
-    CYASSL_LOCAL void DtlsMsgSet(DtlsMsg*, word32, const byte*, word32, word32);
+    CYASSL_LOCAL void DtlsMsgSet(DtlsMsg*, word32, const byte*, byte,
+                                                             word32, word32);
     CYASSL_LOCAL DtlsMsg* DtlsMsgFind(DtlsMsg*, word32);
     CYASSL_LOCAL DtlsMsg* DtlsMsgStore(DtlsMsg*, word32, const byte*, word32,
-                                                    word32, word32, void*);
+                                                byte, word32, word32, void*);
     CYASSL_LOCAL DtlsMsg* DtlsMsgInsert(DtlsMsg*, DtlsMsg*);
 #endif /* CYASSL_DTLS */
 
