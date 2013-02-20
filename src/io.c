@@ -506,6 +506,10 @@ static INLINE int tcp_connect(SOCKET_T* sockfd, const char* ip, word16 port)
     }
 
     *sockfd = socket(AF_INET_V, SOCK_STREAM, 0);
+    if (*sockfd < 0) {
+        CYASSL_MSG("bad socket fd, out of fds?");
+        return -1;
+    }
     XMEMSET(&addr, 0, sizeof(SOCKADDR_IN_T));
 
     addr.sin_family = AF_INET_V;
@@ -672,7 +676,7 @@ int EmbedOcspLookup(void* ctx, const char* url, int urlSz,
                         byte* ocspReqBuf, int ocspReqSz, byte** ocspRespBuf)
 {
     char domainName[80], path[80];
-    int port, httpBufSz, sfd;
+    int port, httpBufSz, sfd = -1;
     int ocspRespSz = 0;
     byte* httpBuf = NULL;
 
@@ -725,6 +729,7 @@ int EmbedOcspLookup(void* ctx, const char* url, int urlSz,
         }
     } else {
         CYASSL_MSG("OCSP Responder connection failed");
+        close(sfd);
         return -1;
     }
 

@@ -274,7 +274,7 @@ int CyaSSL_OCSP_Lookup_Cert(CYASSL_OCSP* ocsp, DecodedCert* cert)
     }
 
     if (ocsp->useOverrideUrl || cert->extAuthInfo == NULL) {
-        if (ocsp->overrideUrl != NULL) {
+        if (ocsp->overrideUrl[0] != '\0') {
             url = ocsp->overrideUrl;
             urlSz = (int)XSTRLEN(url);
         }
@@ -299,7 +299,7 @@ int CyaSSL_OCSP_Lookup_Cert(CYASSL_OCSP* ocsp, DecodedCert* cert)
                                           ocspReqBuf, ocspReqSz, &ocspRespBuf);
     }
 
-    if (result >= 0) {
+    if (result >= 0 && ocspRespBuf) {
         InitOcspResponse(&ocspResponse, certStatus, ocspRespBuf, result);
         OcspResponseDecode(&ocspResponse);
     

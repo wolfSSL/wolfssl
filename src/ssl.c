@@ -955,7 +955,10 @@ int CyaSSL_Init(void)
             ret = BAD_MUTEX_ERROR;
     }
     if (ret == 0) {
-        LockMutex(&count_mutex);
+        if (LockMutex(&count_mutex) != 0) {
+            CYASSL_MSG("Bad Lock Mutex count");
+            return BAD_MUTEX_ERROR;
+        }
         initRefCount++;
         UnLockMutex(&count_mutex);
     }
@@ -3018,7 +3021,10 @@ int CyaSSL_Cleanup(void)
 
     CYASSL_ENTER("CyaSSL_Cleanup");
 
-    LockMutex(&count_mutex);
+    if (LockMutex(&count_mutex) != 0) {
+        CYASSL_MSG("Bad Lock Mutex count");
+        return BAD_MUTEX_ERROR;
+    }
 
     release = initRefCount-- == 1;
     if (initRefCount < 0)

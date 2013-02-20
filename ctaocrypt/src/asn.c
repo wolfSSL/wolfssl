@@ -4295,7 +4295,8 @@ static int DecodeSingleResponse(byte* source,
             break;
         case (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | CERT_REVOKED):
             cs->status = CERT_REVOKED;
-            GetLength(source, &idx, &length, size);
+            if (GetLength(source, &idx, &length, size) < 0)
+                return ASN_PARSE_E;
             idx += length;
             break;
         case (ASN_CONTEXT_SPECIFIC | CERT_UNKNOWN):
