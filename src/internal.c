@@ -1656,8 +1656,7 @@ DtlsMsg* DtlsMsgNew(word32 sz, void* heap)
 {
     DtlsMsg* msg = NULL;
     
-    if (sz > 0)
-        msg = (DtlsMsg*)XMALLOC(sizeof(DtlsMsg), heap, DYNAMIC_TYPE_DTLS_MSG);
+    msg = (DtlsMsg*)XMALLOC(sizeof(DtlsMsg), heap, DYNAMIC_TYPE_DTLS_MSG);
 
     if (msg != NULL) {
         msg->buf = (byte*)XMALLOC(sz + DTLS_HANDSHAKE_HEADER_SZ,
