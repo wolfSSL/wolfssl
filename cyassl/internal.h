@@ -1280,9 +1280,6 @@ typedef struct Buffers {
     byte            weOwnKey;              /* SSL own key  flag */
     byte            weOwnDH;               /* SSL own dh (p,g)  flag */
 #ifdef CYASSL_DTLS
-    buffer          dtlsHandshake;         /* DTLS handshake defragment buf */
-    word32          dtlsUsed;              /* DTLS bytes used in buffer */
-    byte            dtlsType;              /* DTLS handshake frag type */
     CYASSL_DTLS_CTX dtlsCtx;               /* DTLS connection context */
 #endif
 } Buffers;
@@ -1401,6 +1398,16 @@ typedef struct DtlsPool {
     int             used;
 } DtlsPool;
 
+typedef struct DtlsMsg {
+    struct DtlsMsg* next;
+    word32          seq;       /* Handshake sequence number    */
+    word32          sz;        /* Length of whole mesage       */
+    word32          fragSz;    /* Length of fragments received */
+    byte            type;
+    byte*           buf;
+    byte*           msg;
+} DtlsMsg;
+
 
 /* CyaSSL ssl type */
 struct CYASSL {
@@ -1473,6 +1480,7 @@ struct CYASSL {
 #ifdef CYASSL_DTLS
     int             dtls_timeout;
     DtlsPool*       dtls_pool;
+    DtlsMsg*        dtls_msg_list;
 #endif
 #ifdef CYASSL_CALLBACKS
     HandShakeInfo   handShakeInfo;      /* info saved during handshake */
@@ -1696,6 +1704,16 @@ CYASSL_LOCAL  int GrowInputBuffer(CYASSL* ssl, int size, int usedLength);
     CYASSL_LOCAL int  DtlsPoolTimeout(CYASSL*);
     CYASSL_LOCAL int  DtlsPoolSend(CYASSL*);
     CYASSL_LOCAL void DtlsPoolReset(CYASSL*);
+
+    CYASSL_LOCAL DtlsMsg* DtlsMsgNew(word32, void*);
+    CYASSL_LOCAL void DtlsMsgDelete(DtlsMsg*, void*);
+    CYASSL_LOCAL void DtlsMsgListDelete(DtlsMsg*, void*);
+    CYASSL_LOCAL void DtlsMsgSet(DtlsMsg*, word32, const byte*, byte,
+                                                             word32, word32);
+    CYASSL_LOCAL DtlsMsg* DtlsMsgFind(DtlsMsg*, word32);
+    CYASSL_LOCAL DtlsMsg* DtlsMsgStore(DtlsMsg*, word32, const byte*, word32,
+                                                byte, word32, word32, void*);
+    CYASSL_LOCAL DtlsMsg* DtlsMsgInsert(DtlsMsg*, DtlsMsg*);
 #endif /* CYASSL_DTLS */
 
 #ifndef NO_TLS

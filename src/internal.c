@@ -1219,6 +1219,7 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
     ssl->keys.dtls_expected_peer_epoch  = 0;
     ssl->dtls_timeout                   = DTLS_DEFAULT_TIMEOUT;
     ssl->dtls_pool                      = NULL;
+    ssl->dtls_msg_list                  = NULL;
 #endif
     ssl->keys.encryptionOn = 0;     /* initially off */
     ssl->keys.decryptedCur = 0;     /* initially off */
@@ -1266,9 +1267,6 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
     ssl->buffers.weOwnDH   = 0;
 
 #ifdef CYASSL_DTLS
-    ssl->buffers.dtlsHandshake.length = 0;
-    ssl->buffers.dtlsHandshake.buffer = NULL;
-    ssl->buffers.dtlsType = 0;
     ssl->buffers.dtlsCtx.fd = -1;
     ssl->buffers.dtlsCtx.peer.sa = NULL;
     ssl->buffers.dtlsCtx.peer.sz = 0;
@@ -1465,11 +1463,13 @@ void SSL_ResourceFree(CYASSL* ssl)
     if (ssl->buffers.outputBuffer.dynamicFlag)
         ShrinkOutputBuffer(ssl);
 #ifdef CYASSL_DTLS
-    if (ssl->buffers.dtlsHandshake.buffer != NULL)
-        XFREE(ssl->buffers.dtlsHandshake.buffer, ssl->heap, DYNAMIC_TYPE_NONE);
     if (ssl->dtls_pool != NULL) {
         DtlsPoolReset(ssl);
         XFREE(ssl->dtls_pool, ssl->heap, DYNAMIC_TYPE_NONE);
+    }
+    if (ssl->dtls_msg_list != NULL) {
+        DtlsMsgListDelete(ssl->dtls_msg_list, ssl->heap);
+        ssl->dtls_msg_list = NULL;
     }
     XFREE(ssl->buffers.dtlsCtx.peer.sa, ssl->heap, DYNAMIC_TYPE_SOCKADDR);
     ssl->buffers.dtlsCtx.peer.sa = NULL;
@@ -1703,7 +1703,167 @@ int DtlsPoolSend(CYASSL* ssl)
     return 0;
 }
 
-#endif
+
+/* functions for managing DTLS datagram reordering */
+
+/* Need to allocate space for the handshake message header. The hashing
+ * routines assume the message pointer is still within the buffer that
+ * has the headers, and will include those headers in the hash. The store
+ * routines need to take that into account as well. New will allocate
+ * extra space for the headers. */
+DtlsMsg* DtlsMsgNew(word32 sz, void* heap)
+{
+    DtlsMsg* msg = NULL;
+    
+    msg = (DtlsMsg*)XMALLOC(sizeof(DtlsMsg), heap, DYNAMIC_TYPE_DTLS_MSG);
+
+    if (msg != NULL) {
+        msg->buf = (byte*)XMALLOC(sz + DTLS_HANDSHAKE_HEADER_SZ,
+                                                     heap, DYNAMIC_TYPE_NONE);
+        if (msg->buf != NULL) {
+            msg->next = NULL;
+            msg->seq = 0;
+            msg->sz = sz;
+            msg->fragSz = 0;
+            msg->msg = msg->buf + DTLS_HANDSHAKE_HEADER_SZ;
+        }
+        else {
+            XFREE(msg, heap, DYNAMIC_TYPE_DTLS_MSG);
+            msg = NULL;
+        }
+    }
+
+    return msg;
+}
+
+void DtlsMsgDelete(DtlsMsg* item, void* heap)
+{
+    (void)heap;
+
+    if (item != NULL) {
+        if (item->buf != NULL)
+            XFREE(item->buf, heap, DYNAMIC_TYPE_NONE);
+        XFREE(item, heap, DYNAMIC_TYPE_DTLS_MSG);
+    }
+}
+
+
+void DtlsMsgListDelete(DtlsMsg* head, void* heap)
+{
+    DtlsMsg* next;
+    while (head) {
+        next = head->next;
+        DtlsMsgDelete(head, heap);
+        head = next;
+    }
+}
+
+
+void DtlsMsgSet(DtlsMsg* msg, word32 seq, const byte* data, byte type,
+                                              word32 fragOffset, word32 fragSz)
+{
+    if (msg != NULL && data != NULL && msg->fragSz <= msg->sz) {
+        msg->seq = seq;
+        msg->type = type;
+        msg->fragSz += fragSz;
+        /* If fragOffset is zero, this is either a full message that is out
+         * of order, or the first fragment of a fragmented message. Copy the
+         * handshake message header as well as the message data. */
+        if (fragOffset == 0)
+            XMEMCPY(msg->buf, data - DTLS_HANDSHAKE_HEADER_SZ,
+                                            fragSz + DTLS_HANDSHAKE_HEADER_SZ);
+        else {
+            /* If fragOffet is non-zero, this is an additional fragment that
+             * needs to be copied to its location in the message buffer. Also
+             * copy the total size of the message over the fragment size. The
+             * hash routines look at a defragmented message if it had actually
+             * come across as a single handshake message. */
+            XMEMCPY(msg->msg + fragOffset, data, fragSz);
+            c32to24(msg->sz, msg->msg - DTLS_HANDSHAKE_FRAG_SZ);
+        }
+    }
+}
+
+
+DtlsMsg* DtlsMsgFind(DtlsMsg* head, word32 seq)
+{
+    while (head != NULL && head->seq != seq) {
+        head = head->next;
+    }
+    return head;
+}
+
+
+DtlsMsg* DtlsMsgStore(DtlsMsg* head, word32 seq, const byte* data, 
+        word32 dataSz, byte type, word32 fragOffset, word32 fragSz, void* heap)
+{
+
+    /* See if seq exists in the list. If it isn't in the list, make
+     * a new item of size dataSz, copy fragSz bytes from data to msg->msg
+     * starting at offset fragOffset, and add fragSz to msg->fragSz. If
+     * the seq is in the list and it isn't full, copy fragSz bytes from
+     * data to msg->msg starting at offset fragOffset, and add fragSz to
+     * msg->fragSz. The new item should be inserted into the list in its
+     * proper position.
+     *
+     * 1. Find seq in list, or where seq should go in list. If seq not in
+     *    list, create new item and insert into list. Either case, keep
+     *    pointer to item.
+     * 2. If msg->fragSz + fragSz < sz, copy data to msg->msg at offset
+     *    fragOffset. Add fragSz to msg->fragSz.
+     */
+
+    if (head != NULL) {
+        DtlsMsg* cur = DtlsMsgFind(head, seq);
+        if (cur == NULL) {
+            cur = DtlsMsgNew(dataSz, heap);
+            DtlsMsgSet(cur, seq, data, type, fragOffset, fragSz);
+            head = DtlsMsgInsert(head, cur);
+        }
+        else {
+            DtlsMsgSet(cur, seq, data, type, fragOffset, fragSz);
+        }
+    }
+    else {
+        head = DtlsMsgNew(dataSz, heap);
+        DtlsMsgSet(head, seq, data, type, fragOffset, fragSz);
+    }
+
+    return head;
+}
+
+
+/* DtlsMsgInsert() is an in-order insert. */
+DtlsMsg* DtlsMsgInsert(DtlsMsg* head, DtlsMsg* item)
+{
+    if (head == NULL || item->seq < head->seq) {
+        item->next = head;
+        head = item;
+    }
+    else if (head->next == NULL) {
+        head->next = item;
+    }
+    else {
+        DtlsMsg* cur = head->next;
+        DtlsMsg* prev = head;
+        while (cur) {
+            if (item->seq < cur->seq) {
+                item->next = cur;
+                prev->next = item;
+                break;
+            }
+            prev = cur;
+            cur = cur->next;
+        }
+        if (cur == NULL) {
+            prev->next = item;
+        }
+    }
+
+    return head;
+}
+
+#endif /* CYASSL_DTLS */
 
 #ifndef NO_OLD_TLS
 
@@ -2186,7 +2346,9 @@ static int GetRecordHeader(CYASSL* ssl, const byte* input, word32* inOutIdx,
             return VERSION_ERROR;              /* only use requested version */
         }
     }
-
+#if 0
+    /* Instead of this, check the datagram against the sliding window of
+     * received datagram goodness. */
 #ifdef CYASSL_DTLS
     /* If DTLS, check the sequence number against expected. If out of
      * order, drop the record. Allows newer records in and resets the
@@ -2204,7 +2366,7 @@ static int GetRecordHeader(CYASSL* ssl, const byte* input, word32* inOutIdx,
         }
     }
 #endif
-
+#endif
     /* record layer length check */
     if (*size > (MAX_RECORD_SIZE + MAX_COMP_EXTRA + MAX_MSG_EXTRA))
         return LENGTH_ERROR;
@@ -2262,7 +2424,6 @@ static int GetDtlsHandShakeHeader(CYASSL* ssl, const byte* input,
     c24to32(input + idx, fragOffset);
     idx += DTLS_HANDSHAKE_FRAG_SZ;
     c24to32(input + idx, fragSz);
-    idx += DTLS_HANDSHAKE_FRAG_SZ;
 
     return 0;
 }
@@ -2991,6 +3152,31 @@ static int DoHandShakeMsg(CYASSL* ssl, byte* input, word32* inOutIdx,
 
 
 #ifdef CYASSL_DTLS
+static int DtlsMsgDrain(CYASSL* ssl)
+{
+    DtlsMsg* item = ssl->dtls_msg_list;
+    int ret = 0;
+    word32 idx = 0;
+
+    /* While there is an item in the store list, and it is the expected
+     * message, and it is complete, and there hasn't been an error in the
+     * last messge... */
+    while (item != NULL &&
+            ssl->keys.dtls_expected_peer_handshake_number == item->seq &&
+            item->fragSz == item->sz &&
+            ret == 0) {
+        ssl->keys.dtls_expected_peer_handshake_number++;
+        ret = DoHandShakeMsgType(ssl, item->msg,
+                                 &idx, item->type, item->sz, item->sz);
+        ssl->dtls_msg_list = item->next;
+        DtlsMsgDelete(item, ssl->heap);
+        item = ssl->dtls_msg_list;
+    }
+
+    return ret;
+}
+
+
 static int DoDtlsHandShakeMsg(CYASSL* ssl, byte* input, word32* inOutIdx,
                           word32 totalSz)
 {
@@ -3007,74 +3193,49 @@ static int DoDtlsHandShakeMsg(CYASSL* ssl, byte* input, word32* inOutIdx,
     if (*inOutIdx + fragSz > totalSz)
         return INCOMPLETE_DATA;
 
-    if (fragSz < size) {
-        /* message is fragmented, knit back together */
-        byte* buf = ssl->buffers.dtlsHandshake.buffer;
-        if (ssl->buffers.dtlsHandshake.length == 0) {
-            /* Need to add a header back into the data. The Hash is calculated
-             * as if this were a single message, not several fragments. */
-            buf = (byte*)XMALLOC(size + DTLS_HANDSHAKE_HEADER_SZ,
-                                                ssl->heap, DYNAMIC_TYPE_NONE);
-            if (buf == NULL)
-                return MEMORY_ERROR;
-
-            ssl->buffers.dtlsHandshake.length = size;
-            ssl->buffers.dtlsHandshake.buffer = buf;
-            ssl->buffers.dtlsUsed = 0;
-            ssl->buffers.dtlsType = type;
-
-            /* Construct a new header for the reassembled message as if it
-             * were originally sent as one fragment for the hashing later. */
-            XMEMCPY(buf,
-                input + *inOutIdx - DTLS_HANDSHAKE_HEADER_SZ,
-                DTLS_HANDSHAKE_HEADER_SZ - DTLS_HANDSHAKE_FRAG_SZ);
-            XMEMCPY(buf + DTLS_HANDSHAKE_HEADER_SZ - DTLS_HANDSHAKE_FRAG_SZ,
-                input + *inOutIdx - DTLS_HANDSHAKE_HEADER_SZ + ENUM_LEN,
-                DTLS_HANDSHAKE_FRAG_SZ);
-        }
-        /* readjust the buf pointer past the header */
-        buf += DTLS_HANDSHAKE_HEADER_SZ;
-
-        XMEMCPY(buf + fragOffset, input + *inOutIdx, fragSz);
-        ssl->buffers.dtlsUsed += fragSz;
-        *inOutIdx += fragSz;
-
-        if (ssl->buffers.dtlsUsed != size) {
-            CYASSL_LEAVE("DoDtlsHandShakeMsg()", 0);
-            return 0;            
-        }
-        else {
-            if (ssl->keys.dtls_peer_handshake_number ==
+    /* Check the handshake sequence number first. If out of order,
+     * add the current message to the list. If the message is in order,
+     * but it is a fragment, add the current message to the list, then
+     * check the head of the list to see if it is complete, if so, pop
+     * it out as the current message. If the message is complete and in
+     * order, process it. Check the head of the list to see if it is in
+     * order, if so, process it. (Repeat until list exhausted.) If the
+     * head is out of order, return for more processing.
+     */
+    if (ssl->keys.dtls_peer_handshake_number >
                                 ssl->keys.dtls_expected_peer_handshake_number) {
-                word32 idx = 0;
-                totalSz = size;
-                ssl->keys.dtls_expected_peer_handshake_number++;
-                ret = DoHandShakeMsgType(ssl, buf, &idx, type, size, totalSz);            
-            }
-            else {
-                *inOutIdx += size;
-                ret = 0;
-            }
-        }
+        /* Current message is out of order. It will get stored in the list.
+         * Storing also takes care of defragmentation. */
+        ssl->dtls_msg_list = DtlsMsgStore(ssl->dtls_msg_list,
+                        ssl->keys.dtls_peer_handshake_number, input + *inOutIdx,
+                        size, type, fragOffset, fragSz, ssl->heap);
+        *inOutIdx += fragSz;
+        ret = 0;
+    }
+    else if (ssl->keys.dtls_peer_handshake_number <
+                                ssl->keys.dtls_expected_peer_handshake_number) {
+        /* Already saw this message and processed it. It can be ignored. */
+        *inOutIdx += fragSz;
+        ret = 0;
+    }
+    else if (fragSz < size) {
+        /* Since this branch is in order, but fragmented, dtls_msg_list will be
+         * pointing to the message with this fragment in it. Check it to see
+         * if it is completed. */
+        ssl->dtls_msg_list = DtlsMsgStore(ssl->dtls_msg_list,
+                        ssl->keys.dtls_peer_handshake_number, input + *inOutIdx,
+                        size, type, fragOffset, fragSz, ssl->heap);
+        *inOutIdx += fragSz;
+        ret = 0;
+        if (ssl->dtls_msg_list->fragSz >= ssl->dtls_msg_list->sz)
+            ret = DtlsMsgDrain(ssl);
     }
     else {
-        if (ssl->keys.dtls_peer_handshake_number ==
-                                ssl->keys.dtls_expected_peer_handshake_number) {
-            ssl->keys.dtls_expected_peer_handshake_number++;
-            ret = DoHandShakeMsgType(ssl, input, inOutIdx, type, size, totalSz);
-        }
-        else {
-            *inOutIdx += size;
-            ret = 0;
-        }
-    }
-
-    if (ssl->buffers.dtlsHandshake.buffer != NULL) {
-        XFREE(ssl->buffers.dtlsHandshake.buffer, ssl->heap, DYNAMIC_TYPE_NONE);
-        ssl->buffers.dtlsHandshake.length = 0;
-        ssl->buffers.dtlsHandshake.buffer = NULL;
-        ssl->buffers.dtlsUsed = 0;
-        ssl->buffers.dtlsType = 0;
+        /* This branch is in order next, and a complete message. */
+        ssl->keys.dtls_expected_peer_handshake_number++;
+        ret = DoHandShakeMsgType(ssl, input, inOutIdx, type, size, totalSz);
+        if (ret == 0 && ssl->dtls_msg_list != NULL)
+            ret = DtlsMsgDrain(ssl);
     }
 
     CYASSL_LEAVE("DoDtlsHandShakeMsg()", ret);
@@ -4032,7 +4193,8 @@ int ProcessReply(CYASSL* ssl)
                                        &ssl->curRL, &ssl->curSize);
 #ifdef CYASSL_DTLS
             if (ssl->options.dtls && ret == SEQUENCE_ERROR) {
-                /* This message is out of order. Forget it ever happened. */
+                /* This message is out of order. If we are handshaking, save
+                 *it for later. Otherwise go ahead and process it. */
                 ssl->options.processReply = doProcessInit;
                 ssl->buffers.inputBuffer.length = 0;
                 ssl->buffers.inputBuffer.idx = 0;
