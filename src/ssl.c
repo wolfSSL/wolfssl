@@ -1,6 +1,6 @@
 /* ssl.c
  *
- * Copyright (C) 2006-2012 Sawtooth Consulting Ltd.
+ * Copyright (C) 2006-2013 wolfSSL Inc.
  *
  * This file is part of CyaSSL.
  *
@@ -433,6 +433,34 @@ int CyaSSL_read(CYASSL* ssl, void* data, int sz)
     return CyaSSL_read_internal(ssl, data, sz, FALSE);
 }
 
+
+#ifdef HAVE_CAVIUM
+
+int CyaSSL_UseCavium(CYASSL* ssl, int devId)
+{
+    if (ssl == NULL)
+        return BAD_FUNC_ARG;
+
+    ssl->devId = devId;
+
+    return 0;
+}
+
+
+int CyaSSL_CTX_UseCavium(CYASSL_CTX* ctx, int devId)
+{
+    if (ctx == NULL)
+        return BAD_FUNC_ARG;
+
+    ctx->devId = devId;
+
+    return 0;
+}
+
+
+#endif /* HAVE_CAVIUM */
+
+
 #ifndef CYASSL_LEANPSK
 int CyaSSL_send(CYASSL* ssl, const void* data, int sz, int flags)
 {
@@ -471,6 +499,9 @@ int CyaSSL_recv(CYASSL* ssl, void* data, int sz, int flags)
 int CyaSSL_shutdown(CYASSL* ssl)
 {
     CYASSL_ENTER("SSL_shutdown()");
+
+    if (ssl == NULL)
+        return 0;
 
     if (ssl->options.quietShutdown) {
         CYASSL_MSG("quiet shutdown, no close notify sent"); 
@@ -924,7 +955,10 @@ int CyaSSL_Init(void)
             ret = BAD_MUTEX_ERROR;
     }
     if (ret == 0) {
-        LockMutex(&count_mutex);
+        if (LockMutex(&count_mutex) != 0) {
+            CYASSL_MSG("Bad Lock Mutex count");
+            return BAD_MUTEX_ERROR;
+        }
         initRefCount++;
         UnLockMutex(&count_mutex);
     }
@@ -1550,6 +1584,10 @@ int ProcessFile(CYASSL_CTX* ctx, const char* fname, int format, int type,
         }
         dynamic = 1;
     }
+    else if (sz < 0) {
+        XFCLOSE(file);
+        return SSL_BAD_FILE;
+    }
 
     if ( (ret = (int)XFREAD(myBuffer, sz, 1, file)) < 0)
         ret = SSL_BAD_FILE;
@@ -1647,7 +1685,7 @@ int CyaSSL_CTX_load_verify_locations(CYASSL_CTX* ctx, const char* file,
 
 /* Verify the ceritficate, 1 for success, < 0 for error */
 int CyaSSL_CertManagerVerifyBuffer(CYASSL_CERT_MANAGER* cm, const byte* buff,
-                                   int sz, int format)
+                                   long sz, int format)
 {
     int ret = 0;
     int eccKey = 0;  /* not used */
@@ -1670,7 +1708,7 @@ int CyaSSL_CertManagerVerifyBuffer(CYASSL_CERT_MANAGER* cm, const byte* buff,
         InitDecodedCert(&cert, der.buffer, der.length, cm->heap);
     }
     else
-        InitDecodedCert(&cert, (byte*)buff, sz, cm->heap);
+        InitDecodedCert(&cert, (byte*)buff, (word32)sz, cm->heap);
 
     if (ret == 0)
         ret = ParseCertRelative(&cert, CERT_TYPE, 1, cm);
@@ -1704,6 +1742,12 @@ int CyaSSL_CertManagerVerify(CYASSL_CERT_MANAGER* cm, const char* fname,
     sz = XFTELL(file);
     XREWIND(file);
 
+    if (sz > MAX_CYASSL_FILE_SIZE || sz < 0) {
+        CYASSL_MSG("CertManagerVerify file bad size");
+        XFCLOSE(file);
+        return SSL_BAD_FILE;
+    }
+
     if (sz > (long)sizeof(staticBuffer)) {
         CYASSL_MSG("Getting dynamic buffer");
         myBuffer = (byte*) XMALLOC(sz, cm->heap, DYNAMIC_TYPE_FILE);
@@ -1717,7 +1761,7 @@ int CyaSSL_CertManagerVerify(CYASSL_CERT_MANAGER* cm, const char* fname,
     if ( (ret = (int)XFREAD(myBuffer, sz, 1, file)) < 0)
         ret = SSL_BAD_FILE;
     else 
-        ret = CyaSSL_CertManagerVerifyBuffer(cm, myBuffer, (int)sz, format);
+        ret = CyaSSL_CertManagerVerifyBuffer(cm, myBuffer, sz, format);
 
     XFCLOSE(file);
     if (dynamic) XFREE(myBuffer, cm->heap, DYNAMIC_TYPE_FILE);
@@ -2023,6 +2067,10 @@ int CyaSSL_PemCertToDer(const char* fileName, unsigned char* derBuf, int derSz)
         }
         dynamic = 1;
     }
+    else if (sz < 0) {
+        XFCLOSE(file);
+        return SSL_BAD_FILE;
+    }
 
     if ( (ret = (int)XFREAD(fileBuf, sz, 1, file)) < 0)
         ret = SSL_BAD_FILE;
@@ -2233,6 +2281,10 @@ static int CyaSSL_SetTmpDH_file_wrapper(CYASSL_CTX* ctx, CYASSL* ssl,
             return SSL_BAD_FILE;
         }
         dynamic = 1;
+    }
+    else if (sz < 0) {
+        XFCLOSE(file);
+        return SSL_BAD_FILE;
     }
 
     if ( (ret = (int)XFREAD(myBuffer, sz, 1, file)) < 0)
@@ -2467,6 +2519,8 @@ int CyaSSL_dtls_got_timeout(CYASSL* ssl)
 {
 #ifdef CYASSL_DTLS
     int result = SSL_SUCCESS;
+    DtlsMsgListDelete(ssl->dtls_msg_list, ssl->heap);
+    ssl->dtls_msg_list = NULL;
     if (DtlsPoolTimeout(ssl) < 0 || DtlsPoolSend(ssl) < 0) {
         result = SSL_FATAL_ERROR;
     }
@@ -2969,7 +3023,10 @@ int CyaSSL_Cleanup(void)
 
     CYASSL_ENTER("CyaSSL_Cleanup");
 
-    LockMutex(&count_mutex);
+    if (LockMutex(&count_mutex) != 0) {
+        CYASSL_MSG("Bad Lock Mutex count");
+        return BAD_MUTEX_ERROR;
+    }
 
     release = initRefCount-- == 1;
     if (initRefCount < 0)
@@ -3269,7 +3326,7 @@ int CyaSSL_set_compression(CYASSL* ssl)
         {
             byte  tmp[FILE_BUFFER_SIZE];
             byte* myBuffer    = tmp;
-            int   send      = 0;
+            int   sending   = 0;
             int   newBuffer = 0;
             int   idx       = 0;
             int   i;
@@ -3278,10 +3335,10 @@ int CyaSSL_set_compression(CYASSL* ssl)
             CYASSL_ENTER("CyaSSL_writev");
 
             for (i = 0; i < iovcnt; i++)
-                send += (int)iov[i].iov_len;
+                sending += (int)iov[i].iov_len;
 
-            if (send > (int)sizeof(tmp)) {
-                byte* tmp2 = (byte*) XMALLOC(send, ssl->heap,
+            if (sending > (int)sizeof(tmp)) {
+                byte* tmp2 = (byte*) XMALLOC(sending, ssl->heap,
                                              DYNAMIC_TYPE_WRITEV);
                 if (!tmp2)
                     return MEMORY_ERROR;
@@ -3294,7 +3351,7 @@ int CyaSSL_set_compression(CYASSL* ssl)
                 idx += (int)iov[i].iov_len;
             }
 
-            ret = CyaSSL_write(ssl, myBuffer, send);
+            ret = CyaSSL_write(ssl, myBuffer, sending);
 
             if (newBuffer) XFREE(myBuffer, ssl->heap, DYNAMIC_TYPE_WRITEV);
 
@@ -3984,6 +4041,8 @@ int CyaSSL_set_compression(CYASSL* ssl)
             bio->fd    = sfd;
             bio->prev  = 0;
             bio->next  = 0;
+            bio->mem   = NULL;
+            bio->memLen = 0;
         }
         return bio; 
     }
@@ -5434,6 +5493,10 @@ int CyaSSL_set_compression(CYASSL* ssl)
                     return "TLS_RSA_WITH_AES_128_CCM_8_SHA256";
                 case TLS_RSA_WITH_AES_256_CCM_8_SHA384 :
                     return "TLS_RSA_WITH_AES_256_CCM_8_SHA384";
+                case TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8_SHA256 :
+                    return "TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8_SHA256";
+                case TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8_SHA384 :
+                    return "TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8_SHA384";
 
                 default:
                     return "NONE";
@@ -5501,6 +5564,22 @@ int CyaSSL_set_compression(CYASSL* ssl)
                     return "TLS_DHE_RSA_WITH_AES_128_GCM_SHA256";
                 case TLS_DHE_RSA_WITH_AES_256_GCM_SHA384 :
                     return "TLS_DHE_RSA_WITH_AES_256_GCM_SHA384";
+                case TLS_RSA_WITH_CAMELLIA_128_CBC_SHA :
+                    return "TLS_RSA_WITH_CAMELLIA_128_CBC_SHA";
+                case TLS_RSA_WITH_CAMELLIA_256_CBC_SHA :
+                    return "TLS_RSA_WITH_CAMELLIA_256_CBC_SHA";
+                case TLS_RSA_WITH_CAMELLIA_128_CBC_SHA256 :
+                    return "TLS_RSA_WITH_CAMELLIA_128_CBC_SHA256";
+                case TLS_RSA_WITH_CAMELLIA_256_CBC_SHA256 :
+                    return "TLS_RSA_WITH_CAMELLIA_256_CBC_SHA256";
+                case TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA :
+                    return "TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA";
+                case TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA :
+                    return "TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA";
+                case TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA256 :
+                    return "TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA256";
+                case TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA256 :
+                    return "TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA256";
                 default:
                     return "NONE";
             }  /* switch */
@@ -6351,6 +6430,7 @@ int CyaSSL_set_compression(CYASSL* ssl)
             }
             
             if ((myBuffer != NULL) &&
+                (sz > 0) &&
                 (XFREAD(myBuffer, sz, 1, file) > 0) &&
                 (PemToDer(myBuffer, sz, CERT_TYPE,
                                 &fileDer, ctx->heap, &info, &eccKey) == 0) &&

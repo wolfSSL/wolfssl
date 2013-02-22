@@ -1,6 +1,6 @@
 /* api.c API unit tests
  *
- * Copyright (C) 2006-2012 Sawtooth Consulting Ltd.
+ * Copyright (C) 2006-2013 wolfSSL Inc.
  *
  * This file is part of CyaSSL.
  *
@@ -613,21 +613,21 @@ THREAD_RETURN CYASSL_THREAD test_server_nofail(void* args)
     if (CyaSSL_CTX_load_verify_locations(ctx, cliCert, 0) != SSL_SUCCESS)
     {
         /*err_sys("can't load ca file, Please run from CyaSSL home dir");*/
-        return 0;
+        goto done;
     }
     if (CyaSSL_CTX_use_certificate_file(ctx, svrCert, SSL_FILETYPE_PEM)
             != SSL_SUCCESS)
     {
         /*err_sys("can't load server cert chain file, "
                 "Please run from CyaSSL home dir");*/
-        return 0;
+        goto done;
     }
     if (CyaSSL_CTX_use_PrivateKey_file(ctx, svrKey, SSL_FILETYPE_PEM)
             != SSL_SUCCESS)
     {
         /*err_sys("can't load server key file, "
                 "Please run from CyaSSL home dir");*/
-        return 0;
+        goto done;
     }
     ssl = CyaSSL_new(ctx);
     tcp_accept(&sockfd, &clientfd, (func_args*)args, yasslPort, 0, 0);
@@ -648,10 +648,10 @@ THREAD_RETURN CYASSL_THREAD test_server_nofail(void* args)
         char buffer[80];
         printf("error = %d, %s\n", err, CyaSSL_ERR_error_string(err, buffer));
         /*err_sys("SSL_accept failed");*/
-        return 0;
+        goto done;
     }
 
-    idx = CyaSSL_read(ssl, input, sizeof(input));
+    idx = CyaSSL_read(ssl, input, sizeof(input)-1);
     if (idx > 0) {
         input[idx] = 0;
         printf("Client message: %s\n", input);
@@ -663,6 +663,7 @@ THREAD_RETURN CYASSL_THREAD test_server_nofail(void* args)
         return 0;
     }
 
+done:
     CyaSSL_shutdown(ssl);
     CyaSSL_free(ssl);
     CyaSSL_CTX_free(ctx);
@@ -696,21 +697,21 @@ void test_client_nofail(void* args)
     if (CyaSSL_CTX_load_verify_locations(ctx, caCert, 0) != SSL_SUCCESS)
     {
         /* err_sys("can't load ca file, Please run from CyaSSL home dir");*/
-        return;
+        goto done2;
     }
     if (CyaSSL_CTX_use_certificate_file(ctx, cliCert, SSL_FILETYPE_PEM)
             != SSL_SUCCESS)
     {
         /*err_sys("can't load client cert file, "
                 "Please run from CyaSSL home dir");*/
-        return;
+        goto done2;
     }
     if (CyaSSL_CTX_use_PrivateKey_file(ctx, cliKey, SSL_FILETYPE_PEM)
             != SSL_SUCCESS)
     {
         /*err_sys("can't load client key file, "
                 "Please run from CyaSSL home dir");*/
-        return;
+        goto done2;
     }
 
     tcp_connect(&sockfd, yasslIP, yasslPort, 0);
@@ -723,22 +724,23 @@ void test_client_nofail(void* args)
         char buffer[80];
         printf("err = %d, %s\n", err, CyaSSL_ERR_error_string(err, buffer));
         /*printf("SSL_connect failed");*/
-        return;
+        goto done2;
     }
 
     if (CyaSSL_write(ssl, msg, msgSz) != msgSz)
     {
         /*err_sys("SSL_write failed");*/
-        return;
+        goto done2;
     }
 
-    input = CyaSSL_read(ssl, reply, sizeof(reply));
+    input = CyaSSL_read(ssl, reply, sizeof(reply)-1);
     if (input > 0)
     {
         reply[input] = 0;
         printf("Server response: %s\n", reply);
     }
 
+done2:
     CyaSSL_free(ssl);
     CyaSSL_CTX_free(ctx);
     

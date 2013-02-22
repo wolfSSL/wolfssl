@@ -214,13 +214,13 @@ void client_test(void) {
 	if (CyaSSL_write(ssl, msg, msgSz) != msgSz)
 		err_sys("CyaSSL_write() failed");
 	
-	input = CyaSSL_read(ssl, reply, sizeof(reply));
+	input = CyaSSL_read(ssl, reply, sizeof(reply)-1);
 	if (input > 0) {
 		reply[input] = 0;
 		printf("Server response: %s\n", reply);
 		
 		while(1) {
-			input = CyaSSL_read(ssl, reply, sizeof(reply));
+			input = CyaSSL_read(ssl, reply, sizeof(reply)-1);
 			if (input > 0) {
 				reply[input] = 0;
 				printf("%s\n", reply);

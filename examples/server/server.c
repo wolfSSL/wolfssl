@@ -1,6 +1,6 @@
 /* server.c
  *
- * Copyright (C) 2006-2012 Sawtooth Consulting Ltd.
+ * Copyright (C) 2006-2013 wolfSSL Inc.
  *
  * This file is part of CyaSSL.
  *
@@ -240,7 +240,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 
     if (cipherList)
         if (SSL_CTX_set_cipher_list(ctx, cipherList) != SSL_SUCCESS)
-            err_sys("can't set cipher list");
+            err_sys("server can't set cipher list 1");
 
 #ifdef CYASSL_LEANPSK
     usePsk = 1;
@@ -285,7 +285,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
                 defaultCipherList = "PSK-AES256-CBC-SHA";
             #endif
             if (SSL_CTX_set_cipher_list(ctx, defaultCipherList) != SSL_SUCCESS)
-                err_sys("can't set cipher list");
+                err_sys("server can't set cipher list 2");
         }
 #endif
     }
@@ -308,7 +308,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     /* don't use EDH, can't sniff tmp keys */
     if (cipherList == NULL) {
         if (SSL_CTX_set_cipher_list(ctx, "AES256-SHA") != SSL_SUCCESS)
-            err_sys("can't set cipher list");
+            err_sys("server can't set cipher list 3");
     }
 #endif
 
@@ -351,7 +351,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 #endif
     showPeer(ssl);
 
-    idx = SSL_read(ssl, input, sizeof(input));
+    idx = SSL_read(ssl, input, sizeof(input)-1);
     if (idx > 0) {
         input[idx] = 0;
         printf("Client message: %s\n", input);
@@ -383,6 +383,12 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     {
         func_args args;
 
+#ifdef HAVE_CAVIUM
+        int ret = OpenNitroxDevice(CAVIUM_DIRECT, CAVIUM_DEV_ID);
+        if (ret != 0)
+            err_sys("Cavium OpenNitroxDevice failed");
+#endif /* HAVE_CAVIUM */
+
         StartTCP();
 
         args.argc = argc;
@@ -398,6 +404,9 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
         server_test(&args);
         CyaSSL_Cleanup();
 
+#ifdef HAVE_CAVIUM
+        CspShutdown(CAVIUM_DEV_ID);
+#endif
         return args.return_code;
     }
 

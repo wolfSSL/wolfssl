@@ -1,6 +1,6 @@
 /* settings.h
  *
- * Copyright (C) 2006-2012 Sawtooth Consulting Ltd.
+ * Copyright (C) 2006-2013 wolfSSL Inc.
  *
  * This file is part of CyaSSL.
  *
@@ -88,9 +88,14 @@
 #endif
 
 #ifdef MICROCHIP_PIC32
-    /* use MBED plus no filesystem */
-    #define MBED
+    #define SIZEOF_LONG_LONG 8
+    #define SINGLE_THREADED
+    #define CYASSL_USER_IO
+    #define NO_WRITEV
+    #define NO_DEV_RANDOM
     #define NO_FILESYSTEM
+    #define USE_FAST_MATH
+    #define TFM_TIMING_RESISTANT
 #endif
 
 #ifdef MBED

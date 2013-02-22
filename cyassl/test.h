@@ -40,6 +40,12 @@
     #endif
 #endif /* USE_WINDOWS_API */
 
+#ifdef HAVE_CAVIUM
+    #include "cavium_sysdep.h"
+    #include "cavium_common.h"
+    #include "cavium_ioctl.h"
+#endif
+
 #ifdef _MSC_VER
     /* disable conversion warning */
     /* 4996 warning to use MS extensions e.g., strcpy_s instead of strncpy */
@@ -353,6 +359,9 @@ static INLINE void tcp_socket(SOCKET_T* sockfd, int udp)
     else
         *sockfd = socket(AF_INET_V, SOCK_STREAM, 0);
 
+    if (*sockfd < 0)
+        err_sys("socket failed\n");
+
 #ifndef USE_WINDOWS_API 
 #ifdef SO_NOSIGPIPE
     {
@@ -408,11 +417,11 @@ enum {
     TEST_ERROR_READY
 };
 
-static INLINE int tcp_select(SOCKET_T socketfd, unsigned int to_sec)
+static INLINE int tcp_select(SOCKET_T socketfd, int to_sec)
 {
     fd_set recvfds, errfds;
     SOCKET_T nfds = socketfd + 1;
-    struct timeval timeout = {to_sec, 0};
+    struct timeval timeout = { (to_sec > 0) ? to_sec : 0, 0};
     int result;
 
     FD_ZERO(&recvfds);
@@ -447,9 +456,11 @@ static INLINE void tcp_listen(SOCKET_T* sockfd, int port, int useAnyAddr,
 
 #ifndef USE_WINDOWS_API 
     {
-        int       on  = 1;
+        int       res, on  = 1;
         socklen_t len = sizeof(on);
-        setsockopt(*sockfd, SOL_SOCKET, SO_REUSEADDR, &on, len);
+        res = setsockopt(*sockfd, SOL_SOCKET, SO_REUSEADDR, &on, len);
+        if (res < 0)
+            err_sys("setsockopt SO_REUSEADDR failed\n");
     }
 #endif
 
@@ -494,9 +505,11 @@ static INLINE void udp_accept(SOCKET_T* sockfd, int* clientfd, int useAnyAddr,
 
 #ifndef USE_WINDOWS_API 
     {
-        int       on  = 1;
+        int       res, on  = 1;
         socklen_t len = sizeof(on);
-        setsockopt(*sockfd, SOL_SOCKET, SO_REUSEADDR, &on, len);
+        res = setsockopt(*sockfd, SOL_SOCKET, SO_REUSEADDR, &on, len);
+        if (res < 0)
+            err_sys("setsockopt SO_REUSEADDR failed\n");
     }
 #endif
 
@@ -555,7 +568,11 @@ static INLINE void tcp_set_nonblocking(SOCKET_T* sockfd)
         int ret = ioctlsocket(*sockfd, FIONBIO, &blocking);
     #else
         int flags = fcntl(*sockfd, F_GETFL, 0);
-        fcntl(*sockfd, F_SETFL, flags | O_NONBLOCK);
+        if (flags < 0)
+            err_sys("fcntl get failed");
+        flags = fcntl(*sockfd, F_SETFL, flags | O_NONBLOCK);
+        if (flags < 0)
+            err_sys("fcntl set failed");
     #endif
 }
 
@@ -797,6 +814,30 @@ static INLINE void SetDHCtx(CYASSL_CTX* ctx)
 }
 
 #endif /* !NO_CERTS */
+
+#ifdef HAVE_CAVIUM
+
+static INLINE int OpenNitroxDevice(int dma_mode,int dev_id)
+{
+   Csp1CoreAssignment core_assign;
+   Uint32             device;
+
+   if (CspInitialize(CAVIUM_DIRECT,CAVIUM_DEV_ID))
+      return -1;
+   if (Csp1GetDevType(&device))
+      return -1;
+   if (device != NPX_DEVICE) {
+      if (ioctl(gpkpdev_hdlr[CAVIUM_DEV_ID], IOCTL_CSP1_GET_CORE_ASSIGNMENT,
+                (Uint32 *)&core_assign)!= 0)
+         return -1;
+   }
+   CspShutdown(CAVIUM_DEV_ID);
+
+   return CspInitialize(dma_mode, dev_id);
+}
+
+#endif /* HAVE_CAVIUM */
+
 
 #ifdef USE_WINDOWS_API 
 

@@ -1,6 +1,6 @@
 /* testsuite.c
  *
- * Copyright (C) 2006-2012 Sawtooth Consulting Ltd.
+ * Copyright (C) 2006-2013 wolfSSL Inc.
  *
  * This file is part of CyaSSL.
  *
@@ -59,6 +59,12 @@ int main(int argc, char** argv)
 
     tcp_ready ready;
     THREAD_TYPE serverThread;
+
+#ifdef HAVE_CAVIUM
+        int ret = OpenNitroxDevice(CAVIUM_DIRECT, CAVIUM_DEV_ID);
+        if (ret != 0)
+            err_sys("Cavium OpenNitroxDevice failed");
+#endif /* HAVE_CAVIUM */
 
     StartTCP();
 
@@ -144,6 +150,9 @@ int main(int argc, char** argv)
     CyaSSL_Cleanup();
     FreeTcpReady(&ready);
 
+#ifdef HAVE_CAVIUM
+        CspShutdown(CAVIUM_DEV_ID);
+#endif
     printf("\nAll tests passed!\n");
     return EXIT_SUCCESS;
 }

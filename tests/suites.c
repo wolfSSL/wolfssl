@@ -1,6 +1,6 @@
 /* suites.c
  *
- * Copyright (C) 2006-2012 Sawtooth Consulting Ltd.
+ * Copyright (C) 2006-2013 wolfSSL Inc.
  *
  * This file is part of CyaSSL.
  *
@@ -37,7 +37,7 @@
 #include "examples/server/server.h"
 
 static void execute_test_case(int svr_argc, char** svr_argv,
-                              int cli_argc, char** cli_argv)
+                              int cli_argc, char** cli_argv, int addNoVerify)
 {
     func_args cliArgs = {cli_argc, cli_argv, 0, NULL};
     func_args svrArgs = {svr_argc, svr_argv, 0, NULL};
@@ -46,17 +46,37 @@ static void execute_test_case(int svr_argc, char** svr_argv,
     THREAD_TYPE serverThread;
     char        commandLine[MAX_COMMAND_SZ];
     int         i;
+    size_t      added = 0;
     static      int tests = 1;
 
     commandLine[0] = '\0';
     for (i = 0; i < svr_argc; i++) {
+        added += strlen(svr_argv[i]) + 2;
+        if (added >= MAX_COMMAND_SZ) {
+            printf("server command line too long\n"); 
+            break;
+        }
         strcat(commandLine, svr_argv[i]);
         strcat(commandLine, " ");
+    }
+    if (addNoVerify) {
+        printf("repeating test with client cert request off\n"); 
+        added += 3;   /* -d plus terminator */
+        if (added >= MAX_COMMAND_SZ)
+            printf("server command line too long\n");
+        else
+            strcat(commandLine, "-d");
     }
     printf("trying server command line[%d]: %s\n", tests, commandLine);
 
     commandLine[0] = '\0';
+    added = 0;
     for (i = 0; i < cli_argc; i++) {
+        added += strlen(cli_argv[i]) + 2;
+        if (added >= MAX_COMMAND_SZ) {
+            printf("client command line too long\n"); 
+            break;
+        }
         strcat(commandLine, cli_argv[i]);
         strcat(commandLine, " ");
     }
@@ -124,7 +144,7 @@ static void test_harness(void* vargs)
     fseek(file, 0, SEEK_END);
     sz = ftell(file);
     rewind(file);
-    if (sz == 0) {
+    if (sz <= 0) {
         fprintf(stderr, "%s is empty\n", fname);
         fclose(file);
         args->return_code = 1;
@@ -143,6 +163,7 @@ static void test_harness(void* vargs)
     if (len != sz) {
         fprintf(stderr, "read error\n");
         fclose(file);
+        free(script);
         args->return_code = 1;
         return;
     }
@@ -200,7 +221,8 @@ static void test_harness(void* vargs)
         }
 
         if (do_it) {
-            execute_test_case(svrArgsSz, svrArgs, cliArgsSz, cliArgs);
+            execute_test_case(svrArgsSz, svrArgs, cliArgsSz, cliArgs, 0);
+            execute_test_case(svrArgsSz, svrArgs, cliArgsSz, cliArgs, 1);
             svrArgsSz = 1;
             cliArgsSz = 1;
             cliMode   = 0;
@@ -373,12 +395,44 @@ int SuiteTest(void)
 #if defined(HAVE_AESCCM)
     /* add aesccm extra suites */
     strcpy(argv0[1], "tests/test-aesccm.conf");
-    printf("starting aesccm extra cipher suite tests\n");
+    printf("starting aesccm cipher suite tests\n");
     test_harness(&args);
     if (args.return_code != 0) {
         printf("error from script %d\n", args.return_code);
         exit(EXIT_FAILURE);  
     }
+    #ifdef HAVE_ECC
+        /* add aesccm ecc extra suites */
+        strcpy(argv0[1], "tests/test-aesccm-ecc.conf");
+        printf("starting aesccm ecc cipher suite tests\n");
+        test_harness(&args);
+        if (args.return_code != 0) {
+            printf("error from script %d\n", args.return_code);
+            exit(EXIT_FAILURE);  
+        }
+    #endif
+#endif
+
+#ifdef HAVE_CAMELLIA
+    /* add camellia suites */
+    strcpy(argv0[1], "tests/test-camellia.conf");
+    printf("starting camellia suite tests\n");
+    test_harness(&args);
+    if (args.return_code != 0) {
+        printf("error from script %d\n", args.return_code);
+        exit(EXIT_FAILURE);  
+    }
+    #ifdef OPENSSL_EXTRA
+        /* add camellia openssl extra suites */
+        strcpy(argv0[1], "tests/test-camellia-openssl.conf");
+        printf("starting camellia openssl extra suite tests\n");
+        test_harness(&args);
+        if (args.return_code != 0) {
+            printf("error from script %d\n", args.return_code);
+            exit(EXIT_FAILURE);  
+        }
+    
+    #endif
 #endif
 
 #ifdef CYASSL_DTLS 

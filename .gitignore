@@ -75,3 +75,5 @@ swig/cyassl_wrap.c
 stamp-h1
 clang_output_*
 internal.plist
+cov-int
+cyassl.tgz

@@ -1,6 +1,6 @@
 /* io.c
  *
- * Copyright (C) 2006-2012 Sawtooth Consulting Ltd.
+ * Copyright (C) 2006-2013 wolfSSL Inc.
  *
  * This file is part of CyaSSL.
  *
@@ -29,6 +29,7 @@
 #endif
 
 #include <cyassl/internal.h>
+#include <cyassl/error.h>
 
 /* if user writes own I/O callbacks they can define CYASSL_USER_IO to remove
    automatic setting of default I/O functions EmbedSend() and EmbedReceive()
@@ -199,8 +200,10 @@ int EmbedReceive(CYASSL *ssl, char *buf, int sz, void *ctx)
             #else
                 struct timeval timeout = {dtls_timeout, 0};
             #endif
-            setsockopt(sd, SOL_SOCKET, SO_RCVTIMEO,
-                                            (char*)&timeout, TIMEVAL_BYTES);
+            if (setsockopt(sd, SOL_SOCKET, SO_RCVTIMEO, (char*)&timeout,
+                           TIMEVAL_BYTES) != 0) {
+                CYASSL_MSG("setsockopt rcvtimeo failed");
+            }
         }
     }
 #endif
@@ -318,14 +321,17 @@ int EmbedReceiveFrom(CYASSL *ssl, char *buf, int sz, void *ctx)
     XSOCKLENT peerSz = sizeof(peer);
 
     CYASSL_ENTER("EmbedReceiveFrom()");
+
     if (!CyaSSL_get_using_nonblock(ssl) && dtls_timeout != 0) {
         #ifdef USE_WINDOWS_API
             DWORD timeout = dtls_timeout * 1000;
         #else
             struct timeval timeout = { dtls_timeout, 0 };
         #endif
-        setsockopt(sd, SOL_SOCKET, SO_RCVTIMEO,
-                                            (char*)&timeout, TIMEVAL_BYTES);
+        if (setsockopt(sd, SOL_SOCKET, SO_RCVTIMEO, (char*)&timeout,
+                       TIMEVAL_BYTES) != 0) {
+                CYASSL_MSG("setsockopt rcvtimeo failed");
+        }
     }
 
     recvd = (int)RECVFROM_FUNCTION(sd, buf, sz, ssl->rflags,
@@ -365,8 +371,7 @@ int EmbedReceiveFrom(CYASSL *ssl, char *buf, int sz, void *ctx)
         }
     }
     else {
-        if (dtlsCtx != NULL
-                && dtlsCtx->peer.sz > 0
+        if (dtlsCtx->peer.sz > 0
                 && peerSz != (XSOCKLENT)dtlsCtx->peer.sz
                 && memcmp(&peer, dtlsCtx->peer.sa, peerSz) != 0) {
             CYASSL_MSG("    Ignored packet from invalid peer");
@@ -390,6 +395,7 @@ int EmbedSendTo(CYASSL* ssl, char *buf, int sz, void *ctx)
     int err;
 
     CYASSL_ENTER("EmbedSendTo()");
+
     sent = (int)SENDTO_FUNCTION(sd, &buf[sz - len], len, ssl->wflags,
                                 dtlsCtx->peer.sa, dtlsCtx->peer.sz);
     if (sent < 0) {
@@ -435,7 +441,10 @@ int EmbedGenerateCookie(byte *buf, int sz, void *ctx)
     int cookieSrcSz = 0;
     Sha sha;
 
-    getpeername(sd, (struct sockaddr*)&peer, &peerSz);
+    if (getpeername(sd, (struct sockaddr*)&peer, &peerSz) != 0) {
+        CYASSL_MSG("getpeername failed in EmbedGenerateCookie");
+        return GEN_COOKIE_E;
+    }
     
     if (peer.sin_family == AF_INET) {
         struct sockaddr_in *s = (struct sockaddr_in*)&peer;
@@ -497,6 +506,10 @@ static INLINE int tcp_connect(SOCKET_T* sockfd, const char* ip, word16 port)
     }
 
     *sockfd = socket(AF_INET_V, SOCK_STREAM, 0);
+    if (*sockfd < 0) {
+        CYASSL_MSG("bad socket fd, out of fds?");
+        return -1;
+    }
     XMEMSET(&addr, 0, sizeof(SOCKADDR_IN_T));
 
     addr.sin_family = AF_INET_V;
@@ -663,7 +676,7 @@ int EmbedOcspLookup(void* ctx, const char* url, int urlSz,
                         byte* ocspReqBuf, int ocspReqSz, byte** ocspRespBuf)
 {
     char domainName[80], path[80];
-    int port, httpBufSz, sfd;
+    int port, httpBufSz, sfd = -1;
     int ocspRespSz = 0;
     byte* httpBuf = NULL;
 
@@ -716,6 +729,7 @@ int EmbedOcspLookup(void* ctx, const char* url, int urlSz,
         }
     } else {
         CYASSL_MSG("OCSP Responder connection failed");
+        close(sfd);
         return -1;
     }
 

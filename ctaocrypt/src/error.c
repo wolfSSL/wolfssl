@@ -1,6 +1,6 @@
 /* error.c
  *
- * Copyright (C) 2006-2012 Sawtooth Consulting Ltd.
+ * Copyright (C) 2006-2013 wolfSSL Inc.
  *
  * This file is part of CyaSSL.
  *
@@ -275,6 +275,10 @@ void CTaoCryptErrorString(int error, char* buffer)
 
     case AES_CCM_AUTH_E:
         XSTRNCPY(buffer, "AES-CCM Authentication check fail", max);
+        break;
+
+    case CAVIUM_INIT_E:
+        XSTRNCPY(buffer, "Cavium Init type error", max);
         break;
 
     default:

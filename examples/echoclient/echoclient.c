@@ -1,6 +1,6 @@
 /* echoclient.c
  *
- * Copyright (C) 2006-2012 Sawtooth Consulting Ltd.
+ * Copyright (C) 2006-2013 wolfSSL Inc.
  *
  * This file is part of CyaSSL.
  *
@@ -39,7 +39,7 @@ void echoclient_test(void* args)
     int outCreated = 0;
 
     char msg[1024];
-    char reply[1024];
+    char reply[1024+1];
 
     SSL_METHOD* method = 0;
     SSL_CTX*    ctx    = 0;
@@ -148,7 +148,7 @@ void echoclient_test(void* args)
 
         while (sendSz) {
             int got;
-            if ( (got = SSL_read(ssl, reply, sizeof(reply))) > 0) {
+            if ( (got = SSL_read(ssl, reply, sizeof(reply)-1)) > 0) {
                 reply[got] = 0;
                 fputs(reply, fout);
                 sendSz -= got;
@@ -186,6 +186,12 @@ void echoclient_test(void* args)
     {
         func_args args;
 
+#ifdef HAVE_CAVIUM
+        int ret = OpenNitroxDevice(CAVIUM_DIRECT, CAVIUM_DEV_ID);
+        if (ret != 0)
+            err_sys("Cavium OpenNitroxDevice failed");
+#endif /* HAVE_CAVIUM */
+
         StartTCP();
 
         args.argc = argc;
@@ -200,6 +206,9 @@ void echoclient_test(void* args)
         echoclient_test(&args);
         CyaSSL_Cleanup();
 
+#ifdef HAVE_CAVIUM
+        CspShutdown(CAVIUM_DEV_ID);
+#endif
         return args.return_code;
     }
 

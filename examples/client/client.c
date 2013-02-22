@@ -1,6 +1,6 @@
 /* client.c
  *
- * Copyright (C) 2006-2012 Sawtooth Consulting Ltd.
+ * Copyright (C) 2006-2013 wolfSSL Inc.
  *
  * This file is part of CyaSSL.
  *
@@ -272,7 +272,7 @@ void client_test(void* args)
 
     if (cipherList)
         if (CyaSSL_CTX_set_cipher_list(ctx, cipherList) != SSL_SUCCESS)
-            err_sys("can't set cipher list");
+            err_sys("client can't set cipher list 1");
 
 #ifdef CYASSL_LEANPSK
     usePsk = 1;
@@ -289,7 +289,7 @@ void client_test(void* args)
                 defaultCipherList = "PSK-AES256-CBC-SHA";
             #endif
             if (CyaSSL_CTX_set_cipher_list(ctx,defaultCipherList) !=SSL_SUCCESS)
-                err_sys("can't set cipher list");
+                err_sys("client can't set cipher list 2");
         }
 #endif
     }
@@ -302,7 +302,7 @@ void client_test(void* args)
     if (cipherList == NULL) {
         /* don't use EDH, can't sniff tmp keys */
         if (CyaSSL_CTX_set_cipher_list(ctx, "AES256-SHA") != SSL_SUCCESS) {
-            err_sys("can't set cipher list");
+            err_sys("client can't set cipher list 3");
         }
     }
 #endif
@@ -332,6 +332,10 @@ void client_test(void* args)
 #endif
     if (!usePsk && doPeerCheck == 0)
         CyaSSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, 0);
+
+#ifdef HAVE_CAVIUM
+    CyaSSL_CTX_UseCavium(ctx, CAVIUM_DEV_ID);
+#endif
 
     if (benchmark) {
         /* time passed in number of connects give average */
@@ -411,18 +415,19 @@ void client_test(void* args)
         printf("SSL connect ok, sending GET...\n");
         msgSz = 28;
         strncpy(msg, "GET /index.html HTTP/1.0\r\n\r\n", msgSz);
+        msg[msgSz] = '\0';
     }
     if (CyaSSL_write(ssl, msg, msgSz) != msgSz)
         err_sys("SSL_write failed");
 
-    input = CyaSSL_read(ssl, reply, sizeof(reply));
+    input = CyaSSL_read(ssl, reply, sizeof(reply)-1);
     if (input > 0) {
         reply[input] = 0;
         printf("Server response: %s\n", reply);
 
         if (sendGET) {  /* get html */
             while (1) {
-                input = CyaSSL_read(ssl, reply, sizeof(reply));
+                input = CyaSSL_read(ssl, reply, sizeof(reply)-1);
                 if (input > 0) {
                     reply[input] = 0;
                     printf("%s\n", reply);
@@ -506,7 +511,7 @@ void client_test(void* args)
             #endif
         }
 
-        input = CyaSSL_read(sslResume, reply, sizeof(reply));
+        input = CyaSSL_read(sslResume, reply, sizeof(reply)-1);
         if (input > 0) {
             reply[input] = 0;
             printf("Server resume response: %s\n", reply);
@@ -517,10 +522,10 @@ void client_test(void* args)
 
         CyaSSL_shutdown(sslResume);
         CyaSSL_free(sslResume);
+        CloseSocket(sockfd);
     }
 
     CyaSSL_CTX_free(ctx);
-    CloseSocket(sockfd);
 
     ((func_args*)args)->return_code = 0;
 }
@@ -532,6 +537,12 @@ void client_test(void* args)
     int main(int argc, char** argv)
     {
         func_args args;
+
+#ifdef HAVE_CAVIUM
+        int ret = OpenNitroxDevice(CAVIUM_DIRECT, CAVIUM_DEV_ID);
+        if (ret != 0)
+            err_sys("Cavium OpenNitroxDevice failed");
+#endif /* HAVE_CAVIUM */
 
         StartTCP();
 
@@ -548,6 +559,9 @@ void client_test(void* args)
         client_test(&args);
         CyaSSL_Cleanup();
 
+#ifdef HAVE_CAVIUM
+        CspShutdown(CAVIUM_DEV_ID);
+#endif
         return args.return_code;
     }
 

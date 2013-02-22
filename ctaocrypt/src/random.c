@@ -1,6 +1,6 @@
 /* random.c
  *
- * Copyright (C) 2006-2012 Sawtooth Consulting Ltd.
+ * Copyright (C) 2006-2013 wolfSSL Inc.
  *
  * This file is part of CyaSSL.
  *
@@ -307,8 +307,13 @@ int InitRng(RNG* rng)
 {
     byte key[32];
     byte junk[256];
+    int  ret;
 
-    int  ret = GenerateSeed(&rng->seed, key, sizeof(key));
+#ifdef HAVE_CAVIUM
+    if (rng->magic == CYASSL_RNG_CAVIUM_MAGIC)
+        return 0; 
+#endif
+    ret = GenerateSeed(&rng->seed, key, sizeof(key));
 
     if (ret == 0) {
         Arc4SetKey(&rng->cipher, key, sizeof(key));
@@ -318,10 +323,17 @@ int InitRng(RNG* rng)
     return ret;
 }
 
+#ifdef HAVE_CAVIUM
+    static void CaviumRNG_GenerateBlock(RNG* rng, byte* output, word32 sz);
+#endif
 
 /* place a generated block in output */
 void RNG_GenerateBlock(RNG* rng, byte* output, word32 sz)
 {
+#ifdef HAVE_CAVIUM
+    if (rng->magic == CYASSL_RNG_CAVIUM_MAGIC)
+        return CaviumRNG_GenerateBlock(rng, output, sz); 
+#endif
     XMEMSET(output, 0, sz);
     Arc4Process(&rng->cipher, output, output, sz);
 }
@@ -334,6 +346,50 @@ byte RNG_GenerateByte(RNG* rng)
 
     return b;
 }
+
+
+#ifdef HAVE_CAVIUM
+
+#include <cyassl/ctaocrypt/logging.h>
+#include "cavium_common.h"
+
+/* Initiliaze RNG for use with Nitrox device */
+int InitRngCavium(RNG* rng, int devId)
+{
+    if (rng == NULL)
+        return -1;
+
+    rng->devId = devId;
+    rng->magic = CYASSL_RNG_CAVIUM_MAGIC;
+   
+    return 0;
+}
+
+
+static void CaviumRNG_GenerateBlock(RNG* rng, byte* output, word32 sz)
+{
+    word   offset = 0;
+    word32 requestId;
+
+    while (sz > CYASSL_MAX_16BIT) {
+        word16 slen = (word16)CYASSL_MAX_16BIT;
+        if (CspRandom(CAVIUM_BLOCKING, slen, output + offset, &requestId,
+                      rng->devId) != 0) {
+            CYASSL_MSG("Cavium RNG failed");
+        }
+        sz     -= CYASSL_MAX_16BIT;
+        offset += CYASSL_MAX_16BIT;
+    }
+    if (sz) {
+        word16 slen = (word16)sz;
+        if (CspRandom(CAVIUM_BLOCKING, slen, output + offset, &requestId,
+                      rng->devId) != 0) {
+            CYASSL_MSG("Cavium RNG failed");
+        }
+    }
+}
+
+#endif /* HAVE_CAVIUM */
 
 #endif /* NO_RC4 */
 
@@ -395,6 +451,25 @@ int GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     int i;
     for (i = 0; i < sz; i++ )
         output[i] = i;
+
+    return 0;
+}
+
+#elif defined(MICROCHIP_PIC32)
+
+#include <peripheral/timer.h>
+
+/* uses the core timer, in nanoseconds to seed srand */
+int GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+{
+    int i;
+    srand(ReadCoreTimer() * 25);
+
+    for (i = 0; i < sz; i++ ) {
+        output[i] = rand() % 256;
+        if ( (i % 8) == 7)
+            srand(ReadCoreTimer() * 25);
+    }
 
     return 0;
 }

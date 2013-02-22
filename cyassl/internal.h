@@ -1,6 +1,6 @@
 /* internal.h
  *
- * Copyright (C) 2006-2012 Sawtooth Consulting Ltd.
+ * Copyright (C) 2006-2013 wolfSSL Inc.
  *
  * This file is part of CyaSSL.
  *
@@ -34,6 +34,7 @@
 #include <cyassl/ctaocrypt/asn.h>
 #include <cyassl/ctaocrypt/md5.h>
 #include <cyassl/ctaocrypt/aes.h>
+#include <cyassl/ctaocrypt/camellia.h>
 #include <cyassl/ctaocrypt/logging.h>
 #ifndef NO_RC4
     #include <cyassl/ctaocrypt/arc4.h>
@@ -168,6 +169,25 @@ void c32to24(word32 in, word24 out);
     #endif
 #endif
 
+#if defined(HAVE_CAMELLIA) && !defined(NO_TLS)
+    #ifndef NO_RSA
+        #define BUILD_TLS_RSA_WITH_CAMELLIA_128_CBC_SHA
+        #define BUILD_TLS_RSA_WITH_CAMELLIA_256_CBC_SHA
+        #ifndef NO_SHA256
+            #define BUILD_TLS_RSA_WITH_CAMELLIA_128_CBC_SHA256
+            #define BUILD_TLS_RSA_WITH_CAMELLIA_256_CBC_SHA256
+        #endif
+        #if !defined(NO_DH) && defined(OPENSSL_EXTRA)
+            #define BUILD_TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA
+            #define BUILD_TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA
+            #ifndef NO_SHA256
+                #define BUILD_TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA256
+                #define BUILD_TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA256
+            #endif
+        #endif
+    #endif
+#endif
+
 #if !defined(NO_PSK) && !defined(NO_AES) && !defined(NO_TLS)
     #define BUILD_TLS_PSK_WITH_AES_128_CBC_SHA
     #define BUILD_TLS_PSK_WITH_AES_256_CBC_SHA
@@ -234,6 +254,10 @@ void c32to24(word32 in, word24 out);
             #define BUILD_TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384
             #define BUILD_TLS_ECDH_RSA_WITH_AES_256_GCM_SHA384
             #define BUILD_TLS_ECDH_ECDSA_WITH_AES_256_GCM_SHA384
+        #endif
+        #if defined (HAVE_AESCCM)
+            #define BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8_SHA256
+            #define BUILD_TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8_SHA384
         #endif
     #endif
     #if !defined(NO_RC4)
@@ -367,8 +391,20 @@ enum {
      * also, in some of the other AES-CCM suites
      * there will be second byte number conflicts
      * with non-ECC AES-GCM */
-    TLS_RSA_WITH_AES_128_CCM_8_SHA256        = 0xa0,
-    TLS_RSA_WITH_AES_256_CCM_8_SHA384        = 0xa1
+    TLS_RSA_WITH_AES_128_CCM_8_SHA256         = 0xa0,
+    TLS_RSA_WITH_AES_256_CCM_8_SHA384         = 0xa1,
+    TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8_SHA256 = 0xac, /* Still TBD, made up */
+    TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8_SHA384 = 0xad, /* Still TBD, made up */
+
+    TLS_RSA_WITH_CAMELLIA_128_CBC_SHA        = 0x41,
+    TLS_RSA_WITH_CAMELLIA_256_CBC_SHA        = 0x84,
+    TLS_RSA_WITH_CAMELLIA_128_CBC_SHA256     = 0xba,
+    TLS_RSA_WITH_CAMELLIA_256_CBC_SHA256     = 0xc0,
+    TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA    = 0x45,
+    TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA    = 0x88,
+    TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA256 = 0xbe,
+    TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA256 = 0xc4
+
 };
 
 
@@ -426,6 +462,7 @@ enum Misc {
     ALERT_SIZE     =  2,       /* level + description     */
     REQUEST_HEADER =  2,       /* always use 2 bytes      */
     VERIFY_HEADER  =  2,       /* always use 2 bytes      */
+    EXT_ID_SZ      =  2,       /* always use 2 bytes      */
     MAX_DH_SIZE    = 513,      /* 4096 bit plus possible leading 0 */
 
     MAX_SUITE_SZ = 200,        /* 100 suites for now! */
@@ -444,10 +481,10 @@ enum Misc {
     CERT_HEADER_SZ      = 3,   /* always 3 bytes          */
     REQ_HEADER_SZ       = 2,   /* cert request header sz  */
     HINT_LEN_SZ         = 2,   /* length of hint size field */
-    HELLO_EXT_SZ        = 14,  /* total length of the lazy hello extensions */
-    HELLO_EXT_LEN       = 12,  /* length of the lazy hello extensions */
-    HELLO_EXT_SIGALGO_SZ  = 8, /* length of signature algo extension  */
-    HELLO_EXT_SIGALGO_LEN = 6, /* number of items in the signature algo list */
+    HELLO_EXT_SZ        = 8,  /* total length of the lazy hello extensions */
+    HELLO_EXT_LEN       = 6,  /* length of the lazy hello extensions */
+    HELLO_EXT_SIGALGO_SZ  = 2, /* length of signature algo extension  */
+    HELLO_EXT_SIGALGO_MAX = 32, /* number of items in the signature algo list */
 
     DTLS_HANDSHAKE_HEADER_SZ = 12, /* normal + seq(2) + offset(3) + length(3) */
     DTLS_RECORD_HEADER_SZ    = 13, /* normal + epoch(2) + seq_num(6) */
@@ -487,6 +524,11 @@ enum Misc {
     AEAD_EXP_IV_SZ      = 8,        /* Size of the explicit IV     */
     AEAD_NONCE_SZ       = AEAD_EXP_IV_SZ + AEAD_IMP_IV_SZ,
 
+    CAMELLIA_128_KEY_SIZE = 16, /* for 128 bit */
+    CAMELLIA_192_KEY_SIZE = 24, /* for 192 bit */
+    CAMELLIA_256_KEY_SIZE = 32, /* for 256 bit */
+    CAMELLIA_IV_SIZE      = 16, /* always block size */
+
     HC_128_KEY_SIZE     = 16,  /* 128 bits                */
     HC_128_IV_SIZE      = 16,  /* also 128 bits           */
 
@@ -508,6 +550,8 @@ enum Misc {
     MAX_PSK_ID_LEN     = 128,  /* max psk identity/hint supported */
     MAX_PSK_KEY_LEN    =  64,  /* max psk key supported */
 
+    MAX_CYASSL_FILE_SIZE = 1024 * 1024 * 4,  /* 4 mb file size alloc limit */
+
 #ifdef FORTRESS
     MAX_EX_DATA        =   3,  /* allow for three items of ex_data */
 #endif
@@ -525,6 +569,8 @@ enum Misc {
     SNIFF              =   1,  /* currently sniffing */
 
     HASH_SIG_SIZE      =   2,  /* default SHA1 RSA */
+
+    NO_CAVIUM_DEVICE   =  -2,  /* invalid cavium device id */
 
     NO_COPY            =   0,  /* should we copy static buffer for write */
     COPY               =   1   /* should we copy static buffer for write */
@@ -706,6 +752,10 @@ typedef struct Suites {
     int    setSuites;               /* user set suites from default */
     byte   suites[MAX_SUITE_SZ];  
     word16 suiteSz;                 /* suite length in bytes        */
+    byte   hashSigAlgo[HELLO_EXT_SIGALGO_MAX]; /* sig/algo to offer */
+    word16 hashSigAlgoSz;           /* SigAlgo extension length in bytes */
+    byte   hashAlgo;                /* selected hash algorithm */
+    byte   sigAlgo;                 /* selected sig algorithm */
 } Suites;
 
 
@@ -928,6 +978,9 @@ struct CYASSL_CTX {
 #ifdef HAVE_OCSP
     CYASSL_OCSP      ocsp;
 #endif
+#ifdef HAVE_CAVIUM
+    int              devId;            /* cavium device id to use */
+#endif
 };
 
 
@@ -981,6 +1034,7 @@ enum BulkCipherAlgorithm {
     aes,
     aes_gcm,
     aes_ccm,
+    camellia,
     hc128,                  /* CyaSSL extensions */
     rabbit
 };
@@ -1100,6 +1154,9 @@ typedef struct Ciphers {
 #ifdef BUILD_AES
     Aes*    aes;
 #endif
+#ifdef HAVE_CAMELLIA
+    Camellia* cam;
+#endif
 #ifdef HAVE_HC128
     HC128*  hc128;
 #endif
@@ -1118,9 +1175,13 @@ CYASSL_LOCAL void FreeCiphers(CYASSL* ssl);
 typedef struct Hashes {
     #ifndef NO_MD5
         byte md5[MD5_DIGEST_SIZE];
-        byte sha[SHA_DIGEST_SIZE];
-    #else
-        byte hash[FINISHED_SZ];
+    #endif
+    byte sha[SHA_DIGEST_SIZE];
+    #ifndef NO_SHA256
+        byte sha256[SHA256_DIGEST_SIZE];
+    #endif
+    #ifdef CYASSL_SHA384
+        byte sha384[SHA384_DIGEST_SIZE];
     #endif
 } Hashes;
 
@@ -1219,9 +1280,6 @@ typedef struct Buffers {
     byte            weOwnKey;              /* SSL own key  flag */
     byte            weOwnDH;               /* SSL own dh (p,g)  flag */
 #ifdef CYASSL_DTLS
-    buffer          dtlsHandshake;         /* DTLS handshake defragment buf */
-    word32          dtlsUsed;              /* DTLS bytes used in buffer */
-    byte            dtlsType;              /* DTLS handshake frag type */
     CYASSL_DTLS_CTX dtlsCtx;               /* DTLS connection context */
 #endif
 } Buffers;
@@ -1340,6 +1398,16 @@ typedef struct DtlsPool {
     int             used;
 } DtlsPool;
 
+typedef struct DtlsMsg {
+    struct DtlsMsg* next;
+    word32          seq;       /* Handshake sequence number    */
+    word32          sz;        /* Length of whole mesage       */
+    word32          fragSz;    /* Length of fragments received */
+    byte            type;
+    byte*           buf;
+    byte*           msg;
+} DtlsMsg;
+
 
 /* CyaSSL ssl type */
 struct CYASSL {
@@ -1412,6 +1480,7 @@ struct CYASSL {
 #ifdef CYASSL_DTLS
     int             dtls_timeout;
     DtlsPool*       dtls_pool;
+    DtlsMsg*        dtls_msg_list;
 #endif
 #ifdef CYASSL_CALLBACKS
     HandShakeInfo   handShakeInfo;      /* info saved during handshake */
@@ -1424,6 +1493,9 @@ struct CYASSL {
 #endif
 #ifdef FORTRESS
     void*           ex_data[MAX_EX_DATA]; /* external data, for Fortress */
+#endif
+#ifdef HAVE_CAVIUM
+    int              devId;            /* cavium device id to use */
 #endif
 };
 
@@ -1632,6 +1704,16 @@ CYASSL_LOCAL  int GrowInputBuffer(CYASSL* ssl, int size, int usedLength);
     CYASSL_LOCAL int  DtlsPoolTimeout(CYASSL*);
     CYASSL_LOCAL int  DtlsPoolSend(CYASSL*);
     CYASSL_LOCAL void DtlsPoolReset(CYASSL*);
+
+    CYASSL_LOCAL DtlsMsg* DtlsMsgNew(word32, void*);
+    CYASSL_LOCAL void DtlsMsgDelete(DtlsMsg*, void*);
+    CYASSL_LOCAL void DtlsMsgListDelete(DtlsMsg*, void*);
+    CYASSL_LOCAL void DtlsMsgSet(DtlsMsg*, word32, const byte*, byte,
+                                                             word32, word32);
+    CYASSL_LOCAL DtlsMsg* DtlsMsgFind(DtlsMsg*, word32);
+    CYASSL_LOCAL DtlsMsg* DtlsMsgStore(DtlsMsg*, word32, const byte*, word32,
+                                                byte, word32, word32, void*);
+    CYASSL_LOCAL DtlsMsg* DtlsMsgInsert(DtlsMsg*, DtlsMsg*);
 #endif /* CYASSL_DTLS */
 
 #ifndef NO_TLS

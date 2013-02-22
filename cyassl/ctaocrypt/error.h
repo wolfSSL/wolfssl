@@ -1,6 +1,6 @@
 /* error.h
  *
- * Copyright (C) 2006-2012 Sawtooth Consulting Ltd.
+ * Copyright (C) 2006-2013 wolfSSL Inc.
  *
  * This file is part of CyaSSL.
  *
@@ -100,6 +100,8 @@ enum {
 
     AES_GCM_AUTH_E     = -180,  /* AES-GCM Authentication check failure */
     AES_CCM_AUTH_E     = -181,  /* AES-CCM Authentication check failure */
+
+    CAVIUM_INIT_E      = -182,  /* Cavium Init type error */
 
     MIN_CODE_E         = -200   /* errors -101 - -199 */
 };

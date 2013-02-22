@@ -1,6 +1,6 @@
 /* ssl.h
  *
- * Copyright (C) 2006-2012 Sawtooth Consulting Ltd.
+ * Copyright (C) 2006-2013 wolfSSL Inc.
  *
  * This file is part of CyaSSL.
  *
@@ -838,7 +838,7 @@ typedef void (*CbMissingCRL)(const char* url);
     CYASSL_API int CyaSSL_CertManagerVerify(CYASSL_CERT_MANAGER*, const char* f,
                                                                     int format);
     CYASSL_API int CyaSSL_CertManagerVerifyBuffer(CYASSL_CERT_MANAGER* cm,
-                                 const unsigned char* buff, int sz, int format);
+                                const unsigned char* buff, long sz, int format);
     CYASSL_API int CyaSSL_CertManagerCheckCRL(CYASSL_CERT_MANAGER*,
                                                         unsigned char*, int sz);
     CYASSL_API int CyaSSL_CertManagerEnableCRL(CYASSL_CERT_MANAGER*,
@@ -865,6 +865,11 @@ typedef void (*CbMissingCRL)(const char* url);
    if don't want to wait for object free */
 CYASSL_API void CyaSSL_KeepArrays(CYASSL*);
 CYASSL_API void CyaSSL_FreeArrays(CYASSL*);
+
+
+/* cavium additions */
+CYASSL_API int CyaSSL_UseCavium(CYASSL*, int devId);
+CYASSL_API int CyaSSL_CTX_UseCavium(CYASSL_CTX*, int devId);
 
 
 #define CYASSL_CRL_MONITOR   0x01   /* monitor this dir flag */

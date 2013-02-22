@@ -1,6 +1,6 @@
 /* pwdbased.c
  *
- * Copyright (C) 2006-2012 Sawtooth Consulting Ltd.
+ * Copyright (C) 2006-2013 wolfSSL Inc.
  *
  * This file is part of CyaSSL.
  *
@@ -103,7 +103,11 @@ int PBKDF2(byte* output, const byte* passwd, int pLen, const byte* salt,
     int    hLen;
     int    j;
     Hmac   hmac;
-    byte   buffer[INNER_HASH_SIZE];  /* max size */
+#ifdef CYASSL_SHA512
+    byte   buffer[SHA512_DIGEST_SIZE];
+#else
+    byte   buffer[INNER_HASH_SIZE];  /* max size, doesn't handle 512 yet */
+#endif
 
     if (hashType == MD5) {
         hLen = MD5_DIGEST_SIZE;

@@ -1,6 +1,6 @@
 /* error.h
  *
- * Copyright (C) 2006-2012 Sawtooth Consulting Ltd.
+ * Copyright (C) 2006-2013 wolfSSL Inc.
  *
  * This file is part of CyaSSL.
  *
@@ -108,6 +108,8 @@ enum CyaSSL_ErrorCodes {
     OUT_OF_ORDER_E         = -273,            /* out of order message */
     BAD_KEA_TYPE_E         = -274,            /* bad KEA type found */
     SANITY_CIPHER_E        = -275,            /* sanity check on cipher error */
+    RECV_OVERFLOW_E        = -276,            /* RXCB returned more than rqed */
+    GEN_COOKIE_E           = -277,            /* Generate Cookie Error */
     /* add strings to SetErrorString !!!!! */
 
     /* begin negotiation parameter errors */

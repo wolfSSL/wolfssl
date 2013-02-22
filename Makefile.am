@@ -34,9 +34,11 @@ EXTRA_DIST+= cyassl-iphone.xcodeproj/project.pbxproj
 EXTRA_DIST+= cyassl-ntru.sln
 EXTRA_DIST+= cyassl.sln
 EXTRA_DIST+= valgrind-error.sh
+EXTRA_DIST+= gencertbuf.pl
 
 include cyassl/include.am
 include certs/include.am
+include certs/1024/include.am
 include certs/crl/include.am
 include doc/include.am
 include swig/include.am
@@ -53,6 +55,13 @@ include testsuite/include.am
 include tests/include.am
 include sslSniffer/sslSnifferTest/include.am
 include rpm/include.am
+include mqx/ctaocrypt_test/Sources/include.am
+include mqx/cyassl/include.am
+include mqx/cyassl_client/Sources/include.am
+include mqx/util_lib/Sources/include.am
+include mplabx/ctaocrypt_benchmark.X/nbproject/include.am
+include mplabx/ctaocrypt_test.X/nbproject/include.am
+include mplabx/cyassl.X/nbproject/include.am
 
 if USE_VALGRIND
 TESTS_ENVIRONMENT=./valgrind-error.sh

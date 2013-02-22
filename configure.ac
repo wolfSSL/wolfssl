@@ -1,12 +1,12 @@
 # configure.ac
 #
-# Copyright (C) 2006-2012 Sawtooth Consulting Ltd.
+# Copyright (C) 2006-2013 wolfSSL Inc.
 #
 # This file is part of CyaSSL.
 #
 #
 
-AC_INIT([cyassl],[2.4.7],[http://www.yassl.com])
+AC_INIT([cyassl],[2.5.1],[http://www.yassl.com])
 
 AC_CONFIG_AUX_DIR([build-aux])
 AC_CONFIG_MACRO_DIR([m4])
@@ -439,7 +439,7 @@ AC_ARG_ENABLE([sha512],
 
 if test "$ENABLED_SHA512" = "yes"
 then
-    AM_CFLAGS="$AM_CFLAGS -DCYASSL_SHA512"
+    AM_CFLAGS="$AM_CFLAGS -DCYASSL_SHA512 -DCYASSL_SHA384"
 fi
 
 if test "$ENABLED_FORTRESS" = "yes"
@@ -729,6 +729,7 @@ AS_IF([test "x$ENABLED_SINGLETHREADED" = "xyes"], [ENABLED_EXAMPLES="no"])
 AS_IF([test "x$ENABLED_NOFILESYSTEM" = "xyes"], [ENABLED_EXAMPLES="no"])
 AM_CONDITIONAL([BUILD_EXAMPLES], [test "x$ENABLED_EXAMPLES" = "xyes"])
 
+
 # LIBZ
 trylibzdir=""
 AC_ARG_WITH([libz],
@@ -762,6 +763,36 @@ AC_ARG_WITH([libz],
             AC_MSG_RESULT([yes])
         fi
 
+    ]
+)
+
+
+# cavium 
+trycaviumdir=""
+AC_ARG_WITH([cavium],
+    [  --with-cavium=PATH      PATH to cavium/software dir ],
+    [
+        AC_MSG_CHECKING([for cavium])
+        CPPFLAGS="$CPPFLAGS -DHAVE_CAVIUM"
+
+            if test "x$withval" == "xyes" ; then
+                AC_MSG_ERROR([need a PATH for --with-cavium])
+            fi
+            if test "x$withval" != "xno" ; then
+                trycaviumdir=$withval
+            fi
+
+            LDFLAGS="$AM_LDFLAGS $trycaviumdir/api/cavium_common.o"
+            CPPFLAGS="$CPPFLAGS -I$trycaviumdir/include"
+
+            AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include "cavium_common.h"]], [[ CspShutdown(CAVIUM_DEV_ID); ]])],[ cavium_linked=yes ],[ cavium_linked=no ])
+
+            if test "x$cavium_linked" == "xno" ; then
+                AC_MSG_ERROR([cavium isn't found.
+                If it's already installed, specify its path using --with-cavium=/dir/])
+            fi
+            AC_MSG_RESULT([yes])
+            enable_shared=no
     ]
 )
 

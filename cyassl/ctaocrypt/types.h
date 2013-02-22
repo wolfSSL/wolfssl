@@ -1,6 +1,6 @@
 /* types.h
  *
- * Copyright (C) 2006-2012 Sawtooth Consulting Ltd.
+ * Copyright (C) 2006-2013 wolfSSL Inc.
  *
  * This file is part of CyaSSL.
  *
@@ -98,6 +98,7 @@ enum {
     WORD_BITS  = WORD_SIZE * BIT_SIZE
 };
 
+#define CYASSL_MAX_16BIT 0xffffU
 
 /* use inlining if compiler allows */
 #ifndef INLINE
@@ -228,7 +229,10 @@ enum {
     DYNAMIC_TYPE_SOCKADDR     = 35,
     DYNAMIC_TYPE_LIBZ         = 36,
     DYNAMIC_TYPE_ECC          = 37,
-    DYNAMIC_TYPE_TMP_BUFFER   = 38
+    DYNAMIC_TYPE_TMP_BUFFER   = 38,
+    DYNAMIC_TYPE_DTLS_MSG     = 39,
+    DYNAMIC_TYPE_CAVIUM_TMP   = 40,
+    DYNAMIC_TYPE_CAVIUM_RSA   = 41 
 };
 
 /* stack protection */
