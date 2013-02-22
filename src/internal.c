@@ -1340,8 +1340,10 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
         return MEMORY_E;
     }
 
-    if ( (ret = InitRng(ssl->rng)) != 0)
+    if ( (ret = InitRng(ssl->rng)) != 0) {
+        CYASSL_MSG("RNG Init error");
         return ret;
+    }
 
     /* suites */
     ssl->suites = (Suites*)XMALLOC(sizeof(Suites), ssl->heap,

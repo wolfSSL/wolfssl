@@ -147,6 +147,7 @@ void CyaSSL_CTX_free(CYASSL_CTX* ctx)
 CYASSL* CyaSSL_new(CYASSL_CTX* ctx)
 {
     CYASSL* ssl = NULL;
+    int ret = 0;
 
     CYASSL_ENTER("SSL_new");
 
@@ -155,12 +156,12 @@ CYASSL* CyaSSL_new(CYASSL_CTX* ctx)
 
     ssl = (CYASSL*) XMALLOC(sizeof(CYASSL), ctx->heap,DYNAMIC_TYPE_SSL);
     if (ssl)
-        if (InitSSL(ssl, ctx) < 0) {
+        if ( (ret = InitSSL(ssl, ctx)) < 0) {
             FreeSSL(ssl);
             ssl = 0;
         }
 
-    CYASSL_LEAVE("SSL_new", 0);
+    CYASSL_LEAVE("SSL_new", ret);
     return ssl;
 }
 
