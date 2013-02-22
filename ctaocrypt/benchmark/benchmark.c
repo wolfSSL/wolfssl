@@ -627,18 +627,22 @@ void bench_blake2(void)
     int    i;
         
     blake2b_init(S, 32); 
-    start = current_time();
+    start = current_time(1);
     
-    for(i = 0; i < megs; i++)
+    for(i = 0; i < numBlocks; i++)
         blake2b_update(S, plain, sizeof(plain));
    
     blake2b_final(S, digest, 32);
 
-    total = current_time() - start;
-    persec = 1 / total * megs;
+    total = current_time(0) - start;
+    persec = 1 / total * numBlocks;
+#ifdef BENCH_EMBEDDED
+    /* since using kB, convert to MB/s */
+    persec = persec / 1024;
+#endif
 
-    printf("BLAKE2   %d megs took %5.3f seconds, %6.2f MB/s\n", megs, total,
-                                                             persec);
+    printf("BLAKE2   %d %s took %5.3f seconds, %6.2f MB/s\n", numBlocks,
+                                              blockType, total, persec);
 }
 #endif
 
