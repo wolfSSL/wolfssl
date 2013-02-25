@@ -8774,7 +8774,7 @@ int SetCipherList(Suites* s, const char* list)
         byte*       out;
         int         outLen;
         byte        hashAlgo = sha_mac;
-        byte        sigAlgo;
+        byte        sigAlgo = anonymous_sa_algo;
 
         #ifdef CYASSL_CALLBACKS
             if (ssl->hsInfoOn)
