@@ -8815,6 +8815,10 @@ int SetCipherList(Suites* s, const char* list)
                 int    typeH = SHAh;
                 int    digestSz = SHA_DIGEST_SIZE;
 
+                if (sigAlgo != rsa_sa_algo) {
+                    CYASSL_MSG("Oops, peer sent RSA key but not in verify");
+                }
+
                 if (hashAlgo == sha256_mac) {
                     #ifndef NO_SHA256
                         digest = ssl->certHashes.sha256;
@@ -8853,6 +8857,9 @@ int SetCipherList(Suites* s, const char* list)
             CYASSL_MSG("Doing ECC peer cert verify");
 
             if (IsAtLeastTLSv1_2(ssl)) {
+                if (sigAlgo != ecc_dsa_sa_algo) {
+                    CYASSL_MSG("Oops, peer sent ECC key but not in verify");
+                }
                 if (hashAlgo == sha256_mac) {
                     #ifndef NO_SHA256
                         digest = ssl->certHashes.sha256;
