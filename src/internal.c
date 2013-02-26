@@ -1221,6 +1221,7 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
     ssl->dtls_pool                      = NULL;
     ssl->dtls_msg_list                  = NULL;
 #endif
+    ssl->keys.encryptSz    = 0;
     ssl->keys.encryptionOn = 0;     /* initially off */
     ssl->keys.decryptedCur = 0;     /* initially off */
     ssl->options.sessionCacheOff      = ctx->sessionCacheOff;
@@ -1301,6 +1302,7 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
     ssl->rng    = NULL;
     ssl->arrays = NULL;
     InitCiphers(ssl);
+    InitCipherSpecs(&ssl->specs);
     /* all done with init, now can return errors, call other stuff */
 
     /* increment CTX reference count */
