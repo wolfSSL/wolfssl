@@ -1191,7 +1191,8 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
     ssl->options.haveNTRU      = ctx->haveNTRU;
     ssl->options.haveECDSAsig  = ctx->haveECDSAsig;
     ssl->options.haveStaticECC = ctx->haveStaticECC;
-    ssl->options.havePeerCert  = 0; 
+    ssl->options.havePeerCert    = 0; 
+    ssl->options.havePeerVerify  = 0;
     ssl->options.usingPSK_cipher = 0;
     ssl->options.sendAlertState = 0;
 #ifndef NO_PSK
@@ -4283,6 +4284,17 @@ int ProcessReply(CYASSL* ssl)
                         CYASSL_MSG("Malicious or corrupted ChangeCipher msg");
                         return LENGTH_ERROR;
                     }
+                    #ifndef NO_CERTS
+                        if (ssl->options.side == SERVER_END &&
+                                 ssl->options.verifyPeer &&
+                                 ssl->options.havePeerCert)
+                            if (!ssl->options.havePeerVerify) {
+                                CYASSL_MSG("client didn't send cert verify");
+                                return NO_PEER_VERIFY;
+                            }
+                    #endif
+
+
                     ssl->buffers.inputBuffer.idx++;
                     ssl->keys.encryptionOn = 1;
 
@@ -5435,6 +5447,10 @@ void SetErrorString(int error, char* str)
 
     case GEN_COOKIE_E:
         XSTRNCPY(str, "Generate Cookie Error", max);
+        break;
+
+    case NO_PEER_VERIFY:
+        XSTRNCPY(str, "Need peer certificate verify Error", max);
         break;
 
     default :
@@ -8882,6 +8898,9 @@ int SetCipherList(Suites* s, const char* list)
                ret = 0;   /* verified */ 
         }
 #endif
+        if (ret == 0)
+            ssl->options.havePeerVerify = 1;
+          
         return ret;
     }
 #endif /* !NO_RSA || HAVE_ECC */

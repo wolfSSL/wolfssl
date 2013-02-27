@@ -2715,7 +2715,7 @@ int CyaSSL_dtls_got_timeout(CYASSL* ssl)
             CYASSL_MSG("connect state: FIRST_REPLY_SECOND");
 
         case FIRST_REPLY_SECOND :
-            #ifndef NO_RSA
+            #ifndef NO_CERTS
                 if (ssl->options.sendVerify)
                     if ( (ssl->error = SendCertificateVerify(ssl)) != 0) {
                         CYASSL_ERROR(ssl->error);
