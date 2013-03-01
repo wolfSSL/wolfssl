@@ -31,122 +31,121 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  */
 
-#pragma once
+
 #ifndef CTAOCRYPT_BLAKE2_IMPL_H
 #define CTAOCRYPT_BLAKE2_IMPL_H
 
 #include <cyassl/ctaocrypt/types.h>
-#include <stdint.h>
 
-static inline uint32_t load32( const void *src )
+static inline word32 load32( const void *src )
 {
 #if defined(LITTLE_ENDIAN_ORDER)
-  return *( uint32_t * )( src );
+  return *( word32 * )( src );
 #else
-  const uint8_t *p = ( uint8_t * )src;
-  uint32_t w = *p++;
-  w |= ( uint32_t )( *p++ ) <<  8;
-  w |= ( uint32_t )( *p++ ) << 16;
-  w |= ( uint32_t )( *p++ ) << 24;
+  const byte *p = ( byte * )src;
+  word32 w = *p++;
+  w |= ( word32 )( *p++ ) <<  8;
+  w |= ( word32 )( *p++ ) << 16;
+  w |= ( word32 )( *p++ ) << 24;
   return w;
 #endif
 }
 
-static inline uint64_t load64( const void *src )
+static inline word64 load64( const void *src )
 {
 #if defined(LITTLE_ENDIAN_ORDER)
-  return *( uint64_t * )( src );
+  return *( word64 * )( src );
 #else
-  const uint8_t *p = ( uint8_t * )src;
-  uint64_t w = *p++;
-  w |= ( uint64_t )( *p++ ) <<  8;
-  w |= ( uint64_t )( *p++ ) << 16;
-  w |= ( uint64_t )( *p++ ) << 24;
-  w |= ( uint64_t )( *p++ ) << 32;
-  w |= ( uint64_t )( *p++ ) << 40;
-  w |= ( uint64_t )( *p++ ) << 48;
-  w |= ( uint64_t )( *p++ ) << 56;
+  const byte *p = ( byte * )src;
+  word64 w = *p++;
+  w |= ( word64 )( *p++ ) <<  8;
+  w |= ( word64 )( *p++ ) << 16;
+  w |= ( word64 )( *p++ ) << 24;
+  w |= ( word64 )( *p++ ) << 32;
+  w |= ( word64 )( *p++ ) << 40;
+  w |= ( word64 )( *p++ ) << 48;
+  w |= ( word64 )( *p++ ) << 56;
   return w;
 #endif
 }
 
-static inline void store32( void *dst, uint32_t w )
+static inline void store32( void *dst, word32 w )
 {
 #if defined(LITTLE_ENDIAN_ORDER)
-  *( uint32_t * )( dst ) = w;
+  *( word32 * )( dst ) = w;
 #else
-  uint8_t *p = ( uint8_t * )dst;
-  *p++ = ( uint8_t )w; w >>= 8;
-  *p++ = ( uint8_t )w; w >>= 8;
-  *p++ = ( uint8_t )w; w >>= 8;
-  *p++ = ( uint8_t )w;
+  byte *p = ( byte * )dst;
+  *p++ = ( byte )w; w >>= 8;
+  *p++ = ( byte )w; w >>= 8;
+  *p++ = ( byte )w; w >>= 8;
+  *p++ = ( byte )w;
 #endif
 }
 
-static inline void store64( void *dst, uint64_t w )
+static inline void store64( void *dst, word64 w )
 {
 #if defined(LITTLE_ENDIAN_ORDER)
-  *( uint64_t * )( dst ) = w;
+  *( word64 * )( dst ) = w;
 #else
-  uint8_t *p = ( uint8_t * )dst;
-  *p++ = ( uint8_t )w; w >>= 8;
-  *p++ = ( uint8_t )w; w >>= 8;
-  *p++ = ( uint8_t )w; w >>= 8;
-  *p++ = ( uint8_t )w; w >>= 8;
-  *p++ = ( uint8_t )w; w >>= 8;
-  *p++ = ( uint8_t )w; w >>= 8;
-  *p++ = ( uint8_t )w; w >>= 8;
-  *p++ = ( uint8_t )w;
+  byte *p = ( byte * )dst;
+  *p++ = ( byte )w; w >>= 8;
+  *p++ = ( byte )w; w >>= 8;
+  *p++ = ( byte )w; w >>= 8;
+  *p++ = ( byte )w; w >>= 8;
+  *p++ = ( byte )w; w >>= 8;
+  *p++ = ( byte )w; w >>= 8;
+  *p++ = ( byte )w; w >>= 8;
+  *p++ = ( byte )w;
 #endif
 }
 
-static inline uint64_t load48( const void *src )
+static inline word64 load48( const void *src )
 {
-  const uint8_t *p = ( const uint8_t * )src;
-  uint64_t w = *p++;
-  w |= ( uint64_t )( *p++ ) <<  8;
-  w |= ( uint64_t )( *p++ ) << 16;
-  w |= ( uint64_t )( *p++ ) << 24;
-  w |= ( uint64_t )( *p++ ) << 32;
-  w |= ( uint64_t )( *p++ ) << 40;
+  const byte *p = ( const byte * )src;
+  word64 w = *p++;
+  w |= ( word64 )( *p++ ) <<  8;
+  w |= ( word64 )( *p++ ) << 16;
+  w |= ( word64 )( *p++ ) << 24;
+  w |= ( word64 )( *p++ ) << 32;
+  w |= ( word64 )( *p++ ) << 40;
   return w;
 }
 
-static inline void store48( void *dst, uint64_t w )
+static inline void store48( void *dst, word64 w )
 {
-  uint8_t *p = ( uint8_t * )dst;
-  *p++ = ( uint8_t )w; w >>= 8;
-  *p++ = ( uint8_t )w; w >>= 8;
-  *p++ = ( uint8_t )w; w >>= 8;
-  *p++ = ( uint8_t )w; w >>= 8;
-  *p++ = ( uint8_t )w; w >>= 8;
-  *p++ = ( uint8_t )w;
+  byte *p = ( byte * )dst;
+  *p++ = ( byte )w; w >>= 8;
+  *p++ = ( byte )w; w >>= 8;
+  *p++ = ( byte )w; w >>= 8;
+  *p++ = ( byte )w; w >>= 8;
+  *p++ = ( byte )w; w >>= 8;
+  *p++ = ( byte )w;
 }
 
-static inline uint32_t rotl32( const uint32_t w, const unsigned c )
+static inline word32 rotl32( const word32 w, const unsigned c )
 {
   return ( w << c ) | ( w >> ( 32 - c ) );
 }
 
-static inline uint64_t rotl64( const uint64_t w, const unsigned c )
+static inline word64 rotl64( const word64 w, const unsigned c )
 {
   return ( w << c ) | ( w >> ( 64 - c ) );
 }
 
-static inline uint32_t rotr32( const uint32_t w, const unsigned c )
+static inline word32 rotr32( const word32 w, const unsigned c )
 {
   return ( w >> c ) | ( w << ( 32 - c ) );
 }
 
-static inline uint64_t rotr64( const uint64_t w, const unsigned c )
+static inline word64 rotr64( const word64 w, const unsigned c )
 {
   return ( w >> c ) | ( w << ( 64 - c ) );
 }
 
 /* prevents compiler optimizing out memset() */
-static inline void secure_zero_memory( void *v, size_t n )
+static inline void secure_zero_memory( void *v, word64 n )
 {
-  volatile uint8_t *p = ( volatile uint8_t * )v;
+  volatile byte *p = ( volatile byte * )v;
 
   while( n-- ) *p++ = 0;
 }

@@ -36,18 +36,18 @@
 
 #include <cyassl/ctaocrypt/types.h>
 
-#include <stddef.h>
-#include <stdint.h>
 
 #if defined(_MSC_VER)
-#define ALIGN(x) __declspec(align(x))
+    #define ALIGN(x) __declspec(align(x))
+#elif defined(__GNUC__)
+    #define ALIGN(x) __attribute__((aligned(x)))
 #else
-#define ALIGN(x) __attribute__((aligned(x)))
+    #define ALIGN(x)
 #endif
 
 
 #if defined(__cplusplus)
-extern "C" {
+    extern "C" {
 #endif
 
   enum blake2s_constant
@@ -71,108 +71,108 @@ extern "C" {
 #pragma pack(push, 1)
   typedef struct __blake2s_param
   {
-    uint8_t  digest_length; // 1
-    uint8_t  key_length;    // 2
-    uint8_t  fanout;        // 3
-    uint8_t  depth;         // 4
-    uint32_t leaf_length;   // 8
-    uint8_t  node_offset[6];// 14
-    uint8_t  node_depth;    // 15
-    uint8_t  inner_length;  // 16
-    // uint8_t  reserved[0];
-    uint8_t  salt[BLAKE2B_SALTBYTES]; // 24
-    uint8_t  personal[BLAKE2S_PERSONALBYTES];  // 32
+    byte  digest_length; // 1
+    byte  key_length;    // 2
+    byte  fanout;        // 3
+    byte  depth;         // 4
+    word32 leaf_length;   // 8
+    byte  node_offset[6];// 14
+    byte  node_depth;    // 15
+    byte  inner_length;  // 16
+    // byte  reserved[0];
+    byte  salt[BLAKE2B_SALTBYTES]; // 24
+    byte  personal[BLAKE2S_PERSONALBYTES];  // 32
   } blake2s_param;
 
   ALIGN( 64 ) typedef struct __blake2s_state
   {
-    uint32_t h[8];
-    uint32_t t[2];
-    uint32_t f[2];
-    uint8_t  buf[2 * BLAKE2S_BLOCKBYTES];
-    size_t   buflen;
-    uint8_t  last_node;
+    word32 h[8];
+    word32 t[2];
+    word32 f[2];
+    byte  buf[2 * BLAKE2S_BLOCKBYTES];
+    word64 buflen;
+    byte  last_node;
   } blake2s_state ;
 
   typedef struct __blake2b_param
   {
-    uint8_t  digest_length; // 1
-    uint8_t  key_length;    // 2
-    uint8_t  fanout;        // 3
-    uint8_t  depth;         // 4
-    uint32_t leaf_length;   // 8
-    uint64_t node_offset;   // 16
-    uint8_t  node_depth;    // 17
-    uint8_t  inner_length;  // 18
-    uint8_t  reserved[14];  // 32
-    uint8_t  salt[BLAKE2B_SALTBYTES]; // 48
-    uint8_t  personal[BLAKE2B_PERSONALBYTES];  // 64
+    byte  digest_length; // 1
+    byte  key_length;    // 2
+    byte  fanout;        // 3
+    byte  depth;         // 4
+    word32 leaf_length;   // 8
+    word64 node_offset;   // 16
+    byte  node_depth;    // 17
+    byte  inner_length;  // 18
+    byte  reserved[14];  // 32
+    byte  salt[BLAKE2B_SALTBYTES]; // 48
+    byte  personal[BLAKE2B_PERSONALBYTES];  // 64
   } blake2b_param;
 
   ALIGN( 64 ) typedef struct __blake2b_state
   {
-    uint64_t h[8];
-    uint64_t t[2];
-    uint64_t f[2];
-    uint8_t  buf[2 * BLAKE2B_BLOCKBYTES];
-    size_t   buflen;
-    uint8_t  last_node;
+    word64 h[8];
+    word64 t[2];
+    word64 f[2];
+    byte  buf[2 * BLAKE2B_BLOCKBYTES];
+    word64 buflen;
+    byte  last_node;
   } blake2b_state;
 
   typedef struct __blake2sp_state
   {
     blake2s_state S[8][1];
     blake2s_state R[1];
-    uint8_t buf[8 * BLAKE2S_BLOCKBYTES];
-    size_t  buflen;
+    byte buf[8 * BLAKE2S_BLOCKBYTES];
+    word64 buflen;
   } blake2sp_state;
 
   typedef struct __blake2bp_state
   {
     blake2b_state S[4][1];
     blake2b_state R[1];
-    uint8_t buf[4 * BLAKE2B_BLOCKBYTES];
-    size_t  buflen;
+    byte buf[4 * BLAKE2B_BLOCKBYTES];
+    word64 buflen;
   } blake2bp_state;
 #pragma pack(pop)
 
   // Streaming API
-  int blake2s_init( blake2s_state *S, const uint8_t outlen );
-  int blake2s_init_key( blake2s_state *S, const uint8_t outlen, const void *key, const uint8_t keylen );
+  int blake2s_init( blake2s_state *S, const byte outlen );
+  int blake2s_init_key( blake2s_state *S, const byte outlen, const void *key, const byte keylen );
   int blake2s_init_param( blake2s_state *S, const blake2s_param *P );
-  int blake2s_update( blake2s_state *S, const uint8_t *in, uint64_t inlen );
-  int blake2s_final( blake2s_state *S, uint8_t *out, uint8_t outlen );
+  int blake2s_update( blake2s_state *S, const byte *in, word64 inlen );
+  int blake2s_final( blake2s_state *S, byte *out, byte outlen );
 
-  CYASSL_API int blake2b_init( blake2b_state *S, const uint8_t outlen );
-  int blake2b_init_key( blake2b_state *S, const uint8_t outlen, const void *key, const uint8_t keylen );
+  CYASSL_API int blake2b_init( blake2b_state *S, const byte outlen );
+  int blake2b_init_key( blake2b_state *S, const byte outlen, const void *key, const byte keylen );
   int blake2b_init_param( blake2b_state *S, const blake2b_param *P );
-  CYASSL_API int blake2b_update( blake2b_state *S, const uint8_t *in, uint64_t inlen );
-  CYASSL_API int blake2b_final( blake2b_state *S, uint8_t *out, uint8_t outlen );
+  CYASSL_API int blake2b_update( blake2b_state *S, const byte *in, word64 inlen );
+  CYASSL_API int blake2b_final( blake2b_state *S, byte *out, byte outlen );
 
-  int blake2sp_init( blake2sp_state *S, const uint8_t outlen );
-  int blake2sp_init_key( blake2sp_state *S, const uint8_t outlen, const void *key, const uint8_t keylen );
-  int blake2sp_update( blake2sp_state *S, const uint8_t *in, uint64_t inlen );
-  int blake2sp_final( blake2sp_state *S, uint8_t *out, uint8_t outlen );
+  int blake2sp_init( blake2sp_state *S, const byte outlen );
+  int blake2sp_init_key( blake2sp_state *S, const byte outlen, const void *key, const byte keylen );
+  int blake2sp_update( blake2sp_state *S, const byte *in, word64 inlen );
+  int blake2sp_final( blake2sp_state *S, byte *out, byte outlen );
 
-  int blake2bp_init( blake2bp_state *S, const uint8_t outlen );
-  int blake2bp_init_key( blake2bp_state *S, const uint8_t outlen, const void *key, const uint8_t keylen );
-  int blake2bp_update( blake2bp_state *S, const uint8_t *in, uint64_t inlen );
-  int blake2bp_final( blake2bp_state *S, uint8_t *out, uint8_t outlen );
+  int blake2bp_init( blake2bp_state *S, const byte outlen );
+  int blake2bp_init_key( blake2bp_state *S, const byte outlen, const void *key, const byte keylen );
+  int blake2bp_update( blake2bp_state *S, const byte *in, word64 inlen );
+  int blake2bp_final( blake2bp_state *S, byte *out, byte outlen );
 
   // Simple API
-  int blake2s( uint8_t *out, const void *in, const void *key, const uint8_t outlen, const uint64_t inlen, uint8_t keylen );
-  int blake2b( uint8_t *out, const void *in, const void *key, const uint8_t outlen, const uint64_t inlen, uint8_t keylen );
+  int blake2s( byte *out, const void *in, const void *key, const byte outlen, const word64 inlen, byte keylen );
+  int blake2b( byte *out, const void *in, const void *key, const byte outlen, const word64 inlen, byte keylen );
 
-  int blake2sp( uint8_t *out, const void *in, const void *key, const uint8_t outlen, const uint64_t inlen, uint8_t keylen );
-  int blake2bp( uint8_t *out, const void *in, const void *key, const uint8_t outlen, const uint64_t inlen, uint8_t keylen );
+  int blake2sp( byte *out, const void *in, const void *key, const byte outlen, const word64 inlen, byte keylen );
+  int blake2bp( byte *out, const void *in, const void *key, const byte outlen, const word64 inlen, byte keylen );
 
-  static inline int blake2( uint8_t *out, const void *in, const void *key, const uint8_t outlen, const uint64_t inlen, uint8_t keylen )
+  static inline int blake2( byte *out, const void *in, const void *key, const byte outlen, const word64 inlen, byte keylen )
   {
     return blake2b( out, in, key, outlen, inlen, keylen );
   }
 
 #if defined(__cplusplus)
-}
+    }
 #endif
 
 #endif  /* CTAOCRYPT_BLAKE2_H */
