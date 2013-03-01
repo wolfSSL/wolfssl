@@ -1317,6 +1317,7 @@ typedef struct Options {
     byte            haveECDSAsig;       /* server ECDSA signed cert */
     byte            haveStaticECC;      /* static server ECC private key */
     byte            havePeerCert;       /* do we have peer's cert */
+    byte            havePeerVerify;     /* and peer's cert verify */
     byte            usingPSK_cipher;    /* whether we're using psk as cipher */
     byte            sendAlertState;     /* nonblocking resume */ 
     byte            processReply;       /* nonblocking resume */

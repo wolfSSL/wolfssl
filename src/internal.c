@@ -1191,7 +1191,8 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
     ssl->options.haveNTRU      = ctx->haveNTRU;
     ssl->options.haveECDSAsig  = ctx->haveECDSAsig;
     ssl->options.haveStaticECC = ctx->haveStaticECC;
-    ssl->options.havePeerCert  = 0; 
+    ssl->options.havePeerCert    = 0; 
+    ssl->options.havePeerVerify  = 0;
     ssl->options.usingPSK_cipher = 0;
     ssl->options.sendAlertState = 0;
 #ifndef NO_PSK
@@ -1221,6 +1222,7 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
     ssl->dtls_pool                      = NULL;
     ssl->dtls_msg_list                  = NULL;
 #endif
+    ssl->keys.encryptSz    = 0;
     ssl->keys.encryptionOn = 0;     /* initially off */
     ssl->keys.decryptedCur = 0;     /* initially off */
     ssl->options.sessionCacheOff      = ctx->sessionCacheOff;
@@ -1301,6 +1303,7 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
     ssl->rng    = NULL;
     ssl->arrays = NULL;
     InitCiphers(ssl);
+    InitCipherSpecs(&ssl->specs);
     /* all done with init, now can return errors, call other stuff */
 
     /* increment CTX reference count */
@@ -1340,8 +1343,10 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
         return MEMORY_E;
     }
 
-    if ( (ret = InitRng(ssl->rng)) != 0)
+    if ( (ret = InitRng(ssl->rng)) != 0) {
+        CYASSL_MSG("RNG Init error");
         return ret;
+    }
 
     /* suites */
     ssl->suites = (Suites*)XMALLOC(sizeof(Suites), ssl->heap,
@@ -4279,6 +4284,17 @@ int ProcessReply(CYASSL* ssl)
                         CYASSL_MSG("Malicious or corrupted ChangeCipher msg");
                         return LENGTH_ERROR;
                     }
+                    #ifndef NO_CERTS
+                        if (ssl->options.side == SERVER_END &&
+                                 ssl->options.verifyPeer &&
+                                 ssl->options.havePeerCert)
+                            if (!ssl->options.havePeerVerify) {
+                                CYASSL_MSG("client didn't send cert verify");
+                                return NO_PEER_VERIFY;
+                            }
+                    #endif
+
+
                     ssl->buffers.inputBuffer.idx++;
                     ssl->keys.encryptionOn = 1;
 
@@ -5431,6 +5447,10 @@ void SetErrorString(int error, char* str)
 
     case GEN_COOKIE_E:
         XSTRNCPY(str, "Generate Cookie Error", max);
+        break;
+
+    case NO_PEER_VERIFY:
+        XSTRNCPY(str, "Need peer certificate verify Error", max);
         break;
 
     default :
@@ -8772,7 +8792,7 @@ int SetCipherList(Suites* s, const char* list)
         byte*       out;
         int         outLen;
         byte        hashAlgo = sha_mac;
-        byte        sigAlgo;
+        byte        sigAlgo = anonymous_sa_algo;
 
         #ifdef CYASSL_CALLBACKS
             if (ssl->hsInfoOn)
@@ -8813,6 +8833,10 @@ int SetCipherList(Suites* s, const char* list)
                 int    typeH = SHAh;
                 int    digestSz = SHA_DIGEST_SIZE;
 
+                if (sigAlgo != rsa_sa_algo) {
+                    CYASSL_MSG("Oops, peer sent RSA key but not in verify");
+                }
+
                 if (hashAlgo == sha256_mac) {
                     #ifndef NO_SHA256
                         digest = ssl->certHashes.sha256;
@@ -8851,6 +8875,9 @@ int SetCipherList(Suites* s, const char* list)
             CYASSL_MSG("Doing ECC peer cert verify");
 
             if (IsAtLeastTLSv1_2(ssl)) {
+                if (sigAlgo != ecc_dsa_sa_algo) {
+                    CYASSL_MSG("Oops, peer sent ECC key but not in verify");
+                }
                 if (hashAlgo == sha256_mac) {
                     #ifndef NO_SHA256
                         digest = ssl->certHashes.sha256;
@@ -8871,6 +8898,9 @@ int SetCipherList(Suites* s, const char* list)
                ret = 0;   /* verified */ 
         }
 #endif
+        if (ret == 0)
+            ssl->options.havePeerVerify = 1;
+          
         return ret;
     }
 #endif /* !NO_RSA || HAVE_ECC */
