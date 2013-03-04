@@ -423,6 +423,13 @@ void TLS_hmac(CYASSL* ssl, byte* digest, const byte* in, word32 sz,
         }
         break;
         #endif
+        #ifdef CYASSL_SHA384
+        case sha384_mac:
+        {
+            type = SHA384;
+        }
+        break;
+        #endif
         case sha_mac:
         default:
         {

@@ -623,6 +623,62 @@ void InitSuites(Suites* suites, ProtocolVersion pv, byte haveRSA, byte havePSK,
     }
 #endif
 
+#ifdef BUILD_TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256
+    if (tls1_2 && haveRSAsig) {
+        suites->suites[idx++] = ECC_BYTE;
+        suites->suites[idx++] = TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256;
+    }
+#endif
+
+#ifdef BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256
+    if (tls1_2 && haveECDSAsig) {
+        suites->suites[idx++] = ECC_BYTE;
+        suites->suites[idx++] = TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256;
+    }
+#endif
+
+#ifdef BUILD_TLS_ECDH_RSA_WITH_AES_128_CBC_SHA256
+    if (tls1_2 && haveRSAsig && haveStaticECC) {
+        suites->suites[idx++] = ECC_BYTE;
+        suites->suites[idx++] = TLS_ECDH_RSA_WITH_AES_128_CBC_SHA256;
+    }
+#endif
+
+#ifdef BUILD_TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA256
+    if (tls1_2 && haveECDSAsig && haveStaticECC) {
+        suites->suites[idx++] = ECC_BYTE;
+        suites->suites[idx++] = TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA256;
+    }
+#endif
+
+#ifdef BUILD_TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384
+    if (tls1_2 && haveRSAsig) {
+        suites->suites[idx++] = ECC_BYTE;
+        suites->suites[idx++] = TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384;
+    }
+#endif
+
+#ifdef BUILD_TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384
+    if (tls1_2 && haveECDSAsig) {
+        suites->suites[idx++] = ECC_BYTE;
+        suites->suites[idx++] = TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384;
+    }
+#endif
+
+#ifdef BUILD_TLS_ECDH_RSA_WITH_AES_256_CBC_SHA384
+    if (tls1_2 && haveRSAsig && haveStaticECC) {
+        suites->suites[idx++] = ECC_BYTE;
+        suites->suites[idx++] = TLS_ECDH_RSA_WITH_AES_256_CBC_SHA384;
+    }
+#endif
+
+#ifdef BUILD_TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA384
+    if (tls1_2 && haveECDSAsig && haveStaticECC) {
+        suites->suites[idx++] = ECC_BYTE;
+        suites->suites[idx++] = TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA384;
+    }
+#endif
+
 #ifdef BUILD_TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384
     if (tls1_2 && haveStaticECC) {
         suites->suites[idx++] = ECC_BYTE;
@@ -2934,7 +2990,6 @@ static int DoHelloRequest(CYASSL* ssl, const byte* input, word32* inOutIdx)
 
 int DoFinished(CYASSL* ssl, const byte* input, word32* inOutIdx, int sniff)
 {
-    byte   verifyMAC[SHA256_DIGEST_SIZE];
     int    finishedSz = ssl->options.tls ? TLS_FINISHED_SZ : FINISHED_SZ;
     int    headerSz = HANDSHAKE_HEADER_SZ;
     word32 macSz = finishedSz + HANDSHAKE_HEADER_SZ,
@@ -2963,6 +3018,7 @@ int DoFinished(CYASSL* ssl, const byte* input, word32* inOutIdx, int sniff)
     }
 
     if (ssl->specs.cipher_type != aead) {
+        byte verifyMAC[MAX_DIGEST_SIZE];
         ssl->hmac(ssl, verifyMAC, input + idx - headerSz, macSz,
              handshake, 1);
         idx += finishedSz;
@@ -3857,7 +3913,7 @@ static INLINE int GetRounds(int pLen, int padLen, int t)
 static int TimingPadVerify(CYASSL* ssl, const byte* input, int padLen, int t,
                            int pLen)
 {
-    byte verify[SHA256_DIGEST_SIZE];
+    byte verify[MAX_DIGEST_SIZE];
     byte dummy[MAX_PAD_SIZE];
 
     XMEMSET(dummy, 1, sizeof(dummy));
@@ -3907,7 +3963,7 @@ int DoApplicationData(CYASSL* ssl, byte* input, word32* inOutIdx)
 #ifdef HAVE_LIBZ
     byte   decomp[MAX_RECORD_SIZE + MAX_COMP_EXTRA];
 #endif
-    byte   verify[SHA256_DIGEST_SIZE];
+    byte   verify[MAX_DIGEST_SIZE];
 
     if (ssl->options.handShakeState != HANDSHAKE_DONE) {
         CYASSL_MSG("Received App data before handshake complete");
@@ -4011,7 +4067,7 @@ static int DoAlert(CYASSL* ssl, byte* input, word32* inOutIdx, int* type)
         if (ssl->specs.cipher_type != aead) {
             int     aSz = ALERT_SIZE;
             const byte* mac;
-            byte    verify[SHA256_DIGEST_SIZE];
+            byte    verify[MAX_DIGEST_SIZE];
             int     padSz = ssl->keys.encryptSz - aSz - ssl->specs.hash_size;
 
             ssl->hmac(ssl, verify, input + *inOutIdx - aSz, aSz, alert, 1);
@@ -4441,7 +4497,7 @@ static INLINE const byte* GetMacSecret(CYASSL* ssl, int verify)
 static void Hmac(CYASSL* ssl, byte* digest, const byte* in, word32 sz,
                  int content, int verify)
 {
-    byte   result[SHA256_DIGEST_SIZE];                 /* max possible sizes */
+    byte   result[MAX_DIGEST_SIZE];
     word32 digestSz = ssl->specs.hash_size;            /* actual sizes */
     word32 padSz    = ssl->specs.pad_size;
 
@@ -5722,7 +5778,39 @@ const char* const cipher_names[] =
 #endif
 
 #ifdef BUILD_TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA256
-    "DHE-RSA-CAMELLIA256-SHA256"
+    "DHE-RSA-CAMELLIA256-SHA256",
+#endif
+
+#ifdef BUILD_TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256
+    "ECDHE-RSA-AES128-SHA256",
+#endif
+
+#ifdef BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256
+    "ECDHE-ECDSA-AES128-SHA256",
+#endif
+
+#ifdef BUILD_TLS_ECDH_RSA_WITH_AES_128_CBC_SHA256
+    "ECDH-RSA-AES128-SHA256",
+#endif
+
+#ifdef BUILD_TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA256
+    "ECDH-ECDSA-AES128-SHA256",
+#endif
+
+#ifdef BUILD_TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384
+    "ECDHE-RSA-AES256-SHA384",
+#endif
+
+#ifdef BUILD_TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384
+    "ECDHE-ECDSA-AES256-SHA384",
+#endif
+
+#ifdef BUILD_TLS_ECDH_RSA_WITH_AES_256_CBC_SHA384
+    "ECDH-RSA-AES256-SHA384",
+#endif
+
+#ifdef BUILD_TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA384
+    "ECDH-ECDSA-AES256-SHA384",
 #endif
 
 };
@@ -5990,9 +6078,40 @@ int cipher_name_idx[] =
 #endif
 
 #ifdef BUILD_TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA256
-    TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA256
+    TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA256,
 #endif
 
+#ifdef BUILD_TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256
+    TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256,
+#endif
+
+#ifdef BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256
+    TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256,
+#endif
+
+#ifdef BUILD_TLS_ECDH_RSA_WITH_AES_128_CBC_SHA256
+    TLS_ECDH_RSA_WITH_AES_128_CBC_SHA256,
+#endif
+
+#ifdef BUILD_TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA256
+    TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA256,
+#endif
+
+#ifdef BUILD_TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384
+    TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384,
+#endif
+
+#ifdef BUILD_TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384
+    TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384,
+#endif
+
+#ifdef BUILD_TLS_ECDH_RSA_WITH_AES_256_CBC_SHA384
+    TLS_ECDH_RSA_WITH_AES_256_CBC_SHA384,
+#endif
+
+#ifdef BUILD_TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA384
+    TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA384
+#endif
 };
 
 
@@ -8070,6 +8189,38 @@ int SetCipherList(Suites* s, const char* list)
         case TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8_SHA256 :
         case TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8_SHA384 :
             if (requirement == REQUIRES_ECC_DSA)
+                return 1;
+            break;
+
+        case TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256 :
+        case TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384 :
+            if (requirement == REQUIRES_RSA)
+                return 1;
+            if (requirement == REQUIRES_RSA_SIG)
+                return 1;
+            break;
+
+        case TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384 :
+        case TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256 :
+            if (requirement == REQUIRES_ECC_DSA)
+                return 1;
+            break;
+
+        case TLS_ECDH_RSA_WITH_AES_128_CBC_SHA256 :
+        case TLS_ECDH_RSA_WITH_AES_256_CBC_SHA384 :
+            if (requirement == REQUIRES_RSA)
+                return 1;
+            if (requirement == REQUIRES_RSA_SIG)
+                return 1;
+            if (requirement == REQUIRES_ECC_STATIC)
+                return 1;
+            break;
+
+        case TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA256 :
+        case TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA384 :
+            if (requirement == REQUIRES_ECC_DSA)
+                return 1;
+            if (requirement == REQUIRES_ECC_STATIC)
                 return 1;
             break;
 

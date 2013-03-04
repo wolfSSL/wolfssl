@@ -244,6 +244,20 @@ void c32to24(word32 in, word24 out);
         #define BUILD_TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA
         #define BUILD_TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA
 
+        #ifndef NO_SHA256
+            #define BUILD_TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256
+            #define BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256
+            #define BUILD_TLS_ECDH_RSA_WITH_AES_128_CBC_SHA256
+            #define BUILD_TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA256
+        #endif
+
+        #ifdef CYASSL_SHA384
+            #define BUILD_TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384
+            #define BUILD_TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384
+            #define BUILD_TLS_ECDH_RSA_WITH_AES_256_CBC_SHA384
+            #define BUILD_TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA384
+        #endif
+
         #if defined (HAVE_AESGCM)
             #define BUILD_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
             #define BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256
@@ -342,8 +356,12 @@ enum {
     TLS_ECDHE_ECDSA_WITH_RC4_128_SHA      = 0x07,
     TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA   = 0x12,
     TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA = 0x08,
+    TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256   = 0x27,
+    TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256 = 0x23,
+    TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384   = 0x28,
+    TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384 = 0x24,
 
-        /* static ECDH, first byte is 0xC0 (ECC_BYTE) */
+    /* static ECDH, first byte is 0xC0 (ECC_BYTE) */
     TLS_ECDH_RSA_WITH_AES_256_CBC_SHA    = 0x0F,
     TLS_ECDH_RSA_WITH_AES_128_CBC_SHA    = 0x0E,
     TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA  = 0x05,
@@ -352,6 +370,10 @@ enum {
     TLS_ECDH_ECDSA_WITH_RC4_128_SHA      = 0x02,
     TLS_ECDH_RSA_WITH_3DES_EDE_CBC_SHA   = 0x0D,
     TLS_ECDH_ECDSA_WITH_3DES_EDE_CBC_SHA = 0x03,
+    TLS_ECDH_RSA_WITH_AES_128_CBC_SHA256   = 0x29,
+    TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA256 = 0x25,
+    TLS_ECDH_RSA_WITH_AES_256_CBC_SHA384   = 0x2A,
+    TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA384 = 0x26,
 
     /* CyaSSL extension - eSTREAM */
     TLS_RSA_WITH_HC_128_CBC_MD5       = 0xFB,
@@ -408,6 +430,17 @@ enum {
 };
 
 
+#if defined(CYASSL_SHA384)
+    #define MAX_DIGEST_SIZE SHA384_DIGEST_SIZE
+#elif !defined(NO_SHA256)
+    #define MAX_DIGEST_SIZE SHA256_DIGEST_SIZE
+#elif !defined(NO_MD5) && !defined(NO_SHA)
+    #define MAX_DIGEST_SIZE (SHA_DIGEST_SIZE + MD5_DIGEST_SIZE)
+#else
+    #error "You have configured the build so there isn't any hashing."
+#endif
+
+
 enum Misc {
     SERVER_END = 0,
     CLIENT_END,
@@ -431,14 +464,11 @@ enum Misc {
     SECRET_LEN      = 48,       /* pre RSA and all master */
     ENCRYPT_LEN     = 512,      /* allow 4096 bit static buffer */
     SIZEOF_SENDER   =  4,       /* clnt or srvr           */
-#ifndef NO_MD5
-    FINISHED_SZ     = MD5_DIGEST_SIZE + SHA_DIGEST_SIZE,
-#else
-    FINISHED_SZ     = 36,
-#endif
+    FINISHED_SZ     = 36,       /* MD5_DIGEST_SIZE + SHA_DIGEST_SIZE */
     MAX_RECORD_SIZE = 16384,    /* 2^14, max size by standard */
-    MAX_MSG_EXTRA   = 70,       /* max added to msg, mac + pad  from */
-                                /* RECORD_HEADER_SZ + BLOCK_SZ (pad) + SHA_256
+    MAX_MSG_EXTRA   = 38 + MAX_DIGEST_SIZE,
+                                /* max added to msg, mac + pad  from */
+                                /* RECORD_HEADER_SZ + BLOCK_SZ (pad) + Max
                                    digest sz + BLOC_SZ (iv) + pad byte (1) */
     MAX_COMP_EXTRA  = 1024,     /* max compression extra */
     MAX_MTU         = 1500,     /* max expected MTU */
@@ -1110,8 +1140,8 @@ enum CipherType { stream, block, aead };
 
 /* keys and secrets */
 typedef struct Keys {
-    byte client_write_MAC_secret[SHA256_DIGEST_SIZE];   /* max sizes */
-    byte server_write_MAC_secret[SHA256_DIGEST_SIZE]; 
+    byte client_write_MAC_secret[MAX_DIGEST_SIZE];   /* max sizes */
+    byte server_write_MAC_secret[MAX_DIGEST_SIZE]; 
     byte client_write_key[AES_256_KEY_SIZE];         /* max sizes */
     byte server_write_key[AES_256_KEY_SIZE]; 
     byte client_write_IV[AES_IV_SIZE];               /* max sizes */

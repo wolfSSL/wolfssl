@@ -5439,6 +5439,22 @@ int CyaSSL_set_compression(CYASSL* ssl)
             if (cipher->ssl->options.cipherSuite0 == ECC_BYTE) {
             /* ECC suites */
             switch (cipher->ssl->options.cipherSuite) {
+                case TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256 :
+                    return "TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256";
+                case TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256 :
+                    return "TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256";
+                case TLS_ECDH_RSA_WITH_AES_128_CBC_SHA256 :
+                    return "TLS_ECDH_RSA_WITH_AES_128_CBC_SHA256";
+                case TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA256 :
+                    return "TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA256";
+                case TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384 :
+                    return "TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384";
+                case TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384 :
+                    return "TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384";
+                case TLS_ECDH_RSA_WITH_AES_256_CBC_SHA384 :
+                    return "TLS_ECDH_RSA_WITH_AES_256_CBC_SHA384";
+                case TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA384 :
+                    return "TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA384";
                 case TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA :
                     return "TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA";
                 case TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA :
