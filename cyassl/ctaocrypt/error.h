@@ -107,7 +107,7 @@ enum {
 };
 
 
-CYASSL_API void CTaoCryptErrorString(int error, char* buffer);
+CYASSL_API void CTaoCryptErrorString(int err, char* buff);
 
 
 #ifdef __cplusplus
