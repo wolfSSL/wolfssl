@@ -2503,22 +2503,11 @@ static void BuildFinished(CYASSL* ssl, Hashes* hashes, const byte* sender)
 #endif
     Sha sha = ssl->hashSha;
 #ifndef NO_SHA256
-    Sha256 sha256;
+    Sha256 sha256 = ssl->hashSha256;
 #endif
 #ifdef CYASSL_SHA384
-    Sha384 sha384;
+    Sha384 sha384 = ssl->hashSha384;
 #endif
-
-    if (IsAtLeastTLSv1_2(ssl)) {
-        #ifndef NO_SHA256
-            InitSha256(&sha256);
-            sha256 = ssl->hashSha256;
-        #endif
-        #ifdef CYASSL_SHA384
-            InitSha384(&sha384);
-            sha384 = ssl->hashSha384;
-        #endif
-    }
 
     if (ssl->options.tls)
         BuildTlsFinished(ssl, hashes, sender);
@@ -2536,10 +2525,10 @@ static void BuildFinished(CYASSL* ssl, Hashes* hashes, const byte* sender)
     ssl->hashSha = sha;
     if (IsAtLeastTLSv1_2(ssl)) {
     #ifndef NO_SHA256
-            ssl->hashSha256 = sha256;
+        ssl->hashSha256 = sha256;
     #endif
     #ifdef CYASSL_SHA384
-            ssl->hashSha384 = sha384;
+        ssl->hashSha384 = sha384;
     #endif
     }
 }
@@ -4535,23 +4524,12 @@ static void BuildCertHashes(CYASSL* ssl, Hashes* hashes)
     Md5 md5 = ssl->hashMd5;
     Sha sha = ssl->hashSha;
     #ifndef NO_SHA256
-        Sha256 sha256;
+        Sha256 sha256 = ssl->hashSha256;
     #endif
     #ifdef CYASSL_SHA384
-        Sha384 sha384;
+        Sha384 sha384 = ssl->hashSha384;
     #endif
     
-    if (IsAtLeastTLSv1_2(ssl)) {
-        #ifndef NO_SHA256
-            InitSha256(&sha256);
-            sha256 = ssl->hashSha256;
-        #endif
-        #ifdef CYASSL_SHA384
-            InitSha384(&sha384);
-            sha384 = ssl->hashSha384;
-        #endif
-    }
-
     if (ssl->options.tls) {
         Md5Final(&ssl->hashMd5, hashes->md5);
         ShaFinal(&ssl->hashSha, hashes->sha);
@@ -6092,7 +6070,7 @@ int SetCipherList(Suites* s, const char* list)
             s->hashSigAlgo[idx++] = rsa_sa_algo;
         }
 
-        s->hashSigAlgoSz = idx;
+        s->hashSigAlgoSz = (word16)idx;
     }
 
     return ret;
