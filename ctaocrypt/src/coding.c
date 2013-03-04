@@ -104,16 +104,18 @@ int Base64_Decode(const byte* in, word32 inLen, byte* out, word32* outLen)
             break;
         
         inLen -= 4;
-        if (in[j] == ' ' || in[j] == '\r' || in[j] == '\n') {
+        if (inLen && (in[j] == ' ' || in[j] == '\r' || in[j] == '\n')) {
             byte endLine = in[j++];
             inLen--;
-            while (endLine == ' ') {   /* allow trailing whitespace */
+            while (inLen && endLine == ' ') {   /* allow trailing whitespace */
                 endLine = in[j++];
                 inLen--;
             }
             if (endLine == '\r') {
-                endLine = in[j++];
-                inLen--;
+                if (inLen) {
+                    endLine = in[j++];
+                    inLen--;
+                }
             }
             if (endLine != '\n') {
                 CYASSL_MSG("Bad end of line in Base64 Decode");
