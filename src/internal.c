@@ -8208,8 +8208,6 @@ int SetCipherList(Suites* s, const char* list)
 
         case TLS_ECDH_RSA_WITH_AES_128_CBC_SHA256 :
         case TLS_ECDH_RSA_WITH_AES_256_CBC_SHA384 :
-            if (requirement == REQUIRES_RSA)
-                return 1;
             if (requirement == REQUIRES_RSA_SIG)
                 return 1;
             if (requirement == REQUIRES_ECC_STATIC)
