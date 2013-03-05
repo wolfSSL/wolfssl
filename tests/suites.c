@@ -357,6 +357,16 @@ int SuiteTest(void)
         printf("error from script %d\n", args.return_code);
         exit(EXIT_FAILURE);  
     }
+    #ifdef CYASSL_SHA384
+        /* add ecc extra suites */
+        strcpy(argv0[1], "tests/test-ecc-sha384.conf");
+        printf("starting ecc-sha384 extra cipher suite tests\n");
+        test_harness(&args);
+        if (args.return_code != 0) {
+            printf("error from script %d\n", args.return_code);
+            exit(EXIT_FAILURE);  
+        }
+    #endif
 #endif
 
 #ifdef HAVE_AESGCM
