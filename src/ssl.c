@@ -2562,6 +2562,17 @@ int CyaSSL_dtls_got_timeout(CYASSL* ssl)
                 InitSSL_Method(method, MakeDTLSv1());
             return method;
         }
+
+        CYASSL_METHOD* CyaDTLSv1_2_client_method(void)
+        {
+            CYASSL_METHOD* method =
+                              (CYASSL_METHOD*) XMALLOC(sizeof(CYASSL_METHOD), 0,
+                                                       DYNAMIC_TYPE_METHOD);
+            CYASSL_ENTER("DTLSv1_2_client_method");
+            if (method)
+                InitSSL_Method(method, MakeDTLSv1_2());
+            return method;
+        }
     #endif
 
 
@@ -2583,7 +2594,7 @@ int CyaSSL_dtls_got_timeout(CYASSL* ssl)
 
         #ifdef CYASSL_DTLS
             if (ssl->version.major == DTLS_MAJOR && 
-                                      ssl->version.minor == DTLS_MINOR) {
+                                      ssl->version.minor >= DTLSv1_2_MINOR) {
                 ssl->options.dtls   = 1;
                 ssl->options.tls    = 1;
                 ssl->options.tls1_1 = 1;
@@ -2656,10 +2667,14 @@ int CyaSSL_dtls_got_timeout(CYASSL* ssl)
                     /* re-init hashes, exclude first hello and verify request */
                     InitMd5(&ssl->hashMd5);
                     InitSha(&ssl->hashSha);
-                    #ifndef NO_SHA256
-                        if (IsAtLeastTLSv1_2(ssl))
+                    if (IsAtLeastTLSv1_2(ssl)) {
+                        #ifndef NO_SHA256
                             InitSha256(&ssl->hashSha256);
-                    #endif
+                        #endif
+                        #ifdef CYASSL_SHA384
+                            InitSha384(&ssl->hashSha384);
+                        #endif
+                    }
                     if ( (ssl->error = SendClientHello(ssl)) != 0) {
                         CYASSL_ERROR(ssl->error);
                         return SSL_FATAL_ERROR;
@@ -2799,6 +2814,19 @@ int CyaSSL_dtls_got_timeout(CYASSL* ssl)
             }
             return method;
         }
+
+        CYASSL_METHOD* CyaDTLSv1_2_server_method(void)
+        {
+            CYASSL_METHOD* method =
+                              (CYASSL_METHOD*) XMALLOC(sizeof(CYASSL_METHOD), 0,
+                                                       DYNAMIC_TYPE_METHOD);
+            CYASSL_ENTER("DTLSv1_2_server_method");
+            if (method) {
+                InitSSL_Method(method, MakeDTLSv1_2());
+                method->side = SERVER_END;
+            }
+            return method;
+        }
     #endif
 
 
@@ -2846,7 +2874,7 @@ int CyaSSL_dtls_got_timeout(CYASSL* ssl)
 
         #ifdef CYASSL_DTLS
             if (ssl->version.major == DTLS_MAJOR &&
-                                      ssl->version.minor == DTLS_MINOR) {
+                                      ssl->version.minor >= DTLSv1_2_MINOR) {
                 ssl->options.dtls   = 1;
                 ssl->options.tls    = 1;
                 ssl->options.tls1_1 = 1;
@@ -2900,10 +2928,14 @@ int CyaSSL_dtls_got_timeout(CYASSL* ssl)
                     /* re-init hashes, exclude first hello and verify request */
                     InitMd5(&ssl->hashMd5);
                     InitSha(&ssl->hashSha);
-                    #ifndef NO_SHA256
-                        if (IsAtLeastTLSv1_2(ssl))
-                            InitSha256(&ssl->hashSha256);
-                    #endif
+                    if (IsAtLeastTLSv1_2(ssl)) {
+                        #ifndef NO_SHA256
+                             InitSha256(&ssl->hashSha256);
+                        #endif
+                        #ifdef CYASSL_SHA384
+                            InitSha384(&ssl->hashSha384);
+                        #endif
+                    }
 
                     while (ssl->options.clientState < CLIENT_HELLO_COMPLETE)
                         if ( (ssl->error = ProcessReply(ssl)) < 0) {
@@ -5415,8 +5447,16 @@ int CyaSSL_set_compression(CYASSL* ssl)
                     return "unknown";
             }
         }
-        else if (ssl->version.major == DTLS_MAJOR)
-            return "DTLS";
+        else if (ssl->version.major == DTLS_MAJOR) {
+            switch (ssl->version.minor) {
+                case DTLS_MINOR :
+                    return "DTLS";
+                case DTLSv1_2_MINOR :
+                    return "DTLSv1.2";
+                default:
+                    return "unknown";
+            }
+        }
         return "unknown";
     }
 

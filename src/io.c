@@ -136,16 +136,6 @@
 #endif
 
 
-#ifdef CYASSL_DTLS
-    /* sizeof(struct timeval) will pass uninit bytes to setsockopt if padded */
-    #ifdef USE_WINDOWS_API
-        #define TIMEVAL_BYTES sizeof(timeout)
-    #else
-        #define TIMEVAL_BYTES sizeof(timeout.tv_sec) + sizeof(timeout.tv_usec)
-    #endif
-#endif
-
-
 /* Translates return codes returned from 
  * send() and recv() if need be. 
  */
@@ -201,7 +191,7 @@ int EmbedReceive(CYASSL *ssl, char *buf, int sz, void *ctx)
                 struct timeval timeout = {dtls_timeout, 0};
             #endif
             if (setsockopt(sd, SOL_SOCKET, SO_RCVTIMEO, (char*)&timeout,
-                           TIMEVAL_BYTES) != 0) {
+                           sizeof(timeout)) != 0) {
                 CYASSL_MSG("setsockopt rcvtimeo failed");
             }
         }
@@ -329,7 +319,7 @@ int EmbedReceiveFrom(CYASSL *ssl, char *buf, int sz, void *ctx)
             struct timeval timeout = { dtls_timeout, 0 };
         #endif
         if (setsockopt(sd, SOL_SOCKET, SO_RCVTIMEO, (char*)&timeout,
-                       TIMEVAL_BYTES) != 0) {
+                       sizeof(timeout)) != 0) {
                 CYASSL_MSG("setsockopt rcvtimeo failed");
         }
     }

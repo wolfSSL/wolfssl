@@ -149,6 +149,8 @@ CYASSL_API CYASSL_METHOD *CyaTLSv1_2_client_method(void);
 #ifdef CYASSL_DTLS
     CYASSL_API CYASSL_METHOD *CyaDTLSv1_client_method(void);
     CYASSL_API CYASSL_METHOD *CyaDTLSv1_server_method(void);
+    CYASSL_API CYASSL_METHOD *CyaDTLSv1_2_client_method(void);
+    CYASSL_API CYASSL_METHOD *CyaDTLSv1_2_server_method(void);
 #endif
 
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
