@@ -4280,12 +4280,16 @@ int ProcessReply(CYASSL* ssl)
         /* the record layer is here */
         case runProcessingOneMessage:
 
-            if (ssl->keys.encryptionOn && ssl->keys.decryptedCur == 0)
-                if (DecryptMessage(ssl, ssl->buffers.inputBuffer.buffer + 
-                                        ssl->buffers.inputBuffer.idx,
-                                        ssl->curSize,
-                                        &ssl->buffers.inputBuffer.idx) < 0)
+            if (ssl->keys.encryptionOn && ssl->keys.decryptedCur == 0) {
+                ret = DecryptMessage(ssl, ssl->buffers.inputBuffer.buffer + 
+                                     ssl->buffers.inputBuffer.idx,
+                                     ssl->curSize,
+                                     &ssl->buffers.inputBuffer.idx);
+                if (ret < 0) {
+                    CYASSL_ERROR(ret);
                     return DECRYPT_ERROR;
+                }
+            }
 
             CYASSL_MSG("received record layer msg");
 
@@ -5051,7 +5055,7 @@ int ReceiveData(CYASSL* ssl, byte* output, int sz, int peek)
             CYASSL_ERROR(ssl->error);
             if (ssl->error == ZERO_RETURN) {
                 CYASSL_MSG("Zero return, no more data coming");
-                ssl->options.isClosed = 1;
+                ssl->options.isClosed = 1;  /* Don't send close_notify */
                 return 0;         /* no more data coming */
             }
             if (ssl->error == SOCKET_ERROR_E) {
@@ -7222,7 +7226,7 @@ int SetCipherList(Suites* s, const char* list)
             if (ret == 0) {
                 CYASSL_MSG("Using ECC client cert");
                 usingEcc = 1;
-                sigOutSz = ecc_sig_size(&eccKey);
+                sigOutSz = MAX_ENCODED_SIG_SZ; 
             }
             else {
                 CYASSL_MSG("Bad client cert type");
@@ -7247,11 +7251,10 @@ int SetCipherList(Suites* s, const char* list)
                 verify[1] = usingEcc ? ecc_dsa_sa_algo : rsa_sa_algo;
                 extraSz = HASH_SIG_SIZE;
             }
-            c16toa((word16)length, verify + extraSz); /* prepend verify header*/
 
             if (usingEcc) {
 #ifdef HAVE_ECC
-                word32 localSz = sigOutSz;
+                word32 localSz = MAX_ENCODED_SIG_SZ;
                 word32 digestSz = SHA_DIGEST_SIZE;
                 byte* digest = ssl->certHashes.sha;
 
@@ -7270,9 +7273,13 @@ int SetCipherList(Suites* s, const char* list)
                     }
                 }
 
-                ret = ecc_sign_hash(digest, digestSz,
-                              verify + extraSz + VERIFY_HEADER,
-                              &localSz, ssl->rng, &eccKey);
+                ret = ecc_sign_hash(digest, digestSz, encodedSig,
+                                    &localSz, ssl->rng, &eccKey);
+                if (ret == 0) {
+                    length = localSz;
+                    c16toa((word16)length, verify + extraSz); /* prepend hdr */
+                    XMEMCPY(verify + extraSz + VERIFY_HEADER,encodedSig,length);
+                }
 #endif
             }
             else {
@@ -7300,6 +7307,7 @@ int SetCipherList(Suites* s, const char* list)
                     signBuffer = encodedSig;
                 }
 
+                c16toa((word16)length, verify + extraSz); /* prepend hdr */
                 ret = RsaSSL_Sign(signBuffer, signSz, verify + extraSz +
                                   VERIFY_HEADER, ENCRYPT_LEN, &key, ssl->rng);
 
@@ -7591,7 +7599,7 @@ int SetCipherList(Suites* s, const char* list)
                 ret = EccPrivateKeyDecode(ssl->buffers.key.buffer, &i,
                                           &dsaKey, ssl->buffers.key.length);
                 if (ret != 0) return ret;
-                sigSz = ecc_sig_size(&dsaKey);
+                sigSz = ecc_sig_size(&dsaKey) + 2;  /* worst case estimate */
             }
             else {
                 FreeRsaKey(&rsaKey);
@@ -7623,7 +7631,8 @@ int SetCipherList(Suites* s, const char* list)
             output = ssl->buffers.outputBuffer.buffer + 
                      ssl->buffers.outputBuffer.length;
 
-            AddHeaders(output, length, server_key_exchange, ssl);
+            /* record and message headers will be added below, when we're sure
+               of the sig length */
 
             /* key exchange data */
             output[idx++] = named_curve;
@@ -7636,8 +7645,9 @@ int SetCipherList(Suites* s, const char* list)
                 output[idx++] = ssl->suites->hashAlgo;
                 output[idx++] = ssl->suites->sigAlgo;
             }
-            c16toa((word16)sigSz, output + idx);
-            idx += LENGTH_SZ;
+
+            /* Signtaure length will be written later, when we're sure what it
+               is */
 
             /* do signature */
             {
@@ -7711,6 +7721,10 @@ int SetCipherList(Suites* s, const char* list)
                                                  typeH);
                         signBuffer = encodedSig;
                     }
+                    /* write sig size here */
+                    c16toa((word16)sigSz, output + idx);
+                    idx += LENGTH_SZ;
+
                     ret = RsaSSL_Sign(signBuffer, signSz, output + idx, sigSz,
                                       &rsaKey, ssl->rng);
                     FreeRsaKey(&rsaKey);
@@ -7741,13 +7755,21 @@ int SetCipherList(Suites* s, const char* list)
                     }
 
                     ret = ecc_sign_hash(digest, digestSz,
-                            output + idx, &sz, ssl->rng, &dsaKey);
+                              output + LENGTH_SZ + idx, &sz, ssl->rng, &dsaKey);
                     FreeRsaKey(&rsaKey);
                     ecc_free(&dsaKey);
                     if (ret < 0) return ret;
+
+                    /* Now that we know the real sig size, write it. */
+                    c16toa((word16)sz, output + idx);
+
+                    /* And adjust length and sendSz from estimates */
+                    length += sz - sigSz;
+                    sendSz += sz - sigSz;
                 }
             }
 
+            AddHeaders(output, length, server_key_exchange, ssl);
             HashOutput(ssl, output, sendSz, 0);
 
             #ifdef CYASSL_CALLBACKS
