@@ -85,8 +85,10 @@ void echoclient_test(void* args)
     ctx    = SSL_CTX_new(method);
 
 #ifndef NO_FILESYSTEM
+    #ifndef NO_RSA
     if (SSL_CTX_load_verify_locations(ctx, caCert, 0) != SSL_SUCCESS)
         err_sys("can't load ca file, Please run from CyaSSL home dir");
+    #endif
     #ifdef HAVE_ECC
         if (SSL_CTX_load_verify_locations(ctx, eccCert, 0) != SSL_SUCCESS)
             err_sys("can't load ca file, Please run from CyaSSL home dir");

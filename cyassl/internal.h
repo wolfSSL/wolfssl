@@ -370,6 +370,9 @@ void c32to24(word32 in, word24 out);
 
 #ifdef NO_AES
     #define AES_BLOCK_SIZE 16
+#else
+    #undef  BUILD_AES
+    #define BUILD_AES
 #endif
 
 #if defined(BUILD_AESGCM) || defined(HAVE_AESCCM)

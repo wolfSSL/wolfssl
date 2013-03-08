@@ -9109,6 +9109,9 @@ int SetCipherList(Suites* s, const char* list)
         byte        hashAlgo = sha_mac;
         byte        sigAlgo = anonymous_sa_algo;
 
+        (void)out;
+        (void)outLen;
+
         #ifdef CYASSL_CALLBACKS
             if (ssl->hsInfoOn)
                 AddPacketName("CertificateVerify", &ssl->handShakeInfo);
