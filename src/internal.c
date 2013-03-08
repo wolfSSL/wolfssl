@@ -3375,6 +3375,7 @@ static INLINE int Encrypt(CYASSL* ssl, byte* out, const byte* input, word32 sz)
                 {
                     byte additional[AES_BLOCK_SIZE];
                     byte nonce[AEAD_NONCE_SZ];
+                    const byte* additionalSrc = input - 5;
 
                     XMEMSET(additional, 0, AES_BLOCK_SIZE);
 
@@ -3384,7 +3385,11 @@ static INLINE int Encrypt(CYASSL* ssl, byte* out, const byte* input, word32 sz)
 
                     /* Store the type, version. Unfortunately, they are in
                      * the input buffer ahead of the plaintext. */
-                    XMEMCPY(additional + AEAD_TYPE_OFFSET, input - 5, 3);
+                    #ifdef CYASSL_DTLS
+                        if (ssl->options.dtls)
+                            additionalSrc -= DTLS_HANDSHAKE_EXTRA;
+                    #endif
+                    XMEMCPY(additional + AEAD_TYPE_OFFSET, additionalSrc, 3);
 
                     /* Store the length of the plain text minus the explicit
                      * IV length minus the authentication tag size. */
@@ -3411,6 +3416,7 @@ static INLINE int Encrypt(CYASSL* ssl, byte* out, const byte* input, word32 sz)
                 {
                     byte additional[AES_BLOCK_SIZE];
                     byte nonce[AEAD_NONCE_SZ];
+                    const byte* additionalSrc = input - 5;
 
                     XMEMSET(additional, 0, AES_BLOCK_SIZE);
 
@@ -3420,7 +3426,11 @@ static INLINE int Encrypt(CYASSL* ssl, byte* out, const byte* input, word32 sz)
 
                     /* Store the type, version. Unfortunately, they are in
                      * the input buffer ahead of the plaintext. */
-                    XMEMCPY(additional + AEAD_TYPE_OFFSET, input - 5, 3);
+                    #ifdef CYASSL_DTLS
+                        if (ssl->options.dtls)
+                            additionalSrc -= DTLS_HANDSHAKE_EXTRA;
+                    #endif
+                    XMEMCPY(additional + AEAD_TYPE_OFFSET, additionalSrc, 3);
 
                     /* Store the length of the plain text minus the explicit
                      * IV length minus the authentication tag size. */

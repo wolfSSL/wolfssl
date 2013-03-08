@@ -106,7 +106,11 @@
    
 
 #define SERVER_DEFAULT_VERSION 3
+#define SERVER_DTLS_DEFAULT_VERSION (-2)
+#define SERVER_INVALID_VERSION (-99)
 #define CLIENT_DEFAULT_VERSION 3
+#define CLIENT_DTLS_DEFAULT_VERSION (-2)
+#define CLIENT_INVALID_VERSION (-99)
 
 /* all certs relative to CyaSSL home directory now */
 #define caCert     "./certs/ca-cert.pem"
