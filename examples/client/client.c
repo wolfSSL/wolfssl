@@ -148,6 +148,12 @@ void client_test(void* args)
 
     ((func_args*)args)->return_code = -1; /* error state */
 
+#ifdef NO_RSA
+    verifyCert = (char*)eccCert;
+    ourCert    = (char*)cliEccCert;
+    ourKey     = (char*)cliEccKey;
+#endif
+
     while ((ch = mygetopt(argc, argv, "?gdusmNrh:p:v:l:A:c:k:b:")) != -1) {
         switch (ch) {
             case '?' :

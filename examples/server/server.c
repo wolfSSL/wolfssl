@@ -133,6 +133,12 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 
     ((func_args*)args)->return_code = -1; /* error state */
 
+#ifdef NO_RSA
+    verifyCert = (char*)cliEccCert;
+    ourCert    = (char*)eccCert;
+    ourKey     = (char*)eccKey;
+#endif
+
     while ((ch = mygetopt(argc, argv, "?dbsnNup:v:l:A:c:k:")) != -1) {
         switch (ch) {
             case '?' :
