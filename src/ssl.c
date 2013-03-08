@@ -5474,81 +5474,121 @@ int CyaSSL_set_compression(CYASSL* ssl)
             if (cipher->ssl->options.cipherSuite0 == ECC_BYTE) {
             /* ECC suites */
             switch (cipher->ssl->options.cipherSuite) {
+#ifndef NO_RSA
                 case TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256 :
                     return "TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256";
+#endif
                 case TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256 :
                     return "TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256";
+#ifndef NO_RSA
                 case TLS_ECDH_RSA_WITH_AES_128_CBC_SHA256 :
                     return "TLS_ECDH_RSA_WITH_AES_128_CBC_SHA256";
+#endif
                 case TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA256 :
                     return "TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA256";
+#ifndef NO_RSA
                 case TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384 :
                     return "TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384";
+#endif
                 case TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384 :
                     return "TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384";
+#ifndef NO_RSA
                 case TLS_ECDH_RSA_WITH_AES_256_CBC_SHA384 :
                     return "TLS_ECDH_RSA_WITH_AES_256_CBC_SHA384";
+#endif
                 case TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA384 :
                     return "TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA384";
+#ifndef NO_SHA
+    #ifndef NO_RSA
                 case TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA :
                     return "TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA";
                 case TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA :
                     return "TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA";
+    #endif
                 case TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA :
                     return "TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA";
                 case TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA :
                     return "TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA";
+    #ifndef NO_RC4
+        #ifndef NO_RSA
                 case TLS_ECDHE_RSA_WITH_RC4_128_SHA :
                     return "TLS_ECDHE_RSA_WITH_RC4_128_SHA";
+        #endif
                 case TLS_ECDHE_ECDSA_WITH_RC4_128_SHA :
                     return "TLS_ECDHE_ECDSA_WITH_RC4_128_SHA";
+    #endif
+    #ifndef NO_DES3
+        #ifndef NO_RSA
                 case TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA :
                     return "TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA";
+        #endif
                 case TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA :
                     return "TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA";
+    #endif
 
+    #ifndef NO_RSA
                 case TLS_ECDH_RSA_WITH_AES_128_CBC_SHA :
                     return "TLS_ECDH_RSA_WITH_AES_128_CBC_SHA";
                 case TLS_ECDH_RSA_WITH_AES_256_CBC_SHA :
                     return "TLS_ECDH_RSA_WITH_AES_256_CBC_SHA";
+    #endif
                 case TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA :
                     return "TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA";
                 case TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA :
                     return "TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA";
+    #ifndef NO_RC4
+        #ifndef NO_RSA
                 case TLS_ECDH_RSA_WITH_RC4_128_SHA :
                     return "TLS_ECDH_RSA_WITH_RC4_128_SHA";
+        #endif
                 case TLS_ECDH_ECDSA_WITH_RC4_128_SHA :
                     return "TLS_ECDH_ECDSA_WITH_RC4_128_SHA";
+    #endif
+    #ifndef NO_DES3
+        #ifndef NO_RSA
                 case TLS_ECDH_RSA_WITH_3DES_EDE_CBC_SHA :
                     return "TLS_ECDH_RSA_WITH_3DES_EDE_CBC_SHA";
+        #endif
                 case TLS_ECDH_ECDSA_WITH_3DES_EDE_CBC_SHA :
                     return "TLS_ECDH_ECDSA_WITH_3DES_EDE_CBC_SHA";
+    #endif
+#endif /* NO_SHA */
 
+#ifdef HAVE_AESGCM
+    #ifndef NO_RSA
                 case TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256 :
                     return "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256";
                 case TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384 :
                     return "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384";
+    #endif
                 case TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256 :
                     return "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256";
                 case TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384 :
                     return "TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384";
+    #ifndef NO_RSA
                 case TLS_ECDH_RSA_WITH_AES_128_GCM_SHA256 :
                     return "TLS_ECDH_RSA_WITH_AES_128_GCM_SHA256";
                 case TLS_ECDH_RSA_WITH_AES_256_GCM_SHA384 :
                     return "TLS_ECDH_RSA_WITH_AES_256_GCM_SHA384";
+    #endif
                 case TLS_ECDH_ECDSA_WITH_AES_128_GCM_SHA256 :
                     return "TLS_ECDH_ECDSA_WITH_AES_128_GCM_SHA256";
                 case TLS_ECDH_ECDSA_WITH_AES_256_GCM_SHA384 :
                     return "TLS_ECDH_ECDSA_WITH_AES_256_GCM_SHA384";
+#endif
 
+#ifdef HAVE_AESCCM
+    #ifndef NO_RSA
                 case TLS_RSA_WITH_AES_128_CCM_8_SHA256 :
                     return "TLS_RSA_WITH_AES_128_CCM_8_SHA256";
                 case TLS_RSA_WITH_AES_256_CCM_8_SHA384 :
                     return "TLS_RSA_WITH_AES_256_CCM_8_SHA384";
+    #endif
                 case TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8_SHA256 :
                     return "TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8_SHA256";
                 case TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8_SHA384 :
                     return "TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8_SHA384";
+#endif
 
                 default:
                     return "NONE";
@@ -5559,94 +5599,94 @@ int CyaSSL_set_compression(CYASSL* ssl)
             /* normal suites */
             switch (cipher->ssl->options.cipherSuite) {
 #ifndef NO_RSA
-#ifndef NO_RC4
-#ifndef NO_SHA
+    #ifndef NO_RC4
+        #ifndef NO_SHA
                 case SSL_RSA_WITH_RC4_128_SHA :
                     return "SSL_RSA_WITH_RC4_128_SHA";
-#endif
-#ifndef NO_MD5
+        #endif
+        #ifndef NO_MD5
                 case SSL_RSA_WITH_RC4_128_MD5 :
                     return "SSL_RSA_WITH_RC4_128_MD5";
-#endif
-#endif
-#ifndef NO_SHA
-#ifndef NO_DES3
+        #endif
+    #endif
+    #ifndef NO_SHA
+        #ifndef NO_DES3
                 case SSL_RSA_WITH_3DES_EDE_CBC_SHA :
                     return "SSL_RSA_WITH_3DES_EDE_CBC_SHA";
-#endif
+        #endif
                 case TLS_RSA_WITH_AES_128_CBC_SHA :
                     return "TLS_RSA_WITH_AES_128_CBC_SHA";
                 case TLS_RSA_WITH_AES_256_CBC_SHA :
                     return "TLS_RSA_WITH_AES_256_CBC_SHA";
-#endif
+    #endif
                 case TLS_RSA_WITH_AES_128_CBC_SHA256 :
                     return "TLS_RSA_WITH_AES_128_CBC_SHA256";
                 case TLS_RSA_WITH_AES_256_CBC_SHA256 :
                     return "TLS_RSA_WITH_AES_256_CBC_SHA256";
-#ifndef NO_SHA
+    #ifndef NO_SHA
                 case TLS_RSA_WITH_NULL_SHA :
                     return "TLS_RSA_WITH_NULL_SHA";
-#endif
+    #endif
                 case TLS_RSA_WITH_NULL_SHA256 :
                     return "TLS_RSA_WITH_NULL_SHA256";
 #endif /* NO_RSA */
 #ifndef NO_PSK
                 case TLS_PSK_WITH_AES_128_CBC_SHA256 :
                     return "TLS_PSK_WITH_AES_128_CBC_SHA256";
-#ifndef NO_SHA
+    #ifndef NO_SHA
                 case TLS_PSK_WITH_AES_128_CBC_SHA :
                     return "TLS_PSK_WITH_AES_128_CBC_SHA";
                 case TLS_PSK_WITH_AES_256_CBC_SHA :
                     return "TLS_PSK_WITH_AES_256_CBC_SHA";
-#endif
+    #endif
                 case TLS_PSK_WITH_NULL_SHA256 :
                     return "TLS_PSK_WITH_NULL_SHA256";
-#ifndef NO_SHA
+    #ifndef NO_SHA
                 case TLS_PSK_WITH_NULL_SHA :
                     return "TLS_PSK_WITH_NULL_SHA";
-#endif
+    #endif
 #endif /* NO_PSK */
 #ifndef NO_RSA
                 case TLS_DHE_RSA_WITH_AES_128_CBC_SHA256 :
                     return "TLS_DHE_RSA_WITH_AES_128_CBC_SHA256";
                 case TLS_DHE_RSA_WITH_AES_256_CBC_SHA256 :
                     return "TLS_DHE_RSA_WITH_AES_256_CBC_SHA256";
-#ifndef NO_SHA
+    #ifndef NO_SHA
                 case TLS_DHE_RSA_WITH_AES_128_CBC_SHA :
                     return "TLS_DHE_RSA_WITH_AES_128_CBC_SHA";
                 case TLS_DHE_RSA_WITH_AES_256_CBC_SHA :
                     return "TLS_DHE_RSA_WITH_AES_256_CBC_SHA";
-#endif
-#ifndef NO_HC128
-#ifndef NO_MD5
+    #endif
+    #ifndef NO_HC128
+        #ifndef NO_MD5
                 case TLS_RSA_WITH_HC_128_CBC_MD5 :
                     return "TLS_RSA_WITH_HC_128_CBC_MD5";
-#endif
-#ifndef NO_SHA
+        #endif
+        #ifndef NO_SHA
                 case TLS_RSA_WITH_HC_128_CBC_SHA :
                     return "TLS_RSA_WITH_HC_128_CBC_SHA";
-#endif
-#endif /* NO_HC128 */
-#ifndef NO_SHA
-#ifndef NO_RABBIT
+        #endif
+    #endif /* NO_HC128 */
+    #ifndef NO_SHA
+        #ifndef NO_RABBIT
                 case TLS_RSA_WITH_RABBIT_CBC_SHA :
                     return "TLS_RSA_WITH_RABBIT_CBC_SHA";
-#endif
-#ifdef HAVE_NTRU
-#ifndef NO_RC4
+        #endif
+        #ifdef HAVE_NTRU
+            #ifndef NO_RC4
                 case TLS_NTRU_RSA_WITH_RC4_128_SHA :
                     return "TLS_NTRU_RSA_WITH_RC4_128_SHA";
-#endif
-#ifndef NO_DES3
+            #endif
+            #ifndef NO_DES3
                 case TLS_NTRU_RSA_WITH_3DES_EDE_CBC_SHA :
                     return "TLS_NTRU_RSA_WITH_3DES_EDE_CBC_SHA";
-#endif
+            #endif
                 case TLS_NTRU_RSA_WITH_AES_128_CBC_SHA :
                     return "TLS_NTRU_RSA_WITH_AES_128_CBC_SHA";
                 case TLS_NTRU_RSA_WITH_AES_256_CBC_SHA :
                     return "TLS_NTRU_RSA_WITH_AES_256_CBC_SHA";
-#endif /* HAVE_NTRU */
-#endif /* NO_SHA */
+        #endif /* HAVE_NTRU */
+    #endif /* NO_SHA */
                 case TLS_RSA_WITH_AES_128_GCM_SHA256 :
                     return "TLS_RSA_WITH_AES_128_GCM_SHA256";
                 case TLS_RSA_WITH_AES_256_GCM_SHA384 :
@@ -5655,22 +5695,22 @@ int CyaSSL_set_compression(CYASSL* ssl)
                     return "TLS_DHE_RSA_WITH_AES_128_GCM_SHA256";
                 case TLS_DHE_RSA_WITH_AES_256_GCM_SHA384 :
                     return "TLS_DHE_RSA_WITH_AES_256_GCM_SHA384";
-#ifndef NO_SHA
+    #ifndef NO_SHA
                 case TLS_RSA_WITH_CAMELLIA_128_CBC_SHA :
                     return "TLS_RSA_WITH_CAMELLIA_128_CBC_SHA";
                 case TLS_RSA_WITH_CAMELLIA_256_CBC_SHA :
                     return "TLS_RSA_WITH_CAMELLIA_256_CBC_SHA";
-#endif
+    #endif
                 case TLS_RSA_WITH_CAMELLIA_128_CBC_SHA256 :
                     return "TLS_RSA_WITH_CAMELLIA_128_CBC_SHA256";
                 case TLS_RSA_WITH_CAMELLIA_256_CBC_SHA256 :
                     return "TLS_RSA_WITH_CAMELLIA_256_CBC_SHA256";
-#ifndef NO_SHA
+    #ifndef NO_SHA
                 case TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA :
                     return "TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA";
                 case TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA :
                     return "TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA";
-#endif
+    #endif
                 case TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA256 :
                     return "TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA256";
                 case TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA256 :
