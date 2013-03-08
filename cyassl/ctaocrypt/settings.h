@@ -115,11 +115,20 @@
 #endif
 
 
-#ifdef CYASSL_LEANPSK
+#if defined(CYASSL_LEANPSK) && !defined(XMALLOC_USER)
     #include <stdlib.h>
     #define XMALLOC(s, h, type)  malloc((s))
     #define XFREE(p, h, type)    free((p)) 
     #define XREALLOC(p, n, h, t) realloc((p), (n))
+#endif
+
+#if defined(XMALLOC_USER) && defined(SSN_BUILDING_LIBYASSL)
+    #undef  XMALLOC
+    #define XMALLOC     yaXMALLOC
+    #undef  XFREE
+    #define XFREE       yaXFREE
+    #undef  XREALLOC
+    #define XREALLOC    yaXREALLOC
 #endif
 
 

@@ -284,9 +284,9 @@ void client_test(void* args)
         if (cipherList == NULL) {
             const char *defaultCipherList;
             #ifdef HAVE_NULL_CIPHER
-                defaultCipherList = "PSK-NULL-SHA";
+                defaultCipherList = "PSK-NULL-SHA256";
             #else
-                defaultCipherList = "PSK-AES256-CBC-SHA";
+                defaultCipherList = "PSK-AES256-CBC-SHA256";
             #endif
             if (CyaSSL_CTX_set_cipher_list(ctx,defaultCipherList) !=SSL_SUCCESS)
                 err_sys("client can't set cipher list 2");
@@ -301,7 +301,7 @@ void client_test(void* args)
 #if defined(CYASSL_SNIFFER) && !defined(HAVE_NTRU) && !defined(HAVE_ECC)
     if (cipherList == NULL) {
         /* don't use EDH, can't sniff tmp keys */
-        if (CyaSSL_CTX_set_cipher_list(ctx, "AES256-SHA") != SSL_SUCCESS) {
+        if (CyaSSL_CTX_set_cipher_list(ctx, "AES256-SHA256") != SSL_SUCCESS) {
             err_sys("client can't set cipher list 3");
         }
     }
@@ -323,7 +323,7 @@ void client_test(void* args)
 
         if (CyaSSL_CTX_use_PrivateKey_file(ctx, ourKey, SSL_FILETYPE_PEM)
                                          != SSL_SUCCESS)
-            err_sys("can't load client cert file, check file and run from"
+            err_sys("can't load client private key file, check file and run from"
                     " CyaSSL home dir");    
 
         if (CyaSSL_CTX_load_verify_locations(ctx, verifyCert, 0) != SSL_SUCCESS)
@@ -492,13 +492,11 @@ void client_test(void* args)
         NonBlockingSSL_Connect(ssl);  /* will keep retrying on timeout */
 #endif
 
-#ifdef OPENSSL_EXTRA
         if (CyaSSL_session_reused(sslResume))
             printf("reused session id\n");
         else
             printf("didn't reuse session id!!!\n");
-#endif
-      
+
         if (CyaSSL_write(sslResume, resumeMsg, resumeSz) != resumeSz)
             err_sys("SSL_write failed");
 

@@ -58,6 +58,7 @@
     #endif
 #endif /* USE_WINDOWS_API */
 
+#if !defined( NO_CYASSL_RANDOM )
 
 #ifdef NO_RC4
 
@@ -568,7 +569,7 @@ int GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 
 #elif defined(NO_DEV_RANDOM)
 
-#error "you need to write an os specific GenerateSeed() here"
+#warning "you need to write an os specific GenerateSeed() here"
 
 
 #else /* !USE_WINDOWS_API && !THREADX && !MICRIUM && !NO_DEV_RANDOM */
@@ -613,3 +614,4 @@ int GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 
 #endif /* USE_WINDOWS_API */
 
+#endif /* NO_CYASSL_RANDOM */

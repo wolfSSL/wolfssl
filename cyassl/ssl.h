@@ -59,7 +59,6 @@
     extern "C" {
 #endif
 
-
 typedef struct CYASSL          CYASSL;          
 typedef struct CYASSL_SESSION  CYASSL_SESSION;
 typedef struct CYASSL_METHOD   CYASSL_METHOD;
@@ -112,6 +111,15 @@ typedef struct CYASSL_X509_STORE {
     int cache;          /* stunnel dereference */
 } CYASSL_X509_STORE;
 
+typedef struct CYASSL_ALERT {
+    int code;
+    int level;
+} CYASSL_ALERT;
+
+typedef struct CYASSL_ALERT_HISTORY {
+    CYASSL_ALERT last_rx;
+    CYASSL_ALERT last_tx;
+} CYASSL_ALERT_HISTORY;
 
 typedef struct CYASSL_X509_REVOKED {
     CYASSL_ASN1_INTEGER* serialNumber;          /* stunnel dereference */
@@ -202,6 +210,7 @@ CYASSL_API void CyaSSL_CTX_set_quiet_shutdown(CYASSL_CTX*, int);
 CYASSL_API void CyaSSL_set_quiet_shutdown(CYASSL*, int);
 
 CYASSL_API int  CyaSSL_get_error(CYASSL*, int);
+CYASSL_API int  CyaSSL_get_alert_history(CYASSL*, CYASSL_ALERT_HISTORY *);
 
 CYASSL_API int          CyaSSL_set_session(CYASSL* ssl,CYASSL_SESSION* session);
 CYASSL_API CYASSL_SESSION* CyaSSL_get_session(CYASSL* ssl);
@@ -256,6 +265,7 @@ CYASSL_API void CyaSSL_SESSION_free(CYASSL_SESSION* session);
 CYASSL_API int  CyaSSL_is_init_finished(CYASSL*);
 
 CYASSL_API const char*  CyaSSL_get_version(CYASSL*);
+CYASSL_API int  CyaSSL_get_current_cipher_suite(CYASSL* ssl);
 CYASSL_API CYASSL_CIPHER*  CyaSSL_get_current_cipher(CYASSL*);
 CYASSL_API char*        CyaSSL_CIPHER_description(CYASSL_CIPHER*, char*, int);
 CYASSL_API const char*  CyaSSL_CIPHER_get_name(const CYASSL_CIPHER* cipher);
@@ -422,7 +432,6 @@ CYASSL_API long CyaSSL_CTX_sess_misses(CYASSL_CTX*);
 CYASSL_API long CyaSSL_CTX_sess_timeouts(CYASSL_CTX*);
 CYASSL_API long CyaSSL_CTX_sess_number(CYASSL_CTX*);
 CYASSL_API long CyaSSL_CTX_sess_get_cache_size(CYASSL_CTX*);
-
 
 #define CYASSL_DEFAULT_CIPHER_LIST ""   /* default all */
 #define CYASSL_RSA_F4 0x10001L

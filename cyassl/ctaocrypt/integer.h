@@ -238,7 +238,6 @@ int  mp_count_bits (mp_int * a);
 int  mp_init_copy (mp_int * a, mp_int * b);
 int  mp_copy (mp_int * a, mp_int * b);
 int  mp_grow (mp_int * a, int size);
-void bn_reverse (unsigned char *s, int len);
 int  mp_div_2d (mp_int * a, int b, mp_int * c, mp_int * d);
 void mp_zero (mp_int * a);
 void mp_clamp (mp_int * a);

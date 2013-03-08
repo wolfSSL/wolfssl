@@ -19,9 +19,12 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  */
 
+
 #ifdef HAVE_CONFIG_H
     #include <config.h>
 #endif
+
+#ifndef NO_SHA
 
 #include <cyassl/ctaocrypt/sha.h>
 #ifdef NO_INLINE
@@ -345,3 +348,4 @@ void ShaFinal(Sha* sha, byte* hash)
 
 #endif /* STM32F2_CRYPTO */
 
+#endif /* NO_SHA */

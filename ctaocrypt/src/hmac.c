@@ -52,9 +52,11 @@ static int InitHmac(Hmac* hmac, int type)
         break;
         #endif
 
+        #ifndef NO_SHA
         case SHA:
             InitSha(&hmac->hash.sha);
         break;
+        #endif
         
         #ifndef NO_SHA256
         case SHA256:
@@ -80,7 +82,7 @@ void HmacSetKey(Hmac* hmac, int type, const byte* key, word32 length)
 {
     byte*  ip = (byte*) hmac->ipad;
     byte*  op = (byte*) hmac->opad;
-    word32 i, hmac_block_size = SHA_BLOCK_SIZE;
+    word32 i, hmac_block_size = 0;
 
 #ifdef HAVE_CAVIUM
     if (hmac->magic == CYASSL_HMAC_CAVIUM_MAGIC)
@@ -106,8 +108,10 @@ void HmacSetKey(Hmac* hmac, int type, const byte* key, word32 length)
         break;
         #endif
 
+        #ifndef NO_SHA
         case SHA:
         {
+            hmac_block_size = SHA_BLOCK_SIZE;
             if (length <= SHA_BLOCK_SIZE) {
                 XMEMCPY(ip, key, length);
             }
@@ -118,6 +122,7 @@ void HmacSetKey(Hmac* hmac, int type, const byte* key, word32 length)
             }
         }
         break;
+        #endif
 
         #ifndef NO_SHA256
         case SHA256:
@@ -173,9 +178,11 @@ static void HmacKeyInnerHash(Hmac* hmac)
         break;
         #endif
 
+        #ifndef NO_SHA
         case SHA:
             ShaUpdate(&hmac->hash.sha, (byte*) hmac->ipad, SHA_BLOCK_SIZE);
         break;
+        #endif
 
         #ifndef NO_SHA256
         case SHA256:
@@ -216,9 +223,11 @@ void HmacUpdate(Hmac* hmac, const byte* msg, word32 length)
         break;
         #endif
 
+        #ifndef NO_SHA
         case SHA:
             ShaUpdate(&hmac->hash.sha, msg, length);
         break;
+        #endif
 
         #ifndef NO_SHA256
         case SHA256:
@@ -264,6 +273,7 @@ void HmacFinal(Hmac* hmac, byte* hash)
         break;
         #endif
 
+        #ifndef NO_SHA
         case SHA:
         {
             ShaFinal(&hmac->hash.sha, (byte*) hmac->innerHash);
@@ -275,6 +285,7 @@ void HmacFinal(Hmac* hmac, byte* hash)
             ShaFinal(&hmac->hash.sha, hash);
         }
         break;
+        #endif
 
         #ifndef NO_SHA256
         case SHA256:

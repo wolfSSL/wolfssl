@@ -248,6 +248,8 @@ int SuiteTest(void)
     args.argv = myArgv;
     strcpy(argv0[0], "SuiteTest");
 
+    (void)test_harness;
+
 #if !defined(NO_RSA)
     /* default case */
     args.argc = 1;

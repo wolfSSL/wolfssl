@@ -20,6 +20,8 @@
     #define SOCKET_T unsigned int
 #else
     #include <string.h>
+    #include <sys/types.h>
+#ifndef CYASSL_LEANPSK
     #include <unistd.h>
     #include <netdb.h>
     #include <netinet/in.h>
@@ -27,13 +29,13 @@
     #include <arpa/inet.h>
     #include <sys/ioctl.h>
     #include <sys/time.h>
-    #include <sys/types.h>
     #include <sys/socket.h>
     #include <pthread.h>
     #include <fcntl.h>
     #ifdef TEST_IPV6
         #include <netdb.h>
     #endif
+#endif
     #define SOCKET_T int
     #ifndef SO_NOSIGPIPE
         #include <signal.h>  /* ignore SIGPIPE */

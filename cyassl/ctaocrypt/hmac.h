@@ -78,7 +78,9 @@ typedef union {
     #ifndef NO_MD5
         Md5 md5;
     #endif
-    Sha sha;
+    #ifndef NO_SHA
+        Sha sha;
+    #endif
     #ifndef NO_SHA256
         Sha256 sha256;
     #endif

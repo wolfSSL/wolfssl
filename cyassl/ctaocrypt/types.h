@@ -74,6 +74,10 @@
     #define WORD64_AVAILABLE
     #define W64LIT(x) x##LL
     typedef unsigned long long word64;
+#elif defined(__SIZEOF_LONG_LONG__) && __SIZEOF_LONG_LONG__ == 8 
+    #define WORD64_AVAILABLE
+    #define W64LIT(x) x##LL
+    typedef unsigned long long word64;
 #else
     #define MP_16BIT  /* for mp_int, mp_word needs to be twice as big as
                          mp_digit, no 64 bit type so make mp_digit 16 bit */

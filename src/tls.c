@@ -53,7 +53,7 @@
 static void p_hash(byte* result, word32 resLen, const byte* secret,
                    word32 secLen, const byte* seed, word32 seedLen, int hash)
 {
-    word32   len = SHA_DIGEST_SIZE;
+    word32   len = PHASH_MAX_DIGEST_SIZE;
     word32   times;
     word32   lastLen;
     word32   lastTime;
@@ -89,6 +89,7 @@ static void p_hash(byte* result, word32 resLen, const byte* secret,
         }
         break;
         #endif
+#ifndef NO_SHA
         case sha_mac:
         default:
         {
@@ -96,6 +97,7 @@ static void p_hash(byte* result, word32 resLen, const byte* secret,
             hash = SHA;
         }
         break;
+#endif
     }
 
     times = resLen / len;
@@ -125,7 +127,7 @@ static void p_hash(byte* result, word32 resLen, const byte* secret,
 
 
 
-#ifndef NO_MD5
+#ifndef NO_OLD_TLS
 
 /* calculate XOR for TLSv1 PRF */
 static INLINE void get_xor(byte *digest, word32 digLen, byte* md5, byte* sha)
@@ -194,7 +196,7 @@ static void PRF(byte* digest, word32 digLen, const byte* secret, word32 secLen,
         p_hash(digest, digLen, secret, secLen, labelSeed, labLen + seedLen,
                hash_type);
     }
-#ifndef NO_MD5
+#ifndef NO_OLD_TLS
     else
         doPRF(digest, digLen, secret, secLen, label, labLen, seed, seedLen);
 #endif
@@ -214,7 +216,7 @@ void BuildTlsFinished(CYASSL* ssl, Hashes* hashes, const byte* sender)
     byte        handshake_hash[HSHASH_SZ];
     word32      hashSz = FINISHED_SZ;
 
-#ifndef NO_MD5
+#ifndef NO_OLD_TLS
     Md5Final(&ssl->hashMd5, handshake_hash);
     ShaFinal(&ssl->hashSha, &handshake_hash[MD5_DIGEST_SIZE]);
 #endif
@@ -430,12 +432,14 @@ void TLS_hmac(CYASSL* ssl, byte* digest, const byte* in, word32 sz,
         }
         break;
         #endif
+#ifndef NO_SHA
         case sha_mac:
         default:
         {
             type = SHA;
         }
         break;
+#endif
     }
     HmacSetKey(&hmac, type, GetMacSecret(ssl, verify), ssl->specs.hash_size);
     

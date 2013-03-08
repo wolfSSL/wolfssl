@@ -92,12 +92,33 @@ enum {
     #define NO_TIME_H
     /* since Micrium not defining XTIME or XGMTIME, CERT_GEN not available */
 #elif defined(USER_TIME)
-    /* no <time.h> structures used */
-    #define NO_TIME_H
     /* user time, and gmtime compatible functions, there is a gmtime 
        implementation here that WINCE uses, so really just need some ticks
        since the EPOCH 
     */
+
+    struct tm {
+	int	tm_sec;		/* seconds after the minute [0-60] */
+	int	tm_min;		/* minutes after the hour [0-59] */
+	int	tm_hour;	/* hours since midnight [0-23] */
+	int	tm_mday;	/* day of the month [1-31] */
+	int	tm_mon;		/* months since January [0-11] */
+	int	tm_year;	/* years since 1900 */
+	int	tm_wday;	/* days since Sunday [0-6] */
+	int	tm_yday;	/* days since January 1 [0-365] */
+	int	tm_isdst;	/* Daylight Savings Time flag */
+	long	tm_gmtoff;	/* offset from CUT in seconds */
+	char	*tm_zone;	/* timezone abbreviation */
+    };
+    typedef long time_t;
+
+    /* forward declaration */
+    struct tm* gmtime(const time_t* timer);
+    extern time_t XTIME(time_t * timer);
+
+    #define XGMTIME(c) gmtime((c))
+    #define XVALIDATE_DATE(d, f, t) ValidateDate((d), (f), (t))
+
 #else
     /* default */
     /* uses complete <time.h> facility */
@@ -137,7 +158,8 @@ time_t time(time_t* timer)
     return *timer;
 }
 
-
+#endif /*  _WIN32_WCE */
+#if defined( _WIN32_WCE ) || defined( USER_TIME )
 
 struct tm* gmtime(const time_t* timer)
 {
@@ -155,12 +177,12 @@ struct tm* gmtime(const time_t* timer)
 
     static struct tm st_time;
     struct tm* ret = &st_time;
-    time_t time = *timer;
+    time_t secs = *timer;
     unsigned long dayclock, dayno;
     int year = EPOCH_YEAR;
 
-    dayclock = (unsigned long)time % SECS_DAY;
-    dayno    = (unsigned long)time / SECS_DAY;
+    dayclock = (unsigned long)secs % SECS_DAY;
+    dayno    = (unsigned long)secs / SECS_DAY;
 
     ret->tm_sec  =  dayclock % 60;
     ret->tm_min  = (dayclock % 3600) / 60;
@@ -187,7 +209,7 @@ struct tm* gmtime(const time_t* timer)
     return ret;
 }
 
-#endif /* _WIN32_WCE */
+#endif /* _WIN32_WCE  || USER_TIME */
 
 
 #ifdef  THREADX
@@ -386,6 +408,7 @@ static int GetMyVersion(const byte* input, word32* inOutIdx, int* version)
 }
 
 
+#ifndef NO_PWDBASED
 /* Get small count integer, 32 bits or less */
 static int GetShortInt(const byte* input, word32* inOutIdx, int* number)
 {
@@ -409,7 +432,7 @@ static int GetShortInt(const byte* input, word32* inOutIdx, int* number)
 
     return *number;
 }
-
+#endif
 
 /* May not have one, not an error */
 static int GetExplicitVersion(const byte* input, word32* inOutIdx, int* version)
@@ -1413,7 +1436,9 @@ static int GetKey(DecodedCert* cert)
 /* process NAME, either issuer or subject */
 static int GetName(DecodedCert* cert, int nameType)
 {
+#ifndef NO_SHA
     Sha    sha;
+#endif
     int    length;  /* length of all distinguished names */
     int    dummy;
     char* full = (nameType == ISSUER) ? cert->issuer : cert->subject;
@@ -1438,12 +1463,14 @@ static int GetName(DecodedCert* cert, int nameType)
     if (GetSequence(cert->source, &cert->srcIdx, &length, cert->maxIdx) < 0)
         return ASN_PARSE_E;
 
+#ifndef NO_SHA
     InitSha(&sha);
     ShaUpdate(&sha, &cert->source[idx], length + cert->srcIdx - idx);
     if (nameType == ISSUER)
         ShaFinal(&sha, cert->issuerHash);
     else
         ShaFinal(&sha, cert->subjectHash);
+#endif
 
     length += cert->srcIdx;
     idx = 0;
@@ -2101,8 +2128,10 @@ static int ConfirmSignature(const byte* buf, word32 bufSz,
     (void)sig;
     (void)sigSz;
     (void)heap;
+    (void)ret;
 
     switch (sigOID) {
+#ifndef NO_MD5
         case CTC_MD5wRSA:
         {
             Md5 md5;
@@ -2113,6 +2142,7 @@ static int ConfirmSignature(const byte* buf, word32 bufSz,
             digestSz = MD5_DIGEST_SIZE;
         }
         break;
+#endif
     #if defined(CYASSL_MD2)
         case CTC_MD2wRSA:
         {
@@ -2125,6 +2155,7 @@ static int ConfirmSignature(const byte* buf, word32 bufSz,
         }
         break;
     #endif
+#ifndef NO_SHA
         case CTC_SHAwRSA:
         case CTC_SHAwDSA:
         case CTC_SHAwECDSA:
@@ -2137,6 +2168,7 @@ static int ConfirmSignature(const byte* buf, word32 bufSz,
             digestSz = SHA_DIGEST_SIZE;
         }
         break;
+#endif
     #ifndef NO_SHA256
         case CTC_SHA256wRSA:
         case CTC_SHA256wECDSA:

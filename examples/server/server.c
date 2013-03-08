@@ -280,9 +280,9 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
         if (cipherList == NULL) {
             const char *defaultCipherList;
             #ifdef HAVE_NULL_CIPHER
-                defaultCipherList = "PSK-NULL-SHA";
+                defaultCipherList = "PSK-NULL-SHA256";
             #else
-                defaultCipherList = "PSK-AES256-CBC-SHA";
+                defaultCipherList = "PSK-AES256-CBC-SHA256";
             #endif
             if (SSL_CTX_set_cipher_list(ctx, defaultCipherList) != SSL_SUCCESS)
                 err_sys("server can't set cipher list 2");
@@ -307,7 +307,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 #if defined(CYASSL_SNIFFER) && !defined(HAVE_NTRU) && !defined(HAVE_ECC)
     /* don't use EDH, can't sniff tmp keys */
     if (cipherList == NULL) {
-        if (SSL_CTX_set_cipher_list(ctx, "AES256-SHA") != SSL_SUCCESS)
+        if (SSL_CTX_set_cipher_list(ctx, "AES256-SHA256") != SSL_SUCCESS)
             err_sys("server can't set cipher list 3");
     }
 #endif

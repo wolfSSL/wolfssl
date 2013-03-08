@@ -273,6 +273,11 @@ struct DecodedCert {
 #endif /* CYASSL_CERT_GEN */
 };
 
+#ifdef SHA_DIGEST_SIZE
+#define SIGNER_DIGEST_SIZE SHA_DIGEST_SIZE
+#else
+#define SIGNER_DIGEST_SIZE 160
+#endif
 
 /* CA Signers */
 struct Signer {
@@ -280,7 +285,7 @@ struct Signer {
     word32  pubKeySize;
     word32  keyOID;                  /* key type */
     char*   name;                    /* common name */
-    byte    hash[SHA_DIGEST_SIZE];   /* sha hash of names in certificate */
+    byte    hash[SIGNER_DIGEST_SIZE];/* sha hash of names in certificate */
     Signer* next;
 };
 
