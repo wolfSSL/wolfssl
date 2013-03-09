@@ -24,7 +24,9 @@ EXTRA_DIST += tests/test.conf \
               tests/test-psk.conf \
               tests/test-ntru.conf \
               tests/test-ecc.conf \
+              tests/test-ecc-dtls.conf \
               tests/test-ecc-sha384.conf \
+              tests/test-ecc-dtls-sha384.conf \
               tests/test-aesgcm.conf \
               tests/test-aesgcm-ecc.conf \
               tests/test-aesgcm-ecc-dtls.conf \
