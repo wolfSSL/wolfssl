@@ -22,6 +22,7 @@ EXTRA_DIST += tests/test.conf \
               tests/test-openssl.conf \
               tests/test-hc128.conf \
               tests/test-psk.conf \
+              tests/test-psk-dtls.conf \
               tests/test-ntru.conf \
               tests/test-ecc.conf \
               tests/test-ecc-dtls.conf \

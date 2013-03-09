@@ -315,6 +315,16 @@ int SuiteTest(void)
         printf("error from script %d\n", args.return_code);
         exit(EXIT_FAILURE);  
     }
+    #ifdef CYASSL_DTLS
+        /* add psk dtls extra suites */
+        strcpy(argv0[1], "tests/test-psk-dtls.conf");
+        printf("starting psk extra cipher suite tests\n");
+        test_harness(&args);
+        if (args.return_code != 0) {
+            printf("error from script %d\n", args.return_code);
+            exit(EXIT_FAILURE);  
+        }
+    #endif
 #endif
 
 #if !defined(NO_PSK) && defined(HAVE_NULL_CIPHER) && !defined(NO_OLD_TLS)
