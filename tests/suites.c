@@ -317,6 +317,16 @@ int SuiteTest(void)
         printf("error from script %d\n", args.return_code);
         exit(EXIT_FAILURE);  
     }
+    #ifdef CYASSL_DTLS
+        /* add psk dtls extra suites */
+        strcpy(argv0[1], "tests/test-psk-dtls.conf");
+        printf("starting psk extra cipher suite tests\n");
+        test_harness(&args);
+        if (args.return_code != 0) {
+            printf("error from script %d\n", args.return_code);
+            exit(EXIT_FAILURE);  
+        }
+    #endif
 #endif
 
 #if !defined(NO_PSK) && defined(HAVE_NULL_CIPHER) && !defined(NO_OLD_TLS)
@@ -359,10 +369,30 @@ int SuiteTest(void)
         printf("error from script %d\n", args.return_code);
         exit(EXIT_FAILURE);  
     }
+    #ifdef CYASSL_DTLS
+        /* add ecc dtls extra suites */
+        strcpy(argv0[1], "tests/test-ecc-dtls.conf");
+        printf("starting ecc dtls extra cipher suite tests\n");
+        test_harness(&args);
+        if (args.return_code != 0) {
+            printf("error from script %d\n", args.return_code);
+            exit(EXIT_FAILURE);  
+        }
+    #endif
     #ifdef CYASSL_SHA384
-        /* add ecc extra suites */
+        /* add ecc sha384 extra suites */
         strcpy(argv0[1], "tests/test-ecc-sha384.conf");
-        printf("starting ecc-sha384 extra cipher suite tests\n");
+        printf("starting ecc sha384 extra cipher suite tests\n");
+        test_harness(&args);
+        if (args.return_code != 0) {
+            printf("error from script %d\n", args.return_code);
+            exit(EXIT_FAILURE);  
+        }
+    #endif
+    #if defined(CYASSL_DTLS) && defined(CYASSL_SHA384)
+        /* add ecc dtls sha384 extra suites */
+        strcpy(argv0[1], "tests/test-ecc-dtls-sha384.conf");
+        printf("starting ecc dtls sha384 extra cipher suite tests\n");
         test_harness(&args);
         if (args.return_code != 0) {
             printf("error from script %d\n", args.return_code);
@@ -402,6 +432,16 @@ int SuiteTest(void)
         printf("error from script %d\n", args.return_code);
         exit(EXIT_FAILURE);  
     }
+    #ifdef CYASSL_DTLS
+        /* add aesgcm ecc dtls extra suites */
+        strcpy(argv0[1], "tests/test-aesgcm-ecc-dtls.conf");
+        printf("starting aesgcm ecc dtls extra cipher suite tests\n");
+        test_harness(&args);
+        if (args.return_code != 0) {
+            printf("error from script %d\n", args.return_code);
+            exit(EXIT_FAILURE);  
+        }
+    #endif
 #endif
 
 #if defined(HAVE_AESCCM)
@@ -422,6 +462,16 @@ int SuiteTest(void)
             printf("error from script %d\n", args.return_code);
             exit(EXIT_FAILURE);  
         }
+        #ifdef CYASSL_DTLS
+            /* add aesccm ecc dtls extra suites */
+            strcpy(argv0[1], "tests/test-aesccm-ecc-dtls.conf");
+            printf("starting aesccm ecc dtls cipher suite tests\n");
+            test_harness(&args);
+            if (args.return_code != 0) {
+                printf("error from script %d\n", args.return_code);
+                exit(EXIT_FAILURE);  
+            }
+        #endif
     #endif
 #endif
 

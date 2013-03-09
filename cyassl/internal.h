@@ -501,6 +501,7 @@ enum Misc {
 
     DTLS_MAJOR      = 0xfe,     /* DTLS major version number */
     DTLS_MINOR      = 0xff,     /* DTLS minor version number */
+    DTLSv1_2_MINOR  = 0xfd,     /* DTLS minor version number */
     SSLv3_MAJOR     = 3,        /* SSLv3 and TLSv1+  major version number */
     SSLv3_MINOR     = 0,        /* TLSv1   minor version number */
     TLSv1_MINOR     = 1,        /* TLSv1   minor version number */
@@ -709,6 +710,7 @@ CYASSL_LOCAL ProtocolVersion MakeTLSv1_2(void);
 
 #ifdef CYASSL_DTLS
     CYASSL_LOCAL ProtocolVersion MakeDTLSv1(void);
+    CYASSL_LOCAL ProtocolVersion MakeDTLSv1_2(void);
 #endif
 
 

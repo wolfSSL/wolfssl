@@ -98,7 +98,8 @@ static void Usage(void)
     printf("-d          Disable client cert check\n");
     printf("-b          Bind to any interface instead of localhost only\n");
     printf("-s          Use pre Shared keys\n");
-    printf("-u          Use UDP DTLS\n");
+    printf("-u          Use UDP DTLS,"
+           " add -v 2 for DTLSv1 (default), -v 3 for DTLSv1.2\n");
     printf("-N          Use Non-blocking sockets\n");
 }
 
@@ -163,7 +164,6 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 
             case 'u' :
                 doDTLS  = 1;
-                version = -1;  /* DTLS flag */
                 break;
 
             case 'p' :
@@ -176,8 +176,6 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
                     Usage();
                     exit(MY_EX_USAGE);
                 }
-                if (doDTLS)
-                    version = -1;  /* stay with DTLS */
                 break;
 
             case 'l' :
@@ -208,6 +206,22 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 
     myoptind = 0;      /* reset for test cases */
 
+    /* sort out DTLS versus TLS versions */
+    if (version == CLIENT_INVALID_VERSION) {
+        if (doDTLS)
+            version = CLIENT_DTLS_DEFAULT_VERSION;
+        else
+            version = CLIENT_DEFAULT_VERSION;
+    }
+    else {
+        if (doDTLS) {
+            if (version == 3)
+                version = -2;
+            else
+                version = -1;
+        }
+    }
+
     switch (version) {
 #ifndef NO_OLD_TLS
         case 0:
@@ -230,6 +244,10 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 #ifdef CYASSL_DTLS
         case -1:
             method = DTLSv1_server_method();
+            break;
+
+        case -2:
+            method = DTLSv1_2_server_method();
             break;
 #endif
 
