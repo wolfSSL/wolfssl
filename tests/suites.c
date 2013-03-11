@@ -110,7 +110,9 @@ static int execute_test_case(int svr_argc, char** svr_argv,
     }
 
     if (IsValidCipherSuite(commandLine, cipherSuite) == 0) {
-        printf("cipher suite %s not supported in build\n", cipherSuite);
+        #ifdef DEBUG_SUITE_TESTS
+            printf("cipher suite %s not supported in build\n", cipherSuite);
+        #endif
         return NOT_BUILT_IN;
     }
 
