@@ -522,6 +522,21 @@ fi
 AM_CONDITIONAL([BUILD_MD4], [test "x$ENABLED_MD4" = "xyes"])
 
 
+# DSA
+AC_ARG_ENABLE([dsa],
+    [  --enable-dsa            Enable DSA (default: disabled)],
+    [ ENABLED_DSA=$enableval ],
+    [ ENABLED_DSA=no ]
+    )
+
+if test "$ENABLED_DSA" = "no"
+then
+    AM_CFLAGS="$AM_CFLAGS -DNO_DSA"
+fi
+
+AM_CONDITIONAL([BUILD_DSA], [test "x$ENABLED_DSA" = "xyes"])
+
+
 # HC128 
 AC_ARG_ENABLE([hc128],
     [  --enable-hc128          Enable HC-128 (default: disabled)],
@@ -910,6 +925,7 @@ echo "   * certgen:                   $ENABLED_CERTGEN"
 echo "   * HC-128:                    $ENABLED_HC128"
 echo "   * RABBIT:                    $ENABLED_RABBIT"
 echo "   * MD4:                       $ENABLED_MD4"
+echo "   * DSA:                       $ENABLED_DSA"
 echo "   * PSK:                       $ENABLED_PSK"
 echo "   * LEANPSK:                   $ENABLED_LEANPSK"
 echo "   * RSA:                       $ENABLED_RSA"

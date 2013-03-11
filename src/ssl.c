@@ -7340,6 +7340,7 @@ static int initGlobalRNG = 0;
     }
 
 
+#ifndef NO_DSA
     static void InitCyaSSL_DSA(CYASSL_DSA* dsa)
     {
         if (dsa) {
@@ -7432,7 +7433,7 @@ static int initGlobalRNG = 0;
 
         return 0;  /* key gen not needed by server */
     }
-
+#endif /* NO_DSA */
 
     static void InitCyaSSL_Rsa(CYASSL_RSA* rsa)
     {
@@ -7532,6 +7533,7 @@ static int initGlobalRNG = 0;
     }
 
 
+#ifndef NO_DSA
     static int SetDsaExternal(CYASSL_DSA* dsa)
     {
         DsaKey* key;
@@ -7573,6 +7575,7 @@ static int initGlobalRNG = 0;
 
         return 0;
     }
+#endif /* NO_DSA */
 
 
     static int SetRsaExternal(CYASSL_RSA* rsa)
@@ -7724,6 +7727,7 @@ static int initGlobalRNG = 0;
     }
 
 
+#ifndef NO_DSA
     /* return 0 on success, < 0 otherwise */
     int CyaSSL_DSA_do_sign(const unsigned char* d, unsigned char* sigRet,
                            CYASSL_DSA* dsa)
@@ -7759,6 +7763,7 @@ static int initGlobalRNG = 0;
 
         return 0;
     }
+#endif /* NO_DSA */
 
 
     /* return 1 on success, 0 otherwise */
@@ -8330,6 +8335,7 @@ int CyaSSL_RSA_LoadDer(CYASSL_RSA* rsa, const unsigned char* der,  int derSz)
 }
 
 
+#ifndef NO_DSA
 /* Load DSA from Der, 0 on success < 0 on error */
 int CyaSSL_DSA_LoadDer(CYASSL_DSA* dsa, const unsigned char* der,  int derSz)
 {
@@ -8358,7 +8364,7 @@ int CyaSSL_DSA_LoadDer(CYASSL_DSA* dsa, const unsigned char* der,  int derSz)
 
     return 0;
 }
-
+#endif /* NO_DSA */
 
 
 
