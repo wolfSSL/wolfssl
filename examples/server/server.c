@@ -270,6 +270,10 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     usePsk = 1;
 #endif
 
+#if defined(NO_RSA) && !defined(HAVE_ECC)
+    usePsk = 1;
+#endif
+
 #ifndef NO_FILESYSTEM
     if (!usePsk) {
         if (SSL_CTX_use_certificate_file(ctx, ourCert, SSL_FILETYPE_PEM)
@@ -306,7 +310,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
             #ifdef HAVE_NULL_CIPHER
                 defaultCipherList = "PSK-NULL-SHA256";
             #else
-                defaultCipherList = "PSK-AES256-CBC-SHA256";
+                defaultCipherList = "PSK-AES128-CBC-SHA256";
             #endif
             if (SSL_CTX_set_cipher_list(ctx, defaultCipherList) != SSL_SUCCESS)
                 err_sys("server can't set cipher list 2");
