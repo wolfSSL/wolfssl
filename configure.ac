@@ -6,7 +6,7 @@
 #
 #
 
-AC_INIT([cyassl],[2.5.1],[http://www.yassl.com])
+AC_INIT([cyassl],[2.5.2],[http://www.yassl.com])
 
 AC_CONFIG_AUX_DIR([build-aux])
 AC_CONFIG_MACRO_DIR([m4])
@@ -485,6 +485,28 @@ then
 fi
 
 
+# RSA 
+AC_ARG_ENABLE([rsa],
+    [  --enable-rsa            Enable RSA (default: enabled)],
+    [ ENABLED_RSA=$enableval ],
+    [ ENABLED_RSA=yes ]
+    )
+
+if test "$ENABLED_RSA" = "no"
+then
+    AM_CFLAGS="$AM_CFLAGS -DNO_RSA"
+else
+    # turn off RSA if leanpsk on
+    if test "$ENABLED_LEANPSK" = "yes"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DNO_RSA"
+        ENABLED_RSA=no
+    fi
+fi
+
+AM_CONDITIONAL([BUILD_RSA], [test "x$ENABLED_RSA" = "xyes"])
+
+
 # HC128 
 AC_ARG_ENABLE([hc128],
     [  --enable-hc128          Enable HC-128 (default: disabled)],
@@ -874,6 +896,7 @@ echo "   * HC-128:                    $ENABLED_HC128"
 echo "   * RABBIT:                    $ENABLED_RABBIT"
 echo "   * PSK:                       $ENABLED_PSK"
 echo "   * LEANPSK:                   $ENABLED_LEANPSK"
+echo "   * RSA:                       $ENABLED_RSA"
 echo "   * ECC:                       $ENABLED_ECC"
 echo "   * OCSP:                      $ENABLED_OCSP"
 echo "   * CRL:                       $ENABLED_CRL"
