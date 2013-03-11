@@ -507,6 +507,21 @@ fi
 AM_CONDITIONAL([BUILD_RSA], [test "x$ENABLED_RSA" = "xyes"])
 
 
+# MD4 
+AC_ARG_ENABLE([md4],
+    [  --enable-md4            Enable MD4 (default: disabled)],
+    [ ENABLED_MD4=$enableval ],
+    [ ENABLED_MD4=no ]
+    )
+
+if test "$ENABLED_MD4" = "no"
+then
+    AM_CFLAGS="$AM_CFLAGS -DNO_MD4"
+fi
+
+AM_CONDITIONAL([BUILD_MD4], [test "x$ENABLED_MD4" = "xyes"])
+
+
 # HC128 
 AC_ARG_ENABLE([hc128],
     [  --enable-hc128          Enable HC-128 (default: disabled)],
@@ -894,6 +909,7 @@ echo "   * keygen:                    $ENABLED_KEYGEN"
 echo "   * certgen:                   $ENABLED_CERTGEN"
 echo "   * HC-128:                    $ENABLED_HC128"
 echo "   * RABBIT:                    $ENABLED_RABBIT"
+echo "   * MD4:                       $ENABLED_MD4"
 echo "   * PSK:                       $ENABLED_PSK"
 echo "   * LEANPSK:                   $ENABLED_LEANPSK"
 echo "   * RSA:                       $ENABLED_RSA"

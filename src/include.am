@@ -24,7 +24,6 @@ if !BUILD_LEANPSK
 src_libcyassl_la_SOURCES += ctaocrypt/src/des3.c \
                             ctaocrypt/src/coding.c \
                             ctaocrypt/src/arc4.c \
-                            ctaocrypt/src/md4.c \
                             ctaocrypt/src/md5.c \
                             ctaocrypt/src/asn.c \
                             ctaocrypt/src/dh.c \
@@ -36,6 +35,10 @@ endif
 
 if BUILD_RSA
 src_libcyassl_la_SOURCES += ctaocrypt/src/rsa.c
+endif
+
+if BUILD_MD4
+src_libcyassl_la_SOURCES += ctaocrypt/src/md4.c
 endif
 
 if BUILD_AESNI
