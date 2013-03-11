@@ -33,6 +33,7 @@
 #define MAX_ARGS 40
 #define MAX_COMMAND_SZ 240
 #define MAX_SUITE_SZ 80 
+#define NOT_BUILT_IN -123
 
 #include "examples/client/client.h"
 #include "examples/server/server.h"
@@ -82,7 +83,7 @@ static int IsValidCipherSuite(const char* line, char* suite)
 }
 
 
-static void execute_test_case(int svr_argc, char** svr_argv,
+static int execute_test_case(int svr_argc, char** svr_argv,
                               int cli_argc, char** cli_argv,
                               int addNoVerify, int addNonBlocking)
 {
@@ -107,6 +108,12 @@ static void execute_test_case(int svr_argc, char** svr_argv,
         strcat(commandLine, svr_argv[i]);
         strcat(commandLine, " ");
     }
+
+    if (IsValidCipherSuite(commandLine, cipherSuite) == 0) {
+        printf("cipher suite %s not supported in build\n", cipherSuite);
+        return NOT_BUILT_IN;
+    }
+
     if (addNoVerify) {
         printf("repeating test with client cert request off\n"); 
         added += 4;   /* -d plus space plus terminator */
@@ -124,12 +131,6 @@ static void execute_test_case(int svr_argc, char** svr_argv,
             strcat(commandLine, "-N ");
     }
     printf("trying server command line[%d]: %s\n", tests, commandLine);
-
-
-    if (IsValidCipherSuite(commandLine, cipherSuite) == 0) {
-        printf("cipher suite %s not supported in build\n", cipherSuite);
-        return;
-    }
 
     commandLine[0] = '\0';
     added = 0;
@@ -175,7 +176,8 @@ static void execute_test_case(int svr_argc, char** svr_argv,
     }
 
     FreeTcpReady(&ready);
-
+    
+    return 0;
 }
 
 static void test_harness(void* vargs)
@@ -184,6 +186,7 @@ static void test_harness(void* vargs)
     char* script;
     long  sz, len;
     int   cliMode = 0;   /* server or client command flag, server first */
+    int   ret;
     FILE* file;
     char* svrArgs[MAX_ARGS];
     int   svrArgsSz;
@@ -291,10 +294,13 @@ static void test_harness(void* vargs)
         }
 
         if (do_it) {
-            execute_test_case(svrArgsSz, svrArgs, cliArgsSz, cliArgs, 0, 0);
-            execute_test_case(svrArgsSz, svrArgs, cliArgsSz, cliArgs, 0, 1);
-            execute_test_case(svrArgsSz, svrArgs, cliArgsSz, cliArgs, 1, 0);
-            execute_test_case(svrArgsSz, svrArgs, cliArgsSz, cliArgs, 1, 1);
+            ret = execute_test_case(svrArgsSz, svrArgs, cliArgsSz, cliArgs,0,0);
+            /* don't repeat if not supported in build */
+            if (ret == 0) {
+                execute_test_case(svrArgsSz, svrArgs, cliArgsSz, cliArgs, 0, 1);
+                execute_test_case(svrArgsSz, svrArgs, cliArgsSz, cliArgs, 1, 0);
+                execute_test_case(svrArgsSz, svrArgs, cliArgsSz, cliArgs, 1, 1);
+            }
             svrArgsSz = 1;
             cliArgsSz = 1;
             cliMode   = 0;
