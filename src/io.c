@@ -96,6 +96,7 @@
     #define SOCKET_EINTR       WSAEINTR
     #define SOCKET_EPIPE       WSAEPIPE
     #define SOCKET_ECONNREFUSED WSAENOTCONN
+    #define SOCKET_ECONNABORTED WSAECONNABORTED
 #elif defined(__PPU)
     #define SOCKET_EWOULDBLOCK SYS_NET_EWOULDBLOCK
     #define SOCKET_EAGAIN      SYS_NET_EAGAIN
@@ -103,6 +104,7 @@
     #define SOCKET_EINTR       SYS_NET_EINTR
     #define SOCKET_EPIPE       SYS_NET_EPIPE
     #define SOCKET_ECONNREFUSED SYS_NET_ECONNREFUSED
+    #define SOCKET_ECONNABORTED SYS_NET_ECONNABORTED
 #elif defined(FREESCALE_MQX)
     /* RTCS doesn't have an EWOULDBLOCK error */
     #define SOCKET_EWOULDBLOCK EAGAIN
@@ -111,6 +113,7 @@
     #define SOCKET_EINTR       EINTR
     #define SOCKET_EPIPE       EPIPE
     #define SOCKET_ECONNREFUSED RTCSERR_TCP_CONN_REFUSED
+    #define SOCKET_ECONNABORTED RTCSERR_TCP_CONN_ABORTED
 #else
     #define SOCKET_EWOULDBLOCK EWOULDBLOCK
     #define SOCKET_EAGAIN      EAGAIN
@@ -118,6 +121,7 @@
     #define SOCKET_EINTR       EINTR
     #define SOCKET_EPIPE       EPIPE
     #define SOCKET_ECONNREFUSED ECONNREFUSED
+    #define SOCKET_ECONNABORTED ECONNABORTED
 #endif /* USE_WINDOWS_API */
 
 
@@ -133,16 +137,6 @@
 #else
     #define SEND_FUNCTION send
     #define RECV_FUNCTION recv
-#endif
-
-
-#ifdef CYASSL_DTLS
-    /* sizeof(struct timeval) will pass uninit bytes to setsockopt if padded */
-    #ifdef USE_WINDOWS_API
-        #define TIMEVAL_BYTES sizeof(timeout)
-    #else
-        #define TIMEVAL_BYTES sizeof(timeout.tv_sec) + sizeof(timeout.tv_usec)
-    #endif
 #endif
 
 
@@ -201,7 +195,7 @@ int EmbedReceive(CYASSL *ssl, char *buf, int sz, void *ctx)
                 struct timeval timeout = {dtls_timeout, 0};
             #endif
             if (setsockopt(sd, SOL_SOCKET, SO_RCVTIMEO, (char*)&timeout,
-                           TIMEVAL_BYTES) != 0) {
+                           sizeof(timeout)) != 0) {
                 CYASSL_MSG("setsockopt rcvtimeo failed");
             }
         }
@@ -237,6 +231,10 @@ int EmbedReceive(CYASSL *ssl, char *buf, int sz, void *ctx)
         else if (err == SOCKET_ECONNREFUSED) {
             CYASSL_MSG("    Connection refused");
             return IO_ERR_WANT_READ;
+        }
+        else if (err == SOCKET_ECONNABORTED) {
+            CYASSL_MSG("    Connection aborted");
+            return IO_ERR_CONN_CLOSE;
         }
         else {
             CYASSL_MSG("    General error");
@@ -329,7 +327,7 @@ int EmbedReceiveFrom(CYASSL *ssl, char *buf, int sz, void *ctx)
             struct timeval timeout = { dtls_timeout, 0 };
         #endif
         if (setsockopt(sd, SOL_SOCKET, SO_RCVTIMEO, (char*)&timeout,
-                       TIMEVAL_BYTES) != 0) {
+                       sizeof(timeout)) != 0) {
                 CYASSL_MSG("setsockopt rcvtimeo failed");
         }
     }

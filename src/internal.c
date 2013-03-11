@@ -123,6 +123,8 @@ int IsAtLeastTLSv1_2(const CYASSL* ssl)
 {
     if (ssl->version.major == SSLv3_MAJOR && ssl->version.minor >=TLSv1_2_MINOR)
         return 1;
+    if (ssl->version.major == DTLS_MAJOR && ssl->version.minor <= DTLSv1_2_MINOR)
+        return 1;
 
     return 0;
 }
@@ -357,7 +359,7 @@ int InitSSL_Ctx(CYASSL_CTX* ctx, CYASSL_METHOD* method)
     ctx->CBIOSend = EmbedSend;
     #ifdef CYASSL_DTLS
         if (method->version.major == DTLS_MAJOR
-                                    && method->version.minor == DTLS_MINOR) {
+                                  && method->version.minor >= DTLSv1_2_MINOR) {
             ctx->CBIORecv = EmbedReceiveFrom;
             ctx->CBIOSend = EmbedSendTo;
         }
@@ -591,8 +593,10 @@ void InitSuites(Suites* suites, ProtocolVersion pv, byte haveRSA, byte havePSK,
     }
 
 #ifdef CYASSL_DTLS
-    if (pv.major == DTLS_MAJOR && pv.minor == DTLS_MINOR)
-        tls = 1;
+    if (pv.major == DTLS_MAJOR) {
+        tls    = 1;
+        tls1_2 = pv.minor <= DTLSv1_2_MINOR;
+    }
 #endif
 
 #ifdef BUILD_TLS_NTRU_RSA_WITH_AES_256_CBC_SHA
@@ -1303,7 +1307,8 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
     ssl->heap = ctx->heap;    /* defaults to self */
     ssl->options.tls    = 0;
     ssl->options.tls1_1 = 0;
-    if (ssl->version.major == DTLS_MAJOR && ssl->version.minor == DTLS_MINOR)
+    if (ssl->version.major == DTLS_MAJOR
+                                        && ssl->version.minor >= DTLSv1_2_MINOR)
         ssl->options.dtls = 1;
     else
         ssl->options.dtls = 0;
@@ -1951,6 +1956,15 @@ ProtocolVersion MakeDTLSv1(void)
     ProtocolVersion pv;
     pv.major = DTLS_MAJOR;
     pv.minor = DTLS_MINOR;
+
+    return pv;
+}
+
+ProtocolVersion MakeDTLSv1_2(void)
+{
+    ProtocolVersion pv;
+    pv.major = DTLS_MAJOR;
+    pv.minor = DTLSv1_2_MINOR;
 
     return pv;
 }
@@ -3380,6 +3394,7 @@ static INLINE int Encrypt(CYASSL* ssl, byte* out, const byte* input, word32 sz)
                 {
                     byte additional[AES_BLOCK_SIZE];
                     byte nonce[AEAD_NONCE_SZ];
+                    const byte* additionalSrc = input - 5;
 
                     XMEMSET(additional, 0, AES_BLOCK_SIZE);
 
@@ -3389,7 +3404,11 @@ static INLINE int Encrypt(CYASSL* ssl, byte* out, const byte* input, word32 sz)
 
                     /* Store the type, version. Unfortunately, they are in
                      * the input buffer ahead of the plaintext. */
-                    XMEMCPY(additional + AEAD_TYPE_OFFSET, input - 5, 3);
+                    #ifdef CYASSL_DTLS
+                        if (ssl->options.dtls)
+                            additionalSrc -= DTLS_HANDSHAKE_EXTRA;
+                    #endif
+                    XMEMCPY(additional + AEAD_TYPE_OFFSET, additionalSrc, 3);
 
                     /* Store the length of the plain text minus the explicit
                      * IV length minus the authentication tag size. */
@@ -3416,6 +3435,7 @@ static INLINE int Encrypt(CYASSL* ssl, byte* out, const byte* input, word32 sz)
                 {
                     byte additional[AES_BLOCK_SIZE];
                     byte nonce[AEAD_NONCE_SZ];
+                    const byte* additionalSrc = input - 5;
 
                     XMEMSET(additional, 0, AES_BLOCK_SIZE);
 
@@ -3425,7 +3445,11 @@ static INLINE int Encrypt(CYASSL* ssl, byte* out, const byte* input, word32 sz)
 
                     /* Store the type, version. Unfortunately, they are in
                      * the input buffer ahead of the plaintext. */
-                    XMEMCPY(additional + AEAD_TYPE_OFFSET, input - 5, 3);
+                    #ifdef CYASSL_DTLS
+                        if (ssl->options.dtls)
+                            additionalSrc -= DTLS_HANDSHAKE_EXTRA;
+                    #endif
+                    XMEMCPY(additional + AEAD_TYPE_OFFSET, additionalSrc, 3);
 
                     /* Store the length of the plain text minus the explicit
                      * IV length minus the authentication tag size. */

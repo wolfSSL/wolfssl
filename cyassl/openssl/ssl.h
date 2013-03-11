@@ -92,6 +92,8 @@ typedef CYASSL_X509_STORE_CTX X509_STORE_CTX;
 #ifdef CYASSL_DTLS
     #define DTLSv1_client_method CyaDTLSv1_client_method
     #define DTLSv1_server_method CyaDTLSv1_server_method
+    #define DTLSv1_2_client_method CyaDTLSv1_2_client_method
+    #define DTLSv1_2_server_method CyaDTLSv1_2_server_method
 #endif
 
 
