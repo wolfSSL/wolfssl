@@ -83,7 +83,8 @@ static int IsValidCipherSuite(const char* line, char* suite)
 
 
 static void execute_test_case(int svr_argc, char** svr_argv,
-                              int cli_argc, char** cli_argv, int addNoVerify)
+                              int cli_argc, char** cli_argv,
+                              int addNoVerify, int addNonBlocking)
 {
     func_args cliArgs = {cli_argc, cli_argv, 0, NULL};
     func_args svrArgs = {svr_argc, svr_argv, 0, NULL};
@@ -108,11 +109,19 @@ static void execute_test_case(int svr_argc, char** svr_argv,
     }
     if (addNoVerify) {
         printf("repeating test with client cert request off\n"); 
-        added += 3;   /* -d plus terminator */
+        added += 4;   /* -d plus space plus terminator */
         if (added >= MAX_COMMAND_SZ)
             printf("server command line too long\n");
         else
-            strcat(commandLine, "-d");
+            strcat(commandLine, "-d ");
+    }
+    if (addNonBlocking) {
+        printf("repeating test with non blocking on\n"); 
+        added += 4;   /* -N plus terminator */
+        if (added >= MAX_COMMAND_SZ)
+            printf("server command line too long\n");
+        else
+            strcat(commandLine, "-N ");
     }
     printf("trying server command line[%d]: %s\n", tests, commandLine);
 
@@ -132,6 +141,14 @@ static void execute_test_case(int svr_argc, char** svr_argv,
         }
         strcat(commandLine, cli_argv[i]);
         strcat(commandLine, " ");
+    }
+    if (addNonBlocking) {
+        printf("repeating test with non blocking on\n"); 
+        added += 4;   /* -N plus space plus terminator  */
+        if (added >= MAX_COMMAND_SZ)
+            printf("client command line too long\n");
+        else 
+            strcat(commandLine, "-N ");
     }
     printf("trying client command line[%d]: %s\n", tests++, commandLine);
 
@@ -274,8 +291,10 @@ static void test_harness(void* vargs)
         }
 
         if (do_it) {
-            execute_test_case(svrArgsSz, svrArgs, cliArgsSz, cliArgs, 0);
-            execute_test_case(svrArgsSz, svrArgs, cliArgsSz, cliArgs, 1);
+            execute_test_case(svrArgsSz, svrArgs, cliArgsSz, cliArgs, 0, 0);
+            execute_test_case(svrArgsSz, svrArgs, cliArgsSz, cliArgs, 0, 1);
+            execute_test_case(svrArgsSz, svrArgs, cliArgsSz, cliArgs, 1, 0);
+            execute_test_case(svrArgsSz, svrArgs, cliArgsSz, cliArgs, 1, 1);
             svrArgsSz = 1;
             cliArgsSz = 1;
             cliMode   = 0;
