@@ -366,6 +366,9 @@ void c32to24(word32 in, word24 out);
 
 #ifdef NO_DES3
     #define DES_BLOCK_SIZE 8
+#else
+    #undef  BUILD_DES3
+    #define BUILD_DES3
 #endif
 
 #ifdef NO_AES
@@ -374,6 +377,13 @@ void c32to24(word32 in, word24 out);
     #undef  BUILD_AES
     #define BUILD_AES
 #endif
+
+#ifndef NO_RC4
+    #undef  BUILD_ARC4
+    #define BUILD_ARC4
+#endif
+
+
 
 #if defined(BUILD_AESGCM) || defined(HAVE_AESCCM)
     #define HAVE_AEAD

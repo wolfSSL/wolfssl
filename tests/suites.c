@@ -32,9 +32,55 @@
 
 #define MAX_ARGS 40
 #define MAX_COMMAND_SZ 240
+#define MAX_SUITE_SZ 80 
 
 #include "examples/client/client.h"
 #include "examples/server/server.h"
+
+
+CYASSL_CTX* cipherSuiteCtx = NULL;
+
+/* if the cipher suite on line is valid store in suite and return 1, else 0 */
+static int IsValidCipherSuite(const char* line, char* suite)
+{
+    int  found = 0;
+    int  valid = 0;
+
+    const char* find = "-l ";
+    char* begin = strnstr(line, find, MAX_COMMAND_SZ);
+    char* end;
+
+    suite[0] = '\0';
+
+    if (begin) {
+        begin += 3;
+
+        end = strnstr(begin, " ", MAX_COMMAND_SZ);
+
+        if (end) {
+            long len = end - begin;
+            if (len > MAX_SUITE_SZ) {
+                printf("suite too long!\n");
+                return 0;
+            }
+            memcpy(suite, begin, len);
+            suite[len] = '\0';
+        }
+        else
+            strncpy(suite, begin, MAX_SUITE_SZ);
+
+        suite[MAX_SUITE_SZ] = '\0';
+        found = 1;
+    }
+
+    if (found) {
+        if (CyaSSL_CTX_set_cipher_list(cipherSuiteCtx, suite) == SSL_SUCCESS)
+            valid = 1;
+    }
+
+    return valid;
+}
+
 
 static void execute_test_case(int svr_argc, char** svr_argv,
                               int cli_argc, char** cli_argv, int addNoVerify)
@@ -45,6 +91,7 @@ static void execute_test_case(int svr_argc, char** svr_argv,
     tcp_ready   ready;
     THREAD_TYPE serverThread;
     char        commandLine[MAX_COMMAND_SZ];
+    char        cipherSuite[MAX_SUITE_SZ+1];
     int         i;
     size_t      added = 0;
     static      int tests = 1;
@@ -68,6 +115,12 @@ static void execute_test_case(int svr_argc, char** svr_argv,
             strcat(commandLine, "-d");
     }
     printf("trying server command line[%d]: %s\n", tests, commandLine);
+
+
+    if (IsValidCipherSuite(commandLine, cipherSuite) == 0) {
+        printf("cipher suite %s not supported in build\n", cipherSuite);
+        return;
+    }
 
     commandLine[0] = '\0';
     added = 0;
@@ -249,6 +302,12 @@ int SuiteTest(void)
     strcpy(argv0[0], "SuiteTest");
 
     (void)test_harness;
+
+    cipherSuiteCtx = CyaSSL_CTX_new(CyaTLSv1_2_client_method());
+    if (cipherSuiteCtx == NULL) {
+        printf("can't get cipher suite ctx\n");
+        exit(EXIT_FAILURE);  
+    }
 
 #if !defined(NO_RSA)
     /* default case */
@@ -459,6 +518,8 @@ int SuiteTest(void)
 #endif
 
     printf(" End Cipher Suite Tests\n");
+
+    CyaSSL_CTX_free(cipherSuiteCtx);
 
     return args.return_code;
 }
