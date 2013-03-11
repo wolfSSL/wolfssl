@@ -1367,6 +1367,13 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
 
     ssl->rng    = NULL;
     ssl->arrays = NULL;
+
+    /* default alert state (none) */
+    ssl->alert_history.last_rx.code  = -1;
+    ssl->alert_history.last_rx.level = -1;
+    ssl->alert_history.last_tx.code  = -1;
+    ssl->alert_history.last_tx.level = -1;
+
     InitCiphers(ssl);
     InitCipherSpecs(&ssl->specs);
     /* all done with init, now can return errors, call other stuff */
