@@ -4637,7 +4637,7 @@ static void BuildSHA_CertVerify(CYASSL* ssl, byte* digest)
 #endif
 
 
-#ifndef CYASSL_LEANPSK
+#ifndef NO_CERTS
 
 static void BuildCertHashes(CYASSL* ssl, Hashes* hashes)
 {

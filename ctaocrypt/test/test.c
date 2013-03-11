@@ -198,10 +198,12 @@ void ctaocrypt_test(void* args)
         printf( "MD4      test passed!\n");
 #endif
 
+#ifndef NO_SHA
     if ( (ret = sha_test()) ) 
         err_sys("SHA      test failed!\n", ret);
     else
         printf( "SHA      test passed!\n");
+#endif
 
 #ifndef NO_SHA256
     if ( (ret = sha256_test()) ) 
@@ -239,10 +241,12 @@ void ctaocrypt_test(void* args)
             printf( "HMAC-MD5 test passed!\n");
     #endif
 
+    #ifndef NO_SHA
     if ( (ret = hmac_sha_test()) ) 
         err_sys("HMAC-SHA test failed!\n", ret);
     else
         printf( "HMAC-SHA test passed!\n");
+    #endif
 
     #ifndef NO_SHA256
         if ( (ret = hmac_sha256_test()) ) 
@@ -643,6 +647,8 @@ int md4_test(void)
 
 #endif /* NO_MD4 */
 
+#ifndef NO_SHA
+
 int sha_test(void)
 {
     Sha  sha;
@@ -697,6 +703,7 @@ int sha_test(void)
     return 0;
 }
 
+#endif /* NO_SHA */
 
 #ifdef CYASSL_RIPEMD
 int ripemd_test(void)

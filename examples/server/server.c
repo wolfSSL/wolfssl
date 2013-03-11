@@ -274,7 +274,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     usePsk = 1;
 #endif
 
-#ifndef NO_FILESYSTEM
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
     if (!usePsk) {
         if (SSL_CTX_use_certificate_file(ctx, ourCert, SSL_FILETYPE_PEM)
                                          != SSL_SUCCESS)
@@ -292,7 +292,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     }
 #endif
 
-#ifndef NO_FILESYSTEM
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
     if (!useNtruKey && !usePsk) {
         if (SSL_CTX_use_PrivateKey_file(ctx, ourKey, SSL_FILETYPE_PEM)
                                          != SSL_SUCCESS)
@@ -318,7 +318,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 #endif
     }
 
-#ifndef NO_FILESYSTEM
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
     /* if not using PSK, verify peer with certs */
     if (doCliCertCheck && usePsk == 0) {
         SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER |

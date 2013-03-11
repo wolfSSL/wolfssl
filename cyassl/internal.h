@@ -938,9 +938,14 @@ CYASSL_LOCAL int UnLockMutex(CyaSSL_Mutex*);
 typedef struct OCSP_Entry OCSP_Entry;
 
 #ifdef SHA_DIGEST_SIZE
-#define OCSP_DIGEST_SIZE SHA_DIGEST_SIZE
+    #define OCSP_DIGEST_SIZE SHA_DIGEST_SIZE
 #else
-#define OCSP_DIGEST_SIZE 160
+    #define OCSP_DIGEST_SIZE 160
+#endif
+
+#ifdef NO_ASN 
+    /* no_asn won't have */
+    typedef struct CertStatus CertStatus;
 #endif
 
 struct OCSP_Entry {
@@ -971,9 +976,13 @@ struct CYASSL_OCSP {
 typedef struct CRL_Entry CRL_Entry;
 
 #ifdef SHA_DIGEST_SIZE
-#define CRL_DIGEST_SIZE SHA_DIGEST_SIZE
+    #define CRL_DIGEST_SIZE SHA_DIGEST_SIZE
 #else
-#define CRL_DIGEST_SIZE 160
+    #define CRL_DIGEST_SIZE 160
+#endif
+
+#ifdef NO_ASN 
+    typedef struct RevokedCert RevokedCert;
 #endif
 
 /* Complete CRL */
@@ -1000,6 +1009,10 @@ struct CRL_Monitor {
 };
 
 
+#ifndef HAVE_CRL
+    typedef struct CYASSL_CRL CYASSL_CRL;
+#endif
+
 /* CyaSSL CRL controller */
 struct CYASSL_CRL {
     CYASSL_CERT_MANAGER* cm;            /* pointer back to cert manager */
@@ -1010,6 +1023,11 @@ struct CYASSL_CRL {
     pthread_t            tid;           /* monitoring thread */
 #endif
 };
+
+
+#ifdef NO_ASN 
+    typedef struct Signer Signer;
+#endif
 
 
 /* CyaSSL Certificate Manager */
@@ -1472,7 +1490,11 @@ struct CYASSL_X509_NAME {
 };
 
 #ifndef EXTERNAL_SERIAL_SIZE
-#define EXTERNAL_SERIAL_SIZE 32
+    #define EXTERNAL_SERIAL_SIZE 32
+#endif
+
+#ifdef NO_ASN 
+    typedef struct DNS_entry DNS_entry;
 #endif
 
 struct CYASSL_X509 {

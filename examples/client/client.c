@@ -154,6 +154,9 @@ void client_test(void* args)
     ourCert    = (char*)cliEccCert;
     ourKey     = (char*)cliEccKey;
 #endif
+    (void)resumeSz;
+    (void)session;
+    (void)sslResume;
 
     while ((ch = mygetopt(argc, argv, "?gdusmNrh:p:v:l:A:c:k:b:")) != -1) {
         switch (ch) {
@@ -342,7 +345,7 @@ void client_test(void* args)
 #ifdef VERIFY_CALLBACK
     CyaSSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, myVerify);
 #endif
-#ifndef NO_FILESYSTEM   
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
     if (!usePsk){
         if (CyaSSL_CTX_use_certificate_file(ctx, ourCert, SSL_FILETYPE_PEM)
                                      != SSL_SUCCESS)
@@ -351,8 +354,8 @@ void client_test(void* args)
 
         if (CyaSSL_CTX_use_PrivateKey_file(ctx, ourKey, SSL_FILETYPE_PEM)
                                          != SSL_SUCCESS)
-            err_sys("can't load client private key file, check file and run from"
-                    " CyaSSL home dir");    
+            err_sys("can't load client private key file, check file and run "
+                    "from CyaSSL home dir");    
 
         if (CyaSSL_CTX_load_verify_locations(ctx, verifyCert, 0) != SSL_SUCCESS)
                 err_sys("can't load ca file, Please run from CyaSSL home dir");
@@ -471,6 +474,7 @@ void client_test(void* args)
             err_sys("CyaSSL_read failed");
     }
 
+#ifndef NO_SESSION_CACHE
     if (resumeSession) {
         if (doDTLS) {
             strncpy(msg, "break", 6);
@@ -481,12 +485,14 @@ void client_test(void* args)
         session   = CyaSSL_get_session(ssl);
         sslResume = CyaSSL_new(ctx);
     }
+#endif
 
     if (doDTLS == 0)            /* don't send alert after "break" command */
         CyaSSL_shutdown(ssl);  /* echoserver will interpret as new conn */
     CyaSSL_free(ssl);
     CloseSocket(sockfd);
 
+#ifndef NO_SESSION_CACHE
     if (resumeSession) {
         if (doDTLS) {
             SOCKADDR_IN_T addr;
@@ -550,6 +556,7 @@ void client_test(void* args)
         CyaSSL_free(sslResume);
         CloseSocket(sockfd);
     }
+#endif /* NO_SESSION_CACHE */
 
     CyaSSL_CTX_free(ctx);
 

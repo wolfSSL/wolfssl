@@ -133,6 +133,8 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
                 != SSL_SUCCESS)
             err_sys("can't load server key file, "
                     "Please run from CyaSSL home dir");
+    #elif defined(NO_CERTS)
+        /* do nothing, just don't load cert files */
     #else
         /* normal */
         if (CyaSSL_CTX_use_certificate_file(ctx, svrCert, SSL_FILETYPE_PEM)
