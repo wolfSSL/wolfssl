@@ -144,7 +144,6 @@ static int execute_test_case(int svr_argc, char** svr_argv,
         strcat(commandLine, " ");
     }
     if (addNonBlocking) {
-        printf("repeating test with non blocking on\n"); 
         added += 4;   /* -N plus space plus terminator  */
         if (added >= MAX_COMMAND_SZ)
             printf("client command line too long\n");
@@ -266,7 +265,9 @@ static void test_harness(void* vargs)
             case '#':
                 /* Ignore lines that start with a #. */
                 comment = strsep(&cursor, "\n");
+#ifdef DEBUG_SUITE_TESTS
                 printf("%s\n", comment);
+#endif
                 break;
             case '-':
                 /* Parameters start with a -. They end in either a newline
