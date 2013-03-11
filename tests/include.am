@@ -19,27 +19,5 @@ tests_unit_DEPENDENCIES = src/libcyassl.la
 endif
 EXTRA_DIST += tests/unit.h
 EXTRA_DIST += tests/test.conf \
-              tests/test-openssl.conf \
-              tests/test-hc128.conf \
-              tests/test-psk.conf \
-              tests/test-psk-dtls.conf \
-              tests/test-ntru.conf \
-              tests/test-ecc.conf \
-              tests/test-ecc-dtls.conf \
-              tests/test-ecc-sha384.conf \
-              tests/test-ecc-dtls-sha384.conf \
-              tests/test-aesgcm.conf \
-              tests/test-aesgcm-ecc.conf \
-              tests/test-aesgcm-ecc-dtls.conf \
-              tests/test-aesgcm-openssl.conf \
-              tests/test-aesccm.conf \
-              tests/test-aesccm-ecc.conf \
-              tests/test-aesccm-ecc-dtls.conf \
-              tests/test-camellia.conf \
-              tests/test-camellia-openssl.conf \
-              tests/test-dtls.conf \
-              tests/test-rabbit.conf \
-              tests/test-null.conf \
-              tests/test-psk-null.conf \
-              tests/test-leanpsk.conf
+              tests/test-dtls.conf
 DISTCLEANFILES+= tests/.libs/unit
