@@ -44,7 +44,7 @@ CYASSL_CTX* cipherSuiteCtx = NULL;
 
 
 #ifdef NO_OLD_TLS
-/* if the protcol versoin is less than tls 1.2 return 1, else 0 */
+/* if the protocol version is less than tls 1.2 return 1, else 0 */
 static int IsOldTlsVersion(const char* line)
 {
     const char* find = "-v ";

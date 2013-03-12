@@ -82,7 +82,7 @@ extern "C" {
 #ifdef MP_8BIT
    typedef unsigned char      mp_digit;
    typedef unsigned short     mp_word;
-#elif (defined(MP_16BIT) || defined(NO_64BIT))
+#elif defined(MP_16BIT) || defined(NO_64BIT)
    typedef unsigned short     mp_digit;
    typedef unsigned int       mp_word;
 #elif defined(MP_64BIT)
