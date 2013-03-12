@@ -138,8 +138,10 @@ void c32to24(word32 in, word24 out);
   #if !defined(NO_SHA)
     #define BUILD_SSL_RSA_WITH_RC4_128_SHA
   #endif
-    #define BUILD_SSL_RSA_WITH_RC4_128_MD5
-    #if !defined(NO_TLS) && defined(HAVE_NTRU)
+    #if !defined(NO_MD5)
+        #define BUILD_SSL_RSA_WITH_RC4_128_MD5
+    #endif
+    #if !defined(NO_TLS) && defined(HAVE_NTRU) && !defined(NO_SHA)
         #define BUILD_TLS_NTRU_RSA_WITH_RC4_128_SHA
     #endif
 #endif

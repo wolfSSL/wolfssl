@@ -551,6 +551,28 @@ fi
 AM_CONDITIONAL([BUILD_RC4], [test "x$ENABLED_ARC4" = "xyes"])
 
 
+# MD5 
+AC_ARG_ENABLE([md5],
+    [  --enable-md5            Enable MD5 (default: enabled)],
+    [ ENABLED_MD5=$enableval ],
+    [ ENABLED_MD5=yes ]
+    )
+
+if test "$ENABLED_MD5" = "no"
+then
+    AM_CFLAGS="$AM_CFLAGS -DNO_MD5 -DNO_OLD_TLS"
+else
+    # turn off MD5 if leanpsk on
+    if test "$ENABLED_LEANPSK" = "yes"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DNO_MD5 -DNO_OLD_TLS"
+        ENABLED_MD5=no
+    fi
+fi
+
+AM_CONDITIONAL([BUILD_MD5], [test "x$ENABLED_MD5" = "xyes"])
+
+
 # MD4 
 AC_ARG_ENABLE([md4],
     [  --enable-md4            Enable MD4 (default: disabled)],
@@ -985,6 +1007,7 @@ echo "   * AES-NI:                    $ENABLED_AESNI"
 echo "   * AES-GCM:                   $ENABLED_AESGCM"
 echo "   * AES-CCM:                   $ENABLED_AESCCM"
 echo "   * Camellia:                  $ENABLED_CAMELLIA"
+echo "   * MD5:                       $ENABLED_MD5"
 echo "   * RIPEMD:                    $ENABLED_RIPEMD"
 echo "   * SHA-512:                   $ENABLED_SHA512"
 echo "   * keygen:                    $ENABLED_KEYGEN"

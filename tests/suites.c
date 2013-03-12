@@ -34,12 +34,37 @@
 #define MAX_COMMAND_SZ 240
 #define MAX_SUITE_SZ 80 
 #define NOT_BUILT_IN -123
+#define VERSION_TOO_OLD -124
 
 #include "examples/client/client.h"
 #include "examples/server/server.h"
 
 
 CYASSL_CTX* cipherSuiteCtx = NULL;
+
+
+#ifdef NO_OLD_TLS
+/* if the protcol versoin is less than tls 1.2 return 1, else 0 */
+static int IsOldTlsVersion(const char* line)
+{
+    const char* find = "-v ";
+    char* begin = strnstr(line, find, MAX_COMMAND_SZ);
+
+    if (begin) {
+        int version = -1;
+
+        begin += 3;
+
+        version = atoi(begin);
+
+        if (version < 3)
+            return 1;
+    }
+
+    return 0;
+} 
+#endif /* NO_OLD_TLS */
+
 
 /* if the cipher suite on line is valid store in suite and return 1, else 0 */
 static int IsValidCipherSuite(const char* line, char* suite)
@@ -115,6 +140,15 @@ static int execute_test_case(int svr_argc, char** svr_argv,
         #endif
         return NOT_BUILT_IN;
     }
+
+#ifdef NO_OLD_TLS
+    if (IsOldTlsVersion(commandLine) == 1) {
+        #ifdef DEBUG_SUITE_TESTS
+            printf("protocol version on line %s is too old\n", commandLine);
+        #endif
+        return VERSION_TOO_OLD;
+    }
+#endif
 
     if (addNoVerify) {
         printf("repeating test with client cert request off\n"); 
