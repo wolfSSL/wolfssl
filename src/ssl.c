@@ -64,6 +64,7 @@
     #if !defined(USE_WINDOWS_API) && !defined(NO_CYASSL_DIR) \
             && !defined(EBSNET)
         #include <dirent.h>
+        #include <sys/stat.h>
     #endif
     #ifdef EBSNET
         #include "vfapi.h"
@@ -1671,7 +1672,13 @@ int CyaSSL_CTX_load_verify_locations(CYASSL_CTX* ctx, const char* file,
             return BAD_PATH_ERROR;
         }
         while ( ret == SSL_SUCCESS && (entry = readdir(dir)) != NULL) {
-            if (entry->d_type & DT_REG) {
+            struct stat s;
+            if (stat(entry->d_name, &s) != 0) {
+                CYASSL_MSG("stat on name failed");
+                closedir(dir);
+                return BAD_PATH_ERROR;
+            }
+            if (s.st_mode & S_IFREG) {
                 char name[MAX_FILENAME_SZ];
 
                 XMEMSET(name, 0, sizeof(name));
