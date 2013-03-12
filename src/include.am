@@ -11,7 +11,6 @@ src_libcyassl_la_SOURCES = \
                src/tls.c  \
                ctaocrypt/src/hmac.c \
                ctaocrypt/src/random.c \
-               ctaocrypt/src/sha.c \
                ctaocrypt/src/sha256.c \
                ctaocrypt/src/logging.c \
                ctaocrypt/src/error.c
@@ -34,6 +33,10 @@ endif
 
 if BUILD_AES
 src_libcyassl_la_SOURCES += ctaocrypt/src/aes.c
+endif
+
+if BUILD_SHA
+src_libcyassl_la_SOURCES += ctaocrypt/src/sha.c
 endif
 
 if BUILD_RC4

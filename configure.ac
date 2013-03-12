@@ -201,7 +201,7 @@ AC_ARG_ENABLE([leanpsk],
 
 if test "$ENABLED_LEANPSK" = "yes"
 then
-    AM_CFLAGS="$AM_CFLAGS -DCYASSL_LEANPSK -DHAVE_NULL_CIPHER -DSINGLE_THREADED -DNO_AES -DNO_FILESYSTEM -DNO_RABBIT -DNO_RSA -DNO_DSA -DNO_DH -DNO_CERTS -DNO_PWDBASED -DNO_DES3 -DNO_MD4 -DNO_MD5 -DNO_ERROR_STRINGS -DNO_OLD_TLS -DNO_RC4 -DNO_WRITEV -DNO_SESSION_CACHE -DNO_DEV_RANDOM -DCYASSL_USER_IO -DUSE_SLOW_SHA"
+    AM_CFLAGS="$AM_CFLAGS -DCYASSL_LEANPSK -DHAVE_NULL_CIPHER -DSINGLE_THREADED -DNO_AES -DNO_FILESYSTEM -DNO_RABBIT -DNO_RSA -DNO_DSA -DNO_DH -DNO_CERTS -DNO_PWDBASED -DNO_DES3 -DNO_MD4 -DNO_MD5 -DNO_ERROR_STRINGS -DNO_OLD_TLS -DNO_RC4 -DNO_WRITEV -DNO_SESSION_CACHE -DNO_DEV_RANDOM -DCYASSL_USER_IO -DNO_SHA -DUSE_SLOW_SHA"
     ENABLED_SLOWMATH="no"
     ENABLED_SINGLETHREADED="yes"
 fi
@@ -573,6 +573,28 @@ fi
 AM_CONDITIONAL([BUILD_MD5], [test "x$ENABLED_MD5" = "xyes"])
 
 
+# SHA 
+AC_ARG_ENABLE([sha],
+    [  --enable-sha            Enable SHA (default: enabled)],
+    [ ENABLED_SHA=$enableval ],
+    [ ENABLED_SHA=yes ]
+    )
+
+if test "$ENABLED_SHA" = "no"
+then
+    AM_CFLAGS="$AM_CFLAGS -DNO_SHA -DNO_OLD_TLS"
+else
+    # turn off SHA if leanpsk on
+    if test "$ENABLED_LEANPSK" = "yes"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DNO_SHA -DNO_OLD_TLS"
+        ENABLED_SHA=no
+    fi
+fi
+
+AM_CONDITIONAL([BUILD_SHA], [test "x$ENABLED_SHA" = "xyes"])
+
+
 # MD4 
 AC_ARG_ENABLE([md4],
     [  --enable-md4            Enable MD4 (default: disabled)],
@@ -851,6 +873,8 @@ AC_ARG_ENABLE([examples],
 
 AS_IF([test "x$ENABLED_SINGLETHREADED" = "xyes"], [ENABLED_EXAMPLES="no"])
 AS_IF([test "x$ENABLED_NOFILESYSTEM" = "xyes"], [ENABLED_EXAMPLES="no"])
+# certs still have sha signatures for now 
+AS_IF([test "x$ENABLED_SHA" = "xno"], [ENABLED_EXAMPLES="no"])
 AM_CONDITIONAL([BUILD_EXAMPLES], [test "x$ENABLED_EXAMPLES" = "xyes"])
 
 
@@ -1009,6 +1033,7 @@ echo "   * AES-CCM:                   $ENABLED_AESCCM"
 echo "   * Camellia:                  $ENABLED_CAMELLIA"
 echo "   * MD5:                       $ENABLED_MD5"
 echo "   * RIPEMD:                    $ENABLED_RIPEMD"
+echo "   * SHA:                       $ENABLED_SHA"
 echo "   * SHA-512:                   $ENABLED_SHA512"
 echo "   * keygen:                    $ENABLED_KEYGEN"
 echo "   * certgen:                   $ENABLED_CERTGEN"
