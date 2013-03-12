@@ -529,6 +529,28 @@ fi
 AM_CONDITIONAL([BUILD_AES], [test "x$ENABLED_AES" = "xyes"])
 
 
+# ARC4 
+AC_ARG_ENABLE([arc4],
+    [  --enable-arc4           Enable ARC4 (default: enabled)],
+    [ ENABLED_ARC4=$enableval ],
+    [ ENABLED_ARC4=yes ]
+    )
+
+if test "$ENABLED_ARC4" = "no"
+then
+    AM_CFLAGS="$AM_CFLAGS -DNO_RC4"
+else
+    # turn off ARC4 if leanpsk on
+    if test "$ENABLED_LEANPSK" = "yes"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DNO_RC4"
+        ENABLED_ARC4=no
+    fi
+fi
+
+AM_CONDITIONAL([BUILD_RC4], [test "x$ENABLED_ARC4" = "xyes"])
+
+
 # MD4 
 AC_ARG_ENABLE([md4],
     [  --enable-md4            Enable MD4 (default: disabled)],
@@ -957,6 +979,7 @@ echo "   * DTLS:                      $ENABLED_DTLS"
 echo "   * Enable extra OpenSSL API:  $ENABLED_OPENSSLEXTRA"
 echo "   * fastmath:                  $ENABLED_FASTMATH"
 echo "   * sniffer:                   $ENABLED_SNIFFER"
+echo "   * ARC4:                      $ENABLED_ARC4"
 echo "   * AES:                       $ENABLED_AES"
 echo "   * AES-NI:                    $ENABLED_AESNI"
 echo "   * AES-GCM:                   $ENABLED_AESGCM"
