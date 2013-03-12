@@ -48,7 +48,7 @@ CYASSL_CTX* cipherSuiteCtx = NULL;
 static int IsOldTlsVersion(const char* line)
 {
     const char* find = "-v ";
-    char* begin = strnstr(line, find, MAX_COMMAND_SZ);
+    char* begin = strstr(line, find);
 
     if (begin) {
         int version = -1;
@@ -73,7 +73,7 @@ static int IsValidCipherSuite(const char* line, char* suite)
     int  valid = 0;
 
     const char* find = "-l ";
-    char* begin = strnstr(line, find, MAX_COMMAND_SZ);
+    char* begin = strstr(line, find);
     char* end;
 
     suite[0] = '\0';
@@ -81,7 +81,7 @@ static int IsValidCipherSuite(const char* line, char* suite)
     if (begin) {
         begin += 3;
 
-        end = strnstr(begin, " ", MAX_COMMAND_SZ);
+        end = strstr(begin, " ");
 
         if (end) {
             long len = end - begin;

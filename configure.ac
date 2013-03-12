@@ -529,6 +529,28 @@ fi
 AM_CONDITIONAL([BUILD_AES], [test "x$ENABLED_AES" = "xyes"])
 
 
+# DES3
+AC_ARG_ENABLE([des3],
+    [  --enable-des3           Enable DES3 (default: enabled)],
+    [ ENABLED_DES3=$enableval ],
+    [ ENABLED_DES3=yes ]
+    )
+
+if test "$ENABLED_DES3" = "no"
+then
+    AM_CFLAGS="$AM_CFLAGS -DNO_DES3"
+else
+    # turn off DES3 if leanpsk on
+    if test "$ENABLED_LEANPSK" = "yes"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DNO_DES3"
+        ENABLED_DES3=no
+    fi
+fi
+
+AM_CONDITIONAL([BUILD_DES3], [test "x$ENABLED_DES3" = "xyes"])
+
+
 # ARC4 
 AC_ARG_ENABLE([arc4],
     [  --enable-arc4           Enable ARC4 (default: enabled)],
@@ -1030,6 +1052,7 @@ echo "   * AES:                       $ENABLED_AES"
 echo "   * AES-NI:                    $ENABLED_AESNI"
 echo "   * AES-GCM:                   $ENABLED_AESGCM"
 echo "   * AES-CCM:                   $ENABLED_AESCCM"
+echo "   * DES3:                      $ENABLED_DES3"
 echo "   * Camellia:                  $ENABLED_CAMELLIA"
 echo "   * MD5:                       $ENABLED_MD5"
 echo "   * RIPEMD:                    $ENABLED_RIPEMD"
