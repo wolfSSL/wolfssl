@@ -485,6 +485,42 @@ then
 fi
 
 
+# DSA
+AC_ARG_ENABLE([dsa],
+    [  --enable-dsa            Enable DSA (default: disabled)],
+    [ ENABLED_DSA=$enableval ],
+    [ ENABLED_DSA=no ]
+    )
+
+if test "$ENABLED_DSA" = "no"
+then
+    AM_CFLAGS="$AM_CFLAGS -DNO_DSA"
+fi
+
+AM_CONDITIONAL([BUILD_DSA], [test "x$ENABLED_DSA" = "xyes"])
+
+
+# ECC 
+AC_ARG_ENABLE([ecc],
+    [  --enable-ecc            Enable ECC (default: disabled)],
+    [ ENABLED_ECC=$enableval ],
+    [ ENABLED_ECC=no ]
+    )
+
+if test "$ENABLED_ECC" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_ECC"
+fi
+
+AM_CONDITIONAL([BUILD_ECC], [test "x$ENABLED_ECC" = "xyes"])
+
+
+if test "$ENABLED_ECC" = "yes" && test "$ENABLED_SMALL" = "yes"
+then
+    AC_MSG_ERROR([cannot enable ecc and small, ecc requires TLS which small turns off.]) 
+fi
+
+
 # PSK 
 AC_ARG_ENABLE([psk],
     [  --enable-psk            Enable PSK (default: disabled)],
@@ -525,8 +561,30 @@ fi
 AM_CONDITIONAL([BUILD_RSA], [test "x$ENABLED_RSA" = "xyes"])
 
 
+# DH
+AC_ARG_ENABLE([dh],
+    [  --enable-dh             Enable DH (default: enabled)],
+    [ ENABLED_DH=$enableval ],
+    [ ENABLED_DH=yes ]
+    )
+
+if test "$ENABLED_DH" = "no"
+then
+    AM_CFLAGS="$AM_CFLAGS -DNO_DH"
+else
+    # turn off DH if leanpsk on
+    if test "$ENABLED_LEANPSK" = "yes"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DNO_DH"
+        ENABLED_DH=no
+    fi
+fi
+
+AM_CONDITIONAL([BUILD_DH], [test "x$ENABLED_DH" = "xyes"])
+
+
 # ASN
-# can't use certs, rsa, dh if leaving out asn
+# can't use certs, rsa, dsa, dh, or ecc if leaving out asn
 AC_ARG_ENABLE([asn],
     [  --enable-asn            Enable ASN (default: enabled)],
     [ ENABLED_ASN=$enableval ],
@@ -535,12 +593,12 @@ AC_ARG_ENABLE([asn],
 
 if test "$ENABLED_ASN" = "no"
 then
-    AM_CFLAGS="$AM_CFLAGS -DNO_ASN -DNO_CERTS -DNO_DH"
+    AM_CFLAGS="$AM_CFLAGS -DNO_ASN -DNO_CERTS"
 else
     # turn off ASN if leanpsk on
     if test "$ENABLED_LEANPSK" = "yes"
     then
-        AM_CFLAGS="$AM_CFLAGS -DNO_ASN -DNO_CERTS -DNO_DH"
+        AM_CFLAGS="$AM_CFLAGS -DNO_ASN -DNO_CERTS"
         ENABLED_ASN=no
     fi
 fi
@@ -548,6 +606,21 @@ fi
 if test "$ENABLED_RSA" = "yes" && test "$ENABLED_ASN" = "no"
 then
     AC_MSG_ERROR([please disable rsa if disabling asn.])
+fi
+
+if test "$ENABLED_DSA" = "yes" && test "$ENABLED_ASN" = "no"
+then
+    AC_MSG_ERROR([please disable dsa if disabling asn.])
+fi
+
+if test "$ENABLED_DH" = "yes" && test "$ENABLED_ASN" = "no"
+then
+    AC_MSG_ERROR([please disable dh if disabling asn.])
+fi
+
+if test "$ENABLED_ECC" = "yes" && test "$ENABLED_ASN" = "no"
+then
+    AC_MSG_ERROR([please disable ecc if disabling asn.])
 fi
 
 if test "$ENABLED_PSK" = "no" && test "$ENABLED_ASN" = "no"
@@ -683,21 +756,6 @@ fi
 AM_CONDITIONAL([BUILD_MD4], [test "x$ENABLED_MD4" = "xyes"])
 
 
-# DSA
-AC_ARG_ENABLE([dsa],
-    [  --enable-dsa            Enable DSA (default: disabled)],
-    [ ENABLED_DSA=$enableval ],
-    [ ENABLED_DSA=no ]
-    )
-
-if test "$ENABLED_DSA" = "no"
-then
-    AM_CFLAGS="$AM_CFLAGS -DNO_DSA"
-fi
-
-AM_CONDITIONAL([BUILD_DSA], [test "x$ENABLED_DSA" = "xyes"])
-
-
 # PWDBASED
 AC_ARG_ENABLE([pwdbased],
     [  --enable-pwdbased       Enable PWDBASED (default: disabled)],
@@ -792,27 +850,6 @@ then
 fi
 
 AM_CONDITIONAL([BUILD_NOINLINE], [test "x$ENABLED_NOINLINE" = "xyes"])
-
-
-# ECC 
-AC_ARG_ENABLE([ecc],
-    [  --enable-ecc            Enable ECC (default: disabled)],
-    [ ENABLED_ECC=$enableval ],
-    [ ENABLED_ECC=no ]
-    )
-
-if test "$ENABLED_ECC" = "yes"
-then
-    AM_CFLAGS="$AM_CFLAGS -DHAVE_ECC"
-fi
-
-AM_CONDITIONAL([BUILD_ECC], [test "x$ENABLED_ECC" = "xyes"])
-
-
-if test "$ENABLED_ECC" = "yes" && test "$ENABLED_SMALL" = "yes"
-then
-    AC_MSG_ERROR([cannot enable ecc and small, ecc requires TLS which small turns off.]) 
-fi
 
 
 # OCSP
@@ -1102,10 +1139,11 @@ echo "   * HC-128:                    $ENABLED_HC128"
 echo "   * RABBIT:                    $ENABLED_RABBIT"
 echo "   * PWDBASED:                  $ENABLED_PWDBASED"
 echo "   * MD4:                       $ENABLED_MD4"
-echo "   * DSA:                       $ENABLED_DSA"
 echo "   * PSK:                       $ENABLED_PSK"
 echo "   * LEANPSK:                   $ENABLED_LEANPSK"
 echo "   * RSA:                       $ENABLED_RSA"
+echo "   * DSA:                       $ENABLED_DSA"
+echo "   * DH:                        $ENABLED_DH"
 echo "   * ECC:                       $ENABLED_ECC"
 echo "   * ASN:                       $ENABLED_ASN"
 echo "   * OCSP:                      $ENABLED_OCSP"
