@@ -537,6 +537,27 @@ fi
 AM_CONDITIONAL([BUILD_DSA], [test "x$ENABLED_DSA" = "xyes"])
 
 
+# PWDBASED
+AC_ARG_ENABLE([pwdbased],
+    [  --enable-pwdbased       Enable PWDBASED (default: disabled)],
+    [ ENABLED_PWDBASED=$enableval ],
+    [ ENABLED_PWDBASED=no ]
+    )
+
+if test "$ENABLED_PWDBASED" = "no"
+then
+    if test "$ENABLED_OPENSSLEXTRA" = "yes"
+    then
+        # opensslextra needs pwdbased 
+        ENABLED_PWDBASED=yes
+    else
+        AM_CFLAGS="$AM_CFLAGS -DNO_PWDBASED"
+    fi
+fi
+
+AM_CONDITIONAL([BUILD_PWDBASED], [test "x$ENABLED_PWDBASED" = "xyes"])
+
+
 # HC128 
 AC_ARG_ENABLE([hc128],
     [  --enable-hc128          Enable HC-128 (default: disabled)],
@@ -924,6 +945,7 @@ echo "   * keygen:                    $ENABLED_KEYGEN"
 echo "   * certgen:                   $ENABLED_CERTGEN"
 echo "   * HC-128:                    $ENABLED_HC128"
 echo "   * RABBIT:                    $ENABLED_RABBIT"
+echo "   * PWDBASED:                  $ENABLED_PWDBASED"
 echo "   * MD4:                       $ENABLED_MD4"
 echo "   * DSA:                       $ENABLED_DSA"
 echo "   * PSK:                       $ENABLED_PSK"

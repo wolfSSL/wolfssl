@@ -313,7 +313,7 @@ int mp_init_multi(mp_int* a, mp_int* b, mp_int* c, mp_int* d, mp_int* e,
     int mp_lcm (mp_int * a, mp_int * b, mp_int * c);
 #endif
 
-#if defined(CYASSL_KEY_GEN) || defined(HAVE_ECC) || !defined(NO_PWDBASED)
+#if defined(CYASSL_KEY_GEN) || defined(HAVE_ECC) || defined(OPENSSL_EXTRA)
     int mp_sub_d (mp_int * a, mp_digit b, mp_int * c);
 #endif
 

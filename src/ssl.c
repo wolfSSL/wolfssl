@@ -1143,7 +1143,7 @@ int CyaSSL_Init(void)
         if (pkcs8)
             return ToTraditional(der->buffer, der->length);
 
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) && !defined(NO_PWDBASED)
          if (pkcs8Enc) {
             int  passwordSz;
             char password[80];
