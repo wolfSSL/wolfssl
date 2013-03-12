@@ -303,6 +303,8 @@ static void test_harness(void* vargs)
                 comment = strsep(&cursor, "\n");
 #ifdef DEBUG_SUITE_TESTS
                 printf("%s\n", comment);
+#else
+                (void)comment;
 #endif
                 break;
             case '-':
