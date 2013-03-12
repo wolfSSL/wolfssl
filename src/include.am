@@ -21,13 +21,16 @@ src_libcyassl_la_CPPFLAGS = -DBUILDING_CYASSL $(AM_CPPFLAGS)
 
 if !BUILD_LEANPSK
 src_libcyassl_la_SOURCES += ctaocrypt/src/coding.c \
-                            ctaocrypt/src/asn.c \
                             ctaocrypt/src/dh.c \
                             ctaocrypt/src/memory.c
 endif
 
 if BUILD_RSA
 src_libcyassl_la_SOURCES += ctaocrypt/src/rsa.c
+endif
+
+if BUILD_ASN
+src_libcyassl_la_SOURCES += ctaocrypt/src/asn.c
 endif
 
 if BUILD_AES

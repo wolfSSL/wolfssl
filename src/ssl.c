@@ -2865,6 +2865,7 @@ int CyaSSL_dtls_got_timeout(CYASSL* ssl)
         #ifndef NO_PSK
             havePSK = ssl->options.havePSK;
         #endif
+        (void)havePSK;
 
         if (ssl->options.side != SERVER_END) {
             CYASSL_ERROR(ssl->error = SIDE_ERROR);

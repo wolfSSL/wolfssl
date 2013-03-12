@@ -485,6 +485,24 @@ then
 fi
 
 
+# PSK 
+AC_ARG_ENABLE([psk],
+    [  --enable-psk            Enable PSK (default: disabled)],
+    [ ENABLED_PSK=$enableval ],
+    [ ENABLED_PSK=no ]
+    )
+
+if test "$ENABLED_PSK" = "no" && test "$ENABLED_LEANPSK" = "no"
+then
+    AM_CFLAGS="$AM_CFLAGS -DNO_PSK"
+fi
+
+if test "$ENABLED_PSK" = "no" && test "$ENABLED_LEANPSK" = "yes"
+then
+    ENABLED_PSK=yes
+fi
+
+
 # RSA 
 AC_ARG_ENABLE([rsa],
     [  --enable-rsa            Enable RSA (default: enabled)],
@@ -505,6 +523,39 @@ else
 fi
 
 AM_CONDITIONAL([BUILD_RSA], [test "x$ENABLED_RSA" = "xyes"])
+
+
+# ASN
+# can't use certs, rsa, dh if leaving out asn
+AC_ARG_ENABLE([asn],
+    [  --enable-asn            Enable ASN (default: enabled)],
+    [ ENABLED_ASN=$enableval ],
+    [ ENABLED_ASN=yes ]
+    )
+
+if test "$ENABLED_ASN" = "no"
+then
+    AM_CFLAGS="$AM_CFLAGS -DNO_ASN -DNO_CERTS -DNO_DH"
+else
+    # turn off ASN if leanpsk on
+    if test "$ENABLED_LEANPSK" = "yes"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DNO_ASN -DNO_CERTS -DNO_DH"
+        ENABLED_ASN=no
+    fi
+fi
+
+if test "$ENABLED_RSA" = "yes" && test "$ENABLED_ASN" = "no"
+then
+    AC_MSG_ERROR([please disable rsa if disabling asn.])
+fi
+
+if test "$ENABLED_PSK" = "no" && test "$ENABLED_ASN" = "no"
+then
+    AC_MSG_ERROR([please enable psk if disabling asn.])
+fi
+
+AM_CONDITIONAL([BUILD_ASN], [test "x$ENABLED_ASN" = "xyes"])
 
 
 # AES
@@ -700,19 +751,6 @@ else
 fi
 
 AM_CONDITIONAL([BUILD_RABBIT], [test "x$ENABLED_RABBIT" = "xyes"])
-
-
-# PSK 
-AC_ARG_ENABLE([psk],
-    [  --enable-psk            Enable PSK (default: disabled)],
-    [ ENABLED_PSK=$enableval ],
-    [ ENABLED_PSK=no ]
-    )
-
-if test "$ENABLED_PSK" = "no" && test "$ENABLED_LEANPSK" = "no"
-then
-    AM_CFLAGS="$AM_CFLAGS -DNO_PSK"
-fi
 
 
 # Web Server Build 
@@ -1069,6 +1107,7 @@ echo "   * PSK:                       $ENABLED_PSK"
 echo "   * LEANPSK:                   $ENABLED_LEANPSK"
 echo "   * RSA:                       $ENABLED_RSA"
 echo "   * ECC:                       $ENABLED_ECC"
+echo "   * ASN:                       $ENABLED_ASN"
 echo "   * OCSP:                      $ENABLED_OCSP"
 echo "   * CRL:                       $ENABLED_CRL"
 echo "   * CRL-MONITOR:               $ENABLED_CRL_MONITOR"

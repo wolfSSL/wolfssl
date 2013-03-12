@@ -94,6 +94,9 @@ typedef enum {
 static void Hmac(CYASSL* ssl, byte* digest, const byte* buffer, word32 sz,
                  int content, int verify);
 
+#endif
+
+#ifndef NO_CERTS
 static void BuildCertHashes(CYASSL* ssl, Hashes* hashes);
 #endif
 
@@ -4599,7 +4602,7 @@ static void Hmac(CYASSL* ssl, byte* digest, const byte* in, word32 sz,
     }
 }
 
-
+#ifndef NO_CERTS
 static void BuildMD5_CertVerify(CYASSL* ssl, byte* digest)
 {
     byte md5_result[MD5_DIGEST_SIZE];
@@ -4634,7 +4637,8 @@ static void BuildSHA_CertVerify(CYASSL* ssl, byte* digest)
 
     ShaFinal(&ssl->hashSha, digest);
 }
-#endif
+#endif /* NO_CERTS */
+#endif /* NO_OLD_TLS */
 
 
 #ifndef NO_CERTS
