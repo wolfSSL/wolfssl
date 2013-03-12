@@ -507,6 +507,28 @@ fi
 AM_CONDITIONAL([BUILD_RSA], [test "x$ENABLED_RSA" = "xyes"])
 
 
+# AES
+AC_ARG_ENABLE([aes],
+    [  --enable-aes            Enable AES (default: enabled)],
+    [ ENABLED_AES=$enableval ],
+    [ ENABLED_AES=yes ]
+    )
+
+if test "$ENABLED_AES" = "no"
+then
+    AM_CFLAGS="$AM_CFLAGS -DNO_AES"
+else
+    # turn off AES if leanpsk on
+    if test "$ENABLED_LEANPSK" = "yes"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DNO_AES"
+        ENABLED_AES=no
+    fi
+fi
+
+AM_CONDITIONAL([BUILD_AES], [test "x$ENABLED_AES" = "xyes"])
+
+
 # MD4 
 AC_ARG_ENABLE([md4],
     [  --enable-md4            Enable MD4 (default: disabled)],
@@ -935,6 +957,7 @@ echo "   * DTLS:                      $ENABLED_DTLS"
 echo "   * Enable extra OpenSSL API:  $ENABLED_OPENSSLEXTRA"
 echo "   * fastmath:                  $ENABLED_FASTMATH"
 echo "   * sniffer:                   $ENABLED_SNIFFER"
+echo "   * AES:                       $ENABLED_AES"
 echo "   * AES-NI:                    $ENABLED_AESNI"
 echo "   * AES-GCM:                   $ENABLED_AESGCM"
 echo "   * AES-CCM:                   $ENABLED_AESCCM"
