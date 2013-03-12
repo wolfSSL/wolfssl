@@ -539,6 +539,28 @@ then
 fi
 
 
+# MEMORY 
+AC_ARG_ENABLE([memory],
+    [  --enable-memory         Enable memory callbacks (default: enabled)],
+    [ ENABLED_MEMORY=$enableval ],
+    [ ENABLED_MEMORY=yes ]
+    )
+
+if test "$ENABLED_MEMORY" = "no"
+then
+    AM_CFLAGS="$AM_CFLAGS -DNO_CYASSL_MEMORY"
+else
+    # turn off memory cb if leanpsk on
+    if test "$ENABLED_LEANPSK" = "yes"
+    then
+        # but don't turn on NO_CYASSL_MEMORY because using own
+        ENABLED_MEMORY=no
+    fi
+fi
+
+AM_CONDITIONAL([BUILD_MEMORY], [test "x$ENABLED_MEMORY" = "xyes"])
+
+
 # RSA 
 AC_ARG_ENABLE([rsa],
     [  --enable-rsa            Enable RSA (default: enabled)],
@@ -1169,6 +1191,7 @@ echo "   * DH:                        $ENABLED_DH"
 echo "   * ECC:                       $ENABLED_ECC"
 echo "   * ASN:                       $ENABLED_ASN"
 echo "   * CODING:                    $ENABLED_CODING"
+echo "   * MEMORY:                    $ENABLED_MEMORY"
 echo "   * OCSP:                      $ENABLED_OCSP"
 echo "   * CRL:                       $ENABLED_CRL"
 echo "   * CRL-MONITOR:               $ENABLED_CRL_MONITOR"

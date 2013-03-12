@@ -19,7 +19,7 @@ src_libcyassl_la_LIBADD = $(LIBM)
 src_libcyassl_la_CFLAGS = -DBUILDING_CYASSL $(AM_CFLAGS)
 src_libcyassl_la_CPPFLAGS = -DBUILDING_CYASSL $(AM_CPPFLAGS)
 
-if !BUILD_LEANPSK
+if BUILD_MEMORY
 src_libcyassl_la_SOURCES += ctaocrypt/src/memory.c
 endif
 

@@ -457,7 +457,7 @@
 
 
 #if !defined(XMALLOC_USER) && !defined(MICRIUM_MALLOC) && \
-                              !defined(CYASSL_LEANPSK)
+    !defined(CYASSL_LEANPSK) && !defined(NO_CYASSL_MEMORY)
     #define USE_CYASSL_MEMORY
 #endif
 
