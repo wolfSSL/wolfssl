@@ -20,8 +20,7 @@ src_libcyassl_la_CFLAGS = -DBUILDING_CYASSL $(AM_CFLAGS)
 src_libcyassl_la_CPPFLAGS = -DBUILDING_CYASSL $(AM_CPPFLAGS)
 
 if !BUILD_LEANPSK
-src_libcyassl_la_SOURCES += ctaocrypt/src/coding.c \
-                            ctaocrypt/src/memory.c
+src_libcyassl_la_SOURCES += ctaocrypt/src/memory.c
 endif
 
 if BUILD_RSA
@@ -34,6 +33,10 @@ endif
 
 if BUILD_ASN
 src_libcyassl_la_SOURCES += ctaocrypt/src/asn.c
+endif
+
+if BUILD_CODING
+src_libcyassl_la_SOURCES += ctaocrypt/src/coding.c
 endif
 
 if BUILD_AES

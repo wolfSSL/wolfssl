@@ -23,6 +23,8 @@
     #include <config.h>
 #endif
 
+#ifndef NO_CODING
+
 #include <cyassl/ctaocrypt/coding.h>
 #include <cyassl/ctaocrypt/error.h>
 #include <cyassl/ctaocrypt/logging.h>
@@ -265,3 +267,4 @@ int Base16_Decode(const byte* in, word32 inLen, byte* out, word32* outLen)
 
 
 #endif  /* defined(OPENSSL_EXTRA) || defined (SESSION_CERTS) || defined(CYASSL_KEY_GEN) || defined(CYASSL_CERT_GEN) || defined(HAVE_WEBSERVER) */
+#endif /* NO_CODING */

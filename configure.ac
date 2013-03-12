@@ -653,6 +653,28 @@ fi
 AM_CONDITIONAL([BUILD_AES], [test "x$ENABLED_AES" = "xyes"])
 
 
+# CODING
+AC_ARG_ENABLE([coding],
+    [  --enable-coding         Enable Coding base 16/64 (default: enabled)],
+    [ ENABLED_CODING=$enableval ],
+    [ ENABLED_CODING=yes ]
+    )
+
+if test "$ENABLED_CODING" = "no"
+then
+    AM_CFLAGS="$AM_CFLAGS -DNO_CODING"
+else
+    # turn off CODING if leanpsk on
+    if test "$ENABLED_LEANPSK" = "yes"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DNO_CODING"
+        ENABLED_CODING=no
+    fi
+fi
+
+AM_CONDITIONAL([BUILD_CODING], [test "x$ENABLED_CODING" = "xyes"])
+
+
 # DES3
 AC_ARG_ENABLE([des3],
     [  --enable-des3           Enable DES3 (default: enabled)],
@@ -1146,6 +1168,7 @@ echo "   * DSA:                       $ENABLED_DSA"
 echo "   * DH:                        $ENABLED_DH"
 echo "   * ECC:                       $ENABLED_ECC"
 echo "   * ASN:                       $ENABLED_ASN"
+echo "   * CODING:                    $ENABLED_CODING"
 echo "   * OCSP:                      $ENABLED_OCSP"
 echo "   * CRL:                       $ENABLED_CRL"
 echo "   * CRL-MONITOR:               $ENABLED_CRL_MONITOR"
