@@ -209,42 +209,6 @@ fi
 AM_CONDITIONAL([BUILD_LEANPSK], [test "x$ENABLED_LEANPSK" = "xyes"])
 
 
-# fastmath
-AC_ARG_ENABLE([fastmath],
-    [  --enable-fastmath       Enable fast math for BigInts (default: disabled)],
-    [ ENABLED_FASTMATH=$enableval ],
-    [ ENABLED_FASTMATH=no ]
-    )
-
-if test "x$ENABLED_FASTMATH" = "xyes"
-then
-    AM_CFLAGS="$AM_CFLAGS -DUSE_FAST_MATH"
-    ENABLED_SLOWMATH="no"
-fi
-
-
-# fast HUGE math
-AC_ARG_ENABLE([fasthugemath],
-    [  --enable-fasthugemath   Enable fast math + huge code (default: disabled)],
-    [ ENABLED_FASTHUGEMATH=$enableval ],
-    [ ENABLED_FASTHUGEMATH=no ]
-    )
-
-if test "$ENABLED_BUMP" = "yes"
-then
-    ENABLED_FASTHUGEMATH="yes"
-fi
-
-if test "$ENABLED_FASTHUGEMATH" = "yes"
-then
-    ENABLED_FASTMATH="yes"
-    AM_CFLAGS="$AM_CFLAGS -DUSE_FAST_MATH"
-    ENABLED_SLOWMATH="no"
-fi
-
-AM_CONDITIONAL([BUILD_FASTMATH], [test "x$ENABLED_FASTMATH" = "xyes"])
-AM_CONDITIONAL([BUILD_SLOWMATH], [test "x$ENABLED_SLOWMATH" = "xyes"])
-
 # big cache
 AC_ARG_ENABLE([bigcache],
     [  --enable-bigcache       Enable big session cache (default: disabled)],
@@ -606,7 +570,8 @@ AM_CONDITIONAL([BUILD_DH], [test "x$ENABLED_DH" = "xyes"])
 
 
 # ASN
-# can't use certs, rsa, dsa, dh, or ecc if leaving out asn
+# turn off asn, which means no certs, no rsa, no dh, no dsa, no ecc,
+# and no big int, use this to disable all public key stuff
 AC_ARG_ENABLE([asn],
     [  --enable-asn            Enable ASN (default: enabled)],
     [ ENABLED_ASN=$enableval ],
@@ -615,12 +580,12 @@ AC_ARG_ENABLE([asn],
 
 if test "$ENABLED_ASN" = "no"
 then
-    AM_CFLAGS="$AM_CFLAGS -DNO_ASN -DNO_CERTS"
+    AM_CFLAGS="$AM_CFLAGS -DNO_ASN -DNO_CERTS -DNO_BIG_INT"
 else
     # turn off ASN if leanpsk on
     if test "$ENABLED_LEANPSK" = "yes"
     then
-        AM_CFLAGS="$AM_CFLAGS -DNO_ASN -DNO_CERTS"
+        AM_CFLAGS="$AM_CFLAGS -DNO_ASN -DNO_CERTS -DNO_BIG_INT"
         ENABLED_ASN=no
     fi
 fi
@@ -648,6 +613,12 @@ fi
 if test "$ENABLED_PSK" = "no" && test "$ENABLED_ASN" = "no"
 then
     AC_MSG_ERROR([please enable psk if disabling asn.])
+fi
+
+if test "$ENABLED_ASN" = "no"
+then
+    ENABLED_FASTMATH=no
+    ENABLED_SLOWMATH=no
 fi
 
 AM_CONDITIONAL([BUILD_ASN], [test "x$ENABLED_ASN" = "xyes"])
@@ -1003,6 +974,43 @@ if test "$ENABLED_TESTCERT" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DCYASSL_TEST_CERT"
 fi
+
+
+# fastmath
+AC_ARG_ENABLE([fastmath],
+    [  --enable-fastmath       Enable fast math for BigInts (default: disabled)],
+    [ ENABLED_FASTMATH=$enableval ],
+    [ ENABLED_FASTMATH=no ]
+    )
+
+if test "x$ENABLED_FASTMATH" = "xyes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DUSE_FAST_MATH"
+    ENABLED_SLOWMATH="no"
+fi
+
+
+# fast HUGE math
+AC_ARG_ENABLE([fasthugemath],
+    [  --enable-fasthugemath   Enable fast math + huge code (default: disabled)],
+    [ ENABLED_FASTHUGEMATH=$enableval ],
+    [ ENABLED_FASTHUGEMATH=no ]
+    )
+
+if test "$ENABLED_BUMP" = "yes"
+then
+    ENABLED_FASTHUGEMATH="yes"
+fi
+
+if test "$ENABLED_FASTHUGEMATH" = "yes"
+then
+    ENABLED_FASTMATH="yes"
+    AM_CFLAGS="$AM_CFLAGS -DUSE_FAST_MATH"
+    ENABLED_SLOWMATH="no"
+fi
+
+AM_CONDITIONAL([BUILD_FASTMATH], [test "x$ENABLED_FASTMATH" = "xyes"])
+AM_CONDITIONAL([BUILD_SLOWMATH], [test "x$ENABLED_SLOWMATH" = "xyes"])
 
 
 # Enable Examples, used to disable examples

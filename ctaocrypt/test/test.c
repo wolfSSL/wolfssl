@@ -166,7 +166,7 @@ void ctaocrypt_test(void* args)
 
     ((func_args*)args)->return_code = -1; /* error state */
 
-#if !defined(CYASSL_LEANPSK)
+#if !defined(NO_BIG_INT)
     if (CheckCtcSettings() != 1)
         err_sys("Build vs runtime math mismatch\n", -1234);
 
@@ -174,7 +174,7 @@ void ctaocrypt_test(void* args)
     if (CheckFastMathSettings() != 1)
         err_sys("Build vs runtime fastmath FP_MAX_BITS mismatch\n", -1235);
 #endif /* USE_FAST_MATH */
-#endif /* !CYASSL_LEANPSK */
+#endif /* !NO_BIG_INT */
 
 
 #ifndef NO_MD5
