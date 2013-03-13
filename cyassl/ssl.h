@@ -809,6 +809,11 @@ CYASSL_API void CyaSSL_SetIOWriteCtx(CYASSL* ssl, void *ctx);
 CYASSL_API void CyaSSL_SetIOReadFlags( CYASSL* ssl, int flags);
 CYASSL_API void CyaSSL_SetIOWriteFlags(CYASSL* ssl, int flags);
 
+typedef int (*CallbackGenCookie)(CYASSL* ssl, unsigned char* buf, int sz,
+                                 void* ctx);
+CYASSL_API void CyaSSL_CTX_SetGenCookie(CYASSL_CTX*, CallbackGenCookie);
+CYASSL_API void CyaSSL_SetCookieCtx(CYASSL* ssl, void *ctx);
+
 typedef int (*CallbackIOOcsp)(void*, const char*, int,
                                          unsigned char*, int, unsigned char**);
 typedef void (*CallbackIOOcspRespFree)(void*,unsigned char*); 

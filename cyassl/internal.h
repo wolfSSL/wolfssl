@@ -884,18 +884,18 @@ int  SetCipherList(Suites*, const char* list);
         CYASSL_LOCAL
         void EmbedOcspRespFree(void*, byte*);
     #endif
-#endif
 
-#ifdef CYASSL_DTLS
-    CYASSL_LOCAL
-    int EmbedReceiveFrom(CYASSL *ssl, char *buf, int sz, void *ctx);
-    CYASSL_LOCAL 
-    int EmbedSendTo(CYASSL *ssl, char *buf, int sz, void *ctx);
-    CYASSL_LOCAL
-    int EmbedGenerateCookie(byte *buf, int sz, void *ctx);
-    CYASSL_LOCAL
-    int IsUDP(void*);
-#endif
+    #ifdef CYASSL_DTLS
+        CYASSL_LOCAL
+        int EmbedReceiveFrom(CYASSL *ssl, char *buf, int sz, void *ctx);
+        CYASSL_LOCAL 
+        int EmbedSendTo(CYASSL *ssl, char *buf, int sz, void *ctx);
+        CYASSL_LOCAL
+        int EmbedGenerateCookie(CYASSL* ssl, byte *buf, int sz, void *ctx);
+        CYASSL_LOCAL
+        int IsUDP(void*);
+    #endif /* CYASSL_DTLS */
+#endif /* CYASSL_USER_IO */
 
 
 /* CyaSSL Cipher type just points back to SSL */
@@ -1089,6 +1089,9 @@ struct CYASSL_CTX {
     byte        groupMessages;    /* group handshake messages before sending */
     CallbackIORecv CBIORecv;
     CallbackIOSend CBIOSend;
+#ifdef CYASSL_DTLS
+    CallbackGenCookie CBIOCookie;       /* gen cookie callback */
+#endif
     VerifyCallback  verifyCallback;     /* cert verification callback */
     word32          timeout;            /* session timeout */
 #ifdef HAVE_ECC
@@ -1623,6 +1626,7 @@ struct CYASSL {
     int             dtls_timeout;
     DtlsPool*       dtls_pool;
     DtlsMsg*        dtls_msg_list;
+    void*           IOCB_CookieCtx;     /* gen cookie ctx */
 #endif
 #ifdef CYASSL_CALLBACKS
     HandShakeInfo   handShakeInfo;      /* info saved during handshake */

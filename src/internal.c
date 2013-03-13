@@ -367,14 +367,16 @@ int InitSSL_Ctx(CYASSL_CTX* ctx, CYASSL_METHOD* method)
     #ifdef CYASSL_DTLS
         if (method->version.major == DTLS_MAJOR
                                   && method->version.minor >= DTLSv1_2_MINOR) {
-            ctx->CBIORecv = EmbedReceiveFrom;
-            ctx->CBIOSend = EmbedSendTo;
+            ctx->CBIORecv   = EmbedReceiveFrom;
+            ctx->CBIOSend   = EmbedSendTo;
+            ctx->CBIOCookie = EmbedGenerateCookie;
         }
     #endif
 #else
     /* user will set */
-    ctx->CBIORecv = NULL;
-    ctx->CBIOSend = NULL;
+    ctx->CBIORecv   = NULL;
+    ctx->CBIOSend   = NULL;
+    ctx->CBIOCookie = NULL;
 #endif
     ctx->partialWrite   = 0;
     ctx->verifyCallback = 0;
@@ -1227,6 +1229,9 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
 
     ssl->IOCB_ReadCtx  = &ssl->rfd;  /* prevent invalid pointer access if not */
     ssl->IOCB_WriteCtx = &ssl->wfd;  /* correctly set */
+#ifdef CYASSL_DTLS
+    ssl->IOCB_CookieCtx = NULL;      /* we don't use for default cb */
+#endif
 
 #ifndef NO_OLD_TLS
 #ifndef NO_MD5
@@ -2196,6 +2201,11 @@ static int Receive(CYASSL* ssl, byte* buf, word32 sz)
 {
     int recvd;
 
+    if (ssl->ctx->CBIORecv == NULL) {
+        CYASSL_MSG("Your IO Recv callback is null, please set");
+        return -1;
+    }
+
 retry:
     recvd = ssl->ctx->CBIORecv(ssl, (char *)buf, (int)sz, ssl->IOCB_ReadCtx);
     if (recvd < 0)
@@ -2290,6 +2300,11 @@ void ShrinkInputBuffer(CYASSL* ssl, int forcedFree)
 
 int SendBuffered(CYASSL* ssl)
 {
+    if (ssl->ctx->CBIOSend == NULL) {
+        CYASSL_MSG("Your IO Send callback is null, please set");
+        return SOCKET_ERROR_E;
+    }
+
     while (ssl->buffers.outputBuffer.length > 0) {
         int sent = ssl->ctx->CBIOSend(ssl,
                                       (char*)ssl->buffers.outputBuffer.buffer +
@@ -9016,8 +9031,12 @@ int SetCipherList(Suites* s, const char* list)
                         return BUFFER_ERROR;
                     if (i + b > totalSz)
                         return INCOMPLETE_DATA;
-                    if ((EmbedGenerateCookie(cookie, COOKIE_SZ, ssl)
-                                                                 != COOKIE_SZ)
+                    if (ssl->ctx->CBIORecv == NULL) {
+                        CYASSL_MSG("Your Cookie callback is null, please set");
+                        return COOKIE_ERROR;
+                    }
+                    if ((ssl->ctx->CBIOCookie(ssl, cookie, COOKIE_SZ,
+                                              ssl->IOCB_CookieCtx) != COOKIE_SZ)
                             || (b != COOKIE_SZ)
                             || (XMEMCMP(cookie, input + i, b) != 0)) {
                         return COOKIE_ERROR;
@@ -9327,7 +9346,12 @@ int SetCipherList(Suites* s, const char* list)
         output[idx++] =  ssl->chVersion.minor;
 
         output[idx++] = cookieSz;
-        if ((ret = EmbedGenerateCookie(output + idx, cookieSz, ssl)) < 0)
+        if (ssl->ctx->CBIORecv == NULL) {
+            CYASSL_MSG("Your Cookie callback is null, please set");
+            return COOKIE_ERROR;
+        }
+        if ((ret = ssl->ctx->CBIOCookie(ssl, output + idx, cookieSz,
+                                        ssl->IOCB_CookieCtx)) < 0)
             return ret;
 
         HashOutput(ssl, output, sendSz, 0);

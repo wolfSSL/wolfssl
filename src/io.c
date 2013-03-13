@@ -429,15 +429,16 @@ int EmbedSendTo(CYASSL* ssl, char *buf, int sz, void *ctx)
 /* The DTLS Generate Cookie callback
  *  return : number of bytes copied into buf, or error
  */
-int EmbedGenerateCookie(byte *buf, int sz, void *ctx)
+int EmbedGenerateCookie(CYASSL* ssl, byte *buf, int sz, void *ctx)
 {
-    CYASSL* ssl = (CYASSL*)ctx;
     int sd = ssl->wfd;
     struct sockaddr_in peer;
     XSOCKLENT peerSz = sizeof(peer);
     byte cookieSrc[sizeof(struct in_addr) + sizeof(int)];
     int cookieSrcSz = 0;
     Sha sha;
+
+    (void)ctx;
 
     if (getpeername(sd, (struct sockaddr*)&peer, &peerSz) != 0) {
         CYASSL_MSG("getpeername failed in EmbedGenerateCookie");
@@ -782,6 +783,23 @@ CYASSL_API void CyaSSL_SetIOWriteFlags(CYASSL* ssl, int flags)
 {
     ssl->wflags = flags;
 }
+
+
+#ifdef CYASSL_DTLS
+
+CYASSL_API void CyaSSL_CTX_SetGenCookie(CYASSL_CTX* ctx, CallbackGenCookie cb)
+{
+    ctx->CBIOCookie = cb;
+}
+
+
+CYASSL_API void CyaSSL_SetCookieCtx(CYASSL* ssl, void *ctx)
+{
+	ssl->IOCB_CookieCtx = ctx;
+}
+
+#endif /* CYASSL_DTLS */
+
 
 #ifdef HAVE_OCSP
 
