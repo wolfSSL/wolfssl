@@ -535,6 +535,26 @@ else
 fi
 
 
+# OLD TLS 
+AC_ARG_ENABLE([oldtls],
+    [  --enable-oldtls         Enable old TLS versions < 1.2 (default: enabled)],
+    [ ENABLED_OLD_TLS=$enableval ],
+    [ ENABLED_OLD_TLS=yes ]
+    )
+
+if test "$ENABLED_OLD_TLS" = "no"
+then
+    AM_CFLAGS="$AM_CFLAGS -DNO_OLD_TLS"
+else
+    # turn off old if leanpsk on
+    if test "$ENABLED_LEANPSK" = "yes"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DNO_OLD_TLS"
+        ENABLED_OLD_TLS=no
+    fi
+fi
+
+
 # MEMORY 
 AC_ARG_ENABLE([memory],
     [  --enable-memory         Enable memory callbacks (default: enabled)],
@@ -1202,7 +1222,6 @@ echo "   * VCS checkout:              $ac_cv_vcs_checkout"
 echo 
 echo "   Features "
 echo "   * Single threaded:           $ENABLED_SINGLETHREADED"
-echo "   * DTLS:                      $ENABLED_DTLS"
 echo "   * Enable extra OpenSSL API:  $ENABLED_OPENSSLEXTRA"
 echo "   * fastmath:                  $ENABLED_FASTMATH"
 echo "   * sniffer:                   $ENABLED_SNIFFER"
@@ -1234,6 +1253,8 @@ echo "   * ASN:                       $ENABLED_ASN"
 echo "   * CODING:                    $ENABLED_CODING"
 echo "   * MEMORY:                    $ENABLED_MEMORY"
 echo "   * ERROR_STRINGS:             $ENABLED_ERROR_STRINGS"
+echo "   * DTLS:                      $ENABLED_DTLS"
+echo "   * Old TLS Versions:          $ENABLED_OLD_TLS"
 echo "   * OCSP:                      $ENABLED_OCSP"
 echo "   * CRL:                       $ENABLED_CRL"
 echo "   * CRL-MONITOR:               $ENABLED_CRL_MONITOR"
