@@ -98,7 +98,7 @@ void echoclient_test(void* args)
             err_sys("can't load ca file, Please run from CyaSSL home dir");
     #endif
 #elif !defined(NO_CERTS)
-    if (!doLeanPSK)
+    if (!doPSK)
         load_buffer(ctx, caCert, CYASSL_CA);
 #endif
 

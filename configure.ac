@@ -891,16 +891,23 @@ then
 fi
 
 
-# No Filesystem Build 
-AC_ARG_ENABLE([noFilesystem],
-    [  --enable-noFilesystem   Enable No Filesystem (default: disabled)],
-    [ ENABLED_NOFILESYSTEM=$enableval ],
-    [ ENABLED_NOFILESYSTEM=no ]
+# Filesystem Build 
+AC_ARG_ENABLE([filesystem],
+    [  --enable-filesystem     Enable Filesystem support (default: disabled)],
+    [ ENABLED_FILESYSTEM=$enableval ],
+    [ ENABLED_FILESYSTEM=yes ]
     )
 
-if test "$ENABLED_NOFILESYSTEM" = "yes"
+if test "$ENABLED_FILESYSTEM" = "no"
 then
     AM_CFLAGS="$AM_CFLAGS -DNO_FILESYSTEM"
+else
+    # turn off filesystem if leanpsk on
+    if test "$ENABLED_LEANPSK" = "yes"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DNO_FILESYSTEM"
+        ENABLED_FILESYSTEM=no
+    fi
 fi
 
 
@@ -1073,7 +1080,7 @@ AC_ARG_ENABLE([examples],
     )
 
 AS_IF([test "x$ENABLED_SINGLETHREADED" = "xyes"], [ENABLED_EXAMPLES="no"])
-AS_IF([test "x$ENABLED_NOFILESYSTEM" = "xyes"], [ENABLED_EXAMPLES="no"])
+AS_IF([test "x$ENABLED_FILESYSTEM" = "xno"], [ENABLED_EXAMPLES="no"])
 # certs still have sha signatures for now 
 AS_IF([test "x$ENABLED_SHA" = "xno"], [ENABLED_EXAMPLES="no"])
 AM_CONDITIONAL([BUILD_EXAMPLES], [test "x$ENABLED_EXAMPLES" = "xyes"])
@@ -1222,7 +1229,8 @@ echo "   * VCS checkout:              $ac_cv_vcs_checkout"
 echo 
 echo "   Features "
 echo "   * Single threaded:           $ENABLED_SINGLETHREADED"
-echo "   * Enable extra OpenSSL API:  $ENABLED_OPENSSLEXTRA"
+echo "   * Filesystem:                $ENABLED_FILESYSTEM"
+echo "   * OpenSSL Extra API:         $ENABLED_OPENSSLEXTRA"
 echo "   * fastmath:                  $ENABLED_FASTMATH"
 echo "   * sniffer:                   $ENABLED_SNIFFER"
 echo "   * ARC4:                      $ENABLED_ARC4"
