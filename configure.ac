@@ -106,8 +106,8 @@ AS_IF([test "$ax_enable_debug" = "yes"],
 
 
 # SINGLE THREADED
-AC_ARG_ENABLE([singleThreaded],
-    [  --enable-singleThreaded Enable CyaSSL single threaded (default: disabled)],
+AC_ARG_ENABLE([singlethreaded],
+    [  --enable-singlethreaded Enable CyaSSL single threaded (default: disabled)],
     [ ENABLED_SINGLETHREADED=$enableval ],
     [ ENABLED_SINGLETHREADED=no ])
 
@@ -136,8 +136,8 @@ fi
 
 
 # OPENSSL Extra Compatibility
-AC_ARG_ENABLE([opensslExtra],
-    [  --enable-opensslExtra   Enable extra OpenSSL API, size+ (default: disabled)],
+AC_ARG_ENABLE([opensslextra],
+    [  --enable-opensslextra   Enable extra OpenSSL API, size+ (default: disabled)],
     [ ENABLED_OPENSSLEXTRA=$enableval ],
     [ ENABLED_OPENSSLEXTRA=no ]
     )
@@ -148,7 +148,7 @@ fi
 
 if test "$ENABLED_OPENSSLEXTRA" = "yes" && test "$ENABLED_SMALL" = "yes"
 then
-    AC_MSG_ERROR([cannot enable small and opensslExtra, only one or the other.])
+    AC_MSG_ERROR([cannot enable small and opensslextra, only one or the other.])
 fi
 
 
@@ -879,8 +879,8 @@ AM_CONDITIONAL([BUILD_RABBIT], [test "x$ENABLED_RABBIT" = "xyes"])
 
 
 # Web Server Build 
-AC_ARG_ENABLE([webServer],
-    [  --enable-webServer      Enable Web Server (default: disabled)],
+AC_ARG_ENABLE([webserver],
+    [  --enable-webserver      Enable Web Server (default: disabled)],
     [ ENABLED_WEBSERVER=$enableval ],
     [ ENABLED_WEBSERVER=no ]
     )
