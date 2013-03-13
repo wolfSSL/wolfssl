@@ -364,6 +364,18 @@ fi
 AM_CONDITIONAL([BUILD_MD2], [test "x$ENABLED_MD2" = "xyes"])
 
 
+# NULL CIPHER 
+AC_ARG_ENABLE([nullcipher],
+    [  --enable-nullcipher     Enable CyaSSL NULL cipher support (default: disabled)],
+    [ ENABLED_NULL_CIPHER=$enableval ],
+    [ ENABLED_NULL_CIPHER=no ]
+    )
+
+if test "$ENABLED_NULL_CIPHER" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_NULL_CIPHER"
+fi
+
 # RIPEMD
 AC_ARG_ENABLE([ripemd],
     [  --enable-ripemd         Enable CyaSSL RIPEMD-160 support (default: disabled)],
@@ -1181,6 +1193,7 @@ echo "   * AES-GCM:                   $ENABLED_AESGCM"
 echo "   * AES-CCM:                   $ENABLED_AESCCM"
 echo "   * DES3:                      $ENABLED_DES3"
 echo "   * Camellia:                  $ENABLED_CAMELLIA"
+echo "   * NULL Cipher:               $ENABLED_NULL_CIPHER"
 echo "   * MD5:                       $ENABLED_MD5"
 echo "   * RIPEMD:                    $ENABLED_RIPEMD"
 echo "   * SHA:                       $ENABLED_SHA"
