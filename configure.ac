@@ -911,19 +911,19 @@ else
 fi
 
 
-# No inline Build 
-AC_ARG_ENABLE([noInline],
-    [  --enable-noInline       Enable No inline (default: disabled)],
-    [ ENABLED_NOINLINE=$enableval ],
-    [ ENABLED_NOINLINE=no ]
+# inline Build 
+AC_ARG_ENABLE([inline],
+    [  --enable-inline         Enable inline functions (default: disabled)],
+    [ ENABLED_INLINE=$enableval ],
+    [ ENABLED_INLINE=yes ]
     )
 
-if test "$ENABLED_NOINLINE" = "yes"
+if test "$ENABLED_INLINE" = "no"
 then
     AM_CFLAGS="$AM_CFLAGS -DNO_INLINE"
 fi
 
-AM_CONDITIONAL([BUILD_NOINLINE], [test "x$ENABLED_NOINLINE" = "xyes"])
+AM_CONDITIONAL([BUILD_INLINE], [test "x$ENABLED_INLINE" = "xyes"])
 
 
 # OCSP
@@ -1081,6 +1081,7 @@ AC_ARG_ENABLE([examples],
 
 AS_IF([test "x$ENABLED_SINGLETHREADED" = "xyes"], [ENABLED_EXAMPLES="no"])
 AS_IF([test "x$ENABLED_FILESYSTEM" = "xno"], [ENABLED_EXAMPLES="no"])
+AS_IF([test "x$ENABLED_INLINE" = "xno"], [ENABLED_EXAMPLES="no"])
 # certs still have sha signatures for now 
 AS_IF([test "x$ENABLED_SHA" = "xno"], [ENABLED_EXAMPLES="no"])
 AM_CONDITIONAL([BUILD_EXAMPLES], [test "x$ENABLED_EXAMPLES" = "xyes"])

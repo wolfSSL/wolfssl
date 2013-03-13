@@ -222,11 +222,15 @@ static INLINE void ato16(const byte* c, word16* u16)
 }
 
 
+#ifdef CYASSL_DTLS
+
 /* convert opaque to 32 bit integer */
 static INLINE void ato32(const byte* c, word32* u32)
 {
     *u32 = (c[0] << 24) | (c[1] << 16) | (c[2] << 8) | c[3];
 }
+
+#endif /* CYASSL_DTLS */
 
 
 #ifdef HAVE_LIBZ
