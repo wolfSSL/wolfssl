@@ -1672,20 +1672,20 @@ int CyaSSL_CTX_load_verify_locations(CYASSL_CTX* ctx, const char* file,
             return BAD_PATH_ERROR;
         }
         while ( ret == SSL_SUCCESS && (entry = readdir(dir)) != NULL) {
+            char name[MAX_FILENAME_SZ];
             struct stat s;
-            if (stat(entry->d_name, &s) != 0) {
+
+            XMEMSET(name, 0, sizeof(name));
+            XSTRNCPY(name, path, MAX_FILENAME_SZ/2 - 2);
+            XSTRNCAT(name, "/", 1);
+            XSTRNCAT(name, entry->d_name, MAX_FILENAME_SZ/2);
+
+            if (stat(name, &s) != 0) {
                 CYASSL_MSG("stat on name failed");
                 closedir(dir);
                 return BAD_PATH_ERROR;
             }
             if (s.st_mode & S_IFREG) {
-                char name[MAX_FILENAME_SZ];
-
-                XMEMSET(name, 0, sizeof(name));
-                XSTRNCPY(name, path, MAX_FILENAME_SZ/2 - 2);
-                XSTRNCAT(name, "/", 1);
-                XSTRNCAT(name, entry->d_name, MAX_FILENAME_SZ/2);
-                
                 ret = ProcessFile(ctx, name, SSL_FILETYPE_PEM, CA_TYPE, NULL,0,
                                   NULL);
             }
