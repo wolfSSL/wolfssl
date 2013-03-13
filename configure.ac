@@ -515,6 +515,26 @@ then
 fi
 
 
+# ERROR STRINGS
+AC_ARG_ENABLE([errorstrings],
+    [  --enable-errorstrings   Enable error strings table (default: enabled)],
+    [ ENABLED_ERROR_STRINGS=$enableval ],
+    [ ENABLED_ERROR_STRINGS=yes ]
+    )
+
+if test "$ENABLED_ERROR_STRINGS" = "no"
+then
+    AM_CFLAGS="$AM_CFLAGS -DNO_ERROR_STRINGS"
+else
+    # turn off error strings if leanpsk on
+    if test "$ENABLED_LEANPSK" = "yes"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DNO_ERROR_STRINGS"
+        ENABLED_ERROR_STRINGS=no
+    fi
+fi
+
+
 # MEMORY 
 AC_ARG_ENABLE([memory],
     [  --enable-memory         Enable memory callbacks (default: enabled)],
@@ -1213,6 +1233,7 @@ echo "   * ECC:                       $ENABLED_ECC"
 echo "   * ASN:                       $ENABLED_ASN"
 echo "   * CODING:                    $ENABLED_CODING"
 echo "   * MEMORY:                    $ENABLED_MEMORY"
+echo "   * ERROR_STRINGS:             $ENABLED_ERROR_STRINGS"
 echo "   * OCSP:                      $ENABLED_OCSP"
 echo "   * CRL:                       $ENABLED_CRL"
 echo "   * CRL-MONITOR:               $ENABLED_CRL_MONITOR"
