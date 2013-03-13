@@ -97,9 +97,9 @@
 
 
 enum {
-    WORD_SIZE  = sizeof(word),
-    BIT_SIZE   = 8,
-    WORD_BITS  = WORD_SIZE * BIT_SIZE
+    CYASSL_WORD_SIZE  = sizeof(word),
+    CYASSL_BIT_SIZE   = 8,
+    CYASSL_WORD_BITS  = CYASSL_WORD_SIZE * CYASSL_BIT_SIZE
 };
 
 #define CYASSL_MAX_16BIT 0xffffU

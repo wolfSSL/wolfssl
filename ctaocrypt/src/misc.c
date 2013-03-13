@@ -163,8 +163,8 @@ STATIC INLINE void XorWords(word* r, const word* a, word32 n)
 
 STATIC INLINE void xorbuf(byte* buf, const byte* mask, word32 count)
 {
-    if (((word)buf | (word)mask | count) % WORD_SIZE == 0)
-        XorWords( (word*)buf, (const word*)mask, count / WORD_SIZE);
+    if (((word)buf | (word)mask | count) % CYASSL_WORD_SIZE == 0)
+        XorWords( (word*)buf, (const word*)mask, count / CYASSL_WORD_SIZE);
     else {
         word32 i;
         for (i = 0; i < count; i++) buf[i] ^= mask[i];
