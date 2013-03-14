@@ -27,8 +27,6 @@
     #include <errno.h>
 #endif
 
-#define TRUE  1
-#define FALSE 0
 
 #include <cyassl/ssl.h>
 #include <cyassl/internal.h>
@@ -72,6 +70,12 @@
     #endif
 #endif /* NO_FILESYSTEM */
 
+#ifndef TRUE
+    #define TRUE  1
+#endif
+#ifndef FALSE
+    #define FALSE 0
+#endif
 
 #ifndef min
 
