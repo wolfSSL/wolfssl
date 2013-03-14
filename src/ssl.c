@@ -3117,12 +3117,63 @@ int CyaSSL_Cleanup(void)
 #ifndef NO_SESSION_CACHE
 
 
+/* Make a work from the front of random hash */
+static INLINE word32 MakeWordFromHash(const byte* hashID)
+{
+    return (hashID[0] << 24) | (hashID[1] << 16) | (hashID[2] <<  8) |
+            hashID[3];
+}
+
+
+#ifndef NO_MD5
+
+/* some session IDs aren't random afterall, let's make them random */
+
 static INLINE word32 HashSession(const byte* sessionID)
 {
-    /* id is random, just make 32 bit number from first 4 bytes for now */
-    return (sessionID[0] << 24) | (sessionID[1] << 16) | (sessionID[2] <<  8) |
-            sessionID[3];
+    byte digest[MD5_DIGEST_SIZE];
+    Md5  md5;
+
+    InitMd5(&md5);
+    Md5Update(&md5, sessionID, ID_LEN);
+    Md5Final(&md5, digest);
+
+    return MakeWordFromHash(digest);
 }
+
+#elif !defined(NO_SHA)
+
+static INLINE word32 HashSession(const byte* sessionID)
+{
+    byte digest[SHA_DIGEST_SIZE];
+    Sha  sha;
+
+    InitSha(&sha);
+    ShaUpdate(&sha, sessionID, ID_LEN);
+    ShaFinal(&sha, digest);
+
+    return MakeWordFromHash(digest);
+}
+
+#elif !defined(NO_SHA256)
+
+static INLINE word32 HashSession(const byte* sessionID)
+{
+    byte    digest[SHA256_DIGEST_SIZE];
+    Sha256  sha256;
+
+    InitSha256(&sha256);
+    Sha256Update(&sha256, sessionID, ID_LEN);
+    Sha256Final(&sha256, digest);
+
+    return MakeWordFromHash(digest);
+}
+
+#else
+
+#error "We need a digest to hash the session IDs"
+
+#endif /* NO_MD5 */
 
 
 void CyaSSL_flush_sessions(CYASSL_CTX* ctx, long tm)
