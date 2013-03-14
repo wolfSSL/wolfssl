@@ -376,7 +376,9 @@ int InitSSL_Ctx(CYASSL_CTX* ctx, CYASSL_METHOD* method)
     /* user will set */
     ctx->CBIORecv   = NULL;
     ctx->CBIOSend   = NULL;
-    ctx->CBIOCookie = NULL;
+    #ifdef CYASSL_DTLS
+        ctx->CBIOCookie = NULL;
+    #endif
 #endif
     ctx->partialWrite   = 0;
     ctx->verifyCallback = 0;
