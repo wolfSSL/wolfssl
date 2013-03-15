@@ -146,6 +146,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     ourCert    = (char*)eccCert;
     ourKey     = (char*)eccKey;
 #endif
+    (void)trackMemory;
 
     while ((ch = mygetopt(argc, argv, "?dbstnNup:v:l:A:c:k:")) != -1) {
         switch (ch) {

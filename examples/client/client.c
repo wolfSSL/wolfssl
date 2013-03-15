@@ -165,6 +165,7 @@ void client_test(void* args)
     (void)resumeSz;
     (void)session;
     (void)sslResume;
+    (void)trackMemory;
 
     while ((ch = mygetopt(argc, argv, "?gdusmNrth:p:v:l:A:c:k:b:")) != -1) {
         switch (ch) {
