@@ -1003,7 +1003,7 @@ static INLINE int CurrentDir(const char* str)
         ourMemStats.currentBytes -= mt->u.hint.thisSize; 
 #endif
 
-        return free(mt);
+        free(mt);
     }
 
 
