@@ -4167,6 +4167,7 @@ static int GetInputData(CYASSL *ssl, word32 size)
     int inSz;
     int maxLength;
     int usedLength;
+    int dtlsExtra = 0;
 
     
     /* check max input length */
@@ -4175,12 +4176,15 @@ static int GetInputData(CYASSL *ssl, word32 size)
     inSz       = (int)(size - usedLength);      /* from last partial read */
 
 #ifdef CYASSL_DTLS
-    if (ssl->options.dtls)
+    if (ssl->options.dtls) {
+        if (size < MAX_MTU)
+            dtlsExtra = (int)(MAX_MTU - size);
         inSz = MAX_MTU;       /* read ahead up to MTU */
+    }
 #endif
     
     if (inSz > maxLength) {
-        if (GrowInputBuffer(ssl, size, usedLength) < 0)
+        if (GrowInputBuffer(ssl, size + dtlsExtra, usedLength) < 0)
             return MEMORY_E;
     }
            
@@ -5188,6 +5192,7 @@ int SendAlert(CYASSL* ssl, int severity, int type)
     byte *output;
     int  sendSz;
     int  ret;
+    int  dtlsExtra = 0;
 
     /* if sendalert is called again for nonbloking */
     if (ssl->options.sendAlertState != 0) {
@@ -5197,8 +5202,14 @@ int SendAlert(CYASSL* ssl, int severity, int type)
         return ret;
     }
 
+   #ifdef CYASSL_DTLS
+        if (ssl->options.dtls)
+           dtlsExtra = DTLS_RECORD_EXTRA; 
+   #endif
+
     /* check for avalaible size */
-    if ((ret = CheckAvalaibleSize(ssl, ALERT_SIZE + MAX_MSG_EXTRA)) != 0)
+    if ((ret = CheckAvalaibleSize(ssl,
+                                  ALERT_SIZE + MAX_MSG_EXTRA + dtlsExtra)) != 0)
         return ret;
 
     /* get ouput buffer */
