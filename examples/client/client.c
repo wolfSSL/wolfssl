@@ -361,8 +361,10 @@ void client_test(void* args)
                 err_sys("can't load ca file, Please run from CyaSSL home dir");
     }
 #endif
+#if !defined(NO_CERTS)
     if (!usePsk && doPeerCheck == 0)
         CyaSSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, 0);
+#endif
 
 #ifdef HAVE_CAVIUM
     CyaSSL_CTX_UseCavium(ctx, CAVIUM_DEV_ID);
