@@ -1037,15 +1037,21 @@ fi
 
 # fastmath
 AC_ARG_ENABLE([fastmath],
-    [  --enable-fastmath       Enable fast math for BigInts (default: disabled)],
+    [  --enable-fastmath       Enable fast math for BigInts (default: enabled)],
     [ ENABLED_FASTMATH=$enableval ],
-    [ ENABLED_FASTMATH=no ]
+    [ ENABLED_FASTMATH=yes ]
     )
 
 if test "x$ENABLED_FASTMATH" = "xyes"
 then
-    AM_CFLAGS="$AM_CFLAGS -DUSE_FAST_MATH"
-    ENABLED_SLOWMATH="no"
+    # turn off fastmth if leanpsk on or asn off
+    if test "$ENABLED_LEANPSK" = "yes" || test "$ENABLED_ASN" = "no"
+    then
+        ENABLED_FASTMATH=no
+    else
+        AM_CFLAGS="$AM_CFLAGS -DUSE_FAST_MATH"
+        ENABLED_SLOWMATH="no"
+    fi
 fi
 
 
