@@ -138,8 +138,10 @@ void c32to24(word32 in, word24 out);
   #if !defined(NO_SHA)
     #define BUILD_SSL_RSA_WITH_RC4_128_SHA
   #endif
-    #define BUILD_SSL_RSA_WITH_RC4_128_MD5
-    #if !defined(NO_TLS) && defined(HAVE_NTRU)
+    #if !defined(NO_MD5)
+        #define BUILD_SSL_RSA_WITH_RC4_128_MD5
+    #endif
+    #if !defined(NO_TLS) && defined(HAVE_NTRU) && !defined(NO_SHA)
         #define BUILD_TLS_NTRU_RSA_WITH_RC4_128_SHA
     #endif
 #endif
@@ -826,7 +828,7 @@ enum {
        The length (in bytes) of the following TLSPlaintext.fragment.
        The length should not exceed 2^14.
 */
-#if defined(LARGE_STATIC_BUFFERS) || defined(CYASSL_DTLS)
+#if defined(LARGE_STATIC_BUFFERS)
     #define STATIC_BUFFER_LEN RECORD_HEADER_SZ + RECORD_SIZE + COMP_EXTRA + \
              MTU_EXTRA + MAX_MSG_EXTRA
 #else
@@ -882,18 +884,18 @@ int  SetCipherList(Suites*, const char* list);
         CYASSL_LOCAL
         void EmbedOcspRespFree(void*, byte*);
     #endif
-#endif
 
-#ifdef CYASSL_DTLS
-    CYASSL_LOCAL
-    int EmbedReceiveFrom(CYASSL *ssl, char *buf, int sz, void *ctx);
-    CYASSL_LOCAL 
-    int EmbedSendTo(CYASSL *ssl, char *buf, int sz, void *ctx);
-    CYASSL_LOCAL
-    int EmbedGenerateCookie(byte *buf, int sz, void *ctx);
-    CYASSL_LOCAL
-    int IsUDP(void*);
-#endif
+    #ifdef CYASSL_DTLS
+        CYASSL_LOCAL
+        int EmbedReceiveFrom(CYASSL *ssl, char *buf, int sz, void *ctx);
+        CYASSL_LOCAL 
+        int EmbedSendTo(CYASSL *ssl, char *buf, int sz, void *ctx);
+        CYASSL_LOCAL
+        int EmbedGenerateCookie(CYASSL* ssl, byte *buf, int sz, void *ctx);
+        CYASSL_LOCAL
+        int IsUDP(void*);
+    #endif /* CYASSL_DTLS */
+#endif /* CYASSL_USER_IO */
 
 
 /* CyaSSL Cipher type just points back to SSL */
@@ -1087,6 +1089,9 @@ struct CYASSL_CTX {
     byte        groupMessages;    /* group handshake messages before sending */
     CallbackIORecv CBIORecv;
     CallbackIOSend CBIOSend;
+#ifdef CYASSL_DTLS
+    CallbackGenCookie CBIOCookie;       /* gen cookie callback */
+#endif
     VerifyCallback  verifyCallback;     /* cert verification callback */
     word32          timeout;            /* session timeout */
 #ifdef HAVE_ECC
@@ -1621,6 +1626,7 @@ struct CYASSL {
     int             dtls_timeout;
     DtlsPool*       dtls_pool;
     DtlsMsg*        dtls_msg_list;
+    void*           IOCB_CookieCtx;     /* gen cookie ctx */
 #endif
 #ifdef CYASSL_CALLBACKS
     HandShakeInfo   handShakeInfo;      /* info saved during handshake */

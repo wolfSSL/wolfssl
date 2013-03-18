@@ -27,8 +27,6 @@
     #include <errno.h>
 #endif
 
-#define TRUE  1
-#define FALSE 0
 
 #include <cyassl/ssl.h>
 #include <cyassl/internal.h>
@@ -64,6 +62,7 @@
     #if !defined(USE_WINDOWS_API) && !defined(NO_CYASSL_DIR) \
             && !defined(EBSNET)
         #include <dirent.h>
+        #include <sys/stat.h>
     #endif
     #ifdef EBSNET
         #include "vfapi.h"
@@ -71,6 +70,12 @@
     #endif
 #endif /* NO_FILESYSTEM */
 
+#ifndef TRUE
+    #define TRUE  1
+#endif
+#ifndef FALSE
+    #define FALSE 0
+#endif
 
 #ifndef min
 
@@ -1143,7 +1148,7 @@ int CyaSSL_Init(void)
         if (pkcs8)
             return ToTraditional(der->buffer, der->length);
 
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) && !defined(NO_PWDBASED)
          if (pkcs8Enc) {
             int  passwordSz;
             char password[80];
@@ -1671,14 +1676,20 @@ int CyaSSL_CTX_load_verify_locations(CYASSL_CTX* ctx, const char* file,
             return BAD_PATH_ERROR;
         }
         while ( ret == SSL_SUCCESS && (entry = readdir(dir)) != NULL) {
-            if (entry->d_type & DT_REG) {
-                char name[MAX_FILENAME_SZ];
+            char name[MAX_FILENAME_SZ];
+            struct stat s;
 
-                XMEMSET(name, 0, sizeof(name));
-                XSTRNCPY(name, path, MAX_FILENAME_SZ/2 - 2);
-                XSTRNCAT(name, "/", 1);
-                XSTRNCAT(name, entry->d_name, MAX_FILENAME_SZ/2);
-                
+            XMEMSET(name, 0, sizeof(name));
+            XSTRNCPY(name, path, MAX_FILENAME_SZ/2 - 2);
+            XSTRNCAT(name, "/", 1);
+            XSTRNCAT(name, entry->d_name, MAX_FILENAME_SZ/2);
+
+            if (stat(name, &s) != 0) {
+                CYASSL_MSG("stat on name failed");
+                closedir(dir);
+                return BAD_PATH_ERROR;
+            }
+            if (s.st_mode & S_IFREG) {
                 ret = ProcessFile(ctx, name, SSL_FILETYPE_PEM, CA_TYPE, NULL,0,
                                   NULL);
             }
@@ -2865,6 +2876,7 @@ int CyaSSL_dtls_got_timeout(CYASSL* ssl)
         #ifndef NO_PSK
             havePSK = ssl->options.havePSK;
         #endif
+        (void)havePSK;
 
         if (ssl->options.side != SERVER_END) {
             CYASSL_ERROR(ssl->error = SIDE_ERROR);
@@ -3109,12 +3121,63 @@ int CyaSSL_Cleanup(void)
 #ifndef NO_SESSION_CACHE
 
 
+/* Make a work from the front of random hash */
+static INLINE word32 MakeWordFromHash(const byte* hashID)
+{
+    return (hashID[0] << 24) | (hashID[1] << 16) | (hashID[2] <<  8) |
+            hashID[3];
+}
+
+
+#ifndef NO_MD5
+
+/* some session IDs aren't random afterall, let's make them random */
+
 static INLINE word32 HashSession(const byte* sessionID)
 {
-    /* id is random, just make 32 bit number from first 4 bytes for now */
-    return (sessionID[0] << 24) | (sessionID[1] << 16) | (sessionID[2] <<  8) |
-            sessionID[3];
+    byte digest[MD5_DIGEST_SIZE];
+    Md5  md5;
+
+    InitMd5(&md5);
+    Md5Update(&md5, sessionID, ID_LEN);
+    Md5Final(&md5, digest);
+
+    return MakeWordFromHash(digest);
 }
+
+#elif !defined(NO_SHA)
+
+static INLINE word32 HashSession(const byte* sessionID)
+{
+    byte digest[SHA_DIGEST_SIZE];
+    Sha  sha;
+
+    InitSha(&sha);
+    ShaUpdate(&sha, sessionID, ID_LEN);
+    ShaFinal(&sha, digest);
+
+    return MakeWordFromHash(digest);
+}
+
+#elif !defined(NO_SHA256)
+
+static INLINE word32 HashSession(const byte* sessionID)
+{
+    byte    digest[SHA256_DIGEST_SIZE];
+    Sha256  sha256;
+
+    InitSha256(&sha256);
+    Sha256Update(&sha256, sessionID, ID_LEN);
+    Sha256Final(&sha256, digest);
+
+    return MakeWordFromHash(digest);
+}
+
+#else
+
+#error "We need a digest to hash the session IDs"
+
+#endif /* NO_MD5 */
 
 
 void CyaSSL_flush_sessions(CYASSL_CTX* ctx, long tm)
@@ -7340,6 +7403,7 @@ static int initGlobalRNG = 0;
     }
 
 
+#ifndef NO_DSA
     static void InitCyaSSL_DSA(CYASSL_DSA* dsa)
     {
         if (dsa) {
@@ -7432,7 +7496,7 @@ static int initGlobalRNG = 0;
 
         return 0;  /* key gen not needed by server */
     }
-
+#endif /* NO_DSA */
 
     static void InitCyaSSL_Rsa(CYASSL_RSA* rsa)
     {
@@ -7532,6 +7596,7 @@ static int initGlobalRNG = 0;
     }
 
 
+#ifndef NO_DSA
     static int SetDsaExternal(CYASSL_DSA* dsa)
     {
         DsaKey* key;
@@ -7573,6 +7638,7 @@ static int initGlobalRNG = 0;
 
         return 0;
     }
+#endif /* NO_DSA */
 
 
     static int SetRsaExternal(CYASSL_RSA* rsa)
@@ -7724,6 +7790,7 @@ static int initGlobalRNG = 0;
     }
 
 
+#ifndef NO_DSA
     /* return 0 on success, < 0 otherwise */
     int CyaSSL_DSA_do_sign(const unsigned char* d, unsigned char* sigRet,
                            CYASSL_DSA* dsa)
@@ -7759,6 +7826,7 @@ static int initGlobalRNG = 0;
 
         return 0;
     }
+#endif /* NO_DSA */
 
 
     /* return 1 on success, 0 otherwise */
@@ -8330,6 +8398,7 @@ int CyaSSL_RSA_LoadDer(CYASSL_RSA* rsa, const unsigned char* der,  int derSz)
 }
 
 
+#ifndef NO_DSA
 /* Load DSA from Der, 0 on success < 0 on error */
 int CyaSSL_DSA_LoadDer(CYASSL_DSA* dsa, const unsigned char* der,  int derSz)
 {
@@ -8358,7 +8427,7 @@ int CyaSSL_DSA_LoadDer(CYASSL_DSA* dsa, const unsigned char* der,  int derSz)
 
     return 0;
 }
-
+#endif /* NO_DSA */
 
 
 

@@ -11,7 +11,6 @@ src_libcyassl_la_SOURCES = \
                src/tls.c  \
                ctaocrypt/src/hmac.c \
                ctaocrypt/src/random.c \
-               ctaocrypt/src/sha.c \
                ctaocrypt/src/sha256.c \
                ctaocrypt/src/logging.c \
                ctaocrypt/src/error.c
@@ -20,22 +19,56 @@ src_libcyassl_la_LIBADD = $(LIBM)
 src_libcyassl_la_CFLAGS = -DBUILDING_CYASSL $(AM_CFLAGS)
 src_libcyassl_la_CPPFLAGS = -DBUILDING_CYASSL $(AM_CPPFLAGS)
 
-if !BUILD_LEANPSK
-src_libcyassl_la_SOURCES += ctaocrypt/src/des3.c \
-                            ctaocrypt/src/coding.c \
-                            ctaocrypt/src/arc4.c \
-                            ctaocrypt/src/md4.c \
-                            ctaocrypt/src/md5.c \
-                            ctaocrypt/src/asn.c \
-                            ctaocrypt/src/dh.c \
-                            ctaocrypt/src/dsa.c \
-                            ctaocrypt/src/pwdbased.c \
-                            ctaocrypt/src/aes.c \
-                            ctaocrypt/src/memory.c
+if BUILD_MEMORY
+src_libcyassl_la_SOURCES += ctaocrypt/src/memory.c
 endif
 
 if BUILD_RSA
 src_libcyassl_la_SOURCES += ctaocrypt/src/rsa.c
+endif
+
+if BUILD_DH
+src_libcyassl_la_SOURCES += ctaocrypt/src/dh.c
+endif
+
+if BUILD_ASN
+src_libcyassl_la_SOURCES += ctaocrypt/src/asn.c
+endif
+
+if BUILD_CODING
+src_libcyassl_la_SOURCES += ctaocrypt/src/coding.c
+endif
+
+if BUILD_AES
+src_libcyassl_la_SOURCES += ctaocrypt/src/aes.c
+endif
+
+if BUILD_DES3
+src_libcyassl_la_SOURCES += ctaocrypt/src/des3.c
+endif
+
+if BUILD_SHA
+src_libcyassl_la_SOURCES += ctaocrypt/src/sha.c
+endif
+
+if BUILD_RC4
+src_libcyassl_la_SOURCES += ctaocrypt/src/arc4.c
+endif
+
+if BUILD_MD4
+src_libcyassl_la_SOURCES += ctaocrypt/src/md4.c
+endif
+
+if BUILD_MD5
+src_libcyassl_la_SOURCES += ctaocrypt/src/md5.c
+endif
+
+if BUILD_PWDBASED
+src_libcyassl_la_SOURCES += ctaocrypt/src/pwdbased.c
+endif
+
+if BUILD_DSA
+src_libcyassl_la_SOURCES += ctaocrypt/src/dsa.c
 endif
 
 if BUILD_AESNI
@@ -70,7 +103,7 @@ if BUILD_RABBIT
 src_libcyassl_la_SOURCES += ctaocrypt/src/rabbit.c
 endif
 
-if BUILD_NOINLINE
+if !BUILD_INLINE
 src_libcyassl_la_SOURCES += ctaocrypt/src/misc.c
 endif
 

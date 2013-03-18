@@ -3736,7 +3736,7 @@ int mp_sqrmod (mp_int * a, mp_int * b, mp_int * c)
 #endif
 
 
-#if defined(CYASSL_KEY_GEN) || defined(HAVE_ECC) || !defined(NO_PWDBASED)
+#if defined(CYASSL_KEY_GEN) || defined(HAVE_ECC) || defined(OPENSSL_EXTRA)
 
 /* single digit addition */
 int mp_add_d (mp_int* a, mp_digit b, mp_int* c)

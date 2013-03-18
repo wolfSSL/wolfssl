@@ -23,6 +23,11 @@
     #include <config.h>
 #endif
 
+#if !defined(CYASSL_TRACK_MEMORY) && !defined(NO_MAIN_DRIVER)
+    /* in case memory tracker wants stats */
+    #define CYASSL_TRACK_MEMORY
+#endif
+
 #include <cyassl/openssl/ssl.h>
 #include <cyassl/test.h>
 
@@ -98,6 +103,7 @@ static void Usage(void)
     printf("-d          Disable client cert check\n");
     printf("-b          Bind to any interface instead of localhost only\n");
     printf("-s          Use pre Shared keys\n");
+    printf("-t          Track CyaSSL memory use\n");
     printf("-u          Use UDP DTLS,"
            " add -v 2 for DTLSv1 (default), -v 3 for DTLSv1.2\n");
     printf("-N          Use Non-blocking sockets\n");
@@ -125,6 +131,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     int    doDTLS = 0;
     int    useNtruKey = 0;
     int    nonBlocking = 0;
+    int    trackMemory = 0;
     char*  cipherList = NULL;
     char*  verifyCert = (char*)cliCert;
     char*  ourCert    = (char*)svrCert;
@@ -139,8 +146,9 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     ourCert    = (char*)eccCert;
     ourKey     = (char*)eccKey;
 #endif
+    (void)trackMemory;
 
-    while ((ch = mygetopt(argc, argv, "?dbsnNup:v:l:A:c:k:")) != -1) {
+    while ((ch = mygetopt(argc, argv, "?dbstnNup:v:l:A:c:k:")) != -1) {
         switch (ch) {
             case '?' :
                 Usage();
@@ -156,6 +164,12 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 
             case 's' :
                 usePsk = 1;
+                break;
+
+            case 't' :
+            #ifdef USE_CYASSL_MEMORY
+                trackMemory = 1;
+            #endif
                 break;
 
             case 'n' :
@@ -221,6 +235,11 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
                 version = -1;
         }
     }
+
+#ifdef USE_CYASSL_MEMORY
+    if (trackMemory)
+        InitMemoryTracker(); 
+#endif
 
     switch (version) {
 #ifndef NO_OLD_TLS
@@ -400,6 +419,12 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     
     CloseSocket(clientfd);
     ((func_args*)args)->return_code = 0;
+
+#ifdef USE_CYASSL_MEMORY
+    if (trackMemory)
+        ShowMemoryTracker();
+#endif /* USE_CYASSL_MEMORY */
+
     return 0;
 }
 

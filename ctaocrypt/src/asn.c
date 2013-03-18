@@ -71,10 +71,10 @@
 
 
 #ifndef TRUE
-enum {
-    FALSE = 0,
-    TRUE  = 1
-};
+    #define TRUE  1
+#endif
+#ifndef FALSE
+    #define FALSE 0
 #endif
 
 
@@ -184,10 +184,10 @@ struct tm* gmtime(const time_t* timer)
     dayclock = (unsigned long)secs % SECS_DAY;
     dayno    = (unsigned long)secs / SECS_DAY;
 
-    ret->tm_sec  =  dayclock % 60;
-    ret->tm_min  = (dayclock % 3600) / 60;
-    ret->tm_hour =  dayclock / 3600;
-    ret->tm_wday = (dayno + 4) % 7;        /* day 0 a Thursday */
+    ret->tm_sec  = (int) dayclock % 60;
+    ret->tm_min  = (int)(dayclock % 3600) / 60;
+    ret->tm_hour = (int) dayclock / 3600;
+    ret->tm_wday = (int) (dayno + 4) % 7;        /* day 0 a Thursday */
 
     while(dayno >= (unsigned long)YEARSIZE(year)) {
         dayno -= YEARSIZE(year);
@@ -195,7 +195,7 @@ struct tm* gmtime(const time_t* timer)
     }
 
     ret->tm_year = year - YEAR0;
-    ret->tm_yday = dayno;
+    ret->tm_yday = (int)dayno;
     ret->tm_mon  = 0;
 
     while(dayno >= (unsigned long)_ytab[LEAPYEAR(year)][ret->tm_mon]) {
@@ -203,7 +203,7 @@ struct tm* gmtime(const time_t* timer)
         ret->tm_mon++;
     }
 
-    ret->tm_mday  = ++dayno;
+    ret->tm_mday  = (int)++dayno;
     ret->tm_isdst = 0;
 
     return ret;
@@ -1911,7 +1911,7 @@ static word32 BytePrecision(word32 value)
 {
     word32 i;
     for (i = sizeof(value); i; --i)
-        if (value >> ((i - 1) * BIT_SIZE))
+        if (value >> ((i - 1) * CYASSL_BIT_SIZE))
             break;
 
     return i;
@@ -1928,7 +1928,7 @@ static word32 SetLength(word32 length, byte* output)
         output[i++] = (byte)(BytePrecision(length) | ASN_LONG_LENGTH);
       
         for (j = BytePrecision(length); j; --j) {
-            output[i] = (byte)(length >> ((j - 1) * BIT_SIZE));
+            output[i] = (byte)(length >> ((j - 1) * CYASSL_BIT_SIZE));
             i++;
         }
     }

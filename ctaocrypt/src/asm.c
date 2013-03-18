@@ -437,9 +437,10 @@ __asm__(                                 \
 
 #define INNERMUL                                      \
    do { fp_word t;                                    \
-   _c[0] = t  = ((fp_word)_c[0] + (fp_word)cy) +      \
+   t  = ((fp_word)_c[0] + (fp_word)cy) +              \
                 (((fp_word)mu) * ((fp_word)*tmpm++)); \
-   cy = (t >> DIGIT_BIT);                             \
+   _c[0] = (fp_digit)t;                               \
+   cy = (fp_digit)(t >> DIGIT_BIT);                   \
    } while (0)
 
 #define PROPCARRY \
@@ -975,8 +976,9 @@ __asm__(                              \
 /* multiplies point i and j, updates carry "c1" and digit c2 */
 #define SQRADD(i, j)                                 \
    do { fp_word t;                                   \
-   t = c0 + ((fp_word)i) * ((fp_word)j);  c0 = t;    \
-   t = c1 + (t >> DIGIT_BIT);             c1 = t; c2 += t >> DIGIT_BIT; \
+   t = c0 + ((fp_word)i) * ((fp_word)j);  c0 = (fp_digit)t;    \
+   t = c1 + (t >> DIGIT_BIT);             c1 = (fp_digit)t;    \
+                                          c2 +=(fp_digit) (t >> DIGIT_BIT); \
    } while (0);
   
 
@@ -984,10 +986,12 @@ __asm__(                              \
 #define SQRADD2(i, j)                                                 \
    do { fp_word t;                                                    \
    t  = ((fp_word)i) * ((fp_word)j);                                  \
-   tt = (fp_word)c0 + t;                 c0 = tt;                              \
-   tt = (fp_word)c1 + (tt >> DIGIT_BIT); c1 = tt; c2 += tt >> DIGIT_BIT;       \
-   tt = (fp_word)c0 + t;                 c0 = tt;                              \
-   tt = (fp_word)c1 + (tt >> DIGIT_BIT); c1 = tt; c2 += tt >> DIGIT_BIT;       \
+   tt = (fp_word)c0 + t;                 c0 = (fp_digit)tt;           \
+   tt = (fp_word)c1 + (tt >> DIGIT_BIT); c1 = (fp_digit)tt;           \
+                                         c2 +=(fp_digit)( tt >> DIGIT_BIT);    \
+   tt = (fp_word)c0 + t;                 c0 = (fp_digit)tt;                    \
+   tt = (fp_word)c1 + (tt >> DIGIT_BIT); c1 = (fp_digit)tt;            \
+                                         c2 +=(fp_digit) (tt >> DIGIT_BIT);    \
    } while (0);
 
 #define SQRADDSC(i, j)                                                         \
@@ -1274,10 +1278,11 @@ ____asm__(                             \
 
 #define COMBA_FINI 
    
-#define MULADD(i, j)                                                              \
-   do { fp_word t;                                                                \
-   t = (fp_word)c0 + ((fp_word)i) * ((fp_word)j); c0 = t;                         \
-   t = (fp_word)c1 + (t >> DIGIT_BIT);            c1 = t; c2 += t >> DIGIT_BIT;   \
+#define MULADD(i, j)                                                                                                                                  \
+   do { fp_word t;                                                    \
+   t = (fp_word)c0 + ((fp_word)i) * ((fp_word)j); c0 = (fp_digit)t;   \
+   t = (fp_word)c1 + (t >> DIGIT_BIT);                                \
+   c1 = (fp_digit)t; c2 += (fp_digit)(t >> DIGIT_BIT);                \
    } while (0);
 
 #endif

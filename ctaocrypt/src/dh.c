@@ -83,8 +83,8 @@ static word32 DiscreteLogWorkFactor(word32 n)
 static void GeneratePrivate(DhKey* key, RNG* rng, byte* priv, word32* privSz)
 {
     word32 sz = mp_unsigned_bin_size(&key->p);
-    sz = min(sz, 2 * DiscreteLogWorkFactor(sz * BIT_SIZE) / BIT_SIZE + 1);
-
+    sz = min(sz, 2 * DiscreteLogWorkFactor(sz * CYASSL_BIT_SIZE) /
+                                           CYASSL_BIT_SIZE + 1);
     RNG_GenerateBlock(rng, priv, sz);
     priv[0] |= 0x0C;
 

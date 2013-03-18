@@ -6,7 +6,7 @@
 #
 #
 
-AC_INIT([cyassl],[2.5.2],[http://www.yassl.com])
+AC_INIT([cyassl],[2.5.3],[http://www.yassl.com])
 
 AC_CONFIG_AUX_DIR([build-aux])
 AC_CONFIG_MACRO_DIR([m4])
@@ -106,8 +106,8 @@ AS_IF([test "$ax_enable_debug" = "yes"],
 
 
 # SINGLE THREADED
-AC_ARG_ENABLE([singleThreaded],
-    [  --enable-singleThreaded Enable CyaSSL single threaded (default: disabled)],
+AC_ARG_ENABLE([singlethreaded],
+    [  --enable-singlethreaded Enable CyaSSL single threaded (default: disabled)],
     [ ENABLED_SINGLETHREADED=$enableval ],
     [ ENABLED_SINGLETHREADED=no ])
 
@@ -136,8 +136,8 @@ fi
 
 
 # OPENSSL Extra Compatibility
-AC_ARG_ENABLE([opensslExtra],
-    [  --enable-opensslExtra   Enable extra OpenSSL API, size+ (default: disabled)],
+AC_ARG_ENABLE([opensslextra],
+    [  --enable-opensslextra   Enable extra OpenSSL API, size+ (default: disabled)],
     [ ENABLED_OPENSSLEXTRA=$enableval ],
     [ ENABLED_OPENSSLEXTRA=no ]
     )
@@ -148,7 +148,7 @@ fi
 
 if test "$ENABLED_OPENSSLEXTRA" = "yes" && test "$ENABLED_SMALL" = "yes"
 then
-    AC_MSG_ERROR([cannot enable small and opensslExtra, only one or the other.])
+    AC_MSG_ERROR([cannot enable small and opensslextra, only one or the other.])
 fi
 
 
@@ -201,49 +201,13 @@ AC_ARG_ENABLE([leanpsk],
 
 if test "$ENABLED_LEANPSK" = "yes"
 then
-    AM_CFLAGS="$AM_CFLAGS -DCYASSL_LEANPSK -DHAVE_NULL_CIPHER -DSINGLE_THREADED -DNO_AES -DNO_FILESYSTEM -DNO_RABBIT -DNO_RSA -DNO_DSA -DNO_DH -DNO_CERTS -DNO_PWDBASED -DNO_DES3 -DNO_MD4 -DNO_MD5 -DNO_ERROR_STRINGS -DNO_OLD_TLS -DNO_RC4 -DNO_WRITEV -DNO_SESSION_CACHE -DNO_DEV_RANDOM -DCYASSL_USER_IO -DUSE_SLOW_SHA"
+    AM_CFLAGS="$AM_CFLAGS -DCYASSL_LEANPSK -DHAVE_NULL_CIPHER -DSINGLE_THREADED -DNO_AES -DNO_FILESYSTEM -DNO_RABBIT -DNO_RSA -DNO_DSA -DNO_DH -DNO_CERTS -DNO_PWDBASED -DNO_DES3 -DNO_MD4 -DNO_MD5 -DNO_ERROR_STRINGS -DNO_OLD_TLS -DNO_RC4 -DNO_WRITEV -DNO_SESSION_CACHE -DNO_DEV_RANDOM -DCYASSL_USER_IO -DNO_SHA -DUSE_SLOW_SHA"
     ENABLED_SLOWMATH="no"
     ENABLED_SINGLETHREADED="yes"
 fi
 
 AM_CONDITIONAL([BUILD_LEANPSK], [test "x$ENABLED_LEANPSK" = "xyes"])
 
-
-# fastmath
-AC_ARG_ENABLE([fastmath],
-    [  --enable-fastmath       Enable fast math for BigInts (default: disabled)],
-    [ ENABLED_FASTMATH=$enableval ],
-    [ ENABLED_FASTMATH=no ]
-    )
-
-if test "x$ENABLED_FASTMATH" = "xyes"
-then
-    AM_CFLAGS="$AM_CFLAGS -DUSE_FAST_MATH"
-    ENABLED_SLOWMATH="no"
-fi
-
-
-# fast HUGE math
-AC_ARG_ENABLE([fasthugemath],
-    [  --enable-fasthugemath   Enable fast math + huge code (default: disabled)],
-    [ ENABLED_FASTHUGEMATH=$enableval ],
-    [ ENABLED_FASTHUGEMATH=no ]
-    )
-
-if test "$ENABLED_BUMP" = "yes"
-then
-    ENABLED_FASTHUGEMATH="yes"
-fi
-
-if test "$ENABLED_FASTHUGEMATH" = "yes"
-then
-    ENABLED_FASTMATH="yes"
-    AM_CFLAGS="$AM_CFLAGS -DUSE_FAST_MATH"
-    ENABLED_SLOWMATH="no"
-fi
-
-AM_CONDITIONAL([BUILD_FASTMATH], [test "x$ENABLED_FASTMATH" = "xyes"])
-AM_CONDITIONAL([BUILD_SLOWMATH], [test "x$ENABLED_SLOWMATH" = "xyes"])
 
 # big cache
 AC_ARG_ENABLE([bigcache],
@@ -400,6 +364,18 @@ fi
 AM_CONDITIONAL([BUILD_MD2], [test "x$ENABLED_MD2" = "xyes"])
 
 
+# NULL CIPHER 
+AC_ARG_ENABLE([nullcipher],
+    [  --enable-nullcipher     Enable CyaSSL NULL cipher support (default: disabled)],
+    [ ENABLED_NULL_CIPHER=$enableval ],
+    [ ENABLED_NULL_CIPHER=no ]
+    )
+
+if test "$ENABLED_NULL_CIPHER" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_NULL_CIPHER"
+fi
+
 # RIPEMD
 AC_ARG_ENABLE([ripemd],
     [  --enable-ripemd         Enable CyaSSL RIPEMD-160 support (default: disabled)],
@@ -485,6 +461,122 @@ then
 fi
 
 
+# DSA
+AC_ARG_ENABLE([dsa],
+    [  --enable-dsa            Enable DSA (default: disabled)],
+    [ ENABLED_DSA=$enableval ],
+    [ ENABLED_DSA=no ]
+    )
+
+if test "$ENABLED_DSA" = "no"
+then
+    AM_CFLAGS="$AM_CFLAGS -DNO_DSA"
+fi
+
+AM_CONDITIONAL([BUILD_DSA], [test "x$ENABLED_DSA" = "xyes"])
+
+
+# ECC 
+AC_ARG_ENABLE([ecc],
+    [  --enable-ecc            Enable ECC (default: disabled)],
+    [ ENABLED_ECC=$enableval ],
+    [ ENABLED_ECC=no ]
+    )
+
+if test "$ENABLED_ECC" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_ECC"
+fi
+
+AM_CONDITIONAL([BUILD_ECC], [test "x$ENABLED_ECC" = "xyes"])
+
+
+if test "$ENABLED_ECC" = "yes" && test "$ENABLED_SMALL" = "yes"
+then
+    AC_MSG_ERROR([cannot enable ecc and small, ecc requires TLS which small turns off.]) 
+fi
+
+
+# PSK 
+AC_ARG_ENABLE([psk],
+    [  --enable-psk            Enable PSK (default: disabled)],
+    [ ENABLED_PSK=$enableval ],
+    [ ENABLED_PSK=no ]
+    )
+
+if test "$ENABLED_PSK" = "no" && test "$ENABLED_LEANPSK" = "no"
+then
+    AM_CFLAGS="$AM_CFLAGS -DNO_PSK"
+fi
+
+if test "$ENABLED_PSK" = "no" && test "$ENABLED_LEANPSK" = "yes"
+then
+    ENABLED_PSK=yes
+fi
+
+
+# ERROR STRINGS
+AC_ARG_ENABLE([errorstrings],
+    [  --enable-errorstrings   Enable error strings table (default: enabled)],
+    [ ENABLED_ERROR_STRINGS=$enableval ],
+    [ ENABLED_ERROR_STRINGS=yes ]
+    )
+
+if test "$ENABLED_ERROR_STRINGS" = "no"
+then
+    AM_CFLAGS="$AM_CFLAGS -DNO_ERROR_STRINGS"
+else
+    # turn off error strings if leanpsk on
+    if test "$ENABLED_LEANPSK" = "yes"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DNO_ERROR_STRINGS"
+        ENABLED_ERROR_STRINGS=no
+    fi
+fi
+
+
+# OLD TLS 
+AC_ARG_ENABLE([oldtls],
+    [  --enable-oldtls         Enable old TLS versions < 1.2 (default: enabled)],
+    [ ENABLED_OLD_TLS=$enableval ],
+    [ ENABLED_OLD_TLS=yes ]
+    )
+
+if test "$ENABLED_OLD_TLS" = "no"
+then
+    AM_CFLAGS="$AM_CFLAGS -DNO_OLD_TLS"
+else
+    # turn off old if leanpsk on
+    if test "$ENABLED_LEANPSK" = "yes"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DNO_OLD_TLS"
+        ENABLED_OLD_TLS=no
+    fi
+fi
+
+
+# MEMORY 
+AC_ARG_ENABLE([memory],
+    [  --enable-memory         Enable memory callbacks (default: enabled)],
+    [ ENABLED_MEMORY=$enableval ],
+    [ ENABLED_MEMORY=yes ]
+    )
+
+if test "$ENABLED_MEMORY" = "no"
+then
+    AM_CFLAGS="$AM_CFLAGS -DNO_CYASSL_MEMORY"
+else
+    # turn off memory cb if leanpsk on
+    if test "$ENABLED_LEANPSK" = "yes"
+    then
+        # but don't turn on NO_CYASSL_MEMORY because using own
+        ENABLED_MEMORY=no
+    fi
+fi
+
+AM_CONDITIONAL([BUILD_MEMORY], [test "x$ENABLED_MEMORY" = "xyes"])
+
+
 # RSA 
 AC_ARG_ENABLE([rsa],
     [  --enable-rsa            Enable RSA (default: enabled)],
@@ -505,6 +597,251 @@ else
 fi
 
 AM_CONDITIONAL([BUILD_RSA], [test "x$ENABLED_RSA" = "xyes"])
+
+
+# DH
+AC_ARG_ENABLE([dh],
+    [  --enable-dh             Enable DH (default: enabled)],
+    [ ENABLED_DH=$enableval ],
+    [ ENABLED_DH=yes ]
+    )
+
+if test "$ENABLED_DH" = "no"
+then
+    AM_CFLAGS="$AM_CFLAGS -DNO_DH"
+else
+    # turn off DH if leanpsk on
+    if test "$ENABLED_LEANPSK" = "yes"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DNO_DH"
+        ENABLED_DH=no
+    fi
+fi
+
+AM_CONDITIONAL([BUILD_DH], [test "x$ENABLED_DH" = "xyes"])
+
+
+# ASN
+# turn off asn, which means no certs, no rsa, no dh, no dsa, no ecc,
+# and no big int, use this to disable all public key stuff
+AC_ARG_ENABLE([asn],
+    [  --enable-asn            Enable ASN (default: enabled)],
+    [ ENABLED_ASN=$enableval ],
+    [ ENABLED_ASN=yes ]
+    )
+
+if test "$ENABLED_ASN" = "no"
+then
+    AM_CFLAGS="$AM_CFLAGS -DNO_ASN -DNO_CERTS -DNO_BIG_INT"
+else
+    # turn off ASN if leanpsk on
+    if test "$ENABLED_LEANPSK" = "yes"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DNO_ASN -DNO_CERTS -DNO_BIG_INT"
+        ENABLED_ASN=no
+    fi
+fi
+
+if test "$ENABLED_RSA" = "yes" && test "$ENABLED_ASN" = "no"
+then
+    AC_MSG_ERROR([please disable rsa if disabling asn.])
+fi
+
+if test "$ENABLED_DSA" = "yes" && test "$ENABLED_ASN" = "no"
+then
+    AC_MSG_ERROR([please disable dsa if disabling asn.])
+fi
+
+if test "$ENABLED_DH" = "yes" && test "$ENABLED_ASN" = "no"
+then
+    AC_MSG_ERROR([please disable dh if disabling asn.])
+fi
+
+if test "$ENABLED_ECC" = "yes" && test "$ENABLED_ASN" = "no"
+then
+    AC_MSG_ERROR([please disable ecc if disabling asn.])
+fi
+
+if test "$ENABLED_PSK" = "no" && test "$ENABLED_ASN" = "no"
+then
+    AC_MSG_ERROR([please enable psk if disabling asn.])
+fi
+
+if test "$ENABLED_ASN" = "no"
+then
+    ENABLED_FASTMATH=no
+    ENABLED_SLOWMATH=no
+fi
+
+AM_CONDITIONAL([BUILD_ASN], [test "x$ENABLED_ASN" = "xyes"])
+
+
+# AES
+AC_ARG_ENABLE([aes],
+    [  --enable-aes            Enable AES (default: enabled)],
+    [ ENABLED_AES=$enableval ],
+    [ ENABLED_AES=yes ]
+    )
+
+if test "$ENABLED_AES" = "no"
+then
+    AM_CFLAGS="$AM_CFLAGS -DNO_AES"
+else
+    # turn off AES if leanpsk on
+    if test "$ENABLED_LEANPSK" = "yes"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DNO_AES"
+        ENABLED_AES=no
+    fi
+fi
+
+AM_CONDITIONAL([BUILD_AES], [test "x$ENABLED_AES" = "xyes"])
+
+
+# CODING
+AC_ARG_ENABLE([coding],
+    [  --enable-coding         Enable Coding base 16/64 (default: enabled)],
+    [ ENABLED_CODING=$enableval ],
+    [ ENABLED_CODING=yes ]
+    )
+
+if test "$ENABLED_CODING" = "no"
+then
+    AM_CFLAGS="$AM_CFLAGS -DNO_CODING"
+else
+    # turn off CODING if leanpsk on
+    if test "$ENABLED_LEANPSK" = "yes"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DNO_CODING"
+        ENABLED_CODING=no
+    fi
+fi
+
+AM_CONDITIONAL([BUILD_CODING], [test "x$ENABLED_CODING" = "xyes"])
+
+
+# DES3
+AC_ARG_ENABLE([des3],
+    [  --enable-des3           Enable DES3 (default: enabled)],
+    [ ENABLED_DES3=$enableval ],
+    [ ENABLED_DES3=yes ]
+    )
+
+if test "$ENABLED_DES3" = "no"
+then
+    AM_CFLAGS="$AM_CFLAGS -DNO_DES3"
+else
+    # turn off DES3 if leanpsk on
+    if test "$ENABLED_LEANPSK" = "yes"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DNO_DES3"
+        ENABLED_DES3=no
+    fi
+fi
+
+AM_CONDITIONAL([BUILD_DES3], [test "x$ENABLED_DES3" = "xyes"])
+
+
+# ARC4 
+AC_ARG_ENABLE([arc4],
+    [  --enable-arc4           Enable ARC4 (default: enabled)],
+    [ ENABLED_ARC4=$enableval ],
+    [ ENABLED_ARC4=yes ]
+    )
+
+if test "$ENABLED_ARC4" = "no"
+then
+    AM_CFLAGS="$AM_CFLAGS -DNO_RC4"
+else
+    # turn off ARC4 if leanpsk on
+    if test "$ENABLED_LEANPSK" = "yes"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DNO_RC4"
+        ENABLED_ARC4=no
+    fi
+fi
+
+AM_CONDITIONAL([BUILD_RC4], [test "x$ENABLED_ARC4" = "xyes"])
+
+
+# MD5 
+AC_ARG_ENABLE([md5],
+    [  --enable-md5            Enable MD5 (default: enabled)],
+    [ ENABLED_MD5=$enableval ],
+    [ ENABLED_MD5=yes ]
+    )
+
+if test "$ENABLED_MD5" = "no"
+then
+    AM_CFLAGS="$AM_CFLAGS -DNO_MD5 -DNO_OLD_TLS"
+else
+    # turn off MD5 if leanpsk on
+    if test "$ENABLED_LEANPSK" = "yes"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DNO_MD5 -DNO_OLD_TLS"
+        ENABLED_MD5=no
+    fi
+fi
+
+AM_CONDITIONAL([BUILD_MD5], [test "x$ENABLED_MD5" = "xyes"])
+
+
+# SHA 
+AC_ARG_ENABLE([sha],
+    [  --enable-sha            Enable SHA (default: enabled)],
+    [ ENABLED_SHA=$enableval ],
+    [ ENABLED_SHA=yes ]
+    )
+
+if test "$ENABLED_SHA" = "no"
+then
+    AM_CFLAGS="$AM_CFLAGS -DNO_SHA -DNO_OLD_TLS"
+else
+    # turn off SHA if leanpsk on
+    if test "$ENABLED_LEANPSK" = "yes"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DNO_SHA -DNO_OLD_TLS"
+        ENABLED_SHA=no
+    fi
+fi
+
+AM_CONDITIONAL([BUILD_SHA], [test "x$ENABLED_SHA" = "xyes"])
+
+
+# MD4 
+AC_ARG_ENABLE([md4],
+    [  --enable-md4            Enable MD4 (default: disabled)],
+    [ ENABLED_MD4=$enableval ],
+    [ ENABLED_MD4=no ]
+    )
+
+if test "$ENABLED_MD4" = "no"
+then
+    AM_CFLAGS="$AM_CFLAGS -DNO_MD4"
+fi
+
+AM_CONDITIONAL([BUILD_MD4], [test "x$ENABLED_MD4" = "xyes"])
+
+
+# PWDBASED
+AC_ARG_ENABLE([pwdbased],
+    [  --enable-pwdbased       Enable PWDBASED (default: disabled)],
+    [ ENABLED_PWDBASED=$enableval ],
+    [ ENABLED_PWDBASED=no ]
+    )
+
+if test "$ENABLED_PWDBASED" = "no"
+then
+    if test "$ENABLED_OPENSSLEXTRA" = "yes"
+    then
+        # opensslextra needs pwdbased 
+        ENABLED_PWDBASED=yes
+    else
+        AM_CFLAGS="$AM_CFLAGS -DNO_PWDBASED"
+    fi
+fi
+
+AM_CONDITIONAL([BUILD_PWDBASED], [test "x$ENABLED_PWDBASED" = "xyes"])
 
 
 # HC128 
@@ -541,22 +878,9 @@ fi
 AM_CONDITIONAL([BUILD_RABBIT], [test "x$ENABLED_RABBIT" = "xyes"])
 
 
-# PSK 
-AC_ARG_ENABLE([psk],
-    [  --enable-psk            Enable PSK (default: disabled)],
-    [ ENABLED_PSK=$enableval ],
-    [ ENABLED_PSK=no ]
-    )
-
-if test "$ENABLED_PSK" = "no" && test "$ENABLED_LEANPSK" = "no"
-then
-    AM_CFLAGS="$AM_CFLAGS -DNO_PSK"
-fi
-
-
 # Web Server Build 
-AC_ARG_ENABLE([webServer],
-    [  --enable-webServer      Enable Web Server (default: disabled)],
+AC_ARG_ENABLE([webserver],
+    [  --enable-webserver      Enable Web Server (default: disabled)],
     [ ENABLED_WEBSERVER=$enableval ],
     [ ENABLED_WEBSERVER=no ]
     )
@@ -567,53 +891,39 @@ then
 fi
 
 
-# No Filesystem Build 
-AC_ARG_ENABLE([noFilesystem],
-    [  --enable-noFilesystem   Enable No Filesystem (default: disabled)],
-    [ ENABLED_NOFILESYSTEM=$enableval ],
-    [ ENABLED_NOFILESYSTEM=no ]
+# Filesystem Build 
+AC_ARG_ENABLE([filesystem],
+    [  --enable-filesystem     Enable Filesystem support (default: disabled)],
+    [ ENABLED_FILESYSTEM=$enableval ],
+    [ ENABLED_FILESYSTEM=yes ]
     )
 
-if test "$ENABLED_NOFILESYSTEM" = "yes"
+if test "$ENABLED_FILESYSTEM" = "no"
 then
     AM_CFLAGS="$AM_CFLAGS -DNO_FILESYSTEM"
+else
+    # turn off filesystem if leanpsk on
+    if test "$ENABLED_LEANPSK" = "yes"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DNO_FILESYSTEM"
+        ENABLED_FILESYSTEM=no
+    fi
 fi
 
 
-# No inline Build 
-AC_ARG_ENABLE([noInline],
-    [  --enable-noInline       Enable No inline (default: disabled)],
-    [ ENABLED_NOINLINE=$enableval ],
-    [ ENABLED_NOINLINE=no ]
+# inline Build 
+AC_ARG_ENABLE([inline],
+    [  --enable-inline         Enable inline functions (default: disabled)],
+    [ ENABLED_INLINE=$enableval ],
+    [ ENABLED_INLINE=yes ]
     )
 
-if test "$ENABLED_NOINLINE" = "yes"
+if test "$ENABLED_INLINE" = "no"
 then
     AM_CFLAGS="$AM_CFLAGS -DNO_INLINE"
 fi
 
-AM_CONDITIONAL([BUILD_NOINLINE], [test "x$ENABLED_NOINLINE" = "xyes"])
-
-
-# ECC 
-AC_ARG_ENABLE([ecc],
-    [  --enable-ecc            Enable ECC (default: disabled)],
-    [ ENABLED_ECC=$enableval ],
-    [ ENABLED_ECC=no ]
-    )
-
-if test "$ENABLED_ECC" = "yes"
-then
-    AM_CFLAGS="$AM_CFLAGS -DHAVE_ECC"
-fi
-
-AM_CONDITIONAL([BUILD_ECC], [test "x$ENABLED_ECC" = "xyes"])
-
-
-if test "$ENABLED_ECC" = "yes" && test "$ENABLED_SMALL" = "yes"
-then
-    AC_MSG_ERROR([cannot enable ecc and small, ecc requires TLS which small turns off.]) 
-fi
+AM_CONDITIONAL([BUILD_INLINE], [test "x$ENABLED_INLINE" = "xyes"])
 
 
 # OCSP
@@ -725,6 +1035,43 @@ then
 fi
 
 
+# fastmath
+AC_ARG_ENABLE([fastmath],
+    [  --enable-fastmath       Enable fast math for BigInts (default: disabled)],
+    [ ENABLED_FASTMATH=$enableval ],
+    [ ENABLED_FASTMATH=no ]
+    )
+
+if test "x$ENABLED_FASTMATH" = "xyes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DUSE_FAST_MATH"
+    ENABLED_SLOWMATH="no"
+fi
+
+
+# fast HUGE math
+AC_ARG_ENABLE([fasthugemath],
+    [  --enable-fasthugemath   Enable fast math + huge code (default: disabled)],
+    [ ENABLED_FASTHUGEMATH=$enableval ],
+    [ ENABLED_FASTHUGEMATH=no ]
+    )
+
+if test "$ENABLED_BUMP" = "yes"
+then
+    ENABLED_FASTHUGEMATH="yes"
+fi
+
+if test "$ENABLED_FASTHUGEMATH" = "yes"
+then
+    ENABLED_FASTMATH="yes"
+    AM_CFLAGS="$AM_CFLAGS -DUSE_FAST_MATH"
+    ENABLED_SLOWMATH="no"
+fi
+
+AM_CONDITIONAL([BUILD_FASTMATH], [test "x$ENABLED_FASTMATH" = "xyes"])
+AM_CONDITIONAL([BUILD_SLOWMATH], [test "x$ENABLED_SLOWMATH" = "xyes"])
+
+
 # Enable Examples, used to disable examples
 AC_ARG_ENABLE([examples],
     [  --enable-examples       Enable Examples  (default: enabled)],
@@ -733,7 +1080,10 @@ AC_ARG_ENABLE([examples],
     )
 
 AS_IF([test "x$ENABLED_SINGLETHREADED" = "xyes"], [ENABLED_EXAMPLES="no"])
-AS_IF([test "x$ENABLED_NOFILESYSTEM" = "xyes"], [ENABLED_EXAMPLES="no"])
+AS_IF([test "x$ENABLED_FILESYSTEM" = "xno"], [ENABLED_EXAMPLES="no"])
+AS_IF([test "x$ENABLED_INLINE" = "xno"], [ENABLED_EXAMPLES="no"])
+# certs still have sha signatures for now 
+AS_IF([test "x$ENABLED_SHA" = "xno"], [ENABLED_EXAMPLES="no"])
 AM_CONDITIONAL([BUILD_EXAMPLES], [test "x$ENABLED_EXAMPLES" = "xyes"])
 
 
@@ -880,24 +1230,40 @@ echo "   * VCS checkout:              $ac_cv_vcs_checkout"
 echo 
 echo "   Features "
 echo "   * Single threaded:           $ENABLED_SINGLETHREADED"
-echo "   * DTLS:                      $ENABLED_DTLS"
-echo "   * Enable extra OpenSSL API:  $ENABLED_OPENSSLEXTRA"
+echo "   * Filesystem:                $ENABLED_FILESYSTEM"
+echo "   * OpenSSL Extra API:         $ENABLED_OPENSSLEXTRA"
 echo "   * fastmath:                  $ENABLED_FASTMATH"
 echo "   * sniffer:                   $ENABLED_SNIFFER"
+echo "   * ARC4:                      $ENABLED_ARC4"
+echo "   * AES:                       $ENABLED_AES"
 echo "   * AES-NI:                    $ENABLED_AESNI"
 echo "   * AES-GCM:                   $ENABLED_AESGCM"
 echo "   * AES-CCM:                   $ENABLED_AESCCM"
+echo "   * DES3:                      $ENABLED_DES3"
 echo "   * Camellia:                  $ENABLED_CAMELLIA"
+echo "   * NULL Cipher:               $ENABLED_NULL_CIPHER"
+echo "   * MD5:                       $ENABLED_MD5"
 echo "   * RIPEMD:                    $ENABLED_RIPEMD"
+echo "   * SHA:                       $ENABLED_SHA"
 echo "   * SHA-512:                   $ENABLED_SHA512"
 echo "   * keygen:                    $ENABLED_KEYGEN"
 echo "   * certgen:                   $ENABLED_CERTGEN"
 echo "   * HC-128:                    $ENABLED_HC128"
 echo "   * RABBIT:                    $ENABLED_RABBIT"
+echo "   * PWDBASED:                  $ENABLED_PWDBASED"
+echo "   * MD4:                       $ENABLED_MD4"
 echo "   * PSK:                       $ENABLED_PSK"
 echo "   * LEANPSK:                   $ENABLED_LEANPSK"
 echo "   * RSA:                       $ENABLED_RSA"
+echo "   * DSA:                       $ENABLED_DSA"
+echo "   * DH:                        $ENABLED_DH"
 echo "   * ECC:                       $ENABLED_ECC"
+echo "   * ASN:                       $ENABLED_ASN"
+echo "   * CODING:                    $ENABLED_CODING"
+echo "   * MEMORY:                    $ENABLED_MEMORY"
+echo "   * ERROR_STRINGS:             $ENABLED_ERROR_STRINGS"
+echo "   * DTLS:                      $ENABLED_DTLS"
+echo "   * Old TLS Versions:          $ENABLED_OLD_TLS"
 echo "   * OCSP:                      $ENABLED_OCSP"
 echo "   * CRL:                       $ENABLED_CRL"
 echo "   * CRL-MONITOR:               $ENABLED_CRL_MONITOR"

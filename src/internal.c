@@ -94,6 +94,9 @@ typedef enum {
 static void Hmac(CYASSL* ssl, byte* digest, const byte* buffer, word32 sz,
                  int content, int verify);
 
+#endif
+
+#ifndef NO_CERTS
 static void BuildCertHashes(CYASSL* ssl, Hashes* hashes);
 #endif
 
@@ -219,11 +222,15 @@ static INLINE void ato16(const byte* c, word16* u16)
 }
 
 
+#ifdef CYASSL_DTLS
+
 /* convert opaque to 32 bit integer */
 static INLINE void ato32(const byte* c, word32* u32)
 {
     *u32 = (c[0] << 24) | (c[1] << 16) | (c[2] << 8) | c[3];
 }
+
+#endif /* CYASSL_DTLS */
 
 
 #ifdef HAVE_LIBZ
@@ -360,14 +367,18 @@ int InitSSL_Ctx(CYASSL_CTX* ctx, CYASSL_METHOD* method)
     #ifdef CYASSL_DTLS
         if (method->version.major == DTLS_MAJOR
                                   && method->version.minor >= DTLSv1_2_MINOR) {
-            ctx->CBIORecv = EmbedReceiveFrom;
-            ctx->CBIOSend = EmbedSendTo;
+            ctx->CBIORecv   = EmbedReceiveFrom;
+            ctx->CBIOSend   = EmbedSendTo;
+            ctx->CBIOCookie = EmbedGenerateCookie;
         }
     #endif
 #else
     /* user will set */
-    ctx->CBIORecv = NULL;
-    ctx->CBIOSend = NULL;
+    ctx->CBIORecv   = NULL;
+    ctx->CBIOSend   = NULL;
+    #ifdef CYASSL_DTLS
+        ctx->CBIOCookie = NULL;
+    #endif
 #endif
     ctx->partialWrite   = 0;
     ctx->verifyCallback = 0;
@@ -1220,6 +1231,9 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
 
     ssl->IOCB_ReadCtx  = &ssl->rfd;  /* prevent invalid pointer access if not */
     ssl->IOCB_WriteCtx = &ssl->wfd;  /* correctly set */
+#ifdef CYASSL_DTLS
+    ssl->IOCB_CookieCtx = NULL;      /* we don't use for default cb */
+#endif
 
 #ifndef NO_OLD_TLS
 #ifndef NO_MD5
@@ -2189,6 +2203,11 @@ static int Receive(CYASSL* ssl, byte* buf, word32 sz)
 {
     int recvd;
 
+    if (ssl->ctx->CBIORecv == NULL) {
+        CYASSL_MSG("Your IO Recv callback is null, please set");
+        return -1;
+    }
+
 retry:
     recvd = ssl->ctx->CBIORecv(ssl, (char *)buf, (int)sz, ssl->IOCB_ReadCtx);
     if (recvd < 0)
@@ -2283,6 +2302,11 @@ void ShrinkInputBuffer(CYASSL* ssl, int forcedFree)
 
 int SendBuffered(CYASSL* ssl)
 {
+    if (ssl->ctx->CBIOSend == NULL) {
+        CYASSL_MSG("Your IO Send callback is null, please set");
+        return SOCKET_ERROR_E;
+    }
+
     while (ssl->buffers.outputBuffer.length > 0) {
         int sent = ssl->ctx->CBIOSend(ssl,
                                       (char*)ssl->buffers.outputBuffer.buffer +
@@ -4143,6 +4167,7 @@ static int GetInputData(CYASSL *ssl, word32 size)
     int inSz;
     int maxLength;
     int usedLength;
+    int dtlsExtra = 0;
 
     
     /* check max input length */
@@ -4151,12 +4176,15 @@ static int GetInputData(CYASSL *ssl, word32 size)
     inSz       = (int)(size - usedLength);      /* from last partial read */
 
 #ifdef CYASSL_DTLS
-    if (ssl->options.dtls)
+    if (ssl->options.dtls) {
+        if (size < MAX_MTU)
+            dtlsExtra = (int)(MAX_MTU - size);
         inSz = MAX_MTU;       /* read ahead up to MTU */
+    }
 #endif
     
     if (inSz > maxLength) {
-        if (GrowInputBuffer(ssl, size, usedLength) < 0)
+        if (GrowInputBuffer(ssl, size + dtlsExtra, usedLength) < 0)
             return MEMORY_E;
     }
            
@@ -4599,7 +4627,7 @@ static void Hmac(CYASSL* ssl, byte* digest, const byte* in, word32 sz,
     }
 }
 
-
+#ifndef NO_CERTS
 static void BuildMD5_CertVerify(CYASSL* ssl, byte* digest)
 {
     byte md5_result[MD5_DIGEST_SIZE];
@@ -4634,7 +4662,8 @@ static void BuildSHA_CertVerify(CYASSL* ssl, byte* digest)
 
     ShaFinal(&ssl->hashSha, digest);
 }
-#endif
+#endif /* NO_CERTS */
+#endif /* NO_OLD_TLS */
 
 
 #ifndef NO_CERTS
@@ -5163,6 +5192,7 @@ int SendAlert(CYASSL* ssl, int severity, int type)
     byte *output;
     int  sendSz;
     int  ret;
+    int  dtlsExtra = 0;
 
     /* if sendalert is called again for nonbloking */
     if (ssl->options.sendAlertState != 0) {
@@ -5172,8 +5202,14 @@ int SendAlert(CYASSL* ssl, int severity, int type)
         return ret;
     }
 
+   #ifdef CYASSL_DTLS
+        if (ssl->options.dtls)
+           dtlsExtra = DTLS_RECORD_EXTRA; 
+   #endif
+
     /* check for avalaible size */
-    if ((ret = CheckAvalaibleSize(ssl, ALERT_SIZE + MAX_MSG_EXTRA)) != 0)
+    if ((ret = CheckAvalaibleSize(ssl,
+                                  ALERT_SIZE + MAX_MSG_EXTRA + dtlsExtra)) != 0)
         return ret;
 
     /* get ouput buffer */
@@ -9008,8 +9044,12 @@ int SetCipherList(Suites* s, const char* list)
                         return BUFFER_ERROR;
                     if (i + b > totalSz)
                         return INCOMPLETE_DATA;
-                    if ((EmbedGenerateCookie(cookie, COOKIE_SZ, ssl)
-                                                                 != COOKIE_SZ)
+                    if (ssl->ctx->CBIORecv == NULL) {
+                        CYASSL_MSG("Your Cookie callback is null, please set");
+                        return COOKIE_ERROR;
+                    }
+                    if ((ssl->ctx->CBIOCookie(ssl, cookie, COOKIE_SZ,
+                                              ssl->IOCB_CookieCtx) != COOKIE_SZ)
                             || (b != COOKIE_SZ)
                             || (XMEMCMP(cookie, input + i, b) != 0)) {
                         return COOKIE_ERROR;
@@ -9319,7 +9359,12 @@ int SetCipherList(Suites* s, const char* list)
         output[idx++] =  ssl->chVersion.minor;
 
         output[idx++] = cookieSz;
-        if ((ret = EmbedGenerateCookie(output + idx, cookieSz, ssl)) < 0)
+        if (ssl->ctx->CBIORecv == NULL) {
+            CYASSL_MSG("Your Cookie callback is null, please set");
+            return COOKIE_ERROR;
+        }
+        if ((ret = ssl->ctx->CBIOCookie(ssl, output + idx, cookieSz,
+                                        ssl->IOCB_CookieCtx)) < 0)
             return ret;
 
         HashOutput(ssl, output, sendSz, 0);
