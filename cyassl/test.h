@@ -1011,6 +1011,14 @@ static INLINE int CurrentDir(const char* str)
     {
         void* ret = TrackMalloc(sz);
 
+        if (ptr) {
+            /* if realloc is bigger, don't overread old ptr */
+            memoryTrack* mt = (memoryTrack*)((byte*)ptr - sizeof(memoryTrack));
+
+            if (mt->u.hint.thisSize < sz)
+                sz = mt->u.hint.thisSize;
+        }
+
         if (ret && ptr)
             memcpy(ret, ptr, sz);
 
