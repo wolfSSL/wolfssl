@@ -31,6 +31,7 @@ EXTRA_DIST+= lib/dummy
 EXTRA_DIST+= cyassl-ntru.vcproj
 EXTRA_DIST+= cyassl.vcproj
 EXTRA_DIST+= cyassl-iphone.xcodeproj/project.pbxproj
+EXTRA_DIST+= cyassl-ios.xcodeproj/project.pbxproj
 EXTRA_DIST+= cyassl-ntru.sln
 EXTRA_DIST+= cyassl.sln
 EXTRA_DIST+= valgrind-error.sh
