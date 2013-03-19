@@ -112,6 +112,7 @@
     #define SHA256_DIGEST_SIZE 32 
 #endif
 
+
 #ifdef __cplusplus
     extern "C" {
 #endif
@@ -1634,7 +1635,7 @@ struct CYASSL {
     byte            hsInfoOn;           /* track handshake info        */
     byte            toInfoOn;           /* track timeout   info        */
 #endif
-#ifdef OPENSSL_EXTRA
+#ifdef KEEP_PEER_CERT
     CYASSL_X509     peerCert;           /* X509 peer cert */
 #endif
 #ifdef FORTRESS
@@ -1867,8 +1868,6 @@ CYASSL_LOCAL  int GrowInputBuffer(CYASSL* ssl, int size, int usedLength);
     
 
 #endif /* NO_TLS */
-
-
 
 typedef double timer_d;
 

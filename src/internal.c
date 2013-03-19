@@ -1203,7 +1203,7 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
     ssl->buffers.prevSent                  = 0;
     ssl->buffers.plainSz                   = 0;
 
-#ifdef OPENSSL_EXTRA
+#ifdef KEEP_PEER_CERT
     ssl->peerCert.derCert.buffer = NULL;
     ssl->peerCert.altNames     = NULL;
     ssl->peerCert.altNamesNext = NULL;
@@ -1353,7 +1353,7 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
     ssl->buffers.dtlsCtx.peer.sz = 0;
 #endif
 
-#ifdef OPENSSL_EXTRA
+#ifdef KEEP_PEER_CERT
     ssl->peerCert.issuer.sz    = 0;
     ssl->peerCert.subject.sz   = 0;
 #endif
@@ -1565,10 +1565,12 @@ void SSL_ResourceFree(CYASSL* ssl)
     XFREE(ssl->buffers.dtlsCtx.peer.sa, ssl->heap, DYNAMIC_TYPE_SOCKADDR);
     ssl->buffers.dtlsCtx.peer.sa = NULL;
 #endif
-#if defined(OPENSSL_EXTRA) || defined(GOAHEAD_WS)
+#if defined(KEEP_PEER_CERT) || defined(GOAHEAD_WS)
     XFREE(ssl->peerCert.derCert.buffer, ssl->heap, DYNAMIC_TYPE_CERT);
     if (ssl->peerCert.altNames)
         FreeAltNames(ssl->peerCert.altNames, ssl->heap);
+#endif
+#if defined(OPENSSL_EXTRA) || defined(GOAHEAD_WS)
     CyaSSL_BIO_free(ssl->biord);
     if (ssl->biord != ssl->biowr)        /* in case same as write */
         CyaSSL_BIO_free(ssl->biowr);
@@ -2831,7 +2833,7 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx)
 
 #endif /* HAVE_CRL */
 
-#ifdef OPENSSL_EXTRA
+#ifdef KEEP_PEER_CERT
         /* set X509 format for peer cert even if fatal */
         XSTRNCPY(ssl->peerCert.issuer.name, dCert.issuer, ASN_NAME_MAX);
         ssl->peerCert.issuer.name[ASN_NAME_MAX - 1] = '\0';
@@ -2955,7 +2957,7 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx)
                 store.error = ret;
                 store.error_depth = totalCerts;
                 store.domain = domain;
-#ifdef OPENSSL_EXTRA
+#ifdef KEEP_PEER_CERT
                 store.current_cert = &ssl->peerCert;
 #else
                 store.current_cert = NULL;

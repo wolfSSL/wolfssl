@@ -471,6 +471,13 @@
     #define USE_CYASSL_MEMORY
 #endif
 
+
+#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS)
+    #undef  KEEP_PEER_CERT
+    #define KEEP_PEER_CERT
+#endif
+
+
 /* Place any other flags or defines here */
 
 

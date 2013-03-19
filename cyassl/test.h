@@ -253,11 +253,12 @@ static INLINE int PasswordCallBack(char* passwd, int sz, int rw, void* userdata)
 
 static INLINE void showPeer(CYASSL* ssl)
 {
-#ifdef OPENSSL_EXTRA
 
     CYASSL_CIPHER* cipher;
+#ifdef KEEP_PEER_CERT
     CYASSL_X509*   peer = CyaSSL_get_peer_certificate(ssl);
     if (peer) {
+#ifdef OPENSSL_EXTRA
         char* altName;
         char* issuer  = CyaSSL_X509_NAME_oneline(
                                        CyaSSL_X509_get_issuer_name(peer), 0, 0);
@@ -289,14 +290,17 @@ static INLINE void showPeer(CYASSL* ssl)
 
         XFREE(subject, 0, DYNAMIC_TYPE_OPENSSL);
         XFREE(issuer,  0, DYNAMIC_TYPE_OPENSSL);
+#else
+        printf("peer has a cert!\n");
+#endif
     }
     else
         printf("peer has no cert!\n");
+#endif
     printf("SSL version is %s\n", CyaSSL_get_version(ssl));
 
     cipher = CyaSSL_get_current_cipher(ssl);
     printf("SSL cipher suite is %s\n", CyaSSL_CIPHER_get_name(cipher));
-#endif
 
 #if defined(SESSION_CERTS) && defined(SHOW_CERTS)
     {

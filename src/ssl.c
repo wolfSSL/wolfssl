@@ -3960,8 +3960,8 @@ int CyaSSL_set_compression(CYASSL* ssl)
                    ssl->options.haveECDSAsig, ssl->options.haveStaticECC,
                    ssl->options.side);
     }
+#endif
 
-   
     /* return true if connection established */
     int CyaSSL_is_init_finished(CYASSL* ssl)
     {
@@ -3974,7 +3974,7 @@ int CyaSSL_set_compression(CYASSL* ssl)
         return 0;
     }
 
-
+#if defined(OPENSSL_EXTRA) || defined(GOAHEAD_WS)
     void CyaSSL_CTX_set_tmp_rsa_callback(CYASSL_CTX* ctx,
                                       CYASSL_RSA*(*f)(CYASSL*, int, int))
     {
@@ -5452,8 +5452,8 @@ int CyaSSL_set_compression(CYASSL* ssl)
         (void)flags; 
         return 0;
     }
-
-
+#endif
+#ifdef KEEP_PEER_CERT
     CYASSL_X509* CyaSSL_get_peer_certificate(CYASSL* ssl)
     {
         CYASSL_ENTER("SSL_get_peer_certificate");
@@ -5462,9 +5462,9 @@ int CyaSSL_set_compression(CYASSL* ssl)
         else
             return 0;
     }
+#endif
 
-
-
+#ifdef OPENSSL_EXTRA
     int CyaSSL_set_ex_data(CYASSL* ssl, int idx, void* data)
     {
 #ifdef FORTRESS
