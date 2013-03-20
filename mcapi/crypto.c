@@ -31,6 +31,7 @@
 #include <cyassl/ctaocrypt/sha256.h>
 #include <cyassl/ctaocrypt/sha512.h>
 #include <cyassl/ctaocrypt/hmac.h>
+#include <cyassl/ctaocrypt/compress.h>
 
 
 /* Initialize MD5 */
@@ -221,6 +222,25 @@ int CRYPT_HMAC_Finalize(CRYPT_HMAC_CTX* hmac, unsigned char* digest)
     HmacFinal((Hmac*)hmac, digest);
 
     return 0;
+}
+
+
+/* Huffman Compression, set flag to do static, otherwise dynamic */
+/* return compressed size, otherwise < 0 for error */
+int CRYPT_HUFFMAN_Compress(unsigned char* out, unsigned int outSz,
+                           const unsigned char* in, unsigned int inSz,
+                           unsigned int flags)
+{
+    return Compress(out, outSz, in, inSz, flags);
+}
+
+
+/* Huffman DeCompression, self determines type */
+/* return decompressed size, otherwise < 0 for error */
+int CRYPT_HUFFMAN_DeCompress(unsigned char* out, unsigned int outSz,
+                             const unsigned char* in, unsigned int inSz)
+{
+    return DeCompress(out, outSz, in, inSz);
 }
 
 

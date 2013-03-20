@@ -34,7 +34,7 @@
 #endif
 
 
-#define COMPRESS_FIXED 4
+#define COMPRESS_FIXED 1
 
 
 CYASSL_API int Compress(byte*, word32, const byte*, word32, word32);

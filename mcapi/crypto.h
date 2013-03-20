@@ -119,6 +119,16 @@ enum {
 };
 
 
+/* Huffman */
+int CRYPT_HUFFMAN_Compress(unsigned char*, unsigned int, const unsigned char*,
+                           unsigned int, unsigned int);
+int CRYPT_HUFFMAN_DeCompress(unsigned char*, unsigned int, const unsigned char*,
+                             unsigned int);
+
+enum {
+    CRYPT_HUFFMAN_COMPRESS_STATIC = 1 
+};
+
 
 
 #ifdef __cplusplus

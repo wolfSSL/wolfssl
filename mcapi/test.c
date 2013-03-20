@@ -33,6 +33,7 @@
 #include <cyassl/ctaocrypt/sha256.h>
 #include <cyassl/ctaocrypt/sha512.h>
 #include <cyassl/ctaocrypt/hmac.h>
+#include <cyassl/ctaocrypt/compress.h>
 
 /* c stdlib headers */
 #include <stdio.h>
@@ -48,6 +49,7 @@ static int check_sha256(void);
 static int check_sha384(void);
 static int check_sha512(void);
 static int check_hmac(void);
+static int check_compress(void);
 
 
 int main(int argc, char** argv)
@@ -59,7 +61,7 @@ int main(int argc, char** argv)
     (void)argv;
 
     /* align key pointer */
-    key = (byte*)malloc(128);
+    key = (byte*)XMALLOC(32, NULL, DYNAMIC_TYPE_KEY);
     if (key == NULL) {
         printf("mcapi key alloc failed\n");
         return -1;
@@ -104,7 +106,15 @@ int main(int argc, char** argv)
         return -1;
     }
 
+    ret = check_compress();
+    if (ret != 0) {
+        printf("mcapi check_comopress failed\n");
+        return -1;
+    }
 
+
+
+    XFREE(key, NULL, DYNAMIC_TYPE_KEY);
 
     return 0;
 }
@@ -321,5 +331,106 @@ static int check_hmac(void)
 
     return 0;
 }
+
+
+/* check mcapi compress against internal */
+static int check_compress(void)
+{
+    const unsigned char text[] =
+    "Biodiesel cupidatat marfa, cliche aute put a bird on it incididunt elit\n"
+    "polaroid. Sunt tattooed bespoke reprehenderit. Sint twee organic id\n"
+    "marfa. Commodo veniam ad esse gastropub. 3 wolf moon sartorial vero,\n"
+    "plaid delectus biodiesel squid +1 vice. Post-ironic keffiyeh leggings\n"
+    "selfies cray fap hoodie, forage anim. Carles cupidatat shoreditch, VHS\n"
+    "small batch meggings kogi dolore food truck bespoke gastropub.\n"
+    "\n"
+    "Terry richardson adipisicing actually typewriter tumblr, twee whatever\n"
+    "four loko you probably haven't heard of them high life. Messenger bag\n"
+    "whatever tattooed deep v mlkshk. Brooklyn pinterest assumenda chillwave\n"
+    "et, banksy ullamco messenger bag umami pariatur direct trade forage.\n"
+    "Typewriter culpa try-hard, pariatur sint brooklyn meggings. Gentrify\n"
+    "food truck next level, tousled irony non semiotics PBR ethical anim cred\n"
+    "readymade. Mumblecore brunch lomo odd future, portland organic terry\n"
+    "four loko whatever street art yr farm-to-table.\n";
+
+    unsigned int inSz  = sizeof(text);
+    unsigned int outSz;
+    unsigned char cBuffer[1024];
+    unsigned char dBuffer[1024];
+
+    int ret1, ret2;
+
+    /* dynamic */
+    ret1 = CRYPT_HUFFMAN_Compress(cBuffer, sizeof(cBuffer), text, inSz, 0);
+    ret2 = Compress(dBuffer, sizeof(dBuffer), text, inSz, 0);
+
+    if (ret1 != ret2 || ret1 < 0) {
+        printf("compress dynamic ret failed\n");
+        return -1;
+    }
+
+    if (memcmp(cBuffer, dBuffer, ret1) != 0) {
+        printf("compress dynamic cmp failed\n");
+        return -1;
+    }
+
+    outSz = ret1;
+
+    ret1 = CRYPT_HUFFMAN_DeCompress(dBuffer, sizeof(dBuffer), cBuffer, outSz);
+
+    if (memcmp(dBuffer, text, inSz) != 0) {
+        printf("mcapi decompress dynamic cmp failed\n");
+        return -1;
+    }
+
+    memset(dBuffer, 0, sizeof(dBuffer));
+
+    ret1 = DeCompress(dBuffer, sizeof(dBuffer), cBuffer, outSz);
+
+    if (memcmp(dBuffer, text, inSz) != 0) {
+        printf("decompress dynamic cmp failed\n");
+        return -1;
+    }
+
+    memset(cBuffer, 0, sizeof(cBuffer));
+    memset(dBuffer, 0, sizeof(dBuffer));
+
+    /* static */
+    ret1 = CRYPT_HUFFMAN_Compress(cBuffer, sizeof(cBuffer), text, inSz, 1);
+    ret2 = Compress(dBuffer, sizeof(dBuffer), text, inSz, 1);
+
+    if (ret1 != ret2 || ret1 < 0) {
+        printf("compress static ret failed\n");
+        return -1;
+    }
+
+    if (memcmp(cBuffer, dBuffer, ret1) != 0) {
+        printf("compress static cmp failed\n");
+        return -1;
+    }
+
+    outSz = ret1;
+
+    ret1 = CRYPT_HUFFMAN_DeCompress(dBuffer, sizeof(dBuffer), cBuffer, outSz);
+
+    if (memcmp(dBuffer, text, inSz) != 0) {
+        printf("mcapi decompress static cmp failed\n");
+        return -1;
+    }
+
+    memset(dBuffer, 0, sizeof(dBuffer));
+
+    ret1 = DeCompress(dBuffer, sizeof(dBuffer), cBuffer, outSz);
+
+    if (memcmp(dBuffer, text, inSz) != 0) {
+        printf("decompress static cmp failed\n");
+        return -1;
+    }
+
+    printf("huffman     mcapi test passed\n");
+
+    return 0;
+}
+
 
 
