@@ -39,6 +39,11 @@
 /* c stdlib headers */
 #include <stdio.h>
 
+/* pic32 specific */
+#ifdef MICROCHIP_PIC32
+    #define PIC32_STARTER_KIT
+    #include <p32xxxx.h>
+#endif
 
 #define OUR_DATA_SIZE 1024
 static byte ourData[OUR_DATA_SIZE];
@@ -61,6 +66,10 @@ int main(int argc, char** argv)
 
     (void)argc;
     (void)argv;
+
+#ifdef MICROCHIP_PIC32
+    DBINIT();
+#endif
 
     /* align key pointer */
     key = (byte*)XMALLOC(32, NULL, DYNAMIC_TYPE_KEY);
