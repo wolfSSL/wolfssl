@@ -37,6 +37,12 @@
     #include <ctaocrypt/src/misc.c>
 #endif
 
+#include <zlib.h>
+
+
+#define DEFLATE_DEFAULT_WINDOWBITS 15
+#define DEFLATE_DEFAULT_MEMLEVEL    8
+
 
 int Compress(byte* out, word32 outSz, const byte* in, word32 inSz, word32 flags)
 /*
@@ -56,20 +62,84 @@ int Compress(byte* out, word32 outSz, const byte* in, word32 inSz, word32 flags)
  * buffer should be srcSz + 0.1% + 12.
  */
 {
-    word32 copySz = outSz <= inSz ? outSz : inSz;
-    (void)flags;
-    XMEMMOVE(out, in, copySz);
+    z_stream stream;
+    int result = 0;
 
-    return (int)copySz;
+    stream.next_in = (Bytef*)in;
+    stream.avail_in = (uInt)inSz;
+#ifdef MAXSEG_64K
+    /* Check for source > 64K on 16-bit machine: */
+    if ((uLong)stream.avail_in != inSz) return COMPRESS_INIT_E;
+#endif
+    stream.next_out = out;
+    stream.avail_out = (uInt)outSz;
+    if ((uLong)stream.avail_out != outSz) return COMPRESS_INIT_E;
+
+    stream.zalloc = (alloc_func)0;
+    stream.zfree = (free_func)0;
+    stream.opaque = (voidpf)0;
+
+    if (deflateInit2(&stream, Z_DEFAULT_COMPRESSION, Z_DEFLATED,
+                     DEFLATE_DEFAULT_WINDOWBITS, DEFLATE_DEFAULT_MEMLEVEL,
+                     flags ? Z_FIXED : Z_DEFAULT_STRATEGY) != Z_OK)
+        return COMPRESS_INIT_E;
+
+    if (deflate(&stream, Z_FINISH) != Z_STREAM_END) {
+        deflateEnd(&stream);
+        return COMPRESS_E;
+    }
+
+    result = (int)stream.total_out;
+
+    if (deflateEnd(&stream) != Z_OK)
+        result = COMPRESS_E;
+
+    return result;
 }
 
 
 int DeCompress(byte* out, word32 outSz, const byte* in, word32 inSz)
+/*
+ * out - pointer to destination buffer
+ * outSz - size of destination buffer
+ * in - pointer to source buffer to compress
+ * inSz - size of source to compress
+ * flags - flags to control how compress operates 
+ *
+ * return:
+ *    negative - error code
+ *    positive - bytes stored in out buffer
+ */ 
 {
-    word32 copySz = outSz <= inSz ? outSz : inSz;
-    XMEMMOVE(out, in, copySz);
+    z_stream stream;
+    int result = 0;
 
-    return (int)copySz;
+    stream.next_in = (Bytef*)in;
+    stream.avail_in = (uInt)inSz;
+    /* Check for source > 64K on 16-bit machine: */
+    if ((uLong)stream.avail_in != inSz) return DECOMPRESS_INIT_E;
+
+    stream.next_out = out;
+    stream.avail_out = (uInt)outSz;
+    if ((uLong)stream.avail_out != outSz) return DECOMPRESS_INIT_E;
+
+    stream.zalloc = (alloc_func)0;
+    stream.zfree = (free_func)0;
+
+    if (inflateInit(&stream) != Z_OK)
+        return DECOMPRESS_INIT_E;
+
+    if (inflate(&stream, Z_FINISH) != Z_STREAM_END) {
+        inflateEnd(&stream);
+        return DECOMPRESS_E;
+    }
+    
+    result = (int)stream.total_out;
+
+    if (inflateEnd(&stream) != Z_OK)
+        result = DECOMPRESS_E;
+
+    return result;
 }
 
 

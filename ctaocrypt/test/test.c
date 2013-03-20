@@ -3170,8 +3170,14 @@ int compress_test(void)
     if (c == NULL || d == NULL)
         ret = -300;
 
-    if (ret == 0 && Compress(c, cSz, sample_text, dSz, 0) < 0)
+    if (ret == 0 &&
+                 (ret = Compress(c, cSz, sample_text, dSz, 0)) < 0)
         ret = -301;
+
+    if (ret > 0) {
+        cSz = (word32)ret;
+        ret = 0;
+    }
 
     if (ret == 0 && DeCompress(d, dSz, c, cSz) != (int)dSz)
         ret = -302;
