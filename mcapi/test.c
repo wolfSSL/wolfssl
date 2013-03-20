@@ -32,6 +32,7 @@
 #include <cyassl/ctaocrypt/sha.h>
 #include <cyassl/ctaocrypt/sha256.h>
 #include <cyassl/ctaocrypt/sha512.h>
+#include <cyassl/ctaocrypt/hmac.h>
 
 /* c stdlib headers */
 #include <stdio.h>
@@ -39,12 +40,14 @@
 
 #define OUR_DATA_SIZE 1024
 static byte ourData[OUR_DATA_SIZE];
+static byte* key = NULL;
 
 static int check_md5(void);
 static int check_sha(void);
 static int check_sha256(void);
 static int check_sha384(void);
 static int check_sha512(void);
+static int check_hmac(void);
 
 
 int main(int argc, char** argv)
@@ -54,6 +57,13 @@ int main(int argc, char** argv)
 
     (void)argc;
     (void)argv;
+
+    /* align key pointer */
+    key = (byte*)malloc(128);
+    if (key == NULL) {
+        printf("mcapi key alloc failed\n");
+        return -1;
+    }
 
     for (i = 0; i < OUR_DATA_SIZE; i++)
         ourData[i] = (byte)i;
@@ -88,6 +98,12 @@ int main(int argc, char** argv)
         return -1;
     }
 
+    ret = check_hmac();
+    if (ret != 0) {
+        printf("mcapi check_hmac failed\n");
+        return -1;
+    }
+
 
 
     return 0;
@@ -115,7 +131,7 @@ static int check_md5(void)
         printf("md5 final memcmp fialed\n");
         return -1;
     } 
-    printf("md5      mcapi test passed\n");
+    printf("md5         mcapi test passed\n");
 
     return 0;
 }
@@ -142,7 +158,7 @@ static int check_sha(void)
         printf("sha final memcmp fialed\n");
         return -1;
     } 
-    printf("sha      mcapi test passed\n");
+    printf("sha         mcapi test passed\n");
 
     return 0;
 }
@@ -169,7 +185,7 @@ static int check_sha256(void)
         printf("sha256 final memcmp fialed\n");
         return -1;
     } 
-    printf("sha256   mcapi test passed\n");
+    printf("sha256      mcapi test passed\n");
 
     return 0;
 }
@@ -196,7 +212,7 @@ static int check_sha384(void)
         printf("sha384 final memcmp fialed\n");
         return -1;
     } 
-    printf("sha384   mcapi test passed\n");
+    printf("sha384      mcapi test passed\n");
 
     return 0;
 }
@@ -223,7 +239,85 @@ static int check_sha512(void)
         printf("sha512 final memcmp fialed\n");
         return -1;
     } 
-    printf("sha512   mcapi test passed\n");
+    printf("sha512      mcapi test passed\n");
+
+    return 0;
+}
+
+
+/* check mcapi hmac against internal */
+static int check_hmac(void)
+{
+    CRYPT_HMAC_CTX mcHmac;
+    Hmac           defHmac;
+    byte           mcDigest[CRYPT_SHA512_DIGEST_SIZE];
+    byte           defDigest[SHA512_DIGEST_SIZE];
+
+    strncpy((char*)key, "Jefe", 4);
+
+    /* SHA1 */
+    CRYPT_HMAC_SetKey(&mcHmac, CRYPT_HMAC_SHA, key, 4);
+    HmacSetKey(&defHmac, SHA, key, 4);
+
+    CRYPT_HMAC_DataAdd(&mcHmac, ourData, OUR_DATA_SIZE);
+    HmacUpdate(&defHmac, ourData, OUR_DATA_SIZE);
+
+    CRYPT_HMAC_Finalize(&mcHmac, mcDigest);
+    HmacFinal(&defHmac, defDigest);
+
+    if (memcmp(mcDigest, defDigest, CRYPT_SHA_DIGEST_SIZE) != 0) {
+        printf("hmac sha final memcmp fialed\n");
+        return -1;
+    } 
+    printf("hmac sha    mcapi test passed\n");
+
+    /* SHA-256 */
+    CRYPT_HMAC_SetKey(&mcHmac, CRYPT_HMAC_SHA256, key, 4);
+    HmacSetKey(&defHmac, SHA256, key, 4);
+
+    CRYPT_HMAC_DataAdd(&mcHmac, ourData, OUR_DATA_SIZE);
+    HmacUpdate(&defHmac, ourData, OUR_DATA_SIZE);
+
+    CRYPT_HMAC_Finalize(&mcHmac, mcDigest);
+    HmacFinal(&defHmac, defDigest);
+
+    if (memcmp(mcDigest, defDigest, CRYPT_SHA256_DIGEST_SIZE) != 0) {
+        printf("hmac sha256 final memcmp fialed\n");
+        return -1;
+    } 
+    printf("hmac sha256 mcapi test passed\n");
+
+    /* SHA-384 */
+    CRYPT_HMAC_SetKey(&mcHmac, CRYPT_HMAC_SHA384, key, 4);
+    HmacSetKey(&defHmac, SHA384, key, 4);
+
+    CRYPT_HMAC_DataAdd(&mcHmac, ourData, OUR_DATA_SIZE);
+    HmacUpdate(&defHmac, ourData, OUR_DATA_SIZE);
+
+    CRYPT_HMAC_Finalize(&mcHmac, mcDigest);
+    HmacFinal(&defHmac, defDigest);
+
+    if (memcmp(mcDigest, defDigest, CRYPT_SHA384_DIGEST_SIZE) != 0) {
+        printf("hmac sha384 final memcmp fialed\n");
+        return -1;
+    } 
+    printf("hmac sha384 mcapi test passed\n");
+
+    /* SHA-512 */
+    CRYPT_HMAC_SetKey(&mcHmac, CRYPT_HMAC_SHA512, key, 4);
+    HmacSetKey(&defHmac, SHA512, key, 4);
+
+    CRYPT_HMAC_DataAdd(&mcHmac, ourData, OUR_DATA_SIZE);
+    HmacUpdate(&defHmac, ourData, OUR_DATA_SIZE);
+
+    CRYPT_HMAC_Finalize(&mcHmac, mcDigest);
+    HmacFinal(&defHmac, defDigest);
+
+    if (memcmp(mcDigest, defDigest, CRYPT_SHA512_DIGEST_SIZE) != 0) {
+        printf("hmac sha512 final memcmp fialed\n");
+        return -1;
+    } 
+    printf("hmac sha512 mcapi test passed\n");
 
     return 0;
 }

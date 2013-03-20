@@ -30,6 +30,7 @@
 #include <cyassl/ctaocrypt/sha.h>
 #include <cyassl/ctaocrypt/sha256.h>
 #include <cyassl/ctaocrypt/sha512.h>
+#include <cyassl/ctaocrypt/hmac.h>
 
 
 /* Initialize MD5 */
@@ -182,6 +183,42 @@ int CRYPT_SHA512_DataAdd(CRYPT_SHA512_CTX* sha512, const unsigned char* input,
 int CRYPT_SHA512_Finalize(CRYPT_SHA512_CTX* sha512, unsigned char* digest)
 {
     Sha512Final((Sha512*)sha512, digest);
+
+    return 0;
+}
+
+
+/* Set HMAC key with type */
+int CRYPT_HMAC_SetKey(CRYPT_HMAC_CTX* hmac, int type, const unsigned char* key,
+                      unsigned int sz)
+{
+    typedef char hmac_test[sizeof(CRYPT_HMAC_CTX) >= sizeof(Hmac) ? 1 : -1];
+    (void)sizeof(hmac_test);
+
+    if (type != CRYPT_HMAC_SHA && type != CRYPT_HMAC_SHA256 &&
+        type != CRYPT_HMAC_SHA384 && type != CRYPT_HMAC_SHA512) {
+        return -1;  /* bad hmac type */
+    }
+
+    HmacSetKey((Hmac*)hmac, type, key, sz);
+
+    return 0;
+}
+
+
+int CRYPT_HMAC_DataAdd(CRYPT_HMAC_CTX* hmac, const unsigned char* input,
+                       unsigned int sz)
+{
+    HmacUpdate((Hmac*)hmac, input, sz);
+
+    return 0;
+}
+
+
+/* Get HMAC Final into digest */
+int CRYPT_HMAC_Finalize(CRYPT_HMAC_CTX* hmac, unsigned char* digest)
+{
+    HmacFinal((Hmac*)hmac, digest);
 
     return 0;
 }

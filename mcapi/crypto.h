@@ -101,6 +101,24 @@ enum {
 };
 
 
+/* HMAC */
+typedef struct CRYPT_HMAC_CTX {
+    long long holder[65];   /* big enough to hold internal, but check on init */
+} CRYPT_HMAC_CTX;
+
+int CRYPT_HMAC_SetKey(CRYPT_HMAC_CTX*, int, const unsigned char*, unsigned int);
+int CRYPT_HMAC_DataAdd(CRYPT_HMAC_CTX*, const unsigned char*, unsigned int);
+int CRYPT_HMAC_Finalize(CRYPT_HMAC_CTX*, unsigned char*);
+
+/* HMAC types */
+enum {
+    CRYPT_HMAC_SHA    = 1, 
+    CRYPT_HMAC_SHA256 = 2, 
+    CRYPT_HMAC_SHA384 = 5, 
+    CRYPT_HMAC_SHA512 = 4 
+};
+
+
 
 
 #ifdef __cplusplus
