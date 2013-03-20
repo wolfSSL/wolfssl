@@ -7157,6 +7157,8 @@ int SetCipherList(Suites* s, const char* list)
                     pms += 2;
                     XMEMCPY(pms, ssl->arrays->psk_key, ssl->arrays->psk_keySz);
                     ssl->arrays->preMasterSz = ssl->arrays->psk_keySz * 2 + 4;
+                    XMEMSET(ssl->arrays->psk_key, 0, ssl->arrays->psk_keySz);
+                    ssl->arrays->psk_keySz = 0; /* No further need */
                 }
                 break;
         #endif /* NO_PSK */
@@ -7313,6 +7315,9 @@ int SetCipherList(Suites* s, const char* list)
                 ret = tmpRet;   /* save WANT_WRITE unless more serious */
             ssl->options.clientState = CLIENT_KEYEXCHANGE_COMPLETE;
         }
+        /* No further need for PMS */
+        XMEMSET(ssl->arrays->preMasterSecret, 0, ssl->arrays->preMasterSz);
+        ssl->arrays->preMasterSz = 0;
 
         return ret;
     }
@@ -9513,6 +9518,9 @@ int SetCipherList(Suites* s, const char* list)
                 ssl->arrays->preMasterSz = ssl->arrays->psk_keySz * 2 + 4;
 
                 ret = MakeMasterSecret(ssl);
+                /* No further need for PSK */
+                XMEMSET(ssl->arrays->psk_key, 0, ssl->arrays->psk_keySz);
+                ssl->arrays->psk_keySz = 0;
             }
             break;
         #endif /* NO_PSK */
@@ -9620,6 +9628,9 @@ int SetCipherList(Suites* s, const char* list)
             }
             break;
         }
+        /* No further need for PMS */
+        XMEMSET(ssl->arrays->preMasterSecret, 0, ssl->arrays->preMasterSz);
+        ssl->arrays->preMasterSz = 0;
 
         if (ret == 0) {
             ssl->options.clientState = CLIENT_KEYEXCHANGE_COMPLETE;
