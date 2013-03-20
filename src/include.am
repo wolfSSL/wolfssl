@@ -132,3 +132,7 @@ src_libcyassl_la_CFLAGS += $(PTHREAD_CFLAGS)
 src_libcyassl_la_LIBADD += $(PTHREAD_LIBS)
 endif
 
+if BUILD_LIBZ
+src_libcyassl_la_SOURCES += ctaocrypt/src/compress.c
+endif
+

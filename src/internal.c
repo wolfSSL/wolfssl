@@ -282,7 +282,7 @@ static INLINE void ato32(const byte* c, word32* u32)
 
 
     /* compress in to out, return out size or error */
-    static int Compress(CYASSL* ssl, byte* in, int inSz, byte* out, int outSz)
+    static int myCompress(CYASSL* ssl, byte* in, int inSz, byte* out, int outSz)
     {
         int    err;
         int    currTotal = (int)ssl->c_stream.total_out;
@@ -300,7 +300,7 @@ static INLINE void ato32(const byte* c, word32* u32)
         
 
     /* decompress in to out, returnn out size or error */
-    static int DeCompress(CYASSL* ssl, byte* in, int inSz, byte* out, int outSz)
+    static int myDeCompress(CYASSL* ssl, byte* in,int inSz, byte* out,int outSz)
     {
         int    err;
         int    currTotal = (int)ssl->d_stream.total_out;
@@ -4087,7 +4087,7 @@ int DoApplicationData(CYASSL* ssl, byte* input, word32* inOutIdx)
 
 #ifdef HAVE_LIBZ
         if (ssl->options.usingCompression) {
-            dataSz = DeCompress(ssl, rawData, dataSz, decomp, sizeof(decomp));
+            dataSz = myDeCompress(ssl, rawData, dataSz, decomp, sizeof(decomp));
             if (dataSz < 0) return dataSz;
         }
 #endif
@@ -5101,7 +5101,7 @@ int SendData(CYASSL* ssl, const void* data, int sz)
 
 #ifdef HAVE_LIBZ
         if (ssl->options.usingCompression) {
-            buffSz = Compress(ssl, sendBuffer, buffSz, comp, sizeof(comp));
+            buffSz = myCompress(ssl, sendBuffer, buffSz, comp, sizeof(comp));
             if (buffSz < 0) {
                 return buffSz;
             }

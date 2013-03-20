@@ -8,6 +8,7 @@ nobase_include_HEADERS+= \
                          cyassl/ctaocrypt/asn_public.h \
                          cyassl/ctaocrypt/camellia.h \
                          cyassl/ctaocrypt/coding.h \
+                         cyassl/ctaocrypt/compress.h \
                          cyassl/ctaocrypt/des3.h \
                          cyassl/ctaocrypt/dh.h \
                          cyassl/ctaocrypt/dsa.h \
