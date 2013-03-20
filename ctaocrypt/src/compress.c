@@ -40,8 +40,28 @@
 #include <zlib.h>
 
 
-#define DEFLATE_DEFAULT_WINDOWBITS 15
-#define DEFLATE_DEFAULT_MEMLEVEL    8
+/* alloc user allocs to work with zlib */
+static void* myAlloc(void* opaque, unsigned int item, unsigned int size)
+{
+    (void)opaque;
+    return XMALLOC(item * size, opaque, DYNAMIC_TYPE_LIBZ);
+}
+
+
+static void myFree(void* opaque, void* memory)
+{
+    (void)opaque;
+    XFREE(memory, opaque, DYNAMIC_TYPE_LIBZ);
+}
+
+
+#ifdef HAVE_MCAPI
+    #define DEFLATE_DEFAULT_WINDOWBITS  11
+    #define DEFLATE_DEFAULT_MEMLEVEL     1
+#else
+    #define DEFLATE_DEFAULT_WINDOWBITS 15
+    #define DEFLATE_DEFAULT_MEMLEVEL    8
+#endif
 
 
 int Compress(byte* out, word32 outSz, const byte* in, word32 inSz, word32 flags)
@@ -75,8 +95,8 @@ int Compress(byte* out, word32 outSz, const byte* in, word32 inSz, word32 flags)
     stream.avail_out = (uInt)outSz;
     if ((uLong)stream.avail_out != outSz) return COMPRESS_INIT_E;
 
-    stream.zalloc = (alloc_func)0;
-    stream.zfree = (free_func)0;
+    stream.zalloc = (alloc_func)myAlloc;
+    stream.zfree = (free_func)myFree;
     stream.opaque = (voidpf)0;
 
     if (deflateInit2(&stream, Z_DEFAULT_COMPRESSION, Z_DEFLATED,
@@ -123,10 +143,11 @@ int DeCompress(byte* out, word32 outSz, const byte* in, word32 inSz)
     stream.avail_out = (uInt)outSz;
     if ((uLong)stream.avail_out != outSz) return DECOMPRESS_INIT_E;
 
-    stream.zalloc = (alloc_func)0;
-    stream.zfree = (free_func)0;
+    stream.zalloc = (alloc_func)myAlloc;
+    stream.zfree = (free_func)myFree;
+    stream.opaque = (voidpf)0;
 
-    if (inflateInit(&stream) != Z_OK)
+    if (inflateInit2(&stream, DEFLATE_DEFAULT_WINDOWBITS) != Z_OK)
         return DECOMPRESS_INIT_E;
 
     if (inflate(&stream, Z_FINISH) != Z_STREAM_END) {
