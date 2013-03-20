@@ -1022,6 +1022,26 @@ fi
 AM_CONDITIONAL([USE_VALGRIND], [test "x$ENABLED_VALGRIND" = "xyes"])
 
 
+# microchip api
+AC_ARG_ENABLE([mcapi],
+    [  --enable-mcapi          Enable Microchip API (default: disabled)],
+    [ ENABLED_MCAPI=$enableval ],
+    [ ENABLED_MCAPI=no ]
+    )
+
+if test "$ENABLED_MCAPI" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_MCAPI"
+fi
+
+if test "$ENABLED_MCAPI" = "yes" && test "$ENABLED_SHA512" = "no"
+then
+    AC_MSG_ERROR([please enable sha512 if enabling mcapi.])
+fi
+
+AM_CONDITIONAL([BUILD_MCAPI], [test "x$ENABLED_MCAPI" = "xyes"])
+
+
 # Test certs, use internal cert functions for extra testing 
 AC_ARG_ENABLE([testcert],
     [  --enable-testcert       Enable Test Cert (default: disabled)],

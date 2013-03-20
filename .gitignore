@@ -37,6 +37,7 @@ examples/echoserver/echoserver
 examples/server/server
 snifftest
 output
+mcapi/test
 testsuite/testsuite
 tests/unit
 testsuite/*.der
