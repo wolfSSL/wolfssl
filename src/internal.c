@@ -1010,14 +1010,14 @@ void InitSuites(Suites* suites, ProtocolVersion pv, byte haveRSA, byte havePSK,
 #endif
 
 #ifdef BUILD_TLS_PSK_WITH_NULL_SHA256
-    if (tls & havePSK) {
+    if (tls && havePSK) {
         suites->suites[idx++] = 0;
         suites->suites[idx++] = TLS_PSK_WITH_NULL_SHA256;
     }
 #endif
 
 #ifdef BUILD_TLS_PSK_WITH_NULL_SHA
-    if (tls & havePSK) {
+    if (tls && havePSK) {
         suites->suites[idx++] = 0;
         suites->suites[idx++] = TLS_PSK_WITH_NULL_SHA;
     }
@@ -1135,8 +1135,10 @@ void InitSuites(Suites* suites, ProtocolVersion pv, byte haveRSA, byte havePSK,
                 suites->hashSigAlgo[idx++] = sha256_mac;
                 suites->hashSigAlgo[idx++] = ecc_dsa_sa_algo;
             #endif
-            suites->hashSigAlgo[idx++] = sha_mac;
-            suites->hashSigAlgo[idx++] = ecc_dsa_sa_algo;
+            #ifndef NO_SHA
+                suites->hashSigAlgo[idx++] = sha_mac;
+                suites->hashSigAlgo[idx++] = ecc_dsa_sa_algo;
+            #endif
         }
 
         if (haveRSAsig) {
@@ -1148,8 +1150,10 @@ void InitSuites(Suites* suites, ProtocolVersion pv, byte haveRSA, byte havePSK,
                 suites->hashSigAlgo[idx++] = sha256_mac;
                 suites->hashSigAlgo[idx++] = rsa_sa_algo;
             #endif
-            suites->hashSigAlgo[idx++] = sha_mac;
-            suites->hashSigAlgo[idx++] = rsa_sa_algo;
+            #ifndef NO_SHA
+                suites->hashSigAlgo[idx++] = sha_mac;
+                suites->hashSigAlgo[idx++] = rsa_sa_algo;
+            #endif
         }
 
         suites->hashSigAlgoSz = idx;
