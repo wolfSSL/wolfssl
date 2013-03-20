@@ -1145,9 +1145,10 @@ AC_ARG_WITH([libz],
         else
             AC_MSG_RESULT([yes])
         fi
-
+        ENABLED_LIBZ="yes"
     ]
 )
+AM_CONDITIONAL([BUILD_LIBZ], [test "x$ENABLED_LIBZ" = "xyes"])
 
 
 # cavium 
@@ -1295,6 +1296,7 @@ echo "   * CRL:                       $ENABLED_CRL"
 echo "   * CRL-MONITOR:               $ENABLED_CRL_MONITOR"
 echo "   * NTRU:                      $ENABLED_NTRU"
 echo "   * valgrind unit tests:       $ENABLED_VALGRIND"
+echo "   * LIBZ:                      $ENABLED_LIBZ"
 echo "   * Examples:                  $ENABLED_EXAMPLES"
 echo ""
 echo "---"

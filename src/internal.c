@@ -282,7 +282,7 @@ static INLINE void ato32(const byte* c, word32* u32)
 
 
     /* compress in to out, return out size or error */
-    static int Compress(CYASSL* ssl, byte* in, int inSz, byte* out, int outSz)
+    static int myCompress(CYASSL* ssl, byte* in, int inSz, byte* out, int outSz)
     {
         int    err;
         int    currTotal = (int)ssl->c_stream.total_out;
@@ -300,7 +300,7 @@ static INLINE void ato32(const byte* c, word32* u32)
         
 
     /* decompress in to out, returnn out size or error */
-    static int DeCompress(CYASSL* ssl, byte* in, int inSz, byte* out, int outSz)
+    static int myDeCompress(CYASSL* ssl, byte* in,int inSz, byte* out,int outSz)
     {
         int    err;
         int    currTotal = (int)ssl->d_stream.total_out;
@@ -1010,14 +1010,14 @@ void InitSuites(Suites* suites, ProtocolVersion pv, byte haveRSA, byte havePSK,
 #endif
 
 #ifdef BUILD_TLS_PSK_WITH_NULL_SHA256
-    if (tls & havePSK) {
+    if (tls && havePSK) {
         suites->suites[idx++] = 0;
         suites->suites[idx++] = TLS_PSK_WITH_NULL_SHA256;
     }
 #endif
 
 #ifdef BUILD_TLS_PSK_WITH_NULL_SHA
-    if (tls & havePSK) {
+    if (tls && havePSK) {
         suites->suites[idx++] = 0;
         suites->suites[idx++] = TLS_PSK_WITH_NULL_SHA;
     }
@@ -1135,8 +1135,10 @@ void InitSuites(Suites* suites, ProtocolVersion pv, byte haveRSA, byte havePSK,
                 suites->hashSigAlgo[idx++] = sha256_mac;
                 suites->hashSigAlgo[idx++] = ecc_dsa_sa_algo;
             #endif
-            suites->hashSigAlgo[idx++] = sha_mac;
-            suites->hashSigAlgo[idx++] = ecc_dsa_sa_algo;
+            #ifndef NO_SHA
+                suites->hashSigAlgo[idx++] = sha_mac;
+                suites->hashSigAlgo[idx++] = ecc_dsa_sa_algo;
+            #endif
         }
 
         if (haveRSAsig) {
@@ -1148,8 +1150,10 @@ void InitSuites(Suites* suites, ProtocolVersion pv, byte haveRSA, byte havePSK,
                 suites->hashSigAlgo[idx++] = sha256_mac;
                 suites->hashSigAlgo[idx++] = rsa_sa_algo;
             #endif
-            suites->hashSigAlgo[idx++] = sha_mac;
-            suites->hashSigAlgo[idx++] = rsa_sa_algo;
+            #ifndef NO_SHA
+                suites->hashSigAlgo[idx++] = sha_mac;
+                suites->hashSigAlgo[idx++] = rsa_sa_algo;
+            #endif
         }
 
         suites->hashSigAlgoSz = idx;
@@ -4083,7 +4087,7 @@ int DoApplicationData(CYASSL* ssl, byte* input, word32* inOutIdx)
 
 #ifdef HAVE_LIBZ
         if (ssl->options.usingCompression) {
-            dataSz = DeCompress(ssl, rawData, dataSz, decomp, sizeof(decomp));
+            dataSz = myDeCompress(ssl, rawData, dataSz, decomp, sizeof(decomp));
             if (dataSz < 0) return dataSz;
         }
 #endif
@@ -5097,7 +5101,7 @@ int SendData(CYASSL* ssl, const void* data, int sz)
 
 #ifdef HAVE_LIBZ
         if (ssl->options.usingCompression) {
-            buffSz = Compress(ssl, sendBuffer, buffSz, comp, sizeof(comp));
+            buffSz = myCompress(ssl, sendBuffer, buffSz, comp, sizeof(comp));
             if (buffSz < 0) {
                 return buffSz;
             }
@@ -7157,6 +7161,8 @@ int SetCipherList(Suites* s, const char* list)
                     pms += 2;
                     XMEMCPY(pms, ssl->arrays->psk_key, ssl->arrays->psk_keySz);
                     ssl->arrays->preMasterSz = ssl->arrays->psk_keySz * 2 + 4;
+                    XMEMSET(ssl->arrays->psk_key, 0, ssl->arrays->psk_keySz);
+                    ssl->arrays->psk_keySz = 0; /* No further need */
                 }
                 break;
         #endif /* NO_PSK */
@@ -7313,6 +7319,9 @@ int SetCipherList(Suites* s, const char* list)
                 ret = tmpRet;   /* save WANT_WRITE unless more serious */
             ssl->options.clientState = CLIENT_KEYEXCHANGE_COMPLETE;
         }
+        /* No further need for PMS */
+        XMEMSET(ssl->arrays->preMasterSecret, 0, ssl->arrays->preMasterSz);
+        ssl->arrays->preMasterSz = 0;
 
         return ret;
     }
@@ -9513,6 +9522,9 @@ int SetCipherList(Suites* s, const char* list)
                 ssl->arrays->preMasterSz = ssl->arrays->psk_keySz * 2 + 4;
 
                 ret = MakeMasterSecret(ssl);
+                /* No further need for PSK */
+                XMEMSET(ssl->arrays->psk_key, 0, ssl->arrays->psk_keySz);
+                ssl->arrays->psk_keySz = 0;
             }
             break;
         #endif /* NO_PSK */
@@ -9620,6 +9632,9 @@ int SetCipherList(Suites* s, const char* list)
             }
             break;
         }
+        /* No further need for PMS */
+        XMEMSET(ssl->arrays->preMasterSecret, 0, ssl->arrays->preMasterSz);
+        ssl->arrays->preMasterSz = 0;
 
         if (ret == 0) {
             ssl->options.clientState = CLIENT_KEYEXCHANGE_COMPLETE;

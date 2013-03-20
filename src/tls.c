@@ -123,6 +123,9 @@ static void p_hash(byte* result, word32 resLen, const byte* secret,
             HmacFinal(&hmac, previous);
         }
     }
+    XMEMSET(previous, 0, sizeof previous);
+    XMEMSET(current, 0, sizeof current);
+    XMEMSET(&hmac, 0, sizeof hmac);
 }
 
 

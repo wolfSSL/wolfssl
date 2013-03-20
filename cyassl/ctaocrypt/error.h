@@ -103,6 +103,11 @@ enum {
 
     CAVIUM_INIT_E      = -182,  /* Cavium Init type error */
 
+    COMPRESS_INIT_E    = -183,  /* Compress init error */
+    COMPRESS_E         = -184,  /* Compress error */
+    DECOMPRESS_INIT_E  = -185,  /* DeCompress init error */
+    DECOMPRESS_E       = -186,  /* DeCompress error */
+
     MIN_CODE_E         = -200   /* errors -101 - -199 */
 };
 

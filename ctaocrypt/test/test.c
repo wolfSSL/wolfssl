@@ -51,6 +51,9 @@
 #ifdef HAVE_ECC
     #include <cyassl/ctaocrypt/ecc.h>
 #endif    
+#ifdef HAVE_LIBZ
+    #include <cyassl/ctaocrypt/compress.h>
+#endif
 
 #ifdef _MSC_VER
     /* 4996 warning to use MS extensions e.g., strcpy_s instead of strncpy */
@@ -137,6 +140,9 @@ int pkcs12_test(void);
 int pbkdf2_test(void);
 #ifdef HAVE_ECC
     int  ecc_test(void);
+#endif
+#ifdef HAVE_LIBZ
+    int compress_test(void);
 #endif
 
 
@@ -374,6 +380,12 @@ void ctaocrypt_test(void* args)
         printf( "ECC      test passed!\n");
 #endif
 
+#ifdef HAVE_LIBZ
+    if ( (ret = compress_test()) ) 
+        err_sys("COMPRESS test failed!\n", ret);
+    else
+        printf( "COMPRESS test passed!\n");
+#endif
 
     ((func_args*)args)->return_code = ret;
 }
@@ -3063,3 +3075,121 @@ int ecc_test(void)
 }
 
 #endif /* HAVE_ECC */
+
+#ifdef HAVE_LIBZ
+
+const byte sample_text[] =
+    "Biodiesel cupidatat marfa, cliche aute put a bird on it incididunt elit\n"
+    "polaroid. Sunt tattooed bespoke reprehenderit. Sint twee organic id\n"
+    "marfa. Commodo veniam ad esse gastropub. 3 wolf moon sartorial vero,\n"
+    "plaid delectus biodiesel squid +1 vice. Post-ironic keffiyeh leggings\n"
+    "selfies cray fap hoodie, forage anim. Carles cupidatat shoreditch, VHS\n"
+    "small batch meggings kogi dolore food truck bespoke gastropub.\n"
+    "\n"
+    "Terry richardson adipisicing actually typewriter tumblr, twee whatever\n"
+    "four loko you probably haven't heard of them high life. Messenger bag\n"
+    "whatever tattooed deep v mlkshk. Brooklyn pinterest assumenda chillwave\n"
+    "et, banksy ullamco messenger bag umami pariatur direct trade forage.\n"
+    "Typewriter culpa try-hard, pariatur sint brooklyn meggings. Gentrify\n"
+    "food truck next level, tousled irony non semiotics PBR ethical anim cred\n"
+    "readymade. Mumblecore brunch lomo odd future, portland organic terry\n"
+    "richardson elit leggings adipisicing ennui raw denim banjo hella. Godard\n"
+    "mixtape polaroid, pork belly readymade organic cray typewriter helvetica\n"
+    "four loko whatever street art yr farm-to-table.\n"
+    "\n"
+    "Vinyl keytar vice tofu. Locavore you probably haven't heard of them pug\n"
+    "pickled, hella tonx labore truffaut DIY mlkshk elit cosby sweater sint\n"
+    "et mumblecore. Elit swag semiotics, reprehenderit DIY sartorial nisi ugh\n"
+    "nesciunt pug pork belly wayfarers selfies delectus. Ethical hoodie\n"
+    "seitan fingerstache kale chips. Terry richardson artisan williamsburg,\n"
+    "eiusmod fanny pack irony tonx ennui lo-fi incididunt tofu YOLO\n"
+    "readymade. 8-bit sed ethnic beard officia. Pour-over iphone DIY butcher,\n"
+    "ethnic art party qui letterpress nisi proident jean shorts mlkshk\n"
+    "locavore.\n"
+    "\n"
+    "Narwhal flexitarian letterpress, do gluten-free voluptate next level\n"
+    "banh mi tonx incididunt carles DIY. Odd future nulla 8-bit beard ut\n"
+    "cillum pickled velit, YOLO officia you probably haven't heard of them\n"
+    "trust fund gastropub. Nisi adipisicing tattooed, Austin mlkshk 90's\n"
+    "small batch american apparel. Put a bird on it cosby sweater before they\n"
+    "sold out pork belly kogi hella. Street art mollit sustainable polaroid,\n"
+    "DIY ethnic ea pug beard dreamcatcher cosby sweater magna scenester nisi.\n"
+    "Sed pork belly skateboard mollit, labore proident eiusmod. Sriracha\n"
+    "excepteur cosby sweater, anim deserunt laborum eu aliquip ethical et\n"
+    "neutra PBR selvage.\n"
+    "\n"
+    "Raw denim pork belly truffaut, irony plaid sustainable put a bird on it\n"
+    "next level jean shorts exercitation. Hashtag keytar whatever, nihil\n"
+    "authentic aliquip disrupt laborum. Tattooed selfies deserunt trust fund\n"
+    "wayfarers. 3 wolf moon synth church-key sartorial, gastropub leggings\n"
+    "tattooed. Labore high life commodo, meggings raw denim fingerstache pug\n"
+    "trust fund leggings seitan forage. Nostrud ullamco duis, reprehenderit\n"
+    "incididunt flannel sustainable helvetica pork belly pug banksy you\n"
+    "probably haven't heard of them nesciunt farm-to-table. Disrupt nostrud\n"
+    "mollit magna, sriracha sartorial helvetica.\n"
+    "\n"
+    "Nulla kogi reprehenderit, skateboard sustainable duis adipisicing viral\n"
+    "ad fanny pack salvia. Fanny pack trust fund you probably haven't heard\n"
+    "of them YOLO vice nihil. Keffiyeh cray lo-fi pinterest cardigan aliqua,\n"
+    "reprehenderit aute. Culpa tousled williamsburg, marfa lomo actually anim\n"
+    "skateboard. Iphone aliqua ugh, semiotics pariatur vero readymade\n"
+    "organic. Marfa squid nulla, in laborum disrupt laboris irure gastropub.\n"
+    "Veniam sunt food truck leggings, sint vinyl fap.\n"
+    "\n"
+    "Hella dolore pork belly, truffaut carles you probably haven't heard of\n"
+    "them PBR helvetica in sapiente. Fashion axe ugh bushwick american\n"
+    "apparel. Fingerstache sed iphone, jean shorts blue bottle nisi bushwick\n"
+    "flexitarian officia veniam plaid bespoke fap YOLO lo-fi. Blog\n"
+    "letterpress mumblecore, food truck id cray brooklyn cillum ad sed.\n"
+    "Assumenda chambray wayfarers vinyl mixtape sustainable. VHS vinyl\n"
+    "delectus, culpa williamsburg polaroid cliche swag church-key synth kogi\n"
+    "magna pop-up literally. Swag thundercats ennui shoreditch vegan\n"
+    "pitchfork neutra truffaut etsy, sed single-origin coffee craft beer.\n"
+    "\n"
+    "Odio letterpress brooklyn elit. Nulla single-origin coffee in occaecat\n"
+    "meggings. Irony meggings 8-bit, chillwave lo-fi adipisicing cred\n"
+    "dreamcatcher veniam. Put a bird on it irony umami, trust fund bushwick\n"
+    "locavore kale chips. Sriracha swag thundercats, chillwave disrupt\n"
+    "tousled beard mollit mustache leggings portland next level. Nihil esse\n"
+    "est, skateboard art party etsy thundercats sed dreamcatcher ut iphone\n"
+    "swag consectetur et. Irure skateboard banjo, nulla deserunt messenger\n"
+    "bag dolor terry richardson sapiente.\n";
+
+
+int compress_test(void)
+{
+    int ret = 0;
+    word32 dSz = sizeof(sample_text);
+    word32 cSz = (dSz + (word32)(dSz * 0.001) + 12);
+    byte *c = NULL;
+    byte *d = NULL;
+
+    c = calloc(cSz, sizeof(byte));
+    d = calloc(dSz, sizeof(byte));
+
+    if (c == NULL || d == NULL)
+        ret = -300;
+
+    if (ret == 0 &&
+                 (ret = Compress(c, cSz, sample_text, dSz, 0)) < 0)
+        ret = -301;
+
+    if (ret > 0) {
+        cSz = (word32)ret;
+        ret = 0;
+    }
+
+    if (ret == 0 && DeCompress(d, dSz, c, cSz) != (int)dSz)
+        ret = -302;
+
+    if (ret == 0 && memcmp(d, sample_text, dSz))
+        ret = -303;
+    
+    if (c) free(c);
+    if (d) free(d);
+
+    return ret;
+}
+
+#endif /* HAVE_LIBZ */
+

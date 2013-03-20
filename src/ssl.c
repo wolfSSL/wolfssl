@@ -1178,6 +1178,7 @@ int CyaSSL_Init(void)
         int           ret;
         int           dynamicType = 0;
         int           eccKey = 0;
+        int           rsaKey = 0;
         void*         heap = ctx ? ctx->heap : NULL;
 
         info.set      = 0;
@@ -1416,12 +1417,14 @@ int CyaSSL_Init(void)
                         FreeRsaKey(&key);
                         return SSL_BAD_FILE;
                     }
+                } else {
+                    rsaKey = 1;
                 }
                 FreeRsaKey(&key);
             }
 #endif
 #ifdef HAVE_ECC  
-            if (eccKey ) {
+            if (!rsaKey) {
                 /* make sure ECC key can be used */
                 word32  idx = 0;
                 ecc_key key;
@@ -1432,6 +1435,7 @@ int CyaSSL_Init(void)
                     return SSL_BAD_FILE;
                 }
                 ecc_free(&key);
+                eccKey = 1;
                 ctx->haveStaticECC = 1;
                 if (ssl)
                     ssl->options.haveStaticECC = 1;
