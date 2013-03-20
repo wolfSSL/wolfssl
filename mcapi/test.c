@@ -34,6 +34,7 @@
 #include <cyassl/ctaocrypt/sha512.h>
 #include <cyassl/ctaocrypt/hmac.h>
 #include <cyassl/ctaocrypt/compress.h>
+#include <cyassl/ctaocrypt/random.h>
 
 /* c stdlib headers */
 #include <stdio.h>
@@ -50,6 +51,7 @@ static int check_sha384(void);
 static int check_sha512(void);
 static int check_hmac(void);
 static int check_compress(void);
+static int check_rng(void);
 
 
 int main(int argc, char** argv)
@@ -108,7 +110,13 @@ int main(int argc, char** argv)
 
     ret = check_compress();
     if (ret != 0) {
-        printf("mcapi check_comopress failed\n");
+        printf("mcapi check_compress failed\n");
+        return -1;
+    }
+
+    ret = check_rng();
+    if (ret != 0) {
+        printf("mcapi check_rng failed\n");
         return -1;
     }
 
@@ -431,6 +439,53 @@ static int check_compress(void)
 
     return 0;
 }
+
+
+#define RANDOM_BYTE_SZ 32
+
+/* check mcapi rng */
+static int check_rng(void)
+{
+    CRYPT_RNG_CTX rng;
+    int           ret;
+    int           i; 
+    byte          in[RANDOM_BYTE_SZ];
+    byte          out[RANDOM_BYTE_SZ];
+
+    for (i = 0; i < RANDOM_BYTE_SZ; i++)
+        in[i] = (byte)i;
+
+    for (i = 0; i < RANDOM_BYTE_SZ; i++)
+        out[i] = (byte)i;
+
+    ret = CRYPT_RNG_Initialize(&rng);
+    if (ret != 0) {
+        printf("mcap rng init failed\n");
+        return -1;
+    }
+
+    ret = CRYPT_RNG_Get(&rng, &out[0]);
+    if (ret != 0) {
+        printf("mcap rng get failed\n");
+        return -1;
+    }
+
+    ret = CRYPT_RNG_BlockGenerate(&rng, out, RANDOM_BYTE_SZ);
+    if (ret != 0) {
+        printf("mcap rng block gen failed\n");
+        return -1;
+    }
+
+    if (memcmp(in, out, RANDOM_BYTE_SZ) == 0) {
+        printf("mcap rng block gen output failed\n");
+        return -1;
+    }
+
+    printf("rng         mcapi test passed\n");
+
+    return 0;
+}
+
 
 
 

@@ -32,6 +32,7 @@
 #include <cyassl/ctaocrypt/sha512.h>
 #include <cyassl/ctaocrypt/hmac.h>
 #include <cyassl/ctaocrypt/compress.h>
+#include <cyassl/ctaocrypt/random.h>
 
 
 /* Initialize MD5 */
@@ -242,5 +243,37 @@ int CRYPT_HUFFMAN_DeCompress(unsigned char* out, unsigned int outSz,
 {
     return DeCompress(out, outSz, in, inSz);
 }
+
+
+/* RNG Initialize, < 0 on error */
+int CRYPT_RNG_Initialize(CRYPT_RNG_CTX* rng)
+{
+    typedef char rng_test[sizeof(CRYPT_RNG_CTX) >= sizeof(RNG) ? 1 : -1];
+    (void)sizeof(rng_test);
+
+    return InitRng((RNG*)rng);
+}
+
+
+/* RNG Get single bytes, < 0 on error */
+int CRYPT_RNG_Get(CRYPT_RNG_CTX* rng, unsigned char* b)
+{
+    *b = RNG_GenerateByte((RNG*)rng);
+
+    return 0;
+}
+
+
+/* RNG Block Generation of sz bytes, < 0 on error */
+int CRYPT_RNG_BlockGenerate(CRYPT_RNG_CTX* rng, unsigned char* b,
+                            unsigned int sz)
+{
+    RNG_GenerateBlock((RNG*)rng, b, sz);
+
+    return 0;
+}
+
+
+
 
 

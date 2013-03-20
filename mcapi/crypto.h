@@ -130,6 +130,16 @@ enum {
 };
 
 
+/* RNG */
+typedef struct CRYPT_RNG_CTX {
+    int holder[66];   /* big enough to hold internal, but check on init */
+} CRYPT_RNG_CTX;
+
+int CRYPT_RNG_Initialize(CRYPT_RNG_CTX*);
+int CRYPT_RNG_Get(CRYPT_RNG_CTX*, unsigned char*);
+int CRYPT_RNG_BlockGenerate(CRYPT_RNG_CTX*, unsigned char*, unsigned int);
+
+
 
 #ifdef __cplusplus
     }  /* extern "C" */ 
