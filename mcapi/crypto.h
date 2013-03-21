@@ -255,6 +255,10 @@ int CRYPT_ECC_KeySizeGet(CRYPT_ECC_CTX*);
 int CRYPT_ECC_SignatureSizeGet(CRYPT_ECC_CTX*);
 
 
+/* Error string helper, string needs to be >= 80 chars */
+int CRYPT_ERROR_StringGet(int, char*);
+
+
 #ifdef __cplusplus
     }  /* extern "C" */ 
 #endif
