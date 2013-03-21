@@ -223,6 +223,36 @@ int CRYPT_RSA_EncryptSizeGet(CRYPT_RSA_CTX*);
 
 
 
+/* ECC */
+typedef struct CRYPT_ECC_CTX {
+    void* holder;
+} CRYPT_ECC_CTX;
+
+/* init/free */
+int CRYPT_ECC_Initialize(CRYPT_ECC_CTX*);
+int CRYPT_ECC_Free(CRYPT_ECC_CTX*);
+
+/* key coders */
+int CRYPT_ECC_PublicExport(CRYPT_ECC_CTX*, unsigned char*, unsigned int,
+                           unsigned int*);
+int CRYPT_ECC_PublicImport(CRYPT_ECC_CTX*, const unsigned char*, unsigned int);
+int CRYPT_ECC_PrivateImport(CRYPT_ECC_CTX*, const unsigned char*, unsigned int,
+                            const unsigned char*, unsigned int);
+
+/* dhe */
+int CRYPT_ECC_DHE_KeyMake(CRYPT_ECC_CTX*, CRYPT_RNG_CTX*, int);
+int CRYPT_ECC_DHE_SharedSecretMake(CRYPT_ECC_CTX*, CRYPT_ECC_CTX*,
+                                   unsigned char*, unsigned int, unsigned int*);
+
+/* dsa */
+int CRYPT_ECC_DSA_HashSign(CRYPT_ECC_CTX*, CRYPT_RNG_CTX*, unsigned char*,
+        unsigned int, unsigned int*, const unsigned char*, unsigned int);
+int CRYPT_ECC_DSA_HashVerify(CRYPT_ECC_CTX*, const unsigned char*,
+                     unsigned int, unsigned char*, unsigned int, int*);
+
+/* helpers */
+int CRYPT_ECC_KeySizeGet(CRYPT_ECC_CTX*);
+int CRYPT_ECC_SignatureSizeGet(CRYPT_ECC_CTX*);
 
 
 #ifdef __cplusplus

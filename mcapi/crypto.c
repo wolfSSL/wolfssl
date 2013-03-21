@@ -36,6 +36,7 @@
 #include <cyassl/ctaocrypt/des3.h>
 #include <cyassl/ctaocrypt/aes.h>
 #include <cyassl/ctaocrypt/rsa.h>
+#include <cyassl/ctaocrypt/ecc.h>
 
 
 /* Initialize MD5 */
@@ -460,6 +461,123 @@ int CRYPT_RSA_EncryptSizeGet(CRYPT_RSA_CTX* rsa)
     return RsaEncryptSize((RsaKey*)rsa->holder);
 }    
 
+
+/* ECC init */
+int CRYPT_ECC_Initialize(CRYPT_ECC_CTX* ecc)
+{
+    ecc->holder = (ecc_key*)XMALLOC(sizeof(ecc_key), NULL, DYNAMIC_TYPE_ECC);
+    if (ecc->holder == NULL)
+        return -1;
+
+    ecc_init((ecc_key*)ecc->holder);
+
+    return 0;
+}
+
+
+/* ECC free resources */
+int CRYPT_ECC_Free(CRYPT_ECC_CTX* ecc)
+{
+    ecc_free((ecc_key*)ecc->holder);
+    XFREE(ecc->holder, NULL, DYNAMIC_TYPE_ECC);
+    ecc->holder = NULL;
+
+    return 0;
+}
+
+
+/* ECC Public x963 Export */
+int CRYPT_ECC_PublicExport(CRYPT_ECC_CTX* ecc, unsigned char* out,
+                           unsigned int outSz, unsigned int* usedSz)
+{
+    int          ret;
+    unsigned int inOut = outSz;
+
+    ret = ecc_export_x963((ecc_key*)ecc->holder, out, &inOut);
+    *usedSz = inOut;
+
+    return ret;
+}
+
+
+/* ECC Public x963 Import */
+int CRYPT_ECC_PublicImport(CRYPT_ECC_CTX* ecc, const unsigned char* in,
+                           unsigned int inSz)
+{
+    return ecc_import_x963(in, inSz, (ecc_key*)ecc->holder);
+}
+
+
+/* ECC Private x963 Import */
+int CRYPT_ECC_PrivateImport(CRYPT_ECC_CTX* ecc, const unsigned char* priv,
+         unsigned int privSz, const unsigned char* pub, unsigned int pubSz)
+{
+    return ecc_import_private_key(priv, privSz, pub, pubSz,
+                                 (ecc_key*)ecc->holder);
+}
+
+
+/* ECC DHE Make key */
+int CRYPT_ECC_DHE_KeyMake(CRYPT_ECC_CTX* ecc, CRYPT_RNG_CTX* rng, int keySz)
+{
+    return ecc_make_key((RNG*)rng, keySz, (ecc_key*)ecc->holder);
+}
+
+
+/* ECC DHE Make shared secret with our private and peer public */
+int CRYPT_ECC_DHE_SharedSecretMake(CRYPT_ECC_CTX* priv, CRYPT_ECC_CTX* pub,
+                  unsigned char* out, unsigned int outSz, unsigned int* usedSz)
+{
+    int ret;
+    unsigned int inOut = outSz;
+
+    ret = ecc_shared_secret((ecc_key*)priv->holder, (ecc_key*)pub->holder,
+                            out, &inOut);
+    *usedSz = inOut;
+
+    return ret;
+}
+
+
+/* ECC DSA Hash Sign */
+int CRYPT_ECC_DSA_HashSign(CRYPT_ECC_CTX* ecc, CRYPT_RNG_CTX* rng,
+                           unsigned char* sig, unsigned int sigSz,
+                           unsigned int* usedSz, const unsigned char* in,
+                           unsigned int inSz)
+{
+    int ret;
+    unsigned int inOut = sigSz;
+
+    ret = ecc_sign_hash(in, inSz, sig, &inOut, (RNG*)rng,
+                       (ecc_key*)ecc->holder);
+    *usedSz = inOut;
+
+    return ret;
+}
+
+
+/* ECC DSA Hash Verify */
+int CRYPT_ECC_DSA_HashVerify(CRYPT_ECC_CTX* ecc, const unsigned char* sig,
+                             unsigned int sigSz, unsigned char* hash,
+                             unsigned int hashSz, int* status)
+{
+    return ecc_verify_hash(sig, sigSz, hash, hashSz, status,
+                          (ecc_key*)ecc->holder);
+}
+
+
+/* ECC get key size helper */
+int CRYPT_ECC_KeySizeGet(CRYPT_ECC_CTX* ecc)
+{
+    return ecc_size((ecc_key*)ecc->holder);
+}
+
+
+/* ECC get signature size helper */
+int CRYPT_ECC_SignatureSizeGet(CRYPT_ECC_CTX* ecc)
+{
+    return ecc_sig_size((ecc_key*)ecc->holder);
+}
 
 
 

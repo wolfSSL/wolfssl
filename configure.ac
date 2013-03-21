@@ -1179,6 +1179,11 @@ then
     AC_MSG_ERROR([please enable sha512 if enabling mcapi.])
 fi
 
+if test "$ENABLED_MCAPI" = "yes" && test "$ENABLED_ECC" = "no"
+then
+    AC_MSG_ERROR([please enable ecc if enabling mcapi.])
+fi
+
 if test "$ENABLED_MCAPI" = "yes" && test "$ENABLED_LIBZ" = "no"
 then
     AC_MSG_ERROR([please use --with-libz if enabling mcapi.])

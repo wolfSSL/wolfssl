@@ -37,6 +37,7 @@
 #include <cyassl/ctaocrypt/random.h>
 #include <cyassl/ctaocrypt/des3.h>
 #include <cyassl/ctaocrypt/aes.h>
+#include <cyassl/ctaocrypt/ecc.h>
 #include <cyassl/ctaocrypt/rsa.h>
 #define USE_CERT_BUFFERS_1024
 #include <cyassl/certs_test.h>
@@ -70,6 +71,7 @@ static int check_aescbc(void);
 static int check_aesctr(void);
 static int check_aesdirect(void);
 static int check_rsa(void);
+static int check_ecc(void);
 
 
 int main(int argc, char** argv)
@@ -178,7 +180,11 @@ int main(int argc, char** argv)
         return -1;
     }
 
-
+    ret = check_ecc();
+    if (ret != 0) {
+        printf("mcapi check_ecc failed\n");
+        return -1;
+    }
 
     XFREE(iv,  NULL, DYNAMIC_TYPE_KEY);
     XFREE(key, NULL, DYNAMIC_TYPE_KEY);
@@ -1204,10 +1210,148 @@ static int check_rsa(void)
         return -1;
     }
 
+    FreeRsaKey(&defRsa);
+    ret = CRYPT_RSA_Free(&mcRsa);
+    if (ret != 0) {
+        printf("mcapi rsa free failed\n");
+        return -1;
+    }
+    
     printf("rsa         mcapi test passed\n");
 
     return 0;
 }
 
 
+/* check mcapi ecc */
+static int check_ecc(void)
+{
+    CRYPT_ECC_CTX userA; 
+    CRYPT_ECC_CTX userB;
+    int           ret;
+    byte          sharedA[100];
+    byte          sharedB[100];
+    byte          sig[100];
+    unsigned int  aSz   = (unsigned int)sizeof(sharedA);
+    unsigned int  bSz   = (unsigned int)sizeof(sharedB);
+    unsigned int  sigSz = (unsigned int)sizeof(sig);
+    unsigned int  usedA = 0;
+    unsigned int  usedB = 0;
+    int verifyStatus = 0;
+
+    /* init */
+    ret = CRYPT_ECC_Initialize(&userA);
+    if (ret != 0) {
+        printf("mcapi ecc init failed\n");
+        return -1;
+    }
+
+    ret = CRYPT_ECC_Initialize(&userB);
+    if (ret != 0) {
+        printf("mcapi ecc init b failed\n");
+        return -1;
+    }
+
+    /* dhe + helpers */
+    ret = CRYPT_ECC_DHE_KeyMake(&userA, &mcRng, 32);
+    if (ret != 0) {
+        printf("mcapi ecc make key failed\n");
+        return -1;
+    }
+
+    ret = CRYPT_ECC_DHE_KeyMake(&userB, &mcRng, 32);
+    if (ret != 0) {
+        printf("mcapi ecc make key b failed\n");
+        return -1;
+    }
+
+    ret = CRYPT_ECC_KeySizeGet(&userA);
+    if (ret <= 0) {
+        printf("mcapi ecc key size get failed\n");
+        return -1;
+    }
+
+    ret = CRYPT_ECC_SignatureSizeGet(&userA);
+    if (ret <= 0) {
+        printf("mcapi ecc signature size get failed\n");
+        return -1;
+    }
+
+    ret = CRYPT_ECC_DHE_SharedSecretMake(&userA, &userB, sharedA, aSz, &usedA);
+    if (ret != 0) {
+        printf("mcapi ecc make shared secret failed\n");
+        return -1;
+    }
+
+    ret = CRYPT_ECC_DHE_SharedSecretMake(&userB, &userA, sharedB, bSz, &usedB);
+    if (ret != 0) {
+        printf("mcapi ecc make shared secret failed\n");
+        return -1;
+    }
+
+    if (usedA != usedB || usedA <= 0) {
+        printf("mcapi ecc make shared secret output size match failed\n");
+        return -1;
+    }
+
+    if (memcmp(sharedA, sharedB, usedA) != 0) {
+        printf("mcapi ecc make shared secret output match cmp failed\n");
+        return -1;
+    }
+
+    /* dsa */
+    ret = CRYPT_ECC_DSA_HashSign(&userA, &mcRng, sig, sigSz, &usedA, ourData,
+                                 CRYPT_SHA_DIGEST_SIZE);
+    if (ret != 0) {
+        printf("mcapi ecc sign hash failed\n");
+        return -1;
+    }
+
+    sigSz = usedA;
+    if (sigSz <= 0) {
+        printf("mcapi ecc sign hash bad sig size\n");
+        return -1;
+    }
+
+    ret = CRYPT_ECC_DSA_HashVerify(&userA, sig, sigSz, ourData,
+                                   CRYPT_SHA_DIGEST_SIZE, &verifyStatus);
+    if (ret != 0) {
+        printf("mcapi ecc verify hash failed\n");
+        return -1;
+    }
+    if (verifyStatus != 1) {
+        printf("mcapi ecc verify hash status failed\n");
+        return -1;
+    }
+
+    /* import / export */
+    usedA = 0;
+    ret = CRYPT_ECC_PublicExport(&userA, sharedA, aSz, &usedA);
+    if (ret != 0) {
+        printf("mcapi ecc public export failed\n");
+        return -1;
+    }
+  
+    ret = CRYPT_ECC_PublicImport(&userB, sharedA, usedA);
+    if (ret != 0) {
+        printf("mcapi ecc public import failed\n");
+        return -1;
+    }
+
+    ret = CRYPT_ECC_Free(&userA);
+    if (ret != 0) {
+        printf("mcapi ecc free failed\n");
+        return -1;
+    }
+
+    ret = CRYPT_ECC_Free(&userB);
+    if (ret != 0) {
+        printf("mcapi ecc free b failed\n");
+        return -1;
+    }
+
+    printf("ecc         mcapi test passed\n");
+
+    return 0;
+}
 
