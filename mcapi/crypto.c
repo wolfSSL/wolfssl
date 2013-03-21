@@ -33,6 +33,7 @@
 #include <cyassl/ctaocrypt/hmac.h>
 #include <cyassl/ctaocrypt/compress.h>
 #include <cyassl/ctaocrypt/random.h>
+#include <cyassl/ctaocrypt/des3.h>
 
 
 /* Initialize MD5 */
@@ -272,6 +273,50 @@ int CRYPT_RNG_BlockGenerate(CRYPT_RNG_CTX* rng, unsigned char* b,
 
     return 0;
 }
+
+
+/* Triple DES Key Set, may have iv, will have direction */
+int CRYPT_TDES_KeySet(CRYPT_TDES_CTX* tdes, const unsigned char* key,
+                      const unsigned char* iv, int dir)
+{
+    typedef char tdes_test[sizeof(CRYPT_TDES_CTX) >= sizeof(Des3) ? 1 : -1];
+    (void)sizeof(tdes_test);
+
+    Des3_SetKey((Des3*)tdes, key, iv, dir);
+
+    return 0;
+}
+
+
+/* Triple DES Iv Set, sometimes added later */
+int CRYPT_TDES_IvSet(CRYPT_TDES_CTX* tdes, const unsigned char* iv)
+{
+    Des3_SetIV((Des3*)tdes, iv);
+
+    return 0;
+}
+
+
+/* Triple DES CBC Encrypt */
+int CRYPT_TDES_CBC_Encrypt(CRYPT_TDES_CTX* tdes, unsigned char* out,
+                           const unsigned char* in, unsigned int inSz)
+{
+    Des3_CbcEncrypt((Des3*)tdes, out, in, inSz);
+
+    return 0;
+}
+
+
+/* Triple DES CBC Decrypt */
+int CRYPT_TDES_CBC_Decrypt(CRYPT_TDES_CTX* tdes, unsigned char* out,
+                           const unsigned char* in, unsigned int inSz)
+{
+    Des3_CbcDecrypt((Des3*)tdes, out, in, inSz);
+
+    return 0;
+}
+
+
 
 
 

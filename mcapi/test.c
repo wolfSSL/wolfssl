@@ -35,6 +35,7 @@
 #include <cyassl/ctaocrypt/hmac.h>
 #include <cyassl/ctaocrypt/compress.h>
 #include <cyassl/ctaocrypt/random.h>
+#include <cyassl/ctaocrypt/des3.h>
 
 /* c stdlib headers */
 #include <stdio.h>
@@ -48,6 +49,7 @@
 #define OUR_DATA_SIZE 1024
 static byte ourData[OUR_DATA_SIZE];
 static byte* key = NULL;
+static byte* iv  = NULL;
 
 static int check_md5(void);
 static int check_sha(void);
@@ -57,6 +59,7 @@ static int check_sha512(void);
 static int check_hmac(void);
 static int check_compress(void);
 static int check_rng(void);
+static int check_des3(void);
 
 
 int main(int argc, char** argv)
@@ -71,10 +74,16 @@ int main(int argc, char** argv)
     DBINIT();
 #endif
 
-    /* align key pointer */
+    /* align key, iv pointers */
     key = (byte*)XMALLOC(32, NULL, DYNAMIC_TYPE_KEY);
     if (key == NULL) {
         printf("mcapi key alloc failed\n");
+        return -1;
+    }
+
+    iv = (byte*)XMALLOC(16, NULL, DYNAMIC_TYPE_KEY);
+    if (iv == NULL) {
+        printf("mcapi iv alloc failed\n");
         return -1;
     }
 
@@ -129,8 +138,15 @@ int main(int argc, char** argv)
         return -1;
     }
 
+    ret = check_des3();
+    if (ret != 0) {
+        printf("mcapi check_des3 failed\n");
+        return -1;
+    }
 
 
+
+    XFREE(iv,  NULL, DYNAMIC_TYPE_KEY);
     XFREE(key, NULL, DYNAMIC_TYPE_KEY);
 
     return 0;
@@ -469,24 +485,24 @@ static int check_rng(void)
 
     ret = CRYPT_RNG_Initialize(&rng);
     if (ret != 0) {
-        printf("mcap rng init failed\n");
+        printf("mcapi rng init failed\n");
         return -1;
     }
 
     ret = CRYPT_RNG_Get(&rng, &out[0]);
     if (ret != 0) {
-        printf("mcap rng get failed\n");
+        printf("mcapi rng get failed\n");
         return -1;
     }
 
     ret = CRYPT_RNG_BlockGenerate(&rng, out, RANDOM_BYTE_SZ);
     if (ret != 0) {
-        printf("mcap rng block gen failed\n");
+        printf("mcapi rng block gen failed\n");
         return -1;
     }
 
     if (memcmp(in, out, RANDOM_BYTE_SZ) == 0) {
-        printf("mcap rng block gen output failed\n");
+        printf("mcapi rng block gen output failed\n");
         return -1;
     }
 
@@ -495,6 +511,70 @@ static int check_rng(void)
     return 0;
 }
 
+
+#define TDES_TEST_SIZE 32
+
+/* check mcapi des3 */
+static int check_des3(void)
+{
+    CRYPT_TDES_CTX mcDes3;
+    Des3           defDes3;
+    int            ret;
+    byte           out1[TDES_TEST_SIZE];
+    byte           out2[TDES_TEST_SIZE];
+
+    strncpy((char*)key, "1234567890abcdefghijklmn", 24);
+    strncpy((char*)iv,  "12345678", 8);
+
+    /* cbc encrypt */
+    ret = CRYPT_TDES_KeySet(&mcDes3, key, iv, CRYPT_TDES_ENCRYPTION);
+    if (ret != 0) {
+        printf("mcapi tdes key set failed\n");
+        return -1;
+    }
+    Des3_SetKey(&defDes3, key, iv, DES_ENCRYPTION);
+
+    ret = CRYPT_TDES_CBC_Encrypt(&mcDes3, out1, ourData, TDES_TEST_SIZE);
+    if (ret != 0) {
+        printf("mcapi tdes cbc encrypt failed\n");
+        return -1;
+    }
+    Des3_CbcEncrypt(&defDes3, out2, ourData, TDES_TEST_SIZE);
+
+    if (memcmp(out1, out2, TDES_TEST_SIZE) != 0) {
+        printf("mcapi tdes cbc encrypt cmp failed\n");
+        return -1;
+    }
+
+    /* cbc decrypt */
+    ret = CRYPT_TDES_KeySet(&mcDes3, key, iv, CRYPT_TDES_DECRYPTION);
+    if (ret != 0) {
+        printf("mcapi tdes key set failed\n");
+        return -1;
+    }
+    Des3_SetKey(&defDes3, key, iv, DES_DECRYPTION);
+
+    ret = CRYPT_TDES_CBC_Decrypt(&mcDes3, out2, out1, TDES_TEST_SIZE);
+    if (ret != 0) {
+        printf("mcapi tdes cbc decrypt failed\n");
+        return -1;
+    }
+    Des3_CbcDecrypt(&defDes3, out1, out1, TDES_TEST_SIZE);
+
+    if (memcmp(out1, out2, TDES_TEST_SIZE) != 0) {
+        printf("mcapi tdes cbc decrypt cmp failed\n");
+        return -1;
+    }
+
+    if (memcmp(out1, ourData, TDES_TEST_SIZE) != 0) {
+        printf("mcapi tdes cbc decrypt orig cmp failed\n");
+        return -1;
+    }
+
+    printf("tdes        mcapi test passed\n");
+
+    return 0;
+}
 
 
 

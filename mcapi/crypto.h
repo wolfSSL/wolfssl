@@ -125,6 +125,7 @@ int CRYPT_HUFFMAN_Compress(unsigned char*, unsigned int, const unsigned char*,
 int CRYPT_HUFFMAN_DeCompress(unsigned char*, unsigned int, const unsigned char*,
                              unsigned int);
 
+/* flag to use static huffman */
 enum {
     CRYPT_HUFFMAN_COMPRESS_STATIC = 1 
 };
@@ -139,6 +140,25 @@ int CRYPT_RNG_Initialize(CRYPT_RNG_CTX*);
 int CRYPT_RNG_Get(CRYPT_RNG_CTX*, unsigned char*);
 int CRYPT_RNG_BlockGenerate(CRYPT_RNG_CTX*, unsigned char*, unsigned int);
 
+
+/* TDES */
+typedef struct CRYPT_TDES_CTX {
+    int holder[100];   /* big enough to hold internal, but check on init */
+} CRYPT_TDES_CTX;
+
+int CRYPT_TDES_KeySet(CRYPT_TDES_CTX*, const unsigned char*,
+                      const unsigned char*, int);
+int CRYPT_TDES_IvSet(CRYPT_TDES_CTX*, const unsigned char*);
+int CRYPT_TDES_CBC_Encrypt(CRYPT_TDES_CTX*, unsigned char*,
+                           const unsigned char*, unsigned int);
+int CRYPT_TDES_CBC_Decrypt(CRYPT_TDES_CTX*, unsigned char*,
+                           const unsigned char*, unsigned int);
+
+/* key direction flags for setup */
+enum {
+    CRYPT_TDES_ENCRYPTION = 0,
+    CRYPT_TDES_DECRYPTION = 1 
+};
 
 
 #ifdef __cplusplus
