@@ -181,11 +181,18 @@ int CRYPT_AES_CBC_Decrypt(CRYPT_AES_CTX*, unsigned char*,
 int CRYPT_AES_CTR_Encrypt(CRYPT_AES_CTX*, unsigned char*,
                           const unsigned char*, unsigned int);
 
+/* direct, one block at a time */
+int CRYPT_AES_DIRECT_Encrypt(CRYPT_AES_CTX*, unsigned char*,
+                           const unsigned char*);
+int CRYPT_AES_DIRECT_Decrypt(CRYPT_AES_CTX*, unsigned char*,
+                           const unsigned char*);
 
-/* key direction flags for setup */
+
+/* key direction flags for setup, ctr always uses ENCRYPT flag */
 enum {
     CRYPT_AES_ENCRYPTION = 0,
-    CRYPT_AES_DECRYPTION = 1 
+    CRYPT_AES_DECRYPTION = 1,
+    CRYPT_AES_BLOCK_SIZE = 16
 };
 
 

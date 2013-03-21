@@ -368,6 +368,25 @@ int CRYPT_AES_CTR_Encrypt(CRYPT_AES_CTX* aes, unsigned char* out,
 }
 
 
+/* AES Direct mode encrypt, one block at a time */
+int CRYPT_AES_DIRECT_Encrypt(CRYPT_AES_CTX* aes, unsigned char* out,
+                             const unsigned char* in)
+{
+    AesEncryptDirect((Aes*)aes, out, in);
+
+    return 0;
+}
+
+
+/* AES Direct mode decrypt, one block at a time */
+int CRYPT_AES_DIRECT_Decrypt(CRYPT_AES_CTX* aes, unsigned char* out,
+                             const unsigned char* in)
+{
+    AesDecryptDirect((Aes*)aes, out, in);
+
+    return 0;
+}
+
 
 
 

@@ -63,6 +63,7 @@ static int check_rng(void);
 static int check_des3(void);
 static int check_aescbc(void);
 static int check_aesctr(void);
+static int check_aesdirect(void);
 
 
 int main(int argc, char** argv)
@@ -156,6 +157,12 @@ int main(int argc, char** argv)
     ret = check_aesctr();
     if (ret != 0) {
         printf("mcapi check_aes ctr failed\n");
+        return -1;
+    }
+
+    ret = check_aesdirect();
+    if (ret != 0) {
+        printf("mcapi check_aes direct failed\n");
         return -1;
     }
 
@@ -928,6 +935,184 @@ static int check_aesctr(void)
 
     return 0;
 }
+
+
+/* check mcapi aes direct */
+static int check_aesdirect(void)
+{
+    CRYPT_AES_CTX mcAes;
+    Aes           defAes;
+    int           ret;
+    byte          out1[CRYPT_AES_BLOCK_SIZE];
+    byte          out2[16];  /* one block at a time */
+
+    strncpy((char*)key, "1234567890abcdefghijklmnopqrstuv", 32);
+    strncpy((char*)iv,  "1234567890abcdef", 16);
+
+    /* 128 direct encrypt */
+    ret = CRYPT_AES_KeySet(&mcAes, key, 16, iv, CRYPT_AES_ENCRYPTION);
+    if (ret != 0) {
+        printf("mcapi aes-128 key set failed\n");
+        return -1;
+    }
+    ret = AesSetKey(&defAes, key, 16, iv, AES_ENCRYPTION);
+    if (ret != 0) {
+        printf("default aes-128 key set failed\n");
+        return -1;
+    }
+
+    ret = CRYPT_AES_DIRECT_Encrypt(&mcAes, out1, ourData);
+    if (ret != 0) {
+        printf("mcapi aes-128 direct encrypt failed\n");
+        return -1;
+    }
+    AesEncryptDirect(&defAes, out2, ourData);
+
+    if (memcmp(out1, out2, CRYPT_AES_BLOCK_SIZE) != 0) {
+        printf("mcapi aes-128 direct encrypt cmp failed\n");
+        return -1;
+    }
+
+    /* 128 direct decrypt */
+    ret = CRYPT_AES_KeySet(&mcAes, key, 16, iv, CRYPT_AES_DECRYPTION);
+    if (ret != 0) {
+        printf("mcapi aes-128 key set failed\n");
+        return -1;
+    }
+    ret = AesSetKey(&defAes, key, 16, iv, DES_DECRYPTION);
+    if (ret != 0) {
+        printf("default aes-128 key set failed\n");
+        return -1;
+    }
+
+    ret = CRYPT_AES_DIRECT_Decrypt(&mcAes, out2, out1);
+    if (ret != 0) {
+        printf("mcapi aes-128 direct decrypt failed\n");
+        return -1;
+    }
+    AesDecryptDirect(&defAes, out1, out1);
+
+    if (memcmp(out1, out2, CRYPT_AES_BLOCK_SIZE) != 0) {
+        printf("mcapi aes-128 direct decrypt cmp failed\n");
+        return -1;
+    }
+
+    if (memcmp(out1, ourData, CRYPT_AES_BLOCK_SIZE) != 0) {
+        printf("mcapi aes-128 direct decrypt orig cmp failed\n");
+        return -1;
+    }
+
+    /* 192 direct encrypt */
+    ret = CRYPT_AES_KeySet(&mcAes, key, 24, iv, CRYPT_AES_ENCRYPTION);
+    if (ret != 0) {
+        printf("mcapi aes-192 key set failed\n");
+        return -1;
+    }
+    ret = AesSetKey(&defAes, key, 24, iv, AES_ENCRYPTION);
+    if (ret != 0) {
+        printf("default aes-192 key set failed\n");
+        return -1;
+    }
+
+    ret = CRYPT_AES_DIRECT_Encrypt(&mcAes, out1, ourData);
+    if (ret != 0) {
+        printf("mcapi aes-192 direct encrypt failed\n");
+        return -1;
+    }
+    AesEncryptDirect(&defAes, out2, ourData);
+
+    if (memcmp(out1, out2, CRYPT_AES_BLOCK_SIZE) != 0) {
+        printf("mcapi aes-192 direct encrypt cmp failed\n");
+        return -1;
+    }
+
+    /* 192 direct decrypt */
+    ret = CRYPT_AES_KeySet(&mcAes, key, 24, iv, CRYPT_AES_DECRYPTION);
+    if (ret != 0) {
+        printf("mcapi aes-192 key set failed\n");
+        return -1;
+    }
+    ret = AesSetKey(&defAes, key, 24, iv, AES_DECRYPTION);
+    if (ret != 0) {
+        printf("default aes-192 key set failed\n");
+        return -1;
+    }
+
+    ret = CRYPT_AES_DIRECT_Decrypt(&mcAes, out2, out1);
+    if (ret != 0) {
+        printf("mcapi aes-192 direct decrypt failed\n");
+        return -1;
+    }
+    AesDecryptDirect(&defAes, out1, out1);
+
+    if (memcmp(out1, out2, CRYPT_AES_BLOCK_SIZE) != 0) {
+        printf("mcapi aes-192 direct decrypt cmp failed\n");
+        return -1;
+    }
+
+    if (memcmp(out1, ourData, CRYPT_AES_BLOCK_SIZE) != 0) {
+        printf("mcapi aes-192 direct decrypt orig cmp failed\n");
+        return -1;
+    }
+
+    /* 256 direct encrypt */
+    ret = CRYPT_AES_KeySet(&mcAes, key, 32, iv, CRYPT_AES_ENCRYPTION);
+    if (ret != 0) {
+        printf("mcapi aes-256 key set failed\n");
+        return -1;
+    }
+    ret = AesSetKey(&defAes, key, 32, iv, AES_ENCRYPTION);
+    if (ret != 0) {
+        printf("default aes-256 key set failed\n");
+        return -1;
+    }
+
+    ret = CRYPT_AES_DIRECT_Encrypt(&mcAes, out1, ourData);
+    if (ret != 0) {
+        printf("mcapi aes-256 direct encrypt failed\n");
+        return -1;
+    }
+    AesEncryptDirect(&defAes, out2, ourData);
+
+    if (memcmp(out1, out2, CRYPT_AES_BLOCK_SIZE) != 0) {
+        printf("mcapi aes-256 direct encrypt cmp failed\n");
+        return -1;
+    }
+
+    /* 256 direct decrypt */
+    ret = CRYPT_AES_KeySet(&mcAes, key, 32, iv, CRYPT_AES_DECRYPTION);
+    if (ret != 0) {
+        printf("mcapi aes-256 key set failed\n");
+        return -1;
+    }
+    ret = AesSetKey(&defAes, key, 32, iv, AES_DECRYPTION);
+    if (ret != 0) {
+        printf("default aes-256 key set failed\n");
+        return -1;
+    }
+
+    ret = CRYPT_AES_DIRECT_Decrypt(&mcAes, out2, out1);
+    if (ret != 0) {
+        printf("mcapi aes-256 direct decrypt failed\n");
+        return -1;
+    }
+    AesDecryptDirect(&defAes, out1, out1);
+
+    if (memcmp(out1, out2, CRYPT_AES_BLOCK_SIZE) != 0) {
+        printf("mcapi aes-256 direct decrypt cmp failed\n");
+        return -1;
+    }
+
+    if (memcmp(out1, ourData, CRYPT_AES_BLOCK_SIZE) != 0) {
+        printf("mcapi aes-256 direct decrypt orig cmp failed\n");
+        return -1;
+    }
+
+    printf("aes-direct  mcapi test passed\n");
+
+    return 0;
+}
+
 
 
 
