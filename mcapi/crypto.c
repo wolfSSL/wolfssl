@@ -358,5 +358,16 @@ int CRYPT_AES_CBC_Decrypt(CRYPT_AES_CTX* aes, unsigned char* out,
 }
 
 
+/* AES CTR Encrypt (used for decrypt too, with ENCRYPT key setup) */
+int CRYPT_AES_CTR_Encrypt(CRYPT_AES_CTX* aes, unsigned char* out,
+                          const unsigned char* in, unsigned int inSz)
+{
+    AesCtrEncrypt((Aes*)aes, out, in, inSz);
+
+    return 0;
+}
+
+
+
 
 

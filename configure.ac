@@ -1171,7 +1171,7 @@ AC_ARG_ENABLE([mcapi],
 
 if test "$ENABLED_MCAPI" = "yes"
 then
-    AM_CFLAGS="$AM_CFLAGS -DHAVE_MCAPI"
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_MCAPI -DCYASSL_AES_COUNTER"
 fi
 
 if test "$ENABLED_MCAPI" = "yes" && test "$ENABLED_SHA512" = "no"

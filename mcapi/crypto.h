@@ -177,6 +177,11 @@ int CRYPT_AES_CBC_Encrypt(CRYPT_AES_CTX*, unsigned char*,
 int CRYPT_AES_CBC_Decrypt(CRYPT_AES_CTX*, unsigned char*,
                            const unsigned char*, unsigned int);
 
+/* ctr (counter), use Encrypt both ways with ENCRYPT key setup */
+int CRYPT_AES_CTR_Encrypt(CRYPT_AES_CTX*, unsigned char*,
+                          const unsigned char*, unsigned int);
+
+
 /* key direction flags for setup */
 enum {
     CRYPT_AES_ENCRYPTION = 0,

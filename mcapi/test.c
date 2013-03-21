@@ -62,6 +62,7 @@ static int check_compress(void);
 static int check_rng(void);
 static int check_des3(void);
 static int check_aescbc(void);
+static int check_aesctr(void);
 
 
 int main(int argc, char** argv)
@@ -148,7 +149,13 @@ int main(int argc, char** argv)
 
     ret = check_aescbc();
     if (ret != 0) {
-        printf("mcapi check_aes failed\n");
+        printf("mcapi check_aes cbc failed\n");
+        return -1;
+    }
+
+    ret = check_aesctr();
+    if (ret != 0) {
+        printf("mcapi check_aes ctr failed\n");
         return -1;
     }
 
@@ -587,7 +594,7 @@ static int check_des3(void)
 
 #define AES_TEST_SIZE 32
 
-/* check mcapi aes */
+/* check mcapi aes cbc */
 static int check_aescbc(void)
 {
     CRYPT_AES_CTX mcAes;
@@ -682,7 +689,7 @@ static int check_aescbc(void)
         printf("mcapi aes-192 key set failed\n");
         return -1;
     }
-    ret = AesSetKey(&defAes, key, 24, iv, DES_DECRYPTION);
+    ret = AesSetKey(&defAes, key, 24, iv, AES_DECRYPTION);
     if (ret != 0) {
         printf("default aes-192 key set failed\n");
         return -1;
@@ -735,7 +742,7 @@ static int check_aescbc(void)
         printf("mcapi aes-256 key set failed\n");
         return -1;
     }
-    ret = AesSetKey(&defAes, key, 32, iv, DES_DECRYPTION);
+    ret = AesSetKey(&defAes, key, 32, iv, AES_DECRYPTION);
     if (ret != 0) {
         printf("default aes-256 key set failed\n");
         return -1;
@@ -758,9 +765,166 @@ static int check_aescbc(void)
         return -1;
     }
 
-
-
     printf("aes-cbc     mcapi test passed\n");
+
+    return 0;
+}
+
+
+/* check mcapi aes ctr */
+static int check_aesctr(void)
+{
+    CRYPT_AES_CTX mcAes;
+    Aes           defAes;
+    int           ret;
+    byte          out1[AES_TEST_SIZE];
+    byte          out2[AES_TEST_SIZE];
+
+    strncpy((char*)key, "1234567890abcdefghijklmnopqrstuv", 32);
+    strncpy((char*)iv,  "1234567890abcdef", 16);
+
+    /* 128 ctr encrypt */
+    ret = CRYPT_AES_KeySet(&mcAes, key, 16, iv, CRYPT_AES_ENCRYPTION);
+    if (ret != 0) {
+        printf("mcapi aes-128 key set failed\n");
+        return -1;
+    }
+    ret = AesSetKey(&defAes, key, 16, iv, AES_ENCRYPTION);
+    if (ret != 0) {
+        printf("default aes-128 key set failed\n");
+        return -1;
+    }
+
+    ret = CRYPT_AES_CTR_Encrypt(&mcAes, out1, ourData, AES_TEST_SIZE);
+    if (ret != 0) {
+        printf("mcapi aes-128 ctr encrypt failed\n");
+        return -1;
+    }
+    AesCtrEncrypt(&defAes, out2, ourData, AES_TEST_SIZE);
+
+    if (memcmp(out1, out2, AES_TEST_SIZE) != 0) {
+        printf("mcapi aes-128 ctr encrypt cmp failed\n");
+        return -1;
+    }
+
+    /* 128 ctr decrypt */
+    ret = CRYPT_AES_KeySet(&mcAes, key, 16, iv, CRYPT_AES_ENCRYPTION);
+    if (ret != 0) {
+        printf("mcapi aes-128 key set failed\n");
+        return -1;
+    }
+    ret = AesSetKey(&defAes, key, 16, iv, AES_ENCRYPTION);
+    if (ret != 0) {
+        printf("default aes-128 key set failed\n");
+        return -1;
+    }
+
+    ret = CRYPT_AES_CTR_Encrypt(&mcAes, out2, out1, AES_TEST_SIZE);
+    if (ret != 0) {
+        printf("mcapi aes-128 ctr decrypt failed\n");
+        return -1;
+    }
+
+    if (memcmp(out2, ourData, AES_TEST_SIZE) != 0) {
+        printf("mcapi aes-128 ctr decrypt orig cmp failed\n");
+        return -1;
+    }
+
+    /* 192 ctr encrypt */
+    ret = CRYPT_AES_KeySet(&mcAes, key, 24, iv, CRYPT_AES_ENCRYPTION);
+    if (ret != 0) {
+        printf("mcapi aes-192 key set failed\n");
+        return -1;
+    }
+    ret = AesSetKey(&defAes, key, 24, iv, AES_ENCRYPTION);
+    if (ret != 0) {
+        printf("default aes-192 key set failed\n");
+        return -1;
+    }
+
+    ret = CRYPT_AES_CTR_Encrypt(&mcAes, out1, ourData, AES_TEST_SIZE);
+    if (ret != 0) {
+        printf("mcapi aes-192 ctr encrypt failed\n");
+        return -1;
+    }
+    AesCtrEncrypt(&defAes, out2, ourData, AES_TEST_SIZE);
+
+    if (memcmp(out1, out2, AES_TEST_SIZE) != 0) {
+        printf("mcapi aes-192 ctr encrypt cmp failed\n");
+        return -1;
+    }
+
+    /* 192 ctr decrypt */
+    ret = CRYPT_AES_KeySet(&mcAes, key, 24, iv, CRYPT_AES_ENCRYPTION);
+    if (ret != 0) {
+        printf("mcapi aes-192 key set failed\n");
+        return -1;
+    }
+    ret = AesSetKey(&defAes, key, 24, iv, AES_DECRYPTION);
+    if (ret != 0) {
+        printf("default aes-192 key set failed\n");
+        return -1;
+    }
+
+    ret = CRYPT_AES_CTR_Encrypt(&mcAes, out2, out1, AES_TEST_SIZE);
+    if (ret != 0) {
+        printf("mcapi aes-192 ctr decrypt failed\n");
+        return -1;
+    }
+
+    if (memcmp(out2, ourData, AES_TEST_SIZE) != 0) {
+        printf("mcapi aes-192 ctr decrypt orig cmp failed\n");
+        return -1;
+    }
+
+    /* 256 ctr encrypt */
+    ret = CRYPT_AES_KeySet(&mcAes, key, 32, iv, CRYPT_AES_ENCRYPTION);
+    if (ret != 0) {
+        printf("mcapi aes-256 key set failed\n");
+        return -1;
+    }
+    ret = AesSetKey(&defAes, key, 32, iv, AES_ENCRYPTION);
+    if (ret != 0) {
+        printf("default aes-256 key set failed\n");
+        return -1;
+    }
+
+    ret = CRYPT_AES_CTR_Encrypt(&mcAes, out1, ourData, AES_TEST_SIZE);
+    if (ret != 0) {
+        printf("mcapi aes-256 ctr encrypt failed\n");
+        return -1;
+    }
+    AesCtrEncrypt(&defAes, out2, ourData, AES_TEST_SIZE);
+
+    if (memcmp(out1, out2, AES_TEST_SIZE) != 0) {
+        printf("mcapi aes-256 ctr encrypt cmp failed\n");
+        return -1;
+    }
+
+    /* 256 ctr decrypt */
+    ret = CRYPT_AES_KeySet(&mcAes, key, 32, iv, CRYPT_AES_ENCRYPTION);
+    if (ret != 0) {
+        printf("mcapi aes-256 key set failed\n");
+        return -1;
+    }
+    ret = AesSetKey(&defAes, key, 32, iv, AES_ENCRYPTION);
+    if (ret != 0) {
+        printf("default aes-256 key set failed\n");
+        return -1;
+    }
+
+    ret = CRYPT_AES_CTR_Encrypt(&mcAes, out2, out1, AES_TEST_SIZE);
+    if (ret != 0) {
+        printf("mcapi aes-256 ctr decrypt failed\n");
+        return -1;
+    }
+
+    if (memcmp(out2, ourData, AES_TEST_SIZE) != 0) {
+        printf("mcapi aes-256 ctr decrypt orig cmp failed\n");
+        return -1;
+    }
+
+    printf("aes-ctr     mcapi test passed\n");
 
     return 0;
 }
