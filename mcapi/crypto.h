@@ -163,7 +163,7 @@ enum {
 
 /* AES */
 typedef struct CRYPT_AES_CTX {
-    int holder[100];   /* big enough to hold internal, but check on init */
+    int holder[69];   /* big enough to hold internal, but check on init */
 } CRYPT_AES_CTX;
 
 /* key */
@@ -187,13 +187,42 @@ int CRYPT_AES_DIRECT_Encrypt(CRYPT_AES_CTX*, unsigned char*,
 int CRYPT_AES_DIRECT_Decrypt(CRYPT_AES_CTX*, unsigned char*,
                            const unsigned char*);
 
-
 /* key direction flags for setup, ctr always uses ENCRYPT flag */
 enum {
     CRYPT_AES_ENCRYPTION = 0,
     CRYPT_AES_DECRYPTION = 1,
     CRYPT_AES_BLOCK_SIZE = 16
 };
+
+
+
+/* RSA */
+typedef struct CRYPT_RSA_CTX {
+    void* holder;
+} CRYPT_RSA_CTX;
+
+/* init/free */
+int CRYPT_RSA_Initialize(CRYPT_RSA_CTX*);
+int CRYPT_RSA_Free(CRYPT_RSA_CTX*);
+
+/* key decode */
+int CRYPT_RSA_PublicKeyDecode(CRYPT_RSA_CTX*, const unsigned char*,
+                              unsigned int);
+int CRYPT_RSA_PrivateKeyDecode(CRYPT_RSA_CTX*, const unsigned char*,
+                               unsigned int);
+
+/* encrypt/decrypt */
+int CRYPT_RSA_PublicEncrypt(CRYPT_RSA_CTX*, unsigned char*,
+                            unsigned int, const unsigned char*, unsigned int,
+                            CRYPT_RNG_CTX*);
+int CRYPT_RSA_PrivateDecrypt(CRYPT_RSA_CTX*, unsigned char*,
+                             unsigned int, const unsigned char*, unsigned int);
+
+/* helpers */
+int CRYPT_RSA_EncryptSizeGet(CRYPT_RSA_CTX*);                             
+
+
+
 
 
 #ifdef __cplusplus

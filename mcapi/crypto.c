@@ -35,6 +35,7 @@
 #include <cyassl/ctaocrypt/random.h>
 #include <cyassl/ctaocrypt/des3.h>
 #include <cyassl/ctaocrypt/aes.h>
+#include <cyassl/ctaocrypt/rsa.h>
 
 
 /* Initialize MD5 */
@@ -386,6 +387,78 @@ int CRYPT_AES_DIRECT_Decrypt(CRYPT_AES_CTX* aes, unsigned char* out,
 
     return 0;
 }
+
+
+/* RSA Initialize */
+int CRYPT_RSA_Initialize(CRYPT_RSA_CTX* rsa)
+{
+    rsa->holder = (RsaKey*)XMALLOC(sizeof(RsaKey), NULL, DYNAMIC_TYPE_RSA);
+    if (rsa->holder == NULL)
+        return -1;
+
+    InitRsaKey((RsaKey*)rsa->holder, NULL);
+
+    return 0;
+}
+
+
+/* RSA Free resources */
+int CRYPT_RSA_Free(CRYPT_RSA_CTX* rsa)
+{
+    FreeRsaKey((RsaKey*)rsa->holder);
+    XFREE(rsa->holder, NULL, DYNAMIC_TYPE_RSA);
+    rsa->holder = NULL;
+
+    return 0;
+}
+
+
+/* RSA Public key decode ASN.1 */
+int CRYPT_RSA_PublicKeyDecode(CRYPT_RSA_CTX* rsa, const unsigned char* in,
+                              unsigned int inSz)
+{
+    unsigned int idx = 0;
+    (void)idx;
+
+    return RsaPublicKeyDecode(in, &idx, (RsaKey*)rsa->holder, inSz);
+}
+
+
+/* RSA Private key decode ASN.1 */
+int CRYPT_RSA_PrivateKeyDecode(CRYPT_RSA_CTX* rsa, const unsigned char* in,
+                               unsigned int inSz)
+{
+    unsigned int idx = 0;
+    (void)idx;
+
+    return RsaPrivateKeyDecode(in, &idx, (RsaKey*)rsa->holder, inSz);
+}
+
+
+/* RSA Public Encrypt */
+int CRYPT_RSA_PublicEncrypt(CRYPT_RSA_CTX* rsa, unsigned char* out,
+                            unsigned int outSz, const unsigned char* in,
+                            unsigned int inSz, CRYPT_RNG_CTX* rng)
+{
+    return RsaPublicEncrypt(in, inSz, out, outSz, (RsaKey*)rsa->holder,
+                            (RNG*)rng);
+}
+
+
+/* RSA Private Decrypt */
+int CRYPT_RSA_PrivateDecrypt(CRYPT_RSA_CTX* rsa, unsigned char* out,
+                             unsigned int outSz, const unsigned char* in,
+                             unsigned int inSz)
+{
+    return RsaPrivateDecrypt(in, inSz, out, outSz, (RsaKey*)rsa->holder);
+}
+
+
+/* RSA Get Encrypt size helper */
+int CRYPT_RSA_EncryptSizeGet(CRYPT_RSA_CTX* rsa) 
+{
+    return RsaEncryptSize((RsaKey*)rsa->holder);
+}    
 
 
 

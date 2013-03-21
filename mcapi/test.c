@@ -37,6 +37,9 @@
 #include <cyassl/ctaocrypt/random.h>
 #include <cyassl/ctaocrypt/des3.h>
 #include <cyassl/ctaocrypt/aes.h>
+#include <cyassl/ctaocrypt/rsa.h>
+#define USE_CERT_BUFFERS_1024
+#include <cyassl/certs_test.h>
 
 /* c stdlib headers */
 #include <stdio.h>
@@ -51,6 +54,8 @@
 static byte ourData[OUR_DATA_SIZE];
 static byte* key = NULL;
 static byte* iv  = NULL;
+static CRYPT_RNG_CTX mcRng;
+static RNG           defRng;
 
 static int check_md5(void);
 static int check_sha(void);
@@ -64,6 +69,7 @@ static int check_des3(void);
 static int check_aescbc(void);
 static int check_aesctr(void);
 static int check_aesdirect(void);
+static int check_rsa(void);
 
 
 int main(int argc, char** argv)
@@ -163,6 +169,12 @@ int main(int argc, char** argv)
     ret = check_aesdirect();
     if (ret != 0) {
         printf("mcapi check_aes direct failed\n");
+        return -1;
+    }
+
+    ret = check_rsa();
+    if (ret != 0) {
+        printf("mcapi check_rsa failed\n");
         return -1;
     }
 
@@ -493,7 +505,6 @@ static int check_compress(void)
 /* check mcapi rng */
 static int check_rng(void)
 {
-    CRYPT_RNG_CTX rng;
     int           ret;
     int           i; 
     byte          in[RANDOM_BYTE_SZ];
@@ -505,19 +516,25 @@ static int check_rng(void)
     for (i = 0; i < RANDOM_BYTE_SZ; i++)
         out[i] = (byte)i;
 
-    ret = CRYPT_RNG_Initialize(&rng);
+    ret = InitRng(&defRng);
+    if (ret != 0) {
+        printf("default rng init failed\n");
+        return -1;
+    }
+
+    ret = CRYPT_RNG_Initialize(&mcRng);
     if (ret != 0) {
         printf("mcapi rng init failed\n");
         return -1;
     }
 
-    ret = CRYPT_RNG_Get(&rng, &out[0]);
+    ret = CRYPT_RNG_Get(&mcRng, &out[0]);
     if (ret != 0) {
         printf("mcapi rng get failed\n");
         return -1;
     }
 
-    ret = CRYPT_RNG_BlockGenerate(&rng, out, RANDOM_BYTE_SZ);
+    ret = CRYPT_RNG_BlockGenerate(&mcRng, out, RANDOM_BYTE_SZ);
     if (ret != 0) {
         printf("mcapi rng block gen failed\n");
         return -1;
@@ -1113,6 +1130,84 @@ static int check_aesdirect(void)
     return 0;
 }
 
+
+#define RSA_TEST_SIZE 64
+
+/* check mcapi rsa */
+static int check_rsa(void)
+{
+    CRYPT_RSA_CTX mcRsa;
+    RsaKey        defRsa;
+    int           ret;
+    int           ret2;
+    unsigned int  keySz = (unsigned int)sizeof(client_key_der_1024);
+    unsigned int  idx   = 0;
+    byte          out1[256];
+    byte          out2[256];
+
+    InitRsaKey(&defRsa, NULL);
+    ret = CRYPT_RSA_Initialize(&mcRsa);
+    if (ret != 0) {
+        printf("mcapi rsa init failed\n");
+        return -1;
+    }
+
+    ret = CRYPT_RSA_PrivateKeyDecode(&mcRsa, client_key_der_1024, keySz);
+    if (ret != 0) {
+        printf("mcapi rsa private key decode failed\n");
+        return -1;
+    }
+
+    ret = RsaPrivateKeyDecode(client_key_der_1024, &idx, &defRsa, keySz);
+    if (ret != 0) {
+        printf("default rsa private key decode failed\n");
+        return -1;
+    }
+
+    ret = CRYPT_RSA_PublicEncrypt(&mcRsa, out1, sizeof(out1), ourData,
+                                  RSA_TEST_SIZE, &mcRng);
+    if (ret < 0) {
+        printf("mcapi rsa public encrypt failed\n");
+        return -1;
+    }
+
+    ret2 = RsaPublicEncrypt(ourData, RSA_TEST_SIZE, out2, sizeof(out2),
+                            &defRsa, &defRng);
+    if (ret2 < 0) {
+        printf("default rsa public encrypt failed\n");
+        return -1;
+    }
+
+    if (ret != ret2) {
+        printf("default rsa public encrypt sz != mcapi sz\n");
+        return -1;
+    }
+
+    if (ret != CRYPT_RSA_EncryptSizeGet(&mcRsa)) {
+        printf("mcapi encrypt sz get != mcapi sz\n");
+        return -1;
+    }
+
+    ret = CRYPT_RSA_PrivateDecrypt(&mcRsa, out2, sizeof(out2), out1, ret); 
+    if (ret < 0) {
+        printf("mcapi rsa private derypt failed\n");
+        return -1;
+    }
+
+    if (ret != RSA_TEST_SIZE) {
+        printf("mcapi rsa private derypt plain size wrong\n");
+        return -1;
+    }
+
+    if (memcmp(out2, ourData, ret) != 0) {
+        printf("mcapi rsa private derypt plain text bad\n");
+        return -1;
+    }
+
+    printf("rsa         mcapi test passed\n");
+
+    return 0;
+}
 
 
 
