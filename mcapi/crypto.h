@@ -161,6 +161,29 @@ enum {
 };
 
 
+/* AES */
+typedef struct CRYPT_AES_CTX {
+    int holder[100];   /* big enough to hold internal, but check on init */
+} CRYPT_AES_CTX;
+
+/* key */
+int CRYPT_AES_KeySet(CRYPT_AES_CTX*, const unsigned char*, unsigned int,
+                      const unsigned char*, int);
+int CRYPT_AES_IvSet(CRYPT_AES_CTX*, const unsigned char*);
+
+/* cbc */
+int CRYPT_AES_CBC_Encrypt(CRYPT_AES_CTX*, unsigned char*,
+                           const unsigned char*, unsigned int);
+int CRYPT_AES_CBC_Decrypt(CRYPT_AES_CTX*, unsigned char*,
+                           const unsigned char*, unsigned int);
+
+/* key direction flags for setup */
+enum {
+    CRYPT_AES_ENCRYPTION = 0,
+    CRYPT_AES_DECRYPTION = 1 
+};
+
+
 #ifdef __cplusplus
     }  /* extern "C" */ 
 #endif

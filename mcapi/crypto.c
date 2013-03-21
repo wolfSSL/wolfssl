@@ -34,6 +34,7 @@
 #include <cyassl/ctaocrypt/compress.h>
 #include <cyassl/ctaocrypt/random.h>
 #include <cyassl/ctaocrypt/des3.h>
+#include <cyassl/ctaocrypt/aes.h>
 
 
 /* Initialize MD5 */
@@ -317,7 +318,44 @@ int CRYPT_TDES_CBC_Decrypt(CRYPT_TDES_CTX* tdes, unsigned char* out,
 }
 
 
+/* AES Key Set, may have iv, will have direction */
+int CRYPT_AES_KeySet(CRYPT_AES_CTX* aes, const unsigned char* key,
+                     unsigned int keyLen, const unsigned char* iv, int dir)
+{
+    typedef char aes_test[sizeof(CRYPT_AES_CTX) >= sizeof(Aes) ? 1 : -1];
+    (void)sizeof(aes_test);
 
+    return AesSetKey((Aes*)aes, key, keyLen, iv, dir);
+}
+
+
+/* AES Iv Set, sometimes added later */
+int CRYPT_AES_IvSet(CRYPT_AES_CTX* aes, const unsigned char* iv)
+{
+    AesSetIV((Aes*)aes, iv);
+
+    return 0;
+}
+
+
+/* AES CBC Encrypt */
+int CRYPT_AES_CBC_Encrypt(CRYPT_AES_CTX* aes, unsigned char* out,
+                          const unsigned char* in, unsigned int inSz)
+{
+    AesCbcEncrypt((Aes*)aes, out, in, inSz);
+
+    return 0;
+}
+
+
+/* AES CBC Decrypt */
+int CRYPT_AES_CBC_Decrypt(CRYPT_AES_CTX* aes, unsigned char* out,
+                          const unsigned char* in, unsigned int inSz)
+{
+    AesCbcDecrypt((Aes*)aes, out, in, inSz);
+
+    return 0;
+}
 
 
 

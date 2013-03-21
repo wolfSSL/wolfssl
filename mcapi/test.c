@@ -36,6 +36,7 @@
 #include <cyassl/ctaocrypt/compress.h>
 #include <cyassl/ctaocrypt/random.h>
 #include <cyassl/ctaocrypt/des3.h>
+#include <cyassl/ctaocrypt/aes.h>
 
 /* c stdlib headers */
 #include <stdio.h>
@@ -60,6 +61,7 @@ static int check_hmac(void);
 static int check_compress(void);
 static int check_rng(void);
 static int check_des3(void);
+static int check_aescbc(void);
 
 
 int main(int argc, char** argv)
@@ -141,6 +143,12 @@ int main(int argc, char** argv)
     ret = check_des3();
     if (ret != 0) {
         printf("mcapi check_des3 failed\n");
+        return -1;
+    }
+
+    ret = check_aescbc();
+    if (ret != 0) {
+        printf("mcapi check_aes failed\n");
         return -1;
     }
 
@@ -572,6 +580,187 @@ static int check_des3(void)
     }
 
     printf("tdes        mcapi test passed\n");
+
+    return 0;
+}
+
+
+#define AES_TEST_SIZE 32
+
+/* check mcapi aes */
+static int check_aescbc(void)
+{
+    CRYPT_AES_CTX mcAes;
+    Aes           defAes;
+    int           ret;
+    byte          out1[AES_TEST_SIZE];
+    byte          out2[AES_TEST_SIZE];
+
+    strncpy((char*)key, "1234567890abcdefghijklmnopqrstuv", 32);
+    strncpy((char*)iv,  "1234567890abcdef", 16);
+
+    /* 128 cbc encrypt */
+    ret = CRYPT_AES_KeySet(&mcAes, key, 16, iv, CRYPT_AES_ENCRYPTION);
+    if (ret != 0) {
+        printf("mcapi aes-128 key set failed\n");
+        return -1;
+    }
+    ret = AesSetKey(&defAes, key, 16, iv, AES_ENCRYPTION);
+    if (ret != 0) {
+        printf("default aes-128 key set failed\n");
+        return -1;
+    }
+
+    ret = CRYPT_AES_CBC_Encrypt(&mcAes, out1, ourData, AES_TEST_SIZE);
+    if (ret != 0) {
+        printf("mcapi aes-128 cbc encrypt failed\n");
+        return -1;
+    }
+    AesCbcEncrypt(&defAes, out2, ourData, AES_TEST_SIZE);
+
+    if (memcmp(out1, out2, AES_TEST_SIZE) != 0) {
+        printf("mcapi aes-128 cbc encrypt cmp failed\n");
+        return -1;
+    }
+
+    /* 128 cbc decrypt */
+    ret = CRYPT_AES_KeySet(&mcAes, key, 16, iv, CRYPT_AES_DECRYPTION);
+    if (ret != 0) {
+        printf("mcapi aes-128 key set failed\n");
+        return -1;
+    }
+    ret = AesSetKey(&defAes, key, 16, iv, DES_DECRYPTION);
+    if (ret != 0) {
+        printf("default aes-128 key set failed\n");
+        return -1;
+    }
+
+    ret = CRYPT_AES_CBC_Decrypt(&mcAes, out2, out1, AES_TEST_SIZE);
+    if (ret != 0) {
+        printf("mcapi aes-128 cbc decrypt failed\n");
+        return -1;
+    }
+    AesCbcDecrypt(&defAes, out1, out1, AES_TEST_SIZE);
+
+    if (memcmp(out1, out2, AES_TEST_SIZE) != 0) {
+        printf("mcapi aes-128 cbc decrypt cmp failed\n");
+        return -1;
+    }
+
+    if (memcmp(out1, ourData, AES_TEST_SIZE) != 0) {
+        printf("mcapi aes-128 cbc decrypt orig cmp failed\n");
+        return -1;
+    }
+
+    /* 192 cbc encrypt */
+    ret = CRYPT_AES_KeySet(&mcAes, key, 24, iv, CRYPT_AES_ENCRYPTION);
+    if (ret != 0) {
+        printf("mcapi aes-192 key set failed\n");
+        return -1;
+    }
+    ret = AesSetKey(&defAes, key, 24, iv, AES_ENCRYPTION);
+    if (ret != 0) {
+        printf("default aes-192 key set failed\n");
+        return -1;
+    }
+
+    ret = CRYPT_AES_CBC_Encrypt(&mcAes, out1, ourData, AES_TEST_SIZE);
+    if (ret != 0) {
+        printf("mcapi aes-192 cbc encrypt failed\n");
+        return -1;
+    }
+    AesCbcEncrypt(&defAes, out2, ourData, AES_TEST_SIZE);
+
+    if (memcmp(out1, out2, AES_TEST_SIZE) != 0) {
+        printf("mcapi aes-192 cbc encrypt cmp failed\n");
+        return -1;
+    }
+
+    /* 192 cbc decrypt */
+    ret = CRYPT_AES_KeySet(&mcAes, key, 24, iv, CRYPT_AES_DECRYPTION);
+    if (ret != 0) {
+        printf("mcapi aes-192 key set failed\n");
+        return -1;
+    }
+    ret = AesSetKey(&defAes, key, 24, iv, DES_DECRYPTION);
+    if (ret != 0) {
+        printf("default aes-192 key set failed\n");
+        return -1;
+    }
+
+    ret = CRYPT_AES_CBC_Decrypt(&mcAes, out2, out1, AES_TEST_SIZE);
+    if (ret != 0) {
+        printf("mcapi aes-192 cbc decrypt failed\n");
+        return -1;
+    }
+    AesCbcDecrypt(&defAes, out1, out1, AES_TEST_SIZE);
+
+    if (memcmp(out1, out2, AES_TEST_SIZE) != 0) {
+        printf("mcapi aes-192 cbc decrypt cmp failed\n");
+        return -1;
+    }
+
+    if (memcmp(out1, ourData, AES_TEST_SIZE) != 0) {
+        printf("mcapi aes-192 cbc decrypt orig cmp failed\n");
+        return -1;
+    }
+
+    /* 256 cbc encrypt */
+    ret = CRYPT_AES_KeySet(&mcAes, key, 32, iv, CRYPT_AES_ENCRYPTION);
+    if (ret != 0) {
+        printf("mcapi aes-256 key set failed\n");
+        return -1;
+    }
+    ret = AesSetKey(&defAes, key, 32, iv, AES_ENCRYPTION);
+    if (ret != 0) {
+        printf("default aes-256 key set failed\n");
+        return -1;
+    }
+
+    ret = CRYPT_AES_CBC_Encrypt(&mcAes, out1, ourData, AES_TEST_SIZE);
+    if (ret != 0) {
+        printf("mcapi aes-256 cbc encrypt failed\n");
+        return -1;
+    }
+    AesCbcEncrypt(&defAes, out2, ourData, AES_TEST_SIZE);
+
+    if (memcmp(out1, out2, AES_TEST_SIZE) != 0) {
+        printf("mcapi aes-256 cbc encrypt cmp failed\n");
+        return -1;
+    }
+
+    /* 256 cbc decrypt */
+    ret = CRYPT_AES_KeySet(&mcAes, key, 32, iv, CRYPT_AES_DECRYPTION);
+    if (ret != 0) {
+        printf("mcapi aes-256 key set failed\n");
+        return -1;
+    }
+    ret = AesSetKey(&defAes, key, 32, iv, DES_DECRYPTION);
+    if (ret != 0) {
+        printf("default aes-256 key set failed\n");
+        return -1;
+    }
+
+    ret = CRYPT_AES_CBC_Decrypt(&mcAes, out2, out1, AES_TEST_SIZE);
+    if (ret != 0) {
+        printf("mcapi aes-256 cbc decrypt failed\n");
+        return -1;
+    }
+    AesCbcDecrypt(&defAes, out1, out1, AES_TEST_SIZE);
+
+    if (memcmp(out1, out2, AES_TEST_SIZE) != 0) {
+        printf("mcapi aes-256 cbc decrypt cmp failed\n");
+        return -1;
+    }
+
+    if (memcmp(out1, ourData, AES_TEST_SIZE) != 0) {
+        printf("mcapi aes-256 cbc decrypt orig cmp failed\n");
+        return -1;
+    }
+
+
+
+    printf("aes-cbc     mcapi test passed\n");
 
     return 0;
 }
