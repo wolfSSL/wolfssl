@@ -1048,10 +1048,14 @@ static INLINE int CurrentDir(const char* str)
     static INLINE void ShowMemoryTracker(void) 
     {
     #ifdef DO_MEM_STATS 
-        printf("total   Allocs = %9ld\n", ourMemStats.totalAllocs);
-        printf("total   Bytes  = %9ld\n", ourMemStats.totalBytes);
-        printf("peak    Bytes  = %9ld\n", ourMemStats.peakBytes);
-        printf("current Bytes  = %9ld\n", ourMemStats.currentBytes);
+        printf("total   Allocs = %9lu\n",
+                                       (unsigned long)ourMemStats.totalAllocs);
+        printf("total   Bytes  = %9lu\n",
+                                       (unsigned long)ourMemStats.totalBytes);
+        printf("peak    Bytes  = %9lu\n",
+                                       (unsigned long)ourMemStats.peakBytes);
+        printf("current Bytes  = %9lu\n",
+                                       (unsigned long)ourMemStats.currentBytes);
     #endif
     }
 
