@@ -55,7 +55,7 @@
 #endif
 
 
-#ifdef CYASSL_BLAKE2
+#ifdef HAVE_BLAKE2
     #include <cyassl/ctaocrypt/blake2.h>
     void bench_blake2(void);
 #endif
@@ -172,7 +172,7 @@ int main(int argc, char** argv)
 #ifdef CYASSL_RIPEMD
     bench_ripemd();
 #endif
-#ifdef CYASSL_BLAKE2
+#ifdef HAVE_BLAKE2
     bench_blake2();
 #endif
 
@@ -622,21 +622,21 @@ void bench_ripemd(void)
 #endif
 
 
-#ifdef CYASSL_BLAKE2
+#ifdef HAVE_BLAKE2
 void bench_blake2(void)
 {
-    blake2b_state S[1];
+    Blake2 b2;
     byte   digest[32];
     double start, total, persec;
     int    i;
-        
-    blake2b_init(S, 32); 
+       
+    InitBlake2(&b2, 32); 
     start = current_time(1);
     
     for(i = 0; i < numBlocks; i++)
-        blake2b_update(S, plain, sizeof(plain));
+        Blake2Update(&b2, plain, sizeof(plain));
    
-    blake2b_final(S, digest, 32);
+    Blake2Final(&b2, digest, 32);
 
     total = current_time(0) - start;
     persec = 1 / total * numBlocks;

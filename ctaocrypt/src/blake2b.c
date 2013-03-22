@@ -36,6 +36,8 @@
     #include <config.h>
 #endif
 
+#ifdef HAVE_BLAKE2
+
 #include <cyassl/ctaocrypt/blake2.h>
 #include <cyassl/ctaocrypt/blake2-impl.h>
 
@@ -428,4 +430,36 @@ int main( int argc, char **argv )
   return 0;
 }
 #endif
+
+
+/* CTaoCrypt API */
+
+/* Init Blake2 digest, track size incase final doesn't want to "remember" */
+int InitBlake2(Blake2* b2, word32 digestSz)
+{
+    b2->digestSz = digestSz;
+
+    return blake2b_init(b2->S, (byte)digestSz);
+}
+
+
+/* Blake2 Update */
+int Blake2Update(Blake2* b2, const byte* data, word32 sz)
+{
+    return blake2b_update(b2->S, data, sz);
+}
+
+
+/* Blake2 Final, if pass in zero size we use init digestSz */
+int Blake2Final(Blake2* b2, byte* final, word32 requestSz)
+{
+    word32 sz = requestSz ? requestSz : b2->digestSz;
+
+    return blake2b_final(b2->S, final, (byte)sz);
+}
+
+
+/* end CTaoCrypt API */
+
+#endif  /* HAVE_BLAKE2 */
 
