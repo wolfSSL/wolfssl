@@ -104,7 +104,7 @@ static INLINE int blake2b_increment_counter( blake2b_state *S, const word64
 
 
 
-// Parameter-related functions
+/* Parameter-related functions */
 static INLINE int blake2b_param_set_digest_length( blake2b_param *P,
                                                    const byte digest_length )
 {
@@ -322,20 +322,20 @@ int blake2b_update( blake2b_state *S, const byte *in, word64 inlen )
 
     if( inlen > fill )
     {
-      XMEMCPY( S->buf + left, in, fill ); // Fill buffer
+      XMEMCPY( S->buf + left, in, fill ); /* Fill buffer */
       S->buflen += fill;
       blake2b_increment_counter( S, BLAKE2B_BLOCKBYTES );
-      blake2b_compress( S, S->buf ); // Compress
+      blake2b_compress( S, S->buf ); /* Compress */
       XMEMCPY( S->buf, S->buf + BLAKE2B_BLOCKBYTES, BLAKE2B_BLOCKBYTES );
-              // Shift buffer left
+              /* Shift buffer left */
       S->buflen -= BLAKE2B_BLOCKBYTES;
       in += fill;
       inlen -= fill;
     }
-    else // inlen <= fill
+    else /* inlen <= fill */
     {
       XMEMCPY( S->buf + left, in, inlen );
-      S->buflen += inlen; // Be lazy, do not compress
+      S->buflen += inlen; /* Be lazy, do not compress */
       in += inlen;
       inlen -= inlen;
     }

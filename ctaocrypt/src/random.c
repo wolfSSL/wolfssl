@@ -90,7 +90,7 @@ static int Hash_df(RNG* rng, byte* out, word32 outSz, byte type, byte* inA, word
     byte ctr;
     int i;
     int len;
-    word32 bits = (outSz * 8); // reverse byte order
+    word32 bits = (outSz * 8); /* reverse byte order */
 
     #ifdef LITTLE_ENDIAN_ORDER
         bits = ByteReverseWord32(bits);

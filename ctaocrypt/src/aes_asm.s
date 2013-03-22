@@ -25,12 +25,14 @@
  */
 
 
-//AES_CBC_encrypt (const unsigned char *in,
-//	unsigned char *out,
-//	unsigned char ivec[16],
-//	unsigned long length,
-//	const unsigned char *KS,
-//	int nr)
+/*
+AES_CBC_encrypt (const unsigned char *in,
+	unsigned char *out,
+	unsigned char ivec[16],
+	unsigned long length,
+	const unsigned char *KS,
+	int nr)
+*/
 .globl AES_CBC_encrypt
 AES_CBC_encrypt:
 # parameter 1: %rdi
@@ -82,12 +84,14 @@ ret
 
 
 
-//AES_CBC_decrypt (const unsigned char *in,
-//  unsigned char *out,
-//  unsigned char ivec[16],
-//  unsigned long length,
-//  const unsigned char *KS,
-// int nr)
+/*
+AES_CBC_decrypt (const unsigned char *in,
+  unsigned char *out,
+  unsigned char ivec[16],
+  unsigned long length,
+  const unsigned char *KS,
+  int nr)
+*/
 .globl AES_CBC_decrypt
 AES_CBC_decrypt:
 # parameter 1: %rdi
@@ -260,8 +264,10 @@ ret
 
 
 
-//void AES_128_Key_Expansion(const unsigned char* userkey,
-//   unsigned char* key_schedule);
+/*
+void AES_128_Key_Expansion(const unsigned char* userkey,
+   unsigned char* key_schedule);
+*/
 .align  16,0x90
 .globl AES_128_Key_Expansion
 AES_128_Key_Expansion:
@@ -319,8 +325,10 @@ pxor %xmm2, %xmm1
 ret
 
 
-//void AES_192_Key_Expansion (const unsigned char *userkey,
-//  unsigned char *key)
+/*
+void AES_192_Key_Expansion (const unsigned char *userkey,
+  unsigned char *key)
+*/
 .globl AES_192_Key_Expansion
 AES_192_Key_Expansion:
 # parameter 1: %rdi
@@ -403,8 +411,10 @@ pxor   %xmm2, %xmm3
 ret
  
 
-//void AES_256_Key_Expansion (const unsigned char *userkey,
-//  unsigned char *key)
+/*
+void AES_256_Key_Expansion (const unsigned char *userkey,
+  unsigned char *key)
+*/
 .globl AES_256_Key_Expansion
 AES_256_Key_Expansion:
 # parameter 1: %rdi

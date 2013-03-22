@@ -71,17 +71,17 @@
 #pragma pack(push, 1)
   typedef struct __blake2s_param
   {
-    byte  digest_length; // 1
-    byte  key_length;    // 2
-    byte  fanout;        // 3
-    byte  depth;         // 4
-    word32 leaf_length;   // 8
-    byte  node_offset[6];// 14
-    byte  node_depth;    // 15
-    byte  inner_length;  // 16
-    // byte  reserved[0];
-    byte  salt[BLAKE2B_SALTBYTES]; // 24
-    byte  personal[BLAKE2S_PERSONALBYTES];  // 32
+    byte  digest_length; /* 1 */
+    byte  key_length;    /* 2 */
+    byte  fanout;        /* 3 */
+    byte  depth;         /* 4 */
+    word32 leaf_length;   /* 8 */
+    byte  node_offset[6];/* 14 */
+    byte  node_depth;    /* 15 */
+    byte  inner_length;  /* 16 */
+    /* byte  reserved[0]; */
+    byte  salt[BLAKE2B_SALTBYTES]; /* 24 */
+    byte  personal[BLAKE2S_PERSONALBYTES];  /* 32 */
   } blake2s_param;
 
   ALIGN( 64 ) typedef struct __blake2s_state
@@ -96,17 +96,17 @@
 
   typedef struct __blake2b_param
   {
-    byte  digest_length; // 1
-    byte  key_length;    // 2
-    byte  fanout;        // 3
-    byte  depth;         // 4
-    word32 leaf_length;   // 8
-    word64 node_offset;   // 16
-    byte  node_depth;    // 17
-    byte  inner_length;  // 18
-    byte  reserved[14];  // 32
-    byte  salt[BLAKE2B_SALTBYTES]; // 48
-    byte  personal[BLAKE2B_PERSONALBYTES];  // 64
+    byte  digest_length; /* 1 */
+    byte  key_length;    /* 2 */
+    byte  fanout;        /* 3 */
+    byte  depth;         /* 4 */
+    word32 leaf_length;   /* 8 */
+    word64 node_offset;   /* 16 */
+    byte  node_depth;    /* 17 */
+    byte  inner_length;  /* 18 */
+    byte  reserved[14];  /* 32 */
+    byte  salt[BLAKE2B_SALTBYTES]; /* 48 */
+    byte  personal[BLAKE2B_PERSONALBYTES];  /* 64 */
   } blake2b_param;
 
   ALIGN( 64 ) typedef struct __blake2b_state
@@ -136,7 +136,7 @@
   } blake2bp_state;
 #pragma pack(pop)
 
-  // Streaming API
+  /* Streaming API */
   int blake2s_init( blake2s_state *S, const byte outlen );
   int blake2s_init_key( blake2s_state *S, const byte outlen, const void *key, const byte keylen );
   int blake2s_init_param( blake2s_state *S, const blake2s_param *P );
@@ -159,7 +159,7 @@
   int blake2bp_update( blake2bp_state *S, const byte *in, word64 inlen );
   int blake2bp_final( blake2bp_state *S, byte *out, byte outlen );
 
-  // Simple API
+  /* Simple API */
   int blake2s( byte *out, const void *in, const void *key, const byte outlen, const word64 inlen, byte keylen );
   int blake2b( byte *out, const void *in, const void *key, const byte outlen, const word64 inlen, byte keylen );
 
@@ -170,6 +170,9 @@
   {
     return blake2b( out, in, key, outlen, inlen, keylen );
   }
+
+
+/* CTaoCrypt API */
 
 #if defined(__cplusplus)
     }
