@@ -23,6 +23,9 @@
 #ifndef CYASSL_CRL_H
 #define CYASSL_CRL_H
 
+
+#ifdef HAVE_CRL
+
 #include <cyassl/ssl.h>
 #include <cyassl/ctaocrypt/asn.h>
 
@@ -44,4 +47,5 @@ CYASSL_LOCAL int  CheckCertCRL(CYASSL_CRL*, DecodedCert*);
     }  /* extern "C" */
 #endif
 
+#endif /* HAVE_CRL */
 #endif /* CYASSL_CRL_H */

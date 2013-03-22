@@ -25,7 +25,7 @@
 
 #include <cyassl/openssl/ssl.h>
 #include <cyassl/test.h>
-#include <cyassl/ctaocrypt/sha.h>
+#include <cyassl/ctaocrypt/sha256.h>
 
 #include "ctaocrypt/test/test.h"
 
@@ -138,8 +138,8 @@ int main(int argc, char** argv)
 
     /* validate output equals input */
     {
-        byte input[SHA_DIGEST_SIZE];
-        byte output[SHA_DIGEST_SIZE];
+        byte input[SHA256_DIGEST_SIZE];
+        byte output[SHA256_DIGEST_SIZE];
 
         file_test("input",  input);
         file_test("output", output);
@@ -220,22 +220,22 @@ void file_test(const char* file, byte* check)
 {
     FILE* f;
     int   i = 0, j;
-    Sha   sha;
+    Sha256   sha256;
     byte  buf[1024];
-    byte  shasum[SHA_DIGEST_SIZE];
+    byte  shasum[SHA256_DIGEST_SIZE];
    
-    InitSha(&sha); 
+    InitSha256(&sha256); 
     if( !( f = fopen( file, "rb" ) )) {
         printf("Can't open %s\n", file);
         return;
     }
     while( ( i = (int)fread(buf, 1, sizeof(buf), f )) > 0 )
-        ShaUpdate(&sha, buf, i);
+        Sha256Update(&sha256, buf, i);
     
-    ShaFinal(&sha, shasum);
+    Sha256Final(&sha256, shasum);
     memcpy(check, shasum, sizeof(shasum));
 
-    for(j = 0; j < SHA_DIGEST_SIZE; ++j ) 
+    for(j = 0; j < SHA256_DIGEST_SIZE; ++j ) 
         printf( "%02x", shasum[j] );
    
     printf("  %s\n", file);

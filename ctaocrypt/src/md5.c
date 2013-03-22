@@ -24,6 +24,8 @@
     #include <config.h>
 #endif
 
+#ifndef NO_MD5
+
 #include <cyassl/ctaocrypt/md5.h>
 
 #ifdef NO_INLINE
@@ -340,3 +342,4 @@ void Md5Final(Md5* md5, byte* hash)
 
 #endif /* STM32F2_CRYPTO */
 
+#endif /* NO_MD5 */

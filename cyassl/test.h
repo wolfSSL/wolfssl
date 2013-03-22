@@ -20,6 +20,8 @@
     #define SOCKET_T unsigned int
 #else
     #include <string.h>
+    #include <sys/types.h>
+#ifndef CYASSL_LEANPSK
     #include <unistd.h>
     #include <netdb.h>
     #include <netinet/in.h>
@@ -27,13 +29,13 @@
     #include <arpa/inet.h>
     #include <sys/ioctl.h>
     #include <sys/time.h>
-    #include <sys/types.h>
     #include <sys/socket.h>
     #include <pthread.h>
     #include <fcntl.h>
     #ifdef TEST_IPV6
         #include <netdb.h>
     #endif
+#endif
     #define SOCKET_T int
     #ifndef SO_NOSIGPIPE
         #include <signal.h>  /* ignore SIGPIPE */
@@ -106,7 +108,11 @@
    
 
 #define SERVER_DEFAULT_VERSION 3
+#define SERVER_DTLS_DEFAULT_VERSION (-2)
+#define SERVER_INVALID_VERSION (-99)
 #define CLIENT_DEFAULT_VERSION 3
+#define CLIENT_DTLS_DEFAULT_VERSION (-2)
+#define CLIENT_INVALID_VERSION (-99)
 
 /* all certs relative to CyaSSL home directory now */
 #define caCert     "./certs/ca-cert.pem"
@@ -247,11 +253,12 @@ static INLINE int PasswordCallBack(char* passwd, int sz, int rw, void* userdata)
 
 static INLINE void showPeer(CYASSL* ssl)
 {
-#ifdef OPENSSL_EXTRA
 
     CYASSL_CIPHER* cipher;
+#ifdef KEEP_PEER_CERT
     CYASSL_X509*   peer = CyaSSL_get_peer_certificate(ssl);
     if (peer) {
+#ifdef OPENSSL_EXTRA
         char* altName;
         char* issuer  = CyaSSL_X509_NAME_oneline(
                                        CyaSSL_X509_get_issuer_name(peer), 0, 0);
@@ -283,14 +290,17 @@ static INLINE void showPeer(CYASSL* ssl)
 
         XFREE(subject, 0, DYNAMIC_TYPE_OPENSSL);
         XFREE(issuer,  0, DYNAMIC_TYPE_OPENSSL);
+#else
+        printf("peer has a cert!\n");
+#endif
     }
     else
         printf("peer has no cert!\n");
+#endif
     printf("SSL version is %s\n", CyaSSL_get_version(ssl));
 
     cipher = CyaSSL_get_current_cipher(ssl);
     printf("SSL cipher suite is %s\n", CyaSSL_CIPHER_get_name(cipher));
-#endif
 
 #if defined(SESSION_CERTS) && defined(SHOW_CERTS)
     {
@@ -930,6 +940,126 @@ static INLINE int CurrentDir(const char* str)
 }
 
 #endif /* USE_WINDOWS_API */
+
+
+#ifdef USE_CYASSL_MEMORY
+
+    typedef struct memoryStats {
+        size_t totalAllocs;     /* number of allocations */
+        size_t totalBytes;      /* total number of bytes allocated */
+        size_t peakBytes;       /* concurrent max bytes */
+        size_t currentBytes;    /* total current bytes in use */
+    } memoryStats;
+
+    typedef struct memHint {
+        size_t thisSize;      /* size of this memory */
+        void*  thisMemory;    /* actual memory for user */
+    } memHint;
+
+    typedef struct memoryTrack {
+        union {
+            memHint hint;
+            byte    alignit[16];   /* make sure we have strong alignment */
+        } u;
+    } memoryTrack;
+
+    #if defined(CYASSL_TRACK_MEMORY)
+        #define DO_MEM_STATS
+        static memoryStats ourMemStats;
+    #endif
+
+    static INLINE void* TrackMalloc(size_t sz)
+    {
+        memoryTrack* mt;
+
+        if (sz == 0)
+            return NULL;
+
+        mt = (memoryTrack*)malloc(sizeof(memoryTrack) + sz);
+        if (mt == NULL)
+            return NULL;
+
+        mt->u.hint.thisSize   = sz;
+        mt->u.hint.thisMemory = (byte*)mt + sizeof(memoryTrack);
+
+#ifdef DO_MEM_STATS
+        ourMemStats.totalAllocs++;
+        ourMemStats.totalBytes   += sz;
+        ourMemStats.currentBytes += sz;
+        if (ourMemStats.currentBytes > ourMemStats.peakBytes)
+            ourMemStats.peakBytes = ourMemStats.currentBytes;
+#endif
+
+        return mt->u.hint.thisMemory;
+    }
+
+
+    static INLINE void TrackFree(void* ptr)
+    {
+        memoryTrack* mt;
+
+        if (ptr == NULL)
+            return;
+
+        mt = (memoryTrack*)((byte*)ptr - sizeof(memoryTrack));
+
+#ifdef DO_MEM_STATS 
+        ourMemStats.currentBytes -= mt->u.hint.thisSize; 
+#endif
+
+        free(mt);
+    }
+
+
+    static INLINE void* TrackRealloc(void* ptr, size_t sz)
+    {
+        void* ret = TrackMalloc(sz);
+
+        if (ptr) {
+            /* if realloc is bigger, don't overread old ptr */
+            memoryTrack* mt = (memoryTrack*)((byte*)ptr - sizeof(memoryTrack));
+
+            if (mt->u.hint.thisSize < sz)
+                sz = mt->u.hint.thisSize;
+        }
+
+        if (ret && ptr)
+            memcpy(ret, ptr, sz);
+
+        if (ret)
+            TrackFree(ptr);
+
+        return ret;
+    }
+
+    static INLINE void InitMemoryTracker(void) 
+    {
+        if (CyaSSL_SetAllocators(TrackMalloc, TrackFree, TrackRealloc) != 0)
+            err_sys("CyaSSL SetAllocators failed for track memory");
+
+    #ifdef DO_MEM_STATS
+        ourMemStats.totalAllocs  = 0;
+        ourMemStats.totalBytes   = 0;
+        ourMemStats.peakBytes    = 0;
+        ourMemStats.currentBytes = 0;
+    #endif
+    }
+
+    static INLINE void ShowMemoryTracker(void) 
+    {
+    #ifdef DO_MEM_STATS 
+        printf("total   Allocs = %9lu\n",
+                                       (unsigned long)ourMemStats.totalAllocs);
+        printf("total   Bytes  = %9lu\n",
+                                       (unsigned long)ourMemStats.totalBytes);
+        printf("peak    Bytes  = %9lu\n",
+                                       (unsigned long)ourMemStats.peakBytes);
+        printf("current Bytes  = %9lu\n",
+                                       (unsigned long)ourMemStats.currentBytes);
+    #endif
+    }
+
+#endif /* USE_CYASSL_MEMORY */
 
 #endif /* CyaSSL_TEST_H */
 

@@ -35,7 +35,7 @@ static int test_CyaSSL_Init(void);
 static int test_CyaSSL_Cleanup(void);
 static int test_CyaSSL_Method_Allocators(void);
 static int test_CyaSSL_CTX_new(CYASSL_METHOD *method);
-#ifndef NO_FILESYSTEM
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
 static int test_CyaSSL_CTX_use_certificate_file(void);
 static int test_CyaSSL_CTX_use_PrivateKey_file(void);
 static int test_CyaSSL_CTX_load_verify_locations(void);
@@ -51,7 +51,7 @@ static int test_method(CYASSL_METHOD *method, const char *name);
 #ifdef OPENSSL_EXTRA
 static int test_method2(CYASSL_METHOD *method, const char *name);
 #endif
-#ifndef NO_FILESYSTEM
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
 static int test_ucf(CYASSL_CTX *ctx, const char* file, int type,
     int cond, const char* name);
 static int test_upkf(CYASSL_CTX *ctx, const char* file, int type,
@@ -79,7 +79,7 @@ int ApiTest(void)
     test_CyaSSL_Init();
     test_CyaSSL_Method_Allocators();
     test_CyaSSL_CTX_new(CyaSSLv23_server_method());
-#ifndef NO_FILESYSTEM
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
     test_CyaSSL_CTX_use_certificate_file();
     test_CyaSSL_CTX_use_PrivateKey_file();
     test_CyaSSL_CTX_load_verify_locations();
@@ -209,7 +209,7 @@ int test_CyaSSL_CTX_new(CYASSL_METHOD *method)
     return TEST_SUCCESS;
 }
 
-#ifndef NO_FILESYSTEM
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
 /* Helper for testing CyaSSL_CTX_use_certificate_file() */
 int test_ucf(CYASSL_CTX *ctx, const char* file, int type, int cond,
     const char* name)

@@ -60,7 +60,7 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
     CYASSL_CTX*    ctx    = 0;
 
     int    doDTLS = 0;
-    int    doLeanPSK = 0;
+    int    doPSK = 0;
     int    outCreated = 0;
     int    shutDown = 0;
     int    useAnyAddr = 0;
@@ -86,7 +86,11 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
 #endif
 
 #ifdef CYASSL_LEANPSK
-    doLeanPSK = 1;
+    doPSK = 1;
+#endif
+
+#if defined(NO_RSA) && !defined(HAVE_ECC)
+    doPSK = 1;
 #endif
 
     tcp_listen(&sockfd, yasslPort, useAnyAddr, doDTLS);
@@ -106,6 +110,7 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
 #endif
 
 #ifndef NO_FILESYSTEM
+    if (doPSK == 0) {
     #ifdef HAVE_NTRU
         /* ntru */
         if (CyaSSL_CTX_use_certificate_file(ctx, ntruCert, SSL_FILETYPE_PEM)
@@ -128,6 +133,8 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
                 != SSL_SUCCESS)
             err_sys("can't load server key file, "
                     "Please run from CyaSSL home dir");
+    #elif defined(NO_CERTS)
+        /* do nothing, just don't load cert files */
     #else
         /* normal */
         if (CyaSSL_CTX_use_certificate_file(ctx, svrCert, SSL_FILETYPE_PEM)
@@ -140,8 +147,9 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
             err_sys("can't load server key file, "
                     "Please run from CyaSSL home dir");
     #endif
+    } /* doPSK */
 #elif !defined(NO_CERTS)
-    if (!doLeanPSK) {
+    if (!doPSK) {
         load_buffer(ctx, svrCert, CYASSL_CERT);
         load_buffer(ctx, svrKey,  CYASSL_KEY);
     }
@@ -152,10 +160,19 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
     CyaSSL_CTX_set_cipher_list(ctx, "AES256-SHA");
 #endif
 
-    if (doLeanPSK) {
-#ifdef CYASSL_LEANPSK
+    if (doPSK) {
+#ifndef NO_PSK
+        const char *defaultCipherList;
+
         CyaSSL_CTX_set_psk_server_callback(ctx, my_psk_server_cb);
-        CyaSSL_CTX_set_cipher_list(ctx, "PSK-NULL-SHA");
+        CyaSSL_CTX_use_psk_identity_hint(ctx, "cyassl server");
+        #ifdef HAVE_NULL_CIPHER
+            defaultCipherList = "PSK-NULL-SHA256";
+        #else
+            defaultCipherList = "PSK-AES128-CBC-SHA256";
+        #endif
+        if (CyaSSL_CTX_set_cipher_list(ctx, defaultCipherList) != SSL_SUCCESS)
+            err_sys("server can't set cipher list 2");
 #endif
     }
 

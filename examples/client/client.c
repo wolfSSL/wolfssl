@@ -23,6 +23,11 @@
     #include <config.h>
 #endif
 
+#if !defined(CYASSL_TRACK_MEMORY) && !defined(NO_MAIN_DRIVER)
+    /* in case memory tracker wants stats */
+    #define CYASSL_TRACK_MEMORY
+#endif
+
 #include <cyassl/ssl.h>
 #include <cyassl/test.h>
 
@@ -34,6 +39,7 @@
     int timeoutCB(TimeoutInfo*);
     Timeval timeout;
 #endif
+
 
 static void NonBlockingSSL_Connect(CYASSL* ssl)
 {
@@ -97,9 +103,11 @@ static void Usage(void)
     printf("-A <file>   Certificate Authority file, default %s\n", caCert);
     printf("-b <num>    Benchmark <num> connections and print stats\n");
     printf("-s          Use pre Shared keys\n");
+    printf("-t          Track CyaSSL memory use\n");
     printf("-d          Disable peer checks\n");
     printf("-g          Send server HTTP GET\n");
-    printf("-u          Use UDP DTLS\n");
+    printf("-u          Use UDP DTLS,"
+           " add -v 2 for DTLSv1 (default), -v 3 for DTLSv1.2\n");
     printf("-m          Match domain name in cert\n");
     printf("-N          Use Non-blocking sockets\n");
     printf("-r          Resume session\n");
@@ -129,7 +137,7 @@ void client_test(void* args)
     char* domain = (char*)"www.yassl.com";
 
     int    ch;
-    int    version = CLIENT_DEFAULT_VERSION;
+    int    version = CLIENT_INVALID_VERSION;
     int    usePsk   = 0;
     int    sendGET  = 0;
     int    benchmark = 0;
@@ -138,6 +146,7 @@ void client_test(void* args)
     int    doPeerCheck = 1;
     int    nonBlocking = 0;
     int    resumeSession = 0;
+    int    trackMemory   = 0;
     char*  cipherList = NULL;
     char*  verifyCert = (char*)caCert;
     char*  ourCert    = (char*)cliCert;
@@ -148,7 +157,17 @@ void client_test(void* args)
 
     ((func_args*)args)->return_code = -1; /* error state */
 
-    while ((ch = mygetopt(argc, argv, "?gdusmNrh:p:v:l:A:c:k:b:")) != -1) {
+#ifdef NO_RSA
+    verifyCert = (char*)eccCert;
+    ourCert    = (char*)cliEccCert;
+    ourKey     = (char*)cliEccKey;
+#endif
+    (void)resumeSz;
+    (void)session;
+    (void)sslResume;
+    (void)trackMemory;
+
+    while ((ch = mygetopt(argc, argv, "?gdusmNrth:p:v:l:A:c:k:b:")) != -1) {
         switch (ch) {
             case '?' :
                 Usage();
@@ -164,11 +183,16 @@ void client_test(void* args)
 
             case 'u' :
                 doDTLS  = 1;
-                version = -1;  /* DTLS flag */
                 break;
 
             case 's' :
                 usePsk = 1;
+                break;
+
+            case 't' :
+            #ifdef USE_CYASSL_MEMORY
+                trackMemory = 1;
+            #endif
                 break;
 
             case 'm' :
@@ -190,8 +214,6 @@ void client_test(void* args)
                     Usage();
                     exit(MY_EX_USAGE);
                 }
-                if (doDTLS)
-                    version = -1;   /* DTLS flag */
                 break;
 
             case 'l' :
@@ -234,6 +256,27 @@ void client_test(void* args)
 
     myoptind = 0;      /* reset for test cases */
 
+    /* sort out DTLS versus TLS versions */
+    if (version == CLIENT_INVALID_VERSION) {
+        if (doDTLS)
+            version = CLIENT_DTLS_DEFAULT_VERSION;
+        else
+            version = CLIENT_DEFAULT_VERSION;
+    }
+    else {
+        if (doDTLS) {
+            if (version == 3)
+                version = -2;
+            else
+                version = -1;
+        }
+    }
+
+#ifdef USE_CYASSL_MEMORY
+    if (trackMemory)
+        InitMemoryTracker(); 
+#endif
+
     switch (version) {
 #ifndef NO_OLD_TLS
         case 0:
@@ -257,6 +300,10 @@ void client_test(void* args)
         case -1:
             method = CyaDTLSv1_client_method();
             break;
+
+        case -2:
+            method = CyaDTLSv1_2_client_method();
+            break;
 #endif
 
         default:
@@ -278,15 +325,19 @@ void client_test(void* args)
     usePsk = 1;
 #endif
 
+#if defined(NO_RSA) && !defined(HAVE_ECC)
+    usePsk = 1;
+#endif
+
     if (usePsk) {
 #ifndef NO_PSK
         CyaSSL_CTX_set_psk_client_callback(ctx, my_psk_client_cb);
         if (cipherList == NULL) {
             const char *defaultCipherList;
             #ifdef HAVE_NULL_CIPHER
-                defaultCipherList = "PSK-NULL-SHA";
+                defaultCipherList = "PSK-NULL-SHA256";
             #else
-                defaultCipherList = "PSK-AES256-CBC-SHA";
+                defaultCipherList = "PSK-AES128-CBC-SHA256";
             #endif
             if (CyaSSL_CTX_set_cipher_list(ctx,defaultCipherList) !=SSL_SUCCESS)
                 err_sys("client can't set cipher list 2");
@@ -301,7 +352,7 @@ void client_test(void* args)
 #if defined(CYASSL_SNIFFER) && !defined(HAVE_NTRU) && !defined(HAVE_ECC)
     if (cipherList == NULL) {
         /* don't use EDH, can't sniff tmp keys */
-        if (CyaSSL_CTX_set_cipher_list(ctx, "AES256-SHA") != SSL_SUCCESS) {
+        if (CyaSSL_CTX_set_cipher_list(ctx, "AES256-SHA256") != SSL_SUCCESS) {
             err_sys("client can't set cipher list 3");
         }
     }
@@ -314,7 +365,7 @@ void client_test(void* args)
 #ifdef VERIFY_CALLBACK
     CyaSSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, myVerify);
 #endif
-#ifndef NO_FILESYSTEM   
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
     if (!usePsk){
         if (CyaSSL_CTX_use_certificate_file(ctx, ourCert, SSL_FILETYPE_PEM)
                                      != SSL_SUCCESS)
@@ -323,15 +374,17 @@ void client_test(void* args)
 
         if (CyaSSL_CTX_use_PrivateKey_file(ctx, ourKey, SSL_FILETYPE_PEM)
                                          != SSL_SUCCESS)
-            err_sys("can't load client cert file, check file and run from"
-                    " CyaSSL home dir");    
+            err_sys("can't load client private key file, check file and run "
+                    "from CyaSSL home dir");    
 
         if (CyaSSL_CTX_load_verify_locations(ctx, verifyCert, 0) != SSL_SUCCESS)
                 err_sys("can't load ca file, Please run from CyaSSL home dir");
     }
 #endif
+#if !defined(NO_CERTS)
     if (!usePsk && doPeerCheck == 0)
         CyaSSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, 0);
+#endif
 
 #ifdef HAVE_CAVIUM
     CyaSSL_CTX_UseCavium(ctx, CAVIUM_DEV_ID);
@@ -443,6 +496,7 @@ void client_test(void* args)
             err_sys("CyaSSL_read failed");
     }
 
+#ifndef NO_SESSION_CACHE
     if (resumeSession) {
         if (doDTLS) {
             strncpy(msg, "break", 6);
@@ -453,12 +507,14 @@ void client_test(void* args)
         session   = CyaSSL_get_session(ssl);
         sslResume = CyaSSL_new(ctx);
     }
+#endif
 
     if (doDTLS == 0)            /* don't send alert after "break" command */
         CyaSSL_shutdown(ssl);  /* echoserver will interpret as new conn */
     CyaSSL_free(ssl);
     CloseSocket(sockfd);
 
+#ifndef NO_SESSION_CACHE
     if (resumeSession) {
         if (doDTLS) {
             SOCKADDR_IN_T addr;
@@ -492,13 +548,11 @@ void client_test(void* args)
         NonBlockingSSL_Connect(ssl);  /* will keep retrying on timeout */
 #endif
 
-#ifdef OPENSSL_EXTRA
         if (CyaSSL_session_reused(sslResume))
             printf("reused session id\n");
         else
             printf("didn't reuse session id!!!\n");
-#endif
-      
+
         if (CyaSSL_write(sslResume, resumeMsg, resumeSz) != resumeSz)
             err_sys("SSL_write failed");
 
@@ -524,10 +578,16 @@ void client_test(void* args)
         CyaSSL_free(sslResume);
         CloseSocket(sockfd);
     }
+#endif /* NO_SESSION_CACHE */
 
     CyaSSL_CTX_free(ctx);
 
     ((func_args*)args)->return_code = 0;
+
+#ifdef USE_CYASSL_MEMORY
+    if (trackMemory)
+        ShowMemoryTracker();
+#endif /* USE_CYASSL_MEMORY */
 }
 
 
@@ -588,5 +648,4 @@ void client_test(void* args)
     }
 
 #endif
-
 

@@ -24,6 +24,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <p32xxxx.h>
+#include <plib.h>
 #include <sys/appio.h>
 
 /* func_args from test.h, so don't have to pull in other junk */
@@ -37,6 +38,8 @@ typedef struct func_args {
  * Main driver for CTaoCrypt tests.
  */
 int main(int argc, char** argv) {
+
+    SYSTEMConfigPerformance(80000000);
 
     DBINIT();
     printf("CTaoCrypt Test:\n");

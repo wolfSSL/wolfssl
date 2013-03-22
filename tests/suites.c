@@ -32,12 +32,85 @@
 
 #define MAX_ARGS 40
 #define MAX_COMMAND_SZ 240
+#define MAX_SUITE_SZ 80 
+#define NOT_BUILT_IN -123
+#define VERSION_TOO_OLD -124
 
 #include "examples/client/client.h"
 #include "examples/server/server.h"
 
-static void execute_test_case(int svr_argc, char** svr_argv,
-                              int cli_argc, char** cli_argv, int addNoVerify)
+
+CYASSL_CTX* cipherSuiteCtx = NULL;
+
+
+#ifdef NO_OLD_TLS
+/* if the protocol version is less than tls 1.2 return 1, else 0 */
+static int IsOldTlsVersion(const char* line)
+{
+    const char* find = "-v ";
+    char* begin = strstr(line, find);
+
+    if (begin) {
+        int version = -1;
+
+        begin += 3;
+
+        version = atoi(begin);
+
+        if (version < 3)
+            return 1;
+    }
+
+    return 0;
+} 
+#endif /* NO_OLD_TLS */
+
+
+/* if the cipher suite on line is valid store in suite and return 1, else 0 */
+static int IsValidCipherSuite(const char* line, char* suite)
+{
+    int  found = 0;
+    int  valid = 0;
+
+    const char* find = "-l ";
+    char* begin = strstr(line, find);
+    char* end;
+
+    suite[0] = '\0';
+
+    if (begin) {
+        begin += 3;
+
+        end = strstr(begin, " ");
+
+        if (end) {
+            long len = end - begin;
+            if (len > MAX_SUITE_SZ) {
+                printf("suite too long!\n");
+                return 0;
+            }
+            memcpy(suite, begin, len);
+            suite[len] = '\0';
+        }
+        else
+            strncpy(suite, begin, MAX_SUITE_SZ);
+
+        suite[MAX_SUITE_SZ] = '\0';
+        found = 1;
+    }
+
+    if (found) {
+        if (CyaSSL_CTX_set_cipher_list(cipherSuiteCtx, suite) == SSL_SUCCESS)
+            valid = 1;
+    }
+
+    return valid;
+}
+
+
+static int execute_test_case(int svr_argc, char** svr_argv,
+                              int cli_argc, char** cli_argv,
+                              int addNoVerify, int addNonBlocking)
 {
     func_args cliArgs = {cli_argc, cli_argv, 0, NULL};
     func_args svrArgs = {svr_argc, svr_argv, 0, NULL};
@@ -45,6 +118,7 @@ static void execute_test_case(int svr_argc, char** svr_argv,
     tcp_ready   ready;
     THREAD_TYPE serverThread;
     char        commandLine[MAX_COMMAND_SZ];
+    char        cipherSuite[MAX_SUITE_SZ+1];
     int         i;
     size_t      added = 0;
     static      int tests = 1;
@@ -59,13 +133,38 @@ static void execute_test_case(int svr_argc, char** svr_argv,
         strcat(commandLine, svr_argv[i]);
         strcat(commandLine, " ");
     }
+
+    if (IsValidCipherSuite(commandLine, cipherSuite) == 0) {
+        #ifdef DEBUG_SUITE_TESTS
+            printf("cipher suite %s not supported in build\n", cipherSuite);
+        #endif
+        return NOT_BUILT_IN;
+    }
+
+#ifdef NO_OLD_TLS
+    if (IsOldTlsVersion(commandLine) == 1) {
+        #ifdef DEBUG_SUITE_TESTS
+            printf("protocol version on line %s is too old\n", commandLine);
+        #endif
+        return VERSION_TOO_OLD;
+    }
+#endif
+
     if (addNoVerify) {
         printf("repeating test with client cert request off\n"); 
-        added += 3;   /* -d plus terminator */
+        added += 4;   /* -d plus space plus terminator */
         if (added >= MAX_COMMAND_SZ)
             printf("server command line too long\n");
         else
-            strcat(commandLine, "-d");
+            strcat(commandLine, "-d ");
+    }
+    if (addNonBlocking) {
+        printf("repeating test with non blocking on\n"); 
+        added += 4;   /* -N plus terminator */
+        if (added >= MAX_COMMAND_SZ)
+            printf("server command line too long\n");
+        else
+            strcat(commandLine, "-N ");
     }
     printf("trying server command line[%d]: %s\n", tests, commandLine);
 
@@ -79,6 +178,13 @@ static void execute_test_case(int svr_argc, char** svr_argv,
         }
         strcat(commandLine, cli_argv[i]);
         strcat(commandLine, " ");
+    }
+    if (addNonBlocking) {
+        added += 4;   /* -N plus space plus terminator  */
+        if (added >= MAX_COMMAND_SZ)
+            printf("client command line too long\n");
+        else 
+            strcat(commandLine, "-N ");
     }
     printf("trying client command line[%d]: %s\n", tests++, commandLine);
 
@@ -105,7 +211,8 @@ static void execute_test_case(int svr_argc, char** svr_argv,
     }
 
     FreeTcpReady(&ready);
-
+    
+    return 0;
 }
 
 static void test_harness(void* vargs)
@@ -114,6 +221,7 @@ static void test_harness(void* vargs)
     char* script;
     long  sz, len;
     int   cliMode = 0;   /* server or client command flag, server first */
+    int   ret;
     FILE* file;
     char* svrArgs[MAX_ARGS];
     int   svrArgsSz;
@@ -193,7 +301,11 @@ static void test_harness(void* vargs)
             case '#':
                 /* Ignore lines that start with a #. */
                 comment = strsep(&cursor, "\n");
+#ifdef DEBUG_SUITE_TESTS
                 printf("%s\n", comment);
+#else
+                (void)comment;
+#endif
                 break;
             case '-':
                 /* Parameters start with a -. They end in either a newline
@@ -221,8 +333,13 @@ static void test_harness(void* vargs)
         }
 
         if (do_it) {
-            execute_test_case(svrArgsSz, svrArgs, cliArgsSz, cliArgs, 0);
-            execute_test_case(svrArgsSz, svrArgs, cliArgsSz, cliArgs, 1);
+            ret = execute_test_case(svrArgsSz, svrArgs, cliArgsSz, cliArgs,0,0);
+            /* don't repeat if not supported in build */
+            if (ret == 0) {
+                execute_test_case(svrArgsSz, svrArgs, cliArgsSz, cliArgs, 0, 1);
+                execute_test_case(svrArgsSz, svrArgs, cliArgsSz, cliArgs, 1, 0);
+                execute_test_case(svrArgsSz, svrArgs, cliArgsSz, cliArgs, 1, 1);
+            }
             svrArgsSz = 1;
             cliArgsSz = 1;
             cliMode   = 0;
@@ -248,7 +365,14 @@ int SuiteTest(void)
     args.argv = myArgv;
     strcpy(argv0[0], "SuiteTest");
 
-#if !defined(NO_RSA)
+    (void)test_harness;
+
+    cipherSuiteCtx = CyaSSL_CTX_new(CyaTLSv1_2_client_method());
+    if (cipherSuiteCtx == NULL) {
+        printf("can't get cipher suite ctx\n");
+        exit(EXIT_FAILURE);  
+    }
+
     /* default case */
     args.argc = 1;
     printf("starting default cipher suite tests\n");
@@ -257,183 +381,9 @@ int SuiteTest(void)
         printf("error from script %d\n", args.return_code);
         exit(EXIT_FAILURE);  
     }
-#endif
 
     /* any extra cases will need another argument */
     args.argc = 2;
-
-#ifdef OPENSSL_EXTRA
-    /* add openssl extra suites */
-    strcpy(argv0[1], "tests/test-openssl.conf");
-    printf("starting openssl extra cipher suite tests\n");
-    test_harness(&args);
-    if (args.return_code != 0) {
-        printf("error from script %d\n", args.return_code);
-        exit(EXIT_FAILURE);  
-    }
-#endif
-
-#if !defined(NO_RSA) && defined(HAVE_NULL_CIPHER)
-    /* add rsa null cipher suites */
-    strcpy(argv0[1], "tests/test-null.conf");
-    printf("starting null cipher suite tests\n");
-    test_harness(&args);
-    if (args.return_code != 0) {
-        printf("error from script %d\n", args.return_code);
-        exit(EXIT_FAILURE);  
-    }
-#endif
-
-#ifdef HAVE_HC128 
-    /* add hc128 extra suites */
-    strcpy(argv0[1], "tests/test-hc128.conf");
-    printf("starting hc128 extra cipher suite tests\n");
-    test_harness(&args);
-    if (args.return_code != 0) {
-        printf("error from script %d\n", args.return_code);
-        exit(EXIT_FAILURE);  
-    }
-#endif
-
-#ifdef HAVE_RABBIT
-    /* add rabbit extra suites */
-    strcpy(argv0[1], "tests/test-rabbit.conf");
-    printf("starting rabbit extra cipher suite tests\n");
-    test_harness(&args);
-    if (args.return_code != 0) {
-        printf("error from script %d\n", args.return_code);
-        exit(EXIT_FAILURE);  
-    }
-#endif
-
-#if !defined(NO_PSK) && !defined(NO_AES)
-    /* add psk extra suites */
-    strcpy(argv0[1], "tests/test-psk.conf");
-    printf("starting psk extra cipher suite tests\n");
-    test_harness(&args);
-    if (args.return_code != 0) {
-        printf("error from script %d\n", args.return_code);
-        exit(EXIT_FAILURE);  
-    }
-#endif
-
-#if !defined(NO_PSK) && defined(HAVE_NULL_CIPHER) && !defined(NO_OLD_TLS)
-    strcpy(argv0[1], "tests/test-psk-null.conf");
-    printf("starting psk extra null cipher suite tests\n");
-    test_harness(&args);
-    if (args.return_code != 0) {
-        printf("error from script %d\n", args.return_code);
-        exit(EXIT_FAILURE);  
-    }
-#endif
-
-#ifdef CYASSL_LEANPSK
-    strcpy(argv0[1], "tests/test-leanpsk.conf");
-    printf("starting lean-psk cipher suite tests\n");
-    test_harness(&args);
-    if (args.return_code != 0) {
-        printf("error from script %d\n", args.return_code);
-        exit(EXIT_FAILURE);  
-    }
-#endif
-
-#ifdef HAVE_NTRU
-    /* add ntru extra suites */
-    strcpy(argv0[1], "tests/test-ntru.conf");
-    printf("starting ntru extra cipher suite tests\n");
-    test_harness(&args);
-    if (args.return_code != 0) {
-        printf("error from script %d\n", args.return_code);
-        exit(EXIT_FAILURE);  
-    }
-#endif
-
-#ifdef HAVE_ECC
-    /* add ecc extra suites */
-    strcpy(argv0[1], "tests/test-ecc.conf");
-    printf("starting ecc extra cipher suite tests\n");
-    test_harness(&args);
-    if (args.return_code != 0) {
-        printf("error from script %d\n", args.return_code);
-        exit(EXIT_FAILURE);  
-    }
-#endif
-
-#ifdef HAVE_AESGCM
-    /* add aesgcm extra suites */
-    strcpy(argv0[1], "tests/test-aesgcm.conf");
-    printf("starting aesgcm extra cipher suite tests\n");
-    test_harness(&args);
-    if (args.return_code != 0) {
-        printf("error from script %d\n", args.return_code);
-        exit(EXIT_FAILURE);  
-    }
-#endif
-
-#if defined(HAVE_AESGCM) && defined(OPENSSL_EXTRA)
-    /* add aesgcm openssl extra suites */
-    strcpy(argv0[1], "tests/test-aesgcm-openssl.conf");
-    printf("starting aesgcm openssl extra cipher suite tests\n");
-    test_harness(&args);
-    if (args.return_code != 0) {
-        printf("error from script %d\n", args.return_code);
-        exit(EXIT_FAILURE);  
-    }
-#endif
-
-#if defined(HAVE_AESGCM) && defined(HAVE_ECC)
-    /* add aesgcm ecc extra suites */
-    strcpy(argv0[1], "tests/test-aesgcm-ecc.conf");
-    printf("starting aesgcm ecc extra cipher suite tests\n");
-    test_harness(&args);
-    if (args.return_code != 0) {
-        printf("error from script %d\n", args.return_code);
-        exit(EXIT_FAILURE);  
-    }
-#endif
-
-#if defined(HAVE_AESCCM)
-    /* add aesccm extra suites */
-    strcpy(argv0[1], "tests/test-aesccm.conf");
-    printf("starting aesccm cipher suite tests\n");
-    test_harness(&args);
-    if (args.return_code != 0) {
-        printf("error from script %d\n", args.return_code);
-        exit(EXIT_FAILURE);  
-    }
-    #ifdef HAVE_ECC
-        /* add aesccm ecc extra suites */
-        strcpy(argv0[1], "tests/test-aesccm-ecc.conf");
-        printf("starting aesccm ecc cipher suite tests\n");
-        test_harness(&args);
-        if (args.return_code != 0) {
-            printf("error from script %d\n", args.return_code);
-            exit(EXIT_FAILURE);  
-        }
-    #endif
-#endif
-
-#ifdef HAVE_CAMELLIA
-    /* add camellia suites */
-    strcpy(argv0[1], "tests/test-camellia.conf");
-    printf("starting camellia suite tests\n");
-    test_harness(&args);
-    if (args.return_code != 0) {
-        printf("error from script %d\n", args.return_code);
-        exit(EXIT_FAILURE);  
-    }
-    #ifdef OPENSSL_EXTRA
-        /* add camellia openssl extra suites */
-        strcpy(argv0[1], "tests/test-camellia-openssl.conf");
-        printf("starting camellia openssl extra suite tests\n");
-        test_harness(&args);
-        if (args.return_code != 0) {
-            printf("error from script %d\n", args.return_code);
-            exit(EXIT_FAILURE);  
-        }
-    
-    #endif
-#endif
 
 #ifdef CYASSL_DTLS 
     /* add dtls extra suites */
@@ -447,6 +397,8 @@ int SuiteTest(void)
 #endif
 
     printf(" End Cipher Suite Tests\n");
+
+    CyaSSL_CTX_free(cipherSuiteCtx);
 
     return args.return_code;
 }

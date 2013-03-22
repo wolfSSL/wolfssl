@@ -160,7 +160,9 @@ int main(int argc, char** argv)
 #ifndef NO_MD5
     bench_md5();
 #endif
+#ifndef NO_SHA
     bench_sha();
+#endif
 #ifndef NO_SHA256
     bench_sha256();
 #endif
@@ -506,6 +508,7 @@ void bench_md5(void)
 #endif /* NO_MD5 */
 
 
+#ifndef NO_SHA
 void bench_sha(void)
 {
     Sha    hash;
@@ -531,6 +534,7 @@ void bench_sha(void)
     printf("SHA      %d %s took %5.3f seconds, %6.2f MB/s\n", numBlocks,
                                               blockType, total, persec);
 }
+#endif /* NO_SHA */
 
 
 #ifndef NO_SHA256

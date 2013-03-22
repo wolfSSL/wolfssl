@@ -57,17 +57,22 @@ enum {
 #ifdef NO_MD5
     MD5     = 0,
 #endif
-#if defined(CYASSL_SHA384)
+#if defined(CYASSL_SHA512)
+    INNER_HASH_SIZE = SHA512_DIGEST_SIZE,
+    HMAC_BLOCK_SIZE = SHA512_BLOCK_SIZE
+#elif defined(CYASSL_SHA384)
     INNER_HASH_SIZE = SHA384_DIGEST_SIZE,
     HMAC_BLOCK_SIZE = SHA384_BLOCK_SIZE
 #elif !defined(NO_SHA256)
     INNER_HASH_SIZE = SHA256_DIGEST_SIZE,
     HMAC_BLOCK_SIZE = SHA256_BLOCK_SIZE,
+    SHA512          = 4,
     SHA384          = 5
 #else
     INNER_HASH_SIZE = SHA_DIGEST_SIZE,
     HMAC_BLOCK_SIZE = SHA_BLOCK_SIZE,
     SHA256          = 2,                     /* hash type unique */
+    SHA512          = 4,
     SHA384          = 5
 #endif
 };
@@ -78,12 +83,17 @@ typedef union {
     #ifndef NO_MD5
         Md5 md5;
     #endif
-    Sha sha;
+    #ifndef NO_SHA
+        Sha sha;
+    #endif
     #ifndef NO_SHA256
         Sha256 sha256;
     #endif
     #ifdef CYASSL_SHA384
         Sha384 sha384;
+    #endif
+    #ifdef CYASSL_SHA512
+        Sha512 sha512;
     #endif
 } Hash;
 

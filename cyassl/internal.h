@@ -33,6 +33,7 @@
 #include <cyassl/ctaocrypt/rabbit.h>
 #include <cyassl/ctaocrypt/asn.h>
 #include <cyassl/ctaocrypt/md5.h>
+#include <cyassl/ctaocrypt/sha.h>
 #include <cyassl/ctaocrypt/aes.h>
 #include <cyassl/ctaocrypt/camellia.h>
 #include <cyassl/ctaocrypt/logging.h>
@@ -111,6 +112,7 @@
     #define SHA256_DIGEST_SIZE 32 
 #endif
 
+
 #ifdef __cplusplus
     extern "C" {
 #endif
@@ -134,27 +136,35 @@ void c32to24(word32 in, word24 out);
    When adding cipher suites, add name to cipher_names, idx to cipher_name_idx
 */
 #if !defined(NO_RSA) && !defined(NO_RC4)
+  #if !defined(NO_SHA)
     #define BUILD_SSL_RSA_WITH_RC4_128_SHA
-    #define BUILD_SSL_RSA_WITH_RC4_128_MD5
-    #if !defined(NO_TLS) && defined(HAVE_NTRU)
+  #endif
+    #if !defined(NO_MD5)
+        #define BUILD_SSL_RSA_WITH_RC4_128_MD5
+    #endif
+    #if !defined(NO_TLS) && defined(HAVE_NTRU) && !defined(NO_SHA)
         #define BUILD_TLS_NTRU_RSA_WITH_RC4_128_SHA
     #endif
 #endif
 
 #if !defined(NO_RSA) && !defined(NO_DES3)
+  #if !defined(NO_SHA)
     #define BUILD_SSL_RSA_WITH_3DES_EDE_CBC_SHA
     #if !defined(NO_TLS) && defined(HAVE_NTRU)
         #define BUILD_TLS_NTRU_RSA_WITH_3DES_EDE_CBC_SHA
     #endif
+  #endif
 #endif
 
 #if !defined(NO_RSA) && !defined(NO_AES) && !defined(NO_TLS)
+  #if !defined(NO_SHA)
     #define BUILD_TLS_RSA_WITH_AES_128_CBC_SHA
     #define BUILD_TLS_RSA_WITH_AES_256_CBC_SHA
     #if defined(HAVE_NTRU)
         #define BUILD_TLS_NTRU_RSA_WITH_AES_128_CBC_SHA
         #define BUILD_TLS_NTRU_RSA_WITH_AES_256_CBC_SHA
     #endif
+  #endif
     #if !defined (NO_SHA256)
         #define BUILD_TLS_RSA_WITH_AES_128_CBC_SHA256
         #define BUILD_TLS_RSA_WITH_AES_256_CBC_SHA256
@@ -171,15 +181,19 @@ void c32to24(word32 in, word24 out);
 
 #if defined(HAVE_CAMELLIA) && !defined(NO_TLS)
     #ifndef NO_RSA
+      #if !defined(NO_SHA)
         #define BUILD_TLS_RSA_WITH_CAMELLIA_128_CBC_SHA
         #define BUILD_TLS_RSA_WITH_CAMELLIA_256_CBC_SHA
+      #endif
         #ifndef NO_SHA256
             #define BUILD_TLS_RSA_WITH_CAMELLIA_128_CBC_SHA256
             #define BUILD_TLS_RSA_WITH_CAMELLIA_256_CBC_SHA256
         #endif
         #if !defined(NO_DH) && defined(OPENSSL_EXTRA)
+          #if !defined(NO_SHA)
             #define BUILD_TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA
             #define BUILD_TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA
+          #endif
             #ifndef NO_SHA256
                 #define BUILD_TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA256
                 #define BUILD_TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA256
@@ -189,8 +203,10 @@ void c32to24(word32 in, word24 out);
 #endif
 
 #if !defined(NO_PSK) && !defined(NO_AES) && !defined(NO_TLS)
+  #if !defined(NO_SHA)
     #define BUILD_TLS_PSK_WITH_AES_128_CBC_SHA
     #define BUILD_TLS_PSK_WITH_AES_256_CBC_SHA
+  #endif
     #ifndef NO_SHA256
         #define BUILD_TLS_PSK_WITH_AES_128_CBC_SHA256
     #endif
@@ -198,11 +214,17 @@ void c32to24(word32 in, word24 out);
 
 #if !defined(NO_TLS) && defined(HAVE_NULL_CIPHER)
     #if !defined(NO_RSA)
+      #if !defined(NO_SHA)
         #define BUILD_TLS_RSA_WITH_NULL_SHA
+      #endif
+      #ifndef NO_SHA256
         #define BUILD_TLS_RSA_WITH_NULL_SHA256
+      #endif
     #endif
     #if !defined(NO_PSK)
+      #if !defined(NO_SHA)
         #define BUILD_TLS_PSK_WITH_NULL_SHA
+      #endif
         #ifndef NO_SHA256
         	#define BUILD_TLS_PSK_WITH_NULL_SHA256
         #endif
@@ -211,17 +233,23 @@ void c32to24(word32 in, word24 out);
 
 #if !defined(NO_HC128) && !defined(NO_RSA) && !defined(NO_TLS)
     #define BUILD_TLS_RSA_WITH_HC_128_CBC_MD5
+  #if !defined(NO_SHA)
     #define BUILD_TLS_RSA_WITH_HC_128_CBC_SHA
+  #endif
 #endif
 
 #if !defined(NO_RABBIT) && !defined(NO_TLS) && !defined(NO_RSA)
+  #if !defined(NO_SHA)
     #define BUILD_TLS_RSA_WITH_RABBIT_CBC_SHA
+  #endif
 #endif
 
 #if !defined(NO_DH) && !defined(NO_AES) && !defined(NO_TLS) && \
     !defined(NO_RSA) && defined(OPENSSL_EXTRA)
+  #if !defined(NO_SHA)
     #define BUILD_TLS_DHE_RSA_WITH_AES_128_CBC_SHA
     #define BUILD_TLS_DHE_RSA_WITH_AES_256_CBC_SHA
+  #endif
     #if !defined (NO_SHA256)
         #define BUILD_TLS_DHE_RSA_WITH_AES_128_CBC_SHA256
         #define BUILD_TLS_DHE_RSA_WITH_AES_256_CBC_SHA256
@@ -234,25 +262,50 @@ void c32to24(word32 in, word24 out);
 
 #if defined(HAVE_ECC) && !defined(NO_TLS)
     #if !defined(NO_AES)
-        #define BUILD_TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA
-        #define BUILD_TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA
+      #if !defined(NO_SHA)
+        #if !defined(NO_RSA)
+            #define BUILD_TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA
+            #define BUILD_TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA
+            #define BUILD_TLS_ECDH_RSA_WITH_AES_128_CBC_SHA
+            #define BUILD_TLS_ECDH_RSA_WITH_AES_256_CBC_SHA
+        #endif
+
         #define BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA
         #define BUILD_TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA
 
-        #define BUILD_TLS_ECDH_RSA_WITH_AES_128_CBC_SHA
-        #define BUILD_TLS_ECDH_RSA_WITH_AES_256_CBC_SHA
         #define BUILD_TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA
         #define BUILD_TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA
 
+        #ifndef NO_SHA256
+            #if !defined(NO_RSA)
+                #define BUILD_TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256
+                #define BUILD_TLS_ECDH_RSA_WITH_AES_128_CBC_SHA256
+            #endif
+            #define BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256
+            #define BUILD_TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA256
+        #endif
+
+        #ifdef CYASSL_SHA384
+            #if !defined(NO_RSA)
+                #define BUILD_TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384
+                #define BUILD_TLS_ECDH_RSA_WITH_AES_256_CBC_SHA384
+            #endif
+            #define BUILD_TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384
+            #define BUILD_TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA384
+        #endif
+
         #if defined (HAVE_AESGCM)
-            #define BUILD_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+            #if !defined(NO_RSA)
+                #define BUILD_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+                #define BUILD_TLS_ECDH_RSA_WITH_AES_128_GCM_SHA256
+                #define BUILD_TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
+                #define BUILD_TLS_ECDH_RSA_WITH_AES_256_GCM_SHA384
+            #endif
+
             #define BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256
-            #define BUILD_TLS_ECDH_RSA_WITH_AES_128_GCM_SHA256
             #define BUILD_TLS_ECDH_ECDSA_WITH_AES_128_GCM_SHA256
 
-            #define BUILD_TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
             #define BUILD_TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384
-            #define BUILD_TLS_ECDH_RSA_WITH_AES_256_GCM_SHA384
             #define BUILD_TLS_ECDH_ECDSA_WITH_AES_256_GCM_SHA384
         #endif
         #if defined (HAVE_AESCCM)
@@ -261,19 +314,26 @@ void c32to24(word32 in, word24 out);
         #endif
     #endif
     #if !defined(NO_RC4)
-        #define BUILD_TLS_ECDHE_RSA_WITH_RC4_128_SHA
-        #define BUILD_TLS_ECDHE_ECDSA_WITH_RC4_128_SHA
+        #if !defined(NO_SHA)
+            #if !defined(NO_RSA)
+                #define BUILD_TLS_ECDHE_RSA_WITH_RC4_128_SHA
+                #define BUILD_TLS_ECDH_RSA_WITH_RC4_128_SHA
+            #endif
 
-        #define BUILD_TLS_ECDH_RSA_WITH_RC4_128_SHA
-        #define BUILD_TLS_ECDH_ECDSA_WITH_RC4_128_SHA
+            #define BUILD_TLS_ECDHE_ECDSA_WITH_RC4_128_SHA
+            #define BUILD_TLS_ECDH_ECDSA_WITH_RC4_128_SHA
+        #endif
     #endif
     #if !defined(NO_DES3)
-        #define BUILD_TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA
-        #define BUILD_TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA
+        #if !defined(NO_RSA)
+            #define BUILD_TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA
+            #define BUILD_TLS_ECDH_RSA_WITH_3DES_EDE_CBC_SHA
+        #endif
 
-        #define BUILD_TLS_ECDH_RSA_WITH_3DES_EDE_CBC_SHA
+        #define BUILD_TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA
         #define BUILD_TLS_ECDH_ECDSA_WITH_3DES_EDE_CBC_SHA
     #endif
+  #endif
 #endif
 
 
@@ -287,11 +347,14 @@ void c32to24(word32 in, word24 out);
 #endif
 
 #if defined(BUILD_TLS_RSA_WITH_AES_128_CBC_SHA) || \
-    defined(BUILD_TLS_RSA_WITH_AES_256_CBC_SHA)
+    defined(BUILD_TLS_RSA_WITH_AES_256_CBC_SHA) || \
+    defined(BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256)
+    #undef  BUILD_AES
     #define BUILD_AES
 #endif
 
-#if defined(BUILD_TLS_RSA_WITH_AES_128_GCM_SHA256)
+#if defined(BUILD_TLS_RSA_WITH_AES_128_GCM_SHA256) || \
+    defined(BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256)
     #define BUILD_AESGCM
 #endif
 
@@ -306,11 +369,24 @@ void c32to24(word32 in, word24 out);
 
 #ifdef NO_DES3
     #define DES_BLOCK_SIZE 8
+#else
+    #undef  BUILD_DES3
+    #define BUILD_DES3
 #endif
 
 #ifdef NO_AES
     #define AES_BLOCK_SIZE 16
+#else
+    #undef  BUILD_AES
+    #define BUILD_AES
 #endif
+
+#ifndef NO_RC4
+    #undef  BUILD_ARC4
+    #define BUILD_ARC4
+#endif
+
+
 
 #if defined(BUILD_AESGCM) || defined(HAVE_AESCCM)
     #define HAVE_AEAD
@@ -342,8 +418,12 @@ enum {
     TLS_ECDHE_ECDSA_WITH_RC4_128_SHA      = 0x07,
     TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA   = 0x12,
     TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA = 0x08,
+    TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256   = 0x27,
+    TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256 = 0x23,
+    TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384   = 0x28,
+    TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384 = 0x24,
 
-        /* static ECDH, first byte is 0xC0 (ECC_BYTE) */
+    /* static ECDH, first byte is 0xC0 (ECC_BYTE) */
     TLS_ECDH_RSA_WITH_AES_256_CBC_SHA    = 0x0F,
     TLS_ECDH_RSA_WITH_AES_128_CBC_SHA    = 0x0E,
     TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA  = 0x05,
@@ -352,6 +432,10 @@ enum {
     TLS_ECDH_ECDSA_WITH_RC4_128_SHA      = 0x02,
     TLS_ECDH_RSA_WITH_3DES_EDE_CBC_SHA   = 0x0D,
     TLS_ECDH_ECDSA_WITH_3DES_EDE_CBC_SHA = 0x03,
+    TLS_ECDH_RSA_WITH_AES_128_CBC_SHA256   = 0x29,
+    TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA256 = 0x25,
+    TLS_ECDH_RSA_WITH_AES_256_CBC_SHA384   = 0x2A,
+    TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA384 = 0x26,
 
     /* CyaSSL extension - eSTREAM */
     TLS_RSA_WITH_HC_128_CBC_MD5       = 0xFB,
@@ -408,6 +492,17 @@ enum {
 };
 
 
+#if defined(CYASSL_SHA384)
+    #define MAX_DIGEST_SIZE SHA384_DIGEST_SIZE
+#elif !defined(NO_SHA256)
+    #define MAX_DIGEST_SIZE SHA256_DIGEST_SIZE
+#elif !defined(NO_MD5) && !defined(NO_SHA)
+    #define MAX_DIGEST_SIZE (SHA_DIGEST_SIZE + MD5_DIGEST_SIZE)
+#else
+    #error "You have configured the build so there isn't any hashing."
+#endif
+
+
 enum Misc {
     SERVER_END = 0,
     CLIENT_END,
@@ -419,6 +514,7 @@ enum Misc {
 
     DTLS_MAJOR      = 0xfe,     /* DTLS major version number */
     DTLS_MINOR      = 0xff,     /* DTLS minor version number */
+    DTLSv1_2_MINOR  = 0xfd,     /* DTLS minor version number */
     SSLv3_MAJOR     = 3,        /* SSLv3 and TLSv1+  major version number */
     SSLv3_MINOR     = 0,        /* TLSv1   minor version number */
     TLSv1_MINOR     = 1,        /* TLSv1   minor version number */
@@ -431,14 +527,11 @@ enum Misc {
     SECRET_LEN      = 48,       /* pre RSA and all master */
     ENCRYPT_LEN     = 512,      /* allow 4096 bit static buffer */
     SIZEOF_SENDER   =  4,       /* clnt or srvr           */
-#ifndef NO_MD5
-    FINISHED_SZ     = MD5_DIGEST_SIZE + SHA_DIGEST_SIZE,
-#else
-    FINISHED_SZ     = 36,
-#endif
+    FINISHED_SZ     = 36,       /* MD5_DIGEST_SIZE + SHA_DIGEST_SIZE */
     MAX_RECORD_SIZE = 16384,    /* 2^14, max size by standard */
-    MAX_MSG_EXTRA   = 70,       /* max added to msg, mac + pad  from */
-                                /* RECORD_HEADER_SZ + BLOCK_SZ (pad) + SHA_256
+    MAX_MSG_EXTRA   = 38 + MAX_DIGEST_SIZE,
+                                /* max added to msg, mac + pad  from */
+                                /* RECORD_HEADER_SZ + BLOCK_SZ (pad) + Max
                                    digest sz + BLOC_SZ (iv) + pad byte (1) */
     MAX_COMP_EXTRA  = 1024,     /* max compression extra */
     MAX_MTU         = 1500,     /* max expected MTU */
@@ -610,12 +703,17 @@ enum states {
 };
 
 
+#if defined(__GNUC__)
+    #define CYASSL_PACK __attribute__ ((packed))
+#else
+    #define CYASSL_PACK
+#endif
 
 /* SSL Version */
 typedef struct ProtocolVersion {
     byte major;
     byte minor;
-} ProtocolVersion;
+} CYASSL_PACK ProtocolVersion;
 
 
 CYASSL_LOCAL ProtocolVersion MakeSSLv3(void);
@@ -625,6 +723,7 @@ CYASSL_LOCAL ProtocolVersion MakeTLSv1_2(void);
 
 #ifdef CYASSL_DTLS
     CYASSL_LOCAL ProtocolVersion MakeDTLSv1(void);
+    CYASSL_LOCAL ProtocolVersion MakeDTLSv1_2(void);
 #endif
 
 
@@ -730,7 +829,7 @@ enum {
        The length (in bytes) of the following TLSPlaintext.fragment.
        The length should not exceed 2^14.
 */
-#if defined(LARGE_STATIC_BUFFERS) || defined(CYASSL_DTLS)
+#if defined(LARGE_STATIC_BUFFERS)
     #define STATIC_BUFFER_LEN RECORD_HEADER_SZ + RECORD_SIZE + COMP_EXTRA + \
              MTU_EXTRA + MAX_MSG_EXTRA
 #else
@@ -786,18 +885,18 @@ int  SetCipherList(Suites*, const char* list);
         CYASSL_LOCAL
         void EmbedOcspRespFree(void*, byte*);
     #endif
-#endif
 
-#ifdef CYASSL_DTLS
-    CYASSL_LOCAL
-    int EmbedReceiveFrom(CYASSL *ssl, char *buf, int sz, void *ctx);
-    CYASSL_LOCAL 
-    int EmbedSendTo(CYASSL *ssl, char *buf, int sz, void *ctx);
-    CYASSL_LOCAL
-    int EmbedGenerateCookie(byte *buf, int sz, void *ctx);
-    CYASSL_LOCAL
-    int IsUDP(void*);
-#endif
+    #ifdef CYASSL_DTLS
+        CYASSL_LOCAL
+        int EmbedReceiveFrom(CYASSL *ssl, char *buf, int sz, void *ctx);
+        CYASSL_LOCAL 
+        int EmbedSendTo(CYASSL *ssl, char *buf, int sz, void *ctx);
+        CYASSL_LOCAL
+        int EmbedGenerateCookie(CYASSL* ssl, byte *buf, int sz, void *ctx);
+        CYASSL_LOCAL
+        int IsUDP(void*);
+    #endif /* CYASSL_DTLS */
+#endif /* CYASSL_USER_IO */
 
 
 /* CyaSSL Cipher type just points back to SSL */
@@ -839,14 +938,23 @@ CYASSL_LOCAL int FreeMutex(CyaSSL_Mutex*);
 CYASSL_LOCAL int LockMutex(CyaSSL_Mutex*);
 CYASSL_LOCAL int UnLockMutex(CyaSSL_Mutex*);
 
-
-
 typedef struct OCSP_Entry OCSP_Entry;
+
+#ifdef SHA_DIGEST_SIZE
+    #define OCSP_DIGEST_SIZE SHA_DIGEST_SIZE
+#else
+    #define OCSP_DIGEST_SIZE 160
+#endif
+
+#ifdef NO_ASN 
+    /* no_asn won't have */
+    typedef struct CertStatus CertStatus;
+#endif
 
 struct OCSP_Entry {
     OCSP_Entry* next;                       /* next entry             */
-    byte    issuerHash[SHA_DIGEST_SIZE];    /* issuer hash            */ 
-    byte    issuerKeyHash[SHA_DIGEST_SIZE]; /* issuer public key hash */
+    byte    issuerHash[OCSP_DIGEST_SIZE];    /* issuer hash            */ 
+    byte    issuerKeyHash[OCSP_DIGEST_SIZE]; /* issuer public key hash */
     CertStatus* status;                     /* OCSP response list     */
     int         totalStatus;                /* number on list         */
 };
@@ -864,14 +972,27 @@ struct CYASSL_OCSP {
     CallbackIOOcspRespFree CBIOOcspRespFree;
 };
 
+#ifndef MAX_DATE_SIZE
+#define MAX_DATE_SIZE 32
+#endif
 
 typedef struct CRL_Entry CRL_Entry;
+
+#ifdef SHA_DIGEST_SIZE
+    #define CRL_DIGEST_SIZE SHA_DIGEST_SIZE
+#else
+    #define CRL_DIGEST_SIZE 160
+#endif
+
+#ifdef NO_ASN 
+    typedef struct RevokedCert RevokedCert;
+#endif
 
 /* Complete CRL */
 struct CRL_Entry {
     CRL_Entry* next;                      /* next entry */
-    byte    issuerHash[SHA_DIGEST_SIZE];  /* issuer hash                 */ 
-    /* byte    crlHash[SHA_DIGEST_SIZE];      raw crl data hash           */ 
+    byte    issuerHash[CRL_DIGEST_SIZE];  /* issuer hash                 */ 
+    /* byte    crlHash[CRL_DIGEST_SIZE];      raw crl data hash           */ 
     /* restore the hash here if needed for optimized comparisons */
     byte    lastDate[MAX_DATE_SIZE]; /* last date updated  */
     byte    nextDate[MAX_DATE_SIZE]; /* next update date   */
@@ -891,6 +1012,10 @@ struct CRL_Monitor {
 };
 
 
+#ifndef HAVE_CRL
+    typedef struct CYASSL_CRL CYASSL_CRL;
+#endif
+
 /* CyaSSL CRL controller */
 struct CYASSL_CRL {
     CYASSL_CERT_MANAGER* cm;            /* pointer back to cert manager */
@@ -901,6 +1026,11 @@ struct CYASSL_CRL {
     pthread_t            tid;           /* monitoring thread */
 #endif
 };
+
+
+#ifdef NO_ASN 
+    typedef struct Signer Signer;
+#endif
 
 
 /* CyaSSL Certificate Manager */
@@ -960,6 +1090,9 @@ struct CYASSL_CTX {
     byte        groupMessages;    /* group handshake messages before sending */
     CallbackIORecv CBIORecv;
     CallbackIOSend CBIOSend;
+#ifdef CYASSL_DTLS
+    CallbackGenCookie CBIOCookie;       /* gen cookie callback */
+#endif
     VerifyCallback  verifyCallback;     /* cert verification callback */
     word32          timeout;            /* session timeout */
 #ifdef HAVE_ECC
@@ -1110,8 +1243,8 @@ enum CipherType { stream, block, aead };
 
 /* keys and secrets */
 typedef struct Keys {
-    byte client_write_MAC_secret[SHA256_DIGEST_SIZE];   /* max sizes */
-    byte server_write_MAC_secret[SHA256_DIGEST_SIZE]; 
+    byte client_write_MAC_secret[MAX_DIGEST_SIZE];   /* max sizes */
+    byte server_write_MAC_secret[MAX_DIGEST_SIZE]; 
     byte client_write_key[AES_256_KEY_SIZE];         /* max sizes */
     byte server_write_key[AES_256_KEY_SIZE]; 
     byte client_write_IV[AES_IV_SIZE];               /* max sizes */
@@ -1173,7 +1306,7 @@ CYASSL_LOCAL void FreeCiphers(CYASSL* ssl);
 
 /* hashes type */
 typedef struct Hashes {
-    #ifndef NO_MD5
+    #ifndef NO_OLD_TLS
         byte md5[MD5_DIGEST_SIZE];
     #endif
     byte sha[SHA_DIGEST_SIZE];
@@ -1284,7 +1417,6 @@ typedef struct Buffers {
 #endif
 } Buffers;
 
-
 typedef struct Options {
     byte            sessionCacheOff;
     byte            sessionCacheFlushOff;
@@ -1335,7 +1467,6 @@ typedef struct Options {
 #endif /* NO_PSK */
 } Options;
 
-
 typedef struct Arrays {
     byte            clientRandom[RAN_LEN];
     byte            serverRandom[RAN_LEN];
@@ -1355,12 +1486,22 @@ typedef struct Arrays {
     word32          preMasterSz;        /* differs for DH, actual size */
 } Arrays;
 
+#ifndef ASN_NAME_MAX
+#define ASN_NAME_MAX 256
+#endif
 
 struct CYASSL_X509_NAME {
     char  name[ASN_NAME_MAX];
     int   sz;
 };
 
+#ifndef EXTERNAL_SERIAL_SIZE
+    #define EXTERNAL_SERIAL_SIZE 32
+#endif
+
+#ifdef NO_ASN 
+    typedef struct DNS_entry DNS_entry;
+#endif
 
 struct CYASSL_X509 {
     CYASSL_X509_NAME issuer;
@@ -1430,9 +1571,13 @@ struct CYASSL {
     void*           IOCB_ReadCtx;
     void*           IOCB_WriteCtx;
     RNG*            rng;
+#ifndef NO_OLD_TLS
+#ifndef NO_SHA
     Sha             hashSha;            /* sha hash of handshake msgs */
+#endif
 #ifndef NO_MD5
     Md5             hashMd5;            /* md5 hash of handshake msgs */
+#endif
 #endif
 #ifndef NO_SHA256
     Sha256          hashSha256;         /* sha256 hash of handshake msgs */
@@ -1482,6 +1627,7 @@ struct CYASSL {
     int             dtls_timeout;
     DtlsPool*       dtls_pool;
     DtlsMsg*        dtls_msg_list;
+    void*           IOCB_CookieCtx;     /* gen cookie ctx */
 #endif
 #ifdef CYASSL_CALLBACKS
     HandShakeInfo   handShakeInfo;      /* info saved during handshake */
@@ -1489,7 +1635,7 @@ struct CYASSL {
     byte            hsInfoOn;           /* track handshake info        */
     byte            toInfoOn;           /* track timeout   info        */
 #endif
-#ifdef OPENSSL_EXTRA
+#ifdef KEEP_PEER_CERT
     CYASSL_X509     peerCert;           /* X509 peer cert */
 #endif
 #ifdef FORTRESS
@@ -1498,6 +1644,7 @@ struct CYASSL {
 #ifdef HAVE_CAVIUM
     int              devId;            /* cavium device id to use */
 #endif
+    CYASSL_ALERT_HISTORY alert_history;
 };
 
 
@@ -1721,8 +1868,6 @@ CYASSL_LOCAL  int GrowInputBuffer(CYASSL* ssl, int size, int usedLength);
     
 
 #endif /* NO_TLS */
-
-
 
 typedef double timer_d;
 

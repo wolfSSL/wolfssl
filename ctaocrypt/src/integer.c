@@ -33,6 +33,8 @@
 /* in case user set USE_FAST_MATH there */
 #include <cyassl/ctaocrypt/settings.h>
 
+#ifndef NO_BIG_INT 
+
 #ifndef USE_FAST_MATH
 
 #include <cyassl/ctaocrypt/integer.h>
@@ -42,6 +44,8 @@
         #define CYASSL_SMALL_STACK
     #endif
 #endif
+
+static void bn_reverse (unsigned char *s, int len);
 
 /* math settings check */
 word32 CheckRunTimeSettings(void)
@@ -3732,7 +3736,7 @@ int mp_sqrmod (mp_int * a, mp_int * b, mp_int * c)
 #endif
 
 
-#if defined(CYASSL_KEY_GEN) || defined(HAVE_ECC) || !defined(NO_PWDBASED)
+#if defined(CYASSL_KEY_GEN) || defined(HAVE_ECC) || defined(OPENSSL_EXTRA)
 
 /* single digit addition */
 int mp_add_d (mp_int* a, mp_digit b, mp_int* c)
@@ -4452,3 +4456,4 @@ int mp_read_radix (mp_int * a, const char *str, int radix)
 
 #endif /* USE_FAST_MATH */
 
+#endif /* NO_BIG_INT */

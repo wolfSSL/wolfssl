@@ -82,9 +82,9 @@ extern "C" {
 #ifdef MP_8BIT
    typedef unsigned char      mp_digit;
    typedef unsigned short     mp_word;
-#elif defined(MP_16BIT)
+#elif defined(MP_16BIT) || defined(NO_64BIT)
    typedef unsigned short     mp_digit;
-   typedef unsigned long      mp_word;
+   typedef unsigned int       mp_word;
 #elif defined(MP_64BIT)
    /* for GCC only on supported platforms */
 #ifndef CRYPT
@@ -238,7 +238,6 @@ int  mp_count_bits (mp_int * a);
 int  mp_init_copy (mp_int * a, mp_int * b);
 int  mp_copy (mp_int * a, mp_int * b);
 int  mp_grow (mp_int * a, int size);
-void bn_reverse (unsigned char *s, int len);
 int  mp_div_2d (mp_int * a, int b, mp_int * c, mp_int * d);
 void mp_zero (mp_int * a);
 void mp_clamp (mp_int * a);
@@ -314,7 +313,7 @@ int mp_init_multi(mp_int* a, mp_int* b, mp_int* c, mp_int* d, mp_int* e,
     int mp_lcm (mp_int * a, mp_int * b, mp_int * c);
 #endif
 
-#if defined(CYASSL_KEY_GEN) || defined(HAVE_ECC) || !defined(NO_PWDBASED)
+#if defined(CYASSL_KEY_GEN) || defined(HAVE_ECC) || defined(OPENSSL_EXTRA)
     int mp_sub_d (mp_int * a, mp_digit b, mp_int * c);
 #endif
 

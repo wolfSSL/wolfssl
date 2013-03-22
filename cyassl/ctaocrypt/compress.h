@@ -1,4 +1,4 @@
-/* cyassl_version.h.in
+/* compress.h
  *
  * Copyright (C) 2006-2013 wolfSSL Inc.
  *
@@ -20,16 +20,33 @@
  */
 
 
-#pragma once
+#ifdef HAVE_LIBZ
+
+#ifndef CTAO_CRYPT_COMPRESS_H
+#define CTAO_CRYPT_COMPRESS_H
+
+
+#include <cyassl/ctaocrypt/types.h>
+
 
 #ifdef __cplusplus
-extern "C" {
+    extern "C" {
 #endif
 
-#define LIBCYASSL_VERSION_STRING "2.5.4"
-#define LIBCYASSL_VERSION_HEX 0x02005004
+
+#define COMPRESS_FIXED 1
+
+
+CYASSL_API int Compress(byte*, word32, const byte*, word32, word32);
+CYASSL_API int DeCompress(byte*, word32, const byte*, word32);
+
 
 #ifdef __cplusplus
-}
+    } /* extern "C" */
 #endif
+
+
+#endif /* CTAO_CRYPT_COMPRESS_H */
+
+#endif /* HAVE_LIBZ */
 

@@ -42,7 +42,8 @@ static int InitHmac(Hmac* hmac, int type)
     hmac->innerHashKeyed = 0;
     hmac->macType = (byte)type;
 
-    if (!(type == MD5 || type == SHA || type == SHA256 || type == SHA384))
+    if (!(type == MD5 || type == SHA || type == SHA256 || type == SHA384
+                      || type == SHA512))
         return BAD_FUNC_ARG;
 
     switch (type) {
@@ -52,9 +53,11 @@ static int InitHmac(Hmac* hmac, int type)
         break;
         #endif
 
+        #ifndef NO_SHA
         case SHA:
             InitSha(&hmac->hash.sha);
         break;
+        #endif
         
         #ifndef NO_SHA256
         case SHA256:
@@ -65,6 +68,12 @@ static int InitHmac(Hmac* hmac, int type)
         #ifdef CYASSL_SHA384
         case SHA384:
             InitSha384(&hmac->hash.sha384);
+        break;
+        #endif
+        
+        #ifdef CYASSL_SHA512
+        case SHA512:
+            InitSha512(&hmac->hash.sha512);
         break;
         #endif
         
@@ -80,7 +89,7 @@ void HmacSetKey(Hmac* hmac, int type, const byte* key, word32 length)
 {
     byte*  ip = (byte*) hmac->ipad;
     byte*  op = (byte*) hmac->opad;
-    word32 i, hmac_block_size = SHA_BLOCK_SIZE;
+    word32 i, hmac_block_size = 0;
 
 #ifdef HAVE_CAVIUM
     if (hmac->magic == CYASSL_HMAC_CAVIUM_MAGIC)
@@ -106,8 +115,10 @@ void HmacSetKey(Hmac* hmac, int type, const byte* key, word32 length)
         break;
         #endif
 
+        #ifndef NO_SHA
         case SHA:
         {
+            hmac_block_size = SHA_BLOCK_SIZE;
             if (length <= SHA_BLOCK_SIZE) {
                 XMEMCPY(ip, key, length);
             }
@@ -118,6 +129,7 @@ void HmacSetKey(Hmac* hmac, int type, const byte* key, word32 length)
             }
         }
         break;
+        #endif
 
         #ifndef NO_SHA256
         case SHA256:
@@ -151,6 +163,22 @@ void HmacSetKey(Hmac* hmac, int type, const byte* key, word32 length)
         break;
         #endif
 
+        #ifdef CYASSL_SHA512
+        case SHA512:
+        {
+            hmac_block_size = SHA512_BLOCK_SIZE;
+            if (length <= SHA512_BLOCK_SIZE) {
+                XMEMCPY(ip, key, length);
+            }
+            else {
+                Sha512Update(&hmac->hash.sha512, key, length);
+                Sha512Final(&hmac->hash.sha512, ip);
+                length = SHA512_DIGEST_SIZE;
+            }
+        }
+        break;
+        #endif
+
         default:
         break;
     }
@@ -173,9 +201,11 @@ static void HmacKeyInnerHash(Hmac* hmac)
         break;
         #endif
 
+        #ifndef NO_SHA
         case SHA:
             ShaUpdate(&hmac->hash.sha, (byte*) hmac->ipad, SHA_BLOCK_SIZE);
         break;
+        #endif
 
         #ifndef NO_SHA256
         case SHA256:
@@ -188,6 +218,13 @@ static void HmacKeyInnerHash(Hmac* hmac)
         case SHA384:
             Sha384Update(&hmac->hash.sha384,
                                          (byte*) hmac->ipad, SHA384_BLOCK_SIZE);
+        break;
+        #endif
+
+        #ifdef CYASSL_SHA512
+        case SHA512:
+            Sha512Update(&hmac->hash.sha512,
+                                         (byte*) hmac->ipad, SHA512_BLOCK_SIZE);
         break;
         #endif
 
@@ -216,9 +253,11 @@ void HmacUpdate(Hmac* hmac, const byte* msg, word32 length)
         break;
         #endif
 
+        #ifndef NO_SHA
         case SHA:
             ShaUpdate(&hmac->hash.sha, msg, length);
         break;
+        #endif
 
         #ifndef NO_SHA256
         case SHA256:
@@ -229,6 +268,12 @@ void HmacUpdate(Hmac* hmac, const byte* msg, word32 length)
         #ifdef CYASSL_SHA384
         case SHA384:
             Sha384Update(&hmac->hash.sha384, msg, length);
+        break;
+        #endif
+
+        #ifdef CYASSL_SHA512
+        case SHA512:
+            Sha512Update(&hmac->hash.sha512, msg, length);
         break;
         #endif
 
@@ -264,6 +309,7 @@ void HmacFinal(Hmac* hmac, byte* hash)
         break;
         #endif
 
+        #ifndef NO_SHA
         case SHA:
         {
             ShaFinal(&hmac->hash.sha, (byte*) hmac->innerHash);
@@ -275,6 +321,7 @@ void HmacFinal(Hmac* hmac, byte* hash)
             ShaFinal(&hmac->hash.sha, hash);
         }
         break;
+        #endif
 
         #ifndef NO_SHA256
         case SHA256:
@@ -302,6 +349,21 @@ void HmacFinal(Hmac* hmac, byte* hash)
                                  (byte*) hmac->innerHash, SHA384_DIGEST_SIZE);
 
             Sha384Final(&hmac->hash.sha384, hash);
+        }
+        break;
+        #endif
+
+        #ifdef CYASSL_SHA512
+        case SHA512:
+        {
+            Sha512Final(&hmac->hash.sha512, (byte*) hmac->innerHash);
+
+            Sha512Update(&hmac->hash.sha512,
+                                 (byte*) hmac->opad, SHA512_BLOCK_SIZE);
+            Sha512Update(&hmac->hash.sha512,
+                                 (byte*) hmac->innerHash, SHA512_DIGEST_SIZE);
+
+            Sha512Final(&hmac->hash.sha512, hash);
         }
         break;
         #endif

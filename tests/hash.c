@@ -76,11 +76,13 @@ int HashTest(void)
         printf( "   MD5      test passed!\n");
 #endif
     
+#ifndef NO_SHA
     if ( (ret = sha_test()) ) {
         printf( "   SHA      test failed!\n");
         return ret; 
     } else
         printf( "   SHA      test passed!\n");
+#endif
     
 #ifndef NO_SHA256
     if ( (ret = sha256_test()) ) {
@@ -290,6 +292,7 @@ int md5_test(void)
 
 #endif /* NO_MD5 */
 
+#ifndef NO_SHA
 int sha_test(void)
 {
     Sha  sha;
@@ -343,6 +346,7 @@ int sha_test(void)
 
     return 0;
 }
+#endif /* NO_SHA */
 
 #ifndef NO_SHA256
 int sha256_test(void)

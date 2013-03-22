@@ -130,7 +130,7 @@ enum CyaSSL_ErrorCodes {
 
 
 CYASSL_LOCAL
-void SetErrorString(int error, char* buffer);
+void SetErrorString(int err, char* buff);
 
 
 #ifdef __cplusplus

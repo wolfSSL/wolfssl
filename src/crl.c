@@ -30,6 +30,7 @@
 #include <cyassl/error.h>
 
 #include <dirent.h>
+#include <sys/stat.h>
 #include <string.h>
 
 
@@ -532,8 +533,19 @@ int LoadCRL(CYASSL_CRL* crl, const char* path, int type, int monitor)
         return BAD_PATH_ERROR;
     }
     while ( (entry = readdir(dir)) != NULL) {
-        if (entry->d_type & DT_REG) {
-            char name[MAX_FILENAME_SZ];
+        char name[MAX_FILENAME_SZ];
+        struct stat s;
+
+        XMEMSET(name, 0, sizeof(name));
+        XSTRNCPY(name, path, MAX_FILENAME_SZ/2 - 2);
+        XSTRNCAT(name, "/", 1);
+        XSTRNCAT(name, entry->d_name, MAX_FILENAME_SZ/2);
+
+        if (stat(name, &s) != 0) {
+            CYASSL_MSG("stat on name failed");
+            continue;
+        }
+        if (s.st_mode & S_IFREG) {
 
             if (type == SSL_FILETYPE_PEM) {
                 if (strstr(entry->d_name, ".pem") == NULL) {
@@ -549,11 +561,6 @@ int LoadCRL(CYASSL_CRL* crl, const char* path, int type, int monitor)
                     continue;
                 }
             }
-
-            XMEMSET(name, 0, sizeof(name));
-            XSTRNCPY(name, path, MAX_FILENAME_SZ/2 - 2);
-            XSTRNCAT(name, "/", 1);
-            XSTRNCAT(name, entry->d_name, MAX_FILENAME_SZ/2);
 
             if (ProcessFile(NULL, name, type, CRL_TYPE, NULL, 0, crl)
                                                                != SSL_SUCCESS) {

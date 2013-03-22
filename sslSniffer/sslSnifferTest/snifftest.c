@@ -214,6 +214,9 @@ int main(int argc, char** argv)
 
         ret = ssl_SetPrivateKey(server, port, "../../certs/server-key.pem",
                                FILETYPE_PEM, NULL, err);
+        if (ret != 0) {
+            printf("Please run directly from sslSniffer/sslSnifferTest dir\n");
+        }
     }
     else if (argc >= 3) {
         saveFile = 1;

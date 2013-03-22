@@ -31,6 +31,7 @@ EXTRA_DIST+= lib/dummy
 EXTRA_DIST+= cyassl-ntru.vcproj
 EXTRA_DIST+= cyassl.vcproj
 EXTRA_DIST+= cyassl-iphone.xcodeproj/project.pbxproj
+EXTRA_DIST+= cyassl-ios.xcodeproj/project.pbxproj
 EXTRA_DIST+= cyassl-ntru.sln
 EXTRA_DIST+= cyassl.sln
 EXTRA_DIST+= valgrind-error.sh
@@ -62,6 +63,7 @@ include mqx/util_lib/Sources/include.am
 include mplabx/ctaocrypt_benchmark.X/nbproject/include.am
 include mplabx/ctaocrypt_test.X/nbproject/include.am
 include mplabx/cyassl.X/nbproject/include.am
+include mcapi/include.am
 
 if USE_VALGRIND
 TESTS_ENVIRONMENT=./valgrind-error.sh

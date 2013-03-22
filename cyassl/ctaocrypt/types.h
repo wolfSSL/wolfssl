@@ -74,6 +74,10 @@
     #define WORD64_AVAILABLE
     #define W64LIT(x) x##LL
     typedef unsigned long long word64;
+#elif defined(__SIZEOF_LONG_LONG__) && __SIZEOF_LONG_LONG__ == 8 
+    #define WORD64_AVAILABLE
+    #define W64LIT(x) x##LL
+    typedef unsigned long long word64;
 #else
     #define MP_16BIT  /* for mp_int, mp_word needs to be twice as big as
                          mp_digit, no 64 bit type so make mp_digit 16 bit */
@@ -93,9 +97,9 @@
 
 
 enum {
-    WORD_SIZE  = sizeof(word),
-    BIT_SIZE   = 8,
-    WORD_BITS  = WORD_SIZE * BIT_SIZE
+    CYASSL_WORD_SIZE  = sizeof(word),
+    CYASSL_BIT_SIZE   = 8,
+    CYASSL_WORD_BITS  = CYASSL_WORD_SIZE * CYASSL_BIT_SIZE
 };
 
 #define CYASSL_MAX_16BIT 0xffffU
@@ -145,16 +149,22 @@ enum {
 /* default to libc stuff */
 /* XREALLOC is used once in normal math lib, not in fast math lib */
 /* XFREE on some embeded systems doesn't like free(0) so test  */
-#ifdef XMALLOC_USER
+#if defined(XMALLOC_USER)
     /* prototypes for user heap override functions */
     #include <stddef.h>  /* for size_t */
     extern void *XMALLOC(size_t n, void* heap, int type);
     extern void *XREALLOC(void *p, size_t n, void* heap, int type);
     extern void XFREE(void *p, void* heap, int type);
+#elif defined(NO_CYASSL_MEMORY)
+    /* just use plain C stdlib stuff if desired */
+    #include <stdlib.h>
+    #define XMALLOC(s, h, t)     ((void)h, (void)t, malloc((s)))
+    #define XFREE(p, h, t)       {void* xp = (p); if((xp)) free((xp));}
+    #define XREALLOC(p, n, h, t) realloc((p), (n))
 #elif !defined(MICRIUM_MALLOC) && !defined(EBSNET) \
         && !defined(CYASSL_SAFERTOS) && !defined(FREESCALE_MQX) \
         && !defined(CYASSL_LEANPSK)
-    /* default C runtime, can install different routines at runtime */
+    /* default C runtime, can install different routines at runtime via cbs */
     #include <cyassl/ctaocrypt/memory.h>
     #define XMALLOC(s, h, t)     ((void)h, (void)t, CyaSSL_Malloc((s)))
     #define XFREE(p, h, t)       {void* xp = (p); if((xp)) CyaSSL_Free((xp));}

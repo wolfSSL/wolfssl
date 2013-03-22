@@ -115,20 +115,39 @@
 #endif
 
 
-#ifdef CYASSL_LEANPSK
+#if defined(CYASSL_LEANPSK) && !defined(XMALLOC_USER)
     #include <stdlib.h>
     #define XMALLOC(s, h, type)  malloc((s))
     #define XFREE(p, h, type)    free((p)) 
     #define XREALLOC(p, n, h, t) realloc((p), (n))
 #endif
 
+#if defined(XMALLOC_USER) && defined(SSN_BUILDING_LIBYASSL)
+    #undef  XMALLOC
+    #define XMALLOC     yaXMALLOC
+    #undef  XFREE
+    #define XFREE       yaXFREE
+    #undef  XREALLOC
+    #define XREALLOC    yaXREALLOC
+#endif
+
 
 #ifdef FREERTOS
-    #define NO_WRITEV
-    #define NO_SHA512
-    #define NO_DH
-    #define NO_DSA
-    #define NO_HC128
+    #ifndef NO_WRITEV
+        #define NO_WRITEV
+    #endif
+    #ifndef NO_SHA512
+        #define NO_SHA512
+    #endif
+    #ifndef NO_DH
+        #define NO_DH
+    #endif
+    #ifndef NO_DSA
+        #define NO_DSA
+    #endif
+    #ifndef NO_HC128
+        #define NO_HC128
+    #endif
 
     #ifndef SINGLE_THREADED
         #include "FreeRTOS.h"
@@ -448,9 +467,16 @@
 
 
 #if !defined(XMALLOC_USER) && !defined(MICRIUM_MALLOC) && \
-                              !defined(CYASSL_LEANPSK)
+    !defined(CYASSL_LEANPSK) && !defined(NO_CYASSL_MEMORY)
     #define USE_CYASSL_MEMORY
 #endif
+
+
+#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS)
+    #undef  KEEP_PEER_CERT
+    #define KEEP_PEER_CERT
+#endif
+
 
 /* Place any other flags or defines here */
 

@@ -46,7 +46,7 @@ void echoclient_test(void* args)
     SSL*        ssl    = 0;
 
     int doDTLS = 0;
-    int doLeanPSK = 0;
+    int doPSK = 0;
     int sendSz;
     int argc    = 0;
     char** argv = 0;
@@ -72,7 +72,11 @@ void echoclient_test(void* args)
 #endif
 
 #ifdef CYASSL_LEANPSK 
-    doLeanPSK = 1;
+    doPSK = 1;
+#endif
+
+#if defined(NO_RSA) && !defined(HAVE_ECC)
+    doPSK = 1;
 #endif
 
 #if defined(CYASSL_DTLS)
@@ -85,14 +89,16 @@ void echoclient_test(void* args)
     ctx    = SSL_CTX_new(method);
 
 #ifndef NO_FILESYSTEM
+    #ifndef NO_RSA
     if (SSL_CTX_load_verify_locations(ctx, caCert, 0) != SSL_SUCCESS)
         err_sys("can't load ca file, Please run from CyaSSL home dir");
+    #endif
     #ifdef HAVE_ECC
         if (SSL_CTX_load_verify_locations(ctx, eccCert, 0) != SSL_SUCCESS)
             err_sys("can't load ca file, Please run from CyaSSL home dir");
     #endif
 #elif !defined(NO_CERTS)
-    if (!doLeanPSK)
+    if (!doPSK)
         load_buffer(ctx, caCert, CYASSL_CA);
 #endif
 
@@ -100,10 +106,18 @@ void echoclient_test(void* args)
     /* don't use EDH, can't sniff tmp keys */
     SSL_CTX_set_cipher_list(ctx, "AES256-SHA");
 #endif
-    if (doLeanPSK) {
-#ifdef CYASSL_LEANPSK
+    if (doPSK) {
+#ifndef NO_PSK
+        const char *defaultCipherList;
+
         CyaSSL_CTX_set_psk_client_callback(ctx, my_psk_client_cb);
-        SSL_CTX_set_cipher_list(ctx, "PSK-NULL-SHA");
+        #ifdef HAVE_NULL_CIPHER
+            defaultCipherList = "PSK-NULL-SHA256";
+        #else
+            defaultCipherList = "PSK-AES128-CBC-SHA256";
+        #endif
+        if (CyaSSL_CTX_set_cipher_list(ctx,defaultCipherList) !=SSL_SUCCESS)
+            err_sys("client can't set cipher list 2");
 #endif
     }
 

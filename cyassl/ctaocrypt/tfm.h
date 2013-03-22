@@ -54,6 +54,7 @@
 #endif
 
 
+#ifndef NO_64BIT
 /* autodetect x86-64 and make sure we are using 64-bit digits with x86-64 asm */
 #if defined(__x86_64__)
    #if defined(TFM_X86) || defined(TFM_SSE2) || defined(TFM_ARM) 
@@ -72,6 +73,7 @@
 #if defined(__x86_64__) && !defined(FP_64BIT)
     #define FP_64BIT
 #endif
+#endif /* NO_64BIT */
 
 /* try to detect x86-32 */
 #if defined(__i386__) && !defined(TFM_SSE2)
@@ -214,8 +216,15 @@
       typedef signed long long   long64;
    #endif
 #endif
-   typedef unsigned int       fp_digit;
-   typedef ulong64            fp_word;
+   #ifndef NO_64BIT
+      typedef unsigned int       fp_digit;
+      typedef ulong64            fp_word;
+   #else
+      /* some procs like coldfire prefer not to place multiply into 64bit type
+         even though it exists */
+      typedef unsigned short     fp_digit;
+      typedef unsigned int       fp_word;
+   #endif
 #endif
 
 /* # of digits this is */

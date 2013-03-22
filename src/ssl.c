@@ -27,8 +27,6 @@
     #include <errno.h>
 #endif
 
-#define TRUE  1
-#define FALSE 0
 
 #include <cyassl/ssl.h>
 #include <cyassl/internal.h>
@@ -64,6 +62,7 @@
     #if !defined(USE_WINDOWS_API) && !defined(NO_CYASSL_DIR) \
             && !defined(EBSNET)
         #include <dirent.h>
+        #include <sys/stat.h>
     #endif
     #ifdef EBSNET
         #include "vfapi.h"
@@ -71,6 +70,12 @@
     #endif
 #endif /* NO_FILESYSTEM */
 
+#ifndef TRUE
+    #define TRUE  1
+#endif
+#ifndef FALSE
+    #define FALSE 0
+#endif
 
 #ifndef min
 
@@ -175,7 +180,6 @@ void CyaSSL_free(CYASSL* ssl)
 }
 
 
-#ifndef CYASSL_LEANPSK
 int CyaSSL_set_fd(CYASSL* ssl, int fd)
 {
     CYASSL_ENTER("SSL_set_fd");
@@ -204,7 +208,6 @@ int CyaSSL_get_fd(const CYASSL* ssl)
     CYASSL_LEAVE("SSL_get_fd", ssl->rfd);
     return ssl->rfd;
 }
-#endif
 
 
 #ifndef CYASSL_LEANPSK
@@ -545,6 +548,13 @@ int CyaSSL_get_error(CYASSL* ssl, int ret)
     return ssl->error;
 }
 
+int CyaSSL_get_alert_history(CYASSL* ssl, CYASSL_ALERT_HISTORY *h)
+{
+    if (ssl && h) {
+        *h = ssl->alert_history;
+    }
+    return 0;
+}
 
 int CyaSSL_want_read(CYASSL* ssl)
 {
@@ -910,6 +920,8 @@ int AddCA(CYASSL_CERT_MANAGER* cm, buffer der, int type, int verify)
        SMALL_SESSION_CACHE only stores 6 sessions, good for embedded clients
        or systems where the default of nearly 3kB is too much RAM, this define
        uses less than 500 bytes RAM
+
+       default SESSION_CACHE stores 33 sessions (no XXX_SESSION_CACHE defined)
     */
     #ifdef HUGE_SESSION_CACHE
         #define SESSIONS_PER_ROW 11
@@ -1136,7 +1148,7 @@ int CyaSSL_Init(void)
         if (pkcs8)
             return ToTraditional(der->buffer, der->length);
 
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) && !defined(NO_PWDBASED)
          if (pkcs8Enc) {
             int  passwordSz;
             char password[80];
@@ -1166,6 +1178,7 @@ int CyaSSL_Init(void)
         int           ret;
         int           dynamicType = 0;
         int           eccKey = 0;
+        int           rsaKey = 0;
         void*         heap = ctx ? ctx->heap : NULL;
 
         info.set      = 0;
@@ -1404,12 +1417,14 @@ int CyaSSL_Init(void)
                         FreeRsaKey(&key);
                         return SSL_BAD_FILE;
                     }
+                } else {
+                    rsaKey = 1;
                 }
                 FreeRsaKey(&key);
             }
 #endif
 #ifdef HAVE_ECC  
-            if (eccKey ) {
+            if (!rsaKey) {
                 /* make sure ECC key can be used */
                 word32  idx = 0;
                 ecc_key key;
@@ -1420,6 +1435,7 @@ int CyaSSL_Init(void)
                     return SSL_BAD_FILE;
                 }
                 ecc_free(&key);
+                eccKey = 1;
                 ctx->haveStaticECC = 1;
                 if (ssl)
                     ssl->options.haveStaticECC = 1;
@@ -1664,14 +1680,20 @@ int CyaSSL_CTX_load_verify_locations(CYASSL_CTX* ctx, const char* file,
             return BAD_PATH_ERROR;
         }
         while ( ret == SSL_SUCCESS && (entry = readdir(dir)) != NULL) {
-            if (entry->d_type & DT_REG) {
-                char name[MAX_FILENAME_SZ];
+            char name[MAX_FILENAME_SZ];
+            struct stat s;
 
-                XMEMSET(name, 0, sizeof(name));
-                XSTRNCPY(name, path, MAX_FILENAME_SZ/2 - 2);
-                XSTRNCAT(name, "/", 1);
-                XSTRNCAT(name, entry->d_name, MAX_FILENAME_SZ/2);
-                
+            XMEMSET(name, 0, sizeof(name));
+            XSTRNCPY(name, path, MAX_FILENAME_SZ/2 - 2);
+            XSTRNCAT(name, "/", 1);
+            XSTRNCAT(name, entry->d_name, MAX_FILENAME_SZ/2);
+
+            if (stat(name, &s) != 0) {
+                CYASSL_MSG("stat on name failed");
+                closedir(dir);
+                return BAD_PATH_ERROR;
+            }
+            if (s.st_mode & S_IFREG) {
                 ret = ProcessFile(ctx, name, SSL_FILETYPE_PEM, CA_TYPE, NULL,0,
                                   NULL);
             }
@@ -1786,7 +1808,13 @@ int CyaSSL_CertManagerLoadCA(CYASSL_CERT_MANAGER* cm, const char* file,
         CYASSL_MSG("No CertManager error");
         return ret;
     }
-    tmp = CyaSSL_CTX_new(CyaSSLv3_client_method());
+    tmp = CyaSSL_CTX_new(
+#ifdef NO_OLD_TLS
+                         CyaTLSv1_2_client_method()
+#else
+                         CyaSSLv3_client_method()
+#endif
+                         );
 
     if (tmp == NULL) {
         CYASSL_MSG("CTX new failed");
@@ -2562,6 +2590,17 @@ int CyaSSL_dtls_got_timeout(CYASSL* ssl)
                 InitSSL_Method(method, MakeDTLSv1());
             return method;
         }
+
+        CYASSL_METHOD* CyaDTLSv1_2_client_method(void)
+        {
+            CYASSL_METHOD* method =
+                              (CYASSL_METHOD*) XMALLOC(sizeof(CYASSL_METHOD), 0,
+                                                       DYNAMIC_TYPE_METHOD);
+            CYASSL_ENTER("DTLSv1_2_client_method");
+            if (method)
+                InitSSL_Method(method, MakeDTLSv1_2());
+            return method;
+        }
     #endif
 
 
@@ -2583,7 +2622,7 @@ int CyaSSL_dtls_got_timeout(CYASSL* ssl)
 
         #ifdef CYASSL_DTLS
             if (ssl->version.major == DTLS_MAJOR && 
-                                      ssl->version.minor == DTLS_MINOR) {
+                                      ssl->version.minor >= DTLSv1_2_MINOR) {
                 ssl->options.dtls   = 1;
                 ssl->options.tls    = 1;
                 ssl->options.tls1_1 = 1;
@@ -2654,12 +2693,18 @@ int CyaSSL_dtls_got_timeout(CYASSL* ssl)
             #ifdef CYASSL_DTLS
                 if (ssl->options.dtls) {
                     /* re-init hashes, exclude first hello and verify request */
+#ifndef NO_OLD_TLS
                     InitMd5(&ssl->hashMd5);
                     InitSha(&ssl->hashSha);
-                    #ifndef NO_SHA256
-                        if (IsAtLeastTLSv1_2(ssl))
+#endif
+                    if (IsAtLeastTLSv1_2(ssl)) {
+                        #ifndef NO_SHA256
                             InitSha256(&ssl->hashSha256);
-                    #endif
+                        #endif
+                        #ifdef CYASSL_SHA384
+                            InitSha384(&ssl->hashSha384);
+                        #endif
+                    }
                     if ( (ssl->error = SendClientHello(ssl)) != 0) {
                         CYASSL_ERROR(ssl->error);
                         return SSL_FATAL_ERROR;
@@ -2695,31 +2740,38 @@ int CyaSSL_dtls_got_timeout(CYASSL* ssl)
 
         case FIRST_REPLY_DONE :
             #ifndef NO_CERTS
-                if (ssl->options.sendVerify)
+                if (ssl->options.sendVerify) {
                     if ( (ssl->error = SendCertificate(ssl)) != 0) {
                         CYASSL_ERROR(ssl->error);
                         return SSL_FATAL_ERROR;
                     }
+                    CYASSL_MSG("sent: certificate");
+                }
+                
             #endif
             ssl->options.connectState = FIRST_REPLY_FIRST;
             CYASSL_MSG("connect state: FIRST_REPLY_FIRST");
 
         case FIRST_REPLY_FIRST :
-            if (!ssl->options.resuming)
+            if (!ssl->options.resuming) {
                 if ( (ssl->error = SendClientKeyExchange(ssl)) != 0) {
                     CYASSL_ERROR(ssl->error);
                     return SSL_FATAL_ERROR;
                 }
+                CYASSL_MSG("sent: client key exchange");
+            }
 
             ssl->options.connectState = FIRST_REPLY_SECOND;
             CYASSL_MSG("connect state: FIRST_REPLY_SECOND");
 
         case FIRST_REPLY_SECOND :
             #ifndef NO_CERTS
-                if (ssl->options.sendVerify)
+                if (ssl->options.sendVerify) {
                     if ( (ssl->error = SendCertificateVerify(ssl)) != 0) {
                         CYASSL_ERROR(ssl->error);
                         return SSL_FATAL_ERROR;
+                    }
+                    CYASSL_MSG("sent: certificate verify");
                 }
             #endif
             ssl->options.connectState = FIRST_REPLY_THIRD;
@@ -2730,6 +2782,7 @@ int CyaSSL_dtls_got_timeout(CYASSL* ssl)
                 CYASSL_ERROR(ssl->error);
                 return SSL_FATAL_ERROR;
             }
+            CYASSL_MSG("sent: change cipher spec");
             ssl->options.connectState = FIRST_REPLY_FOURTH;
             CYASSL_MSG("connect state: FIRST_REPLY_FOURTH");
 
@@ -2738,7 +2791,7 @@ int CyaSSL_dtls_got_timeout(CYASSL* ssl)
                 CYASSL_ERROR(ssl->error);
                 return SSL_FATAL_ERROR;
             }
-
+            CYASSL_MSG("sent: finished");
             ssl->options.connectState = FINISHED_DONE;
             CYASSL_MSG("connect state: FINISHED_DONE");
 
@@ -2799,6 +2852,19 @@ int CyaSSL_dtls_got_timeout(CYASSL* ssl)
             }
             return method;
         }
+
+        CYASSL_METHOD* CyaDTLSv1_2_server_method(void)
+        {
+            CYASSL_METHOD* method =
+                              (CYASSL_METHOD*) XMALLOC(sizeof(CYASSL_METHOD), 0,
+                                                       DYNAMIC_TYPE_METHOD);
+            CYASSL_ENTER("DTLSv1_2_server_method");
+            if (method) {
+                InitSSL_Method(method, MakeDTLSv1_2());
+                method->side = SERVER_END;
+            }
+            return method;
+        }
     #endif
 
 
@@ -2814,6 +2880,7 @@ int CyaSSL_dtls_got_timeout(CYASSL* ssl)
         #ifndef NO_PSK
             havePSK = ssl->options.havePSK;
         #endif
+        (void)havePSK;
 
         if (ssl->options.side != SERVER_END) {
             CYASSL_ERROR(ssl->error = SIDE_ERROR);
@@ -2846,7 +2913,7 @@ int CyaSSL_dtls_got_timeout(CYASSL* ssl)
 
         #ifdef CYASSL_DTLS
             if (ssl->version.major == DTLS_MAJOR &&
-                                      ssl->version.minor == DTLS_MINOR) {
+                                      ssl->version.minor >= DTLSv1_2_MINOR) {
                 ssl->options.dtls   = 1;
                 ssl->options.tls    = 1;
                 ssl->options.tls1_1 = 1;
@@ -2898,12 +2965,18 @@ int CyaSSL_dtls_got_timeout(CYASSL* ssl)
                 if (ssl->options.dtls) {
                     ssl->options.clientState = NULL_STATE;  /* get again */
                     /* re-init hashes, exclude first hello and verify request */
+#ifndef NO_OLD_TLS
                     InitMd5(&ssl->hashMd5);
                     InitSha(&ssl->hashSha);
-                    #ifndef NO_SHA256
-                        if (IsAtLeastTLSv1_2(ssl))
-                            InitSha256(&ssl->hashSha256);
-                    #endif
+#endif
+                    if (IsAtLeastTLSv1_2(ssl)) {
+                        #ifndef NO_SHA256
+                             InitSha256(&ssl->hashSha256);
+                        #endif
+                        #ifdef CYASSL_SHA384
+                            InitSha384(&ssl->hashSha384);
+                        #endif
+                    }
 
                     while (ssl->options.clientState < CLIENT_HELLO_COMPLETE)
                         if ( (ssl->error = ProcessReply(ssl)) < 0) {
@@ -3052,12 +3125,63 @@ int CyaSSL_Cleanup(void)
 #ifndef NO_SESSION_CACHE
 
 
+/* Make a work from the front of random hash */
+static INLINE word32 MakeWordFromHash(const byte* hashID)
+{
+    return (hashID[0] << 24) | (hashID[1] << 16) | (hashID[2] <<  8) |
+            hashID[3];
+}
+
+
+#ifndef NO_MD5
+
+/* some session IDs aren't random afterall, let's make them random */
+
 static INLINE word32 HashSession(const byte* sessionID)
 {
-    /* id is random, just make 32 bit number from first 4 bytes for now */
-    return (sessionID[0] << 24) | (sessionID[1] << 16) | (sessionID[2] <<  8) |
-            sessionID[3];
+    byte digest[MD5_DIGEST_SIZE];
+    Md5  md5;
+
+    InitMd5(&md5);
+    Md5Update(&md5, sessionID, ID_LEN);
+    Md5Final(&md5, digest);
+
+    return MakeWordFromHash(digest);
 }
+
+#elif !defined(NO_SHA)
+
+static INLINE word32 HashSession(const byte* sessionID)
+{
+    byte digest[SHA_DIGEST_SIZE];
+    Sha  sha;
+
+    InitSha(&sha);
+    ShaUpdate(&sha, sessionID, ID_LEN);
+    ShaFinal(&sha, digest);
+
+    return MakeWordFromHash(digest);
+}
+
+#elif !defined(NO_SHA256)
+
+static INLINE word32 HashSession(const byte* sessionID)
+{
+    byte    digest[SHA256_DIGEST_SIZE];
+    Sha256  sha256;
+
+    InitSha256(&sha256);
+    Sha256Update(&sha256, sessionID, ID_LEN);
+    Sha256Final(&sha256, digest);
+
+    return MakeWordFromHash(digest);
+}
+
+#else
+
+#error "We need a digest to hash the session IDs"
+
+#endif /* NO_MD5 */
 
 
 void CyaSSL_flush_sessions(CYASSL_CTX* ctx, long tm)
@@ -3840,8 +3964,8 @@ int CyaSSL_set_compression(CYASSL* ssl)
                    ssl->options.haveECDSAsig, ssl->options.haveStaticECC,
                    ssl->options.side);
     }
+#endif
 
-   
     /* return true if connection established */
     int CyaSSL_is_init_finished(CYASSL* ssl)
     {
@@ -3854,7 +3978,7 @@ int CyaSSL_set_compression(CYASSL* ssl)
         return 0;
     }
 
-
+#if defined(OPENSSL_EXTRA) || defined(GOAHEAD_WS)
     void CyaSSL_CTX_set_tmp_rsa_callback(CYASSL_CTX* ctx,
                                       CYASSL_RSA*(*f)(CYASSL*, int, int))
     {
@@ -5332,8 +5456,8 @@ int CyaSSL_set_compression(CYASSL* ssl)
         (void)flags; 
         return 0;
     }
-
-
+#endif
+#ifdef KEEP_PEER_CERT
     CYASSL_X509* CyaSSL_get_peer_certificate(CYASSL* ssl)
     {
         CYASSL_ENTER("SSL_get_peer_certificate");
@@ -5342,9 +5466,9 @@ int CyaSSL_set_compression(CYASSL* ssl)
         else
             return 0;
     }
+#endif
 
-
-
+#ifdef OPENSSL_EXTRA
     int CyaSSL_set_ex_data(CYASSL* ssl, int idx, void* data)
     {
 #ifdef FORTRESS
@@ -5384,19 +5508,19 @@ int CyaSSL_set_compression(CYASSL* ssl)
         (void)ssl;
         /* client by default */ 
     }
-
+#endif
 
     int CyaSSL_session_reused(CYASSL* ssl)
     {
         return ssl->options.resuming;
     }
 
-
+#ifdef OPENSSL_EXTRA
     void CyaSSL_SESSION_free(CYASSL_SESSION* session)
     {
         (void)session;
     }
-
+#endif
 
     const char* CyaSSL_get_version(CYASSL* ssl)
     {
@@ -5415,11 +5539,26 @@ int CyaSSL_set_compression(CYASSL* ssl)
                     return "unknown";
             }
         }
-        else if (ssl->version.major == DTLS_MAJOR)
-            return "DTLS";
+        else if (ssl->version.major == DTLS_MAJOR) {
+            switch (ssl->version.minor) {
+                case DTLS_MINOR :
+                    return "DTLS";
+                case DTLSv1_2_MINOR :
+                    return "DTLSv1.2";
+                default:
+                    return "unknown";
+            }
+        }
         return "unknown";
     }
 
+    int CyaSSL_get_current_cipher_suite(CYASSL* ssl)
+    {
+        CYASSL_ENTER("SSL_get_current_cipher_suite");
+        if (ssl)
+            return (ssl->options.cipherSuite0 << 8) | ssl->options.cipherSuite;
+        return 0;
+    }
 
     CYASSL_CIPHER* CyaSSL_get_current_cipher(CYASSL* ssl)
     {
@@ -5433,130 +5572,228 @@ int CyaSSL_set_compression(CYASSL* ssl)
 
     const char* CyaSSL_CIPHER_get_name(const CYASSL_CIPHER* cipher)
     {
+        (void)cipher;
+
         CYASSL_ENTER("SSL_CIPHER_get_name");
+#ifndef NO_ERROR_STRINGS
         if (cipher) {
 #ifdef HAVE_ECC
             if (cipher->ssl->options.cipherSuite0 == ECC_BYTE) {
             /* ECC suites */
             switch (cipher->ssl->options.cipherSuite) {
+#ifndef NO_RSA
+                case TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256 :
+                    return "TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256";
+#endif
+                case TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256 :
+                    return "TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256";
+#ifndef NO_RSA
+                case TLS_ECDH_RSA_WITH_AES_128_CBC_SHA256 :
+                    return "TLS_ECDH_RSA_WITH_AES_128_CBC_SHA256";
+#endif
+                case TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA256 :
+                    return "TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA256";
+#ifndef NO_RSA
+                case TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384 :
+                    return "TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384";
+#endif
+                case TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384 :
+                    return "TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384";
+#ifndef NO_RSA
+                case TLS_ECDH_RSA_WITH_AES_256_CBC_SHA384 :
+                    return "TLS_ECDH_RSA_WITH_AES_256_CBC_SHA384";
+#endif
+                case TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA384 :
+                    return "TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA384";
+#ifndef NO_SHA
+    #ifndef NO_RSA
                 case TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA :
                     return "TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA";
                 case TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA :
                     return "TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA";
+    #endif
                 case TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA :
                     return "TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA";
                 case TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA :
                     return "TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA";
+    #ifndef NO_RC4
+        #ifndef NO_RSA
                 case TLS_ECDHE_RSA_WITH_RC4_128_SHA :
                     return "TLS_ECDHE_RSA_WITH_RC4_128_SHA";
+        #endif
                 case TLS_ECDHE_ECDSA_WITH_RC4_128_SHA :
                     return "TLS_ECDHE_ECDSA_WITH_RC4_128_SHA";
+    #endif
+    #ifndef NO_DES3
+        #ifndef NO_RSA
                 case TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA :
                     return "TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA";
+        #endif
                 case TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA :
                     return "TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA";
+    #endif
 
+    #ifndef NO_RSA
                 case TLS_ECDH_RSA_WITH_AES_128_CBC_SHA :
                     return "TLS_ECDH_RSA_WITH_AES_128_CBC_SHA";
                 case TLS_ECDH_RSA_WITH_AES_256_CBC_SHA :
                     return "TLS_ECDH_RSA_WITH_AES_256_CBC_SHA";
+    #endif
                 case TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA :
                     return "TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA";
                 case TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA :
                     return "TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA";
+    #ifndef NO_RC4
+        #ifndef NO_RSA
                 case TLS_ECDH_RSA_WITH_RC4_128_SHA :
                     return "TLS_ECDH_RSA_WITH_RC4_128_SHA";
+        #endif
                 case TLS_ECDH_ECDSA_WITH_RC4_128_SHA :
                     return "TLS_ECDH_ECDSA_WITH_RC4_128_SHA";
+    #endif
+    #ifndef NO_DES3
+        #ifndef NO_RSA
                 case TLS_ECDH_RSA_WITH_3DES_EDE_CBC_SHA :
                     return "TLS_ECDH_RSA_WITH_3DES_EDE_CBC_SHA";
+        #endif
                 case TLS_ECDH_ECDSA_WITH_3DES_EDE_CBC_SHA :
                     return "TLS_ECDH_ECDSA_WITH_3DES_EDE_CBC_SHA";
+    #endif
+#endif /* NO_SHA */
 
+#ifdef HAVE_AESGCM
+    #ifndef NO_RSA
                 case TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256 :
                     return "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256";
                 case TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384 :
                     return "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384";
+    #endif
                 case TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256 :
                     return "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256";
                 case TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384 :
                     return "TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384";
+    #ifndef NO_RSA
                 case TLS_ECDH_RSA_WITH_AES_128_GCM_SHA256 :
                     return "TLS_ECDH_RSA_WITH_AES_128_GCM_SHA256";
                 case TLS_ECDH_RSA_WITH_AES_256_GCM_SHA384 :
                     return "TLS_ECDH_RSA_WITH_AES_256_GCM_SHA384";
+    #endif
                 case TLS_ECDH_ECDSA_WITH_AES_128_GCM_SHA256 :
                     return "TLS_ECDH_ECDSA_WITH_AES_128_GCM_SHA256";
                 case TLS_ECDH_ECDSA_WITH_AES_256_GCM_SHA384 :
                     return "TLS_ECDH_ECDSA_WITH_AES_256_GCM_SHA384";
+#endif
 
+#ifdef HAVE_AESCCM
+    #ifndef NO_RSA
                 case TLS_RSA_WITH_AES_128_CCM_8_SHA256 :
                     return "TLS_RSA_WITH_AES_128_CCM_8_SHA256";
                 case TLS_RSA_WITH_AES_256_CCM_8_SHA384 :
                     return "TLS_RSA_WITH_AES_256_CCM_8_SHA384";
+    #endif
                 case TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8_SHA256 :
                     return "TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8_SHA256";
                 case TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8_SHA384 :
                     return "TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8_SHA384";
+#endif
 
                 default:
                     return "NONE";
             }
             }
-#endif
+#endif  /* ECC */
             if (cipher->ssl->options.cipherSuite0 != ECC_BYTE) {
             /* normal suites */
             switch (cipher->ssl->options.cipherSuite) {
+#ifndef NO_RSA
+    #ifndef NO_RC4
+        #ifndef NO_SHA
                 case SSL_RSA_WITH_RC4_128_SHA :
                     return "SSL_RSA_WITH_RC4_128_SHA";
+        #endif
+        #ifndef NO_MD5
                 case SSL_RSA_WITH_RC4_128_MD5 :
                     return "SSL_RSA_WITH_RC4_128_MD5";
+        #endif
+    #endif
+    #ifndef NO_SHA
+        #ifndef NO_DES3
                 case SSL_RSA_WITH_3DES_EDE_CBC_SHA :
                     return "SSL_RSA_WITH_3DES_EDE_CBC_SHA";
+        #endif
                 case TLS_RSA_WITH_AES_128_CBC_SHA :
                     return "TLS_RSA_WITH_AES_128_CBC_SHA";
                 case TLS_RSA_WITH_AES_256_CBC_SHA :
                     return "TLS_RSA_WITH_AES_256_CBC_SHA";
+    #endif
                 case TLS_RSA_WITH_AES_128_CBC_SHA256 :
                     return "TLS_RSA_WITH_AES_128_CBC_SHA256";
                 case TLS_RSA_WITH_AES_256_CBC_SHA256 :
                     return "TLS_RSA_WITH_AES_256_CBC_SHA256";
+    #ifndef NO_SHA
                 case TLS_RSA_WITH_NULL_SHA :
                     return "TLS_RSA_WITH_NULL_SHA";
+    #endif
                 case TLS_RSA_WITH_NULL_SHA256 :
                     return "TLS_RSA_WITH_NULL_SHA256";
+#endif /* NO_RSA */
+#ifndef NO_PSK
                 case TLS_PSK_WITH_AES_128_CBC_SHA256 :
                     return "TLS_PSK_WITH_AES_128_CBC_SHA256";
+    #ifndef NO_SHA
                 case TLS_PSK_WITH_AES_128_CBC_SHA :
                     return "TLS_PSK_WITH_AES_128_CBC_SHA";
                 case TLS_PSK_WITH_AES_256_CBC_SHA :
                     return "TLS_PSK_WITH_AES_256_CBC_SHA";
+    #endif
                 case TLS_PSK_WITH_NULL_SHA256 :
                     return "TLS_PSK_WITH_NULL_SHA256";
+    #ifndef NO_SHA
                 case TLS_PSK_WITH_NULL_SHA :
                     return "TLS_PSK_WITH_NULL_SHA";
+    #endif
+#endif /* NO_PSK */
+#ifndef NO_RSA
                 case TLS_DHE_RSA_WITH_AES_128_CBC_SHA256 :
                     return "TLS_DHE_RSA_WITH_AES_128_CBC_SHA256";
                 case TLS_DHE_RSA_WITH_AES_256_CBC_SHA256 :
                     return "TLS_DHE_RSA_WITH_AES_256_CBC_SHA256";
+    #ifndef NO_SHA
                 case TLS_DHE_RSA_WITH_AES_128_CBC_SHA :
                     return "TLS_DHE_RSA_WITH_AES_128_CBC_SHA";
                 case TLS_DHE_RSA_WITH_AES_256_CBC_SHA :
                     return "TLS_DHE_RSA_WITH_AES_256_CBC_SHA";
+    #endif
+    #ifndef NO_HC128
+        #ifndef NO_MD5
                 case TLS_RSA_WITH_HC_128_CBC_MD5 :
                     return "TLS_RSA_WITH_HC_128_CBC_MD5";
+        #endif
+        #ifndef NO_SHA
                 case TLS_RSA_WITH_HC_128_CBC_SHA :
                     return "TLS_RSA_WITH_HC_128_CBC_SHA";
+        #endif
+    #endif /* NO_HC128 */
+    #ifndef NO_SHA
+        #ifndef NO_RABBIT
                 case TLS_RSA_WITH_RABBIT_CBC_SHA :
                     return "TLS_RSA_WITH_RABBIT_CBC_SHA";
+        #endif
+        #ifdef HAVE_NTRU
+            #ifndef NO_RC4
                 case TLS_NTRU_RSA_WITH_RC4_128_SHA :
                     return "TLS_NTRU_RSA_WITH_RC4_128_SHA";
+            #endif
+            #ifndef NO_DES3
                 case TLS_NTRU_RSA_WITH_3DES_EDE_CBC_SHA :
                     return "TLS_NTRU_RSA_WITH_3DES_EDE_CBC_SHA";
+            #endif
                 case TLS_NTRU_RSA_WITH_AES_128_CBC_SHA :
                     return "TLS_NTRU_RSA_WITH_AES_128_CBC_SHA";
                 case TLS_NTRU_RSA_WITH_AES_256_CBC_SHA :
                     return "TLS_NTRU_RSA_WITH_AES_256_CBC_SHA";
+        #endif /* HAVE_NTRU */
+    #endif /* NO_SHA */
                 case TLS_RSA_WITH_AES_128_GCM_SHA256 :
                     return "TLS_RSA_WITH_AES_128_GCM_SHA256";
                 case TLS_RSA_WITH_AES_256_GCM_SHA384 :
@@ -5565,28 +5802,33 @@ int CyaSSL_set_compression(CYASSL* ssl)
                     return "TLS_DHE_RSA_WITH_AES_128_GCM_SHA256";
                 case TLS_DHE_RSA_WITH_AES_256_GCM_SHA384 :
                     return "TLS_DHE_RSA_WITH_AES_256_GCM_SHA384";
+    #ifndef NO_SHA
                 case TLS_RSA_WITH_CAMELLIA_128_CBC_SHA :
                     return "TLS_RSA_WITH_CAMELLIA_128_CBC_SHA";
                 case TLS_RSA_WITH_CAMELLIA_256_CBC_SHA :
                     return "TLS_RSA_WITH_CAMELLIA_256_CBC_SHA";
+    #endif
                 case TLS_RSA_WITH_CAMELLIA_128_CBC_SHA256 :
                     return "TLS_RSA_WITH_CAMELLIA_128_CBC_SHA256";
                 case TLS_RSA_WITH_CAMELLIA_256_CBC_SHA256 :
                     return "TLS_RSA_WITH_CAMELLIA_256_CBC_SHA256";
+    #ifndef NO_SHA
                 case TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA :
                     return "TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA";
                 case TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA :
                     return "TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA";
+    #endif
                 case TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA256 :
                     return "TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA256";
                 case TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA256 :
                     return "TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA256";
+#endif /* NO_RSA */
                 default:
                     return "NONE";
             }  /* switch */
             }  /* normal / ECC */
         }
-
+#endif /* NO_ERROR_STRINGS */
         return "NONE";
     }
 
@@ -5597,6 +5839,7 @@ int CyaSSL_set_compression(CYASSL* ssl)
         return CyaSSL_CIPHER_get_name(CyaSSL_get_current_cipher(ssl));
     }
 
+#ifdef OPENSSL_EXTRA
 
 /* XXX shuld be NO_DH */
 #ifndef NO_CERTS
@@ -7164,6 +7407,7 @@ static int initGlobalRNG = 0;
     }
 
 
+#ifndef NO_DSA
     static void InitCyaSSL_DSA(CYASSL_DSA* dsa)
     {
         if (dsa) {
@@ -7256,7 +7500,7 @@ static int initGlobalRNG = 0;
 
         return 0;  /* key gen not needed by server */
     }
-
+#endif /* NO_DSA */
 
     static void InitCyaSSL_Rsa(CYASSL_RSA* rsa)
     {
@@ -7356,6 +7600,7 @@ static int initGlobalRNG = 0;
     }
 
 
+#ifndef NO_DSA
     static int SetDsaExternal(CYASSL_DSA* dsa)
     {
         DsaKey* key;
@@ -7397,6 +7642,7 @@ static int initGlobalRNG = 0;
 
         return 0;
     }
+#endif /* NO_DSA */
 
 
     static int SetRsaExternal(CYASSL_RSA* rsa)
@@ -7548,6 +7794,7 @@ static int initGlobalRNG = 0;
     }
 
 
+#ifndef NO_DSA
     /* return 0 on success, < 0 otherwise */
     int CyaSSL_DSA_do_sign(const unsigned char* d, unsigned char* sigRet,
                            CYASSL_DSA* dsa)
@@ -7583,6 +7830,7 @@ static int initGlobalRNG = 0;
 
         return 0;
     }
+#endif /* NO_DSA */
 
 
     /* return 1 on success, 0 otherwise */
@@ -8154,6 +8402,7 @@ int CyaSSL_RSA_LoadDer(CYASSL_RSA* rsa, const unsigned char* der,  int derSz)
 }
 
 
+#ifndef NO_DSA
 /* Load DSA from Der, 0 on success < 0 on error */
 int CyaSSL_DSA_LoadDer(CYASSL_DSA* dsa, const unsigned char* der,  int derSz)
 {
@@ -8182,7 +8431,7 @@ int CyaSSL_DSA_LoadDer(CYASSL_DSA* dsa, const unsigned char* der,  int derSz)
 
     return 0;
 }
-
+#endif /* NO_DSA */
 
 
 

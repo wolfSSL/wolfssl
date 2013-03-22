@@ -96,6 +96,7 @@
     #define SOCKET_EINTR       WSAEINTR
     #define SOCKET_EPIPE       WSAEPIPE
     #define SOCKET_ECONNREFUSED WSAENOTCONN
+    #define SOCKET_ECONNABORTED WSAECONNABORTED
 #elif defined(__PPU)
     #define SOCKET_EWOULDBLOCK SYS_NET_EWOULDBLOCK
     #define SOCKET_EAGAIN      SYS_NET_EAGAIN
@@ -103,6 +104,7 @@
     #define SOCKET_EINTR       SYS_NET_EINTR
     #define SOCKET_EPIPE       SYS_NET_EPIPE
     #define SOCKET_ECONNREFUSED SYS_NET_ECONNREFUSED
+    #define SOCKET_ECONNABORTED SYS_NET_ECONNABORTED
 #elif defined(FREESCALE_MQX)
     /* RTCS doesn't have an EWOULDBLOCK error */
     #define SOCKET_EWOULDBLOCK EAGAIN
@@ -111,6 +113,7 @@
     #define SOCKET_EINTR       EINTR
     #define SOCKET_EPIPE       EPIPE
     #define SOCKET_ECONNREFUSED RTCSERR_TCP_CONN_REFUSED
+    #define SOCKET_ECONNABORTED RTCSERR_TCP_CONN_ABORTED
 #else
     #define SOCKET_EWOULDBLOCK EWOULDBLOCK
     #define SOCKET_EAGAIN      EAGAIN
@@ -118,6 +121,7 @@
     #define SOCKET_EINTR       EINTR
     #define SOCKET_EPIPE       EPIPE
     #define SOCKET_ECONNREFUSED ECONNREFUSED
+    #define SOCKET_ECONNABORTED ECONNABORTED
 #endif /* USE_WINDOWS_API */
 
 
@@ -133,16 +137,6 @@
 #else
     #define SEND_FUNCTION send
     #define RECV_FUNCTION recv
-#endif
-
-
-#ifdef CYASSL_DTLS
-    /* sizeof(struct timeval) will pass uninit bytes to setsockopt if padded */
-    #ifdef USE_WINDOWS_API
-        #define TIMEVAL_BYTES sizeof(timeout)
-    #else
-        #define TIMEVAL_BYTES sizeof(timeout.tv_sec) + sizeof(timeout.tv_usec)
-    #endif
 #endif
 
 
@@ -198,10 +192,12 @@ int EmbedReceive(CYASSL *ssl, char *buf, int sz, void *ctx)
             #ifdef USE_WINDOWS_API
                 DWORD timeout = dtls_timeout * 1000;
             #else
-                struct timeval timeout = {dtls_timeout, 0};
+                struct timeval timeout;
+                XMEMSET(&timeout, 0, sizeof(timeout));
+                timeout.tv_sec = dtls_timeout;
             #endif
             if (setsockopt(sd, SOL_SOCKET, SO_RCVTIMEO, (char*)&timeout,
-                           TIMEVAL_BYTES) != 0) {
+                           sizeof(timeout)) != 0) {
                 CYASSL_MSG("setsockopt rcvtimeo failed");
             }
         }
@@ -237,6 +233,10 @@ int EmbedReceive(CYASSL *ssl, char *buf, int sz, void *ctx)
         else if (err == SOCKET_ECONNREFUSED) {
             CYASSL_MSG("    Connection refused");
             return IO_ERR_WANT_READ;
+        }
+        else if (err == SOCKET_ECONNABORTED) {
+            CYASSL_MSG("    Connection aborted");
+            return IO_ERR_CONN_CLOSE;
         }
         else {
             CYASSL_MSG("    General error");
@@ -326,10 +326,12 @@ int EmbedReceiveFrom(CYASSL *ssl, char *buf, int sz, void *ctx)
         #ifdef USE_WINDOWS_API
             DWORD timeout = dtls_timeout * 1000;
         #else
-            struct timeval timeout = { dtls_timeout, 0 };
+            struct timeval timeout;
+            XMEMSET(&timeout, 0, sizeof(timeout));
+            timeout.tv_sec = dtls_timeout;
         #endif
         if (setsockopt(sd, SOL_SOCKET, SO_RCVTIMEO, (char*)&timeout,
-                       TIMEVAL_BYTES) != 0) {
+                       sizeof(timeout)) != 0) {
                 CYASSL_MSG("setsockopt rcvtimeo failed");
         }
     }
@@ -431,15 +433,16 @@ int EmbedSendTo(CYASSL* ssl, char *buf, int sz, void *ctx)
 /* The DTLS Generate Cookie callback
  *  return : number of bytes copied into buf, or error
  */
-int EmbedGenerateCookie(byte *buf, int sz, void *ctx)
+int EmbedGenerateCookie(CYASSL* ssl, byte *buf, int sz, void *ctx)
 {
-    CYASSL* ssl = (CYASSL*)ctx;
     int sd = ssl->wfd;
     struct sockaddr_in peer;
     XSOCKLENT peerSz = sizeof(peer);
     byte cookieSrc[sizeof(struct in_addr) + sizeof(int)];
     int cookieSrcSz = 0;
     Sha sha;
+
+    (void)ctx;
 
     if (getpeername(sd, (struct sockaddr*)&peer, &peerSz) != 0) {
         CYASSL_MSG("getpeername failed in EmbedGenerateCookie");
@@ -784,6 +787,23 @@ CYASSL_API void CyaSSL_SetIOWriteFlags(CYASSL* ssl, int flags)
 {
     ssl->wflags = flags;
 }
+
+
+#ifdef CYASSL_DTLS
+
+CYASSL_API void CyaSSL_CTX_SetGenCookie(CYASSL_CTX* ctx, CallbackGenCookie cb)
+{
+    ctx->CBIOCookie = cb;
+}
+
+
+CYASSL_API void CyaSSL_SetCookieCtx(CYASSL* ssl, void *ctx)
+{
+	ssl->IOCB_CookieCtx = ctx;
+}
+
+#endif /* CYASSL_DTLS */
+
 
 #ifdef HAVE_OCSP
 

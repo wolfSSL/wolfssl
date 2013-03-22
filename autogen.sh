@@ -10,4 +10,7 @@ else
 fi
 
 autoreconf --install --force --verbose
-ln -s -f ../../pre-commit.sh .git/hooks/pre-commit
+
+if test -d .git; then
+    ln -s -f ../../pre-commit.sh .git/hooks/pre-commit
+fi
