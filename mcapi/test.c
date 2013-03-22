@@ -49,6 +49,7 @@
 #ifdef MICROCHIP_PIC32
     #define PIC32_STARTER_KIT
     #include <p32xxxx.h>
+    #include <plib.h>
 #endif
 
 #define OUR_DATA_SIZE 1024
