@@ -83,6 +83,7 @@ int main(int argc, char** argv)
     (void)argv;
 
 #ifdef MICROCHIP_PIC32
+    SYSTEMConfigPerformance(80000000);
     DBINIT();
 #endif
 
