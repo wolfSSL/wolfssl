@@ -695,14 +695,14 @@ void InitSuites(Suites* suites, ProtocolVersion pv, byte haveRSA, byte havePSK,
 #endif
 
 #ifdef BUILD_TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384
-    if (tls1_2 && haveStaticECC) {
+    if (tls1_2 && haveECDSAsig) {
         suites->suites[idx++] = ECC_BYTE;
         suites->suites[idx++] = TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384;
     }
 #endif
 
 #ifdef BUILD_TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA
-    if (tls && haveStaticECC) {
+    if (tls && haveECDSAsig) {
         suites->suites[idx++] = ECC_BYTE; 
         suites->suites[idx++] = TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA;
     }
@@ -723,14 +723,14 @@ void InitSuites(Suites* suites, ProtocolVersion pv, byte haveRSA, byte havePSK,
 #endif
 
 #ifdef BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256
-    if (tls1_2 && haveStaticECC) {
+    if (tls1_2 && haveECDSAsig) {
         suites->suites[idx++] = ECC_BYTE;
         suites->suites[idx++] = TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256;
     }
 #endif
 
 #ifdef BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA
-    if (tls && haveStaticECC) {
+    if (tls && haveECDSAsig) {
         suites->suites[idx++] = ECC_BYTE; 
         suites->suites[idx++] = TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA;
     }
@@ -751,7 +751,7 @@ void InitSuites(Suites* suites, ProtocolVersion pv, byte haveRSA, byte havePSK,
 #endif
 
 #ifdef BUILD_TLS_ECDHE_ECDSA_WITH_RC4_128_SHA
-    if (tls && haveStaticECC) {
+    if (tls && haveECDSAsig) {
         suites->suites[idx++] = ECC_BYTE; 
         suites->suites[idx++] = TLS_ECDHE_ECDSA_WITH_RC4_128_SHA;
     }
@@ -765,7 +765,7 @@ void InitSuites(Suites* suites, ProtocolVersion pv, byte haveRSA, byte havePSK,
 #endif
 
 #ifdef BUILD_TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA
-    if (tls && haveStaticECC) {
+    if (tls && haveECDSAsig) {
         suites->suites[idx++] = ECC_BYTE; 
         suites->suites[idx++] = TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA;
     }
@@ -869,31 +869,31 @@ void InitSuites(Suites* suites, ProtocolVersion pv, byte haveRSA, byte havePSK,
     }
 #endif
 
-#ifdef BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8_SHA256
-    if (tls1_2 && haveECDSAsig && haveDH) {
+#ifdef BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8
+    if (tls1_2 && haveECDSAsig) {
         suites->suites[idx++] = ECC_BYTE; 
-        suites->suites[idx++] = TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8_SHA256;
+        suites->suites[idx++] = TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8;
     }
 #endif
 
-#ifdef BUILD_TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8_SHA384
-    if (tls1_2 && haveECDSAsig && haveDH) {
+#ifdef BUILD_TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8
+    if (tls1_2 && haveECDSAsig) {
         suites->suites[idx++] = ECC_BYTE; 
-        suites->suites[idx++] = TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8_SHA384;
+        suites->suites[idx++] = TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8;
     }
 #endif
 
-#ifdef BUILD_TLS_RSA_WITH_AES_128_CCM_8_SHA256
+#ifdef BUILD_TLS_RSA_WITH_AES_128_CCM_8
     if (tls1_2 && haveRSA) {
         suites->suites[idx++] = ECC_BYTE; 
-        suites->suites[idx++] = TLS_RSA_WITH_AES_128_CCM_8_SHA256;
+        suites->suites[idx++] = TLS_RSA_WITH_AES_128_CCM_8;
     }
 #endif
 
-#ifdef BUILD_TLS_RSA_WITH_AES_256_CCM_8_SHA384
+#ifdef BUILD_TLS_RSA_WITH_AES_256_CCM_8
     if (tls1_2 && haveRSA) {
         suites->suites[idx++] = ECC_BYTE; 
-        suites->suites[idx++] = TLS_RSA_WITH_AES_256_CCM_8_SHA384;
+        suites->suites[idx++] = TLS_RSA_WITH_AES_256_CCM_8;
     }
 #endif
 
@@ -1006,6 +1006,20 @@ void InitSuites(Suites* suites, ProtocolVersion pv, byte haveRSA, byte havePSK,
     if (tls && havePSK) {
         suites->suites[idx++] = 0; 
         suites->suites[idx++] = TLS_PSK_WITH_AES_128_CBC_SHA;
+    }
+#endif
+
+#ifdef BUILD_TLS_PSK_WITH_AES_128_CCM_8
+    if (tls && havePSK) {
+        suites->suites[idx++] = ECC_BYTE; 
+        suites->suites[idx++] = TLS_PSK_WITH_AES_128_CCM_8;
+    }
+#endif
+
+#ifdef BUILD_TLS_PSK_WITH_AES_256_CCM_8
+    if (tls && havePSK) {
+        suites->suites[idx++] = ECC_BYTE; 
+        suites->suites[idx++] = TLS_PSK_WITH_AES_256_CCM_8;
     }
 #endif
 
@@ -3098,7 +3112,7 @@ int DoFinished(CYASSL* ssl, const byte* input, word32* inOutIdx, int sniff)
         }
     }
     else {
-        idx += (finishedSz + AEAD_AUTH_TAG_SZ);
+        idx += (finishedSz + ssl->specs.aead_mac_size);
     }
 
     if (ssl->options.side == CLIENT_END) {
@@ -3449,7 +3463,7 @@ static INLINE int Encrypt(CYASSL* ssl, byte* out, const byte* input, word32 sz)
 
                     /* Store the length of the plain text minus the explicit
                      * IV length minus the authentication tag size. */
-                    c16toa(sz - AEAD_EXP_IV_SZ - AEAD_AUTH_TAG_SZ,
+                    c16toa(sz - AEAD_EXP_IV_SZ - ssl->specs.aead_mac_size,
                                                 additional + AEAD_LEN_OFFSET);
                     XMEMCPY(nonce,
                                  ssl->keys.aead_enc_imp_IV, AEAD_IMP_IV_SZ);
@@ -3457,10 +3471,11 @@ static INLINE int Encrypt(CYASSL* ssl, byte* out, const byte* input, word32 sz)
                                      ssl->keys.aead_exp_IV, AEAD_EXP_IV_SZ);
                     AesGcmEncrypt(ssl->encrypt.aes,
                         out + AEAD_EXP_IV_SZ, input + AEAD_EXP_IV_SZ,
-                            sz - AEAD_EXP_IV_SZ - AEAD_AUTH_TAG_SZ,
+                            sz - AEAD_EXP_IV_SZ - ssl->specs.aead_mac_size,
                         nonce, AEAD_NONCE_SZ,
-                        out + sz - AEAD_AUTH_TAG_SZ, AEAD_AUTH_TAG_SZ,
-                        additional, AEAD_AUTH_DATA_SZ);
+                        out + sz - ssl->specs.aead_mac_size,
+                        ssl->specs.aead_mac_size, additional,
+                        AEAD_AUTH_DATA_SZ);
                     AeadIncrementExpIV(ssl);
                     XMEMSET(nonce, 0, AEAD_NONCE_SZ);
                 }
@@ -3490,7 +3505,7 @@ static INLINE int Encrypt(CYASSL* ssl, byte* out, const byte* input, word32 sz)
 
                     /* Store the length of the plain text minus the explicit
                      * IV length minus the authentication tag size. */
-                    c16toa(sz - AEAD_EXP_IV_SZ - AEAD_AUTH_TAG_SZ,
+                    c16toa(sz - AEAD_EXP_IV_SZ - ssl->specs.aead_mac_size,
                                                 additional + AEAD_LEN_OFFSET);
                     XMEMCPY(nonce,
                                  ssl->keys.aead_enc_imp_IV, AEAD_IMP_IV_SZ);
@@ -3498,9 +3513,10 @@ static INLINE int Encrypt(CYASSL* ssl, byte* out, const byte* input, word32 sz)
                                      ssl->keys.aead_exp_IV, AEAD_EXP_IV_SZ);
                     AesCcmEncrypt(ssl->encrypt.aes,
                         out + AEAD_EXP_IV_SZ, input + AEAD_EXP_IV_SZ,
-                            sz - AEAD_EXP_IV_SZ - AEAD_AUTH_TAG_SZ,
+                            sz - AEAD_EXP_IV_SZ - ssl->specs.aead_mac_size,
                         nonce, AEAD_NONCE_SZ,
-                        out + sz - AEAD_AUTH_TAG_SZ, AEAD_AUTH_TAG_SZ,
+                        out + sz - ssl->specs.aead_mac_size,
+                        ssl->specs.aead_mac_size,
                         additional, AEAD_AUTH_DATA_SZ);
                     AeadIncrementExpIV(ssl);
                     XMEMSET(nonce, 0, AEAD_NONCE_SZ);
@@ -3613,16 +3629,17 @@ static INLINE int Decrypt(CYASSL* ssl, byte* plain, const byte* input,
                 additional[AEAD_VMAJ_OFFSET] = ssl->curRL.pvMajor;
                 additional[AEAD_VMIN_OFFSET] = ssl->curRL.pvMinor;
 
-                c16toa(sz - AEAD_EXP_IV_SZ - AEAD_AUTH_TAG_SZ,
+                c16toa(sz - AEAD_EXP_IV_SZ - ssl->specs.aead_mac_size,
                                         additional + AEAD_LEN_OFFSET);
                 XMEMCPY(nonce, ssl->keys.aead_dec_imp_IV, AEAD_IMP_IV_SZ);
                 XMEMCPY(nonce + AEAD_IMP_IV_SZ, input, AEAD_EXP_IV_SZ);
                 if (AesGcmDecrypt(ssl->decrypt.aes,
                             plain + AEAD_EXP_IV_SZ,
                             input + AEAD_EXP_IV_SZ,
-                                sz - AEAD_EXP_IV_SZ - AEAD_AUTH_TAG_SZ,
+                                sz - AEAD_EXP_IV_SZ - ssl->specs.aead_mac_size,
                             nonce, AEAD_NONCE_SZ,
-                            input + sz - AEAD_AUTH_TAG_SZ, AEAD_AUTH_TAG_SZ,
+                            input + sz - ssl->specs.aead_mac_size,
+                            ssl->specs.aead_mac_size,
                             additional, AEAD_AUTH_DATA_SZ) < 0) {
                     SendAlert(ssl, alert_fatal, bad_record_mac);
                     XMEMSET(nonce, 0, AEAD_NONCE_SZ);
@@ -3648,16 +3665,17 @@ static INLINE int Decrypt(CYASSL* ssl, byte* plain, const byte* input,
                 additional[AEAD_VMAJ_OFFSET] = ssl->curRL.pvMajor;
                 additional[AEAD_VMIN_OFFSET] = ssl->curRL.pvMinor;
 
-                c16toa(sz - AEAD_EXP_IV_SZ - AEAD_AUTH_TAG_SZ,
+                c16toa(sz - AEAD_EXP_IV_SZ - ssl->specs.aead_mac_size,
                                         additional + AEAD_LEN_OFFSET);
                 XMEMCPY(nonce, ssl->keys.aead_dec_imp_IV, AEAD_IMP_IV_SZ);
                 XMEMCPY(nonce + AEAD_IMP_IV_SZ, input, AEAD_EXP_IV_SZ);
                 if (AesCcmDecrypt(ssl->decrypt.aes,
                             plain + AEAD_EXP_IV_SZ,
                             input + AEAD_EXP_IV_SZ,
-                                sz - AEAD_EXP_IV_SZ - AEAD_AUTH_TAG_SZ,
+                                sz - AEAD_EXP_IV_SZ - ssl->specs.aead_mac_size,
                             nonce, AEAD_NONCE_SZ,
-                            input + sz - AEAD_AUTH_TAG_SZ, AEAD_AUTH_TAG_SZ,
+                            input + sz - ssl->specs.aead_mac_size,
+                            ssl->specs.aead_mac_size,
                             additional, AEAD_AUTH_DATA_SZ) < 0) {
                     SendAlert(ssl, alert_fatal, bad_record_mac);
                     XMEMSET(nonce, 0, AEAD_NONCE_SZ);
@@ -3723,7 +3741,7 @@ static int SanityCheckCipherText(CYASSL* ssl, word32 encryptSz)
         minLength = ssl->specs.hash_size;
     }
     else if (ssl->specs.cipher_type == aead) {
-        minLength = ssl->specs.block_size;  /* explicit IV + implicit IV + CTR*/
+        minLength = ssl->specs.block_size; /* explicit IV + implicit IV + CTR */
     }
 
     if (encryptSz < minLength) {
@@ -4072,7 +4090,7 @@ int DoApplicationData(CYASSL* ssl, byte* input, word32* inOutIdx)
     }
     else if (ssl->specs.cipher_type == aead) {
         ivExtra = AEAD_EXP_IV_SZ;
-        digestSz = AEAD_AUTH_TAG_SZ;
+        digestSz = ssl->specs.aead_mac_size;
     }
 
     dataSz = msgSz - ivExtra - digestSz - pad - padByte;
@@ -4160,7 +4178,7 @@ static int DoAlert(CYASSL* ssl, byte* input, word32* inOutIdx, int* type)
             }
         }
         else {
-            *inOutIdx += AEAD_AUTH_TAG_SZ;
+            *inOutIdx += ssl->specs.aead_mac_size;
         }
     }
 
@@ -4762,7 +4780,7 @@ static int BuildMessage(CYASSL* ssl, byte* output, const byte* input, int inSz,
 #ifdef HAVE_AEAD
     if (ssl->specs.cipher_type == aead) {
         ivSz = AEAD_EXP_IV_SZ;
-        sz += (ivSz + 16 - digestSz);
+        sz += (ivSz + ssl->specs.aead_mac_size - digestSz);
         XMEMCPY(iv, ssl->keys.aead_exp_IV, AEAD_EXP_IV_SZ);
     }
 #endif
@@ -5663,6 +5681,14 @@ const char* const cipher_names[] =
     "PSK-AES256-CBC-SHA",
 #endif
 
+#ifdef BUILD_TLS_PSK_WITH_AES_128_CCM_8
+    "PSK-AES128-CCM-8",
+#endif
+
+#ifdef BUILD_TLS_PSK_WITH_AES_256_CCM_8
+    "PSK-AES256-CCM-8",
+#endif
+
 #ifdef BUILD_TLS_PSK_WITH_NULL_SHA256
     "PSK-NULL-SHA256",
 #endif
@@ -5699,20 +5725,20 @@ const char* const cipher_names[] =
     "NTRU-AES256-SHA",
 #endif
 
-#ifdef BUILD_TLS_RSA_WITH_AES_128_CCM_8_SHA256
-    "AES128-CCM-8-SHA256",
+#ifdef BUILD_TLS_RSA_WITH_AES_128_CCM_8
+    "AES128-CCM-8",
 #endif
 
-#ifdef BUILD_TLS_RSA_WITH_AES_256_CCM_8_SHA384
-    "AES256-CCM-8-SHA384",
+#ifdef BUILD_TLS_RSA_WITH_AES_256_CCM_8
+    "AES256-CCM-8",
 #endif
 
-#ifdef BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8_SHA256
-    "ECDHE-ECDSA-AES128-CCM-8-SHA256",
+#ifdef BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8
+    "ECDHE-ECDSA-AES128-CCM-8",
 #endif
 
-#ifdef BUILD_TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8_SHA384
-    "ECDHE-ECDSA-AES256-CCM-8-SHA384",
+#ifdef BUILD_TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8
+    "ECDHE-ECDSA-AES256-CCM-8",
 #endif
 
 #ifdef BUILD_TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA
@@ -5963,6 +5989,14 @@ int cipher_name_idx[] =
     TLS_PSK_WITH_AES_256_CBC_SHA,
 #endif
 
+#ifdef BUILD_TLS_PSK_WITH_AES_128_CCM_8
+    TLS_PSK_WITH_AES_128_CCM_8,
+#endif
+
+#ifdef BUILD_TLS_PSK_WITH_AES_256_CCM_8
+    TLS_PSK_WITH_AES_256_CCM_8,
+#endif
+
 #ifdef BUILD_TLS_PSK_WITH_NULL_SHA256
     TLS_PSK_WITH_NULL_SHA256,
 #endif
@@ -5999,20 +6033,20 @@ int cipher_name_idx[] =
     TLS_NTRU_RSA_WITH_AES_256_CBC_SHA,    
 #endif
 
-#ifdef BUILD_TLS_RSA_WITH_AES_128_CCM_8_SHA256
-    TLS_RSA_WITH_AES_128_CCM_8_SHA256,
+#ifdef BUILD_TLS_RSA_WITH_AES_128_CCM_8
+    TLS_RSA_WITH_AES_128_CCM_8,
 #endif
 
-#ifdef BUILD_TLS_RSA_WITH_AES_256_CCM_8_SHA384
-    TLS_RSA_WITH_AES_256_CCM_8_SHA384,
+#ifdef BUILD_TLS_RSA_WITH_AES_256_CCM_8
+    TLS_RSA_WITH_AES_256_CCM_8,
 #endif
 
-#ifdef BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8_SHA256
-    TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8_SHA256,
+#ifdef BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8
+    TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
 #endif
 
-#ifdef BUILD_TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8_SHA384
-    TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8_SHA384,
+#ifdef BUILD_TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8
+    TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8,
 #endif
 
 #ifdef BUILD_TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA
@@ -8413,16 +8447,16 @@ int SetCipherList(Suites* s, const char* list)
                 return 1;
             break;
 
-        case TLS_RSA_WITH_AES_128_CCM_8_SHA256 :
-        case TLS_RSA_WITH_AES_256_CCM_8_SHA384 :
+        case TLS_RSA_WITH_AES_128_CCM_8 :
+        case TLS_RSA_WITH_AES_256_CCM_8 :
             if (requirement == REQUIRES_RSA)
                 return 1;
             if (requirement == REQUIRES_RSA_SIG)
                 return 1;
             break;
 
-        case TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8_SHA256 :
-        case TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8_SHA384 :
+        case TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8 :
+        case TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8 :
             if (requirement == REQUIRES_ECC_DSA)
                 return 1;
             break;

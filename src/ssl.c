@@ -5686,15 +5686,15 @@ int CyaSSL_set_compression(CYASSL* ssl)
 
 #ifdef HAVE_AESCCM
     #ifndef NO_RSA
-                case TLS_RSA_WITH_AES_128_CCM_8_SHA256 :
-                    return "TLS_RSA_WITH_AES_128_CCM_8_SHA256";
-                case TLS_RSA_WITH_AES_256_CCM_8_SHA384 :
-                    return "TLS_RSA_WITH_AES_256_CCM_8_SHA384";
+                case TLS_RSA_WITH_AES_128_CCM_8 :
+                    return "TLS_RSA_WITH_AES_128_CCM_8";
+                case TLS_RSA_WITH_AES_256_CCM_8 :
+                    return "TLS_RSA_WITH_AES_256_CCM_8";
     #endif
-                case TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8_SHA256 :
-                    return "TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8_SHA256";
-                case TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8_SHA384 :
-                    return "TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8_SHA384";
+                case TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8:
+                    return "TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8";
+                case TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8 :
+                    return "TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8";
 #endif
 
                 default:
@@ -5746,8 +5746,16 @@ int CyaSSL_set_compression(CYASSL* ssl)
                 case TLS_PSK_WITH_AES_256_CBC_SHA :
                     return "TLS_PSK_WITH_AES_256_CBC_SHA";
     #endif
+    #ifndef NO_SHA256
+        #ifdef HAVE_AESCCM
+                case TLS_PSK_WITH_AES_128_CCM_8 :
+                    return "TLS_PSK_WITH_AES_128_CCM_8";
+                case TLS_PSK_WITH_AES_256_CCM_8 :
+                    return "TLS_PSK_WITH_AES_256_CCM_8";
+        #endif
                 case TLS_PSK_WITH_NULL_SHA256 :
                     return "TLS_PSK_WITH_NULL_SHA256";
+    #endif
     #ifndef NO_SHA
                 case TLS_PSK_WITH_NULL_SHA :
                     return "TLS_PSK_WITH_NULL_SHA";
