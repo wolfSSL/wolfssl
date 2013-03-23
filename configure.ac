@@ -44,9 +44,11 @@ AC_SUBST([CYASSL_LIBRARY_VERSION])
 # if user doesn't override, no way to tell
 USER_C_EXTRA_FLAGS="$C_EXTRA_FLAGS"
 
-LT_INIT([win32-dll])
+LT_PREREQ([2.2])
+LT_INIT([disable-static],[win32-dll])
 LT_LANG([C++])
 LT_LANG([C])
+
 gl_VISIBILITY
 AS_IF([ test -n "$CFLAG_VISIBILITY" ], [
        AM_CPPFLAGS="$AM_CPPFLAGS $CFLAG_VISIBILITY"
@@ -76,7 +78,6 @@ AC_CHECK_LIB(network,socket)
 AC_CHECK_SIZEOF(long long, 8)
 AC_CHECK_SIZEOF(long, 4)
 AC_C_BIGENDIAN
-AC_DISABLE_STATIC
 # mktime check takes forever on some systems, if time supported it would be
 # highly unusual for mktime to be missing
 #AC_FUNC_MKTIME 
@@ -85,7 +86,6 @@ AC_PROG_CC
 AC_PROG_CC_C_O
 AC_PROG_CXX
 AC_PROG_INSTALL
-LT_INIT
 AC_TYPE_SIZE_T
 AC_TYPE_UINT8_T
 AM_PROG_AS
