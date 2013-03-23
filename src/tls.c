@@ -333,6 +333,29 @@ int MakeTlsMasterSecret(CYASSL* ssl)
 }
 
 
+/* Used by EAP-TLS and EAP-TTLS to derive keying material from
+ * the master_secret. */
+int CyaSSL_make_eap_keys(CYASSL* ssl, void* msk, unsigned int len,
+                                                              const char* label)
+{
+    byte seed[SEED_LEN];
+
+    /*
+     * As per RFC-5281, the order of the client and server randoms is reversed
+     * from that used by the TLS protocol to derive keys.
+     */
+    XMEMCPY(seed, ssl->arrays->clientRandom, RAN_LEN);
+    XMEMCPY(&seed[RAN_LEN], ssl->arrays->serverRandom, RAN_LEN);
+
+    PRF(msk, len,
+        ssl->arrays->masterSecret, SECRET_LEN,
+        (const byte *)label, (word32)strlen(label),
+        seed, SEED_LEN, IsAtLeastTLSv1_2(ssl), ssl->specs.mac_algorithm);
+
+    return 0;
+}
+
+
 /*** next for static INLINE s copied from cyassl_int.c ***/
 
 /* convert 16 bit integer to opaque */
@@ -612,6 +635,14 @@ int MakeTlsMasterSecret(CYASSL* ssl)
 { 
     return NOT_COMPILED_IN;
 }
+
+
+int CyaSSL_make_eap_keys(CYASSL* ssl, void* msk, unsigned int len, 
+                         const char* label)
+{
+    return -1;
+}
+
 
 #endif /* NO_TLS */
 

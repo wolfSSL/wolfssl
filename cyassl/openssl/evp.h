@@ -95,8 +95,10 @@ typedef struct CYASSL_EVP_MD_CTX {
 
 typedef union {
     Aes  aes;
+#ifndef NO_DES3
     Des  des;
     Des3 des3;
+#endif
     Arc4 arc4;
 } CYASSL_Cipher;
 

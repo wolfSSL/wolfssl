@@ -758,6 +758,11 @@ CYASSL_API int CyaSSL_get_keys(CYASSL*,unsigned char** ms, unsigned int* msLen,
                                        unsigned char** sr, unsigned int* srLen,
                                        unsigned char** cr, unsigned int* crLen);
 
+/* Computes EAP-TLS and EAP-TTLS keying material from the master_secret. */
+CYASSL_API int CyaSSL_make_eap_keys(CYASSL*, void* key, unsigned int len, 
+                                                             const char* label);
+
+
 #ifndef _WIN32
     #ifndef NO_WRITEV
         #ifdef __PPU
