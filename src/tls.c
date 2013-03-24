@@ -347,7 +347,7 @@ int CyaSSL_make_eap_keys(CYASSL* ssl, void* msk, unsigned int len,
     XMEMCPY(seed, ssl->arrays->clientRandom, RAN_LEN);
     XMEMCPY(&seed[RAN_LEN], ssl->arrays->serverRandom, RAN_LEN);
 
-    PRF(msk, len,
+    PRF((byte*)msk, len,
         ssl->arrays->masterSecret, SECRET_LEN,
         (const byte *)label, (word32)strlen(label),
         seed, SEED_LEN, IsAtLeastTLSv1_2(ssl), ssl->specs.mac_algorithm);
@@ -640,7 +640,7 @@ int MakeTlsMasterSecret(CYASSL* ssl)
 int CyaSSL_make_eap_keys(CYASSL* ssl, void* msk, unsigned int len, 
                          const char* label)
 {
-    return -1;
+    return NOT_COMPILED_IN;
 }
 
 
