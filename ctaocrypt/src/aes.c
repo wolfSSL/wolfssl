@@ -1128,6 +1128,8 @@ static int checkAESNI = 0;
 static int haveAESNI  = 0;
 
 
+/* tell C compiler these are asm functions in case any mix up of ABI underscore
+   prefix between clang/gcc/llvm etc */
 void AES_CBC_encrypt(const unsigned char* in, unsigned char* out,
                      unsigned char* ivec, unsigned long length,
                      const unsigned char* KS, int nr)
@@ -1139,9 +1141,9 @@ void AES_CBC_decrypt(const unsigned char* in, unsigned char* out,
                      const unsigned char* KS, int nr)
                      asm ("AES_CBC_decrypt");
 
-extern void AES_128_Key_Expansion(const unsigned char* userkey, 
-                                  unsigned char* key_schedule)
-                                  asm ("AES_128_Key_Expansion");
+void AES_128_Key_Expansion(const unsigned char* userkey, 
+                           unsigned char* key_schedule)
+                           asm ("AES_128_Key_Expansion");
 
 void AES_192_Key_Expansion(const unsigned char* userkey, 
                            unsigned char* key_schedule)
