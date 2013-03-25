@@ -625,18 +625,18 @@ void bench_ripemd(void)
 #ifdef HAVE_BLAKE2
 void bench_blake2(void)
 {
-    Blake2 b2;
-    byte   digest[32];
-    double start, total, persec;
-    int    i;
+    Blake2b b2b;
+    byte    digest[64];
+    double  start, total, persec;
+    int     i;
        
-    InitBlake2(&b2, 32); 
+    InitBlake2b(&b2b, 64); 
     start = current_time(1);
     
     for(i = 0; i < numBlocks; i++)
-        Blake2Update(&b2, plain, sizeof(plain));
+        Blake2bUpdate(&b2b, plain, sizeof(plain));
    
-    Blake2Final(&b2, digest, 32);
+    Blake2bFinal(&b2b, digest, 64);
 
     total = current_time(0) - start;
     persec = 1 / total * numBlocks;
@@ -645,7 +645,7 @@ void bench_blake2(void)
     persec = persec / 1024;
 #endif
 
-    printf("BLAKE2   %d %s took %5.3f seconds, %6.2f MB/s\n", numBlocks,
+    printf("BLAKE2b  %d %s took %5.3f seconds, %6.2f MB/s\n", numBlocks,
                                               blockType, total, persec);
 }
 #endif

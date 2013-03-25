@@ -30,20 +30,20 @@
 
 /* in bytes, variable digest size up to 512 bits (64 bytes) */
 enum {
-    BLAKE2_ID = 7    /* hash type unique */
+    BLAKE2B_ID = 7    /* hash type unique */
 };
 
 
-/* BLAKE2 digest */
-typedef struct Blake2 {
+/* BLAKE2b digest */
+typedef struct Blake2b {
     blake2b_state S[1];         /* our state */
     word32        digestSz;     /* digest size used on init */
-} Blake2;
+} Blake2b;
 
 
-CYASSL_API int InitBlake2(Blake2*, word32);
-CYASSL_API int Blake2Update(Blake2*, const byte*, word32);
-CYASSL_API int Blake2Final(Blake2*, byte*, word32);
+CYASSL_API int InitBlake2b(Blake2b*, word32);
+CYASSL_API int Blake2bUpdate(Blake2b*, const byte*, word32);
+CYASSL_API int Blake2bFinal(Blake2b*, byte*, word32);
 
 
 

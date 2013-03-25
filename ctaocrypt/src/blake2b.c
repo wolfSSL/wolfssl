@@ -434,28 +434,28 @@ int main( int argc, char **argv )
 
 /* CTaoCrypt API */
 
-/* Init Blake2 digest, track size incase final doesn't want to "remember" */
-int InitBlake2(Blake2* b2, word32 digestSz)
+/* Init Blake2b digest, track size incase final doesn't want to "remember" */
+int InitBlake2b(Blake2b* b2b, word32 digestSz)
 {
-    b2->digestSz = digestSz;
+    b2b->digestSz = digestSz;
 
-    return blake2b_init(b2->S, (byte)digestSz);
+    return blake2b_init(b2b->S, (byte)digestSz);
 }
 
 
-/* Blake2 Update */
-int Blake2Update(Blake2* b2, const byte* data, word32 sz)
+/* Blake2b Update */
+int Blake2bUpdate(Blake2b* b2b, const byte* data, word32 sz)
 {
-    return blake2b_update(b2->S, data, sz);
+    return blake2b_update(b2b->S, data, sz);
 }
 
 
-/* Blake2 Final, if pass in zero size we use init digestSz */
-int Blake2Final(Blake2* b2, byte* final, word32 requestSz)
+/* Blake2b Final, if pass in zero size we use init digestSz */
+int Blake2bFinal(Blake2b* b2b, byte* final, word32 requestSz)
 {
-    word32 sz = requestSz ? requestSz : b2->digestSz;
+    word32 sz = requestSz ? requestSz : b2b->digestSz;
 
-    return blake2b_final(b2->S, final, (byte)sz);
+    return blake2b_final(b2b->S, final, (byte)sz);
 }
 
 

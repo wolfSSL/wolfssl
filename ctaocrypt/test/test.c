@@ -146,7 +146,7 @@ int pbkdf2_test(void);
     int  ecc_test(void);
 #endif
 #ifdef HAVE_BLAKE2
-    int  blake2_test(void);
+    int  blake2b_test(void);
 #endif
 #ifdef HAVE_LIBZ
     int compress_test(void);
@@ -247,10 +247,10 @@ void ctaocrypt_test(void* args)
 #endif
 
 #ifdef HAVE_BLAKE2 
-    if ( (ret = blake2_test()) ) 
-        err_sys("BLAKE2   test failed!\n", ret);
+    if ( (ret = blake2b_test()) ) 
+        err_sys("BLAKE2b  test failed!\n", ret);
     else
-        printf( "BLAKE2   test passed!\n");
+        printf( "BLAKE2b  test passed!\n");
 #endif
 
 #ifndef NO_HMAC
@@ -835,20 +835,20 @@ static const byte blake2b_vec[BLAKE2_TESTS][BLAKE2B_OUTBYTES] =
 
 
 
-int blake2_test(void)
+int blake2b_test(void)
 {
-    Blake2 b2;
-    byte   digest[64];
-    byte   input[64];
-    int    i;
+    Blake2b b2b;
+    byte    digest[64];
+    byte    input[64];
+    int     i;
 
     for (i = 0; i < (int)sizeof(input); i++)
         input[i] = (byte)i;
 
     for (i = 0; i < BLAKE2_TESTS; i++) {
-        InitBlake2(&b2, 64);
-        Blake2Update(&b2, input, i);
-        Blake2Final(&b2, digest, 64);
+        InitBlake2b(&b2b, 64);
+        Blake2bUpdate(&b2b, input, i);
+        Blake2bFinal(&b2b, digest, 64);
 
         if (memcmp(digest, blake2b_vec[i], 64) != 0) {
             return -300 - i;
