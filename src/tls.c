@@ -359,7 +359,7 @@ int CyaSSL_make_eap_keys(CYASSL* ssl, void* msk, unsigned int len,
 /*** next for static INLINE s copied from cyassl_int.c ***/
 
 /* convert 16 bit integer to opaque */
-INLINE static void c16toa(word16 u16, byte* c)
+static INLINE void c16toa(word16 u16, byte* c)
 {
     c[0] = (u16 >> 8) & 0xff;
     c[1] =  u16 & 0xff;
