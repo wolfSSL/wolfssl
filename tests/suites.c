@@ -41,6 +41,9 @@
 
 
 CYASSL_CTX* cipherSuiteCtx = NULL;
+char nonblockFlag[] = "-N";
+char noVerifyFlag[] = "-d";
+char flagSep[] = " ";
 
 
 #ifdef NO_OLD_TLS
@@ -131,7 +134,7 @@ static int execute_test_case(int svr_argc, char** svr_argv,
             break;
         }
         strcat(commandLine, svr_argv[i]);
-        strcat(commandLine, " ");
+        strcat(commandLine, flagSep);
     }
 
     if (IsValidCipherSuite(commandLine, cipherSuite) == 0) {
@@ -155,16 +158,26 @@ static int execute_test_case(int svr_argc, char** svr_argv,
         added += 4;   /* -d plus space plus terminator */
         if (added >= MAX_COMMAND_SZ)
             printf("server command line too long\n");
-        else
-            strcat(commandLine, "-d ");
+        else {
+            svr_argv[svr_argc] = noVerifyFlag;
+            svr_argc++;
+            svrArgs.argc = svr_argc;
+            strcat(commandLine, noVerifyFlag);
+            strcat(commandLine, flagSep);
+        }
     }
     if (addNonBlocking) {
         printf("repeating test with non blocking on\n"); 
         added += 4;   /* -N plus terminator */
         if (added >= MAX_COMMAND_SZ)
             printf("server command line too long\n");
-        else
-            strcat(commandLine, "-N ");
+        else {
+            svr_argv[svr_argc] = nonblockFlag;
+            svr_argc++;
+            svrArgs.argc = svr_argc;
+            strcat(commandLine, nonblockFlag);
+            strcat(commandLine, flagSep);
+        }
     }
     printf("trying server command line[%d]: %s\n", tests, commandLine);
 
@@ -177,14 +190,19 @@ static int execute_test_case(int svr_argc, char** svr_argv,
             break;
         }
         strcat(commandLine, cli_argv[i]);
-        strcat(commandLine, " ");
+        strcat(commandLine, flagSep);
     }
     if (addNonBlocking) {
         added += 4;   /* -N plus space plus terminator  */
         if (added >= MAX_COMMAND_SZ)
             printf("client command line too long\n");
-        else 
-            strcat(commandLine, "-N ");
+        else  {
+            cli_argv[cli_argc] = nonblockFlag;
+            cli_argc++;
+            cliArgs.argc = cli_argc;
+            strcat(commandLine, nonblockFlag);
+            strcat(commandLine, flagSep);
+        }
     }
     printf("trying client command line[%d]: %s\n", tests++, commandLine);
 
