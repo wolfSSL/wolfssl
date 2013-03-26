@@ -1702,10 +1702,32 @@ int AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
             printf("aes->rounds = %d\n", aes->rounds);
             printf("sz = %d\n", sz);
         #endif
+
+        /* check alignment, decrypt doesn't need alignment */
+        if ((word)in % 16) {
+        #ifndef NO_CYASSL_ALLOC_ALIGN
+            byte* tmp = (byte*)XMALLOC(sz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            if (tmp == NULL) return MEMORY_E;
+
+            XMEMCPY(tmp, in, sz);
+            AES_CBC_encrypt(tmp, tmp, (byte*)aes->reg, sz, (byte*)aes->key,
+                        aes->rounds);
+            /* store iv for next call */
+            XMEMCPY(aes->reg, tmp + sz - AES_BLOCK_SIZE, AES_BLOCK_SIZE);
+
+            XMEMCPY(out, tmp, sz);
+            XFREE(tmp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            return 0;
+        #else
+            return BAD_ALIGN_E;
+        #endif
+        }
+
         AES_CBC_encrypt(in, out, (byte*)aes->reg, sz, (byte*)aes->key,
                         aes->rounds);
         /* store iv for next call */
         XMEMCPY(aes->reg, out + sz - AES_BLOCK_SIZE, AES_BLOCK_SIZE);
+
         return 0;
     }
 #endif

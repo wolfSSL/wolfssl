@@ -108,6 +108,8 @@ enum {
     DECOMPRESS_INIT_E  = -185,  /* DeCompress init error */
     DECOMPRESS_E       = -186,  /* DeCompress error */
 
+    BAD_ALIGN_E        = -187,  /* Bad alignment for operation, no alloc */
+
     MIN_CODE_E         = -200   /* errors -101 - -199 */
 };
 
