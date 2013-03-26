@@ -435,9 +435,7 @@ int CRYPT_AES_CBC_Encrypt(CRYPT_AES_CTX* aes, unsigned char* out,
     if (aes == NULL || out == NULL || in == NULL)
         return BAD_FUNC_ARG;
 
-    AesCbcEncrypt((Aes*)aes, out, in, inSz);
-
-    return 0;
+    return AesCbcEncrypt((Aes*)aes, out, in, inSz);
 }
 
 
@@ -448,9 +446,7 @@ int CRYPT_AES_CBC_Decrypt(CRYPT_AES_CTX* aes, unsigned char* out,
     if (aes == NULL || out == NULL || in == NULL)
         return BAD_FUNC_ARG;
 
-    AesCbcDecrypt((Aes*)aes, out, in, inSz);
-
-    return 0;
+    return AesCbcDecrypt((Aes*)aes, out, in, inSz);
 }
 
 

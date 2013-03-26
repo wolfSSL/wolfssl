@@ -3426,17 +3426,19 @@ static INLINE int Encrypt(CYASSL* ssl, byte* out, const byte* input, word32 sz)
             case aes:
             #ifdef CYASSL_AESNI
                 if ((word)input % 16) {
+                    int ret;
                     byte* tmp = (byte*)XMALLOC(sz, ssl->heap,
                                                DYNAMIC_TYPE_TMP_BUFFER);
                     if (tmp == NULL) return MEMORY_E;
                     XMEMCPY(tmp, input, sz);
-                    AesCbcEncrypt(ssl->encrypt.aes, tmp, tmp, sz);
+                    ret = AesCbcEncrypt(ssl->encrypt.aes, tmp, tmp, sz);
                     XMEMCPY(out, tmp, sz);
                     XFREE(tmp, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+                    return ret;
                     break;
                 }
             #endif
-                AesCbcEncrypt(ssl->encrypt.aes, out, input, sz);
+                return AesCbcEncrypt(ssl->encrypt.aes, out, input, sz);
                 break;
         #endif
 
@@ -3610,7 +3612,7 @@ static INLINE int Decrypt(CYASSL* ssl, byte* plain, const byte* input,
 
         #ifdef BUILD_AES
             case aes:
-                AesCbcDecrypt(ssl->decrypt.aes, plain, input, sz);
+                return AesCbcDecrypt(ssl->decrypt.aes, plain, input, sz);
                 break;
         #endif
 
