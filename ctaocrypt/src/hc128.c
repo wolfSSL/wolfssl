@@ -259,7 +259,7 @@ static void Hc128_SetIV(HC128* ctx, const byte* iv)
 }
 
 
-void Hc128_SetKey(HC128* ctx, const byte* key, const byte* iv)
+int Hc128_SetKey(HC128* ctx, const byte* key, const byte* iv)
 { 
   word32 i;  
 
@@ -270,11 +270,13 @@ void Hc128_SetKey(HC128* ctx, const byte* key, const byte* iv)
   for ( ; i < 8 ; i++) ctx->key[i] = ctx->key[i-4];
 
   Hc128_SetIV(ctx, iv);
+
+  return 0;
 }
 
 
 /* The following defines the encryption of data stream */
-void Hc128_Process(HC128* ctx, byte* output, const byte* input, word32 msglen)
+int Hc128_Process(HC128* ctx, byte* output, const byte* input, word32 msglen)
 {
   word32 i, keystream[16];
 
@@ -318,6 +320,7 @@ void Hc128_Process(HC128* ctx, byte* output, const byte* input, word32 msglen)
 	      output[i] = input[i] ^ ((byte*)keystream)[i];
   }
 
+  return 0;
 }
 
 

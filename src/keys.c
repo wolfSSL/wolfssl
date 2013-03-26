@@ -1452,6 +1452,7 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
     
 #ifdef HAVE_HC128
     if (specs->bulk_cipher_algorithm == hc128) {
+        int hcRet;
         enc->hc128 = (HC128*)XMALLOC(sizeof(HC128), heap, DYNAMIC_TYPE_CIPHER);
         if (enc->hc128 == NULL)
             return MEMORY_E;
@@ -1459,16 +1460,20 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
         if (dec->hc128 == NULL)
             return MEMORY_E;
         if (side == CLIENT_END) {
-            Hc128_SetKey(enc->hc128, keys->client_write_key,
-                                          keys->client_write_IV);
-            Hc128_SetKey(dec->hc128, keys->server_write_key,
-                                          keys->server_write_IV);
+            hcRet = Hc128_SetKey(enc->hc128, keys->client_write_key,
+                                 keys->client_write_IV);
+            if (hcRet != 0) return hcRet;
+            hcRet = Hc128_SetKey(dec->hc128, keys->server_write_key,
+                                  keys->server_write_IV);
+            if (hcRet != 0) return hcRet;
         }
         else {
-            Hc128_SetKey(enc->hc128, keys->server_write_key,
-                                         keys->server_write_IV);
-            Hc128_SetKey(dec->hc128, keys->client_write_key,
-                                         keys->client_write_IV);
+            hcRet = Hc128_SetKey(enc->hc128, keys->server_write_key,
+                                  keys->server_write_IV);
+            if (hcRet != 0) return hcRet;
+            hcRet = Hc128_SetKey(dec->hc128, keys->client_write_key,
+                                  keys->client_write_IV);
+            if (hcRet != 0) return hcRet;
         }
         enc->setup = 1;
         dec->setup = 1;
@@ -1477,6 +1482,7 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
     
 #ifdef BUILD_RABBIT
     if (specs->bulk_cipher_algorithm == rabbit) {
+        int rabRet;
         enc->rabbit = (Rabbit*)XMALLOC(sizeof(Rabbit),heap,DYNAMIC_TYPE_CIPHER);
         if (enc->rabbit == NULL)
             return MEMORY_E;
@@ -1484,16 +1490,20 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
         if (dec->rabbit == NULL)
             return MEMORY_E;
         if (side == CLIENT_END) {
-            RabbitSetKey(enc->rabbit, keys->client_write_key,
-                                           keys->client_write_IV);
-            RabbitSetKey(dec->rabbit, keys->server_write_key,
-                                           keys->server_write_IV);
+            rabRet = RabbitSetKey(enc->rabbit, keys->client_write_key,
+                                  keys->client_write_IV);
+            if (rabRet != 0) return rabRet;
+            rabRet = RabbitSetKey(dec->rabbit, keys->server_write_key,
+                                  keys->server_write_IV);
+            if (rabRet != 0) return rabRet;
         }
         else {
-            RabbitSetKey(enc->rabbit, keys->server_write_key,
+            rabRet = RabbitSetKey(enc->rabbit, keys->server_write_key,
                                            keys->server_write_IV);
-            RabbitSetKey(dec->rabbit, keys->client_write_key,
+            if (rabRet != 0) return rabRet;
+            rabRet = RabbitSetKey(dec->rabbit, keys->client_write_key,
                                            keys->client_write_IV);
+            if (rabRet != 0) return rabRet;
         }
         enc->setup = 1;
         dec->setup = 1;

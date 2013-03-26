@@ -133,7 +133,7 @@ static void RabbitSetIV(Rabbit* ctx, const byte* iv)
 
 
 /* Key setup */
-void RabbitSetKey(Rabbit* ctx, const byte* key, const byte* iv)
+int RabbitSetKey(Rabbit* ctx, const byte* key, const byte* iv)
 {
     /* Temporary variables */
     word32 k0, k1, k2, k3, i;
@@ -182,12 +182,14 @@ void RabbitSetKey(Rabbit* ctx, const byte* key, const byte* iv)
     }
     ctx->workCtx.carry = ctx->masterCtx.carry;
 
-    if (iv) RabbitSetIV(ctx, iv);    
+    if (iv) RabbitSetIV(ctx, iv);
+
+    return 0;
 }
 
 
 /* Encrypt/decrypt a message of any size */
-void RabbitProcess(Rabbit* ctx, byte* output, const byte* input, word32 msglen)
+int RabbitProcess(Rabbit* ctx, byte* output, const byte* input, word32 msglen)
 {
 
     /* Encrypt/decrypt all full blocks */
@@ -239,6 +241,8 @@ void RabbitProcess(Rabbit* ctx, byte* output, const byte* input, word32 msglen)
             output[i] = input[i] ^ buffer[i];  /* scan-build thinks buffer[i] */
                                                /* is garbage, it is not! */ 
     }
+
+    return 0;
 }
 
 

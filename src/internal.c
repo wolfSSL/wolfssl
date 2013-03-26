@@ -3522,17 +3522,20 @@ static INLINE int Encrypt(CYASSL* ssl, byte* out, const byte* input, word32 sz)
             case hc128:
                 #ifdef XSTREAM_ALIGNMENT
                 if ((word)input % 4) {
+                    int   hcRet;
                     byte* tmp = (byte*)XMALLOC(sz, ssl->heap,
                                                DYNAMIC_TYPE_TMP_BUFFER);
                     if (tmp == NULL) return MEMORY_E;
                     XMEMCPY(tmp, input, sz);
-                    Hc128_Process(ssl->encrypt.hc128, tmp, tmp, sz);
+                    ret = Hc128_Process(ssl->encrypt.hc128, tmp, tmp, sz);
                     XMEMCPY(out, tmp, sz);
                     XFREE(tmp, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+
+                    return ret;
                     break;
                 }
                 #endif
-                Hc128_Process(ssl->encrypt.hc128, out, input, sz);
+                return Hc128_Process(ssl->encrypt.hc128, out, input, sz);
                 break;
         #endif
 
@@ -3540,13 +3543,16 @@ static INLINE int Encrypt(CYASSL* ssl, byte* out, const byte* input, word32 sz)
             case rabbit:
                 #ifdef XSTREAM_ALIGNMENT
                 if ((word)input % 4) {
+                    int rabRet;
                     byte* tmp = (byte*)XMALLOC(sz, ssl->heap,
                                                DYNAMIC_TYPE_TMP_BUFFER);
                     if (tmp == NULL) return MEMORY_E;
                     XMEMCPY(tmp, input, sz);
-                    RabbitProcess(ssl->encrypt.rabbit, tmp, tmp, sz);
+                    rabRet = RabbitProcess(ssl->encrypt.rabbit, tmp, tmp, sz);
                     XMEMCPY(out, tmp, sz);
                     XFREE(tmp, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+
+                    return ret;
                     break;
                 }
                 #endif
@@ -3682,7 +3688,7 @@ static INLINE int Decrypt(CYASSL* ssl, byte* plain, const byte* input,
 
         #ifdef HAVE_HC128
             case hc128:
-                Hc128_Process(ssl->decrypt.hc128, plain, input, sz);
+                return Hc128_Process(ssl->decrypt.hc128, plain, input, sz);
                 break;
         #endif
 
