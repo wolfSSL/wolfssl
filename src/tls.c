@@ -160,6 +160,9 @@ static void doPRF(byte* digest, word32 digLen, const byte* secret,word32 secLen,
         return;
     if (digLen > MAX_PRF_DIG)
         return;
+
+    XMEMSET(md5_result, 0, digLen);
+    XMEMSET(sha_result, 0, digLen);
     
     XMEMCPY(md5_half, secret, half);
     XMEMCPY(sha_half, secret + half - secLen % 2, half);
