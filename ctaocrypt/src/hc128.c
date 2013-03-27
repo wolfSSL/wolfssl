@@ -26,6 +26,8 @@
 #ifdef HAVE_HC128
 
 #include <cyassl/ctaocrypt/hc128.h>
+#include <cyassl/ctaocrypt/error.h>
+#include <cyassl/ctaocrypt/logging.h>
 #ifdef NO_INLINE
     #include <cyassl/ctaocrypt/hc128.h>
 #else
@@ -259,7 +261,7 @@ static void Hc128_SetIV(HC128* ctx, const byte* iv)
 }
 
 
-int Hc128_SetKey(HC128* ctx, const byte* key, const byte* iv)
+static INLINE int DoKey(HC128* ctx, const byte* key, const byte* iv)
 { 
   word32 i;  
 
@@ -275,8 +277,31 @@ int Hc128_SetKey(HC128* ctx, const byte* key, const byte* iv)
 }
 
 
+/* Key setup */
+int Hc128_SetKey(HC128* ctx, const byte* key, const byte* iv)
+{
+#ifdef XSTREAM_ALIGN
+    if ((word)key % 4 || (word)iv % 4) {
+        int alignKey[4];
+        int alignIv[4];
+
+        CYASSL_MSG("Hc128SetKey unaligned key/iv");
+
+        XMEMCPY(alignKey, key, sizeof(alignKey));
+        XMEMCPY(alignIv,  iv,  sizeof(alignIv));
+
+        return DoKey(ctx, (const byte*)alignKey, (const byte*)alignIv);
+    }
+#endif /* XSTREAM_ALIGN */
+
+    return DoKey(ctx, key, iv);
+}
+
+
+
 /* The following defines the encryption of data stream */
-int Hc128_Process(HC128* ctx, byte* output, const byte* input, word32 msglen)
+static INLINE int DoProcess(HC128* ctx, byte* output, const byte* input,
+                            word32 msglen)
 {
   word32 i, keystream[16];
 
@@ -321,6 +346,35 @@ int Hc128_Process(HC128* ctx, byte* output, const byte* input, word32 msglen)
   }
 
   return 0;
+}
+
+
+/* Encrypt/decrypt a message of any size */
+int Hc128_Process(HC128* ctx, byte* output, const byte* input, word32 msglen)
+{
+#ifdef XSTREAM_ALIGN
+    if ((word)input % 4 || (word)output % 4) {
+        #ifndef NO_CYASSL_ALLOC_ALIGN
+            byte* tmp;
+            CYASSL_MSG("Hc128Process unaligned");
+
+            tmp = (byte*)XMALLOC(msglen, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            if (tmp == NULL) return MEMORY_E;
+
+            XMEMCPY(tmp, input, msglen);
+            DoProcess(ctx, tmp, tmp, msglen);
+            XMEMCPY(output, tmp, msglen);
+
+            XFREE(tmp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+            return 0;
+        #else
+            return BAD_ALIGN_E;
+        #endif
+    }
+#endif /* XSTREAM_ALIGN */
+
+    return DoProcess(ctx, output, input, msglen);
 }
 
 

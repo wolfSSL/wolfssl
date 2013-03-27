@@ -3520,43 +3520,13 @@ static INLINE int Encrypt(CYASSL* ssl, byte* out, const byte* input, word32 sz)
 
         #ifdef HAVE_HC128
             case hc128:
-                #ifdef XSTREAM_ALIGNMENT
-                if ((word)input % 4) {
-                    int   hcRet;
-                    byte* tmp = (byte*)XMALLOC(sz, ssl->heap,
-                                               DYNAMIC_TYPE_TMP_BUFFER);
-                    if (tmp == NULL) return MEMORY_E;
-                    XMEMCPY(tmp, input, sz);
-                    ret = Hc128_Process(ssl->encrypt.hc128, tmp, tmp, sz);
-                    XMEMCPY(out, tmp, sz);
-                    XFREE(tmp, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
-
-                    return ret;
-                    break;
-                }
-                #endif
                 return Hc128_Process(ssl->encrypt.hc128, out, input, sz);
                 break;
         #endif
 
         #ifdef BUILD_RABBIT
             case rabbit:
-                #ifdef XSTREAM_ALIGNMENT
-                if ((word)input % 4) {
-                    int rabRet;
-                    byte* tmp = (byte*)XMALLOC(sz, ssl->heap,
-                                               DYNAMIC_TYPE_TMP_BUFFER);
-                    if (tmp == NULL) return MEMORY_E;
-                    XMEMCPY(tmp, input, sz);
-                    rabRet = RabbitProcess(ssl->encrypt.rabbit, tmp, tmp, sz);
-                    XMEMCPY(out, tmp, sz);
-                    XFREE(tmp, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
-
-                    return ret;
-                    break;
-                }
-                #endif
-                RabbitProcess(ssl->encrypt.rabbit, out, input, sz);
+                return RabbitProcess(ssl->encrypt.rabbit, out, input, sz);
                 break;
         #endif
 
@@ -3694,7 +3664,7 @@ static INLINE int Decrypt(CYASSL* ssl, byte* plain, const byte* input,
 
         #ifdef BUILD_RABBIT
             case rabbit:
-                RabbitProcess(ssl->decrypt.rabbit, plain, input, sz);
+                return RabbitProcess(ssl->decrypt.rabbit, plain, input, sz);
                 break;
         #endif
 
