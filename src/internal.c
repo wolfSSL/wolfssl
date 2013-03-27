@@ -1204,11 +1204,13 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
     ssl->buffers.inputBuffer.buffer = ssl->buffers.inputBuffer.staticBuffer;
     ssl->buffers.inputBuffer.bufferSize  = STATIC_BUFFER_LEN;
     ssl->buffers.inputBuffer.dynamicFlag = 0;
+    ssl->buffers.inputBuffer.offset   = 0;
     ssl->buffers.outputBuffer.length  = 0;
     ssl->buffers.outputBuffer.idx     = 0;
     ssl->buffers.outputBuffer.buffer = ssl->buffers.outputBuffer.staticBuffer;
     ssl->buffers.outputBuffer.bufferSize  = STATIC_BUFFER_LEN;
     ssl->buffers.outputBuffer.dynamicFlag = 0;
+    ssl->buffers.outputBuffer.offset      = 0;
     ssl->buffers.domainName.buffer    = 0;
 #ifndef NO_CERTS
     ssl->buffers.serverDH_P.buffer    = 0;
@@ -2288,10 +2290,12 @@ retry:
 void ShrinkOutputBuffer(CYASSL* ssl)
 {
     CYASSL_MSG("Shrinking output buffer\n");
-    XFREE(ssl->buffers.outputBuffer.buffer, ssl->heap, DYNAMIC_TYPE_OUT_BUFFER);
+    XFREE(ssl->buffers.outputBuffer.buffer - ssl->buffers.outputBuffer.offset,
+          ssl->heap, DYNAMIC_TYPE_OUT_BUFFER);
     ssl->buffers.outputBuffer.buffer = ssl->buffers.outputBuffer.staticBuffer;
     ssl->buffers.outputBuffer.bufferSize  = STATIC_BUFFER_LEN;
     ssl->buffers.outputBuffer.dynamicFlag = 0;
+    ssl->buffers.outputBuffer.offset      = 0;
 }
 
 
@@ -2387,11 +2391,24 @@ int SendBuffered(CYASSL* ssl)
 /* Grow the output buffer */
 static INLINE int GrowOutputBuffer(CYASSL* ssl, int size)
 {
-    byte* tmp = (byte*) XMALLOC(size + ssl->buffers.outputBuffer.length,
-                                ssl->heap, DYNAMIC_TYPE_OUT_BUFFER);
+    byte* tmp;
+    byte  align = CYASSL_GENERAL_ALIGNMENT;
+    /* the encrypted data will be offset from the front of the buffer by
+       the record header, if the user wants encrypted alignment they need
+       to define their alignment requirement */
+
+    if (align && align < RECORD_HEADER_SZ) {
+        CYASSL_MSG("CyaSSL alignment requirement is too small");
+        return BAD_ALIGN_E;
+    }
+
+    tmp = (byte*) XMALLOC(size + ssl->buffers.outputBuffer.length + align,
+                          ssl->heap, DYNAMIC_TYPE_OUT_BUFFER);
     CYASSL_MSG("growing output buffer\n");
    
     if (!tmp) return MEMORY_E;
+    if (align)
+        tmp += align - RECORD_HEADER_SZ;
 
     if (ssl->buffers.outputBuffer.length)
         XMEMCPY(tmp, ssl->buffers.outputBuffer.buffer,
@@ -2401,6 +2418,10 @@ static INLINE int GrowOutputBuffer(CYASSL* ssl, int size)
         XFREE(ssl->buffers.outputBuffer.buffer, ssl->heap,
               DYNAMIC_TYPE_OUT_BUFFER);
     ssl->buffers.outputBuffer.dynamicFlag = 1;
+    if (align)
+        ssl->buffers.outputBuffer.offset = align - RECORD_HEADER_SZ;
+    else
+        ssl->buffers.outputBuffer.offset = 0;
     ssl->buffers.outputBuffer.buffer = tmp;
     ssl->buffers.outputBuffer.bufferSize = size +
                                            ssl->buffers.outputBuffer.length; 

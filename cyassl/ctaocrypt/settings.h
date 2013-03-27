@@ -72,13 +72,6 @@
 
 #include <cyassl/ctaocrypt/visibility.h>
 
-/* stream ciphers except arc4 need 32bit alignment, intel ok without */
-#if defined(__x86_64__) || defined(__ia64__) || defined(__i386__)
-    #define NO_XSTREAM_ALIGNMENT
-#else
-    #define XSTREAM_ALIGNMENT
-#endif
-
 #ifdef IPHONE
     #define SIZEOF_LONG_LONG 8
 #endif
@@ -477,6 +470,29 @@
     #define KEEP_PEER_CERT
 #endif
 
+
+/* stream ciphers except arc4 need 32bit alignment, intel ok without */
+#if defined(__x86_64__) || defined(__ia64__) || defined(__i386__)
+    #define NO_XSTREAM_ALIGNMENT
+#else
+    #define XSTREAM_ALIGNMENT
+#endif
+
+
+
+/* if using hardware crypto and have alignment requirements, specify the
+   requirement here.  The record header of SSL/TLS will prvent easy alignment.
+   This hint tries to help as much as possible.  Needs to be bigger than
+   record header sz (5) if not 0 */
+#ifndef CYASSL_GENERAL_ALIGNMENT
+    #ifdef CYASSL_AESNI
+        #define CYASSL_GENERAL_ALIGNMENT 16
+    #elif defined(XSTREAM_ALIGNMENT)
+        #define CYASSL_GENERAL_ALIGNMENT  8
+    #else 
+        #define CYASSL_GENERAL_ALIGNMENT  0 
+    #endif
+#endif
 
 /* Place any other flags or defines here */
 
