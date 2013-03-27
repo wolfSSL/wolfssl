@@ -1419,6 +1419,7 @@ int CyaSSL_Init(void)
                     }
                 } else {
                     rsaKey = 1;
+                    (void)rsaKey;  /* for no ecc builds */
                 }
                 FreeRsaKey(&key);
             }

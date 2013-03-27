@@ -1565,10 +1565,8 @@ void fp_montgomery_reduce(fp_int *a, fp_int *m, fp_digit mp)
 #endif
 
 
-#if defined(USE_MEMSET)
    /* now zero the buff */
    XMEMSET(c, 0, sizeof c);
-#endif
    pa = m->used;
 
    /* copy the input */
@@ -1576,11 +1574,6 @@ void fp_montgomery_reduce(fp_int *a, fp_int *m, fp_digit mp)
    for (x = 0; x < oldused; x++) {
        c[x] = a->dp[x];
    }
-#if !defined(USE_MEMSET)
-   for (; x < 2*pa+1; x++) {
-       c[x] = 0;
-   }
-#endif
    MONT_START;
 
    for (x = 0; x < pa; x++) {
