@@ -4997,6 +4997,7 @@ int CyaSSL_set_compression(CYASSL* ssl)
     int CyaSSL_EVP_Cipher(CYASSL_EVP_CIPHER_CTX* ctx, byte* dst, byte* src,
                           word32 len)
     {
+        int ret = 0;
         CYASSL_ENTER("CyaSSL_EVP_Cipher");
 
         if (ctx == NULL || dst == NULL || src == NULL) {
@@ -5016,9 +5017,9 @@ int CyaSSL_set_compression(CYASSL* ssl)
             case AES_256_CBC_TYPE :
                 CYASSL_MSG("AES CBC");
                 if (ctx->enc)
-                    AesCbcEncrypt(&ctx->cipher.aes, dst, src, len);
+                    ret = AesCbcEncrypt(&ctx->cipher.aes, dst, src, len);
                 else
-                    AesCbcDecrypt(&ctx->cipher.aes, dst, src, len);
+                    ret = AesCbcDecrypt(&ctx->cipher.aes, dst, src, len);
                 break;
 
 #ifdef CYASSL_AES_COUNTER
@@ -5056,7 +5057,12 @@ int CyaSSL_set_compression(CYASSL* ssl)
                 CYASSL_MSG("bad type");
                 return 0;  /* failure */
             }
-        }    
+        }
+
+        if (ret != 0) {
+            CYASSL_MSG("CyaSSL_EVP_Cipher failure");
+            return 0;  /* failuer */ 
+        }
 
         CYASSL_MSG("CyaSSL_EVP_Cipher success");
         return 1;  /* success */ 

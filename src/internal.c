@@ -3424,19 +3424,7 @@ static INLINE int Encrypt(CYASSL* ssl, byte* out, const byte* input, word32 sz)
 
         #ifdef BUILD_AES
             case aes:
-            #ifdef CYASSL_AESNI
-                if ((word)input % 16) {
-                    byte* tmp = (byte*)XMALLOC(sz, ssl->heap,
-                                               DYNAMIC_TYPE_TMP_BUFFER);
-                    if (tmp == NULL) return MEMORY_E;
-                    XMEMCPY(tmp, input, sz);
-                    AesCbcEncrypt(ssl->encrypt.aes, tmp, tmp, sz);
-                    XMEMCPY(out, tmp, sz);
-                    XFREE(tmp, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
-                    break;
-                }
-            #endif
-                AesCbcEncrypt(ssl->encrypt.aes, out, input, sz);
+                return AesCbcEncrypt(ssl->encrypt.aes, out, input, sz);
                 break;
         #endif
 
@@ -3532,37 +3520,13 @@ static INLINE int Encrypt(CYASSL* ssl, byte* out, const byte* input, word32 sz)
 
         #ifdef HAVE_HC128
             case hc128:
-                #ifdef XSTREAM_ALIGNMENT
-                if ((word)input % 4) {
-                    byte* tmp = (byte*)XMALLOC(sz, ssl->heap,
-                                               DYNAMIC_TYPE_TMP_BUFFER);
-                    if (tmp == NULL) return MEMORY_E;
-                    XMEMCPY(tmp, input, sz);
-                    Hc128_Process(ssl->encrypt.hc128, tmp, tmp, sz);
-                    XMEMCPY(out, tmp, sz);
-                    XFREE(tmp, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
-                    break;
-                }
-                #endif
-                Hc128_Process(ssl->encrypt.hc128, out, input, sz);
+                return Hc128_Process(ssl->encrypt.hc128, out, input, sz);
                 break;
         #endif
 
         #ifdef BUILD_RABBIT
             case rabbit:
-                #ifdef XSTREAM_ALIGNMENT
-                if ((word)input % 4) {
-                    byte* tmp = (byte*)XMALLOC(sz, ssl->heap,
-                                               DYNAMIC_TYPE_TMP_BUFFER);
-                    if (tmp == NULL) return MEMORY_E;
-                    XMEMCPY(tmp, input, sz);
-                    RabbitProcess(ssl->encrypt.rabbit, tmp, tmp, sz);
-                    XMEMCPY(out, tmp, sz);
-                    XFREE(tmp, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
-                    break;
-                }
-                #endif
-                RabbitProcess(ssl->encrypt.rabbit, out, input, sz);
+                return RabbitProcess(ssl->encrypt.rabbit, out, input, sz);
                 break;
         #endif
 
@@ -3610,7 +3574,7 @@ static INLINE int Decrypt(CYASSL* ssl, byte* plain, const byte* input,
 
         #ifdef BUILD_AES
             case aes:
-                AesCbcDecrypt(ssl->decrypt.aes, plain, input, sz);
+                return AesCbcDecrypt(ssl->decrypt.aes, plain, input, sz);
                 break;
         #endif
 
@@ -3694,13 +3658,13 @@ static INLINE int Decrypt(CYASSL* ssl, byte* plain, const byte* input,
 
         #ifdef HAVE_HC128
             case hc128:
-                Hc128_Process(ssl->decrypt.hc128, plain, input, sz);
+                return Hc128_Process(ssl->decrypt.hc128, plain, input, sz);
                 break;
         #endif
 
         #ifdef BUILD_RABBIT
             case rabbit:
-                RabbitProcess(ssl->decrypt.rabbit, plain, input, sz);
+                return RabbitProcess(ssl->decrypt.rabbit, plain, input, sz);
                 break;
         #endif
 

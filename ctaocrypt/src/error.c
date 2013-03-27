@@ -297,6 +297,10 @@ void CTaoCryptErrorString(int error, char* buffer)
         XSTRNCPY(buffer, "DeCompress error", max);
         break;
 
+    case BAD_ALIGN_E:
+        XSTRNCPY(buffer, "Bad alignment error, no alloc help", max);
+        break;
+
     default:
         XSTRNCPY(buffer, "unknown error number", max);
 

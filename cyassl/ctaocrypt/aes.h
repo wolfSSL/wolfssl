@@ -98,8 +98,8 @@ typedef struct Aes {
 CYASSL_API int  AesSetKey(Aes* aes, const byte* key, word32 len, const byte* iv,
                           int dir);
 CYASSL_API int  AesSetIV(Aes* aes, const byte* iv);
-CYASSL_API void AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz);
-CYASSL_API void AesCbcDecrypt(Aes* aes, byte* out, const byte* in, word32 sz);
+CYASSL_API int  AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz);
+CYASSL_API int  AesCbcDecrypt(Aes* aes, byte* out, const byte* in, word32 sz);
 CYASSL_API void AesCtrEncrypt(Aes* aes, byte* out, const byte* in, word32 sz);
 CYASSL_API void AesEncryptDirect(Aes* aes, byte* out, const byte* in);
 CYASSL_API void AesDecryptDirect(Aes* aes, byte* out, const byte* in);
