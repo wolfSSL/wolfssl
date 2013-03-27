@@ -1031,6 +1031,7 @@ then
         AC_MSG_ERROR([Valgrind not found.])
     fi
     enable_shared=no
+    enable_static=yes
     AM_CFLAGS="$AM_CFLAGS -DHAVE_VALGRIND"
 fi
 
@@ -1173,6 +1174,7 @@ AC_ARG_WITH([cavium],
             fi
             AC_MSG_RESULT([yes])
             enable_shared=no
+            enable_static=yes
     ]
 )
 
