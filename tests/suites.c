@@ -43,7 +43,9 @@
 CYASSL_CTX* cipherSuiteCtx = NULL;
 char nonblockFlag[] = "-N";
 char noVerifyFlag[] = "-d";
+char portFlag[] = "-p";
 char flagSep[] = " ";
+char svrPort[] = "0";
 
 
 #ifdef NO_OLD_TLS
@@ -156,11 +158,10 @@ static int execute_test_case(int svr_argc, char** svr_argv,
     if (addNoVerify) {
         printf("repeating test with client cert request off\n"); 
         added += 4;   /* -d plus space plus terminator */
-        if (added >= MAX_COMMAND_SZ)
+        if (added >= MAX_COMMAND_SZ || svr_argc >= MAX_ARGS)
             printf("server command line too long\n");
         else {
-            svr_argv[svr_argc] = noVerifyFlag;
-            svr_argc++;
+            svr_argv[svr_argc++] = noVerifyFlag;
             svrArgs.argc = svr_argc;
             strcat(commandLine, noVerifyFlag);
             strcat(commandLine, flagSep);
@@ -169,16 +170,26 @@ static int execute_test_case(int svr_argc, char** svr_argv,
     if (addNonBlocking) {
         printf("repeating test with non blocking on\n"); 
         added += 4;   /* -N plus terminator */
-        if (added >= MAX_COMMAND_SZ)
+        if (added >= MAX_COMMAND_SZ || svr_argc >= MAX_ARGS)
             printf("server command line too long\n");
         else {
-            svr_argv[svr_argc] = nonblockFlag;
-            svr_argc++;
+            svr_argv[svr_argc++] = nonblockFlag;
             svrArgs.argc = svr_argc;
             strcat(commandLine, nonblockFlag);
             strcat(commandLine, flagSep);
         }
     }
+    #ifndef USE_WINDOWS_API
+        /* add port 0 */
+        if (svr_argc + 2 > MAX_ARGS)
+            printf("cannot add the magic port number flag to server\n");
+        else
+        {
+            svr_argv[svr_argc++] = portFlag;
+            svr_argv[svr_argc++] = svrPort;
+            svrArgs.argc = svr_argc;
+        }
+    #endif
     printf("trying server command line[%d]: %s\n", tests, commandLine);
 
     commandLine[0] = '\0';
@@ -197,11 +208,10 @@ static int execute_test_case(int svr_argc, char** svr_argv,
         if (added >= MAX_COMMAND_SZ)
             printf("client command line too long\n");
         else  {
-            cli_argv[cli_argc] = nonblockFlag;
-            cli_argc++;
-            cliArgs.argc = cli_argc;
+            cli_argv[cli_argc++] = nonblockFlag;
             strcat(commandLine, nonblockFlag);
             strcat(commandLine, flagSep);
+            cliArgs.argc = cli_argc;
         }
     }
     printf("trying client command line[%d]: %s\n", tests++, commandLine);
@@ -212,7 +222,20 @@ static int execute_test_case(int svr_argc, char** svr_argv,
     svrArgs.signal = &ready;
     start_thread(server_test, &svrArgs, &serverThread);
     wait_tcp_ready(&svrArgs);
-
+    #ifndef USE_WINDOWS_API
+        if (ready.port != 0)
+        {
+            if (cli_argc + 2 > MAX_ARGS)
+                printf("cannot add the magic port number flag to client\n");
+            else {
+                char portNumber[8];
+                snprintf(portNumber, sizeof(portNumber), "%d", ready.port);
+                cli_argv[cli_argc++] = portFlag;
+                cli_argv[cli_argc++] = portNumber;
+                cliArgs.argc = cli_argc;
+            }
+        }
+    #endif
     /* start client */
     client_test(&cliArgs);
 

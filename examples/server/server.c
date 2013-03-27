@@ -93,7 +93,7 @@ static void Usage(void)
     printf("server "    LIBCYASSL_VERSION_STRING
            " NOTE: All files relative to CyaSSL home dir\n");
     printf("-?          Help, print this usage\n");
-    printf("-p <num>    Port to listen on, default %d\n", yasslPort);
+    printf("-p <num>    Port to listen on, not 0, default %d\n", yasslPort);
     printf("-v <num>    SSL version [0-3], SSLv3(0) - TLS1.2(3)), default %d\n",
                                  SERVER_DEFAULT_VERSION);
     printf("-l <str>    Cipher list\n");
@@ -182,6 +182,10 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 
             case 'p' :
                 port = atoi(myoptarg);
+                #if !defined(NO_MAIN_DRIVER) || defined(USE_WINDOWS_API)
+                    if (port == 0)
+                        err_sys("port number cannot be 0");
+                #endif
                 break;
 
             case 'v' :

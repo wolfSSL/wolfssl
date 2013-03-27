@@ -94,6 +94,7 @@ void join_thread(THREAD_TYPE thread)
 void InitTcpReady(tcp_ready* ready)
 {
     ready->ready = 0;
+    ready->port = 0;
 #ifdef _POSIX_THREADS
       pthread_mutex_init(&ready->mutex, 0);
       pthread_cond_init(&ready->cond, 0);

@@ -38,7 +38,7 @@
 #endif
 
 
-static void SignalReady(void* args)
+static void SignalReady(void* args, int port)
 {
 #if defined(_POSIX_THREADS) && defined(NO_MAIN_DRIVER)
     /* signal ready to tcp_accept */
@@ -46,10 +46,12 @@ static void SignalReady(void* args)
     tcp_ready* ready = server_args->signal;
     pthread_mutex_lock(&ready->mutex);
     ready->ready = 1;
+    ready->port = port;
     pthread_cond_signal(&ready->cond);
     pthread_mutex_unlock(&ready->mutex);
 #endif
     (void)args;
+    (void)port;
 }
 
 
@@ -64,6 +66,7 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
     int    outCreated = 0;
     int    shutDown = 0;
     int    useAnyAddr = 0;
+    int    port = yasslPort;
     int    argc = ((func_args*)args)->argc;
     char** argv = ((func_args*)args)->argv;
 
@@ -93,7 +96,10 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
     doPSK = 1;
 #endif
 
-    tcp_listen(&sockfd, yasslPort, useAnyAddr, doDTLS);
+    #if defined(NO_MAIN_DRIVER) && !defined(USE_WINDOWS_API)
+        port = 0;
+    #endif
+    tcp_listen(&sockfd, &port, useAnyAddr, doDTLS);
 
 #if defined(CYASSL_DTLS)
     method  = CyaDTLSv1_server_method();
@@ -176,7 +182,7 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
 #endif
     }
 
-    SignalReady(args);
+    SignalReady(args, port);
 
     while (!shutDown) {
         CYASSL* ssl = 0;
@@ -279,8 +285,8 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
         CyaSSL_free(ssl);
         CloseSocket(clientfd);
 #ifdef CYASSL_DTLS
-        tcp_listen(&sockfd, yasslPort, useAnyAddr, doDTLS);
-        SignalReady(args);
+        tcp_listen(&sockfd, &port, useAnyAddr, doDTLS);
+        SignalReady(args, port);
 #endif
     }
 

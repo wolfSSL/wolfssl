@@ -50,6 +50,7 @@ void echoclient_test(void* args)
     int sendSz;
     int argc    = 0;
     char** argv = 0;
+    int port = yasslPort;
 
     ((func_args*)args)->return_code = -1; /* error state */
     argc = ((func_args*)args)->argc;
@@ -77,6 +78,10 @@ void echoclient_test(void* args)
 
 #if defined(NO_RSA) && !defined(HAVE_ECC)
     doPSK = 1;
+#endif
+
+#if defined(NO_MAIN_DRIVER) && !defined(USE_WINDOWS_API)
+    port = ((func_args*)args)->signal->port;
 #endif
 
 #if defined(CYASSL_DTLS)
@@ -128,12 +133,12 @@ void echoclient_test(void* args)
 
     if (doDTLS) {
         SOCKADDR_IN_T addr;
-        build_addr(&addr, yasslIP, yasslPort);
+        build_addr(&addr, yasslIP, port);
         CyaSSL_dtls_set_peer(ssl, &addr, sizeof(addr));
         tcp_socket(&sockfd, 1);
     }
     else {
-        tcp_connect(&sockfd, yasslIP, yasslPort, 0);
+        tcp_connect(&sockfd, yasslIP, port, 0);
     }
 
     SSL_set_fd(ssl, sockfd);
