@@ -39,12 +39,6 @@
 #include "examples/server/server.h"
 #include "ctaocrypt/test/test.h"
 
-#ifdef USE_WINDOWS_API
-    #define SNPRINTF _snprintf
-#else
-    #define SNPRINTF snprintf
-#endif
-
 void client_test(void*);
 
 void file_test(const char* file, byte* hash);
@@ -211,7 +205,7 @@ void simple_test(func_args* args)
     #ifndef USE_WINDOWS_API
         cliArgs.argc = NUMARGS;
         strcpy(cliArgs.argv[1], "-p");
-        SNPRINTF(cliArgs.argv[2], sizeof(argc2c), "%d", svrArgs.signal->port);
+        snprintf(cliArgs.argv[2], sizeof(argc2c), "%d", svrArgs.signal->port);
     #endif
 
     client_test(&cliArgs);
