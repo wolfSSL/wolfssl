@@ -2315,10 +2315,12 @@ void ShrinkInputBuffer(CYASSL* ssl, int forcedFree)
                ssl->buffers.inputBuffer.buffer + ssl->buffers.inputBuffer.idx,
                usedLength);
 
-    XFREE(ssl->buffers.inputBuffer.buffer, ssl->heap, DYNAMIC_TYPE_IN_BUFFER);
+    XFREE(ssl->buffers.inputBuffer.buffer - ssl->buffers.inputBuffer.offset,
+          ssl->heap, DYNAMIC_TYPE_IN_BUFFER);
     ssl->buffers.inputBuffer.buffer = ssl->buffers.inputBuffer.staticBuffer;
     ssl->buffers.inputBuffer.bufferSize  = STATIC_BUFFER_LEN;
     ssl->buffers.inputBuffer.dynamicFlag = 0;
+    ssl->buffers.inputBuffer.offset      = 0;
     ssl->buffers.inputBuffer.idx = 0;
     ssl->buffers.inputBuffer.length = usedLength;
 }
@@ -2392,14 +2394,16 @@ int SendBuffered(CYASSL* ssl)
 static INLINE int GrowOutputBuffer(CYASSL* ssl, int size)
 {
     byte* tmp;
+    byte  hdrSz = ssl->options.dtls ? DTLS_RECORD_HEADER_SZ :
+                                      RECORD_HEADER_SZ; 
     byte  align = CYASSL_GENERAL_ALIGNMENT;
     /* the encrypted data will be offset from the front of the buffer by
-       the record header, if the user wants encrypted alignment they need
+       the header, if the user wants encrypted alignment they need
        to define their alignment requirement */
 
-    if (align && align < RECORD_HEADER_SZ) {
-        CYASSL_MSG("CyaSSL alignment requirement is too small");
-        return BAD_ALIGN_E;
+    if (align) {
+       while (align < hdrSz)
+           align *= 2;
     }
 
     tmp = (byte*) XMALLOC(size + ssl->buffers.outputBuffer.length + align,
@@ -2408,18 +2412,19 @@ static INLINE int GrowOutputBuffer(CYASSL* ssl, int size)
    
     if (!tmp) return MEMORY_E;
     if (align)
-        tmp += align - RECORD_HEADER_SZ;
+        tmp += align - hdrSz;
 
     if (ssl->buffers.outputBuffer.length)
         XMEMCPY(tmp, ssl->buffers.outputBuffer.buffer,
                ssl->buffers.outputBuffer.length);
 
     if (ssl->buffers.outputBuffer.dynamicFlag)
-        XFREE(ssl->buffers.outputBuffer.buffer, ssl->heap,
+        XFREE(ssl->buffers.outputBuffer.buffer -
+              ssl->buffers.outputBuffer.offset, ssl->heap,
               DYNAMIC_TYPE_OUT_BUFFER);
     ssl->buffers.outputBuffer.dynamicFlag = 1;
     if (align)
-        ssl->buffers.outputBuffer.offset = align - RECORD_HEADER_SZ;
+        ssl->buffers.outputBuffer.offset = align - hdrSz;
     else
         ssl->buffers.outputBuffer.offset = 0;
     ssl->buffers.outputBuffer.buffer = tmp;
@@ -2432,20 +2437,39 @@ static INLINE int GrowOutputBuffer(CYASSL* ssl, int size)
 /* Grow the input buffer, should only be to read cert or big app data */
 int GrowInputBuffer(CYASSL* ssl, int size, int usedLength)
 {
-    byte* tmp = (byte*) XMALLOC(size + usedLength, ssl->heap,
-                                DYNAMIC_TYPE_IN_BUFFER);
+    byte* tmp;
+    byte  hdrSz = DTLS_RECORD_HEADER_SZ;
+    byte  align = ssl->options.dtls ? CYASSL_GENERAL_ALIGNMENT : 0;
+    /* the encrypted data will be offset from the front of the buffer by
+       the dtls record header, if the user wants encrypted alignment they need
+       to define their alignment requirement. in tls we read record header
+       to get size of record and put actual data back at front, so don't need */
+
+    if (align) {
+       while (align < hdrSz)
+           align *= 2;
+    }
+    tmp = (byte*) XMALLOC(size + usedLength + align, ssl->heap,
+                          DYNAMIC_TYPE_IN_BUFFER);
     CYASSL_MSG("growing input buffer\n");
    
     if (!tmp) return MEMORY_E;
+    if (align)
+        tmp += align - hdrSz;
 
     if (usedLength)
         XMEMCPY(tmp, ssl->buffers.inputBuffer.buffer +
                     ssl->buffers.inputBuffer.idx, usedLength);
 
     if (ssl->buffers.inputBuffer.dynamicFlag)
-        XFREE(ssl->buffers.inputBuffer.buffer,ssl->heap,DYNAMIC_TYPE_IN_BUFFER);
+        XFREE(ssl->buffers.inputBuffer.buffer - ssl->buffers.inputBuffer.offset,
+              ssl->heap,DYNAMIC_TYPE_IN_BUFFER);
 
     ssl->buffers.inputBuffer.dynamicFlag = 1;
+    if (align)
+        ssl->buffers.inputBuffer.offset = align - hdrSz;
+    else
+        ssl->buffers.inputBuffer.offset = 0;
     ssl->buffers.inputBuffer.buffer = tmp;
     ssl->buffers.inputBuffer.bufferSize = size + usedLength;
     ssl->buffers.inputBuffer.idx    = 0;
