@@ -78,3 +78,5 @@ clang_output_*
 internal.plist
 cov-int
 cyassl.tgz
+*.log
+*.trs

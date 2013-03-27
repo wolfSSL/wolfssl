@@ -39,9 +39,17 @@
 #include "examples/server/server.h"
 #include "ctaocrypt/test/test.h"
 
+#ifdef USE_WINDOWS_API
+    #define SNPRINTF _snprintf
+#else
+    #define SNPRINTF snprintf
+#endif
+
 void client_test(void*);
 
 void file_test(const char* file, byte* hash);
+
+void simple_test(func_args*);
 
 enum {
     NUMARGS = 3
@@ -54,7 +62,6 @@ char* myoptarg = NULL;
 
 int main(int argc, char** argv)
 {
-    func_args args;
     func_args server_args;
 
     tcp_ready ready;
@@ -68,8 +75,8 @@ int main(int argc, char** argv)
 
     StartTCP();
 
-    args.argc = server_args.argc = argc;
-    args.argv = server_args.argv = argv;
+    server_args.argc = argc;
+    server_args.argv = argv;
 
     CyaSSL_Init();
 #if defined(DEBUG_CYASSL) && !defined(HAVE_VALGRIND)
@@ -81,19 +88,15 @@ int main(int argc, char** argv)
     else if (CurrentDir("build"))  /* Xcode->Preferences->Locations->Build */
         ChangeDirBack(2);          /* Location "Place build product in locations
                                       specified by targets", uses build/Debug */
+    server_args.signal = &ready;
+    InitTcpReady(&ready);
+
     /* CTaoCrypt test */
-    ctaocrypt_test(&args);
-    if (args.return_code != 0) return args.return_code;
+    ctaocrypt_test(&server_args);
+    if (server_args.return_code != 0) return server_args.return_code;
  
     /* Simple CyaSSL client server test */
-    InitTcpReady(&ready);
-    server_args.signal = &ready;
-    start_thread(server_test, &server_args, &serverThread);
-    wait_tcp_ready(&server_args);
-
-    client_test(&args);
-    if (args.return_code != 0) return args.return_code;
-    join_thread(serverThread);
+    simple_test(&server_args);
     if (server_args.return_code != 0) return server_args.return_code;
 
     /* Echo input yaSSL client server test */
@@ -118,6 +121,9 @@ int main(int argc, char** argv)
         strcpy(echo_args.argv[1], "input");
         strcpy(echo_args.argv[2], "output");
         remove("output");
+
+        /* Share the signal, it has the new port number in it. */
+        echo_args.signal = server_args.signal;
 
         /* make sure OK */
         echoclient_test(&echo_args);
@@ -157,6 +163,65 @@ int main(int argc, char** argv)
     return EXIT_SUCCESS;
 }
 
+void simple_test(func_args* args)
+{
+    THREAD_TYPE serverThread;
+
+    func_args svrArgs;
+    char *svrArgv[NUMARGS];
+    char argc0s[32];
+    char argc1s[32];
+    char argc2s[32];
+
+    func_args cliArgs;
+    char *cliArgv[NUMARGS];
+    char argc0c[32];
+    char argc1c[32];
+    char argc2c[32];
+
+    svrArgv[0] = argc0s;
+    svrArgv[1] = argc1s;
+    svrArgv[2] = argc2s;
+    cliArgv[0] = argc0c;
+    cliArgv[1] = argc1c;
+    cliArgv[2] = argc2c;
+
+    svrArgs.argc = 1;
+    svrArgs.argv = svrArgv;
+    svrArgs.return_code = 0;
+    cliArgs.argc = 1;
+    cliArgs.argv = cliArgv;
+    cliArgs.return_code = 0;
+   
+    strcpy(svrArgs.argv[0], "SimpleServer");
+    #ifndef USE_WINDOWS_API
+        svrArgs.argc = NUMARGS;
+        strcpy(svrArgs.argv[1], "-p");
+        strcpy(svrArgs.argv[2], "0");
+    #endif
+    /* Set the last arg later, when it is known. */
+
+    args->return_code = 0;
+    svrArgs.signal = args->signal;
+    start_thread(server_test, &svrArgs, &serverThread);
+    wait_tcp_ready(&svrArgs);
+   
+    /* Setting the actual port number. */
+    strcpy(cliArgs.argv[0], "SimpleClient");
+    #ifndef USE_WINDOWS_API
+        cliArgs.argc = NUMARGS;
+        strcpy(cliArgs.argv[1], "-p");
+        SNPRINTF(cliArgs.argv[2], sizeof(argc2c), "%d", svrArgs.signal->port);
+    #endif
+
+    client_test(&cliArgs);
+    if (cliArgs.return_code != 0) {
+        args->return_code = cliArgs.return_code;
+        return;
+    }
+    join_thread(serverThread);
+    if (svrArgs.return_code != 0) args->return_code = svrArgs.return_code;
+}
 
 
 void wait_tcp_ready(func_args* args)
@@ -200,6 +265,7 @@ void join_thread(THREAD_TYPE thread)
 void InitTcpReady(tcp_ready* ready)
 {
     ready->ready = 0;
+    ready->port = 0;
 #ifdef _POSIX_THREADS
       pthread_mutex_init(&ready->mutex, 0);
       pthread_cond_init(&ready->cond, 0);

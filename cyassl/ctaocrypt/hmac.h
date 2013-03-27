@@ -35,7 +35,7 @@
     #include <cyassl/ctaocrypt/sha256.h>
 #endif
 
-#ifdef CYASSL_SHA384
+#ifdef CYASSL_SHA512
     #include <cyassl/ctaocrypt/sha512.h>
 #endif
 

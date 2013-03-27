@@ -131,6 +131,7 @@
 
 typedef struct tcp_ready {
     int ready;              /* predicate */
+    int port;
 #ifdef _POSIX_THREADS
     pthread_mutex_t mutex;
     pthread_cond_t  cond;
@@ -454,14 +455,14 @@ static INLINE int tcp_select(SOCKET_T socketfd, int to_sec)
 }
 
 
-static INLINE void tcp_listen(SOCKET_T* sockfd, int port, int useAnyAddr,
+static INLINE void tcp_listen(SOCKET_T* sockfd, int* port, int useAnyAddr,
                               int udp)
 {
     SOCKADDR_IN_T addr;
 
     /* don't use INADDR_ANY by default, firewall may block, make user switch
        on */
-    build_addr(&addr, (useAnyAddr ? INADDR_ANY : yasslIP), port);
+    build_addr(&addr, (useAnyAddr ? INADDR_ANY : yasslIP), *port);
     tcp_socket(sockfd, udp);
 
 #ifndef USE_WINDOWS_API 
@@ -480,6 +481,14 @@ static INLINE void tcp_listen(SOCKET_T* sockfd, int port, int useAnyAddr,
         if (listen(*sockfd, 5) != 0)
             err_sys("tcp listen failed");
     }
+    #if defined(NO_MAIN_DRIVER) && !defined(USE_WINDOWS_API)
+        if (*port == 0)
+        {
+            socklen_t len = sizeof(addr);
+            if (getsockname(*sockfd, (struct sockaddr*)&addr, &len) == 0)
+                *port = ntohs(addr.sin_port);
+        }
+    #endif
 }
 
 
@@ -504,12 +513,12 @@ static INLINE int udp_read_connect(SOCKET_T sockfd)
 }
 
 static INLINE void udp_accept(SOCKET_T* sockfd, int* clientfd, int useAnyAddr,
-                              func_args* args)
+                              int port, func_args* args)
 {
     SOCKADDR_IN_T addr;
 
     (void)args;
-    build_addr(&addr, (useAnyAddr ? INADDR_ANY : yasslIP), yasslPort);
+    build_addr(&addr, (useAnyAddr ? INADDR_ANY : yasslIP), port);
     tcp_socket(sockfd, 1);
 
 
@@ -526,12 +535,22 @@ static INLINE void udp_accept(SOCKET_T* sockfd, int* clientfd, int useAnyAddr,
     if (bind(*sockfd, (const struct sockaddr*)&addr, sizeof(addr)) != 0)
         err_sys("tcp bind failed");
 
+    #if defined(NO_MAIN_DRIVER) && !defined(USE_WINDOWS_API)
+        if (port == 0)
+        {
+            socklen_t len = sizeof(addr);
+            if (getsockname(*sockfd, (struct sockaddr*)&addr, &len) == 0)
+                port = ntohs(addr.sin_port);
+        }
+    #endif
+
 #if defined(_POSIX_THREADS) && defined(NO_MAIN_DRIVER)
     /* signal ready to accept data */
     {
     tcp_ready* ready = args->signal;
     pthread_mutex_lock(&ready->mutex);
     ready->ready = 1;
+    ready->port = port;
     pthread_cond_signal(&ready->cond);
     pthread_mutex_unlock(&ready->mutex);
     }
@@ -547,11 +566,11 @@ static INLINE void tcp_accept(SOCKET_T* sockfd, int* clientfd, func_args* args,
     socklen_t client_len = sizeof(client);
 
     if (udp) {
-        udp_accept(sockfd, clientfd, useAnyAddr, args);
+        udp_accept(sockfd, clientfd, useAnyAddr, port, args);
         return;
     }
 
-    tcp_listen(sockfd, port, useAnyAddr, udp);
+    tcp_listen(sockfd, &port, useAnyAddr, udp);
 
 #if defined(_POSIX_THREADS) && defined(NO_MAIN_DRIVER)
     /* signal ready to tcp_accept */
@@ -559,6 +578,7 @@ static INLINE void tcp_accept(SOCKET_T* sockfd, int* clientfd, func_args* args,
     tcp_ready* ready = args->signal;
     pthread_mutex_lock(&ready->mutex);
     ready->ready = 1;
+    ready->port = port;
     pthread_cond_signal(&ready->cond);
     pthread_mutex_unlock(&ready->mutex);
     }
