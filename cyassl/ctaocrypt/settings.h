@@ -226,8 +226,11 @@
 #endif
 
 #ifdef CYASSL_LOW_MEMORY
+    #undef  RSA_LOW_MEM
     #define RSA_LOW_MEM
+    #undef  CYASSL_SMALL_STACK
     #define CYASSL_SMALL_STACK
+    #undef  TFM_TIMING_RESISTANT
     #define TFM_TIMING_RESISTANT
 #endif
 
