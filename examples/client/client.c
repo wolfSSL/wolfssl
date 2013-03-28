@@ -114,7 +114,7 @@ static void Usage(void)
 }
 
 
-void client_test(void* args)
+THREAD_RETURN CYASSL_THREAD client_test(void* args)
 {
     SOCKET_T sockfd = 0;
 
@@ -592,6 +592,8 @@ void client_test(void* args)
     if (trackMemory)
         ShowMemoryTracker();
 #endif /* USE_CYASSL_MEMORY */
+
+    return 0;
 }
 
 
@@ -619,8 +621,12 @@ void client_test(void* args)
 #endif
         if (CurrentDir("client") || CurrentDir("build"))
             ChangeDirBack(2);
-   
+  
+#ifdef HAVE_STACK_SIZE
+        StackSizeCheck(&args, client_test);
+#else 
         client_test(&args);
+#endif
         CyaSSL_Cleanup();
 
 #ifdef HAVE_CAVIUM

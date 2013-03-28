@@ -1081,5 +1081,63 @@ static INLINE int CurrentDir(const char* str)
 
 #endif /* USE_CYASSL_MEMORY */
 
+
+#ifdef HAVE_STACK_SIZE
+
+typedef THREAD_RETURN CYASSL_THREAD (*thread_func)(void* args);
+
+
+static INLINE void StackSizeCheck(func_args* args, thread_func tf)
+{
+    int            ret, i, used;
+    unsigned char* myStack;
+    int            stackSize = 1024*128;
+    pthread_attr_t myAttr;
+    pthread_t      threadId;
+
+#ifdef PTHREAD_STACK_MIN
+    if (stackSize < PTHREAD_STACK_MIN)
+        stackSize = PTHREAD_STACK_MIN;
+#endif
+
+    ret = posix_memalign((void**)&myStack, sysconf(_SC_PAGESIZE), stackSize);
+    if (ret != 0) 
+        err_sys("posix_memalign failed\n");        
+
+    memset(myStack, 0xee, stackSize);
+
+    ret = pthread_attr_init(&myAttr);
+    if (ret != 0)
+        err_sys("attr_init failed");
+
+    ret = pthread_attr_setstack(&myAttr, myStack, stackSize);
+    if (ret != 0)
+        err_sys("attr_setstackaddr failed");
+
+    ret = pthread_create(&threadId, &myAttr, tf, args);
+    if (ret != 0) {
+        perror("pthread_create failed");
+        exit(EXIT_FAILURE);
+    }
+
+    ret = pthread_join(threadId, NULL);
+    if (ret != 0)
+        err_sys("pthread_join failed");
+
+    for (i = 0; i < stackSize; i++) {
+        if (myStack[i] != 0xee) {
+            break;
+        }
+    }
+
+    used = stackSize - i;
+    printf("stack used = %d\n", used);
+}
+
+
+#endif /* HAVE_STACK_SIZE */
+
+
+
 #endif /* CyaSSL_TEST_H */
 

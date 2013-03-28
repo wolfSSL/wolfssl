@@ -21,5 +21,5 @@
 
 #pragma once
 
-void client_test(void* args);
+THREAD_RETURN CYASSL_THREAD client_test(void* args);
 

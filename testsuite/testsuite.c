@@ -37,9 +37,9 @@
 #include "examples/echoclient/echoclient.h"
 #include "examples/echoserver/echoserver.h"
 #include "examples/server/server.h"
+#include "examples/client/client.h"
 #include "ctaocrypt/test/test.h"
 
-void client_test(void*);
 
 void file_test(const char* file, byte* hash);
 

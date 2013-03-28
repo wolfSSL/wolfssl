@@ -458,7 +458,11 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
         if (CurrentDir("server") || CurrentDir("build"))
             ChangeDirBack(2);
    
+#ifdef HAVE_STACK_SIZE
+        StackSizeCheck(&args, server_test);
+#else 
         server_test(&args);
+#endif
         CyaSSL_Cleanup();
 
 #ifdef HAVE_CAVIUM

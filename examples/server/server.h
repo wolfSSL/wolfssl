@@ -1,4 +1,4 @@
-/* server.c
+/* server.h
  *
  * Copyright (C) 2006-2013 wolfSSL Inc.
  *
