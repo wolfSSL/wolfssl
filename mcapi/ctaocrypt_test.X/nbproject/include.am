@@ -1,0 +1,12 @@
+# vim:ft=automake
+# All paths should be given relative to the root
+#
+
+EXTRA_DIST += \
+         mcapi/ctaocrypt_test.X/Makefile \
+         mcapi/ctaocrypt_test.X/main.c
+
+EXTRA_DIST += \
+         mcapi/ctaocrypt_test.X/nbproject/configurations.xml \
+         mcapi/ctaocrypt_test.X/nbproject/project.xml
+

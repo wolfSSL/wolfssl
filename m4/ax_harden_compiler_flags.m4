@@ -123,7 +123,9 @@
       AX_APPEND_COMPILE_FLAGS([-Wunknown-pragmas],,[$ax_append_compile_cflags_extra])
       AX_APPEND_COMPILE_FLAGS([-Wthis-test-should-fail],,[$ax_append_compile_cflags_extra])
       dnl Anything below this comment please keep sorted.
-      AX_APPEND_COMPILE_FLAGS([--param=ssp-buffer-size=1],,[$ax_append_compile_cflags_extra])
+      AS_IF([test "$CC" = "clang"],[],[
+        AX_APPEND_COMPILE_FLAGS([--param=ssp-buffer-size=1],,[$ax_append_compile_cflags_extra])
+        ])
       AX_APPEND_COMPILE_FLAGS([-Waddress],,[$ax_append_compile_cflags_extra])
       AX_APPEND_COMPILE_FLAGS([-Warray-bounds],,[$ax_append_compile_cflags_extra])
       AX_APPEND_COMPILE_FLAGS([-Wbad-function-cast],,[$ax_append_compile_cflags_extra])

@@ -6,7 +6,8 @@ and the Microchip XC32 compiler.
 
 In order to generate the necessary auto-generated MPLAB X files, make sure
 to import the cyassl.X project into your MPLAB X workspace before trying to
-build either the CTaoCrypt test or benchmark applications.
+build either the CTaoCrypt test or benchmark applications. This will
+correctly set up the respective project's Makefiles.
 
 Included Project Files
 -----------------------
@@ -24,9 +25,14 @@ Included Project Files
     <cyassl_root>/mplabx/cyassl.X/dist/default/production/cyassl.X.a
 
 2. CTaoCrypt Test App (ctaocrypt_test.X)
+    
+    This project tests the CTaoCrypt cryptography modules. It is generally
+    a good idea to run this first on an embedded system after compiling
+    CyaSSL in order to verify all underlying crypto is working correctly.
 
 3. CTaoCrypt Benchmark App (ctaocrypt_benchmark.X)
-
+    
+    This project builds the CTaoCrypt benchmark application.
 
 MIPS16 and MIPS32 Support
 -------------------------
@@ -34,4 +40,8 @@ MIPS16 and MIPS32 Support
 These projects support both MIPS16 and MIPS32 instruction sets. Switching
 between these two instruction sets can be done in each project's properties
 settings by checking the "Generate 16-bit code" checkbox.
+
+Support
+-------
+Please send questions or comments to support@wolfssl.com
 

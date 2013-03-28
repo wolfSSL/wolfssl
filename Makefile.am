@@ -64,6 +64,10 @@ include mplabx/ctaocrypt_benchmark.X/nbproject/include.am
 include mplabx/ctaocrypt_test.X/nbproject/include.am
 include mplabx/cyassl.X/nbproject/include.am
 include mcapi/include.am
+include mcapi/ctaocrypt_mcapi.X/nbproject/include.am
+include mcapi/ctaocrypt_test.X/nbproject/include.am
+include mcapi/cyassl.X/nbproject/include.am
+include mcapi/zlib.X/nbproject/include.am
 
 if USE_VALGRIND
 TESTS_ENVIRONMENT=./valgrind-error.sh
