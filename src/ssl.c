@@ -2622,8 +2622,7 @@ int CyaSSL_dtls_got_timeout(CYASSL* ssl)
         }
 
         #ifdef CYASSL_DTLS
-            if (ssl->version.major == DTLS_MAJOR && 
-                                      ssl->version.minor >= DTLSv1_2_MINOR) {
+            if (ssl->version.major == DTLS_MAJOR) {
                 ssl->options.dtls   = 1;
                 ssl->options.tls    = 1;
                 ssl->options.tls1_1 = 1;
@@ -2913,8 +2912,7 @@ int CyaSSL_dtls_got_timeout(CYASSL* ssl)
         #endif
 
         #ifdef CYASSL_DTLS
-            if (ssl->version.major == DTLS_MAJOR &&
-                                      ssl->version.minor >= DTLSv1_2_MINOR) {
+            if (ssl->version.major == DTLS_MAJOR) {
                 ssl->options.dtls   = 1;
                 ssl->options.tls    = 1;
                 ssl->options.tls1_1 = 1;
