@@ -365,8 +365,7 @@ int InitSSL_Ctx(CYASSL_CTX* ctx, CYASSL_METHOD* method)
     ctx->CBIORecv = EmbedReceive;
     ctx->CBIOSend = EmbedSend;
     #ifdef CYASSL_DTLS
-        if (method->version.major == DTLS_MAJOR
-                                  && method->version.minor >= DTLSv1_2_MINOR) {
+        if (method->version.major == DTLS_MAJOR) {
             ctx->CBIORecv   = EmbedReceiveFrom;
             ctx->CBIOSend   = EmbedSendTo;
             ctx->CBIOCookie = EmbedGenerateCookie;
@@ -1341,11 +1340,7 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
     ssl->heap = ctx->heap;    /* defaults to self */
     ssl->options.tls    = 0;
     ssl->options.tls1_1 = 0;
-    if (ssl->version.major == DTLS_MAJOR
-                                        && ssl->version.minor >= DTLSv1_2_MINOR)
-        ssl->options.dtls = 1;
-    else
-        ssl->options.dtls = 0;
+    ssl->options.dtls = ssl->version.major == DTLS_MAJOR;
     ssl->options.partialWrite  = ctx->partialWrite;
     ssl->options.quietShutdown = ctx->quietShutdown;
     ssl->options.certOnly = 0;
