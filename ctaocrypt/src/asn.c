@@ -1436,9 +1436,7 @@ static int GetKey(DecodedCert* cert)
 /* process NAME, either issuer or subject */
 static int GetName(DecodedCert* cert, int nameType)
 {
-#ifndef NO_SHA
-    Sha    sha;
-#endif
+    Sha    sha;     /* MUST have SHA-1 hash for cert names */
     int    length;  /* length of all distinguished names */
     int    dummy;
     char* full = (nameType == ISSUER) ? cert->issuer : cert->subject;
@@ -1463,14 +1461,12 @@ static int GetName(DecodedCert* cert, int nameType)
     if (GetSequence(cert->source, &cert->srcIdx, &length, cert->maxIdx) < 0)
         return ASN_PARSE_E;
 
-#ifndef NO_SHA
     InitSha(&sha);
     ShaUpdate(&sha, &cert->source[idx], length + cert->srcIdx - idx);
     if (nameType == ISSUER)
         ShaFinal(&sha, cert->issuerHash);
     else
         ShaFinal(&sha, cert->subjectHash);
-#endif
 
     length += cert->srcIdx;
     idx = 0;
