@@ -23,6 +23,8 @@
     #include <config.h>
 #endif
 
+#ifndef NO_RC4
+
 #include <cyassl/ctaocrypt/arc4.h>
 
 
@@ -170,3 +172,6 @@ static void Arc4CaviumProcess(Arc4* arc4, byte* out, const byte* in,
 }
 
 #endif /* HAVE_CAVIUM */
+
+#endif /* NO_ARC4 */
+
