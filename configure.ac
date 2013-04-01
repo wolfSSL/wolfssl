@@ -288,7 +288,7 @@ fi
 
 if test "$ENABLED_AESGCM" = "yes"
 then
-    AM_CFLAGS="$AM_CFLAGS -DHAVE_AESGCM -DCYASSL_SHA384 -DCYASSL_SHA512"
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_AESGCM"
 fi
 
 AM_CONDITIONAL([BUILD_AESGCM], [test "x$ENABLED_AESGCM" = "xyes"])
@@ -303,7 +303,7 @@ AC_ARG_ENABLE([aesccm],
 
 if test "$ENABLED_AESCCM" = "yes"
 then
-    AM_CFLAGS="$AM_CFLAGS -DHAVE_AESCCM -DCYASSL_SHA384 -DCYASSL_SHA512"
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_AESCCM"
 fi
 
 AM_CONDITIONAL([BUILD_AESCCM], [test "x$ENABLED_AESCCM" = "xyes"])
@@ -419,16 +419,6 @@ then
 fi
 
 if test "$ENABLED_FORTRESS" = "yes"
-then
-    ENABLED_SHA512="yes"
-fi
-
-if test "$ENABLED_AESGCM" = "yes"
-then
-    ENABLED_SHA512="yes"
-fi
-
-if test "$ENABLED_AESCCM" = "yes"
 then
     ENABLED_SHA512="yes"
 fi

@@ -171,7 +171,9 @@ void c32to24(word32 in, word24 out);
     #endif
     #if defined (HAVE_AESGCM)
         #define BUILD_TLS_RSA_WITH_AES_128_GCM_SHA256
-        #define BUILD_TLS_RSA_WITH_AES_256_GCM_SHA384
+        #if defined (CYASSL_SHA384)
+            #define BUILD_TLS_RSA_WITH_AES_256_GCM_SHA384
+        #endif
     #endif
     #if defined (HAVE_AESCCM)
         #define BUILD_TLS_RSA_WITH_AES_128_CCM_8
@@ -259,27 +261,29 @@ void c32to24(word32 in, word24 out);
         #define BUILD_TLS_DHE_RSA_WITH_AES_256_CBC_SHA256
         #if defined (HAVE_AESGCM)
             #define BUILD_TLS_DHE_RSA_WITH_AES_128_GCM_SHA256
-            #define BUILD_TLS_DHE_RSA_WITH_AES_256_GCM_SHA384
+            #if defined (CYASSL_SHA384)
+                #define BUILD_TLS_DHE_RSA_WITH_AES_256_GCM_SHA384
+            #endif
         #endif
     #endif
 #endif
 
 #if defined(HAVE_ECC) && !defined(NO_TLS)
     #if !defined(NO_AES)
-      #if !defined(NO_SHA)
-        #if !defined(NO_RSA)
-            #define BUILD_TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA
-            #define BUILD_TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA
-            #define BUILD_TLS_ECDH_RSA_WITH_AES_128_CBC_SHA
-            #define BUILD_TLS_ECDH_RSA_WITH_AES_256_CBC_SHA
-        #endif
-
-        #define BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA
-        #define BUILD_TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA
-
-        #define BUILD_TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA
-        #define BUILD_TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA
-
+        #if !defined(NO_SHA)
+            #if !defined(NO_RSA)
+                #define BUILD_TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA
+                #define BUILD_TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA
+                #define BUILD_TLS_ECDH_RSA_WITH_AES_128_CBC_SHA
+                #define BUILD_TLS_ECDH_RSA_WITH_AES_256_CBC_SHA
+            #endif
+    
+            #define BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA
+            #define BUILD_TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA
+    
+            #define BUILD_TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA
+            #define BUILD_TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA
+        #endif /* NO_SHA */
         #ifndef NO_SHA256
             #if !defined(NO_RSA)
                 #define BUILD_TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256
@@ -302,21 +306,25 @@ void c32to24(word32 in, word24 out);
             #if !defined(NO_RSA)
                 #define BUILD_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
                 #define BUILD_TLS_ECDH_RSA_WITH_AES_128_GCM_SHA256
-                #define BUILD_TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
-                #define BUILD_TLS_ECDH_RSA_WITH_AES_256_GCM_SHA384
+                #if defined(CYASSL_SHA384)
+                    #define BUILD_TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
+                    #define BUILD_TLS_ECDH_RSA_WITH_AES_256_GCM_SHA384
+                #endif
             #endif
 
             #define BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256
             #define BUILD_TLS_ECDH_ECDSA_WITH_AES_128_GCM_SHA256
-
-            #define BUILD_TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384
-            #define BUILD_TLS_ECDH_ECDSA_WITH_AES_256_GCM_SHA384
+            
+            #if defined(CYASS_SHA384)
+                #define BUILD_TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384
+                #define BUILD_TLS_ECDH_ECDSA_WITH_AES_256_GCM_SHA384
+            #endif
         #endif
         #if defined (HAVE_AESCCM)
             #define BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8
             #define BUILD_TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8
         #endif
-    #endif
+    #endif /* NO_AES */
     #if !defined(NO_RC4)
         #if !defined(NO_SHA)
             #if !defined(NO_RSA)
@@ -337,7 +345,6 @@ void c32to24(word32 in, word24 out);
         #define BUILD_TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA
         #define BUILD_TLS_ECDH_ECDSA_WITH_3DES_EDE_CBC_SHA
     #endif
-  #endif
 #endif
 
 
