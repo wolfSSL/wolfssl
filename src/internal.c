@@ -4154,6 +4154,9 @@ static int DoAlert(CYASSL* ssl, byte* input, word32* inOutIdx, int* type)
     ssl->alert_history.last_rx.code = code;
     ssl->alert_history.last_rx.level = level;
     *type = code;
+    if (level == alert_fatal) {
+        ssl->options.isClosed = 1;  /* Don't send close_notify */
+    }
 
     CYASSL_MSG("Got alert");
     if (*type == close_notify) {
@@ -5180,7 +5183,6 @@ int ReceiveData(CYASSL* ssl, byte* output, int sz, int peek)
             CYASSL_ERROR(ssl->error);
             if (ssl->error == ZERO_RETURN) {
                 CYASSL_MSG("Zero return, no more data coming");
-                ssl->options.isClosed = 1;  /* Don't send close_notify */
                 return 0;         /* no more data coming */
             }
             if (ssl->error == SOCKET_ERROR_E) {
@@ -5248,6 +5250,9 @@ int SendAlert(CYASSL* ssl, int severity, int type)
     input[1] = (byte)type;
     ssl->alert_history.last_tx.code = type;
     ssl->alert_history.last_tx.level = severity;
+    if (severity == alert_fatal) {
+        ssl->options.isClosed = 1;  /* Don't send close_notify */
+    }
 
     /* only send encrypted alert if handshake actually complete, otherwise
        other side may not be able to handle it */
