@@ -131,11 +131,6 @@ if BUILD_CRL
 src_libcyassl_la_SOURCES += src/crl.c
 endif
 
-if BUILD_CRL_MONITOR
-src_libcyassl_la_CFLAGS += $(PTHREAD_CFLAGS)
-src_libcyassl_la_LIBADD += $(PTHREAD_LIBS)
-endif
-
 if BUILD_LIBZ
 src_libcyassl_la_SOURCES += ctaocrypt/src/compress.c
 endif

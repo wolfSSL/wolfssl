@@ -13,8 +13,8 @@ tests_unit_SOURCES = \
                   tests/hash.c \
                   examples/client/client.c \
                   examples/server/server.c
-tests_unit_CFLAGS       = -DNO_MAIN_DRIVER $(AM_CFLAGS) $(PTHREAD_CFLAGS)
-tests_unit_LDADD        = src/libcyassl.la  $(PTHREAD_LIBS)
+tests_unit_CFLAGS       = -DNO_MAIN_DRIVER $(AM_CFLAGS)
+tests_unit_LDADD        = src/libcyassl.la
 tests_unit_DEPENDENCIES = src/libcyassl.la
 endif
 EXTRA_DIST += tests/unit.h

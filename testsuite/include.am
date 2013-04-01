@@ -13,8 +13,8 @@ testsuite_testsuite_SOURCES = \
 			      examples/echoserver/echoserver.c \
 			      examples/server/server.c \
 			      testsuite/testsuite.c
-testsuite_testsuite_CFLAGS       = -DNO_MAIN_DRIVER $(AM_CFLAGS) $(PTHREAD_CFLAGS)
-testsuite_testsuite_LDADD        = src/libcyassl.la $(PTHREAD_LIBS)
+testsuite_testsuite_CFLAGS       = -DNO_MAIN_DRIVER $(AM_CFLAGS)
+testsuite_testsuite_LDADD        = src/libcyassl.la
 testsuite_testsuite_DEPENDENCIES = src/libcyassl.la
 endif
 EXTRA_DIST += testsuite/testsuite.sln
