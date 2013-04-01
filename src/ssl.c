@@ -1511,6 +1511,47 @@ static int ProcessChainBuffer(CYASSL_CTX* ctx, const unsigned char* buff,
 }
 
 
+/* Verify the ceritficate, 1 for success, < 0 for error */
+int CyaSSL_CertManagerVerifyBuffer(CYASSL_CERT_MANAGER* cm, const byte* buff,
+                                   long sz, int format)
+{
+    int ret = 0;
+    int eccKey = 0;  /* not used */
+
+    DecodedCert cert;
+    buffer      der;
+
+    CYASSL_ENTER("CyaSSL_CertManagerVerifyBuffer");
+
+    der.buffer = NULL;
+    der.length = 0;
+
+    if (format == SSL_FILETYPE_PEM) { 
+        EncryptedInfo info;
+            
+        info.set      = 0;
+        info.ctx      = NULL;
+        info.consumed = 0;
+        ret = PemToDer(buff, sz, CERT_TYPE, &der, cm->heap, &info, &eccKey);
+        InitDecodedCert(&cert, der.buffer, der.length, cm->heap);
+    }
+    else
+        InitDecodedCert(&cert, (byte*)buff, (word32)sz, cm->heap);
+
+    if (ret == 0)
+        ret = ParseCertRelative(&cert, CERT_TYPE, 1, cm);
+#ifdef HAVE_CRL
+    if (ret == 0 && cm->crlEnabled)
+        ret = CheckCertCRL(cm->crl, &cert);
+#endif
+
+    FreeDecodedCert(&cert);
+    XFREE(der.buffer, cm->heap, DYNAMIC_TYPE_CERT);
+
+    return ret;
+}
+
+
 #ifndef NO_FILESYSTEM
 
 #if defined(EBSNET)
@@ -1702,47 +1743,6 @@ int CyaSSL_CTX_load_verify_locations(CYASSL_CTX* ctx, const char* file,
         closedir(dir);
     #endif
     }
-
-    return ret;
-}
-
-
-/* Verify the ceritficate, 1 for success, < 0 for error */
-int CyaSSL_CertManagerVerifyBuffer(CYASSL_CERT_MANAGER* cm, const byte* buff,
-                                   long sz, int format)
-{
-    int ret = 0;
-    int eccKey = 0;  /* not used */
-
-    DecodedCert cert;
-    buffer      der;
-
-    CYASSL_ENTER("CyaSSL_CertManagerVerifyBuffer");
-
-    der.buffer = NULL;
-    der.length = 0;
-
-    if (format == SSL_FILETYPE_PEM) { 
-        EncryptedInfo info;
-            
-        info.set      = 0;
-        info.ctx      = NULL;
-        info.consumed = 0;
-        ret = PemToDer(buff, sz, CERT_TYPE, &der, cm->heap, &info, &eccKey);
-        InitDecodedCert(&cert, der.buffer, der.length, cm->heap);
-    }
-    else
-        InitDecodedCert(&cert, (byte*)buff, (word32)sz, cm->heap);
-
-    if (ret == 0)
-        ret = ParseCertRelative(&cert, CERT_TYPE, 1, cm);
-#ifdef HAVE_CRL
-    if (ret == 0 && cm->crlEnabled)
-        ret = CheckCertCRL(cm->crl, &cert);
-#endif
-
-    FreeDecodedCert(&cert);
-    XFREE(der.buffer, cm->heap, DYNAMIC_TYPE_CERT);
 
     return ret;
 }
