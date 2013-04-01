@@ -120,7 +120,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     SSL*        ssl    = 0;
 
     char   msg[] = "I hear you fa shizzle!";
-    char   input[1024];
+    char   input[80];
     int    idx;
     int    ch;
     int    version = SERVER_DEFAULT_VERSION;

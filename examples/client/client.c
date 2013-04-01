@@ -127,8 +127,8 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
     char         resumeMsg[] = "resuming cyassl!";
     int          resumeSz    = sizeof(resumeMsg);
 
-    char msg[64] = "hello cyassl!";
-    char reply[1024];
+    char msg[32] = "hello cyassl!";   /* GET may make bigger */
+    char reply[80];
     int  input;
     int  msgSz = (int)strlen(msg);
 
