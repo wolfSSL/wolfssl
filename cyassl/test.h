@@ -62,11 +62,16 @@
 #endif
 
 
-/* HPUX doesn't use socklent_t for third parameter to accept */
+/* HPUX doesn't use socklent_t for third parameter to accept, unless
+   _XOPEN_SOURCE_EXTENDED is defined */
 #if !defined(__hpux__)
     typedef socklen_t* ACCEPT_THIRD_T;
 #else
-    typedef int*       ACCEPT_THIRD_T;
+    #if defined _XOPEN_SOURCE_EXTENDED
+        typedef socklen_t* ACCEPT_THIRD_T;
+    #else
+        typedef int*       ACCEPT_THIRD_T;
+    #endif
 #endif
 
 
@@ -330,7 +335,7 @@ static INLINE void build_addr(SOCKADDR_IN_T* addr,
     const char* host = peer;
 
     /* peer could be in human readable form */
-    if (peer != INADDR_ANY && isalpha(peer[0])) {
+    if (peer != INADDR_ANY && isalpha((int)peer[0])) {
         struct hostent* entry = gethostbyname(peer);
 
         if (entry) {
@@ -1137,7 +1142,29 @@ static INLINE void StackSizeCheck(func_args* args, thread_func tf)
 
 #endif /* HAVE_STACK_SIZE */
 
+#ifdef __hpux__
 
+/* HP/UX doesn't have strsep, needed by test/suites.c */
+static INLINE char* strsep(char **stringp, const char *delim)
+{
+    char* start;
+    char* end;
+
+    start = *stringp;
+    if (start == NULL)
+        return NULL;
+
+    if ((end = strpbrk(start, delim))) {
+        *end++ = '\0';
+        *stringp = end;
+    } else {
+        *stringp = NULL;
+    }
+
+    return start;
+}
+
+#endif /* __hpux__ */
 
 #endif /* CyaSSL_TEST_H */
 
