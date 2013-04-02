@@ -9098,7 +9098,7 @@ int SetCipherList(Suites* s, const char* list)
                         return BUFFER_ERROR;
                     if (i + b > totalSz)
                         return INCOMPLETE_DATA;
-                    if (ssl->ctx->CBIORecv == NULL) {
+                    if (ssl->ctx->CBIOCookie == NULL) {
                         CYASSL_MSG("Your Cookie callback is null, please set");
                         return COOKIE_ERROR;
                     }
@@ -9413,7 +9413,7 @@ int SetCipherList(Suites* s, const char* list)
         output[idx++] =  ssl->chVersion.minor;
 
         output[idx++] = cookieSz;
-        if (ssl->ctx->CBIORecv == NULL) {
+        if (ssl->ctx->CBIOCookie == NULL) {
             CYASSL_MSG("Your Cookie callback is null, please set");
             return COOKIE_ERROR;
         }
