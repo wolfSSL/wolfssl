@@ -58,6 +58,9 @@ enum {
     MD5     = 0,
 #endif
 #if defined(CYASSL_SHA512)
+    #ifndef CYASSL_SHA384
+        SHA384      = 5,
+    #endif
     INNER_HASH_SIZE = SHA512_DIGEST_SIZE,
     HMAC_BLOCK_SIZE = SHA512_BLOCK_SIZE
 #elif defined(CYASSL_SHA384)
