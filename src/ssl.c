@@ -134,6 +134,10 @@ CYASSL_CTX* CyaSSL_CTX_new(CYASSL_METHOD* method)
             ctx = NULL;
         }
     }
+    else {
+        CYASSL_MSG("Alloc CTX failed, method freed");
+        XFREE(method, NULL, DYNAMIC_TYPE_METHOD);
+    }
 
     CYASSL_LEAVE("CYASSL_CTX_new", 0);
     return ctx;
@@ -5491,13 +5495,6 @@ int CyaSSL_set_compression(CYASSL* ssl)
     }
 
 
-    int CyaSSL_get_shutdown(const CYASSL* ssl)
-    {
-        (void)ssl;
-        return 0;
-    }
-
-
     int CyaSSL_set_session_id_context(CYASSL* ssl, const unsigned char* id,
                                    unsigned int len)
     {
@@ -5514,6 +5511,14 @@ int CyaSSL_set_compression(CYASSL* ssl)
         /* client by default */ 
     }
 #endif
+
+    int CyaSSL_get_shutdown(const CYASSL* ssl)
+    {
+        return (ssl->options.isClosed  ||
+                ssl->options.connReset ||
+                ssl->options.sentNotify);
+    }
+
 
     int CyaSSL_session_reused(CYASSL* ssl)
     {
