@@ -25,11 +25,15 @@
 #ifndef CTAO_CRYPT_HMAC_H
 #define CTAO_CRYPT_HMAC_H
 
+#include <cyassl/ctaocrypt/types.h>
+
 #ifndef NO_MD5
     #include <cyassl/ctaocrypt/md5.h>
 #endif
 
-#include <cyassl/ctaocrypt/sha.h>
+#ifndef NO_SHA
+    #include <cyassl/ctaocrypt/sha.h>
+#endif
 
 #ifndef NO_SHA256
     #include <cyassl/ctaocrypt/sha256.h>
@@ -54,13 +58,26 @@
 enum {
     IPAD    = 0x36,
     OPAD    = 0x5C,
+
+/* If any hash is not enabled, add the ID here. */
 #ifdef NO_MD5
     MD5     = 0,
 #endif
+#ifdef NO_SHA
+    SHA     = 1,
+#endif
+#ifdef NO_SHA256
+    SHA256  = 2,
+#endif
+#ifndef CYASSL_SHA512
+    SHA512  = 4,
+#endif
+#ifndef CYASSL_SHA384
+    SHA384  = 5,
+#endif
+
+/* Select the largest available hash for the buffer size. */
 #if defined(CYASSL_SHA512)
-    #ifndef CYASSL_SHA384
-        SHA384      = 5,
-    #endif
     INNER_HASH_SIZE = SHA512_DIGEST_SIZE,
     HMAC_BLOCK_SIZE = SHA512_BLOCK_SIZE
 #elif defined(CYASSL_SHA384)
@@ -68,15 +85,15 @@ enum {
     HMAC_BLOCK_SIZE = SHA384_BLOCK_SIZE
 #elif !defined(NO_SHA256)
     INNER_HASH_SIZE = SHA256_DIGEST_SIZE,
-    HMAC_BLOCK_SIZE = SHA256_BLOCK_SIZE,
-    SHA512          = 4,
-    SHA384          = 5
-#else
+    HMAC_BLOCK_SIZE = SHA256_BLOCK_SIZE
+#elif !defined(NO_SHA)
     INNER_HASH_SIZE = SHA_DIGEST_SIZE,
-    HMAC_BLOCK_SIZE = SHA_BLOCK_SIZE,
-    SHA256          = 2,                     /* hash type unique */
-    SHA512          = 4,
-    SHA384          = 5
+    HMAC_BLOCK_SIZE = SHA_BLOCK_SIZE
+#elif !defined(NO_MD5)
+    INNER_HASH_SIZE = MD5_DIGEST_SIZE,
+    HMAC_BLOCK_SIZE = MD5_BLOCK_SIZE
+#else
+    #error "You have to have some kind of hash if you want to use HMAC."
 #endif
 };
 
