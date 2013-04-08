@@ -111,6 +111,9 @@ static void Usage(void)
     printf("-m          Match domain name in cert\n");
     printf("-N          Use Non-blocking sockets\n");
     printf("-r          Resume session\n");
+#ifdef SHOW_SIZES
+    printf("-z          Print structure sizes\n");
+#endif
 }
 
 
@@ -167,7 +170,7 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
     (void)sslResume;
     (void)trackMemory;
 
-    while ((ch = mygetopt(argc, argv, "?gdusmNrth:p:v:l:A:c:k:b:")) != -1) {
+    while ((ch = mygetopt(argc, argv, "?gdusmNrth:p:v:l:A:c:k:b:z")) != -1) {
         switch (ch) {
             case '?' :
                 Usage();
@@ -250,6 +253,12 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
 
             case 'r' :
                 resumeSession = 1;
+                break;
+
+            case 'z' :
+                #ifndef CYASSL_LEANPSK
+                    CyaSSL_GetObjectSize();
+                #endif
                 break;
 
             default:

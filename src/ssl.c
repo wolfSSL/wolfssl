@@ -306,22 +306,47 @@ int CyaSSL_GetObjectSize(void)
 #ifdef SHOW_SIZES
     printf("sizeof suites           = %lu\n", sizeof(Suites));
     printf("sizeof ciphers(2)       = %lu\n", sizeof(Ciphers));
-    printf("\tsizeof arc4           = %lu\n", sizeof(Arc4));
-    printf("\tsizeof aes            = %lu\n", sizeof(Aes));
-    printf("\tsizeof des3           = %lu\n", sizeof(Des3));
-    printf("\tsizeof rabbit         = %lu\n", sizeof(Rabbit));
+#ifndef NO_RC4
+    printf("    sizeof arc4         = %lu\n", sizeof(Arc4));
+#endif
+    printf("    sizeof aes          = %lu\n", sizeof(Aes));
+#ifndef NO_DES3
+    printf("    sizeof des3         = %lu\n", sizeof(Des3));
+#endif
+#ifndef NO_RABBIT
+    printf("    sizeof rabbit       = %lu\n", sizeof(Rabbit));
+#endif
     printf("sizeof cipher specs     = %lu\n", sizeof(CipherSpecs));
     printf("sizeof keys             = %lu\n", sizeof(Keys));
-    printf("sizeof MD5              = %lu\n", sizeof(Md5));
-    printf("sizeof SHA              = %lu\n", sizeof(Sha));
-    printf("sizeof SHA256           = %lu\n", sizeof(Sha256));
     printf("sizeof Hashes(2)        = %lu\n", sizeof(Hashes));
+#ifndef NO_MD5
+    printf("    sizeof MD5          = %lu\n", sizeof(Md5));
+#endif
+#ifndef NO_SHA
+    printf("    sizeof SHA          = %lu\n", sizeof(Sha));
+#endif
+#ifndef NO_SHA256
+    printf("    sizeof SHA256       = %lu\n", sizeof(Sha256));
+#endif
+#ifdef CYASSL_SHA384
+    printf("    sizeof SHA384       = %lu\n", sizeof(Sha384));
+#endif
+#ifdef CYASSL_SHA384
+    printf("    sizeof SHA512       = %lu\n", sizeof(Sha512));
+#endif
     printf("sizeof Buffers          = %lu\n", sizeof(Buffers));
     printf("sizeof Options          = %lu\n", sizeof(Options));
     printf("sizeof Arrays           = %lu\n", sizeof(Arrays));
-    printf("sizeof Session          = %lu\n", sizeof(CYASSL_SESSION));
-    printf("sizeof peerKey          = %lu\n", sizeof(RsaKey));
+#ifndef NO_RSA
+    printf("sizeof RsaKey           = %lu\n", sizeof(RsaKey));
+#endif
+#ifdef HAVE_ECC
+    printf("sizeof ecc_key          = %lu\n", sizeof(ecc_key));
+#endif
     printf("sizeof CYASSL_CIPHER    = %lu\n", sizeof(CYASSL_CIPHER));
+    printf("sizeof CYASSL_SESSION   = %lu\n", sizeof(CYASSL_SESSION));
+    printf("sizeof CYASSL           = %lu\n", sizeof(CYASSL));
+    printf("sizeof CYASSL_CTX       = %lu\n", sizeof(CYASSL_CTX));
 #endif
 
     return sizeof(CYASSL);
