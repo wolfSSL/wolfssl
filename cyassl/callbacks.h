@@ -1,4 +1,4 @@
-/* cyassl_callbacks.h
+/* callbacks.h
  *
  * Copyright (C) 2013 wolfSSL Inc.
  *
@@ -76,5 +76,5 @@ typedef struct timeoutInfo_st {
 #endif
 
 
-#endif /* CyaSSL_CALLBACKS_H */
+#endif /* CYASSL_CALLBACKS_H */
 

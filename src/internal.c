@@ -60,6 +60,11 @@
     #error OPENSSL_EXTRA needs DH, please remove NO_DH
 #endif
 
+#if defined(CYASSL_CALLBACKS) && !defined(LARGE_STATIC_BUFFERS)
+    #error \
+CYASSL_CALLBACKS needs LARGE_STATIC_BUFFERS, please add LARGE_STATIC_BUFFERS
+#endif
+
 
 #ifndef NO_CYASSL_CLIENT
     static int DoHelloVerifyRequest(CYASSL* ssl, const byte* input, word32*);
@@ -6424,6 +6429,7 @@ int SetCipherList(Suites* s, const char* list)
     void FreeTimeoutInfo(TimeoutInfo* info, void* heap)
     {
         int i;
+        (void)heap;
         for (i = 0; i < MAX_PACKETS_HANDSHAKE; i++)
             if (info->packets[i].bufferValue) {
                 XFREE(info->packets[i].bufferValue, heap, DYNAMIC_TYPE_INFO);

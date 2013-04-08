@@ -57,7 +57,7 @@
 #endif
 
 #ifdef CYASSL_CALLBACKS
-    #include <cyassl/openssl/cyassl_callbacks.h>
+    #include <cyassl/callbacks.h>
     #include <signal.h>
 #endif
 

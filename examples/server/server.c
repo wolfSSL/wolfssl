@@ -481,14 +481,14 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 
     int srvHandShakeCB(HandShakeInfo* info)
     {
-
+        (void)info;
         return 0;
     }
 
 
     int srvTimeoutCB(TimeoutInfo* info)
     {
-
+        (void)info;
         return 0;
     }
 

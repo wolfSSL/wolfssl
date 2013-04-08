@@ -646,14 +646,14 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
 
     int handShakeCB(HandShakeInfo* info)
     {
-
+        (void)info;
         return 0;
     }
 
 
     int timeoutCB(TimeoutInfo* info)
     {
-
+        (void)info;
         return 0;
     }
 
