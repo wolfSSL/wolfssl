@@ -6673,8 +6673,10 @@ int CyaSSL_set_compression(CYASSL* ssl)
         *outSz = (int)x509->derCert.length;
         return x509->derCert.buffer;
     }  
+#endif /* OPENSSL_EXTRA */
 
 
+#ifdef KEEP_PEER_CERT
     char*  CyaSSL_X509_get_subjectCN(CYASSL_X509* x509)
     {
         if (x509 == NULL)
@@ -6682,7 +6684,9 @@ int CyaSSL_set_compression(CYASSL* ssl)
 
         return x509->subjectCN;
     }
+#endif /* KEEP_PEER_CERT */
 
+#ifdef OPENSSL_EXTRA
 
 #ifdef FORTRESS
     int CyaSSL_cmp_peer_cert_to_file(CYASSL* ssl, const char *fname)
