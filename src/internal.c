@@ -96,7 +96,7 @@ typedef enum {
 } processReply;
 
 #ifndef NO_OLD_TLS
-static void Hmac(CYASSL* ssl, byte* digest, const byte* buffer, word32 sz,
+static void Hmac(CYASSL* ssl, byte* digest, const byte* in, word32 sz,
                  int content, int verify);
 
 #endif
