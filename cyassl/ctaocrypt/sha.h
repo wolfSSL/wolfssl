@@ -20,6 +20,8 @@
  */
 
 
+#ifndef NO_SHA
+
 #ifndef CTAO_CRYPT_SHA_H
 #define CTAO_CRYPT_SHA_H
 
@@ -62,4 +64,5 @@ CYASSL_API void ShaFinal(Sha*, byte*);
 #endif
 
 #endif /* CTAO_CRYPT_SHA_H */
+#endif /* NO_SHA */
 

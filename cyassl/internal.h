@@ -108,6 +108,10 @@
     #endif
 #endif
 
+#ifdef NO_SHA
+    #define SHA_DIGEST_SIZE 20 
+#endif
+
 #ifdef NO_SHA256
     #define SHA256_DIGEST_SIZE 32 
 #endif
