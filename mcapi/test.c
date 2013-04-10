@@ -27,6 +27,8 @@
 /* mc api header */
 #include "crypto.h"
 
+#include <cyassl/ctaocrypt/settings.h>
+
 /* sanity test against our default implementation, cyassl headers  */
 #include <cyassl/ctaocrypt/md5.h>
 #include <cyassl/ctaocrypt/sha.h>

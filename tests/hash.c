@@ -23,6 +23,8 @@
     #include <config.h>
 #endif
 
+#include <cyassl/ctaocrypt/settings.h>
+
 #include <stdio.h>
 
 #include <cyassl/ctaocrypt/md4.h>

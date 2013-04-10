@@ -25,6 +25,8 @@
     #include <config.h>
 #endif
 
+#include <cyassl/ctaocrypt/settings.h>
+
 #include <string.h>
 #include <stdio.h>
 

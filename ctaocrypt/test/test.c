@@ -23,6 +23,8 @@
     #include <config.h>
 #endif
 
+#include <cyassl/ctaocrypt/settings.h>
+
 #ifdef CYASSL_TEST_CERT
     #include <cyassl/ctaocrypt/asn.h>
 #else

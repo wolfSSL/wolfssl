@@ -23,6 +23,8 @@
     #include <config.h>
 #endif
 
+#include <cyassl/ctaocrypt/settings.h>
+
 #ifndef _WIN32
     #define HAVE_CONFIG_H
 #endif

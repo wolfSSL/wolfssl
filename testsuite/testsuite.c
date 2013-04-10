@@ -23,6 +23,8 @@
     #include <config.h>
 #endif
 
+#include <cyassl/ctaocrypt/settings.h>
+
 #include <cyassl/openssl/ssl.h>
 #include <cyassl/test.h>
 #include <cyassl/ctaocrypt/sha256.h>

@@ -23,6 +23,8 @@
     #include <config.h>
 #endif
 
+#include <cyassl/ctaocrypt/settings.h>
+
 #if !defined(CYASSL_TRACK_MEMORY) && !defined(NO_MAIN_DRIVER)
     /* in case memory tracker wants stats */
     #define CYASSL_TRACK_MEMORY

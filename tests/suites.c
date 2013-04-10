@@ -23,6 +23,8 @@
     #include <config.h>
 #endif
 
+#include <cyassl/ctaocrypt/settings.h>
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>

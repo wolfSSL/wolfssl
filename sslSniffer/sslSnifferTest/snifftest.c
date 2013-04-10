@@ -23,6 +23,8 @@
     #include <config.h>
 #endif
 
+#include <cyassl/ctaocrypt/settings.h>
+
 #ifdef _WIN32
     #define CYASSL_SNIFFER
 #endif

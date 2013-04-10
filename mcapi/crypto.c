@@ -26,6 +26,8 @@
 
 #include "crypto.h"
 
+#include <cyassl/ctaocrypt/settings.h>
+
 #include <cyassl/ctaocrypt/md5.h>
 #include <cyassl/ctaocrypt/sha.h>
 #include <cyassl/ctaocrypt/sha256.h>
