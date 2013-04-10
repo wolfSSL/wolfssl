@@ -2064,6 +2064,15 @@ ProtocolVersion MakeDTLSv1_2(void)
         return (word32)clk;
     }
 
+
+#elif defined(MICROCHIP_TCPIP)
+
+    word32 LowResTimer(void)
+    {
+        return (word32) TickGet();
+    }
+
+
 #elif defined(USER_TICKS)
 #if 0
     word32 LowResTimer(void)

@@ -45,6 +45,9 @@
 /* Uncomment next line if using Microchip PIC32 ethernet starter kit */
 /* #define MICROCHIP_PIC32 */
 
+/* Uncomment next line if using Microchip TCP/IP stack, for time features */
+/* #define MICROCHIP_TCPIP */
+
 /* Uncomment next line if using FreeRTOS */
 /* #define FREERTOS */
 
@@ -83,12 +86,17 @@
 #ifdef MICROCHIP_PIC32
     #define SIZEOF_LONG_LONG 8
     #define SINGLE_THREADED
-    #define CYASSL_USER_IO
     #define NO_WRITEV
     #define NO_DEV_RANDOM
     #define NO_FILESYSTEM
     #define USE_FAST_MATH
     #define TFM_TIMING_RESISTANT
+#endif
+
+#ifdef MICROCHIP_TCPIP
+    /* includes timer functions */
+    #include "TCPIP Stack/TCPIP.h"
+    #define CYASSL_USER_IO
 #endif
 
 #ifdef MBED

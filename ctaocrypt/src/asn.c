@@ -91,6 +91,11 @@
     #endif
     #define NO_TIME_H
     /* since Micrium not defining XTIME or XGMTIME, CERT_GEN not available */
+#elif defined(MICROCHIP_TCPIP)
+    #include <time.h>
+    #define XTIME(t1) pic32_time((t1))
+    #define XGMTIME(c) gmtime((c))
+    #define XVALIDATE_DATE(d, f, t) ValidateDate((d), (f), (t))
 #elif defined(USER_TIME)
     /* user time, and gmtime compatible functions, there is a gmtime 
        implementation here that WINCE uses, so really just need some ticks
@@ -235,6 +240,29 @@ struct tm* my_gmtime(const time_t* timer)       /* has a gmtime() but hangs */
 }
 
 #endif /* THREADX */
+
+
+#ifdef MICROCHIP_TCPIP
+
+/*
+ * time() is just a stub in Microchip libraries. We need our own
+ * implementation. Use SNTP client to get seconds since epoch.
+ */
+time_t pic32_time(time_t* timer)
+{
+    DWORD sec = 0;
+    time_t localTime;
+
+    if (timer == NULL)
+        timer = &localTime;
+
+    sec = SNTPGetUTCSeconds();
+    *timer = (time_t) sec;
+
+    return *timer;
+}
+
+#endif /* MICROCHIP_TCPIP */
 
 
 static INLINE word32 btoi(byte b)
