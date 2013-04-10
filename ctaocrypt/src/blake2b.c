@@ -36,6 +36,8 @@
     #include <config.h>
 #endif
 
+#include <cyassl/ctaocrypt/settings.h>
+
 #ifdef HAVE_BLAKE2
 
 #include <cyassl/ctaocrypt/blake2.h>

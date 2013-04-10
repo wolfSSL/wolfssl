@@ -23,6 +23,8 @@
     #include <config.h>
 #endif
 
+#include <cyassl/ctaocrypt/settings.h>
+
 #ifdef _WIN32_WCE
     /* On WinCE winsock2.h must be included before windows.h for socket stuff */
     #include <winsock2.h>

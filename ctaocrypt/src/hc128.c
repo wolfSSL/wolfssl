@@ -23,6 +23,8 @@
     #include <config.h>
 #endif
 
+#include <cyassl/ctaocrypt/settings.h>
+
 #ifdef HAVE_HC128
 
 #include <cyassl/ctaocrypt/hc128.h>

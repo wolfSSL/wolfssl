@@ -23,10 +23,9 @@
     #include <config.h>
 #endif
 
-/* submitted by eof */
-
-
 #include <cyassl/ctaocrypt/settings.h>
+
+/* submitted by eof */
 
 #ifdef USE_CYASSL_MEMORY
 

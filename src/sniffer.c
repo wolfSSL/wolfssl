@@ -20,11 +20,14 @@
  */
 
 
-#ifdef CYASSL_SNIFFER
 
 #ifdef HAVE_CONFIG_H
     #include <config.h>
 #endif
+
+#include <cyassl/ctaocrypt/settings.h>
+
+#ifdef CYASSL_SNIFFER
 
 #include <assert.h>
 #include <time.h>

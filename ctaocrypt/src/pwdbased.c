@@ -23,6 +23,8 @@
     #include <config.h>
 #endif
 
+#include <cyassl/ctaocrypt/settings.h>
+
 #ifndef NO_PWDBASED
 
 #include <cyassl/ctaocrypt/pwdbased.h>

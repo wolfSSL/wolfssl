@@ -24,6 +24,8 @@
     #include <config.h>
 #endif
 
+#include <cyassl/ctaocrypt/settings.h>
+
 #ifdef CYASSL_MD2
 
 #include <cyassl/ctaocrypt/md2.h>

@@ -24,6 +24,8 @@
     #include <config.h>
 #endif
 
+#include <cyassl/ctaocrypt/settings.h>
+
 #ifndef NO_RSA
 
 #include <cyassl/ctaocrypt/rsa.h>

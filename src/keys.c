@@ -24,6 +24,8 @@
     #include <config.h>
 #endif
 
+#include <cyassl/ctaocrypt/settings.h>
+
 #include <cyassl/internal.h>
 #include <cyassl/error.h>
 #ifdef SHOW_SECRETS

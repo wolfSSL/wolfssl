@@ -56,6 +56,8 @@
     #include <config.h>
 #endif
 
+#include <cyassl/ctaocrypt/settings.h>
+
 #ifdef HAVE_CAMELLIA
 
 #include <cyassl/ctaocrypt/camellia.h>

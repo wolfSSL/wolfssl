@@ -23,6 +23,8 @@
     #include <config.h>
 #endif
 
+#include <cyassl/ctaocrypt/settings.h>
+
 #ifndef NO_RABBIT
 
 #include <cyassl/ctaocrypt/rabbit.h>

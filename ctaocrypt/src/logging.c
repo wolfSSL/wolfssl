@@ -23,9 +23,10 @@
     #include <config.h>
 #endif
 
+#include <cyassl/ctaocrypt/settings.h>
+
 /* submitted by eof */
 
-#include <cyassl/ctaocrypt/settings.h>
 #include <cyassl/ctaocrypt/logging.h>
 #include <cyassl/ctaocrypt/error.h>
 

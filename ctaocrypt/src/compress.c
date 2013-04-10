@@ -24,6 +24,7 @@
     #include <config.h>
 #endif
 
+#include <cyassl/ctaocrypt/settings.h>
 
 #ifdef HAVE_LIBZ
 

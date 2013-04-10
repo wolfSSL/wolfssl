@@ -23,6 +23,8 @@
     #include <config.h>
 #endif
 
+#include <cyassl/ctaocrypt/settings.h>
+
 #ifndef NO_HMAC
 
 #include <cyassl/ctaocrypt/hmac.h>

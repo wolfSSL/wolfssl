@@ -26,6 +26,8 @@
     #include <config.h>
 #endif
 
+#include <cyassl/ctaocrypt/settings.h>
+
 #ifndef NO_SHA256
 
 #include <cyassl/ctaocrypt/sha256.h>

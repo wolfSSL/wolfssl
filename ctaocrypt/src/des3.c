@@ -23,6 +23,8 @@
     #include <config.h>
 #endif
 
+#include <cyassl/ctaocrypt/settings.h>
+
 #ifndef NO_DES3
 
 #include <cyassl/ctaocrypt/des3.h>

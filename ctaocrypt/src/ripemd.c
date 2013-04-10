@@ -24,6 +24,8 @@
     #include <config.h>
 #endif
 
+#include <cyassl/ctaocrypt/settings.h>
+
 #ifdef CYASSL_RIPEMD
 
 #include <cyassl/ctaocrypt/ripemd.h>

@@ -23,6 +23,8 @@
     #include <config.h>
 #endif
  
+#include <cyassl/ctaocrypt/settings.h>
+
 #include <cyassl/ctaocrypt/error.h>
 
 #ifdef _MSC_VER

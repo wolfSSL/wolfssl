@@ -23,6 +23,8 @@
     #include <config.h>
 #endif
 
+#include <cyassl/ctaocrypt/settings.h>
+
 #include <cyassl/ctaocrypt/misc.h>
 
 /* inlining these functions is a huge speed increase and a small size decrease, 
