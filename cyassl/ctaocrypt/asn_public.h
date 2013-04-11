@@ -40,7 +40,8 @@ enum CertType {
     PRIVATEKEY_TYPE,
     DH_PARAM_TYPE,
     CRL_TYPE,
-    CA_TYPE
+    CA_TYPE,
+    ECC_PRIVATEKEY_TYPE
 };
 
 
