@@ -163,7 +163,11 @@ void start_thread(THREAD_FUNC, func_args*, THREAD_TYPE*);
 void join_thread(THREAD_TYPE);
 
 /* yaSSL */
-static const char* const yasslIP   = "127.0.0.1";
+#ifndef TEST_IPV6
+    static const char* const yasslIP   = "127.0.0.1";
+#else
+    static const char* const yasslIP   = "::1";
+#endif
 static const word16      yasslPort = 11111;
 
 
@@ -331,39 +335,50 @@ static INLINE void showPeer(CYASSL* ssl)
 static INLINE void build_addr(SOCKADDR_IN_T* addr,
                                 const char* peer, word16 port)
 {
-#ifndef TEST_IPV6
-    const char* host = peer;
+    int useLookup = 0;
+    (void)useLookup;
 
+    memset(addr, 0, sizeof(SOCKADDR_IN_T));
+
+#ifndef TEST_IPV6
     /* peer could be in human readable form */
     if (peer != INADDR_ANY && isalpha((int)peer[0])) {
         struct hostent* entry = gethostbyname(peer);
 
         if (entry) {
-            struct sockaddr_in tmp;
-            memset(&tmp, 0, sizeof(struct sockaddr_in));
-            memcpy(&tmp.sin_addr.s_addr, entry->h_addr_list[0],
+            memcpy(&addr->sin_addr.s_addr, entry->h_addr_list[0],
                    entry->h_length);
-            host = inet_ntoa(tmp.sin_addr);
+            useLookup = 1;
         }
         else
             err_sys("no entry for host");
     }
 #endif
 
-    memset(addr, 0, sizeof(SOCKADDR_IN_T));
 
 #ifndef TEST_IPV6
     addr->sin_family = AF_INET_V;
     addr->sin_port = htons(port);
-    if (host == INADDR_ANY)
+    if (peer == INADDR_ANY)
         addr->sin_addr.s_addr = INADDR_ANY;
-    else
-        addr->sin_addr.s_addr = inet_addr(host);
+    else {
+        if (!useLookup)
+            addr->sin_addr.s_addr = inet_addr(peer);
+    }
 #else
-    (void)peer;
     addr->sin6_family = AF_INET_V;
     addr->sin6_port = htons(port);
-    addr->sin6_addr = in6addr_loopback;
+    if (peer == INADDR_ANY)
+        addr->sin6_addr = in6addr_any;
+    else {
+        #ifdef HAVE_INET_PTON
+            if (inet_pton(AF_INET_V, peer, &addr->sin6_addr) != 1)
+                err_sys("ipv6 lookup failed");
+        #else
+            printf("no ipv6 inet_pton, loopback only tests/examples\n");
+            addr->sin6_addr = in6addr_loopback;
+        #endif
+    }
 #endif
 }
 
