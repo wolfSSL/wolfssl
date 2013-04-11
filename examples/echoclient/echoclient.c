@@ -135,7 +135,7 @@ void echoclient_test(void* args)
 
     if (doDTLS) {
         SOCKADDR_IN_T addr;
-        build_addr(&addr, yasslIP, port);
+        build_addr(&addr, yasslIP, port, 1);
         CyaSSL_dtls_set_peer(ssl, &addr, sizeof(addr));
         tcp_socket(&sockfd, 1);
     }

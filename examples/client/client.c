@@ -439,7 +439,7 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
         err_sys("unable to get SSL object");
     if (doDTLS) {
         SOCKADDR_IN_T addr;
-        build_addr(&addr, host, port);
+        build_addr(&addr, host, port, 1);
         CyaSSL_dtls_set_peer(ssl, &addr, sizeof(addr));
         tcp_socket(&sockfd, 1);
     }
@@ -538,7 +538,7 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
             #else
                 sleep(1);
             #endif
-            build_addr(&addr, host, port);
+            build_addr(&addr, host, port, 1);
             CyaSSL_dtls_set_peer(sslResume, &addr, sizeof(addr));
             tcp_socket(&sockfd, 1);
         }
