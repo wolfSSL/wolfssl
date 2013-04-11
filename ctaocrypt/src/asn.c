@@ -2800,10 +2800,19 @@ int DerToPem(const byte* der, word32 derSz, byte* output, word32 outSz,
     if (type == CERT_TYPE) {
         XSTRNCPY(header, "-----BEGIN CERTIFICATE-----\n", sizeof(header));
         XSTRNCPY(footer, "-----END CERTIFICATE-----\n", sizeof(footer));
-    } else {
+    }
+    else if (type == PRIVATEKEY_TYPE) {
         XSTRNCPY(header, "-----BEGIN RSA PRIVATE KEY-----\n", sizeof(header));
         XSTRNCPY(footer, "-----END RSA PRIVATE KEY-----\n", sizeof(footer));
     }
+    #ifdef HAVE_ECC
+    else if (type == ECC_PRIVATEKEY_TYPE) {
+        XSTRNCPY(header, "-----BEGIN EC PRIVATE KEY-----\n", sizeof(header));
+        XSTRNCPY(footer, "-----END EC PRIVATE KEY-----\n", sizeof(footer));
+    }
+    #endif
+    else
+        return BAD_FUNC_ARG;
 
     headerLen = (int)XSTRLEN(header);
     footerLen = (int)XSTRLEN(footer);
