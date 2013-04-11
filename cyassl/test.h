@@ -18,6 +18,7 @@
         #include <wspiapi.h>
     #endif
     #define SOCKET_T unsigned int
+    #define SNPRINTF _snprintf
 #else
     #include <string.h>
     #include <sys/types.h>
@@ -40,6 +41,7 @@
     #ifndef SO_NOSIGPIPE
         #include <signal.h>  /* ignore SIGPIPE */
     #endif
+    #define SNPRINTF snprintf
 #endif /* USE_WINDOWS_API */
 
 #ifdef HAVE_CAVIUM
@@ -384,7 +386,7 @@ static INLINE void build_addr(SOCKADDR_IN_T* addr, const char* peer,
             hints.ai_socktype = udp ? SOCK_DGRAM : SOCK_STREAM;
             hints.ai_protocol = udp ? IPPROTO_UDP : IPPROTO_TCP;
 
-            snprintf(strPort, sizeof(strPort), "%d", port);
+            SNPRINTF(strPort, sizeof(strPort), "%d", port);
             strPort[79] = '\0';
 
             ret = getaddrinfo(peer, strPort, &hints, &answer);
