@@ -487,11 +487,15 @@ static INLINE void tcp_listen(SOCKET_T* sockfd, int* port, int useAnyAddr,
             err_sys("tcp listen failed");
     }
     #if defined(NO_MAIN_DRIVER) && !defined(USE_WINDOWS_API)
-        if (*port == 0)
-        {
+        if (*port == 0) {
             socklen_t len = sizeof(addr);
-            if (getsockname(*sockfd, (struct sockaddr*)&addr, &len) == 0)
-                *port = ntohs(addr.sin_port);
+            if (getsockname(*sockfd, (struct sockaddr*)&addr, &len) == 0) {
+                #ifndef TEST_IPV6
+                    *port = ntohs(addr.sin_port);
+                #else
+                    *port = ntohs(addr.sin6_port);
+                #endif
+            }
         }
     #endif
 }
@@ -541,11 +545,15 @@ static INLINE void udp_accept(SOCKET_T* sockfd, int* clientfd, int useAnyAddr,
         err_sys("tcp bind failed");
 
     #if defined(NO_MAIN_DRIVER) && !defined(USE_WINDOWS_API)
-        if (port == 0)
-        {
+        if (port == 0) {
             socklen_t len = sizeof(addr);
-            if (getsockname(*sockfd, (struct sockaddr*)&addr, &len) == 0)
-                port = ntohs(addr.sin_port);
+            if (getsockname(*sockfd, (struct sockaddr*)&addr, &len) == 0) {
+                #ifndef TEST_IPV6
+                    port = ntohs(addr.sin_port);
+                #else
+                    port = ntohs(addr.sin6_port);
+                #endif
+            }
         }
     #endif
 
