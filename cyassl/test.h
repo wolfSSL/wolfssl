@@ -332,11 +332,12 @@ static INLINE void showPeer(CYASSL* ssl)
 }
 
 
-static INLINE void build_addr(SOCKADDR_IN_T* addr,
-                                const char* peer, word16 port)
+static INLINE void build_addr(SOCKADDR_IN_T* addr, const char* peer,
+                              word16 port, int udp)
 {
     int useLookup = 0;
     (void)useLookup;
+    (void)udp;
 
     memset(addr, 0, sizeof(SOCKADDR_IN_T));
 
@@ -371,11 +372,29 @@ static INLINE void build_addr(SOCKADDR_IN_T* addr,
     if (peer == INADDR_ANY)
         addr->sin6_addr = in6addr_any;
     else {
-        #ifdef HAVE_INET_PTON
-            if (inet_pton(AF_INET_V, peer, &addr->sin6_addr) != 1)
-                err_sys("ipv6 lookup failed");
+        #ifdef HAVE_GETADDRINFO
+            struct addrinfo  hints;
+            struct addrinfo* answer = NULL;
+            int    ret;
+            char   strPort[80];
+
+            memset(&hints, 0, sizeof(hints));
+
+            hints.ai_family   = AF_INET_V;
+            hints.ai_socktype = udp ? SOCK_DGRAM : SOCK_STREAM;
+            hints.ai_protocol = udp ? IPPROTO_UDP : IPPROTO_TCP;
+
+            snprintf(strPort, sizeof(strPort), "%d", port);
+            strPort[79] = '\0';
+
+            ret = getaddrinfo(peer, strPort, &hints, &answer);
+            if (ret < 0 || answer == NULL)
+                err_sys("getaddrinfo failed");
+
+            memcpy(addr, answer->ai_addr, answer->ai_addrlen);
+            freeaddrinfo(answer);
         #else
-            printf("no ipv6 inet_pton, loopback only tests/examples\n");
+            printf("no ipv6 getaddrinfo, loopback only tests/examples\n");
             addr->sin6_addr = in6addr_loopback;
         #endif
     }
@@ -424,7 +443,7 @@ static INLINE void tcp_connect(SOCKET_T* sockfd, const char* ip, word16 port,
                                int udp)
 {
     SOCKADDR_IN_T addr;
-    build_addr(&addr, ip, port);
+    build_addr(&addr, ip, port, udp);
     tcp_socket(sockfd, udp);
 
     if (!udp) {
@@ -482,7 +501,7 @@ static INLINE void tcp_listen(SOCKET_T* sockfd, int* port, int useAnyAddr,
 
     /* don't use INADDR_ANY by default, firewall may block, make user switch
        on */
-    build_addr(&addr, (useAnyAddr ? INADDR_ANY : yasslIP), *port);
+    build_addr(&addr, (useAnyAddr ? INADDR_ANY : yasslIP), *port, udp);
     tcp_socket(sockfd, udp);
 
 #ifndef USE_WINDOWS_API 
@@ -542,7 +561,7 @@ static INLINE void udp_accept(SOCKET_T* sockfd, int* clientfd, int useAnyAddr,
     SOCKADDR_IN_T addr;
 
     (void)args;
-    build_addr(&addr, (useAnyAddr ? INADDR_ANY : yasslIP), port);
+    build_addr(&addr, (useAnyAddr ? INADDR_ANY : yasslIP), port, 1);
     tcp_socket(sockfd, 1);
 
 

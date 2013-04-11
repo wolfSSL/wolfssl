@@ -60,7 +60,7 @@ m4_ifdef([AM_SILENT_RULES],[AM_SILENT_RULES([yes])])
 AX_CXX_COMPILER_VERSION
 
 AC_CHECK_FUNCS([gethostbyname])
-AC_CHECK_FUNCS([inet_pton])
+AC_CHECK_FUNCS([getaddrinfo])
 AC_CHECK_FUNCS([gettimeofday])
 AC_CHECK_FUNCS([inet_ntoa])
 AC_CHECK_FUNCS([memset])
