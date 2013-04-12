@@ -1252,6 +1252,7 @@ AX_HARDEN_CC_COMPILER_FLAGS
 
 # add user C_EXTRA_FLAGS back
 CFLAGS="$CFLAGS $USER_C_EXTRA_FLAGS"
+OPTION_FLAGS="$USER_C_EXTRA_FLAGS $AM_CFLAGS"
 
 CREATE_HEX_VERSION
 AC_SUBST([AM_CPPFLAGS])
@@ -1262,6 +1263,7 @@ AC_SUBST([AM_LDFLAGS])
 AC_CONFIG_FILES([stamp-h], [echo timestamp > stamp-h])
 AC_CONFIG_FILES([Makefile])
 AC_CONFIG_FILES([cyassl/version.h])
+AC_CONFIG_FILES([cyassl/options.h])
 AC_CONFIG_FILES([support/libcyassl.pc])
 AC_CONFIG_FILES([rpm/spec])
 
@@ -1270,11 +1272,48 @@ AX_AM_JOBSERVER([yes])
 
 AC_OUTPUT
 
+
+# force make clean
 echo "---"
 echo "Running make clean..."
 make clean >/dev/null 2>&1
 echo
 
+# generate user options header 
+echo "---"
+echo "Generating user options header..."
+OPTION_FILE="cyassl/options.h"
+rm -f $OPTION_FILE
+
+echo "/* cyassl options.h */" >> $OPTION_FILE 
+echo "" >> $OPTION_FILE 
+echo "#pragma once" >> $OPTION_FILE 
+echo "" >> $OPTION_FILE 
+echo "#ifdef __cplusplus" >> $OPTION_FILE 
+echo "extern \"C\" {" >> $OPTION_FILE 
+echo "#endif" >> $OPTION_FILE 
+echo "" >> $OPTION_FILE 
+
+for option in $OPTION_FLAGS; do
+    defonly=`echo $option | sed 's/-D//'`
+    if test "$defonly" != "$option"
+    then
+        echo "#undef  $defonly" >> $OPTION_FILE 
+        echo "#define $defonly" >> $OPTION_FILE 
+        echo "" >> $OPTION_FILE 
+    else
+        echo "option w/o begin -D is $option, not saving to $OPTION_FILE"
+    fi
+done
+
+echo "" >> $OPTION_FILE 
+echo "#ifdef __cplusplus" >> $OPTION_FILE 
+echo "}" >> $OPTION_FILE 
+echo "#endif" >> $OPTION_FILE 
+echo "" >> $OPTION_FILE 
+echo
+
+# output config summary
 echo "---"
 echo "Configuration summary for $PACKAGE_NAME version $VERSION"
 echo ""

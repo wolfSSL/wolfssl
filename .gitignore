@@ -15,6 +15,7 @@ config*
 build-aux/
 rpm/spec
 stamp-h
+cyassl/options.h
 libtool.m4
 aclocal.m4
 aminclude.am
