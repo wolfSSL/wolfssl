@@ -1286,6 +1286,7 @@ OPTION_FILE="cyassl/options.h"
 rm -f $OPTION_FILE
 
 echo "/* cyassl options.h" >> $OPTION_FILE 
+echo " * generated from configure options" >> $OPTION_FILE
 echo " *" >> $OPTION_FILE
 echo " * Copyright (C) 2006-2013 wolfSSL Inc." >> $OPTION_FILE
 echo " *" >> $OPTION_FILE
