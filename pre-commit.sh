@@ -26,9 +26,9 @@ echo "\nRestoring current config\n"
 mv tmp.status config.status
 # don't show output incase error from above
 ./config.status >/dev/null 2>&1
+mv tmp.options.h cyassl/options.h 
 make clean >/dev/null 2>&1
 make -j 8 >/dev/null 2>&1
-mv tmp.options.h cyassl/options.h 
 
 [ $RESULT -ne 0 ] && echo "\nOops, your commit failed\n" && exit 1
 
