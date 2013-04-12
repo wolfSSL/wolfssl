@@ -1285,7 +1285,14 @@ echo "Generating user options header..."
 OPTION_FILE="cyassl/options.h"
 rm -f $OPTION_FILE
 
-echo "/* cyassl options.h */" >> $OPTION_FILE 
+echo "/* cyassl options.h" >> $OPTION_FILE 
+echo " *" >> $OPTION_FILE
+echo " * Copyright (C) 2006-2013 wolfSSL Inc." >> $OPTION_FILE
+echo " *" >> $OPTION_FILE
+echo " * This file is part of CyaSSL." >> $OPTION_FILE
+echo " *" >> $OPTION_FILE
+echo " */" >> $OPTION_FILE
+
 echo "" >> $OPTION_FILE 
 echo "#pragma once" >> $OPTION_FILE 
 echo "" >> $OPTION_FILE 
