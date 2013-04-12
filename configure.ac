@@ -94,7 +94,7 @@ AM_PROG_CC_C_O
 LT_LIB_M
 
 OPTIMIZE_CFLAGS="-Os -fomit-frame-pointer"
-OPTIMIZE_FAST_CFLAGS="-O3 -fomit-frame-pointer"
+OPTIMIZE_FAST_CFLAGS="-O2 -fomit-frame-pointer"
 OPTIMIZE_HUGE_CFLAGS="-funroll-loops -DTFM_SMALL_SET"
 DEBUG_CFLAGS="-g -DDEBUG -DDEBUG_CYASSL"
 
@@ -324,6 +324,7 @@ then
     if test "$GCC" = "yes"
     then
         # GCC needs these flags, icc doesn't
+        # opt levels greater than 2 may cause problems on systems w/o aesni
         AM_CFLAGS="$AM_CFLAGS -maes -msse4"
     fi
 fi
