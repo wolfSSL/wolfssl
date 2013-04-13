@@ -3127,6 +3127,9 @@ int CyaSSL_Cleanup(void)
 
     CYASSL_ENTER("CyaSSL_Cleanup");
 
+    if (initRefCount == 0)
+        return 0;  /* possibly no init yet */
+
     if (LockMutex(&count_mutex) != 0) {
         CYASSL_MSG("Bad Lock Mutex count");
         return BAD_MUTEX_ERROR;
