@@ -27,6 +27,9 @@
 
 #include <cyassl/ctaocrypt/blake2-int.h>
 
+#ifdef __cplusplus
+    extern "C" {
+#endif
 
 /* in bytes, variable digest size up to 512 bits (64 bytes) */
 enum {
@@ -47,8 +50,8 @@ CYASSL_API int Blake2bFinal(Blake2b*, byte*, word32);
 
 
 
-#if defined(__cplusplus)
-    }
+#ifdef __cplusplus
+    } 
 #endif
 
 #endif  /* CTAOCRYPT_BLAKE2_H */

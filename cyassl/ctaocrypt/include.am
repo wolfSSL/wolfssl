@@ -30,6 +30,9 @@ nobase_include_HEADERS+= \
                          cyassl/ctaocrypt/sha256.h \
                          cyassl/ctaocrypt/sha512.h \
                          cyassl/ctaocrypt/sha.h \
+                         cyassl/ctaocrypt/blake2.h \
+                         cyassl/ctaocrypt/blake2-int.h \
+                         cyassl/ctaocrypt/blake2-impl.h \
                          cyassl/ctaocrypt/tfm.h \
                          cyassl/ctaocrypt/types.h \
                          cyassl/ctaocrypt/visibility.h \
