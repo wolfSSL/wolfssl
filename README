@@ -35,7 +35,59 @@ before calling SSL_new();  Though it's not recommended.
 *** end Notes ***
 
 
-CyaSSL Release 2.5.0 (02/04/2013)
+CyaSSL Release 2.6.0 (04/15/2013)
+
+Release 2.5.0 CyaSSL has bug fixes and new features including:
+- DTLS 1.2 support including AEAD ciphers
+- SHA-3 finalist Blake2 support, it's fast and uses little resources
+- SHA-384 cipher suites including ECC ones
+- HMAC now supports SHA-512
+- Track memory use for example client/server with -t option
+- Better IPv6 examples with --enable-ipv6, before if ipv6 examples/tests were
+  turned on, localhost only was used.  Now link-local (with scope ids) and ipv6
+  hosts can be used as well.
+- Xcode v4.6 project for iOS v6.1 update
+- settings.h is now checked in all *.c files for true one file setting detection
+- Better alignment at SSL layer for hardware crypto alignment needs
+    * Note, SSL itself isn't friendly to alignment with 5 byte TLS headers and
+      13 bytes DTLS headers, but every effort is now made to align with the
+      CYASSL_GENERAL_ALIGNMENT flag which sets desired alignment requirement
+- NO_64BIT flag to turn off 64bit data type accumulators in public key code
+    * Note, some systems are faster with 32bit accumulators 
+- --enable-stacksize for example client/server stack use
+    * Note, modern desktop Operating Systems may add bytes to each stack frame
+- ./configure builds default to fastmath option
+    * Note, if on ia32 and building in shared mode this may produce a problem
+      with a missing register being available because of PIC, there are at least
+      5 solutions to this:
+      1) --disable-fastmath , don't use fastmath
+      2) --disable-shared, don't build a shared library
+      3) C_EXTRA_FLAGS=-DTFM_NO_ASM , turn off assembly use
+      4) use clang, it just seems to work
+      5) play around with no PIC options to force all registers being open
+- Many new ./configure switches for option enalbe/disable for example
+    * rsa
+    * dh
+    * dsa
+    * md5
+    * sha 
+    * arc4
+    * null    (allow NULL ciphers)
+    * oldtls  (only use TLS 1.2)
+    * asn     (no certs or public keys allowed)
+- ./configure generates cyassl/options.h which allows a header the user can 
+  include in their app to make sure the same options are set at the app and
+  CyaSSL level.
+- autoconf no longer needs serial-tests which lowers version requirements of
+  automake to 1.11 and autoconf to 2.63
+
+The CyaSSL manual is available at:
+http://www.yassl.com/documentation/CyaSSL-Manual.pdf.  For build instructions 
+and comments about the new features please check the manual.
+
+
+
+************** CyaSSL Release 2.5.0 (02/04/2013)
 
 Release 2.5.0 CyaSSL has bug fixes and new features including:
 - Fix for TLS CBC padding timing attack identified by Nadhem Alfardan and
