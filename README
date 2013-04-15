@@ -37,7 +37,7 @@ before calling SSL_new();  Though it's not recommended.
 
 CyaSSL Release 2.6.0 (04/15/2013)
 
-Release 2.5.0 CyaSSL has bug fixes and new features including:
+Release 2.6.0 CyaSSL has bug fixes and new features including:
 - DTLS 1.2 support including AEAD ciphers
 - SHA-3 finalist Blake2 support, it's fast and uses little resources
 - SHA-384 cipher suites including ECC ones
@@ -56,6 +56,8 @@ Release 2.5.0 CyaSSL has bug fixes and new features including:
     * Note, some systems are faster with 32bit accumulators 
 - --enable-stacksize for example client/server stack use
     * Note, modern desktop Operating Systems may add bytes to each stack frame
+- Updated compression/decompression with direct crypto access
+- All ./configure options are now lowercase only for consistency
 - ./configure builds default to fastmath option
     * Note, if on ia32 and building in shared mode this may produce a problem
       with a missing register being available because of PIC, there are at least
@@ -65,7 +67,7 @@ Release 2.5.0 CyaSSL has bug fixes and new features including:
       3) C_EXTRA_FLAGS=-DTFM_NO_ASM , turn off assembly use
       4) use clang, it just seems to work
       5) play around with no PIC options to force all registers being open
-- Many new ./configure switches for option enalbe/disable for example
+- Many new ./configure switches for option enable/disable for example
     * rsa
     * dh
     * dsa
