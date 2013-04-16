@@ -1631,10 +1631,10 @@ void fp_read_unsigned_bin(fp_int *a, unsigned char *b, int c)
 
   /* If we know the endianness of this architecture, and we're using
      32-bit fp_digits, we can optimize this */
-#if (defined(ENDIAN_LITTLE) || defined(ENDIAN_BIG)) && !defined(FP_64BIT)
+#if (defined(LITTLE_ENDIAN_ORDER) || defined(BIG_ENDIAN_ORDER)) && !defined(FP_64BIT)
   /* But not for both simultaneously */
-#if defined(ENDIAN_LITTLE) && defined(ENDIAN_BIG)
-#error Both ENDIAN_LITTLE and ENDIAN_BIG defined.
+#if defined(LITTLE_ENDIAN_ORDER) && defined(BIG_ENDIAN_ORDER)
+#error Both LITTLE_ENDIAN_ORDER and BIG_ENDIAN_ORDER defined.
 #endif
   {
      unsigned char *pd = (unsigned char *)a->dp;
@@ -1646,7 +1646,7 @@ void fp_read_unsigned_bin(fp_int *a, unsigned char *b, int c)
      }
      a->used = (c + sizeof(fp_digit) - 1)/sizeof(fp_digit);
      /* read the bytes in */
-#ifdef ENDIAN_BIG
+#ifdef BIG_ENDIAN_ORDER
      {
        /* Use Duff's device to unroll the loop. */
        int idx = (c - 1) & ~3;
