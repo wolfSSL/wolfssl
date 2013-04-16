@@ -524,7 +524,7 @@ int fp_div(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
     /* step 3.1 if xi == yt then set q{i-t-1} to b-1, 
      * otherwise set q{i-t-1} to (xi*b + x{i-1})/yt */
     if (x.dp[i] == y.dp[t]) {
-      q.dp[i - t - 1] = ((((fp_word)1) << DIGIT_BIT) - 1);
+      q.dp[i - t - 1] = (fp_digit) ((((fp_word)1) << DIGIT_BIT) - 1);
     } else {
       fp_word tmp;
       tmp = ((fp_word) x.dp[i]) << ((fp_word) DIGIT_BIT);
