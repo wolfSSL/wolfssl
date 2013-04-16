@@ -1791,18 +1791,6 @@ enum AlertDescription {
 };
 
 
-/* I/O Callback default errors */
-enum IOerrors {
-    IO_ERR_GENERAL    = -1,     /* general unexpected err, not in below group */
-    IO_ERR_WANT_READ  = -2,     /* need to call read  again */
-    IO_ERR_WANT_WRITE = -2,     /* need to call write again */
-    IO_ERR_CONN_RST   = -3,     /* connection reset */
-    IO_ERR_ISR        = -4,     /* interrupt */
-    IO_ERR_CONN_CLOSE = -5,     /* connection closed or epipe */
-    IO_ERR_TIMEOUT    = -6      /* socket timeout */
-};
-
-
 enum AlertLevel { 
     alert_warning = 1, 
     alert_fatal = 2

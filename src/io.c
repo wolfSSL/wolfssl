@@ -217,37 +217,37 @@ int EmbedReceive(CYASSL *ssl, char *buf, int sz, void *ctx)
         if (err == SOCKET_EWOULDBLOCK || err == SOCKET_EAGAIN) {
             if (!CyaSSL_dtls(ssl) || CyaSSL_get_using_nonblock(ssl)) {
                 CYASSL_MSG("    Would block");
-                return IO_ERR_WANT_READ;
+                return CYASSL_CBIO_ERR_WANT_READ;
             }
             else {
                 CYASSL_MSG("    Socket timeout");
-                return IO_ERR_TIMEOUT;
+                return CYASSL_CBIO_ERR_TIMEOUT;
             }
         }
         else if (err == SOCKET_ECONNRESET) {
             CYASSL_MSG("    Connection reset");
-            return IO_ERR_CONN_RST;
+            return CYASSL_CBIO_ERR_CONN_RST;
         }
         else if (err == SOCKET_EINTR) {
             CYASSL_MSG("    Socket interrupted");
-            return IO_ERR_ISR;
+            return CYASSL_CBIO_ERR_ISR;
         }
         else if (err == SOCKET_ECONNREFUSED) {
             CYASSL_MSG("    Connection refused");
-            return IO_ERR_WANT_READ;
+            return CYASSL_CBIO_ERR_WANT_READ;
         }
         else if (err == SOCKET_ECONNABORTED) {
             CYASSL_MSG("    Connection aborted");
-            return IO_ERR_CONN_CLOSE;
+            return CYASSL_CBIO_ERR_CONN_CLOSE;
         }
         else {
             CYASSL_MSG("    General error");
-            return IO_ERR_GENERAL;
+            return CYASSL_CBIO_ERR_GENERAL;
         }
     }
     else if (recvd == 0) {
         CYASSL_MSG("Embed receive connection closed");
-        return IO_ERR_CONN_CLOSE;
+        return CYASSL_CBIO_ERR_CONN_CLOSE;
     }
 
     return recvd;
@@ -271,23 +271,23 @@ int EmbedSend(CYASSL* ssl, char *buf, int sz, void *ctx)
 
         if (err == SOCKET_EWOULDBLOCK || err == SOCKET_EAGAIN) {
             CYASSL_MSG("    Would Block");
-            return IO_ERR_WANT_WRITE;
+            return CYASSL_CBIO_ERR_WANT_WRITE;
         }
         else if (err == SOCKET_ECONNRESET) {
             CYASSL_MSG("    Connection reset");
-            return IO_ERR_CONN_RST;
+            return CYASSL_CBIO_ERR_CONN_RST;
         }
         else if (err == SOCKET_EINTR) {
             CYASSL_MSG("    Socket interrupted");
-            return IO_ERR_ISR;
+            return CYASSL_CBIO_ERR_ISR;
         }
         else if (err == SOCKET_EPIPE) {
             CYASSL_MSG("    Socket EPIPE");
-            return IO_ERR_CONN_CLOSE;
+            return CYASSL_CBIO_ERR_CONN_CLOSE;
         }
         else {
             CYASSL_MSG("    General error");
-            return IO_ERR_GENERAL;
+            return CYASSL_CBIO_ERR_GENERAL;
         }
     }
  
@@ -350,28 +350,28 @@ int EmbedReceiveFrom(CYASSL *ssl, char *buf, int sz, void *ctx)
         if (err == SOCKET_EWOULDBLOCK || err == SOCKET_EAGAIN) {
             if (CyaSSL_get_using_nonblock(ssl)) {
                 CYASSL_MSG("    Would block");
-                return IO_ERR_WANT_READ;
+                return CYASSL_CBIO_ERR_WANT_READ;
             }
             else {
                 CYASSL_MSG("    Socket timeout");
-                return IO_ERR_TIMEOUT;
+                return CYASSL_CBIO_ERR_TIMEOUT;
             }
         }
         else if (err == SOCKET_ECONNRESET) {
             CYASSL_MSG("    Connection reset");
-            return IO_ERR_CONN_RST;
+            return CYASSL_CBIO_ERR_CONN_RST;
         }
         else if (err == SOCKET_EINTR) {
             CYASSL_MSG("    Socket interrupted");
-            return IO_ERR_ISR;
+            return CYASSL_CBIO_ERR_ISR;
         }
         else if (err == SOCKET_ECONNREFUSED) {
             CYASSL_MSG("    Connection refused");
-            return IO_ERR_WANT_READ;
+            return CYASSL_CBIO_ERR_WANT_READ;
         }
         else {
             CYASSL_MSG("    General error");
-            return IO_ERR_GENERAL;
+            return CYASSL_CBIO_ERR_GENERAL;
         }
     }
     else {
@@ -379,7 +379,7 @@ int EmbedReceiveFrom(CYASSL *ssl, char *buf, int sz, void *ctx)
                 && peerSz != (XSOCKLENT)dtlsCtx->peer.sz
                 && memcmp(&peer, dtlsCtx->peer.sa, peerSz) != 0) {
             CYASSL_MSG("    Ignored packet from invalid peer");
-            return IO_ERR_WANT_READ;
+            return CYASSL_CBIO_ERR_WANT_READ;
         }
     }
 
@@ -408,23 +408,23 @@ int EmbedSendTo(CYASSL* ssl, char *buf, int sz, void *ctx)
 
         if (err == SOCKET_EWOULDBLOCK || err == SOCKET_EAGAIN) {
             CYASSL_MSG("    Would Block");
-            return IO_ERR_WANT_WRITE;
+            return CYASSL_CBIO_ERR_WANT_WRITE;
         }
         else if (err == SOCKET_ECONNRESET) {
             CYASSL_MSG("    Connection reset");
-            return IO_ERR_CONN_RST;
+            return CYASSL_CBIO_ERR_CONN_RST;
         }
         else if (err == SOCKET_EINTR) {
             CYASSL_MSG("    Socket interrupted");
-            return IO_ERR_ISR;
+            return CYASSL_CBIO_ERR_ISR;
         }
         else if (err == SOCKET_EPIPE) {
             CYASSL_MSG("    Socket EPIPE");
-            return IO_ERR_CONN_CLOSE;
+            return CYASSL_CBIO_ERR_CONN_CLOSE;
         }
         else {
             CYASSL_MSG("    General error");
-            return IO_ERR_GENERAL;
+            return CYASSL_CBIO_ERR_GENERAL;
         }
     }
  

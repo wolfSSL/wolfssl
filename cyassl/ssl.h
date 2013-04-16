@@ -829,6 +829,18 @@ CYASSL_API void CyaSSL_SetIOOcspRespFree(CYASSL_CTX *ocsp,
 CYASSL_API void CyaSSL_SetIOOcspCtx(CYASSL_CTX *ocsp, void *octx);
 #endif
 
+/* I/O Callback default errors */
+enum IOerrors {
+    CYASSL_CBIO_ERR_GENERAL    = -1,     /* general unexpected err */
+    CYASSL_CBIO_ERR_WANT_READ  = -2,     /* need to call read  again */
+    CYASSL_CBIO_ERR_WANT_WRITE = -2,     /* need to call write again */
+    CYASSL_CBIO_ERR_CONN_RST   = -3,     /* connection reset */
+    CYASSL_CBIO_ERR_ISR        = -4,     /* interrupt */
+    CYASSL_CBIO_ERR_CONN_CLOSE = -5,     /* connection closed or epipe */
+    CYASSL_CBIO_ERR_TIMEOUT    = -6      /* socket timeout */
+};
+
+
 /* CA cache callbacks */
 enum {
     CYASSL_SSLV3    = 0,
