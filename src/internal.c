@@ -2732,6 +2732,51 @@ static void BuildFinished(CYASSL* ssl, Hashes* hashes, const byte* sender)
 
 #ifndef NO_CERTS
 
+
+/* Match names with wildcards, each wildcard can represent a single name
+   component or fragment but not mulitple names, i.e.,
+   *.z.com matches y.z.com but not x.y.z.com 
+
+   return 1 on success */
+static int MatchDomainName(const char* pattern, int len, const char* str)
+{
+    char p, s;
+
+    if (pattern == NULL || str == NULL || len <= 0)
+        return 0;
+
+    while (len > 0 && (p = (char)(*pattern++))) {
+        if (p == '*') {
+            while (--len > 0 && (p = (char)(*pattern++)) == '*')
+                ;
+
+            if (len == 0)
+                p = '\0';
+
+            while ( (s = (char)(*str)) ) {
+                if (s == p)
+                    break;
+                if (s == '.')
+                    return 0;
+                str++;
+            }
+        }
+        else {
+            if (p != (char)(*str))
+                return 0;
+        }
+
+        if (*str != '\0')
+            str++;
+
+        if (len > 0)
+            len--;
+    }
+
+    return *str == '\0';
+}
+
+
 static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx)
 {
     word32 listSz, i = *inOutIdx;
@@ -2959,9 +3004,8 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx)
             domain[0] = '\0';
 
         if (!ssl->options.verifyNone && ssl->buffers.domainName.buffer)
-            if (XSTRNCMP((char*)ssl->buffers.domainName.buffer,
-                        dCert.subjectCN,
-                        ssl->buffers.domainName.length - 1) != 0) {
+            if (MatchDomainName(dCert.subjectCN, dCert.subjectCNLen, 
+                                (char*)ssl->buffers.domainName.buffer) == 0) {
                 ret = DOMAIN_NAME_MISMATCH;   /* try to get peer key still */
             }
 
