@@ -471,6 +471,7 @@ void FreeSSL_Ctx(CYASSL_CTX* ctx)
     if (doFree) {
         CYASSL_MSG("CTX ref count down to 0, doing full free");
         SSL_CtxResourceFree(ctx);
+        FreeMutex(&ctx->countMutex);
         XFREE(ctx, ctx->heap, DYNAMIC_TYPE_CTX);
     }
     else {
