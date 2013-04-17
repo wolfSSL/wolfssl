@@ -86,6 +86,7 @@
 #ifdef MICROCHIP_PIC32
     #define SIZEOF_LONG_LONG 8
     #define SINGLE_THREADED
+    #define CYASSL_USER_IO
     #define NO_WRITEV
     #define NO_DEV_RANDOM
     #define NO_FILESYSTEM
@@ -96,7 +97,6 @@
 #ifdef MICROCHIP_TCPIP
     /* includes timer functions */
     #include "TCPIP Stack/TCPIP.h"
-    #define CYASSL_USER_IO
 #endif
 
 #ifdef MBED
