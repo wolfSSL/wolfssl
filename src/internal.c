@@ -2777,6 +2777,32 @@ static int MatchDomainName(const char* pattern, int len, const char* str)
 }
 
 
+/* try to find an altName match to domain, return 1 on success */
+static int CheckAltNames(DecodedCert* dCert, char* domain)
+{
+    int        match = 0;
+    DNS_entry* altName = NULL;
+
+    CYASSL_MSG("Checking AltNames");
+
+    if (dCert)
+        altName = dCert->altNames;
+
+    while (altName) {
+        CYASSL_MSG("    individual AltName check");
+
+        if (MatchDomainName(altName->name,(int)XSTRLEN(altName->name), domain)){
+            match = 1;
+            break;
+        }
+           
+        altName = altName->next;
+    }
+
+    return match;
+}
+
+
 static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx)
 {
     word32 listSz, i = *inOutIdx;
@@ -3003,11 +3029,17 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx)
         else
             domain[0] = '\0';
 
-        if (!ssl->options.verifyNone && ssl->buffers.domainName.buffer)
+        if (!ssl->options.verifyNone && ssl->buffers.domainName.buffer) {
             if (MatchDomainName(dCert.subjectCN, dCert.subjectCNLen, 
                                 (char*)ssl->buffers.domainName.buffer) == 0) {
-                ret = DOMAIN_NAME_MISMATCH;   /* try to get peer key still */
+                CYASSL_MSG("DomainName match on common name failed");
+                if (CheckAltNames(&dCert,
+                                 (char*)ssl->buffers.domainName.buffer) == 0 ) {
+                    CYASSL_MSG("DomainName match on alt names failed too");
+                    ret = DOMAIN_NAME_MISMATCH; /* try to get peer key still */
+                }
             }
+        }
 
         /* decode peer key */
         switch (dCert.keyOID) {
