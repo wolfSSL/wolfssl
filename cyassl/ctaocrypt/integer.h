@@ -87,28 +87,18 @@ extern "C" {
    typedef unsigned int       mp_word;
 #elif defined(MP_64BIT)
    /* for GCC only on supported platforms */
-#ifndef CRYPT
-   typedef unsigned long long ulong64;
-   typedef signed long long   long64;
-#endif
-
-   typedef unsigned long      mp_digit;
+   typedef unsigned long long mp_digit;  /* 64 bit type, 128 uses mode(TI) */
    typedef unsigned long      mp_word __attribute__ ((mode(TI)));
 
    #define DIGIT_BIT          60
 #else
    /* this is the default case, 28-bit digits */
    
-   /* this is to make porting into LibTomCrypt easier :-) */
-#ifndef CRYPT
    #if defined(_MSC_VER) || defined(__BORLANDC__) 
       typedef unsigned __int64   ulong64;
-      typedef signed __int64     long64;
    #else
       typedef unsigned long long ulong64;
-      typedef signed long long   long64;
    #endif
-#endif
 
    typedef unsigned int       mp_digit;  /* long could be 64 now, changed TAO */
    typedef ulong64            mp_word;

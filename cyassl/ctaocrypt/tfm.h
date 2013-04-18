@@ -200,22 +200,15 @@
  */
 #if defined(FP_64BIT)
    /* for GCC only on supported platforms */
-#ifndef CRYPT
-   typedef unsigned long ulong64;
-#endif
-   typedef ulong64            fp_digit;
+   typedef unsigned long long fp_digit;   /* 64bit, 128 uses mode(TI) below */
    typedef unsigned long      fp_word __attribute__ ((mode(TI)));
 #else
-   /* this is to make porting into LibTomCrypt easier :-) */
-#ifndef CRYPT
    #if defined(_MSC_VER) || defined(__BORLANDC__) 
       typedef unsigned __int64   ulong64;
-      typedef signed __int64     long64;
    #else
       typedef unsigned long long ulong64;
-      typedef signed long long   long64;
    #endif
-#endif
+
    #ifndef NO_64BIT
       typedef unsigned int       fp_digit;
       typedef ulong64            fp_word;
