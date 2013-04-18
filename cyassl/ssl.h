@@ -134,14 +134,13 @@ typedef struct CYASSL_X509_OBJECT {
 } CYASSL_X509_OBJECT;
 
 
-/* in internal.h too, change there !! */
 typedef struct CYASSL_X509_STORE_CTX {
-    int   error;
-    int   error_depth;
     CYASSL_X509* current_cert;   /* stunnel dereference */
     char* domain;                /* subject CN domain name */
     void* ex_data;               /* external data, for fortress build */
-    /* in internal.h too, change there !! */
+    int   error;                 /* current error */
+    int   error_depth;           /* cert depth for this error */
+    int   discardSessionCerts;   /* so verify callback can flag for discard */ 
 } CYASSL_X509_STORE_CTX;
 
 

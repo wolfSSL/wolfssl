@@ -3107,6 +3107,7 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx)
 
                 store.error = ret;
                 store.error_depth = totalCerts;
+                store.discardSessionCerts = 0;
                 store.domain = domain;
 #ifdef KEEP_PEER_CERT
                 store.current_cert = &ssl->peerCert;
@@ -3121,6 +3122,12 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx)
                     CYASSL_MSG("Verify callback overriding error!"); 
                     ret = 0;
                 }
+                #ifdef SESSION_CERTS
+                if (store.discardSessionCerts) {
+                    CYASSL_MSG("Verify callback requested discard sess certs");
+                    ssl->session.chain.count = 0;
+                }
+                #endif
             }
             if (ret != 0) {
                 SendAlert(ssl, alert_fatal, why);   /* try to send */
@@ -3137,6 +3144,7 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx)
 
             store.error = ret;
             store.error_depth = totalCerts;
+            store.discardSessionCerts = 0;
             store.domain = domain;
             store.current_cert = &ssl->peerCert;
             store.ex_data = ssl;
@@ -3148,6 +3156,12 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx)
                 SendAlert(ssl, alert_fatal, bad_certificate);
                 ssl->options.isClosed = 1;
             }
+            #ifdef SESSION_CERTS
+            if (store.discardSessionCerts) {
+                CYASSL_MSG("Verify callback requested discard sess certs");
+                ssl->session.chain.count = 0;
+            }
+            #endif
         }
     }
 #endif
