@@ -138,6 +138,7 @@ typedef struct CYASSL_X509_STORE_CTX {
     CYASSL_X509* current_cert;   /* stunnel dereference */
     char* domain;                /* subject CN domain name */
     void* ex_data;               /* external data, for fortress build */
+    void* userCtx;               /* user ctx */
     int   error;                 /* current error */
     int   error_depth;           /* cert depth for this error */
     int   discardSessionCerts;   /* so verify callback can flag for discard */ 
@@ -224,6 +225,7 @@ typedef int (*pem_password_cb)(char*, int, int, void*);
 CYASSL_API void CyaSSL_CTX_set_verify(CYASSL_CTX*, int, 
                                       VerifyCallback verify_callback);
 CYASSL_API void CyaSSL_set_verify(CYASSL*, int, VerifyCallback verify_callback);
+CYASSL_API void CyaSSL_SetCertCbCtx(CYASSL*, void*);
 
 CYASSL_API int  CyaSSL_pending(CYASSL*);
 

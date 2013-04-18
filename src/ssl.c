@@ -2460,6 +2460,15 @@ void CyaSSL_set_verify(CYASSL* ssl, int mode, VerifyCallback vc)
 }
 
 
+/* store user ctx for verify callback */
+void CyaSSL_SetCertCbCtx(CYASSL* ssl, void* ctx)
+{
+    CYASSL_ENTER("CyaSSL_SetCertCbCtx");
+    if (ssl)
+        ssl->verifyCbCtx = ctx;
+}
+
+
 /* store context CA Cache addition callback */
 void CyaSSL_CTX_SetCACb(CYASSL_CTX* ctx, CallbackCACache cb)
 {

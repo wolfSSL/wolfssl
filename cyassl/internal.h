@@ -1616,6 +1616,7 @@ struct CYASSL {
     Arrays*         arrays;
     CYASSL_SESSION  session;
     VerifyCallback  verifyCallback;      /* cert verification callback */
+    void*           verifyCbCtx;         /* cert verify callback user ctx*/
 #ifndef NO_RSA
     RsaKey*         peerRsaKey;
     byte            peerRsaKeyPresent;

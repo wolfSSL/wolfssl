@@ -1281,6 +1281,7 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
     ssl->peerRsaKeyPresent = 0;
 #endif
     ssl->verifyCallback    = ctx->verifyCallback;
+    ssl->verifyCbCtx       = NULL;
     ssl->options.side      = ctx->method->side;
     ssl->options.downgrade = ctx->method->downgrade;
     ssl->error = 0;
@@ -3109,6 +3110,7 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx)
                 store.error_depth = totalCerts;
                 store.discardSessionCerts = 0;
                 store.domain = domain;
+                store.userCtx = ssl->verifyCbCtx;
 #ifdef KEEP_PEER_CERT
                 store.current_cert = &ssl->peerCert;
 #else
@@ -3146,6 +3148,7 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx)
             store.error_depth = totalCerts;
             store.discardSessionCerts = 0;
             store.domain = domain;
+            store.userCtx = ssl->verifyCbCtx;
             store.current_cert = &ssl->peerCert;
             store.ex_data = ssl;
 
