@@ -303,6 +303,22 @@ void CTaoCryptErrorString(int error, char* buffer)
         XSTRNCPY(buffer, "Bad alignment error, no alloc help", max);
         break;
 
+    case ASN_NO_SIGNER_E :
+        XSTRNCPY(buffer, "ASN no signer error to confirm failure", max);
+        break;
+
+    case ASN_CRL_CONFIRM_E :
+        XSTRNCPY(buffer, "ASN CRL sig error, confirm failure", max);
+        break;
+
+    case ASN_CRL_NO_SIGNER_E :
+        XSTRNCPY(buffer, "ASN CRL no signer error to confirm failure", max);
+        break;
+
+    case ASN_OCSP_CONFIRM_E :
+        XSTRNCPY(buffer, "ASN OCSP sig error, confirm failure", max);
+        break;
+
     default:
         XSTRNCPY(buffer, "unknown error number", max);
 

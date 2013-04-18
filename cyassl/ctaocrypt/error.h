@@ -108,7 +108,11 @@ enum {
     DECOMPRESS_INIT_E  = -185,  /* DeCompress init error */
     DECOMPRESS_E       = -186,  /* DeCompress error */
 
-    BAD_ALIGN_E        = -187,  /* Bad alignment for operation, no alloc */
+    BAD_ALIGN_E         = -187,  /* Bad alignment for operation, no alloc */
+    ASN_NO_SIGNER_E     = -188,  /* ASN no signer to confirm failure */
+    ASN_CRL_CONFIRM_E   = -189,  /* ASN CRL signature confirm failure */
+    ASN_CRL_NO_SIGNER_E = -190,  /* ASN CRL no signer to confirm failure */
+    ASN_OCSP_CONFIRM_E  = -191,  /* ASN OCSP signature confirm failure */
 
     MIN_CODE_E         = -200   /* errors -101 - -199 */
 };

@@ -2726,7 +2726,7 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
         else {
             /* no signer */
             CYASSL_MSG("No CA signer to verify with");
-            return ASN_SIG_CONFIRM_E;
+            return ASN_NO_SIGNER_E;
         }
     }
 
@@ -4611,8 +4611,8 @@ static int DecodeBasicOcspResponse(byte* source,
 
         if (ret == 0)
         {
-            CYASSL_MSG("\tConfirm signature failed");
-            return ASN_SIG_CONFIRM_E;
+            CYASSL_MSG("\tOCSP Confirm signature failed");
+            return ASN_OCSP_CONFIRM_E;
         }
     }
 
@@ -5168,12 +5168,12 @@ int ParseCRL(DecodedCRL* dcrl, const byte* buff, word32 sz, void* cm)
                 ca->publicKey, ca->pubKeySize, ca->keyOID,
                 dcrl->signature, dcrl->sigLength, dcrl->signatureOID, NULL)) {
             CYASSL_MSG("CRL Confirm signature failed");
-            return ASN_SIG_CONFIRM_E;
+            return ASN_CRL_CONFIRM_E;
         }
     }
     else {
         CYASSL_MSG("Did NOT find CRL issuer CA");
-        return ASN_SIG_CONFIRM_E;
+        return ASN_CRL_NO_SIGNER_E;
     }
 
     return 0;
