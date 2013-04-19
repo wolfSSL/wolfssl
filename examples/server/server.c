@@ -108,6 +108,7 @@ static void Usage(void)
     printf("-t          Track CyaSSL memory use\n");
     printf("-u          Use UDP DTLS,"
            " add -v 2 for DTLSv1 (default), -v 3 for DTLSv1.2\n");
+    printf("-f          Fewer packets/group messages\n");
     printf("-N          Use Non-blocking sockets\n");
 }
 
@@ -131,9 +132,10 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     int    port = yasslPort;
     int    usePsk = 0;
     int    doDTLS = 0;
-    int    useNtruKey = 0;
-    int    nonBlocking = 0;
-    int    trackMemory = 0;
+    int    useNtruKey   = 0;
+    int    nonBlocking  = 0;
+    int    trackMemory  = 0;
+    int    fewerPackets = 0;
     char*  cipherList = NULL;
     char*  verifyCert = (char*)cliCert;
     char*  ourCert    = (char*)svrCert;
@@ -150,7 +152,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 #endif
     (void)trackMemory;
 
-    while ((ch = mygetopt(argc, argv, "?dbstnNup:v:l:A:c:k:")) != -1) {
+    while ((ch = mygetopt(argc, argv, "?dbstnNufp:v:l:A:c:k:")) != -1) {
         switch (ch) {
             case '?' :
                 Usage();
@@ -180,6 +182,10 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 
             case 'u' :
                 doDTLS  = 1;
+                break;
+
+            case 'f' :
+                fewerPackets = 1;
                 break;
 
             case 'p' :
@@ -298,6 +304,9 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 #if defined(NO_RSA) && !defined(HAVE_ECC)
     usePsk = 1;
 #endif
+
+    if (fewerPackets)
+        CyaSSL_CTX_set_group_messages(ctx);
 
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
     if (!usePsk) {
