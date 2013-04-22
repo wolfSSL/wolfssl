@@ -986,7 +986,7 @@ int AddCA(CYASSL_CERT_MANAGER* cm, buffer der, int type, int verify)
 
 int CyaSSL_Init(void)
 {
-    int ret = 0;
+    int ret = SSL_SUCCESS;
 
     CYASSL_ENTER("CyaSSL_Init");
 
@@ -2510,7 +2510,7 @@ void CyaSSL_load_error_strings(void)   /* compatibility only */
 int CyaSSL_library_init(void)
 {
     CYASSL_ENTER("SSL_library_init");
-    if (CyaSSL_Init() == 0)
+    if (CyaSSL_Init() == SSL_SUCCESS)
         return SSL_SUCCESS;
     else
         return SSL_FATAL_ERROR;
@@ -3131,13 +3131,13 @@ int CyaSSL_dtls_got_timeout(CYASSL* ssl)
 
 int CyaSSL_Cleanup(void)
 {
-    int ret = 0;
+    int ret = SSL_SUCCESS;
     int release = 0;
 
     CYASSL_ENTER("CyaSSL_Cleanup");
 
     if (initRefCount == 0)
-        return 0;  /* possibly no init yet */
+        return ret;  /* possibly no init yet, but not failure either way */
 
     if (LockMutex(&count_mutex) != 0) {
         CYASSL_MSG("Bad Lock Mutex count");
@@ -3469,7 +3469,7 @@ int CyaSSL_check_domain_name(CYASSL* ssl, const char* dn)
 
 
 /* turn on CyaSSL zlib compression
-   returns 0 for success, else error (not built in)
+   returns SSL_SUCCESS for success, else error (not built in)
 */
 int CyaSSL_set_compression(CYASSL* ssl)
 {
@@ -3477,7 +3477,7 @@ int CyaSSL_set_compression(CYASSL* ssl)
     (void)ssl;
 #ifdef HAVE_LIBZ
     ssl->options.usingCompression = 1;
-    return 0;
+    return SSL_SUCCESS;
 #else
     return NOT_COMPILED_IN;
 #endif
@@ -5112,7 +5112,7 @@ int CyaSSL_set_compression(CYASSL* ssl)
     }
 
 
-    /* store for external read of iv, 0 on success */
+    /* store for external read of iv, SSL_SUCCESS on success */
     int  CyaSSL_StoreExternalIV(CYASSL_EVP_CIPHER_CTX* ctx)
     {
         CYASSL_ENTER("CyaSSL_StoreExternalIV");
@@ -5163,11 +5163,11 @@ int CyaSSL_set_compression(CYASSL* ssl)
                 return -1;  /* failure */
             }
         }    
-        return 0;  /* success */
+        return SSL_SUCCESS;
     }
 
 
-    /* set internal IV from external, 0 on success */
+    /* set internal IV from external, SSL_SUCCESS on success */
     int  CyaSSL_SetInternalIV(CYASSL_EVP_CIPHER_CTX* ctx)
     {
 
@@ -5219,7 +5219,7 @@ int CyaSSL_set_compression(CYASSL* ssl)
                 return -1;  /* failure */
             }
         }    
-        return 0;  /* success */
+        return SSL_SUCCESS;
     }
 
 
@@ -6663,7 +6663,7 @@ int CyaSSL_set_compression(CYASSL* ssl)
 
     /* write X509 serial number in unsigned binary to buffer 
        buffer needs to be at least EXTERNAL_SERIAL_SIZE (32) for all cases
-       return 0 on success */
+       return SSL_SUCCESS on success */
     int CyaSSL_X509_get_serial_number(CYASSL_X509* x509, byte* in, int* inOutSz)
     {
         CYASSL_ENTER("CyaSSL_X509_get_serial_number");
@@ -6673,7 +6673,7 @@ int CyaSSL_set_compression(CYASSL* ssl)
         XMEMCPY(in, x509->serial, x509->serialSz);
         *inOutSz = x509->serialSz;
 
-        return 0;
+        return SSL_SUCCESS;
     }
 
 
@@ -7857,7 +7857,7 @@ static int initGlobalRNG = 0;
 
 
 #ifndef NO_DSA
-    /* return 0 on success, < 0 otherwise */
+    /* return SSL_SUCCESS on success, < 0 otherwise */
     int CyaSSL_DSA_do_sign(const unsigned char* d, unsigned char* sigRet,
                            CYASSL_DSA* dsa)
     {
@@ -7890,7 +7890,7 @@ static int initGlobalRNG = 0;
             return -1;
         }
 
-        return 0;
+        return SSL_SUCCESS;
     }
 #endif /* NO_DSA */
 
@@ -8434,7 +8434,7 @@ int CyaSSL_KeyPemToDer(const unsigned char* pem, int pemSz, unsigned char* buff,
 }
 
 
-/* Load RSA from Der, 0 on success < 0 on error */
+/* Load RSA from Der, SSL_SUCCESS on success < 0 on error */
 int CyaSSL_RSA_LoadDer(CYASSL_RSA* rsa, const unsigned char* der,  int derSz)
 {
     word32 idx = 0;
@@ -8460,12 +8460,12 @@ int CyaSSL_RSA_LoadDer(CYASSL_RSA* rsa, const unsigned char* der,  int derSz)
 
     rsa->inSet = 1;
 
-    return 0;
+    return SSL_SUCCESS;
 }
 
 
 #ifndef NO_DSA
-/* Load DSA from Der, 0 on success < 0 on error */
+/* Load DSA from Der, SSL_SUCCESS on success < 0 on error */
 int CyaSSL_DSA_LoadDer(CYASSL_DSA* dsa, const unsigned char* der,  int derSz)
 {
     word32 idx = 0;
@@ -8491,7 +8491,7 @@ int CyaSSL_DSA_LoadDer(CYASSL_DSA* dsa, const unsigned char* der,  int derSz)
 
     dsa->inSet = 1;
 
-    return 0;
+    return SSL_SUCCESS;
 }
 #endif /* NO_DSA */
 

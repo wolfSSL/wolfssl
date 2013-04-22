@@ -287,7 +287,7 @@ static INLINE void showPeer(CYASSL* ssl)
             printf(" altname = %s\n", altName);
 
         ret = CyaSSL_X509_get_serial_number(peer, serial, &sz);
-        if (ret == 0) {
+        if (ret == SSL_SUCCESS) {
             int  i;
             int  strLen;
             char serialMsg[80];
