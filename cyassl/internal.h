@@ -1882,9 +1882,7 @@ CYASSL_LOCAL  int GrowInputBuffer(CYASSL* ssl, int size, int usedLength);
 
 #endif /* NO_TLS */
 
-typedef double timer_d;
 
-CYASSL_LOCAL timer_d Timer(void);
 CYASSL_LOCAL word32  LowResTimer(void);
 
 

@@ -2023,7 +2023,7 @@ ProtocolVersion MakeDTLSv1_2(void)
 
 #ifdef USE_WINDOWS_API 
 
-    timer_d Timer(void)
+    word32 LowResTimer(void)
     {
         static int           init = 0;
         static LARGE_INTEGER freq;
@@ -2036,15 +2036,8 @@ ProtocolVersion MakeDTLSv1_2(void)
 
         QueryPerformanceCounter(&count);
 
-        return (double)count.QuadPart / freq.QuadPart;
+        return (word32)(count.QuadPart / freq.QuadPart);
     }
-
-
-    word32 LowResTimer(void)
-    {
-        return (word32)Timer();
-    }
-
 
 #elif defined(THREADX)
 
