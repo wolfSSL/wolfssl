@@ -692,6 +692,31 @@ void CyaSSL_CertManagerFree(CYASSL_CERT_MANAGER* cm)
 
 }
 
+
+/* Unload the CA signer list */
+int CyaSSL_CertManagerUnloadCAs(CYASSL_CERT_MANAGER* cm)
+{
+    Signer* signers;
+
+    CYASSL_ENTER("CyaSSL_CertManagerUnloadCAs");
+
+    if (cm == NULL)
+        return BAD_FUNC_ARG;
+
+    if (LockMutex(&cm->caLock) != 0)
+        return BAD_MUTEX_ERROR;
+
+    signers = cm->caList;
+    cm->caList = NULL;
+
+    UnLockMutex(&cm->caLock);
+
+    FreeSigners(signers, NULL);
+
+    return SSL_SUCCESS;
+}
+
+
 #endif /* !NO_CERTS */
 
 
@@ -3880,6 +3905,16 @@ int CyaSSL_set_compression(CYASSL* ssl)
         CYASSL_ENTER("CyaSSL_use_certificate_chain_buffer");
         return ProcessBuffer(ssl->ctx, in, sz, SSL_FILETYPE_PEM, CERT_TYPE,
                              ssl, NULL, 1);
+    }
+
+    int CyaSSL_CTX_UnloadCAs(CYASSL_CTX* ctx)
+    {
+        CYASSL_ENTER("CyaSSL_CTX_UnloadCAs");
+
+        if (ctx == NULL)
+            return BAD_FUNC_ARG;
+
+        return CyaSSL_CertManagerUnloadCAs(ctx->cm);
     }
 
 /* old NO_FILESYSTEM end */

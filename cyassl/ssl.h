@@ -167,6 +167,7 @@ CYASSL_API int CyaSSL_CTX_use_certificate_file(CYASSL_CTX*, const char*, int);
 CYASSL_API int CyaSSL_CTX_use_PrivateKey_file(CYASSL_CTX*, const char*, int);
 CYASSL_API int CyaSSL_CTX_load_verify_locations(CYASSL_CTX*, const char*,
                                                 const char*);
+CYASSL_API int CyaSSL_CTX_UnloadCAs(CYASSL_CTX*);
 CYASSL_API int CyaSSL_CTX_use_certificate_chain_file(CYASSL_CTX *,
                                                      const char *file);
 CYASSL_API int CyaSSL_CTX_use_RSAPrivateKey_file(CYASSL_CTX*, const char*, int);
@@ -869,6 +870,7 @@ typedef void (*CbMissingCRL)(const char* url);
 
     CYASSL_API int CyaSSL_CertManagerLoadCA(CYASSL_CERT_MANAGER*, const char* f,
                                                                  const char* d);
+    CYASSL_API int CyaSSL_CertManagerUnloadCAs(CYASSL_CERT_MANAGER* cm);
     CYASSL_API int CyaSSL_CertManagerVerify(CYASSL_CERT_MANAGER*, const char* f,
                                                                     int format);
     CYASSL_API int CyaSSL_CertManagerVerifyBuffer(CYASSL_CERT_MANAGER* cm,
