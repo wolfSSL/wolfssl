@@ -4117,65 +4117,6 @@ int CyaSSL_set_compression(CYASSL* ssl)
     }
 
 
-    /* return the next, if any, altname from the peer cert */
-    char* CyaSSL_X509_get_next_altname(CYASSL_X509* cert)
-    {
-        char* ret = NULL;
-        CYASSL_ENTER("CyaSSL_X509_get_next_altname");
-
-        /* don't have any to work with */
-        if (cert == NULL || cert->altNames == NULL)
-            return NULL;
-
-        /* already went through them */
-        if (cert->altNamesNext == NULL)
-            return NULL;
-
-        ret = cert->altNamesNext->name;
-        cert->altNamesNext = cert->altNamesNext->next;
-
-        return ret;
-    }
-
-
-    CYASSL_X509_NAME* CyaSSL_X509_get_issuer_name(CYASSL_X509* cert)
-    {
-        CYASSL_ENTER("X509_get_issuer_name");
-        return &cert->issuer;
-    }
-
-
-    CYASSL_X509_NAME* CyaSSL_X509_get_subject_name(CYASSL_X509* cert)
-    {
-        CYASSL_ENTER("X509_get_subject_name");
-        return &cert->subject;
-    }
-
-
-    /* copy name into in buffer, at most sz bytes, if buffer is null will
-       malloc buffer, call responsible for freeing                     */
-    char* CyaSSL_X509_NAME_oneline(CYASSL_X509_NAME* name, char* in, int sz)
-    {
-        int copySz = min(sz, name->sz);
-
-        CYASSL_ENTER("CyaSSL_X509_NAME_oneline");
-        if (!name->sz) return in;
-
-        if (!in) {
-            in = (char*)XMALLOC(name->sz, 0, DYNAMIC_TYPE_OPENSSL);
-            if (!in ) return in;
-            copySz = name->sz;
-        }
-
-        if (copySz == 0)
-            return in;
-
-        XMEMCPY(in, name->name, copySz - 1);
-        in[copySz - 1] = 0;
-
-        return in;
-    }
-
 
     CYASSL_X509* CyaSSL_X509_STORE_CTX_get_current_cert(
                                                      CYASSL_X509_STORE_CTX* ctx)
@@ -5540,8 +5481,12 @@ int CyaSSL_set_compression(CYASSL* ssl)
         (void)flags; 
         return 0;
     }
-#endif
-#ifdef KEEP_PEER_CERT
+
+#endif /* OPENSSL_EXTRA */
+
+
+#if defined(KEEP_PEER_CERT)
+
     CYASSL_X509* CyaSSL_get_peer_certificate(CYASSL* ssl)
     {
         CYASSL_ENTER("SSL_get_peer_certificate");
@@ -5550,7 +5495,108 @@ int CyaSSL_set_compression(CYASSL* ssl)
         else
             return 0;
     }
-#endif
+
+#endif /* KEEP_PEER_CERT */
+
+
+#if defined(KEEP_PEER_CERT) || defined(SESSION_CERTS)
+
+    void CyaSSL_FreeX509(CYASSL_X509* x509)
+    {
+        CYASSL_ENTER("CyaSSL_FreeX509");
+        FreeX509(x509); 
+    }
+
+
+    /* return the next, if any, altname from the peer cert */
+    char* CyaSSL_X509_get_next_altname(CYASSL_X509* cert)
+    {
+        char* ret = NULL;
+        CYASSL_ENTER("CyaSSL_X509_get_next_altname");
+
+        /* don't have any to work with */
+        if (cert == NULL || cert->altNames == NULL)
+            return NULL;
+
+        /* already went through them */
+        if (cert->altNamesNext == NULL)
+            return NULL;
+
+        ret = cert->altNamesNext->name;
+        cert->altNamesNext = cert->altNamesNext->next;
+
+        return ret;
+    }
+
+
+    CYASSL_X509_NAME* CyaSSL_X509_get_issuer_name(CYASSL_X509* cert)
+    {
+        CYASSL_ENTER("X509_get_issuer_name");
+        return &cert->issuer;
+    }
+
+
+    CYASSL_X509_NAME* CyaSSL_X509_get_subject_name(CYASSL_X509* cert)
+    {
+        CYASSL_ENTER("X509_get_subject_name");
+        return &cert->subject;
+    }
+
+
+    /* copy name into in buffer, at most sz bytes, if buffer is null will
+       malloc buffer, call responsible for freeing                     */
+    char* CyaSSL_X509_NAME_oneline(CYASSL_X509_NAME* name, char* in, int sz)
+    {
+        int copySz = min(sz, name->sz);
+
+        CYASSL_ENTER("CyaSSL_X509_NAME_oneline");
+        if (!name->sz) return in;
+
+        if (!in) {
+            in = (char*)XMALLOC(name->sz, 0, DYNAMIC_TYPE_OPENSSL);
+            if (!in ) return in;
+            copySz = name->sz;
+        }
+
+        if (copySz == 0)
+            return in;
+
+        XMEMCPY(in, name->name, copySz - 1);
+        in[copySz - 1] = 0;
+
+        return in;
+    }
+
+
+    /* write X509 serial number in unsigned binary to buffer 
+       buffer needs to be at least EXTERNAL_SERIAL_SIZE (32) for all cases
+       return SSL_SUCCESS on success */
+    int CyaSSL_X509_get_serial_number(CYASSL_X509* x509, byte* in, int* inOutSz)
+    {
+        CYASSL_ENTER("CyaSSL_X509_get_serial_number");
+        if (x509 == NULL || in == NULL || *inOutSz < x509->serialSz)
+            return BAD_FUNC_ARG;
+
+        XMEMCPY(in, x509->serial, x509->serialSz);
+        *inOutSz = x509->serialSz;
+
+        return SSL_SUCCESS;
+    }
+
+
+    const byte* CyaSSL_X509_get_der(CYASSL_X509* x509, int* outSz)
+    { 
+        CYASSL_ENTER("CyaSSL_X509_get_der");
+        
+        if (x509 == NULL || outSz == NULL)
+            return NULL;
+
+        *outSz = (int)x509->derCert.length;
+        return x509->derCert.buffer;
+    }
+
+#endif /* KEEP_PEER_CERT || SESSION_CERTS */
+
 
 #ifdef OPENSSL_EXTRA
     int CyaSSL_set_ex_data(CYASSL* ssl, int idx, void* data)
@@ -6696,32 +6742,6 @@ int CyaSSL_set_compression(CYASSL* ssl)
         return 0; 
     }
 
-    /* write X509 serial number in unsigned binary to buffer 
-       buffer needs to be at least EXTERNAL_SERIAL_SIZE (32) for all cases
-       return SSL_SUCCESS on success */
-    int CyaSSL_X509_get_serial_number(CYASSL_X509* x509, byte* in, int* inOutSz)
-    {
-        CYASSL_ENTER("CyaSSL_X509_get_serial_number");
-        if (x509 == NULL || in == NULL || *inOutSz < x509->serialSz)
-            return BAD_FUNC_ARG;
-
-        XMEMCPY(in, x509->serial, x509->serialSz);
-        *inOutSz = x509->serialSz;
-
-        return SSL_SUCCESS;
-    }
-
-
-    const byte* CyaSSL_X509_get_der(CYASSL_X509* x509, int* outSz)
-    { 
-        CYASSL_ENTER("CyaSSL_X509_get_der");
-        
-        if (x509 == NULL || outSz == NULL)
-            return NULL;
-
-        *outSz = (int)x509->derCert.length;
-        return x509->derCert.buffer;
-    }  
 #endif /* OPENSSL_EXTRA */
 
 
@@ -8580,6 +8600,44 @@ byte* CyaSSL_get_chain_cert(CYASSL_X509_CHAIN* chain, int idx)
         return chain->certs[idx].buffer;
 
     return 0;
+}
+
+
+/* Get peer's CyaSSL X509 ceritifcate at index (idx) */
+CYASSL_X509* CyaSSL_get_chain_X509(CYASSL_X509_CHAIN* chain, int idx)
+{
+    int          ret;
+    CYASSL_X509* x509;
+    DecodedCert  dCert;
+
+    CYASSL_ENTER("CyaSSL_get_chain_X509");
+    if (chain == NULL)
+        return NULL;
+
+    InitDecodedCert(&dCert, chain->certs[idx].buffer, chain->certs[idx].length,
+                    NULL);
+    ret = ParseCertRelative(&dCert, CERT_TYPE, 0, NULL);
+    if (ret != 0) {
+        CYASSL_MSG("Failed to parse cert");
+        FreeDecodedCert(&dCert);
+    }
+
+    x509 = (CYASSL_X509*)XMALLOC(sizeof(CYASSL_X509), NULL, DYNAMIC_TYPE_X509);
+    if (x509 == NULL) {
+        CYASSL_MSG("Failed alloc X509");
+        FreeDecodedCert(&dCert);
+    }
+    InitX509(x509, 1);
+
+    ret = CopyDecodedToX509(x509, &dCert);
+    if (ret != 0) {
+        CYASSL_MSG("Failed to copy decoded");
+        XFREE(x509, NULL, DYNAMIC_TYPE_X509);
+        x509 = NULL;
+    }
+    FreeDecodedCert(&dCert);
+
+    return x509;
 }
 
 

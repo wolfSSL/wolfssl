@@ -714,6 +714,10 @@ CYASSL_API int  CyaSSL_get_chain_count(CYASSL_X509_CHAIN* chain);
 CYASSL_API int  CyaSSL_get_chain_length(CYASSL_X509_CHAIN*, int idx);
 /* index cert */
 CYASSL_API unsigned char* CyaSSL_get_chain_cert(CYASSL_X509_CHAIN*, int idx);
+/* index cert in X509 */
+CYASSL_API CYASSL_X509* CyaSSL_get_chain_X509(CYASSL_X509_CHAIN*, int idx);
+/* free X509 */
+CYASSL_API void CyaSSL_FreeX509(CYASSL_X509*);
 /* get index cert in PEM */
 CYASSL_API int  CyaSSL_get_chain_cert_pem(CYASSL_X509_CHAIN*, int idx,
                                 unsigned char* buffer, int inLen, int* outLen);

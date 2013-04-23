@@ -1536,6 +1536,7 @@ struct CYASSL_X509 {
     buffer           derCert;                        /* may need  */
     DNS_entry*       altNames;                       /* alt names list */
     DNS_entry*       altNamesNext;                   /* hint for retrieval */
+    byte             dynamicMemory;                  /* dynamic memory flag */
 };
 
 
@@ -1885,6 +1886,9 @@ CYASSL_LOCAL  int GrowInputBuffer(CYASSL* ssl, int size, int usedLength);
 
 CYASSL_LOCAL word32  LowResTimer(void);
 
+CYASSL_LOCAL void InitX509(CYASSL_X509*, int);
+CYASSL_LOCAL void FreeX509(CYASSL_X509*);
+CYASSL_LOCAL int  CopyDecodedToX509(CYASSL_X509*, DecodedCert*);
 
 
 #ifdef __cplusplus

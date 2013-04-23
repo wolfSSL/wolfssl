@@ -242,7 +242,8 @@ enum {
     DYNAMIC_TYPE_TMP_BUFFER   = 38,
     DYNAMIC_TYPE_DTLS_MSG     = 39,
     DYNAMIC_TYPE_CAVIUM_TMP   = 40,
-    DYNAMIC_TYPE_CAVIUM_RSA   = 41 
+    DYNAMIC_TYPE_CAVIUM_RSA   = 41,
+    DYNAMIC_TYPE_X509         = 42 
 };
 
 /* stack protection */
