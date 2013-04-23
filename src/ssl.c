@@ -8620,12 +8620,14 @@ CYASSL_X509* CyaSSL_get_chain_X509(CYASSL_X509_CHAIN* chain, int idx)
     if (ret != 0) {
         CYASSL_MSG("Failed to parse cert");
         FreeDecodedCert(&dCert);
+        return NULL;
     }
 
     x509 = (CYASSL_X509*)XMALLOC(sizeof(CYASSL_X509), NULL, DYNAMIC_TYPE_X509);
     if (x509 == NULL) {
         CYASSL_MSG("Failed alloc X509");
         FreeDecodedCert(&dCert);
+        return NULL;
     }
     InitX509(x509, 1);
 
