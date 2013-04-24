@@ -1006,6 +1006,10 @@ int AddCA(CYASSL_CERT_MANAGER* cm, buffer der, int type, int verify)
 
     static CyaSSL_Mutex session_mutex;   /* SessionCache mutex */
 
+    /* for persistance, if changes to layout need to increment and modify
+       save_session_cache() and restore_session_cache */
+    #define CYASSL_CACHE_VERSION 1
+
 #endif /* NO_SESSION_CACHE */
 
 
@@ -2534,6 +2538,7 @@ int CyaSSL_set_session(CYASSL* ssl, CYASSL_SESSION* session)
 
 /* Session Cache Header information */
 typedef struct {
+    int version;     /* cache layout version id */
     int rows;        /* session rows */
     int columns;     /* session columns */
     int sessionSz;   /* sizeof CYASSL_SESSION */
@@ -2551,11 +2556,12 @@ int CyaSSL_save_session_cache(const char *fname)
 
     CYASSL_ENTER("CyaSSL_save_session_cache");
 
-    file = XFOPEN(fname, "rb"); 
+    file = XFOPEN(fname, "w+b"); 
     if (file == XBADFILE) {
         CYASSL_MSG("Couldn't open session cache save file");
         return SSL_BAD_FILE;
     }
+    cache_header.version   = CYASSL_CACHE_VERSION;
     cache_header.rows      = SESSION_ROWS;
     cache_header.columns   = SESSIONS_PER_ROW;
     cache_header.sessionSz = (int)sizeof(CYASSL_SESSION);
@@ -2602,20 +2608,25 @@ int CyaSSL_restore_session_cache(const char *fname)
 
     CYASSL_ENTER("CyaSSL_restore_session_cache");
 
-    file = XFOPEN(fname, "w+b"); 
+    file = XFOPEN(fname, "rb"); 
     if (file == XBADFILE) {
         CYASSL_MSG("Couldn't open session cache save file");
         return SSL_BAD_FILE;
     }
     ret = (int)XFREAD(&cache_header, sizeof cache_header, 1, file);
-    if (ret                  != 1 ||
-        cache_header.rows    != SESSION_ROWS ||
-        cache_header.columns != SESSIONS_PER_ROW ||
-        cache_header.sessionSz != (int)sizeof(CYASSL_SESSION)) {
-
-        CYASSL_MSG("Session cache header file read/match failed");
+    if (ret != 1) {
+        CYASSL_MSG("Session cache header file read failed");
         XFCLOSE(file);
         return FREAD_ERROR;
+    }
+    if (cache_header.version   != CYASSL_CACHE_VERSION ||
+        cache_header.rows      != SESSION_ROWS ||
+        cache_header.columns   != SESSIONS_PER_ROW ||
+        cache_header.sessionSz != (int)sizeof(CYASSL_SESSION)) {
+
+        CYASSL_MSG("Session cache header match failed");
+        XFCLOSE(file);
+        return CACHE_MATCH_ERROR;
     }
 
     if (LockMutex(&session_mutex) != 0) {

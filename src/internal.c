@@ -5778,6 +5778,10 @@ void SetErrorString(int error, char* str)
         XSTRNCPY(str, "fwrite Error", max);
         break;
 
+    case CACHE_MATCH_ERROR:
+        XSTRNCPY(str, "Session Cache restore header match Error", max);
+        break;
+
     default :
         XSTRNCPY(str, "unknown error number", max);
     }

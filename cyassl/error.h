@@ -112,6 +112,7 @@ enum CyaSSL_ErrorCodes {
     GEN_COOKIE_E           = -277,            /* Generate Cookie Error */
     NO_PEER_VERIFY         = -278,            /* Need peer cert verify Error */
     FWRITE_ERROR           = -279,            /* fwrite problem            */
+    CACHE_MATCH_ERROR      = -280,            /* session cache hdr match err */
     /* add strings to SetErrorString !!!!! */
 
     /* begin negotiation parameter errors */
