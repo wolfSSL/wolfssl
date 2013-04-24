@@ -250,6 +250,19 @@ then
 fi
 
 
+# Persistent session cache 
+AC_ARG_ENABLE([savesession],
+    [  --enable-savesession    Enable persistent session cache (default: disabled)],
+    [ ENABLED_SAVESESSION=$enableval ],
+    [ ENABLED_SAVESESSION=no ]
+    )
+
+if test "$ENABLED_SAVESESSION" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DPERSIST_SESSION_CACHE"
+fi
+
+
 # SNIFFER
 AC_ARG_ENABLE([sniffer],
               [AS_HELP_STRING([--enable-sniffer],[ Enable CyaSSL sniffer support (default: disabled) ])],[
@@ -1379,6 +1392,7 @@ echo "   * Old TLS Versions:          $ENABLED_OLD_TLS"
 echo "   * OCSP:                      $ENABLED_OCSP"
 echo "   * CRL:                       $ENABLED_CRL"
 echo "   * CRL-MONITOR:               $ENABLED_CRL_MONITOR"
+echo "   * Persistent session cache:  $ENABLED_SAVESESSION"
 echo "   * NTRU:                      $ENABLED_NTRU"
 echo "   * valgrind unit tests:       $ENABLED_VALGRIND"
 echo "   * LIBZ:                      $ENABLED_LIBZ"

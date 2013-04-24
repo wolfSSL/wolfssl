@@ -1617,6 +1617,7 @@ int CyaSSL_CertManagerVerifyBuffer(CYASSL_CERT_MANAGER* cm, const byte* buff,
     #define XFTELL                   vf_tell
     #define XREWIND                  vf_rewind
     #define XFREAD(BUF, SZ, AMT, FD) vf_read(FD, BUF, SZ*AMT)
+    #define XFWRITE(BUF, SZ, AMT, FD) vf_write(FD, BUF, SZ*AMT)
     #define XFCLOSE                  vf_close
     #define XSEEK_END                VSEEK_END
     #define XBADFILE                 -1
@@ -1628,6 +1629,7 @@ int CyaSSL_CertManagerVerifyBuffer(CYASSL_CERT_MANAGER* cm, const byte* buff,
     #define XFTELL(F)               (F)->len
     #define XREWIND(F)              (void)F
     #define XFREAD(BUF, SZ, AMT, F) fs_read(F, (char*)BUF, SZ*AMT)
+    #define XFWRITE(BUF, SZ, AMT, F) fs_write(F, (char*)BUF, SZ*AMT)
     #define XFCLOSE                 fs_close
     #define XSEEK_END               0
     #define XBADFILE                NULL
@@ -1638,6 +1640,7 @@ int CyaSSL_CertManagerVerifyBuffer(CYASSL_CERT_MANAGER* cm, const byte* buff,
     #define XFTELL                  ftell
     #define XREWIND(F)              fseek(F, 0, IO_SEEK_SET)
     #define XFREAD                  fread
+    #define XFWRITE                 fwrite
     #define XFCLOSE                 fclose
     #define XSEEK_END               IO_SEEK_END
     #define XBADFILE                NULL
@@ -1649,6 +1652,7 @@ int CyaSSL_CertManagerVerifyBuffer(CYASSL_CERT_MANAGER* cm, const byte* buff,
     #define XFTELL     fs_ftell
     #define XREWIND    fs_rewind
     #define XFREAD     fs_fread
+    #define XFWRITE    fs_fwrite
     #define XFCLOSE    fs_fclose
     #define XSEEK_END  FS_SEEK_END
     #define XBADFILE   NULL
@@ -1660,6 +1664,7 @@ int CyaSSL_CertManagerVerifyBuffer(CYASSL_CERT_MANAGER* cm, const byte* buff,
     #define XFTELL     ftell
     #define XREWIND    rewind
     #define XFREAD     fread
+    #define XFWRITE    fwrite
     #define XFCLOSE    fclose
     #define XSEEK_END  SEEK_END
     #define XBADFILE   NULL
@@ -2524,6 +2529,122 @@ int CyaSSL_set_session(CYASSL* ssl, CYASSL_SESSION* session)
 
     return SSL_FAILURE;
 }
+
+#if !defined(NO_FILESYSTEM) && defined(PERSIST_SESSION_CACHE)
+
+/* Session Cache Header information */
+typedef struct {
+    int rows;        /* session rows */
+    int columns;     /* session columns */
+    int sessionSz;   /* sizeof CYASSL_SESSION */
+} cache_header_t;
+
+
+/* Persist session cache to file */
+int CyaSSL_save_session_cache(const char *fname)
+{
+    XFILE  file; 
+    int    ret;
+    int    rc = SSL_SUCCESS;
+    int    i;
+    cache_header_t cache_header;
+
+    CYASSL_ENTER("CyaSSL_save_session_cache");
+
+    file = XFOPEN(fname, "rb"); 
+    if (file == XBADFILE) {
+        CYASSL_MSG("Couldn't open session cache save file");
+        return SSL_BAD_FILE;
+    }
+    cache_header.rows      = SESSION_ROWS;
+    cache_header.columns   = SESSIONS_PER_ROW;
+    cache_header.sessionSz = (int)sizeof(CYASSL_SESSION);
+
+    ret = (int)XFWRITE(&cache_header, sizeof cache_header, 1, file);
+    if (ret != 1) {
+        CYASSL_MSG("Session cache header file write failed");
+        XFCLOSE(file);
+        return FWRITE_ERROR;
+    }
+
+    if (LockMutex(&session_mutex) != 0) {
+        CYASSL_MSG("Session cache mutex lock failed");
+        XFCLOSE(file);
+        return BAD_MUTEX_ERROR;
+    }
+
+    for (i = 0; i < cache_header.rows; ++i) {
+        ret = (int)XFWRITE(SessionCache + i, sizeof(SessionRow), 1, file);
+        if (ret != 1) {
+            CYASSL_MSG("Session cache member file write failed");
+            rc = FWRITE_ERROR;
+            break;
+        }
+    }
+
+    UnLockMutex(&session_mutex);
+
+    XFCLOSE(file);
+    CYASSL_LEAVE("CyaSSL_save_session_cache", rc);
+
+    return rc;
+}
+
+
+/* Restore the persistant session cache from file */
+int CyaSSL_restore_session_cache(const char *fname)
+{
+    XFILE  file; 
+    int    rc = SSL_SUCCESS; 
+    int    ret; 
+    int    i;
+    cache_header_t cache_header;
+
+    CYASSL_ENTER("CyaSSL_restore_session_cache");
+
+    file = XFOPEN(fname, "w+b"); 
+    if (file == XBADFILE) {
+        CYASSL_MSG("Couldn't open session cache save file");
+        return SSL_BAD_FILE;
+    }
+    ret = (int)XFREAD(&cache_header, sizeof cache_header, 1, file);
+    if (ret                  != 1 ||
+        cache_header.rows    != SESSION_ROWS ||
+        cache_header.columns != SESSIONS_PER_ROW ||
+        cache_header.sessionSz != (int)sizeof(CYASSL_SESSION)) {
+
+        CYASSL_MSG("Session cache header file read/match failed");
+        XFCLOSE(file);
+        return FREAD_ERROR;
+    }
+
+    if (LockMutex(&session_mutex) != 0) {
+        CYASSL_MSG("Session cache mutex lock failed");
+        XFCLOSE(file);
+        return BAD_MUTEX_ERROR; 
+    }
+
+    for (i = 0; i < cache_header.rows; ++i) {
+        ret = (int)XFREAD(SessionCache + i, sizeof(SessionRow), 1, file);
+        if (ret != 1) {
+            CYASSL_MSG("Session cache member file read failed");
+            rc = FREAD_ERROR;
+            break;
+        }
+    }
+
+    UnLockMutex(&session_mutex);
+
+    if (rc != SSL_SUCCESS)
+        XMEMSET(SessionCache, 0, sizeof SessionCache);
+
+    XFCLOSE(file);
+    CYASSL_LEAVE("CyaSSL_restore_session_cache", rc);
+
+    return rc;
+}
+
+#endif /* !NO_FILESYSTEM && PERSIST_SESSION_CACHE */
 
 #endif /* NO_SESSION_CACHE */
 

@@ -111,6 +111,7 @@ enum CyaSSL_ErrorCodes {
     RECV_OVERFLOW_E        = -276,            /* RXCB returned more than rqed */
     GEN_COOKIE_E           = -277,            /* Generate Cookie Error */
     NO_PEER_VERIFY         = -278,            /* Need peer cert verify Error */
+    FWRITE_ERROR           = -279,            /* fwrite problem            */
     /* add strings to SetErrorString !!!!! */
 
     /* begin negotiation parameter errors */

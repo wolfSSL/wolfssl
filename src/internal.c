@@ -5774,6 +5774,10 @@ void SetErrorString(int error, char* str)
         XSTRNCPY(str, "Need peer certificate verify Error", max);
         break;
 
+    case FWRITE_ERROR:
+        XSTRNCPY(str, "fwrite Error", max);
+        break;
+
     default :
         XSTRNCPY(str, "unknown error number", max);
     }
