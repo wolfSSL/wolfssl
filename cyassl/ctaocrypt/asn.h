@@ -193,7 +193,9 @@ enum Extensions_Sum {
     ALT_NAMES_OID = 131,
     CRL_DIST_OID  = 145,
     AUTH_INFO_OID = 69,
-    CA_ISSUER_OID = 117
+    CA_ISSUER_OID = 117,
+    AUTH_KEY_OID  = 149,
+    SUBJ_KEY_OID  = 128
 };
 
 
@@ -249,6 +251,10 @@ struct DecodedCert {
     int     extAuthInfoSz;           /* length of the URI                */
     byte*   extCrlInfo;              /* CRL Distribution Points          */
     int     extCrlInfoSz;            /* length of the URI                */
+    byte*   extSubjKeyId;            /* Subject Key ID                   */
+    int     extSubjKeyIdSz;          /* length of the ID                 */
+    byte*   extAuthKeyId;            /* Authority Key ID                 */
+    int     extAuthKeyIdSz;          /* length of the ID                 */
     byte    isCA;                    /* CA basic constraint true */
 #ifdef CYASSL_CERT_GEN
     /* easy access to subject info for other sign */

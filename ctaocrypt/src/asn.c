@@ -1218,6 +1218,10 @@ void InitDecodedCert(DecodedCert* cert, byte* source, word32 inSz, void* heap)
     cert->extAuthInfoSz   = 0;
     cert->extCrlInfo      = NULL;
     cert->extCrlInfoSz    = 0;
+    cert->extSubjKeyId    = NULL;
+    cert->extSubjKeyIdSz  = 0;
+    cert->extAuthKeyId    = NULL;
+    cert->extAuthKeyIdSz  = 0;
     cert->isCA            = 0;
 #ifdef CYASSL_CERT_GEN
     cert->subjectSN       = 0;
@@ -2542,6 +2546,58 @@ static void DecodeAuthInfo(byte* input, int sz, DecodedCert* cert)
 }
 
 
+static void DecodeAuthKeyId(byte* input, int sz, DecodedCert* cert)
+{
+    word32 idx = 0;
+    int length = 0;
+
+    CYASSL_ENTER("DecodeAuthKeyId");
+
+    if (GetSequence(input, &idx, &length, sz) < 0) {
+        CYASSL_MSG("\tfail: should be a SEQUENCE\n");
+        return;
+    }
+
+    if (input[idx++] != (ASN_CONTEXT_SPECIFIC | 0)) {
+        CYASSL_MSG("\tfail: wanted OPTIONAL item 0, not available\n");
+    }
+
+    if (GetLength(input, &idx, &length, sz) < 0) {
+        CYASSL_MSG("\tfail: extension data length");
+        return;
+    }
+
+    cert->extAuthKeyId = input + idx;
+    cert->extAuthKeyIdSz = length;
+
+    return;
+}
+
+
+static void DecodeSubjKeyId(byte* input, int sz, DecodedCert* cert)
+{
+    word32 idx = 0;
+    int length = 0;
+
+    CYASSL_ENTER("DecodeSubjKeyId");
+
+    if (input[idx++] != ASN_OCTET_STRING) {
+        CYASSL_MSG("\tfail: should be an OCTET STRING");
+        return;
+    }
+
+    if (GetLength(input, &idx, &length, sz) < 0) {
+        CYASSL_MSG("\tfail: extension data length");
+        return;
+    }
+
+    cert->extSubjKeyId = input + idx;
+    cert->extSubjKeyIdSz = length;
+
+    return;
+}
+
+
 static void DecodeCertExtensions(DecodedCert* cert)
 /*
  *  Processing the Certificate Extensions. This does not modify the current
@@ -2608,6 +2664,14 @@ static void DecodeCertExtensions(DecodedCert* cert)
 
             case ALT_NAMES_OID:
                 DecodeAltNames(&input[idx], length, cert);
+
+            case AUTH_KEY_OID:
+                DecodeAuthKeyId(&input[idx], length, cert);
+                break;
+
+            case SUBJ_KEY_OID:
+                DecodeSubjKeyId(&input[idx], length, cert);
+                break;
 
             default:
                 CYASSL_MSG("\tExtension type not handled, skipping");
