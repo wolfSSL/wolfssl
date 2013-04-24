@@ -2628,15 +2628,13 @@ int CyaSSL_restore_session_cache(const char *fname)
         ret = (int)XFREAD(SessionCache + i, sizeof(SessionRow), 1, file);
         if (ret != 1) {
             CYASSL_MSG("Session cache member file read failed");
+            XMEMSET(SessionCache, 0, sizeof SessionCache);
             rc = FREAD_ERROR;
             break;
         }
     }
 
     UnLockMutex(&session_mutex);
-
-    if (rc != SSL_SUCCESS)
-        XMEMSET(SessionCache, 0, sizeof SessionCache);
 
     XFCLOSE(file);
     CYASSL_LEAVE("CyaSSL_restore_session_cache", rc);
