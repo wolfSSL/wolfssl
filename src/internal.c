@@ -1188,7 +1188,7 @@ void InitX509(CYASSL_X509* x509, int dynamicFlag)
     x509->derCert.buffer = NULL;
     x509->altNames       = NULL;
     x509->altNamesNext   = NULL;
-    x509->dynamicMemory  = dynamicFlag;
+    x509->dynamicMemory  = (byte)dynamicFlag;
 }
 
 
