@@ -167,6 +167,7 @@ CYASSL_API int CyaSSL_CTX_use_certificate_file(CYASSL_CTX*, const char*, int);
 CYASSL_API int CyaSSL_CTX_use_PrivateKey_file(CYASSL_CTX*, const char*, int);
 CYASSL_API int CyaSSL_CTX_load_verify_locations(CYASSL_CTX*, const char*,
                                                 const char*);
+CYASSL_API int CyaSSL_CTX_UnloadCAs(CYASSL_CTX*);
 CYASSL_API int CyaSSL_CTX_use_certificate_chain_file(CYASSL_CTX *,
                                                      const char *file);
 CYASSL_API int CyaSSL_CTX_use_RSAPrivateKey_file(CYASSL_CTX*, const char*, int);
@@ -713,6 +714,10 @@ CYASSL_API int  CyaSSL_get_chain_count(CYASSL_X509_CHAIN* chain);
 CYASSL_API int  CyaSSL_get_chain_length(CYASSL_X509_CHAIN*, int idx);
 /* index cert */
 CYASSL_API unsigned char* CyaSSL_get_chain_cert(CYASSL_X509_CHAIN*, int idx);
+/* index cert in X509 */
+CYASSL_API CYASSL_X509* CyaSSL_get_chain_X509(CYASSL_X509_CHAIN*, int idx);
+/* free X509 */
+CYASSL_API void CyaSSL_FreeX509(CYASSL_X509*);
 /* get index cert in PEM */
 CYASSL_API int  CyaSSL_get_chain_cert_pem(CYASSL_X509_CHAIN*, int idx,
                                 unsigned char* buffer, int inLen, int* outLen);
@@ -869,6 +874,7 @@ typedef void (*CbMissingCRL)(const char* url);
 
     CYASSL_API int CyaSSL_CertManagerLoadCA(CYASSL_CERT_MANAGER*, const char* f,
                                                                  const char* d);
+    CYASSL_API int CyaSSL_CertManagerUnloadCAs(CYASSL_CERT_MANAGER* cm);
     CYASSL_API int CyaSSL_CertManagerVerify(CYASSL_CERT_MANAGER*, const char* f,
                                                                     int format);
     CYASSL_API int CyaSSL_CertManagerVerifyBuffer(CYASSL_CERT_MANAGER* cm,

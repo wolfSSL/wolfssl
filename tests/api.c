@@ -103,7 +103,7 @@ int test_CyaSSL_Init(void)
 
     printf(testingFmt, "CyaSSL_Init()");
     result = CyaSSL_Init();
-    printf(resultFmt, result ? failed : passed);
+    printf(resultFmt, result == SSL_SUCCESS ? passed : failed);
 
     return result;
 }
@@ -114,7 +114,7 @@ static int test_CyaSSL_Cleanup(void)
 
     printf(testingFmt, "CyaSSL_Cleanup()");
     result = CyaSSL_Cleanup();
-    printf(resultFmt, result ? failed : passed);
+    printf(resultFmt, result == SSL_SUCCESS ? passed : failed);
 
     return result;
 }

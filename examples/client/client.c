@@ -113,6 +113,8 @@ static void Usage(void)
     printf("-m          Match domain name in cert\n");
     printf("-N          Use Non-blocking sockets\n");
     printf("-r          Resume session\n");
+    printf("-f          Fewer packets/group messages\n");
+    printf("-x          Disable client cert/key loading\n");
 #ifdef SHOW_SIZES
     printf("-z          Print structure sizes\n");
 #endif
@@ -152,6 +154,8 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
     int    nonBlocking = 0;
     int    resumeSession = 0;
     int    trackMemory   = 0;
+    int    useClientCert = 1;
+    int    fewerPackets  = 0;
     char*  cipherList = NULL;
     char*  verifyCert = (char*)caCert;
     char*  ourCert    = (char*)cliCert;
@@ -172,7 +176,7 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
     (void)sslResume;
     (void)trackMemory;
 
-    while ((ch = mygetopt(argc, argv, "?gdusmNrth:p:v:l:A:c:k:b:z")) != -1) {
+    while ((ch = mygetopt(argc, argv, "?gdusmNrtfxh:p:v:l:A:c:k:b:z")) != -1) {
         switch (ch) {
             case '?' :
                 Usage();
@@ -202,6 +206,14 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
 
             case 'm' :
                 matchName = 1;
+                break;
+
+            case 'x' :
+                useClientCert = 0;
+                break;
+
+            case 'f' :
+                fewerPackets = 1;
                 break;
 
             case 'h' :
@@ -344,6 +356,9 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
     usePsk = 1;
 #endif
 
+    if (fewerPackets)
+        CyaSSL_CTX_set_group_messages(ctx);
+
     if (usePsk) {
 #ifndef NO_PSK
         CyaSSL_CTX_set_psk_client_callback(ctx, my_psk_client_cb);
@@ -358,6 +373,7 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
                 err_sys("client can't set cipher list 2");
         }
 #endif
+        useClientCert = 0;
     }
 
 #ifdef OPENSSL_EXTRA
@@ -381,17 +397,18 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
     CyaSSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, myVerify);
 #endif
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
-    if (!usePsk){
-        if (CyaSSL_CTX_use_certificate_file(ctx, ourCert, SSL_FILETYPE_PEM)
-                                     != SSL_SUCCESS)
+    if (useClientCert){
+        if (CyaSSL_CTX_use_certificate_chain_file(ctx, ourCert) != SSL_SUCCESS)
             err_sys("can't load client cert file, check file and run from"
                     " CyaSSL home dir");
 
         if (CyaSSL_CTX_use_PrivateKey_file(ctx, ourKey, SSL_FILETYPE_PEM)
                                          != SSL_SUCCESS)
             err_sys("can't load client private key file, check file and run "
-                    "from CyaSSL home dir");    
+                    "from CyaSSL home dir");
+    }
 
+    if (!usePsk) {
         if (CyaSSL_CTX_load_verify_locations(ctx, verifyCert, 0) != SSL_SUCCESS)
                 err_sys("can't load ca file, Please run from CyaSSL home dir");
     }

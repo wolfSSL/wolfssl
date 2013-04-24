@@ -12,7 +12,7 @@ RESULT=$?
 
 # make sure basic config is ok
 echo -e "\n\nTesting basic config too...\n\n"
-./configure;
+./configure --disable-fastmath;
 RESULT=$?
 [ $RESULT -ne 0 ] && echo -e "\n\nBasic config ./configure failed" && exit 1
 

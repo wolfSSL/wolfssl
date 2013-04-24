@@ -1182,6 +1182,30 @@ void InitSuites(Suites* suites, ProtocolVersion pv, byte haveRSA, byte havePSK,
 }
 
 
+/* Initialize CyaSSL X509 type */
+void InitX509(CYASSL_X509* x509, int dynamicFlag)
+{
+    x509->derCert.buffer = NULL;
+    x509->altNames       = NULL;
+    x509->altNamesNext   = NULL;
+    x509->dynamicMemory  = dynamicFlag;
+}
+
+
+/* Free CyaSSL X509 type */
+void FreeX509(CYASSL_X509* x509)
+{
+    if (x509 == NULL)
+        return;
+
+    XFREE(x509->derCert.buffer, NULL, DYNAMIC_TYPE_CERT);
+    if (x509->altNames)
+        FreeAltNames(x509->altNames, NULL);
+    if (x509->dynamicMemory)
+        XFREE(x509, NULL, DYNAMIC_TYPE_X509);
+}
+
+
 /* init everything to 0, NULL, default values before calling anything that may
    fail so that desctructor has a "good" state to cleanup */
 int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
@@ -1231,9 +1255,7 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
     ssl->buffers.plainSz                   = 0;
 
 #ifdef KEEP_PEER_CERT
-    ssl->peerCert.derCert.buffer = NULL;
-    ssl->peerCert.altNames     = NULL;
-    ssl->peerCert.altNamesNext = NULL;
+    InitX509(&ssl->peerCert, 0);
 #endif
 
 #ifdef HAVE_ECC
@@ -1590,9 +1612,7 @@ void SSL_ResourceFree(CYASSL* ssl)
     ssl->buffers.dtlsCtx.peer.sa = NULL;
 #endif
 #if defined(KEEP_PEER_CERT) || defined(GOAHEAD_WS)
-    XFREE(ssl->peerCert.derCert.buffer, ssl->heap, DYNAMIC_TYPE_CERT);
-    if (ssl->peerCert.altNames)
-        FreeAltNames(ssl->peerCert.altNames, ssl->heap);
+    FreeX509(&ssl->peerCert);
 #endif
 #if defined(OPENSSL_EXTRA) || defined(GOAHEAD_WS)
     CyaSSL_BIO_free(ssl->biord);
@@ -2023,7 +2043,7 @@ ProtocolVersion MakeDTLSv1_2(void)
 
 #ifdef USE_WINDOWS_API 
 
-    timer_d Timer(void)
+    word32 LowResTimer(void)
     {
         static int           init = 0;
         static LARGE_INTEGER freq;
@@ -2036,15 +2056,8 @@ ProtocolVersion MakeDTLSv1_2(void)
 
         QueryPerformanceCounter(&count);
 
-        return (double)count.QuadPart / freq.QuadPart;
+        return (word32)(count.QuadPart / freq.QuadPart);
     }
-
-
-    word32 LowResTimer(void)
-    {
-        return (word32)Timer();
-    }
-
 
 #elif defined(THREADX)
 
@@ -2805,6 +2818,54 @@ static int CheckAltNames(DecodedCert* dCert, char* domain)
 }
 
 
+#if defined(KEEP_PEER_CERT) || defined(SESSION_CERTS)
+
+/* Copy parts X509 needs from Decoded cert, 0 on success */
+int CopyDecodedToX509(CYASSL_X509* x509, DecodedCert* dCert)
+{
+    int ret = 0;
+
+    if (x509 == NULL || dCert == NULL)
+        return BAD_FUNC_ARG;
+
+    XSTRNCPY(x509->issuer.name, dCert->issuer, ASN_NAME_MAX);
+    x509->issuer.name[ASN_NAME_MAX - 1] = '\0';
+    x509->issuer.sz = (int)XSTRLEN(x509->issuer.name) + 1;
+
+    XSTRNCPY(x509->subject.name, dCert->subject, ASN_NAME_MAX);
+    x509->subject.name[ASN_NAME_MAX - 1] = '\0';
+    x509->subject.sz = (int)XSTRLEN(x509->subject.name) + 1;
+
+    XMEMCPY(x509->serial, dCert->serial, EXTERNAL_SERIAL_SIZE);
+    x509->serialSz = dCert->serialSz;
+    if (dCert->subjectCNLen < ASN_NAME_MAX) {
+        XMEMCPY(x509->subjectCN, dCert->subjectCN, dCert->subjectCNLen);
+        x509->subjectCN[dCert->subjectCNLen] = '\0';
+    }
+    else
+        x509->subjectCN[0] = '\0';
+
+    /* store cert for potential retrieval */
+    x509->derCert.buffer = (byte*)XMALLOC(dCert->maxIdx, NULL,
+                                          DYNAMIC_TYPE_CERT);
+    if (x509->derCert.buffer == NULL) {
+        ret = MEMORY_E;
+    }
+    else {
+        XMEMCPY(x509->derCert.buffer, dCert->source, dCert->maxIdx);
+        x509->derCert.length = dCert->maxIdx;
+    }
+
+    x509->altNames     = dCert->altNames;
+    dCert->altNames    = NULL;     /* takes ownership */
+    x509->altNamesNext = x509->altNames;  /* index hint */
+
+    return ret;
+}
+
+#endif /* KEEP_PEER_CERT || SESSION_CERTS */
+
+
 static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx)
 {
     word32 listSz, i = *inOutIdx;
@@ -2981,39 +3042,12 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx)
 #endif /* HAVE_CRL */
 
 #ifdef KEEP_PEER_CERT
+        {
         /* set X509 format for peer cert even if fatal */
-        XSTRNCPY(ssl->peerCert.issuer.name, dCert.issuer, ASN_NAME_MAX);
-        ssl->peerCert.issuer.name[ASN_NAME_MAX - 1] = '\0';
-        ssl->peerCert.issuer.sz = (int)XSTRLEN(ssl->peerCert.issuer.name) + 1;
-
-        XSTRNCPY(ssl->peerCert.subject.name, dCert.subject, ASN_NAME_MAX);
-        ssl->peerCert.subject.name[ASN_NAME_MAX - 1] = '\0';
-        ssl->peerCert.subject.sz = (int)XSTRLEN(ssl->peerCert.subject.name) + 1;
-
-        XMEMCPY(ssl->peerCert.serial, dCert.serial, EXTERNAL_SERIAL_SIZE);
-        ssl->peerCert.serialSz = dCert.serialSz;
-        if (dCert.subjectCNLen < ASN_NAME_MAX) {
-            XMEMCPY(ssl->peerCert.subjectCN,dCert.subjectCN,dCert.subjectCNLen);
-            ssl->peerCert.subjectCN[dCert.subjectCNLen] = '\0';
-        }
-        else
-            ssl->peerCert.subjectCN[0] = '\0';
-
-        /* store cert for potential retrieval */
-        ssl->peerCert.derCert.buffer = (byte*)XMALLOC(myCert.length, ssl->heap,
-                                                      DYNAMIC_TYPE_CERT);
-        if (ssl->peerCert.derCert.buffer == NULL) {
-            ret   = MEMORY_E;
+        int copyRet = CopyDecodedToX509(&ssl->peerCert, &dCert);
+        if (copyRet == MEMORY_E)
             fatal = 1;
         }
-        else {
-            XMEMCPY(ssl->peerCert.derCert.buffer, myCert.buffer, myCert.length);
-            ssl->peerCert.derCert.length = myCert.length;
-        }
-
-        ssl->peerCert.altNames = dCert.altNames;
-        dCert.altNames = NULL;     /* takes ownership */
-        ssl->peerCert.altNamesNext = ssl->peerCert.altNames;  /* index hint */
 #endif    
 
         if (fatal) {

@@ -263,49 +263,53 @@ static INLINE int PasswordCallBack(char* passwd, int sz, int rw, void* userdata)
 #endif
 
 
+#if defined(KEEP_PEER_CERT) || defined(SESSION_CERTS)
+
+static INLINE void ShowX509(CYASSL_X509* x509, const char* hdr)
+{
+    char* altName;
+    char* issuer  = CyaSSL_X509_NAME_oneline(
+                                       CyaSSL_X509_get_issuer_name(x509), 0, 0);
+    char* subject = CyaSSL_X509_NAME_oneline(
+                                      CyaSSL_X509_get_subject_name(x509), 0, 0);
+    byte  serial[32];
+    int   ret;
+    int   sz = sizeof(serial);
+        
+    printf("%s\n issuer : %s\n subject: %s\n", hdr, issuer, subject);
+
+    while ( (altName = CyaSSL_X509_get_next_altname(x509)) )
+        printf(" altname = %s\n", altName);
+
+    ret = CyaSSL_X509_get_serial_number(x509, serial, &sz);
+    if (ret == SSL_SUCCESS) {
+        int  i;
+        int  strLen;
+        char serialMsg[80];
+
+        /* testsuite has multiple threads writing to stdout, get output
+           message ready to write once */
+        strLen = sprintf(serialMsg, " serial number");
+        for (i = 0; i < sz; i++)
+            sprintf(serialMsg + strLen + (i*3), ":%02x ", serial[i]);
+        printf("%s\n", serialMsg);
+    }
+
+    XFREE(subject, 0, DYNAMIC_TYPE_OPENSSL);
+    XFREE(issuer,  0, DYNAMIC_TYPE_OPENSSL);
+}
+
+#endif /* KEEP_PEER_CERT || SESSION_CERTS */
+
+
 static INLINE void showPeer(CYASSL* ssl)
 {
 
     CYASSL_CIPHER* cipher;
 #ifdef KEEP_PEER_CERT
-    CYASSL_X509*   peer = CyaSSL_get_peer_certificate(ssl);
-    if (peer) {
-#ifdef OPENSSL_EXTRA
-        char* altName;
-        char* issuer  = CyaSSL_X509_NAME_oneline(
-                                       CyaSSL_X509_get_issuer_name(peer), 0, 0);
-        char* subject = CyaSSL_X509_NAME_oneline(
-                                      CyaSSL_X509_get_subject_name(peer), 0, 0);
-        byte  serial[32];
-        int   ret;
-        int   sz = sizeof(serial);
-        
-        printf("peer's cert info:\n issuer : %s\n subject: %s\n", issuer,
-                                                                  subject);
-
-        while ( (altName = CyaSSL_X509_get_next_altname(peer)) )
-            printf(" altname = %s\n", altName);
-
-        ret = CyaSSL_X509_get_serial_number(peer, serial, &sz);
-        if (ret == 0) {
-            int  i;
-            int  strLen;
-            char serialMsg[80];
-
-            /* testsuite has multiple threads writing to stdout, get output
-               message ready to write once */
-            strLen = sprintf(serialMsg, " serial number");
-            for (i = 0; i < sz; i++)
-                sprintf(serialMsg + strLen + (i*3), ":%02x ", serial[i]);
-            printf("%s\n", serialMsg);
-        }
-
-        XFREE(subject, 0, DYNAMIC_TYPE_OPENSSL);
-        XFREE(issuer,  0, DYNAMIC_TYPE_OPENSSL);
-#else
-        printf("peer has a cert!\n");
-#endif
-    }
+    CYASSL_X509* peer = CyaSSL_get_peer_certificate(ssl);
+    if (peer)
+        ShowX509(peer, "peer's cert info:");
     else
         printf("peer has no cert!\n");
 #endif
@@ -323,10 +327,18 @@ static INLINE void showPeer(CYASSL* ssl)
         for (i = 0; i < count; i++) {
             int length;
             unsigned char buffer[3072];
+            CYASSL_X509* chainX509;
 
             CyaSSL_get_chain_cert_pem(chain,i,buffer, sizeof(buffer), &length);
             buffer[length] = 0;
             printf("cert %d has length %d data = \n%s\n", i, length, buffer);
+
+            chainX509 = CyaSSL_get_chain_X509(chain, i);
+            if (chainX509)
+                ShowX509(chainX509, "session cert info:");
+            else
+                printf("get_chain_X509 failed\n");
+            CyaSSL_FreeX509(chainX509);
         }
     }
 #endif
