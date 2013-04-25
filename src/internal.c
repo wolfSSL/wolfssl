@@ -5221,7 +5221,7 @@ int SendData(CYASSL* ssl, const void* data, int sz)
     if (ssl->options.handShakeState != HANDSHAKE_DONE) {
         int err;
         CYASSL_MSG("handshake not complete, trying to finish");
-        if ( (err = CyaSSL_negotiate(ssl)) != 0) 
+        if ( (err = CyaSSL_negotiate(ssl)) != SSL_SUCCESS) 
             return  err;
     }
 
@@ -5318,7 +5318,7 @@ int ReceiveData(CYASSL* ssl, byte* output, int sz, int peek)
     if (ssl->options.handShakeState != HANDSHAKE_DONE) {
         int err;
         CYASSL_MSG("Handshake not complete, trying to finish");
-        if ( (err = CyaSSL_negotiate(ssl)) != 0)
+        if ( (err = CyaSSL_negotiate(ssl)) != SSL_SUCCESS)
             return  err;
     }
 
