@@ -282,7 +282,7 @@ struct DecodedCert {
 #ifdef SHA_DIGEST_SIZE
 #define SIGNER_DIGEST_SIZE SHA_DIGEST_SIZE
 #else
-#define SIGNER_DIGEST_SIZE 160
+#define SIGNER_DIGEST_SIZE 20 
 #endif
 
 /* CA Signers */

@@ -882,10 +882,11 @@ Signer* GetCA(void* vp, byte* hash)
     if (cm == NULL)
         return NULL;
 
-    signers = cm->caList;
 
     if (LockMutex(&cm->caLock) != 0)
         return ret;
+
+    signers = cm->caList;
     while (signers) {
         if (XMEMCMP(hash, signers->hash, SHA_DIGEST_SIZE) == 0) {
             ret = signers;
