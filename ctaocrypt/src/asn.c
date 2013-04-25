@@ -2801,6 +2801,7 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
 }
 
 
+/* Create and init an new signer */
 Signer* MakeSigner(void* heap)
 {
     Signer* signer = (Signer*) XMALLOC(sizeof(Signer), heap,
@@ -2816,18 +2817,31 @@ Signer* MakeSigner(void* heap)
 }
 
 
-void FreeSigners(Signer* signer, void* heap)
+/* Free an individual signer */
+void FreeSigner(Signer* signer, void* heap)
 {
-    while (signer) {
-        Signer* next = signer->next;
+    XFREE(signer->name, heap, DYNAMIC_TYPE_SUBJECT_CN);
+    XFREE(signer->publicKey, heap, DYNAMIC_TYPE_PUBLIC_KEY);
+    XFREE(signer, heap, DYNAMIC_TYPE_SIGNER);
 
-        XFREE(signer->name, heap, DYNAMIC_TYPE_SUBJECT_CN);
-        XFREE(signer->publicKey, heap, DYNAMIC_TYPE_PUBLIC_KEY);
-        XFREE(signer, heap, DYNAMIC_TYPE_SIGNER);
-
-        signer = next;
-    }
     (void)heap;
+}
+
+
+/* Free the whole singer table with number of rows */
+void FreeSignerTable(Signer** table, int rows, void* heap)
+{
+    int i;
+
+    for (i = 0; i < rows; i++) {
+        Signer* signer = table[i];
+        while (signer) {
+            Signer* next = signer->next;
+            FreeSigner(signer, heap);
+            signer = next;
+        }
+        table[i] = NULL;
+    }
 }
 
 

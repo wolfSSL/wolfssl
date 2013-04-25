@@ -664,7 +664,10 @@ CYASSL_CERT_MANAGER* CyaSSL_CertManagerNew(void)
     cm = (CYASSL_CERT_MANAGER*) XMALLOC(sizeof(CYASSL_CERT_MANAGER), 0,
                                         DYNAMIC_TYPE_CERT_MANAGER);
     if (cm) {
-        cm->caList          = NULL;
+        int i;
+
+        for (i = 0; i < CA_TABLE_SIZE; i++)
+            cm->caTable[i]  = NULL;
         cm->heap            = NULL;
         cm->caCacheCallback = NULL;
         cm->crl             = NULL;
@@ -692,7 +695,7 @@ void CyaSSL_CertManagerFree(CYASSL_CERT_MANAGER* cm)
             if (cm->crl) 
                 FreeCRL(cm->crl, 1);
         #endif
-        FreeSigners(cm->caList, NULL);
+        FreeSignerTable(cm->caTable, CA_TABLE_SIZE, NULL);
         FreeMutex(&cm->caLock);
         XFREE(cm, NULL, DYNAMIC_TYPE_CERT_MANAGER);
     }
@@ -703,8 +706,6 @@ void CyaSSL_CertManagerFree(CYASSL_CERT_MANAGER* cm)
 /* Unload the CA signer list */
 int CyaSSL_CertManagerUnloadCAs(CYASSL_CERT_MANAGER* cm)
 {
-    Signer* signers;
-
     CYASSL_ENTER("CyaSSL_CertManagerUnloadCAs");
 
     if (cm == NULL)
@@ -713,12 +714,10 @@ int CyaSSL_CertManagerUnloadCAs(CYASSL_CERT_MANAGER* cm)
     if (LockMutex(&cm->caLock) != 0)
         return BAD_MUTEX_ERROR;
 
-    signers = cm->caList;
-    cm->caList = NULL;
+    FreeSignerTable(cm->caTable, CA_TABLE_SIZE, NULL);
 
     UnLockMutex(&cm->caLock);
 
-    FreeSigners(signers, NULL);
 
     return SSL_SUCCESS;
 }
@@ -846,19 +845,40 @@ int CyaSSL_SetVersion(CYASSL* ssl, int version)
 
     return SSL_SUCCESS;
 }
-#endif
+#endif /* !leanpsk */
+
+
+#if !defined(NO_CERTS) || !defined(NO_SESSION_CACHE)
+
+/* Make a work from the front of random hash */
+static INLINE word32 MakeWordFromHash(const byte* hashID)
+{
+    return (hashID[0] << 24) | (hashID[1] << 16) | (hashID[2] <<  8) |
+            hashID[3];
+}
+
+#endif /* !NO_CERTS || !NO_SESSION_CACHE */
+
 
 #ifndef NO_CERTS
+
+/* hash is the SHA digest of name, just use first 32 bits as hash */
+static INLINE word32 HashSigner(const byte* hash)
+{
+    return MakeWordFromHash(hash) % CA_TABLE_SIZE;
+}
+
 
 /* does CA already exist on signer list */
 int AlreadySigner(CYASSL_CERT_MANAGER* cm, byte* hash)
 {
     Signer* signers;
     int     ret = 0;
+    word32  row = HashSigner(hash);
 
     if (LockMutex(&cm->caLock) != 0)
         return  ret;
-    signers = cm->caList;
+    signers = cm->caTable[row];
     while (signers) {
         if (XMEMCMP(hash, signers->hash, SHA_DIGEST_SIZE) == 0) {
             ret = 1;
@@ -878,15 +898,15 @@ Signer* GetCA(void* vp, byte* hash)
     CYASSL_CERT_MANAGER* cm = (CYASSL_CERT_MANAGER*)vp;
     Signer* ret = NULL;
     Signer* signers;
+    word32  row = HashSigner(hash);
 
     if (cm == NULL)
         return NULL;
 
-
     if (LockMutex(&cm->caLock) != 0)
         return ret;
 
-    signers = cm->caList;
+    signers = cm->caTable[row];
     while (signers) {
         if (XMEMCMP(hash, signers->hash, SHA_DIGEST_SIZE) == 0) {
             ret = signers;
@@ -908,6 +928,7 @@ int AddCA(CYASSL_CERT_MANAGER* cm, buffer der, int type, int verify)
     int         ret;
     DecodedCert cert;
     Signer*     signer = 0;
+    word32      row;
 
     CYASSL_MSG("Adding a CA");
     InitDecodedCert(&cert, der.buffer, der.length, cm->heap);
@@ -938,9 +959,11 @@ int AddCA(CYASSL_CERT_MANAGER* cm, buffer der, int type, int verify)
             cert.publicKey = 0;  /* don't free here */
             cert.subjectCN = 0;
 
+            row = HashSigner(signer->hash);
+
             if (LockMutex(&cm->caLock) == 0) {
-                signer->next = cm->caList;
-                cm->caList  = signer;   /* takes ownership */
+                signer->next = cm->caTable[row];
+                cm->caTable[row] = signer;   /* takes ownership */
                 UnLockMutex(&cm->caLock);
                 if (cm->caCacheCallback)
                     cm->caCacheCallback(der.buffer, (int)der.length, type);
@@ -948,7 +971,7 @@ int AddCA(CYASSL_CERT_MANAGER* cm, buffer der, int type, int verify)
             else {
                 CYASSL_MSG("    CA Mutex Lock failed");
                 ret = BAD_MUTEX_ERROR;
-                FreeSigners(signer, cm->heap);
+                FreeSigner(signer, cm->heap);
             }
         }
     }
@@ -3328,14 +3351,6 @@ int CyaSSL_Cleanup(void)
 
 
 #ifndef NO_SESSION_CACHE
-
-
-/* Make a work from the front of random hash */
-static INLINE word32 MakeWordFromHash(const byte* hashID)
-{
-    return (hashID[0] << 24) | (hashID[1] << 16) | (hashID[2] <<  8) |
-            hashID[3];
-}
 
 
 #ifndef NO_MD5

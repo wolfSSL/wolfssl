@@ -1056,9 +1056,13 @@ struct CYASSL_CRL {
 #endif
 
 
+#ifndef CA_TABLE_SIZE
+    #define CA_TABLE_SIZE 11
+#endif
+
 /* CyaSSL Certificate Manager */
 struct CYASSL_CERT_MANAGER {
-    Signer*         caList;             /* the CA signer list */
+    Signer*         caTable[CA_TABLE_SIZE]; /* the CA signer table */
     CyaSSL_Mutex    caLock;             /* CA list lock */
     CallbackCACache caCacheCallback;    /* CA cache addition callback */
     void*           heap;               /* heap helper */

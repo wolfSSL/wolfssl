@@ -315,7 +315,8 @@ CYASSL_LOCAL word32 EncodeSignature(byte* out, const byte* digest, word32 digSz,
                                     int hashOID);
 
 CYASSL_LOCAL Signer* MakeSigner(void*);
-CYASSL_LOCAL void    FreeSigners(Signer*, void*);
+CYASSL_LOCAL void    FreeSigner(Signer*, void*);
+CYASSL_LOCAL void    FreeSignerTable(Signer**, int, void*);
 
 
 CYASSL_LOCAL int ToTraditional(byte* buffer, word32 length);
