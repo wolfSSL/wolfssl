@@ -167,7 +167,6 @@ CYASSL_API int CyaSSL_CTX_use_certificate_file(CYASSL_CTX*, const char*, int);
 CYASSL_API int CyaSSL_CTX_use_PrivateKey_file(CYASSL_CTX*, const char*, int);
 CYASSL_API int CyaSSL_CTX_load_verify_locations(CYASSL_CTX*, const char*,
                                                 const char*);
-CYASSL_API int CyaSSL_CTX_UnloadCAs(CYASSL_CTX*);
 CYASSL_API int CyaSSL_CTX_use_certificate_chain_file(CYASSL_CTX *,
                                                      const char *file);
 CYASSL_API int CyaSSL_CTX_use_RSAPrivateKey_file(CYASSL_CTX*, const char*, int);
@@ -791,6 +790,7 @@ CYASSL_API int CyaSSL_make_eap_keys(CYASSL*, void* key, unsigned int len,
 
 #ifndef NO_CERTS
     /* SSL_CTX versions */
+    CYASSL_API int CyaSSL_CTX_UnloadCAs(CYASSL_CTX*);
     CYASSL_API int CyaSSL_CTX_load_verify_buffer(CYASSL_CTX*, 
                                                const unsigned char*, long, int);
     CYASSL_API int CyaSSL_CTX_use_certificate_buffer(CYASSL_CTX*,
