@@ -1038,7 +1038,7 @@ int AddCA(CYASSL_CERT_MANAGER* cm, buffer der, int type, int verify)
     static CyaSSL_Mutex session_mutex;   /* SessionCache mutex */
 
     /* for persistance, if changes to layout need to increment and modify
-       save_session_cache() and restore_session_cache */
+       save_session_cache() and restore_session_cache and memory versions too */
     #define CYASSL_CACHE_VERSION 1
 
 #endif /* NO_SESSION_CACHE */
@@ -2565,7 +2565,8 @@ int CyaSSL_set_session(CYASSL* ssl, CYASSL_SESSION* session)
     return SSL_FAILURE;
 }
 
-#if !defined(NO_FILESYSTEM) && defined(PERSIST_SESSION_CACHE)
+
+#if defined(PERSIST_SESSION_CACHE)
 
 /* Session Cache Header information */
 typedef struct {
@@ -2575,8 +2576,102 @@ typedef struct {
     int sessionSz;   /* sizeof CYASSL_SESSION */
 } cache_header_t;
 
+/* current persistence layout is:
+
+   1) cache_header_t
+   2) SessionCache
+
+   update CYASSL_CACHE_VERSION if change layout for the following
+   PERSISTENT_SESSION_CACHE functions 
+*/
+
+
+/* get how big the the session cache save buffer needs to be */
+int CyaSSL_get_session_cache_memsize(void)
+{
+    return (int)(sizeof(SessionCache) + sizeof(cache_header_t));
+}
+
+
+/* Persist session cache to memory */
+int CyaSSL_memsave_session_cache(void* mem, int sz)
+{
+    int i;
+    cache_header_t cache_header;
+    SessionRow*    row  = (SessionRow*)((byte*)mem + sizeof(cache_header));
+
+    CYASSL_ENTER("CyaSSL_memsave_session_cache");
+
+    if (sz < CyaSSL_get_session_cache_memsize()) {
+        CYASSL_MSG("Memory buffer too small");
+        return BUFFER_E;
+    }
+
+    cache_header.version   = CYASSL_CACHE_VERSION;
+    cache_header.rows      = SESSION_ROWS;
+    cache_header.columns   = SESSIONS_PER_ROW;
+    cache_header.sessionSz = (int)sizeof(CYASSL_SESSION);
+    XMEMCPY(mem, &cache_header, sizeof(cache_header));
+
+    if (LockMutex(&session_mutex) != 0) {
+        CYASSL_MSG("Session cache mutex lock failed");
+        return BAD_MUTEX_ERROR;
+    }
+
+    for (i = 0; i < cache_header.rows; ++i)
+        XMEMCPY(row++, SessionCache + i, sizeof(SessionRow));
+
+    UnLockMutex(&session_mutex);
+
+    CYASSL_LEAVE("CyaSSL_memsave_session_cache", SSL_SUCCESS);
+
+    return SSL_SUCCESS; 
+}
+
+
+/* Restore the persistant session cache from memory */
+int CyaSSL_memrestore_session_cache(const void* mem, int sz)
+{
+    int    i;
+    cache_header_t cache_header;
+    SessionRow*    row  = (SessionRow*)((byte*)mem + sizeof(cache_header));
+
+    CYASSL_ENTER("CyaSSL_memrestore_session_cache");
+
+    if (sz < CyaSSL_get_session_cache_memsize()) {
+        CYASSL_MSG("Memory buffer too small");
+        return BUFFER_E;
+    }
+
+    XMEMCPY(&cache_header, mem, sizeof(cache_header));
+    if (cache_header.version   != CYASSL_CACHE_VERSION ||
+        cache_header.rows      != SESSION_ROWS ||
+        cache_header.columns   != SESSIONS_PER_ROW ||
+        cache_header.sessionSz != (int)sizeof(CYASSL_SESSION)) {
+
+        CYASSL_MSG("Session cache header match failed");
+        return CACHE_MATCH_ERROR;
+    }
+
+    if (LockMutex(&session_mutex) != 0) {
+        CYASSL_MSG("Session cache mutex lock failed");
+        return BAD_MUTEX_ERROR; 
+    }
+
+    for (i = 0; i < cache_header.rows; ++i)
+        XMEMCPY(SessionCache + i, row++, sizeof(SessionRow));
+
+    UnLockMutex(&session_mutex);
+
+    CYASSL_LEAVE("CyaSSL_memrestore_session_cache", SSL_SUCCESS);
+
+    return SSL_SUCCESS;
+}
+
+#if !defined(NO_FILESYSTEM)
 
 /* Persist session cache to file */
+/* doesn't use memsave becasue of additional memory use */
 int CyaSSL_save_session_cache(const char *fname)
 {
     XFILE  file; 
@@ -2629,6 +2724,7 @@ int CyaSSL_save_session_cache(const char *fname)
 
 
 /* Restore the persistant session cache from file */
+/* doesn't use memstore becasue of additional memory use */
 int CyaSSL_restore_session_cache(const char *fname)
 {
     XFILE  file; 
@@ -2684,8 +2780,8 @@ int CyaSSL_restore_session_cache(const char *fname)
     return rc;
 }
 
-#endif /* !NO_FILESYSTEM && PERSIST_SESSION_CACHE */
-
+#endif /* !NO_FILESYSTEM */
+#endif /* PERSIST_SESSION_CACHE */
 #endif /* NO_SESSION_CACHE */
 
 

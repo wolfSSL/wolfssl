@@ -235,6 +235,9 @@ CYASSL_API int  CyaSSL_library_init(void);
 CYASSL_API long CyaSSL_CTX_set_session_cache_mode(CYASSL_CTX*, long);
 CYASSL_API int  CyaSSL_save_session_cache(const char *fname);
 CYASSL_API int  CyaSSL_restore_session_cache(const char *fname);
+CYASSL_API int  CyaSSL_memsave_session_cache(void*, int);
+CYASSL_API int  CyaSSL_memrestore_session_cache(const void*, int);
+CYASSL_API int  CyaSSL_get_session_cache_memsize(void);
 
 /* only supports full name from cipher_name[] delimited by : */
 CYASSL_API int  CyaSSL_CTX_set_cipher_list(CYASSL_CTX*, const char*);
