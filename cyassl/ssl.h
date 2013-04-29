@@ -214,9 +214,10 @@ CYASSL_API void CyaSSL_set_quiet_shutdown(CYASSL*, int);
 CYASSL_API int  CyaSSL_get_error(CYASSL*, int);
 CYASSL_API int  CyaSSL_get_alert_history(CYASSL*, CYASSL_ALERT_HISTORY *);
 
-CYASSL_API int          CyaSSL_set_session(CYASSL* ssl,CYASSL_SESSION* session);
+CYASSL_API int        CyaSSL_set_session(CYASSL* ssl,CYASSL_SESSION* session);
 CYASSL_API CYASSL_SESSION* CyaSSL_get_session(CYASSL* ssl);
-CYASSL_API void         CyaSSL_flush_sessions(CYASSL_CTX *ctx, long tm);
+CYASSL_API void       CyaSSL_flush_sessions(CYASSL_CTX *ctx, long tm);
+CYASSL_API int        CyaSSL_SetServerID(CYASSL* ssl, const unsigned char*,int);
 
 
 typedef int (*VerifyCallback)(int, CYASSL_X509_STORE_CTX*);

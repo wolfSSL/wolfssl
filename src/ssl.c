@@ -1037,9 +1037,27 @@ int AddCA(CYASSL_CERT_MANAGER* cm, buffer der, int type, int verify)
 
     static CyaSSL_Mutex session_mutex;   /* SessionCache mutex */
 
+    #ifndef NO_CLIENT_CACHE
+
+        typedef struct ClientSession {
+            word16 serverRow;            /* SessionCache Row id */
+            word16 serverIdx;            /* SessionCache Idx (column) */
+        } ClientSession;
+
+        typedef struct ClientRow {
+            int nextIdx;                /* where to place next one   */
+            int totalCount;             /* sessions ever on this row */
+            ClientSession Clients[SESSIONS_PER_ROW];
+        } ClientRow;
+
+        static ClientRow ClientCache[SESSION_ROWS];  /* Client Cache */
+                                                     /* uses session mutex */
+
+    #endif  /* NO_CLIENT_CACHE */
+
     /* for persistance, if changes to layout need to increment and modify
        save_session_cache() and restore_session_cache and memory versions too */
-    #define CYASSL_CACHE_VERSION 1
+    #define CYASSL_CACHE_VERSION 2
 
 #endif /* NO_SESSION_CACHE */
 
@@ -2566,6 +2584,39 @@ int CyaSSL_set_session(CYASSL* ssl, CYASSL_SESSION* session)
 }
 
 
+#ifndef NO_CLIENT_CACHE
+
+/* Assocaite client session with serverID, find existing or store for saving
+   SSL_SUCCESS on ok */
+int CyaSSL_SetServerID(CYASSL* ssl, const byte* id, int len)
+{
+    CYASSL_SESSION* session;
+
+    CYASSL_ENTER("CyaSSL_SetServerID");
+
+    if (ssl == NULL || id == NULL || len <= 0)
+        return BAD_FUNC_ARG;
+
+    session = GetSessionClient(ssl, id, len);
+    if (session) {
+        if (SetSession(ssl, session) != SSL_SUCCESS) {
+            CYASSL_MSG("SetSession failed");
+            session = NULL;
+        }
+    }
+
+    if (session == NULL) {
+        CYASSL_MSG("Valid ServerID not cached already");
+
+        ssl->session.idLen = min(SERVER_ID_LEN, (word32)len);
+        XMEMCPY(ssl->session.serverID, id, ssl->session.idLen);
+    }
+
+    return SSL_SUCCESS;
+}
+
+#endif
+
 #if defined(PERSIST_SESSION_CACHE)
 
 /* Session Cache Header information */
@@ -2580,6 +2631,7 @@ typedef struct {
 
    1) cache_header_t
    2) SessionCache
+   3) ClientCache
 
    update CYASSL_CACHE_VERSION if change layout for the following
    PERSISTENT_SESSION_CACHE functions 
@@ -2599,6 +2651,9 @@ int CyaSSL_memsave_session_cache(void* mem, int sz)
     int i;
     cache_header_t cache_header;
     SessionRow*    row  = (SessionRow*)((byte*)mem + sizeof(cache_header));
+#ifndef NO_CLIENT_CACHE
+    ClientRow*     clRow;
+#endif
 
     CYASSL_ENTER("CyaSSL_memsave_session_cache");
 
@@ -2621,6 +2676,12 @@ int CyaSSL_memsave_session_cache(void* mem, int sz)
     for (i = 0; i < cache_header.rows; ++i)
         XMEMCPY(row++, SessionCache + i, sizeof(SessionRow));
 
+#ifndef NO_CLIENT_CACHE
+    clRow = (ClientRow*)row;
+    for (i = 0; i < cache_header.rows; ++i)
+        XMEMCPY(clRow++, ClientCache + i, sizeof(ClientRow));
+#endif
+
     UnLockMutex(&session_mutex);
 
     CYASSL_LEAVE("CyaSSL_memsave_session_cache", SSL_SUCCESS);
@@ -2635,6 +2696,9 @@ int CyaSSL_memrestore_session_cache(const void* mem, int sz)
     int    i;
     cache_header_t cache_header;
     SessionRow*    row  = (SessionRow*)((byte*)mem + sizeof(cache_header));
+#ifndef NO_CLIENT_CACHE
+    ClientRow*     clRow;
+#endif
 
     CYASSL_ENTER("CyaSSL_memrestore_session_cache");
 
@@ -2660,6 +2724,12 @@ int CyaSSL_memrestore_session_cache(const void* mem, int sz)
 
     for (i = 0; i < cache_header.rows; ++i)
         XMEMCPY(SessionCache + i, row++, sizeof(SessionRow));
+
+#ifndef NO_CLIENT_CACHE
+    clRow = (ClientRow*)row;
+    for (i = 0; i < cache_header.rows; ++i)
+        XMEMCPY(ClientCache + i, clRow++, sizeof(ClientRow));
+#endif
 
     UnLockMutex(&session_mutex);
 
@@ -2692,6 +2762,7 @@ int CyaSSL_save_session_cache(const char *fname)
     cache_header.columns   = SESSIONS_PER_ROW;
     cache_header.sessionSz = (int)sizeof(CYASSL_SESSION);
 
+    /* cache header */
     ret = (int)XFWRITE(&cache_header, sizeof cache_header, 1, file);
     if (ret != 1) {
         CYASSL_MSG("Session cache header file write failed");
@@ -2705,6 +2776,7 @@ int CyaSSL_save_session_cache(const char *fname)
         return BAD_MUTEX_ERROR;
     }
 
+    /* session cache */
     for (i = 0; i < cache_header.rows; ++i) {
         ret = (int)XFWRITE(SessionCache + i, sizeof(SessionRow), 1, file);
         if (ret != 1) {
@@ -2713,6 +2785,18 @@ int CyaSSL_save_session_cache(const char *fname)
             break;
         }
     }
+
+#ifndef NO_CLIENT_CACHE
+    /* client cache */
+    for (i = 0; i < cache_header.rows; ++i) {
+        ret = (int)XFWRITE(ClientCache + i, sizeof(ClientRow), 1, file);
+        if (ret != 1) {
+            CYASSL_MSG("Client cache member file write failed");
+            rc = FWRITE_ERROR;
+            break;
+        }
+    }
+#endif /* NO_CLIENT_CACHE */
 
     UnLockMutex(&session_mutex);
 
@@ -2740,6 +2824,7 @@ int CyaSSL_restore_session_cache(const char *fname)
         CYASSL_MSG("Couldn't open session cache save file");
         return SSL_BAD_FILE;
     }
+    /* cache header */
     ret = (int)XFREAD(&cache_header, sizeof cache_header, 1, file);
     if (ret != 1) {
         CYASSL_MSG("Session cache header file read failed");
@@ -2762,6 +2847,7 @@ int CyaSSL_restore_session_cache(const char *fname)
         return BAD_MUTEX_ERROR; 
     }
 
+    /* session cache */
     for (i = 0; i < cache_header.rows; ++i) {
         ret = (int)XFREAD(SessionCache + i, sizeof(SessionRow), 1, file);
         if (ret != 1) {
@@ -2771,6 +2857,20 @@ int CyaSSL_restore_session_cache(const char *fname)
             break;
         }
     }
+
+#ifndef NO_CLIENT_CACHE
+    /* client cache */
+    for (i = 0; i < cache_header.rows; ++i) {
+        ret = (int)XFREAD(ClientCache + i, sizeof(ClientRow), 1, file);
+        if (ret != 1) {
+            CYASSL_MSG("Client cache member file read failed");
+            XMEMSET(ClientCache, 0, sizeof ClientCache);
+            rc = FREAD_ERROR;
+            break;
+        }
+    }
+
+#endif /* NO_CLIENT_CACHE */
 
     UnLockMutex(&session_mutex);
 
@@ -3448,18 +3548,17 @@ int CyaSSL_Cleanup(void)
 
 #ifndef NO_SESSION_CACHE
 
-
 #ifndef NO_MD5
 
 /* some session IDs aren't random afterall, let's make them random */
 
-static INLINE word32 HashSession(const byte* sessionID)
+static INLINE word32 HashSession(const byte* sessionID, word32 len)
 {
     byte digest[MD5_DIGEST_SIZE];
     Md5  md5;
 
     InitMd5(&md5);
-    Md5Update(&md5, sessionID, ID_LEN);
+    Md5Update(&md5, sessionID, len);
     Md5Final(&md5, digest);
 
     return MakeWordFromHash(digest);
@@ -3467,13 +3566,13 @@ static INLINE word32 HashSession(const byte* sessionID)
 
 #elif !defined(NO_SHA)
 
-static INLINE word32 HashSession(const byte* sessionID)
+static INLINE word32 HashSession(const byte* sessionID, word32 len)
 {
     byte digest[SHA_DIGEST_SIZE];
     Sha  sha;
 
     InitSha(&sha);
-    ShaUpdate(&sha, sessionID, ID_LEN);
+    ShaUpdate(&sha, sessionID, len);
     ShaFinal(&sha, digest);
 
     return MakeWordFromHash(digest);
@@ -3481,13 +3580,13 @@ static INLINE word32 HashSession(const byte* sessionID)
 
 #elif !defined(NO_SHA256)
 
-static INLINE word32 HashSession(const byte* sessionID)
+static INLINE word32 HashSession(const byte* sessionID, word32 len)
 {
     byte    digest[SHA256_DIGEST_SIZE];
     Sha256  sha256;
 
     InitSha256(&sha256);
-    Sha256Update(&sha256, sessionID, ID_LEN);
+    Sha256Update(&sha256, sessionID, len);
     Sha256Final(&sha256, digest);
 
     return MakeWordFromHash(digest);
@@ -3532,6 +3631,65 @@ int CyaSSL_CTX_set_timeout(CYASSL_CTX* ctx, unsigned int to)
 }
 
 
+#ifndef NO_CLIENT_CACHE
+
+/* Get Session from Client cache based on id/len, return NULL on failure */
+CYASSL_SESSION* GetSessionClient(CYASSL* ssl, const byte* id, int len)
+{
+    CYASSL_SESSION* ret = NULL;
+    word32          row;
+    int             idx;
+
+    CYASSL_ENTER("GetSessionClient");
+
+    if (ssl->options.side == SERVER_END)
+        return NULL;
+
+    len = min(SERVER_ID_LEN, (word32)len);
+    row = HashSession(id, len) % SESSION_ROWS;
+
+    if (LockMutex(&session_mutex) != 0) {
+        CYASSL_MSG("Lock sessoin mutex failed");
+        return NULL;
+    }
+  
+    /* start from most recently used */ 
+    if (ClientCache[row].totalCount >= SESSIONS_PER_ROW)
+        idx = SESSIONS_PER_ROW - 1;
+    else
+        idx = ClientCache[row].nextIdx - 1;
+
+    for (; idx >= 0; idx--) {
+        CYASSL_SESSION* current;
+        ClientSession   clSess;
+        
+        if (idx >= SESSIONS_PER_ROW)    /* client could have restarted, idx  */
+            break;                      /* would be word32(-1) and seg fault */
+       
+        clSess = ClientCache[row].Clients[idx];
+
+        current = &SessionCache[clSess.serverRow].Sessions[clSess.serverIdx];
+        if (XMEMCMP(current->serverID, id, len) == 0) {
+            if (LowResTimer() < (current->bornOn + current->timeout)) {
+                ret = current;
+            } else {
+                CYASSL_MSG("Session timed out");
+            }
+            
+            break;
+        } else {
+            CYASSL_MSG("ServerID not a match from client table");
+        }
+    }
+
+    UnLockMutex(&session_mutex);
+   
+    return ret; 
+}
+
+#endif /* NO_CLIENT_CACHE */
+
+
 CYASSL_SESSION* GetSession(CYASSL* ssl, byte* masterSecret)
 {
     CYASSL_SESSION* ret = 0;
@@ -3550,11 +3708,12 @@ CYASSL_SESSION* GetSession(CYASSL* ssl, byte* masterSecret)
     else
         id = ssl->session.sessionID;
 
-    row = HashSession(id) % SESSION_ROWS;
+    row = HashSession(id, ID_LEN) % SESSION_ROWS;
 
     if (LockMutex(&session_mutex) != 0)
         return 0;
    
+    /* start from most recently used */ 
     if (SessionCache[row].totalCount >= SESSIONS_PER_ROW)
         idx = SESSIONS_PER_ROW - 1;
     else
@@ -3614,7 +3773,7 @@ int AddSession(CYASSL* ssl)
     if (ssl->options.haveSessionId == 0)
         return 0;
 
-    row = HashSession(ssl->arrays->sessionID) % SESSION_ROWS;
+    row = HashSession(ssl->arrays->sessionID, ID_LEN) % SESSION_ROWS;
 
     if (LockMutex(&session_mutex) != 0)
         return BAD_MUTEX_ERROR;
@@ -3642,6 +3801,31 @@ int AddSession(CYASSL* ssl)
     SessionCache[row].totalCount++;
     if (SessionCache[row].nextIdx == SESSIONS_PER_ROW)
         SessionCache[row].nextIdx = 0;
+
+#ifndef NO_CLIENT_CACHE
+    if (ssl->options.side == CLIENT_END && ssl->session.idLen) {
+        word32 clientRow, clientIdx;
+
+        CYASSL_MSG("Adding client cache entry");
+
+        SessionCache[row].Sessions[idx].idLen = ssl->session.idLen;
+        XMEMCPY(SessionCache[row].Sessions[idx].serverID, ssl->session.serverID,
+                ssl->session.idLen);
+
+        clientRow = HashSession(ssl->session.serverID, ssl->session.idLen)
+                                % SESSION_ROWS;
+        clientIdx = ClientCache[clientRow].nextIdx++;
+
+        ClientCache[clientRow].Clients[clientIdx].serverRow = row;
+        ClientCache[clientRow].Clients[clientIdx].serverIdx = idx;
+
+        ClientCache[clientRow].totalCount++;
+        if (ClientCache[clientRow].nextIdx == SESSIONS_PER_ROW)
+            SessionCache[clientRow].nextIdx = 0;
+    }
+    else
+        SessionCache[row].Sessions[idx].idLen = 0;
+#endif
 
     if (UnLockMutex(&session_mutex) != 0)
         return BAD_MUTEX_ERROR;

@@ -587,6 +587,7 @@ enum Misc {
     ENUM_LEN     =  1,         /* always a byte           */
     COMP_LEN     =  1,         /* compression length      */
     CURVE_LEN    =  2,         /* ecc named curve length  */
+    SERVER_ID_LEN = 20,        /* server session id length  */
     
     HANDSHAKE_HEADER_SZ = 4,   /* type + length(3)        */
     RECORD_HEADER_SZ    = 5,   /* type + version + len(2) */
@@ -1363,15 +1364,19 @@ struct CYASSL_X509_CHAIN {
 
 /* CyaSSL session type */
 struct CYASSL_SESSION {
-    byte         sessionID[ID_LEN];
-    byte         masterSecret[SECRET_LEN];
+    byte         sessionID[ID_LEN];             /* id for protocol */
+    byte         masterSecret[SECRET_LEN];      /* stored secret */
     word32       bornOn;                        /* create time in seconds   */
     word32       timeout;                       /* timeout in seconds       */
 #ifdef SESSION_CERTS
-    CYASSL_X509_CHAIN chain;                      /* peer cert chain, static  */
-    ProtocolVersion version;
+    CYASSL_X509_CHAIN chain;                    /* peer cert chain, static  */
+    ProtocolVersion version;                    /* which version was used */
     byte            cipherSuite0;               /* first byte, normally 0 */
     byte            cipherSuite;                /* 2nd byte, actual suite */
+#endif
+#ifndef NO_CLIENT_CACHE
+    byte         serverID[SERVER_ID_LEN];       /* for easier client lookup */
+    word16       idLen;                         /* serverID length */
 #endif
 };
 
@@ -1383,6 +1388,9 @@ int          SetSession(CYASSL*, CYASSL_SESSION*);
 
 typedef void (*hmacfp) (CYASSL*, byte*, const byte*, word32, int, int);
 
+#ifndef NO_CLIENT_CACHE
+    CYASSL_SESSION* GetSessionClient(CYASSL*, const byte*, int);
+#endif
 
 /* client connect state for nonblocking restart */
 enum ConnectState {

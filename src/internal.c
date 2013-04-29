@@ -1408,6 +1408,10 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
     ssl->session.chain.count = 0;
 #endif
 
+#ifndef NO_CLIENT_CACHE
+    ssl->session.idLen = 0;
+#endif
+
     ssl->cipher.ssl = ssl;
 
 #ifdef FORTRESS
