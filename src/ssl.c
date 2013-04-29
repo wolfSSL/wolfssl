@@ -3707,7 +3707,7 @@ CYASSL_SESSION* GetSessionClient(CYASSL* ssl, const byte* id, int len)
     row = HashSession(id, len) % SESSION_ROWS;
 
     if (LockMutex(&session_mutex) != 0) {
-        CYASSL_MSG("Lock sessoin mutex failed");
+        CYASSL_MSG("Lock session mutex failed");
         return NULL;
     }
   
@@ -3879,7 +3879,7 @@ int AddSession(CYASSL* ssl)
 
         ClientCache[clientRow].totalCount++;
         if (ClientCache[clientRow].nextIdx == SESSIONS_PER_ROW)
-            SessionCache[clientRow].nextIdx = 0;
+            ClientCache[clientRow].nextIdx = 0;
     }
     else
         SessionCache[row].Sessions[idx].idLen = 0;
