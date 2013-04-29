@@ -2673,7 +2673,7 @@ int CyaSSL_SetServerID(CYASSL* ssl, const byte* id, int len)
     return SSL_SUCCESS;
 }
 
-#endif
+#endif /* NO_CLIENT_CACHE */
 
 #if defined(PERSIST_SESSION_CACHE)
 
@@ -3854,7 +3854,7 @@ int AddSession(CYASSL* ssl)
     SessionCache[row].Sessions[idx].version      = ssl->version;
     SessionCache[row].Sessions[idx].cipherSuite0 = ssl->options.cipherSuite0;
     SessionCache[row].Sessions[idx].cipherSuite  = ssl->options.cipherSuite;
-#endif
+#endif /* SESSION_CERTS */
 
     SessionCache[row].totalCount++;
     if (SessionCache[row].nextIdx == SESSIONS_PER_ROW)
@@ -3883,7 +3883,7 @@ int AddSession(CYASSL* ssl)
     }
     else
         SessionCache[row].Sessions[idx].idLen = 0;
-#endif
+#endif /* NO_CLIENT_CACHE */
 
     if (UnLockMutex(&session_mutex) != 0)
         return BAD_MUTEX_ERROR;
