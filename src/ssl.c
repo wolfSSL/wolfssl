@@ -880,7 +880,13 @@ int AlreadySigner(CYASSL_CERT_MANAGER* cm, byte* hash)
         return  ret;
     signers = cm->caTable[row];
     while (signers) {
-        if (XMEMCMP(hash, signers->hash, SHA_DIGEST_SIZE) == 0) {
+        byte* subjectHash;
+        #ifndef NO_SKID
+            subjectHash = signers->subjectKeyIdHash;
+        #else
+            subjectHash = signers->subjectNameHash;
+        #endif
+        if (XMEMCMP(hash, subjectHash, SHA_DIGEST_SIZE) == 0) {
             ret = 1;
             break;
         }
@@ -908,7 +914,13 @@ Signer* GetCA(void* vp, byte* hash)
 
     signers = cm->caTable[row];
     while (signers) {
-        if (XMEMCMP(hash, signers->hash, SHA_DIGEST_SIZE) == 0) {
+        byte* subjectHash;
+        #ifndef NO_SKID
+            subjectHash = signers->subjectKeyIdHash;
+        #else
+            subjectHash = signers->subjectNameHash;
+        #endif
+        if (XMEMCMP(hash, subjectHash, SHA_DIGEST_SIZE) == 0) {
             ret = signers;
             break;
         }
@@ -920,6 +932,37 @@ Signer* GetCA(void* vp, byte* hash)
 }
 
 
+#ifndef NO_SKID
+/* return CA if found, otherwise NULL. Walk through hash table. */
+Signer* GetCAByName(void* vp, byte* hash)
+{
+    CYASSL_CERT_MANAGER* cm = (CYASSL_CERT_MANAGER*)vp;
+    Signer* ret = NULL;
+    Signer* signers;
+    word32  row;
+
+    if (cm == NULL)
+        return NULL;
+
+    if (LockMutex(&cm->caLock) != 0)
+        return ret;
+
+    for (row = 0; row < CA_TABLE_SIZE && ret == NULL; row++) {
+        signers = cm->caTable[row];
+        while (signers && ret == NULL) {
+            if (XMEMCMP(hash, signers->subjectNameHash, SHA_DIGEST_SIZE) == 0) {
+                ret = signers;
+            }
+            signers = signers->next;
+        }
+    }
+    UnLockMutex(&cm->caLock);
+
+    return ret;
+}
+#endif
+
+
 /* owns der, internal now uses too */
 /* type flag ids from user or from chain received during verify
    don't allow chain ones to be added w/o isCA extension */
@@ -929,17 +972,24 @@ int AddCA(CYASSL_CERT_MANAGER* cm, buffer der, int type, int verify)
     DecodedCert cert;
     Signer*     signer = 0;
     word32      row;
+    byte*       subjectHash;
 
     CYASSL_MSG("Adding a CA");
     InitDecodedCert(&cert, der.buffer, der.length, cm->heap);
     ret = ParseCert(&cert, CA_TYPE, verify, cm);
     CYASSL_MSG("    Parsed new CA");
 
+    #ifndef NO_SKID
+        subjectHash = cert.extSubjKeyId;
+    #else
+        subjectHash = cert.subjectHash;
+    #endif
+
     if (ret == 0 && cert.isCA == 0 && type != CYASSL_USER_CA) {
         CYASSL_MSG("    Can't add as CA if not actually one");
         ret = NOT_CA_ERROR;
     }
-    else if (ret == 0 && AlreadySigner(cm, cert.subjectHash)) {
+    else if (ret == 0 && AlreadySigner(cm, subjectHash)) {
         CYASSL_MSG("    Already have this CA, not adding again");
         (void)ret;
     } 
@@ -953,13 +1003,21 @@ int AddCA(CYASSL_CERT_MANAGER* cm, buffer der, int type, int verify)
             signer->publicKey  = cert.publicKey;
             signer->pubKeySize = cert.pubKeySize;
             signer->name = cert.subjectCN;
-            XMEMCPY(signer->hash, cert.subjectHash, SHA_DIGEST_SIZE);
+            #ifndef NO_SKID
+                XMEMCPY(signer->subjectKeyIdHash,
+                                            cert.extSubjKeyId, SHA_DIGEST_SIZE);
+            #endif
+            XMEMCPY(signer->subjectNameHash, cert.subjectHash, SHA_DIGEST_SIZE);
             signer->next = NULL;   /* in case lock fails */
 
             cert.publicKey = 0;  /* don't free here */
             cert.subjectCN = 0;
 
-            row = HashSigner(signer->hash);
+            #ifndef NO_SKID
+                row = HashSigner(signer->subjectKeyIdHash);
+            #else
+                row = HashSigner(signer->subjectNameHash);
+            #endif
 
             if (LockMutex(&cm->caLock) == 0) {
                 signer->next = cm->caTable[row];

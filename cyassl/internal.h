@@ -1845,6 +1845,9 @@ CYASSL_LOCAL void ShrinkInputBuffer(CYASSL* ssl, int forcedFree);
 CYASSL_LOCAL void ShrinkOutputBuffer(CYASSL* ssl);
 #ifndef NO_CERTS
     CYASSL_LOCAL Signer* GetCA(void* cm, byte* hash);
+    #ifndef NO_SKID
+        CYASSL_LOCAL Signer* GetCAByName(void* cm, byte* hash);
+    #endif
 #endif
 CYASSL_LOCAL void BuildTlsFinished(CYASSL* ssl, Hashes* hashes,
                                    const byte* sender);

@@ -2931,17 +2931,24 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx)
     while (count > 1) {
         buffer myCert = certs[count - 1];
         DecodedCert dCert;
+        byte* subjectHash;
 
         InitDecodedCert(&dCert, myCert.buffer, myCert.length, ssl->heap);
         ret = ParseCertRelative(&dCert, CERT_TYPE, !ssl->options.verifyNone,
                                 ssl->ctx->cm);
+        #ifndef NO_SKID
+            subjectHash = dCert.extSubjKeyId;
+        #else
+            subjectHash = dCert.subjectHash;
+        #endif
+
         if (ret == 0 && dCert.isCA == 0) {
             CYASSL_MSG("Chain cert is not a CA, not adding as one");
         }
         else if (ret == 0 && ssl->options.verifyNone) {
             CYASSL_MSG("Chain cert not verified by option, not adding as CA");
         }
-        else if (ret == 0 && !AlreadySigner(ssl->ctx->cm, dCert.subjectHash)) {
+        else if (ret == 0 && !AlreadySigner(ssl->ctx->cm, subjectHash)) {
             buffer add;
             add.length = myCert.length;
             add.buffer = (byte*)XMALLOC(myCert.length, ssl->heap,
