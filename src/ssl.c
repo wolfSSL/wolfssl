@@ -2699,7 +2699,13 @@ typedef struct {
 /* get how big the the session cache save buffer needs to be */
 int CyaSSL_get_session_cache_memsize(void)
 {
-    return (int)(sizeof(SessionCache) + sizeof(cache_header_t));
+    int sz  = (int)(sizeof(SessionCache) + sizeof(cache_header_t));
+
+    #ifndef NO_CLIENT_CACHE
+        sz += (int)(sizeof(ClientCache));
+    #endif
+
+    return sz;
 }
 
 
