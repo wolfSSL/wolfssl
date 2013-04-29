@@ -30,6 +30,22 @@ same as self signed, use ca prefix instead of client
 3) openssl x509 -req -in server-req.pem -days 1000 -md5 -CA ca-cert.pem -CAkey ca-key.pem -set_serial 01 > server-cert.pem
 
 
+***** Adding Subject Key ID and Authentication Key ID extensions to a cert *****
+
+Create a config file for OpenSSL with the example contents:
+
+    [skidakid]
+    subjectKeyIdentifier=hash
+    authorityKeyIdentifier=keyid
+
+Add to the openssl command for creating a cert signed by a CA step 3 the
+following options:
+
+    -extfile <file.cnf> -extensions skidakid
+
+anywhere before the redirect. This will add the cert's public key hash as the
+Subject Key Identifier, and the signer's SKID as the Authentication Key ID.
+
 
 ***** To create a dsa cert ********************
 

@@ -251,7 +251,7 @@ struct DecodedCert {
     int     extAuthInfoSz;           /* length of the URI                */
     byte*   extCrlInfo;              /* CRL Distribution Points          */
     int     extCrlInfoSz;            /* length of the URI                */
-    byte*   extSubjKeyId;            /* Subject Key ID                   */
+    byte    extSubjKeyId[SHA_SIZE];  /* Subject Key ID                   */
     int     extSubjKeyIdSz;          /* length of the ID                 */
     byte*   extAuthKeyId;            /* Authority Key ID                 */
     int     extAuthKeyIdSz;          /* length of the ID                 */
@@ -291,7 +291,12 @@ struct Signer {
     word32  pubKeySize;
     word32  keyOID;                  /* key type */
     char*   name;                    /* common name */
-    byte    hash[SIGNER_DIGEST_SIZE];/* sha hash of names in certificate */
+    byte    subjectNameHash[SIGNER_DIGEST_SIZE];
+                                     /* sha hash of names in certificate */
+    #ifndef NO_SKID
+        byte    subjectKeyIdHash[SIGNER_DIGEST_SIZE];
+                                     /* sha hash of names in certificate */
+    #endif
     Signer* next;
 };
 

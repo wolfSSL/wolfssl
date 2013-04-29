@@ -1218,7 +1218,7 @@ void InitDecodedCert(DecodedCert* cert, byte* source, word32 inSz, void* heap)
     cert->extAuthInfoSz   = 0;
     cert->extCrlInfo      = NULL;
     cert->extCrlInfoSz    = 0;
-    cert->extSubjKeyId    = NULL;
+    XMEMSET(cert->extSubjKeyId, 0, SHA_SIZE);
     cert->extSubjKeyIdSz  = 0;
     cert->extAuthKeyId    = NULL;
     cert->extAuthKeyIdSz  = 0;
@@ -2591,7 +2591,7 @@ static void DecodeSubjKeyId(byte* input, int sz, DecodedCert* cert)
         return;
     }
 
-    cert->extSubjKeyId = input + idx;
+    XMEMCPY(cert->extSubjKeyId, input + idx, length);
     cert->extSubjKeyIdSz = length;
 
     return;
@@ -2723,6 +2723,9 @@ int ParseCert(DecodedCert* cert, int type, int verify, void* cm)
     extern "C" {
 #endif
     CYASSL_LOCAL Signer* GetCA(void* signers, byte* hash);
+    #ifndef NO_SKID
+        CYASSL_LOCAL Signer* GetCAByName(void* signers, byte* hash);
+    #endif
 #ifdef __cplusplus
     } 
 #endif
@@ -2763,8 +2766,26 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
     if (confirmOID != cert->signatureOID)
         return ASN_SIG_OID_E;
 
+    #ifndef NO_SKID
+        if (cert->extSubjKeyIdSz == 0) {
+            Sha sha;
+            InitSha(&sha);
+            ShaUpdate(&sha, cert->publicKey, cert->pubKeySize);
+            ShaFinal(&sha, cert->extSubjKeyId);
+            cert->extSubjKeyIdSz = SHA_SIZE;
+        }
+    #endif
+
     if (verify && type != CA_TYPE) {
-        Signer* ca = GetCA(cm, cert->issuerHash);
+        Signer* ca;
+        #ifndef NO_SKID
+            if (cert->extAuthKeyId != NULL)
+                ca = GetCA(cm, cert->extAuthKeyId);
+            else
+                ca = GetCAByName(cm, cert->issuerHash);
+        #else /* NO_SKID */
+            ca = GetCA(cm, cert->issuerHash);
+        #endif /* NO SKID */
         CYASSL_MSG("About to verify certificate signature");
  
         if (ca) {
@@ -5235,7 +5256,14 @@ int ParseCRL(DecodedCRL* dcrl, const byte* buff, word32 sz, void* cm)
     if (GetCRL_Signature(buff, &idx, dcrl, sz) < 0)
         return ASN_PARSE_E;
 
-    ca = GetCA(cm, dcrl->issuerHash);
+    #ifndef NO_SKID
+        if (dcrl->extAuthKeyId != NULL)
+            ca = GetCA(cm, dcrl->extAuthKeyId);
+        else
+            ca = GetCAByName(cm, dcrl->issuerHash);
+    #else /* NO_SKID */
+            ca = GetCA(cm, dcrl->issuerHash);
+    #endif /* NO_SKID */
     CYASSL_MSG("About to verify CRL signature");
 
     if (ca) {
