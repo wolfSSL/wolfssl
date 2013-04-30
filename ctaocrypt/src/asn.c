@@ -1219,9 +1219,9 @@ void InitDecodedCert(DecodedCert* cert, byte* source, word32 inSz, void* heap)
     cert->extCrlInfo      = NULL;
     cert->extCrlInfoSz    = 0;
     XMEMSET(cert->extSubjKeyId, 0, SHA_SIZE);
-    cert->extSubjKeyIdSz  = 0;
-    cert->extAuthKeyId    = NULL;
-    cert->extAuthKeyIdSz  = 0;
+    cert->extSubjKeyIdSet = 0;
+    XMEMSET(cert->extAuthKeyId, 0, SHA_SIZE);
+    cert->extAuthKeyIdSet = 0;
     cert->isCA            = 0;
 #ifdef CYASSL_CERT_GEN
     cert->subjectSN       = 0;
@@ -2567,8 +2567,16 @@ static void DecodeAuthKeyId(byte* input, int sz, DecodedCert* cert)
         return;
     }
 
-    cert->extAuthKeyId = input + idx;
-    cert->extAuthKeyIdSz = length;
+    if (length == SHA_SIZE) {
+        XMEMCPY(cert->extAuthKeyId, input + idx, length);
+    }
+    else {
+        Sha sha;
+        InitSha(&sha);
+        ShaUpdate(&sha, input + idx, length);
+        ShaFinal(&sha, cert->extAuthKeyId);
+    }
+    cert->extAuthKeyIdSet = 1;
 
     return;
 }
@@ -2591,8 +2599,16 @@ static void DecodeSubjKeyId(byte* input, int sz, DecodedCert* cert)
         return;
     }
 
-    XMEMCPY(cert->extSubjKeyId, input + idx, length);
-    cert->extSubjKeyIdSz = length;
+    if (length == SIGNER_DIGEST_SIZE) {
+        XMEMCPY(cert->extSubjKeyId, input + idx, length);
+    }
+    else {
+        Sha sha;
+        InitSha(&sha);
+        ShaUpdate(&sha, input + idx, length);
+        ShaFinal(&sha, cert->extSubjKeyId);
+    }
+    cert->extSubjKeyIdSet = 1;
 
     return;
 }
@@ -2767,21 +2783,21 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
         return ASN_SIG_OID_E;
 
     #ifndef NO_SKID
-        if (cert->extSubjKeyIdSz == 0) {
+        if (cert->extSubjKeyIdSet == 0) {
             Sha sha;
             InitSha(&sha);
             ShaUpdate(&sha, cert->publicKey, cert->pubKeySize);
             ShaFinal(&sha, cert->extSubjKeyId);
-            cert->extSubjKeyIdSz = SHA_SIZE;
+            cert->extSubjKeyIdSet = 1;
         }
     #endif
 
     if (verify && type != CA_TYPE) {
-        Signer* ca;
+        Signer* ca = NULL;
         #ifndef NO_SKID
-            if (cert->extAuthKeyId != NULL)
+            if (cert->extAuthKeyIdSet)
                 ca = GetCA(cm, cert->extAuthKeyId);
-            else
+            if (ca == NULL)
                 ca = GetCAByName(cm, cert->issuerHash);
         #else /* NO_SKID */
             ca = GetCA(cm, cert->issuerHash);
@@ -5192,7 +5208,7 @@ int ParseCRL(DecodedCRL* dcrl, const byte* buff, word32 sz, void* cm)
 {
     int     version, len;
     word32  oid, idx = 0;
-    Signer* ca;
+    Signer* ca = NULL;
 
     CYASSL_MSG("ParseCRL");
 
@@ -5257,12 +5273,12 @@ int ParseCRL(DecodedCRL* dcrl, const byte* buff, word32 sz, void* cm)
         return ASN_PARSE_E;
 
     #ifndef NO_SKID
-        if (dcrl->extAuthKeyId != NULL)
+        if (dcrl->extAuthKeyIdSet)
             ca = GetCA(cm, dcrl->extAuthKeyId);
-        else
+        if (ca == NULL)
             ca = GetCAByName(cm, dcrl->issuerHash);
     #else /* NO_SKID */
-            ca = GetCA(cm, dcrl->issuerHash);
+        ca = GetCA(cm, dcrl->issuerHash);
     #endif /* NO_SKID */
     CYASSL_MSG("About to verify CRL signature");
 

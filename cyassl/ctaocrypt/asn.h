@@ -252,9 +252,9 @@ struct DecodedCert {
     byte*   extCrlInfo;              /* CRL Distribution Points          */
     int     extCrlInfoSz;            /* length of the URI                */
     byte    extSubjKeyId[SHA_SIZE];  /* Subject Key ID                   */
-    int     extSubjKeyIdSz;          /* length of the ID                 */
-    byte*   extAuthKeyId;            /* Authority Key ID                 */
-    int     extAuthKeyIdSz;          /* length of the ID                 */
+    byte    extSubjKeyIdSet;         /* Set when the SKID was read from cert */
+    byte    extAuthKeyId[SHA_SIZE];  /* Authority Key ID                 */
+    byte    extAuthKeyIdSet;         /* Set when the AKID was read from cert */
     byte    isCA;                    /* CA basic constraint true */
 #ifdef CYASSL_CERT_GEN
     /* easy access to subject info for other sign */
