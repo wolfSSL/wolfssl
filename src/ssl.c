@@ -3737,7 +3737,7 @@ CYASSL_SESSION* GetSessionClient(CYASSL* ssl, const byte* id, int len)
 
         current = &SessionCache[clSess.serverRow].Sessions[clSess.serverIdx];
         if (XMEMCMP(current->serverID, id, len) == 0) {
-            CYASSL_MSG("Found a clientid match");
+            CYASSL_MSG("Found a serverid match for client");
             if (LowResTimer() < (current->bornOn + current->timeout)) {
                 CYASSL_MSG("Session valid");
                 ret = current;
@@ -3809,7 +3809,7 @@ CYASSL_SESSION* GetSession(CYASSL* ssl, byte* masterSecret)
             }
             break;  /* no more sessionIDs whether valid or not that match */
         } else {
-            CYASSL_MSG("SessionID not a match as this idx");
+            CYASSL_MSG("SessionID not a match at this idx");
         }   
     }
 
