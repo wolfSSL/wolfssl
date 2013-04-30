@@ -3703,6 +3703,7 @@ CYASSL_SESSION* GetSessionClient(CYASSL* ssl, const byte* id, int len)
     CYASSL_SESSION* ret = NULL;
     word32          row;
     int             idx;
+    int             count;
 
     CYASSL_ENTER("GetSessionClient");
 
@@ -3716,31 +3717,34 @@ CYASSL_SESSION* GetSessionClient(CYASSL* ssl, const byte* id, int len)
         CYASSL_MSG("Lock session mutex failed");
         return NULL;
     }
-  
-    /* start from most recently used */ 
-    if (ClientCache[row].totalCount >= SESSIONS_PER_ROW)
-        idx = SESSIONS_PER_ROW - 1;
-    else
-        idx = ClientCache[row].nextIdx - 1;
+ 
+    /* start from most recently used */
+    count = min((word32)ClientCache[row].totalCount, SESSIONS_PER_ROW);
+    idx = ClientCache[row].nextIdx - 1;
+    if (idx < 0)
+        idx = SESSIONS_PER_ROW - 1; /* if back to front, the previous was end */
 
-    for (; idx >= 0; idx--) {
+    for (; count > 0; --count, idx = idx ? idx - 1 : SESSIONS_PER_ROW - 1) {
         CYASSL_SESSION* current;
         ClientSession   clSess;
-        
-        if (idx >= SESSIONS_PER_ROW)    /* client could have restarted, idx  */
-            break;                      /* would be word32(-1) and seg fault */
+
+        if (idx >= SESSIONS_PER_ROW || idx < 0) { /* sanity check */
+            CYASSL_MSG("Bad idx");
+            break;
+        }
        
         clSess = ClientCache[row].Clients[idx];
 
         current = &SessionCache[clSess.serverRow].Sessions[clSess.serverIdx];
         if (XMEMCMP(current->serverID, id, len) == 0) {
+            CYASSL_MSG("Found a clientid match");
             if (LowResTimer() < (current->bornOn + current->timeout)) {
+                CYASSL_MSG("Session valid");
                 ret = current;
+                break;
             } else {
-                CYASSL_MSG("Session timed out");
+                CYASSL_MSG("Session timed out");  /* could have more for id */
             }
-            
-            break;
         } else {
             CYASSL_MSG("ServerID not a match from client table");
         }
@@ -3760,6 +3764,7 @@ CYASSL_SESSION* GetSession(CYASSL* ssl, byte* masterSecret)
     const byte*  id = NULL;
     word32       row;
     int          idx;
+    int          count;
     
     if (ssl->options.sessionCacheOff)
         return NULL;
@@ -3778,25 +3783,33 @@ CYASSL_SESSION* GetSession(CYASSL* ssl, byte* masterSecret)
         return 0;
    
     /* start from most recently used */ 
-    if (SessionCache[row].totalCount >= SESSIONS_PER_ROW)
-        idx = SESSIONS_PER_ROW - 1;
-    else
-        idx = SessionCache[row].nextIdx - 1;
+    count = min((word32)SessionCache[row].totalCount, SESSIONS_PER_ROW);
+    idx = SessionCache[row].nextIdx - 1;
+    if (idx < 0)
+        idx = SESSIONS_PER_ROW - 1; /* if back to front, the previous was end */
 
-    for (; idx >= 0; idx--) {
+    for (; count > 0; --count, idx = idx ? idx - 1 : SESSIONS_PER_ROW - 1) {
         CYASSL_SESSION* current;
         
-        if (idx >= SESSIONS_PER_ROW)    /* server could have restarted, idx  */
-            break;                      /* would be word32(-1) and seg fault */
-        
+        if (idx >= SESSIONS_PER_ROW || idx < 0) { /* sanity check */
+            CYASSL_MSG("Bad idx");
+            break;
+        }
+
         current = &SessionCache[row].Sessions[idx];
         if (XMEMCMP(current->sessionID, id, ID_LEN) == 0) {
+            CYASSL_MSG("Found a session match");
             if (LowResTimer() < (current->bornOn + current->timeout)) {
+                CYASSL_MSG("Session valid");
                 ret = current;
                 if (masterSecret)
                     XMEMCPY(masterSecret, current->masterSecret, SECRET_LEN);
+            } else {
+                CYASSL_MSG("Session timed out");
             }
-            break;
+            break;  /* no more sessionIDs whether valid or not that match */
+        } else {
+            CYASSL_MSG("SessionID not a match as this idx");
         }   
     }
 
