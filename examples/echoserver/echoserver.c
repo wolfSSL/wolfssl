@@ -42,7 +42,7 @@
 
 static void SignalReady(void* args, int port)
 {
-#if defined(_POSIX_THREADS) && defined(NO_MAIN_DRIVER)
+#if defined(_POSIX_THREADS) && defined(NO_MAIN_DRIVER) && !defined(__MINGW32__)
     /* signal ready to tcp_accept */
     func_args* server_args = (func_args*)args;
     tcp_ready* ready = server_args->signal;

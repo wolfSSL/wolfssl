@@ -17,7 +17,7 @@
 	    #include <ws2tcpip.h>
         #include <wspiapi.h>
     #endif
-    #define SOCKET_T unsigned int
+    #define SOCKET_T SOCKET
     #define SNPRINTF _snprintf
 #else
     #include <string.h>
@@ -91,7 +91,7 @@
     typedef void*         THREAD_TYPE;
     #define CYASSL_THREAD
 #else
-    #ifdef _POSIX_THREADS
+    #if defined(_POSIX_THREADS) && !defined(__MINGW32__)
         typedef void*         THREAD_RETURN;
         typedef pthread_t     THREAD_TYPE;
         #define CYASSL_THREAD
@@ -99,7 +99,7 @@
         #define WAIT_OBJECT_0 0L
     #else
         typedef unsigned int  THREAD_RETURN;
-        typedef HANDLE        THREAD_TYPE;
+        typedef intptr_t      THREAD_TYPE;
         #define CYASSL_THREAD __stdcall
     #endif
 #endif
@@ -139,7 +139,7 @@
 typedef struct tcp_ready {
     int ready;              /* predicate */
     int port;
-#ifdef _POSIX_THREADS
+#if defined(_POSIX_THREADS) && !defined(__MINGW32__)
     pthread_mutex_t mutex;
     pthread_cond_t  cond;
 #endif
@@ -423,8 +423,13 @@ static INLINE void tcp_socket(SOCKET_T* sockfd, int udp)
     else
         *sockfd = socket(AF_INET_V, SOCK_STREAM, 0);
 
+#ifdef USE_WINDOWS_API
+    if (*sockfd == INVALID_SOCKET)
+        err_sys("socket failed\n");
+#else
     if (*sockfd < 0)
         err_sys("socket failed\n");
+#endif
 
 #ifndef USE_WINDOWS_API 
 #ifdef SO_NOSIGPIPE
@@ -569,8 +574,8 @@ static INLINE int udp_read_connect(SOCKET_T sockfd)
     return sockfd;
 }
 
-static INLINE void udp_accept(SOCKET_T* sockfd, int* clientfd, int useAnyAddr,
-                              int port, func_args* args)
+static INLINE void udp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
+                              int useAnyAddr, int port, func_args* args)
 {
     SOCKADDR_IN_T addr;
 
@@ -605,7 +610,7 @@ static INLINE void udp_accept(SOCKET_T* sockfd, int* clientfd, int useAnyAddr,
         }
     #endif
 
-#if defined(_POSIX_THREADS) && defined(NO_MAIN_DRIVER)
+#if defined(_POSIX_THREADS) && defined(NO_MAIN_DRIVER) && !defined(__MINGW32__)
     /* signal ready to accept data */
     {
     tcp_ready* ready = args->signal;
@@ -620,8 +625,9 @@ static INLINE void udp_accept(SOCKET_T* sockfd, int* clientfd, int useAnyAddr,
     *clientfd = udp_read_connect(*sockfd);
 }
 
-static INLINE void tcp_accept(SOCKET_T* sockfd, int* clientfd, func_args* args,
-                              int port, int useAnyAddr, int udp)
+static INLINE void tcp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
+                              func_args* args, int port, int useAnyAddr,
+                              int udp)
 {
     SOCKADDR_IN_T client;
     socklen_t client_len = sizeof(client);
@@ -633,7 +639,7 @@ static INLINE void tcp_accept(SOCKET_T* sockfd, int* clientfd, func_args* args,
 
     tcp_listen(sockfd, &port, useAnyAddr, udp);
 
-#if defined(_POSIX_THREADS) && defined(NO_MAIN_DRIVER)
+#if defined(_POSIX_THREADS) && defined(NO_MAIN_DRIVER) && !defined(__MINGW32__)
     /* signal ready to tcp_accept */
     {
     tcp_ready* ready = args->signal;
@@ -647,8 +653,13 @@ static INLINE void tcp_accept(SOCKET_T* sockfd, int* clientfd, func_args* args,
 
     *clientfd = accept(*sockfd, (struct sockaddr*)&client,
                       (ACCEPT_THIRD_T)&client_len);
+#ifdef USE_WINDOWS_API
+    if (*clientfd == INVALID_SOCKET)
+        err_sys("tcp accept failed");
+#else
     if (*clientfd == -1)
         err_sys("tcp accept failed");
+#endif
 }
 
 
@@ -657,6 +668,8 @@ static INLINE void tcp_set_nonblocking(SOCKET_T* sockfd)
     #ifdef USE_WINDOWS_API 
         unsigned long blocking = 1;
         int ret = ioctlsocket(*sockfd, FIONBIO, &blocking);
+        if (ret == SOCKET_ERROR)
+            err_sys("ioctlsocket failed");
     #else
         int flags = fcntl(*sockfd, F_GETFL, 0);
         if (flags < 0)
@@ -1198,7 +1211,7 @@ static INLINE void StackSizeCheck(func_args* args, thread_func tf)
 
 #endif /* HAVE_STACK_SIZE */
 
-#ifdef __hpux__
+#if defined(__hpux__) || defined(__MINGW32__)
 
 /* HP/UX doesn't have strsep, needed by test/suites.c */
 static INLINE char* strsep(char **stringp, const char *delim)
