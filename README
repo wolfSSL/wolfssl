@@ -32,6 +32,16 @@ SSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, 0);
 
 before calling SSL_new();  Though it's not recommended.
 
+Note 3)
+When compiling with Mingw, libtool may give the following warning due to
+path conversion errors:
+
+libtool: link: Could not determine host file name corresponding to **
+libtool: link: Continuing, but uninstalled executables may not work.
+
+If so, examples and testsuite will have problems when run, showing an
+error while loading shared libraries. To resolve, please run "make install".
+
 *** end Notes ***
 
 
