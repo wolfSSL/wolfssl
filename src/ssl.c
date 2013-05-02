@@ -3406,9 +3406,7 @@ int CM_RestoreCertCache(CYASSL_CERT_MANAGER* cm, const char* fname)
 /* Persist cert cache to memory */
 int CM_MemSaveCertCache(CYASSL_CERT_MANAGER* cm, void* mem, int sz, int* used)
 {
-    int realSz;
     int ret = SSL_SUCCESS;
-    int i;
 
     CYASSL_ENTER("CM_MemSaveCertCache");
 
@@ -3417,29 +3415,11 @@ int CM_MemSaveCertCache(CYASSL_CERT_MANAGER* cm, void* mem, int sz, int* used)
         return BAD_MUTEX_ERROR;
     }
 
-    realSz = GetCertCacheMemSize(cm);
-    if (realSz > sz) {
-        CYASSL_MSG("Mem output buffer too small");
-        ret = BUFFER_E;
-    }
-    else {
-        byte*           current;
-        CertCacheHeader hdr;
-
-        hdr.version  = CYASSL_CACHE_CERT_VERSION;
-        hdr.rows     = CA_TABLE_SIZE;
-        SetCertHeaderColumns(cm, hdr.columns);
-        hdr.signerSz = (int)sizeof(Signer);
-
-        XMEMCPY(mem, &hdr, sizeof(CertCacheHeader));
-        current = (byte*)mem + sizeof(CertCacheHeader);
-
-        for (i = 0; i < CA_TABLE_SIZE; ++i)
-            current += StoreCertRow(cm, current, i);
-    }
+    ret = DoMemSaveCertCache(cm, mem, sz);
+    if (ret == SSL_SUCCESS)
+        *used  = GetCertCacheMemSize(cm);
 
     UnLockMutex(&cm->caLock);
-    *used = realSz;
 
     return ret;
 }
