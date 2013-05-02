@@ -280,16 +280,18 @@ struct DecodedCert {
 };
 
 #ifdef SHA_DIGEST_SIZE
-#define SIGNER_DIGEST_SIZE SHA_DIGEST_SIZE
+    #define SIGNER_DIGEST_SIZE SHA_DIGEST_SIZE
 #else
-#define SIGNER_DIGEST_SIZE 20 
+    #define SIGNER_DIGEST_SIZE 20 
 #endif
 
 /* CA Signers */
+/* if change layout change PERSIST_CERT_CACHE functions too */
 struct Signer {
-    byte*   publicKey;
     word32  pubKeySize;
     word32  keyOID;                  /* key type */
+    byte*   publicKey;
+    int     nameLen;
     char*   name;                    /* common name */
     byte    subjectNameHash[SIGNER_DIGEST_SIZE];
                                      /* sha hash of names in certificate */

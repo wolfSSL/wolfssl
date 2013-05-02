@@ -1002,7 +1002,8 @@ int AddCA(CYASSL_CERT_MANAGER* cm, buffer der, int type, int verify)
             signer->keyOID     = cert.keyOID;
             signer->publicKey  = cert.publicKey;
             signer->pubKeySize = cert.pubKeySize;
-            signer->name = cert.subjectCN;
+            signer->nameLen    = cert.subjectCNLen;
+            signer->name       = cert.subjectCN;
             #ifndef NO_SKID
                 XMEMCPY(signer->subjectKeyIdHash,
                                             cert.extSubjKeyId, SHA_DIGEST_SIZE);
@@ -2617,6 +2618,72 @@ void CyaSSL_CTX_SetCACb(CYASSL_CTX* ctx, CallbackCACache cb)
         ctx->cm->caCacheCallback = cb;
 }
 
+
+#if defined(PERSIST_CERT_CACHE)
+
+#if !defined(NO_FILESYSTEM)
+
+/* Persist cert cache to file */
+int CyaSSL_CTX_save_cert_cache(CYASSL_CTX* ctx, const char* fname)
+{
+    CYASSL_ENTER("CyaSSL_CTX_save_cert_cache");
+
+    if (ctx == NULL || fname == NULL)
+        return BAD_FUNC_ARG;
+
+    return CM_SaveCertCache(ctx->cm, fname);
+}
+
+
+/* Persist cert cache from file */
+int CyaSSL_CTX_restore_cert_cache(CYASSL_CTX* ctx, const char* fname)
+{
+    CYASSL_ENTER("CyaSSL_CTX_restore_cert_cache");
+
+    if (ctx == NULL || fname == NULL)
+        return BAD_FUNC_ARG;
+
+    return CM_RestoreCertCache(ctx->cm, fname);
+}
+
+#endif /* NO_FILESYSTEM */
+
+/* Persist cert cache to memory */
+int CyaSSL_CTX_memsave_cert_cache(CYASSL_CTX* ctx, void* mem, int sz, int* used)
+{
+    CYASSL_ENTER("CyaSSL_CTX_memsave_cert_cache");
+
+    if (ctx == NULL || mem == NULL || used == NULL || sz <= 0)
+        return BAD_FUNC_ARG;
+
+    return CM_MemSaveCertCache(ctx->cm, mem, sz, used);
+}
+
+
+/* Resotre cert cache from memory */
+int CyaSSL_CTX_memrestore_cert_cache(CYASSL_CTX* ctx, const void* mem, int sz)
+{
+    CYASSL_ENTER("CyaSSL_CTX_memrestore_cert_cache");
+
+    if (ctx == NULL || mem == NULL || sz <= 0)
+        return BAD_FUNC_ARG;
+
+    return CM_MemRestoreCertCache(ctx->cm, mem, sz);
+}
+
+
+/* get how big the the cert cache save buffer needs to be */
+int CyaSSL_CTX_get_cert_cache_memsize(CYASSL_CTX* ctx)
+{
+    CYASSL_ENTER("CyaSSL_CTX_get_cert_cache_memsize");
+
+    if (ctx == NULL)
+        return BAD_FUNC_ARG;
+
+    return CM_GetCertCacheMemSize(ctx->cm);
+}
+
+#endif /* PERSISTE_CERT_CACHE */
 #endif /* !NO_CERTS */
 
 
@@ -2979,6 +3046,473 @@ long CyaSSL_CTX_set_session_cache_mode(CYASSL_CTX* ctx, long mode)
 }
 
 #endif /* NO_SESSION_CACHE */
+
+
+#if !defined(NO_CERTS)
+#if defined(PERSIST_CERT_CACHE)
+
+
+#define CYASSL_CACHE_CERT_VERSION 1
+
+typedef struct {
+    int version;                 /* cache cert layout version id */
+    int rows;                    /* hash table rows, CA_TABLE_SIZE */
+    int columns[CA_TABLE_SIZE];  /* columns per row on list */
+    int signerSz;                /* sizeof Signer object */
+} CertCacheHeader;
+
+/* current cert persistance laytout is:
+
+   1) CertCacheHeader
+   2) caTable
+
+   update CYASSL_CERT_CACHE_VERSION if change layout for the following
+   PERSIST_CERT_CACHE functions
+*/
+
+
+/* Return memory needed to persist this signer, have lock */
+static INLINE int GetSignerMemory(Signer* signer)
+{
+    int sz = sizeof(signer->pubKeySize) + sizeof(signer->keyOID)
+           + sizeof(signer->nameLen)    + sizeof(signer->subjectNameHash);
+
+#if !defined(NO_SKID)
+        sz += sizeof(signer->subjectKeyIdHash);
+#endif
+
+    /* add dynamic bytes needed */
+    sz += signer->pubKeySize;
+    sz += signer->nameLen;
+
+    return sz;
+}
+
+
+/* Return memory needed to persist this row, have lock */
+static INLINE int GetCertCacheRowMemory(Signer* row)
+{
+    int sz = 0;
+
+    while (row) {
+        sz += GetSignerMemory(row);
+        row = row->next;
+    }
+
+    return sz;
+}
+
+
+/* get the size of persist cert cache, have lock */
+static INLINE int GetCertCacheMemSize(CYASSL_CERT_MANAGER* cm)
+{
+    int sz;
+    int i;
+
+    sz = sizeof(CertCacheHeader);
+
+    for (i = 0; i < CA_TABLE_SIZE; i++)
+        sz += GetCertCacheRowMemory(cm->caTable[i]);
+
+    return sz;
+}
+
+
+/* Store cert cache header columns with number of itms per list, have lock */
+static INLINE void SetCertHeaderColumns(CYASSL_CERT_MANAGER* cm, int* columns)
+{
+    int     i;
+    Signer* row;
+
+    for (i = 0; i < CA_TABLE_SIZE; i++) {
+        int count = 0;
+        row = cm->caTable[i];
+
+        while (row) {
+            ++count;
+            row = row->next;
+        }
+        columns[i] = count;
+    }
+}
+
+
+/* Resotre whole cert row from memory, have lock, return bytes consumed,
+   < 0 on eror, have lock */
+static INLINE int RestoreCertRow(CYASSL_CERT_MANAGER* cm, byte* current, 
+                                 int row, int listSz, const byte* end)
+{
+    int idx = 0;
+
+    if (listSz < 0) {
+        CYASSL_MSG("Row header corrupted, negative value");
+        return PARSE_ERROR;
+    }
+
+    while (listSz) {
+        Signer* signer;
+        byte*   start = current + idx;  /* for end checks on this signer */
+        int     minSz = sizeof(signer->pubKeySize) + sizeof(signer->keyOID) +
+                      sizeof(signer->nameLen) + sizeof(signer->subjectNameHash);
+        #ifndef NO_SKID
+                minSz += sizeof(signer->subjectKeyIdHash);
+        #endif
+
+        if (start + minSz > end) {
+            CYASSL_MSG("Would overread restore buffer");
+            return BUFFER_E;
+        }
+        signer = MakeSigner(cm->heap);
+        if (signer == NULL)
+            return MEMORY_E;
+
+        /* pubKeySize */
+        XMEMCPY(&signer->pubKeySize, current + idx, sizeof(signer->pubKeySize));
+        idx += sizeof(signer->pubKeySize);
+
+        /* keyOID */
+        XMEMCPY(&signer->keyOID, current + idx, sizeof(signer->keyOID));
+        idx += sizeof(signer->keyOID);
+    
+        /* pulicKey */
+        if (start + minSz + signer->pubKeySize > end) {
+            CYASSL_MSG("Would overread restore buffer");
+            FreeSigner(signer, cm->heap);
+            return BUFFER_E;
+        }
+        signer->publicKey = (byte*)XMALLOC(signer->pubKeySize, cm->heap,
+                                           DYNAMIC_TYPE_KEY);
+        if (signer->publicKey == NULL) {
+            FreeSigner(signer, cm->heap);
+            return MEMORY_E;
+        }
+
+        XMEMCPY(signer->publicKey, current + idx, signer->pubKeySize);
+        idx += signer->pubKeySize;
+
+        /* nameLen */
+        XMEMCPY(&signer->nameLen, current + idx, sizeof(signer->nameLen));
+        idx += sizeof(signer->nameLen);
+
+        /* name */
+        if (start + minSz + signer->pubKeySize + signer->nameLen > end) {
+            CYASSL_MSG("Would overread restore buffer");
+            FreeSigner(signer, cm->heap);
+            return BUFFER_E;
+        }
+        signer->name = (char*)XMALLOC(signer->nameLen, cm->heap,
+                                      DYNAMIC_TYPE_SUBJECT_CN);
+        if (signer->name == NULL) {
+            FreeSigner(signer, cm->heap);
+            return MEMORY_E;
+        }
+
+        XMEMCPY(signer->name, current + idx, signer->nameLen);
+        idx += signer->nameLen;
+
+        /* subjectNameHash */
+        XMEMCPY(signer->subjectNameHash, current + idx, SIGNER_DIGEST_SIZE);
+        idx += SIGNER_DIGEST_SIZE;
+
+        #ifndef NO_SKID
+            /* subjectKeyIdHash */
+            XMEMCPY(signer->subjectKeyIdHash, current + idx,SIGNER_DIGEST_SIZE);
+            idx += SIGNER_DIGEST_SIZE;
+        #endif
+
+        signer->next = cm->caTable[row];
+        cm->caTable[row] = signer;
+
+        --listSz;
+    }
+
+    return idx;
+}
+
+
+/* Sotre whole cert row into memory, have lock, return bytes added */
+static INLINE int StoreCertRow(CYASSL_CERT_MANAGER* cm, byte* current, int row)
+{
+    int     added  = 0;
+    Signer* list   = cm->caTable[row];
+
+    while (list) {
+        XMEMCPY(current + added, &list->pubKeySize, sizeof(list->pubKeySize));
+        added += sizeof(list->pubKeySize);
+
+        XMEMCPY(current + added, &list->keyOID,     sizeof(list->keyOID));
+        added += sizeof(list->keyOID);
+
+        XMEMCPY(current + added, list->publicKey, list->pubKeySize);
+        added += list->pubKeySize;
+
+        XMEMCPY(current + added, &list->nameLen, sizeof(list->nameLen));
+        added += sizeof(list->nameLen);
+
+        XMEMCPY(current + added, list->name, list->nameLen);
+        added += list->nameLen;
+
+        XMEMCPY(current + added, list->subjectNameHash, SIGNER_DIGEST_SIZE);
+        added += SIGNER_DIGEST_SIZE;
+
+        #ifndef NO_SKID
+            XMEMCPY(current + added, list->subjectKeyIdHash,SIGNER_DIGEST_SIZE);
+            added += SIGNER_DIGEST_SIZE;
+        #endif
+
+        list = list->next;
+    }
+
+    return added;
+}
+
+
+/* Persist cert cache to memory, have lock */
+static INLINE int DoMemSaveCertCache(CYASSL_CERT_MANAGER* cm, void* mem, int sz)
+{
+    int realSz;
+    int ret = SSL_SUCCESS;
+    int i;
+
+    CYASSL_ENTER("DoMemSaveCertCache");
+
+    realSz = GetCertCacheMemSize(cm);
+    if (realSz > sz) {
+        CYASSL_MSG("Mem output buffer too small");
+        ret = BUFFER_E;
+    }
+    else {
+        byte*           current;
+        CertCacheHeader hdr;
+
+        hdr.version  = CYASSL_CACHE_CERT_VERSION;
+        hdr.rows     = CA_TABLE_SIZE;
+        SetCertHeaderColumns(cm, hdr.columns);
+        hdr.signerSz = (int)sizeof(Signer);
+
+        XMEMCPY(mem, &hdr, sizeof(CertCacheHeader));
+        current = (byte*)mem + sizeof(CertCacheHeader);
+
+        for (i = 0; i < CA_TABLE_SIZE; ++i)
+            current += StoreCertRow(cm, current, i);
+    }
+
+    return ret;
+}
+
+
+#if !defined(NO_FILESYSTEM)
+
+/* Persist cert cache to file */
+int CM_SaveCertCache(CYASSL_CERT_MANAGER* cm, const char* fname)
+{
+    XFILE file;
+    int   rc = SSL_SUCCESS;
+    int   memSz;
+    byte* mem;
+
+    CYASSL_ENTER("CM_SaveCertCache");
+
+    file = XFOPEN(fname, "w+b");
+    if (file == XBADFILE) {
+       CYASSL_MSG("Coun't open cert cache save file");
+       return SSL_BAD_FILE;
+    }
+
+    if (LockMutex(&cm->caLock) != 0) {
+        CYASSL_MSG("LockMutex on caLock failed");
+        XFCLOSE(file);
+        return BAD_MUTEX_ERROR;
+    }
+
+    memSz = GetCertCacheMemSize(cm);
+    mem   = (byte*)XMALLOC(memSz, cm->heap, DYNAMIC_TYPE_TMP_BUFFER);    
+    if (mem == NULL) {
+        CYASSL_MSG("Alloc for tmp buffer failed");
+        rc = MEMORY_E;
+    } else {
+        rc = DoMemSaveCertCache(cm, mem, memSz);
+        if (rc == SSL_SUCCESS) {
+            int ret = (int)XFWRITE(mem, memSz, 1, file);
+            if (ret != 1) {
+                CYASSL_MSG("Cert cahce file write failed");
+                rc = FWRITE_ERROR;
+            }
+        }
+        XFREE(mem, cm->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+   
+    UnLockMutex(&cm->caLock);
+    XFCLOSE(file);
+
+    return rc;
+}
+
+
+/* Resotre cert cache from file */
+int CM_RestoreCertCache(CYASSL_CERT_MANAGER* cm, const char* fname)
+{
+    XFILE file;
+    int   rc = SSL_SUCCESS;
+    int   ret;
+    int   memSz;
+    byte* mem;
+
+    CYASSL_ENTER("CM_RestoreCertCache");
+
+    file = XFOPEN(fname, "rb");
+    if (file == XBADFILE) {
+       CYASSL_MSG("Coun't open cert cache save file");
+       return SSL_BAD_FILE;
+    }
+
+    XFSEEK(file, 0, XSEEK_END);
+    memSz = (int)XFTELL(file);
+    XREWIND(file);
+
+    if (memSz <= 0) {
+        CYASSL_MSG("Bad file size");
+        XFCLOSE(file);
+        return SSL_BAD_FILE;
+    }
+
+    mem = (byte*)XMALLOC(memSz, cm->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (mem == NULL) {
+        CYASSL_MSG("Alloc for tmp buffer failed");
+        XFCLOSE(file);
+        return MEMORY_E;
+    }
+
+    ret = (int)XFREAD(mem, memSz, 1, file);
+    if (ret != 1) {
+        CYASSL_MSG("Cert file read error");
+        rc = FREAD_ERROR;
+    } else {
+        rc = CM_MemRestoreCertCache(cm, mem, memSz);
+        if (rc != SSL_SUCCESS) {
+            CYASSL_MSG("Mem restore cert cache failed");
+        }
+    }
+
+    XFREE(mem, cm->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    XFCLOSE(file);
+
+    return rc;
+}
+
+#endif /* NO_FILESYSTEM */
+
+
+/* Persist cert cache to memory */
+int CM_MemSaveCertCache(CYASSL_CERT_MANAGER* cm, void* mem, int sz, int* used)
+{
+    int realSz;
+    int ret = SSL_SUCCESS;
+    int i;
+
+    CYASSL_ENTER("CM_MemSaveCertCache");
+
+    if (LockMutex(&cm->caLock) != 0) {
+        CYASSL_MSG("LockMutex on caLock failed");
+        return BAD_MUTEX_ERROR;
+    }
+
+    realSz = GetCertCacheMemSize(cm);
+    if (realSz > sz) {
+        CYASSL_MSG("Mem output buffer too small");
+        ret = BUFFER_E;
+    }
+    else {
+        byte*           current;
+        CertCacheHeader hdr;
+
+        hdr.version  = CYASSL_CACHE_CERT_VERSION;
+        hdr.rows     = CA_TABLE_SIZE;
+        SetCertHeaderColumns(cm, hdr.columns);
+        hdr.signerSz = (int)sizeof(Signer);
+
+        XMEMCPY(mem, &hdr, sizeof(CertCacheHeader));
+        current = (byte*)mem + sizeof(CertCacheHeader);
+
+        for (i = 0; i < CA_TABLE_SIZE; ++i)
+            current += StoreCertRow(cm, current, i);
+    }
+
+    UnLockMutex(&cm->caLock);
+    *used = realSz;
+
+    return ret;
+}
+
+
+/* Resotre cert cache from memory */
+int CM_MemRestoreCertCache(CYASSL_CERT_MANAGER* cm, const void* mem, int sz)
+{
+    int ret = SSL_SUCCESS;
+    int i;
+    CertCacheHeader* hdr = (CertCacheHeader*)mem;
+    byte*            current = (byte*)mem + sizeof(CertCacheHeader);
+    byte*            end     = (byte*)mem + sz;  /* don't go over */
+
+    CYASSL_ENTER("CM_MemRestoreCertCache");
+
+    if (current > end) {
+        CYASSL_MSG("Cert Cahce Memory buffer too small");
+        return BUFFER_E;
+    }
+
+    if (hdr->version  != CYASSL_CACHE_CERT_VERSION ||
+        hdr->rows     != CA_TABLE_SIZE ||
+        hdr->signerSz != (int)sizeof(Signer)) {
+
+        CYASSL_MSG("Cert Cache Memory header mismatch");
+        return CACHE_MATCH_ERROR;
+    }
+
+    if (LockMutex(&cm->caLock) != 0) {
+        CYASSL_MSG("LockMutex on caLock failed");
+        return BAD_MUTEX_ERROR;
+    }
+
+    FreeSignerTable(cm->caTable, CA_TABLE_SIZE, cm->heap);
+
+    for (i = 0; i < CA_TABLE_SIZE; ++i) {
+        int added = RestoreCertRow(cm, current, i, hdr->columns[i], end);
+        if (added < 0) {
+            CYASSL_MSG("RestoreCertRow error");
+            ret = added;
+            break;
+        }
+        current += added;
+    }
+
+    UnLockMutex(&cm->caLock);
+
+    return ret;
+}
+
+
+/* get how big the the cert cache save buffer needs to be */
+int CM_GetCertCacheMemSize(CYASSL_CERT_MANAGER* cm)
+{
+    int sz;
+
+    CYASSL_ENTER("CM_GetCertCacheMemSize");
+
+    if (LockMutex(&cm->caLock) != 0) {
+        CYASSL_MSG("LockMutex on caLock failed");
+        return BAD_MUTEX_ERROR;
+    }
+
+    sz = GetCertCacheMemSize(cm);
+
+    UnLockMutex(&cm->caLock);
+
+    return sz;
+}
+
+#endif /* PERSIST_CERT_CACHE */
+#endif /* NO_CERTS */
 
 
 int CyaSSL_CTX_set_cipher_list(CYASSL_CTX* ctx, const char* list)

@@ -1073,6 +1073,11 @@ struct CYASSL_CERT_MANAGER {
     CbMissingCRL    cbMissingCRL;       /* notify through cb of missing crl */
 };
 
+CYASSL_LOCAL int CM_SaveCertCache(CYASSL_CERT_MANAGER*, const char*);
+CYASSL_LOCAL int CM_RestoreCertCache(CYASSL_CERT_MANAGER*, const char*);
+CYASSL_LOCAL int CM_MemSaveCertCache(CYASSL_CERT_MANAGER*, void*, int, int*);
+CYASSL_LOCAL int CM_MemRestoreCertCache(CYASSL_CERT_MANAGER*, const void*, int);
+CYASSL_LOCAL int CM_GetCertCacheMemSize(CYASSL_CERT_MANAGER*);
 
 /* CyaSSL Sock Addr */
 struct CYASSL_SOCKADDR {

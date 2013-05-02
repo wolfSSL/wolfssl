@@ -2844,9 +2844,12 @@ Signer* MakeSigner(void* heap)
     Signer* signer = (Signer*) XMALLOC(sizeof(Signer), heap,
                                        DYNAMIC_TYPE_SIGNER);
     if (signer) {
-        signer->name      = 0;
-        signer->publicKey = 0;
-        signer->next      = 0;
+        signer->pubKeySize = 0;
+        signer->keyOID     = 0;
+        signer->publicKey  = NULL;
+        signer->nameLen    = 0;
+        signer->name       = NULL;
+        signer->next       = NULL;
     }
     (void)heap;
 

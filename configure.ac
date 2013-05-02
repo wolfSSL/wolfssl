@@ -263,6 +263,19 @@ then
 fi
 
 
+# Persistent cert cache 
+AC_ARG_ENABLE([savecert],
+    [  --enable-savecert       Enable persistent cert cache (default: disabled)],
+    [ ENABLED_SAVECERT=$enableval ],
+    [ ENABLED_SAVECERT=no ]
+    )
+
+if test "$ENABLED_SAVECERT" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DPERSIST_CERT_CACHE"
+fi
+
+
 # SNIFFER
 AC_ARG_ENABLE([sniffer],
               [AS_HELP_STRING([--enable-sniffer],[ Enable CyaSSL sniffer support (default: disabled) ])],[
@@ -1393,6 +1406,7 @@ echo "   * OCSP:                      $ENABLED_OCSP"
 echo "   * CRL:                       $ENABLED_CRL"
 echo "   * CRL-MONITOR:               $ENABLED_CRL_MONITOR"
 echo "   * Persistent session cache:  $ENABLED_SAVESESSION"
+echo "   * Persistent cert    cache:  $ENABLED_SAVECERT"
 echo "   * NTRU:                      $ENABLED_NTRU"
 echo "   * valgrind unit tests:       $ENABLED_VALGRIND"
 echo "   * LIBZ:                      $ENABLED_LIBZ"

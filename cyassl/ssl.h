@@ -233,11 +233,20 @@ CYASSL_API int  CyaSSL_pending(CYASSL*);
 CYASSL_API void CyaSSL_load_error_strings(void);
 CYASSL_API int  CyaSSL_library_init(void);
 CYASSL_API long CyaSSL_CTX_set_session_cache_mode(CYASSL_CTX*, long);
-CYASSL_API int  CyaSSL_save_session_cache(const char *fname);
-CYASSL_API int  CyaSSL_restore_session_cache(const char *fname);
+
+/* session cache persistence */
+CYASSL_API int  CyaSSL_save_session_cache(const char*);
+CYASSL_API int  CyaSSL_restore_session_cache(const char*);
 CYASSL_API int  CyaSSL_memsave_session_cache(void*, int);
 CYASSL_API int  CyaSSL_memrestore_session_cache(const void*, int);
 CYASSL_API int  CyaSSL_get_session_cache_memsize(void);
+
+/* certificate cache persistence, uses ctx since certs are per ctx */
+CYASSL_API int  CyaSSL_CTX_save_cert_cache(CYASSL_CTX*, const char*);
+CYASSL_API int  CyaSSL_CTX_restore_cert_cache(CYASSL_CTX*, const char*);
+CYASSL_API int  CyaSSL_CTX_memsave_cert_cache(CYASSL_CTX*, void*, int, int*);
+CYASSL_API int  CyaSSL_CTX_memrestore_cert_cache(CYASSL_CTX*, const void*, int);
+CYASSL_API int  CyaSSL_CTX_get_cert_cache_memsize(CYASSL_CTX*);
 
 /* only supports full name from cipher_name[] delimited by : */
 CYASSL_API int  CyaSSL_CTX_set_cipher_list(CYASSL_CTX*, const char*);

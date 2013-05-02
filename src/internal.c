@@ -5790,7 +5790,7 @@ void SetErrorString(int error, char* str)
         break;
 
     case CACHE_MATCH_ERROR:
-        XSTRNCPY(str, "Session Cache restore header match Error", max);
+        XSTRNCPY(str, "Cache restore header match Error", max);
         break;
 
     default :
