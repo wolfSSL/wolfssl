@@ -591,7 +591,7 @@ static int test_CyaSSL_read_write(void)
 THREAD_RETURN CYASSL_THREAD test_server_nofail(void* args)
 {
     SOCKET_T sockfd = 0;
-    int clientfd = 0;
+    SOCKET_T clientfd = 0;
 
     CYASSL_METHOD* method = 0;
     CYASSL_CTX* ctx = 0;

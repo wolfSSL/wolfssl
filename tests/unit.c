@@ -57,7 +57,7 @@ int main(int argc, char** argv)
 
 void wait_tcp_ready(func_args* args)
 {
-#ifdef _POSIX_THREADS
+#if defined(_POSIX_THREADS) && !defined(__MINGW32__)
     pthread_mutex_lock(&args->signal->mutex);
     
     if (!args->signal->ready)
@@ -65,13 +65,15 @@ void wait_tcp_ready(func_args* args)
     args->signal->ready = 0; /* reset */
 
     pthread_mutex_unlock(&args->signal->mutex);
+#else
+    (void)args;
 #endif
 }
 
 
 void start_thread(THREAD_FUNC fun, func_args* args, THREAD_TYPE* thread)
 {
-#ifdef _POSIX_THREADS
+#if defined(_POSIX_THREADS) && !defined(__MINGW32__)
     pthread_create(thread, 0, fun, args);
     return;
 #else
@@ -82,12 +84,12 @@ void start_thread(THREAD_FUNC fun, func_args* args, THREAD_TYPE* thread)
 
 void join_thread(THREAD_TYPE thread)
 {
-#ifdef _POSIX_THREADS
+#if defined(_POSIX_THREADS) && !defined(__MINGW32__)
     pthread_join(thread, 0);
 #else
-    int res = WaitForSingleObject(thread, INFINITE);
+    int res = WaitForSingleObject((HANDLE)thread, INFINITE);
     assert(res == WAIT_OBJECT_0);
-    res = CloseHandle(thread);
+    res = CloseHandle((HANDLE)thread);
     assert(res);
 #endif
 }
@@ -97,7 +99,7 @@ void InitTcpReady(tcp_ready* ready)
 {
     ready->ready = 0;
     ready->port = 0;
-#ifdef _POSIX_THREADS
+#if defined(_POSIX_THREADS) && !defined(__MINGW32__)
       pthread_mutex_init(&ready->mutex, 0);
       pthread_cond_init(&ready->cond, 0);
 #endif
@@ -106,8 +108,10 @@ void InitTcpReady(tcp_ready* ready)
 
 void FreeTcpReady(tcp_ready* ready)
 {
-#ifdef _POSIX_THREADS
+#if defined(_POSIX_THREADS) && !defined(__MINGW32__)
     pthread_mutex_destroy(&ready->mutex);
     pthread_cond_destroy(&ready->cond);
+#else
+    (void)ready;
 #endif
 }

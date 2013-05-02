@@ -35,7 +35,20 @@ before calling SSL_new();  Though it's not recommended.
 *** end Notes ***
 
 
-CyaSSL Release 2.6.0 (04/15/2013)
+CyaSSL Release 2.x.x (TBA)
+
+When compiling with Mingw, libtool may give the following warning due to
+path conversion errors:
+
+libtool: link: Could not determine host file name corresponding to **
+libtool: link: Continuing, but uninstalled executables may not work.
+
+If so, examples and testsuite will have problems when run, showing an
+error while loading shared libraries. To resolve, please run "make install".
+
+
+
+************** CyaSSL Release 2.6.0 (04/15/2013)
 
 Release 2.6.0 CyaSSL has bug fixes and new features including:
 - DTLS 1.2 support including AEAD ciphers

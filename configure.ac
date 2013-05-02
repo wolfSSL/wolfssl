@@ -1276,6 +1276,12 @@ fi])
 
 AX_HARDEN_CC_COMPILER_FLAGS
 
+# link to ws2_32 if on mingw
+case $host_os in
+    *mingw32)
+        LDFLAGS="$LDFLAGS -lws2_32" ;;
+esac
+
 # add user C_EXTRA_FLAGS back
 CFLAGS="$CFLAGS $USER_C_EXTRA_FLAGS"
 OPTION_FLAGS="$USER_C_EXTRA_FLAGS $AM_CFLAGS"

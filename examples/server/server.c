@@ -116,7 +116,7 @@ static void Usage(void)
 THREAD_RETURN CYASSL_THREAD server_test(void* args)
 {
     SOCKET_T sockfd   = 0;
-    int      clientfd = 0;
+    SOCKET_T clientfd = 0;
 
     SSL_METHOD* method = 0;
     SSL_CTX*    ctx    = 0;
