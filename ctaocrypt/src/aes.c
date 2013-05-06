@@ -35,6 +35,9 @@
 #else
     #include <ctaocrypt/src/misc.c>
 #endif
+#ifdef DEBUG_AESNI
+    #include <stdio.h>
+#endif
 
 
 #ifdef _MSC_VER
@@ -1148,6 +1151,15 @@ void AES_CBC_decrypt(const unsigned char* in, unsigned char* out,
                      const unsigned char* KS, int nr)
                      asm ("AES_CBC_decrypt");
 
+void AES_ECB_encrypt(const unsigned char* in, unsigned char* out,
+                     unsigned long length, const unsigned char* KS, int nr)
+                     asm ("AES_ECB_encrypt");
+
+
+void AES_ECB_decrypt(const unsigned char* in, unsigned char* out,
+                     unsigned long length, const unsigned char* KS, int nr)
+                     asm ("AES_ECB_decrypt");
+
 void AES_128_Key_Expansion(const unsigned char* userkey, 
                            unsigned char* key_schedule)
                            asm ("AES_128_Key_Expansion");
@@ -1409,10 +1421,45 @@ static void AesEncrypt(Aes* aes, const byte* inBlock, byte* outBlock)
         return;  /* stop instead of segfaulting, set up your keys! */
     }
 #ifdef CYASSL_AESNI
-    if (aes->use_aesni) {
-        CYASSL_MSG("AesEncrypt encountered aesni keysetup, don't use direct");
-        return;  /* just stop now */
-    } 
+    if (haveAESNI && aes->use_aesni) {
+        #ifdef DEBUG_AESNI
+            printf("about to aes encrypt\n");
+            printf("in  = %p\n", inBlock);
+            printf("out = %p\n", outBlock);
+            printf("aes->key = %p\n", aes->key);
+            printf("aes->rounds = %d\n", aes->rounds);
+            printf("sz = %d\n", AES_BLOCK_SIZE);
+        #endif
+
+        /* check alignment, decrypt doesn't need alignment */
+        if ((word)inBlock % 16) {
+        #ifndef NO_CYASSL_ALLOC_ALIGN
+            byte* tmp = (byte*)XMALLOC(AES_BLOCK_SIZE, NULL,
+                                                      DYNAMIC_TYPE_TMP_BUFFER);
+            if (tmp == NULL) return;
+
+            XMEMCPY(tmp, inBlock, AES_BLOCK_SIZE);
+            AES_ECB_encrypt(tmp, tmp, AES_BLOCK_SIZE, (byte*)aes->key,
+                            aes->rounds);
+            XMEMCPY(outBlock, tmp, AES_BLOCK_SIZE);
+            XFREE(tmp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            return;
+        #else
+            CYASSL_MSG("AES-ECB encrypt with bad alignment");
+            return;
+        #endif
+        }
+
+        AES_ECB_encrypt(inBlock, outBlock, AES_BLOCK_SIZE, (byte*)aes->key,
+                        aes->rounds);
+
+        return;
+    }
+    else {
+        #ifdef DEBUG_AESNI
+            printf("Skipping AES-NI\n");
+        #endif
+    }
 #endif
 
     /*
@@ -1554,10 +1601,27 @@ static void AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
         return;  /* stop instead of segfaulting, set up your keys! */
     }
 #ifdef CYASSL_AESNI
-    if (aes->use_aesni) {
-        CYASSL_MSG("AesEncrypt encountered aesni keysetup, don't use direct");
-        return;  /* just stop now */
-    } 
+    if (haveAESNI && aes->use_aesni) {
+        #ifdef DEBUG_AESNI
+            printf("about to aes decrypt\n");
+            printf("in  = %p\n", inBlock);
+            printf("out = %p\n", outBlock);
+            printf("aes->key = %p\n", aes->key);
+            printf("aes->rounds = %d\n", aes->rounds);
+            printf("sz = %d\n", AES_BLOCK_SIZE);
+        #endif
+
+        /* if input and output same will overwrite input iv */
+        XMEMCPY(aes->tmp, inBlock, AES_BLOCK_SIZE);
+        AES_ECB_decrypt(inBlock, outBlock, AES_BLOCK_SIZE, (byte*)aes->key,
+                        aes->rounds);
+        return;
+    }
+    else {
+        #ifdef DEBUG_AESNI
+            printf("Skipping AES-NI\n");
+        #endif
+    }
 #endif
 
     /*
@@ -1969,7 +2033,7 @@ void AesGcmSetKey(Aes* aes, const byte* key, word32 len)
         return;
 
     XMEMSET(iv, 0, AES_BLOCK_SIZE);
-    AesSetKeyLocal(aes, key, len, iv, AES_ENCRYPTION);
+    AesSetKey(aes, key, len, iv, AES_ENCRYPTION);
 
     AesEncrypt(aes, iv, aes->H);
 #ifdef GCM_TABLE
@@ -2584,7 +2648,7 @@ void AesCcmSetKey(Aes* aes, const byte* key, word32 keySz)
         return;
 
     XMEMSET(nonce, 0, sizeof(nonce));
-    AesSetKeyLocal(aes, key, keySz, nonce, AES_ENCRYPTION);
+    AesSetKey(aes, key, keySz, nonce, AES_ENCRYPTION);
 }
 
 
