@@ -1570,6 +1570,12 @@ static void Decrypt(SSL* ssl, byte* output, const byte* input, word32 sz)
             break;
         #endif
 
+        #ifdef HAVE_CAMELLIA 
+        case camellia:
+            CamelliaCbcDecrypt(ssl->decrypt.cam, output, input, sz);
+            break;
+        #endif
+
         default:
             Trace(BAD_DECRYPT_TYPE);
             break;
