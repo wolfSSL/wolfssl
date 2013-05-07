@@ -661,7 +661,10 @@ enum Misc {
     CLIENT_HELLO_FIRST =  35,  /* Protocol + RAN_LEN + sizeof(id_len) */
     MAX_SUITE_NAME     =  48,  /* maximum length of cipher suite string */
     DEFAULT_TIMEOUT    = 500,  /* default resumption timeout in seconds */
-    DTLS_DEFAULT_TIMEOUT = 1,  /* default timeout for DTLS receive      */
+
+    DTLS_TIMEOUT_INIT       =  1, /* default timeout init for DTLS receive  */
+    DTLS_TIMEOUT_MAX        = 64, /* default max timeout for DTLS receive */
+    DTLS_TIMEOUT_MULTIPLIER =  2, /* default timeout multiplier for DTLS recv */
 
     MAX_PSK_ID_LEN     = 128,  /* max psk identity/hint supported */
     MAX_PSK_KEY_LEN    =  64,  /* max psk key supported */
@@ -1667,7 +1670,8 @@ struct CYASSL {
     byte            didStreamInit;      /* for stream init and end */
 #endif
 #ifdef CYASSL_DTLS
-    int             dtls_timeout;
+    int             dtls_timeout_init;  /* starting timeout vaule */
+    int             dtls_timeout;       /* current timeout value, changes */
     DtlsPool*       dtls_pool;
     DtlsMsg*        dtls_msg_list;
     void*           IOCB_CookieCtx;     /* gen cookie ctx */

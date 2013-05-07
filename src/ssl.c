@@ -3545,6 +3545,22 @@ int CyaSSL_dtls_get_current_timeout(CYASSL* ssl)
 }
 
 
+/* user may need to alter init dtls recv timeout, SSL_SUCCESS on ok */
+int CyaSSL_dtls_set_timeout_init(CYASSL* ssl, int timeout)
+{
+    if (ssl == NULL || timeout < 0)
+        return BAD_FUNC_ARG;
+
+#ifdef CYASSL_DTLS
+    ssl->dtls_timeout_init = timeout;
+
+    return SSL_SUCCESS;
+#else
+    return NOT_COMPILED_IN;
+#endif
+}
+
+
 int CyaSSL_dtls_got_timeout(CYASSL* ssl)
 {
 #ifdef CYASSL_DTLS

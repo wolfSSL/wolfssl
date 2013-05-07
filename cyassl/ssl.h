@@ -254,6 +254,7 @@ CYASSL_API int  CyaSSL_set_cipher_list(CYASSL*, const char*);
 
 /* Nonblocking DTLS helper functions */
 CYASSL_API int  CyaSSL_dtls_get_current_timeout(CYASSL* ssl);
+CYASSL_API int  CyaSSL_dtls_set_timeout_init(CYASSL* ssl, int);
 CYASSL_API int  CyaSSL_dtls_got_timeout(CYASSL* ssl);
 CYASSL_API int  CyaSSL_dtls(CYASSL* ssl);
 
