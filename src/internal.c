@@ -9367,7 +9367,9 @@ int SetCipherList(Suites* s, const char* list)
                     CYASSL_MSG("Unsupported cipher suite, ClientHello");
                     return UNSUPPORTED_SUITE;
                 }
-
+                #ifdef SESSION_CERTS
+                    ssl->session = *session; /* restore session certs. */
+                #endif
                 RNG_GenerateBlock(ssl->rng, ssl->arrays->serverRandom, RAN_LEN);
                 #ifndef NO_OLD_TLS
                     if (ssl->options.tls)
