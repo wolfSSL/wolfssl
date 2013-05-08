@@ -1671,6 +1671,7 @@ struct CYASSL {
 #endif
 #ifdef CYASSL_DTLS
     int             dtls_timeout_init;  /* starting timeout vaule */
+    int             dtls_timeout_max;   /* maximum timeout value */
     int             dtls_timeout;       /* current timeout value, changes */
     DtlsPool*       dtls_pool;
     DtlsMsg*        dtls_msg_list;

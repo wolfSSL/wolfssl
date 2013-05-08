@@ -3532,16 +3532,13 @@ int CyaSSL_set_cipher_list(CYASSL* ssl, const char* list)
 
 
 #ifndef CYASSL_LEANPSK
+#ifdef CYASSL_DTLS
 
 int CyaSSL_dtls_get_current_timeout(CYASSL* ssl)
 {
     (void)ssl;
 
-#ifdef CYASSL_DTLS
     return ssl->dtls_timeout;
-#else
-    return NOT_COMPILED_IN;
-#endif
 }
 
 
@@ -3551,33 +3548,43 @@ int CyaSSL_dtls_set_timeout_init(CYASSL* ssl, int timeout)
     if (ssl == NULL || timeout < 0)
         return BAD_FUNC_ARG;
 
-#ifdef CYASSL_DTLS
     ssl->dtls_timeout_init = timeout;
 
     return SSL_SUCCESS;
-#else
-    return NOT_COMPILED_IN;
-#endif
+}
+
+
+/* user may need to alter max dtls recv timeout, SSL_SUCCESS on ok */
+int CyaSSL_dtls_set_timeout_max(CYASSL* ssl, int timeout)
+{
+    if (ssl == NULL || timeout < 0)
+        return BAD_FUNC_ARG;
+
+    if (ssl->dtls_timeout_max < ssl->dtls_timeout_init) {
+        CYASSL_MSG("Can't set dtls timeout max less than dtls timeout init");
+        return BAD_FUNC_ARG;
+    }
+
+    ssl->dtls_timeout_max = timeout;
+
+    return SSL_SUCCESS;
 }
 
 
 int CyaSSL_dtls_got_timeout(CYASSL* ssl)
 {
-#ifdef CYASSL_DTLS
     int result = SSL_SUCCESS;
+
     DtlsMsgListDelete(ssl->dtls_msg_list, ssl->heap);
     ssl->dtls_msg_list = NULL;
     if (DtlsPoolTimeout(ssl) < 0 || DtlsPoolSend(ssl) < 0) {
         result = SSL_FATAL_ERROR;
     }
     return result;
-#else
-    (void)ssl;
-    return NOT_COMPILED_IN;
-#endif
 }
 
-#endif
+#endif /* DTLS */
+#endif /* LEANPSK */
 
 
 /* client only parts */

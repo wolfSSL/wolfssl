@@ -56,16 +56,17 @@ static void NonBlockingSSL_Connect(CYASSL* ssl)
 
     while (ret != SSL_SUCCESS && (error == SSL_ERROR_WANT_READ ||
                                   error == SSL_ERROR_WANT_WRITE)) {
+        int currTimeout = 1;
+
         if (error == SSL_ERROR_WANT_READ)
             printf("... client would read block\n");
         else
             printf("... client would write block\n");
 
-        if (CyaSSL_dtls(ssl))
-            select_ret = tcp_select(sockfd,
-                                    CyaSSL_dtls_get_current_timeout(ssl));
-        else
-            select_ret = tcp_select(sockfd, 1);
+#ifdef CYASSL_DTLS
+        currTimeout = CyaSSL_dtls_get_current_timeout(ssl);
+#endif
+        select_ret = tcp_select(sockfd, currTimeout);
 
         if ((select_ret == TEST_RECV_READY) ||
                                         (select_ret == TEST_ERROR_READY)) {
@@ -76,11 +77,15 @@ static void NonBlockingSSL_Connect(CYASSL* ssl)
             #endif
             error = CyaSSL_get_error(ssl, 0);
         }
-        else if (select_ret == TEST_TIMEOUT &&
-                    (!CyaSSL_dtls(ssl) ||
-                    (CyaSSL_dtls_got_timeout(ssl) >= 0))) {
+        else if (select_ret == TEST_TIMEOUT && !CyaSSL_dtls(ssl)) {
             error = SSL_ERROR_WANT_READ;
         }
+#ifdef CYASSL_DTLS
+        else if (select_ret == TEST_TIMEOUT && CyaSSL_dtls(ssl) &&
+                                            CyaSSL_dtls_got_timeout(ssl) >= 0) {
+            error = SSL_ERROR_WANT_READ;
+        }
+#endif
         else {
             error = SSL_FATAL_ERROR;
         }

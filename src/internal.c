@@ -1347,6 +1347,7 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
     ssl->keys.dtls_peer_epoch           = 0;
     ssl->keys.dtls_expected_peer_epoch  = 0;
     ssl->dtls_timeout_init              = DTLS_TIMEOUT_INIT;
+    ssl->dtls_timeout_max               = DTLS_TIMEOUT_MAX;
     ssl->dtls_timeout                   = ssl->dtls_timeout_init;
     ssl->dtls_pool                      = NULL;
     ssl->dtls_msg_list                  = NULL;
@@ -1806,7 +1807,7 @@ void DtlsPoolReset(CYASSL* ssl)
 int DtlsPoolTimeout(CYASSL* ssl)
 {
     int result = -1;
-    if (ssl->dtls_timeout <  DTLS_TIMEOUT_MAX) {
+    if (ssl->dtls_timeout <  ssl->dtls_timeout_max) {
         ssl->dtls_timeout *= DTLS_TIMEOUT_MULTIPLIER;
         result = 0;
     }
