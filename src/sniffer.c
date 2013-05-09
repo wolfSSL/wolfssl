@@ -859,8 +859,9 @@ static word32 SessionHash(IpInfo* ipInfo, TcpInfo* tcpInfo)
 static SnifferSession* GetSnifferSession(IpInfo* ipInfo, TcpInfo* tcpInfo)
 {
     SnifferSession* session;
-    
-    word32 row = SessionHash(ipInfo, tcpInfo);
+    time_t          currTime = time(NULL); 
+    word32          row = SessionHash(ipInfo, tcpInfo);
+
     assert(row <= HASH_SIZE);
     
     LockMutex(&SessionMutex);
@@ -878,7 +879,10 @@ static SnifferSession* GetSnifferSession(IpInfo* ipInfo, TcpInfo* tcpInfo)
         
         session = session->next;
     }
-    
+
+    if (session)
+        session->bornOn = currTime;  /* keep session alive, remove stale will */
+                                     /* leave alone */   
     UnLockMutex(&SessionMutex);
     
     /* determine side */
