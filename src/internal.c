@@ -2726,10 +2726,13 @@ static void BuildFinished(CYASSL* ssl, Hashes* hashes, const byte* sender)
     Sha384 sha384 = ssl->hashSha384;
 #endif
 
-    if (ssl->options.tls)
+#ifndef NO_TLS
+    if (ssl->options.tls) {
         BuildTlsFinished(ssl, hashes, sender);
+    }
+#endif
 #ifndef NO_OLD_TLS
-    else {
+    if (!ssl->options.tls) {
         BuildMD5(ssl, hashes, sender);
         BuildSHA(ssl, hashes, sender);
     }
@@ -6917,13 +6920,15 @@ int SetCipherList(Suites* s, const char* list)
                     int ret; 
                     XMEMCPY(ssl->arrays->masterSecret,
                             ssl->session.masterSecret, SECRET_LEN);
-                    #ifndef NO_OLD_TLS
-                        if (ssl->options.tls)
-                            ret = DeriveTlsKeys(ssl);
-                        else
-                            ret = DeriveKeys(ssl);
-                    #else
+                    #ifdef NO_OLD_TLS
                         ret = DeriveTlsKeys(ssl);
+                    #else
+                        #ifndef NO_TLS
+                            if (ssl->options.tls)
+                                ret = DeriveTlsKeys(ssl);
+                        #endif
+                            if (!ssl->options.tls)
+                                ret = DeriveKeys(ssl);
                     #endif
                     ssl->options.serverState = SERVER_HELLODONE_COMPLETE;
                     return ret;
@@ -9162,13 +9167,15 @@ int SetCipherList(Suites* s, const char* list)
                     ssl->session = *session; /* restore session certs. */
                 #endif
                 RNG_GenerateBlock(ssl->rng, ssl->arrays->serverRandom, RAN_LEN);
-                #ifndef NO_OLD_TLS
-                    if (ssl->options.tls)
-                        ret = DeriveTlsKeys(ssl);
-                    else
-                        ret = DeriveKeys(ssl);
-                #else
+                #ifdef NO_OLD_TLS
                     ret = DeriveTlsKeys(ssl);
+                #else
+                    #ifndef NO_TLS
+                        if (ssl->options.tls)
+                            ret = DeriveTlsKeys(ssl);
+                    #endif
+                        if (!ssl->options.tls)
+                            ret = DeriveKeys(ssl);
                 #endif
                 ssl->options.clientState = CLIENT_KEYEXCHANGE_COMPLETE;
 
@@ -9379,13 +9386,15 @@ int SetCipherList(Suites* s, const char* list)
                     ssl->session = *session; /* restore session certs. */
                 #endif
                 RNG_GenerateBlock(ssl->rng, ssl->arrays->serverRandom, RAN_LEN);
-                #ifndef NO_OLD_TLS
-                    if (ssl->options.tls)
-                        ret = DeriveTlsKeys(ssl);
-                    else
-                        ret = DeriveKeys(ssl);
-                #else
+                #ifdef NO_OLD_TLS
                     ret = DeriveTlsKeys(ssl);
+                #else
+                    #ifndef NO_TLS
+                        if (ssl->options.tls)
+                            ret = DeriveTlsKeys(ssl);
+                    #endif
+                        if (!ssl->options.tls)
+                            ret = DeriveKeys(ssl);
                 #endif
                 ssl->options.clientState = CLIENT_KEYEXCHANGE_COMPLETE;
 

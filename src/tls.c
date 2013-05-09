@@ -620,34 +620,5 @@ void TLS_hmac(CYASSL* ssl, byte* digest, const byte* in, word32 sz,
 
 
 #endif /* NO_CYASSL_SERVER */
-
-#else /* NO_TLS */
-
-/* catch CyaSSL programming errors */
-void BuildTlsFinished(CYASSL* ssl, Hashes* hashes, const byte* sender)
-{
-   
-}
-
-
-int DeriveTlsKeys(CYASSL* ssl)
-{
-    return NOT_COMPILED_IN;
-}
-
-
-int MakeTlsMasterSecret(CYASSL* ssl)
-{ 
-    return NOT_COMPILED_IN;
-}
-
-
-int CyaSSL_make_eap_keys(CYASSL* ssl, void* msk, unsigned int len, 
-                         const char* label)
-{
-    return NOT_COMPILED_IN;
-}
-
-
 #endif /* NO_TLS */
 
