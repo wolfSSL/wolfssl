@@ -1182,6 +1182,8 @@ void InitSuites(Suites* suites, ProtocolVersion pv, byte haveRSA, byte havePSK,
 }
 
 
+#ifndef NO_CERTS
+
 /* Initialize CyaSSL X509 type */
 void InitX509(CYASSL_X509* x509, int dynamicFlag)
 {
@@ -1204,6 +1206,8 @@ void FreeX509(CYASSL_X509* x509)
     if (x509->dynamicMemory)
         XFREE(x509, NULL, DYNAMIC_TYPE_X509);
 }
+
+#endif /* NO_CERTS */
 
 
 /* init everything to 0, NULL, default values before calling anything that may

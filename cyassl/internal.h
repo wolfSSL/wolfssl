@@ -1913,7 +1913,9 @@ CYASSL_LOCAL word32  LowResTimer(void);
 
 CYASSL_LOCAL void InitX509(CYASSL_X509*, int);
 CYASSL_LOCAL void FreeX509(CYASSL_X509*);
-CYASSL_LOCAL int  CopyDecodedToX509(CYASSL_X509*, DecodedCert*);
+#ifndef NO_CERTS
+    CYASSL_LOCAL int  CopyDecodedToX509(CYASSL_X509*, DecodedCert*);
+#endif
 
 
 #ifdef __cplusplus
