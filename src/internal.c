@@ -2996,7 +2996,7 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx)
         DecodedCert dCert;
         int         fatal = 0;
 
-        CYASSL_MSG("Veriying Peer's cert");
+        CYASSL_MSG("Verifying Peer's cert");
 
         InitDecodedCert(&dCert, myCert.buffer, myCert.length, ssl->heap);
         ret = ParseCertRelative(&dCert, CERT_TYPE, !ssl->options.verifyNone,
