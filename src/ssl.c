@@ -2129,7 +2129,7 @@ int CyaSSL_CertManagerLoadCRL(CYASSL_CERT_MANAGER* cm, const char* path,
     if (cm->crl == NULL) {
         if (CyaSSL_CertManagerEnableCRL(cm, 0) != SSL_SUCCESS) {
             CYASSL_MSG("Enable CRL failed");
-            return -1;
+            return SSL_FATAL_ERROR;
         }
     }
 
@@ -5042,7 +5042,7 @@ int CyaSSL_set_compression(CYASSL* ssl)
     int CyaSSL_get_keyblock_size(CYASSL* ssl)
     {
         if (ssl == NULL)
-            return -1;
+            return SSL_FATAL_ERROR;
 
         return 2 * (ssl->specs.key_size + ssl->specs.iv_size +
                     ssl->specs.hash_size);
@@ -5055,7 +5055,7 @@ int CyaSSL_set_compression(CYASSL* ssl)
                                      unsigned char** cr, unsigned int* crLen)
     {
         if (ssl == NULL || ssl->arrays == NULL)
-            return -1;
+            return SSL_FATAL_ERROR;
 
         *ms = ssl->arrays->masterSecret;
         *sr = ssl->arrays->serverRandom;
@@ -5283,7 +5283,7 @@ int CyaSSL_set_compression(CYASSL* ssl)
     int CyaSSL_BIO_get_mem_data(CYASSL_BIO* bio, const byte** p)
     {
         if (bio == NULL || p == NULL)
-            return -1;
+            return SSL_FATAL_ERROR;
 
         *p = bio->mem;
 
@@ -6148,7 +6148,7 @@ int CyaSSL_set_compression(CYASSL* ssl)
 
         if (ctx == NULL) {
             CYASSL_MSG("Bad function argument");
-            return -1;
+            return SSL_FATAL_ERROR;
         }
     
         switch (ctx->cipherType) {
@@ -6189,7 +6189,7 @@ int CyaSSL_set_compression(CYASSL* ssl)
 
             default: {
                 CYASSL_MSG("bad type");
-                return -1;  /* failure */
+                return SSL_FATAL_ERROR;
             }
         }    
         return SSL_SUCCESS;
@@ -6204,7 +6204,7 @@ int CyaSSL_set_compression(CYASSL* ssl)
 
         if (ctx == NULL) {
             CYASSL_MSG("Bad function argument");
-            return -1;
+            return SSL_FATAL_ERROR;
         }
     
         switch (ctx->cipherType) {
@@ -6245,7 +6245,7 @@ int CyaSSL_set_compression(CYASSL* ssl)
 
             default: {
                 CYASSL_MSG("bad type");
-                return -1;  /* failure */
+                return SSL_FATAL_ERROR;
             }
         }    
         return SSL_SUCCESS;
@@ -7818,7 +7818,7 @@ int CyaSSL_set_compression(CYASSL* ssl)
 #ifdef FORTRESS
     int CyaSSL_cmp_peer_cert_to_file(CYASSL* ssl, const char *fname)
     {
-        int ret = -1;
+        int ret = SSL_FATAL_ERROR;
 
         CYASSL_ENTER("CyaSSL_cmp_peer_cert_to_file");
         if (ssl != NULL && fname != NULL)
@@ -7869,13 +7869,6 @@ int CyaSSL_set_compression(CYASSL* ssl)
         }
 
         return ret;
-    }
-#else
-    int CyaSSL_cmp_peer_cert_to_file(CYASSL* ssl, const char *fname)
-    {
-        (void)ssl;
-        (void)fname;
-        return -1;
     }
 #endif
 
@@ -8141,7 +8134,7 @@ static int initGlobalRNG = 0;
 
         if (bn == NULL || bn->internal == NULL) {
             CYASSL_MSG("NULL bn error");
-            return -1;
+            return SSL_FATAL_ERROR;
         }
 
         if (r == NULL)
@@ -8149,7 +8142,7 @@ static int initGlobalRNG = 0;
 
         if (mp_to_unsigned_bin((mp_int*)bn->internal, r) != MP_OKAY) {
             CYASSL_MSG("mp_to_unsigned_bin error");
-            return -1;
+            return SSL_FATAL_ERROR;
         }
 
         return mp_unsigned_bin_size((mp_int*)bn->internal);
@@ -8181,7 +8174,7 @@ static int initGlobalRNG = 0;
         (void)n;
         CYASSL_MSG("CyaSSL_BN_mask_bits");
 
-        return -1;
+        return SSL_FATAL_ERROR;
     }
 
 
@@ -8322,7 +8315,7 @@ static int initGlobalRNG = 0;
 
         CYASSL_MSG("CyaSSL_BN_set_word");
 
-        return -1;
+        return SSL_FATAL_ERROR;
     }
 
 
@@ -8333,7 +8326,7 @@ static int initGlobalRNG = 0;
 
         CYASSL_MSG("CyaSSL_BN_dec2bn");
 
-        return -1;
+        return SSL_FATAL_ERROR;
     }
 
 
@@ -8422,17 +8415,17 @@ static int initGlobalRNG = 0;
 
         if (dh == NULL || dh->p == NULL || dh->g == NULL) {
             CYASSL_MSG("Bad function arguments");
-            return -1;
+            return SSL_FATAL_ERROR;
         }
 
         if (CyaSSL_BN_bn2bin(dh->p, NULL) > pSz) {
             CYASSL_MSG("Bad p internal size");
-            return -1;
+            return SSL_FATAL_ERROR;
         }
 
         if (CyaSSL_BN_bn2bin(dh->g, NULL) > gSz) {
             CYASSL_MSG("Bad g internal size");
-            return -1;
+            return SSL_FATAL_ERROR;
         }
 
         pSz = CyaSSL_BN_bn2bin(dh->p, p);
@@ -8440,12 +8433,12 @@ static int initGlobalRNG = 0;
         
         if (pSz <= 0 || gSz <= 0) {
             CYASSL_MSG("Bad BN2bin set");
-            return -1;
+            return SSL_FATAL_ERROR;
         }
 
         if (DhSetKey((DhKey*)dh->internal, p, pSz, g, gSz) < 0) {
             CYASSL_MSG("Bad DH SetKey");
-            return -1;
+            return SSL_FATAL_ERROR;
         }
 
         dh->inSet = 1;
@@ -8761,20 +8754,20 @@ static int initGlobalRNG = 0;
 
         if (mpi == NULL) {
             CYASSL_MSG("mpi NULL error");
-            return -1;
+            return SSL_FATAL_ERROR;
         }
 
         if (*bn == NULL) {
             *bn = CyaSSL_BN_new();
             if (*bn == NULL) {
                 CYASSL_MSG("SetIndividualExternal alloc failed");
-                return -1;
+                return SSL_FATAL_ERROR;
             }
         }
 
         if (mp_copy(mpi, (mp_int*)((*bn)->internal)) != MP_OKAY) {
             CYASSL_MSG("mp_copy error");
-            return -1;
+            return SSL_FATAL_ERROR;
         }
 
         return 0;
@@ -8789,34 +8782,34 @@ static int initGlobalRNG = 0;
 
         if (dsa == NULL || dsa->internal == NULL) {
             CYASSL_MSG("dsa key NULL error");
-            return -1;
+            return SSL_FATAL_ERROR;
         }
 
         key = (DsaKey*)dsa->internal;
 
         if (SetIndividualExternal(&dsa->p, &key->p) < 0) {
             CYASSL_MSG("dsa p key error");
-            return -1;
+            return SSL_FATAL_ERROR;
         }
 
         if (SetIndividualExternal(&dsa->q, &key->q) < 0) {
             CYASSL_MSG("dsa q key error");
-            return -1;
+            return SSL_FATAL_ERROR;
         }
 
         if (SetIndividualExternal(&dsa->g, &key->g) < 0) {
             CYASSL_MSG("dsa g key error");
-            return -1;
+            return SSL_FATAL_ERROR;
         }
 
         if (SetIndividualExternal(&dsa->pub_key, &key->y) < 0) {
             CYASSL_MSG("dsa y key error");
-            return -1;
+            return SSL_FATAL_ERROR;
         }
 
         if (SetIndividualExternal(&dsa->priv_key, &key->x) < 0) {
             CYASSL_MSG("dsa x key error");
-            return -1;
+            return SSL_FATAL_ERROR;
         }
 
         dsa->exSet = 1;
@@ -8833,49 +8826,49 @@ static int initGlobalRNG = 0;
 
         if (rsa == NULL || rsa->internal == NULL) {
             CYASSL_MSG("rsa key NULL error");
-            return -1;
+            return SSL_FATAL_ERROR;
         }
 
         key = (RsaKey*)rsa->internal;
 
         if (SetIndividualExternal(&rsa->n, &key->n) < 0) {
             CYASSL_MSG("rsa n key error");
-            return -1;
+            return SSL_FATAL_ERROR;
         }
 
         if (SetIndividualExternal(&rsa->e, &key->e) < 0) {
             CYASSL_MSG("rsa e key error");
-            return -1;
+            return SSL_FATAL_ERROR;
         }
 
         if (SetIndividualExternal(&rsa->d, &key->d) < 0) {
             CYASSL_MSG("rsa d key error");
-            return -1;
+            return SSL_FATAL_ERROR;
         }
 
         if (SetIndividualExternal(&rsa->p, &key->p) < 0) {
             CYASSL_MSG("rsa p key error");
-            return -1;
+            return SSL_FATAL_ERROR;
         }
 
         if (SetIndividualExternal(&rsa->q, &key->q) < 0) {
             CYASSL_MSG("rsa q key error");
-            return -1;
+            return SSL_FATAL_ERROR;
         }
 
         if (SetIndividualExternal(&rsa->dmp1, &key->dP) < 0) {
             CYASSL_MSG("rsa dP key error");
-            return -1;
+            return SSL_FATAL_ERROR;
         }
 
         if (SetIndividualExternal(&rsa->dmq1, &key->dQ) < 0) {
             CYASSL_MSG("rsa dQ key error");
-            return -1;
+            return SSL_FATAL_ERROR;
         }
 
         if (SetIndividualExternal(&rsa->iqmp, &key->u) < 0) {
             CYASSL_MSG("rsa u key error");
-            return -1;
+            return SSL_FATAL_ERROR;
         }
 
         rsa->exSet = 1;
@@ -8899,18 +8892,18 @@ static int initGlobalRNG = 0;
     
         if (InitRng(&rng) < 0) {
             CYASSL_MSG("RNG init failed");
-            return -1;
+            return SSL_FATAL_ERROR;
         }
 
 #ifdef CYASSL_KEY_GEN
         if (MakeRsaKey((RsaKey*)rsa->internal, bits, 65537, &rng) < 0) {
             CYASSL_MSG("MakeRsaKey failed");
-            return -1;
+            return SSL_FATAL_ERROR;
         }
 
         if (SetRsaExternal(rsa) < 0) {
             CYASSL_MSG("SetRsaExternal failed");
-            return -1;
+            return SSL_FATAL_ERROR;
         }
 
         rsa->inSet = 1;
@@ -8918,7 +8911,7 @@ static int initGlobalRNG = 0;
         return SSL_SUCCESS;
 #else
         CYASSL_MSG("No Key Gen built in");
-        return -1;
+        return SSL_FATAL_ERROR;
 #endif
 
     }
@@ -8947,7 +8940,7 @@ static int initGlobalRNG = 0;
 
         CYASSL_MSG("CyaSSL_RSA_public_encrypt");
 
-        return -1;
+        return SSL_FATAL_ERROR;
     }
 
 
@@ -8962,7 +8955,7 @@ static int initGlobalRNG = 0;
 
         CYASSL_MSG("CyaSSL_RSA_private_decrypt");
 
-        return -1;
+        return SSL_FATAL_ERROR;
     }
 
 
@@ -8989,26 +8982,26 @@ static int initGlobalRNG = 0;
 
         if (d == NULL || sigRet == NULL || dsa == NULL) {
             CYASSL_MSG("Bad function arguments");
-            return -1;
+            return SSL_FATAL_ERROR;
         }
 
         if (dsa->inSet == 0) {
             CYASSL_MSG("No DSA internal set");
-            return -1;
+            return SSL_FATAL_ERROR;
         }
 
         if (InitRng(&tmpRNG) != 0) {
             CYASSL_MSG("Bad RNG Init, trying global");
             if (initGlobalRNG == 0) {
                 CYASSL_MSG("Global RNG no Init");
-                return -1; 
+                return SSL_FATAL_ERROR; 
             }
             rng = &globalRNG;
         }
 
         if (DsaSign(d, sigRet, (DsaKey*)dsa->internal, rng) < 0) {
             CYASSL_MSG("DsaSign failed");
-            return -1;
+            return SSL_FATAL_ERROR;
         }
 
         return SSL_SUCCESS;
@@ -9097,7 +9090,7 @@ static int initGlobalRNG = 0;
 
         CYASSL_MSG("CyaSSL_RSA_public_decrypt");
 
-        return -1;
+        return SSL_FATAL_ERROR;
     }
 
 
@@ -9112,12 +9105,12 @@ static int initGlobalRNG = 0;
         if (rsa == NULL || rsa->p == NULL || rsa->q == NULL || rsa->d == NULL ||
                            rsa->dmp1 == NULL || rsa->dmq1 == NULL) {
             CYASSL_MSG("rsa no init error");
-            return -1;
+            return SSL_FATAL_ERROR;
         }
 
         if (mp_init(&tmp) != MP_OKAY) {
             CYASSL_MSG("mp_init error");
-            return -1;
+            return SSL_FATAL_ERROR;
         }
 
         err = mp_sub_d((mp_int*)rsa->p->internal, 1, &tmp);
@@ -9142,7 +9135,7 @@ static int initGlobalRNG = 0;
         if (err == MP_OKAY)
             return SSL_SUCCESS;
         else
-            return -1;
+            return SSL_FATAL_ERROR;
     }
 
 
@@ -9471,7 +9464,7 @@ static int initGlobalRNG = 0;
 
         CYASSL_MSG("CyaSSL_PEM_write_bio_RSAPrivateKey");
 
-        return -1;
+        return SSL_FATAL_ERROR;
     }
 
 
@@ -9491,7 +9484,7 @@ static int initGlobalRNG = 0;
 
         CYASSL_MSG("CyaSSL_PEM_write_bio_DSAPrivateKey");
 
-        return -1;
+        return SSL_FATAL_ERROR;
     }
 
 
@@ -9576,7 +9569,7 @@ int CyaSSL_RSA_LoadDer(CYASSL_RSA* rsa, const unsigned char* der,  int derSz)
 
     if (SetRsaExternal(rsa) < 0) {
         CYASSL_MSG("SetRsaExternal failed");
-        return -1;
+        return SSL_FATAL_ERROR;
     }
 
     rsa->inSet = 1;
@@ -9607,7 +9600,7 @@ int CyaSSL_DSA_LoadDer(CYASSL_DSA* dsa, const unsigned char* der,  int derSz)
 
     if (SetDsaExternal(dsa) < 0) {
         CYASSL_MSG("SetDsaExternal failed");
-        return -1;
+        return SSL_FATAL_ERROR;
     }
 
     dsa->inSet = 1;
