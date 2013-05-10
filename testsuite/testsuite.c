@@ -190,7 +190,7 @@ void simple_test(func_args* args)
     cliArgs.return_code = 0;
    
     strcpy(svrArgs.argv[0], "SimpleServer");
-    #ifndef USE_WINDOWS_API
+    #if !defined(USE_WINDOWS_API) && !defined(CYASSL_SNIFFER)
         svrArgs.argc = NUMARGS;
         strcpy(svrArgs.argv[1], "-p");
         strcpy(svrArgs.argv[2], "0");

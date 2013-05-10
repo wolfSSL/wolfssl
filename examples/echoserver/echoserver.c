@@ -98,7 +98,8 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
     doPSK = 1;
 #endif
 
-    #if defined(NO_MAIN_DRIVER) && !defined(USE_WINDOWS_API)
+    #if defined(NO_MAIN_DRIVER) && !defined(USE_WINDOWS_API) && \
+                                   !defined(CYASSL_SNIFFER)
         port = 0;
     #endif
     #if defined(USE_ANY_ADDR)
