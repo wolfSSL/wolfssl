@@ -6911,8 +6911,6 @@ int SetCipherList(Suites* s, const char* list)
 
         ssl->options.serverState = SERVER_HELLO_COMPLETE;
 
-        *inOutIdx = i;
-
         if (ssl->options.resuming) {
             if (ssl->options.haveSessionId && XMEMCMP(ssl->arrays->sessionID,
                                          ssl->session.sessionID, ID_LEN) == 0) {
