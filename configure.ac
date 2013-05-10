@@ -962,7 +962,7 @@ fi
 
 # inline Build 
 AC_ARG_ENABLE([inline],
-    [  --enable-inline         Enable inline functions (default: disabled)],
+    [  --enable-inline         Enable inline functions (default: enabled)],
     [ ENABLED_INLINE=$enableval ],
     [ ENABLED_INLINE=yes ]
     )
