@@ -305,7 +305,7 @@ typedef struct SnifferSession {
     word32         srvExpected;     /* server expected sequence (relative) */
     FinCaputre     finCaputre;      /* retain out of order FIN s */
     Flags          flags;           /* session flags */
-    time_t         bornOn;          /* born on ticks */
+    time_t         lastUsed;          /* last used ticks */
     PacketBuffer*  cliReassemblyList; /* client out of order packets */
     PacketBuffer*  srvReassemblyList; /* server out of order packets */
     struct SnifferSession* next;      /* for hash table list */
@@ -470,7 +470,7 @@ static void InitSession(SnifferSession* session)
     session->srvSeqStart    = 0;
     session->cliExpected    = 0;
     session->srvExpected    = 0;
-    session->bornOn         = 0;
+    session->lastUsed       = 0;
     session->cliReassemblyList = 0;
     session->srvReassemblyList = 0;
     session->next           = 0;
@@ -881,7 +881,7 @@ static SnifferSession* GetSnifferSession(IpInfo* ipInfo, TcpInfo* tcpInfo)
     }
 
     if (session)
-        session->bornOn = currTime;  /* keep session alive, remove stale will */
+        session->lastUsed= currTime; /* keep session alive, remove stale will */
                                      /* leave alone */   
     UnLockMutex(&SessionMutex);
     
@@ -1651,7 +1651,7 @@ static void RemoveStaleSessions(void)
         session = SessionTable[i];
         while (session) {
             SnifferSession* next = session->next; 
-            if (time(NULL) >= session->bornOn + SNIFFER_TIMEOUT) {
+            if (time(NULL) >= session->lastUsed + SNIFFER_TIMEOUT) {
                 TraceStaleSession();
                 RemoveSession(session, NULL, NULL, i);
             }
@@ -1682,7 +1682,7 @@ static SnifferSession* CreateSession(IpInfo* ipInfo, TcpInfo* tcpInfo,
     session->cliPort = tcpInfo->srcPort;
     session->cliSeqStart = tcpInfo->sequence;
     session->cliExpected = 1;  /* relative */
-    session->bornOn = time(NULL);
+    session->lastUsed= time(NULL);
                 
     session->context = GetSnifferServer(ipInfo, tcpInfo);
     if (session->context == NULL) {
