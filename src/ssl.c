@@ -2660,7 +2660,7 @@ int CyaSSL_CTX_memsave_cert_cache(CYASSL_CTX* ctx, void* mem, int sz, int* used)
 }
 
 
-/* Resotre cert cache from memory */
+/* Restore cert cache from memory */
 int CyaSSL_CTX_memrestore_cert_cache(CYASSL_CTX* ctx, const void* mem, int sz)
 {
     CYASSL_ENTER("CyaSSL_CTX_memrestore_cert_cache");
@@ -2872,7 +2872,7 @@ int CyaSSL_memrestore_session_cache(const void* mem, int sz)
 #if !defined(NO_FILESYSTEM)
 
 /* Persist session cache to file */
-/* doesn't use memsave becasue of additional memory use */
+/* doesn't use memsave because of additional memory use */
 int CyaSSL_save_session_cache(const char *fname)
 {
     XFILE  file; 
@@ -2939,7 +2939,7 @@ int CyaSSL_save_session_cache(const char *fname)
 
 
 /* Restore the persistant session cache from file */
-/* doesn't use memstore becasue of additional memory use */
+/* doesn't use memstore because of additional memory use */
 int CyaSSL_restore_session_cache(const char *fname)
 {
     XFILE  file; 
@@ -3061,7 +3061,7 @@ typedef struct {
     int signerSz;                /* sizeof Signer object */
 } CertCacheHeader;
 
-/* current cert persistance laytout is:
+/* current cert persistance layout is:
 
    1) CertCacheHeader
    2) caTable
@@ -3118,7 +3118,7 @@ static INLINE int GetCertCacheMemSize(CYASSL_CERT_MANAGER* cm)
 }
 
 
-/* Store cert cache header columns with number of itms per list, have lock */
+/* Store cert cache header columns with number of items per list, have lock */
 static INLINE void SetCertHeaderColumns(CYASSL_CERT_MANAGER* cm, int* columns)
 {
     int     i;
@@ -3137,8 +3137,8 @@ static INLINE void SetCertHeaderColumns(CYASSL_CERT_MANAGER* cm, int* columns)
 }
 
 
-/* Resotre whole cert row from memory, have lock, return bytes consumed,
-   < 0 on eror, have lock */
+/* Restore whole cert row from memory, have lock, return bytes consumed,
+   < 0 on error, have lock */
 static INLINE int RestoreCertRow(CYASSL_CERT_MANAGER* cm, byte* current, 
                                  int row, int listSz, const byte* end)
 {
@@ -3230,7 +3230,7 @@ static INLINE int RestoreCertRow(CYASSL_CERT_MANAGER* cm, byte* current,
 }
 
 
-/* Sotre whole cert row into memory, have lock, return bytes added */
+/* Store whole cert row into memory, have lock, return bytes added */
 static INLINE int StoreCertRow(CYASSL_CERT_MANAGER* cm, byte* current, int row)
 {
     int     added  = 0;
@@ -3315,7 +3315,7 @@ int CM_SaveCertCache(CYASSL_CERT_MANAGER* cm, const char* fname)
 
     file = XFOPEN(fname, "w+b");
     if (file == XBADFILE) {
-       CYASSL_MSG("Coun't open cert cache save file");
+       CYASSL_MSG("Couldn't open cert cache save file");
        return SSL_BAD_FILE;
     }
 
@@ -3335,7 +3335,7 @@ int CM_SaveCertCache(CYASSL_CERT_MANAGER* cm, const char* fname)
         if (rc == SSL_SUCCESS) {
             int ret = (int)XFWRITE(mem, memSz, 1, file);
             if (ret != 1) {
-                CYASSL_MSG("Cert cahce file write failed");
+                CYASSL_MSG("Cert cache file write failed");
                 rc = FWRITE_ERROR;
             }
         }
@@ -3349,7 +3349,7 @@ int CM_SaveCertCache(CYASSL_CERT_MANAGER* cm, const char* fname)
 }
 
 
-/* Resotre cert cache from file */
+/* Restore cert cache from file */
 int CM_RestoreCertCache(CYASSL_CERT_MANAGER* cm, const char* fname)
 {
     XFILE file;
@@ -3362,7 +3362,7 @@ int CM_RestoreCertCache(CYASSL_CERT_MANAGER* cm, const char* fname)
 
     file = XFOPEN(fname, "rb");
     if (file == XBADFILE) {
-       CYASSL_MSG("Coun't open cert cache save file");
+       CYASSL_MSG("Couldn't open cert cache save file");
        return SSL_BAD_FILE;
     }
 
@@ -3425,7 +3425,7 @@ int CM_MemSaveCertCache(CYASSL_CERT_MANAGER* cm, void* mem, int sz, int* used)
 }
 
 
-/* Resotre cert cache from memory */
+/* Restore cert cache from memory */
 int CM_MemRestoreCertCache(CYASSL_CERT_MANAGER* cm, const void* mem, int sz)
 {
     int ret = SSL_SUCCESS;
@@ -3437,7 +3437,7 @@ int CM_MemRestoreCertCache(CYASSL_CERT_MANAGER* cm, const void* mem, int sz)
     CYASSL_ENTER("CM_MemRestoreCertCache");
 
     if (current > end) {
-        CYASSL_MSG("Cert Cahce Memory buffer too small");
+        CYASSL_MSG("Cert Cache Memory buffer too small");
         return BUFFER_E;
     }
 
