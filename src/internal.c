@@ -1821,6 +1821,7 @@ int DtlsPoolTimeout(CYASSL* ssl)
 
 int DtlsPoolSend(CYASSL* ssl)
 {
+    int ret;
     DtlsPool *pool = ssl->dtls_pool;
 
     if (pool != NULL && pool->used > 0) {
@@ -1836,6 +1837,9 @@ int DtlsPoolSend(CYASSL* ssl)
             }    
             c16toa(ssl->keys.dtls_epoch, dtls->epoch);
             c32to48(ssl->keys.dtls_sequence_number++, dtls->sequence_number);
+
+            if ((ret = CheckAvailableSize(ssl, buf->length)) != 0)
+                return ret;
 
             XMEMCPY(ssl->buffers.outputBuffer.buffer, buf->buffer, buf->length);
             ssl->buffers.outputBuffer.idx = 0;
@@ -2515,8 +2519,8 @@ int GrowInputBuffer(CYASSL* ssl, int size, int usedLength)
 }
 
 
-/* check avalaible size into output buffer, make room if needed */
-int CheckAvalaibleSize(CYASSL *ssl, int size)
+/* check available size into output buffer, make room if needed */
+int CheckAvailableSize(CYASSL *ssl, int size)
 {
     if (ssl->buffers.outputBuffer.bufferSize - ssl->buffers.outputBuffer.length
                                              < (word32)size) {
@@ -4726,7 +4730,7 @@ int SendChangeCipher(CYASSL* ssl)
     #endif
 
     /* check for avalaible size */
-    if ((ret = CheckAvalaibleSize(ssl, sendSz)) != 0)
+    if ((ret = CheckAvailableSize(ssl, sendSz)) != 0)
         return ret;
 
     /* get ouput buffer */
@@ -5011,8 +5015,8 @@ int SendFinished(CYASSL* ssl)
         }
     #endif
     
-    /* check for avalaible size */
-    if ((ret = CheckAvalaibleSize(ssl, sizeof(input) + MAX_MSG_EXTRA)) != 0)
+    /* check for available size */
+    if ((ret = CheckAvailableSize(ssl, sizeof(input) + MAX_MSG_EXTRA)) != 0)
         return ret;
 
     /* get ouput buffer */
@@ -5100,8 +5104,8 @@ int SendCertificate(CYASSL* ssl)
         }
     #endif
 
-    /* check for avalaible size */
-    if ((ret = CheckAvalaibleSize(ssl, sendSz)) != 0)
+    /* check for available size */
+    if ((ret = CheckAvailableSize(ssl, sendSz)) != 0)
         return ret;
 
     /* get ouput buffer */
@@ -5177,8 +5181,8 @@ int SendCertificateRequest(CYASSL* ssl)
             i      += DTLS_RECORD_EXTRA + DTLS_HANDSHAKE_EXTRA;
         }
     #endif
-    /* check for avalaible size */
-    if ((ret = CheckAvalaibleSize(ssl, sendSz)) != 0)
+    /* check for available size */
+    if ((ret = CheckAvailableSize(ssl, sendSz)) != 0)
         return ret;
 
     /* get ouput buffer */
@@ -5279,8 +5283,8 @@ int SendData(CYASSL* ssl, const void* data, int sz)
         }
 #endif
 
-        /* check for avalaible size */
-        if ((ret = CheckAvalaibleSize(ssl, len + COMP_EXTRA +
+        /* check for available size */
+        if ((ret = CheckAvailableSize(ssl, len + COMP_EXTRA +
                                       MAX_MSG_EXTRA)) != 0)
             return ssl->error = ret;
 
@@ -5401,8 +5405,8 @@ int SendAlert(CYASSL* ssl, int severity, int type)
            dtlsExtra = DTLS_RECORD_EXTRA; 
    #endif
 
-    /* check for avalaible size */
-    if ((ret = CheckAvalaibleSize(ssl,
+    /* check for available size */
+    if ((ret = CheckAvailableSize(ssl,
                                   ALERT_SIZE + MAX_MSG_EXTRA + dtlsExtra)) != 0)
         return ret;
 
@@ -6707,8 +6711,8 @@ int SetCipherList(Suites* s, const char* list)
         }
 #endif
 
-        /* check for avalaible size */
-        if ((ret = CheckAvalaibleSize(ssl, sendSz)) != 0)
+        /* check for available size */
+        if ((ret = CheckAvailableSize(ssl, sendSz)) != 0)
             return ret;
 
         /* get ouput buffer */
@@ -7488,8 +7492,8 @@ int SetCipherList(Suites* s, const char* list)
                 }
             #endif
 
-            /* check for avalaible size */
-            if ((ret = CheckAvalaibleSize(ssl, sendSz)) != 0)
+            /* check for available size */
+            if ((ret = CheckAvailableSize(ssl, sendSz)) != 0)
                 return ret;
 
             /* get ouput buffer */
@@ -7562,8 +7566,8 @@ int SetCipherList(Suites* s, const char* list)
         if (ssl->options.sendVerify == SEND_BLANK_CERT)
             return 0;  /* sent blank cert, can't verify */
 
-        /* check for avalaible size */
-        if ((ret = CheckAvalaibleSize(ssl, MAX_CERT_VERIFY_SZ)) != 0)
+        /* check for available size */
+        if ((ret = CheckAvailableSize(ssl, MAX_CERT_VERIFY_SZ)) != 0)
             return ret;
 
         /* get ouput buffer */
@@ -7779,8 +7783,8 @@ int SetCipherList(Suites* s, const char* list)
                + SUITE_LEN 
                + ENUM_LEN;
 
-        /* check for avalaible size */
-        if ((ret = CheckAvalaibleSize(ssl, MAX_HELLO_SZ)) != 0)
+        /* check for available size */
+        if ((ret = CheckAvailableSize(ssl, MAX_HELLO_SZ)) != 0)
             return ret;
 
         /* get ouput buffer */
@@ -7915,8 +7919,8 @@ int SetCipherList(Suites* s, const char* list)
                     idx    += DTLS_RECORD_EXTRA + DTLS_HANDSHAKE_EXTRA;
                 }
             #endif
-            /* check for avalaible size */
-            if ((ret = CheckAvalaibleSize(ssl, sendSz)) != 0)
+            /* check for available size */
+            if ((ret = CheckAvailableSize(ssl, sendSz)) != 0)
                return ret;
 
             /* get ouput buffer */
@@ -8035,8 +8039,8 @@ int SetCipherList(Suites* s, const char* list)
                     preSigIdx = idx;
                 }
             #endif
-            /* check for avalaible size */
-            if ((ret = CheckAvalaibleSize(ssl, sendSz)) != 0) {
+            /* check for available size */
+            if ((ret = CheckAvailableSize(ssl, sendSz)) != 0) {
 #ifndef NO_RSA
                 FreeRsaKey(&rsaKey);
 #endif
@@ -8307,8 +8311,8 @@ int SetCipherList(Suites* s, const char* list)
                     preSigIdx = idx;
                 }
             #endif
-            /* check for avalaible size */
-            if ((ret = CheckAvalaibleSize(ssl, sendSz)) != 0) {
+            /* check for available size */
+            if ((ret = CheckAvailableSize(ssl, sendSz)) != 0) {
                 FreeRsaKey(&rsaKey);
                 return ret;
             } 
@@ -9539,8 +9543,8 @@ int SetCipherList(Suites* s, const char* list)
             if (ssl->options.dtls)
                 sendSz += DTLS_RECORD_EXTRA + DTLS_HANDSHAKE_EXTRA;
         #endif
-        /* check for avalaible size */
-        if ((ret = CheckAvalaibleSize(ssl, sendSz)) != 0)
+        /* check for available size */
+        if ((ret = CheckAvailableSize(ssl, sendSz)) != 0)
             return ret;
 
         /* get ouput buffer */
@@ -9580,8 +9584,8 @@ int SetCipherList(Suites* s, const char* list)
         int   sendSz = length + idx;
         int   ret;
 
-        /* check for avalaible size */
-        if ((ret = CheckAvalaibleSize(ssl, sendSz)) != 0)
+        /* check for available size */
+        if ((ret = CheckAvailableSize(ssl, sendSz)) != 0)
             return ret;
 
         /* get ouput buffer */

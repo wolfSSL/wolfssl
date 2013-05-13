@@ -2331,7 +2331,7 @@ doMessage:
     /* decrypt if needed */
     if ((session->flags.side == SERVER_END && session->flags.serverCipherOn)
      || (session->flags.side == CLIENT_END && session->flags.clientCipherOn)) {
-        if (CheckAvalaibleSize(ssl, rhSize) < 0) {
+        if (CheckAvailableSize(ssl, rhSize) < 0) {
             SetError(MEMORY_STR, error, session, FATAL_ERROR_STATE);
             return -1;
         }

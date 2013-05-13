@@ -1862,7 +1862,7 @@ CYASSL_LOCAL void ShrinkOutputBuffer(CYASSL* ssl);
 CYASSL_LOCAL void BuildTlsFinished(CYASSL* ssl, Hashes* hashes,
                                    const byte* sender);
 CYASSL_LOCAL void FreeArrays(CYASSL* ssl, int keep);
-CYASSL_LOCAL  int CheckAvalaibleSize(CYASSL *ssl, int size);
+CYASSL_LOCAL  int CheckAvailableSize(CYASSL *ssl, int size);
 CYASSL_LOCAL  int GrowInputBuffer(CYASSL* ssl, int size, int usedLength);
 
 #ifndef NO_TLS
