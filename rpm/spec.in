@@ -58,23 +58,28 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_docdir}/cyassl/example/echoclient.c
 %{_docdir}/cyassl/example/client.c
 %{_docdir}/cyassl/README.txt
-%{_libdir}/libcyassl.a
 %{_libdir}/libcyassl.la
 %{_libdir}/libcyassl.so
-%{_libdir}/libcyassl.so.3
-%{_libdir}/libcyassl.so.3.0.3
+%{_libdir}/libcyassl.so.5
+%{_libdir}/libcyassl.so.5.0.0
 
 %files devel
 %defattr(-,root,root,-)
 %doc AUTHORS ChangeLog COPYING NEWS README
 %{_bindir}/cyassl-config
 %{_includedir}/cyassl/callbacks.h
+%{_includedir}/cyassl/certs_test.h
 %{_includedir}/cyassl/crl.h
 %{_includedir}/cyassl/ctaocrypt/aes.h
 %{_includedir}/cyassl/ctaocrypt/arc4.h
 %{_includedir}/cyassl/ctaocrypt/asn.h
 %{_includedir}/cyassl/ctaocrypt/asn_public.h
+%{_includedir}/cyassl/ctaocrypt/blake2-impl.h
+%{_includedir}/cyassl/ctaocrypt/blake2-int.h
+%{_includedir}/cyassl/ctaocrypt/blake2.h
+%{_includedir}/cyassl/ctaocrypt/camellia.h
 %{_includedir}/cyassl/ctaocrypt/coding.h
+%{_includedir}/cyassl/ctaocrypt/compress.h
 %{_includedir}/cyassl/ctaocrypt/des3.h
 %{_includedir}/cyassl/ctaocrypt/dh.h
 %{_includedir}/cyassl/ctaocrypt/dsa.h
@@ -138,6 +143,7 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_includedir}/cyassl/openssl/ui.h
 %{_includedir}/cyassl/openssl/x509.h
 %{_includedir}/cyassl/openssl/x509v3.h
+%{_includedir}/cyassl/options.h
 %{_includedir}/cyassl/sniffer.h
 %{_includedir}/cyassl/sniffer_error.h
 %{_includedir}/cyassl/ssl.h
