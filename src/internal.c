@@ -1829,14 +1829,6 @@ int DtlsPoolSend(CYASSL* ssl)
         for (i = 0; i < pool->used; i++) {
             int sendResult;
             buffer* buf = &pool->buf[i];
-            DtlsRecordLayerHeader* dtls = (DtlsRecordLayerHeader*)buf->buffer;
-
-            if (dtls->type == change_cipher_spec) {
-                ssl->keys.dtls_epoch++;
-                ssl->keys.dtls_sequence_number = 0;
-            }    
-            c16toa(ssl->keys.dtls_epoch, dtls->epoch);
-            c32to48(ssl->keys.dtls_sequence_number++, dtls->sequence_number);
 
             if ((ret = CheckAvailableSize(ssl, buf->length)) != 0)
                 return ret;
@@ -4971,14 +4963,9 @@ static int BuildMessage(CYASSL* ssl, byte* output, const byte* input, int inSz,
     idx += inSz;
 
     if (type == handshake) {
-#ifdef CYASSL_DTLS
-        if (ssl->options.dtls) {
-            if ((ret = DtlsPoolSave(ssl, output, headerSz+inSz)) != 0)
-                return ret;
-        }
-#endif
         HashOutput(ssl, output, headerSz + inSz, ivSz);
     }
+
     if (ssl->specs.cipher_type != aead) {
         ssl->hmac(ssl, output+idx, output + headerSz + ivSz, inSz, type, 0);
         idx += digestSz;
