@@ -33,7 +33,7 @@
 
 /* in bytes */
 enum {
-#ifdef STM32F2_CRYPTO
+#ifdef STM32F2_HASH
     MD5_REG_SIZE    =  4,      /* STM32 register size, bytes */
 #endif
     MD5             =  0,      /* hash type unique */

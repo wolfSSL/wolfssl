@@ -36,7 +36,7 @@
 #endif
 
 
-#ifdef STM32F2_CRYPTO
+#ifdef STM32F2_HASH
     /*
      * STM32F2 hardware SHA1 support through the STM32F2 standard peripheral
      * library. Documentation located in STM32F2xx Standard Peripheral Library
@@ -348,6 +348,6 @@ void ShaFinal(Sha* sha, byte* hash)
     InitSha(sha);  /* reset state */
 }
 
-#endif /* STM32F2_CRYPTO */
+#endif /* STM32F2_HASH */
 
 #endif /* NO_SHA */

@@ -34,7 +34,7 @@
 
 /* in bytes */
 enum {
-#ifdef STM32F2_CRYPTO
+#ifdef STM32F2_HASH
     SHA_REG_SIZE     =  4,    /* STM32 register size, bytes */
 #endif
     SHA              =  1,    /* hash type unique */
