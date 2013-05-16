@@ -38,7 +38,6 @@
                                  word32 length);
 #endif
 
-
 static int InitHmac(Hmac* hmac, int type)
 {
     hmac->innerHashKeyed = 0;

@@ -25,13 +25,19 @@
 
 #include <cyassl/ctaocrypt/settings.h>
 
-/* submitted by eof */
-
 #ifdef USE_CYASSL_MEMORY
 
 #include <cyassl/ctaocrypt/memory.h>
 #include <cyassl/ctaocrypt/error.h>
 
+#ifdef CYASSL_MALLOC_CHECK
+#include <stdio.h>
+static void err_sys(const char* msg)
+{
+    printf("error = %s\n", msg);
+    return;
+}
+#endif
 
 /* Set these to default values initially. */
 static CyaSSL_Malloc_cb  malloc_function = 0;
@@ -71,7 +77,11 @@ void* CyaSSL_Malloc(size_t size)
         res = malloc_function(size);
     else
         res = malloc(size);
-
+		#ifdef CYASSL_MALLOC_CHECK
+		    if(res == NULL)
+					err_sys("CyaSSL_malloc")  ;
+		#endif
+				
     return res;
 }
 

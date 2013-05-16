@@ -54,7 +54,7 @@
                 || defined(__mips64)  || defined(__x86_64__)) 
             /* long should be 64bit */
             #define SIZEOF_LONG 8
-        #elif defined(__i386__) 
+        #elif defined(__i386__) || defined(__CORTEX_M3__)
             /* long long should be 64bit */
             #define SIZEOF_LONG_LONG 8
         #endif

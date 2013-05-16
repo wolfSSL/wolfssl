@@ -44,7 +44,9 @@
 #include <cyassl/ctaocrypt/sha256.h>
 #include <cyassl/ctaocrypt/sha512.h>
 #include <cyassl/ctaocrypt/logging.h>
+
 #include <cyassl/ctaocrypt/random.h>
+
 
 #ifndef NO_RC4
     #include <cyassl/ctaocrypt/arc4.h>
@@ -98,6 +100,15 @@
     #define XTIME(t1) pic32_time((t1))
     #define XGMTIME(c) gmtime((c))
     #define XVALIDATE_DATE(d, f, t) ValidateDate((d), (f), (t))
+#elif defined(CYASSL_MDK_ARM)
+    #include <rtl.h>
+    #undef RNG
+    #include "cyassl_MDK_ARM.h"
+    #undef RNG
+    #define RNG CyaSSL_RNG /*for avoiding name conflict in "stm32f2xx.h" */
+    #define XTIME(tl)  (0)
+    #define XGMTIME(c) Cyassl_MDK_gmtime((c))
+    #define XVALIDATE_DATE(d, f, t)  ValidateDate((d), (f), (t))
 #elif defined(USER_TIME)
     /* user time, and gmtime compatible functions, there is a gmtime 
        implementation here that WINCE uses, so really just need some ticks
@@ -129,7 +140,7 @@
 #else
     /* default */
     /* uses complete <time.h> facility */
-    #include <time.h> 
+    #include <time.h>
     #define XTIME(tl)  time((tl))
     #define XGMTIME(c) gmtime((c))
     #define XVALIDATE_DATE(d, f, t) ValidateDate((d), (f), (t))
@@ -462,7 +473,8 @@ static int GetShortInt(const byte* input, word32* inOutIdx, int* number)
 
     return *number;
 }
-#endif
+#endif /* !NO_PWDBASED */
+
 
 /* May not have one, not an error */
 static int GetExplicitVersion(const byte* input, word32* inOutIdx, int* version)
@@ -1377,7 +1389,7 @@ static int GetKey(DecodedCert* cert)
     
             return StoreRsaKey(cert);
         }
-        break;
+
     #endif /* NO_RSA */
     #ifdef HAVE_NTRU
         case NTRUk:
@@ -1782,8 +1794,8 @@ int ValidateDate(const byte* date, byte format, int dateType)
     GetTime(&certTime.tm_hour, date, &i); 
     GetTime(&certTime.tm_min,  date, &i); 
     GetTime(&certTime.tm_sec,  date, &i); 
-
-    if (date[i] != 'Z') {     /* only Zulu supported for this profile */
+        
+        if (date[i] != 'Z') {     /* only Zulu supported for this profile */
         CYASSL_MSG("Only Zulu time supported for this profile"); 
         return 0;
     }
@@ -2307,7 +2319,7 @@ static int ConfirmSignature(const byte* buf, word32 bufSz,
             FreeRsaKey(&pubKey);
             return ret;
         }
-        break;
+
     #endif /* NO_RSA */
     #ifdef HAVE_ECC
         case ECDSAk:
@@ -3396,28 +3408,28 @@ static const char* GetOneName(CertName* name, int idx)
     switch (idx) {
     case 0:
        return name->country;
-       break;
+
     case 1:
        return name->state;
-       break;
+
     case 2:
        return name->locality;
-       break;
+
     case 3:
        return name->sur;
-       break;
+
     case 4:
        return name->org;
-       break;
+
     case 5:
        return name->unit;
-       break;
+
     case 6:
        return name->commonName;
-       break;
+
     case 7:
        return name->email;
-       break;
+
     default:
        return 0;
     }
@@ -3430,29 +3442,29 @@ static byte GetNameId(int idx)
     switch (idx) {
     case 0:
        return ASN_COUNTRY_NAME;
-       break;
+
     case 1:
        return ASN_STATE_NAME;
-       break;
+
     case 2:
        return ASN_LOCALITY_NAME;
-       break;
+
     case 3:
        return ASN_SUR_NAME;
-       break;
+
     case 4:
        return ASN_ORG_NAME;
-       break;
+
     case 5:
        return ASN_ORGUNIT_NAME;
-       break;
+
     case 6:
        return ASN_COMMON_NAME;
-       break;
+
     case 7:
        /* email uses different id type */
        return 0;
-       break;
+
     default:
        return 0;
     }
@@ -3602,10 +3614,14 @@ static int SetName(byte* output, CertName* name)
     return totalBytes;
 }
 
-
 /* encode info from cert into DER enocder format */
-static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, RNG* rng,
-                      const byte* ntruKey, word16 ntruSz)
+static int EncodeCert(
+Cert* cert, 
+DerCert* der, 
+RsaKey* rsaKey, 
+RNG* rng,
+                      const byte* ntruKey, 
+word16 ntruSz)
 {
     (void)ntruKey;
     (void)ntruSz;
@@ -5305,5 +5321,5 @@ int ParseCRL(DecodedCRL* dcrl, const byte* buff, word32 sz, void* cm)
 }
 
 #endif /* HAVE_CRL */
-
 #endif
+

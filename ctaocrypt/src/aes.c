@@ -59,7 +59,8 @@
      * document (See note in README).
      */
     #include "stm32f2xx.h"
-
+		#include "stm32f2xx_cryp.h"
+		
     int AesSetKey(Aes* aes, const byte* userKey, word32 keylen, const byte* iv,
                   int dir)
     {
@@ -2212,8 +2213,9 @@ static void GHASH(Aes* aes, const byte* a, word32 aSz,
 static void GMULT(word64* X, word64* Y)
 {
     word64 Z[2] = {0,0};
-    word64 V[2] = {X[0], X[1]};
-    int i, j;
+    word64 V[2] ; 
+		int i, j;
+    V[0] = X[0] ;  V[1] = X[1] ;
 
     for (i = 0; i < 2; i++)
     {
@@ -2312,7 +2314,8 @@ static void GHASH(Aes* aes, const byte* a, word32 aSz,
 
     /* Hash in the lengths in bits of A and C */
     {
-        word64 len[2] = {aSz, cSz};
+        word64 len[2] ; 
+			  len[0] = aSz ; len[1] = cSz;
 
         /* Lengths are in bytes. Convert to bits. */
         len[0] *= 8;
@@ -2334,9 +2337,11 @@ static void GHASH(Aes* aes, const byte* a, word32 aSz,
 static void GMULT(word32* X, word32* Y)
 {
     word32 Z[4] = {0,0,0,0};
-    word32 V[4] = {X[0], X[1], X[2], X[3]};
+    word32 V[4] ;
     int i, j;
 
+    V[0] = X[0];  V[1] = X[1]; V[2] =  X[2]; V[3] =  X[3];
+			
     for (i = 0; i < 4; i++)
     {
         word32 y = Y[i];
@@ -2717,7 +2722,7 @@ int  AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
     byte A[AES_BLOCK_SIZE];
     byte B[AES_BLOCK_SIZE];
     byte* o;
-    word32 i, lenSz, oSz, result = 0;
+    word32 i, lenSz, oSz; int result = 0;
 
     o = out;
     oSz = inSz;

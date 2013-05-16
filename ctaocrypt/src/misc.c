@@ -172,7 +172,5 @@ STATIC INLINE void xorbuf(byte* buf, const byte* mask, word32 count)
         for (i = 0; i < count; i++) buf[i] ^= mask[i];
     }
 }
-
-
 #undef STATIC
 

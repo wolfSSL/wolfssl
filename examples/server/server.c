@@ -30,6 +30,13 @@
     #define CYASSL_TRACK_MEMORY
 #endif
 
+#if defined(CYASSL_MDK_ARM)
+    #include <stdio.h>
+    #include <string.h>
+    #include <rtl.h>
+    #include "cyassl_MDK_ARM.h"
+#endif
+
 #include <cyassl/openssl/ssl.h>
 #include <cyassl/test.h>
 
@@ -116,6 +123,10 @@ static void Usage(void)
     printf("-f          Fewer packets/group messages\n");
     printf("-N          Use Non-blocking sockets\n");
 }
+
+#ifdef CYASSL_MDK_SHELL
+#define exit(code) return(code)
+#endif
 
 
 THREAD_RETURN CYASSL_THREAD server_test(void* args)
@@ -264,19 +275,25 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
             method = SSLv3_server_method();
             break;
 
+    #ifndef NO_TLS
         case 1:
             method = TLSv1_server_method();
             break;
 
+
         case 2:
             method = TLSv1_1_server_method();
             break;
+
+        #endif
 #endif
 
+#ifndef NO_TLS
         case 3:
             method = TLSv1_2_server_method();
             break;
-
+#endif
+                
 #ifdef CYASSL_DTLS
         case -1:
             method = DTLSv1_server_method();
@@ -432,6 +449,10 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 
     if (SSL_write(ssl, msg, sizeof(msg)) != sizeof(msg))
         err_sys("SSL_write failed");
+        
+    #if defined(CYASSL_MDK_SHELL) && defined(HAVE_MDK_RTX)
+        os_dly_wait(500) ;
+    #endif
 
     SSL_shutdown(ssl);
     SSL_free(ssl);
@@ -468,7 +489,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
         args.argv = argv;
 
         CyaSSL_Init();
-#ifdef DEBUG_CYASSL
+#if defined(DEBUG_CYASSL) && !defined(CYASSL_MDK_SHELL)
         CyaSSL_Debugging_ON();
 #endif
         if (CurrentDir("server") || CurrentDir("build"))
@@ -509,5 +530,4 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     }
 
 #endif
-
 
