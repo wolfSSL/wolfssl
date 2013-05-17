@@ -2088,11 +2088,19 @@ ProtocolVersion MakeDTLSv1_2(void)
     }
 
 
-#elif defined(MICROCHIP_TCPIP)
+#elif defined(MICROCHIP_TCPIP_V5)
 
     word32 LowResTimer(void)
     {
         return (word32) TickGet();
+    }
+
+
+#elif defined(MICROCHIP_TCPIP)
+
+    word32 LowResTimer(void)
+    {
+        return (word32) SYS_TICK_Get();
     }
 
 

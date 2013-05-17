@@ -95,7 +95,7 @@
     #endif
     #define NO_TIME_H
     /* since Micrium not defining XTIME or XGMTIME, CERT_GEN not available */
-#elif defined(MICROCHIP_TCPIP)
+#elif defined(MICROCHIP_TCPIP_V5) || defined(MICROCHIP_TCPIP)
     #include <time.h>
     #define XTIME(t1) pic32_time((t1))
     #define XGMTIME(c) gmtime((c))
@@ -255,7 +255,7 @@ struct tm* my_gmtime(const time_t* timer)       /* has a gmtime() but hangs */
 #endif /* THREADX */
 
 
-#ifdef MICROCHIP_TCPIP
+#if defined(MICROCHIP_TCPIP_V5) || defined(MICROCHIP_TCPIP)
 
 /*
  * time() is just a stub in Microchip libraries. We need our own
@@ -263,7 +263,11 @@ struct tm* my_gmtime(const time_t* timer)       /* has a gmtime() but hangs */
  */
 time_t pic32_time(time_t* timer)
 {
+#ifdef MICROCHIP_TCPIP_V5
     DWORD sec = 0;
+#else
+    uint32_t sec = 0;
+#endif
     time_t localTime;
 
     if (timer == NULL)
