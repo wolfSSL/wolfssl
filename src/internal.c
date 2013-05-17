@@ -6914,7 +6914,7 @@ int SetCipherList(Suites* s, const char* list)
             if (ssl->options.haveSessionId && XMEMCMP(ssl->arrays->sessionID,
                                          ssl->session.sessionID, ID_LEN) == 0) {
                 if (SetCipherSpecs(ssl) == 0) {
-                    int ret; 
+                    int ret = -1; 
                     XMEMCPY(ssl->arrays->masterSecret,
                             ssl->session.masterSecret, SECRET_LEN);
                     #ifdef NO_OLD_TLS
@@ -9150,7 +9150,7 @@ int SetCipherList(Suites* s, const char* list)
         ssl->options.haveSessionId = 1;
         /* DoClientHello uses same resume code */
         if (ssl->options.resuming) {  /* let's try */
-            int ret; 
+            int ret = -1; 
             CYASSL_SESSION* session = GetSession(ssl,ssl->arrays->masterSecret);
             if (!session) {
                 CYASSL_MSG("Session lookup for resume failed");
@@ -9369,7 +9369,7 @@ int SetCipherList(Suites* s, const char* list)
         ssl->options.haveSessionId = 1;
         /* ProcessOld uses same resume code */
         if (ssl->options.resuming) {  /* let's try */
-            int ret;            
+            int ret = -1;            
             CYASSL_SESSION* session = GetSession(ssl,ssl->arrays->masterSecret);
             if (!session) {
                 CYASSL_MSG("Session lookup for resume failed");
