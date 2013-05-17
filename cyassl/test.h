@@ -289,7 +289,7 @@ static INLINE void ShowX509(CYASSL_X509* x509, const char* hdr)
         
     printf("%s\n issuer : %s\n subject: %s\n", hdr, issuer, subject);
 
-    while ( (altName = CyaSSL_X509_get_next_altname(x509)) )
+    while ( (altName = CyaSSL_X509_get_next_altname(x509)) != NULL)
         printf(" altname = %s\n", altName);
 
     ret = CyaSSL_X509_get_serial_number(x509, serial, &sz);
