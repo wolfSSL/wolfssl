@@ -1286,6 +1286,7 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
     ssl->IOCB_WriteCtx = &ssl->wfd;  /* correctly set */
 #ifdef CYASSL_DTLS
     ssl->IOCB_CookieCtx = NULL;      /* we don't use for default cb */
+    ssl->dtls_expected_rx = MAX_MTU;
 #endif
 
 #ifndef NO_OLD_TLS
@@ -4376,9 +4377,9 @@ static int GetInputData(CYASSL *ssl, word32 size)
 
 #ifdef CYASSL_DTLS
     if (ssl->options.dtls) {
-        if (size < MAX_MTU)
-            dtlsExtra = (int)(MAX_MTU - size);
-        inSz = MAX_MTU;       /* read ahead up to MTU */
+        if (size < ssl->dtls_expected_rx)
+            dtlsExtra = (int)(ssl->dtls_expected_rx - size);
+        inSz = ssl->dtls_expected_rx;  
     }
 #endif
     

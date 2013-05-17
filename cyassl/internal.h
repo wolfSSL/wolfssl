@@ -561,7 +561,7 @@ enum Misc {
                                    digest sz + BLOC_SZ (iv) + pad byte (1) */
     MAX_COMP_EXTRA  = 1024,     /* max compression extra */
     MAX_MTU         = 1500,     /* max expected MTU */
-    MAX_UDP_SIZE    = MAX_MTU - 100,   /* don't exceed MTU w/ 100 byte header */
+    MAX_UDP_SIZE    = 8192 - 100, /* was MAX_MTU - 100 */
     MAX_DH_SZ       = 612,      /* 2240 p, pub, g + 2 byte size for each */
     MAX_STR_VERSION = 8,        /* string rep of protocol version */
 
@@ -1693,6 +1693,7 @@ struct CYASSL {
     DtlsPool*       dtls_pool;
     DtlsMsg*        dtls_msg_list;
     void*           IOCB_CookieCtx;     /* gen cookie ctx */
+    word32          dtls_expected_rx;
 #endif
 #ifdef CYASSL_CALLBACKS
     HandShakeInfo   handShakeInfo;      /* info saved during handshake */

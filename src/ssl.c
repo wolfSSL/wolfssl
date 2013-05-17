@@ -88,6 +88,15 @@
 
 #endif /* min */
 
+#ifndef max
+
+    static INLINE word32 max(word32 a, word32 b)
+    {
+        return a > b ? a : b;
+    }
+
+#endif /* min */
+
 
 #ifndef CYASSL_LEANPSK
 char* mystrnstr(const char* s1, const char* s2, unsigned int n)
@@ -439,6 +448,10 @@ static int CyaSSL_read_internal(CYASSL* ssl, void* data, int sz, int peek)
 
 #ifdef HAVE_ERRNO_H 
         errno = 0;
+#endif
+#ifdef CYASSL_DTLS
+    if (ssl->options.dtls)
+        ssl->dtls_expected_rx = max(sz + 100, MAX_MTU);
 #endif
 
     ret = ReceiveData(ssl, (byte*)data, min(sz, OUTPUT_RECORD_SIZE), peek);
