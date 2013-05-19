@@ -22,6 +22,13 @@
 #ifdef HAVE_CONFIG_H
     #include <config.h>
 #endif
+ 
+#if defined(CYASSL_MDK_ARM)
+      #include <stdio.h>
+        #include <string.h>
+        #include <rtl.h>
+        #include "cyassl_MDK_ARM.h"
+#endif
 
 #include <cyassl/ctaocrypt/settings.h>
 
@@ -125,6 +132,9 @@ static void Usage(void)
 #endif
 }
 
+#ifdef CYASSL_MDK_SHELL
+#define exit(code) return
+#endif
 
 THREAD_RETURN CYASSL_THREAD client_test(void* args)
 {
@@ -314,7 +324,9 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
         case 0:
             method = CyaSSLv3_client_method();
             break;
-
+                
+                
+    #ifndef NO_TLS
         case 1:
             method = CyaTLSv1_client_method();
             break;
@@ -322,11 +334,15 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
         case 2:
             method = CyaTLSv1_1_client_method();
             break;
-#endif
-
+    #endif /* NO_TLS */
+                
+#endif  /* NO_OLD_TLS */
+                
+#ifndef NO_TLS
         case 3:
             method = CyaTLSv1_2_client_method();
             break;
+#endif
 
 #ifdef CYASSL_DTLS
         case -1:
@@ -436,6 +452,7 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
 
         for (i = 0; i < times; i++) {
             tcp_connect(&sockfd, host, port, doDTLS);
+
             ssl = CyaSSL_new(ctx);
             CyaSSL_set_fd(ssl, sockfd);
             if (CyaSSL_connect(ssl) != SSL_SUCCESS)
@@ -455,7 +472,11 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
 
         exit(EXIT_SUCCESS);
     }
-
+    
+    #if defined(CYASSL_MDK_ARM)
+    CyaSSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, 0);
+    #endif
+    
     ssl = CyaSSL_new(ctx);
     if (ssl == NULL)
         err_sys("unable to get SSL object");
@@ -649,7 +670,7 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
         args.argv = argv;
 
         CyaSSL_Init();
-#ifdef DEBUG_CYASSL
+#if defined(DEBUG_CYASSL) && !defined(CYASSL_MDK_SHELL)
         CyaSSL_Debugging_ON();
 #endif
         if (CurrentDir("client") || CurrentDir("build"))

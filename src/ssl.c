@@ -160,6 +160,7 @@ CYASSL* CyaSSL_new(CYASSL_CTX* ctx)
     CYASSL* ssl = NULL;
     int ret = 0;
 
+    (void)ret;
     CYASSL_ENTER("SSL_new");
 
     if (ctx == NULL)
@@ -8184,7 +8185,6 @@ static int initGlobalRNG = 0;
         byte          buff[1024];
         RNG           tmpRNG;
         RNG*          rng = &tmpRNG; 
-        int           ret;
         int           len = bits/8;
 
         (void)top;
@@ -8199,7 +8199,7 @@ static int initGlobalRNG = 0;
         if (bits % 8)
             len++;
 
-        if ( (ret = InitRng(&tmpRNG)) != 0) {
+        if ( (InitRng(&tmpRNG)) != 0) {
             CYASSL_MSG("Bad RNG Init, trying global");
             if (initGlobalRNG == 0) {
                 CYASSL_MSG("Global RNG no Init");
@@ -8467,7 +8467,6 @@ static int initGlobalRNG = 0;
         word32        privSz = sizeof(priv);
         RNG           tmpRNG;
         RNG*          rng = &tmpRNG; 
-        int           ret;
 
         CYASSL_MSG("CyaSSL_DH_generate_key");
 
@@ -8483,7 +8482,7 @@ static int initGlobalRNG = 0;
             }
         }
 
-        if ( (ret = InitRng(&tmpRNG)) != 0) {
+        if ( (InitRng(&tmpRNG)) != 0) {
             CYASSL_MSG("Bad RNG Init, trying global");
             if (initGlobalRNG == 0) {
                 CYASSL_MSG("Global RNG no Init");
@@ -9237,11 +9236,9 @@ static int initGlobalRNG = 0;
         switch(id) {
             case NID_md5:
                 return CyaSSL_EVP_md5();
-                break;
 
             case NID_sha1:
                 return CyaSSL_EVP_sha1();
-                break;
 
             default:
                 CYASSL_MSG("Bad digest id value");

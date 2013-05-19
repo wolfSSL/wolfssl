@@ -51,6 +51,7 @@
      * Peripheral Library document (See note in README).
      */
     #include "stm32f2xx.h"
+		#include "stm32f2xx_cryp.h"
 
     void Des_SetKey(Des* des, const byte* key, const byte* iv, int dir)
     {

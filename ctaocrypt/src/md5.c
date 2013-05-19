@@ -53,6 +53,7 @@
          * md5->loLen   = num bytes that have been written to STM32 FIFO
          */
         XMEMSET(md5->buffer, 0, MD5_REG_SIZE);
+			
         md5->buffLen = 0;
         md5->loLen = 0;
 

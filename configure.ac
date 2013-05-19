@@ -1061,7 +1061,8 @@ if test "$ENABLED_VALGRIND" = "yes"
 then
     AC_CHECK_PROG([HAVE_VALGRIND],[valgrind],[yes],[no])
 
-    if [["$HAVE_VALGRIND" = "no" ]]; then
+    if test "$HAVE_VALGRIND" = "no"
+    then
         AC_MSG_ERROR([Valgrind not found.])
     fi
     enable_shared=no

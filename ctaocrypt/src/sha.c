@@ -43,7 +43,8 @@
      * document (See note in README).
      */
     #include "stm32f2xx.h"
-
+		#include "stm32f2xx_hash.h"
+		
     void InitSha(Sha* sha)
     {
         /* STM32F2 struct notes:

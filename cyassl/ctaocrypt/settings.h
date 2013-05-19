@@ -45,7 +45,10 @@
 /* Uncomment next line if using Microchip PIC32 ethernet starter kit */
 /* #define MICROCHIP_PIC32 */
 
-/* Uncomment next line if using Microchip TCP/IP stack, for time features */
+/* Uncomment next line if using Microchip TCP/IP stack, version 5 */
+/* #define MICROCHIP_TCPIP_V5 */
+
+/* Uncomment next line if using Microchip TCP/IP stack, version 6 or later */
 /* #define MICROCHIP_TCPIP */
 
 /* Uncomment next line if using FreeRTOS */
@@ -94,9 +97,15 @@
     #define TFM_TIMING_RESISTANT
 #endif
 
-#ifdef MICROCHIP_TCPIP
-    /* includes timer functions */
+#ifdef MICROCHIP_TCPIP_V5
+    /* include timer functions */
     #include "TCPIP Stack/TCPIP.h"
+#endif
+
+#ifdef MICROCHIP_TCPIP
+    /* include timer, NTP functions */
+    #include "system/system_services.h"
+    #include "tcpip/sntp.h"
 #endif
 
 #ifdef MBED

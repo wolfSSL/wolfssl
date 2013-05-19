@@ -767,6 +767,7 @@ CYASSL_API int  CyaSSL_CTX_SetTmpDH(CYASSL_CTX*, const unsigned char* p,
 CYASSL_API int  CyaSSL_CTX_SetTmpDH_buffer(CYASSL_CTX*, const unsigned char* b,
                                            long sz, int format);
 CYASSL_API int  CyaSSL_CTX_SetTmpEC_DHE_Sz(CYASSL_CTX*, unsigned short);
+
 #ifndef NO_FILESYSTEM
     CYASSL_API int  CyaSSL_CTX_SetTmpDH_file(CYASSL_CTX*, const char* f,
                                              int format);
@@ -790,7 +791,7 @@ CYASSL_API int CyaSSL_make_eap_keys(CYASSL*, void* key, unsigned int len,
         #ifdef __PPU
             #include <sys/types.h>
             #include <sys/socket.h>
-        #else
+        #elif !defined(CYASSL_MDK_ARM)
             #include <sys/uio.h>
         #endif
         /* allow writev style writing */

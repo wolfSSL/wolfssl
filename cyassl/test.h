@@ -14,11 +14,14 @@
     #include <winsock2.h>
     #include <process.h>
     #ifdef TEST_IPV6            /* don't require newer SDK for IPV4 */
-	    #include <ws2tcpip.h>
+        #include <ws2tcpip.h>
         #include <wspiapi.h>
     #endif
     #define SOCKET_T SOCKET
     #define SNPRINTF _snprintf
+#elif defined(CYASSL_MDK_ARM)
+    #include <string.h>
+    #define SOCKET_T unsigned int
 #else
     #include <string.h>
     #include <sys/types.h>
@@ -66,7 +69,7 @@
 
 /* HPUX doesn't use socklent_t for third parameter to accept, unless
    _XOPEN_SOURCE_EXTENDED is defined */
-#if !defined(__hpux__)
+#if !defined(__hpux__) && !defined(CYASSL_MDK_ARM)
     typedef socklen_t* ACCEPT_THIRD_T;
 #else
     #if defined _XOPEN_SOURCE_EXTENDED
@@ -80,6 +83,9 @@
 #ifdef USE_WINDOWS_API 
     #define CloseSocket(s) closesocket(s)
     #define StartTCP() { WSADATA wsd; WSAStartup(0x0002, &wsd); }
+#elif defined(CYASSL_MDK_ARM)
+    #define CloseSocket(s) closesocket(s)
+    #define StartTCP() 
 #else
     #define CloseSocket(s) close(s)
     #define StartTCP() 
@@ -97,6 +103,10 @@
         #define CYASSL_THREAD
         #define INFINITE -1
         #define WAIT_OBJECT_0 0L
+    #elif defined(CYASSL_MDK_ARM)
+        typedef unsigned int  THREAD_RETURN;
+        typedef int           THREAD_TYPE;
+        #define CYASSL_THREAD
     #else
         typedef unsigned int  THREAD_RETURN;
         typedef intptr_t      THREAD_TYPE;
@@ -172,12 +182,13 @@ void join_thread(THREAD_TYPE);
 #endif
 static const word16      yasslPort = 11111;
 
-
 static INLINE void err_sys(const char* msg)
 {
     printf("yassl error: %s\n", msg);
+    #ifndef CYASSL_MDK_SHELL
     if (msg)
         exit(EXIT_FAILURE);
+    #endif
 }
 
 
@@ -278,7 +289,7 @@ static INLINE void ShowX509(CYASSL_X509* x509, const char* hdr)
         
     printf("%s\n issuer : %s\n subject: %s\n", hdr, issuer, subject);
 
-    while ( (altName = CyaSSL_X509_get_next_altname(x509)) )
+    while ( (altName = CyaSSL_X509_get_next_altname(x509)) != NULL)
         printf(" altname = %s\n", altName);
 
     ret = CyaSSL_X509_get_serial_number(x509, serial, &sz);
@@ -357,8 +368,13 @@ static INLINE void build_addr(SOCKADDR_IN_T* addr, const char* peer,
 
 #ifndef TEST_IPV6
     /* peer could be in human readable form */
-    if (peer != INADDR_ANY && isalpha((int)peer[0])) {
-        struct hostent* entry = gethostbyname(peer);
+    if ( (peer != INADDR_ANY) && isalpha((int)peer[0])) {
+        #ifdef CYASSL_MDK_ARM
+            int err;
+            struct hostent* entry = gethostbyname(peer, &err);
+        #else
+            struct hostent* entry = gethostbyname(peer);
+        #endif
 
         if (entry) {
             memcpy(&addr->sin_addr.s_addr, entry->h_addr_list[0],
@@ -372,7 +388,11 @@ static INLINE void build_addr(SOCKADDR_IN_T* addr, const char* peer,
 
 
 #ifndef TEST_IPV6
-    addr->sin_family = AF_INET_V;
+    #if defined(CYASSL_MDK_ARM)
+        addr->sin_family = PF_INET;
+    #else
+        addr->sin_family = AF_INET_V;
+    #endif
     addr->sin_port = htons(port);
     if (peer == INADDR_ANY)
         addr->sin_addr.s_addr = INADDR_ANY;
@@ -440,6 +460,8 @@ static INLINE void tcp_socket(SOCKET_T* sockfd, int udp)
         if (res < 0)
             err_sys("setsockopt SO_NOSIGPIPE failed\n");
     }
+#elif defined(CYASSL_MDK_ARM)
+    /* nothing to define */
 #else  /* no S_NOSIGPIPE */
     signal(SIGPIPE, SIG_IGN);
 #endif /* S_NOSIGPIPE */
@@ -456,7 +478,6 @@ static INLINE void tcp_socket(SOCKET_T* sockfd, int udp)
 #endif
 #endif  /* USE_WINDOWS_API */
 }
-
 
 static INLINE void tcp_connect(SOCKET_T* sockfd, const char* ip, word16 port,
                                int udp)
@@ -486,6 +507,8 @@ enum {
     TEST_ERROR_READY
 };
 
+
+#if !defined(CYASSL_MDK_ARM)
 static INLINE int tcp_select(SOCKET_T socketfd, int to_sec)
 {
     fd_set recvfds, errfds;
@@ -511,6 +534,7 @@ static INLINE int tcp_select(SOCKET_T socketfd, int to_sec)
 
     return TEST_SELECT_FAIL;
 }
+#endif /* !CYASSL_MDK_ARM */
 
 
 static INLINE void tcp_listen(SOCKET_T* sockfd, int* port, int useAnyAddr,
@@ -523,7 +547,7 @@ static INLINE void tcp_listen(SOCKET_T* sockfd, int* port, int useAnyAddr,
     build_addr(&addr, (useAnyAddr ? INADDR_ANY : yasslIP), *port, udp);
     tcp_socket(sockfd, udp);
 
-#ifndef USE_WINDOWS_API 
+#if !defined(USE_WINDOWS_API) && !defined(CYASSL_MDK_ARM)
     {
         int       res, on  = 1;
         socklen_t len = sizeof(on);
@@ -584,7 +608,7 @@ static INLINE void udp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
     tcp_socket(sockfd, 1);
 
 
-#ifndef USE_WINDOWS_API 
+#if !defined(USE_WINDOWS_API) && !defined(CYASSL_MDK_ARM)
     {
         int       res, on  = 1;
         socklen_t len = sizeof(on);
@@ -670,6 +694,8 @@ static INLINE void tcp_set_nonblocking(SOCKET_T* sockfd)
         int ret = ioctlsocket(*sockfd, FIONBIO, &blocking);
         if (ret == SOCKET_ERROR)
             err_sys("ioctlsocket failed");
+    #elif defined(CYASSL_MDK_ARM)
+         /* non blocking not suppported, for now */ 
     #else
         int flags = fcntl(*sockfd, F_GETFL, 0);
         if (flags < 0)
@@ -753,6 +779,7 @@ static INLINE unsigned int my_psk_server_cb(CYASSL* ssl, const char* identity,
 
 #else
 
+#if !defined(CYASSL_MDK_ARM)
     #include <sys/time.h>
 
     static INLINE double current_time(void)
@@ -762,7 +789,8 @@ static INLINE unsigned int my_psk_server_cb(CYASSL* ssl, const char* identity,
 
         return (double)tv.tv_sec + (double)tv.tv_usec / 1000000;
     }
-
+        
+#endif
 #endif /* USE_WINDOWS_API */
 
 
@@ -852,7 +880,6 @@ static INLINE void CRL_CallBack(const char* url)
 }
 
 #endif
-
 
 #ifndef NO_CERTS
 
@@ -984,6 +1011,8 @@ static INLINE int CurrentDir(const char* str)
     return 0;
 }
 
+#elif defined(CYASSL_MDK_ARM)
+    /* KEIL-RL File System does not support relative directry */
 #else
 
 #ifndef MAX_PATH

@@ -32,6 +32,7 @@
 #include <cyassl/ctaocrypt/logging.h>
 #ifdef NO_INLINE
     #include <cyassl/ctaocrypt/hc128.h>
+		#include <cyassl/ctaocrypt/misc.h>
 #else
     #include <ctaocrypt/src/misc.c>
 #endif

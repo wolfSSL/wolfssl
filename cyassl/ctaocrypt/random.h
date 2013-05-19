@@ -59,11 +59,18 @@ typedef struct OS_Seed {
 CYASSL_LOCAL
 int GenerateSeed(OS_Seed* os, byte* seed, word32 sz);
 
+#if defined(CYASSL_MDK_ARM)
+#undef RNG
+#define RNG CyaSSL_RNG   /* for avoiding name conflict in "stm32f2xx.h" */
+#endif
+
 #ifndef NO_RC4
 
 #define CYASSL_RNG_CAVIUM_MAGIC 0xBEEF0004
 
 /* secure Random Nnumber Generator */
+
+
 typedef struct RNG {
     OS_Seed seed;
     Arc4    cipher;
@@ -81,6 +88,7 @@ typedef struct RNG {
 #else /* NO_RC4 */
 
 #define DBRG_SEED_LEN (440/8)
+
 
 /* secure Random Nnumber Generator */
 typedef struct RNG {

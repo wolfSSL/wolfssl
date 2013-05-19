@@ -26,6 +26,14 @@
 #include <cyassl/ctaocrypt/settings.h>
 
 #include <cyassl/openssl/ssl.h>
+
+#if defined(CYASSL_MDK_ARM)
+    #include <stdio.h>
+    #include <string.h>
+    #include <rtl.h>
+    #include "cyassl_MDK_ARM.h"
+#endif
+
 #include <cyassl/test.h>
 
 #include "examples/echoclient/echoclient.h"
@@ -34,7 +42,7 @@ void echoclient_test(void* args)
 {
     SOCKET_T sockfd = 0;
 
-    FILE* fin  = stdin;
+    FILE* fin   = stdin  ;
     FILE* fout = stdout;
 
     int inCreated  = 0;
@@ -55,8 +63,11 @@ void echoclient_test(void* args)
     int port = yasslPort;
 
     ((func_args*)args)->return_code = -1; /* error state */
+    
+#ifndef CYASSL_MDK_SHELL
     argc = ((func_args*)args)->argc;
     argv = ((func_args*)args)->argv;
+#endif
 
     if (argc >= 2) {
         fin  = fopen(argv[1], "r"); 
@@ -131,7 +142,13 @@ void echoclient_test(void* args)
 #ifdef OPENSSL_EXTRA
     SSL_CTX_set_default_passwd_cb(ctx, PasswordCallBack);
 #endif
+
+    #if defined(CYASSL_MDK_ARM)
+    CyaSSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, 0);
+    #endif
+
     ssl = SSL_new(ctx);
+        
 
     if (doDTLS) {
         SOCKADDR_IN_T addr;
@@ -142,16 +159,17 @@ void echoclient_test(void* args)
     else {
         tcp_connect(&sockfd, yasslIP, port, 0);
     }
-
+        
     SSL_set_fd(ssl, sockfd);
 #if defined(USE_WINDOWS_API) && defined(CYASSL_DTLS) && defined(NO_MAIN_DRIVER)
     /* let echoserver bind first, TODO: add Windows signal like pthreads does */
     Sleep(100);
 #endif
+
     if (SSL_connect(ssl) != SSL_SUCCESS) err_sys("SSL_connect failed");
 
-    while (fgets(msg, sizeof(msg), fin)) {
-
+    while (fgets(msg, sizeof(msg), fin) != 0) {
+     
         sendSz = (int)strlen(msg);
 
         if (SSL_write(ssl, msg, sendSz) != sendSz)
@@ -167,17 +185,31 @@ void echoclient_test(void* args)
             break;
         }
 
+        #ifndef CYASSL_MDK_SHELL
         while (sendSz) {
             int got;
             if ( (got = SSL_read(ssl, reply, sizeof(reply)-1)) > 0) {
                 reply[got] = 0;
                 fputs(reply, fout);
+                fflush(fout) ;
                 sendSz -= got;
             }
             else
                 break;
         }
+        #else
+        {
+            int got;
+            if ( (got = SSL_read(ssl, reply, sizeof(reply)-1)) > 0) {
+                reply[got] = 0;
+                fputs(reply, fout);
+                fflush(fout) ;
+                sendSz -= got;
+            }
+        }
+        #endif
     }
+
 
 #ifdef CYASSL_DTLS
     strncpy(msg, "break", 6);
@@ -219,12 +251,14 @@ void echoclient_test(void* args)
         args.argv = argv;
 
         CyaSSL_Init();
-#ifdef DEBUG_CYASSL
+#if defined(DEBUG_CYASSL) && !defined(CYASSL_MDK_SHELL)
         CyaSSL_Debugging_ON();
 #endif
+
         if (CurrentDir("echoclient") || CurrentDir("build"))
             ChangeDirBack(2);
         echoclient_test(&args);
+
         CyaSSL_Cleanup();
 
 #ifdef HAVE_CAVIUM
@@ -232,11 +266,7 @@ void echoclient_test(void* args)
 #endif
         return args.return_code;
     }
-
-    int myoptind = 0;
-    char* myoptarg = NULL;
-
+        
 #endif /* NO_MAIN_DRIVER */
-
 
 
