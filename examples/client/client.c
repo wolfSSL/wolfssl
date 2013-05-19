@@ -133,7 +133,7 @@ static void Usage(void)
 }
 
 #ifdef CYASSL_MDK_SHELL
-#define exit(code) return
+#define exit(code) return(code)
 #endif
 
 THREAD_RETURN CYASSL_THREAD client_test(void* args)

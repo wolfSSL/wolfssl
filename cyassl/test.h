@@ -21,7 +21,6 @@
     #define SNPRINTF _snprintf
 #elif defined(CYASSL_MDK_ARM)
     #include <string.h>
-    #define SOCKET_T unsigned int
 #else
     #include <string.h>
     #include <sys/types.h>

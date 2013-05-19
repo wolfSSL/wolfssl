@@ -84,9 +84,6 @@ extern int Cyassl_accept(int sd, struct sockaddr *addr, socklen_t *addrlen);
 extern int Cyassl_recv(int sd, void *buf, size_t len, int flags);
 extern int Cyassl_send(int sd, const void *buf, size_t len, int flags);
 extern void Cyassl_sleep(int sec) ;
-extern int Cyassl_tcp_socket(SOCKET_T* sockfd, int udp) ;
-extern void Cyassl_tcp_listen(SOCKET_T* sockfd, int port,
-                                       int useAnyAddr, int udp) ;
 extern int Cyassl_tcp_select(int sd, int timeout) ;
 
 /** KEIL-RL TCPnet ****/

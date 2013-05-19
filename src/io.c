@@ -55,6 +55,14 @@
     #elif defined(FREESCALE_MQX)
         #include <posix.h>
         #include <rtcs.h>
+    #elif defined(CYASSL_MDK_ARM)
+        #include <rtl.h>
+        #undef RNG
+        #include "CYASSL_MDK_ARM.h"
+        #undef RNG
+        #define RNG CyaSSL_RNG 
+        /* for avoiding name conflict in "stm32f2xx.h" */
+        static int errno ;
     #else
         #include <sys/types.h>
         #include <errno.h>

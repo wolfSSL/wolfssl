@@ -46,3 +46,8 @@ int CyaSSL_get_using_nonblock(CYASSL* ssl)
     return ssl->options.usingNonblock;
 }
 
+Signer* GetCAByName(void* vp, byte* hash)
+{
+		Signer * ca ;
+    return(ca) ;
+}
