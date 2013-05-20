@@ -632,7 +632,18 @@ char* CyaSSL_ERR_error_string(unsigned long errNumber, char* data)
 void CyaSSL_ERR_error_string_n(unsigned long e, char* buf, unsigned long len)
 {
     CYASSL_ENTER("CyaSSL_ERR_error_string_n");
-    if (len) CyaSSL_ERR_error_string(e, buf);
+    if (len >= MAX_ERROR_SZ)
+        CyaSSL_ERR_error_string(e, buf);
+    else {
+        char tmp[MAX_ERROR_SZ];
+
+        CYASSL_MSG("Error buffer too short, truncating");
+        if (len) {
+            CyaSSL_ERR_error_string(e, tmp);
+            XMEMCPY(buf, tmp, len-1);
+            buf[len-1] = '\0';
+        }
+    }
 }
 
 
