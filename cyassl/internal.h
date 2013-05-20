@@ -832,6 +832,14 @@ enum {
     #define MTU_EXTRA 0
 #endif
 
+
+/* embedded callbacks require large static buffers, make sure on */
+#ifdef CYASSL_CALLBACKS
+    #undef  LARGE_STATIC_BUFFERS
+    #define LARGE_STATIC_BUFFERS
+#endif
+
+
 /* give user option to use 16K static buffers */
 #if defined(LARGE_STATIC_BUFFERS)
     #define RECORD_SIZE MAX_RECORD_SIZE
