@@ -55,6 +55,14 @@
     #elif defined(FREESCALE_MQX)
         #include <posix.h>
         #include <rtcs.h>
+    #elif defined(CYASSL_MDK_ARM)
+        #include <rtl.h>
+        #undef RNG
+        #include "CYASSL_MDK_ARM.h"
+        #undef RNG
+        #define RNG CyaSSL_RNG 
+        /* for avoiding name conflict in "stm32f2xx.h" */
+        static int errno ;
     #else
         #include <sys/types.h>
         #include <errno.h>
@@ -116,6 +124,14 @@
     #define SOCKET_EPIPE       EPIPE
     #define SOCKET_ECONNREFUSED RTCSERR_TCP_CONN_REFUSED
     #define SOCKET_ECONNABORTED RTCSERR_TCP_CONN_ABORTED
+#elif defined(CYASSL_MDK_ARM)
+    #define SOCKET_EWOULDBLOCK SCK_EWOULDBLOCK
+    #define SOCKET_EAGAIN      SCK_ELOCKED
+    #define SOCKET_ECONNRESET  SCK_ECLOSED
+    #define SOCKET_EINTR       SCK_ERROR
+    #define SOCKET_EPIPE       SCK_ERROR
+    #define SOCKET_ECONNREFUSED SCK_ERROR
+    #define SOCKET_ECONNABORTED SCK_ERROR
 #else
     #define SOCKET_EWOULDBLOCK EWOULDBLOCK
     #define SOCKET_EAGAIN      EAGAIN

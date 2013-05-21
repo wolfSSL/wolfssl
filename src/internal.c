@@ -10189,6 +10189,30 @@ int UnLockMutex(CyaSSL_Mutex *m)
             else
                 return BAD_MUTEX_ERROR;
         }
+        
+    #elif defined(CYASSL_MDK_ARM)
 
+        int InitMutex(CyaSSL_Mutex* m)
+        {
+            os_mut_init (m); 
+            return 0;
+        }
+
+        int FreeMutex(CyaSSL_Mutex* m)
+        {
+            return(0) ;
+        }
+
+        int LockMutex(CyaSSL_Mutex* m)
+        {
+            os_mut_wait (m, 0xffff);
+            return(0) ;
+        }
+
+        int UnLockMutex(CyaSSL_Mutex* m)
+        {
+            os_mut_release (m);
+            return 0;
+        }
     #endif /* USE_WINDOWS_API */
 #endif /* SINGLE_THREADED */

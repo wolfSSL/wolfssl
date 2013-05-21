@@ -93,7 +93,7 @@ void echoclient_test(void* args)
     doPSK = 1;
 #endif
 
-#if defined(NO_MAIN_DRIVER) && !defined(USE_WINDOWS_API)
+#if defined(NO_MAIN_DRIVER) && !defined(USE_WINDOWS_API) && !defined(CYASSL_MDK_SHELL)
     port = ((func_args*)args)->signal->port;
 #endif
 

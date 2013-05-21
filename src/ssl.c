@@ -5328,6 +5328,8 @@ int CyaSSL_set_compression(CYASSL* ssl)
 
 #ifdef USE_WINDOWS_API 
     #define CloseSocket(s) closesocket(s)
+#elif defined(CYASSL_MDK_ARM)
+    #define CloseSocket(s) closesocket(s)
 #else
     #define CloseSocket(s) close(s)
 #endif
