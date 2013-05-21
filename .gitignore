@@ -81,4 +81,7 @@ cov-int
 cyassl.tgz
 *.log
 *.trs
-IDE\MDK-ARM\Projects
+IDE\MDK-ARM\Projects/
+IDE\MDK-ARM\STM32F2xx/
+IDE\MDK-ARM\LPC43xx\Drivers/
+IDE\MDK-ARM\LPC43xx\LPC43xx/
