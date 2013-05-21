@@ -43,8 +43,8 @@
             <NotGenerated>0</NotGenerated>
             <InvalidFlash>1</InvalidFlash>
           </TargetStatus>
-          <OutputDirectory>.\Obj\</OutputDirectory>
-          <OutputName>SD_File</OutputName>
+          <OutputDirectory>.\MDK-RTX-TCP-FS\</OutputDirectory>
+          <OutputName>LCP43xx-MDK-RTX-TCP-FS</OutputName>
           <CreateExecutable>1</CreateExecutable>
           <CreateLib>0</CreateLib>
           <CreateHexFile>0</CreateHexFile>
@@ -75,7 +75,7 @@
           <AfterMake>
             <RunUserProg1>1</RunUserProg1>
             <RunUserProg2>0</RunUserProg2>
-            <UserProg1Name>$K\ARM\BIN\ElfDwT.exe !L BASEADDRESS(0x1A000000)</UserProg1Name>
+            <UserProg1Name>$K\ARM\BIN\ElfDwT.exe !L BASEADDRESS(0x1A00000)</UserProg1Name>
             <UserProg2Name></UserProg2Name>
             <UserProg1Dos16Mode>0</UserProg1Dos16Mode>
             <UserProg2Dos16Mode>0</UserProg2Dos16Mode>
@@ -349,7 +349,7 @@
             <uSurpInc>0</uSurpInc>
             <VariousControls>
               <MiscControls></MiscControls>
-              <Define>HAVE_CONFIG_H CYASSL_LPC43xx   CORE_M4  __RTX USE_STDPERIPH_DRIVER  MDK_CONF_RTX_TCP_FS</Define>
+              <Define>HAVE_CONFIG_H CYASSL_LPC43xx  __DBG_ITM  CORE_M4  __RTX USE_STDPERIPH_DRIVER  MDK_CONF_RTX_TCP_FS</Define>
               <Undefine></Undefine>
               <IncludePath>..\MDK-ARM\CyaSSL;../../..;..\LPC43xx\Drivers\include;..\LPC43xx\LPC43xx\Include</IncludePath>
             </VariousControls>
@@ -921,8 +921,8 @@
             <NotGenerated>0</NotGenerated>
             <InvalidFlash>1</InvalidFlash>
           </TargetStatus>
-          <OutputDirectory>.\Obj\</OutputDirectory>
-          <OutputName>SD_File</OutputName>
+          <OutputDirectory>.\MDK-FS\</OutputDirectory>
+          <OutputName>LCP43xx-MDK-FS</OutputName>
           <CreateExecutable>1</CreateExecutable>
           <CreateLib>0</CreateLib>
           <CreateHexFile>0</CreateHexFile>
@@ -1227,7 +1227,7 @@
             <uSurpInc>0</uSurpInc>
             <VariousControls>
               <MiscControls></MiscControls>
-              <Define>HAVE_CONFIG_H CYASSL_LPC43xx   CORE_M4  __RTX USE_STDPERIPH_DRIVER  MDK_CONF_FS</Define>
+              <Define>HAVE_CONFIG_H CYASSL_LPC43xx  __DBG_ITM CORE_M4  __RTX USE_STDPERIPH_DRIVER  MDK_CONF_FS</Define>
               <Undefine></Undefine>
               <IncludePath>..\MDK-ARM\CyaSSL;../../..;..\LPC43xx\Drivers\include;..\LPC43xx\LPC43xx\Include</IncludePath>
             </VariousControls>
@@ -2155,8 +2155,8 @@
             <NotGenerated>0</NotGenerated>
             <InvalidFlash>1</InvalidFlash>
           </TargetStatus>
-          <OutputDirectory>.\Obj\</OutputDirectory>
-          <OutputName>SD_File</OutputName>
+          <OutputDirectory>.\MDK-BARE-METAL\</OutputDirectory>
+          <OutputName>LCP43xx-MDK-BARE-METAL</OutputName>
           <CreateExecutable>1</CreateExecutable>
           <CreateLib>0</CreateLib>
           <CreateHexFile>0</CreateHexFile>
@@ -2461,7 +2461,7 @@
             <uSurpInc>0</uSurpInc>
             <VariousControls>
               <MiscControls></MiscControls>
-              <Define>HAVE_CONFIG_H CYASSL_LPC43xx   CORE_M4  __RTX USE_STDPERIPH_DRIVER  MDK_CONF_BARE_METAL</Define>
+              <Define>HAVE_CONFIG_H CYASSL_LPC43xx  __DBG_ITM  CORE_M4  __RTX USE_STDPERIPH_DRIVER  MDK_CONF_BARE_METAL</Define>
               <Undefine></Undefine>
               <IncludePath>..\MDK-ARM\CyaSSL;../../..;..\LPC43xx\Drivers\include;..\LPC43xx\LPC43xx\Include</IncludePath>
             </VariousControls>
