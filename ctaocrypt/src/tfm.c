@@ -26,7 +26,7 @@
  */
 
 /**
- *  Edited by Moisés Guimarães (moises.guimaraes@phoebus.com.br)
+ *  Edited by Moisés Guimarães (moisesguimaraesm@gmail.com)
  *  to fit CyaSSL's needs.
  */
 

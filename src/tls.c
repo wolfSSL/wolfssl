@@ -370,6 +370,12 @@ static INLINE void c16toa(word16 u16, byte* c)
     c[1] =  u16 & 0xff;
 }
 
+/* convert opaque to 16 bit integer */
+static INLINE void ato16(const byte* c, word16* u16)
+{
+    *u16 = (c[0] << 8) | (c[1]);
+}
+
 
 /* convert 32 bit integer to opaque */
 static INLINE void c32toa(word32 u32, byte* c)
@@ -483,6 +489,580 @@ void TLS_hmac(CYASSL* ssl, byte* digest, const byte* in, word32 sz,
     HmacUpdate(&hmac, in, sz);                                /* content */
     HmacFinal(&hmac, digest);
 }
+
+#ifdef HAVE_TLS_EXTENSIONS
+
+static int TLSX_Append(TLSX** list, TLSX_Type type)
+{
+    TLSX* extension;
+
+    if (list == NULL) /* won't check type since this function is static */
+        return BAD_FUNC_ARG;
+
+    if ((extension = XMALLOC(sizeof(TLSX), 0, DYNAMIC_TYPE_TLSX)) == NULL)
+        return MEMORY_E;
+
+    extension->type = type;
+    extension->data = NULL;
+    extension->resp = 0;
+    extension->next = *list;
+    *list = extension;
+
+    return 0;
+}
+
+#ifndef NO_CYASSL_SERVER
+
+static void TLSX_SetResponse(CYASSL* ssl, TLSX_Type type)
+{
+    TLSX *ext = TLSX_Find(ssl->extensions, type);
+
+    if (ext)
+        ext->resp = 1;
+}
+
+#endif
+
+/* SNI - Server Name Indication */
+
+#ifdef HAVE_SNI
+
+static void TLSX_SNI_Free(SNI* sni)
+{
+    if (sni) {
+        switch (sni->type) {
+            case HOST_NAME:
+                XFREE(sni->data.host_name, 0, DYNAMIC_TYPE_TLSX);
+            break;
+        }
+
+        XFREE(sni, 0, DYNAMIC_TYPE_TLSX);
+    }
+}
+
+static void TLSX_SNI_FreeAll(SNI* list)
+{
+    SNI* sni;
+
+    while ((sni = list)) {
+        list = sni->next;
+        TLSX_SNI_Free(sni);
+    }
+}
+
+static int TLSX_SNI_Append(SNI** list, SNI_Type type, const void* data,
+                                                                    word16 size)
+{
+    SNI* sni;
+
+    if (list == NULL)
+        return BAD_FUNC_ARG;
+
+    if ((sni = XMALLOC(sizeof(SNI), 0, DYNAMIC_TYPE_TLSX)) == NULL)
+        return MEMORY_E;
+
+    switch (type) {
+        case HOST_NAME: {
+            sni->data.host_name = XMALLOC(size + 1, 0, DYNAMIC_TYPE_TLSX);
+
+            if (sni->data.host_name) {
+                XSTRNCPY(sni->data.host_name, (const char*) data, size);
+                sni->data.host_name[size] = 0;
+            } else {
+                XFREE(sni, 0, DYNAMIC_TYPE_TLSX);
+                return MEMORY_E;
+            }
+        }
+        break;
+
+        default: /* invalid type */
+            XFREE(sni, 0, DYNAMIC_TYPE_TLSX);
+            return BAD_FUNC_ARG;
+        break;
+    }
+
+    sni->type = type;
+    sni->next = *list;
+    *list = sni;
+
+    return 0;
+}
+
+static word16 TLSX_SNI_GetSize(SNI* list)
+{
+    SNI* sni;
+    word16 length = OPAQUE16_LEN; /* list length */
+
+    while ((sni = list)) {
+        list = sni->next;
+
+        length += ENUM_LEN + OPAQUE16_LEN; /* sni type + sni length */
+
+        switch (sni->type) {
+            case HOST_NAME:
+                length += XSTRLEN((char*) sni->data.host_name);
+            break;
+        }
+    }
+
+    return length;
+}
+
+static word16 TLSX_SNI_Write(SNI* list, byte* output)
+{
+    SNI* sni;
+    word16 length = 0;
+    word16 offset = OPAQUE16_LEN; /* list length offset */
+
+    while ((sni = list)) {
+        list = sni->next;
+
+        output[offset++] = sni->type; /* sni type */
+
+        switch (sni->type) {
+            case HOST_NAME:
+                length = XSTRLEN((char*) sni->data.host_name);
+
+                c16toa(length, output + offset); /* sni length */
+                offset += OPAQUE16_LEN;
+
+                XMEMCPY(output + offset, sni->data.host_name, length);
+
+                offset += length;
+            break;
+        }
+    }
+
+    c16toa(offset - OPAQUE16_LEN, output); /* writing list length */
+
+    return offset;
+}
+
+static SNI* TLSX_SNI_Find(SNI *list, SNI_Type type)
+{
+    SNI *sni = list;
+
+    while (sni && sni->type != type)
+        sni = sni->next;
+
+    return sni;
+}
+
+static int TLSX_SNI_Parse(CYASSL* ssl, byte* input, word16 length,
+                                                                 byte isRequest)
+{
+#ifndef NO_CYASSL_SERVER
+    word16 size = 0;
+    word16 offset = 0;
+#endif
+
+    TLSX *extension = TLSX_Find(ssl->extensions, SERVER_NAME_INDICATION);
+
+    if (!extension)
+        extension = TLSX_Find(ssl->ctx->extensions, SERVER_NAME_INDICATION);
+
+    if (!extension || !extension->data) {
+        if (!isRequest) {
+            CYASSL_MSG("Unexpected SNI response from server");
+        }
+
+        return 0; /* not using SNI */
+    }
+
+    if (!isRequest) {
+        if (length) {
+            CYASSL_MSG("SNI response should be empty!");
+        }
+
+        return 0; /* nothing to do */
+    }
+
+#ifndef NO_CYASSL_SERVER
+
+    if (OPAQUE16_LEN > length)
+        return INCOMPLETE_DATA;
+
+    ato16(input, &size);
+    offset += OPAQUE16_LEN;
+
+    /* validating sni list length */
+    if (length != OPAQUE16_LEN + size)
+        return INCOMPLETE_DATA;
+
+    for (size = 0; offset < length; offset += size) {
+        SNI *sni;
+        SNI_Type type = input[offset++];
+
+        if (offset + OPAQUE16_LEN > length)
+            return INCOMPLETE_DATA;
+
+        ato16(input + offset, &size);
+        offset += OPAQUE16_LEN;
+
+        if (offset + size > length)
+            return INCOMPLETE_DATA;
+
+        if (!(sni = TLSX_SNI_Find((SNI *) extension->data, type))) {
+            continue; /* not using this SNI type */
+        }
+
+        switch(type) {
+            case HOST_NAME:
+                if (XSTRNCMP(sni->data.host_name,
+                                         (const char *) input + offset, size)) {
+                    SendAlert(ssl, alert_fatal, unrecognized_name);
+
+                    return UNKNOWN_SNI_HOST_NAME_E;
+                } else {
+                    int r = TLSX_UseSNI(&ssl->extensions, type, (byte *) "", 0);
+
+                    if (r) return r; /* throw error */
+                }
+                break;
+        }
+
+        TLSX_SetResponse(ssl, SERVER_NAME_INDICATION);
+    }
+
+#endif
+
+    return 0;
+}
+
+int TLSX_UseSNI(TLSX** extensions, byte type, const void* data, word16 size)
+{
+    TLSX* extension = NULL;
+    SNI*  sni       = NULL;
+    int   ret       = 0;
+
+    if (extensions == NULL || data == NULL)
+        return BAD_FUNC_ARG;
+
+    if ((ret = TLSX_SNI_Append(&sni, type, data, size)) != 0)
+        return ret;
+
+    extension = *extensions;
+
+    /* find SNI extension if it already exists. */
+    while (extension && extension->type != SERVER_NAME_INDICATION)
+        extension = extension->next;
+
+    /* push new SNI extension if it doesn't exists. */
+    if (!extension) {
+        if ((ret = TLSX_Append(extensions, SERVER_NAME_INDICATION)) != 0) {
+            TLSX_SNI_Free(sni);
+            return ret;
+        }
+
+        extension = *extensions;
+    }
+
+    /* push new SNI object to extension data. */
+    sni->next = (SNI*) extension->data;
+    extension->data = (void*) sni;
+
+    /* look for another server name of the same type to remove (replacement) */
+    while ((sni = sni->next)) {
+        if (sni->next && sni->next->type == type) {
+            SNI *next = sni->next;
+
+            sni->next = next->next;
+            TLSX_SNI_Free(next);
+
+            break;
+        }
+    }
+
+    return 0;
+}
+
+#define SNI_FREE_ALL TLSX_SNI_FreeAll
+#define SNI_GET_SIZE TLSX_SNI_GetSize
+#define SNI_WRITE    TLSX_SNI_Write
+#define SNI_PARSE    TLSX_SNI_Parse
+
+#else
+
+#define SNI_FREE_ALL(x)
+#define SNI_GET_SIZE(x) 0
+#define SNI_WRITE(x) 0
+#define SNI_PARSE(x) 0
+
+#endif /* HAVE_SNI */
+
+TLSX* TLSX_Find(TLSX* list, TLSX_Type type)
+{
+    TLSX* extension = list;
+
+    while (extension && extension->type != type)
+        extension = extension->next;
+
+    return extension;
+}
+
+void TLSX_FreeAll(TLSX* list)
+{
+    TLSX* extension;
+
+    while ((extension = list)) {
+        list = extension->next;
+
+        switch (extension->type) {
+            case SERVER_NAME_INDICATION:
+                SNI_FREE_ALL((SNI *) extension->data);
+                break;
+        }
+
+        XFREE(extension, 0, DYNAMIC_TYPE_TLSX);
+    }
+}
+
+#define IS_OFF(cemaphor, light) \
+    ((cemaphor)[(light) / 8] ^ (0x01 >> ((light) % 8)))
+
+#define TURN_ON(cemaphor, light) \
+    ((cemaphor)[(light) / 8] |= (0x01 >> ((light) % 8)))
+
+static word16 TLSX_GetSize(TLSX* list, byte* cemaphor, byte isRequest)
+{
+    TLSX* extension;
+    word16 length = 0;
+
+    while ((extension = list)) {
+        list = extension->next;
+
+        if (!isRequest && !extension->resp)
+            continue; /* skip! */
+
+        if (IS_OFF(cemaphor, extension->type)) {
+            /* type + data length */
+            length += HELLO_EXT_TYPE_SZ + OPAQUE16_LEN;
+
+            switch (extension->type) {
+                case SERVER_NAME_INDICATION:
+                    if (isRequest)
+                        length += SNI_GET_SIZE((SNI *) extension->data);
+                    break;
+            }
+
+            TURN_ON(cemaphor, extension->type);
+        }
+    }
+
+    return length;
+}
+
+static word16 TLSX_Write(TLSX* list, byte* output, byte* cemaphor,
+                                                                 byte isRequest)
+{
+    TLSX* extension;
+    word16 offset = 0;
+    word16 length_offset = 0;
+
+    while ((extension = list)) {
+        list = extension->next;
+
+        if (!isRequest && !extension->resp)
+            continue; /* skip! */
+
+        if (IS_OFF(cemaphor, extension->type)) {
+            /* extension type */
+            c16toa(extension->type, output + offset);
+            offset += HELLO_EXT_TYPE_SZ + OPAQUE16_LEN;
+            length_offset = offset;
+
+            /* extension data should be written internally */
+            switch (extension->type) {
+                case SERVER_NAME_INDICATION:
+                    if (isRequest)
+                        offset += SNI_WRITE((SNI *) extension->data,
+                                                               output + offset);
+                    break;
+            }
+
+            /* writing extension data length */
+            c16toa(offset - length_offset,
+                                         output + length_offset - OPAQUE16_LEN);
+
+            TURN_ON(cemaphor, extension->type);
+        }
+    }
+
+    return offset;
+}
+
+#ifndef NO_CYASSL_CLIENT
+
+word16 TLSX_GetRequestSize(CYASSL* ssl)
+{
+    word16 length = 0;
+
+    if (ssl && IsTLS(ssl)) {
+        byte cemaphor[16] = {0};
+
+        if (ssl->extensions)
+            length += TLSX_GetSize(ssl->extensions, cemaphor, 1);
+
+        if (ssl->ctx && ssl->ctx->extensions)
+            length += TLSX_GetSize(ssl->ctx->extensions, cemaphor, 1);
+
+        if (IsAtLeastTLSv1_2(ssl) && ssl->suites->hashSigAlgoSz)
+            length += ssl->suites->hashSigAlgoSz + HELLO_EXT_LEN;
+    }
+
+    if (length)
+        length += OPAQUE16_LEN; /* for total length storage */
+
+    return length;
+}
+
+word16 TLSX_WriteRequest(CYASSL* ssl, byte* output)
+{
+    word16 offset = 0;
+
+    if (ssl && IsTLS(ssl) && output) {
+        byte cemaphor[16] = {0};
+
+        offset += OPAQUE16_LEN; /* extensions length */
+
+        if (ssl->extensions)
+            offset += TLSX_Write(ssl->extensions, output + offset,
+                                                                   cemaphor, 1);
+
+        if (ssl->ctx && ssl->ctx->extensions)
+            offset += TLSX_Write(ssl->ctx->extensions, output + offset,
+                                                                   cemaphor, 1);
+
+        if (IsAtLeastTLSv1_2(ssl) && ssl->suites->hashSigAlgoSz)
+        {
+            int i;
+            /* extension type */
+            c16toa(HELLO_EXT_SIG_ALGO, output + offset);
+            offset += HELLO_EXT_TYPE_SZ;
+
+            /* extension data length */
+            c16toa(OPAQUE16_LEN + ssl->suites->hashSigAlgoSz, output + offset);
+            offset += OPAQUE16_LEN;
+
+            /* sig algos length */
+            c16toa(ssl->suites->hashSigAlgoSz, output + offset);
+            offset += OPAQUE16_LEN;
+
+            /* sig algos */
+            for (i = 0; i < ssl->suites->hashSigAlgoSz; i++, offset++)
+                output[offset] = ssl->suites->hashSigAlgo[i];
+        }
+
+        if (offset > OPAQUE16_LEN)
+            c16toa(offset - OPAQUE16_LEN, output); /* extensions length */
+    }
+
+    return offset;
+}
+
+#endif /* NO_CYASSL_CLIENT */
+
+#ifndef NO_CYASSL_SERVER
+
+word16 TLSX_GetResponseSize(CYASSL* ssl)
+{
+    word16 length = 0;
+    byte cemaphor[16] = {0};
+
+    if (ssl && IsTLS(ssl))
+        length += TLSX_GetSize(ssl->extensions, cemaphor, 0);
+
+    /* All the response data is set at the ssl object only, so no ctx here. */
+
+    if (length)
+        length += OPAQUE16_LEN; /* for total length storage */
+
+    return length;
+}
+
+word16 TLSX_WriteResponse(CYASSL *ssl, byte* output)
+{
+    word16 offset = 0;
+
+    if (ssl && IsTLS(ssl) && output) {
+        byte cemaphor[16] = {0};
+
+        offset += OPAQUE16_LEN; /* extensions length */
+
+        offset += TLSX_Write(ssl->extensions, output + offset, cemaphor, 0);
+
+        if (offset > OPAQUE16_LEN)
+            c16toa(offset - OPAQUE16_LEN, output); /* extensions length */
+    }
+
+    return offset;
+}
+
+#endif /* NO_CYASSL_SERVER */
+
+int TLSX_Parse(CYASSL* ssl, byte* input, word16 length, byte isRequest,
+                                                                 Suites *suites)
+{
+    int ret = 0;
+    word16 offset = 0;
+
+    if (!ssl || !input || !suites)
+        return BAD_FUNC_ARG;
+
+    while (ret == 0 && offset < length) {
+        word16 type;
+        word16 size;
+
+        if (length - offset < HELLO_EXT_TYPE_SZ + OPAQUE16_LEN)
+            return INCOMPLETE_DATA;
+
+        ato16(input + offset, &type);
+        offset += HELLO_EXT_TYPE_SZ;
+
+        ato16(input + offset, &size);
+        offset += OPAQUE16_LEN;
+
+        if (offset + size > length)
+            return INCOMPLETE_DATA;
+
+        switch (type) {
+            case SERVER_NAME_INDICATION:
+                ret = SNI_PARSE(ssl, input + offset, size, isRequest);
+                break;
+
+            case HELLO_EXT_SIG_ALGO:
+                if (isRequest) {
+                    /* do not mess with offset inside the switch! */
+                    if (IsAtLeastTLSv1_2(ssl)) {
+                        ato16(input + offset, &suites->hashSigAlgoSz);
+
+                        if (suites->hashSigAlgoSz > size - OPAQUE16_LEN)
+                            return INCOMPLETE_DATA;
+
+                        XMEMCPY(suites->hashSigAlgo,
+                                input + offset + OPAQUE16_LEN,
+                                min(suites->hashSigAlgoSz,
+                                                        HELLO_EXT_SIGALGO_MAX));
+                    }
+                } else {
+                    CYASSL_MSG("Servers MUST NOT send SIG ALGO extension.");
+                }
+
+                break;
+        }
+
+        /* offset should be updated here! */
+        offset += size;
+    }
+
+    return ret;
+}
+
+/* undefining cemaphor macros */
+#undef IS_OFF
+#undef TURN_ON
+
+#endif /* HAVE_TLS_EXTENSIONS */
 
 
 #ifndef NO_CYASSL_CLIENT

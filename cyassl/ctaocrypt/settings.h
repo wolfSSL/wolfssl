@@ -89,7 +89,6 @@
 #ifdef MICROCHIP_PIC32
     #define SIZEOF_LONG_LONG 8
     #define SINGLE_THREADED
-    #define CYASSL_USER_IO
     #define NO_WRITEV
     #define NO_DEV_RANDOM
     #define NO_FILESYSTEM

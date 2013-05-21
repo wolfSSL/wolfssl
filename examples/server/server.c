@@ -122,6 +122,7 @@ static void Usage(void)
            " add -v 2 for DTLSv1 (default), -v 3 for DTLSv1.2\n");
     printf("-f          Fewer packets/group messages\n");
     printf("-N          Use Non-blocking sockets\n");
+    printf("-S <str>    Use Host Name Indication\n");
 }
 
 #ifdef CYASSL_MDK_SHELL
@@ -159,6 +160,10 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     int    argc = ((func_args*)args)->argc;
     char** argv = ((func_args*)args)->argv;
 
+#ifdef HAVE_SNI
+    char*  sniHostName = NULL;
+#endif
+
     ((func_args*)args)->return_code = -1; /* error state */
 
 #ifdef NO_RSA
@@ -168,7 +173,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 #endif
     (void)trackMemory;
 
-    while ((ch = mygetopt(argc, argv, "?dbstnNufp:v:l:A:c:k:")) != -1) {
+    while ((ch = mygetopt(argc, argv, "?dbstnNufp:v:l:A:c:k:S:")) != -1) {
         switch (ch) {
             case '?' :
                 Usage();
@@ -238,6 +243,12 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 
             case 'N':
                 nonBlocking = 1;
+                break;
+
+            case 'S' :
+                #ifdef HAVE_SNI
+                    sniHostName = myoptarg;
+                #endif
                 break;
 
             default:
@@ -394,6 +405,12 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
         if (SSL_CTX_set_cipher_list(ctx, "AES256-SHA256") != SSL_SUCCESS)
             err_sys("server can't set cipher list 3");
     }
+#endif
+
+#ifdef HAVE_SNI
+    if (sniHostName)
+        if (CyaSSL_CTX_UseSNI(ctx, 0, sniHostName, XSTRLEN(sniHostName)))
+            err_sys("UseSNI failed");
 #endif
 
     ssl = SSL_new(ctx);

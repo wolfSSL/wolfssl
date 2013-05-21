@@ -25,6 +25,8 @@
 
 #include <cyassl/ctaocrypt/settings.h>
 
+/* submitted by eof */
+
 #ifdef USE_CYASSL_MEMORY
 
 #include <cyassl/ctaocrypt/memory.h>

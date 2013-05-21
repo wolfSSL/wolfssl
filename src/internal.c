@@ -421,6 +421,9 @@ int InitSSL_Ctx(CYASSL_CTX* ctx, CYASSL_METHOD* method)
 #ifdef HAVE_CAVIUM
     ctx->devId = NO_CAVIUM_DEVICE; 
 #endif
+#ifdef HAVE_TLS_EXTENSIONS
+    ctx->extensions = NULL;
+#endif
 
     if (InitMutex(&ctx->countMutex) < 0) {
         CYASSL_MSG("Mutex error on CTX init");
@@ -451,6 +454,9 @@ void SSL_CtxResourceFree(CYASSL_CTX* ctx)
 #endif
 #ifdef HAVE_OCSP
     CyaSSL_OCSP_Cleanup(&ctx->ocsp);
+#endif
+#ifdef HAVE_TLS_EXTENSIONS
+    TLSX_FreeAll(ctx->extensions);
 #endif
 }
 
@@ -1436,6 +1442,10 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
     ssl->devId = ctx->devId; 
 #endif
 
+#ifdef HAVE_TLS_EXTENSIONS
+    ssl->extensions = NULL;
+#endif
+
     ssl->rng    = NULL;
     ssl->arrays = NULL;
 
@@ -1654,6 +1664,9 @@ void SSL_ResourceFree(CYASSL* ssl)
             ecc_free(ssl->eccDsaKey);
         XFREE(ssl->eccDsaKey, ssl->heap, DYNAMIC_TYPE_ECC);
     }
+#endif
+#ifdef HAVE_TLS_EXTENSIONS
+    TLSX_FreeAll(ssl->extensions);
 #endif
 }
 
@@ -5802,6 +5815,10 @@ void SetErrorString(int error, char* str)
         XSTRNCPY(str, "Cache restore header match Error", max);
         break;
 
+    case UNKNOWN_SNI_HOST_NAME_E:
+        XSTRNCPY(str, "Unrecognized host name Error", max);
+        break;
+
     default :
         XSTRNCPY(str, "unknown error number", max);
     }
@@ -6693,9 +6710,13 @@ int SetCipherList(Suites* s, const char* list)
                + ssl->suites->suiteSz + SUITE_LEN
                + COMP_LEN + ENUM_LEN;
 
+#ifdef HAVE_TLS_EXTENSIONS
+        length += TLSX_GetRequestSize(ssl);
+#else
         if (IsAtLeastTLSv1_2(ssl) && ssl->suites->hashSigAlgoSz) {
             length += ssl->suites->hashSigAlgoSz + HELLO_EXT_SZ;
         }
+#endif
         sendSz = length + HANDSHAKE_HEADER_SZ + RECORD_HEADER_SZ;
 
 #ifdef CYASSL_DTLS
@@ -6768,6 +6789,11 @@ int SetCipherList(Suites* s, const char* list)
         else
             output[idx++] = NO_COMPRESSION;
 
+#ifdef HAVE_TLS_EXTENSIONS
+        idx += TLSX_WriteRequest(ssl, output + idx);
+
+        (void)idx; /* suppress analyzer warning, keep idx current */
+#else
         if (IsAtLeastTLSv1_2(ssl) && ssl->suites->hashSigAlgoSz)
         {
             int i;
@@ -6785,6 +6811,7 @@ int SetCipherList(Suites* s, const char* list)
                 output[idx] = ssl->suites->hashSigAlgo[i];
             }
         }
+#endif
 
         #ifdef CYASSL_DTLS
             if (ssl->options.dtls) {
@@ -6906,8 +6933,29 @@ int SetCipherList(Suites* s, const char* list)
         }
 
         *inOutIdx = i;
-        if ( (i - begin) < helloSz)
-            *inOutIdx = begin + helloSz;  /* skip extensions */
+        if ( (i - begin) < helloSz) {
+#ifdef HAVE_TLS_EXTENSIONS
+            if (IsTLS(ssl)) {
+                int ret = 0;
+                word16 totalExtSz;
+                Suites clSuites; /* just for compatibility right now */
+
+                ato16(&input[i], &totalExtSz);
+                i += LENGTH_SZ;
+                if (totalExtSz > helloSz + begin - i)
+                    return INCOMPLETE_DATA;
+
+                if ((ret = TLSX_Parse(ssl, (byte *) input + i,
+                                                     totalExtSz, 0, &clSuites)))
+                    return ret;
+
+                i += totalExtSz;
+                *inOutIdx = i;
+            }
+            else
+#endif
+                *inOutIdx = begin + helloSz;  /* skip extensions */
+        }
 
         ssl->options.serverState = SERVER_HELLO_COMPLETE;
 
@@ -7779,7 +7827,11 @@ int SetCipherList(Suites* s, const char* list)
                + SUITE_LEN 
                + ENUM_LEN;
 
-        /* check for available size */
+#ifdef HAVE_TLS_EXTENSIONS
+        length += TLSX_GetResponseSize(ssl);
+#endif
+
+        /* check for avalaible size */
         if ((ret = CheckAvailableSize(ssl, MAX_HELLO_SZ)) != 0)
             return ret;
 
@@ -7827,11 +7879,17 @@ int SetCipherList(Suites* s, const char* list)
         output[idx++] = ssl->options.cipherSuite0; 
         output[idx++] = ssl->options.cipherSuite;
 
-            /* last, compression */
+            /* then compression */
         if (ssl->options.usingCompression)
             output[idx++] = ZLIB_COMPRESSION;
         else
             output[idx++] = NO_COMPRESSION;
+
+            /* last, extensions */
+#ifdef HAVE_TLS_EXTENSIONS
+        if (IsTLS(ssl))
+            TLSX_WriteResponse(ssl, output + idx);
+#endif
             
         ssl->buffers.outputBuffer.length += sendSz;
         #ifdef CYASSL_DTLS
@@ -9324,11 +9382,14 @@ int SetCipherList(Suites* s, const char* list)
         else
             i += b;  /* ignore, since we're not on */
 
-        ssl->options.clientState = CLIENT_HELLO_COMPLETE;
-
         *inOutIdx = i;
         if ( (i - begin) < helloSz) {
+#ifdef HAVE_TLS_EXTENSIONS
+            if (IsTLS(ssl)) {
+                int ret = 0;
+#else
             if (IsAtLeastTLSv1_2(ssl)) {
+#endif
                 /* Process the hello extension. Skip unsupported. */
                 word16 totalExtSz;
 
@@ -9336,6 +9397,14 @@ int SetCipherList(Suites* s, const char* list)
                 i += LENGTH_SZ;
                 if (totalExtSz > helloSz + begin - i)
                     return INCOMPLETE_DATA;
+
+#ifdef HAVE_TLS_EXTENSIONS
+                if ((ret = TLSX_Parse(ssl, (byte *) input + i,
+                                                     totalExtSz, 1, &clSuites)))
+                    return ret;
+
+                i += totalExtSz;
+#else
                 while (totalExtSz) {
                     word16 extId, extSz;
                    
@@ -9361,11 +9430,14 @@ int SetCipherList(Suites* s, const char* list)
 
                     totalExtSz -= LENGTH_SZ + EXT_ID_SZ + extSz;
                 }
+#endif
                 *inOutIdx = i;
             }
             else
                 *inOutIdx = begin + helloSz;  /* skip extensions */
         }
+
+        ssl->options.clientState = CLIENT_HELLO_COMPLETE;
         
         ssl->options.haveSessionId = 1;
         /* ProcessOld uses same resume code */
