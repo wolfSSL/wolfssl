@@ -3,12 +3,12 @@
  *----------------------------------------------------------------------------
  *      Name:    FILE_CONFIG.C
  *      Purpose: Configuration of RL FlashFS by user
- *      Rev.:    V4.50
+ *      Rev.:    V4.70
  *----------------------------------------------------------------------------
  *      This code is part of the RealView Run-Time Library.
- *      Copyright (c) 2004-2012 KEIL - An ARM Company. All rights reserved.
+ *      Copyright (c) 2004-2013 KEIL - An ARM Company. All rights reserved.
  *---------------------------------------------------------------------------*/
-
+ 
 #include <File_Config.h>
 
 //-------- <<< Use Configuration Wizard in Context Menu >>> -----------------
@@ -23,10 +23,24 @@
 //   <i>Default: 8
 #define N_FILES     6
 
+//   <o>FAT Name Cache Size <0-1000000>
+//   <i>Define number of cached FAT file or directory names.
+//   <i>48 bytes of RAM is required for each cached name.
+#define FAT_NAME_CACNT   0
+
+//   <e>Relocate FAT Name Cache Buffer
+//   <i>Locate Cache Buffer at a specific address.
+#define FAT_NAME_RELOC   0
+
+//   <o>Base address <0x0000-0xFFFFFE00:0x200>
+//   <i>Define the Cache buffer base address.
+#define FAT_NAME_CADR    0x60000000
+
+//   </e>
 //   <o>CPU Clock Frequency [Hz]<0-1000000000>
 //   <i>Define the CPU Clock frequency used for
 //   <i>flash programming and erasing.
-#define CPU_CLK     120000000
+#define CPU_CLK     180000000
 
 // </h>
 // <e>Flash Drive
@@ -131,7 +145,7 @@
 //   <i>Define System Cache buffer size for file IO. 
 //   <i>Increase this number for faster r/w access.
 //   <i>Default: 4 kB
-#define MC0_CASZ    16
+#define MC0_CASZ    4
 
 //   <e>Relocate Cache Buffer
 //   <i>Locate Cache Buffer at a specific address.
@@ -216,7 +230,7 @@
 
 //   <q>Default Drive [U0:]
 //   <i>Used when Drive letter not specified
-#define USB0_DEF    1
+#define USB0_DEF    0
 
 // </e>
 // <e>USB Flash Drive 1
@@ -238,7 +252,7 @@
 
 //   <q>Default Drive [U1:]
 //   <i>Used when Drive letter not specified
-#define USB1_DEF    1
+#define USB1_DEF    0
 
 // </e>
 // <e>NAND Flash Drive 0

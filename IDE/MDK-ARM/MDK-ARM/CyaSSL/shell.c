@@ -384,39 +384,6 @@ static void ipaddr_comm(void *args)
 
 #endif
 
-static void time_main(void *args) 
-{
-    char * datetime ;
-    RTC_TimeTypeDef RTC_Time ;
-    RTC_DateTypeDef RTC_Date ;
-    int year ;
-    if( args == NULL || ((func_args *)args)->argc == 1) {
-        RTC_GetTime(RTC_Format_BIN, &RTC_Time) ;
-        RTC_GetDate(RTC_Format_BIN, &RTC_Date) ;
-        printf("Date: %d/%d/%d, Time: %02d:%02d:%02d\n", 
-             RTC_Date.RTC_Month, RTC_Date.RTC_Date, RTC_Date.RTC_Year+2000,  
-             RTC_Time.RTC_Hours,  RTC_Time.RTC_Minutes,  RTC_Time.RTC_Seconds) ;              
-    } else if(((func_args *)args)->argc == 3 && 
-              ((func_args *)args)->argv[1][0] == '-' && 
-              ((func_args *)args)->argv[1][1] == 'd' ) {
-        datetime = ((func_args *)args)->argv[2];
-        sscanf(datetime, "%d/%d/%d", 
-             (int *)&RTC_Date.RTC_Month, (int *)&RTC_Date.RTC_Date, &year) ;
-        RTC_Date.RTC_Year = year - 2000 ;   
-        RTC_Date.RTC_WeekDay = 0 ;
-        RTC_SetDate(RTC_Format_BIN, &RTC_Date) ;        
-    } else if(((func_args *)args)->argc == 3 && 
-              ((func_args *)args)->argv[1][0] == '-' && 
-              ((func_args *)args)->argv[1][1] == 't' ) {
-        datetime = ((func_args *)args)->argv[2];
-        sscanf(datetime, "%d:%d:%d",            
-            (int *)&RTC_Time.RTC_Hours, 
-            (int *)&RTC_Time.RTC_Minutes, 
-            (int *)&RTC_Time.RTC_Seconds
-        ) ;
-        RTC_SetTime(RTC_Format_BIN, &RTC_Time) ;
-    } else printf("Invalid argument\n") ; 
-}
 
 
 #if defined(HAVE_KEIL_RTX)

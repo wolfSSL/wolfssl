@@ -81,3 +81,4 @@ cov-int
 cyassl.tgz
 *.log
 *.trs
+IDE\MDK-ARM\Projects
