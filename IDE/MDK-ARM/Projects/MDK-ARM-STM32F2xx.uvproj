@@ -44,7 +44,7 @@
             <InvalidFlash>1</InvalidFlash>
           </TargetStatus>
           <OutputDirectory>.\MDK-RTX-TCP-FS\</OutputDirectory>
-          <OutputName>MDK-RTX-TCP-FS</OutputName>
+          <OutputName>STM32F2xx-MDK-RTX-TCP-FS</OutputName>
           <CreateExecutable>1</CreateExecutable>
           <CreateLib>0</CreateLib>
           <CreateHexFile>0</CreateHexFile>
@@ -349,7 +349,7 @@
             <uSurpInc>0</uSurpInc>
             <VariousControls>
               <MiscControls></MiscControls>
-              <Define>HAVE_CONFIG_H __DBG_ITM __RTX USE_STDPERIPH_DRIVER MDK_CONF_RTX_TCP_FS</Define>
+              <Define>HAVE_CONFIG_H CYASSL_STM32F2xx __DBG_ITM __RTX USE_STDPERIPH_DRIVER MDK_CONF_RTX_TCP_FS</Define>
               <Undefine></Undefine>
               <IncludePath>..\MDK-ARM\CyaSSL;C:..\STM32F2xx_StdPeriph_Lib\inc;..\..\..\</IncludePath>
             </VariousControls>
@@ -930,6 +930,11 @@
               <FileType>1</FileType>
               <FilePath>..\MDK-ARM\CyaSSL\Retarget.c</FilePath>
             </File>
+            <File>
+              <FileName>time-STM32F2xx.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\STM32F2xx_StdPeriph_Lib\time-STM32F2xx.c</FilePath>
+            </File>
           </Files>
         </Group>
       </Groups>
@@ -972,7 +977,7 @@
             <InvalidFlash>1</InvalidFlash>
           </TargetStatus>
           <OutputDirectory>.\MDK-FS\</OutputDirectory>
-          <OutputName>MDK-FS</OutputName>
+          <OutputName>STM32F2xx-MDK-FS</OutputName>
           <CreateExecutable>1</CreateExecutable>
           <CreateLib>0</CreateLib>
           <CreateHexFile>0</CreateHexFile>
@@ -1277,7 +1282,7 @@
             <uSurpInc>0</uSurpInc>
             <VariousControls>
               <MiscControls></MiscControls>
-              <Define>HAVE_CONFIG_H  __DBG_ITM USE_STDPERIPH_DRIVER  MDK_CONF_FS</Define>
+              <Define>HAVE_CONFIG_H  CYASSL_STM32F2xx __DBG_ITM USE_STDPERIPH_DRIVER  MDK_CONF_FS</Define>
               <Undefine></Undefine>
               <IncludePath>..\MDK-ARM\CyaSSL;..\MDK-ARM\inc;..\STM32F2xx_StdPeriph_Lib\inc;..\POSIX\..\..\..\</IncludePath>
             </VariousControls>
@@ -2134,6 +2139,11 @@
               <FileType>1</FileType>
               <FilePath>..\MDK-ARM\CyaSSL\Retarget.c</FilePath>
             </File>
+            <File>
+              <FileName>time-STM32F2xx.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\STM32F2xx_StdPeriph_Lib\time-STM32F2xx.c</FilePath>
+            </File>
           </Files>
         </Group>
       </Groups>
@@ -2176,7 +2186,7 @@
             <InvalidFlash>1</InvalidFlash>
           </TargetStatus>
           <OutputDirectory>.\MDK-BARE-METAL\</OutputDirectory>
-          <OutputName>MDK-BARE-METAL</OutputName>
+          <OutputName>STM32F2xx-MDK-BARE-METAL</OutputName>
           <CreateExecutable>1</CreateExecutable>
           <CreateLib>0</CreateLib>
           <CreateHexFile>0</CreateHexFile>
@@ -2481,7 +2491,7 @@
             <uSurpInc>0</uSurpInc>
             <VariousControls>
               <MiscControls></MiscControls>
-              <Define>HAVE_CONFIG_H  __DBG_ITM USE_STDPERIPH_DRIVER MDK_CONF_BARE_METAL</Define>
+              <Define>HAVE_CONFIG_H  CYASSL_STM32F2xx  __DBG_ITM USE_STDPERIPH_DRIVER MDK_CONF_BARE_METAL</Define>
               <Undefine></Undefine>
               <IncludePath>..\MDK-ARM\CyaSSL;..\MDK-ARM\inc;..\STM32F2xx_StdPeriph_Lib\inc;..\POSIX;..\..\..\</IncludePath>
             </VariousControls>
@@ -3555,6 +3565,11 @@
               <FileName>Retarget.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\MDK-ARM\CyaSSL\Retarget.c</FilePath>
+            </File>
+            <File>
+              <FileName>time-STM32F2xx.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\STM32F2xx_StdPeriph_Lib\time-STM32F2xx.c</FilePath>
             </File>
           </Files>
         </Group>
