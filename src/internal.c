@@ -1844,6 +1844,19 @@ int DtlsPoolSend(CYASSL* ssl)
             int sendResult;
             buffer* buf = &pool->buf[i];
 
+            DtlsRecordLayerHeader* dtls = (DtlsRecordLayerHeader*)buf->buffer;
+
+            word16 message_epoch;
+            ato16(dtls->epoch, &message_epoch);
+            if (message_epoch == ssl->keys.dtls_epoch) {
+            	/* Increment record sequence number on retransmitted handshake messages */
+            	c32to48(ssl->keys.dtls_sequence_number, dtls->sequence_number);
+            	ssl->keys.dtls_sequence_number++;
+            }
+            else {
+            	/* The Finished message is sent with the next epoch, keep its sequence number */
+            }
+
             if ((ret = CheckAvailableSize(ssl, buf->length)) != 0)
                 return ret;
 
@@ -3339,13 +3352,29 @@ int DoFinished(CYASSL* ssl, const byte* input, word32* inOutIdx, int sniff)
 
     if (ssl->options.side == CLIENT_END) {
         ssl->options.serverState = SERVER_FINISHED_COMPLETE;
-        if (!ssl->options.resuming)
+        if (!ssl->options.resuming) {
             ssl->options.handShakeState = HANDSHAKE_DONE;
+#ifdef CYASSL_DTLS
+            if (ssl->options.dtls) {
+            	/* Other side has received our Finished, go to next epoch */
+            	ssl->keys.dtls_epoch++;
+            	ssl->keys.dtls_sequence_number = 1;
+            }
+#endif
+        }
     }
     else {
         ssl->options.clientState = CLIENT_FINISHED_COMPLETE;
-        if (ssl->options.resuming)
+        if (ssl->options.resuming) {
             ssl->options.handShakeState = HANDSHAKE_DONE;
+#ifdef CYASSL_DTLS
+            if (ssl->options.dtls) {
+            	/* Other side has received our Finished, go to next epoch */
+            	ssl->keys.dtls_epoch++;
+            	ssl->keys.dtls_sequence_number = 1;
+            }
+#endif
+        }
     }
 
     *inOutIdx = idx;
@@ -5016,17 +5045,21 @@ int SendFinished(CYASSL* ssl)
     int              headerSz = HANDSHAKE_HEADER_SZ;
 
 
+    /* check for available size */
+    if ((ret = CheckAvailableSize(ssl, sizeof(input) + MAX_MSG_EXTRA)) != 0)
+        return ret;
+
     #ifdef CYASSL_DTLS
+        word32 sequence_number = ssl->keys.dtls_sequence_number;
+        word16 epoch = ssl->keys.dtls_epoch;
         if (ssl->options.dtls) {
+            /* Send Finished message with the next epoch, but don't commit that change
+             * until the other end confirms its reception. */
             headerSz += DTLS_HANDSHAKE_EXTRA;
             ssl->keys.dtls_epoch++;
             ssl->keys.dtls_sequence_number = 0;  /* reset after epoch change */
         }
     #endif
-    
-    /* check for available size */
-    if ((ret = CheckAvailableSize(ssl, sizeof(input) + MAX_MSG_EXTRA)) != 0)
-        return ret;
 
     /* get ouput buffer */
     output = ssl->buffers.outputBuffer.buffer + 
@@ -5039,24 +5072,50 @@ int SendFinished(CYASSL* ssl)
     BuildFinished(ssl, hashes, ssl->options.side == CLIENT_END ? client :
                   server);
 
-    if ( (sendSz = BuildMessage(ssl, output, input, headerSz +
-                                finishedSz, handshake)) < 0)
+    sendSz = BuildMessage(ssl, output, input, headerSz + finishedSz, handshake);
+
+    #ifdef CYASSL_DTLS
+    if (ssl->options.dtls) {
+        ssl->keys.dtls_epoch = epoch;
+        ssl->keys.dtls_sequence_number = sequence_number;
+    }
+    #endif
+
+    if (sendSz < 0)
         return BUILD_MSG_ERROR;
 
     if (!ssl->options.resuming) {
 #ifndef NO_SESSION_CACHE
         AddSession(ssl);    /* just try */
 #endif
-        if (ssl->options.side == CLIENT_END)
+        if (ssl->options.side == CLIENT_END) {
             BuildFinished(ssl, &ssl->verifyHashes, server);
-        else
+        }
+        else {
             ssl->options.handShakeState = HANDSHAKE_DONE;
+            #ifdef CYASSL_DTLS
+                if (ssl->options.dtls) {
+                    /* Other side will soon receive our Finished, go to next epoch. */
+                    ssl->keys.dtls_epoch++;
+                    ssl->keys.dtls_sequence_number = 1;
+                }
+            #endif
+        }
     }
     else {
-        if (ssl->options.side == CLIENT_END)
+        if (ssl->options.side == CLIENT_END) {
             ssl->options.handShakeState = HANDSHAKE_DONE;
-        else
+            #ifdef CYASSL_DTLS
+                if (ssl->options.dtls) {
+                    /* Other side will soon receive our Finished, go to next epoch. */
+                    ssl->keys.dtls_epoch++;
+                    ssl->keys.dtls_sequence_number = 1;
+                }
+            #endif
+        }
+        else {
             BuildFinished(ssl, &ssl->verifyHashes, client);
+        }
     }
     #ifdef CYASSL_DTLS
         if (ssl->options.dtls) {
