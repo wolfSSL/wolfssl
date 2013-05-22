@@ -5503,13 +5503,15 @@ int SendAlert(CYASSL* ssl, int severity, int type)
         AddRecordHeader(output, ALERT_SIZE, alert, ssl);
         output += RECORD_HEADER_SZ;
         #ifdef CYASSL_DTLS
-            output += DTLS_RECORD_EXTRA;
+            if (ssl->options.dtls)
+                output += DTLS_RECORD_EXTRA;
         #endif
         XMEMCPY(output, input, ALERT_SIZE);
 
         sendSz = RECORD_HEADER_SZ + ALERT_SIZE;
         #ifdef CYASSL_DTLS
-            sendSz += DTLS_RECORD_EXTRA;
+            if (ssl->options.dtls)
+                sendSz += DTLS_RECORD_EXTRA;
         #endif
     }
 
