@@ -817,13 +817,13 @@ void TLSX_FreeAll(TLSX* list)
     }
 }
 
-#define IS_OFF(cemaphor, light) \
-    ((cemaphor)[(light) / 8] ^ (0x01 >> ((light) % 8)))
+#define IS_OFF(semaphore, light) \
+    ((semaphore)[(light) / 8] ^  (byte) (0x01 << ((light) % 8)))
 
-#define TURN_ON(cemaphor, light) \
-    ((cemaphor)[(light) / 8] |= (0x01 >> ((light) % 8)))
+#define TURN_ON(semaphore, light) \
+    ((semaphore)[(light) / 8] |= (byte) (0x01 << ((light) % 8)))
 
-static word16 TLSX_GetSize(TLSX* list, byte* cemaphor, byte isRequest)
+static word16 TLSX_GetSize(TLSX* list, byte* semaphore, byte isRequest)
 {
     TLSX* extension;
     word16 length = 0;
@@ -834,7 +834,7 @@ static word16 TLSX_GetSize(TLSX* list, byte* cemaphor, byte isRequest)
         if (!isRequest && !extension->resp)
             continue; /* skip! */
 
-        if (IS_OFF(cemaphor, extension->type)) {
+        if (IS_OFF(semaphore, extension->type)) {
             /* type + data length */
             length += HELLO_EXT_TYPE_SZ + OPAQUE16_LEN;
 
@@ -845,14 +845,14 @@ static word16 TLSX_GetSize(TLSX* list, byte* cemaphor, byte isRequest)
                     break;
             }
 
-            TURN_ON(cemaphor, extension->type);
+            TURN_ON(semaphore, extension->type);
         }
     }
 
     return length;
 }
 
-static word16 TLSX_Write(TLSX* list, byte* output, byte* cemaphor,
+static word16 TLSX_Write(TLSX* list, byte* output, byte* semaphore,
                                                                  byte isRequest)
 {
     TLSX* extension;
@@ -865,7 +865,7 @@ static word16 TLSX_Write(TLSX* list, byte* output, byte* cemaphor,
         if (!isRequest && !extension->resp)
             continue; /* skip! */
 
-        if (IS_OFF(cemaphor, extension->type)) {
+        if (IS_OFF(semaphore, extension->type)) {
             /* extension type */
             c16toa(extension->type, output + offset);
             offset += HELLO_EXT_TYPE_SZ + OPAQUE16_LEN;
@@ -884,7 +884,7 @@ static word16 TLSX_Write(TLSX* list, byte* output, byte* cemaphor,
             c16toa(offset - length_offset,
                                          output + length_offset - OPAQUE16_LEN);
 
-            TURN_ON(cemaphor, extension->type);
+            TURN_ON(semaphore, extension->type);
         }
     }
 
@@ -898,13 +898,13 @@ word16 TLSX_GetRequestSize(CYASSL* ssl)
     word16 length = 0;
 
     if (ssl && IsTLS(ssl)) {
-        byte cemaphor[16] = {0};
+        byte semaphore[16] = {0};
 
         if (ssl->extensions)
-            length += TLSX_GetSize(ssl->extensions, cemaphor, 1);
+            length += TLSX_GetSize(ssl->extensions, semaphore, 1);
 
         if (ssl->ctx && ssl->ctx->extensions)
-            length += TLSX_GetSize(ssl->ctx->extensions, cemaphor, 1);
+            length += TLSX_GetSize(ssl->ctx->extensions, semaphore, 1);
 
         if (IsAtLeastTLSv1_2(ssl) && ssl->suites->hashSigAlgoSz)
             length += ssl->suites->hashSigAlgoSz + HELLO_EXT_LEN;
@@ -921,17 +921,17 @@ word16 TLSX_WriteRequest(CYASSL* ssl, byte* output)
     word16 offset = 0;
 
     if (ssl && IsTLS(ssl) && output) {
-        byte cemaphor[16] = {0};
+        byte semaphore[16] = {0};
 
         offset += OPAQUE16_LEN; /* extensions length */
 
         if (ssl->extensions)
             offset += TLSX_Write(ssl->extensions, output + offset,
-                                                                   cemaphor, 1);
+                                                                  semaphore, 1);
 
         if (ssl->ctx && ssl->ctx->extensions)
             offset += TLSX_Write(ssl->ctx->extensions, output + offset,
-                                                                   cemaphor, 1);
+                                                                  semaphore, 1);
 
         if (IsAtLeastTLSv1_2(ssl) && ssl->suites->hashSigAlgoSz)
         {
@@ -967,10 +967,10 @@ word16 TLSX_WriteRequest(CYASSL* ssl, byte* output)
 word16 TLSX_GetResponseSize(CYASSL* ssl)
 {
     word16 length = 0;
-    byte cemaphor[16] = {0};
+    byte semaphore[16] = {0};
 
     if (ssl && IsTLS(ssl))
-        length += TLSX_GetSize(ssl->extensions, cemaphor, 0);
+        length += TLSX_GetSize(ssl->extensions, semaphore, 0);
 
     /* All the response data is set at the ssl object only, so no ctx here. */
 
@@ -985,11 +985,11 @@ word16 TLSX_WriteResponse(CYASSL *ssl, byte* output)
     word16 offset = 0;
 
     if (ssl && IsTLS(ssl) && output) {
-        byte cemaphor[16] = {0};
+        byte semaphore[16] = {0};
 
         offset += OPAQUE16_LEN; /* extensions length */
 
-        offset += TLSX_Write(ssl->extensions, output + offset, cemaphor, 0);
+        offset += TLSX_Write(ssl->extensions, output + offset, semaphore, 0);
 
         if (offset > OPAQUE16_LEN)
             c16toa(offset - OPAQUE16_LEN, output); /* extensions length */
@@ -1058,7 +1058,7 @@ int TLSX_Parse(CYASSL* ssl, byte* input, word16 length, byte isRequest,
     return ret;
 }
 
-/* undefining cemaphor macros */
+/* undefining semaphore macros */
 #undef IS_OFF
 #undef TURN_ON
 
