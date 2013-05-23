@@ -5046,14 +5046,17 @@ int SendFinished(CYASSL* ssl)
     int              ret;
     int              headerSz = HANDSHAKE_HEADER_SZ;
 
+    #ifdef CYASSL_DTLS
+        word32 sequence_number = ssl->keys.dtls_sequence_number;
+        word16 epoch           = ssl->keys.dtls_epoch;
+    #endif
+
 
     /* check for available size */
     if ((ret = CheckAvailableSize(ssl, sizeof(input) + MAX_MSG_EXTRA)) != 0)
         return ret;
 
     #ifdef CYASSL_DTLS
-        word32 sequence_number = ssl->keys.dtls_sequence_number;
-        word16 epoch = ssl->keys.dtls_epoch;
         if (ssl->options.dtls) {
             /* Send Finished message with the next epoch, but don't commit that
              * change until the other end confirms its reception. */
