@@ -612,7 +612,6 @@ static int decode_http_response(byte* httpBuf, int httpBufSz, byte** dst)
                 /* Advance idx past the next \r\n */
                 char* end = XSTRSTR(&buf[idx], "\r\n");
                 idx = (int)(end - buf + 2);
-                stop = 1;
             }
         }
     }
@@ -629,6 +628,8 @@ static int decode_http_response(byte* httpBuf, int httpBufSz, byte** dst)
 static int decode_url(const char* url, int urlSz,
     char* outName, char* outPath, int* outPort)
 {
+    int result = -1;
+
     if (outName != NULL && outPath != NULL && outPort != NULL)
     {
         if (url == NULL || urlSz == 0)
@@ -648,7 +649,8 @@ static int decode_url(const char* url, int urlSz,
             } else cur = 0;
     
             i = 0;
-            while (url[cur] != 0 && url[cur] != ':' && url[cur] != '/') {
+            while (url[cur] != 0 && url[cur] != ':' &&
+                                               url[cur] != '/' && cur < urlSz) {
                 outName[i++] = url[cur++];
             }
             outName[i] = 0;
@@ -684,10 +686,11 @@ static int decode_url(const char* url, int urlSz,
                 outPath[0] = '/';
                 outPath[1] = 0;
             }
+            result = 0;
         }
     }
 
-    return 0;
+    return result;
 }
 
 
@@ -732,11 +735,11 @@ int EmbedOcspLookup(void* ctx, const char* url, int urlSz,
 
     if ((tcp_connect(&sfd, domainName, port) == 0) && (sfd > 0)) {
         int written;
-        written = (int)write(sfd, httpBuf, httpBufSz);
+        written = (int)send(sfd, httpBuf, httpBufSz, 0);
         if (written == httpBufSz) {
-            written = (int)write(sfd, ocspReqBuf, ocspReqSz);
+            written = (int)send(sfd, ocspReqBuf, ocspReqSz, 0);
             if (written == ocspReqSz) {
-                httpBufSz = (int)read(sfd, httpBuf, SCRATCH_BUFFER_SIZE);
+                httpBufSz = (int)recv(sfd, httpBuf, SCRATCH_BUFFER_SIZE, 0);
                 if (httpBufSz > 0) {
                     ocspRespSz = decode_http_response(httpBuf, httpBufSz,
                         ocspRespBuf);

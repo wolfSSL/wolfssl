@@ -275,7 +275,7 @@ int CyaSSL_OCSP_Lookup_Cert(CYASSL_OCSP* ocsp, DecodedCert* cert)
         }
     }
 
-    if (ocsp->useOverrideUrl || cert->extAuthInfo == NULL) {
+    if (ocsp->useOverrideUrl) {
         if (ocsp->overrideUrl[0] != '\0') {
             url = ocsp->overrideUrl;
             urlSz = (int)XSTRLEN(url);
@@ -283,9 +283,13 @@ int CyaSSL_OCSP_Lookup_Cert(CYASSL_OCSP* ocsp, DecodedCert* cert)
         else
             return OCSP_NEED_URL;
     }
-    else {
+    else if (cert->extAuthInfoSz == 0 || cert->extAuthInfo == NULL) {
         url = (const char *)cert->extAuthInfo;
         urlSz = cert->extAuthInfoSz;
+    }
+    else {
+        CYASSL_MSG("\tcert doesn't have extAuthInfo, assuming CERT_GOOD");
+        return 0;
     }
 
     ocspReqBuf = (byte*)XMALLOC(ocspReqSz, NULL, DYNAMIC_TYPE_IN_BUFFER);
