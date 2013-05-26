@@ -9509,12 +9509,8 @@ int SetCipherList(Suites* s, const char* list)
         
         ssl->options.haveSessionId = 1;
         /* ProcessOld uses same resume code */
-<<<<<<< HEAD
-        if (ssl->options.resuming) {  /* let's try */
-=======
         if (ssl->options.resuming && (!ssl->options.dtls ||
             ssl->options.acceptState == HELLO_VERIFY_SENT)) {  /* let's try */
->>>>>>> cyassl/master
             int ret = -1;            
             CYASSL_SESSION* session = GetSession(ssl,ssl->arrays->masterSecret);
             if (!session) {
