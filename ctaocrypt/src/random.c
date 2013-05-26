@@ -580,7 +580,14 @@ int GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 #elif defined(NO_DEV_RANDOM)
 
 #error "you need to write an os specific GenerateSeed() here"
-int GenerateSeed(OS_Seed* os, byte* output, word32 sz) { return(0) ; }
+
+/*
+int GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+{
+    return 0;
+}
+*/
+
 
 #else /* !USE_WINDOWS_API && !THREADX && !MICRIUM && !NO_DEV_RANDOM */
 

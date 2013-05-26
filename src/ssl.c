@@ -88,6 +88,15 @@
 
 #endif /* min */
 
+#ifndef max
+
+    static INLINE word32 max(word32 a, word32 b)
+    {
+        return a > b ? a : b;
+    }
+
+#endif /* min */
+
 
 #ifndef CYASSL_LEANPSK
 char* mystrnstr(const char* s1, const char* s2, unsigned int n)
@@ -440,6 +449,10 @@ static int CyaSSL_read_internal(CYASSL* ssl, void* data, int sz, int peek)
 #ifdef HAVE_ERRNO_H 
         errno = 0;
 #endif
+#ifdef CYASSL_DTLS
+    if (ssl->options.dtls)
+        ssl->dtls_expected_rx = max(sz + 100, MAX_MTU);
+#endif
 
     ret = ReceiveData(ssl, (byte*)data, min(sz, OUTPUT_RECORD_SIZE), peek);
 
@@ -496,6 +509,27 @@ int CyaSSL_CTX_UseCavium(CYASSL_CTX* ctx, int devId)
 
 #endif /* HAVE_CAVIUM */
 
+#ifdef HAVE_SNI
+
+int CyaSSL_UseSNI(CYASSL* ssl, unsigned char type, const void* data,
+                                                            unsigned short size)
+{
+	if (ssl == NULL)
+		return BAD_FUNC_ARG;
+
+    return TLSX_UseSNI(&ssl->extensions, type, data, size);
+}
+
+int CyaSSL_CTX_UseSNI(CYASSL_CTX* ctx, unsigned char type, const void* data,
+                                                            unsigned short size)
+{
+    if (ctx == NULL)
+        return BAD_FUNC_ARG;
+
+    return TLSX_UseSNI(&ctx->extensions, type, data, size);
+}
+
+#endif /* HAVE_SNI */
 
 #ifndef CYASSL_LEANPSK
 int CyaSSL_send(CYASSL* ssl, const void* data, int sz, int flags)
@@ -632,7 +666,18 @@ char* CyaSSL_ERR_error_string(unsigned long errNumber, char* data)
 void CyaSSL_ERR_error_string_n(unsigned long e, char* buf, unsigned long len)
 {
     CYASSL_ENTER("CyaSSL_ERR_error_string_n");
-    if (len) CyaSSL_ERR_error_string(e, buf);
+    if (len >= MAX_ERROR_SZ)
+        CyaSSL_ERR_error_string(e, buf);
+    else {
+        char tmp[MAX_ERROR_SZ];
+
+        CYASSL_MSG("Error buffer too short, truncating");
+        if (len) {
+            CyaSSL_ERR_error_string(e, tmp);
+            XMEMCPY(buf, tmp, len-1);
+            buf[len-1] = '\0';
+        }
+    }
 }
 
 

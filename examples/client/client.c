@@ -130,11 +130,17 @@ static void Usage(void)
 #ifdef SHOW_SIZES
     printf("-z          Print structure sizes\n");
 #endif
+    printf("-S <str>    Use Host Name Indication\n");
 }
 
 #ifdef CYASSL_MDK_SHELL
 #define exit(code) return(code)
 #endif
+
+#ifdef CYASSL_MDK_SHELL
+    #define exit(code) return(code)
+#endif
+
 
 THREAD_RETURN CYASSL_THREAD client_test(void* args)
 {
@@ -176,6 +182,10 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
     char*  ourCert    = (char*)cliCert;
     char*  ourKey     = (char*)cliKey;
 
+#ifdef HAVE_SNI
+    char*  sniHostName = NULL;
+#endif
+
     int     argc = ((func_args*)args)->argc;
     char**  argv = ((func_args*)args)->argv;
 
@@ -191,7 +201,7 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
     (void)sslResume;
     (void)trackMemory;
 
-    while ((ch = mygetopt(argc, argv, "?gdusmNrtfxh:p:v:l:A:c:k:b:z")) != -1) {
+    while ((ch = mygetopt(argc, argv, "?gdusmNrtfxh:p:v:l:A:c:k:b:zS:")) != -1){
         switch (ch) {
             case '?' :
                 Usage();
@@ -290,6 +300,12 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
                 #endif
                 break;
 
+            case 'S' :
+                #ifdef HAVE_SNI
+                    sniHostName = myoptarg;
+                #endif
+                break;
+
             default:
                 Usage();
                 exit(MY_EX_USAGE);
@@ -356,6 +372,7 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
 
         default:
             err_sys("Bad SSL version");
+            break;
     }
 
     if (method == NULL)
@@ -441,6 +458,12 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
 
 #ifdef HAVE_CAVIUM
     CyaSSL_CTX_UseCavium(ctx, CAVIUM_DEV_ID);
+#endif
+
+#ifdef HAVE_SNI
+    if (sniHostName)
+        if (CyaSSL_CTX_UseSNI(ctx, 0, sniHostName, XSTRLEN(sniHostName)))
+            err_sys("UseSNI failed");
 #endif
 
     if (benchmark) {

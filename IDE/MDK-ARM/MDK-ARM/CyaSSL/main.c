@@ -30,6 +30,13 @@
 #include <stdio.h>
 #include "cyassl_MDK_ARM.h"
 
+<<<<<<< HEAD
+=======
+#include "stm32f2xx_tim.h"
+#include "stm32f2xx_rcc.h"
+
+
+>>>>>>> cyassl/master
 /*-----------------------------------------------------------------------------
  *        Initialize a Flash Memory Card
  *----------------------------------------------------------------------------*/
@@ -83,6 +90,80 @@ __task void tcp_poll (void)
 }
 #endif
 
+<<<<<<< HEAD
+=======
+/*-----------------------------------------------------------------------------
+ *        initialize RTC 
+ *----------------------------------------------------------------------------*/
+#include "stm32f2xx_rtc.h"
+#include "stm32f2xx_rcc.h"
+#include "stm32f2xx_pwr.h"
+
+static init_RTC() 
+{
+    RTC_InitTypeDef RTC_InitStruct ;
+    
+    RTC_TimeTypeDef RTC_Time ;
+    RTC_DateTypeDef RTC_Date ;
+
+    
+    /* Enable the PWR clock */
+    RCC_APB1PeriphClockCmd(RCC_APB1Periph_PWR, ENABLE);
+
+    /* Allow access to RTC */
+    PWR_BackupAccessCmd(ENABLE);
+
+/***Configures the External Low Speed oscillator (LSE)****/
+
+    RCC_LSEConfig(RCC_LSE_ON);
+
+    /* Wait till LSE is ready */  
+    while(RCC_GetFlagStatus(RCC_FLAG_LSERDY) == RESET)
+    {
+    }
+
+    /* Select the RTC Clock Source */
+    RCC_RTCCLKConfig(RCC_RTCCLKSource_LSE);
+   
+    /* Enable the RTC Clock */
+    RCC_RTCCLKCmd(ENABLE);
+
+    /* Wait for RTC APB registers synchronisation */
+    RTC_WaitForSynchro();
+
+    /* Calendar Configuration with LSI supposed at 32KHz */
+    RTC_InitStruct.RTC_AsynchPrediv = 0x7F;
+    RTC_InitStruct.RTC_SynchPrediv =  0xFF; 
+    RTC_InitStruct.RTC_HourFormat = RTC_HourFormat_24;
+    RTC_Init(&RTC_InitStruct);
+
+    RTC_GetTime(RTC_Format_BIN, &RTC_Time) ;
+    RTC_GetDate(RTC_Format_BIN, &RTC_Date) ;
+}
+
+/*-----------------------------------------------------------------------------
+ *        initialize TIM
+ *----------------------------------------------------------------------------*/
+void init_timer()
+{
+    TIM_TimeBaseInitTypeDef TIM_TimeBaseStructure ;
+
+    RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM2, ENABLE) ;
+
+    TIM_TimeBaseStructInit(&TIM_TimeBaseStructure);
+    TIM_TimeBaseStructure.TIM_Prescaler = 60;
+    TIM_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_Up;
+    TIM_TimeBaseStructure.TIM_Period = 0xffffffff;
+    TIM_TimeBaseStructure.TIM_ClockDivision = 0;
+    TIM_TimeBaseStructure.TIM_RepetitionCounter = 0;
+
+    TIM_TimeBaseInit(TIM2, &TIM_TimeBaseStructure);
+
+    TIM_TimeBaseInit(TIM2, &TIM_TimeBaseStructure) ;
+    TIM_Cmd(TIM2, ENABLE) ;
+}
+
+>>>>>>> cyassl/master
 #if defined(HAVE_KEIL_RTX) && defined(CYASSL_MDK_SHELL)
 #define SHELL_STACKSIZE 1000
 static unsigned char Shell_stack[SHELL_STACKSIZE] ;
@@ -118,12 +199,20 @@ void main_task (void)
            shell_main() ;
        #endif
     #else
+<<<<<<< HEAD
 
     /************************************/
     /*** USER APPLICATION HERE        ***/
     /************************************/
     printf("USER LOGIC STARTED\n") ;
 	
+=======
+    
+    /************************************/
+    /*** USER APPLICATION HERE        ***/
+    /************************************/
+
+>>>>>>> cyassl/master
     #endif 
 
     #ifdef   HAVE_KEIL_RTX
@@ -143,6 +232,7 @@ void main_task (void)
 
 
 /*** main entry ***/
+<<<<<<< HEAD
 extern void init_time(void) ;
 extern void 	SystemInit(void);
 
@@ -156,6 +246,18 @@ int main() {
 
     init_time() ;
 
+=======
+int main() {
+        /* stm32_Init ();                  STM32 setup */
+        
+    #if !defined(NO_FILESYSTEM)
+    init_card () ;                                    /* initializing SD card */
+    #endif
+    
+    init_RTC() ;
+    init_timer() ;
+    SER_Init() ;
+>>>>>>> cyassl/master
     
     #if defined(DEBUG_CYASSL)
          printf("Turning ON Debug message\n") ;

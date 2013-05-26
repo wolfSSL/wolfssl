@@ -26,7 +26,7 @@
  */
 
 /**
- *  Edited by Moisés Guimarães (moises.guimaraes@phoebus.com.br)
+ *  Edited by Moisés Guimarães (moisesguimaraesm@gmail.com)
  *  to fit CyaSSL's needs.
  */
 
@@ -1183,16 +1183,16 @@ static int _fp_exptmod(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
 
 int fp_exptmod(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
 {
-   fp_int tmp;
-   int    err;
-  
    /* prevent overflows */
    if (P->used > (FP_SIZE/2)) {
       return FP_VAL;
    }
 
-   /* is X negative?  */
    if (X->sign == FP_NEG) {
+#ifndef POSITIVE_EXP_ONLY  /* reduce stack if assume no negatives */
+      int    err;
+      fp_int tmp;
+
       /* yes, copy G and invmod it */
       fp_copy(G, &tmp);
       if ((err = fp_invmod(&tmp, P, &tmp)) != FP_OKAY) {
@@ -1204,7 +1204,11 @@ int fp_exptmod(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
          X->sign = FP_NEG;
       }
       return err;
-   } else {
+#else
+      return FP_VAL;
+#endif 
+   }
+   else {
       /* Positive exponent so just exptmod */
       return _fp_exptmod(G, X, P, Y);
    }

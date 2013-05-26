@@ -95,9 +95,19 @@ extern int setsockopt(int sockfd, int level, int optname,
 extern int select(int nfds, fd_set *readfds, fd_set *writefds,
                           fd_set *exceptfds, const struct timeval *timeout);
 
+<<<<<<< HEAD
 /* CyaSSL MDK-ARM time functions */
 #include <time.h>
 struct tm *Cyassl_MDK_gmtime(const time_t *c) ;
+=======
+
+/** KEIL-RL gmtime ****/
+
+#include <time.h>
+#include "stm32f2xx_rtc.h"
+extern struct tm *gmtime(const time_t *timer);
+extern struct tm *Cyassl_MDK_gmtime(const time_t *timer);
+>>>>>>> cyassl/master
 extern double current_time(void) ;
 
 #endif /* CYASSL_KEIL_RL_H */

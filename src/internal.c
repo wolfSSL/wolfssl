@@ -421,6 +421,9 @@ int InitSSL_Ctx(CYASSL_CTX* ctx, CYASSL_METHOD* method)
 #ifdef HAVE_CAVIUM
     ctx->devId = NO_CAVIUM_DEVICE; 
 #endif
+#ifdef HAVE_TLS_EXTENSIONS
+    ctx->extensions = NULL;
+#endif
 
     if (InitMutex(&ctx->countMutex) < 0) {
         CYASSL_MSG("Mutex error on CTX init");
@@ -451,6 +454,9 @@ void SSL_CtxResourceFree(CYASSL_CTX* ctx)
 #endif
 #ifdef HAVE_OCSP
     CyaSSL_OCSP_Cleanup(&ctx->ocsp);
+#endif
+#ifdef HAVE_TLS_EXTENSIONS
+    TLSX_FreeAll(ctx->extensions);
 #endif
 }
 
@@ -1286,6 +1292,7 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
     ssl->IOCB_WriteCtx = &ssl->wfd;  /* correctly set */
 #ifdef CYASSL_DTLS
     ssl->IOCB_CookieCtx = NULL;      /* we don't use for default cb */
+    ssl->dtls_expected_rx = MAX_MTU;
 #endif
 
 #ifndef NO_OLD_TLS
@@ -1433,6 +1440,10 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
 
 #ifdef HAVE_CAVIUM
     ssl->devId = ctx->devId; 
+#endif
+
+#ifdef HAVE_TLS_EXTENSIONS
+    ssl->extensions = NULL;
 #endif
 
     ssl->rng    = NULL;
@@ -1654,6 +1665,9 @@ void SSL_ResourceFree(CYASSL* ssl)
         XFREE(ssl->eccDsaKey, ssl->heap, DYNAMIC_TYPE_ECC);
     }
 #endif
+#ifdef HAVE_TLS_EXTENSIONS
+    TLSX_FreeAll(ssl->extensions);
+#endif
 }
 
 
@@ -1829,6 +1843,21 @@ int DtlsPoolSend(CYASSL* ssl)
         for (i = 0; i < pool->used; i++) {
             int sendResult;
             buffer* buf = &pool->buf[i];
+
+            DtlsRecordLayerHeader* dtls = (DtlsRecordLayerHeader*)buf->buffer;
+
+            word16 message_epoch;
+            ato16(dtls->epoch, &message_epoch);
+            if (message_epoch == ssl->keys.dtls_epoch) {
+                /* Increment record sequence number on retransmitted handshake
+                 * messages */
+                c32to48(ssl->keys.dtls_sequence_number, dtls->sequence_number);
+                ssl->keys.dtls_sequence_number++;
+            }
+            else {
+                /* The Finished message is sent with the next epoch, keep its
+                 * sequence number */
+            }
 
             if ((ret = CheckAvailableSize(ssl, buf->length)) != 0)
                 return ret;
@@ -3325,13 +3354,29 @@ int DoFinished(CYASSL* ssl, const byte* input, word32* inOutIdx, int sniff)
 
     if (ssl->options.side == CLIENT_END) {
         ssl->options.serverState = SERVER_FINISHED_COMPLETE;
-        if (!ssl->options.resuming)
+        if (!ssl->options.resuming) {
             ssl->options.handShakeState = HANDSHAKE_DONE;
+#ifdef CYASSL_DTLS
+            if (ssl->options.dtls) {
+                /* Other side has received our Finished, go to next epoch */
+                ssl->keys.dtls_epoch++;
+                ssl->keys.dtls_sequence_number = 1;
+            }
+#endif
+        }
     }
     else {
         ssl->options.clientState = CLIENT_FINISHED_COMPLETE;
-        if (ssl->options.resuming)
+        if (ssl->options.resuming) {
             ssl->options.handShakeState = HANDSHAKE_DONE;
+#ifdef CYASSL_DTLS
+            if (ssl->options.dtls) {
+                /* Other side has received our Finished, go to next epoch */
+                ssl->keys.dtls_epoch++;
+                ssl->keys.dtls_sequence_number = 1;
+            }
+#endif
+        }
     }
 
     *inOutIdx = idx;
@@ -4376,9 +4421,9 @@ static int GetInputData(CYASSL *ssl, word32 size)
 
 #ifdef CYASSL_DTLS
     if (ssl->options.dtls) {
-        if (size < MAX_MTU)
-            dtlsExtra = (int)(MAX_MTU - size);
-        inSz = MAX_MTU;       /* read ahead up to MTU */
+        if (size < ssl->dtls_expected_rx)
+            dtlsExtra = (int)(ssl->dtls_expected_rx - size);
+        inSz = ssl->dtls_expected_rx;  
     }
 #endif
     
@@ -5001,18 +5046,25 @@ int SendFinished(CYASSL* ssl)
     int              ret;
     int              headerSz = HANDSHAKE_HEADER_SZ;
 
+    #ifdef CYASSL_DTLS
+        word32 sequence_number = ssl->keys.dtls_sequence_number;
+        word16 epoch           = ssl->keys.dtls_epoch;
+    #endif
+
+
+    /* check for available size */
+    if ((ret = CheckAvailableSize(ssl, sizeof(input) + MAX_MSG_EXTRA)) != 0)
+        return ret;
 
     #ifdef CYASSL_DTLS
         if (ssl->options.dtls) {
+            /* Send Finished message with the next epoch, but don't commit that
+             * change until the other end confirms its reception. */
             headerSz += DTLS_HANDSHAKE_EXTRA;
             ssl->keys.dtls_epoch++;
             ssl->keys.dtls_sequence_number = 0;  /* reset after epoch change */
         }
     #endif
-    
-    /* check for available size */
-    if ((ret = CheckAvailableSize(ssl, sizeof(input) + MAX_MSG_EXTRA)) != 0)
-        return ret;
 
     /* get ouput buffer */
     output = ssl->buffers.outputBuffer.buffer + 
@@ -5025,24 +5077,52 @@ int SendFinished(CYASSL* ssl)
     BuildFinished(ssl, hashes, ssl->options.side == CLIENT_END ? client :
                   server);
 
-    if ( (sendSz = BuildMessage(ssl, output, input, headerSz +
-                                finishedSz, handshake)) < 0)
+    sendSz = BuildMessage(ssl, output, input, headerSz + finishedSz, handshake);
+
+    #ifdef CYASSL_DTLS
+    if (ssl->options.dtls) {
+        ssl->keys.dtls_epoch = epoch;
+        ssl->keys.dtls_sequence_number = sequence_number;
+    }
+    #endif
+
+    if (sendSz < 0)
         return BUILD_MSG_ERROR;
 
     if (!ssl->options.resuming) {
 #ifndef NO_SESSION_CACHE
         AddSession(ssl);    /* just try */
 #endif
-        if (ssl->options.side == CLIENT_END)
+        if (ssl->options.side == CLIENT_END) {
             BuildFinished(ssl, &ssl->verifyHashes, server);
-        else
+        }
+        else {
             ssl->options.handShakeState = HANDSHAKE_DONE;
+            #ifdef CYASSL_DTLS
+                if (ssl->options.dtls) {
+                    /* Other side will soon receive our Finished, go to next
+                     * epoch. */
+                    ssl->keys.dtls_epoch++;
+                    ssl->keys.dtls_sequence_number = 1;
+                }
+            #endif
+        }
     }
     else {
-        if (ssl->options.side == CLIENT_END)
+        if (ssl->options.side == CLIENT_END) {
             ssl->options.handShakeState = HANDSHAKE_DONE;
-        else
+            #ifdef CYASSL_DTLS
+                if (ssl->options.dtls) {
+                    /* Other side will soon receive our Finished, go to next
+                     * epoch. */
+                    ssl->keys.dtls_epoch++;
+                    ssl->keys.dtls_sequence_number = 1;
+                }
+            #endif
+        }
+        else {
             BuildFinished(ssl, &ssl->verifyHashes, client);
+        }
     }
     #ifdef CYASSL_DTLS
         if (ssl->options.dtls) {
@@ -5426,13 +5506,15 @@ int SendAlert(CYASSL* ssl, int severity, int type)
         AddRecordHeader(output, ALERT_SIZE, alert, ssl);
         output += RECORD_HEADER_SZ;
         #ifdef CYASSL_DTLS
-            output += DTLS_RECORD_EXTRA;
+            if (ssl->options.dtls)
+                output += DTLS_RECORD_EXTRA;
         #endif
         XMEMCPY(output, input, ALERT_SIZE);
 
         sendSz = RECORD_HEADER_SZ + ALERT_SIZE;
         #ifdef CYASSL_DTLS
-            sendSz += DTLS_RECORD_EXTRA;
+            if (ssl->options.dtls)
+                sendSz += DTLS_RECORD_EXTRA;
         #endif
     }
 
@@ -5799,6 +5881,10 @@ void SetErrorString(int error, char* str)
 
     case CACHE_MATCH_ERROR:
         XSTRNCPY(str, "Cache restore header match Error", max);
+        break;
+
+    case UNKNOWN_SNI_HOST_NAME_E:
+        XSTRNCPY(str, "Unrecognized host name Error", max);
         break;
 
     default :
@@ -6692,9 +6778,13 @@ int SetCipherList(Suites* s, const char* list)
                + ssl->suites->suiteSz + SUITE_LEN
                + COMP_LEN + ENUM_LEN;
 
+#ifdef HAVE_TLS_EXTENSIONS
+        length += TLSX_GetRequestSize(ssl);
+#else
         if (IsAtLeastTLSv1_2(ssl) && ssl->suites->hashSigAlgoSz) {
             length += ssl->suites->hashSigAlgoSz + HELLO_EXT_SZ;
         }
+#endif
         sendSz = length + HANDSHAKE_HEADER_SZ + RECORD_HEADER_SZ;
 
 #ifdef CYASSL_DTLS
@@ -6767,6 +6857,11 @@ int SetCipherList(Suites* s, const char* list)
         else
             output[idx++] = NO_COMPRESSION;
 
+#ifdef HAVE_TLS_EXTENSIONS
+        idx += TLSX_WriteRequest(ssl, output + idx);
+
+        (void)idx; /* suppress analyzer warning, keep idx current */
+#else
         if (IsAtLeastTLSv1_2(ssl) && ssl->suites->hashSigAlgoSz)
         {
             int i;
@@ -6784,6 +6879,7 @@ int SetCipherList(Suites* s, const char* list)
                 output[idx] = ssl->suites->hashSigAlgo[i];
             }
         }
+#endif
 
         #ifdef CYASSL_DTLS
             if (ssl->options.dtls) {
@@ -6905,8 +7001,29 @@ int SetCipherList(Suites* s, const char* list)
         }
 
         *inOutIdx = i;
-        if ( (i - begin) < helloSz)
-            *inOutIdx = begin + helloSz;  /* skip extensions */
+        if ( (i - begin) < helloSz) {
+#ifdef HAVE_TLS_EXTENSIONS
+            if (IsTLS(ssl)) {
+                int ret = 0;
+                word16 totalExtSz;
+                Suites clSuites; /* just for compatibility right now */
+
+                ato16(&input[i], &totalExtSz);
+                i += LENGTH_SZ;
+                if (totalExtSz > helloSz + begin - i)
+                    return INCOMPLETE_DATA;
+
+                if ((ret = TLSX_Parse(ssl, (byte *) input + i,
+                                                     totalExtSz, 0, &clSuites)))
+                    return ret;
+
+                i += totalExtSz;
+                *inOutIdx = i;
+            }
+            else
+#endif
+                *inOutIdx = begin + helloSz;  /* skip extensions */
+        }
 
         ssl->options.serverState = SERVER_HELLO_COMPLETE;
 
@@ -7778,7 +7895,11 @@ int SetCipherList(Suites* s, const char* list)
                + SUITE_LEN 
                + ENUM_LEN;
 
-        /* check for available size */
+#ifdef HAVE_TLS_EXTENSIONS
+        length += TLSX_GetResponseSize(ssl);
+#endif
+
+        /* check for avalaible size */
         if ((ret = CheckAvailableSize(ssl, MAX_HELLO_SZ)) != 0)
             return ret;
 
@@ -7826,11 +7947,17 @@ int SetCipherList(Suites* s, const char* list)
         output[idx++] = ssl->options.cipherSuite0; 
         output[idx++] = ssl->options.cipherSuite;
 
-            /* last, compression */
+            /* then compression */
         if (ssl->options.usingCompression)
             output[idx++] = ZLIB_COMPRESSION;
         else
             output[idx++] = NO_COMPRESSION;
+
+            /* last, extensions */
+#ifdef HAVE_TLS_EXTENSIONS
+        if (IsTLS(ssl))
+            TLSX_WriteResponse(ssl, output + idx);
+#endif
             
         ssl->buffers.outputBuffer.length += sendSz;
         #ifdef CYASSL_DTLS
@@ -9323,11 +9450,14 @@ int SetCipherList(Suites* s, const char* list)
         else
             i += b;  /* ignore, since we're not on */
 
-        ssl->options.clientState = CLIENT_HELLO_COMPLETE;
-
         *inOutIdx = i;
         if ( (i - begin) < helloSz) {
+#ifdef HAVE_TLS_EXTENSIONS
+            if (IsTLS(ssl)) {
+                int ret = 0;
+#else
             if (IsAtLeastTLSv1_2(ssl)) {
+#endif
                 /* Process the hello extension. Skip unsupported. */
                 word16 totalExtSz;
 
@@ -9335,6 +9465,14 @@ int SetCipherList(Suites* s, const char* list)
                 i += LENGTH_SZ;
                 if (totalExtSz > helloSz + begin - i)
                     return INCOMPLETE_DATA;
+
+#ifdef HAVE_TLS_EXTENSIONS
+                if ((ret = TLSX_Parse(ssl, (byte *) input + i,
+                                                     totalExtSz, 1, &clSuites)))
+                    return ret;
+
+                i += totalExtSz;
+#else
                 while (totalExtSz) {
                     word16 extId, extSz;
                    
@@ -9360,15 +9498,23 @@ int SetCipherList(Suites* s, const char* list)
 
                     totalExtSz -= LENGTH_SZ + EXT_ID_SZ + extSz;
                 }
+#endif
                 *inOutIdx = i;
             }
             else
                 *inOutIdx = begin + helloSz;  /* skip extensions */
         }
+
+        ssl->options.clientState = CLIENT_HELLO_COMPLETE;
         
         ssl->options.haveSessionId = 1;
         /* ProcessOld uses same resume code */
+<<<<<<< HEAD
         if (ssl->options.resuming) {  /* let's try */
+=======
+        if (ssl->options.resuming && (!ssl->options.dtls ||
+            ssl->options.acceptState == HELLO_VERIFY_SENT)) {  /* let's try */
+>>>>>>> cyassl/master
             int ret = -1;            
             CYASSL_SESSION* session = GetSession(ssl,ssl->arrays->masterSecret);
             if (!session) {

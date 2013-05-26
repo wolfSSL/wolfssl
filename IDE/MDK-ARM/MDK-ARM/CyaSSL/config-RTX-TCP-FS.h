@@ -99,7 +99,11 @@
 // </h>
 //  <h>STM32 Hardware Crypt
 //      <e>STM32F2 Hardware RNG
+<<<<<<< HEAD
 #define MDK_CONF_STM32F2_RNG 0
+=======
+#define MDK_CONF_STM32F2_RNG 1
+>>>>>>> cyassl/master
 #if MDK_CONF_STM32F2_RNG == 1
 #define STM32F2_RNG
 #else
@@ -127,19 +131,31 @@
 //  </e>
 
 //      <e>CertGen
+<<<<<<< HEAD
 #define MDK_CONF_CERT_GEN 1
+=======
+#define MDK_CONF_CERT_GEN 0
+>>>>>>> cyassl/master
 #if MDK_CONF_CERT_GEN == 1
 #define CYASSL_CERT_GEN
 #endif
 //  </e>
 //      <e>KeyGen
+<<<<<<< HEAD
 #define MDK_CONF_KEY_GEN 1
+=======
+#define MDK_CONF_KEY_GEN 0
+>>>>>>> cyassl/master
 #if MDK_CONF_KEY_GEN == 1
 #define CYASSL_KEY_GEN
 #endif
 //  </e>
 //      <e>CRL
+<<<<<<< HEAD
 #define MDK_CONF_DER_LOAD 1
+=======
+#define MDK_CONF_DER_LOAD 0
+>>>>>>> cyassl/master
 #if MDK_CONF_DER_LOAD == 1
 #define CYASSL_DER_LOAD
 #endif
@@ -160,7 +176,11 @@
 //       <h>MD5, SHA, SHA-256, AES, RC4, ASN, RSA
 //        </h>
 //      <e>MD2
+<<<<<<< HEAD
 #define MDK_CONF_MD2 1
+=======
+#define MDK_CONF_MD2 0
+>>>>>>> cyassl/master
 #if MDK_CONF_MD2 == 1
 #define CYASSL_MD2
 #endif
@@ -173,13 +193,21 @@
 //  </e>
 //      <e>SHA-384
 //          <i>This has to be with SHA512
+<<<<<<< HEAD
 #define MDK_CONF_SHA384 1
+=======
+#define MDK_CONF_SHA384 0
+>>>>>>> cyassl/master
 #if MDK_CONF_SHA384 == 1
 #define CYASSL_SHA384
 #endif
 //  </e>
 //      <e>SHA-512          
+<<<<<<< HEAD
 #define MDK_CONF_SHA512     1
+=======
+#define MDK_CONF_SHA512     0
+>>>>>>> cyassl/master
 #if MDK_CONF_SHA512     == 1
 #define CYASSL_SHA512   
 #endif
@@ -197,7 +225,11 @@
 #endif
 //  </e>
 //      <e>HC128
+<<<<<<< HEAD
 #define MDK_CONF_HC128 1
+=======
+#define MDK_CONF_HC128 0
+>>>>>>> cyassl/master
 #if MDK_CONF_HC128 == 1
 #define HAVE_HC128
 #endif
@@ -210,7 +242,11 @@
 //  </e>
 
 //      <e>AEAD     
+<<<<<<< HEAD
 #define MDK_CONF_AEAD 1
+=======
+#define MDK_CONF_AEAD 0
+>>>>>>> cyassl/master
 #if MDK_CONF_AEAD == 1
 #define HAVE_AEAD
 #endif
@@ -222,7 +258,11 @@
 #endif
 //  </e>
 //      <e>CAMELLIA
+<<<<<<< HEAD
 #define MDK_CONF_CAMELLIA 1
+=======
+#define MDK_CONF_CAMELLIA 0
+>>>>>>> cyassl/master
 #if MDK_CONF_CAMELLIA == 1
 #define HAVE_CAMELLIA
 #endif
@@ -261,13 +301,21 @@
 #endif
 //  </e>
 //      <e>AESCCM (Turn off Hardware Crypt)
+<<<<<<< HEAD
 #define MDK_CONF_AESCCM 1
+=======
+#define MDK_CONF_AESCCM 0
+>>>>>>> cyassl/master
 #if MDK_CONF_AESCCM == 1
 #define HAVE_AESCCM
 #endif
 //  </e>
 //      <e>AESGCM (Turn off Hardware Crypt)
+<<<<<<< HEAD
 #define MDK_CONF_AESGCM 1
+=======
+#define MDK_CONF_AESGCM 0
+>>>>>>> cyassl/master
 #if MDK_CONF_AESGCM == 1
 #define HAVE_AESGCM
 #define BUILD_AESGCM
