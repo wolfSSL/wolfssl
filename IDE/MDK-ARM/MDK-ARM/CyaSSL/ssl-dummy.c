@@ -45,18 +45,9 @@ int CyaSSL_get_using_nonblock(CYASSL* ssl)
     CYASSL_LEAVE("CyaSSL_get_using_nonblock", ssl->options.usingNonblock);
     return ssl->options.usingNonblock;
 }
-<<<<<<< HEAD
 
 Signer* GetCAByName(void* vp, byte* hash)
 {
 		Signer * ca ;
     return(ca) ;
 }
-=======
-
-Signer* GetCAByName(void* vp, byte* hash)
-{
-    return NULL;
-}
-
->>>>>>> cyassl/master

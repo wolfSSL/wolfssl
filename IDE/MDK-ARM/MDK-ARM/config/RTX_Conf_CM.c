@@ -39,11 +39,7 @@
 //   <i> Set the stack size for tasks which is assigned by the system.
 //   <i> Default: 512
 #ifndef OS_STKSIZE
-<<<<<<< HEAD
  #define OS_STKSIZE     499
-=======
- #define OS_STKSIZE     250
->>>>>>> cyassl/master
 #endif
 
 // <q>Check for the stack overflow

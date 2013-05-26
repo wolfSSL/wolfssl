@@ -59,11 +59,7 @@ unsigned long inet_addr(const char *cp)
 /*** tcp_connect is actually associated with following syassl_tcp_connect. ***/
 int Cyassl_connect(int sd, const  struct sockaddr* sa, int sz) 
 {
-<<<<<<< HEAD
     int ret = 0 ;
-=======
-    int ret ;
->>>>>>> cyassl/master
     #if defined(CYASSL_KEIL_TCP_NET)  
     
     SOCKADDR_IN addr ;
@@ -90,11 +86,7 @@ int Cyassl_connect(int sd, const  struct sockaddr* sa, int sz)
 
 int Cyassl_accept(int sd, struct sockaddr *addr, int *addrlen) 
 {
-<<<<<<< HEAD
     int ret = 0 ;
-=======
-    int ret ;
->>>>>>> cyassl/master
 
     #if defined(CYASSL_KEIL_TCP_NET)
     while(1) {
@@ -118,11 +110,7 @@ int Cyassl_accept(int sd, struct sockaddr *addr, int *addrlen)
     
 int Cyassl_recv(int sd, void *buf, size_t len, int flags) 
 {
-<<<<<<< HEAD
     int ret  = 0;
-=======
-    int ret ;
->>>>>>> cyassl/master
     #if defined(CYASSL_KEIL_TCP_NET)  
     while(1) {
         #undef recv  /* Go to KEIL TCPnet recv */
@@ -144,11 +132,7 @@ int Cyassl_recv(int sd, void *buf, size_t len, int flags)
 
 int Cyassl_send(int sd, const void *buf, size_t len, int flags) 
 {
-<<<<<<< HEAD
     int  ret = 0 ;
-=======
-    int  ret ;
->>>>>>> cyassl/master
 
     #if defined(CYASSL_KEIL_TCP_NET)  
     while(1) {
@@ -186,43 +170,6 @@ int Cyassl_tcp_select(int sd, int timeout)
 }
 #endif
 
-<<<<<<< HEAD
-=======
-struct tm *Cyassl_MDK_gmtime(const time_t *c) 
-{ 
-
-    RTC_TimeTypeDef RTC_Time ;
-    RTC_DateTypeDef RTC_Date ;
-    static struct tm date ; 
-
-    RTC_GetTime(RTC_Format_BIN, &RTC_Time) ;
-    RTC_GetDate(RTC_Format_BIN, &RTC_Date) ;
-
-    date.tm_year = RTC_Date.RTC_Year + 100 ;
-    date.tm_mon = RTC_Date.RTC_Month - 1 ;
-    date.tm_mday = RTC_Date.RTC_Date ;
-    date.tm_hour = RTC_Time.RTC_Hours ;
-    date.tm_min = RTC_Time.RTC_Minutes ;
-    date.tm_sec = RTC_Time.RTC_Seconds ;
-
-    #if defined(DEBUG_CYASSL) 
-    {
-        char msg[100] ;
-        sprintf(msg, "Debug::Cyassl_KEIL_gmtime(DATE=/%4d/%02d/%02d TIME=%02d:%02d:%02d)\n",
-        RTC_Date.RTC_Year+2000,  RTC_Date.RTC_Month, RTC_Date.RTC_Date,
-        RTC_Time.RTC_Hours,  RTC_Time.RTC_Minutes,  RTC_Time.RTC_Seconds) ; 
-        CYASSL_MSG(msg) ;   
-    }
-    #endif
-    
-    return(&date) ;
-}
-
-double current_time() 
-{
-      return ((double)TIM2->CNT/1000000.0) ;
-}
->>>>>>> cyassl/master
 
 extern int getkey(void) ;
 extern int sendchar(int c) ;

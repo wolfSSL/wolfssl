@@ -76,11 +76,7 @@
 
 //  <h>STM32 Hardware Crypt
 //      <e>STM32F2 Hardware RNG
-<<<<<<< HEAD
 #define MDK_CONF_STM32F2_RNG 0
-=======
-#define MDK_CONF_STM32F2_RNG 1
->>>>>>> cyassl/master
 #if MDK_CONF_STM32F2_RNG == 1
 #define STM32F2_RNG
 #else
