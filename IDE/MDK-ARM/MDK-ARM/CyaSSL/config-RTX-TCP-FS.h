@@ -127,19 +127,19 @@
 //  </e>
 
 //      <e>CertGen
-#define MDK_CONF_CERT_GEN 1
+#define MDK_CONF_CERT_GEN 0
 #if MDK_CONF_CERT_GEN == 1
 #define CYASSL_CERT_GEN
 #endif
 //  </e>
 //      <e>KeyGen
-#define MDK_CONF_KEY_GEN 1
+#define MDK_CONF_KEY_GEN 0
 #if MDK_CONF_KEY_GEN == 1
 #define CYASSL_KEY_GEN
 #endif
 //  </e>
 //      <e>CRL
-#define MDK_CONF_DER_LOAD 1
+#define MDK_CONF_DER_LOAD 0
 #if MDK_CONF_DER_LOAD == 1
 #define CYASSL_DER_LOAD
 #endif
@@ -160,7 +160,7 @@
 //       <h>MD5, SHA, SHA-256, AES, RC4, ASN, RSA
 //        </h>
 //      <e>MD2
-#define MDK_CONF_MD2 1
+#define MDK_CONF_MD2 0
 #if MDK_CONF_MD2 == 1
 #define CYASSL_MD2
 #endif
@@ -173,13 +173,13 @@
 //  </e>
 //      <e>SHA-384
 //          <i>This has to be with SHA512
-#define MDK_CONF_SHA384 1
+#define MDK_CONF_SHA384 0
 #if MDK_CONF_SHA384 == 1
 #define CYASSL_SHA384
 #endif
 //  </e>
 //      <e>SHA-512          
-#define MDK_CONF_SHA512     1
+#define MDK_CONF_SHA512     0
 #if MDK_CONF_SHA512     == 1
 #define CYASSL_SHA512   
 #endif
@@ -197,7 +197,7 @@
 #endif
 //  </e>
 //      <e>HC128
-#define MDK_CONF_HC128 1
+#define MDK_CONF_HC128 0
 #if MDK_CONF_HC128 == 1
 #define HAVE_HC128
 #endif
@@ -210,7 +210,7 @@
 //  </e>
 
 //      <e>AEAD     
-#define MDK_CONF_AEAD 1
+#define MDK_CONF_AEAD 0
 #if MDK_CONF_AEAD == 1
 #define HAVE_AEAD
 #endif
@@ -222,7 +222,7 @@
 #endif
 //  </e>
 //      <e>CAMELLIA
-#define MDK_CONF_CAMELLIA 1
+#define MDK_CONF_CAMELLIA 0
 #if MDK_CONF_CAMELLIA == 1
 #define HAVE_CAMELLIA
 #endif
@@ -261,13 +261,13 @@
 #endif
 //  </e>
 //      <e>AESCCM (Turn off Hardware Crypt)
-#define MDK_CONF_AESCCM 1
+#define MDK_CONF_AESCCM 0
 #if MDK_CONF_AESCCM == 1
 #define HAVE_AESCCM
 #endif
 //  </e>
 //      <e>AESGCM (Turn off Hardware Crypt)
-#define MDK_CONF_AESGCM 1
+#define MDK_CONF_AESGCM 0
 #if MDK_CONF_AESGCM == 1
 #define HAVE_AESGCM
 #define BUILD_AESGCM
