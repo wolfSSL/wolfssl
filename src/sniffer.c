@@ -1198,7 +1198,9 @@ static int ProcessServerHello(const byte* input, int* sslBytes,
     *sslBytes -= b;
    
     /* cipher suite */ 
-    (void)*input++;  /* eat first byte, always 0 */
+    b = *input++;  /* first byte, ECC or not */
+    session->sslServer->options.cipherSuite0 = b;
+    session->sslClient->options.cipherSuite0 = b;
     b = *input++;
     session->sslServer->options.cipherSuite = b;
     session->sslClient->options.cipherSuite = b;
