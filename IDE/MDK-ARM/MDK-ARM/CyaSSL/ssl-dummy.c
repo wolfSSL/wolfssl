@@ -48,6 +48,6 @@ int CyaSSL_get_using_nonblock(CYASSL* ssl)
 
 Signer* GetCAByName(void* vp, byte* hash)
 {
-    return NULL;
+		Signer * ca ;
+    return(ca) ;
 }
-

@@ -23,8 +23,6 @@
     #include <config.h>
 #endif
 
-#include <cyassl/ctaocrypt/settings.h>
-
 /* on HPUX 11 you may need to install /dev/random see
    http://h20293.www2.hp.com/portal/swdepot/displayProductInfo.do?productNumber=KRNG11I
 
@@ -39,6 +37,7 @@
     #ifdef NO_INLINE
         #include <cyassl/ctaocrypt/misc.h>
     #else
+        #define MISC_DUMM_FUNC misc_dummy_random
         #include <ctaocrypt/src/misc.c>
     #endif
 #endif
@@ -60,7 +59,6 @@
     #endif
 #endif /* USE_WINDOWS_API */
 
-#if !defined( NO_CYASSL_RANDOM )
 
 #ifdef NO_RC4
 
@@ -569,16 +567,27 @@ int GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 
         return 0;
     }
+#elif defined(CYASSL_LPC43xx) || defined(CYASSL_STM32F2xx)
+    #warning "write a real random seed!!!!, just for testing now"
+    int GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+    {
+        int i;
+        for (i = 0; i < sz; i++ )
+            output[i] = i;
+            return 0;
+    }
 
 #elif defined(NO_DEV_RANDOM)
 
 #error "you need to write an os specific GenerateSeed() here"
+
 /*
 int GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 {
     return 0;
 }
 */
+
 
 #else /* !USE_WINDOWS_API && !THREADX && !MICRIUM && !NO_DEV_RANDOM */
 
@@ -622,4 +631,3 @@ int GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 
 #endif /* USE_WINDOWS_API */
 
-#endif /* NO_CYASSL_RANDOM */

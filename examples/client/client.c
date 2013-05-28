@@ -133,6 +133,9 @@ static void Usage(void)
     printf("-S <str>    Use Host Name Indication\n");
 }
 
+#ifdef CYASSL_MDK_SHELL
+#define exit(code) return(code)
+#endif
 
 #ifdef CYASSL_MDK_SHELL
     #define exit(code) return(code)

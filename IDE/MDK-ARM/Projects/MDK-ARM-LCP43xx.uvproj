@@ -12,14 +12,14 @@
       <ToolsetName>ARM-ADS</ToolsetName>
       <TargetOption>
         <TargetCommonOption>
-          <Device>STM32F207IG</Device>
-          <Vendor>STMicroelectronics</Vendor>
-          <Cpu>IRAM(0x20000000-0x2001FFFF) IROM(0x8000000-0x80FFFFF) CLOCK(25000000) CPUTYPE("Cortex-M3")</Cpu>
+          <Device>LPC4357</Device>
+          <Vendor>NXP (founded by Philips)</Vendor>
+          <Cpu>IRAM(0x10000000-0x10007FFF) IRAM2(0x20000000-0x2000FFFF) IROM(0x1A000000-0x1A07FFFF) IROM2(0x1B000000-0x1B07FFFF) CLOCK(12000000) CPUTYPE("Cortex-M4") FPU2</Cpu>
           <FlashUtilSpec></FlashUtilSpec>
-          <StartupFile>"STARTUP\ST\STM32F2xx\startup_stm32f2xx.s" ("STM32F2xx Startup Code")</StartupFile>
-          <FlashDriverDll>UL2CM3(-O207 -S0 -C0 -FO7 -FD20000000 -FC800 -FN1 -FF0STM32F2xx_1024 -FS08000000 -FL0100000)</FlashDriverDll>
-          <DeviceId>5124</DeviceId>
-          <RegisterFile>stm32f2xx.h</RegisterFile>
+          <StartupFile>"STARTUP\NXP\LPC43xx\startup_LPC43xx.s" ("NXP LPC43xx Startup Code")</StartupFile>
+          <FlashDriverDll>UL2CM3(-O975 -S0 -C0 -FO7 -FD10000000 -FC800 -FN2 -FF0LPC18xx43xx_512_BA -FS01A000000 -FL080000 -FF1LPC18xx43xx_512_BB -FS11B000000 -FL180000)</FlashDriverDll>
+          <DeviceId>6414</DeviceId>
+          <RegisterFile>LPC43xx.H</RegisterFile>
           <MemoryEnv></MemoryEnv>
           <Cmp></Cmp>
           <Asm></Asm>
@@ -29,13 +29,13 @@
           <SLE66CMisc></SLE66CMisc>
           <SLE66AMisc></SLE66AMisc>
           <SLE66LinkerMisc></SLE66LinkerMisc>
-          <SFDFile>SFD\ST\STM32F2xx\STM32F20x.sfr</SFDFile>
+          <SFDFile>SFD\NXP\LPC43xx\LPC43xx.SFR</SFDFile>
           <UseEnv>0</UseEnv>
           <BinPath></BinPath>
           <IncludePath></IncludePath>
           <LibPath></LibPath>
-          <RegisterFilePath>ST\STM32F2xx\</RegisterFilePath>
-          <DBRegisterFilePath>ST\STM32F2xx\</DBRegisterFilePath>
+          <RegisterFilePath>NXP\LPC43xx\</RegisterFilePath>
+          <DBRegisterFilePath>NXP\LPC43xx\</DBRegisterFilePath>
           <TargetStatus>
             <Error>0</Error>
             <ExitCodeStop>0</ExitCodeStop>
@@ -44,13 +44,13 @@
             <InvalidFlash>1</InvalidFlash>
           </TargetStatus>
           <OutputDirectory>.\MDK-RTX-TCP-FS\</OutputDirectory>
-          <OutputName>STM32F2xx-MDK-RTX-TCP-FS</OutputName>
+          <OutputName>LCP43xx-MDK-RTX-TCP-FS</OutputName>
           <CreateExecutable>1</CreateExecutable>
           <CreateLib>0</CreateLib>
           <CreateHexFile>0</CreateHexFile>
           <DebugInformation>1</DebugInformation>
           <BrowseInformation>1</BrowseInformation>
-          <ListingPath>.\Flash\</ListingPath>
+          <ListingPath>.\Lst\</ListingPath>
           <HexFormatSelection>1</HexFormatSelection>
           <Merge32K>0</Merge32K>
           <CreateBatchFile>0</CreateBatchFile>
@@ -73,9 +73,9 @@
             <UserProg2Dos16Mode>0</UserProg2Dos16Mode>
           </BeforeMake>
           <AfterMake>
-            <RunUserProg1>0</RunUserProg1>
+            <RunUserProg1>1</RunUserProg1>
             <RunUserProg2>0</RunUserProg2>
-            <UserProg1Name></UserProg1Name>
+            <UserProg1Name>$K\ARM\BIN\ElfDwT.exe !L BASEADDRESS(0x1A00000)</UserProg1Name>
             <UserProg2Name></UserProg2Name>
             <UserProg1Dos16Mode>0</UserProg1Dos16Mode>
             <UserProg2Dos16Mode>0</UserProg2Dos16Mode>
@@ -101,12 +101,12 @@
         <DllOption>
           <SimDllName>SARMCM3.DLL</SimDllName>
           <SimDllArguments>-MPU</SimDllArguments>
-          <SimDlgDll>DARMSTM.DLL</SimDlgDll>
-          <SimDlgDllArguments>-pSTM32F207IG</SimDlgDllArguments>
+          <SimDlgDll>DCM.DLL</SimDlgDll>
+          <SimDlgDllArguments>-pCM4</SimDlgDllArguments>
           <TargetDllName>SARMCM3.DLL</TargetDllName>
           <TargetDllArguments>-MPU</TargetDllArguments>
-          <TargetDlgDll>TARMSTM.DLL</TargetDlgDll>
-          <TargetDlgDllArguments>-pSTM32F207IG</TargetDlgDllArguments>
+          <TargetDlgDll>TCM.DLL</TargetDlgDll>
+          <TargetDlgDllArguments>-pCM4</TargetDlgDllArguments>
         </DllOption>
         <DebugOption>
           <OPTHX>
@@ -130,7 +130,7 @@
           <Target>
             <UseTarget>1</UseTarget>
             <LoadApplicationAtStartup>1</LoadApplicationAtStartup>
-            <RunToMain>0</RunToMain>
+            <RunToMain>1</RunToMain>
             <RestoreBreakpoints>1</RestoreBreakpoints>
             <RestoreWatchpoints>1</RestoreWatchpoints>
             <RestoreMemoryDisplay>1</RestoreMemoryDisplay>
@@ -152,7 +152,7 @@
             <CpuDllArguments></CpuDllArguments>
             <PeripheralDll></PeripheralDll>
             <PeripheralDllArguments></PeripheralDllArguments>
-            <InitializationFile>..\MDK-ARM\config\STM32_SWO.ini</InitializationFile>
+            <InitializationFile>..\MDK-ARM\config\Dbg_Flash.ini</InitializationFile>
             <Driver>BIN\ULP2CM3.DLL</Driver>
           </TargetDlls>
         </DebugOption>
@@ -199,7 +199,7 @@
             <AdsLsxf>1</AdsLsxf>
             <RvctClst>0</RvctClst>
             <GenPPlst>0</GenPPlst>
-            <AdsCpuType>"Cortex-M3"</AdsCpuType>
+            <AdsCpuType>"Cortex-M4"</AdsCpuType>
             <RvctDeviceName></RvctDeviceName>
             <mOS>0</mOS>
             <uocRom>0</uocRom>
@@ -208,16 +208,16 @@
             <hadIRAM>1</hadIRAM>
             <hadXRAM>0</hadXRAM>
             <uocXRam>0</uocXRam>
-            <RvdsVP>0</RvdsVP>
-            <hadIRAM2>0</hadIRAM2>
-            <hadIROM2>0</hadIROM2>
+            <RvdsVP>1</RvdsVP>
+            <hadIRAM2>1</hadIRAM2>
+            <hadIROM2>1</hadIROM2>
             <StupSel>8</StupSel>
             <useUlib>0</useUlib>
             <EndSel>0</EndSel>
             <uLtcg>0</uLtcg>
             <RoSelD>3</RoSelD>
             <RwSelD>3</RwSelD>
-            <CodeSel>0</CodeSel>
+            <CodeSel>1</CodeSel>
             <OptFeed>0</OptFeed>
             <NoZi1>0</NoZi1>
             <NoZi2>0</NoZi2>
@@ -228,12 +228,12 @@
             <Ro2Chk>0</Ro2Chk>
             <Ro3Chk>0</Ro3Chk>
             <Ir1Chk>1</Ir1Chk>
-            <Ir2Chk>0</Ir2Chk>
-            <Ra1Chk>0</Ra1Chk>
+            <Ir2Chk>1</Ir2Chk>
+            <Ra1Chk>1</Ra1Chk>
             <Ra2Chk>0</Ra2Chk>
             <Ra3Chk>0</Ra3Chk>
             <Im1Chk>1</Im1Chk>
-            <Im2Chk>0</Im2Chk>
+            <Im2Chk>1</Im2Chk>
             <OnChipMemories>
               <Ocm1>
                 <Type>0</Type>
@@ -267,13 +267,13 @@
               </Ocm6>
               <IRAM>
                 <Type>0</Type>
-                <StartAddress>0x20000000</StartAddress>
-                <Size>0x20000</Size>
+                <StartAddress>0x10000000</StartAddress>
+                <Size>0x8000</Size>
               </IRAM>
               <IROM>
                 <Type>1</Type>
-                <StartAddress>0x8000000</StartAddress>
-                <Size>0x100000</Size>
+                <StartAddress>0x1a000000</StartAddress>
+                <Size>0x80000</Size>
               </IROM>
               <XRAM>
                 <Type>0</Type>
@@ -297,18 +297,18 @@
               </OCR_RVCT3>
               <OCR_RVCT4>
                 <Type>1</Type>
-                <StartAddress>0x8000000</StartAddress>
-                <Size>0x100000</Size>
+                <StartAddress>0x1a000000</StartAddress>
+                <Size>0x80000</Size>
               </OCR_RVCT4>
               <OCR_RVCT5>
                 <Type>1</Type>
-                <StartAddress>0x0</StartAddress>
-                <Size>0x0</Size>
+                <StartAddress>0x1b000000</StartAddress>
+                <Size>0x80000</Size>
               </OCR_RVCT5>
               <OCR_RVCT6>
                 <Type>0</Type>
-                <StartAddress>0x0</StartAddress>
-                <Size>0x0</Size>
+                <StartAddress>0x10080000</StartAddress>
+                <Size>0xa000</Size>
               </OCR_RVCT6>
               <OCR_RVCT7>
                 <Type>0</Type>
@@ -322,20 +322,20 @@
               </OCR_RVCT8>
               <OCR_RVCT9>
                 <Type>0</Type>
-                <StartAddress>0x20000000</StartAddress>
-                <Size>0x20000</Size>
+                <StartAddress>0x10000000</StartAddress>
+                <Size>0x8000</Size>
               </OCR_RVCT9>
               <OCR_RVCT10>
                 <Type>0</Type>
-                <StartAddress>0x0</StartAddress>
-                <Size>0x0</Size>
+                <StartAddress>0x20000000</StartAddress>
+                <Size>0x10000</Size>
               </OCR_RVCT10>
             </OnChipMemories>
             <RvctStartVector></RvctStartVector>
           </ArmAdsMisc>
           <Cads>
             <interw>1</interw>
-            <Optim>1</Optim>
+            <Optim>4</Optim>
             <oTime>0</oTime>
             <SplitLS>0</SplitLS>
             <OneElfS>0</OneElfS>
@@ -349,16 +349,16 @@
             <uSurpInc>0</uSurpInc>
             <VariousControls>
               <MiscControls></MiscControls>
-              <Define>HAVE_CONFIG_H CYASSL_STM32F2xx __DBG_ITM __RTX USE_STDPERIPH_DRIVER MDK_CONF_RTX_TCP_FS</Define>
+              <Define>HAVE_CONFIG_H CYASSL_LPC43xx  __DBG_ITM  CORE_M4  __RTX USE_STDPERIPH_DRIVER  MDK_CONF_RTX_TCP_FS</Define>
               <Undefine></Undefine>
-              <IncludePath>..\MDK-ARM\CyaSSL;C:..\STM32F2xx_StdPeriph_Lib\inc;..\..\..\</IncludePath>
+              <IncludePath>..\MDK-ARM\CyaSSL;../../..;..\LPC43xx\Drivers\include;..\LPC43xx\LPC43xx\Include</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
             <interw>1</interw>
             <Ropi>0</Ropi>
             <Rwpi>0</Rwpi>
-            <thumb>0</thumb>
+            <thumb>1</thumb>
             <SplitLS>0</SplitLS>
             <SwStkChk>0</SwStkChk>
             <NoWarn>0</NoWarn>
@@ -377,13 +377,13 @@
             <noStLib>0</noStLib>
             <RepFail>1</RepFail>
             <useFile>0</useFile>
-            <TextAddressRange>0x08000000</TextAddressRange>
-            <DataAddressRange>0x20000000</DataAddressRange>
+            <TextAddressRange></TextAddressRange>
+            <DataAddressRange></DataAddressRange>
             <ScatterFile></ScatterFile>
             <IncludeLibs></IncludeLibs>
             <IncludeLibsPath></IncludeLibsPath>
-            <Misc>
-</Misc>            <LinkerInputFile></LinkerInputFile>
+            <Misc></Misc>
+            <LinkerInputFile></LinkerInputFile>
             <DisabledWarnings></DisabledWarnings>
           </LDads>
         </TargetArmAds>
@@ -440,58 +440,33 @@
           </Files>
         </Group>
         <Group>
-          <GroupName>STM32F2xx_StdPeriph_Lib</GroupName>
+          <GroupName>LPC43xx</GroupName>
           <Files>
             <File>
-              <FileName>stm32f2xx_cryp.c</FileName>
+              <FileName>lpc43xx_rtc.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\STM32F2xx_StdPeriph_Lib\src\stm32f2xx_cryp.c</FilePath>
+              <FilePath>..\LPC43xx\Drivers\source\lpc43xx_rtc.c</FilePath>
             </File>
             <File>
-              <FileName>stm32f2xx_hash.c</FileName>
+              <FileName>lpc43xx_timer.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\STM32F2xx_StdPeriph_Lib\src\stm32f2xx_hash.c</FilePath>
+              <FilePath>..\LPC43xx\Drivers\source\lpc43xx_timer.c</FilePath>
             </File>
             <File>
-              <FileName>stm32f2xx_rcc.c</FileName>
+              <FileName>lpc43xx_cgu.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\STM32F2xx_StdPeriph_Lib\src\stm32f2xx_rcc.c</FilePath>
+              <FilePath>..\LPC43xx\Drivers\source\lpc43xx_cgu.c</FilePath>
             </File>
             <File>
-              <FileName>stm32f2xx_rng.c</FileName>
+              <FileName>lpc43xx_scu.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\STM32F2xx_StdPeriph_Lib\src\stm32f2xx_rng.c</FilePath>
-            </File>
-            <File>
-              <FileName>stm32f2xx_rtc.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\STM32F2xx_StdPeriph_Lib\src\stm32f2xx_rtc.c</FilePath>
-            </File>
-            <File>
-              <FileName>stm32f2xx_pwr.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\STM32F2xx_StdPeriph_Lib\src\stm32f2xx_pwr.c</FilePath>
-            </File>
-            <File>
-              <FileName>stm32f2xx_tim.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\STM32F2xx_StdPeriph_Lib\src\stm32f2xx_tim.c</FilePath>
+              <FilePath>..\LPC43xx\Drivers\source\lpc43xx_scu.c</FilePath>
             </File>
           </Files>
         </Group>
         <Group>
           <GroupName>MDK-ARM</GroupName>
           <Files>
-            <File>
-              <FileName>Serial.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>c:\Keil\ARM\Boards\Keil\MCBSTM32F200\RL\FlashFS\SD_File\Serial.c</FilePath>
-            </File>
-            <File>
-              <FileName>SDIO_STM32F2xx.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>c:\Keil\ARM\RL\FlashFS\Drivers\SDIO_STM32F2xx.c</FilePath>
-            </File>
             <File>
               <FileName>FS_CM3.lib</FileName>
               <FileType>4</FileType>
@@ -501,11 +476,6 @@
               <FileName>RTX_CM3.lib</FileName>
               <FileType>4</FileType>
               <FilePath>c:\Keil\ARM\RV31\LIB\\RTX_CM3.lib</FilePath>
-            </File>
-            <File>
-              <FileName>ETH_STM32F2xx.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>c:\Keil\ARM\RL\TCPnet\Drivers\ETH_STM32F2xx.c</FilePath>
             </File>
             <File>
               <FileName>TCPD_CM3.lib</FileName>
@@ -536,9 +506,24 @@
               <FilePath>c:\Keil\ARM\RV31\LIB\TCP_CM3.lib</FilePath>
             </File>
             <File>
-              <FileName>system_stm32f2xx.c</FileName>
+              <FileName>Serial.c</FileName>
               <FileType>1</FileType>
-              <FilePath>C:\Keil\ARM\Startup\ST\STM32F2xx\system_stm32f2xx.c</FilePath>
+              <FilePath>C:\Keil\ARM\Boards\Keil\MCB4300\RL\FlashFS\SD_File\Serial.c</FilePath>
+            </File>
+            <File>
+              <FileName>ETH_LPC43xx.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>C:\Keil\ARM\RL\TCPnet\Drivers\ETH_LPC43xx.c</FilePath>
+            </File>
+            <File>
+              <FileName>SDIO_LPC43xx.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>C:\Keil\ARM\Boards\Keil\MCB4300\RL\FlashFS\SD_File\SDIO_LPC43xx.c</FilePath>
+            </File>
+            <File>
+              <FileName>system_LPC43xx.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>C:\Keil\ARM\Boards\Keil\MCB4300\RL\FlashFS\SD_File\system_LPC43xx.c</FilePath>
             </File>
           </Files>
         </Group>
@@ -911,9 +896,9 @@
               <FilePath>..\MDK-ARM\CyaSSL\config-BARE-METAL.h</FilePath>
             </File>
             <File>
-              <FileName>startup_stm32f2xx.s</FileName>
+              <FileName>startup_LPC43xx.s</FileName>
               <FileType>2</FileType>
-              <FilePath>..\MDK-ARM\config\startup_stm32f2xx.s</FilePath>
+              <FilePath>..\LPC43xx\startup_LPC43xx.s</FilePath>
             </File>
           </Files>
         </Group>
@@ -931,9 +916,9 @@
               <FilePath>..\MDK-ARM\CyaSSL\Retarget.c</FilePath>
             </File>
             <File>
-              <FileName>time-STM32F2xx.c</FileName>
+              <FileName>time-LCP43xx.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\STM32F2xx_StdPeriph_Lib\time-STM32F2xx.c</FilePath>
+              <FilePath>..\LPC43xx\time-LCP43xx.c</FilePath>
             </File>
           </Files>
         </Group>
@@ -945,14 +930,14 @@
       <ToolsetName>ARM-ADS</ToolsetName>
       <TargetOption>
         <TargetCommonOption>
-          <Device>STM32F207IG</Device>
-          <Vendor>STMicroelectronics</Vendor>
-          <Cpu>IRAM(0x20000000-0x2001FFFF) IROM(0x8000000-0x80FFFFF) CLOCK(25000000) CPUTYPE("Cortex-M3")</Cpu>
+          <Device>LPC4357</Device>
+          <Vendor>NXP (founded by Philips)</Vendor>
+          <Cpu>IRAM(0x10000000-0x10007FFF) IRAM2(0x20000000-0x2000FFFF) IROM(0x1A000000-0x1A07FFFF) IROM2(0x1B000000-0x1B07FFFF) CLOCK(12000000) CPUTYPE("Cortex-M4") FPU2</Cpu>
           <FlashUtilSpec></FlashUtilSpec>
-          <StartupFile>"STARTUP\ST\STM32F2xx\startup_stm32f2xx.s" ("STM32F2xx Startup Code")</StartupFile>
-          <FlashDriverDll>UL2CM3(-O207 -S0 -C0 -FO7 -FD20000000 -FC800 -FN1 -FF0STM32F2xx_1024 -FS08000000 -FL0100000)</FlashDriverDll>
-          <DeviceId>5124</DeviceId>
-          <RegisterFile>stm32f2xx.h</RegisterFile>
+          <StartupFile>"STARTUP\NXP\LPC43xx\startup_LPC43xx.s" ("NXP LPC43xx Startup Code")</StartupFile>
+          <FlashDriverDll>UL2CM3(-O975 -S0 -C0 -FO7 -FD10000000 -FC800 -FN2 -FF0LPC18xx43xx_512_BA -FS01A000000 -FL080000 -FF1LPC18xx43xx_512_BB -FS11B000000 -FL180000)</FlashDriverDll>
+          <DeviceId>6414</DeviceId>
+          <RegisterFile>LPC43xx.H</RegisterFile>
           <MemoryEnv></MemoryEnv>
           <Cmp></Cmp>
           <Asm></Asm>
@@ -962,13 +947,13 @@
           <SLE66CMisc></SLE66CMisc>
           <SLE66AMisc></SLE66AMisc>
           <SLE66LinkerMisc></SLE66LinkerMisc>
-          <SFDFile>SFD\ST\STM32F2xx\STM32F20x.sfr</SFDFile>
+          <SFDFile>SFD\NXP\LPC43xx\LPC43xx.SFR</SFDFile>
           <UseEnv>0</UseEnv>
           <BinPath></BinPath>
           <IncludePath></IncludePath>
           <LibPath></LibPath>
-          <RegisterFilePath>ST\STM32F2xx\</RegisterFilePath>
-          <DBRegisterFilePath>ST\STM32F2xx\</DBRegisterFilePath>
+          <RegisterFilePath>NXP\LPC43xx\</RegisterFilePath>
+          <DBRegisterFilePath>NXP\LPC43xx\</DBRegisterFilePath>
           <TargetStatus>
             <Error>0</Error>
             <ExitCodeStop>0</ExitCodeStop>
@@ -977,13 +962,13 @@
             <InvalidFlash>1</InvalidFlash>
           </TargetStatus>
           <OutputDirectory>.\MDK-FS\</OutputDirectory>
-          <OutputName>STM32F2xx-MDK-FS</OutputName>
+          <OutputName>LCP43xx-MDK-FS</OutputName>
           <CreateExecutable>1</CreateExecutable>
           <CreateLib>0</CreateLib>
           <CreateHexFile>0</CreateHexFile>
           <DebugInformation>1</DebugInformation>
           <BrowseInformation>1</BrowseInformation>
-          <ListingPath>.\Flash\</ListingPath>
+          <ListingPath>.\Lst\</ListingPath>
           <HexFormatSelection>1</HexFormatSelection>
           <Merge32K>0</Merge32K>
           <CreateBatchFile>0</CreateBatchFile>
@@ -1006,9 +991,9 @@
             <UserProg2Dos16Mode>0</UserProg2Dos16Mode>
           </BeforeMake>
           <AfterMake>
-            <RunUserProg1>0</RunUserProg1>
+            <RunUserProg1>1</RunUserProg1>
             <RunUserProg2>0</RunUserProg2>
-            <UserProg1Name></UserProg1Name>
+            <UserProg1Name>$K\ARM\BIN\ElfDwT.exe !L BASEADDRESS(0x1A000000)</UserProg1Name>
             <UserProg2Name></UserProg2Name>
             <UserProg1Dos16Mode>0</UserProg1Dos16Mode>
             <UserProg2Dos16Mode>0</UserProg2Dos16Mode>
@@ -1034,12 +1019,12 @@
         <DllOption>
           <SimDllName>SARMCM3.DLL</SimDllName>
           <SimDllArguments>-MPU</SimDllArguments>
-          <SimDlgDll>DARMSTM.DLL</SimDlgDll>
-          <SimDlgDllArguments>-pSTM32F207IG</SimDlgDllArguments>
+          <SimDlgDll>DCM.DLL</SimDlgDll>
+          <SimDlgDllArguments>-pCM4</SimDlgDllArguments>
           <TargetDllName>SARMCM3.DLL</TargetDllName>
           <TargetDllArguments>-MPU</TargetDllArguments>
-          <TargetDlgDll>TARMSTM.DLL</TargetDlgDll>
-          <TargetDlgDllArguments>-pSTM32F207IG</TargetDlgDllArguments>
+          <TargetDlgDll>TCM.DLL</TargetDlgDll>
+          <TargetDlgDllArguments>-pCM4</TargetDlgDllArguments>
         </DllOption>
         <DebugOption>
           <OPTHX>
@@ -1085,7 +1070,7 @@
             <CpuDllArguments></CpuDllArguments>
             <PeripheralDll></PeripheralDll>
             <PeripheralDllArguments></PeripheralDllArguments>
-            <InitializationFile>..\MDK-ARM\config\STM32_SWO.ini</InitializationFile>
+            <InitializationFile>..\MDK-ARM\config\Dbg_Flash.ini</InitializationFile>
             <Driver>BIN\ULP2CM3.DLL</Driver>
           </TargetDlls>
         </DebugOption>
@@ -1132,7 +1117,7 @@
             <AdsLsxf>1</AdsLsxf>
             <RvctClst>0</RvctClst>
             <GenPPlst>0</GenPPlst>
-            <AdsCpuType>"Cortex-M3"</AdsCpuType>
+            <AdsCpuType>"Cortex-M4"</AdsCpuType>
             <RvctDeviceName></RvctDeviceName>
             <mOS>0</mOS>
             <uocRom>0</uocRom>
@@ -1141,16 +1126,16 @@
             <hadIRAM>1</hadIRAM>
             <hadXRAM>0</hadXRAM>
             <uocXRam>0</uocXRam>
-            <RvdsVP>0</RvdsVP>
-            <hadIRAM2>0</hadIRAM2>
-            <hadIROM2>0</hadIROM2>
+            <RvdsVP>1</RvdsVP>
+            <hadIRAM2>1</hadIRAM2>
+            <hadIROM2>1</hadIROM2>
             <StupSel>8</StupSel>
             <useUlib>0</useUlib>
             <EndSel>0</EndSel>
             <uLtcg>0</uLtcg>
             <RoSelD>3</RoSelD>
             <RwSelD>3</RwSelD>
-            <CodeSel>0</CodeSel>
+            <CodeSel>1</CodeSel>
             <OptFeed>0</OptFeed>
             <NoZi1>0</NoZi1>
             <NoZi2>0</NoZi2>
@@ -1161,12 +1146,12 @@
             <Ro2Chk>0</Ro2Chk>
             <Ro3Chk>0</Ro3Chk>
             <Ir1Chk>1</Ir1Chk>
-            <Ir2Chk>0</Ir2Chk>
-            <Ra1Chk>0</Ra1Chk>
+            <Ir2Chk>1</Ir2Chk>
+            <Ra1Chk>1</Ra1Chk>
             <Ra2Chk>0</Ra2Chk>
             <Ra3Chk>0</Ra3Chk>
             <Im1Chk>1</Im1Chk>
-            <Im2Chk>0</Im2Chk>
+            <Im2Chk>1</Im2Chk>
             <OnChipMemories>
               <Ocm1>
                 <Type>0</Type>
@@ -1200,13 +1185,13 @@
               </Ocm6>
               <IRAM>
                 <Type>0</Type>
-                <StartAddress>0x20000000</StartAddress>
-                <Size>0x20000</Size>
+                <StartAddress>0x10000000</StartAddress>
+                <Size>0x8000</Size>
               </IRAM>
               <IROM>
                 <Type>1</Type>
-                <StartAddress>0x8000000</StartAddress>
-                <Size>0x100000</Size>
+                <StartAddress>0x1a000000</StartAddress>
+                <Size>0x80000</Size>
               </IROM>
               <XRAM>
                 <Type>0</Type>
@@ -1230,18 +1215,18 @@
               </OCR_RVCT3>
               <OCR_RVCT4>
                 <Type>1</Type>
-                <StartAddress>0x8000000</StartAddress>
-                <Size>0x100000</Size>
+                <StartAddress>0x1a000000</StartAddress>
+                <Size>0x80000</Size>
               </OCR_RVCT4>
               <OCR_RVCT5>
                 <Type>1</Type>
-                <StartAddress>0x0</StartAddress>
-                <Size>0x0</Size>
+                <StartAddress>0x1b000000</StartAddress>
+                <Size>0x80000</Size>
               </OCR_RVCT5>
               <OCR_RVCT6>
                 <Type>0</Type>
-                <StartAddress>0x0</StartAddress>
-                <Size>0x0</Size>
+                <StartAddress>0x10080000</StartAddress>
+                <Size>0xa000</Size>
               </OCR_RVCT6>
               <OCR_RVCT7>
                 <Type>0</Type>
@@ -1255,20 +1240,20 @@
               </OCR_RVCT8>
               <OCR_RVCT9>
                 <Type>0</Type>
-                <StartAddress>0x20000000</StartAddress>
-                <Size>0x20000</Size>
+                <StartAddress>0x10000000</StartAddress>
+                <Size>0x8000</Size>
               </OCR_RVCT9>
               <OCR_RVCT10>
                 <Type>0</Type>
-                <StartAddress>0x0</StartAddress>
-                <Size>0x0</Size>
+                <StartAddress>0x20000000</StartAddress>
+                <Size>0x10000</Size>
               </OCR_RVCT10>
             </OnChipMemories>
             <RvctStartVector></RvctStartVector>
           </ArmAdsMisc>
           <Cads>
             <interw>1</interw>
-            <Optim>1</Optim>
+            <Optim>4</Optim>
             <oTime>0</oTime>
             <SplitLS>0</SplitLS>
             <OneElfS>0</OneElfS>
@@ -1282,16 +1267,16 @@
             <uSurpInc>0</uSurpInc>
             <VariousControls>
               <MiscControls></MiscControls>
-              <Define>HAVE_CONFIG_H  CYASSL_STM32F2xx __DBG_ITM USE_STDPERIPH_DRIVER  MDK_CONF_FS</Define>
+              <Define>HAVE_CONFIG_H CYASSL_LPC43xx  __DBG_ITM CORE_M4  __RTX USE_STDPERIPH_DRIVER  MDK_CONF_FS</Define>
               <Undefine></Undefine>
-              <IncludePath>..\MDK-ARM\CyaSSL;..\MDK-ARM\inc;..\STM32F2xx_StdPeriph_Lib\inc;..\POSIX\..\..\..\</IncludePath>
+              <IncludePath>..\MDK-ARM\CyaSSL;../../..;..\LPC43xx\Drivers\include;..\LPC43xx\LPC43xx\Include</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
             <interw>1</interw>
             <Ropi>0</Ropi>
             <Rwpi>0</Rwpi>
-            <thumb>0</thumb>
+            <thumb>1</thumb>
             <SplitLS>0</SplitLS>
             <SwStkChk>0</SwStkChk>
             <NoWarn>0</NoWarn>
@@ -1310,8 +1295,8 @@
             <noStLib>0</noStLib>
             <RepFail>1</RepFail>
             <useFile>0</useFile>
-            <TextAddressRange>0x08000000</TextAddressRange>
-            <DataAddressRange>0x20000000</DataAddressRange>
+            <TextAddressRange></TextAddressRange>
+            <DataAddressRange></DataAddressRange>
             <ScatterFile></ScatterFile>
             <IncludeLibs></IncludeLibs>
             <IncludeLibsPath></IncludeLibsPath>
@@ -1533,58 +1518,33 @@
           </Files>
         </Group>
         <Group>
-          <GroupName>STM32F2xx_StdPeriph_Lib</GroupName>
+          <GroupName>LPC43xx</GroupName>
           <Files>
             <File>
-              <FileName>stm32f2xx_cryp.c</FileName>
+              <FileName>lpc43xx_rtc.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\STM32F2xx_StdPeriph_Lib\src\stm32f2xx_cryp.c</FilePath>
+              <FilePath>..\LPC43xx\Drivers\source\lpc43xx_rtc.c</FilePath>
             </File>
             <File>
-              <FileName>stm32f2xx_hash.c</FileName>
+              <FileName>lpc43xx_timer.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\STM32F2xx_StdPeriph_Lib\src\stm32f2xx_hash.c</FilePath>
+              <FilePath>..\LPC43xx\Drivers\source\lpc43xx_timer.c</FilePath>
             </File>
             <File>
-              <FileName>stm32f2xx_rcc.c</FileName>
+              <FileName>lpc43xx_cgu.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\STM32F2xx_StdPeriph_Lib\src\stm32f2xx_rcc.c</FilePath>
+              <FilePath>..\LPC43xx\Drivers\source\lpc43xx_cgu.c</FilePath>
             </File>
             <File>
-              <FileName>stm32f2xx_rng.c</FileName>
+              <FileName>lpc43xx_scu.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\STM32F2xx_StdPeriph_Lib\src\stm32f2xx_rng.c</FilePath>
-            </File>
-            <File>
-              <FileName>stm32f2xx_rtc.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\STM32F2xx_StdPeriph_Lib\src\stm32f2xx_rtc.c</FilePath>
-            </File>
-            <File>
-              <FileName>stm32f2xx_pwr.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\STM32F2xx_StdPeriph_Lib\src\stm32f2xx_pwr.c</FilePath>
-            </File>
-            <File>
-              <FileName>stm32f2xx_tim.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\STM32F2xx_StdPeriph_Lib\src\stm32f2xx_tim.c</FilePath>
+              <FilePath>..\LPC43xx\Drivers\source\lpc43xx_scu.c</FilePath>
             </File>
           </Files>
         </Group>
         <Group>
           <GroupName>MDK-ARM</GroupName>
           <Files>
-            <File>
-              <FileName>Serial.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>c:\Keil\ARM\Boards\Keil\MCBSTM32F200\RL\FlashFS\SD_File\Serial.c</FilePath>
-            </File>
-            <File>
-              <FileName>SDIO_STM32F2xx.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>c:\Keil\ARM\RL\FlashFS\Drivers\SDIO_STM32F2xx.c</FilePath>
-            </File>
             <File>
               <FileName>FS_CM3.lib</FileName>
               <FileType>4</FileType>
@@ -1611,51 +1571,6 @@
                   <IncludeLibraryModules></IncludeLibraryModules>
                 </CommonProperty>
                 <FileArmAds/>
-              </FileOption>
-            </File>
-            <File>
-              <FileName>ETH_STM32F2xx.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>c:\Keil\ARM\RL\TCPnet\Drivers\ETH_STM32F2xx.c</FilePath>
-              <FileOption>
-                <CommonProperty>
-                  <UseCPPCompiler>2</UseCPPCompiler>
-                  <RVCTCodeConst>0</RVCTCodeConst>
-                  <RVCTZI>0</RVCTZI>
-                  <RVCTOtherData>0</RVCTOtherData>
-                  <ModuleSelection>0</ModuleSelection>
-                  <IncludeInBuild>0</IncludeInBuild>
-                  <AlwaysBuild>2</AlwaysBuild>
-                  <GenerateAssemblyFile>2</GenerateAssemblyFile>
-                  <AssembleAssemblyFile>2</AssembleAssemblyFile>
-                  <PublicsOnly>2</PublicsOnly>
-                  <StopOnExitCode>11</StopOnExitCode>
-                  <CustomArgument></CustomArgument>
-                  <IncludeLibraryModules></IncludeLibraryModules>
-                </CommonProperty>
-                <FileArmAds>
-                  <Cads>
-                    <interw>2</interw>
-                    <Optim>0</Optim>
-                    <oTime>2</oTime>
-                    <SplitLS>2</SplitLS>
-                    <OneElfS>2</OneElfS>
-                    <Strict>2</Strict>
-                    <EnumInt>2</EnumInt>
-                    <PlainCh>2</PlainCh>
-                    <Ropi>2</Ropi>
-                    <Rwpi>2</Rwpi>
-                    <wLevel>0</wLevel>
-                    <uThumb>2</uThumb>
-                    <uSurpInc>2</uSurpInc>
-                    <VariousControls>
-                      <MiscControls></MiscControls>
-                      <Define></Define>
-                      <Undefine></Undefine>
-                      <IncludePath></IncludePath>
-                    </VariousControls>
-                  </Cads>
-                </FileArmAds>
               </FileOption>
             </File>
             <File>
@@ -1705,9 +1620,64 @@
               </FileOption>
             </File>
             <File>
-              <FileName>system_stm32f2xx.c</FileName>
+              <FileName>Serial.c</FileName>
               <FileType>1</FileType>
-              <FilePath>C:\Keil\ARM\Startup\ST\STM32F2xx\system_stm32f2xx.c</FilePath>
+              <FilePath>C:\Keil\ARM\Boards\Keil\MCB4300\RL\FlashFS\SD_File\Serial.c</FilePath>
+            </File>
+            <File>
+              <FileName>ETH_LPC43xx.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>C:\Keil\ARM\RL\TCPnet\Drivers\ETH_LPC43xx.c</FilePath>
+              <FileOption>
+                <CommonProperty>
+                  <UseCPPCompiler>2</UseCPPCompiler>
+                  <RVCTCodeConst>0</RVCTCodeConst>
+                  <RVCTZI>0</RVCTZI>
+                  <RVCTOtherData>0</RVCTOtherData>
+                  <ModuleSelection>0</ModuleSelection>
+                  <IncludeInBuild>0</IncludeInBuild>
+                  <AlwaysBuild>2</AlwaysBuild>
+                  <GenerateAssemblyFile>2</GenerateAssemblyFile>
+                  <AssembleAssemblyFile>2</AssembleAssemblyFile>
+                  <PublicsOnly>2</PublicsOnly>
+                  <StopOnExitCode>11</StopOnExitCode>
+                  <CustomArgument></CustomArgument>
+                  <IncludeLibraryModules></IncludeLibraryModules>
+                </CommonProperty>
+                <FileArmAds>
+                  <Cads>
+                    <interw>2</interw>
+                    <Optim>0</Optim>
+                    <oTime>2</oTime>
+                    <SplitLS>2</SplitLS>
+                    <OneElfS>2</OneElfS>
+                    <Strict>2</Strict>
+                    <EnumInt>2</EnumInt>
+                    <PlainCh>2</PlainCh>
+                    <Ropi>2</Ropi>
+                    <Rwpi>2</Rwpi>
+                    <wLevel>0</wLevel>
+                    <uThumb>2</uThumb>
+                    <uSurpInc>2</uSurpInc>
+                    <VariousControls>
+                      <MiscControls></MiscControls>
+                      <Define></Define>
+                      <Undefine></Undefine>
+                      <IncludePath></IncludePath>
+                    </VariousControls>
+                  </Cads>
+                </FileArmAds>
+              </FileOption>
+            </File>
+            <File>
+              <FileName>SDIO_LPC43xx.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>C:\Keil\ARM\Boards\Keil\MCB4300\RL\FlashFS\SD_File\SDIO_LPC43xx.c</FilePath>
+            </File>
+            <File>
+              <FileName>system_LPC43xx.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>C:\Keil\ARM\Boards\Keil\MCB4300\RL\FlashFS\SD_File\system_LPC43xx.c</FilePath>
             </File>
           </Files>
         </Group>
@@ -1953,6 +1923,46 @@
               <FileName>tfm.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\ctaocrypt\src\tfm.c</FilePath>
+              <FileOption>
+                <CommonProperty>
+                  <UseCPPCompiler>2</UseCPPCompiler>
+                  <RVCTCodeConst>0</RVCTCodeConst>
+                  <RVCTZI>0</RVCTZI>
+                  <RVCTOtherData>0</RVCTOtherData>
+                  <ModuleSelection>0</ModuleSelection>
+                  <IncludeInBuild>0</IncludeInBuild>
+                  <AlwaysBuild>2</AlwaysBuild>
+                  <GenerateAssemblyFile>2</GenerateAssemblyFile>
+                  <AssembleAssemblyFile>2</AssembleAssemblyFile>
+                  <PublicsOnly>2</PublicsOnly>
+                  <StopOnExitCode>11</StopOnExitCode>
+                  <CustomArgument></CustomArgument>
+                  <IncludeLibraryModules></IncludeLibraryModules>
+                </CommonProperty>
+                <FileArmAds>
+                  <Cads>
+                    <interw>2</interw>
+                    <Optim>0</Optim>
+                    <oTime>2</oTime>
+                    <SplitLS>2</SplitLS>
+                    <OneElfS>2</OneElfS>
+                    <Strict>2</Strict>
+                    <EnumInt>2</EnumInt>
+                    <PlainCh>2</PlainCh>
+                    <Ropi>2</Ropi>
+                    <Rwpi>2</Rwpi>
+                    <wLevel>0</wLevel>
+                    <uThumb>2</uThumb>
+                    <uSurpInc>2</uSurpInc>
+                    <VariousControls>
+                      <MiscControls></MiscControls>
+                      <Define></Define>
+                      <Undefine></Undefine>
+                      <IncludePath></IncludePath>
+                    </VariousControls>
+                  </Cads>
+                </FileArmAds>
+              </FileOption>
             </File>
           </Files>
         </Group>
@@ -2120,9 +2130,9 @@
               <FilePath>..\MDK-ARM\CyaSSL\config-BARE-METAL.h</FilePath>
             </File>
             <File>
-              <FileName>startup_stm32f2xx.s</FileName>
+              <FileName>startup_LPC43xx.s</FileName>
               <FileType>2</FileType>
-              <FilePath>..\MDK-ARM\config\startup_stm32f2xx.s</FilePath>
+              <FilePath>..\LPC43xx\startup_LPC43xx.s</FilePath>
             </File>
           </Files>
         </Group>
@@ -2140,9 +2150,9 @@
               <FilePath>..\MDK-ARM\CyaSSL\Retarget.c</FilePath>
             </File>
             <File>
-              <FileName>time-STM32F2xx.c</FileName>
+              <FileName>time-LCP43xx.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\STM32F2xx_StdPeriph_Lib\time-STM32F2xx.c</FilePath>
+              <FilePath>..\LPC43xx\time-LCP43xx.c</FilePath>
             </File>
           </Files>
         </Group>
@@ -2154,14 +2164,14 @@
       <ToolsetName>ARM-ADS</ToolsetName>
       <TargetOption>
         <TargetCommonOption>
-          <Device>STM32F207IG</Device>
-          <Vendor>STMicroelectronics</Vendor>
-          <Cpu>IRAM(0x20000000-0x2001FFFF) IROM(0x8000000-0x80FFFFF) CLOCK(25000000) CPUTYPE("Cortex-M3")</Cpu>
+          <Device>LPC4357</Device>
+          <Vendor>NXP (founded by Philips)</Vendor>
+          <Cpu>IRAM(0x10000000-0x10007FFF) IRAM2(0x20000000-0x2000FFFF) IROM(0x1A000000-0x1A07FFFF) IROM2(0x1B000000-0x1B07FFFF) CLOCK(12000000) CPUTYPE("Cortex-M4") FPU2</Cpu>
           <FlashUtilSpec></FlashUtilSpec>
-          <StartupFile>"STARTUP\ST\STM32F2xx\startup_stm32f2xx.s" ("STM32F2xx Startup Code")</StartupFile>
-          <FlashDriverDll>UL2CM3(-O207 -S0 -C0 -FO7 -FD20000000 -FC800 -FN1 -FF0STM32F2xx_1024 -FS08000000 -FL0100000)</FlashDriverDll>
-          <DeviceId>5124</DeviceId>
-          <RegisterFile>stm32f2xx.h</RegisterFile>
+          <StartupFile>"STARTUP\NXP\LPC43xx\startup_LPC43xx.s" ("NXP LPC43xx Startup Code")</StartupFile>
+          <FlashDriverDll>UL2CM3(-O975 -S0 -C0 -FO7 -FD10000000 -FC800 -FN2 -FF0LPC18xx43xx_512_BA -FS01A000000 -FL080000 -FF1LPC18xx43xx_512_BB -FS11B000000 -FL180000)</FlashDriverDll>
+          <DeviceId>6414</DeviceId>
+          <RegisterFile>LPC43xx.H</RegisterFile>
           <MemoryEnv></MemoryEnv>
           <Cmp></Cmp>
           <Asm></Asm>
@@ -2171,13 +2181,13 @@
           <SLE66CMisc></SLE66CMisc>
           <SLE66AMisc></SLE66AMisc>
           <SLE66LinkerMisc></SLE66LinkerMisc>
-          <SFDFile>SFD\ST\STM32F2xx\STM32F20x.sfr</SFDFile>
+          <SFDFile>SFD\NXP\LPC43xx\LPC43xx.SFR</SFDFile>
           <UseEnv>0</UseEnv>
           <BinPath></BinPath>
           <IncludePath></IncludePath>
           <LibPath></LibPath>
-          <RegisterFilePath>ST\STM32F2xx\</RegisterFilePath>
-          <DBRegisterFilePath>ST\STM32F2xx\</DBRegisterFilePath>
+          <RegisterFilePath>NXP\LPC43xx\</RegisterFilePath>
+          <DBRegisterFilePath>NXP\LPC43xx\</DBRegisterFilePath>
           <TargetStatus>
             <Error>0</Error>
             <ExitCodeStop>0</ExitCodeStop>
@@ -2186,13 +2196,13 @@
             <InvalidFlash>1</InvalidFlash>
           </TargetStatus>
           <OutputDirectory>.\MDK-BARE-METAL\</OutputDirectory>
-          <OutputName>STM32F2xx-MDK-BARE-METAL</OutputName>
+          <OutputName>LCP43xx-MDK-BARE-METAL</OutputName>
           <CreateExecutable>1</CreateExecutable>
           <CreateLib>0</CreateLib>
           <CreateHexFile>0</CreateHexFile>
           <DebugInformation>1</DebugInformation>
           <BrowseInformation>1</BrowseInformation>
-          <ListingPath>.\Flash\</ListingPath>
+          <ListingPath>.\Lst\</ListingPath>
           <HexFormatSelection>1</HexFormatSelection>
           <Merge32K>0</Merge32K>
           <CreateBatchFile>0</CreateBatchFile>
@@ -2215,9 +2225,9 @@
             <UserProg2Dos16Mode>0</UserProg2Dos16Mode>
           </BeforeMake>
           <AfterMake>
-            <RunUserProg1>0</RunUserProg1>
+            <RunUserProg1>1</RunUserProg1>
             <RunUserProg2>0</RunUserProg2>
-            <UserProg1Name></UserProg1Name>
+            <UserProg1Name>$K\ARM\BIN\ElfDwT.exe !L BASEADDRESS(0x1A000000)</UserProg1Name>
             <UserProg2Name></UserProg2Name>
             <UserProg1Dos16Mode>0</UserProg1Dos16Mode>
             <UserProg2Dos16Mode>0</UserProg2Dos16Mode>
@@ -2243,12 +2253,12 @@
         <DllOption>
           <SimDllName>SARMCM3.DLL</SimDllName>
           <SimDllArguments>-MPU</SimDllArguments>
-          <SimDlgDll>DARMSTM.DLL</SimDlgDll>
-          <SimDlgDllArguments>-pSTM32F207IG</SimDlgDllArguments>
+          <SimDlgDll>DCM.DLL</SimDlgDll>
+          <SimDlgDllArguments>-pCM4</SimDlgDllArguments>
           <TargetDllName>SARMCM3.DLL</TargetDllName>
           <TargetDllArguments>-MPU</TargetDllArguments>
-          <TargetDlgDll>TARMSTM.DLL</TargetDlgDll>
-          <TargetDlgDllArguments>-pSTM32F207IG</TargetDlgDllArguments>
+          <TargetDlgDll>TCM.DLL</TargetDlgDll>
+          <TargetDlgDllArguments>-pCM4</TargetDlgDllArguments>
         </DllOption>
         <DebugOption>
           <OPTHX>
@@ -2272,7 +2282,7 @@
           <Target>
             <UseTarget>1</UseTarget>
             <LoadApplicationAtStartup>1</LoadApplicationAtStartup>
-            <RunToMain>0</RunToMain>
+            <RunToMain>1</RunToMain>
             <RestoreBreakpoints>1</RestoreBreakpoints>
             <RestoreWatchpoints>1</RestoreWatchpoints>
             <RestoreMemoryDisplay>1</RestoreMemoryDisplay>
@@ -2294,7 +2304,7 @@
             <CpuDllArguments></CpuDllArguments>
             <PeripheralDll></PeripheralDll>
             <PeripheralDllArguments></PeripheralDllArguments>
-            <InitializationFile>..\MDK-ARM\config\STM32_SWO.ini</InitializationFile>
+            <InitializationFile>..\MDK-ARM\config\Dbg_Flash.ini</InitializationFile>
             <Driver>BIN\ULP2CM3.DLL</Driver>
           </TargetDlls>
         </DebugOption>
@@ -2341,7 +2351,7 @@
             <AdsLsxf>1</AdsLsxf>
             <RvctClst>0</RvctClst>
             <GenPPlst>0</GenPPlst>
-            <AdsCpuType>"Cortex-M3"</AdsCpuType>
+            <AdsCpuType>"Cortex-M4"</AdsCpuType>
             <RvctDeviceName></RvctDeviceName>
             <mOS>0</mOS>
             <uocRom>0</uocRom>
@@ -2350,16 +2360,16 @@
             <hadIRAM>1</hadIRAM>
             <hadXRAM>0</hadXRAM>
             <uocXRam>0</uocXRam>
-            <RvdsVP>0</RvdsVP>
-            <hadIRAM2>0</hadIRAM2>
-            <hadIROM2>0</hadIROM2>
+            <RvdsVP>1</RvdsVP>
+            <hadIRAM2>1</hadIRAM2>
+            <hadIROM2>1</hadIROM2>
             <StupSel>8</StupSel>
             <useUlib>0</useUlib>
             <EndSel>0</EndSel>
             <uLtcg>0</uLtcg>
             <RoSelD>3</RoSelD>
             <RwSelD>3</RwSelD>
-            <CodeSel>0</CodeSel>
+            <CodeSel>1</CodeSel>
             <OptFeed>0</OptFeed>
             <NoZi1>0</NoZi1>
             <NoZi2>0</NoZi2>
@@ -2370,12 +2380,12 @@
             <Ro2Chk>0</Ro2Chk>
             <Ro3Chk>0</Ro3Chk>
             <Ir1Chk>1</Ir1Chk>
-            <Ir2Chk>0</Ir2Chk>
-            <Ra1Chk>0</Ra1Chk>
+            <Ir2Chk>1</Ir2Chk>
+            <Ra1Chk>1</Ra1Chk>
             <Ra2Chk>0</Ra2Chk>
             <Ra3Chk>0</Ra3Chk>
             <Im1Chk>1</Im1Chk>
-            <Im2Chk>0</Im2Chk>
+            <Im2Chk>1</Im2Chk>
             <OnChipMemories>
               <Ocm1>
                 <Type>0</Type>
@@ -2409,13 +2419,13 @@
               </Ocm6>
               <IRAM>
                 <Type>0</Type>
-                <StartAddress>0x20000000</StartAddress>
-                <Size>0x20000</Size>
+                <StartAddress>0x10000000</StartAddress>
+                <Size>0x8000</Size>
               </IRAM>
               <IROM>
                 <Type>1</Type>
-                <StartAddress>0x8000000</StartAddress>
-                <Size>0x100000</Size>
+                <StartAddress>0x1a000000</StartAddress>
+                <Size>0x80000</Size>
               </IROM>
               <XRAM>
                 <Type>0</Type>
@@ -2439,18 +2449,18 @@
               </OCR_RVCT3>
               <OCR_RVCT4>
                 <Type>1</Type>
-                <StartAddress>0x8000000</StartAddress>
-                <Size>0x100000</Size>
+                <StartAddress>0x1a000000</StartAddress>
+                <Size>0x80000</Size>
               </OCR_RVCT4>
               <OCR_RVCT5>
                 <Type>1</Type>
-                <StartAddress>0x0</StartAddress>
-                <Size>0x0</Size>
+                <StartAddress>0x1b000000</StartAddress>
+                <Size>0x80000</Size>
               </OCR_RVCT5>
               <OCR_RVCT6>
                 <Type>0</Type>
-                <StartAddress>0x0</StartAddress>
-                <Size>0x0</Size>
+                <StartAddress>0x10080000</StartAddress>
+                <Size>0xa000</Size>
               </OCR_RVCT6>
               <OCR_RVCT7>
                 <Type>0</Type>
@@ -2464,20 +2474,20 @@
               </OCR_RVCT8>
               <OCR_RVCT9>
                 <Type>0</Type>
-                <StartAddress>0x20000000</StartAddress>
-                <Size>0x20000</Size>
+                <StartAddress>0x10000000</StartAddress>
+                <Size>0x8000</Size>
               </OCR_RVCT9>
               <OCR_RVCT10>
                 <Type>0</Type>
-                <StartAddress>0x0</StartAddress>
-                <Size>0x0</Size>
+                <StartAddress>0x20000000</StartAddress>
+                <Size>0x10000</Size>
               </OCR_RVCT10>
             </OnChipMemories>
             <RvctStartVector></RvctStartVector>
           </ArmAdsMisc>
           <Cads>
             <interw>1</interw>
-            <Optim>1</Optim>
+            <Optim>4</Optim>
             <oTime>0</oTime>
             <SplitLS>0</SplitLS>
             <OneElfS>0</OneElfS>
@@ -2491,16 +2501,16 @@
             <uSurpInc>0</uSurpInc>
             <VariousControls>
               <MiscControls></MiscControls>
-              <Define>HAVE_CONFIG_H  CYASSL_STM32F2xx  __DBG_ITM USE_STDPERIPH_DRIVER MDK_CONF_BARE_METAL</Define>
+              <Define>HAVE_CONFIG_H CYASSL_LPC43xx  __DBG_ITM  CORE_M4  __RTX USE_STDPERIPH_DRIVER  MDK_CONF_BARE_METAL</Define>
               <Undefine></Undefine>
-              <IncludePath>..\MDK-ARM\CyaSSL;..\MDK-ARM\inc;..\STM32F2xx_StdPeriph_Lib\inc;..\POSIX;..\..\..\</IncludePath>
+              <IncludePath>..\MDK-ARM\CyaSSL;../../..;..\LPC43xx\Drivers\include;..\LPC43xx\LPC43xx\Include</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
             <interw>1</interw>
             <Ropi>0</Ropi>
             <Rwpi>0</Rwpi>
-            <thumb>0</thumb>
+            <thumb>1</thumb>
             <SplitLS>0</SplitLS>
             <SwStkChk>0</SwStkChk>
             <NoWarn>0</NoWarn>
@@ -2519,13 +2529,13 @@
             <noStLib>0</noStLib>
             <RepFail>1</RepFail>
             <useFile>0</useFile>
-            <TextAddressRange>0x08000000</TextAddressRange>
-            <DataAddressRange>0x20000000</DataAddressRange>
+            <TextAddressRange></TextAddressRange>
+            <DataAddressRange></DataAddressRange>
             <ScatterFile></ScatterFile>
             <IncludeLibs></IncludeLibs>
             <IncludeLibsPath></IncludeLibsPath>
-            <Misc>
-</Misc>            <LinkerInputFile></LinkerInputFile>
+            <Misc></Misc>
+            <LinkerInputFile></LinkerInputFile>
             <DisabledWarnings></DisabledWarnings>
           </LDads>
         </TargetArmAds>
@@ -2742,98 +2752,33 @@
           </Files>
         </Group>
         <Group>
-          <GroupName>STM32F2xx_StdPeriph_Lib</GroupName>
+          <GroupName>LPC43xx</GroupName>
           <Files>
             <File>
-              <FileName>stm32f2xx_cryp.c</FileName>
+              <FileName>lpc43xx_rtc.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\STM32F2xx_StdPeriph_Lib\src\stm32f2xx_cryp.c</FilePath>
+              <FilePath>..\LPC43xx\Drivers\source\lpc43xx_rtc.c</FilePath>
             </File>
             <File>
-              <FileName>stm32f2xx_hash.c</FileName>
+              <FileName>lpc43xx_timer.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\STM32F2xx_StdPeriph_Lib\src\stm32f2xx_hash.c</FilePath>
+              <FilePath>..\LPC43xx\Drivers\source\lpc43xx_timer.c</FilePath>
             </File>
             <File>
-              <FileName>stm32f2xx_rcc.c</FileName>
+              <FileName>lpc43xx_cgu.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\STM32F2xx_StdPeriph_Lib\src\stm32f2xx_rcc.c</FilePath>
+              <FilePath>..\LPC43xx\Drivers\source\lpc43xx_cgu.c</FilePath>
             </File>
             <File>
-              <FileName>stm32f2xx_rng.c</FileName>
+              <FileName>lpc43xx_scu.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\STM32F2xx_StdPeriph_Lib\src\stm32f2xx_rng.c</FilePath>
-            </File>
-            <File>
-              <FileName>stm32f2xx_rtc.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\STM32F2xx_StdPeriph_Lib\src\stm32f2xx_rtc.c</FilePath>
-            </File>
-            <File>
-              <FileName>stm32f2xx_pwr.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\STM32F2xx_StdPeriph_Lib\src\stm32f2xx_pwr.c</FilePath>
-            </File>
-            <File>
-              <FileName>stm32f2xx_tim.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\STM32F2xx_StdPeriph_Lib\src\stm32f2xx_tim.c</FilePath>
+              <FilePath>..\LPC43xx\Drivers\source\lpc43xx_scu.c</FilePath>
             </File>
           </Files>
         </Group>
         <Group>
           <GroupName>MDK-ARM</GroupName>
           <Files>
-            <File>
-              <FileName>Serial.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>c:\Keil\ARM\Boards\Keil\MCBSTM32F200\RL\FlashFS\SD_File\Serial.c</FilePath>
-            </File>
-            <File>
-              <FileName>SDIO_STM32F2xx.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>c:\Keil\ARM\RL\FlashFS\Drivers\SDIO_STM32F2xx.c</FilePath>
-              <FileOption>
-                <CommonProperty>
-                  <UseCPPCompiler>2</UseCPPCompiler>
-                  <RVCTCodeConst>0</RVCTCodeConst>
-                  <RVCTZI>0</RVCTZI>
-                  <RVCTOtherData>0</RVCTOtherData>
-                  <ModuleSelection>0</ModuleSelection>
-                  <IncludeInBuild>0</IncludeInBuild>
-                  <AlwaysBuild>2</AlwaysBuild>
-                  <GenerateAssemblyFile>2</GenerateAssemblyFile>
-                  <AssembleAssemblyFile>2</AssembleAssemblyFile>
-                  <PublicsOnly>2</PublicsOnly>
-                  <StopOnExitCode>11</StopOnExitCode>
-                  <CustomArgument></CustomArgument>
-                  <IncludeLibraryModules></IncludeLibraryModules>
-                </CommonProperty>
-                <FileArmAds>
-                  <Cads>
-                    <interw>2</interw>
-                    <Optim>0</Optim>
-                    <oTime>2</oTime>
-                    <SplitLS>2</SplitLS>
-                    <OneElfS>2</OneElfS>
-                    <Strict>2</Strict>
-                    <EnumInt>2</EnumInt>
-                    <PlainCh>2</PlainCh>
-                    <Ropi>2</Ropi>
-                    <Rwpi>2</Rwpi>
-                    <wLevel>0</wLevel>
-                    <uThumb>2</uThumb>
-                    <uSurpInc>2</uSurpInc>
-                    <VariousControls>
-                      <MiscControls></MiscControls>
-                      <Define></Define>
-                      <Undefine></Undefine>
-                      <IncludePath></IncludePath>
-                    </VariousControls>
-                  </Cads>
-                </FileArmAds>
-              </FileOption>
-            </File>
             <File>
               <FileName>FS_CM3.lib</FileName>
               <FileType>4</FileType>
@@ -2878,51 +2823,6 @@
                   <IncludeLibraryModules></IncludeLibraryModules>
                 </CommonProperty>
                 <FileArmAds/>
-              </FileOption>
-            </File>
-            <File>
-              <FileName>ETH_STM32F2xx.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>c:\Keil\ARM\RL\TCPnet\Drivers\ETH_STM32F2xx.c</FilePath>
-              <FileOption>
-                <CommonProperty>
-                  <UseCPPCompiler>2</UseCPPCompiler>
-                  <RVCTCodeConst>0</RVCTCodeConst>
-                  <RVCTZI>0</RVCTZI>
-                  <RVCTOtherData>0</RVCTOtherData>
-                  <ModuleSelection>0</ModuleSelection>
-                  <IncludeInBuild>0</IncludeInBuild>
-                  <AlwaysBuild>2</AlwaysBuild>
-                  <GenerateAssemblyFile>2</GenerateAssemblyFile>
-                  <AssembleAssemblyFile>2</AssembleAssemblyFile>
-                  <PublicsOnly>2</PublicsOnly>
-                  <StopOnExitCode>11</StopOnExitCode>
-                  <CustomArgument></CustomArgument>
-                  <IncludeLibraryModules></IncludeLibraryModules>
-                </CommonProperty>
-                <FileArmAds>
-                  <Cads>
-                    <interw>2</interw>
-                    <Optim>0</Optim>
-                    <oTime>2</oTime>
-                    <SplitLS>2</SplitLS>
-                    <OneElfS>2</OneElfS>
-                    <Strict>2</Strict>
-                    <EnumInt>2</EnumInt>
-                    <PlainCh>2</PlainCh>
-                    <Ropi>2</Ropi>
-                    <Rwpi>2</Rwpi>
-                    <wLevel>0</wLevel>
-                    <uThumb>2</uThumb>
-                    <uSurpInc>2</uSurpInc>
-                    <VariousControls>
-                      <MiscControls></MiscControls>
-                      <Define></Define>
-                      <Undefine></Undefine>
-                      <IncludePath></IncludePath>
-                    </VariousControls>
-                  </Cads>
-                </FileArmAds>
               </FileOption>
             </File>
             <File>
@@ -2972,24 +2872,14 @@
               </FileOption>
             </File>
             <File>
-              <FileName>system_stm32f2xx.c</FileName>
+              <FileName>Serial.c</FileName>
               <FileType>1</FileType>
-              <FilePath>C:\Keil\ARM\Startup\ST\STM32F2xx\system_stm32f2xx.c</FilePath>
-            </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>CyaSSL Library</GroupName>
-          <Files>
-            <File>
-              <FileName>crl.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\src\crl.c</FilePath>
+              <FilePath>C:\Keil\ARM\Boards\Keil\MCB4300\RL\FlashFS\SD_File\Serial.c</FilePath>
             </File>
             <File>
-              <FileName>internal.c</FileName>
+              <FileName>ETH_LPC43xx.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\src\internal.c</FilePath>
+              <FilePath>C:\Keil\ARM\RL\TCPnet\Drivers\ETH_LPC43xx.c</FilePath>
               <FileOption>
                 <CommonProperty>
                   <UseCPPCompiler>2</UseCPPCompiler>
@@ -3030,6 +2920,71 @@
                   </Cads>
                 </FileArmAds>
               </FileOption>
+            </File>
+            <File>
+              <FileName>SDIO_LPC43xx.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>C:\Keil\ARM\Boards\Keil\MCB4300\RL\FlashFS\SD_File\SDIO_LPC43xx.c</FilePath>
+              <FileOption>
+                <CommonProperty>
+                  <UseCPPCompiler>2</UseCPPCompiler>
+                  <RVCTCodeConst>0</RVCTCodeConst>
+                  <RVCTZI>0</RVCTZI>
+                  <RVCTOtherData>0</RVCTOtherData>
+                  <ModuleSelection>0</ModuleSelection>
+                  <IncludeInBuild>0</IncludeInBuild>
+                  <AlwaysBuild>2</AlwaysBuild>
+                  <GenerateAssemblyFile>2</GenerateAssemblyFile>
+                  <AssembleAssemblyFile>2</AssembleAssemblyFile>
+                  <PublicsOnly>2</PublicsOnly>
+                  <StopOnExitCode>11</StopOnExitCode>
+                  <CustomArgument></CustomArgument>
+                  <IncludeLibraryModules></IncludeLibraryModules>
+                </CommonProperty>
+                <FileArmAds>
+                  <Cads>
+                    <interw>2</interw>
+                    <Optim>0</Optim>
+                    <oTime>2</oTime>
+                    <SplitLS>2</SplitLS>
+                    <OneElfS>2</OneElfS>
+                    <Strict>2</Strict>
+                    <EnumInt>2</EnumInt>
+                    <PlainCh>2</PlainCh>
+                    <Ropi>2</Ropi>
+                    <Rwpi>2</Rwpi>
+                    <wLevel>0</wLevel>
+                    <uThumb>2</uThumb>
+                    <uSurpInc>2</uSurpInc>
+                    <VariousControls>
+                      <MiscControls></MiscControls>
+                      <Define></Define>
+                      <Undefine></Undefine>
+                      <IncludePath></IncludePath>
+                    </VariousControls>
+                  </Cads>
+                </FileArmAds>
+              </FileOption>
+            </File>
+            <File>
+              <FileName>system_LPC43xx.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>C:\Keil\ARM\Boards\Keil\MCB4300\RL\FlashFS\SD_File\system_LPC43xx.c</FilePath>
+            </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>CyaSSL Library</GroupName>
+          <Files>
+            <File>
+              <FileName>crl.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\src\crl.c</FilePath>
+            </File>
+            <File>
+              <FileName>internal.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\src\internal.c</FilePath>
             </File>
             <File>
               <FileName>io.c</FileName>
@@ -3055,51 +3010,16 @@
               <FileName>ssl.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\src\ssl.c</FilePath>
-              <FileOption>
-                <CommonProperty>
-                  <UseCPPCompiler>2</UseCPPCompiler>
-                  <RVCTCodeConst>0</RVCTCodeConst>
-                  <RVCTZI>0</RVCTZI>
-                  <RVCTOtherData>0</RVCTOtherData>
-                  <ModuleSelection>0</ModuleSelection>
-                  <IncludeInBuild>0</IncludeInBuild>
-                  <AlwaysBuild>2</AlwaysBuild>
-                  <GenerateAssemblyFile>2</GenerateAssemblyFile>
-                  <AssembleAssemblyFile>2</AssembleAssemblyFile>
-                  <PublicsOnly>2</PublicsOnly>
-                  <StopOnExitCode>11</StopOnExitCode>
-                  <CustomArgument></CustomArgument>
-                  <IncludeLibraryModules></IncludeLibraryModules>
-                </CommonProperty>
-                <FileArmAds>
-                  <Cads>
-                    <interw>2</interw>
-                    <Optim>0</Optim>
-                    <oTime>2</oTime>
-                    <SplitLS>2</SplitLS>
-                    <OneElfS>2</OneElfS>
-                    <Strict>2</Strict>
-                    <EnumInt>2</EnumInt>
-                    <PlainCh>2</PlainCh>
-                    <Ropi>2</Ropi>
-                    <Rwpi>2</Rwpi>
-                    <wLevel>0</wLevel>
-                    <uThumb>2</uThumb>
-                    <uSurpInc>2</uSurpInc>
-                    <VariousControls>
-                      <MiscControls></MiscControls>
-                      <Define></Define>
-                      <Undefine></Undefine>
-                      <IncludePath></IncludePath>
-                    </VariousControls>
-                  </Cads>
-                </FileArmAds>
-              </FileOption>
             </File>
             <File>
               <FileName>tls.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\src\tls.c</FilePath>
+            </File>
+            <File>
+              <FileName>ssl-dummy.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\MDK-ARM\CyaSSL\ssl-dummy.c</FilePath>
               <FileOption>
                 <CommonProperty>
                   <UseCPPCompiler>2</UseCPPCompiler>
@@ -3140,11 +3060,6 @@
                   </Cads>
                 </FileArmAds>
               </FileOption>
-            </File>
-            <File>
-              <FileName>ssl-dummy.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\MDK-ARM\CyaSSL\ssl-dummy.c</FilePath>
             </File>
           </Files>
         </Group>
@@ -3547,9 +3462,9 @@
               <FilePath>..\MDK-ARM\CyaSSL\config-BARE-METAL.h</FilePath>
             </File>
             <File>
-              <FileName>startup_stm32f2xx.s</FileName>
+              <FileName>startup_LPC43xx.s</FileName>
               <FileType>2</FileType>
-              <FilePath>..\MDK-ARM\config\startup_stm32f2xx.s</FilePath>
+              <FilePath>..\LPC43xx\startup_LPC43xx.s</FilePath>
             </File>
           </Files>
         </Group>
@@ -3567,9 +3482,9 @@
               <FilePath>..\MDK-ARM\CyaSSL\Retarget.c</FilePath>
             </File>
             <File>
-              <FileName>time-STM32F2xx.c</FileName>
+              <FileName>time-LCP43xx.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\STM32F2xx_StdPeriph_Lib\time-STM32F2xx.c</FilePath>
+              <FilePath>..\LPC43xx\time-LCP43xx.c</FilePath>
             </File>
           </Files>
         </Group>
