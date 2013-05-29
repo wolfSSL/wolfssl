@@ -31,12 +31,7 @@
 #include <cyassl/ctaocrypt/error.h>
 
 #ifdef CYASSL_MALLOC_CHECK
-#include <stdio.h>
-static void err_sys(const char* msg)
-{
-    printf("error = %s\n", msg);
-    return;
-}
+    #include <stdio.h>
 #endif
 
 /* Set these to default values initially. */
@@ -77,10 +72,11 @@ void* CyaSSL_Malloc(size_t size)
         res = malloc_function(size);
     else
         res = malloc(size);
-		#ifdef CYASSL_MALLOC_CHECK
-		    if(res == NULL)
-					err_sys("CyaSSL_malloc")  ;
-		#endif
+
+    #ifdef CYASSL_MALLOC_CHECK
+        if (res == NULL)
+            printf("CyaSSL_malloc failed\n");
+    #endif
 				
     return res;
 }
