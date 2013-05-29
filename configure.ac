@@ -1351,8 +1351,9 @@ for option in $OPTION_FLAGS; do
     defonly=`echo $option | sed 's/-D//'`
     if test "$defonly" != "$option"
     then
-        echo "#undef  $defonly" >> $OPTION_FILE 
-        echo "#define $defonly" >> $OPTION_FILE 
+        noequalsign=`echo $defonly | sed 's/=/ /'`
+        echo "#undef  $noequalsign" >> $OPTION_FILE 
+        echo "#define $noequalsign" >> $OPTION_FILE 
         echo "" >> $OPTION_FILE 
     else
         echo "option w/o begin -D is $option, not saving to $OPTION_FILE"
