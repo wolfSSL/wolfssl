@@ -529,6 +529,21 @@ int CyaSSL_CTX_UseSNI(CYASSL_CTX* ctx, unsigned char type, const void* data,
     return TLSX_UseSNI(&ctx->extensions, type, data, size);
 }
 
+#ifndef NO_CYASSL_SERVER
+void CyaSSL_SNI_SetOptions(CYASSL* ssl, unsigned char type,
+                                                          unsigned char options)
+{
+    if (ssl && ssl->extensions)
+        TLSX_SNI_SetOptions(ssl->extensions, type, options);
+}
+void CyaSSL_CTX_SNI_SetOptions(CYASSL_CTX* ctx, unsigned char type,
+                                                          unsigned char options)
+{
+    if (ctx && ctx->extensions)
+        TLSX_SNI_SetOptions(ctx->extensions, type, options);
+}
+#endif
+
 #endif /* HAVE_SNI */
 
 #ifndef CYASSL_LEANPSK

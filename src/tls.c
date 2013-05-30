@@ -531,7 +531,7 @@ static void TLSX_SNI_Free(SNI* sni)
 {
     if (sni) {
         switch (sni->type) {
-            case HOST_NAME:
+            case CYASSL_SNI_HOST_NAME:
                 XFREE(sni->data.host_name, 0, DYNAMIC_TYPE_TLSX);
             break;
         }
@@ -550,8 +550,7 @@ static void TLSX_SNI_FreeAll(SNI* list)
     }
 }
 
-static int TLSX_SNI_Append(SNI** list, SNI_Type type, const void* data,
-                                                                    word16 size)
+static int TLSX_SNI_Append(SNI** list, byte type, const void* data, word16 size)
 {
     SNI* sni;
 
@@ -562,7 +561,7 @@ static int TLSX_SNI_Append(SNI** list, SNI_Type type, const void* data,
         return MEMORY_E;
 
     switch (type) {
-        case HOST_NAME: {
+        case CYASSL_SNI_HOST_NAME: {
             sni->data.host_name = XMALLOC(size + 1, 0, DYNAMIC_TYPE_TLSX);
 
             if (sni->data.host_name) {
@@ -583,6 +582,7 @@ static int TLSX_SNI_Append(SNI** list, SNI_Type type, const void* data,
 
     sni->type = type;
     sni->next = *list;
+    sni->options = 0;
     *list = sni;
 
     return 0;
@@ -599,7 +599,7 @@ static word16 TLSX_SNI_GetSize(SNI* list)
         length += ENUM_LEN + OPAQUE16_LEN; /* sni type + sni length */
 
         switch (sni->type) {
-            case HOST_NAME:
+            case CYASSL_SNI_HOST_NAME:
                 length += XSTRLEN((char*) sni->data.host_name);
             break;
         }
@@ -620,7 +620,7 @@ static word16 TLSX_SNI_Write(SNI* list, byte* output)
         output[offset++] = sni->type; /* sni type */
 
         switch (sni->type) {
-            case HOST_NAME:
+            case CYASSL_SNI_HOST_NAME:
                 length = XSTRLEN((char*) sni->data.host_name);
 
                 c16toa(length, output + offset); /* sni length */
@@ -638,7 +638,7 @@ static word16 TLSX_SNI_Write(SNI* list, byte* output)
     return offset;
 }
 
-static SNI* TLSX_SNI_Find(SNI *list, SNI_Type type)
+static SNI* TLSX_SNI_Find(SNI *list, byte type)
 {
     SNI *sni = list;
 
@@ -691,7 +691,7 @@ static int TLSX_SNI_Parse(CYASSL* ssl, byte* input, word16 length,
 
     for (size = 0; offset < length; offset += size) {
         SNI *sni;
-        SNI_Type type = input[offset++];
+        byte type = input[offset++];
 
         if (offset + OPAQUE16_LEN > length)
             return INCOMPLETE_DATA;
@@ -707,9 +707,11 @@ static int TLSX_SNI_Parse(CYASSL* ssl, byte* input, word16 length,
         }
 
         switch(type) {
-            case HOST_NAME:
-                if (XSTRNCMP(sni->data.host_name,
-                                         (const char *) input + offset, size)) {
+            case CYASSL_SNI_HOST_NAME:
+                if ((sni->options & CYASSL_SNI_ABORT_ON_MISMATCH)
+                    &&  ((XSTRLEN(sni->data.host_name) != size)
+                         || XSTRNCMP(sni->data.host_name,
+                                        (const char *) input + offset, size))) {
                     SendAlert(ssl, alert_fatal, unrecognized_name);
 
                     return UNKNOWN_SNI_HOST_NAME_E;
@@ -775,6 +777,17 @@ int TLSX_UseSNI(TLSX** extensions, byte type, const void* data, word16 size)
 
     return 0;
 }
+
+#ifndef NO_CYASSL_SERVER
+void TLSX_SNI_SetOptions(TLSX* extensions, byte type, byte options)
+{
+  TLSX* extension = TLSX_Find(extensions, SERVER_NAME_INDICATION);
+  SNI* sni = TLSX_SNI_Find(extension ? extension->data : NULL, type);
+
+  if (sni)
+      sni->options = options;
+}
+#endif
 
 #define SNI_FREE_ALL TLSX_SNI_FreeAll
 #define SNI_GET_SIZE TLSX_SNI_GetSize

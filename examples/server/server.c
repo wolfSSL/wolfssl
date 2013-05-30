@@ -408,9 +408,14 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 #endif
 
 #ifdef HAVE_SNI
-    if (sniHostName)
-        if (CyaSSL_CTX_UseSNI(ctx, 0, sniHostName, XSTRLEN(sniHostName)))
+    if (sniHostName) {
+        if (CyaSSL_CTX_UseSNI(ctx, CYASSL_SNI_HOST_NAME, sniHostName,
+                                                          XSTRLEN(sniHostName)))
             err_sys("UseSNI failed");
+        else
+            CyaSSL_CTX_SNI_SetOptions(ctx, CYASSL_SNI_HOST_NAME,
+                                                  CYASSL_SNI_ABORT_ON_MISMATCH);
+    }
 #endif
 
     ssl = SSL_new(ctx);
