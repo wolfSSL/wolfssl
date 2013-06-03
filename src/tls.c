@@ -708,10 +708,17 @@ static int TLSX_SNI_Parse(CYASSL* ssl, byte* input, word16 length,
 
         switch(type) {
             case CYASSL_SNI_HOST_NAME:
-                if ((sni->options & CYASSL_SNI_ABORT_ON_MISMATCH)
-                    &&  ((XSTRLEN(sni->data.host_name) != size)
-                         || XSTRNCMP(sni->data.host_name,
-                                        (const char *) input + offset, size))) {
+                if (XSTRLEN(sni->data.host_name) != size
+                    || XSTRNCMP(sni->data.host_name,
+                                         (const char *) input + offset, size)) {
+                    if (sni->options & CYASSL_SNI_CONTINUE_ON_MISMATCH)
+                        break;
+                        /**
+                         * Better client thinks the server is not using SNI,
+                         * instead of thinking that the host_name matched.
+                         * No empty SNI response in this case.
+                         */
+
                     SendAlert(ssl, alert_fatal, unrecognized_name);
 
                     return UNKNOWN_SNI_HOST_NAME_E;
