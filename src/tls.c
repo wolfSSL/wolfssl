@@ -582,7 +582,12 @@ static int TLSX_SNI_Append(SNI** list, byte type, const void* data, word16 size)
 
     sni->type = type;
     sni->next = *list;
+
+#ifndef NO_CYASSL_SERVER
     sni->options = 0;
+    sni->matched = 0;
+#endif
+
     *list = sni;
 
     return 0;
@@ -648,6 +653,30 @@ static SNI* TLSX_SNI_Find(SNI *list, byte type)
     return sni;
 }
 
+#ifndef NO_CYASSL_SERVER
+static void TLSX_SNI_SetMatched(TLSX* extensions, byte type)
+{
+    TLSX* extension = TLSX_Find(extensions, SERVER_NAME_INDICATION);
+    SNI* sni = TLSX_SNI_Find(extension ? extension->data : NULL, type);
+
+    if (sni) {
+        sni->matched = 1;
+        CYASSL_MSG("SNI did match!");
+    }
+}
+
+byte TLSX_SNI_Matched(TLSX* extensions, byte type)
+{
+    TLSX* extension = TLSX_Find(extensions, SERVER_NAME_INDICATION);
+    SNI* sni = TLSX_SNI_Find(extension ? extension->data : NULL, type);
+
+    if (sni)
+        return sni->matched;
+
+    return 0;
+}
+#endif
+
 static int TLSX_SNI_Parse(CYASSL* ssl, byte* input, word16 length,
                                                                  byte isRequest)
 {
@@ -707,27 +736,24 @@ static int TLSX_SNI_Parse(CYASSL* ssl, byte* input, word16 length,
         }
 
         switch(type) {
-            case CYASSL_SNI_HOST_NAME:
-                if (XSTRLEN(sni->data.host_name) != size
-                    || XSTRNCMP(sni->data.host_name,
-                                         (const char *) input + offset, size)) {
-                    if (sni->options & CYASSL_SNI_CONTINUE_ON_MISMATCH)
-                        break;
-                        /**
-                         * Better client thinks the server is not using SNI,
-                         * instead of thinking that the host_name matched.
-                         * No empty SNI response in this case.
-                         */
+            case CYASSL_SNI_HOST_NAME: {
+                byte matched = (XSTRLEN(sni->data.host_name) == size)
+                            && (XSTRNCMP(sni->data.host_name,
+                                     (const char *) input + offset, size) == 0);
 
-                    SendAlert(ssl, alert_fatal, unrecognized_name);
-
-                    return UNKNOWN_SNI_HOST_NAME_E;
-                } else {
+                if (matched || sni->options & CYASSL_SNI_ANSWER_ON_MISMATCH) {
                     int r = TLSX_UseSNI(&ssl->extensions, type, (byte *) "", 0);
 
                     if (r) return r; /* throw error */
+
+                    if (matched) TLSX_SNI_SetMatched(ssl->extensions, type);
+                } else if (!(sni->options & CYASSL_SNI_CONTINUE_ON_MISMATCH)) {
+                    SendAlert(ssl, alert_fatal, unrecognized_name);
+
+                    return UNKNOWN_SNI_HOST_NAME_E;
                 }
                 break;
+            }
         }
 
         TLSX_SetResponse(ssl, SERVER_NAME_INDICATION);
@@ -788,11 +814,11 @@ int TLSX_UseSNI(TLSX** extensions, byte type, const void* data, word16 size)
 #ifndef NO_CYASSL_SERVER
 void TLSX_SNI_SetOptions(TLSX* extensions, byte type, byte options)
 {
-  TLSX* extension = TLSX_Find(extensions, SERVER_NAME_INDICATION);
-  SNI* sni = TLSX_SNI_Find(extension ? extension->data : NULL, type);
+    TLSX* extension = TLSX_Find(extensions, SERVER_NAME_INDICATION);
+    SNI* sni = TLSX_SNI_Find(extension ? extension->data : NULL, type);
 
-  if (sni)
-      sni->options = options;
+    if (sni)
+        sni->options = options;
 }
 #endif
 
@@ -1047,6 +1073,8 @@ int TLSX_Parse(CYASSL* ssl, byte* input, word16 length, byte isRequest,
 
         switch (type) {
             case SERVER_NAME_INDICATION:
+                CYASSL_MSG("SNI extension received");
+
                 ret = SNI_PARSE(ssl, input + offset, size, isRequest);
                 break;
 

@@ -1157,6 +1157,7 @@ typedef struct SNI {
     struct SNI*                next;    /* List Behavior     */
 #ifndef NO_CYASSL_SERVER
     byte                       options; /* Behaviour options */
+    byte                       matched; /* Matching result   */
 #endif
 } SNI;
 
@@ -1164,6 +1165,7 @@ CYASSL_LOCAL int TLSX_UseSNI(TLSX** extensions, byte type, const void* data,
                                                                    word16 size);
 
 #ifndef NO_CYASSL_SERVER
+CYASSL_LOCAL byte TLSX_SNI_Matched(TLSX* extensions, byte type);
 CYASSL_LOCAL void TLSX_SNI_SetOptions(TLSX* extensions, byte type,
                                                                   byte options);
 #endif

@@ -944,8 +944,11 @@ CYASSL_API int CyaSSL_CTX_UseSNI(CYASSL_CTX* ctx, unsigned char type,
 #ifndef NO_CYASSL_SERVER
 /* SNI options */
 enum {
-    CYASSL_SNI_CONTINUE_ON_MISMATCH = 0x01
+    CYASSL_SNI_CONTINUE_ON_MISMATCH = 0x01, /* do not abort on mismatch flag */
+    CYASSL_SNI_ANSWER_ON_MISMATCH   = 0x02  /* fake match on mismatch flag */
 };
+
+CYASSL_API unsigned char CyaSSL_SNI_Matched(CYASSL* ssl, unsigned char type);
 
 CYASSL_API void CyaSSL_SNI_SetOptions(CYASSL* ssl, unsigned char type,
                                                          unsigned char options);

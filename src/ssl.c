@@ -528,6 +528,11 @@ int CyaSSL_CTX_UseSNI(CYASSL_CTX* ctx, byte type, const void* data, word16 size)
 }
 
 #ifndef NO_CYASSL_SERVER
+byte CyaSSL_SNI_Matched(CYASSL* ssl, byte type)
+{
+    return TLSX_SNI_Matched(ssl ? ssl->extensions : NULL, type);
+}
+
 void CyaSSL_SNI_SetOptions(CYASSL* ssl, byte type, byte options)
 {
     if (ssl && ssl->extensions)
