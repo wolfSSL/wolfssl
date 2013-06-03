@@ -1239,6 +1239,42 @@ static INLINE void StackSizeCheck(func_args* args, thread_func tf)
 
 #endif /* HAVE_STACK_SIZE */
 
+
+#ifdef STACK_TRAP
+
+/* good settings
+   --enable-debug --disable-shared C_EXTRA_FLAGS="-DUSER_TIME -DTFM_TIMING_RESISTANT -DPOSITIVE_EXP_ONLY -DSTACK_TRAP"
+
+*/
+
+#ifdef HAVE_STACK_SIZE
+    /* client only for now, setrlimit will fail if pthread_create() called */
+    /* STACK_SIZE does pthread_create() on client */
+    #error "can't use STACK_TRAP with STACK_SIZE, setrlimit will fail"
+#endif /* HAVE_STACK_SIZE */
+
+static INLINE void StackTrap(void)
+{
+    struct rlimit  rl;
+    if (getrlimit(RLIMIT_STACK, &rl) != 0)
+        err_sys("getrlimit failed");
+    printf("rlim_cur = %llu\n", rl.rlim_cur);
+    rl.rlim_cur = 1024*21;  /* adjust trap size here */
+    if (setrlimit(RLIMIT_STACK, &rl) != 0) {
+        perror("setrlimit");
+        err_sys("setrlimit failed");
+    }
+}
+
+#else /* STACK_TRAP */
+
+static INLINE void StackTrap(void)
+{
+}
+
+#endif /* STACK_TRAP */
+
+
 #if defined(__hpux__) || defined(__MINGW32__)
 
 /* HP/UX doesn't have strsep, needed by test/suites.c */

@@ -201,6 +201,8 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
     (void)sslResume;
     (void)trackMemory;
 
+    StackTrap();
+
     while ((ch = mygetopt(argc, argv, "?gdusmNrtfxh:p:v:l:A:c:k:b:zS:")) != -1){
         switch (ch) {
             case '?' :
@@ -693,7 +695,7 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
         args.argv = argv;
 
         CyaSSL_Init();
-#if defined(DEBUG_CYASSL) && !defined(CYASSL_MDK_SHELL)
+#if defined(DEBUG_CYASSL) && !defined(CYASSL_MDK_SHELL) && !defined(STACK_TRAP)
         CyaSSL_Debugging_ON();
 #endif
         if (CurrentDir("client") || CurrentDir("build"))
