@@ -511,8 +511,7 @@ int CyaSSL_CTX_UseCavium(CYASSL_CTX* ctx, int devId)
 
 #ifdef HAVE_SNI
 
-int CyaSSL_UseSNI(CYASSL* ssl, unsigned char type, const void* data,
-                                                            unsigned short size)
+int CyaSSL_UseSNI(CYASSL* ssl, byte type, const void* data, word16 size)
 {
 	if (ssl == NULL)
 		return BAD_FUNC_ARG;
@@ -520,14 +519,32 @@ int CyaSSL_UseSNI(CYASSL* ssl, unsigned char type, const void* data,
     return TLSX_UseSNI(&ssl->extensions, type, data, size);
 }
 
-int CyaSSL_CTX_UseSNI(CYASSL_CTX* ctx, unsigned char type, const void* data,
-                                                            unsigned short size)
+int CyaSSL_CTX_UseSNI(CYASSL_CTX* ctx, byte type, const void* data, word16 size)
 {
     if (ctx == NULL)
         return BAD_FUNC_ARG;
 
     return TLSX_UseSNI(&ctx->extensions, type, data, size);
 }
+
+#ifndef NO_CYASSL_SERVER
+byte CyaSSL_SNI_Matched(CYASSL* ssl, byte type)
+{
+    return TLSX_SNI_Matched(ssl ? ssl->extensions : NULL, type);
+}
+
+void CyaSSL_SNI_SetOptions(CYASSL* ssl, byte type, byte options)
+{
+    if (ssl && ssl->extensions)
+        TLSX_SNI_SetOptions(ssl->extensions, type, options);
+}
+
+void CyaSSL_CTX_SNI_SetOptions(CYASSL_CTX* ctx, byte type, byte options)
+{
+    if (ctx && ctx->extensions)
+        TLSX_SNI_SetOptions(ctx->extensions, type, options);
+}
+#endif
 
 #endif /* HAVE_SNI */
 

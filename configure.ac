@@ -942,7 +942,7 @@ fi
 
 # Filesystem Build 
 AC_ARG_ENABLE([filesystem],
-    [  --enable-filesystem     Enable Filesystem support (default: disabled)],
+    [  --enable-filesystem     Enable Filesystem support (default: enabled)],
     [ ENABLED_FILESYSTEM=$enableval ],
     [ ENABLED_FILESYSTEM=yes ]
     )

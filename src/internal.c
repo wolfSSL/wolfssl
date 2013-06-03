@@ -4802,6 +4802,13 @@ int SendChangeCipher(CYASSL* ssl)
 
     if (ssl->options.groupMessages)
         return 0;
+    #ifdef CYASSL_DTLS
+    else if (ssl->options.dtls) {
+        /* If using DTLS, force the ChangeCipherSpec message to be in the
+         * same datagram as the finished message. */
+        return 0;
+    }
+    #endif
     else
         return SendBuffered(ssl);
 }

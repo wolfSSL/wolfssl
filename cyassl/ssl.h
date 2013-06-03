@@ -931,10 +931,30 @@ CYASSL_API int CyaSSL_CTX_UseCavium(CYASSL_CTX*, int devId);
 
 /* tls extensions */
 #ifdef HAVE_SNI
+/* SNI types */
+enum {
+    CYASSL_SNI_HOST_NAME = 0
+};
+
 CYASSL_API int CyaSSL_UseSNI(CYASSL* ssl, unsigned char type, const void* data,
                                                            unsigned short size);
 CYASSL_API int CyaSSL_CTX_UseSNI(CYASSL_CTX* ctx, unsigned char type,
                                          const void* data, unsigned short size);
+
+#ifndef NO_CYASSL_SERVER
+/* SNI options */
+enum {
+    CYASSL_SNI_CONTINUE_ON_MISMATCH = 0x01, /* do not abort on mismatch flag */
+    CYASSL_SNI_ANSWER_ON_MISMATCH   = 0x02  /* fake match on mismatch flag */
+};
+
+CYASSL_API unsigned char CyaSSL_SNI_Matched(CYASSL* ssl, unsigned char type);
+
+CYASSL_API void CyaSSL_SNI_SetOptions(CYASSL* ssl, unsigned char type,
+                                                         unsigned char options);
+CYASSL_API void CyaSSL_CTX_SNI_SetOptions(CYASSL_CTX* ctx, unsigned char type,
+                                                         unsigned char options);
+#endif
 #endif
 
 #define CYASSL_CRL_MONITOR   0x01   /* monitor this dir flag */
