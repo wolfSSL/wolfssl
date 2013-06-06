@@ -6619,6 +6619,36 @@ int SetCipherList(Suites* s, const char* list)
 }
 
 
+static void PickHashSigAlgo(CYASSL* ssl,
+                             const byte* hashSigAlgo, word32 hashSigAlgoSz)
+{
+    word32 i;
+
+    ssl->suites->sigAlgo = ssl->specs.sig_algo;
+    ssl->suites->hashAlgo = sha_mac;
+
+    for (i = 0; i < hashSigAlgoSz; i += 2) {
+        if (hashSigAlgo[i+1] == ssl->specs.sig_algo) {
+            if (hashSigAlgo[i] == sha_mac) {
+                break;
+            }
+            #ifndef NO_SHA256
+            else if (hashSigAlgo[i] == sha256_mac) {
+                ssl->suites->hashAlgo = sha256_mac;
+                break;
+            }
+            #endif
+            #ifdef CYASSL_SHA384
+            else if (hashSigAlgo[i] == sha384_mac) {
+                ssl->suites->hashAlgo = sha384_mac;
+                break;
+            }
+            #endif
+        }
+    }
+}
+
+
 #ifdef CYASSL_CALLBACKS
 
     /* Initialisze HandShakeInfo */
@@ -9082,36 +9112,6 @@ int SetCipherList(Suites* s, const char* list)
     }
 
 
-    static void PickHashSigAlgo(CYASSL* ssl,
-                                 const byte* hashSigAlgo, word32 hashSigAlgoSz)
-    {
-        word32 i;
-
-        ssl->suites->sigAlgo = ssl->specs.sig_algo;
-        ssl->suites->hashAlgo = sha_mac;
-
-        for (i = 0; i < hashSigAlgoSz; i += 2) {
-            if (hashSigAlgo[i+1] == ssl->specs.sig_algo) {
-                if (hashSigAlgo[i] == sha_mac) {
-                    break;
-                }
-                #ifndef NO_SHA256
-                else if (hashSigAlgo[i] == sha256_mac) {
-                    ssl->suites->hashAlgo = sha256_mac;
-                    break;
-                }
-                #endif
-                #ifdef CYASSL_SHA384
-                else if (hashSigAlgo[i] == sha384_mac) {
-                    ssl->suites->hashAlgo = sha384_mac;
-                    break;
-                }
-                #endif
-            }
-        }
-    }
-
-    
     static int MatchSuite(CYASSL* ssl, Suites* peerSuites)
     {
         word16 i, j;

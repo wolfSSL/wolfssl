@@ -2032,6 +2032,26 @@ int CyaSSL_CertManagerVerify(CYASSL_CERT_MANAGER* cm, const char* fname,
 }
 
 
+static INLINE CYASSL_METHOD* cm_pick_method(void)
+{
+    #ifndef NO_CYASSL_CLIENT
+        #ifdef NO_OLD_TLS
+            return CyaTLSv1_2_client_method();
+        #else
+            return CyaSSLv3_client_method();
+        #endif
+    #elif !defined(NO_CYASSL_SERVER)
+        #ifdef NO_OLD_TLS
+            return CyaTLSv1_2_server_method();
+        #else
+            return CyaSSLv3_server_method();
+        #endif
+    #else
+        return NULL;
+    #endif
+}
+
+
 /* like load verify locations, 1 for success, < 0 for error */
 int CyaSSL_CertManagerLoadCA(CYASSL_CERT_MANAGER* cm, const char* file,
                              const char* path)
@@ -2045,13 +2065,7 @@ int CyaSSL_CertManagerLoadCA(CYASSL_CERT_MANAGER* cm, const char* file,
         CYASSL_MSG("No CertManager error");
         return ret;
     }
-    tmp = CyaSSL_CTX_new(
-#ifdef NO_OLD_TLS
-                         CyaTLSv1_2_client_method()
-#else
-                         CyaSSLv3_client_method()
-#endif
-                         );
+    tmp = CyaSSL_CTX_new(cm_pick_method());
 
     if (tmp == NULL) {
         CYASSL_MSG("CTX new failed");
