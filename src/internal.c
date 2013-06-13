@@ -9558,13 +9558,8 @@ static void PickHashSigAlgo(CYASSL* ssl,
         word32      i = *inOutsz;
         int         ret = VERIFY_CERT_ERROR;   /* start in error state */
         byte*       sig;
-        byte*       out;
-        int         outLen;
         byte        hashAlgo = sha_mac;
         byte        sigAlgo = anonymous_sa_algo;
-
-        (void)out;
-        (void)outLen;
 
         #ifdef CYASSL_CALLBACKS
             if (ssl->hsInfoOn)
@@ -9594,6 +9589,9 @@ static void PickHashSigAlgo(CYASSL* ssl,
         /* RSA */
 #ifndef NO_RSA
         if (ssl->peerRsaKeyPresent != 0) {
+            byte* out;
+            int   outLen;
+
             CYASSL_MSG("Doing RSA peer cert verify");
 
             outLen = RsaSSL_VerifyInline(sig, sz, &out, ssl->peerRsaKey);

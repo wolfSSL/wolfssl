@@ -568,13 +568,17 @@ int GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         return 0;
     }
 #elif defined(CYASSL_LPC43xx) || defined(CYASSL_STM32F2xx)
+
     #warning "write a real random seed!!!!, just for testing now"
+
     int GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     {
         int i;
+
         for (i = 0; i < sz; i++ )
             output[i] = i;
-            return 0;
+
+        return 0;
     }
 
 #elif defined(NO_DEV_RANDOM)
