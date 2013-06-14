@@ -4724,9 +4724,12 @@ int ProcessReply(CYASSL* ssl)
 
                 case alert:
                     CYASSL_MSG("got ALERT!");
-                    if (DoAlert(ssl, ssl->buffers.inputBuffer.buffer,
-                           &ssl->buffers.inputBuffer.idx, &type) == alert_fatal)
+                    ret = DoAlert(ssl, ssl->buffers.inputBuffer.buffer,
+                           &ssl->buffers.inputBuffer.idx, &type);
+                    if (ret == alert_fatal)
                         return FATAL_ERROR;
+                    else if (ret < 0)
+                        return ret;
 
                     /* catch warnings that are handled as errors */
                     if (type == close_notify)
