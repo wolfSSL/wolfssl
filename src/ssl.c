@@ -2788,22 +2788,25 @@ int CyaSSL_set_session(CYASSL* ssl, CYASSL_SESSION* session)
 
 #ifndef NO_CLIENT_CACHE
 
-/* Assocaite client session with serverID, find existing or store for saving
+/* Associate client session with serverID, find existing or store for saving
+   if newSession flag on, don't reuse existing session
    SSL_SUCCESS on ok */
-int CyaSSL_SetServerID(CYASSL* ssl, const byte* id, int len)
+int CyaSSL_SetServerID(CYASSL* ssl, const byte* id, int len, int newSession)
 {
-    CYASSL_SESSION* session;
+    CYASSL_SESSION* session = NULL;
 
     CYASSL_ENTER("CyaSSL_SetServerID");
 
     if (ssl == NULL || id == NULL || len <= 0)
         return BAD_FUNC_ARG;
 
-    session = GetSessionClient(ssl, id, len);
-    if (session) {
-        if (SetSession(ssl, session) != SSL_SUCCESS) {
-            CYASSL_MSG("SetSession failed");
-            session = NULL;
+    if (newSession == 0) {
+        session = GetSessionClient(ssl, id, len);
+        if (session) {
+            if (SetSession(ssl, session) != SSL_SUCCESS) {
+                CYASSL_MSG("SetSession failed");
+                session = NULL;
+            }
         }
     }
 
