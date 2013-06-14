@@ -62,7 +62,7 @@
         #undef RNG
         #define RNG CyaSSL_RNG 
         /* for avoiding name conflict in "stm32f2xx.h" */
-        static int errno ;
+        static int errno;
     #else
         #include <sys/types.h>
         #include <errno.h>
@@ -70,7 +70,7 @@
             #include <unistd.h>
         #endif
         #include <fcntl.h>
-        #if !(defined(DEVKITPRO) || defined(THREADX) || defined(EBSNET))
+        #if !(defined(DEVKITPRO) || defined(HAVE_RTP_SYS) || defined(EBSNET))
             #include <sys/socket.h>
             #include <arpa/inet.h>
             #include <netinet/in.h>
@@ -81,7 +81,7 @@
                 #include <sys/ioctl.h>
             #endif
         #endif
-        #ifdef THREADX
+        #ifdef HAVE_RTP_SYS
             #include <socket.h>
         #endif
         #ifdef EBSNET

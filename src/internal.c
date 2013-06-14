@@ -2094,7 +2094,7 @@ ProtocolVersion MakeDTLSv1_2(void)
         return (word32)(count.QuadPart / freq.QuadPart);
     }
 
-#elif defined(THREADX)
+#elif defined(HAVE_RTP_SYS)
 
     #include "rtptime.h"
 
@@ -2143,7 +2143,7 @@ ProtocolVersion MakeDTLSv1_2(void)
         */
     }
 #endif
-#else /* !USE_WINDOWS_API && !THREADX && !MICRIUM && !USER_TICKS */
+#else /* !USE_WINDOWS_API && !HAVE_RTP_SYS && !MICRIUM && !USER_TICKS */
 
     #include <time.h>
 

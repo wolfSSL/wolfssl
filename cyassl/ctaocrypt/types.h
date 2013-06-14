@@ -111,10 +111,10 @@ enum {
         #define INLINE __inline
     #elif defined(__GNUC__)
         #define INLINE inline
-    #elif defined(THREADX)
-        #define INLINE _Inline
     #elif defined(__IAR_SYSTEMS_ICC__)
         #define INLINE inline
+    #elif defined(THREADX)
+        #define INLINE _Inline
     #else
         #define INLINE 
     #endif

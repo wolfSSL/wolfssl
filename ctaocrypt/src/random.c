@@ -413,7 +413,7 @@ int GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 }
 
 
-#elif defined(THREADX) || defined(EBSNET)
+#elif defined(HAVE_RTP_SYS) || defined(EBSNET)
 
 #include "rtprand.h"   /* rtp_rand () */
 #include "rtptime.h"   /* rtp_get_system_msec() */
@@ -593,7 +593,7 @@ int GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 */
 
 
-#else /* !USE_WINDOWS_API && !THREADX && !MICRIUM && !NO_DEV_RANDOM */
+#else /* !USE_WINDOWS_API && !HAVE_RPT_SYS && !MICRIUM && !NO_DEV_RANDOM */
 
 
 /* may block */

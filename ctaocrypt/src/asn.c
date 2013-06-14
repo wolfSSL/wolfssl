@@ -27,7 +27,7 @@
 
 #ifndef NO_ASN
 
-#ifdef THREADX
+#ifdef HAVE_RTP_SYS
     #include "os.h"           /* dc_rtc_api needs    */
     #include "dc_rtc_api.h"   /* to get current time */
 #endif
@@ -82,7 +82,7 @@
 #endif
 
 
-#ifdef THREADX
+#ifdef HAVE_RTP_SYS 
     /* uses parital <time.h> structures */
     #define XTIME(tl)  (0)
     #define XGMTIME(c) my_gmtime((c))
@@ -237,7 +237,7 @@ struct tm* gmtime(const time_t* timer)
 #endif /* _WIN32_WCE  || USER_TIME */
 
 
-#ifdef  THREADX
+#ifdef HAVE_RTP_SYS  
 
 #define YEAR0          1900
 
@@ -259,7 +259,7 @@ struct tm* my_gmtime(const time_t* timer)       /* has a gmtime() but hangs */
     return ret;
 }
 
-#endif /* THREADX */
+#endif /* HAVE_RTP_SYS */
 
 
 #if defined(MICROCHIP_TCPIP_V5) || defined(MICROCHIP_TCPIP)
