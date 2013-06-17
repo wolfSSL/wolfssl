@@ -514,6 +514,12 @@
     #endif
 #endif
 
+#ifdef HAVE_CRL
+    /* not widely supported yet */
+    #undef NO_SKID
+    #define NO_SKID
+#endif
+
 /* Place any other flags or defines here */
 
 

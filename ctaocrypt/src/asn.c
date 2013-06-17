@@ -5302,7 +5302,9 @@ int ParseCRL(DecodedCRL* dcrl, const byte* buff, word32 sz, void* cm)
     if (GetCRL_Signature(buff, &idx, dcrl, sz) < 0)
         return ASN_PARSE_E;
 
-    #ifndef NO_SKID
+    /* openssl doesn't add skid by default for CRLs cause firefox chokes
+       we're not assuming it's available yet */
+    #if !defined(NO_SKID) && defined(CRL_SKID_READY)
         if (dcrl->extAuthKeyIdSet)
             ca = GetCA(cm, dcrl->extAuthKeyId);
         if (ca == NULL)
