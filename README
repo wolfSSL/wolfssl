@@ -35,7 +35,25 @@ before calling SSL_new();  Though it's not recommended.
 *** end Notes ***
 
 
-CyaSSL Release 2.x.x (TBA)
+CyaSSL Release 2.7.0 (6/17/2013)
+
+Release 2.7.0 CyaSSL has bug fixes and new features including:
+- SNI support for client and server
+- KEIL MDK-ARM projects
+- Wildcard check to domain name match, and Subject altnames are checked too
+- Better error messages for certificate verification errors
+- Ability to discsard sessoin during handshake verify
+- More consistent error returns across all APIs
+- Ability to unlaod CAs at the CTX or CertManager levle
+- Authority subject id support for Certificate matching
+- Persistent session cache functionality
+- Persistent CA cache functionality
+- Client session table lookups to push serverID table to library level
+- Camellia support to sniffer
+- User controlable settings for DTLS timeout values
+- Sniffer fixes for caching long lived sessions
+- DTLS reliability enhancments for the handshake
+- Better ThreadX support
 
 When compiling with Mingw, libtool may give the following warning due to
 path conversion errors:
@@ -46,6 +64,9 @@ libtool: link: Continuing, but uninstalled executables may not work.
 If so, examples and testsuite will have problems when run, showing an
 error while loading shared libraries. To resolve, please run "make install".
 
+The CyaSSL manual is available at:
+http://www.yassl.com/documentation/CyaSSL-Manual.pdf.  For build instructions 
+and comments about the new features please check the manual.
 
 
 ************** CyaSSL Release 2.6.0 (04/15/2013)
