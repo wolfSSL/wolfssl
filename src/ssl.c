@@ -2813,7 +2813,7 @@ int CyaSSL_SetServerID(CYASSL* ssl, const byte* id, int len, int newSession)
     if (session == NULL) {
         CYASSL_MSG("Valid ServerID not cached already");
 
-        ssl->session.idLen = min(SERVER_ID_LEN, (word32)len);
+        ssl->session.idLen = (word16)min(SERVER_ID_LEN, (word32)len);
         XMEMCPY(ssl->session.serverID, id, ssl->session.idLen);
     }
 
@@ -4510,8 +4510,8 @@ int AddSession(CYASSL* ssl)
                                 % SESSION_ROWS;
         clientIdx = ClientCache[clientRow].nextIdx++;
 
-        ClientCache[clientRow].Clients[clientIdx].serverRow = row;
-        ClientCache[clientRow].Clients[clientIdx].serverIdx = idx;
+        ClientCache[clientRow].Clients[clientIdx].serverRow = (word16)row;
+        ClientCache[clientRow].Clients[clientIdx].serverIdx = (word16)idx;
 
         ClientCache[clientRow].totalCount++;
         if (ClientCache[clientRow].nextIdx == SESSIONS_PER_ROW)

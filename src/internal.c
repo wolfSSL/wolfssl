@@ -2814,7 +2814,7 @@ static int MatchDomainName(const char* pattern, int len, const char* str)
             if (len == 0)
                 p = '\0';
 
-            while ( (s = (char)(*str)) ) {
+            while ( (s = (char)(*str)) != '\0') {
                 if (s == p)
                     break;
                 if (s == '.')
