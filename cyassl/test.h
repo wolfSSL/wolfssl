@@ -1206,7 +1206,7 @@ static INLINE void StackSizeCheck(func_args* args, thread_func tf)
     if (ret != 0) 
         err_sys("posix_memalign failed\n");        
 
-    memset(myStack, 0xee, stackSize);
+    memset(myStack, 0x01, stackSize);
 
     ret = pthread_attr_init(&myAttr);
     if (ret != 0)
@@ -1227,7 +1227,7 @@ static INLINE void StackSizeCheck(func_args* args, thread_func tf)
         err_sys("pthread_join failed");
 
     for (i = 0; i < stackSize; i++) {
-        if (myStack[i] != 0xee) {
+        if (myStack[i] != 0x01) {
             break;
         }
     }
