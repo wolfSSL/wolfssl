@@ -50,8 +50,11 @@ static int test_CyaSSL_read_write(void);
 #ifdef HAVE_TLS_EXTENSIONS
 #ifdef HAVE_SNI
 static void test_CyaSSL_UseSNI(void);
-#endif /* HAVE_TLS_EXTENSIONS */
 #endif /* HAVE_SNI */
+#ifdef HAVE_MAX_FRAGMENT
+static void test_CyaSSL_UseMaxFragment(void);
+#endif /* HAVE_MAX_FRAGMENT */
+#endif /* HAVE_TLS_EXTENSIONS */
 
 /* test function helpers */
 static int test_method(CYASSL_METHOD *method, const char *name);
@@ -107,6 +110,9 @@ int ApiTest(void)
 #ifdef HAVE_SNI
     test_CyaSSL_UseSNI();
 #endif /* HAVE_SNI */
+#ifdef HAVE_MAX_FRAGMENT
+    test_CyaSSL_UseMaxFragment();
+#endif /* HAVE_MAX_FRAGMENT */
 #endif /* HAVE_TLS_EXTENSIONS */
     test_CyaSSL_Cleanup();
     printf(" End API Tests\n");
@@ -382,9 +388,43 @@ void test_CyaSSL_UseSNI(void)
     server_callbacks.on_result = verify_SNI_fake_matching;
 
     test_CyaSSL_client_server(&client_callbacks, &server_callbacks);
-
 }
 #endif /* HAVE_SNI */
+
+#ifdef HAVE_MAX_FRAGMENT
+static void test_CyaSSL_UseMaxFragment(void)
+{
+    CYASSL_CTX *ctx = CyaSSL_CTX_new(CyaSSLv23_client_method());
+    CYASSL     *ssl = CyaSSL_new(ctx);
+
+    AssertNotNull(ctx);
+    AssertNotNull(ssl);
+
+    /* error cases */
+    AssertIntNE(0, CyaSSL_CTX_UseMaxFragment(NULL, CYASSL_MFL_2_9));
+    AssertIntNE(0, CyaSSL_UseMaxFragment(    NULL, CYASSL_MFL_2_9));
+    AssertIntNE(0, CyaSSL_CTX_UseMaxFragment(ctx, 0));
+    AssertIntNE(0, CyaSSL_CTX_UseMaxFragment(ctx, 6));
+    AssertIntNE(0, CyaSSL_UseMaxFragment(ssl, 0));
+    AssertIntNE(0, CyaSSL_UseMaxFragment(ssl, 6));
+
+    /* success case */
+    AssertIntEQ(0, CyaSSL_CTX_UseMaxFragment(ctx,  CYASSL_MFL_2_9));
+    AssertIntEQ(0, CyaSSL_CTX_UseMaxFragment(ctx,  CYASSL_MFL_2_10));
+    AssertIntEQ(0, CyaSSL_CTX_UseMaxFragment(ctx,  CYASSL_MFL_2_11));
+    AssertIntEQ(0, CyaSSL_CTX_UseMaxFragment(ctx,  CYASSL_MFL_2_12));
+    AssertIntEQ(0, CyaSSL_CTX_UseMaxFragment(ctx,  CYASSL_MFL_2_13));
+    AssertIntEQ(0, CyaSSL_UseMaxFragment(    ssl,  CYASSL_MFL_2_9));
+    AssertIntEQ(0, CyaSSL_UseMaxFragment(    ssl,  CYASSL_MFL_2_10));
+    AssertIntEQ(0, CyaSSL_UseMaxFragment(    ssl,  CYASSL_MFL_2_11));
+    AssertIntEQ(0, CyaSSL_UseMaxFragment(    ssl,  CYASSL_MFL_2_12));
+    AssertIntEQ(0, CyaSSL_UseMaxFragment(    ssl,  CYASSL_MFL_2_13));
+
+    CyaSSL_free(ssl);
+    CyaSSL_CTX_free(ctx);
+}
+#endif /* HAVE_MAX_FRAGMENT */
+
 #endif /* HAVE_TLS_EXTENSIONS */
 
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)

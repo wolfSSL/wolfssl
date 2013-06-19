@@ -567,13 +567,13 @@ word16 CyaSSL_SNI_GetRequest(CYASSL* ssl, byte type, void** data)
 #endif /* HAVE_SNI */
 
 
-#ifdef MAX_FRAGMENT_LENGTH
+#ifdef HAVE_MAX_FRAGMENT
 int CyaSSL_UseMaxFragment(CYASSL* ssl, byte mfl)
 {
     if (ssl == NULL)
         return BAD_FUNC_ARG;
 
-    return TLSX_UseMaxFragment(ssl->extensions, mfl);
+    return TLSX_UseMaxFragment(&ssl->extensions, mfl);
 }
 
 int CyaSSL_CTX_UseMaxFragment(CYASSL_CTX* ctx, byte mfl)
@@ -581,7 +581,7 @@ int CyaSSL_CTX_UseMaxFragment(CYASSL_CTX* ctx, byte mfl)
     if (ctx == NULL)
         return BAD_FUNC_ARG;
 
-    return TLSX_UseMaxFragment(ctx->extensions, mfl);
+    return TLSX_UseMaxFragment(&ctx->extensions, mfl);
 }
 #endif /* HAVE_MAX_FRAGMENT */
 

@@ -905,13 +905,13 @@ int TLSX_UseMaxFragment(TLSX** extensions, byte mfl)
     if (extensions == NULL)
         return BAD_FUNC_ARG;
 
-    if (CYASSL_MFL_2_9 <= mfl && mfl <= CYASSL_MFL_2_12) {
-        if ((data = XMALLOC(ENUM_LEN, 0, DYNAMIC_TYPE_TLSX)) == NULL)
-            return MEMORY_E;
-
-        data[0] = mfl;
-    } else
+    if (mfl < CYASSL_MFL_2_9 || CYASSL_MFL_2_13 < mfl)
         return BAD_FUNC_ARG;
+
+    if ((data = XMALLOC(ENUM_LEN, 0, DYNAMIC_TYPE_TLSX)) == NULL)
+        return MEMORY_E;
+
+    data[0] = mfl;
 
     /* push new MFL extension. */
     if ((ret = TLSX_Append(extensions, MAX_FRAGMENT_LENGTH)) != 0) {
