@@ -158,12 +158,23 @@ typedef struct tcp_ready {
 void InitTcpReady(tcp_ready*);
 void FreeTcpReady(tcp_ready*);
 
+typedef CYASSL_METHOD* (*method_provider)(void);
+typedef void (*ctx_callback)(CYASSL_CTX* ctx);
+typedef void (*ssl_callback)(CYASSL* ssl);
+
+typedef struct callback_functions {
+    method_provider method;
+    ctx_callback ctx_ready;
+    ssl_callback ssl_ready;
+    ssl_callback on_result;
+} callback_functions;
 
 typedef struct func_args {
     int    argc;
     char** argv;
     int    return_code;
     tcp_ready* signal;
+    callback_functions *callbacks;
 } func_args;
 
 void wait_tcp_ready(func_args*);

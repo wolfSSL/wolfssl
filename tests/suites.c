@@ -119,8 +119,8 @@ static int execute_test_case(int svr_argc, char** svr_argv,
                               int cli_argc, char** cli_argv,
                               int addNoVerify, int addNonBlocking)
 {
-    func_args cliArgs = {cli_argc, cli_argv, 0, NULL};
-    func_args svrArgs = {svr_argc, svr_argv, 0, NULL};
+    func_args cliArgs = {cli_argc, cli_argv, 0, NULL, NULL};
+    func_args svrArgs = {svr_argc, svr_argv, 0, NULL, NULL};
 
     tcp_ready   ready;
     THREAD_TYPE serverThread;

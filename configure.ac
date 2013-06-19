@@ -1061,6 +1061,29 @@ then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_SNI"
 fi
 
+# Maximum Fragment Length
+AC_ARG_ENABLE([maxfragment],
+    [  --enable-maxfragment     Enable Maximum Fragment Length (default: disabled)],
+    [ ENABLED_MAX_FRAGMENT=$enableval ],
+    [ ENABLED_MAX_FRAGMENT=no ]
+    )
+
+if test "x$ENABLED_MAX_FRAGMENT" = "xyes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_MAX_FRAGMENT"
+fi
+
+# TLS Extensions
+AC_ARG_ENABLE([tlsx],
+    [  --enable-tlsx           Enable all TLS Extensions (default: disabled)],
+    [ ENABLED_TLSX=$enableval ],
+    [ ENABLED_TLSX=no ]
+    )
+
+if test "x$ENABLED_TLSX" = "xyes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_SNI -DHAVE_MAX_FRAGMENT"
+fi
 
 #valgrind
 AC_ARG_ENABLE([valgrind],
@@ -1429,6 +1452,8 @@ echo "   * Persistent session cache:  $ENABLED_SAVESESSION"
 echo "   * Persistent cert    cache:  $ENABLED_SAVECERT"
 echo "   * NTRU:                      $ENABLED_NTRU"
 echo "   * SNI:                       $ENABLED_SNI"
+echo "   * Maximum Fragment Length:   $ENABLED_MAX_FRAGMENT"
+echo "   * All TLS Extensions:        $ENABLED_TLSX"
 echo "   * valgrind unit tests:       $ENABLED_VALGRIND"
 echo "   * LIBZ:                      $ENABLED_LIBZ"
 echo "   * Examples:                  $ENABLED_EXAMPLES"

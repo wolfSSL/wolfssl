@@ -1444,6 +1444,9 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
 
 #ifdef HAVE_TLS_EXTENSIONS
     ssl->extensions = NULL;
+#ifdef HAVE_MAX_FRAGMENT
+    ssl->max_fragment = MAX_RECORD_SIZE;
+#endif
 #endif
 
     ssl->rng    = NULL;
@@ -2619,8 +2622,13 @@ static int GetRecordHeader(CYASSL* ssl, const byte* input, word32* inOutIdx,
 #endif
 #endif
     /* record layer length check */
+#ifdef HAVE_MAX_FRAGMENT
+    if (*size > (ssl->max_fragment + MAX_COMP_EXTRA + MAX_MSG_EXTRA))
+        return LENGTH_ERROR;
+#else
     if (*size > (MAX_RECORD_SIZE + MAX_COMP_EXTRA + MAX_MSG_EXTRA))
         return LENGTH_ERROR;
+#endif
 
     /* verify record type here as well */
     switch ((enum ContentType)rh->type) {
@@ -2942,8 +2950,13 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx)
         c24to32(&input[i], &certSz);
         i += CERT_HEADER_SZ;
        
+#ifdef HAVE_MAX_FRAGMENT
+        if (listSz > ssl->max_fragment || certSz > ssl->max_fragment)
+            return BUFFER_E;
+#else
         if (listSz > MAX_RECORD_SIZE || certSz > MAX_RECORD_SIZE)
             return BUFFER_E;
+#endif
 
         certs[totalCerts].length = certSz;
         certs[totalCerts].buffer = input + i;
@@ -5348,7 +5361,11 @@ int SendData(CYASSL* ssl, const void* data, int sz)
     }
 
     for (;;) {
+#ifdef HAVE_MAX_FRAGMENT
+        int   len = min(sz - sent, min(ssl->max_fragment, OUTPUT_RECORD_SIZE));
+#else
         int   len = min(sz - sent, OUTPUT_RECORD_SIZE);
+#endif
         byte* out;
         byte* sendBuffer = (byte*)data + sent;  /* may switch on comp */
         int   buffSz = len;                       /* may switch on comp */

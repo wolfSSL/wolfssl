@@ -585,7 +585,7 @@ static int TLSX_SNI_Append(SNI** list, byte type, const void* data, word16 size)
 
 #ifndef NO_CYASSL_SERVER
     sni->options = 0;
-    sni->matched = 0;
+    sni->status  = CYASSL_SNI_NO_MATCH;
 #endif
 
     *list = sni;
@@ -654,24 +654,24 @@ static SNI* TLSX_SNI_Find(SNI *list, byte type)
 }
 
 #ifndef NO_CYASSL_SERVER
-static void TLSX_SNI_SetMatched(TLSX* extensions, byte type)
+static void TLSX_SNI_SetStatus(TLSX* extensions, byte type, byte status)
 {
     TLSX* extension = TLSX_Find(extensions, SERVER_NAME_INDICATION);
     SNI* sni = TLSX_SNI_Find(extension ? extension->data : NULL, type);
 
     if (sni) {
-        sni->matched = 1;
+        sni->status = status;
         CYASSL_MSG("SNI did match!");
     }
 }
 
-byte TLSX_SNI_Matched(TLSX* extensions, byte type)
+byte TLSX_SNI_Status(TLSX* extensions, byte type)
 {
     TLSX* extension = TLSX_Find(extensions, SERVER_NAME_INDICATION);
     SNI* sni = TLSX_SNI_Find(extension ? extension->data : NULL, type);
 
     if (sni)
-        return sni->matched;
+        return sni->status;
 
     return 0;
 }
@@ -742,11 +742,14 @@ static int TLSX_SNI_Parse(CYASSL* ssl, byte* input, word16 length,
                                      (const char *) input + offset, size) == 0);
 
                 if (matched || sni->options & CYASSL_SNI_ANSWER_ON_MISMATCH) {
-                    int r = TLSX_UseSNI(&ssl->extensions, type, (byte *) "", 0);
+                    int r = TLSX_UseSNI(&ssl->extensions,
+                                                    type, input + offset, size);
 
                     if (r) return r; /* throw error */
 
-                    if (matched) TLSX_SNI_SetMatched(ssl->extensions, type);
+                    TLSX_SNI_SetStatus(ssl->extensions, type,
+                      matched ? CYASSL_SNI_REAL_MATCH : CYASSL_SNI_FAKE_MATCH);
+
                 } else if (!(sni->options & CYASSL_SNI_CONTINUE_ON_MISMATCH)) {
                     SendAlert(ssl, alert_fatal, unrecognized_name);
 
@@ -797,7 +800,7 @@ int TLSX_UseSNI(TLSX** extensions, byte type, const void* data, word16 size)
     extension->data = (void*) sni;
 
     /* look for another server name of the same type to remove (replacement) */
-    while ((sni = sni->next)) {
+    do {
         if (sni->next && sni->next->type == type) {
             SNI *next = sni->next;
 
@@ -806,12 +809,28 @@ int TLSX_UseSNI(TLSX** extensions, byte type, const void* data, word16 size)
 
             break;
         }
-    }
+    } while ((sni = sni->next));
 
     return 0;
 }
 
 #ifndef NO_CYASSL_SERVER
+word16 TLSX_SNI_GetRequest(TLSX* extensions, byte type, void** data)
+{
+    TLSX* extension = TLSX_Find(extensions, SERVER_NAME_INDICATION);
+    SNI* sni = TLSX_SNI_Find(extension ? extension->data : NULL, type);
+
+    if (sni && sni->status != CYASSL_SNI_NO_MATCH) {
+        switch (sni->type) {
+            case CYASSL_SNI_HOST_NAME:
+                *data = sni->data.host_name;
+                return XSTRLEN(*data);
+        }
+    }
+
+    return 0;
+}
+
 void TLSX_SNI_SetOptions(TLSX* extensions, byte type, byte options)
 {
     TLSX* extension = TLSX_Find(extensions, SERVER_NAME_INDICATION);
@@ -829,12 +848,112 @@ void TLSX_SNI_SetOptions(TLSX* extensions, byte type, byte options)
 
 #else
 
-#define SNI_FREE_ALL(x)
-#define SNI_GET_SIZE(x) 0
-#define SNI_WRITE(x) 0
-#define SNI_PARSE(x) 0
+#define SNI_FREE_ALL(list)
+#define SNI_GET_SIZE(list)    0
+#define SNI_WRITE(a, b)       0
+#define SNI_PARSE(a, b, c, d) 0
 
 #endif /* HAVE_SNI */
+
+#ifdef HAVE_MAX_FRAGMENT
+
+static word16 TLSX_MFL_Write(byte* data, byte* output)
+{
+    output[0] = data[0];
+
+    return ENUM_LEN;
+}
+
+static int TLSX_MFL_Parse(CYASSL* ssl, byte* input, word16 length,
+                                                                 byte isRequest)
+{
+    if (length != ENUM_LEN)
+        return INCOMPLETE_DATA;
+
+    switch (*input) {
+        case CYASSL_MFL_2_9 : ssl->max_fragment =  512; break;
+        case CYASSL_MFL_2_10: ssl->max_fragment = 1024; break;
+        case CYASSL_MFL_2_11: ssl->max_fragment = 2048; break;
+        case CYASSL_MFL_2_12: ssl->max_fragment = 4096; break;
+        case CYASSL_MFL_2_13: ssl->max_fragment = 8192; break;
+
+        default:
+            SendAlert(ssl, alert_fatal, illegal_parameter);
+
+            return UNKNOWN_MAX_FRAG_LEN_E;
+    }
+
+#ifndef NO_CYASSL_SERVER
+    if (isRequest) {
+        int r = TLSX_UseMaxFragment(&ssl->extensions, *input);
+
+        if (r) return r; /* throw error */
+
+        TLSX_SetResponse(ssl, MAX_FRAGMENT_LENGTH);
+    }
+#endif
+
+    return 0;
+}
+
+int TLSX_UseMaxFragment(TLSX** extensions, byte mfl)
+{
+    TLSX* extension = NULL;
+    byte* data      = NULL;
+    int   ret       = 0;
+
+    if (extensions == NULL)
+        return BAD_FUNC_ARG;
+
+    if (CYASSL_MFL_2_9 <= mfl && mfl <= CYASSL_MFL_2_12) {
+        if ((data = XMALLOC(ENUM_LEN, 0, DYNAMIC_TYPE_TLSX)) == NULL)
+            return MEMORY_E;
+
+        data[0] = mfl;
+    } else
+        return BAD_FUNC_ARG;
+
+    /* push new MFL extension. */
+    if ((ret = TLSX_Append(extensions, MAX_FRAGMENT_LENGTH)) != 0) {
+        XFREE(data, 0, DYNAMIC_TYPE_TLSX);
+        return ret;
+    }
+
+    /* place new mfl to extension data. */
+    extension = *extensions;
+    extension->data = (void*) data;
+
+    /* remove duplicated extensions */
+    do {
+        if (extension->next && extension->next->type == MAX_FRAGMENT_LENGTH) {
+            TLSX *next = extension->next;
+
+            extension->next = next->next;
+            next->next = NULL;
+
+            TLSX_FreeAll(next);
+
+            break;
+        }
+    } while ((extension = extension->next));
+
+    return 0;
+}
+
+
+#define MFL_FREE_ALL(data) XFREE(data, 0, DYNAMIC_TYPE_TLSX)
+#define MFL_GET_SIZE(data) ENUM_LEN
+#define MFL_WRITE          TLSX_MFL_Write
+#define MFL_PARSE          TLSX_MFL_Parse
+
+#else
+
+#define MFL_FREE_ALL(a)
+#define MFL_GET_SIZE(a)       0
+#define MFL_WRITE(a, b)       0
+#define MFL_PARSE(a, b, c, d) 0
+
+#endif /* HAVE_MAX_FRAGMENT */
 
 TLSX* TLSX_Find(TLSX* list, TLSX_Type type)
 {
@@ -856,6 +975,10 @@ void TLSX_FreeAll(TLSX* list)
         switch (extension->type) {
             case SERVER_NAME_INDICATION:
                 SNI_FREE_ALL((SNI *) extension->data);
+                break;
+
+            case MAX_FRAGMENT_LENGTH:
+                MFL_FREE_ALL(extension->data);
                 break;
         }
 
@@ -888,6 +1011,9 @@ static word16 TLSX_GetSize(TLSX* list, byte* semaphore, byte isRequest)
                 case SERVER_NAME_INDICATION:
                     if (isRequest)
                         length += SNI_GET_SIZE((SNI *) extension->data);
+                    break;
+                case MAX_FRAGMENT_LENGTH:
+                    length += MFL_GET_SIZE(extension->data);
                     break;
             }
 
@@ -922,6 +1048,11 @@ static word16 TLSX_Write(TLSX* list, byte* output, byte* semaphore,
                 case SERVER_NAME_INDICATION:
                     if (isRequest)
                         offset += SNI_WRITE((SNI *) extension->data,
+                                                               output + offset);
+                    break;
+
+                case MAX_FRAGMENT_LENGTH:
+                    offset += MFL_WRITE((byte *) extension->data,
                                                                output + offset);
                     break;
             }
@@ -1076,6 +1207,12 @@ int TLSX_Parse(CYASSL* ssl, byte* input, word16 length, byte isRequest,
                 CYASSL_MSG("SNI extension received");
 
                 ret = SNI_PARSE(ssl, input + offset, size, isRequest);
+                break;
+
+            case MAX_FRAGMENT_LENGTH:
+                CYASSL_MSG("Max Fragment Length extension received");
+
+                ret = MFL_PARSE(ssl, input + offset, size, isRequest);
                 break;
 
             case HELLO_EXT_SIG_ALGO:

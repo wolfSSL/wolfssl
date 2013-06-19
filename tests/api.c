@@ -68,6 +68,13 @@ static int test_lvl(CYASSL_CTX *ctx, const char* file, const char* path,
 
 THREAD_RETURN CYASSL_THREAD test_server_nofail(void*);
 void test_client_nofail(void*);
+
+void run_cyassl_client(void* args);
+THREAD_RETURN CYASSL_THREAD run_cyassl_server(void* args);
+
+void test_CyaSSL_client_server(callback_functions* client_callbacks,
+                                          callback_functions* server_callbacks);
+
 static const char* bogusFile  = "/dev/null";
 #endif
 
@@ -223,8 +230,105 @@ int test_CyaSSL_CTX_new(CYASSL_METHOD *method)
 
 #ifdef HAVE_TLS_EXTENSIONS
 #ifdef HAVE_SNI
+static void use_SNI_at_ctx(CYASSL_CTX* ctx)
+{
+    byte type = CYASSL_SNI_HOST_NAME;
+    char name[] = "www.yassl.com";
+
+    AssertIntEQ(0, CyaSSL_CTX_UseSNI(ctx, type, (void *) name, XSTRLEN(name)));
+}
+
+static void use_SNI_at_ssl(CYASSL* ssl)
+{
+    byte type = CYASSL_SNI_HOST_NAME;
+    char name[] = "www.yassl.com";
+
+    AssertIntEQ(0, CyaSSL_UseSNI(ssl, type, (void *) name, XSTRLEN(name)));
+}
+
+static void different_SNI_at_ssl(CYASSL* ssl)
+{
+    byte type = CYASSL_SNI_HOST_NAME;
+    char name[] = "ww2.yassl.com";
+
+    AssertIntEQ(0, CyaSSL_UseSNI(ssl, type, (void *) name, XSTRLEN(name)));
+}
+
+static void use_SNI_WITH_CONTINUE_at_ssl(CYASSL* ssl)
+{
+    byte type = CYASSL_SNI_HOST_NAME;
+
+    use_SNI_at_ssl(ssl);
+
+    CyaSSL_SNI_SetOptions(ssl, type, CYASSL_SNI_CONTINUE_ON_MISMATCH);
+}
+
+static void use_SNI_WITH_FAKE_ANSWER_at_ssl(CYASSL* ssl)
+{
+    byte type = CYASSL_SNI_HOST_NAME;
+
+    use_SNI_at_ssl(ssl);
+
+    CyaSSL_SNI_SetOptions(ssl, type, CYASSL_SNI_ANSWER_ON_MISMATCH);
+}
+
+static void verify_SNI_abort_on_client(CYASSL* ssl)
+{
+    /* FATAL_ERROR */
+    AssertIntEQ(-213, CyaSSL_get_error(ssl, 0));
+}
+
+static void verify_SNI_abort_on_server(CYASSL* ssl)
+{
+    /* UNKNOWN_SNI_HOST_NAME_E */
+    AssertIntEQ(-281, CyaSSL_get_error(ssl, 0));
+}
+
+static void verify_SNI_no_matching(CYASSL* ssl)
+{
+    byte  type    = CYASSL_SNI_HOST_NAME;
+    char* request = (char*) &type; /* to be overwriten */
+
+    AssertIntEQ(CYASSL_SNI_NO_MATCH, CyaSSL_SNI_Status(ssl, type));
+
+    AssertNotNull(request);
+    AssertIntEQ(0, CyaSSL_SNI_GetRequest(ssl, type, (void**) &request));
+    AssertNull(request);
+}
+
+static void verify_SNI_real_matching(CYASSL* ssl)
+{
+    byte   type    = CYASSL_SNI_HOST_NAME;
+    char*  request = NULL;
+    char   name[]  = "www.yassl.com";
+    word16 length  = XSTRLEN(name);
+
+    AssertIntEQ(CYASSL_SNI_REAL_MATCH, CyaSSL_SNI_Status(ssl, type));
+
+    AssertIntEQ(length, CyaSSL_SNI_GetRequest(ssl, type, (void**) &request));
+    AssertNotNull(request);
+    AssertStrEQ(name, request);
+}
+
+static void verify_SNI_fake_matching(CYASSL* ssl)
+{
+    byte   type    = CYASSL_SNI_HOST_NAME;
+    char*  request = NULL;
+    char   name[]  = "ww2.yassl.com";
+    word16 length  = XSTRLEN(name);
+
+    AssertIntEQ(CYASSL_SNI_FAKE_MATCH, CyaSSL_SNI_Status(ssl, type));
+
+    AssertIntEQ(length, CyaSSL_SNI_GetRequest(ssl, type, (void**) &request));
+    AssertNotNull(request);
+    AssertStrEQ(name, request);
+}
+
 void test_CyaSSL_UseSNI(void)
 {
+    callback_functions client_callbacks = {CyaSSLv23_client_method, 0, 0, 0};
+    callback_functions server_callbacks = {CyaSSLv23_server_method, 0, 0, 0};
+
     CYASSL_CTX *ctx = CyaSSL_CTX_new(CyaSSLv23_client_method());
     CYASSL     *ssl = CyaSSL_new(ctx);
 
@@ -245,6 +349,40 @@ void test_CyaSSL_UseSNI(void)
 
     CyaSSL_free(ssl);
     CyaSSL_CTX_free(ctx);
+
+    /* Testing success case at ctx */
+    client_callbacks.ctx_ready = server_callbacks.ctx_ready = use_SNI_at_ctx;
+    server_callbacks.on_result = verify_SNI_real_matching;
+
+    test_CyaSSL_client_server(&client_callbacks, &server_callbacks);
+
+    /* Testing success case at ssl */
+    client_callbacks.ctx_ready = server_callbacks.ctx_ready = NULL;
+    client_callbacks.ssl_ready = server_callbacks.ssl_ready = use_SNI_at_ssl;
+
+    test_CyaSSL_client_server(&client_callbacks, &server_callbacks);
+
+    /* Testing default mismatch behaviour */
+    client_callbacks.ssl_ready = different_SNI_at_ssl;
+    client_callbacks.on_result = verify_SNI_abort_on_client;
+    server_callbacks.on_result = verify_SNI_abort_on_server;
+
+    test_CyaSSL_client_server(&client_callbacks, &server_callbacks);
+    client_callbacks.on_result = NULL;
+
+    /* Testing continue on mismatch */
+    client_callbacks.ssl_ready = different_SNI_at_ssl;
+    server_callbacks.ssl_ready = use_SNI_WITH_CONTINUE_at_ssl;
+    server_callbacks.on_result = verify_SNI_no_matching;
+
+    test_CyaSSL_client_server(&client_callbacks, &server_callbacks);
+
+    /* Testing fake answer on mismatch */
+    server_callbacks.ssl_ready = use_SNI_WITH_FAKE_ANSWER_at_ssl;
+    server_callbacks.on_result = verify_SNI_fake_matching;
+
+    test_CyaSSL_client_server(&client_callbacks, &server_callbacks);
+
 }
 #endif /* HAVE_SNI */
 #endif /* HAVE_TLS_EXTENSIONS */
@@ -789,9 +927,173 @@ done2:
     return;
 }
 
+void run_cyassl_client(void* args)
+{
+    callback_functions* callbacks = ((func_args*)args)->callbacks;
+
+    CYASSL_CTX* ctx = CyaSSL_CTX_new(callbacks->method());
+    CYASSL*     ssl = NULL;
+    SOCKET_T    sfd = 0;
+
+    char msg[] = "hello cyassl server!";
+    int  len   = (int) XSTRLEN(msg);
+    char input[1024];
+    int  idx;
+
+    ((func_args*)args)->return_code = TEST_FAIL;
+
+#ifdef OPENSSL_EXTRA
+    CyaSSL_CTX_set_default_passwd_cb(ctx, PasswordCallBack);
+#endif
+
+    AssertIntEQ(SSL_SUCCESS, CyaSSL_CTX_load_verify_locations(ctx, caCert, 0));
+
+    AssertIntEQ(SSL_SUCCESS,
+               CyaSSL_CTX_use_certificate_file(ctx, cliCert, SSL_FILETYPE_PEM));
+
+    AssertIntEQ(SSL_SUCCESS,
+                 CyaSSL_CTX_use_PrivateKey_file(ctx, cliKey, SSL_FILETYPE_PEM));
+
+    if (callbacks->ctx_ready)
+        callbacks->ctx_ready(ctx);
+
+    tcp_connect(&sfd, yasslIP, yasslPort, 0);
+
+    ssl = CyaSSL_new(ctx);
+    CyaSSL_set_fd(ssl, sfd);
+
+    if (callbacks->ssl_ready)
+        callbacks->ssl_ready(ssl);
+
+    if (CyaSSL_connect(ssl) != SSL_SUCCESS) {
+        int err = CyaSSL_get_error(ssl, 0);
+        char buffer[80];
+        printf("error = %d, %s\n", err, CyaSSL_ERR_error_string(err, buffer));
+
+    } else {
+        AssertIntEQ(len, CyaSSL_write(ssl, msg, len));
+
+        if (0 < (idx = CyaSSL_read(ssl, input, sizeof(input)-1))) {
+            input[idx] = 0;
+            printf("Server response: %s\n", input);
+        }
+    }
+
+    if (callbacks->on_result)
+        callbacks->on_result(ssl);
+
+    CyaSSL_free(ssl);
+    CyaSSL_CTX_free(ctx);
+    CloseSocket(sfd);
+    ((func_args*)args)->return_code = TEST_SUCCESS;
+}
+
+THREAD_RETURN CYASSL_THREAD run_cyassl_server(void* args)
+{
+    callback_functions* callbacks = ((func_args*)args)->callbacks;
+
+    CYASSL_CTX* ctx = CyaSSL_CTX_new(callbacks->method());
+    CYASSL*     ssl = NULL;
+    SOCKET_T    sfd = 0;
+    SOCKET_T    cfd = 0;
+
+    char msg[] = "I hear you fa shizzle!";
+    int  len   = (int) XSTRLEN(msg);
+    char input[1024];
+    int  idx;
+
+    ((func_args*)args)->return_code = TEST_FAIL;
+
+    CyaSSL_CTX_set_verify(ctx,
+                          SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT, 0);
+
+#ifdef OPENSSL_EXTRA
+    CyaSSL_CTX_set_default_passwd_cb(ctx, PasswordCallBack);
+#endif
 
 
+    AssertIntEQ(SSL_SUCCESS, CyaSSL_CTX_load_verify_locations(ctx, cliCert, 0));
+
+    AssertIntEQ(SSL_SUCCESS,
+               CyaSSL_CTX_use_certificate_file(ctx, svrCert, SSL_FILETYPE_PEM));
+
+    AssertIntEQ(SSL_SUCCESS,
+                 CyaSSL_CTX_use_PrivateKey_file(ctx, svrKey, SSL_FILETYPE_PEM));
+
+    if (callbacks->ctx_ready)
+        callbacks->ctx_ready(ctx);
+
+    ssl = CyaSSL_new(ctx);
+
+    tcp_accept(&sfd, &cfd, (func_args*)args, yasslPort, 0, 0);
+    CloseSocket(sfd);
+
+    CyaSSL_set_fd(ssl, cfd);
+
+#ifdef NO_PSK
+    #if !defined(NO_FILESYSTEM) && defined(OPENSSL_EXTRA)
+        CyaSSL_SetTmpDH_file(ssl, dhParam, SSL_FILETYPE_PEM);
+    #else
+        SetDH(ssl);  /* will repick suites with DHE, higher priority than PSK */
+    #endif
+#endif
+
+    if (callbacks->ssl_ready)
+        callbacks->ssl_ready(ssl);
+
+    /* AssertIntEQ(SSL_SUCCESS, CyaSSL_accept(ssl)); */
+    if (CyaSSL_accept(ssl) != SSL_SUCCESS) {
+        int err = CyaSSL_get_error(ssl, 0);
+        char buffer[80];
+        printf("error = %d, %s\n", err, CyaSSL_ERR_error_string(err, buffer));
+
+    } else {
+        if (0 < (idx = CyaSSL_read(ssl, input, sizeof(input)-1))) {
+            input[idx] = 0;
+            printf("Client message: %s\n", input);
+        }
+
+        AssertIntEQ(len, CyaSSL_write(ssl, msg, len));
+
+        CyaSSL_shutdown(ssl);
+    }
+
+    if (callbacks->on_result)
+        callbacks->on_result(ssl);
+
+    CyaSSL_free(ssl);
+    CyaSSL_CTX_free(ctx);
+    CloseSocket(cfd);
+
+    ((func_args*)args)->return_code = TEST_SUCCESS;
+
+    return 0;
+}
+
+void test_CyaSSL_client_server(callback_functions* client_callbacks,
+                                           callback_functions* server_callbacks)
+{
+    tcp_ready ready;
+    func_args client_args;
+    func_args server_args;
+    THREAD_TYPE serverThread;
+
+    StartTCP();
+
+    client_args.callbacks = client_callbacks;
+    server_args.callbacks = server_callbacks;
+
+    /* RUN Server side */
+    InitTcpReady(&ready);
+    server_args.signal = &ready;
+    start_thread(run_cyassl_server, &server_args, &serverThread);
+    wait_tcp_ready(&server_args);
+
+    /* RUN Client side */
+    run_cyassl_client(&client_args);
+    join_thread(serverThread);
+
+    FreeTcpReady(&ready);
+}
 
 #endif /* NO_FILESYSTEM */
-
-

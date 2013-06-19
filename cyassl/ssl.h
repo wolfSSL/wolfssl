@@ -929,7 +929,9 @@ CYASSL_API void CyaSSL_FreeArrays(CYASSL*);
 CYASSL_API int CyaSSL_UseCavium(CYASSL*, int devId);
 CYASSL_API int CyaSSL_CTX_UseCavium(CYASSL_CTX*, int devId);
 
-/* tls extensions */
+/* TLS Extensions */
+
+/* Server Name Indication */
 #ifdef HAVE_SNI
 /* SNI types */
 enum {
@@ -948,14 +950,41 @@ enum {
     CYASSL_SNI_ANSWER_ON_MISMATCH   = 0x02  /* fake match on mismatch flag */
 };
 
-CYASSL_API unsigned char CyaSSL_SNI_Matched(CYASSL* ssl, unsigned char type);
-
 CYASSL_API void CyaSSL_SNI_SetOptions(CYASSL* ssl, unsigned char type,
                                                          unsigned char options);
 CYASSL_API void CyaSSL_CTX_SNI_SetOptions(CYASSL_CTX* ctx, unsigned char type,
                                                          unsigned char options);
-#endif
-#endif
+
+/* SNI status */
+enum {
+    CYASSL_SNI_NO_MATCH   = 0,
+    CYASSL_SNI_FAKE_MATCH = 1, /* if CYASSL_SNI_ANSWER_ON_MISMATCH is enabled */
+    CYASSL_SNI_REAL_MATCH = 2
+};
+
+CYASSL_API unsigned char CyaSSL_SNI_Status(CYASSL* ssl, unsigned char type);
+
+CYASSL_API unsigned short CyaSSL_SNI_GetRequest(CYASSL *ssl, unsigned char type,
+                                                                   void** data);
+
+#endif /* NO_CYASSL_SERVER */
+#endif /* HAVE_SNI */
+
+/* Maximum Fragment Length */
+#ifdef HAVE_MAX_FRAGMENT
+/* Fragment lengths */
+enum {
+    CYASSL_MFL_2_9  = 1, /*  512 bytes */
+    CYASSL_MFL_2_10 = 2, /* 1024 bytes */
+    CYASSL_MFL_2_11 = 3, /* 2048 bytes */
+    CYASSL_MFL_2_12 = 4, /* 4096 bytes */
+    CYASSL_MFL_2_13 = 5  /* 8192 bytes *//* CyaSSL ONLY!!! */
+};
+
+CYASSL_API int CyaSSL_UseMaxFragment(CYASSL* ssl, unsigned char mfl);
+CYASSL_API int CyaSSL_CTX_UseMaxFragment(CYASSL_CTX* ctx, unsigned char mfl);
+#endif /* HAVE_MAX_FRAGMENT */
+
 
 #define CYASSL_CRL_MONITOR   0x01   /* monitor this dir flag */
 #define CYASSL_CRL_START_MON 0x02   /* start monitoring flag */

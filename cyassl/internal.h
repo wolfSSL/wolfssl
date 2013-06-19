@@ -1116,9 +1116,13 @@ typedef struct CYASSL_DTLS_CTX {
 #ifdef HAVE_TLS_EXTENSIONS
 
 typedef enum {
-    SERVER_NAME_INDICATION =  0,/*
+#ifdef HAVE_SNI
+    SERVER_NAME_INDICATION =  0,
+#endif
+#ifdef HAVE_MAX_FRAGMENT
     MAX_FRAGMENT_LENGTH    =  1,
-    CLIENT_CERTIFICATE_URL =  2,
+#endif
+  /*CLIENT_CERTIFICATE_URL =  2,
     TRUSTED_CA_KEYS        =  3,
     TRUNCATED_HMAC         =  4,
     STATUS_REQUEST         =  5,
@@ -1157,7 +1161,7 @@ typedef struct SNI {
     struct SNI*                next;    /* List Behavior     */
 #ifndef NO_CYASSL_SERVER
     byte                       options; /* Behaviour options */
-    byte                       matched; /* Matching result   */
+    byte                       status;  /* Matching result   */
 #endif
 } SNI;
 
@@ -1165,12 +1169,21 @@ CYASSL_LOCAL int TLSX_UseSNI(TLSX** extensions, byte type, const void* data,
                                                                    word16 size);
 
 #ifndef NO_CYASSL_SERVER
-CYASSL_LOCAL byte TLSX_SNI_Matched(TLSX* extensions, byte type);
-CYASSL_LOCAL void TLSX_SNI_SetOptions(TLSX* extensions, byte type,
+CYASSL_LOCAL void   TLSX_SNI_SetOptions(TLSX* extensions, byte type,
                                                                   byte options);
+CYASSL_LOCAL byte   TLSX_SNI_Status(TLSX* extensions, byte type);
+CYASSL_LOCAL word16 TLSX_SNI_GetRequest(TLSX* extensions, byte type,
+                                                                   void** data);
 #endif
 
 #endif /* HAVE_SNI */
+
+/* Maximum Fragment Length */
+#ifdef HAVE_MAX_FRAGMENT
+
+CYASSL_LOCAL int TLSX_UseMaxFragment(TLSX** extensions, byte mfl);
+
+#endif /* HAVE_MAX_FRAGMENT */
 
 #endif /* HAVE_TLS_EXTENSIONS */
 
@@ -1778,6 +1791,9 @@ struct CYASSL {
 #endif
 #ifdef HAVE_TLS_EXTENSIONS
     TLSX* extensions;                  /* RFC 6066 TLS Extensions data */
+#ifdef HAVE_MAX_FRAGMENT
+    word16 max_fragment;
+#endif
 #endif
     CYASSL_ALERT_HISTORY alert_history;
 };

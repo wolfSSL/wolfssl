@@ -454,7 +454,12 @@ static int CyaSSL_read_internal(CYASSL* ssl, void* data, int sz, int peek)
         ssl->dtls_expected_rx = max(sz + 100, MAX_MTU);
 #endif
 
+#ifdef HAVE_MAX_FRAGMENT
+    ret = ReceiveData(ssl, (byte*)data,
+                     min(sz, min(ssl->max_fragment, OUTPUT_RECORD_SIZE)), peek);
+#else
     ret = ReceiveData(ssl, (byte*)data, min(sz, OUTPUT_RECORD_SIZE), peek);
+#endif
 
     CYASSL_LEAVE("CyaSSL_read_internal()", ret);
 
@@ -528,10 +533,6 @@ int CyaSSL_CTX_UseSNI(CYASSL_CTX* ctx, byte type, const void* data, word16 size)
 }
 
 #ifndef NO_CYASSL_SERVER
-byte CyaSSL_SNI_Matched(CYASSL* ssl, byte type)
-{
-    return TLSX_SNI_Matched(ssl ? ssl->extensions : NULL, type);
-}
 
 void CyaSSL_SNI_SetOptions(CYASSL* ssl, byte type, byte options)
 {
@@ -544,9 +545,45 @@ void CyaSSL_CTX_SNI_SetOptions(CYASSL_CTX* ctx, byte type, byte options)
     if (ctx && ctx->extensions)
         TLSX_SNI_SetOptions(ctx->extensions, type, options);
 }
-#endif
+
+byte CyaSSL_SNI_Status(CYASSL* ssl, byte type)
+{
+    return TLSX_SNI_Status(ssl ? ssl->extensions : NULL, type);
+}
+
+word16 CyaSSL_SNI_GetRequest(CYASSL* ssl, byte type, void** data)
+{
+    if (data)
+        *data = NULL;
+
+    if (ssl && ssl->extensions)
+        return TLSX_SNI_GetRequest(ssl->extensions, type, data);
+
+    return 0;
+}
+
+#endif /* NO_CYASSL_SERVER */
 
 #endif /* HAVE_SNI */
+
+
+#ifdef MAX_FRAGMENT_LENGTH
+int CyaSSL_UseMaxFragment(CYASSL* ssl, byte mfl)
+{
+    if (ssl == NULL)
+        return BAD_FUNC_ARG;
+
+    return TLSX_UseMaxFragment(ssl->extensions, mfl);
+}
+
+int CyaSSL_CTX_UseMaxFragment(CYASSL_CTX* ctx, byte mfl)
+{
+    if (ctx == NULL)
+        return BAD_FUNC_ARG;
+
+    return TLSX_UseMaxFragment(ctx->extensions, mfl);
+}
+#endif /* HAVE_MAX_FRAGMENT */
 
 #ifndef CYASSL_LEANPSK
 int CyaSSL_send(CYASSL* ssl, const void* data, int sz, int flags)
