@@ -123,6 +123,10 @@ static void Usage(void)
     printf("-f          Fewer packets/group messages\n");
     printf("-N          Use Non-blocking sockets\n");
     printf("-S <str>    Use Host Name Indication\n");
+#ifdef HAVE_OCSP
+    printf("-o          Perform OCSP lookup on peer certificate\n");
+    printf("-O <url>    Perform OCSP lookup using <url> as responder\n");
+#endif
 }
 
 #ifdef CYASSL_MDK_SHELL
@@ -164,6 +168,11 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     char*  sniHostName = NULL;
 #endif
 
+#ifdef HAVE_OCSP
+    int    useOcsp  = 0;
+    char*  ocspUrl  = NULL;
+#endif
+
     ((func_args*)args)->return_code = -1; /* error state */
 
 #ifdef NO_RSA
@@ -173,7 +182,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 #endif
     (void)trackMemory;
 
-    while ((ch = mygetopt(argc, argv, "?dbstnNufp:v:l:A:c:k:S:")) != -1) {
+    while ((ch = mygetopt(argc, argv, "?dbstnNufp:v:l:A:c:k:S:oO:")) != -1) {
         switch (ch) {
             case '?' :
                 Usage();
@@ -248,6 +257,19 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
             case 'S' :
                 #ifdef HAVE_SNI
                     sniHostName = myoptarg;
+                #endif
+                break;
+
+            case 'o' :
+                #ifdef HAVE_OCSP
+                    useOcsp = 1;
+                #endif
+                break;
+
+            case 'O' :
+                #ifdef HAVE_OCSP
+                    useOcsp = 1;
+                    ocspUrl = myoptarg;
                 #endif
                 break;
 
@@ -424,6 +446,15 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
                                                      CYASSL_CRL_START_MON);
     CyaSSL_SetCRL_Cb(ssl, CRL_CallBack);
 #endif
+#ifdef HAVE_OCSP
+    if (useOcsp) {
+        CyaSSL_CTX_OCSP_set_options(ctx,
+                                    CYASSL_OCSP_ENABLE | CYASSL_OCSP_NO_NONCE);
+        if (ocspUrl != NULL)
+            CyaSSL_CTX_OCSP_set_override_url(ctx, ocspUrl);
+    }
+#endif
+
     tcp_accept(&sockfd, &clientfd, (func_args*)args, port, useAnyAddr, doDTLS);
     if (!doDTLS) 
         CloseSocket(sockfd);

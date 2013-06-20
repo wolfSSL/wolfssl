@@ -562,69 +562,6 @@ static int build_http_request(const char* domainName, const char* path,
 }
 
 
-static int decode_http_response(byte* httpBuf, int httpBufSz, byte** dst)
-{
-    int idx = 0;
-    int stop = 0;
-    int len = 0;
-    byte* contentType = NULL;
-    byte* contentLength = NULL;
-    char* buf = (char*)httpBuf; /* kludge so I'm not constantly casting */
-
-    if (XSTRNCASECMP(buf, "HTTP/1", 6) != 0)
-        return 0;
-    
-    idx = 9; /* sets to the first byte after "HTTP/1.X ", which should be the
-              * HTTP result code */
-
-     if (XSTRNCASECMP(&buf[idx], "200 OK", 6) != 0)
-        return 0;
-    
-    idx += 8;
-
-    while (idx < httpBufSz && !stop) {
-        if (buf[idx] == '\r' && buf[idx+1] == '\n') {
-            stop = 1;
-            idx += 2;
-        }
-        else {
-            if (contentType == NULL &&
-                           XSTRNCASECMP(&buf[idx], "Content-Type:", 13) == 0) {
-                idx += 13;
-                if (buf[idx] == ' ') idx++;
-                if (XSTRNCASECMP(&buf[idx],
-                                       "application/ocsp-response", 25) != 0) {
-                    return 0;
-                }
-                idx += 27;
-            }
-            else if (contentLength == NULL &&
-                         XSTRNCASECMP(&buf[idx], "Content-Length:", 15) == 0) {
-                idx += 15;
-                if (buf[idx] == ' ') idx++;
-                while (buf[idx] >= '0' && buf[idx] <= '9' && idx < httpBufSz) {
-                    len = (len * 10) + (buf[idx] - '0');
-                    idx++;
-                }
-                idx += 2; /* skip the crlf */
-            }
-            else {
-                /* Advance idx past the next \r\n */
-                char* end = XSTRSTR(&buf[idx], "\r\n");
-                idx = (int)(end - buf + 2);
-            }
-        }
-    }
-    
-    if (len > 0) {
-        *dst = (byte*)XMALLOC(len, NULL, DYNAMIC_TYPE_IN_BUFFER);
-        XMEMCPY(*dst, httpBuf + idx, len);
-    }
-
-    return len;
-}
-
-
 static int decode_url(const char* url, int urlSz,
     char* outName, char* outPath, int* outPort)
 {
@@ -694,7 +631,124 @@ static int decode_url(const char* url, int urlSz,
 }
 
 
-#define SCRATCH_BUFFER_SIZE 2048
+/* return: >0 OCSP Response Size
+ *         -1 error */
+static int process_http_response(int sfd, byte** respBuf,
+                                                  byte* httpBuf, int httpBufSz)
+{
+    int result;
+    int len = 0;
+    char *start, *end;
+    byte *recvBuf = NULL;
+    int recvBufSz = 0;
+    enum phr_state { phr_init, phr_http_start, phr_have_length,
+                     phr_have_type, phr_wait_end, phr_http_end
+    } state = phr_init;
+
+    start = end = NULL;
+    do {
+        if (end == NULL) {
+            result = (int)recv(sfd, httpBuf+len, httpBufSz-len-1, 0);
+            if (result > 0) {
+                len += result;
+                start = (char*)httpBuf;
+                start[len+1] = 0;
+            }
+            else {
+                CYASSL_MSG("process_http_response recv http from peer failed");
+                return -1;
+            }
+        }
+        end = XSTRSTR(start, "\r\n");
+
+        if (end == NULL) {
+            if (len != 0)
+                XMEMMOVE(httpBuf, start, len);
+            start = end = NULL;
+        }
+        else if (end == start) {
+            if (state == phr_wait_end) {
+                state = phr_http_end;
+                len -= 2;
+                start += 2;
+             }
+             else {
+                CYASSL_MSG("process_http_response header ended early");
+                return -1;
+             }
+        }
+        else {
+            *end = 0;
+            len -= end - start + 2;
+
+            if (XSTRNCASECMP(start, "HTTP/1", 6) == 0) {
+                start += 9;
+                if (XSTRNCASECMP(start, "200 OK", 6) != 0 ||
+                                                           state != phr_init) {
+                    CYASSL_MSG("process_http_response not OK");
+                    return -1;
+                }
+                state = phr_http_start;
+            }
+            else if (XSTRNCASECMP(start, "Content-Type:", 13) == 0) {
+                start += 13;
+                while (*start == ' ' && *start != '\0') start++;
+                if (XSTRNCASECMP(start, "application/ocsp-response", 25) != 0) {
+                    CYASSL_MSG("process_http_response not ocsp-response");
+                    return -1;
+                }
+                
+                if (state == phr_http_start) state = phr_have_type;
+                else if (state == phr_have_length) state = phr_wait_end;
+                else {
+                    CYASSL_MSG("process_http_response type invalid state");
+                    return -1;
+                }
+            }
+            else if (XSTRNCASECMP(start, "Content-Length:", 15) == 0) {
+                start += 15;
+                while (*start == ' ' && *start != '\0') start++;
+                recvBufSz = atoi(start);
+
+                if (state == phr_http_start) state = phr_have_length;
+                else if (state == phr_have_type) state = phr_wait_end;
+                else {
+                    CYASSL_MSG("process_http_response length invalid state");
+                    return -1;
+                }
+            }
+            
+            start = end + 2;
+        }
+    } while (state != phr_http_end);
+
+    recvBuf = XMALLOC(recvBufSz, NULL, DYNAMIC_TYPE_IN_BUFFER);
+    if (recvBuf == NULL) {
+        CYASSL_MSG("process_http_response couldn't create response buffer");
+        return -1;
+    }
+
+    /* copy the remainder of the httpBuf into the respBuf */
+    if (len != 0)
+        XMEMCPY(recvBuf, start, len);
+
+    /* receive the OCSP response data */
+    do {
+        result = (int)recv(sfd, recvBuf+len, recvBufSz-len, 0);
+        if (result > 0)
+            len += result;
+        else {
+            CYASSL_MSG("process_http_response recv ocsp from peer failed");
+            return -1;
+        }
+    } while (len != recvBufSz);
+
+    *respBuf = recvBuf;
+    return recvBufSz;
+}
+
+
+#define SCRATCH_BUFFER_SIZE 512
 
 int EmbedOcspLookup(void* ctx, const char* url, int urlSz,
                         byte* ocspReqBuf, int ocspReqSz, byte** ocspRespBuf)
@@ -721,6 +775,8 @@ int EmbedOcspLookup(void* ctx, const char* url, int urlSz,
         return -1;
     }
     
+    /* Note, the library uses the EmbedOcspRespFree() callback to
+     * free this buffer. */
     httpBufSz = SCRATCH_BUFFER_SIZE;
     httpBuf = (byte*)XMALLOC(httpBufSz, NULL, DYNAMIC_TYPE_IN_BUFFER);
 
@@ -728,7 +784,6 @@ int EmbedOcspLookup(void* ctx, const char* url, int urlSz,
         CYASSL_MSG("Unable to create OCSP response buffer");
         return -1;
     }
-    *ocspRespBuf = httpBuf;
 
     httpBufSz = build_http_request(domainName, path, ocspReqSz,
                                                         httpBuf, httpBufSz);
@@ -739,11 +794,8 @@ int EmbedOcspLookup(void* ctx, const char* url, int urlSz,
         if (written == httpBufSz) {
             written = (int)send(sfd, ocspReqBuf, ocspReqSz, 0);
             if (written == ocspReqSz) {
-                httpBufSz = (int)recv(sfd, httpBuf, SCRATCH_BUFFER_SIZE, 0);
-                if (httpBufSz > 0) {
-                    ocspRespSz = decode_http_response(httpBuf, httpBufSz,
-                        ocspRespBuf);
-                }
+                ocspRespSz = process_http_response(sfd, ocspRespBuf,
+                                                 httpBuf, SCRATCH_BUFFER_SIZE);
             }
         }
         close(sfd);

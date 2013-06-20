@@ -4847,10 +4847,20 @@ static int SetSerialNumber(const byte* sn, word32 snSz, byte* output)
 
     if (snSz <= EXTERNAL_SERIAL_SIZE) {
         output[0] = ASN_INTEGER;
-        output[1] = snSz + 1;
-        output[2] = 0;
-        XMEMCPY(&output[3], sn, snSz);
-        result = snSz + 3;
+        /* The serial number is always positive. When encoding the
+         * INTEGER, if the MSB is 1, add a padding zero to keep the
+         * number positive. */
+        if (sn[0] & 0x80) {
+            output[1] = snSz + 1;
+            output[2] = 0;
+            XMEMCPY(&output[3], sn, snSz);
+            result = snSz + 3;
+        }
+        else {
+            output[1] = snSz;
+            XMEMCPY(&output[2], sn, snSz);
+            result = snSz + 2;
+        }
     }
     return result;
 }
