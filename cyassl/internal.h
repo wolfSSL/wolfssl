@@ -1898,33 +1898,6 @@ enum HandShakeType {
 };
 
 
-/* Valid Alert types from page 16/17 */
-enum AlertDescription {
-    close_notify            = 0,
-    unexpected_message      = 10,
-    bad_record_mac          = 20,
-    decompression_failure   = 30,
-    handshake_failure       = 40,
-    no_certificate          = 41,
-    bad_certificate         = 42,
-    unsupported_certificate = 43,
-    certificate_revoked     = 44,
-    certificate_expired     = 45,
-    certificate_unknown     = 46,
-    illegal_parameter       = 47,
-    decrypt_error           = 51,
-    protocol_version        = 70,
-    no_renegotiation        = 100,
-    unrecognized_name       = 112
-};
-
-
-enum AlertLevel { 
-    alert_warning = 1, 
-    alert_fatal = 2
-};
-
-
 static const byte client[SIZEOF_SENDER] = { 0x43, 0x4C, 0x4E, 0x54 };
 static const byte server[SIZEOF_SENDER] = { 0x53, 0x52, 0x56, 0x52 };
 
