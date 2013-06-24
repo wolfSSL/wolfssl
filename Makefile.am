@@ -36,6 +36,7 @@ EXTRA_DIST+= cyassl-ntru.sln
 EXTRA_DIST+= cyassl.sln
 EXTRA_DIST+= valgrind-error.sh
 EXTRA_DIST+= gencertbuf.pl
+EXTRA_DIST+= IDE 
 
 include cyassl/include.am
 include certs/include.am
