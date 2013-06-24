@@ -385,6 +385,10 @@ int InitSSL_Ctx(CYASSL_CTX* ctx, CYASSL_METHOD* method)
     #ifdef CYASSL_DTLS
         ctx->CBIOCookie = NULL;
     #endif
+#endif /* CYASSL_USER_IO */
+#ifdef HAVE_NETX
+    ctx->CBIORecv = NetX_Receive;
+    ctx->CBIOSend = NetX_Send;
 #endif
     ctx->partialWrite   = 0;
     ctx->verifyCallback = 0;
@@ -1290,6 +1294,14 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
 
     ssl->IOCB_ReadCtx  = &ssl->rfd;  /* prevent invalid pointer access if not */
     ssl->IOCB_WriteCtx = &ssl->wfd;  /* correctly set */
+#ifdef HAVE_NETX
+    ssl->nxCtx.nxSocket = NULL;
+    ssl->nxCtx.nxPacket = NULL;
+    ssl->nxCtx.nxOffset = 0;
+    ssl->nxCtx.nxWait   = 0;
+    ssl->IOCB_ReadCtx  = &ssl->nxCtx;  /* default NetX IO ctx, same for read */
+    ssl->IOCB_WriteCtx = &ssl->nxCtx;  /* and write */
+#endif
 #ifdef CYASSL_DTLS
     ssl->IOCB_CookieCtx = NULL;      /* we don't use for default cb */
     ssl->dtls_expected_rx = MAX_MTU;

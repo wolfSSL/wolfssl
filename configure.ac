@@ -6,7 +6,7 @@
 #
 #
 
-AC_INIT([cyassl],[2.7.0],[http://www.yassl.com])
+AC_INIT([cyassl],[2.7.1],[http://www.yassl.com])
 
 AC_CONFIG_AUX_DIR([build-aux])
 AC_CONFIG_MACRO_DIR([m4])

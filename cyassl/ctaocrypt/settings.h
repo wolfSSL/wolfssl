@@ -82,8 +82,27 @@
     #define SIZEOF_LONG_LONG 8
 #endif
 
+
+#ifdef COMVERGE
+    #define THREADX
+    #define HAVE_NETX
+    #define CYASSL_USER_IO
+    #define NO_WRITEV
+    #define NO_DEV_RANDOM
+    #define NO_FILESYSTEM
+    #define NO_SHA512
+    #define NO_DH
+    #define NO_DSA
+    #define NO_HC128
+#endif
+
+
 #ifdef THREADX 
     #define SIZEOF_LONG_LONG 8
+#endif
+
+#ifdef HAVE_NETX
+    #include "nx_api.h"
 #endif
 
 #ifdef MICROCHIP_PIC32

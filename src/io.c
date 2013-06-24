@@ -845,3 +845,113 @@ CYASSL_API void CyaSSL_SetIOOcspCtx(CYASSL_CTX* ctx, void *octx)
 }
 
 #endif
+
+
+#ifdef HAVE_NETX
+
+/* The NetX receive callback
+ *  return :  bytes read, or error
+ */
+int NetX_Receive(CYASSL *ssl, char *buf, int sz, void *ctx)
+{
+    NetX_Ctx* nxCtx = (NetX_Ctx*)ctx;
+    ULONG left;
+    ULONG total;
+    ULONG copied = 0;
+    UINT  status;
+
+    if (nxCtx == NULL || nxCtx->nxSocket == NULL) {
+        CYASSL_MSG("NetX Recv NULL parameters");
+        return CYASSL_CBIO_ERR_GENERAL;
+    }
+
+    if (nxCtx->nxPacket == NULL) {
+        status = nx_tcp_socket_receive(nxCtx->nxSocket, &nxCtx->nxPacket,
+                                       nxCtx->nxWait);
+        if (status != NX_SUCCESS) {
+            CYASSL_MSG("NetX Recv receive error");
+            return CYASSL_CBIO_ERR_GENERAL;
+        }
+    }
+
+    if (nxCtx->nxPacket) {
+        status = nx_packet_length_get(nxCtx->nxPacket, &total);
+        if (status != NX_SUCCESS) {
+            CYASSL_MSG("NetX Recv length get error");
+            return CYASSL_CBIO_ERR_GENERAL;
+        }
+
+        left = total - nxCtx->nxOffset;
+        status = nx_packet_data_extract_offset(nxCtx->nxPacket, nxCtx->nxOffset,
+                                               buf, sz, &copied);
+        if (status != NX_SUCCESS) {
+            CYASSL_MSG("NetX Recv data extract offset error");
+            return CYASSL_CBIO_ERR_GENERAL;
+        }
+
+        nxCtx->nxOffset += copied;
+
+        if (copied == left) {
+            CYASSL_MSG("NetX Recv Drained packet");
+            nx_packet_release(nxCtx->nxPacket);
+            nxCtx->nxPacket = NULL;
+            nxCtx->nxOffset   = 0;
+        }
+    }
+
+    return copied;
+}
+
+
+/* The NetX send callback
+ *  return : bytes sent, or error
+ */
+int NetX_Send(CYASSL* ssl, char *buf, int sz, void *ctx)
+{
+    NetX_Ctx*       nxCtx = (NetX_Ctx*)ctx;
+    NX_PACKET*      packet;
+    NX_PACKET_POOL* pool;   /* shorthand */
+    UINT            status;
+
+    if (nxCtx == NULL || nxCtx->nxSocket == NULL) {
+        CYASSL_MSG("NetX Send NULL parameters");
+        return CYASSL_CBIO_ERR_GENERAL;
+    }
+
+    pool = nxCtx->nxSocket->nx_tcp_socket_ip_ptr->nx_ip_default_packet_pool;
+    status = nx_packet_allocate(pool, &packet, NX_TCP_PACKET,
+                                nxCtx->nxWait);
+    if (status != NX_SUCCESS) {
+        CYASSL_MSG("NetX Send packet alloc error");
+        return CYASSL_CBIO_ERR_GENERAL;
+    }
+
+    status = nx_packet_data_append(packet, buf, sz, pool, nxCtx->nxWait);
+    if (status != NX_SUCCESS) {
+        nx_packet_release(packet);
+        CYASSL_MSG("NetX Send data append error");
+        return CYASSL_CBIO_ERR_GENERAL;
+    }
+
+    status = nx_tcp_socket_send(nxCtx->nxSocket, packet, nxCtx->nxWait);
+    if (status != NX_SUCCESS) {
+        nx_packet_release(packet);
+        CYASSL_MSG("NetX Send socket send error");
+        return CYASSL_CBIO_ERR_GENERAL;
+    }
+
+    return sz;
+}
+
+
+/* like set_fd, but for default NetX context */
+void CyaSSL_SetIO_NetX(CYASSL* ssl, NX_TCP_SOCKET* nxSocket, ULONG waitOption)
+{
+    if (ssl) {
+        ssl->nxCtx.nxSocket = nxSocket;
+        ssl->nxCtx.nxWait   = waitOption;
+    }
+}
+
+#endif /* HAVE_NETX */
+

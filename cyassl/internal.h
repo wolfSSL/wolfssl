@@ -100,6 +100,7 @@
     #endif
 #endif
 
+
 #ifdef HAVE_LIBZ
     #include "zlib.h"
 #endif
@@ -942,6 +943,11 @@ int  SetCipherList(Suites*, const char* list);
     #endif /* CYASSL_DTLS */
 #endif /* CYASSL_USER_IO */
 
+#ifdef HAVE_NETX
+    CYASSL_LOCAL int NetX_Receive(CYASSL *ssl, char *buf, int sz, void *ctx);
+    CYASSL_LOCAL int NetX_Send(CYASSL *ssl, char *buf, int sz, void *ctx);
+#endif /* HAVE_NETX */
+
 
 /* CyaSSL Cipher type just points back to SSL */
 struct CYASSL_CIPHER {
@@ -1692,6 +1698,19 @@ typedef struct DtlsMsg {
 } DtlsMsg;
 
 
+#ifdef HAVE_NETX
+
+    /* NETX I/O Callback default */
+    typedef struct NetX_Ctx {
+        NX_TCP_SOCKET* nxSocket;    /* send/recv socket handle */
+        NX_PACKET*     nxPacket;    /* incoming packet handle for short reads */
+        ULONG          nxOffset;    /* offset already read from nxPacket */
+        ULONG          nxWait;      /* wait option flag */
+    } NetX_Ctx;
+
+#endif
+
+
 /* CyaSSL ssl type */
 struct CYASSL {
     CYASSL_CTX*     ctx;
@@ -1794,6 +1813,9 @@ struct CYASSL {
 #ifdef HAVE_MAX_FRAGMENT
     word16 max_fragment;
 #endif
+#endif
+#ifdef HAVE_NETX
+    NetX_Ctx        nxCtx;             /* NetX IO Context */
 #endif
     CYASSL_ALERT_HISTORY alert_history;
 };

@@ -838,6 +838,11 @@ CYASSL_API void CyaSSL_SetIOWriteCtx(CYASSL* ssl, void *ctx);
 CYASSL_API void CyaSSL_SetIOReadFlags( CYASSL* ssl, int flags);
 CYASSL_API void CyaSSL_SetIOWriteFlags(CYASSL* ssl, int flags);
 
+#ifdef HAVE_NETX
+    CYASSL_API void CyaSSL_SetIO_NetX(CYASSL* ssl, NX_TCP_SOCKET* nxsocket,
+                                      ULONG waitoption);
+#endif
+
 typedef int (*CallbackGenCookie)(CYASSL* ssl, unsigned char* buf, int sz,
                                  void* ctx);
 CYASSL_API void CyaSSL_CTX_SetGenCookie(CYASSL_CTX*, CallbackGenCookie);
