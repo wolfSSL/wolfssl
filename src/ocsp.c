@@ -283,7 +283,7 @@ int CyaSSL_OCSP_Lookup_Cert(CYASSL_OCSP* ocsp, DecodedCert* cert)
         else
             return OCSP_NEED_URL;
     }
-    else if (cert->extAuthInfoSz == 0 || cert->extAuthInfo == NULL) {
+    else if (cert->extAuthInfoSz != 0 && cert->extAuthInfo != NULL) {
         url = (const char *)cert->extAuthInfo;
         urlSz = cert->extAuthInfoSz;
     }

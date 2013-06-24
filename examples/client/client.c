@@ -131,6 +131,10 @@ static void Usage(void)
     printf("-z          Print structure sizes\n");
 #endif
     printf("-S <str>    Use Host Name Indication\n");
+#ifdef HAVE_OCSP
+    printf("-o          Perform OCSP lookup on peer certificate\n");
+    printf("-O <url>    Perform OCSP lookup using <url> as responder\n");
+#endif
 }
 
 #ifdef CYASSL_MDK_SHELL
@@ -186,6 +190,11 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
     char*  sniHostName = NULL;
 #endif
 
+#ifdef HAVE_OCSP
+    int    useOcsp  = 0;
+    char*  ocspUrl  = NULL;
+#endif
+
     int     argc = ((func_args*)args)->argc;
     char**  argv = ((func_args*)args)->argv;
 
@@ -203,7 +212,8 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
 
     StackTrap();
 
-    while ((ch = mygetopt(argc, argv, "?gdusmNrtfxh:p:v:l:A:c:k:b:zS:")) != -1){
+    while ((ch = mygetopt(argc, argv,
+                                 "?gdusmNrtfxh:p:v:l:A:c:k:b:zS:oO:")) != -1) {
         switch (ch) {
             case '?' :
                 Usage();
@@ -305,6 +315,19 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
             case 'S' :
                 #ifdef HAVE_SNI
                     sniHostName = myoptarg;
+                #endif
+                break;
+
+            case 'o' :
+                #ifdef HAVE_OCSP
+                    useOcsp = 1;
+                #endif
+                break;
+
+            case 'O' :
+                #ifdef HAVE_OCSP
+                    useOcsp = 1;
+                    ocspUrl = myoptarg;
                 #endif
                 break;
 
@@ -426,6 +449,15 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
         if (CyaSSL_CTX_set_cipher_list(ctx, "AES256-SHA256") != SSL_SUCCESS) {
             err_sys("client can't set cipher list 3");
         }
+    }
+#endif
+
+#ifdef HAVE_OCSP
+    if (useOcsp) {
+        CyaSSL_CTX_OCSP_set_options(ctx,
+                                    CYASSL_OCSP_ENABLE | CYASSL_OCSP_NO_NONCE);
+        if (ocspUrl != NULL)
+            CyaSSL_CTX_OCSP_set_override_url(ctx, ocspUrl);
     }
 #endif
 

@@ -145,6 +145,33 @@ typedef struct CYASSL_X509_STORE_CTX {
 } CYASSL_X509_STORE_CTX;
 
 
+/* Valid Alert types from page 16/17 */
+enum AlertDescription {
+    close_notify            = 0,
+    unexpected_message      = 10,
+    bad_record_mac          = 20,
+    decompression_failure   = 30,
+    handshake_failure       = 40,
+    no_certificate          = 41,
+    bad_certificate         = 42,
+    unsupported_certificate = 43,
+    certificate_revoked     = 44,
+    certificate_expired     = 45,
+    certificate_unknown     = 46,
+    illegal_parameter       = 47,
+    decrypt_error           = 51,
+    protocol_version        = 70,
+    no_renegotiation        = 100,
+    unrecognized_name       = 112
+};
+
+
+enum AlertLevel {
+    alert_warning = 1,
+    alert_fatal = 2
+};
+
+
 CYASSL_API CYASSL_METHOD *CyaSSLv3_server_method(void);
 CYASSL_API CYASSL_METHOD *CyaSSLv3_client_method(void);
 CYASSL_API CYASSL_METHOD *CyaTLSv1_server_method(void);  
