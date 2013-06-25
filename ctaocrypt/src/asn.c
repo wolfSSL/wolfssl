@@ -2703,6 +2703,7 @@ static void DecodeCertExtensions(DecodedCert* cert)
 
             case ALT_NAMES_OID:
                 DecodeAltNames(&input[idx], length, cert);
+                break;
 
             case AUTH_KEY_OID:
                 DecodeAuthKeyId(&input[idx], length, cert);
