@@ -495,6 +495,18 @@ then
 fi
 
 
+# SEP
+AC_ARG_ENABLE([sep],
+    [  --enable-sep            Enable sep extensions (default: disabled)],
+    [ ENABLED_SEP=$enableval ],
+    [ ENABLED_SEP=no ]
+    )
+if test "$ENABLED_SEP" = "yes"
+then
+  AM_CFLAGS="-DCYASSL_SEP -DKEEP_PEER_CERT $AM_CFLAGS"
+fi
+
+
 # DSA
 AC_ARG_ENABLE([dsa],
     [  --enable-dsa            Enable DSA (default: disabled)],
@@ -1063,7 +1075,7 @@ fi
 
 # Maximum Fragment Length
 AC_ARG_ENABLE([maxfragment],
-    [  --enable-maxfragment     Enable Maximum Fragment Length (default: disabled)],
+    [  --enable-maxfragment    Enable Maximum Fragment Length (default: disabled)],
     [ ENABLED_MAX_FRAGMENT=$enableval ],
     [ ENABLED_MAX_FRAGMENT=no ]
     )

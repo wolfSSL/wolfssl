@@ -1266,6 +1266,14 @@ void InitDecodedCert(DecodedCert* cert, byte* source, word32 inSz, void* heap)
     cert->afterDate       = 0;
     cert->afterDateLen    = 0;
 #endif /* CYASSL_CERT_GEN */
+#ifdef CYASSL_SEP
+    cert->deviceTypeSz = 0;
+    cert->deviceType = NULL;
+    cert->hwTypeSz = 0;
+    cert->hwType = NULL;
+    cert->hwSerialNumSz = 0;
+    cert->hwSerialNum = NULL;
+#endif /* CYASSL_SEP */
 }
 
 
@@ -1291,6 +1299,11 @@ void FreeDecodedCert(DecodedCert* cert)
         XFREE(cert->publicKey, cert->heap, DYNAMIC_TYPE_PUBLIC_KEY);
     if (cert->altNames)
         FreeAltNames(cert->altNames, cert->heap);
+#ifdef CYASSL_SEP
+    XFREE(cert->deviceType, cert->heap, 0);
+    XFREE(cert->hwType, cert->heap, 0);
+    XFREE(cert->hwSerialNum, cert->heap, 0);
+#endif /* CYASSL_SEP */
 }
 
 
@@ -2372,48 +2385,132 @@ static void DecodeAltNames(byte* input, int sz, DecodedCert* cert)
     }
 
     while (length > 0) {
-        DNS_entry* entry;
-        int        strLen;
-        word       lenStartIdx;
         byte       b = input[idx++];
 
         length--;
 
-        if (b != (ASN_CONTEXT_SPECIFIC | ASN_DNS_TYPE)) {
+        /* Save DNS Type names in the altNames list. */
+        /* Save Other Type names in the cert's OidMap */
+        if (b == (ASN_CONTEXT_SPECIFIC | ASN_DNS_TYPE)) {
+            DNS_entry* dnsEntry;
+            int strLen;
+            word32 lenStartIdx = idx;
+
+            if (GetLength(input, &idx, &strLen, sz) < 0) {
+                CYASSL_MSG("\tfail: str length");
+                return;
+            }
+            length -= (idx - lenStartIdx);
+
+            dnsEntry = (DNS_entry*)XMALLOC(sizeof(DNS_entry), cert->heap,
+                                        DYNAMIC_TYPE_ALTNAME);
+            if (dnsEntry == NULL) {
+                CYASSL_MSG("\tOut of Memory");
+                return;
+            }
+
+            dnsEntry->name = (char*)XMALLOC(strLen + 1, cert->heap,
+                                         DYNAMIC_TYPE_ALTNAME);
+            if (dnsEntry->name == NULL) {
+                CYASSL_MSG("\tOut of Memory");
+                XFREE(dnsEntry, cert->heap, DYNAMIC_TYPE_ALTNAME);
+                return;
+            }
+
+            XMEMCPY(dnsEntry->name, &input[idx], strLen);
+            dnsEntry->name[strLen] = '\0';
+
+            dnsEntry->next = cert->altNames;
+            cert->altNames = dnsEntry;
+
+            length -= strLen;
+            idx    += strLen;
+        }
+#ifdef CYASSL_SEP
+        else if (b == (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | ASN_OTHER_TYPE))
+        {
+            int strLen;
+            word32 lenStartIdx = idx;
+            word32 oid = 0;
+
+            if (GetLength(input, &idx, &strLen, sz) < 0) {
+                CYASSL_MSG("\tfail: other name length");
+                return;
+            }
+            /* Consume the rest of this sequence. */
+            length -= (strLen + idx - lenStartIdx);
+
+            if (GetObjectId(input, &idx, &oid, sz) < 0) {
+                CYASSL_MSG("\tbad OID");
+                return;
+            }
+
+            if (oid != HW_NAME_OID) {
+                CYASSL_MSG("\tincorrect OID");
+                return;
+            }
+
+            if (input[idx++] != (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED)) {
+                CYASSL_MSG("\twrong type");
+                return;
+            }
+
+            if (GetLength(input, &idx, &strLen, sz) < 0) {
+                CYASSL_MSG("\tfail: str len");
+                return;
+            }
+
+            if (GetSequence(input, &idx, &strLen, sz) < 0) {
+                CYASSL_MSG("\tBad Sequence");
+                return;
+            }
+
+            if (input[idx++] != ASN_OBJECT_ID) {
+                CYASSL_MSG("\texpected OID");
+                return;
+            }
+
+            if (GetLength(input, &idx, &strLen, sz) < 0) {
+                CYASSL_MSG("\tfailed: str len");
+                return;
+            }
+
+            cert->hwType = (byte*)XMALLOC(strLen, cert->heap, 0);
+            if (cert->hwType == NULL) {
+                CYASSL_MSG("\tOut of Memory");
+                return;
+            }
+
+            XMEMCPY(cert->hwType, &input[idx], strLen);
+            cert->hwTypeSz = strLen;
+            idx += strLen;
+
+            if (input[idx++] != ASN_OCTET_STRING) {
+                CYASSL_MSG("\texpected Octet String");
+                return;
+            }
+
+            if (GetLength(input, &idx, &strLen, sz) < 0) {
+                CYASSL_MSG("\tfailed: str len");
+                return;
+            }
+
+            cert->hwSerialNum = (byte*)XMALLOC(strLen + 1, cert->heap, 0);
+            if (cert->hwSerialNum == NULL) {
+                CYASSL_MSG("\tOut of Memory");
+                return;
+            }
+
+            XMEMCPY(cert->hwSerialNum, &input[idx], strLen);
+            cert->hwSerialNum[strLen] = '\0';
+            cert->hwSerialNumSz = strLen;
+            idx += strLen;
+        }
+#endif /* CYASSL_SEP */
+        else {
             CYASSL_MSG("\tNot DNS type");
             return;
         }
-
-        lenStartIdx = idx;
-        if (GetLength(input, &idx, &strLen, sz) < 0) {
-            CYASSL_MSG("\tfail: str length");
-            return;
-        }
-        length -= (int)(idx - lenStartIdx);
-
-        entry = (DNS_entry*)XMALLOC(sizeof(DNS_entry), cert->heap,
-                                    DYNAMIC_TYPE_ALTNAME);
-        if (entry == NULL) {
-            CYASSL_MSG("\tOut of Memory");
-            return;
-        }
-
-        entry->name = (char*)XMALLOC(strLen + 1, cert->heap,
-                                     DYNAMIC_TYPE_ALTNAME);
-        if (entry->name == NULL) {
-            CYASSL_MSG("\tOut of Memory");
-            XFREE(entry, cert->heap, DYNAMIC_TYPE_ALTNAME);
-            return;
-        }
-
-        XMEMCPY(entry->name, &input[idx], strLen);
-        entry->name[strLen] = '\0';
-
-        entry->next    = cert->altNames;
-        cert->altNames = entry;
-
-        length -= strLen;
-        idx    += strLen;
     }   
 }
 
@@ -2643,6 +2740,50 @@ static void DecodeSubjKeyId(byte* input, int sz, DecodedCert* cert)
 }
 
 
+#ifdef CYASSL_SEP
+    static void DecodeCertPolicy(byte* input, int sz, DecodedCert* cert)
+    {
+        word32 idx = 0;
+        int length = 0;
+
+        CYASSL_ENTER("DecodeCertPolicy");
+
+        /* Unwrap certificatePolicies */
+        if (GetSequence(input, &idx, &length, sz) < 0) {
+            CYASSL_MSG("\tdeviceType isn't OID");
+            return;
+        }
+
+        if (GetSequence(input, &idx, &length, sz) < 0) {
+            CYASSL_MSG("\tdeviceType isn't OID");
+            return;
+        }
+
+        if (input[idx++] != ASN_OBJECT_ID) {
+            CYASSL_MSG("\tdeviceType isn't OID");
+            return;
+        }
+
+        if (GetLength(input, &idx, &length, sz) < 0) {
+            CYASSL_MSG("\tCouldn't read length of deviceType");
+            return;
+        }
+
+        if (length > 0) {
+            cert->deviceType = (byte*)XMALLOC(length, cert->heap, 0);
+            if (cert->deviceType == NULL) {
+                CYASSL_MSG("\tCouldn't alloc memory for deviceType");
+                return;
+            }
+            cert->deviceTypeSz = length;
+            XMEMCPY(cert->deviceType, input + idx, length);
+        }
+
+        CYASSL_LEAVE("DecodeCertPolicy", 0);
+    }
+#endif /* CYASSL_SEP */
+
+
 static void DecodeCertExtensions(DecodedCert* cert)
 /*
  *  Processing the Certificate Extensions. This does not modify the current
@@ -2719,6 +2860,12 @@ static void DecodeCertExtensions(DecodedCert* cert)
                 DecodeSubjKeyId(&input[idx], length, cert);
                 break;
 
+            #ifdef CYASSL_SEP
+            case CERT_POLICY_OID:
+                DecodeCertPolicy(&input[idx], length, cert);
+                break;
+            #endif
+
             default:
                 CYASSL_MSG("\tExtension type not handled, skipping");
                 break;
@@ -2726,6 +2873,7 @@ static void DecodeCertExtensions(DecodedCert* cert)
         idx += length;
     }
 
+    CYASSL_LEAVE("DecodeCertExtensions", 0);
     return;
 }
 
@@ -5352,4 +5500,10 @@ int ParseCRL(DecodedCRL* dcrl, const byte* buff, word32 sz, void* cm)
 
 #endif /* HAVE_CRL */
 #endif
+
+#ifdef CYASSL_SEP
+
+
+
+#endif /* CYASSL_SEP */
 

@@ -62,6 +62,7 @@ enum ASN_Tags {
     ASN_SEQUENCE          = 0x10,
     ASN_SET               = 0x11,
     ASN_UTC_TIME          = 0x17,
+    ASN_OTHER_TYPE        = 0x00,
     ASN_DNS_TYPE          = 0x02,
     ASN_GENERALIZED_TIME  = 0x18,
     CRL_EXTENSIONS        = 0xa0,
@@ -189,13 +190,22 @@ enum KDF_Sum {
 
 
 enum Extensions_Sum {
-    BASIC_CA_OID  = 133,
-    ALT_NAMES_OID = 131,
-    CRL_DIST_OID  = 145,
-    AUTH_INFO_OID = 69,
-    CA_ISSUER_OID = 117,
-    AUTH_KEY_OID  = 149,
-    SUBJ_KEY_OID  = 128
+    BASIC_CA_OID    = 133,
+    ALT_NAMES_OID   = 131,
+    CRL_DIST_OID    = 145,
+    AUTH_INFO_OID   = 69,
+    CA_ISSUER_OID   = 117,
+    AUTH_KEY_OID    = 149,
+    SUBJ_KEY_OID    = 128,
+    CERT_POLICY_OID = 146
+};
+
+enum CertificatePolicy_Sum {
+    CP_ANY_OID      = 146  /* id-ce 32 0 */
+};
+
+enum SepHardwareName_Sum {
+    HW_NAME_OID     = 79   /* 1.3.6.1.5.5.7.8.4 from RFC 4108*/
 };
 
 
@@ -277,6 +287,14 @@ struct DecodedCert {
     byte*   afterDate;
     int     afterDateLen;
 #endif /* CYASSL_CERT_GEN */
+#ifdef CYASSL_SEP
+    int     deviceTypeSz;
+    byte*   deviceType;
+    int     hwTypeSz;
+    byte*   hwType;
+    int     hwSerialNumSz;
+    byte*   hwSerialNum;
+#endif /* CYASSL_SEP */
 };
 
 #ifdef SHA_DIGEST_SIZE
