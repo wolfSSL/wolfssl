@@ -2532,6 +2532,8 @@ static void DecodeAuthInfo(byte* input, int sz, DecodedCert* cert)
     int length = 0;
     word32 oid;
 
+    CYASSL_ENTER("DecodeAuthInfo");
+
     /* Unwrap the list of AIAs */
     if (GetSequence(input, &idx, &length, sz) < 0) return;
 
@@ -2583,6 +2585,7 @@ static void DecodeAuthKeyId(byte* input, int sz, DecodedCert* cert)
 
     if (input[idx++] != (ASN_CONTEXT_SPECIFIC | 0)) {
         CYASSL_MSG("\tfail: wanted OPTIONAL item 0, not available\n");
+        return;
     }
 
     if (GetLength(input, &idx, &length, sz) < 0) {
