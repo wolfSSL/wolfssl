@@ -385,8 +385,8 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     if (!useNtruKey && !usePsk) {
         if (SSL_CTX_use_PrivateKey_file(ctx, ourKey, SSL_FILETYPE_PEM)
                                          != SSL_SUCCESS)
-            err_sys("can't load server cert file, check file and run from"
-                " CyaSSL home dir");
+            err_sys("can't load server private key file, check file and run "
+                "from CyaSSL home dir");
     }
 #endif
 
