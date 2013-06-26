@@ -947,7 +947,7 @@ int NetX_Receive(CYASSL *ssl, char *buf, int sz, void *ctx)
             CYASSL_MSG("NetX Recv Drained packet");
             nx_packet_release(nxCtx->nxPacket);
             nxCtx->nxPacket = NULL;
-            nxCtx->nxOffset   = 0;
+            nxCtx->nxOffset = 0;
         }
     }
 

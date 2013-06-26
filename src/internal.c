@@ -1683,6 +1683,10 @@ void SSL_ResourceFree(CYASSL* ssl)
 #ifdef HAVE_TLS_EXTENSIONS
     TLSX_FreeAll(ssl->extensions);
 #endif
+#ifdef HAVE_NETX
+    if (ssl->nxCtx.nxPacket)
+        nx_packet_release(ssl->nxCtx.nxPacket);
+#endif
 }
 
 
