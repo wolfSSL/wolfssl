@@ -454,11 +454,10 @@ int EmbedSendTo(CYASSL* ssl, char *buf, int sz, void *ctx)
 int EmbedGenerateCookie(CYASSL* ssl, byte *buf, int sz, void *ctx)
 {
     int sd = ssl->wfd;
-    struct sockaddr_in peer;
+    struct sockaddr_in6 peer;
     XSOCKLENT peerSz = sizeof(peer);
-    byte cookieSrc[sizeof(struct in_addr) + sizeof(int)];
-    int cookieSrcSz = 0;
     Sha sha;
+    byte digest[SHA_DIGEST_SIZE];
 
     (void)ctx;
 
@@ -467,28 +466,29 @@ int EmbedGenerateCookie(CYASSL* ssl, byte *buf, int sz, void *ctx)
         return GEN_COOKIE_E;
     }
     
-    if (peer.sin_family == AF_INET) {
-        struct sockaddr_in *s = (struct sockaddr_in*)&peer;
-
-        cookieSrcSz = sizeof(struct in_addr) + sizeof(s->sin_port);
-        XMEMCPY(cookieSrc, &s->sin_port, sizeof(s->sin_port));
-        XMEMCPY(cookieSrc + sizeof(s->sin_port),
-                                     &s->sin_addr, sizeof(struct in_addr));
-    }
-
     InitSha(&sha);
-    ShaUpdate(&sha, cookieSrc, cookieSrcSz);
 
-    if (sz < SHA_DIGEST_SIZE) {
-        byte digest[SHA_DIGEST_SIZE];
-        ShaFinal(&sha, digest);
-        XMEMCPY(buf, digest, sz);
-        return sz;
+    if (peer.sin6_family == AF_INET6) {
+        ShaUpdate(&sha, (byte*)&peer.sin6_port, sizeof(peer.sin6_port));
+        ShaUpdate(&sha, (byte*)&peer.sin6_addr, sizeof(peer.sin6_addr));
+    }
+    else if (peer.sin6_family == AF_INET) {
+        struct sockaddr_in *s = (struct sockaddr_in*)&peer;
+        ShaUpdate(&sha, (byte*)&s->sin_port, sizeof(s->sin_port));
+        ShaUpdate(&sha, (byte*)&s->sin_addr, sizeof(s->sin_addr));
+    }
+    else {
+        CYASSL_MSG("peer sin_family unknown type in EmbedGenerateCookie");
+        return GEN_COOKIE_E;
     }
 
-    ShaFinal(&sha, buf);
+    ShaFinal(&sha, digest);
 
-    return SHA_DIGEST_SIZE;
+    if (sz > SHA_DIGEST_SIZE)
+        sz = SHA_DIGEST_SIZE;
+    XMEMCPY(buf, digest, sz);
+
+    return sz;
 }
 
 #endif /* CYASSL_DTLS */
