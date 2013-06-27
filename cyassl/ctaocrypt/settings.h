@@ -75,6 +75,9 @@
 /* Uncomment next line if using STM32F2 */
 /* #define CYASSL_STM32F2 */
 
+/* Uncomment next line if using Comverge settings */
+/* #define COMVERGE */
+
 
 #include <cyassl/ctaocrypt/visibility.h>
 
@@ -95,6 +98,7 @@
     #define NO_DSA
     #define NO_HC128
     #define NO_RSA
+    #define NO_SESSION_CACHE
     #define HAVE_ECC 
 #endif
 
