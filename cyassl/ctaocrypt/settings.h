@@ -94,6 +94,8 @@
     #define NO_DH
     #define NO_DSA
     #define NO_HC128
+    #define NO_RSA
+    #define HAVE_ECC 
 #endif
 
 
