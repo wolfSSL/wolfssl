@@ -335,7 +335,7 @@ int EmbedReceiveFrom(CYASSL *ssl, char *buf, int sz, void *ctx)
     int err;
     int sd = dtlsCtx->fd;
     int dtls_timeout = CyaSSL_dtls_get_current_timeout(ssl);
-    struct sockaddr_in peer;
+    struct sockaddr_in6 peer;
     XSOCKLENT peerSz = sizeof(peer);
 
     CYASSL_ENTER("EmbedReceiveFrom()");
