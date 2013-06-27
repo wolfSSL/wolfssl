@@ -5071,6 +5071,36 @@ int CyaSSL_set_compression(CYASSL* ssl)
                              ssl, NULL, 1);
     }
 
+
+    /* unload any certs or keys that SSL owns, leave CTX as is
+       SSL_SUCCESS on ok */
+    int CyaSSL_UnloadCertsKeys(CYASSL* ssl)
+    {
+        if (ssl == NULL) {
+            CYASSL_MSG("Null function arg"); 
+            return BAD_FUNC_ARG;
+        }
+
+        if (ssl->buffers.weOwnCert) {
+            CYASSL_MSG("Unloading cert");
+            XFREE(ssl->buffers.certificate.buffer, ssl->heap,DYNAMIC_TYPE_CERT);
+            ssl->buffers.weOwnCert = 0;
+            ssl->buffers.certificate.length = 0;
+            ssl->buffers.certificate.buffer = NULL;
+        }
+
+        if (ssl->buffers.weOwnKey) {
+            CYASSL_MSG("Unloading key");
+            XFREE(ssl->buffers.key.buffer, ssl->heap, DYNAMIC_TYPE_KEY);
+            ssl->buffers.weOwnKey = 0;
+            ssl->buffers.key.length = 0;
+            ssl->buffers.key.buffer = NULL;
+        }
+
+        return SSL_SUCCESS;
+    }
+
+
     int CyaSSL_CTX_UnloadCAs(CYASSL_CTX* ctx)
     {
         CYASSL_ENTER("CyaSSL_CTX_UnloadCAs");

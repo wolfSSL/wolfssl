@@ -847,6 +847,7 @@ CYASSL_API int CyaSSL_make_eap_keys(CYASSL*, void* key, unsigned int len,
                                                long, int);
     CYASSL_API int CyaSSL_use_certificate_chain_buffer(CYASSL*, 
                                                const unsigned char*, long);
+    CYASSL_API int CyaSSL_UnloadCertsKeys(CYASSL*);
 #endif
 
 CYASSL_API int CyaSSL_CTX_set_group_messages(CYASSL_CTX*);
