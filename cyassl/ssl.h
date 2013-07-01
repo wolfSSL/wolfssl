@@ -1014,8 +1014,12 @@ enum {
     CYASSL_MFL_2_13 = 5  /* 8192 bytes *//* CyaSSL ONLY!!! */
 };
 
+#ifndef NO_CYASSL_CLIENT
+
 CYASSL_API int CyaSSL_UseMaxFragment(CYASSL* ssl, unsigned char mfl);
 CYASSL_API int CyaSSL_CTX_UseMaxFragment(CYASSL_CTX* ctx, unsigned char mfl);
+
+#endif /* NO_CYASSL_CLIENT */
 #endif /* HAVE_MAX_FRAGMENT */
 
 
