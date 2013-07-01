@@ -1121,11 +1121,19 @@ then
 fi
 
 
+# set fastmath default
+FASTMATH_DEFAULT=no
+
+if test "$target_cpu" = "x86_64"
+then
+FASTMATH_DEFAULT=yes
+fi
+
 # fastmath
 AC_ARG_ENABLE([fastmath],
-    [  --enable-fastmath       Enable fast math for BigInts (default: enabled)],
+    [  --enable-fastmath       Enable fast math ops (default: enabled on x86_64)],
     [ ENABLED_FASTMATH=$enableval ],
-    [ ENABLED_FASTMATH=yes ]
+    [ ENABLED_FASTMATH=$FASTMATH_DEFAULT]
     )
 
 if test "x$ENABLED_FASTMATH" = "xyes"
