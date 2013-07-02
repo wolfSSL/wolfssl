@@ -801,14 +801,17 @@ int EmbedOcspLookup(void* ctx, const char* url, int urlSz,
         close(sfd);
         if (ocspRespSz == 0) {
             CYASSL_MSG("OCSP response was not OK, no OCSP response");
+            XFREE(httpBuf, NULL, DYNAMIC_TYPE_IN_BUFFER);
             return -1;
         }
     } else {
         CYASSL_MSG("OCSP Responder connection failed");
         close(sfd);
+        XFREE(httpBuf, NULL, DYNAMIC_TYPE_IN_BUFFER);
         return -1;
     }
 
+    XFREE(httpBuf, NULL, DYNAMIC_TYPE_IN_BUFFER);
     return ocspRespSz;
 }
 
