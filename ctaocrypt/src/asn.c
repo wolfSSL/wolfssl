@@ -2374,6 +2374,7 @@ static void DecodeAltNames(byte* input, int sz, DecodedCert* cert)
     while (length > 0) {
         DNS_entry* entry;
         int        strLen;
+        word       lenStartIdx;
         byte       b = input[idx++];
 
         length--;
@@ -2383,10 +2384,12 @@ static void DecodeAltNames(byte* input, int sz, DecodedCert* cert)
             return;
         }
 
+        lenStartIdx = idx;
         if (GetLength(input, &idx, &strLen, sz) < 0) {
             CYASSL_MSG("\tfail: str length");
             return;
         }
+        length -= (idx - lenStartIdx);
 
         entry = (DNS_entry*)XMALLOC(sizeof(DNS_entry), cert->heap,
                                     DYNAMIC_TYPE_ALTNAME);
