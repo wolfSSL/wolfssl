@@ -9689,7 +9689,7 @@ int CyaSSL_KeyPemToDer(const unsigned char* pem, int pemSz, unsigned char* buff,
         }
     }
 
-    XFREE(der.buffer, NULL, DYANMIC_KEY_TYPE);
+    XFREE(der.buffer, NULL, DYNAMIC_TYPE_KEY);
 
     return ret;
 }
