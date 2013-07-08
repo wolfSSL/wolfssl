@@ -761,6 +761,8 @@ void Des_SetIV(Des* des, const byte* iv)
 {
     if (des && iv)
         XMEMCPY(des->reg, iv, DES_BLOCK_SIZE);
+    else if (des)
+        XMEMSET(des->reg,  0, DES_BLOCK_SIZE);
 }
 
 
@@ -768,6 +770,8 @@ void Des3_SetIV(Des3* des, const byte* iv)
 {
     if (des && iv)
         XMEMCPY(des->reg, iv, DES_BLOCK_SIZE);
+    else if (des)
+        XMEMSET(des->reg,  0, DES_BLOCK_SIZE);
 }
 
 

@@ -1517,6 +1517,8 @@ int CamelliaSetIV(Camellia* cam, const byte* iv)
 
     if (iv)
         XMEMCPY(cam->reg, iv, CAMELLIA_BLOCK_SIZE);
+    else
+        XMEMSET(cam->reg,  0, CAMELLIA_BLOCK_SIZE);
 
     return 0;
 }

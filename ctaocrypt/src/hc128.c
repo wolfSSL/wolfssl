@@ -229,12 +229,18 @@ static void setup_update(HC128* ctx)  /*each time 16 steps*/
 
 
 
-static void Hc128_SetIV(HC128* ctx, const byte* iv)
+static void Hc128_SetIV(HC128* ctx, const byte* inIv)
 { 
     word32 i;
-	
+    word32 iv[4];
+
+    if (inIv)
+        XMEMCPY(iv, inIv, sizeof(iv));
+    else
+        XMEMSET(iv,    0, sizeof(iv));
+    
 	for (i = 0; i < (128 >> 5); i++)
-        ctx->iv[i] = LITTLE32(((word32*)iv)[i]);
+        ctx->iv[i] = LITTLE32(iv[i]);
 	
     for (; i < 8; i++) ctx->iv[i] = ctx->iv[i-4];
   
@@ -284,16 +290,15 @@ static INLINE int DoKey(HC128* ctx, const byte* key, const byte* iv)
 int Hc128_SetKey(HC128* ctx, const byte* key, const byte* iv)
 {
 #ifdef XSTREAM_ALIGN
-    if ((word)key % 4 || (word)iv % 4) {
+    if ((word)key % 4) {
         int alignKey[4];
-        int alignIv[4];
 
-        CYASSL_MSG("Hc128SetKey unaligned key/iv");
+        /* iv gets aligned in SetIV */
+        CYASSL_MSG("Hc128SetKey unaligned key");
 
         XMEMCPY(alignKey, key, sizeof(alignKey));
-        XMEMCPY(alignIv,  iv,  sizeof(alignIv));
 
-        return DoKey(ctx, (const byte*)alignKey, (const byte*)alignIv);
+        return DoKey(ctx, (const byte*)alignKey, iv);
     }
 #endif /* XSTREAM_ALIGN */
 

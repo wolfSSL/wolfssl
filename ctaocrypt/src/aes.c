@@ -2865,6 +2865,8 @@ int AesSetIV(Aes* aes, const byte* iv)
 
     if (iv)
         XMEMCPY(aes->reg, iv, AES_BLOCK_SIZE);
+    else
+        XMEMSET(aes->reg,  0, AES_BLOCK_SIZE);
 
     return 0;
 }

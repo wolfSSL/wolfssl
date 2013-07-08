@@ -104,14 +104,20 @@ static void RABBIT_next_state(RabbitCtx* ctx)
 
 
 /* IV setup */
-static void RabbitSetIV(Rabbit* ctx, const byte* iv)
+static void RabbitSetIV(Rabbit* ctx, const byte* inIv)
 {
     /* Temporary variables */
     word32 i0, i1, i2, i3, i;
+    word32 iv[2];
+
+    if (inIv)
+        XMEMCPY(iv, inIv, sizeof(iv));
+    else
+        XMEMSET(iv,    0, sizeof(iv));
       
     /* Generate four subvectors */
-    i0 = LITTLE32(*(word32*)(iv+0));
-    i2 = LITTLE32(*(word32*)(iv+4));
+    i0 = LITTLE32(iv[0]);
+    i2 = LITTLE32(iv[1]);
     i1 = (i0>>16) | (i2&0xFFFF0000);
     i3 = (i2<<16) | (i0&0x0000FFFF);
 
@@ -186,7 +192,7 @@ static INLINE int DoKey(Rabbit* ctx, const byte* key, const byte* iv)
     }
     ctx->workCtx.carry = ctx->masterCtx.carry;
 
-    if (iv) RabbitSetIV(ctx, iv);
+    RabbitSetIV(ctx, iv);
 
     return 0;
 }
@@ -196,17 +202,13 @@ static INLINE int DoKey(Rabbit* ctx, const byte* key, const byte* iv)
 int RabbitSetKey(Rabbit* ctx, const byte* key, const byte* iv)
 {
 #ifdef XSTREAM_ALIGN
-    if ((word)key % 4 || (iv && (word)iv % 4)) {
+    if ((word)key % 4) {
         int alignKey[4];
-        int alignIv[2];
 
-        CYASSL_MSG("RabbitSetKey unaligned key/iv");
+        /* iv aligned in SetIV */
+        CYASSL_MSG("RabbitSetKey unaligned key");
 
         XMEMCPY(alignKey, key, sizeof(alignKey));
-        if (iv) {
-            XMEMCPY(alignIv,  iv,  sizeof(alignIv));
-            iv = (const byte*)alignIv;
-        }
 
         return DoKey(ctx, (const byte*)alignKey, iv);
     }

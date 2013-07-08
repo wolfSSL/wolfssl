@@ -1548,7 +1548,7 @@ int rabbit_test(void)
     b.outLen = 8;
 
     c.input  = "\x00\x00\x00\x00\x00\x00\x00\x00";
-    c.output = "\x9C\x51\xE2\x87\x84\xC3\x7F\xE9";
+    c.output = "\x04\xCE\xCA\x7A\x1A\x86\x6E\x77";
     c.inLen  = 8;
     c.outLen = 8;
 
@@ -2202,9 +2202,9 @@ int camellia_test(void)
     if (XMEMCMP(cam.reg, ivc, CAMELLIA_BLOCK_SIZE))
         return -1;
 
-    /* Setting the IV to NULL should leave the IV unchanged */
+    /* Setting the IV to NULL should be same as all zeros IV */
     if (CamelliaSetIV(&cam, NULL) != 0 ||
-                                    XMEMCMP(cam.reg, ivc, CAMELLIA_BLOCK_SIZE))
+                                    XMEMCMP(cam.reg, ive, CAMELLIA_BLOCK_SIZE))
         return -1;
     
     /* First parameter should never be null */
