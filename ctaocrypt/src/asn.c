@@ -2389,7 +2389,7 @@ static void DecodeAltNames(byte* input, int sz, DecodedCert* cert)
             CYASSL_MSG("\tfail: str length");
             return;
         }
-        length -= (idx - lenStartIdx);
+        length -= (int)(idx - lenStartIdx);
 
         entry = (DNS_entry*)XMALLOC(sizeof(DNS_entry), cert->heap,
                                     DYNAMIC_TYPE_ALTNAME);
