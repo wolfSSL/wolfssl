@@ -61,7 +61,7 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_libdir}/libcyassl.la
 %{_libdir}/libcyassl.so
 %{_libdir}/libcyassl.so.5
-%{_libdir}/libcyassl.so.5.0.0
+%{_libdir}/libcyassl.so.5.0.1
 
 %files devel
 %defattr(-,root,root,-)
