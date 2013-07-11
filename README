@@ -42,17 +42,17 @@ Release 2.7.0 CyaSSL has bug fixes and new features including:
 - KEIL MDK-ARM projects
 - Wildcard check to domain name match, and Subject altnames are checked too
 - Better error messages for certificate verification errors
-- Ability to discsard sessoin during handshake verify
+- Ability to discard session during handshake verify
 - More consistent error returns across all APIs
-- Ability to unlaod CAs at the CTX or CertManager levle
+- Ability to unload CAs at the CTX or CertManager level
 - Authority subject id support for Certificate matching
 - Persistent session cache functionality
 - Persistent CA cache functionality
 - Client session table lookups to push serverID table to library level
 - Camellia support to sniffer
-- User controlable settings for DTLS timeout values
+- User controllable settings for DTLS timeout values
 - Sniffer fixes for caching long lived sessions
-- DTLS reliability enhancments for the handshake
+- DTLS reliability enhancements for the handshake
 - Better ThreadX support
 
 When compiling with Mingw, libtool may give the following warning due to
@@ -154,7 +154,7 @@ warning about the portability of this.  Also, if you're using the github source
 tree you'll need to remove the -Wredundant-decls warning from the generated
 Makefile because the cavium headers don't conform to this warning.  Currently
 CyaSSL supports Cavium RNG, AES, 3DES, RC4, HMAC, and RSA directly at the crypto
-layer.  Support at the SSL level is parital and currently just does AES, 3DES,
+layer.  Support at the SSL level is partial and currently just does AES, 3DES,
 and RC4.  RSA and HMAC are slower until the Cavium calls can be utilized in non
 blocking mode.  The example client turns on cavium support as does the crypto
 test and benchmark.  Please see the HAVE_CAVIUM define.
@@ -311,7 +311,7 @@ Release 2.0.0rc3 for CyaSSL has bug fixes and a few new features including:
 - CyaSSL headers now in <cyassl/*.h>
 - CTaocrypt headers now in <cyassl/ctaocrypt/*.h>
 - OpenSSL compatibility headers now in <cyassl/openssl/*.h>
-- examples and tests all run from home diretory so can use certs in ./certs
+- examples and tests all run from home directory so can use certs in ./certs
         (see note 1)
 
 So previous applications that used the OpenSSL compatibility header
@@ -333,7 +333,7 @@ Release 2.0.0rc2 for CyaSSL has bug fixes and a few new features including:
 - Wshadow warnings removed
 - asn public header
 - CTaoCrypt public headers now all have ctc_ prefix (the manual is still being
-        updated to relfect this change)
+        updated to reflect this change)
 - and more.
 
 This is the 2nd and perhaps final release candidate for version 2.
