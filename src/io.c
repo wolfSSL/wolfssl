@@ -853,6 +853,24 @@ CYASSL_API void CyaSSL_SetIOWriteCtx(CYASSL* ssl, void *wctx)
 }
 
 
+CYASSL_API void* CyaSSL_GetIOReadCtx(CYASSL* ssl)
+{
+    if (ssl)
+        return ssl->IOCB_ReadCtx;
+
+    return NULL;
+}
+
+
+CYASSL_API void* CyaSSL_GetIOWriteCtx(CYASSL* ssl)
+{
+    if (ssl)
+        return ssl->IOCB_WriteCtx;
+
+    return NULL;
+}
+
+
 CYASSL_API void CyaSSL_SetIOReadFlags(CYASSL* ssl, int flags)
 {
     ssl->rflags = flags; 

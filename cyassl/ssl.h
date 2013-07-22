@@ -863,6 +863,9 @@ CYASSL_API void CyaSSL_SetIOSend(CYASSL_CTX*, CallbackIOSend);
 CYASSL_API void CyaSSL_SetIOReadCtx( CYASSL* ssl, void *ctx);
 CYASSL_API void CyaSSL_SetIOWriteCtx(CYASSL* ssl, void *ctx);
 
+CYASSL_API void* CyaSSL_GetIOReadCtx( CYASSL* ssl);
+CYASSL_API void* CyaSSL_GetIOWriteCtx(CYASSL* ssl);
+
 CYASSL_API void CyaSSL_SetIOReadFlags( CYASSL* ssl, int flags);
 CYASSL_API void CyaSSL_SetIOWriteFlags(CYASSL* ssl, int flags);
 
