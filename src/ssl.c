@@ -3197,7 +3197,7 @@ static INLINE int GetSignerMemory(Signer* signer)
            + sizeof(signer->nameLen)    + sizeof(signer->subjectNameHash);
 
 #if !defined(NO_SKID)
-        sz += sizeof(signer->subjectKeyIdHash);
+        sz += (int)sizeof(signer->subjectKeyIdHash);
 #endif
 
     /* add dynamic bytes needed */
@@ -3274,7 +3274,7 @@ static INLINE int RestoreCertRow(CYASSL_CERT_MANAGER* cm, byte* current,
         int     minSz = sizeof(signer->pubKeySize) + sizeof(signer->keyOID) +
                       sizeof(signer->nameLen) + sizeof(signer->subjectNameHash);
         #ifndef NO_SKID
-                minSz += sizeof(signer->subjectKeyIdHash);
+                minSz += (int)sizeof(signer->subjectKeyIdHash);
         #endif
 
         if (start + minSz > end) {
@@ -3287,11 +3287,11 @@ static INLINE int RestoreCertRow(CYASSL_CERT_MANAGER* cm, byte* current,
 
         /* pubKeySize */
         XMEMCPY(&signer->pubKeySize, current + idx, sizeof(signer->pubKeySize));
-        idx += sizeof(signer->pubKeySize);
+        idx += (int)sizeof(signer->pubKeySize);
 
         /* keyOID */
         XMEMCPY(&signer->keyOID, current + idx, sizeof(signer->keyOID));
-        idx += sizeof(signer->keyOID);
+        idx += (int)sizeof(signer->keyOID);
     
         /* pulicKey */
         if (start + minSz + signer->pubKeySize > end) {
@@ -3311,7 +3311,7 @@ static INLINE int RestoreCertRow(CYASSL_CERT_MANAGER* cm, byte* current,
 
         /* nameLen */
         XMEMCPY(&signer->nameLen, current + idx, sizeof(signer->nameLen));
-        idx += sizeof(signer->nameLen);
+        idx += (int)sizeof(signer->nameLen);
 
         /* name */
         if (start + minSz + signer->pubKeySize + signer->nameLen > end) {
@@ -3357,16 +3357,16 @@ static INLINE int StoreCertRow(CYASSL_CERT_MANAGER* cm, byte* current, int row)
 
     while (list) {
         XMEMCPY(current + added, &list->pubKeySize, sizeof(list->pubKeySize));
-        added += sizeof(list->pubKeySize);
+        added += (int)sizeof(list->pubKeySize);
 
         XMEMCPY(current + added, &list->keyOID,     sizeof(list->keyOID));
-        added += sizeof(list->keyOID);
+        added += (int)sizeof(list->keyOID);
 
         XMEMCPY(current + added, list->publicKey, list->pubKeySize);
         added += list->pubKeySize;
 
         XMEMCPY(current + added, &list->nameLen, sizeof(list->nameLen));
-        added += sizeof(list->nameLen);
+        added += (int)sizeof(list->nameLen);
 
         XMEMCPY(current + added, list->name, list->nameLen);
         added += list->nameLen;
