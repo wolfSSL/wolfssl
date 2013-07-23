@@ -1459,6 +1459,9 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
 #ifdef HAVE_MAX_FRAGMENT
     ssl->max_fragment = MAX_RECORD_SIZE;
 #endif
+#ifdef HAVE_TRUNCATED_HMAC
+    ssl->truncated_hmac = 0;
+#endif
 #endif
 
     ssl->rng    = NULL;

@@ -130,7 +130,15 @@ static void Usage(void)
 #ifdef SHOW_SIZES
     printf("-z          Print structure sizes\n");
 #endif
+#ifdef HAVE_SNI
     printf("-S <str>    Use Host Name Indication\n");
+#endif
+#ifdef HAVE_MAXFRAGMENT
+    printf("-L <num>    Use Maximum Fragment Length [1-5]\n");
+#endif
+#ifdef HAVE_TRUNCATED_HMAC
+    printf("-T          Use Truncated HMAC\n");
+#endif
 #ifdef HAVE_OCSP
     printf("-o          Perform OCSP lookup on peer certificate\n");
     printf("-O <url>    Perform OCSP lookup using <url> as responder\n");
@@ -189,6 +197,13 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
 #ifdef HAVE_SNI
     char*  sniHostName = NULL;
 #endif
+#ifdef HAVE_MAX_FRAGMENT
+    byte maxFragment = 0;
+#endif
+#ifdef HAVE_TRUNCATED_HMAC
+    byte  truncatedHMAC = 0;
+#endif
+
 
 #ifdef HAVE_OCSP
     int    useOcsp  = 0;
@@ -213,7 +228,7 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
     StackTrap();
 
     while ((ch = mygetopt(argc, argv,
-                                 "?gdusmNrtfxh:p:v:l:A:c:k:b:zS:oO:")) != -1) {
+                                 "?gdusmNrtfxh:p:v:l:A:c:k:b:zS:L:ToO:")) != -1) {
         switch (ch) {
             case '?' :
                 Usage();
@@ -315,6 +330,23 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
             case 'S' :
                 #ifdef HAVE_SNI
                     sniHostName = myoptarg;
+                #endif
+                break;
+
+            case 'L' :
+                #ifdef HAVE_MAX_FRAGMENT
+                    maxFragment = atoi(myoptarg);
+                    if (maxFragment < CYASSL_MFL_2_9 ||
+                                                maxFragment > CYASSL_MFL_2_13) {
+                        Usage();
+                        exit(MY_EX_USAGE);
+                    }
+                #endif
+                break;
+
+            case 'T' :
+                #ifdef HAVE_TRUNCATED_HMAC
+                    truncatedHMAC = 1;
                 #endif
                 break;
 
@@ -498,6 +530,16 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
     if (sniHostName)
         if (CyaSSL_CTX_UseSNI(ctx, 0, sniHostName, XSTRLEN(sniHostName)))
             err_sys("UseSNI failed");
+#endif
+#ifdef HAVE_MAX_FRAGMENT
+    if (maxFragment)
+        if (CyaSSL_CTX_UseMaxFragment(ctx, maxFragment))
+            err_sys("UseMaxFragment failed");
+#endif
+#ifdef HAVE_TRUNCATED_HMAC
+    if (truncatedHMAC)
+        if (CyaSSL_CTX_UseTruncatedHMAC(ctx))
+            err_sys("UseTruncatedHMAC failed");
 #endif
 
     if (benchmark) {

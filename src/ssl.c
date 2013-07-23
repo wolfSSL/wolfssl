@@ -587,6 +587,26 @@ int CyaSSL_CTX_UseMaxFragment(CYASSL_CTX* ctx, byte mfl)
 #endif /* NO_CYASSL_CLIENT */
 #endif /* HAVE_MAX_FRAGMENT */
 
+#ifdef HAVE_TRUNCATED_HMAC
+#ifndef NO_CYASSL_CLIENT
+int CyaSSL_UseTruncatedHMAC(CYASSL* ssl)
+{
+    if (ssl == NULL)
+        return BAD_FUNC_ARG;
+
+    return TLSX_UseTruncatedHMAC(&ssl->extensions);
+}
+
+int CyaSSL_CTX_UseTruncatedHMAC(CYASSL_CTX* ctx)
+{
+    if (ctx == NULL)
+        return BAD_FUNC_ARG;
+
+    return TLSX_UseTruncatedHMAC(&ctx->extensions);
+}
+#endif /* NO_CYASSL_CLIENT */
+#endif /* HAVE_TRUNCATED_HMAC */
+
 #ifndef CYASSL_LEANPSK
 int CyaSSL_send(CYASSL* ssl, const void* data, int sz, int flags)
 {

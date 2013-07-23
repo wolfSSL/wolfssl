@@ -1025,6 +1025,15 @@ CYASSL_API int CyaSSL_CTX_UseMaxFragment(CYASSL_CTX* ctx, unsigned char mfl);
 #endif /* NO_CYASSL_CLIENT */
 #endif /* HAVE_MAX_FRAGMENT */
 
+#ifdef HAVE_TRUNCATED_HMAC
+#ifndef NO_CYASSL_CLIENT
+
+CYASSL_API int CyaSSL_UseTruncatedHMAC(CYASSL* ssl);
+CYASSL_API int CyaSSL_CTX_UseTruncatedHMAC(CYASSL_CTX* ctx);
+
+#endif /* NO_CYASSL_CLIENT */
+#endif /* HAVE_TRUNCATED_HMAC */
+
 
 #define CYASSL_CRL_MONITOR   0x01   /* monitor this dir flag */
 #define CYASSL_CRL_START_MON 0x02   /* start monitoring flag */

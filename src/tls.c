@@ -955,6 +955,54 @@ int TLSX_UseMaxFragment(TLSX** extensions, byte mfl)
 
 #endif /* HAVE_MAX_FRAGMENT */
 
+#ifdef HAVE_TRUNCATED_HMAC
+
+int TLSX_UseTruncatedHMAC(TLSX** extensions)
+{
+    int ret = 0;
+
+    if (extensions == NULL)
+        return BAD_FUNC_ARG;
+
+    if (!TLSX_Find(*extensions, TRUNCATED_HMAC))
+        if ((ret = TLSX_Append(extensions, TRUNCATED_HMAC)) != 0)
+            return ret;
+
+    return 0;
+}
+
+static int TLSX_THM_Parse(CYASSL* ssl, byte* input, word16 length,
+                                                                 byte isRequest)
+{
+    if (length != 0 || input == NULL)
+        return INCOMPLETE_DATA;
+
+#ifndef NO_CYASSL_SERVER
+    if (isRequest) {
+        int r = TLSX_UseTruncatedHMAC(&ssl->extensions);
+
+        if (r) return r; /* throw error */
+
+        TLSX_SetResponse(ssl, TRUNCATED_HMAC);
+    }
+#endif
+
+    ssl->truncated_hmac = 1;
+
+#error "TRUNCATED HMAC IS NOT FINISHED YET \
+(contact moises@wolfssl.com for more info)"
+
+    return 0;
+}
+
+#define THM_PARSE TLSX_THM_Parse
+
+#else
+
+#define THM_PARSE(a, b, c, d) 0
+
+#endif /* HAVE_TRUNCATED_HMAC */
+
 TLSX* TLSX_Find(TLSX* list, TLSX_Type type)
 {
     TLSX* extension = list;
@@ -979,6 +1027,10 @@ void TLSX_FreeAll(TLSX* list)
 
             case MAX_FRAGMENT_LENGTH:
                 MFL_FREE_ALL(extension->data);
+                break;
+
+            case TRUNCATED_HMAC:
+                // Nothing to do.
                 break;
         }
 
@@ -1014,6 +1066,10 @@ static word16 TLSX_GetSize(TLSX* list, byte* semaphore, byte isRequest)
                     break;
                 case MAX_FRAGMENT_LENGTH:
                     length += MFL_GET_SIZE(extension->data);
+                    break;
+
+                case TRUNCATED_HMAC:
+                    // empty extension.
                     break;
             }
 
@@ -1054,6 +1110,10 @@ static word16 TLSX_Write(TLSX* list, byte* output, byte* semaphore,
                 case MAX_FRAGMENT_LENGTH:
                     offset += MFL_WRITE((byte *) extension->data,
                                                                output + offset);
+                    break;
+
+                case TRUNCATED_HMAC:
+                    // empty extension.
                     break;
             }
 
@@ -1213,6 +1273,12 @@ int TLSX_Parse(CYASSL* ssl, byte* input, word16 length, byte isRequest,
                 CYASSL_MSG("Max Fragment Length extension received");
 
                 ret = MFL_PARSE(ssl, input + offset, size, isRequest);
+                break;
+
+            case TRUNCATED_HMAC:
+                CYASSL_MSG("Truncated HMAC extension received");
+
+                ret = THM_PARSE(ssl, input + offset, size, isRequest);
                 break;
 
             case HELLO_EXT_SIG_ALGO:

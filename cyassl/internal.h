@@ -1122,16 +1122,12 @@ typedef struct CYASSL_DTLS_CTX {
 #ifdef HAVE_TLS_EXTENSIONS
 
 typedef enum {
-#ifdef HAVE_SNI
     SERVER_NAME_INDICATION =  0,
-#endif
-#ifdef HAVE_MAX_FRAGMENT
     MAX_FRAGMENT_LENGTH    =  1,
-#endif
   /*CLIENT_CERTIFICATE_URL =  2,
-    TRUSTED_CA_KEYS        =  3,
+    TRUSTED_CA_KEYS        =  3,*/
     TRUNCATED_HMAC         =  4,
-    STATUS_REQUEST         =  5,
+  /*STATUS_REQUEST         =  5,
     SIGNATURE_ALGORITHMS   = 13,*/
 } TLSX_Type;
 
@@ -1190,6 +1186,14 @@ CYASSL_LOCAL word16 TLSX_SNI_GetRequest(TLSX* extensions, byte type,
 CYASSL_LOCAL int TLSX_UseMaxFragment(TLSX** extensions, byte mfl);
 
 #endif /* HAVE_MAX_FRAGMENT */
+
+#ifdef HAVE_TRUNCATED_HMAC
+
+#define TRUNCATED_HMAC_SIZE 10
+
+CYASSL_LOCAL int TLSX_UseTruncatedHMAC(TLSX** extensions);
+
+#endif /* HAVE_TRUNCATED_HMAC */
 
 #endif /* HAVE_TLS_EXTENSIONS */
 
@@ -1812,6 +1816,9 @@ struct CYASSL {
     TLSX* extensions;                  /* RFC 6066 TLS Extensions data */
 #ifdef HAVE_MAX_FRAGMENT
     word16 max_fragment;
+#endif
+#ifdef HAVE_TRUNCATED_HMAC
+    byte truncated_hmac;
 #endif
 #endif
 #ifdef HAVE_NETX

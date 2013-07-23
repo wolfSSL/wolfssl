@@ -1085,6 +1085,18 @@ then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_MAX_FRAGMENT"
 fi
 
+# Truncated HMAC
+AC_ARG_ENABLE([truncatedhmac],
+    [  --enable-truncatedhmac  Enable Truncated HMAC (default: disabled)],
+    [ ENABLED_TRUNCATED_HMAC=$enableval ],
+    [ ENABLED_TRUNCATED_HMAC=no ]
+    )
+
+if test "x$ENABLED_TRUNCATED_HMAC" = "xyes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_TRUNCATED_HMAC"
+fi
+
 # TLS Extensions
 AC_ARG_ENABLE([tlsx],
     [  --enable-tlsx           Enable all TLS Extensions (default: disabled)],
@@ -1094,6 +1106,8 @@ AC_ARG_ENABLE([tlsx],
 
 if test "x$ENABLED_TLSX" = "xyes"
 then
+	ENABLED_SNI=yes
+	ENABLED_MAX_FRAGMENT=yes
     AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_SNI -DHAVE_MAX_FRAGMENT"
 fi
 
@@ -1473,6 +1487,7 @@ echo "   * Persistent cert    cache:  $ENABLED_SAVECERT"
 echo "   * NTRU:                      $ENABLED_NTRU"
 echo "   * SNI:                       $ENABLED_SNI"
 echo "   * Maximum Fragment Length:   $ENABLED_MAX_FRAGMENT"
+echo "   * Truncated HMAC:            $ENABLED_TRUNCATED_HMAC"
 echo "   * All TLS Extensions:        $ENABLED_TLSX"
 echo "   * valgrind unit tests:       $ENABLED_VALGRIND"
 echo "   * LIBZ:                      $ENABLED_LIBZ"

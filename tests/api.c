@@ -47,14 +47,15 @@ static int test_client_CyaSSL_new(void);
 static int test_CyaSSL_read_write(void);
 #endif /* NO_RSA */
 #endif /* NO_FILESYSTEM */
-#ifdef HAVE_TLS_EXTENSIONS
 #ifdef HAVE_SNI
 static void test_CyaSSL_UseSNI(void);
 #endif /* HAVE_SNI */
 #ifdef HAVE_MAX_FRAGMENT
 static void test_CyaSSL_UseMaxFragment(void);
 #endif /* HAVE_MAX_FRAGMENT */
-#endif /* HAVE_TLS_EXTENSIONS */
+#ifdef HAVE_TRUNCATED_HMAC
+static void test_CyaSSL_UseTruncatedHMAC(void);
+#endif /* HAVE_TRUNCATED_HMAC */
 
 /* test function helpers */
 static int test_method(CYASSL_METHOD *method, const char *name);
@@ -106,14 +107,15 @@ int ApiTest(void)
     test_CyaSSL_read_write();
 #endif /* NO_RSA */
 #endif /* NO_FILESYSTEM */
-#ifdef HAVE_TLS_EXTENSIONS
 #ifdef HAVE_SNI
     test_CyaSSL_UseSNI();
 #endif /* HAVE_SNI */
 #ifdef HAVE_MAX_FRAGMENT
     test_CyaSSL_UseMaxFragment();
 #endif /* HAVE_MAX_FRAGMENT */
-#endif /* HAVE_TLS_EXTENSIONS */
+#ifdef HAVE_TRUNCATED_HMAC
+    test_CyaSSL_UseTruncatedHMAC();
+#endif /* HAVE_TRUNCATED_HMAC */
     test_CyaSSL_Cleanup();
     printf(" End API Tests\n");
 
@@ -424,6 +426,28 @@ static void test_CyaSSL_UseMaxFragment(void)
     CyaSSL_CTX_free(ctx);
 }
 #endif /* HAVE_MAX_FRAGMENT */
+
+#ifdef HAVE_TRUNCATED_HMAC
+static void test_CyaSSL_UseTruncatedHMAC(void)
+{
+    CYASSL_CTX *ctx = CyaSSL_CTX_new(CyaSSLv23_client_method());
+    CYASSL     *ssl = CyaSSL_new(ctx);
+
+    AssertNotNull(ctx);
+    AssertNotNull(ssl);
+
+    /* error cases */
+    AssertIntNE(0, CyaSSL_CTX_UseTruncatedHMAC(NULL));
+    AssertIntNE(0, CyaSSL_UseTruncatedHMAC(NULL));
+
+    /* success case */
+    AssertIntEQ(0, CyaSSL_CTX_UseTruncatedHMAC(ctx));
+    AssertIntEQ(0, CyaSSL_UseTruncatedHMAC(ssl));
+
+    CyaSSL_free(ssl);
+    CyaSSL_CTX_free(ctx);
+}
+#endif /* HAVE_TRUNCATED_HMAC */
 
 #endif /* HAVE_TLS_EXTENSIONS */
 
