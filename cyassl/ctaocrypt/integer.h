@@ -233,6 +233,7 @@ void mp_zero (mp_int * a);
 void mp_clamp (mp_int * a);
 void mp_exch (mp_int * a, mp_int * b);
 void mp_rshd (mp_int * a, int b);
+void mp_rshb (mp_int * a, int b);
 int  mp_mod_2d (mp_int * a, int b, mp_int * c);
 int  mp_mul_2d (mp_int * a, int b, mp_int * c);
 int  mp_lshd (mp_int * a, int b);

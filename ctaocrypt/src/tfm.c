@@ -641,8 +641,7 @@ void fp_div_2(fp_int * a, fp_int * b)
 /* c = a / 2**b */
 void fp_div_2d(fp_int *a, int b, fp_int *c, fp_int *d)
 {
-  fp_digit D, r, rr;
-  int      x;
+  int      D;
   fp_int   t;
 
   /* if the shift count is <= 0 then we do no work */
@@ -670,32 +669,9 @@ void fp_div_2d(fp_int *a, int b, fp_int *c, fp_int *d)
   }
 
   /* shift any bit count < DIGIT_BIT */
-  D = (fp_digit) (b % DIGIT_BIT);
+  D = (b % DIGIT_BIT);
   if (D != 0) {
-    register fp_digit *tmpc, mask, shift;
-
-    /* mask */
-    mask = (((fp_digit)1) << D) - 1;
-
-    /* shift for lsb */
-    shift = DIGIT_BIT - D;
-
-    /* alias */
-    tmpc = c->dp + (c->used - 1);
-
-    /* carry */
-    r = 0;
-    for (x = c->used - 1; x >= 0; x--) {
-      /* get the lower  bits of this word in a temp */
-      rr = *tmpc & mask;
-
-      /* shift the current word and mix in the carry bits from the previous word */
-      *tmpc = (*tmpc >> D) | (r << shift);
-      --tmpc;
-
-      /* set the carry to the carry bits of the current word found above */
-      r = rr;
-    }
+    fp_rshb(c, D);
   }
   fp_clamp (c);
   if (d != NULL) {
@@ -1754,6 +1730,39 @@ void fp_lshd(fp_int *a, int x)
    fp_clamp(a);
 }
 
+
+/* right shift by bit count */
+void fp_rshb(fp_int *c, int x)
+{
+    register fp_digit *tmpc, mask, shift;
+    fp_digit r, rr;
+    fp_digit D = x;
+
+    /* mask */
+    mask = (((fp_digit)1) << D) - 1;
+
+    /* shift for lsb */
+    shift = DIGIT_BIT - D;
+
+    /* alias */
+    tmpc = c->dp + (c->used - 1);
+
+    /* carry */
+    r = 0;
+    for (x = c->used - 1; x >= 0; x--) {
+      /* get the lower  bits of this word in a temp */
+      rr = *tmpc & mask;
+
+      /* shift the current word and mix in the carry bits from previous word */
+      *tmpc = (*tmpc >> D) | (r << shift);
+      --tmpc;
+
+      /* set the carry to the carry bits of the current word found above */
+      r = rr;
+    }
+}
+
+
 void fp_rshd(fp_int *a, int x)
 {
   int y;
@@ -1956,6 +1965,13 @@ int mp_iszero(mp_int* a)
 int mp_count_bits (mp_int* a)
 {
     return fp_count_bits(a);
+}
+
+
+/* fast math conversion */
+void mp_rshb (mp_int* a, int x)
+{
+    fp_rshb(a, x);
 }
 
 

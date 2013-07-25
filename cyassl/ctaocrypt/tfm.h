@@ -372,6 +372,9 @@ void fp_set(fp_int *a, fp_digit b);
 /* right shift x digits */
 void fp_rshd(fp_int *a, int x);
 
+/* right shift x bits */
+void fp_rshb(fp_int *a, int x);
+
 /* left shift x digits */
 void fp_lshd(fp_int *a, int x);
 
@@ -653,6 +656,7 @@ int  mp_isodd(mp_int* a);
 int  mp_iszero(mp_int* a);
 int  mp_count_bits(mp_int *a);
 int  mp_set_int(fp_int *a, fp_digit b);
+void mp_rshb(mp_int *a, int x);
 
 #ifdef HAVE_ECC
     int mp_read_radix(mp_int* a, const char* str, int radix);

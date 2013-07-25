@@ -1144,10 +1144,17 @@ int ecc_sign_hash(const byte* in, word32 inlen, byte* out, word32 *outlen,
    err = mp_read_radix(&p, (char *)key->dp->order, 16);
 
    if (err == MP_OKAY) {
-       int truncLen = (int)inlen;
-       if (truncLen > ecc_size(key))
-           truncLen = ecc_size(key);
-       err = mp_read_unsigned_bin(&e, (byte*)in, truncLen);
+       /* we may need to truncate if hash is longer than key size */
+       word32 orderBits = mp_count_bits(&p);
+
+       /* truncate down to byte size, may be all that's needed */
+       if ( (CYASSL_BIT_SIZE * inlen) > orderBits)
+           inlen = (orderBits + CYASSL_BIT_SIZE - 1)/CYASSL_BIT_SIZE;
+       err = mp_read_unsigned_bin(&e, (byte*)in, inlen);
+
+       /* may still need bit truncation too */
+       if (err == MP_OKAY && (CYASSL_BIT_SIZE * inlen) > orderBits)
+           mp_rshb(&e, CYASSL_BIT_SIZE - (orderBits & 0x7));
    }
 
    /* make up a key and export the public copy */
@@ -1311,10 +1318,17 @@ int ecc_verify_hash(const byte* sig, word32 siglen, byte* hash, word32 hashlen,
    }
    /* read hash */
    if (err == MP_OKAY) {
-       int truncLen = (int)hashlen;
-       if (truncLen > ecc_size(key))
-           truncLen = ecc_size(key);
-       err = mp_read_unsigned_bin(&e, (byte*)hash, truncLen);
+       /* we may need to truncate if hash is longer than key size */
+       unsigned int orderBits = mp_count_bits(&p);
+
+       /* truncate down to byte size, may be all that's needed */
+       if ( (CYASSL_BIT_SIZE * hashlen) > orderBits)
+           hashlen = (orderBits + CYASSL_BIT_SIZE - 1)/CYASSL_BIT_SIZE;
+       err = mp_read_unsigned_bin(&e, (byte*)hash, hashlen);
+
+       /* may still need bit truncation too */
+       if (err == MP_OKAY && (CYASSL_BIT_SIZE * hashlen) > orderBits)
+           mp_rshb(&e, CYASSL_BIT_SIZE - (orderBits & 0x7));
    }
 
    /*  w  = s^-1 mod n */
