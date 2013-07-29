@@ -247,6 +247,11 @@ CYASSL_API void       CyaSSL_flush_sessions(CYASSL_CTX *ctx, long tm);
 CYASSL_API int        CyaSSL_SetServerID(CYASSL* ssl, const unsigned char*, 
                                          int, int);
 
+#ifdef SESSION_INDEX
+    CYASSL_API int CyaSSL_GetSessionIndex(CYASSL* ssl);
+    CYASSL_API int CyaSSL_GetSessionAtIndex(int index, CYASSL_SESSION* session);
+#endif
+
 typedef int (*VerifyCallback)(int, CYASSL_X509_STORE_CTX*);
 typedef int (*pem_password_cb)(char*, int, int, void*);
 

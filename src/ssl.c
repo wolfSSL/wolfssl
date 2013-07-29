@@ -4532,6 +4532,9 @@ int AddSession(CYASSL* ssl)
         return BAD_MUTEX_ERROR;
 
     idx = SessionCache[row].nextIdx++;
+#ifdef SESSION_INDEX
+    ssl->sessionIndex = (row << 4) | idx;
+#endif
 
     XMEMCPY(SessionCache[row].Sessions[idx].masterSecret,
            ssl->arrays->masterSecret, SECRET_LEN);
@@ -4585,6 +4588,37 @@ int AddSession(CYASSL* ssl)
 
     return 0;
 }
+
+
+#ifdef SESSION_INDEX
+    int CyaSSL_GetSessionIndex(CYASSL* ssl)
+    {
+        return ssl->sessionIndex;
+    }
+
+
+    int CyaSSL_GetSessionAtIndex(int index, CYASSL_SESSION* session)
+    {
+        int row, col, result = SSL_FAILURE;
+
+        row = index >> 4;
+        col = index & 0x0F;
+
+        if (LockMutex(&session_mutex) != 0)
+            return BAD_MUTEX_ERROR;
+
+        if (row < SESSION_ROWS && col < SessionCache[row].totalCount) {
+            XMEMCPY(session,
+                     &SessionCache[row].Sessions[col], sizeof(CYASSL_SESSION));
+            result = SSL_SUCCESS;
+        }
+
+        if (UnLockMutex(&session_mutex) != 0)
+            return BAD_MUTEX_ERROR;
+
+        return result;
+    }
+#endif
 
 
     #ifdef SESSION_STATS

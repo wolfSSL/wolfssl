@@ -1824,6 +1824,9 @@ struct CYASSL {
 #ifdef HAVE_NETX
     NetX_Ctx        nxCtx;             /* NetX IO Context */
 #endif
+#ifdef SESSION_INDEX
+    int sessionIndex;                  /* Session's location in the cache. */
+#endif
     CYASSL_ALERT_HISTORY alert_history;
 };
 
