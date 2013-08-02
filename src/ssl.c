@@ -425,6 +425,9 @@ int CyaSSL_write(CYASSL* ssl, const void* data, int sz)
 
     CYASSL_ENTER("SSL_write()");
 
+    if (ssl == NULL || data == NULL || sz < 0)
+        return BAD_FUNC_ARG;
+
 #ifdef HAVE_ERRNO_H 
     errno = 0;
 #endif
@@ -445,6 +448,9 @@ static int CyaSSL_read_internal(CYASSL* ssl, void* data, int sz, int peek)
     int ret; 
 
     CYASSL_ENTER("CyaSSL_read_internal()");
+
+    if (ssl == NULL || data == NULL || sz < 0)
+        return BAD_FUNC_ARG;
 
 #ifdef HAVE_ERRNO_H 
         errno = 0;
@@ -611,9 +617,14 @@ int CyaSSL_CTX_UseTruncatedHMAC(CYASSL_CTX* ctx)
 int CyaSSL_send(CYASSL* ssl, const void* data, int sz, int flags)
 {
     int ret; 
-    int oldFlags = ssl->wflags;
+    int oldFlags;
 
     CYASSL_ENTER("CyaSSL_send()");
+
+    if (ssl == NULL || data == NULL || sz < 0)
+        return BAD_FUNC_ARG;
+    
+    oldFlags = ssl->wflags;
 
     ssl->wflags = flags;
     ret = CyaSSL_write(ssl, data, sz);
@@ -628,9 +639,14 @@ int CyaSSL_send(CYASSL* ssl, const void* data, int sz, int flags)
 int CyaSSL_recv(CYASSL* ssl, void* data, int sz, int flags)
 {
     int ret; 
-    int oldFlags = ssl->rflags;
+    int oldFlags;
 
     CYASSL_ENTER("CyaSSL_recv()");
+
+    if (ssl == NULL || data == NULL || sz < 0)
+        return BAD_FUNC_ARG;
+
+    oldFlags = ssl->rflags;
 
     ssl->rflags = flags;
     ret = CyaSSL_read(ssl, data, sz);
@@ -678,9 +694,13 @@ int CyaSSL_shutdown(CYASSL* ssl)
 int CyaSSL_get_error(CYASSL* ssl, int ret)
 {
     CYASSL_ENTER("SSL_get_error");
-    CYASSL_LEAVE("SSL_get_error", ssl->error);
+
     if (ret > 0)
         return SSL_ERROR_NONE;
+    if (ssl == NULL)
+        return BAD_FUNC_ARG;
+
+    CYASSL_LEAVE("SSL_get_error", ssl->error);
 
     /* make sure converted types are handled in SetErrorString() too */
     if (ssl->error == WANT_READ)
