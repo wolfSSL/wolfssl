@@ -4553,7 +4553,7 @@ int AddSession(CYASSL* ssl)
 
     idx = SessionCache[row].nextIdx++;
 #ifdef SESSION_INDEX
-    ssl->sessionIndex = (row << 4) | idx;
+    ssl->sessionIndex = (row << SESSIDX_ROW_SHIFT) | idx;
 #endif
 
     XMEMCPY(SessionCache[row].Sessions[idx].masterSecret,
@@ -4611,34 +4611,59 @@ int AddSession(CYASSL* ssl)
 
 
 #ifdef SESSION_INDEX
-    int CyaSSL_GetSessionIndex(CYASSL* ssl)
-    {
-        return ssl->sessionIndex;
+
+int CyaSSL_GetSessionIndex(CYASSL* ssl)
+{
+    CYASSL_ENTER("CyaSSL_GetSessionIndex");
+    CYASSL_LEAVE("CyaSSL_GetSessionIndex", ssl->sessionIndex);
+    return ssl->sessionIndex;
+}
+
+
+int CyaSSL_GetSessionAtIndex(int index, CYASSL_SESSION* session)
+{
+    int row, col, result = SSL_FAILURE;
+
+    CYASSL_ENTER("CyaSSL_GetSessionAtIndex");
+
+    row = index >> SESSIDX_ROW_SHIFT;
+    col = index & SESSIDX_IDX_MASK;
+
+    if (LockMutex(&session_mutex) != 0) {
+        return BAD_MUTEX_ERROR;
     }
 
-
-    int CyaSSL_GetSessionAtIndex(int index, CYASSL_SESSION* session)
-    {
-        int row, col, result = SSL_FAILURE;
-
-        row = index >> 4;
-        col = index & 0x0F;
-
-        if (LockMutex(&session_mutex) != 0)
-            return BAD_MUTEX_ERROR;
-
-        if (row < SESSION_ROWS && col < SessionCache[row].totalCount) {
-            XMEMCPY(session,
-                     &SessionCache[row].Sessions[col], sizeof(CYASSL_SESSION));
-            result = SSL_SUCCESS;
-        }
-
-        if (UnLockMutex(&session_mutex) != 0)
-            return BAD_MUTEX_ERROR;
-
-        return result;
+    if (row < SESSION_ROWS &&
+        col < (int)min(SessionCache[row].totalCount, SESSIONS_PER_ROW)) {
+        XMEMCPY(session,
+                 &SessionCache[row].Sessions[col], sizeof(CYASSL_SESSION));
+        result = SSL_SUCCESS;
     }
-#endif
+
+    if (UnLockMutex(&session_mutex) != 0)
+        result = BAD_MUTEX_ERROR;
+
+    CYASSL_LEAVE("CyaSSL_GetSessionAtIndex", result);
+    return result;
+}
+
+#endif /* SESSION_INDEX */
+
+#if defined(SESSION_INDEX) && defined(SESSION_CERTS)
+
+CYASSL_X509_CHAIN* CyaSSL_SESSION_get_peer_chain(CYASSL_SESSION* session)
+{
+    CYASSL_X509_CHAIN* chain = NULL;
+
+    CYASSL_ENTER("CyaSSL_SESSION_get_peer_chain");
+    if (session)
+        chain = &session->chain;
+
+    CYASSL_LEAVE("CyaSSL_SESSION_get_peer_chain", chain ? 1 : 0);
+    return chain;
+}
+
+#endif /* SESSION_INDEX && SESSION_CERTS */
 
 
     #ifdef SESSION_STATS

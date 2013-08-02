@@ -706,6 +706,13 @@ enum Misc {
 };
 
 
+#ifdef SESSION_INDEX
+/* Shift values for making a session index */
+#define SESSIDX_ROW_SHIFT 4
+#define SESSIDX_IDX_MASK  0x0F
+#endif
+
+
 /* max cert chain peer depth */
 #ifndef MAX_CHAIN_DEPTH
     #define MAX_CHAIN_DEPTH 9
