@@ -2,7 +2,9 @@
 # All paths should be given relative to the root
 #
 
+EXTRA_DIST += support/cyassl.pc
+
 pkgconfigdir = $(libdir)/pkgconfig
-pkgconfig_DATA = support/libcyassl.pc
+pkgconfig_DATA = support/cyassl.pc
 	     
 

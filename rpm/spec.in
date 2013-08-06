@@ -149,6 +149,7 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_includedir}/cyassl/ssl.h
 %{_includedir}/cyassl/test.h
 %{_includedir}/cyassl/version.h
+%{_libdir}/pkgconfig/cyassl.pc
 
 %changelog
 * Fri Oct 20 2012 Brian Aker <brian@tangent.org> - 0.1-1

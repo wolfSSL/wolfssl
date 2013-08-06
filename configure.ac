@@ -1366,7 +1366,7 @@ AC_CONFIG_FILES([stamp-h], [echo timestamp > stamp-h])
 AC_CONFIG_FILES([Makefile])
 AC_CONFIG_FILES([cyassl/version.h])
 AC_CONFIG_FILES([cyassl/options.h])
-AC_CONFIG_FILES([support/libcyassl.pc])
+AC_CONFIG_FILES([support/cyassl.pc])
 AC_CONFIG_FILES([rpm/spec])
 
 AX_CREATE_GENERIC_CONFIG

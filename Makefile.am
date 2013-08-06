@@ -46,6 +46,7 @@ include doc/include.am
 include swig/include.am
 
 include src/include.am
+include support/include.am
 include ctaocrypt/benchmark/include.am
 include ctaocrypt/src/include.am
 include ctaocrypt/test/include.am
@@ -100,6 +101,7 @@ maintainer-clean-local:
 	-rm m4/ltsugar.m4
 	-rm m4/ltversion.m4
 	-rm m4/lt~obsolete.m4
+	-rm support/cyassl.pc
 	find . -type f -name '*~' -exec rm -f '{}' \;
 	-rm -f @PACKAGE@-*.tar.gz
 	-rm -f @PACKAGE@-*.rpm

@@ -68,7 +68,7 @@ cyassl*rc*
 autoscan.log
 TAGS
 .DS_Store
-support/libcyassl.pc
+support/cyassl.pc
 cyassl/ctaocrypt/stamp-h1
 swig/_cyassl.so
 swig/cyassl.py
