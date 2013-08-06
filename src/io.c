@@ -896,6 +896,15 @@ CYASSL_API void CyaSSL_SetCookieCtx(CYASSL* ssl, void *ctx)
 	ssl->IOCB_CookieCtx = ctx;
 }
 
+
+CYASSL_API void* CyaSSL_GetCookieCtx(CYASSL* ssl)
+{
+    if (ssl)
+	    return ssl->IOCB_CookieCtx;
+
+    return NULL;
+}
+
 #endif /* CYASSL_DTLS */
 
 
