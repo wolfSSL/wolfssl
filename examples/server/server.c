@@ -475,7 +475,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
         NonBlockingSSL_Accept(ssl);
     } else if (SSL_accept(ssl) != SSL_SUCCESS) {
         int err = SSL_get_error(ssl, 0);
-        char buffer[80];
+        char buffer[CYASSL_MAX_ERROR_SZ];
         printf("error = %d, %s\n", err, ERR_error_string(err, buffer));
         err_sys("SSL_accept failed");
     }

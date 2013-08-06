@@ -176,7 +176,7 @@ int CyaSSL_swig_connect(CYASSL* ssl, const char* server, int port)
 
 char* CyaSSL_error_string(int err)
 {
-    static char buffer[80];
+    static char buffer[CYASSL_MAX_ERROR_SZ];
 
     return CyaSSL_ERR_error_string(err, buffer);
 }

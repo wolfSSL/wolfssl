@@ -887,7 +887,7 @@ THREAD_RETURN CYASSL_THREAD test_server_nofail(void* args)
     if (CyaSSL_accept(ssl) != SSL_SUCCESS)
     {
         int err = CyaSSL_get_error(ssl, 0);
-        char buffer[80];
+        char buffer[CYASSL_MAX_ERROR_SZ];
         printf("error = %d, %s\n", err, CyaSSL_ERR_error_string(err, buffer));
         /*err_sys("SSL_accept failed");*/
         goto done;
@@ -963,7 +963,7 @@ void test_client_nofail(void* args)
     if (CyaSSL_connect(ssl) != SSL_SUCCESS)
     {
         int  err = CyaSSL_get_error(ssl, 0);
-        char buffer[80];
+        char buffer[CYASSL_MAX_ERROR_SZ];
         printf("err = %d, %s\n", err, CyaSSL_ERR_error_string(err, buffer));
         /*printf("SSL_connect failed");*/
         goto done2;
@@ -1031,7 +1031,7 @@ void run_cyassl_client(void* args)
 
     if (CyaSSL_connect(ssl) != SSL_SUCCESS) {
         int err = CyaSSL_get_error(ssl, 0);
-        char buffer[80];
+        char buffer[CYASSL_MAX_ERROR_SZ];
         printf("error = %d, %s\n", err, CyaSSL_ERR_error_string(err, buffer));
 
     } else {
@@ -1108,7 +1108,7 @@ THREAD_RETURN CYASSL_THREAD run_cyassl_server(void* args)
     /* AssertIntEQ(SSL_SUCCESS, CyaSSL_accept(ssl)); */
     if (CyaSSL_accept(ssl) != SSL_SUCCESS) {
         int err = CyaSSL_get_error(ssl, 0);
-        char buffer[80];
+        char buffer[CYASSL_MAX_ERROR_SZ];
         printf("error = %d, %s\n", err, CyaSSL_ERR_error_string(err, buffer));
 
     } else {

@@ -35,7 +35,7 @@
 
 void CTaoCryptErrorString(int error, char* buffer)
 {
-    const int max = MAX_ERROR_SZ;   /* shorthand */
+    const int max = CYASSL_MAX_ERROR_SZ;   /* shorthand */
 
 #ifdef NO_ERROR_STRINGS
 

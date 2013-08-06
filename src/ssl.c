@@ -762,10 +762,10 @@ char* CyaSSL_ERR_error_string(unsigned long errNumber, char* data)
 void CyaSSL_ERR_error_string_n(unsigned long e, char* buf, unsigned long len)
 {
     CYASSL_ENTER("CyaSSL_ERR_error_string_n");
-    if (len >= MAX_ERROR_SZ)
+    if (len >= CYASSL_MAX_ERROR_SZ)
         CyaSSL_ERR_error_string(e, buf);
     else {
-        char tmp[MAX_ERROR_SZ];
+        char tmp[CYASSL_MAX_ERROR_SZ];
 
         CYASSL_MSG("Error buffer too short, truncating");
         if (len) {
@@ -873,7 +873,7 @@ int CyaSSL_CertManagerUnloadCAs(CYASSL_CERT_MANAGER* cm)
 
 void CyaSSL_ERR_print_errors_fp(FILE* fp, int err)
 {
-    char data[MAX_ERROR_SZ + 1];
+    char data[CYASSL_MAX_ERROR_SZ + 1];
 
     CYASSL_ENTER("CyaSSL_ERR_print_errors_fp");
     SetErrorString(err, data);

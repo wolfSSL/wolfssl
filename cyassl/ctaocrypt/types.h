@@ -247,6 +247,11 @@ enum {
     DYNAMIC_TYPE_TLSX         = 43
 };
 
+/* max error buffer string size */
+enum {
+    CYASSL_MAX_ERROR_SZ = 80
+};
+
 /* stack protection */
 enum {
     MIN_STACK_BUFFER = 8

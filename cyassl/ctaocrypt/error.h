@@ -33,7 +33,6 @@
 
 /* error codes */
 enum {
-    MAX_ERROR_SZ       =  80,   /* max size of error string */
     MAX_CODE_E         = -100,  /* errors -101 - -199 */
     OPEN_RAN_E         = -101,  /* opening random device error */
     READ_RAN_E         = -102,  /* reading random device error */

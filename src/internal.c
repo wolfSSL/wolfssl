@@ -5581,7 +5581,7 @@ int SendAlert(CYASSL* ssl, int severity, int type)
 
 void SetErrorString(int error, char* str)
 {
-    const int max = MAX_ERROR_SZ;  /* shorthand */
+    const int max = CYASSL_MAX_ERROR_SZ;  /* shorthand */
 
 #ifdef NO_ERROR_STRINGS
 
