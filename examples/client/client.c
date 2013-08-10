@@ -143,11 +143,11 @@ static void Usage(void)
     printf("-o          Perform OCSP lookup on peer certificate\n");
     printf("-O <url>    Perform OCSP lookup using <url> as responder\n");
 #endif
+#ifdef ATOMIC_USER
+    printf("-U          Atomic User Record Layer Callbacks\n");
+#endif
 }
 
-#ifdef CYASSL_MDK_SHELL
-#define exit(code) return(code)
-#endif
 
 #ifdef CYASSL_MDK_SHELL
     #define exit(code) return(code)
@@ -189,6 +189,7 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
     int    trackMemory   = 0;
     int    useClientCert = 1;
     int    fewerPackets  = 0;
+    int    atomicUser    = 0;
     char*  cipherList = NULL;
     char*  verifyCert = (char*)caCert;
     char*  ourCert    = (char*)cliCert;
@@ -224,11 +225,12 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
     (void)session;
     (void)sslResume;
     (void)trackMemory;
+    (void)atomicUser;
 
     StackTrap();
 
     while ((ch = mygetopt(argc, argv,
-                                 "?gdusmNrtfxh:p:v:l:A:c:k:b:zS:L:ToO:")) != -1) {
+                              "?gdusmNrtfxUh:p:v:l:A:c:k:b:zS:L:ToO:")) != -1) {
         switch (ch) {
             case '?' :
                 Usage();
@@ -266,6 +268,12 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
 
             case 'f' :
                 fewerPackets = 1;
+                break;
+
+            case 'U' :
+            #ifdef ATOMIC_USER
+                atomicUser = 1;
+            #endif
                 break;
 
             case 'h' :
@@ -597,6 +605,10 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
     if (CyaSSL_SetCRL_Cb(ssl, CRL_CallBack) != SSL_SUCCESS)
         err_sys("can't set crl callback");
 #endif
+#ifdef ATOMIC_USER
+    if (atomicUser)
+        SetupAtomicUser(ctx, ssl);
+#endif
     if (matchName && doPeerCheck)
         CyaSSL_check_domain_name(ssl, domain);
 #ifndef CYASSL_CALLBACKS
@@ -668,6 +680,10 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
 
     if (doDTLS == 0)            /* don't send alert after "break" command */
         CyaSSL_shutdown(ssl);  /* echoserver will interpret as new conn */
+#ifdef ATOMIC_USER
+    if (atomicUser)
+        FreeAtomicUser(ssl);
+#endif
     CyaSSL_free(ssl);
     CloseSocket(sockfd);
 

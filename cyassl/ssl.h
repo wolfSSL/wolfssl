@@ -930,6 +930,52 @@ CYASSL_API int CyaSSL_KeyPemToDer(const unsigned char*, int sz, unsigned char*,
 typedef void (*CallbackCACache)(unsigned char* der, int sz, int type);
 typedef void (*CbMissingCRL)(const char* url);
 
+/* User Atomic Record Layer CallBacks */
+typedef int (*CallbackMacEncrypt)(CYASSL* ssl, unsigned char* macOut, 
+       const unsigned char* macIn, unsigned int macInSz, int macContent, 
+       int macVerify, unsigned char* encOut, const unsigned char* encIn,
+       unsigned int encSz, void* ctx);
+CYASSL_API void  CyaSSL_CTX_SetMacEncryptCb(CYASSL_CTX*, CallbackMacEncrypt);
+CYASSL_API void  CyaSSL_SetMacEncryptCtx(CYASSL* ssl, void *ctx);
+CYASSL_API void* CyaSSL_GetMacEncryptCtx(CYASSL* ssl);
+
+
+CYASSL_API const unsigned char* CyaSSL_GetMacSecret(CYASSL*, int);
+CYASSL_API const unsigned char* CyaSSL_GetClientWriteKey(CYASSL*);
+CYASSL_API const unsigned char* CyaSSL_GetClientWriteIV(CYASSL*);
+CYASSL_API const unsigned char* CyaSSL_GetServerWriteKey(CYASSL*);
+CYASSL_API const unsigned char* CyaSSL_GetServerWriteIV(CYASSL*);
+CYASSL_API int                  CyaSSL_GetKeySize(CYASSL*);
+CYASSL_API int                  CyaSSL_GetSide(CYASSL*);
+CYASSL_API int                  CyaSSL_GetBulkCipher(CYASSL*);
+CYASSL_API int                  CyaSSL_GetHmacSize(CYASSL*);
+CYASSL_API int                  CyaSSL_GetHmacType(CYASSL*);
+CYASSL_API int                  CyaSSL_SetTlsHmacInner(CYASSL*, unsigned char*,
+                                                       unsigned int, int, int);
+
+/* Atomic User Needs */
+enum {
+    CYASSL_SERVER_END = 0,
+    CYASSL_CLIENT_END = 1,
+    CYASSL_TLS_HMAC_INNER_SZ = 13      /* SEQ_SZ + ENUM + VERSION_SZ + LEN_SZ */
+};
+
+/* for GetBulkCipher and internal use */
+enum BulkCipherAlgorithm { 
+    cyassl_cipher_null,
+    cyassl_rc4,
+    cyassl_rc2,
+    cyassl_des,
+    cyassl_triple_des,             /* leading 3 (3des) not valid identifier */
+    cyassl_des40,
+    cyassl_idea,
+    cyassl_aes,
+    cyassl_aes_gcm,
+    cyassl_aes_ccm,
+    cyassl_camellia,
+    cyassl_hc128,                  /* CyaSSL extensions */
+    cyassl_rabbit
+};
 
 #ifndef NO_CERTS
 	CYASSL_API void CyaSSL_CTX_SetCACb(CYASSL_CTX*, CallbackCACache);

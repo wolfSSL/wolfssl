@@ -531,9 +531,6 @@ enum {
 
 
 enum Misc {
-    SERVER_END = 0,
-    CLIENT_END,
-
     ECC_BYTE =  0xC0,           /* ECC first cipher suite byte */
 
     SEND_CERT       = 1,
@@ -1263,6 +1260,9 @@ struct CYASSL_CTX {
 #ifdef HAVE_TLS_EXTENSIONS
     TLSX* extensions;                  /* RFC 6066 TLS Extensions data */
 #endif
+#ifdef ATOMIC_USER
+    CallbackMacEncrypt MacEncryptCb;   /* Atomic User Mac/Encrypt Callback */
+#endif
 };
 
 
@@ -1303,24 +1303,6 @@ typedef struct CipherSpecs {
 
 
 void InitCipherSpecs(CipherSpecs* cs);
-
-
-/* Supported Ciphers from page 43  */
-enum BulkCipherAlgorithm { 
-    cipher_null,
-    rc4,
-    rc2,
-    des,
-    triple_des,             /* leading 3 (3des) not valid identifier */
-    des40,
-    idea,
-    aes,
-    aes_gcm,
-    aes_ccm,
-    camellia,
-    hc128,                  /* CyaSSL extensions */
-    rabbit
-};
 
 
 /* Supported Message Authentication Codes from page 43 */
@@ -1835,6 +1817,9 @@ struct CYASSL {
     int sessionIndex;                  /* Session's location in the cache. */
 #endif
     CYASSL_ALERT_HISTORY alert_history;
+#ifdef ATOMIC_USER
+    void*    MacEncryptCtx;   /* Atomic User Mac/Encrypt Callback Context */
+#endif
 };
 
 

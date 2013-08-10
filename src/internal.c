@@ -329,7 +329,7 @@ static INLINE void ato32(const byte* c, word32* u32)
 void InitSSL_Method(CYASSL_METHOD* method, ProtocolVersion pv)
 {
     method->version    = pv;
-    method->side       = CLIENT_END;
+    method->side       = CYASSL_CLIENT_END;
     method->downgrade  = 0;
 }
 
@@ -397,12 +397,12 @@ int InitSSL_Ctx(CYASSL_CTX* ctx, CYASSL_METHOD* method)
     ctx->cm = CyaSSL_CertManagerNew();
 #endif
 #ifdef HAVE_NTRU
-    if (method->side == CLIENT_END)
+    if (method->side == CYASSL_CLIENT_END)
         ctx->haveNTRU = 1;           /* always on cliet side */
                                      /* server can turn on by loading key */
 #endif
 #ifdef HAVE_ECC
-    if (method->side == CLIENT_END) {
+    if (method->side == CYASSL_CLIENT_END) {
         ctx->haveECDSAsig  = 1;        /* always on cliet side */
         ctx->haveStaticECC = 1;        /* server can turn on by loading key */
     }
@@ -427,6 +427,9 @@ int InitSSL_Ctx(CYASSL_CTX* ctx, CYASSL_METHOD* method)
 #endif
 #ifdef HAVE_TLS_EXTENSIONS
     ctx->extensions = NULL;
+#endif
+#ifdef ATOMIC_USER
+    ctx->MacEncryptCb = NULL;
 #endif
 
     if (InitMutex(&ctx->countMutex) < 0) {
@@ -612,10 +615,10 @@ void InitSuites(Suites* suites, ProtocolVersion pv, byte haveRSA, byte havePSK,
     if (suites->setSuites)
         return;      /* trust user settings, don't override */
 
-    if (side == SERVER_END && haveStaticECC)
+    if (side == CYASSL_SERVER_END && haveStaticECC)
         haveRSA = 0;   /* can't do RSA with ECDSA key */
 
-    if (side == SERVER_END && haveECDSAsig) {
+    if (side == CYASSL_SERVER_END && haveECDSAsig) {
         haveRSAsig = 0;     /* can't have RSA sig if signed by ECDSA */
         (void)haveRSAsig;   /* non ecc builds won't read */
     }
@@ -1335,7 +1338,7 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
     ssl->options.closeNotify  = 0;
     ssl->options.sentNotify   = 0;
     ssl->options.usingCompression = 0;
-    if (ssl->options.side == SERVER_END)
+    if (ssl->options.side == CYASSL_SERVER_END)
         ssl->options.haveDH = ctx->haveDH;
     else
         ssl->options.haveDH = 0;
@@ -1409,7 +1412,7 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
     ssl->buffers.certificate = ctx->certificate;
     ssl->buffers.certChain = ctx->certChain;
     ssl->buffers.key = ctx->privateKey;
-    if (ssl->options.side == SERVER_END) {
+    if (ssl->options.side == CYASSL_SERVER_END) {
         ssl->buffers.serverDH_P = ctx->serverDH_P;
         ssl->buffers.serverDH_G = ctx->serverDH_G;
     }
@@ -1475,6 +1478,9 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
 
     InitCiphers(ssl);
     InitCipherSpecs(&ssl->specs);
+#ifdef ATOMIC_USER
+    ssl->MacEncryptCtx = NULL;
+#endif
     /* all done with init, now can return errors, call other stuff */
 
     /* increment CTX reference count */
@@ -1540,7 +1546,7 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
 #endif
 #ifndef NO_CERTS
     /* make sure server has cert and key unless using PSK */
-    if (ssl->options.side == SERVER_END && !havePSK)
+    if (ssl->options.side == CYASSL_SERVER_END && !havePSK)
         if (!ssl->buffers.certificate.buffer || !ssl->buffers.key.buffer) {
             CYASSL_MSG("Server missing certificate and/or private key"); 
             return NO_PRIVATE_KEY;
@@ -1578,7 +1584,7 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
 #endif
 
     /* make sure server has DH parms, and add PSK if there, add NTRU too */
-    if (ssl->options.side == SERVER_END) 
+    if (ssl->options.side == CYASSL_SERVER_END) 
         InitSuites(ssl->suites, ssl->version, haveRSA, havePSK,
                    ssl->options.haveDH, ssl->options.haveNTRU,
                    ssl->options.haveECDSAsig, ssl->options.haveStaticECC,
@@ -1617,7 +1623,7 @@ void SSL_ResourceFree(CYASSL* ssl)
     XFREE(ssl->buffers.serverDH_Priv.buffer, ssl->heap, DYNAMIC_TYPE_DH);
     XFREE(ssl->buffers.serverDH_Pub.buffer, ssl->heap, DYNAMIC_TYPE_DH);
     /* parameters (p,g) may be owned by ctx */
-    if (ssl->buffers.weOwnDH || ssl->options.side == CLIENT_END) {
+    if (ssl->buffers.weOwnDH || ssl->options.side == CYASSL_CLIENT_END) {
         XFREE(ssl->buffers.serverDH_G.buffer, ssl->heap, DYNAMIC_TYPE_DH);
         XFREE(ssl->buffers.serverDH_P.buffer, ssl->heap, DYNAMIC_TYPE_DH);
     }
@@ -2608,11 +2614,12 @@ static int GetRecordHeader(CYASSL* ssl, const byte* input, word32* inOutIdx,
 
     /* catch version mismatch */
     if (rh->pvMajor != ssl->version.major || rh->pvMinor != ssl->version.minor){
-        if (ssl->options.side == SERVER_END &&
+        if (ssl->options.side == CYASSL_SERVER_END &&
             ssl->options.acceptState == ACCEPT_BEGIN)
             CYASSL_MSG("Client attempting to connect with different version"); 
-        else if (ssl->options.side == CLIENT_END && ssl->options.downgrade &&
-                 ssl->options.connectState < FIRST_REPLY_DONE)
+        else if (ssl->options.side == CYASSL_CLIENT_END &&
+                                 ssl->options.downgrade &&
+                                 ssl->options.connectState < FIRST_REPLY_DONE)
             CYASSL_MSG("Server attempting to accept with different version"); 
         else {
             CYASSL_MSG("SSL version error"); 
@@ -3213,7 +3220,7 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx)
     if (anyError != 0 && ret == 0)
         ret = anyError;
 
-    if (ret == 0 && ssl->options.side == CLIENT_END)
+    if (ret == 0 && ssl->options.side == CYASSL_CLIENT_END)
         ssl->options.serverState = SERVER_CERT_COMPLETE;
 
     if (ret != 0) {
@@ -3321,7 +3328,7 @@ static int DoHelloRequest(CYASSL* ssl, const byte* input, word32* inOutIdx)
         }
     }
 
-    if (ssl->options.side == SERVER_END) {
+    if (ssl->options.side == CYASSL_SERVER_END) {
         SendAlert(ssl, alert_fatal, unexpected_message); /* try */
         return FATAL_ERROR;
     }
@@ -3384,7 +3391,7 @@ int DoFinished(CYASSL* ssl, const byte* input, word32* inOutIdx, int sniff)
         idx += (finishedSz + ssl->specs.aead_mac_size);
     }
 
-    if (ssl->options.side == CLIENT_END) {
+    if (ssl->options.side == CYASSL_CLIENT_END) {
         ssl->options.serverState = SERVER_FINISHED_COMPLETE;
         if (!ssl->options.resuming) {
             ssl->options.handShakeState = HANDSHAKE_DONE;
@@ -3441,14 +3448,14 @@ static int DoHandShakeMsgType(CYASSL* ssl, byte* input, word32* inOutIdx,
         return OUT_OF_ORDER_E;
     }
 
-    if (ssl->options.side == CLIENT_END && ssl->options.dtls == 0 &&
+    if (ssl->options.side == CYASSL_CLIENT_END && ssl->options.dtls == 0 &&
                ssl->options.serverState == NULL_STATE && type != server_hello) {
         CYASSL_MSG("First server message not server hello");
         SendAlert(ssl, alert_fatal, unexpected_message);
         return OUT_OF_ORDER_E;
     }
 
-    if (ssl->options.side == CLIENT_END && ssl->options.dtls &&
+    if (ssl->options.side == CYASSL_CLIENT_END && ssl->options.dtls &&
             type == server_hello_done &&
             ssl->options.serverState < SERVER_HELLO_COMPLETE) {
         CYASSL_MSG("Server hello done received before server hello in DTLS");
@@ -3456,7 +3463,7 @@ static int DoHandShakeMsgType(CYASSL* ssl, byte* input, word32* inOutIdx,
         return OUT_OF_ORDER_E;
     }
 
-    if (ssl->options.side == SERVER_END &&
+    if (ssl->options.side == CYASSL_SERVER_END &&
                ssl->options.clientState == NULL_STATE && type != client_hello) {
         CYASSL_MSG("First client message not client hello");
         SendAlert(ssl, alert_fatal, unexpected_message);
@@ -3696,25 +3703,25 @@ static INLINE int Encrypt(CYASSL* ssl, byte* out, const byte* input, word32 sz)
 
     switch (ssl->specs.bulk_cipher_algorithm) {
         #ifdef BUILD_ARC4
-            case rc4:
+            case cyassl_rc4:
                 Arc4Process(ssl->encrypt.arc4, out, input, sz);
                 break;
         #endif
 
         #ifdef BUILD_DES3
-            case triple_des:
+            case cyassl_triple_des:
                 Des3_CbcEncrypt(ssl->encrypt.des3, out, input, sz);
                 break;
         #endif
 
         #ifdef BUILD_AES
-            case aes:
+            case cyassl_aes:
                 return AesCbcEncrypt(ssl->encrypt.aes, out, input, sz);
                 break;
         #endif
 
         #ifdef BUILD_AESGCM
-            case aes_gcm:
+            case cyassl_aes_gcm:
                 {
                     byte additional[AES_BLOCK_SIZE];
                     byte nonce[AEAD_NONCE_SZ];
@@ -3756,7 +3763,7 @@ static INLINE int Encrypt(CYASSL* ssl, byte* out, const byte* input, word32 sz)
         #endif
 
         #ifdef HAVE_AESCCM
-            case aes_ccm:
+            case cyassl_aes_ccm:
                 {
                     byte additional[AES_BLOCK_SIZE];
                     byte nonce[AEAD_NONCE_SZ];
@@ -3798,25 +3805,25 @@ static INLINE int Encrypt(CYASSL* ssl, byte* out, const byte* input, word32 sz)
         #endif
 
         #ifdef HAVE_CAMELLIA
-            case camellia:
+            case cyassl_camellia:
                 CamelliaCbcEncrypt(ssl->encrypt.cam, out, input, sz);
                 break;
         #endif
 
         #ifdef HAVE_HC128
-            case hc128:
+            case cyassl_hc128:
                 return Hc128_Process(ssl->encrypt.hc128, out, input, sz);
                 break;
         #endif
 
         #ifdef BUILD_RABBIT
-            case rabbit:
+            case cyassl_rabbit:
                 return RabbitProcess(ssl->encrypt.rabbit, out, input, sz);
                 break;
         #endif
 
         #ifdef HAVE_NULL_CIPHER
-            case cipher_null:
+            case cyassl_cipher_null:
                 if (input != out) {
                     XMEMMOVE(out, input, sz);
                 }
@@ -3846,25 +3853,25 @@ static INLINE int Decrypt(CYASSL* ssl, byte* plain, const byte* input,
 
     switch (ssl->specs.bulk_cipher_algorithm) {
         #ifdef BUILD_ARC4
-            case rc4:
+            case cyassl_rc4:
                 Arc4Process(ssl->decrypt.arc4, plain, input, sz);
                 break;
         #endif
 
         #ifdef BUILD_DES3
-            case triple_des:
+            case cyassl_triple_des:
                 Des3_CbcDecrypt(ssl->decrypt.des3, plain, input, sz);
                 break;
         #endif
 
         #ifdef BUILD_AES
-            case aes:
+            case cyassl_aes:
                 return AesCbcDecrypt(ssl->decrypt.aes, plain, input, sz);
                 break;
         #endif
 
         #ifdef BUILD_AESGCM
-            case aes_gcm:
+            case cyassl_aes_gcm:
             {
                 byte additional[AES_BLOCK_SIZE];
                 byte nonce[AEAD_NONCE_SZ];
@@ -3900,7 +3907,7 @@ static INLINE int Decrypt(CYASSL* ssl, byte* plain, const byte* input,
         #endif
 
         #ifdef HAVE_AESCCM
-            case aes_ccm:
+            case cyassl_aes_ccm:
             {
                 byte additional[AES_BLOCK_SIZE];
                 byte nonce[AEAD_NONCE_SZ];
@@ -3936,25 +3943,25 @@ static INLINE int Decrypt(CYASSL* ssl, byte* plain, const byte* input,
         #endif
 
         #ifdef HAVE_CAMELLIA
-            case camellia:
+            case cyassl_camellia:
                 CamelliaCbcDecrypt(ssl->decrypt.cam, plain, input, sz);
                 break;
         #endif
 
         #ifdef HAVE_HC128
-            case hc128:
+            case cyassl_hc128:
                 return Hc128_Process(ssl->decrypt.hc128, plain, input, sz);
                 break;
         #endif
 
         #ifdef BUILD_RABBIT
-            case rabbit:
+            case cyassl_rabbit:
                 return RabbitProcess(ssl->decrypt.rabbit, plain, input, sz);
                 break;
         #endif
 
         #ifdef HAVE_NULL_CIPHER
-            case cipher_null:
+            case cyassl_cipher_null:
                 if (input != plain) {
                     XMEMMOVE(plain, input, sz);
                 }
@@ -4545,7 +4552,7 @@ int ProcessReply(CYASSL* ssl)
 #ifndef NO_CYASSL_SERVER
 
             /* see if sending SSLv2 client hello */
-            if ( ssl->options.side == SERVER_END &&
+            if ( ssl->options.side == CYASSL_SERVER_END &&
                  ssl->options.clientState == NULL_STATE &&
                  ssl->buffers.inputBuffer.buffer[ssl->buffers.inputBuffer.idx]
                          != handshake) {
@@ -4696,7 +4703,7 @@ int ProcessReply(CYASSL* ssl)
                         return LENGTH_ERROR;
                     }
                     #ifndef NO_CERTS
-                        if (ssl->options.side == SERVER_END &&
+                        if (ssl->options.side == CYASSL_SERVER_END &&
                                  ssl->options.verifyPeer &&
                                  ssl->options.havePeerCert)
                             if (!ssl->options.havePeerVerify) {
@@ -4723,10 +4730,10 @@ int ProcessReply(CYASSL* ssl)
                                 return ret;
                     #endif
                     if (ssl->options.resuming && ssl->options.side ==
-                                                                    CLIENT_END)
+                                                              CYASSL_CLIENT_END)
                         BuildFinished(ssl, &ssl->verifyHashes, server);
                     else if (!ssl->options.resuming && ssl->options.side ==
-                                                                    SERVER_END)
+                                                              CYASSL_SERVER_END)
                         BuildFinished(ssl, &ssl->verifyHashes, client);
                     break;
 
@@ -4849,15 +4856,6 @@ int SendChangeCipher(CYASSL* ssl)
 }
 
 
-static INLINE const byte* GetMacSecret(CYASSL* ssl, int verify)
-{
-    if ( (ssl->options.side == CLIENT_END && !verify) ||
-         (ssl->options.side == SERVER_END &&  verify) )
-        return ssl->keys.client_write_MAC_secret;
-    else
-        return ssl->keys.server_write_MAC_secret;
-}
-
 #ifndef NO_OLD_TLS
 static void Hmac(CYASSL* ssl, byte* digest, const byte* in, word32 sz,
                  int content, int verify)
@@ -4872,7 +4870,7 @@ static void Hmac(CYASSL* ssl, byte* digest, const byte* in, word32 sz,
     /* data */
     byte seq[SEQ_SZ];
     byte conLen[ENUM_LEN + LENGTH_SZ];     /* content & length */
-    const byte* macSecret = GetMacSecret(ssl, verify);
+    const byte* macSecret = CyaSSL_GetMacSecret(ssl, verify);
     
     XMEMSET(seq, 0, SEQ_SZ);
     conLen[0] = (byte)content;
@@ -5016,7 +5014,8 @@ static int BuildMessage(CYASSL* ssl, byte* output, const byte* input, int inSz,
     word32 headerSz = RECORD_HEADER_SZ;
     word16 size;
     byte               iv[AES_BLOCK_SIZE];                  /* max size */
-    int ret  = 0;
+    int ret        = 0;
+    int atomicUser = 0;
 
 #ifdef CYASSL_DTLS
     if (ssl->options.dtls) {
@@ -5024,6 +5023,11 @@ static int BuildMessage(CYASSL* ssl, byte* output, const byte* input, int inSz,
         idx      += DTLS_RECORD_EXTRA; 
         headerSz += DTLS_RECORD_EXTRA;
     }
+#endif
+
+#ifdef ATOMIC_USER
+    if (ssl->ctx->MacEncryptCb)
+        atomicUser = 1;
 #endif
 
     if (ssl->specs.cipher_type == block) {
@@ -5061,17 +5065,29 @@ static int BuildMessage(CYASSL* ssl, byte* output, const byte* input, int inSz,
         HashOutput(ssl, output, headerSz + inSz, ivSz);
     }
 
-    if (ssl->specs.cipher_type != aead) {
-        ssl->hmac(ssl, output+idx, output + headerSz + ivSz, inSz, type, 0);
-        idx += digestSz;
+    if (ssl->specs.cipher_type == block) {
+        word32 tmpIdx = idx + digestSz;
+
+        for (i = 0; i <= pad; i++)
+            output[tmpIdx++] = (byte)pad; /* pad byte gets pad value too */
     }
 
-    if (ssl->specs.cipher_type == block)
-        for (i = 0; i <= pad; i++)
-            output[idx++] = (byte)pad; /* pad byte gets pad value too */
+    if (atomicUser) {   /* User Record Layer Callback handling */
+#ifdef ATOMIC_USER
+        if ( (ret = ssl->ctx->MacEncryptCb(ssl, output + idx,
+                        output + headerSz + ivSz, inSz, type, 0,
+                        output + headerSz, output + headerSz, size,
+                        ssl->MacEncryptCtx)) != 0)
+            return ret;
+#endif
+    }
+    else {  
+        if (ssl->specs.cipher_type != aead)
+            ssl->hmac(ssl, output+idx, output + headerSz + ivSz, inSz, type, 0);
 
-    if ( (ret = Encrypt(ssl, output + headerSz, output + headerSz, size)) != 0)
-        return ret;
+        if ( (ret = Encrypt(ssl, output + headerSz, output+headerSz,size)) != 0)
+            return ret;
+    }
 
     return sz;
 }
@@ -5116,7 +5132,7 @@ int SendFinished(CYASSL* ssl)
 
     /* make finished hashes */
     hashes = (Hashes*)&input[headerSz];
-    BuildFinished(ssl, hashes, ssl->options.side == CLIENT_END ? client :
+    BuildFinished(ssl, hashes, ssl->options.side == CYASSL_CLIENT_END ? client :
                   server);
 
     sendSz = BuildMessage(ssl, output, input, headerSz + finishedSz, handshake);
@@ -5135,7 +5151,7 @@ int SendFinished(CYASSL* ssl)
 #ifndef NO_SESSION_CACHE
         AddSession(ssl);    /* just try */
 #endif
-        if (ssl->options.side == CLIENT_END) {
+        if (ssl->options.side == CYASSL_CLIENT_END) {
             BuildFinished(ssl, &ssl->verifyHashes, server);
         }
         else {
@@ -5151,7 +5167,7 @@ int SendFinished(CYASSL* ssl)
         }
     }
     else {
-        if (ssl->options.side == CLIENT_END) {
+        if (ssl->options.side == CYASSL_CLIENT_END) {
             ssl->options.handShakeState = HANDSHAKE_DONE;
             #ifdef CYASSL_DTLS
                 if (ssl->options.dtls) {
@@ -5264,7 +5280,7 @@ int SendCertificate(CYASSL* ssl)
                            ssl->heap);
     #endif
 
-    if (ssl->options.side == SERVER_END)
+    if (ssl->options.side == CYASSL_SERVER_END)
         ssl->options.serverState = SERVER_CERT_COMPLETE;
 
     ssl->buffers.outputBuffer.length += sendSz;
@@ -9139,7 +9155,8 @@ static void PickHashSigAlgo(CYASSL* ssl,
 
         if (CipherRequires(first, second, REQUIRES_RSA_SIG)) {
             CYASSL_MSG("Requires RSA Signature");
-            if (ssl->options.side == SERVER_END && ssl->options.haveECDSAsig == 1) {
+            if (ssl->options.side == CYASSL_SERVER_END &&
+                                           ssl->options.haveECDSAsig == 1) {
                 CYASSL_MSG("Don't have RSA Signature");
                 return 0;
             }

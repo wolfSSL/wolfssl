@@ -361,7 +361,7 @@ int CyaSSL_make_eap_keys(CYASSL* ssl, void* msk, unsigned int len,
 }
 
 
-/*** next for static INLINE s copied from cyassl_int.c ***/
+/*** next for static INLINE s copied internal.c ***/
 
 /* convert 16 bit integer to opaque */
 static INLINE void c16toa(word16 u16, byte* c)
@@ -417,16 +417,71 @@ static INLINE word32 GetEpoch(CYASSL* ssl, int verify)
 #endif /* CYASSL_DTLS */
 
 
-static INLINE const byte* GetMacSecret(CYASSL* ssl, int verify)
+/*** end copy ***/
+
+
+/* return HMAC digest type in CyaSSL format */
+int CyaSSL_GetHmacType(CYASSL* ssl)
 {
-    if ( (ssl->options.side == CLIENT_END && !verify) ||
-         (ssl->options.side == SERVER_END &&  verify) )
-        return ssl->keys.client_write_MAC_secret;
-    else
-        return ssl->keys.server_write_MAC_secret;
+    if (ssl == NULL)
+        return BAD_FUNC_ARG;
+
+    switch (ssl->specs.mac_algorithm) {
+        #ifndef NO_MD5
+        case md5_mac:
+        {
+            return MD5;
+        }
+        break;
+        #endif
+        #ifndef NO_SHA256
+        case sha256_mac:
+        {
+            return SHA256;
+        }
+        break;
+        #endif
+        #ifdef CYASSL_SHA384
+        case sha384_mac:
+        {
+            return SHA384;
+        }
+        break;
+        #endif
+        #ifndef NO_SHA
+        case sha_mac:
+        default:
+        {
+            return SHA;
+        }
+        break;
+        #endif
+    }
+
+    return -1;
 }
 
-/*** end copy ***/
+
+int CyaSSL_SetTlsHmacInner(CYASSL* ssl, byte* inner, word32 sz, int content,
+                           int verify)
+{
+    if (ssl == NULL || inner == NULL)
+        return BAD_FUNC_ARG;
+
+    XMEMSET(inner, 0, CYASSL_TLS_HMAC_INNER_SZ);
+
+#ifdef CYASSL_DTLS
+    if (ssl->options.dtls)
+        c16toa((word16)GetEpoch(ssl, verify), inner);
+#endif
+    c32toa(GetSEQIncrement(ssl, verify), &inner[sizeof(word32)]);
+    inner[SEQ_SZ] = (byte)content;                          
+    inner[SEQ_SZ + ENUM_LEN]            = ssl->version.major;
+    inner[SEQ_SZ + ENUM_LEN + ENUM_LEN] = ssl->version.minor;
+    c16toa((word16)sz, inner + SEQ_SZ + ENUM_LEN + VERSION_SZ);
+
+    return 0;
+}
 
 
 /* TLS type HMAC */
@@ -434,58 +489,13 @@ void TLS_hmac(CYASSL* ssl, byte* digest, const byte* in, word32 sz,
               int content, int verify)
 {
     Hmac hmac;
-    byte seq[SEQ_SZ];
-    byte length[LENGTH_SZ];
-    byte inner[ENUM_LEN + VERSION_SZ + LENGTH_SZ]; /* type + version +len */
-    int  type;
+    byte myInner[CYASSL_TLS_HMAC_INNER_SZ];
+    
+    CyaSSL_SetTlsHmacInner(ssl, myInner, sz, content, verify);
 
-    XMEMSET(seq, 0, SEQ_SZ);
-    c16toa((word16)sz, length);
-#ifdef CYASSL_DTLS
-    if (ssl->options.dtls)
-        c16toa((word16)GetEpoch(ssl, verify), seq);
-#endif
-    c32toa(GetSEQIncrement(ssl, verify), &seq[sizeof(word32)]);
-    
-    switch (ssl->specs.mac_algorithm) {
-        #ifndef NO_MD5
-        case md5_mac:
-        {
-            type = MD5;
-        }
-        break;
-        #endif
-        #ifndef NO_SHA256
-        case sha256_mac:
-        {
-            type = SHA256;
-        }
-        break;
-        #endif
-        #ifdef CYASSL_SHA384
-        case sha384_mac:
-        {
-            type = SHA384;
-        }
-        break;
-        #endif
-#ifndef NO_SHA
-        case sha_mac:
-        default:
-        {
-            type = SHA;
-        }
-        break;
-#endif
-    }
-    HmacSetKey(&hmac, type, GetMacSecret(ssl, verify), ssl->specs.hash_size);
-    
-    HmacUpdate(&hmac, seq, SEQ_SZ);                               /* seq_num */
-    inner[0] = (byte)content;                                     /* type */
-    inner[ENUM_LEN] = ssl->version.major;
-    inner[ENUM_LEN + ENUM_LEN] = ssl->version.minor;              /* version */
-    XMEMCPY(&inner[ENUM_LEN + VERSION_SZ], length, LENGTH_SZ);     /* length */
-    HmacUpdate(&hmac, inner, sizeof(inner));
+    HmacSetKey(&hmac, CyaSSL_GetHmacType(ssl), CyaSSL_GetMacSecret(ssl, verify),
+               ssl->specs.hash_size);
+    HmacUpdate(&hmac, myInner, sizeof(myInner));
     HmacUpdate(&hmac, in, sz);                                /* content */
     HmacFinal(&hmac, digest);
 }
@@ -1392,7 +1402,7 @@ int TLSX_Parse(CYASSL* ssl, byte* input, word16 length, byte isRequest,
                                                        DYNAMIC_TYPE_METHOD);
         if (method) {
             InitSSL_Method(method, MakeTLSv1());
-            method->side = SERVER_END;
+            method->side = CYASSL_SERVER_END;
         }
         return method;
     }
@@ -1405,7 +1415,7 @@ int TLSX_Parse(CYASSL* ssl, byte* input, word16 length, byte isRequest,
                                                        DYNAMIC_TYPE_METHOD);
         if (method) {
             InitSSL_Method(method, MakeTLSv1_1());
-            method->side = SERVER_END;
+            method->side = CYASSL_SERVER_END;
         }
         return method;
     }
@@ -1421,7 +1431,7 @@ int TLSX_Parse(CYASSL* ssl, byte* input, word16 length, byte isRequest,
                                                        DYNAMIC_TYPE_METHOD);
         if (method) {
             InitSSL_Method(method, MakeTLSv1_2());
-            method->side = SERVER_END;
+            method->side = CYASSL_SERVER_END;
         }
         return method;
     }
@@ -1440,7 +1450,7 @@ int TLSX_Parse(CYASSL* ssl, byte* input, word16 length, byte isRequest,
 #else
             InitSSL_Method(method, MakeTLSv1_1());
 #endif
-            method->side      = SERVER_END;
+            method->side      = CYASSL_SERVER_END;
 #ifndef NO_OLD_TLS
             method->downgrade = 1;
 #endif /* !NO_OLD_TLS */

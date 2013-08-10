@@ -10,6 +10,12 @@
 #include <cyassl/ssl.h>
 #include <cyassl/ctaocrypt/types.h>
 
+#ifdef ATOMIC_USER
+    #include <cyassl/ctaocrypt/aes.h>
+    #include <cyassl/ctaocrypt/arc4.h>
+    #include <cyassl/ctaocrypt/hmac.h>
+#endif
+
 #ifdef USE_WINDOWS_API 
     #include <winsock2.h>
     #include <process.h>
@@ -1284,6 +1290,98 @@ static INLINE void StackTrap(void)
 }
 
 #endif /* STACK_TRAP */
+
+
+#ifdef ATOMIC_USER
+
+/* Atomic Encrypt Context example */
+typedef struct AtomicEncCtx {
+    int  keySetup;           /* have we done key setup yet */
+    Aes  aes;                /* for aes example */
+} AtomicEncCtx;
+
+
+static INLINE int myMacEncryptCb(CYASSL* ssl, unsigned char* macOut, 
+       const unsigned char* macIn, unsigned int macInSz, int macContent, 
+       int macVerify, unsigned char* encOut, const unsigned char* encIn,
+       unsigned int encSz, void* ctx)
+{
+    int  ret;
+    Hmac hmac;
+    byte myInner[CYASSL_TLS_HMAC_INNER_SZ];
+    AtomicEncCtx* encCtx = (AtomicEncCtx*)ctx;
+    const char* tlsStr = "TLS";
+
+    /* example supports (d)tls aes */
+    if (CyaSSL_GetBulkCipher(ssl) != cyassl_aes) {
+        printf("myMacEncryptCb not using AES\n");
+        return -1;
+    }
+
+    if (strstr(CyaSSL_get_version(ssl), tlsStr) == NULL) {
+        printf("myMacEncryptCb not using (D)TLS\n");
+        return -1;
+    }
+
+    /* hmac, not needed if aead mode */
+    CyaSSL_SetTlsHmacInner(ssl, myInner, macInSz, macContent, macVerify);
+
+    HmacSetKey(&hmac, CyaSSL_GetHmacType(ssl),
+               CyaSSL_GetMacSecret(ssl, macVerify), CyaSSL_GetHmacSize(ssl));
+    HmacUpdate(&hmac, myInner, sizeof(myInner));
+    HmacUpdate(&hmac, macIn, macInSz);
+    HmacFinal(&hmac, macOut);
+
+
+    /* encrypt setup on first time */
+    if (encCtx->keySetup == 0) {
+        int   keyLen = CyaSSL_GetKeySize(ssl);
+        const byte* key;
+        const byte* iv;
+
+        if (CyaSSL_GetSide(ssl) == CYASSL_CLIENT_END) {
+            key = CyaSSL_GetClientWriteKey(ssl);
+            iv  = CyaSSL_GetClientWriteIV(ssl);
+        }
+        else {
+            key = CyaSSL_GetServerWriteKey(ssl);
+            iv  = CyaSSL_GetServerWriteIV(ssl);
+        }
+
+        ret = AesSetKey(&encCtx->aes, key, keyLen, iv, AES_ENCRYPTION);
+        if (ret != 0) {
+            printf("AesSetKey failed in myMacEncryptCb\n");
+            return ret;
+        }
+        encCtx->keySetup = 1;
+    }
+
+    /* encrypt */
+    return AesCbcEncrypt(&encCtx->aes, encOut, encIn, encSz);
+}
+
+static INLINE void SetupAtomicUser(CYASSL_CTX* ctx, CYASSL* ssl)
+{
+    AtomicEncCtx* encCtx;
+
+    encCtx = (AtomicEncCtx*)malloc(sizeof(AtomicEncCtx));
+    if (encCtx == NULL)
+        err_sys("AtomicEncCtx malloc failed");
+    memset(encCtx, 0, sizeof(AtomicEncCtx));
+
+    CyaSSL_CTX_SetMacEncryptCb(ctx, myMacEncryptCb);
+    CyaSSL_SetMacEncryptCtx(ssl, encCtx);
+}
+
+
+static INLINE void FreeAtomicUser(CYASSL* ssl)
+{
+    AtomicEncCtx* encCtx = CyaSSL_GetMacEncryptCtx(ssl);
+
+    free(encCtx);
+}
+
+#endif /* ATOMIC_USER */
 
 
 #if defined(__hpux__) || defined(__MINGW32__)

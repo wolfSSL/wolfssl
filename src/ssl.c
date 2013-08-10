@@ -294,12 +294,12 @@ int CyaSSL_negotiate(CYASSL* ssl)
 
     CYASSL_ENTER("CyaSSL_negotiate");
 #ifndef NO_CYASSL_SERVER
-    if (ssl->options.side == SERVER_END)
+    if (ssl->options.side == CYASSL_SERVER_END)
         err = CyaSSL_accept(ssl);
 #endif
 
 #ifndef NO_CYASSL_CLIENT
-    if (ssl->options.side == CLIENT_END)
+    if (ssl->options.side == CYASSL_CLIENT_END)
         err = CyaSSL_connect(ssl);
 #endif
 
@@ -375,7 +375,7 @@ int CyaSSL_SetTmpDH(CYASSL* ssl, const unsigned char* p, int pSz,
     CYASSL_ENTER("CyaSSL_SetTmpDH");
     if (ssl == NULL || p == NULL || g == NULL) return BAD_FUNC_ARG;
 
-    if (ssl->options.side != SERVER_END)
+    if (ssl->options.side != CYASSL_SERVER_END)
         return SIDE_ERROR;
 
     if (ssl->buffers.serverDH_P.buffer && ssl->buffers.weOwnDH)
@@ -794,6 +794,114 @@ void CyaSSL_FreeArrays(CYASSL* ssl)
     }
 }
 
+
+const byte* CyaSSL_GetMacSecret(CYASSL* ssl, int verify)
+{
+    if ( (ssl->options.side == CYASSL_CLIENT_END && !verify) ||
+         (ssl->options.side == CYASSL_SERVER_END &&  verify) )
+        return ssl->keys.client_write_MAC_secret;
+    else
+        return ssl->keys.server_write_MAC_secret;
+}
+
+
+#ifdef ATOMIC_USER
+
+void  CyaSSL_CTX_SetMacEncryptCb(CYASSL_CTX* ctx, CallbackMacEncrypt cb)
+{
+    if (ctx)
+        ctx->MacEncryptCb = cb;
+}
+
+
+void  CyaSSL_SetMacEncryptCtx(CYASSL* ssl, void *ctx)
+{
+    if (ssl)
+        ssl->MacEncryptCtx = ctx;
+}
+
+
+void* CyaSSL_GetMacEncryptCtx(CYASSL* ssl)
+{
+    if (ssl)
+        return ssl->MacEncryptCtx;
+
+    return NULL;
+}
+
+
+const byte* CyaSSL_GetClientWriteKey(CYASSL* ssl)
+{
+    if (ssl)
+        return ssl->keys.client_write_key;
+
+    return NULL;
+}
+
+
+const byte* CyaSSL_GetClientWriteIV(CYASSL* ssl)
+{
+    if (ssl)
+        return ssl->keys.client_write_IV;
+
+    return NULL;
+}
+
+
+const byte* CyaSSL_GetServerWriteKey(CYASSL* ssl)
+{
+    if (ssl)
+        return ssl->keys.server_write_key;
+
+    return NULL;
+}
+
+
+const byte* CyaSSL_GetServerWriteIV(CYASSL* ssl)
+{
+    if (ssl)
+        return ssl->keys.server_write_IV;
+
+    return NULL;
+}
+
+
+int CyaSSL_GetKeySize(CYASSL* ssl)
+{
+    if (ssl)
+        return ssl->specs.key_size;
+    
+    return BAD_FUNC_ARG;
+}
+
+
+int CyaSSL_GetBulkCipher(CYASSL* ssl)
+{
+    if (ssl)
+        return ssl->specs.bulk_cipher_algorithm;
+
+    return BAD_FUNC_ARG;
+}
+
+
+int CyaSSL_GetSide(CYASSL* ssl)
+{
+    if (ssl)
+        return ssl->options.side;
+
+    return BAD_FUNC_ARG;
+}
+
+
+int CyaSSL_GetHmacSize(CYASSL* ssl)
+{
+    if (ssl)
+        return ssl->specs.hash_size;
+
+    return BAD_FUNC_ARG;
+}
+
+#endif /* ATOMIC_USER */
 
 #ifndef NO_CERTS
 
@@ -3798,7 +3906,7 @@ int CyaSSL_dtls_got_timeout(CYASSL* ssl)
             errno = 0;
         #endif
 
-        if (ssl->options.side != CLIENT_END) {
+        if (ssl->options.side != CYASSL_CLIENT_END) {
             CYASSL_ERROR(ssl->error = SIDE_ERROR);
             return SSL_FATAL_ERROR;
         }
@@ -4014,7 +4122,7 @@ int CyaSSL_dtls_got_timeout(CYASSL* ssl)
         CYASSL_ENTER("SSLv3_server_method");
         if (method) {
             InitSSL_Method(method, MakeSSLv3());
-            method->side = SERVER_END;
+            method->side = CYASSL_SERVER_END;
         }
         return method;
     }
@@ -4030,7 +4138,7 @@ int CyaSSL_dtls_got_timeout(CYASSL* ssl)
             CYASSL_ENTER("DTLSv1_server_method");
             if (method) {
                 InitSSL_Method(method, MakeDTLSv1());
-                method->side = SERVER_END;
+                method->side = CYASSL_SERVER_END;
             }
             return method;
         }
@@ -4043,7 +4151,7 @@ int CyaSSL_dtls_got_timeout(CYASSL* ssl)
             CYASSL_ENTER("DTLSv1_2_server_method");
             if (method) {
                 InitSSL_Method(method, MakeDTLSv1_2());
-                method->side = SERVER_END;
+                method->side = CYASSL_SERVER_END;
             }
             return method;
         }
@@ -4064,7 +4172,7 @@ int CyaSSL_dtls_got_timeout(CYASSL* ssl)
         #endif
         (void)havePSK;
 
-        if (ssl->options.side != SERVER_END) {
+        if (ssl->options.side != CYASSL_SERVER_END) {
             CYASSL_ERROR(ssl->error = SIDE_ERROR);
             return SSL_FATAL_ERROR;
         }
@@ -4403,7 +4511,7 @@ CYASSL_SESSION* GetSessionClient(CYASSL* ssl, const byte* id, int len)
 
     CYASSL_ENTER("GetSessionClient");
 
-    if (ssl->options.side == SERVER_END)
+    if (ssl->options.side == CYASSL_SERVER_END)
         return NULL;
 
     len = min(SERVER_ID_LEN, (word32)len);
@@ -4579,7 +4687,7 @@ int AddSession(CYASSL* ssl)
         SessionCache[row].nextIdx = 0;
 
 #ifndef NO_CLIENT_CACHE
-    if (ssl->options.side == CLIENT_END && ssl->session.idLen) {
+    if (ssl->options.side == CYASSL_CLIENT_END && ssl->session.idLen) {
         word32 clientRow, clientIdx;
 
         CYASSL_MSG("Adding client cache entry");
@@ -4921,11 +5029,11 @@ int CyaSSL_set_compression(CYASSL* ssl)
 
         /* do main work */
 #ifndef NO_CYASSL_CLIENT
-        if (ssl->options.side == CLIENT_END)
+        if (ssl->options.side == CYASSL_CLIENT_END)
             ret = CyaSSL_connect(ssl);
 #endif
 #ifndef NO_CYASSL_SERVER
-        if (ssl->options.side == SERVER_END)
+        if (ssl->options.side == CYASSL_SERVER_END)
             ret = CyaSSL_accept(ssl);
 #endif
        
@@ -5323,7 +5431,7 @@ int CyaSSL_set_compression(CYASSL* ssl)
         byte havePSK = 0;
 
         CYASSL_ENTER("SSL_set_accept_state");
-        ssl->options.side = SERVER_END;
+        ssl->options.side = CYASSL_SERVER_END;
         /* reset suites in case user switched */
 
         #ifdef NO_RSA

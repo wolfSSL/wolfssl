@@ -276,6 +276,19 @@ then
 fi
 
 
+# Atomic User Record Layer  
+AC_ARG_ENABLE([atomicuser],
+    [  --enable-atomicuser     Enable Atomic User Record Layer (default: disabled)],
+    [ ENABLED_ATOMICUSER=$enableval ],
+    [ ENABLED_ATOMICUSER=no ]
+    )
+
+if test "$ENABLED_ATOMICUSER" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DATOMIC_USER"
+fi
+
+
 # SNIFFER
 AC_ARG_ENABLE([sniffer],
               [AS_HELP_STRING([--enable-sniffer],[ Enable CyaSSL sniffer support (default: disabled) ])],[
@@ -1484,6 +1497,7 @@ echo "   * CRL:                       $ENABLED_CRL"
 echo "   * CRL-MONITOR:               $ENABLED_CRL_MONITOR"
 echo "   * Persistent session cache:  $ENABLED_SAVESESSION"
 echo "   * Persistent cert    cache:  $ENABLED_SAVECERT"
+echo "   * Atomic User Record Layer:  $ENABLED_ATOMICUSER"
 echo "   * NTRU:                      $ENABLED_NTRU"
 echo "   * SNI:                       $ENABLED_SNI"
 echo "   * Maximum Fragment Length:   $ENABLED_MAX_FRAGMENT"
