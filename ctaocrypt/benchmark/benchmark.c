@@ -982,7 +982,20 @@ void bench_eccKeyAgree(void)
     total = current_time(0) - start;
     each  = total / agreeTimes;  /* per second  */
     milliEach = each * 1000;   /* millisconds */
-    printf("EC-DSA   sign time       %6.2f milliseconds, avg over %d" 
+    printf("EC-DSA   sign   time     %6.2f milliseconds, avg over %d" 
+           " iterations\n", milliEach, agreeTimes);
+
+    start = current_time(1);
+
+    for(i = 0; i < agreeTimes; i++) {
+        int verify = 0;
+        ecc_verify_hash(sig, x, digest, sizeof(digest), &verify, &genKey);
+    }
+
+    total = current_time(0) - start;
+    each  = total / agreeTimes;  /* per second  */
+    milliEach = each * 1000;     /* millisconds */
+    printf("EC-DSA   verify time     %6.2f milliseconds, avg over %d" 
            " iterations\n", milliEach, agreeTimes);
 
     ecc_free(&genKey2);
