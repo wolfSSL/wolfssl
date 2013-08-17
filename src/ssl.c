@@ -7011,6 +7011,48 @@ int CyaSSL_set_compression(CYASSL* ssl)
         return x509->derCert.buffer;
     }
 
+#ifdef CYASSL_SEP
+
+int CyaSSL_X509_get_device_type(CYASSL_X509* x509, byte* in, int *inOutSz)
+{
+    CYASSL_ENTER("CyaSSL_X509_get_dev_type");
+    if (x509 == NULL || inOutSz == NULL || *inOutSz < x509->deviceTypeSz)
+        return BAD_FUNC_ARG;
+
+    XMEMCPY(in, x509->deviceType, x509->deviceTypeSz);
+    *inOutSz = x509->deviceTypeSz;
+
+    return SSL_SUCCESS;
+}
+
+
+int CyaSSL_X509_get_hw_type(CYASSL_X509* x509, byte* in, int *inOutSz)
+{
+    CYASSL_ENTER("CyaSSL_X509_get_hw_type");
+    if (x509 == NULL || inOutSz == NULL || *inOutSz < x509->hwTypeSz)
+        return BAD_FUNC_ARG;
+
+    XMEMCPY(in, x509->hwType, x509->hwTypeSz);
+    *inOutSz = x509->hwTypeSz;
+
+    return SSL_SUCCESS;
+}
+
+
+int CyaSSL_X509_get_hw_serial_number(CYASSL_X509* x509, byte* in, int *inOutSz)
+{
+    CYASSL_ENTER("CyaSSL_X509_get_hw_serial_number");
+    if (x509 == NULL || inOutSz == NULL || *inOutSz < x509->hwSerialNumSz)
+        return BAD_FUNC_ARG;
+
+    XMEMCPY(in, x509->hwSerialNum, x509->hwSerialNumSz);
+    *inOutSz = x509->hwSerialNumSz;
+
+    return SSL_SUCCESS;
+}
+
+#endif /* CYASSL_SEP */
+
 #endif /* KEEP_PEER_CERT || SESSION_CERTS */
 
 

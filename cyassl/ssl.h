@@ -783,6 +783,15 @@ CYASSL_API int CyaSSL_cmp_peer_cert_to_file(CYASSL*, const char*);
 
 CYASSL_API char* CyaSSL_X509_get_next_altname(CYASSL_X509*);
 
+#ifdef CYASSL_SEP
+    CYASSL_API
+    int CyaSSL_X509_get_device_type(CYASSL_X509*, unsigned char*, int*);
+    CYASSL_API
+    int CyaSSL_X509_get_hw_type(CYASSL_X509*, unsigned char*, int*);
+    CYASSL_API
+    int CyaSSL_X509_get_hw_serial_number(CYASSL_X509*, unsigned char*, int*);
+#endif
+
 /* connect enough to get peer cert */
 CYASSL_API int  CyaSSL_connect_cert(CYASSL* ssl);
 

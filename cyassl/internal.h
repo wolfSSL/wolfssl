@@ -1648,6 +1648,14 @@ struct CYASSL_X509 {
     int              serialSz;
     byte             serial[EXTERNAL_SERIAL_SIZE];
     char             subjectCN[ASN_NAME_MAX];        /* common name short cut */
+#ifdef CYASSL_SEP
+    int              deviceTypeSz;
+    byte             deviceType[EXTERNAL_SERIAL_SIZE];
+    int              hwTypeSz;
+    byte             hwType[EXTERNAL_SERIAL_SIZE];
+    int              hwSerialNumSz;
+    byte             hwSerialNum[EXTERNAL_SERIAL_SIZE];
+#endif
     buffer           derCert;                        /* may need  */
     DNS_entry*       altNames;                       /* alt names list */
     DNS_entry*       altNamesNext;                   /* hint for retrieval */

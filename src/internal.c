@@ -2925,6 +2925,32 @@ int CopyDecodedToX509(CYASSL_X509* x509, DecodedCert* dCert)
     else
         x509->subjectCN[0] = '\0';
 
+#ifdef CYASSL_SEP
+    {
+        int minSz = min(dCert->deviceTypeSz, EXTERNAL_SERIAL_SIZE);
+        if (minSz > 0) {
+            x509->deviceTypeSz = minSz;
+            XMEMCPY(x509->deviceType, dCert->deviceType, minSz);
+        }
+        else
+            x509->deviceTypeSz = 0;
+        minSz = min(dCert->hwTypeSz, EXTERNAL_SERIAL_SIZE);
+        if (minSz != 0) {
+            x509->hwTypeSz = minSz;
+            XMEMCPY(x509->hwType, dCert->hwType, minSz);
+        }
+        else
+            x509->hwTypeSz = 0;
+        minSz = min(dCert->hwSerialNumSz, EXTERNAL_SERIAL_SIZE);
+        if (minSz != 0) {
+            x509->hwSerialNumSz = minSz;
+            XMEMCPY(x509->hwSerialNum, dCert->hwSerialNum, minSz);
+        }
+        else
+            x509->hwSerialNumSz = 0;
+    }
+#endif /* CYASSL_SEP */
+
     /* store cert for potential retrieval */
     x509->derCert.buffer = (byte*)XMALLOC(dCert->maxIdx, NULL,
                                           DYNAMIC_TYPE_CERT);
