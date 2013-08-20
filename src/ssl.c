@@ -7013,42 +7013,75 @@ int CyaSSL_set_compression(CYASSL* ssl)
 
 #ifdef CYASSL_SEP
 
-int CyaSSL_X509_get_device_type(CYASSL_X509* x509, byte* in, int *inOutSz)
+/* copy oid into in buffer, at most *inOutSz bytes, if buffer is null will
+   malloc buffer, call responsible for freeing. Actual size returned in 
+   *inOutSz. Requires inOutSz be non-null */
+byte* CyaSSL_X509_get_device_type(CYASSL_X509* x509, byte* in, int *inOutSz)
 {
+    int copySz;
+
     CYASSL_ENTER("CyaSSL_X509_get_dev_type");
-    if (x509 == NULL || inOutSz == NULL || *inOutSz < x509->deviceTypeSz)
-        return BAD_FUNC_ARG;
+    if (inOutSz == NULL) return NULL;
+    if (!x509->deviceTypeSz) return in;
 
-    XMEMCPY(in, x509->deviceType, x509->deviceTypeSz);
-    *inOutSz = x509->deviceTypeSz;
+    copySz = min(*inOutSz, x509->deviceTypeSz);
 
-    return SSL_SUCCESS;
+    if (!in) {
+        in = (byte*)XMALLOC(x509->deviceTypeSz, 0, DYNAMIC_TYPE_OPENSSL);
+        if (!in) return in;
+        copySz = x509->deviceTypeSz;
+    }
+
+    XMEMCPY(in, x509->deviceType, copySz);
+    *inOutSz = copySz;
+
+    return in;
 }
 
 
-int CyaSSL_X509_get_hw_type(CYASSL_X509* x509, byte* in, int *inOutSz)
+byte* CyaSSL_X509_get_hw_type(CYASSL_X509* x509, byte* in, int* inOutSz)
 {
+    int copySz;
+
     CYASSL_ENTER("CyaSSL_X509_get_hw_type");
-    if (x509 == NULL || inOutSz == NULL || *inOutSz < x509->hwTypeSz)
-        return BAD_FUNC_ARG;
+    if (inOutSz == NULL) return NULL;
+    if (!x509->hwTypeSz) return in;
 
-    XMEMCPY(in, x509->hwType, x509->hwTypeSz);
-    *inOutSz = x509->hwTypeSz;
+    copySz = min(*inOutSz, x509->hwTypeSz);
 
-    return SSL_SUCCESS;
+    if (!in) {
+        in = (byte*)XMALLOC(x509->hwTypeSz, 0, DYNAMIC_TYPE_OPENSSL);
+        if (!in) return in;
+        copySz = x509->hwTypeSz;
+    }
+
+    XMEMCPY(in, x509->hwType, copySz);
+    *inOutSz = copySz;
+
+    return in;
 }
 
 
-int CyaSSL_X509_get_hw_serial_number(CYASSL_X509* x509, byte* in, int *inOutSz)
+byte* CyaSSL_X509_get_hw_serial_number(CYASSL_X509* x509,byte* in,int* inOutSz)
 {
+    int copySz;
+
     CYASSL_ENTER("CyaSSL_X509_get_hw_serial_number");
-    if (x509 == NULL || inOutSz == NULL || *inOutSz < x509->hwSerialNumSz)
-        return BAD_FUNC_ARG;
+    if (inOutSz == NULL) return NULL;
+    if (!x509->hwTypeSz) return in;
 
-    XMEMCPY(in, x509->hwSerialNum, x509->hwSerialNumSz);
-    *inOutSz = x509->hwSerialNumSz;
+    copySz = min(*inOutSz, x509->hwSerialNumSz);
 
-    return SSL_SUCCESS;
+    if (!in) {
+        in = (byte*)XMALLOC(x509->hwSerialNumSz, 0, DYNAMIC_TYPE_OPENSSL);
+        if (!in) return in;
+        copySz = x509->hwSerialNumSz;
+    }
+
+    XMEMCPY(in, x509->hwSerialNum, copySz);
+    *inOutSz = copySz;
+
+    return in;
 }
 
 #endif /* CYASSL_SEP */
