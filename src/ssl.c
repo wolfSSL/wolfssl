@@ -7086,6 +7086,102 @@ byte* CyaSSL_X509_get_hw_serial_number(CYASSL_X509* x509,byte* in,int* inOutSz)
 
 #endif /* CYASSL_SEP */
 
+
+CYASSL_X509* CyaSSL_X509_load_certificate_file(const char* fname, int format)
+{
+    byte staticBuffer[FILE_BUFFER_SIZE];
+    byte* fileBuffer = staticBuffer;
+    int dynamic = 0;
+    long sz = 0;
+    XFILE file;
+    CYASSL_X509* x509 = NULL;
+    buffer der;
+
+    CYASSL_ENTER("CyaSSL_X509_load_certificate");
+
+    /* Check the inputs */
+    if ((fname == NULL) ||
+        (format != SSL_FILETYPE_ASN1 && format != SSL_FILETYPE_PEM))
+        return NULL;
+
+    file = XFOPEN(fname, "rb");
+    if (file == XBADFILE) return NULL;
+    XFSEEK(file, 0, XSEEK_END);
+    sz = XFTELL(file);
+    XREWIND(file);
+
+    if (sz > (long)sizeof(staticBuffer)) {
+        fileBuffer = (byte*)XMALLOC(sz, NULL, DYNAMIC_TYPE_FILE);
+        if (fileBuffer == NULL) {
+            XFCLOSE(file);
+            return NULL;
+        }
+        dynamic = 1;
+    }
+    if ((int)XFREAD(fileBuffer, sz, 1, file) < 0) {
+        XFCLOSE(file);
+        if (dynamic) XFREE(fileBuffer, NULL, DYNAMIC_TYPE_FILE);
+        return NULL;
+    }
+    XFCLOSE(file);
+
+    der.buffer = NULL;
+    der.length = 0;
+
+    if (format == SSL_FILETYPE_PEM) {
+        EncryptedInfo info;
+        int ecc = 0;
+
+        info.set = 0;
+        info.ctx = NULL;
+        info.consumed = 0;
+
+        if (PemToDer(fileBuffer, sz, CERT_TYPE, &der, NULL, &info, &ecc) != 0)
+        {
+            /* Only time this should fail, and leave `der` with a buffer
+               is when the Base64 Decode fails. Release `der.buffer` in
+               that case. */
+            if (der.buffer != NULL) {
+                XFREE(der.buffer, NULL, DYNAMIC_TYPE_CERT);
+                der.buffer = NULL;
+            }
+        }
+    }
+    else {
+        der.buffer = (byte*)XMALLOC(sz, NULL, DYNAMIC_TYPE_CERT);
+        if (der.buffer != NULL) {
+            XMEMCPY(der.buffer, fileBuffer, sz);
+            der.length = (word32)sz;
+        }
+    }
+    if (dynamic) XFREE(fileBuffer, NULL, DYNAMIC_TYPE_FILE);
+
+    // At this point we want `der` to have the certificate in DER format
+    // ready to be decoded.
+    if (der.buffer != NULL) {
+        DecodedCert cert;
+
+        InitDecodedCert(&cert, der.buffer, der.length, NULL);
+        if (ParseCertRelative(&cert, CERT_TYPE, 0, NULL) == 0) {
+            x509 = (CYASSL_X509*)XMALLOC(sizeof(CYASSL_X509),
+                                                       NULL, DYNAMIC_TYPE_X509);
+            if (x509 != NULL) {
+                InitX509(x509, 1);
+                if (CopyDecodedToX509(x509, &cert) != 0) {
+                    XFREE(x509, NULL, DYNAMIC_TYPE_X509);
+                    x509 = NULL;
+                }
+            }
+        }
+        FreeDecodedCert(&cert);
+
+        XFREE(der.buffer, NULL, DYNAMIC_TYPE_CERT);
+    }
+
+    return x509;
+}
+
+
 #endif /* KEEP_PEER_CERT || SESSION_CERTS */
 
 

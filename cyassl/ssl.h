@@ -783,6 +783,9 @@ CYASSL_API int CyaSSL_cmp_peer_cert_to_file(CYASSL*, const char*);
 
 CYASSL_API char* CyaSSL_X509_get_next_altname(CYASSL_X509*);
 
+CYASSL_API
+CYASSL_X509* CyaSSL_X509_load_certificate_file(const char* fname, int format);
+
 #ifdef CYASSL_SEP
     CYASSL_API unsigned char*
            CyaSSL_X509_get_device_type(CYASSL_X509*, unsigned char*, int*);
