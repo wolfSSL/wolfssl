@@ -7225,8 +7225,8 @@ CYASSL_X509* CyaSSL_X509_load_certificate_file(const char* fname, int format)
     }
     if (dynamic) XFREE(fileBuffer, NULL, DYNAMIC_TYPE_FILE);
 
-    // At this point we want `der` to have the certificate in DER format
-    // ready to be decoded.
+    /* At this point we want `der` to have the certificate in DER format */
+    /* ready to be decoded. */
     if (der.buffer != NULL) {
         DecodedCert cert;
 

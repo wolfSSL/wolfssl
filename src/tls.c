@@ -1040,7 +1040,7 @@ void TLSX_FreeAll(TLSX* list)
                 break;
 
             case TRUNCATED_HMAC:
-                // Nothing to do.
+                /* Nothing to do. */
                 break;
         }
 
@@ -1079,7 +1079,7 @@ static word16 TLSX_GetSize(TLSX* list, byte* semaphore, byte isRequest)
                     break;
 
                 case TRUNCATED_HMAC:
-                    // empty extension.
+                    /* empty extension. */
                     break;
             }
 
@@ -1123,7 +1123,7 @@ static word16 TLSX_Write(TLSX* list, byte* output, byte* semaphore,
                     break;
 
                 case TRUNCATED_HMAC:
-                    // empty extension.
+                    /* empty extension. */
                     break;
             }
 
