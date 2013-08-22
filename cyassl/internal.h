@@ -1261,7 +1261,8 @@ struct CYASSL_CTX {
     TLSX* extensions;                  /* RFC 6066 TLS Extensions data */
 #endif
 #ifdef ATOMIC_USER
-    CallbackMacEncrypt MacEncryptCb;   /* Atomic User Mac/Encrypt Callback */
+    CallbackMacEncrypt    MacEncryptCb;    /* Atomic User Mac/Encrypt Cb */
+    CallbackDecryptVerify DecryptVerifyCb; /* Atomic User Decrypt/Verify Cb */
 #endif
 };
 
@@ -1403,6 +1404,7 @@ typedef struct Keys {
 #endif
 
     word32 encryptSz;             /* last size of encrypted data   */
+    word32 padSz;                 /* how much to advance after decrypt part */
     byte   encryptionOn;          /* true after change cipher spec */
     byte   decryptedCur;          /* only decrypt current record once */
 } Keys;
@@ -1826,7 +1828,8 @@ struct CYASSL {
 #endif
     CYASSL_ALERT_HISTORY alert_history;
 #ifdef ATOMIC_USER
-    void*    MacEncryptCtx;   /* Atomic User Mac/Encrypt Callback Context */
+    void*    MacEncryptCtx;    /* Atomic User Mac/Encrypt Callback Context */
+    void*    DecryptVerifyCtx; /* Atomic User Decrypt/Verify Callback Context */
 #endif
 };
 

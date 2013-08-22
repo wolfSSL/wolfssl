@@ -951,6 +951,14 @@ CYASSL_API void  CyaSSL_CTX_SetMacEncryptCb(CYASSL_CTX*, CallbackMacEncrypt);
 CYASSL_API void  CyaSSL_SetMacEncryptCtx(CYASSL* ssl, void *ctx);
 CYASSL_API void* CyaSSL_GetMacEncryptCtx(CYASSL* ssl);
 
+typedef int (*CallbackDecryptVerify)(CYASSL* ssl, 
+       unsigned char* decOut, const unsigned char* decIn,
+       unsigned int decSz, int content, int verify, unsigned int* padSz,
+       void* ctx);
+CYASSL_API void  CyaSSL_CTX_SetDecryptVerifyCb(CYASSL_CTX*,
+                                               CallbackDecryptVerify);
+CYASSL_API void  CyaSSL_SetDecryptVerifyCtx(CYASSL* ssl, void *ctx);
+CYASSL_API void* CyaSSL_GetDecryptVerifyCtx(CYASSL* ssl);
 
 CYASSL_API const unsigned char* CyaSSL_GetMacSecret(CYASSL*, int);
 CYASSL_API const unsigned char* CyaSSL_GetClientWriteKey(CYASSL*);
@@ -959,9 +967,13 @@ CYASSL_API const unsigned char* CyaSSL_GetServerWriteKey(CYASSL*);
 CYASSL_API const unsigned char* CyaSSL_GetServerWriteIV(CYASSL*);
 CYASSL_API int                  CyaSSL_GetKeySize(CYASSL*);
 CYASSL_API int                  CyaSSL_GetSide(CYASSL*);
+CYASSL_API int                  CyaSSL_IsTLSv1_1(CYASSL*);
 CYASSL_API int                  CyaSSL_GetBulkCipher(CYASSL*);
+CYASSL_API int                  CyaSSL_GetCipherBlockSize(CYASSL*);
+CYASSL_API int                  CyaSSL_GetAeadMacSize(CYASSL*);
 CYASSL_API int                  CyaSSL_GetHmacSize(CYASSL*);
 CYASSL_API int                  CyaSSL_GetHmacType(CYASSL*);
+CYASSL_API int                  CyaSSL_GetCipherType(CYASSL*);
 CYASSL_API int                  CyaSSL_SetTlsHmacInner(CYASSL*, unsigned char*,
                                                        unsigned int, int, int);
 
@@ -969,6 +981,9 @@ CYASSL_API int                  CyaSSL_SetTlsHmacInner(CYASSL*, unsigned char*,
 enum {
     CYASSL_SERVER_END = 0,
     CYASSL_CLIENT_END = 1,
+    CYASSL_BLOCK_TYPE = 2,
+    CYASSL_STREAM_TYPE = 3,
+    CYASSL_AEAD_TYPE = 4,
     CYASSL_TLS_HMAC_INNER_SZ = 13      /* SEQ_SZ + ENUM + VERSION_SZ + LEN_SZ */
 };
 

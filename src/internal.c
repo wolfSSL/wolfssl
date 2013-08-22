@@ -429,7 +429,8 @@ int InitSSL_Ctx(CYASSL_CTX* ctx, CYASSL_METHOD* method)
     ctx->extensions = NULL;
 #endif
 #ifdef ATOMIC_USER
-    ctx->MacEncryptCb = NULL;
+    ctx->MacEncryptCb    = NULL;
+    ctx->DecryptVerifyCb = NULL;
 #endif
 
     if (InitMutex(&ctx->countMutex) < 0) {
@@ -1379,6 +1380,7 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
     ssl->dtls_msg_list                  = NULL;
 #endif
     ssl->keys.encryptSz    = 0;
+    ssl->keys.padSz        = 0;
     ssl->keys.encryptionOn = 0;     /* initially off */
     ssl->keys.decryptedCur = 0;     /* initially off */
     ssl->options.sessionCacheOff      = ctx->sessionCacheOff;
@@ -1479,7 +1481,8 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
     InitCiphers(ssl);
     InitCipherSpecs(&ssl->specs);
 #ifdef ATOMIC_USER
-    ssl->MacEncryptCtx = NULL;
+    ssl->MacEncryptCtx    = NULL;
+    ssl->DecryptVerifyCtx = NULL;
 #endif
     /* all done with init, now can return errors, call other stuff */
 
@@ -3366,20 +3369,7 @@ static int DoHelloRequest(CYASSL* ssl, const byte* input, word32* inOutIdx)
 int DoFinished(CYASSL* ssl, const byte* input, word32* inOutIdx, int sniff)
 {
     int    finishedSz = ssl->options.tls ? TLS_FINISHED_SZ : FINISHED_SZ;
-    int    headerSz = HANDSHAKE_HEADER_SZ;
-    word32 macSz = finishedSz + HANDSHAKE_HEADER_SZ,
-           idx = *inOutIdx,
-           padSz = ssl->keys.encryptSz - HANDSHAKE_HEADER_SZ - finishedSz -
-                   ssl->specs.hash_size;
-    const byte* mac;
-
-    #ifdef CYASSL_DTLS
-        if (ssl->options.dtls) {
-            headerSz += DTLS_HANDSHAKE_EXTRA;
-            macSz    += DTLS_HANDSHAKE_EXTRA;
-            padSz    -= DTLS_HANDSHAKE_EXTRA;
-        }
-    #endif
+    word32 idx = *inOutIdx;
 
     #ifdef CYASSL_CALLBACKS
         if (ssl->hsInfoOn) AddPacketName("Finished", &ssl->handShakeInfo);
@@ -3391,32 +3381,9 @@ int DoFinished(CYASSL* ssl, const byte* input, word32* inOutIdx, int sniff)
             return VERIFY_FINISHED_ERROR;
         }
     }
-
-    if (ssl->specs.cipher_type != aead) {
-        byte verifyMAC[MAX_DIGEST_SIZE];
-        ssl->hmac(ssl, verifyMAC, input + idx - headerSz, macSz,
-             handshake, 1);
-        idx += finishedSz;
-
-        /* read mac and fill */
-        mac = input + idx;
-        idx += ssl->specs.hash_size;
-
-        if (ssl->options.tls1_1 && ssl->specs.cipher_type == block)
-            padSz -= ssl->specs.block_size;
-
-        idx += padSz;
-
-        /* verify mac */
-        if (XMEMCMP(mac, verifyMAC, ssl->specs.hash_size) != 0) {
-            CYASSL_MSG("Verify finished error on mac");
-            return VERIFY_MAC_ERROR;
-        }
-    }
-    else {
-        idx += (finishedSz + ssl->specs.aead_mac_size);
-    }
-
+    idx += finishedSz;
+    idx += ssl->keys.padSz;
+   
     if (ssl->options.side == CYASSL_CLIENT_END) {
         ssl->options.serverState = SERVER_FINISHED_COMPLETE;
         if (!ssl->options.resuming) {
@@ -3865,6 +3832,7 @@ static INLINE int Encrypt(CYASSL* ssl, byte* out, const byte* input, word32 sz)
 }
 
 
+
 static INLINE int Decrypt(CYASSL* ssl, byte* plain, const byte* input,
                            word32 sz)
 {
@@ -4032,32 +4000,6 @@ static int SanityCheckCipherText(CYASSL* ssl, word32 encryptSz)
     }
 
     return 0;
-}
-
-
-/* decrypt input message in place */
-static int DecryptMessage(CYASSL* ssl, byte* input, word32 sz, word32* idx)
-{
-    int decryptResult;
-    int sanityResult = SanityCheckCipherText(ssl, sz);
-
-    if (sanityResult != 0)
-        return sanityResult;
-
-    decryptResult = Decrypt(ssl, input, input, sz);
-
-    if (decryptResult == 0)
-    {
-        ssl->keys.encryptSz    = sz;
-        ssl->keys.decryptedCur = 1;
-
-        if (ssl->options.tls1_1 && ssl->specs.cipher_type == block)
-            *idx += ssl->specs.block_size;  /* go past TLSv1.1 IV */
-        if (ssl->specs.cipher_type == aead)
-            *idx += AEAD_EXP_IV_SZ;
-    }
-
-    return decryptResult;
 }
 
 
@@ -4284,7 +4226,7 @@ static INLINE int GetRounds(int pLen, int padLen, int t)
 
 /* timing resistant pad/verify check, return 0 on success */
 static int TimingPadVerify(CYASSL* ssl, const byte* input, int padLen, int t,
-                           int pLen)
+                           int pLen, int content)
 {
     byte verify[MAX_DIGEST_SIZE];
     byte dummy[MAX_PAD_SIZE];
@@ -4294,7 +4236,7 @@ static int TimingPadVerify(CYASSL* ssl, const byte* input, int padLen, int t,
     if ( (t + padLen + 1) > pLen) {
         CYASSL_MSG("Plain Len not long enough for pad/mac");
         PadCheck(dummy, (byte)padLen, MAX_PAD_SIZE);
-        ssl->hmac(ssl, verify, input, pLen - t, application_data, 1);
+        ssl->hmac(ssl, verify, input, pLen - t, content, 1);
         ConstantCompare(verify, input + pLen - t, t);
 
         return VERIFY_MAC_ERROR;
@@ -4303,14 +4245,14 @@ static int TimingPadVerify(CYASSL* ssl, const byte* input, int padLen, int t,
     if (PadCheck(input + pLen - (padLen + 1), (byte)padLen, padLen + 1) != 0) {
         CYASSL_MSG("PadCheck failed");
         PadCheck(dummy, (byte)padLen, MAX_PAD_SIZE - padLen - 1);
-        ssl->hmac(ssl, verify, input, pLen - t, application_data, 1);
+        ssl->hmac(ssl, verify, input, pLen - t, content, 1);
         ConstantCompare(verify, input + pLen - t, t);
 
         return VERIFY_MAC_ERROR;
     }
 
     PadCheck(dummy, (byte)padLen, MAX_PAD_SIZE - padLen - 1);
-    ssl->hmac(ssl, verify, input, pLen - padLen - 1 - t, application_data, 1);
+    ssl->hmac(ssl, verify, input, pLen - padLen - 1 - t, content, 1);
 
     CompressRounds(ssl, GetRounds(pLen, padLen, t), dummy);
 
@@ -4326,17 +4268,13 @@ static int TimingPadVerify(CYASSL* ssl, const byte* input, int padLen, int t,
 int DoApplicationData(CYASSL* ssl, byte* input, word32* inOutIdx)
 {
     word32 msgSz   = ssl->keys.encryptSz;
-    word32 pad     = 0, 
-           padByte = 0,
-           idx     = *inOutIdx,
-           digestSz = ssl->specs.hash_size;
-    int    dataSz, ret;
+    word32 idx     = *inOutIdx;
+    int    dataSz;
     int    ivExtra = 0;
     byte*  rawData = input + idx;  /* keep current  for hmac */
 #ifdef HAVE_LIBZ
     byte   decomp[MAX_RECORD_SIZE + MAX_COMP_EXTRA];
 #endif
-    byte   verify[MAX_DIGEST_SIZE];
 
     if (ssl->options.handShakeState != HANDSHAKE_DONE) {
         CYASSL_MSG("Received App data before handshake complete");
@@ -4347,35 +4285,12 @@ int DoApplicationData(CYASSL* ssl, byte* input, word32* inOutIdx)
     if (ssl->specs.cipher_type == block) {
         if (ssl->options.tls1_1)
             ivExtra = ssl->specs.block_size;
-        pad = *(input + idx + msgSz - ivExtra - 1);
-        padByte = 1;
-
-        if (ssl->options.tls) {
-            ret = TimingPadVerify(ssl, input + idx, pad, digestSz,
-                                  msgSz - ivExtra);
-            if (ret != 0)
-                return ret;
-        }
-        else {  /* sslv3, some implementations have bad padding */
-            ssl->hmac(ssl, verify, rawData, msgSz - digestSz - pad - 1,
-                      application_data, 1);
-            if (ConstantCompare(verify, rawData + msgSz - digestSz - pad - 1,
-                                digestSz) != 0)
-                return VERIFY_MAC_ERROR;
-        }
-    }
-    else if (ssl->specs.cipher_type == stream) {
-        ssl->hmac(ssl, verify, rawData, msgSz - digestSz, application_data, 1);
-        if (ConstantCompare(verify, rawData + msgSz - digestSz, digestSz) != 0){
-            return VERIFY_MAC_ERROR;
-        }
     }
     else if (ssl->specs.cipher_type == aead) {
         ivExtra = AEAD_EXP_IV_SZ;
-        digestSz = ssl->specs.aead_mac_size;
     }
 
-    dataSz = msgSz - ivExtra - digestSz - pad - padByte;
+    dataSz = msgSz - ivExtra - ssl->keys.padSz;
     if (dataSz < 0) {
         CYASSL_MSG("App data buffer error, malicious input?"); 
         return BUFFER_ERROR;
@@ -4397,10 +4312,7 @@ int DoApplicationData(CYASSL* ssl, byte* input, word32* inOutIdx)
         ssl->buffers.clearOutputBuffer.length = dataSz;
     }
 
-    idx += digestSz;
-    idx += pad;
-    if (padByte)
-        idx++;
+    idx += ssl->keys.padSz;
 
 #ifdef HAVE_LIBZ
     /* decompress could be bigger, overwrite after verify */
@@ -4444,27 +4356,7 @@ static int DoAlert(CYASSL* ssl, byte* input, word32* inOutIdx, int* type)
     CYASSL_ERROR(*type);
 
     if (ssl->keys.encryptionOn) {
-        if (ssl->specs.cipher_type != aead) {
-            int     aSz = ALERT_SIZE;
-            const byte* mac;
-            byte    verify[MAX_DIGEST_SIZE];
-            int     padSz = ssl->keys.encryptSz - aSz - ssl->specs.hash_size;
-
-            ssl->hmac(ssl, verify, input + *inOutIdx - aSz, aSz, alert, 1);
-    
-            /* read mac and fill */
-            mac = input + *inOutIdx;
-            *inOutIdx += (ssl->specs.hash_size + padSz);
-    
-            /* verify */
-            if (XMEMCMP(mac, verify, ssl->specs.hash_size) != 0) {
-                CYASSL_MSG("    alert verify mac error");
-                return VERIFY_MAC_ERROR;
-            }
-        }
-        else {
-            *inOutIdx += ssl->specs.aead_mac_size;
-        }
+        *inOutIdx += ssl->keys.padSz;
     }
 
     return level;
@@ -4533,17 +4425,72 @@ static int GetInputData(CYASSL *ssl, word32 size)
     return 0;
 }
 
+
+static INLINE int VerifyMac(CYASSL* ssl, const byte* input, word32 msgSz,
+                            int content, word32* padSz)
+{
+    int    ivExtra = 0;
+    int    ret;
+    word32 pad     = 0;
+    word32 padByte = 0;
+    word32 digestSz = ssl->specs.hash_size;
+    byte   verify[MAX_DIGEST_SIZE];
+
+    if (ssl->specs.cipher_type == block) {
+        if (ssl->options.tls1_1)
+            ivExtra = ssl->specs.block_size;
+        pad = *(input + msgSz - ivExtra - 1);
+        padByte = 1;
+
+        if (ssl->options.tls) {
+            ret = TimingPadVerify(ssl, input, pad, digestSz, msgSz - ivExtra,
+                                  content);
+            if (ret != 0)
+                return ret;
+        }
+        else {  /* sslv3, some implementations have bad padding */
+            ssl->hmac(ssl, verify, input, msgSz - digestSz - pad - 1,
+                      content, 1);
+            if (ConstantCompare(verify, input + msgSz - digestSz - pad - 1,
+                                digestSz) != 0)
+                return VERIFY_MAC_ERROR;
+        }
+    }
+    else if (ssl->specs.cipher_type == stream) {
+        ssl->hmac(ssl, verify, input, msgSz - digestSz, content, 1);
+        if (ConstantCompare(verify, input + msgSz - digestSz, digestSz) != 0){
+            return VERIFY_MAC_ERROR;
+        }
+    }
+
+    if (ssl->specs.cipher_type == aead) {
+        *padSz = ssl->specs.aead_mac_size;
+    }
+    else {
+        *padSz = digestSz + pad + padByte;
+    }
+
+    return 0;
+}
+
+
 /* process input requests, return 0 is done, 1 is call again to complete, and
    negative number is error */
 int ProcessReply(CYASSL* ssl)
 {
     int    ret = 0, type, readSz;
+    int    atomicUser = 0;
     word32 startIdx = 0;
 #ifndef NO_CYASSL_SERVER
     byte   b0, b1;
 #endif
 #ifdef CYASSL_DTLS
     int    used;
+#endif
+
+#ifdef ATOMIC_USER
+    if (ssl->ctx->DecryptVerifyCb)
+        atomicUser = 1;
 #endif
 
     for (;;) {
@@ -4676,14 +4623,53 @@ int ProcessReply(CYASSL* ssl)
         case runProcessingOneMessage:
 
             if (ssl->keys.encryptionOn && ssl->keys.decryptedCur == 0) {
-                ret = DecryptMessage(ssl, ssl->buffers.inputBuffer.buffer + 
-                                     ssl->buffers.inputBuffer.idx,
-                                     ssl->curSize,
-                                     &ssl->buffers.inputBuffer.idx);
+                ret = SanityCheckCipherText(ssl, ssl->curSize);
+                if (ret < 0)
+                    return ret;
+
+                if (atomicUser) {
+                #ifdef ATOMIC_USER
+                    ret = ssl->ctx->DecryptVerifyCb(ssl,
+                                  ssl->buffers.inputBuffer.buffer + 
+                                  ssl->buffers.inputBuffer.idx,
+                                  ssl->buffers.inputBuffer.buffer +
+                                  ssl->buffers.inputBuffer.idx,
+                                  ssl->curSize, ssl->curRL.type, 1,
+                                  &ssl->keys.padSz, ssl->DecryptVerifyCtx);
+                    if (ssl->options.tls1_1 && ssl->specs.cipher_type == block)
+                        ssl->buffers.inputBuffer.idx += ssl->specs.block_size;
+                        /* go past TLSv1.1 IV */
+                    if (ssl->specs.cipher_type == aead)
+                        ssl->buffers.inputBuffer.idx += AEAD_EXP_IV_SZ;
+                #endif /* ATOMIC_USER */
+                }
+                else {
+                    ret = Decrypt(ssl, ssl->buffers.inputBuffer.buffer + 
+                                  ssl->buffers.inputBuffer.idx,
+                                  ssl->buffers.inputBuffer.buffer +
+                                  ssl->buffers.inputBuffer.idx,
+                                  ssl->curSize);
+                    if (ret < 0) {
+                        CYASSL_ERROR(ret);
+                        return DECRYPT_ERROR;
+                    }
+                    if (ssl->options.tls1_1 && ssl->specs.cipher_type == block)
+                        ssl->buffers.inputBuffer.idx += ssl->specs.block_size;
+                        /* go past TLSv1.1 IV */
+                    if (ssl->specs.cipher_type == aead)
+                        ssl->buffers.inputBuffer.idx += AEAD_EXP_IV_SZ;
+
+                    ret = VerifyMac(ssl, ssl->buffers.inputBuffer.buffer +
+                                    ssl->buffers.inputBuffer.idx,
+                                    ssl->curSize, ssl->curRL.type,
+                                    &ssl->keys.padSz);
+                }
                 if (ret < 0) {
                     CYASSL_ERROR(ret);
                     return DECRYPT_ERROR;
                 }
+                ssl->keys.encryptSz    = ssl->curSize;
+                ssl->keys.decryptedCur = 1;
             }
 
             CYASSL_MSG("received record layer msg");

@@ -1301,6 +1301,13 @@ typedef struct AtomicEncCtx {
 } AtomicEncCtx;
 
 
+/* Atomic Decrypt Context example */
+typedef struct AtomicDecCtx {
+    int  keySetup;           /* have we done key setup yet */
+    Aes  aes;                /* for aes example */
+} AtomicDecCtx;
+
+
 static INLINE int myMacEncryptCb(CYASSL* ssl, unsigned char* macOut, 
        const unsigned char* macIn, unsigned int macInSz, int macContent, 
        int macVerify, unsigned char* encOut, const unsigned char* encIn,
@@ -1360,24 +1367,126 @@ static INLINE int myMacEncryptCb(CYASSL* ssl, unsigned char* macOut,
     return AesCbcEncrypt(&encCtx->aes, encOut, encIn, encSz);
 }
 
+
+static INLINE int myDecryptVerifyCb(CYASSL* ssl, 
+       unsigned char* decOut, const unsigned char* decIn,
+       unsigned int decSz, int macContent, int macVerify,
+       unsigned int* padSz, void* ctx)
+{
+    AtomicDecCtx* decCtx = (AtomicDecCtx*)ctx;
+    int ret      = 0;
+    int macInSz  = 0;
+    int ivExtra  = 0;
+    int digestSz = CyaSSL_GetHmacSize(ssl);
+    unsigned int pad     = 0;
+    unsigned int padByte = 0;
+    Hmac hmac;
+    byte myInner[CYASSL_TLS_HMAC_INNER_SZ];
+    byte verify[INNER_HASH_SIZE];
+    const char* tlsStr = "TLS";
+
+    /* example supports (d)tls aes */
+    if (CyaSSL_GetBulkCipher(ssl) != cyassl_aes) {
+        printf("myMacEncryptCb not using AES\n");
+        return -1;
+    }
+
+    if (strstr(CyaSSL_get_version(ssl), tlsStr) == NULL) {
+        printf("myMacEncryptCb not using (D)TLS\n");
+        return -1;
+    }
+
+    /*decrypt */
+    if (decCtx->keySetup == 0) {
+        int   keyLen = CyaSSL_GetKeySize(ssl);
+        const byte* key;
+        const byte* iv;
+
+        /* decrypt is from other side (peer) */
+        if (CyaSSL_GetSide(ssl) == CYASSL_SERVER_END) {
+            key = CyaSSL_GetClientWriteKey(ssl);
+            iv  = CyaSSL_GetClientWriteIV(ssl);
+        }
+        else {
+            key = CyaSSL_GetServerWriteKey(ssl);
+            iv  = CyaSSL_GetServerWriteIV(ssl);
+        }
+
+        ret = AesSetKey(&decCtx->aes, key, keyLen, iv, AES_DECRYPTION);
+        if (ret != 0) {
+            printf("AesSetKey failed in myDecryptVerifyCb\n");
+            return ret;
+        }
+        decCtx->keySetup = 1;
+    }
+
+    /* decrypt */
+    ret = AesCbcDecrypt(&decCtx->aes, decOut, decIn, decSz);
+
+    if (CyaSSL_GetCipherType(ssl) == CYASSL_AEAD_TYPE) {
+        *padSz = CyaSSL_GetAeadMacSize(ssl);
+        return 0; /* hmac, not needed if aead mode */
+    }
+
+    if (CyaSSL_GetCipherType(ssl) == CYASSL_BLOCK_TYPE) {
+        pad     = *(decOut + decSz - 1);
+        padByte = 1;
+        if (CyaSSL_IsTLSv1_1(ssl))
+            ivExtra = CyaSSL_GetCipherBlockSize(ssl);
+    }
+
+    *padSz  = CyaSSL_GetHmacSize(ssl) + pad + padByte;
+    macInSz = decSz - ivExtra - digestSz - pad - padByte;
+
+    CyaSSL_SetTlsHmacInner(ssl, myInner, macInSz, macContent, macVerify);
+
+    HmacSetKey(&hmac, CyaSSL_GetHmacType(ssl),
+               CyaSSL_GetMacSecret(ssl, macVerify), digestSz);
+    HmacUpdate(&hmac, myInner, sizeof(myInner));
+    HmacUpdate(&hmac, decOut + ivExtra, macInSz);
+    HmacFinal(&hmac, verify);
+
+    if (memcmp(verify, decOut + decSz - digestSz - pad - padByte,
+               digestSz) != 0) {
+        printf("myDecryptVerify verify failed\n");
+        return -1;
+    }
+
+    return ret;
+}
+
+
 static INLINE void SetupAtomicUser(CYASSL_CTX* ctx, CYASSL* ssl)
 {
     AtomicEncCtx* encCtx;
+    AtomicDecCtx* decCtx;
 
     encCtx = (AtomicEncCtx*)malloc(sizeof(AtomicEncCtx));
     if (encCtx == NULL)
         err_sys("AtomicEncCtx malloc failed");
     memset(encCtx, 0, sizeof(AtomicEncCtx));
 
+    decCtx = (AtomicDecCtx*)malloc(sizeof(AtomicDecCtx));
+    if (decCtx == NULL) {
+        free(encCtx);
+        err_sys("AtomicDecCtx malloc failed");
+    }
+    memset(decCtx, 0, sizeof(AtomicDecCtx));
+
     CyaSSL_CTX_SetMacEncryptCb(ctx, myMacEncryptCb);
     CyaSSL_SetMacEncryptCtx(ssl, encCtx);
+
+    CyaSSL_CTX_SetDecryptVerifyCb(ctx, myDecryptVerifyCb);
+    CyaSSL_SetDecryptVerifyCtx(ssl, decCtx);
 }
 
 
 static INLINE void FreeAtomicUser(CYASSL* ssl)
 {
     AtomicEncCtx* encCtx = CyaSSL_GetMacEncryptCtx(ssl);
+    AtomicDecCtx* decCtx = CyaSSL_GetDecryptVerifyCtx(ssl);
 
+    free(decCtx);
     free(encCtx);
 }
 

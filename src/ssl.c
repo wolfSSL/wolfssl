@@ -830,6 +830,29 @@ void* CyaSSL_GetMacEncryptCtx(CYASSL* ssl)
 }
 
 
+void  CyaSSL_CTX_SetDecryptVerifyCb(CYASSL_CTX* ctx, CallbackDecryptVerify cb)
+{
+    if (ctx)
+        ctx->DecryptVerifyCb = cb;
+}
+
+
+void  CyaSSL_SetDecryptVerifyCtx(CYASSL* ssl, void *ctx)
+{
+    if (ssl)
+        ssl->DecryptVerifyCtx = ctx;
+}
+
+
+void* CyaSSL_GetDecryptVerifyCtx(CYASSL* ssl)
+{
+    if (ssl)
+        return ssl->DecryptVerifyCtx;
+
+    return NULL;
+}
+
+
 const byte* CyaSSL_GetClientWriteKey(CYASSL* ssl)
 {
     if (ssl)
@@ -881,6 +904,52 @@ int CyaSSL_GetBulkCipher(CYASSL* ssl)
         return ssl->specs.bulk_cipher_algorithm;
 
     return BAD_FUNC_ARG;
+}
+
+
+int CyaSSL_GetCipherType(CYASSL* ssl)
+{
+    if (ssl == NULL)
+        return BAD_FUNC_ARG;
+
+    if (ssl->specs.cipher_type == block)
+        return CYASSL_BLOCK_TYPE;
+    if (ssl->specs.cipher_type == stream)
+        return CYASSL_STREAM_TYPE;
+    if (ssl->specs.cipher_type == aead)
+        return CYASSL_AEAD_TYPE;
+
+    return -1;
+}
+
+
+int CyaSSL_GetCipherBlockSize(CYASSL* ssl)
+{
+    if (ssl == NULL)
+        return BAD_FUNC_ARG;
+
+    return ssl->specs.block_size;
+}
+
+
+int CyaSSL_GetAeadMacSize(CYASSL* ssl)
+{
+    if (ssl == NULL)
+        return BAD_FUNC_ARG;
+
+    return ssl->specs.aead_mac_size;
+}
+
+
+int CyaSSL_IsTLSv1_1(CYASSL* ssl)
+{
+    if (ssl == NULL)
+        return BAD_FUNC_ARG;
+
+    if (ssl->options.tls1_1)
+        return 1;
+
+    return 0;
 }
 
 
