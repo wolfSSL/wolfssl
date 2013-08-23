@@ -432,6 +432,12 @@ int InitSSL_Ctx(CYASSL_CTX* ctx, CYASSL_METHOD* method)
     ctx->MacEncryptCb    = NULL;
     ctx->DecryptVerifyCb = NULL;
 #endif
+#ifdef HAVE_PK_CALLBACKS
+    #ifdef HAVE_ECC
+        ctx->EccSignCb   = NULL;
+        ctx->EccVerifyCb = NULL;
+    #endif /* HAVE_ECC */
+#endif /* HAVE_PK_CALLBACKS */
 
     if (InitMutex(&ctx->countMutex) < 0) {
         CYASSL_MSG("Mutex error on CTX init");
@@ -1271,6 +1277,12 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
     ssl->buffers.clearOutputBuffer.length  = 0;
     ssl->buffers.prevSent                  = 0;
     ssl->buffers.plainSz                   = 0;
+#ifdef HAVE_PK_CALLBACKS
+    #ifdef HAVE_ECC
+        ssl->buffers.peerEccDsaKey.buffer = 0;
+        ssl->buffers.peerEccDsaKey.length = 0;
+    #endif /* HAVE_ECC */
+#endif /* HAVE_PK_CALLBACKS */
 
 #ifdef KEEP_PEER_CERT
     InitX509(&ssl->peerCert, 0);
@@ -1484,6 +1496,13 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
     ssl->MacEncryptCtx    = NULL;
     ssl->DecryptVerifyCtx = NULL;
 #endif
+#ifdef HAVE_PK_CALLBACKS
+    #ifdef HAVE_ECC
+        ssl->EccSignCtx   = NULL;
+        ssl->EccVerifyCtx = NULL;
+    #endif /* HAVE_ECC */
+#endif /* HAVE_PK_CALLBACKS */
+
     /* all done with init, now can return errors, call other stuff */
 
     /* increment CTX reference count */
@@ -1692,6 +1711,11 @@ void SSL_ResourceFree(CYASSL* ssl)
         XFREE(ssl->eccDsaKey, ssl->heap, DYNAMIC_TYPE_ECC);
     }
 #endif
+#ifdef HAVE_PK_CALLBACKS
+    #ifdef HAVE_ECC
+        XFREE(ssl->buffers.peerEccDsaKey.buffer, ssl->heap, DYNAMIC_TYPE_ECC);
+    #endif /* HAVE_ECC */
+#endif /* HAVE_PK_CALLBACKS */
 #ifdef HAVE_TLS_EXTENSIONS
     TLSX_FreeAll(ssl->extensions);
 #endif
@@ -1779,6 +1803,12 @@ void FreeHandshakeResources(CYASSL* ssl)
         ssl->eccDsaKey = NULL;
     }
 #endif
+#ifdef HAVE_PK_CALLBACKS
+    #ifdef HAVE_ECC
+        XFREE(ssl->buffers.peerEccDsaKey.buffer, ssl->heap, DYNAMIC_TYPE_ECC);
+        ssl->buffers.peerEccDsaKey.buffer = NULL;
+    #endif /* HAVE_ECC */
+#endif /* HAVE_PK_CALLBACKS */
 }
 
 
@@ -3234,8 +3264,24 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx)
                                         ssl->peerEccDsaKey) != 0) {
                         ret = PEER_KEY_ERROR;
                     }
-                    else
+                    else {
                         ssl->peerEccDsaKeyPresent = 1;
+                        #ifdef HAVE_PK_CALLBACKS
+                            #ifdef HAVE_ECC
+                                ssl->buffers.peerEccDsaKey.buffer =
+                                       XMALLOC(dCert.pubKeySize,
+                                               ssl->heap, DYNAMIC_TYPE_ECC);
+                                if (ssl->buffers.peerEccDsaKey.buffer == NULL)
+                                    ret = MEMORY_ERROR;
+                                else {
+                                    XMEMCPY(ssl->buffers.peerEccDsaKey.buffer,
+                                            dCert.publicKey, dCert.pubKeySize);
+                                    ssl->buffers.peerEccDsaKey.length = 
+                                            dCert.pubKeySize;
+                                }
+                            #endif /* HAVE_ECC */
+                        #endif /*HAVE_PK_CALLBACKS */
+                    }
                 }
                 break;
         #endif /* HAVE_ECC */
@@ -7471,6 +7517,15 @@ static void PickHashSigAlgo(CYASSL* ssl,
             byte* digest = hash256;
             word32 digestSz = SHA256_DIGEST_SIZE;
 #endif
+            byte doUserEcc = 0;
+
+            #ifdef HAVE_PK_CALLBACKS
+                #ifdef HAVE_ECC
+                    if (ssl->ctx->EccVerifyCb)
+                        doUserEcc = 1;
+                #endif /* HAVE_ECC */
+            #endif /*HAVE_PK_CALLBACKS */
+
             if (!ssl->peerEccDsaKeyPresent)
                 return NO_PEER_KEY;
 
@@ -7494,9 +7549,21 @@ static void PickHashSigAlgo(CYASSL* ssl,
                     #endif
                 }
             }
-
-            ret = ecc_verify_hash(signature, sigLen, digest, digestSz,
-                                  &verify, ssl->peerEccDsaKey);
+            if (doUserEcc) {
+            #ifdef HAVE_PK_CALLBACKS
+                #ifdef HAVE_ECC
+                    ret = ssl->ctx->EccVerifyCb(ssl, signature, sigLen,
+                                    digest, digestSz,
+                                    ssl->buffers.peerEccDsaKey.buffer,
+                                    ssl->buffers.peerEccDsaKey.length,
+                                    &verify, ssl->EccVerifyCtx);
+                #endif /* HAVE_ECC */
+            #endif /*HAVE_PK_CALLBACKS */
+            }
+            else {
+                ret = ecc_verify_hash(signature, sigLen, digest, digestSz,
+                                      &verify, ssl->peerEccDsaKey);
+            }
             if (ret != 0 || verify == 0)
                 return VERIFY_SIGN_ERROR;
         }
@@ -7861,6 +7928,14 @@ static void PickHashSigAlgo(CYASSL* ssl,
                 digestSz = SHA256_DIGEST_SIZE;
                 digest   = ssl->certHashes.sha256;
 #endif
+                byte doUserEcc = 0;
+
+                #ifdef HAVE_PK_CALLBACKS
+                    #ifdef HAVE_ECC
+                        if (ssl->ctx->EccSignCb)
+                            doUserEcc = 1;
+                    #endif /* HAVE_ECC */
+                #endif /*HAVE_PK_CALLBACKS */
 
                 if (IsAtLeastTLSv1_2(ssl)) {
                     if (ssl->suites->hashAlgo == sha_mac) {
@@ -7883,8 +7958,21 @@ static void PickHashSigAlgo(CYASSL* ssl,
                     }
                 }
 
-                ret = ecc_sign_hash(digest, digestSz, encodedSig,
-                                    &localSz, ssl->rng, &eccKey);
+                if (doUserEcc) {
+                #ifdef HAVE_PK_CALLBACKS
+                    #ifdef HAVE_ECC
+                        ret = ssl->ctx->EccSignCb(ssl, digest, digestSz,
+                                        encodedSig, &localSz,
+                                        ssl->buffers.key.buffer,
+                                        ssl->buffers.key.length,
+                                        ssl->EccSignCtx);
+                    #endif /* HAVE_ECC */
+                #endif /*HAVE_PK_CALLBACKS */
+                }
+                else {
+                    ret = ecc_sign_hash(digest, digestSz, encodedSig,
+                                        &localSz, ssl->rng, &eccKey);
+                }
                 if (ret == 0) {
                     length = localSz;
                     c16toa((word16)length, verify + extraSz); /* prepend hdr */
@@ -8395,6 +8483,14 @@ static void PickHashSigAlgo(CYASSL* ssl,
                     word32 digestSz = SHA256_DIGEST_SIZE;
 #endif
                     word32 sz = sigSz;
+                    byte   doUserEcc = 0;
+
+                    #ifdef HAVE_PK_CALLBACKS
+                        #ifdef HAVE_ECC
+                            if (ssl->ctx->EccSignCb)
+                                doUserEcc = 1;
+                        #endif /* HAVE_ECC */
+                    #endif /*HAVE_PK_CALLBACKS */
 
                     if (IsAtLeastTLSv1_2(ssl)) {
                         if (ssl->suites->hashAlgo == sha_mac) {
@@ -8417,8 +8513,21 @@ static void PickHashSigAlgo(CYASSL* ssl,
                         }
                     }
 
-                    ret = ecc_sign_hash(digest, digestSz,
+                    if (doUserEcc) {
+                    #ifdef HAVE_PK_CALLBACKS
+                        #ifdef HAVE_ECC
+                            ret = ssl->ctx->EccSignCb(ssl, digest, digestSz,
+                                            output + LENGTH_SZ + idx, &sz,
+                                            ssl->buffers.key.buffer,
+                                            ssl->buffers.key.length,
+                                            ssl->EccSignCtx);
+                        #endif /* HAVE_ECC */
+                    #endif /*HAVE_PK_CALLBACKS */
+                    }
+                    else {
+                        ret = ecc_sign_hash(digest, digestSz,
                               output + LENGTH_SZ + idx, &sz, ssl->rng, &dsaKey);
+                    }
 #ifndef NO_RSA
                     FreeRsaKey(&rsaKey);
 #endif
@@ -9709,6 +9818,14 @@ static void PickHashSigAlgo(CYASSL* ssl,
             int err    = -1;
             byte* digest = ssl->certHashes.sha;
             word32 digestSz = SHA_DIGEST_SIZE;
+            byte doUserEcc = 0;
+
+            #ifdef HAVE_PK_CALLBACKS
+                #ifdef HAVE_ECC
+                    if (ssl->ctx->EccVerifyCb)
+                        doUserEcc = 1;
+                #endif /* HAVE_ECC */
+            #endif /*HAVE_PK_CALLBACKS */
 
             CYASSL_MSG("Doing ECC peer cert verify");
 
@@ -9729,9 +9846,20 @@ static void PickHashSigAlgo(CYASSL* ssl,
                     #endif
                 }
             }
-            err = ecc_verify_hash(sig, sz, digest, digestSz,
-                                  &verify, ssl->peerEccDsaKey);
-
+            if (doUserEcc) {
+            #ifdef HAVE_PK_CALLBACKS
+                #ifdef HAVE_ECC
+                    ret = ssl->ctx->EccVerifyCb(ssl, sig, sz, digest, digestSz,
+                                    ssl->buffers.peerEccDsaKey.buffer,
+                                    ssl->buffers.peerEccDsaKey.length,
+                                    &verify, ssl->EccVerifyCtx);
+                #endif /* HAVE_ECC */
+            #endif /*HAVE_PK_CALLBACKS */
+            }
+            else {
+                err = ecc_verify_hash(sig, sz, digest, digestSz,
+                                      &verify, ssl->peerEccDsaKey);
+            }
             if (err == 0 && verify == 1)
                ret = 0;   /* verified */ 
         }

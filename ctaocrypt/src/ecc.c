@@ -1245,8 +1245,8 @@ void ecc_free(ecc_key* key)
    key         The corresponding public ECC key
    return      MP_OKAY if successful (even if the signature is not valid)
 */
-int ecc_verify_hash(const byte* sig, word32 siglen, byte* hash, word32 hashlen, 
-                    int* stat, ecc_key* key)
+int ecc_verify_hash(const byte* sig, word32 siglen, const byte* hash,
+                    word32 hashlen, int* stat, ecc_key* key)
 {
    ecc_point    *mG, *mQ;
    mp_int        r;
@@ -1324,7 +1324,7 @@ int ecc_verify_hash(const byte* sig, word32 siglen, byte* hash, word32 hashlen,
        /* truncate down to byte size, may be all that's needed */
        if ( (CYASSL_BIT_SIZE * hashlen) > orderBits)
            hashlen = (orderBits + CYASSL_BIT_SIZE - 1)/CYASSL_BIT_SIZE;
-       err = mp_read_unsigned_bin(&e, (byte*)hash, hashlen);
+       err = mp_read_unsigned_bin(&e, hash, hashlen);
 
        /* may still need bit truncation too */
        if (err == MP_OKAY && (CYASSL_BIT_SIZE * hashlen) > orderBits)

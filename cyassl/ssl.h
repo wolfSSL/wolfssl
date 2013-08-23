@@ -1004,6 +1004,27 @@ enum BulkCipherAlgorithm {
     cyassl_rabbit
 };
 
+
+/* Public Key Callback support */
+typedef int (*CallbackEccSign)(CYASSL* ssl, 
+       const unsigned char* in, unsigned int inSz,
+       unsigned char* out, unsigned int* outSz,
+       const unsigned char* keyDer, unsigned int keySz,
+       void* ctx);
+CYASSL_API void  CyaSSL_CTX_SetEccSignCb(CYASSL_CTX*, CallbackEccSign);
+CYASSL_API void  CyaSSL_SetEccSignCtx(CYASSL* ssl, void *ctx);
+CYASSL_API void* CyaSSL_GetEccSignCtx(CYASSL* ssl);
+
+typedef int (*CallbackEccVerify)(CYASSL* ssl, 
+       const unsigned char* sig, unsigned int sigSz,
+       const unsigned char* hash, unsigned int hashSz,
+       const unsigned char* keyDer, unsigned int keySz,
+       int* result, void* ctx);
+CYASSL_API void  CyaSSL_CTX_SetEccVerifyCb(CYASSL_CTX*, CallbackEccVerify);
+CYASSL_API void  CyaSSL_SetEccVerifyCtx(CYASSL* ssl, void *ctx);
+CYASSL_API void* CyaSSL_GetEccVerifyCtx(CYASSL* ssl);
+
+
 #ifndef NO_CERTS
 	CYASSL_API void CyaSSL_CTX_SetCACb(CYASSL_CTX*, CallbackCACache);
 

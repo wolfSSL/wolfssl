@@ -146,6 +146,9 @@ static void Usage(void)
 #ifdef ATOMIC_USER
     printf("-U          Atomic User Record Layer Callbacks\n");
 #endif
+#ifdef HAVE_PK_CALLBACKS 
+    printf("-P          Public Key Callbacks\n");
+#endif
 }
 
 
@@ -190,6 +193,7 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
     int    useClientCert = 1;
     int    fewerPackets  = 0;
     int    atomicUser    = 0;
+    int    pkCallbacks   = 0;
     char*  cipherList = NULL;
     char*  verifyCert = (char*)caCert;
     char*  ourCert    = (char*)cliCert;
@@ -226,11 +230,12 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
     (void)sslResume;
     (void)trackMemory;
     (void)atomicUser;
+    (void)pkCallbacks;
 
     StackTrap();
 
     while ((ch = mygetopt(argc, argv,
-                              "?gdusmNrtfxUh:p:v:l:A:c:k:b:zS:L:ToO:")) != -1) {
+                          "?gdusmNrtfxUPh:p:v:l:A:c:k:b:zS:L:ToO:")) != -1) {
         switch (ch) {
             case '?' :
                 Usage();
@@ -273,6 +278,12 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
             case 'U' :
             #ifdef ATOMIC_USER
                 atomicUser = 1;
+            #endif
+                break;
+
+            case 'P' :
+            #ifdef HAVE_PK_CALLBACKS 
+                pkCallbacks = 1;
             #endif
                 break;
 
@@ -608,6 +619,10 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
 #ifdef ATOMIC_USER
     if (atomicUser)
         SetupAtomicUser(ctx, ssl);
+#endif
+#ifdef HAVE_PK_CALLBACKS
+    if (pkCallbacks)
+        SetupPkCallbacks(ctx, ssl);
 #endif
     if (matchName && doPeerCheck)
         CyaSSL_check_domain_name(ssl, domain);

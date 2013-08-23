@@ -7225,8 +7225,8 @@ CYASSL_X509* CyaSSL_X509_load_certificate_file(const char* fname, int format)
     }
     if (dynamic) XFREE(fileBuffer, NULL, DYNAMIC_TYPE_FILE);
 
-    // At this point we want `der` to have the certificate in DER format
-    // ready to be decoded.
+    /* At this point we want `der` to have the certificate in DER format */
+    /* ready to be decoded. */
     if (der.buffer != NULL) {
         DecodedCert cert;
 
@@ -10384,4 +10384,59 @@ int CyaSSL_CTX_OCSP_set_override_url(CYASSL_CTX* ctx, const char* url)
 #endif
 }
 
+
+#ifndef NO_CERTS
+#ifdef  HAVE_PK_CALLBACKS
+
+#ifdef HAVE_ECC
+
+void  CyaSSL_CTX_SetEccSignCb(CYASSL_CTX* ctx, CallbackEccSign cb)
+{
+    if (ctx)
+        ctx->EccSignCb = cb;
+}
+
+
+void  CyaSSL_SetEccSignCtx(CYASSL* ssl, void *ctx)
+{
+    if (ssl)
+        ssl->EccSignCtx = ctx;
+}
+
+
+void* CyaSSL_GetEccSignCtx(CYASSL* ssl)
+{
+    if (ssl)
+        return ssl->EccSignCtx;
+
+    return NULL;
+}
+
+
+void  CyaSSL_CTX_SetEccVerifyCb(CYASSL_CTX* ctx, CallbackEccVerify cb)
+{
+    if (ctx)
+        ctx->EccVerifyCb = cb;
+}
+
+
+void  CyaSSL_SetEccVerifyCtx(CYASSL* ssl, void *ctx)
+{
+    if (ssl)
+        ssl->EccVerifyCtx = ctx;
+}
+
+
+void* CyaSSL_GetEccVerifyCtx(CYASSL* ssl)
+{
+    if (ssl)
+        return ssl->EccVerifyCtx;
+
+    return NULL;
+}
+
+#endif /* HAVE_ECC */
+
+#endif /* HAVE_PK_CALLBACKS */
+#endif /* NO_CERTS */
 

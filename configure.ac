@@ -289,6 +289,19 @@ then
 fi
 
 
+# Public Key Callbacks  
+AC_ARG_ENABLE([pkcallbacks],
+    [  --enable-pkcallbacks    Enable Public Key Callbacks (default: disabled)],
+    [ ENABLED_PKCALLBACKS=$enableval ],
+    [ ENABLED_PKCALLBACKS=no ]
+    )
+
+if test "$ENABLED_PKCALLBACKS" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_PK_CALLBACKS"
+fi
+
+
 # SNIFFER
 AC_ARG_ENABLE([sniffer],
               [AS_HELP_STRING([--enable-sniffer],[ Enable CyaSSL sniffer support (default: disabled) ])],[
@@ -1498,6 +1511,7 @@ echo "   * CRL-MONITOR:               $ENABLED_CRL_MONITOR"
 echo "   * Persistent session cache:  $ENABLED_SAVESESSION"
 echo "   * Persistent cert    cache:  $ENABLED_SAVECERT"
 echo "   * Atomic User Record Layer:  $ENABLED_ATOMICUSER"
+echo "   * Public Key Callbacks:      $ENABLED_PKCALLBACKS"
 echo "   * NTRU:                      $ENABLED_NTRU"
 echo "   * SNI:                       $ENABLED_SNI"
 echo "   * Maximum Fragment Length:   $ENABLED_MAX_FRAGMENT"
