@@ -1264,6 +1264,12 @@ struct CYASSL_CTX {
     CallbackMacEncrypt    MacEncryptCb;    /* Atomic User Mac/Encrypt Cb */
     CallbackDecryptVerify DecryptVerifyCb; /* Atomic User Decrypt/Verify Cb */
 #endif
+#ifdef HAVE_PK_CALLBACKS
+    #ifdef HAVE_ECC
+        CallbackEccSign   EccSignCb;    /* User EccSign   Callback handler */
+        CallbackEccVerify EccVerifyCb;  /* User EccVerify Callback handler */
+    #endif /* HAVE_ECC */
+#endif /* HAVE_PK_CALLBACKS */
 };
 
 
@@ -1556,6 +1562,11 @@ typedef struct Buffers {
 #ifdef CYASSL_DTLS
     CYASSL_DTLS_CTX dtlsCtx;               /* DTLS connection context */
 #endif
+#ifdef HAVE_PK_CALLBACKS
+    #ifdef HAVE_ECC
+        buffer peerEccDsaKey;              /* we own for Ecc Verify Callbacks */
+    #endif /* HAVE_ECC */
+#endif /* HAVE_PK_CALLBACKS */
 } Buffers;
 
 typedef struct Options {
@@ -1831,6 +1842,12 @@ struct CYASSL {
     void*    MacEncryptCtx;    /* Atomic User Mac/Encrypt Callback Context */
     void*    DecryptVerifyCtx; /* Atomic User Decrypt/Verify Callback Context */
 #endif
+#ifdef HAVE_PK_CALLBACKS
+    #ifdef HAVE_ECC
+        void* EccSignCtx;     /* Ecc Sign   Callback Context */
+        void* EccVerifyCtx;   /* Ecc Verify Callback Context */
+    #endif /* HAVE_ECC */
+#endif /* HAVE_PK_CALLBACKS */
 };
 
 

@@ -91,8 +91,8 @@ CYASSL_API
 int ecc_sign_hash(const byte* in, word32 inlen, byte* out, word32 *outlen, 
                   RNG* rng, ecc_key* key);
 CYASSL_API
-int ecc_verify_hash(const byte* sig, word32 siglen, byte* hash, word32 hashlen, 
-                    int* stat, ecc_key* key);
+int ecc_verify_hash(const byte* sig, word32 siglen, const byte* hash,
+                    word32 hashlen, int* stat, ecc_key* key);
 CYASSL_API
 void ecc_init(ecc_key* key);
 CYASSL_API

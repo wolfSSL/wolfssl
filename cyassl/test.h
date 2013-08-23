@@ -15,6 +15,13 @@
     #include <cyassl/ctaocrypt/arc4.h>
     #include <cyassl/ctaocrypt/hmac.h>
 #endif
+#ifdef HAVE_PK_CALLBACKS
+    #include <cyassl/ctaocrypt/random.h>
+    #include <cyassl/ctaocrypt/asn.h>
+    #ifdef HAVE_ECC
+        #include <cyassl/ctaocrypt/ecc.h>
+    #endif /* HAVE_ECC */
+#endif /*HAVE_PK_CALLBACKS */
 
 #ifdef USE_WINDOWS_API 
     #include <winsock2.h>
@@ -1491,6 +1498,66 @@ static INLINE void FreeAtomicUser(CYASSL* ssl)
 }
 
 #endif /* ATOMIC_USER */
+
+
+#ifdef HAVE_PK_CALLBACKS
+
+static INLINE int myEccSign(CYASSL* ssl, const byte* in, word32 inSz,
+        byte* out, word32* outSz, const byte* key, word32 keySz, void* ctx)
+{
+    RNG     rng;
+    int     ret;
+    word32  idx = 0;
+    ecc_key myKey;
+
+    (void)ssl;
+    (void)ctx;
+
+    InitRng(&rng);
+    ecc_init(&myKey);
+    
+    ret = EccPrivateKeyDecode(key, &idx, &myKey, keySz);    
+    if (ret == 0)
+        ret = ecc_sign_hash(in, inSz, out, outSz, &rng, &myKey);
+    ecc_free(&myKey);
+
+    return ret;
+}
+
+
+static INLINE int myEccVerify(CYASSL* ssl, const byte* sig, word32 sigSz,
+        const byte* hash, word32 hashSz, const byte* key, word32 keySz,
+        int* result, void* ctx)
+{
+    int     ret;
+    ecc_key myKey;
+
+    (void)ssl;
+    (void)ctx;
+
+    ecc_init(&myKey);
+    
+    ret = ecc_import_x963(key, keySz, &myKey);
+    if (ret == 0)
+        ret = ecc_verify_hash(sig, sigSz, hash, hashSz, result, &myKey);
+    ecc_free(&myKey);
+
+    return ret;
+}
+
+
+static INLINE void SetupPkCallbacks(CYASSL_CTX* ctx, CYASSL* ssl)
+{
+    (void)ctx;
+    (void)ssl;
+
+    #ifdef HAVE_ECC
+        CyaSSL_CTX_SetEccSignCb(ctx, myEccSign);
+        CyaSSL_CTX_SetEccVerifyCb(ctx, myEccVerify);
+    #endif /* HAVE_ECC */
+}
+
+#endif /* HAVE_PK_CALLBACKS */
 
 
 #if defined(__hpux__) || defined(__MINGW32__)

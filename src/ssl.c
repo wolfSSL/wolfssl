@@ -10385,3 +10385,58 @@ int CyaSSL_CTX_OCSP_set_override_url(CYASSL_CTX* ctx, const char* url)
 }
 
 
+#ifndef NO_CERTS
+#ifdef  HAVE_PK_CALLBACKS
+
+#ifdef HAVE_ECC
+
+void  CyaSSL_CTX_SetEccSignCb(CYASSL_CTX* ctx, CallbackEccSign cb)
+{
+    if (ctx)
+        ctx->EccSignCb = cb;
+}
+
+
+void  CyaSSL_SetEccSignCtx(CYASSL* ssl, void *ctx)
+{
+    if (ssl)
+        ssl->EccSignCtx = ctx;
+}
+
+
+void* CyaSSL_GetEccSignCtx(CYASSL* ssl)
+{
+    if (ssl)
+        return ssl->EccSignCtx;
+
+    return NULL;
+}
+
+
+void  CyaSSL_CTX_SetEccVerifyCb(CYASSL_CTX* ctx, CallbackEccVerify cb)
+{
+    if (ctx)
+        ctx->EccVerifyCb = cb;
+}
+
+
+void  CyaSSL_SetEccVerifyCtx(CYASSL* ssl, void *ctx)
+{
+    if (ssl)
+        ssl->EccVerifyCtx = ctx;
+}
+
+
+void* CyaSSL_GetEccVerifyCtx(CYASSL* ssl)
+{
+    if (ssl)
+        return ssl->EccVerifyCtx;
+
+    return NULL;
+}
+
+#endif /* HAVE_ECC */
+
+#endif /* HAVE_PK_CALLBACKS */
+#endif /* NO_CERTS */
+
