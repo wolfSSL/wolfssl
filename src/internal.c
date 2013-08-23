@@ -7509,7 +7509,7 @@ static void PickHashSigAlgo(CYASSL* ssl,
 #ifdef HAVE_ECC
         /* ecdsa */
         if (sigAlgo == ecc_dsa_sa_algo) {
-            int verify = 0, ret;
+            int verify = 0, ret = 0;
 #ifndef NO_OLD_TLS
             byte* digest = &hash[MD5_DIGEST_SIZE];
             word32 digestSz = SHA_DIGEST_SIZE;
