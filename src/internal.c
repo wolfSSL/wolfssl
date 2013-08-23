@@ -7919,6 +7919,7 @@ static void PickHashSigAlgo(CYASSL* ssl,
                 word32 localSz = MAX_ENCODED_SIG_SZ;
                 word32 digestSz;
                 byte*  digest;
+                byte   doUserEcc = 0;
 #ifndef NO_OLD_TLS
                 /* old tls default */
                 digestSz = SHA_DIGEST_SIZE;
@@ -7928,7 +7929,6 @@ static void PickHashSigAlgo(CYASSL* ssl,
                 digestSz = SHA256_DIGEST_SIZE;
                 digest   = ssl->certHashes.sha256;
 #endif
-                byte doUserEcc = 0;
 
                 #ifdef HAVE_PK_CALLBACKS
                     #ifdef HAVE_ECC
