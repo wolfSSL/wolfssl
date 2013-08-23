@@ -679,7 +679,8 @@ static int process_http_response(int sfd, byte** respBuf,
         }
         else {
             *end = 0;
-            len -= end - start + 2;
+            len -= (int)(end - start) + 2;
+                /* adjust len to remove the first line including the /r/n */
 
             if (XSTRNCASECMP(start, "HTTP/1", 6) == 0) {
                 start += 9;

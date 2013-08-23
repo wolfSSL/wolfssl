@@ -2733,12 +2733,13 @@ void AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
 {
     byte A[AES_BLOCK_SIZE];
     byte B[AES_BLOCK_SIZE];
-    word32 i, lenSz;
+    byte lenSz;
+    word32 i;
 
     XMEMCPY(B+1, nonce, nonceSz);
-    lenSz = AES_BLOCK_SIZE - 1 - nonceSz;
+    lenSz = AES_BLOCK_SIZE - 1 - (byte)nonceSz;
     B[0] = (authInSz > 0 ? 64 : 0)
-         + (8 * ((authTagSz - 2) / 2))
+         + (8 * (((byte)authTagSz - 2) / 2))
          + (lenSz - 1);
     for (i = 0; i < lenSz; i++)
         B[AES_BLOCK_SIZE - 1 - i] = (inSz >> (8 * i)) & 0xFF;
@@ -2750,7 +2751,7 @@ void AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
         roll_x(aes, in, inSz, A);
     XMEMCPY(authTag, A, authTagSz);
 
-    B[0] = (lenSz - 1);
+    B[0] = lenSz - 1;
     for (i = 0; i < lenSz; i++)
         B[AES_BLOCK_SIZE - 1 - i] = 0;
     AesEncrypt(aes, B, A);
@@ -2786,14 +2787,16 @@ int  AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
     byte A[AES_BLOCK_SIZE];
     byte B[AES_BLOCK_SIZE];
     byte* o;
-    word32 i, lenSz, oSz; int result = 0;
+    byte lenSz;
+    word32 i, oSz;
+    int result = 0;
 
     o = out;
     oSz = inSz;
     XMEMCPY(B+1, nonce, nonceSz);
-    lenSz = AES_BLOCK_SIZE - 1 - nonceSz;
+    lenSz = AES_BLOCK_SIZE - 1 - (byte)nonceSz;
 
-    B[0] = (lenSz - 1);
+    B[0] = lenSz - 1;
     for (i = 0; i < lenSz; i++)
         B[AES_BLOCK_SIZE - 1 - i] = 0;
     B[15] = 1;
@@ -2822,7 +2825,7 @@ int  AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
     oSz = inSz;
 
     B[0] = (authInSz > 0 ? 64 : 0)
-         + (8 * ((authTagSz - 2) / 2))
+         + (8 * (((byte)authTagSz - 2) / 2))
          + (lenSz - 1);
     for (i = 0; i < lenSz; i++)
         B[AES_BLOCK_SIZE - 1 - i] = (inSz >> (8 * i)) & 0xFF;
@@ -2833,7 +2836,7 @@ int  AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
     if (inSz > 0)
         roll_x(aes, o, oSz, A);
 
-    B[0] = (lenSz - 1);
+    B[0] = lenSz - 1;
     for (i = 0; i < lenSz; i++)
         B[AES_BLOCK_SIZE - 1 - i] = 0;
     AesEncrypt(aes, B, B);

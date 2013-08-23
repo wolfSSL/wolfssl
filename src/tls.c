@@ -450,15 +450,17 @@ int CyaSSL_GetHmacType(CYASSL* ssl)
         #endif
         #ifndef NO_SHA
         case sha_mac:
-        default:
         {
             return SHA;
         }
         break;
         #endif
+        default:
+        {
+            return SSL_FATAL_ERROR;
+        }
+        break;
     }
-
-    return -1;
 }
 
 

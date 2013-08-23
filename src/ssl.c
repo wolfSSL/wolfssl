@@ -4797,14 +4797,14 @@ int CyaSSL_GetSessionIndex(CYASSL* ssl)
 }
 
 
-int CyaSSL_GetSessionAtIndex(int index, CYASSL_SESSION* session)
+int CyaSSL_GetSessionAtIndex(int idx, CYASSL_SESSION* session)
 {
     int row, col, result = SSL_FAILURE;
 
     CYASSL_ENTER("CyaSSL_GetSessionAtIndex");
 
-    row = index >> SESSIDX_ROW_SHIFT;
-    col = index & SESSIDX_IDX_MASK;
+    row = idx >> SESSIDX_ROW_SHIFT;
+    col = idx & SESSIDX_IDX_MASK;
 
     if (LockMutex(&session_mutex) != 0) {
         return BAD_MUTEX_ERROR;
@@ -10353,7 +10353,7 @@ const byte* CyaSSL_get_sessionID(const CYASSL_SESSION* session)
 #endif /* SESSION_CERTS */
 
 
-long CyaSSL_CTX_OCSP_set_options(CYASSL_CTX* ctx, long options)
+int CyaSSL_CTX_OCSP_set_options(CYASSL_CTX* ctx, int options)
 {
     CYASSL_ENTER("CyaSSL_CTX_OCSP_set_options");
 #ifdef HAVE_OCSP
@@ -10361,9 +10361,9 @@ long CyaSSL_CTX_OCSP_set_options(CYASSL_CTX* ctx, long options)
         ctx->ocsp.enabled = (options & CYASSL_OCSP_ENABLE) != 0;
         ctx->ocsp.useOverrideUrl = (options & CYASSL_OCSP_URL_OVERRIDE) != 0;
         ctx->ocsp.useNonce = (options & CYASSL_OCSP_NO_NONCE) == 0;
-        return 1;
+        return SSL_SUCCESS;
     }
-    return 0;
+    return SSL_FAILURE;
 #else
     (void)ctx;
     (void)options;

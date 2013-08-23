@@ -1140,7 +1140,7 @@ CYASSL_API int CyaSSL_accept_ex(CYASSL*, HandShakeCallBack, TimeoutCallBack,
 #endif /* CYASSL_CALLBACKS */
 
 
-CYASSL_API long CyaSSL_CTX_OCSP_set_options(CYASSL_CTX*, long);
+CYASSL_API int  CyaSSL_CTX_OCSP_set_options(CYASSL_CTX*, int);
 CYASSL_API int  CyaSSL_CTX_OCSP_set_override_url(CYASSL_CTX*, const char*);
 
 /* OCSP Options */

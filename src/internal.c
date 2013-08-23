@@ -3683,7 +3683,7 @@ static INLINE void AeadIncrementExpIV(CYASSL* ssl)
 #endif
 
 
-static INLINE int Encrypt(CYASSL* ssl, byte* out, const byte* input, word32 sz)
+static INLINE int Encrypt(CYASSL* ssl, byte* out, const byte* input, word16 sz)
 {
     (void)out;
     (void)input;
@@ -3834,7 +3834,7 @@ static INLINE int Encrypt(CYASSL* ssl, byte* out, const byte* input, word32 sz)
 
 
 static INLINE int Decrypt(CYASSL* ssl, byte* plain, const byte* input,
-                           word32 sz)
+                           word16 sz)
 {
     (void)plain;
     (void)input;
