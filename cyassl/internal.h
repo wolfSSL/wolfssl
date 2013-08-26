@@ -1109,11 +1109,13 @@ typedef struct CYASSL_DTLS_CTX {
 typedef enum {
     SERVER_NAME_INDICATION =  0,
     MAX_FRAGMENT_LENGTH    =  1,
-  /*CLIENT_CERTIFICATE_URL =  2,
-    TRUSTED_CA_KEYS        =  3,*/
+  /*CLIENT_CERTIFICATE_URL =  2,*/
+  /*TRUSTED_CA_KEYS        =  3,*/
     TRUNCATED_HMAC         =  4,
-  /*STATUS_REQUEST         =  5,
-    SIGNATURE_ALGORITHMS   = 13,*/
+  /*STATUS_REQUEST         =  5,*/
+    ELLIPTIC_CURVES        = 10,
+  /*EC_POINT_FORMATS       = 11,*/
+  /*SIGNATURE_ALGORITHMS   = 13,*/
 } TLSX_Type;
 
 typedef struct TLSX {
@@ -1179,6 +1181,18 @@ CYASSL_LOCAL int TLSX_UseMaxFragment(TLSX** extensions, byte mfl);
 CYASSL_LOCAL int TLSX_UseTruncatedHMAC(TLSX** extensions);
 
 #endif /* HAVE_TRUNCATED_HMAC */
+
+#ifdef HAVE_ELLIPTIC_CURVES
+
+typedef struct EllipticCurve {
+    word16                name; /* CurveNames    */
+    struct EllipticCurve* next; /* List Behavior */
+
+} EllipticCurve;
+
+CYASSL_LOCAL int TLSX_UseEllipticCurve(TLSX** extensions, word16 name);
+
+#endif
 
 #endif /* HAVE_TLS_EXTENSIONS */
 
