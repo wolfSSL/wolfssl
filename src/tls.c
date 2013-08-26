@@ -515,6 +515,12 @@ void TLS_hmac(CYASSL* ssl, byte* digest, const byte* in, word32 sz,
 
 #ifdef HAVE_TLS_EXTENSIONS
 
+#define IS_OFF(semaphore, light) \
+    ((semaphore)[(light) / 8] ^  (byte) (0x01 << ((light) % 8)))
+
+#define TURN_ON(semaphore, light) \
+    ((semaphore)[(light) / 8] |= (byte) (0x01 << ((light) % 8)))
+
 static int TLSX_Append(TLSX** list, TLSX_Type type)
 {
     TLSX* extension;
@@ -536,7 +542,9 @@ static int TLSX_Append(TLSX** list, TLSX_Type type)
 
 #ifndef NO_CYASSL_SERVER
 
-static void TLSX_SetResponse(CYASSL* ssl, TLSX_Type type)
+void TLSX_SetResponse(CYASSL* ssl, TLSX_Type type);
+
+void TLSX_SetResponse(CYASSL* ssl, TLSX_Type type)
 {
     TLSX *ext = TLSX_Find(ssl->extensions, type);
 
@@ -1152,6 +1160,200 @@ static int TLSX_THM_Parse(CYASSL* ssl, byte* input, word16 length,
 
 #endif /* HAVE_TRUNCATED_HMAC */
 
+#ifdef HAVE_ELLIPTIC_CURVES
+
+#ifndef HAVE_ECC
+#error "Elliptic Curves Extension requires Elliptic Curve Cryptography. \
+Use --enable-ecc in the configure script or define HAVE_ECC."
+#endif
+
+static void TLSX_EllipticCurve_FreeAll(EllipticCurve* list)
+{
+    EllipticCurve* curve;
+
+    while ((curve = list)) {
+        list = curve->next;
+        XFREE(curve, 0, DYNAMIC_TYPE_TLSX);
+    }
+}
+
+static int TLSX_EllipticCurve_Append(EllipticCurve** list, word16 name)
+{
+    EllipticCurve* curve;
+
+    if (list == NULL)
+        return BAD_FUNC_ARG;
+
+    if ((curve = XMALLOC(sizeof(EllipticCurve), 0, DYNAMIC_TYPE_TLSX)) == NULL)
+        return MEMORY_E;
+
+    curve->name = name;
+    curve->next = *list;
+
+    *list = curve;
+
+    return 0;
+}
+
+#ifndef NO_CYASSL_CLIENT
+
+static void TLSX_EllipticCurve_ValidateRequest(CYASSL* ssl, byte* semaphore)
+{
+    int i;
+
+    for (i = 0; i < ssl->suites->suiteSz; i+= 2)
+        if (ssl->suites->suites[i] == ECC_BYTE)
+            return;
+
+    /* No elliptic curve suite found */
+    TURN_ON(semaphore, ELLIPTIC_CURVES);
+}
+
+static word16 TLSX_EllipticCurve_GetSize(EllipticCurve* list)
+{
+    EllipticCurve* curve;
+    word16 length = OPAQUE16_LEN; /* list length */
+
+    while ((curve = list)) {
+        list = curve->next;
+        length += OPAQUE16_LEN; /* curve length */
+    }
+
+    return length;
+}
+
+static word16 TLSX_EllipticCurve_Write(EllipticCurve* list, byte* output)
+{
+    EllipticCurve* curve;
+    word16 offset = OPAQUE16_LEN; /* list length offset */
+
+    while ((curve = list)) {
+        list = curve->next;
+
+        c16toa(curve->name, output + offset); /* curve name */
+        offset += OPAQUE16_LEN;
+    }
+
+    c16toa(offset - OPAQUE16_LEN, output); /* writing list length */
+
+    return offset;
+}
+
+#endif /* NO_CYASSL_CLIENT */
+#ifndef NO_CYASSL_SERVER
+
+static int TLSX_EllipticCurve_Parse(CYASSL* ssl, byte* input, word16 length,
+                                                                 byte isRequest)
+{
+    word16 offset;
+    word16 name;
+    int r;
+
+    (void) isRequest; /* shut up compiler! */
+
+    if (OPAQUE16_LEN > length || length % OPAQUE16_LEN)
+        return INCOMPLETE_DATA;
+
+    ato16(input, &offset);
+
+    /* validating curve list length */
+    if (length != OPAQUE16_LEN + offset)
+        return INCOMPLETE_DATA;
+
+    while (offset) {
+        ato16(input + offset, &name);
+        offset -= OPAQUE16_LEN;
+
+        r = TLSX_UseEllipticCurve(&ssl->extensions, name);
+
+        if (r) return r; /* throw error */
+    }
+
+    return 0;
+}
+
+#endif /* NO_CYASSL_SERVER */
+
+int TLSX_UseEllipticCurve(TLSX** extensions, word16 name)
+{
+    TLSX*          extension = NULL;
+    EllipticCurve* curve     = NULL;
+    int            ret       = 0;
+
+    if (extensions == NULL)
+        return BAD_FUNC_ARG;
+
+    if ( name != CYASSL_ECC_SECP160R1 &&
+         name != CYASSL_ECC_SECP192R1 &&
+         name != CYASSL_ECC_SECP224R1 &&
+        (name  < CYASSL_ECC_SECP256R1 || name > CYASSL_ECC_SECP521R1))
+        return BAD_FUNC_ARG;
+
+    if ((ret = TLSX_EllipticCurve_Append(&curve, name)) != 0)
+        return ret;
+
+    extension = *extensions;
+
+    /* find EllipticCurve extension if it already exists. */
+    while (extension && extension->type != ELLIPTIC_CURVES)
+        extension = extension->next;
+
+    /* push new EllipticCurve extension if it doesn't exists. */
+    if (!extension) {
+        if ((ret = TLSX_Append(extensions, ELLIPTIC_CURVES)) != 0) {
+            XFREE(curve, 0, DYNAMIC_TYPE_TLSX);
+            return ret;
+        }
+
+        extension = *extensions;
+    }
+
+    /* push new EllipticCurve object to extension data. */
+    curve->next = (EllipticCurve*) extension->data;
+    extension->data = (void*) curve;
+
+    /* look for another curve of the same name to remove (replacement) */
+    do {
+        if (curve->next && curve->next->name == name) {
+            EllipticCurve *next = curve->next;
+
+            curve->next = next->next;
+            XFREE(next, 0, DYNAMIC_TYPE_TLSX);
+
+            break;
+        }
+    } while ((curve = curve->next));
+
+    return 0;
+}
+
+#define EC_FREE_ALL         TLSX_EllipticCurve_FreeAll
+#define EC_VALIDATE_REQUEST TLSX_EllipticCurve_ValidateRequest
+
+#ifndef NO_CYASSL_CLIENT
+#define EC_GET_SIZE TLSX_EllipticCurve_GetSize
+#define EC_WRITE    TLSX_EllipticCurve_Write
+#else
+#define EC_GET_SIZE(list)         0
+#define EC_WRITE(a, b)            0
+#endif
+
+#ifndef NO_CYASSL_SERVER
+#define EC_PARSE TLSX_EllipticCurve_Parse
+#else
+#define EC_PARSE(a, b, c, d)      0
+#endif
+
+#else
+
+#define EC_FREE_ALL(list)
+#define EC_GET_SIZE(list)         0
+#define EC_WRITE(a, b)            0
+#define EC_PARSE(a, b, c, d)      0
+#define EC_VALIDATE_REQUEST(a, b)
+
+#endif /* HAVE_ELLIPTIC_CURVES */
+
 TLSX* TLSX_Find(TLSX* list, TLSX_Type type)
 {
     TLSX* extension = list;
@@ -1181,17 +1383,15 @@ void TLSX_FreeAll(TLSX* list)
             case TRUNCATED_HMAC:
                 /* Nothing to do. */
                 break;
+
+            case ELLIPTIC_CURVES:
+                EC_FREE_ALL(extension->data);
+                break;
         }
 
         XFREE(extension, 0, DYNAMIC_TYPE_TLSX);
     }
 }
-
-#define IS_OFF(semaphore, light) \
-    ((semaphore)[(light) / 8] ^  (byte) (0x01 << ((light) % 8)))
-
-#define TURN_ON(semaphore, light) \
-    ((semaphore)[(light) / 8] |= (byte) (0x01 << ((light) % 8)))
 
 static word16 TLSX_GetSize(TLSX* list, byte* semaphore, byte isRequest)
 {
@@ -1219,6 +1419,10 @@ static word16 TLSX_GetSize(TLSX* list, byte* semaphore, byte isRequest)
 
                 case TRUNCATED_HMAC:
                     /* empty extension. */
+                    break;
+
+                case ELLIPTIC_CURVES:
+                    length += EC_GET_SIZE((EllipticCurve *) extension->data);
                     break;
             }
 
@@ -1264,6 +1468,11 @@ static word16 TLSX_Write(TLSX* list, byte* output, byte* semaphore,
                 case TRUNCATED_HMAC:
                     /* empty extension. */
                     break;
+
+                case ELLIPTIC_CURVES:
+                    offset += EC_WRITE((EllipticCurve *) extension->data,
+                                                               output + offset);
+                    break;
             }
 
             /* writing extension data length */
@@ -1285,6 +1494,8 @@ word16 TLSX_GetRequestSize(CYASSL* ssl)
 
     if (ssl && IsTLS(ssl)) {
         byte semaphore[16] = {0};
+
+        EC_VALIDATE_REQUEST(ssl, semaphore);
 
         if (ssl->extensions)
             length += TLSX_GetSize(ssl->extensions, semaphore, 1);
@@ -1310,6 +1521,8 @@ word16 TLSX_WriteRequest(CYASSL* ssl, byte* output)
         byte semaphore[16] = {0};
 
         offset += OPAQUE16_LEN; /* extensions length */
+
+        EC_VALIDATE_REQUEST(ssl, semaphore);
 
         if (ssl->extensions)
             offset += TLSX_Write(ssl->extensions, output + offset,
@@ -1428,6 +1641,12 @@ int TLSX_Parse(CYASSL* ssl, byte* input, word16 length, byte isRequest,
                 CYASSL_MSG("Truncated HMAC extension received");
 
                 ret = THM_PARSE(ssl, input + offset, size, isRequest);
+                break;
+
+            case ELLIPTIC_CURVES:
+                CYASSL_MSG("Elliptic Curves extension received");
+
+                ret = EC_PARSE(ssl, input + offset, size, isRequest);
                 break;
 
             case HELLO_EXT_SIG_ALGO:

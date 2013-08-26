@@ -1226,6 +1226,18 @@ then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_RENEGOTIATION_INDICATION"
 fi
 
+# Elliptic Curves Extensions
+AC_ARG_ENABLE([ellipticcurves],
+    [  --enable-ellipticcurves  Enable Elliptic Curves (default: disabled)],
+    [ ENABLED_ELLIPTIC_CURVES=$enableval ],
+    [ ENABLED_ELLIPTIC_CURVES=no ]
+    )
+
+if test "x$ENABLED_ELLIPTIC_CURVES" = "xyes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_ELLIPTIC_CURVES"
+fi
+
 # TLS Extensions
 AC_ARG_ENABLE([tlsx],
     [  --enable-tlsx           Enable all TLS Extensions (default: disabled)],
@@ -1676,6 +1688,7 @@ echo "   * SNI:                       $ENABLED_SNI"
 echo "   * Maximum Fragment Length:   $ENABLED_MAX_FRAGMENT"
 echo "   * Truncated HMAC:            $ENABLED_TRUNCATED_HMAC"
 echo "   * Renegotiation Indication:  $ENABLED_RENEGOTIATION_INDICATION"
+echo "   * Elliptic Curves:           $ENABLED_ELLIPTIC_CURVES"
 echo "   * All TLS Extensions:        $ENABLED_TLSX"
 echo "   * PKCS#7                     $ENABLED_PKCS7"
 echo "   * wolfSCEP                   $ENABLED_WOLFSCEP"
