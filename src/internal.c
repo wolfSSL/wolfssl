@@ -7257,7 +7257,7 @@ static void PickHashSigAlgo(CYASSL* ssl,
            cert and private key */
         if (ssl->buffers.certificate.buffer && ssl->buffers.key.buffer)
             ssl->options.sendVerify = SEND_CERT;
-        else if (IsAtLeastTLSv1_2(ssl))
+        else if (IsTLS(ssl))
             ssl->options.sendVerify = SEND_BLANK_CERT;
 
         return 0;
