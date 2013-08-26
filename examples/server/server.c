@@ -127,6 +127,9 @@ static void Usage(void)
     printf("-o          Perform OCSP lookup on peer certificate\n");
     printf("-O <url>    Perform OCSP lookup using <url> as responder\n");
 #endif
+#ifdef HAVE_PK_CALLBACKS 
+    printf("-P          Public Key Callbacks\n");
+#endif
 }
 
 #ifdef CYASSL_MDK_SHELL
@@ -157,6 +160,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     int    nonBlocking  = 0;
     int    trackMemory  = 0;
     int    fewerPackets = 0;
+    int    pkCallbacks  = 0;
     char*  cipherList = NULL;
     char*  verifyCert = (char*)cliCert;
     char*  ourCert    = (char*)svrCert;
@@ -181,8 +185,9 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     ourKey     = (char*)eccKey;
 #endif
     (void)trackMemory;
+    (void)pkCallbacks;
 
-    while ((ch = mygetopt(argc, argv, "?dbstnNufp:v:l:A:c:k:S:oO:")) != -1) {
+    while ((ch = mygetopt(argc, argv, "?dbstnNufPp:v:l:A:c:k:S:oO:")) != -1) {
         switch (ch) {
             case '?' :
                 Usage();
@@ -216,6 +221,12 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 
             case 'f' :
                 fewerPackets = 1;
+                break;
+
+            case 'P' :
+            #ifdef HAVE_PK_CALLBACKS 
+                pkCallbacks = 1;
+            #endif
                 break;
 
             case 'p' :
@@ -453,6 +464,10 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
         if (ocspUrl != NULL)
             CyaSSL_CTX_OCSP_set_override_url(ctx, ocspUrl);
     }
+#endif
+#ifdef HAVE_PK_CALLBACKS
+    if (pkCallbacks)
+        SetupPkCallbacks(ctx, ssl);
 #endif
 
     tcp_accept(&sockfd, &clientfd, (func_args*)args, port, useAnyAddr, doDTLS);

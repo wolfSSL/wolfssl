@@ -1502,6 +1502,8 @@ static INLINE void FreeAtomicUser(CYASSL* ssl)
 
 #ifdef HAVE_PK_CALLBACKS
 
+#ifdef HAVE_ECC
+
 static INLINE int myEccSign(CYASSL* ssl, const byte* in, word32 inSz,
         byte* out, word32* outSz, const byte* key, word32 keySz, void* ctx)
 {
@@ -1545,6 +1547,60 @@ static INLINE int myEccVerify(CYASSL* ssl, const byte* sig, word32 sigSz,
     return ret;
 }
 
+#endif /* HAVE_ECC */
+
+#ifndef NO_RSA
+
+static INLINE int myRsaSign(CYASSL* ssl, const byte* in, word32 inSz,
+        byte* out, word32* outSz, const byte* key, word32 keySz, void* ctx)
+{
+    RNG     rng;
+    int     ret;
+    word32  idx = 0;
+    RsaKey  myKey;
+
+    (void)ssl;
+    (void)ctx;
+
+    InitRng(&rng);
+    InitRsaKey(&myKey, NULL);
+    
+    ret = RsaPrivateKeyDecode(key, &idx, &myKey, keySz);    
+    if (ret == 0)
+        ret = RsaSSL_Sign(in, inSz, out, *outSz, &myKey, &rng);
+    if (ret > 0) {  /* save and convert to 0 success */
+        *outSz = ret;
+        ret = 0;
+    }
+    FreeRsaKey(&myKey);
+
+    return ret;
+}
+
+
+static INLINE int myRsaVerify(CYASSL* ssl, byte* sig, word32 sigSz,
+        byte** out,
+        const byte* key, word32 keySz,
+        void* ctx)
+{
+    int     ret;
+    word32  idx = 0;
+    RsaKey  myKey;
+
+    (void)ssl;
+    (void)ctx;
+
+    InitRsaKey(&myKey, NULL);
+    
+    ret = RsaPublicKeyDecode(key, &idx, &myKey, keySz);
+    if (ret == 0)
+        ret = RsaSSL_VerifyInline(sig, sigSz, out, &myKey);
+    FreeRsaKey(&myKey);
+
+    return ret;
+}
+
+#endif /* NO_RSA */
 
 static INLINE void SetupPkCallbacks(CYASSL_CTX* ctx, CYASSL* ssl)
 {
@@ -1555,6 +1611,10 @@ static INLINE void SetupPkCallbacks(CYASSL_CTX* ctx, CYASSL* ssl)
         CyaSSL_CTX_SetEccSignCb(ctx, myEccSign);
         CyaSSL_CTX_SetEccVerifyCb(ctx, myEccVerify);
     #endif /* HAVE_ECC */
+    #ifndef NO_RSA 
+        CyaSSL_CTX_SetRsaSignCb(ctx, myRsaSign);
+        CyaSSL_CTX_SetRsaVerifyCb(ctx, myRsaVerify);
+    #endif /* NO_RSA */
 }
 
 #endif /* HAVE_PK_CALLBACKS */

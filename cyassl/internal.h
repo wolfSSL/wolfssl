@@ -1269,6 +1269,10 @@ struct CYASSL_CTX {
         CallbackEccSign   EccSignCb;    /* User EccSign   Callback handler */
         CallbackEccVerify EccVerifyCb;  /* User EccVerify Callback handler */
     #endif /* HAVE_ECC */
+    #ifndef NO_RSA 
+        CallbackRsaSign   RsaSignCb;    /* User RsaSign   Callback handler */
+        CallbackRsaVerify RsaVerifyCb;  /* User RsaVerify Callback handler */
+    #endif /* NO_RSA */
 #endif /* HAVE_PK_CALLBACKS */
 };
 
@@ -1566,6 +1570,9 @@ typedef struct Buffers {
     #ifdef HAVE_ECC
         buffer peerEccDsaKey;              /* we own for Ecc Verify Callbacks */
     #endif /* HAVE_ECC */
+    #ifndef NO_RSA
+        buffer peerRsaKey;                 /* we own for Rsa Verify Callbacks */
+    #endif /* NO_RSA */
 #endif /* HAVE_PK_CALLBACKS */
 } Buffers;
 
@@ -1847,6 +1854,10 @@ struct CYASSL {
         void* EccSignCtx;     /* Ecc Sign   Callback Context */
         void* EccVerifyCtx;   /* Ecc Verify Callback Context */
     #endif /* HAVE_ECC */
+    #ifndef NO_RSA 
+        void* RsaSignCtx;     /* Rsa Sign   Callback Context */
+        void* RsaVerifyCtx;   /* Rsa Verify Callback Context */
+    #endif /* NO_RSA */
 #endif /* HAVE_PK_CALLBACKS */
 };
 

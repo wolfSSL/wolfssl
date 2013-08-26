@@ -10437,6 +10437,55 @@ void* CyaSSL_GetEccVerifyCtx(CYASSL* ssl)
 
 #endif /* HAVE_ECC */
 
+#ifndef NO_RSA 
+
+void  CyaSSL_CTX_SetRsaSignCb(CYASSL_CTX* ctx, CallbackRsaSign cb)
+{
+    if (ctx)
+        ctx->RsaSignCb = cb;
+}
+
+
+void  CyaSSL_SetRsaSignCtx(CYASSL* ssl, void *ctx)
+{
+    if (ssl)
+        ssl->RsaSignCtx = ctx;
+}
+
+
+void* CyaSSL_GetRsaSignCtx(CYASSL* ssl)
+{
+    if (ssl)
+        return ssl->RsaSignCtx;
+
+    return NULL;
+}
+
+
+void  CyaSSL_CTX_SetRsaVerifyCb(CYASSL_CTX* ctx, CallbackRsaVerify cb)
+{
+    if (ctx)
+        ctx->RsaVerifyCb = cb;
+}
+
+
+void  CyaSSL_SetRsaVerifyCtx(CYASSL* ssl, void *ctx)
+{
+    if (ssl)
+        ssl->RsaVerifyCtx = ctx;
+}
+
+
+void* CyaSSL_GetRsaVerifyCtx(CYASSL* ssl)
+{
+    if (ssl)
+        return ssl->RsaVerifyCtx;
+
+    return NULL;
+}
+
+#endif /* NO_RSA */
+
 #endif /* HAVE_PK_CALLBACKS */
 #endif /* NO_CERTS */
 

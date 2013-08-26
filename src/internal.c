@@ -437,6 +437,10 @@ int InitSSL_Ctx(CYASSL_CTX* ctx, CYASSL_METHOD* method)
         ctx->EccSignCb   = NULL;
         ctx->EccVerifyCb = NULL;
     #endif /* HAVE_ECC */
+    #ifndef NO_RSA 
+        ctx->RsaSignCb   = NULL;
+        ctx->RsaVerifyCb = NULL;
+    #endif /* NO_RSA */
 #endif /* HAVE_PK_CALLBACKS */
 
     if (InitMutex(&ctx->countMutex) < 0) {
@@ -1282,6 +1286,10 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
         ssl->buffers.peerEccDsaKey.buffer = 0;
         ssl->buffers.peerEccDsaKey.length = 0;
     #endif /* HAVE_ECC */
+    #ifndef NO_RSA 
+        ssl->buffers.peerRsaKey.buffer = 0;
+        ssl->buffers.peerRsaKey.length = 0;
+    #endif /* NO_RSA */
 #endif /* HAVE_PK_CALLBACKS */
 
 #ifdef KEEP_PEER_CERT
@@ -1501,6 +1509,10 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
         ssl->EccSignCtx   = NULL;
         ssl->EccVerifyCtx = NULL;
     #endif /* HAVE_ECC */
+    #ifndef NO_RSA 
+        ssl->RsaSignCtx   = NULL;
+        ssl->RsaVerifyCtx = NULL;
+    #endif /* NO_RSA */
 #endif /* HAVE_PK_CALLBACKS */
 
     /* all done with init, now can return errors, call other stuff */
@@ -1715,6 +1727,9 @@ void SSL_ResourceFree(CYASSL* ssl)
     #ifdef HAVE_ECC
         XFREE(ssl->buffers.peerEccDsaKey.buffer, ssl->heap, DYNAMIC_TYPE_ECC);
     #endif /* HAVE_ECC */
+    #ifndef NO_RSA 
+        XFREE(ssl->buffers.peerRsaKey.buffer, ssl->heap, DYNAMIC_TYPE_RSA);
+    #endif /* NO_RSA */
 #endif /* HAVE_PK_CALLBACKS */
 #ifdef HAVE_TLS_EXTENSIONS
     TLSX_FreeAll(ssl->extensions);
@@ -1808,6 +1823,10 @@ void FreeHandshakeResources(CYASSL* ssl)
         XFREE(ssl->buffers.peerEccDsaKey.buffer, ssl->heap, DYNAMIC_TYPE_ECC);
         ssl->buffers.peerEccDsaKey.buffer = NULL;
     #endif /* HAVE_ECC */
+    #ifndef NO_RSA 
+        XFREE(ssl->buffers.peerRsaKey.buffer, ssl->heap, DYNAMIC_TYPE_RSA);
+        ssl->buffers.peerRsaKey.buffer = NULL;
+    #endif /* NO_RSA */
 #endif /* HAVE_PK_CALLBACKS */
 }
 
@@ -3238,8 +3257,24 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx)
                                       ssl->peerRsaKey, dCert.pubKeySize) != 0) {
                         ret = PEER_KEY_ERROR;
                     }
-                    else
+                    else {
                         ssl->peerRsaKeyPresent = 1;
+                        #ifdef HAVE_PK_CALLBACKS
+                            #ifndef NO_RSA
+                                ssl->buffers.peerRsaKey.buffer =
+                                       XMALLOC(dCert.pubKeySize,
+                                               ssl->heap, DYNAMIC_TYPE_RSA);
+                                if (ssl->buffers.peerRsaKey.buffer == NULL)
+                                    ret = MEMORY_ERROR;
+                                else {
+                                    XMEMCPY(ssl->buffers.peerRsaKey.buffer,
+                                            dCert.publicKey, dCert.pubKeySize);
+                                    ssl->buffers.peerRsaKey.length = 
+                                            dCert.pubKeySize;
+                                }
+                            #endif /* NO_RSA */
+                        #endif /*HAVE_PK_CALLBACKS */
+                    }
                 }
                 break;
         #endif /* NO_RSA */
@@ -7453,11 +7488,29 @@ static void PickHashSigAlgo(CYASSL* ssl,
         {
             int   ret;
             byte* out;
+            byte  doUserRsa = 0;
+
+            #ifdef HAVE_PK_CALLBACKS
+                if (ssl->ctx->RsaVerifyCb)
+                    doUserRsa = 1;
+            #endif /*HAVE_PK_CALLBACKS */
 
             if (!ssl->peerRsaKeyPresent)
                 return NO_PEER_KEY;
 
-            ret = RsaSSL_VerifyInline(signature, sigLen,&out, ssl->peerRsaKey);
+            if (doUserRsa) {
+            #ifdef HAVE_PK_CALLBACKS
+                ret = ssl->ctx->RsaVerifyCb(ssl, signature, sigLen,
+                                            &out, 
+                                            ssl->buffers.peerRsaKey.buffer,
+                                            ssl->buffers.peerRsaKey.length,
+                                            ssl->RsaVerifyCtx);
+            #endif /*HAVE_PK_CALLBACKS */
+            }
+            else {
+                ret = RsaSSL_VerifyInline(signature, sigLen,&out,
+                                          ssl->peerRsaKey);
+            }
 
             if (IsAtLeastTLSv1_2(ssl)) {
                 byte   encodedSig[MAX_ENCODED_SIG_SZ];
@@ -7982,6 +8035,13 @@ static void PickHashSigAlgo(CYASSL* ssl,
             }
 #ifndef NO_RSA
             else {
+                byte doUserRsa = 0;
+
+                #ifdef HAVE_PK_CALLBACKS
+                    if (ssl->ctx->RsaSignCb)
+                        doUserRsa = 1;
+                #endif /*HAVE_PK_CALLBACKS */
+
                 if (IsAtLeastTLSv1_2(ssl)) {
 #ifndef NO_OLD_TLS
                     byte* digest = ssl->certHashes.sha;
@@ -8020,8 +8080,23 @@ static void PickHashSigAlgo(CYASSL* ssl,
                 }
 
                 c16toa((word16)length, verify + extraSz); /* prepend hdr */
-                ret = RsaSSL_Sign(signBuffer, signSz, verify + extraSz +
+                if (doUserRsa) {
+                #ifdef HAVE_PK_CALLBACKS
+                    #ifndef NO_RSA
+                        word32 ioLen = ENCRYPT_LEN;
+                        ret = ssl->ctx->RsaSignCb(ssl, signBuffer, signSz,
+                                            verify + extraSz + VERIFY_HEADER,
+                                            &ioLen,
+                                            ssl->buffers.key.buffer,
+                                            ssl->buffers.key.length,
+                                            ssl->RsaSignCtx);
+                    #endif /* NO_RSA */
+                #endif /*HAVE_PK_CALLBACKS */
+                }
+                else {
+                    ret = RsaSSL_Sign(signBuffer, signSz, verify + extraSz +
                                   VERIFY_HEADER, ENCRYPT_LEN, &key, ssl->rng);
+                }
 
                 if (ret > 0)
                     ret = 0;  /* RSA reset */
@@ -8436,6 +8511,13 @@ static void PickHashSigAlgo(CYASSL* ssl,
                     byte*  signBuffer = hash;
                     word32 signSz    = sizeof(hash);
                     byte   encodedSig[MAX_ENCODED_SIG_SZ];
+                    byte   doUserRsa = 0;
+
+                    #ifdef HAVE_PK_CALLBACKS
+                        if (ssl->ctx->RsaSignCb)
+                            doUserRsa = 1;
+                    #endif /*HAVE_PK_CALLBACKS */
+
                     if (IsAtLeastTLSv1_2(ssl)) {
                         byte* digest   = &hash[MD5_DIGEST_SIZE];
                         int   typeH    = SHAh;
@@ -8464,13 +8546,26 @@ static void PickHashSigAlgo(CYASSL* ssl,
                     c16toa((word16)sigSz, output + idx);
                     idx += LENGTH_SZ;
 
-                    ret = RsaSSL_Sign(signBuffer, signSz, output + idx, sigSz,
-                                      &rsaKey, ssl->rng);
+                    if (doUserRsa) {
+                        #ifdef HAVE_PK_CALLBACKS
+                            word32 ioLen = sigSz;
+                            ret = ssl->ctx->RsaSignCb(ssl, signBuffer, signSz,
+                                                output + idx,
+                                                &ioLen,
+                                                ssl->buffers.key.buffer,
+                                                ssl->buffers.key.length,
+                                                ssl->RsaSignCtx);
+                        #endif /*HAVE_PK_CALLBACKS */
+                    }
+                    else {
+                        ret = RsaSSL_Sign(signBuffer, signSz, output + idx,
+                                          sigSz, &rsaKey, ssl->rng);
+                        if (ret > 0)
+                            ret = 0; /* reset on success */
+                    }
                     FreeRsaKey(&rsaKey);
                     ecc_free(&dsaKey);
-                    if (ret > 0)
-                        ret = 0;  /* reset on success */
-                    else
+                    if (ret < 0)
                         return ret;
                 } else 
 #endif
@@ -8740,6 +8835,13 @@ static void PickHashSigAlgo(CYASSL* ssl,
                     byte*  signBuffer = hash;
                     word32 signSz    = sizeof(hash);
                     byte   encodedSig[MAX_ENCODED_SIG_SZ];
+                    byte   doUserRsa = 0;
+
+                    #ifdef HAVE_PK_CALLBACKS
+                        if (ssl->ctx->RsaSignCb)
+                            doUserRsa = 1;
+                    #endif /*HAVE_PK_CALLBACKS */
+
                     if (IsAtLeastTLSv1_2(ssl)) {
                         byte* digest   = &hash[MD5_DIGEST_SIZE];
                         int   typeH    = SHAh;
@@ -8764,10 +8866,23 @@ static void PickHashSigAlgo(CYASSL* ssl,
                                                  typeH);
                         signBuffer = encodedSig;
                     }
-                    ret = RsaSSL_Sign(signBuffer, signSz, output + idx, sigSz,
-                                      &rsaKey, ssl->rng);
+                    if (doUserRsa) {
+                        #ifdef HAVE_PK_CALLBACKS
+                            word32 ioLen = sigSz;
+                            ret = ssl->ctx->RsaSignCb(ssl, signBuffer, signSz,
+                                                output + idx,
+                                                &ioLen,
+                                                ssl->buffers.key.buffer,
+                                                ssl->buffers.key.length,
+                                                ssl->RsaSignCtx);
+                        #endif /*HAVE_PK_CALLBACKS */
+                    }
+                    else {
+                        ret = RsaSSL_Sign(signBuffer, signSz, output + idx,
+                                          sigSz, &rsaKey, ssl->rng);
+                    }
                     FreeRsaKey(&rsaKey);
-                    if (ret <= 0)
+                    if (ret < 0)
                         return ret;
                 }
 #endif
@@ -9768,10 +9883,27 @@ static void PickHashSigAlgo(CYASSL* ssl,
         if (ssl->peerRsaKeyPresent != 0) {
             byte* out;
             int   outLen;
+            byte  doUserRsa = 0;
+
+            #ifdef HAVE_PK_CALLBACKS
+                if (ssl->ctx->RsaVerifyCb)
+                    doUserRsa = 1;
+            #endif /*HAVE_PK_CALLBACKS */
 
             CYASSL_MSG("Doing RSA peer cert verify");
 
-            outLen = RsaSSL_VerifyInline(sig, sz, &out, ssl->peerRsaKey);
+            if (doUserRsa) {
+            #ifdef HAVE_PK_CALLBACKS
+                outLen = ssl->ctx->RsaVerifyCb(ssl, sig, sz,
+                                            &out, 
+                                            ssl->buffers.peerRsaKey.buffer,
+                                            ssl->buffers.peerRsaKey.length,
+                                            ssl->RsaVerifyCtx);
+            #endif /*HAVE_PK_CALLBACKS */
+            }
+            else {
+                outLen = RsaSSL_VerifyInline(sig, sz, &out, ssl->peerRsaKey);
+            }
 
             if (IsAtLeastTLSv1_2(ssl)) {
                 byte   encodedSig[MAX_ENCODED_SIG_SZ];
