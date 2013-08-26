@@ -56,6 +56,9 @@ static void test_CyaSSL_UseMaxFragment(void);
 #ifdef HAVE_TRUNCATED_HMAC
 static void test_CyaSSL_UseTruncatedHMAC(void);
 #endif /* HAVE_TRUNCATED_HMAC */
+#ifdef HAVE_ELLIPTIC_CURVES
+static void test_CyaSSL_UseEllipticCurve(void);
+#endif /* HAVE_ELLIPTIC_CURVES */
 
 /* test function helpers */
 static int test_method(CYASSL_METHOD *method, const char *name);
@@ -116,6 +119,9 @@ int ApiTest(void)
 #ifdef HAVE_TRUNCATED_HMAC
     test_CyaSSL_UseTruncatedHMAC();
 #endif /* HAVE_TRUNCATED_HMAC */
+#ifdef HAVE_ELLIPTIC_CURVES
+    test_CyaSSL_UseEllipticCurve();
+#endif /* HAVE_ELLIPTIC_CURVES */
     test_CyaSSL_Cleanup();
     printf(" End API Tests\n");
 
@@ -236,7 +242,6 @@ int test_CyaSSL_CTX_new(CYASSL_METHOD *method)
     return TEST_SUCCESS;
 }
 
-#ifdef HAVE_TLS_EXTENSIONS
 #ifdef HAVE_SNI
 static void use_SNI_at_ctx(CYASSL_CTX* ctx)
 {
@@ -537,7 +542,32 @@ static void test_CyaSSL_UseTruncatedHMAC(void)
 }
 #endif /* HAVE_TRUNCATED_HMAC */
 
-#endif /* HAVE_TLS_EXTENSIONS */
+#ifdef HAVE_ELLIPTIC_CURVES
+static void test_CyaSSL_UseEllipticCurve(void)
+{
+    CYASSL_CTX *ctx = CyaSSL_CTX_new(CyaSSLv23_client_method());
+    CYASSL     *ssl = CyaSSL_new(ctx);
+
+    AssertNotNull(ctx);
+    AssertNotNull(ssl);
+
+#ifndef NO_CYASSL_CLIENT
+    /* error cases */
+    AssertIntNE(0, CyaSSL_CTX_UseEllipticCurve(NULL, CYASSL_ECC_SECP160R1));
+    AssertIntNE(0, CyaSSL_CTX_UseEllipticCurve(ctx,  0));
+
+    AssertIntNE(0, CyaSSL_UseEllipticCurve(NULL, CYASSL_ECC_SECP160R1));
+    AssertIntNE(0, CyaSSL_UseEllipticCurve(ssl,  0));
+
+    /* success case */
+    AssertIntEQ(0, CyaSSL_CTX_UseEllipticCurve(ctx, CYASSL_ECC_SECP160R1));
+    AssertIntEQ(0, CyaSSL_UseEllipticCurve(ssl, CYASSL_ECC_SECP160R1));
+#endif
+
+    CyaSSL_free(ssl);
+    CyaSSL_CTX_free(ctx);
+}
+#endif /* HAVE_ELLIPTIC_CURVES */
 
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
 /* Helper for testing CyaSSL_CTX_use_certificate_file() */
