@@ -440,6 +440,8 @@ int InitSSL_Ctx(CYASSL_CTX* ctx, CYASSL_METHOD* method)
     #ifndef NO_RSA 
         ctx->RsaSignCb   = NULL;
         ctx->RsaVerifyCb = NULL;
+        ctx->RsaEncCb    = NULL;
+        ctx->RsaDecCb    = NULL;
     #endif /* NO_RSA */
 #endif /* HAVE_PK_CALLBACKS */
 
@@ -1512,6 +1514,8 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
     #ifndef NO_RSA 
         ssl->RsaSignCtx   = NULL;
         ssl->RsaVerifyCtx = NULL;
+        ssl->RsaEncCtx    = NULL;
+        ssl->RsaDecCtx    = NULL;
     #endif /* NO_RSA */
 #endif /* HAVE_PK_CALLBACKS */
 
@@ -7641,6 +7645,14 @@ static void PickHashSigAlgo(CYASSL* ssl,
         word32 encSz = 0;
         word32 idx = 0;
         int    ret = 0;
+        byte   doUserRsa = 0;
+
+        #ifdef HAVE_PK_CALLBACKS
+            #ifndef NO_RSA
+                if (ssl->ctx->RsaEncCb)
+                    doUserRsa = 1;
+            #endif /* NO_RSA */
+        #endif /*HAVE_PK_CALLBACKS */
 
         switch (ssl->specs.kea) {
         #ifndef NO_RSA
@@ -7654,12 +7666,28 @@ static void PickHashSigAlgo(CYASSL* ssl,
                 if (ssl->peerRsaKeyPresent == 0)
                     return NO_PEER_KEY;
 
-                ret = RsaPublicEncrypt(ssl->arrays->preMasterSecret, SECRET_LEN,
-                                 encSecret, sizeof(encSecret), ssl->peerRsaKey,
-                                 ssl->rng);
-                if (ret > 0) {
-                    encSz = ret;
-                    ret = 0;   /* set success to 0 */
+                if (doUserRsa) {
+                #ifdef HAVE_PK_CALLBACKS
+                    #ifndef NO_RSA
+                        encSz = sizeof(encSecret);
+                        ret = ssl->ctx->RsaEncCb(ssl,
+                                            ssl->arrays->preMasterSecret,
+                                            SECRET_LEN,
+                                            encSecret, &encSz,
+                                            ssl->buffers.peerRsaKey.buffer,
+                                            ssl->buffers.peerRsaKey.length,
+                                            ssl->RsaEncCtx);
+                    #endif /* NO_RSA */
+                #endif /*HAVE_PK_CALLBACKS */
+                }
+                else {
+                    ret = RsaPublicEncrypt(ssl->arrays->preMasterSecret,
+                                 SECRET_LEN, encSecret, sizeof(encSecret),
+                                 ssl->peerRsaKey, ssl->rng);
+                    if (ret > 0) {
+                        encSz = ret;
+                        ret = 0;   /* set success to 0 */
+                    }
                 }
                 break;
         #endif
@@ -10133,6 +10161,14 @@ static void PickHashSigAlgo(CYASSL* ssl,
                 word32 idx = 0;
                 RsaKey key;
                 byte*  tmp = 0;
+                byte   doUserRsa = 0;
+
+                #ifdef HAVE_PK_CALLBACKS
+                    #ifndef NO_RSA
+                        if (ssl->ctx->RsaDecCb)
+                            doUserRsa = 1;
+                    #endif /* NO_RSA */
+                #endif /*HAVE_PK_CALLBACKS */
 
                 InitRsaKey(&key, ssl->heap);
 
@@ -10165,8 +10201,22 @@ static void PickHashSigAlgo(CYASSL* ssl,
                         return INCOMPLETE_DATA;
                     }
 
-                    if (RsaPrivateDecryptInline(tmp, length, &out, &key) ==
-                                                                   SECRET_LEN) {
+                    if (doUserRsa) {
+                        #ifdef HAVE_PK_CALLBACKS
+                            #ifndef NO_RSA
+                                ret = ssl->ctx->RsaDecCb(ssl,
+                                            tmp, length, &out,
+                                            ssl->buffers.key.buffer,
+                                            ssl->buffers.key.length,
+                                            ssl->RsaDecCtx);
+                            #endif /* NO_RSA */
+                        #endif /*HAVE_PK_CALLBACKS */
+                    }
+                    else {
+                        ret = RsaPrivateDecryptInline(tmp, length, &out, &key);
+                    }
+
+                    if (ret == SECRET_LEN) {
                         XMEMCPY(ssl->arrays->preMasterSecret, out, SECRET_LEN);
                         if (ssl->arrays->preMasterSecret[0] !=
                                                            ssl->chVersion.major
@@ -10176,8 +10226,9 @@ static void PickHashSigAlgo(CYASSL* ssl,
                         else
                             ret = MakeMasterSecret(ssl);
                     }
-                    else
+                    else {
                         ret = RSA_PRIVATE_ERROR;
+                    }
                 }
 
                 FreeRsaKey(&key);

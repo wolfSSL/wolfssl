@@ -1600,6 +1600,57 @@ static INLINE int myRsaVerify(CYASSL* ssl, byte* sig, word32 sigSz,
     return ret;
 }
 
+
+static INLINE int myRsaEnc(CYASSL* ssl, const byte* in, word32 inSz,
+                           byte* out, word32* outSz, const byte* key,
+                           word32 keySz, void* ctx)
+{
+    int     ret;
+    word32  idx = 0;
+    RsaKey  myKey;
+    RNG     rng;
+
+    (void)ssl;
+    (void)ctx;
+
+    InitRng(&rng);
+    InitRsaKey(&myKey, NULL);
+    
+    ret = RsaPublicKeyDecode(key, &idx, &myKey, keySz);
+    if (ret == 0) {
+        ret = RsaPublicEncrypt(in, inSz, out, *outSz, &myKey, &rng);
+        if (ret > 0) {
+            *outSz = ret;
+            ret = 0;  /* reset to success */
+        }
+    }
+    FreeRsaKey(&myKey);
+
+    return ret;
+}
+
+static INLINE int myRsaDec(CYASSL* ssl, byte* in, word32 inSz,
+                           byte** out,
+                           const byte* key, word32 keySz, void* ctx)
+{
+    int     ret;
+    word32  idx = 0;
+    RsaKey  myKey;
+
+    (void)ssl;
+    (void)ctx;
+
+    InitRsaKey(&myKey, NULL);
+    
+    ret = RsaPrivateKeyDecode(key, &idx, &myKey, keySz);
+    if (ret == 0) {
+        ret = RsaPrivateDecryptInline(in, inSz, out, &myKey);
+    }
+    FreeRsaKey(&myKey);
+
+    return ret;
+}
+
 #endif /* NO_RSA */
 
 static INLINE void SetupPkCallbacks(CYASSL_CTX* ctx, CYASSL* ssl)
@@ -1614,6 +1665,8 @@ static INLINE void SetupPkCallbacks(CYASSL_CTX* ctx, CYASSL* ssl)
     #ifndef NO_RSA 
         CyaSSL_CTX_SetRsaSignCb(ctx, myRsaSign);
         CyaSSL_CTX_SetRsaVerifyCb(ctx, myRsaVerify);
+        CyaSSL_CTX_SetRsaEncCb(ctx, myRsaEnc);
+        CyaSSL_CTX_SetRsaDecCb(ctx, myRsaDec);
     #endif /* NO_RSA */
 }
 

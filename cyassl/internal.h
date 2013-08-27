@@ -1272,6 +1272,8 @@ struct CYASSL_CTX {
     #ifndef NO_RSA 
         CallbackRsaSign   RsaSignCb;    /* User RsaSign   Callback handler */
         CallbackRsaVerify RsaVerifyCb;  /* User RsaVerify Callback handler */
+        CallbackRsaEnc    RsaEncCb;     /* User Rsa Public Encrypt  handler */
+        CallbackRsaDec    RsaDecCb;     /* User Rsa Private Decrypt handler */
     #endif /* NO_RSA */
 #endif /* HAVE_PK_CALLBACKS */
 };
@@ -1857,6 +1859,8 @@ struct CYASSL {
     #ifndef NO_RSA 
         void* RsaSignCtx;     /* Rsa Sign   Callback Context */
         void* RsaVerifyCtx;   /* Rsa Verify Callback Context */
+        void* RsaEncCtx;      /* Rsa Public  Encrypt   Callback Context */
+        void* RsaDecCtx;      /* Rsa Private Decrypt   Callback Context */
     #endif /* NO_RSA */
 #endif /* HAVE_PK_CALLBACKS */
 };

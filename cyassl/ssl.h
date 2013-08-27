@@ -1042,6 +1042,26 @@ CYASSL_API void  CyaSSL_CTX_SetRsaVerifyCb(CYASSL_CTX*, CallbackRsaVerify);
 CYASSL_API void  CyaSSL_SetRsaVerifyCtx(CYASSL* ssl, void *ctx);
 CYASSL_API void* CyaSSL_GetRsaVerifyCtx(CYASSL* ssl);
 
+/* RSA Public Encrypt cb */
+typedef int (*CallbackRsaEnc)(CYASSL* ssl, 
+       const unsigned char* in, unsigned int inSz,
+       unsigned char* out, unsigned int* outSz,
+       const unsigned char* keyDer, unsigned int keySz,
+       void* ctx);
+CYASSL_API void  CyaSSL_CTX_SetRsaEncCb(CYASSL_CTX*, CallbackRsaEnc);
+CYASSL_API void  CyaSSL_SetRsaEncCtx(CYASSL* ssl, void *ctx);
+CYASSL_API void* CyaSSL_GetRsaEncCtx(CYASSL* ssl);
+
+/* RSA Private Decrypt cb */
+typedef int (*CallbackRsaDec)(CYASSL* ssl, 
+       unsigned char* in, unsigned int inSz,
+       unsigned char** out,
+       const unsigned char* keyDer, unsigned int keySz,
+       void* ctx);
+CYASSL_API void  CyaSSL_CTX_SetRsaDecCb(CYASSL_CTX*, CallbackRsaDec);
+CYASSL_API void  CyaSSL_SetRsaDecCtx(CYASSL* ssl, void *ctx);
+CYASSL_API void* CyaSSL_GetRsaDecCtx(CYASSL* ssl);
+
 
 #ifndef NO_CERTS
 	CYASSL_API void CyaSSL_CTX_SetCACb(CYASSL_CTX*, CallbackCACache);
