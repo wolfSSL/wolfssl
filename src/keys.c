@@ -1748,8 +1748,8 @@ int StoreKeys(CYASSL* ssl, const byte* keyData)
 
 #ifdef HAVE_AEAD
     if (ssl->specs.cipher_type == aead) {
-        /* Initialize the AES-GCM explicit IV to a random number. */
-        RNG_GenerateBlock(ssl->rng, ssl->keys.aead_exp_IV, AEAD_EXP_IV_SZ);
+        /* Initialize the AES-GCM/CCM explicit IV to a zero. */
+        XMEMSET(ssl->keys.aead_exp_IV, 0, AEAD_EXP_IV_SZ);
     }
 #endif
 
