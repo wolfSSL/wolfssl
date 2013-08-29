@@ -797,6 +797,9 @@ void CyaSSL_FreeArrays(CYASSL* ssl)
 
 const byte* CyaSSL_GetMacSecret(CYASSL* ssl, int verify)
 {
+    if (ssl == NULL)
+        return NULL;
+
     if ( (ssl->options.side == CYASSL_CLIENT_END && !verify) ||
          (ssl->options.side == CYASSL_SERVER_END &&  verify) )
         return ssl->keys.client_write_MAC_secret;
