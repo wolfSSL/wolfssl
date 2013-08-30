@@ -35,7 +35,27 @@ before calling SSL_new();  Though it's not recommended.
 *** end Notes ***
 
 
-CyaSSL Release 2.7.0 (6/17/2013)
+CyaSSL Release 2.8.0 (8/30/2013)
+
+Release 2.8.0 CyaSSL has bug fixes and new features including:
+- AES-GCM and AES-CCM use AES-NI
+- NetX default IO callback handlers
+- IPv6 fixes for DTLS Hello Cookies
+- The ability to unload Certs/Keys after the handshake, CyaSSL_UnloadCertsKeys()
+- SEP certificate extensions
+- Callback getters for easier resource freeing
+- External CYASSL_MAX_ERROR_SZ for correct error buffer sizing
+- MacEncrypt and DecryptVerify Callbacks for User Atomic Record Layer Processing
+- Public Key Callbacks for ECC and RSA
+- Client now sends blank cert upon request if doesn't have one with TLS <= 1.2
+
+
+The CyaSSL manual is available at:
+http://www.yassl.com/documentation/CyaSSL-Manual.pdf.  For build instructions 
+and comments about the new features please check the manual.
+
+
+*****************CyaSSL Release 2.7.0 (6/17/2013)
 
 Release 2.7.0 CyaSSL has bug fixes and new features including:
 - SNI support for client and server
