@@ -23,7 +23,7 @@
 #ifdef TFM_SQR4
 void fp_sqr_comba4(fp_int *A, fp_int *B)
 {
-   fp_digit *a, b[8], c0, c1, c2, sc0, sc1, sc2;
+   fp_digit *a, b[8], c0, c1, c2;
 
    a = A->dp;
    COMBA_START; 

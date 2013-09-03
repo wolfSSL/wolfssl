@@ -95,7 +95,7 @@ LT_LIB_M
 
 OPTIMIZE_CFLAGS="-Os -fomit-frame-pointer"
 OPTIMIZE_FAST_CFLAGS="-O2 -fomit-frame-pointer"
-OPTIMIZE_HUGE_CFLAGS="-funroll-loops -DTFM_SMALL_SET"
+OPTIMIZE_HUGE_CFLAGS="-funroll-loops -DTFM_SMALL_SET -DTFM_HUGE_SET"
 DEBUG_CFLAGS="-g -DDEBUG -DDEBUG_CYASSL"
 
 
@@ -557,7 +557,7 @@ AC_ARG_ENABLE([ecc],
 
 if test "$ENABLED_ECC" = "yes"
 then
-    AM_CFLAGS="$AM_CFLAGS -DHAVE_ECC"
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_ECC -DTFM_ECC256"
 fi
 
 AM_CONDITIONAL([BUILD_ECC], [test "x$ENABLED_ECC" = "xyes"])

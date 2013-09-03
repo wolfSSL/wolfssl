@@ -293,7 +293,7 @@ typedef struct {
 #define TFM_MUL12
 #define TFM_MUL17
 #endif
-#ifdef TFM_SMALL_SET
+#ifdef TFM_HUGE_SET
 #define TFM_MUL20
 #define TFM_MUL24
 #define TFM_MUL28
@@ -316,7 +316,7 @@ typedef struct {
 #define TFM_SQR12
 #define TFM_SQR17
 #endif
-#ifdef TFM_SMALL_SET
+#ifdef TFM_HUGE_SET
 #define TFM_SQR20
 #define TFM_SQR24
 #define TFM_SQR28

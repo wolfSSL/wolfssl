@@ -1018,21 +1018,50 @@ __asm__(                              \
 #endif
 
 #ifdef TFM_SMALL_SET
-#include "fp_sqr_comba_small_set.i"
-#include "fp_sqr_comba_3.i"
-#include "fp_sqr_comba_4.i"
-#include "fp_sqr_comba_6.i"
-#include "fp_sqr_comba_7.i"
-#include "fp_sqr_comba_8.i"
-#include "fp_sqr_comba_9.i"
-#include "fp_sqr_comba_12.i"
-#include "fp_sqr_comba_17.i"
-#include "fp_sqr_comba_20.i"
-#include "fp_sqr_comba_24.i"
-#include "fp_sqr_comba_28.i"
-#include "fp_sqr_comba_32.i"
-#include "fp_sqr_comba_48.i"
-#include "fp_sqr_comba_64.i"
+    #include "fp_sqr_comba_small_set.i"
+#endif
+
+#if defined(TFM_SQR3)
+    #include "fp_sqr_comba_3.i"
+#endif
+#if defined(TFM_SQR4)
+    #include "fp_sqr_comba_4.i"
+#endif
+#if defined(TFM_SQR6)
+    #include "fp_sqr_comba_6.i"
+#endif
+#if defined(TFM_SQR7)
+    #include "fp_sqr_comba_7.i"
+#endif
+#if defined(TFM_SQR8)
+    #include "fp_sqr_comba_8.i"
+#endif
+#if defined(TFM_SQR9)
+    #include "fp_sqr_comba_9.i"
+#endif
+#if defined(TFM_SQR12)
+    #include "fp_sqr_comba_12.i"
+#endif
+#if defined(TFM_SQR17)
+    #include "fp_sqr_comba_17.i"
+#endif
+#if defined(TFM_SQR20)
+    #include "fp_sqr_comba_20.i"
+#endif
+#if defined(TFM_SQR24)
+    #include "fp_sqr_comba_24.i"
+#endif
+#if defined(TFM_SQR28)
+    #include "fp_sqr_comba_28.i"
+#endif
+#if defined(TFM_SQR32)
+    #include "fp_sqr_comba_32.i"
+#endif
+#if defined(TFM_SQR48)
+    #include "fp_sqr_comba_48.i"
+#endif
+#if defined(TFM_SQR64)
+    #include "fp_sqr_comba_64.i"
 #endif
 /* end fp_sqr_comba.c asm */
 
@@ -1291,21 +1320,50 @@ ____asm__(                             \
 
 
 #ifdef TFM_SMALL_SET
-#include "fp_mul_comba_small_set.i"
-#include "fp_mul_comba_3.i"
-#include "fp_mul_comba_4.i"
-#include "fp_mul_comba_6.i"
-#include "fp_mul_comba_7.i"
-#include "fp_mul_comba_8.i"
-#include "fp_mul_comba_9.i"
-#include "fp_mul_comba_12.i"
-#include "fp_mul_comba_17.i"
-#include "fp_mul_comba_20.i"
-#include "fp_mul_comba_24.i"
-#include "fp_mul_comba_28.i"
-#include "fp_mul_comba_32.i"
-#include "fp_mul_comba_48.i"
-#include "fp_mul_comba_64.i"
+    #include "fp_mul_comba_small_set.i"
+#endif
+
+#if defined(TFM_MUL3)
+    #include "fp_mul_comba_3.i"
+#endif
+#if defined(TFM_MUL4)
+    #include "fp_mul_comba_4.i"
+#endif
+#if defined(TFM_MUL6)
+    #include "fp_mul_comba_6.i"
+#endif
+#if defined(TFM_MUL7)
+    #include "fp_mul_comba_7.i"
+#endif
+#if defined(TFM_MUL8)
+    #include "fp_mul_comba_8.i"
+#endif
+#if defined(TFM_MUL9)
+    #include "fp_mul_comba_9.i"
+#endif
+#if defined(TFM_MUL12)
+    #include "fp_mul_comba_12.i"
+#endif
+#if defined(TFM_MUL17)
+    #include "fp_mul_comba_17.i"
+#endif
+#if defined(TFM_MUL20)
+    #include "fp_mul_comba_20.i"
+#endif
+#if defined(TFM_MUL24)
+    #include "fp_mul_comba_24.i"
+#endif
+#if defined(TFM_MUL28)
+    #include "fp_mul_comba_28.i"
+#endif
+#if defined(TFM_MUL32)
+    #include "fp_mul_comba_32.i"
+#endif
+#if defined(TFM_MUL48)
+    #include "fp_mul_comba_48.i"
+#endif
+#if defined(TFM_MUL64)
+    #include "fp_mul_comba_64.i"
 #endif
 
 /* end fp_mul_comba.c asm */
