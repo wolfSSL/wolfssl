@@ -178,6 +178,290 @@ static unsigned long get_digit(mp_int* a, int n)
 }
 
 
+#ifdef USE_FAST_MATH
+
+/* fast math accelerated version */
+
+/**
+   Add two ECC points
+   P        The point to add
+   Q        The point to add
+   R        [out] The destination of the double
+   modulus  The modulus of the field the ECC curve is in
+   mp       The "b" value from montgomery_setup()
+   return   MP_OKAY on success
+*/
+int ecc_projective_add_point(ecc_point *P, ecc_point *Q, ecc_point *R,
+                             mp_int* modulus, mp_digit* mp)
+{
+   mp_int t1, t2, x, y, z;
+   int    err;
+
+   if (P == NULL || Q == NULL || R == NULL || modulus == NULL || mp == NULL)
+       return ECC_BAD_ARG_E;
+
+   if ((err = mp_init_multi(&t1, &t2, &x, &y, &z, NULL)) != MP_OKAY) {
+      return err;
+   }
+
+   /* should we dbl instead? */
+   fp_sub(modulus, &Q->y, &t1);
+   if ( (fp_cmp(&P->x, &Q->x) == FP_EQ) && 
+        (&Q->z != NULL && fp_cmp(&P->z, &Q->z) == FP_EQ) &&
+        (fp_cmp(&P->y, &Q->y) == FP_EQ || fp_cmp(&P->y, &t1) == FP_EQ)) {
+        return ecc_projective_dbl_point(P, R, modulus, mp);
+   }
+
+   fp_copy(&P->x, &x);
+   fp_copy(&P->y, &y);
+   fp_copy(&P->z, &z);
+
+   /* if Z is one then these are no-operations */
+   if (&Q->z != NULL) {
+      /* T1 = Z' * Z' */
+      fp_sqr(&Q->z, &t1);
+      fp_montgomery_reduce(&t1, modulus, *mp);
+      /* X = X * T1 */
+      fp_mul(&t1, &x, &x);
+      fp_montgomery_reduce(&x, modulus, *mp);
+      /* T1 = Z' * T1 */
+      fp_mul(&Q->z, &t1, &t1);
+      fp_montgomery_reduce(&t1, modulus, *mp);
+      /* Y = Y * T1 */
+      fp_mul(&t1, &y, &y);
+      fp_montgomery_reduce(&y, modulus, *mp);
+   }
+
+   /* T1 = Z*Z */
+   fp_sqr(&z, &t1);
+   fp_montgomery_reduce(&t1, modulus, *mp);
+   /* T2 = X' * T1 */
+   fp_mul(&Q->x, &t1, &t2);
+   fp_montgomery_reduce(&t2, modulus, *mp);
+   /* T1 = Z * T1 */
+   fp_mul(&z, &t1, &t1);
+   fp_montgomery_reduce(&t1, modulus, *mp);
+   /* T1 = Y' * T1 */
+   fp_mul(&Q->y, &t1, &t1);
+   fp_montgomery_reduce(&t1, modulus, *mp);
+
+   /* Y = Y - T1 */
+   fp_sub(&y, &t1, &y);
+   if (fp_cmp_d(&y, 0) == FP_LT) {
+      fp_add(&y, modulus, &y);
+   }
+   /* T1 = 2T1 */
+   fp_add(&t1, &t1, &t1);
+   if (fp_cmp(&t1, modulus) != FP_LT) {
+      fp_sub(&t1, modulus, &t1);
+   }
+   /* T1 = Y + T1 */
+   fp_add(&t1, &y, &t1);
+   if (fp_cmp(&t1, modulus) != FP_LT) {
+      fp_sub(&t1, modulus, &t1);
+   }
+   /* X = X - T2 */
+   fp_sub(&x, &t2, &x);
+   if (fp_cmp_d(&x, 0) == FP_LT) {
+      fp_add(&x, modulus, &x);
+   }
+   /* T2 = 2T2 */
+   fp_add(&t2, &t2, &t2);
+   if (fp_cmp(&t2, modulus) != FP_LT) {
+      fp_sub(&t2, modulus, &t2);
+   }
+   /* T2 = X + T2 */
+   fp_add(&t2, &x, &t2);
+   if (fp_cmp(&t2, modulus) != FP_LT) {
+      fp_sub(&t2, modulus, &t2);
+   }
+
+   /* if Z' != 1 */
+   if (&Q->z != NULL) {
+      /* Z = Z * Z' */
+      fp_mul(&z, &Q->z, &z);
+      fp_montgomery_reduce(&z, modulus, *mp);
+   }
+
+   /* Z = Z * X */
+   fp_mul(&z, &x, &z);
+   fp_montgomery_reduce(&z, modulus, *mp);
+
+   /* T1 = T1 * X  */
+   fp_mul(&t1, &x, &t1);
+   fp_montgomery_reduce(&t1, modulus, *mp);
+   /* X = X * X */
+   fp_sqr(&x, &x);
+   fp_montgomery_reduce(&x, modulus, *mp);
+   /* T2 = T2 * x */
+   fp_mul(&t2, &x, &t2);
+   fp_montgomery_reduce(&t2, modulus, *mp);
+   /* T1 = T1 * X  */
+   fp_mul(&t1, &x, &t1);
+   fp_montgomery_reduce(&t1, modulus, *mp);
+ 
+   /* X = Y*Y */
+   fp_sqr(&y, &x);
+   fp_montgomery_reduce(&x, modulus, *mp);
+   /* X = X - T2 */
+   fp_sub(&x, &t2, &x);
+   if (fp_cmp_d(&x, 0) == FP_LT) {
+      fp_add(&x, modulus, &x);
+   }
+
+   /* T2 = T2 - X */
+   fp_sub(&t2, &x, &t2);
+   if (fp_cmp_d(&t2, 0) == FP_LT) {
+      fp_add(&t2, modulus, &t2);
+   } 
+   /* T2 = T2 - X */
+   fp_sub(&t2, &x, &t2);
+   if (fp_cmp_d(&t2, 0) == FP_LT) {
+      fp_add(&t2, modulus, &t2);
+   }
+   /* T2 = T2 * Y */
+   fp_mul(&t2, &y, &t2);
+   fp_montgomery_reduce(&t2, modulus, *mp);
+   /* Y = T2 - T1 */
+   fp_sub(&t2, &t1, &y);
+   if (fp_cmp_d(&y, 0) == FP_LT) {
+      fp_add(&y, modulus, &y);
+   }
+   /* Y = Y/2 */
+   if (fp_isodd(&y)) {
+      fp_add(&y, modulus, &y);
+   }
+   fp_div_2(&y, &y);
+
+   fp_copy(&x, &R->x);
+   fp_copy(&y, &R->y);
+   fp_copy(&z, &R->z);
+   
+   return MP_OKAY;
+}
+
+
+/**
+   Double an ECC point
+   P   The point to double
+   R   [out] The destination of the double
+   modulus  The modulus of the field the ECC curve is in
+   mp       The "b" value from montgomery_setup()
+   return   MP_OKAY on success
+*/
+int ecc_projective_dbl_point(ecc_point *P, ecc_point *R, mp_int* modulus,
+                             mp_digit* mp)
+{
+   mp_int   t1, t2;
+   int      err;
+
+   if (P == NULL || R == NULL || modulus == NULL || mp == NULL)
+       return ECC_BAD_ARG_E;
+
+   if (P != R) {
+      err = mp_copy(&P->x, &R->x);
+      if (err == MP_OKAY)
+        err = mp_copy(&P->y, &R->y);
+      if (err == MP_OKAY)
+        err = mp_copy(&P->z, &R->z);
+
+      if (err != MP_OKAY)
+          return err;
+   }
+
+   if ((err = mp_init_multi(&t1, &t2, NULL, NULL, NULL, NULL)) != MP_OKAY) {
+      return err;
+   }
+
+   /* t1 = Z * Z */
+   mp_sqr(&R->z, &t1);
+   mp_montgomery_reduce(&t1, modulus, *mp);
+   /* Z = Y * Z */
+   mp_mul(&R->z, &R->y, &R->z);
+   mp_montgomery_reduce(&R->z, modulus, *mp);
+   /* Z = 2Z */
+   mp_add(&R->z, &R->z, &R->z);
+   if (mp_cmp(&R->z, modulus) != FP_LT) {
+      mp_sub(&R->z, modulus, &R->z);
+   }
+   
+   /* &t2 = X - T1 */
+   mp_sub(&R->x, &t1, &t2);
+   if (mp_cmp_d(&t2, 0) == FP_LT) {
+      mp_add(&t2, modulus, &t2);
+   }
+   /* T1 = X + T1 */
+   mp_add(&t1, &R->x, &t1);
+   if (mp_cmp(&t1, modulus) != FP_LT) {
+      mp_sub(&t1, modulus, &t1);
+   }
+   /* T2 = T1 * T2 */
+   mp_mul(&t1, &t2, &t2);
+   mp_montgomery_reduce(&t2, modulus, *mp);
+   /* T1 = 2T2 */
+   mp_add(&t2, &t2, &t1);
+   if (mp_cmp(&t1, modulus) != FP_LT) {
+      mp_sub(&t1, modulus, &t1);
+   }
+   /* T1 = T1 + T2 */
+   mp_add(&t1, &t2, &t1);
+   if (mp_cmp(&t1, modulus) != FP_LT) {
+      mp_sub(&t1, modulus, &t1);
+   }
+
+   /* Y = 2Y */
+   mp_add(&R->y, &R->y, &R->y);
+   if (mp_cmp(&R->y, modulus) != FP_LT) {
+      mp_sub(&R->y, modulus, &R->y);
+   }
+   /* Y = Y * Y */
+   mp_sqr(&R->y, &R->y);
+   mp_montgomery_reduce(&R->y, modulus, *mp);
+   /* T2 = Y * Y */
+   mp_sqr(&R->y, &t2);
+   mp_montgomery_reduce(&t2, modulus, *mp);
+   /* T2 = T2/2 */
+   if (mp_isodd(&t2)) {
+      mp_add(&t2, modulus, &t2);
+   }
+   mp_div_2(&t2, &t2);
+   /* Y = Y * X */
+   mp_mul(&R->y, &R->x, &R->y);
+   mp_montgomery_reduce(&R->y, modulus, *mp);
+
+   /* X  = T1 * T1 */
+   mp_sqr(&t1, &R->x);
+   mp_montgomery_reduce(&R->x, modulus, *mp);
+   /* X = X - Y */
+   mp_sub(&R->x, &R->y, &R->x);
+   if (mp_cmp_d(&R->x, 0) == FP_LT) {
+      mp_add(&R->x, modulus, &R->x);
+   }
+   /* X = X - Y */
+   mp_sub(&R->x, &R->y, &R->x);
+   if (mp_cmp_d(&R->x, 0) == FP_LT) {
+      mp_add(&R->x, modulus, &R->x);
+   }
+
+   /* Y = Y - X */     
+   mp_sub(&R->y, &R->x, &R->y);
+   if (mp_cmp_d(&R->y, 0) == FP_LT) {
+      mp_add(&R->y, modulus, &R->y);
+   }
+   /* Y = Y * T1 */
+   mp_mul(&R->y, &t1, &R->y);
+   mp_montgomery_reduce(&R->y, modulus, *mp);
+   /* Y = Y - T2 */
+   mp_sub(&R->y, &t2, &R->y);
+   if (mp_cmp_d(&R->y, 0) == FP_LT) {
+      mp_add(&R->y, modulus, &R->y);
+   }
+ 
+   return err;
+}
+
+#else /* USE_FAST_MATH */
+
 /**
    Add two ECC points
    P        The point to add
@@ -593,6 +877,7 @@ int ecc_projective_dbl_point(ecc_point *P, ecc_point *R, mp_int* modulus,
    return err;
 }
 
+#endif /* USE_FAST_MATH */
 
 /**
   Map a projective jacbobian point back to affine space
@@ -1225,6 +1510,234 @@ void ecc_free(ecc_key* key)
 }
 
 
+#ifdef ECC_SHAMIR
+
+#ifdef USE_FAST_MATH
+    #define GEN_MEM_ERR FP_MEM
+#else
+    #define GEN_MEM_ERR MP_MEM
+#endif
+
+/** Computes kA*A + kB*B = C using Shamir's Trick
+  A        First point to multiply
+  kA       What to multiple A by
+  B        Second point to multiply
+  kB       What to multiple B by
+  C        [out] Destination point (can overlap with A or B)
+  modulus  Modulus for curve 
+  return MP_OKAY on success
+*/
+static int ecc_mul2add(ecc_point* A, mp_int* kA,
+                    ecc_point* B, mp_int* kB,
+                    ecc_point* C, mp_int* modulus)
+{
+  ecc_point*     precomp[16];
+  unsigned       bitbufA, bitbufB, lenA, lenB, len, x, y, nA, nB, nibble;
+  unsigned char* tA;
+  unsigned char* tB;
+  int            err = MP_OKAY, first;
+  int            muInit    = 0;
+  int            tableInit = 0;
+  mp_digit mp;
+  mp_int   mu;
+ 
+  /* argchks */
+  if (A == NULL || kA == NULL || B == NULL || kB == NULL || C == NULL || 
+                   modulus == NULL)
+    return ECC_BAD_ARG_E;
+
+
+  /* allocate memory */
+  tA = XMALLOC(ECC_BUFSIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+  if (tA == NULL) {
+     return GEN_MEM_ERR;
+  }
+  tB = XMALLOC(ECC_BUFSIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+  if (tB == NULL) {
+     XFREE(tA, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+     return GEN_MEM_ERR;
+  }
+
+  /* get sizes */
+  lenA = mp_unsigned_bin_size(kA);
+  lenB = mp_unsigned_bin_size(kB);
+  len  = MAX(lenA, lenB);
+
+  /* sanity check */
+  if ((lenA > ECC_BUFSIZE) || (lenB > ECC_BUFSIZE)) {
+     err = BAD_FUNC_ARG;
+  }
+
+  if (err == MP_OKAY) {
+    /* extract and justify kA */
+    mp_to_unsigned_bin(kA, (len - lenA) + tA);
+
+    /* extract and justify kB */
+    mp_to_unsigned_bin(kB, (len - lenB) + tB);
+
+    /* allocate the table */
+    for (x = 0; x < 16; x++) {
+        precomp[x] = ecc_new_point();
+        if (precomp[x] == NULL) {
+            for (y = 0; y < x; ++y) {
+                ecc_del_point(precomp[y]);
+            }
+            err = GEN_MEM_ERR;
+            break;
+        }
+    }
+  }
+
+  if (err == MP_OKAY)
+    tableInit = 1;
+
+  if (err == MP_OKAY)
+   /* init montgomery reduction */
+   err = mp_montgomery_setup(modulus, &mp);
+
+  if (err == MP_OKAY)
+    err = mp_init(&mu);
+  if (err == MP_OKAY)
+    muInit = 1;
+
+  if (err == MP_OKAY)
+    err = mp_montgomery_calc_normalization(&mu, modulus);
+
+  if (err == MP_OKAY)
+    /* copy ones ... */
+    err = mp_mulmod(&A->x, &mu, modulus, &precomp[1]->x);
+
+  if (err == MP_OKAY)
+    err = mp_mulmod(&A->y, &mu, modulus, &precomp[1]->y);
+  if (err == MP_OKAY)
+    err = mp_mulmod(&A->z, &mu, modulus, &precomp[1]->z);
+
+  if (err == MP_OKAY)
+    err = mp_mulmod(&B->x, &mu, modulus, &precomp[1<<2]->x);
+  if (err == MP_OKAY)
+    err = mp_mulmod(&B->y, &mu, modulus, &precomp[1<<2]->y);
+  if (err == MP_OKAY)
+    err = mp_mulmod(&B->z, &mu, modulus, &precomp[1<<2]->z);
+
+  if (err == MP_OKAY)
+    /* precomp [i,0](A + B) table */
+    err = ecc_projective_dbl_point(precomp[1], precomp[2], modulus, &mp);
+
+  if (err == MP_OKAY)
+    err = ecc_projective_add_point(precomp[1], precomp[2], precomp[3],
+                                   modulus, &mp);
+  if (err == MP_OKAY)
+    /* precomp [0,i](A + B) table */
+    err = ecc_projective_dbl_point(precomp[1<<2], precomp[2<<2], modulus, &mp);
+
+  if (err == MP_OKAY)
+    err = ecc_projective_add_point(precomp[1<<2], precomp[2<<2], precomp[3<<2],
+                                   modulus, &mp);
+
+  if (err == MP_OKAY) {
+    /* precomp [i,j](A + B) table (i != 0, j != 0) */
+    for (x = 1; x < 4; x++) {
+        for (y = 1; y < 4; y++) {
+            if (err == MP_OKAY)
+                err = ecc_projective_add_point(precomp[x], precomp[(y<<2)],
+                                               precomp[x+(y<<2)], modulus, &mp);
+        }
+    } 
+  }  
+
+  if (err == MP_OKAY) {
+    nibble  = 3;
+    first   = 1;
+    bitbufA = tA[0];
+    bitbufB = tB[0];
+
+    /* for every byte of the multiplicands */
+    for (x = -1;; ) {
+        /* grab a nibble */
+        if (++nibble == 4) {
+            ++x; if (x == len) break;
+            bitbufA = tA[x];
+            bitbufB = tB[x];
+            nibble  = 0;
+        }
+
+        /* extract two bits from both, shift/update */
+        nA = (bitbufA >> 6) & 0x03;
+        nB = (bitbufB >> 6) & 0x03;
+        bitbufA = (bitbufA << 2) & 0xFF;   
+        bitbufB = (bitbufB << 2) & 0xFF;   
+
+        /* if both zero, if first, continue */
+        if ((nA == 0) && (nB == 0) && (first == 1)) {
+            continue;
+        }
+
+        /* double twice, only if this isn't the first */
+        if (first == 0) {
+            /* double twice */
+            if (err == MP_OKAY)
+                err = ecc_projective_dbl_point(C, C, modulus, &mp);
+            if (err == MP_OKAY)
+                err = ecc_projective_dbl_point(C, C, modulus, &mp);
+            else
+                break;
+        }
+
+        /* if not both zero */
+        if ((nA != 0) || (nB != 0)) {
+            if (first == 1) {
+                /* if first, copy from table */
+                first = 0;
+                if (err == MP_OKAY)
+                    err = mp_copy(&precomp[nA + (nB<<2)]->x, &C->x);
+
+                if (err == MP_OKAY)
+                    err = mp_copy(&precomp[nA + (nB<<2)]->y, &C->y);
+
+                if (err == MP_OKAY)
+                    err = mp_copy(&precomp[nA + (nB<<2)]->z, &C->z);
+                else
+                    break;
+            } else {
+                /* if not first, add from table */
+                if (err == MP_OKAY)
+                    err = ecc_projective_add_point(C, precomp[nA + (nB<<2)], C,
+                                                   modulus, &mp);
+                else
+                    break;
+            }
+        }
+    }
+  }
+
+  if (err == MP_OKAY)
+    /* reduce to affine */
+    err = ecc_map(C, modulus, &mp);
+
+  /* clean up */
+  if (muInit)
+    mp_clear(&mu);
+
+  if (tableInit) {
+    for (x = 0; x < 16; x++) {
+       ecc_del_point(precomp[x]);
+    }
+  }
+#ifdef LTC_CLEAN_STACK
+   XMEMSET(tA, 0, ECC_BUF_SIZE);
+   XMEMSET(tB, 0, ECC_BUF_SIZE);
+#endif
+   XFREE(tA, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+   XFREE(tB, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+   return err;
+}
+
+
+#endif /* ECC_SHAMIR */
+
+
+
 /* verify 
  *
  * w  = s^-1 mod n
@@ -1258,7 +1771,6 @@ int ecc_verify_hash(const byte* sig, word32 siglen, const byte* hash,
    mp_int        e;
    mp_int        p;
    mp_int        m;
-   mp_digit      mp;
    int           err;
 
    if (sig == NULL || hash == NULL || stat == NULL || key == NULL)
@@ -1360,6 +1872,9 @@ int ecc_verify_hash(const byte* sig, word32 siglen, const byte* hash,
        err = mp_copy(&key->pubkey.z, &mQ->z);
 
 #ifndef ECC_SHAMIR
+    {
+       mp_digit      mp;
+
        /* compute u1*mG + u2*mQ = mG */
        if (err == MP_OKAY)
            err = ecc_mulmod(&u1, mG, mG, &m, 0);
@@ -1377,6 +1892,7 @@ int ecc_verify_hash(const byte* sig, word32 siglen, const byte* hash,
        /* reduce */
        if (err == MP_OKAY)
            err = ecc_map(mG, &m, &mp);
+    }
 #else
        /* use Shamir's trick to compute u1*mG + u2*mQ using half the doubles */
        if (err == MP_OKAY)
