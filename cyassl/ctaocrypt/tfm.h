@@ -490,6 +490,7 @@ int fp_exptmod(fp_int *a, fp_int *b, fp_int *c, fp_int *d);
 
 /* radix conersions */
 int fp_count_bits(fp_int *a);
+int fp_leading_bit(fp_int *a);
 
 int fp_unsigned_bin_size(fp_int *a);
 void fp_read_unsigned_bin(fp_int *a, unsigned char *b, int c);
@@ -655,6 +656,7 @@ int  mp_copy(fp_int* a, fp_int* b);
 int  mp_isodd(mp_int* a);
 int  mp_iszero(mp_int* a);
 int  mp_count_bits(mp_int *a);
+int  mp_leading_bit(mp_int *a);
 int  mp_set_int(fp_int *a, fp_digit b);
 void mp_rshb(mp_int *a, int x);
 
