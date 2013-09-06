@@ -78,19 +78,19 @@ enum {
 
 /* Select the largest available hash for the buffer size. */
 #if defined(CYASSL_SHA512)
-    INNER_HASH_SIZE = SHA512_DIGEST_SIZE,
+    MAX_DIGEST_SIZE = SHA512_DIGEST_SIZE,
     HMAC_BLOCK_SIZE = SHA512_BLOCK_SIZE
 #elif defined(CYASSL_SHA384)
-    INNER_HASH_SIZE = SHA384_DIGEST_SIZE,
+    MAX_DIGEST_SIZE = SHA384_DIGEST_SIZE,
     HMAC_BLOCK_SIZE = SHA384_BLOCK_SIZE
 #elif !defined(NO_SHA256)
-    INNER_HASH_SIZE = SHA256_DIGEST_SIZE,
+    MAX_DIGEST_SIZE = SHA256_DIGEST_SIZE,
     HMAC_BLOCK_SIZE = SHA256_BLOCK_SIZE
 #elif !defined(NO_SHA)
-    INNER_HASH_SIZE = SHA_DIGEST_SIZE,
+    MAX_DIGEST_SIZE = SHA_DIGEST_SIZE,
     HMAC_BLOCK_SIZE = SHA_BLOCK_SIZE
 #elif !defined(NO_MD5)
-    INNER_HASH_SIZE = MD5_DIGEST_SIZE,
+    MAX_DIGEST_SIZE = MD5_DIGEST_SIZE,
     HMAC_BLOCK_SIZE = MD5_BLOCK_SIZE
 #else
     #error "You have to have some kind of hash if you want to use HMAC."
@@ -122,7 +122,7 @@ typedef struct Hmac {
     Hash    hash;
     word32  ipad[HMAC_BLOCK_SIZE  / sizeof(word32)];  /* same block size all*/
     word32  opad[HMAC_BLOCK_SIZE  / sizeof(word32)];
-    word32  innerHash[INNER_HASH_SIZE / sizeof(word32)]; /* max size */
+    word32  innerHash[MAX_DIGEST_SIZE / sizeof(word32)];
     byte    macType;                                     /* md5 sha or sha256 */
     byte    innerHashKeyed;                              /* keyed flag */
 #ifdef HAVE_CAVIUM
