@@ -4390,6 +4390,9 @@ int StoreECC_DSA_Sig(byte* out, word32* outLen, mp_int* r, mp_int* s)
     word32 sSz;
     word32 headerSz = 4;   /* 2*ASN_TAG + 2*LEN(ENUM) */
 
+    /* If the leading bit on the INTEGER is a 1, add a leading zero */
+    int rLeadingZero = mp_leading_bit(r);
+    int sLeadingZero = mp_leading_bit(s);
     int rLen = mp_unsigned_bin_size(r);   /* big int size */
     int sLen = mp_unsigned_bin_size(s);
     int err;
@@ -4397,20 +4400,24 @@ int StoreECC_DSA_Sig(byte* out, word32* outLen, mp_int* r, mp_int* s)
     if (*outLen < (rLen + sLen + headerSz + 2))  /* SEQ_TAG + LEN(ENUM) */
         return BAD_FUNC_ARG;
 
-    idx = SetSequence(rLen + sLen + headerSz, out);
+    idx = SetSequence(rLen+rLeadingZero+sLen+sLeadingZero+headerSz, out);
 
     /* store r */
     out[idx++] = ASN_INTEGER;
-    rSz = SetLength(rLen, &out[idx]);
+    rSz = SetLength(rLen + rLeadingZero, &out[idx]);
     idx += rSz;
+    if (rLeadingZero)
+        out[idx++] = 0;
     err = mp_to_unsigned_bin(r, &out[idx]);
     if (err != MP_OKAY) return err;
     idx += rLen;
 
     /* store s */
     out[idx++] = ASN_INTEGER;
-    sSz = SetLength(sLen, &out[idx]);
+    sSz = SetLength(sLen + sLeadingZero, &out[idx]);
     idx += sSz;
+    if (sLeadingZero)
+        out[idx++] = 0;
     err = mp_to_unsigned_bin(s, &out[idx]);
     if (err != MP_OKAY) return err;
     idx += sLen;

@@ -225,6 +225,7 @@ int  mp_exptmod (mp_int * G, mp_int * X, mp_int * P, mp_int * Y);
 
 /* functions added to support above needed, removed TOOM and KARATSUBA */
 int  mp_count_bits (mp_int * a);
+int  mp_leading_bit (mp_int * a);
 int  mp_init_copy (mp_int * a, mp_int * b);
 int  mp_copy (mp_int * a, mp_int * b);
 int  mp_grow (mp_int * a, int size);

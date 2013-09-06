@@ -37,6 +37,7 @@
 #include <cyassl/ctaocrypt/aes.h>
 #include <cyassl/ctaocrypt/camellia.h>
 #include <cyassl/ctaocrypt/logging.h>
+#include <cyassl/ctaocrypt/hmac.h>
 #ifndef NO_RC4
     #include <cyassl/ctaocrypt/arc4.h>
 #endif
@@ -517,17 +518,6 @@ enum {
     TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA256 = 0xc4
 
 };
-
-
-#if defined(CYASSL_SHA384)
-    #define MAX_DIGEST_SIZE SHA384_DIGEST_SIZE
-#elif !defined(NO_SHA256)
-    #define MAX_DIGEST_SIZE SHA256_DIGEST_SIZE
-#elif !defined(NO_MD5) && !defined(NO_SHA)
-    #define MAX_DIGEST_SIZE (SHA_DIGEST_SIZE + MD5_DIGEST_SIZE)
-#else
-    #error "You have configured the build so there isn't any hashing."
-#endif
 
 
 enum Misc {

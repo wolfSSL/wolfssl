@@ -1389,7 +1389,7 @@ static INLINE int myDecryptVerifyCb(CYASSL* ssl,
     unsigned int padByte = 0;
     Hmac hmac;
     byte myInner[CYASSL_TLS_HMAC_INNER_SZ];
-    byte verify[INNER_HASH_SIZE];
+    byte verify[MAX_DIGEST_SIZE];
     const char* tlsStr = "TLS";
 
     /* example supports (d)tls aes */

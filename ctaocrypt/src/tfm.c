@@ -1706,6 +1706,25 @@ int fp_count_bits (fp_int * a)
   return r;
 }
 
+int fp_leading_bit(fp_int *a)
+{
+    int bit = 0;
+
+    if (a->used != 0) {
+        fp_digit q = a->dp[a->used - 1];
+        int qSz = sizeof(fp_digit);
+
+        while (qSz > 0) {
+            if ((unsigned char)q != 0)
+                bit = (q & 0x80) != 0;
+            q >>= 8;
+            qSz--;
+        }
+    }
+
+    return bit;
+}
+
 void fp_lshd(fp_int *a, int x)
 {
    int y;
@@ -1965,6 +1984,12 @@ int mp_iszero(mp_int* a)
 int mp_count_bits (mp_int* a)
 {
     return fp_count_bits(a);
+}
+
+
+int mp_leading_bit (mp_int* a)
+{
+    return fp_leading_bit(a);
 }
 
 

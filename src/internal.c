@@ -98,7 +98,7 @@ typedef enum {
 } processReply;
 
 #ifndef NO_OLD_TLS
-static void Hmac(CYASSL* ssl, byte* digest, const byte* in, word32 sz,
+static void SSL_hmac(CYASSL* ssl, byte* digest, const byte* in, word32 sz,
                  int content, int verify);
 
 #endif
@@ -1416,7 +1416,7 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
     ssl->options.resuming = 0;
     ssl->options.haveSessionId = 0;
     #ifndef NO_OLD_TLS
-        ssl->hmac = Hmac;         /* default to SSLv3 */
+        ssl->hmac = SSL_hmac; /* default to SSLv3 */
     #else
         ssl->hmac = TLS_hmac;
     #endif
@@ -3422,7 +3422,7 @@ static int DoHelloRequest(CYASSL* ssl, const byte* input, word32* inOutIdx)
         const byte* mac;
         int         padSz = ssl->keys.encryptSz - HANDSHAKE_HEADER_SZ - 
                             ssl->specs.hash_size;
-        byte        verify[SHA256_DIGEST_SIZE];
+        byte        verify[MAX_DIGEST_SIZE];
        
         ssl->hmac(ssl, verify, input + *inOutIdx - HANDSHAKE_HEADER_SZ,
                   HANDSHAKE_HEADER_SZ, handshake, 1);
@@ -4954,7 +4954,7 @@ int SendChangeCipher(CYASSL* ssl)
 
 
 #ifndef NO_OLD_TLS
-static void Hmac(CYASSL* ssl, byte* digest, const byte* in, word32 sz,
+static void SSL_hmac(CYASSL* ssl, byte* digest, const byte* in, word32 sz,
                  int content, int verify)
 {
     byte   result[MAX_DIGEST_SIZE];
@@ -8433,7 +8433,7 @@ static void PickHashSigAlgo(CYASSL* ssl,
                 ret = EccPrivateKeyDecode(ssl->buffers.key.buffer, &i,
                                           &dsaKey, ssl->buffers.key.length);
                 if (ret != 0) return ret;
-                sigSz = ecc_sig_size(&dsaKey) + 2;  /* worst case estimate */
+                sigSz = ecc_sig_size(&dsaKey) + 4;  /* worst case estimate */
             }
             else {
 #ifndef NO_RSA
