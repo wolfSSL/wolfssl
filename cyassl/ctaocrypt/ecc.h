@@ -116,12 +116,6 @@ int ecc_size(ecc_key* key);
 CYASSL_API
 int ecc_sig_size(ecc_key* key);
 
-/* TODO: fix mutex types */
-#define MUTEX_GLOBAL(x) int (x);
-#define MUTEX_LOCK(x)
-#define MUTEX_UNLOCK(x)
-
-
 
 #ifdef __cplusplus
     }    /* extern "C" */    

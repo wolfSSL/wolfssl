@@ -2102,7 +2102,8 @@ static struct {
                                /* permitted (0) or not (1) */
 } fp_cache[FP_ENTRIES];
 
-//LTC_MUTEX_GLOBAL(ltc_ecc_fp_lock)
+static volatile int initMutex = 0;  /* prevent multiple mutex inits */
+static CyaSSL_Mutex ecc_fp_lock;
 
 /* simple table to help direct the generation of the LUT */
 static const struct {
@@ -3214,8 +3215,15 @@ int ecc_mul2add(ecc_point* A, mp_int* kA,
    int  idx1, idx2, err = MP_OKAY, mpInit = 0;
    mp_digit mp;
    mp_int   mu;
+  
+   if (initMutex == 0) {
+        InitMutex(&ecc_fp_lock);
+        initMutex = 1;
+   }
    
-   //LTC_MUTEX_LOCK(&ltc_ecc_fp_lock);
+   if (LockMutex(&ecc_fp_lock) != 0)
+      return BAD_MUTEX_E;
+
       /* find point */
       idx1 = find_base(A);
 
@@ -3312,7 +3320,7 @@ int ecc_mul2add(ecc_point* A, mp_int* kA,
         }
     }
 
-    //LTC_MUTEX_UNLOCK(&ltc_ecc_fp_lock);
+    UnLockMutex(&ecc_fp_lock);
     mp_clear(&mu);
 
     return err;
@@ -3339,7 +3347,14 @@ int ecc_mulmod(mp_int* k, ecc_point *G, ecc_point *R, mp_int* modulus,
    if (mp_init(&mu) != MP_OKAY)
        return MP_INIT_E;
    
-   //LTC_MUTEX_LOCK(&ltc_ecc_fp_lock);
+   if (initMutex == 0) {
+        InitMutex(&ecc_fp_lock);
+        initMutex = 1;
+   }
+   
+   if (LockMutex(&ecc_fp_lock) != 0)
+      return BAD_MUTEX_E;
+
       /* find point */
       idx = find_base(G);
 
@@ -3388,7 +3403,7 @@ int ecc_mulmod(mp_int* k, ecc_point *G, ecc_point *R, mp_int* modulus,
         }
      }
 
-    //LTC_MUTEX_UNLOCK(&ltc_ecc_fp_lock);
+    UnLockMutex(&ecc_fp_lock);
     mp_clear(&mu);
 
     return err;
@@ -3417,9 +3432,15 @@ static void ecc_fp_free_cache(void)
 /** Free the Fixed Point cache */
 void ecc_fp_free(void)
 {
-   //LTC_MUTEX_LOCK(&ltc_ecc_fp_lock);
-   ecc_fp_free_cache();
-   //LTC_MUTEX_UNLOCK(&ltc_ecc_fp_lock);
+   if (initMutex == 0) {
+        InitMutex(&ecc_fp_lock);
+        initMutex = 1;
+   }
+   
+   if (LockMutex(&ecc_fp_lock) == 0) {
+       ecc_fp_free_cache();
+       UnLockMutex(&ecc_fp_lock);
+   }
 }
 
 
