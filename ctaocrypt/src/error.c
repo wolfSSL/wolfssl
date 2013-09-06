@@ -66,6 +66,10 @@ void CTaoCryptErrorString(int error, char* buffer)
         XSTRNCPY(buffer, "random device read would block error", max);
         break;
 
+    case BAD_MUTEX_E : 
+        XSTRNCPY(buffer, "Bad mutex, operation failed", max);
+        break;
+
     case MP_INIT_E :
         XSTRNCPY(buffer, "mp_init error state", max);
         break;

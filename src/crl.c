@@ -48,7 +48,7 @@ int InitCRL(CYASSL_CRL* crl, CYASSL_CERT_MANAGER* cm)
     crl->tid = 0;
 #endif
     if (InitMutex(&crl->crlLock) != 0)
-        return BAD_MUTEX_ERROR; 
+        return BAD_MUTEX_E; 
 
     return 0;
 }
@@ -134,7 +134,7 @@ int CheckCertCRL(CYASSL_CRL* crl, DecodedCert* cert)
 
     if (LockMutex(&crl->crlLock) != 0) {
         CYASSL_MSG("LockMutex failed");
-        return BAD_MUTEX_ERROR;
+        return BAD_MUTEX_E;
     }
 
     crle = crl->crlList;
@@ -217,7 +217,7 @@ static int AddCRL(CYASSL_CRL* crl, DecodedCRL* dcrl)
         CYASSL_MSG("LockMutex failed");
         FreeCRL_Entry(crle);
         XFREE(crle, NULL, DYNAMIC_TYPE_CRL_ENTRY);
-        return BAD_MUTEX_ERROR;
+        return BAD_MUTEX_E;
     }
     crle->next = crl->crlList;
     crl->crlList = crle;

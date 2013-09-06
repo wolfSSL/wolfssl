@@ -88,7 +88,6 @@ enum CyaSSL_ErrorCodes {
     ECC_MAKEKEY_ERROR       = -253,        /* Bad Make ECC Key */
     ECC_EXPORT_ERROR        = -254,        /* Bad ECC Export Key */
     ECC_SHARED_ERROR        = -255,        /* Bad ECC Shared Secret */
-    BAD_MUTEX_ERROR         = -256,        /* Bad mutex */
     NOT_CA_ERROR            = -257,        /* Not a CA cert error */
     BAD_PATH_ERROR          = -258,        /* Bad path for opendir */
     BAD_CERT_MANAGER_ERROR  = -259,        /* Bad Cert Manager */

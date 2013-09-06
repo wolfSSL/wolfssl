@@ -39,6 +39,7 @@ enum {
     WINCRYPT_E         = -103,  /* windows crypt init error */
     CRYPTGEN_E         = -104,  /* windows crypt generation error */
     RAN_BLOCK_E        = -105,  /* reading random device would block */
+    BAD_MUTEX_E        = -106,  /* Bad mutex operation */
 
     MP_INIT_E          = -110,  /* mp_init error state */
     MP_READ_E          = -111,  /* mp_read error state */

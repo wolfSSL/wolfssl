@@ -949,41 +949,6 @@ struct CYASSL_CIPHER {
 };
 
 
-#ifdef SINGLE_THREADED
-    typedef int CyaSSL_Mutex;
-#else /* MULTI_THREADED */
-    /* FREERTOS comes first to enable use of FreeRTOS Windows simulator only */
-    #ifdef FREERTOS
-        typedef xSemaphoreHandle CyaSSL_Mutex;
-    #elif defined(CYASSL_SAFERTOS)
-        typedef struct CyaSSL_Mutex {
-            signed char mutexBuffer[portQUEUE_OVERHEAD_BYTES];
-            xSemaphoreHandle mutex;
-        } CyaSSL_Mutex;
-    #elif defined(USE_WINDOWS_API)
-        typedef CRITICAL_SECTION CyaSSL_Mutex;
-    #elif defined(CYASSL_PTHREADS)
-        typedef pthread_mutex_t CyaSSL_Mutex;
-    #elif defined(THREADX)
-        typedef TX_MUTEX CyaSSL_Mutex;
-    #elif defined(MICRIUM)
-        typedef OS_MUTEX CyaSSL_Mutex;
-    #elif defined(EBSNET)
-        typedef RTP_MUTEX CyaSSL_Mutex;
-    #elif defined(FREESCALE_MQX)
-        typedef MUTEX_STRUCT CyaSSL_Mutex;
-    #elif defined(CYASSL_MDK_ARM)
-        typedef OS_MUT CyaSSL_Mutex;
-    #else
-        #error Need a mutex type in multithreaded mode
-    #endif /* USE_WINDOWS_API */
-#endif /* SINGLE_THREADED */
-
-CYASSL_LOCAL int InitMutex(CyaSSL_Mutex*);
-CYASSL_LOCAL int FreeMutex(CyaSSL_Mutex*);
-CYASSL_LOCAL int LockMutex(CyaSSL_Mutex*);
-CYASSL_LOCAL int UnLockMutex(CyaSSL_Mutex*);
-
 typedef struct OCSP_Entry OCSP_Entry;
 
 #ifdef SHA_DIGEST_SIZE

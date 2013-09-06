@@ -24,6 +24,7 @@
 #define CTAO_CRYPT_TYPES_H
 
 #include <cyassl/ctaocrypt/settings.h>
+#include <cyassl/ctaocrypt/port.h>
 
 #ifdef __cplusplus
     extern "C" {

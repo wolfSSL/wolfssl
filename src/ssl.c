@@ -1034,7 +1034,7 @@ int CyaSSL_CertManagerUnloadCAs(CYASSL_CERT_MANAGER* cm)
         return BAD_FUNC_ARG;
 
     if (LockMutex(&cm->caLock) != 0)
-        return BAD_MUTEX_ERROR;
+        return BAD_MUTEX_E;
 
     FreeSignerTable(cm->caTable, CA_TABLE_SIZE, NULL);
 
@@ -1351,7 +1351,7 @@ int AddCA(CYASSL_CERT_MANAGER* cm, buffer der, int type, int verify)
             }
             else {
                 CYASSL_MSG("    CA Mutex Lock failed");
-                ret = BAD_MUTEX_ERROR;
+                ret = BAD_MUTEX_E;
                 FreeSigner(signer, cm->heap);
             }
         }
@@ -1452,15 +1452,15 @@ int CyaSSL_Init(void)
     if (initRefCount == 0) {
 #ifndef NO_SESSION_CACHE
         if (InitMutex(&session_mutex) != 0)
-            ret = BAD_MUTEX_ERROR;
+            ret = BAD_MUTEX_E;
 #endif
         if (InitMutex(&count_mutex) != 0)
-            ret = BAD_MUTEX_ERROR;
+            ret = BAD_MUTEX_E;
     }
     if (ret == SSL_SUCCESS) {
         if (LockMutex(&count_mutex) != 0) {
             CYASSL_MSG("Bad Lock Mutex count");
-            return BAD_MUTEX_ERROR;
+            return BAD_MUTEX_E;
         }
         initRefCount++;
         UnLockMutex(&count_mutex);
@@ -3140,7 +3140,7 @@ int CyaSSL_memsave_session_cache(void* mem, int sz)
 
     if (LockMutex(&session_mutex) != 0) {
         CYASSL_MSG("Session cache mutex lock failed");
-        return BAD_MUTEX_ERROR;
+        return BAD_MUTEX_E;
     }
 
     for (i = 0; i < cache_header.rows; ++i)
@@ -3189,7 +3189,7 @@ int CyaSSL_memrestore_session_cache(const void* mem, int sz)
 
     if (LockMutex(&session_mutex) != 0) {
         CYASSL_MSG("Session cache mutex lock failed");
-        return BAD_MUTEX_ERROR; 
+        return BAD_MUTEX_E; 
     }
 
     for (i = 0; i < cache_header.rows; ++i)
@@ -3243,7 +3243,7 @@ int CyaSSL_save_session_cache(const char *fname)
     if (LockMutex(&session_mutex) != 0) {
         CYASSL_MSG("Session cache mutex lock failed");
         XFCLOSE(file);
-        return BAD_MUTEX_ERROR;
+        return BAD_MUTEX_E;
     }
 
     /* session cache */
@@ -3314,7 +3314,7 @@ int CyaSSL_restore_session_cache(const char *fname)
     if (LockMutex(&session_mutex) != 0) {
         CYASSL_MSG("Session cache mutex lock failed");
         XFCLOSE(file);
-        return BAD_MUTEX_ERROR; 
+        return BAD_MUTEX_E; 
     }
 
     /* session cache */
@@ -3661,7 +3661,7 @@ int CM_SaveCertCache(CYASSL_CERT_MANAGER* cm, const char* fname)
     if (LockMutex(&cm->caLock) != 0) {
         CYASSL_MSG("LockMutex on caLock failed");
         XFCLOSE(file);
-        return BAD_MUTEX_ERROR;
+        return BAD_MUTEX_E;
     }
 
     memSz = GetCertCacheMemSize(cm);
@@ -3751,7 +3751,7 @@ int CM_MemSaveCertCache(CYASSL_CERT_MANAGER* cm, void* mem, int sz, int* used)
 
     if (LockMutex(&cm->caLock) != 0) {
         CYASSL_MSG("LockMutex on caLock failed");
-        return BAD_MUTEX_ERROR;
+        return BAD_MUTEX_E;
     }
 
     ret = DoMemSaveCertCache(cm, mem, sz);
@@ -3790,7 +3790,7 @@ int CM_MemRestoreCertCache(CYASSL_CERT_MANAGER* cm, const void* mem, int sz)
 
     if (LockMutex(&cm->caLock) != 0) {
         CYASSL_MSG("LockMutex on caLock failed");
-        return BAD_MUTEX_ERROR;
+        return BAD_MUTEX_E;
     }
 
     FreeSignerTable(cm->caTable, CA_TABLE_SIZE, cm->heap);
@@ -3820,7 +3820,7 @@ int CM_GetCertCacheMemSize(CYASSL_CERT_MANAGER* cm)
 
     if (LockMutex(&cm->caLock) != 0) {
         CYASSL_MSG("LockMutex on caLock failed");
-        return BAD_MUTEX_ERROR;
+        return BAD_MUTEX_E;
     }
 
     sz = GetCertCacheMemSize(cm);
@@ -4463,7 +4463,7 @@ int CyaSSL_Cleanup(void)
 
     if (LockMutex(&count_mutex) != 0) {
         CYASSL_MSG("Bad Lock Mutex count");
-        return BAD_MUTEX_ERROR;
+        return BAD_MUTEX_E;
     }
 
     release = initRefCount-- == 1;
@@ -4477,10 +4477,10 @@ int CyaSSL_Cleanup(void)
 
 #ifndef NO_SESSION_CACHE
     if (FreeMutex(&session_mutex) != 0)
-        ret = BAD_MUTEX_ERROR;
+        ret = BAD_MUTEX_E;
 #endif
     if (FreeMutex(&count_mutex) != 0)
-        ret = BAD_MUTEX_ERROR;
+        ret = BAD_MUTEX_E;
 
     return ret;
 }
@@ -4729,7 +4729,7 @@ int AddSession(CYASSL* ssl)
     row = HashSession(ssl->arrays->sessionID, ID_LEN) % SESSION_ROWS;
 
     if (LockMutex(&session_mutex) != 0)
-        return BAD_MUTEX_ERROR;
+        return BAD_MUTEX_E;
 
     idx = SessionCache[row].nextIdx++;
 #ifdef SESSION_INDEX
@@ -4784,7 +4784,7 @@ int AddSession(CYASSL* ssl)
 #endif /* NO_CLIENT_CACHE */
 
     if (UnLockMutex(&session_mutex) != 0)
-        return BAD_MUTEX_ERROR;
+        return BAD_MUTEX_E;
 
     return 0;
 }
@@ -4810,7 +4810,7 @@ int CyaSSL_GetSessionAtIndex(int idx, CYASSL_SESSION* session)
     col = idx & SESSIDX_IDX_MASK;
 
     if (LockMutex(&session_mutex) != 0) {
-        return BAD_MUTEX_ERROR;
+        return BAD_MUTEX_E;
     }
 
     if (row < SESSION_ROWS &&
@@ -4821,7 +4821,7 @@ int CyaSSL_GetSessionAtIndex(int idx, CYASSL_SESSION* session)
     }
 
     if (UnLockMutex(&session_mutex) != 0)
-        result = BAD_MUTEX_ERROR;
+        result = BAD_MUTEX_E;
 
     CYASSL_LEAVE("CyaSSL_GetSessionAtIndex", result);
     return result;
