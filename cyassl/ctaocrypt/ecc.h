@@ -97,6 +97,8 @@ CYASSL_API
 void ecc_init(ecc_key* key);
 CYASSL_API
 void ecc_free(ecc_key* key);
+CYASSL_API
+void ecc_fp_free(void);
 
 
 /* ASN key helpers */

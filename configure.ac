@@ -569,6 +569,19 @@ then
 fi
 
 
+# FP ECC, Fixed Point cache ECC 
+AC_ARG_ENABLE([fpecc],
+    [  --enable-fpecc          Enable Fixed Point cache ECC (default: disabled)],
+    [ ENABLED_FPECC=$enableval ],
+    [ ENABLED_FPECC=no ]
+    )
+
+if test "$ENABLED_FPECC" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DFP_ECC"
+fi
+
+
 # PSK 
 AC_ARG_ENABLE([psk],
     [  --enable-psk            Enable PSK (default: disabled)],

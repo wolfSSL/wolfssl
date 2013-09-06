@@ -909,7 +909,7 @@ void bench_eccKeyGen(void)
     ecc_key genKey;
     double start, total, each, milliEach;
     int    i;
-    const int genTimes = 5;
+    const int genTimes = 100;
   
     /* 256 bit */ 
     start = current_time(1);
@@ -933,7 +933,7 @@ void bench_eccKeyAgree(void)
     ecc_key genKey, genKey2;
     double start, total, each, milliEach;
     int    i, ret;
-    const int agreeTimes = 5;
+    const int agreeTimes = 100;
     byte   shared[1024];
     byte   sig[1024];
     byte   digest[32];
