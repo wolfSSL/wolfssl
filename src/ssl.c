@@ -4482,6 +4482,10 @@ int CyaSSL_Cleanup(void)
     if (FreeMutex(&count_mutex) != 0)
         ret = BAD_MUTEX_E;
 
+#if defined(HAVE_ECC) && defined(FP_ECC)
+    ecc_fp_free();
+#endif
+
     return ret;
 }
 

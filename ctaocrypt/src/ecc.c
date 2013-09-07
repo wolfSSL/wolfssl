@@ -3440,6 +3440,9 @@ void ecc_fp_free(void)
    if (LockMutex(&ecc_fp_lock) == 0) {
        ecc_fp_free_cache();
        UnLockMutex(&ecc_fp_lock);
+
+       FreeMutex(&ecc_fp_lock);
+       initMutex = 0;
    }
 }
 
