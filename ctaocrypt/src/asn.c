@@ -1346,15 +1346,15 @@ static int GetCertHeader(DecodedCert* cert)
 static int StoreRsaKey(DecodedCert* cert)
 {
     int    length;
-    word32 read = cert->srcIdx;
+    word32 recvd = cert->srcIdx;
 
     if (GetSequence(cert->source, &cert->srcIdx, &length, cert->maxIdx) < 0)
         return ASN_PARSE_E;
    
-    read = cert->srcIdx - read;
-    length += read;
+    recvd = cert->srcIdx - recvd;
+    length += recvd;
 
-    while (read--)
+    while (recvd--)
        cert->srcIdx--;
 
     cert->pubKeySize = length;
