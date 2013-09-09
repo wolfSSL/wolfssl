@@ -297,6 +297,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\src\port.c"
+				>
+			</File>
+			<File
 				RelativePath=".\src\rabbit.c"
 				>
 			</File>
