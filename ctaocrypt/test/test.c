@@ -140,6 +140,7 @@ int  des_test(void);
 int  des3_test(void);
 int  aes_test(void);
 int  aesgcm_test(void);
+int  gmac_test(void);
 int  aesccm_test(void);
 int  camellia_test(void);
 int  rsa_test(void);
@@ -299,6 +300,13 @@ void ctaocrypt_test(void* args)
             printf( "HMAC-SHA512 test passed!\n");
     #endif
 
+#endif
+
+#ifdef HAVE_AESGCM
+    if ( (ret = gmac_test()) != 0)
+        err_sys("GMAC     test passed!\n", ret);
+    else
+        printf( "GMAC     test passed!\n");
 #endif
 
 #ifndef NO_RC4
@@ -1925,6 +1933,47 @@ int aesgcm_test(void)
         return -70;
     if (memcmp(p, p2, sizeof(p2)))
         return -71;
+
+    return 0;
+}
+
+int gmac_test(void)
+{
+    Gmac gmac;
+
+    const byte k[] =
+    {
+        0x89, 0xc9, 0x49, 0xe9, 0xc8, 0x04, 0xaf, 0x01,
+        0x4d, 0x56, 0x04, 0xb3, 0x94, 0x59, 0xf2, 0xc8
+    };
+
+    const byte iv[] =
+    {
+        0xd1, 0xb1, 0x04, 0xc8, 0x15, 0xbf, 0x1e, 0x94,
+        0xe2, 0x8c, 0x8f, 0x16
+    };
+
+    const byte a[] =
+    {
+       0x82, 0xad, 0xcd, 0x63, 0x8d, 0x3f, 0xa9, 0xd9,
+       0xf3, 0xe8, 0x41, 0x00, 0xd6, 0x1e, 0x07, 0x77
+    };
+
+    const byte t[] =
+    {
+        0x88, 0xdb, 0x9d, 0x62, 0x17, 0x2e, 0xd0, 0x43,
+        0xaa, 0x10, 0xf1, 0x6d, 0x22, 0x7d, 0xc4, 0x1b
+    };
+
+    byte t2[sizeof(t)];
+
+    memset(t2, 0, sizeof(t2));
+
+    GmacSetKey(&gmac, k, sizeof(k));
+    GmacUpdate(&gmac, iv, sizeof(iv), a, sizeof(a), t2, sizeof(t2));
+
+    if (memcmp(t, t2, sizeof(t2)) != 0)
+        return -126;
 
     return 0;
 }

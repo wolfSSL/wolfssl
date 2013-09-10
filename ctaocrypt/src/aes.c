@@ -2636,6 +2636,21 @@ int  AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     return 0;
 }
 
+
+CYASSL_API void GmacSetKey(Gmac* gmac, const byte* key, word32 len)
+{
+    AesGcmSetKey(&gmac->aes, key, len);
+}
+
+
+CYASSL_API void GmacUpdate(Gmac* gmac, const byte* iv, word32 ivSz,
+                              const byte* authIn, word32 authInSz,
+                              byte* authTag, word32 authTagSz)
+{
+    AesGcmEncrypt(&gmac->aes, NULL, NULL, 0, iv, ivSz,
+                                         authTag, authTagSz, authIn, authInSz);
+}
+
 #endif /* HAVE_AESGCM */
 
 #ifdef HAVE_AESCCM
