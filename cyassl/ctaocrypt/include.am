@@ -21,6 +21,7 @@ nobase_include_HEADERS+= \
                          cyassl/ctaocrypt/md4.h \
                          cyassl/ctaocrypt/md5.h \
                          cyassl/ctaocrypt/misc.h \
+                         cyassl/ctaocrypt/port.h \
                          cyassl/ctaocrypt/pwdbased.h \
                          cyassl/ctaocrypt/rabbit.h \
                          cyassl/ctaocrypt/random.h \

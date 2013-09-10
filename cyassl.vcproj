@@ -223,6 +223,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\ctaocrypt\src\port.c"
+				>
+			</File>
+			<File
 				RelativePath=".\ctaocrypt\src\pwdbased.c"
 				>
 			</File>

@@ -150,6 +150,13 @@
 #endif
 
 
+/* Micrium will use Visual Studio for compilation but not the Win32 API */
+#if defined(_WIN32) && !defined(MICRIUM) && !defined(FREERTOS) \
+        && !defined(EBSNET)
+    #define USE_WINDOWS_API
+#endif
+
+
 #if defined(CYASSL_LEANPSK) && !defined(XMALLOC_USER)
     #include <stdlib.h>
     #define XMALLOC(s, h, type)  malloc((s))
