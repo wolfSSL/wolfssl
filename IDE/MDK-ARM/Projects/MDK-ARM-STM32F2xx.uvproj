@@ -825,6 +825,11 @@
                 </FileArmAds>
               </FileOption>
             </File>
+            <File>
+              <FileName>port.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\ctaocrypt\src\port.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
@@ -1953,6 +1958,11 @@
               <FileName>tfm.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\ctaocrypt\src\tfm.c</FilePath>
+            </File>
+            <File>
+              <FileName>port.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\ctaocrypt\src\port.c</FilePath>
             </File>
           </Files>
         </Group>
@@ -3340,6 +3350,11 @@
                   </Cads>
                 </FileArmAds>
               </FileOption>
+            </File>
+            <File>
+              <FileName>port.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\ctaocrypt\src\port.c</FilePath>
             </File>
           </Files>
         </Group>
