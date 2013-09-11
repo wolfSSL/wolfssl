@@ -55,7 +55,7 @@
                                     word32 length);
 #endif
 
-#ifdef STM32F2_CRYPTO
+#if STM32F2_CRYPTO
     /*
      * STM32F2 hardware AES support through the STM32F2 standard peripheral
      * library. Documentation located in STM32F2xx Standard Peripheral Library
@@ -418,6 +418,140 @@
     }
 
     #endif /* CYASSL_AES_COUNTER */
+
+
+#elif  defined(HAVE_COLDFIRE_SEC)
+
+#include "sec.h"
+#include "mcf548x_sec.h"
+#include "mcf548x_siu.h"
+
+#include "memory_pools.h"
+extern TX_BYTE_POOL mp_ncached;  /* Non Cached memory pool */
+#define AES_BUFFER_SIZE (AES_BLOCK_SIZE * 8)
+static unsigned char *AESBuffer = NULL ;
+
+#define SEC_DESC_AES_CBC_ENCRYPT 0x60300010
+#define SEC_DESC_AES_CBC_DECRYPT 0x60200010
+#define AES_BLOCK_LENGTH 16
+
+extern volatile unsigned char __MBAR[];
+
+int AesCbcEncrypt(Aes* aes, byte* po, const byte* pi, word32 sz)
+{
+	//printf("AesCbcEncrypt(%x, %x, %x, %d)\n", aes, po, pi, sz) ;
+	return(AesCbcCrypt(aes, po, pi, sz, SEC_DESC_AES_CBC_ENCRYPT)) ;
+}
+
+int AesCbcDecrypt(Aes* aes, byte* po, const byte* pi, word32 sz)
+{
+	//printf("AesCbcDecrypt(%x, %x, %x, %d)\n", aes, po, pi, sz) ;
+	return(AesCbcCrypt(aes, po, pi, sz, SEC_DESC_AES_CBC_DECRYPT)) ;
+}
+	
+static int AesCbcCrypt(Aes* aes, byte* po, const byte* pi, word32 sz, word32 descHeader)
+{
+
+	int i ; int stat1, stat2 ;
+	int ret ; int size ;
+	static SECdescriptorType descriptor;
+	volatile int v ;
+    
+    if((pi == NULL) || (po == NULL))
+        return BAD_FUNC_ARG;/*wrong pointer*/
+    
+	while(sz) {
+		if((sz%AES_BUFFER_SIZE) == sz) {
+			size = sz ;
+			sz = 0 ;
+		} else {
+			size = AES_BUFFER_SIZE ;
+			sz -= AES_BUFFER_SIZE ;
+		}
+		
+   		/* Set descriptor for SEC */
+		descriptor.header = descHeader ;
+		/*
+		descriptor.length1 = 0x0;
+		descriptor.pointer1 = NULL;
+		*/
+		descriptor.length2 = AES_BLOCK_SIZE;
+		descriptor.pointer2 = (byte *)aes->reg ; /* Initial Vector */
+	
+		switch(aes->rounds) {
+			case 10: descriptor.length3 = 16 ; break ;
+			case 12: descriptor.length3 = 24 ; break ;
+			case 14: descriptor.length3 = 32 ; break ;
+		}
+
+		descriptor.pointer3 = (byte *)aes->key;
+		descriptor.length4 = size;
+		descriptor.pointer4 = (byte *)pi ;
+		descriptor.length5 = size;
+		descriptor.pointer5 = AESBuffer ;
+		/*
+		descriptor.length6 = 0x0;
+		descriptor.pointer6 = NULL;
+		descriptor.length7 = 0x0;
+		descriptor.pointer7 = NULL;
+		descriptor.nextDescriptorPtr = NULL;
+		*/
+		
+		/* Initialize SEC and wait for encryption to complete */
+		MCF_SEC_CCCR0 = 0x00000000;
+			
+		/* Point SEC to the location of the descriptor */
+		MCF_SEC_FR0 = (uint32)&descriptor;	
+
+		/* poll SISR to determine when channel is complete */
+		i=0 ;
+		while (!(MCF_SEC_SISRL) && !(MCF_SEC_SISRH))i++ ;
+		for(v=0; v<100; v++) ;
+		
+		ret = MCF_SEC_SISRH;
+		stat1 = MCF_SEC_AESSR ;	
+		stat2 = MCF_SEC_AESISR ;
+		if(ret & 0xe0000000)
+		{
+			db_printf("Aes_Cbc(i=%d):ISRH=%08x, AESSR=%08x, AESISR=%08x\n", i, ret, stat1, stat2) ;
+		}
+		
+		XMEMCPY(po, AESBuffer, size) ;
+
+		if(descHeader == SEC_DESC_AES_CBC_ENCRYPT) {
+			XMEMCPY((void*)aes->reg, (void*)&(po[size-AES_BLOCK_SIZE]), AES_BLOCK_SIZE) ;
+		} else {
+			XMEMCPY((void*)aes->reg, (void*)&(pi[size-AES_BLOCK_SIZE]), AES_BLOCK_SIZE) ;
+		}
+		
+		pi += size ; 
+		po += size ;
+	}
+	
+	return 0 ; /* for descriptier header 0xff000000 mode */
+}
+
+int AesSetKey(Aes* aes, const byte* userKey, word32 keylen, const byte* iv,
+                  int dir)
+{
+	int status ;
+	
+	if(AESBuffer == NULL) {
+		status = tx_byte_allocate(&mp_ncached,(void *)&AESBuffer, AES_BUFFER_SIZE,TX_NO_WAIT);
+	}
+
+    if (!((keylen == 16) || (keylen == 24) || (keylen == 32)))
+        return BAD_FUNC_ARG;
+    if (aes == NULL)
+        return BAD_FUNC_ARG;    
+    
+    aes->rounds = keylen/4 + 6;
+
+    XMEMCPY(aes->key, userKey, keylen);         
+    if (iv)
+        XMEMCPY(aes->reg, iv, AES_BLOCK_SIZE);
+    return 0;
+}
 
 #else /* CTaoCrypt software implementation */
 

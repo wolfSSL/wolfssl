@@ -45,6 +45,12 @@ enum {
     DES_DECRYPTION  = 1
 };
 
+#define DES_IVLEN 8
+#define DES_KEYLEN 8
+#define DES3_IVLEN 8
+#define DES3_KEYLEN 24
+
+
 #ifdef STM32F2_CRYPTO
 enum {
     DES_CBC = 0,
@@ -54,15 +60,21 @@ enum {
 
 
 /* DES encryption and decryption */
-typedef struct Des {
-    word32 key[DES_KS_SIZE];
+typedef struct Des {;
     word32 reg[DES_BLOCK_SIZE / sizeof(word32)];      /* for CBC mode */
     word32 tmp[DES_BLOCK_SIZE / sizeof(word32)];      /* same         */
+    byte keylen ;        /* for Coldfire SEC   */
+    byte ivlen ;         /* for Coldfire SEC   */
+    byte iv[DES3_IVLEN]; /* for Coldfire SEC   */
+    word32 key[DES_KS_SIZE]
 } Des;
 
 
 /* DES3 encryption and decryption */
 typedef struct Des3 {
+    byte keylen ;        /* for Coldfire SEC   */
+    byte ivlen ;         /* for Coldfire SEC   */
+    byte iv[DES3_IVLEN]; /* for Coldfire SEC   */
     word32 key[3][DES_KS_SIZE];
     word32 reg[DES_BLOCK_SIZE / sizeof(word32)];      /* for CBC mode */
     word32 tmp[DES_BLOCK_SIZE / sizeof(word32)];      /* same         */
