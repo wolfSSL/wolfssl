@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no" ?>
 <Project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="project_proj.xsd">
- 
+
   <SchemaVersion>1.1</SchemaVersion>
 
   <Header>### uVision Project, (C) Keil Software</Header>
@@ -741,6 +741,11 @@
               <FilePath>..\..\..\ctaocrypt\src\misc.c</FilePath>
             </File>
             <File>
+              <FileName>port.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\ctaocrypt\src\port.c</FilePath>
+            </File>
+            <File>
               <FileName>pwdbased.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\ctaocrypt\src\pwdbased.c</FilePath>
@@ -824,11 +829,6 @@
                   </Cads>
                 </FileArmAds>
               </FileOption>
-            </File>
-            <File>
-              <FileName>port.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\ctaocrypt\src\port.c</FilePath>
             </File>
           </Files>
         </Group>
