@@ -3887,7 +3887,13 @@ int CyaSSL_dtls_set_timeout_init(CYASSL* ssl, int timeout)
     if (ssl == NULL || timeout < 0)
         return BAD_FUNC_ARG;
 
+    if (timeout > ssl->dtls_timeout_max) {
+        CYASSL_MSG("Can't set dtls timeout init greater than dtls timeout max");
+        return BAD_FUNC_ARG;
+    }
+
     ssl->dtls_timeout_init = timeout;
+    ssl->dtls_timeout = timeout;
 
     return SSL_SUCCESS;
 }
@@ -3899,7 +3905,7 @@ int CyaSSL_dtls_set_timeout_max(CYASSL* ssl, int timeout)
     if (ssl == NULL || timeout < 0)
         return BAD_FUNC_ARG;
 
-    if (ssl->dtls_timeout_max < ssl->dtls_timeout_init) {
+    if (timeout < ssl->dtls_timeout_init) {
         CYASSL_MSG("Can't set dtls timeout max less than dtls timeout init");
         return BAD_FUNC_ARG;
     }
