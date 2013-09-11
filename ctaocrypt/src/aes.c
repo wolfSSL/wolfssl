@@ -55,7 +55,7 @@
                                     word32 length);
 #endif
 
-#if STM32F2_CRYPTO
+#ifdef STM32F2_CRYPTO
     /*
      * STM32F2 hardware AES support through the STM32F2 standard peripheral
      * library. Documentation located in STM32F2xx Standard Peripheral Library

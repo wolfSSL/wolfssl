@@ -66,7 +66,7 @@ typedef struct Des {;
     byte keylen ;        /* for Coldfire SEC   */
     byte ivlen ;         /* for Coldfire SEC   */
     byte iv[DES3_IVLEN]; /* for Coldfire SEC   */
-    word32 key[DES_KS_SIZE]
+    word32 key[DES_KS_SIZE];
 } Des;
 
 
