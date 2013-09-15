@@ -45,15 +45,31 @@
 #  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 #  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#serial 1
- 
-AC_DEFUN([AX_VCS_CHECKOUT],[
-    AC_CACHE_CHECK([for vcs checkout], [ac_cv_vcs_checkout], [
-      AS_IF([test -d ".bzr"],[ac_cv_vcs_checkout=yes])
-      AS_IF([test -d ".svn"],[ac_cv_vcs_checkout=yes])
-      AS_IF([test -d ".hg"], [ac_cv_vcs_checkout=yes])
-      AS_IF([test -d ".git"],[ac_cv_vcs_checkout=yes])
+#serial 6
+
+AC_DEFUN([AX_VCS_SYSTEM],
+    [AC_PREREQ([2.63])dnl
+    AC_CACHE_CHECK([for vcs system], [ac_cv_vcs_system],
+      [ac_cv_vcs_system="none"
+      AS_IF([test -d ".bzr"],[ac_cv_vcs_system="bazaar"])
+      AS_IF([test -d ".svn"],[ac_cv_vcs_system="svn"])
+      AS_IF([test -d ".hg"],[ac_cv_vcs_system="mercurial"])
+      AS_IF([test -d ".git"],[ac_cv_vcs_system="git"])
+      ])
+    AC_DEFINE_UNQUOTED([VCS_SYSTEM],["$ac_cv_vcs_system"],[VCS system])
+    ])
+
+AC_DEFUN([AX_VCS_CHECKOUT],
+    [AC_PREREQ([2.63])dnl
+    AC_REQUIRE([AX_VCS_SYSTEM])
+    AC_CACHE_CHECK([for vcs checkout],[ac_cv_vcs_checkout],
+      [AS_IF([test "x$ac_cv_vcs_system" != "xnone"],
+        [ac_cv_vcs_checkout=yes],
+        [ac_cv_vcs_checkout=no])
       ])
 
-    AS_IF([test "$ac_cv_vcs_checkout" = yes], [])
+    AM_CONDITIONAL([IS_VCS_CHECKOUT],[test "x$ac_cv_vcs_checkout" = "xyes"])
+    AS_IF([test "x$ac_cv_vcs_checkout" = "xyes"],
+      [AC_DEFINE([VCS_CHECKOUT],[1],[Define if the code was built from VCS.])],
+      [AC_DEFINE([VCS_CHECKOUT],[0],[Define if the code was built from VCS.])])
     ])

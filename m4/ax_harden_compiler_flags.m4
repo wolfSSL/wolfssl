@@ -67,7 +67,6 @@
       AC_REQUIRE([AX_CHECK_LINK_FLAG])
       AC_REQUIRE([AX_VCS_CHECKOUT])
       AC_REQUIRE([AX_DEBUG])
-      AC_REQUIRE([AX_CXX_COMPILER_VERSION])
 
       dnl If we are inside of VCS we append -Werror, otherwise we just use it to test other flags
       AX_HARDEN_LIB=
