@@ -1578,8 +1578,8 @@ static int GetName(DecodedCert* cert, int nameType)
                           cert->maxIdx) < 0)
                 return ASN_PARSE_E;
 
-            if ( (strLen + 4) > (int)(ASN_NAME_MAX - idx)) {
-                /* include biggest pre fix header too 4 = "/CN=" */
+            if ( (strLen + 14) > (int)(ASN_NAME_MAX - idx)) {
+                /* include biggest pre fix header too 4 = "/serialNumber=" */
                 CYASSL_MSG("ASN Name too big, skipping");
                 tooBig = TRUE;
             }
@@ -1673,6 +1673,13 @@ static int GetName(DecodedCert* cert, int nameType)
                     cert->subjectOULen = strLen;
                 }
 #endif /* CYASSL_CERT_GEN */
+            }
+            else if (id == ASN_SERIAL_NUMBER) {
+                if (!tooBig) {
+                   XMEMCPY(&full[idx], "/serialNumber=", 14);
+                   idx += 14;
+                   copy = TRUE;
+                }
             }
 
             if (copy && !tooBig) {

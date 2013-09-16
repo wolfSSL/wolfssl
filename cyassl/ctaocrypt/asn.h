@@ -78,6 +78,7 @@ enum  ASN_Flags{
 enum DN_Tags {
     ASN_COMMON_NAME   = 0x03,   /* CN */
     ASN_SUR_NAME      = 0x04,   /* SN */
+    ASN_SERIAL_NUMBER = 0x05,   /* serialNumber */
     ASN_COUNTRY_NAME  = 0x06,   /* C  */
     ASN_LOCALITY_NAME = 0x07,   /* L  */
     ASN_STATE_NAME    = 0x08,   /* ST */
