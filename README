@@ -35,7 +35,14 @@ before calling SSL_new();  Though it's not recommended.
 *** end Notes ***
 
 
-CyaSSL Release 2.8.0 (8/30/2013)
+CyaSSL Release 2.9.0 (X/XX/XXXX)
+
+The Freescale Kinetis K53 RNGB documentation can be found in Chapter 33 of the
+K53 Sub-Family Reference Manual:
+http://cache.freescale.com/files/32bit/doc/ref_manual/K53P144M100SF2RM.pdf
+
+
+*****************CyaSSL Release 2.8.0 (8/30/2013)
 
 Release 2.8.0 CyaSSL has bug fixes and new features including:
 - AES-GCM and AES-CCM use AES-NI
