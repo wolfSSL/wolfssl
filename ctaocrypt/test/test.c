@@ -99,6 +99,7 @@
 #ifdef FREESCALE_MQX
     #include <mqx.h>
     #include <fio.h>
+    #include <stdlib.h>
 #else
     #include <stdio.h>
 #endif
@@ -2376,30 +2377,32 @@ byte GetEntropy(ENTROPY_CMD cmd, byte* out)
 
 #ifndef NO_RSA
 
-#ifdef FREESCALE_MQX
-    static const char* clientKey  = "a:\\certs\\client-key.der";
-    static const char* clientCert = "a:\\certs\\client-cert.der";
-    #ifdef CYASSL_CERT_GEN
-        static const char* caKeyFile  = "a:\\certs\\ca-key.der";
-        static const char* caCertFile = "a:\\certs\\ca-cert.pem";
-    #endif
-#elif !defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048) && defined(CYASSL_MKD_SHELL) 
-    static char* clientKey = "certs/client-key.der";
-    static char* clientCert = "certs/client-cert.der";
-    void set_clientKey(char *key) {  clientKey = key ; }      /* set by shell command */
-    void set_clientCert(char *cert) {  clientCert = cert ; }  /* set by shell command */		
-    #ifdef CYASSL_CERT_GEN
-        static char* caKeyFile  = "certs/ca-key.der";
-        static char* caCertFile = "certs/ca-cert.pem";
-        void set_caKeyFile (char * key)  { caKeyFile   = key ; }     /* set by shell command */
-        void set_caCertFile(char * cert) { caCertFile = cert ; }     /* set by shell command */
-    #endif
-#elif !defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048) 
-    static const char* clientKey  = "./certs/client-key.der";
-    static const char* clientCert = "./certs/client-cert.der";
-    #ifdef CYASSL_CERT_GEN
-        static const char* caKeyFile  = "./certs/ca-key.der";
-        static const char* caCertFile = "./certs/ca-cert.pem";
+#if !defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048)
+    #ifdef FREESCALE_MQX
+        static const char* clientKey  = "a:\\certs\\client-key.der";
+        static const char* clientCert = "a:\\certs\\client-cert.der";
+        #ifdef CYASSL_CERT_GEN
+            static const char* caKeyFile  = "a:\\certs\\ca-key.der";
+            static const char* caCertFile = "a:\\certs\\ca-cert.pem";
+        #endif
+    #elif defined(CYASSL_MKD_SHELL)
+        static char* clientKey = "certs/client-key.der";
+        static char* clientCert = "certs/client-cert.der";
+        void set_clientKey(char *key) {  clientKey = key ; }      /* set by shell command */
+        void set_clientCert(char *cert) {  clientCert = cert ; }  /* set by shell command */
+        #ifdef CYASSL_CERT_GEN
+            static char* caKeyFile  = "certs/ca-key.der";
+            static char* caCertFile = "certs/ca-cert.pem";
+            void set_caKeyFile (char * key)  { caKeyFile   = key ; }     /* set by shell command */
+            void set_caCertFile(char * cert) { caCertFile = cert ; }     /* set by shell command */
+        #endif
+    #else
+        static const char* clientKey  = "./certs/client-key.der";
+        static const char* clientCert = "./certs/client-cert.der";
+        #ifdef CYASSL_CERT_GEN
+            static const char* caKeyFile  = "./certs/ca-key.der";
+            static const char* caCertFile = "./certs/ca-cert.pem";
+        #endif
     #endif
 #endif
 
@@ -2848,10 +2851,12 @@ int rsa_test(void)
 
 #ifndef NO_DH
 
-#ifdef FREESCALE_MQX
-    static const char* dhKey = "a:\certs\\dh2048.der";
-#elif !defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048)
-    static const char* dhKey = "./certs/dh2048.der";
+#if !defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048)
+    #ifdef FREESCALE_MQX
+        static const char* dhKey = "a:\certs\\dh2048.der";
+    #else
+        static const char* dhKey = "./certs/dh2048.der";
+    #endif
 #endif
 
 int dh_test(void)
@@ -2926,10 +2931,12 @@ int dh_test(void)
 
 #ifndef NO_DSA
 
-#ifdef FREESCALE_MQX
-    static const char* dsaKey = "a:\\certs\\dsa2048.der";
-#elif !defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048)
-    static const char* dsaKey = "./certs/dsa2048.der";
+#if !defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048)
+    #ifdef FREESCALE_MQX
+        static const char* dsaKey = "a:\\certs\\dsa2048.der";
+    #else
+        static const char* dsaKey = "./certs/dsa2048.der";
+    #endif
 #endif
 
 int dsa_test(void)
