@@ -189,7 +189,13 @@ enum {
     #define XSTRNSTR(s1,s2,n) mystrnstr((s1),(s2),(n))
     #define XSTRNCMP(s1,s2,n) strncmp((s1),(s2),(n))
     #define XSTRNCAT(s1,s2,n) strncat((s1),(s2),(n))
-    #define XSTRNCASECMP(s1,s2,n) strncasecmp((s1),(s2),(n))
+    #ifndef USE_WINDOWS_API
+        #define XSTRNCASECMP(s1,s2,n) strncasecmp((s1),(s2),(n))
+        #define XSNPRINTF snprintf
+    #else
+        #define XSTRNCASECMP(s1,s2,n) _strnicmp((s1),(s2),(n))
+        #define XSNPRINTF _snprintf
+    #endif
 #endif
 
 #if defined(HAVE_ECC) || defined(HAVE_OCSP)

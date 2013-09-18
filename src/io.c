@@ -107,6 +107,7 @@
     #define SOCKET_EPIPE       WSAEPIPE
     #define SOCKET_ECONNREFUSED WSAENOTCONN
     #define SOCKET_ECONNABORTED WSAECONNABORTED
+    #define close(s) closesocket(s)
 #elif defined(__PPU)
     #define SOCKET_EWOULDBLOCK SYS_NET_EWOULDBLOCK
     #define SOCKET_EAGAIN      SYS_NET_EAGAIN
@@ -552,7 +553,7 @@ static INLINE int tcp_connect(SOCKET_T* sockfd, const char* ip, word16 port)
 static int build_http_request(const char* domainName, const char* path,
                                     int ocspReqSz, byte* buf, int bufSize)
 {
-    return snprintf((char*)buf, bufSize,
+    return XSNPRINTF((char*)buf, bufSize,
         "POST %s HTTP/1.1\r\n"
         "Host: %s\r\n"
         "Content-Length: %d\r\n"
@@ -563,7 +564,7 @@ static int build_http_request(const char* domainName, const char* path,
 
 
 static int decode_url(const char* url, int urlSz,
-    char* outName, char* outPath, int* outPort)
+    char* outName, char* outPath, word16* outPort)
 {
     int result = -1;
 
@@ -596,6 +597,7 @@ static int decode_url(const char* url, int urlSz,
             if (cur < urlSz && url[cur] == ':') {
                 char port[6];
                 int j;
+                word32 bigPort = 0;
                 i = 0;
                 cur++;
                 while (cur < urlSz && url[cur] != 0 && url[cur] != '/' &&
@@ -603,11 +605,11 @@ static int decode_url(const char* url, int urlSz,
                     port[i++] = url[cur++];
                 }
     
-                *outPort = 0;
                 for (j = 0; j < i; j++) {
                     if (port[j] < '0' || port[j] > '9') return -1;
-                    *outPort = (*outPort * 10) + (port[j] - '0');
+                    bigPort = (bigPort * 10) + (port[j] - '0');
                 }
+                *outPort = (word16)bigPort;
             }
             else
                 *outPort = 80;
@@ -648,7 +650,7 @@ static int process_http_response(int sfd, byte** respBuf,
     start = end = NULL;
     do {
         if (end == NULL) {
-            result = (int)recv(sfd, httpBuf+len, httpBufSz-len-1, 0);
+            result = (int)recv(sfd, (char*)httpBuf+len, httpBufSz-len-1, 0);
             if (result > 0) {
                 len += result;
                 start = (char*)httpBuf;
@@ -735,7 +737,7 @@ static int process_http_response(int sfd, byte** respBuf,
 
     /* receive the OCSP response data */
     do {
-        result = (int)recv(sfd, recvBuf+len, recvBufSz-len, 0);
+        result = (int)recv(sfd, (char*)recvBuf+len, recvBufSz-len, 0);
         if (result > 0)
             len += result;
         else {
@@ -755,7 +757,9 @@ int EmbedOcspLookup(void* ctx, const char* url, int urlSz,
                         byte* ocspReqBuf, int ocspReqSz, byte** ocspRespBuf)
 {
     char domainName[80], path[80];
-    int port, httpBufSz, sfd = -1;
+    int httpBufSz;
+    SOCKET_T sfd;
+    word16 port;
     int ocspRespSz = 0;
     byte* httpBuf = NULL;
 
@@ -791,9 +795,9 @@ int EmbedOcspLookup(void* ctx, const char* url, int urlSz,
 
     if ((tcp_connect(&sfd, domainName, port) == 0) && (sfd > 0)) {
         int written;
-        written = (int)send(sfd, httpBuf, httpBufSz, 0);
+        written = (int)send(sfd, (char*)httpBuf, httpBufSz, 0);
         if (written == httpBufSz) {
-            written = (int)send(sfd, ocspReqBuf, ocspReqSz, 0);
+            written = (int)send(sfd, (char*)ocspReqBuf, ocspReqSz, 0);
             if (written == ocspReqSz) {
                 ocspRespSz = process_http_response(sfd, ocspRespBuf,
                                                  httpBuf, SCRATCH_BUFFER_SIZE);

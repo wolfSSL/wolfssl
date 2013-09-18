@@ -5020,13 +5020,13 @@ static int SetSerialNumber(const byte* sn, word32 snSz, byte* output)
          * INTEGER, if the MSB is 1, add a padding zero to keep the
          * number positive. */
         if (sn[0] & 0x80) {
-            output[1] = snSz + 1;
+            output[1] = (byte)snSz + 1;
             output[2] = 0;
             XMEMCPY(&output[3], sn, snSz);
             result = snSz + 3;
         }
         else {
-            output[1] = snSz;
+            output[1] = (byte)snSz;
             XMEMCPY(&output[2], sn, snSz);
             result = snSz + 2;
         }
