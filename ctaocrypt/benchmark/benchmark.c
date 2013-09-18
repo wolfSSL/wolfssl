@@ -1011,12 +1011,12 @@ void bench_eccKeyAgree(void)
 
     double current_time(int reset)
     {
-        (void)reset;
-
         static int init = 0;
         static LARGE_INTEGER freq;
     
         LARGE_INTEGER count;
+
+        (void)reset;
 
         if (!init) {
             QueryPerformanceFrequency(&freq);
@@ -1060,9 +1060,10 @@ void bench_eccKeyAgree(void)
 
     double current_time(int reset)
     {
+        struct timeval tv;
+
         (void) reset;
 
-        struct timeval tv;
         gettimeofday(&tv, 0);
 
         return (double)tv.tv_sec + (double)tv.tv_usec / 1000000;
