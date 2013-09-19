@@ -6,24 +6,29 @@
 #
 #
 
-AC_INIT([cyassl],[2.8.1],[http://www.yassl.com])
+AC_INIT([cyassl],[2.8.1],[https://github.com/cyassl/cyassl/issues],[cyassl],[http://www.yassl.com])
 
 AC_CONFIG_AUX_DIR([build-aux])
-AC_CONFIG_MACRO_DIR([m4])
-
-AC_CANONICAL_TARGET
-AC_USE_SYSTEM_EXTENSIONS
-
-AM_INIT_AUTOMAKE([1.11 -Wall -Werror -Wno-portability foreign tar-ustar subdir-objects])
 
 AC_CANONICAL_HOST
 AC_CANONICAL_BUILD
 
+AM_INIT_AUTOMAKE([1.11 -Wall -Werror -Wno-portability foreign tar-ustar subdir-objects no-define color-tests])
 AC_PREREQ([2.63])
 
+AC_ARG_PROGRAM
+AC_DEFUN([PROTECT_AC_USE_SYSTEM_EXTENSIONS],
+         [AX_SAVE_FLAGS
+          AC_LANG_PUSH([C])
+          AC_USE_SYSTEM_EXTENSIONS
+          AC_LANG_POP([C])
+          AX_RESTORE_FLAGS
+          ])
+#PROTECT_AC_USE_SYSTEM_EXTENSIONS
+
+AC_CONFIG_MACRO_DIR([m4])
 
 AC_CONFIG_HEADERS([config.h:config.in])dnl Keep filename to 8.3 for MS-DOS.
-
 
 #shared library versioning
 CYASSL_LIBRARY_VERSION=5:2:0
@@ -56,8 +61,6 @@ AS_IF([ test -n "$CFLAG_VISIBILITY" ], [
        ])
 
 m4_ifdef([AM_SILENT_RULES],[AM_SILENT_RULES([yes])])
-
-AX_CXX_COMPILER_VERSION
 
 AC_CHECK_FUNCS([gethostbyname])
 AC_CHECK_FUNCS([getaddrinfo])
