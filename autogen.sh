@@ -5,7 +5,7 @@
 
 # Git hooks should come before autoreconf.
 if test -d .git; then
-  if ! test -d .git; then
+  if ! test -d .git/hooks; then
     mkdir .git/hooks
   fi
   ln -s -f ../../pre-commit.sh .git/hooks/pre-commit
