@@ -299,6 +299,8 @@
     #define USE_FAST_MATH
     #define TFM_TIMING_RESISTANT
     #define FREESCALE_K70_RNGA
+    /* #define FREESCALE_K53_RNGB */
+    #include "mqx.h"
     #ifndef NO_FILESYSTEM
         #include "mfs.h"
         #include "fio.h"

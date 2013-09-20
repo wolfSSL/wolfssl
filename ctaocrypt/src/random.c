@@ -525,6 +525,45 @@ int GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 
             return 0;
         }
+
+    #elif defined(FREESCALE_K53_RNGB)
+        /*
+         * Generates a RNG seed using the Random Number Generator (RNGB)
+         * on the Kinetis K53. Documentation located in Chapter 33 of
+         * K53 Sub-Family Reference Manual (see note in the README for link).
+         */
+        int GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+        {
+            int i;
+
+            /* turn on RNGB module */
+            SIM_SCGC3 |= SIM_SCGC3_RNGB_MASK;
+
+            /* reset RNGB */
+            RNG_CMD |= RNG_CMD_SR_MASK;
+
+            /* FIFO generate interrupt, return all zeros on underflow,
+             * set auto reseed */
+            RNG_CR |= (RNG_CR_FUFMOD_MASK | RNG_CR_AR_MASK);
+
+            /* gen seed, clear interrupts, clear errors */
+            RNG_CMD |= (RNG_CMD_GS_MASK | RNG_CMD_CI_MASK | RNG_CMD_CE_MASK);
+
+            /* wait for seeding to complete */
+            while ((RNG_SR & RNG_SR_SDN_MASK) == 0) {}
+
+            for (i = 0; i < sz; i++) {
+
+                /* wait for a word to be available from FIFO */
+                while((RNG_SR & RNG_SR_FIFO_LVL_MASK) == 0) {}
+
+                /* get value */
+                output[i] = RNG_OUT;
+            }
+
+            return 0;
+        }
+
 	#else
         #warning "write a real random seed!!!!, just for testing now"
 

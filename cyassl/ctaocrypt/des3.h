@@ -60,7 +60,7 @@ enum {
 
 
 /* DES encryption and decryption */
-typedef struct Des {;
+typedef struct Des {
     word32 reg[DES_BLOCK_SIZE / sizeof(word32)];      /* for CBC mode */
     word32 tmp[DES_BLOCK_SIZE / sizeof(word32)];      /* same         */
     byte keylen ;        /* for Coldfire SEC   */
