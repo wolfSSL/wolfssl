@@ -147,6 +147,7 @@ CYASSL_API void HmacFinal(Hmac*, byte*);
     CYASSL_API void HmacFreeCavium(Hmac*);
 #endif
 
+CYASSL_API int CyaSSL_GetHmacMaxSize(void);
 
 #ifdef __cplusplus
     } /* extern "C" */

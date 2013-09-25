@@ -487,5 +487,10 @@ static void HmacCaviumSetKey(Hmac* hmac, int type, const byte* key,
 
 #endif /* HAVE_CAVIUM */
 
+int CyaSSL_GetHmacMaxSize(void)
+{
+    return MAX_DIGEST_SIZE;
+}
+
 #endif /* NO_HMAC */
 
