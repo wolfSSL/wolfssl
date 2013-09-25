@@ -2216,6 +2216,17 @@ ProtocolVersion MakeDTLSv1_2(void)
         return (word32) SYS_TICK_Get();
     }
 
+#elif defined(FREESCALE_MQX)
+
+    word32 LowResTimer(void)
+    {
+        TIME_STRUCT mqxTime;
+
+        _time_get_elapsed(&mqxTime);
+
+        return (word32) mqxTime.SECONDS;
+    }
+
 
 #elif defined(USER_TICKS)
 #if 0
