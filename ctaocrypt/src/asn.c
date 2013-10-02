@@ -100,6 +100,11 @@
     #define XTIME(t1) pic32_time((t1))
     #define XGMTIME(c) gmtime((c))
     #define XVALIDATE_DATE(d, f, t) ValidateDate((d), (f), (t))
+#elif defined(FREESCALE_MQX)
+    #include <time.h>
+    #define XTIME(t1) mqx_time((t1))
+    #define XGMTIME(c) gmtime((c))
+    #define XVALIDATE_DATE(d, f, t) ValidateDate((d), (f), (t))
 #elif defined(CYASSL_MDK_ARM)
     #include <rtl.h>
     #undef RNG
@@ -287,6 +292,25 @@ time_t pic32_time(time_t* timer)
 }
 
 #endif /* MICROCHIP_TCPIP */
+
+
+#ifdef FREESCALE_MQX
+
+time_t mqx_time(time_t* timer)
+{
+    time_t localTime;
+    TIME_STRUCT time_s;
+
+    if (timer == NULL)
+        timer = &localTime;
+
+    _time_get(&time_s);
+    *timer = (time_t) time_s.SECONDS;
+
+    return *timer;
+}
+
+#endif /* FREESCALE_MQX */
 
 
 static INLINE word32 btoi(byte b)

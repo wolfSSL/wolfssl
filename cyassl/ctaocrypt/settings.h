@@ -144,6 +144,13 @@
     #define NO_HC128
 #endif /* MBED */
 
+#ifdef CYASSL_TYTO
+    #define FREERTOS
+    #define NO_FILESYSTEM
+    #define CYASSL_USER_IO
+    #define NO_DEV_RANDOM
+#endif
+
 #ifdef FREERTOS_WINSIM
     #define FREERTOS
     #define USE_WINDOWS_API
