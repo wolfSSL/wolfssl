@@ -2073,8 +2073,10 @@ DtlsMsg* DtlsMsgStore(DtlsMsg* head, word32 seq, const byte* data,
         DtlsMsg* cur = DtlsMsgFind(head, seq);
         if (cur == NULL) {
             cur = DtlsMsgNew(dataSz, heap);
-            DtlsMsgSet(cur, seq, data, type, fragOffset, fragSz);
-            head = DtlsMsgInsert(head, cur);
+            if (cur != NULL) {
+                DtlsMsgSet(cur, seq, data, type, fragOffset, fragSz);
+                head = DtlsMsgInsert(head, cur);
+            }
         }
         else {
             DtlsMsgSet(cur, seq, data, type, fragOffset, fragSz);
@@ -3742,7 +3744,8 @@ static int DoDtlsHandShakeMsg(CYASSL* ssl, byte* input, word32* inOutIdx,
                         size, type, fragOffset, fragSz, ssl->heap);
         *inOutIdx += fragSz;
         ret = 0;
-        if (ssl->dtls_msg_list->fragSz >= ssl->dtls_msg_list->sz)
+        if (ssl->dtls_msg_list != NULL &&
+            ssl->dtls_msg_list->fragSz >= ssl->dtls_msg_list->sz)
             ret = DtlsMsgDrain(ssl);
     }
     else {
@@ -7653,6 +7656,8 @@ static void PickHashSigAlgo(CYASSL* ssl,
         word32 idx = 0;
         int    ret = 0;
         byte   doUserRsa = 0;
+
+        (void)doUserRsa;
 
         #ifdef HAVE_PK_CALLBACKS
             #ifndef NO_RSA
