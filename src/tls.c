@@ -401,7 +401,7 @@ static INLINE word32 GetSEQIncrement(CYASSL* ssl, int verify)
 #ifdef CYASSL_DTLS
     if (ssl->options.dtls) {
         if (verify)
-            return ssl->keys.dtls_peer_sequence_number; /* explicit from peer */
+            return ssl->keys.dtls_state.curSeq; /* explicit from peer */
         else
             return ssl->keys.dtls_sequence_number - 1; /* already incremented */
     }
@@ -418,9 +418,9 @@ static INLINE word32 GetSEQIncrement(CYASSL* ssl, int verify)
 static INLINE word32 GetEpoch(CYASSL* ssl, int verify)
 {
     if (verify)
-        return ssl->keys.dtls_peer_epoch; 
+        return ssl->keys.dtls_state.curEpoch;
     else
-        return ssl->keys.dtls_epoch; 
+        return ssl->keys.dtls_epoch;
 }
 
 #endif /* CYASSL_DTLS */

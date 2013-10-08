@@ -1363,6 +1363,30 @@ enum ClientCertificateType {
 enum CipherType { stream, block, aead };
 
 
+#ifdef CYASSL_DTLS
+
+    #ifdef WORD64_AVAILABLE
+        typedef word64 DtlsSeq;
+    #else
+        typedef word32 DtlsSeq;
+    #endif
+    #define DTLS_SEQ_BITS (sizeof(DtlsSeq) * CHAR_BIT)
+
+    typedef struct DtlsState {
+        DtlsSeq window;     /* Sliding window for current epoch    */
+        word16 nextEpoch;   /* Expected epoch in next record       */
+        word32 nextSeq;     /* Expected sequence in next record    */
+
+        word16 curEpoch;    /* Received epoch in current record    */
+        word32 curSeq;      /* Received sequence in current record */
+
+        DtlsSeq prevWindow; /* Sliding window for old epoch        */
+        word32 prevSeq;     /* Next sequence in allowed old epoch  */
+    } DtlsState;
+
+#endif /* CYASSL_DTLS */
+
+
 /* keys and secrets */
 typedef struct Keys {
     byte client_write_MAC_secret[MAX_DIGEST_SIZE];   /* max sizes */
@@ -1381,15 +1405,13 @@ typedef struct Keys {
     word32 sequence_number;
     
 #ifdef CYASSL_DTLS
-    word32 dtls_sequence_number;
-    word32 dtls_peer_sequence_number;
-    word32 dtls_expected_peer_sequence_number;
-    word16 dtls_handshake_number;
+    DtlsState dtls_state;                       /* Peer's state */
     word16 dtls_peer_handshake_number;
     word16 dtls_expected_peer_handshake_number;
-    word16 dtls_epoch;
-    word16 dtls_peer_epoch;
-    word16 dtls_expected_peer_epoch;
+
+    word16 dtls_epoch;                          /* Current tx epoch    */
+    word32 dtls_sequence_number;                /* Current tx sequence */
+    word16 dtls_handshake_number;               /* Current tx handshake seq */
 #endif
 
     word32 encryptSz;             /* last size of encrypted data   */
