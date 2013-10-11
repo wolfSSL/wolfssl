@@ -1567,6 +1567,8 @@ static int ecc_mul2add(ecc_point* A, mp_int* kA,
      XFREE(tA, NULL, DYNAMIC_TYPE_TMP_BUFFER);
      return GEN_MEM_ERR;
   }
+  XMEMSET(tA, 0, ECC_BUFSIZE);
+  XMEMSET(tB, 0, ECC_BUFSIZE);
 
   /* get sizes */
   lenA = mp_unsigned_bin_size(kA);
