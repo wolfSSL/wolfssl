@@ -863,6 +863,7 @@ static INLINE unsigned int my_psk_server_cb(CYASSL* ssl, const char* identity,
 
 static INLINE int myVerify(int preverify, CYASSL_X509_STORE_CTX* store)
 {
+    (void)preverify;
     char buffer[CYASSL_MAX_ERROR_SZ];
 
 #ifdef OPENSSL_EXTRA

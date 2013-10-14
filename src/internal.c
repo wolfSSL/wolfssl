@@ -3391,7 +3391,7 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx)
         }
         ssl->error = ret;
     }
-#ifdef FORTRESS
+#ifdef CYASSL_ALWAYS_VERIFY_CB
     else {
         if (ssl->verifyCallback) {
             int ok;
@@ -3402,7 +3402,9 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx)
             store.discardSessionCerts = 0;
             store.domain = domain;
             store.userCtx = ssl->verifyCbCtx;
+#ifdef KEEP_PEER_CERT
             store.current_cert = &ssl->peerCert;
+#endif
             store.ex_data = ssl;
 
             ok = ssl->verifyCallback(1, &store);
