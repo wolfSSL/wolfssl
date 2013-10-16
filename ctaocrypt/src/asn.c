@@ -1244,6 +1244,7 @@ int DsaPrivateKeyDecode(const byte* input, word32* inOutIdx, DsaKey* key,
 void InitDecodedCert(DecodedCert* cert, byte* source, word32 inSz, void* heap)
 {
     cert->publicKey       = 0;
+    cert->pubKeySize      = 0;
     cert->pubKeyStored    = 0;
     cert->signature       = 0;
     cert->subjectCN       = 0;
@@ -1419,9 +1420,6 @@ static int GetKey(DecodedCert* cert)
         return ASN_PARSE_E;
 
     switch (cert->keyOID) {
-        case DSAk:
-            /* do nothing */
-        break;
    #ifndef NO_RSA
         case RSAk:
         {
@@ -2992,7 +2990,8 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
         return ASN_SIG_OID_E;
 
     #ifndef NO_SKID
-        if (cert->extSubjKeyIdSet == 0) {
+        if (cert->extSubjKeyIdSet == 0
+                          && cert->publicKey != NULL && cert->pubKeySize > 0) {
             Sha sha;
             InitSha(&sha);
             ShaUpdate(&sha, cert->publicKey, cert->pubKeySize);
