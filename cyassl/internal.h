@@ -1621,9 +1621,18 @@ typedef struct Arrays {
 #define ASN_NAME_MAX 256
 #endif
 
+#ifndef MAX_DATE_SZ
+#define MAX_DATE_SZ 32
+#endif
+
 struct CYASSL_X509_NAME {
-    char  name[ASN_NAME_MAX];
+    char  *name;
+    char  staticName[ASN_NAME_MAX];
+    int   dynamicName;
     int   sz;
+#ifdef OPENSSL_EXTRA
+    DecodedName fullName;
+#endif /* OPENSSL_EXTRA */
 };
 
 #ifndef EXTERNAL_SERIAL_SIZE
@@ -1635,6 +1644,7 @@ struct CYASSL_X509_NAME {
 #endif
 
 struct CYASSL_X509 {
+    int              version;
     CYASSL_X509_NAME issuer;
     CYASSL_X509_NAME subject;
     int              serialSz;
@@ -1648,6 +1658,11 @@ struct CYASSL_X509 {
     int              hwSerialNumSz;
     byte             hwSerialNum[EXTERNAL_SERIAL_SIZE];
 #endif
+    int              notBeforeSz;
+    byte             notBefore[MAX_DATE_SZ];
+    int              notAfterSz;
+    byte             notAfter[MAX_DATE_SZ];
+    buffer           pubKey;
     buffer           derCert;                        /* may need  */
     DNS_entry*       altNames;                       /* alt names list */
     DNS_entry*       altNamesNext;                   /* hint for retrieval */
@@ -2025,6 +2040,8 @@ CYASSL_LOCAL  int GrowInputBuffer(CYASSL* ssl, int size, int usedLength);
 
 CYASSL_LOCAL word32  LowResTimer(void);
 
+CYASSL_LOCAL void InitX509Name(CYASSL_X509_NAME*, int);
+CYASSL_LOCAL void FreeX509Name(CYASSL_X509_NAME* name);
 CYASSL_LOCAL void InitX509(CYASSL_X509*, int);
 CYASSL_LOCAL void FreeX509(CYASSL_X509*);
 #ifndef NO_CERTS

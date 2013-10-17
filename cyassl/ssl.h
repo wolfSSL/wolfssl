@@ -95,6 +95,10 @@ typedef struct CYASSL_dynlock_value  CYASSL_dynlock_value;
 typedef struct CYASSL_EVP_PKEY {
     int type;         /* openssh dereference */
     int save_type;    /* openssh dereference */
+    int pkey_sz;
+    union {
+        char* ptr;
+    } pkey;
 } CYASSL_EVP_PKEY;
 
 typedef struct CYASSL_MD4_CTX {
@@ -108,7 +112,8 @@ typedef struct CYASSL_COMP_METHOD {
 
 
 typedef struct CYASSL_X509_STORE {
-    int cache;          /* stunnel dereference */
+    int                  cache;          /* stunnel dereference */
+    CYASSL_CERT_MANAGER* cm;
 } CYASSL_X509_STORE;
 
 typedef struct CYASSL_ALERT {
@@ -135,6 +140,7 @@ typedef struct CYASSL_X509_OBJECT {
 
 
 typedef struct CYASSL_X509_STORE_CTX {
+    CYASSL_X509_STORE* store;    /* Store full of a CA cert chain */
     CYASSL_X509* current_cert;   /* stunnel dereference */
     char* domain;                /* subject CN domain name */
     void* ex_data;               /* external data, for fortress build */
@@ -407,6 +413,10 @@ CYASSL_API int   CyaSSL_X509_STORE_CTX_get_error_depth(CYASSL_X509_STORE_CTX*);
 CYASSL_API char*       CyaSSL_X509_NAME_oneline(CYASSL_X509_NAME*, char*, int);
 CYASSL_API CYASSL_X509_NAME*  CyaSSL_X509_get_issuer_name(CYASSL_X509*);
 CYASSL_API CYASSL_X509_NAME*  CyaSSL_X509_get_subject_name(CYASSL_X509*);
+CYASSL_API int CyaSSL_X509_NAME_entry_count(CYASSL_X509_NAME*);
+CYASSL_API int CyaSSL_X509_NAME_get_text_by_NID(
+                                            CYASSL_X509_NAME*, int, char*, int);
+CYASSL_API int         CyaSSL_X509_verify_cert(CYASSL_X509_STORE_CTX*);
 CYASSL_API const char* CyaSSL_X509_verify_cert_error_string(long);
 
 CYASSL_API int CyaSSL_X509_LOOKUP_add_dir(CYASSL_X509_LOOKUP*,const char*,long);
@@ -418,10 +428,16 @@ CYASSL_API CYASSL_X509_LOOKUP_METHOD* CyaSSL_X509_LOOKUP_file(void);
 CYASSL_API CYASSL_X509_LOOKUP* CyaSSL_X509_STORE_add_lookup(CYASSL_X509_STORE*,
                                                     CYASSL_X509_LOOKUP_METHOD*);
 CYASSL_API CYASSL_X509_STORE*  CyaSSL_X509_STORE_new(void);
+CYASSL_API void         CyaSSL_X509_STORE_free(CYASSL_X509_STORE*);
+CYASSL_API int          CyaSSL_X509_STORE_add_cert(
+                                              CYASSL_X509_STORE*, CYASSL_X509*);
+CYASSL_API int          CyaSSL_X509_STORE_set_default_paths(CYASSL_X509_STORE*);
 CYASSL_API int          CyaSSL_X509_STORE_get_by_subject(CYASSL_X509_STORE_CTX*,
                                    int, CYASSL_X509_NAME*, CYASSL_X509_OBJECT*);
+CYASSL_API CYASSL_X509_STORE_CTX* CyaSSL_X509_STORE_CTX_new(void);
 CYASSL_API int  CyaSSL_X509_STORE_CTX_init(CYASSL_X509_STORE_CTX*,
                       CYASSL_X509_STORE*, CYASSL_X509*, STACK_OF(CYASSL_X509)*);
+CYASSL_API void CyaSSL_X509_STORE_CTX_free(CYASSL_X509_STORE_CTX*);
 CYASSL_API void CyaSSL_X509_STORE_CTX_cleanup(CYASSL_X509_STORE_CTX*);
 
 CYASSL_API CYASSL_ASN1_TIME* CyaSSL_X509_CRL_get_lastUpdate(CYASSL_X509_CRL*);
@@ -778,13 +794,21 @@ CYASSL_API const unsigned char* CyaSSL_get_sessionID(const CYASSL_SESSION* s);
 CYASSL_API int  CyaSSL_X509_get_serial_number(CYASSL_X509*,unsigned char*,int*);
 CYASSL_API char*  CyaSSL_X509_get_subjectCN(CYASSL_X509*);
 CYASSL_API const unsigned char* CyaSSL_X509_get_der(CYASSL_X509*, int*);
+CYASSL_API const unsigned char* CyaSSL_X509_notBefore(CYASSL_X509*);
+CYASSL_API const unsigned char* CyaSSL_X509_notAfter(CYASSL_X509*);
+CYASSL_API int CyaSSL_X509_version(CYASSL_X509*);
+CYASSL_API 
 
 CYASSL_API int CyaSSL_cmp_peer_cert_to_file(CYASSL*, const char*);
 
 CYASSL_API char* CyaSSL_X509_get_next_altname(CYASSL_X509*);
 
-CYASSL_API
-CYASSL_X509* CyaSSL_X509_load_certificate_file(const char* fname, int format);
+CYASSL_API CYASSL_X509*
+    CyaSSL_X509_d2i(CYASSL_X509** x509, const unsigned char* in, int len);
+CYASSL_API CYASSL_X509*
+    CyaSSL_X509_d2i_fp(CYASSL_X509** x509, FILE* file);
+CYASSL_API CYASSL_X509*
+    CyaSSL_X509_load_certificate_file(const char* fname, int format);
 
 #ifdef CYASSL_SEP
     CYASSL_API unsigned char*

@@ -1250,6 +1250,7 @@ void InitDecodedCert(DecodedCert* cert, byte* source, word32 inSz, void* heap)
     cert->publicKey       = 0;
     cert->pubKeySize      = 0;
     cert->pubKeyStored    = 0;
+    cert->version         = 0;
     cert->signature       = 0;
     cert->subjectCN       = 0;
     cert->subjectCNLen    = 0;
@@ -1290,11 +1291,15 @@ void InitDecodedCert(DecodedCert* cert, byte* source, word32 inSz, void* heap)
     cert->subjectOULen    = 0;
     cert->subjectEmail    = 0;
     cert->subjectEmailLen = 0;
-    cert->beforeDate      = 0;
-    cert->beforeDateLen   = 0;
-    cert->afterDate       = 0;
-    cert->afterDateLen    = 0;
 #endif /* CYASSL_CERT_GEN */
+    cert->beforeDate      = NULL;
+    cert->beforeDateLen   = 0;
+    cert->afterDate       = NULL;
+    cert->afterDateLen    = 0;
+#ifdef OPENSSL_EXTRA
+    XMEMSET(&cert->issuerName, 0, sizeof(DecodedName));
+    XMEMSET(&cert->subjectName, 0, sizeof(DecodedName));
+#endif /* OPENSSL_EXTRA */
 #ifdef CYASSL_SEP
     cert->deviceTypeSz = 0;
     cert->deviceType = NULL;
@@ -1333,12 +1338,18 @@ void FreeDecodedCert(DecodedCert* cert)
     XFREE(cert->hwType, cert->heap, 0);
     XFREE(cert->hwSerialNum, cert->heap, 0);
 #endif /* CYASSL_SEP */
+#ifdef OPENSSL_EXTRA
+    if (cert->issuerName.fullName != NULL)
+        XFREE(cert->issuerName.fullName, NULL, DYNAMIC_TYPE_X509);
+    if (cert->subjectName.fullName != NULL)
+        XFREE(cert->subjectName.fullName, NULL, DYNAMIC_TYPE_X509);
+#endif /* OPENSSL_EXTRA */
 }
 
 
 static int GetCertHeader(DecodedCert* cert)
 {
-    int    ret = 0, version, len;
+    int    ret = 0, len;
     byte   serialTmp[EXTERNAL_SERIAL_SIZE];
     mp_int mpi;
 
@@ -1351,7 +1362,7 @@ static int GetCertHeader(DecodedCert* cert)
         return ASN_PARSE_E;
     cert->sigIndex = len + cert->srcIdx;
 
-    if (GetExplicitVersion(cert->source, &cert->srcIdx, &version) < 0)
+    if (GetExplicitVersion(cert->source, &cert->srcIdx, &cert->version) < 0)
         return ASN_PARSE_E;
 
     if (GetInt(&mpi, cert->source, &cert->srcIdx, cert->maxIdx) < 0) 
@@ -1537,6 +1548,10 @@ static int GetName(DecodedCert* cert, int nameType)
     int    dummy;
     char* full = (nameType == ISSUER) ? cert->issuer : cert->subject;
     word32 idx;
+    #ifdef OPENSSL_EXTRA
+        DecodedName* dName =
+                  (nameType == ISSUER) ? &cert->issuerName : &cert->subjectName;
+    #endif /* OPENSSL_EXTRA */
 
     CYASSL_MSG("Getting Cert Name");
 
@@ -1621,6 +1636,10 @@ static int GetName(DecodedCert* cert, int nameType)
                     idx += 4;
                     copy = TRUE;
                 }
+                #ifdef OPENSSL_EXTRA
+                    dName->cnIdx = cert->srcIdx;
+                    dName->cnLen = strLen;
+                #endif /* OPENSSL_EXTRA */
             }
             else if (id == ASN_SUR_NAME) {
                 if (!tooBig) {
@@ -1628,12 +1647,16 @@ static int GetName(DecodedCert* cert, int nameType)
                     idx += 4;
                     copy = TRUE;
                 }
-#ifdef CYASSL_CERT_GEN
-                if (nameType == SUBJECT) {
-                    cert->subjectSN = (char*)&cert->source[cert->srcIdx];
-                    cert->subjectSNLen = strLen;
-                }
-#endif /* CYASSL_CERT_GEN */
+                #ifdef CYASSL_CERT_GEN
+                    if (nameType == SUBJECT) {
+                        cert->subjectSN = (char*)&cert->source[cert->srcIdx];
+                        cert->subjectSNLen = strLen;
+                    }
+                #endif /* CYASSL_CERT_GEN */
+                #ifdef OPENSSL_EXTRA
+                    dName->snIdx = cert->srcIdx;
+                    dName->snLen = strLen;
+                #endif /* OPENSSL_EXTRA */
             }
             else if (id == ASN_COUNTRY_NAME) {
                 if (!tooBig) {
@@ -1641,12 +1664,16 @@ static int GetName(DecodedCert* cert, int nameType)
                     idx += 3;
                     copy = TRUE;
                 }
-#ifdef CYASSL_CERT_GEN
-                if (nameType == SUBJECT) {
-                    cert->subjectC = (char*)&cert->source[cert->srcIdx];
-                    cert->subjectCLen = strLen;
-                }
-#endif /* CYASSL_CERT_GEN */
+                #ifdef CYASSL_CERT_GEN
+                    if (nameType == SUBJECT) {
+                        cert->subjectC = (char*)&cert->source[cert->srcIdx];
+                        cert->subjectCLen = strLen;
+                    }
+                #endif /* CYASSL_CERT_GEN */
+                #ifdef OPENSSL_EXTRA
+                    dName->cIdx = cert->srcIdx;
+                    dName->cLen = strLen;
+                #endif /* OPENSSL_EXTRA */
             }
             else if (id == ASN_LOCALITY_NAME) {
                 if (!tooBig) {
@@ -1654,12 +1681,16 @@ static int GetName(DecodedCert* cert, int nameType)
                     idx += 3;
                     copy = TRUE;
                 }
-#ifdef CYASSL_CERT_GEN
-                if (nameType == SUBJECT) {
-                    cert->subjectL = (char*)&cert->source[cert->srcIdx];
-                    cert->subjectLLen = strLen;
-                }
-#endif /* CYASSL_CERT_GEN */
+                #ifdef CYASSL_CERT_GEN
+                    if (nameType == SUBJECT) {
+                        cert->subjectL = (char*)&cert->source[cert->srcIdx];
+                        cert->subjectLLen = strLen;
+                    }
+                #endif /* CYASSL_CERT_GEN */
+                #ifdef OPENSSL_EXTRA
+                    dName->lIdx = cert->srcIdx;
+                    dName->lLen = strLen;
+                #endif /* OPENSSL_EXTRA */
             }
             else if (id == ASN_STATE_NAME) {
                 if (!tooBig) {
@@ -1667,12 +1698,16 @@ static int GetName(DecodedCert* cert, int nameType)
                     idx += 4;
                     copy = TRUE;
                 }
-#ifdef CYASSL_CERT_GEN
-                if (nameType == SUBJECT) {
-                    cert->subjectST = (char*)&cert->source[cert->srcIdx];
-                    cert->subjectSTLen = strLen;
-                }
-#endif /* CYASSL_CERT_GEN */
+                #ifdef CYASSL_CERT_GEN
+                    if (nameType == SUBJECT) {
+                        cert->subjectST = (char*)&cert->source[cert->srcIdx];
+                        cert->subjectSTLen = strLen;
+                    }
+                #endif /* CYASSL_CERT_GEN */
+                #ifdef OPENSSL_EXTRA
+                    dName->stIdx = cert->srcIdx;
+                    dName->stLen = strLen;
+                #endif /* OPENSSL_EXTRA */
             }
             else if (id == ASN_ORG_NAME) {
                 if (!tooBig) {
@@ -1680,12 +1715,16 @@ static int GetName(DecodedCert* cert, int nameType)
                     idx += 3;
                     copy = TRUE;
                 }
-#ifdef CYASSL_CERT_GEN
-                if (nameType == SUBJECT) {
-                    cert->subjectO = (char*)&cert->source[cert->srcIdx];
-                    cert->subjectOLen = strLen;
-                }
-#endif /* CYASSL_CERT_GEN */
+                #ifdef CYASSL_CERT_GEN
+                    if (nameType == SUBJECT) {
+                        cert->subjectO = (char*)&cert->source[cert->srcIdx];
+                        cert->subjectOLen = strLen;
+                    }
+                #endif /* CYASSL_CERT_GEN */
+                #ifdef OPENSSL_EXTRA
+                    dName->oIdx = cert->srcIdx;
+                    dName->oLen = strLen;
+                #endif /* OPENSSL_EXTRA */
             }
             else if (id == ASN_ORGUNIT_NAME) {
                 if (!tooBig) {
@@ -1693,12 +1732,16 @@ static int GetName(DecodedCert* cert, int nameType)
                     idx += 4;
                     copy = TRUE;
                 }
-#ifdef CYASSL_CERT_GEN
-                if (nameType == SUBJECT) {
-                    cert->subjectOU = (char*)&cert->source[cert->srcIdx];
-                    cert->subjectOULen = strLen;
-                }
-#endif /* CYASSL_CERT_GEN */
+                #ifdef CYASSL_CERT_GEN
+                    if (nameType == SUBJECT) {
+                        cert->subjectOU = (char*)&cert->source[cert->srcIdx];
+                        cert->subjectOULen = strLen;
+                    }
+                #endif /* CYASSL_CERT_GEN */
+                #ifdef OPENSSL_EXTRA
+                    dName->ouIdx = cert->srcIdx;
+                    dName->ouLen = strLen;
+                #endif /* OPENSSL_EXTRA */
             }
             else if (id == ASN_SERIAL_NUMBER) {
                 if (!tooBig) {
@@ -1706,6 +1749,10 @@ static int GetName(DecodedCert* cert, int nameType)
                    idx += 14;
                    copy = TRUE;
                 }
+                #ifdef OPENSSL_EXTRA
+                    dName->snIdx = cert->srcIdx;
+                    dName->snLen = strLen;
+                #endif /* OPENSSL_EXTRA */
             }
 
             if (copy && !tooBig) {
@@ -1747,12 +1794,16 @@ static int GetName(DecodedCert* cert, int nameType)
                     idx += 14;
                 }
 
-#ifdef CYASSL_CERT_GEN
-                if (nameType == SUBJECT) {
-                    cert->subjectEmail = (char*)&cert->source[cert->srcIdx];
-                    cert->subjectEmailLen = adv;
-                }
-#endif /* CYASSL_CERT_GEN */
+                #ifdef CYASSL_CERT_GEN
+                    if (nameType == SUBJECT) {
+                        cert->subjectEmail = (char*)&cert->source[cert->srcIdx];
+                        cert->subjectEmailLen = adv;
+                    }
+                #endif /* CYASSL_CERT_GEN */
+                #ifdef OPENSSL_EXTRA
+                    dName->emailIdx = cert->srcIdx;
+                    dName->emailLen = adv;
+                #endif /* OPENSSL_EXTRA */
 
                 if (!tooBig) {
                     XMEMCPY(&full[idx], &cert->source[cert->srcIdx], adv);
@@ -1772,12 +1823,141 @@ static int GetName(DecodedCert* cert, int nameType)
                     XMEMCPY(&full[idx], &cert->source[cert->srcIdx], adv);
                     idx += adv;
                 }
+                #ifdef OPENSSL_EXTRA
+                    dName->uidIdx = cert->srcIdx;
+                    dName->uidLen = adv;
+                #endif /* OPENSSL_EXTRA */
             }
 
             cert->srcIdx += adv;
         }
     }
     full[idx++] = 0;
+
+    #ifdef OPENSSL_EXTRA
+    {
+        int totalLen = 0;
+
+        if (dName->cnLen != 0)
+            totalLen += dName->cnLen + 4;
+        if (dName->snLen != 0)
+            totalLen += dName->snLen + 4;
+        if (dName->cLen != 0)
+            totalLen += dName->cLen + 3;
+        if (dName->lLen != 0)
+            totalLen += dName->lLen + 3;
+        if (dName->stLen != 0)
+            totalLen += dName->stLen + 4;
+        if (dName->oLen != 0)
+            totalLen += dName->oLen + 3;
+        if (dName->ouLen != 0)
+            totalLen += dName->ouLen + 4;
+        if (dName->emailLen != 0)
+            totalLen += dName->emailLen + 14;
+        if (dName->uidLen != 0)
+            totalLen += dName->uidLen + 5;
+        if (dName->serialLen != 0)
+            totalLen += dName->serialLen + 14;
+
+        dName->fullName = (char*)XMALLOC(totalLen + 1, NULL, DYNAMIC_TYPE_X509);
+        if (dName->fullName != NULL) {
+            idx = 0;
+
+            if (dName->cnLen != 0) {
+                dName->entryCount++;
+                XMEMCPY(&dName->fullName[idx], "/CN=", 4);
+                idx += 4;
+                XMEMCPY(&dName->fullName[idx],
+                                     &cert->source[dName->cnIdx], dName->cnLen);
+                dName->cnIdx = idx;
+                idx += dName->cnLen;
+            }
+            if (dName->snLen != 0) {
+                dName->entryCount++;
+                XMEMCPY(&dName->fullName[idx], "/SN=", 4);
+                idx += 4;
+                XMEMCPY(&dName->fullName[idx],
+                                     &cert->source[dName->snIdx], dName->snLen);
+                dName->snIdx = idx;
+                idx += dName->snLen;
+            }
+            if (dName->cLen != 0) {
+                dName->entryCount++;
+                XMEMCPY(&dName->fullName[idx], "/C=", 3);
+                idx += 3;
+                XMEMCPY(&dName->fullName[idx],
+                                       &cert->source[dName->cIdx], dName->cLen);
+                dName->cIdx = idx;
+                idx += dName->cLen;
+            }
+            if (dName->lLen != 0) {
+                dName->entryCount++;
+                XMEMCPY(&dName->fullName[idx], "/L=", 3);
+                idx += 3;
+                XMEMCPY(&dName->fullName[idx],
+                                       &cert->source[dName->lIdx], dName->lLen);
+                dName->lIdx = idx;
+                idx += dName->lLen;
+            }
+            if (dName->stLen != 0) {
+                dName->entryCount++;
+                XMEMCPY(&dName->fullName[idx], "/ST=", 4);
+                idx += 4;
+                XMEMCPY(&dName->fullName[idx],
+                                     &cert->source[dName->stIdx], dName->stLen);
+                dName->stIdx = idx;
+                idx += dName->stLen;
+            }
+            if (dName->oLen != 0) {
+                dName->entryCount++;
+                XMEMCPY(&dName->fullName[idx], "/O=", 3);
+                idx += 3;
+                XMEMCPY(&dName->fullName[idx],
+                                       &cert->source[dName->oIdx], dName->oLen);
+                dName->oIdx = idx;
+                idx += dName->oLen;
+            }
+            if (dName->ouLen != 0) {
+                dName->entryCount++;
+                XMEMCPY(&dName->fullName[idx], "/OU=", 4);
+                idx += 4;
+                XMEMCPY(&dName->fullName[idx],
+                                     &cert->source[dName->ouIdx], dName->ouLen);
+                dName->ouIdx = idx;
+                idx += dName->ouLen;
+            }
+            if (dName->emailLen != 0) {
+                dName->entryCount++;
+                XMEMCPY(&dName->fullName[idx], "/emailAddress=", 14);
+                idx += 14;
+                XMEMCPY(&dName->fullName[idx],
+                               &cert->source[dName->emailIdx], dName->emailLen);
+                dName->emailIdx = idx;
+                idx += dName->emailLen;
+            }
+            if (dName->uidLen != 0) {
+                dName->entryCount++;
+                XMEMCPY(&dName->fullName[idx], "/UID=", 5);
+                idx += 5;
+                XMEMCPY(&dName->fullName[idx],
+                                   &cert->source[dName->uidIdx], dName->uidLen);
+                dName->uidIdx = idx;
+                idx += dName->uidLen;
+            }
+            if (dName->serialLen != 0) {
+                dName->entryCount++;
+                XMEMCPY(&dName->fullName[idx], "/serialNumber=", 14);
+                idx += 14;
+                XMEMCPY(&dName->fullName[idx],
+                             &cert->source[dName->serialIdx], dName->serialLen);
+                dName->serialIdx = idx;
+                idx += dName->serialLen;
+            }
+            dName->fullName[idx] = '\0';
+            dName->fullNameLen = totalLen;
+        }
+    }
+    #endif /* OPENSSL_EXTRA */
 
     return 0;
 }
@@ -1878,15 +2058,13 @@ static int GetDate(DecodedCert* cert, int dateType)
     int    length;
     byte   date[MAX_DATE_SIZE];
     byte   b;
-
-#ifdef CYASSL_CERT_GEN
     word32 startIdx = 0;
+
     if (dateType == BEFORE)
         cert->beforeDate = &cert->source[cert->srcIdx];
     else
         cert->afterDate = &cert->source[cert->srcIdx];
     startIdx = cert->srcIdx;
-#endif
 
     b = cert->source[cert->srcIdx++];
     if (b != ASN_UTC_TIME && b != ASN_GENERALIZED_TIME)
@@ -1901,12 +2079,10 @@ static int GetDate(DecodedCert* cert, int dateType)
     XMEMCPY(date, &cert->source[cert->srcIdx], length);
     cert->srcIdx += length;
 
-#ifdef CYASSL_CERT_GEN
     if (dateType == BEFORE)
         cert->beforeDateLen = cert->srcIdx - startIdx;
     else
         cert->afterDateLen  = cert->srcIdx - startIdx;
-#endif
 
     if (!XVALIDATE_DATE(date, b, dateType)) {
         if (dateType == BEFORE)

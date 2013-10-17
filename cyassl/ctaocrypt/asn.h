@@ -223,7 +223,36 @@ struct DNS_entry {
     char*      name;   /* actual DNS name */
 };
 
+
+struct DecodedName {
+    char*   fullName;
+    int     fullNameLen;
+    int     entryCount;
+    int     cnIdx;
+    int     cnLen;
+    int     snIdx;
+    int     snLen;
+    int     cIdx;
+    int     cLen;
+    int     lIdx;
+    int     lLen;
+    int     stIdx;
+    int     stLen;
+    int     oIdx;
+    int     oLen;
+    int     ouIdx;
+    int     ouLen;
+    int     emailIdx;
+    int     emailLen;
+    int     uidIdx;
+    int     uidLen;
+    int     serialIdx;
+    int     serialLen;
+};
+
+
 typedef struct DecodedCert DecodedCert;
+typedef struct DecodedName DecodedName;
 typedef struct Signer      Signer;
 
 
@@ -236,6 +265,7 @@ struct DecodedCert {
     word32  sigLength;               /* length of signature              */
     word32  signatureOID;            /* sum of algorithm object id       */
     word32  keyOID;                  /* sum of key algo  object id       */
+    int     version;                 /* cert version, 1 or 3             */
     DNS_entry* altNames;             /* alt names list of dns entries    */
     byte    subjectHash[SHA_SIZE];   /* hash of all Names                */
     byte    issuerHash[SHA_SIZE];    /* hash of all Names                */
@@ -267,7 +297,11 @@ struct DecodedCert {
     byte    extAuthKeyId[SHA_SIZE];  /* Authority Key ID                 */
     byte    extAuthKeyIdSet;         /* Set when the AKID was read from cert */
     byte    isCA;                    /* CA basic constraint true */
-#ifdef CYASSL_CERT_GEN
+    byte*   beforeDate;
+    int     beforeDateLen;
+    byte*   afterDate;
+    int     afterDateLen;
+#if defined(CYASSL_CERT_GEN)
     /* easy access to subject info for other sign */
     char*   subjectSN;
     int     subjectSNLen;
@@ -283,11 +317,11 @@ struct DecodedCert {
     int     subjectOULen;
     char*   subjectEmail;
     int     subjectEmailLen;
-    byte*   beforeDate;
-    int     beforeDateLen;
-    byte*   afterDate;
-    int     afterDateLen;
 #endif /* CYASSL_CERT_GEN */
+#ifdef OPENSSL_EXTRA
+    DecodedName issuerName;
+    DecodedName subjectName;
+#endif /* OPENSSL_EXTRA */
 #ifdef CYASSL_SEP
     int     deviceTypeSz;
     byte*   deviceType;
@@ -297,6 +331,7 @@ struct DecodedCert {
     byte*   hwSerialNum;
 #endif /* CYASSL_SEP */
 };
+
 
 #ifdef SHA_DIGEST_SIZE
     #define SIGNER_DIGEST_SIZE SHA_DIGEST_SIZE
