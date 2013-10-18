@@ -198,12 +198,14 @@ enum {
     #endif
 #endif
 
-#if defined(HAVE_ECC) || defined(HAVE_OCSP)
-    #ifndef CTYPE_USER
-        #include <ctype.h>
+#ifndef CTYPE_USER
+    #include <ctype.h>
+    #if defined(HAVE_ECC) || defined(HAVE_OCSP)
         #define XTOUPPER(c)     toupper((c))
         #define XISALPHA(c)     isalpha((c))
     #endif
+    /* needed by CyaSSL_check_domain_name() */
+    #define XTOLOWER(c)      tolower((c))
 #endif
 
 
