@@ -7530,6 +7530,12 @@ CYASSL_X509* CyaSSL_X509_load_certificate_file(const char* fname, int format)
                     return "TLS_RSA_WITH_AES_128_CBC_SHA256";
                 case TLS_RSA_WITH_AES_256_CBC_SHA256 :
                     return "TLS_RSA_WITH_AES_256_CBC_SHA256";
+        #ifdef HAVE_BLAKE2 
+                case TLS_RSA_WITH_AES_128_CBC_B2B256:
+                    return "TLS_RSA_WITH_AES_128_CBC_B2B256";
+                case TLS_RSA_WITH_AES_256_CBC_B2B256:
+                    return "TLS_RSA_WITH_AES_256_CBC_B2B256";
+        #endif
     #ifndef NO_SHA
                 case TLS_RSA_WITH_NULL_SHA :
                     return "TLS_RSA_WITH_NULL_SHA";

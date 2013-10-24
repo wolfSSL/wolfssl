@@ -192,6 +192,10 @@ void c32to24(word32 in, word24 out);
         #define BUILD_TLS_RSA_WITH_AES_128_CCM_8
         #define BUILD_TLS_RSA_WITH_AES_256_CCM_8
     #endif
+    #if defined(HAVE_BLAKE2)
+        #define BUILD_TLS_RSA_WITH_AES_128_CBC_B2B256
+        #define BUILD_TLS_RSA_WITH_AES_256_CBC_B2B256
+    #endif
 #endif
 
 #if defined(HAVE_CAMELLIA) && !defined(NO_TLS)
@@ -466,10 +470,15 @@ enum {
     TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA384 = 0x26,
 
     /* CyaSSL extension - eSTREAM */
-    TLS_RSA_WITH_HC_128_CBC_B2B256    = 0xFA,
     TLS_RSA_WITH_HC_128_CBC_MD5       = 0xFB,
     TLS_RSA_WITH_HC_128_CBC_SHA       = 0xFC,
     TLS_RSA_WITH_RABBIT_CBC_SHA       = 0xFD,
+
+    /* CyaSSL extension - Blake2b 256 */
+    TLS_RSA_WITH_AES_128_CBC_B2B256   = 0xF8,
+    TLS_RSA_WITH_AES_256_CBC_B2B256   = 0xF9,
+    TLS_RSA_WITH_HC_128_CBC_B2B256    = 0xFA,   /* eSTREAM too */
+
 
     /* CyaSSL extension - NTRU */
     TLS_NTRU_RSA_WITH_RC4_128_SHA      = 0xe5,

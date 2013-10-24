@@ -1112,6 +1112,20 @@ void InitSuites(Suites* suites, ProtocolVersion pv, byte haveRSA, byte havePSK,
     }
 #endif
 
+#ifdef BUILD_TLS_RSA_WITH_AES_128_CBC_B2B256
+    if (tls && haveRSA) {
+        suites->suites[idx++] = 0; 
+        suites->suites[idx++] = TLS_RSA_WITH_AES_128_CBC_B2B256;
+    }
+#endif
+
+#ifdef BUILD_TLS_RSA_WITH_AES_256_CBC_B2B256
+    if (tls && haveRSA) {
+        suites->suites[idx++] = 0; 
+        suites->suites[idx++] = TLS_RSA_WITH_AES_256_CBC_B2B256;
+    }
+#endif
+
 #ifdef BUILD_TLS_RSA_WITH_RABBIT_CBC_SHA
     if (tls && haveRSA) {
         suites->suites[idx++] = 0; 
@@ -6153,6 +6167,14 @@ const char* const cipher_names[] =
     "HC128-B2B256",
 #endif
 
+#ifdef BUILD_TLS_RSA_WITH_AES_128_CBC_B2B256
+    "AES128-B2B256",
+#endif
+
+#ifdef BUILD_TLS_RSA_WITH_AES_256_CBC_B2B256
+    "AES256-B2B256",
+#endif
+
 #ifdef BUILD_TLS_RSA_WITH_RABBIT_CBC_SHA
     "RABBIT-SHA",
 #endif
@@ -6463,6 +6485,14 @@ int cipher_name_idx[] =
 
 #ifdef BUILD_TLS_RSA_WITH_HC_128_CBC_B2B256
     TLS_RSA_WITH_HC_128_CBC_B2B256,
+#endif
+
+#ifdef BUILD_TLS_RSA_WITH_AES_128_CBC_B2B256
+    TLS_RSA_WITH_AES_128_CBC_B2B256,
+#endif
+
+#ifdef BUILD_TLS_RSA_WITH_AES_256_CBC_B2B256
+    TLS_RSA_WITH_AES_256_CBC_B2B256,
 #endif
 
 #ifdef BUILD_TLS_RSA_WITH_RABBIT_CBC_SHA
@@ -9321,6 +9351,12 @@ static void PickHashSigAlgo(CYASSL* ssl,
             break;
 
         case TLS_RSA_WITH_HC_128_CBC_B2B256:
+            if (requirement == REQUIRES_RSA)
+                return 1;
+            break;
+
+        case TLS_RSA_WITH_AES_128_CBC_B2B256:
+        case TLS_RSA_WITH_AES_256_CBC_B2B256:
             if (requirement == REQUIRES_RSA)
                 return 1;
             break;
