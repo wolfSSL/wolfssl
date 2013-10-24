@@ -255,6 +255,9 @@ void c32to24(word32 in, word24 out);
   #if !defined(NO_SHA)
     #define BUILD_TLS_RSA_WITH_HC_128_CBC_SHA
   #endif
+  #if defined(HAVE_BLAKE2)
+    #define BUILD_TLS_RSA_WITH_HC_128_CBC_B2B256
+  #endif
 #endif
 
 #if !defined(NO_RABBIT) && !defined(NO_TLS) && !defined(NO_RSA)
@@ -383,7 +386,8 @@ void c32to24(word32 in, word24 out);
 #endif
 
 #if defined(BUILD_TLS_RSA_WITH_HC_128_CBC_SHA) || \
-    defined(BUILD_TLS_RSA_WITH_HC_128_CBC_MD5)
+    defined(BUILD_TLS_RSA_WITH_HC_128_CBC_MD5) || \
+    defined(BUILD_TLS_RSA_WITH_HC_128_CBC_B2B256)
     #define BUILD_HC128
 #endif
 
@@ -462,6 +466,7 @@ enum {
     TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA384 = 0x26,
 
     /* CyaSSL extension - eSTREAM */
+    TLS_RSA_WITH_HC_128_CBC_B2B256    = 0xFA,
     TLS_RSA_WITH_HC_128_CBC_MD5       = 0xFB,
     TLS_RSA_WITH_HC_128_CBC_SHA       = 0xFC,
     TLS_RSA_WITH_RABBIT_CBC_SHA       = 0xFD,
@@ -1282,7 +1287,8 @@ enum MACAlgorithm {
     sha256_mac,
     sha384_mac,
     sha512_mac,
-    rmd_mac
+    rmd_mac,
+    blake2b_mac
 };
 
 

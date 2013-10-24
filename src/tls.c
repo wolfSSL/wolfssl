@@ -455,6 +455,13 @@ int CyaSSL_GetHmacType(CYASSL* ssl)
         }
         break;
         #endif
+        #ifdef HAVE_BLAKE2 
+        case blake2b_mac:
+        {
+            return BLAKE2B_ID; 
+        }
+        break;
+        #endif
         default:
         {
             return SSL_FATAL_ERROR;

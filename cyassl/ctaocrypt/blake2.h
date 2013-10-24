@@ -33,7 +33,8 @@
 
 /* in bytes, variable digest size up to 512 bits (64 bytes) */
 enum {
-    BLAKE2B_ID = 7    /* hash type unique */
+    BLAKE2B_ID  = 7,   /* hash type unique */
+    BLAKE2B_256 = 32   /* 256 bit type, SSL default */
 };
 
 

@@ -134,6 +134,7 @@ int  hmac_sha_test(void);
 int  hmac_sha256_test(void);
 int  hmac_sha384_test(void);
 int  hmac_sha512_test(void);
+int  hmac_blake2b_test(void);
 int  arc4_test(void);
 int  hc128_test(void);
 int  rabbit_test(void);
@@ -299,6 +300,13 @@ void ctaocrypt_test(void* args)
             err_sys("HMAC-SHA512 test failed!\n", ret);
         else
             printf( "HMAC-SHA512 test passed!\n");
+    #endif
+
+    #ifdef HAVE_BLAKE2 
+        if ( (ret = hmac_blake2b_test()) != 0) 
+            err_sys("HMAC-BLAKE2 test failed!\n", ret);
+        else
+            printf( "HMAC-BLAKE2 test passed!\n");
     #endif
 
 #endif
@@ -1212,6 +1220,88 @@ int hmac_sha256_test(void)
         HmacFinal(&hmac, hash);
 
         if (memcmp(hash, test_hmac[i].output, SHA256_DIGEST_SIZE) != 0)
+            return -20 - i;
+#ifdef HAVE_CAVIUM
+        HmacFreeCavium(&hmac);
+#endif
+    }
+
+    return 0;
+}
+#endif
+
+
+#if !defined(NO_HMAC) && defined(HAVE_BLAKE2)
+int hmac_blake2b_test(void)
+{
+    Hmac hmac;
+    byte hash[BLAKE2B_256];
+
+    const char* keys[]=
+    {
+        "\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b"
+                                                                "\x0b\x0b\x0b",
+        "Jefe",
+        "\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA"
+                                                                "\xAA\xAA\xAA"
+    };
+
+    testVector a, b, c;
+    testVector test_hmac[3];
+
+    int times = sizeof(test_hmac) / sizeof(testVector), i;
+
+    a.input  = "Hi There";
+    a.output = "\x72\x93\x0d\xdd\xf5\xf7\xe1\x78\x38\x07\x44\x18\x0b\x3f\x51"
+               "\x37\x25\xb5\x82\xc2\x08\x83\x2f\x1c\x99\xfd\x03\xa0\x16\x75"
+               "\xac\xfd";
+    a.inLen  = strlen(a.input);
+    a.outLen = BLAKE2B_256;
+
+    b.input  = "what do ya want for nothing?";
+    b.output = "\x3d\x20\x50\x71\x05\xc0\x8c\x0c\x38\x44\x1e\xf7\xf9\xd1\x67"
+               "\x21\xff\x64\xf5\x94\x00\xcf\xf9\x75\x41\xda\x88\x61\x9d\x7c"
+               "\xda\x2b";
+    b.inLen  = strlen(b.input);
+    b.outLen = BLAKE2B_256;
+
+    c.input  = "\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD"
+               "\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD"
+               "\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD"
+               "\xDD\xDD\xDD\xDD\xDD\xDD";
+    c.output = "\xda\xfe\x2a\x24\xfc\xe7\xea\x36\x34\xbe\x41\x92\xc7\x11\xa7"
+               "\x00\xae\x53\x9c\x11\x9c\x80\x74\x55\x22\x25\x4a\xb9\x55\xd3"
+               "\x0f\x87";
+    c.inLen  = strlen(c.input);
+    c.outLen = BLAKE2B_256;
+
+    test_hmac[0] = a;
+    test_hmac[1] = b;
+    test_hmac[2] = c;
+
+    for (i = 0; i < times; ++i) {
+#ifdef HAVE_CAVIUM
+        if (i == 1)
+            continue; /* driver can't handle keys <= bytes */
+        if (HmacInitCavium(&hmac, CAVIUM_DEV_ID) != 0)
+            return -20011; 
+#endif
+        HmacSetKey(&hmac, BLAKE2B_ID, (byte*)keys[i], (word32)strlen(keys[i]));
+        HmacUpdate(&hmac, (byte*)test_hmac[i].input,
+                   (word32)test_hmac[i].inLen);
+        HmacFinal(&hmac, hash);
+
+        {
+            int z;
+            for (z = 0; z < 32; z ++) {
+                printf("%02x ", hash[z]);
+                if ( (z%16) == 15)
+                    printf("\n");
+            }
+            printf("\n");
+        }
+
+        if (memcmp(hash, test_hmac[i].output, BLAKE2B_256) != 0)
             return -20 - i;
 #ifdef HAVE_CAVIUM
         HmacFreeCavium(&hmac);

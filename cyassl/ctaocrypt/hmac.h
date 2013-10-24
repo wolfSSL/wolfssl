@@ -43,6 +43,10 @@
     #include <cyassl/ctaocrypt/sha512.h>
 #endif
 
+#ifdef HAVE_BLAKE2 
+    #include <cyassl/ctaocrypt/blake2.h>
+#endif
+
 #ifdef HAVE_CAVIUM
     #include <cyassl/ctaocrypt/logging.h>
     #include "cavium_common.h"
@@ -75,11 +79,17 @@ enum {
 #ifndef CYASSL_SHA384
     SHA384  = 5,
 #endif
+#ifndef HAVE_BLAKE2 
+    BLAKE2B_ID = 7,
+#endif
 
 /* Select the largest available hash for the buffer size. */
 #if defined(CYASSL_SHA512)
     MAX_DIGEST_SIZE = SHA512_DIGEST_SIZE,
     HMAC_BLOCK_SIZE = SHA512_BLOCK_SIZE
+#elif defined(HAVE_BLAKE2)
+    MAX_DIGEST_SIZE = BLAKE2B_OUTBYTES,
+    HMAC_BLOCK_SIZE = BLAKE2B_BLOCKBYTES,
 #elif defined(CYASSL_SHA384)
     MAX_DIGEST_SIZE = SHA384_DIGEST_SIZE,
     HMAC_BLOCK_SIZE = SHA384_BLOCK_SIZE
@@ -114,6 +124,9 @@ typedef union {
     #endif
     #ifdef CYASSL_SHA512
         Sha512 sha512;
+    #endif
+    #ifdef HAVE_BLAKE2 
+        Blake2b blake2b;
     #endif
 } Hash;
 

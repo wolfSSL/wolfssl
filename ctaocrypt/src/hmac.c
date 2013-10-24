@@ -43,8 +43,8 @@ static int InitHmac(Hmac* hmac, int type)
     hmac->innerHashKeyed = 0;
     hmac->macType = (byte)type;
 
-    if (!(type == MD5 || type == SHA || type == SHA256 || type == SHA384
-                      || type == SHA512))
+    if (!(type == MD5 || type == SHA    || type == SHA256 || type == SHA384
+                      || type == SHA512 || type == BLAKE2B_ID))
         return BAD_FUNC_ARG;
 
     switch (type) {
@@ -75,6 +75,12 @@ static int InitHmac(Hmac* hmac, int type)
         #ifdef CYASSL_SHA512
         case SHA512:
             InitSha512(&hmac->hash.sha512);
+        break;
+        #endif
+        
+        #ifdef HAVE_BLAKE2 
+        case BLAKE2B_ID:
+            InitBlake2b(&hmac->hash.blake2b, BLAKE2B_256);
         break;
         #endif
         
@@ -180,6 +186,22 @@ void HmacSetKey(Hmac* hmac, int type, const byte* key, word32 length)
         break;
         #endif
 
+        #ifdef HAVE_BLAKE2 
+        case BLAKE2B_ID:
+        {
+            hmac_block_size = BLAKE2B_BLOCKBYTES;
+            if (length <= BLAKE2B_BLOCKBYTES) {
+                XMEMCPY(ip, key, length);
+            }
+            else {
+                Blake2bUpdate(&hmac->hash.blake2b, key, length);
+                Blake2bFinal(&hmac->hash.blake2b, ip, BLAKE2B_256);
+                length = BLAKE2B_256;
+            }
+        }
+        break;
+        #endif
+
         default:
         break;
     }
@@ -229,6 +251,13 @@ static void HmacKeyInnerHash(Hmac* hmac)
         break;
         #endif
 
+        #ifdef HAVE_BLAKE2 
+        case BLAKE2B_ID:
+            Blake2bUpdate(&hmac->hash.blake2b,
+                                         (byte*) hmac->ipad,BLAKE2B_BLOCKBYTES);
+        break;
+        #endif
+
         default:
         break;
     }
@@ -275,6 +304,12 @@ void HmacUpdate(Hmac* hmac, const byte* msg, word32 length)
         #ifdef CYASSL_SHA512
         case SHA512:
             Sha512Update(&hmac->hash.sha512, msg, length);
+        break;
+        #endif
+
+        #ifdef HAVE_BLAKE2 
+        case BLAKE2B_ID:
+            Blake2bUpdate(&hmac->hash.blake2b, msg, length);
         break;
         #endif
 
@@ -365,6 +400,20 @@ void HmacFinal(Hmac* hmac, byte* hash)
                                  (byte*) hmac->innerHash, SHA512_DIGEST_SIZE);
 
             Sha512Final(&hmac->hash.sha512, hash);
+        }
+        break;
+        #endif
+
+        #ifdef HAVE_BLAKE2 
+        case BLAKE2B_ID:
+        {
+            Blake2bFinal(&hmac->hash.blake2b, (byte*) hmac->innerHash,
+                         BLAKE2B_256);
+            Blake2bUpdate(&hmac->hash.blake2b,
+                                 (byte*) hmac->opad, BLAKE2B_BLOCKBYTES);
+            Blake2bUpdate(&hmac->hash.blake2b,
+                                 (byte*) hmac->innerHash, BLAKE2B_256);
+            Blake2bFinal(&hmac->hash.blake2b, hash, BLAKE2B_256);
         }
         break;
         #endif
