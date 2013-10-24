@@ -1173,8 +1173,8 @@ int SetCipherSpecs(CYASSL* ssl)
             break;
 #endif
 
-#ifdef BUILD_TLS_RSA_WITH_RABBIT_CBC_SHA
-    case TLS_RSA_WITH_RABBIT_CBC_SHA :
+#ifdef BUILD_TLS_RSA_WITH_RABBIT_SHA
+    case TLS_RSA_WITH_RABBIT_SHA :
         ssl->specs.bulk_cipher_algorithm = cyassl_rabbit;
         ssl->specs.cipher_type           = stream;
         ssl->specs.mac_algorithm         = sha_mac;

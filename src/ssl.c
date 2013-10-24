@@ -7594,8 +7594,8 @@ CYASSL_X509* CyaSSL_X509_load_certificate_file(const char* fname, int format)
     #endif /* NO_HC128 */
     #ifndef NO_SHA
         #ifndef NO_RABBIT
-                case TLS_RSA_WITH_RABBIT_CBC_SHA :
-                    return "TLS_RSA_WITH_RABBIT_CBC_SHA";
+                case TLS_RSA_WITH_RABBIT_SHA :
+                    return "TLS_RSA_WITH_RABBIT_SHA";
         #endif
         #ifdef HAVE_NTRU
             #ifndef NO_RC4

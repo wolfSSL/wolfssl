@@ -266,7 +266,7 @@ void c32to24(word32 in, word24 out);
 
 #if !defined(NO_RABBIT) && !defined(NO_TLS) && !defined(NO_RSA)
   #if !defined(NO_SHA)
-    #define BUILD_TLS_RSA_WITH_RABBIT_CBC_SHA
+    #define BUILD_TLS_RSA_WITH_RABBIT_SHA
   #endif
 #endif
 
@@ -395,7 +395,7 @@ void c32to24(word32 in, word24 out);
     #define BUILD_HC128
 #endif
 
-#if defined(BUILD_TLS_RSA_WITH_RABBIT_CBC_SHA)
+#if defined(BUILD_TLS_RSA_WITH_RABBIT_SHA)
     #define BUILD_RABBIT
 #endif
 
@@ -472,7 +472,7 @@ enum {
     /* CyaSSL extension - eSTREAM */
     TLS_RSA_WITH_HC_128_CBC_MD5       = 0xFB,
     TLS_RSA_WITH_HC_128_CBC_SHA       = 0xFC,
-    TLS_RSA_WITH_RABBIT_CBC_SHA       = 0xFD,
+    TLS_RSA_WITH_RABBIT_SHA           = 0xFD,
 
     /* CyaSSL extension - Blake2b 256 */
     TLS_RSA_WITH_AES_128_CBC_B2B256   = 0xF8,

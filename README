@@ -683,8 +683,8 @@ Release Candidate 2 for CyaSSL 1.0.0 adds bug fixes and adds two new stream
 ciphers along with their respective cipher suites.  CyaSSL adds support for
 HC-128 and RABBIT stream ciphers.  The new suites are:
 
-TLS_RSA_WITH_HC_128_CBC_SHA
-TLS_RSA_WITH_RABBIT_CBC_SHA
+TLS_RSA_WITH_HC_128_SHA
+TLS_RSA_WITH_RABBIT_SHA
 
 And the corresponding cipher names are
 
