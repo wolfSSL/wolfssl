@@ -3818,7 +3818,6 @@ static INLINE int Encrypt(CYASSL* ssl, byte* out, const byte* input, word16 sz)
         #ifdef BUILD_AES
             case cyassl_aes:
                 return AesCbcEncrypt(ssl->encrypt.aes, out, input, sz);
-                break;
         #endif
 
         #ifdef BUILD_AESGCM
@@ -3914,7 +3913,6 @@ static INLINE int Encrypt(CYASSL* ssl, byte* out, const byte* input, word16 sz)
         #ifdef HAVE_HC128
             case cyassl_hc128:
                 return Hc128_Process(ssl->encrypt.hc128, out, input, sz);
-                break;
         #endif
 
         #ifdef BUILD_RABBIT
@@ -3969,7 +3967,6 @@ static INLINE int Decrypt(CYASSL* ssl, byte* plain, const byte* input,
         #ifdef BUILD_AES
             case cyassl_aes:
                 return AesCbcDecrypt(ssl->decrypt.aes, plain, input, sz);
-                break;
         #endif
 
         #ifdef BUILD_AESGCM
@@ -4053,7 +4050,6 @@ static INLINE int Decrypt(CYASSL* ssl, byte* plain, const byte* input,
         #ifdef HAVE_HC128
             case cyassl_hc128:
                 return Hc128_Process(ssl->decrypt.hc128, plain, input, sz);
-                break;
         #endif
 
         #ifdef BUILD_RABBIT
@@ -8316,22 +8312,16 @@ static void PickHashSigAlgo(CYASSL* ssl,
         switch(size) {
             case 20:
                 return secp160r1;
-                break;
             case 24:
                 return secp192r1;
-                break;
             case 28:
                 return secp224r1;
-                break;
             case 32:
                 return secp256r1;
-                break;
             case 48:
                 return secp384r1;
-                break;
             case 66:
                 return secp521r1;
-                break;
             default:
                 return 0;
         }        

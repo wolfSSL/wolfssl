@@ -89,12 +89,12 @@
 #endif /* min */
 
 #ifndef max
-
+#ifdef CYASSL_DTLS
     static INLINE word32 max(word32 a, word32 b)
     {
         return a > b ? a : b;
     }
-
+#endif
 #endif /* min */
 
 
@@ -2095,7 +2095,12 @@ int CyaSSL_CertManagerVerifyBuffer(CYASSL_CERT_MANAGER* cm, const byte* buff,
 #else
     /* stdio, default case */
     #define XFILE      FILE*
-    #define XFOPEN     fopen 
+    #if defined(CYASSL_MDK_ARM)
+        extern FILE * CyaSSL_fopen(const char *name, const char *mode) ;
+        #define XFOPEN     CyaSSL_fopen
+    #else
+        #define XFOPEN     fopen
+    #endif
     #define XFSEEK     fseek
     #define XFTELL     ftell
     #define XREWIND    rewind
@@ -5756,6 +5761,7 @@ int CyaSSL_set_compression(CYASSL* ssl)
     #define CloseSocket(s) closesocket(s)
 #elif defined(CYASSL_MDK_ARM)
     #define CloseSocket(s) closesocket(s)
+    extern int closesocket(int) ;
 #else
     #define CloseSocket(s) close(s)
 #endif
@@ -9889,7 +9895,6 @@ static int initGlobalRNG = 0;
                 case ARC4_TYPE:
                     CYASSL_MSG("returning arc4 state");
                     return (void*)&ctx->cipher.arc4.x;
-                    break;
 
                 default:
                     CYASSL_MSG("bad x state type");
@@ -9910,7 +9915,6 @@ static int initGlobalRNG = 0;
                 case ARC4_TYPE:
                     CYASSL_MSG("returning arc4 state size");
                     return sizeof(Arc4);
-                    break;
 
                 default:
                     CYASSL_MSG("bad x state type");
@@ -10013,7 +10017,6 @@ static int initGlobalRNG = 0;
             case AES_256_CBC_TYPE :
                 CYASSL_MSG("AES CBC");
                 return AES_BLOCK_SIZE;
-                break;
 
 #ifdef CYASSL_AES_COUNTER
             case AES_128_CTR_TYPE :
@@ -10021,28 +10024,23 @@ static int initGlobalRNG = 0;
             case AES_256_CTR_TYPE :
                 CYASSL_MSG("AES CTR");
                 return AES_BLOCK_SIZE;
-                break;
 #endif
 
             case DES_CBC_TYPE :
                 CYASSL_MSG("DES CBC");
                 return DES_BLOCK_SIZE;
-                break;
                 
             case DES_EDE3_CBC_TYPE :
                 CYASSL_MSG("DES EDE3 CBC");
                 return DES_BLOCK_SIZE;
-                break;
 
             case ARC4_TYPE :
                 CYASSL_MSG("ARC4");
                 return 0;
-                break;
 
             case NULL_CIPHER_TYPE :
                 CYASSL_MSG("NULL");
                 return 0;
-                break;
 
             default: {
                 CYASSL_MSG("bad type");
