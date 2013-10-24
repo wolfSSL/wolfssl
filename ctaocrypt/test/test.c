@@ -1291,16 +1291,6 @@ int hmac_blake2b_test(void)
                    (word32)test_hmac[i].inLen);
         HmacFinal(&hmac, hash);
 
-        {
-            int z;
-            for (z = 0; z < 32; z ++) {
-                printf("%02x ", hash[z]);
-                if ( (z%16) == 15)
-                    printf("\n");
-            }
-            printf("\n");
-        }
-
         if (memcmp(hash, test_hmac[i].output, BLAKE2B_256) != 0)
             return -20 - i;
 #ifdef HAVE_CAVIUM
