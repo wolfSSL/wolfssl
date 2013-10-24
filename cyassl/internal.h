@@ -90,7 +90,11 @@
 #elif defined(FREESCALE_MQX)
     /* do nothing */
 #elif defined(CYASSL_MDK_ARM)
-    #include <rtl.h>
+    #if defined(CYASSL_MDK5)
+         #include "cmsis_os.h"
+    #else
+        #include <rtl.h>
+    #endif
 #else
     #ifndef SINGLE_THREADED
         #define CYASSL_PTHREADS

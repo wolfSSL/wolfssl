@@ -179,28 +179,6 @@ mp_count_bits (mp_int * a)
 }
 
 
-int mp_leading_bit (mp_int * a)
-{
-    int bit = 0;
-    mp_int t;
-
-    if (mp_init_copy(&t, a) != MP_OKAY)
-        return 0;
-
-    while (mp_iszero(&t) == 0) {
-#ifndef MP_8BIT
-        bit = (t.dp[0] & 0x80) != 0;
-#else
-        bit = (t.dp[0] | ((t.dp[1] & 0x01) << 7)) & 0x80 != 0;
-#endif
-        if (mp_div_2d (&t, 8, &t, NULL) != MP_OKAY)
-            break;
-    }
-    mp_clear(&t);
-    return bit;
-}
-
-
 /* store in unsigned [big endian] format */
 int mp_to_unsigned_bin (mp_int * a, unsigned char *b)
 {
@@ -3765,7 +3743,7 @@ int mp_sqrmod (mp_int * a, mp_int * b, mp_int * c)
 #endif
 
 
-#if defined(HAVE_ECC) || !defined(NO_PWDBASED) || defined(CYASSL_SNIFFER)
+#if defined(HAVE_ECC) || !defined(NO_PWDBASED)
 
 /* single digit addition */
 int mp_add_d (mp_int* a, mp_digit b, mp_int* c)

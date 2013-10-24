@@ -370,12 +370,13 @@ static INLINE void c16toa(word16 u16, byte* c)
     c[1] =  u16 & 0xff;
 }
 
+#ifdef HAVE_TLS_EXTENSIONS
 /* convert opaque to 16 bit integer */
 static INLINE void ato16(const byte* c, word16* u16)
 {
     *u16 = (c[0] << 8) | (c[1]);
 }
-
+#endif
 
 /* convert 32 bit integer to opaque */
 static INLINE void c32toa(word32 u32, byte* c)
@@ -432,21 +433,19 @@ int CyaSSL_GetHmacType(CYASSL* ssl)
         {
             return MD5;
         }
-        break;
         #endif
         #ifndef NO_SHA256
         case sha256_mac:
         {
             return SHA256;
         }
-        break;
         #endif
         #ifdef CYASSL_SHA384
         case sha384_mac:
         {
             return SHA384;
         }
-        break;
+
         #endif
         #ifndef NO_SHA
         case sha_mac:
@@ -466,7 +465,6 @@ int CyaSSL_GetHmacType(CYASSL* ssl)
         {
             return SSL_FATAL_ERROR;
         }
-        break;
     }
 }
 
