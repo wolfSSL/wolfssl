@@ -1088,8 +1088,8 @@ int SetCipherSpecs(CYASSL* ssl)
         break;
 #endif
 
-#ifdef BUILD_TLS_RSA_WITH_HC_128_CBC_MD5
-    case TLS_RSA_WITH_HC_128_CBC_MD5 :
+#ifdef BUILD_TLS_RSA_WITH_HC_128_MD5
+    case TLS_RSA_WITH_HC_128_MD5 :
         ssl->specs.bulk_cipher_algorithm = cyassl_hc128;
         ssl->specs.cipher_type           = stream;
         ssl->specs.mac_algorithm         = md5_mac;
@@ -1105,8 +1105,8 @@ int SetCipherSpecs(CYASSL* ssl)
         break;
 #endif
             
-#ifdef BUILD_TLS_RSA_WITH_HC_128_CBC_SHA
-        case TLS_RSA_WITH_HC_128_CBC_SHA :
+#ifdef BUILD_TLS_RSA_WITH_HC_128_SHA
+        case TLS_RSA_WITH_HC_128_SHA :
             ssl->specs.bulk_cipher_algorithm = cyassl_hc128;
             ssl->specs.cipher_type           = stream;
             ssl->specs.mac_algorithm         = sha_mac;
@@ -1122,8 +1122,8 @@ int SetCipherSpecs(CYASSL* ssl)
             break;
 #endif
 
-#ifdef BUILD_TLS_RSA_WITH_HC_128_CBC_B2B256
-        case TLS_RSA_WITH_HC_128_CBC_B2B256:
+#ifdef BUILD_TLS_RSA_WITH_HC_128_B2B256
+        case TLS_RSA_WITH_HC_128_B2B256:
             ssl->specs.bulk_cipher_algorithm = cyassl_hc128;
             ssl->specs.cipher_type           = stream;
             ssl->specs.mac_algorithm         = blake2b_mac;

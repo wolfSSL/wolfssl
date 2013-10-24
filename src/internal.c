@@ -1091,24 +1091,24 @@ void InitSuites(Suites* suites, ProtocolVersion pv, byte haveRSA, byte havePSK,
     }
 #endif
 
-#ifdef BUILD_TLS_RSA_WITH_HC_128_CBC_MD5
+#ifdef BUILD_TLS_RSA_WITH_HC_128_MD5
     if (tls && haveRSA) {
         suites->suites[idx++] = 0; 
-        suites->suites[idx++] = TLS_RSA_WITH_HC_128_CBC_MD5;
+        suites->suites[idx++] = TLS_RSA_WITH_HC_128_MD5;
     }
 #endif
     
-#ifdef BUILD_TLS_RSA_WITH_HC_128_CBC_SHA
+#ifdef BUILD_TLS_RSA_WITH_HC_128_SHA
     if (tls && haveRSA) {
         suites->suites[idx++] = 0; 
-        suites->suites[idx++] = TLS_RSA_WITH_HC_128_CBC_SHA;
+        suites->suites[idx++] = TLS_RSA_WITH_HC_128_SHA;
     }
 #endif
 
-#ifdef BUILD_TLS_RSA_WITH_HC_128_CBC_B2B256
+#ifdef BUILD_TLS_RSA_WITH_HC_128_B2B256
     if (tls && haveRSA) {
         suites->suites[idx++] = 0; 
-        suites->suites[idx++] = TLS_RSA_WITH_HC_128_CBC_B2B256;
+        suites->suites[idx++] = TLS_RSA_WITH_HC_128_B2B256;
     }
 #endif
 
@@ -6155,15 +6155,15 @@ const char* const cipher_names[] =
     "PSK-NULL-SHA",
 #endif
 
-#ifdef BUILD_TLS_RSA_WITH_HC_128_CBC_MD5
+#ifdef BUILD_TLS_RSA_WITH_HC_128_MD5
     "HC128-MD5",
 #endif
     
-#ifdef BUILD_TLS_RSA_WITH_HC_128_CBC_SHA
+#ifdef BUILD_TLS_RSA_WITH_HC_128_SHA
     "HC128-SHA",
 #endif
 
-#ifdef BUILD_TLS_RSA_WITH_HC_128_CBC_B2B256
+#ifdef BUILD_TLS_RSA_WITH_HC_128_B2B256
     "HC128-B2B256",
 #endif
 
@@ -6475,16 +6475,16 @@ int cipher_name_idx[] =
     TLS_PSK_WITH_NULL_SHA,
 #endif
 
-#ifdef BUILD_TLS_RSA_WITH_HC_128_CBC_MD5
-    TLS_RSA_WITH_HC_128_CBC_MD5,    
+#ifdef BUILD_TLS_RSA_WITH_HC_128_MD5
+    TLS_RSA_WITH_HC_128_MD5,    
 #endif
 
-#ifdef BUILD_TLS_RSA_WITH_HC_128_CBC_SHA
-    TLS_RSA_WITH_HC_128_CBC_SHA,    
+#ifdef BUILD_TLS_RSA_WITH_HC_128_SHA
+    TLS_RSA_WITH_HC_128_SHA,    
 #endif
 
-#ifdef BUILD_TLS_RSA_WITH_HC_128_CBC_B2B256
-    TLS_RSA_WITH_HC_128_CBC_B2B256,
+#ifdef BUILD_TLS_RSA_WITH_HC_128_B2B256
+    TLS_RSA_WITH_HC_128_B2B256,
 #endif
 
 #ifdef BUILD_TLS_RSA_WITH_AES_128_CBC_B2B256
@@ -9340,17 +9340,17 @@ static void PickHashSigAlgo(CYASSL* ssl,
                 return 1;
             break;
 
-        case TLS_RSA_WITH_HC_128_CBC_MD5 :
+        case TLS_RSA_WITH_HC_128_MD5 :
             if (requirement == REQUIRES_RSA)
                 return 1;
             break;
                 
-        case TLS_RSA_WITH_HC_128_CBC_SHA :
+        case TLS_RSA_WITH_HC_128_SHA :
             if (requirement == REQUIRES_RSA)
                 return 1;
             break;
 
-        case TLS_RSA_WITH_HC_128_CBC_B2B256:
+        case TLS_RSA_WITH_HC_128_B2B256:
             if (requirement == REQUIRES_RSA)
                 return 1;
             break;

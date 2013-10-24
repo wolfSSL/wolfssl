@@ -255,12 +255,12 @@ void c32to24(word32 in, word24 out);
 #endif
 
 #if !defined(NO_HC128) && !defined(NO_RSA) && !defined(NO_TLS)
-    #define BUILD_TLS_RSA_WITH_HC_128_CBC_MD5
+    #define BUILD_TLS_RSA_WITH_HC_128_MD5
   #if !defined(NO_SHA)
-    #define BUILD_TLS_RSA_WITH_HC_128_CBC_SHA
+    #define BUILD_TLS_RSA_WITH_HC_128_SHA
   #endif
   #if defined(HAVE_BLAKE2)
-    #define BUILD_TLS_RSA_WITH_HC_128_CBC_B2B256
+    #define BUILD_TLS_RSA_WITH_HC_128_B2B256
   #endif
 #endif
 
@@ -389,9 +389,9 @@ void c32to24(word32 in, word24 out);
     #define BUILD_AESGCM
 #endif
 
-#if defined(BUILD_TLS_RSA_WITH_HC_128_CBC_SHA) || \
-    defined(BUILD_TLS_RSA_WITH_HC_128_CBC_MD5) || \
-    defined(BUILD_TLS_RSA_WITH_HC_128_CBC_B2B256)
+#if defined(BUILD_TLS_RSA_WITH_HC_128_SHA) || \
+    defined(BUILD_TLS_RSA_WITH_HC_128_MD5) || \
+    defined(BUILD_TLS_RSA_WITH_HC_128_B2B256)
     #define BUILD_HC128
 #endif
 
@@ -470,14 +470,14 @@ enum {
     TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA384 = 0x26,
 
     /* CyaSSL extension - eSTREAM */
-    TLS_RSA_WITH_HC_128_CBC_MD5       = 0xFB,
-    TLS_RSA_WITH_HC_128_CBC_SHA       = 0xFC,
-    TLS_RSA_WITH_RABBIT_SHA           = 0xFD,
+    TLS_RSA_WITH_HC_128_MD5       = 0xFB,
+    TLS_RSA_WITH_HC_128_SHA       = 0xFC,
+    TLS_RSA_WITH_RABBIT_SHA       = 0xFD,
 
     /* CyaSSL extension - Blake2b 256 */
     TLS_RSA_WITH_AES_128_CBC_B2B256   = 0xF8,
     TLS_RSA_WITH_AES_256_CBC_B2B256   = 0xF9,
-    TLS_RSA_WITH_HC_128_CBC_B2B256    = 0xFA,   /* eSTREAM too */
+    TLS_RSA_WITH_HC_128_B2B256        = 0xFA,   /* eSTREAM too */
 
 
     /* CyaSSL extension - NTRU */
