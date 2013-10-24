@@ -51,6 +51,12 @@
     #include "cavium_common.h"
     #include "cavium_ioctl.h"
 #endif
+
+#if defined(CYASSL_MDK_ARM)
+    extern FILE * CyaSSL_fopen(const char *fname, const char *mode) ;
+    #define fopen CyaSSL_fopen
+#endif
+
 #if defined(USE_CERT_BUFFERS_1024) || defined(USE_CERT_BUFFERS_2048)
     /* include test cert and key buffers for use with NO_FILESYSTEM */
     #if defined(CYASSL_MDK_ARM)
@@ -909,7 +915,7 @@ void bench_eccKeyGen(void)
     ecc_key genKey;
     double start, total, each, milliEach;
     int    i;
-    const int genTimes = 100;
+    const int genTimes = 5;
   
     /* 256 bit */ 
     start = current_time(1);
@@ -933,7 +939,7 @@ void bench_eccKeyAgree(void)
     ecc_key genKey, genKey2;
     double start, total, each, milliEach;
     int    i, ret;
-    const int agreeTimes = 100;
+    const int agreeTimes = 5;
     byte   shared[1024];
     byte   sig[1024];
     byte   digest[32];
@@ -1011,12 +1017,12 @@ void bench_eccKeyAgree(void)
 
     double current_time(int reset)
     {
+        (void)reset;
+
         static int init = 0;
         static LARGE_INTEGER freq;
     
         LARGE_INTEGER count;
-
-        (void)reset;
 
         if (!init) {
             QueryPerformanceFrequency(&freq);
@@ -1060,10 +1066,9 @@ void bench_eccKeyAgree(void)
 
     double current_time(int reset)
     {
-        struct timeval tv;
-
         (void) reset;
 
+        struct timeval tv;
         gettimeofday(&tv, 0);
 
         return (double)tv.tv_sec + (double)tv.tv_usec / 1000000;

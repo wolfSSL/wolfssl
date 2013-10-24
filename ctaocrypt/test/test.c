@@ -74,6 +74,12 @@
     #include <cyassl/openssl/des.h>
 #endif
 
+#if defined(CYASSL_MDK_ARM)
+        #include <stdio.h>
+        #include <stdlib.h>
+    extern FILE * CyaSSL_fopen(const char *fname, const char *mode) ;
+    #define fopen CyaSSL_fopen
+#endif
 
 #if defined(USE_CERT_BUFFERS_1024) || defined(USE_CERT_BUFFERS_2048)
     /* include test cert and key buffers for use with NO_FILESYSTEM */
@@ -2465,24 +2471,23 @@ byte GetEntropy(ENTROPY_CMD cmd, byte* out)
             static const char* caKeyFile  = "a:\\certs\\ca-key.der";
             static const char* caCertFile = "a:\\certs\\ca-cert.pem";
         #endif
-    #elif defined(CYASSL_MKD_SHELL)
-        static char* clientKey = "certs/client-key.der";
-        static char* clientCert = "certs/client-cert.der";
-        void set_clientKey(char *key) {  clientKey = key ; }      /* set by shell command */
-        void set_clientCert(char *cert) {  clientCert = cert ; }  /* set by shell command */
-        #ifdef CYASSL_CERT_GEN
-            static char* caKeyFile  = "certs/ca-key.der";
-            static char* caCertFile = "certs/ca-cert.pem";
-            void set_caKeyFile (char * key)  { caKeyFile   = key ; }     /* set by shell command */
-            void set_caCertFile(char * cert) { caCertFile = cert ; }     /* set by shell command */
-        #endif
-    #else
-        static const char* clientKey  = "./certs/client-key.der";
-        static const char* clientCert = "./certs/client-cert.der";
-        #ifdef CYASSL_CERT_GEN
-            static const char* caKeyFile  = "./certs/ca-key.der";
-            static const char* caCertFile = "./certs/ca-cert.pem";
-        #endif
+#elif !defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048) && defined(CYASSL_MKD_SHELL) 
+    static char* clientKey = "certs/client-key.der";
+    static char* clientCert = "certs/client-cert.der";
+    void set_clientKey(char *key) {  clientKey = key ; }      /* set by shell command */
+    void set_clientCert(char *cert) {  clientCert = cert ; }  /* set by shell command */        
+    #ifdef CYASSL_CERT_GEN
+        static char* caKeyFile  = "certs/ca-key.der";
+        static char* caCertFile = "certs/ca-cert.pem";
+        void set_caKeyFile (char * key)  { caKeyFile   = key ; }     /* set by shell command */
+        void set_caCertFile(char * cert) { caCertFile = cert ; }     /* set by shell command */
+    #endif
+#elif !defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048) 
+    static const char* clientKey  = "./certs/client-key.der";
+    static const char* clientCert = "./certs/client-cert.der";
+    #ifdef CYASSL_CERT_GEN
+        static const char* caKeyFile  = "./certs/ca-key.der";
+        static const char* caCertFile = "./certs/ca-cert.pem";
     #endif
 #endif
 
@@ -2723,7 +2728,7 @@ int rsa_test(void)
         int         pemSz;
         size_t      bytes3;
         word32      idx3 = 0;
-			  FILE* file3 ;
+              FILE* file3 ;
 #ifdef CYASSL_TEST_CERT
         DecodedCert decode;
 #endif
