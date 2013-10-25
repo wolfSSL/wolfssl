@@ -452,14 +452,12 @@ int CyaSSL_GetHmacType(CYASSL* ssl)
         {
             return SHA;
         }
-        break;
         #endif
         #ifdef HAVE_BLAKE2 
         case blake2b_mac:
         {
             return BLAKE2B_ID; 
         }
-        break;
         #endif
         default:
         {

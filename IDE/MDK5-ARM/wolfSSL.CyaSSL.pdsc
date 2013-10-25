@@ -5,7 +5,7 @@
   <description>Light weight SSL/TLS and Crypt Library for Embedded Systems</description>  <!-- brief description of PACK -->
   <vendor>wolfSSL</vendor>                                                  <!-- unique vendor/distributor of PACK -->
   <url>http://www.wolfSSL.com/files/ide</url>                              <!-- Required but NOT USED AT THE MOMENT -->
-  
+  <license>cyassl\IDE\MDK5-ARM\Docs\CyaSSL-Licnese.txt</license>
   <taxonomy>
     <description Cclass="wolfSSL"
                  >wolfSSL: SSL/TLS and Crypt Library</description>
@@ -16,7 +16,7 @@
   </taxonomy>
 
   <releases>                                                                <!-- contains complete release history of available releases (put most recent first) -->
-    <release version="2.8.0">                                               <!-- major.minor.build recommended version format -->
+    <release version="2.8.1">                                               <!-- major.minor.build recommended version format -->
       Oct/7/2013, Initial release of CyaSSL pack
     </release>
   </releases>
@@ -87,15 +87,15 @@
   </conditions>
 
   <components>
-    <bundle Cbundle="wolfSSL" Cclass="wolfSSL" Cversion="2.8.0">
+    <bundle Cbundle="wolfSSL" Cclass="wolfSSL" Cversion="2.8.1">
       <description>wolfSSL: SSL/TLS and Crypt Library</description>
-      <doc>Docs/CyaSSLManual-TableofContents.htm</doc>
+      <doc>cyassl\IDE\MDK5-ARM\Docs\CyaSSLManual-TableofContents.htm</doc>
       <component Cgroup="CyaSSL" Csub="Core" condition="CyaSSL-Core">
         <description>CyaSSL, Light weight SSL/TLS library</description>
         <RTE_Components_h>
         </RTE_Components_h>
         <files>
-          <file category="doc" name="IDE\MDK5-ARM/Docs/CyaSSLManual-TableofContents.htm"/>
+          <file category="doc" name="cyassl\IDE\MDK5-ARM\Docs\CyaSSLManual-TableofContents.htm"/>
           <file category="include" name="cyassl\"/>
           <file category="include" name="cyassl\IDE\MDK5-ARM\MDK-ARM\CyaSSL\"/>
 
@@ -115,7 +115,7 @@
         <RTE_Components_h>
         </RTE_Components_h>
         <files>
-          <file category="doc" name="IDE\MDK5-ARM/Docs/CyaSSLManual-wolfCryptUsageReference.htm" />
+          <file category="doc" name="cyassl\IDE\MDK5-ARM\Docs\CyaSSLManual-wolfCryptUsageReference.htm" />
           <file category="include" name="cyassl\"/>
           <file category="include" name="cyassl\IDE\MDK5-ARM\MDK-ARM\CyaSSL\"/>
 
@@ -147,6 +147,7 @@
           <file category="source" name="cyassl\ctaocrypt\src\md5.c" />
           <file category="source" name="cyassl\ctaocrypt\src\memory.c" />
           <file category="source" name="cyassl\ctaocrypt\src\misc.c" />
+          <file category="source" name="cyassl\ctaocrypt\src\port.c" />
           <file category="source" name="cyassl\ctaocrypt\src\pwdbased.c" />
           <file category="source" name="cyassl\ctaocrypt\src\rabbit.c" />
           <file category="source" name="cyassl\ctaocrypt\src\random.c" />

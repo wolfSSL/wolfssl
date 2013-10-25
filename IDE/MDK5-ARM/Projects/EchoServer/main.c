@@ -82,7 +82,7 @@ char* myoptarg = NULL;
 
 int main() 
 {
-    void *arg = NULL ;
+    void *args = NULL ;
     init_time() ;
     init_filesystem ();
     net_initialize() ;
