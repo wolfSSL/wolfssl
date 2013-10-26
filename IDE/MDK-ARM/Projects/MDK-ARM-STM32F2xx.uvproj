@@ -349,7 +349,7 @@
             <uSurpInc>0</uSurpInc>
             <VariousControls>
               <MiscControls></MiscControls>
-              <Define>HAVE_CONFIG_H CYASSL_STM32F2xx __DBG_ITM __RTX USE_STDPERIPH_DRIVER MDK_CONF_RTX_TCP_FS</Define>
+              <Define>HAVE_CONFIG_H CYASSL_STM32F2xx __DBG_ITM __RTX MDK_CONF_RTX_TCP_FS</Define>
               <Undefine></Undefine>
               <IncludePath>..\MDK-ARM\CyaSSL;C:..\STM32F2xx_StdPeriph_Lib\inc;..\..\..\</IncludePath>
             </VariousControls>
@@ -441,43 +441,6 @@
         </Group>
         <Group>
           <GroupName>STM32F2xx_StdPeriph_Lib</GroupName>
-          <Files>
-            <File>
-              <FileName>stm32f2xx_cryp.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\STM32F2xx_StdPeriph_Lib\src\stm32f2xx_cryp.c</FilePath>
-            </File>
-            <File>
-              <FileName>stm32f2xx_hash.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\STM32F2xx_StdPeriph_Lib\src\stm32f2xx_hash.c</FilePath>
-            </File>
-            <File>
-              <FileName>stm32f2xx_rcc.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\STM32F2xx_StdPeriph_Lib\src\stm32f2xx_rcc.c</FilePath>
-            </File>
-            <File>
-              <FileName>stm32f2xx_rng.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\STM32F2xx_StdPeriph_Lib\src\stm32f2xx_rng.c</FilePath>
-            </File>
-            <File>
-              <FileName>stm32f2xx_rtc.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\STM32F2xx_StdPeriph_Lib\src\stm32f2xx_rtc.c</FilePath>
-            </File>
-            <File>
-              <FileName>stm32f2xx_pwr.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\STM32F2xx_StdPeriph_Lib\src\stm32f2xx_pwr.c</FilePath>
-            </File>
-            <File>
-              <FileName>stm32f2xx_tim.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\STM32F2xx_StdPeriph_Lib\src\stm32f2xx_tim.c</FilePath>
-            </File>
-          </Files>
         </Group>
         <Group>
           <GroupName>MDK-ARM</GroupName>
@@ -1539,43 +1502,6 @@
         </Group>
         <Group>
           <GroupName>STM32F2xx_StdPeriph_Lib</GroupName>
-          <Files>
-            <File>
-              <FileName>stm32f2xx_cryp.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\STM32F2xx_StdPeriph_Lib\src\stm32f2xx_cryp.c</FilePath>
-            </File>
-            <File>
-              <FileName>stm32f2xx_hash.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\STM32F2xx_StdPeriph_Lib\src\stm32f2xx_hash.c</FilePath>
-            </File>
-            <File>
-              <FileName>stm32f2xx_rcc.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\STM32F2xx_StdPeriph_Lib\src\stm32f2xx_rcc.c</FilePath>
-            </File>
-            <File>
-              <FileName>stm32f2xx_rng.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\STM32F2xx_StdPeriph_Lib\src\stm32f2xx_rng.c</FilePath>
-            </File>
-            <File>
-              <FileName>stm32f2xx_rtc.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\STM32F2xx_StdPeriph_Lib\src\stm32f2xx_rtc.c</FilePath>
-            </File>
-            <File>
-              <FileName>stm32f2xx_pwr.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\STM32F2xx_StdPeriph_Lib\src\stm32f2xx_pwr.c</FilePath>
-            </File>
-            <File>
-              <FileName>stm32f2xx_tim.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\STM32F2xx_StdPeriph_Lib\src\stm32f2xx_tim.c</FilePath>
-            </File>
-          </Files>
         </Group>
         <Group>
           <GroupName>MDK-ARM</GroupName>
@@ -1915,6 +1841,11 @@
               <FilePath>..\..\..\ctaocrypt\src\misc.c</FilePath>
             </File>
             <File>
+              <FileName>port.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\ctaocrypt\src\port.c</FilePath>
+            </File>
+            <File>
               <FileName>pwdbased.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\ctaocrypt\src\pwdbased.c</FilePath>
@@ -1958,11 +1889,6 @@
               <FileName>tfm.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\ctaocrypt\src\tfm.c</FilePath>
-            </File>
-            <File>
-              <FileName>port.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\ctaocrypt\src\port.c</FilePath>
             </File>
           </Files>
         </Group>
@@ -2753,43 +2679,6 @@
         </Group>
         <Group>
           <GroupName>STM32F2xx_StdPeriph_Lib</GroupName>
-          <Files>
-            <File>
-              <FileName>stm32f2xx_cryp.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\STM32F2xx_StdPeriph_Lib\src\stm32f2xx_cryp.c</FilePath>
-            </File>
-            <File>
-              <FileName>stm32f2xx_hash.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\STM32F2xx_StdPeriph_Lib\src\stm32f2xx_hash.c</FilePath>
-            </File>
-            <File>
-              <FileName>stm32f2xx_rcc.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\STM32F2xx_StdPeriph_Lib\src\stm32f2xx_rcc.c</FilePath>
-            </File>
-            <File>
-              <FileName>stm32f2xx_rng.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\STM32F2xx_StdPeriph_Lib\src\stm32f2xx_rng.c</FilePath>
-            </File>
-            <File>
-              <FileName>stm32f2xx_rtc.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\STM32F2xx_StdPeriph_Lib\src\stm32f2xx_rtc.c</FilePath>
-            </File>
-            <File>
-              <FileName>stm32f2xx_pwr.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\STM32F2xx_StdPeriph_Lib\src\stm32f2xx_pwr.c</FilePath>
-            </File>
-            <File>
-              <FileName>stm32f2xx_tim.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\STM32F2xx_StdPeriph_Lib\src\stm32f2xx_tim.c</FilePath>
-            </File>
-          </Files>
         </Group>
         <Group>
           <GroupName>MDK-ARM</GroupName>
@@ -3267,6 +3156,11 @@
               <FilePath>..\..\..\ctaocrypt\src\misc.c</FilePath>
             </File>
             <File>
+              <FileName>port.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\ctaocrypt\src\port.c</FilePath>
+            </File>
+            <File>
               <FileName>pwdbased.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\ctaocrypt\src\pwdbased.c</FilePath>
@@ -3350,11 +3244,6 @@
                   </Cads>
                 </FileArmAds>
               </FileOption>
-            </File>
-            <File>
-              <FileName>port.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\ctaocrypt\src\port.c</FilePath>
             </File>
           </Files>
         </Group>
