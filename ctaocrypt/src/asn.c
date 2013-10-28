@@ -285,7 +285,11 @@ time_t pic32_time(time_t* timer)
     if (timer == NULL)
         timer = &localTime;
 
+#ifdef MICROCHIP_MPLAB_HARMONY 
+    sec = TCPIP_SNTP_UTCSecondsGet();
+#else
     sec = SNTPGetUTCSeconds();
+#endif
     *timer = (time_t) sec;
 
     return *timer;

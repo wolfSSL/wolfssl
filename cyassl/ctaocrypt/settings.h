@@ -130,7 +130,11 @@
 #ifdef MICROCHIP_TCPIP
     /* include timer, NTP functions */
     #include "system/system_services.h"
-    #include "tcpip/sntp.h"
+    #ifdef MICROCHIP_MPLAB_HARMONY
+        #include "tcpip/tcpip.h"
+    #else
+        #include "tcpip/sntp.h"
+    #endif
 #endif
 
 #ifdef MBED
