@@ -3223,6 +3223,10 @@ int ecc_mul2add(ecc_point* A, mp_int* kA,
         initMutex = 1;
    }
    
+   err = mp_init(&mu);
+   if (err != MP_OKAY)
+       return err;
+
    if (LockMutex(&ecc_fp_lock) != 0)
       return BAD_MUTEX_E;
 
@@ -3267,17 +3271,8 @@ int ecc_mul2add(ecc_point* A, mp_int* kA,
 
            if (err == MP_OKAY) {
              mpInit = 1;
-             err = mp_init(&mu);
+             err = mp_montgomery_calc_normalization(&mu, modulus);
            }
-           if (err == MP_OKAY)
-             err = mp_montgomery_calc_normalization(&mu, modulus);
-
-           if (err == MP_OKAY)
-             /* compute mu */
-             err = mp_init(&mu);
-
-           if (err == MP_OKAY)
-             err = mp_montgomery_calc_normalization(&mu, modulus);
                  
            if (err == MP_OKAY)
              /* build the LUT */
@@ -3289,17 +3284,13 @@ int ecc_mul2add(ecc_point* A, mp_int* kA,
         /* if it's 2 build the LUT, if it's higher just use the LUT */
         if (idx2 >= 0 && fp_cache[idx2].lru_count == 2) {
            if (mpInit == 0) {
-              /* compute mp */
+                /* compute mp */
                 err = mp_montgomery_setup(modulus, &mp);
-                if (err == MP_OKAY)
+                if (err == MP_OKAY) {
                     mpInit = 1;
+                    err = mp_montgomery_calc_normalization(&mu, modulus);
+                }
             }
-            if (err == MP_OKAY)
-              /* compute mu */
-              err = mp_init(&mu);
-
-            if (err == MP_OKAY) 
-              err = mp_montgomery_calc_normalization(&mu, modulus);
                  
             if (err == MP_OKAY) 
             /* build the LUT */
