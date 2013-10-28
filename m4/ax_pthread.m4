@@ -160,11 +160,10 @@ case ${host_os} in
         ;;
 
         darwin*)
-        if test "$CC" = "clang"; then 
-            ax_pthread_flags="$ax_pthread_flags"
-        else 
-            ax_pthread_flags="-pthread $ax_pthread_flags"
-        fi
+        AC_REQUIRE([WOLFSSL_DARWIN_USING_CLANG])
+        AS_IF([test x"$wolfssl_darwin_clang" = x"yes"],
+                [ax_pthread_flags="$ax_pthread_flags"],
+                [ax_pthread_flags="-pthread $ax_pthread_flags"])
         ;;
 esac
 
