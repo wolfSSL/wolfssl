@@ -278,7 +278,7 @@ int main(int argc, char** argv)
                 printf("ssl_Decode ret = %d, %s\n", ret, err);
             if (ret > 0) {
                 data[ret] = 0;
-				printf("SSL App Data:%s\n", data);
+				printf("SSL App Data(%d):%s\n", ret, data);
             }
         }
         else if (saveFile)
