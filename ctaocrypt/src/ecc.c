@@ -2043,6 +2043,31 @@ int ecc_import_x963(const byte* in, word32 inLen, ecc_key* key)
 }
 
 
+/* export ecc private key only raw, outLen is in/out size 
+   return MP_OKAY on success */
+int ecc_export_private_only(ecc_key* key, byte* out, word32* outLen)
+{
+   word32 numlen;
+
+   if (key == NULL || out == NULL || outLen == NULL)
+       return ECC_BAD_ARG_E;
+
+   if (ecc_is_valid_idx(key->idx) == 0) {
+      return ECC_BAD_ARG_E;
+   }
+   numlen = key->dp->size;
+
+   if (*outLen < numlen) {
+      *outLen = numlen;
+      return BUFFER_E;
+   }
+   *outLen = numlen; 
+   XMEMSET(out, 0, *outLen);
+   return mp_to_unsigned_bin(&key->k, out + (numlen -
+                                             mp_unsigned_bin_size(&key->k)));
+}
+
+
 /* ecc private key import, public key in ANSI X9.63 format, private raw */
 int ecc_import_private_key(const byte* priv, word32 privSz, const byte* pub,
                            word32 pubSz, ecc_key* key)

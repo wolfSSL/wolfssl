@@ -109,6 +109,8 @@ int ecc_import_x963(const byte* in, word32 inLen, ecc_key* key);
 CYASSL_API
 int ecc_import_private_key(const byte* priv, word32 privSz, const byte* pub,
                            word32 pubSz, ecc_key* key);
+CYASSL_API
+int ecc_export_private_only(ecc_key* key, byte* out, word32* outLen);
 
 /* size helper */
 CYASSL_API

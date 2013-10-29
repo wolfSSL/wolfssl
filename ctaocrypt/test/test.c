@@ -3482,6 +3482,11 @@ int ecc_test(void)
     if (verify != 1)
         return -1012;
 
+    x = sizeof(exportBuf);
+    ret = ecc_export_private_only(&userA, exportBuf, &x);
+    if (ret != 0)
+        return -1013;
+
     ecc_free(&pubKey);
     ecc_free(&userB);
     ecc_free(&userA);
