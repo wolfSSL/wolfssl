@@ -2099,14 +2099,15 @@ int ecc_size(ecc_key* key)
 }
 
 
-/* signature size in octets */
+/* worst case estimate, check actual return from ecc_sign_hash for actual value
+   of signature size in octets */
 int ecc_sig_size(ecc_key* key)
 {
     int sz = ecc_size(key);
     if (sz < 0)
         return sz;
 
-    return sz * 2 + SIG_HEADER_SZ;
+    return sz * 2 + SIG_HEADER_SZ + 4;  /* (4) worst case estimate */
 }
 
 

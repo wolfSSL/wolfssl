@@ -8492,7 +8492,7 @@ static void PickHashSigAlgo(CYASSL* ssl,
                 ret = EccPrivateKeyDecode(ssl->buffers.key.buffer, &i,
                                           &dsaKey, ssl->buffers.key.length);
                 if (ret != 0) return ret;
-                sigSz = ecc_sig_size(&dsaKey) + 4;  /* worst case estimate */
+                sigSz = ecc_sig_size(&dsaKey);  /* worst case estimate */
             }
             else {
 #ifndef NO_RSA
