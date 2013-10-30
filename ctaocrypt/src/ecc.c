@@ -1582,20 +1582,23 @@ static int ecc_mul2add(ecc_point* A, mp_int* kA,
 
   if (err == MP_OKAY) {
     /* extract and justify kA */
-    mp_to_unsigned_bin(kA, (len - lenA) + tA);
+    err = mp_to_unsigned_bin(kA, (len - lenA) + tA);
 
     /* extract and justify kB */
-    mp_to_unsigned_bin(kB, (len - lenB) + tB);
+    if (err == MP_OKAY)
+        err = mp_to_unsigned_bin(kB, (len - lenB) + tB);
 
     /* allocate the table */
-    for (x = 0; x < 16; x++) {
-        precomp[x] = ecc_new_point();
-        if (precomp[x] == NULL) {
-            for (y = 0; y < x; ++y) {
-                ecc_del_point(precomp[y]);
+    if (err == MP_OKAY) {
+        for (x = 0; x < 16; x++) {
+            precomp[x] = ecc_new_point();
+            if (precomp[x] == NULL) {
+                for (y = 0; y < x; ++y) {
+                    ecc_del_point(precomp[y]);
+                }
+                err = GEN_MEM_ERR;
+                break;
             }
-            err = GEN_MEM_ERR;
-            break;
         }
     }
   }
@@ -1943,6 +1946,7 @@ int ecc_export_x963(ecc_key* key, byte* out, word32* outLen)
 {
    byte   buf[ECC_BUFSIZE];
    word32 numlen;
+   int    ret = MP_OKAY;
 
    if (key == NULL || out == NULL || outLen == NULL)
        return ECC_BAD_ARG_E;
@@ -1962,14 +1966,18 @@ int ecc_export_x963(ecc_key* key, byte* out, word32* outLen)
 
    /* pad and store x */
    XMEMSET(buf, 0, sizeof(buf));
-   mp_to_unsigned_bin(&key->pubkey.x,
+   ret = mp_to_unsigned_bin(&key->pubkey.x,
                       buf + (numlen - mp_unsigned_bin_size(&key->pubkey.x)));
+   if (ret != MP_OKAY)
+       return ret;
    XMEMCPY(out+1, buf, numlen);
 
    /* pad and store y */
    XMEMSET(buf, 0, sizeof(buf));
-   mp_to_unsigned_bin(&key->pubkey.y,
+   ret = mp_to_unsigned_bin(&key->pubkey.y,
                       buf + (numlen - mp_unsigned_bin_size(&key->pubkey.y)));
+   if (ret != MP_OKAY)
+       return ret;
    XMEMCPY(out+1+numlen, buf, numlen);
 
    *outLen = 1 + 2*numlen;

@@ -325,15 +325,15 @@ int PKCS12_PBKDF(byte* output, const byte* passwd, int passLen,const byte* salt,
                 if (outSz > (int)v) {
                     /* take off MSB */
                     byte  tmp[129];
-                    mp_to_unsigned_bin(&res, tmp);
+                    ret = mp_to_unsigned_bin(&res, tmp);
                     XMEMCPY(I + i, tmp + 1, v);
                 }
                 else if (outSz < (int)v) {
                     XMEMSET(I + i, 0, v - outSz);
-                    mp_to_unsigned_bin(&res, I + i + v - outSz);
+                    ret = mp_to_unsigned_bin(&res, I + i + v - outSz);
                 }
                 else
-                    mp_to_unsigned_bin(&res, I + i);
+                    ret = mp_to_unsigned_bin(&res, I + i);
             }
 
             mp_clear(&i1);
