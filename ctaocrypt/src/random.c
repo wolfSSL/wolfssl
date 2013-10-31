@@ -458,10 +458,10 @@ int GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 
 #elif defined(MICROCHIP_PIC32)
 
-#ifndef MICROCHIP_MPLAB_HARMONY
-    #include <peripheral/timer.h>
+#ifdef MICROCHIP_MPLAB_HARMONY
     #define PIC32_SEED_COUNT _CP0_GET_COUNT
 #else
+    #include <peripheral/timer.h>
     #define PIC32_SEED_COUNT ReadCoreTimer
 #endif
 
