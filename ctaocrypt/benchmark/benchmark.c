@@ -785,7 +785,7 @@ static const char *certDHname = "certs/dh2048.der" ;
 
 void bench_dh(void)
 {
-    int    i;
+    int    i, ret;
     byte   tmp[1024];
     size_t bytes;
     word32 idx = 0, pubSz, privSz, pubSz2, privSz2, agreeSz;
@@ -816,6 +816,11 @@ void bench_dh(void)
         return;
     }
 
+    ret = InitRng(&rng);
+    if (ret < 0) {
+        printf("InitRNG failed\n");
+        return;
+    }
     bytes = fread(tmp, 1, sizeof(tmp), file);
 #endif /* USE_CERT_BUFFERS */
 
@@ -908,9 +913,14 @@ void bench_eccKeyGen(void)
 {
     ecc_key genKey;
     double start, total, each, milliEach;
-    int    i;
+    int    i, ret;
     const int genTimes = 100;
   
+    ret = InitRng(&rng);
+    if (ret < 0) {
+        printf("InitRNG failed\n");
+        return;
+    }
     /* 256 bit */ 
     start = current_time(1);
 
@@ -942,6 +952,12 @@ void bench_eccKeyAgree(void)
     ecc_init(&genKey);
     ecc_init(&genKey2);
 
+    ret = InitRng(&rng);
+    if (ret < 0) {
+        printf("InitRNG failed\n");
+        return;
+    }
+
     ret = ecc_make_key(&rng, 32, &genKey);
     if (ret != 0) {
         printf("ecc_make_key failed\n");
@@ -958,7 +974,11 @@ void bench_eccKeyAgree(void)
 
     for(i = 0; i < agreeTimes; i++) {
         x = sizeof(shared);
-        ecc_shared_secret(&genKey, &genKey2, shared, &x);
+        ret = ecc_shared_secret(&genKey, &genKey2, shared, &x);
+        if (ret != 0) {
+            printf("ecc_shared_secret failed\n");
+            return; 
+        }
     }
 
     total = current_time(0) - start;
@@ -976,7 +996,11 @@ void bench_eccKeyAgree(void)
 
     for(i = 0; i < agreeTimes; i++) {
         x = sizeof(sig);
-        ecc_sign_hash(digest, sizeof(digest), sig, &x, &rng, &genKey);
+        ret = ecc_sign_hash(digest, sizeof(digest), sig, &x, &rng, &genKey);
+        if (ret != 0) {
+            printf("ecc_sign_hash failed\n");
+            return; 
+        }
     }
 
     total = current_time(0) - start;
@@ -989,7 +1013,11 @@ void bench_eccKeyAgree(void)
 
     for(i = 0; i < agreeTimes; i++) {
         int verify = 0;
-        ecc_verify_hash(sig, x, digest, sizeof(digest), &verify, &genKey);
+        ret = ecc_verify_hash(sig, x, digest, sizeof(digest), &verify, &genKey);
+        if (ret != 0) {
+            printf("ecc_verify_hash failed\n");
+            return; 
+        }
     }
 
     total = current_time(0) - start;

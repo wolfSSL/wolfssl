@@ -159,8 +159,10 @@ int  ecc_projective_dbl_point(ecc_point* P, ecc_point* R, mp_int* modulus,
                               mp_digit* mp);
 static int ecc_mulmod(mp_int* k, ecc_point *G, ecc_point *R, mp_int* modulus,
                       int map);
+#ifdef ECC_SHAMIR
 static int ecc_mul2add(ecc_point* A, mp_int* kA, ecc_point* B, mp_int* kB,
                        ecc_point* C, mp_int* modulus);
+#endif
 
 
 /* helper for either lib */
@@ -1514,13 +1516,13 @@ void ecc_free(ecc_key* key)
 }
 
 
-#ifdef ECC_SHAMIR
-
 #ifdef USE_FAST_MATH
     #define GEN_MEM_ERR FP_MEM
 #else
     #define GEN_MEM_ERR MP_MEM
 #endif
+
+#ifdef ECC_SHAMIR
 
 /** Computes kA*A + kB*B = C using Shamir's Trick
   A        First point to multiply
@@ -2124,9 +2126,17 @@ int ecc_sig_size(ecc_key* key)
     #define FP_LUT     8U
 #endif
 
-#if (FP_LUT > 12) || (FP_LUT < 2)
-   #error FP_LUT must be between 2 and 12 inclusively
-#endif   
+#ifdef ECC_SHAMIR
+    /* Sharmir requires a bigger LUT, TAO */
+    #if (FP_LUT > 12) || (FP_LUT < 4)
+        #error FP_LUT must be between 4 and 12 inclusively
+    #endif
+#else
+    #if (FP_LUT > 12) || (FP_LUT < 2)
+        #error FP_LUT must be between 2 and 12 inclusively
+    #endif
+#endif
+
 
 /** Our FP cache */
 static struct {
