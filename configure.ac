@@ -538,6 +538,18 @@ then
 fi
 
 
+# HKDF 
+AC_ARG_ENABLE([hkdf],
+    [  --enable-hkdf           Enable HKDF (HMAC-KDF) support (default: disabled)],
+    [ ENABLED_HKDF=$enableval ],
+    [ ENABLED_HKDF=no ]
+    )
+if test "$ENABLED_HKDF" = "yes"
+then
+  AM_CFLAGS="$AM_CFLAGS -DHAVE_HKDF"
+fi
+
+
 # DSA
 AC_ARG_ENABLE([dsa],
     [  --enable-dsa            Enable DSA (default: disabled)],

@@ -151,7 +151,7 @@ typedef struct Hmac {
 
 
 /* does init */
-CYASSL_API void HmacSetKey(Hmac*, int type, const byte* key, word32 keySz);
+CYASSL_API int  HmacSetKey(Hmac*, int type, const byte* key, word32 keySz);
 CYASSL_API void HmacUpdate(Hmac*, const byte*, word32);
 CYASSL_API void HmacFinal(Hmac*, byte*);
 
@@ -161,6 +161,16 @@ CYASSL_API void HmacFinal(Hmac*, byte*);
 #endif
 
 CYASSL_API int CyaSSL_GetHmacMaxSize(void);
+
+
+#ifdef HAVE_HKDF
+
+CYASSL_API int HKDF(int type, const byte* inKey, word32 inKeySz,
+                    const byte* salt, word32 saltSz,
+                    const byte* info, word32 infoSz,
+                    byte* out, word32 outSz);
+
+#endif /* HAVE_HKDF */
 
 #ifdef __cplusplus
     } /* extern "C" */
