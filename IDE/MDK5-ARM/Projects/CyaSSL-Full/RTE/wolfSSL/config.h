@@ -22,6 +22,7 @@
 #define __CORTEX_M3__
 #define CYASSL_MDK_ARM
 #define CYASSL_MDK5
+#define CYASSL_CMSIS_RTOS
 
 #define NO_WRITEV
 #define NO_CYASSL_DIR
@@ -30,6 +31,8 @@
 #define CYASSL_DER_LOAD
 #define HAVE_NULL_CIPHER
 #define NO_MAIN_DRIVER
+
+#define CYASSL_STM32F2xx
 
 #if  defined(MDK_CONF_CYASSL)
 #define CYASSL_MDK_SHELL
