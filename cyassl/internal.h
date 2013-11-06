@@ -1664,6 +1664,7 @@ struct CYASSL_X509 {
     byte             notAfter[MAX_DATE_SZ];
     int              sigOID;
     buffer           sig;
+    int              pubKeyOID;
     buffer           pubKey;
     buffer           derCert;                        /* may need  */
     DNS_entry*       altNames;                       /* alt names list */

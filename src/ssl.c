@@ -8312,7 +8312,7 @@ CYASSL_X509* CyaSSL_X509_load_certificate_file(const char* fname, int format)
             key = (CYASSL_EVP_PKEY*)XMALLOC(
                         sizeof(CYASSL_EVP_PKEY), NULL, DYNAMIC_TYPE_PUBLIC_KEY);
             if (key != NULL) {
-                key->type = 0;
+                key->type = x509->pubKeyOID;
                 key->save_type = 0;
                 key->pkey.ptr = (char*)XMALLOC(
                             x509->pubKey.length, NULL, DYNAMIC_TYPE_PUBLIC_KEY);

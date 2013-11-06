@@ -3123,6 +3123,7 @@ int CopyDecodedToX509(CYASSL_X509* x509, DecodedCert* dCert)
         x509->pubKey.buffer = (byte*)XMALLOC(
                               dCert->pubKeySize, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
         if (x509->pubKey.buffer != NULL) {
+            x509->pubKeyOID = dCert->keyOID;
             x509->pubKey.length = dCert->pubKeySize;
             XMEMCPY(x509->pubKey.buffer, dCert->publicKey, dCert->pubKeySize);
         }
