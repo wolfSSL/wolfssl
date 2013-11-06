@@ -1091,31 +1091,45 @@ void InitSuites(Suites* suites, ProtocolVersion pv, byte haveRSA, byte havePSK,
     }
 #endif
 
-#ifdef BUILD_TLS_RSA_WITH_HC_128_CBC_MD5
+#ifdef BUILD_TLS_RSA_WITH_HC_128_MD5
     if (tls && haveRSA) {
         suites->suites[idx++] = 0; 
-        suites->suites[idx++] = TLS_RSA_WITH_HC_128_CBC_MD5;
+        suites->suites[idx++] = TLS_RSA_WITH_HC_128_MD5;
     }
 #endif
     
-#ifdef BUILD_TLS_RSA_WITH_HC_128_CBC_SHA
+#ifdef BUILD_TLS_RSA_WITH_HC_128_SHA
     if (tls && haveRSA) {
         suites->suites[idx++] = 0; 
-        suites->suites[idx++] = TLS_RSA_WITH_HC_128_CBC_SHA;
+        suites->suites[idx++] = TLS_RSA_WITH_HC_128_SHA;
     }
 #endif
 
-#ifdef BUILD_TLS_RSA_WITH_HC_128_CBC_B2B256
+#ifdef BUILD_TLS_RSA_WITH_HC_128_B2B256
     if (tls && haveRSA) {
         suites->suites[idx++] = 0; 
-        suites->suites[idx++] = TLS_RSA_WITH_HC_128_CBC_B2B256;
+        suites->suites[idx++] = TLS_RSA_WITH_HC_128_B2B256;
     }
 #endif
 
-#ifdef BUILD_TLS_RSA_WITH_RABBIT_CBC_SHA
+#ifdef BUILD_TLS_RSA_WITH_AES_128_CBC_B2B256
     if (tls && haveRSA) {
         suites->suites[idx++] = 0; 
-        suites->suites[idx++] = TLS_RSA_WITH_RABBIT_CBC_SHA;
+        suites->suites[idx++] = TLS_RSA_WITH_AES_128_CBC_B2B256;
+    }
+#endif
+
+#ifdef BUILD_TLS_RSA_WITH_AES_256_CBC_B2B256
+    if (tls && haveRSA) {
+        suites->suites[idx++] = 0; 
+        suites->suites[idx++] = TLS_RSA_WITH_AES_256_CBC_B2B256;
+    }
+#endif
+
+#ifdef BUILD_TLS_RSA_WITH_RABBIT_SHA
+    if (tls && haveRSA) {
+        suites->suites[idx++] = 0; 
+        suites->suites[idx++] = TLS_RSA_WITH_RABBIT_SHA;
     }
 #endif
 
@@ -1217,9 +1231,41 @@ void InitSuites(Suites* suites, ProtocolVersion pv, byte haveRSA, byte havePSK,
 
 #ifndef NO_CERTS
 
+
+void InitX509Name(CYASSL_X509_NAME* name, int dynamicFlag)
+{
+    (void)dynamicFlag;
+
+    if (name != NULL) {
+        name->name        = name->staticName;
+        name->dynamicName = 0;
+#ifdef OPENSSL_EXTRA
+        XMEMSET(&name->fullName, 0, sizeof(DecodedName));
+#endif /* OPENSSL_EXTRA */
+    }
+}
+
+
+void FreeX509Name(CYASSL_X509_NAME* name)
+{
+    if (name != NULL) {
+        if (name->dynamicName)
+            XFREE(name->name, NULL, DYNAMIC_TYPE_SUBJECT_CN);
+#ifdef OPENSSL_EXTRA
+        if (name->fullName.fullName != NULL)
+            XFREE(name->fullName.fullName, NULL, DYNAMIC_TYPE_X509);
+#endif /* OPENSSL_EXTRA */
+    }
+}
+
+
 /* Initialize CyaSSL X509 type */
 void InitX509(CYASSL_X509* x509, int dynamicFlag)
 {
+    InitX509Name(&x509->issuer, 0);
+    InitX509Name(&x509->subject, 0);
+    x509->version        = 0;
+    x509->pubKey.buffer  = NULL;
     x509->derCert.buffer = NULL;
     x509->altNames       = NULL;
     x509->altNamesNext   = NULL;
@@ -1233,7 +1279,11 @@ void FreeX509(CYASSL_X509* x509)
     if (x509 == NULL)
         return;
 
-    XFREE(x509->derCert.buffer, NULL, DYNAMIC_TYPE_CERT);
+    FreeX509Name(&x509->issuer);
+    FreeX509Name(&x509->subject);
+    if (x509->pubKey.buffer)
+        XFREE(x509->pubKey.buffer, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
+    XFREE(x509->derCert.buffer, NULL, DYNAMIC_TYPE_SUBJECT_CN);
     if (x509->altNames)
         FreeAltNames(x509->altNames, NULL);
     if (x509->dynamicMemory)
@@ -2984,13 +3034,37 @@ int CopyDecodedToX509(CYASSL_X509* x509, DecodedCert* dCert)
     if (x509 == NULL || dCert == NULL)
         return BAD_FUNC_ARG;
 
+    x509->version = dCert->version + 1;
+
     XSTRNCPY(x509->issuer.name, dCert->issuer, ASN_NAME_MAX);
     x509->issuer.name[ASN_NAME_MAX - 1] = '\0';
     x509->issuer.sz = (int)XSTRLEN(x509->issuer.name) + 1;
+#ifdef OPENSSL_EXTRA
+    if (dCert->issuerName.fullName != NULL) {
+        XMEMCPY(&x509->issuer.fullName,
+                                       &dCert->issuerName, sizeof(DecodedName));
+        x509->issuer.fullName.fullName = (char*)XMALLOC(
+                        dCert->issuerName.fullNameLen, NULL, DYNAMIC_TYPE_X509);
+        if (x509->issuer.fullName.fullName != NULL)
+            XMEMCPY(x509->issuer.fullName.fullName,
+                     dCert->issuerName.fullName, dCert->issuerName.fullNameLen);
+    }
+#endif /* OPENSSL_EXTRA */
 
     XSTRNCPY(x509->subject.name, dCert->subject, ASN_NAME_MAX);
     x509->subject.name[ASN_NAME_MAX - 1] = '\0';
     x509->subject.sz = (int)XSTRLEN(x509->subject.name) + 1;
+#ifdef OPENSSL_EXTRA
+    if (dCert->subjectName.fullName != NULL) {
+        XMEMCPY(&x509->subject.fullName,
+                                      &dCert->subjectName, sizeof(DecodedName));
+        x509->subject.fullName.fullName = (char*)XMALLOC(
+                       dCert->subjectName.fullNameLen, NULL, DYNAMIC_TYPE_X509);
+        if (x509->subject.fullName.fullName != NULL)
+            XMEMCPY(x509->subject.fullName.fullName,
+                   dCert->subjectName.fullName, dCert->subjectName.fullNameLen);
+    }
+#endif /* OPENSSL_EXTRA */
 
     XMEMCPY(x509->serial, dCert->serial, EXTERNAL_SERIAL_SIZE);
     x509->serialSz = dCert->serialSz;
@@ -3026,6 +3100,33 @@ int CopyDecodedToX509(CYASSL_X509* x509, DecodedCert* dCert)
             x509->hwSerialNumSz = 0;
     }
 #endif /* CYASSL_SEP */
+    {
+        int minSz = min(dCert->beforeDateLen, MAX_DATE_SZ);
+        if (minSz != 0) {
+            x509->notBeforeSz = minSz;
+            XMEMCPY(x509->notBefore, dCert->beforeDate, minSz);
+        }
+        else
+            x509->notBeforeSz = 0;
+        minSz = min(dCert->afterDateLen, MAX_DATE_SZ);
+        if (minSz != 0) {
+            x509->notAfterSz = minSz;
+            XMEMCPY(x509->notAfter, dCert->afterDate, minSz);
+        }
+        else
+            x509->notAfterSz = 0;
+    }
+
+    if (dCert->publicKey != NULL && dCert->pubKeySize != 0) {
+        x509->pubKey.buffer = (byte*)XMALLOC(
+                              dCert->pubKeySize, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
+        if (x509->pubKey.buffer != NULL) {
+            x509->pubKey.length = dCert->pubKeySize;
+            XMEMCPY(x509->pubKey.buffer, dCert->publicKey, dCert->pubKeySize);
+        }
+        else
+            ret = MEMORY_E;
+    }
 
     /* store cert for potential retrieval */
     x509->derCert.buffer = (byte*)XMALLOC(dCert->maxIdx, NULL,
@@ -6137,19 +6238,27 @@ const char* const cipher_names[] =
     "PSK-NULL-SHA",
 #endif
 
-#ifdef BUILD_TLS_RSA_WITH_HC_128_CBC_MD5
+#ifdef BUILD_TLS_RSA_WITH_HC_128_MD5
     "HC128-MD5",
 #endif
     
-#ifdef BUILD_TLS_RSA_WITH_HC_128_CBC_SHA
+#ifdef BUILD_TLS_RSA_WITH_HC_128_SHA
     "HC128-SHA",
 #endif
 
-#ifdef BUILD_TLS_RSA_WITH_HC_128_CBC_B2B256
+#ifdef BUILD_TLS_RSA_WITH_HC_128_B2B256
     "HC128-B2B256",
 #endif
 
-#ifdef BUILD_TLS_RSA_WITH_RABBIT_CBC_SHA
+#ifdef BUILD_TLS_RSA_WITH_AES_128_CBC_B2B256
+    "AES128-B2B256",
+#endif
+
+#ifdef BUILD_TLS_RSA_WITH_AES_256_CBC_B2B256
+    "AES256-B2B256",
+#endif
+
+#ifdef BUILD_TLS_RSA_WITH_RABBIT_SHA
     "RABBIT-SHA",
 #endif
 
@@ -6449,20 +6558,28 @@ int cipher_name_idx[] =
     TLS_PSK_WITH_NULL_SHA,
 #endif
 
-#ifdef BUILD_TLS_RSA_WITH_HC_128_CBC_MD5
-    TLS_RSA_WITH_HC_128_CBC_MD5,    
+#ifdef BUILD_TLS_RSA_WITH_HC_128_MD5
+    TLS_RSA_WITH_HC_128_MD5,    
 #endif
 
-#ifdef BUILD_TLS_RSA_WITH_HC_128_CBC_SHA
-    TLS_RSA_WITH_HC_128_CBC_SHA,    
+#ifdef BUILD_TLS_RSA_WITH_HC_128_SHA
+    TLS_RSA_WITH_HC_128_SHA,    
 #endif
 
-#ifdef BUILD_TLS_RSA_WITH_HC_128_CBC_B2B256
-    TLS_RSA_WITH_HC_128_CBC_B2B256,
+#ifdef BUILD_TLS_RSA_WITH_HC_128_B2B256
+    TLS_RSA_WITH_HC_128_B2B256,
 #endif
 
-#ifdef BUILD_TLS_RSA_WITH_RABBIT_CBC_SHA
-    TLS_RSA_WITH_RABBIT_CBC_SHA,    
+#ifdef BUILD_TLS_RSA_WITH_AES_128_CBC_B2B256
+    TLS_RSA_WITH_AES_128_CBC_B2B256,
+#endif
+
+#ifdef BUILD_TLS_RSA_WITH_AES_256_CBC_B2B256
+    TLS_RSA_WITH_AES_256_CBC_B2B256,
+#endif
+
+#ifdef BUILD_TLS_RSA_WITH_RABBIT_SHA
+    TLS_RSA_WITH_RABBIT_SHA,    
 #endif
 
 #ifdef BUILD_TLS_NTRU_RSA_WITH_RC4_128_SHA
@@ -8452,7 +8569,7 @@ static void PickHashSigAlgo(CYASSL* ssl,
                 ret = EccPrivateKeyDecode(ssl->buffers.key.buffer, &i,
                                           &dsaKey, ssl->buffers.key.length);
                 if (ret != 0) return ret;
-                sigSz = ecc_sig_size(&dsaKey) + 4;  /* worst case estimate */
+                sigSz = ecc_sig_size(&dsaKey);  /* worst case estimate */
             }
             else {
 #ifndef NO_RSA
@@ -9300,22 +9417,28 @@ static void PickHashSigAlgo(CYASSL* ssl,
                 return 1;
             break;
 
-        case TLS_RSA_WITH_HC_128_CBC_MD5 :
+        case TLS_RSA_WITH_HC_128_MD5 :
             if (requirement == REQUIRES_RSA)
                 return 1;
             break;
                 
-        case TLS_RSA_WITH_HC_128_CBC_SHA :
+        case TLS_RSA_WITH_HC_128_SHA :
             if (requirement == REQUIRES_RSA)
                 return 1;
             break;
 
-        case TLS_RSA_WITH_HC_128_CBC_B2B256:
+        case TLS_RSA_WITH_HC_128_B2B256:
             if (requirement == REQUIRES_RSA)
                 return 1;
             break;
 
-        case TLS_RSA_WITH_RABBIT_CBC_SHA :
+        case TLS_RSA_WITH_AES_128_CBC_B2B256:
+        case TLS_RSA_WITH_AES_256_CBC_B2B256:
+            if (requirement == REQUIRES_RSA)
+                return 1;
+            break;
+
+        case TLS_RSA_WITH_RABBIT_SHA :
             if (requirement == REQUIRES_RSA)
                 return 1;
             break;

@@ -1088,8 +1088,8 @@ int SetCipherSpecs(CYASSL* ssl)
         break;
 #endif
 
-#ifdef BUILD_TLS_RSA_WITH_HC_128_CBC_MD5
-    case TLS_RSA_WITH_HC_128_CBC_MD5 :
+#ifdef BUILD_TLS_RSA_WITH_HC_128_MD5
+    case TLS_RSA_WITH_HC_128_MD5 :
         ssl->specs.bulk_cipher_algorithm = cyassl_hc128;
         ssl->specs.cipher_type           = stream;
         ssl->specs.mac_algorithm         = md5_mac;
@@ -1105,8 +1105,8 @@ int SetCipherSpecs(CYASSL* ssl)
         break;
 #endif
             
-#ifdef BUILD_TLS_RSA_WITH_HC_128_CBC_SHA
-        case TLS_RSA_WITH_HC_128_CBC_SHA :
+#ifdef BUILD_TLS_RSA_WITH_HC_128_SHA
+        case TLS_RSA_WITH_HC_128_SHA :
             ssl->specs.bulk_cipher_algorithm = cyassl_hc128;
             ssl->specs.cipher_type           = stream;
             ssl->specs.mac_algorithm         = sha_mac;
@@ -1122,8 +1122,8 @@ int SetCipherSpecs(CYASSL* ssl)
             break;
 #endif
 
-#ifdef BUILD_TLS_RSA_WITH_HC_128_CBC_B2B256
-        case TLS_RSA_WITH_HC_128_CBC_B2B256:
+#ifdef BUILD_TLS_RSA_WITH_HC_128_B2B256
+        case TLS_RSA_WITH_HC_128_B2B256:
             ssl->specs.bulk_cipher_algorithm = cyassl_hc128;
             ssl->specs.cipher_type           = stream;
             ssl->specs.mac_algorithm         = blake2b_mac;
@@ -1139,8 +1139,42 @@ int SetCipherSpecs(CYASSL* ssl)
             break;
 #endif
 
-#ifdef BUILD_TLS_RSA_WITH_RABBIT_CBC_SHA
-    case TLS_RSA_WITH_RABBIT_CBC_SHA :
+#ifdef BUILD_TLS_RSA_WITH_AES_128_CBC_B2B256
+        case TLS_RSA_WITH_AES_128_CBC_B2B256:
+            ssl->specs.bulk_cipher_algorithm = cyassl_aes;
+            ssl->specs.cipher_type           = block;
+            ssl->specs.mac_algorithm         = blake2b_mac;
+            ssl->specs.kea                   = rsa_kea;
+            ssl->specs.sig_algo              = rsa_sa_algo;
+            ssl->specs.hash_size             = BLAKE2B_256;
+            ssl->specs.pad_size              = PAD_SHA;
+            ssl->specs.static_ecdh           = 0;
+            ssl->specs.key_size              = AES_128_KEY_SIZE;
+            ssl->specs.iv_size               = AES_IV_SIZE;
+            ssl->specs.block_size            = AES_BLOCK_SIZE;
+            
+            break;
+#endif
+
+#ifdef BUILD_TLS_RSA_WITH_AES_256_CBC_B2B256
+        case TLS_RSA_WITH_AES_256_CBC_B2B256:
+            ssl->specs.bulk_cipher_algorithm = cyassl_aes;
+            ssl->specs.cipher_type           = block;
+            ssl->specs.mac_algorithm         = blake2b_mac;
+            ssl->specs.kea                   = rsa_kea;
+            ssl->specs.sig_algo              = rsa_sa_algo;
+            ssl->specs.hash_size             = BLAKE2B_256;
+            ssl->specs.pad_size              = PAD_SHA;
+            ssl->specs.static_ecdh           = 0;
+            ssl->specs.key_size              = AES_256_KEY_SIZE;
+            ssl->specs.iv_size               = AES_IV_SIZE;
+            ssl->specs.block_size            = AES_BLOCK_SIZE;
+            
+            break;
+#endif
+
+#ifdef BUILD_TLS_RSA_WITH_RABBIT_SHA
+    case TLS_RSA_WITH_RABBIT_SHA :
         ssl->specs.bulk_cipher_algorithm = cyassl_rabbit;
         ssl->specs.cipher_type           = stream;
         ssl->specs.mac_algorithm         = sha_mac;

@@ -458,18 +458,23 @@ int GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 
 #elif defined(MICROCHIP_PIC32)
 
-#include <peripheral/timer.h>
+#ifdef MICROCHIP_MPLAB_HARMONY
+    #define PIC32_SEED_COUNT _CP0_GET_COUNT
+#else
+    #include <peripheral/timer.h>
+    #define PIC32_SEED_COUNT ReadCoreTimer
+#endif
 
 /* uses the core timer, in nanoseconds to seed srand */
 int GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 {
     int i;
-    srand(ReadCoreTimer() * 25);
+    srand(PIC32_SEED_COUNT() * 25);
 
     for (i = 0; i < sz; i++ ) {
         output[i] = rand() % 256;
         if ( (i % 8) == 7)
-            srand(ReadCoreTimer() * 25);
+            srand(PIC32_SEED_COUNT() * 25);
     }
 
     return 0;

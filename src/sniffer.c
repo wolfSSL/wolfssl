@@ -1593,10 +1593,19 @@ static void Decrypt(SSL* ssl, byte* output, const byte* input, word32 sz)
 static const byte* DecryptMessage(SSL* ssl, const byte* input, word32 sz,
                                   byte* output)
 {
+    int ivExtra = 0;
+
     Decrypt(ssl, output, input, sz);
     ssl->keys.encryptSz = sz;
-    if (ssl->options.tls1_1 && ssl->specs.cipher_type == block)
-        return output + ssl->specs.block_size;     /* go past TLSv1.1 IV */
+    if (ssl->options.tls1_1 && ssl->specs.cipher_type == block) {
+        output += ssl->specs.block_size;     /* go past TLSv1.1 IV */
+        ivExtra = ssl->specs.block_size;
+    }
+
+    ssl->keys.padSz = ssl->specs.hash_size;
+
+    if (ssl->specs.cipher_type == block)
+        ssl->keys.padSz += *(output + sz - ivExtra - 1) + 1;
     
     return output;
 }

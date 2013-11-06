@@ -6,7 +6,7 @@
 #
 #
 
-AC_INIT([cyassl],[2.8.2],[https://github.com/cyassl/cyassl/issues],[cyassl],[http://www.yassl.com])
+AC_INIT([cyassl],[2.8.3],[https://github.com/cyassl/cyassl/issues],[cyassl],[http://www.yassl.com])
 
 AC_CONFIG_AUX_DIR([build-aux])
 
@@ -535,6 +535,18 @@ AC_ARG_ENABLE([sep],
 if test "$ENABLED_SEP" = "yes"
 then
   AM_CFLAGS="-DCYASSL_SEP -DKEEP_PEER_CERT $AM_CFLAGS"
+fi
+
+
+# HKDF 
+AC_ARG_ENABLE([hkdf],
+    [  --enable-hkdf           Enable HKDF (HMAC-KDF) support (default: disabled)],
+    [ ENABLED_HKDF=$enableval ],
+    [ ENABLED_HKDF=no ]
+    )
+if test "$ENABLED_HKDF" = "yes"
+then
+  AM_CFLAGS="$AM_CFLAGS -DHAVE_HKDF"
 fi
 
 

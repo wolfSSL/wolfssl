@@ -196,6 +196,10 @@ void c32to24(word32 in, word24 out);
         #define BUILD_TLS_RSA_WITH_AES_128_CCM_8
         #define BUILD_TLS_RSA_WITH_AES_256_CCM_8
     #endif
+    #if defined(HAVE_BLAKE2)
+        #define BUILD_TLS_RSA_WITH_AES_128_CBC_B2B256
+        #define BUILD_TLS_RSA_WITH_AES_256_CBC_B2B256
+    #endif
 #endif
 
 #if defined(HAVE_CAMELLIA) && !defined(NO_TLS)
@@ -255,18 +259,18 @@ void c32to24(word32 in, word24 out);
 #endif
 
 #if !defined(NO_HC128) && !defined(NO_RSA) && !defined(NO_TLS)
-    #define BUILD_TLS_RSA_WITH_HC_128_CBC_MD5
+    #define BUILD_TLS_RSA_WITH_HC_128_MD5
   #if !defined(NO_SHA)
-    #define BUILD_TLS_RSA_WITH_HC_128_CBC_SHA
+    #define BUILD_TLS_RSA_WITH_HC_128_SHA
   #endif
   #if defined(HAVE_BLAKE2)
-    #define BUILD_TLS_RSA_WITH_HC_128_CBC_B2B256
+    #define BUILD_TLS_RSA_WITH_HC_128_B2B256
   #endif
 #endif
 
 #if !defined(NO_RABBIT) && !defined(NO_TLS) && !defined(NO_RSA)
   #if !defined(NO_SHA)
-    #define BUILD_TLS_RSA_WITH_RABBIT_CBC_SHA
+    #define BUILD_TLS_RSA_WITH_RABBIT_SHA
   #endif
 #endif
 
@@ -389,13 +393,13 @@ void c32to24(word32 in, word24 out);
     #define BUILD_AESGCM
 #endif
 
-#if defined(BUILD_TLS_RSA_WITH_HC_128_CBC_SHA) || \
-    defined(BUILD_TLS_RSA_WITH_HC_128_CBC_MD5) || \
-    defined(BUILD_TLS_RSA_WITH_HC_128_CBC_B2B256)
+#if defined(BUILD_TLS_RSA_WITH_HC_128_SHA) || \
+    defined(BUILD_TLS_RSA_WITH_HC_128_MD5) || \
+    defined(BUILD_TLS_RSA_WITH_HC_128_B2B256)
     #define BUILD_HC128
 #endif
 
-#if defined(BUILD_TLS_RSA_WITH_RABBIT_CBC_SHA)
+#if defined(BUILD_TLS_RSA_WITH_RABBIT_SHA)
     #define BUILD_RABBIT
 #endif
 
@@ -470,10 +474,15 @@ enum {
     TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA384 = 0x26,
 
     /* CyaSSL extension - eSTREAM */
-    TLS_RSA_WITH_HC_128_CBC_B2B256    = 0xFA,
-    TLS_RSA_WITH_HC_128_CBC_MD5       = 0xFB,
-    TLS_RSA_WITH_HC_128_CBC_SHA       = 0xFC,
-    TLS_RSA_WITH_RABBIT_CBC_SHA       = 0xFD,
+    TLS_RSA_WITH_HC_128_MD5       = 0xFB,
+    TLS_RSA_WITH_HC_128_SHA       = 0xFC,
+    TLS_RSA_WITH_RABBIT_SHA       = 0xFD,
+
+    /* CyaSSL extension - Blake2b 256 */
+    TLS_RSA_WITH_AES_128_CBC_B2B256   = 0xF8,
+    TLS_RSA_WITH_AES_256_CBC_B2B256   = 0xF9,
+    TLS_RSA_WITH_HC_128_B2B256        = 0xFA,   /* eSTREAM too */
+
 
     /* CyaSSL extension - NTRU */
     TLS_NTRU_RSA_WITH_RC4_128_SHA      = 0xe5,
@@ -1616,9 +1625,18 @@ typedef struct Arrays {
 #define ASN_NAME_MAX 256
 #endif
 
+#ifndef MAX_DATE_SZ
+#define MAX_DATE_SZ 32
+#endif
+
 struct CYASSL_X509_NAME {
-    char  name[ASN_NAME_MAX];
+    char  *name;
+    char  staticName[ASN_NAME_MAX];
+    int   dynamicName;
     int   sz;
+#ifdef OPENSSL_EXTRA
+    DecodedName fullName;
+#endif /* OPENSSL_EXTRA */
 };
 
 #ifndef EXTERNAL_SERIAL_SIZE
@@ -1630,6 +1648,7 @@ struct CYASSL_X509_NAME {
 #endif
 
 struct CYASSL_X509 {
+    int              version;
     CYASSL_X509_NAME issuer;
     CYASSL_X509_NAME subject;
     int              serialSz;
@@ -1643,6 +1662,11 @@ struct CYASSL_X509 {
     int              hwSerialNumSz;
     byte             hwSerialNum[EXTERNAL_SERIAL_SIZE];
 #endif
+    int              notBeforeSz;
+    byte             notBefore[MAX_DATE_SZ];
+    int              notAfterSz;
+    byte             notAfter[MAX_DATE_SZ];
+    buffer           pubKey;
     buffer           derCert;                        /* may need  */
     DNS_entry*       altNames;                       /* alt names list */
     DNS_entry*       altNamesNext;                   /* hint for retrieval */
@@ -2020,6 +2044,8 @@ CYASSL_LOCAL  int GrowInputBuffer(CYASSL* ssl, int size, int usedLength);
 
 CYASSL_LOCAL word32  LowResTimer(void);
 
+CYASSL_LOCAL void InitX509Name(CYASSL_X509_NAME*, int);
+CYASSL_LOCAL void FreeX509Name(CYASSL_X509_NAME* name);
 CYASSL_LOCAL void InitX509(CYASSL_X509*, int);
 CYASSL_LOCAL void FreeX509(CYASSL_X509*);
 #ifndef NO_CERTS

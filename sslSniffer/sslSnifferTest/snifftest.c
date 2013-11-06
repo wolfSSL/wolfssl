@@ -114,7 +114,7 @@ static char* iptos(unsigned int addr)
 
 int main(int argc, char** argv)
 {
-    int          ret;
+    int          ret = 0;
 	int		     inum;
 	int		     port;
     int          saveFile = 0;
@@ -260,8 +260,10 @@ int main(int argc, char** argv)
         frame = NULL_IF_FRAME_LEN;
 
     while (1) {
+        static int packetNumber = 0;
         struct pcap_pkthdr header;
         const unsigned char* packet = pcap_next(pcap, &header);
+        packetNumber++;
         if (packet) {
 
             byte data[65535];
@@ -278,7 +280,7 @@ int main(int argc, char** argv)
                 printf("ssl_Decode ret = %d, %s\n", ret, err);
             if (ret > 0) {
                 data[ret] = 0;
-				printf("SSL App Data:%s\n", data);
+				printf("SSL App Data(%d:%d):%s\n", packetNumber, ret, data);
             }
         }
         else if (saveFile)

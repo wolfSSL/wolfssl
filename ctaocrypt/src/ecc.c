@@ -159,8 +159,10 @@ int  ecc_projective_dbl_point(ecc_point* P, ecc_point* R, mp_int* modulus,
                               mp_digit* mp);
 static int ecc_mulmod(mp_int* k, ecc_point *G, ecc_point *R, mp_int* modulus,
                       int map);
+#ifdef ECC_SHAMIR
 static int ecc_mul2add(ecc_point* A, mp_int* kA, ecc_point* B, mp_int* kB,
                        ecc_point* C, mp_int* modulus);
+#endif
 
 
 /* helper for either lib */
@@ -1514,13 +1516,13 @@ void ecc_free(ecc_key* key)
 }
 
 
-#ifdef ECC_SHAMIR
-
 #ifdef USE_FAST_MATH
     #define GEN_MEM_ERR FP_MEM
 #else
     #define GEN_MEM_ERR MP_MEM
 #endif
+
+#ifdef ECC_SHAMIR
 
 /** Computes kA*A + kB*B = C using Shamir's Trick
   A        First point to multiply
@@ -1582,20 +1584,23 @@ static int ecc_mul2add(ecc_point* A, mp_int* kA,
 
   if (err == MP_OKAY) {
     /* extract and justify kA */
-    mp_to_unsigned_bin(kA, (len - lenA) + tA);
+    err = mp_to_unsigned_bin(kA, (len - lenA) + tA);
 
     /* extract and justify kB */
-    mp_to_unsigned_bin(kB, (len - lenB) + tB);
+    if (err == MP_OKAY)
+        err = mp_to_unsigned_bin(kB, (len - lenB) + tB);
 
     /* allocate the table */
-    for (x = 0; x < 16; x++) {
-        precomp[x] = ecc_new_point();
-        if (precomp[x] == NULL) {
-            for (y = 0; y < x; ++y) {
-                ecc_del_point(precomp[y]);
+    if (err == MP_OKAY) {
+        for (x = 0; x < 16; x++) {
+            precomp[x] = ecc_new_point();
+            if (precomp[x] == NULL) {
+                for (y = 0; y < x; ++y) {
+                    ecc_del_point(precomp[y]);
+                }
+                err = GEN_MEM_ERR;
+                break;
             }
-            err = GEN_MEM_ERR;
-            break;
         }
     }
   }
@@ -1943,6 +1948,7 @@ int ecc_export_x963(ecc_key* key, byte* out, word32* outLen)
 {
    byte   buf[ECC_BUFSIZE];
    word32 numlen;
+   int    ret = MP_OKAY;
 
    if (key == NULL || out == NULL || outLen == NULL)
        return ECC_BAD_ARG_E;
@@ -1962,14 +1968,18 @@ int ecc_export_x963(ecc_key* key, byte* out, word32* outLen)
 
    /* pad and store x */
    XMEMSET(buf, 0, sizeof(buf));
-   mp_to_unsigned_bin(&key->pubkey.x,
+   ret = mp_to_unsigned_bin(&key->pubkey.x,
                       buf + (numlen - mp_unsigned_bin_size(&key->pubkey.x)));
+   if (ret != MP_OKAY)
+       return ret;
    XMEMCPY(out+1, buf, numlen);
 
    /* pad and store y */
    XMEMSET(buf, 0, sizeof(buf));
-   mp_to_unsigned_bin(&key->pubkey.y,
+   ret = mp_to_unsigned_bin(&key->pubkey.y,
                       buf + (numlen - mp_unsigned_bin_size(&key->pubkey.y)));
+   if (ret != MP_OKAY)
+       return ret;
    XMEMCPY(out+1+numlen, buf, numlen);
 
    *outLen = 1 + 2*numlen;
@@ -2043,6 +2053,31 @@ int ecc_import_x963(const byte* in, word32 inLen, ecc_key* key)
 }
 
 
+/* export ecc private key only raw, outLen is in/out size 
+   return MP_OKAY on success */
+int ecc_export_private_only(ecc_key* key, byte* out, word32* outLen)
+{
+   word32 numlen;
+
+   if (key == NULL || out == NULL || outLen == NULL)
+       return ECC_BAD_ARG_E;
+
+   if (ecc_is_valid_idx(key->idx) == 0) {
+      return ECC_BAD_ARG_E;
+   }
+   numlen = key->dp->size;
+
+   if (*outLen < numlen) {
+      *outLen = numlen;
+      return BUFFER_E;
+   }
+   *outLen = numlen; 
+   XMEMSET(out, 0, *outLen);
+   return mp_to_unsigned_bin(&key->k, out + (numlen -
+                                             mp_unsigned_bin_size(&key->k)));
+}
+
+
 /* ecc private key import, public key in ANSI X9.63 format, private raw */
 int ecc_import_private_key(const byte* priv, word32 privSz, const byte* pub,
                            word32 pubSz, ecc_key* key)
@@ -2066,14 +2101,15 @@ int ecc_size(ecc_key* key)
 }
 
 
-/* signature size in octets */
+/* worst case estimate, check actual return from ecc_sign_hash for actual value
+   of signature size in octets */
 int ecc_sig_size(ecc_key* key)
 {
     int sz = ecc_size(key);
     if (sz < 0)
         return sz;
 
-    return sz * 2 + SIG_HEADER_SZ;
+    return sz * 2 + SIG_HEADER_SZ + 4;  /* (4) worst case estimate */
 }
 
 
@@ -2090,9 +2126,17 @@ int ecc_sig_size(ecc_key* key)
     #define FP_LUT     8U
 #endif
 
-#if (FP_LUT > 12) || (FP_LUT < 2)
-   #error FP_LUT must be between 2 and 12 inclusively
-#endif   
+#ifdef ECC_SHAMIR
+    /* Sharmir requires a bigger LUT, TAO */
+    #if (FP_LUT > 12) || (FP_LUT < 4)
+        #error FP_LUT must be between 4 and 12 inclusively
+    #endif
+#else
+    #if (FP_LUT > 12) || (FP_LUT < 2)
+        #error FP_LUT must be between 2 and 12 inclusively
+    #endif
+#endif
+
 
 /** Our FP cache */
 static struct {
@@ -3223,6 +3267,10 @@ int ecc_mul2add(ecc_point* A, mp_int* kA,
         initMutex = 1;
    }
    
+   err = mp_init(&mu);
+   if (err != MP_OKAY)
+       return err;
+
    if (LockMutex(&ecc_fp_lock) != 0)
       return BAD_MUTEX_E;
 
@@ -3267,17 +3315,8 @@ int ecc_mul2add(ecc_point* A, mp_int* kA,
 
            if (err == MP_OKAY) {
              mpInit = 1;
-             err = mp_init(&mu);
+             err = mp_montgomery_calc_normalization(&mu, modulus);
            }
-           if (err == MP_OKAY)
-             err = mp_montgomery_calc_normalization(&mu, modulus);
-
-           if (err == MP_OKAY)
-             /* compute mu */
-             err = mp_init(&mu);
-
-           if (err == MP_OKAY)
-             err = mp_montgomery_calc_normalization(&mu, modulus);
                  
            if (err == MP_OKAY)
              /* build the LUT */
@@ -3289,17 +3328,13 @@ int ecc_mul2add(ecc_point* A, mp_int* kA,
         /* if it's 2 build the LUT, if it's higher just use the LUT */
         if (idx2 >= 0 && fp_cache[idx2].lru_count == 2) {
            if (mpInit == 0) {
-              /* compute mp */
+                /* compute mp */
                 err = mp_montgomery_setup(modulus, &mp);
-                if (err == MP_OKAY)
+                if (err == MP_OKAY) {
                     mpInit = 1;
+                    err = mp_montgomery_calc_normalization(&mu, modulus);
+                }
             }
-            if (err == MP_OKAY)
-              /* compute mu */
-              err = mp_init(&mu);
-
-            if (err == MP_OKAY) 
-              err = mp_montgomery_calc_normalization(&mu, modulus);
                  
             if (err == MP_OKAY) 
             /* build the LUT */

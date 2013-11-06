@@ -774,7 +774,7 @@ int EmbedOcspLookup(void* ctx, const char* url, int urlSz,
 {
     char domainName[80], path[80];
     int httpBufSz;
-    SOCKET_T sfd;
+    SOCKET_T sfd = 0;
     word16 port;
     int ocspRespSz = 0;
     byte* httpBuf = NULL;
