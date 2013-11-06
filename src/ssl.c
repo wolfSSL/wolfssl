@@ -7137,13 +7137,42 @@ int CyaSSL_set_compression(CYASSL* ssl)
     }
 
 
+    int CyaSSL_X509_get_signature_type(CYASSL_X509* x509)
+    {
+        int type = 0;
+
+        CYASSL_ENTER("CyaSSL_X509_get_signature_type");
+
+        if (x509 != NULL)
+            type = x509->sigOID;
+
+        return type;
+    }
+
+
+    int CyaSSL_X509_get_signature(CYASSL_X509* x509,
+                                                 unsigned char* buf, int* bufSz)
+    {
+        CYASSL_ENTER("CyaSSL_X509_get_signature");
+        if (x509 == NULL || bufSz == NULL || *bufSz < (int)x509->sig.length)
+            return SSL_FATAL_ERROR;
+
+        if (buf != NULL)
+            XMEMCPY(buf, x509->sig.buffer, x509->sig.length);
+        *bufSz = x509->sig.length;
+
+        return SSL_SUCCESS;
+    }
+
+
     /* write X509 serial number in unsigned binary to buffer 
        buffer needs to be at least EXTERNAL_SERIAL_SIZE (32) for all cases
        return SSL_SUCCESS on success */
     int CyaSSL_X509_get_serial_number(CYASSL_X509* x509, byte* in, int* inOutSz)
     {
         CYASSL_ENTER("CyaSSL_X509_get_serial_number");
-        if (x509 == NULL || in == NULL || *inOutSz < x509->serialSz)
+        if (x509 == NULL || in == NULL ||
+                                   inOutSz == NULL || *inOutSz < x509->serialSz)
             return BAD_FUNC_ARG;
 
         XMEMCPY(in, x509->serial, x509->serialSz);

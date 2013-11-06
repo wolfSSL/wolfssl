@@ -418,6 +418,8 @@ CYASSL_API int CyaSSL_X509_NAME_get_text_by_NID(
                                             CYASSL_X509_NAME*, int, char*, int);
 CYASSL_API int         CyaSSL_X509_verify_cert(CYASSL_X509_STORE_CTX*);
 CYASSL_API const char* CyaSSL_X509_verify_cert_error_string(long);
+CYASSL_API int CyaSSL_X509_get_signature_type(CYASSL_X509*);
+CYASSL_API int CyaSSL_X509_get_signature(CYASSL_X509*, unsigned char*, int*);
 
 CYASSL_API int CyaSSL_X509_LOOKUP_add_dir(CYASSL_X509_LOOKUP*,const char*,long);
 CYASSL_API int CyaSSL_X509_LOOKUP_load_file(CYASSL_X509_LOOKUP*, const char*,

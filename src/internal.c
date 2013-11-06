@@ -1266,6 +1266,7 @@ void InitX509(CYASSL_X509* x509, int dynamicFlag)
     InitX509Name(&x509->subject, 0);
     x509->version        = 0;
     x509->pubKey.buffer  = NULL;
+    x509->sig.buffer     = NULL;
     x509->derCert.buffer = NULL;
     x509->altNames       = NULL;
     x509->altNamesNext   = NULL;
@@ -1284,6 +1285,7 @@ void FreeX509(CYASSL_X509* x509)
     if (x509->pubKey.buffer)
         XFREE(x509->pubKey.buffer, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
     XFREE(x509->derCert.buffer, NULL, DYNAMIC_TYPE_SUBJECT_CN);
+    XFREE(x509->sig.buffer, NULL, 0);
     if (x509->altNames)
         FreeAltNames(x509->altNames, NULL);
     if (x509->dynamicMemory)
@@ -3126,6 +3128,17 @@ int CopyDecodedToX509(CYASSL_X509* x509, DecodedCert* dCert)
         }
         else
             ret = MEMORY_E;
+    }
+
+    x509->sig.buffer = (byte*)XMALLOC(dCert->sigLength, NULL, 0);
+    if (x509->sig.buffer == NULL) {
+        ret = MEMORY_E;
+    }
+    else {
+        XMEMCPY(x509->sig.buffer,
+                             &dCert->source[dCert->sigIndex], dCert->sigLength);
+        x509->sig.length = dCert->sigLength;
+        x509->sigOID = dCert->signatureOID;
     }
 
     /* store cert for potential retrieval */
