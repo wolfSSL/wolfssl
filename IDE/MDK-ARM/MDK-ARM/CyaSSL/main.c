@@ -108,7 +108,7 @@ void main_task (void)
     init_TcpNet ();
 
     os_tsk_create (tcp_tick, 2);
-    os_tsk_create (tcp_poll, 1);    
+    os_tsk_create (tcp_poll, 1);
     #endif
     
     #ifdef CYASSL_MDK_SHELL 
@@ -137,8 +137,8 @@ void main_task (void)
     int myoptind = 0;
     char* myoptarg = NULL;
 
-    #if defined(DEBUG_CYASSL)
-                extern void CyaSSL_Debugging_ON(void) ;
+#if defined(DEBUG_CYASSL)
+    extern void CyaSSL_Debugging_ON(void) ;
 #endif
 
 
@@ -148,26 +148,25 @@ extern void 	SystemInit(void);
 
 int main() {
 
-  	SystemInit();  
-	  SER_Init() ;
+    SystemInit();  
+    SER_Init() ;
     #if !defined(NO_FILESYSTEM)
-    init_card () ;                                    /* initializing SD card */
+    init_card () ;     /* initializing SD card */
     #endif
 
     init_time() ;
 
-    
     #if defined(DEBUG_CYASSL)
          printf("Turning ON Debug message\n") ;
          CyaSSL_Debugging_ON() ;
     #endif
     
     #ifdef   HAVE_KEIL_RTX
-         os_sys_init (main_task) ;
+        os_sys_init (main_task) ;
     #else
-         main_task() ;
+        main_task() ;
     #endif
-    
+
     return 0 ; /* There should be no return here */
 
 }

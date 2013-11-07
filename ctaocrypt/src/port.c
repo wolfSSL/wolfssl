@@ -353,6 +353,60 @@ int UnLockMutex(CyaSSL_Mutex *m)
         }
         
     #elif defined(CYASSL_MDK_ARM)
+    
+        #if defined(CYASSL_CMSIS_RTOS)
+            #include "cmsis_os.h"
+            #define CMSIS_NMUTEX 10
+            osMutexDef(CyaSSL_mt0) ;  osMutexDef(CyaSSL_mt1) ;  osMutexDef(CyaSSL_mt2) ;
+            osMutexDef(CyaSSL_mt3) ;  osMutexDef(CyaSSL_mt4) ;  osMutexDef(CyaSSL_mt5) ;  
+            osMutexDef(CyaSSL_mt6) ;  osMutexDef(CyaSSL_mt7) ;  osMutexDef(CyaSSL_mt8) ;  
+            osMutexDef(CyaSSL_mt9) ;  
+            
+            static const osMutexDef_t *CMSIS_mutex[] = { osMutex(CyaSSL_mt0),   
+                osMutex(CyaSSL_mt1),    osMutex(CyaSSL_mt2),   osMutex(CyaSSL_mt3),    
+                osMutex(CyaSSL_mt4),    osMutex(CyaSSL_mt5),   osMutex(CyaSSL_mt6),
+                osMutex(CyaSSL_mt7),    osMutex(CyaSSL_mt8),    osMutex(CyaSSL_mt9) } ;                 
+            
+            static osMutexId CMSIS_mutexID[CMSIS_NMUTEX] = {0} ;
+
+            int InitMutex(CyaSSL_Mutex* m)
+            {
+                int i ;
+                for (i=0; i<CMSIS_NMUTEX; i++) {
+                    if(CMSIS_mutexID[i] == 0) {
+                        CMSIS_mutexID[i] = osMutexCreate(CMSIS_mutex[i]) ;
+                        (*m) = CMSIS_mutexID[i] ;
+                    return 0 ;
+                    }
+                }
+                return -1 ;
+            }
+
+            int FreeMutex(CyaSSL_Mutex* m)
+            {
+                int i ;
+                osMutexDelete   (*m) ;
+                for (i=0; i<CMSIS_NMUTEX; i++) {
+                    if(CMSIS_mutexID[i] == (*m)) {
+                        CMSIS_mutexID[i] = 0 ;
+                        return(0) ;
+                    }
+                }
+                return(-1) ;
+            }
+            
+            int LockMutex(CyaSSL_Mutex* m)
+            {
+                osMutexWait(*m, osWaitForever) ;
+                return(0) ;
+            }
+
+            int UnLockMutex(CyaSSL_Mutex* m)
+            {
+                osMutexRelease (*m);
+                return 0;
+            }
+        #else
 
         int InitMutex(CyaSSL_Mutex* m)
         {
@@ -376,6 +430,7 @@ int UnLockMutex(CyaSSL_Mutex *m)
             os_mut_release (m);
             return 0;
         }
+        #endif
     #endif /* USE_WINDOWS_API */
 #endif /* SINGLE_THREADED */
 
