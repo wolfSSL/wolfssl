@@ -33,6 +33,11 @@
 #include <cyassl/ctaocrypt/asn.h>
 #include <cyassl/ctaocrypt/error.h>
 
+#ifdef HAVE_ECC_ENCRYPT
+    #include <cyassl/ctaocrypt/hmac.h>
+    #include <cyassl/ctaocrypt/aes.h>
+#endif
+
 
 /* map
 
@@ -3484,6 +3489,269 @@ void ecc_fp_free(void)
 }
 
 
-
 #endif /* FP_ECC */
+
+#ifdef HAVE_ECC_ENCRYPT
+
+/* init and set defaults, just holders */
+void ecc_encrypt_init_options(ecEncOptions* options)
+{
+    if (options) {
+        XMEMSET(options, 0, sizeof(ecEncOptions));
+
+        options->encAlgo = ecAES_128_CBC;
+        options->kdfAlgo = ecHKDF_SHA256;
+        options->macAlgo = ecHMAC_SHA256;
+    }
+}
+
+
+/* free any resources, clear any keys */
+void ecc_encrypt_free_options(ecEncOptions* options)
+{
+    if (options) {
+        XMEMSET(options, 0, sizeof(ecEncOptions));
+    }
+}
+
+
+static int ecc_get_key_sizes(ecEncOptions* options, int* encKeySz, int* ivSz,
+                             int* keysLen, word32* digestSz, word32* blockSz)
+{
+    if (options) {
+        switch (options->encAlgo) {
+            case ecAES_128_CBC:
+                *encKeySz = KEY_SIZE_128;
+                *ivSz     = IV_SIZE_64;
+                *blockSz  = AES_BLOCK_SIZE;
+                break;
+            default:
+                return BAD_FUNC_ARG;
+        }
+
+        switch (options->macAlgo) {
+            case ecHMAC_SHA256:
+                *digestSz = SHA256_DIGEST_SIZE;
+                break;
+            default:
+                return BAD_FUNC_ARG;
+        }
+    } else
+        return BAD_FUNC_ARG;
+
+    *keysLen  = *encKeySz + *ivSz + *digestSz;
+
+    return 0;
+}
+
+
+/* ecc encrypt with shared secret run through kdf
+   options holds non default algos and inputs
+   msgSz should be the right size for encAlgo, i.e., already padded 
+   return 0 on success */
+int ecc_encrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
+                word32 msgSz, byte* out, word32* outSz, ecEncOptions* opts)
+{
+    int          ret;
+    word32       blockSz;
+    word32       digestSz;
+    ecEncOptions options;
+    byte         sharedSecret[ECC_MAXSIZE];  /* 521 max size */
+    byte         keys[ECC_BUFSIZE];         /* max size */
+    word32       sharedSz = sizeof(sharedSecret);
+    int          keysLen;
+    int          encKeySz;
+    int          ivSz;
+    byte*        encKey;
+    byte*        encIv;
+    byte*        macKey;
+
+    if (privKey == NULL || pubKey == NULL || msg == NULL || out == NULL ||
+                           outSz  == NULL)
+        return BAD_FUNC_ARG;
+
+    if (opts)
+        options = *opts;
+    else  {
+        ecc_encrypt_init_options(&options); /* defaults */
+    }
+        
+    ret = ecc_get_key_sizes(&options, &encKeySz, &ivSz, &keysLen, &digestSz,
+                            &blockSz);
+    if (ret != 0)
+        return ret;
+        
+    if ( (msgSz%blockSz) != 0)
+        return BAD_FUNC_ARG;
+
+    if (*outSz < (msgSz + digestSz))
+        return BUFFER_E;
+
+    ret = ecc_shared_secret(privKey, pubKey, sharedSecret, &sharedSz); 
+    if (ret != 0)
+        return ret;
+
+    switch (options.kdfAlgo) {
+        case ecHKDF_SHA256 :
+                ret = HKDF(SHA256, sharedSecret, sharedSz, options.kdfSalt,
+                           options.kdfSaltSz, options.kdfInfo,
+                           options.kdfInfoSz, keys, keysLen);
+                if (ret != 0)
+                    return ret;
+            break;
+
+        default:
+            return BAD_FUNC_ARG;
+    }
+
+    encKey = keys;
+    encIv  = encKey + encKeySz;
+    macKey = encKey + encKeySz + ivSz;
+
+    switch (options.encAlgo) {
+        case ecAES_128_CBC:
+            {
+                Aes aes;
+                ret = AesSetKey(&aes, encKey,KEY_SIZE_128,encIv,AES_ENCRYPTION);
+                if (ret != 0)
+                    return ret;
+                ret = AesCbcEncrypt(&aes, out, msg, msgSz);
+                if (ret != 0)
+                    return ret;
+            }
+            break;
+
+        default:
+            return BAD_FUNC_ARG;
+    }
+
+    switch (options.macAlgo) {
+        case ecHMAC_SHA256:
+            {
+                Hmac hmac;
+                ret = HmacSetKey(&hmac, SHA256, macKey, SHA256_DIGEST_SIZE);
+                if (ret != 0)
+                    return ret;
+                HmacUpdate(&hmac, out, msgSz);
+                HmacUpdate(&hmac, options.macSalt, options.macSaltSz);
+                HmacFinal(&hmac, out+msgSz);
+            }
+            break;
+
+        default:
+            return BAD_FUNC_ARG;
+    }
+
+    *outSz = msgSz + digestSz;
+
+    return 0;
+}
+
+
+int ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
+                word32 msgSz, byte* out, word32* outSz, ecEncOptions* opts)
+{
+    int          ret;
+    word32       blockSz;
+    word32       digestSz;
+    ecEncOptions options;
+    byte         sharedSecret[ECC_MAXSIZE];  /* 521 max size */
+    byte         keys[ECC_BUFSIZE];         /* max size */
+    word32       sharedSz = sizeof(sharedSecret);
+    int          keysLen;
+    int          encKeySz;
+    int          ivSz;
+    byte*        encKey;
+    byte*        encIv;
+    byte*        macKey;
+
+    if (privKey == NULL || pubKey == NULL || msg == NULL || out == NULL ||
+                           outSz  == NULL)
+        return BAD_FUNC_ARG;
+
+    if (opts)
+        options = *opts;
+    else  {
+        ecc_encrypt_init_options(&options); /* defaults */
+    }
+
+    ret = ecc_get_key_sizes(&options, &encKeySz, &ivSz, &keysLen, &digestSz,
+                            &blockSz);
+    if (ret != 0)
+        return ret;
+        
+    if ( ((msgSz-digestSz) % blockSz) != 0)
+        return BAD_FUNC_ARG;
+
+    if (*outSz < (msgSz - digestSz))
+        return BUFFER_E;
+
+    ret = ecc_shared_secret(privKey, pubKey, sharedSecret, &sharedSz); 
+    if (ret != 0)
+        return ret;
+
+    switch (options.kdfAlgo) {
+        case ecHKDF_SHA256 :
+                ret = HKDF(SHA256, sharedSecret, sharedSz, options.kdfSalt,
+                           options.kdfSaltSz, options.kdfInfo,
+                           options.kdfInfoSz, keys, keysLen);
+                if (ret != 0)
+                    return ret;
+            break;
+
+        default:
+            return BAD_FUNC_ARG;
+    }
+
+    encKey = keys;
+    encIv  = encKey + encKeySz;
+    macKey = encKey + encKeySz + ivSz;
+
+    switch (options.macAlgo) {
+        case ecHMAC_SHA256:
+            {
+                byte verify[SHA256_DIGEST_SIZE];
+                Hmac hmac;
+                ret = HmacSetKey(&hmac, SHA256, macKey, SHA256_DIGEST_SIZE);
+                if (ret != 0)
+                    return ret;
+                HmacUpdate(&hmac, msg, msgSz-digestSz);
+                HmacUpdate(&hmac, options.macSalt, options.macSaltSz);
+                HmacFinal(&hmac, verify);
+
+                if (memcmp(verify, msg + msgSz - digestSz, digestSz) != 0) {
+                    return -1;
+                }
+            }
+            break;
+
+        default:
+            return BAD_FUNC_ARG;
+    }
+
+    switch (options.encAlgo) {
+        case ecAES_128_CBC:
+            {
+                Aes aes;
+                ret = AesSetKey(&aes, encKey,KEY_SIZE_128,encIv,AES_DECRYPTION);
+                if (ret != 0)
+                    return ret;
+                ret = AesCbcDecrypt(&aes, out, msg, msgSz-digestSz);
+                if (ret != 0)
+                    return ret;
+            }
+            break;
+
+        default:
+            return BAD_FUNC_ARG;
+    }
+
+    *outSz = msgSz - digestSz;
+
+    return 0;
+}
+
+
+#endif /* HAVE_ECC_ENCRYPT */
+
 #endif /* HAVE_ECC */
