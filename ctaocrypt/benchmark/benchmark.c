@@ -221,11 +221,15 @@ int benchmark_test(void *args)
 #ifdef BENCH_EMBEDDED
 const int numBlocks = 25;       /* how many kB/megs to test (en/de)cryption */
 const char blockType[] = "kB";  /* used in printf output */
-const int times     = 1;        /* public key iterations */
+const int times      = 1;        /* public key iterations */
+const int genTimes   = 5;
+const int agreeTimes = 5;
 #else
 const int numBlocks = 5;
 const char blockType[] = "megs";
-const int times     = 100;
+const int times      = 100;
+const int genTimes   = 100;
+const int agreeTimes = 100;
 #endif
 
 const byte key[] = 
@@ -879,7 +883,6 @@ void bench_rsaKeyGen(void)
     RsaKey genKey;
     double start, total, each, milliEach;
     int    i;
-    const int genTimes = 5;
   
     /* 1024 bit */ 
     start = current_time(1);
@@ -920,7 +923,6 @@ void bench_eccKeyGen(void)
     ecc_key genKey;
     double start, total, each, milliEach;
     int    i, ret;
-    const int genTimes = 5;
   
     ret = InitRng(&rng);
     if (ret < 0) {
@@ -949,7 +951,6 @@ void bench_eccKeyAgree(void)
     ecc_key genKey, genKey2;
     double start, total, each, milliEach;
     int    i, ret;
-    const int agreeTimes = 5;
     byte   shared[1024];
     byte   sig[1024];
     byte   digest[32];
@@ -1045,12 +1046,12 @@ void bench_eccKeyAgree(void)
 
     double current_time(int reset)
     {
-        (void)reset;
-
         static int init = 0;
         static LARGE_INTEGER freq;
     
         LARGE_INTEGER count;
+
+        (void)reset;
 
         if (!init) {
             QueryPerformanceFrequency(&freq);
@@ -1094,9 +1095,10 @@ void bench_eccKeyAgree(void)
 
     double current_time(int reset)
     {
-        (void) reset;
-
         struct timeval tv;
+
+        (void)reset;
+
         gettimeofday(&tv, 0);
 
         return (double)tv.tv_sec + (double)tv.tv_usec / 1000000;
