@@ -86,6 +86,12 @@
     #endif
 #endif
 
+#if defined(CYASSL_MDK_ARM)
+        #include <stdio.h>
+        #include <stdlib.h>
+    extern FILE * CyaSSL_fopen(const char *fname, const char *mode) ;
+    #define fopen CyaSSL_fopen
+#endif
 
 #ifdef HAVE_NTRU
     #include "crypto_ntru.h"

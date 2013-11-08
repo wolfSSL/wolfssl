@@ -106,7 +106,11 @@
     #define XGMTIME(c) gmtime((c))
     #define XVALIDATE_DATE(d, f, t) ValidateDate((d), (f), (t))
 #elif defined(CYASSL_MDK_ARM)
-    #include <rtl.h>
+    #if defined(CYASSL_MDK5)
+        #include "cmsis_os.h"
+    #else
+        #include <rtl.h>
+    #endif
     #undef RNG
     #include "cyassl_MDK_ARM.h"
     #undef RNG

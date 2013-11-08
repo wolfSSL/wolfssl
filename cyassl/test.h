@@ -208,10 +208,8 @@ static const word16      yasslPort = 11111;
 static INLINE void err_sys(const char* msg)
 {
     printf("yassl error: %s\n", msg);
-    #ifndef CYASSL_MDK_SHELL
     if (msg)
         exit(EXIT_FAILURE);
-    #endif
 }
 
 

@@ -1266,6 +1266,7 @@ void InitX509(CYASSL_X509* x509, int dynamicFlag)
     InitX509Name(&x509->subject, 0);
     x509->version        = 0;
     x509->pubKey.buffer  = NULL;
+    x509->sig.buffer     = NULL;
     x509->derCert.buffer = NULL;
     x509->altNames       = NULL;
     x509->altNamesNext   = NULL;
@@ -1284,6 +1285,7 @@ void FreeX509(CYASSL_X509* x509)
     if (x509->pubKey.buffer)
         XFREE(x509->pubKey.buffer, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
     XFREE(x509->derCert.buffer, NULL, DYNAMIC_TYPE_SUBJECT_CN);
+    XFREE(x509->sig.buffer, NULL, 0);
     if (x509->altNames)
         FreeAltNames(x509->altNames, NULL);
     if (x509->dynamicMemory)
@@ -3121,11 +3123,23 @@ int CopyDecodedToX509(CYASSL_X509* x509, DecodedCert* dCert)
         x509->pubKey.buffer = (byte*)XMALLOC(
                               dCert->pubKeySize, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
         if (x509->pubKey.buffer != NULL) {
+            x509->pubKeyOID = dCert->keyOID;
             x509->pubKey.length = dCert->pubKeySize;
             XMEMCPY(x509->pubKey.buffer, dCert->publicKey, dCert->pubKeySize);
         }
         else
             ret = MEMORY_E;
+    }
+
+    x509->sig.buffer = (byte*)XMALLOC(dCert->sigLength, NULL, 0);
+    if (x509->sig.buffer == NULL) {
+        ret = MEMORY_E;
+    }
+    else {
+        XMEMCPY(x509->sig.buffer,
+                             &dCert->source[dCert->sigIndex], dCert->sigLength);
+        x509->sig.length = dCert->sigLength;
+        x509->sigOID = dCert->signatureOID;
     }
 
     /* store cert for potential retrieval */
@@ -3919,7 +3933,6 @@ static INLINE int Encrypt(CYASSL* ssl, byte* out, const byte* input, word16 sz)
         #ifdef BUILD_AES
             case cyassl_aes:
                 return AesCbcEncrypt(ssl->encrypt.aes, out, input, sz);
-                break;
         #endif
 
         #ifdef BUILD_AESGCM
@@ -4015,7 +4028,6 @@ static INLINE int Encrypt(CYASSL* ssl, byte* out, const byte* input, word16 sz)
         #ifdef HAVE_HC128
             case cyassl_hc128:
                 return Hc128_Process(ssl->encrypt.hc128, out, input, sz);
-                break;
         #endif
 
         #ifdef BUILD_RABBIT
@@ -4070,7 +4082,6 @@ static INLINE int Decrypt(CYASSL* ssl, byte* plain, const byte* input,
         #ifdef BUILD_AES
             case cyassl_aes:
                 return AesCbcDecrypt(ssl->decrypt.aes, plain, input, sz);
-                break;
         #endif
 
         #ifdef BUILD_AESGCM
@@ -4154,7 +4165,6 @@ static INLINE int Decrypt(CYASSL* ssl, byte* plain, const byte* input,
         #ifdef HAVE_HC128
             case cyassl_hc128:
                 return Hc128_Process(ssl->decrypt.hc128, plain, input, sz);
-                break;
         #endif
 
         #ifdef BUILD_RABBIT
@@ -8433,22 +8443,16 @@ static void PickHashSigAlgo(CYASSL* ssl,
         switch(size) {
             case 20:
                 return secp160r1;
-                break;
             case 24:
                 return secp192r1;
-                break;
             case 28:
                 return secp224r1;
-                break;
             case 32:
                 return secp256r1;
-                break;
             case 48:
                 return secp384r1;
-                break;
             case 66:
                 return secp521r1;
-                break;
             default:
                 return 0;
         }        

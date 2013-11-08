@@ -90,7 +90,11 @@
 #elif defined(FREESCALE_MQX)
     /* do nothing */
 #elif defined(CYASSL_MDK_ARM)
-    #include <rtl.h>
+    #if defined(CYASSL_MDK5)
+         #include "cmsis_os.h"
+    #else
+        #include <rtl.h>
+    #endif
 #else
     #ifndef SINGLE_THREADED
         #define CYASSL_PTHREADS
@@ -1662,6 +1666,9 @@ struct CYASSL_X509 {
     byte             notBefore[MAX_DATE_SZ];
     int              notAfterSz;
     byte             notAfter[MAX_DATE_SZ];
+    int              sigOID;
+    buffer           sig;
+    int              pubKeyOID;
     buffer           pubKey;
     buffer           derCert;                        /* may need  */
     DNS_entry*       altNames;                       /* alt names list */

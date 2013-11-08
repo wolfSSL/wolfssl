@@ -60,10 +60,6 @@ static void init_RTC()
  *----------------------------------------------------------------------------*/
  
 #include "lpc43xx_timer.h"
-//#include "lpc43xx_cgu.h"
-//#include "lpc43xx_scu.h"
-//#include "lpc43xx_libcfg.h"
-//#include "debug_frmwrk.h"
 
 static void init_TIM()
 {

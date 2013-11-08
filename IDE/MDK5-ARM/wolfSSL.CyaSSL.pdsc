@@ -1,0 +1,281 @@
+<?xml version="1.0" encoding="utf-8"?>
+    
+<package schemaVersion="1.0" xmlns:xs="http://www.w3.org/2001/XMLSchema-instance" xs:noNamespaceSchemaLocation="PACK.xsd">
+  <name>CyaSSL</name>                                                   <!-- name of package -->
+  <description>Light weight SSL/TLS and Crypt Library for Embedded Systems</description>  <!-- brief description of PACK -->
+  <vendor>wolfSSL</vendor>                                                  <!-- unique vendor/distributor of PACK -->
+  <url>http://www.wolfSSL.com/files/ide</url>                              <!-- Required but NOT USED AT THE MOMENT -->
+  <license>cyassl\IDE\MDK5-ARM\Docs\CyaSSL-Licnese.txt</license>
+  <taxonomy>
+    <description Cclass="wolfSSL"
+                 >wolfSSL: SSL/TLS and Crypt Library</description>
+    <description Cclass="wolfSSL" Cgroup="CyaSSL"  
+                 >CyaSSL: SSL/TLS Library</description>
+    <description Cclass="wolfSSL" Cgroup="wolfCrypt" 
+                 >wolfCrypt: Crypt Library</description>
+  </taxonomy>
+
+  <releases>                                                                <!-- contains complete release history of available releases (put most recent first) -->
+    <release version="2.8.1">                                               <!-- major.minor.build recommended version format -->
+      Oct/7/2013, Initial release of CyaSSL pack
+    </release>
+  </releases>
+  
+  <keywords>                                                                 <!-- PACK related keywords for search indexing (automatic are vendor and pack name) -->
+    <keyword>CyaSSL</keyword>
+    <keyword>wolfSSL</keyword>
+    <keyword>Security</keyword>
+    <keyword>Crypt</keyword>
+    <keyword>Cipher</keyword>
+    <keyword>SSL</keyword>
+    <keyword>TLS</keyword>
+  </keywords>
+
+  <conditions>
+   
+    <!-- Conditions to express dependencies on devices, processors, software components, toolchains -->
+    <condition id="Cortex-Mx">
+      <!-- processor dependency -->
+      <description>The condition is true if the package is used with a Cortex-Mx based device</description>
+      <accept Dcore="Cortex-M0"/>
+      <accept Dcore="Cortex-M0+"/>
+      <accept Dcore="Cortex-M3"/>
+      <accept Dcore="Cortex-M4"/>
+    </condition>
+    <condition id="CMSIS Core">
+      <description>CMSIS Core with Cortex-M processor</description>
+      <require condition="Cortex-Mx"/>
+      <require Cclass="CMSIS" Cgroup="CORE"/>
+    </condition>
+    
+    <condition id="CMSIS Core with RTOS">
+      <description>CMSIS Core with RTOS for Cortex-M processor</description>
+      <require condition="Cortex-Mx"/>
+      <require Cclass="CMSIS" Cgroup="CORE"/>
+      <require Cclass="CMSIS" Cgroup="RTOS"/>
+    </condition>
+    <condition id="File System on Memory Card">
+      <description>File System on Memory Card</description>
+      <!--
+      <require Cbundle="MDK-Pro" Cclass="File System" Cgroup="CORE"/>
+      -->
+      <require Cclass="File System" Cgroup="Drive" Csub="Memory Card"/>
+    </condition>
+    <condition id="Network UDP/TCP/BSD/DNS">
+      <description>Network UDP/TCP and CORE component</description>
+      <!--
+      <require Cbundle="MDK-Pro" Cclass="Network" Cgroup="CORE" />
+      -->
+      <require Cclass="Network" Cgroup="Socket" Csub="UDP"/>
+      <require Cclass="Network" Cgroup="Socket" Csub="TCP"/>
+      <require Cclass="Network" Cgroup="Socket" Csub="BSD"/>
+      <require Cclass="Network" Cgroup="Service" Csub="DNS Client"/>
+    </condition>
+
+    <condition id="wolfCrypt-Core">
+      <require Cclass="wolfSSL" Cgroup="wolfCrypt" Csub="CORE"/>
+      <require Cclass="wolfSSL" Cgroup="Device" Csub="Timer"/>      
+      <require condition="CMSIS Core"/>    
+    </condition>
+    <condition id="CyaSSL-Core">
+      <require Cclass="wolfSSL" Cgroup="CyaSSL" Csub="Core" />  
+      <require condition="wolfCrypt-Core"/>    
+      <require condition="CMSIS Core with RTOS"/>
+      <require condition="File System on Memory Card"/>
+      <require condition="Network UDP/TCP/BSD/DNS"/>
+    </condition>
+  </conditions>
+
+  <components>
+    <bundle Cbundle="wolfSSL" Cclass="wolfSSL" Cversion="2.8.1">
+      <description>wolfSSL: SSL/TLS and Crypt Library</description>
+      <doc>cyassl\IDE\MDK5-ARM\Docs\CyaSSLManual-TableofContents.htm</doc>
+      <component Cgroup="CyaSSL" Csub="Core" condition="CyaSSL-Core">
+        <description>CyaSSL, Light weight SSL/TLS library</description>
+        <RTE_Components_h>
+        </RTE_Components_h>
+        <files>
+          <file category="doc" name="cyassl\IDE\MDK5-ARM\Docs\CyaSSLManual-TableofContents.htm"/>
+          <file category="include" name="cyassl\"/>
+          <file category="include" name="cyassl\IDE\MDK5-ARM\MDK-ARM\CyaSSL\"/>
+
+          <file category="header" name="cyassl\IDE\MDK5-ARM\MDK-ARM\CyaSSL\config-CyaSSL.h" attr="config" />
+          <file category="source" name="cyassl\src\crl.c" />
+          <file category="source" name="cyassl\src\internal.c" />
+          <file category="source" name="cyassl\src\io.c" />
+          <file category="source" name="cyassl\src\keys.c" />
+          <file category="source" name="cyassl\src\ocsp.c" />
+          <file category="source" name="cyassl\src\sniffer.c" />
+          <file category="source" name="cyassl\src\ssl.c" />
+          <file category="source" name="cyassl\src\tls.c" />
+        </files>
+      </component>
+      <component Cgroup="wolfCrypt" Csub="CORE" condition="wolfCrypt-Core">
+        <description>wolfCrypt Core, Light weight Crypt/Cipher Library</description>
+        <RTE_Components_h>
+        </RTE_Components_h>
+        <files>
+          <file category="doc" name="cyassl\IDE\MDK5-ARM\Docs\CyaSSLManual-wolfCryptUsageReference.htm" />
+          <file category="include" name="cyassl\"/>
+          <file category="include" name="cyassl\IDE\MDK5-ARM\MDK-ARM\CyaSSL\"/>
+
+          <file category="header" name="cyassl\IDE\MDK5-ARM\MDK-ARM\CyaSSL\config.h" attr="config"/>
+          <file category="header" name="cyassl\IDE\MDK5-ARM\MDK-ARM\CyaSSL\config-Crypt.h" attr="config" />
+
+          <file category="source" name="cyassl\IDE\MDK5-ARM\MDK-ARM\CyaSSL\cyassl_MDK_ARM.c" />
+
+          <file category="source" name="cyassl\ctaocrypt\src\aes.c" />
+          <file category="source" name="cyassl\ctaocrypt\src\arc4.c" />
+          <file category="source" name="cyassl\ctaocrypt\src\asm.c" />
+          <file category="source" name="cyassl\ctaocrypt\src\asn.c" />
+          <file category="source" name="cyassl\ctaocrypt\src\blake2b.c" />
+          <file category="source" name="cyassl\ctaocrypt\src\camellia.c" />
+          <file category="source" name="cyassl\ctaocrypt\src\coding.c" />
+          <file category="source" name="cyassl\ctaocrypt\src\compress.c" />
+          <file category="source" name="cyassl\ctaocrypt\src\des3.c" />
+          <file category="source" name="cyassl\ctaocrypt\src\dh.c" />
+          <file category="source" name="cyassl\ctaocrypt\src\dsa.c" />
+          <file category="source" name="cyassl\ctaocrypt\src\ecc.c" />
+          <file category="source" name="cyassl\ctaocrypt\src\ecc_fp.c" />
+          <file category="source" name="cyassl\ctaocrypt\src\error.c" />
+          <file category="source" name="cyassl\ctaocrypt\src\hc128.c" />
+          <file category="source" name="cyassl\ctaocrypt\src\hmac.c" />
+          <file category="source" name="cyassl\ctaocrypt\src\integer.c" />
+          <file category="source" name="cyassl\ctaocrypt\src\logging.c" />
+          <file category="source" name="cyassl\ctaocrypt\src\md2.c" />
+          <file category="source" name="cyassl\ctaocrypt\src\md4.c" />
+          <file category="source" name="cyassl\ctaocrypt\src\md5.c" />
+          <file category="source" name="cyassl\ctaocrypt\src\memory.c" />
+          <file category="source" name="cyassl\ctaocrypt\src\misc.c" />
+          <file category="source" name="cyassl\ctaocrypt\src\port.c" />
+          <file category="source" name="cyassl\ctaocrypt\src\pwdbased.c" />
+          <file category="source" name="cyassl\ctaocrypt\src\rabbit.c" />
+          <file category="source" name="cyassl\ctaocrypt\src\random.c" />
+          <file category="source" name="cyassl\ctaocrypt\src\ripemd.c" />
+          <file category="source" name="cyassl\ctaocrypt\src\rsa.c" />
+          <file category="source" name="cyassl\ctaocrypt\src\sha.c" />
+          <file category="source" name="cyassl\ctaocrypt\src\sha256.c" />
+          <file category="source" name="cyassl\ctaocrypt\src\sha512.c" />
+          <file category="source" name="cyassl\ctaocrypt\src\tfm.c" />
+        </files>
+      </component>
+      <component Cgroup="wolfCrypt" Csub="Dummy" condition="wolfCrypt-Core">
+        <description>Dummy file for Crypt alone use</description>
+        <RTE_Components_h>
+        </RTE_Components_h>
+        <files>
+          <file category="source" name="cyassl\IDE\MDK5-ARM\MDK-ARM\CyaSSL\ssl-dummy.c" />
+        </files>
+      </component>
+      <component Cgroup="Device" Csub="Timer" condition="wolfCrypt-Core">
+        <description>Device depend Timer functions</description>
+        <RTE_Components_h>
+        </RTE_Components_h>
+        <files>
+          <file category="source" name="cyassl\IDE\MDK5-ARM\STM32F2xx_StdPeriph_Lib\time-STM32F2xx.c" />
+        </files>
+      </component>
+    </bundle>
+  </components>
+
+  <examples>
+    <example name="wolfSSL 1: SSL/TLS, Crypt demo" doc="Abstract.txt" folder="cyassl\IDE\MDK5-ARM\Projects\CyaSSL-Full">
+      <description>CyaSSL Demo, SSL/TLS Server/Client Examples, Simple test suites, Benchmark</description>
+      <board name="MCBSTM32F200" vendor="Keil" Dvendor="STMicroelectronics:13" Dname="STM32F207IG"/>
+      <project>
+        <environment name="uv" load="CyaSSL-Full.uvprojx"/>
+      </project>
+      <attributes>
+        <component Cclass="wolfSSL" Cgroup="CyaSSL" Csub="Core"/>
+        <category>Middleware</category>
+        <category>Security</category>
+        <keyword>SSL</keyword>
+        <keyword>TLS</keyword>
+      </attributes>
+    </example>
+    <example name="wolfSSL 2: wolfCrypt test" doc="Abstract.txt" folder="cyassl\IDE\MDK5-ARM\Projects\CryptTest">
+      <description>wolfCrypt Simple Test Suite</description>
+      <board name="MCBSTM32F200" vendor="Keil" Dvendor="STMicroelectronics:13" Dname="STM32F207IG"/>
+      <project>
+        <environment name="uv" load="CryptTest.uvprojx"/>
+      </project>
+      <attributes>
+        <component Cclass="wolfSSL" Cgroup="woflCrypt" Csub="Core"/>
+        <category>Middleware</category>
+        <category>Security</category>
+        <keyword>Crypt</keyword>
+        <keyword>Cipher</keyword>
+      </attributes>
+    </example>
+    <example name="wolfSSL 3: wolfCrypt Benchmark" doc="Abstract.txt" folder="cyassl\IDE\MDK5-ARM\Projects\CryptBenchmark">
+      <description>wolfCrypt Benchmark Suite</description>
+      <board name="MCBSTM32F200" vendor="Keil" Dvendor="STMicroelectronics:13" Dname="STM32F207IG"/>
+      <project>
+        <environment name="uv" load="CryptBenchmark.uvprojx"/>
+      </project>
+      <attributes>
+        <component Cclass="wolfSSL" Cgroup="woflCrypt" Csub="Core"/>
+        <category>Middleware</category>
+        <category>Security</category>
+        <keyword>Crypt</keyword>
+        <keyword>Cipher</keyword>
+      </attributes>
+    </example>
+    <example name="wolfSSL 4: Simple Client" doc="Abstract.txt" folder="cyassl\IDE\MDK5-ARM\Projects\SimpleClient">
+      <description>CyaSSL Simple Client Example</description>
+      <board name="MCBSTM32F200" vendor="Keil" Dvendor="STMicroelectronics:13" Dname="STM32F207IG"/>
+      <project>
+        <environment name="uv" load="SimpleClient.uvprojx"/>
+      </project>
+      <attributes>
+        <component Cclass="wolfSSL" Cgroup="CyaSSL" Csub="Core"/>
+        <category>Middleware</category>
+        <category>Security</category>
+        <keyword>Crypt</keyword>
+        <keyword>Cipher</keyword>
+      </attributes>
+    </example>
+    <example name="wolfSSL 5: Simple Server" doc="Abstract.txt" folder="cyassl\IDE\MDK5-ARM\Projects\SimpleServer">
+      <description>CyaSSL Simple Server Example</description>
+      <board name="MCBSTM32F200" vendor="Keil" Dvendor="STMicroelectronics:13" Dname="STM32F207IG"/>
+      <project>
+        <environment name="uv" load="SimpleServer.uvprojx"/>
+      </project>
+      <attributes>
+        <component Cclass="wolfSSL" Cgroup="CyaSSL" Csub="Core"/>
+        <category>Middleware</category>
+        <category>Security</category>
+        <keyword>Crypt</keyword>
+        <keyword>Cipher</keyword>
+      </attributes>
+    </example>
+    <example name="wolfSSL 6: Echo Client" doc="Abstract.txt" folder="cyassl\IDE\MDK5-ARM\Projects\EchoClient">
+      <description>CyaSSL Echo Client Example</description>
+      <board name="MCBSTM32F200" vendor="Keil" Dvendor="STMicroelectronics:13" Dname="STM32F207IG"/>
+      <project>
+        <environment name="uv" load="EchoClient.uvprojx"/>
+      </project>
+      <attributes>
+        <component Cclass="wolfSSL" Cgroup="CyaSSL" Csub="Core"/>
+        <category>Middleware</category>
+        <category>Security</category>
+        <keyword>Crypt</keyword>
+        <keyword>Cipher</keyword>
+      </attributes>
+    </example>
+    <example name="wolfSSL 7: Echo Server" doc="Abstract.txt" folder="cyassl\IDE\MDK5-ARM\Projects\EchoServer">
+      <description>CyaSSL Echo Server Example</description>
+      <board name="MCBSTM32F200" vendor="Keil" Dvendor="STMicroelectronics:13" Dname="STM32F207IG"/>
+      <project>
+        <environment name="uv" load="EchoServer.uvprojx"/>
+      </project>
+      <attributes>
+        <component Cclass="wolfSSL" Cgroup="CyaSSL" Csub="Core"/>
+        <category>Middleware</category>
+        <category>Security</category>
+        <keyword>Crypt</keyword>
+        <keyword>Cipher</keyword>
+      </attributes>
+    </example>
+</examples>
+</package>
