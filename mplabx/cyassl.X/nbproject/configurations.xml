@@ -49,6 +49,7 @@
       <itemPath>../../ctaocrypt/src/sha256.c</itemPath>
       <itemPath>../../ctaocrypt/src/sha512.c</itemPath>
       <itemPath>../../ctaocrypt/src/tfm.c</itemPath>
+      <itemPath>../../ctaocrypt/src/port.c</itemPath>
     </logicalFolder>
     <logicalFolder name="ExternalFiles"
                    displayName="Important Files"
@@ -58,6 +59,8 @@
   </logicalFolder>
   <sourceRootList>
     <Elem>..</Elem>
+    <Elem>../../cyassl/ctaocrypt</Elem>
+    <Elem>../../ctaocrypt/src</Elem>
   </sourceRootList>
   <projectmakefile>Makefile</projectmakefile>
   <confs>
@@ -69,8 +72,8 @@
         <targetPluginBoard></targetPluginBoard>
         <platformTool>SKDEPIC32PlatformTool</platformTool>
         <languageToolchain>XC32</languageToolchain>
-        <languageToolchainVersion>1.10</languageToolchainVersion>
-        <platform>4</platform>
+        <languageToolchainVersion>1.30</languageToolchainVersion>
+        <platform>3</platform>
       </toolsSet>
       <compileType>
         <archiverTool>
@@ -92,11 +95,11 @@
         <property key="enable-symbols" value="false"/>
         <property key="enable-unroll-loops" value="false"/>
         <property key="exclude-floating-point" value="false"/>
-        <property key="extra-include-directories" value="../../"/>
+        <property key="extra-include-directories" value="../../;..\"/>
         <property key="generate-16-bit-code" value="false"/>
         <property key="isolate-each-function" value="false"/>
         <property key="make-warnings-into-errors" value="false"/>
-        <property key="optimization-level" value="-Os"/>
+        <property key="optimization-level" value="-O3"/>
         <property key="place-data-into-section" value="false"/>
         <property key="post-instruction-scheduling" value="default"/>
         <property key="pre-instruction-scheduling" value="default"/>
@@ -105,6 +108,7 @@
         <property key="strict-ansi" value="false"/>
         <property key="support-ansi" value="false"/>
         <property key="use-cci" value="false"/>
+        <property key="use-iar" value="false"/>
         <property key="use-indirect-calls" value="false"/>
       </C32>
       <C32-AS>
@@ -138,6 +142,7 @@
         <property key="linker-symbols" value=""/>
         <property key="map-file" value=""/>
         <property key="no-startup-files" value="false"/>
+        <property key="oXC32ld-extra-opts" value=""/>
         <property key="optimization-level" value="-Os"/>
         <property key="preprocessor-macros" value=""/>
         <property key="remove-unused-sections" value="true"/>
@@ -173,6 +178,8 @@
       </C32CPP>
       <C32Global>
         <property key="legacy-libc" value="false"/>
+        <property key="save-temps" value="false"/>
+        <property key="wpo-lto" value="false"/>
       </C32Global>
       <SKDEPIC32PlatformTool>
         <property key="whatToProgram" value="all"/>

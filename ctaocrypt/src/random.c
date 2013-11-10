@@ -23,6 +23,8 @@
     #include <config.h>
 #endif
 
+#include <cyassl/ctaocrypt/settings.h>
+
 /* on HPUX 11 you may need to install /dev/random see
    http://h20293.www2.hp.com/portal/swdepot/displayProductInfo.do?productNumber=KRNG11I
 
@@ -460,8 +462,10 @@ int GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 
 #ifdef MICROCHIP_MPLAB_HARMONY
     #define PIC32_SEED_COUNT _CP0_GET_COUNT
-#else
-    #include <peripheral/timer.h>
+#else    
+    #if !defined(CYASSL_MICROCHIP_PIC32MZ)
+        #include <peripheral/timer.h>
+    #endif
     #define PIC32_SEED_COUNT ReadCoreTimer
 #endif
 

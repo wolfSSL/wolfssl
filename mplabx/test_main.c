@@ -19,13 +19,24 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  */
 
-#define PIC32_STARTER_KIT
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <p32xxxx.h>
-#include <plib.h>
-#include <sys/appio.h>
+#if defined(CYASSL_MICROCHIP_PIC32MZ)
+    #define MICROCHIP_PIC32
+    #include <xc.h>
+    #pragma config ICESEL = ICS_PGx2        
+            /* ICE/ICD Comm Channel Select (Communicate on PGEC2/PGED2) */
+    #include <stdio.h>
+    #include <stdlib.h>
+    #include "PIC32MZ-serial.h"
+    #define  SYSTEMConfigPerformance /* void out SYSTEMConfigPerformance(); */
+#else
+    #define PIC32_STARTER_KIT
+    #include <stdio.h>
+    #include <stdlib.h>
+    #include <p32xxxx.h>
+    #include <plib.h>
+    #include <sys/appio.h>
+    #define init_serial()  /* void out init_serial() */
+#endif
 
 /* func_args from test.h, so don't have to pull in other junk */
 typedef struct func_args {
@@ -38,12 +49,12 @@ typedef struct func_args {
  * Main driver for CTaoCrypt tests.
  */
 int main(int argc, char** argv) {
+    int i ;
 
+    init_serial() ;  /* initialize PIC32MZ serial I/O */
     SYSTEMConfigPerformance(80000000);
-
     DBINIT();
     printf("CTaoCrypt Test:\n");
-
     func_args args;
 
     args.argc = argc;

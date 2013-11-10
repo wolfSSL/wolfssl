@@ -1,4 +1,4 @@
-/* main.c
+/* benchmark_main.c
  *
  * Copyright (C) 2006-2013 wolfSSL Inc.
  *
@@ -18,12 +18,20 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  */
-
-#define PIC32_STARTER_KIT
-
-#include <p32xxxx.h>
-#include <plib.h>
-#include <sys/appio.h>
+#if defined(CYASSL_MICROCHIP_PIC32MZ)
+    #define MICROCHIP_PIC32
+    #include <xc.h>
+    #pragma config ICESEL = ICS_PGx2
+        /* ICE/ICD Comm Channel Select (Communicate on PGEC2/PGED2) */
+    #include "PIC32MZ-serial.h"
+    #define SYSTEMConfigPerformance /* void out SYSTEMConfigPerformance(); */
+#else
+    #define PIC32_STARTER_KIT
+    #include <p32xxxx.h>
+    #include <plib.h>
+    #include <sys/appio.h>
+    #define init_serial() /* void out init_serial() ; */
+#endif
 
 void bench_des(void);
 void bench_arc4(void);
@@ -50,11 +58,14 @@ void bench_eccKeyAgree(void);
  * Main driver for CTaoCrypt benchmarks.
  */
 int main(int argc, char** argv) {
-
-    SYSTEMConfigPerformance(80000000); 
-
+    volatile int i ;
+    int j ;
+    
+    init_serial() ;  /* initialize PIC32MZ serial I/O */
+    SYSTEMConfigPerformance(80000000);
     DBINIT();
-    printf("CTaoCrypt Benchmark:\n");
+
+    printf("wolfCrypt Benchmark:\n");
 
 #ifndef NO_AES
     bench_aes(0);
@@ -110,7 +121,7 @@ int main(int argc, char** argv) {
     bench_eccKeyGen();
     bench_eccKeyAgree();
 #endif
-
+    printf("End of wolfCrypt Benchmark:\n");
     return 0;
 }
 

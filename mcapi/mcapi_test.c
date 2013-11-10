@@ -44,16 +44,24 @@
 #define USE_CERT_BUFFERS_1024
 #include <cyassl/certs_test.h>
 
-/* c stdlib headers */
-#include <stdio.h>
-
-/* pic32 specific */
-#ifdef MICROCHIP_PIC32
+#if defined(CYASSL_MICROCHIP_PIC32MZ)
+    #define MICROCHIP_PIC32
+    #include <xc.h>
+    #pragma config ICESEL = ICS_PGx2
+            /* ICE/ICD Comm Channel Select (Communicate on PGEC2/PGED2) */
+    #include <stdio.h>
+    #include <stdlib.h>
+    #include "PIC32MZ-serial.h"
+    #define  SYSTEMConfigPerformance /* void out SYSTEMConfigPerformance(); */
+#else
     #define PIC32_STARTER_KIT
+    #include <stdio.h>
+    #include <stdlib.h>
     #include <p32xxxx.h>
     #include <plib.h>
+    #include <sys/appio.h>
+    #define init_serial()  /* void out init_serial() */
 #endif
-
 #define OUR_DATA_SIZE 1024
 static byte ourData[OUR_DATA_SIZE];
 static byte* key = NULL;
@@ -85,10 +93,9 @@ int main(int argc, char** argv)
     (void)argc;
     (void)argv;
 
-#ifdef MICROCHIP_PIC32
+    init_serial() ;  /* initialize PIC32MZ serial I/O */
     SYSTEMConfigPerformance(80000000);
     DBINIT();
-#endif
 
     /* align key, iv pointers */
     key = (byte*)XMALLOC(32, NULL, DYNAMIC_TYPE_KEY);
