@@ -609,7 +609,6 @@ void shell_main(void *arg) {
     
     printf("Starting Shell\n") ;
     while(1) {
-              //while(1) ;
         if(getline(line,  LINESIZE, &args, &bf_flg) > 0) {
         for(i=0; commandTable[i].func != NULL; i++) {
             if(strcmp(commandTable[i].command, args.argv[0]) == 0) {

@@ -119,6 +119,53 @@ CYASSL_API
 int ecc_sig_size(ecc_key* key);
 
 
+/* ecc encrypt */
+
+enum ecEncAlgo {
+    ecAES_128_CBC = 1,  /* default */
+    ecAES_256_CBC = 2
+};
+
+enum ecKdfAlgo {
+    ecHKDF_SHA256 = 1,  /* default */
+    ecHKDF_SHA1   = 2
+};
+
+enum ecMacAlgo {
+    ecHMAC_SHA256 = 1,  /* default */
+    ecHMAC_SHA1   = 2
+};
+
+enum {
+    KEY_SIZE_128 = 16,   
+    KEY_SIZE_256 = 32,   
+    IV_SIZE_64   =  8   
+};
+
+typedef struct ecEncOptions {
+    byte      encAlgo;     /* which encryption type */
+    byte      kdfAlgo;     /* which key derivation function type */
+    byte      macAlgo;     /* which mac function type */
+    byte*     kdfSalt;     /* optional salt for kdf */
+    byte*     kdfInfo;     /* optional info for kdf */
+    byte*     macSalt;     /* optional salt for mac */
+    word32    kdfSaltSz;   /* size of kdfSalt */
+    word32    kdfInfoSz;   /* size of kdfInfo */
+    word32    macSaltSz;   /* size of macSalt */
+} ecEncOptions;
+
+CYASSL_API
+void ecc_encrypt_init_options(ecEncOptions*); /* init and set to defaults */
+CYASSL_API
+void ecc_encrypt_free_options(ecEncOptions*); /* release/clear options */
+
+CYASSL_API
+int ecc_encrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
+                word32 msgSz, byte* out, word32* outSz, ecEncOptions* options);
+CYASSL_API
+int ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
+                word32 msgSz, byte* out, word32* outSz, ecEncOptions* options);
+
 #ifdef __cplusplus
     }    /* extern "C" */    
 #endif

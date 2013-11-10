@@ -221,11 +221,15 @@ int benchmark_test(void *args)
 #ifdef BENCH_EMBEDDED
 const int numBlocks = 25;       /* how many kB/megs to test (en/de)cryption */
 const char blockType[] = "kB";  /* used in printf output */
-const int times     = 1;        /* public key iterations */
+const int times      = 1;        /* public key iterations */
+const int genTimes   = 5;
+const int agreeTimes = 5;
 #else
 const int numBlocks = 5;
 const char blockType[] = "megs";
-const int times     = 100;
+const int times      = 100;
+const int genTimes   = 100;
+const int agreeTimes = 100;
 #endif
 
 const byte key[] = 
@@ -879,7 +883,6 @@ void bench_rsaKeyGen(void)
     RsaKey genKey;
     double start, total, each, milliEach;
     int    i;
-    const int genTimes = 5;
   
     /* 1024 bit */ 
     start = current_time(1);
@@ -1093,7 +1096,7 @@ void bench_eccKeyAgree(void)
 
     double current_time(int reset)
     {
-        (void) reset;
+        (void)reset;
 
         struct timeval tv;
         gettimeofday(&tv, 0);

@@ -35,7 +35,6 @@
         #include "cmsis_os.h"
         #include "rl_fs.h" 
         #include "rl_net.h" 
-//              #include "config-EchoClient.h"
     #else
         #include "rtl.h"
     #endif

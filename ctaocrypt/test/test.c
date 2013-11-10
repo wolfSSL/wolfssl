@@ -164,6 +164,9 @@ int pkcs12_test(void);
 int pbkdf2_test(void);
 #ifdef HAVE_ECC
     int  ecc_test(void);
+    #ifdef HAVE_ECC_ENCRYPT
+        int  ecc_encrypt_test(void);
+    #endif
 #endif
 #ifdef HAVE_BLAKE2
     int  blake2b_test(void);
@@ -440,6 +443,12 @@ void ctaocrypt_test(void* args)
         err_sys("ECC      test failed!\n", ret);
     else
         printf( "ECC      test passed!\n");
+    #ifdef HAVE_ECC_ENCRYPT
+        if ( (ret = ecc_encrypt_test()) != 0) 
+            err_sys("ECC Enc  test failed!\n", ret);
+        else
+            printf( "ECC Enc  test passed!\n");
+    #endif
 #endif
 
 #ifdef HAVE_LIBZ
@@ -3589,6 +3598,56 @@ int ecc_test(void)
     return 0;
 }
 
+#ifdef HAVE_ECC_ENCRYPT
+
+int ecc_encrypt_test(void)
+{
+    RNG     rng;
+    int     ret;
+    ecc_key userA, userB;
+    byte    msg[48];
+    byte    plain[48];
+    byte    out[80];
+    word32  outSz   = sizeof(out);
+    word32  plainSz = sizeof(plain);
+    int     i;
+
+    ret = InitRng(&rng);
+    if (ret != 0)
+        return -3001;
+
+    ecc_init(&userA);
+    ecc_init(&userB);
+
+    ret  = ecc_make_key(&rng, 32, &userA);
+    ret += ecc_make_key(&rng, 32, &userB);
+
+    if (ret != 0)
+        return -3002;
+
+    for (i = 0; i < 48; i++)
+        msg[i] = i;
+
+    /* send encrypted msg to B */
+    ret = ecc_encrypt(&userA, &userB, msg, sizeof(msg), out, &outSz, NULL);
+    if (ret != 0)
+        return -3003;
+
+    /* decrypted msg to B */
+    ret = ecc_decrypt(&userB, &userA, out, outSz, plain, &plainSz, NULL);
+    if (ret != 0)
+        return -3004;
+
+    if (memcmp(plain, msg, sizeof(msg)) != 0)
+        return -3005;
+
+    ecc_free(&userB);
+    ecc_free(&userA);
+
+    return 0;
+}
+
+#endif /* HAVE_ECC_ENCRYPT */
 #endif /* HAVE_ECC */
 
 #ifdef HAVE_LIBZ
