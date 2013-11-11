@@ -165,7 +165,7 @@
             <Capability>1</Capability>
             <DriverSelection>4100</DriverSelection>
           </Flash1>
-          <bUseTDR>0</bUseTDR>
+          <bUseTDR>1</bUseTDR>
           <Flash2>BIN\ULP2CM3.DLL</Flash2>
           <Flash3>"" ()</Flash3>
           <Flash4></Flash4>
@@ -349,7 +349,7 @@
             <uSurpInc>0</uSurpInc>
             <VariousControls>
               <MiscControls></MiscControls>
-              <Define>HAVE_CONFIG_H CYASSL_STM32F2xx __DBG_ITM __RTX USE_STDPERIPH_DRIVER MDK_CONF_RTX_TCP_FS</Define>
+              <Define>HAVE_CONFIG_H CYASSL_STM32F2xx __DBG_ITM __RTX MDK_CONF_RTX_TCP_FS</Define>
               <Undefine></Undefine>
               <IncludePath>..\MDK-ARM\CyaSSL;C:..\STM32F2xx_StdPeriph_Lib\inc;..\..\..\</IncludePath>
             </VariousControls>
@@ -441,43 +441,6 @@
         </Group>
         <Group>
           <GroupName>STM32F2xx_StdPeriph_Lib</GroupName>
-          <Files>
-            <File>
-              <FileName>stm32f2xx_cryp.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\STM32F2xx_StdPeriph_Lib\src\stm32f2xx_cryp.c</FilePath>
-            </File>
-            <File>
-              <FileName>stm32f2xx_hash.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\STM32F2xx_StdPeriph_Lib\src\stm32f2xx_hash.c</FilePath>
-            </File>
-            <File>
-              <FileName>stm32f2xx_rcc.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\STM32F2xx_StdPeriph_Lib\src\stm32f2xx_rcc.c</FilePath>
-            </File>
-            <File>
-              <FileName>stm32f2xx_rng.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\STM32F2xx_StdPeriph_Lib\src\stm32f2xx_rng.c</FilePath>
-            </File>
-            <File>
-              <FileName>stm32f2xx_rtc.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\STM32F2xx_StdPeriph_Lib\src\stm32f2xx_rtc.c</FilePath>
-            </File>
-            <File>
-              <FileName>stm32f2xx_pwr.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\STM32F2xx_StdPeriph_Lib\src\stm32f2xx_pwr.c</FilePath>
-            </File>
-            <File>
-              <FileName>stm32f2xx_tim.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\STM32F2xx_StdPeriph_Lib\src\stm32f2xx_tim.c</FilePath>
-            </File>
-          </Files>
         </Group>
         <Group>
           <GroupName>MDK-ARM</GroupName>
@@ -1287,7 +1250,7 @@
             <uSurpInc>0</uSurpInc>
             <VariousControls>
               <MiscControls></MiscControls>
-              <Define>HAVE_CONFIG_H  CYASSL_STM32F2xx __DBG_ITM USE_STDPERIPH_DRIVER  MDK_CONF_FS</Define>
+              <Define>HAVE_CONFIG_H  CYASSL_STM32F2xx __DBG_ITM MDK_CONF_FS</Define>
               <Undefine></Undefine>
               <IncludePath>..\MDK-ARM\CyaSSL;..\MDK-ARM\inc;..\STM32F2xx_StdPeriph_Lib\inc;..\POSIX\..\..\..\</IncludePath>
             </VariousControls>
@@ -1539,43 +1502,6 @@
         </Group>
         <Group>
           <GroupName>STM32F2xx_StdPeriph_Lib</GroupName>
-          <Files>
-            <File>
-              <FileName>stm32f2xx_cryp.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\STM32F2xx_StdPeriph_Lib\src\stm32f2xx_cryp.c</FilePath>
-            </File>
-            <File>
-              <FileName>stm32f2xx_hash.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\STM32F2xx_StdPeriph_Lib\src\stm32f2xx_hash.c</FilePath>
-            </File>
-            <File>
-              <FileName>stm32f2xx_rcc.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\STM32F2xx_StdPeriph_Lib\src\stm32f2xx_rcc.c</FilePath>
-            </File>
-            <File>
-              <FileName>stm32f2xx_rng.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\STM32F2xx_StdPeriph_Lib\src\stm32f2xx_rng.c</FilePath>
-            </File>
-            <File>
-              <FileName>stm32f2xx_rtc.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\STM32F2xx_StdPeriph_Lib\src\stm32f2xx_rtc.c</FilePath>
-            </File>
-            <File>
-              <FileName>stm32f2xx_pwr.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\STM32F2xx_StdPeriph_Lib\src\stm32f2xx_pwr.c</FilePath>
-            </File>
-            <File>
-              <FileName>stm32f2xx_tim.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\STM32F2xx_StdPeriph_Lib\src\stm32f2xx_tim.c</FilePath>
-            </File>
-          </Files>
         </Group>
         <Group>
           <GroupName>MDK-ARM</GroupName>
@@ -1723,46 +1649,6 @@
               <FileName>crl.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\src\crl.c</FilePath>
-            </File>
-            <File>
-              <FileName>internal.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\src\internal.c</FilePath>
-            </File>
-            <File>
-              <FileName>io.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\src\io.c</FilePath>
-            </File>
-            <File>
-              <FileName>keys.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\src\keys.c</FilePath>
-            </File>
-            <File>
-              <FileName>ocsp.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\src\ocsp.c</FilePath>
-            </File>
-            <File>
-              <FileName>sniffer.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\src\sniffer.c</FilePath>
-            </File>
-            <File>
-              <FileName>ssl.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\src\ssl.c</FilePath>
-            </File>
-            <File>
-              <FileName>tls.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\src\tls.c</FilePath>
-            </File>
-            <File>
-              <FileName>ssl-dummy.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\MDK-ARM\CyaSSL\ssl-dummy.c</FilePath>
               <FileOption>
                 <CommonProperty>
                   <UseCPPCompiler>2</UseCPPCompiler>
@@ -1803,6 +1689,326 @@
                   </Cads>
                 </FileArmAds>
               </FileOption>
+            </File>
+            <File>
+              <FileName>internal.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\src\internal.c</FilePath>
+              <FileOption>
+                <CommonProperty>
+                  <UseCPPCompiler>2</UseCPPCompiler>
+                  <RVCTCodeConst>0</RVCTCodeConst>
+                  <RVCTZI>0</RVCTZI>
+                  <RVCTOtherData>0</RVCTOtherData>
+                  <ModuleSelection>0</ModuleSelection>
+                  <IncludeInBuild>0</IncludeInBuild>
+                  <AlwaysBuild>2</AlwaysBuild>
+                  <GenerateAssemblyFile>2</GenerateAssemblyFile>
+                  <AssembleAssemblyFile>2</AssembleAssemblyFile>
+                  <PublicsOnly>2</PublicsOnly>
+                  <StopOnExitCode>11</StopOnExitCode>
+                  <CustomArgument></CustomArgument>
+                  <IncludeLibraryModules></IncludeLibraryModules>
+                </CommonProperty>
+                <FileArmAds>
+                  <Cads>
+                    <interw>2</interw>
+                    <Optim>0</Optim>
+                    <oTime>2</oTime>
+                    <SplitLS>2</SplitLS>
+                    <OneElfS>2</OneElfS>
+                    <Strict>2</Strict>
+                    <EnumInt>2</EnumInt>
+                    <PlainCh>2</PlainCh>
+                    <Ropi>2</Ropi>
+                    <Rwpi>2</Rwpi>
+                    <wLevel>0</wLevel>
+                    <uThumb>2</uThumb>
+                    <uSurpInc>2</uSurpInc>
+                    <VariousControls>
+                      <MiscControls></MiscControls>
+                      <Define></Define>
+                      <Undefine></Undefine>
+                      <IncludePath></IncludePath>
+                    </VariousControls>
+                  </Cads>
+                </FileArmAds>
+              </FileOption>
+            </File>
+            <File>
+              <FileName>io.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\src\io.c</FilePath>
+              <FileOption>
+                <CommonProperty>
+                  <UseCPPCompiler>2</UseCPPCompiler>
+                  <RVCTCodeConst>0</RVCTCodeConst>
+                  <RVCTZI>0</RVCTZI>
+                  <RVCTOtherData>0</RVCTOtherData>
+                  <ModuleSelection>0</ModuleSelection>
+                  <IncludeInBuild>0</IncludeInBuild>
+                  <AlwaysBuild>2</AlwaysBuild>
+                  <GenerateAssemblyFile>2</GenerateAssemblyFile>
+                  <AssembleAssemblyFile>2</AssembleAssemblyFile>
+                  <PublicsOnly>2</PublicsOnly>
+                  <StopOnExitCode>11</StopOnExitCode>
+                  <CustomArgument></CustomArgument>
+                  <IncludeLibraryModules></IncludeLibraryModules>
+                </CommonProperty>
+                <FileArmAds>
+                  <Cads>
+                    <interw>2</interw>
+                    <Optim>0</Optim>
+                    <oTime>2</oTime>
+                    <SplitLS>2</SplitLS>
+                    <OneElfS>2</OneElfS>
+                    <Strict>2</Strict>
+                    <EnumInt>2</EnumInt>
+                    <PlainCh>2</PlainCh>
+                    <Ropi>2</Ropi>
+                    <Rwpi>2</Rwpi>
+                    <wLevel>0</wLevel>
+                    <uThumb>2</uThumb>
+                    <uSurpInc>2</uSurpInc>
+                    <VariousControls>
+                      <MiscControls></MiscControls>
+                      <Define></Define>
+                      <Undefine></Undefine>
+                      <IncludePath></IncludePath>
+                    </VariousControls>
+                  </Cads>
+                </FileArmAds>
+              </FileOption>
+            </File>
+            <File>
+              <FileName>keys.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\src\keys.c</FilePath>
+              <FileOption>
+                <CommonProperty>
+                  <UseCPPCompiler>2</UseCPPCompiler>
+                  <RVCTCodeConst>0</RVCTCodeConst>
+                  <RVCTZI>0</RVCTZI>
+                  <RVCTOtherData>0</RVCTOtherData>
+                  <ModuleSelection>0</ModuleSelection>
+                  <IncludeInBuild>0</IncludeInBuild>
+                  <AlwaysBuild>2</AlwaysBuild>
+                  <GenerateAssemblyFile>2</GenerateAssemblyFile>
+                  <AssembleAssemblyFile>2</AssembleAssemblyFile>
+                  <PublicsOnly>2</PublicsOnly>
+                  <StopOnExitCode>11</StopOnExitCode>
+                  <CustomArgument></CustomArgument>
+                  <IncludeLibraryModules></IncludeLibraryModules>
+                </CommonProperty>
+                <FileArmAds>
+                  <Cads>
+                    <interw>2</interw>
+                    <Optim>0</Optim>
+                    <oTime>2</oTime>
+                    <SplitLS>2</SplitLS>
+                    <OneElfS>2</OneElfS>
+                    <Strict>2</Strict>
+                    <EnumInt>2</EnumInt>
+                    <PlainCh>2</PlainCh>
+                    <Ropi>2</Ropi>
+                    <Rwpi>2</Rwpi>
+                    <wLevel>0</wLevel>
+                    <uThumb>2</uThumb>
+                    <uSurpInc>2</uSurpInc>
+                    <VariousControls>
+                      <MiscControls></MiscControls>
+                      <Define></Define>
+                      <Undefine></Undefine>
+                      <IncludePath></IncludePath>
+                    </VariousControls>
+                  </Cads>
+                </FileArmAds>
+              </FileOption>
+            </File>
+            <File>
+              <FileName>ocsp.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\src\ocsp.c</FilePath>
+              <FileOption>
+                <CommonProperty>
+                  <UseCPPCompiler>2</UseCPPCompiler>
+                  <RVCTCodeConst>0</RVCTCodeConst>
+                  <RVCTZI>0</RVCTZI>
+                  <RVCTOtherData>0</RVCTOtherData>
+                  <ModuleSelection>0</ModuleSelection>
+                  <IncludeInBuild>0</IncludeInBuild>
+                  <AlwaysBuild>2</AlwaysBuild>
+                  <GenerateAssemblyFile>2</GenerateAssemblyFile>
+                  <AssembleAssemblyFile>2</AssembleAssemblyFile>
+                  <PublicsOnly>2</PublicsOnly>
+                  <StopOnExitCode>11</StopOnExitCode>
+                  <CustomArgument></CustomArgument>
+                  <IncludeLibraryModules></IncludeLibraryModules>
+                </CommonProperty>
+                <FileArmAds>
+                  <Cads>
+                    <interw>2</interw>
+                    <Optim>0</Optim>
+                    <oTime>2</oTime>
+                    <SplitLS>2</SplitLS>
+                    <OneElfS>2</OneElfS>
+                    <Strict>2</Strict>
+                    <EnumInt>2</EnumInt>
+                    <PlainCh>2</PlainCh>
+                    <Ropi>2</Ropi>
+                    <Rwpi>2</Rwpi>
+                    <wLevel>0</wLevel>
+                    <uThumb>2</uThumb>
+                    <uSurpInc>2</uSurpInc>
+                    <VariousControls>
+                      <MiscControls></MiscControls>
+                      <Define></Define>
+                      <Undefine></Undefine>
+                      <IncludePath></IncludePath>
+                    </VariousControls>
+                  </Cads>
+                </FileArmAds>
+              </FileOption>
+            </File>
+            <File>
+              <FileName>sniffer.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\src\sniffer.c</FilePath>
+              <FileOption>
+                <CommonProperty>
+                  <UseCPPCompiler>2</UseCPPCompiler>
+                  <RVCTCodeConst>0</RVCTCodeConst>
+                  <RVCTZI>0</RVCTZI>
+                  <RVCTOtherData>0</RVCTOtherData>
+                  <ModuleSelection>0</ModuleSelection>
+                  <IncludeInBuild>0</IncludeInBuild>
+                  <AlwaysBuild>2</AlwaysBuild>
+                  <GenerateAssemblyFile>2</GenerateAssemblyFile>
+                  <AssembleAssemblyFile>2</AssembleAssemblyFile>
+                  <PublicsOnly>2</PublicsOnly>
+                  <StopOnExitCode>11</StopOnExitCode>
+                  <CustomArgument></CustomArgument>
+                  <IncludeLibraryModules></IncludeLibraryModules>
+                </CommonProperty>
+                <FileArmAds>
+                  <Cads>
+                    <interw>2</interw>
+                    <Optim>0</Optim>
+                    <oTime>2</oTime>
+                    <SplitLS>2</SplitLS>
+                    <OneElfS>2</OneElfS>
+                    <Strict>2</Strict>
+                    <EnumInt>2</EnumInt>
+                    <PlainCh>2</PlainCh>
+                    <Ropi>2</Ropi>
+                    <Rwpi>2</Rwpi>
+                    <wLevel>0</wLevel>
+                    <uThumb>2</uThumb>
+                    <uSurpInc>2</uSurpInc>
+                    <VariousControls>
+                      <MiscControls></MiscControls>
+                      <Define></Define>
+                      <Undefine></Undefine>
+                      <IncludePath></IncludePath>
+                    </VariousControls>
+                  </Cads>
+                </FileArmAds>
+              </FileOption>
+            </File>
+            <File>
+              <FileName>ssl.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\src\ssl.c</FilePath>
+              <FileOption>
+                <CommonProperty>
+                  <UseCPPCompiler>2</UseCPPCompiler>
+                  <RVCTCodeConst>0</RVCTCodeConst>
+                  <RVCTZI>0</RVCTZI>
+                  <RVCTOtherData>0</RVCTOtherData>
+                  <ModuleSelection>0</ModuleSelection>
+                  <IncludeInBuild>0</IncludeInBuild>
+                  <AlwaysBuild>2</AlwaysBuild>
+                  <GenerateAssemblyFile>2</GenerateAssemblyFile>
+                  <AssembleAssemblyFile>2</AssembleAssemblyFile>
+                  <PublicsOnly>2</PublicsOnly>
+                  <StopOnExitCode>11</StopOnExitCode>
+                  <CustomArgument></CustomArgument>
+                  <IncludeLibraryModules></IncludeLibraryModules>
+                </CommonProperty>
+                <FileArmAds>
+                  <Cads>
+                    <interw>2</interw>
+                    <Optim>0</Optim>
+                    <oTime>2</oTime>
+                    <SplitLS>2</SplitLS>
+                    <OneElfS>2</OneElfS>
+                    <Strict>2</Strict>
+                    <EnumInt>2</EnumInt>
+                    <PlainCh>2</PlainCh>
+                    <Ropi>2</Ropi>
+                    <Rwpi>2</Rwpi>
+                    <wLevel>0</wLevel>
+                    <uThumb>2</uThumb>
+                    <uSurpInc>2</uSurpInc>
+                    <VariousControls>
+                      <MiscControls></MiscControls>
+                      <Define></Define>
+                      <Undefine></Undefine>
+                      <IncludePath></IncludePath>
+                    </VariousControls>
+                  </Cads>
+                </FileArmAds>
+              </FileOption>
+            </File>
+            <File>
+              <FileName>tls.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\src\tls.c</FilePath>
+              <FileOption>
+                <CommonProperty>
+                  <UseCPPCompiler>2</UseCPPCompiler>
+                  <RVCTCodeConst>0</RVCTCodeConst>
+                  <RVCTZI>0</RVCTZI>
+                  <RVCTOtherData>0</RVCTOtherData>
+                  <ModuleSelection>0</ModuleSelection>
+                  <IncludeInBuild>0</IncludeInBuild>
+                  <AlwaysBuild>2</AlwaysBuild>
+                  <GenerateAssemblyFile>2</GenerateAssemblyFile>
+                  <AssembleAssemblyFile>2</AssembleAssemblyFile>
+                  <PublicsOnly>2</PublicsOnly>
+                  <StopOnExitCode>11</StopOnExitCode>
+                  <CustomArgument></CustomArgument>
+                  <IncludeLibraryModules></IncludeLibraryModules>
+                </CommonProperty>
+                <FileArmAds>
+                  <Cads>
+                    <interw>2</interw>
+                    <Optim>0</Optim>
+                    <oTime>2</oTime>
+                    <SplitLS>2</SplitLS>
+                    <OneElfS>2</OneElfS>
+                    <Strict>2</Strict>
+                    <EnumInt>2</EnumInt>
+                    <PlainCh>2</PlainCh>
+                    <Ropi>2</Ropi>
+                    <Rwpi>2</Rwpi>
+                    <wLevel>0</wLevel>
+                    <uThumb>2</uThumb>
+                    <uSurpInc>2</uSurpInc>
+                    <VariousControls>
+                      <MiscControls></MiscControls>
+                      <Define></Define>
+                      <Undefine></Undefine>
+                      <IncludePath></IncludePath>
+                    </VariousControls>
+                  </Cads>
+                </FileArmAds>
+              </FileOption>
+            </File>
+            <File>
+              <FileName>ssl-dummy.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\MDK-ARM\CyaSSL\ssl-dummy.c</FilePath>
             </File>
           </Files>
         </Group>
@@ -1915,6 +2121,11 @@
               <FilePath>..\..\..\ctaocrypt\src\misc.c</FilePath>
             </File>
             <File>
+              <FileName>port.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\ctaocrypt\src\port.c</FilePath>
+            </File>
+            <File>
               <FileName>pwdbased.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\ctaocrypt\src\pwdbased.c</FilePath>
@@ -1958,11 +2169,6 @@
               <FileName>tfm.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\ctaocrypt\src\tfm.c</FilePath>
-            </File>
-            <File>
-              <FileName>port.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\ctaocrypt\src\port.c</FilePath>
             </File>
           </Files>
         </Group>
@@ -2501,7 +2707,7 @@
             <uSurpInc>0</uSurpInc>
             <VariousControls>
               <MiscControls></MiscControls>
-              <Define>HAVE_CONFIG_H  CYASSL_STM32F2xx  __DBG_ITM USE_STDPERIPH_DRIVER MDK_CONF_BARE_METAL</Define>
+              <Define>HAVE_CONFIG_H  CYASSL_STM32F2xx  __DBG_ITM MDK_CONF_BARE_METAL</Define>
               <Undefine></Undefine>
               <IncludePath>..\MDK-ARM\CyaSSL;..\MDK-ARM\inc;..\STM32F2xx_StdPeriph_Lib\inc;..\POSIX;..\..\..\</IncludePath>
             </VariousControls>
@@ -2753,43 +2959,6 @@
         </Group>
         <Group>
           <GroupName>STM32F2xx_StdPeriph_Lib</GroupName>
-          <Files>
-            <File>
-              <FileName>stm32f2xx_cryp.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\STM32F2xx_StdPeriph_Lib\src\stm32f2xx_cryp.c</FilePath>
-            </File>
-            <File>
-              <FileName>stm32f2xx_hash.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\STM32F2xx_StdPeriph_Lib\src\stm32f2xx_hash.c</FilePath>
-            </File>
-            <File>
-              <FileName>stm32f2xx_rcc.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\STM32F2xx_StdPeriph_Lib\src\stm32f2xx_rcc.c</FilePath>
-            </File>
-            <File>
-              <FileName>stm32f2xx_rng.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\STM32F2xx_StdPeriph_Lib\src\stm32f2xx_rng.c</FilePath>
-            </File>
-            <File>
-              <FileName>stm32f2xx_rtc.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\STM32F2xx_StdPeriph_Lib\src\stm32f2xx_rtc.c</FilePath>
-            </File>
-            <File>
-              <FileName>stm32f2xx_pwr.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\STM32F2xx_StdPeriph_Lib\src\stm32f2xx_pwr.c</FilePath>
-            </File>
-            <File>
-              <FileName>stm32f2xx_tim.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\STM32F2xx_StdPeriph_Lib\src\stm32f2xx_tim.c</FilePath>
-            </File>
-          </Files>
         </Group>
         <Group>
           <GroupName>MDK-ARM</GroupName>
@@ -2995,6 +3164,46 @@
               <FileName>crl.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\src\crl.c</FilePath>
+              <FileOption>
+                <CommonProperty>
+                  <UseCPPCompiler>2</UseCPPCompiler>
+                  <RVCTCodeConst>0</RVCTCodeConst>
+                  <RVCTZI>0</RVCTZI>
+                  <RVCTOtherData>0</RVCTOtherData>
+                  <ModuleSelection>0</ModuleSelection>
+                  <IncludeInBuild>0</IncludeInBuild>
+                  <AlwaysBuild>2</AlwaysBuild>
+                  <GenerateAssemblyFile>2</GenerateAssemblyFile>
+                  <AssembleAssemblyFile>2</AssembleAssemblyFile>
+                  <PublicsOnly>2</PublicsOnly>
+                  <StopOnExitCode>11</StopOnExitCode>
+                  <CustomArgument></CustomArgument>
+                  <IncludeLibraryModules></IncludeLibraryModules>
+                </CommonProperty>
+                <FileArmAds>
+                  <Cads>
+                    <interw>2</interw>
+                    <Optim>0</Optim>
+                    <oTime>2</oTime>
+                    <SplitLS>2</SplitLS>
+                    <OneElfS>2</OneElfS>
+                    <Strict>2</Strict>
+                    <EnumInt>2</EnumInt>
+                    <PlainCh>2</PlainCh>
+                    <Ropi>2</Ropi>
+                    <Rwpi>2</Rwpi>
+                    <wLevel>0</wLevel>
+                    <uThumb>2</uThumb>
+                    <uSurpInc>2</uSurpInc>
+                    <VariousControls>
+                      <MiscControls></MiscControls>
+                      <Define></Define>
+                      <Undefine></Undefine>
+                      <IncludePath></IncludePath>
+                    </VariousControls>
+                  </Cads>
+                </FileArmAds>
+              </FileOption>
             </File>
             <File>
               <FileName>internal.c</FileName>
@@ -3045,21 +3254,181 @@
               <FileName>io.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\src\io.c</FilePath>
+              <FileOption>
+                <CommonProperty>
+                  <UseCPPCompiler>2</UseCPPCompiler>
+                  <RVCTCodeConst>0</RVCTCodeConst>
+                  <RVCTZI>0</RVCTZI>
+                  <RVCTOtherData>0</RVCTOtherData>
+                  <ModuleSelection>0</ModuleSelection>
+                  <IncludeInBuild>0</IncludeInBuild>
+                  <AlwaysBuild>2</AlwaysBuild>
+                  <GenerateAssemblyFile>2</GenerateAssemblyFile>
+                  <AssembleAssemblyFile>2</AssembleAssemblyFile>
+                  <PublicsOnly>2</PublicsOnly>
+                  <StopOnExitCode>11</StopOnExitCode>
+                  <CustomArgument></CustomArgument>
+                  <IncludeLibraryModules></IncludeLibraryModules>
+                </CommonProperty>
+                <FileArmAds>
+                  <Cads>
+                    <interw>2</interw>
+                    <Optim>0</Optim>
+                    <oTime>2</oTime>
+                    <SplitLS>2</SplitLS>
+                    <OneElfS>2</OneElfS>
+                    <Strict>2</Strict>
+                    <EnumInt>2</EnumInt>
+                    <PlainCh>2</PlainCh>
+                    <Ropi>2</Ropi>
+                    <Rwpi>2</Rwpi>
+                    <wLevel>0</wLevel>
+                    <uThumb>2</uThumb>
+                    <uSurpInc>2</uSurpInc>
+                    <VariousControls>
+                      <MiscControls></MiscControls>
+                      <Define></Define>
+                      <Undefine></Undefine>
+                      <IncludePath></IncludePath>
+                    </VariousControls>
+                  </Cads>
+                </FileArmAds>
+              </FileOption>
             </File>
             <File>
               <FileName>keys.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\src\keys.c</FilePath>
+              <FileOption>
+                <CommonProperty>
+                  <UseCPPCompiler>2</UseCPPCompiler>
+                  <RVCTCodeConst>0</RVCTCodeConst>
+                  <RVCTZI>0</RVCTZI>
+                  <RVCTOtherData>0</RVCTOtherData>
+                  <ModuleSelection>0</ModuleSelection>
+                  <IncludeInBuild>0</IncludeInBuild>
+                  <AlwaysBuild>2</AlwaysBuild>
+                  <GenerateAssemblyFile>2</GenerateAssemblyFile>
+                  <AssembleAssemblyFile>2</AssembleAssemblyFile>
+                  <PublicsOnly>2</PublicsOnly>
+                  <StopOnExitCode>11</StopOnExitCode>
+                  <CustomArgument></CustomArgument>
+                  <IncludeLibraryModules></IncludeLibraryModules>
+                </CommonProperty>
+                <FileArmAds>
+                  <Cads>
+                    <interw>2</interw>
+                    <Optim>0</Optim>
+                    <oTime>2</oTime>
+                    <SplitLS>2</SplitLS>
+                    <OneElfS>2</OneElfS>
+                    <Strict>2</Strict>
+                    <EnumInt>2</EnumInt>
+                    <PlainCh>2</PlainCh>
+                    <Ropi>2</Ropi>
+                    <Rwpi>2</Rwpi>
+                    <wLevel>0</wLevel>
+                    <uThumb>2</uThumb>
+                    <uSurpInc>2</uSurpInc>
+                    <VariousControls>
+                      <MiscControls></MiscControls>
+                      <Define></Define>
+                      <Undefine></Undefine>
+                      <IncludePath></IncludePath>
+                    </VariousControls>
+                  </Cads>
+                </FileArmAds>
+              </FileOption>
             </File>
             <File>
               <FileName>ocsp.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\src\ocsp.c</FilePath>
+              <FileOption>
+                <CommonProperty>
+                  <UseCPPCompiler>2</UseCPPCompiler>
+                  <RVCTCodeConst>0</RVCTCodeConst>
+                  <RVCTZI>0</RVCTZI>
+                  <RVCTOtherData>0</RVCTOtherData>
+                  <ModuleSelection>0</ModuleSelection>
+                  <IncludeInBuild>0</IncludeInBuild>
+                  <AlwaysBuild>2</AlwaysBuild>
+                  <GenerateAssemblyFile>2</GenerateAssemblyFile>
+                  <AssembleAssemblyFile>2</AssembleAssemblyFile>
+                  <PublicsOnly>2</PublicsOnly>
+                  <StopOnExitCode>11</StopOnExitCode>
+                  <CustomArgument></CustomArgument>
+                  <IncludeLibraryModules></IncludeLibraryModules>
+                </CommonProperty>
+                <FileArmAds>
+                  <Cads>
+                    <interw>2</interw>
+                    <Optim>0</Optim>
+                    <oTime>2</oTime>
+                    <SplitLS>2</SplitLS>
+                    <OneElfS>2</OneElfS>
+                    <Strict>2</Strict>
+                    <EnumInt>2</EnumInt>
+                    <PlainCh>2</PlainCh>
+                    <Ropi>2</Ropi>
+                    <Rwpi>2</Rwpi>
+                    <wLevel>0</wLevel>
+                    <uThumb>2</uThumb>
+                    <uSurpInc>2</uSurpInc>
+                    <VariousControls>
+                      <MiscControls></MiscControls>
+                      <Define></Define>
+                      <Undefine></Undefine>
+                      <IncludePath></IncludePath>
+                    </VariousControls>
+                  </Cads>
+                </FileArmAds>
+              </FileOption>
             </File>
             <File>
               <FileName>sniffer.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\src\sniffer.c</FilePath>
+              <FileOption>
+                <CommonProperty>
+                  <UseCPPCompiler>2</UseCPPCompiler>
+                  <RVCTCodeConst>0</RVCTCodeConst>
+                  <RVCTZI>0</RVCTZI>
+                  <RVCTOtherData>0</RVCTOtherData>
+                  <ModuleSelection>0</ModuleSelection>
+                  <IncludeInBuild>0</IncludeInBuild>
+                  <AlwaysBuild>2</AlwaysBuild>
+                  <GenerateAssemblyFile>2</GenerateAssemblyFile>
+                  <AssembleAssemblyFile>2</AssembleAssemblyFile>
+                  <PublicsOnly>2</PublicsOnly>
+                  <StopOnExitCode>11</StopOnExitCode>
+                  <CustomArgument></CustomArgument>
+                  <IncludeLibraryModules></IncludeLibraryModules>
+                </CommonProperty>
+                <FileArmAds>
+                  <Cads>
+                    <interw>2</interw>
+                    <Optim>0</Optim>
+                    <oTime>2</oTime>
+                    <SplitLS>2</SplitLS>
+                    <OneElfS>2</OneElfS>
+                    <Strict>2</Strict>
+                    <EnumInt>2</EnumInt>
+                    <PlainCh>2</PlainCh>
+                    <Ropi>2</Ropi>
+                    <Rwpi>2</Rwpi>
+                    <wLevel>0</wLevel>
+                    <uThumb>2</uThumb>
+                    <uSurpInc>2</uSurpInc>
+                    <VariousControls>
+                      <MiscControls></MiscControls>
+                      <Define></Define>
+                      <Undefine></Undefine>
+                      <IncludePath></IncludePath>
+                    </VariousControls>
+                  </Cads>
+                </FileArmAds>
+              </FileOption>
             </File>
             <File>
               <FileName>ssl.c</FileName>
@@ -3267,6 +3636,11 @@
               <FilePath>..\..\..\ctaocrypt\src\misc.c</FilePath>
             </File>
             <File>
+              <FileName>port.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\ctaocrypt\src\port.c</FilePath>
+            </File>
+            <File>
               <FileName>pwdbased.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\ctaocrypt\src\pwdbased.c</FilePath>
@@ -3350,11 +3724,6 @@
                   </Cads>
                 </FileArmAds>
               </FileOption>
-            </File>
-            <File>
-              <FileName>port.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\ctaocrypt\src\port.c</FilePath>
             </File>
           </Files>
         </Group>

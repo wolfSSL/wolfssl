@@ -56,7 +56,13 @@
         #include <posix.h>
         #include <rtcs.h>
     #elif defined(CYASSL_MDK_ARM)
-        #include <rtl.h>
+        #if defined(CYASSL_MDK5)
+            #include "cmsis_os.h"
+            #include "rl_fs.h" 
+            #include "rl_net.h" 
+        #else
+            #include <rtl.h>
+        #endif
         #undef RNG
         #include "CYASSL_MDK_ARM.h"
         #undef RNG
@@ -126,13 +132,23 @@
     #define SOCKET_ECONNREFUSED RTCSERR_TCP_CONN_REFUSED
     #define SOCKET_ECONNABORTED RTCSERR_TCP_CONN_ABORTED
 #elif defined(CYASSL_MDK_ARM)
-    #define SOCKET_EWOULDBLOCK SCK_EWOULDBLOCK
-    #define SOCKET_EAGAIN      SCK_ELOCKED
-    #define SOCKET_ECONNRESET  SCK_ECLOSED
-    #define SOCKET_EINTR       SCK_ERROR
-    #define SOCKET_EPIPE       SCK_ERROR
-    #define SOCKET_ECONNREFUSED SCK_ERROR
-    #define SOCKET_ECONNABORTED SCK_ERROR
+    #if defined(CYASSL_MDK5)
+        #define SOCKET_EWOULDBLOCK BSD_ERROR_WOULDBLOCK
+        #define SOCKET_EAGAIN      BSD_ERROR_LOCKED
+        #define SOCKET_ECONNRESET  BSD_ERROR_CLOSED
+        #define SOCKET_EINTR       BSD_ERROR
+        #define SOCKET_EPIPE       BSD_ERROR
+        #define SOCKET_ECONNREFUSED BSD_ERROR
+        #define SOCKET_ECONNABORTED BSD_ERROR
+    #else
+        #define SOCKET_EWOULDBLOCK SCK_EWOULDBLOCK
+        #define SOCKET_EAGAIN      SCK_ELOCKED
+        #define SOCKET_ECONNRESET  SCK_ECLOSED
+        #define SOCKET_EINTR       SCK_ERROR
+        #define SOCKET_EPIPE       SCK_ERROR
+        #define SOCKET_ECONNREFUSED SCK_ERROR
+        #define SOCKET_ECONNABORTED SCK_ERROR
+    #endif
 #else
     #define SOCKET_EWOULDBLOCK EWOULDBLOCK
     #define SOCKET_EAGAIN      EAGAIN

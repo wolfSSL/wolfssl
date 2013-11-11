@@ -75,7 +75,7 @@ void* CyaSSL_Malloc(size_t size)
 
     #ifdef CYASSL_MALLOC_CHECK
         if (res == NULL)
-            printf("CyaSSL_malloc failed\n");
+            puts("CyaSSL_malloc failed");
     #endif
 				
     return res;

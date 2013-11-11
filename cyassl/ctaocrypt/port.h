@@ -55,7 +55,11 @@
 #elif defined(FREESCALE_MQX)
     /* do nothing */
 #elif defined(CYASSL_MDK_ARM)
-    #include <rtl.h>
+    #if defined(CYASSL_MDK5)
+         #include "cmsis_os.h"
+    #else
+        #include <rtl.h>
+    #endif
 #else
     #ifndef SINGLE_THREADED
         #define CYASSL_PTHREADS
@@ -91,7 +95,11 @@
     #elif defined(FREESCALE_MQX)
         typedef MUTEX_STRUCT CyaSSL_Mutex;
     #elif defined(CYASSL_MDK_ARM)
-        typedef OS_MUT CyaSSL_Mutex;
+        #if defined(CYASSL_CMSIS_RTOS)
+            typedef osMutexId CyaSSL_Mutex;
+        #else
+            typedef OS_MUT CyaSSL_Mutex;
+        #endif
     #else
         #error Need a mutex type in multithreaded mode
     #endif /* USE_WINDOWS_API */

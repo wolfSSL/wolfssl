@@ -595,7 +595,32 @@ AC_ARG_ENABLE([fpecc],
 
 if test "$ENABLED_FPECC" = "yes"
 then
+    if test "$ENABLED_ECC" = "no"
+    then
+        AC_MSG_ERROR([cannot enable fpecc without enabling ecc.]) 
+    fi
     AM_CFLAGS="$AM_CFLAGS -DFP_ECC"
+fi
+
+
+# ECC encrypt
+AC_ARG_ENABLE([eccencrypt],
+    [  --enable-eccencrypt     Enable ECC encrypt (default: disabled)],
+    [ ENABLED_ECC_ENCRYPT=$enableval ],
+    [ ENABLED_ECC_ENCRYPT=no ]
+    )
+
+if test "$ENABLED_ECC_ENCRYPT" = "yes"
+then
+    if test "$ENABLED_ECC" = "no"
+    then
+        AC_MSG_ERROR([cannot enable eccencrypt without enabling ecc.]) 
+    fi
+    if test "$ENABLED_HKDF" = "no"
+    then
+        AC_MSG_ERROR([cannot enable eccencrypt without enabling hkdf.]) 
+    fi
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_ECC_ENCRYPT"
 fi
 
 
@@ -1522,6 +1547,7 @@ echo "   * certgen:                   $ENABLED_CERTGEN"
 echo "   * HC-128:                    $ENABLED_HC128"
 echo "   * RABBIT:                    $ENABLED_RABBIT"
 echo "   * PWDBASED:                  $ENABLED_PWDBASED"
+echo "   * HKDF:                      $ENABLED_HKDF"
 echo "   * MD4:                       $ENABLED_MD4"
 echo "   * PSK:                       $ENABLED_PSK"
 echo "   * LEANPSK:                   $ENABLED_LEANPSK"
@@ -1530,6 +1556,7 @@ echo "   * DSA:                       $ENABLED_DSA"
 echo "   * DH:                        $ENABLED_DH"
 echo "   * ECC:                       $ENABLED_ECC"
 echo "   * FPECC:                     $ENABLED_FPECC"
+echo "   * ECC_ENCRYPT:               $ENABLED_ECC_ENCRYPT"
 echo "   * ASN:                       $ENABLED_ASN"
 echo "   * CODING:                    $ENABLED_CODING"
 echo "   * MEMORY:                    $ENABLED_MEMORY"
