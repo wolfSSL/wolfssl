@@ -923,6 +923,7 @@ void bench_eccKeyGen(void)
     ecc_key genKey;
     double start, total, each, milliEach;
     int    i, ret;
+    const int genTimes = 5;
   
     ret = InitRng(&rng);
     if (ret < 0) {
@@ -951,6 +952,7 @@ void bench_eccKeyAgree(void)
     ecc_key genKey, genKey2;
     double start, total, each, milliEach;
     int    i, ret;
+    const int agreeTimes = 5;
     byte   shared[1024];
     byte   sig[1024];
     byte   digest[32];
@@ -1046,12 +1048,12 @@ void bench_eccKeyAgree(void)
 
     double current_time(int reset)
     {
+        (void)reset;
+
         static int init = 0;
         static LARGE_INTEGER freq;
     
         LARGE_INTEGER count;
-
-        (void)reset;
 
         if (!init) {
             QueryPerformanceFrequency(&freq);
@@ -1064,29 +1066,28 @@ void bench_eccKeyAgree(void)
     }
 
 #elif defined MICROCHIP_PIC32
-
-    #include <peripheral/timer.h>
+    #if defined(CYASSL_MICROCHIP_PIC32MZ)
+        #define CLOCK 8000000.0
+    #else
+        #include <peripheral/timer.h>
+        #define CLOCK 4000000.0
+    #endif
 
     double current_time(int reset)
     {
-        /* NOTE: core timer tick rate = 40 Mhz, 1 tick = 25 ns */
-
         unsigned int ns;
-
-        /* should we reset our timer back to zero? Helps prevent timer
-           rollover */
 
         if (reset) {
             WriteCoreTimer(0);
         }
 
         /* get timer in ns */
-        ns = ReadCoreTimer() * 25;
+        ns = ReadCoreTimer();
 
         /* return seconds as a double */
-        return ( ns / 1000000000.0 );
+        return ( ns / CLOCK * 2.0);
     }
-		
+
 #elif defined CYASSL_MDK_ARM
     extern double current_time(int reset) ;
 #else
@@ -1095,10 +1096,9 @@ void bench_eccKeyAgree(void)
 
     double current_time(int reset)
     {
-        struct timeval tv;
-
         (void)reset;
 
+        struct timeval tv;
         gettimeofday(&tv, 0);
 
         return (double)tv.tv_sec + (double)tv.tv_usec / 1000000;

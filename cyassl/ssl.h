@@ -807,8 +807,10 @@ CYASSL_API char* CyaSSL_X509_get_next_altname(CYASSL_X509*);
 
 CYASSL_API CYASSL_X509*
     CyaSSL_X509_d2i(CYASSL_X509** x509, const unsigned char* in, int len);
+#ifndef NO_FILESYSTEM
 CYASSL_API CYASSL_X509*
     CyaSSL_X509_d2i_fp(CYASSL_X509** x509, FILE* file);
+#endif
 CYASSL_API CYASSL_X509*
     CyaSSL_X509_load_certificate_file(const char* fname, int format);
 

@@ -59,6 +59,13 @@ Included Project Files
 
     <cyassl_root>/zlib-1.2.7
 
+PIC32MX/PIC32MZ
+---------------
+
+The projects are set for PIC32MX by default. For PIC32MZ, change project
+properties->Devices and add "CYASSL_MICROCHIP_PIC32M" to 
+XC32-gcc->Preprocessing and messages-> Preprocessor macros.
+
 MIPS16 and MIPS32 Support
 -------------------------
 
