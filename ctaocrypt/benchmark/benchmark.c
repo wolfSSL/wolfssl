@@ -923,7 +923,6 @@ void bench_eccKeyGen(void)
     ecc_key genKey;
     double start, total, each, milliEach;
     int    i, ret;
-    const int genTimes = 5;
   
     ret = InitRng(&rng);
     if (ret < 0) {
@@ -952,7 +951,6 @@ void bench_eccKeyAgree(void)
     ecc_key genKey, genKey2;
     double start, total, each, milliEach;
     int    i, ret;
-    const int agreeTimes = 5;
     byte   shared[1024];
     byte   sig[1024];
     byte   digest[32];
@@ -1048,12 +1046,12 @@ void bench_eccKeyAgree(void)
 
     double current_time(int reset)
     {
-        (void)reset;
-
         static int init = 0;
         static LARGE_INTEGER freq;
     
         LARGE_INTEGER count;
+
+        (void)reset;
 
         if (!init) {
             QueryPerformanceFrequency(&freq);
@@ -1096,13 +1094,13 @@ void bench_eccKeyAgree(void)
 
     double current_time(int reset)
     {
+        struct timeval tv;
+
         (void)reset;
 
-        struct timeval tv;
         gettimeofday(&tv, 0);
 
         return (double)tv.tv_sec + (double)tv.tv_usec / 1000000;
     }
 
 #endif /* _WIN32 */
-
