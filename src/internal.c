@@ -3136,8 +3136,7 @@ int CopyDecodedToX509(CYASSL_X509* x509, DecodedCert* dCert)
         ret = MEMORY_E;
     }
     else {
-        XMEMCPY(x509->sig.buffer,
-                             &dCert->source[dCert->sigIndex], dCert->sigLength);
+        XMEMCPY(x509->sig.buffer, dCert->signature, dCert->sigLength);
         x509->sig.length = dCert->sigLength;
         x509->sigOID = dCert->signatureOID;
     }

@@ -1064,29 +1064,28 @@ void bench_eccKeyAgree(void)
     }
 
 #elif defined MICROCHIP_PIC32
-
-    #include <peripheral/timer.h>
+    #if defined(CYASSL_MICROCHIP_PIC32MZ)
+        #define CLOCK 8000000.0
+    #else
+        #include <peripheral/timer.h>
+        #define CLOCK 4000000.0
+    #endif
 
     double current_time(int reset)
     {
-        /* NOTE: core timer tick rate = 40 Mhz, 1 tick = 25 ns */
-
         unsigned int ns;
-
-        /* should we reset our timer back to zero? Helps prevent timer
-           rollover */
 
         if (reset) {
             WriteCoreTimer(0);
         }
 
         /* get timer in ns */
-        ns = ReadCoreTimer() * 25;
+        ns = ReadCoreTimer();
 
         /* return seconds as a double */
-        return ( ns / 1000000000.0 );
+        return ( ns / CLOCK * 2.0);
     }
-		
+
 #elif defined CYASSL_MDK_ARM
     extern double current_time(int reset) ;
 #else
@@ -1105,4 +1104,3 @@ void bench_eccKeyAgree(void)
     }
 
 #endif /* _WIN32 */
-
