@@ -2144,17 +2144,22 @@ int ecc_sig_size(ecc_key* key)
 
 
 /** Our FP cache */
-static struct {
+typedef struct {
    ecc_point* g;               /* cached COPY of base point */
    ecc_point* LUT[1U<<FP_LUT]; /* fixed point lookup */ 
    mp_int     mu;              /* copy of the montgomery constant */
    int        lru_count;       /* amount of times this entry has been used */
    int        lock;            /* flag to indicate cache eviction */
                                /* permitted (0) or not (1) */
-} fp_cache[FP_ENTRIES];
+} fp_cache_t;
 
-static volatile int initMutex = 0;  /* prevent multiple mutex inits */
-static CyaSSL_Mutex ecc_fp_lock;
+/* if HAVE_THREAD_LS this cache is per thread, no locking needed */
+static THREAD_LS_T fp_cache_t fp_cache[FP_ENTRIES];
+
+#ifndef HAVE_THREAD_LS
+    static volatile int initMutex = 0;  /* prevent multiple mutex inits */
+    static CyaSSL_Mutex ecc_fp_lock;
+#endif /* HAVE_THREAD_LS */
 
 /* simple table to help direct the generation of the LUT */
 static const struct {
@@ -3267,17 +3272,18 @@ int ecc_mul2add(ecc_point* A, mp_int* kA,
    mp_digit mp;
    mp_int   mu;
   
-   if (initMutex == 0) {
-        InitMutex(&ecc_fp_lock);
-        initMutex = 1;
-   }
-   
    err = mp_init(&mu);
    if (err != MP_OKAY)
        return err;
 
+#ifndef HAVE_THREAD_LS
+   if (initMutex == 0) {
+        InitMutex(&ecc_fp_lock);
+        initMutex = 1;
+   }
    if (LockMutex(&ecc_fp_lock) != 0)
       return BAD_MUTEX_E;
+#endif /* HAVE_THREAD_LS */
 
       /* find point */
       idx1 = find_base(A);
@@ -3362,7 +3368,9 @@ int ecc_mul2add(ecc_point* A, mp_int* kA,
         }
     }
 
+#ifndef HAVE_THREAD_LS
     UnLockMutex(&ecc_fp_lock);
+#endif /* HAVE_THREAD_LS */
     mp_clear(&mu);
 
     return err;
@@ -3389,6 +3397,7 @@ int ecc_mulmod(mp_int* k, ecc_point *G, ecc_point *R, mp_int* modulus,
    if (mp_init(&mu) != MP_OKAY)
        return MP_INIT_E;
    
+#ifndef HAVE_THREAD_LS
    if (initMutex == 0) {
         InitMutex(&ecc_fp_lock);
         initMutex = 1;
@@ -3396,6 +3405,7 @@ int ecc_mulmod(mp_int* k, ecc_point *G, ecc_point *R, mp_int* modulus,
    
    if (LockMutex(&ecc_fp_lock) != 0)
       return BAD_MUTEX_E;
+#endif /* HAVE_THREAD_LS */
 
       /* find point */
       idx = find_base(G);
@@ -3445,7 +3455,9 @@ int ecc_mulmod(mp_int* k, ecc_point *G, ecc_point *R, mp_int* modulus,
         }
      }
 
+#ifndef HAVE_THREAD_LS
     UnLockMutex(&ecc_fp_lock);
+#endif /* HAVE_THREAD_LS */
     mp_clear(&mu);
 
     return err;
@@ -3474,18 +3486,23 @@ static void ecc_fp_free_cache(void)
 /** Free the Fixed Point cache */
 void ecc_fp_free(void)
 {
+#ifndef HAVE_THREAD_LS
    if (initMutex == 0) {
         InitMutex(&ecc_fp_lock);
         initMutex = 1;
    }
    
    if (LockMutex(&ecc_fp_lock) == 0) {
-       ecc_fp_free_cache();
-       UnLockMutex(&ecc_fp_lock);
+#endif /* HAVE_THREAD_LS */
 
+       ecc_fp_free_cache();
+
+#ifndef HAVE_THREAD_LS
+       UnLockMutex(&ecc_fp_lock);
        FreeMutex(&ecc_fp_lock);
        initMutex = 0;
    }
+#endif /* HAVE_THREAD_LS */
 }
 
 

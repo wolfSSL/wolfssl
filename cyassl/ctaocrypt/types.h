@@ -139,6 +139,18 @@ enum {
 #endif
 
 
+/* set up thread local storage if available */
+#ifdef HAVE_THREAD_LS
+    #if defined(_MSC_VER)
+        #define THREAD_LS_T __declspec(thread)
+    #else
+        #define THREAD_LS_T __thread
+    #endif
+#else
+    #define THREAD_LS_T
+#endif
+
+
 /* Micrium will use Visual Studio for compilation but not the Win32 API */
 #if defined(_WIN32) && !defined(MICRIUM) && !defined(FREERTOS) \
         && !defined(EBSNET)
