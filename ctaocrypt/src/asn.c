@@ -2241,7 +2241,7 @@ static word32 SetAlgoID(int algoOID, byte* output, int type)
     static const byte md2AlgoID[]    = { 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d,
                                          0x02, 0x02, 0x05, 0x00};
 
-    /* sigTypes */
+    /* RSA sigTypes */
     #ifndef NO_RSA
         static const byte md5wRSA_AlgoID[] = { 0x2a, 0x86, 0x48, 0x86, 0xf7,
                                             0x0d, 0x01, 0x01, 0x04, 0x05, 0x00};
@@ -2255,11 +2255,28 @@ static word32 SetAlgoID(int algoOID, byte* output, int type)
                                             0x0d, 0x01, 0x01, 0x0d, 0x05, 0x00};
     #endif /* NO_RSA */
  
-    /* keyTypes */
+    /* ECDSA sigTypes */
+    #ifdef HAVE_ECC 
+        static const byte shawECDSA_AlgoID[] = { 0x2a, 0x86, 0x48, 0xCE, 0x3d,
+                                                 0x04, 0x01, 0x05, 0x00};
+        static const byte sha256wECDSA_AlgoID[] = { 0x2a, 0x86, 0x48, 0xCE,0x3d,
+                                                 0x04, 0x03, 0x02, 0x05, 0x00};
+        static const byte sha384wECDSA_AlgoID[] = { 0x2a, 0x86, 0x48, 0xCE,0x3d,
+                                                 0x04, 0x03, 0x03, 0x05, 0x00};
+        static const byte sha512wECDSA_AlgoID[] = { 0x2a, 0x86, 0x48, 0xCE,0x3d,
+                                                 0x04, 0x03, 0x04, 0x05, 0x00};
+    #endif /* HAVE_ECC */
+ 
+    /* RSA keyType */
     #ifndef NO_RSA
         static const byte RSA_AlgoID[] = { 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d,
                                             0x01, 0x01, 0x01, 0x05, 0x00};
     #endif /* NO_RSA */
+
+    #ifdef HAVE_ECC 
+        static const byte ECDSA_AlgoID[] = { 0x2a, 0x86, 0x48, 0xCE, 0x3d,
+                                             0x04, 0x02, 0x05, 0x00};
+    #endif /* HAVE_ECC */
 
     int    algoSz = 0;
     word32 idSz, seqSz;
@@ -2332,6 +2349,27 @@ static word32 SetAlgoID(int algoOID, byte* output, int type)
                 algoName = sha512wRSA_AlgoID;
                 break;
         #endif /* NO_RSA */
+        #ifdef HAVE_ECC 
+            case CTC_SHAwECDSA:
+                algoSz = sizeof(shawECDSA_AlgoID);
+                algoName = shawECDSA_AlgoID;
+                break;
+
+            case CTC_SHA256wECDSA:
+                algoSz = sizeof(sha256wECDSA_AlgoID);
+                algoName = sha256wECDSA_AlgoID;
+                break;
+
+            case CTC_SHA384wECDSA:
+                algoSz = sizeof(sha384wECDSA_AlgoID);
+                algoName = sha384wECDSA_AlgoID;
+                break;
+
+            case CTC_SHA512wECDSA:
+                algoSz = sizeof(sha512wECDSA_AlgoID);
+                algoName = sha512wECDSA_AlgoID;
+                break;
+        #endif /* HAVE_ECC */
         default:
             CYASSL_MSG("Unknown Signature Algo");
             return 0;
@@ -2345,6 +2383,12 @@ static word32 SetAlgoID(int algoOID, byte* output, int type)
                 algoName = RSA_AlgoID;
                 break;
         #endif /* NO_RSA */
+        #ifdef HAVE_ECC 
+            case ECDSAk:
+                algoSz = sizeof(ECDSA_AlgoID);
+                algoName = ECDSA_AlgoID;
+                break;
+        #endif /* HAVE_ECC */
         default:
             CYASSL_MSG("Unknown Key Algo");
             return 0;
@@ -3995,13 +4039,8 @@ static int SetName(byte* output, CertName* name)
 }
 
 /* encode info from cert into DER enocder format */
-static int EncodeCert(
-Cert* cert, 
-DerCert* der, 
-RsaKey* rsaKey, 
-RNG* rng,
-                      const byte* ntruKey, 
-word16 ntruSz)
+static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, RNG* rng,
+                      const byte* ntruKey, word16 ntruSz)
 {
     (void)ntruKey;
     (void)ntruSz;
@@ -4153,11 +4192,14 @@ static int WriteCertBody(DerCert* der, byte* buffer)
 
 /* Make RSA signature from buffer (sz), write to sig (sigSz) */
 static int MakeSignature(const byte* buffer, int sz, byte* sig, int sigSz,
-                         RsaKey* key, RNG* rng, int sigAlgoType)
+                         RsaKey* rsaKey, ecc_key* eccKey, RNG* rng,
+                         int sigAlgoType)
 {
     byte    digest[SHA256_DIGEST_SIZE];     /* max size */
     byte    encSig[MAX_ENCODED_DIG_SZ + MAX_ALGO_SZ + MAX_SEQ_SZ];
     int     encSigSz, digestSz, typeH;
+
+    (void)eccKey;
 
     if (sigAlgoType == CTC_MD5wRSA) {
         Md5     md5;
@@ -4167,7 +4209,7 @@ static int MakeSignature(const byte* buffer, int sz, byte* sig, int sigSz,
         digestSz = MD5_DIGEST_SIZE;
         typeH    = MD5h;
     }
-    else if (sigAlgoType == CTC_SHAwRSA) {
+    else if (sigAlgoType == CTC_SHAwRSA || sigAlgoType == CTC_SHAwECDSA) {
         Sha     sha;
         InitSha(&sha);
         ShaUpdate(&sha, buffer, sz);
@@ -4175,7 +4217,7 @@ static int MakeSignature(const byte* buffer, int sz, byte* sig, int sigSz,
         digestSz = SHA_DIGEST_SIZE;
         typeH    = SHAh;
     }
-    else if (sigAlgoType == CTC_SHA256wRSA) {
+    else if (sigAlgoType == CTC_SHA256wRSA || sigAlgoType == CTC_SHA256wECDSA) {
         Sha256     sha256;
         InitSha256(&sha256);
         Sha256Update(&sha256, buffer, sz);
@@ -4186,9 +4228,23 @@ static int MakeSignature(const byte* buffer, int sz, byte* sig, int sigSz,
     else
         return ALGO_ID_E;
 
-    /* signature */
-    encSigSz = EncodeSignature(encSig, digest, digestSz, typeH);
-    return RsaSSL_Sign(encSig, encSigSz, sig, sigSz, key, rng);
+    if (rsaKey) {
+        /* signature */
+        encSigSz = EncodeSignature(encSig, digest, digestSz, typeH);
+        return RsaSSL_Sign(encSig, encSigSz, sig, sigSz, rsaKey, rng);
+    }
+#ifdef HAVE_ECC
+    else if (eccKey) {
+        word32 outSz = sigSz;
+        int ret = ecc_sign_hash(digest, digestSz, sig, &outSz, rng, eccKey);
+
+        if (ret != 0)
+            return ret;
+        return outSz;
+    }
+#endif /* HAVE_ECC */
+
+    return ALGO_ID_E;
 }
 
 
@@ -4257,7 +4313,8 @@ int  MakeNtruCert(Cert* cert, byte* derBuffer, word32 derSz,
 #endif /* HAVE_NTRU */
 
 
-int SignCert(Cert* cert, byte* buffer, word32 buffSz, RsaKey* key, RNG* rng)
+int SignCert(Cert* cert, byte* buffer, word32 buffSz, RsaKey* rsaKey,
+             ecc_key* eccKey, RNG* rng)
 {
     byte    sig[MAX_ENCODED_SIG_SZ];
     int     sigSz;
@@ -4266,8 +4323,8 @@ int SignCert(Cert* cert, byte* buffer, word32 buffSz, RsaKey* key, RNG* rng)
     if (bodySz < 0)
         return bodySz;
 
-    sigSz  = MakeSignature(buffer, bodySz, sig, sizeof(sig), key, rng,
-                           cert->sigType);
+    sigSz  = MakeSignature(buffer, bodySz, sig, sizeof(sig), rsaKey, eccKey,
+                           rng, cert->sigType);
     if (sigSz < 0)
         return sigSz; 
 
@@ -4285,7 +4342,7 @@ int MakeSelfCert(Cert* cert, byte* buffer, word32 buffSz, RsaKey* key, RNG* rng)
     if (ret < 0)
         return ret;
 
-    return SignCert(cert, buffer, buffSz, key, rng);
+    return SignCert(cert, buffer, buffSz, key, NULL, rng);
 }
 
 

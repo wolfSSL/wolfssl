@@ -1045,6 +1045,50 @@ int CyaSSL_CertManagerUnloadCAs(CYASSL_CERT_MANAGER* cm)
 }
 
 
+/* Return bytes written to buff or < 0 for error */
+int CyaSSL_KeyPemToDer(const unsigned char* pem, int pemSz, unsigned char* buff,
+                       int buffSz, const char* pass)
+{
+    EncryptedInfo info;
+    int           eccKey = 0;
+    int           ret;
+    buffer        der;
+
+    (void)pass;
+
+    CYASSL_ENTER("CyaSSL_KeyPemToDer");
+
+    if (pem == NULL || buff == NULL || buffSz <= 0) {
+        CYASSL_MSG("Bad pem der args"); 
+        return BAD_FUNC_ARG;
+    }
+
+    info.set       = 0;
+    info.ctx      = NULL;
+    info.consumed = 0;
+    der.buffer    = NULL;
+
+    ret = PemToDer(pem, pemSz, PRIVATEKEY_TYPE, &der, NULL, &info, &eccKey);
+    if (ret < 0) {
+        CYASSL_MSG("Bad Pem To Der"); 
+    }
+    else {
+        if (der.length <= (word32)buffSz) {
+            XMEMCPY(buff, der.buffer, der.length);
+            ret = der.length;
+        }
+        else {
+            CYASSL_MSG("Bad der length");
+            ret = BAD_FUNC_ARG;
+        }
+    }
+
+    XFREE(der.buffer, NULL, DYNAMIC_TYPE_KEY);
+
+    return ret;
+}
+
+
 #endif /* !NO_CERTS */
 
 
@@ -10429,49 +10473,6 @@ static int initGlobalRNG = 0;
     }
 
 
-
-/* Return bytes written to buff or < 0 for error */
-int CyaSSL_KeyPemToDer(const unsigned char* pem, int pemSz, unsigned char* buff,
-                       int buffSz, const char* pass)
-{
-    EncryptedInfo info;
-    int           eccKey = 0;
-    int           ret;
-    buffer        der;
-
-    (void)pass;
-
-    CYASSL_ENTER("CyaSSL_KeyPemToDer");
-
-    if (pem == NULL || buff == NULL || buffSz <= 0) {
-        CYASSL_MSG("Bad pem der args"); 
-        return BAD_FUNC_ARG;
-    }
-
-    info.set       = 0;
-    info.ctx      = NULL;
-    info.consumed = 0;
-    der.buffer    = NULL;
-
-    ret = PemToDer(pem, pemSz, PRIVATEKEY_TYPE, &der, NULL, &info, &eccKey);
-    if (ret < 0) {
-        CYASSL_MSG("Bad Pem To Der"); 
-    }
-    else {
-        if (der.length <= (word32)buffSz) {
-            XMEMCPY(buff, der.buffer, der.length);
-            ret = der.length;
-        }
-        else {
-            CYASSL_MSG("Bad der length");
-            ret = BAD_FUNC_ARG;
-        }
-    }
-
-    XFREE(der.buffer, NULL, DYNAMIC_TYPE_KEY);
-
-    return ret;
-}
 
 
 /* Load RSA from Der, SSL_SUCCESS on success < 0 on error */

@@ -2487,17 +2487,27 @@ byte GetEntropy(ENTROPY_CMD cmd, byte* out)
         #ifdef CYASSL_CERT_GEN
             static const char* caKeyFile  = "a:\\certs\\ca-key.der";
             static const char* caCertFile = "a:\\certs\\ca-cert.pem";
+            #ifdef HAVE_ECC
+                static const char* eccCaKeyFile  = "a:\\certs\\ecc-key.der";
+                static const char* eccCaCertFile = "a:\\certs\\server-ecc.pem";
+            #endif 
         #endif
     #elif defined(CYASSL_MKD_SHELL)
         static char* clientKey = "certs/client-key.der";
         static char* clientCert = "certs/client-cert.der";
-        void set_clientKey(char *key) {  clientKey = key ; }      /* set by shell command */
-        void set_clientCert(char *cert) {  clientCert = cert ; }  /* set by shell command */
+        void set_clientKey(char *key) {  clientKey = key ; }
+        void set_clientCert(char *cert) {  clientCert = cert ; }
         #ifdef CYASSL_CERT_GEN
             static char* caKeyFile  = "certs/ca-key.der";
             static char* caCertFile = "certs/ca-cert.pem";
-            void set_caKeyFile (char * key)  { caKeyFile   = key ; }     /* set by shell command */
-            void set_caCertFile(char * cert) { caCertFile = cert ; }     /* set by shell command */
+            void set_caKeyFile (char * key)  { caKeyFile   = key ; }
+            void set_caCertFile(char * cert) { caCertFile = cert ; }
+            #ifdef HAVE_ECC
+                static const char* eccCaKeyFile  = "certs/ecc-key.der";
+                static const char* eccCaCertFile = "certs/server-ecc.pem";
+                void set_eccCaKeyFile (char * key)  { eccCaKeyFile  = key ; }
+                void set_eccCaCertFile(char * cert) { eccCaCertFile = cert ; }
+            #endif 
         #endif
     #else
         static const char* clientKey  = "./certs/client-key.der";
@@ -2505,6 +2515,10 @@ byte GetEntropy(ENTROPY_CMD cmd, byte* out)
         #ifdef CYASSL_CERT_GEN
             static const char* caKeyFile  = "./certs/ca-key.der";
             static const char* caCertFile = "./certs/ca-cert.pem";
+            #ifdef HAVE_ECC
+                static const char* eccCaKeyFile  = "./certs/ecc-key.der";
+                static const char* eccCaCertFile = "./certs/server-ecc.pem";
+            #endif 
         #endif
     #endif
 #endif
@@ -2788,7 +2802,7 @@ int rsa_test(void)
         if (certSz < 0)
             return -407;
 
-        certSz = SignCert(&myCert, derCert, FOURK_BUF, &caKey, &rng);
+        certSz = SignCert(&myCert, derCert, FOURK_BUF, &caKey, NULL, &rng);
         if (certSz < 0)
             return -408;
 
@@ -2820,6 +2834,94 @@ int rsa_test(void)
         free(derCert);
         FreeRsaKey(&caKey);
     }
+#ifdef HAVE_ECC
+    /* ECC CA style */
+    {
+        ecc_key     caKey;
+        Cert        myCert;
+        byte*       derCert;
+        byte*       pem;
+        FILE*       derFile;
+        FILE*       pemFile;
+        int         certSz;
+        int         pemSz;
+        size_t      bytes3;
+        word32      idx3 = 0;
+			  FILE* file3 ;
+#ifdef CYASSL_TEST_CERT
+        DecodedCert decode;
+#endif
+
+        derCert = (byte*)malloc(FOURK_BUF);
+        if (derCert == NULL)
+            return -5311;
+        pem = (byte*)malloc(FOURK_BUF);
+        if (pem == NULL)
+            return -5312;
+
+        file3 = fopen(eccCaKeyFile, "rb");
+
+        if (!file3)
+            return -5412;
+
+        bytes3 = fread(tmp, 1, FOURK_BUF, file3);
+        fclose(file3);
+  
+        ecc_init(&caKey);  
+        ret = EccPrivateKeyDecode(tmp, &idx3, &caKey, (word32)bytes3);
+        if (ret != 0) return -5413;
+
+        InitCert(&myCert);
+        myCert.sigType = CTC_SHA256wECDSA; 
+
+        strncpy(myCert.subject.country, "US", CTC_NAME_SIZE);
+        strncpy(myCert.subject.state, "OR", CTC_NAME_SIZE);
+        strncpy(myCert.subject.locality, "Portland", CTC_NAME_SIZE);
+        strncpy(myCert.subject.org, "wolfSSL", CTC_NAME_SIZE);
+        strncpy(myCert.subject.unit, "Development", CTC_NAME_SIZE);
+        strncpy(myCert.subject.commonName, "www.wolfssl.com", CTC_NAME_SIZE);
+        strncpy(myCert.subject.email, "info@wolfssl.com", CTC_NAME_SIZE);
+
+        ret = SetIssuer(&myCert, eccCaCertFile);
+        if (ret < 0)
+            return -5405;
+
+        certSz = MakeCert(&myCert, derCert, FOURK_BUF, &key, &rng); 
+        if (certSz < 0)
+            return -5407;
+
+        certSz = SignCert(&myCert, derCert, FOURK_BUF, NULL, &caKey, &rng);
+        if (certSz < 0)
+            return -5408;
+
+#ifdef CYASSL_TEST_CERT
+        InitDecodedCert(&decode, derCert, certSz, 0);
+        ret = ParseCert(&decode, CERT_TYPE, NO_VERIFY, 0);
+        if (ret != 0)
+            return -5409;
+        FreeDecodedCert(&decode);
+#endif
+
+        derFile = fopen("./certecc.der", "wb");
+        if (!derFile)
+            return -5410;
+        ret = (int)fwrite(derCert, certSz, 1, derFile);
+        fclose(derFile);
+
+        pemSz = DerToPem(derCert, certSz, pem, FOURK_BUF, CERT_TYPE);
+        if (pemSz < 0)
+            return -5411;
+
+        pemFile = fopen("./certecc.pem", "wb");
+        if (!pemFile)
+            return -5412;
+        ret = (int)fwrite(pem, pemSz, 1, pemFile);
+        fclose(pemFile);
+        free(pem);
+        free(derCert);
+        ecc_free(&caKey);
+    }
+#endif /* HAVE_ECC */
 #ifdef HAVE_NTRU
     {
         RsaKey      caKey;
@@ -2900,7 +3002,7 @@ int rsa_test(void)
         if (certSz < 0)
             return -456;
 
-        certSz = SignCert(&myCert, derCert, FOURK_BUF, &caKey, &rng);
+        certSz = SignCert(&myCert, derCert, FOURK_BUF, &caKey, NULL, &rng);
         if (certSz < 0)
             return -457;
 

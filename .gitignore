@@ -46,6 +46,8 @@ testsuite/*.pem
 testsuite/*.raw
 cert.der
 cert.pem
+certecc.der
+certecc.pem
 othercert.der
 othercert.pem
 key.der

@@ -391,9 +391,6 @@ CYASSL_LOCAL int ValidateDate(const byte* date, byte format, int dateType);
                                       mp_int* s);
     CYASSL_LOCAL int DecodeECC_DSA_Sig(const byte* sig, word32 sigLen,
                                        mp_int* r, mp_int* s);
-    /* private key helpers */
-    CYASSL_API int EccPrivateKeyDecode(const byte* input,word32* inOutIdx,
-                                         ecc_key*,word32);
 #endif
 
 #ifdef CYASSL_CERT_GEN
