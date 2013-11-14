@@ -3628,12 +3628,12 @@ int ecc_encrypt_test(void)
     for (i = 0; i < 48; i++)
         msg[i] = i;
 
-    /* send encrypted msg to B */
+    /* encrypt msg to B */
     ret = ecc_encrypt(&userA, &userB, msg, sizeof(msg), out, &outSz, NULL);
     if (ret != 0)
         return -3003;
 
-    /* decrypted msg to B */
+    /* decrypt msg from A */
     ret = ecc_decrypt(&userB, &userA, out, outSz, plain, &plainSz, NULL);
     if (ret != 0)
         return -3004;
@@ -3641,6 +3641,84 @@ int ecc_encrypt_test(void)
     if (memcmp(plain, msg, sizeof(msg)) != 0)
         return -3005;
 
+    
+    {  /* let's verify message exchange works, A is client, B is server */
+        ecEncCtx* cliCtx = ecc_ctx_new(REQ_RESP_CLIENT, &rng);
+        ecEncCtx* srvCtx = ecc_ctx_new(REQ_RESP_SERVER, &rng);
+
+        byte cliSalt[EXCHANGE_SALT_SZ];
+        byte srvSalt[EXCHANGE_SALT_SZ];
+        const byte* tmpSalt;
+
+        if (cliCtx == NULL || srvCtx == NULL)
+            return -3006;
+
+        /* get salt to send to peer */
+        tmpSalt = ecc_ctx_get_own_salt(cliCtx);
+        if (tmpSalt == NULL)
+            return -3007;
+        memcpy(cliSalt, tmpSalt, EXCHANGE_SALT_SZ);
+
+        tmpSalt = ecc_ctx_get_own_salt(srvCtx);
+        if (tmpSalt == NULL)
+            return -3007;
+        memcpy(srvSalt, tmpSalt, EXCHANGE_SALT_SZ);
+
+        /* in actual use, we'd get the peer's salt over the transport */
+        ret  = ecc_ctx_set_peer_salt(cliCtx, srvSalt);
+        ret += ecc_ctx_set_peer_salt(srvCtx, cliSalt);
+
+        if (ret != 0)
+            return -3008;
+
+        /* get encrypted msg (request) to send to B */
+        outSz  = sizeof(out);
+        ret = ecc_encrypt(&userA, &userB, msg, sizeof(msg), out, &outSz,cliCtx);
+        if (ret != 0)
+            return -3009;
+
+        /* B decrypts msg (request) from A */
+        plainSz = sizeof(plain);
+        ret = ecc_decrypt(&userB, &userA, out, outSz, plain, &plainSz, srvCtx);
+        if (ret != 0)
+            return -3010;
+
+        if (memcmp(plain, msg, sizeof(msg)) != 0)
+            return -3011;
+
+        {
+            /* msg2 (response) from B to A */
+            byte    msg2[48];
+            byte    plain2[48];
+            byte    out2[80];
+            word32  outSz2   = sizeof(out2);
+            word32  plainSz2 = sizeof(plain2);
+
+            for (i = 0; i < 48; i++)
+                msg2[i] = i+48;
+
+            /* get encrypted msg (response) to send to B */
+            ret = ecc_encrypt(&userB, &userA, msg2, sizeof(msg2), out2,
+                              &outSz2, srvCtx);
+            if (ret != 0)
+                return -3012;
+
+            /* A decrypts msg (response) from B */
+            ret = ecc_decrypt(&userA, &userB, out2, outSz2, plain2, &plainSz2,
+                             cliCtx);
+            if (ret != 0)
+                return -3013;
+
+            if (memcmp(plain2, msg2, sizeof(msg2)) != 0)
+                return -3014;
+        }
+
+        /* cleanup */
+        ecc_ctx_free(srvCtx);
+        ecc_ctx_free(cliCtx);
+    }
+
+    /* cleanup */
     ecc_free(&userB);
     ecc_free(&userA);
 

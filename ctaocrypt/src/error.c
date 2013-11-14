@@ -323,6 +323,14 @@ void CTaoCryptErrorString(int error, char* buffer)
         XSTRNCPY(buffer, "ASN OCSP sig error, confirm failure", max);
         break;
 
+    case BAD_ENC_STATE_E:
+        XSTRNCPY(buffer, "Bad ecc encrypt state operation", max);
+        break;
+
+    case BAD_PADDING_E:
+        XSTRNCPY(buffer, "Bad padding, message wrong length", max);
+        break;
+
     default:
         XSTRNCPY(buffer, "unknown error number", max);
 

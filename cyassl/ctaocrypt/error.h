@@ -114,6 +114,9 @@ enum {
     ASN_CRL_NO_SIGNER_E = -190,  /* ASN CRL no signer to confirm failure */
     ASN_OCSP_CONFIRM_E  = -191,  /* ASN OCSP signature confirm failure */
 
+    BAD_ENC_STATE_E     = -192,  /* Bad ecc enc state operation */
+    BAD_PADDING_E       = -193,  /* Bad padding, msg not correct length  */
+
     MIN_CODE_E         = -200   /* errors -101 - -199 */
 };
 
