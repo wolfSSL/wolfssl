@@ -49,7 +49,7 @@ typedef struct {
     int size;       /* The size of the curve in octets */
     const char* name;     /* name of this curve */
     const char* prime;    /* prime that defines the field, curve is in (hex) */
-    const char* B;        /* fields B param (hex) */
+    const char* Bf;       /* fields B param (hex) */
     const char* order;    /* order of the curve (hex) */
     const char* Gx;       /* x coordinate of the base point on curve (hex) */
     const char* Gy;       /* y coordinate of the base point on curve (hex) */
