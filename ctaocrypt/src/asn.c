@@ -1434,7 +1434,7 @@ static int GetKey(DecodedCert* cert)
 
     if (GetSequence(cert->source, &cert->srcIdx, &length, cert->maxIdx) < 0)
         return ASN_PARSE_E;
-    
+   
     if (GetAlgoId(cert->source, &cert->srcIdx, &cert->keyOID, cert->maxIdx) < 0)
         return ASN_PARSE_E;
 
@@ -2128,9 +2128,13 @@ int DecodeToKey(DecodedCert* cert, int verify)
     if ( (ret = GetCertHeader(cert)) < 0)
         return ret;
 
+    CYASSL_MSG("Got Cert Header");
+
     if ( (ret = GetAlgoId(cert->source, &cert->srcIdx, &cert->signatureOID,
                           cert->maxIdx)) < 0)
         return ret;
+
+    CYASSL_MSG("Got Algo ID");
 
     if ( (ret = GetName(cert, ISSUER)) < 0)
         return ret;
@@ -2141,8 +2145,12 @@ int DecodeToKey(DecodedCert* cert, int verify)
     if ( (ret = GetName(cert, SUBJECT)) < 0)
         return ret;
 
+    CYASSL_MSG("Got Subject Name");
+
     if ( (ret = GetKey(cert)) < 0)
         return ret;
+
+    CYASSL_MSG("Got Key");
 
     if (badDate != 0)
         return badDate;
@@ -2223,7 +2231,80 @@ static word32 SetSequence(word32 len, byte* output)
 }
 
 
-static word32 SetAlgoID(int algoOID, byte* output, int type)
+#if defined(HAVE_ECC) && defined(CYASSL_CERT_GEN)
+
+static word32 SetCurve(ecc_key* key, byte* output)
+{
+
+    /* curve types */
+    static const byte ECC_192v1_AlgoID[] = { 0x2a, 0x86, 0x48, 0xCE, 0x3d,
+                                             0x03, 0x01, 0x01};
+    static const byte ECC_256v1_AlgoID[] = { 0x2a, 0x86, 0x48, 0xCE, 0x3d,
+                                            0x03, 0x01, 0x07};
+    static const byte ECC_160r1_AlgoID[] = { 0x2b, 0x81, 0x04, 0x00,
+                                             0x02};
+    static const byte ECC_224r1_AlgoID[] = { 0x2b, 0x81, 0x04, 0x00,
+                                             0x21};
+    static const byte ECC_384r1_AlgoID[] = { 0x2b, 0x81, 0x04, 0x00,
+                                             0x22};
+    static const byte ECC_521r1_AlgoID[] = { 0x2b, 0x81, 0x04, 0x00,
+                                             0x23};
+
+    int    oidSz = 0;
+    int    idx = 0;
+    int    lenSz = 0;
+    const  byte* oid = 0;
+
+    output[0] = ASN_OBJECT_ID;
+    idx++;
+
+    switch (key->dp->size) {
+        case 20:
+            oidSz = sizeof(ECC_160r1_AlgoID);
+            oid   =        ECC_160r1_AlgoID;
+            break;
+
+        case 24:
+            oidSz = sizeof(ECC_192v1_AlgoID);
+            oid   =        ECC_192v1_AlgoID;
+            break;
+
+        case 28:
+            oidSz = sizeof(ECC_224r1_AlgoID);
+            oid   =        ECC_224r1_AlgoID;
+            break;
+
+        case 32:
+            oidSz = sizeof(ECC_256v1_AlgoID);
+            oid   =        ECC_256v1_AlgoID;
+            break;
+
+        case 48:
+            oidSz = sizeof(ECC_384r1_AlgoID);
+            oid   =        ECC_384r1_AlgoID;
+            break;
+
+        case 66:
+            oidSz = sizeof(ECC_521r1_AlgoID);
+            oid   =        ECC_521r1_AlgoID;
+            break;
+
+        default:
+            return ASN_UNKNOWN_OID_E;
+    }
+    lenSz = SetLength(oidSz, output+idx);
+    idx += lenSz;
+
+    XMEMCPY(output+idx, oid, oidSz);
+    idx += oidSz;
+
+    return idx;
+}
+
+#endif /* HAVE_ECC && CYASSL_CERT_GEN */
+
+
+static word32 SetAlgoID(int algoOID, byte* output, int type, int curveSz)
 {
     /* adding TAG_NULL and 0 to end */
     
@@ -2274,11 +2355,14 @@ static word32 SetAlgoID(int algoOID, byte* output, int type)
     #endif /* NO_RSA */
 
     #ifdef HAVE_ECC 
-        static const byte ECDSA_AlgoID[] = { 0x2a, 0x86, 0x48, 0xCE, 0x3d,
-                                             0x04, 0x02, 0x05, 0x00};
+        /* ECC keyType */
+        /* no tags, so set tagSz smaller later */
+        static const byte ECC_AlgoID[] = { 0x2a, 0x86, 0x48, 0xCE, 0x3d,
+                                           0x02, 0x01};
     #endif /* HAVE_ECC */
 
     int    algoSz = 0;
+    int    tagSz  = 2;   /* tag null and terminator */
     word32 idSz, seqSz;
     const  byte* algoName = 0;
     byte ID_Length[MAX_LENGTH_SZ];
@@ -2385,8 +2469,9 @@ static word32 SetAlgoID(int algoOID, byte* output, int type)
         #endif /* NO_RSA */
         #ifdef HAVE_ECC 
             case ECDSAk:
-                algoSz = sizeof(ECDSA_AlgoID);
-                algoName = ECDSA_AlgoID;
+                algoSz = sizeof(ECC_AlgoID);
+                algoName = ECC_AlgoID;
+                tagSz = 0;
                 break;
         #endif /* HAVE_ECC */
         default:
@@ -2399,8 +2484,9 @@ static word32 SetAlgoID(int algoOID, byte* output, int type)
         return 0;
     }
 
-    idSz  = SetLength(algoSz - 2, ID_Length); /* don't include TAG_NULL/0 */
-    seqSz = SetSequence(idSz + algoSz + 1, seqArray);
+    idSz  = SetLength(algoSz - tagSz, ID_Length); /* don't include tags */
+    seqSz = SetSequence(idSz + algoSz + 1 + curveSz, seqArray); 
+                 /* +1 for object id, curveID of curveSz follows for ecc */
     seqArray[seqSz++] = ASN_OBJECT_ID;
 
     XMEMCPY(output, seqArray, seqSz);
@@ -2420,7 +2506,7 @@ word32 EncodeSignature(byte* out, const byte* digest, word32 digSz, int hashOID)
     word32 encDigSz, algoSz, seqSz; 
 
     encDigSz = SetDigest(digest, digSz, digArray);
-    algoSz   = SetAlgoID(hashOID, algoArray, hashType);
+    algoSz   = SetAlgoID(hashOID, algoArray, hashType, 0);
     seqSz    = SetSequence(encDigSz + algoSz, seqArray);
 
     XMEMCPY(out, seqArray, seqSz);
@@ -3195,6 +3281,8 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
             return ret;
     }
 
+    CYASSL_MSG("Parsed Past Key");
+
     if (cert->srcIdx != cert->sigIndex) {
         if (cert->srcIdx < cert->sigIndex) {
             /* save extensions */
@@ -3626,8 +3714,59 @@ static int SetSerial(const byte* serial, byte* output)
 }
 
 
+#ifdef HAVE_ECC 
+
+/* Write a public ECC key to output */
+static int SetEccPublicKey(byte* output, ecc_key* key)
+{
+    byte algo[MAX_ALGO_SZ];
+    byte curve[MAX_ALGO_SZ];
+    byte len[MAX_LENGTH_SZ + 1];  /* trailing 0 */
+    byte pub[ECC_BUFSIZE];
+    int  algoSz;
+    int  curveSz;
+    int  lenSz;
+    int  idx;
+    word32 pubSz = sizeof(pub);
+
+    int ret = ecc_export_x963(key, pub, &pubSz);
+    if (ret != 0) return ret;
+
+    /* headers */
+    curveSz = SetCurve(key, curve);
+    if (curveSz <= 0) return curveSz;
+
+    algoSz  = SetAlgoID(ECDSAk, algo, keyType, curveSz);
+    lenSz   = SetLength(pubSz + 1, len);
+    len[lenSz++] = 0;   /* trailing 0 */
+
+    /* write */
+    idx = SetSequence(pubSz + curveSz + lenSz + 1 + algoSz, output);
+        /* 1 is for ASN_BIT_STRING */
+    /* algo */
+    XMEMCPY(output + idx, algo, algoSz);
+    idx += algoSz;
+    /* curve */
+    XMEMCPY(output + idx, curve, curveSz);
+    idx += curveSz;
+    /* bit string */
+    output[idx++] = ASN_BIT_STRING;
+    /* length */
+    XMEMCPY(output + idx, len, lenSz);
+    idx += lenSz;
+    /* pub */
+    XMEMCPY(output + idx, pub, pubSz);
+    idx += pubSz;
+
+    return idx;
+}
+
+
+#endif /* HAVE_ECC */
+
+
 /* Write a public RSA key to output */
-static int SetPublicKey(byte* output, RsaKey* key)
+static int SetRsaPublicKey(byte* output, RsaKey* key)
 {
     byte n[MAX_RSA_INT_SZ];
     byte e[MAX_RSA_E_SZ];
@@ -3673,7 +3812,7 @@ static int SetPublicKey(byte* output, RsaKey* key)
         return BUFFER_E;
 
     /* headers */
-    algoSz = SetAlgoID(RSAk, algo, keyType);
+    algoSz = SetAlgoID(RSAk, algo, keyType, 0);
     seqSz  = SetSequence(nSz + eSz, seq);
     lenSz  = SetLength(seqSz + nSz + eSz + 1, len);
     len[lenSz++] = 0;   /* trailing 0 */
@@ -4039,9 +4178,10 @@ static int SetName(byte* output, CertName* name)
 }
 
 /* encode info from cert into DER enocder format */
-static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, RNG* rng,
-                      const byte* ntruKey, word16 ntruSz)
+static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
+                      RNG* rng, const byte* ntruKey, word16 ntruSz)
 {
+    (void)eccKey;
     (void)ntruKey;
     (void)ntruSz;
 
@@ -4057,18 +4197,31 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, RNG* rng,
     der->serialSz  = SetSerial(cert->serial, der->serial);
 
     /* signature algo */
-    der->sigAlgoSz = SetAlgoID(cert->sigType, der->sigAlgo, sigType);
+    der->sigAlgoSz = SetAlgoID(cert->sigType, der->sigAlgo, sigType, 0);
     if (der->sigAlgoSz == 0)
         return ALGO_ID_E;
 
     /* public key */
     if (cert->keyType == RSA_KEY) {
-        der->publicKeySz = SetPublicKey(der->publicKey, rsaKey);
-        if (der->publicKeySz == 0)
+        if (rsaKey == NULL)
+            return PUBLIC_KEY_E;
+        der->publicKeySz = SetRsaPublicKey(der->publicKey, rsaKey);
+        if (der->publicKeySz <= 0)
             return PUBLIC_KEY_E;
     }
-    else {
+
+#ifdef HAVE_ECC
+    if (cert->keyType == ECC_KEY) {
+        if (eccKey == NULL)
+            return PUBLIC_KEY_E;
+        der->publicKeySz = SetEccPublicKey(der->publicKey, eccKey);
+        if (der->publicKeySz <= 0)
+            return PUBLIC_KEY_E;
+    }
+#endif /* HAVE_ECC */
+
 #ifdef HAVE_NTRU
+    if (cert->keyType == NTRU_KEY) {
         word32 rc;
         word16 encodedSz;
 
@@ -4085,8 +4238,8 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, RNG* rng,
             return PUBLIC_KEY_E;
 
         der->publicKeySz = encodedSz;
-#endif
     }
+#endif /* HAVE_NTRU */
 
     der->validitySz = 0;
 #ifdef CYASSL_ALT_NAMES
@@ -4257,7 +4410,7 @@ static int AddSignature(byte* buffer, int bodySz, const byte* sig, int sigSz,
     int  idx = bodySz, seqSz;
 
     /* algo */
-    idx += SetAlgoID(sigAlgoType, buffer + idx, sigType);
+    idx += SetAlgoID(sigAlgoType, buffer + idx, sigType, 0);
     /* bit string */
     buffer[idx++] = ASN_BIT_STRING;
     /* length */
@@ -4278,13 +4431,17 @@ static int AddSignature(byte* buffer, int bodySz, const byte* sig, int sigSz,
 
 /* Make an x509 Certificate v3 any key type from cert input, write to buffer */
 static int MakeAnyCert(Cert* cert, byte* derBuffer, word32 derSz,
-                   RsaKey* rsaKey, RNG* rng, const byte* ntruKey, word16 ntruSz)
+                       RsaKey* rsaKey, ecc_key* eccKey, RNG* rng,
+                       const byte* ntruKey, word16 ntruSz)
 {
     DerCert der;
     int     ret;
 
-    cert->keyType = rsaKey ? RSA_KEY : NTRU_KEY;
-    ret = EncodeCert(cert, &der, rsaKey, rng, ntruKey, ntruSz);
+    if (eccKey)
+        cert->keyType = ECC_KEY;
+    else
+        cert->keyType = rsaKey ? RSA_KEY : NTRU_KEY;
+    ret = EncodeCert(cert, &der, rsaKey, eccKey, rng, ntruKey, ntruSz);
     if (ret != 0)
         return ret;
 
@@ -4295,10 +4452,11 @@ static int MakeAnyCert(Cert* cert, byte* derBuffer, word32 derSz,
 }
 
 
-/* Make an x509 Certificate v3 RSA from cert input, write to buffer */
-int MakeCert(Cert* cert, byte* derBuffer, word32 derSz, RsaKey* rsaKey,RNG* rng)
+/* Make an x509 Certificate v3 RSA or ECC from cert input, write to buffer */
+int MakeCert(Cert* cert, byte* derBuffer, word32 derSz, RsaKey* rsaKey,
+             ecc_key* eccKey, RNG* rng)
 {
-    return MakeAnyCert(cert, derBuffer, derSz, rsaKey, rng, NULL, 0);
+    return MakeAnyCert(cert, derBuffer, derSz, rsaKey, eccKey, rng, NULL, 0);
 }
 
 
@@ -4307,7 +4465,7 @@ int MakeCert(Cert* cert, byte* derBuffer, word32 derSz, RsaKey* rsaKey,RNG* rng)
 int  MakeNtruCert(Cert* cert, byte* derBuffer, word32 derSz,
                   const byte* ntruKey, word16 keySz, RNG* rng)
 {
-    return MakeAnyCert(cert, derBuffer, derSz, NULL, rng, ntruKey, keySz);
+    return MakeAnyCert(cert, derBuffer, derSz, NULL, NULL, rng, ntruKey, keySz);
 }
 
 #endif /* HAVE_NTRU */
@@ -4337,7 +4495,7 @@ int SignCert(Cert* cert, byte* buffer, word32 buffSz, RsaKey* rsaKey,
 
 int MakeSelfCert(Cert* cert, byte* buffer, word32 buffSz, RsaKey* key, RNG* rng)
 {
-    int ret = MakeCert(cert, buffer, buffSz, key, rng);
+    int ret = MakeCert(cert, buffer, buffSz, key, NULL, rng);
 
     if (ret < 0)
         return ret;
@@ -5367,7 +5525,7 @@ int EncodeOcspRequest(OcspRequest* req)
 
     CYASSL_ENTER("EncodeOcspRequest");
 
-    algoSz = SetAlgoID(SHAh, algoArray, hashType);
+    algoSz = SetAlgoID(SHAh, algoArray, hashType, 0);
 
     req->issuerHash = req->cert->issuerHash;
     issuerSz = SetDigest(req->cert->issuerHash, SHA_SIZE, issuerArray);

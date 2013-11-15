@@ -151,9 +151,10 @@ enum Misc_ASN {
 
 
 enum Oid_Types {
-    hashType = 0,
-    sigType  = 1,
-    keyType  = 2
+    hashType  = 0,
+    sigType   = 1,
+    keyType   = 2,
+    curveType = 3
 };
 
 
@@ -400,7 +401,8 @@ enum cert_enums {
     JOINT_LEN       =  2,
     EMAIL_JOINT_LEN =  9,
     RSA_KEY         = 10,
-    NTRU_KEY        = 11
+    NTRU_KEY        = 11,
+    ECC_KEY         = 12
 };
 
 

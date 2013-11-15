@@ -2798,7 +2798,7 @@ int rsa_test(void)
         if (ret < 0)
             return -405;
 
-        certSz = MakeCert(&myCert, derCert, FOURK_BUF, &key, &rng); 
+        certSz = MakeCert(&myCert, derCert, FOURK_BUF, &key, NULL, &rng); 
         if (certSz < 0)
             return -407;
 
@@ -2886,7 +2886,7 @@ int rsa_test(void)
         if (ret < 0)
             return -5405;
 
-        certSz = MakeCert(&myCert, derCert, FOURK_BUF, &key, &rng); 
+        certSz = MakeCert(&myCert, derCert, FOURK_BUF, NULL, &caKey, &rng); 
         if (certSz < 0)
             return -5407;
 

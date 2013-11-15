@@ -125,7 +125,8 @@ typedef struct Cert {
    keyType    = RSA_KEY (default)
 */
 CYASSL_API void InitCert(Cert*);
-CYASSL_API int  MakeCert(Cert*, byte* derBuffer, word32 derSz, RsaKey*, RNG*);
+CYASSL_API int  MakeCert(Cert*, byte* derBuffer, word32 derSz, RsaKey*,
+                         ecc_key*, RNG*);
 CYASSL_API int  SignCert(Cert*, byte* derBuffer, word32 derSz, RsaKey*,
                          ecc_key*, RNG*);
 CYASSL_API int  MakeSelfCert(Cert*, byte* derBuffer, word32 derSz, RsaKey*,

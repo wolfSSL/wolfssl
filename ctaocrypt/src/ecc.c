@@ -1997,7 +1997,6 @@ int ecc_export_x963(ecc_key* key, byte* out, word32* outLen)
 int ecc_import_x963(const byte* in, word32 inLen, ecc_key* key)
 {
    int x, err;
-
    
    if (in == NULL || key == NULL)
        return ECC_BAD_ARG_E;
