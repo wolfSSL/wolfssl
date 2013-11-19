@@ -3734,7 +3734,7 @@ int ecc_encrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
     int          keysLen;
     int          encKeySz;
     int          ivSz;
-    int          offset;         /* keys offset if doing msg exchange */
+    int          offset = 0;         /* keys offset if doing msg exchange */
     byte*        encKey;
     byte*        encIv;
     byte*        macKey;
@@ -3855,7 +3855,7 @@ int ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
     int          keysLen;
     int          encKeySz;
     int          ivSz;
-    int          offset;       /* in case using msg exchange */
+    int          offset = 0;       /* in case using msg exchange */
     byte*        encKey;
     byte*        encIv;
     byte*        macKey;
