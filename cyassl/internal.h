@@ -1153,6 +1153,8 @@ CYASSL_LOCAL void   TLSX_SNI_SetOptions(TLSX* extensions, byte type,
 CYASSL_LOCAL byte   TLSX_SNI_Status(TLSX* extensions, byte type);
 CYASSL_LOCAL word16 TLSX_SNI_GetRequest(TLSX* extensions, byte type,
                                                                    void** data);
+CYASSL_LOCAL int    TLSX_SNI_GetFromBuffer(const byte* buffer, word32 bufferSz,
+                                         byte type, byte* sni, word32* inOutSz);
 #endif
 
 #endif /* HAVE_SNI */

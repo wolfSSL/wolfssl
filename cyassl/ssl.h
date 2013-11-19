@@ -1187,6 +1187,10 @@ CYASSL_API unsigned char CyaSSL_SNI_Status(CYASSL* ssl, unsigned char type);
 CYASSL_API unsigned short CyaSSL_SNI_GetRequest(CYASSL *ssl, unsigned char type,
                                                                    void** data);
 
+CYASSL_API int CyaSSL_SNI_GetFromBuffer(
+                 const unsigned char* buffer, unsigned int bufferSz,
+                 unsigned char type, unsigned char* sni, unsigned int* inOutSz);
+
 #endif /* NO_CYASSL_SERVER */
 #endif /* HAVE_SNI */
 

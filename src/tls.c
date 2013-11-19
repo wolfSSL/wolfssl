@@ -376,6 +376,14 @@ static INLINE void ato16(const byte* c, word16* u16)
 {
     *u16 = (c[0] << 8) | (c[1]);
 }
+
+#ifdef HAVE_SNI
+/* convert a 24 bit integer into a 32 bit one */
+static INLINE void c24to32(const word24 u24, word32* u32)
+{
+    *u32 = (u24[0] << 16) | (u24[1] << 8) | u24[2];
+}
+#endif
 #endif
 
 /* convert 32 bit integer to opaque */
@@ -853,6 +861,122 @@ void TLSX_SNI_SetOptions(TLSX* extensions, byte type, byte options)
 
     if (sni)
         sni->options = options;
+}
+
+int TLSX_SNI_GetFromBuffer(const byte* buffer, word32 bufferSz,
+                           byte type, byte* sni, word32* inOutSz)
+{
+    word32 offset = 0;
+    word32 len32  = 0;
+    word16 len16  = 0;
+
+    if (bufferSz < RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ + CLIENT_HELLO_FIRST)
+        return INCOMPLETE_DATA;
+
+    /* TLS record header */
+    if ((enum ContentType) buffer[offset++] != handshake)
+        return BUFFER_ERROR;
+
+    if (buffer[offset++] != SSLv3_MAJOR)
+        return BUFFER_ERROR;
+
+    if (buffer[offset++] < TLSv1_MINOR)
+        return BUFFER_ERROR;
+
+    ato16(buffer + offset, &len16);
+    offset += OPAQUE16_LEN;
+
+    if (offset + len16 > bufferSz)
+        return INCOMPLETE_DATA;
+
+    /* Handshake header */
+    if ((enum HandShakeType) buffer[offset] != client_hello)
+        return BUFFER_ERROR;
+
+    c24to32(buffer + offset + 1, &len32);
+    offset += HANDSHAKE_HEADER_SZ;
+
+    if (offset + len32 > bufferSz)
+        return INCOMPLETE_DATA;
+
+    /* client hello */
+    offset += VERSION_SZ + RAN_LEN; /* version, random */
+
+    if (offset + buffer[offset] > bufferSz)
+        return INCOMPLETE_DATA;
+
+    offset += ENUM_LEN + buffer[offset]; /* session id */
+
+    ato16(buffer + offset, &len16);
+    offset += OPAQUE16_LEN; /* cypher suites len */
+
+    if (offset + len16 > bufferSz)
+        return INCOMPLETE_DATA;
+
+    offset += len16; /* cypher suites */
+
+    if (offset + buffer[offset] > bufferSz)
+        return INCOMPLETE_DATA;
+
+    offset += ENUM_LEN + buffer[offset]; /* compression methods */
+
+    ato16(buffer + offset, &len16);
+    offset += OPAQUE16_LEN; /* EXTENSIONS LEN */
+
+    if (offset + len16 > bufferSz)
+        return INCOMPLETE_DATA;
+
+    while (len16 > OPAQUE16_LEN + OPAQUE16_LEN) {
+        word16 extType;
+        word16 extLen;
+
+        ato16(buffer + offset, &extType);
+        offset += OPAQUE16_LEN;
+
+        ato16(buffer + offset, &extLen);
+        offset += OPAQUE16_LEN;
+
+        if (offset + extLen > bufferSz)
+            return INCOMPLETE_DATA;
+
+        if (extType != SERVER_NAME_INDICATION) {
+            offset += extLen;
+            continue;
+        } else {
+            word16 listLen;
+
+            ato16(buffer + offset, &listLen);
+            offset += OPAQUE16_LEN;
+
+            if (offset + listLen > bufferSz)
+                return INCOMPLETE_DATA;
+
+            while (listLen > ENUM_LEN + OPAQUE16_LEN) {
+                byte   sniType = buffer[offset++];
+                word16 sniLen;
+
+                ato16(buffer + offset, &sniLen);
+                offset += OPAQUE16_LEN;
+
+                if (offset + sniLen > bufferSz)
+                    return INCOMPLETE_DATA;
+
+                if (sniType != type) {
+                    offset += sniLen;
+                    continue;
+                }
+
+                *inOutSz = min(sniLen, *inOutSz);
+                XMEMCPY(sni, buffer + offset, *inOutSz);
+
+                break;
+            }
+
+            break;
+        }
+    }
+
+    return 0;
 }
 #endif
 

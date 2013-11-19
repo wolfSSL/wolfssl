@@ -568,6 +568,16 @@ word16 CyaSSL_SNI_GetRequest(CYASSL* ssl, byte type, void** data)
     return 0;
 }
 
+
+int CyaSSL_SNI_GetFromBuffer(const byte* buffer, word32 bufferSz, byte type,
+                                                     byte* sni, word32* inOutSz)
+{
+    if (buffer && bufferSz > 0 && sni && inOutSz && inOutSz > 0)
+        return TLSX_SNI_GetFromBuffer(buffer, bufferSz, type, sni, inOutSz);
+
+    return BAD_FUNC_ARG;
+}
+
 #endif /* NO_CYASSL_SERVER */
 
 #endif /* HAVE_SNI */
