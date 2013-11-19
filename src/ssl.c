@@ -7092,6 +7092,170 @@ int CyaSSL_set_compression(CYASSL* ssl)
     }
 
 
+#ifdef OPENSSL_EXTRA
+    int CyaSSL_X509_ext_isSet_by_NID(CYASSL_X509* x509, int nid)
+    {
+        int isSet = 0;
+
+        CYASSL_ENTER("CyaSSL_X509_ext_isSet_by_NID");
+
+        if (x509 != NULL) {
+            switch (nid) {
+                case BASIC_CA_OID: isSet = x509->basicConstSet; break;
+                case ALT_NAMES_OID: isSet = x509->subjAltNameSet; break;
+                case AUTH_KEY_OID: isSet = x509->authKeyIdSet; break;
+                case SUBJ_KEY_OID: isSet = x509->subjKeyIdSet; break;
+                case KEY_USAGE_OID: isSet = x509->keyUsageSet; break;
+                #ifdef CYASSL_SEP
+                    case CERT_POLICY_OID: isSet = x509->certPolicySet; break;
+                #endif /* CYASSL_SEP */
+            }
+        }
+
+        CYASSL_LEAVE("CyaSSL_X509_ext_isSet_by_NID", isSet);
+
+        return isSet;
+    }
+
+
+    int CyaSSL_X509_ext_get_critical_by_NID(CYASSL_X509* x509, int nid)
+    {
+        int crit = 0;
+
+        CYASSL_ENTER("CyaSSL_X509_ext_get_critical_by_NID");
+
+        if (x509 != NULL) {
+            switch (nid) {
+                case BASIC_CA_OID: crit = x509->basicConstCrit; break;
+                case ALT_NAMES_OID: crit = x509->subjAltNameCrit; break;
+                case AUTH_KEY_OID: crit = x509->authKeyIdCrit; break;
+                case SUBJ_KEY_OID: crit = x509->subjKeyIdCrit; break;
+                case KEY_USAGE_OID: crit = x509->keyUsageCrit; break;
+                #ifdef CYASSL_SEP
+                    case CERT_POLICY_OID: crit = x509->certPolicyCrit; break;
+                #endif /* CYASSL_SEP */
+            }
+        }
+
+        CYASSL_LEAVE("CyaSSL_X509_ext_get_critical_by_NID", crit);
+
+        return crit;
+    }
+#endif
+
+
+    int CyaSSL_X509_get_isCA(CYASSL_X509* x509)
+    {
+        int isCA = 0;
+
+        CYASSL_ENTER("CyaSSL_X509_get_isCA");
+
+        if (x509 != NULL)
+            isCA = x509->isCa;
+
+        CYASSL_LEAVE("CyaSSL_X509_get_isCA", isCA);
+
+        return isCA;
+    }
+
+
+#ifdef OPENSSL_EXTRA
+    int CyaSSL_X509_get_isSet_pathLength(CYASSL_X509* x509)
+    {
+        int isSet = 0;
+
+        CYASSL_ENTER("CyaSSL_X509_get_isSet_pathLength");
+
+        if (x509 != NULL)
+            isSet = x509->basicConstPlSet;
+
+        CYASSL_LEAVE("CyaSSL_X509_get_isSet_pathLength", isSet);
+
+        return isSet;
+    }
+
+
+    word32 CyaSSL_X509_get_pathLength(CYASSL_X509* x509)
+    {
+        word32 pathLength = 0;
+
+        CYASSL_ENTER("CyaSSL_X509_get_pathLength");
+
+        if (x509 != NULL)
+            pathLength = x509->pathLength;
+
+        CYASSL_LEAVE("CyaSSL_X509_get_pathLength", pathLength);
+
+        return pathLength;
+    }
+
+
+    unsigned int CyaSSL_X509_get_keyUsage(CYASSL_X509* x509)
+    {
+        word16 usage = 0;
+
+        CYASSL_ENTER("CyaSSL_X509_get_keyUsage");
+
+        if (x509 != NULL)
+            usage = x509->keyUsage;
+
+        CYASSL_LEAVE("CyaSSL_X509_get_keyUsage", usage);
+
+        return usage;
+    }
+
+
+    byte* CyaSSL_X509_get_authorityKeyID(
+                                      CYASSL_X509* x509, byte* dst, int* dstLen)
+    {
+        byte *id = NULL;
+        int copySz = min(dstLen != NULL ? *dstLen : 0, SHA_SIZE);
+
+        CYASSL_ENTER("CyaSSL_X509_get_authorityKeyID");
+
+        if (x509 != NULL) {
+            if (x509->authKeyIdSet)
+                id = x509->authKeyId;
+
+            if (dst != NULL && dstLen != NULL && id != NULL && copySz > 0) {
+                XMEMCPY(dst, id, copySz);
+                id = dst;
+                *dstLen = copySz;
+            }
+        }
+
+        CYASSL_LEAVE("CyaSSL_X509_get_authorityKeyID", copySz);
+
+        return id;
+    }
+
+
+    byte* CyaSSL_X509_get_subjectKeyID(
+                                      CYASSL_X509* x509, byte* dst, int* dstLen)
+    {
+        byte *id = NULL;
+        int copySz = min(dstLen != NULL ? *dstLen : 0, SHA_SIZE);
+
+        CYASSL_ENTER("CyaSSL_X509_get_subjectKeyID");
+
+        if (x509 != NULL) {
+            if (x509->subjKeyIdSet)
+                id = x509->subjKeyId;
+
+            if (dst != NULL && dstLen != NULL && id != NULL && copySz > 0) {
+                XMEMCPY(dst, id, copySz);
+                id = dst;
+                *dstLen = copySz;
+            }
+        }
+
+        CYASSL_LEAVE("CyaSSL_X509_get_subjectKeyID", copySz);
+
+        return id;
+    }
+#endif
+
+
     /* copy name into in buffer, at most sz bytes, if buffer is null will
        malloc buffer, call responsible for freeing                     */
     char* CyaSSL_X509_NAME_oneline(CYASSL_X509_NAME* name, char* in, int sz)
@@ -8373,6 +8537,9 @@ CYASSL_X509* CyaSSL_X509_load_certificate_file(const char* fname, int format)
                 XMEMCPY(key->pkey.ptr,
                                       x509->pubKey.buffer, x509->pubKey.length);
                 key->pkey_sz = x509->pubKey.length;
+                #ifdef HAVE_ECC
+                    key->pkey_curve = (int)x509->pkCurveOID;
+                #endif /* HAVE_ECC */
             }
         }
         return key;

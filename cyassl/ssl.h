@@ -99,6 +99,9 @@ typedef struct CYASSL_EVP_PKEY {
     union {
         char* ptr;
     } pkey;
+    #ifdef HAVE_ECC
+        int pkey_curve;
+    #endif
 } CYASSL_EVP_PKEY;
 
 typedef struct CYASSL_MD4_CTX {
@@ -413,6 +416,16 @@ CYASSL_API int   CyaSSL_X509_STORE_CTX_get_error_depth(CYASSL_X509_STORE_CTX*);
 CYASSL_API char*       CyaSSL_X509_NAME_oneline(CYASSL_X509_NAME*, char*, int);
 CYASSL_API CYASSL_X509_NAME*  CyaSSL_X509_get_issuer_name(CYASSL_X509*);
 CYASSL_API CYASSL_X509_NAME*  CyaSSL_X509_get_subject_name(CYASSL_X509*);
+CYASSL_API int  CyaSSL_X509_ext_isSet_by_NID(CYASSL_X509*, int);
+CYASSL_API int  CyaSSL_X509_ext_get_critical_by_NID(CYASSL_X509*, int);
+CYASSL_API int  CyaSSL_X509_get_isCA(CYASSL_X509*);
+CYASSL_API int  CyaSSL_X509_get_isSet_pathLength(CYASSL_X509*);
+CYASSL_API unsigned int CyaSSL_X509_get_pathLength(CYASSL_X509*);
+CYASSL_API unsigned int CyaSSL_X509_get_keyUsage(CYASSL_X509*);
+CYASSL_API unsigned char* CyaSSL_X509_get_authorityKeyID(
+                                            CYASSL_X509*, unsigned char*, int*);
+CYASSL_API unsigned char* CyaSSL_X509_get_subjectKeyID(
+                                            CYASSL_X509*, unsigned char*, int*);
 CYASSL_API int CyaSSL_X509_NAME_entry_count(CYASSL_X509_NAME*);
 CYASSL_API int CyaSSL_X509_NAME_get_text_by_NID(
                                             CYASSL_X509_NAME*, int, char*, int);

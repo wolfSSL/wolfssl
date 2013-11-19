@@ -1271,6 +1271,31 @@ void InitX509(CYASSL_X509* x509, int dynamicFlag)
     x509->altNames       = NULL;
     x509->altNamesNext   = NULL;
     x509->dynamicMemory  = (byte)dynamicFlag;
+    x509->isCa           = 0;
+#ifdef OPENSSL_EXTRA
+    x509->pathLength     = 0;
+    x509->basicConstSet  = 0;
+    x509->basicConstCrit = 0;
+    x509->basicConstPlSet = 0;
+    x509->subjAltNameSet = 0;
+    x509->subjAltNameCrit = 0;
+    x509->authKeyIdSet   = 0;
+    x509->authKeyIdCrit  = 0;
+    XMEMSET(x509->authKeyId, 0, SHA_SIZE);
+    x509->subjKeyIdSet   = 0;
+    x509->subjKeyIdCrit  = 0;
+    XMEMSET(x509->subjKeyId, 0, SHA_SIZE);
+    x509->keyUsageSet    = 0;
+    x509->keyUsageCrit   = 0;
+    x509->keyUsage       = 0;
+    #ifdef HAVE_ECC
+        x509->pkCurveOID = 0;
+    #endif /* HAVE_ECC */
+    #ifdef CYASSL_SEP
+        x509->certPolicySet  = 0;
+        x509->certPolicyCrit = 0;
+    #endif /* CYASSL_SEP */
+#endif /* OPENSSL_EXTRA */
 }
 
 
@@ -3155,6 +3180,33 @@ int CopyDecodedToX509(CYASSL_X509* x509, DecodedCert* dCert)
     x509->altNames     = dCert->altNames;
     dCert->altNames    = NULL;     /* takes ownership */
     x509->altNamesNext = x509->altNames;  /* index hint */
+
+    x509->isCa = dCert->isCA;
+#ifdef OPENSSL_EXTRA
+    x509->pathLength = dCert->pathLength;
+    x509->keyUsage = dCert->extKeyUsage;
+
+    x509->basicConstSet = dCert->extBasicConstSet;
+    x509->basicConstCrit = dCert->extBasicConstCrit;
+    x509->basicConstPlSet = dCert->extBasicConstPlSet;
+    x509->subjAltNameSet = dCert->extSubjAltNameSet;
+    x509->subjAltNameCrit = dCert->extSubjAltNameCrit;
+    x509->authKeyIdSet = dCert->extAuthKeyIdSet;
+    x509->authKeyIdCrit = dCert->extAuthKeyIdCrit;
+    XMEMCPY(x509->authKeyId, dCert->extAuthKeyId, SHA_SIZE);
+    x509->subjKeyIdSet = dCert->extSubjKeyIdSet;
+    x509->subjKeyIdCrit = dCert->extSubjKeyIdCrit;
+    XMEMCPY(x509->subjKeyId, dCert->extSubjKeyId, SHA_SIZE);
+    x509->keyUsageSet = dCert->extKeyUsageSet;
+    x509->keyUsageCrit = dCert->extKeyUsageCrit;
+    #ifdef HAVE_ECC
+        x509->pkCurveOID = dCert->pkCurveOID;
+    #endif /* HAVE_ECC */
+    #ifdef CYASSL_SEP
+        x509->certPolicySet = dCert->extCertPolicySet;
+        x509->certPolicyCrit = dCert->extCertPolicyCrit;
+    #endif /* CYASSL_SEP */
+#endif /* OPENSSL_EXTRA */
 
     return ret;
 }

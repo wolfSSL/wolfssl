@@ -1303,6 +1303,20 @@ void InitDecodedCert(DecodedCert* cert, byte* source, word32 inSz, void* heap)
 #ifdef OPENSSL_EXTRA
     XMEMSET(&cert->issuerName, 0, sizeof(DecodedName));
     XMEMSET(&cert->subjectName, 0, sizeof(DecodedName));
+    cert->extBasicConstSet = 0;
+    cert->extBasicConstCrit = 0;
+    cert->extBasicConstPlSet = 0;
+    cert->pathLength = 0;
+    cert->extSubjAltNameSet = 0;
+    cert->extSubjAltNameCrit = 0;
+    cert->extAuthKeyIdCrit = 0;
+    cert->extSubjKeyIdCrit = 0;
+    cert->extKeyUsageSet = 0;
+    cert->extKeyUsageCrit = 0;
+    cert->extKeyUsage = 0;
+    #ifdef HAVE_ECC
+        cert->pkCurveOID = 0;
+    #endif /* HAVE_ECC */
 #endif /* OPENSSL_EXTRA */
 #ifdef CYASSL_SEP
     cert->deviceTypeSz = 0;
@@ -1311,6 +1325,10 @@ void InitDecodedCert(DecodedCert* cert, byte* source, word32 inSz, void* heap)
     cert->hwType = NULL;
     cert->hwSerialNumSz = 0;
     cert->hwSerialNum = NULL;
+    #ifdef OPENSSL_EXTRA
+        cert->extCertPolicySet = 0;
+        cert->extCertPolicyCrit = 0;
+    #endif /* OPENSSL_EXTRA */
 #endif /* CYASSL_SEP */
 }
 
@@ -1509,6 +1527,9 @@ static int GetKey(DecodedCert* cert)
                 oid += cert->source[cert->srcIdx++];
             if (CheckCurve(oid) < 0)
                 return ECC_CURVE_OID_E;
+            #ifdef OPENSSL_EXTRA
+                cert->pkCurveOID = oid;
+            #endif /* OPENSSL_EXTRA */
 
             /* key header */
             b = cert->source[cert->srcIdx++];
@@ -2882,8 +2903,28 @@ static void DecodeBasicCaConstraint(byte* input, int sz, DecodedCert* cert)
         return;
     }
 
-    if (input[idx])
+    if (input[idx++])
         cert->isCA = 1;
+
+    #ifdef OPENSSL_EXTRA
+        /* If there isn't any more data, return. */
+        if (idx >= (word32)sz)
+            return;
+
+        /* Anything left should be the optional pathlength */
+        if (input[idx++] != ASN_INTEGER) {
+            CYASSL_MSG("\tfail: pathlen not INTEGER");
+            return;
+        }
+
+        if (input[idx++] != 1) {
+            CYASSL_MSG("\tfail: pathlen too long");
+            return;
+        }
+
+        cert->pathLength = input[idx];
+        cert->extBasicConstPlSet = 1;
+    #endif /* OPENSSL_EXTRA */
 }
 
 
@@ -3045,7 +3086,6 @@ static void DecodeAuthKeyId(byte* input, int sz, DecodedCert* cert)
         ShaUpdate(&sha, input + idx, length);
         ShaFinal(&sha, cert->extAuthKeyId);
     }
-    cert->extAuthKeyIdSet = 1;
 
     return;
 }
@@ -3077,10 +3117,42 @@ static void DecodeSubjKeyId(byte* input, int sz, DecodedCert* cert)
         ShaUpdate(&sha, input + idx, length);
         ShaFinal(&sha, cert->extSubjKeyId);
     }
-    cert->extSubjKeyIdSet = 1;
 
     return;
 }
+
+
+#ifdef OPENSSL_EXTRA
+    static void DecodeKeyUsage(byte* input, int sz, DecodedCert* cert)
+    {
+        word32 idx = 0;
+        int length;
+        byte unusedBits;
+        CYASSL_ENTER("DecodeKeyUsage");
+
+        if (input[idx++] != ASN_BIT_STRING) {
+            CYASSL_MSG("\tfail: key usage expected bit string");
+            return;
+        }
+
+        if (GetLength(input, &idx, &length, sz) < 0) {
+            CYASSL_MSG("\tfail: key usage bad length");
+            return;
+        }
+
+        unusedBits = input[idx++];
+        length--;
+
+        if (length == 2) {
+            cert->extKeyUsage = (input[idx] << 8) | input[idx+1];
+            cert->extKeyUsage >>= unusedBits;
+        }
+        else if (length == 1)
+            cert->extKeyUsage = (input[idx] << 1);
+
+        return;
+    }
+#endif /* OPENSSL_EXTRA */
 
 
 #ifdef CYASSL_SEP
@@ -3138,6 +3210,7 @@ static void DecodeCertExtensions(DecodedCert* cert)
     byte* input = cert->extensions;
     int length;
     word32 oid;
+    byte critical;
 
     CYASSL_ENTER("DecodeCertExtensions");
 
@@ -3162,9 +3235,16 @@ static void DecodeCertExtensions(DecodedCert* cert)
         }
 
         /* check for critical flag */
+        critical = 0;
         if (input[idx] == ASN_BOOLEAN) {
-            CYASSL_MSG("\tfound optional critical flag, moving past");
-            idx += (ASN_BOOL_SIZE + 1);
+            int boolLength = 0;
+            idx++;
+            if (GetLength(input, &idx, &boolLength, sz) < 0) {
+                CYASSL_MSG("\tfail: critical boolean length");
+                return;
+            }
+            if (input[idx++])
+                critical = 1;
         }
 
         /* process the extension based on the OID */
@@ -3180,6 +3260,10 @@ static void DecodeCertExtensions(DecodedCert* cert)
 
         switch (oid) {
             case BASIC_CA_OID:
+                #ifdef OPENSSL_EXTRA
+                    cert->extBasicConstSet = 1;
+                    cert->extBasicConstCrit = critical;
+                #endif
                 DecodeBasicCaConstraint(&input[idx], length, cert);
                 break;
 
@@ -3192,20 +3276,44 @@ static void DecodeCertExtensions(DecodedCert* cert)
                 break;
 
             case ALT_NAMES_OID:
+                #ifdef OPENSSL_EXTRA
+                    cert->extSubjAltNameSet = 1;
+                    cert->extSubjAltNameCrit = critical;
+                #endif
                 DecodeAltNames(&input[idx], length, cert);
                 break;
 
             case AUTH_KEY_OID:
+                cert->extAuthKeyIdSet = 1;
+                #ifdef OPENSSL_EXTRA
+                    cert->extAuthKeyIdCrit = critical;
+                #endif
                 DecodeAuthKeyId(&input[idx], length, cert);
                 break;
 
             case SUBJ_KEY_OID:
+                cert->extSubjKeyIdSet = 1;
+                #ifdef OPENSSL_EXTRA
+                    cert->extSubjKeyIdCrit = critical;
+                #endif
                 DecodeSubjKeyId(&input[idx], length, cert);
                 break;
 
             #ifdef CYASSL_SEP
             case CERT_POLICY_OID:
+                #ifdef OPENSSL_EXTRA
+                    cert->extCertPolicySet = 1;
+                    cert->extCertPolicyCrit = critical;
+                #endif
                 DecodeCertPolicy(&input[idx], length, cert);
+                break;
+            #endif
+
+            #ifdef OPENSSL_EXTRA
+            case KEY_USAGE_OID:
+                cert->extKeyUsageSet = 1;
+                cert->extKeyUsageCrit = critical;
+                DecodeKeyUsage(&input[idx], length, cert);
                 break;
             #endif
 

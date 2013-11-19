@@ -199,7 +199,8 @@ enum Extensions_Sum {
     CA_ISSUER_OID   = 117,
     AUTH_KEY_OID    = 149,
     SUBJ_KEY_OID    = 128,
-    CERT_POLICY_OID = 146
+    CERT_POLICY_OID = 146,
+    KEY_USAGE_OID   = 129  /* 2.5.29.15 */
 };
 
 enum CertificatePolicy_Sum {
@@ -215,6 +216,18 @@ enum VerifyType {
     NO_VERIFY = 0,
     VERIFY    = 1
 };
+
+
+/* Key usage extension bits */
+#define KEYUSE_DIGITAL_SIG    0x0100
+#define KEYUSE_CONTENT_COMMIT 0x0080
+#define KEYUSE_KEY_ENCIPHER   0x0040
+#define KEYUSE_DATA_ENCIPHER  0x0020
+#define KEYUSE_KEY_AGREE      0x0010
+#define KEYUSE_KEY_CERT_SIGN  0x0008
+#define KEYUSE_CRL_SIGN       0x0004
+#define KEYUSE_ENCIPHER_ONLY  0x0002
+#define KEYUSE_DECIPHER_ONLY  0x0001
 
 
 typedef struct DNS_entry   DNS_entry;
@@ -297,7 +310,23 @@ struct DecodedCert {
     byte    extSubjKeyIdSet;         /* Set when the SKID was read from cert */
     byte    extAuthKeyId[SHA_SIZE];  /* Authority Key ID                 */
     byte    extAuthKeyIdSet;         /* Set when the AKID was read from cert */
-    byte    isCA;                    /* CA basic constraint true */
+    byte    isCA;                    /* CA basic constraint true         */
+#ifdef OPENSSL_EXTRA
+    byte    extBasicConstSet;
+    byte    extBasicConstCrit;
+    byte    extBasicConstPlSet;
+    word32  pathLength;              /* CA basic constraint path length, opt */
+    byte    extSubjAltNameSet;
+    byte    extSubjAltNameCrit;
+    byte    extAuthKeyIdCrit;
+    byte    extSubjKeyIdCrit;
+    byte    extKeyUsageSet;
+    byte    extKeyUsageCrit;
+    word16  extKeyUsage;             /* Key usage bitfield               */
+    #ifdef HAVE_ECC
+        word32 pkCurveOID;           /* Public Key's curve OID */
+    #endif /* HAVE_ECC */
+#endif
     byte*   beforeDate;
     int     beforeDateLen;
     byte*   afterDate;
@@ -330,6 +359,10 @@ struct DecodedCert {
     byte*   hwType;
     int     hwSerialNumSz;
     byte*   hwSerialNum;
+    #ifdef OPENSSL_EXTRA
+        byte    extCertPolicySet;
+        byte    extCertPolicyCrit;
+    #endif /* OPENSSL_EXTRA */
 #endif /* CYASSL_SEP */
 };
 

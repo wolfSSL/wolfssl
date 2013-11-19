@@ -1661,6 +1661,10 @@ struct CYASSL_X509 {
     byte             hwType[EXTERNAL_SERIAL_SIZE];
     int              hwSerialNumSz;
     byte             hwSerialNum[EXTERNAL_SERIAL_SIZE];
+    #ifdef OPENSSL_EXTRA
+        byte             certPolicySet;
+        byte             certPolicyCrit;
+    #endif /* OPENSSL_EXTRA */
 #endif
     int              notBeforeSz;
     byte             notBefore[MAX_DATE_SZ];
@@ -1670,10 +1674,31 @@ struct CYASSL_X509 {
     buffer           sig;
     int              pubKeyOID;
     buffer           pubKey;
+    #ifdef HAVE_ECC
+        word32       pkCurveOID;
+    #endif /* HAVE_ECC */
     buffer           derCert;                        /* may need  */
     DNS_entry*       altNames;                       /* alt names list */
     DNS_entry*       altNamesNext;                   /* hint for retrieval */
     byte             dynamicMemory;                  /* dynamic memory flag */
+    byte             isCa;
+#ifdef OPENSSL_EXTRA
+    word32           pathLength;
+    word16           keyUsage;
+    byte             basicConstSet;
+    byte             basicConstCrit;
+    byte             basicConstPlSet;
+    byte             subjAltNameSet;
+    byte             subjAltNameCrit;
+    byte             authKeyIdSet;
+    byte             authKeyIdCrit;
+    byte             authKeyId[SHA_SIZE];
+    byte             subjKeyIdSet;
+    byte             subjKeyIdCrit;
+    byte             subjKeyId[SHA_SIZE];
+    byte             keyUsageSet;
+    byte             keyUsageCrit;
+#endif /* OPENSSL_EXTRA */
 };
 
 
