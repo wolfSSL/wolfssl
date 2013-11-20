@@ -4592,25 +4592,24 @@ int  MakeNtruCert(Cert* cert, byte* derBuffer, word32 derSz,
 #endif /* HAVE_NTRU */
 
 
-int SignCert(Cert* cert, byte* buffer, word32 buffSz, RsaKey* rsaKey,
-             ecc_key* eccKey, RNG* rng)
+int SignCert(int requestSz, int sigType, byte* buffer, word32 buffSz,
+             RsaKey* rsaKey, ecc_key* eccKey, RNG* rng)
 {
     byte    sig[MAX_ENCODED_SIG_SZ];
     int     sigSz;
-    int     bodySz = cert->bodySz;
 
-    if (bodySz < 0)
-        return bodySz;
+    if (requestSz < 0)
+        return requestSz;
 
-    sigSz  = MakeSignature(buffer, bodySz, sig, sizeof(sig), rsaKey, eccKey,
-                           rng, cert->sigType);
+    sigSz = MakeSignature(buffer, requestSz, sig, sizeof(sig), rsaKey, eccKey,
+                          rng, sigType);
     if (sigSz < 0)
         return sigSz; 
 
-    if (bodySz + MAX_SEQ_SZ * 2 + sigSz > (int)buffSz)
+    if (requestSz + MAX_SEQ_SZ * 2 + sigSz > (int)buffSz)
         return BUFFER_E; 
 
-    return AddSignature(buffer, bodySz, sig, sigSz, cert->sigType);
+    return AddSignature(buffer, requestSz, sig, sigSz, sigType);
 }
 
 
@@ -4621,7 +4620,7 @@ int MakeSelfCert(Cert* cert, byte* buffer, word32 buffSz, RsaKey* key, RNG* rng)
     if (ret < 0)
         return ret;
 
-    return SignCert(cert, buffer, buffSz, key, NULL, rng);
+    return SignCert(cert->bodySz, cert->sigType, buffer, buffSz, key, NULL,rng);
 }
 
 

@@ -2802,7 +2802,8 @@ int rsa_test(void)
         if (certSz < 0)
             return -407;
 
-        certSz = SignCert(&myCert, derCert, FOURK_BUF, &caKey, NULL, &rng);
+        certSz = SignCert(myCert.bodySz, myCert.sigType, derCert, FOURK_BUF,
+                          &caKey, NULL, &rng);
         if (certSz < 0)
             return -408;
 
@@ -2890,7 +2891,8 @@ int rsa_test(void)
         if (certSz < 0)
             return -5407;
 
-        certSz = SignCert(&myCert, derCert, FOURK_BUF, NULL, &caKey, &rng);
+        certSz = SignCert(myCert.bodySz, myCert.sigType, derCert, FOURK_BUF,
+                          NULL, &caKey, &rng);
         if (certSz < 0)
             return -5408;
 
@@ -3002,7 +3004,8 @@ int rsa_test(void)
         if (certSz < 0)
             return -456;
 
-        certSz = SignCert(&myCert, derCert, FOURK_BUF, &caKey, NULL, &rng);
+        certSz = SignCert(myCert.bodySz, myCert.sigType, derCert, FOURK_BUF,
+                          &caKey, NULL, &rng);
         if (certSz < 0)
             return -457;
 
