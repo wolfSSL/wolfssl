@@ -3548,6 +3548,8 @@ static int SetMyVersion(word32 version, byte* output, int header)
 }
 
 
+/* convert der buffer to pem into output, can't do inplace, der and output
+   need to be different */
 int DerToPem(const byte* der, word32 derSz, byte* output, word32 outSz,
              int type)
 {
@@ -3559,6 +3561,9 @@ int DerToPem(const byte* der, word32 derSz, byte* output, word32 outSz,
     int i;
     int err;
     int outLen;   /* return length or error */
+
+    if (der == output)      /* no in place conversion */
+        return BAD_FUNC_ARG;
 
     if (type == CERT_TYPE) {
         XSTRNCPY(header, "-----BEGIN CERTIFICATE-----\n", sizeof(header));
