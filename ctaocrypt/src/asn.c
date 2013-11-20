@@ -1314,6 +1314,10 @@ void InitDecodedCert(DecodedCert* cert, byte* source, word32 inSz, void* heap)
     cert->extKeyUsageSet = 0;
     cert->extKeyUsageCrit = 0;
     cert->extKeyUsage = 0;
+    cert->extAuthKeyIdSrc = NULL;
+    cert->extAuthKeyIdSz = 0;
+    cert->extSubjKeyIdSrc = NULL;
+    cert->extSubjKeyIdSz = 0;
     #ifdef HAVE_ECC
         cert->pkCurveOID = 0;
     #endif /* HAVE_ECC */
@@ -3077,6 +3081,11 @@ static void DecodeAuthKeyId(byte* input, int sz, DecodedCert* cert)
         return;
     }
 
+    #ifdef OPENSSL_EXTRA
+        cert->extAuthKeyIdSrc = &input[idx];
+        cert->extAuthKeyIdSz = length;
+    #endif /* OPENSSL_EXTRA */
+
     if (length == SHA_SIZE) {
         XMEMCPY(cert->extAuthKeyId, input + idx, length);
     }
@@ -3107,6 +3116,11 @@ static void DecodeSubjKeyId(byte* input, int sz, DecodedCert* cert)
         CYASSL_MSG("\tfail: extension data length");
         return;
     }
+
+    #ifdef OPENSSL_EXTRA
+        cert->extSubjKeyIdSrc = &input[idx];
+        cert->extSubjKeyIdSz = length;
+    #endif /* OPENSSL_EXTRA */
 
     if (length == SIGNER_DIGEST_SIZE) {
         XMEMCPY(cert->extSubjKeyId, input + idx, length);
@@ -3420,7 +3434,6 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
             InitSha(&sha);
             ShaUpdate(&sha, cert->publicKey, cert->pubKeySize);
             ShaFinal(&sha, cert->extSubjKeyId);
-            cert->extSubjKeyIdSet = 1;
         }
     #endif
 

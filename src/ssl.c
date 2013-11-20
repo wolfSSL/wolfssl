@@ -7209,13 +7209,16 @@ int CyaSSL_set_compression(CYASSL* ssl)
                                       CYASSL_X509* x509, byte* dst, int* dstLen)
     {
         byte *id = NULL;
-        int copySz = min(dstLen != NULL ? *dstLen : 0, SHA_SIZE);
+        int copySz = 0;
 
         CYASSL_ENTER("CyaSSL_X509_get_authorityKeyID");
 
         if (x509 != NULL) {
-            if (x509->authKeyIdSet)
+            if (x509->authKeyIdSet) {
+                copySz = min(dstLen != NULL ? *dstLen : 0,
+                                                        (int)x509->authKeyIdSz);
                 id = x509->authKeyId;
+            }
 
             if (dst != NULL && dstLen != NULL && id != NULL && copySz > 0) {
                 XMEMCPY(dst, id, copySz);
@@ -7234,13 +7237,16 @@ int CyaSSL_set_compression(CYASSL* ssl)
                                       CYASSL_X509* x509, byte* dst, int* dstLen)
     {
         byte *id = NULL;
-        int copySz = min(dstLen != NULL ? *dstLen : 0, SHA_SIZE);
+        int copySz = 0;
 
         CYASSL_ENTER("CyaSSL_X509_get_subjectKeyID");
 
         if (x509 != NULL) {
-            if (x509->subjKeyIdSet)
+            if (x509->subjKeyIdSet) {
+                copySz = min(dstLen != NULL ? *dstLen : 0,
+                                                        (int)x509->subjKeyIdSz);
                 id = x509->subjKeyId;
+            }
 
             if (dst != NULL && dstLen != NULL && id != NULL && copySz > 0) {
                 XMEMCPY(dst, id, copySz);

@@ -323,6 +323,10 @@ struct DecodedCert {
     byte    extKeyUsageSet;
     byte    extKeyUsageCrit;
     word16  extKeyUsage;             /* Key usage bitfield               */
+    byte*   extAuthKeyIdSrc;
+    word32  extAuthKeyIdSz;
+    byte*   extSubjKeyIdSrc;
+    word32  extSubjKeyIdSz;
     #ifdef HAVE_ECC
         word32 pkCurveOID;           /* Public Key's curve OID */
     #endif /* HAVE_ECC */

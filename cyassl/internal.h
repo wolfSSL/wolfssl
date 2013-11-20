@@ -1692,10 +1692,12 @@ struct CYASSL_X509 {
     byte             subjAltNameCrit;
     byte             authKeyIdSet;
     byte             authKeyIdCrit;
-    byte             authKeyId[SHA_SIZE];
+    byte*            authKeyId;
+    word32           authKeyIdSz;
     byte             subjKeyIdSet;
     byte             subjKeyIdCrit;
-    byte             subjKeyId[SHA_SIZE];
+    byte*            subjKeyId;
+    word32           subjKeyIdSz;
     byte             keyUsageSet;
     byte             keyUsageCrit;
 #endif /* OPENSSL_EXTRA */

@@ -1281,10 +1281,12 @@ void InitX509(CYASSL_X509* x509, int dynamicFlag)
     x509->subjAltNameCrit = 0;
     x509->authKeyIdSet   = 0;
     x509->authKeyIdCrit  = 0;
-    XMEMSET(x509->authKeyId, 0, SHA_SIZE);
+    x509->authKeyId      = NULL;
+    x509->authKeyIdSz    = 0;
     x509->subjKeyIdSet   = 0;
     x509->subjKeyIdCrit  = 0;
-    XMEMSET(x509->subjKeyId, 0, SHA_SIZE);
+    x509->subjKeyId      = NULL;
+    x509->subjKeyIdSz    = 0;
     x509->keyUsageSet    = 0;
     x509->keyUsageCrit   = 0;
     x509->keyUsage       = 0;
@@ -1311,6 +1313,10 @@ void FreeX509(CYASSL_X509* x509)
         XFREE(x509->pubKey.buffer, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
     XFREE(x509->derCert.buffer, NULL, DYNAMIC_TYPE_SUBJECT_CN);
     XFREE(x509->sig.buffer, NULL, 0);
+    #ifdef OPENSSL_EXTRA
+        XFREE(x509->authKeyId, NULL, 0);
+        XFREE(x509->subjKeyId, NULL, 0);
+    #endif /* OPENSSL_EXTRA */
     if (x509->altNames)
         FreeAltNames(x509->altNames, NULL);
     if (x509->dynamicMemory)
@@ -3193,10 +3199,28 @@ int CopyDecodedToX509(CYASSL_X509* x509, DecodedCert* dCert)
     x509->subjAltNameCrit = dCert->extSubjAltNameCrit;
     x509->authKeyIdSet = dCert->extAuthKeyIdSet;
     x509->authKeyIdCrit = dCert->extAuthKeyIdCrit;
-    XMEMCPY(x509->authKeyId, dCert->extAuthKeyId, SHA_SIZE);
+    if (dCert->extAuthKeyIdSrc != NULL && dCert->extAuthKeyIdSz != 0) {
+        x509->authKeyId = (byte*)XMALLOC(dCert->extAuthKeyIdSz, NULL, 0);
+        if (x509->authKeyId != NULL) {
+            XMEMCPY(x509->authKeyId,
+                                 dCert->extAuthKeyIdSrc, dCert->extAuthKeyIdSz);
+            x509->authKeyIdSz = dCert->extAuthKeyIdSz;
+        }
+        else
+            ret = MEMORY_E;
+    }
     x509->subjKeyIdSet = dCert->extSubjKeyIdSet;
     x509->subjKeyIdCrit = dCert->extSubjKeyIdCrit;
-    XMEMCPY(x509->subjKeyId, dCert->extSubjKeyId, SHA_SIZE);
+    if (dCert->extSubjKeyIdSrc != NULL && dCert->extSubjKeyIdSz != 0) {
+        x509->subjKeyId = (byte*)XMALLOC(dCert->extSubjKeyIdSz, NULL, 0);
+        if (x509->subjKeyId != NULL) {
+            XMEMCPY(x509->subjKeyId,
+                                 dCert->extSubjKeyIdSrc, dCert->extSubjKeyIdSz);
+            x509->subjKeyIdSz = dCert->extSubjKeyIdSz;
+        }
+        else
+            ret = MEMORY_E;
+    }
     x509->keyUsageSet = dCert->extKeyUsageSet;
     x509->keyUsageCrit = dCert->extKeyUsageCrit;
     #ifdef HAVE_ECC
