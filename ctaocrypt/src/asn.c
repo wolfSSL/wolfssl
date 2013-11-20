@@ -4266,12 +4266,16 @@ static int SetName(byte* output, CertName* name)
             }
             else {
                 /* joint id */
+                byte bType = GetNameId(i);
                 names[i].encoded[idx++] = 0x55;
                 names[i].encoded[idx++] = 0x04;
                 /* id type */
-                names[i].encoded[idx++] = GetNameId(i);
+                names[i].encoded[idx++] = bType; 
                 /* str type */
-                names[i].encoded[idx++] = 0x13;
+                if (bType == ASN_COUNTRY_NAME)
+                    names[i].encoded[idx++] = 0x13;   /* printable */
+                else
+                    names[i].encoded[idx++] = 0x0c;   /* utf8 */
             }
             /* second length */
             XMEMCPY(names[i].encoded + idx, secondLen, secondSz);
