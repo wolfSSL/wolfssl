@@ -5738,7 +5738,9 @@ int CompareOcspReqResp(OcspRequest* req, OcspResponse* resp)
         return 1;
     }
 
-    if (req->useNonce) {
+    /* Nonces are not critical. The responder may not necessarily add
+     * the nonce to the response. */
+    if (req->useNonce && resp->nonceSz != 0) {
         cmp = req->nonceSz - resp->nonceSz;
         if (cmp != 0)
         {
