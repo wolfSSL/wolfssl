@@ -3226,6 +3226,8 @@ static void DecodeCertExtensions(DecodedCert* cert)
     word32 oid;
     byte critical;
 
+    (void)critical;
+
     CYASSL_ENTER("DecodeCertExtensions");
 
     if (input == NULL || sz == 0) return;
@@ -4266,12 +4268,16 @@ static int SetName(byte* output, CertName* name)
             }
             else {
                 /* joint id */
+                byte bType = GetNameId(i);
                 names[i].encoded[idx++] = 0x55;
                 names[i].encoded[idx++] = 0x04;
                 /* id type */
-                names[i].encoded[idx++] = GetNameId(i);
+                names[i].encoded[idx++] = bType; 
                 /* str type */
-                names[i].encoded[idx++] = 0x13;
+                if (bType == ASN_COUNTRY_NAME)
+                    names[i].encoded[idx++] = 0x13;   /* printable */
+                else
+                    names[i].encoded[idx++] = 0x0c;   /* utf8 */
             }
             /* second length */
             XMEMCPY(names[i].encoded + idx, secondLen, secondSz);
@@ -4597,7 +4603,7 @@ int  MakeNtruCert(Cert* cert, byte* derBuffer, word32 derSz,
 #endif /* HAVE_NTRU */
 
 
-int SignCert(int requestSz, int sigType, byte* buffer, word32 buffSz,
+int SignCert(int requestSz, int sType, byte* buffer, word32 buffSz,
              RsaKey* rsaKey, ecc_key* eccKey, RNG* rng)
 {
     byte    sig[MAX_ENCODED_SIG_SZ];
@@ -4607,14 +4613,14 @@ int SignCert(int requestSz, int sigType, byte* buffer, word32 buffSz,
         return requestSz;
 
     sigSz = MakeSignature(buffer, requestSz, sig, sizeof(sig), rsaKey, eccKey,
-                          rng, sigType);
+                          rng, sType);
     if (sigSz < 0)
         return sigSz; 
 
     if (requestSz + MAX_SEQ_SZ * 2 + sigSz > (int)buffSz)
         return BUFFER_E; 
 
-    return AddSignature(buffer, requestSz, sig, sigSz, sigType);
+    return AddSignature(buffer, requestSz, sig, sigSz, sType);
 }
 
 
