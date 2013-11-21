@@ -1087,7 +1087,22 @@ void bench_eccKeyAgree(void)
     }
 
 #elif defined CYASSL_MDK_ARM
+
     extern double current_time(int reset) ;
+
+#elif defined FREERTOS
+
+    double current_time(int reset)
+    {
+        (void) reset;
+
+        portTickType tickCount;
+
+        /* tick count == ms, if configTICK_RATE_HZ is set to 1000 */
+        tickCount = xTaskGetTickCount();
+        return (double)tickCount / 1000;
+    }
+
 #else
 
     #include <sys/time.h>
