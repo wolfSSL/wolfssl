@@ -7092,6 +7092,21 @@ int CyaSSL_set_compression(CYASSL* ssl)
     }
 
 
+    int CyaSSL_X509_get_isCA(CYASSL_X509* x509)
+    {
+        int isCA = 0;
+
+        CYASSL_ENTER("CyaSSL_X509_get_isCA");
+
+        if (x509 != NULL)
+            isCA = x509->isCa;
+
+        CYASSL_LEAVE("CyaSSL_X509_get_isCA", isCA);
+
+        return isCA;
+    }
+
+
 #ifdef OPENSSL_EXTRA
     int CyaSSL_X509_ext_isSet_by_NID(CYASSL_X509* x509, int nid)
     {
@@ -7141,25 +7156,8 @@ int CyaSSL_set_compression(CYASSL* ssl)
 
         return crit;
     }
-#endif
 
 
-    int CyaSSL_X509_get_isCA(CYASSL_X509* x509)
-    {
-        int isCA = 0;
-
-        CYASSL_ENTER("CyaSSL_X509_get_isCA");
-
-        if (x509 != NULL)
-            isCA = x509->isCa;
-
-        CYASSL_LEAVE("CyaSSL_X509_get_isCA", isCA);
-
-        return isCA;
-    }
-
-
-#ifdef OPENSSL_EXTRA
     int CyaSSL_X509_get_isSet_pathLength(CYASSL_X509* x509)
     {
         int isSet = 0;
@@ -7259,32 +7257,6 @@ int CyaSSL_set_compression(CYASSL* ssl)
 
         return id;
     }
-#endif
-
-
-    /* copy name into in buffer, at most sz bytes, if buffer is null will
-       malloc buffer, call responsible for freeing                     */
-    char* CyaSSL_X509_NAME_oneline(CYASSL_X509_NAME* name, char* in, int sz)
-    {
-        int copySz = min(sz, name->sz);
-
-        CYASSL_ENTER("CyaSSL_X509_NAME_oneline");
-        if (!name->sz) return in;
-
-        if (!in) {
-            in = (char*)XMALLOC(name->sz, 0, DYNAMIC_TYPE_OPENSSL);
-            if (!in ) return in;
-            copySz = name->sz;
-        }
-
-        if (copySz == 0)
-            return in;
-
-        XMEMCPY(in, name->name, copySz - 1);
-        in[copySz - 1] = 0;
-
-        return in;
-    }
 
 
     int CyaSSL_X509_NAME_entry_count(CYASSL_X509_NAME* name)
@@ -7354,6 +7326,32 @@ int CyaSSL_set_compression(CYASSL* ssl)
 
         CYASSL_LEAVE("CyaSSL_X509_NAME_get_text_by_NID", textSz);
         return textSz;
+    }
+#endif
+
+
+    /* copy name into in buffer, at most sz bytes, if buffer is null will
+       malloc buffer, call responsible for freeing                     */
+    char* CyaSSL_X509_NAME_oneline(CYASSL_X509_NAME* name, char* in, int sz)
+    {
+        int copySz = min(sz, name->sz);
+
+        CYASSL_ENTER("CyaSSL_X509_NAME_oneline");
+        if (!name->sz) return in;
+
+        if (!in) {
+            in = (char*)XMALLOC(name->sz, 0, DYNAMIC_TYPE_OPENSSL);
+            if (!in ) return in;
+            copySz = name->sz;
+        }
+
+        if (copySz == 0)
+            return in;
+
+        XMEMCPY(in, name->name, copySz - 1);
+        in[copySz - 1] = 0;
+
+        return in;
     }
 
 
