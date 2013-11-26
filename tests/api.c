@@ -366,32 +366,43 @@ static void test_CyaSSL_SNI_GetFromBuffer(void)
         0x0a, 0x05, 0x01, 0x04, 0x01, 0x02, 0x01, 0x04, 0x03, 0x02, 0x03
     };
 
+    byte buffer3[] = { /* no sni extension */
+        0x16, 0x03, 0x03, 0x00, 0x4d, 0x01, 0x00, 0x00, 0x49, 0x03, 0x03, 0xea,
+        0xa1, 0x9f, 0x60, 0xdd, 0x52, 0x12, 0x13, 0xbd, 0x84, 0x34, 0xd5, 0x1c,
+        0x38, 0x25, 0xa8, 0x97, 0xd2, 0xd5, 0xc6, 0x45, 0xaf, 0x1b, 0x08, 0xe4,
+        0x1e, 0xbb, 0xdf, 0x9d, 0x39, 0xf0, 0x65, 0x00, 0x00, 0x16, 0x00, 0x6b,
+        0x00, 0x67, 0x00, 0x39, 0x00, 0x33, 0x00, 0x3d, 0x00, 0x3c, 0x00, 0x35,
+        0x00, 0x2f, 0x00, 0x05, 0x00, 0x04, 0x00, 0x0a, 0x01, 0x00, 0x00, 0x0a,
+        0x00, 0x0d, 0x00, 0x06, 0x00, 0x04, 0x04, 0x01, 0x02, 0x01
+    };
+
     byte result[32] = {0};
     word32 length   = 32;
 
-    AssertIntEQ(-228, CyaSSL_SNI_GetFromBuffer(buffer, sizeof(buffer), 0,
+    AssertIntEQ(0, CyaSSL_SNI_GetFromBuffer(buffer3, sizeof(buffer3), 0,
                                                               result, &length));
 
+    AssertIntEQ(0, CyaSSL_SNI_GetFromBuffer(buffer2, sizeof(buffer2), 1,
+                                                              result, &length));
+
+    AssertIntEQ(-228, CyaSSL_SNI_GetFromBuffer(buffer, sizeof(buffer), 0,
+                                                              result, &length));
     buffer[0] = 0x16;
 
     AssertIntEQ(-228, CyaSSL_SNI_GetFromBuffer(buffer, sizeof(buffer), 0,
-                                                                  result, &length));
-
+                                                              result, &length));
     buffer[1] = 0x03;
 
     AssertIntEQ(-228, CyaSSL_SNI_GetFromBuffer(buffer, sizeof(buffer), 0,
-                                                                  result, &length));
-
+                                                              result, &length));
     buffer[2] = 0x03;
 
     AssertIntEQ(-210, CyaSSL_SNI_GetFromBuffer(buffer, sizeof(buffer), 0,
-                                                                  result, &length));
-
+                                                              result, &length));
     buffer[4] = 0x64;
 
     AssertIntEQ(1, CyaSSL_SNI_GetFromBuffer(buffer, sizeof(buffer), 0,
                                                               result, &length));
-
     result[length] = 0;
     AssertStrEQ("www.paypal.com", (const char*) result);
 
