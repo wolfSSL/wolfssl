@@ -15,7 +15,6 @@
                    projectFiles="true">
       <itemPath>../../ctaocrypt/test/test.c</itemPath>
       <itemPath>../test_main.c</itemPath>
-      <itemPath>../cryptoregs.s</itemPath>
     </logicalFolder>
     <logicalFolder name="ExternalFiles"
                    displayName="Important Files"
@@ -31,10 +30,10 @@
     <conf name="default" type="2">
       <toolsSet>
         <developmentServer>localhost</developmentServer>
-        <targetDevice>PIC32MZ2048ECM144</targetDevice>
+        <targetDevice>PIC32MX795F512L</targetDevice>
         <targetHeader></targetHeader>
         <targetPluginBoard></targetPluginBoard>
-        <platformTool>PKOBSKDEPlatformTool</platformTool>
+        <platformTool>SKDEPIC32PlatformTool</platformTool>
         <languageToolchain>XC32</languageToolchain>
         <languageToolchainVersion>1.30</languageToolchainVersion>
         <platform>3</platform>
@@ -91,7 +90,7 @@
         <property key="post-instruction-scheduling" value="default"/>
         <property key="pre-instruction-scheduling" value="default"/>
         <property key="preprocessor-macros"
-                  value="NO_MAIN_DRIVER;USE_CERT_BUFFERS_1024;CYASSL_SHA384;CYASSL_SHA512;HAVE_ECC;CYASSL_MICROCHIP_PIC32MZ"/>
+                  value="NO_MAIN_DRIVER;USE_CERT_BUFFERS_1024;CYASSL_SHA384;CYASSL_SHA512;HAVE_ECC"/>
         <property key="strict-ansi" value="false"/>
         <property key="support-ansi" value="false"/>
         <property key="use-cci" value="false"/>
@@ -190,6 +189,9 @@
         <property key="programoptions.uselvpprogramming" value="false"/>
         <property key="voltagevalue" value="3.25"/>
       </PKOBSKDEPlatformTool>
+      <SKDEPIC32PlatformTool>
+        <property key="whatToProgram" value="all"/>
+      </SKDEPIC32PlatformTool>
     </conf>
   </confs>
 </configurationDescriptor>

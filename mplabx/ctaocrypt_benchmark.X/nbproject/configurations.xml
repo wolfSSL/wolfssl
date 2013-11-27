@@ -167,6 +167,7 @@
         <property key="wpo-lto" value="false"/>
       </C32Global>
       <SKDEPIC32PlatformTool>
+        <property key="whatToProgram" value="all"/>
       </SKDEPIC32PlatformTool>
     </conf>
   </confs>
