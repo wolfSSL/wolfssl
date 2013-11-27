@@ -9206,7 +9206,7 @@ static void PickHashSigAlgo(CYASSL* ssl,
                 return 1;
             break;
 
-#ifndef NO_3DES
+#ifndef NO_DES3
         case TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA :
             if (requirement == REQUIRES_RSA)
                 return 1;
@@ -9235,7 +9235,7 @@ static void PickHashSigAlgo(CYASSL* ssl,
 #endif
 #endif /* NO_RSA */
 
-#ifndef NO_3DES
+#ifndef NO_DES3
         case TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA :
             if (requirement == REQUIRES_ECC_DSA)
                 return 1;
