@@ -67,7 +67,7 @@
     <conf name="default" type="3">
       <toolsSet>
         <developmentServer>localhost</developmentServer>
-        <targetDevice>PIC32MZ2048ECM144</targetDevice>
+        <targetDevice>PIC32MX795F512L</targetDevice>
         <targetHeader></targetHeader>
         <targetPluginBoard></targetPluginBoard>
         <platformTool>PKOBSKDEPlatformTool</platformTool>
@@ -104,7 +104,7 @@
         <property key="post-instruction-scheduling" value="default"/>
         <property key="pre-instruction-scheduling" value="default"/>
         <property key="preprocessor-macros"
-                  value="CYASSL_SHA512;CYASSL_SHA384;HAVE_ECC;CYASSL_PIC32MZ_CRYPT;CYASSL_MICROCHIP_PIC32MZ"/>
+                  value="CYASSL_SHA512;CYASSL_SHA384;HAVE_ECC"/>
         <property key="strict-ansi" value="false"/>
         <property key="support-ansi" value="false"/>
         <property key="use-cci" value="false"/>
