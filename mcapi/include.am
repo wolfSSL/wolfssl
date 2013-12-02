@@ -12,3 +12,8 @@ mcapi_test_DEPENDENCIES = src/libcyassl.la
 endif
 
 noinst_HEADERS += mcapi/crypto.h
+
+EXTRA_DIST += \
+         mcapi/README \
+		 mcapi/PIC32MZ-serial.h
+

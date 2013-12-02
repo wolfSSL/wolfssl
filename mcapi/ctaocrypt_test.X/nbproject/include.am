@@ -3,8 +3,7 @@
 #
 
 EXTRA_DIST += \
-         mcapi/ctaocrypt_test.X/Makefile \
-         mcapi/ctaocrypt_test.X/main.c
+         mcapi/ctaocrypt_test.X/Makefile
 
 EXTRA_DIST += \
          mcapi/ctaocrypt_test.X/nbproject/configurations.xml \

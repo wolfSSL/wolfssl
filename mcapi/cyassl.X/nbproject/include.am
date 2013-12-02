@@ -3,7 +3,6 @@
 #
 
 EXTRA_DIST += \
-         mcapi/README \
          mcapi/cyassl.X/Makefile
 
 EXTRA_DIST += \
