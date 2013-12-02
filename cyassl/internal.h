@@ -608,6 +608,7 @@ enum Misc {
     CERT_HEADER_SZ        = 3,  /* always 3 bytes          */
     REQ_HEADER_SZ         = 2,  /* cert request header sz  */
     HINT_LEN_SZ           = 2,  /* length of hint size field */
+    TRUNCATED_HMAC_SZ     = 10, /* length of hmac w/ truncated hmac extension */
     HELLO_EXT_TYPE_SZ     = 2,  /* length of a hello extension type */
     HELLO_EXT_SZ          = 8,  /* total length of the lazy hello extensions */
     HELLO_EXT_LEN         = 6,  /* length of the lazy hello extensions */
