@@ -1141,9 +1141,6 @@ static int TLSX_THM_Parse(CYASSL* ssl, byte* input, word16 length,
 
     ssl->truncated_hmac = 1;
 
-#error "TRUNCATED HMAC IS NOT FINISHED YET \
-(contact moises@wolfssl.com for more info)"
-
     return 0;
 }
 

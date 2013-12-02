@@ -4267,22 +4267,26 @@ static INLINE int Decrypt(CYASSL* ssl, byte* plain, const byte* input,
 /* check cipher text size for sanity */
 static int SanityCheckCipherText(CYASSL* ssl, word32 encryptSz)
 {
-    word32 minLength = 0;
+#ifdef HAVE_TRUNCATED_HMAC
+    word32 minLength = ssl->truncated_hmac ? TRUNCATED_HMAC_SIZE
+                                           : ssl->specs.hash_size;
+#else
+    word32 minLength = ssl->specs.hash_size; /* covers stream */
+#endif
 
     if (ssl->specs.cipher_type == block) {
         if (encryptSz % ssl->specs.block_size) {
             CYASSL_MSG("Block ciphertext not block size");
             return SANITY_CIPHER_E;
         }
-        minLength = ssl->specs.hash_size + 1;  /* pad byte */
+
+        minLength++;  /* pad byte */
+
         if (ssl->specs.block_size > minLength)
             minLength = ssl->specs.block_size;
 
         if (ssl->options.tls1_1)
             minLength += ssl->specs.block_size;  /* explicit IV */
-    }
-    else if (ssl->specs.cipher_type == stream) {
-        minLength = ssl->specs.hash_size;
     }
     else if (ssl->specs.cipher_type == aead) {
         minLength = ssl->specs.block_size; /* explicit IV + implicit IV + CTR */
@@ -4727,7 +4731,12 @@ static INLINE int VerifyMac(CYASSL* ssl, const byte* input, word32 msgSz,
     int    ret;
     word32 pad     = 0;
     word32 padByte = 0;
+#ifdef HAVE_TRUNCATED_HMAC
+    word32 digestSz = ssl->truncated_hmac ? TRUNCATED_HMAC_SZ
+                                          : ssl->specs.hash_size;
+#else
     word32 digestSz = ssl->specs.hash_size;
+#endif
     byte   verify[MAX_DIGEST_SIZE];
 
     if (ssl->specs.cipher_type == block) {
@@ -5312,7 +5321,12 @@ static void BuildCertHashes(CYASSL* ssl, Hashes* hashes)
 static int BuildMessage(CYASSL* ssl, byte* output, const byte* input, int inSz,
                         int type)
 {
+#ifdef HAVE_TRUNCATED_HMAC
+    word32 digestSz = min(ssl->specs.hash_size,
+                ssl->truncated_hmac ? TRUNCATED_HMAC_SZ : ssl->specs.hash_size);
+#else
     word32 digestSz = ssl->specs.hash_size;
+#endif
     word32 sz = RECORD_HEADER_SZ + inSz + digestSz;                
     word32 pad  = 0, i;
     word32 idx  = RECORD_HEADER_SZ;
@@ -5388,8 +5402,19 @@ static int BuildMessage(CYASSL* ssl, byte* output, const byte* input, int inSz,
 #endif
     }
     else {  
-        if (ssl->specs.cipher_type != aead)
-            ssl->hmac(ssl, output+idx, output + headerSz + ivSz, inSz, type, 0);
+        if (ssl->specs.cipher_type != aead) {
+#ifdef HAVE_TRUNCATED_HMAC
+            if (ssl->truncated_hmac && ssl->specs.hash_size > digestSz) {
+                byte hmac[MAX_DIGEST_SIZE];
+
+                ssl->hmac(ssl, hmac, output + headerSz + ivSz, inSz, type, 0);
+
+                XMEMCPY(output + idx, hmac, digestSz);
+            } else
+#endif
+                ssl->hmac(ssl, output+idx, output + headerSz + ivSz, inSz,
+                                                                       type, 0);
+        }
 
         if ( (ret = Encrypt(ssl, output + headerSz, output+headerSz,size)) != 0)
             return ret;
