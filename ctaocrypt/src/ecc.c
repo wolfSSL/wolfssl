@@ -3267,7 +3267,7 @@ int ecc_mul2add(ecc_point* A, mp_int* kA,
                 ecc_point* B, mp_int* kB,
                 ecc_point* C, mp_int* modulus)
 {
-   int  idx1, idx2, err = MP_OKAY, mpInit = 0;
+   int  idx1 = -1, idx2 = -1, err = MP_OKAY, mpInit = 0;
    mp_digit mp;
    mp_int   mu;
   
