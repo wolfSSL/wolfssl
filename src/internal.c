@@ -1636,6 +1636,7 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
         CYASSL_MSG("Arrays Memory error");
         return MEMORY_E;
     }
+    XMEMSET(ssl->arrays, 0, sizeof(Arrays));
 
 #ifndef NO_PSK
     ssl->arrays->client_identity[0] = 0;
