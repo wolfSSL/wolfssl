@@ -622,7 +622,6 @@ void InitSuites(Suites* suites, ProtocolVersion pv, byte haveRSA, byte havePSK,
 
     (void)tls;  /* shut up compiler */
     (void)tls1_2;
-    (void)haveRSA;
     (void)haveDH;
     (void)havePSK;
     (void)haveNTRU;
@@ -636,8 +635,10 @@ void InitSuites(Suites* suites, ProtocolVersion pv, byte haveRSA, byte havePSK,
     if (suites->setSuites)
         return;      /* trust user settings, don't override */
 
-    if (side == CYASSL_SERVER_END && haveStaticECC)
+    if (side == CYASSL_SERVER_END && haveStaticECC) {
         haveRSA = 0;   /* can't do RSA with ECDSA key */
+        (void)haveRSA; /* some builds won't read */
+    }
 
     if (side == CYASSL_SERVER_END && haveECDSAsig) {
         haveRSAsig = 0;     /* can't have RSA sig if signed by ECDSA */

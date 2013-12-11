@@ -2563,7 +2563,6 @@ static int ConfirmSignature(const byte* buf, word32 bufSz,
     (void)sigSz;
     (void)heap;
     (void)ret;
-    (void)typeH;
 
     switch (sigOID) {
 #ifndef NO_MD5
@@ -2647,6 +2646,7 @@ static int ConfirmSignature(const byte* buf, word32 bufSz,
             CYASSL_MSG("Verify Signautre has unsupported type");
             return 0;
     }
+    (void)typeH;  /* some builds won't read */
 
     switch (keyOID) {
     #ifndef NO_RSA
