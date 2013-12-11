@@ -2563,6 +2563,7 @@ static int ConfirmSignature(const byte* buf, word32 bufSz,
     (void)sigSz;
     (void)heap;
     (void)ret;
+    (void)typeH;
 
     switch (sigOID) {
 #ifndef NO_MD5
@@ -3339,6 +3340,7 @@ static void DecodeCertExtensions(DecodedCert* cert)
         }
         idx += length;
     }
+    (void)critical;
 
     CYASSL_LEAVE("DecodeCertExtensions", 0);
     return;

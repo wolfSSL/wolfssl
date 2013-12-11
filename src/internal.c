@@ -622,6 +622,7 @@ void InitSuites(Suites* suites, ProtocolVersion pv, byte haveRSA, byte havePSK,
 
     (void)tls;  /* shut up compiler */
     (void)tls1_2;
+    (void)haveRSA;
     (void)haveDH;
     (void)havePSK;
     (void)haveNTRU;
@@ -8118,7 +8119,7 @@ static void PickHashSigAlgo(CYASSL* ssl,
             case ecc_diffie_hellman_kea:
                 {
                     ecc_key  myKey;
-                    ecc_key* peerKey = &myKey;
+                    ecc_key* peerKey = NULL;
                     word32   size = sizeof(encSecret);
 
                     if (ssl->specs.static_ecdh) {
@@ -8132,6 +8133,9 @@ static void PickHashSigAlgo(CYASSL* ssl,
                             return NO_PEER_KEY;
                         peerKey = ssl->peerEccKey;
                     }
+
+                    if (peerKey == NULL)
+                        return NO_PEER_KEY;
 
                     ecc_init(&myKey);
                     ret = ecc_make_key(ssl->rng, peerKey->dp->size, &myKey);
