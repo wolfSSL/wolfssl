@@ -89,8 +89,8 @@ CYASSL_CALLBACKS needs LARGE_STATIC_BUFFERS, please add LARGE_STATIC_BUFFERS
 
 
 #ifdef CYASSL_DTLS
-    static int DtlsCheckWindow(DtlsState* state);
-    static int DtlsUpdateWindow(DtlsState* state);
+    static INLINE int DtlsCheckWindow(DtlsState* state);
+    static INLINE int DtlsUpdateWindow(DtlsState* state);
 #endif
 
 
@@ -9887,6 +9887,7 @@ static void PickHashSigAlgo(CYASSL* ssl,
 
         if (clSuites.suiteSz > MAX_SUITE_SZ)
             return BUFFER_ERROR;
+        clSuites.hashSigAlgoSz = 0;
 
         /* session size */
         ato16(&input[idx], &sessionSz);
