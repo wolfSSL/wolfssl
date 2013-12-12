@@ -635,8 +635,10 @@ void InitSuites(Suites* suites, ProtocolVersion pv, byte haveRSA, byte havePSK,
     if (suites->setSuites)
         return;      /* trust user settings, don't override */
 
-    if (side == CYASSL_SERVER_END && haveStaticECC)
+    if (side == CYASSL_SERVER_END && haveStaticECC) {
         haveRSA = 0;   /* can't do RSA with ECDSA key */
+        (void)haveRSA; /* some builds won't read */
+    }
 
     if (side == CYASSL_SERVER_END && haveECDSAsig) {
         haveRSAsig = 0;     /* can't have RSA sig if signed by ECDSA */
@@ -1636,6 +1638,7 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
         CYASSL_MSG("Arrays Memory error");
         return MEMORY_E;
     }
+    XMEMSET(ssl->arrays, 0, sizeof(Arrays));
 
 #ifndef NO_PSK
     ssl->arrays->client_identity[0] = 0;
@@ -8117,7 +8120,7 @@ static void PickHashSigAlgo(CYASSL* ssl,
             case ecc_diffie_hellman_kea:
                 {
                     ecc_key  myKey;
-                    ecc_key* peerKey = &myKey;
+                    ecc_key* peerKey = NULL;
                     word32   size = sizeof(encSecret);
 
                     if (ssl->specs.static_ecdh) {
@@ -8131,6 +8134,9 @@ static void PickHashSigAlgo(CYASSL* ssl,
                             return NO_PEER_KEY;
                         peerKey = ssl->peerEccKey;
                     }
+
+                    if (peerKey == NULL)
+                        return NO_PEER_KEY;
 
                     ecc_init(&myKey);
                     ret = ecc_make_key(ssl->rng, peerKey->dp->size, &myKey);

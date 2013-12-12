@@ -6,7 +6,7 @@
 #
 #
 
-AC_INIT([cyassl],[2.8.4],[https://github.com/cyassl/cyassl/issues],[cyassl],[http://www.yassl.com])
+AC_INIT([cyassl],[2.8.5],[https://github.com/cyassl/cyassl/issues],[cyassl],[http://www.yassl.com])
 
 AC_CONFIG_AUX_DIR([build-aux])
 
@@ -311,14 +311,14 @@ fi
 
 # SNIFFER
 AC_ARG_ENABLE([sniffer],
-              [AS_HELP_STRING([--enable-sniffer],[ Enable CyaSSL sniffer support (default: disabled) ])],[
-               AS_IF([ test "x$enableval" = "xyes" ],[ AC_CHECK_HEADERS([pcap/pcap.h],[ 
-                      ENABLED_SNIFFER=yes 
-                      AM_CFLAGS="$AM_CFLAGS -DCYASSL_SNIFFER -DOPENSSL_EXTRA"
-                      ],[ ENABLED_SNIFFER=no ]) ])
-               ],[
-                  ENABLED_SNIFFER=no
-                  ])
+   [AS_HELP_STRING([--enable-sniffer],[ Enable CyaSSL sniffer support (default: disabled) ])],[
+   AS_IF([ test "x$enableval" = "xyes" ],[ AC_CHECK_HEADERS([pcap/pcap.h],[ 
+       ENABLED_SNIFFER=yes 
+       AM_CFLAGS="$AM_CFLAGS -DCYASSL_SNIFFER -DOPENSSL_EXTRA"
+   ],[ AC_MSG_ERROR([cannot enable sniffer without having libpcap available.]) ]) ])
+   ],[
+       ENABLED_SNIFFER=no
+   ])
 
 AM_CONDITIONAL([BUILD_SNIFFER], [ test "x$ENABLED_SNIFFER" = "xyes" ])
 

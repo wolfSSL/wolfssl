@@ -1730,6 +1730,7 @@ int CyaSSL_Init(void)
         der.buffer    = 0;
 
         (void)dynamicType;
+        (void)rsaKey;
 
         if (used)
             *used = sz;     /* used bytes default to sz, PEM chain may shorten*/
@@ -1980,7 +1981,8 @@ int CyaSSL_Init(void)
                 }
                 ecc_free(&key);
                 eccKey = 1;
-                ctx->haveStaticECC = 1;
+                if (ctx)
+                    ctx->haveStaticECC = 1;
                 if (ssl)
                     ssl->options.haveStaticECC = 1;
             }

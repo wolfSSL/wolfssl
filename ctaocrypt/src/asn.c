@@ -2646,6 +2646,7 @@ static int ConfirmSignature(const byte* buf, word32 bufSz,
             CYASSL_MSG("Verify Signautre has unsupported type");
             return 0;
     }
+    (void)typeH;  /* some builds won't read */
 
     switch (keyOID) {
     #ifndef NO_RSA
@@ -3339,6 +3340,7 @@ static void DecodeCertExtensions(DecodedCert* cert)
         }
         idx += length;
     }
+    (void)critical;
 
     CYASSL_LEAVE("DecodeCertExtensions", 0);
     return;
