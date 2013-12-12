@@ -310,17 +310,20 @@ fi
 
 
 # SNIFFER
+ENABLED_SNIFFTEST=no
 AC_ARG_ENABLE([sniffer],
    [AS_HELP_STRING([--enable-sniffer],[ Enable CyaSSL sniffer support (default: disabled) ])],[
-   AS_IF([ test "x$enableval" = "xyes" ],[ AC_CHECK_HEADERS([pcap/pcap.h],[ 
        ENABLED_SNIFFER=yes 
        AM_CFLAGS="$AM_CFLAGS -DCYASSL_SNIFFER -DOPENSSL_EXTRA"
-   ],[ AC_MSG_ERROR([cannot enable sniffer without having libpcap available.]) ]) ])
+       AS_IF([ test "x$enableval" = "xyes" ],[ AC_CHECK_HEADERS([pcap/pcap.h],[ 
+           ENABLED_SNIFFTEST=yes 
+   ],[ AC_MSG_WARN([cannot enable sniffer test without having libpcap available.]) ]) ])
    ],[
        ENABLED_SNIFFER=no
    ])
 
-AM_CONDITIONAL([BUILD_SNIFFER], [ test "x$ENABLED_SNIFFER" = "xyes" ])
+AM_CONDITIONAL([BUILD_SNIFFER],   [ test "x$ENABLED_SNIFFER"   = "xyes" ])
+AM_CONDITIONAL([BUILD_SNIFFTEST], [ test "x$ENABLED_SNIFFTEST" = "xyes" ])
 
 # AES-GCM
 AC_ARG_ENABLE([aesgcm],
@@ -1532,6 +1535,7 @@ echo "   * Filesystem:                $ENABLED_FILESYSTEM"
 echo "   * OpenSSL Extra API:         $ENABLED_OPENSSLEXTRA"
 echo "   * fastmath:                  $ENABLED_FASTMATH"
 echo "   * sniffer:                   $ENABLED_SNIFFER"
+echo "   * snifftest:                 $ENABLED_SNIFFTEST"
 echo "   * ARC4:                      $ENABLED_ARC4"
 echo "   * AES:                       $ENABLED_AES"
 echo "   * AES-NI:                    $ENABLED_AESNI"
