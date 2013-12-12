@@ -1730,6 +1730,7 @@ int CyaSSL_Init(void)
         der.buffer    = 0;
 
         (void)dynamicType;
+        (void)rsaKey;
 
         if (used)
             *used = sz;     /* used bytes default to sz, PEM chain may shorten*/
@@ -1980,7 +1981,8 @@ int CyaSSL_Init(void)
                 }
                 ecc_free(&key);
                 eccKey = 1;
-                ctx->haveStaticECC = 1;
+                if (ctx)
+                    ctx->haveStaticECC = 1;
                 if (ssl)
                     ssl->options.haveStaticECC = 1;
             }
@@ -7561,6 +7563,8 @@ CYASSL_X509* CyaSSL_X509_d2i(CYASSL_X509** x509, const byte* in, int len)
 }
 
 
+#ifndef NO_FILESYSTEM
+
 CYASSL_X509* CyaSSL_X509_d2i_fp(CYASSL_X509** x509, XFILE file)
 {
     CYASSL_X509* newX509 = NULL;
@@ -7684,6 +7688,7 @@ CYASSL_X509* CyaSSL_X509_load_certificate_file(const char* fname, int format)
     return x509;
 }
 
+#endif /* NO_FILESYSTEM */
 
 #endif /* KEEP_PEER_CERT || SESSION_CERTS */
 

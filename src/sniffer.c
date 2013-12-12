@@ -417,6 +417,13 @@ void ssl_FreeSniffer(void)
 
     FreeMutex(&SessionMutex);
     FreeMutex(&ServerListMutex);
+
+    if (TraceFile) {
+        TraceOn = 0;
+        fclose(TraceFile);
+        TraceFile = NULL;
+    }
+
     CyaSSL_Cleanup();
 }
 

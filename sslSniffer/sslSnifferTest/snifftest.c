@@ -69,18 +69,25 @@ enum {
 };
 
 
-pcap_t* pcap = 0;
-pcap_if_t *alldevs;
+pcap_t* pcap = NULL;
+pcap_if_t* alldevs = NULL;
+
+
+static void FreeAll(void)
+{
+    if (pcap)
+        pcap_close(pcap);
+    if (alldevs)
+        pcap_freealldevs(alldevs);
+#ifndef _WIN32
+    ssl_FreeSniffer();
+#endif
+}
 
 static void sig_handler(const int sig) 
 {
     printf("SIGINT handled = %d.\n", sig);
-    if (pcap)
-        pcap_close(pcap);
-	pcap_freealldevs(alldevs);
-#ifndef _WIN32
-    ssl_FreeSniffer();
-#endif
+    FreeAll();
     if (sig)
         exit(EXIT_SUCCESS);
 }
@@ -286,6 +293,7 @@ int main(int argc, char** argv)
         else if (saveFile)
             break;      /* we're done reading file */
     }
+    FreeAll();
 
     return EXIT_SUCCESS;
 }
