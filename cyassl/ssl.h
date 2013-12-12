@@ -823,9 +823,9 @@ CYASSL_API CYASSL_X509*
 #ifndef NO_FILESYSTEM
 CYASSL_API CYASSL_X509*
     CyaSSL_X509_d2i_fp(CYASSL_X509** x509, FILE* file);
-#endif
 CYASSL_API CYASSL_X509*
     CyaSSL_X509_load_certificate_file(const char* fname, int format);
+#endif
 
 #ifdef CYASSL_SEP
     CYASSL_API unsigned char*

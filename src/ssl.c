@@ -7561,6 +7561,8 @@ CYASSL_X509* CyaSSL_X509_d2i(CYASSL_X509** x509, const byte* in, int len)
 }
 
 
+#ifndef NO_FILESYSTEM
+
 CYASSL_X509* CyaSSL_X509_d2i_fp(CYASSL_X509** x509, XFILE file)
 {
     CYASSL_X509* newX509 = NULL;
@@ -7684,6 +7686,7 @@ CYASSL_X509* CyaSSL_X509_load_certificate_file(const char* fname, int format)
     return x509;
 }
 
+#endif /* NO_FILESYSTEM */
 
 #endif /* KEEP_PEER_CERT || SESSION_CERTS */
 
