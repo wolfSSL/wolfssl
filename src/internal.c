@@ -4330,7 +4330,7 @@ static INLINE int Decrypt(CYASSL* ssl, byte* plain, const byte* input,
 static int SanityCheckCipherText(CYASSL* ssl, word32 encryptSz)
 {
 #ifdef HAVE_TRUNCATED_HMAC
-    word32 minLength = ssl->truncated_hmac ? TRUNCATED_HMAC_SIZE
+    word32 minLength = ssl->truncated_hmac ? TRUNCATED_HMAC_SZ
                                            : ssl->specs.hash_size;
 #else
     word32 minLength = ssl->specs.hash_size; /* covers stream */

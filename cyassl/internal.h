@@ -1169,8 +1169,6 @@ CYASSL_LOCAL int TLSX_UseMaxFragment(TLSX** extensions, byte mfl);
 
 #ifdef HAVE_TRUNCATED_HMAC
 
-#define TRUNCATED_HMAC_SIZE 10
-
 CYASSL_LOCAL int TLSX_UseTruncatedHMAC(TLSX** extensions);
 
 #endif /* HAVE_TRUNCATED_HMAC */
