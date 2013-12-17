@@ -62,8 +62,8 @@
      * document (See note in README).
      */
     #include "stm32f2xx.h"
-		#include "stm32f2xx_cryp.h"
-		
+    #include "stm32f2xx_cryp.h"
+
     int AesSetKey(Aes* aes, const byte* userKey, word32 keylen, const byte* iv,
                   int dir)
     {
@@ -552,6 +552,93 @@ int AesSetKey(Aes* aes, const byte* userKey, word32 keylen, const byte* iv,
         XMEMCPY(aes->reg, iv, AES_BLOCK_SIZE);
     return 0;
 }
+
+#elif defined FREESCALE_MMCAU
+    /*
+     * Freescale mmCAU hardware AES support through the CAU/mmCAU library.
+     * Documentation located in ColdFire/ColdFire+ CAU and Kinetis mmCAU
+     * Software Library User Guide (See note in README).
+     */
+    #include "cau_api.h"
+
+    int AesSetKey(Aes* aes, const byte* userKey, word32 keylen, const byte* iv,
+                  int dir)
+    {
+        byte *rk = (byte*)aes->key;
+
+        if (!((keylen == 16) || (keylen == 24) || (keylen == 32)))
+            return BAD_FUNC_ARG;
+
+        aes->rounds = keylen/4 + 6;
+        cau_aes_set_key(userKey, keylen*8, rk);
+
+        return AesSetIV(aes, iv);
+    }
+
+    int AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
+    {
+        int i;
+        int offset = 0;
+        int len = sz;
+
+        byte *iv, *enc_key;
+        byte temp_block[AES_BLOCK_SIZE];
+
+        iv      = (byte*)aes->reg;
+        enc_key = (byte*)aes->key;
+
+        while (len > 0)
+        {
+            XMEMCPY(temp_block, in + offset, AES_BLOCK_SIZE);
+
+            /* XOR block with IV for CBC */
+            for (i = 0; i < AES_BLOCK_SIZE; i++)
+                temp_block[i] ^= iv[i];
+
+            cau_aes_encrypt(temp_block, enc_key, aes->rounds, out + offset);
+
+            len    -= AES_BLOCK_SIZE;
+            offset += AES_BLOCK_SIZE;
+
+            /* store IV for next block */
+            XMEMCPY(iv, out + offset - AES_BLOCK_SIZE, AES_BLOCK_SIZE);
+        }
+
+        return 0;
+    }
+
+    int AesCbcDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
+    {
+        int i;
+        int offset = 0;
+        int len = sz;
+
+        byte* iv, *dec_key;
+        byte temp_block[AES_BLOCK_SIZE];
+
+        iv      = (byte*)aes->reg;
+        dec_key = (byte*)aes->key;
+
+        while (len > 0)
+        {
+            XMEMCPY(temp_block, in + offset, AES_BLOCK_SIZE);
+
+            cau_aes_decrypt(in + offset, dec_key, aes->rounds, out + offset);
+
+            /* XOR block with IV for CBC */
+            for (i = 0; i < AES_BLOCK_SIZE; i++)
+                (out + offset)[i] ^= iv[i];
+
+            /* store IV for next block */
+            XMEMCPY(iv, temp_block, AES_BLOCK_SIZE);
+
+            len    -= AES_BLOCK_SIZE;
+            offset += AES_BLOCK_SIZE;
+        }
+
+        return 0;
+    }
+
 
 #else /* CTaoCrypt software implementation */
 
