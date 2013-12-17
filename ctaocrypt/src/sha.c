@@ -35,6 +35,13 @@
     #include <ctaocrypt/src/misc.c>
 #endif
 
+#ifdef FREESCALE_MMCAU
+    #include "cau_api.h"
+    #define XTRANSFORM(S,B)  cau_sha1_hash_n((B), 1, ((S))->digest)
+#else
+    #define XTRANSFORM(S,B)  Transform((S))
+#endif
+
 
 #ifdef STM32F2_HASH
     /*
@@ -164,16 +171,22 @@
 
 void InitSha(Sha* sha)
 {
-    sha->digest[0] = 0x67452301L;
-    sha->digest[1] = 0xEFCDAB89L;
-    sha->digest[2] = 0x98BADCFEL;
-    sha->digest[3] = 0x10325476L;
-    sha->digest[4] = 0xC3D2E1F0L;
+    #ifdef FREESCALE_MMCAU
+        cau_sha1_initialize_output(sha->digest);
+    #else
+        sha->digest[0] = 0x67452301L;
+        sha->digest[1] = 0xEFCDAB89L;
+        sha->digest[2] = 0x98BADCFEL;
+        sha->digest[3] = 0x10325476L;
+        sha->digest[4] = 0xC3D2E1F0L;
+    #endif
 
     sha->buffLen = 0;
     sha->loLen   = 0;
     sha->hiLen   = 0;
 }
+
+#ifndef FREESCALE_MMCAU
 
 #define blk0(i) (W[i] = sha->buffer[i])
 #define blk1(i) (W[i&15] = \
@@ -272,6 +285,8 @@ static void Transform(Sha* sha)
     sha->digest[4] += e;
 }
 
+#endif /* FREESCALE_MMCAU */
+
 
 static INLINE void AddLength(Sha* sha, word32 len)
 {
@@ -295,10 +310,10 @@ void ShaUpdate(Sha* sha, const byte* data, word32 len)
         len          -= add;
 
         if (sha->buffLen == SHA_BLOCK_SIZE) {
-            #ifdef LITTLE_ENDIAN_ORDER
+            #if defined(LITTLE_ENDIAN_ORDER) && !defined(FREESCALE_MMCAU)
                 ByteReverseBytes(local, local, SHA_BLOCK_SIZE);
             #endif
-            Transform(sha);
+            XTRANSFORM(sha, local);
             AddLength(sha, SHA_BLOCK_SIZE);
             sha->buffLen = 0;
         }
@@ -310,7 +325,7 @@ void ShaFinal(Sha* sha, byte* hash)
 {
     byte* local = (byte*)sha->buffer;
 
-    AddLength(sha, sha->buffLen);               /* before adding pads */
+    AddLength(sha, sha->buffLen);  /* before adding pads */
 
     local[sha->buffLen++] = 0x80;  /* add 1 */
 
@@ -319,10 +334,10 @@ void ShaFinal(Sha* sha, byte* hash)
         XMEMSET(&local[sha->buffLen], 0, SHA_BLOCK_SIZE - sha->buffLen);
         sha->buffLen += SHA_BLOCK_SIZE - sha->buffLen;
 
-        #ifdef LITTLE_ENDIAN_ORDER
+        #if defined(LITTLE_ENDIAN_ORDER) && !defined(FREESCALE_MMCAU)
             ByteReverseBytes(local, local, SHA_BLOCK_SIZE);
         #endif
-        Transform(sha);
+        XTRANSFORM(sha, local);
         sha->buffLen = 0;
     }
     XMEMSET(&local[sha->buffLen], 0, SHA_PAD_SIZE - sha->buffLen);
@@ -333,14 +348,20 @@ void ShaFinal(Sha* sha, byte* hash)
     sha->loLen = sha->loLen << 3;
 
     /* store lengths */
-    #ifdef LITTLE_ENDIAN_ORDER
+    #if defined(LITTLE_ENDIAN_ORDER) && !defined(FREESCALE_MMCAU)
         ByteReverseBytes(local, local, SHA_BLOCK_SIZE);
     #endif
     /* ! length ordering dependent on digest endian type ! */
     XMEMCPY(&local[SHA_PAD_SIZE], &sha->hiLen, sizeof(word32));
     XMEMCPY(&local[SHA_PAD_SIZE + sizeof(word32)], &sha->loLen, sizeof(word32));
 
-    Transform(sha);
+    #ifdef FREESCALE_MMCAU
+        /* Kinetis requires only these bytes reversed */
+        ByteReverseBytes(&local[SHA_PAD_SIZE], &local[SHA_PAD_SIZE],
+                2 * sizeof(word32));
+    #endif
+
+    XTRANSFORM(sha, local);
     #ifdef LITTLE_ENDIAN_ORDER
         ByteReverseWords(sha->digest, sha->digest, SHA_DIGEST_SIZE);
     #endif

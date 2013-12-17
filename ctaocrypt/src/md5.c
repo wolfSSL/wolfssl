@@ -36,6 +36,13 @@
     #include <ctaocrypt/src/misc.c>
 #endif
 
+#ifdef FREESCALE_MMCAU
+    #include "cau_api.h"
+    #define XTRANSFORM(S,B)  cau_md5_hash_n((B), 1, (unsigned char*)(S)->digest)
+#else
+    #define XTRANSFORM(S,B)  Transform((S))
+#endif
+
 
 #ifdef STM32F2_HASH
     /*
@@ -174,6 +181,7 @@ void InitMd5(Md5* md5)
     md5->hiLen   = 0;
 }
 
+#ifndef FREESCALE_MMCAU
 
 static void Transform(Md5* md5)
 {
@@ -266,6 +274,8 @@ static void Transform(Md5* md5)
     md5->digest[3] += d;
 }
 
+#endif /* FREESCALE_MMCAU */
+
 
 static INLINE void AddLength(Md5* md5, word32 len)
 {
@@ -289,10 +299,10 @@ void Md5Update(Md5* md5, const byte* data, word32 len)
         len          -= add;
 
         if (md5->buffLen == MD5_BLOCK_SIZE) {
-            #ifdef BIG_ENDIAN_ORDER
+            #if defined(BIG_ENDIAN_ORDER) && !defined(FREESCALE_MMCAU)
                 ByteReverseBytes(local, local, MD5_BLOCK_SIZE);
             #endif
-            Transform(md5);
+            XTRANSFORM(md5, local);
             AddLength(md5, MD5_BLOCK_SIZE);
             md5->buffLen = 0;
         }
@@ -304,7 +314,7 @@ void Md5Final(Md5* md5, byte* hash)
 {
     byte* local = (byte*)md5->buffer;
 
-    AddLength(md5, md5->buffLen);               /* before adding pads */
+    AddLength(md5, md5->buffLen);  /* before adding pads */
 
     local[md5->buffLen++] = 0x80;  /* add 1 */
 
@@ -313,10 +323,10 @@ void Md5Final(Md5* md5, byte* hash)
         XMEMSET(&local[md5->buffLen], 0, MD5_BLOCK_SIZE - md5->buffLen);
         md5->buffLen += MD5_BLOCK_SIZE - md5->buffLen;
 
-        #ifdef BIG_ENDIAN_ORDER
+        #if defined(BIG_ENDIAN_ORDER) && !defined(FREESCALE_MMCAU)
             ByteReverseBytes(local, local, MD5_BLOCK_SIZE);
         #endif
-        Transform(md5);
+        XTRANSFORM(md5, local);
         md5->buffLen = 0;
     }
     XMEMSET(&local[md5->buffLen], 0, MD5_PAD_SIZE - md5->buffLen);
@@ -327,14 +337,14 @@ void Md5Final(Md5* md5, byte* hash)
     md5->loLen = md5->loLen << 3;
 
     /* store lengths */
-    #ifdef BIG_ENDIAN_ORDER
+    #if defined(BIG_ENDIAN_ORDER) && !defined(FREESCALE_MMCAU)
         ByteReverseBytes(local, local, MD5_BLOCK_SIZE);
     #endif
     /* ! length ordering dependent on digest endian type ! */
     XMEMCPY(&local[MD5_PAD_SIZE], &md5->loLen, sizeof(word32));
     XMEMCPY(&local[MD5_PAD_SIZE + sizeof(word32)], &md5->hiLen, sizeof(word32));
 
-    Transform(md5);
+    XTRANSFORM(md5, local);
     #ifdef BIG_ENDIAN_ORDER
         ByteReverseWords(md5->digest, md5->digest, MD5_DIGEST_SIZE);
     #endif

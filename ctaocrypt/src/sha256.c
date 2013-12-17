@@ -37,6 +37,13 @@
     #include <ctaocrypt/src/misc.c>
 #endif
 
+#ifdef FREESCALE_MMCAU
+    #include "cau_api.h"
+    #define XTRANSFORM(S,B)  cau_sha256_hash_n((B), 1, ((S))->digest)
+#else
+    #define XTRANSFORM(S,B)  Transform((S))
+#endif
+
 
 #ifndef min
 
@@ -50,19 +57,25 @@
 
 void InitSha256(Sha256* sha256)
 {
-    sha256->digest[0] = 0x6A09E667L;
-    sha256->digest[1] = 0xBB67AE85L;
-    sha256->digest[2] = 0x3C6EF372L;
-    sha256->digest[3] = 0xA54FF53AL;
-    sha256->digest[4] = 0x510E527FL;
-    sha256->digest[5] = 0x9B05688CL;
-    sha256->digest[6] = 0x1F83D9ABL;
-    sha256->digest[7] = 0x5BE0CD19L;
+    #ifdef FREESCALE_MMCAU
+        cau_sha256_initialize_output(sha256->digest);
+    #else
+        sha256->digest[0] = 0x6A09E667L;
+        sha256->digest[1] = 0xBB67AE85L;
+        sha256->digest[2] = 0x3C6EF372L;
+        sha256->digest[3] = 0xA54FF53AL;
+        sha256->digest[4] = 0x510E527FL;
+        sha256->digest[5] = 0x9B05688CL;
+        sha256->digest[6] = 0x1F83D9ABL;
+        sha256->digest[7] = 0x5BE0CD19L;
+    #endif
 
     sha256->buffLen = 0;
     sha256->loLen   = 0;
     sha256->hiLen   = 0;
 }
+
+#ifndef FREESCALE_MMCAU
 
 static const word32 K[64] = {
     0x428A2F98L, 0x71374491L, 0xB5C0FBCFL, 0xE9B5DBA5L, 0x3956C25BL,
@@ -128,6 +141,8 @@ static void Transform(Sha256* sha256)
     }
 }
 
+#endif /* FREESCALE_MMCAU */
+
 
 static INLINE void AddLength(Sha256* sha256, word32 len)
 {
@@ -151,10 +166,10 @@ void Sha256Update(Sha256* sha256, const byte* data, word32 len)
         len             -= add;
 
         if (sha256->buffLen == SHA256_BLOCK_SIZE) {
-            #ifdef LITTLE_ENDIAN_ORDER
+            #if defined(LITTLE_ENDIAN_ORDER) && !defined(FREESCALE_MMCAU)
                 ByteReverseBytes(local, local, SHA256_BLOCK_SIZE);
             #endif
-            Transform(sha256);
+            XTRANSFORM(sha256, local);
             AddLength(sha256, SHA256_BLOCK_SIZE);
             sha256->buffLen = 0;
         }
@@ -168,17 +183,17 @@ void Sha256Final(Sha256* sha256, byte* hash)
 
     AddLength(sha256, sha256->buffLen);  /* before adding pads */
 
-    local[sha256->buffLen++] = 0x80;  /* add 1 */
+    local[sha256->buffLen++] = 0x80;     /* add 1 */
 
     /* pad with zeros */
     if (sha256->buffLen > SHA256_PAD_SIZE) {
         XMEMSET(&local[sha256->buffLen], 0, SHA256_BLOCK_SIZE - sha256->buffLen);
         sha256->buffLen += SHA256_BLOCK_SIZE - sha256->buffLen;
 
-        #ifdef LITTLE_ENDIAN_ORDER
+        #if defined(LITTLE_ENDIAN_ORDER) && !defined(FREESCALE_MMCAU)
             ByteReverseBytes(local, local, SHA256_BLOCK_SIZE);
         #endif
-        Transform(sha256);
+        XTRANSFORM(sha256, local);
         sha256->buffLen = 0;
     }
     XMEMSET(&local[sha256->buffLen], 0, SHA256_PAD_SIZE - sha256->buffLen);
@@ -189,7 +204,7 @@ void Sha256Final(Sha256* sha256, byte* hash)
     sha256->loLen = sha256->loLen << 3;
 
     /* store lengths */
-    #ifdef LITTLE_ENDIAN_ORDER
+    #if defined(LITTLE_ENDIAN_ORDER) && !defined(FREESCALE_MMCAU)
         ByteReverseBytes(local, local, SHA256_BLOCK_SIZE);
     #endif
     /* ! length ordering dependent on digest endian type ! */
@@ -197,7 +212,13 @@ void Sha256Final(Sha256* sha256, byte* hash)
     XMEMCPY(&local[SHA256_PAD_SIZE + sizeof(word32)], &sha256->loLen,
             sizeof(word32));
 
-    Transform(sha256);
+    #ifdef FREESCALE_MMCAU
+        /* Kinetis requires only these bytes reversed */
+        ByteReverseBytes(&local[SHA256_PAD_SIZE], &local[SHA256_PAD_SIZE],
+                2 * sizeof(word32));
+    #endif
+
+    XTRANSFORM(sha256, local);
     #ifdef LITTLE_ENDIAN_ORDER
         ByteReverseWords(sha256->digest, sha256->digest, SHA256_DIGEST_SIZE);
     #endif
