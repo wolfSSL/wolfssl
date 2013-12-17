@@ -37,9 +37,18 @@ before calling SSL_new();  Though it's not recommended.
 
 CyaSSL Release 2.9.0 (X/XX/XXXX)
 
+Release 2.9.0 CyaSSL has bug fixes and new features including:
+- Freescale Kinetis RNGB support
+- Freescale Kinetis mmCAU support
+
 The Freescale Kinetis K53 RNGB documentation can be found in Chapter 33 of the
 K53 Sub-Family Reference Manual:
 http://cache.freescale.com/files/32bit/doc/ref_manual/K53P144M100SF2RM.pdf
+
+Freescale Kinetis K60 mmCAU (AES, DES, 3DES, MD5, SHA, SHA256) documentation
+can be found in the "ColdFire/ColdFire+ CAU and Kinetis mmCAU Software Library
+User Guide":
+http://cache.freescale.com/files/32bit/doc/user_guide/CAUAPIUG.pdf
 
 
 *****************CyaSSL Release 2.8.0 (8/30/2013)
