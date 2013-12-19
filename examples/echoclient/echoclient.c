@@ -255,8 +255,10 @@ void echoclient_test(void* args)
         CyaSSL_Debugging_ON();
 #endif
 
-        if (CurrentDir("echoclient") || CurrentDir("build"))
+        if (CurrentDir("echoclient"))
             ChangeDirBack(2);
+        else if (CurrentDir("Debug") || CurrentDir("Release"))
+            ChangeDirBack(3);
         echoclient_test(&args);
 
         CyaSSL_Cleanup();

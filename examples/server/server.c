@@ -560,8 +560,10 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 #if defined(DEBUG_CYASSL) && !defined(CYASSL_MDK_SHELL)
         CyaSSL_Debugging_ON();
 #endif
-        if (CurrentDir("server") || CurrentDir("build"))
+        if (CurrentDir("server"))
             ChangeDirBack(2);
+        else if (CurrentDir("Debug") || CurrentDir("Release"))
+            ChangeDirBack(3);
    
 #ifdef HAVE_STACK_SIZE
         StackSizeCheck(&args, server_test);

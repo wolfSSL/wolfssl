@@ -29,8 +29,8 @@ int main(int argc, char** argv)
 
     if (CurrentDir("tests"))
         ChangeDirBack(1);
-    else if (CurrentDir("build"))
-        ChangeDirBack(2);
+    else if (CurrentDir("Debug") || CurrentDir("Release"))
+        ChangeDirBack(3);
 
     if ( (ret = ApiTest()) != 0) {
         printf("api test failed with %d\n", ret);
