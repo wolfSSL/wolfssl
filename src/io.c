@@ -512,52 +512,62 @@ int EmbedGenerateCookie(CYASSL* ssl, byte *buf, int sz, void *ctx)
 
 #ifdef HAVE_OCSP
 
-#ifdef TEST_IPV6
-    typedef struct sockaddr_in6 SOCKADDR_IN_T;
-    #define AF_INET_V    AF_INET6
-#else
-    typedef struct sockaddr_in  SOCKADDR_IN_T;
-    #define AF_INET_V    AF_INET
-#endif
 
-
-static INLINE int tcp_connect(SOCKET_T* sockfd, const char* ip, word16 port)
+static int tcp_connect(SOCKET_T* sockfd, const char* ip, word16 port)
 {
-    SOCKADDR_IN_T addr;
-    const char* host = ip;
+    struct sockaddr_storage addr;
+    int sockaddr_len = sizeof(struct sockaddr_in);
+    XMEMSET(&addr, 0, sizeof(addr));
 
-    /* peer could be in human readable form */
-    if (ip != INADDR_ANY && isalpha(ip[0])) {
+    #ifdef HAVE_GETADDRINFO
+    {
+        struct addrinfo hints;
+        struct addrinfo* answer = NULL;
+        char strPort[8];
+
+        XMEMSET(&hints, 0, sizeof(hints));
+        hints.ai_family = AF_UNSPEC;
+        hints.ai_socktype = SOCK_STREAM;
+        hints.ai_protocol = IPPROTO_TCP;
+
+        XSNPRINTF(strPort, sizeof(strPort), "%d", port);
+        strPort[7] = '\0';
+
+        if (getaddrinfo(ip, strPort, &hints, &answer) < 0 || answer == NULL) {
+            CYASSL_MSG("no addr info for OCSP responder");
+            return -1;
+        }
+
+        sockaddr_len = answer->ai_addrlen;
+        XMEMCPY(&addr, answer->ai_addr, sockaddr_len);
+        freeaddrinfo(answer);
+
+    }
+    #else /* HAVE_GETADDRINFO */
+    {
         struct hostent* entry = gethostbyname(ip);
+        struct sockaddr_in *sin = (struct sockaddr_in *)&addr;
 
         if (entry) {
-            struct sockaddr_in tmp;
-            XMEMSET(&tmp, 0, sizeof(struct sockaddr_in));
-            XMEMCPY(&tmp.sin_addr.s_addr, entry->h_addr_list[0],
-                   entry->h_length);
-            host = inet_ntoa(tmp.sin_addr);
+            sin->sin_family = AF_INET;
+            sin->sin_port = htons(port);
+            XMEMCPY(&sin->sin_addr.s_addr, entry->h_addr_list[0],
+                                                               entry->h_length);
         }
         else {
-            CYASSL_MSG("no addr entry for OCSP responder");
+            CYASSL_MSG("no addr info for OCSP responder");
             return -1;
         }
     }
+    #endif /* HAVE_GETADDRINFO */
 
-    *sockfd = socket(AF_INET_V, SOCK_STREAM, 0);
+    *sockfd = socket(addr.ss_family, SOCK_STREAM, 0);
     if (*sockfd < 0) {
         CYASSL_MSG("bad socket fd, out of fds?");
         return -1;
     }
-    XMEMSET(&addr, 0, sizeof(SOCKADDR_IN_T));
 
-    addr.sin_family = AF_INET_V;
-    addr.sin_port = htons(port);
-    if (host == INADDR_ANY)
-        addr.sin_addr.s_addr = INADDR_ANY;
-    else
-        addr.sin_addr.s_addr = inet_addr(host);
-
-    if (connect(*sockfd, (const struct sockaddr*)&addr, sizeof(addr)) != 0) {
+    if (connect(*sockfd, (struct sockaddr *)&addr, sockaddr_len) != 0) {
         CYASSL_MSG("OCSP responder tcp connect failed");
         return -1;
     }
@@ -597,15 +607,26 @@ static int decode_url(const char* url, int urlSz,
             int i, cur;
     
             /* need to break the url down into scheme, address, and port */
-            /* "http://example.com:8080/" */
+            /*     "http://example.com:8080/" */
+            /*     "http://[::1]:443/"        */
             if (XSTRNCMP(url, "http://", 7) == 0) {
                 cur = 7;
             } else cur = 0;
     
             i = 0;
-            while (url[cur] != 0 && url[cur] != ':' &&
+            if (url[cur] == '[') {
+                cur++;
+                /* copy until ']' */
+                while (url[cur] != 0 && url[cur] != ']' && cur < urlSz) {
+                    outName[i++] = url[cur++];
+                }
+                cur++; /* skip ']' */
+            }
+            else {
+                while (url[cur] != 0 && url[cur] != ':' &&
                                                url[cur] != '/' && cur < urlSz) {
-                outName[i++] = url[cur++];
+                    outName[i++] = url[cur++];
+                }
             }
             outName[i] = 0;
             /* Need to pick out the path after the domain name */
