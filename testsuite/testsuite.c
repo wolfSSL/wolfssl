@@ -81,9 +81,11 @@ int main(int argc, char** argv)
 
     if (CurrentDir("testsuite"))
         ChangeDirBack(1);
-    else if (CurrentDir("build"))  /* Xcode->Preferences->Locations->Build */
-        ChangeDirBack(2);          /* Location "Place build product in locations
-                                      specified by targets", uses build/Debug */
+    else if (CurrentDir("Debug") || CurrentDir("Release"))
+        ChangeDirBack(3);          /* Xcode->Preferences->Locations->Locations*/
+                                   /* Derived Data Advanced -> Custom  */
+                                   /* Relative to Workspace, Build/Products */
+                                   /* Debug or Release */
     server_args.signal = &ready;
     InitTcpReady(&ready);
 
