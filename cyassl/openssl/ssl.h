@@ -142,6 +142,7 @@ typedef CYASSL_X509_STORE_CTX X509_STORE_CTX;
 
 #define ERR_error_string CyaSSL_ERR_error_string
 #define ERR_error_string_n CyaSSL_ERR_error_string_n
+#define ERR_reason_error_string CyaSSL_ERR_reason_error_string
 
 #define SSL_set_ex_data CyaSSL_set_ex_data
 #define SSL_get_shutdown CyaSSL_get_shutdown
