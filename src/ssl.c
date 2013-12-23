@@ -1063,7 +1063,7 @@ static INLINE int OurPasswordCb(char* passwd, int sz, int rw, void* userdata)
         return 0;
 
     XSTRNCPY(passwd, (char*)userdata, sz);
-    return (int)XSTRLEN((char*)userdata);
+    return min((word32)sz, (word32)XSTRLEN((char*)userdata));
 }
 
 
