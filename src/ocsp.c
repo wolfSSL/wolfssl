@@ -27,41 +27,10 @@
 
 #ifdef HAVE_OCSP
 
-#ifdef EBSNET
-    #include "rtip.h"
-    #include "socket.h"
-#endif
-
 #include <cyassl/error.h>
 #include <cyassl/ocsp.h>
 #include <cyassl/internal.h>
-#include <ctype.h>
 
-#include <string.h>
-
-#ifndef EBSNET
-    #include <unistd.h>
-    #include <netdb.h>
-    #include <netinet/in.h>
-    #include <netinet/tcp.h>
-    #include <arpa/inet.h>
-    #include <sys/ioctl.h>
-    #include <sys/time.h>
-    #include <sys/types.h>
-    #include <sys/socket.h>
-#endif
-
-
-CYASSL_API int ocsp_test(unsigned char* buf, int sz);
-#define CYASSL_OCSP_ENABLE       0x0001 /* Enable OCSP lookups */
-#define CYASSL_OCSP_URL_OVERRIDE 0x0002 /* Use the override URL instead of URL
-                                         * in certificate */
-#define CYASSL_OCSP_NO_NONCE     0x0004 /* Disables the request nonce */
-
-typedef struct sockaddr_in  SOCKADDR_IN_T;
-#define AF_INET_V    AF_INET
-#define SOCKET_T unsigned int
-   
 
 int CyaSSL_OCSP_Init(CYASSL_OCSP* ocsp)
 {
