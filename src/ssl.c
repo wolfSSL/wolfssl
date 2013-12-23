@@ -1054,6 +1054,19 @@ int CyaSSL_CertManagerUnloadCAs(CYASSL_CERT_MANAGER* cm)
 }
 
 
+/* our KeyPemToDer password callback, password in userData */
+static INLINE int OurPasswordCb(char* passwd, int sz, int rw, void* userdata)
+{
+    (void)rw;
+
+    if (userdata == NULL)
+        return 0;
+
+    XSTRNCPY(passwd, (char*)userdata, sz);
+    return (int)XSTRLEN((char*)userdata);
+}
+
+
 /* Return bytes written to buff or < 0 for error */
 int CyaSSL_KeyPemToDer(const unsigned char* pem, int pemSz, unsigned char* buff,
                        int buffSz, const char* pass)
@@ -1077,6 +1090,14 @@ int CyaSSL_KeyPemToDer(const unsigned char* pem, int pemSz, unsigned char* buff,
     info.consumed = 0;
     der.buffer    = NULL;
 
+#ifdef OPENSSL_EXTRA
+    info.ctx = CyaSSL_CTX_new(CyaSSLv23_client_method());
+    if (info.ctx == NULL)
+        return MEMORY_E;
+    CyaSSL_CTX_set_default_passwd_cb(info.ctx, OurPasswordCb);
+    CyaSSL_CTX_set_default_passwd_cb_userdata(info.ctx, (void*)pass);
+#endif
+
     ret = PemToDer(pem, pemSz, PRIVATEKEY_TYPE, &der, NULL, &info, &eccKey);
     if (ret < 0) {
         CYASSL_MSG("Bad Pem To Der"); 
@@ -1093,6 +1114,9 @@ int CyaSSL_KeyPemToDer(const unsigned char* pem, int pemSz, unsigned char* buff,
     }
 
     XFREE(der.buffer, NULL, DYNAMIC_TYPE_KEY);
+
+    if (info.ctx)
+        CyaSSL_CTX_free(info.ctx);
 
     return ret;
 }
