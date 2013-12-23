@@ -1091,11 +1091,13 @@ int CyaSSL_KeyPemToDer(const unsigned char* pem, int pemSz, unsigned char* buff,
     der.buffer    = NULL;
 
 #ifdef OPENSSL_EXTRA
-    info.ctx = CyaSSL_CTX_new(CyaSSLv23_client_method());
-    if (info.ctx == NULL)
-        return MEMORY_E;
-    CyaSSL_CTX_set_default_passwd_cb(info.ctx, OurPasswordCb);
-    CyaSSL_CTX_set_default_passwd_cb_userdata(info.ctx, (void*)pass);
+    if (pass) {
+        info.ctx = CyaSSL_CTX_new(CyaSSLv23_client_method());
+        if (info.ctx == NULL)
+            return MEMORY_E;
+        CyaSSL_CTX_set_default_passwd_cb(info.ctx, OurPasswordCb);
+        CyaSSL_CTX_set_default_passwd_cb_userdata(info.ctx, (void*)pass);
+    }
 #endif
 
     ret = PemToDer(pem, pemSz, PRIVATEKEY_TYPE, &der, NULL, &info, &eccKey);
