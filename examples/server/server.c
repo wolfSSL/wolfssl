@@ -374,6 +374,10 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     if (fewerPackets)
         CyaSSL_CTX_set_group_messages(ctx);
 
+#ifdef OPENSSL_EXTRA
+    SSL_CTX_set_default_passwd_cb(ctx, PasswordCallBack);
+#endif
+
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
     if (!usePsk) {
         if (SSL_CTX_use_certificate_file(ctx, ourCert, SSL_FILETYPE_PEM)
@@ -426,10 +430,6 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
         if (SSL_CTX_load_verify_locations(ctx, verifyCert, 0) != SSL_SUCCESS)
             err_sys("can't load ca file, Please run from CyaSSL home dir");
     }
-#endif
-
-#ifdef OPENSSL_EXTRA
-    SSL_CTX_set_default_passwd_cb(ctx, PasswordCallBack);
 #endif
 
 #if defined(CYASSL_SNIFFER) && !defined(HAVE_NTRU) && !defined(HAVE_ECC)
