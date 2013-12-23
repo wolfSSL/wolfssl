@@ -1563,6 +1563,7 @@ int CyaSSL_Init(void)
         char* consumedEnd;
         char* bufferEnd = (char*)(buff + longSz);
         long  neededSz;
+        int   ret      = 0;
         int   pkcs8    = 0;
         int   pkcs8Enc = 0;
         int   dynamicType = 0;
@@ -1714,8 +1715,15 @@ int CyaSSL_Init(void)
                           &der->length) < 0)
             return SSL_BAD_FILE;
 
-        if (pkcs8)
-            return ToTraditional(der->buffer, der->length);
+        if (pkcs8) {
+            /* convert and adjust length */
+            if ( (ret = ToTraditional(der->buffer, der->length)) < 0 ) {
+                return ret;
+            } else {
+                der->length = ret;
+                return 0;
+            }
+        }
 
 #if defined(OPENSSL_EXTRA) && !defined(NO_PWDBASED)
          if (pkcs8Enc) {
@@ -1726,8 +1734,14 @@ int CyaSSL_Init(void)
                 return SSL_BAD_FILE;  /* no callback error */
             passwordSz = info->ctx->passwd_cb(password, sizeof(password), 0,
                                               info->ctx->userdata);
-            return ToTraditionalEnc(der->buffer, der->length, password,
-                                    passwordSz);
+            /* convert and adjust length */
+            if ( (ret = ToTraditionalEnc(der->buffer, der->length, password,
+                                         passwordSz)) < 0 ) {
+                return ret;
+            } else {
+                der->length = ret;
+                return 0;
+            }
          }
 #endif
 

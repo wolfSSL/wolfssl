@@ -764,7 +764,7 @@ int ToTraditional(byte* input, word32 sz)
     
     XMEMMOVE(input, input + inOutIdx, length);
 
-    return 0;
+    return length;
 }
 
 
