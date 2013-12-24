@@ -379,11 +379,11 @@ static void test_CyaSSL_SNI_GetFromBuffer(void)
     byte result[32] = {0};
     word32 length   = 32;
 
-    AssertIntEQ(0, CyaSSL_SNI_GetFromBuffer(buffer3, sizeof(buffer3), 0,
-                                                              result, &length));
+    AssertIntEQ(SSL_SUCCESS, CyaSSL_SNI_GetFromBuffer(buffer3, sizeof(buffer3),
+                                                           0, result, &length));
 
-    AssertIntEQ(0, CyaSSL_SNI_GetFromBuffer(buffer2, sizeof(buffer2), 1,
-                                                              result, &length));
+    AssertIntEQ(SSL_SUCCESS, CyaSSL_SNI_GetFromBuffer(buffer2, sizeof(buffer2),
+                                                           1, result, &length));
 
     AssertIntEQ(-228, CyaSSL_SNI_GetFromBuffer(buffer, sizeof(buffer), 0,
                                                               result, &length));
