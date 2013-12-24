@@ -1007,6 +1007,7 @@ CYASSL_API const unsigned char* CyaSSL_GetClientWriteIV(CYASSL*);
 CYASSL_API const unsigned char* CyaSSL_GetServerWriteKey(CYASSL*);
 CYASSL_API const unsigned char* CyaSSL_GetServerWriteIV(CYASSL*);
 CYASSL_API int                  CyaSSL_GetKeySize(CYASSL*);
+CYASSL_API int                  CyaSSL_GetIVSize(CYASSL*);
 CYASSL_API int                  CyaSSL_GetSide(CYASSL*);
 CYASSL_API int                  CyaSSL_IsTLSv1_1(CYASSL*);
 CYASSL_API int                  CyaSSL_GetBulkCipher(CYASSL*);

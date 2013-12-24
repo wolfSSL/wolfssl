@@ -910,6 +910,15 @@ int CyaSSL_GetKeySize(CYASSL* ssl)
 }
 
 
+int CyaSSL_GetIVSize(CYASSL* ssl)
+{
+    if (ssl)
+        return ssl->specs.iv_size;
+
+    return BAD_FUNC_ARG;
+}
+
+
 int CyaSSL_GetBulkCipher(CYASSL* ssl)
 {
     if (ssl)
@@ -976,8 +985,9 @@ int CyaSSL_GetSide(CYASSL* ssl)
 
 int CyaSSL_GetHmacSize(CYASSL* ssl)
 {
+    /* AEAD ciphers don't have HMAC keys */
     if (ssl)
-        return ssl->specs.hash_size;
+        return (ssl->specs.cipher_type != aead) ? ssl->specs.hash_size : 0;
 
     return BAD_FUNC_ARG;
 }
