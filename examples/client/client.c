@@ -506,13 +506,12 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
 #ifdef HAVE_OCSP
     if (useOcsp) {
         if (ocspUrl != NULL) {
-            CyaSSL_CTX_OCSP_set_override_url(ctx, ocspUrl);
-            CyaSSL_CTX_OCSP_set_options(ctx, CYASSL_OCSP_ENABLE |
-                               CYASSL_OCSP_URL_OVERRIDE | CYASSL_OCSP_NO_NONCE);
+            CyaSSL_CTX_SetOCSP_OverrideURL(ctx, ocspUrl);
+            CyaSSL_CTX_EnableOCSP(ctx, CYASSL_OCSP_NO_NONCE
+                                                    | CYASSL_OCSP_URL_OVERRIDE);
         }
         else
-            CyaSSL_CTX_OCSP_set_options(ctx, CYASSL_OCSP_ENABLE |
-                                                          CYASSL_OCSP_NO_NONCE);
+            CyaSSL_CTX_EnableOCSP(ctx, CYASSL_OCSP_NO_NONCE);
     }
 #endif
 

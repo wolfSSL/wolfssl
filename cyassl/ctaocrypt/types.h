@@ -270,7 +270,8 @@ enum {
     DYNAMIC_TYPE_CAVIUM_TMP   = 40,
     DYNAMIC_TYPE_CAVIUM_RSA   = 41,
     DYNAMIC_TYPE_X509         = 42,
-    DYNAMIC_TYPE_TLSX         = 43
+    DYNAMIC_TYPE_TLSX         = 43,
+    DYNAMIC_TYPE_OCSP         = 44
 };
 
 /* max error buffer string size */

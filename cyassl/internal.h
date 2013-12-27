@@ -982,24 +982,22 @@ typedef struct OCSP_Entry OCSP_Entry;
 #endif
 
 struct OCSP_Entry {
-    OCSP_Entry* next;                       /* next entry             */
+    OCSP_Entry* next;                        /* next entry             */
     byte    issuerHash[OCSP_DIGEST_SIZE];    /* issuer hash            */ 
     byte    issuerKeyHash[OCSP_DIGEST_SIZE]; /* issuer public key hash */
-    CertStatus* status;                     /* OCSP response list     */
-    int         totalStatus;                /* number on list         */
+    CertStatus* status;                      /* OCSP response list     */
+    int         totalStatus;                 /* number on list         */
 };
 
 
+#ifndef HAVE_OCSP
+    typedef struct CYASSL_OCSP CYASSL_OCSP;
+#endif
+
 /* CyaSSL OCSP controller */
 struct CYASSL_OCSP {
-    byte enabled;
-    byte useOverrideUrl;
-    byte useNonce;
-    char overrideUrl[80];
-    OCSP_Entry* ocspList;
-    void* IOCB_OcspCtx;
-    CallbackIOOcsp CBIOOcsp;
-    CallbackIOOcspRespFree CBIOOcspRespFree;
+    CYASSL_CERT_MANAGER* cm;            /* pointer back to cert manager */
+    OCSP_Entry*          ocspList;      /* OCSP response list */
 };
 
 #ifndef MAX_DATE_SIZE
@@ -1077,6 +1075,14 @@ struct CYASSL_CERT_MANAGER {
     byte            crlEnabled;         /* is CRL on ? */
     byte            crlCheckAll;        /* always leaf, but all ? */
     CbMissingCRL    cbMissingCRL;       /* notify through cb of missing crl */
+    CYASSL_OCSP*    ocsp;               /* OCSP checker */
+    byte            ocspEnabled;        /* is OCSP on ? */
+    byte            ocspSendNonce;      /* send the OCSP nonce ? */
+    byte            ocspUseOverrideURL; /* ignore cert's responder, override */
+    char*           ocspOverrideURL;    /* use this responder */
+    void*           ocspIOCtx;          /* I/O callback CTX */
+    CbOCSPIO        ocspIOCb;           /* I/O callback for OCSP lookup */
+    CbOCSPRespFree  ocspRespFreeCb;     /* Frees OCSP Response from IO Cb */
 };
 
 CYASSL_LOCAL int CM_SaveCertCache(CYASSL_CERT_MANAGER*, const char*);

@@ -950,27 +950,6 @@ CYASSL_API void* CyaSSL_GetCookieCtx(CYASSL* ssl)
 #endif /* CYASSL_DTLS */
 
 
-#ifdef HAVE_OCSP
-
-CYASSL_API void CyaSSL_SetIOOcsp(CYASSL_CTX* ctx, CallbackIOOcsp cb)
-{
-    ctx->ocsp.CBIOOcsp = cb;
-}
-
-CYASSL_API void CyaSSL_SetIOOcspRespFree(CYASSL_CTX* ctx,
-                                                     CallbackIOOcspRespFree cb)
-{
-    ctx->ocsp.CBIOOcspRespFree = cb;
-}
-
-CYASSL_API void CyaSSL_SetIOOcspCtx(CYASSL_CTX* ctx, void *octx)
-{
-    ctx->ocsp.IOCB_OcspCtx = octx;
-}
-
-#endif
-
-
 #ifdef HAVE_NETX
 
 /* The NetX receive callback

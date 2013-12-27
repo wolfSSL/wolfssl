@@ -426,9 +426,6 @@ int InitSSL_Ctx(CYASSL_CTX* ctx, CYASSL_METHOD* method)
     ctx->sendVerify = 0;
     ctx->quietShutdown = 0;
     ctx->groupMessages = 0;
-#ifdef HAVE_OCSP
-    CyaSSL_OCSP_Init(&ctx->ocsp);
-#endif
 #ifdef HAVE_CAVIUM
     ctx->devId = NO_CAVIUM_DEVICE; 
 #endif
@@ -478,9 +475,6 @@ void SSL_CtxResourceFree(CYASSL_CTX* ctx)
     XFREE(ctx->certificate.buffer, ctx->heap, DYNAMIC_TYPE_CERT);
     XFREE(ctx->certChain.buffer, ctx->heap, DYNAMIC_TYPE_CERT);
     CyaSSL_CertManagerFree(ctx->cm);
-#endif
-#ifdef HAVE_OCSP
-    CyaSSL_OCSP_Cleanup(&ctx->ocsp);
 #endif
 #ifdef HAVE_TLS_EXTENSIONS
     TLSX_FreeAll(ctx->extensions);
@@ -3393,8 +3387,8 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx)
         }
 
 #ifdef HAVE_OCSP
-        if (fatal == 0) {
-            ret = CyaSSL_OCSP_Lookup_Cert(&ssl->ctx->ocsp, &dCert);
+        if (fatal == 0 && ssl->ctx->cm->ocspEnabled) {
+            ret = CheckCertOCSP(ssl->ctx->cm->ocsp, &dCert);
             if (ret != 0) {
                 CYASSL_MSG("\tOCSP Lookup not ok");
                 fatal = 0;
@@ -3407,7 +3401,7 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx)
             int doCrlLookup = 1;
 
             #ifdef HAVE_OCSP
-            if (ssl->ctx->ocsp.enabled) {
+            if (ssl->ctx->cm->ocspEnabled) {
                 doCrlLookup = (ret == OCSP_CERT_UNKNOWN);
             }
             #endif /* HAVE_OCSP */
