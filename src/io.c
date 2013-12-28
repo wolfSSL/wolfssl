@@ -691,7 +691,7 @@ static int process_http_response(int sfd, byte** respBuf,
             if (result > 0) {
                 len += result;
                 start = (char*)httpBuf;
-                start[len+1] = 0;
+                start[len] = 0;
             }
             else {
                 CYASSL_MSG("process_http_response recv http from peer failed");
@@ -948,27 +948,6 @@ CYASSL_API void* CyaSSL_GetCookieCtx(CYASSL* ssl)
 }
 
 #endif /* CYASSL_DTLS */
-
-
-#ifdef HAVE_OCSP
-
-CYASSL_API void CyaSSL_SetIOOcsp(CYASSL_CTX* ctx, CallbackIOOcsp cb)
-{
-    ctx->ocsp.CBIOOcsp = cb;
-}
-
-CYASSL_API void CyaSSL_SetIOOcspRespFree(CYASSL_CTX* ctx,
-                                                     CallbackIOOcspRespFree cb)
-{
-    ctx->ocsp.CBIOOcspRespFree = cb;
-}
-
-CYASSL_API void CyaSSL_SetIOOcspCtx(CYASSL_CTX* ctx, void *octx)
-{
-    ctx->ocsp.IOCB_OcspCtx = octx;
-}
-
-#endif
 
 
 #ifdef HAVE_NETX

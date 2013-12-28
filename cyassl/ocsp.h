@@ -36,12 +36,10 @@
 
 typedef struct CYASSL_OCSP CYASSL_OCSP;
 
-CYASSL_LOCAL int  CyaSSL_OCSP_Init(CYASSL_OCSP*);
-CYASSL_LOCAL void CyaSSL_OCSP_Cleanup(CYASSL_OCSP*);
+CYASSL_LOCAL int  InitOCSP(CYASSL_OCSP*, CYASSL_CERT_MANAGER*);
+CYASSL_LOCAL void FreeOCSP(CYASSL_OCSP*, int dynamic);
 
-CYASSL_LOCAL int  CyaSSL_OCSP_set_override_url(CYASSL_OCSP*, const char*);
-CYASSL_LOCAL int  CyaSSL_OCSP_Lookup_Cert(CYASSL_OCSP*, DecodedCert*);
-
+CYASSL_LOCAL int  CheckCertOCSP(CYASSL_OCSP*, DecodedCert*);
 
 #ifdef __cplusplus
     }  /* extern "C" */
