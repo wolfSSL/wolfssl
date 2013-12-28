@@ -691,7 +691,7 @@ static int process_http_response(int sfd, byte** respBuf,
             if (result > 0) {
                 len += result;
                 start = (char*)httpBuf;
-                start[len+1] = 0;
+                start[len] = 0;
             }
             else {
                 CYASSL_MSG("process_http_response recv http from peer failed");
