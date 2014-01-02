@@ -152,10 +152,26 @@
 #endif /* MBED */
 
 #ifdef CYASSL_TYTO
+    #include "rand.h"
     #define FREERTOS
     #define NO_FILESYSTEM
     #define CYASSL_USER_IO
     #define NO_DEV_RANDOM
+    #define HAVE_ECC
+    #define HAVE_ECC_ENCRYPT
+    #define ECC_SHAMIR
+    #define HAVE_HKDF
+    #define USE_FAST_MATH
+    #define TFM_TIMING_RESISTANT
+    #define FP_MAX_BITS 512
+    #define NO_OLD_TLS
+    #define NO_MD4
+    #define NO_RABBIT
+    #define NO_HC128
+    #define NO_RSA
+    #define NO_DSA
+    #define NO_PWDBASED
+    #define NO_PSK
 #endif
 
 #ifdef FREERTOS_WINSIM

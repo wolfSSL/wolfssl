@@ -569,6 +569,9 @@ int AesSetKey(Aes* aes, const byte* userKey, word32 keylen, const byte* iv,
         if (!((keylen == 16) || (keylen == 24) || (keylen == 32)))
             return BAD_FUNC_ARG;
 
+        if (rk == NULL)
+            return BAD_FUNC_ARG;
+
         aes->rounds = keylen/4 + 6;
         cau_aes_set_key(userKey, keylen*8, rk);
 
