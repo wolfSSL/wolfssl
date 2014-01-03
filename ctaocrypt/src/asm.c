@@ -1004,15 +1004,17 @@ __asm__(                              \
 
 #define SQRADDAC(i, j)                                                         \
    do { fp_word t;                                                             \
-   t = sc0 + ((fp_word)i) * ((fp_word)j);  sc0 = t;                            \
-   t = sc1 + (t >> DIGIT_BIT);             sc1 = t; sc2 += t >> DIGIT_BIT;     \
+   t = sc0 + ((fp_word)i) * ((fp_word)j);  sc0 =  (fp_digit)t;                 \
+   t = sc1 + (t >> DIGIT_BIT);             sc1 =  (fp_digit)t;                 \
+                                           sc2 += (fp_digit)(t >> DIGIT_BIT);  \
    } while (0);
 
 #define SQRADDDB                                                               \
    do { fp_word t;                                                             \
-   t = ((fp_word)sc0) + ((fp_word)sc0) + c0; c0 = t;                                                 \
-   t = ((fp_word)sc1) + ((fp_word)sc1) + c1 + (t >> DIGIT_BIT); c1 = t;                              \
-   c2 = c2 + ((fp_word)sc2) + ((fp_word)sc2) + (t >> DIGIT_BIT);                                     \
+   t = ((fp_word)sc0) + ((fp_word)sc0) + c0; c0 = (fp_digit)t;                 \
+   t = ((fp_word)sc1) + ((fp_word)sc1) + c1 + (t >> DIGIT_BIT);                \
+                                             c1 = (fp_digit)t;                 \
+   c2 = c2 + (fp_digit)(((fp_word)sc2) + ((fp_word)sc2) + (t >> DIGIT_BIT));   \
    } while (0);
 
 #endif
