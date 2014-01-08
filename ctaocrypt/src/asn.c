@@ -3583,6 +3583,14 @@ int DerToPem(const byte* der, word32 derSz, byte* output, word32 outSz,
         XSTRNCPY(footer, "-----END EC PRIVATE KEY-----\n", sizeof(footer));
     }
     #endif
+    #ifdef CYASSL_CERT_REQ
+    else if (type == CERTREQ_TYPE)
+    {
+        XSTRNCPY(header,
+                       "-----BEGIN CERTIFICATE REQUEST-----\n", sizeof(header));
+        XSTRNCPY(footer, "-----END CERTIFICATE REQUEST-----\n", sizeof(footer));
+    }
+    #endif
     else
         return BAD_FUNC_ARG;
 
@@ -4311,7 +4319,7 @@ static int SetName(byte* output, CertName* name)
     return totalBytes;
 }
 
-/* encode info from cert into DER enocder format */
+/* encode info from cert into DER encoded format */
 static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
                       RNG* rng, const byte* ntruKey, word16 ntruSz)
 {
@@ -4603,6 +4611,97 @@ int  MakeNtruCert(Cert* cert, byte* derBuffer, word32 derSz,
 }
 
 #endif /* HAVE_NTRU */
+
+
+#ifdef CYASSL_CERT_REQ
+
+/* encode info from cert into DER encoded format */
+static int EncodeCertReq(Cert* cert, DerCert* der,
+                         RsaKey* rsaKey, ecc_key* eccKey)
+{
+    (void)eccKey;
+
+    /* init */
+    XMEMSET(der, 0, sizeof(DerCert));
+
+    /* version */
+    der->versionSz = SetMyVersion(0, der->version, FALSE);
+
+    /* subject name */
+    der->subjectSz = SetName(der->subject, &cert->subject);
+    if (der->subjectSz == 0)
+        return SUBJECT_E;
+
+    /* public key */
+    if (cert->keyType == RSA_KEY) {
+        if (rsaKey == NULL)
+            return PUBLIC_KEY_E;
+        der->publicKeySz = SetRsaPublicKey(der->publicKey, rsaKey);
+        if (der->publicKeySz <= 0)
+            return PUBLIC_KEY_E;
+    }
+
+#ifdef HAVE_ECC
+    if (cert->keyType == ECC_KEY) {
+        if (eccKey == NULL)
+            return PUBLIC_KEY_E;
+        der->publicKeySz = SetEccPublicKey(der->publicKey, eccKey);
+        if (der->publicKeySz <= 0)
+            return PUBLIC_KEY_E;
+    }
+#endif /* HAVE_ECC */
+
+    der->total = der->versionSz + der->subjectSz + der->publicKeySz + 2;
+        // The 2 is for the empty "attributes". Use der->attributesSz
+        // when that exists, eventually.
+
+    return 0;
+}
+
+
+/* write DER encoded cert req to buffer, size already checked */
+static int WriteCertReqBody(DerCert* der, byte* buffer)
+{
+    int idx;
+    const byte att[2] = {0xa0, 0x00};
+
+    /* signed part header */
+    idx = SetSequence(der->total, buffer);
+    /* version */
+    XMEMCPY(buffer + idx, der->version, der->versionSz);
+    idx += der->versionSz;
+    /* subject */
+    XMEMCPY(buffer + idx, der->subject, der->subjectSz);
+    idx += der->subjectSz;
+    /* public key */
+    XMEMCPY(buffer + idx, der->publicKey, der->publicKeySz);
+    idx += der->publicKeySz;
+    /* attributes, empty set */
+    XMEMCPY(buffer + idx, att, sizeof(att));
+    idx += sizeof(att);
+
+    return idx;
+}
+
+
+int MakeCertReq(Cert* cert, byte* derBuffer, word32 derSz,
+                RsaKey* rsaKey, ecc_key* eccKey)
+{
+    DerCert der;
+    int     ret;
+
+    cert->keyType = (eccKey != NULL) ? ECC_KEY : RSA_KEY;
+    ret = EncodeCertReq(cert, &der, rsaKey, eccKey);
+    if (ret != 0)
+        return ret;
+
+    if (der.total + MAX_SEQ_SZ * 2 > (int)derSz)
+        return BUFFER_E;
+
+    return cert->bodySz = WriteCertReqBody(&der, derBuffer);
+}
+
+#endif /* CYASSL_CERT_REQ */
 
 
 int SignCert(int requestSz, int sType, byte* buffer, word32 buffSz,

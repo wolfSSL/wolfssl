@@ -42,7 +42,8 @@ enum CertType {
     DH_PARAM_TYPE,
     CRL_TYPE,
     CA_TYPE,
-    ECC_PRIVATEKEY_TYPE
+    ECC_PRIVATEKEY_TYPE,
+    CERTREQ_TYPE
 };
 
 
@@ -127,6 +128,10 @@ typedef struct Cert {
 CYASSL_API void InitCert(Cert*);
 CYASSL_API int  MakeCert(Cert*, byte* derBuffer, word32 derSz, RsaKey*,
                          ecc_key*, RNG*);
+#ifdef CYASSL_CERT_REQ
+    CYASSL_API int  MakeCertReq(Cert*, byte* derBuffer, word32 derSz, RsaKey*,
+                                ecc_key*);
+#endif
 CYASSL_API int  SignCert(int requestSz, int sigType, byte* derBuffer,
                          word32 derSz, RsaKey*, ecc_key*, RNG*);
 CYASSL_API int  MakeSelfCert(Cert*, byte* derBuffer, word32 derSz, RsaKey*,
