@@ -4625,7 +4625,7 @@ static int EncodeCertReq(Cert* cert, DerCert* der,
     XMEMSET(der, 0, sizeof(DerCert));
 
     /* version */
-    der->versionSz = SetMyVersion(0, der->version, FALSE);
+    der->versionSz = SetMyVersion(cert->version, der->version, FALSE);
 
     /* subject name */
     der->subjectSz = SetName(der->subject, &cert->subject);
