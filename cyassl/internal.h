@@ -1109,13 +1109,8 @@ typedef struct CYASSL_DTLS_CTX {
 typedef enum {
     SERVER_NAME_INDICATION =  0,
     MAX_FRAGMENT_LENGTH    =  1,
-  /*CLIENT_CERTIFICATE_URL =  2,*/
-  /*TRUSTED_CA_KEYS        =  3,*/
     TRUNCATED_HMAC         =  4,
-  /*STATUS_REQUEST         =  5,*/
-    ELLIPTIC_CURVES        = 10,
-  /*EC_POINT_FORMATS       = 11,*/
-  /*SIGNATURE_ALGORITHMS   = 13,*/
+    ELLIPTIC_CURVES        = 10
 } TLSX_Type;
 
 typedef struct TLSX {
