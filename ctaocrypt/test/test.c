@@ -3045,76 +3045,60 @@ int rsa_test(void)
 #endif /* HAVE_NTRU */
 #ifdef CYASSL_CERT_REQ
     {
-        RsaKey      caKey;
-        Cert        myCert;
-        byte*       derCert;
+        Cert        req;
+        byte*       der;
         byte*       pem;
-        FILE*       ioFile;
-        int         certSz;
+        int         derSz;
         int         pemSz;
-        word32      idx3 = 0;
+        FILE*       reqFile;
 
-        derCert = (byte*)malloc(FOURK_BUF);
-        if (derCert == NULL)
+        der = (byte*)malloc(FOURK_BUF);
+        if (der == NULL)
             return -463;
         pem = (byte*)malloc(FOURK_BUF);
         if (pem == NULL)
             return -464;
 
-        ioFile = fopen(caKeyFile, "rb");
+        InitCert(&req);
 
-        if (!ioFile)
+        req.version = 0;
+        strncpy(req.subject.country, "US", CTC_NAME_SIZE);
+        strncpy(req.subject.state, "OR", CTC_NAME_SIZE);
+        strncpy(req.subject.locality, "Portland", CTC_NAME_SIZE);
+        strncpy(req.subject.org, "yaSSL", CTC_NAME_SIZE);
+        strncpy(req.subject.unit, "Development", CTC_NAME_SIZE);
+        strncpy(req.subject.commonName, "www.yassl.com", CTC_NAME_SIZE);
+        strncpy(req.subject.email, "info@yassl.com", CTC_NAME_SIZE);
+        req.sigType = CTC_SHA256wRSA;
+
+        derSz = MakeCertReq(&req, der, FOURK_BUF, &key, NULL);
+        if (derSz < 0)
             return -465;
 
-        pemSz = (int)fread(pem, 1, FOURK_BUF, ioFile);
-        fclose(ioFile);
-
-        InitRsaKey(&caKey, 0);
-        ret = RsaPrivateKeyDecode(pem, &idx3, &caKey, (word32)pemSz);
-        if (ret != 0)
+        derSz = SignCert(req.bodySz, req.sigType, der, FOURK_BUF,
+                          &key, NULL, &rng);
+        if (derSz < 0)
             return -466;
 
-        InitCert(&myCert);
-
-        myCert.version = 0;
-        strncpy(myCert.subject.country, "US", CTC_NAME_SIZE);
-        strncpy(myCert.subject.state, "OR", CTC_NAME_SIZE);
-        strncpy(myCert.subject.locality, "Portland", CTC_NAME_SIZE);
-        strncpy(myCert.subject.org, "yaSSL", CTC_NAME_SIZE);
-        strncpy(myCert.subject.unit, "Development", CTC_NAME_SIZE);
-        strncpy(myCert.subject.commonName, "www.yassl.com", CTC_NAME_SIZE);
-        strncpy(myCert.subject.email, "info@yassl.com", CTC_NAME_SIZE);
-        myCert.sigType = CTC_SHA256wRSA;
-
-        certSz = MakeCertReq(&myCert, derCert, FOURK_BUF, &key, NULL);
-        if (certSz < 0)
+        pemSz = DerToPem(der, derSz, pem, FOURK_BUF, CERTREQ_TYPE);
+        if (pemSz < 0)
             return -467;
 
-        certSz = SignCert(myCert.bodySz, myCert.sigType, derCert, FOURK_BUF,
-                          &caKey, NULL, &rng);
-        if (certSz < 0)
+        reqFile = fopen("./certreq.der", "wb");
+        if (!reqFile)
             return -468;
 
-        ioFile = fopen("./certreq.der", "wb");
-        if (!ioFile)
+        ret = (int)fwrite(der, derSz, 1, reqFile);
+        fclose(reqFile);
+
+        reqFile = fopen("./certreq.pem", "wb");
+        if (!reqFile)
             return -469;
-
-        ret = (int)fwrite(derCert, certSz, 1, ioFile);
-        fclose(ioFile);
-
-        pemSz = DerToPem(derCert, certSz, pem, FOURK_BUF, CERTREQ_TYPE);
-        if (pemSz < 0)
-            return -470;
-
-        ioFile = fopen("./certreq.pem", "wb");
-        if (!ioFile)
-            return -471;
-        ret = (int)fwrite(pem, pemSz, 1, ioFile);
-        fclose(ioFile);
+        ret = (int)fwrite(pem, pemSz, 1, reqFile);
+        fclose(reqFile);
 
         free(pem);
-        free(derCert);
-        FreeRsaKey(&caKey);
+        free(der);
     }
 #endif /* CYASSL_CERT_REQ */
 #endif /* CYASSL_CERT_GEN */
