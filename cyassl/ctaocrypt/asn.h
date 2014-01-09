@@ -59,6 +59,7 @@ enum ASN_Tags {
     ASN_TAG_NULL          = 0x05,
     ASN_OBJECT_ID         = 0x06,
     ASN_ENUMERATED        = 0x0a,
+    ASN_UTF8STRING        = 0x0c,
     ASN_SEQUENCE          = 0x10,
     ASN_SET               = 0x11,
     ASN_UTC_TIME          = 0x17,
@@ -125,6 +126,7 @@ enum Misc_ASN {
     MAX_ALGO_SZ         =  20,
     MAX_SEQ_SZ          =   5,     /* enum(seq | con) + length(4) */  
     MAX_SET_SZ          =   5,     /* enum(set | con) + length(4) */  
+    MAX_PRSTR_SZ        =   5,     /* enum(prstr) + length(4) */
     MAX_VERSION_SZ      =   5,     /* enum + id + version(byte) + (header(2))*/
     MAX_ENCODED_DIG_SZ  =  73,     /* sha512 + enum(bit or octet) + legnth(4) */
     MAX_RSA_INT_SZ      = 517,     /* RSA raw sz 4096 for bits + tag + len(4) */
@@ -136,7 +138,9 @@ enum Misc_ASN {
     MAX_SN_SZ           =  35,     /* Max encoded serial number (INT) length */
 #ifdef CYASSL_CERT_GEN
     #ifdef CYASSL_CERT_REQ
-        MAX_ATTRIB_SZ   = 24,      /* Max encoded cert req attributes length */
+                          /* Max encoded cert req attributes length */
+        MAX_ATTRIB_SZ   = MAX_SEQ_SZ * 3 + (11 + MAX_SEQ_SZ) * 2 +
+                          MAX_PRSTR_SZ + CTC_NAME_SIZE, /* 11 is the OID size */
     #endif
     #ifdef CYASSL_ALT_NAMES
         MAX_EXTENSIONS_SZ   = 1 + MAX_LENGTH_SZ + CTC_MAX_ALT_SIZE,

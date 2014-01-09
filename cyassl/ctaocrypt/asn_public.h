@@ -109,6 +109,9 @@ typedef struct Cert {
     byte     afterDate[CTC_DATE_SIZE];   /* after date copy */
     int      afterDateSz;                /* size of copy */
 #endif
+#ifdef CYASSL_CERT_REQ
+    char     challengePw[CTC_NAME_SIZE];
+#endif
 } Cert;
 
 

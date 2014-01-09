@@ -3845,6 +3845,18 @@ static word32 SetSet(word32 len, byte* output)
 }
 
 
+#ifdef CYASSL_CERT_REQ
+
+/* Write a set header to output */
+static word32 SetUTF8String(word32 len, byte* output)
+{
+    output[0] = ASN_UTF8STRING;
+    return SetLength(len, output + 1) + 1;
+}
+
+#endif /* CYASSL_CERT_REQ */
+
+
 /* Write a serial number to output */
 static int SetSerial(const byte* serial, byte* output)
 {
@@ -4624,37 +4636,71 @@ int  MakeNtruCert(Cert* cert, byte* derBuffer, word32 derSz,
 
 #ifdef CYASSL_CERT_REQ
 
-static int SetReqAttrib(byte* output, int extSz)
+static int SetReqAttrib(byte* output, char* pw, int extSz)
 {
-    int sz = 0;
+    static const byte cpOid[] =
+        { ASN_OBJECT_ID, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01,
+                         0x09, 0x07 };
+    static const byte erOid[] =
+        { ASN_OBJECT_ID, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01,
+                         0x09, 0x0e };
+
+    int sz      = 0; /* overall size */
+    int cpSz    = 0; /* Challenge Password section size */
+    int cpSeqSz = 0;
+    int cpSetSz = 0;
+    int cpStrSz = 0;
+    int pwSz    = 0;
+    int erSz    = 0; /* Extension Request section size */
+    int erSeqSz = 0;
+    int erSetSz = 0;
+    byte cpSeq[MAX_SEQ_SZ];
+    byte cpSet[MAX_SET_SZ];
+    byte cpStr[MAX_PRSTR_SZ];
+    byte erSeq[MAX_SEQ_SZ];
+    byte erSet[MAX_SET_SZ];
 
     output[0] = 0xa0;
     sz++;
 
-    if (extSz) {
-        byte extSet[MAX_SET_SZ];
-        byte extSeq[MAX_SEQ_SZ];
-        int extSetSz;
-        int extSeqSz;
-        static const byte extReqOid[] = { ASN_OBJECT_ID, 0x09, 0x2a, 0x86, 0x48,
-                                          0x86, 0xf7, 0x0d, 0x01, 0x09, 0x0e };
-
-        extSetSz = SetSet(extSz, extSet);
-        extSeqSz = SetSequence(extSetSz + sizeof(extReqOid) + extSz, extSeq);
-
-        sz += SetLength(extSeqSz + extSeqSz + sizeof(extReqOid) + extSz,
-                        &output[sz]);
-        XMEMCPY(&output[sz], extSeq, extSeqSz);
-        sz += extSeqSz;
-        XMEMCPY(&output[sz], extReqOid, sizeof(extReqOid));
-        sz += sizeof(extReqOid);
-        XMEMCPY(&output[sz], extSet, extSetSz);
-        sz += extSetSz;
-        /* The actual extension data will be tacked onto the output later. */
+    if (pw && pw[0]) {
+        pwSz = (int)XSTRLEN(pw);
+        cpStrSz = SetUTF8String(pwSz, cpStr);
+        cpSetSz = SetSet(cpStrSz + pwSz, cpSet);
+        cpSeqSz = SetSequence(sizeof(cpOid) + cpSetSz + cpStrSz + pwSz, cpSeq);
+        cpSz = cpSeqSz + sizeof(cpOid) + cpSetSz + cpStrSz + pwSz;
     }
-    else {
-        output[sz] = 0x00;
-        sz++;
+
+    if (extSz) {
+        erSetSz = SetSet(extSz, erSet);
+        erSeqSz = SetSequence(erSetSz + sizeof(erOid) + extSz, erSeq);
+        erSz = extSz + erSetSz + erSeqSz + sizeof(erOid);
+    }
+
+    /* Put the pieces together. */
+    sz += SetLength(cpSz + erSz, &output[sz]);
+
+    if (cpSz) {
+        XMEMCPY(&output[sz], cpSeq, cpSeqSz);
+        sz += cpSeqSz;
+        XMEMCPY(&output[sz], cpOid, sizeof(cpOid));
+        sz += sizeof(cpOid);
+        XMEMCPY(&output[sz], cpSet, cpSetSz);
+        sz += cpSetSz;
+        XMEMCPY(&output[sz], cpStr, cpStrSz);
+        sz += cpStrSz;
+        XMEMCPY(&output[sz], pw, pwSz);
+        sz += pwSz;
+    }
+
+    if (erSz) {
+        XMEMCPY(&output[sz], erSeq, erSeqSz);
+        sz += erSeqSz;
+        XMEMCPY(&output[sz], erOid, sizeof(erOid));
+        sz += sizeof(erOid);
+        XMEMCPY(&output[sz], erSet, erSetSz);
+        sz += erSetSz;
+        /* The actual extension data will be tacked onto the output later. */
     }
 
     return sz;
@@ -4716,7 +4762,8 @@ static int EncodeCertReq(Cert* cert, DerCert* der,
     else
         der->extensionsSz = 0;
 
-    der->attribSz = SetReqAttrib(der->attrib, der->extensionsSz);
+    der->attribSz = SetReqAttrib(der->attrib,
+                                 cert->challengePw, der->extensionsSz);
     if (der->attribSz == 0)
         return REQ_ATTRIBUTE_E;
 
