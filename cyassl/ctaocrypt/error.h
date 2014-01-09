@@ -117,6 +117,8 @@ enum {
     BAD_ENC_STATE_E     = -192,  /* Bad ecc enc state operation */
     BAD_PADDING_E       = -193,  /* Bad padding, msg not correct length  */
 
+    REQ_ATTRIBUTE_E     = -194,  /* setting cert request attributes error */
+
     MIN_CODE_E         = -200   /* errors -101 - -199 */
 };
 

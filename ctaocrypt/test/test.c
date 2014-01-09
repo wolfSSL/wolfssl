@@ -3062,6 +3062,7 @@ int rsa_test(void)
         InitCert(&req);
 
         req.version = 0;
+        req.isCA    = 1;
         strncpy(req.subject.country, "US", CTC_NAME_SIZE);
         strncpy(req.subject.state, "OR", CTC_NAME_SIZE);
         strncpy(req.subject.locality, "Portland", CTC_NAME_SIZE);

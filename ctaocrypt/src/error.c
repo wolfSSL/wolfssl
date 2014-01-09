@@ -331,6 +331,10 @@ void CTaoCryptErrorString(int error, char* buffer)
         XSTRNCPY(buffer, "Bad padding, message wrong length", max);
         break;
 
+    case REQ_ATTRIBUTE_E:
+        XSTRNCPY(buffer, "Setting cert request attributes error", max);
+        break;
+
     default:
         XSTRNCPY(buffer, "unknown error number", max);
 

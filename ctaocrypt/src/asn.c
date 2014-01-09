@@ -3817,6 +3817,9 @@ typedef struct DerCert {
     byte publicKey[MAX_PUBLIC_KEY_SZ]; /* rsa / ntru public key encoded */
     byte ca[MAX_CA_SZ];                /* basic constraint CA true size */
     byte extensions[MAX_EXTENSIONS_SZ];  /* all extensions */
+#ifdef CYASSL_CERT_REQ
+    byte attrib[MAX_ATTRIB_SZ];        /* Cert req attributes encoded */
+#endif
     int  sizeSz;                       /* encoded size length */
     int  versionSz;                    /* encoded version length */
     int  serialSz;                     /* encoded serial length */
@@ -3828,6 +3831,9 @@ typedef struct DerCert {
     int  caSz;                         /* encoded CA extension length */
     int  extensionsSz;                 /* encoded extensions total length */
     int  total;                        /* total encoded lengths */
+#ifdef CYASSL_CERT_REQ
+    int  attribSz;
+#endif
 } DerCert;
 
 
@@ -4173,19 +4179,21 @@ static byte GetNameId(int idx)
 
 
 /* encode all extensions, return total bytes written */
-static int SetExtensions(byte* output, const byte* ext, int extSz)
+static int SetExtensions(byte* output, const byte* ext, int extSz, int header)
 {
     byte sequence[MAX_SEQ_SZ];
     byte len[MAX_LENGTH_SZ];
 
     int sz = 0;
     int seqSz = SetSequence(extSz, sequence);
-    int lenSz = SetLength(seqSz + extSz, len);
 
-    output[0] = ASN_EXTENSIONS; /* extensions id */
-    sz++;
-    XMEMCPY(&output[sz], len, lenSz);  /* length */
-    sz += lenSz; 
+    if (header) {
+        int lenSz = SetLength(seqSz + extSz, len);
+        output[0] = ASN_EXTENSIONS; /* extensions id */
+        sz++;
+        XMEMCPY(&output[sz], len, lenSz);  /* length */
+        sz += lenSz;
+    }
     XMEMCPY(&output[sz], sequence, seqSz);  /* sequence */
     sz += seqSz;
     XMEMCPY(&output[sz], ext, extSz);  /* extensions */
@@ -4422,7 +4430,8 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
 
     /* extensions, just CA now */
     if (cert->isCA) {
-        der->extensionsSz = SetExtensions(der->extensions, der->ca, der->caSz);
+        der->extensionsSz = SetExtensions(der->extensions,
+                                          der->ca, der->caSz, TRUE);
         if (der->extensionsSz == 0)
             return EXTENSIONS_E;
     }
@@ -4432,7 +4441,7 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
 #ifdef CYASSL_ALT_NAMES
     if (der->extensionsSz == 0 && cert->altNamesSz) {
         der->extensionsSz = SetExtensions(der->extensions, cert->altNames,
-                                          cert->altNamesSz);
+                                          cert->altNamesSz, TRUE);
         if (der->extensionsSz == 0)
             return EXTENSIONS_E;
     }
@@ -4615,6 +4624,43 @@ int  MakeNtruCert(Cert* cert, byte* derBuffer, word32 derSz,
 
 #ifdef CYASSL_CERT_REQ
 
+static int SetReqAttrib(byte* output, int extSz)
+{
+    int sz = 0;
+
+    output[0] = 0xa0;
+    sz++;
+
+    if (extSz) {
+        byte extSet[MAX_SET_SZ];
+        byte extSeq[MAX_SEQ_SZ];
+        int extSetSz;
+        int extSeqSz;
+        static const byte extReqOid[] = { ASN_OBJECT_ID, 0x09, 0x2a, 0x86, 0x48,
+                                          0x86, 0xf7, 0x0d, 0x01, 0x09, 0x0e };
+
+        extSetSz = SetSet(extSz, extSet);
+        extSeqSz = SetSequence(extSetSz + sizeof(extReqOid) + extSz, extSeq);
+
+        sz += SetLength(extSeqSz + extSeqSz + sizeof(extReqOid) + extSz,
+                        &output[sz]);
+        XMEMCPY(&output[sz], extSeq, extSeqSz);
+        sz += extSeqSz;
+        XMEMCPY(&output[sz], extReqOid, sizeof(extReqOid));
+        sz += sizeof(extReqOid);
+        XMEMCPY(&output[sz], extSet, extSetSz);
+        sz += extSetSz;
+        /* The actual extension data will be tacked onto the output later. */
+    }
+    else {
+        output[sz] = 0x00;
+        sz++;
+    }
+
+    return sz;
+}
+
+
 /* encode info from cert into DER encoded format */
 static int EncodeCertReq(Cert* cert, DerCert* der,
                          RsaKey* rsaKey, ecc_key* eccKey)
@@ -4651,9 +4697,31 @@ static int EncodeCertReq(Cert* cert, DerCert* der,
     }
 #endif /* HAVE_ECC */
 
-    der->total = der->versionSz + der->subjectSz + der->publicKeySz + 2;
-        // The 2 is for the empty "attributes". Use der->attributesSz
-        // when that exists, eventually.
+    /* CA */
+    if (cert->isCA) {
+        der->caSz = SetCa(der->ca);
+        if (der->caSz == 0)
+            return CA_TRUE_E;
+    }
+    else
+        der->caSz = 0;
+
+    /* extensions, just CA now */
+    if (cert->isCA) {
+        der->extensionsSz = SetExtensions(der->extensions,
+                                          der->ca, der->caSz, FALSE);
+        if (der->extensionsSz == 0)
+            return EXTENSIONS_E;
+    }
+    else
+        der->extensionsSz = 0;
+
+    der->attribSz = SetReqAttrib(der->attrib, der->extensionsSz);
+    if (der->attribSz == 0)
+        return REQ_ATTRIBUTE_E;
+
+    der->total = der->versionSz + der->subjectSz + der->publicKeySz +
+        der->extensionsSz + der->attribSz;
 
     return 0;
 }
@@ -4663,7 +4731,6 @@ static int EncodeCertReq(Cert* cert, DerCert* der,
 static int WriteCertReqBody(DerCert* der, byte* buffer)
 {
     int idx;
-    const byte att[2] = {0xa0, 0x00};
 
     /* signed part header */
     idx = SetSequence(der->total, buffer);
@@ -4676,9 +4743,15 @@ static int WriteCertReqBody(DerCert* der, byte* buffer)
     /* public key */
     XMEMCPY(buffer + idx, der->publicKey, der->publicKeySz);
     idx += der->publicKeySz;
-    /* attributes, empty set */
-    XMEMCPY(buffer + idx, att, sizeof(att));
-    idx += sizeof(att);
+    /* attributes */
+    XMEMCPY(buffer + idx, der->attrib, der->attribSz);
+    idx += der->attribSz;
+    /* extensions */
+    if (der->extensionsSz) {
+        XMEMCPY(buffer + idx, der->extensions, min(der->extensionsSz,
+                                                   sizeof(der->extensions)));
+        idx += der->extensionsSz;
+    }
 
     return idx;
 }
