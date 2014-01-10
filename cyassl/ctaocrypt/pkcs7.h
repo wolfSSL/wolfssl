@@ -46,12 +46,11 @@ enum PKCS7_TYPES {
 };
 
 enum Pkcs7_Misc {
+    MAX_ENCRYPTED_KEY_SZ = 512,        /* max enc. key size, RSA <= 4096 */
+    MAX_CONTENT_KEY_LEN  = DES3_KEYLEN,
     MAX_RECIP_SZ         = MAX_VERSION_SZ +
                            MAX_SEQ_SZ + ASN_NAME_MAX + MAX_SN_SZ +
-                           MAX_SEQ_SZ + MAX_ALGO_SZ + 1 +
-                           MAX_ENCRYPTED_KEY_SZ
-    MAX_CONTENT_KEY_LEN  = DES3_KEYLEN,
-    MAX_ENCRYPTED_KEY_SZ = 512,        /* max enc. key size, RSA <= 4096 */
+                           MAX_SEQ_SZ + MAX_ALGO_SZ + 1 + MAX_ENCRYPTED_KEY_SZ
 };
 
 CYASSL_API int Pkcs7_encrypt(const byte* certs, word32 certSz, byte* data,
@@ -59,6 +58,11 @@ CYASSL_API int Pkcs7_encrypt(const byte* certs, word32 certSz, byte* data,
                              word32* outSz, word32 flags);
 
 CYASSL_LOCAL int SetContentType(int pkcs7TypeOID, byte* output);
+CYASSL_LOCAL int CreateRecipientInfo(const byte* cert, word32 certSz,
+                                     int keyEncAlgo, int blockKeySz,
+                                     RNG* rng, byte* contentKeyPlain,
+                                     byte* contentKeyEnc,
+                                     int* keyEncSz, byte* out, word32 outSz);
 
 #ifdef __cplusplus
     } /* extern "C" */
