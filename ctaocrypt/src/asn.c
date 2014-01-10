@@ -398,8 +398,8 @@ CPU_INT32S NetSecure_ValidateDateHandler(CPU_INT08U *date, CPU_INT08U format,
 #endif /* MICRIUM */
 
 
-static int GetLength(const byte* input, word32* inOutIdx, int* len,
-                     word32 maxIdx)
+CYASSL_LOCAL int GetLength(const byte* input, word32* inOutIdx, int* len,
+                           word32 maxIdx)
 {
     int     length = 0;
     word32  i = *inOutIdx;
@@ -1280,6 +1280,10 @@ void InitDecodedCert(DecodedCert* cert, byte* source, word32 inSz, void* heap)
     XMEMSET(cert->extAuthKeyId, 0, SHA_SIZE);
     cert->extAuthKeyIdSet = 0;
     cert->isCA            = 0;
+#ifdef HAVE_PKCS7
+    cert->issuerRaw       = NULL;
+    cert->issuerRawLen    = 0;
+#endif
 #ifdef CYASSL_CERT_GEN
     cert->subjectSN       = 0;
     cert->subjectSNLen    = 0;
@@ -1610,6 +1614,12 @@ static int GetName(DecodedCert* cert, int nameType)
 
     length += cert->srcIdx;
     idx = 0;
+
+#ifdef HAVE_PKCS7
+    /* store pointer to raw issuer */
+    cert->issuerRaw = &cert->source[cert->srcIdx];
+    cert->issuerRawLen = length - cert->srcIdx;
+#endif
 
     while (cert->srcIdx < (word32)length) {
         byte   b;
@@ -2230,7 +2240,7 @@ static word32 BytePrecision(word32 value)
 }
 
 
-static word32 SetLength(word32 length, byte* output)
+CYASSL_LOCAL word32 SetLength(word32 length, byte* output)
 {
     word32 i = 0, j;
 
@@ -2249,9 +2259,22 @@ static word32 SetLength(word32 length, byte* output)
 }
 
 
-static word32 SetSequence(word32 len, byte* output)
+CYASSL_LOCAL word32 SetSequence(word32 len, byte* output)
 {
     output[0] = ASN_SEQUENCE | ASN_CONSTRUCTED;
+    return SetLength(len, output + 1) + 1;
+}
+
+CYASSL_LOCAL word32 SetOctetString(word32 len, byte* output)
+{
+    output[0] = ASN_OCTET_STRING;
+    return SetLength(len, output + 1) + 1;
+}
+
+/* Write a set header to output */
+CYASSL_LOCAL word32 SetSet(word32 len, byte* output)
+{
+    output[0] = ASN_SET | ASN_CONSTRUCTED;
     return SetLength(len, output + 1) + 1;
 }
 
@@ -2329,7 +2352,7 @@ static word32 SetCurve(ecc_key* key, byte* output)
 #endif /* HAVE_ECC && CYASSL_CERT_GEN */
 
 
-static word32 SetAlgoID(int algoOID, byte* output, int type, int curveSz)
+CYASSL_LOCAL word32 SetAlgoID(int algoOID, byte* output, int type, int curveSz)
 {
     /* adding TAG_NULL and 0 to end */
     
@@ -2346,6 +2369,12 @@ static word32 SetAlgoID(int algoOID, byte* output, int type, int curveSz)
                                          0x02, 0x05, 0x05, 0x00  };
     static const byte md2AlgoID[]    = { 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d,
                                          0x02, 0x02, 0x05, 0x00};
+
+    /* blkTypes */
+    static const byte desCbcAlgoID[]  = { 0x2B, 0x0E, 0x03, 0x02, 0x07,
+                                          0x05, 0x00 };
+    static const byte des3CbcAlgoID[] = { 0x2A, 0x86, 0x48, 0x86, 0xF7,
+                                          0x0D, 0x03, 0x07, 0x05, 0x00};
 
     /* RSA sigTypes */
     #ifndef NO_RSA
@@ -2428,6 +2457,21 @@ static word32 SetAlgoID(int algoOID, byte* output, int type, int curveSz)
         default:
             CYASSL_MSG("Unknown Hash Algo");
             return 0;  /* UNKOWN_HASH_E; */
+        }
+    }
+    else if (type == blkType) {
+        switch (algoOID) {
+        case DESb:
+            algoSz = sizeof(desCbcAlgoID);
+            algoName = desCbcAlgoID;
+            break;
+        case DES3b:
+            algoSz = sizeof(des3CbcAlgoID);
+            algoName = des3CbcAlgoID;
+            break;
+        default:
+            CYASSL_MSG("Unknown Block Algo");
+            return 0;
         }
     }
     else if (type == sigType) {    /* sigType */
@@ -3534,9 +3578,7 @@ void FreeSignerTable(Signer** table, int rows, void* heap)
 }
 
 
-#if defined(CYASSL_KEY_GEN) || defined(CYASSL_CERT_GEN)
-
-static int SetMyVersion(word32 version, byte* output, int header)
+CYASSL_LOCAL int SetMyVersion(word32 version, byte* output, int header)
 {
     int i = 0;
 
@@ -3551,6 +3593,37 @@ static int SetMyVersion(word32 version, byte* output, int header)
     return i;
 }
 
+
+CYASSL_LOCAL int SetSerialNumber(const byte* sn, word32 snSz, byte* output)
+{
+    int result = 0;
+
+    CYASSL_ENTER("SetSerialNumber");
+
+    if (snSz <= EXTERNAL_SERIAL_SIZE) {
+        output[0] = ASN_INTEGER;
+        /* The serial number is always positive. When encoding the
+         * INTEGER, if the MSB is 1, add a padding zero to keep the
+         * number positive. */
+        if (sn[0] & 0x80) {
+            output[1] = (byte)snSz + 1;
+            output[2] = 0;
+            XMEMCPY(&output[3], sn, snSz);
+            result = snSz + 3;
+        }
+        else {
+            output[1] = (byte)snSz;
+            XMEMCPY(&output[2], sn, snSz);
+            result = snSz + 2;
+        }
+    }
+    return result;
+}
+
+
+
+
+#if defined(CYASSL_KEY_GEN) || defined(CYASSL_CERT_GEN)
 
 /* convert der buffer to pem into output, can't do inplace, der and output
    need to be different */
@@ -3835,14 +3908,6 @@ typedef struct DerCert {
     int  attribSz;
 #endif
 } DerCert;
-
-
-/* Write a set header to output */
-static word32 SetSet(word32 len, byte* output)
-{
-    output[0] = ASN_SET | ASN_CONSTRUCTED;
-    return SetLength(len, output + 1) + 1;
-}
 
 
 #ifdef CYASSL_CERT_REQ
@@ -5782,33 +5847,6 @@ int OcspResponseDecode(OcspResponse* resp)
         return ASN_PARSE_E;
     
     return 0;
-}
-
-
-static int SetSerialNumber(const byte* sn, word32 snSz, byte* output)
-{
-    int result = 0;
-
-    CYASSL_ENTER("SetSerialNumber");
-
-    if (snSz <= EXTERNAL_SERIAL_SIZE) {
-        output[0] = ASN_INTEGER;
-        /* The serial number is always positive. When encoding the
-         * INTEGER, if the MSB is 1, add a padding zero to keep the
-         * number positive. */
-        if (sn[0] & 0x80) {
-            output[1] = (byte)snSz + 1;
-            output[2] = 0;
-            XMEMCPY(&output[3], sn, snSz);
-            result = snSz + 3;
-        }
-        else {
-            output[1] = (byte)snSz;
-            XMEMCPY(&output[2], sn, snSz);
-            result = snSz + 2;
-        }
-    }
-    return result;
 }
 
 

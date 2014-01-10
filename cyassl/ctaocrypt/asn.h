@@ -126,6 +126,7 @@ enum Misc_ASN {
     MAX_ALGO_SZ         =  20,
     MAX_SEQ_SZ          =   5,     /* enum(seq | con) + length(4) */  
     MAX_SET_SZ          =   5,     /* enum(set | con) + length(4) */  
+    MAX_OCTET_STR_SZ    =   5,     /* enum(set | con) + length(4) */
     MAX_PRSTR_SZ        =   5,     /* enum(prstr) + length(4) */
     MAX_VERSION_SZ      =   5,     /* enum + id + version(byte) + (header(2))*/
     MAX_ENCODED_DIG_SZ  =  73,     /* sha512 + enum(bit or octet) + legnth(4) */
@@ -161,7 +162,8 @@ enum Oid_Types {
     hashType  = 0,
     sigType   = 1,
     keyType   = 2,
-    curveType = 3
+    curveType = 3,
+    blkType   = 4
 };
 
 
@@ -172,6 +174,12 @@ enum Hash_Sum  {
     SHA256h = 414,
     SHA384h = 415,
     SHA512h = 416
+};
+
+
+enum Block_Sum {
+    DESb  = 69,
+    DES3b = 652
 };
 
 
@@ -342,6 +350,10 @@ struct DecodedCert {
     int     beforeDateLen;
     byte*   afterDate;
     int     afterDateLen;
+#ifdef HAVE_PKCS7
+    byte*   issuerRaw;               /* pointer to issuer inside source */
+    int     issuerRawLen;
+#endif
 #if defined(CYASSL_CERT_GEN)
     /* easy access to subject info for other sign */
     char*   subjectSN;
@@ -429,6 +441,17 @@ CYASSL_LOCAL int ToTraditional(byte* buffer, word32 length);
 CYASSL_LOCAL int ToTraditionalEnc(byte* buffer, word32 length,const char*, int);
 
 CYASSL_LOCAL int ValidateDate(const byte* date, byte format, int dateType);
+
+/* ASN.1 helper functions */
+CYASSL_LOCAL int GetLength(const byte* input, word32* inOutIdx, int* len,
+                           word32 maxIdx);
+CYASSL_LOCAL word32 SetLength(word32 length, byte* output);
+CYASSL_LOCAL word32 SetSequence(word32 len, byte* output);
+CYASSL_LOCAL word32 SetOctetString(word32 len, byte* output);
+CYASSL_LOCAL word32 SetSet(word32 len, byte* output);
+CYASSL_LOCAL word32 SetAlgoID(int algoOID, byte* output, int type, int curveSz);
+CYASSL_LOCAL int SetMyVersion(word32 version, byte* output, int header);
+CYASSL_LOCAL int SetSerialNumber(const byte* sn, word32 snSz, byte* output);
 
 #ifdef HAVE_ECC
     /* ASN sig helpers */
