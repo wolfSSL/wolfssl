@@ -3936,14 +3936,16 @@ static int SetRsaPublicKey(byte* output, RsaKey* key)
     int  lenSz;
     int  idx;
     int  rawLen;
+    int  leadingBit;
 
     /* n */
-    rawLen = mp_unsigned_bin_size(&key->n);
+    leadingBit = mp_leading_bit(&key->n);
+    rawLen = mp_unsigned_bin_size(&key->n) + leadingBit;
     n[0] = ASN_INTEGER;
     nSz  = SetLength(rawLen, n + 1) + 1;  /* int tag */
 
     if ( (nSz + rawLen) < (int)sizeof(n)) {
-        int err = mp_to_unsigned_bin(&key->n, n + nSz);
+        int err = mp_to_unsigned_bin(&key->n, n + nSz + leadingBit);
         if (err == MP_OKAY)
             nSz += rawLen;
         else
@@ -3953,12 +3955,13 @@ static int SetRsaPublicKey(byte* output, RsaKey* key)
         return BUFFER_E;
 
     /* e */
-    rawLen = mp_unsigned_bin_size(&key->e);
+    leadingBit = mp_leading_bit(&key->e);
+    rawLen = mp_unsigned_bin_size(&key->e) + leadingBit;
     e[0] = ASN_INTEGER;
     eSz  = SetLength(rawLen, e + 1) + 1;  /* int tag */
 
     if ( (eSz + rawLen) < (int)sizeof(e)) {
-        int err = mp_to_unsigned_bin(&key->e, e + eSz);
+        int err = mp_to_unsigned_bin(&key->e, e + eSz + leadingBit);
         if (err == MP_OKAY)
             eSz += rawLen;
         else
