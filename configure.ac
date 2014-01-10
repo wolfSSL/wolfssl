@@ -531,6 +531,23 @@ then
 fi
 
 
+# CERT REQUEST GENERATION
+AC_ARG_ENABLE([certreq],
+    [  --enable-certreq        Enable cert request generation (default: disabled)],
+    [ ENABLED_CERTREQ=$enableval ],
+    [ ENABLED_CERTREQ=no ]
+    )
+
+if test "$ENABLED_CERTREQ" = "yes"
+then
+    if test "$ENABLED_CERTGEN" = "no"
+    then
+        AC_MSG_ERROR([cannot enable certreq without enabling certgen.])
+    fi
+    AM_CFLAGS="$AM_CFLAGS -DCYASSL_CERT_REQ"
+fi
+
+
 # SEP
 AC_ARG_ENABLE([sep],
     [  --enable-sep            Enable sep extensions (default: disabled)],
@@ -1551,6 +1568,7 @@ echo "   * SHA-512:                   $ENABLED_SHA512"
 echo "   * BLAKE2:                    $ENABLED_BLAKE2"
 echo "   * keygen:                    $ENABLED_KEYGEN"
 echo "   * certgen:                   $ENABLED_CERTGEN"
+echo "   * certreq:                   $ENABLED_CERTREQ"
 echo "   * HC-128:                    $ENABLED_HC128"
 echo "   * RABBIT:                    $ENABLED_RABBIT"
 echo "   * PWDBASED:                  $ENABLED_PWDBASED"
