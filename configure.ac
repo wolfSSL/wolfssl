@@ -1215,6 +1215,20 @@ then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_SNI -DHAVE_MAX_FRAGMENT -DHAVE_TRUNCATED_HMAC"
 fi
 
+# PKCS#7
+AC_ARG_ENABLE([pkcs7],
+    [  --enable-pkcs7          Enable PKCS7 (default: disabled)],
+    [ ENABLED_PKCS7=$enableval ],
+    [ ENABLED_PKCS7=no ]
+    )
+
+if test "ENABLED_PKCS7" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_PKCS7"
+fi
+
+AM_CONDITIONAL([BUILD_PKCS7], [test "x$ENABLED_PKCS7" = "xyes"])
+
 #valgrind
 AC_ARG_ENABLE([valgrind],
     [  --enable-valgrind       Enable valgrind for unit tests (default: disabled)],
@@ -1600,6 +1614,7 @@ echo "   * SNI:                       $ENABLED_SNI"
 echo "   * Maximum Fragment Length:   $ENABLED_MAX_FRAGMENT"
 echo "   * Truncated HMAC:            $ENABLED_TRUNCATED_HMAC"
 echo "   * All TLS Extensions:        $ENABLED_TLSX"
+echo "   * PKCS#7                     $ENABLED_PKCS7"
 echo "   * valgrind unit tests:       $ENABLED_VALGRIND"
 echo "   * LIBZ:                      $ENABLED_LIBZ"
 echo "   * Examples:                  $ENABLED_EXAMPLES"
