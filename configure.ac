@@ -1215,14 +1215,14 @@ then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_SNI -DHAVE_MAX_FRAGMENT -DHAVE_TRUNCATED_HMAC"
 fi
 
-# PKCS#7
+# PKCS7
 AC_ARG_ENABLE([pkcs7],
     [  --enable-pkcs7          Enable PKCS7 (default: disabled)],
     [ ENABLED_PKCS7=$enableval ],
-    [ ENABLED_PKCS7=no ]
+    [ ENABLED_PKCS7=no ],
     )
 
-if test "ENABLED_PKCS7" = "yes"
+if test "$ENABLED_PKCS7" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_PKCS7"
 fi
