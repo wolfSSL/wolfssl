@@ -36,7 +36,7 @@
 #endif
 
 enum PKCS7_TYPES {
-    PKCS7                     = 650,   /* 1.2.840.113549.1.7 */ 
+    PKCS7_MSG                 = 650,   /* 1.2.840.113549.1.7 */ 
     DATA                      = 651,   /* 1.2.840.113549.1.7.1 */
     SIGNED_DATA               = 652,   /* 1.2.840.113549.1.7.2 */
     ENVELOPED_DATA            = 653,   /* 1.2.840.113549.1.7.3 */
@@ -53,6 +53,33 @@ enum Pkcs7_Misc {
                            MAX_SEQ_SZ + MAX_ALGO_SZ + 1 + MAX_ENCRYPTED_KEY_SZ
 };
 
+
+typedef struct PKCS7Attrib {
+    byte* oid;
+    word32 oidSz;
+    byte* value;
+    word32 valueSz;
+} PKCS7Attrib;
+
+
+typedef struct PKCS7 {
+    byte* content;
+    word32 contentSz;
+    int contentOID;
+
+    int hashOID;
+    int encryptOID;
+
+    byte* singleCert;
+    word32 singleCertSz;
+    byte* issuer;
+    word32 issuerSz;
+    
+    PKCS7Attrib** signedAttribs;
+    word32 signedAttribsSz; /* Number of attribs in list */
+} PKCS7;
+
+
 CYASSL_API int Pkcs7_encrypt(const byte* certs, word32 certSz, byte* data,
                              word32 dataSz, int cipher, byte* out,
                              word32* outSz, word32 flags);
@@ -63,6 +90,13 @@ CYASSL_LOCAL int CreateRecipientInfo(const byte* cert, word32 certSz,
                                      RNG* rng, byte* contentKeyPlain,
                                      byte* contentKeyEnc,
                                      int* keyEncSz, byte* out, word32 outSz);
+
+CYASSL_API int  PKCS7_InitWithCert(PKCS7* pkcs7, byte* cert, word32 certSz);
+CYASSL_API int  PKCS7_EncodeData(PKCS7* pkcs7, byte* output, word32 outputSz);
+CYASSL_API int  PKCS7_EncodeSignedData(PKCS7* pkcs7,
+                                       byte* output, word32 outputSz);
+CYASSL_API int  PKCS7_EncodeEnvelopeData(PKCS7* pkcs7,
+                                         byte* output, word32 outputSz);
 
 #ifdef __cplusplus
     } /* extern "C" */

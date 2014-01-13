@@ -55,7 +55,7 @@ CYASSL_LOCAL int SetContentType(int pkcs7TypeOID, byte* output)
     byte ID_Length[MAX_LENGTH_SZ];
 
     switch (pkcs7TypeOID) {
-        case PKCS7:
+        case PKCS7_MSG:
             typeSz = sizeof(pkcs7);
             typeName = pkcs7;
             break;
@@ -121,6 +121,65 @@ int Pkcs7_encrypt(const byte* certs, word32 certSz, byte* data, word32 dataSz,
 
     return 0;
 }
+
+
+int PKCS7_InitWithCert(PKCS7* pkcs7, byte* cert, word32 certSz)
+{
+    XMEMSET(pkcs7, 0, sizeof(PKCS7));
+    pkcs7->singleCert = cert;
+    pkcs7->singleCertSz = certSz;
+
+    return 0;
+}
+
+
+int PKCS7_EncodeData(PKCS7* pkcs7, byte* output, word32 outputSz)
+{
+    static const byte oid[] =
+        { ASN_OBJECT_ID, 0x09, 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01,
+                         0x07, 0x01 };
+    byte seq[MAX_SEQ_SZ];
+    byte octetStr[MAX_OCTET_STR_SZ];
+    word32 seqSz;
+    word32 octetStrSz;
+    int idx = 0;
+
+    octetStrSz = SetOctetString(pkcs7->contentSz, octetStr);
+    seqSz = SetSequence(pkcs7->contentSz + octetStrSz + sizeof(oid), seq);
+
+    if (outputSz < pkcs7->contentSz + octetStrSz + sizeof(oid) + seqSz)
+        return BUFFER_E;
+
+    XMEMCPY(output, seq, seqSz);
+    idx += seqSz;
+    XMEMCPY(output + idx, oid, sizeof(oid));
+    idx += sizeof(oid);
+    XMEMCPY(output + idx, octetStr, octetStrSz);
+    idx += octetStrSz;
+    XMEMCPY(output + idx, pkcs7->content, pkcs7->contentSz);
+    idx += pkcs7->contentSz;
+
+    return idx;
+}
+
+
+int PKCS7_EncodeSignedData(PKCS7* pkcs7, byte* output, word32 outputSz)
+{
+    (void)pkcs7;
+    (void)output;
+    (void)outputSz;
+    return 0;
+}
+
+
+int PKCS7_EncodeEnvelopeData(PKCS7* pkcs7, byte* output, word32 outputSz)
+{
+    (void)pkcs7;
+    (void)output;
+    (void)outputSz;
+    return 0;
+}
+
 
 #else  /* HAVE_PKCS7 */
 
