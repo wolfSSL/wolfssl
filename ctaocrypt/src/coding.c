@@ -147,15 +147,21 @@ const byte base64Encode[] = { 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J',
                             };
 
 
-/* porting assistance from yaSSL by Raphael HUCK */
-int Base64_Encode(const byte* in, word32 inLen, byte* out, word32* outLen)
+/* internal worker, handles both escaped and normal line endings */
+static int DoBase64_Encode(const byte* in, word32 inLen, byte* out,
+                           word32* outLen, int escaped)
 {
     word32 i = 0,
            j = 0,
            n = 0;   /* new line counter */
 
     word32 outSz = (inLen + 3 - 1) / 3 * 4;
-    outSz += (outSz + PEM_LINE_SZ - 1) / PEM_LINE_SZ;  /* new lines */
+    word32 addSz = (outSz + PEM_LINE_SZ - 1) / PEM_LINE_SZ;  /* new lines */
+
+    if (escaped)
+        addSz *= 3;   /* instead of just \n, we're doing %0A triplet */
+
+    outSz += addSz;
 
     if (outSz > *outLen) return BAD_FUNC_ARG;
     
@@ -178,8 +184,15 @@ int Base64_Encode(const byte* in, word32 inLen, byte* out, word32* outLen)
 
         inLen -= 3;
 
-        if ((++n % (PEM_LINE_SZ / 4)) == 0 && inLen)
-            out[i++] = '\n';
+        if ((++n % (PEM_LINE_SZ / 4)) == 0 && inLen) {
+            if (escaped) {
+                out[i++] = '%';
+                out[i++] = '0';
+                out[i++] = 'A';
+            }
+            else 
+                out[i++] = '\n';
+        }
     }
 
     /* last integral */
@@ -199,12 +212,32 @@ int Base64_Encode(const byte* in, word32 inLen, byte* out, word32* outLen)
         out[i++] = PAD;
     } 
 
-    out[i++] = '\n';
+    if (escaped) {
+        out[i++] = '%';
+        out[i++] = '0';
+        out[i++] = 'A';
+    }
+    else
+        out[i++] = '\n';
     if (i != outSz)
         return ASN_INPUT_E; 
     *outLen = outSz;
 
     return 0; 
+}
+
+
+/* Base64 Encode, PEM style, with \n line endings */
+int Base64_Encode(const byte* in, word32 inLen, byte* out, word32* outLen)
+{
+    return DoBase64_Encode(in, inLen, out, outLen, 0);
+}
+
+
+/* Base64 Encode, with %0A esacped line endings instead of \n */
+int Base64_EncodeEsc(const byte* in, word32 inLen, byte* out, word32* outLen)
+{
+    return DoBase64_Encode(in, inLen, out, outLen, 1);
 }
 
 
