@@ -80,10 +80,6 @@ typedef struct PKCS7 {
 } PKCS7;
 
 
-CYASSL_API int Pkcs7_encrypt(const byte* certs, word32 certSz, byte* data,
-                             word32 dataSz, int cipher, byte* out,
-                             word32* outSz, word32 flags);
-
 CYASSL_LOCAL int SetContentType(int pkcs7TypeOID, byte* output);
 CYASSL_LOCAL int CreateRecipientInfo(const byte* cert, word32 certSz,
                                      int keyEncAlgo, int blockKeySz,
