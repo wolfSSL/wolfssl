@@ -1272,6 +1272,73 @@ static int TLSX_EllipticCurve_Parse(CYASSL* ssl, byte* input, word16 length,
     return 0;
 }
 
+int TLSX_ValidateEllipticCurves(CYASSL* ssl, byte first, byte second) {
+    TLSX*          extension = (first == ECC_BYTE)
+                             ? TLSX_Find(ssl->extensions, ELLIPTIC_CURVES)
+                             : NULL;
+    EllipticCurve* curve     = NULL;
+    word32         oid       = 0;
+    word16         octets    = 0; /* acording to 'ecc_set_type ecc_sets[];' */
+
+    if (!extension)
+        return 1; /* no suite restriction */
+
+    for (curve = extension->data; curve; curve = curve->next) {
+        switch (curve->name) {
+            case CYASSL_ECC_SECP160R1: oid = ECC_160R1; octets = 20; break;
+            case CYASSL_ECC_SECP192R1: oid = ECC_192R1; octets = 24; break;
+            case CYASSL_ECC_SECP224R1: oid = ECC_224R1; octets = 28; break;
+            case CYASSL_ECC_SECP256R1: oid = ECC_256R1; octets = 32; break;
+            case CYASSL_ECC_SECP384R1: oid = ECC_384R1; octets = 48; break;
+            case CYASSL_ECC_SECP521R1: oid = ECC_521R1; octets = 66; break;
+        }
+    }
+
+    /* ECDSA */
+    switch (second) {
+        case TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA:
+        case TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA:
+        case TLS_ECDHE_ECDSA_WITH_RC4_128_SHA:
+        case TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA:
+        case TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256:
+        case TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384:
+        case TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA:
+        case TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA:
+        case TLS_ECDH_ECDSA_WITH_RC4_128_SHA:
+        case TLS_ECDH_ECDSA_WITH_3DES_EDE_CBC_SHA:
+        case TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA256:
+        case TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA384:
+            if (ssl->pkCurveOID != oid)
+                return 0;
+    }
+
+    switch (second) {
+        /* ECDHE */
+#ifndef NO_RSA
+        case TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA:
+        case TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA:
+        case TLS_ECDHE_RSA_WITH_RC4_128_SHA:
+        case TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA:
+        case TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256:
+        case TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384:
+#endif
+        case TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA:
+        case TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA:
+        case TLS_ECDHE_ECDSA_WITH_RC4_128_SHA:
+        case TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA:
+        case TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256:
+        case TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384:
+            if (ssl->eccTempKeySz != octets)
+                return 0;
+
+        /* ECDH */
+        default:
+            ; /* not sure how to check yet... */
+    }
+
+    return 1;
+}
+
 #endif /* NO_CYASSL_SERVER */
 
 int TLSX_UseEllipticCurve(TLSX** extensions, word16 name)
@@ -1283,11 +1350,18 @@ int TLSX_UseEllipticCurve(TLSX** extensions, word16 name)
     if (extensions == NULL)
         return BAD_FUNC_ARG;
 
-    if ( name != CYASSL_ECC_SECP160R1 &&
-         name != CYASSL_ECC_SECP192R1 &&
-         name != CYASSL_ECC_SECP224R1 &&
-        (name  < CYASSL_ECC_SECP256R1 || name > CYASSL_ECC_SECP521R1))
-        return BAD_FUNC_ARG;
+    switch (name) {
+        case CYASSL_ECC_SECP160R1:
+        case CYASSL_ECC_SECP192R1:
+        case CYASSL_ECC_SECP224R1:
+        case CYASSL_ECC_SECP256R1:
+        case CYASSL_ECC_SECP384R1:
+        case CYASSL_ECC_SECP521R1:
+            break;
+
+        default:
+            return BAD_FUNC_ARG;
+    }
 
     if ((ret = TLSX_EllipticCurve_Append(&curve, name)) != 0)
         return ret;

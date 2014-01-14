@@ -1187,7 +1187,12 @@ typedef struct EllipticCurve {
 
 CYASSL_LOCAL int TLSX_UseEllipticCurve(TLSX** extensions, word16 name);
 
+#ifndef NO_CYASSL_SERVER
+CYASSL_LOCAL int TLSX_ValidateEllipticCurves(CYASSL* ssl, byte first,
+                                                                   byte second);
 #endif
+
+#endif /* HAVE_ELLIPTIC_CURVES */
 
 #endif /* HAVE_TLS_EXTENSIONS */
 
