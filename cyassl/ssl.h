@@ -973,6 +973,8 @@ CYASSL_API int CyaSSL_GetObjectSize(void);  /* object size based on build */
 CYASSL_API int CyaSSL_SetVersion(CYASSL* ssl, int version);
 CYASSL_API int CyaSSL_KeyPemToDer(const unsigned char*, int sz, unsigned char*,
                                   int, const char*);
+CYASSL_API int CyaSSL_CertPemToDer(const unsigned char*, int sz, unsigned char*,
+                                   int, int);
 
 typedef void (*CallbackCACache)(unsigned char* der, int sz, int type);
 typedef void (*CbMissingCRL)(const char* url);
