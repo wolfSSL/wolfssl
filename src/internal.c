@@ -1400,6 +1400,7 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
 
 #ifdef HAVE_ECC
     ssl->eccTempKeySz = ctx->eccTempKeySz;
+    ssl->pkCurveOID = ctx->pkCurveOID;
     ssl->peerEccKeyPresent = 0;
     ssl->peerEccDsaKeyPresent = 0;
     ssl->eccDsaKeyPresent = 0;

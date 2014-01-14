@@ -1230,6 +1230,7 @@ struct CYASSL_CTX {
     word32          timeout;            /* session timeout */
 #ifdef HAVE_ECC
     word16          eccTempKeySz;       /* in octets 20 - 66 */
+    word32          pkCurveOID;         /* curve Ecc_Sum */
 #endif
 #ifndef NO_PSK
     byte        havePSK;                /* psk key set by user */
@@ -1849,6 +1850,7 @@ struct CYASSL {
     ecc_key*        eccTempKey;              /* private ECDHE key */
     ecc_key*        eccDsaKey;               /* private ECDSA key */
     word16          eccTempKeySz;            /* in octets 20 - 66 */
+    word32          pkCurveOID;              /* curve Ecc_Sum     */
     byte            peerEccKeyPresent;
     byte            peerEccDsaKeyPresent;
     byte            eccTempKeyPresent;

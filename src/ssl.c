@@ -2137,6 +2137,13 @@ int CyaSSL_Init(void)
                     break;
             }
 
+#ifdef HAVE_ECC
+            if (ctx)
+                ctx->pkCurveOID = cert.pkCurveOID;
+            if (ssl)
+                ssl->pkCurveOID = cert.pkCurveOID;
+#endif
+
             FreeDecodedCert(&cert);
         }
 

@@ -1522,7 +1522,6 @@ static int GetKey(DecodedCert* cert)
     #ifdef HAVE_ECC
         case ECDSAk:
         {
-            word32 oid = 0;
             int    oidSz = 0;
             byte   b = cert->source[cert->srcIdx++];
         
@@ -1533,12 +1532,10 @@ static int GetKey(DecodedCert* cert)
                 return ASN_PARSE_E;
 
             while(oidSz--)
-                oid += cert->source[cert->srcIdx++];
-            if (CheckCurve(oid) < 0)
+                cert->pkCurveOID += cert->source[cert->srcIdx++];
+
+            if (CheckCurve(cert->pkCurveOID) < 0)
                 return ECC_CURVE_OID_E;
-            #ifdef OPENSSL_EXTRA
-                cert->pkCurveOID = oid;
-            #endif /* OPENSSL_EXTRA */
 
             /* key header */
             b = cert->source[cert->srcIdx++];
