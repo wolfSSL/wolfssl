@@ -4125,7 +4125,7 @@ int pkcs7_test(void)
             outSz = ret;
 
         /* write PKCS#7 to output file for more testing */
-        pkcs7File = fopen("./pkcs7test.der", "wb");
+        pkcs7File = fopen("./pkcs7signedData.der", "wb");
         if (!pkcs7File)
             return -43;
         ret = (int)fwrite(out, outSz, 1, pkcs7File);

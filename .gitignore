@@ -54,8 +54,8 @@ key.der
 key.pem
 certreq.der
 certreq.pem
-pkcs7test.der
-pkcs7test.pem
+pkcs7signedData.der
+pkcs7envelopedData.der
 diff
 sslSniffer/sslSnifferTest/tracefile.txt
 *.gz

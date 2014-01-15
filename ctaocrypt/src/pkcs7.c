@@ -317,7 +317,7 @@ int PKCS7_EncodeSignedData(PKCS7* pkcs7, byte* output, word32 outputSz)
     byte* flatSignedAttribs = NULL;
     word32 flatSignedAttribsSz = 0;
     word32 innerOidSz = sizeof(innerOid);
-    word32 outerOidSz = sizeof(outerOidSz);
+    word32 outerOidSz = sizeof(outerOid);
 
     XMEMSET(&esd, 0, sizeof(esd));
     InitSha(&esd.sha);
