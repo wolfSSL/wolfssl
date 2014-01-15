@@ -316,6 +316,8 @@ int PKCS7_EncodeSignedData(PKCS7* pkcs7, byte* output, word32 outputSz)
     int idx = 0;
     byte* flatSignedAttribs = NULL;
     word32 flatSignedAttribsSz = 0;
+    word32 innerOidSz = sizeof(innerOid);
+    word32 outerOidSz = sizeof(outerOidSz);
 
     XMEMSET(&esd, 0, sizeof(esd));
     InitSha(&esd.sha);
@@ -332,7 +334,7 @@ int PKCS7_EncodeSignedData(PKCS7* pkcs7, byte* output, word32 outputSz)
     esd.innerContSeqSz = SetTagged(0, esd.innerOctetsSz + pkcs7->contentSz,
                                 esd.innerContSeq);
     esd.contentInfoSeqSz = SetSequence(pkcs7->contentSz + esd.innerOctetsSz +
-                                    sizeof(innerOid) + esd.innerContSeqSz,
+                                    innerOidSz + esd.innerContSeqSz,
                                     esd.contentInfoSeq);
 
     esd.issuerSnSz = SetSerialNumber(pkcs7->issuerSn, pkcs7->issuerSnSz,
@@ -447,12 +449,12 @@ int PKCS7_EncodeSignedData(PKCS7* pkcs7, byte* output, word32 outputSz)
     totalSz = esd.versionSz + esd.singleDigAlgoIdSz + esd.digAlgoIdSetSz +
               esd.contentInfoSeqSz + esd.certsSetSz + pkcs7->singleCertSz +
               esd.innerOctetsSz + esd.innerContSeqSz +
-              sizeof(innerOid) + pkcs7->contentSz +
+              innerOidSz + pkcs7->contentSz +
               signerInfoSz;
     esd.innerSeqSz = SetSequence(totalSz, esd.innerSeq);
     totalSz += esd.innerSeqSz;
     esd.outerContentSz = SetTagged(0, totalSz, esd.outerContent);
-    totalSz += esd.outerContentSz + sizeof(outerOid);
+    totalSz += esd.outerContentSz + outerOidSz;
     esd.outerSeqSz = SetSequence(totalSz, esd.outerSeq);
     totalSz += esd.outerSeqSz;
 
@@ -462,8 +464,8 @@ int PKCS7_EncodeSignedData(PKCS7* pkcs7, byte* output, word32 outputSz)
     idx = 0;
     XMEMCPY(output + idx, esd.outerSeq, esd.outerSeqSz);
     idx += esd.outerSeqSz;
-    XMEMCPY(output + idx, outerOid, sizeof(outerOid));
-    idx += sizeof(outerOid);
+    XMEMCPY(output + idx, outerOid, outerOidSz);
+    idx += outerOidSz;
     XMEMCPY(output + idx, esd.outerContent, esd.outerContentSz);
     idx += esd.outerContentSz;
     XMEMCPY(output + idx, esd.innerSeq, esd.innerSeqSz);
@@ -476,8 +478,8 @@ int PKCS7_EncodeSignedData(PKCS7* pkcs7, byte* output, word32 outputSz)
     idx += esd.singleDigAlgoIdSz;
     XMEMCPY(output + idx, esd.contentInfoSeq, esd.contentInfoSeqSz);
     idx += esd.contentInfoSeqSz;
-    XMEMCPY(output + idx, innerOid, sizeof(innerOid));
-    idx += sizeof(innerOid);
+    XMEMCPY(output + idx, innerOid, innerOidSz);
+    idx += innerOidSz;
     XMEMCPY(output + idx, esd.innerContSeq, esd.innerContSeqSz);
     idx += esd.innerContSeqSz;
     XMEMCPY(output + idx, esd.innerOctets, esd.innerOctetsSz);
