@@ -61,6 +61,9 @@
 #ifdef HAVE_LIBZ
     #include <cyassl/ctaocrypt/compress.h>
 #endif
+#ifdef HAVE_PKCS7
+    #include <cyassl/ctaocrypt/pkcs7.h>
+#endif
 
 #ifdef _MSC_VER
     /* 4996 warning to use MS extensions e.g., strcpy_s instead of strncpy */
@@ -173,6 +176,9 @@ int pbkdf2_test(void);
 #endif
 #ifdef HAVE_LIBZ
     int compress_test(void);
+#endif
+#ifdef HAVE_PKCS7
+    int pkcs7_test(void);
 #endif
 
 
@@ -456,6 +462,13 @@ void ctaocrypt_test(void* args)
         err_sys("COMPRESS test failed!\n", ret);
     else
         printf( "COMPRESS test passed!\n");
+#endif
+
+#ifdef HAVE_PKCS7
+    if ( (ret = pkcs7_test()) != 0)
+        err_sys("PKCS7    test failed!\n", ret);
+    else
+        printf( "PKCS7    test passed!\n");
 #endif
 
     ((func_args*)args)->return_code = ret;
@@ -4008,5 +4021,98 @@ int compress_test(void)
 }
 
 #endif /* HAVE_LIBZ */
+
+#ifdef HAVE_PKCS7
+
+int pkcs7_test(void)
+{
+    int cipher = DES3b;
+    int ret, envelopedSz, decodedSz;
+    PKCS7 pkcs7;
+    byte* cert;
+    byte* privKey;
+    byte  enveloped[2048];
+    byte  decoded[2048];
+
+    size_t certSz;
+    size_t privKeySz;
+    FILE*  certFile;
+    FILE*  keyFile;
+    FILE*  pkcs7File;
+    const char* pkcs7OutFile = "pkcs7envelopedData.der";
+
+    const byte data[] = { /* Hello World */
+        0x48,0x65,0x6c,0x6c,0x6f,0x20,0x57,0x6f,
+        0x72,0x6c,0x64
+    };
+
+    /* read client cert and key in DER format */
+    cert = (byte*)malloc(FOURK_BUF);
+    if (cert == NULL)
+        return -201;
+
+    privKey = (byte*)malloc(FOURK_BUF);
+    if (privKey == NULL)
+        return -202;
+
+    certFile = fopen(clientCert, "rb");
+    if (!certFile)
+        err_sys("can't open ./certs/client-cert.der, "
+                "Please run from CyaSSL home dir", -42);
+
+    certSz = fread(cert, 1, FOURK_BUF, certFile);
+    fclose(certFile);
+
+    keyFile = fopen(clientKey, "rb");
+    if (!keyFile)
+        err_sys("can't open ./certs/client-key.der, "
+                "Please run from CyaSSL home dir", -43);
+
+    privKeySz = fread(privKey, 1, FOURK_BUF, keyFile);
+    fclose(keyFile);
+
+    PKCS7_InitWithCert(&pkcs7, cert, (word32)certSz);
+    pkcs7.content     = (byte*)data;
+    pkcs7.contentSz   = (word32)sizeof(data);
+    pkcs7.contentOID  = DATA;
+    pkcs7.encryptOID  = cipher;
+    pkcs7.privateKey  = privKey;
+    pkcs7.privKeySize = (word32)privKeySz;
+
+    /* encode envelopedData */
+    envelopedSz = PKCS7_EncodeEnvelopeData(&pkcs7, enveloped,
+                                           sizeof(enveloped));
+    if (envelopedSz <= 0)
+        return -203;
+
+    /* decode envelopedData */
+    decodedSz = PKCS7_DecodeEnvelopedData(&pkcs7, enveloped, envelopedSz,
+                                          decoded, sizeof(decoded));
+    if (decodedSz <= 0)
+        return -204;
+
+    /* test decode result */
+    if (memcmp(decoded, data, sizeof(data)) != 0) {
+        return -205;
+    }
+
+    /* output pkcs7 envelopedData for external testing */
+    pkcs7File = fopen(pkcs7OutFile, "wb");
+    if (!pkcs7File)
+        return -206;
+
+    ret = (int)fwrite(enveloped, envelopedSz, 1, pkcs7File);
+    fclose(pkcs7File);
+
+    free(cert);
+    free(privKey);
+
+    if (ret > 0)
+        return 0;
+
+    return ret;
+}
+
+#endif /* HAVE_PKCS7 */
 
 #endif /* NO_CRYPT_TEST */
