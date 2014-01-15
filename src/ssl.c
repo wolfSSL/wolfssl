@@ -1059,6 +1059,54 @@ int CyaSSL_CertManagerUnloadCAs(CYASSL_CERT_MANAGER* cm)
 }
 
 
+/* Return bytes written to buff or < 0 for error */
+int CyaSSL_CertPemToDer(const unsigned char* pem, int pemSz,
+                        unsigned char* buff, int buffSz,
+                        int type)
+{
+    EncryptedInfo info;
+    int           eccKey = 0;
+    int           ret;
+    buffer        der;
+
+    CYASSL_ENTER("CyaSSL_CertPemToDer");
+
+    if (pem == NULL || buff == NULL || buffSz <= 0) {
+        CYASSL_MSG("Bad pem der args"); 
+        return BAD_FUNC_ARG;
+    }
+
+    if (type != CERT_TYPE && type != CA_TYPE && type != CERTREQ_TYPE) {
+        CYASSL_MSG("Bad cert type"); 
+        return BAD_FUNC_ARG;
+    }
+
+    info.set       = 0;
+    info.ctx      = NULL;
+    info.consumed = 0;
+    der.buffer    = NULL;
+
+    ret = PemToDer(pem, pemSz, type, &der, NULL, &info, &eccKey);
+    if (ret < 0) {
+        CYASSL_MSG("Bad Pem To Der"); 
+    }
+    else {
+        if (der.length <= (word32)buffSz) {
+            XMEMCPY(buff, der.buffer, der.length);
+            ret = der.length;
+        }
+        else {
+            CYASSL_MSG("Bad der length");
+            ret = BAD_FUNC_ARG;
+        }
+    }
+
+    XFREE(der.buffer, NULL, DYNAMIC_TYPE_KEY);
+
+    return ret;
+}
+
+
 /* our KeyPemToDer password callback, password in userData */
 static INLINE int OurPasswordCb(char* passwd, int sz, int rw, void* userdata)
 {
@@ -1582,6 +1630,12 @@ int CyaSSL_Init(void)
             XSTRNCPY(footer, "-----END CERTIFICATE-----", sizeof(footer));
             dynamicType = (type == CA_TYPE) ? DYNAMIC_TYPE_CA :
                                               DYNAMIC_TYPE_CERT;
+        } else if (type == CERTREQ_TYPE) {
+            XSTRNCPY(header, "-----BEGIN CERTIFICATE REQUEST-----",
+                     sizeof(header));
+            XSTRNCPY(footer, "-----END CERTIFICATE REQUEST-----",
+                     sizeof(footer));
+            dynamicType = DYNAMIC_TYPE_KEY;
         } else if (type == DH_PARAM_TYPE) {
             XSTRNCPY(header, "-----BEGIN DH PARAMETERS-----", sizeof(header));
             XSTRNCPY(footer, "-----END DH PARAMETERS-----", sizeof(footer));

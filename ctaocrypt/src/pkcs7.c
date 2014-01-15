@@ -114,6 +114,33 @@ CYASSL_LOCAL int SetContentType(int pkcs7TypeOID, byte* output)
 
 }
 
+int GetContentType(const byte* input, word32* inOutIdx, word32* oid,
+                   word32 maxIdx)
+{
+    int length;
+    word32 i = *inOutIdx;
+    byte b;
+    *oid = 0;
+
+    CYASSL_ENTER("GetContentType");
+
+    b = input[i++];
+    if (b != ASN_OBJECT_ID)
+        return ASN_OBJECT_ID_E;
+
+    if (GetLength(input, &i, &length, maxIdx) < 0)
+        return ASN_PARSE_E;
+
+    while(length--) {
+        *oid += input[i];
+        i++;
+    }
+
+    *inOutIdx = i;
+
+    return 0;
+}
+
 
 int PKCS7_InitWithCert(PKCS7* pkcs7, byte* cert, word32 certSz)
 {
@@ -556,6 +583,8 @@ CYASSL_LOCAL int CreateRecipientInfo(const byte* cert, word32 certSz,
         return ALGO_ID_E;
 
     keyEncAlgSz = SetAlgoID(keyEncAlgo, keyAlgArray, keyType, 0);
+    if (keyEncAlgSz == 0)
+        return BAD_FUNC_ARG;
 
     /* EncryptedKey */
     InitRsaKey(&pubKey, 0);
@@ -642,6 +671,13 @@ int PKCS7_EncodeEnvelopeData(PKCS7* pkcs7, byte* output, word32 outputSz)
     byte contentEncAlgo[MAX_ALGO_SZ];
     byte encContentOctet[MAX_OCTET_STR_SZ];
 
+    if (pkcs7 == NULL || pkcs7->content == NULL || pkcs7->contentSz == 0 ||
+        pkcs7->encryptOID == 0 || pkcs7->singleCert == NULL)
+        return BAD_FUNC_ARG;
+
+    if (output == NULL || outputSz == 0)
+        return BAD_FUNC_ARG;
+
     switch (pkcs7->encryptOID) {
         case DESb:
             blockKeySz = DES_KEYLEN;
@@ -662,7 +698,7 @@ int PKCS7_EncodeEnvelopeData(PKCS7* pkcs7, byte* output, word32 outputSz)
     /* version */
     verSz = SetMyVersion(0, ver, 0);
 
-    /* generate random content enc key */
+    /* generate random content encryption key */
     InitRng(&rng);
     RNG_GenerateBlock(&rng, contentKeyPlain, blockKeySz);
 
@@ -680,8 +716,13 @@ int PKCS7_EncodeEnvelopeData(PKCS7* pkcs7, byte* output, word32 outputSz)
 
     /* EncryptedContentInfo */
     contentTypeSz = SetContentType(pkcs7->contentOID, contentType);
+    if (contentTypeSz == 0)
+        return BAD_FUNC_ARG;
+
     contentEncAlgoSz = SetAlgoID(pkcs7->encryptOID, contentEncAlgo,
                                  blkType, 0);
+    if (contentEncAlgoSz == 0)
+        return BAD_FUNC_ARG;
 
     /* allocate memory for encrypted content, pad if necessary */
     padSz = DES_BLOCK_SIZE - (pkcs7->contentSz % DES_BLOCK_SIZE);
@@ -696,7 +737,7 @@ int PKCS7_EncodeEnvelopeData(PKCS7* pkcs7, byte* output, word32 outputSz)
         dynamicFlag = 1;
 
         for (i = 0; i < padSz; i++) {
-            plain[pkcs7->contentSz + i + 1] = padSz;
+            plain[pkcs7->contentSz + i] = padSz;
         }
 
     } else {
@@ -711,16 +752,17 @@ int PKCS7_EncodeEnvelopeData(PKCS7* pkcs7, byte* output, word32 outputSz)
         return MEMORY_E;
     }
 
+    /* use NULL iv for now */
     byte tmpIv[blockKeySz];
+    XMEMSET(tmpIv, 0, sizeof(tmpIv));
+
     if (pkcs7->encryptOID == DESb) {
         Des des;
-        RNG_GenerateBlock(&rng, tmpIv, (word32)sizeof(tmpIv));
         Des_SetKey(&des, contentKeyPlain, tmpIv, DES_ENCRYPTION);
         Des_CbcEncrypt(&des, encryptedContent, plain, desOutSz);
 
     } else if (pkcs7->encryptOID == DES3b) {
         Des3 des3;
-        RNG_GenerateBlock(&rng, tmpIv, (word32)sizeof(tmpIv));
         Des3_SetKey(&des3, contentKeyPlain, tmpIv, DES_ENCRYPTION);
         Des3_CbcEncrypt(&des3, encryptedContent, plain, desOutSz);
     }
@@ -784,11 +826,228 @@ int PKCS7_EncodeEnvelopeData(PKCS7* pkcs7, byte* output, word32 outputSz)
 #ifdef NO_RC4
     FreeRng(&rng);
 #endif
+
+    XMEMSET(contentKeyPlain, 0, MAX_CONTENT_KEY_LEN);
+    XMEMSET(contentKeyEnc,   0, MAX_ENCRYPTED_KEY_SZ);
+
     if (dynamicFlag)
         XFREE(plain, NULL, DYNAMMIC_TYPE_TMP_BUFFER);
     XFREE(encryptedContent, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return idx;
+}
+
+CYASSL_API int PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* pkiMsg,
+                                         word32 pkiMsgSz, byte* output,
+                                         word32 outputSz)
+{
+    int recipFound = 0;
+    int ret, version, length;
+    word32 savedIdx = 0, idx = 0;
+    word32 contentType, encOID;
+    byte   issuerHash[SHA_DIGEST_SIZE];
+    mp_int serialNum;
+
+    DecodedCert decoded;
+
+    int encryptedKeySz, keySz;
+    byte tmpIv[DES3_KEYLEN];
+    byte encryptedKey[MAX_ENCRYPTED_KEY_SZ];
+    byte* decryptedKey = NULL;
+
+    RsaKey privKey;
+    int encryptedContentSz;
+    byte padLen;
+    byte* encryptedContent = NULL;
+
+    if (pkcs7 == NULL || pkcs7->singleCert == NULL ||
+        pkcs7->singleCertSz == 0 || pkcs7->privateKey == NULL ||
+        pkcs7->privKeySize == 0)
+        return BAD_FUNC_ARG;
+
+    if (pkiMsg == NULL || pkiMsgSz == 0 ||
+        output == NULL || outputSz == 0)
+        return BAD_FUNC_ARG;
+
+    /* parse recipient cert */
+    InitDecodedCert(&decoded, pkcs7->singleCert, pkcs7->singleCertSz, 0);
+    ret = ParseCert(&decoded, CA_TYPE, NO_VERIFY, 0);
+    if (ret < 0) {
+        FreeDecodedCert(&decoded);
+        return ret;
+    }
+
+    /* load private key */
+    InitRsaKey(&privKey, 0);
+    ret = RsaPrivateKeyDecode(pkcs7->privateKey, &idx, &privKey,
+                              pkcs7->privKeySize);
+    if (ret != 0) {
+        CYASSL_MSG("Failed to decode RSA private key");
+        return ret;
+    }
+
+    idx = 0;
+
+    /* read past ContentInfo, verify type */
+    if (GetSequence(pkiMsg, &idx, &length, pkiMsgSz) < 0)
+        return ASN_PARSE_E;
+
+    if (GetContentType(pkiMsg, &idx, &contentType, pkiMsgSz) < 0)
+        return ASN_PARSE_E;
+
+    if (contentType != ENVELOPED_DATA) {
+        CYASSL_MSG("PKCS#7 input not of type EnvelopedData");
+        return PKCS7_OID_E;
+    }
+
+    if (pkiMsg[idx++] != (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 0))
+        return ASN_PARSE_E;
+
+    if (GetLength(pkiMsg, &idx, &length, pkiMsgSz) < 0)
+        return ASN_PARSE_E;
+
+    /* remove EnvelopedData */
+    if (GetSequence(pkiMsg, &idx, &length, pkiMsgSz) < 0)
+        return ASN_PARSE_E;
+
+    if (GetMyVersion(pkiMsg, &idx, &version) < 0)
+        return ASN_PARSE_E;
+
+    if (version != 0) {
+        CYASSL_MSG("PKCS#7 envelopedData needs to be of version 0");
+        return ASN_VERSION_E;
+    }
+
+    /* walk through RecipientInfo set, find correct recipient */
+    if (GetSet(pkiMsg, &idx, &length, pkiMsgSz) < 0)
+        return ASN_PARSE_E;
+
+    savedIdx = idx;
+    recipFound = 0;
+
+    /* when looking for next recipient, use first sequence and version to
+     * indicate there is another, if not, move on */
+    while(recipFound == 0) {
+
+        /* remove RecipientInfo */
+        if (GetSequence(pkiMsg, &idx, &length, pkiMsgSz) < 0) {
+            if (recipFound == 0) {
+                return ASN_PARSE_E;
+            } else {
+                idx = savedIdx;
+                break;
+            }
+        }
+
+        if (GetMyVersion(pkiMsg, &idx, &version) < 0) {
+            if (recipFound == 0) {
+                return ASN_PARSE_E;
+            } else {
+                idx = savedIdx;
+                break;
+            }
+        }
+
+        if (version != 0)
+            return ASN_VERSION_E;
+
+        /* remove IssuerAndSerialNumber */
+        if (GetSequence(pkiMsg, &idx, &length, pkiMsgSz) < 0)
+            return ASN_PARSE_E;
+
+        if (GetNameHash(pkiMsg, &idx, issuerHash, pkiMsgSz) < 0)
+            return ASN_PARSE_E;
+
+        if (XMEMCMP(issuerHash, decoded.issuerHash, SHA_DIGEST_SIZE) == 0) {
+            recipFound = 1;
+        }
+
+        if (GetInt(&serialNum, pkiMsg, &idx, pkiMsgSz) < 0)
+            return ASN_PARSE_E;
+
+        if (GetAlgoId(pkiMsg, &idx, &encOID, pkiMsgSz) < 0)
+            return ASN_PARSE_E;
+
+        if (encOID != RSAk)
+            return ALGO_ID_E;
+
+        /* read encryptedKey */
+        if (pkiMsg[idx++] != ASN_OCTET_STRING)
+            return ASN_PARSE_E;
+
+        if (GetLength(pkiMsg, &idx, &encryptedKeySz, pkiMsgSz) < 0)
+            return ASN_PARSE_E;
+
+        if (recipFound == 1)
+            XMEMCPY(encryptedKey, &pkiMsg[idx], encryptedKeySz);
+        idx += encryptedKeySz;
+
+        /* update good idx */
+        savedIdx = idx;
+    }
+
+    if (recipFound == 0) {
+        CYASSL_MSG("No recipient found in envelopedData that matches input");
+        return PKCS7_RECIP_E;
+    }
+
+    /* remove EncryptedContentInfo */
+    if (GetSequence(pkiMsg, &idx, &length, pkiMsgSz) < 0)
+        return ASN_PARSE_E;
+
+    if (GetContentType(pkiMsg, &idx, &contentType, pkiMsgSz) < 0)
+        return ASN_PARSE_E;
+
+    if (GetAlgoId(pkiMsg, &idx, &encOID, pkiMsgSz) < 0)
+        return ASN_PARSE_E;
+
+    /* read encryptedContent */
+    if (pkiMsg[idx++] != ASN_OCTET_STRING)
+        return ASN_PARSE_E;
+
+    if (GetLength(pkiMsg, &idx, &encryptedContentSz, pkiMsgSz) < 0)
+        return ASN_PARSE_E;
+
+    encryptedContent = XMALLOC(encryptedContentSz, NULL,
+                               DYNAMIC_TYPE_TMP_BUFFER);
+
+    XMEMCPY(encryptedContent, &pkiMsg[idx], encryptedContentSz);
+
+    /* decrypt encryptedKey */
+    keySz = RsaPrivateDecryptInline(encryptedKey, encryptedKeySz,
+                                    &decryptedKey, &privKey);
+    if (keySz < 0)
+        return keySz;
+
+    /* decrypt encryptedContent, using NULL iv for now */
+    XMEMSET(tmpIv, 0, sizeof(tmpIv));
+
+    if (encOID == DESb) {
+        Des des;
+        Des_SetKey(&des, decryptedKey, tmpIv, DES_DECRYPTION);
+        Des_CbcDecrypt(&des, encryptedContent, encryptedContent,
+                       encryptedContentSz);
+    } else if (encOID == DES3b) {
+        Des3 des;
+        Des3_SetKey(&des, decryptedKey, tmpIv, DES_DECRYPTION);
+        Des3_CbcDecrypt(&des, encryptedContent, encryptedContent,
+                       encryptedContentSz);
+    } else {
+        CYASSL_MSG("Unsupported content encryption OID type");
+        return ALGO_ID_E;
+    }
+
+    padLen = encryptedContent[encryptedContentSz-1];
+
+    /* copy plaintext to output */
+    XMEMCPY(output, encryptedContent, encryptedContentSz - padLen);
+
+    /* free memory, zero out keys */
+    XMEMSET(encryptedKey, 0, MAX_ENCRYPTED_KEY_SZ);
+    XMEMSET(encryptedContent, 0, encryptedContentSz);
+    XFREE(encryptedContent, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return encryptedContentSz - padLen;
 }
 
 

@@ -4027,106 +4027,193 @@ int compress_test(void)
 int pkcs7_test(void)
 {
     int ret = 0;
-    byte* cert;
-    byte out[2048];
-    char data[] = "Hello World";
-    word32 dataSz, outSz;
-    PKCS7 msg;
-    RNG rng;
 
-    word32 certSz;
-    FILE* file;
-    FILE* pkcs7File;
-
-    byte transIdOid[] =
-                { 0x06, 0x0a, 0x60, 0x86, 0x48, 0x01, 0x86, 0xF8, 0x45, 0x01,
-                  0x09, 0x07 };
-    byte messageTypeOid[] =
-                { 0x06, 0x0a, 0x60, 0x86, 0x48, 0x01, 0x86, 0xF8, 0x45, 0x01,
-                  0x09, 0x02 };
-    byte senderNonceOid[] =
-                { 0x06, 0x0a, 0x60, 0x86, 0x48, 0x01, 0x86, 0xF8, 0x45, 0x01,
-                  0x09, 0x05 };
-    byte pkiStatusOid[] =
-                { 0x06, 0x0a, 0x60, 0x86, 0x48, 0x01, 0x86, 0xF8, 0x45, 0x01,
-                  0x09, 0x03 };
-    byte transId[(SHA_DIGEST_SIZE + 1) * 2 + 1];
-    byte messageType[] = { 0x13, 2, '1', '9' };
-    byte senderNonce[34];
-    byte pkiStatus[] = { 0x13, 1, '0' };
-
-    PKCS7Attrib attribs[] =
+    /* Test the PKCS7 Signed-Data */
     {
-        { transIdOid, sizeof(transIdOid),
-                        transId, sizeof(transId) - 1 }, /* take off the null */
-        { messageTypeOid, sizeof(messageTypeOid),
-                        messageType, sizeof(messageType) },
-        { senderNonceOid, sizeof(senderNonceOid),
-                        senderNonce, sizeof(senderNonce) },
-        { pkiStatusOid, sizeof(pkiStatusOid),
-                        pkiStatus, sizeof(pkiStatus) }
-    };
+        byte* cert;
+        byte out[2048];
+        char data[] = "Hello World";
+        word32 dataSz, outSz;
+        PKCS7 msg;
+        RNG rng;
 
-    dataSz = (word32) strlen(data);
-    outSz = sizeof(out);
+        word32 certSz;
+        FILE* file;
+        FILE* pkcs7File;
 
-    cert = (byte*)malloc(FOURK_BUF);
-    if (cert == NULL)
-        return -40;
+        byte transIdOid[] =
+                   { 0x06, 0x0a, 0x60, 0x86, 0x48, 0x01, 0x86, 0xF8, 0x45, 0x01,
+                     0x09, 0x07 };
+        byte messageTypeOid[] =
+                   { 0x06, 0x0a, 0x60, 0x86, 0x48, 0x01, 0x86, 0xF8, 0x45, 0x01,
+                     0x09, 0x02 };
+        byte senderNonceOid[] =
+                   { 0x06, 0x0a, 0x60, 0x86, 0x48, 0x01, 0x86, 0xF8, 0x45, 0x01,
+                     0x09, 0x05 };
+        byte pkiStatusOid[] =
+                   { 0x06, 0x0a, 0x60, 0x86, 0x48, 0x01, 0x86, 0xF8, 0x45, 0x01,
+                     0x09, 0x03 };
+        byte transId[(SHA_DIGEST_SIZE + 1) * 2 + 1];
+        byte messageType[] = { 0x13, 2, '1', '9' };
+        byte senderNonce[34];
+        byte pkiStatus[] = { 0x13, 1, '0' };
 
-    /* read in DER cert of recipient, into cert of size certSz */
-    file = fopen(clientCert, "rb");
+        PKCS7Attrib attribs[] =
+        {
+            { transIdOid, sizeof(transIdOid),
+                         transId, sizeof(transId) - 1 }, /* take off the null */
+            { messageTypeOid, sizeof(messageTypeOid),
+                         messageType, sizeof(messageType) },
+            { senderNonceOid, sizeof(senderNonceOid),
+                         senderNonce, sizeof(senderNonce) },
+            { pkiStatusOid, sizeof(pkiStatusOid),
+                         pkiStatus, sizeof(pkiStatus) }
+        };
 
-    if (!file)
-        err_sys("can't open ./certs/client-cert.der, "
-                "Please run from CyaSSL home dir", -40);
+        dataSz = (word32) strlen(data);
+        outSz = sizeof(out);
 
-    certSz = (word32)fread(cert, 1, FOURK_BUF, file);
-    fclose(file);
+        cert = (byte*)malloc(FOURK_BUF);
+        if (cert == NULL)
+            return -40;
 
-    ret = InitRng(&rng);
-    senderNonce[0] = 0x04;
-    senderNonce[1] = 0x20;
-    RNG_GenerateBlock(&rng, &senderNonce[2], 32);
+        /* read in DER cert of recipient, into cert of size certSz */
+        file = fopen(clientCert, "rb");
 
-    PKCS7_InitWithCert(&msg, cert, certSz);
-    msg.content = (byte*)data;
-    msg.contentSz = dataSz;
-    msg.hashOID = SHAh;
-    msg.encryptOID = RSAk;
-    msg.signedAttribs = attribs;
-    msg.signedAttribsSz = sizeof(attribs)/sizeof(PKCS7Attrib);
-    msg.rng = &rng;
-    {
-        Sha sha;
-        byte digest[SHA_DIGEST_SIZE];
-        int i,j;
+        if (!file)
+            err_sys("can't open ./certs/client-cert.der, "
+                    "Please run from CyaSSL home dir", -40);
 
-        transId[0] = 0x13;
-        transId[1] = SHA_DIGEST_SIZE * 2;
+        certSz = (word32)fread(cert, 1, FOURK_BUF, file);
+        fclose(file);
 
-        InitSha(&sha);
-        ShaUpdate(&sha, msg.publicKey, msg.publicKeySz);
-        ShaFinal(&sha, digest);
+        ret = InitRng(&rng);
+        senderNonce[0] = 0x04;
+        senderNonce[1] = 0x20;
+        RNG_GenerateBlock(&rng, &senderNonce[2], 32);
 
-        for (i = 0, j = 2; i < SHA_DIGEST_SIZE; i++, j += 2) {
-            snprintf((char*)&transId[j], 3, "%02x", digest[i]);
+        PKCS7_InitWithCert(&msg, cert, certSz);
+        msg.content = (byte*)data;
+        msg.contentSz = dataSz;
+        msg.hashOID = SHAh;
+        msg.encryptOID = RSAk;
+        msg.signedAttribs = attribs;
+        msg.signedAttribsSz = sizeof(attribs)/sizeof(PKCS7Attrib);
+        msg.rng = &rng;
+        {
+            Sha sha;
+            byte digest[SHA_DIGEST_SIZE];
+            int i,j;
+
+            transId[0] = 0x13;
+            transId[1] = SHA_DIGEST_SIZE * 2;
+
+            InitSha(&sha);
+            ShaUpdate(&sha, msg.publicKey, msg.publicKeySz);
+            ShaFinal(&sha, digest);
+
+            for (i = 0, j = 2; i < SHA_DIGEST_SIZE; i++, j += 2) {
+                snprintf((char*)&transId[j], 3, "%02x", digest[i]);
+            }
         }
-    }
-    ret = PKCS7_EncodeSignedData(&msg, out, outSz);
-    if (ret < 0) {
-        printf("Pkcs7_encrypt failed\n");
-        return -42;
-    }
-    else
-        outSz = ret;
+        ret = PKCS7_EncodeSignedData(&msg, out, outSz);
+        if (ret < 0) {
+            printf("Pkcs7_encrypt failed\n");
+            return -42;
+        }
+        else
+            outSz = ret;
 
-    /* write PKCS#7 to output file for more testing */
-    pkcs7File = fopen("./pkcs7test.der", "wb");
-    if (!pkcs7File)
-        return -43;
-    ret = (int)fwrite(out, outSz, 1, pkcs7File);
-    fclose(pkcs7File);
+        /* write PKCS#7 to output file for more testing */
+        pkcs7File = fopen("./pkcs7test.der", "wb");
+        if (!pkcs7File)
+            return -43;
+        ret = (int)fwrite(out, outSz, 1, pkcs7File);
+        fclose(pkcs7File);
+    }
+    /* Test the PKCS7 Enveloped-Data */
+    {
+        int cipher = DES3b;
+        int envelopedSz, decodedSz;
+        PKCS7 pkcs7;
+        byte* cert;
+        byte* privKey;
+        byte  enveloped[2048];
+        byte  decoded[2048];
+
+        size_t certSz;
+        size_t privKeySz;
+        FILE*  certFile;
+        FILE*  keyFile;
+        FILE*  pkcs7File;
+        const char* pkcs7OutFile = "pkcs7envelopedData.der";
+
+        const byte data[] = { /* Hello World */
+            0x48,0x65,0x6c,0x6c,0x6f,0x20,0x57,0x6f,
+            0x72,0x6c,0x64
+        };
+
+        /* read client cert and key in DER format */
+        cert = (byte*)malloc(FOURK_BUF);
+        if (cert == NULL)
+            return -201;
+
+        privKey = (byte*)malloc(FOURK_BUF);
+        if (privKey == NULL)
+            return -202;
+
+        certFile = fopen(clientCert, "rb");
+        if (!certFile)
+            err_sys("can't open ./certs/client-cert.der, "
+                    "Please run from CyaSSL home dir", -42);
+
+        certSz = fread(cert, 1, FOURK_BUF, certFile);
+        fclose(certFile);
+
+        keyFile = fopen(clientKey, "rb");
+        if (!keyFile)
+            err_sys("can't open ./certs/client-key.der, "
+                    "Please run from CyaSSL home dir", -43);
+
+        privKeySz = fread(privKey, 1, FOURK_BUF, keyFile);
+        fclose(keyFile);
+
+        PKCS7_InitWithCert(&pkcs7, cert, (word32)certSz);
+        pkcs7.content     = (byte*)data;
+        pkcs7.contentSz   = (word32)sizeof(data);
+        pkcs7.contentOID  = DATA;
+        pkcs7.encryptOID  = cipher;
+        pkcs7.privateKey  = privKey;
+        pkcs7.privKeySize = (word32)privKeySz;
+
+        /* encode envelopedData */
+        envelopedSz = PKCS7_EncodeEnvelopeData(&pkcs7, enveloped,
+                                               sizeof(enveloped));
+        if (envelopedSz <= 0)
+            return -203;
+
+        /* decode envelopedData */
+        decodedSz = PKCS7_DecodeEnvelopedData(&pkcs7, enveloped, envelopedSz,
+                                              decoded, sizeof(decoded));
+        if (decodedSz <= 0)
+            return -204;
+
+        /* test decode result */
+        if (memcmp(decoded, data, sizeof(data)) != 0) {
+            return -205;
+        }
+
+        /* output pkcs7 envelopedData for external testing */
+        pkcs7File = fopen(pkcs7OutFile, "wb");
+        if (!pkcs7File)
+            return -206;
+
+        ret = (int)fwrite(enveloped, envelopedSz, 1, pkcs7File);
+        fclose(pkcs7File);
+
+        free(cert);
+        free(privKey);
+    }
 
     if (ret > 0)
         return 0;

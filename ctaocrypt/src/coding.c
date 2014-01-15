@@ -147,10 +147,87 @@ const byte base64Encode[] = { 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J',
                             };
 
 
+/* make sure *i (idx) won't exceed max, store and possibly escape to out,
+ * raw means use e w/o decode,  0 on success */
+static int Escape(int escaped, byte e, byte* out, word32* i, word32 max,
+                  int raw)
+{
+    int    doEscape = 0;
+    word32 needed = 1;
+    word32 idx = *i;
+
+    byte basic;
+    byte plus    = 0;
+    byte equals  = 0;
+    byte newline = 0;
+
+    if (raw)
+        basic = e;
+    else
+        basic = base64Encode[e];
+
+    /* check whether to escape */
+    if (escaped) {
+        switch ((char)basic) {
+            case '+' :
+                plus     = 1;
+                doEscape = 1;
+                needed  += 2;
+                break;
+            case '=' :
+                equals   = 1;
+                doEscape = 1;
+                needed  += 2;
+                break;
+            case '\n' :
+                newline  = 1;
+                doEscape = 1;
+                needed  += 2;
+                break;
+            default:
+                /* do nothing */
+                break;
+        }
+    }
+
+    /* check size */
+    if ( (idx+needed) > max) {
+        CYASSL_MSG("Escape buffer max too small");
+        return BUFFER_E;
+    }
+
+    /* store it */
+    if (doEscape == 0) {
+        out[idx++] = basic;
+    }
+    else {
+        out[idx++] = '%';  /* start escape */
+
+        if (plus) {
+            out[idx++] = '2';
+            out[idx++] = 'B';
+        }
+        else if (equals) {
+            out[idx++] = '3';
+            out[idx++] = 'D';
+        }
+        else if (newline) {
+            out[idx++] = '0';
+            out[idx++] = 'A';
+        }
+
+    }
+    *i = idx;
+
+    return 0;
+}
+
+
 /* internal worker, handles both escaped and normal line endings */
 static int DoBase64_Encode(const byte* in, word32 inLen, byte* out,
                            word32* outLen, int escaped)
 {
+    int    ret = 0;
     word32 i = 0,
            j = 0,
            n = 0;   /* new line counter */
@@ -163,6 +240,8 @@ static int DoBase64_Encode(const byte* in, word32 inLen, byte* out,
 
     outSz += addSz;
 
+    /* if escaped we can't predetermine size for one pass encoding, but
+     * make sure we have enough if no escapes are in input */
     if (outSz > *outLen) return BAD_FUNC_ARG;
     
     while (inLen > 2) {
@@ -177,26 +256,25 @@ static int DoBase64_Encode(const byte* in, word32 inLen, byte* out,
         byte e4 = b3 & 0x3F;
 
         /* store */
-        out[i++] = base64Encode[e1];
-        out[i++] = base64Encode[e2];
-        out[i++] = base64Encode[e3];
-        out[i++] = base64Encode[e4];
+        ret = Escape(escaped, e1, out, &i, *outLen, 0);
+        if (ret != 0) break;
+        ret = Escape(escaped, e2, out, &i, *outLen, 0);
+        if (ret != 0) break;
+        ret = Escape(escaped, e3, out, &i, *outLen, 0);
+        if (ret != 0) break;
+        ret = Escape(escaped, e4, out, &i, *outLen, 0);
+        if (ret != 0) break;
 
         inLen -= 3;
 
         if ((++n % (PEM_LINE_SZ / 4)) == 0 && inLen) {
-            if (escaped) {
-                out[i++] = '%';
-                out[i++] = '0';
-                out[i++] = 'A';
-            }
-            else 
-                out[i++] = '\n';
+            ret = Escape(escaped, '\n', out, &i, *outLen, 1);
+            if (ret != 0) break;
         }
     }
 
     /* last integral */
-    if (inLen) {
+    if (inLen && ret == 0) {
         int twoBytes = (inLen == 2);
 
         byte b1 = in[j++];
@@ -206,24 +284,29 @@ static int DoBase64_Encode(const byte* in, word32 inLen, byte* out,
         byte e2 = ((b1 & 0x3) << 4) | (b2 >> 4);
         byte e3 =  (b2 & 0xF) << 2;
 
-        out[i++] = base64Encode[e1];
-        out[i++] = base64Encode[e2];
-        out[i++] = (twoBytes) ? base64Encode[e3] : PAD;
-        out[i++] = PAD;
+        ret = Escape(escaped, e1, out, &i, *outLen, 0);
+        if (ret == 0) 
+            ret = Escape(escaped, e2, out, &i, *outLen, 0);
+        if (ret == 0) {
+            /* third */
+            if (twoBytes)
+                ret = Escape(escaped, e3, out, &i, *outLen, 0);
+            else 
+                ret = Escape(escaped, '=', out, &i, *outLen, 1);
+        }
+        /* fourth always pad */
+        if (ret == 0)
+            ret = Escape(escaped, '=', out, &i, *outLen, 1);
     } 
 
-    if (escaped) {
-        out[i++] = '%';
-        out[i++] = '0';
-        out[i++] = 'A';
-    }
-    else
-        out[i++] = '\n';
-    if (i != outSz)
-        return ASN_INPUT_E; 
-    *outLen = outSz;
+    if (ret == 0) 
+        ret = Escape(escaped, '\n', out, &i, *outLen, 1);
 
-    return 0; 
+    if (i != outSz && escaped == 0 && ret == 0)
+        return ASN_INPUT_E; 
+
+    *outLen = i;
+    return ret; 
 }
 
 
