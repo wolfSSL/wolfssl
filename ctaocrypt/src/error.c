@@ -335,6 +335,14 @@ void CTaoCryptErrorString(int error, char* buffer)
         XSTRNCPY(buffer, "Setting cert request attributes error", max);
         break;
 
+    case PKCS7_OID_E:
+        XSTRNCPY(buffer, "PKCS#7 error: mismatched OID value", max);
+        break;
+
+    case PKCS7_RECIP_E:
+        XSTRNCPY(buffer, "PKCS#7 error: no matching recipient found", max);
+        break;
+
     default:
         XSTRNCPY(buffer, "unknown error number", max);
 
