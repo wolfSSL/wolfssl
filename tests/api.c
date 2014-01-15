@@ -440,6 +440,8 @@ void test_CyaSSL_UseSNI(void)
     CyaSSL_free(ssl);
     CyaSSL_CTX_free(ctx);
 
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
+
     /* Testing success case at ctx */
     client_callbacks.ctx_ready = server_callbacks.ctx_ready = use_SNI_at_ctx;
     server_callbacks.on_result = verify_SNI_real_matching;
@@ -472,6 +474,8 @@ void test_CyaSSL_UseSNI(void)
     server_callbacks.on_result = verify_SNI_fake_matching;
 
     test_CyaSSL_client_server(&client_callbacks, &server_callbacks);
+
+#endif
 
     test_CyaSSL_SNI_GetFromBuffer();
 }
