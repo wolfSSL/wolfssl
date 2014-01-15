@@ -439,8 +439,8 @@ CYASSL_LOCAL int GetLength(const byte* input, word32* inOutIdx, int* len,
 }
 
 
-static int GetSequence(const byte* input, word32* inOutIdx, int* len,
-                       word32 maxIdx)
+CYASSL_LOCAL int GetSequence(const byte* input, word32* inOutIdx, int* len,
+                           word32 maxIdx)
 {
     int    length = -1;
     word32 idx    = *inOutIdx;
@@ -456,7 +456,8 @@ static int GetSequence(const byte* input, word32* inOutIdx, int* len,
 }
 
 
-static int GetSet(const byte* input, word32* inOutIdx, int* len, word32 maxIdx)
+CYASSL_LOCAL int GetSet(const byte* input, word32* inOutIdx, int* len,
+                        word32 maxIdx)
 {
     int    length = -1;
     word32 idx    = *inOutIdx;
@@ -473,7 +474,7 @@ static int GetSet(const byte* input, word32* inOutIdx, int* len, word32 maxIdx)
 
 
 /* winodws header clash for WinCE using GetVersion */
-static int GetMyVersion(const byte* input, word32* inOutIdx, int* version)
+CYASSL_LOCAL int GetMyVersion(const byte* input, word32* inOutIdx, int* version)
 {
     word32 idx = *inOutIdx;
 
@@ -537,7 +538,7 @@ static int GetExplicitVersion(const byte* input, word32* inOutIdx, int* version)
 }
 
 
-static int GetInt(mp_int* mpi, const byte* input, word32* inOutIdx,
+CYASSL_LOCAL int GetInt(mp_int* mpi, const byte* input, word32* inOutIdx,
                   word32 maxIdx)
 {
     word32 i = *inOutIdx;
@@ -593,7 +594,7 @@ static int GetObjectId(const byte* input, word32* inOutIdx, word32* oid,
 }
 
 
-static int GetAlgoId(const byte* input, word32* inOutIdx, word32* oid,
+CYASSL_LOCAL int GetAlgoId(const byte* input, word32* inOutIdx, word32* oid,
                      word32 maxIdx)
 {
     int    length;
@@ -6058,39 +6059,9 @@ int CompareOcspReqResp(OcspRequest* req, OcspResponse* resp)
 #endif
 
 
-#ifdef HAVE_CRL
-
-/* initialize decoded CRL */
-void InitDecodedCRL(DecodedCRL* dcrl)
-{
-    CYASSL_MSG("InitDecodedCRL");
-
-    dcrl->certBegin    = 0;
-    dcrl->sigIndex     = 0;
-    dcrl->sigLength    = 0;
-    dcrl->signatureOID = 0;
-    dcrl->certs        = NULL;
-    dcrl->totalCerts   = 0;
-}
-
-
-/* free decoded CRL resources */
-void FreeDecodedCRL(DecodedCRL* dcrl)
-{
-    RevokedCert* tmp = dcrl->certs;
-
-    CYASSL_MSG("FreeDecodedCRL");
-
-    while(tmp) {
-        RevokedCert* next = tmp->next;
-        XFREE(tmp, NULL, DYNAMIC_TYPE_REVOKED);
-        tmp = next;
-    }
-}
-
-
 /* store SHA1 hash of NAME */
-static int GetNameHash(const byte* source, word32* idx, byte* hash, int maxIdx)
+CYASSL_LOCAL int GetNameHash(const byte* source, word32* idx, byte* hash,
+                             int maxIdx)
 {
     Sha    sha;
     int    length;  /* length of all distinguished names */
@@ -6122,6 +6093,37 @@ static int GetNameHash(const byte* source, word32* idx, byte* hash, int maxIdx)
     *idx += length;
 
     return 0;
+}
+
+
+#ifdef HAVE_CRL
+
+/* initialize decoded CRL */
+void InitDecodedCRL(DecodedCRL* dcrl)
+{
+    CYASSL_MSG("InitDecodedCRL");
+
+    dcrl->certBegin    = 0;
+    dcrl->sigIndex     = 0;
+    dcrl->sigLength    = 0;
+    dcrl->signatureOID = 0;
+    dcrl->certs        = NULL;
+    dcrl->totalCerts   = 0;
+}
+
+
+/* free decoded CRL resources */
+void FreeDecodedCRL(DecodedCRL* dcrl)
+{
+    RevokedCert* tmp = dcrl->certs;
+
+    CYASSL_MSG("FreeDecodedCRL");
+
+    while(tmp) {
+        RevokedCert* next = tmp->next;
+        XFREE(tmp, NULL, DYNAMIC_TYPE_REVOKED);
+        tmp = next;
+    }
 }
 
 

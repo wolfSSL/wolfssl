@@ -445,6 +445,16 @@ CYASSL_LOCAL int ValidateDate(const byte* date, byte format, int dateType);
 /* ASN.1 helper functions */
 CYASSL_LOCAL int GetLength(const byte* input, word32* inOutIdx, int* len,
                            word32 maxIdx);
+CYASSL_LOCAL int GetSequence(const byte* input, word32* inOutIdx, int* len,
+                             word32 maxIdx);
+CYASSL_LOCAL int GetSet(const byte* input, word32* inOutIdx, int* len,
+                        word32 maxIdx);
+CYASSL_LOCAL int GetMyVersion(const byte* input, word32* inOutIdx,
+                              int* version);
+CYASSL_LOCAL int GetInt(mp_int* mpi, const byte* input, word32* inOutIdx,
+                        word32 maxIdx);
+CYASSL_LOCAL int GetAlgoId(const byte* input, word32* inOutIdx, word32* oid,
+                           word32 maxIdx);
 CYASSL_LOCAL word32 SetLength(word32 length, byte* output);
 CYASSL_LOCAL word32 SetSequence(word32 len, byte* output);
 CYASSL_LOCAL word32 SetOctetString(word32 len, byte* output);
@@ -452,6 +462,8 @@ CYASSL_LOCAL word32 SetSet(word32 len, byte* output);
 CYASSL_LOCAL word32 SetAlgoID(int algoOID, byte* output, int type, int curveSz);
 CYASSL_LOCAL int SetMyVersion(word32 version, byte* output, int header);
 CYASSL_LOCAL int SetSerialNumber(const byte* sn, word32 snSz, byte* output);
+CYASSL_LOCAL int GetNameHash(const byte* source, word32* idx, byte* hash,
+                             int maxIdx);
 
 #ifdef HAVE_ECC
     /* ASN sig helpers */
