@@ -127,6 +127,7 @@ enum Misc_ASN {
     MAX_SEQ_SZ          =   5,     /* enum(seq | con) + length(4) */  
     MAX_SET_SZ          =   5,     /* enum(set | con) + length(4) */  
     MAX_OCTET_STR_SZ    =   5,     /* enum(set | con) + length(4) */
+    MAX_EXP_SZ          =   5,     /* enum(contextspec|con|exp) + length(4) */
     MAX_PRSTR_SZ        =   5,     /* enum(prstr) + length(4) */
     MAX_VERSION_SZ      =   5,     /* enum + id + version(byte) + (header(2))*/
     MAX_ENCODED_DIG_SZ  =  73,     /* sha512 + enum(bit or octet) + legnth(4) */
@@ -448,6 +449,7 @@ CYASSL_LOCAL int GetLength(const byte* input, word32* inOutIdx, int* len,
 CYASSL_LOCAL word32 SetLength(word32 length, byte* output);
 CYASSL_LOCAL word32 SetSequence(word32 len, byte* output);
 CYASSL_LOCAL word32 SetOctetString(word32 len, byte* output);
+CYASSL_LOCAL word32 SetTagged(byte tag, word32 len, byte* output);
 CYASSL_LOCAL word32 SetSet(word32 len, byte* output);
 CYASSL_LOCAL word32 SetAlgoID(int algoOID, byte* output, int type, int curveSz);
 CYASSL_LOCAL int SetMyVersion(word32 version, byte* output, int header);

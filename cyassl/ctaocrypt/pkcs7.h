@@ -67,6 +67,8 @@ typedef struct PKCS7 {
     word32 contentSz;
     int contentOID;
 
+    RNG* rng;
+
     int hashOID;
     int encryptOID;
 
@@ -74,9 +76,13 @@ typedef struct PKCS7 {
     word32 singleCertSz;
     byte* issuer;
     word32 issuerSz;
+    byte issuerSn[MAX_SN_SZ];
+    word32 issuerSnSz;
+    byte publicKey[512];
+    word32 publicKeySz;
     
-    PKCS7Attrib** signedAttribs;
-    word32 signedAttribsSz; /* Number of attribs in list */
+    PKCS7Attrib* signedAttribs;
+    word32 signedAttribsSz;
 } PKCS7;
 
 

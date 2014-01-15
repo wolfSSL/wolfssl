@@ -2278,6 +2278,12 @@ CYASSL_LOCAL word32 SetSet(word32 len, byte* output)
     return SetLength(len, output + 1) + 1;
 }
 
+CYASSL_LOCAL word32 SetTagged(byte tag, word32 len, byte* output)
+{
+    output[0] = ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | tag;
+    return SetLength(len, output + 1) + 1;
+}
+
 
 #if defined(HAVE_ECC) && defined(CYASSL_CERT_GEN)
 

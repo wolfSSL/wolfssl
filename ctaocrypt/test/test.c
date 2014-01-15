@@ -61,6 +61,9 @@
 #ifdef HAVE_LIBZ
     #include <cyassl/ctaocrypt/compress.h>
 #endif
+#ifdef HAVE_PKCS7
+    #include <cyassl/ctaocrypt/pkcs7.h>
+#endif
 
 #ifdef _MSC_VER
     /* 4996 warning to use MS extensions e.g., strcpy_s instead of strncpy */
@@ -173,6 +176,9 @@ int pbkdf2_test(void);
 #endif
 #ifdef HAVE_LIBZ
     int compress_test(void);
+#endif
+#ifdef HAVE_PKCS7
+    int pkcs7_test(void);
 #endif
 
 
@@ -456,6 +462,13 @@ void ctaocrypt_test(void* args)
         err_sys("COMPRESS test failed!\n", ret);
     else
         printf( "COMPRESS test passed!\n");
+#endif
+
+#ifdef HAVE_PKCS7
+    if ( (ret = pkcs7_test()) != 0)
+        err_sys("PKCS7    test failed!\n", ret);
+    else
+        printf( "PKCS7    test passed!\n");
 #endif
 
     ((func_args*)args)->return_code = ret;
@@ -4008,5 +4021,119 @@ int compress_test(void)
 }
 
 #endif /* HAVE_LIBZ */
+
+#ifdef HAVE_PKCS7
+
+int pkcs7_test(void)
+{
+    int ret = 0;
+    byte* cert;
+    byte out[2048];
+    char data[] = "Hello World";
+    word32 dataSz, outSz;
+    PKCS7 msg;
+    RNG rng;
+
+    word32 certSz;
+    FILE* file;
+    FILE* pkcs7File;
+
+    byte transIdOid[] =
+                { 0x06, 0x0a, 0x60, 0x86, 0x48, 0x01, 0x86, 0xF8, 0x45, 0x01,
+                  0x09, 0x07 };
+    byte messageTypeOid[] =
+                { 0x06, 0x0a, 0x60, 0x86, 0x48, 0x01, 0x86, 0xF8, 0x45, 0x01,
+                  0x09, 0x02 };
+    byte senderNonceOid[] =
+                { 0x06, 0x0a, 0x60, 0x86, 0x48, 0x01, 0x86, 0xF8, 0x45, 0x01,
+                  0x09, 0x05 };
+    byte pkiStatusOid[] =
+                { 0x06, 0x0a, 0x60, 0x86, 0x48, 0x01, 0x86, 0xF8, 0x45, 0x01,
+                  0x09, 0x03 };
+    byte transId[(SHA_DIGEST_SIZE + 1) * 2 + 1];
+    byte messageType[] = { 0x13, 2, '1', '9' };
+    byte senderNonce[34];
+    byte pkiStatus[] = { 0x13, 1, '0' };
+
+    PKCS7Attrib attribs[] =
+    {
+        { transIdOid, sizeof(transIdOid),
+                        transId, sizeof(transId) - 1 }, /* take off the null */
+        { messageTypeOid, sizeof(messageTypeOid),
+                        messageType, sizeof(messageType) },
+        { senderNonceOid, sizeof(senderNonceOid),
+                        senderNonce, sizeof(senderNonce) },
+        { pkiStatusOid, sizeof(pkiStatusOid),
+                        pkiStatus, sizeof(pkiStatus) }
+    };
+
+    dataSz = (word32) strlen(data);
+    outSz = sizeof(out);
+
+    cert = (byte*)malloc(FOURK_BUF);
+    if (cert == NULL)
+        return -40;
+
+    /* read in DER cert of recipient, into cert of size certSz */
+    file = fopen(clientCert, "rb");
+
+    if (!file)
+        err_sys("can't open ./certs/client-cert.der, "
+                "Please run from CyaSSL home dir", -40);
+
+    certSz = (word32)fread(cert, 1, FOURK_BUF, file);
+    fclose(file);
+
+    ret = InitRng(&rng);
+    senderNonce[0] = 0x04;
+    senderNonce[1] = 0x20;
+    RNG_GenerateBlock(&rng, &senderNonce[2], 32);
+
+    PKCS7_InitWithCert(&msg, cert, certSz);
+    msg.content = (byte*)data;
+    msg.contentSz = dataSz;
+    msg.hashOID = SHAh;
+    msg.encryptOID = RSAk;
+    msg.signedAttribs = attribs;
+    msg.signedAttribsSz = sizeof(attribs)/sizeof(PKCS7Attrib);
+    msg.rng = &rng;
+    {
+        Sha sha;
+        byte digest[SHA_DIGEST_SIZE];
+        int i,j;
+
+        transId[0] = 0x13;
+        transId[1] = SHA_DIGEST_SIZE * 2;
+
+        InitSha(&sha);
+        ShaUpdate(&sha, msg.publicKey, msg.publicKeySz);
+        ShaFinal(&sha, digest);
+
+        for (i = 0, j = 2; i < SHA_DIGEST_SIZE; i++, j += 2) {
+            snprintf((char*)&transId[j], 3, "%02x", digest[i]);
+        }
+    }
+    ret = PKCS7_EncodeSignedData(&msg, out, outSz);
+    if (ret < 0) {
+        printf("Pkcs7_encrypt failed\n");
+        return -42;
+    }
+    else
+        outSz = ret;
+
+    /* write PKCS#7 to output file for more testing */
+    pkcs7File = fopen("./pkcs7test.der", "wb");
+    if (!pkcs7File)
+        return -43;
+    ret = (int)fwrite(out, outSz, 1, pkcs7File);
+    fclose(pkcs7File);
+
+    if (ret > 0)
+        return 0;
+
+    return ret;
+}
+
+#endif /* HAVE_PKCS7 */
 
 #endif /* NO_CRYPT_TEST */
