@@ -63,24 +63,28 @@ typedef struct PKCS7Attrib {
 
 
 typedef struct PKCS7 {
-    byte* content;
-    word32 contentSz;
-    int contentOID;
+    byte* content;                /* inner content, not owner */
+    word32 contentSz;             /* content size */
+    int contentOID;               /* PKCS#7 content type OID sum */
 
     int hashOID;
-    int encryptOID;
+    int encryptOID;               /* key encryption algorithm OID */
 
-    byte* singleCert;
-    word32 singleCertSz;
-    byte* issuer;
+    byte*  singleCert;            /* recipient cert, DER, not owner */
+    word32 singleCertSz;          /* size of recipient cert buffer, bytes */
+    byte*  issuer;
     word32 issuerSz;
+    byte*  privateKey;            /* recipient private key, DER, not owner */
+    word32 privKeySize;           /* size of private key buffer, bytes */
     
     PKCS7Attrib** signedAttribs;
-    word32 signedAttribsSz; /* Number of attribs in list */
+    word32 signedAttribsSz;       /* Number of attribs in list */
 } PKCS7;
 
 
 CYASSL_LOCAL int SetContentType(int pkcs7TypeOID, byte* output);
+CYASSL_LOCAL int GetContentType(const byte* input, word32* inOutIdx,
+                                word32* oid, word32 maxIdx);
 CYASSL_LOCAL int CreateRecipientInfo(const byte* cert, word32 certSz,
                                      int keyEncAlgo, int blockKeySz,
                                      RNG* rng, byte* contentKeyPlain,
@@ -93,6 +97,9 @@ CYASSL_API int  PKCS7_EncodeSignedData(PKCS7* pkcs7,
                                        byte* output, word32 outputSz);
 CYASSL_API int  PKCS7_EncodeEnvelopeData(PKCS7* pkcs7,
                                          byte* output, word32 outputSz);
+CYASSL_API int  PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* pkiMsg,
+                                          word32 pkiMsgSz, byte* output,
+                                          word32 outputSz);
 
 #ifdef __cplusplus
     } /* extern "C" */
