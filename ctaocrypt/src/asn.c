@@ -1618,8 +1618,10 @@ static int GetName(DecodedCert* cert, int nameType)
 
 #ifdef HAVE_PKCS7
     /* store pointer to raw issuer */
-    cert->issuerRaw = &cert->source[cert->srcIdx];
-    cert->issuerRawLen = length - cert->srcIdx;
+    if (nameType == ISSUER) {
+        cert->issuerRaw = &cert->source[cert->srcIdx];
+        cert->issuerRawLen = length - cert->srcIdx;
+    }
 #endif
 
     while (cert->srcIdx < (word32)length) {
