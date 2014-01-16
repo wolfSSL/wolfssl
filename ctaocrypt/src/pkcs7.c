@@ -39,9 +39,12 @@
     }
 #endif
 
+
+/* placed ASN.1 contentType OID into *output, return idx on success,
+ * 0 upon failure */
 CYASSL_LOCAL int SetContentType(int pkcs7TypeOID, byte* output)
 {
-    /* PKCS#7 content types */
+    /* PKCS#7 content types, RFC 2315, section 14 */
     static const byte pkcs7[]              = { 0x2A, 0x86, 0x48, 0x86, 0xF7,
                                                0x0D, 0x01, 0x07 };
     static const byte data[]               = { 0x2A, 0x86, 0x48, 0x86, 0xF7,
@@ -114,6 +117,8 @@ CYASSL_LOCAL int SetContentType(int pkcs7TypeOID, byte* output)
 
 }
 
+
+/* get ASN.1 contentType OID sum, return 0 on success, <0 on failure */
 int GetContentType(const byte* input, word32* inOutIdx, word32* oid,
                    word32 maxIdx)
 {
@@ -142,6 +147,7 @@ int GetContentType(const byte* input, word32* inOutIdx, word32* oid,
 }
 
 
+/* init PKCS7 struct with recipient cert, decode into DecodedCert */
 int PKCS7_InitWithCert(PKCS7* pkcs7, byte* cert, word32 certSz)
 {
     int ret = 0;
@@ -172,6 +178,7 @@ int PKCS7_InitWithCert(PKCS7* pkcs7, byte* cert, word32 certSz)
 }
 
 
+/* build PKCS#7 data content type */
 int PKCS7_EncodeData(PKCS7* pkcs7, byte* output, word32 outputSz)
 {
     static const byte oid[] =
@@ -301,6 +308,7 @@ static int FlattenAttributes(byte* output, EncodedAttrib* ea, int eaSz)
 }
 
 
+/* build PKCS#7 signedData content type */
 int PKCS7_EncodeSignedData(PKCS7* pkcs7, byte* output, word32 outputSz)
 {
     static const byte outerOid[] =
@@ -641,6 +649,7 @@ CYASSL_LOCAL int CreateRecipientInfo(const byte* cert, word32 certSz,
 }
 
 
+/* build PKCS#7 envelopedData content type, return enveloped size */
 int PKCS7_EncodeEnvelopeData(PKCS7* pkcs7, byte* output, word32 outputSz)
 {
     int i, idx = 0;
@@ -680,6 +689,7 @@ int PKCS7_EncodeEnvelopeData(PKCS7* pkcs7, byte* output, word32 outputSz)
     if (output == NULL || outputSz == 0)
         return BAD_FUNC_ARG;
 
+    /* PKCS#7 only supports DES, 3DES for now */
     switch (pkcs7->encryptOID) {
         case DESb:
             blockKeySz = DES_KEYLEN;
@@ -697,7 +707,7 @@ int PKCS7_EncodeEnvelopeData(PKCS7* pkcs7, byte* output, word32 outputSz)
     /* outer content type */
     outerContentTypeSz = SetContentType(ENVELOPED_DATA, outerContentType);
 
-    /* version */
+    /* version, defined as 0 in RFC 2315 */
     verSz = SetMyVersion(0, ver, 0);
 
     /* generate random content encryption key */
@@ -726,7 +736,7 @@ int PKCS7_EncodeEnvelopeData(PKCS7* pkcs7, byte* output, word32 outputSz)
     if (contentEncAlgoSz == 0)
         return BAD_FUNC_ARG;
 
-    /* allocate memory for encrypted content, pad if necessary */
+    /* allocate encrypted content buffer, pad if necessary, PKCS#7 padding */
     padSz = DES_BLOCK_SIZE - (pkcs7->contentSz % DES_BLOCK_SIZE);
     desOutSz = pkcs7->contentSz + padSz;
 
@@ -839,6 +849,7 @@ int PKCS7_EncodeEnvelopeData(PKCS7* pkcs7, byte* output, word32 outputSz)
     return idx;
 }
 
+/* unwrap and decrypt PKCS#7 envelopedData object, return decoded size */
 CYASSL_API int PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* pkiMsg,
                                          word32 pkiMsgSz, byte* output,
                                          word32 outputSz)
@@ -890,7 +901,7 @@ CYASSL_API int PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* pkiMsg,
 
     idx = 0;
 
-    /* read past ContentInfo, verify type */
+    /* read past ContentInfo, verify type is envelopedData */
     if (GetSequence(pkiMsg, &idx, &length, pkiMsgSz) < 0)
         return ASN_PARSE_E;
 
@@ -908,7 +919,7 @@ CYASSL_API int PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* pkiMsg,
     if (GetLength(pkiMsg, &idx, &length, pkiMsgSz) < 0)
         return ASN_PARSE_E;
 
-    /* remove EnvelopedData */
+    /* remove EnvelopedData and version */
     if (GetSequence(pkiMsg, &idx, &length, pkiMsgSz) < 0)
         return ASN_PARSE_E;
 
@@ -960,6 +971,7 @@ CYASSL_API int PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* pkiMsg,
         if (GetNameHash(pkiMsg, &idx, issuerHash, pkiMsgSz) < 0)
             return ASN_PARSE_E;
 
+        /* if we found correct recipient, issuer hashes will match */
         if (XMEMCMP(issuerHash, decoded.issuerHash, SHA_DIGEST_SIZE) == 0) {
             recipFound = 1;
         }
@@ -970,6 +982,7 @@ CYASSL_API int PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* pkiMsg,
         if (GetAlgoId(pkiMsg, &idx, &encOID, pkiMsgSz) < 0)
             return ASN_PARSE_E;
 
+        /* key encryption algorithm must be RSA for now */
         if (encOID != RSAk)
             return ALGO_ID_E;
 
