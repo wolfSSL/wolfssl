@@ -35,8 +35,9 @@
     extern "C" {
 #endif
 
+/* PKCS#7 content types, ref RFC 2315 (Section 14) */
 enum PKCS7_TYPES {
-    PKCS7_MSG                 = 650,   /* 1.2.840.113549.1.7 */ 
+    PKCS7_MSG                 = 650,   /* 1.2.840.113549.1.7   */
     DATA                      = 651,   /* 1.2.840.113549.1.7.1 */
     SIGNED_DATA               = 652,   /* 1.2.840.113549.1.7.2 */
     ENVELOPED_DATA            = 653,   /* 1.2.840.113549.1.7.3 */
@@ -46,8 +47,8 @@ enum PKCS7_TYPES {
 };
 
 enum Pkcs7_Misc {
-    MAX_ENCRYPTED_KEY_SZ = 512,        /* max enc. key size, RSA <= 4096 */
-    MAX_CONTENT_KEY_LEN  = DES3_KEYLEN,
+    MAX_ENCRYPTED_KEY_SZ = 512,           /* max enc. key size, RSA <= 4096 */
+    MAX_CONTENT_KEY_LEN  = DES3_KEYLEN,   /* highest current cipher is 3DES */
     MAX_RECIP_SZ         = MAX_VERSION_SZ +
                            MAX_SEQ_SZ + ASN_NAME_MAX + MAX_SN_SZ +
                            MAX_SEQ_SZ + MAX_ALGO_SZ + 1 + MAX_ENCRYPTED_KEY_SZ
