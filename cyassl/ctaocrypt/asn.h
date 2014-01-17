@@ -459,7 +459,8 @@ CYASSL_LOCAL int GetAlgoId(const byte* input, word32* inOutIdx, word32* oid,
 CYASSL_LOCAL word32 SetLength(word32 length, byte* output);
 CYASSL_LOCAL word32 SetSequence(word32 len, byte* output);
 CYASSL_LOCAL word32 SetOctetString(word32 len, byte* output);
-CYASSL_LOCAL word32 SetTagged(byte tag, word32 len, byte* output);
+CYASSL_LOCAL word32 SetImplicit(byte tag, byte number, word32 len,byte* output);
+CYASSL_LOCAL word32 SetExplicit(byte number, word32 len, byte* output);
 CYASSL_LOCAL word32 SetSet(word32 len, byte* output);
 CYASSL_LOCAL word32 SetAlgoID(int algoOID, byte* output, int type, int curveSz);
 CYASSL_LOCAL int SetMyVersion(word32 version, byte* output, int header);

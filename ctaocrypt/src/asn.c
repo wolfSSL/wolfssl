@@ -2279,9 +2279,17 @@ CYASSL_LOCAL word32 SetSet(word32 len, byte* output)
     return SetLength(len, output + 1) + 1;
 }
 
-CYASSL_LOCAL word32 SetTagged(byte tag, word32 len, byte* output)
+CYASSL_LOCAL word32 SetImplicit(byte tag, byte number, word32 len, byte* output)
 {
-    output[0] = ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | tag;
+
+    output[0] = ((tag == ASN_SEQUENCE || tag == ASN_SET) ? ASN_CONSTRUCTED : 0)
+                    | ASN_CONTEXT_SPECIFIC | number;
+    return SetLength(len, output + 1) + 1;
+}
+
+CYASSL_LOCAL word32 SetExplicit(byte number, word32 len, byte* output)
+{
+    output[0] = ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | number;
     return SetLength(len, output + 1) + 1;
 }
 

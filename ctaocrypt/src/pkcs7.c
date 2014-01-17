@@ -30,7 +30,6 @@
 #include <cyassl/ctaocrypt/pkcs7.h>
 #include <cyassl/ctaocrypt/error.h>
 #include <cyassl/ctaocrypt/logging.h>
-#include <stdio.h>
 
 #ifndef min
     static INLINE word32 min(word32 a, word32 b)
@@ -331,7 +330,7 @@ int PKCS7_EncodeSignedData(PKCS7* pkcs7, byte* output, word32 outputSz)
     }
 
     esd.innerOctetsSz = SetOctetString(pkcs7->contentSz, esd.innerOctets);
-    esd.innerContSeqSz = SetTagged(0, esd.innerOctetsSz + pkcs7->contentSz,
+    esd.innerContSeqSz = SetExplicit(0, esd.innerOctetsSz + pkcs7->contentSz,
                                 esd.innerContSeq);
     esd.contentInfoSeqSz = SetSequence(pkcs7->contentSz + esd.innerOctetsSz +
                                     innerOidSz + esd.innerContSeqSz,
@@ -387,7 +386,7 @@ int PKCS7_EncodeSignedData(PKCS7* pkcs7, byte* output, word32 outputSz)
             return MEMORY_E;
         FlattenAttributes(flatSignedAttribs,
                                      esd.signedAttribs, esd.signedAttribsCount);
-        esd.signedAttribSetSz = SetTagged(0, esd.signedAttribsSz,
+        esd.signedAttribSetSz = SetImplicit(ASN_SET, 0, esd.signedAttribsSz,
                                                            esd.signedAttribSet);
     }
     /* Calculate the final hash and encrypt it. */
@@ -437,7 +436,7 @@ int PKCS7_EncodeSignedData(PKCS7* pkcs7, byte* output, word32 outputSz)
     esd.signerInfoSetSz = SetSet(signerInfoSz, esd.signerInfoSet);
     signerInfoSz += esd.signerInfoSetSz;
 
-    esd.certsSetSz = SetTagged(0, pkcs7->singleCertSz, esd.certsSet);
+    esd.certsSetSz = SetImplicit(ASN_SET, 0, pkcs7->singleCertSz, esd.certsSet);
 
     esd.singleDigAlgoIdSz = SetAlgoID(pkcs7->hashOID, esd.singleDigAlgoId,
                                       hashType, 0);
@@ -453,7 +452,7 @@ int PKCS7_EncodeSignedData(PKCS7* pkcs7, byte* output, word32 outputSz)
               signerInfoSz;
     esd.innerSeqSz = SetSequence(totalSz, esd.innerSeq);
     totalSz += esd.innerSeqSz;
-    esd.outerContentSz = SetTagged(0, totalSz, esd.outerContent);
+    esd.outerContentSz = SetExplicit(0, totalSz, esd.outerContent);
     totalSz += esd.outerContentSz + outerOidSz;
     esd.outerSeqSz = SetSequence(totalSz, esd.outerSeq);
     totalSz += esd.outerSeqSz;
@@ -769,7 +768,8 @@ int PKCS7_EncodeEnvelopeData(PKCS7* pkcs7, byte* output, word32 outputSz)
         Des3_CbcEncrypt(&des3, encryptedContent, plain, desOutSz);
     }
 
-    encContentOctetSz = SetOctetString(desOutSz, encContentOctet);
+    encContentOctetSz = SetImplicit(ASN_OCTET_STRING, 0,
+                                                     desOutSz, encContentOctet);
 
     encContentSeqSz = SetSequence(contentTypeSz + contentEncAlgoSz +
                                   encContentOctetSz + desOutSz, encContentSeq);
@@ -783,8 +783,7 @@ int PKCS7_EncodeEnvelopeData(PKCS7* pkcs7, byte* output, word32 outputSz)
     totalSz += envDataSeqSz;
 
     /* outer content */
-    outerContent[0] = (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 0);
-    outerContentSz = 1 + SetLength(totalSz, outerContent + 1);
+    outerContentSz = SetExplicit(0, totalSz, outerContent);
     totalSz += outerContentTypeSz;
     totalSz += outerContentSz;
 
@@ -1003,8 +1002,8 @@ CYASSL_API int PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* pkiMsg,
     if (GetAlgoId(pkiMsg, &idx, &encOID, pkiMsgSz) < 0)
         return ASN_PARSE_E;
 
-    /* read encryptedContent */
-    if (pkiMsg[idx++] != ASN_OCTET_STRING)
+    /* read encryptedContent, cont[0] */
+    if (pkiMsg[idx++] != (ASN_CONTEXT_SPECIFIC | 0))
         return ASN_PARSE_E;
 
     if (GetLength(pkiMsg, &idx, &encryptedContentSz, pkiMsgSz) < 0)
