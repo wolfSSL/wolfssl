@@ -2387,11 +2387,10 @@ CYASSL_LOCAL word32 SetAlgoID(int algoOID, byte* output, int type, int curveSz)
     static const byte md2AlgoID[]    = { 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d,
                                          0x02, 0x02, 0x05, 0x00};
 
-    /* blkTypes */
-    static const byte desCbcAlgoID[]  = { 0x2B, 0x0E, 0x03, 0x02, 0x07,
-                                          0x05, 0x00 };
+    /* blkTypes, no NULL tags because IV is there instead */
+    static const byte desCbcAlgoID[]  = { 0x2B, 0x0E, 0x03, 0x02, 0x07 };
     static const byte des3CbcAlgoID[] = { 0x2A, 0x86, 0x48, 0x86, 0xF7,
-                                          0x0D, 0x03, 0x07, 0x05, 0x00};
+                                          0x0D, 0x03, 0x07 };
 
     /* RSA sigTypes */
     #ifndef NO_RSA
@@ -2481,10 +2480,12 @@ CYASSL_LOCAL word32 SetAlgoID(int algoOID, byte* output, int type, int curveSz)
         case DESb:
             algoSz = sizeof(desCbcAlgoID);
             algoName = desCbcAlgoID;
+            tagSz = 0;
             break;
         case DES3b:
             algoSz = sizeof(des3CbcAlgoID);
             algoName = des3CbcAlgoID;
+            tagSz = 0;
             break;
         default:
             CYASSL_MSG("Unknown Block Algo");
