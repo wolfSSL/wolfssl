@@ -675,10 +675,13 @@ int PKCS7_EncodeEnvelopeData(PKCS7* pkcs7, byte* output, word32 outputSz)
     byte recip[MAX_RECIP_SZ];
     byte recipSet[MAX_SET_SZ];
 
-    int encContentOctetSz, encContentSeqSz, contentTypeSz, contentEncAlgoSz;
+    int encContentOctetSz, encContentSeqSz, contentTypeSz;
+    int contentEncAlgoSz, ivOctetStringSz;
     byte encContentSeq[MAX_SEQ_SZ];
     byte contentType[MAX_ALGO_SZ];
     byte contentEncAlgo[MAX_ALGO_SZ];
+    byte tmpIv[DES_BLOCK_SIZE];
+    byte ivOctetString[MAX_OCTET_STR_SZ];
     byte encContentOctet[MAX_OCTET_STR_SZ];
 
     if (pkcs7 == NULL || pkcs7->content == NULL || pkcs7->contentSz == 0 ||
@@ -730,11 +733,6 @@ int PKCS7_EncodeEnvelopeData(PKCS7* pkcs7, byte* output, word32 outputSz)
     if (contentTypeSz == 0)
         return BAD_FUNC_ARG;
 
-    contentEncAlgoSz = SetAlgoID(pkcs7->encryptOID, contentEncAlgo,
-                                 blkType, 0);
-    if (contentEncAlgoSz == 0)
-        return BAD_FUNC_ARG;
-
     /* allocate encrypted content buffer, pad if necessary, PKCS#7 padding */
     padSz = DES_BLOCK_SIZE - (pkcs7->contentSz % DES_BLOCK_SIZE);
     desOutSz = pkcs7->contentSz + padSz;
@@ -763,10 +761,20 @@ int PKCS7_EncodeEnvelopeData(PKCS7* pkcs7, byte* output, word32 outputSz)
         return MEMORY_E;
     }
 
-    /* use NULL iv for now */
-    byte tmpIv[blockKeySz];
-    XMEMSET(tmpIv, 0, sizeof(tmpIv));
+    /* generate IV for block cipher */
+    RNG_GenerateBlock(&rng, tmpIv, DES_BLOCK_SIZE);
 
+    /* put together IV OCTET STRING */
+    ivOctetStringSz = SetOctetString(DES_BLOCK_SIZE, ivOctetString);
+
+    /* build up our ContentEncryptionAlgorithmIdentifier sequence,
+     * adding (ivOctetStringSz + DES_BLOCK_SIZE) for IV OCTET STRING */
+    contentEncAlgoSz = SetAlgoID(pkcs7->encryptOID, contentEncAlgo,
+                                 blkType, ivOctetStringSz + DES_BLOCK_SIZE);
+    if (contentEncAlgoSz == 0)
+        return BAD_FUNC_ARG;
+
+    /* encrypt content */
     if (pkcs7->encryptOID == DESb) {
         Des des;
         Des_SetKey(&des, contentKeyPlain, tmpIv, DES_ENCRYPTION);
@@ -779,14 +787,16 @@ int PKCS7_EncodeEnvelopeData(PKCS7* pkcs7, byte* output, word32 outputSz)
     }
 
     encContentOctetSz = SetImplicit(ASN_OCTET_STRING, 0,
-                                                     desOutSz, encContentOctet);
+                                    desOutSz, encContentOctet);
 
     encContentSeqSz = SetSequence(contentTypeSz + contentEncAlgoSz +
+                                  ivOctetStringSz + DES_BLOCK_SIZE +
                                   encContentOctetSz + desOutSz, encContentSeq);
 
     /* keep track of sizes for outer wrapper layering */
     totalSz = verSz + recipSetSz + recipSz + encContentSeqSz + contentTypeSz +
-              contentEncAlgoSz + encContentOctetSz + desOutSz;
+              contentEncAlgoSz + ivOctetStringSz + DES_BLOCK_SIZE +
+              encContentOctetSz + desOutSz;
 
     /* EnvelopedData */
     envDataSeqSz = SetSequence(totalSz, envDataSeq);
@@ -829,6 +839,10 @@ int PKCS7_EncodeEnvelopeData(PKCS7* pkcs7, byte* output, word32 outputSz)
     idx += contentTypeSz;
     XMEMCPY(output + idx, contentEncAlgo, contentEncAlgoSz);
     idx += contentEncAlgoSz;
+    XMEMCPY(output + idx, ivOctetString, ivOctetStringSz);
+    idx += ivOctetStringSz;
+    XMEMCPY(output + idx, tmpIv, DES_BLOCK_SIZE);
+    idx += DES_BLOCK_SIZE;
     XMEMCPY(output + idx, encContentOctet, encContentOctetSz);
     idx += encContentOctetSz;
     XMEMCPY(output + idx, encryptedContent, desOutSz);
@@ -863,7 +877,7 @@ CYASSL_API int PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* pkiMsg,
     DecodedCert decoded;
 
     int encryptedKeySz, keySz;
-    byte tmpIv[DES3_KEYLEN];
+    byte tmpIv[DES_BLOCK_SIZE];
     byte encryptedKey[MAX_ENCRYPTED_KEY_SZ];
     byte* decryptedKey = NULL;
 
@@ -1015,6 +1029,21 @@ CYASSL_API int PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* pkiMsg,
     if (GetAlgoId(pkiMsg, &idx, &encOID, pkiMsgSz) < 0)
         return ASN_PARSE_E;
 
+    /* get block cipher IV, stored in OPTIONAL parameter of AlgoID */
+    if (pkiMsg[idx++] != ASN_OCTET_STRING)
+        return ASN_PARSE_E;
+
+    if (GetLength(pkiMsg, &idx, &length, pkiMsgSz) < 0)
+        return ASN_PARSE_E;
+
+    if (length != DES_BLOCK_SIZE) {
+        CYASSL_MSG("Incorrect IV length, must be of DES_BLOCK_SIZE");
+        return ASN_PARSE_E;
+    }
+
+    XMEMCPY(tmpIv, &pkiMsg[idx], length);
+    idx += length;
+
     /* read encryptedContent, cont[0] */
     if (pkiMsg[idx++] != (ASN_CONTEXT_SPECIFIC | 0))
         return ASN_PARSE_E;
@@ -1033,9 +1062,7 @@ CYASSL_API int PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* pkiMsg,
     if (keySz < 0)
         return keySz;
 
-    /* decrypt encryptedContent, using NULL iv for now */
-    XMEMSET(tmpIv, 0, sizeof(tmpIv));
-
+    /* decrypt encryptedContent */
     if (encOID == DESb) {
         Des des;
         Des_SetKey(&des, decryptedKey, tmpIv, DES_DECRYPTION);
