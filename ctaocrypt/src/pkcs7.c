@@ -326,6 +326,13 @@ int PKCS7_EncodeSignedData(PKCS7* pkcs7, byte* output, word32 outputSz)
     word32 innerOidSz = sizeof(innerOid);
     word32 outerOidSz = sizeof(outerOid);
 
+    if (pkcs7 == NULL || pkcs7->content == NULL || pkcs7->contentSz == 0 ||
+        pkcs7->encryptOID == 0 || pkcs7->hashOID == 0 || pkcs7->rng == 0 ||
+        pkcs7->singleCert == NULL || pkcs7->singleCertSz == 0 ||
+        pkcs7->privateKey == NULL || pkcs7->privateKeySz == 0 ||
+        output == NULL || outputSz == 0)
+        return BAD_FUNC_ARG;
+
     XMEMSET(&esd, 0, sizeof(esd));
     InitSha(&esd.sha);
 
@@ -399,7 +406,7 @@ int PKCS7_EncodeSignedData(PKCS7* pkcs7, byte* output, word32 outputSz)
     }
     /* Calculate the final hash and encrypt it. */
     {
-        RsaKey pubKey;
+        RsaKey privKey;
         int result;
         word32 scratch = 0;
 
@@ -414,19 +421,19 @@ int PKCS7_EncodeSignedData(PKCS7* pkcs7, byte* output, word32 outputSz)
         }
         ShaFinal(&esd.sha, esd.contentAttribsDigest);
 
-        InitRsaKey(&pubKey, NULL);
-        result = RsaPublicKeyDecode(pkcs7->publicKey, &scratch, &pubKey,
-                               pkcs7->publicKeySz);
+        InitRsaKey(&privKey, NULL);
+        result = RsaPrivateKeyDecode(pkcs7->privateKey, &scratch, &privKey,
+                               pkcs7->privateKeySz);
         if (result < 0) {
             XFREE(flatSignedAttribs, 0, NULL);
             return PUBLIC_KEY_E;
         }
-        result = RsaPublicEncrypt(esd.contentAttribsDigest,
+        result = RsaSSL_Sign(esd.contentAttribsDigest,
                                   sizeof(esd.contentAttribsDigest),
                                   esd.encContentDigest,
-                                  sizeof(esd.encContentDigest), &pubKey,
+                                  sizeof(esd.encContentDigest), &privKey,
                                   pkcs7->rng);
-        FreeRsaKey(&pubKey);
+        FreeRsaKey(&privKey);
         if (result < 0) {
             XFREE(flatSignedAttribs, 0, NULL);
             return result;
@@ -649,7 +656,7 @@ CYASSL_LOCAL int CreateRecipientInfo(const byte* cert, word32 certSz,
 
 
 /* build PKCS#7 envelopedData content type, return enveloped size */
-int PKCS7_EncodeEnvelopeData(PKCS7* pkcs7, byte* output, word32 outputSz)
+int PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
 {
     int i, idx = 0;
     int totalSz = 0, padSz = 0, desOutSz = 0;
@@ -888,7 +895,7 @@ CYASSL_API int PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* pkiMsg,
 
     if (pkcs7 == NULL || pkcs7->singleCert == NULL ||
         pkcs7->singleCertSz == 0 || pkcs7->privateKey == NULL ||
-        pkcs7->privKeySize == 0)
+        pkcs7->privateKeySz == 0)
         return BAD_FUNC_ARG;
 
     if (pkiMsg == NULL || pkiMsgSz == 0 ||
@@ -906,7 +913,7 @@ CYASSL_API int PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* pkiMsg,
     /* load private key */
     InitRsaKey(&privKey, 0);
     ret = RsaPrivateKeyDecode(pkcs7->privateKey, &idx, &privKey,
-                              pkcs7->privKeySize);
+                              pkcs7->privateKeySz);
     if (ret != 0) {
         CYASSL_MSG("Failed to decode RSA private key");
         return ret;

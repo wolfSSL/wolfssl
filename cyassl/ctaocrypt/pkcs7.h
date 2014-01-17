@@ -75,14 +75,14 @@ typedef struct PKCS7 {
 
     byte*  singleCert;            /* recipient cert, DER, not owner */
     word32 singleCertSz;          /* size of recipient cert buffer, bytes */
-    byte*  issuer;
-    word32 issuerSz;
-    byte*  privateKey;            /* recipient private key, DER, not owner */
-    word32 privKeySize;           /* size of private key buffer, bytes */
-    byte issuerSn[MAX_SN_SZ];
-    word32 issuerSnSz;
+    byte*  issuer;                /* issuer name of singleCert */
+    word32 issuerSz;              /* length of issuer name */
+    byte issuerSn[MAX_SN_SZ];     /* singleCert's serial number */
+    word32 issuerSnSz;            /* length of serial number */
     byte publicKey[512];
     word32 publicKeySz;
+    byte*  privateKey;            /* private key, DER, not owner */
+    word32 privateKeySz;          /* size of private key buffer, bytes */
     
     PKCS7Attrib* signedAttribs;
     word32 signedAttribsSz;
@@ -102,8 +102,8 @@ CYASSL_API int  PKCS7_InitWithCert(PKCS7* pkcs7, byte* cert, word32 certSz);
 CYASSL_API int  PKCS7_EncodeData(PKCS7* pkcs7, byte* output, word32 outputSz);
 CYASSL_API int  PKCS7_EncodeSignedData(PKCS7* pkcs7,
                                        byte* output, word32 outputSz);
-CYASSL_API int  PKCS7_EncodeEnvelopeData(PKCS7* pkcs7,
-                                         byte* output, word32 outputSz);
+CYASSL_API int  PKCS7_EncodeEnvelopedData(PKCS7* pkcs7,
+                                          byte* output, word32 outputSz);
 CYASSL_API int  PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* pkiMsg,
                                           word32 pkiMsgSz, byte* output,
                                           word32 outputSz);

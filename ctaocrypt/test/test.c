@@ -4085,11 +4085,11 @@ int pkcs7enveloped_test(void)
     pkcs7.contentOID  = DATA;
     pkcs7.encryptOID  = cipher;
     pkcs7.privateKey  = privKey;
-    pkcs7.privKeySize = (word32)privKeySz;
+    pkcs7.privateKeySz = (word32)privKeySz;
 
     /* encode envelopedData */
-    envelopedSz = PKCS7_EncodeEnvelopeData(&pkcs7, enveloped,
-                                           sizeof(enveloped));
+    envelopedSz = PKCS7_EncodeEnvelopedData(&pkcs7, enveloped,
+                                            sizeof(enveloped));
     if (envelopedSz <= 0)
         return -203;
 
@@ -4125,16 +4125,14 @@ int pkcs7signed_test(void)
 {
     int ret = 0;
 
-    byte* cert;
-    byte out[2048];
+    FILE* file;
+    byte* certDer;
+    byte* keyDer;
+    byte* out;
     char data[] = "Hello World";
-    word32 dataSz, outSz;
+    word32 dataSz, outSz, certDerSz, keyDerSz;
     PKCS7 msg;
     RNG rng;
-
-    word32 certSz;
-    FILE* file;
-    FILE* pkcs7File;
 
     byte transIdOid[] =
                { 0x06, 0x0a, 0x60, 0x86, 0x48, 0x01, 0x86, 0xF8, 0x45, 0x01,
@@ -4166,20 +4164,40 @@ int pkcs7signed_test(void)
     };
 
     dataSz = (word32) strlen(data);
-    outSz = sizeof(out);
+    outSz = FOURK_BUF;
 
-    cert = (byte*)malloc(FOURK_BUF);
-    if (cert == NULL)
+    certDer = (byte*)malloc(FOURK_BUF);
+    keyDer = (byte*)malloc(FOURK_BUF);
+    out = (byte*)malloc(FOURK_BUF);
+
+    if (certDer == NULL)
         return -207;
+    if (keyDer == NULL)
+        return -208;
+    if (out == NULL)
+        return -209;
 
     /* read in DER cert of recipient, into cert of size certSz */
     file = fopen(clientCert, "rb");
-
-    if (!file)
+    if (!file) {
+        free(certDer);
+        free(keyDer);
+        free(out);
         err_sys("can't open ./certs/client-cert.der, "
                 "Please run from CyaSSL home dir", -44);
+    }
+    certDerSz = (word32)fread(certDer, 1, FOURK_BUF, file);
+    fclose(file);
 
-    certSz = (word32)fread(cert, 1, FOURK_BUF, file);
+    file = fopen(clientKey, "rb");
+    if (!file) {
+        free(certDer);
+        free(keyDer);
+        free(out);
+        err_sys("can't open ./certs/client-key.der, "
+                "Please run from CyaSSL home dir", -45);
+    }
+    keyDerSz = (word32)fread(keyDer, 1, FOURK_BUF, file);
     fclose(file);
 
     ret = InitRng(&rng);
@@ -4187,7 +4205,9 @@ int pkcs7signed_test(void)
     senderNonce[1] = 0x20;
     RNG_GenerateBlock(&rng, &senderNonce[2], 32);
 
-    PKCS7_InitWithCert(&msg, cert, certSz);
+    PKCS7_InitWithCert(&msg, certDer, certDerSz);
+    msg.privateKey = keyDer;
+    msg.privateKeySz = keyDerSz;
     msg.content = (byte*)data;
     msg.contentSz = dataSz;
     msg.hashOID = SHAh;
@@ -4213,17 +4233,25 @@ int pkcs7signed_test(void)
     }
     ret = PKCS7_EncodeSignedData(&msg, out, outSz);
     if (ret < 0) {
-        return -208;
+        return -210;
     }
     else
         outSz = ret;
 
     /* write PKCS#7 to output file for more testing */
-    pkcs7File = fopen("./pkcs7signedData.der", "wb");
-    if (!pkcs7File)
-        return -209;
-    ret = (int)fwrite(out, outSz, 1, pkcs7File);
-    fclose(pkcs7File);
+    file = fopen("./pkcs7signedData.der", "wb");
+    if (!file) {
+        free(certDer);
+        free(keyDer);
+        free(out);
+        return -211;
+    }
+    ret = (int)fwrite(out, outSz, 1, file);
+    fclose(file);
+
+    free(certDer);
+    free(keyDer);
+    free(out);
 
     if (ret > 0)
         return 0;
