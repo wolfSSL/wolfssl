@@ -103,6 +103,8 @@ CYASSL_API void PKCS7_Free(PKCS7* pkcs7);
 CYASSL_API int  PKCS7_EncodeData(PKCS7* pkcs7, byte* output, word32 outputSz);
 CYASSL_API int  PKCS7_EncodeSignedData(PKCS7* pkcs7,
                                        byte* output, word32 outputSz);
+CYASSL_API int  PKCS7_VerifySignedData(PKCS7* pkcs7,
+                                       byte* pkiMsg, word32 pkiMsgSz);
 CYASSL_API int  PKCS7_EncodeEnvelopedData(PKCS7* pkcs7,
                                           byte* output, word32 outputSz);
 CYASSL_API int  PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* pkiMsg,

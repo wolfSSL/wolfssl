@@ -54,6 +54,7 @@ key.der
 key.pem
 certreq.der
 certreq.pem
+pkcs7cert.der
 pkcs7signedData.der
 pkcs7envelopedData.der
 diff

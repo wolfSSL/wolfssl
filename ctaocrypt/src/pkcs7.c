@@ -548,6 +548,99 @@ int PKCS7_EncodeSignedData(PKCS7* pkcs7, byte* output, word32 outputSz)
 }
 
 
+/* Finds the certificates in the message and saves it. */
+int PKCS7_VerifySignedData(PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz)
+{
+    word32 idx, contentType;
+    int length, version;
+    byte b;
+
+    if (pkcs7 == NULL || pkiMsg == NULL || pkiMsgSz == 0)
+        return BAD_FUNC_ARG;
+
+    idx = 0;
+
+    /* Get the contentInfo sequence */
+    if (GetSequence(pkiMsg, &idx, &length, pkiMsgSz) < 0)
+        return ASN_PARSE_E;
+
+    /* Get the contentInfo contentType */
+    if (GetContentType(pkiMsg, &idx, &contentType, pkiMsgSz) < 0)
+        return ASN_PARSE_E;
+
+    if (contentType != SIGNED_DATA) {
+        CYASSL_MSG("PKCS#7 input not of type SignedData");
+        return PKCS7_OID_E;
+    }
+
+    /* get the ContentInfo content */
+    if (pkiMsg[idx++] != (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 0))
+        return ASN_PARSE_E;
+
+    if (GetLength(pkiMsg, &idx, &length, pkiMsgSz) < 0)
+        return ASN_PARSE_E;
+
+    /* Get the signedData sequence */
+    if (GetSequence(pkiMsg, &idx, &length, pkiMsgSz) < 0)
+        return ASN_PARSE_E;
+
+    /* Get the version */
+    if (GetMyVersion(pkiMsg, &idx, &version) < 0)
+        return ASN_PARSE_E;
+
+    if (version != 1) {
+        CYASSL_MSG("PKCS#7 signedData needs to be of version 1");
+        return ASN_VERSION_E;
+    }
+
+    /* Get the set of DigestAlgorithmIdentifiers */
+    if (GetSet(pkiMsg, &idx, &length, pkiMsgSz) < 0)
+        return ASN_PARSE_E;
+
+    /* Skip the set. */
+    idx += length;
+
+    /* Get the inner ContentInfo sequence */
+    if (GetSequence(pkiMsg, &idx, &length, pkiMsgSz) < 0)
+        return ASN_PARSE_E;
+
+    /* Skip the seqeunce. */
+    idx += length;
+
+    b = pkiMsg[idx];
+    /* Get the implicit[0] set of certificates */
+    if (b == (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 0)) {
+        idx++;
+        if (GetLength(pkiMsg, &idx, &length, pkiMsgSz) < 0)
+            return ASN_PARSE_E;
+
+        if (length > 0) {
+            /* At this point, idx is at the first certificate in
+             * a set of certificates. There may be more than one,
+             * or none, or they may be a PKCS 6 extended
+             * certificate. We want to save the first cert if it
+             * is X.509. */
+
+            word32 certIdx = idx;
+
+            b = pkiMsg[certIdx++];
+            if (b == (ASN_CONSTRUCTED | ASN_SEQUENCE)) {
+                int certSz;
+
+                if (GetLength(pkiMsg, &certIdx, &certSz, pkiMsgSz) < 0)
+                    return ASN_PARSE_E;
+
+                pkcs7->singleCert = &pkiMsg[idx];
+                pkcs7->singleCertSz = certSz + (certIdx - idx);
+                return 1;
+            }
+        }
+    }
+
+    return 0;
+}
+
+
 /* create ASN.1 fomatted RecipientInfo structure, returns sequence size */
 CYASSL_LOCAL int CreateRecipientInfo(const byte* cert, word32 certSz,
                                      int keyEncAlgo, int blockKeySz,

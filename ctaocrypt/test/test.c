@@ -4252,7 +4252,38 @@ int pkcs7signed_test(void)
         PKCS7_Free(&msg);
         return -211;
     }
-    ret = (int)fwrite(out, outSz, 1, file);
+    ret = (int)fwrite(out, 1, outSz, file);
+    fclose(file);
+
+    PKCS7_Free(&msg);
+    PKCS7_InitWithCert(&msg, NULL, 0);
+
+    ret = PKCS7_VerifySignedData(&msg, out, outSz);
+    if (ret < 0) {
+        free(certDer);
+        free(keyDer);
+        free(out);
+        PKCS7_Free(&msg);
+        return -212;
+    }
+
+    if (msg.singleCert == NULL || msg.singleCertSz == 0) {
+        free(certDer);
+        free(keyDer);
+        free(out);
+        PKCS7_Free(&msg);
+        return -213;
+    }
+
+    file = fopen("./pkcs7cert.der", "wb");
+    if (!file) {
+        free(certDer);
+        free(keyDer);
+        free(out);
+        PKCS7_Free(&msg);
+        return -214;
+    }
+    ret = (int)fwrite(msg.singleCert, 1, msg.singleCertSz, file);
     fclose(file);
 
     free(certDer);
