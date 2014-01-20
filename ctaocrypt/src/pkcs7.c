@@ -962,23 +962,16 @@ CYASSL_API int PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* pkiMsg,
      * indicate there is another, if not, move on */
     while(recipFound == 0) {
 
-        /* remove RecipientInfo */
+        /* remove RecipientInfo, if we don't have a SEQUENCE, back up idx to
+         * last good saved one */
         if (GetSequence(pkiMsg, &idx, &length, pkiMsgSz) < 0) {
-            if (recipFound == 0) {
-                return ASN_PARSE_E;
-            } else {
-                idx = savedIdx;
-                break;
-            }
+            idx = savedIdx;
+            break;
         }
 
         if (GetMyVersion(pkiMsg, &idx, &version) < 0) {
-            if (recipFound == 0) {
-                return ASN_PARSE_E;
-            } else {
-                idx = savedIdx;
-                break;
-            }
+            idx = savedIdx;
+            break;
         }
 
         if (version != 0)
