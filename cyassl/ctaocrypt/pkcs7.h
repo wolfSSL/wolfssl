@@ -99,6 +99,7 @@ CYASSL_LOCAL int CreateRecipientInfo(const byte* cert, word32 certSz,
                                      int* keyEncSz, byte* out, word32 outSz);
 
 CYASSL_API int  PKCS7_InitWithCert(PKCS7* pkcs7, byte* cert, word32 certSz);
+CYASSL_API void PKCS7_Free(PKCS7* pkcs7);
 CYASSL_API int  PKCS7_EncodeData(PKCS7* pkcs7, byte* output, word32 outputSz);
 CYASSL_API int  PKCS7_EncodeSignedData(PKCS7* pkcs7,
                                        byte* output, word32 outputSz);

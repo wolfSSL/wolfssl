@@ -177,6 +177,13 @@ int PKCS7_InitWithCert(PKCS7* pkcs7, byte* cert, word32 certSz)
 }
 
 
+/* releases any memory allocated by a PKCS7 initializer */
+void PKCS7_Free(PKCS7* pkcs7)
+{
+    (void)pkcs7;
+}
+
+
 /* build PKCS#7 data content type */
 int PKCS7_EncodeData(PKCS7* pkcs7, byte* output, word32 outputSz)
 {

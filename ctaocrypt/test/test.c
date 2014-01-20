@@ -4114,6 +4114,7 @@ int pkcs7enveloped_test(void)
 
     free(cert);
     free(privKey);
+    PKCS7_Free(&pkcs7);
 
     if (ret > 0)
         return 0;
@@ -4233,6 +4234,10 @@ int pkcs7signed_test(void)
     }
     ret = PKCS7_EncodeSignedData(&msg, out, outSz);
     if (ret < 0) {
+        free(certDer);
+        free(keyDer);
+        free(out);
+        PKCS7_Free(&msg);
         return -210;
     }
     else
@@ -4244,6 +4249,7 @@ int pkcs7signed_test(void)
         free(certDer);
         free(keyDer);
         free(out);
+        PKCS7_Free(&msg);
         return -211;
     }
     ret = (int)fwrite(out, outSz, 1, file);
@@ -4252,6 +4258,7 @@ int pkcs7signed_test(void)
     free(certDer);
     free(keyDer);
     free(out);
+    PKCS7_Free(&msg);
 
     if (ret > 0)
         return 0;
