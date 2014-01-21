@@ -47,6 +47,7 @@ enum PKCS7_TYPES {
 };
 
 enum Pkcs7_Misc {
+    PKCS7_NONCE_SZ       = 16,
     MAX_ENCRYPTED_KEY_SZ = 512,           /* max enc. key size, RSA <= 4096 */
     MAX_CONTENT_KEY_LEN  = DES3_KEYLEN,   /* highest current cipher is 3DES */
     MAX_RECIP_SZ         = MAX_VERSION_SZ +

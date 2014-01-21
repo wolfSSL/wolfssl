@@ -4144,13 +4144,9 @@ int pkcs7signed_test(void)
     byte senderNonceOid[] =
                { 0x06, 0x0a, 0x60, 0x86, 0x48, 0x01, 0x86, 0xF8, 0x45, 0x01,
                  0x09, 0x05 };
-    byte pkiStatusOid[] =
-               { 0x06, 0x0a, 0x60, 0x86, 0x48, 0x01, 0x86, 0xF8, 0x45, 0x01,
-                 0x09, 0x03 };
     byte transId[(SHA_DIGEST_SIZE + 1) * 2 + 1];
     byte messageType[] = { 0x13, 2, '1', '9' };
-    byte senderNonce[34];
-    byte pkiStatus[] = { 0x13, 1, '0' };
+    byte senderNonce[PKCS7_NONCE_SZ + 2];
 
     PKCS7Attrib attribs[] =
     {
@@ -4159,9 +4155,7 @@ int pkcs7signed_test(void)
         { messageTypeOid, sizeof(messageTypeOid),
                      messageType, sizeof(messageType) },
         { senderNonceOid, sizeof(senderNonceOid),
-                     senderNonce, sizeof(senderNonce) },
-        { pkiStatusOid, sizeof(pkiStatusOid),
-                     pkiStatus, sizeof(pkiStatus) }
+                     senderNonce, sizeof(senderNonce) }
     };
 
     dataSz = (word32) strlen(data);
@@ -4203,8 +4197,8 @@ int pkcs7signed_test(void)
 
     ret = InitRng(&rng);
     senderNonce[0] = 0x04;
-    senderNonce[1] = 0x20;
-    RNG_GenerateBlock(&rng, &senderNonce[2], 32);
+    senderNonce[1] = PKCS7_NONCE_SZ;
+    RNG_GenerateBlock(&rng, &senderNonce[2], PKCS7_NONCE_SZ);
 
     PKCS7_InitWithCert(&msg, certDer, certDerSz);
     msg.privateKey = keyDer;
