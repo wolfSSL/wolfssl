@@ -483,7 +483,6 @@ enum {
     TLS_RSA_WITH_AES_256_CBC_B2B256   = 0xF9,
     TLS_RSA_WITH_HC_128_B2B256        = 0xFA,   /* eSTREAM too */
 
-
     /* CyaSSL extension - NTRU */
     TLS_NTRU_RSA_WITH_RC4_128_SHA      = 0xe5,
     TLS_NTRU_RSA_WITH_3DES_EDE_CBC_SHA = 0xe6,
@@ -533,8 +532,10 @@ enum {
     TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA    = 0x45,
     TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA    = 0x88,
     TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA256 = 0xbe,
-    TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA256 = 0xc4
+    TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA256 = 0xc4,
 
+    /* Renegotiation Indication Extension Special Suite */
+    TLS_EMPTY_RENEGOTIATION_INFO_SCSV        = 0xff
 };
 
 

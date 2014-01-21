@@ -646,6 +646,13 @@ void InitSuites(Suites* suites, ProtocolVersion pv, byte haveRSA, byte havePSK,
     }
 #endif
 
+#ifdef HAVE_RENEGOTIATION_INDICATION
+    if (side == CYASSL_CLIENT_END) {
+        suites->suites[idx++] = 0;
+        suites->suites[idx++] = TLS_EMPTY_RENEGOTIATION_INFO_SCSV;
+    }
+#endif
+
 #ifdef BUILD_TLS_NTRU_RSA_WITH_AES_256_CBC_SHA
     if (tls && haveNTRU && haveRSA) {
         suites->suites[idx++] = 0; 

@@ -1200,6 +1200,18 @@ then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_TRUNCATED_HMAC"
 fi
 
+# Renegotiation Indication
+AC_ARG_ENABLE([renegotiation-indication],
+    [  --enable-renegotiation-indication  Enable Renegotiation Indication (default: disabled)],
+    [ ENABLED_RENEGOTIATION_INDICATION=$enableval ],
+    [ ENABLED_RENEGOTIATION_INDICATION=no ]
+    )
+
+if test "x$ENABLED_RENEGOTIATION_INDICATION" = "xyes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_RENEGOTIATION_INDICATION"
+fi
+
 # TLS Extensions
 AC_ARG_ENABLE([tlsx],
     [  --enable-tlsx           Enable all TLS Extensions (default: disabled)],
@@ -1212,7 +1224,8 @@ then
 	ENABLED_SNI=yes
 	ENABLED_MAX_FRAGMENT=yes
 	ENABLED_TRUNCATED_HMAC=yes
-    AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_SNI -DHAVE_MAX_FRAGMENT -DHAVE_TRUNCATED_HMAC"
+	ENABLED_RENEGOTIATION_INDICATION=yes
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_SNI -DHAVE_MAX_FRAGMENT -DHAVE_TRUNCATED_HMAC -DHAVE_RENEGOTIATION_INDICATION"
 fi
 
 # PKCS7
@@ -1613,6 +1626,7 @@ echo "   * NTRU:                      $ENABLED_NTRU"
 echo "   * SNI:                       $ENABLED_SNI"
 echo "   * Maximum Fragment Length:   $ENABLED_MAX_FRAGMENT"
 echo "   * Truncated HMAC:            $ENABLED_TRUNCATED_HMAC"
+echo "   * Renegotiation Indication:  $ENABLED_RENEGOTIATION_INDICATION"
 echo "   * All TLS Extensions:        $ENABLED_TLSX"
 echo "   * PKCS#7                     $ENABLED_PKCS7"
 echo "   * valgrind unit tests:       $ENABLED_VALGRIND"
