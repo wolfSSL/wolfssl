@@ -604,8 +604,32 @@ int PKCS7_VerifySignedData(PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz)
     if (GetSequence(pkiMsg, &idx, &length, pkiMsgSz) < 0)
         return ASN_PARSE_E;
 
-    /* Skip the seqeunce. */
-    idx += length;
+    /* Get the inner ContentInfo contentType */
+    if (GetContentType(pkiMsg, &idx, &contentType, pkiMsgSz) < 0)
+        return ASN_PARSE_E;
+
+    if (contentType != DATA) {
+        CYASSL_MSG("PKCS#7 inner input not of type Data");
+        return PKCS7_OID_E;
+    }
+
+    b = pkiMsg[idx++];
+    if (b != (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 0))
+        return ASN_PARSE_E;
+
+    if (GetLength(pkiMsg, &idx, &length, pkiMsgSz) < 0)
+        return ASN_PARSE_E;
+
+    b = pkiMsg[idx++];
+    if (GetLength(pkiMsg, &idx, &length, pkiMsgSz) < 0)
+        return ASN_PARSE_E;
+
+    /* Save the inner data as the content. */
+    if (length > 0) {
+        pkcs7->content = &pkiMsg[idx];
+        pkcs7->contentSz = length;
+        idx += length;
+    }
 
     b = pkiMsg[idx];
     /* Get the implicit[0] set of certificates */
