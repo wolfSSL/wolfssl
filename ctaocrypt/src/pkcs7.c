@@ -1183,7 +1183,7 @@ CYASSL_API int PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* pkiMsg,
     /* decrypt encryptedKey */
     keySz = RsaPrivateDecryptInline(encryptedKey, encryptedKeySz,
                                     &decryptedKey, &privKey);
-    if (keySz < 0)
+    if (keySz <= 0)
         return keySz;
 
     /* decrypt encryptedContent */
