@@ -228,7 +228,7 @@ typedef struct EncodedAttrib {
 typedef struct ESD {
     Sha sha;
     byte contentDigest[SHA_DIGEST_SIZE + 2]; /* content only + ASN.1 heading */
-    byte contentAttribsDigest[SHA_DIGEST_SIZE]; /* content + attribs */
+    byte contentAttribsDigest[SHA_DIGEST_SIZE];
     byte encContentDigest[512];
 
     byte outerSeq[MAX_SEQ_SZ];
@@ -417,16 +417,39 @@ int PKCS7_EncodeSignedData(PKCS7* pkcs7, byte* output, word32 outputSz)
         int result;
         word32 scratch = 0;
 
+        byte digestInfo[MAX_SEQ_SZ + MAX_ALGO_SZ +
+                        MAX_OCTET_STR_SZ + SHA_DIGEST_SIZE];
+        byte digestInfoSeq[MAX_SEQ_SZ];
+        byte digestStr[MAX_OCTET_STR_SZ];
+        word32 digestInfoSeqSz, digestStrSz;
+        int digIdx = 0;
+
         if (pkcs7->signedAttribsSz != 0) {
             byte attribSet[MAX_SET_SZ];
             word32 attribSetSz;
 
             attribSetSz = SetSet(flatSignedAttribsSz, attribSet);
 
+            InitSha(&esd.sha);
             ShaUpdate(&esd.sha, attribSet, attribSetSz);
             ShaUpdate(&esd.sha, flatSignedAttribs, flatSignedAttribsSz);
         }
         ShaFinal(&esd.sha, esd.contentAttribsDigest);
+
+        digestStrSz = SetOctetString(SHA_DIGEST_SIZE, digestStr);
+        digestInfoSeqSz = SetSequence(esd.signerDigAlgoIdSz +
+                                      digestStrSz + SHA_DIGEST_SIZE,
+                                      digestInfoSeq);
+
+        XMEMCPY(digestInfo + digIdx, digestInfoSeq, digestInfoSeqSz);
+        digIdx += digestInfoSeqSz;
+        XMEMCPY(digestInfo + digIdx,
+                                    esd.signerDigAlgoId, esd.signerDigAlgoIdSz);
+        digIdx += esd.signerDigAlgoIdSz;
+        XMEMCPY(digestInfo + digIdx, digestStr, digestStrSz);
+        digIdx += digestStrSz;
+        XMEMCPY(digestInfo + digIdx, esd.contentAttribsDigest, SHA_DIGEST_SIZE);
+        digIdx += SHA_DIGEST_SIZE;
 
         InitRsaKey(&privKey, NULL);
         result = RsaPrivateKeyDecode(pkcs7->privateKey, &scratch, &privKey,
@@ -435,11 +458,9 @@ int PKCS7_EncodeSignedData(PKCS7* pkcs7, byte* output, word32 outputSz)
             XFREE(flatSignedAttribs, 0, NULL);
             return PUBLIC_KEY_E;
         }
-        result = RsaSSL_Sign(esd.contentAttribsDigest,
-                                  sizeof(esd.contentAttribsDigest),
-                                  esd.encContentDigest,
-                                  sizeof(esd.encContentDigest), &privKey,
-                                  pkcs7->rng);
+        result = RsaSSL_Sign(digestInfo, digIdx,
+                             esd.encContentDigest, sizeof(esd.encContentDigest),
+                             &privKey, pkcs7->rng);
         FreeRsaKey(&privKey);
         if (result < 0) {
             XFREE(flatSignedAttribs, 0, NULL);
@@ -553,7 +574,11 @@ int PKCS7_VerifySignedData(PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz)
 {
     word32 idx, contentType;
     int length, version;
-    byte b;
+    byte* content = NULL;
+    byte* sig = NULL;
+    byte* cert = NULL;
+    byte* signedAttr = NULL;
+    int contentSz = 0, sigSz = 0, certSz = 0, signedAttrSz = 0;
 
     if (pkcs7 == NULL || pkiMsg == NULL || pkiMsgSz == 0)
         return BAD_FUNC_ARG;
@@ -613,27 +638,27 @@ int PKCS7_VerifySignedData(PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz)
         return PKCS7_OID_E;
     }
 
-    b = pkiMsg[idx++];
-    if (b != (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 0))
+    if (pkiMsg[idx++] != (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 0))
         return ASN_PARSE_E;
 
     if (GetLength(pkiMsg, &idx, &length, pkiMsgSz) < 0)
         return ASN_PARSE_E;
 
-    b = pkiMsg[idx++];
+    if (pkiMsg[idx++] != ASN_OCTET_STRING)
+        return ASN_PARSE_E;
+
     if (GetLength(pkiMsg, &idx, &length, pkiMsgSz) < 0)
         return ASN_PARSE_E;
 
     /* Save the inner data as the content. */
     if (length > 0) {
-        pkcs7->content = &pkiMsg[idx];
-        pkcs7->contentSz = length;
+        content = &pkiMsg[idx];
+        contentSz = length;
         idx += length;
     }
 
-    b = pkiMsg[idx];
     /* Get the implicit[0] set of certificates */
-    if (b == (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 0)) {
+    if (pkiMsg[idx] == (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 0)) {
         idx++;
         if (GetLength(pkiMsg, &idx, &length, pkiMsgSz) < 0)
             return ASN_PARSE_E;
@@ -647,18 +672,114 @@ int PKCS7_VerifySignedData(PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz)
 
             word32 certIdx = idx;
 
-            b = pkiMsg[certIdx++];
-            if (b == (ASN_CONSTRUCTED | ASN_SEQUENCE)) {
-                int certSz;
-
+            if (pkiMsg[certIdx++] == (ASN_CONSTRUCTED | ASN_SEQUENCE)) {
                 if (GetLength(pkiMsg, &certIdx, &certSz, pkiMsgSz) < 0)
                     return ASN_PARSE_E;
 
-                pkcs7->singleCert = &pkiMsg[idx];
-                pkcs7->singleCertSz = certSz + (certIdx - idx);
-                return 1;
+                cert = &pkiMsg[idx];
+                certSz += (certIdx - idx);
             }
         }
+        idx += length;
+    }
+
+    /* Get the implicit[1] set of crls */
+    if (pkiMsg[idx] == (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 1)) {
+        idx++;
+        if (GetLength(pkiMsg, &idx, &length, pkiMsgSz) < 0)
+            return ASN_PARSE_E;
+
+        /* Skip the set */
+        idx += length;
+    }
+
+    /* Get the set of signerInfos */
+    if (GetSet(pkiMsg, &idx, &length, pkiMsgSz) < 0)
+        return ASN_PARSE_E;
+
+    /* Get the sequence of the first signerInfo */
+    if (GetSequence(pkiMsg, &idx, &length, pkiMsgSz) < 0)
+        return ASN_PARSE_E;
+
+    /* Get the version */
+    if (GetMyVersion(pkiMsg, &idx, &version) < 0)
+        return ASN_PARSE_E;
+
+    if (version != 1) {
+        CYASSL_MSG("PKCS#7 signerInfo needs to be of version 1");
+        return ASN_VERSION_E;
+    }
+
+    /* Get the sequence of IssuerAndSerialNumber */
+    if (GetSequence(pkiMsg, &idx, &length, pkiMsgSz) < 0)
+        return ASN_PARSE_E;
+
+    /* Skip it */
+    idx += length;
+
+    /* Get the sequence of digestAlgorithm */
+    if (GetSequence(pkiMsg, &idx, &length, pkiMsgSz) < 0)
+        return ASN_PARSE_E;
+
+    /* Skip it */
+    idx += length;
+
+    /* Get the IMPLICIT[0] SET OF signedAttributes */
+    if (pkiMsg[idx] == (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 0)) {
+        idx++;
+
+        if (GetLength(pkiMsg, &idx, &length, pkiMsgSz) < 0)
+            return ASN_PARSE_E;
+
+        /* save pointer and length */
+        signedAttr = &pkiMsg[idx];
+        signedAttrSz = length;
+
+        idx += length;
+    }
+
+    /* Get the sequence of digestEncryptionAlgorithm */
+    if (GetSequence(pkiMsg, &idx, &length, pkiMsgSz) < 0)
+        return ASN_PARSE_E;
+
+    /* Skip it */
+    idx += length;
+
+    /* Get the signature */
+    if (pkiMsg[idx] == ASN_OCTET_STRING) {
+        idx++;
+
+        if (GetLength(pkiMsg, &idx, &length, pkiMsgSz) < 0)
+            return ASN_PARSE_E;
+
+        /* save pointer and length */
+        sig = &pkiMsg[idx];
+        sigSz = length;
+
+        idx += length;
+    }
+
+    {
+        RsaKey key;
+        word32 scratch = 0;
+        int plainSz = 0;
+        byte digest[MAX_SEQ_SZ+MAX_ALGO_SZ+MAX_OCTET_STR_SZ+SHA_DIGEST_SIZE];
+
+        XMEMSET(digest, 0, sizeof(digest));
+        PKCS7_InitWithCert(pkcs7, cert, certSz);
+        pkcs7->content = content;
+        pkcs7->contentSz = contentSz;
+
+        InitRsaKey(&key, NULL);
+        if (RsaPublicKeyDecode(pkcs7->publicKey, &scratch, &key,
+                               pkcs7->publicKeySz) < 0) {
+            CYASSL_MSG("ASN RSA key decode error");
+            return PUBLIC_KEY_E;
+        }
+        plainSz = RsaSSL_Verify(sig, sigSz, digest, sizeof(digest), &key);
+        FreeRsaKey(&key);
+        if (plainSz < 0)
+            return plainSz;
     }
 
     return 0;
