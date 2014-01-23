@@ -65,25 +65,26 @@ typedef struct PKCS7Attrib {
 
 
 typedef struct PKCS7 {
-    byte* content;                /* inner content, not owner */
-    word32 contentSz;             /* content size */
-    int contentOID;               /* PKCS#7 content type OID sum */
+    byte* content;                /* inner content, not owner             */
+    word32 contentSz;             /* content size                         */
+    int contentOID;               /* PKCS#7 content type OID sum          */
 
     RNG* rng;
 
     int hashOID;
-    int encryptOID;               /* key encryption algorithm OID */
+    int encryptOID;               /* key encryption algorithm OID         */
 
-    byte*  singleCert;            /* recipient cert, DER, not owner */
+    byte*  singleCert;            /* recipient cert, DER, not owner       */
     word32 singleCertSz;          /* size of recipient cert buffer, bytes */
-    byte*  issuer;                /* issuer name of singleCert */
-    word32 issuerSz;              /* length of issuer name */
-    byte issuerSn[MAX_SN_SZ];     /* singleCert's serial number */
-    word32 issuerSnSz;            /* length of serial number */
+    byte issuerHash[SHA_SIZE];    /* hash of all alt Names                */
+    byte*  issuer;                /* issuer name of singleCert            */
+    word32 issuerSz;              /* length of issuer name                */
+    byte issuerSn[MAX_SN_SZ];     /* singleCert's serial number           */
+    word32 issuerSnSz;            /* length of serial number              */
     byte publicKey[512];
     word32 publicKeySz;
-    byte*  privateKey;            /* private key, DER, not owner */
-    word32 privateKeySz;          /* size of private key buffer, bytes */
+    byte*  privateKey;            /* private key, DER, not owner          */
+    word32 privateKeySz;          /* size of private key buffer, bytes    */
     
     PKCS7Attrib* signedAttribs;
     word32 signedAttribsSz;

@@ -166,6 +166,7 @@ int PKCS7_InitWithCert(PKCS7* pkcs7, byte* cert, word32 certSz)
         }
         XMEMCPY(pkcs7->publicKey, dCert.publicKey, dCert.pubKeySize);
         pkcs7->publicKeySz = dCert.pubKeySize;
+        XMEMCPY(pkcs7->issuerHash, dCert.issuerHash, SHA_SIZE);
         pkcs7->issuer = dCert.issuerRaw;
         pkcs7->issuerSz = dCert.issuerRawLen;
         XMEMCPY(pkcs7->issuerSn, dCert.serial, dCert.serialSz);
@@ -1005,8 +1006,6 @@ CYASSL_API int PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* pkiMsg,
     byte   issuerHash[SHA_DIGEST_SIZE];
     mp_int serialNum;
 
-    DecodedCert decoded;
-
     int encryptedKeySz, keySz;
     byte tmpIv[DES_BLOCK_SIZE];
     byte encryptedKey[MAX_ENCRYPTED_KEY_SZ];
@@ -1025,14 +1024,6 @@ CYASSL_API int PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* pkiMsg,
     if (pkiMsg == NULL || pkiMsgSz == 0 ||
         output == NULL || outputSz == 0)
         return BAD_FUNC_ARG;
-
-    /* parse recipient cert */
-    InitDecodedCert(&decoded, pkcs7->singleCert, pkcs7->singleCertSz, 0);
-    ret = ParseCert(&decoded, CA_TYPE, NO_VERIFY, 0);
-    if (ret < 0) {
-        FreeDecodedCert(&decoded);
-        return ret;
-    }
 
     /* load private key */
     InitRsaKey(&privKey, 0);
@@ -1109,7 +1100,7 @@ CYASSL_API int PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* pkiMsg,
             return ASN_PARSE_E;
 
         /* if we found correct recipient, issuer hashes will match */
-        if (XMEMCMP(issuerHash, decoded.issuerHash, SHA_DIGEST_SIZE) == 0) {
+        if (XMEMCMP(issuerHash, pkcs7->issuerHash, SHA_DIGEST_SIZE) == 0) {
             recipFound = 1;
         }
 
