@@ -581,6 +581,9 @@ int PKCS7_VerifySignedData(PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz)
     byte* signedAttr = NULL;
     int contentSz = 0, sigSz = 0, certSz = 0, signedAttrSz = 0;
 
+    (void)signedAttr;    /* not used yet, just set */
+    (void)signedAttrSz;
+
     if (pkcs7 == NULL || pkiMsg == NULL || pkiMsgSz == 0)
         return BAD_FUNC_ARG;
 
