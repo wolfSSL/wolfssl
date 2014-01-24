@@ -3893,6 +3893,10 @@ void InitCert(Cert* cert)
     cert->subject.unit[0] = '\0';
     cert->subject.commonName[0] = '\0';
     cert->subject.email[0] = '\0';
+
+#ifdef CYASSL_CERT_REQ
+    cert->challengePw[0] ='\0';
+#endif
 }
 
 
