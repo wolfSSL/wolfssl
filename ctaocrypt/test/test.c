@@ -1916,6 +1916,12 @@ int aes_test(void)
             0x79,0x21,0x70,0xa0,0xf3,0x00,0x9c,0xee
         };
 
+        const byte oddCipher[] =
+        {
+            0xb9,0xd7,0xcb,0x08,0xb0,0xe1,0x7b,0xa0,
+            0xc2
+        };
+
         AesSetKeyDirect(&enc, ctrKey, AES_BLOCK_SIZE, ctrIv, AES_ENCRYPTION);
         /* Ctr only uses encrypt, even on key setup */
         AesSetKeyDirect(&dec, ctrKey, AES_BLOCK_SIZE, ctrIv, AES_ENCRYPTION);
@@ -1928,6 +1934,30 @@ int aes_test(void)
 
         if (memcmp(cipher, ctrCipher, AES_BLOCK_SIZE*4))
             return -67;
+
+        /* let's try with just 9 bytes, non block size test */
+        AesSetKeyDirect(&enc, ctrKey, AES_BLOCK_SIZE, ctrIv, AES_ENCRYPTION);
+        /* Ctr only uses encrypt, even on key setup */
+        AesSetKeyDirect(&dec, ctrKey, AES_BLOCK_SIZE, ctrIv, AES_ENCRYPTION);
+
+        AesCtrEncrypt(&enc, cipher, ctrPlain, 9);
+        AesCtrEncrypt(&dec, plain, cipher, 9);
+
+        if (memcmp(plain, ctrPlain, 9))
+            return -68;
+
+        if (memcmp(cipher, ctrCipher, 9))
+            return -69;
+
+        /* and an additional 9 bytes to reuse tmp left buffer */
+        AesCtrEncrypt(&enc, cipher, ctrPlain, 9);
+        AesCtrEncrypt(&dec, plain, cipher, 9);
+
+        if (memcmp(plain, ctrPlain, 9))
+            return -70;
+
+        if (memcmp(cipher, oddCipher, 9))
+            return -71;
     }
 #endif /* CYASSL_AES_COUNTER */
 

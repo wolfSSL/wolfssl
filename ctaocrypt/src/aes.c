@@ -1476,6 +1476,10 @@ static int AesSetKeyLocal(Aes* aes, const byte* userKey, word32 keylen,
     #ifdef CYASSL_AESNI
         aes->use_aesni = 0;
     #endif /* CYASSL_AESNI */
+    #ifdef CYASSL_AES_COUNTER
+        aes->left = 0;
+    #endif /* CYASSL_AES_COUNTER */
+
     aes->rounds = keylen/4 + 6;
 
     XMEMCPY(rk, userKey, keylen);
@@ -2129,15 +2133,39 @@ static INLINE void IncrementAesCounter(byte* inOutCtr)
 
 void AesCtrEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 {
-    word32 blocks = sz / AES_BLOCK_SIZE;
+    byte* tmp = (byte*)aes->tmp + AES_BLOCK_SIZE - aes->left;
 
-    while (blocks--) {
+    /* consume any unused bytes left in aes->tmp */
+    while (aes->left && sz) {
+       *(out++) = *(in++) ^ *(tmp++);
+       aes->left--;
+       sz--;
+    }
+
+    /* do as many block size ops as possible */
+    while (sz >= AES_BLOCK_SIZE) {
         AesEncrypt(aes, (byte*)aes->reg, out);
         IncrementAesCounter((byte*)aes->reg);
         xorbuf(out, in, AES_BLOCK_SIZE);
 
         out += AES_BLOCK_SIZE;
-        in  += AES_BLOCK_SIZE; 
+        in  += AES_BLOCK_SIZE;
+        sz  -= AES_BLOCK_SIZE;
+        aes->left = 0;
+    }
+
+    /* handle non block size remaining and sotre unused byte count in left */
+    if (sz) {
+        AesEncrypt(aes, (byte*)aes->reg, (byte*)aes->tmp);
+        IncrementAesCounter((byte*)aes->reg);
+
+        aes->left = AES_BLOCK_SIZE;
+        tmp = (byte*)aes->tmp;
+
+        while (sz--) {
+            *(out++) = *(in++) ^ *(tmp++);
+            aes->left--;
+        }
     }
 }
 
