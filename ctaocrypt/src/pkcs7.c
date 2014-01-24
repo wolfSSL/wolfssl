@@ -653,8 +653,9 @@ int PKCS7_VerifySignedData(PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz)
 
     /* Save the inner data as the content. */
     if (length > 0) {
-        content = &pkiMsg[idx];
-        contentSz = length;
+        /* Local pointer for calculating hashes later */
+        pkcs7->content = content = &pkiMsg[idx];
+        pkcs7->contentSz = contentSz = length;
         idx += length;
     }
 
@@ -680,6 +681,7 @@ int PKCS7_VerifySignedData(PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz)
                 cert = &pkiMsg[idx];
                 certSz += (certIdx - idx);
             }
+            PKCS7_InitWithCert(pkcs7, cert, certSz);
         }
         idx += length;
     }
@@ -698,76 +700,75 @@ int PKCS7_VerifySignedData(PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz)
     if (GetSet(pkiMsg, &idx, &length, pkiMsgSz) < 0)
         return ASN_PARSE_E;
 
-    /* Get the sequence of the first signerInfo */
-    if (GetSequence(pkiMsg, &idx, &length, pkiMsgSz) < 0)
-        return ASN_PARSE_E;
-
-    /* Get the version */
-    if (GetMyVersion(pkiMsg, &idx, &version) < 0)
-        return ASN_PARSE_E;
-
-    if (version != 1) {
-        CYASSL_MSG("PKCS#7 signerInfo needs to be of version 1");
-        return ASN_VERSION_E;
-    }
-
-    /* Get the sequence of IssuerAndSerialNumber */
-    if (GetSequence(pkiMsg, &idx, &length, pkiMsgSz) < 0)
-        return ASN_PARSE_E;
-
-    /* Skip it */
-    idx += length;
-
-    /* Get the sequence of digestAlgorithm */
-    if (GetSequence(pkiMsg, &idx, &length, pkiMsgSz) < 0)
-        return ASN_PARSE_E;
-
-    /* Skip it */
-    idx += length;
-
-    /* Get the IMPLICIT[0] SET OF signedAttributes */
-    if (pkiMsg[idx] == (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 0)) {
-        idx++;
-
-        if (GetLength(pkiMsg, &idx, &length, pkiMsgSz) < 0)
-            return ASN_PARSE_E;
-
-        /* save pointer and length */
-        signedAttr = &pkiMsg[idx];
-        signedAttrSz = length;
-
-        idx += length;
-    }
-
-    /* Get the sequence of digestEncryptionAlgorithm */
-    if (GetSequence(pkiMsg, &idx, &length, pkiMsgSz) < 0)
-        return ASN_PARSE_E;
-
-    /* Skip it */
-    idx += length;
-
-    /* Get the signature */
-    if (pkiMsg[idx] == ASN_OCTET_STRING) {
-        idx++;
-
-        if (GetLength(pkiMsg, &idx, &length, pkiMsgSz) < 0)
-            return ASN_PARSE_E;
-
-        /* save pointer and length */
-        sig = &pkiMsg[idx];
-        sigSz = length;
-
-        idx += length;
-    }
-
-    {
+    if (length > 0) {
         RsaKey key;
         word32 scratch = 0;
         int plainSz = 0;
         byte digest[MAX_SEQ_SZ+MAX_ALGO_SZ+MAX_OCTET_STR_SZ+SHA_DIGEST_SIZE];
 
+        /* Get the sequence of the first signerInfo */
+        if (GetSequence(pkiMsg, &idx, &length, pkiMsgSz) < 0)
+            return ASN_PARSE_E;
+
+        /* Get the version */
+        if (GetMyVersion(pkiMsg, &idx, &version) < 0)
+            return ASN_PARSE_E;
+
+        if (version != 1) {
+            CYASSL_MSG("PKCS#7 signerInfo needs to be of version 1");
+            return ASN_VERSION_E;
+        }
+
+        /* Get the sequence of IssuerAndSerialNumber */
+        if (GetSequence(pkiMsg, &idx, &length, pkiMsgSz) < 0)
+            return ASN_PARSE_E;
+
+        /* Skip it */
+        idx += length;
+
+        /* Get the sequence of digestAlgorithm */
+        if (GetSequence(pkiMsg, &idx, &length, pkiMsgSz) < 0)
+            return ASN_PARSE_E;
+
+        /* Skip it */
+        idx += length;
+
+        /* Get the IMPLICIT[0] SET OF signedAttributes */
+        if (pkiMsg[idx] == (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 0)) {
+            idx++;
+
+            if (GetLength(pkiMsg, &idx, &length, pkiMsgSz) < 0)
+                return ASN_PARSE_E;
+
+            /* save pointer and length */
+            signedAttr = &pkiMsg[idx];
+            signedAttrSz = length;
+
+            idx += length;
+        }
+
+        /* Get the sequence of digestEncryptionAlgorithm */
+        if (GetSequence(pkiMsg, &idx, &length, pkiMsgSz) < 0)
+            return ASN_PARSE_E;
+
+        /* Skip it */
+        idx += length;
+
+        /* Get the signature */
+        if (pkiMsg[idx] == ASN_OCTET_STRING) {
+            idx++;
+
+            if (GetLength(pkiMsg, &idx, &length, pkiMsgSz) < 0)
+                return ASN_PARSE_E;
+
+            /* save pointer and length */
+            sig = &pkiMsg[idx];
+            sigSz = length;
+
+            idx += length;
+        }
+
         XMEMSET(digest, 0, sizeof(digest));
-        PKCS7_InitWithCert(pkcs7, cert, certSz);
         pkcs7->content = content;
         pkcs7->contentSz = contentSz;
 
