@@ -4020,6 +4020,7 @@ static int SetRsaPublicKey(byte* output, RsaKey* key)
     int  idx;
     int  rawLen;
     int  leadingBit;
+    int  err;
 
     /* n */
     leadingBit = mp_leading_bit(&key->n);
@@ -4028,7 +4029,9 @@ static int SetRsaPublicKey(byte* output, RsaKey* key)
     nSz  = SetLength(rawLen, n + 1) + 1;  /* int tag */
 
     if ( (nSz + rawLen) < (int)sizeof(n)) {
-        int err = mp_to_unsigned_bin(&key->n, n + nSz + leadingBit);
+        if (leadingBit)
+            n[nSz] = 0;
+        err = mp_to_unsigned_bin(&key->n, n + nSz + leadingBit);
         if (err == MP_OKAY)
             nSz += rawLen;
         else
@@ -4044,7 +4047,9 @@ static int SetRsaPublicKey(byte* output, RsaKey* key)
     eSz  = SetLength(rawLen, e + 1) + 1;  /* int tag */
 
     if ( (eSz + rawLen) < (int)sizeof(e)) {
-        int err = mp_to_unsigned_bin(&key->e, e + eSz + leadingBit);
+        if (leadingBit)
+            e[eSz] = 0;
+        err = mp_to_unsigned_bin(&key->e, e + eSz + leadingBit);
         if (err == MP_OKAY)
             eSz += rawLen;
         else
