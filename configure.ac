@@ -6,7 +6,7 @@
 #
 #
 
-AC_INIT([cyassl],[2.8.5],[https://github.com/cyassl/cyassl/issues],[cyassl],[http://www.yassl.com])
+AC_INIT([cyassl],[2.8.6],[https://github.com/cyassl/cyassl/issues],[cyassl],[http://www.yassl.com])
 
 AC_CONFIG_AUX_DIR([build-aux])
 
@@ -1242,6 +1242,41 @@ fi
 
 AM_CONDITIONAL([BUILD_PKCS7], [test "x$ENABLED_PKCS7" = "xyes"])
 
+
+# Simple Certificate Enrollment Protocol (SCEP)
+AC_ARG_ENABLE([scep],
+    [  --enable-scep           Enable wolfSCEP (default: disabled)],
+    [ ENABLED_WOLFSCEP=$enableval ],
+    [ ENABLED_WOLFSCEP=no ]
+    )
+if test "$ENABLED_WOLFSCEP" = "yes"
+then
+    # Enable prereqs if not already enabled
+    if test "x$ENABLED_KEYGEN" = "xno"
+    then
+        ENABLED_KEYGEN="yes"
+        AM_CFLAGS="$AM_CFLAGS -DCYASSL_KEY_GEN"
+    fi
+    if test "x$ENABLED_CERTGEN" = "xno"
+    then
+        ENABLED_CERTGEN="yes"
+        AM_CFLAGS="$AM_CFLAGS -DCYASSL_CERT_GEN"
+    fi
+    if test "x$ENABLED_CERTREQ" = "xno"
+    then
+        ENABLED_CERTREQ="yes"
+        AM_CFLAGS="$AM_CFLAGS -DCYASSL_CERT_REQ"
+    fi
+    if test "x$ENABLED_PKCS7" = "xno"
+    then
+        ENABLED_PKCS7="yes"
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_PKCS7"
+        AM_CONDITIONAL([BUILD_PKCS7], [test "x$ENABLED_PKCS7" = "xyes"])
+    fi
+    AM_CFLAGS="$AM_CFLAGS -DCYASSL_HAVE_WOLFSCEP"
+fi
+
+
 #valgrind
 AC_ARG_ENABLE([valgrind],
     [  --enable-valgrind       Enable valgrind for unit tests (default: disabled)],
@@ -1629,6 +1664,7 @@ echo "   * Truncated HMAC:            $ENABLED_TRUNCATED_HMAC"
 echo "   * Renegotiation Indication:  $ENABLED_RENEGOTIATION_INDICATION"
 echo "   * All TLS Extensions:        $ENABLED_TLSX"
 echo "   * PKCS#7                     $ENABLED_PKCS7"
+echo "   * wolfSCEP                   $ENABLED_WOLFSCEP"
 echo "   * valgrind unit tests:       $ENABLED_VALGRIND"
 echo "   * LIBZ:                      $ENABLED_LIBZ"
 echo "   * Examples:                  $ENABLED_EXAMPLES"

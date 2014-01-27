@@ -1262,6 +1262,11 @@ CYASSL_API int CyaSSL_accept_ex(CYASSL*, HandShakeCallBack, TimeoutCallBack,
 #endif /* CYASSL_CALLBACKS */
 
 
+#ifdef CYASSL_HAVE_WOLFSCEP
+CYASSL_API void CyaSSL_wolfSCEP(void);
+#endif /* CYASSL_HAVE_WOLFSCEP */
+
+
 #ifdef __cplusplus
     }  /* extern "C" */
 #endif

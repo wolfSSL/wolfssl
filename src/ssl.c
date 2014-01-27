@@ -11340,3 +11340,9 @@ void* CyaSSL_GetRsaDecCtx(CYASSL* ssl)
 #endif /* HAVE_PK_CALLBACKS */
 #endif /* NO_CERTS */
 
+
+#ifdef CYASSL_HAVE_WOLFSCEP
+    /* Used by autoconf to see if wolfSCEP is available */
+    void CyaSSL_wolfSCEP(void) {}
+#endif
+
