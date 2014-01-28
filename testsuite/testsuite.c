@@ -51,10 +51,15 @@ enum {
     NUMARGS = 3
 };
 
+#ifndef USE_WINDOWS_API
+    const char outputName[] = "/tmp/output";
+#else
+    const char outputName[] = "output";
+#endif
+
 
 int myoptind = 0;
 char* myoptarg = NULL;
-
 
 int main(int argc, char** argv)
 {
@@ -79,7 +84,7 @@ int main(int argc, char** argv)
     CyaSSL_Debugging_ON();
 #endif
 
-    if (CurrentDir("testsuite"))
+    if (CurrentDir("testsuite") || CurrentDir("_build"))
         ChangeDirBack(1);
     else if (CurrentDir("Debug") || CurrentDir("Release"))
         ChangeDirBack(3);          /* Xcode->Preferences->Locations->Locations*/
@@ -117,8 +122,8 @@ int main(int argc, char** argv)
    
         strcpy(echo_args.argv[0], "echoclient");
         strcpy(echo_args.argv[1], "input");
-        strcpy(echo_args.argv[2], "output");
-        remove("output");
+        strcpy(echo_args.argv[2], outputName);
+        remove(outputName);
 
         /* Share the signal, it has the new port number in it. */
         echo_args.signal = server_args.signal;
@@ -146,7 +151,7 @@ int main(int argc, char** argv)
         byte output[SHA256_DIGEST_SIZE];
 
         file_test("input",  input);
-        file_test("output", output);
+        file_test(outputName, output);
         if (memcmp(input, output, sizeof(input)) != 0)
             return EXIT_FAILURE;
     }
