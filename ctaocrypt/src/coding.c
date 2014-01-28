@@ -149,7 +149,7 @@ const byte base64Encode[] = { 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J',
 
 /* make sure *i (idx) won't exceed max, store and possibly escape to out,
  * raw means use e w/o decode,  0 on success */
-static int Escape(int escaped, byte e, byte* out, word32* i, word32 max,
+static int CEscape(int escaped, byte e, byte* out, word32* i, word32 max,
                   int raw)
 {
     int    doEscape = 0;
@@ -256,19 +256,19 @@ static int DoBase64_Encode(const byte* in, word32 inLen, byte* out,
         byte e4 = b3 & 0x3F;
 
         /* store */
-        ret = Escape(escaped, e1, out, &i, *outLen, 0);
+        ret = CEscape(escaped, e1, out, &i, *outLen, 0);
         if (ret != 0) break;
-        ret = Escape(escaped, e2, out, &i, *outLen, 0);
+        ret = CEscape(escaped, e2, out, &i, *outLen, 0);
         if (ret != 0) break;
-        ret = Escape(escaped, e3, out, &i, *outLen, 0);
+        ret = CEscape(escaped, e3, out, &i, *outLen, 0);
         if (ret != 0) break;
-        ret = Escape(escaped, e4, out, &i, *outLen, 0);
+        ret = CEscape(escaped, e4, out, &i, *outLen, 0);
         if (ret != 0) break;
 
         inLen -= 3;
 
         if ((++n % (PEM_LINE_SZ / 4)) == 0 && inLen) {
-            ret = Escape(escaped, '\n', out, &i, *outLen, 1);
+            ret = CEscape(escaped, '\n', out, &i, *outLen, 1);
             if (ret != 0) break;
         }
     }
@@ -284,23 +284,23 @@ static int DoBase64_Encode(const byte* in, word32 inLen, byte* out,
         byte e2 = ((b1 & 0x3) << 4) | (b2 >> 4);
         byte e3 =  (b2 & 0xF) << 2;
 
-        ret = Escape(escaped, e1, out, &i, *outLen, 0);
+        ret = CEscape(escaped, e1, out, &i, *outLen, 0);
         if (ret == 0) 
-            ret = Escape(escaped, e2, out, &i, *outLen, 0);
+            ret = CEscape(escaped, e2, out, &i, *outLen, 0);
         if (ret == 0) {
             /* third */
             if (twoBytes)
-                ret = Escape(escaped, e3, out, &i, *outLen, 0);
+                ret = CEscape(escaped, e3, out, &i, *outLen, 0);
             else 
-                ret = Escape(escaped, '=', out, &i, *outLen, 1);
+                ret = CEscape(escaped, '=', out, &i, *outLen, 1);
         }
         /* fourth always pad */
         if (ret == 0)
-            ret = Escape(escaped, '=', out, &i, *outLen, 1);
+            ret = CEscape(escaped, '=', out, &i, *outLen, 1);
     } 
 
     if (ret == 0) 
-        ret = Escape(escaped, '\n', out, &i, *outLen, 1);
+        ret = CEscape(escaped, '\n', out, &i, *outLen, 1);
 
     if (i != outSz && escaped == 0 && ret == 0)
         return ASN_INPUT_E; 
