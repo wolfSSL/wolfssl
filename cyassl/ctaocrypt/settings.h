@@ -332,8 +332,8 @@
         #include "mutex.h"
     #endif
 
-    #define XMALLOC(s, h, type) (void *)_mem_alloc_system((s))
-    #define XFREE(p, h, type)   _mem_free(p)
+    #define XMALLOC(s, h, t)    (void *)_mem_alloc_system((s))
+    #define XFREE(p, h, t)      {void* xp = (p); if ((xp)) _mem_free((xp));}
     /* Note: MQX has no realloc, using fastmath above */
 #endif
 
