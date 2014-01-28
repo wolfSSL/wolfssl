@@ -862,6 +862,7 @@ CYASSL_LOCAL int CreateRecipientInfo(const byte* cert, word32 certSz,
 
     *keyEncSz = RsaPublicEncrypt(contentKeyPlain, blockKeySz, contentKeyEnc,
                                  MAX_ENCRYPTED_KEY_SZ, &pubKey, rng);
+    FreeRsaKey(&pubKey);
     if (*keyEncSz < 0) {
         CYASSL_MSG("RSA Public Encrypt failed");
         return *keyEncSz;
@@ -1231,6 +1232,7 @@ CYASSL_API int PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* pkiMsg,
 
         if (GetInt(&serialNum, pkiMsg, &idx, pkiMsgSz) < 0)
             return ASN_PARSE_E;
+        mp_clear(&serialNum);
 
         if (GetAlgoId(pkiMsg, &idx, &encOID, pkiMsgSz) < 0)
             return ASN_PARSE_E;
@@ -1299,6 +1301,7 @@ CYASSL_API int PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* pkiMsg,
     /* decrypt encryptedKey */
     keySz = RsaPrivateDecryptInline(encryptedKey, encryptedKeySz,
                                     &decryptedKey, &privKey);
+    FreeRsaKey(&privKey);
     if (keySz <= 0)
         return keySz;
 
