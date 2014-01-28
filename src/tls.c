@@ -1222,21 +1222,27 @@ static word16 TLSX_EllipticCurve_GetSize(EllipticCurve* list)
     return length;
 }
 
+static word16 TLSX_EllipticCurve_WriteR(EllipticCurve* curve, byte* output);
+static word16 TLSX_EllipticCurve_WriteR(EllipticCurve* curve, byte* output)
+{
+    word16 offset = 0;
+
+    if (!curve)
+        return offset;
+
+    offset = TLSX_EllipticCurve_WriteR(curve->next, output);
+    c16toa(curve->name, output + offset);
+
+    return OPAQUE16_LEN + offset;
+}
+
 static word16 TLSX_EllipticCurve_Write(EllipticCurve* list, byte* output)
 {
-    EllipticCurve* curve;
-    word16 offset = OPAQUE16_LEN; /* list length offset */
+    word16 length = TLSX_EllipticCurve_WriteR(list, output + OPAQUE16_LEN);
 
-    while ((curve = list)) {
-        list = curve->next;
+    c16toa(length, output); /* writing list length */
 
-        c16toa(curve->name, output + offset); /* curve name */
-        offset += OPAQUE16_LEN;
-    }
-
-    c16toa(offset - OPAQUE16_LEN, output); /* writing list length */
-
-    return offset;
+    return OPAQUE16_LEN + length;
 }
 
 #endif /* NO_CYASSL_CLIENT */
@@ -1279,11 +1285,14 @@ int TLSX_ValidateEllipticCurves(CYASSL* ssl, byte first, byte second) {
     EllipticCurve* curve     = NULL;
     word32         oid       = 0;
     word16         octets    = 0; /* acording to 'ecc_set_type ecc_sets[];' */
+    int            sig       = 0; /* valitade signature */
+    int            key       = 0; /* validate key       */
 
     if (!extension)
         return 1; /* no suite restriction */
 
-    for (curve = extension->data; curve; curve = curve->next) {
+    for (curve = extension->data; curve && !(sig && key); curve = curve->next) {
+
         switch (curve->name) {
             case CYASSL_ECC_SECP160R1: oid = ECC_160R1; octets = 20; break;
             case CYASSL_ECC_SECP192R1: oid = ECC_192R1; octets = 24; break;
@@ -1292,51 +1301,72 @@ int TLSX_ValidateEllipticCurves(CYASSL* ssl, byte first, byte second) {
             case CYASSL_ECC_SECP384R1: oid = ECC_384R1; octets = 48; break;
             case CYASSL_ECC_SECP521R1: oid = ECC_521R1; octets = 66; break;
         }
-    }
 
-    /* ECDSA */
-    switch (second) {
-        case TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA:
-        case TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA:
-        case TLS_ECDHE_ECDSA_WITH_RC4_128_SHA:
-        case TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA:
-        case TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256:
-        case TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384:
-        case TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA:
-        case TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA:
-        case TLS_ECDH_ECDSA_WITH_RC4_128_SHA:
-        case TLS_ECDH_ECDSA_WITH_3DES_EDE_CBC_SHA:
-        case TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA256:
-        case TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA384:
-            if (ssl->pkCurveOID != oid)
-                return 0;
-    }
+        switch (second) {
+#ifndef NO_DSA
+            /* ECDHE_ECDSA */
+            case TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA:
+            case TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA:
+            case TLS_ECDHE_ECDSA_WITH_RC4_128_SHA:
+            case TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA:
+            case TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256:
+            case TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384:
+            case TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256:
+            case TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384:
+            case TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8:
+            case TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8:
+                sig |= ssl->pkCurveOID == oid;
+                key |= ssl->eccTempKeySz == octets;
+            break;
 
-    switch (second) {
-        /* ECDHE */
-#ifndef NO_RSA
-        case TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA:
-        case TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA:
-        case TLS_ECDHE_RSA_WITH_RC4_128_SHA:
-        case TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA:
-        case TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256:
-        case TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384:
+            /* ECDH_ECDSA */
+            case TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA:
+            case TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA:
+            case TLS_ECDH_ECDSA_WITH_RC4_128_SHA:
+            case TLS_ECDH_ECDSA_WITH_3DES_EDE_CBC_SHA:
+            case TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA256:
+            case TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA384:
+            case TLS_ECDH_ECDSA_WITH_AES_128_GCM_SHA256:
+            case TLS_ECDH_ECDSA_WITH_AES_256_GCM_SHA384:
+                sig |= ssl->pkCurveOID == oid;
+                key |= ssl->pkCurveOID == oid;
+            break;
 #endif
-        case TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA:
-        case TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA:
-        case TLS_ECDHE_ECDSA_WITH_RC4_128_SHA:
-        case TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA:
-        case TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256:
-        case TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384:
-            if (ssl->eccTempKeySz != octets)
-                return 0;
+#ifndef NO_RSA
+            /* ECDHE_RSA */
+            case TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA:
+            case TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA:
+            case TLS_ECDHE_RSA_WITH_RC4_128_SHA:
+            case TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA:
+            case TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256:
+            case TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384:
+            case TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256:
+            case TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384:
+                sig = 1;
+                key |= ssl->eccTempKeySz == octets;
+            break;
 
-        /* ECDH */
-        default:
-            ; /* not sure how to check yet... */
+            /* ECDH_RSA */
+            case TLS_ECDH_RSA_WITH_AES_256_CBC_SHA:
+            case TLS_ECDH_RSA_WITH_AES_128_CBC_SHA:
+            case TLS_ECDH_RSA_WITH_RC4_128_SHA:
+            case TLS_ECDH_RSA_WITH_3DES_EDE_CBC_SHA:
+            case TLS_ECDH_RSA_WITH_AES_128_CBC_SHA256:
+            case TLS_ECDH_RSA_WITH_AES_256_CBC_SHA384:
+            case TLS_ECDH_RSA_WITH_AES_128_GCM_SHA256:
+            case TLS_ECDH_RSA_WITH_AES_256_GCM_SHA384:
+                sig = 1;
+                key |= ssl->pkCurveOID == oid;
+            break;
+#endif
+            default:
+                sig = 1;
+                key = 1;
+            break;
+        }
     }
 
-    return 1;
+    return sig && key;
 }
 
 #endif /* NO_CYASSL_SERVER */
