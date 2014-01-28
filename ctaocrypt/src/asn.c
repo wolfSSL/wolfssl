@@ -5273,7 +5273,8 @@ int StoreECC_DSA_Sig(byte* out, word32* outLen, mp_int* r, mp_int* s)
     int sLen = mp_unsigned_bin_size(s);
     int err;
 
-    if (*outLen < (rLen + sLen + headerSz + 2))  /* SEQ_TAG + LEN(ENUM) */
+    if (*outLen < (rLen + rLeadingZero + sLen + sLeadingZero +
+                   headerSz + 2))  /* SEQ_TAG + LEN(ENUM) */
         return BAD_FUNC_ARG;
 
     idx = SetSequence(rLen+rLeadingZero+sLen+sLeadingZero+headerSz, out);
