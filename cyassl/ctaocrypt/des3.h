@@ -63,22 +63,22 @@ enum {
 typedef struct Des {
     word32 reg[DES_BLOCK_SIZE / sizeof(word32)];      /* for CBC mode */
     word32 tmp[DES_BLOCK_SIZE / sizeof(word32)];      /* same         */
-    #ifdef COLDFIRE_SEC
+#ifdef HAVE_COLDFIRE_SEC
     byte keylen ;        /* for Coldfire SEC   */
     byte ivlen ;         /* for Coldfire SEC   */
     byte iv[DES3_IVLEN]; /* for Coldfire SEC   */
-    #endif
+#endif
     word32 key[DES_KS_SIZE];
 } Des;
 
 
 /* DES3 encryption and decryption */
 typedef struct Des3 {
-    #ifdef COLDFIRE_SEC
+#ifdef HAVE_COLDFIRE_SEC
     byte keylen ;        /* for Coldfire SEC   */
     byte ivlen ;         /* for Coldfire SEC   */
     byte iv[DES3_IVLEN]; /* for Coldfire SEC   */
-    #endif
+#endif
     word32 key[3][DES_KS_SIZE];
     word32 reg[DES_BLOCK_SIZE / sizeof(word32)];      /* for CBC mode */
     word32 tmp[DES_BLOCK_SIZE / sizeof(word32)];      /* same         */

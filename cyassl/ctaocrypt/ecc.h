@@ -49,7 +49,7 @@ typedef struct {
     int size;       /* The size of the curve in octets */
     const char* name;     /* name of this curve */
     const char* prime;    /* prime that defines the field, curve is in (hex) */
-    const char* B;        /* fields B param (hex) */
+    const char* Bf;       /* fields B param (hex) */
     const char* order;    /* order of the curve (hex) */
     const char* Gx;       /* x coordinate of the base point on curve (hex) */
     const char* Gy;       /* y coordinate of the base point on curve (hex) */
@@ -119,6 +119,7 @@ CYASSL_API
 int ecc_sig_size(ecc_key* key);
 
 
+#ifdef HAVE_ECC_ENCRYPT
 /* ecc encrypt */
 
 enum ecEncAlgo {
@@ -137,34 +138,39 @@ enum ecMacAlgo {
 };
 
 enum {
-    KEY_SIZE_128 = 16,   
-    KEY_SIZE_256 = 32,   
-    IV_SIZE_64   =  8   
+    KEY_SIZE_128     = 16,   
+    KEY_SIZE_256     = 32,   
+    IV_SIZE_64       =  8,
+    EXCHANGE_SALT_SZ = 16,  
+    EXCHANGE_INFO_SZ = 23  
 };
 
-typedef struct ecEncOptions {
-    byte      encAlgo;     /* which encryption type */
-    byte      kdfAlgo;     /* which key derivation function type */
-    byte      macAlgo;     /* which mac function type */
-    byte*     kdfSalt;     /* optional salt for kdf */
-    byte*     kdfInfo;     /* optional info for kdf */
-    byte*     macSalt;     /* optional salt for mac */
-    word32    kdfSaltSz;   /* size of kdfSalt */
-    word32    kdfInfoSz;   /* size of kdfInfo */
-    word32    macSaltSz;   /* size of macSalt */
-} ecEncOptions;
+enum ecFlags {
+    REQ_RESP_CLIENT = 1,
+    REQ_RESP_SERVER = 2
+};
+
+
+typedef struct ecEncCtx ecEncCtx;
 
 CYASSL_API
-void ecc_encrypt_init_options(ecEncOptions*); /* init and set to defaults */
+ecEncCtx* ecc_ctx_new(int flags, RNG* rng);
 CYASSL_API
-void ecc_encrypt_free_options(ecEncOptions*); /* release/clear options */
+void ecc_ctx_free(ecEncCtx*);
+
+CYASSL_API
+const byte* ecc_ctx_get_own_salt(ecEncCtx*);
+CYASSL_API
+int ecc_ctx_set_peer_salt(ecEncCtx*, const byte* salt);
 
 CYASSL_API
 int ecc_encrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
-                word32 msgSz, byte* out, word32* outSz, ecEncOptions* options);
+                word32 msgSz, byte* out, word32* outSz, ecEncCtx* ctx);
 CYASSL_API
 int ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
-                word32 msgSz, byte* out, word32* outSz, ecEncOptions* options);
+                word32 msgSz, byte* out, word32* outSz, ecEncCtx* ctx);
+
+#endif /* HAVE_ECC_ENCRYPT */
 
 #ifdef __cplusplus
     }    /* extern "C" */    

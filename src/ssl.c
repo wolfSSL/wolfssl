@@ -568,6 +568,15 @@ word16 CyaSSL_SNI_GetRequest(CYASSL* ssl, byte type, void** data)
     return 0;
 }
 
+int CyaSSL_SNI_GetFromBuffer(const byte* clientHello, word32 helloSz, byte type,
+                                                     byte* sni, word32* inOutSz)
+{
+    if (clientHello && helloSz > 0 && sni && inOutSz && *inOutSz > 0)
+        return TLSX_SNI_GetFromBuffer(clientHello, helloSz, type, sni, inOutSz);
+
+    return BAD_FUNC_ARG;
+}
+
 #endif /* NO_CYASSL_SERVER */
 
 #endif /* HAVE_SNI */
@@ -901,6 +910,15 @@ int CyaSSL_GetKeySize(CYASSL* ssl)
 }
 
 
+int CyaSSL_GetIVSize(CYASSL* ssl)
+{
+    if (ssl)
+        return ssl->specs.iv_size;
+
+    return BAD_FUNC_ARG;
+}
+
+
 int CyaSSL_GetBulkCipher(CYASSL* ssl)
 {
     if (ssl)
@@ -967,8 +985,9 @@ int CyaSSL_GetSide(CYASSL* ssl)
 
 int CyaSSL_GetHmacSize(CYASSL* ssl)
 {
+    /* AEAD ciphers don't have HMAC keys */
     if (ssl)
-        return ssl->specs.hash_size;
+        return (ssl->specs.cipher_type != aead) ? ssl->specs.hash_size : 0;
 
     return BAD_FUNC_ARG;
 }
@@ -986,16 +1005,7 @@ CYASSL_CERT_MANAGER* CyaSSL_CertManagerNew(void)
     cm = (CYASSL_CERT_MANAGER*) XMALLOC(sizeof(CYASSL_CERT_MANAGER), 0,
                                         DYNAMIC_TYPE_CERT_MANAGER);
     if (cm) {
-        int i;
-
-        for (i = 0; i < CA_TABLE_SIZE; i++)
-            cm->caTable[i]  = NULL;
-        cm->heap            = NULL;
-        cm->caCacheCallback = NULL;
-        cm->crl             = NULL;
-        cm->crlEnabled      = 0;
-        cm->crlCheckAll     = 0;
-        cm->cbMissingCRL    = NULL;
+        XMEMSET(cm, 0, sizeof(CYASSL_CERT_MANAGER));
 
         if (InitMutex(&cm->caLock) != 0) {
             CYASSL_MSG("Bad mutex init");
@@ -1016,6 +1026,10 @@ void CyaSSL_CertManagerFree(CYASSL_CERT_MANAGER* cm)
         #ifdef HAVE_CRL
             if (cm->crl) 
                 FreeCRL(cm->crl, 1);
+        #endif
+        #ifdef HAVE_OCSP
+            if (cm->ocsp)
+                FreeOCSP(cm->ocsp, 1);
         #endif
         FreeSignerTable(cm->caTable, CA_TABLE_SIZE, NULL);
         FreeMutex(&cm->caLock);
@@ -1042,6 +1056,124 @@ int CyaSSL_CertManagerUnloadCAs(CYASSL_CERT_MANAGER* cm)
 
 
     return SSL_SUCCESS;
+}
+
+
+/* Return bytes written to buff or < 0 for error */
+int CyaSSL_CertPemToDer(const unsigned char* pem, int pemSz,
+                        unsigned char* buff, int buffSz,
+                        int type)
+{
+    EncryptedInfo info;
+    int           eccKey = 0;
+    int           ret;
+    buffer        der;
+
+    CYASSL_ENTER("CyaSSL_CertPemToDer");
+
+    if (pem == NULL || buff == NULL || buffSz <= 0) {
+        CYASSL_MSG("Bad pem der args"); 
+        return BAD_FUNC_ARG;
+    }
+
+    if (type != CERT_TYPE && type != CA_TYPE && type != CERTREQ_TYPE) {
+        CYASSL_MSG("Bad cert type"); 
+        return BAD_FUNC_ARG;
+    }
+
+    info.set       = 0;
+    info.ctx      = NULL;
+    info.consumed = 0;
+    der.buffer    = NULL;
+
+    ret = PemToDer(pem, pemSz, type, &der, NULL, &info, &eccKey);
+    if (ret < 0) {
+        CYASSL_MSG("Bad Pem To Der"); 
+    }
+    else {
+        if (der.length <= (word32)buffSz) {
+            XMEMCPY(buff, der.buffer, der.length);
+            ret = der.length;
+        }
+        else {
+            CYASSL_MSG("Bad der length");
+            ret = BAD_FUNC_ARG;
+        }
+    }
+
+    XFREE(der.buffer, NULL, DYNAMIC_TYPE_KEY);
+
+    return ret;
+}
+
+
+/* our KeyPemToDer password callback, password in userData */
+static INLINE int OurPasswordCb(char* passwd, int sz, int rw, void* userdata)
+{
+    (void)rw;
+
+    if (userdata == NULL)
+        return 0;
+
+    XSTRNCPY(passwd, (char*)userdata, sz);
+    return min((word32)sz, (word32)XSTRLEN((char*)userdata));
+}
+
+
+/* Return bytes written to buff or < 0 for error */
+int CyaSSL_KeyPemToDer(const unsigned char* pem, int pemSz, unsigned char* buff,
+                       int buffSz, const char* pass)
+{
+    EncryptedInfo info;
+    int           eccKey = 0;
+    int           ret;
+    buffer        der;
+
+    (void)pass;
+
+    CYASSL_ENTER("CyaSSL_KeyPemToDer");
+
+    if (pem == NULL || buff == NULL || buffSz <= 0) {
+        CYASSL_MSG("Bad pem der args"); 
+        return BAD_FUNC_ARG;
+    }
+
+    info.set       = 0;
+    info.ctx      = NULL;
+    info.consumed = 0;
+    der.buffer    = NULL;
+
+#ifdef OPENSSL_EXTRA
+    if (pass) {
+        info.ctx = CyaSSL_CTX_new(CyaSSLv23_client_method());
+        if (info.ctx == NULL)
+            return MEMORY_E;
+        CyaSSL_CTX_set_default_passwd_cb(info.ctx, OurPasswordCb);
+        CyaSSL_CTX_set_default_passwd_cb_userdata(info.ctx, (void*)pass);
+    }
+#endif
+
+    ret = PemToDer(pem, pemSz, PRIVATEKEY_TYPE, &der, NULL, &info, &eccKey);
+    if (ret < 0) {
+        CYASSL_MSG("Bad Pem To Der"); 
+    }
+    else {
+        if (der.length <= (word32)buffSz) {
+            XMEMCPY(buff, der.buffer, der.length);
+            ret = der.length;
+        }
+        else {
+            CYASSL_MSG("Bad der length");
+            ret = BAD_FUNC_ARG;
+        }
+    }
+
+    XFREE(der.buffer, NULL, DYNAMIC_TYPE_KEY);
+
+    if (info.ctx)
+        CyaSSL_CTX_free(info.ctx);
+
+    return ret;
 }
 
 
@@ -1484,6 +1616,7 @@ int CyaSSL_Init(void)
         char* consumedEnd;
         char* bufferEnd = (char*)(buff + longSz);
         long  neededSz;
+        int   ret      = 0;
         int   pkcs8    = 0;
         int   pkcs8Enc = 0;
         int   dynamicType = 0;
@@ -1497,6 +1630,12 @@ int CyaSSL_Init(void)
             XSTRNCPY(footer, "-----END CERTIFICATE-----", sizeof(footer));
             dynamicType = (type == CA_TYPE) ? DYNAMIC_TYPE_CA :
                                               DYNAMIC_TYPE_CERT;
+        } else if (type == CERTREQ_TYPE) {
+            XSTRNCPY(header, "-----BEGIN CERTIFICATE REQUEST-----",
+                     sizeof(header));
+            XSTRNCPY(footer, "-----END CERTIFICATE REQUEST-----",
+                     sizeof(footer));
+            dynamicType = DYNAMIC_TYPE_KEY;
         } else if (type == DH_PARAM_TYPE) {
             XSTRNCPY(header, "-----BEGIN DH PARAMETERS-----", sizeof(header));
             XSTRNCPY(footer, "-----END DH PARAMETERS-----", sizeof(footer));
@@ -1635,8 +1774,15 @@ int CyaSSL_Init(void)
                           &der->length) < 0)
             return SSL_BAD_FILE;
 
-        if (pkcs8)
-            return ToTraditional(der->buffer, der->length);
+        if (pkcs8) {
+            /* convert and adjust length */
+            if ( (ret = ToTraditional(der->buffer, der->length)) < 0 ) {
+                return ret;
+            } else {
+                der->length = ret;
+                return 0;
+            }
+        }
 
 #if defined(OPENSSL_EXTRA) && !defined(NO_PWDBASED)
          if (pkcs8Enc) {
@@ -1647,8 +1793,14 @@ int CyaSSL_Init(void)
                 return SSL_BAD_FILE;  /* no callback error */
             passwordSz = info->ctx->passwd_cb(password, sizeof(password), 0,
                                               info->ctx->userdata);
-            return ToTraditionalEnc(der->buffer, der->length, password,
-                                    passwordSz);
+            /* convert and adjust length */
+            if ( (ret = ToTraditionalEnc(der->buffer, der->length, password,
+                                         passwordSz)) < 0 ) {
+                return ret;
+            } else {
+                der->length = ret;
+                return 0;
+            }
          }
 #endif
 
@@ -1677,6 +1829,7 @@ int CyaSSL_Init(void)
         der.buffer    = 0;
 
         (void)dynamicType;
+        (void)rsaKey;
 
         if (used)
             *used = sz;     /* used bytes default to sz, PEM chain may shorten*/
@@ -1927,7 +2080,8 @@ int CyaSSL_Init(void)
                 }
                 ecc_free(&key);
                 eccKey = 1;
-                ctx->haveStaticECC = 1;
+                if (ctx)
+                    ctx->haveStaticECC = 1;
                 if (ssl)
                     ssl->options.haveStaticECC = 1;
             }
@@ -2399,6 +2553,62 @@ int CyaSSL_CertManagerDisableCRL(CYASSL_CERT_MANAGER* cm)
 }
 
 
+/* turn on OCSP if off and compiled in, set options */
+int CyaSSL_CertManagerEnableOCSP(CYASSL_CERT_MANAGER* cm, int options)
+{
+    int ret = SSL_SUCCESS;
+
+    (void)options;
+
+    CYASSL_ENTER("CyaSSL_CertManagerEnableOCSP");
+    if (cm == NULL)
+        return BAD_FUNC_ARG;
+
+    #ifdef HAVE_OCSP
+        if (cm->ocsp == NULL) {
+            cm->ocsp = (CYASSL_OCSP*)XMALLOC(sizeof(CYASSL_OCSP), cm->heap,
+                                                             DYNAMIC_TYPE_OCSP);
+            if (cm->ocsp == NULL)
+                return MEMORY_E;
+
+            if (InitOCSP(cm->ocsp, cm) != 0) {
+                CYASSL_MSG("Init OCSP failed");
+                FreeOCSP(cm->ocsp, 1);
+                cm->ocsp = NULL;
+                return SSL_FAILURE;
+            }
+        }
+        cm->ocspEnabled = 1;
+        if (options & CYASSL_OCSP_URL_OVERRIDE)
+            cm->ocspUseOverrideURL = 1;
+        if (options & CYASSL_OCSP_NO_NONCE)
+            cm->ocspSendNonce = 0;
+        else
+            cm->ocspSendNonce = 1;
+        #ifndef CYASSL_USER_IO
+            cm->ocspIOCb = EmbedOcspLookup;
+            cm->ocspRespFreeCb = EmbedOcspRespFree;
+        #endif /* CYASSL_USER_IO */
+    #else
+        ret = NOT_COMPILED_IN;
+    #endif
+
+    return ret;
+}
+
+
+int CyaSSL_CertManagerDisableOCSP(CYASSL_CERT_MANAGER* cm)
+{
+    CYASSL_ENTER("CyaSSL_CertManagerDisableOCSP");
+    if (cm == NULL)
+        return BAD_FUNC_ARG;
+
+    cm->ocspEnabled = 0;
+
+    return SSL_SUCCESS;
+}
+
+
 int CyaSSL_CTX_check_private_key(CYASSL_CTX* ctx)
 {
     /* TODO: check private against public for RSA match */
@@ -2559,6 +2769,171 @@ int CyaSSL_CTX_SetCRL_Cb(CYASSL_CTX* ctx, CbMissingCRL cb)
 
 
 #endif /* HAVE_CRL */
+
+
+#ifdef HAVE_OCSP
+
+
+/* check CRL if enabled, SSL_SUCCESS  */
+int CyaSSL_CertManagerCheckOCSP(CYASSL_CERT_MANAGER* cm, byte* der, int sz)
+{
+    int         ret;
+    DecodedCert cert;
+
+    CYASSL_ENTER("CyaSSL_CertManagerCheckOCSP");
+
+    if (cm == NULL)
+        return BAD_FUNC_ARG;
+
+    if (cm->ocspEnabled == 0)
+        return SSL_SUCCESS;
+
+    InitDecodedCert(&cert, der, sz, NULL);
+
+    ret = ParseCertRelative(&cert, CERT_TYPE, NO_VERIFY, cm);
+    if (ret != 0) {
+        CYASSL_MSG("ParseCert failed");
+        return ret;
+    }
+    else {
+        ret = CheckCertOCSP(cm->ocsp, &cert);
+        if (ret != 0) {
+            CYASSL_MSG("CheckCertOCSP failed");
+        }
+    }
+
+    FreeDecodedCert(&cert);
+
+    if (ret == 0)
+        return SSL_SUCCESS;  /* convert */
+
+    return ret;
+}
+
+
+int CyaSSL_CertManagerSetOCSPOverrideURL(CYASSL_CERT_MANAGER* cm,
+                                                                const char* url)
+{
+    CYASSL_ENTER("CyaSSL_CertManagerSetOCSPOverrideURL");
+    if (cm == NULL)
+        return BAD_FUNC_ARG;
+
+    XFREE(cm->ocspOverrideURL, cm->heap, 0);
+    if (url != NULL) {
+        int urlSz = (int)XSTRLEN(url) + 1;
+        cm->ocspOverrideURL = (char*)XMALLOC(urlSz, cm->heap, 0);
+        if (cm->ocspOverrideURL != NULL) {
+            XMEMCPY(cm->ocspOverrideURL, url, urlSz);
+        }
+        else
+            return MEMORY_E;
+    }
+    else
+        cm->ocspOverrideURL = NULL;
+
+    return SSL_SUCCESS;
+}
+
+
+int CyaSSL_CertManagerSetOCSP_Cb(CYASSL_CERT_MANAGER* cm,
+                        CbOCSPIO ioCb, CbOCSPRespFree respFreeCb, void* ioCbCtx)
+{
+    CYASSL_ENTER("CyaSSL_CertManagerSetOCSP_Cb");
+    if (cm == NULL)
+        return BAD_FUNC_ARG;
+
+    cm->ocspIOCb = ioCb;
+    cm->ocspRespFreeCb = respFreeCb;
+    cm->ocspIOCtx = ioCbCtx;
+
+    return SSL_SUCCESS;
+}
+
+
+int CyaSSL_EnableOCSP(CYASSL* ssl, int options)
+{
+    CYASSL_ENTER("CyaSSL_EnableOCSP");
+    if (ssl)
+        return CyaSSL_CertManagerEnableOCSP(ssl->ctx->cm, options);
+    else
+        return BAD_FUNC_ARG;
+}
+
+
+int CyaSSL_DisableOCSP(CYASSL* ssl)
+{
+    CYASSL_ENTER("CyaSSL_DisableOCSP");
+    if (ssl)
+        return CyaSSL_CertManagerDisableOCSP(ssl->ctx->cm);
+    else
+        return BAD_FUNC_ARG;
+}
+
+
+int CyaSSL_SetOCSP_OverrideURL(CYASSL* ssl, const char* url)
+{
+    CYASSL_ENTER("CyaSSL_SetOCSP_OverrideURL");
+    if (ssl)
+        return CyaSSL_CertManagerSetOCSPOverrideURL(ssl->ctx->cm, url);
+    else
+        return BAD_FUNC_ARG;
+}
+
+
+int CyaSSL_SetOCSP_Cb(CYASSL* ssl,
+                        CbOCSPIO ioCb, CbOCSPRespFree respFreeCb, void* ioCbCtx)
+{
+    CYASSL_ENTER("CyaSSL_SetOCSP_Cb");
+    if (ssl)
+        return CyaSSL_CertManagerSetOCSP_Cb(ssl->ctx->cm,
+                                                     ioCb, respFreeCb, ioCbCtx);
+    else
+        return BAD_FUNC_ARG;
+}
+
+
+int CyaSSL_CTX_EnableOCSP(CYASSL_CTX* ctx, int options)
+{
+    CYASSL_ENTER("CyaSSL_CTX_EnableOCSP");
+    if (ctx)
+        return CyaSSL_CertManagerEnableOCSP(ctx->cm, options);
+    else
+        return BAD_FUNC_ARG;
+}
+
+
+int CyaSSL_CTX_DisableOCSP(CYASSL_CTX* ctx)
+{
+    CYASSL_ENTER("CyaSSL_CTX_DisableOCSP");
+    if (ctx)
+        return CyaSSL_CertManagerDisableOCSP(ctx->cm);
+    else
+        return BAD_FUNC_ARG;
+}
+
+
+int CyaSSL_CTX_SetOCSP_OverrideURL(CYASSL_CTX* ctx, const char* url)
+{
+    CYASSL_ENTER("CyaSSL_SetOCSP_OverrideURL");
+    if (ctx)
+        return CyaSSL_CertManagerSetOCSPOverrideURL(ctx->cm, url);
+    else
+        return BAD_FUNC_ARG;
+}
+
+
+int CyaSSL_CTX_SetOCSP_Cb(CYASSL_CTX* ctx,
+                        CbOCSPIO ioCb, CbOCSPRespFree respFreeCb, void* ioCbCtx)
+{
+    CYASSL_ENTER("CyaSSL_CTX_SetOCSP_Cb");
+    if (ctx)
+        return CyaSSL_CertManagerSetOCSP_Cb(ctx->cm, ioCb, respFreeCb, ioCbCtx);
+    else
+        return BAD_FUNC_ARG;
+}
+
+
+#endif /* HAVE_OCSP */
 
 
 #ifdef CYASSL_DER_LOAD
@@ -7048,28 +7423,170 @@ int CyaSSL_set_compression(CYASSL* ssl)
     }
 
 
-    /* copy name into in buffer, at most sz bytes, if buffer is null will
-       malloc buffer, call responsible for freeing                     */
-    char* CyaSSL_X509_NAME_oneline(CYASSL_X509_NAME* name, char* in, int sz)
+    int CyaSSL_X509_get_isCA(CYASSL_X509* x509)
     {
-        int copySz = min(sz, name->sz);
+        int isCA = 0;
 
-        CYASSL_ENTER("CyaSSL_X509_NAME_oneline");
-        if (!name->sz) return in;
+        CYASSL_ENTER("CyaSSL_X509_get_isCA");
 
-        if (!in) {
-            in = (char*)XMALLOC(name->sz, 0, DYNAMIC_TYPE_OPENSSL);
-            if (!in ) return in;
-            copySz = name->sz;
+        if (x509 != NULL)
+            isCA = x509->isCa;
+
+        CYASSL_LEAVE("CyaSSL_X509_get_isCA", isCA);
+
+        return isCA;
+    }
+
+
+#ifdef OPENSSL_EXTRA
+    int CyaSSL_X509_ext_isSet_by_NID(CYASSL_X509* x509, int nid)
+    {
+        int isSet = 0;
+
+        CYASSL_ENTER("CyaSSL_X509_ext_isSet_by_NID");
+
+        if (x509 != NULL) {
+            switch (nid) {
+                case BASIC_CA_OID: isSet = x509->basicConstSet; break;
+                case ALT_NAMES_OID: isSet = x509->subjAltNameSet; break;
+                case AUTH_KEY_OID: isSet = x509->authKeyIdSet; break;
+                case SUBJ_KEY_OID: isSet = x509->subjKeyIdSet; break;
+                case KEY_USAGE_OID: isSet = x509->keyUsageSet; break;
+                #ifdef CYASSL_SEP
+                    case CERT_POLICY_OID: isSet = x509->certPolicySet; break;
+                #endif /* CYASSL_SEP */
+            }
         }
 
-        if (copySz == 0)
-            return in;
+        CYASSL_LEAVE("CyaSSL_X509_ext_isSet_by_NID", isSet);
 
-        XMEMCPY(in, name->name, copySz - 1);
-        in[copySz - 1] = 0;
+        return isSet;
+    }
 
-        return in;
+
+    int CyaSSL_X509_ext_get_critical_by_NID(CYASSL_X509* x509, int nid)
+    {
+        int crit = 0;
+
+        CYASSL_ENTER("CyaSSL_X509_ext_get_critical_by_NID");
+
+        if (x509 != NULL) {
+            switch (nid) {
+                case BASIC_CA_OID: crit = x509->basicConstCrit; break;
+                case ALT_NAMES_OID: crit = x509->subjAltNameCrit; break;
+                case AUTH_KEY_OID: crit = x509->authKeyIdCrit; break;
+                case SUBJ_KEY_OID: crit = x509->subjKeyIdCrit; break;
+                case KEY_USAGE_OID: crit = x509->keyUsageCrit; break;
+                #ifdef CYASSL_SEP
+                    case CERT_POLICY_OID: crit = x509->certPolicyCrit; break;
+                #endif /* CYASSL_SEP */
+            }
+        }
+
+        CYASSL_LEAVE("CyaSSL_X509_ext_get_critical_by_NID", crit);
+
+        return crit;
+    }
+
+
+    int CyaSSL_X509_get_isSet_pathLength(CYASSL_X509* x509)
+    {
+        int isSet = 0;
+
+        CYASSL_ENTER("CyaSSL_X509_get_isSet_pathLength");
+
+        if (x509 != NULL)
+            isSet = x509->basicConstPlSet;
+
+        CYASSL_LEAVE("CyaSSL_X509_get_isSet_pathLength", isSet);
+
+        return isSet;
+    }
+
+
+    word32 CyaSSL_X509_get_pathLength(CYASSL_X509* x509)
+    {
+        word32 pathLength = 0;
+
+        CYASSL_ENTER("CyaSSL_X509_get_pathLength");
+
+        if (x509 != NULL)
+            pathLength = x509->pathLength;
+
+        CYASSL_LEAVE("CyaSSL_X509_get_pathLength", pathLength);
+
+        return pathLength;
+    }
+
+
+    unsigned int CyaSSL_X509_get_keyUsage(CYASSL_X509* x509)
+    {
+        word16 usage = 0;
+
+        CYASSL_ENTER("CyaSSL_X509_get_keyUsage");
+
+        if (x509 != NULL)
+            usage = x509->keyUsage;
+
+        CYASSL_LEAVE("CyaSSL_X509_get_keyUsage", usage);
+
+        return usage;
+    }
+
+
+    byte* CyaSSL_X509_get_authorityKeyID(
+                                      CYASSL_X509* x509, byte* dst, int* dstLen)
+    {
+        byte *id = NULL;
+        int copySz = 0;
+
+        CYASSL_ENTER("CyaSSL_X509_get_authorityKeyID");
+
+        if (x509 != NULL) {
+            if (x509->authKeyIdSet) {
+                copySz = min(dstLen != NULL ? *dstLen : 0,
+                                                        (int)x509->authKeyIdSz);
+                id = x509->authKeyId;
+            }
+
+            if (dst != NULL && dstLen != NULL && id != NULL && copySz > 0) {
+                XMEMCPY(dst, id, copySz);
+                id = dst;
+                *dstLen = copySz;
+            }
+        }
+
+        CYASSL_LEAVE("CyaSSL_X509_get_authorityKeyID", copySz);
+
+        return id;
+    }
+
+
+    byte* CyaSSL_X509_get_subjectKeyID(
+                                      CYASSL_X509* x509, byte* dst, int* dstLen)
+    {
+        byte *id = NULL;
+        int copySz = 0;
+
+        CYASSL_ENTER("CyaSSL_X509_get_subjectKeyID");
+
+        if (x509 != NULL) {
+            if (x509->subjKeyIdSet) {
+                copySz = min(dstLen != NULL ? *dstLen : 0,
+                                                        (int)x509->subjKeyIdSz);
+                id = x509->subjKeyId;
+            }
+
+            if (dst != NULL && dstLen != NULL && id != NULL && copySz > 0) {
+                XMEMCPY(dst, id, copySz);
+                id = dst;
+                *dstLen = copySz;
+            }
+        }
+
+        CYASSL_LEAVE("CyaSSL_X509_get_subjectKeyID", copySz);
+
+        return id;
     }
 
 
@@ -7140,6 +7657,32 @@ int CyaSSL_set_compression(CYASSL* ssl)
 
         CYASSL_LEAVE("CyaSSL_X509_NAME_get_text_by_NID", textSz);
         return textSz;
+    }
+#endif
+
+
+    /* copy name into in buffer, at most sz bytes, if buffer is null will
+       malloc buffer, call responsible for freeing                     */
+    char* CyaSSL_X509_NAME_oneline(CYASSL_X509_NAME* name, char* in, int sz)
+    {
+        int copySz = min(sz, name->sz);
+
+        CYASSL_ENTER("CyaSSL_X509_NAME_oneline");
+        if (!name->sz) return in;
+
+        if (!in) {
+            in = (char*)XMALLOC(name->sz, 0, DYNAMIC_TYPE_OPENSSL);
+            if (!in ) return in;
+            copySz = name->sz;
+        }
+
+        if (copySz == 0)
+            return in;
+
+        XMEMCPY(in, name->name, copySz - 1);
+        in[copySz - 1] = 0;
+
+        return in;
     }
 
 
@@ -7340,6 +7883,8 @@ CYASSL_X509* CyaSSL_X509_d2i(CYASSL_X509** x509, const byte* in, int len)
 }
 
 
+#ifndef NO_FILESYSTEM
+
 CYASSL_X509* CyaSSL_X509_d2i_fp(CYASSL_X509** x509, XFILE file)
 {
     CYASSL_X509* newX509 = NULL;
@@ -7463,6 +8008,7 @@ CYASSL_X509* CyaSSL_X509_load_certificate_file(const char* fname, int format)
     return x509;
 }
 
+#endif /* NO_FILESYSTEM */
 
 #endif /* KEEP_PEER_CERT || SESSION_CERTS */
 
@@ -8329,6 +8875,9 @@ CYASSL_X509* CyaSSL_X509_load_certificate_file(const char* fname, int format)
                 XMEMCPY(key->pkey.ptr,
                                       x509->pubKey.buffer, x509->pubKey.length);
                 key->pkey_sz = x509->pubKey.length;
+                #ifdef HAVE_ECC
+                    key->pkey_curve = (int)x509->pkCurveOID;
+                #endif /* HAVE_ECC */
             }
         }
         return key;
@@ -10430,49 +10979,6 @@ static int initGlobalRNG = 0;
 
 
 
-/* Return bytes written to buff or < 0 for error */
-int CyaSSL_KeyPemToDer(const unsigned char* pem, int pemSz, unsigned char* buff,
-                       int buffSz, const char* pass)
-{
-    EncryptedInfo info;
-    int           eccKey = 0;
-    int           ret;
-    buffer        der;
-
-    (void)pass;
-
-    CYASSL_ENTER("CyaSSL_KeyPemToDer");
-
-    if (pem == NULL || buff == NULL || buffSz <= 0) {
-        CYASSL_MSG("Bad pem der args"); 
-        return BAD_FUNC_ARG;
-    }
-
-    info.set       = 0;
-    info.ctx      = NULL;
-    info.consumed = 0;
-    der.buffer    = NULL;
-
-    ret = PemToDer(pem, pemSz, PRIVATEKEY_TYPE, &der, NULL, &info, &eccKey);
-    if (ret < 0) {
-        CYASSL_MSG("Bad Pem To Der"); 
-    }
-    else {
-        if (der.length <= (word32)buffSz) {
-            XMEMCPY(buff, der.buffer, der.length);
-            ret = der.length;
-        }
-        else {
-            CYASSL_MSG("Bad der length");
-            ret = BAD_FUNC_ARG;
-        }
-    }
-
-    XFREE(der.buffer, NULL, DYNAMIC_TYPE_KEY);
-
-    return ret;
-}
-
 
 /* Load RSA from Der, SSL_SUCCESS on success < 0 on error */
 int CyaSSL_RSA_LoadDer(CYASSL_RSA* rsa, const unsigned char* der,  int derSz)
@@ -10685,38 +11191,6 @@ const byte* CyaSSL_get_sessionID(const CYASSL_SESSION* session)
 #endif /* SESSION_CERTS */
 
 
-int CyaSSL_CTX_OCSP_set_options(CYASSL_CTX* ctx, int options)
-{
-    CYASSL_ENTER("CyaSSL_CTX_OCSP_set_options");
-#ifdef HAVE_OCSP
-    if (ctx != NULL) {
-        ctx->ocsp.enabled = (options & CYASSL_OCSP_ENABLE) != 0;
-        ctx->ocsp.useOverrideUrl = (options & CYASSL_OCSP_URL_OVERRIDE) != 0;
-        ctx->ocsp.useNonce = (options & CYASSL_OCSP_NO_NONCE) == 0;
-        return SSL_SUCCESS;
-    }
-    return SSL_FAILURE;
-#else
-    (void)ctx;
-    (void)options;
-    return NOT_COMPILED_IN;
-#endif
-}
-
-
-int CyaSSL_CTX_OCSP_set_override_url(CYASSL_CTX* ctx, const char* url)
-{
-    CYASSL_ENTER("CyaSSL_CTX_OCSP_set_override_url");
-#ifdef HAVE_OCSP
-    return CyaSSL_OCSP_set_override_url(&ctx->ocsp, url);
-#else
-    (void)ctx;
-    (void)url;
-    return NOT_COMPILED_IN;
-#endif
-}
-
-
 #ifndef NO_CERTS
 #ifdef  HAVE_PK_CALLBACKS
 
@@ -10865,4 +11339,10 @@ void* CyaSSL_GetRsaDecCtx(CYASSL* ssl)
 
 #endif /* HAVE_PK_CALLBACKS */
 #endif /* NO_CERTS */
+
+
+#ifdef CYASSL_HAVE_WOLFSCEP
+    /* Used by autoconf to see if wolfSCEP is available */
+    void CyaSSL_wolfSCEP(void) {}
+#endif
 

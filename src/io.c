@@ -352,7 +352,7 @@ int EmbedReceiveFrom(CYASSL *ssl, char *buf, int sz, void *ctx)
     int err;
     int sd = dtlsCtx->fd;
     int dtls_timeout = CyaSSL_dtls_get_current_timeout(ssl);
-    struct sockaddr_in6 peer;
+    struct sockaddr_storage peer;
     XSOCKLENT peerSz = sizeof(peer);
 
     CYASSL_ENTER("EmbedReceiveFrom()");
@@ -471,34 +471,21 @@ int EmbedSendTo(CYASSL* ssl, char *buf, int sz, void *ctx)
 int EmbedGenerateCookie(CYASSL* ssl, byte *buf, int sz, void *ctx)
 {
     int sd = ssl->wfd;
-    struct sockaddr_in6 peer;
+    struct sockaddr_storage peer;
     XSOCKLENT peerSz = sizeof(peer);
     Sha sha;
     byte digest[SHA_DIGEST_SIZE];
 
     (void)ctx;
 
+    XMEMSET(&peer, 0, sizeof(peer));
     if (getpeername(sd, (struct sockaddr*)&peer, &peerSz) != 0) {
         CYASSL_MSG("getpeername failed in EmbedGenerateCookie");
         return GEN_COOKIE_E;
     }
     
     InitSha(&sha);
-
-    if (peer.sin6_family == AF_INET6) {
-        ShaUpdate(&sha, (byte*)&peer.sin6_port, sizeof(peer.sin6_port));
-        ShaUpdate(&sha, (byte*)&peer.sin6_addr, sizeof(peer.sin6_addr));
-    }
-    else if (peer.sin6_family == AF_INET) {
-        struct sockaddr_in *s = (struct sockaddr_in*)&peer;
-        ShaUpdate(&sha, (byte*)&s->sin_port, sizeof(s->sin_port));
-        ShaUpdate(&sha, (byte*)&s->sin_addr, sizeof(s->sin_addr));
-    }
-    else {
-        CYASSL_MSG("peer sin_family unknown type in EmbedGenerateCookie");
-        return GEN_COOKIE_E;
-    }
-
+    ShaUpdate(&sha, (byte*)&peer, peerSz);
     ShaFinal(&sha, digest);
 
     if (sz > SHA_DIGEST_SIZE)
@@ -512,52 +499,62 @@ int EmbedGenerateCookie(CYASSL* ssl, byte *buf, int sz, void *ctx)
 
 #ifdef HAVE_OCSP
 
-#ifdef TEST_IPV6
-    typedef struct sockaddr_in6 SOCKADDR_IN_T;
-    #define AF_INET_V    AF_INET6
-#else
-    typedef struct sockaddr_in  SOCKADDR_IN_T;
-    #define AF_INET_V    AF_INET
-#endif
 
-
-static INLINE int tcp_connect(SOCKET_T* sockfd, const char* ip, word16 port)
+static int tcp_connect(SOCKET_T* sockfd, const char* ip, word16 port)
 {
-    SOCKADDR_IN_T addr;
-    const char* host = ip;
+    struct sockaddr_storage addr;
+    int sockaddr_len = sizeof(struct sockaddr_in);
+    XMEMSET(&addr, 0, sizeof(addr));
 
-    /* peer could be in human readable form */
-    if (ip != INADDR_ANY && isalpha(ip[0])) {
+    #ifdef HAVE_GETADDRINFO
+    {
+        struct addrinfo hints;
+        struct addrinfo* answer = NULL;
+        char strPort[8];
+
+        XMEMSET(&hints, 0, sizeof(hints));
+        hints.ai_family = AF_UNSPEC;
+        hints.ai_socktype = SOCK_STREAM;
+        hints.ai_protocol = IPPROTO_TCP;
+
+        XSNPRINTF(strPort, sizeof(strPort), "%d", port);
+        strPort[7] = '\0';
+
+        if (getaddrinfo(ip, strPort, &hints, &answer) < 0 || answer == NULL) {
+            CYASSL_MSG("no addr info for OCSP responder");
+            return -1;
+        }
+
+        sockaddr_len = answer->ai_addrlen;
+        XMEMCPY(&addr, answer->ai_addr, sockaddr_len);
+        freeaddrinfo(answer);
+
+    }
+    #else /* HAVE_GETADDRINFO */
+    {
         struct hostent* entry = gethostbyname(ip);
+        struct sockaddr_in *sin = (struct sockaddr_in *)&addr;
 
         if (entry) {
-            struct sockaddr_in tmp;
-            XMEMSET(&tmp, 0, sizeof(struct sockaddr_in));
-            XMEMCPY(&tmp.sin_addr.s_addr, entry->h_addr_list[0],
-                   entry->h_length);
-            host = inet_ntoa(tmp.sin_addr);
+            sin->sin_family = AF_INET;
+            sin->sin_port = htons(port);
+            XMEMCPY(&sin->sin_addr.s_addr, entry->h_addr_list[0],
+                                                               entry->h_length);
         }
         else {
-            CYASSL_MSG("no addr entry for OCSP responder");
+            CYASSL_MSG("no addr info for OCSP responder");
             return -1;
         }
     }
+    #endif /* HAVE_GETADDRINFO */
 
-    *sockfd = socket(AF_INET_V, SOCK_STREAM, 0);
+    *sockfd = socket(addr.ss_family, SOCK_STREAM, 0);
     if (*sockfd < 0) {
         CYASSL_MSG("bad socket fd, out of fds?");
         return -1;
     }
-    XMEMSET(&addr, 0, sizeof(SOCKADDR_IN_T));
 
-    addr.sin_family = AF_INET_V;
-    addr.sin_port = htons(port);
-    if (host == INADDR_ANY)
-        addr.sin_addr.s_addr = INADDR_ANY;
-    else
-        addr.sin_addr.s_addr = inet_addr(host);
-
-    if (connect(*sockfd, (const struct sockaddr*)&addr, sizeof(addr)) != 0) {
+    if (connect(*sockfd, (struct sockaddr *)&addr, sockaddr_len) != 0) {
         CYASSL_MSG("OCSP responder tcp connect failed");
         return -1;
     }
@@ -597,15 +594,26 @@ static int decode_url(const char* url, int urlSz,
             int i, cur;
     
             /* need to break the url down into scheme, address, and port */
-            /* "http://example.com:8080/" */
+            /*     "http://example.com:8080/" */
+            /*     "http://[::1]:443/"        */
             if (XSTRNCMP(url, "http://", 7) == 0) {
                 cur = 7;
             } else cur = 0;
     
             i = 0;
-            while (url[cur] != 0 && url[cur] != ':' &&
+            if (url[cur] == '[') {
+                cur++;
+                /* copy until ']' */
+                while (url[cur] != 0 && url[cur] != ']' && cur < urlSz) {
+                    outName[i++] = url[cur++];
+                }
+                cur++; /* skip ']' */
+            }
+            else {
+                while (url[cur] != 0 && url[cur] != ':' &&
                                                url[cur] != '/' && cur < urlSz) {
-                outName[i++] = url[cur++];
+                    outName[i++] = url[cur++];
+                }
             }
             outName[i] = 0;
             /* Need to pick out the path after the domain name */
@@ -670,7 +678,7 @@ static int process_http_response(int sfd, byte** respBuf,
             if (result > 0) {
                 len += result;
                 start = (char*)httpBuf;
-                start[len+1] = 0;
+                start[len] = 0;
             }
             else {
                 CYASSL_MSG("process_http_response recv http from peer failed");
@@ -927,27 +935,6 @@ CYASSL_API void* CyaSSL_GetCookieCtx(CYASSL* ssl)
 }
 
 #endif /* CYASSL_DTLS */
-
-
-#ifdef HAVE_OCSP
-
-CYASSL_API void CyaSSL_SetIOOcsp(CYASSL_CTX* ctx, CallbackIOOcsp cb)
-{
-    ctx->ocsp.CBIOOcsp = cb;
-}
-
-CYASSL_API void CyaSSL_SetIOOcspRespFree(CYASSL_CTX* ctx,
-                                                     CallbackIOOcspRespFree cb)
-{
-    ctx->ocsp.CBIOOcspRespFree = cb;
-}
-
-CYASSL_API void CyaSSL_SetIOOcspCtx(CYASSL_CTX* ctx, void *octx)
-{
-    ctx->ocsp.IOCB_OcspCtx = octx;
-}
-
-#endif
 
 
 #ifdef HAVE_NETX

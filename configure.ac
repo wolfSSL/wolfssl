@@ -6,7 +6,7 @@
 #
 #
 
-AC_INIT([cyassl],[2.8.3],[https://github.com/cyassl/cyassl/issues],[cyassl],[http://www.yassl.com])
+AC_INIT([cyassl],[2.8.6],[https://github.com/cyassl/cyassl/issues],[cyassl],[http://www.yassl.com])
 
 AC_CONFIG_AUX_DIR([build-aux])
 
@@ -103,6 +103,8 @@ OPTIMIZE_FAST_CFLAGS="-O2 -fomit-frame-pointer"
 OPTIMIZE_HUGE_CFLAGS="-funroll-loops -DTFM_SMALL_SET -DTFM_HUGE_SET"
 DEBUG_CFLAGS="-g -DDEBUG -DDEBUG_CYASSL"
 
+# Thread local storage
+AX_TLS([AM_CFLAGS="$AM_CFLAGS -DHAVE_THREAD_LS"])
 
 # DEBUG
 AX_DEBUG
@@ -308,17 +310,20 @@ fi
 
 
 # SNIFFER
+ENABLED_SNIFFTEST=no
 AC_ARG_ENABLE([sniffer],
-              [AS_HELP_STRING([--enable-sniffer],[ Enable CyaSSL sniffer support (default: disabled) ])],[
-               AS_IF([ test "x$enableval" = "xyes" ],[ AC_CHECK_HEADERS([pcap/pcap.h],[ 
-                      ENABLED_SNIFFER=yes 
-                      AM_CFLAGS="$AM_CFLAGS -DCYASSL_SNIFFER -DOPENSSL_EXTRA"
-                      ],[ ENABLED_SNIFFER=no ]) ])
-               ],[
-                  ENABLED_SNIFFER=no
-                  ])
+   [AS_HELP_STRING([--enable-sniffer],[ Enable CyaSSL sniffer support (default: disabled) ])],[
+       ENABLED_SNIFFER=yes 
+       AM_CFLAGS="$AM_CFLAGS -DCYASSL_SNIFFER -DOPENSSL_EXTRA"
+       AS_IF([ test "x$enableval" = "xyes" ],[ AC_CHECK_HEADERS([pcap/pcap.h],[ 
+           ENABLED_SNIFFTEST=yes 
+   ],[ AC_MSG_WARN([cannot enable sniffer test without having libpcap available.]) ]) ])
+   ],[
+       ENABLED_SNIFFER=no
+   ])
 
-AM_CONDITIONAL([BUILD_SNIFFER], [ test "x$ENABLED_SNIFFER" = "xyes" ])
+AM_CONDITIONAL([BUILD_SNIFFER],   [ test "x$ENABLED_SNIFFER"   = "xyes" ])
+AM_CONDITIONAL([BUILD_SNIFFTEST], [ test "x$ENABLED_SNIFFTEST" = "xyes" ])
 
 # AES-GCM
 AC_ARG_ENABLE([aesgcm],
@@ -523,6 +528,23 @@ AC_ARG_ENABLE([certgen],
 if test "$ENABLED_CERTGEN" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DCYASSL_CERT_GEN"
+fi
+
+
+# CERT REQUEST GENERATION
+AC_ARG_ENABLE([certreq],
+    [  --enable-certreq        Enable cert request generation (default: disabled)],
+    [ ENABLED_CERTREQ=$enableval ],
+    [ ENABLED_CERTREQ=no ]
+    )
+
+if test "$ENABLED_CERTREQ" = "yes"
+then
+    if test "$ENABLED_CERTGEN" = "no"
+    then
+        AC_MSG_ERROR([cannot enable certreq without enabling certgen.])
+    fi
+    AM_CFLAGS="$AM_CFLAGS -DCYASSL_CERT_REQ"
 fi
 
 
@@ -1178,6 +1200,18 @@ then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_TRUNCATED_HMAC"
 fi
 
+# Renegotiation Indication
+AC_ARG_ENABLE([renegotiation-indication],
+    [  --enable-renegotiation-indication  Enable Renegotiation Indication (default: disabled)],
+    [ ENABLED_RENEGOTIATION_INDICATION=$enableval ],
+    [ ENABLED_RENEGOTIATION_INDICATION=no ]
+    )
+
+if test "x$ENABLED_RENEGOTIATION_INDICATION" = "xyes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_RENEGOTIATION_INDICATION"
+fi
+
 # TLS Extensions
 AC_ARG_ENABLE([tlsx],
     [  --enable-tlsx           Enable all TLS Extensions (default: disabled)],
@@ -1189,8 +1223,59 @@ if test "x$ENABLED_TLSX" = "xyes"
 then
 	ENABLED_SNI=yes
 	ENABLED_MAX_FRAGMENT=yes
-    AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_SNI -DHAVE_MAX_FRAGMENT"
+	ENABLED_TRUNCATED_HMAC=yes
+	ENABLED_RENEGOTIATION_INDICATION=yes
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_SNI -DHAVE_MAX_FRAGMENT -DHAVE_TRUNCATED_HMAC -DHAVE_RENEGOTIATION_INDICATION"
 fi
+
+# PKCS7
+AC_ARG_ENABLE([pkcs7],
+    [  --enable-pkcs7          Enable PKCS7 (default: disabled)],
+    [ ENABLED_PKCS7=$enableval ],
+    [ ENABLED_PKCS7=no ],
+    )
+
+if test "$ENABLED_PKCS7" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_PKCS7"
+fi
+
+AM_CONDITIONAL([BUILD_PKCS7], [test "x$ENABLED_PKCS7" = "xyes"])
+
+
+# Simple Certificate Enrollment Protocol (SCEP)
+AC_ARG_ENABLE([scep],
+    [  --enable-scep           Enable wolfSCEP (default: disabled)],
+    [ ENABLED_WOLFSCEP=$enableval ],
+    [ ENABLED_WOLFSCEP=no ]
+    )
+if test "$ENABLED_WOLFSCEP" = "yes"
+then
+    # Enable prereqs if not already enabled
+    if test "x$ENABLED_KEYGEN" = "xno"
+    then
+        ENABLED_KEYGEN="yes"
+        AM_CFLAGS="$AM_CFLAGS -DCYASSL_KEY_GEN"
+    fi
+    if test "x$ENABLED_CERTGEN" = "xno"
+    then
+        ENABLED_CERTGEN="yes"
+        AM_CFLAGS="$AM_CFLAGS -DCYASSL_CERT_GEN"
+    fi
+    if test "x$ENABLED_CERTREQ" = "xno"
+    then
+        ENABLED_CERTREQ="yes"
+        AM_CFLAGS="$AM_CFLAGS -DCYASSL_CERT_REQ"
+    fi
+    if test "x$ENABLED_PKCS7" = "xno"
+    then
+        ENABLED_PKCS7="yes"
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_PKCS7"
+        AM_CONDITIONAL([BUILD_PKCS7], [test "x$ENABLED_PKCS7" = "xyes"])
+    fi
+    AM_CFLAGS="$AM_CFLAGS -DCYASSL_HAVE_WOLFSCEP"
+fi
+
 
 #valgrind
 AC_ARG_ENABLE([valgrind],
@@ -1529,6 +1614,7 @@ echo "   * Filesystem:                $ENABLED_FILESYSTEM"
 echo "   * OpenSSL Extra API:         $ENABLED_OPENSSLEXTRA"
 echo "   * fastmath:                  $ENABLED_FASTMATH"
 echo "   * sniffer:                   $ENABLED_SNIFFER"
+echo "   * snifftest:                 $ENABLED_SNIFFTEST"
 echo "   * ARC4:                      $ENABLED_ARC4"
 echo "   * AES:                       $ENABLED_AES"
 echo "   * AES-NI:                    $ENABLED_AESNI"
@@ -1544,6 +1630,7 @@ echo "   * SHA-512:                   $ENABLED_SHA512"
 echo "   * BLAKE2:                    $ENABLED_BLAKE2"
 echo "   * keygen:                    $ENABLED_KEYGEN"
 echo "   * certgen:                   $ENABLED_CERTGEN"
+echo "   * certreq:                   $ENABLED_CERTREQ"
 echo "   * HC-128:                    $ENABLED_HC128"
 echo "   * RABBIT:                    $ENABLED_RABBIT"
 echo "   * PWDBASED:                  $ENABLED_PWDBASED"
@@ -1574,7 +1661,10 @@ echo "   * NTRU:                      $ENABLED_NTRU"
 echo "   * SNI:                       $ENABLED_SNI"
 echo "   * Maximum Fragment Length:   $ENABLED_MAX_FRAGMENT"
 echo "   * Truncated HMAC:            $ENABLED_TRUNCATED_HMAC"
+echo "   * Renegotiation Indication:  $ENABLED_RENEGOTIATION_INDICATION"
 echo "   * All TLS Extensions:        $ENABLED_TLSX"
+echo "   * PKCS#7                     $ENABLED_PKCS7"
+echo "   * wolfSCEP                   $ENABLED_WOLFSCEP"
 echo "   * valgrind unit tests:       $ENABLED_VALGRIND"
 echo "   * LIBZ:                      $ENABLED_LIBZ"
 echo "   * Examples:                  $ENABLED_EXAMPLES"

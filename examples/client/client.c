@@ -505,10 +505,13 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
 
 #ifdef HAVE_OCSP
     if (useOcsp) {
-        CyaSSL_CTX_OCSP_set_options(ctx,
-                                    CYASSL_OCSP_ENABLE | CYASSL_OCSP_NO_NONCE);
-        if (ocspUrl != NULL)
-            CyaSSL_CTX_OCSP_set_override_url(ctx, ocspUrl);
+        if (ocspUrl != NULL) {
+            CyaSSL_CTX_SetOCSP_OverrideURL(ctx, ocspUrl);
+            CyaSSL_CTX_EnableOCSP(ctx, CYASSL_OCSP_NO_NONCE
+                                                    | CYASSL_OCSP_URL_OVERRIDE);
+        }
+        else
+            CyaSSL_CTX_EnableOCSP(ctx, CYASSL_OCSP_NO_NONCE);
     }
 #endif
 
@@ -803,8 +806,10 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
 #if defined(DEBUG_CYASSL) && !defined(CYASSL_MDK_SHELL) && !defined(STACK_TRAP)
         CyaSSL_Debugging_ON();
 #endif
-        if (CurrentDir("client") || CurrentDir("build"))
+        if (CurrentDir("client"))
             ChangeDirBack(2);
+        else if (CurrentDir("Debug") || CurrentDir("Release"))
+            ChangeDirBack(3);
   
 #ifdef HAVE_STACK_SIZE
         StackSizeCheck(&args, client_test);

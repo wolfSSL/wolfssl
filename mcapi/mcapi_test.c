@@ -53,7 +53,7 @@
     #include <stdlib.h>
     #include "PIC32MZ-serial.h"
     #define  SYSTEMConfigPerformance /* void out SYSTEMConfigPerformance(); */
-#else
+#elif defined(MICROCHIP_PIC32)
     #define PIC32_STARTER_KIT
     #include <stdio.h>
     #include <stdlib.h>
@@ -61,6 +61,8 @@
     #include <plib.h>
     #include <sys/appio.h>
     #define init_serial()  /* void out init_serial() */
+#else
+    #include <stdio.h>  /* order matters above ? */
 #endif
 #define OUR_DATA_SIZE 1024
 static byte ourData[OUR_DATA_SIZE];
@@ -93,9 +95,11 @@ int main(int argc, char** argv)
     (void)argc;
     (void)argv;
 
+#if defined(MICROCHIP_PIC32)
     init_serial() ;  /* initialize PIC32MZ serial I/O */
     SYSTEMConfigPerformance(80000000);
     DBINIT();
+#endif
 
     /* align key, iv pointers */
     key = (byte*)XMALLOC(32, NULL, DYNAMIC_TYPE_KEY);

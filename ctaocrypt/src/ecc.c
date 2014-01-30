@@ -1997,7 +1997,6 @@ int ecc_export_x963(ecc_key* key, byte* out, word32* outLen)
 int ecc_import_x963(const byte* in, word32 inLen, ecc_key* key)
 {
    int x, err;
-
    
    if (in == NULL || key == NULL)
        return ECC_BAD_ARG_E;
@@ -2144,17 +2143,22 @@ int ecc_sig_size(ecc_key* key)
 
 
 /** Our FP cache */
-static struct {
+typedef struct {
    ecc_point* g;               /* cached COPY of base point */
    ecc_point* LUT[1U<<FP_LUT]; /* fixed point lookup */ 
    mp_int     mu;              /* copy of the montgomery constant */
    int        lru_count;       /* amount of times this entry has been used */
    int        lock;            /* flag to indicate cache eviction */
                                /* permitted (0) or not (1) */
-} fp_cache[FP_ENTRIES];
+} fp_cache_t;
 
-static volatile int initMutex = 0;  /* prevent multiple mutex inits */
-static CyaSSL_Mutex ecc_fp_lock;
+/* if HAVE_THREAD_LS this cache is per thread, no locking needed */
+static THREAD_LS_T fp_cache_t fp_cache[FP_ENTRIES];
+
+#ifndef HAVE_THREAD_LS
+    static volatile int initMutex = 0;  /* prevent multiple mutex inits */
+    static CyaSSL_Mutex ecc_fp_lock;
+#endif /* HAVE_THREAD_LS */
 
 /* simple table to help direct the generation of the LUT */
 static const struct {
@@ -3263,21 +3267,22 @@ int ecc_mul2add(ecc_point* A, mp_int* kA,
                 ecc_point* B, mp_int* kB,
                 ecc_point* C, mp_int* modulus)
 {
-   int  idx1, idx2, err = MP_OKAY, mpInit = 0;
+   int  idx1 = -1, idx2 = -1, err = MP_OKAY, mpInit = 0;
    mp_digit mp;
    mp_int   mu;
   
-   if (initMutex == 0) {
-        InitMutex(&ecc_fp_lock);
-        initMutex = 1;
-   }
-   
    err = mp_init(&mu);
    if (err != MP_OKAY)
        return err;
 
+#ifndef HAVE_THREAD_LS
+   if (initMutex == 0) {
+        InitMutex(&ecc_fp_lock);
+        initMutex = 1;
+   }
    if (LockMutex(&ecc_fp_lock) != 0)
       return BAD_MUTEX_E;
+#endif /* HAVE_THREAD_LS */
 
       /* find point */
       idx1 = find_base(A);
@@ -3362,7 +3367,9 @@ int ecc_mul2add(ecc_point* A, mp_int* kA,
         }
     }
 
+#ifndef HAVE_THREAD_LS
     UnLockMutex(&ecc_fp_lock);
+#endif /* HAVE_THREAD_LS */
     mp_clear(&mu);
 
     return err;
@@ -3389,6 +3396,7 @@ int ecc_mulmod(mp_int* k, ecc_point *G, ecc_point *R, mp_int* modulus,
    if (mp_init(&mu) != MP_OKAY)
        return MP_INIT_E;
    
+#ifndef HAVE_THREAD_LS
    if (initMutex == 0) {
         InitMutex(&ecc_fp_lock);
         initMutex = 1;
@@ -3396,6 +3404,7 @@ int ecc_mulmod(mp_int* k, ecc_point *G, ecc_point *R, mp_int* modulus,
    
    if (LockMutex(&ecc_fp_lock) != 0)
       return BAD_MUTEX_E;
+#endif /* HAVE_THREAD_LS */
 
       /* find point */
       idx = find_base(G);
@@ -3445,7 +3454,9 @@ int ecc_mulmod(mp_int* k, ecc_point *G, ecc_point *R, mp_int* modulus,
         }
      }
 
+#ifndef HAVE_THREAD_LS
     UnLockMutex(&ecc_fp_lock);
+#endif /* HAVE_THREAD_LS */
     mp_clear(&mu);
 
     return err;
@@ -3474,18 +3485,23 @@ static void ecc_fp_free_cache(void)
 /** Free the Fixed Point cache */
 void ecc_fp_free(void)
 {
+#ifndef HAVE_THREAD_LS
    if (initMutex == 0) {
         InitMutex(&ecc_fp_lock);
         initMutex = 1;
    }
    
    if (LockMutex(&ecc_fp_lock) == 0) {
-       ecc_fp_free_cache();
-       UnLockMutex(&ecc_fp_lock);
+#endif /* HAVE_THREAD_LS */
 
+       ecc_fp_free_cache();
+
+#ifndef HAVE_THREAD_LS
+       UnLockMutex(&ecc_fp_lock);
        FreeMutex(&ecc_fp_lock);
        initMutex = 0;
    }
+#endif /* HAVE_THREAD_LS */
 }
 
 
@@ -3493,33 +3509,189 @@ void ecc_fp_free(void)
 
 #ifdef HAVE_ECC_ENCRYPT
 
-/* init and set defaults, just holders */
-void ecc_encrypt_init_options(ecEncOptions* options)
-{
-    if (options) {
-        XMEMSET(options, 0, sizeof(ecEncOptions));
 
-        options->encAlgo = ecAES_128_CBC;
-        options->kdfAlgo = ecHKDF_SHA256;
-        options->macAlgo = ecHMAC_SHA256;
+enum ecCliState {
+    ecCLI_INIT      = 1,    
+    ecCLI_SALT_GET  = 2,    
+    ecCLI_SALT_SET  = 3,    
+    ecCLI_SENT_REQ  = 4,    
+    ecCLI_RECV_RESP = 5,    
+    ecCLI_BAD_STATE = 99    
+};
+
+enum ecSrvState {
+    ecSRV_INIT      = 1,    
+    ecSRV_SALT_GET  = 2,    
+    ecSRV_SALT_SET  = 3,    
+    ecSRV_RECV_REQ  = 4,    
+    ecSRV_SENT_RESP = 5,    
+    ecSRV_BAD_STATE = 99    
+};
+
+
+struct ecEncCtx {
+    byte*     kdfSalt;     /* optional salt for kdf */
+    byte*     kdfInfo;     /* optional info for kdf */
+    byte*     macSalt;     /* optional salt for mac */
+    word32    kdfSaltSz;   /* size of kdfSalt */
+    word32    kdfInfoSz;   /* size of kdfInfo */
+    word32    macSaltSz;   /* size of macSalt */
+    byte      clientSalt[EXCHANGE_SALT_SZ];  /* for msg exchange */
+    byte      serverSalt[EXCHANGE_SALT_SZ];  /* for msg exchange */
+    byte      encAlgo;     /* which encryption type */
+    byte      kdfAlgo;     /* which key derivation function type */
+    byte      macAlgo;     /* which mac function type */
+    byte      protocol;    /* are we REQ_RESP client or server ? */
+    byte      cliSt;       /* protocol state, for sanity checks */
+    byte      srvSt;       /* protocol state, for sanity checks */
+};
+
+
+const byte* ecc_ctx_get_own_salt(ecEncCtx* ctx)
+{
+    if (ctx == NULL || ctx->protocol == 0)
+        return NULL;
+
+    if (ctx->protocol == REQ_RESP_CLIENT) {
+        if (ctx->cliSt == ecCLI_INIT) {
+            ctx->cliSt =  ecCLI_SALT_GET;
+            return ctx->clientSalt;
+        }
+        else {
+            ctx->cliSt = ecCLI_BAD_STATE;
+            return NULL;
+        }
     }
+    else if (ctx->protocol == REQ_RESP_SERVER) {
+        if (ctx->srvSt == ecSRV_INIT) {
+            ctx->srvSt =  ecSRV_SALT_GET;
+            return ctx->serverSalt;
+        }
+        else {
+            ctx->srvSt = ecSRV_BAD_STATE;
+            return NULL;
+        }
+    }
+
+    return NULL;
+}
+
+
+static const char* exchange_info = "Secure Message Exchange";
+
+int ecc_ctx_set_peer_salt(ecEncCtx* ctx, const byte* salt)
+{
+    byte tmp[EXCHANGE_SALT_SZ/2];
+    int  halfSz = EXCHANGE_SALT_SZ/2;
+
+    if (ctx == NULL || ctx->protocol == 0 || salt == NULL)
+        return BAD_FUNC_ARG;
+
+    if (ctx->protocol == REQ_RESP_CLIENT) {
+        XMEMCPY(ctx->serverSalt, salt, EXCHANGE_SALT_SZ);
+        if (ctx->cliSt == ecCLI_SALT_GET)
+            ctx->cliSt =  ecCLI_SALT_SET;
+        else {
+            ctx->cliSt =  ecCLI_BAD_STATE;
+            return BAD_ENC_STATE_E;
+        }
+    }
+    else {
+        XMEMCPY(ctx->clientSalt, salt, EXCHANGE_SALT_SZ);
+        if (ctx->srvSt == ecSRV_SALT_GET)
+            ctx->srvSt =  ecSRV_SALT_SET;
+        else {
+            ctx->srvSt =  ecSRV_BAD_STATE;
+            return BAD_ENC_STATE_E;
+        }
+    }
+
+    /* mix half and half */
+    /* tmp stores 2nd half of client before overwrite */
+    XMEMCPY(tmp, ctx->clientSalt + halfSz, halfSz);
+    XMEMCPY(ctx->clientSalt + halfSz, ctx->serverSalt, halfSz);
+    XMEMCPY(ctx->serverSalt, tmp, halfSz);
+
+    ctx->kdfSalt   = ctx->clientSalt;
+    ctx->kdfSaltSz = EXCHANGE_SALT_SZ;
+
+    ctx->macSalt   = ctx->serverSalt;
+    ctx->macSaltSz = EXCHANGE_SALT_SZ;
+
+    ctx->kdfInfo   = (byte*)exchange_info;
+    ctx->kdfInfoSz = EXCHANGE_INFO_SZ;
+
+    return 0;
+}
+
+
+static int ecc_ctx_set_salt(ecEncCtx* ctx, int flags, RNG* rng)
+{
+    byte* saltBuffer = NULL;
+
+    if (ctx == NULL || rng == NULL || flags == 0) 
+        return BAD_FUNC_ARG;
+
+    saltBuffer = (flags == REQ_RESP_CLIENT) ? ctx->clientSalt : ctx->serverSalt;
+    RNG_GenerateBlock(rng, saltBuffer, EXCHANGE_SALT_SZ);
+
+    return 0;
+}
+
+
+static void ecc_ctx_init(ecEncCtx* ctx, int flags)
+{
+    if (ctx) {
+        XMEMSET(ctx, 0, sizeof(ecEncCtx));
+
+        ctx->encAlgo  = ecAES_128_CBC;
+        ctx->kdfAlgo  = ecHKDF_SHA256;
+        ctx->macAlgo  = ecHMAC_SHA256;
+        ctx->protocol = (byte)flags;
+
+        if (flags == REQ_RESP_CLIENT)
+            ctx->cliSt = ecCLI_INIT;
+        if (flags == REQ_RESP_SERVER)
+            ctx->srvSt = ecSRV_INIT;
+    }
+}
+
+
+/* alloc/init and set defaults, return new Context  */
+ecEncCtx* ecc_ctx_new(int flags, RNG* rng)
+{
+    int       ret = 0;
+    ecEncCtx* ctx = (ecEncCtx*)XMALLOC(sizeof(ecEncCtx), 0, DYNAMIC_TYPE_ECC);
+
+    ecc_ctx_init(ctx, flags);
+
+    if (ctx && flags)
+        ret = ecc_ctx_set_salt(ctx, flags, rng);
+
+    if (ret != 0) {
+        ecc_ctx_free(ctx);
+        ctx = NULL;
+    }
+
+    return ctx;
 }
 
 
 /* free any resources, clear any keys */
-void ecc_encrypt_free_options(ecEncOptions* options)
+void ecc_ctx_free(ecEncCtx* ctx)
 {
-    if (options) {
-        XMEMSET(options, 0, sizeof(ecEncOptions));
+    if (ctx) {
+        XMEMSET(ctx, 0, sizeof(ecEncCtx));
+        XFREE(ctx, 0, DYNAMIC_TYPE_ECC);
     }
 }
 
 
-static int ecc_get_key_sizes(ecEncOptions* options, int* encKeySz, int* ivSz,
+static int ecc_get_key_sizes(ecEncCtx* ctx, int* encKeySz, int* ivSz,
                              int* keysLen, word32* digestSz, word32* blockSz)
 {
-    if (options) {
-        switch (options->encAlgo) {
+    if (ctx) {
+        switch (ctx->encAlgo) {
             case ecAES_128_CBC:
                 *encKeySz = KEY_SIZE_128;
                 *ivSz     = IV_SIZE_64;
@@ -3529,7 +3701,7 @@ static int ecc_get_key_sizes(ecEncOptions* options, int* encKeySz, int* ivSz,
                 return BAD_FUNC_ARG;
         }
 
-        switch (options->macAlgo) {
+        switch (ctx->macAlgo) {
             case ecHMAC_SHA256:
                 *digestSz = SHA256_DIGEST_SIZE;
                 break;
@@ -3546,22 +3718,23 @@ static int ecc_get_key_sizes(ecEncOptions* options, int* encKeySz, int* ivSz,
 
 
 /* ecc encrypt with shared secret run through kdf
-   options holds non default algos and inputs
+   ctx holds non default algos and inputs
    msgSz should be the right size for encAlgo, i.e., already padded 
    return 0 on success */
 int ecc_encrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
-                word32 msgSz, byte* out, word32* outSz, ecEncOptions* opts)
+                word32 msgSz, byte* out, word32* outSz, ecEncCtx* ctx)
 {
     int          ret;
     word32       blockSz;
     word32       digestSz;
-    ecEncOptions options;
+    ecEncCtx     localCtx;
     byte         sharedSecret[ECC_MAXSIZE];  /* 521 max size */
     byte         keys[ECC_BUFSIZE];         /* max size */
     word32       sharedSz = sizeof(sharedSecret);
     int          keysLen;
     int          encKeySz;
     int          ivSz;
+    int          offset = 0;         /* keys offset if doing msg exchange */
     byte*        encKey;
     byte*        encIv;
     byte*        macKey;
@@ -3570,19 +3743,37 @@ int ecc_encrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
                            outSz  == NULL)
         return BAD_FUNC_ARG;
 
-    if (opts)
-        options = *opts;
-    else  {
-        ecc_encrypt_init_options(&options); /* defaults */
+    if (ctx == NULL) {  /* use defaults */
+        ecc_ctx_init(&localCtx, 0);
+        ctx = &localCtx;  
     }
         
-    ret = ecc_get_key_sizes(&options, &encKeySz, &ivSz, &keysLen, &digestSz,
+    ret = ecc_get_key_sizes(ctx, &encKeySz, &ivSz, &keysLen, &digestSz,
                             &blockSz);
     if (ret != 0)
         return ret;
+
+    if (ctx->protocol == REQ_RESP_SERVER) {
+        offset = keysLen;
+        keysLen *= 2;
+
+        if (ctx->srvSt != ecSRV_RECV_REQ)
+            return BAD_ENC_STATE_E;
+
+        ctx->srvSt = ecSRV_BAD_STATE; /* we're done no more ops allowed */
+    }
+    else if (ctx->protocol == REQ_RESP_CLIENT) {
+        if (ctx->cliSt != ecCLI_SALT_SET)
+            return BAD_ENC_STATE_E;
+
+        ctx->cliSt = ecCLI_SENT_REQ; /* only do this once */
+    }
+        
+    if (keysLen > (int)sizeof(keys))
+        return BUFFER_E;
         
     if ( (msgSz%blockSz) != 0)
-        return BAD_FUNC_ARG;
+        return BAD_PADDING_E;
 
     if (*outSz < (msgSz + digestSz))
         return BUFFER_E;
@@ -3591,11 +3782,11 @@ int ecc_encrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
     if (ret != 0)
         return ret;
 
-    switch (options.kdfAlgo) {
+    switch (ctx->kdfAlgo) {
         case ecHKDF_SHA256 :
-                ret = HKDF(SHA256, sharedSecret, sharedSz, options.kdfSalt,
-                           options.kdfSaltSz, options.kdfInfo,
-                           options.kdfInfoSz, keys, keysLen);
+                ret = HKDF(SHA256, sharedSecret, sharedSz, ctx->kdfSalt,
+                           ctx->kdfSaltSz, ctx->kdfInfo,
+                           ctx->kdfInfoSz, keys, keysLen);
                 if (ret != 0)
                     return ret;
             break;
@@ -3604,11 +3795,11 @@ int ecc_encrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
             return BAD_FUNC_ARG;
     }
 
-    encKey = keys;
+    encKey = keys + offset;
     encIv  = encKey + encKeySz;
     macKey = encKey + encKeySz + ivSz;
 
-    switch (options.encAlgo) {
+    switch (ctx->encAlgo) {
         case ecAES_128_CBC:
             {
                 Aes aes;
@@ -3625,7 +3816,7 @@ int ecc_encrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
             return BAD_FUNC_ARG;
     }
 
-    switch (options.macAlgo) {
+    switch (ctx->macAlgo) {
         case ecHMAC_SHA256:
             {
                 Hmac hmac;
@@ -3633,7 +3824,7 @@ int ecc_encrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
                 if (ret != 0)
                     return ret;
                 HmacUpdate(&hmac, out, msgSz);
-                HmacUpdate(&hmac, options.macSalt, options.macSaltSz);
+                HmacUpdate(&hmac, ctx->macSalt, ctx->macSaltSz);
                 HmacFinal(&hmac, out+msgSz);
             }
             break;
@@ -3648,19 +3839,23 @@ int ecc_encrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
 }
 
 
+/* ecc decrypt with shared secret run through kdf
+   ctx holds non default algos and inputs
+   return 0 on success */
 int ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
-                word32 msgSz, byte* out, word32* outSz, ecEncOptions* opts)
+                word32 msgSz, byte* out, word32* outSz, ecEncCtx* ctx)
 {
     int          ret;
     word32       blockSz;
     word32       digestSz;
-    ecEncOptions options;
+    ecEncCtx     localCtx;
     byte         sharedSecret[ECC_MAXSIZE];  /* 521 max size */
     byte         keys[ECC_BUFSIZE];         /* max size */
     word32       sharedSz = sizeof(sharedSecret);
     int          keysLen;
     int          encKeySz;
     int          ivSz;
+    int          offset = 0;       /* in case using msg exchange */
     byte*        encKey;
     byte*        encIv;
     byte*        macKey;
@@ -3669,19 +3864,37 @@ int ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
                            outSz  == NULL)
         return BAD_FUNC_ARG;
 
-    if (opts)
-        options = *opts;
-    else  {
-        ecc_encrypt_init_options(&options); /* defaults */
+    if (ctx == NULL) {  /* use defaults */
+        ecc_ctx_init(&localCtx, 0);
+        ctx = &localCtx;  
     }
-
-    ret = ecc_get_key_sizes(&options, &encKeySz, &ivSz, &keysLen, &digestSz,
+        
+    ret = ecc_get_key_sizes(ctx, &encKeySz, &ivSz, &keysLen, &digestSz,
                             &blockSz);
     if (ret != 0)
         return ret;
         
+    if (ctx->protocol == REQ_RESP_CLIENT) {
+        offset = keysLen;
+        keysLen *= 2;
+
+        if (ctx->cliSt != ecCLI_SENT_REQ)
+            return BAD_ENC_STATE_E;
+
+        ctx->cliSt = ecSRV_BAD_STATE; /* we're done no more ops allowed */
+    }
+    else if (ctx->protocol == REQ_RESP_SERVER) {
+        if (ctx->srvSt != ecSRV_SALT_SET)
+            return BAD_ENC_STATE_E;
+
+        ctx->srvSt = ecSRV_RECV_REQ; /* only do this once */
+    }
+        
+    if (keysLen > (int)sizeof(keys))
+        return BUFFER_E;
+        
     if ( ((msgSz-digestSz) % blockSz) != 0)
-        return BAD_FUNC_ARG;
+        return BAD_PADDING_E;
 
     if (*outSz < (msgSz - digestSz))
         return BUFFER_E;
@@ -3690,11 +3903,11 @@ int ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
     if (ret != 0)
         return ret;
 
-    switch (options.kdfAlgo) {
+    switch (ctx->kdfAlgo) {
         case ecHKDF_SHA256 :
-                ret = HKDF(SHA256, sharedSecret, sharedSz, options.kdfSalt,
-                           options.kdfSaltSz, options.kdfInfo,
-                           options.kdfInfoSz, keys, keysLen);
+                ret = HKDF(SHA256, sharedSecret, sharedSz, ctx->kdfSalt,
+                           ctx->kdfSaltSz, ctx->kdfInfo,
+                           ctx->kdfInfoSz, keys, keysLen);
                 if (ret != 0)
                     return ret;
             break;
@@ -3703,11 +3916,11 @@ int ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
             return BAD_FUNC_ARG;
     }
 
-    encKey = keys;
+    encKey = keys + offset;
     encIv  = encKey + encKeySz;
     macKey = encKey + encKeySz + ivSz;
 
-    switch (options.macAlgo) {
+    switch (ctx->macAlgo) {
         case ecHMAC_SHA256:
             {
                 byte verify[SHA256_DIGEST_SIZE];
@@ -3716,7 +3929,7 @@ int ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
                 if (ret != 0)
                     return ret;
                 HmacUpdate(&hmac, msg, msgSz-digestSz);
-                HmacUpdate(&hmac, options.macSalt, options.macSaltSz);
+                HmacUpdate(&hmac, ctx->macSalt, ctx->macSaltSz);
                 HmacFinal(&hmac, verify);
 
                 if (memcmp(verify, msg + msgSz - digestSz, digestSz) != 0) {
@@ -3729,7 +3942,7 @@ int ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
             return BAD_FUNC_ARG;
     }
 
-    switch (options.encAlgo) {
+    switch (ctx->encAlgo) {
         case ecAES_128_CBC:
             {
                 Aes aes;

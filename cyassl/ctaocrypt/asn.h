@@ -59,6 +59,7 @@ enum ASN_Tags {
     ASN_TAG_NULL          = 0x05,
     ASN_OBJECT_ID         = 0x06,
     ASN_ENUMERATED        = 0x0a,
+    ASN_UTF8STRING        = 0x0c,
     ASN_SEQUENCE          = 0x10,
     ASN_SET               = 0x11,
     ASN_UTC_TIME          = 0x17,
@@ -125,6 +126,9 @@ enum Misc_ASN {
     MAX_ALGO_SZ         =  20,
     MAX_SEQ_SZ          =   5,     /* enum(seq | con) + length(4) */  
     MAX_SET_SZ          =   5,     /* enum(set | con) + length(4) */  
+    MAX_OCTET_STR_SZ    =   5,     /* enum(set | con) + length(4) */
+    MAX_EXP_SZ          =   5,     /* enum(contextspec|con|exp) + length(4) */
+    MAX_PRSTR_SZ        =   5,     /* enum(prstr) + length(4) */
     MAX_VERSION_SZ      =   5,     /* enum + id + version(byte) + (header(2))*/
     MAX_ENCODED_DIG_SZ  =  73,     /* sha512 + enum(bit or octet) + legnth(4) */
     MAX_RSA_INT_SZ      = 517,     /* RSA raw sz 4096 for bits + tag + len(4) */
@@ -135,6 +139,11 @@ enum Misc_ASN {
     MAX_CA_SZ           =  32,     /* Max encoded CA basic constraint length */
     MAX_SN_SZ           =  35,     /* Max encoded serial number (INT) length */
 #ifdef CYASSL_CERT_GEN
+    #ifdef CYASSL_CERT_REQ
+                          /* Max encoded cert req attributes length */
+        MAX_ATTRIB_SZ   = MAX_SEQ_SZ * 3 + (11 + MAX_SEQ_SZ) * 2 +
+                          MAX_PRSTR_SZ + CTC_NAME_SIZE, /* 11 is the OID size */
+    #endif
     #ifdef CYASSL_ALT_NAMES
         MAX_EXTENSIONS_SZ   = 1 + MAX_LENGTH_SZ + CTC_MAX_ALT_SIZE,
     #else
@@ -151,9 +160,11 @@ enum Misc_ASN {
 
 
 enum Oid_Types {
-    hashType = 0,
-    sigType  = 1,
-    keyType  = 2
+    hashType  = 0,
+    sigType   = 1,
+    keyType   = 2,
+    curveType = 3,
+    blkType   = 4
 };
 
 
@@ -164,6 +175,12 @@ enum Hash_Sum  {
     SHA256h = 414,
     SHA384h = 415,
     SHA512h = 416
+};
+
+
+enum Block_Sum {
+    DESb  = 69,
+    DES3b = 652
 };
 
 
@@ -198,7 +215,8 @@ enum Extensions_Sum {
     CA_ISSUER_OID   = 117,
     AUTH_KEY_OID    = 149,
     SUBJ_KEY_OID    = 128,
-    CERT_POLICY_OID = 146
+    CERT_POLICY_OID = 146,
+    KEY_USAGE_OID   = 129  /* 2.5.29.15 */
 };
 
 enum CertificatePolicy_Sum {
@@ -214,6 +232,18 @@ enum VerifyType {
     NO_VERIFY = 0,
     VERIFY    = 1
 };
+
+
+/* Key usage extension bits */
+#define KEYUSE_DIGITAL_SIG    0x0100
+#define KEYUSE_CONTENT_COMMIT 0x0080
+#define KEYUSE_KEY_ENCIPHER   0x0040
+#define KEYUSE_DATA_ENCIPHER  0x0020
+#define KEYUSE_KEY_AGREE      0x0010
+#define KEYUSE_KEY_CERT_SIGN  0x0008
+#define KEYUSE_CRL_SIGN       0x0004
+#define KEYUSE_ENCIPHER_ONLY  0x0002
+#define KEYUSE_DECIPHER_ONLY  0x0001
 
 
 typedef struct DNS_entry   DNS_entry;
@@ -296,11 +326,35 @@ struct DecodedCert {
     byte    extSubjKeyIdSet;         /* Set when the SKID was read from cert */
     byte    extAuthKeyId[SHA_SIZE];  /* Authority Key ID                 */
     byte    extAuthKeyIdSet;         /* Set when the AKID was read from cert */
-    byte    isCA;                    /* CA basic constraint true */
+    byte    isCA;                    /* CA basic constraint true         */
+#ifdef OPENSSL_EXTRA
+    byte    extBasicConstSet;
+    byte    extBasicConstCrit;
+    byte    extBasicConstPlSet;
+    word32  pathLength;              /* CA basic constraint path length, opt */
+    byte    extSubjAltNameSet;
+    byte    extSubjAltNameCrit;
+    byte    extAuthKeyIdCrit;
+    byte    extSubjKeyIdCrit;
+    byte    extKeyUsageSet;
+    byte    extKeyUsageCrit;
+    word16  extKeyUsage;             /* Key usage bitfield               */
+    byte*   extAuthKeyIdSrc;
+    word32  extAuthKeyIdSz;
+    byte*   extSubjKeyIdSrc;
+    word32  extSubjKeyIdSz;
+    #ifdef HAVE_ECC
+        word32 pkCurveOID;           /* Public Key's curve OID */
+    #endif /* HAVE_ECC */
+#endif
     byte*   beforeDate;
     int     beforeDateLen;
     byte*   afterDate;
     int     afterDateLen;
+#ifdef HAVE_PKCS7
+    byte*   issuerRaw;               /* pointer to issuer inside source */
+    int     issuerRawLen;
+#endif
 #if defined(CYASSL_CERT_GEN)
     /* easy access to subject info for other sign */
     char*   subjectSN;
@@ -329,6 +383,10 @@ struct DecodedCert {
     byte*   hwType;
     int     hwSerialNumSz;
     byte*   hwSerialNum;
+    #ifdef OPENSSL_EXTRA
+        byte    extCertPolicySet;
+        byte    extCertPolicyCrit;
+    #endif /* OPENSSL_EXTRA */
 #endif /* CYASSL_SEP */
 };
 
@@ -385,15 +443,37 @@ CYASSL_LOCAL int ToTraditionalEnc(byte* buffer, word32 length,const char*, int);
 
 CYASSL_LOCAL int ValidateDate(const byte* date, byte format, int dateType);
 
+/* ASN.1 helper functions */
+CYASSL_LOCAL int GetLength(const byte* input, word32* inOutIdx, int* len,
+                           word32 maxIdx);
+CYASSL_LOCAL int GetSequence(const byte* input, word32* inOutIdx, int* len,
+                             word32 maxIdx);
+CYASSL_LOCAL int GetSet(const byte* input, word32* inOutIdx, int* len,
+                        word32 maxIdx);
+CYASSL_LOCAL int GetMyVersion(const byte* input, word32* inOutIdx,
+                              int* version);
+CYASSL_LOCAL int GetInt(mp_int* mpi, const byte* input, word32* inOutIdx,
+                        word32 maxIdx);
+CYASSL_LOCAL int GetAlgoId(const byte* input, word32* inOutIdx, word32* oid,
+                           word32 maxIdx);
+CYASSL_LOCAL word32 SetLength(word32 length, byte* output);
+CYASSL_LOCAL word32 SetSequence(word32 len, byte* output);
+CYASSL_LOCAL word32 SetOctetString(word32 len, byte* output);
+CYASSL_LOCAL word32 SetImplicit(byte tag, byte number, word32 len,byte* output);
+CYASSL_LOCAL word32 SetExplicit(byte number, word32 len, byte* output);
+CYASSL_LOCAL word32 SetSet(word32 len, byte* output);
+CYASSL_LOCAL word32 SetAlgoID(int algoOID, byte* output, int type, int curveSz);
+CYASSL_LOCAL int SetMyVersion(word32 version, byte* output, int header);
+CYASSL_LOCAL int SetSerialNumber(const byte* sn, word32 snSz, byte* output);
+CYASSL_LOCAL int GetNameHash(const byte* source, word32* idx, byte* hash,
+                             int maxIdx);
+
 #ifdef HAVE_ECC
     /* ASN sig helpers */
     CYASSL_LOCAL int StoreECC_DSA_Sig(byte* out, word32* outLen, mp_int* r,
                                       mp_int* s);
     CYASSL_LOCAL int DecodeECC_DSA_Sig(const byte* sig, word32 sigLen,
                                        mp_int* r, mp_int* s);
-    /* private key helpers */
-    CYASSL_API int EccPrivateKeyDecode(const byte* input,word32* inOutIdx,
-                                         ecc_key*,word32);
 #endif
 
 #ifdef CYASSL_CERT_GEN
@@ -403,7 +483,8 @@ enum cert_enums {
     JOINT_LEN       =  2,
     EMAIL_JOINT_LEN =  9,
     RSA_KEY         = 10,
-    NTRU_KEY        = 11
+    NTRU_KEY        = 11,
+    ECC_KEY         = 12
 };
 
 

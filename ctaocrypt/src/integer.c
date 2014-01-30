@@ -3765,7 +3765,7 @@ int mp_sqrmod (mp_int * a, mp_int * b, mp_int * c)
 #endif
 
 
-#if defined(HAVE_ECC) || !defined(NO_PWDBASED) || defined(CYASSL_SNIFFER)
+#if defined(HAVE_ECC) || !defined(NO_PWDBASED) || defined(CYASSL_SNIFFER) || defined(CYASSL_HAVE_WOLFSCEP)
 
 /* single digit addition */
 int mp_add_d (mp_int* a, mp_digit b, mp_int* c)

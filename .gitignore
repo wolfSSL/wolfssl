@@ -46,10 +46,17 @@ testsuite/*.pem
 testsuite/*.raw
 cert.der
 cert.pem
+certecc.der
+certecc.pem
 othercert.der
 othercert.pem
 key.der
 key.pem
+certreq.der
+certreq.pem
+pkcs7cert.der
+pkcs7signedData.der
+pkcs7envelopedData.der
 diff
 sslSniffer/sslSnifferTest/tracefile.txt
 *.gz

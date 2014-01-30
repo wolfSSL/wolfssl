@@ -52,7 +52,6 @@ AC_DEFUN([AX_DEBUG],
         [Add debug code/turns off optimizations (yes|no) @<:@default=no@:>@])],
       [ax_enable_debug=yes
       AC_DEFINE([DEBUG],[1],[Define to 1 to enable debugging code.])
-      AX_CHECK_LIBRARY([MCHECK],[mcheck.h],[mcheck],[AX_APPEND_LINK_FLAGS([-lmcheck])])
       AX_ADD_AM_MACRO([--debug],[AM_YFLAGS])
       AX_ADD_AM_MACRO([-D_GLIBCXX_DEBUG],[AM_CPPFLAGS])],
       [ax_enable_debug=no

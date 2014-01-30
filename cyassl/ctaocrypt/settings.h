@@ -78,6 +78,9 @@
 /* Uncomment next line if using Comverge settings */
 /* #define COMVERGE */
 
+/* Uncomment next line if using QL SEP settings */
+/* #define CYASSL_QL */
+
 
 #include <cyassl/ctaocrypt/visibility.h>
 
@@ -149,10 +152,26 @@
 #endif /* MBED */
 
 #ifdef CYASSL_TYTO
+    #include "rand.h"
     #define FREERTOS
     #define NO_FILESYSTEM
     #define CYASSL_USER_IO
     #define NO_DEV_RANDOM
+    #define HAVE_ECC
+    #define HAVE_ECC_ENCRYPT
+    #define ECC_SHAMIR
+    #define HAVE_HKDF
+    #define USE_FAST_MATH
+    #define TFM_TIMING_RESISTANT
+    #define FP_MAX_BITS 512
+    #define NO_OLD_TLS
+    #define NO_MD4
+    #define NO_RABBIT
+    #define NO_HC128
+    #define NO_RSA
+    #define NO_DSA
+    #define NO_PWDBASED
+    #define NO_PSK
 #endif
 
 #ifdef FREERTOS_WINSIM
@@ -313,8 +332,8 @@
         #include "mutex.h"
     #endif
 
-    #define XMALLOC(s, h, type) (void *)_mem_alloc_system((s))
-    #define XFREE(p, h, type)   _mem_free(p)
+    #define XMALLOC(s, h, t)    (void *)_mem_alloc_system((s))
+    #define XFREE(p, h, t)      {void* xp = (p); if ((xp)) _mem_free((xp));}
     /* Note: MQX has no realloc, using fastmath above */
 #endif
 
@@ -522,6 +541,37 @@
     #endif
 
 #endif /* MICRIUM */
+
+
+#ifdef CYASSL_QL
+    #ifndef CYASSL_SEP
+        #define CYASSL_SEP
+    #endif
+    #ifndef OPENSSL_EXTRA
+        #define OPENSSL_EXTRA
+    #endif
+    #ifndef SESSION_CERTS
+        #define SESSION_CERTS
+    #endif
+    #ifndef HAVE_AESCCM
+        #define HAVE_AESCCM
+    #endif
+    #ifndef ATOMIC_USER
+        #define ATOMIC_USER
+    #endif
+    #ifndef CYASSL_DER_LOAD
+        #define CYASSL_DER_LOAD
+    #endif
+    #ifndef KEEP_PEER_CERT
+        #define KEEP_PEER_CERT
+    #endif
+    #ifndef HAVE_ECC
+        #define HAVE_ECC
+    #endif
+    #ifndef SESSION_INDEX
+        #define SESSION_INDEX
+    #endif
+#endif /* CYASSL_QL */
 
 
 #if !defined(XMALLOC_USER) && !defined(MICRIUM_MALLOC) && \

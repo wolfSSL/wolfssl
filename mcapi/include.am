@@ -6,9 +6,14 @@ if BUILD_MCAPI
 check_PROGRAMS += mcapi/test
 noinst_PROGRAMS += mcapi/test 
 mcapi_test_SOURCES = mcapi/crypto.c \
-                     mcapi/test.c
+                     mcapi/mcapi_test.c
 mcapi_test_LDADD        = src/libcyassl.la 
 mcapi_test_DEPENDENCIES = src/libcyassl.la
 endif
 
 noinst_HEADERS += mcapi/crypto.h
+
+EXTRA_DIST += \
+         mcapi/README \
+		 mcapi/PIC32MZ-serial.h
+

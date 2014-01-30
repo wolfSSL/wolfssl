@@ -136,3 +136,7 @@ if BUILD_LIBZ
 src_libcyassl_la_SOURCES += ctaocrypt/src/compress.c
 endif
 
+if BUILD_PKCS7
+src_libcyassl_la_SOURCES += ctaocrypt/src/pkcs7.c
+endif
+

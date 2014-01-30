@@ -27,55 +27,32 @@
 
 #ifdef HAVE_OCSP
 
-#ifdef EBSNET
-    #include "rtip.h"
-    #include "socket.h"
-#endif
-
 #include <cyassl/error.h>
 #include <cyassl/ocsp.h>
 #include <cyassl/internal.h>
-#include <ctype.h>
-
-#include <string.h>
-
-#ifndef EBSNET
-    #include <unistd.h>
-    #include <netdb.h>
-    #include <netinet/in.h>
-    #include <netinet/tcp.h>
-    #include <arpa/inet.h>
-    #include <sys/ioctl.h>
-    #include <sys/time.h>
-    #include <sys/types.h>
-    #include <sys/socket.h>
-#endif
 
 
-CYASSL_API int ocsp_test(unsigned char* buf, int sz);
-#define CYASSL_OCSP_ENABLE       0x0001 /* Enable OCSP lookups */
-#define CYASSL_OCSP_URL_OVERRIDE 0x0002 /* Use the override URL instead of URL
-                                         * in certificate */
-#define CYASSL_OCSP_NO_NONCE     0x0004 /* Disables the request nonce */
-
-typedef struct sockaddr_in  SOCKADDR_IN_T;
-#define AF_INET_V    AF_INET
-#define SOCKET_T unsigned int
-   
-
-int CyaSSL_OCSP_Init(CYASSL_OCSP* ocsp)
+int InitOCSP(CYASSL_OCSP* ocsp, CYASSL_CERT_MANAGER* cm)
 {
-    if (ocsp != NULL) {
-        XMEMSET(ocsp, 0, sizeof(*ocsp));
-        ocsp->useNonce = 1;
-        #ifndef CYASSL_USER_IO
-            ocsp->CBIOOcsp = EmbedOcspLookup;
-            ocsp->CBIOOcspRespFree = EmbedOcspRespFree;
-        #endif
-        return 0;
-    }
+    CYASSL_ENTER("InitOCSP");
+    XMEMSET(ocsp, 0, sizeof(*ocsp));
+    ocsp->cm = cm;
 
-    return -1;
+    return 0;
+}
+
+
+static int InitOCSP_Entry(OCSP_Entry* ocspe, DecodedCert* cert)
+{
+    CYASSL_ENTER("InitOCSP_Entry");
+
+    ocspe->next = NULL;
+    XMEMCPY(ocspe->issuerHash, cert->issuerHash, SHA_DIGEST_SIZE);
+    XMEMCPY(ocspe->issuerKeyHash, cert->issuerKeyHash, SHA_DIGEST_SIZE);
+    ocspe->status = NULL;
+    ocspe->totalStatus = 0;
+
+    return 0;
 }
 
 
@@ -93,45 +70,21 @@ static void FreeOCSP_Entry(OCSP_Entry* ocspe)
 }
 
 
-void CyaSSL_OCSP_Cleanup(CYASSL_OCSP* ocsp)
+void FreeOCSP(CYASSL_OCSP* ocsp, int dynamic)
 {
     OCSP_Entry* tmp = ocsp->ocspList;
 
-    ocsp->enabled = 0;
+    CYASSL_ENTER("FreeOCSP");
+
     while (tmp) {
         OCSP_Entry* next = tmp->next;
         FreeOCSP_Entry(tmp);
         XFREE(tmp, NULL, DYNAMIC_TYPE_OCSP_ENTRY);
         tmp = next;
     }
-}
 
-
-int CyaSSL_OCSP_set_override_url(CYASSL_OCSP* ocsp, const char* url)
-{
-    if (ocsp != NULL) {
-        int urlSz = (int)XSTRLEN(url);
-        if (urlSz < (int)sizeof(ocsp->overrideUrl)) {
-            XSTRNCPY(ocsp->overrideUrl, url, urlSz);
-            return 1;
-        }
-    }
-
-    return 0;
-}
-
-
-static int InitOCSP_Entry(OCSP_Entry* ocspe, DecodedCert* cert)
-{
-    CYASSL_ENTER("InitOCSP_Entry");
-
-    ocspe->next = NULL;
-    XMEMCPY(ocspe->issuerHash, cert->issuerHash, SHA_DIGEST_SIZE);
-    XMEMCPY(ocspe->issuerKeyHash, cert->issuerKeyHash, SHA_DIGEST_SIZE);
-    ocspe->status = NULL;
-    ocspe->totalStatus = 0;
-
-    return 0;
+    if (dynamic)
+        XFREE(ocsp, NULL, DYNAMIC_TYPE_OCSP);
 }
 
 
@@ -224,7 +177,7 @@ static int xstat2err(int stat)
 }
 
 
-int CyaSSL_OCSP_Lookup_Cert(CYASSL_OCSP* ocsp, DecodedCert* cert)
+int CheckCertOCSP(CYASSL_OCSP* ocsp, DecodedCert* cert)
 {
     byte* ocspReqBuf = NULL;
     int ocspReqSz = 2048;
@@ -237,11 +190,7 @@ int CyaSSL_OCSP_Lookup_Cert(CYASSL_OCSP* ocsp, DecodedCert* cert)
     const char *url;
     int urlSz;
 
-    /* If OCSP lookups are disabled, return success. */
-    if (!ocsp->enabled) {
-        CYASSL_MSG("OCSP lookup disabled, assuming CERT_GOOD");
-        return 0;
-    }
+    CYASSL_ENTER("CheckCertOCSP");
 
     ocspe = find_ocsp_entry(ocsp, cert);
     if (ocspe == NULL) {
@@ -275,11 +224,10 @@ int CyaSSL_OCSP_Lookup_Cert(CYASSL_OCSP* ocsp, DecodedCert* cert)
         }
     }
 
-    if (ocsp->useOverrideUrl) {
-        if (ocsp->overrideUrl[0] != '\0') {
-            url = ocsp->overrideUrl;
+    if (ocsp->cm->ocspUseOverrideURL) {
+        url = ocsp->cm->ocspOverrideURL;
+        if (url != NULL && url[0] != '\0')
             urlSz = (int)XSTRLEN(url);
-        }
         else
             return OCSP_NEED_URL;
     }
@@ -297,11 +245,12 @@ int CyaSSL_OCSP_Lookup_Cert(CYASSL_OCSP* ocsp, DecodedCert* cert)
         CYASSL_MSG("\talloc OCSP request buffer failed");
         return MEMORY_ERROR;
     }
-    InitOcspRequest(&ocspRequest, cert, ocsp->useNonce, ocspReqBuf, ocspReqSz);
+    InitOcspRequest(&ocspRequest, cert, ocsp->cm->ocspSendNonce,
+                                                         ocspReqBuf, ocspReqSz);
     ocspReqSz = EncodeOcspRequest(&ocspRequest);
     
-    if (ocsp->CBIOOcsp) {
-        result = ocsp->CBIOOcsp(ocsp->IOCB_OcspCtx, url, urlSz,
+    if (ocsp->cm->ocspIOCb) {
+        result = ocsp->cm->ocspIOCb(ocsp->cm->ocspIOCtx, url, urlSz,
                                           ocspReqBuf, ocspReqSz, &ocspRespBuf);
     }
 
@@ -331,8 +280,8 @@ int CyaSSL_OCSP_Lookup_Cert(CYASSL_OCSP* ocsp, DecodedCert* cert)
     if (ocspReqBuf != NULL) {
         XFREE(ocspReqBuf, NULL, DYNAMIC_TYPE_IN_BUFFER);
     }
-    if (ocspRespBuf != NULL && ocsp->CBIOOcspRespFree) {
-        ocsp->CBIOOcspRespFree(ocsp->IOCB_OcspCtx, ocspRespBuf);
+    if (ocspRespBuf != NULL && ocsp->cm->ocspRespFreeCb) {
+        ocsp->cm->ocspRespFreeCb(ocsp->cm->ocspIOCtx, ocspRespBuf);
     }
 
     return result;

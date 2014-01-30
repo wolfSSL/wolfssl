@@ -1,6 +1,6 @@
-/* cyassl_version.h.in
+/* HTTPS-main.h
  *
- * Copyright (C) 2006-2013 wolfSSL Inc.
+ * Copyright (C) 2006-2014 wolfSSL Inc.
  *
  * This file is part of CyaSSL.
  *
@@ -19,17 +19,16 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  */
 
+#ifndef __HTTPS_MAIN_H__
+#define __HTTPS_MAIN_H__
 
-#pragma once
+extern CYASSL_HTTPS_NB CyaSSL_HTTPS_Client_1 ;
+extern CYASSL_HTTPS_NB CyaSSL_HTTPS_Client_2 ;
+extern CYASSL_HTTPS_NB CyaSSL_HTTPS_Client_3 ;
+extern CYASSL_HTTPS_NB CyaSSL_HTTPS_Client_4 ;
+extern CYASSL_HTTPS_NB CyaSSL_HTTPS_Client_5 ;
 
-#ifdef __cplusplus
-extern "C" {
+extern void HTTPS_Clinet_main_init(void) ;
+extern void HTTPS_Clinet_main(void) ;
+
 #endif
-
-#define LIBCYASSL_VERSION_STRING "2.8.6"
-#define LIBCYASSL_VERSION_HEX 0x02008006
-
-#ifdef __cplusplus
-}
-#endif
-

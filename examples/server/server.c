@@ -374,6 +374,10 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     if (fewerPackets)
         CyaSSL_CTX_set_group_messages(ctx);
 
+#ifdef OPENSSL_EXTRA
+    SSL_CTX_set_default_passwd_cb(ctx, PasswordCallBack);
+#endif
+
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
     if (!usePsk) {
         if (SSL_CTX_use_certificate_file(ctx, ourCert, SSL_FILETYPE_PEM)
@@ -428,10 +432,6 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     }
 #endif
 
-#ifdef OPENSSL_EXTRA
-    SSL_CTX_set_default_passwd_cb(ctx, PasswordCallBack);
-#endif
-
 #if defined(CYASSL_SNIFFER) && !defined(HAVE_NTRU) && !defined(HAVE_ECC)
     /* don't use EDH, can't sniff tmp keys */
     if (cipherList == NULL) {
@@ -459,10 +459,13 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 #endif
 #ifdef HAVE_OCSP
     if (useOcsp) {
-        CyaSSL_CTX_OCSP_set_options(ctx,
-                                    CYASSL_OCSP_ENABLE | CYASSL_OCSP_NO_NONCE);
-        if (ocspUrl != NULL)
-            CyaSSL_CTX_OCSP_set_override_url(ctx, ocspUrl);
+        if (ocspUrl != NULL) {
+            CyaSSL_CTX_SetOCSP_OverrideURL(ctx, ocspUrl);
+            CyaSSL_CTX_EnableOCSP(ctx, CYASSL_OCSP_NO_NONCE
+                                                    | CYASSL_OCSP_URL_OVERRIDE);
+        }
+        else
+            CyaSSL_CTX_EnableOCSP(ctx, CYASSL_OCSP_NO_NONCE);
     }
 #endif
 #ifdef HAVE_PK_CALLBACKS
@@ -556,8 +559,10 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 #if defined(DEBUG_CYASSL) && !defined(CYASSL_MDK_SHELL)
         CyaSSL_Debugging_ON();
 #endif
-        if (CurrentDir("server") || CurrentDir("build"))
+        if (CurrentDir("server"))
             ChangeDirBack(2);
+        else if (CurrentDir("Debug") || CurrentDir("Release"))
+            ChangeDirBack(3);
    
 #ifdef HAVE_STACK_SIZE
         StackSizeCheck(&args, server_test);

@@ -339,8 +339,10 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
 #if defined(DEBUG_CYASSL) && !defined(CYASSL_MDK_SHELL)
         CyaSSL_Debugging_ON();
 #endif
-        if (CurrentDir("echoserver") || CurrentDir("build"))
+        if (CurrentDir("echoserver"))
             ChangeDirBack(2);
+        else if (CurrentDir("Debug") || CurrentDir("Release"))
+            ChangeDirBack(3);
         echoserver_test(&args);
         CyaSSL_Cleanup();
 

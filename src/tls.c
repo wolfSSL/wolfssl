@@ -376,6 +376,14 @@ static INLINE void ato16(const byte* c, word16* u16)
 {
     *u16 = (c[0] << 8) | (c[1]);
 }
+
+#ifdef HAVE_SNI
+/* convert a 24 bit integer into a 32 bit one */
+static INLINE void c24to32(const word24 u24, word32* u32)
+{
+    *u32 = (u24[0] << 16) | (u24[1] << 8) | u24[2];
+}
+#endif
 #endif
 
 /* convert 32 bit integer to opaque */
@@ -393,7 +401,7 @@ static INLINE word32 GetSEQIncrement(CYASSL* ssl, int verify)
 #ifdef CYASSL_DTLS
     if (ssl->options.dtls) {
         if (verify)
-            return ssl->keys.dtls_peer_sequence_number; /* explicit from peer */
+            return ssl->keys.dtls_state.curSeq; /* explicit from peer */
         else
             return ssl->keys.dtls_sequence_number - 1; /* already incremented */
     }
@@ -410,9 +418,9 @@ static INLINE word32 GetSEQIncrement(CYASSL* ssl, int verify)
 static INLINE word32 GetEpoch(CYASSL* ssl, int verify)
 {
     if (verify)
-        return ssl->keys.dtls_peer_epoch; 
+        return ssl->keys.dtls_state.curEpoch;
     else
-        return ssl->keys.dtls_epoch; 
+        return ssl->keys.dtls_epoch;
 }
 
 #endif /* CYASSL_DTLS */
@@ -854,6 +862,135 @@ void TLSX_SNI_SetOptions(TLSX* extensions, byte type, byte options)
     if (sni)
         sni->options = options;
 }
+
+int TLSX_SNI_GetFromBuffer(const byte* clientHello, word32 helloSz,
+                           byte type, byte* sni, word32* inOutSz)
+{
+    word32 offset = 0;
+    word32 len32  = 0;
+    word16 len16  = 0;
+
+    if (helloSz < RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ + CLIENT_HELLO_FIRST)
+        return INCOMPLETE_DATA;
+
+    /* TLS record header */
+    if ((enum ContentType) clientHello[offset++] != handshake)
+        return BUFFER_ERROR;
+
+    if (clientHello[offset++] != SSLv3_MAJOR)
+        return BUFFER_ERROR;
+
+    if (clientHello[offset++] < TLSv1_MINOR)
+        return BUFFER_ERROR;
+
+    ato16(clientHello + offset, &len16);
+    offset += OPAQUE16_LEN;
+
+    if (offset + len16 > helloSz)
+        return INCOMPLETE_DATA;
+
+    /* Handshake header */
+    if ((enum HandShakeType) clientHello[offset] != client_hello)
+        return BUFFER_ERROR;
+
+    c24to32(clientHello + offset + 1, &len32);
+    offset += HANDSHAKE_HEADER_SZ;
+
+    if (offset + len32 > helloSz)
+        return INCOMPLETE_DATA;
+
+    /* client hello */
+    offset += VERSION_SZ + RAN_LEN; /* version, random */
+
+    if (helloSz < offset + clientHello[offset])
+        return INCOMPLETE_DATA;
+
+    offset += ENUM_LEN + clientHello[offset]; /* skip session id */
+
+    /* cypher suites */
+    if (helloSz < offset + OPAQUE16_LEN)
+        return INCOMPLETE_DATA;
+
+    ato16(clientHello + offset, &len16);
+    offset += OPAQUE16_LEN;
+
+    if (helloSz < offset + len16)
+        return INCOMPLETE_DATA;
+
+    offset += len16; /* skip cypher suites */
+
+    /* compression methods */
+    if (helloSz < offset + 1)
+        return INCOMPLETE_DATA;
+
+    if (helloSz < offset + clientHello[offset])
+        return INCOMPLETE_DATA;
+
+    offset += ENUM_LEN + clientHello[offset]; /* skip compression methods */
+
+    /* extensions */
+    if (helloSz < offset + OPAQUE16_LEN)
+        return 0; /* no extensions in client hello. */
+
+    ato16(clientHello + offset, &len16);
+    offset += OPAQUE16_LEN;
+
+    if (helloSz < offset + len16)
+        return INCOMPLETE_DATA;
+
+    while (len16 > OPAQUE16_LEN + OPAQUE16_LEN) {
+        word16 extType;
+        word16 extLen;
+
+        ato16(clientHello + offset, &extType);
+        offset += OPAQUE16_LEN;
+
+        ato16(clientHello + offset, &extLen);
+        offset += OPAQUE16_LEN;
+
+        if (helloSz < offset + extLen)
+            return INCOMPLETE_DATA;
+
+        if (extType != SERVER_NAME_INDICATION) {
+            offset += extLen; /* skip extension */
+        } else {
+            word16 listLen;
+
+            ato16(clientHello + offset, &listLen);
+            offset += OPAQUE16_LEN;
+
+            if (helloSz < offset + listLen)
+                return INCOMPLETE_DATA;
+
+            while (listLen > ENUM_LEN + OPAQUE16_LEN) {
+                byte   sniType = clientHello[offset++];
+                word16 sniLen;
+
+                ato16(clientHello + offset, &sniLen);
+                offset += OPAQUE16_LEN;
+
+                if (helloSz < offset + sniLen)
+                    return INCOMPLETE_DATA;
+
+                if (sniType != type) {
+                    offset  += sniLen;
+                    listLen -= min(ENUM_LEN + OPAQUE16_LEN + sniLen, listLen);
+                    continue;
+                }
+
+                *inOutSz = min(sniLen, *inOutSz);
+                XMEMCPY(sni, clientHello + offset, *inOutSz);
+
+                return SSL_SUCCESS;
+            }
+        }
+
+        len16 -= min(2 * OPAQUE16_LEN + extLen, len16);
+    }
+
+    return len16 ? BUFFER_ERROR : SSL_SUCCESS;
+}
+
 #endif
 
 #define SNI_FREE_ALL TLSX_SNI_FreeAll
@@ -1003,9 +1140,6 @@ static int TLSX_THM_Parse(CYASSL* ssl, byte* input, word16 length,
 #endif
 
     ssl->truncated_hmac = 1;
-
-#error "TRUNCATED HMAC IS NOT FINISHED YET \
-(contact moises@wolfssl.com for more info)"
 
     return 0;
 }

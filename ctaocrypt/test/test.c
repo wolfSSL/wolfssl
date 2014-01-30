@@ -61,6 +61,9 @@
 #ifdef HAVE_LIBZ
     #include <cyassl/ctaocrypt/compress.h>
 #endif
+#ifdef HAVE_PKCS7
+    #include <cyassl/ctaocrypt/pkcs7.h>
+#endif
 
 #ifdef _MSC_VER
     /* 4996 warning to use MS extensions e.g., strcpy_s instead of strncpy */
@@ -173,6 +176,10 @@ int pbkdf2_test(void);
 #endif
 #ifdef HAVE_LIBZ
     int compress_test(void);
+#endif
+#ifdef HAVE_PKCS7
+    int pkcs7enveloped_test(void);
+    int pkcs7signed_test(void);
 #endif
 
 
@@ -456,6 +463,18 @@ void ctaocrypt_test(void* args)
         err_sys("COMPRESS test failed!\n", ret);
     else
         printf( "COMPRESS test passed!\n");
+#endif
+
+#ifdef HAVE_PKCS7
+    if ( (ret = pkcs7enveloped_test()) != 0)
+        err_sys("PKCS7enveloped test failed!\n", ret);
+    else
+        printf( "PKCS7enveloped test passed!\n");
+
+    if ( (ret = pkcs7signed_test()) != 0)
+        err_sys("PKCS7signed    test failed!\n", ret);
+    else
+        printf( "PKCS7signed    test passed!\n");
 #endif
 
     ((func_args*)args)->return_code = ret;
@@ -1897,6 +1916,12 @@ int aes_test(void)
             0x79,0x21,0x70,0xa0,0xf3,0x00,0x9c,0xee
         };
 
+        const byte oddCipher[] =
+        {
+            0xb9,0xd7,0xcb,0x08,0xb0,0xe1,0x7b,0xa0,
+            0xc2
+        };
+
         AesSetKeyDirect(&enc, ctrKey, AES_BLOCK_SIZE, ctrIv, AES_ENCRYPTION);
         /* Ctr only uses encrypt, even on key setup */
         AesSetKeyDirect(&dec, ctrKey, AES_BLOCK_SIZE, ctrIv, AES_ENCRYPTION);
@@ -1909,6 +1934,30 @@ int aes_test(void)
 
         if (memcmp(cipher, ctrCipher, AES_BLOCK_SIZE*4))
             return -67;
+
+        /* let's try with just 9 bytes, non block size test */
+        AesSetKeyDirect(&enc, ctrKey, AES_BLOCK_SIZE, ctrIv, AES_ENCRYPTION);
+        /* Ctr only uses encrypt, even on key setup */
+        AesSetKeyDirect(&dec, ctrKey, AES_BLOCK_SIZE, ctrIv, AES_ENCRYPTION);
+
+        AesCtrEncrypt(&enc, cipher, ctrPlain, 9);
+        AesCtrEncrypt(&dec, plain, cipher, 9);
+
+        if (memcmp(plain, ctrPlain, 9))
+            return -68;
+
+        if (memcmp(cipher, ctrCipher, 9))
+            return -69;
+
+        /* and an additional 9 bytes to reuse tmp left buffer */
+        AesCtrEncrypt(&enc, cipher, ctrPlain, 9);
+        AesCtrEncrypt(&dec, plain, cipher, 9);
+
+        if (memcmp(plain, ctrPlain, 9))
+            return -70;
+
+        if (memcmp(cipher, oddCipher, 9))
+            return -71;
     }
 #endif /* CYASSL_AES_COUNTER */
 
@@ -2487,17 +2536,27 @@ byte GetEntropy(ENTROPY_CMD cmd, byte* out)
         #ifdef CYASSL_CERT_GEN
             static const char* caKeyFile  = "a:\\certs\\ca-key.der";
             static const char* caCertFile = "a:\\certs\\ca-cert.pem";
+            #ifdef HAVE_ECC
+                static const char* eccCaKeyFile  = "a:\\certs\\ecc-key.der";
+                static const char* eccCaCertFile = "a:\\certs\\server-ecc.pem";
+            #endif 
         #endif
     #elif defined(CYASSL_MKD_SHELL)
         static char* clientKey = "certs/client-key.der";
         static char* clientCert = "certs/client-cert.der";
-        void set_clientKey(char *key) {  clientKey = key ; }      /* set by shell command */
-        void set_clientCert(char *cert) {  clientCert = cert ; }  /* set by shell command */
+        void set_clientKey(char *key) {  clientKey = key ; }
+        void set_clientCert(char *cert) {  clientCert = cert ; }
         #ifdef CYASSL_CERT_GEN
             static char* caKeyFile  = "certs/ca-key.der";
             static char* caCertFile = "certs/ca-cert.pem";
-            void set_caKeyFile (char * key)  { caKeyFile   = key ; }     /* set by shell command */
-            void set_caCertFile(char * cert) { caCertFile = cert ; }     /* set by shell command */
+            void set_caKeyFile (char * key)  { caKeyFile   = key ; }
+            void set_caCertFile(char * cert) { caCertFile = cert ; }
+            #ifdef HAVE_ECC
+                static const char* eccCaKeyFile  = "certs/ecc-key.der";
+                static const char* eccCaCertFile = "certs/server-ecc.pem";
+                void set_eccCaKeyFile (char * key)  { eccCaKeyFile  = key ; }
+                void set_eccCaCertFile(char * cert) { eccCaCertFile = cert ; }
+            #endif 
         #endif
     #else
         static const char* clientKey  = "./certs/client-key.der";
@@ -2505,6 +2564,10 @@ byte GetEntropy(ENTROPY_CMD cmd, byte* out)
         #ifdef CYASSL_CERT_GEN
             static const char* caKeyFile  = "./certs/ca-key.der";
             static const char* caCertFile = "./certs/ca-cert.pem";
+            #ifdef HAVE_ECC
+                static const char* eccCaKeyFile  = "./certs/ecc-key.der";
+                static const char* eccCaCertFile = "./certs/server-ecc.pem";
+            #endif 
         #endif
     #endif
 #endif
@@ -2784,11 +2847,12 @@ int rsa_test(void)
         if (ret < 0)
             return -405;
 
-        certSz = MakeCert(&myCert, derCert, FOURK_BUF, &key, &rng); 
+        certSz = MakeCert(&myCert, derCert, FOURK_BUF, &key, NULL, &rng); 
         if (certSz < 0)
             return -407;
 
-        certSz = SignCert(&myCert, derCert, FOURK_BUF, &caKey, &rng);
+        certSz = SignCert(myCert.bodySz, myCert.sigType, derCert, FOURK_BUF,
+                          &caKey, NULL, &rng);
         if (certSz < 0)
             return -408;
 
@@ -2820,6 +2884,95 @@ int rsa_test(void)
         free(derCert);
         FreeRsaKey(&caKey);
     }
+#ifdef HAVE_ECC
+    /* ECC CA style */
+    {
+        ecc_key     caKey;
+        Cert        myCert;
+        byte*       derCert;
+        byte*       pem;
+        FILE*       derFile;
+        FILE*       pemFile;
+        int         certSz;
+        int         pemSz;
+        size_t      bytes3;
+        word32      idx3 = 0;
+			  FILE* file3 ;
+#ifdef CYASSL_TEST_CERT
+        DecodedCert decode;
+#endif
+
+        derCert = (byte*)malloc(FOURK_BUF);
+        if (derCert == NULL)
+            return -5311;
+        pem = (byte*)malloc(FOURK_BUF);
+        if (pem == NULL)
+            return -5312;
+
+        file3 = fopen(eccCaKeyFile, "rb");
+
+        if (!file3)
+            return -5412;
+
+        bytes3 = fread(tmp, 1, FOURK_BUF, file3);
+        fclose(file3);
+  
+        ecc_init(&caKey);  
+        ret = EccPrivateKeyDecode(tmp, &idx3, &caKey, (word32)bytes3);
+        if (ret != 0) return -5413;
+
+        InitCert(&myCert);
+        myCert.sigType = CTC_SHA256wECDSA; 
+
+        strncpy(myCert.subject.country, "US", CTC_NAME_SIZE);
+        strncpy(myCert.subject.state, "OR", CTC_NAME_SIZE);
+        strncpy(myCert.subject.locality, "Portland", CTC_NAME_SIZE);
+        strncpy(myCert.subject.org, "wolfSSL", CTC_NAME_SIZE);
+        strncpy(myCert.subject.unit, "Development", CTC_NAME_SIZE);
+        strncpy(myCert.subject.commonName, "www.wolfssl.com", CTC_NAME_SIZE);
+        strncpy(myCert.subject.email, "info@wolfssl.com", CTC_NAME_SIZE);
+
+        ret = SetIssuer(&myCert, eccCaCertFile);
+        if (ret < 0)
+            return -5405;
+
+        certSz = MakeCert(&myCert, derCert, FOURK_BUF, NULL, &caKey, &rng); 
+        if (certSz < 0)
+            return -5407;
+
+        certSz = SignCert(myCert.bodySz, myCert.sigType, derCert, FOURK_BUF,
+                          NULL, &caKey, &rng);
+        if (certSz < 0)
+            return -5408;
+
+#ifdef CYASSL_TEST_CERT
+        InitDecodedCert(&decode, derCert, certSz, 0);
+        ret = ParseCert(&decode, CERT_TYPE, NO_VERIFY, 0);
+        if (ret != 0)
+            return -5409;
+        FreeDecodedCert(&decode);
+#endif
+
+        derFile = fopen("./certecc.der", "wb");
+        if (!derFile)
+            return -5410;
+        ret = (int)fwrite(derCert, certSz, 1, derFile);
+        fclose(derFile);
+
+        pemSz = DerToPem(derCert, certSz, pem, FOURK_BUF, CERT_TYPE);
+        if (pemSz < 0)
+            return -5411;
+
+        pemFile = fopen("./certecc.pem", "wb");
+        if (!pemFile)
+            return -5412;
+        ret = (int)fwrite(pem, pemSz, 1, pemFile);
+        fclose(pemFile);
+        free(pem);
+        free(derCert);
+        ecc_free(&caKey);
+    }
+#endif /* HAVE_ECC */
 #ifdef HAVE_NTRU
     {
         RsaKey      caKey;
@@ -2900,7 +3053,8 @@ int rsa_test(void)
         if (certSz < 0)
             return -456;
 
-        certSz = SignCert(&myCert, derCert, FOURK_BUF, &caKey, &rng);
+        certSz = SignCert(myCert.bodySz, myCert.sigType, derCert, FOURK_BUF,
+                          &caKey, NULL, &rng);
         if (certSz < 0)
             return -457;
 
@@ -2938,6 +3092,66 @@ int rsa_test(void)
         FreeRsaKey(&caKey);
     }
 #endif /* HAVE_NTRU */
+#ifdef CYASSL_CERT_REQ
+    {
+        Cert        req;
+        byte*       der;
+        byte*       pem;
+        int         derSz;
+        int         pemSz;
+        FILE*       reqFile;
+
+        der = (byte*)malloc(FOURK_BUF);
+        if (der == NULL)
+            return -463;
+        pem = (byte*)malloc(FOURK_BUF);
+        if (pem == NULL)
+            return -464;
+
+        InitCert(&req);
+
+        req.version = 0;
+        req.isCA    = 1;
+        strncpy(req.challengePw, "yassl123", CTC_NAME_SIZE);
+        strncpy(req.subject.country, "US", CTC_NAME_SIZE);
+        strncpy(req.subject.state, "OR", CTC_NAME_SIZE);
+        strncpy(req.subject.locality, "Portland", CTC_NAME_SIZE);
+        strncpy(req.subject.org, "yaSSL", CTC_NAME_SIZE);
+        strncpy(req.subject.unit, "Development", CTC_NAME_SIZE);
+        strncpy(req.subject.commonName, "www.yassl.com", CTC_NAME_SIZE);
+        strncpy(req.subject.email, "info@yassl.com", CTC_NAME_SIZE);
+        req.sigType = CTC_SHA256wRSA;
+
+        derSz = MakeCertReq(&req, der, FOURK_BUF, &key, NULL);
+        if (derSz < 0)
+            return -465;
+
+        derSz = SignCert(req.bodySz, req.sigType, der, FOURK_BUF,
+                          &key, NULL, &rng);
+        if (derSz < 0)
+            return -466;
+
+        pemSz = DerToPem(der, derSz, pem, FOURK_BUF, CERTREQ_TYPE);
+        if (pemSz < 0)
+            return -467;
+
+        reqFile = fopen("./certreq.der", "wb");
+        if (!reqFile)
+            return -468;
+
+        ret = (int)fwrite(der, derSz, 1, reqFile);
+        fclose(reqFile);
+
+        reqFile = fopen("./certreq.pem", "wb");
+        if (!reqFile)
+            return -469;
+        ret = (int)fwrite(pem, pemSz, 1, reqFile);
+        fclose(reqFile);
+
+        free(pem);
+        free(der);
+    }
+#endif /* CYASSL_CERT_REQ */
 #endif /* CYASSL_CERT_GEN */
 
     FreeRsaKey(&key);
@@ -3628,12 +3842,12 @@ int ecc_encrypt_test(void)
     for (i = 0; i < 48; i++)
         msg[i] = i;
 
-    /* send encrypted msg to B */
+    /* encrypt msg to B */
     ret = ecc_encrypt(&userA, &userB, msg, sizeof(msg), out, &outSz, NULL);
     if (ret != 0)
         return -3003;
 
-    /* decrypted msg to B */
+    /* decrypt msg from A */
     ret = ecc_decrypt(&userB, &userA, out, outSz, plain, &plainSz, NULL);
     if (ret != 0)
         return -3004;
@@ -3641,6 +3855,84 @@ int ecc_encrypt_test(void)
     if (memcmp(plain, msg, sizeof(msg)) != 0)
         return -3005;
 
+    
+    {  /* let's verify message exchange works, A is client, B is server */
+        ecEncCtx* cliCtx = ecc_ctx_new(REQ_RESP_CLIENT, &rng);
+        ecEncCtx* srvCtx = ecc_ctx_new(REQ_RESP_SERVER, &rng);
+
+        byte cliSalt[EXCHANGE_SALT_SZ];
+        byte srvSalt[EXCHANGE_SALT_SZ];
+        const byte* tmpSalt;
+
+        if (cliCtx == NULL || srvCtx == NULL)
+            return -3006;
+
+        /* get salt to send to peer */
+        tmpSalt = ecc_ctx_get_own_salt(cliCtx);
+        if (tmpSalt == NULL)
+            return -3007;
+        memcpy(cliSalt, tmpSalt, EXCHANGE_SALT_SZ);
+
+        tmpSalt = ecc_ctx_get_own_salt(srvCtx);
+        if (tmpSalt == NULL)
+            return -3007;
+        memcpy(srvSalt, tmpSalt, EXCHANGE_SALT_SZ);
+
+        /* in actual use, we'd get the peer's salt over the transport */
+        ret  = ecc_ctx_set_peer_salt(cliCtx, srvSalt);
+        ret += ecc_ctx_set_peer_salt(srvCtx, cliSalt);
+
+        if (ret != 0)
+            return -3008;
+
+        /* get encrypted msg (request) to send to B */
+        outSz  = sizeof(out);
+        ret = ecc_encrypt(&userA, &userB, msg, sizeof(msg), out, &outSz,cliCtx);
+        if (ret != 0)
+            return -3009;
+
+        /* B decrypts msg (request) from A */
+        plainSz = sizeof(plain);
+        ret = ecc_decrypt(&userB, &userA, out, outSz, plain, &plainSz, srvCtx);
+        if (ret != 0)
+            return -3010;
+
+        if (memcmp(plain, msg, sizeof(msg)) != 0)
+            return -3011;
+
+        {
+            /* msg2 (response) from B to A */
+            byte    msg2[48];
+            byte    plain2[48];
+            byte    out2[80];
+            word32  outSz2   = sizeof(out2);
+            word32  plainSz2 = sizeof(plain2);
+
+            for (i = 0; i < 48; i++)
+                msg2[i] = i+48;
+
+            /* get encrypted msg (response) to send to B */
+            ret = ecc_encrypt(&userB, &userA, msg2, sizeof(msg2), out2,
+                              &outSz2, srvCtx);
+            if (ret != 0)
+                return -3012;
+
+            /* A decrypts msg (response) from B */
+            ret = ecc_decrypt(&userA, &userB, out2, outSz2, plain2, &plainSz2,
+                             cliCtx);
+            if (ret != 0)
+                return -3013;
+
+            if (memcmp(plain2, msg2, sizeof(msg2)) != 0)
+                return -3014;
+        }
+
+        /* cleanup */
+        ecc_ctx_free(srvCtx);
+        ecc_ctx_free(cliCtx);
+    }
+
+    /* cleanup */
     ecc_free(&userB);
     ecc_free(&userA);
 
@@ -3765,5 +4057,270 @@ int compress_test(void)
 }
 
 #endif /* HAVE_LIBZ */
+
+#ifdef HAVE_PKCS7
+
+int pkcs7enveloped_test(void)
+{
+    int ret = 0;
+
+    int cipher = DES3b;
+    int envelopedSz, decodedSz;
+    PKCS7 pkcs7;
+    byte* cert;
+    byte* privKey;
+    byte  enveloped[2048];
+    byte  decoded[2048];
+
+    size_t certSz;
+    size_t privKeySz;
+    FILE*  certFile;
+    FILE*  keyFile;
+    FILE*  pkcs7File;
+    const char* pkcs7OutFile = "pkcs7envelopedData.der";
+
+    const byte data[] = { /* Hello World */
+        0x48,0x65,0x6c,0x6c,0x6f,0x20,0x57,0x6f,
+        0x72,0x6c,0x64
+    };
+
+    /* read client cert and key in DER format */
+    cert = (byte*)malloc(FOURK_BUF);
+    if (cert == NULL)
+        return -201;
+
+    privKey = (byte*)malloc(FOURK_BUF);
+    if (privKey == NULL)
+        return -202;
+
+    certFile = fopen(clientCert, "rb");
+    if (!certFile)
+        err_sys("can't open ./certs/client-cert.der, "
+                "Please run from CyaSSL home dir", -42);
+
+    certSz = fread(cert, 1, FOURK_BUF, certFile);
+    fclose(certFile);
+
+    keyFile = fopen(clientKey, "rb");
+    if (!keyFile)
+        err_sys("can't open ./certs/client-key.der, "
+                "Please run from CyaSSL home dir", -43);
+
+    privKeySz = fread(privKey, 1, FOURK_BUF, keyFile);
+    fclose(keyFile);
+
+    PKCS7_InitWithCert(&pkcs7, cert, (word32)certSz);
+    pkcs7.content     = (byte*)data;
+    pkcs7.contentSz   = (word32)sizeof(data);
+    pkcs7.contentOID  = DATA;
+    pkcs7.encryptOID  = cipher;
+    pkcs7.privateKey  = privKey;
+    pkcs7.privateKeySz = (word32)privKeySz;
+
+    /* encode envelopedData */
+    envelopedSz = PKCS7_EncodeEnvelopedData(&pkcs7, enveloped,
+                                            sizeof(enveloped));
+    if (envelopedSz <= 0)
+        return -203;
+
+    /* decode envelopedData */
+    decodedSz = PKCS7_DecodeEnvelopedData(&pkcs7, enveloped, envelopedSz,
+                                          decoded, sizeof(decoded));
+    if (decodedSz <= 0)
+        return -204;
+
+    /* test decode result */
+    if (memcmp(decoded, data, sizeof(data)) != 0) {
+        return -205;
+    }
+
+    /* output pkcs7 envelopedData for external testing */
+    pkcs7File = fopen(pkcs7OutFile, "wb");
+    if (!pkcs7File)
+        return -206;
+
+    ret = (int)fwrite(enveloped, envelopedSz, 1, pkcs7File);
+    fclose(pkcs7File);
+
+    free(cert);
+    free(privKey);
+    PKCS7_Free(&pkcs7);
+
+    if (ret > 0)
+        return 0;
+
+    return ret;
+}
+
+int pkcs7signed_test(void)
+{
+    int ret = 0;
+
+    FILE* file;
+    byte* certDer;
+    byte* keyDer;
+    byte* out;
+    char data[] = "Hello World";
+    word32 dataSz, outSz, certDerSz, keyDerSz;
+    PKCS7 msg;
+    RNG rng;
+
+    byte transIdOid[] =
+               { 0x06, 0x0a, 0x60, 0x86, 0x48, 0x01, 0x86, 0xF8, 0x45, 0x01,
+                 0x09, 0x07 };
+    byte messageTypeOid[] =
+               { 0x06, 0x0a, 0x60, 0x86, 0x48, 0x01, 0x86, 0xF8, 0x45, 0x01,
+                 0x09, 0x02 };
+    byte senderNonceOid[] =
+               { 0x06, 0x0a, 0x60, 0x86, 0x48, 0x01, 0x86, 0xF8, 0x45, 0x01,
+                 0x09, 0x05 };
+    byte transId[(SHA_DIGEST_SIZE + 1) * 2 + 1];
+    byte messageType[] = { 0x13, 2, '1', '9' };
+    byte senderNonce[PKCS7_NONCE_SZ + 2];
+
+    PKCS7Attrib attribs[] =
+    {
+        { transIdOid, sizeof(transIdOid),
+                     transId, sizeof(transId) - 1 }, /* take off the null */
+        { messageTypeOid, sizeof(messageTypeOid),
+                     messageType, sizeof(messageType) },
+        { senderNonceOid, sizeof(senderNonceOid),
+                     senderNonce, sizeof(senderNonce) }
+    };
+
+    dataSz = (word32) strlen(data);
+    outSz = FOURK_BUF;
+
+    certDer = (byte*)malloc(FOURK_BUF);
+    keyDer = (byte*)malloc(FOURK_BUF);
+    out = (byte*)malloc(FOURK_BUF);
+
+    if (certDer == NULL)
+        return -207;
+    if (keyDer == NULL)
+        return -208;
+    if (out == NULL)
+        return -209;
+
+    /* read in DER cert of recipient, into cert of size certSz */
+    file = fopen(clientCert, "rb");
+    if (!file) {
+        free(certDer);
+        free(keyDer);
+        free(out);
+        err_sys("can't open ./certs/client-cert.der, "
+                "Please run from CyaSSL home dir", -44);
+    }
+    certDerSz = (word32)fread(certDer, 1, FOURK_BUF, file);
+    fclose(file);
+
+    file = fopen(clientKey, "rb");
+    if (!file) {
+        free(certDer);
+        free(keyDer);
+        free(out);
+        err_sys("can't open ./certs/client-key.der, "
+                "Please run from CyaSSL home dir", -45);
+    }
+    keyDerSz = (word32)fread(keyDer, 1, FOURK_BUF, file);
+    fclose(file);
+
+    ret = InitRng(&rng);
+    senderNonce[0] = 0x04;
+    senderNonce[1] = PKCS7_NONCE_SZ;
+    RNG_GenerateBlock(&rng, &senderNonce[2], PKCS7_NONCE_SZ);
+
+    PKCS7_InitWithCert(&msg, certDer, certDerSz);
+    msg.privateKey = keyDer;
+    msg.privateKeySz = keyDerSz;
+    msg.content = (byte*)data;
+    msg.contentSz = dataSz;
+    msg.hashOID = SHAh;
+    msg.encryptOID = RSAk;
+    msg.signedAttribs = attribs;
+    msg.signedAttribsSz = sizeof(attribs)/sizeof(PKCS7Attrib);
+    msg.rng = &rng;
+    {
+        Sha sha;
+        byte digest[SHA_DIGEST_SIZE];
+        int i,j;
+
+        transId[0] = 0x13;
+        transId[1] = SHA_DIGEST_SIZE * 2;
+
+        InitSha(&sha);
+        ShaUpdate(&sha, msg.publicKey, msg.publicKeySz);
+        ShaFinal(&sha, digest);
+
+        for (i = 0, j = 2; i < SHA_DIGEST_SIZE; i++, j += 2) {
+            snprintf((char*)&transId[j], 3, "%02x", digest[i]);
+        }
+    }
+    ret = PKCS7_EncodeSignedData(&msg, out, outSz);
+    if (ret < 0) {
+        free(certDer);
+        free(keyDer);
+        free(out);
+        PKCS7_Free(&msg);
+        return -210;
+    }
+    else
+        outSz = ret;
+
+    /* write PKCS#7 to output file for more testing */
+    file = fopen("./pkcs7signedData.der", "wb");
+    if (!file) {
+        free(certDer);
+        free(keyDer);
+        free(out);
+        PKCS7_Free(&msg);
+        return -211;
+    }
+    ret = (int)fwrite(out, 1, outSz, file);
+    fclose(file);
+
+    PKCS7_Free(&msg);
+    PKCS7_InitWithCert(&msg, NULL, 0);
+
+    ret = PKCS7_VerifySignedData(&msg, out, outSz);
+    if (ret < 0) {
+        free(certDer);
+        free(keyDer);
+        free(out);
+        PKCS7_Free(&msg);
+        return -212;
+    }
+
+    if (msg.singleCert == NULL || msg.singleCertSz == 0) {
+        free(certDer);
+        free(keyDer);
+        free(out);
+        PKCS7_Free(&msg);
+        return -213;
+    }
+
+    file = fopen("./pkcs7cert.der", "wb");
+    if (!file) {
+        free(certDer);
+        free(keyDer);
+        free(out);
+        PKCS7_Free(&msg);
+        return -214;
+    }
+    ret = (int)fwrite(msg.singleCert, 1, msg.singleCertSz, file);
+    fclose(file);
+
+    free(certDer);
+    free(keyDer);
+    free(out);
+    PKCS7_Free(&msg);
+
+    if (ret > 0)
+        return 0;
+
+    return ret;
+}
+
+#endif /* HAVE_PKCS7 */
 
 #endif /* NO_CRYPT_TEST */

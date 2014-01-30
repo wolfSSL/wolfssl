@@ -139,6 +139,18 @@ enum {
 #endif
 
 
+/* set up thread local storage if available */
+#ifdef HAVE_THREAD_LS
+    #if defined(_MSC_VER)
+        #define THREAD_LS_T __declspec(thread)
+    #else
+        #define THREAD_LS_T __thread
+    #endif
+#else
+    #define THREAD_LS_T
+#endif
+
+
 /* Micrium will use Visual Studio for compilation but not the Win32 API */
 #if defined(_WIN32) && !defined(MICRIUM) && !defined(FREERTOS) \
         && !defined(EBSNET)
@@ -205,6 +217,11 @@ enum {
         #define XISALPHA(c)     isalpha((c))
     #endif
     /* needed by CyaSSL_check_domain_name() */
+    #ifdef __CYGWIN__
+        /* Cygwin uses a macro version of tolower() by default, use the
+         * function version. */
+        #undef tolower
+    #endif
     #define XTOLOWER(c)      tolower((c))
 #endif
 
@@ -253,7 +270,8 @@ enum {
     DYNAMIC_TYPE_CAVIUM_TMP   = 40,
     DYNAMIC_TYPE_CAVIUM_RSA   = 41,
     DYNAMIC_TYPE_X509         = 42,
-    DYNAMIC_TYPE_TLSX         = 43
+    DYNAMIC_TYPE_TLSX         = 43,
+    DYNAMIC_TYPE_OCSP         = 44
 };
 
 /* max error buffer string size */

@@ -62,8 +62,8 @@
      * document (See note in README).
      */
     #include "stm32f2xx.h"
-		#include "stm32f2xx_cryp.h"
-		
+    #include "stm32f2xx_cryp.h"
+
     int AesSetKey(Aes* aes, const byte* userKey, word32 keylen, const byte* iv,
                   int dir)
     {
@@ -552,6 +552,96 @@ int AesSetKey(Aes* aes, const byte* userKey, word32 keylen, const byte* iv,
         XMEMCPY(aes->reg, iv, AES_BLOCK_SIZE);
     return 0;
 }
+
+#elif defined FREESCALE_MMCAU
+    /*
+     * Freescale mmCAU hardware AES support through the CAU/mmCAU library.
+     * Documentation located in ColdFire/ColdFire+ CAU and Kinetis mmCAU
+     * Software Library User Guide (See note in README).
+     */
+    #include "cau_api.h"
+
+    int AesSetKey(Aes* aes, const byte* userKey, word32 keylen, const byte* iv,
+                  int dir)
+    {
+        byte *rk = (byte*)aes->key;
+
+        if (!((keylen == 16) || (keylen == 24) || (keylen == 32)))
+            return BAD_FUNC_ARG;
+
+        if (rk == NULL)
+            return BAD_FUNC_ARG;
+
+        aes->rounds = keylen/4 + 6;
+        cau_aes_set_key(userKey, keylen*8, rk);
+
+        return AesSetIV(aes, iv);
+    }
+
+    int AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
+    {
+        int i;
+        int offset = 0;
+        int len = sz;
+
+        byte *iv, *enc_key;
+        byte temp_block[AES_BLOCK_SIZE];
+
+        iv      = (byte*)aes->reg;
+        enc_key = (byte*)aes->key;
+
+        while (len > 0)
+        {
+            XMEMCPY(temp_block, in + offset, AES_BLOCK_SIZE);
+
+            /* XOR block with IV for CBC */
+            for (i = 0; i < AES_BLOCK_SIZE; i++)
+                temp_block[i] ^= iv[i];
+
+            cau_aes_encrypt(temp_block, enc_key, aes->rounds, out + offset);
+
+            len    -= AES_BLOCK_SIZE;
+            offset += AES_BLOCK_SIZE;
+
+            /* store IV for next block */
+            XMEMCPY(iv, out + offset - AES_BLOCK_SIZE, AES_BLOCK_SIZE);
+        }
+
+        return 0;
+    }
+
+    int AesCbcDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
+    {
+        int i;
+        int offset = 0;
+        int len = sz;
+
+        byte* iv, *dec_key;
+        byte temp_block[AES_BLOCK_SIZE];
+
+        iv      = (byte*)aes->reg;
+        dec_key = (byte*)aes->key;
+
+        while (len > 0)
+        {
+            XMEMCPY(temp_block, in + offset, AES_BLOCK_SIZE);
+
+            cau_aes_decrypt(in + offset, dec_key, aes->rounds, out + offset);
+
+            /* XOR block with IV for CBC */
+            for (i = 0; i < AES_BLOCK_SIZE; i++)
+                (out + offset)[i] ^= iv[i];
+
+            /* store IV for next block */
+            XMEMCPY(iv, temp_block, AES_BLOCK_SIZE);
+
+            len    -= AES_BLOCK_SIZE;
+            offset += AES_BLOCK_SIZE;
+        }
+
+        return 0;
+    }
+
 
 #else /* CTaoCrypt software implementation */
 
@@ -1386,6 +1476,10 @@ static int AesSetKeyLocal(Aes* aes, const byte* userKey, word32 keylen,
     #ifdef CYASSL_AESNI
         aes->use_aesni = 0;
     #endif /* CYASSL_AESNI */
+    #ifdef CYASSL_AES_COUNTER
+        aes->left = 0;
+    #endif /* CYASSL_AES_COUNTER */
+
     aes->rounds = keylen/4 + 6;
 
     XMEMCPY(rk, userKey, keylen);
@@ -2039,15 +2133,39 @@ static INLINE void IncrementAesCounter(byte* inOutCtr)
 
 void AesCtrEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 {
-    word32 blocks = sz / AES_BLOCK_SIZE;
+    byte* tmp = (byte*)aes->tmp + AES_BLOCK_SIZE - aes->left;
 
-    while (blocks--) {
+    /* consume any unused bytes left in aes->tmp */
+    while (aes->left && sz) {
+       *(out++) = *(in++) ^ *(tmp++);
+       aes->left--;
+       sz--;
+    }
+
+    /* do as many block size ops as possible */
+    while (sz >= AES_BLOCK_SIZE) {
         AesEncrypt(aes, (byte*)aes->reg, out);
         IncrementAesCounter((byte*)aes->reg);
         xorbuf(out, in, AES_BLOCK_SIZE);
 
         out += AES_BLOCK_SIZE;
-        in  += AES_BLOCK_SIZE; 
+        in  += AES_BLOCK_SIZE;
+        sz  -= AES_BLOCK_SIZE;
+        aes->left = 0;
+    }
+
+    /* handle non block size remaining and sotre unused byte count in left */
+    if (sz) {
+        AesEncrypt(aes, (byte*)aes->reg, (byte*)aes->tmp);
+        IncrementAesCounter((byte*)aes->reg);
+
+        aes->left = AES_BLOCK_SIZE;
+        tmp = (byte*)aes->tmp;
+
+        while (sz--) {
+            *(out++) = *(in++) ^ *(tmp++);
+            aes->left--;
+        }
     }
 }
 

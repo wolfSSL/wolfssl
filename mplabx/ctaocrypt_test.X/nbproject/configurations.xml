@@ -33,7 +33,7 @@
         <targetDevice>PIC32MX795F512L</targetDevice>
         <targetHeader></targetHeader>
         <targetPluginBoard></targetPluginBoard>
-        <platformTool>SKDEPIC32PlatformTool</platformTool>
+        <platformTool>PKOBSKDEPlatformTool</platformTool>
         <languageToolchain>XC32</languageToolchain>
         <languageToolchainVersion>1.30</languageToolchainVersion>
         <platform>3</platform>
@@ -189,9 +189,6 @@
         <property key="programoptions.uselvpprogramming" value="false"/>
         <property key="voltagevalue" value="3.25"/>
       </PKOBSKDEPlatformTool>
-      <SKDEPIC32PlatformTool>
-        <property key="whatToProgram" value="all"/>
-      </SKDEPIC32PlatformTool>
     </conf>
   </confs>
 </configurationDescriptor>
