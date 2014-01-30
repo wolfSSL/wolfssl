@@ -81,6 +81,8 @@
 /* Uncomment next line if using QL SEP settings */
 /* #define CYASSL_QL */
 
+/* Uncomment next line if using LwIP native TCP socket settings */
+/* #define HAVE_LWIP_NATIVE */
 
 #include <cyassl/ctaocrypt/visibility.h>
 
@@ -113,6 +115,14 @@
 #ifdef HAVE_NETX
     #include "nx_api.h"
 #endif
+
+#if defined(HAVE_LWIP_NATIVE) /* using LwIP native TCP socket */
+    #define CYASSL_LWIP
+    #define NO_WRITEV
+    #define SINGLE_THREADED
+    #define CYASSL_USER_IO
+    #define NO_FILESYSTEM
+#endif 
 
 #ifdef MICROCHIP_PIC32
     #define SIZEOF_LONG_LONG 8

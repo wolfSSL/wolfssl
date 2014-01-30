@@ -675,7 +675,10 @@ enum { /* ssl Constants */
     SSL_R_SSLV3_ALERT_CERTIFICATE_UNKNOWN = 103,
     SSL_R_SSLV3_ALERT_BAD_CERTIFICATE     = 104,
 
-    PEM_BUFSIZE = 1024
+    PEM_BUFSIZE = 1024,
+    /* for non-blocking CyaSSL_connect */
+    SSL_CONNECTING = 201,      /* Ready for the next step */
+    SSL_CONNECT_WAITING = 202 /* Waiting for the response */
 };
 
 

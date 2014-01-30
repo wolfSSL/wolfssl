@@ -51,7 +51,8 @@
     #include <windows.h>
     #include <wincrypt.h>
 #else
-    #if !defined(NO_DEV_RANDOM) && !defined(CYASSL_MDK_ARM) 
+    #if !defined(NO_DEV_RANDOM) && !defined(CYASSL_MDK_ARM) \
+                                && !defined(CYASSL_IAR_ARM)
             #include <fcntl.h>
         #ifndef EBSNET
             #include <unistd.h>
@@ -484,7 +485,8 @@ int GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     return 0;
 }
 
-#elif defined(CYASSL_SAFERTOS) || defined(CYASSL_LEANPSK)
+#elif defined(CYASSL_SAFERTOS) || defined(CYASSL_LEANPSK) \
+   || defined(CYASSL_IAR_ARM)                               
 
 #warning "write a real random seed!!!!, just for testing now"
 

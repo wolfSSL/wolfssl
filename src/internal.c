@@ -397,6 +397,11 @@ int InitSSL_Ctx(CYASSL_CTX* ctx, CYASSL_METHOD* method)
     ctx->CBIORecv = NetX_Receive;
     ctx->CBIOSend = NetX_Send;
 #endif
+#ifdef HAVE_LWIP_NATIVE
+    ctx->CBIORecv = CyaSSL_LwIP_Receive ;
+    ctx->CBIOSend = CyaSSL_LwIP_Send ;
+#endif
+
     ctx->partialWrite   = 0;
     ctx->verifyCallback = 0;
 

@@ -960,8 +960,11 @@ int  SetCipherList(Suites*, const char* list);
 #ifdef HAVE_NETX
     CYASSL_LOCAL int NetX_Receive(CYASSL *ssl, char *buf, int sz, void *ctx);
     CYASSL_LOCAL int NetX_Send(CYASSL *ssl, char *buf, int sz, void *ctx);
-#endif /* HAVE_NETX */
-
+#endif
+#ifdef HAVE_LWIP_NATIVE
+    CYASSL_LOCAL int CyaSSL_LwIP_Send(CYASSL* ssl, char *buf, int sz, void *cb);
+    CYASSL_LOCAL int CyaSSL_LwIP_Receive(CYASSL* ssl, char *buf, int sz, void *cb);
+#endif /* HAVE_{tcp stack} */
 
 /* CyaSSL Cipher type just points back to SSL */
 struct CYASSL_CIPHER {
@@ -1515,7 +1518,8 @@ typedef void (*hmacfp) (CYASSL*, byte*, const byte*, word32, int, int);
 
 /* client connect state for nonblocking restart */
 enum ConnectState {
-    CONNECT_BEGIN = 0,
+    CONNECT_INITIAL = 0,
+    CONNECT_BEGIN,
     CLIENT_HELLO_SENT,
     HELLO_AGAIN,               /* HELLO_AGAIN s for DTLS case */
     HELLO_AGAIN_REPLY,
