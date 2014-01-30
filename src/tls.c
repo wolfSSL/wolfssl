@@ -776,7 +776,7 @@ static int TLSX_SNI_Parse(CYASSL* ssl, byte* input, word16 length,
                     int r = TLSX_UseSNI(&ssl->extensions,
                                                     type, input + offset, size);
 
-                    if (r) return r; /* throw error */
+                    if (r != SSL_SUCCESS) return r; /* throw error */
 
                     TLSX_SNI_SetStatus(ssl->extensions, type,
                       matched ? CYASSL_SNI_REAL_MATCH : CYASSL_SNI_FAKE_MATCH);
@@ -842,7 +842,7 @@ int TLSX_UseSNI(TLSX** extensions, byte type, const void* data, word16 size)
         }
     } while ((sni = sni->next));
 
-    return 0;
+    return SSL_SUCCESS;
 }
 
 #ifndef NO_CYASSL_SERVER
@@ -1047,7 +1047,7 @@ static int TLSX_MFL_Parse(CYASSL* ssl, byte* input, word16 length,
     if (isRequest) {
         int r = TLSX_UseMaxFragment(&ssl->extensions, *input);
 
-        if (r) return r; /* throw error */
+        if (r != SSL_SUCCESS) return r; /* throw error */
 
         TLSX_SetResponse(ssl, MAX_FRAGMENT_LENGTH);
     }
@@ -1097,7 +1097,7 @@ int TLSX_UseMaxFragment(TLSX** extensions, byte mfl)
         }
     } while ((extension = extension->next));
 
-    return 0;
+    return SSL_SUCCESS;
 }
 
 
@@ -1128,7 +1128,7 @@ int TLSX_UseTruncatedHMAC(TLSX** extensions)
         if ((ret = TLSX_Append(extensions, TRUNCATED_HMAC)) != 0)
             return ret;
 
-    return 0;
+    return SSL_SUCCESS;
 }
 
 static int TLSX_THM_Parse(CYASSL* ssl, byte* input, word16 length,
@@ -1141,7 +1141,7 @@ static int TLSX_THM_Parse(CYASSL* ssl, byte* input, word16 length,
     if (isRequest) {
         int r = TLSX_UseTruncatedHMAC(&ssl->extensions);
 
-        if (r) return r; /* throw error */
+        if (r != SSL_SUCCESS) return r; /* throw error */
 
         TLSX_SetResponse(ssl, TRUNCATED_HMAC);
     }
@@ -1428,7 +1428,7 @@ int TLSX_UseEllipticCurve(TLSX** extensions, word16 name)
         }
     } while ((curve = curve->next));
 
-    return 0;
+    return SSL_SUCCESS;
 }
 
 #define EC_FREE_ALL         TLSX_EllipticCurve_FreeAll
@@ -1784,6 +1784,13 @@ int TLSX_Parse(CYASSL* ssl, byte* input, word16 length, byte isRequest,
 /* undefining semaphore macros */
 #undef IS_OFF
 #undef TURN_ON
+
+#elif defined(HAVE_SNI)             \
+   || defined(HAVE_MAX_FRAGMENT)    \
+   || defined(HAVE_TRUNCATED_HMAC)  \
+   || defined(HAVE_ELLIPTIC_CURVES)
+
+#error "Using TLS extensions requires HAVE_TLS_EXTENSIONS to be defined."
 
 #endif /* HAVE_TLS_EXTENSIONS */
 
