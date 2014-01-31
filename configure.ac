@@ -1105,6 +1105,20 @@ fi
 AM_CONDITIONAL([BUILD_OCSP], [test "x$ENABLED_OCSP" = "xyes"])
 
 
+if test "$ENABLED_OCSP" = "yes"
+then
+    # check openssl command tool for testing ocsp
+    AC_CHECK_PROG([HAVE_OPENSSL_CMD],[openssl],[yes],[no])
+
+    if test "$HAVE_OPENSSL_CMD" = "yes"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_OPENSSL_CMD"
+    else
+        AC_MSG_WARN([openssl command line tool not available for testing ocsp])
+    fi
+fi
+
+
 # CRL 
 AC_ARG_ENABLE([crl],
     [  --enable-crl            Enable CRL (default: disabled)],
