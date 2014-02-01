@@ -37,6 +37,8 @@ int InitOCSP(CYASSL_OCSP* ocsp, CYASSL_CERT_MANAGER* cm)
     CYASSL_ENTER("InitOCSP");
     XMEMSET(ocsp, 0, sizeof(*ocsp));
     ocsp->cm = cm;
+    if (InitMutex(&ocsp->ocspLock) != 0)
+        return BAD_MUTEX_E;
 
     return 0;
 }
@@ -46,11 +48,9 @@ static int InitOCSP_Entry(OCSP_Entry* ocspe, DecodedCert* cert)
 {
     CYASSL_ENTER("InitOCSP_Entry");
 
-    ocspe->next = NULL;
+    XMEMSET(ocspe, 0, sizeof(*ocspe));
     XMEMCPY(ocspe->issuerHash, cert->issuerHash, SHA_DIGEST_SIZE);
     XMEMCPY(ocspe->issuerKeyHash, cert->issuerKeyHash, SHA_DIGEST_SIZE);
-    ocspe->status = NULL;
-    ocspe->totalStatus = 0;
 
     return 0;
 }
@@ -83,81 +83,9 @@ void FreeOCSP(CYASSL_OCSP* ocsp, int dynamic)
         tmp = next;
     }
 
+    FreeMutex(&ocsp->ocspLock);
     if (dynamic)
         XFREE(ocsp, NULL, DYNAMIC_TYPE_OCSP);
-}
-
-
-static OCSP_Entry* find_ocsp_entry(CYASSL_OCSP* ocsp, DecodedCert* cert)
-{
-    OCSP_Entry* entry = ocsp->ocspList;
-
-    while (entry)
-    {
-        if (XMEMCMP(entry->issuerHash, cert->issuerHash, SHA_DIGEST_SIZE) == 0
-            && XMEMCMP(entry->issuerKeyHash, cert->issuerKeyHash,
-                                                        SHA_DIGEST_SIZE) == 0)
-        {
-            CYASSL_MSG("Found OCSP responder");
-            break;
-        }
-        else
-        {
-            entry = entry->next;
-        }
-    }
-
-    if (entry == NULL)
-    {
-        CYASSL_MSG("Add a new OCSP entry");
-        entry = (OCSP_Entry*)XMALLOC(sizeof(OCSP_Entry),
-                                                NULL, DYNAMIC_TYPE_OCSP_ENTRY);
-        if (entry != NULL)
-        {
-            InitOCSP_Entry(entry, cert);
-            entry->next = ocsp->ocspList;
-            ocsp->ocspList = entry;
-        }
-    }
-
-    return entry;
-}
-
-
-static CertStatus* find_cert_status(OCSP_Entry* ocspe, DecodedCert* cert)
-{
-    CertStatus* stat = ocspe->status;
-
-    while (stat)
-    {
-        if(stat->serialSz == cert->serialSz &&
-            (XMEMCMP(stat->serial, cert->serial, cert->serialSz) == 0))
-        {
-            break;
-        }
-        else
-        {
-            stat = stat->next;
-        }
-    }
-    if (stat == NULL)
-    {
-        stat = (CertStatus*)XMALLOC(sizeof(CertStatus),
-                                            NULL, DYNAMIC_TYPE_OCSP_STATUS);
-        if (stat != NULL)
-        {
-            XMEMCPY(stat->serial, cert->serial, cert->serialSz);
-            stat->serialSz = cert->serialSz;
-            stat->status = -1;
-            stat->nextDate[0] = 0;
-            ocspe->totalStatus++;
-
-            stat->next = ocspe->status;
-            ocspe->status = stat;
-        }
-    }
-
-    return stat;
 }
 
 
@@ -184,45 +112,72 @@ int CheckCertOCSP(CYASSL_OCSP* ocsp, DecodedCert* cert)
     byte* ocspRespBuf = NULL;
     OcspRequest ocspRequest;
     OcspResponse ocspResponse;
-    int result = 0;
+    int result = -1;
     OCSP_Entry* ocspe;
-    CertStatus* certStatus;
+    CertStatus* certStatus = NULL;
+    CertStatus newStatus;
     const char *url;
     int urlSz;
 
     CYASSL_ENTER("CheckCertOCSP");
 
-    ocspe = find_ocsp_entry(ocsp, cert);
+    if (LockMutex(&ocsp->ocspLock) != 0) {
+        CYASSL_LEAVE("CheckCertOCSP", BAD_MUTEX_E);
+        return BAD_MUTEX_E;
+    }
+
+    ocspe = ocsp->ocspList;
+    while (ocspe) {
+        if (XMEMCMP(ocspe->issuerHash, cert->issuerHash, SHA_DIGEST_SIZE) == 0
+            && XMEMCMP(ocspe->issuerKeyHash, cert->issuerKeyHash,
+                                                        SHA_DIGEST_SIZE) == 0)
+            break;
+        else
+            ocspe = ocspe->next;
+    }
+
     if (ocspe == NULL) {
-        CYASSL_MSG("alloc OCSP entry failed");
-        return MEMORY_ERROR;
+        ocspe = (OCSP_Entry*)XMALLOC(sizeof(OCSP_Entry),
+                                                NULL, DYNAMIC_TYPE_OCSP_ENTRY);
+        if (ocspe != NULL) {
+            InitOCSP_Entry(ocspe, cert);
+            ocspe->next = ocsp->ocspList;
+            ocsp->ocspList = ocspe;
+        }
+        else {
+            UnLockMutex(&ocsp->ocspLock);
+            CYASSL_LEAVE("CheckCertOCSP", MEMORY_ERROR);
+            return MEMORY_ERROR;
+        }
+    }
+    else {
+        certStatus = ocspe->status;
+        while (certStatus) {
+            if (certStatus->serialSz == cert->serialSz &&
+                 XMEMCMP(certStatus->serial, cert->serial, cert->serialSz) == 0)
+                break;
+            else
+                certStatus = certStatus->next;
+        }
     }
 
-    certStatus = find_cert_status(ocspe, cert);
-    if (certStatus == NULL)
-    {
-        CYASSL_MSG("alloc OCSP cert status failed");
-        return MEMORY_ERROR;
-    }
-
-    if (certStatus->status != -1)
-    {
+    if (certStatus != NULL) {
         if (!ValidateDate(certStatus->thisDate,
                                         certStatus->thisDateFormat, BEFORE) ||
             (certStatus->nextDate[0] == 0) ||
             !ValidateDate(certStatus->nextDate,
-                                        certStatus->nextDateFormat, AFTER))
-        {
+                                        certStatus->nextDateFormat, AFTER)) {
             CYASSL_MSG("\tinvalid status date, looking up cert");
-            certStatus->status = -1;
         }
-        else
-        {
-            CYASSL_MSG("\tusing cached status");
+        else {
             result = xstat2err(certStatus->status);
+            UnLockMutex(&ocsp->ocspLock);
+            CYASSL_LEAVE("CheckCertOCSP", result);
             return result;
         }
     }
+
+    UnLockMutex(&ocsp->ocspLock);
 
     if (ocsp->cm->ocspUseOverrideURL) {
         url = ocsp->cm->ocspOverrideURL;
@@ -236,56 +191,81 @@ int CheckCertOCSP(CYASSL_OCSP* ocsp, DecodedCert* cert)
         urlSz = cert->extAuthInfoSz;
     }
     else {
-        CYASSL_MSG("\tcert doesn't have extAuthInfo, assuming CERT_GOOD");
+        /* cert doesn't have extAuthInfo, assuming CERT_GOOD */
         return 0;
     }
 
     ocspReqBuf = (byte*)XMALLOC(ocspReqSz, NULL, DYNAMIC_TYPE_IN_BUFFER);
     if (ocspReqBuf == NULL) {
-        CYASSL_MSG("\talloc OCSP request buffer failed");
+        CYASSL_LEAVE("CheckCertOCSP", MEMORY_ERROR);
         return MEMORY_ERROR;
     }
     InitOcspRequest(&ocspRequest, cert, ocsp->cm->ocspSendNonce,
                                                          ocspReqBuf, ocspReqSz);
     ocspReqSz = EncodeOcspRequest(&ocspRequest);
     
-    if (ocsp->cm->ocspIOCb) {
+    if (ocsp->cm->ocspIOCb)
         result = ocsp->cm->ocspIOCb(ocsp->cm->ocspIOCtx, url, urlSz,
-                                          ocspReqBuf, ocspReqSz, &ocspRespBuf);
-    }
+                                           ocspReqBuf, ocspReqSz, &ocspRespBuf);
 
     if (result >= 0 && ocspRespBuf) {
-        InitOcspResponse(&ocspResponse, certStatus, ocspRespBuf, result);
+        XMEMSET(&newStatus, 0, sizeof(CertStatus));
+
+        InitOcspResponse(&ocspResponse, &newStatus, ocspRespBuf, result);
         OcspResponseDecode(&ocspResponse);
     
-        if (ocspResponse.responseStatus != OCSP_SUCCESSFUL) {
-            CYASSL_MSG("OCSP Responder failure");
+        if (ocspResponse.responseStatus != OCSP_SUCCESSFUL)
             result = OCSP_LOOKUP_FAIL;
-        } else {
-            if (CompareOcspReqResp(&ocspRequest, &ocspResponse) == 0)
-            {
+        else {
+            if (CompareOcspReqResp(&ocspRequest, &ocspResponse) == 0) {
                 result = xstat2err(ocspResponse.status->status);
+
+                if (LockMutex(&ocsp->ocspLock) != 0)
+                    result = BAD_MUTEX_E;
+                else {
+                    if (certStatus != NULL)
+                        /* Replace existing certificate entry with updated */
+                        XMEMCPY(certStatus, &newStatus, sizeof(CertStatus));
+                    else {
+                        /* Save new certificate entry */
+                        certStatus = (CertStatus*)XMALLOC(sizeof(CertStatus),
+                                          NULL, DYNAMIC_TYPE_OCSP_STATUS);
+                        if (certStatus != NULL) {
+                            XMEMCPY(certStatus, &newStatus, sizeof(CertStatus));
+                            certStatus->next = ocspe->status;
+                            ocspe->status = certStatus;
+                            ocspe->totalStatus++;
+                        }
+                    }
+
+                    UnLockMutex(&ocsp->ocspLock);
+                }
             }
             else
-            {
-                CYASSL_MSG("OCSP Response incorrect for Request");
                 result = OCSP_LOOKUP_FAIL;
-            }
         }
     }
-    else {
+    else
         result = OCSP_LOOKUP_FAIL;
-    }
 
-    if (ocspReqBuf != NULL) {
+    if (ocspReqBuf != NULL)
         XFREE(ocspReqBuf, NULL, DYNAMIC_TYPE_IN_BUFFER);
-    }
-    if (ocspRespBuf != NULL && ocsp->cm->ocspRespFreeCb) {
-        ocsp->cm->ocspRespFreeCb(ocsp->cm->ocspIOCtx, ocspRespBuf);
-    }
 
+    if (ocspRespBuf != NULL && ocsp->cm->ocspRespFreeCb)
+        ocsp->cm->ocspRespFreeCb(ocsp->cm->ocspIOCtx, ocspRespBuf);
+
+    CYASSL_LEAVE("CheckCertOCSP", result);
     return result;
 }
+
+
+#else /* HAVE_OCSP */
+
+
+#ifdef _MSC_VER
+    /* 4206 warning for blank file */
+    #pragma warning(disable: 4206)
+#endif
 
 
 #endif /* HAVE_OCSP */

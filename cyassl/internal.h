@@ -999,6 +999,7 @@ struct OCSP_Entry {
 struct CYASSL_OCSP {
     CYASSL_CERT_MANAGER* cm;            /* pointer back to cert manager */
     OCSP_Entry*          ocspList;      /* OCSP response list */
+    CyaSSL_Mutex         ocspLock;      /* OCSP list lock */
 };
 
 #ifndef MAX_DATE_SIZE
