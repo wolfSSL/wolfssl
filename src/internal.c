@@ -397,6 +397,11 @@ int InitSSL_Ctx(CYASSL_CTX* ctx, CYASSL_METHOD* method)
     ctx->CBIORecv = NetX_Receive;
     ctx->CBIOSend = NetX_Send;
 #endif
+#ifdef HAVE_LWIP_NATIVE
+    ctx->CBIORecv = CyaSSL_LwIP_Receive ;
+    ctx->CBIOSend = CyaSSL_LwIP_Send ;
+#endif
+
     ctx->partialWrite   = 0;
     ctx->verifyCallback = 0;
 
@@ -1428,6 +1433,10 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
     ssl->nxCtx.nxWait   = 0;
     ssl->IOCB_ReadCtx  = &ssl->nxCtx;  /* default NetX IO ctx, same for read */
     ssl->IOCB_WriteCtx = &ssl->nxCtx;  /* and write */
+#endif
+#ifdef HAVE_LWIP_NATIVE
+    ssl->lwipCtx.pbuf = NULL ;
+    ssl->lwipCtx.pulled = 0 ;
 #endif
 #ifdef CYASSL_DTLS
     ssl->IOCB_CookieCtx = NULL;      /* we don't use for default cb */
