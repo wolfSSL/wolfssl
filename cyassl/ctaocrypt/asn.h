@@ -227,6 +227,11 @@ enum SepHardwareName_Sum {
     HW_NAME_OID     = 79   /* 1.3.6.1.5.5.7.8.4 from RFC 4108*/
 };
 
+enum AuthInfo_Sum {
+    AIA_OCSP_OID      = 116, /* 1.3.6.1.5.5.7.48.1 */
+    AIA_CA_ISSUER_OID = 117  /* 1.3.6.1.5.5.7.48.2 */
+};
+
 
 enum VerifyType {
     NO_VERIFY = 0,

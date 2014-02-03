@@ -3081,6 +3081,7 @@ static void DecodeAuthInfo(byte* input, int sz, DecodedCert* cert)
 {
     word32 idx = 0;
     int length = 0;
+    byte b;
     word32 oid;
 
     CYASSL_ENTER("DecodeAuthInfo");
@@ -3088,34 +3089,25 @@ static void DecodeAuthInfo(byte* input, int sz, DecodedCert* cert)
     /* Unwrap the list of AIAs */
     if (GetSequence(input, &idx, &length, sz) < 0) return;
 
-    /* Unwrap a single AIA */
-    if (GetSequence(input, &idx, &length, sz) < 0) return;
+    while (idx < (word32)sz) {
+        /* Unwrap a single AIA */
+        if (GetSequence(input, &idx, &length, sz) < 0) return;
 
-    oid = 0;
-    if (GetObjectId(input, &idx, &oid, sz) < 0) return;
+        oid = 0;
+        if (GetObjectId(input, &idx, &oid, sz) < 0) return;
 
-    /* Only supporting URIs right now. */
-    if (input[idx] == (ASN_CONTEXT_SPECIFIC | GENERALNAME_URI))
-    {
-        idx++;
+        /* Only supporting URIs right now. */
+        b = input[idx++];
         if (GetLength(input, &idx, &length, sz) < 0) return;
 
-        cert->extAuthInfoSz = length;
-        cert->extAuthInfo = input + idx;
+        if (b == (ASN_CONTEXT_SPECIFIC | GENERALNAME_URI) &&
+            oid == AIA_OCSP_OID)
+        {
+            cert->extAuthInfoSz = length;
+            cert->extAuthInfo = input + idx;
+            break;
+        }
         idx += length;
-    }
-    else
-    {
-        /* Skip anything else. */
-        idx++;
-        if (GetLength(input, &idx, &length, sz) < 0) return;
-        idx += length;
-    }
-
-    if (idx < (word32)sz)
-    {
-        CYASSL_MSG("\tThere are more Authority Information Access records, "
-                   "but we only use first one.");
     }
 
     return;
