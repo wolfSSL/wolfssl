@@ -622,6 +622,30 @@ int CyaSSL_CTX_UseTruncatedHMAC(CYASSL_CTX* ctx)
 #endif /* NO_CYASSL_CLIENT */
 #endif /* HAVE_TRUNCATED_HMAC */
 
+/* Elliptic Curves */
+#ifdef HAVE_ELLIPTIC_CURVES
+#ifndef NO_CYASSL_CLIENT
+
+int CyaSSL_UseEllipticCurve(CYASSL* ssl, word16 name)
+{
+    if (ssl == NULL)
+        return BAD_FUNC_ARG;
+
+    return TLSX_UseEllipticCurve(&ssl->extensions, name);
+}
+
+int CyaSSL_CTX_UseEllipticCurve(CYASSL_CTX* ctx, word16 name)
+{
+    if (ctx == NULL)
+        return BAD_FUNC_ARG;
+
+    return TLSX_UseEllipticCurve(&ctx->extensions, name);
+}
+
+#endif /* NO_CYASSL_CLIENT */
+#endif /* HAVE_ELLIPTIC_CURVES */
+
+
 #ifndef CYASSL_LEANPSK
 int CyaSSL_send(CYASSL* ssl, const void* data, int sz, int flags)
 {
@@ -2112,6 +2136,13 @@ int CyaSSL_Init(void)
                     CYASSL_MSG("Not ECDSA cert signature");
                     break;
             }
+
+#ifdef HAVE_ECC
+            if (ctx)
+                ctx->pkCurveOID = cert.pkCurveOID;
+            if (ssl)
+                ssl->pkCurveOID = cert.pkCurveOID;
+#endif
 
             FreeDecodedCert(&cert);
         }

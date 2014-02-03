@@ -550,17 +550,18 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
 
 #ifdef HAVE_SNI
     if (sniHostName)
-        if (CyaSSL_CTX_UseSNI(ctx, 0, sniHostName, XSTRLEN(sniHostName)))
+        if (CyaSSL_CTX_UseSNI(ctx, 0, sniHostName, XSTRLEN(sniHostName))
+                                                                 != SSL_SUCCESS)
             err_sys("UseSNI failed");
 #endif
 #ifdef HAVE_MAX_FRAGMENT
     if (maxFragment)
-        if (CyaSSL_CTX_UseMaxFragment(ctx, maxFragment))
+        if (CyaSSL_CTX_UseMaxFragment(ctx, maxFragment) != SSL_SUCCESS)
             err_sys("UseMaxFragment failed");
 #endif
 #ifdef HAVE_TRUNCATED_HMAC
     if (truncatedHMAC)
-        if (CyaSSL_CTX_UseTruncatedHMAC(ctx))
+        if (CyaSSL_CTX_UseTruncatedHMAC(ctx) != SSL_SUCCESS)
             err_sys("UseTruncatedHMAC failed");
 #endif
 

@@ -1287,6 +1287,9 @@ void InitX509(CYASSL_X509* x509, int dynamicFlag)
     x509->altNamesNext   = NULL;
     x509->dynamicMemory  = (byte)dynamicFlag;
     x509->isCa           = 0;
+#ifdef HAVE_ECC
+    x509->pkCurveOID = 0;
+#endif /* HAVE_ECC */
 #ifdef OPENSSL_EXTRA
     x509->pathLength     = 0;
     x509->basicConstSet  = 0;
@@ -1305,9 +1308,6 @@ void InitX509(CYASSL_X509* x509, int dynamicFlag)
     x509->keyUsageSet    = 0;
     x509->keyUsageCrit   = 0;
     x509->keyUsage       = 0;
-    #ifdef HAVE_ECC
-        x509->pkCurveOID = 0;
-    #endif /* HAVE_ECC */
     #ifdef CYASSL_SEP
         x509->certPolicySet  = 0;
         x509->certPolicyCrit = 0;
@@ -1405,6 +1405,7 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
 
 #ifdef HAVE_ECC
     ssl->eccTempKeySz = ctx->eccTempKeySz;
+    ssl->pkCurveOID = ctx->pkCurveOID;
     ssl->peerEccKeyPresent = 0;
     ssl->peerEccDsaKeyPresent = 0;
     ssl->eccDsaKeyPresent = 0;
@@ -3229,14 +3230,14 @@ int CopyDecodedToX509(CYASSL_X509* x509, DecodedCert* dCert)
     }
     x509->keyUsageSet = dCert->extKeyUsageSet;
     x509->keyUsageCrit = dCert->extKeyUsageCrit;
-    #ifdef HAVE_ECC
-        x509->pkCurveOID = dCert->pkCurveOID;
-    #endif /* HAVE_ECC */
     #ifdef CYASSL_SEP
         x509->certPolicySet = dCert->extCertPolicySet;
         x509->certPolicyCrit = dCert->extCertPolicyCrit;
     #endif /* CYASSL_SEP */
 #endif /* OPENSSL_EXTRA */
+#ifdef HAVE_ECC
+    x509->pkCurveOID = dCert->pkCurveOID;
+#endif /* HAVE_ECC */
 
     return ret;
 }
@@ -9768,6 +9769,13 @@ static void PickHashSigAlgo(CYASSL* ssl,
                 return 0;
             }
         }
+
+#ifdef HAVE_ELLIPTIC_CURVES
+        if (!TLSX_ValidateEllipticCurves(ssl, first, second)) {
+            CYASSL_MSG("Don't have matching curves");
+                return 0;
+        }
+#endif
 
         /* ECCDHE is always supported if ECC on */
 

@@ -1327,6 +1327,9 @@ void InitDecodedCert(DecodedCert* cert, byte* source, word32 inSz, void* heap)
         cert->pkCurveOID = 0;
     #endif /* HAVE_ECC */
 #endif /* OPENSSL_EXTRA */
+#ifdef HAVE_ECC
+    cert->pkCurveOID = 0;
+#endif /* HAVE_ECC */
 #ifdef CYASSL_SEP
     cert->deviceTypeSz = 0;
     cert->deviceType = NULL;
@@ -1522,7 +1525,6 @@ static int GetKey(DecodedCert* cert)
     #ifdef HAVE_ECC
         case ECDSAk:
         {
-            word32 oid = 0;
             int    oidSz = 0;
             byte   b = cert->source[cert->srcIdx++];
         
@@ -1533,8 +1535,9 @@ static int GetKey(DecodedCert* cert)
                 return ASN_PARSE_E;
 
             while(oidSz--)
-                oid += cert->source[cert->srcIdx++];
-            if (CheckCurve(oid) < 0)
+                cert->pkCurveOID += cert->source[cert->srcIdx++];
+
+            if (CheckCurve(cert->pkCurveOID) < 0)
                 return ECC_CURVE_OID_E;
             #ifdef OPENSSL_EXTRA
                 cert->pkCurveOID = oid;
