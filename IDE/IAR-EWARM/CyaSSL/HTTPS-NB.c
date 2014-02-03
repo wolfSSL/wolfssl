@@ -45,13 +45,13 @@
 /*Enable debug*/
 #include <cstdio>
 #define DBG_PRINTF(x, ...) printf("[HTTPSClient : DBG]"x"\r\n", ##__VA_ARGS__);
+#define ERR_PRINTF(x, ...) printf("[HTTPSClient:ERROR]"x"\r\n", ##__VA_ARGS__);
 #else
 /*Disable debug*/
 #define DBG_PRINTF(x, ...)
+#define ERR_PRINTF(x, ...)
 #endif
 
-#define ERR_PRINTF(x, ...) printf("[HTTPSClient:ERROR]"x"\r\n", ##__VA_ARGS__);
- 
 static int LwIP_cb_mutex = 0 ; 
 
 static unsigned long localPort = 0 ;
@@ -141,12 +141,6 @@ int CyaSSL_HTTPS_Client_NB(void *nb)
     switch(https_nb->stat) {
     case BEGIN:
         printf("======= LwIP: HTTPS Client Test(%x): %d =========\n", nb, count ++) ;
-        {
-             void * p ;
-             p = (void *)malloc(1) ;
-             printf("Watermark=%x\n", p) ;
-             free(p) ;
-        }
         /*** Assuming LwIP has been initialized ***/
         https_nb->stat = INITIALIZED ; 
     case INITIALIZED:
@@ -338,7 +332,7 @@ void *CyaSSL_HTTPS_ClientP_5 = (void *)&CyaSSL_HTTPS_Client_5 ;
 
 #define HTTPS_PORT   443
 #define IP_ADDR(a,b,c,d) (((a)|((b)<<8)|((c)<<16)|(d)<<24))
-static struct ip_addr server_em = { IP_ADDR(192,168,11,9) } ;
+static struct ip_addr server_em = { IP_ADDR(xxx,xxx,xxx,xxx) } ;
 
 void HTTPSClient_main_init() {
 
