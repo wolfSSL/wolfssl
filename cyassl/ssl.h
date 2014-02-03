@@ -1242,7 +1242,7 @@ CYASSL_API int CyaSSL_CTX_UseTruncatedHMAC(CYASSL_CTX* ctx);
 #endif /* HAVE_TRUNCATED_HMAC */
 
 /* Elliptic Curves */
-#ifdef HAVE_ELLIPTIC_CURVES
+#ifdef HAVE_SUPPORTED_CURVES
 
 enum {
     CYASSL_ECC_SECP160R1 = 0x10,
@@ -1255,12 +1255,12 @@ enum {
 
 #ifndef NO_CYASSL_CLIENT
 
-CYASSL_API int CyaSSL_UseEllipticCurve(CYASSL* ssl, unsigned short name);
-CYASSL_API int CyaSSL_CTX_UseEllipticCurve(CYASSL_CTX* ctx,
+CYASSL_API int CyaSSL_UseSupportedCurve(CYASSL* ssl, unsigned short name);
+CYASSL_API int CyaSSL_CTX_UseSupportedCurve(CYASSL_CTX* ctx,
                                                           unsigned short name);
 
 #endif /* NO_CYASSL_CLIENT */
-#endif /* HAVE_ELLIPTIC_CURVES */
+#endif /* HAVE_SUPPORTED_CURVES */
 
 
 #define CYASSL_CRL_MONITOR   0x01   /* monitor this dir flag */

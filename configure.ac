@@ -1226,16 +1226,16 @@ then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_RENEGOTIATION_INDICATION"
 fi
 
-# Elliptic Curves Extensions
-AC_ARG_ENABLE([ellipticcurves],
-    [  --enable-ellipticcurves  Enable Elliptic Curves (default: disabled)],
-    [ ENABLED_ELLIPTIC_CURVES=$enableval ],
-    [ ENABLED_ELLIPTIC_CURVES=no ]
+# Supported Elliptic Curves Extensions
+AC_ARG_ENABLE([supportedcurves],
+    [  --enable-supportedcurves Enable Supported Elliptic Curves (default: disabled)],
+    [ ENABLED_SUPPORTED_CURVES=$enableval ],
+    [ ENABLED_SUPPORTED_CURVES=no ]
     )
 
-if test "x$ENABLED_ELLIPTIC_CURVES" = "xyes"
+if test "x$ENABLED_SUPPORTED_CURVES" = "xyes"
 then
-    AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_ELLIPTIC_CURVES"
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_SUPPORTED_CURVES"
 fi
 
 # TLS Extensions
@@ -1251,8 +1251,8 @@ then
 	ENABLED_MAX_FRAGMENT=yes
 	ENABLED_TRUNCATED_HMAC=yes
 	ENABLED_RENEGOTIATION_INDICATION=yes
-	ENABLED_ELLIPTIC_CURVES=yes
-    AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_SNI -DHAVE_MAX_FRAGMENT -DHAVE_TRUNCATED_HMAC -DHAVE_RENEGOTIATION_INDICATION -DHAVE_ELLIPTIC_CURVES"
+	ENABLED_SUPPORTED_CURVES=yes
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_SNI -DHAVE_MAX_FRAGMENT -DHAVE_TRUNCATED_HMAC -DHAVE_RENEGOTIATION_INDICATION -DHAVE_SUPPORTED_CURVES"
 fi
 
 # PKCS7
@@ -1689,7 +1689,7 @@ echo "   * SNI:                       $ENABLED_SNI"
 echo "   * Maximum Fragment Length:   $ENABLED_MAX_FRAGMENT"
 echo "   * Truncated HMAC:            $ENABLED_TRUNCATED_HMAC"
 echo "   * Renegotiation Indication:  $ENABLED_RENEGOTIATION_INDICATION"
-echo "   * Elliptic Curves:           $ENABLED_ELLIPTIC_CURVES"
+echo "   * Supported Elliptic Curves: $ENABLED_SUPPORTED_CURVES"
 echo "   * All TLS Extensions:        $ENABLED_TLSX"
 echo "   * PKCS#7                     $ENABLED_PKCS7"
 echo "   * wolfSCEP                   $ENABLED_WOLFSCEP"

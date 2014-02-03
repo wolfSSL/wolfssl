@@ -1177,7 +1177,7 @@ CYASSL_LOCAL int TLSX_UseTruncatedHMAC(TLSX** extensions);
 
 #endif /* HAVE_TRUNCATED_HMAC */
 
-#ifdef HAVE_ELLIPTIC_CURVES
+#ifdef HAVE_SUPPORTED_CURVES
 
 typedef struct EllipticCurve {
     word16                name; /* CurveNames    */
@@ -1185,14 +1185,14 @@ typedef struct EllipticCurve {
 
 } EllipticCurve;
 
-CYASSL_LOCAL int TLSX_UseEllipticCurve(TLSX** extensions, word16 name);
+CYASSL_LOCAL int TLSX_UseSupportedCurve(TLSX** extensions, word16 name);
 
 #ifndef NO_CYASSL_SERVER
 CYASSL_LOCAL int TLSX_ValidateEllipticCurves(CYASSL* ssl, byte first,
                                                                    byte second);
 #endif
 
-#endif /* HAVE_ELLIPTIC_CURVES */
+#endif /* HAVE_SUPPORTED_CURVES */
 
 #endif /* HAVE_TLS_EXTENSIONS */
 

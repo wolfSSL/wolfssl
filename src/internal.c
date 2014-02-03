@@ -9765,7 +9765,7 @@ static void PickHashSigAlgo(CYASSL* ssl,
             }
         }
 
-#ifdef HAVE_ELLIPTIC_CURVES
+#ifdef HAVE_SUPPORTED_CURVES
         if (!TLSX_ValidateEllipticCurves(ssl, first, second)) {
             CYASSL_MSG("Don't have matching curves");
                 return 0;

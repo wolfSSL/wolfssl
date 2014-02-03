@@ -1160,7 +1160,7 @@ static int TLSX_THM_Parse(CYASSL* ssl, byte* input, word16 length,
 
 #endif /* HAVE_TRUNCATED_HMAC */
 
-#ifdef HAVE_ELLIPTIC_CURVES
+#ifdef HAVE_SUPPORTED_CURVES
 
 #ifndef HAVE_ECC
 #error "Elliptic Curves Extension requires Elliptic Curve Cryptography. \
@@ -1270,7 +1270,7 @@ static int TLSX_EllipticCurve_Parse(CYASSL* ssl, byte* input, word16 length,
         ato16(input + offset, &name);
         offset -= OPAQUE16_LEN;
 
-        r = TLSX_UseEllipticCurve(&ssl->extensions, name);
+        r = TLSX_UseSupportedCurve(&ssl->extensions, name);
 
         if (r) return r; /* throw error */
     }
@@ -1371,7 +1371,7 @@ int TLSX_ValidateEllipticCurves(CYASSL* ssl, byte first, byte second) {
 
 #endif /* NO_CYASSL_SERVER */
 
-int TLSX_UseEllipticCurve(TLSX** extensions, word16 name)
+int TLSX_UseSupportedCurve(TLSX** extensions, word16 name)
 {
     TLSX*          extension = NULL;
     EllipticCurve* curve     = NULL;
@@ -1456,7 +1456,7 @@ int TLSX_UseEllipticCurve(TLSX** extensions, word16 name)
 #define EC_PARSE(a, b, c, d)      0
 #define EC_VALIDATE_REQUEST(a, b)
 
-#endif /* HAVE_ELLIPTIC_CURVES */
+#endif /* HAVE_SUPPORTED_CURVES */
 
 TLSX* TLSX_Find(TLSX* list, TLSX_Type type)
 {
@@ -1788,7 +1788,7 @@ int TLSX_Parse(CYASSL* ssl, byte* input, word16 length, byte isRequest,
 #elif defined(HAVE_SNI)             \
    || defined(HAVE_MAX_FRAGMENT)    \
    || defined(HAVE_TRUNCATED_HMAC)  \
-   || defined(HAVE_ELLIPTIC_CURVES)
+   || defined(HAVE_SUPPORTED_CURVES)
 
 #error "Using TLS extensions requires HAVE_TLS_EXTENSIONS to be defined."
 

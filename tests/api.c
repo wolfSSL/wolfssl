@@ -56,9 +56,9 @@ static void test_CyaSSL_UseMaxFragment(void);
 #ifdef HAVE_TRUNCATED_HMAC
 static void test_CyaSSL_UseTruncatedHMAC(void);
 #endif /* HAVE_TRUNCATED_HMAC */
-#ifdef HAVE_ELLIPTIC_CURVES
-static void test_CyaSSL_UseEllipticCurve(void);
-#endif /* HAVE_ELLIPTIC_CURVES */
+#ifdef HAVE_SUPPORTED_CURVES
+static void test_CyaSSL_UseSupportedCurve(void);
+#endif /* HAVE_SUPPORTED_CURVES */
 
 /* test function helpers */
 static int test_method(CYASSL_METHOD *method, const char *name);
@@ -119,9 +119,9 @@ int ApiTest(void)
 #ifdef HAVE_TRUNCATED_HMAC
     test_CyaSSL_UseTruncatedHMAC();
 #endif /* HAVE_TRUNCATED_HMAC */
-#ifdef HAVE_ELLIPTIC_CURVES
-    test_CyaSSL_UseEllipticCurve();
-#endif /* HAVE_ELLIPTIC_CURVES */
+#ifdef HAVE_SUPPORTED_CURVES
+    test_CyaSSL_UseSupportedCurve();
+#endif /* HAVE_SUPPORTED_CURVES */
     test_CyaSSL_Cleanup();
     printf(" End API Tests\n");
 
@@ -542,8 +542,8 @@ static void test_CyaSSL_UseTruncatedHMAC(void)
 }
 #endif /* HAVE_TRUNCATED_HMAC */
 
-#ifdef HAVE_ELLIPTIC_CURVES
-static void test_CyaSSL_UseEllipticCurve(void)
+#ifdef HAVE_SUPPORTED_CURVES
+static void test_CyaSSL_UseSupportedCurve(void)
 {
     CYASSL_CTX *ctx = CyaSSL_CTX_new(CyaSSLv23_client_method());
     CYASSL     *ssl = CyaSSL_new(ctx);
@@ -553,21 +553,21 @@ static void test_CyaSSL_UseEllipticCurve(void)
 
 #ifndef NO_CYASSL_CLIENT
     /* error cases */
-    AssertIntNE(1, CyaSSL_CTX_UseEllipticCurve(NULL, CYASSL_ECC_SECP160R1));
-    AssertIntNE(1, CyaSSL_CTX_UseEllipticCurve(ctx,  0));
+    AssertIntNE(1, CyaSSL_CTX_UseSupportedCurve(NULL, CYASSL_ECC_SECP160R1));
+    AssertIntNE(1, CyaSSL_CTX_UseSupportedCurve(ctx,  0));
 
-    AssertIntNE(1, CyaSSL_UseEllipticCurve(NULL, CYASSL_ECC_SECP160R1));
-    AssertIntNE(1, CyaSSL_UseEllipticCurve(ssl,  0));
+    AssertIntNE(1, CyaSSL_UseSupportedCurve(NULL, CYASSL_ECC_SECP160R1));
+    AssertIntNE(1, CyaSSL_UseSupportedCurve(ssl,  0));
 
     /* success case */
-    AssertIntEQ(1, CyaSSL_CTX_UseEllipticCurve(ctx, CYASSL_ECC_SECP160R1));
-    AssertIntEQ(1, CyaSSL_UseEllipticCurve(ssl, CYASSL_ECC_SECP160R1));
+    AssertIntEQ(1, CyaSSL_CTX_UseSupportedCurve(ctx, CYASSL_ECC_SECP160R1));
+    AssertIntEQ(1, CyaSSL_UseSupportedCurve(ssl, CYASSL_ECC_SECP160R1));
 #endif
 
     CyaSSL_free(ssl);
     CyaSSL_CTX_free(ctx);
 }
-#endif /* HAVE_ELLIPTIC_CURVES */
+#endif /* HAVE_SUPPORTED_CURVES */
 
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
 /* Helper for testing CyaSSL_CTX_use_certificate_file() */

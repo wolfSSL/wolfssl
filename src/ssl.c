@@ -623,27 +623,27 @@ int CyaSSL_CTX_UseTruncatedHMAC(CYASSL_CTX* ctx)
 #endif /* HAVE_TRUNCATED_HMAC */
 
 /* Elliptic Curves */
-#ifdef HAVE_ELLIPTIC_CURVES
+#ifdef HAVE_SUPPORTED_CURVES
 #ifndef NO_CYASSL_CLIENT
 
-int CyaSSL_UseEllipticCurve(CYASSL* ssl, word16 name)
+int CyaSSL_UseSupportedCurve(CYASSL* ssl, word16 name)
 {
     if (ssl == NULL)
         return BAD_FUNC_ARG;
 
-    return TLSX_UseEllipticCurve(&ssl->extensions, name);
+    return TLSX_UseSupportedCurve(&ssl->extensions, name);
 }
 
-int CyaSSL_CTX_UseEllipticCurve(CYASSL_CTX* ctx, word16 name)
+int CyaSSL_CTX_UseSupportedCurve(CYASSL_CTX* ctx, word16 name)
 {
     if (ctx == NULL)
         return BAD_FUNC_ARG;
 
-    return TLSX_UseEllipticCurve(&ctx->extensions, name);
+    return TLSX_UseSupportedCurve(&ctx->extensions, name);
 }
 
 #endif /* NO_CYASSL_CLIENT */
-#endif /* HAVE_ELLIPTIC_CURVES */
+#endif /* HAVE_SUPPORTED_CURVES */
 
 
 #ifndef CYASSL_LEANPSK
