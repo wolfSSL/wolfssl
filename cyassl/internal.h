@@ -964,6 +964,8 @@ int  SetCipherList(Suites*, const char* list);
 #ifdef HAVE_LWIP_NATIVE
     CYASSL_LOCAL int CyaSSL_LwIP_Send(CYASSL* ssl, char *buf, int sz, void *cb);
     CYASSL_LOCAL int CyaSSL_LwIP_Receive(CYASSL* ssl, char *buf, int sz, void *cb);
+    CYASSL_LOCAL void CyaSSL_NB_setCallbackArg(CYASSL *ssl, void *arg) ;
+    CYASSL_LOCAL void CyaSSL_PbufFree(void *p);
 #endif /* HAVE_{tcp stack} */
 
 /* CyaSSL Cipher type just points back to SSL */
@@ -1533,8 +1535,7 @@ typedef void (*hmacfp) (CYASSL*, byte*, const byte*, word32, int, int);
 
 /* client connect state for nonblocking restart */
 enum ConnectState {
-    CONNECT_INITIAL = 0,
-    CONNECT_BEGIN,
+    CONNECT_BEGIN = 0,
     CLIENT_HELLO_SENT,
     HELLO_AGAIN,               /* HELLO_AGAIN s for DTLS case */
     HELLO_AGAIN_REPLY,
@@ -1801,6 +1802,17 @@ typedef struct DtlsMsg {
 
 #endif
 
+#ifdef HAVE_LWIP_NATIVE
+    /* LwIP native tpc socket context */
+    typedef struct LwIP_native_Ctx {
+        struct tcp_pcb * pcb ;
+        int    pulled  ; 
+        struct pbuf *pbuf ;
+        int    wait ;
+        void * arg ;   /* arg for application */
+        int    idle_count ;
+    } LwIP_native_Ctx ;    
+#endif
 
 /* CyaSSL ssl type */
 struct CYASSL {
@@ -1911,6 +1923,9 @@ struct CYASSL {
 #endif
 #ifdef HAVE_NETX
     NetX_Ctx        nxCtx;             /* NetX IO Context */
+#endif
+#ifdef HAVE_LWIP_NATIVE
+    LwIP_native_Ctx        lwipCtx;             /* NetX IO Context */
 #endif
 #ifdef SESSION_INDEX
     int sessionIndex;                  /* Session's location in the cache. */

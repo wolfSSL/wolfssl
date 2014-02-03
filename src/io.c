@@ -1050,7 +1050,15 @@ void CyaSSL_SetIO_NetX(CYASSL* ssl, NX_TCP_SOCKET* nxSocket, ULONG waitOption)
 #include "lwip/tcp.h"
 #include "lwip/pbuf.h"
 #include "lwip/sockets.h"
-#include "SSL-NB.h"
+
+#if 0
+/*Enable debug*/
+#include <cstdio>
+#define DBG_PRINTF(x, ...) printf("[SSLClient : DBG]"x"\r\n", ##__VA_ARGS__);
+#else
+/*Disable debug*/
+#define DBG_PRINTF(x, ...)
+#endif
 
 #if 0
 /*Enable debug*/
@@ -1060,9 +1068,13 @@ void CyaSSL_SetIO_NetX(CYASSL* ssl, NX_TCP_SOCKET* nxSocket, ULONG waitOption)
 #define DBG_PRINTF_CB(x, ...)
 #endif
 
-void CyaSSL_PbufFree(struct pbuf *p)
+#define ERR_PRINTF(x, ...) printf("[SSLClient:ERROR]"x"\r\n", ##__VA_ARGS__);
+
+void CyaSSL_PbufFree(void *vp)
 {
+    struct pbuf *p ;
     struct pbuf * next;
+    p = (struct pbuf *) vp ;
     while(p->next != NULL)
     {
         next = p->next;
@@ -1072,20 +1084,20 @@ void CyaSSL_PbufFree(struct pbuf *p)
     pbuf_free(p);
 }
 
-static int CyaSSL_GetDataFromPbuf(char *buff, CYASSL_NB *ssl_nb, int size)
+static int CyaSSL_GetDataFromPbuf(char *buff, CYASSL *ssl, int size)
 {
     struct pbuf *p ;
     struct pbuf *p_next ;
     int totalLen ;
     int skipLen = 0 ;
 
-    p = ssl_nb->pbuf ;
-    if(p->tot_len < (ssl_nb->pulled + size))
+    p = ssl->lwipCtx.pbuf ;
+    if(p->tot_len < (ssl->lwipCtx.pulled + size))
         return 0 ;
     
     while(p) { /* skip the part pulled before */
-        if(p->len && p->len > (ssl_nb->pulled - skipLen) ){ 
-            skipLen = (ssl_nb->pulled - skipLen) ;
+        if(p->len && p->len > (ssl->lwipCtx.pulled - skipLen) ){ 
+            skipLen = (ssl->lwipCtx.pulled - skipLen) ;
             break ;
         } else {
             skipLen += p->len ;
@@ -1113,25 +1125,62 @@ static int CyaSSL_GetDataFromPbuf(char *buff, CYASSL_NB *ssl_nb, int size)
             p = p_next ;
         } else break ;
     }
-    ssl_nb->pulled += totalLen ;
-    if(ssl_nb->pbuf->tot_len <= ssl_nb->pulled) {
-        CyaSSL_PbufFree(ssl_nb->pbuf) ;
-        ssl_nb->pbuf = NULL ;
-        tcp_recved(ssl_nb->pcb,ssl_nb->pbuf->tot_len) ;
+    ssl->lwipCtx.pulled += totalLen ;
+    if(ssl->lwipCtx.pbuf->tot_len <= ssl->lwipCtx.pulled) {
+        CyaSSL_PbufFree(ssl->lwipCtx.pbuf) ;
+        ssl->lwipCtx.pbuf = NULL ;
+        tcp_recved(ssl->lwipCtx.pcb,ssl->lwipCtx.pbuf->tot_len) ;
     }
     return totalLen;
+}
+
+err_t CyaSSL_connectCallback(void *cb, struct tcp_pcb *pcb, struct pbuf *p, s8_t err)
+{
+    struct pbuf *next ;
+    CYASSL *ssl ;
+    ssl = (CYASSL *)cb ;
+    
+    if((cb == NULL)||(pcb == NULL))
+        ERR_PRINTF("CyaSSL_connectCallBack, cb=%x, pcb=%d\n", cb, pcb) ;
+    if(p && (err == 0)) {
+        DBG_PRINTF_CB("CyaSSL_connectCallBack, pbuf=%x, err=%d, tot_len=%d\n", p, err, p->tot_len) ;
+    }else {
+        ERR_PRINTF("CyaSSL_connectCallBack, pbuf=%x, err=%d\n", p, err) ;
+        return ERR_OK; /* don't go to SSL_CONN */
+    }
+
+    if(ssl->lwipCtx.pbuf) {
+        next = ssl->lwipCtx.pbuf ;
+        while(1) {
+            if(next->next)
+                next = next->next ;
+            else break ;
+        }
+        next->next = p ;
+        ssl->lwipCtx.pbuf->tot_len += p->tot_len ;
+    } else {
+        ssl->lwipCtx.pbuf = p ;
+    }
+    ssl->lwipCtx.pulled = 0 ;
+    if(ssl->lwipCtx.wait < 0)
+        ssl->lwipCtx.wait = 10000 ;
+    return ERR_OK; 
+}
+
+err_t DataSentCallback (void *arg, struct tcp_pcb *pcb, u16_t err)
+{
+    DBG_PRINTF_CB("LwIPtest: Data Sent(SentCallBack1), err=%d\n", err) ;
+    return ERR_OK;
 }
 
 int CyaSSL_LwIP_Receive(CYASSL* ssl, char *buf, int sz, void *cb)
 {
     int ret ;
-    CYASSL_NB *ssl_nb ;
-    ssl_nb = (CYASSL_NB *)cb ;
-    DBG_PRINTF_CB("CyaSSL_LwIP_Receive: ssl_nb = %x\n", ssl_nb) ;  
+    DBG_PRINTF_CB("CyaSSL_LwIP_Receive: ssl_nb = %x\n", ssl) ;  
 
-    if(ssl_nb->pbuf) {
-        DBG_PRINTF_CB("Received Len=%d, Want Len= %d\n", ssl_nb->pbuf->tot_len, sz) ;
-        ret = CyaSSL_GetDataFromPbuf(buf, ssl_nb, sz) ;
+    if(ssl->lwipCtx.pbuf) {
+        DBG_PRINTF_CB("Received Len=%d, Want Len= %d\n", ssl->lwipCtx.pbuf->tot_len, sz) ;
+        ret = CyaSSL_GetDataFromPbuf(buf, ssl, sz) ;
         if(ret == 0)
              ret = CYASSL_CBIO_ERR_WANT_READ ;
     } else {
@@ -1143,13 +1192,35 @@ int CyaSSL_LwIP_Receive(CYASSL* ssl, char *buf, int sz, void *cb)
 
 int CyaSSL_LwIP_Send(CYASSL* ssl, char *buf, int sz, void *cb)
 {
-    CYASSL_NB *ssl_nb ;
-    ssl_nb = (CYASSL_NB *)cb ;
-    DBG_PRINTF_CB("CyaSSL_LwIP_Send: ssl_nb = %x\n", ssl_nb) ;
+    err_t ret ;
+    
+    DBG_PRINTF_CB("CyaSSL_LwIP_Send: ssl = %x\n", ssl) ;
     DBG_PRINTF_CB("Send buf[0,1,2,3]=%x,%x,%x,%x, sz=%d\n", buf[0], buf[1], buf[2], buf[3], sz) ;
-    tcp_write(ssl_nb->pcb, buf, sz, TCP_WRITE_FLAG_COPY) ;
-    return sz ;
+    ret = tcp_write(ssl->lwipCtx.pcb, buf, sz, TCP_WRITE_FLAG_COPY) ;
+    if(ret == ERR_OK)
+        return sz ;
+    else {
+        ERR_PRINTF("Send ssl=%x, ret=%d\n", ssl, ret) ;
+        return -1 ;
+    }
 }
+
+void CyaSSL_NB_setCallbackArg(CYASSL *ssl, void *arg)
+{
+    ssl->lwipCtx.arg = arg ; 
+}
+
+int CyaSSL_SetIO_LwIP(CYASSL* ssl, void* pcb)
+{
+    if (ssl && pcb) {
+        ssl->lwipCtx.pcb = (struct tcp_pcb *)pcb ;
+        tcp_recv(pcb, CyaSSL_connectCallback);
+        tcp_sent(pcb, DataSentCallback); 
+        tcp_arg (pcb, (void *)ssl) ;
+    } else return BAD_FUNC_ARG ;
+    return ERR_OK ;
+}
+
 #endif /* HAVE_LWIP_NATIVE */
 
 

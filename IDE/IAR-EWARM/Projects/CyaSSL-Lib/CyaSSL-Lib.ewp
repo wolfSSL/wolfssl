@@ -930,7 +930,7 @@
         </option>
         <option>
           <name>IarchiveOutput</name>
-          <state>C:\ROOT\CyaSSL-Release\LwIP-native\cyassl\IDE\IAR-EWARM\Projects\CyaSSL-Lib\Debug\Exe\CyaSSL-Lib.a</state>
+          <state>C:\ROOT\CyaSSL-Release\LwIP-Release\cyassl-test\IDE\IAR-EWARM\Projects\CyaSSL-Lib\Debug\Exe\CyaSSL-Lib.a</state>
         </option>
       </data>
     </settings>
@@ -1875,13 +1875,7 @@
   <group>
     <name>Apps</name>
     <file>
-      <name>$PROJ_DIR$\..\..\CyaSSL\HTTPS-maic.c</name>
-    </file>
-    <file>
-      <name>$PROJ_DIR$\..\..\CyaSSL\HTTPS-NB.c</name>
-    </file>
-    <file>
-      <name>$PROJ_DIR$\..\..\CyaSSL\SSL-NB.c</name>
+      <name>$PROJ_DIR$\..\..\CyaSSL\https-nb.c</name>
     </file>
   </group>
   <group>

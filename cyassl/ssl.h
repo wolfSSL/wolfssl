@@ -675,10 +675,7 @@ enum { /* ssl Constants */
     SSL_R_SSLV3_ALERT_CERTIFICATE_UNKNOWN = 103,
     SSL_R_SSLV3_ALERT_BAD_CERTIFICATE     = 104,
 
-    PEM_BUFSIZE = 1024,
-    /* for non-blocking CyaSSL_connect */
-    SSL_CONNECTING = 201,      /* Ready for the next step */
-    SSL_CONNECT_WAITING = 202 /* Waiting for the response */
+    PEM_BUFSIZE = 1024
 };
 
 
@@ -942,7 +939,9 @@ CYASSL_API void CyaSSL_SetIOWriteFlags(CYASSL* ssl, int flags);
     CYASSL_API void CyaSSL_SetIO_NetX(CYASSL* ssl, NX_TCP_SOCKET* nxsocket,
                                       ULONG waitoption);
 #endif
-
+#ifdef HAVE_LWIP_NATIVE
+    CYASSL_API int CyaSSL_SetIO_LwIP(CYASSL* ssl, void *pcb);
+#endif
 typedef int (*CallbackGenCookie)(CYASSL* ssl, unsigned char* buf, int sz,
                                  void* ctx);
 CYASSL_API void  CyaSSL_CTX_SetGenCookie(CYASSL_CTX*, CallbackGenCookie);

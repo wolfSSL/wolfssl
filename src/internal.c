@@ -1434,6 +1434,10 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
     ssl->IOCB_ReadCtx  = &ssl->nxCtx;  /* default NetX IO ctx, same for read */
     ssl->IOCB_WriteCtx = &ssl->nxCtx;  /* and write */
 #endif
+#ifdef HAVE_LWIP_NATIVE
+    ssl->lwipCtx.pbuf = NULL ;
+    ssl->lwipCtx.pulled = 0 ;
+#endif
 #ifdef CYASSL_DTLS
     ssl->IOCB_CookieCtx = NULL;      /* we don't use for default cb */
     ssl->dtls_expected_rx = MAX_MTU;

@@ -18,6 +18,9 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  */
+ 
+#ifndef HTTPS_NB_H
+#define HTTPS_NB_H
 
 extern int CyaSSL_GetDataFromPbuf(char *buff, struct pbuf *p, int size) ;
 
@@ -37,6 +40,7 @@ enum HTTPS_Stat {
     TCP_CONNECTED,
     SSL_INIT,
     SSL_CONN,
+    SSL_CONN_WAITING,
     HTTP_SEND,
     HTTP_RECEIVE,
     HTTP_DONE,
@@ -50,7 +54,8 @@ enum HTTPS_Stat {
 #define HTTPS_PORT 443
 
 typedef struct {
-    CYASSL_NB ssl_nb ;
+    CYASSL *ssl ;
+    CYASSL_CTX *ctx ;
     enum HTTPS_Stat stat ;
     struct tcp_pcb * pcb ;
     unsigned long ipaddress ;
@@ -61,8 +66,11 @@ typedef struct {
     char   *hostname ;
     char   *path ;
     int    idle ;
+    int    wait_cnt ; /* wait tick counter */
 } CYASSL_HTTPS_NB ;
 
 extern void CyaSSL_HTTPS_Client_NB_init(void *nb, 
      struct ip_addr svIP, unsigned long svPort, char *host, char *path) ;
 extern int CyaSSL_HTTPS_Client_NB(void *nb) ;
+
+#endif
