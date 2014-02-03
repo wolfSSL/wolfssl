@@ -1231,6 +1231,7 @@ CYASSL_API int CyaSSL_CTX_UseMaxFragment(CYASSL_CTX* ctx, unsigned char mfl);
 #endif /* NO_CYASSL_CLIENT */
 #endif /* HAVE_MAX_FRAGMENT */
 
+/* Truncated HMAC */
 #ifdef HAVE_TRUNCATED_HMAC
 #ifndef NO_CYASSL_CLIENT
 
@@ -1239,6 +1240,27 @@ CYASSL_API int CyaSSL_CTX_UseTruncatedHMAC(CYASSL_CTX* ctx);
 
 #endif /* NO_CYASSL_CLIENT */
 #endif /* HAVE_TRUNCATED_HMAC */
+
+/* Elliptic Curves */
+#ifdef HAVE_SUPPORTED_CURVES
+
+enum {
+    CYASSL_ECC_SECP160R1 = 0x10,
+    CYASSL_ECC_SECP192R1 = 0x13,
+    CYASSL_ECC_SECP224R1 = 0x15,
+    CYASSL_ECC_SECP256R1 = 0x17,
+    CYASSL_ECC_SECP384R1 = 0x18,
+    CYASSL_ECC_SECP521R1 = 0x19
+};
+
+#ifndef NO_CYASSL_CLIENT
+
+CYASSL_API int CyaSSL_UseSupportedCurve(CYASSL* ssl, unsigned short name);
+CYASSL_API int CyaSSL_CTX_UseSupportedCurve(CYASSL_CTX* ctx,
+                                                          unsigned short name);
+
+#endif /* NO_CYASSL_CLIENT */
+#endif /* HAVE_SUPPORTED_CURVES */
 
 
 #define CYASSL_CRL_MONITOR   0x01   /* monitor this dir flag */

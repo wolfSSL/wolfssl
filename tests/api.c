@@ -56,6 +56,9 @@ static void test_CyaSSL_UseMaxFragment(void);
 #ifdef HAVE_TRUNCATED_HMAC
 static void test_CyaSSL_UseTruncatedHMAC(void);
 #endif /* HAVE_TRUNCATED_HMAC */
+#ifdef HAVE_SUPPORTED_CURVES
+static void test_CyaSSL_UseSupportedCurve(void);
+#endif /* HAVE_SUPPORTED_CURVES */
 
 /* test function helpers */
 static int test_method(CYASSL_METHOD *method, const char *name);
@@ -116,6 +119,9 @@ int ApiTest(void)
 #ifdef HAVE_TRUNCATED_HMAC
     test_CyaSSL_UseTruncatedHMAC();
 #endif /* HAVE_TRUNCATED_HMAC */
+#ifdef HAVE_SUPPORTED_CURVES
+    test_CyaSSL_UseSupportedCurve();
+#endif /* HAVE_SUPPORTED_CURVES */
     test_CyaSSL_Cleanup();
     printf(" End API Tests\n");
 
@@ -236,14 +242,13 @@ int test_CyaSSL_CTX_new(CYASSL_METHOD *method)
     return TEST_SUCCESS;
 }
 
-#ifdef HAVE_TLS_EXTENSIONS
 #ifdef HAVE_SNI
 static void use_SNI_at_ctx(CYASSL_CTX* ctx)
 {
     byte type = CYASSL_SNI_HOST_NAME;
     char name[] = "www.yassl.com";
 
-    AssertIntEQ(0, CyaSSL_CTX_UseSNI(ctx, type, (void *) name, XSTRLEN(name)));
+    AssertIntEQ(1, CyaSSL_CTX_UseSNI(ctx, type, (void *) name, XSTRLEN(name)));
 }
 
 static void use_SNI_at_ssl(CYASSL* ssl)
@@ -251,7 +256,7 @@ static void use_SNI_at_ssl(CYASSL* ssl)
     byte type = CYASSL_SNI_HOST_NAME;
     char name[] = "www.yassl.com";
 
-    AssertIntEQ(0, CyaSSL_UseSNI(ssl, type, (void *) name, XSTRLEN(name)));
+    AssertIntEQ(1, CyaSSL_UseSNI(ssl, type, (void *) name, XSTRLEN(name)));
 }
 
 static void different_SNI_at_ssl(CYASSL* ssl)
@@ -259,7 +264,7 @@ static void different_SNI_at_ssl(CYASSL* ssl)
     byte type = CYASSL_SNI_HOST_NAME;
     char name[] = "ww2.yassl.com";
 
-    AssertIntEQ(0, CyaSSL_UseSNI(ssl, type, (void *) name, XSTRLEN(name)));
+    AssertIntEQ(1, CyaSSL_UseSNI(ssl, type, (void *) name, XSTRLEN(name)));
 }
 
 static void use_SNI_WITH_CONTINUE_at_ssl(CYASSL* ssl)
@@ -426,16 +431,16 @@ void test_CyaSSL_UseSNI(void)
     AssertNotNull(ssl);
 
     /* error cases */
-    AssertIntNE(0, CyaSSL_CTX_UseSNI(NULL, 0, (void *) "ctx", XSTRLEN("ctx")));
-    AssertIntNE(0, CyaSSL_UseSNI(    NULL, 0, (void *) "ssl", XSTRLEN("ssl")));
-    AssertIntNE(0, CyaSSL_CTX_UseSNI(ctx, -1, (void *) "ctx", XSTRLEN("ctx")));
-    AssertIntNE(0, CyaSSL_UseSNI(    ssl, -1, (void *) "ssl", XSTRLEN("ssl")));
-    AssertIntNE(0, CyaSSL_CTX_UseSNI(ctx,  0, (void *) NULL,  XSTRLEN("ctx")));
-    AssertIntNE(0, CyaSSL_UseSNI(    ssl,  0, (void *) NULL,  XSTRLEN("ssl")));
+    AssertIntNE(1, CyaSSL_CTX_UseSNI(NULL, 0, (void *) "ctx", XSTRLEN("ctx")));
+    AssertIntNE(1, CyaSSL_UseSNI(    NULL, 0, (void *) "ssl", XSTRLEN("ssl")));
+    AssertIntNE(1, CyaSSL_CTX_UseSNI(ctx, -1, (void *) "ctx", XSTRLEN("ctx")));
+    AssertIntNE(1, CyaSSL_UseSNI(    ssl, -1, (void *) "ssl", XSTRLEN("ssl")));
+    AssertIntNE(1, CyaSSL_CTX_UseSNI(ctx,  0, (void *) NULL,  XSTRLEN("ctx")));
+    AssertIntNE(1, CyaSSL_UseSNI(    ssl,  0, (void *) NULL,  XSTRLEN("ssl")));
 
     /* success case */
-    AssertIntEQ(0, CyaSSL_CTX_UseSNI(ctx,  0, (void *) "ctx", XSTRLEN("ctx")));
-    AssertIntEQ(0, CyaSSL_UseSNI(    ssl,  0, (void *) "ssl", XSTRLEN("ssl")));
+    AssertIntEQ(1, CyaSSL_CTX_UseSNI(ctx,  0, (void *) "ctx", XSTRLEN("ctx")));
+    AssertIntEQ(1, CyaSSL_UseSNI(    ssl,  0, (void *) "ssl", XSTRLEN("ssl")));
 
     CyaSSL_free(ssl);
     CyaSSL_CTX_free(ctx);
@@ -491,24 +496,24 @@ static void test_CyaSSL_UseMaxFragment(void)
     AssertNotNull(ssl);
 
     /* error cases */
-    AssertIntNE(0, CyaSSL_CTX_UseMaxFragment(NULL, CYASSL_MFL_2_9));
-    AssertIntNE(0, CyaSSL_UseMaxFragment(    NULL, CYASSL_MFL_2_9));
-    AssertIntNE(0, CyaSSL_CTX_UseMaxFragment(ctx, 0));
-    AssertIntNE(0, CyaSSL_CTX_UseMaxFragment(ctx, 6));
-    AssertIntNE(0, CyaSSL_UseMaxFragment(ssl, 0));
-    AssertIntNE(0, CyaSSL_UseMaxFragment(ssl, 6));
+    AssertIntNE(1, CyaSSL_CTX_UseMaxFragment(NULL, CYASSL_MFL_2_9));
+    AssertIntNE(1, CyaSSL_UseMaxFragment(    NULL, CYASSL_MFL_2_9));
+    AssertIntNE(1, CyaSSL_CTX_UseMaxFragment(ctx, 0));
+    AssertIntNE(1, CyaSSL_CTX_UseMaxFragment(ctx, 6));
+    AssertIntNE(1, CyaSSL_UseMaxFragment(ssl, 0));
+    AssertIntNE(1, CyaSSL_UseMaxFragment(ssl, 6));
 
     /* success case */
-    AssertIntEQ(0, CyaSSL_CTX_UseMaxFragment(ctx,  CYASSL_MFL_2_9));
-    AssertIntEQ(0, CyaSSL_CTX_UseMaxFragment(ctx,  CYASSL_MFL_2_10));
-    AssertIntEQ(0, CyaSSL_CTX_UseMaxFragment(ctx,  CYASSL_MFL_2_11));
-    AssertIntEQ(0, CyaSSL_CTX_UseMaxFragment(ctx,  CYASSL_MFL_2_12));
-    AssertIntEQ(0, CyaSSL_CTX_UseMaxFragment(ctx,  CYASSL_MFL_2_13));
-    AssertIntEQ(0, CyaSSL_UseMaxFragment(    ssl,  CYASSL_MFL_2_9));
-    AssertIntEQ(0, CyaSSL_UseMaxFragment(    ssl,  CYASSL_MFL_2_10));
-    AssertIntEQ(0, CyaSSL_UseMaxFragment(    ssl,  CYASSL_MFL_2_11));
-    AssertIntEQ(0, CyaSSL_UseMaxFragment(    ssl,  CYASSL_MFL_2_12));
-    AssertIntEQ(0, CyaSSL_UseMaxFragment(    ssl,  CYASSL_MFL_2_13));
+    AssertIntEQ(1, CyaSSL_CTX_UseMaxFragment(ctx,  CYASSL_MFL_2_9));
+    AssertIntEQ(1, CyaSSL_CTX_UseMaxFragment(ctx,  CYASSL_MFL_2_10));
+    AssertIntEQ(1, CyaSSL_CTX_UseMaxFragment(ctx,  CYASSL_MFL_2_11));
+    AssertIntEQ(1, CyaSSL_CTX_UseMaxFragment(ctx,  CYASSL_MFL_2_12));
+    AssertIntEQ(1, CyaSSL_CTX_UseMaxFragment(ctx,  CYASSL_MFL_2_13));
+    AssertIntEQ(1, CyaSSL_UseMaxFragment(    ssl,  CYASSL_MFL_2_9));
+    AssertIntEQ(1, CyaSSL_UseMaxFragment(    ssl,  CYASSL_MFL_2_10));
+    AssertIntEQ(1, CyaSSL_UseMaxFragment(    ssl,  CYASSL_MFL_2_11));
+    AssertIntEQ(1, CyaSSL_UseMaxFragment(    ssl,  CYASSL_MFL_2_12));
+    AssertIntEQ(1, CyaSSL_UseMaxFragment(    ssl,  CYASSL_MFL_2_13));
 
     CyaSSL_free(ssl);
     CyaSSL_CTX_free(ctx);
@@ -525,19 +530,44 @@ static void test_CyaSSL_UseTruncatedHMAC(void)
     AssertNotNull(ssl);
 
     /* error cases */
-    AssertIntNE(0, CyaSSL_CTX_UseTruncatedHMAC(NULL));
-    AssertIntNE(0, CyaSSL_UseTruncatedHMAC(NULL));
+    AssertIntNE(1, CyaSSL_CTX_UseTruncatedHMAC(NULL));
+    AssertIntNE(1, CyaSSL_UseTruncatedHMAC(NULL));
 
     /* success case */
-    AssertIntEQ(0, CyaSSL_CTX_UseTruncatedHMAC(ctx));
-    AssertIntEQ(0, CyaSSL_UseTruncatedHMAC(ssl));
+    AssertIntEQ(1, CyaSSL_CTX_UseTruncatedHMAC(ctx));
+    AssertIntEQ(1, CyaSSL_UseTruncatedHMAC(ssl));
 
     CyaSSL_free(ssl);
     CyaSSL_CTX_free(ctx);
 }
 #endif /* HAVE_TRUNCATED_HMAC */
 
-#endif /* HAVE_TLS_EXTENSIONS */
+#ifdef HAVE_SUPPORTED_CURVES
+static void test_CyaSSL_UseSupportedCurve(void)
+{
+    CYASSL_CTX *ctx = CyaSSL_CTX_new(CyaSSLv23_client_method());
+    CYASSL     *ssl = CyaSSL_new(ctx);
+
+    AssertNotNull(ctx);
+    AssertNotNull(ssl);
+
+#ifndef NO_CYASSL_CLIENT
+    /* error cases */
+    AssertIntNE(1, CyaSSL_CTX_UseSupportedCurve(NULL, CYASSL_ECC_SECP160R1));
+    AssertIntNE(1, CyaSSL_CTX_UseSupportedCurve(ctx,  0));
+
+    AssertIntNE(1, CyaSSL_UseSupportedCurve(NULL, CYASSL_ECC_SECP160R1));
+    AssertIntNE(1, CyaSSL_UseSupportedCurve(ssl,  0));
+
+    /* success case */
+    AssertIntEQ(1, CyaSSL_CTX_UseSupportedCurve(ctx, CYASSL_ECC_SECP160R1));
+    AssertIntEQ(1, CyaSSL_UseSupportedCurve(ssl, CYASSL_ECC_SECP160R1));
+#endif
+
+    CyaSSL_free(ssl);
+    CyaSSL_CTX_free(ctx);
+}
+#endif /* HAVE_SUPPORTED_CURVES */
 
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
 /* Helper for testing CyaSSL_CTX_use_certificate_file() */

@@ -348,10 +348,10 @@ struct DecodedCert {
     word32  extAuthKeyIdSz;
     byte*   extSubjKeyIdSrc;
     word32  extSubjKeyIdSz;
-    #ifdef HAVE_ECC
-        word32 pkCurveOID;           /* Public Key's curve OID */
-    #endif /* HAVE_ECC */
 #endif
+#ifdef HAVE_ECC
+    word32  pkCurveOID;           /* Public Key's curve OID */
+#endif /* HAVE_ECC */
     byte*   beforeDate;
     int     beforeDateLen;
     byte*   afterDate;
