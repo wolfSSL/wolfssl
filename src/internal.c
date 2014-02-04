@@ -3936,7 +3936,6 @@ static int DtlsMsgDrain(CYASSL* ssl)
 {
     DtlsMsg* item = ssl->dtls_msg_list;
     int ret = 0;
-    word32 idx = 0;
 
     /* While there is an item in the store list, and it is the expected
      * message, and it is complete, and there hasn't been an error in the
@@ -3945,6 +3944,7 @@ static int DtlsMsgDrain(CYASSL* ssl)
             ssl->keys.dtls_expected_peer_handshake_number == item->seq &&
             item->fragSz == item->sz &&
             ret == 0) {
+        word32 idx = 0;
         ssl->keys.dtls_expected_peer_handshake_number++;
         ret = DoHandShakeMsgType(ssl, item->msg,
                                  &idx, item->type, item->sz, item->sz);
