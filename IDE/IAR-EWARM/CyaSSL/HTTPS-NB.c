@@ -1,4 +1,4 @@
-/* HTTPS-NB.c
+/* https-nb.c
  *
  * Copyright (C) 2006-2014 wolfSSL Inc.
  *
@@ -22,7 +22,7 @@
 #ifdef HAVE_CONFIG_H
     #include <config.h>
 #endif
- 
+
 #include <cyassl/ctaocrypt/settings.h>
 
 #if defined(HAVE_LWIP_NATIVE)
@@ -59,60 +59,21 @@ static unsigned long getPort(void) {
       return (localPort++ + 0x200) & 0x7fff ;
 }
 
-static err_t DataConnectedCallback (void *arg, struct tcp_pcb *pcb, s8_t err)
+static err_t TcpConnectedCallback (void *arg, struct tcp_pcb *pcb, s8_t err)
 {
-    DBG_PRINTF("DataConnectedCallback(arg=%x, pcb=%x, err=%x)\n", arg, pcb, err) ;
+    DBG_PRINTF("TcpConnectedCallback(arg=%x, pcb=%x, err=%x)\n", arg, pcb, err) ;
     *(enum HTTPS_Stat *)arg = TCP_CONNECTED ;
-    return ERR_OK;
-}
-
-
-static err_t DataSentCallback (void *arg, struct tcp_pcb *pcb, u16_t err)
-{
-    DBG_PRINTF("LwIPtest: Data Sent(SentCallBack1)\n") ;
     return ERR_OK;
 }
 
 static err_t DataReceiveCallback(void *arg, struct tcp_pcb *pcb, struct pbuf *p, err_t err)
 {
-    struct pbuf *next ;
-    CYASSL *ssl ;
-    ssl = (CYASSL *)arg ;
-    
-    DBG_PRINTF("LwIPtest: Data Received(DataReceiveCallback), pbuf->len=%d, err=%d\n", p->tot_len , err) ;
-    
-    if(p==0) { /* throw away */
+    DBG_PRINTF("DataReceiveCallback, pbuf->len=%d, err=%d\n", p->tot_len , err) ;
+    if(*(enum HTTPS_Stat *)(arg) == WAITING) {
+        *(enum HTTPS_Stat *)(arg) = HTTP_RECEIVE ;
         return ERR_OK ;
-    }
-    if(*(enum HTTPS_Stat *)(ssl->lwipCtx.arg) == WAITING) {
-        *(enum HTTPS_Stat *)(ssl->lwipCtx.arg) = HTTP_RECEIVE ;
-    } else { 
-        CyaSSL_PbufFree(p) ;
-        tcp_recved(pcb,p->tot_len) ;
-        return ERR_OK ;
-    }
-    /* put it into the queue */
-    if(ssl->lwipCtx.pbuf) {
-        next = ssl->lwipCtx.pbuf ;
-        while(1) {
-            DBG_PRINTF("pbuf=%x, pbuf->next=%x, ",ssl->lwipCtx.pbuf, next) ;
-            if(next->next)
-                next = next->next ;
-            else break ;
-        }
-        next->next = p ;
-        ssl->lwipCtx.pbuf->tot_len += p->tot_len ;
-    } else {
-        ssl->lwipCtx.pbuf = p ;
-    }
-    ssl->lwipCtx.pulled = 0 ;
-
-    if(ssl->lwipCtx.wait < 0)
-        ssl->lwipCtx.wait = 1000 ;
-    ssl->lwipCtx.pulled = 0 ;
-    return ERR_OK;
+    } else return !ERR_OK ;
 }
-
 
 static int count = 0 ;
 
@@ -140,14 +101,15 @@ int CyaSSL_HTTPS_Client_NB(void *nb)
 
     switch(https_nb->stat) {
     case BEGIN:
-        printf("======= LwIP: HTTPS Client Test(%x): %d =========\n", nb, count ++) ;
+        printf("======= LwIP: HTTPS Client Test(%x): %d ====\n", nb, count ++) ;
         /*** Assuming LwIP has been initialized ***/
         https_nb->stat = INITIALIZED ; 
     case INITIALIZED:
         https_nb->pcb = tcp_new();
         if(https_nb->pcb) {
     	        tcp_arg(https_nb->pcb, (void *)&(https_nb->stat)) ;    
-                DBG_PRINTF("LwIPtest: New PCB(tcp_new=%x), &https->stat=%x\n", https_nb->pcb, &https_nb->stat) ;
+                DBG_PRINTF("New PCB(tcp_new=%x), &https->stat=%x\n",
+                                           https_nb->pcb, &https_nb->stat) ;
         } else {
     	    ERR_PRINTF("tcp_new, ret=%d\n", https_nb->pcb) ;
             https_nb->stat = IDLE ;
@@ -179,7 +141,7 @@ int CyaSSL_HTTPS_Client_NB(void *nb)
               (*(unsigned long *)&https_nb->serverIP_em>>16)&0xff, 
               (*(unsigned long *)&https_nb->serverIP_em>>24)&0xff) ;
         ret = tcp_connect(https_nb->pcb, &(https_nb->serverIP_em),
-                          https_nb->serverPort, DataConnectedCallback); 
+                          https_nb->serverPort, TcpConnectedCallback); 
  
         if(ret == ERR_OK) {
     	     https_nb->stat = WAITING ;
@@ -212,35 +174,35 @@ int CyaSSL_HTTPS_Client_NB(void *nb)
             return !ERR_OK ;
         }
         
-        CyaSSL_SetIO_LwIP(https_nb->ssl, https_nb->pcb);
-        CyaSSL_SetVersion(https_nb->ssl, CYASSL_TLSV1_2) ;
-        https_nb->stat = SSL_CONN ;      
+        CyaSSL_SetIO_LwIP(https_nb->ssl, https_nb->pcb, 
+                          DataReceiveCallback, NULL, (void *)&https_nb->stat);
+
+        https_nb->stat = SSL_CONN ;
         
     case SSL_CONN: /* handshaking */
-
         if(LwIP_cb_mutex) return ERR_OK ;
         ret = CyaSSL_connect(https_nb->ssl); 
-        DBG_PRINTF("LwIPtest: SSL Connecting(CyaSSL_connect), ret = %d\n", ret) ;
+        DBG_PRINTF("CyaSSL_connect, ret = %d\n", ret) ;
         if(ret == SSL_SUCCESS) {
-            https_nb->stat = SSL_CONN_WAITING ;
-            DBG_PRINTF("LwIPtest: SSL Connected\n") ;
+            DBG_PRINTF("SSL Connected\n") ;
             https_nb->stat = HTTP_SEND ;
         } else {
             ret = CyaSSL_get_error(https_nb->ssl, NULL) ;
             if(ret == SSL_ERROR_WANT_READ) {
-                https_nb->ssl->lwipCtx.wait = -1 ;
-                https_nb->stat = SSL_CONN_WAITING ;
+                 https_nb->ssl->lwipCtx.wait = -1 ;
+                 https_nb->stat = SSL_CONN_WAITING ;
                 return ERR_OK ;
             } else {
                 ERR_PRINTF("CyaSSL_connecting_NB:ssl=%x, ret=%d\n", https_nb->ssl, ret) ;   
                 return !ERR_OK ;
             }
         }
-        return ERR_OK ;
-        
+        return ERR_OK ; 
+         
     case SSL_CONN_WAITING:
-        if(https_nb->ssl->lwipCtx.wait-- == 0) { /* counting down after the callback 
-               for multiple callbacks */
+
+        if(https_nb->ssl->lwipCtx.wait-- == 0) { 
+            /* counting down after the callback for multiple callbacks */
             https_nb->stat = SSL_CONN ;
             LwIP_cb_mutex = 0 ; 
         }
@@ -253,23 +215,18 @@ int CyaSSL_HTTPS_Client_NB(void *nb)
         int size ;
         if(LwIP_cb_mutex)return ERR_OK ;
         else LwIP_cb_mutex = 1 ; /* lock */
-        printf("LwIPtest: SSL CONNECTED(%x)\n", https_nb) ;
-        CyaSSL_NB_setCallbackArg(https_nb->ssl, &(https_nb->stat)) ;
-        tcp_sent(https_nb->pcb, DataSentCallback); 
-        tcp_recv(https_nb->pcb, DataReceiveCallback); 
-
-        DBG_PRINTF("LwIPtest: HTTPS GET(%x)\n", https_nb) ;
+        printf("SSL CONNECTED(%x)\n", https_nb) ;
         sprintf(sendBuff,
                 "GET %s HTTP/1.0\r\nHost: %s\r\nConnection: close\r\n\r\n", 
                 https_nb->path, https_nb->hostname) ;
         size = strlen((char const *)sendBuff) ;
-        
+
         CyaSSL_write(https_nb->ssl, sendBuff, size) ;
 
         https_nb->stat = WAITING ;
         return ERR_OK;
     }
-      
+
     case HTTP_RECEIVE: 
     {
         #define HTTP_BUFF_SIZE 2048
@@ -278,9 +235,9 @@ int CyaSSL_HTTPS_Client_NB(void *nb)
         LwIP_cb_mutex = 0 ;
         memset(httpbuff, '\0', HTTP_BUFF_SIZE) ;
         ret = CyaSSL_read(https_nb->ssl, httpbuff, HTTP_BUFF_SIZE) ;
-        printf("LwIPtest: HTTPS GET(%x), Received(%d)\n",https_nb, strlen(httpbuff)) ;
-        /* puts(httpbuff) ;*/ 
-        puts("===================\n") ; 
+        printf("HTTPS GET(%x), Received(%d)\n",https_nb, strlen(httpbuff)) ;
+        /* puts(httpbuff) ; */ 
+        /* puts("===================\n") ; */
     }
     case SSL_CLOSE:  
     {
@@ -332,12 +289,12 @@ void *CyaSSL_HTTPS_ClientP_5 = (void *)&CyaSSL_HTTPS_Client_5 ;
 
 #define HTTPS_PORT   443
 #define IP_ADDR(a,b,c,d) (((a)|((b)<<8)|((c)<<16)|(d)<<24))
-static struct ip_addr server_em = { IP_ADDR(xxx,xxx,xxx,xxx) } ;
+static struct ip_addr server_em = { IP_ADDR(192,168,11,9) } ; 
 
 void HTTPSClient_main_init() {
 
   CyaSSL_HTTPS_Client_NB_init(CyaSSL_HTTPS_ClientP_1, 
-                           server_em, HTTPS_PORT, "xxx.com", "/") ;
+                              server_em, HTTPS_PORT, "xxx.com", "/") ;
   CyaSSL_HTTPS_Client_NB_init(CyaSSL_HTTPS_ClientP_2, 
                               server_em, HTTPS_PORT, "xxx.com", "/") ;
   CyaSSL_HTTPS_Client_NB_init(CyaSSL_HTTPS_ClientP_3, 

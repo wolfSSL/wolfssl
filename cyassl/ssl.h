@@ -940,7 +940,7 @@ CYASSL_API void CyaSSL_SetIOWriteFlags(CYASSL* ssl, int flags);
                                       ULONG waitoption);
 #endif
 #ifdef HAVE_LWIP_NATIVE
-    CYASSL_API int CyaSSL_SetIO_LwIP(CYASSL* ssl, void *pcb);
+    #include "lwip/tcp.h"
 #endif
 typedef int (*CallbackGenCookie)(CYASSL* ssl, unsigned char* buf, int sz,
                                  void* ctx);
