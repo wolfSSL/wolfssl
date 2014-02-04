@@ -964,9 +964,9 @@ int  SetCipherList(Suites*, const char* list);
 #ifdef HAVE_LWIP_NATIVE
     CYASSL_LOCAL int CyaSSL_LwIP_Send(CYASSL* ssl, char *buf, int sz, void *cb);
     CYASSL_LOCAL int CyaSSL_LwIP_Receive(CYASSL* ssl, char *buf, int sz, void *cb);
-    CYASSL_LOCAL void CyaSSL_NB_setCallbackArg(CYASSL *ssl, void *arg) ;
-    CYASSL_LOCAL void CyaSSL_PbufFree(void *p);
-#endif /* HAVE_{tcp stack} */
+    CYASSL_API int CyaSSL_SetIO_LwIP(CYASSL* ssl, void *pcb, 
+                                tcp_recv_fn recv, tcp_sent_fn sent, void *arg);
+#endif /* HAVE_LWIP_NATIVE */
 
 /* CyaSSL Cipher type just points back to SSL */
 struct CYASSL_CIPHER {
@@ -1806,6 +1806,8 @@ typedef struct DtlsMsg {
     /* LwIP native tpc socket context */
     typedef struct LwIP_native_Ctx {
         struct tcp_pcb * pcb ;
+        tcp_recv_fn recv ;
+        tcp_sent_fn sent ;
         int    pulled  ; 
         struct pbuf *pbuf ;
         int    wait ;
