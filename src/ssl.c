@@ -631,6 +631,19 @@ int CyaSSL_UseSupportedCurve(CYASSL* ssl, word16 name)
     if (ssl == NULL)
         return BAD_FUNC_ARG;
 
+    switch (name) {
+        case CYASSL_ECC_SECP160R1:
+        case CYASSL_ECC_SECP192R1:
+        case CYASSL_ECC_SECP224R1:
+        case CYASSL_ECC_SECP256R1:
+        case CYASSL_ECC_SECP384R1:
+        case CYASSL_ECC_SECP521R1:
+            break;
+
+        default:
+            return BAD_FUNC_ARG;
+    }
+
     return TLSX_UseSupportedCurve(&ssl->extensions, name);
 }
 
@@ -638,6 +651,19 @@ int CyaSSL_CTX_UseSupportedCurve(CYASSL_CTX* ctx, word16 name)
 {
     if (ctx == NULL)
         return BAD_FUNC_ARG;
+
+    switch (name) {
+        case CYASSL_ECC_SECP160R1:
+        case CYASSL_ECC_SECP192R1:
+        case CYASSL_ECC_SECP224R1:
+        case CYASSL_ECC_SECP256R1:
+        case CYASSL_ECC_SECP384R1:
+        case CYASSL_ECC_SECP521R1:
+            break;
+
+        default:
+            return BAD_FUNC_ARG;
+    }
 
     return TLSX_UseSupportedCurve(&ctx->extensions, name);
 }
