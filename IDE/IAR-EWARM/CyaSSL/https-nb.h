@@ -18,6 +18,9 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  */
+ 
+#ifndef HTTPS_NB_H
+#define HTTPS_NB_H
 
 extern int CyaSSL_GetDataFromPbuf(char *buff, struct pbuf *p, int size) ;
 
@@ -69,3 +72,5 @@ typedef struct {
 extern void CyaSSL_HTTPS_Client_NB_init(void *nb, 
      struct ip_addr svIP, unsigned long svPort, char *host, char *path) ;
 extern int CyaSSL_HTTPS_Client_NB(void *nb) ;
+
+#endif

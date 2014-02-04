@@ -1055,9 +1055,11 @@ void CyaSSL_SetIO_NetX(CYASSL* ssl, NX_TCP_SOCKET* nxSocket, ULONG waitOption)
 /*Enable debug*/
 #include <cstdio>
 #define DBG_PRINTF(x, ...) printf("[SSLClient : DBG]"x"\r\n", ##__VA_ARGS__);
+#define ERR_PRINTF(x, ...) printf("[SSLClient:ERROR]"x"\r\n", ##__VA_ARGS__);
 #else
 /*Disable debug*/
 #define DBG_PRINTF(x, ...)
+#define ERR_PRINTF(x, ...) err_sys(x)
 #endif
 
 #if 0
@@ -1067,8 +1069,6 @@ void CyaSSL_SetIO_NetX(CYASSL* ssl, NX_TCP_SOCKET* nxSocket, ULONG waitOption)
 /*Disable debug*/
 #define DBG_PRINTF_CB(x, ...)
 #endif
-
-#define ERR_PRINTF(x, ...) printf("[SSLClient:ERROR]"x"\r\n", ##__VA_ARGS__);
 
 void CyaSSL_PbufFree(void *vp)
 {

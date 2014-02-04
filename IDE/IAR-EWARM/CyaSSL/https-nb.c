@@ -24,23 +24,16 @@
 #endif
  
 #include <cyassl/ctaocrypt/settings.h>
- 
-#if defined(CYASSL_MDK_ARM)
-      #include <stdio.h>
-        #include <string.h>
-        #include <rtl.h>
-        #include "cyassl_MDK_ARM.h"
-#endif
+
+#if defined(HAVE_LWIP_NATIVE)
 
 #if defined(CYASSL_IAR_ARM)
     #include <stdio.h>
     #include <string.h>
 #endif
 
-#if defined(CYASSL_LWIP)
 #include "lwip/tcp.h"
 #include "lwip/sockets.h"
-#endif
 
 #include <cyassl/ctaocrypt/settings.h>
 #include <cyassl/ssl.h>
@@ -52,14 +45,14 @@
 /*Enable debug*/
 #include <cstdio>
 #define DBG_PRINTF(x, ...) printf("[HTTPSClient : DBG]"x"\r\n", ##__VA_ARGS__);
+#define ERR_PRINTF(x, ...) printf("[HTTPSClient:ERROR]"x"\r\n", ##__VA_ARGS__);
 #else
 /*Disable debug*/
 #define DBG_PRINTF(x, ...)
+#define ERR_PRINTF(x, ...)
 #endif
 
-#define ERR_PRINTF(x, ...) printf("[HTTPSClient:ERROR]"x"\r\n", ##__VA_ARGS__);
- 
-static int CyaSSL_cb_mutex = 0 ; 
+static int LwIP_cb_mutex = 0 ; 
 
 static unsigned long localPort = 0 ;
 static unsigned long getPort(void) {
@@ -72,6 +65,7 @@ static err_t DataConnectedCallback (void *arg, struct tcp_pcb *pcb, s8_t err)
     *(enum HTTPS_Stat *)arg = TCP_CONNECTED ;
     return ERR_OK;
 }
+
 
 static err_t DataSentCallback (void *arg, struct tcp_pcb *pcb, u16_t err)
 {
@@ -119,6 +113,7 @@ static err_t DataReceiveCallback(void *arg, struct tcp_pcb *pcb, struct pbuf *p,
     return ERR_OK;
 }
 
+
 static int count = 0 ;
 
 void CyaSSL_HTTPS_Client_NB_init(void *nb, 
@@ -146,12 +141,6 @@ int CyaSSL_HTTPS_Client_NB(void *nb)
     switch(https_nb->stat) {
     case BEGIN:
         printf("======= LwIP: HTTPS Client Test(%x): %d =========\n", nb, count ++) ;
-        {
-             void * p ;
-             p = (void *)malloc(1) ;
-             printf("Watermark=%x\n", p) ;
-             free(p) ;
-        }
         /*** Assuming LwIP has been initialized ***/
         https_nb->stat = INITIALIZED ; 
     case INITIALIZED:
@@ -181,8 +170,8 @@ int CyaSSL_HTTPS_Client_NB(void *nb)
         }
 
     case TCP_CONNECT:
-        if(CyaSSL_cb_mutex)return ERR_OK ;
-        else CyaSSL_cb_mutex = 1 ;
+        if(LwIP_cb_mutex)return ERR_OK ;
+        else LwIP_cb_mutex = 1 ;
         DBG_PRINTF("LwIPtest: TCP_CONNECT(%x)\n", https_nb) ;
         DBG_PRINTF("LwIPtest: Server IP Addrress(%d.%d.%d.%d)\n", 
               (*(unsigned long *)&https_nb->serverIP_em&0xff),
@@ -203,7 +192,7 @@ int CyaSSL_HTTPS_Client_NB(void *nb)
         
     case TCP_CONNECTED:
         printf("LwIPtest: TCP CONNECTED(%x)\n", https_nb) ;
-        CyaSSL_cb_mutex = 0 ; 
+        LwIP_cb_mutex = 0 ; 
 
         /*CyaSSLv3_client_method()
         CyaTLSv1_client_method()
@@ -229,7 +218,7 @@ int CyaSSL_HTTPS_Client_NB(void *nb)
         
     case SSL_CONN: /* handshaking */
 
-        if(CyaSSL_cb_mutex) return ERR_OK ;
+        if(LwIP_cb_mutex) return ERR_OK ;
         ret = CyaSSL_connect(https_nb->ssl); 
         DBG_PRINTF("LwIPtest: SSL Connecting(CyaSSL_connect), ret = %d\n", ret) ;
         if(ret == SSL_SUCCESS) {
@@ -253,7 +242,7 @@ int CyaSSL_HTTPS_Client_NB(void *nb)
         if(https_nb->ssl->lwipCtx.wait-- == 0) { /* counting down after the callback 
                for multiple callbacks */
             https_nb->stat = SSL_CONN ;
-            CyaSSL_cb_mutex = 0 ; 
+            LwIP_cb_mutex = 0 ; 
         }
         return ERR_OK ;
     
@@ -262,8 +251,8 @@ int CyaSSL_HTTPS_Client_NB(void *nb)
         #define SEND_BUFF_SIZE 100
         char sendBuff[SEND_BUFF_SIZE] ;    
         int size ;
-        if(CyaSSL_cb_mutex)return ERR_OK ;
-        else CyaSSL_cb_mutex = 1 ; /* lock */
+        if(LwIP_cb_mutex)return ERR_OK ;
+        else LwIP_cb_mutex = 1 ; /* lock */
         printf("LwIPtest: SSL CONNECTED(%x)\n", https_nb) ;
         CyaSSL_NB_setCallbackArg(https_nb->ssl, &(https_nb->stat)) ;
         tcp_sent(https_nb->pcb, DataSentCallback); 
@@ -286,7 +275,7 @@ int CyaSSL_HTTPS_Client_NB(void *nb)
         #define HTTP_BUFF_SIZE 2048
         char httpbuff[HTTP_BUFF_SIZE] ;
         
-        CyaSSL_cb_mutex = 0 ;
+        LwIP_cb_mutex = 0 ;
         memset(httpbuff, '\0', HTTP_BUFF_SIZE) ;
         ret = CyaSSL_read(https_nb->ssl, httpbuff, HTTP_BUFF_SIZE) ;
         printf("LwIPtest: HTTPS GET(%x), Received(%d)\n",https_nb, strlen(httpbuff)) ;
@@ -327,6 +316,7 @@ int CyaSSL_HTTPS_Client_NB(void *nb)
         CyaSSL_HTTPS_Client_NB
                                                                      */
 /*********************************************************************/
+#ifndef NO_MAIN_DRIVER
 
 CYASSL_HTTPS_NB CyaSSL_HTTPS_Client_1 ;
 void *CyaSSL_HTTPS_ClientP_1 = (void *)&CyaSSL_HTTPS_Client_1 ;
@@ -344,7 +334,6 @@ void *CyaSSL_HTTPS_ClientP_5 = (void *)&CyaSSL_HTTPS_Client_5 ;
 #define IP_ADDR(a,b,c,d) (((a)|((b)<<8)|((c)<<16)|(d)<<24))
 static struct ip_addr server_em = { IP_ADDR(192,168,11,9) } ;
 
-
 void HTTPSClient_main_init() {
 
   CyaSSL_HTTPS_Client_NB_init(CyaSSL_HTTPS_ClientP_1, 
@@ -361,7 +350,6 @@ void HTTPSClient_main_init() {
  
 void HTTPSClient_main(int i)
 {
-   
     if((i % 1) == 0) { /* wait for initializing TCP/IP, DHCP */
         CyaSSL_HTTPS_Client_NB(CyaSSL_HTTPS_ClientP_1) ;
     }
@@ -383,3 +371,6 @@ void HTTPSClient_main(int i)
     }
 
 }
+
+#endif /* NO_MAIN_DRIVER  */
+#endif /* HAVE_LWIP_NATIVE */
