@@ -289,7 +289,7 @@ void *CyaSSL_HTTPS_ClientP_5 = (void *)&CyaSSL_HTTPS_Client_5 ;
 
 #define HTTPS_PORT   443
 #define IP_ADDR(a,b,c,d) (((a)|((b)<<8)|((c)<<16)|(d)<<24))
-static struct ip_addr server_em = { IP_ADDR(192,168,11,9) } ; 
+static struct ip_addr server_em = { IP_ADDR(xxx,xxx,xxx,xxx) } ; 
 
 void HTTPSClient_main_init() {
 
