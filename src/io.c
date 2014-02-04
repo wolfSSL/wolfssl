@@ -1176,9 +1176,14 @@ err_t CyaSSL_LwIP_recv_cb(void *cb, struct tcp_pcb *pcb, struct pbuf *p, s8_t er
     return ERR_OK;
 }
 
-err_t  CyaSSL_LwIP_sent_cb(void *arg, struct tcp_pcb *pcb, u16_t err)
+err_t  CyaSSL_LwIP_sent_cb(void *cb, struct tcp_pcb *pcb, u16_t err)
 {
+    CYASSL *ssl ;
+    ssl = (CYASSL *)cb ;
     DBG_PRINTF_CB("CaSSL_LwIP_write_cb, err=%d\n", err) ;
+    if(ssl->lwipCtx.sent)
+        return ssl->lwipCtx.sent(ssl->lwipCtx.arg, pcb, err) ; 
+                                                      /* user callback */
     return ERR_OK;
 }
 
