@@ -35,11 +35,33 @@ before calling SSL_new();  Though it's not recommended.
 *** end Notes ***
 
 
-CyaSSL Release 2.9.0 (X/XX/XXXX)
+CyaSSL Release 2.9.0 (02/07/2014)
 
 Release 2.9.0 CyaSSL has bug fixes and new features including:
 - Freescale Kinetis RNGB support
 - Freescale Kinetis mmCAU support
+- TLS Hello extensions
+  - ECC
+  - Secure Renegotiation (null) 
+  - Truncated HMAC
+- SCEP support
+  - PKCS #7 Enveloped data and signed data
+  - PKCS #10 Certificate Signing Request generation
+- DTLS sliding window
+- OCSP Improvements
+  - API change to integrate into Certificate Manager
+  - IPv4/IPv6 agnostic
+  - example client/server support for OCSP
+  - OCSP nonces are optional
+- GMAC hashing
+- Windows build additions
+- Windows CYGWIN build fixes
+- Updated test certificates
+- Microchip MPLAB Harmony support
+- Update autoconf scripts
+- Additional X.509 inspection functions
+- ECC encrypt/decrypt primitives
+- ECC Certificate generation
 
 The Freescale Kinetis K53 RNGB documentation can be found in Chapter 33 of the
 K53 Sub-Family Reference Manual:
