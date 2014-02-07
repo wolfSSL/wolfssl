@@ -3418,7 +3418,8 @@ int ParseCert(DecodedCert* cert, int type, int verify, void* cm)
         cert->subjectCNStored = 1;
     }
 
-    if (cert->keyOID == RSAk && cert->pubKeySize > 0) {
+    if (cert->keyOID == RSAk &&
+                          cert->publicKey != NULL  && cert->pubKeySize > 0) {
         ptr = (char*) XMALLOC(cert->pubKeySize, cert->heap,
                               DYNAMIC_TYPE_PUBLIC_KEY);
         if (ptr == NULL)

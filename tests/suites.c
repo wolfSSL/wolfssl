@@ -80,8 +80,8 @@ static int IsValidCipherSuite(const char* line, char* suite)
     int  valid = 0;
 
     const char* find = "-l ";
-    char* begin = strstr(line, find);
-    char* end;
+    const char* begin = strstr(line, find);
+    const char* end;
 
     suite[0] = '\0';
 
