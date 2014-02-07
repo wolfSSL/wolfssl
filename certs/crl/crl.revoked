@@ -2,40 +2,40 @@ Certificate Revocation List (CRL):
         Version 2 (0x1)
     Signature Algorithm: sha1WithRSAEncryption
         Issuer: /C=US/ST=Montana/L=Bozeman/O=Sawtooth/OU=Consulting/CN=www.yassl.com/emailAddress=info@yassl.com
-        Last Update: Jun 17 21:32:30 2013 GMT
-        Next Update: Dec 14 21:32:30 2013 GMT
+        Last Update: Feb  7 20:14:06 2014 GMT
+        Next Update: Feb  7 20:14:06 2015 GMT
         CRL extensions:
             X509v3 CRL Number: 
-                86
+                2
 Revoked Certificates:
     Serial Number: 02
-        Revocation Date: Jun 17 21:32:30 2013 GMT
+        Revocation Date: Feb  7 20:14:06 2014 GMT
     Signature Algorithm: sha1WithRSAEncryption
-         87:3b:bb:ac:6b:1a:e8:96:87:6f:a3:8e:39:77:28:01:a7:ea:
-         76:36:c2:48:e2:41:02:3f:f3:f7:64:09:60:91:87:9e:57:74:
-         38:a0:c3:20:47:7d:82:4b:2c:34:23:fe:66:dc:2b:3e:8a:a1:
-         d9:e3:06:ec:75:0f:b1:ef:32:e2:28:ab:7d:40:2c:82:59:74:
-         c9:95:b5:62:a6:6a:8e:34:e6:f6:f8:91:ff:aa:c1:21:93:79:
-         cb:6f:dc:be:94:21:b1:c8:dd:9e:b8:fe:ad:e8:50:6e:0d:76:
-         92:32:54:51:96:cd:c7:be:d2:0f:6f:63:69:5f:b3:28:c1:57:
-         0e:61:f7:62:81:9f:ea:e7:a5:14:89:41:56:63:46:da:bc:d8:
-         e0:78:44:c6:c7:1a:ab:1b:f1:0b:59:d5:4e:6d:14:bc:16:c2:
-         02:43:06:0b:f4:16:6e:26:8c:36:09:61:0c:53:3f:72:85:64:
-         33:4d:bf:70:44:c8:23:83:c3:51:98:a8:14:f7:b2:03:a1:7b:
-         72:48:4d:24:d0:a8:a9:22:3d:9b:94:bf:24:24:01:6f:2e:4b:
-         2b:21:24:8f:64:46:20:79:45:b3:45:1a:4f:93:10:e1:8d:04:
-         4c:8d:83:63:96:9f:28:c5:37:0f:10:8e:02:9b:4d:96:8b:ea:
-         a3:31:88:9f
+         10:5d:b1:d0:79:d2:8a:15:2d:40:0b:44:d6:d9:df:58:73:eb:
+         55:2c:81:fe:e1:7b:62:48:8f:34:c5:06:51:e5:e8:50:70:8c:
+         12:ba:e3:6e:fe:7d:0d:ce:44:08:9d:dc:d9:57:43:6c:54:12:
+         82:d4:ed:6c:71:e5:74:44:bd:d1:a8:98:96:63:8b:68:5f:d2:
+         87:28:dd:99:4f:aa:ba:8e:18:9e:c4:4f:69:9e:66:13:03:28:
+         5f:3c:35:01:15:77:22:7c:ed:c5:4a:67:44:af:85:7f:df:8a:
+         fd:49:8b:e1:be:52:e3:ca:e8:ae:a3:ad:07:91:2c:51:c6:28:
+         5f:26:17:14:39:5d:4e:21:9f:11:6f:c4:a2:ef:ef:b8:ec:27:
+         af:45:ad:b9:ed:e0:14:09:60:a0:50:ee:dd:f7:b1:3e:58:c4:
+         0d:e8:b5:0b:a9:0d:98:ad:7c:74:ab:1c:d6:fa:c8:7d:e7:5a:
+         3b:91:23:d5:62:ba:d4:e4:be:58:78:fe:09:ba:63:f6:9e:2c:
+         3f:93:c2:fe:de:c5:00:21:50:39:91:ac:71:e6:fc:4a:37:a4:
+         e4:e9:5e:e7:ac:8d:95:21:d6:76:aa:10:a8:3c:28:3e:ef:1c:
+         64:58:e9:1e:f6:7e:54:f3:cb:bb:ed:6f:5d:27:5a:b1:4b:91:
+         8e:8c:67:7d
 -----BEGIN X509 CRL-----
 MIICADCB6QIBATANBgkqhkiG9w0BAQUFADCBkDELMAkGA1UEBhMCVVMxEDAOBgNV
 BAgTB01vbnRhbmExEDAOBgNVBAcTB0JvemVtYW4xETAPBgNVBAoTCFNhd3Rvb3Ro
 MRMwEQYDVQQLEwpDb25zdWx0aW5nMRYwFAYDVQQDEw13d3cueWFzc2wuY29tMR0w
-GwYJKoZIhvcNAQkBFg5pbmZvQHlhc3NsLmNvbRcNMTMwNjE3MjEzMjMwWhcNMTMx
-MjE0MjEzMjMwWjAUMBICAQIXDTEzMDYxNzIxMzIzMFqgDjAMMAoGA1UdFAQDAgFW
-MA0GCSqGSIb3DQEBBQUAA4IBAQCHO7usaxrolodvo445dygBp+p2NsJI4kECP/P3
-ZAlgkYeeV3Q4oMMgR32CSyw0I/5m3Cs+iqHZ4wbsdQ+x7zLiKKt9QCyCWXTJlbVi
-pmqONOb2+JH/qsEhk3nLb9y+lCGxyN2euP6t6FBuDXaSMlRRls3HvtIPb2NpX7Mo
-wVcOYfdigZ/q56UUiUFWY0bavNjgeETGxxqrG/ELWdVObRS8FsICQwYL9BZuJow2
-CWEMUz9yhWQzTb9wRMgjg8NRmKgU97IDoXtySE0k0KipIj2blL8kJAFvLksrISSP
-ZEYgeUWzRRpPkxDhjQRMjYNjlp8oxTcPEI4Cm02Wi+qjMYif
+GwYJKoZIhvcNAQkBFg5pbmZvQHlhc3NsLmNvbRcNMTQwMjA3MjAxNDA2WhcNMTUw
+MjA3MjAxNDA2WjAUMBICAQIXDTE0MDIwNzIwMTQwNlqgDjAMMAoGA1UdFAQDAgEC
+MA0GCSqGSIb3DQEBBQUAA4IBAQAQXbHQedKKFS1AC0TW2d9Yc+tVLIH+4XtiSI80
+xQZR5ehQcIwSuuNu/n0NzkQIndzZV0NsVBKC1O1sceV0RL3RqJiWY4toX9KHKN2Z
+T6q6jhiexE9pnmYTAyhfPDUBFXcifO3FSmdEr4V/34r9SYvhvlLjyuiuo60HkSxR
+xihfJhcUOV1OIZ8Rb8Si7++47CevRa257eAUCWCgUO7d97E+WMQN6LULqQ2YrXx0
+qxzW+sh951o7kSPVYrrU5L5YeP4JumP2niw/k8L+3sUAIVA5kaxx5vxKN6Tk6V7n
+rI2VIdZ2qhCoPCg+7xxkWOke9n5U88u77W9dJ1qxS5GOjGd9
 -----END X509 CRL-----
