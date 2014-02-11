@@ -23,5 +23,5 @@
 
 AC_DEFUN([AX_APPEND_TO_FILE],[
 AC_REQUIRE([AX_FILE_ESCAPES])
-printf "$2\n" >> "$1"
+printf -- "$2\n" >> "$1"
 ])
