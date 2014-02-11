@@ -962,12 +962,13 @@ int ssl_SetPrivateKey(const char* serverAddress, int port, const char* keyFile,
 
 /* Check IP Header for IPV4, TCP, and a registered server address */
 /* returns 0 on success, -1 on error */
-static int CheckIpHdr(IpHdr* iphdr, IpInfo* info, char* error)
+static int CheckIpHdr(IpHdr* iphdr, IpInfo* info, int length, char* error)
 {
     int    version = IP_V(iphdr);
 
     TraceIP(iphdr);
     Trace(IP_CHECK_STR);
+
     if (version != IPV4) {
         SetError(BAD_IPVER_STR, error, NULL, 0); 
         return -1;
@@ -987,6 +988,9 @@ static int CheckIpHdr(IpHdr* iphdr, IpInfo* info, char* error)
     info->total   = ntohs(iphdr->length);
     info->src     = iphdr->src;
     info->dst     = iphdr->dst;
+
+    if (info->total == 0)
+        info->total = length;  /* reassembled may be off */
 
     return 0;
 }
@@ -1856,20 +1860,24 @@ static int CheckHeaders(IpInfo* ipInfo, TcpInfo* tcpInfo, const byte* packet,
 {
     TraceHeader();
     TracePacket();
+
+    /* ip header */
     if (length < IP_HDR_SZ) {
         SetError(PACKET_HDR_SHORT_STR, error, NULL, 0);
         return -1;
     }
-    if (CheckIpHdr((IpHdr*)packet, ipInfo, error) != 0)
+    if (CheckIpHdr((IpHdr*)packet, ipInfo, length, error) != 0)
         return -1;
-    
+   
+    /* tcp header */ 
     if (length < (ipInfo->length + TCP_HDR_SZ)) {
         SetError(PACKET_HDR_SHORT_STR, error, NULL, 0);
         return -1;
     }
     if (CheckTcpHdr((TcpHdr*)(packet + ipInfo->length), tcpInfo, error) != 0)
         return -1;
-    
+   
+    /* setup */ 
     *sslFrame = packet + ipInfo->length + tcpInfo->length;
     if (*sslFrame > packet + length) {
         SetError(PACKET_HDR_SHORT_STR, error, NULL, 0);
@@ -2314,6 +2322,10 @@ static int ProcessMessage(const byte* sslFrame, SnifferSession* session,
                                         session->sslServer : session->sslClient;
 doMessage:
     notEnough = 0;
+    if (sslBytes < 0) {
+        SetError(PACKET_HDR_SHORT_STR, error, session, FATAL_ERROR_STATE);
+        return -1;
+    }
     if (sslBytes >= RECORD_HEADER_SZ) {
         if (GetRecordHeader(sslFrame, &rh, &rhSize) != 0) {
             SetError(BAD_RECORD_HDR_STR, error, session, FATAL_ERROR_STATE);
