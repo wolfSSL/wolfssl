@@ -11403,3 +11403,9 @@ void* CyaSSL_GetRsaDecCtx(CYASSL* ssl)
     void CyaSSL_wolfSCEP(void) {}
 #endif
 
+
+#ifdef CYASSL_HAVE_CERT_SERVICE
+    /* Used by autoconf to see if cert service is available */
+    void CyaSSL_cert_service(void) {}
+#endif
+
