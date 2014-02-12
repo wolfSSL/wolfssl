@@ -157,13 +157,21 @@
     #define NO_FILESYSTEM
     #define CYASSL_USER_IO
     #define NO_DEV_RANDOM
+    #define HAVE_HKDF
+
+    /* ECC and optimizations */
     #define HAVE_ECC
     #define HAVE_ECC_ENCRYPT
-    #define ECC_SHAMIR
-    #define HAVE_HKDF
     #define USE_FAST_MATH
     #define TFM_TIMING_RESISTANT
+    #define TFM_ECC256
+    #define ECC_SHAMIR
+    #define FP_ECC
+    #define FP_ENTRIES 2
+    #define FP_LUT 4
     #define FP_MAX_BITS 512
+
+    /* remove features */
     #define NO_OLD_TLS
     #define NO_MD4
     #define NO_RABBIT
