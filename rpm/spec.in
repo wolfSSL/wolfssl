@@ -4,7 +4,15 @@ Version: @VERSION@
 Release: 1
 License: GPLv2 
 Group: System Environment/Libraries
-BuildRequires: bison
+BuildRequires: gcc
+BuildRequires: glibc
+BuildRequires: glibc-common
+BuildRequires: glibc-devel
+BuildRequires: glibc-headers
+BuildRequires: make
+BuildRequires: pkgconfig
+BuildRequires: sed
+BuildRequires: tar
 URL: http://www.yassl.com/yaSSL/Home.html
 
 Packager: Brian Aker <brian@tangent.org>
@@ -61,7 +69,7 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_libdir}/libcyassl.la
 %{_libdir}/libcyassl.so
 %{_libdir}/libcyassl.so.5
-%{_libdir}/libcyassl.so.5.0.2
+%{_libdir}/libcyassl.so.5.0.3
 
 %files devel
 %defattr(-,root,root,-)
@@ -96,6 +104,8 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_includedir}/cyassl/ctaocrypt/misc.h
 %{_includedir}/cyassl/ctaocrypt/mpi_class.h
 %{_includedir}/cyassl/ctaocrypt/mpi_superclass.h
+%{_includedir}/cyassl/ctaocrypt/pkcs7.h
+%{_includedir}/cyassl/ctaocrypt/port.h
 %{_includedir}/cyassl/ctaocrypt/pwdbased.h
 %{_includedir}/cyassl/ctaocrypt/rabbit.h
 %{_includedir}/cyassl/ctaocrypt/random.h
@@ -109,7 +119,6 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_includedir}/cyassl/ctaocrypt/types.h
 %{_includedir}/cyassl/ctaocrypt/visibility.h
 %{_includedir}/cyassl/error.h
-%{_includedir}/cyassl/internal.h
 %{_includedir}/cyassl/ocsp.h
 %{_includedir}/cyassl/openssl/asn1.h
 %{_includedir}/cyassl/openssl/bio.h
@@ -152,5 +161,5 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_libdir}/pkgconfig/cyassl.pc
 
 %changelog
-* Fri Oct 20 2012 Brian Aker <brian@tangent.org> - 0.1-1
+* Fri Oct 20 2012 Brian Aker <brian@tangent.org>
 - Initial package
