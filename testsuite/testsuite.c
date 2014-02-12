@@ -117,7 +117,7 @@ int main(int argc, char** argv)
         myArgv[1] = argc1;
         myArgv[2] = argc2;
 
-        echo_args.argc = NUMARGS;
+        echo_args.argc = 3;
         echo_args.argv = myArgv;
    
         strcpy(echo_args.argv[0], "echoclient");
@@ -171,10 +171,16 @@ void simple_test(func_args* args)
     THREAD_TYPE serverThread;
 
     func_args svrArgs;
-    char *svrArgv[NUMARGS];
+    char *svrArgv[9];
     char argc0s[32];
     char argc1s[32];
     char argc2s[32];
+    char argc3s[32];
+    char argc4s[32];
+    char argc5s[32];
+    char argc6s[32];
+    char argc7s[32];
+    char argc8s[32];
 
     func_args cliArgs;
     char *cliArgv[NUMARGS];
@@ -185,6 +191,12 @@ void simple_test(func_args* args)
     svrArgv[0] = argc0s;
     svrArgv[1] = argc1s;
     svrArgv[2] = argc2s;
+    svrArgv[3] = argc3s;
+    svrArgv[4] = argc4s;
+    svrArgv[5] = argc5s;
+    svrArgv[6] = argc6s;
+    svrArgv[7] = argc7s;
+    svrArgv[8] = argc8s;
     cliArgv[0] = argc0c;
     cliArgv[1] = argc1c;
     cliArgv[2] = argc2c;
@@ -198,9 +210,16 @@ void simple_test(func_args* args)
    
     strcpy(svrArgs.argv[0], "SimpleServer");
     #if !defined(USE_WINDOWS_API) && !defined(CYASSL_SNIFFER)
-        svrArgs.argc = NUMARGS;
-        strcpy(svrArgs.argv[1], "-p");
-        strcpy(svrArgs.argv[2], "0");
+        strcpy(svrArgs.argv[svrArgs.argc++], "-p");
+        strcpy(svrArgs.argv[svrArgs.argc++], "0");
+    #endif
+    #ifdef HAVE_NTRU
+        strcpy(svrArgs.argv[svrArgs.argc++], "-d");
+        strcpy(svrArgs.argv[svrArgs.argc++], "-n");
+        strcpy(svrArgs.argv[svrArgs.argc++], "-c");
+        strcpy(svrArgs.argv[svrArgs.argc++], "./certs/ntru-cert.pem");
+        strcpy(svrArgs.argv[svrArgs.argc++], "-k");
+        strcpy(svrArgs.argv[svrArgs.argc++], "./certs/ntru-key.raw");
     #endif
     /* Set the last arg later, when it is known. */
 
