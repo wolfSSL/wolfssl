@@ -44,7 +44,9 @@ static int test_CyaSSL_CTX_load_verify_locations(void);
 #ifndef NO_RSA
 static int test_server_CyaSSL_new(void);
 static int test_client_CyaSSL_new(void);
+#ifndef SINGLE_THREADED
 static int test_CyaSSL_read_write(void);
+#endif /* SINGLE_THREADED */
 #endif /* NO_RSA */
 #endif /* NO_FILESYSTEM */
 #ifdef HAVE_SNI
@@ -107,7 +109,9 @@ int ApiTest(void)
 #ifndef NO_RSA
     test_server_CyaSSL_new();
     test_client_CyaSSL_new();
+#ifndef SINGLE_THREADED
     test_CyaSSL_read_write();
+#endif /* SINGLE_THREADED */
 #endif /* NO_RSA */
 #endif /* NO_FILESYSTEM */
 #ifdef HAVE_SNI
@@ -892,6 +896,8 @@ int test_client_CyaSSL_new(void)
 }
 
 
+#ifndef SINGLE_THREADED
+
 static int test_CyaSSL_read_write(void)
 {
     /* The unit testing for read and write shall happen simutaneously, since
@@ -1277,5 +1283,7 @@ void test_CyaSSL_client_server(callback_functions* client_callbacks,
 
     FreeTcpReady(&ready);
 }
+
+#endif /* SINGLE_THREADED*/
 
 #endif /* NO_FILESYSTEM */

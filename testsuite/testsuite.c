@@ -25,22 +25,18 @@
 
 #include <cyassl/ctaocrypt/settings.h>
 
-#include <cyassl/openssl/ssl.h>
 #include <cyassl/test.h>
-#include <cyassl/ctaocrypt/sha256.h>
-
 #include "ctaocrypt/test/test.h"
 
-#ifdef SINGLE_THREADED
-    #error testsuite needs threads to run, please run ctaocrypt/test, \
-           and the examples/ individually
-#endif
+#ifndef SINGLE_THREADED
+
+#include <cyassl/openssl/ssl.h>
+#include <cyassl/ctaocrypt/sha256.h>
 
 #include "examples/echoclient/echoclient.h"
 #include "examples/echoserver/echoserver.h"
 #include "examples/server/server.h"
 #include "examples/client/client.h"
-#include "ctaocrypt/test/test.h"
 
 
 void file_test(const char* file, byte* hash);
@@ -335,4 +331,36 @@ void file_test(const char* file, byte* check)
     fclose(f);
 }
 
+
+#else /* SINGLE_THREADED */
+
+
+int myoptind = 0;
+char* myoptarg = NULL;
+
+
+int main(int argc, char** argv)
+{
+    func_args server_args;
+
+    server_args.argc = argc;
+    server_args.argv = argv;
+
+    if (CurrentDir("testsuite") || CurrentDir("_build"))
+        ChangeDirBack(1);
+    else if (CurrentDir("Debug") || CurrentDir("Release"))
+        ChangeDirBack(3);          /* Xcode->Preferences->Locations->Locations*/
+                                   /* Derived Data Advanced -> Custom  */
+                                   /* Relative to Workspace, Build/Products */
+                                   /* Debug or Release */
+
+    ctaocrypt_test(&server_args);
+    if (server_args.return_code != 0) return server_args.return_code;
+
+    printf("\nAll tests passed!\n");
+    return EXIT_SUCCESS;
+}
+
+
+#endif /* SINGLE_THREADED */
 

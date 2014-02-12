@@ -1422,7 +1422,6 @@ AC_ARG_ENABLE([examples],
     [ ENABLED_EXAMPLES=yes ]
     )
 
-AS_IF([test "x$ENABLED_SINGLETHREADED" = "xyes"], [ENABLED_EXAMPLES="no"])
 AS_IF([test "x$ENABLED_FILESYSTEM" = "xno"], [ENABLED_EXAMPLES="no"])
 AS_IF([test "x$ENABLED_INLINE" = "xno"], [ENABLED_EXAMPLES="no"])
 # certs still have sha signatures for now 
