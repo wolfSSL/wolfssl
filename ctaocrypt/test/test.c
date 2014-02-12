@@ -121,7 +121,9 @@
         #define printf dc_log_printf
 #endif
 
-#include "ctaocrypt/test/test.h"
+#ifndef CYASSL_TYTO
+    #include "ctaocrypt/test/test.h"
+#endif
 
 
 typedef struct testVector {
