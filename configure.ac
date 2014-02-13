@@ -1348,7 +1348,7 @@ AC_ARG_ENABLE([certservice],
     )
 if test "$ENABLED_CERT_SERVICE" = "yes"
 then
-    # Requires ecc and certgen, make sure on
+    # Requires ecc,certgen, and opensslextra make sure on
     if test "x$ENABLED_CERTGEN" = "xno"
     then
         ENABLED_CERTGEN="yes"
@@ -1359,6 +1359,11 @@ then
         ENABLED_ECC="yes"
         AM_CFLAGS="$AM_CFLAGS -DHAVE_ECC -DTFM_ECC256 -DECC_SHAMIR"
         AM_CONDITIONAL([BUILD_ECC], [test "x$ENABLED_ECC" = "xyes"])
+    fi
+    if test "x$ENABLED_OPENSSLEXTRA" = "xno"
+    then
+        ENABLED_OPENSSLEXTRA="yes"
+        AM_CFLAGS="-DOPENSSL_EXTRA $AM_CFLAGS"
     fi
     AM_CFLAGS="$AM_CFLAGS -DCYASSL_HAVE_CERT_SERVICE"
 fi
