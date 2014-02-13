@@ -10,8 +10,6 @@ AC_INIT([cyassl],[2.9.0],[https://github.com/cyassl/cyassl/issues],[cyassl],[htt
 
 AC_CONFIG_AUX_DIR([build-aux])
 
-# using $targget_cpu to only turn on fastmath by default on x86_64 
-AC_CANONICAL_TARGET
 AC_CANONICAL_HOST
 AC_CANONICAL_BUILD
 
@@ -1372,7 +1370,7 @@ fi
 # set fastmath default
 FASTMATH_DEFAULT=no
 
-if test "$target_cpu" = "x86_64"
+if test "$host_cpu" = "x86_64"
 then
 FASTMATH_DEFAULT=yes
 fi
