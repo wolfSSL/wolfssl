@@ -6,7 +6,7 @@
 #
 #
 
-AC_INIT([cyassl],[2.9.0],[https://github.com/cyassl/cyassl/issues],[cyassl],[http://www.yassl.com])
+AC_INIT([cyassl],[2.9.1],[https://github.com/cyassl/cyassl/issues],[cyassl],[http://www.yassl.com])
 
 AC_CONFIG_AUX_DIR([build-aux])
 
