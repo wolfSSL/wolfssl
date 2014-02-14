@@ -619,7 +619,7 @@ enum {
 
 /* extras end */
 
-#ifndef NO_FILESYSTEM
+#if !defined(NO_FILESYSTEM) && !defined(NO_STDIO_FILESYSTEM)
 /* CyaSSL extension, provide last error from SSL_get_error
    since not using thread storage error queue */
 CYASSL_API void  CyaSSL_ERR_print_errors_fp(FILE*, int err);
@@ -824,8 +824,10 @@ CYASSL_API char* CyaSSL_X509_get_next_altname(CYASSL_X509*);
 CYASSL_API CYASSL_X509*
     CyaSSL_X509_d2i(CYASSL_X509** x509, const unsigned char* in, int len);
 #ifndef NO_FILESYSTEM
-CYASSL_API CYASSL_X509*
-    CyaSSL_X509_d2i_fp(CYASSL_X509** x509, FILE* file);
+    #ifndef NO_STDIO_FILESYSTEM
+    CYASSL_API CYASSL_X509*
+        CyaSSL_X509_d2i_fp(CYASSL_X509** x509, FILE* file);
+    #endif
 CYASSL_API CYASSL_X509*
     CyaSSL_X509_load_certificate_file(const char* fname, int format);
 #endif

@@ -1231,7 +1231,7 @@ int CyaSSL_KeyPemToDer(const unsigned char* pem, int pemSz, unsigned char* buff,
 
 
 
-#ifndef NO_FILESYSTEM
+#if !defined(NO_FILESYSTEM) && !defined(NO_STDIO_FILESYSTEM)
 
 void CyaSSL_ERR_print_errors_fp(FILE* fp, int err)
 {
@@ -7877,6 +7877,8 @@ CYASSL_X509* CyaSSL_X509_d2i(CYASSL_X509** x509, const byte* in, int len)
 
 #ifndef NO_FILESYSTEM
 
+#ifndef NO_STDIO_FILESYSTEM
+
 CYASSL_X509* CyaSSL_X509_d2i_fp(CYASSL_X509** x509, XFILE file)
 {
     CYASSL_X509* newX509 = NULL;
@@ -7905,6 +7907,8 @@ CYASSL_X509* CyaSSL_X509_d2i_fp(CYASSL_X509** x509, XFILE file)
 
     return newX509;
 }
+
+#endif /* NO_STDIO_FILESYSTEM */
 
 CYASSL_X509* CyaSSL_X509_load_certificate_file(const char* fname, int format)
 {

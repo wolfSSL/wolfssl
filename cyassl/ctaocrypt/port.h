@@ -111,6 +111,7 @@ CYASSL_LOCAL int LockMutex(CyaSSL_Mutex*);
 CYASSL_LOCAL int UnLockMutex(CyaSSL_Mutex*);
 
 
+/* filesystem abstraction layer, used by ssl.c */
 #ifndef NO_FILESYSTEM
 
 #if defined(EBSNET)
