@@ -95,6 +95,7 @@ AC_TYPE_UINT8_T
 AM_PROG_AS
 AM_PROG_CC_C_O
 LT_LIB_M
+AX_HARDEN_CC_COMPILER_FLAGS
 
 OPTIMIZE_CFLAGS="-Os -fomit-frame-pointer"
 OPTIMIZE_FAST_CFLAGS="-O2 -fomit-frame-pointer"
@@ -1553,17 +1554,6 @@ then
 fi
 
 LIB_SOCKET_NSL
-
-AC_ARG_ENABLE([gcc-hardening],
-AS_HELP_STRING(--enable-gcc-hardening, Enable compiler security checks (default: disabled)),
-[if test x$enableval = xyes; then
-    AM_CFLAGS="$AM_CFLAGS -D_FORTIFY_SOURCE=2 -fstack-protector-all"
-    AM_CFLAGS="$AM_CFLAGS -fwrapv -fPIE -Wstack-protector"
-    AM_CFLAGS="$AM_CFLAGS --param ssp-buffer-size=1"
-    LDFLAGS="$LDFLAGS -pie"
-fi])
-
-AX_HARDEN_CC_COMPILER_FLAGS
 
 # link to ws2_32 if on mingw
 case $host_os in

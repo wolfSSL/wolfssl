@@ -156,6 +156,7 @@
       AX_APPEND_COMPILE_FLAGS([-Wunused-variable],,[$ax_append_compile_cflags_extra])
       AX_APPEND_COMPILE_FLAGS([-Wwrite-strings],,[$ax_append_compile_cflags_extra])
       AX_APPEND_COMPILE_FLAGS([-fwrapv],,[$ax_append_compile_cflags_extra])
+      AX_APPEND_COMPILE_FLAGS([-fPIE],,[$ax_append_compile_cflags_extra])
       AC_LANG_POP
       ])
 
