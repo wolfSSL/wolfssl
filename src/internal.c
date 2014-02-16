@@ -70,7 +70,8 @@ CYASSL_CALLBACKS needs LARGE_STATIC_BUFFERS, please add LARGE_STATIC_BUFFERS
 
 #ifndef NO_CYASSL_CLIENT
     static int DoHelloVerifyRequest(CYASSL* ssl, const byte* input, word32*);
-    static int DoServerHello(CYASSL* ssl, const byte* input, word32*, word32);
+    static int DoServerHello(CYASSL* ssl, const byte* input, word32*, word32,
+                             word32);
     static int DoServerKeyExchange(CYASSL* ssl, const byte* input, word32*);
     #ifndef NO_CERTS
         static int DoCertificateRequest(CYASSL* ssl, const byte* input,word32*);
@@ -3778,7 +3779,7 @@ static int DoHandShakeMsgType(CYASSL* ssl, byte* input, word32* inOutIdx,
             
     case server_hello:
         CYASSL_MSG("processing server hello");
-        ret = DoServerHello(ssl, input, inOutIdx, size);
+        ret = DoServerHello(ssl, input, inOutIdx, totalSz, size);
         break;
 
 #ifndef NO_CERTS
@@ -7459,31 +7460,44 @@ static void PickHashSigAlgo(CYASSL* ssl,
 
 
     static int DoServerHello(CYASSL* ssl, const byte* input, word32* inOutIdx,
-                             word32 helloSz)
+                             word32 totalSz, word32 helloSz)
     {
-        byte b;
-        byte compression;
+        byte            b;
         ProtocolVersion pv;
-        word32 i = *inOutIdx;
-        word32 begin = i;
+        byte            compression;
+        word32          i = *inOutIdx;
+        word32          begin = i;
 
 #ifdef CYASSL_CALLBACKS
         if (ssl->hsInfoOn) AddPacketName("ServerHello", &ssl->handShakeInfo);
         if (ssl->toInfoOn) AddLateName("ServerHello", &ssl->timeoutInfo);
 #endif
-        XMEMCPY(&pv, input + i, sizeof(pv));
-        i += (word32)sizeof(pv);
+
+        /* make sure can read the server hello */
+        if (begin + helloSz > totalSz)
+            return INCOMPLETE_DATA;
+
+        /* protocol version, random and session id length check */
+        if ((i - begin) + OPAQUE16_LEN + RAN_LEN + ENUM_LEN > helloSz)
+            return BUFFER_ERROR;
+
+        /* protocol version */
+        XMEMCPY(&pv, input + i, OPAQUE16_LEN);
+        i += OPAQUE16_LEN;
+
         if (pv.minor > ssl->version.minor) {
             CYASSL_MSG("Server using higher version, fatal error");
             return VERSION_ERROR;
         }
         else if (pv.minor < ssl->version.minor) {
             CYASSL_MSG("server using lower version");
+
             if (!ssl->options.downgrade) {
                 CYASSL_MSG("    no downgrade allowed, fatal error");
                 return VERSION_ERROR;
             }
-            else if (pv.minor == SSLv3_MINOR) {
+
+            if (pv.minor == SSLv3_MINOR) {
                 /* turn off tls */
                 CYASSL_MSG("    downgrading to SSLv3");
                 ssl->options.tls    = 0;
@@ -7501,14 +7515,31 @@ static void PickHashSigAlgo(CYASSL* ssl,
                 ssl->version.minor  = TLSv1_1_MINOR;
             }
         }
+
+        /* random */
         XMEMCPY(ssl->arrays->serverRandom, input + i, RAN_LEN);
         i += RAN_LEN;
+
+        /* session id */
         b = input[i++];
-        if (b) {
+
+        if (b == ID_LEN) {
+            if ((i - begin) + ID_LEN > helloSz)
+                return BUFFER_ERROR;
+
             XMEMCPY(ssl->arrays->sessionID, input + i, min(b, ID_LEN));
-            i += b;
+            i += ID_LEN;
             ssl->options.haveSessionId = 1;
         }
+        else if (b) {
+            CYASSL_MSG("Invalid session ID size");
+            return BUFFER_ERROR; /* session ID nor 0 neither 32 bytes long */
+        }
+
+        /* suite and compression */
+        if ((i - begin) + OPAQUE16_LEN + ENUM_LEN > helloSz)
+            return BUFFER_ERROR;
+
         ssl->options.cipherSuite0 = input[i++];
         ssl->options.cipherSuite  = input[i++];  
         compression = input[i++];
@@ -7519,17 +7550,23 @@ static void PickHashSigAlgo(CYASSL* ssl,
         }
 
         *inOutIdx = i;
+
+        /* tls extensions */
         if ( (i - begin) < helloSz) {
 #ifdef HAVE_TLS_EXTENSIONS
             if (IsTLS(ssl)) {
-                int ret = 0;
+                int    ret = 0;
                 word16 totalExtSz;
                 Suites clSuites; /* just for compatibility right now */
 
+                if ((i - begin) + OPAQUE16_LEN > helloSz)
+                    return BUFFER_ERROR;
+
                 ato16(&input[i], &totalExtSz);
-                i += LENGTH_SZ;
-                if (totalExtSz > helloSz + begin - i)
-                    return INCOMPLETE_DATA;
+                i += OPAQUE16_LEN;
+
+                if ((i - begin) + totalExtSz > helloSz)
+                    return BUFFER_ERROR;
 
                 if ((ret = TLSX_Parse(ssl, (byte *) input + i,
                                                      totalExtSz, 0, &clSuites)))
@@ -7540,7 +7577,7 @@ static void PickHashSigAlgo(CYASSL* ssl,
             }
             else
 #endif
-                *inOutIdx = begin + helloSz;  /* skip extensions */
+                *inOutIdx = begin + helloSz; /* skip extensions */
         }
 
         ssl->options.serverState = SERVER_HELLO_COMPLETE;
@@ -7549,7 +7586,8 @@ static void PickHashSigAlgo(CYASSL* ssl,
             if (ssl->options.haveSessionId && XMEMCMP(ssl->arrays->sessionID,
                                          ssl->session.sessionID, ID_LEN) == 0) {
                 if (SetCipherSpecs(ssl) == 0) {
-                    int ret = -1; 
+                    int ret = -1;
+
                     XMEMCPY(ssl->arrays->masterSecret,
                             ssl->session.masterSecret, SECRET_LEN);
                     #ifdef NO_OLD_TLS
@@ -7563,6 +7601,7 @@ static void PickHashSigAlgo(CYASSL* ssl,
                                 ret = DeriveKeys(ssl);
                     #endif
                     ssl->options.serverState = SERVER_HELLODONE_COMPLETE;
+
                     return ret;
                 }
                 else {
@@ -7580,6 +7619,7 @@ static void PickHashSigAlgo(CYASSL* ssl,
                 DtlsPoolReset(ssl);
             }
         #endif
+
         return SetCipherSpecs(ssl);
     }
 
@@ -10076,8 +10116,10 @@ static void PickHashSigAlgo(CYASSL* ssl,
             ssl->options.resuming = 1; /* client wants to resume */
             CYASSL_MSG("Client wants to resume session");
         }
-        else if (b)
+        else if (b) {
+            CYASSL_MSG("Invalid session ID size");
             return BUFFER_ERROR; /* session ID nor 0 neither 32 bytes long */
+        }
         
         #ifdef CYASSL_DTLS
             /* cookie */
