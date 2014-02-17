@@ -70,8 +70,7 @@ CYASSL_CALLBACKS needs LARGE_STATIC_BUFFERS, please add LARGE_STATIC_BUFFERS
 
 #ifndef NO_CYASSL_CLIENT
     static int DoHelloVerifyRequest(CYASSL* ssl, const byte* input, word32*);
-    static int DoServerHello(CYASSL* ssl, const byte* input, word32*, word32,
-                             word32);
+    static int DoServerHello(CYASSL* ssl, const byte* input, word32*, word32);
     static int DoServerKeyExchange(CYASSL* ssl, const byte* input, word32*);
     #ifndef NO_CERTS
         static int DoCertificateRequest(CYASSL* ssl, const byte* input,word32*);
@@ -80,8 +79,7 @@ CYASSL_CALLBACKS needs LARGE_STATIC_BUFFERS, please add LARGE_STATIC_BUFFERS
 
 
 #ifndef NO_CYASSL_SERVER
-    static int DoClientHello(CYASSL* ssl, const byte* input, word32*, word32,
-                             word32);
+    static int DoClientHello(CYASSL* ssl, const byte* input, word32*, word32);
     static int DoClientKeyExchange(CYASSL* ssl, byte* input, word32*, word32);
     #if !defined(NO_RSA) || defined(HAVE_ECC)
         static int DoCertificateVerify(CYASSL* ssl, byte*, word32*, word32);
@@ -3724,7 +3722,12 @@ static int DoHandShakeMsgType(CYASSL* ssl, byte* input, word32* inOutIdx,
 
     CYASSL_ENTER("DoHandShakeMsgType");
 
+    /* make sure can read the message */
+    if (*inOutIdx + size > totalSz)
+        return INCOMPLETE_DATA;
+
     HashInput(ssl, input + *inOutIdx, size);
+
 #ifdef CYASSL_CALLBACKS
     /* add name later, add on record and handshake header part back on */
     if (ssl->toInfoOn) {
@@ -3779,7 +3782,7 @@ static int DoHandShakeMsgType(CYASSL* ssl, byte* input, word32* inOutIdx,
             
     case server_hello:
         CYASSL_MSG("processing server hello");
-        ret = DoServerHello(ssl, input, inOutIdx, totalSz, size);
+        ret = DoServerHello(ssl, input, inOutIdx, size);
         break;
 
 #ifndef NO_CERTS
@@ -3821,7 +3824,7 @@ static int DoHandShakeMsgType(CYASSL* ssl, byte* input, word32* inOutIdx,
 #ifndef NO_CYASSL_SERVER
     case client_hello:
         CYASSL_MSG("processing client hello");
-        ret = DoClientHello(ssl, input, inOutIdx, totalSz, size);
+        ret = DoClientHello(ssl, input, inOutIdx, size);
         break;
 
     case client_key_exchange:
@@ -3841,6 +3844,7 @@ static int DoHandShakeMsgType(CYASSL* ssl, byte* input, word32* inOutIdx,
     default:
         CYASSL_MSG("Unknown handshake message type");
         ret = UNKNOWN_HANDSHAKE_TYPE;
+        break;
     }
 
     CYASSL_LEAVE("DoHandShakeMsgType()", ret);
@@ -7460,7 +7464,7 @@ static void PickHashSigAlgo(CYASSL* ssl,
 
 
     static int DoServerHello(CYASSL* ssl, const byte* input, word32* inOutIdx,
-                             word32 totalSz, word32 helloSz)
+                             word32 helloSz)
     {
         byte            b;
         ProtocolVersion pv;
@@ -7472,10 +7476,6 @@ static void PickHashSigAlgo(CYASSL* ssl,
         if (ssl->hsInfoOn) AddPacketName("ServerHello", &ssl->handShakeInfo);
         if (ssl->toInfoOn) AddLateName("ServerHello", &ssl->timeoutInfo);
 #endif
-
-        /* make sure can read the server hello */
-        if (begin + helloSz > totalSz)
-            return INCOMPLETE_DATA;
 
         /* protocol version, random and session id length check */
         if ((i - begin) + OPAQUE16_LEN + RAN_LEN + ENUM_LEN > helloSz)
@@ -10026,7 +10026,7 @@ static void PickHashSigAlgo(CYASSL* ssl,
 
 
     static int DoClientHello(CYASSL* ssl, const byte* input, word32* inOutIdx,
-                             word32 totalSz, word32 helloSz)
+                             word32 helloSz)
     {
         byte            b;
         ProtocolVersion pv;
@@ -10038,10 +10038,6 @@ static void PickHashSigAlgo(CYASSL* ssl,
         if (ssl->hsInfoOn) AddPacketName("ClientHello", &ssl->handShakeInfo);
         if (ssl->toInfoOn) AddLateName("ClientHello", &ssl->timeoutInfo);
 #endif
-
-        /* make sure can read the client hello */
-        if (begin + helloSz > totalSz)
-            return INCOMPLETE_DATA;
 
         /* protocol version, random and session id length check */
         if ((i - begin) + OPAQUE16_LEN + RAN_LEN + ENUM_LEN > helloSz)
