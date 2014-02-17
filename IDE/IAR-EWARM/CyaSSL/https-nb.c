@@ -44,6 +44,15 @@
 #if 0
 /*Enable debug*/
 #include <cstdio>
+#define DBG0_PRINTF(x, ...) printf("[HTTPSClient : DBG]"x"\r\n", ##__VA_ARGS__);
+#else
+/*Disable debug*/
+#define DBG0_PRINTF(x, ...)
+#endif
+
+#if 0
+/*Enable debug*/
+#include <cstdio>
 #define DBG_PRINTF(x, ...) printf("[HTTPSClient : DBG]"x"\r\n", ##__VA_ARGS__);
 #define ERR_PRINTF(x, ...) printf("[HTTPSClient:ERROR]"x"\r\n", ##__VA_ARGS__);
 #else
@@ -89,7 +98,7 @@ void CyaSSL_HTTPS_Client_NB_init(void *nb,
     https_nb->path = path ;
     https_nb->stat = BEGIN ;
 }
-
+  
 int CyaSSL_HTTPS_Client_NB(void *nb)
 {
     int ret ;
@@ -101,7 +110,7 @@ int CyaSSL_HTTPS_Client_NB(void *nb)
 
     switch(https_nb->stat) {
     case BEGIN:
-        printf("======= LwIP: HTTPS Client Test(%x): %d ====\n", nb, count ++) ;
+        printf("== HTTPS Client(%x): %d ==\n", nb, count ++) ;
         /*** Assuming LwIP has been initialized ***/
         https_nb->stat = INITIALIZED ; 
     case INITIALIZED:
@@ -134,8 +143,8 @@ int CyaSSL_HTTPS_Client_NB(void *nb)
     case TCP_CONNECT:
         if(LwIP_cb_mutex)return ERR_OK ;
         else LwIP_cb_mutex = 1 ;
-        DBG_PRINTF("LwIPtest: TCP_CONNECT(%x)\n", https_nb) ;
-        DBG_PRINTF("LwIPtest: Server IP Addrress(%d.%d.%d.%d)\n", 
+        DBG_PRINTF("TCP_CONNECT(%x)\n", https_nb) ;
+        DBG_PRINTF("Server IP Addrress(%d.%d.%d.%d)\n", 
               (*(unsigned long *)&https_nb->serverIP_em&0xff),
               (*(unsigned long *)&https_nb->serverIP_em>>8)&0xff, 
               (*(unsigned long *)&https_nb->serverIP_em>>16)&0xff, 
@@ -144,6 +153,7 @@ int CyaSSL_HTTPS_Client_NB(void *nb)
                           https_nb->serverPort, TcpConnectedCallback); 
  
         if(ret == ERR_OK) {
+             https_nb->wait_cnt = 0 ;
     	     https_nb->stat = WAITING ;
              return ERR_OK;
         } else {
@@ -153,7 +163,7 @@ int CyaSSL_HTTPS_Client_NB(void *nb)
         }
         
     case TCP_CONNECTED:
-        printf("LwIPtest: TCP CONNECTED(%x)\n", https_nb) ;
+        DBG0_PRINTF("TCP CONNECTED(%x)\n", https_nb) ;
         LwIP_cb_mutex = 0 ; 
 
         /*CyaSSLv3_client_method()
@@ -189,7 +199,7 @@ int CyaSSL_HTTPS_Client_NB(void *nb)
         } else {
             ret = CyaSSL_get_error(https_nb->ssl, NULL) ;
             if(ret == SSL_ERROR_WANT_READ) {
-                 https_nb->ssl->lwipCtx.wait = -1 ;
+                 https_nb->ssl->lwipCtx.wait = 1000000 ;
                  https_nb->stat = SSL_CONN_WAITING ;
                 return ERR_OK ;
             } else {
@@ -201,7 +211,7 @@ int CyaSSL_HTTPS_Client_NB(void *nb)
          
     case SSL_CONN_WAITING:
 
-        if(https_nb->ssl->lwipCtx.wait-- == 0) { 
+        if(https_nb->ssl->lwipCtx.wait-- <= 0) { 
             /* counting down after the callback for multiple callbacks */
             https_nb->stat = SSL_CONN ;
             LwIP_cb_mutex = 0 ; 
@@ -215,7 +225,7 @@ int CyaSSL_HTTPS_Client_NB(void *nb)
         int size ;
         if(LwIP_cb_mutex)return ERR_OK ;
         else LwIP_cb_mutex = 1 ; /* lock */
-        printf("SSL CONNECTED(%x)\n", https_nb) ;
+        DBG0_PRINTF("SSL CONNECTED(%x)\n", https_nb) ;
         sprintf(sendBuff,
                 "GET %s HTTP/1.0\r\nHost: %s\r\nConnection: close\r\n\r\n", 
                 https_nb->path, https_nb->hostname) ;
@@ -223,6 +233,7 @@ int CyaSSL_HTTPS_Client_NB(void *nb)
 
         CyaSSL_write(https_nb->ssl, sendBuff, size) ;
 
+        https_nb->wait_cnt = 0 ;
         https_nb->stat = WAITING ;
         return ERR_OK;
     }
@@ -235,9 +246,8 @@ int CyaSSL_HTTPS_Client_NB(void *nb)
         LwIP_cb_mutex = 0 ;
         memset(httpbuff, '\0', HTTP_BUFF_SIZE) ;
         ret = CyaSSL_read(https_nb->ssl, httpbuff, HTTP_BUFF_SIZE) ;
-        printf("HTTPS GET(%x), Received(%d)\n",https_nb, strlen(httpbuff)) ;
-        /* puts(httpbuff) ; */ 
-        /* puts("===================\n") ; */
+        DBG0_PRINTF("HTTPS GET(%x), Received(%d)\n",https_nb, strlen(httpbuff)) ;
+        /*DBG0_PRINTF*/puts(httpbuff) ;  
     }
     case SSL_CLOSE:  
     {
@@ -260,7 +270,20 @@ int CyaSSL_HTTPS_Client_NB(void *nb)
         https_nb->idle ++ ;
         if(https_nb->idle > 50000)
             https_nb->stat = BEGIN ;
+        return ERR_OK;
     case WAITING:
+        if(https_nb->wait_cnt++ > 1000000) {
+            LwIP_cb_mutex = 0 ;
+            https_nb->wait_cnt = 0 ;
+            if((https_nb->stat >= SSL_CONN)&&(https_nb->stat < SSL_CLOSE)) {
+                ERR_PRINTF("Wait Time out, go to CyaSSL close") ;
+                https_nb->stat = SSL_CLOSE ;
+            } else {
+               ERR_PRINTF("Wait Time out, go to Begin") ;
+                https_nb->stat = TCP_CLOSE ;
+            }
+        } 
+        return ERR_OK ;
     default:
         return ERR_OK;
     }
@@ -289,20 +312,23 @@ void *CyaSSL_HTTPS_ClientP_5 = (void *)&CyaSSL_HTTPS_Client_5 ;
 
 #define HTTPS_PORT   443
 #define IP_ADDR(a,b,c,d) (((a)|((b)<<8)|((c)<<16)|(d)<<24))
-static struct ip_addr server_em = { IP_ADDR(192,168,11,9) } ; 
+static struct ip_addr server0_em = { IP_ADDR(192,168,11,9) } ; 
+static struct ip_addr server1_em = { IP_ADDR(31,13,68,33)} ; 
 
 void HTTPSClient_main_init() {
 
   CyaSSL_HTTPS_Client_NB_init(CyaSSL_HTTPS_ClientP_1, 
-                              server_em, HTTPS_PORT, "xxx.com", "/") ;
+                             //server_em, HTTPS_PORT, "xxx.com", "/") ;
+                             server1_em, HTTPS_PORT, "graph.facebook.com", "/takashikojo") ;
   CyaSSL_HTTPS_Client_NB_init(CyaSSL_HTTPS_ClientP_2, 
-                              server_em, HTTPS_PORT, "xxx.com", "/") ;
+                              server0_em, HTTPS_PORT, "xxx.com", "/") ;
   CyaSSL_HTTPS_Client_NB_init(CyaSSL_HTTPS_ClientP_3, 
-                              server_em, HTTPS_PORT, "xxx.com", "/") ;
+                              server1_em, HTTPS_PORT, "graph.facebook.com", "/takashikojo") ;
+                              //server_em, HTTPS_PORT, "xxx.com", "/") ;
   CyaSSL_HTTPS_Client_NB_init(CyaSSL_HTTPS_ClientP_4, 
-                              server_em, HTTPS_PORT, "xxx.com", "/") ;
+                              server0_em, HTTPS_PORT, "xxx.com", "/") ;
   CyaSSL_HTTPS_Client_NB_init(CyaSSL_HTTPS_ClientP_5, 
-                              server_em, HTTPS_PORT, "xxx.com", "/") ;  
+                              server0_em, HTTPS_PORT, "xxx.com", "/") ;  
 }
  
 void HTTPSClient_main(int i)
@@ -314,7 +340,7 @@ void HTTPSClient_main(int i)
     if((i % 2) == 0) { /* wait for initializing TCP/IP, DHCP */
         CyaSSL_HTTPS_Client_NB(CyaSSL_HTTPS_ClientP_2) ;
     }
-
+#if 0
     if((i % 3) == 0) { /* wait for initializing TCP/IP, DHCP */
         CyaSSL_HTTPS_Client_NB(CyaSSL_HTTPS_ClientP_3) ;
     }
@@ -327,6 +353,7 @@ void HTTPSClient_main(int i)
         CyaSSL_HTTPS_Client_NB(CyaSSL_HTTPS_ClientP_5) ;
     }
 
+#endif
 }
 
 #endif /* NO_MAIN_DRIVER  */

@@ -1070,6 +1070,10 @@ void CyaSSL_SetIO_NetX(CYASSL* ssl, NX_TCP_SOCKET* nxSocket, ULONG waitOption)
 #define DBG_PRINTF_CB(x, ...)
 #endif
 
+#ifdef CYASSL_IAR_ARM
+    #include  "intrinsics.h" 
+#endif
+
 static void CyaSSL_PbufFree(void *vp)
 {
     struct pbuf *p ;
@@ -1078,7 +1082,7 @@ static void CyaSSL_PbufFree(void *vp)
     while(p->next != NULL)
     {
         next = p->next;
-        pbuf_free(p);   
+        pbuf_free(p);  
         p = next;
     }    
     pbuf_free(p);
@@ -1092,6 +1096,16 @@ static int CyaSSL_GetDataFromPbuf(char *buff, CYASSL *ssl, int size)
     int skipLen = 0 ;
 
     p = ssl->lwipCtx.pbuf ;
+    #if defined(DEBUG_PBUF)
+    printf("WantRead Size=%d\n", size) ;
+    do {
+        printf("p=%x, p->len=%d, p->tot_len=%d\n", p, p->len,  p->tot_len) ;
+        if(p != p->next)
+            p = p->next ;
+        else break ;
+    } while(p) ;
+    p = ssl->lwipCtx.pbuf ;    
+    #endif
     if(p->tot_len < (ssl->lwipCtx.pulled + size))
         return 0 ;
     
@@ -1168,8 +1182,7 @@ err_t CyaSSL_LwIP_recv_cb(void *cb, struct tcp_pcb *pcb, struct pbuf *p, s8_t er
        ((ssl->options.acceptState  != ACCEPT_BEGIN) && 
         (ssl->options.connectState != ACCEPT_THIRD_REPLY_DONE)))
     {
-       if(ssl->lwipCtx.wait < 0) /* wait for multiple callbacks */
-           ssl->lwipCtx.wait = 10000 ;
+        ssl->lwipCtx.wait = 100000 ;
     } else if(ssl->lwipCtx.recv)
         return ssl->lwipCtx.recv(ssl->lwipCtx.arg, pcb, p, err) ; 
                                                       /* user callback */
@@ -1227,6 +1240,9 @@ int CyaSSL_SetIO_LwIP(CYASSL* ssl, void* pcb,
         ssl->lwipCtx.recv = recv ; /*  recv user callback */
         ssl->lwipCtx.sent = sent ; /*  sent user callback */
         ssl->lwipCtx.arg  = arg  ;
+        ssl->lwipCtx.pbuf = 0 ;
+        ssl->lwipCtx.pulled = 0 ;
+        ssl->lwipCtx.wait = 0 ;
         /* CyaSSL_LwIP_recv/sent_cb invokes recv/sent user callback in them. */
         tcp_recv(pcb, CyaSSL_LwIP_recv_cb) ;
         tcp_sent(pcb, CyaSSL_LwIP_sent_cb) ;    
