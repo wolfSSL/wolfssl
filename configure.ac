@@ -95,7 +95,6 @@ AC_TYPE_UINT8_T
 AM_PROG_AS
 AM_PROG_CC_C_O
 LT_LIB_M
-AX_HARDEN_CC_COMPILER_FLAGS
 
 OPTIMIZE_CFLAGS="-Os -fomit-frame-pointer"
 OPTIMIZE_FAST_CFLAGS="-O2 -fomit-frame-pointer"
@@ -103,7 +102,7 @@ OPTIMIZE_HUGE_CFLAGS="-funroll-loops -DTFM_SMALL_SET -DTFM_HUGE_SET"
 DEBUG_CFLAGS="-g -DDEBUG -DDEBUG_CYASSL"
 
 # Thread local storage
-AX_TLS([AM_CFLAGS="$AM_CFLAGS -DHAVE_THREAD_LS"])
+AX_TLS([AM_CFLAGS="$AM_CFLAGS -DHAVE_THREAD_LS"], [:])
 
 # DEBUG
 AX_DEBUG
@@ -1554,6 +1553,7 @@ then
 fi
 
 LIB_SOCKET_NSL
+AX_HARDEN_CC_COMPILER_FLAGS
 
 # link to ws2_32 if on mingw
 case $host_os in
@@ -1640,9 +1640,9 @@ echo ""
 echo "   * Installation prefix:       $prefix"
 echo "   * System type:               $host_vendor-$host_os"
 echo "   * Host CPU:                  $host_cpu"
-echo "   * C Compiler:                $CC_VERSION"
+echo "   * C Compiler:                $CC"
 echo "   * C Flags:                   $CFLAGS"
-echo "   * C++ Compiler:              $CXX_VERSION"
+echo "   * C++ Compiler:              $CXX"
 echo "   * C++ Flags:                 $CXXFLAGS"
 echo "   * CPP Flags:                 $CPPFLAGS"
 echo "   * LIB Flags:                 $LIB"
