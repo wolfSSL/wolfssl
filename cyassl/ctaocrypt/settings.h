@@ -158,8 +158,11 @@
     #define CYASSL_USER_IO
     #define NO_DEV_RANDOM
     #define HAVE_HKDF
+    #define NO_MAIN_DRIVER
+    #define CYASSL_LWIP
 
     /* ECC and optimizations */
+    #define FREESCALE_MMCAU 1
     #define HAVE_ECC
     #define HAVE_ECC_ENCRYPT
     #define USE_FAST_MATH
