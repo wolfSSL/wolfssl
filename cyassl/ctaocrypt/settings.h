@@ -165,6 +165,7 @@
     #define USE_FAST_MATH
     #define TFM_TIMING_RESISTANT
     #define TFM_ECC256
+    #define TFM_ARM
     #define ECC_SHAMIR
     #define FP_ECC
     #define FP_ENTRIES 2
