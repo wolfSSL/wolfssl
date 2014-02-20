@@ -658,15 +658,14 @@ CASE(CLIENT_SSL_CONN):
         /* see note at top of README */
         int  err = CyaSSL_get_error(ssl, 0);
         #if defined(HAVE_LWIP_NATIVE)
-            if(err == SSL_ERROR_WANT_READ)
-                BREAK ;
+        if(err == SSL_ERROR_WANT_READ)
+            BREAK ;
         #endif
         char buffer[CYASSL_MAX_ERROR_SZ];
         printf("err = %d, %s\n", err,
                                 CyaSSL_ERR_error_string(err, buffer));
         err_sys("SSL_connect failed");
         /* if you're getting an error here  */
-        BREAK ;
     }
 #else
     timeout.tv_sec  = 2;

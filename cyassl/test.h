@@ -37,7 +37,7 @@
 #else
     #include <string.h>
     #include <sys/types.h>
-#ifndef CYASSL_LEANPSK
+#if !defined(CYASSL_LEANPSK) && !defined(HAVE_LWIP_NATIVE) 
     #include <unistd.h>
     #include <netdb.h>
     #include <netinet/in.h>
@@ -58,6 +58,14 @@
     #endif
     #define SNPRINTF snprintf
 #endif /* USE_WINDOWS_API */
+
+#if defined(HAVE_LWIP_NATIVE)
+    #include <string.h>
+    #include "lwip/tcp.h"
+    #include "lwip/sockets.h"
+    #include "lwip/inet.h"
+    #include "lwip/ip_addr.h"
+#endif
 
 #ifdef HAVE_CAVIUM
     #include "cavium_sysdep.h"
@@ -81,7 +89,7 @@
 
 /* HPUX doesn't use socklent_t for third parameter to accept, unless
    _XOPEN_SOURCE_EXTENDED is defined */
-#if !defined(__hpux__) && !defined(CYASSL_MDK_ARM)
+#if !defined(__hpux__) && !defined(CYASSL_MDK_ARM) && !defined(CYASSL_IAR_ARM)
     typedef socklen_t* ACCEPT_THIRD_T;
 #else
     #if defined _XOPEN_SOURCE_EXTENDED

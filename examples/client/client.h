@@ -30,27 +30,33 @@ static enum Client_Stat {
         CLIENT_TCP_CONN ,
         CLIENT_SSL_CONN ,
         CLIENT_SSL_READ ,
-    } client_stat ;
+} client_stat ;
 
-    int tcp_connect_nb(struct tcp_pcb **pcb, const char* ip, word16 port, int udp);
-    void tcp_CloseSocket_nb(struct tcp_pcb *pcb) ;
-    #define tcp_connect(s, h, p, f) tcp_connect_nb(s, h, p, f)
-    #define CloseSocket(s) tcp_CloseSocket_nb(s)
-    #define CyaSSL_set_fd(ssl, s)
+int tcp_connect_nb(struct tcp_pcb **pcb, const char* ip, word16 port, int udp);
+void tcp_CloseSocket_nb(struct tcp_pcb *pcb) ;
+#define tcp_connect(s, h, p, f) tcp_connect_nb(s, h, p, f)
+#define CloseSocket(s) tcp_CloseSocket_nb(s)
+#define CyaSSL_set_fd(ssl, s)
+
 #endif
 
+
 #if defined(HAVE_LWIP_NATIVE)
-#define SWITCH_STAT        switch(client_stat) { case CLIENT_BEGIN:
+
+#define SWITCH_STAT       switch(client_stat) { case CLIENT_BEGIN:
 #define CASE(stat)        client_stat = stat ; case stat 
-#define BREAK              break
-#define END_SWITCH         }
-#define STATIC_NB          static
-#else    
+#define BREAK             break
+#define END_SWITCH        }
+#define STATIC_NB         static
+
+#else
+
 #define SWITCH_STAT
 #define CASE(value)
 #define BREAK
 #define END_SWITHCH
 #define STATIC_NB
+
 #endif
 
 
