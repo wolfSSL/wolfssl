@@ -1323,6 +1323,9 @@ void InitDecodedCert(DecodedCert* cert, byte* source, word32 inSz, void* heap)
     cert->extAuthKeyIdSz = 0;
     cert->extSubjKeyIdSrc = NULL;
     cert->extSubjKeyIdSz = 0;
+    #ifdef HAVE_ECC
+        cert->pkCurveOID = 0;
+    #endif /* HAVE_ECC */
 #endif /* OPENSSL_EXTRA */
 #ifdef HAVE_ECC
     cert->pkCurveOID = 0;
@@ -1536,6 +1539,9 @@ static int GetKey(DecodedCert* cert)
 
             if (CheckCurve(cert->pkCurveOID) < 0)
                 return ECC_CURVE_OID_E;
+            #ifdef OPENSSL_EXTRA
+                cert->pkCurveOID = oid;
+            #endif /* OPENSSL_EXTRA */
 
             /* key header */
             b = cert->source[cert->srcIdx++];
