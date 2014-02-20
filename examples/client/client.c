@@ -38,7 +38,12 @@
 #endif
 
 #include <cyassl/ssl.h>
-#include <cyassl/test.h>
+
+#if defined(HAVE_LWIP_NATIVE)
+    #include "tcp-conn-nb.h"
+#else
+    #include <cyassl/test.h>
+#endif
 
 #include "examples/client/client.h"
 
@@ -48,7 +53,6 @@
     int timeoutCB(TimeoutInfo*);
     Timeval timeout;
 #endif
-
 
 static void NonBlockingSSL_Connect(CYASSL* ssl)
 {
@@ -159,11 +163,10 @@ static void Usage(void)
 
 THREAD_RETURN CYASSL_THREAD client_test(void* args)
 {
-    SOCKET_T sockfd = 0;
-
+    STATIC_NB SOCKET_T sockfd = 0 ;
     CYASSL_METHOD*  method  = 0;
-    CYASSL_CTX*     ctx     = 0;
-    CYASSL*         ssl     = 0;
+    STATIC_NB CYASSL_CTX* ctx = 0;
+    STATIC_NB CYASSL*     ssl = 0;
     
     CYASSL*         sslResume = 0;
     CYASSL_SESSION* session = 0;
@@ -389,7 +392,9 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
     }
 
     myoptind = 0;      /* reset for test cases */
-
+    
+SWITCH_STAT {
+    
     /* sort out DTLS versus TLS versions */
     if (version == CLIENT_INVALID_VERSION) {
         if (doDTLS)
@@ -595,13 +600,15 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
         exit(EXIT_SUCCESS);
     }
     
-    #if defined(CYASSL_MDK_ARM)
+    #if defined(CYASSL_MDK_ARM) || defined(HAVE_LWIP_NATIVE)
     CyaSSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, 0);
     #endif
     
     ssl = CyaSSL_new(ctx);
     if (ssl == NULL)
         err_sys("unable to get SSL object");
+
+CASE(CLIENT_TCP_CONN):
     if (doDTLS) {
         SOCKADDR_IN_T addr;
         build_addr(&addr, host, port, 1);
@@ -609,7 +616,15 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
         tcp_socket(&sockfd, 1);
     }
     else {
-        tcp_connect(&sockfd, host, port, 0);
+        #if !defined(HAVE_LWIP_NATIVE)
+            tcp_connect(&sockfd, host, port, 0);
+        #else
+            int err = tcp_connect(&sockfd, host, port, 0);
+            if(err == TCP_CONNECTED)
+                CyaSSL_SetIO_LwIP(ssl, sockfd, NULL, NULL, NULL);
+            else
+                BREAK ;
+        #endif
     }
     CyaSSL_set_fd(ssl, sockfd);
 #ifdef HAVE_CRL
@@ -631,6 +646,9 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
     if (matchName && doPeerCheck)
         CyaSSL_check_domain_name(ssl, domain);
 #ifndef CYASSL_CALLBACKS
+            
+CASE(CLIENT_SSL_CONN):
+
     if (nonBlocking) {
         CyaSSL_set_using_nonblock(ssl, 1);
         tcp_set_nonblocking(&sockfd);
@@ -639,27 +657,36 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
     else if (CyaSSL_connect(ssl) != SSL_SUCCESS) {
         /* see note at top of README */
         int  err = CyaSSL_get_error(ssl, 0);
+        #if defined(HAVE_LWIP_NATIVE)
+            if(err == SSL_ERROR_WANT_READ)
+                BREAK ;
+        #endif
         char buffer[CYASSL_MAX_ERROR_SZ];
         printf("err = %d, %s\n", err,
                                 CyaSSL_ERR_error_string(err, buffer));
         err_sys("SSL_connect failed");
         /* if you're getting an error here  */
+        BREAK ;
     }
 #else
     timeout.tv_sec  = 2;
     timeout.tv_usec = 0;
     NonBlockingSSL_Connect(ssl);  /* will keep retrying on timeout */
 #endif
+
     showPeer(ssl);
 
     if (sendGET) {
         printf("SSL connect ok, sending GET...\n");
         msgSz = 28;
-        strncpy(msg, "GET /index.html HTTP/1.0\r\n\r\n", msgSz);
+        //strncpy(msg, "GET /index.html HTTP/1.0\r\n\r\n", msgSz);
+        strncpy(msg, "GET / HTTP/1.0\r\n\r\n", msgSz);
         msg[msgSz] = '\0';
     }
     if (CyaSSL_write(ssl, msg, msgSz) != msgSz)
         err_sys("SSL_write failed");
+
+CASE(CLIENT_SSL_READ):
 
     input = CyaSSL_read(ssl, reply, sizeof(reply)-1);
     if (input > 0) {
@@ -682,8 +709,9 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
         int readErr = CyaSSL_get_error(ssl, 0);
         if (readErr != SSL_ERROR_WANT_READ)
             err_sys("CyaSSL_read failed");
+        BREAK ;
     }
-
+    
 #ifndef NO_SESSION_CACHE
     if (resumeSession) {
         if (doDTLS) {
@@ -782,6 +810,11 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
 #endif /* USE_CYASSL_MEMORY */
 
     return 0;
+    }
+
+END_SWITCH ; /* End of SWITCH(stat) */
+
+    return 0 ;
 }
 
 
@@ -829,7 +862,6 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
     char* myoptarg = NULL;
 
 #endif /* NO_MAIN_DRIVER */
-
 
 
 #ifdef CYASSL_CALLBACKS
