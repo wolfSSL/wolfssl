@@ -69,8 +69,7 @@ static struct tcp_cb {
 static err_t TcpConnectedCallback (void *arg, struct tcp_pcb *pcb, s8_t err)
 {
     DBG_PRINTF("TcpConnectedCallback(arg=%x, pcb=%x, err=%x)\n", arg, pcb, err) ;
-    //if(*(int *)arg  == TCP_WAITING)
-        *(int *)arg = TCP_CONNECTED ;
+    *(int *)arg = TCP_CONNECTED ;
     return ERR_OK;
 }
 
