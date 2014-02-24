@@ -3829,7 +3829,7 @@ static int DoHandShakeMsgType(CYASSL* ssl, byte* input, word32* inOutIdx,
 
     case client_key_exchange:
         CYASSL_MSG("processing client key exchange");
-        ret = DoClientKeyExchange(ssl, input, inOutIdx, totalSz);
+        ret = DoClientKeyExchange(ssl, input, inOutIdx, size);
         break;
 
 #if !defined(NO_RSA) || defined(HAVE_ECC)
@@ -10547,18 +10547,19 @@ static void PickHashSigAlgo(CYASSL* ssl,
     }
 #endif
 
-    static int DoClientKeyExchange(CYASSL* ssl, byte* input,
-                                   word32* inOutIdx, word32 totalSz)
+    static int DoClientKeyExchange(CYASSL* ssl, byte* input, word32* inOutIdx,
+                                                                    word32 size)
     {
         int    ret = 0;
         word32 length = 0;
         byte*  out = NULL;
+        word32 begin = *inOutIdx;
 
         (void)length; /* shut up compiler warnings */
         (void)out;
         (void)input;
         (void)inOutIdx;
-        (void)totalSz;
+        (void)size;
 
         if (ssl->options.clientState < CLIENT_HELLO_COMPLETE) {
             CYASSL_MSG("Client sending keyexchange at wrong time");
@@ -10587,15 +10588,12 @@ static void PickHashSigAlgo(CYASSL* ssl,
             {
                 word32 idx = 0;
                 RsaKey key;
-                byte*  tmp = 0;
                 byte   doUserRsa = 0;
 
                 #ifdef HAVE_PK_CALLBACKS
-                    #ifndef NO_RSA
-                        if (ssl->ctx->RsaDecCb)
-                            doUserRsa = 1;
-                    #endif /* NO_RSA */
-                #endif /*HAVE_PK_CALLBACKS */
+                    if (ssl->ctx->RsaDecCb)
+                        doUserRsa = 1;
+                #endif
 
                 InitRsaKey(&key, ssl->heap);
 
@@ -10611,28 +10609,31 @@ static void PickHashSigAlgo(CYASSL* ssl,
 
                     if (ssl->options.tls) {
                         word16 check;
+
+                        if ((*inOutIdx - begin) + OPAQUE16_LEN > size)
+                            return BUFFER_ERROR;
+
                         ato16(input + *inOutIdx, &check);
-                        if ((word32)check != length) {
+                        *inOutIdx += OPAQUE16_LEN;
+
+                        if ((word32) check != length) {
                             CYASSL_MSG("RSA explicit size doesn't match");
                             FreeRsaKey(&key);
                             return RSA_PRIVATE_ERROR;
                         }
-                        (*inOutIdx) += 2;
                     }
-                    tmp = input + *inOutIdx;
-                    *inOutIdx += length;
 
-                    if (*inOutIdx > totalSz) {
+                    if ((*inOutIdx - begin) + length > size) {
                         CYASSL_MSG("RSA message too big");
                         FreeRsaKey(&key);
-                        return INCOMPLETE_DATA;
+                        return BUFFER_ERROR;
                     }
 
                     if (doUserRsa) {
                         #ifdef HAVE_PK_CALLBACKS
                             #ifndef NO_RSA
                                 ret = ssl->ctx->RsaDecCb(ssl,
-                                            tmp, length, &out,
+                                            input + *inOutIdx, length, &out,
                                             ssl->buffers.key.buffer,
                                             ssl->buffers.key.length,
                                             ssl->RsaDecCtx);
@@ -10640,8 +10641,11 @@ static void PickHashSigAlgo(CYASSL* ssl,
                         #endif /*HAVE_PK_CALLBACKS */
                     }
                     else {
-                        ret = RsaPrivateDecryptInline(tmp, length, &out, &key);
+                        ret = RsaPrivateDecryptInline(input + *inOutIdx, length,
+                                                                    &out, &key);
                     }
+
+                    *inOutIdx += length;
 
                     if (ret == SECRET_LEN) {
                         XMEMCPY(ssl->arrays->preMasterSecret, out, SECRET_LEN);
@@ -10668,36 +10672,46 @@ static void PickHashSigAlgo(CYASSL* ssl,
                 byte* pms = ssl->arrays->preMasterSecret;
                 word16 ci_sz;
 
-                ato16(&input[*inOutIdx], &ci_sz);
-                *inOutIdx += LENGTH_SZ;
-                if (ci_sz > MAX_PSK_ID_LEN) return CLIENT_ID_ERROR;
+                if ((*inOutIdx - begin) + OPAQUE16_LEN > size)
+                    return BUFFER_ERROR;
 
-                XMEMCPY(ssl->arrays->client_identity, &input[*inOutIdx], ci_sz);
+                ato16(input + *inOutIdx, &ci_sz);
+                *inOutIdx += OPAQUE16_LEN;
+
+                if (ci_sz > MAX_PSK_ID_LEN)
+                    return CLIENT_ID_ERROR;
+
+                if ((*inOutIdx - begin) + ci_sz > size)
+                    return BUFFER_ERROR;
+
+                XMEMCPY(ssl->arrays->client_identity, input + *inOutIdx, ci_sz);
                 *inOutIdx += ci_sz;
-                if (ci_sz < MAX_PSK_ID_LEN)
-                    ssl->arrays->client_identity[ci_sz] = 0;
-                else
-                    ssl->arrays->client_identity[MAX_PSK_ID_LEN-1] = 0;
 
+                ssl->arrays->client_identity[min(ci_sz, MAX_PSK_ID_LEN-1)] = 0;
                 ssl->arrays->psk_keySz = ssl->options.server_psk_cb(ssl,
                     ssl->arrays->client_identity, ssl->arrays->psk_key,
                     MAX_PSK_KEY_LEN);
+
                 if (ssl->arrays->psk_keySz == 0 || 
-                    ssl->arrays->psk_keySz > MAX_PSK_KEY_LEN)
+                                       ssl->arrays->psk_keySz > MAX_PSK_KEY_LEN)
                     return PSK_KEY_ERROR;
                 
                 /* make psk pre master secret */
                 /* length of key + length 0s + length of key + key */
-                c16toa((word16)ssl->arrays->psk_keySz, pms);
-                pms += 2;
+                c16toa((word16) ssl->arrays->psk_keySz, pms);
+                pms += OPAQUE16_LEN;
+
                 XMEMSET(pms, 0, ssl->arrays->psk_keySz);
                 pms += ssl->arrays->psk_keySz;
-                c16toa((word16)ssl->arrays->psk_keySz, pms);
-                pms += 2;
+
+                c16toa((word16) ssl->arrays->psk_keySz, pms);
+                pms += OPAQUE16_LEN;
+
                 XMEMCPY(pms, ssl->arrays->psk_key, ssl->arrays->psk_keySz);
                 ssl->arrays->preMasterSz = ssl->arrays->psk_keySz * 2 + 4;
 
                 ret = MakeMasterSecret(ssl);
+
                 /* No further need for PSK */
                 XMEMSET(ssl->arrays->psk_key, 0, ssl->arrays->psk_keySz);
                 ssl->arrays->psk_keySz = 0;
@@ -10707,26 +10721,34 @@ static void PickHashSigAlgo(CYASSL* ssl,
         #ifdef HAVE_NTRU
             case ntru_kea:
             {
-                word32 rc;
                 word16 cipherLen;
                 word16 plainLen = sizeof(ssl->arrays->preMasterSecret);
-                byte*  tmp;
 
                 if (!ssl->buffers.key.buffer)
                     return NO_PRIVATE_KEY;
 
-                ato16(&input[*inOutIdx], &cipherLen);
-                *inOutIdx += LENGTH_SZ;
+                if ((*inOutIdx - begin) + OPAQUE16_LEN > size)
+                    return BUFFER_ERROR;
+
+                ato16(input + *inOutIdx, &cipherLen);
+                *inOutIdx += OPAQUE16_LEN;
+
                 if (cipherLen > MAX_NTRU_ENCRYPT_SZ)
                     return NTRU_KEY_ERROR;
 
-                tmp = input + *inOutIdx;
-                rc = crypto_ntru_decrypt((word16)ssl->buffers.key.length,
-                            ssl->buffers.key.buffer, cipherLen, tmp, &plainLen,
-                            ssl->arrays->preMasterSecret);
+                if ((*inOutIdx - begin) + cipherLen > size)
+                    return BUFFER_ERROR;
 
-                if (rc != NTRU_OK || plainLen != SECRET_LEN)
+                if (NTRU_OK != crypto_ntru_decrypt(
+                            (word16) ssl->buffers.key.length,
+                            ssl->buffers.key.buffer, cipherLen,
+                            input + *inOutIdx, &plainLen,
+                            ssl->arrays->preMasterSecret))
                     return NTRU_DECRYPT_ERROR;
+
+                if (plainLen != SECRET_LEN)
+                    return NTRU_DECRYPT_ERROR;
+
                 *inOutIdx += cipherLen;
 
                 ssl->arrays->preMasterSz = plainLen;
@@ -10737,18 +10759,23 @@ static void PickHashSigAlgo(CYASSL* ssl,
         #ifdef HAVE_ECC
             case ecc_diffie_hellman_kea:
             {
-                word32 size;
-                word32 bLength = input[*inOutIdx];  /* one byte length */
-                *inOutIdx += 1;
+                if ((*inOutIdx - begin) + OPAQUE8_LEN > size)
+                    return BUFFER_ERROR;
 
-                ret = ecc_import_x963(&input[*inOutIdx],
-                                                      bLength, ssl->peerEccKey);
-                if (ret != 0)
+                length = input[*inOutIdx];
+                *inOutIdx += OPAQUE8_LEN;
+
+                if ((*inOutIdx - begin) + length > size)
+                    return BUFFER_ERROR;
+
+                if (ecc_import_x963(input + *inOutIdx, length, ssl->peerEccKey))
                     return ECC_PEERKEY_ERROR;
-                *inOutIdx += bLength;
+
+                *inOutIdx += length;
                 ssl->peerEccKeyPresent = 1;
 
-                size = sizeof(ssl->arrays->preMasterSecret);
+                length = sizeof(ssl->arrays->preMasterSecret);
+
                 if (ssl->specs.static_ecdh) {
                     ecc_key staticKey;
                     word32 i = 0;
@@ -10756,17 +10783,21 @@ static void PickHashSigAlgo(CYASSL* ssl,
                     ecc_init(&staticKey);
                     ret = EccPrivateKeyDecode(ssl->buffers.key.buffer, &i,
                                            &staticKey, ssl->buffers.key.length);
+
                     if (ret == 0)
                         ret = ecc_shared_secret(&staticKey, ssl->peerEccKey,
-                                           ssl->arrays->preMasterSecret, &size);
+                                         ssl->arrays->preMasterSecret, &length);
+
                     ecc_free(&staticKey);
                 }
-                else 
+                else
                     ret = ecc_shared_secret(ssl->eccTempKey, ssl->peerEccKey,
-                                        ssl->arrays->preMasterSecret, &size);
+                                         ssl->arrays->preMasterSecret, &length);
+
                 if (ret != 0)
                     return ECC_SHARED_ERROR;
-                ssl->arrays->preMasterSz = size;
+
+                ssl->arrays->preMasterSz = length;
                 ret = MakeMasterSecret(ssl);
             }
             break;
@@ -10774,15 +10805,17 @@ static void PickHashSigAlgo(CYASSL* ssl,
         #ifdef OPENSSL_EXTRA 
             case diffie_hellman_kea:
             {
-                byte*  clientPub;
                 word16 clientPubSz;
                 DhKey  dhKey;
 
-                ato16(&input[*inOutIdx], &clientPubSz);
-                *inOutIdx += LENGTH_SZ;
+                if ((*inOutIdx - begin) + OPAQUE16_LEN > size)
+                    return BUFFER_ERROR;
 
-                clientPub = &input[*inOutIdx];
-                *inOutIdx += clientPubSz;
+                ato16(input + *inOutIdx, &clientPubSz);
+                *inOutIdx += OPAQUE16_LEN;
+
+                if ((*inOutIdx - begin) + clientPubSz > size)
+                    return BUFFER_ERROR;
 
                 InitDhKey(&dhKey);
                 ret = DhSetKey(&dhKey, ssl->buffers.serverDH_P.buffer,
@@ -10794,8 +10827,11 @@ static void PickHashSigAlgo(CYASSL* ssl,
                                          &ssl->arrays->preMasterSz,
                                           ssl->buffers.serverDH_Priv.buffer,
                                           ssl->buffers.serverDH_Priv.length,
-                                          clientPub, clientPubSz);
+                                          input + *inOutIdx, clientPubSz);
                 FreeDhKey(&dhKey);
+
+                *inOutIdx += clientPubSz;
+
                 if (ret == 0)
                     ret = MakeMasterSecret(ssl);
             }
@@ -10808,6 +10844,7 @@ static void PickHashSigAlgo(CYASSL* ssl,
             }
             break;
         }
+
         /* No further need for PMS */
         XMEMSET(ssl->arrays->preMasterSecret, 0, ssl->arrays->preMasterSz);
         ssl->arrays->preMasterSz = 0;
@@ -10824,5 +10861,3 @@ static void PickHashSigAlgo(CYASSL* ssl,
     }
 
 #endif /* NO_CYASSL_SERVER */
-
-
