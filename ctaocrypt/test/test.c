@@ -2412,10 +2412,6 @@ int camellia_test(void)
         {CAM_CBC_DEC, ptc, ivc, c6, k6, sizeof(k6), -125}
     };
 
-    if ((sizeof(pte) != CAMELLIA_BLOCK_SIZE) ||
-                                          (sizeof(ptc) != CAMELLIA_BLOCK_SIZE))
-        return -113;
-
     testsSz = sizeof(testVectors)/sizeof(test_vector_t);
     for (i = 0; i < testsSz; i++) {
         CamelliaSetKey(&cam, testVectors[i].key, testVectors[i].keySz,

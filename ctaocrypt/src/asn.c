@@ -1516,8 +1516,9 @@ static int GetKey(DecodedCert* cert)
             XMEMCPY(cert->publicKey, keyBlob, keyLen);
             cert->pubKeyStored = 1;
             cert->pubKeySize   = keyLen;
+
+            return 0;
         }
-        break;
     #endif /* HAVE_NTRU */
     #ifdef HAVE_ECC
         case ECDSAk:
@@ -1560,14 +1561,13 @@ static int GetKey(DecodedCert* cert)
             cert->pubKeySize   = length;
 
             cert->srcIdx += length;
+
+            return 0;
         }
-        break;
     #endif /* HAVE_ECC */
         default:
             return ASN_UNKNOWN_OID_E;
     }
-   
-    return 0;
 }
 
 

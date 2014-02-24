@@ -4154,8 +4154,9 @@ static INLINE int Encrypt(CYASSL* ssl, byte* out, const byte* input, word16 sz)
                         additional, AEAD_AUTH_DATA_SZ);
                     AeadIncrementExpIV(ssl);
                     XMEMSET(nonce, 0, AEAD_NONCE_SZ);
+
+                    break;
                 }
-                break;
         #endif
 
         #ifdef HAVE_CAMELLIA
@@ -4172,7 +4173,6 @@ static INLINE int Encrypt(CYASSL* ssl, byte* out, const byte* input, word16 sz)
         #ifdef BUILD_RABBIT
             case cyassl_rabbit:
                 return RabbitProcess(ssl->encrypt.rabbit, out, input, sz);
-                break;
         #endif
 
         #ifdef HAVE_NULL_CIPHER
@@ -4309,7 +4309,6 @@ static INLINE int Decrypt(CYASSL* ssl, byte* plain, const byte* input,
         #ifdef BUILD_RABBIT
             case cyassl_rabbit:
                 return RabbitProcess(ssl->decrypt.rabbit, plain, input, sz);
-                break;
         #endif
 
         #ifdef HAVE_NULL_CIPHER
@@ -4861,7 +4860,7 @@ int ProcessReply(CYASSL* ssl)
 #endif
 
     for (;;) {
-        switch ((processReply)ssl->options.processReply) {
+        switch (ssl->options.processReply) {
 
         /* in the CYASSL_SERVER case, get the first byte for detecting 
          * old client hello */
@@ -5184,6 +5183,7 @@ int ProcessReply(CYASSL* ssl)
                 ssl->options.processReply = doProcessInit;
                 continue;
             }
+
         default:
             CYASSL_MSG("Bad process input state, programming error");
             return INPUT_CASE_ERROR;

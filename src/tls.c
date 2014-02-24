@@ -608,7 +608,6 @@ static int TLSX_SNI_Append(SNI** list, byte type, const void* data, word16 size)
         default: /* invalid type */
             XFREE(sni, 0, DYNAMIC_TYPE_TLSX);
             return BAD_FUNC_ARG;
-        break;
     }
 
     sni->type = type;

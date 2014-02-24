@@ -86,7 +86,6 @@ static int InitHmac(Hmac* hmac, int type)
         
         default:
             return BAD_FUNC_ARG;
-        break;
     }
 
     return 0;
