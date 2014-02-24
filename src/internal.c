@@ -3855,17 +3855,14 @@ static int DoHandShakeMsgType(CYASSL* ssl, byte* input, word32* inOutIdx,
 static int DoHandShakeMsg(CYASSL* ssl, byte* input, word32* inOutIdx,
                           word32 totalSz)
 {
-    byte type;
+    byte   type;
     word32 size;
-    int ret = 0;
+    int    ret = 0;
 
     CYASSL_ENTER("DoHandShakeMsg()");
 
     if (GetHandShakeHeader(ssl, input, inOutIdx, &type, &size) != 0)
         return PARSE_ERROR;
-
-    if (*inOutIdx + size > totalSz)
-        return INCOMPLETE_DATA;
 
     ret = DoHandShakeMsgType(ssl, input, inOutIdx, type, size, totalSz);
 
@@ -7478,7 +7475,7 @@ static void PickHashSigAlgo(CYASSL* ssl,
 #endif
 
         /* protocol version, random and session id length check */
-        if ((i - begin) + OPAQUE16_LEN + RAN_LEN + ENUM_LEN > helloSz)
+        if ((i - begin) + OPAQUE16_LEN + RAN_LEN + OPAQUE8_LEN > helloSz)
             return BUFFER_ERROR;
 
         /* protocol version */
@@ -7537,7 +7534,7 @@ static void PickHashSigAlgo(CYASSL* ssl,
         }
 
         /* suite and compression */
-        if ((i - begin) + OPAQUE16_LEN + ENUM_LEN > helloSz)
+        if ((i - begin) + OPAQUE16_LEN + OPAQUE8_LEN > helloSz)
             return BUFFER_ERROR;
 
         ssl->options.cipherSuite0 = input[i++];
@@ -10040,7 +10037,7 @@ static void PickHashSigAlgo(CYASSL* ssl,
 #endif
 
         /* protocol version, random and session id length check */
-        if ((i - begin) + OPAQUE16_LEN + RAN_LEN + ENUM_LEN > helloSz)
+        if ((i - begin) + OPAQUE16_LEN + RAN_LEN + OPAQUE8_LEN > helloSz)
             return BUFFER_ERROR;
 
         /* protocol version */
@@ -10121,7 +10118,7 @@ static void PickHashSigAlgo(CYASSL* ssl,
             /* cookie */
             if (ssl->options.dtls) {
 
-                if ((i - begin) + ENUM_LEN > helloSz)
+                if ((i - begin) + OPAQUE8_LEN > helloSz)
                     return BUFFER_ERROR;
 
                 b = input[i++];
@@ -10160,7 +10157,7 @@ static void PickHashSigAlgo(CYASSL* ssl,
         i += OPAQUE16_LEN;
 
         /* suites and compression length check */
-        if ((i - begin) + clSuites.suiteSz + ENUM_LEN > helloSz)
+        if ((i - begin) + clSuites.suiteSz + OPAQUE8_LEN > helloSz)
             return BUFFER_ERROR;
 
         if (clSuites.suiteSz > MAX_SUITE_SZ)

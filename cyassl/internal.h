@@ -599,7 +599,9 @@ enum Misc {
     COOKIE_SZ    = 20,         /* use a 20 byte cookie    */
     SUITE_LEN    =  2,         /* cipher suite sz length  */
     ENUM_LEN     =  1,         /* always a byte           */
-    OPAQUE16_LEN =  2,         /* always 2 bytes          */
+    OPAQUE8_LEN  =  1,         /* 1 byte                  */
+    OPAQUE16_LEN =  2,         /* 2 bytes                 */
+    OPAQUE24_LEN =  3,         /* 3 bytes                 */
     COMP_LEN     =  1,         /* compression length      */
     CURVE_LEN    =  2,         /* ecc named curve length  */
     SERVER_ID_LEN = 20,        /* server session id length  */
