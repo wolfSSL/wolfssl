@@ -1782,7 +1782,7 @@ static int DoOldHello(SnifferSession* session, const byte* sslFrame,
 
     ret = ProcessOldClientHello(session->sslServer, input, &idx, *sslBytes,
                                 *rhSize);    
-    if (ret < 0) {
+    if (ret < 0 && ret != MATCH_SUITE_ERROR) {
         SetError(BAD_OLD_CLIENT_STR, error, session, FATAL_ERROR_STATE);
         return -1;
     }

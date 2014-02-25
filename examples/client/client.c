@@ -133,7 +133,7 @@ static void Usage(void)
 #ifdef HAVE_SNI
     printf("-S <str>    Use Host Name Indication\n");
 #endif
-#ifdef HAVE_MAXFRAGMENT
+#ifdef HAVE_MAX_FRAGMENT
     printf("-L <num>    Use Maximum Fragment Length [1-5]\n");
 #endif
 #ifdef HAVE_TRUNCATED_HMAC
