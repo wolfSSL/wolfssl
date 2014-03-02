@@ -44,12 +44,12 @@
 #include "examples/server/server.h"
 
 
-CYASSL_CTX* cipherSuiteCtx = NULL;
-char nonblockFlag[] = "-N";
-char noVerifyFlag[] = "-d";
-char portFlag[] = "-p";
-char flagSep[] = " ";
-char svrPort[] = "0";
+static CYASSL_CTX* cipherSuiteCtx = NULL;
+static char nonblockFlag[] = "-N";
+static char noVerifyFlag[] = "-d";
+static char portFlag[] = "-p";
+static char flagSep[] = " ";
+static char svrPort[] = "0";
 
 
 #ifdef NO_OLD_TLS

@@ -219,27 +219,27 @@ int benchmark_test(void *args)
 
 
 #ifdef BENCH_EMBEDDED
-const int numBlocks = 25;       /* how many kB/megs to test (en/de)cryption */
-const char blockType[] = "kB";  /* used in printf output */
-const int ntimes      = 1;        /* public key iterations */
-const int genTimes   = 5;
-const int agreeTimes = 5;
+static const int numBlocks = 25;  /* how many kB/megs to test (en/de)cryption */
+static const char blockType[] = "kB";  /* used in printf output */
+static const int ntimes      = 1;        /* public key iterations */
+static const int genTimes   = 5;
+static const int agreeTimes = 5;
 #else
-const int numBlocks = 5;
-const char blockType[] = "megs";
-const int ntimes      = 100;
-const int genTimes   = 100;
-const int agreeTimes = 100;
+static const int numBlocks = 5;
+static const char blockType[] = "megs";
+static const int ntimes      = 100;
+static const int genTimes   = 100;
+static const int agreeTimes = 100;
 #endif
 
-const byte key[] = 
+static const byte key[] = 
 {
     0x01,0x23,0x45,0x67,0x89,0xab,0xcd,0xef,
     0xfe,0xde,0xba,0x98,0x76,0x54,0x32,0x10,
     0x89,0xab,0xcd,0xef,0x01,0x23,0x45,0x67
 };
 
-const byte iv[] = 
+static const byte iv[] = 
 {
     0x12,0x34,0x56,0x78,0x90,0xab,0xcd,0xef,
     0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,
@@ -250,11 +250,11 @@ const byte iv[] =
 
 /* use kB instead of mB for embedded benchmarking */
 #ifdef BENCH_EMBEDDED
-byte plain [1024];
-byte cipher[1024];
+static byte plain [1024];
+static byte cipher[1024];
 #else
-byte plain [1024*1024];
-byte cipher[1024*1024];
+static byte plain [1024*1024];
+static byte cipher[1024*1024];
 #endif
 
 
@@ -294,8 +294,10 @@ void bench_aes(int show)
 #endif
 
 
-byte additional[13];
-byte tag[16];
+#if defined(HAVE_AESGCM) || defined(HAVE_AESCCM)
+    static byte additional[13];
+    static byte tag[16];
+#endif
 
 
 #ifdef HAVE_AESGCM
@@ -675,7 +677,7 @@ void bench_blake2(void)
 
 #if !defined(NO_RSA) || !defined(NO_DH) \
                                 || defined(CYASSL_KEYGEN) || defined(HAVE_ECC)
-RNG rng;
+static RNG rng;
 #endif
 
 #ifndef NO_RSA
@@ -684,7 +686,7 @@ RNG rng;
 #if !defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048) && \
                                                     defined(CYASSL_MDK_SHELL)
 static char *certRSAname = "certs/rsa2048.der" ;
-void set_Bench_RSA_File(char * cert) { certRSAname = cert ; }   
+static void set_Bench_RSA_File(char * cert) { certRSAname = cert ; }   
                                                  /* set by shell command */
 #elif defined(CYASSL_MDK_SHELL)
     /* nothing */

@@ -48,9 +48,9 @@ enum {
 };
 
 #ifndef USE_WINDOWS_API
-    const char outputName[] = "/tmp/output";
+    static const char outputName[] = "/tmp/output";
 #else
-    const char outputName[] = "output";
+    static const char outputName[] = "output";
 #endif
 
 

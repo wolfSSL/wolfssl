@@ -6363,7 +6363,7 @@ void SetErrorString(int error, char* str)
 
 
 /* be sure to add to cipher_name_idx too !!!! */
-const char* const cipher_names[] = 
+static const char* const cipher_names[] = 
 {
 #ifdef BUILD_SSL_RSA_WITH_RC4_128_SHA
     "RC4-SHA",
@@ -6682,7 +6682,7 @@ const char* const cipher_names[] =
 
 
 /* cipher suite number that matches above name table */
-int cipher_name_idx[] =
+static int cipher_name_idx[] =
 {
 
 #ifdef BUILD_SSL_RSA_WITH_RC4_128_SHA
