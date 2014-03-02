@@ -800,7 +800,7 @@ void bench_dh(void)
     int    i, ret;
     byte   tmp[1024];
     size_t bytes;
-    word32 idx = 0, pubSz, privSz, pubSz2, privSz2, agreeSz;
+    word32 idx = 0, pubSz, privSz = 0, pubSz2, privSz2, agreeSz;
 
     byte   pub[256];    /* for 2048 bit */
     byte   priv[256];   /* for 2048 bit */

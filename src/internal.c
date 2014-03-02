@@ -10336,8 +10336,8 @@ static void PickHashSigAlgo(CYASSL* ssl,
         /* RSA */
 #ifndef NO_RSA
         if (ssl->peerRsaKeyPresent != 0) {
-            byte* out;
-            int   outLen;
+            byte* out       = NULL;
+            int   outLen    = 0;
             byte  doUserRsa = 0;
 
             #ifdef HAVE_PK_CALLBACKS
@@ -10388,12 +10388,12 @@ static void PickHashSigAlgo(CYASSL* ssl,
 
                 sigSz = EncodeSignature(encodedSig, digest, digestSz, typeH);
 
-                if (outLen == (int)sigSz && XMEMCMP(out, encodedSig,
+                if (outLen == (int)sigSz && out && XMEMCMP(out, encodedSig,
                                            min(sigSz, MAX_ENCODED_SIG_SZ)) == 0)
                     ret = 0;  /* verified */
             }
             else {
-                if (outLen == FINISHED_SZ && XMEMCMP(out,
+                if (outLen == FINISHED_SZ && out && XMEMCMP(out,
                                 &ssl->certHashes, FINISHED_SZ) == 0)
                     ret = 0;  /* verified */
             }
