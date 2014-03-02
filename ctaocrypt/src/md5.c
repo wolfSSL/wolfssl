@@ -300,7 +300,7 @@ void Md5Update(Md5* md5, const byte* data, word32 len)
 
         if (md5->buffLen == MD5_BLOCK_SIZE) {
             #if defined(BIG_ENDIAN_ORDER) && !defined(FREESCALE_MMCAU)
-                ByteReverseBytes(local, local, MD5_BLOCK_SIZE);
+                ByteReverseWords(md5->buffer, md5->buffer, MD5_BLOCK_SIZE);
             #endif
             XTRANSFORM(md5, local);
             AddLength(md5, MD5_BLOCK_SIZE);
@@ -324,7 +324,7 @@ void Md5Final(Md5* md5, byte* hash)
         md5->buffLen += MD5_BLOCK_SIZE - md5->buffLen;
 
         #if defined(BIG_ENDIAN_ORDER) && !defined(FREESCALE_MMCAU)
-            ByteReverseBytes(local, local, MD5_BLOCK_SIZE);
+            ByteReverseWords(md5->buffer, md5->buffer, MD5_BLOCK_SIZE);
         #endif
         XTRANSFORM(md5, local);
         md5->buffLen = 0;
@@ -338,7 +338,7 @@ void Md5Final(Md5* md5, byte* hash)
 
     /* store lengths */
     #if defined(BIG_ENDIAN_ORDER) && !defined(FREESCALE_MMCAU)
-        ByteReverseBytes(local, local, MD5_BLOCK_SIZE);
+        ByteReverseWords(md5->buffer, md5->buffer, MD5_BLOCK_SIZE);
     #endif
     /* ! length ordering dependent on digest endian type ! */
     XMEMCPY(&local[MD5_PAD_SIZE], &md5->loLen, sizeof(word32));

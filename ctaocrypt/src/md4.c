@@ -161,7 +161,7 @@ void Md4Update(Md4* md4, const byte* data, word32 len)
 
         if (md4->buffLen == MD4_BLOCK_SIZE) {
             #ifdef BIG_ENDIAN_ORDER
-                ByteReverseBytes(local, local, MD4_BLOCK_SIZE);
+                ByteReverseWords(md4->buffer, md4->buffer, MD4_BLOCK_SIZE);
             #endif
             Transform(md4);
             AddLength(md4, MD4_BLOCK_SIZE);
@@ -185,7 +185,7 @@ void Md4Final(Md4* md4, byte* hash)
         md4->buffLen += MD4_BLOCK_SIZE - md4->buffLen;
 
         #ifdef BIG_ENDIAN_ORDER
-            ByteReverseBytes(local, local, MD4_BLOCK_SIZE);
+            ByteReverseWords(md4->buffer, md4->buffer, MD4_BLOCK_SIZE);
         #endif
         Transform(md4);
         md4->buffLen = 0;
@@ -199,7 +199,7 @@ void Md4Final(Md4* md4, byte* hash)
 
     /* store lengths */
     #ifdef BIG_ENDIAN_ORDER
-        ByteReverseBytes(local, local, MD4_BLOCK_SIZE);
+        ByteReverseWords(md4->buffer, md4->buffer, MD4_BLOCK_SIZE);
     #endif
     /* ! length ordering dependent on digest endian type ! */
     XMEMCPY(&local[MD4_PAD_SIZE], &md4->loLen, sizeof(word32));

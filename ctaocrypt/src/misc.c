@@ -146,15 +146,6 @@ STATIC INLINE void ByteReverseWords64(word64* out, const word64* in,
 #endif /* WORD64_AVAILABLE */
 
 
-STATIC INLINE void ByteReverseBytes(byte* out, const byte* in, word32 byteCount)
-{
-    word32* op       = (word32*)out;
-    const word32* ip = (const word32*)in;
-
-    ByteReverseWords(op, ip, byteCount);
-}
-
-
 STATIC INLINE void XorWords(word* r, const word* a, word32 n)
 {
     word32 i;
@@ -163,13 +154,16 @@ STATIC INLINE void XorWords(word* r, const word* a, word32 n)
 }
 
 
-STATIC INLINE void xorbuf(byte* buf, const byte* mask, word32 count)
+STATIC INLINE void xorbuf(void* buf, const void* mask, word32 count)
 {
     if (((word)buf | (word)mask | count) % CYASSL_WORD_SIZE == 0)
         XorWords( (word*)buf, (const word*)mask, count / CYASSL_WORD_SIZE);
     else {
         word32 i;
-        for (i = 0; i < count; i++) buf[i] ^= mask[i];
+        byte*       b = (byte*)buf;
+        const byte* m = (const byte*)mask;
+
+        for (i = 0; i < count; i++) b[i] ^= m[i];
     }
 }
 #undef STATIC

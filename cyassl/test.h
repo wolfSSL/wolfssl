@@ -1146,7 +1146,8 @@ static INLINE int CurrentDir(const char* str)
         if (ptr == NULL)
             return;
 
-        mt = (memoryTrack*)((byte*)ptr - sizeof(memoryTrack));
+        mt = (memoryTrack*)ptr;
+        --mt;   /* same as minus sizeof(memoryTrack), removes header */
 
 #ifdef DO_MEM_STATS 
         ourMemStats.currentBytes -= mt->u.hint.thisSize; 
@@ -1162,7 +1163,8 @@ static INLINE int CurrentDir(const char* str)
 
         if (ptr) {
             /* if realloc is bigger, don't overread old ptr */
-            memoryTrack* mt = (memoryTrack*)((byte*)ptr - sizeof(memoryTrack));
+            memoryTrack* mt = (memoryTrack*)ptr;
+            --mt;  /* same as minus sizeof(memoryTrack), removes header */
 
             if (mt->u.hint.thisSize < sz)
                 sz = mt->u.hint.thisSize;
