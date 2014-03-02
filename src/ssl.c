@@ -1615,12 +1615,7 @@ int AddCA(CYASSL_CERT_MANAGER* cm, buffer der, int type, int verify)
 
         static ClientRow ClientCache[SESSION_ROWS];  /* Client Cache */
                                                      /* uses session mutex */
-
     #endif  /* NO_CLIENT_CACHE */
-
-    /* for persistance, if changes to layout need to increment and modify
-       save_session_cache() and restore_session_cache and memory versions too */
-    #define CYASSL_CACHE_VERSION 2
 
 #endif /* NO_SESSION_CACHE */
 
@@ -3454,6 +3449,10 @@ int CyaSSL_SetServerID(CYASSL* ssl, const byte* id, int len, int newSession)
 #endif /* NO_CLIENT_CACHE */
 
 #if defined(PERSIST_SESSION_CACHE)
+
+/* for persistance, if changes to layout need to increment and modify
+   save_session_cache() and restore_session_cache and memory versions too */
+#define CYASSL_CACHE_VERSION 2
 
 /* Session Cache Header information */
 typedef struct {

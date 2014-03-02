@@ -36,7 +36,9 @@
 #define MAX_COMMAND_SZ 240
 #define MAX_SUITE_SZ 80 
 #define NOT_BUILT_IN -123
-#define VERSION_TOO_OLD -124
+#ifdef NO_OLD_TLS
+    #define VERSION_TOO_OLD -124
+#endif
 
 #include "examples/client/client.h"
 #include "examples/server/server.h"
