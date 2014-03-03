@@ -2817,7 +2817,7 @@ static int GetRecordHeader(CYASSL* ssl, const byte* input, word32* inOutIdx,
 #endif
 
     /* verify record type here as well */
-    switch ((enum ContentType)rh->type) {
+    switch (rh->type) {
         case handshake:
         case change_cipher_spec:
         case application_data:

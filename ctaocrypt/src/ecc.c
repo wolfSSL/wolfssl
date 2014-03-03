@@ -971,7 +971,8 @@ static int ecc_mulmod(mp_int* k, ecc_point *G, ecc_point *R, mp_int* modulus,
    mp_int        mu;
    mp_digit      mp;
    unsigned long buf;
-   int           first, bitbuf, bitcpy, bitcnt, mode, digidx;
+   int           first = 1, bitbuf = 0, bitcpy = 0, bitcnt = 0, mode = 0,
+                 digidx = 0;
 
    if (k == NULL || G == NULL || R == NULL || modulus == NULL)
        return ECC_BAD_ARG_E;

@@ -94,13 +94,10 @@ static int xstat2err(int stat)
     switch (stat) {
         case CERT_GOOD:
             return 0;
-            break;
         case CERT_REVOKED:
             return OCSP_CERT_REVOKED;
-            break;
         default:
             return OCSP_CERT_UNKNOWN;
-            break;
     }
 }
 

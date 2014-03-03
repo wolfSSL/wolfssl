@@ -2402,7 +2402,7 @@ int mp_add_d(fp_int *a, fp_digit b, fp_int *c)
 #ifdef HAVE_ECC
 
 /* chars used in radix conversions */
-const char *fp_s_rmap = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz+/";
+static const char *fp_s_rmap = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz+/";
 
 static int fp_read_radix(fp_int *a, const char *str, int radix)
 {
