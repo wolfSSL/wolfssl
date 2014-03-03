@@ -367,7 +367,7 @@ int InitSSL_Ctx(CYASSL_CTX* ctx, CYASSL_METHOD* method)
     ctx->eccTempKeySz       = ECDHE_SIZE;   
 #endif
 
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
     ctx->passwd_cb   = 0;
     ctx->userdata    = 0;
 #endif /* OPENSSL_EXTRA */

@@ -125,7 +125,7 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
     ctx    = CyaSSL_CTX_new(method);
     /* CyaSSL_CTX_set_session_cache_mode(ctx, SSL_SESS_CACHE_OFF); */
 
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
     CyaSSL_CTX_set_default_passwd_cb(ctx, PasswordCallBack);
 #endif
 

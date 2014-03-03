@@ -490,7 +490,7 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
         useClientCert = 0;
     }
 
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
     CyaSSL_CTX_set_default_passwd_cb(ctx, PasswordCallBack);
 #endif
 

@@ -374,7 +374,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     if (fewerPackets)
         CyaSSL_CTX_set_group_messages(ctx);
 
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
     SSL_CTX_set_default_passwd_cb(ctx, PasswordCallBack);
 #endif
 

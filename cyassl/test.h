@@ -282,7 +282,7 @@ static INLINE int mygetopt(int argc, char** argv, const char* optstring)
 }
 
 
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
 
 static INLINE int PasswordCallBack(char* passwd, int sz, int rw, void* userdata)
 {
