@@ -7856,8 +7856,8 @@ static void PickHashSigAlgo(CYASSL* ssl,
         /* rsa */
         if (sigAlgo == rsa_sa_algo)
         {
-            int   ret;
-            byte* out;
+            int   ret       = 0;
+            byte* out       = NULL;
             byte  doUserRsa = 0;
 
             #ifdef HAVE_PK_CALLBACKS
@@ -7919,12 +7919,13 @@ static void PickHashSigAlgo(CYASSL* ssl,
 
                 encSigSz = EncodeSignature(encodedSig, digest, digestSz, typeH);
 
-                if (encSigSz != (word32)ret || XMEMCMP(out, encodedSig,
+                if (encSigSz != (word32)ret || !out || XMEMCMP(out, encodedSig,
                                         min(encSigSz, MAX_ENCODED_SIG_SZ)) != 0)
                     return VERIFY_SIGN_ERROR;
             }
             else { 
-                if (ret != sizeof(hash) || XMEMCMP(out, hash,sizeof(hash)) != 0)
+                if (ret != sizeof(hash) || !out || XMEMCMP(out,
+                                                       hash, sizeof(hash)) != 0)
                     return VERIFY_SIGN_ERROR;
             }
         } else

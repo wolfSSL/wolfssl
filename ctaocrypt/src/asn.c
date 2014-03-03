@@ -3276,9 +3276,7 @@ static void DecodeCertExtensions(DecodedCert* cert)
     byte* input = cert->extensions;
     int length;
     word32 oid;
-    byte critical;
-
-    (void)critical;
+    byte critical = 0;
 
     CYASSL_ENTER("DecodeCertExtensions");
 
@@ -3391,7 +3389,6 @@ static void DecodeCertExtensions(DecodedCert* cert)
         }
         idx += length;
     }
-    (void)critical;
 
     CYASSL_LEAVE("DecodeCertExtensions", 0);
     return;
