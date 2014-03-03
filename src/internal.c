@@ -3835,7 +3835,7 @@ static int DoHandShakeMsgType(CYASSL* ssl, byte* input, word32* inOutIdx,
 #if !defined(NO_RSA) || defined(HAVE_ECC)
     case certificate_verify:
         CYASSL_MSG("processing certificate verify");
-        ret = DoCertificateVerify(ssl, input, inOutIdx, totalSz);
+        ret = DoCertificateVerify(ssl, input, inOutIdx, size);
         break;
 #endif /* !NO_RSA || HAVE_ECC */
 
@@ -10306,15 +10306,14 @@ static void PickHashSigAlgo(CYASSL* ssl,
     }
 
 #if !defined(NO_RSA) || defined(HAVE_ECC)
-    static int DoCertificateVerify(CYASSL* ssl, byte* input, word32* inOutsz,
-                                   word32 totalSz)
+    static int DoCertificateVerify(CYASSL* ssl, byte* input, word32* inOutIdx,
+                                   word32 size)
     {
         word16      sz = 0;
-        word32      i = *inOutsz;
         int         ret = VERIFY_CERT_ERROR;   /* start in error state */
-        byte*       sig;
         byte        hashAlgo = sha_mac;
         byte        sigAlgo = anonymous_sa_algo;
+        word32      begin = *inOutIdx;
 
         #ifdef CYASSL_CALLBACKS
             if (ssl->hsInfoOn)
@@ -10322,24 +10321,24 @@ static void PickHashSigAlgo(CYASSL* ssl,
             if (ssl->toInfoOn)
                 AddLateName("CertificateVerify", &ssl->timeoutInfo);
         #endif
-        if ( (i + VERIFY_HEADER) > totalSz)
-            return INCOMPLETE_DATA;
+
 
         if (IsAtLeastTLSv1_2(ssl)) {
-            hashAlgo = input[i++];
-            sigAlgo = input[i++];
+            if ((*inOutIdx - begin) + ENUM_LEN + ENUM_LEN > size)
+                return BUFFER_ERROR;
+
+            hashAlgo = input[(*inOutIdx)++];
+            sigAlgo  = input[(*inOutIdx)++];
         }
-        ato16(&input[i], &sz);
-        i += VERIFY_HEADER;
 
-        if ( (i + sz) > totalSz)
-            return INCOMPLETE_DATA;
-
-        if (sz > ENCRYPT_LEN)
+        if ((*inOutIdx - begin) + OPAQUE16_LEN > size)
             return BUFFER_ERROR;
 
-        sig = &input[i];
-        *inOutsz = i + sz;
+        ato16(input + *inOutIdx, &sz);
+        *inOutIdx += OPAQUE16_LEN;
+
+        if ((*inOutIdx - begin) + sz > size || sz > ENCRYPT_LEN)
+            return BUFFER_ERROR;
 
         /* RSA */
 #ifndef NO_RSA
@@ -10357,7 +10356,7 @@ static void PickHashSigAlgo(CYASSL* ssl,
 
             if (doUserRsa) {
             #ifdef HAVE_PK_CALLBACKS
-                outLen = ssl->ctx->RsaVerifyCb(ssl, sig, sz,
+                outLen = ssl->ctx->RsaVerifyCb(ssl, input + *inOutIdx, sz,
                                             &out, 
                                             ssl->buffers.peerRsaKey.buffer,
                                             ssl->buffers.peerRsaKey.length,
@@ -10365,7 +10364,8 @@ static void PickHashSigAlgo(CYASSL* ssl,
             #endif /*HAVE_PK_CALLBACKS */
             }
             else {
-                outLen = RsaSSL_VerifyInline(sig, sz, &out, ssl->peerRsaKey);
+                outLen = RsaSSL_VerifyInline(input + *inOutIdx, sz, &out,
+                                                               ssl->peerRsaKey);
             }
 
             if (IsAtLeastTLSv1_2(ssl)) {
@@ -10398,12 +10398,12 @@ static void PickHashSigAlgo(CYASSL* ssl,
 
                 if (outLen == (int)sigSz && out && XMEMCMP(out, encodedSig,
                                            min(sigSz, MAX_ENCODED_SIG_SZ)) == 0)
-                    ret = 0;  /* verified */
+                    ret = 0; /* verified */
             }
             else {
                 if (outLen == FINISHED_SZ && out && XMEMCMP(out,
-                                &ssl->certHashes, FINISHED_SZ) == 0)
-                    ret = 0;  /* verified */
+                                            &ssl->certHashes, FINISHED_SZ) == 0)
+                    ret = 0; /* verified */
             }
         }
 #endif
@@ -10416,11 +10416,9 @@ static void PickHashSigAlgo(CYASSL* ssl,
             byte doUserEcc = 0;
 
             #ifdef HAVE_PK_CALLBACKS
-                #ifdef HAVE_ECC
-                    if (ssl->ctx->EccVerifyCb)
-                        doUserEcc = 1;
-                #endif /* HAVE_ECC */
-            #endif /*HAVE_PK_CALLBACKS */
+                if (ssl->ctx->EccVerifyCb)
+                    doUserEcc = 1;
+            #endif
 
             CYASSL_MSG("Doing ECC peer cert verify");
 
@@ -10428,6 +10426,7 @@ static void PickHashSigAlgo(CYASSL* ssl,
                 if (sigAlgo != ecc_dsa_sa_algo) {
                     CYASSL_MSG("Oops, peer sent ECC key but not in verify");
                 }
+
                 if (hashAlgo == sha256_mac) {
                     #ifndef NO_SHA256
                         digest = ssl->certHashes.sha256;
@@ -10441,24 +10440,27 @@ static void PickHashSigAlgo(CYASSL* ssl,
                     #endif
                 }
             }
+
             if (doUserEcc) {
             #ifdef HAVE_PK_CALLBACKS
-                #ifdef HAVE_ECC
-                    ret = ssl->ctx->EccVerifyCb(ssl, sig, sz, digest, digestSz,
-                                    ssl->buffers.peerEccDsaKey.buffer,
-                                    ssl->buffers.peerEccDsaKey.length,
-                                    &verify, ssl->EccVerifyCtx);
-                #endif /* HAVE_ECC */
-            #endif /*HAVE_PK_CALLBACKS */
+                ret = ssl->ctx->EccVerifyCb(ssl, input + *inOutIdx, sz, digest,
+                                            digestSz,
+                                            ssl->buffers.peerEccDsaKey.buffer,
+                                            ssl->buffers.peerEccDsaKey.length,
+                                            &verify, ssl->EccVerifyCtx);
+            #endif
             }
             else {
-                err = ecc_verify_hash(sig, sz, digest, digestSz,
-                                      &verify, ssl->peerEccDsaKey);
+                err = ecc_verify_hash(input + *inOutIdx, sz, digest, digestSz,
+                                                   &verify, ssl->peerEccDsaKey);
             }
+
             if (err == 0 && verify == 1)
-               ret = 0;   /* verified */ 
+               ret = 0; /* verified */
         }
 #endif
+        *inOutIdx += sz;
+
         if (ret == 0)
             ssl->options.havePeerVerify = 1;
           
@@ -10639,14 +10641,12 @@ static void PickHashSigAlgo(CYASSL* ssl,
 
                     if (doUserRsa) {
                         #ifdef HAVE_PK_CALLBACKS
-                            #ifndef NO_RSA
-                                ret = ssl->ctx->RsaDecCb(ssl,
-                                            input + *inOutIdx, length, &out,
-                                            ssl->buffers.key.buffer,
-                                            ssl->buffers.key.length,
-                                            ssl->RsaDecCtx);
-                            #endif /* NO_RSA */
-                        #endif /*HAVE_PK_CALLBACKS */
+                            ret = ssl->ctx->RsaDecCb(ssl,
+                                        input + *inOutIdx, length, &out,
+                                        ssl->buffers.key.buffer,
+                                        ssl->buffers.key.length,
+                                        ssl->RsaDecCtx);
+                        #endif
                     }
                     else {
                         ret = RsaPrivateDecryptInline(input + *inOutIdx, length,
