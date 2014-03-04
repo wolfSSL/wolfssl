@@ -998,7 +998,7 @@ void bench_eccKeyAgree(void)
 
     /* make dummy digest */
     for (i = 0; i < (int)sizeof(digest); i++)
-        digest[i] = i;
+        digest[i] = (byte)i;
 
 
     start = current_time(1);

@@ -95,9 +95,9 @@ int Base64_Decode(const byte* in, word32 inLen, byte* out, word32* outLen)
         e3 = (e3 == PAD) ? 0 : base64Decode[e3 - 0x2B];
         e4 = (e4 == PAD) ? 0 : base64Decode[e4 - 0x2B];
 
-        b1 = (e1 << 2) | (e2 >> 4);
-        b2 = ((e2 & 0xF) << 4) | (e3 >> 2);
-        b3 = ((e3 & 0x3) << 6) | e4;
+        b1 = (byte)((e1 << 2) | (e2 >> 4));
+        b2 = (byte)(((e2 & 0xF) << 4) | (e3 >> 2));
+        b3 = (byte)(((e3 & 0x3) << 6) | e4);
 
         out[i++] = b1;
         if (!pad3)
@@ -251,8 +251,8 @@ static int DoBase64_Encode(const byte* in, word32 inLen, byte* out,
 
         /* encoded idx */
         byte e1 = b1 >> 2;
-        byte e2 = ((b1 & 0x3) << 4) | (b2 >> 4);
-        byte e3 = ((b2 & 0xF) << 2) | (b3 >> 6);
+        byte e2 = (byte)(((b1 & 0x3) << 4) | (b2 >> 4));
+        byte e3 = (byte)(((b2 & 0xF) << 2) | (b3 >> 6));
         byte e4 = b3 & 0x3F;
 
         /* store */
@@ -281,8 +281,8 @@ static int DoBase64_Encode(const byte* in, word32 inLen, byte* out,
         byte b2 = (twoBytes) ? in[j++] : 0;
 
         byte e1 = b1 >> 2;
-        byte e2 = ((b1 & 0x3) << 4) | (b2 >> 4);
-        byte e3 =  (b2 & 0xF) << 2;
+        byte e2 = (byte)(((b1 & 0x3) << 4) | (b2 >> 4));
+        byte e3 = (byte)((b2 & 0xF) << 2);
 
         ret = CEscape(escaped, e1, out, &i, *outLen, 0);
         if (ret == 0) 
@@ -375,7 +375,7 @@ int Base16_Decode(const byte* in, word32 inLen, byte* out, word32* outLen)
         if (b == BAD || b2 == BAD)
             return ASN_INPUT_E;
         
-        out[outIdx++] = (b << 4) | b2;
+        out[outIdx++] = (byte)((b << 4) | b2);
         inLen -= 2;
     }
 

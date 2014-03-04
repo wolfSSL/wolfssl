@@ -175,7 +175,7 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
     int  input;
     int  msgSz = (int)strlen(msg);
 
-    int   port   = yasslPort;
+    word16 port   = yasslPort;
     char* host   = (char*)yasslIP;
     char* domain = (char*)"www.yassl.com";
 
@@ -293,7 +293,7 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
                 break;
 
             case 'p' :
-                port = atoi(myoptarg);
+                port = (word16)atoi(myoptarg);
                 #if !defined(NO_MAIN_DRIVER) || defined(USE_WINDOWS_API)
                     if (port == 0)
                         err_sys("port number cannot be 0");
