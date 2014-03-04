@@ -263,6 +263,469 @@
         Des3Crypt(des, out, in, sz, DES_DECRYPTION);
     }
 
+
+#elif  defined(HAVE_COLDFIRE_SEC)
+
+#include "sec.h"
+#include "mcf548x_sec.h"
+
+#include "memory_pools.h"
+extern TX_BYTE_POOL mp_ncached;  /* Non Cached memory pool */
+#define DES_BUFFER_SIZE (DES_BLOCK_SIZE * 16)
+static unsigned char *DesBuffer = NULL ;
+
+#define SEC_DESC_DES_CBC_ENCRYPT  0x20500010
+#define SEC_DESC_DES_CBC_DECRYPT  0x20400010
+#define SEC_DESC_DES3_CBC_ENCRYPT 0x20700010
+#define SEC_DESC_DES3_CBC_DECRYPT 0x20600010
+
+extern volatile unsigned char __MBAR[];
+
+static void Des_Cbc(Des* des, byte* out, const byte* in, word32 sz, word32 desc)
+{
+    static volatile SECdescriptorType descriptor = {    NULL } ;
+    int ret ; int stat1,stat2 ;
+    int i ; int size ;
+    volatile int v ;
+
+    while(sz) {
+        if((sz%DES_BUFFER_SIZE) == sz) {
+            size = sz ;
+            sz = 0 ;
+        } else {
+            size = DES_BUFFER_SIZE ;
+            sz -= DES_BUFFER_SIZE ;
+        }
+        
+        descriptor.header = desc ;
+        /*
+        escriptor.length1 = 0x0;
+        descriptor.pointer1 = NULL;
+        */
+        descriptor.length2 = des->ivlen ;
+        descriptor.pointer2 = (byte *)des->iv ;
+        descriptor.length3 = des->keylen ;
+        descriptor.pointer3 = (byte *)des->key;
+        descriptor.length4 = size;
+        descriptor.pointer4 = (byte *)in ;
+        descriptor.length5 = size;
+        descriptor.pointer5 = DesBuffer ;
+        /*
+        descriptor.length6 = 0; 
+        descriptor.pointer6 = NULL; 
+        descriptor.length7 = 0x0;
+        descriptor.pointer7 = NULL;
+        descriptor.nextDescriptorPtr = NULL ; 
+        */
+        
+        /* Initialize SEC and wait for encryption to complete */
+        MCF_SEC_CCCR0 = 0x0000001A; //enable channel done notification
+
+        /* Point SEC to the location of the descriptor */
+        MCF_SEC_FR0 = (uint32)&descriptor;  
+                
+        /* poll SISR to determine when channel is complete */
+        while (!(MCF_SEC_SISRL) && !(MCF_SEC_SISRH))
+            ;   
+            
+        for(v=0; v<500; v++) ; 
+
+        ret = MCF_SEC_SISRH;
+        stat1 = MCF_SEC_DSR ;   
+        stat2 = MCF_SEC_DISR ;
+        if(ret & 0xe0000000)
+            db_printf("Des_Cbc(%x):ISRH=%08x, DSR=%08x, DISR=%08x\n", desc, ret, stat1, stat2) ;
+
+        XMEMCPY(out, DesBuffer, size) ;
+
+        if((desc==SEC_DESC_DES3_CBC_ENCRYPT)||(desc==SEC_DESC_DES_CBC_ENCRYPT)) {
+            XMEMCPY((void*)des->iv, (void*)&(out[size-DES_IVLEN]), DES_IVLEN) ;
+        } else {
+            XMEMCPY((void*)des->iv, (void*)&(in[size-DES_IVLEN]), DES_IVLEN) ;
+        }
+        
+        in  += size ;   
+        out += size ;
+                
+    }
+}
+
+
+void Des_CbcEncrypt(Des* des, byte* out, const byte* in, word32 sz)
+{
+    Des_Cbc(des, out, in, sz, SEC_DESC_DES_CBC_ENCRYPT) ;
+}
+
+void Des_CbcDecrypt(Des* des, byte* out, const byte* in, word32 sz)
+{
+    Des_Cbc(des, out, in, sz, SEC_DESC_DES_CBC_DECRYPT) ;
+}
+
+void Des3_CbcEncrypt(Des3* des3, byte* out, const byte* in, word32 sz)
+{
+    Des_Cbc((Des *)des3, out, in, sz, SEC_DESC_DES3_CBC_ENCRYPT) ;
+}
+
+void Des3_CbcDecrypt(Des3* des3, byte* out, const byte* in, word32 sz)
+{
+    Des_Cbc((Des *)des3, out, in, sz, SEC_DESC_DES3_CBC_DECRYPT) ;
+}
+
+
+void Des_SetKey(Des* des, const byte* key, const byte* iv, int dir)
+{
+    int i ; int status ;
+    
+    if(DesBuffer == NULL) {
+        status = tx_byte_allocate(&mp_ncached,(void *)&DesBuffer,DES_BUFFER_SIZE,TX_NO_WAIT);       
+    }
+    
+    XMEMCPY(des->key, key, DES_KEYLEN);
+    des->keylen = DES_KEYLEN ;
+    des->ivlen = 0 ;      
+    if (iv) {
+        XMEMCPY(des->iv, iv, DES_IVLEN);
+        des->ivlen = DES_IVLEN ;
+    }   else {
+        for(i=0; i<DES_IVLEN; i++)
+            des->iv[i] = 0x0 ;
+    }
+
+}
+
+void Des3_SetKey(Des3* des3, const byte* key, const byte* iv, int dir)
+{
+    int i ; int status ;
+    
+    if(DesBuffer == NULL) {
+        status = tx_byte_allocate(&mp_ncached,(void *)&DesBuffer,DES_BUFFER_SIZE,TX_NO_WAIT);       
+    }
+    
+    XMEMCPY(des3->key, key, DES3_KEYLEN);  
+    des3->keylen = DES3_KEYLEN ;   
+    des3->ivlen = 0 ;         
+    if (iv) {
+        XMEMCPY(des3->iv, iv, DES3_IVLEN);
+        des3->ivlen = DES3_IVLEN ;
+    }   else {
+        for(i=0; i<DES_IVLEN; i++)
+            des3->iv[i] = 0x0 ;
+    }
+}
+
+#elif defined FREESCALE_MMCAU
+    /*
+     * Freescale mmCAU hardware DES/3DES support through the CAU/mmCAU library.
+     * Documentation located in ColdFire/ColdFire+ CAU and Kinetis mmCAU
+     * Software Library User Guide (See note in README).
+     */
+    #include "cau_api.h"
+
+    const unsigned char parityLookup[128] =
+    {
+        1,0,0,1,0,1,1,0,0,1,1,0,1,0,0,1,0,1,1,0,1,0,0,1,1,0,0,1,0,1,1,0,
+        0,1,1,0,1,0,0,1,1,0,0,1,0,1,1,0,1,0,0,1,0,1,1,0,0,1,1,0,1,0,0,1,
+        0,1,1,0,1,0,0,1,1,0,0,1,0,1,1,0,1,0,0,1,0,1,1,0,0,1,1,0,1,0,0,1,
+        1,0,0,1,0,1,1,0,0,1,1,0,1,0,0,1,0,1,1,0,1,0,0,1,1,0,0,1,0,1,1,0
+     };
+
+    void Des_SetKey(Des* des, const byte* key, const byte* iv, int dir)
+    {
+        int i = 0;
+        byte* dkey = (byte*)des->key;
+
+        XMEMCPY(dkey, key, 8);
+
+        Des_SetIV(des, iv);
+
+        /* fix key parity, if needed */
+        for (i = 0; i < 8; i++) {
+            dkey[i] = ((dkey[i] & 0xFE) | parityLookup[dkey[i] >> 1]);
+        }
+    }
+
+    void Des3_SetKey(Des3* des, const byte* key, const byte* iv, int dir)
+    {
+        int i = 0;
+        byte* dkey1 = (byte*)des->key[0];
+        byte* dkey2 = (byte*)des->key[1];
+        byte* dkey3 = (byte*)des->key[2];
+
+        XMEMCPY(dkey1, key, 8);         /* set key 1 */
+        XMEMCPY(dkey2, key + 8, 8);     /* set key 2 */
+        XMEMCPY(dkey3, key + 16, 8);    /* set key 3 */
+
+        Des3_SetIV(des, iv);
+
+        /* fix key parity if needed */
+        for (i = 0; i < 8; i++)
+           dkey1[i] = ((dkey1[i] & 0xFE) | parityLookup[dkey1[i] >> 1]);
+
+        for (i = 0; i < 8; i++)
+           dkey2[i] = ((dkey2[i] & 0xFE) | parityLookup[dkey2[i] >> 1]);
+
+        for (i = 0; i < 8; i++)
+           dkey3[i] = ((dkey3[i] & 0xFE) | parityLookup[dkey3[i] >> 1]);
+    }
+
+    void Des_CbcEncrypt(Des* des, byte* out, const byte* in, word32 sz)
+    {
+        int i;
+        int offset = 0;
+        int len = sz;
+        byte *iv;
+        byte temp_block[DES_BLOCK_SIZE];
+
+        iv = (byte*)des->reg;
+
+        while (len > 0)
+        {
+            XMEMCPY(temp_block, in + offset, DES_BLOCK_SIZE);
+
+            /* XOR block with IV for CBC */
+            for (i = 0; i < DES_BLOCK_SIZE; i++)
+                temp_block[i] ^= iv[i];
+
+            cau_des_encrypt(temp_block, (byte*)des->key, out + offset);
+
+            len    -= DES_BLOCK_SIZE;
+            offset += DES_BLOCK_SIZE;
+
+            /* store IV for next block */
+            XMEMCPY(iv, out + offset - DES_BLOCK_SIZE, DES_BLOCK_SIZE);
+        }
+
+        return;
+    }
+
+    void Des_CbcDecrypt(Des* des, byte* out, const byte* in, word32 sz)
+    {
+        int i;
+        int offset = 0;
+        int len = sz;
+        byte* iv;
+        byte temp_block[DES_BLOCK_SIZE];
+
+        iv = (byte*)des->reg;
+
+        while (len > 0)
+        {
+            XMEMCPY(temp_block, in + offset, DES_BLOCK_SIZE);
+
+            cau_des_decrypt(in + offset, (byte*)des->key, out + offset);
+
+            /* XOR block with IV for CBC */
+            for (i = 0; i < DES_BLOCK_SIZE; i++)
+                (out + offset)[i] ^= iv[i];
+
+            /* store IV for next block */
+            XMEMCPY(iv, temp_block, DES_BLOCK_SIZE);
+
+            len     -= DES_BLOCK_SIZE;
+            offset += DES_BLOCK_SIZE;
+        }
+
+        return;
+    }
+
+    void Des3_CbcEncrypt(Des3* des, byte* out, const byte* in, word32 sz)
+    {
+        int i;
+        int offset = 0;
+        int len = sz;
+
+        byte *iv;
+        byte temp_block[DES_BLOCK_SIZE];
+
+        iv = (byte*)des->reg;
+
+        while (len > 0)
+        {
+            XMEMCPY(temp_block, in + offset, DES_BLOCK_SIZE);
+
+            /* XOR block with IV for CBC */
+            for (i = 0; i < DES_BLOCK_SIZE; i++)
+                temp_block[i] ^= iv[i];
+
+            cau_des_encrypt(temp_block  , (byte*)des->key[0], out + offset);
+            cau_des_decrypt(out + offset, (byte*)des->key[1], out + offset);
+            cau_des_encrypt(out + offset, (byte*)des->key[2], out + offset);
+
+            len    -= DES_BLOCK_SIZE;
+            offset += DES_BLOCK_SIZE;
+
+            /* store IV for next block */
+            XMEMCPY(iv, out + offset - DES_BLOCK_SIZE, DES_BLOCK_SIZE);
+        }
+
+        return;
+    }
+
+    void Des3_CbcDecrypt(Des3* des, byte* out, const byte* in, word32 sz)
+    {
+        int i;
+        int offset = 0;
+        int len = sz;
+
+        byte* iv;
+        byte temp_block[DES_BLOCK_SIZE];
+
+        iv = (byte*)des->reg;
+
+        while (len > 0)
+        {
+            XMEMCPY(temp_block, in + offset, DES_BLOCK_SIZE);
+
+            cau_des_decrypt(in + offset , (byte*)des->key[2], out + offset);
+            cau_des_encrypt(out + offset, (byte*)des->key[1], out + offset);
+            cau_des_decrypt(out + offset, (byte*)des->key[0], out + offset);
+
+            /* XOR block with IV for CBC */
+            for (i = 0; i < DES_BLOCK_SIZE; i++)
+                (out + offset)[i] ^= iv[i];
+
+            /* store IV for next block */
+            XMEMCPY(iv, temp_block, DES_BLOCK_SIZE);
+
+            len    -= DES_BLOCK_SIZE;
+            offset += DES_BLOCK_SIZE;
+        }
+
+        return;
+    }
+
+
+#elif defined(CYASSL_PIC32MZ_CRYPT)
+
+    #include "../../cyassl/ctaocrypt/port/pic32/pic32mz-crypt.h"
+
+void Des_SetIV(Des* des, const byte* iv);
+void Des3_SetIV(Des3* des, const byte* iv);
+
+    void Des_SetKey(Des* des, const byte* key, const byte* iv, int dir)
+    {
+        word32 *dkey = des->key ;
+        word32 *dreg = des->reg ;
+
+        XMEMCPY((byte *)dkey, (byte *)key, 8);
+        ByteReverseWords(dkey, dkey, 8);
+        XMEMCPY((byte *)dreg, (byte *)iv, 8);
+        ByteReverseWords(dreg, dreg, 8);
+    }
+
+    void Des3_SetKey(Des3* des, const byte* key, const byte* iv, int dir)
+    {
+        word32 *dkey1 = des->key[0];
+        word32 *dreg = des->reg ;
+
+        XMEMCPY(dkey1, key, 24);
+        ByteReverseWords(dkey1, dkey1, 24);
+        XMEMCPY(dreg, iv, 8);
+        ByteReverseWords(dreg, dreg, 8) ;
+
+    }
+
+    void DesCrypt(word32 *key, word32 *iv, byte* out, const byte* in, word32 sz,
+                  int dir, int algo, int cryptoalgo)
+    {
+        securityAssociation *sa_p ;
+        bufferDescriptor *bd_p ;
+        const byte *in_p, *in_l ;
+        byte *out_p, *out_l ;
+        volatile securityAssociation sa __attribute__((aligned (8)));
+        volatile bufferDescriptor bd __attribute__((aligned (8)));
+        volatile int k ;
+        
+        /* get uncached address */
+
+        in_l = in;
+        out_l = out ;
+        sa_p = KVA0_TO_KVA1(&sa) ; 
+        bd_p = KVA0_TO_KVA1(&bd) ;
+        in_p = KVA0_TO_KVA1(in_l) ;
+        out_p= KVA0_TO_KVA1(out_l);
+        
+        if(PIC32MZ_IF_RAM(in_p))
+            XMEMCPY((void *)in_p, (void *)in, sz);
+        XMEMSET((void *)out_p, 0, sz);
+
+        /* Set up the Security Association */
+        XMEMSET((byte *)KVA0_TO_KVA1(&sa), 0, sizeof(sa));
+        sa_p->SA_CTRL.ALGO = algo ; 
+        sa_p->SA_CTRL.LNC = 1;
+        sa_p->SA_CTRL.LOADIV = 1;
+        sa_p->SA_CTRL.FB = 1;
+        sa_p->SA_CTRL.ENCTYPE = dir ; /* Encryption/Decryption */
+        sa_p->SA_CTRL.CRYPTOALGO = cryptoalgo;
+        sa_p->SA_CTRL.KEYSIZE = 1 ; /* KEY is 192 bits */
+        XMEMCPY((byte *)KVA0_TO_KVA1(&sa.SA_ENCKEY[algo==PIC32_ALGO_TDES ? 2 : 6]),
+                (byte *)key, algo==PIC32_ALGO_TDES ? 24 : 8);
+        XMEMCPY((byte *)KVA0_TO_KVA1(&sa.SA_ENCIV[2]), (byte *)iv, 8);
+
+        XMEMSET((byte *)KVA0_TO_KVA1(&bd), 0, sizeof(bd));
+        /* Set up the Buffer Descriptor */
+        bd_p->BD_CTRL.BUFLEN = sz;
+        bd_p->BD_CTRL.LIFM = 1;
+        bd_p->BD_CTRL.SA_FETCH_EN = 1;
+        bd_p->BD_CTRL.LAST_BD = 1;
+        bd_p->BD_CTRL.DESC_EN = 1;
+    
+        bd_p->SA_ADDR = (unsigned int)KVA_TO_PA(&sa) ; // (unsigned int)sa_p  ;
+        bd_p->SRCADDR = (unsigned int)KVA_TO_PA(in) ; // (unsigned int)in_p  ;
+        bd_p->DSTADDR = (unsigned int)KVA_TO_PA(out); // (unsigned int)out_p  ;
+        bd_p->NXTPTR = (unsigned int)KVA_TO_PA(&bd);
+        bd_p->MSGLEN = sz ;
+        
+        /* Fire in the hole! */
+        CECON = 1 << 6;
+        while (CECON);
+        
+        /* Run the engine */
+        CEBDPADDR = (unsigned int)KVA_TO_PA(&bd) ; // (unsigned int)bd_p ;
+        CEINTEN = 0x07;
+        CECON = 0x27;
+
+        WAIT_ENGINE ;
+
+        if((cryptoalgo == PIC32_CRYPTOALGO_CBC) ||
+           (cryptoalgo == PIC32_CRYPTOALGO_TCBC)||
+           (cryptoalgo == PIC32_CRYPTOALGO_RCBC)) {
+            /* set iv for the next call */
+            if(dir == PIC32_ENCRYPTION) {
+	        XMEMCPY((void *)iv, (void*)&(out_p[sz-DES_IVLEN]), DES_IVLEN) ;
+	        } else {
+                ByteReverseWords((word32*)iv, (word32 *)&(in_p[sz-DES_IVLEN]), DES_IVLEN);
+	        }
+
+        }
+
+        ByteReverseWords((word32*)out, (word32 *)KVA0_TO_KVA1(out), sz);
+    }
+
+    void Des_CbcEncrypt(Des* des, byte* out, const byte* in, word32 sz)
+    {
+        DesCrypt(des->key, des->reg, out, in, sz, 
+                PIC32_ENCRYPTION, PIC32_ALGO_DES, PIC32_CRYPTOALGO_CBC );
+    }
+
+    void Des_CbcDecrypt(Des* des, byte* out, const byte* in, word32 sz)
+    {
+        DesCrypt(des->key, des->reg, out, in, sz, 
+                PIC32_DECRYPTION, PIC32_ALGO_DES, PIC32_CRYPTOALGO_CBC);
+    }
+
+    void Des3_CbcEncrypt(Des3* des, byte* out, const byte* in, word32 sz)
+    {
+        DesCrypt(des->key[0], des->reg, out, in, sz, 
+                PIC32_ENCRYPTION, PIC32_ALGO_TDES, PIC32_CRYPTOALGO_TCBC);
+    }
+
+    void Des3_CbcDecrypt(Des3* des, byte* out, const byte* in, word32 sz)
+    {
+        DesCrypt(des->key[0], des->reg, out, in, sz, 
+                PIC32_DECRYPTION, PIC32_ALGO_TDES, PIC32_CRYPTOALGO_TCBC);
+    }
+
 #else /* CTaoCrypt software implementation */
 
 /* permuted choice table (key) */
