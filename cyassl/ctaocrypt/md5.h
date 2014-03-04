@@ -42,21 +42,27 @@ enum {
     MD5_PAD_SIZE    = 56
 };
 
+#ifdef CYASSL_PIC32MZ_HASH
+#include "port/pic32/pic32mz-crypt.h"
+#endif
 
 /* MD5 digest */
 typedef struct Md5 {
     word32  buffLen;   /* in bytes          */
     word32  loLen;     /* length in bytes   */
     word32  hiLen;     /* length in bytes   */
-    word32  digest[MD5_DIGEST_SIZE / sizeof(word32)];
     word32  buffer[MD5_BLOCK_SIZE  / sizeof(word32)];
+    #ifndef CYASSL_PIC32MZ_HASH
+    word32  digest[MD5_DIGEST_SIZE / sizeof(word32)];
+    #else
+    word32  digest[PIC32_HASH_SIZE / sizeof(word32)];
+    pic32mz_desc desc ; /* Crypt Engine descripter */
+    #endif
 } Md5;
-
 
 CYASSL_API void InitMd5(Md5*);
 CYASSL_API void Md5Update(Md5*, const byte*, word32);
 CYASSL_API void Md5Final(Md5*, byte*);
-
 
 #ifdef __cplusplus
     } /* extern "C" */

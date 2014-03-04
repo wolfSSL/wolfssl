@@ -146,13 +146,24 @@ static void Transform(Sha512* sha512)
     /* Copy digest to working vars */
     XMEMCPY(T, sha512->digest, sizeof(T));
 
-    /* 64 operations, partially loop unrolled */
+#ifdef USE_SLOW_SHA2
+    /* over twice as small, but 50% slower */
+    /* 80 operations, not unrolled */
+    for (j = 0; j < 80; j += 16) {
+        int m; 
+        for (m = 0; m < 16; m++) { /* braces needed here for macros {} */
+            R(m);
+        }
+    }
+#else
+    /* 80 operations, partially loop unrolled */
     for (j = 0; j < 80; j += 16) {
         R( 0); R( 1); R( 2); R( 3);
         R( 4); R( 5); R( 6); R( 7);
         R( 8); R( 9); R(10); R(11);
         R(12); R(13); R(14); R(15);
     }
+#endif /* USE_SLOW_SHA2 */
 
     /* Add the working vars back into digest */
 
@@ -280,13 +291,24 @@ static void Transform384(Sha384* sha384)
     /* Copy digest to working vars */
     XMEMCPY(T, sha384->digest, sizeof(T));
 
-    /* 64 operations, partially loop unrolled */
+#ifdef USE_SLOW_SHA2
+    /* over twice as small, but 50% slower */
+    /* 80 operations, not unrolled */
+    for (j = 0; j < 80; j += 16) {
+        int m;
+        for (m = 0; m < 16; m++) {  /* braces needed for macros {} */
+            R2(m);
+        }
+    }
+#else
+    /* 80 operations, partially loop unrolled */
     for (j = 0; j < 80; j += 16) {
         R2( 0); R2( 1); R2( 2); R2( 3);
         R2( 4); R2( 5); R2( 6); R2( 7);
         R2( 8); R2( 9); R2(10); R2(11);
         R2(12); R2(13); R2(14); R2(15);
     }
+#endif /* USE_SLOW_SHA2 */
 
     /* Add the working vars back into digest */
 

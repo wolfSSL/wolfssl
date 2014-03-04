@@ -23,10 +23,10 @@ beginning of the note and specify the full path.
 Note 2)
 CyaSSL takes a different approach to certificate verification than OpenSSL does.
 The default policy for the client is to verify the server, this means that if
-you don't load CAs to verify the server you'll get a connect error, unable to 
-verify (-155).  It you want to mimic OpenSSL behavior of having SSL_connect
-succeed even if verifying the server fails and reducing security you can do
-this by calling:
+you don't load CAs to verify the server you'll get a connect error, no signer
+error to confirm failure (-188).  If you want to mimic OpenSSL behavior of
+having SSL_connect succeed even if verifying the server fails and reducing
+security you can do this by calling:
 
 SSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, 0);
 
@@ -35,11 +35,42 @@ before calling SSL_new();  Though it's not recommended.
 *** end Notes ***
 
 
-CyaSSL Release 2.9.0 (X/XX/XXXX)
+CyaSSL Release 2.9.0 (02/07/2014)
+
+Release 2.9.0 CyaSSL has bug fixes and new features including:
+- Freescale Kinetis RNGB support
+- Freescale Kinetis mmCAU support
+- TLS Hello extensions
+  - ECC
+  - Secure Renegotiation (null) 
+  - Truncated HMAC
+- SCEP support
+  - PKCS #7 Enveloped data and signed data
+  - PKCS #10 Certificate Signing Request generation
+- DTLS sliding window
+- OCSP Improvements
+  - API change to integrate into Certificate Manager
+  - IPv4/IPv6 agnostic
+  - example client/server support for OCSP
+  - OCSP nonces are optional
+- GMAC hashing
+- Windows build additions
+- Windows CYGWIN build fixes
+- Updated test certificates
+- Microchip MPLAB Harmony support
+- Update autoconf scripts
+- Additional X.509 inspection functions
+- ECC encrypt/decrypt primitives
+- ECC Certificate generation
 
 The Freescale Kinetis K53 RNGB documentation can be found in Chapter 33 of the
 K53 Sub-Family Reference Manual:
 http://cache.freescale.com/files/32bit/doc/ref_manual/K53P144M100SF2RM.pdf
+
+Freescale Kinetis K60 mmCAU (AES, DES, 3DES, MD5, SHA, SHA256) documentation
+can be found in the "ColdFire/ColdFire+ CAU and Kinetis mmCAU Software Library
+User Guide":
+http://cache.freescale.com/files/32bit/doc/user_guide/CAUAPIUG.pdf
 
 
 *****************CyaSSL Release 2.8.0 (8/30/2013)

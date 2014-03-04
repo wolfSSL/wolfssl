@@ -505,10 +505,13 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
 
 #ifdef HAVE_OCSP
     if (useOcsp) {
-        CyaSSL_CTX_OCSP_set_options(ctx,
-                                    CYASSL_OCSP_ENABLE | CYASSL_OCSP_NO_NONCE);
-        if (ocspUrl != NULL)
-            CyaSSL_CTX_OCSP_set_override_url(ctx, ocspUrl);
+        if (ocspUrl != NULL) {
+            CyaSSL_CTX_SetOCSP_OverrideURL(ctx, ocspUrl);
+            CyaSSL_CTX_EnableOCSP(ctx, CYASSL_OCSP_NO_NONCE
+                                                    | CYASSL_OCSP_URL_OVERRIDE);
+        }
+        else
+            CyaSSL_CTX_EnableOCSP(ctx, CYASSL_OCSP_NO_NONCE);
     }
 #endif
 
@@ -547,17 +550,18 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
 
 #ifdef HAVE_SNI
     if (sniHostName)
-        if (CyaSSL_CTX_UseSNI(ctx, 0, sniHostName, XSTRLEN(sniHostName)))
+        if (CyaSSL_CTX_UseSNI(ctx, 0, sniHostName, XSTRLEN(sniHostName))
+                                                                 != SSL_SUCCESS)
             err_sys("UseSNI failed");
 #endif
 #ifdef HAVE_MAX_FRAGMENT
     if (maxFragment)
-        if (CyaSSL_CTX_UseMaxFragment(ctx, maxFragment))
+        if (CyaSSL_CTX_UseMaxFragment(ctx, maxFragment) != SSL_SUCCESS)
             err_sys("UseMaxFragment failed");
 #endif
 #ifdef HAVE_TRUNCATED_HMAC
     if (truncatedHMAC)
-        if (CyaSSL_CTX_UseTruncatedHMAC(ctx))
+        if (CyaSSL_CTX_UseTruncatedHMAC(ctx) != SSL_SUCCESS)
             err_sys("UseTruncatedHMAC failed");
 #endif
 
@@ -803,8 +807,10 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
 #if defined(DEBUG_CYASSL) && !defined(CYASSL_MDK_SHELL) && !defined(STACK_TRAP)
         CyaSSL_Debugging_ON();
 #endif
-        if (CurrentDir("client") || CurrentDir("build"))
+        if (CurrentDir("client"))
             ChangeDirBack(2);
+        else if (CurrentDir("Debug") || CurrentDir("Release"))
+            ChangeDirBack(3);
   
 #ifdef HAVE_STACK_SIZE
         StackSizeCheck(&args, client_test);

@@ -469,7 +469,8 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
 
 #ifdef HAVE_SNI
     if (sniHostName)
-        if (CyaSSL_CTX_UseSNI(ctx, 0, sniHostName, XSTRLEN(sniHostName)))
+        if (CyaSSL_CTX_UseSNI(ctx, 0, sniHostName, XSTRLEN(sniHostName))
+                                                                 != SSL_SUCCESS)
             err_sys("UseSNI failed");
 #endif
 

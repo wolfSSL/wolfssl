@@ -3,7 +3,6 @@
 #
 
 EXTRA_DIST += \
-         mplabx/README \
          mplabx/cyassl.X/Makefile
 
 EXTRA_DIST += \

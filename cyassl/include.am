@@ -9,7 +9,6 @@ EXTRA_DIST+= cyassl/sniffer_error.rc
 
 nobase_include_HEADERS+= \
                          cyassl/error.h \
-                         cyassl/internal.h \
                          cyassl/ssl.h \
                          cyassl/sniffer_error.h \
                          cyassl/sniffer.h \
@@ -20,3 +19,7 @@ nobase_include_HEADERS+= \
                          cyassl/options.h \
                          cyassl/ocsp.h \
                          cyassl/crl.h
+
+noinst_HEADERS+= \
+                         cyassl/internal.h
+

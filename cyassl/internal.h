@@ -483,7 +483,6 @@ enum {
     TLS_RSA_WITH_AES_256_CBC_B2B256   = 0xF9,
     TLS_RSA_WITH_HC_128_B2B256        = 0xFA,   /* eSTREAM too */
 
-
     /* CyaSSL extension - NTRU */
     TLS_NTRU_RSA_WITH_RC4_128_SHA      = 0xe5,
     TLS_NTRU_RSA_WITH_3DES_EDE_CBC_SHA = 0xe6,
@@ -533,8 +532,10 @@ enum {
     TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA    = 0x45,
     TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA    = 0x88,
     TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA256 = 0xbe,
-    TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA256 = 0xc4
+    TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA256 = 0xc4,
 
+    /* Renegotiation Indication Extension Special Suite */
+    TLS_EMPTY_RENEGOTIATION_INFO_SCSV        = 0xff
 };
 
 
@@ -608,6 +609,7 @@ enum Misc {
     CERT_HEADER_SZ        = 3,  /* always 3 bytes          */
     REQ_HEADER_SZ         = 2,  /* cert request header sz  */
     HINT_LEN_SZ           = 2,  /* length of hint size field */
+    TRUNCATED_HMAC_SZ     = 10, /* length of hmac w/ truncated hmac extension */
     HELLO_EXT_TYPE_SZ     = 2,  /* length of a hello extension type */
     HELLO_EXT_SZ          = 8,  /* total length of the lazy hello extensions */
     HELLO_EXT_LEN         = 6,  /* length of the lazy hello extensions */
@@ -981,24 +983,23 @@ typedef struct OCSP_Entry OCSP_Entry;
 #endif
 
 struct OCSP_Entry {
-    OCSP_Entry* next;                       /* next entry             */
+    OCSP_Entry* next;                        /* next entry             */
     byte    issuerHash[OCSP_DIGEST_SIZE];    /* issuer hash            */ 
     byte    issuerKeyHash[OCSP_DIGEST_SIZE]; /* issuer public key hash */
-    CertStatus* status;                     /* OCSP response list     */
-    int         totalStatus;                /* number on list         */
+    CertStatus* status;                      /* OCSP response list     */
+    int         totalStatus;                 /* number on list         */
 };
 
 
+#ifndef HAVE_OCSP
+    typedef struct CYASSL_OCSP CYASSL_OCSP;
+#endif
+
 /* CyaSSL OCSP controller */
 struct CYASSL_OCSP {
-    byte enabled;
-    byte useOverrideUrl;
-    byte useNonce;
-    char overrideUrl[80];
-    OCSP_Entry* ocspList;
-    void* IOCB_OcspCtx;
-    CallbackIOOcsp CBIOOcsp;
-    CallbackIOOcspRespFree CBIOOcspRespFree;
+    CYASSL_CERT_MANAGER* cm;            /* pointer back to cert manager */
+    OCSP_Entry*          ocspList;      /* OCSP response list */
+    CyaSSL_Mutex         ocspLock;      /* OCSP list lock */
 };
 
 #ifndef MAX_DATE_SIZE
@@ -1076,6 +1077,14 @@ struct CYASSL_CERT_MANAGER {
     byte            crlEnabled;         /* is CRL on ? */
     byte            crlCheckAll;        /* always leaf, but all ? */
     CbMissingCRL    cbMissingCRL;       /* notify through cb of missing crl */
+    CYASSL_OCSP*    ocsp;               /* OCSP checker */
+    byte            ocspEnabled;        /* is OCSP on ? */
+    byte            ocspSendNonce;      /* send the OCSP nonce ? */
+    byte            ocspUseOverrideURL; /* ignore cert's responder, override */
+    char*           ocspOverrideURL;    /* use this responder */
+    void*           ocspIOCtx;          /* I/O callback CTX */
+    CbOCSPIO        ocspIOCb;           /* I/O callback for OCSP lookup */
+    CbOCSPRespFree  ocspRespFreeCb;     /* Frees OCSP Response from IO Cb */
 };
 
 CYASSL_LOCAL int CM_SaveCertCache(CYASSL_CERT_MANAGER*, const char*);
@@ -1101,11 +1110,8 @@ typedef struct CYASSL_DTLS_CTX {
 typedef enum {
     SERVER_NAME_INDICATION =  0,
     MAX_FRAGMENT_LENGTH    =  1,
-  /*CLIENT_CERTIFICATE_URL =  2,
-    TRUSTED_CA_KEYS        =  3,*/
     TRUNCATED_HMAC         =  4,
-  /*STATUS_REQUEST         =  5,
-    SIGNATURE_ALGORITHMS   = 13,*/
+    ELLIPTIC_CURVES        = 10
 } TLSX_Type;
 
 typedef struct TLSX {
@@ -1153,6 +1159,8 @@ CYASSL_LOCAL void   TLSX_SNI_SetOptions(TLSX* extensions, byte type,
 CYASSL_LOCAL byte   TLSX_SNI_Status(TLSX* extensions, byte type);
 CYASSL_LOCAL word16 TLSX_SNI_GetRequest(TLSX* extensions, byte type,
                                                                    void** data);
+CYASSL_LOCAL int    TLSX_SNI_GetFromBuffer(const byte* buffer, word32 bufferSz,
+                                         byte type, byte* sni, word32* inOutSz);
 #endif
 
 #endif /* HAVE_SNI */
@@ -1166,11 +1174,26 @@ CYASSL_LOCAL int TLSX_UseMaxFragment(TLSX** extensions, byte mfl);
 
 #ifdef HAVE_TRUNCATED_HMAC
 
-#define TRUNCATED_HMAC_SIZE 10
-
 CYASSL_LOCAL int TLSX_UseTruncatedHMAC(TLSX** extensions);
 
 #endif /* HAVE_TRUNCATED_HMAC */
+
+#ifdef HAVE_SUPPORTED_CURVES
+
+typedef struct EllipticCurve {
+    word16                name; /* CurveNames    */
+    struct EllipticCurve* next; /* List Behavior */
+
+} EllipticCurve;
+
+CYASSL_LOCAL int TLSX_UseSupportedCurve(TLSX** extensions, word16 name);
+
+#ifndef NO_CYASSL_SERVER
+CYASSL_LOCAL int TLSX_ValidateEllipticCurves(CYASSL* ssl, byte first,
+                                                                   byte second);
+#endif
+
+#endif /* HAVE_SUPPORTED_CURVES */
 
 #endif /* HAVE_TLS_EXTENSIONS */
 
@@ -1213,6 +1236,7 @@ struct CYASSL_CTX {
     word32          timeout;            /* session timeout */
 #ifdef HAVE_ECC
     word16          eccTempKeySz;       /* in octets 20 - 66 */
+    word32          pkCurveOID;         /* curve Ecc_Sum */
 #endif
 #ifndef NO_PSK
     byte        havePSK;                /* psk key set by user */
@@ -1360,6 +1384,30 @@ enum ClientCertificateType {
 enum CipherType { stream, block, aead };
 
 
+#ifdef CYASSL_DTLS
+
+    #ifdef WORD64_AVAILABLE
+        typedef word64 DtlsSeq;
+    #else
+        typedef word32 DtlsSeq;
+    #endif
+    #define DTLS_SEQ_BITS (sizeof(DtlsSeq) * CHAR_BIT)
+
+    typedef struct DtlsState {
+        DtlsSeq window;     /* Sliding window for current epoch    */
+        word16 nextEpoch;   /* Expected epoch in next record       */
+        word32 nextSeq;     /* Expected sequence in next record    */
+
+        word16 curEpoch;    /* Received epoch in current record    */
+        word32 curSeq;      /* Received sequence in current record */
+
+        DtlsSeq prevWindow; /* Sliding window for old epoch        */
+        word32 prevSeq;     /* Next sequence in allowed old epoch  */
+    } DtlsState;
+
+#endif /* CYASSL_DTLS */
+
+
 /* keys and secrets */
 typedef struct Keys {
     byte client_write_MAC_secret[MAX_DIGEST_SIZE];   /* max sizes */
@@ -1378,15 +1426,13 @@ typedef struct Keys {
     word32 sequence_number;
     
 #ifdef CYASSL_DTLS
-    word32 dtls_sequence_number;
-    word32 dtls_peer_sequence_number;
-    word32 dtls_expected_peer_sequence_number;
-    word16 dtls_handshake_number;
+    DtlsState dtls_state;                       /* Peer's state */
     word16 dtls_peer_handshake_number;
     word16 dtls_expected_peer_handshake_number;
-    word16 dtls_epoch;
-    word16 dtls_peer_epoch;
-    word16 dtls_expected_peer_epoch;
+
+    word16 dtls_epoch;                          /* Current tx epoch    */
+    word32 dtls_sequence_number;                /* Current tx sequence */
+    word16 dtls_handshake_number;               /* Current tx handshake seq */
 #endif
 
     word32 encryptSz;             /* last size of encrypted data   */
@@ -1661,6 +1707,10 @@ struct CYASSL_X509 {
     byte             hwType[EXTERNAL_SERIAL_SIZE];
     int              hwSerialNumSz;
     byte             hwSerialNum[EXTERNAL_SERIAL_SIZE];
+    #ifdef OPENSSL_EXTRA
+        byte             certPolicySet;
+        byte             certPolicyCrit;
+    #endif /* OPENSSL_EXTRA */
 #endif
     int              notBeforeSz;
     byte             notBefore[MAX_DATE_SZ];
@@ -1670,10 +1720,33 @@ struct CYASSL_X509 {
     buffer           sig;
     int              pubKeyOID;
     buffer           pubKey;
+    #ifdef HAVE_ECC
+        word32       pkCurveOID;
+    #endif /* HAVE_ECC */
     buffer           derCert;                        /* may need  */
     DNS_entry*       altNames;                       /* alt names list */
     DNS_entry*       altNamesNext;                   /* hint for retrieval */
     byte             dynamicMemory;                  /* dynamic memory flag */
+    byte             isCa;
+#ifdef OPENSSL_EXTRA
+    word32           pathLength;
+    word16           keyUsage;
+    byte             basicConstSet;
+    byte             basicConstCrit;
+    byte             basicConstPlSet;
+    byte             subjAltNameSet;
+    byte             subjAltNameCrit;
+    byte             authKeyIdSet;
+    byte             authKeyIdCrit;
+    byte*            authKeyId;
+    word32           authKeyIdSz;
+    byte             subjKeyIdSet;
+    byte             subjKeyIdCrit;
+    byte*            subjKeyId;
+    word32           subjKeyIdSz;
+    byte             keyUsageSet;
+    byte             keyUsageCrit;
+#endif /* OPENSSL_EXTRA */
 };
 
 
@@ -1783,6 +1856,7 @@ struct CYASSL {
     ecc_key*        eccTempKey;              /* private ECDHE key */
     ecc_key*        eccDsaKey;               /* private ECDSA key */
     word16          eccTempKeySz;            /* in octets 20 - 66 */
+    word32          pkCurveOID;              /* curve Ecc_Sum     */
     byte            peerEccKeyPresent;
     byte            peerEccDsaKeyPresent;
     byte            eccTempKeyPresent;

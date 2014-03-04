@@ -3,8 +3,7 @@
 #
 
 EXTRA_DIST += \
-         mplabx/ctaocrypt_benchmark.X/Makefile \
-         mplabx/ctaocrypt_benchmark.X/main.c
+         mplabx/ctaocrypt_benchmark.X/Makefile
 
 EXTRA_DIST += \
          mplabx/ctaocrypt_benchmark.X/nbproject/configurations.xml \

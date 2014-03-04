@@ -24,6 +24,7 @@
 #define CTAO_CRYPT_ASN_PUBLIC_H
 
 #include <cyassl/ctaocrypt/types.h>
+#include <cyassl/ctaocrypt/ecc.h>
 #ifdef CYASSL_CERT_GEN
     #include <cyassl/ctaocrypt/rsa.h>
 #endif
@@ -41,7 +42,8 @@ enum CertType {
     DH_PARAM_TYPE,
     CRL_TYPE,
     CA_TYPE,
-    ECC_PRIVATEKEY_TYPE
+    ECC_PRIVATEKEY_TYPE,
+    CERTREQ_TYPE
 };
 
 
@@ -62,6 +64,10 @@ enum Ctc_SigType {
 
 
 #ifdef CYASSL_CERT_GEN
+
+#ifndef HAVE_ECC
+    typedef struct ecc_key ecc_key;
+#endif
 
 enum Ctc_Misc {
     CTC_NAME_SIZE    =   64,
@@ -103,6 +109,9 @@ typedef struct Cert {
     byte     afterDate[CTC_DATE_SIZE];   /* after date copy */
     int      afterDateSz;                /* size of copy */
 #endif
+#ifdef CYASSL_CERT_REQ
+    char     challengePw[CTC_NAME_SIZE];
+#endif
 } Cert;
 
 
@@ -120,8 +129,14 @@ typedef struct Cert {
    keyType    = RSA_KEY (default)
 */
 CYASSL_API void InitCert(Cert*);
-CYASSL_API int  MakeCert(Cert*, byte* derBuffer, word32 derSz, RsaKey*, RNG*);
-CYASSL_API int  SignCert(Cert*, byte* derBuffer, word32 derSz, RsaKey*, RNG*);
+CYASSL_API int  MakeCert(Cert*, byte* derBuffer, word32 derSz, RsaKey*,
+                         ecc_key*, RNG*);
+#ifdef CYASSL_CERT_REQ
+    CYASSL_API int  MakeCertReq(Cert*, byte* derBuffer, word32 derSz, RsaKey*,
+                                ecc_key*);
+#endif
+CYASSL_API int  SignCert(int requestSz, int sigType, byte* derBuffer,
+                         word32 derSz, RsaKey*, ecc_key*, RNG*);
 CYASSL_API int  MakeSelfCert(Cert*, byte* derBuffer, word32 derSz, RsaKey*,
                              RNG*);
 CYASSL_API int  SetIssuer(Cert*, const char*);
@@ -145,6 +160,12 @@ CYASSL_API int  SetDatesBuffer(Cert*, const byte*, int);
 #if defined(CYASSL_KEY_GEN) || defined(CYASSL_CERT_GEN)
     CYASSL_API int DerToPem(const byte* der, word32 derSz, byte* output,
                             word32 outputSz, int type);
+#endif
+
+#ifdef HAVE_ECC
+    /* private key helpers */
+    CYASSL_API int EccPrivateKeyDecode(const byte* input,word32* inOutIdx,
+                                         ecc_key*,word32);
 #endif
 
 

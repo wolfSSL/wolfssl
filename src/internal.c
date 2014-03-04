@@ -87,6 +87,13 @@ CYASSL_CALLBACKS needs LARGE_STATIC_BUFFERS, please add LARGE_STATIC_BUFFERS
     #endif
 #endif
 
+
+#ifdef CYASSL_DTLS
+    static INLINE int DtlsCheckWindow(DtlsState* state);
+    static INLINE int DtlsUpdateWindow(DtlsState* state);
+#endif
+
+
 typedef enum {
     doProcessInit = 0,
 #ifndef NO_CYASSL_SERVER
@@ -419,9 +426,6 @@ int InitSSL_Ctx(CYASSL_CTX* ctx, CYASSL_METHOD* method)
     ctx->sendVerify = 0;
     ctx->quietShutdown = 0;
     ctx->groupMessages = 0;
-#ifdef HAVE_OCSP
-    CyaSSL_OCSP_Init(&ctx->ocsp);
-#endif
 #ifdef HAVE_CAVIUM
     ctx->devId = NO_CAVIUM_DEVICE; 
 #endif
@@ -471,9 +475,6 @@ void SSL_CtxResourceFree(CYASSL_CTX* ctx)
     XFREE(ctx->certificate.buffer, ctx->heap, DYNAMIC_TYPE_CERT);
     XFREE(ctx->certChain.buffer, ctx->heap, DYNAMIC_TYPE_CERT);
     CyaSSL_CertManagerFree(ctx->cm);
-#endif
-#ifdef HAVE_OCSP
-    CyaSSL_OCSP_Cleanup(&ctx->ocsp);
 #endif
 #ifdef HAVE_TLS_EXTENSIONS
     TLSX_FreeAll(ctx->extensions);
@@ -628,8 +629,10 @@ void InitSuites(Suites* suites, ProtocolVersion pv, byte haveRSA, byte havePSK,
     if (suites->setSuites)
         return;      /* trust user settings, don't override */
 
-    if (side == CYASSL_SERVER_END && haveStaticECC)
+    if (side == CYASSL_SERVER_END && haveStaticECC) {
         haveRSA = 0;   /* can't do RSA with ECDSA key */
+        (void)haveRSA; /* some builds won't read */
+    }
 
     if (side == CYASSL_SERVER_END && haveECDSAsig) {
         haveRSAsig = 0;     /* can't have RSA sig if signed by ECDSA */
@@ -640,6 +643,13 @@ void InitSuites(Suites* suites, ProtocolVersion pv, byte haveRSA, byte havePSK,
     if (pv.major == DTLS_MAJOR) {
         tls    = 1;
         tls1_2 = pv.minor <= DTLSv1_2_MINOR;
+    }
+#endif
+
+#ifdef HAVE_RENEGOTIATION_INDICATION
+    if (side == CYASSL_CLIENT_END) {
+        suites->suites[idx++] = 0;
+        suites->suites[idx++] = TLS_EMPTY_RENEGOTIATION_INFO_SCSV;
     }
 #endif
 
@@ -1271,6 +1281,33 @@ void InitX509(CYASSL_X509* x509, int dynamicFlag)
     x509->altNames       = NULL;
     x509->altNamesNext   = NULL;
     x509->dynamicMemory  = (byte)dynamicFlag;
+    x509->isCa           = 0;
+#ifdef HAVE_ECC
+    x509->pkCurveOID = 0;
+#endif /* HAVE_ECC */
+#ifdef OPENSSL_EXTRA
+    x509->pathLength     = 0;
+    x509->basicConstSet  = 0;
+    x509->basicConstCrit = 0;
+    x509->basicConstPlSet = 0;
+    x509->subjAltNameSet = 0;
+    x509->subjAltNameCrit = 0;
+    x509->authKeyIdSet   = 0;
+    x509->authKeyIdCrit  = 0;
+    x509->authKeyId      = NULL;
+    x509->authKeyIdSz    = 0;
+    x509->subjKeyIdSet   = 0;
+    x509->subjKeyIdCrit  = 0;
+    x509->subjKeyId      = NULL;
+    x509->subjKeyIdSz    = 0;
+    x509->keyUsageSet    = 0;
+    x509->keyUsageCrit   = 0;
+    x509->keyUsage       = 0;
+    #ifdef CYASSL_SEP
+        x509->certPolicySet  = 0;
+        x509->certPolicyCrit = 0;
+    #endif /* CYASSL_SEP */
+#endif /* OPENSSL_EXTRA */
 }
 
 
@@ -1286,6 +1323,10 @@ void FreeX509(CYASSL_X509* x509)
         XFREE(x509->pubKey.buffer, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
     XFREE(x509->derCert.buffer, NULL, DYNAMIC_TYPE_SUBJECT_CN);
     XFREE(x509->sig.buffer, NULL, 0);
+    #ifdef OPENSSL_EXTRA
+        XFREE(x509->authKeyId, NULL, 0);
+        XFREE(x509->subjKeyId, NULL, 0);
+    #endif /* OPENSSL_EXTRA */
     if (x509->altNames)
         FreeAltNames(x509->altNames, NULL);
     if (x509->dynamicMemory)
@@ -1359,6 +1400,7 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
 
 #ifdef HAVE_ECC
     ssl->eccTempKeySz = ctx->eccTempKeySz;
+    ssl->pkCurveOID = ctx->pkCurveOID;
     ssl->peerEccKeyPresent = 0;
     ssl->peerEccDsaKeyPresent = 0;
     ssl->eccDsaKeyPresent = 0;
@@ -1390,6 +1432,9 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
 #ifdef CYASSL_DTLS
     ssl->IOCB_CookieCtx = NULL;      /* we don't use for default cb */
     ssl->dtls_expected_rx = MAX_MTU;
+    ssl->keys.dtls_state.window = 0;
+    ssl->keys.dtls_state.nextEpoch = 0;
+    ssl->keys.dtls_state.nextSeq = 0;
 #endif
 
 #ifndef NO_OLD_TLS
@@ -1447,13 +1492,13 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
 
 #ifdef CYASSL_DTLS
     ssl->keys.dtls_sequence_number      = 0;
-    ssl->keys.dtls_peer_sequence_number = 0;
-    ssl->keys.dtls_expected_peer_sequence_number = 0;
+    ssl->keys.dtls_state.curSeq         = 0;
+    ssl->keys.dtls_state.nextSeq        = 0;
     ssl->keys.dtls_handshake_number     = 0;
     ssl->keys.dtls_expected_peer_handshake_number = 0;
     ssl->keys.dtls_epoch                = 0;
-    ssl->keys.dtls_peer_epoch           = 0;
-    ssl->keys.dtls_expected_peer_epoch  = 0;
+    ssl->keys.dtls_state.curEpoch       = 0;
+    ssl->keys.dtls_state.nextEpoch      = 0;
     ssl->dtls_timeout_init              = DTLS_TIMEOUT_INIT;
     ssl->dtls_timeout_max               = DTLS_TIMEOUT_MAX;
     ssl->dtls_timeout                   = ssl->dtls_timeout_init;
@@ -1595,6 +1640,7 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
         CYASSL_MSG("Arrays Memory error");
         return MEMORY_E;
     }
+    XMEMSET(ssl->arrays, 0, sizeof(Arrays));
 
 #ifndef NO_PSK
     ssl->arrays->client_identity[0] = 0;
@@ -2731,9 +2777,9 @@ static int GetRecordHeader(CYASSL* ssl, const byte* input, word32* inOutIdx,
         /* type and version in same sport */
         XMEMCPY(rh, input + *inOutIdx, ENUM_LEN + VERSION_SZ);
         *inOutIdx += ENUM_LEN + VERSION_SZ;
-        ato16(input + *inOutIdx, &ssl->keys.dtls_peer_epoch);
+        ato16(input + *inOutIdx, &ssl->keys.dtls_state.curEpoch);
         *inOutIdx += 4; /* advance past epoch, skip first 2 seq bytes for now */
-        ato32(input + *inOutIdx, &ssl->keys.dtls_peer_sequence_number);
+        ato32(input + *inOutIdx, &ssl->keys.dtls_state.curSeq);
         *inOutIdx += 4;  /* advance past rest of seq */
         ato16(input + *inOutIdx, size);
         *inOutIdx += LENGTH_SZ;
@@ -2754,27 +2800,14 @@ static int GetRecordHeader(CYASSL* ssl, const byte* input, word32* inOutIdx,
             return VERSION_ERROR;              /* only use requested version */
         }
     }
-#if 0
-    /* Instead of this, check the datagram against the sliding window of
-     * received datagram goodness. */
+
 #ifdef CYASSL_DTLS
-    /* If DTLS, check the sequence number against expected. If out of
-     * order, drop the record. Allows newer records in and resets the
-     * expected to the next record. */
     if (ssl->options.dtls) {
-        if ((ssl->keys.dtls_expected_peer_epoch ==
-                                        ssl->keys.dtls_peer_epoch) &&
-                (ssl->keys.dtls_peer_sequence_number >=
-                                ssl->keys.dtls_expected_peer_sequence_number)) {
-            ssl->keys.dtls_expected_peer_sequence_number =
-                            ssl->keys.dtls_peer_sequence_number + 1;
-        }
-        else {
+        if (DtlsCheckWindow(&ssl->keys.dtls_state) != 1)
             return SEQUENCE_ERROR;
-        }
     }
 #endif
-#endif
+
     /* record layer length check */
 #ifdef HAVE_MAX_FRAGMENT
     if (*size > (ssl->max_fragment + MAX_COMP_EXTRA + MAX_MSG_EXTRA))
@@ -3136,8 +3169,7 @@ int CopyDecodedToX509(CYASSL_X509* x509, DecodedCert* dCert)
         ret = MEMORY_E;
     }
     else {
-        XMEMCPY(x509->sig.buffer,
-                             &dCert->source[dCert->sigIndex], dCert->sigLength);
+        XMEMCPY(x509->sig.buffer, dCert->signature, dCert->sigLength);
         x509->sig.length = dCert->sigLength;
         x509->sigOID = dCert->signatureOID;
     }
@@ -3156,6 +3188,51 @@ int CopyDecodedToX509(CYASSL_X509* x509, DecodedCert* dCert)
     x509->altNames     = dCert->altNames;
     dCert->altNames    = NULL;     /* takes ownership */
     x509->altNamesNext = x509->altNames;  /* index hint */
+
+    x509->isCa = dCert->isCA;
+#ifdef OPENSSL_EXTRA
+    x509->pathLength = dCert->pathLength;
+    x509->keyUsage = dCert->extKeyUsage;
+
+    x509->basicConstSet = dCert->extBasicConstSet;
+    x509->basicConstCrit = dCert->extBasicConstCrit;
+    x509->basicConstPlSet = dCert->extBasicConstPlSet;
+    x509->subjAltNameSet = dCert->extSubjAltNameSet;
+    x509->subjAltNameCrit = dCert->extSubjAltNameCrit;
+    x509->authKeyIdSet = dCert->extAuthKeyIdSet;
+    x509->authKeyIdCrit = dCert->extAuthKeyIdCrit;
+    if (dCert->extAuthKeyIdSrc != NULL && dCert->extAuthKeyIdSz != 0) {
+        x509->authKeyId = (byte*)XMALLOC(dCert->extAuthKeyIdSz, NULL, 0);
+        if (x509->authKeyId != NULL) {
+            XMEMCPY(x509->authKeyId,
+                                 dCert->extAuthKeyIdSrc, dCert->extAuthKeyIdSz);
+            x509->authKeyIdSz = dCert->extAuthKeyIdSz;
+        }
+        else
+            ret = MEMORY_E;
+    }
+    x509->subjKeyIdSet = dCert->extSubjKeyIdSet;
+    x509->subjKeyIdCrit = dCert->extSubjKeyIdCrit;
+    if (dCert->extSubjKeyIdSrc != NULL && dCert->extSubjKeyIdSz != 0) {
+        x509->subjKeyId = (byte*)XMALLOC(dCert->extSubjKeyIdSz, NULL, 0);
+        if (x509->subjKeyId != NULL) {
+            XMEMCPY(x509->subjKeyId,
+                                 dCert->extSubjKeyIdSrc, dCert->extSubjKeyIdSz);
+            x509->subjKeyIdSz = dCert->extSubjKeyIdSz;
+        }
+        else
+            ret = MEMORY_E;
+    }
+    x509->keyUsageSet = dCert->extKeyUsageSet;
+    x509->keyUsageCrit = dCert->extKeyUsageCrit;
+    #ifdef CYASSL_SEP
+        x509->certPolicySet = dCert->extCertPolicySet;
+        x509->certPolicyCrit = dCert->extCertPolicyCrit;
+    #endif /* CYASSL_SEP */
+#endif /* OPENSSL_EXTRA */
+#ifdef HAVE_ECC
+    x509->pkCurveOID = dCert->pkCurveOID;
+#endif /* HAVE_ECC */
 
     return ret;
 }
@@ -3318,8 +3395,8 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx)
         }
 
 #ifdef HAVE_OCSP
-        if (fatal == 0) {
-            ret = CyaSSL_OCSP_Lookup_Cert(&ssl->ctx->ocsp, &dCert);
+        if (fatal == 0 && ssl->ctx->cm->ocspEnabled) {
+            ret = CheckCertOCSP(ssl->ctx->cm->ocsp, &dCert);
             if (ret != 0) {
                 CYASSL_MSG("\tOCSP Lookup not ok");
                 fatal = 0;
@@ -3332,7 +3409,7 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx)
             int doCrlLookup = 1;
 
             #ifdef HAVE_OCSP
-            if (ssl->ctx->ocsp.enabled) {
+            if (ssl->ctx->cm->ocspEnabled) {
                 doCrlLookup = (ret == OCSP_CERT_UNKNOWN);
             }
             #endif /* HAVE_OCSP */
@@ -3793,11 +3870,72 @@ static int DoHandShakeMsg(CYASSL* ssl, byte* input, word32* inOutIdx,
 
 
 #ifdef CYASSL_DTLS
+
+static INLINE int DtlsCheckWindow(DtlsState* state)
+{
+    word32 cur;
+    word32 next;
+    DtlsSeq window;
+
+    if (state->curEpoch == state->nextEpoch) {
+        next = state->nextSeq;
+        window = state->window;
+    }
+    else if (state->curEpoch < state->nextEpoch) {
+        next = state->prevSeq;
+        window = state->prevWindow;
+    }
+    else {
+        return 0;
+    }
+
+    cur = state->curSeq;
+
+    if ((next > DTLS_SEQ_BITS) && (cur < next - DTLS_SEQ_BITS)) {
+        return 0;
+    }
+    else if ((cur < next) && (window & (1 << (next - cur - 1)))) {
+        return 0;
+    }
+
+    return 1;
+}
+
+
+static INLINE int DtlsUpdateWindow(DtlsState* state)
+{
+    word32 cur;
+    word32* next;
+    DtlsSeq* window;
+
+    if (state->curEpoch == state->nextEpoch) {
+        next = &state->nextSeq;
+        window = &state->window;
+    }
+    else {
+        next = &state->prevSeq;
+        window = &state->prevWindow;
+    }
+
+    cur = state->curSeq;
+
+    if (cur < *next) {
+        *window |= (1 << (*next - cur - 1));
+    }
+    else {
+        *window <<= (1 + cur - *next);
+        *window |= 1;
+        *next = cur + 1;
+    }
+
+    return 1;
+}
+
+
 static int DtlsMsgDrain(CYASSL* ssl)
 {
     DtlsMsg* item = ssl->dtls_msg_list;
     int ret = 0;
-    word32 idx = 0;
 
     /* While there is an item in the store list, and it is the expected
      * message, and it is complete, and there hasn't been an error in the
@@ -3806,6 +3944,7 @@ static int DtlsMsgDrain(CYASSL* ssl)
             ssl->keys.dtls_expected_peer_handshake_number == item->seq &&
             item->fragSz == item->sz &&
             ret == 0) {
+        word32 idx = 0;
         ssl->keys.dtls_expected_peer_handshake_number++;
         ret = DoHandShakeMsgType(ssl, item->msg,
                                  &idx, item->type, item->sz, item->sz);
@@ -4192,22 +4331,26 @@ static INLINE int Decrypt(CYASSL* ssl, byte* plain, const byte* input,
 /* check cipher text size for sanity */
 static int SanityCheckCipherText(CYASSL* ssl, word32 encryptSz)
 {
-    word32 minLength = 0;
+#ifdef HAVE_TRUNCATED_HMAC
+    word32 minLength = ssl->truncated_hmac ? TRUNCATED_HMAC_SZ
+                                           : ssl->specs.hash_size;
+#else
+    word32 minLength = ssl->specs.hash_size; /* covers stream */
+#endif
 
     if (ssl->specs.cipher_type == block) {
         if (encryptSz % ssl->specs.block_size) {
             CYASSL_MSG("Block ciphertext not block size");
             return SANITY_CIPHER_E;
         }
-        minLength = ssl->specs.hash_size + 1;  /* pad byte */
+
+        minLength++;  /* pad byte */
+
         if (ssl->specs.block_size > minLength)
             minLength = ssl->specs.block_size;
 
         if (ssl->options.tls1_1)
             minLength += ssl->specs.block_size;  /* explicit IV */
-    }
-    else if (ssl->specs.cipher_type == stream) {
-        minLength = ssl->specs.hash_size;
     }
     else if (ssl->specs.cipher_type == aead) {
         minLength = ssl->specs.block_size; /* explicit IV + implicit IV + CTR */
@@ -4652,7 +4795,12 @@ static INLINE int VerifyMac(CYASSL* ssl, const byte* input, word32 msgSz,
     int    ret;
     word32 pad     = 0;
     word32 padByte = 0;
+#ifdef HAVE_TRUNCATED_HMAC
+    word32 digestSz = ssl->truncated_hmac ? TRUNCATED_HMAC_SZ
+                                          : ssl->specs.hash_size;
+#else
     word32 digestSz = ssl->specs.hash_size;
+#endif
     byte   verify[MAX_DIGEST_SIZE];
 
     if (ssl->specs.cipher_type == block) {
@@ -4804,8 +4952,6 @@ int ProcessReply(CYASSL* ssl)
                                        &ssl->curRL, &ssl->curSize);
 #ifdef CYASSL_DTLS
             if (ssl->options.dtls && ret == SEQUENCE_ERROR) {
-                /* This message is out of order. If we are handshaking, save
-                 *it for later. Otherwise go ahead and process it. */
                 ssl->options.processReply = doProcessInit;
                 ssl->buffers.inputBuffer.length = 0;
                 ssl->buffers.inputBuffer.idx = 0;
@@ -4841,7 +4987,14 @@ int ProcessReply(CYASSL* ssl)
         /* the record layer is here */
         case runProcessingOneMessage:
 
-            if (ssl->keys.encryptionOn && ssl->keys.decryptedCur == 0) {
+            #ifdef CYASSL_DTLS
+            if (ssl->options.dtls &&
+                ssl->keys.dtls_state.curEpoch < ssl->keys.dtls_state.nextEpoch)
+                ssl->keys.decryptedCur = 1;
+            #endif
+
+            if (ssl->keys.encryptionOn && ssl->keys.decryptedCur == 0)
+            {
                 ret = SanityCheckCipherText(ssl, ssl->curSize);
                 if (ret < 0)
                     return ret;
@@ -4889,6 +5042,12 @@ int ProcessReply(CYASSL* ssl)
                 }
                 ssl->keys.encryptSz    = ssl->curSize;
                 ssl->keys.decryptedCur = 1;
+            }
+
+            if (ssl->options.dtls) {
+            #ifdef CYASSL_DTLS
+                DtlsUpdateWindow(&ssl->keys.dtls_state);
+            #endif /* CYASSL_DTLS */
             }
 
             CYASSL_MSG("received record layer msg");
@@ -4950,8 +5109,8 @@ int ProcessReply(CYASSL* ssl)
                     #ifdef CYASSL_DTLS
                         if (ssl->options.dtls) {
                             DtlsPoolReset(ssl);
-                            ssl->keys.dtls_expected_peer_epoch++;
-                            ssl->keys.dtls_expected_peer_sequence_number = 0;
+                            ssl->keys.dtls_state.nextEpoch++;
+                            ssl->keys.dtls_state.nextSeq = 0;
                         }
                     #endif
 
@@ -5237,7 +5396,12 @@ static void BuildCertHashes(CYASSL* ssl, Hashes* hashes)
 static int BuildMessage(CYASSL* ssl, byte* output, const byte* input, int inSz,
                         int type)
 {
+#ifdef HAVE_TRUNCATED_HMAC
+    word32 digestSz = min(ssl->specs.hash_size,
+                ssl->truncated_hmac ? TRUNCATED_HMAC_SZ : ssl->specs.hash_size);
+#else
     word32 digestSz = ssl->specs.hash_size;
+#endif
     word32 sz = RECORD_HEADER_SZ + inSz + digestSz;                
     word32 pad  = 0, i;
     word32 idx  = RECORD_HEADER_SZ;
@@ -5313,8 +5477,19 @@ static int BuildMessage(CYASSL* ssl, byte* output, const byte* input, int inSz,
 #endif
     }
     else {  
-        if (ssl->specs.cipher_type != aead)
-            ssl->hmac(ssl, output+idx, output + headerSz + ivSz, inSz, type, 0);
+        if (ssl->specs.cipher_type != aead) {
+#ifdef HAVE_TRUNCATED_HMAC
+            if (ssl->truncated_hmac && ssl->specs.hash_size > digestSz) {
+                byte hmac[MAX_DIGEST_SIZE];
+
+                ssl->hmac(ssl, hmac, output + headerSz + ivSz, inSz, type, 0);
+
+                XMEMCPY(output + idx, hmac, digestSz);
+            } else
+#endif
+                ssl->hmac(ssl, output+idx, output + headerSz + ivSz, inSz,
+                                                                       type, 0);
+        }
 
         if ( (ret = Encrypt(ssl, output + headerSz, output+headerSz,size)) != 0)
             return ret;
@@ -7947,7 +8122,7 @@ static void PickHashSigAlgo(CYASSL* ssl,
             case ecc_diffie_hellman_kea:
                 {
                     ecc_key  myKey;
-                    ecc_key* peerKey = &myKey;
+                    ecc_key* peerKey = NULL;
                     word32   size = sizeof(encSecret);
 
                     if (ssl->specs.static_ecdh) {
@@ -7961,6 +8136,9 @@ static void PickHashSigAlgo(CYASSL* ssl,
                             return NO_PEER_KEY;
                         peerKey = ssl->peerEccKey;
                     }
+
+                    if (peerKey == NULL)
+                        return NO_PEER_KEY;
 
                     ecc_init(&myKey);
                     ret = ecc_make_key(ssl->rng, peerKey->dp->size, &myKey);
@@ -9131,7 +9309,7 @@ static void PickHashSigAlgo(CYASSL* ssl,
                 return 1;
             break;
 
-#ifndef NO_3DES
+#ifndef NO_DES3
         case TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA :
             if (requirement == REQUIRES_RSA)
                 return 1;
@@ -9160,7 +9338,7 @@ static void PickHashSigAlgo(CYASSL* ssl,
 #endif
 #endif /* NO_RSA */
 
-#ifndef NO_3DES
+#ifndef NO_DES3
         case TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA :
             if (requirement == REQUIRES_ECC_DSA)
                 return 1;
@@ -9587,6 +9765,13 @@ static void PickHashSigAlgo(CYASSL* ssl,
             }
         }
 
+#ifdef HAVE_SUPPORTED_CURVES
+        if (!TLSX_ValidateEllipticCurves(ssl, first, second)) {
+            CYASSL_MSG("Don't have matching curves");
+                return 0;
+        }
+#endif
+
         /* ECCDHE is always supported if ECC on */
 
         return 1;
@@ -9716,6 +9901,7 @@ static void PickHashSigAlgo(CYASSL* ssl,
 
         if (clSuites.suiteSz > MAX_SUITE_SZ)
             return BUFFER_ERROR;
+        clSuites.hashSigAlgoSz = 0;
 
         /* session size */
         ato16(&input[idx], &sessionSz);

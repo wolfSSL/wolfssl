@@ -99,6 +99,9 @@ typedef struct CYASSL_EVP_PKEY {
     union {
         char* ptr;
     } pkey;
+    #ifdef HAVE_ECC
+        int pkey_curve;
+    #endif
 } CYASSL_EVP_PKEY;
 
 typedef struct CYASSL_MD4_CTX {
@@ -413,6 +416,16 @@ CYASSL_API int   CyaSSL_X509_STORE_CTX_get_error_depth(CYASSL_X509_STORE_CTX*);
 CYASSL_API char*       CyaSSL_X509_NAME_oneline(CYASSL_X509_NAME*, char*, int);
 CYASSL_API CYASSL_X509_NAME*  CyaSSL_X509_get_issuer_name(CYASSL_X509*);
 CYASSL_API CYASSL_X509_NAME*  CyaSSL_X509_get_subject_name(CYASSL_X509*);
+CYASSL_API int  CyaSSL_X509_ext_isSet_by_NID(CYASSL_X509*, int);
+CYASSL_API int  CyaSSL_X509_ext_get_critical_by_NID(CYASSL_X509*, int);
+CYASSL_API int  CyaSSL_X509_get_isCA(CYASSL_X509*);
+CYASSL_API int  CyaSSL_X509_get_isSet_pathLength(CYASSL_X509*);
+CYASSL_API unsigned int CyaSSL_X509_get_pathLength(CYASSL_X509*);
+CYASSL_API unsigned int CyaSSL_X509_get_keyUsage(CYASSL_X509*);
+CYASSL_API unsigned char* CyaSSL_X509_get_authorityKeyID(
+                                            CYASSL_X509*, unsigned char*, int*);
+CYASSL_API unsigned char* CyaSSL_X509_get_subjectKeyID(
+                                            CYASSL_X509*, unsigned char*, int*);
 CYASSL_API int CyaSSL_X509_NAME_entry_count(CYASSL_X509_NAME*);
 CYASSL_API int CyaSSL_X509_NAME_get_text_by_NID(
                                             CYASSL_X509_NAME*, int, char*, int);
@@ -529,6 +542,9 @@ enum {
     OCSP_REQUEST  = 4,
     OCSP_RESPONSE = 8,
     OCSP_BASICRESP = 16,
+
+    CYASSL_OCSP_URL_OVERRIDE = 1,
+    CYASSL_OCSP_NO_NONCE     = 2,
 
     CYASSL_CRL_CHECKALL = 1,
 
@@ -810,9 +826,9 @@ CYASSL_API CYASSL_X509*
 #ifndef NO_FILESYSTEM
 CYASSL_API CYASSL_X509*
     CyaSSL_X509_d2i_fp(CYASSL_X509** x509, FILE* file);
-#endif
 CYASSL_API CYASSL_X509*
     CyaSSL_X509_load_certificate_file(const char* fname, int format);
+#endif
 
 #ifdef CYASSL_SEP
     CYASSL_API unsigned char*
@@ -930,15 +946,6 @@ CYASSL_API void  CyaSSL_CTX_SetGenCookie(CYASSL_CTX*, CallbackGenCookie);
 CYASSL_API void  CyaSSL_SetCookieCtx(CYASSL* ssl, void *ctx);
 CYASSL_API void* CyaSSL_GetCookieCtx(CYASSL* ssl);
 
-typedef int (*CallbackIOOcsp)(void*, const char*, int,
-                                         unsigned char*, int, unsigned char**);
-typedef void (*CallbackIOOcspRespFree)(void*,unsigned char*); 
-#ifdef HAVE_OCSP 
-CYASSL_API void CyaSSL_SetIOOcsp(CYASSL_CTX *ocsp, CallbackIOOcsp cb);
-CYASSL_API void CyaSSL_SetIOOcspRespFree(CYASSL_CTX *ocsp,
-                                                    CallbackIOOcspRespFree cb);
-CYASSL_API void CyaSSL_SetIOOcspCtx(CYASSL_CTX *ocsp, void *octx);
-#endif
 
 /* I/O Callback default errors */
 enum IOerrors {
@@ -966,9 +973,14 @@ CYASSL_API int CyaSSL_GetObjectSize(void);  /* object size based on build */
 CYASSL_API int CyaSSL_SetVersion(CYASSL* ssl, int version);
 CYASSL_API int CyaSSL_KeyPemToDer(const unsigned char*, int sz, unsigned char*,
                                   int, const char*);
+CYASSL_API int CyaSSL_CertPemToDer(const unsigned char*, int sz, unsigned char*,
+                                   int, int);
 
 typedef void (*CallbackCACache)(unsigned char* der, int sz, int type);
 typedef void (*CbMissingCRL)(const char* url);
+typedef int  (*CbOCSPIO)(void*, const char*, int,
+                                         unsigned char*, int, unsigned char**);
+typedef void (*CbOCSPRespFree)(void*,unsigned char*);
 
 /* User Atomic Record Layer CallBacks */
 typedef int (*CallbackMacEncrypt)(CYASSL* ssl, unsigned char* macOut, 
@@ -994,6 +1006,7 @@ CYASSL_API const unsigned char* CyaSSL_GetClientWriteIV(CYASSL*);
 CYASSL_API const unsigned char* CyaSSL_GetServerWriteKey(CYASSL*);
 CYASSL_API const unsigned char* CyaSSL_GetServerWriteIV(CYASSL*);
 CYASSL_API int                  CyaSSL_GetKeySize(CYASSL*);
+CYASSL_API int                  CyaSSL_GetIVSize(CYASSL*);
 CYASSL_API int                  CyaSSL_GetSide(CYASSL*);
 CYASSL_API int                  CyaSSL_IsTLSv1_1(CYASSL*);
 CYASSL_API int                  CyaSSL_GetBulkCipher(CYASSL*);
@@ -1113,16 +1126,34 @@ CYASSL_API void* CyaSSL_GetRsaDecCtx(CYASSL* ssl);
                                                                       int, int);
     CYASSL_API int CyaSSL_CertManagerSetCRL_Cb(CYASSL_CERT_MANAGER*,
                                                                   CbMissingCRL);
+    CYASSL_API int CyaSSL_CertManagerCheckOCSP(CYASSL_CERT_MANAGER*,
+                                                        unsigned char*, int sz);
+    CYASSL_API int CyaSSL_CertManagerEnableOCSP(CYASSL_CERT_MANAGER*,
+                                                                   int options);
+    CYASSL_API int CyaSSL_CertManagerDisableOCSP(CYASSL_CERT_MANAGER*);
+    CYASSL_API int CyaSSL_CertManagerSetOCSPOverrideURL(CYASSL_CERT_MANAGER*,
+                                                                   const char*);
+    CYASSL_API int CyaSSL_CertManagerSetOCSP_Cb(CYASSL_CERT_MANAGER*,
+                                               CbOCSPIO, CbOCSPRespFree, void*);
 
     CYASSL_API int CyaSSL_EnableCRL(CYASSL* ssl, int options);
     CYASSL_API int CyaSSL_DisableCRL(CYASSL* ssl);
     CYASSL_API int CyaSSL_LoadCRL(CYASSL*, const char*, int, int);
     CYASSL_API int CyaSSL_SetCRL_Cb(CYASSL*, CbMissingCRL);
+    CYASSL_API int CyaSSL_EnableOCSP(CYASSL*, int options);
+    CYASSL_API int CyaSSL_DisableOCSP(CYASSL*);
+    CYASSL_API int CyaSSL_SetOCSP_OverrideURL(CYASSL*, const char*);
+    CYASSL_API int CyaSSL_SetOCSP_Cb(CYASSL*, CbOCSPIO, CbOCSPRespFree, void*);
 
     CYASSL_API int CyaSSL_CTX_EnableCRL(CYASSL_CTX* ctx, int options);
     CYASSL_API int CyaSSL_CTX_DisableCRL(CYASSL_CTX* ctx);
     CYASSL_API int CyaSSL_CTX_LoadCRL(CYASSL_CTX*, const char*, int, int);
     CYASSL_API int CyaSSL_CTX_SetCRL_Cb(CYASSL_CTX*, CbMissingCRL);
+    CYASSL_API int CyaSSL_CTX_EnableOCSP(CYASSL_CTX*, int options);
+    CYASSL_API int CyaSSL_CTX_DisableOCSP(CYASSL_CTX*);
+    CYASSL_API int CyaSSL_CTX_SetOCSP_OverrideURL(CYASSL_CTX*, const char*);
+    CYASSL_API int CyaSSL_CTX_SetOCSP_Cb(CYASSL_CTX*,
+                                               CbOCSPIO, CbOCSPRespFree, void*);
 #endif /* !NO_CERTS */
 
 /* end of handshake frees temporary arrays, if user needs for get_keys or
@@ -1174,6 +1205,10 @@ CYASSL_API unsigned char CyaSSL_SNI_Status(CYASSL* ssl, unsigned char type);
 CYASSL_API unsigned short CyaSSL_SNI_GetRequest(CYASSL *ssl, unsigned char type,
                                                                    void** data);
 
+CYASSL_API int CyaSSL_SNI_GetFromBuffer(
+                 const unsigned char* clientHello, unsigned int helloSz,
+                 unsigned char type, unsigned char* sni, unsigned int* inOutSz);
+
 #endif /* NO_CYASSL_SERVER */
 #endif /* HAVE_SNI */
 
@@ -1196,6 +1231,7 @@ CYASSL_API int CyaSSL_CTX_UseMaxFragment(CYASSL_CTX* ctx, unsigned char mfl);
 #endif /* NO_CYASSL_CLIENT */
 #endif /* HAVE_MAX_FRAGMENT */
 
+/* Truncated HMAC */
 #ifdef HAVE_TRUNCATED_HMAC
 #ifndef NO_CYASSL_CLIENT
 
@@ -1204,6 +1240,27 @@ CYASSL_API int CyaSSL_CTX_UseTruncatedHMAC(CYASSL_CTX* ctx);
 
 #endif /* NO_CYASSL_CLIENT */
 #endif /* HAVE_TRUNCATED_HMAC */
+
+/* Elliptic Curves */
+#ifdef HAVE_SUPPORTED_CURVES
+
+enum {
+    CYASSL_ECC_SECP160R1 = 0x10,
+    CYASSL_ECC_SECP192R1 = 0x13,
+    CYASSL_ECC_SECP224R1 = 0x15,
+    CYASSL_ECC_SECP256R1 = 0x17,
+    CYASSL_ECC_SECP384R1 = 0x18,
+    CYASSL_ECC_SECP521R1 = 0x19
+};
+
+#ifndef NO_CYASSL_CLIENT
+
+CYASSL_API int CyaSSL_UseSupportedCurve(CYASSL* ssl, unsigned short name);
+CYASSL_API int CyaSSL_CTX_UseSupportedCurve(CYASSL_CTX* ctx,
+                                                          unsigned short name);
+
+#endif /* NO_CYASSL_CLIENT */
+#endif /* HAVE_SUPPORTED_CURVES */
 
 
 #define CYASSL_CRL_MONITOR   0x01   /* monitor this dir flag */
@@ -1227,14 +1284,9 @@ CYASSL_API int CyaSSL_accept_ex(CYASSL*, HandShakeCallBack, TimeoutCallBack,
 #endif /* CYASSL_CALLBACKS */
 
 
-CYASSL_API int  CyaSSL_CTX_OCSP_set_options(CYASSL_CTX*, int);
-CYASSL_API int  CyaSSL_CTX_OCSP_set_override_url(CYASSL_CTX*, const char*);
-
-/* OCSP Options */
-#define CYASSL_OCSP_ENABLE       0x0001 /* Enable OCSP lookups */
-#define CYASSL_OCSP_URL_OVERRIDE 0x0002 /* Use the override URL instead of URL
-                                         * in certificate */
-#define CYASSL_OCSP_NO_NONCE     0x0004 /* Disables the request nonce. */
+#ifdef CYASSL_HAVE_WOLFSCEP
+CYASSL_API void CyaSSL_wolfSCEP(void);
+#endif /* CYASSL_HAVE_WOLFSCEP */
 
 
 #ifdef __cplusplus
