@@ -820,7 +820,7 @@ CYASSL_LOCAL void InitSSL_Method(CYASSL_METHOD*, ProtocolVersion);
 
 /* for sniffer */
 CYASSL_LOCAL int DoFinished(CYASSL* ssl, const byte* input, word32* inOutIdx,
-                            int sniff);
+                            word32 size, word32 totalSz, int sniff);
 CYASSL_LOCAL int DoApplicationData(CYASSL* ssl, byte* input, word32* inOutIdx);
 
 

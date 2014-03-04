@@ -3664,28 +3664,36 @@ static int DoHelloRequest(CYASSL* ssl, const byte* input, word32* inOutIdx)
 }
 
 
-int DoFinished(CYASSL* ssl, const byte* input, word32* inOutIdx, int sniff)
+int DoFinished(CYASSL* ssl, const byte* input, word32* inOutIdx, word32 size,
+                                                      word32 totalSz, int sniff)
 {
-    int    finishedSz = ssl->options.tls ? TLS_FINISHED_SZ : FINISHED_SZ;
-    word32 idx = *inOutIdx;
+    if ((ssl->options.tls ? TLS_FINISHED_SZ : FINISHED_SZ) != size)
+        return BUFFER_ERROR;
 
     #ifdef CYASSL_CALLBACKS
         if (ssl->hsInfoOn) AddPacketName("Finished", &ssl->handShakeInfo);
         if (ssl->toInfoOn) AddLateName("Finished", &ssl->timeoutInfo);
     #endif
+
     if (sniff == NO_SNIFF) {
-        if (XMEMCMP(input + idx, &ssl->verifyHashes, finishedSz) != 0) {
+        if (XMEMCMP(input + *inOutIdx, &ssl->verifyHashes, size) != 0) {
             CYASSL_MSG("Verify finished error on hashes");
             return VERIFY_FINISHED_ERROR;
         }
     }
-    idx += finishedSz;
-    idx += ssl->keys.padSz;
-   
+
+    /* increment beyond input + size should be checked against totalSz */
+    if (*inOutIdx + size + ssl->keys.padSz > totalSz)
+        return INCOMPLETE_DATA;
+
+    /* force input exhaustion at ProcessReply consuming padSz */
+    *inOutIdx += size + ssl->keys.padSz;
+
     if (ssl->options.side == CYASSL_CLIENT_END) {
         ssl->options.serverState = SERVER_FINISHED_COMPLETE;
         if (!ssl->options.resuming) {
             ssl->options.handShakeState = HANDSHAKE_DONE;
+
 #ifdef CYASSL_DTLS
             if (ssl->options.dtls) {
                 /* Other side has received our Finished, go to next epoch */
@@ -3699,6 +3707,7 @@ int DoFinished(CYASSL* ssl, const byte* input, word32* inOutIdx, int sniff)
         ssl->options.clientState = CLIENT_FINISHED_COMPLETE;
         if (ssl->options.resuming) {
             ssl->options.handShakeState = HANDSHAKE_DONE;
+
 #ifdef CYASSL_DTLS
             if (ssl->options.dtls) {
                 /* Other side has received our Finished, go to next epoch */
@@ -3709,7 +3718,6 @@ int DoFinished(CYASSL* ssl, const byte* input, word32* inOutIdx, int sniff)
         }
     }
 
-    *inOutIdx = idx;
     return 0;
 }
 
@@ -3818,7 +3826,7 @@ static int DoHandShakeMsgType(CYASSL* ssl, byte* input, word32* inOutIdx,
 
     case finished:
         CYASSL_MSG("processing finished");
-        ret = DoFinished(ssl, input, inOutIdx, NO_SNIFF);
+        ret = DoFinished(ssl, input, inOutIdx, size, totalSz, NO_SNIFF);
         break;
 
 #ifndef NO_CYASSL_SERVER
