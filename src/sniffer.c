@@ -1236,8 +1236,10 @@ static int ProcessServerHello(const byte* input, int* sslBytes,
         doResume = 1;
 
     if (session->ticketID && doResume) {
-        /* use ticketID to retrieve from session */
+        /* use ticketID to retrieve from session, prefer over sessionID */
         XMEMCPY(session->sslServer->arrays->sessionID,session->ticketID,ID_LEN);
+        session->sslServer->options.haveSessionId = 1;  /* may not have
+                                                           actual sessionID */
     }
 
     if (doResume ) {
