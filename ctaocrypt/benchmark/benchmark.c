@@ -956,7 +956,7 @@ void bench_eccKeyAgree(void)
     byte   shared[1024];
     byte   sig[1024];
     byte   digest[32];
-    word32 x;
+    word32 x = 0;
  
     ecc_init(&genKey);
     ecc_init(&genKey2);
@@ -998,7 +998,7 @@ void bench_eccKeyAgree(void)
 
     /* make dummy digest */
     for (i = 0; i < (int)sizeof(digest); i++)
-        digest[i] = i;
+        digest[i] = (byte)i;
 
 
     start = current_time(1);

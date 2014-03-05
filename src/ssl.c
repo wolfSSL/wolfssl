@@ -1193,7 +1193,7 @@ int CyaSSL_KeyPemToDer(const unsigned char* pem, int pemSz, unsigned char* buff,
     info.consumed = 0;
     der.buffer    = NULL;
 
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
     if (pass) {
         info.ctx = CyaSSL_CTX_new(CyaSSLv23_client_method());
         if (info.ctx == NULL)
@@ -1829,7 +1829,7 @@ int CyaSSL_Init(void)
             }
         }
 
-#if defined(OPENSSL_EXTRA) && !defined(NO_PWDBASED)
+#if (defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)) && !defined(NO_PWDBASED)
          if (pkcs8Enc) {
             int  passwordSz;
             char password[80];

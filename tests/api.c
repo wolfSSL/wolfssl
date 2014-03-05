@@ -948,7 +948,7 @@ static int test_CyaSSL_read_write(void)
     FreeTcpReady(&ready);
 
     return test_result;
-};
+}
 
 #endif
 

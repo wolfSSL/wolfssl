@@ -1142,7 +1142,7 @@ static int ProcessSessionTicket(const byte* input, int* sslBytes,
     input     += TICKET_HINT_LEN;  /* skip over hint */
     *sslBytes -= TICKET_HINT_LEN;
 
-    len = (input[0] << 8) | input[1];
+    len = (word16)((input[0] << 8) | input[1]);
     input     += LENGTH_SZ;
     *sslBytes -= LENGTH_SZ;
 
@@ -1236,8 +1236,10 @@ static int ProcessServerHello(const byte* input, int* sslBytes,
         doResume = 1;
 
     if (session->ticketID && doResume) {
-        /* use ticketID to retrieve from session */
+        /* use ticketID to retrieve from session, prefer over sessionID */
         XMEMCPY(session->sslServer->arrays->sessionID,session->ticketID,ID_LEN);
+        session->sslServer->options.haveSessionId = 1;  /* may not have
+                                                           actual sessionID */
     }
 
     if (doResume ) {
@@ -1349,7 +1351,7 @@ static int ProcessClientHello(const byte* input, int* sslBytes,
         SetError(CLIENT_HELLO_INPUT_STR, error, session, FATAL_ERROR_STATE);
         return -1;
     }
-    len = (input[0] << 8) | input[1];
+    len = (word16)((input[0] << 8) | input[1]);
     input     += SUITE_LEN;
     *sslBytes -= SUITE_LEN;
     /* make sure can read suites + comp len */
@@ -1382,7 +1384,7 @@ static int ProcessClientHello(const byte* input, int* sslBytes,
         SetError(CLIENT_HELLO_INPUT_STR, error, session, FATAL_ERROR_STATE);
         return -1;
     }
-    len = (input[0] << 8) | input[1];
+    len = (word16)((input[0] << 8) | input[1]);
     input     += SUITE_LEN;
     *sslBytes -= SUITE_LEN;
     /* make sure can read through all extensions */
@@ -1400,7 +1402,7 @@ static int ProcessClientHello(const byte* input, int* sslBytes,
         input     += EXT_TYPE_SZ;
         *sslBytes -= EXT_TYPE_SZ;
 
-        extLen = (input[0] << 8) | input[1];
+        extLen = (word16)((input[0] << 8) | input[1]);
         input     += LENGTH_SZ;
         *sslBytes -= LENGTH_SZ;
 
@@ -1700,8 +1702,8 @@ static SnifferSession* CreateSession(IpInfo* ipInfo, TcpInfo* tcpInfo,
     InitSession(session);
     session->server  = ipInfo->dst;
     session->client  = ipInfo->src;
-    session->srvPort = tcpInfo->dstPort;
-    session->cliPort = tcpInfo->srcPort;
+    session->srvPort = (word16)tcpInfo->dstPort;
+    session->cliPort = (word16)tcpInfo->srcPort;
     session->cliSeqStart = tcpInfo->sequence;
     session->cliExpected = 1;  /* relative */
     session->lastUsed= time(NULL);
@@ -1781,7 +1783,7 @@ static int DoOldHello(SnifferSession* session, const byte* sslFrame,
     }
 
     ret = ProcessOldClientHello(session->sslServer, input, &idx, *sslBytes,
-                                *rhSize);    
+                                (word16)*rhSize);    
     if (ret < 0 && ret != MATCH_SUITE_ERROR) {
         SetError(BAD_OLD_CLIENT_STR, error, session, FATAL_ERROR_STATE);
         return -1;

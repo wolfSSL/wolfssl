@@ -231,7 +231,7 @@ static INLINE void c24to32(const word24 u24, word32* u32)
 /* convert opaque to 16 bit integer */
 static INLINE void ato16(const byte* c, word16* u16)
 {
-    *u16 = (c[0] << 8) | (c[1]);
+    *u16 = (word16) ((c[0] << 8) | (c[1]));
 }
 
 
@@ -367,7 +367,7 @@ int InitSSL_Ctx(CYASSL_CTX* ctx, CYASSL_METHOD* method)
     ctx->eccTempKeySz       = ECDHE_SIZE;   
 #endif
 
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
     ctx->passwd_cb   = 0;
     ctx->userdata    = 0;
 #endif /* OPENSSL_EXTRA */
@@ -2817,7 +2817,7 @@ static int GetRecordHeader(CYASSL* ssl, const byte* input, word32* inOutIdx,
 #endif
 
     /* verify record type here as well */
-    switch ((enum ContentType)rh->type) {
+    switch (rh->type) {
         case handshake:
         case change_cipher_spec:
         case application_data:
@@ -4710,7 +4710,7 @@ static int DoAlert(CYASSL* ssl, byte* input, word32* inOutIdx, int* type)
                           RECORD_HEADER_SZ, 2 + RECORD_HEADER_SZ, ssl->heap);
     #endif
     level = input[(*inOutIdx)++];
-    code  = (int)input[(*inOutIdx)++];
+    code  = input[(*inOutIdx)++];
     ssl->alert_history.last_rx.code = code;
     ssl->alert_history.last_rx.level = level;
     *type = code;
@@ -4911,7 +4911,7 @@ int ProcessReply(CYASSL* ssl)
                 ssl->buffers.inputBuffer.buffer[ssl->buffers.inputBuffer.idx++];
                 b1 =
                 ssl->buffers.inputBuffer.buffer[ssl->buffers.inputBuffer.idx++];
-                ssl->curSize = ((b0 & 0x7f) << 8) | b1;
+                ssl->curSize = (word16)(((b0 & 0x7f) << 8) | b1);
             }
             else {
                 ssl->options.processReply = getRecordLayerHeader;

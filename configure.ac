@@ -985,6 +985,19 @@ fi
 AM_CONDITIONAL([BUILD_MD4], [test "x$ENABLED_MD4" = "xyes"])
 
 
+# Web Server Build 
+AC_ARG_ENABLE([webserver],
+    [  --enable-webserver      Enable Web Server (default: disabled)],
+    [ ENABLED_WEBSERVER=$enableval ],
+    [ ENABLED_WEBSERVER=no ]
+    )
+
+if test "$ENABLED_WEBSERVER" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_WEBSERVER"
+fi
+
+
 # PWDBASED
 AC_ARG_ENABLE([pwdbased],
     [  --enable-pwdbased       Enable PWDBASED (default: disabled)],
@@ -994,9 +1007,9 @@ AC_ARG_ENABLE([pwdbased],
 
 if test "$ENABLED_PWDBASED" = "no"
 then
-    if test "$ENABLED_OPENSSLEXTRA" = "yes"
+    if test "$ENABLED_OPENSSLEXTRA" = "yes" || test "$ENABLED_WEBSERVER" = "yes"
     then
-        # opensslextra needs pwdbased 
+        # opensslextra and webserver needs pwdbased 
         ENABLED_PWDBASED=yes
     else
         AM_CFLAGS="$AM_CFLAGS -DNO_PWDBASED"
@@ -1038,19 +1051,6 @@ else
 fi
 
 AM_CONDITIONAL([BUILD_RABBIT], [test "x$ENABLED_RABBIT" = "xyes"])
-
-
-# Web Server Build 
-AC_ARG_ENABLE([webserver],
-    [  --enable-webserver      Enable Web Server (default: disabled)],
-    [ ENABLED_WEBSERVER=$enableval ],
-    [ ENABLED_WEBSERVER=no ]
-    )
-
-if test "$ENABLED_WEBSERVER" = "yes"
-then
-    AM_CFLAGS="$AM_CFLAGS -DHAVE_WEBSERVER"
-fi
 
 
 # Filesystem Build 

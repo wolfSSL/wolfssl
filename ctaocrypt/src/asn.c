@@ -3210,11 +3210,11 @@ static void DecodeSubjKeyId(byte* input, int sz, DecodedCert* cert)
         length--;
 
         if (length == 2) {
-            cert->extKeyUsage = (input[idx] << 8) | input[idx+1];
+            cert->extKeyUsage = (word16)((input[idx] << 8) | input[idx+1]);
             cert->extKeyUsage >>= unusedBits;
         }
         else if (length == 1)
-            cert->extKeyUsage = (input[idx] << 1);
+            cert->extKeyUsage = (word16)(input[idx] << 1);
 
         return;
     }

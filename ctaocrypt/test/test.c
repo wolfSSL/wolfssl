@@ -3784,7 +3784,7 @@ int ecc_test(void)
 
     /* test DSA sign hash */
     for (i = 0; i < (int)sizeof(digest); i++)
-        digest[i] = i;
+        digest[i] = (byte)i;
 
     x = sizeof(sig);
     ret = ecc_sign_hash(digest, sizeof(digest), sig, &x, &rng, &userA);
