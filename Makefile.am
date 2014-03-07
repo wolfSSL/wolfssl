@@ -76,8 +76,10 @@ if USE_VALGRIND
 TESTS_ENVIRONMENT=./valgrind-error.sh
 endif
 
+TEST_EXTENSIONS=.test
 TESTS += $(check_PROGRAMS)
 test: check
+testsuite/testsuite.log: tests/unit.log
 
 DISTCLEANFILES+= cyassl-config 
 
