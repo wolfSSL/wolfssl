@@ -3629,30 +3629,34 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx)
 #endif /* !NO_CERTS */
 
 
-static int DoHelloRequest(CYASSL* ssl, const byte* input, word32* inOutIdx)
+static int DoHelloRequest(CYASSL* ssl, const byte* input, word32* inOutIdx,
+                                                    word32 size, word32 totalSz)
 {
+    if (size) /* must be 0 */
+        return BUFFER_ERROR;
+
     if (ssl->keys.encryptionOn) {
-        const byte* mac;
-        int         padSz = ssl->keys.encryptSz - HANDSHAKE_HEADER_SZ - 
-                            ssl->specs.hash_size;
-        byte        verify[MAX_DIGEST_SIZE];
-       
+        byte verify[MAX_DIGEST_SIZE];
+        int  padSz = ssl->keys.encryptSz - HANDSHAKE_HEADER_SZ -
+                     ssl->specs.hash_size;
+
         ssl->hmac(ssl, verify, input + *inOutIdx - HANDSHAKE_HEADER_SZ,
                   HANDSHAKE_HEADER_SZ, handshake, 1);
-        /* read mac and fill */
-        mac = input + *inOutIdx;
-        *inOutIdx += ssl->specs.hash_size;
 
         if (ssl->options.tls1_1 && ssl->specs.cipher_type == block)
             padSz -= ssl->specs.block_size;
 
-        *inOutIdx += padSz;
+        /* access beyond input + size should be checked against totalSz */
+        if ((word32) (*inOutIdx + ssl->specs.hash_size + padSz) > totalSz)
+            return INCOMPLETE_DATA;
 
         /* verify */
-        if (XMEMCMP(mac, verify, ssl->specs.hash_size) != 0) {
+        if (XMEMCMP(input + *inOutIdx, verify, ssl->specs.hash_size) != 0) {
             CYASSL_MSG("    hello_request verify mac error");
             return VERIFY_MAC_ERROR;
         }
+
+        *inOutIdx += ssl->specs.hash_size + padSz;
     }
 
     if (ssl->options.side == CYASSL_SERVER_END) {
@@ -3779,7 +3783,7 @@ static int DoHandShakeMsgType(CYASSL* ssl, byte* input, word32* inOutIdx,
 
     case hello_request:
         CYASSL_MSG("processing hello request");
-        ret = DoHelloRequest(ssl, input, inOutIdx);
+        ret = DoHelloRequest(ssl, input, inOutIdx, size, totalSz);
         break;
 
 #ifndef NO_CYASSL_CLIENT
