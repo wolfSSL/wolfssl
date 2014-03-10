@@ -46,10 +46,17 @@ testsuite/*.pem
 testsuite/*.raw
 cert.der
 cert.pem
+certecc.der
+certecc.pem
 othercert.der
 othercert.pem
 key.der
 key.pem
+certreq.der
+certreq.pem
+pkcs7cert.der
+pkcs7signedData.der
+pkcs7envelopedData.der
 diff
 sslSniffer/sslSnifferTest/tracefile.txt
 *.gz
@@ -81,9 +88,13 @@ cov-int
 cyassl.tgz
 *.log
 *.trs
+IDE\MDK-ARM\Projects/
+IDE\MDK-ARM\STM32F2xx_StdPeriph_Lib/inc
+IDE\MDK-ARM\STM32F2xx_StdPeriph_Lib/src
 IDE\MDK-ARM\LPC43xx\Drivers/
 IDE\MDK-ARM\LPC43xx\LPC43xx/
 *.gcno
 *.gcda
 *.gcov
 
+Memo/
