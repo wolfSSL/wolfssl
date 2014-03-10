@@ -69,7 +69,8 @@ CYASSL_CALLBACKS needs LARGE_STATIC_BUFFERS, please add LARGE_STATIC_BUFFERS
 
 
 #ifndef NO_CYASSL_CLIENT
-    static int DoHelloVerifyRequest(CYASSL* ssl, const byte* input, word32*);
+    static int DoHelloVerifyRequest(CYASSL* ssl, const byte* input, word32*,
+                                                                        word32);
     static int DoServerHello(CYASSL* ssl, const byte* input, word32*, word32);
     static int DoServerKeyExchange(CYASSL* ssl, const byte* input, word32*);
     #ifndef NO_CERTS
@@ -3789,7 +3790,7 @@ static int DoHandShakeMsgType(CYASSL* ssl, byte* input, word32* inOutIdx,
 #ifndef NO_CYASSL_CLIENT
     case hello_verify_request:
         CYASSL_MSG("processing hello verify request");
-        ret = DoHelloVerifyRequest(ssl, input,inOutIdx);
+        ret = DoHelloVerifyRequest(ssl, input,inOutIdx, size);
         break;
             
     case server_hello:
@@ -7444,27 +7445,36 @@ static void PickHashSigAlgo(CYASSL* ssl,
 
 
     static int DoHelloVerifyRequest(CYASSL* ssl, const byte* input,
-                                    word32* inOutIdx)
+                                    word32* inOutIdx, word32 size)
     {
         ProtocolVersion pv;
         byte            cookieSz;
+        word32          begin = *inOutIdx;
         
 #ifdef CYASSL_CALLBACKS
         if (ssl->hsInfoOn) AddPacketName("HelloVerifyRequest",
                                          &ssl->handShakeInfo);
         if (ssl->toInfoOn) AddLateName("HelloVerifyRequest", &ssl->timeoutInfo);
 #endif
+
 #ifdef CYASSL_DTLS
         if (ssl->options.dtls) {
             DtlsPoolReset(ssl);
         }
 #endif
-        XMEMCPY(&pv, input + *inOutIdx, sizeof(pv));
-        *inOutIdx += (word32)sizeof(pv);
         
+        if ((*inOutIdx - begin) + OPAQUE16_LEN + OPAQUE8_LEN > size)
+            return BUFFER_ERROR;
+
+        XMEMCPY(&pv, input + *inOutIdx, OPAQUE16_LEN);
+        *inOutIdx += OPAQUE16_LEN;
+
         cookieSz = input[(*inOutIdx)++];
         
         if (cookieSz) {
+            if ((*inOutIdx - begin) + cookieSz > size)
+                return BUFFER_ERROR;
+
 #ifdef CYASSL_DTLS
             if (cookieSz <= MAX_COOKIE_LEN) {
                 XMEMCPY(ssl->arrays->cookie, input + *inOutIdx, cookieSz);
