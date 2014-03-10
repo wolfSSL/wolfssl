@@ -74,7 +74,8 @@ CYASSL_CALLBACKS needs LARGE_STATIC_BUFFERS, please add LARGE_STATIC_BUFFERS
     static int DoServerHello(CYASSL* ssl, const byte* input, word32*, word32);
     static int DoServerKeyExchange(CYASSL* ssl, const byte* input, word32*);
     #ifndef NO_CERTS
-        static int DoCertificateRequest(CYASSL* ssl, const byte* input,word32*);
+        static int DoCertificateRequest(CYASSL* ssl, const byte* input, word32*,
+                                                                        word32);
     #endif
 #endif
 
@@ -3801,7 +3802,7 @@ static int DoHandShakeMsgType(CYASSL* ssl, byte* input, word32* inOutIdx,
 #ifndef NO_CERTS
     case certificate_request:
         CYASSL_MSG("processing certificate request");
-        ret = DoCertificateRequest(ssl, input, inOutIdx);
+        ret = DoCertificateRequest(ssl, input, inOutIdx, size);
         break;
 #endif
 
@@ -7653,9 +7654,10 @@ static void PickHashSigAlgo(CYASSL* ssl,
 #ifndef NO_CERTS
     /* just read in and ignore for now TODO: */
     static int DoCertificateRequest(CYASSL* ssl, const byte* input, word32*
-                                    inOutIdx)
+                                    inOutIdx, word32 size)
     {
         word16 len;
+        word32 begin = *inOutIdx;
        
         #ifdef CYASSL_CALLBACKS
             if (ssl->hsInfoOn)
@@ -7663,28 +7665,57 @@ static void PickHashSigAlgo(CYASSL* ssl,
             if (ssl->toInfoOn)
                 AddLateName("CertificateRequest", &ssl->timeoutInfo);
         #endif
+
+        if ((*inOutIdx - begin) + OPAQUE8_LEN > size)
+            return BUFFER_ERROR;
+
         len = input[(*inOutIdx)++];
+
+        if ((*inOutIdx - begin) + len > size)
+            return BUFFER_ERROR;
 
         /* types, read in here */
         *inOutIdx += len;
 
+        /* signature and hash signature algorithm */
         if (IsAtLeastTLSv1_2(ssl)) {
-            /* hash sig format */
-            ato16(&input[*inOutIdx], &len);
-            *inOutIdx += LENGTH_SZ;
-            PickHashSigAlgo(ssl, &input[*inOutIdx], len);
+            if ((*inOutIdx - begin) + OPAQUE16_LEN > size)
+                return BUFFER_ERROR;
+
+            ato16(input + *inOutIdx, &len);
+            *inOutIdx += OPAQUE16_LEN;
+
+            if ((*inOutIdx - begin) + len > size)
+                return BUFFER_ERROR;
+
+            PickHashSigAlgo(ssl, input + *inOutIdx, len);
             *inOutIdx += len;
         }
 
         /* authorities */
-        ato16(&input[*inOutIdx], &len);
-        *inOutIdx += LENGTH_SZ;
+        if ((*inOutIdx - begin) + OPAQUE16_LEN > size)
+            return BUFFER_ERROR;
+
+        ato16(input + *inOutIdx, &len);
+        *inOutIdx += OPAQUE16_LEN;
+
+        if ((*inOutIdx - begin) + len > size)
+            return BUFFER_ERROR;
+
         while (len) {
             word16 dnSz;
-       
-            ato16(&input[*inOutIdx], &dnSz);
-            *inOutIdx += (REQUEST_HEADER + dnSz);
-            len -= dnSz + REQUEST_HEADER;
+
+            if ((*inOutIdx - begin) + OPAQUE16_LEN > size)
+                return BUFFER_ERROR;
+
+            ato16(input + *inOutIdx, &dnSz);
+            *inOutIdx += OPAQUE16_LEN;
+
+            if ((*inOutIdx - begin) + dnSz > size)
+                return BUFFER_ERROR;
+
+            *inOutIdx += dnSz;
+            len -= OPAQUE16_LEN + dnSz;
         }
 
         /* don't send client cert or cert verify if user hasn't provided
