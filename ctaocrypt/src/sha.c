@@ -26,13 +26,7 @@
 
 #include <cyassl/ctaocrypt/settings.h>
 
-#if !defined(NO_SHA)
-
-#ifdef CYASSL_PIC32MZ_HASH
-#define InitSha   InitSha_sw
-#define ShaUpdate ShaUpdate_sw
-#define ShaFinal  ShaFinal_sw
-#endif
+#ifndef NO_SHA
 
 #include <cyassl/ctaocrypt/sha.h>
 #ifdef NO_INLINE
@@ -363,11 +357,11 @@ void ShaFinal(Sha* sha, byte* hash)
 
     #ifdef FREESCALE_MMCAU
         /* Kinetis requires only these bytes reversed */
-        ByteReverseBytes(&local[SHA_PAD_SIZE], &local[SHA_PAD_SIZE],
-                2 * sizeof(word32));
+        ByteReverseWords(&sha->buffer[SHA_PAD_SIZE/sizeof(word32)],
+                         &sha->buffer[SHA_PAD_SIZE/sizeof(word32)],
+                         2 * sizeof(word32));
     #endif
 
-    XTRANSFORM(sha, local);
     XTRANSFORM(sha, local);
     #ifdef LITTLE_ENDIAN_ORDER
         ByteReverseWords(sha->digest, sha->digest, SHA_DIGEST_SIZE);

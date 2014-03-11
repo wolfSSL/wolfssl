@@ -1323,9 +1323,6 @@ void InitDecodedCert(DecodedCert* cert, byte* source, word32 inSz, void* heap)
     cert->extAuthKeyIdSz = 0;
     cert->extSubjKeyIdSrc = NULL;
     cert->extSubjKeyIdSz = 0;
-    #ifdef HAVE_ECC
-        cert->pkCurveOID = 0;
-    #endif /* HAVE_ECC */
 #endif /* OPENSSL_EXTRA */
 #ifdef HAVE_ECC
     cert->pkCurveOID = 0;
@@ -1540,9 +1537,6 @@ static int GetKey(DecodedCert* cert)
 
             if (CheckCurve(cert->pkCurveOID) < 0)
                 return ECC_CURVE_OID_E;
-            #ifdef OPENSSL_EXTRA
-                cert->pkCurveOID = oid;
-            #endif /* OPENSSL_EXTRA */
 
             /* key header */
             b = cert->source[cert->srcIdx++];
@@ -2366,13 +2360,6 @@ static word32 SetCurve(ecc_key* key, byte* output)
     XMEMCPY(output+idx, oid, oidSz);
     idx += oidSz;
 
-    return idx;
-}
-
-#endif /* HAVE_ECC && CYASSL_CERT_GEN */
-
-
-CYASSL_LOCAL word32 SetAlgoID(int algoOID, byte* output, int type, int curveSz)
     return idx;
 }
 
@@ -3223,11 +3210,11 @@ static void DecodeSubjKeyId(byte* input, int sz, DecodedCert* cert)
         length--;
 
         if (length == 2) {
-            cert->extKeyUsage = (input[idx] << 8) | input[idx+1];
+            cert->extKeyUsage = (word16)((input[idx] << 8) | input[idx+1]);
             cert->extKeyUsage >>= unusedBits;
         }
         else if (length == 1)
-            cert->extKeyUsage = (input[idx] << 1);
+            cert->extKeyUsage = (word16)(input[idx] << 1);
 
         return;
     }
@@ -3289,9 +3276,7 @@ static void DecodeCertExtensions(DecodedCert* cert)
     byte* input = cert->extensions;
     int length;
     word32 oid;
-    byte critical;
-
-    (void)critical;
+    byte critical = 0;
 
     CYASSL_ENTER("DecodeCertExtensions");
 
@@ -3404,7 +3389,6 @@ static void DecodeCertExtensions(DecodedCert* cert)
         }
         idx += length;
     }
-    (void)critical;
 
     CYASSL_LEAVE("DecodeCertExtensions", 0);
     return;

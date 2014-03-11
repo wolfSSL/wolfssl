@@ -240,11 +240,6 @@ static int DoBase64_Encode(const byte* in, word32 inLen, byte* out,
 
     outSz += addSz;
 
-    if (escaped)
-        addSz *= 3;   /* instead of just \n, we're doing %0A triplet */
-
-    outSz += addSz;
-
     /* if escaped we can't predetermine size for one pass encoding, but
      * make sure we have enough if no escapes are in input */
     if (outSz > *outLen) return BAD_FUNC_ARG;

@@ -26,13 +26,7 @@
 
 #include <cyassl/ctaocrypt/settings.h>
 
-#if !defined(NO_MD5)
-
-#ifdef CYASSL_PIC32MZ_HASH
-#define InitMd5   InitMd5_sw
-#define Md5Update Md5Update_sw
-#define Md5Final  Md5Final_sw
-#endif
+#ifndef NO_MD5
 
 #include <cyassl/ctaocrypt/md5.h>
 
