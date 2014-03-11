@@ -34,6 +34,10 @@
     extern "C" {
 #endif
 
+#ifdef CYASSL_PIC32MZ_HASH
+#include "port/pic32/pic32mz-crypt.h"
+#endif
+
 
 /* in bytes */
 enum {
@@ -51,6 +55,9 @@ typedef struct Sha256 {
     word32  hiLen;     /* length in bytes   */
     word32  digest[SHA256_DIGEST_SIZE / sizeof(word32)];
     word32  buffer[SHA256_BLOCK_SIZE  / sizeof(word32)];
+    #ifdef CYASSL_PIC32MZ_HASH
+        pic32mz_desc desc ; /* Crypt Engine descripter */
+    #endif
 } Sha256;
 
 

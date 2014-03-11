@@ -27,6 +27,22 @@
 
 #ifndef NO_PWDBASED
 
+#ifdef CYASSL_PIC32MZ_HASH
+
+#define InitMd5   InitMd5_sw
+#define Md5Update Md5Update_sw
+#define Md5Final  Md5Final_sw
+
+#define InitSha   InitSha_sw
+#define ShaUpdate ShaUpdate_sw
+#define ShaFinal  ShaFinal_sw
+
+#define InitSha256   InitSha256_sw
+#define Sha256Update Sha256Update_sw
+#define Sha256Final  Sha256Final_sw
+
+#endif
+
 #include <cyassl/ctaocrypt/pwdbased.h>
 #include <cyassl/ctaocrypt/hmac.h>
 #include <cyassl/ctaocrypt/integer.h>

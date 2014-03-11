@@ -2252,6 +2252,12 @@ int CyaSSL_CertManagerVerifyBuffer(CYASSL_CERT_MANAGER* cm, const byte* buff,
 
 #ifndef NO_FILESYSTEM
 
+    #if defined(CYASSL_MDK_ARM)
+        extern FILE * CyaSSL_fopen(const char *name, const char *mode) ;
+        #define XFOPEN     CyaSSL_fopen
+    #else
+        #define XFOPEN     fopen
+    #endif
 
 /* process a file with name fname into ctx of format and type
    userChain specifies a user certificate chain to pass during handshake */
