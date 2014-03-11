@@ -2800,7 +2800,7 @@ static int ConfirmSignature(const byte* buf, word32 bufSz,
 }
 
 
-static void DecodeAltNames(byte* input, int sz, DecodedCert* cert)
+static int DecodeAltNames(byte* input, int sz, DecodedCert* cert)
 {
     word32 idx = 0;
     int length = 0;
@@ -2809,7 +2809,7 @@ static void DecodeAltNames(byte* input, int sz, DecodedCert* cert)
 
     if (GetSequence(input, &idx, &length, sz) < 0) {
         CYASSL_MSG("\tBad Sequence");
-        return;
+        return ASN_PARSE_E;
     }
 
     while (length > 0) {
@@ -2826,7 +2826,7 @@ static void DecodeAltNames(byte* input, int sz, DecodedCert* cert)
 
             if (GetLength(input, &idx, &strLen, sz) < 0) {
                 CYASSL_MSG("\tfail: str length");
-                return;
+                return ASN_PARSE_E;
             }
             length -= (idx - lenStartIdx);
 
@@ -2834,7 +2834,7 @@ static void DecodeAltNames(byte* input, int sz, DecodedCert* cert)
                                         DYNAMIC_TYPE_ALTNAME);
             if (dnsEntry == NULL) {
                 CYASSL_MSG("\tOut of Memory");
-                return;
+                return ASN_PARSE_E;
             }
 
             dnsEntry->name = (char*)XMALLOC(strLen + 1, cert->heap,
@@ -2842,7 +2842,7 @@ static void DecodeAltNames(byte* input, int sz, DecodedCert* cert)
             if (dnsEntry->name == NULL) {
                 CYASSL_MSG("\tOut of Memory");
                 XFREE(dnsEntry, cert->heap, DYNAMIC_TYPE_ALTNAME);
-                return;
+                return ASN_PARSE_E;
             }
 
             XMEMCPY(dnsEntry->name, &input[idx], strLen);
@@ -2863,50 +2863,50 @@ static void DecodeAltNames(byte* input, int sz, DecodedCert* cert)
 
             if (GetLength(input, &idx, &strLen, sz) < 0) {
                 CYASSL_MSG("\tfail: other name length");
-                return;
+                return ASN_PARSE_E;
             }
             /* Consume the rest of this sequence. */
             length -= (strLen + idx - lenStartIdx);
 
             if (GetObjectId(input, &idx, &oid, sz) < 0) {
                 CYASSL_MSG("\tbad OID");
-                return;
+                return ASN_PARSE_E;
             }
 
             if (oid != HW_NAME_OID) {
                 CYASSL_MSG("\tincorrect OID");
-                return;
+                return ASN_PARSE_E;
             }
 
             if (input[idx++] != (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED)) {
                 CYASSL_MSG("\twrong type");
-                return;
+                return ASN_PARSE_E;
             }
 
             if (GetLength(input, &idx, &strLen, sz) < 0) {
                 CYASSL_MSG("\tfail: str len");
-                return;
+                return ASN_PARSE_E;
             }
 
             if (GetSequence(input, &idx, &strLen, sz) < 0) {
                 CYASSL_MSG("\tBad Sequence");
-                return;
+                return ASN_PARSE_E;
             }
 
             if (input[idx++] != ASN_OBJECT_ID) {
                 CYASSL_MSG("\texpected OID");
-                return;
+                return ASN_PARSE_E;
             }
 
             if (GetLength(input, &idx, &strLen, sz) < 0) {
                 CYASSL_MSG("\tfailed: str len");
-                return;
+                return ASN_PARSE_E;
             }
 
             cert->hwType = (byte*)XMALLOC(strLen, cert->heap, 0);
             if (cert->hwType == NULL) {
                 CYASSL_MSG("\tOut of Memory");
-                return;
+                return MEMORY_E;
             }
 
             XMEMCPY(cert->hwType, &input[idx], strLen);
@@ -2915,18 +2915,18 @@ static void DecodeAltNames(byte* input, int sz, DecodedCert* cert)
 
             if (input[idx++] != ASN_OCTET_STRING) {
                 CYASSL_MSG("\texpected Octet String");
-                return;
+                return ASN_PARSE_E;
             }
 
             if (GetLength(input, &idx, &strLen, sz) < 0) {
                 CYASSL_MSG("\tfailed: str len");
-                return;
+                return ASN_PARSE_E;
             }
 
             cert->hwSerialNum = (byte*)XMALLOC(strLen + 1, cert->heap, 0);
             if (cert->hwSerialNum == NULL) {
                 CYASSL_MSG("\tOut of Memory");
-                return;
+                return MEMORY_E;
             }
 
             XMEMCPY(cert->hwSerialNum, &input[idx], strLen);
@@ -2937,34 +2937,38 @@ static void DecodeAltNames(byte* input, int sz, DecodedCert* cert)
 #endif /* CYASSL_SEP */
         else {
             CYASSL_MSG("\tNot DNS type");
-            return;
+            return ASN_PARSE_E;
         }
-    }   
+    }
+    return 0;
 }
 
 
-static void DecodeBasicCaConstraint(byte* input, int sz, DecodedCert* cert)
+static int DecodeBasicCaConstraint(byte* input, int sz, DecodedCert* cert)
 {
     word32 idx = 0;
     int length = 0;
 
     CYASSL_ENTER("DecodeBasicCaConstraint");
-    if (GetSequence(input, &idx, &length, sz) < 0) return;
+    if (GetSequence(input, &idx, &length, sz) < 0)
+        return ASN_PARSE_E;
 
-    if (length == 0) return;
+    if (length == 0)
+        return ASN_PARSE_E;
+
     /* If the basic ca constraint is false, this extension may be named, but
      * left empty. So, if the length is 0, just return. */
 
     if (input[idx++] != ASN_BOOLEAN)
     {
         CYASSL_MSG("\tfail: constraint not BOOLEAN");
-        return;
+        return ASN_PARSE_E;
     }
 
     if (GetLength(input, &idx, &length, sz) < 0)
     {
         CYASSL_MSG("\tfail: length");
-        return;
+        return ASN_PARSE_E;
     }
 
     if (input[idx++])
@@ -2973,22 +2977,24 @@ static void DecodeBasicCaConstraint(byte* input, int sz, DecodedCert* cert)
     #ifdef OPENSSL_EXTRA
         /* If there isn't any more data, return. */
         if (idx >= (word32)sz)
-            return;
+            return 0;
 
         /* Anything left should be the optional pathlength */
         if (input[idx++] != ASN_INTEGER) {
             CYASSL_MSG("\tfail: pathlen not INTEGER");
-            return;
+            return ASN_PARSE_E;
         }
 
         if (input[idx++] != 1) {
             CYASSL_MSG("\tfail: pathlen too long");
-            return;
+            return ASN_PARSE_E;
         }
 
         cert->pathLength = input[idx];
         cert->extBasicConstPlSet = 1;
     #endif /* OPENSSL_EXTRA */
+
+    return 0;
 }
 
 
@@ -2997,7 +3003,7 @@ static void DecodeBasicCaConstraint(byte* input, int sz, DecodedCert* cert)
 #define GENERALNAME_URI 6
     /* From RFC3280 SS4.2.1.7, GeneralName */
 
-static void DecodeCrlDist(byte* input, int sz, DecodedCert* cert)
+static int DecodeCrlDist(byte* input, int sz, DecodedCert* cert)
 {
     word32 idx = 0;
     int length = 0;
@@ -3005,10 +3011,12 @@ static void DecodeCrlDist(byte* input, int sz, DecodedCert* cert)
     CYASSL_ENTER("DecodeCrlDist");
 
     /* Unwrap the list of Distribution Points*/
-    if (GetSequence(input, &idx, &length, sz) < 0) return;
+    if (GetSequence(input, &idx, &length, sz) < 0)
+        return ASN_PARSE_E;
 
     /* Unwrap a single Distribution Point */
-    if (GetSequence(input, &idx, &length, sz) < 0) return;
+    if (GetSequence(input, &idx, &length, sz) < 0)
+        return ASN_PARSE_E;
 
     /* The Distribution Point has three explicit optional members
      *  First check for a DistributionPointName
@@ -3016,18 +3024,21 @@ static void DecodeCrlDist(byte* input, int sz, DecodedCert* cert)
     if (input[idx] == (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 0))
     {
         idx++;
-        if (GetLength(input, &idx, &length, sz) < 0) return;
+        if (GetLength(input, &idx, &length, sz) < 0)
+            return ASN_PARSE_E;
 
         if (input[idx] == 
                     (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | CRLDP_FULL_NAME))
         {
             idx++;
-            if (GetLength(input, &idx, &length, sz) < 0) return;
+            if (GetLength(input, &idx, &length, sz) < 0)
+                return ASN_PARSE_E;
 
             if (input[idx] == (ASN_CONTEXT_SPECIFIC | GENERALNAME_URI))
             {
                 idx++;
-                if (GetLength(input, &idx, &length, sz) < 0) return;
+                if (GetLength(input, &idx, &length, sz) < 0)
+                    return ASN_PARSE_E;
 
                 cert->extCrlInfoSz = length;
                 cert->extCrlInfo = input + idx;
@@ -3047,7 +3058,8 @@ static void DecodeCrlDist(byte* input, int sz, DecodedCert* cert)
         input[idx] == (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 1))
     {
         idx++;
-        if (GetLength(input, &idx, &length, sz) < 0) return;
+        if (GetLength(input, &idx, &length, sz) < 0)
+            return ASN_PARSE_E;
         idx += length;
     }
 
@@ -3056,7 +3068,8 @@ static void DecodeCrlDist(byte* input, int sz, DecodedCert* cert)
         input[idx] == (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 2))
     {
         idx++;
-        if (GetLength(input, &idx, &length, sz) < 0) return;
+        if (GetLength(input, &idx, &length, sz) < 0)
+            return ASN_PARSE_E;
         idx += length;
     }
 
@@ -3066,11 +3079,11 @@ static void DecodeCrlDist(byte* input, int sz, DecodedCert* cert)
                    "but we only use the first one.");
     }
 
-    return;
+    return 0;
 }
 
 
-static void DecodeAuthInfo(byte* input, int sz, DecodedCert* cert)
+static int DecodeAuthInfo(byte* input, int sz, DecodedCert* cert)
 /*
  *  Read the first of the Authority Information Access records. If there are
  *  any issues, return without saving the record.
@@ -3084,18 +3097,22 @@ static void DecodeAuthInfo(byte* input, int sz, DecodedCert* cert)
     CYASSL_ENTER("DecodeAuthInfo");
 
     /* Unwrap the list of AIAs */
-    if (GetSequence(input, &idx, &length, sz) < 0) return;
+    if (GetSequence(input, &idx, &length, sz) < 0)
+        return ASN_PARSE_E;
 
     while (idx < (word32)sz) {
         /* Unwrap a single AIA */
-        if (GetSequence(input, &idx, &length, sz) < 0) return;
+        if (GetSequence(input, &idx, &length, sz) < 0)
+            return ASN_PARSE_E;
 
         oid = 0;
-        if (GetObjectId(input, &idx, &oid, sz) < 0) return;
+        if (GetObjectId(input, &idx, &oid, sz) < 0)
+            return ASN_PARSE_E;
 
         /* Only supporting URIs right now. */
         b = input[idx++];
-        if (GetLength(input, &idx, &length, sz) < 0) return;
+        if (GetLength(input, &idx, &length, sz) < 0)
+            return ASN_PARSE_E;
 
         if (b == (ASN_CONTEXT_SPECIFIC | GENERALNAME_URI) &&
             oid == AIA_OCSP_OID)
@@ -3107,11 +3124,11 @@ static void DecodeAuthInfo(byte* input, int sz, DecodedCert* cert)
         idx += length;
     }
 
-    return;
+    return 0;
 }
 
 
-static void DecodeAuthKeyId(byte* input, int sz, DecodedCert* cert)
+static int DecodeAuthKeyId(byte* input, int sz, DecodedCert* cert)
 {
     word32 idx = 0;
     int length = 0;
@@ -3120,17 +3137,17 @@ static void DecodeAuthKeyId(byte* input, int sz, DecodedCert* cert)
 
     if (GetSequence(input, &idx, &length, sz) < 0) {
         CYASSL_MSG("\tfail: should be a SEQUENCE\n");
-        return;
+        return ASN_PARSE_E;
     }
 
     if (input[idx++] != (ASN_CONTEXT_SPECIFIC | 0)) {
         CYASSL_MSG("\tfail: wanted OPTIONAL item 0, not available\n");
-        return;
+        return ASN_PARSE_E;
     }
 
     if (GetLength(input, &idx, &length, sz) < 0) {
         CYASSL_MSG("\tfail: extension data length");
-        return;
+        return ASN_PARSE_E;
     }
 
     #ifdef OPENSSL_EXTRA
@@ -3148,11 +3165,11 @@ static void DecodeAuthKeyId(byte* input, int sz, DecodedCert* cert)
         ShaFinal(&sha, cert->extAuthKeyId);
     }
 
-    return;
+    return 0;
 }
 
 
-static void DecodeSubjKeyId(byte* input, int sz, DecodedCert* cert)
+static int DecodeSubjKeyId(byte* input, int sz, DecodedCert* cert)
 {
     word32 idx = 0;
     int length = 0;
@@ -3161,12 +3178,12 @@ static void DecodeSubjKeyId(byte* input, int sz, DecodedCert* cert)
 
     if (input[idx++] != ASN_OCTET_STRING) {
         CYASSL_MSG("\tfail: should be an OCTET STRING");
-        return;
+        return ASN_PARSE_E;
     }
 
     if (GetLength(input, &idx, &length, sz) < 0) {
         CYASSL_MSG("\tfail: extension data length");
-        return;
+        return ASN_PARSE_E;
     }
 
     #ifdef OPENSSL_EXTRA
@@ -3184,12 +3201,12 @@ static void DecodeSubjKeyId(byte* input, int sz, DecodedCert* cert)
         ShaFinal(&sha, cert->extSubjKeyId);
     }
 
-    return;
+    return 0;
 }
 
 
 #ifdef OPENSSL_EXTRA
-    static void DecodeKeyUsage(byte* input, int sz, DecodedCert* cert)
+    static int DecodeKeyUsage(byte* input, int sz, DecodedCert* cert)
     {
         word32 idx = 0;
         int length;
@@ -3198,12 +3215,12 @@ static void DecodeSubjKeyId(byte* input, int sz, DecodedCert* cert)
 
         if (input[idx++] != ASN_BIT_STRING) {
             CYASSL_MSG("\tfail: key usage expected bit string");
-            return;
+            return ASN_PARSE_E;
         }
 
         if (GetLength(input, &idx, &length, sz) < 0) {
             CYASSL_MSG("\tfail: key usage bad length");
-            return;
+            return ASN_PARSE_E;
         }
 
         unusedBits = input[idx++];
@@ -3216,13 +3233,13 @@ static void DecodeSubjKeyId(byte* input, int sz, DecodedCert* cert)
         else if (length == 1)
             cert->extKeyUsage = (word16)(input[idx] << 1);
 
-        return;
+        return 0;
     }
 #endif /* OPENSSL_EXTRA */
 
 
 #ifdef CYASSL_SEP
-    static void DecodeCertPolicy(byte* input, int sz, DecodedCert* cert)
+    static int DecodeCertPolicy(byte* input, int sz, DecodedCert* cert)
     {
         word32 idx = 0;
         int length = 0;
@@ -3232,40 +3249,41 @@ static void DecodeSubjKeyId(byte* input, int sz, DecodedCert* cert)
         /* Unwrap certificatePolicies */
         if (GetSequence(input, &idx, &length, sz) < 0) {
             CYASSL_MSG("\tdeviceType isn't OID");
-            return;
+            return ASN_PARSE_E;
         }
 
         if (GetSequence(input, &idx, &length, sz) < 0) {
             CYASSL_MSG("\tdeviceType isn't OID");
-            return;
+            return ASN_PARSE_E;
         }
 
         if (input[idx++] != ASN_OBJECT_ID) {
             CYASSL_MSG("\tdeviceType isn't OID");
-            return;
+            return ASN_PARSE_E;
         }
 
         if (GetLength(input, &idx, &length, sz) < 0) {
             CYASSL_MSG("\tCouldn't read length of deviceType");
-            return;
+            return ASN_PARSE_E;
         }
 
         if (length > 0) {
             cert->deviceType = (byte*)XMALLOC(length, cert->heap, 0);
             if (cert->deviceType == NULL) {
                 CYASSL_MSG("\tCouldn't alloc memory for deviceType");
-                return;
+                return MEMORY_E;
             }
             cert->deviceTypeSz = length;
             XMEMCPY(cert->deviceType, input + idx, length);
         }
 
         CYASSL_LEAVE("DecodeCertPolicy", 0);
+        return 0;
     }
 #endif /* CYASSL_SEP */
 
 
-static void DecodeCertExtensions(DecodedCert* cert)
+static int DecodeCertExtensions(DecodedCert* cert)
 /*
  *  Processing the Certificate Extensions. This does not modify the current
  *  index. It is works starting with the recorded extensions pointer.
@@ -3277,27 +3295,32 @@ static void DecodeCertExtensions(DecodedCert* cert)
     int length;
     word32 oid;
     byte critical = 0;
+    byte criticalFail = 0;
 
     CYASSL_ENTER("DecodeCertExtensions");
 
-    if (input == NULL || sz == 0) return;
+    if (input == NULL || sz == 0)
+        return BAD_FUNC_ARG;
 
-    if (input[idx++] != ASN_EXTENSIONS) return;
+    if (input[idx++] != ASN_EXTENSIONS)
+        return ASN_PARSE_E;
 
-    if (GetLength(input, &idx, &length, sz) < 0) return;
+    if (GetLength(input, &idx, &length, sz) < 0)
+        return ASN_PARSE_E;
 
-    if (GetSequence(input, &idx, &length, sz) < 0) return;
+    if (GetSequence(input, &idx, &length, sz) < 0)
+        return ASN_PARSE_E;
     
     while (idx < (word32)sz) {
         if (GetSequence(input, &idx, &length, sz) < 0) {
             CYASSL_MSG("\tfail: should be a SEQUENCE");
-            return;
+            return ASN_PARSE_E;
         }
 
         oid = 0;
         if (GetObjectId(input, &idx, &oid, sz) < 0) {
             CYASSL_MSG("\tfail: OBJECT ID");
-            return;
+            return ASN_PARSE_E;
         }
 
         /* check for critical flag */
@@ -3307,7 +3330,7 @@ static void DecodeCertExtensions(DecodedCert* cert)
             idx++;
             if (GetLength(input, &idx, &boolLength, sz) < 0) {
                 CYASSL_MSG("\tfail: critical boolean length");
-                return;
+                return ASN_PARSE_E;
             }
             if (input[idx++])
                 critical = 1;
@@ -3316,12 +3339,12 @@ static void DecodeCertExtensions(DecodedCert* cert)
         /* process the extension based on the OID */
         if (input[idx++] != ASN_OCTET_STRING) {
             CYASSL_MSG("\tfail: should be an OCTET STRING");
-            return;
+            return ASN_PARSE_E;
         }
 
         if (GetLength(input, &idx, &length, sz) < 0) {
             CYASSL_MSG("\tfail: extension data length");
-            return;
+            return ASN_PARSE_E;
         }
 
         switch (oid) {
@@ -3330,15 +3353,18 @@ static void DecodeCertExtensions(DecodedCert* cert)
                     cert->extBasicConstSet = 1;
                     cert->extBasicConstCrit = critical;
                 #endif
-                DecodeBasicCaConstraint(&input[idx], length, cert);
+                if (DecodeBasicCaConstraint(&input[idx], length, cert) < 0)
+                    return ASN_PARSE_E;
                 break;
 
             case CRL_DIST_OID:
-                DecodeCrlDist(&input[idx], length, cert);
+                if (DecodeCrlDist(&input[idx], length, cert) < 0)
+                    return ASN_PARSE_E;
                 break;
 
             case AUTH_INFO_OID:
-                DecodeAuthInfo(&input[idx], length, cert);
+                if (DecodeAuthInfo(&input[idx], length, cert) < 0)
+                    return ASN_PARSE_E;
                 break;
 
             case ALT_NAMES_OID:
@@ -3346,7 +3372,8 @@ static void DecodeCertExtensions(DecodedCert* cert)
                     cert->extSubjAltNameSet = 1;
                     cert->extSubjAltNameCrit = critical;
                 #endif
-                DecodeAltNames(&input[idx], length, cert);
+                if (DecodeAltNames(&input[idx], length, cert) < 0)
+                    return ASN_PARSE_E;
                 break;
 
             case AUTH_KEY_OID:
@@ -3354,7 +3381,8 @@ static void DecodeCertExtensions(DecodedCert* cert)
                 #ifdef OPENSSL_EXTRA
                     cert->extAuthKeyIdCrit = critical;
                 #endif
-                DecodeAuthKeyId(&input[idx], length, cert);
+                if (DecodeAuthKeyId(&input[idx], length, cert) < 0)
+                    return ASN_PARSE_E;
                 break;
 
             case SUBJ_KEY_OID:
@@ -3362,7 +3390,8 @@ static void DecodeCertExtensions(DecodedCert* cert)
                 #ifdef OPENSSL_EXTRA
                     cert->extSubjKeyIdCrit = critical;
                 #endif
-                DecodeSubjKeyId(&input[idx], length, cert);
+                if (DecodeSubjKeyId(&input[idx], length, cert) < 0)
+                    return ASN_PARSE_E;
                 break;
 
             #ifdef CYASSL_SEP
@@ -3371,7 +3400,8 @@ static void DecodeCertExtensions(DecodedCert* cert)
                     cert->extCertPolicySet = 1;
                     cert->extCertPolicyCrit = critical;
                 #endif
-                DecodeCertPolicy(&input[idx], length, cert);
+                if (DecodeCertPolicy(&input[idx], length, cert) < 0)
+                    return ASN_PARSE_E;
                 break;
             #endif
 
@@ -3379,19 +3409,24 @@ static void DecodeCertExtensions(DecodedCert* cert)
             case KEY_USAGE_OID:
                 cert->extKeyUsageSet = 1;
                 cert->extKeyUsageCrit = critical;
-                DecodeKeyUsage(&input[idx], length, cert);
+                if (DecodeKeyUsage(&input[idx], length, cert) < 0)
+                    return ASN_PARSE_E;
                 break;
             #endif
 
             default:
-                CYASSL_MSG("\tExtension type not handled, skipping");
+                /* While it is a failure to not support critical extensions,
+                 * still parse the certificate ignoring the unsupported
+                 * extention to allow caller to accept it with the verify
+                 * callback. */
+                if (critical)
+                    criticalFail = 1;
                 break;
         }
         idx += length;
     }
 
-    CYASSL_LEAVE("DecodeCertExtensions", 0);
-    return;
+    return criticalFail ? ASN_CRIT_EXT_E : 0;
 }
 
 
@@ -3447,7 +3482,8 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
 {
     word32 confirmOID;
     int    ret;
-    int    badDate = 0;
+    int    badDate     = 0;
+    int    criticalExt = 0;
 
     if ((ret = DecodeToKey(cert, verify)) < 0) {
         if (ret == ASN_BEFORE_DATE_E || ret == ASN_AFTER_DATE_E)
@@ -3465,7 +3501,13 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
             cert->extensionsSz  =  cert->sigIndex - cert->srcIdx;
             cert->extensionsIdx = cert->srcIdx;   /* for potential later use */
         }
-        DecodeCertExtensions(cert);
+        if ((ret = DecodeCertExtensions(cert)) < 0) {
+            if (ret == ASN_CRIT_EXT_E)
+                criticalExt = ret;
+            else
+                return ret;
+        }
+
         /* advance past extensions */
         cert->srcIdx =  cert->sigIndex;
     }
@@ -3531,6 +3573,9 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
 
     if (badDate != 0)
         return badDate;
+
+    if (criticalExt != 0)
+        return criticalExt;
 
     return 0;
 }
