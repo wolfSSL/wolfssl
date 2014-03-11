@@ -221,11 +221,11 @@ void Sha256Final(Sha256* sha256, byte* hash)
 
     #ifdef FREESCALE_MMCAU
         /* Kinetis requires only these bytes reversed */
-        ByteReverseBytes(&local[SHA256_PAD_SIZE], &local[SHA256_PAD_SIZE],
-                2 * sizeof(word32));
+        ByteReverseWords(&sha256->buffer[SHA256_PAD_SIZE/sizeof(word32)],
+                         &sha256->buffer[SHA256_PAD_SIZE/sizeof(word32)],
+                         2 * sizeof(word32));
     #endif
 
-    XTRANSFORM(sha256, local);
     XTRANSFORM(sha256, local);
     #ifdef LITTLE_ENDIAN_ORDER
         ByteReverseWords(sha256->digest, sha256->digest, SHA256_DIGEST_SIZE);

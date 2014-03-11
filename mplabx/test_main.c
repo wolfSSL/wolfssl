@@ -24,11 +24,6 @@
 #endif
 
 #include <cyassl/ctaocrypt/settings.h>
-    #include <stdio.h>
-    #include <stdlib.h>
-    #include "PIC32MZ-serial.h"
-    #define  SYSTEMConfigPerformance /* void out SYSTEMConfigPerformance(); */
-#else
 
 #if defined(CYASSL_MICROCHIP_PIC32MZ)
     #define MICROCHIP_PIC32
