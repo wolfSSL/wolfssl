@@ -1157,6 +1157,8 @@ int CyaSSL_CertPemToDer(const unsigned char* pem, int pemSz,
 }
 
 
+#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
+
 /* our KeyPemToDer password callback, password in userData */
 static INLINE int OurPasswordCb(char* passwd, int sz, int rw, void* userdata)
 {
@@ -1168,6 +1170,8 @@ static INLINE int OurPasswordCb(char* passwd, int sz, int rw, void* userdata)
     XSTRNCPY(passwd, (char*)userdata, sz);
     return min((word32)sz, (word32)XSTRLEN((char*)userdata));
 }
+
+#endif /* OPENSSL_EXTRA || HAVE_WEBSERVER */
 
 
 /* Return bytes written to buff or < 0 for error */

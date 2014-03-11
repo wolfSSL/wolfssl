@@ -219,17 +219,21 @@ int benchmark_test(void *args)
 
 
 #ifdef BENCH_EMBEDDED
-static const int numBlocks = 25;  /* how many kB/megs to test (en/de)cryption */
-static const char blockType[] = "kB";  /* used in printf output */
-static const int ntimes      = 1;        /* public key iterations */
-static const int genTimes   = 5;
-static const int agreeTimes = 5;
+enum BenchmarkBounds {
+    numBlocks  = 25, /* how many kB to test (en/de)cryption */
+    ntimes     = 1,
+    genTimes   = 5,  /* public key iterations */
+    agreeTimes = 5
+};
+static const char blockType[] = "kB";   /* used in printf output */
 #else
-static const int numBlocks = 5;
-static const char blockType[] = "megs";
-static const int ntimes      = 100;
-static const int genTimes   = 100;
-static const int agreeTimes = 100;
+enum BenchmarkBounds {
+    numBlocks  = 5,  /* how many megs to test (en/de)cryption */
+    ntimes     = 100,
+    genTimes   = 100,
+    agreeTimes = 100
+};
+static const char blockType[] = "megs"; /* used in printf output */
 #endif
 
 static const byte key[] = 
