@@ -506,22 +506,21 @@ int GenerateSeed(OS_Seed* os, byte* output, word32 sz)
             } while(size) ;
             return 0;
         }
-#else  /* CYASSL_MIC32MZ_RNG */
-/* uses the core timer, in nanoseconds to seed srand */
-int GenerateSeed(OS_Seed* os, byte* output, word32 sz)
-{
-    int i;
-    srand(PIC32_SEED_COUNT() * 25);
-
-    for (i = 0; i < sz; i++ ) {
-        output[i] = rand() % 256;
-        if ( (i % 8) == 7)
+    #else  /* CYASSL_MIC32MZ_RNG */
+        /* uses the core timer, in nanoseconds to seed srand */
+        int GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+        {
+            int i;
             srand(PIC32_SEED_COUNT() * 25);
-    }
 
-    return 0;
-}
-#endif /* CYASSL_MIC32MZ_RNG */
+            for (i = 0; i < sz; i++ ) {
+                output[i] = rand() % 256;
+                if ( (i % 8) == 7)
+                    srand(PIC32_SEED_COUNT() * 25);
+            }
+            return 0;
+        }
+    #endif /* CYASSL_MIC32MZ_RNG */
 #elif defined(CYASSL_SAFERTOS) || defined(CYASSL_LEANPSK) \
    || defined(CYASSL_IAR_ARM)                               
 
