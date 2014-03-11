@@ -2373,6 +2373,13 @@ static word32 SetCurve(ecc_key* key, byte* output)
 
 
 CYASSL_LOCAL word32 SetAlgoID(int algoOID, byte* output, int type, int curveSz)
+    return idx;
+}
+
+#endif /* HAVE_ECC && CYASSL_CERT_GEN */
+
+
+CYASSL_LOCAL word32 SetAlgoID(int algoOID, byte* output, int type, int curveSz)
 {
     /* adding TAG_NULL and 0 to end */
     
@@ -3216,11 +3223,11 @@ static void DecodeSubjKeyId(byte* input, int sz, DecodedCert* cert)
         length--;
 
         if (length == 2) {
-            cert->extKeyUsage = (word16)((input[idx] << 8) | input[idx+1]);
+            cert->extKeyUsage = (input[idx] << 8) | input[idx+1];
             cert->extKeyUsage >>= unusedBits;
         }
         else if (length == 1)
-            cert->extKeyUsage = (word16)(input[idx] << 1);
+            cert->extKeyUsage = (input[idx] << 1);
 
         return;
     }
@@ -3282,7 +3289,9 @@ static void DecodeCertExtensions(DecodedCert* cert)
     byte* input = cert->extensions;
     int length;
     word32 oid;
-    byte critical = 0;
+    byte critical;
+
+    (void)critical;
 
     CYASSL_ENTER("DecodeCertExtensions");
 
@@ -3395,6 +3404,7 @@ static void DecodeCertExtensions(DecodedCert* cert)
         }
         idx += length;
     }
+    (void)critical;
 
     CYASSL_LEAVE("DecodeCertExtensions", 0);
     return;

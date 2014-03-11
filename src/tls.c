@@ -896,34 +896,34 @@ int TLSX_SNI_GetFromBuffer(const byte* clientHello, word32 helloSz,
     offset += HANDSHAKE_HEADER_SZ;
 
     if (offset + len32 > helloSz)
-        return BUFFER_ERROR;
+        return INCOMPLETE_DATA;
 
     /* client hello */
     offset += VERSION_SZ + RAN_LEN; /* version, random */
 
     if (helloSz < offset + clientHello[offset])
-        return BUFFER_ERROR;
+        return INCOMPLETE_DATA;
 
     offset += ENUM_LEN + clientHello[offset]; /* skip session id */
 
     /* cypher suites */
     if (helloSz < offset + OPAQUE16_LEN)
-        return BUFFER_ERROR;
+        return INCOMPLETE_DATA;
 
     ato16(clientHello + offset, &len16);
     offset += OPAQUE16_LEN;
 
     if (helloSz < offset + len16)
-        return BUFFER_ERROR;
+        return INCOMPLETE_DATA;
 
     offset += len16; /* skip cypher suites */
 
     /* compression methods */
     if (helloSz < offset + 1)
-        return BUFFER_ERROR;
+        return INCOMPLETE_DATA;
 
     if (helloSz < offset + clientHello[offset])
-        return BUFFER_ERROR;
+        return INCOMPLETE_DATA;
 
     offset += ENUM_LEN + clientHello[offset]; /* skip compression methods */
 
@@ -935,7 +935,7 @@ int TLSX_SNI_GetFromBuffer(const byte* clientHello, word32 helloSz,
     offset += OPAQUE16_LEN;
 
     if (helloSz < offset + len16)
-        return BUFFER_ERROR;
+        return INCOMPLETE_DATA;
 
     while (len16 > OPAQUE16_LEN + OPAQUE16_LEN) {
         word16 extType;
@@ -948,7 +948,7 @@ int TLSX_SNI_GetFromBuffer(const byte* clientHello, word32 helloSz,
         offset += OPAQUE16_LEN;
 
         if (helloSz < offset + extLen)
-            return BUFFER_ERROR;
+            return INCOMPLETE_DATA;
 
         if (extType != SERVER_NAME_INDICATION) {
             offset += extLen; /* skip extension */
@@ -959,7 +959,7 @@ int TLSX_SNI_GetFromBuffer(const byte* clientHello, word32 helloSz,
             offset += OPAQUE16_LEN;
 
             if (helloSz < offset + listLen)
-                return BUFFER_ERROR;
+                return INCOMPLETE_DATA;
 
             while (listLen > ENUM_LEN + OPAQUE16_LEN) {
                 byte   sniType = clientHello[offset++];
@@ -969,7 +969,7 @@ int TLSX_SNI_GetFromBuffer(const byte* clientHello, word32 helloSz,
                 offset += OPAQUE16_LEN;
 
                 if (helloSz < offset + sniLen)
-                    return BUFFER_ERROR;
+                    return INCOMPLETE_DATA;
 
                 if (sniType != type) {
                     offset  += sniLen;
@@ -1249,13 +1249,13 @@ static int TLSX_EllipticCurve_Parse(CYASSL* ssl, byte* input, word16 length,
     (void) isRequest; /* shut up compiler! */
 
     if (OPAQUE16_LEN > length || length % OPAQUE16_LEN)
-        return BUFFER_ERROR;
+        return INCOMPLETE_DATA;
 
     ato16(input, &offset);
 
     /* validating curve list length */
     if (length != OPAQUE16_LEN + offset)
-        return BUFFER_ERROR;
+        return INCOMPLETE_DATA;
 
     while (offset) {
         ato16(input + offset, &name);

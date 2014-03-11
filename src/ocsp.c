@@ -82,8 +82,9 @@ void FreeOCSP(CYASSL_OCSP* ocsp, int dynamic)
         XFREE(tmp, NULL, DYNAMIC_TYPE_OCSP_ENTRY);
         tmp = next;
     }
-
     FreeMutex(&ocsp->ocspLock);
+    if (dynamic)
+        XFREE(ocsp, NULL, DYNAMIC_TYPE_OCSP);
     if (dynamic)
         XFREE(ocsp, NULL, DYNAMIC_TYPE_OCSP);
 }

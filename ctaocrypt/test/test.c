@@ -2084,8 +2084,10 @@ int aesgcm_test(void)
 
     result = AesGcmDecrypt(&enc, p2, c2, sizeof(p2), iv, sizeof(iv),
                                                  t2, sizeof(t2), a, sizeof(a));
+
     if (result != 0)
         return -70;
+
     if (memcmp(p, p2, sizeof(p2)))
         return -71;
 

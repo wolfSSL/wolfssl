@@ -98,3 +98,5 @@ IDE\MDK-ARM\LPC43xx\LPC43xx/
 *.gcno
 *.gcda
 *.gcov
+
+Memo/

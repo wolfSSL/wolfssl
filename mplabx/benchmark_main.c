@@ -19,6 +19,15 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  */
 #if defined(CYASSL_MICROCHIP_PIC32MZ)
+#ifdef HAVE_CONFIG_H
+    #include <config.h>
+#endif
+
+#include <cyassl/ctaocrypt/settings.h>
+    #define SYSTEMConfigPerformance /* void out SYSTEMConfigPerformance(); */
+#else
+
+#if defined(CYASSL_MICROCHIP_PIC32MZ)
     #define MICROCHIP_PIC32
     #include <xc.h>
     #pragma config ICESEL = ICS_PGx2

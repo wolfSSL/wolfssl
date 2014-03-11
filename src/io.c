@@ -553,7 +553,6 @@ static int tcp_connect(SOCKET_T* sockfd, const char* ip, word16 port)
         CYASSL_MSG("bad socket fd, out of fds?");
         return -1;
     }
-
     if (connect(*sockfd, (struct sockaddr *)&addr, sockaddr_len) != 0) {
         CYASSL_MSG("OCSP responder tcp connect failed");
         return -1;

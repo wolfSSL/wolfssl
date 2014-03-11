@@ -469,7 +469,44 @@ int GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     #endif
     #define PIC32_SEED_COUNT ReadCoreTimer
 #endif
+    #ifdef CYASSL_MIC32MZ_RNG
+        #include "xc.h"
+        int GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+        {
+            int i ;
+            byte rnd[8] ;
+            word32 *rnd32 = (word32 *)rnd ;
+            word32 size = sz ;
+            byte* op = output ;
 
+            /* This part has to be replaced with better random seed */
+            RNGNUMGEN1 = ReadCoreTimer();
+            RNGPOLY1 = ReadCoreTimer();
+            RNGPOLY2 = ReadCoreTimer();
+            RNGNUMGEN2 = ReadCoreTimer();
+#ifdef DEBUG_CYASSL
+            printf("GenerateSeed::Seed=%08x, %08x\n", RNGNUMGEN1, RNGNUMGEN2) ;
+#endif
+            RNGCONbits.PLEN = 0x40;
+            RNGCONbits.PRNGEN = 1;
+            for(i=0; i<5; i++) { /* wait for RNGNUMGEN ready */
+                volatile int x ;
+                x = RNGNUMGEN1 ;
+                x = RNGNUMGEN2 ;
+            }
+            do {
+                rnd32[0] = RNGNUMGEN1;
+                rnd32[1] = RNGNUMGEN2;
+
+                for(i=0; i<8; i++, op++) {
+                    *op = rnd[i] ;
+                    size -- ;
+                    if(size==0)break ;
+                }
+            } while(size) ;
+            return 0;
+        }
+#else  /* CYASSL_MIC32MZ_RNG */
 /* uses the core timer, in nanoseconds to seed srand */
 int GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 {
@@ -484,7 +521,7 @@ int GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 
     return 0;
 }
-
+#endif /* CYASSL_MIC32MZ_RNG */
 #elif defined(CYASSL_SAFERTOS) || defined(CYASSL_LEANPSK) \
    || defined(CYASSL_IAR_ARM)                               
 
