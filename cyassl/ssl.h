@@ -941,9 +941,7 @@ CYASSL_API void CyaSSL_SetIOWriteFlags(CYASSL* ssl, int flags);
     CYASSL_API void CyaSSL_SetIO_NetX(CYASSL* ssl, NX_TCP_SOCKET* nxsocket,
                                       ULONG waitoption);
 #endif
-#ifdef HAVE_LWIP_NATIVE
-    #include "lwip/tcp.h"
-#endif
+
 typedef int (*CallbackGenCookie)(CYASSL* ssl, unsigned char* buf, int sz,
                                  void* ctx);
 CYASSL_API void  CyaSSL_CTX_SetGenCookie(CYASSL_CTX*, CallbackGenCookie);
@@ -1289,8 +1287,12 @@ CYASSL_API int CyaSSL_accept_ex(CYASSL*, HandShakeCallBack, TimeoutCallBack,
 
 
 #ifdef CYASSL_HAVE_WOLFSCEP
-CYASSL_API void CyaSSL_wolfSCEP(void);
+    CYASSL_API void CyaSSL_wolfSCEP(void);
 #endif /* CYASSL_HAVE_WOLFSCEP */
+
+#ifdef CYASSL_HAVE_CERT_SERVICE
+    CYASSL_API void CyaSSL_cert_service(void);
+#endif
 
 
 #ifdef __cplusplus

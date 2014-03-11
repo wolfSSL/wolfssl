@@ -37,7 +37,7 @@
 #else
     #include <string.h>
     #include <sys/types.h>
-#if !defined(CYASSL_LEANPSK) && !defined(HAVE_LWIP_NATIVE) 
+#ifndef CYASSL_LEANPSK
     #include <unistd.h>
     #include <netdb.h>
     #include <netinet/in.h>
@@ -58,14 +58,6 @@
     #endif
     #define SNPRINTF snprintf
 #endif /* USE_WINDOWS_API */
-
-#if defined(HAVE_LWIP_NATIVE)
-    #include <string.h>
-    #include "lwip/tcp.h"
-    #include "lwip/sockets.h"
-    #include "lwip/inet.h"
-    #include "lwip/ip_addr.h"
-#endif
 
 #ifdef HAVE_CAVIUM
     #include "cavium_sysdep.h"
