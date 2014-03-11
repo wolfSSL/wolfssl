@@ -117,10 +117,11 @@
       AX_APPEND_COMPILE_FLAGS([-Wno-pragmas],,[$ax_append_compile_cflags_extra])
 
       AX_APPEND_COMPILE_FLAGS([-Wall],,[$ax_append_compile_cflags_extra])
-      AX_APPEND_COMPILE_FLAGS([-Wno-strict-aliasing],,,[$ax_append_compile_cflags_extra])
+      AX_APPEND_COMPILE_FLAGS([-Wno-strict-aliasing],,[$ax_append_compile_cflags_extra])
       AX_APPEND_COMPILE_FLAGS([-Wextra],,[$ax_append_compile_cflags_extra])
       AX_APPEND_COMPILE_FLAGS([-Wunknown-pragmas],,[$ax_append_compile_cflags_extra])
       AX_APPEND_COMPILE_FLAGS([-Wthis-test-should-fail],,[$ax_append_compile_cflags_extra])
+      AX_APPEND_COMPILE_FLAGS([-Wunreachable-code],,[$ax_append_compile_cflags_extra])
       dnl Anything below this comment please keep sorted.
       AS_IF([test "$CC" = "clang"],[],[
         AX_APPEND_COMPILE_FLAGS([--param=ssp-buffer-size=1],,[$ax_append_compile_cflags_extra])
@@ -156,6 +157,7 @@
       AX_APPEND_COMPILE_FLAGS([-Wunused-variable],,[$ax_append_compile_cflags_extra])
       AX_APPEND_COMPILE_FLAGS([-Wwrite-strings],,[$ax_append_compile_cflags_extra])
       AX_APPEND_COMPILE_FLAGS([-fwrapv],,[$ax_append_compile_cflags_extra])
+      AX_APPEND_COMPILE_FLAGS([-fPIE],,[$ax_append_compile_cflags_extra])
       AC_LANG_POP
       ])
 
@@ -185,10 +187,11 @@
         ])
 
       AX_APPEND_COMPILE_FLAGS([-Wall],,[$ax_append_compile_cxxflags_extra])
-      AX_APPEND_COMPILE_FLAGS([-Wno-strict-aliasing],,,[$ax_append_compile_cxxflags_extra])
+      AX_APPEND_COMPILE_FLAGS([-Wno-strict-aliasing],,[$ax_append_compile_cxxflags_extra])
       AX_APPEND_COMPILE_FLAGS([-Wextra],,[$ax_append_compile_cxxflags_extra])
       AX_APPEND_COMPILE_FLAGS([-Wunknown-pragmas],,[$ax_append_compile_cxxflags_extra])
       AX_APPEND_COMPILE_FLAGS([-Wthis-test-should-fail],,[$ax_append_compile_cxxflags_extra])
+      AX_APPEND_COMPILE_FLAGS([-Wunreachable-code],,[$ax_append_compile_cxxflags_extra])
       dnl Anything below this comment please keep sorted.
       AX_APPEND_COMPILE_FLAGS([--param=ssp-buffer-size=1],,[$ax_append_compile_cxxflags_extra])
       AX_APPEND_COMPILE_FLAGS([-Waddress],,[$ax_append_compile_cxxflags_extra])

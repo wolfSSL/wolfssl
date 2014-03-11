@@ -599,7 +599,9 @@ enum Misc {
     COOKIE_SZ    = 20,         /* use a 20 byte cookie    */
     SUITE_LEN    =  2,         /* cipher suite sz length  */
     ENUM_LEN     =  1,         /* always a byte           */
-    OPAQUE16_LEN =  2,         /* always 2 bytes          */
+    OPAQUE8_LEN  =  1,         /* 1 byte                  */
+    OPAQUE16_LEN =  2,         /* 2 bytes                 */
+    OPAQUE24_LEN =  3,         /* 3 bytes                 */
     COMP_LEN     =  1,         /* compression length      */
     CURVE_LEN    =  2,         /* ecc named curve length  */
     SERVER_ID_LEN = 20,        /* server session id length  */
@@ -1004,6 +1006,7 @@ struct OCSP_Entry {
 struct CYASSL_OCSP {
     CYASSL_CERT_MANAGER* cm;            /* pointer back to cert manager */
     OCSP_Entry*          ocspList;      /* OCSP response list */
+    CyaSSL_Mutex         ocspLock;      /* OCSP list lock */
 };
 
 #ifndef MAX_DATE_SIZE
@@ -1182,7 +1185,7 @@ CYASSL_LOCAL int TLSX_UseTruncatedHMAC(TLSX** extensions);
 
 #endif /* HAVE_TRUNCATED_HMAC */
 
-#ifdef HAVE_ELLIPTIC_CURVES
+#ifdef HAVE_SUPPORTED_CURVES
 
 typedef struct EllipticCurve {
     word16                name; /* CurveNames    */
@@ -1190,14 +1193,14 @@ typedef struct EllipticCurve {
 
 } EllipticCurve;
 
-CYASSL_LOCAL int TLSX_UseEllipticCurve(TLSX** extensions, word16 name);
+CYASSL_LOCAL int TLSX_UseSupportedCurve(TLSX** extensions, word16 name);
 
 #ifndef NO_CYASSL_SERVER
 CYASSL_LOCAL int TLSX_ValidateEllipticCurves(CYASSL* ssl, byte first,
                                                                    byte second);
 #endif
 
-#endif /* HAVE_ELLIPTIC_CURVES */
+#endif /* HAVE_SUPPORTED_CURVES */
 
 #endif /* HAVE_TLS_EXTENSIONS */
 

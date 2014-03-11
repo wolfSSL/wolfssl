@@ -42,13 +42,11 @@ CYASSL_LOCAL
 word32 ByteReverseWord32(word32);
 CYASSL_LOCAL
 void   ByteReverseWords(word32*, const word32*, word32);
-CYASSL_LOCAL
-void   ByteReverseBytes(byte*, const byte*, word32);
 
 CYASSL_LOCAL
 void XorWords(word*, const word*, word32);
 CYASSL_LOCAL
-void xorbuf(byte*, const byte*, word32);
+void xorbuf(void*, const void*, word32);
 
 #ifdef WORD64_AVAILABLE
 CYASSL_LOCAL

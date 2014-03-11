@@ -295,7 +295,8 @@ void RipeMdUpdate(RipeMd* ripemd, const byte* data, word32 len)
 
         if (ripemd->buffLen == RIPEMD_BLOCK_SIZE) {
             #ifdef BIG_ENDIAN_ORDER
-                ByteReverseBytes(local, local, RIPEMD_BLOCK_SIZE);
+                ByteReverseWords(ripemd->buffer, ripemd->buffer,
+                                 RIPEMD_BLOCK_SIZE);
             #endif
             Transform(ripemd);
             AddLength(ripemd, RIPEMD_BLOCK_SIZE);
@@ -319,7 +320,7 @@ void RipeMdFinal(RipeMd* ripemd, byte* hash)
         ripemd->buffLen += RIPEMD_BLOCK_SIZE - ripemd->buffLen;
 
         #ifdef BIG_ENDIAN_ORDER
-            ByteReverseBytes(local, local, RIPEMD_BLOCK_SIZE);
+            ByteReverseWords(ripemd->buffer, ripemd->buffer, RIPEMD_BLOCK_SIZE);
         #endif
         Transform(ripemd);
         ripemd->buffLen = 0;
@@ -333,7 +334,7 @@ void RipeMdFinal(RipeMd* ripemd, byte* hash)
 
     /* store lengths */
     #ifdef BIG_ENDIAN_ORDER
-        ByteReverseBytes(local, local, RIPEMD_BLOCK_SIZE);
+        ByteReverseWords(ripemd->buffer, ripemd->buffer, RIPEMD_BLOCK_SIZE);
     #endif
     /* ! length ordering dependent on digest endian type ! */
     XMEMCPY(&local[RIPEMD_PAD_SIZE], &ripemd->loLen, sizeof(word32));

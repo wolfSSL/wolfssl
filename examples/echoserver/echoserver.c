@@ -48,7 +48,7 @@
 
 #define SVR_COMMAND_SIZE 256
 
-static void SignalReady(void* args, int port)
+static void SignalReady(void* args, word16 port)
 {
 #if defined(_POSIX_THREADS) && defined(NO_MAIN_DRIVER) && !defined(__MINGW32__)
     /* signal ready to tcp_accept */
@@ -76,7 +76,7 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
     int    outCreated = 0;
     int    shutDown = 0;
     int    useAnyAddr = 0;
-    int    port = yasslPort;
+    word16 port = yasslPort;
     int    argc = ((func_args*)args)->argc;
     char** argv = ((func_args*)args)->argv;
 
@@ -125,7 +125,7 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
     ctx    = CyaSSL_CTX_new(method);
     /* CyaSSL_CTX_set_session_cache_mode(ctx, SSL_SESS_CACHE_OFF); */
 
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
     CyaSSL_CTX_set_default_passwd_cb(ctx, PasswordCallBack);
 #endif
 

@@ -41,6 +41,8 @@ output
 mcapi/test
 testsuite/testsuite
 tests/unit
+testsuite/testsuite.test
+tests/unit.test
 testsuite/*.der
 testsuite/*.pem
 testsuite/*.raw

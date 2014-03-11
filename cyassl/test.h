@@ -167,8 +167,8 @@
 #define crlPemDir  "./certs/crl"
 
 typedef struct tcp_ready {
-    int ready;              /* predicate */
-    int port;
+    word16 ready;              /* predicate */
+    word16 port;
 #if defined(_POSIX_THREADS) && !defined(__MINGW32__)
     pthread_mutex_t mutex;
     pthread_cond_t  cond;
@@ -290,7 +290,7 @@ static INLINE int mygetopt(int argc, char** argv, const char* optstring)
 }
 
 
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
 
 static INLINE int PasswordCallBack(char* passwd, int sz, int rw, void* userdata)
 {
@@ -566,7 +566,7 @@ static INLINE int tcp_select(SOCKET_T socketfd, int to_sec)
 #endif /* !CYASSL_MDK_ARM */
 
 
-static INLINE void tcp_listen(SOCKET_T* sockfd, int* port, int useAnyAddr,
+static INLINE void tcp_listen(SOCKET_T* sockfd, word16* port, int useAnyAddr,
                               int udp)
 {
     SOCKADDR_IN_T addr;
@@ -628,7 +628,7 @@ static INLINE int udp_read_connect(SOCKET_T sockfd)
 }
 
 static INLINE void udp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
-                              int useAnyAddr, int port, func_args* args)
+                              int useAnyAddr, word16 port, func_args* args)
 {
     SOCKADDR_IN_T addr;
 
@@ -679,7 +679,7 @@ static INLINE void udp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
 }
 
 static INLINE void tcp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
-                              func_args* args, int port, int useAnyAddr,
+                              func_args* args, word16 port, int useAnyAddr,
                               int udp)
 {
     SOCKADDR_IN_T client;
@@ -1154,7 +1154,8 @@ static INLINE int CurrentDir(const char* str)
         if (ptr == NULL)
             return;
 
-        mt = (memoryTrack*)((byte*)ptr - sizeof(memoryTrack));
+        mt = (memoryTrack*)ptr;
+        --mt;   /* same as minus sizeof(memoryTrack), removes header */
 
 #ifdef DO_MEM_STATS 
         ourMemStats.currentBytes -= mt->u.hint.thisSize; 
@@ -1170,7 +1171,8 @@ static INLINE int CurrentDir(const char* str)
 
         if (ptr) {
             /* if realloc is bigger, don't overread old ptr */
-            memoryTrack* mt = (memoryTrack*)((byte*)ptr - sizeof(memoryTrack));
+            memoryTrack* mt = (memoryTrack*)ptr;
+            --mt;  /* same as minus sizeof(memoryTrack), removes header */
 
             if (mt->u.hint.thisSize < sz)
                 sz = mt->u.hint.thisSize;

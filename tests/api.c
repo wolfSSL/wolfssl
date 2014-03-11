@@ -44,7 +44,9 @@ static int test_CyaSSL_CTX_load_verify_locations(void);
 #ifndef NO_RSA
 static int test_server_CyaSSL_new(void);
 static int test_client_CyaSSL_new(void);
+#ifndef SINGLE_THREADED
 static int test_CyaSSL_read_write(void);
+#endif /* SINGLE_THREADED */
 #endif /* NO_RSA */
 #endif /* NO_FILESYSTEM */
 #ifdef HAVE_SNI
@@ -56,9 +58,9 @@ static void test_CyaSSL_UseMaxFragment(void);
 #ifdef HAVE_TRUNCATED_HMAC
 static void test_CyaSSL_UseTruncatedHMAC(void);
 #endif /* HAVE_TRUNCATED_HMAC */
-#ifdef HAVE_ELLIPTIC_CURVES
-static void test_CyaSSL_UseEllipticCurve(void);
-#endif /* HAVE_ELLIPTIC_CURVES */
+#ifdef HAVE_SUPPORTED_CURVES
+static void test_CyaSSL_UseSupportedCurve(void);
+#endif /* HAVE_SUPPORTED_CURVES */
 
 /* test function helpers */
 static int test_method(CYASSL_METHOD *method, const char *name);
@@ -107,7 +109,9 @@ int ApiTest(void)
 #ifndef NO_RSA
     test_server_CyaSSL_new();
     test_client_CyaSSL_new();
+#ifndef SINGLE_THREADED
     test_CyaSSL_read_write();
+#endif /* SINGLE_THREADED */
 #endif /* NO_RSA */
 #endif /* NO_FILESYSTEM */
 #ifdef HAVE_SNI
@@ -119,9 +123,9 @@ int ApiTest(void)
 #ifdef HAVE_TRUNCATED_HMAC
     test_CyaSSL_UseTruncatedHMAC();
 #endif /* HAVE_TRUNCATED_HMAC */
-#ifdef HAVE_ELLIPTIC_CURVES
-    test_CyaSSL_UseEllipticCurve();
-#endif /* HAVE_ELLIPTIC_CURVES */
+#ifdef HAVE_SUPPORTED_CURVES
+    test_CyaSSL_UseSupportedCurve();
+#endif /* HAVE_SUPPORTED_CURVES */
     test_CyaSSL_Cleanup();
     printf(" End API Tests\n");
 
@@ -542,8 +546,8 @@ static void test_CyaSSL_UseTruncatedHMAC(void)
 }
 #endif /* HAVE_TRUNCATED_HMAC */
 
-#ifdef HAVE_ELLIPTIC_CURVES
-static void test_CyaSSL_UseEllipticCurve(void)
+#ifdef HAVE_SUPPORTED_CURVES
+static void test_CyaSSL_UseSupportedCurve(void)
 {
     CYASSL_CTX *ctx = CyaSSL_CTX_new(CyaSSLv23_client_method());
     CYASSL     *ssl = CyaSSL_new(ctx);
@@ -553,21 +557,21 @@ static void test_CyaSSL_UseEllipticCurve(void)
 
 #ifndef NO_CYASSL_CLIENT
     /* error cases */
-    AssertIntNE(1, CyaSSL_CTX_UseEllipticCurve(NULL, CYASSL_ECC_SECP160R1));
-    AssertIntNE(1, CyaSSL_CTX_UseEllipticCurve(ctx,  0));
+    AssertIntNE(1, CyaSSL_CTX_UseSupportedCurve(NULL, CYASSL_ECC_SECP160R1));
+    AssertIntNE(1, CyaSSL_CTX_UseSupportedCurve(ctx,  0));
 
-    AssertIntNE(1, CyaSSL_UseEllipticCurve(NULL, CYASSL_ECC_SECP160R1));
-    AssertIntNE(1, CyaSSL_UseEllipticCurve(ssl,  0));
+    AssertIntNE(1, CyaSSL_UseSupportedCurve(NULL, CYASSL_ECC_SECP160R1));
+    AssertIntNE(1, CyaSSL_UseSupportedCurve(ssl,  0));
 
     /* success case */
-    AssertIntEQ(1, CyaSSL_CTX_UseEllipticCurve(ctx, CYASSL_ECC_SECP160R1));
-    AssertIntEQ(1, CyaSSL_UseEllipticCurve(ssl, CYASSL_ECC_SECP160R1));
+    AssertIntEQ(1, CyaSSL_CTX_UseSupportedCurve(ctx, CYASSL_ECC_SECP160R1));
+    AssertIntEQ(1, CyaSSL_UseSupportedCurve(ssl, CYASSL_ECC_SECP160R1));
 #endif
 
     CyaSSL_free(ssl);
     CyaSSL_CTX_free(ctx);
 }
-#endif /* HAVE_ELLIPTIC_CURVES */
+#endif /* HAVE_SUPPORTED_CURVES */
 
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
 /* Helper for testing CyaSSL_CTX_use_certificate_file() */
@@ -892,6 +896,8 @@ int test_client_CyaSSL_new(void)
 }
 
 
+#ifndef SINGLE_THREADED
+
 static int test_CyaSSL_read_write(void)
 {
     /* The unit testing for read and write shall happen simutaneously, since
@@ -923,6 +929,7 @@ static int test_CyaSSL_read_write(void)
 
     InitTcpReady(&ready);
     server_args.signal = &ready;
+    client_args.signal = &ready;
     start_thread(test_server_nofail, &server_args, &serverThread);
     wait_tcp_ready(&server_args);
     test_client_nofail(&client_args);
@@ -942,7 +949,7 @@ static int test_CyaSSL_read_write(void)
     FreeTcpReady(&ready);
 
     return test_result;
-};
+}
 
 #endif
 
@@ -950,6 +957,7 @@ THREAD_RETURN CYASSL_THREAD test_server_nofail(void* args)
 {
     SOCKET_T sockfd = 0;
     SOCKET_T clientfd = 0;
+    word16 port = yasslPort;
 
     CYASSL_METHOD* method = 0;
     CYASSL_CTX* ctx = 0;
@@ -962,6 +970,11 @@ THREAD_RETURN CYASSL_THREAD test_server_nofail(void* args)
     ((func_args*)args)->return_code = TEST_FAIL;
     method = CyaSSLv23_server_method();
     ctx = CyaSSL_CTX_new(method);
+
+#if defined(NO_MAIN_DRIVER) && !defined(USE_WINDOWS_API) && \
+                      !defined(CYASSL_SNIFFER) && !defined(CYASSL_MDK_SHELL)
+    port = 0;
+#endif
 
     CyaSSL_CTX_set_verify(ctx,
                     SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT, 0);
@@ -990,7 +1003,7 @@ THREAD_RETURN CYASSL_THREAD test_server_nofail(void* args)
         goto done;
     }
     ssl = CyaSSL_new(ctx);
-    tcp_accept(&sockfd, &clientfd, (func_args*)args, yasslPort, 0, 0);
+    tcp_accept(&sockfd, &clientfd, (func_args*)args, port, 0, 0);
     CloseSocket(sockfd);
 
     CyaSSL_set_fd(ssl, clientfd);
@@ -1074,7 +1087,7 @@ void test_client_nofail(void* args)
         goto done2;
     }
 
-    tcp_connect(&sockfd, yasslIP, yasslPort, 0);
+    tcp_connect(&sockfd, yasslIP, ((func_args*)args)->signal->port, 0);
 
     ssl = CyaSSL_new(ctx);
     CyaSSL_set_fd(ssl, sockfd);
@@ -1139,7 +1152,7 @@ void run_cyassl_client(void* args)
     if (callbacks->ctx_ready)
         callbacks->ctx_ready(ctx);
 
-    tcp_connect(&sfd, yasslIP, yasslPort, 0);
+    tcp_connect(&sfd, yasslIP, ((func_args*)args)->signal->port, 0);
 
     ssl = CyaSSL_new(ctx);
     CyaSSL_set_fd(ssl, sfd);
@@ -1178,6 +1191,7 @@ THREAD_RETURN CYASSL_THREAD run_cyassl_server(void* args)
     CYASSL*     ssl = NULL;
     SOCKET_T    sfd = 0;
     SOCKET_T    cfd = 0;
+    word16      port = yasslPort;
 
     char msg[] = "I hear you fa shizzle!";
     int  len   = (int) XSTRLEN(msg);
@@ -1185,6 +1199,11 @@ THREAD_RETURN CYASSL_THREAD run_cyassl_server(void* args)
     int  idx;
 
     ((func_args*)args)->return_code = TEST_FAIL;
+
+#if defined(NO_MAIN_DRIVER) && !defined(USE_WINDOWS_API) && \
+                      !defined(CYASSL_SNIFFER) && !defined(CYASSL_MDK_SHELL)
+    port = 0;
+#endif
 
     CyaSSL_CTX_set_verify(ctx,
                           SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT, 0);
@@ -1207,7 +1226,7 @@ THREAD_RETURN CYASSL_THREAD run_cyassl_server(void* args)
 
     ssl = CyaSSL_new(ctx);
 
-    tcp_accept(&sfd, &cfd, (func_args*)args, yasslPort, 0, 0);
+    tcp_accept(&sfd, &cfd, (func_args*)args, port, 0, 0);
     CloseSocket(sfd);
 
     CyaSSL_set_fd(ssl, cfd);
@@ -1268,6 +1287,7 @@ void test_CyaSSL_client_server(callback_functions* client_callbacks,
     /* RUN Server side */
     InitTcpReady(&ready);
     server_args.signal = &ready;
+    client_args.signal = &ready;
     start_thread(run_cyassl_server, &server_args, &serverThread);
     wait_tcp_ready(&server_args);
 
@@ -1277,5 +1297,7 @@ void test_CyaSSL_client_server(callback_functions* client_callbacks,
 
     FreeTcpReady(&ready);
 }
+
+#endif /* SINGLE_THREADED*/
 
 #endif /* NO_FILESYSTEM */

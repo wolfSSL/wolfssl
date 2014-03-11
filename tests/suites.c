@@ -36,18 +36,20 @@
 #define MAX_COMMAND_SZ 240
 #define MAX_SUITE_SZ 80 
 #define NOT_BUILT_IN -123
-#define VERSION_TOO_OLD -124
+#ifdef NO_OLD_TLS
+    #define VERSION_TOO_OLD -124
+#endif
 
 #include "examples/client/client.h"
 #include "examples/server/server.h"
 
 
-CYASSL_CTX* cipherSuiteCtx = NULL;
-char nonblockFlag[] = "-N";
-char noVerifyFlag[] = "-d";
-char portFlag[] = "-p";
-char flagSep[] = " ";
-char svrPort[] = "0";
+static CYASSL_CTX* cipherSuiteCtx = NULL;
+static char nonblockFlag[] = "-N";
+static char noVerifyFlag[] = "-d";
+static char portFlag[] = "-p";
+static char flagSep[] = " ";
+static char svrPort[] = "0";
 
 
 #ifdef NO_OLD_TLS
@@ -80,8 +82,8 @@ static int IsValidCipherSuite(const char* line, char* suite)
     int  valid = 0;
 
     const char* find = "-l ";
-    char* begin = strstr(line, find);
-    char* end;
+    const char* begin = strstr(line, find);
+    const char* end;
 
     suite[0] = '\0';
 

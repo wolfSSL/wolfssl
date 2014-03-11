@@ -137,7 +137,7 @@ static void Usage(void)
 #ifdef HAVE_SNI
     printf("-S <str>    Use Host Name Indication\n");
 #endif
-#ifdef HAVE_MAXFRAGMENT
+#ifdef HAVE_MAX_FRAGMENT
     printf("-L <num>    Use Maximum Fragment Length [1-5]\n");
 #endif
 #ifdef HAVE_TRUNCATED_HMAC
@@ -178,7 +178,7 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
     int  input;
     int  msgSz = (int)strlen(msg);
 
-    int   port   = yasslPort;
+    word16 port   = yasslPort;
     char* host   = (char*)yasslIP;
     char* domain = (char*)"www.yassl.com";
 
@@ -296,7 +296,7 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
                 break;
 
             case 'p' :
-                port = atoi(myoptarg);
+                port = (word16)atoi(myoptarg);
                 #if !defined(NO_MAIN_DRIVER) || defined(USE_WINDOWS_API)
                     if (port == 0)
                         err_sys("port number cannot be 0");
@@ -495,7 +495,7 @@ SWITCH_STAT {
         useClientCert = 0;
     }
 
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
     CyaSSL_CTX_set_default_passwd_cb(ctx, PasswordCallBack);
 #endif
 

@@ -623,27 +623,53 @@ int CyaSSL_CTX_UseTruncatedHMAC(CYASSL_CTX* ctx)
 #endif /* HAVE_TRUNCATED_HMAC */
 
 /* Elliptic Curves */
-#ifdef HAVE_ELLIPTIC_CURVES
+#ifdef HAVE_SUPPORTED_CURVES
 #ifndef NO_CYASSL_CLIENT
 
-int CyaSSL_UseEllipticCurve(CYASSL* ssl, word16 name)
+int CyaSSL_UseSupportedCurve(CYASSL* ssl, word16 name)
 {
     if (ssl == NULL)
         return BAD_FUNC_ARG;
 
-    return TLSX_UseEllipticCurve(&ssl->extensions, name);
+    switch (name) {
+        case CYASSL_ECC_SECP160R1:
+        case CYASSL_ECC_SECP192R1:
+        case CYASSL_ECC_SECP224R1:
+        case CYASSL_ECC_SECP256R1:
+        case CYASSL_ECC_SECP384R1:
+        case CYASSL_ECC_SECP521R1:
+            break;
+
+        default:
+            return BAD_FUNC_ARG;
+    }
+
+    return TLSX_UseSupportedCurve(&ssl->extensions, name);
 }
 
-int CyaSSL_CTX_UseEllipticCurve(CYASSL_CTX* ctx, word16 name)
+int CyaSSL_CTX_UseSupportedCurve(CYASSL_CTX* ctx, word16 name)
 {
     if (ctx == NULL)
         return BAD_FUNC_ARG;
 
-    return TLSX_UseEllipticCurve(&ctx->extensions, name);
+    switch (name) {
+        case CYASSL_ECC_SECP160R1:
+        case CYASSL_ECC_SECP192R1:
+        case CYASSL_ECC_SECP224R1:
+        case CYASSL_ECC_SECP256R1:
+        case CYASSL_ECC_SECP384R1:
+        case CYASSL_ECC_SECP521R1:
+            break;
+
+        default:
+            return BAD_FUNC_ARG;
+    }
+
+    return TLSX_UseSupportedCurve(&ctx->extensions, name);
 }
 
 #endif /* NO_CYASSL_CLIENT */
-#endif /* HAVE_ELLIPTIC_CURVES */
+#endif /* HAVE_SUPPORTED_CURVES */
 
 
 #ifndef CYASSL_LEANPSK
@@ -1167,7 +1193,7 @@ int CyaSSL_KeyPemToDer(const unsigned char* pem, int pemSz, unsigned char* buff,
     info.consumed = 0;
     der.buffer    = NULL;
 
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
     if (pass) {
         info.ctx = CyaSSL_CTX_new(CyaSSLv23_client_method());
         if (info.ctx == NULL)
@@ -1205,7 +1231,7 @@ int CyaSSL_KeyPemToDer(const unsigned char* pem, int pemSz, unsigned char* buff,
 
 
 
-#ifndef NO_FILESYSTEM
+#if !defined(NO_FILESYSTEM) && !defined(NO_STDIO_FILESYSTEM)
 
 void CyaSSL_ERR_print_errors_fp(FILE* fp, int err)
 {
@@ -1589,12 +1615,7 @@ int AddCA(CYASSL_CERT_MANAGER* cm, buffer der, int type, int verify)
 
         static ClientRow ClientCache[SESSION_ROWS];  /* Client Cache */
                                                      /* uses session mutex */
-
     #endif  /* NO_CLIENT_CACHE */
-
-    /* for persistance, if changes to layout need to increment and modify
-       save_session_cache() and restore_session_cache and memory versions too */
-    #define CYASSL_CACHE_VERSION 2
 
 #endif /* NO_SESSION_CACHE */
 
@@ -1808,7 +1829,7 @@ int CyaSSL_Init(void)
             }
         }
 
-#if defined(OPENSSL_EXTRA) && !defined(NO_PWDBASED)
+#if (defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)) && !defined(NO_PWDBASED)
          if (pkcs8Enc) {
             int  passwordSz;
             char password[80];
@@ -2230,71 +2251,6 @@ int CyaSSL_CertManagerVerifyBuffer(CYASSL_CERT_MANAGER* cm, const byte* buff,
 
 
 #ifndef NO_FILESYSTEM
-
-#if defined(EBSNET)
-    #define XFILE                    int
-    #define XFOPEN(NAME, MODE)       vf_open((const char *)NAME, VO_RDONLY, 0);
-    #define XFSEEK                   vf_lseek
-    #define XFTELL                   vf_tell
-    #define XREWIND                  vf_rewind
-    #define XFREAD(BUF, SZ, AMT, FD) vf_read(FD, BUF, SZ*AMT)
-    #define XFWRITE(BUF, SZ, AMT, FD) vf_write(FD, BUF, SZ*AMT)
-    #define XFCLOSE                  vf_close
-    #define XSEEK_END                VSEEK_END
-    #define XBADFILE                 -1
-#elif defined(LSR_FS)
-    #include <fs.h>
-    #define XFILE                   struct fs_file*
-    #define XFOPEN(NAME, MODE)      fs_open((char*)NAME);
-    #define XFSEEK(F, O, W)         (void)F
-    #define XFTELL(F)               (F)->len
-    #define XREWIND(F)              (void)F
-    #define XFREAD(BUF, SZ, AMT, F) fs_read(F, (char*)BUF, SZ*AMT)
-    #define XFWRITE(BUF, SZ, AMT, F) fs_write(F, (char*)BUF, SZ*AMT)
-    #define XFCLOSE                 fs_close
-    #define XSEEK_END               0
-    #define XBADFILE                NULL
-#elif defined(FREESCALE_MQX)
-    #define XFILE                   MQX_FILE_PTR
-    #define XFOPEN                  fopen
-    #define XFSEEK                  fseek
-    #define XFTELL                  ftell
-    #define XREWIND(F)              fseek(F, 0, IO_SEEK_SET)
-    #define XFREAD                  fread
-    #define XFWRITE                 fwrite
-    #define XFCLOSE                 fclose
-    #define XSEEK_END               IO_SEEK_END
-    #define XBADFILE                NULL
-#elif defined(MICRIUM)
-    #include <fs.h>
-    #define XFILE      FS_FILE*
-    #define XFOPEN     fs_fopen 
-    #define XFSEEK     fs_fseek
-    #define XFTELL     fs_ftell
-    #define XREWIND    fs_rewind
-    #define XFREAD     fs_fread
-    #define XFWRITE    fs_fwrite
-    #define XFCLOSE    fs_fclose
-    #define XSEEK_END  FS_SEEK_END
-    #define XBADFILE   NULL
-#else
-    /* stdio, default case */
-    #define XFILE      FILE*
-    #if defined(CYASSL_MDK_ARM)
-        extern FILE * CyaSSL_fopen(const char *name, const char *mode) ;
-        #define XFOPEN     CyaSSL_fopen
-    #else
-        #define XFOPEN     fopen
-    #endif
-    #define XFSEEK     fseek
-    #define XFTELL     ftell
-    #define XREWIND    rewind
-    #define XFREAD     fread
-    #define XFWRITE    fwrite
-    #define XFCLOSE    fclose
-    #define XSEEK_END  SEEK_END
-    #define XBADFILE   NULL
-#endif
 
 
 /* process a file with name fname into ctx of format and type
@@ -3493,6 +3449,10 @@ int CyaSSL_SetServerID(CYASSL* ssl, const byte* id, int len, int newSession)
 #endif /* NO_CLIENT_CACHE */
 
 #if defined(PERSIST_SESSION_CACHE)
+
+/* for persistance, if changes to layout need to increment and modify
+   save_session_cache() and restore_session_cache and memory versions too */
+#define CYASSL_CACHE_VERSION 2
 
 /* Session Cache Header information */
 typedef struct {
@@ -7916,6 +7876,8 @@ CYASSL_X509* CyaSSL_X509_d2i(CYASSL_X509** x509, const byte* in, int len)
 
 #ifndef NO_FILESYSTEM
 
+#ifndef NO_STDIO_FILESYSTEM
+
 CYASSL_X509* CyaSSL_X509_d2i_fp(CYASSL_X509** x509, XFILE file)
 {
     CYASSL_X509* newX509 = NULL;
@@ -7944,6 +7906,8 @@ CYASSL_X509* CyaSSL_X509_d2i_fp(CYASSL_X509** x509, XFILE file)
 
     return newX509;
 }
+
+#endif /* NO_STDIO_FILESYSTEM */
 
 CYASSL_X509* CyaSSL_X509_load_certificate_file(const char* fname, int format)
 {
@@ -11375,5 +11339,11 @@ void* CyaSSL_GetRsaDecCtx(CYASSL* ssl)
 #ifdef CYASSL_HAVE_WOLFSCEP
     /* Used by autoconf to see if wolfSCEP is available */
     void CyaSSL_wolfSCEP(void) {}
+#endif
+
+
+#ifdef CYASSL_HAVE_CERT_SERVICE
+    /* Used by autoconf to see if cert service is available */
+    void CyaSSL_cert_service(void) {}
 #endif
 

@@ -619,7 +619,7 @@ enum {
 
 /* extras end */
 
-#ifndef NO_FILESYSTEM
+#if !defined(NO_FILESYSTEM) && !defined(NO_STDIO_FILESYSTEM)
 /* CyaSSL extension, provide last error from SSL_get_error
    since not using thread storage error queue */
 CYASSL_API void  CyaSSL_ERR_print_errors_fp(FILE*, int err);
@@ -824,8 +824,10 @@ CYASSL_API char* CyaSSL_X509_get_next_altname(CYASSL_X509*);
 CYASSL_API CYASSL_X509*
     CyaSSL_X509_d2i(CYASSL_X509** x509, const unsigned char* in, int len);
 #ifndef NO_FILESYSTEM
-CYASSL_API CYASSL_X509*
-    CyaSSL_X509_d2i_fp(CYASSL_X509** x509, FILE* file);
+    #ifndef NO_STDIO_FILESYSTEM
+    CYASSL_API CYASSL_X509*
+        CyaSSL_X509_d2i_fp(CYASSL_X509** x509, FILE* file);
+    #endif
 CYASSL_API CYASSL_X509*
     CyaSSL_X509_load_certificate_file(const char* fname, int format);
 #endif
@@ -1244,7 +1246,7 @@ CYASSL_API int CyaSSL_CTX_UseTruncatedHMAC(CYASSL_CTX* ctx);
 #endif /* HAVE_TRUNCATED_HMAC */
 
 /* Elliptic Curves */
-#ifdef HAVE_ELLIPTIC_CURVES
+#ifdef HAVE_SUPPORTED_CURVES
 
 enum {
     CYASSL_ECC_SECP160R1 = 0x10,
@@ -1257,12 +1259,12 @@ enum {
 
 #ifndef NO_CYASSL_CLIENT
 
-CYASSL_API int CyaSSL_UseEllipticCurve(CYASSL* ssl, unsigned short name);
-CYASSL_API int CyaSSL_CTX_UseEllipticCurve(CYASSL_CTX* ctx,
+CYASSL_API int CyaSSL_UseSupportedCurve(CYASSL* ssl, unsigned short name);
+CYASSL_API int CyaSSL_CTX_UseSupportedCurve(CYASSL_CTX* ctx,
                                                           unsigned short name);
 
 #endif /* NO_CYASSL_CLIENT */
-#endif /* HAVE_ELLIPTIC_CURVES */
+#endif /* HAVE_SUPPORTED_CURVES */
 
 
 #define CYASSL_CRL_MONITOR   0x01   /* monitor this dir flag */
@@ -1287,8 +1289,12 @@ CYASSL_API int CyaSSL_accept_ex(CYASSL*, HandShakeCallBack, TimeoutCallBack,
 
 
 #ifdef CYASSL_HAVE_WOLFSCEP
-CYASSL_API void CyaSSL_wolfSCEP(void);
+    CYASSL_API void CyaSSL_wolfSCEP(void);
 #endif /* CYASSL_HAVE_WOLFSCEP */
+
+#ifdef CYASSL_HAVE_CERT_SERVICE
+    CYASSL_API void CyaSSL_cert_service(void);
+#endif
 
 
 #ifdef __cplusplus

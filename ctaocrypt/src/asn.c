@@ -1519,8 +1519,9 @@ static int GetKey(DecodedCert* cert)
             XMEMCPY(cert->publicKey, keyBlob, keyLen);
             cert->pubKeyStored = 1;
             cert->pubKeySize   = keyLen;
+
+            return 0;
         }
-        break;
     #endif /* HAVE_NTRU */
     #ifdef HAVE_ECC
         case ECDSAk:
@@ -1566,14 +1567,13 @@ static int GetKey(DecodedCert* cert)
             cert->pubKeySize   = length;
 
             cert->srcIdx += length;
+
+            return 0;
         }
-        break;
     #endif /* HAVE_ECC */
         default:
             return ASN_UNKNOWN_OID_E;
     }
-   
-    return 0;
 }
 
 
@@ -3084,6 +3084,7 @@ static void DecodeAuthInfo(byte* input, int sz, DecodedCert* cert)
 {
     word32 idx = 0;
     int length = 0;
+    byte b;
     word32 oid;
 
     CYASSL_ENTER("DecodeAuthInfo");
@@ -3091,34 +3092,25 @@ static void DecodeAuthInfo(byte* input, int sz, DecodedCert* cert)
     /* Unwrap the list of AIAs */
     if (GetSequence(input, &idx, &length, sz) < 0) return;
 
-    /* Unwrap a single AIA */
-    if (GetSequence(input, &idx, &length, sz) < 0) return;
+    while (idx < (word32)sz) {
+        /* Unwrap a single AIA */
+        if (GetSequence(input, &idx, &length, sz) < 0) return;
 
-    oid = 0;
-    if (GetObjectId(input, &idx, &oid, sz) < 0) return;
+        oid = 0;
+        if (GetObjectId(input, &idx, &oid, sz) < 0) return;
 
-    /* Only supporting URIs right now. */
-    if (input[idx] == (ASN_CONTEXT_SPECIFIC | GENERALNAME_URI))
-    {
-        idx++;
+        /* Only supporting URIs right now. */
+        b = input[idx++];
         if (GetLength(input, &idx, &length, sz) < 0) return;
 
-        cert->extAuthInfoSz = length;
-        cert->extAuthInfo = input + idx;
+        if (b == (ASN_CONTEXT_SPECIFIC | GENERALNAME_URI) &&
+            oid == AIA_OCSP_OID)
+        {
+            cert->extAuthInfoSz = length;
+            cert->extAuthInfo = input + idx;
+            break;
+        }
         idx += length;
-    }
-    else
-    {
-        /* Skip anything else. */
-        idx++;
-        if (GetLength(input, &idx, &length, sz) < 0) return;
-        idx += length;
-    }
-
-    if (idx < (word32)sz)
-    {
-        CYASSL_MSG("\tThere are more Authority Information Access records, "
-                   "but we only use first one.");
     }
 
     return;
@@ -3224,11 +3216,11 @@ static void DecodeSubjKeyId(byte* input, int sz, DecodedCert* cert)
         length--;
 
         if (length == 2) {
-            cert->extKeyUsage = (input[idx] << 8) | input[idx+1];
+            cert->extKeyUsage = (word16)((input[idx] << 8) | input[idx+1]);
             cert->extKeyUsage >>= unusedBits;
         }
         else if (length == 1)
-            cert->extKeyUsage = (input[idx] << 1);
+            cert->extKeyUsage = (word16)(input[idx] << 1);
 
         return;
     }
@@ -3290,9 +3282,7 @@ static void DecodeCertExtensions(DecodedCert* cert)
     byte* input = cert->extensions;
     int length;
     word32 oid;
-    byte critical;
-
-    (void)critical;
+    byte critical = 0;
 
     CYASSL_ENTER("DecodeCertExtensions");
 
@@ -3405,7 +3395,6 @@ static void DecodeCertExtensions(DecodedCert* cert)
         }
         idx += length;
     }
-    (void)critical;
 
     CYASSL_LEAVE("DecodeCertExtensions", 0);
     return;
@@ -3432,7 +3421,8 @@ int ParseCert(DecodedCert* cert, int type, int verify, void* cm)
         cert->subjectCNStored = 1;
     }
 
-    if (cert->keyOID == RSAk && cert->pubKeySize > 0) {
+    if (cert->keyOID == RSAk &&
+                          cert->publicKey != NULL  && cert->pubKeySize > 0) {
         ptr = (char*) XMALLOC(cert->pubKeySize, cert->heap,
                               DYNAMIC_TYPE_PUBLIC_KEY);
         if (ptr == NULL)

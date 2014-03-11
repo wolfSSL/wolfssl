@@ -608,7 +608,6 @@ static int TLSX_SNI_Append(SNI** list, byte type, const void* data, word16 size)
         default: /* invalid type */
             XFREE(sni, 0, DYNAMIC_TYPE_TLSX);
             return BAD_FUNC_ARG;
-        break;
     }
 
     sni->type = type;
@@ -721,46 +720,38 @@ static int TLSX_SNI_Parse(CYASSL* ssl, byte* input, word16 length,
     if (!extension)
         extension = TLSX_Find(ssl->ctx->extensions, SERVER_NAME_INDICATION);
 
-    if (!extension || !extension->data) {
-        if (!isRequest) {
-            CYASSL_MSG("Unexpected SNI response from server");
-        }
+    if (!extension || !extension->data)
+        return isRequest ? 0 : BUFFER_ERROR; /* not using SNI OR unexpected
+                                                SNI response from server. */
 
-        return 0; /* not using SNI */
-    }
-
-    if (!isRequest) {
-        if (length) {
-            CYASSL_MSG("SNI response should be empty!");
-        }
-
-        return 0; /* nothing to do */
-    }
+    if (!isRequest)
+        return length ? BUFFER_ERROR : 0; /* SNI response must be empty!
+                                             Nothing else to do. */
 
 #ifndef NO_CYASSL_SERVER
 
     if (OPAQUE16_LEN > length)
-        return INCOMPLETE_DATA;
+        return BUFFER_ERROR;
 
     ato16(input, &size);
     offset += OPAQUE16_LEN;
 
     /* validating sni list length */
     if (length != OPAQUE16_LEN + size)
-        return INCOMPLETE_DATA;
+        return BUFFER_ERROR;
 
     for (size = 0; offset < length; offset += size) {
         SNI *sni;
         byte type = input[offset++];
 
         if (offset + OPAQUE16_LEN > length)
-            return INCOMPLETE_DATA;
+            return BUFFER_ERROR;
 
         ato16(input + offset, &size);
         offset += OPAQUE16_LEN;
 
         if (offset + size > length)
-            return INCOMPLETE_DATA;
+            return BUFFER_ERROR;
 
         if (!(sni = TLSX_SNI_Find((SNI *) extension->data, type))) {
             continue; /* not using this SNI type */
@@ -905,34 +896,34 @@ int TLSX_SNI_GetFromBuffer(const byte* clientHello, word32 helloSz,
     offset += HANDSHAKE_HEADER_SZ;
 
     if (offset + len32 > helloSz)
-        return INCOMPLETE_DATA;
+        return BUFFER_ERROR;
 
     /* client hello */
     offset += VERSION_SZ + RAN_LEN; /* version, random */
 
     if (helloSz < offset + clientHello[offset])
-        return INCOMPLETE_DATA;
+        return BUFFER_ERROR;
 
     offset += ENUM_LEN + clientHello[offset]; /* skip session id */
 
     /* cypher suites */
     if (helloSz < offset + OPAQUE16_LEN)
-        return INCOMPLETE_DATA;
+        return BUFFER_ERROR;
 
     ato16(clientHello + offset, &len16);
     offset += OPAQUE16_LEN;
 
     if (helloSz < offset + len16)
-        return INCOMPLETE_DATA;
+        return BUFFER_ERROR;
 
     offset += len16; /* skip cypher suites */
 
     /* compression methods */
     if (helloSz < offset + 1)
-        return INCOMPLETE_DATA;
+        return BUFFER_ERROR;
 
     if (helloSz < offset + clientHello[offset])
-        return INCOMPLETE_DATA;
+        return BUFFER_ERROR;
 
     offset += ENUM_LEN + clientHello[offset]; /* skip compression methods */
 
@@ -944,7 +935,7 @@ int TLSX_SNI_GetFromBuffer(const byte* clientHello, word32 helloSz,
     offset += OPAQUE16_LEN;
 
     if (helloSz < offset + len16)
-        return INCOMPLETE_DATA;
+        return BUFFER_ERROR;
 
     while (len16 > OPAQUE16_LEN + OPAQUE16_LEN) {
         word16 extType;
@@ -957,7 +948,7 @@ int TLSX_SNI_GetFromBuffer(const byte* clientHello, word32 helloSz,
         offset += OPAQUE16_LEN;
 
         if (helloSz < offset + extLen)
-            return INCOMPLETE_DATA;
+            return BUFFER_ERROR;
 
         if (extType != SERVER_NAME_INDICATION) {
             offset += extLen; /* skip extension */
@@ -968,7 +959,7 @@ int TLSX_SNI_GetFromBuffer(const byte* clientHello, word32 helloSz,
             offset += OPAQUE16_LEN;
 
             if (helloSz < offset + listLen)
-                return INCOMPLETE_DATA;
+                return BUFFER_ERROR;
 
             while (listLen > ENUM_LEN + OPAQUE16_LEN) {
                 byte   sniType = clientHello[offset++];
@@ -978,7 +969,7 @@ int TLSX_SNI_GetFromBuffer(const byte* clientHello, word32 helloSz,
                 offset += OPAQUE16_LEN;
 
                 if (helloSz < offset + sniLen)
-                    return INCOMPLETE_DATA;
+                    return BUFFER_ERROR;
 
                 if (sniType != type) {
                     offset  += sniLen;
@@ -1028,7 +1019,7 @@ static int TLSX_MFL_Parse(CYASSL* ssl, byte* input, word16 length,
                                                                  byte isRequest)
 {
     if (length != ENUM_LEN)
-        return INCOMPLETE_DATA;
+        return BUFFER_ERROR;
 
     switch (*input) {
         case CYASSL_MFL_2_9 : ssl->max_fragment =  512; break;
@@ -1135,7 +1126,7 @@ static int TLSX_THM_Parse(CYASSL* ssl, byte* input, word16 length,
                                                                  byte isRequest)
 {
     if (length != 0 || input == NULL)
-        return INCOMPLETE_DATA;
+        return BUFFER_ERROR;
 
 #ifndef NO_CYASSL_SERVER
     if (isRequest) {
@@ -1160,7 +1151,7 @@ static int TLSX_THM_Parse(CYASSL* ssl, byte* input, word16 length,
 
 #endif /* HAVE_TRUNCATED_HMAC */
 
-#ifdef HAVE_ELLIPTIC_CURVES
+#ifdef HAVE_SUPPORTED_CURVES
 
 #ifndef HAVE_ECC
 #error "Elliptic Curves Extension requires Elliptic Curve Cryptography. \
@@ -1258,21 +1249,21 @@ static int TLSX_EllipticCurve_Parse(CYASSL* ssl, byte* input, word16 length,
     (void) isRequest; /* shut up compiler! */
 
     if (OPAQUE16_LEN > length || length % OPAQUE16_LEN)
-        return INCOMPLETE_DATA;
+        return BUFFER_ERROR;
 
     ato16(input, &offset);
 
     /* validating curve list length */
     if (length != OPAQUE16_LEN + offset)
-        return INCOMPLETE_DATA;
+        return BUFFER_ERROR;
 
     while (offset) {
         ato16(input + offset, &name);
         offset -= OPAQUE16_LEN;
 
-        r = TLSX_UseEllipticCurve(&ssl->extensions, name);
+        r = TLSX_UseSupportedCurve(&ssl->extensions, name);
 
-        if (r) return r; /* throw error */
+        if (r != SSL_SUCCESS) return r; /* throw error */
     }
 
     return 0;
@@ -1300,6 +1291,7 @@ int TLSX_ValidateEllipticCurves(CYASSL* ssl, byte first, byte second) {
             case CYASSL_ECC_SECP256R1: oid = ECC_256R1; octets = 32; break;
             case CYASSL_ECC_SECP384R1: oid = ECC_384R1; octets = 48; break;
             case CYASSL_ECC_SECP521R1: oid = ECC_521R1; octets = 66; break;
+            default: continue; /* unsupported curve */
         }
 
         switch (second) {
@@ -1371,7 +1363,7 @@ int TLSX_ValidateEllipticCurves(CYASSL* ssl, byte first, byte second) {
 
 #endif /* NO_CYASSL_SERVER */
 
-int TLSX_UseEllipticCurve(TLSX** extensions, word16 name)
+int TLSX_UseSupportedCurve(TLSX** extensions, word16 name)
 {
     TLSX*          extension = NULL;
     EllipticCurve* curve     = NULL;
@@ -1379,19 +1371,6 @@ int TLSX_UseEllipticCurve(TLSX** extensions, word16 name)
 
     if (extensions == NULL)
         return BAD_FUNC_ARG;
-
-    switch (name) {
-        case CYASSL_ECC_SECP160R1:
-        case CYASSL_ECC_SECP192R1:
-        case CYASSL_ECC_SECP224R1:
-        case CYASSL_ECC_SECP256R1:
-        case CYASSL_ECC_SECP384R1:
-        case CYASSL_ECC_SECP521R1:
-            break;
-
-        default:
-            return BAD_FUNC_ARG;
-    }
 
     if ((ret = TLSX_EllipticCurve_Append(&curve, name)) != 0)
         return ret;
@@ -1456,7 +1435,7 @@ int TLSX_UseEllipticCurve(TLSX** extensions, word16 name)
 #define EC_PARSE(a, b, c, d)      0
 #define EC_VALIDATE_REQUEST(a, b)
 
-#endif /* HAVE_ELLIPTIC_CURVES */
+#endif /* HAVE_SUPPORTED_CURVES */
 
 TLSX* TLSX_Find(TLSX* list, TLSX_Type type)
 {
@@ -1717,7 +1696,7 @@ int TLSX_Parse(CYASSL* ssl, byte* input, word16 length, byte isRequest,
         word16 size;
 
         if (length - offset < HELLO_EXT_TYPE_SZ + OPAQUE16_LEN)
-            return INCOMPLETE_DATA;
+            return BUFFER_ERROR;
 
         ato16(input + offset, &type);
         offset += HELLO_EXT_TYPE_SZ;
@@ -1726,7 +1705,7 @@ int TLSX_Parse(CYASSL* ssl, byte* input, word16 length, byte isRequest,
         offset += OPAQUE16_LEN;
 
         if (offset + size > length)
-            return INCOMPLETE_DATA;
+            return BUFFER_ERROR;
 
         switch (type) {
             case SERVER_NAME_INDICATION:
@@ -1760,7 +1739,7 @@ int TLSX_Parse(CYASSL* ssl, byte* input, word16 length, byte isRequest,
                         ato16(input + offset, &suites->hashSigAlgoSz);
 
                         if (suites->hashSigAlgoSz > size - OPAQUE16_LEN)
-                            return INCOMPLETE_DATA;
+                            return BUFFER_ERROR;
 
                         XMEMCPY(suites->hashSigAlgo,
                                 input + offset + OPAQUE16_LEN,
@@ -1788,7 +1767,7 @@ int TLSX_Parse(CYASSL* ssl, byte* input, word16 length, byte isRequest,
 #elif defined(HAVE_SNI)             \
    || defined(HAVE_MAX_FRAGMENT)    \
    || defined(HAVE_TRUNCATED_HMAC)  \
-   || defined(HAVE_ELLIPTIC_CURVES)
+   || defined(HAVE_SUPPORTED_CURVES)
 
 #error "Using TLS extensions requires HAVE_TLS_EXTENSIONS to be defined."
 

@@ -60,7 +60,7 @@ void echoclient_test(void* args)
     int sendSz;
     int argc    = 0;
     char** argv = 0;
-    int port = yasslPort;
+    word16 port = yasslPort;
 
     ((func_args*)args)->return_code = -1; /* error state */
     
@@ -139,7 +139,7 @@ void echoclient_test(void* args)
 #endif
     }
 
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
     SSL_CTX_set_default_passwd_cb(ctx, PasswordCallBack);
 #endif
 

@@ -311,7 +311,7 @@ void ShaUpdate(Sha* sha, const byte* data, word32 len)
 
         if (sha->buffLen == SHA_BLOCK_SIZE) {
             #if defined(LITTLE_ENDIAN_ORDER) && !defined(FREESCALE_MMCAU)
-                ByteReverseBytes(local, local, SHA_BLOCK_SIZE);
+                ByteReverseWords(sha->buffer, sha->buffer, SHA_BLOCK_SIZE);
             #endif
             XTRANSFORM(sha, local);
             AddLength(sha, SHA_BLOCK_SIZE);
@@ -335,7 +335,7 @@ void ShaFinal(Sha* sha, byte* hash)
         sha->buffLen += SHA_BLOCK_SIZE - sha->buffLen;
 
         #if defined(LITTLE_ENDIAN_ORDER) && !defined(FREESCALE_MMCAU)
-            ByteReverseBytes(local, local, SHA_BLOCK_SIZE);
+            ByteReverseWords(sha->buffer, sha->buffer, SHA_BLOCK_SIZE);
         #endif
         XTRANSFORM(sha, local);
         sha->buffLen = 0;
@@ -349,7 +349,7 @@ void ShaFinal(Sha* sha, byte* hash)
 
     /* store lengths */
     #if defined(LITTLE_ENDIAN_ORDER) && !defined(FREESCALE_MMCAU)
-        ByteReverseBytes(local, local, SHA_BLOCK_SIZE);
+        ByteReverseWords(sha->buffer, sha->buffer, SHA_BLOCK_SIZE);
     #endif
     /* ! length ordering dependent on digest endian type ! */
     XMEMCPY(&local[SHA_PAD_SIZE], &sha->hiLen, sizeof(word32));
@@ -357,8 +357,9 @@ void ShaFinal(Sha* sha, byte* hash)
 
     #ifdef FREESCALE_MMCAU
         /* Kinetis requires only these bytes reversed */
-        ByteReverseBytes(&local[SHA_PAD_SIZE], &local[SHA_PAD_SIZE],
-                2 * sizeof(word32));
+        ByteReverseWords(&sha->buffer[SHA_PAD_SIZE/sizeof(word32)],
+                         &sha->buffer[SHA_PAD_SIZE/sizeof(word32)],
+                         2 * sizeof(word32));
     #endif
 
     XTRANSFORM(sha, local);

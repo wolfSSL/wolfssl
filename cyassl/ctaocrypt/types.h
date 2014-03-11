@@ -211,7 +211,9 @@ enum {
 #endif
 
 #ifndef CTYPE_USER
-    #include <ctype.h>
+    #ifndef CYASSL_TYTO
+        #include <ctype.h>
+    #endif
     #if defined(HAVE_ECC) || defined(HAVE_OCSP)
         #define XTOUPPER(c)     toupper((c))
         #define XISALPHA(c)     isalpha((c))
