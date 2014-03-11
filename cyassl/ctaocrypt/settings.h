@@ -51,6 +51,9 @@
 /* Uncomment next line if using Microchip TCP/IP stack, version 6 or later */
 /* #define MICROCHIP_TCPIP */
 
+/* Uncomment next line if using PIC32MZ Crypto Engine */
+/* #define CYASSL_MICROCHIP_PIC32MZ */
+        
 /* Uncomment next line if using FreeRTOS */
 /* #define FREERTOS */
 
@@ -81,6 +84,8 @@
 /* Uncomment next line if using QL SEP settings */
 /* #define CYASSL_QL */
 
+/* Uncomment next line if using LwIP native TCP socket settings */
+/* #define HAVE_LWIP_NATIVE */
 
 #include <cyassl/ctaocrypt/visibility.h>
 
@@ -114,7 +119,16 @@
     #include "nx_api.h"
 #endif
 
+#if defined(HAVE_LWIP_NATIVE) /* using LwIP native TCP socket */
+    #define CYASSL_LWIP
+    #define NO_WRITEV
+    #define SINGLE_THREADED
+    #define CYASSL_USER_IO
+    #define NO_FILESYSTEM
+#endif 
+
 #ifdef MICROCHIP_PIC32
+    /* #define CYASSL_MICROCHIP_PIC32MZ */
     #define SIZEOF_LONG_LONG 8
     #define SINGLE_THREADED
     #define CYASSL_USER_IO
@@ -125,6 +139,18 @@
     #define TFM_TIMING_RESISTANT
 #endif
 
+#ifdef CYASSL_MICROCHIP_PIC32MZ
+    #define CYASSL_PIC32MZ_CE
+    #define CYASSL_PIC32MZ_CRYPT
+    #define HAVE_AES_ENGINE
+    #define CYASSL_PIC32MZ_RNG
+    /* #define CYASSL_PIC32MZ_HASH */
+    #define CYASSL_AES_COUNTER
+    #define HAVE_AESGCM
+    #define NO_BIG_INT
+
+#endif
+
 #ifdef MICROCHIP_TCPIP_V5
     /* include timer functions */
     #include "TCPIP Stack/TCPIP.h"
@@ -132,10 +158,10 @@
 
 #ifdef MICROCHIP_TCPIP
     /* include timer, NTP functions */
-    #include "system/system_services.h"
     #ifdef MICROCHIP_MPLAB_HARMONY
         #include "tcpip/tcpip.h"
     #else
+        #include "system/system_services.h"
         #include "tcpip/sntp.h"
     #endif
 #endif
@@ -157,21 +183,21 @@
     #define NO_FILESYSTEM
     #define CYASSL_USER_IO
     #define NO_DEV_RANDOM
-    #define HAVE_HKDF
-    #define NO_MAIN_DRIVER
-    #define CYASSL_LWIP
-
-    /* ECC and optimizations */
-    #define FREESCALE_MMCAU 1
     #define HAVE_ECC
     #define HAVE_ECC_ENCRYPT
+    #define ECC_SHAMIR
+    #define HAVE_HKDF
     #define USE_FAST_MATH
     #define TFM_TIMING_RESISTANT
-    #define TFM_ECC256
-    #define TFM_ARM
-    #define ECC_SHAMIR
-    #define FP_ECC
-    #define FP_ENTRIES 2
+    #define FP_MAX_BITS 512
+    #define NO_OLD_TLS
+    #define NO_MD4
+    #define NO_RABBIT
+    #define NO_HC128
+    #define NO_RSA
+    #define NO_DSA
+    #define NO_PWDBASED
+    #define NO_PSK
     #define FP_LUT 4
     #define FP_MAX_BITS 512
 

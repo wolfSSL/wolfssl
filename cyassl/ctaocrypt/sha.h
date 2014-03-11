@@ -43,14 +43,22 @@ enum {
     SHA_PAD_SIZE     = 56
 };
 
+#ifdef CYASSL_PIC32MZ_HASH
+#include "port/pic32/pic32mz-crypt.h"
+#endif
 
 /* Sha digest */
 typedef struct Sha {
     word32  buffLen;   /* in bytes          */
     word32  loLen;     /* length in bytes   */
     word32  hiLen;     /* length in bytes   */
-    word32  digest[SHA_DIGEST_SIZE / sizeof(word32)];
     word32  buffer[SHA_BLOCK_SIZE  / sizeof(word32)];
+    #ifndef CYASSL_PIC32MZ_HASH
+    word32  digest[SHA_DIGEST_SIZE / sizeof(word32)];
+    #else
+    word32  digest[PIC32_HASH_SIZE / sizeof(word32)];
+    pic32mz_desc desc ; /* Crypt Engine descripter */
+    #endif
 } Sha;
 
 

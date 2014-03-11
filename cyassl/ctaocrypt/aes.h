@@ -94,7 +94,12 @@ typedef struct Aes {
 #endif
 #ifdef CYASSL_AES_COUNTER
     word32  left;            /* unsued bytes left from last call */
-#endif 
+#endif
+#ifdef CYASSL_PIC32MZ_CRYPT
+    word32 key_ce[AES_BLOCK_SIZE*2/sizeof(word32)] ;
+    word32 iv_ce [AES_BLOCK_SIZE  /sizeof(word32)] ;
+    int    keylen ;
+#endif
 } Aes;
 
 

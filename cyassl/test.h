@@ -81,7 +81,7 @@
 
 /* HPUX doesn't use socklent_t for third parameter to accept, unless
    _XOPEN_SOURCE_EXTENDED is defined */
-#if !defined(__hpux__) && !defined(CYASSL_MDK_ARM)
+#if !defined(__hpux__) && !defined(CYASSL_MDK_ARM) && !defined(CYASSL_IAR_ARM)
     typedef socklen_t* ACCEPT_THIRD_T;
 #else
     #if defined _XOPEN_SOURCE_EXTENDED

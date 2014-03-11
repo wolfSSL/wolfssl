@@ -28,7 +28,13 @@
 
 #include <cyassl/ctaocrypt/settings.h>
 
-#ifndef NO_SHA256
+#if !defined(NO_SHA256)
+
+#ifdef CYASSL_PIC32MZ_HASH
+#define InitSha256   InitSha256_sw
+#define Sha256Update Sha256Update_sw
+#define Sha256Final  Sha256Final_sw
+#endif
 
 #include <cyassl/ctaocrypt/sha256.h>
 #ifdef NO_INLINE
