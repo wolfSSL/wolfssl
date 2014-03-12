@@ -26,7 +26,13 @@
 
 #include <cyassl/ctaocrypt/settings.h>
 
-#ifndef NO_SHA
+#if !defined(NO_SHA)
+
+#ifdef CYASSL_PIC32MZ_HASH
+#define InitSha   InitSha_sw
+#define ShaUpdate ShaUpdate_sw
+#define ShaFinal  ShaFinal_sw
+#endif
 
 #include <cyassl/ctaocrypt/sha.h>
 #ifdef NO_INLINE
@@ -50,8 +56,8 @@
      * document (See note in README).
      */
     #include "stm32f2xx.h"
-		#include "stm32f2xx_hash.h"
-		
+    #include "stm32f2xx_hash.h"
+
     void InitSha(Sha* sha)
     {
         /* STM32F2 struct notes:
