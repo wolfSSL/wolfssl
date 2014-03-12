@@ -56,8 +56,8 @@
      * document (See note in README).
      */
     #include "stm32f2xx.h"
-		#include "stm32f2xx_hash.h"
-		
+    #include "stm32f2xx_hash.h"
+
     void InitSha(Sha* sha)
     {
         /* STM32F2 struct notes:
@@ -363,8 +363,9 @@ void ShaFinal(Sha* sha, byte* hash)
 
     #ifdef FREESCALE_MMCAU
         /* Kinetis requires only these bytes reversed */
-        ByteReverseBytes(&local[SHA_PAD_SIZE], &local[SHA_PAD_SIZE],
-                2 * sizeof(word32));
+        ByteReverseWords(&sha->buffer[SHA_PAD_SIZE/sizeof(word32)],
+                         &sha->buffer[SHA_PAD_SIZE/sizeof(word32)],
+                         2 * sizeof(word32));
     #endif
 
     XTRANSFORM(sha, local);
