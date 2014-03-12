@@ -368,7 +368,6 @@ void ShaFinal(Sha* sha, byte* hash)
     #endif
 
     XTRANSFORM(sha, local);
-    XTRANSFORM(sha, local);
     #ifdef LITTLE_ENDIAN_ORDER
         ByteReverseWords(sha->digest, sha->digest, SHA_DIGEST_SIZE);
     #endif

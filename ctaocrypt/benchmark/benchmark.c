@@ -365,7 +365,7 @@ void bench_aesctr(void)
 
 
 
-#ifdef CYASSL_AESCCM
+#ifdef HAVE_AESCCM
 void bench_aesccm(void)
 {
     Aes    enc;
