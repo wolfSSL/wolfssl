@@ -243,6 +243,10 @@ void CTaoCryptErrorString(int error, char* buffer)
         XSTRNCPY(buffer, "ASN NTRU key decode error, invalid input", max);
         break;
 
+    case ASN_CRIT_EXT_E:
+        XSTRNCPY(buffer, "X.509 Critical extension ignored", max);
+        break;
+
     case ECC_BAD_ARG_E :
         XSTRNCPY(buffer, "ECC input argument wrong type, invalid input", max);
         break;
