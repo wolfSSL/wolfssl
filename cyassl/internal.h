@@ -893,8 +893,8 @@ enum {
     #define STATIC_BUFFER_LEN RECORD_HEADER_SZ + RECORD_SIZE + COMP_EXTRA + \
              MTU_EXTRA + MAX_MSG_EXTRA
 #else
-    /* zero length arrays may not be supported */
-    #define STATIC_BUFFER_LEN 1
+    /* don't fragment memory from the record header */
+    #define STATIC_BUFFER_LEN RECORD_HEADER_SZ 
 #endif
 
 typedef struct {
