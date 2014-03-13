@@ -1,0 +1,3 @@
+crit-cert.pem:
+  Simple self-signed certificate with critical Basic Constraints and Key Usage
+  extensions.
