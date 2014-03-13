@@ -3242,9 +3242,10 @@ int CopyDecodedToX509(CYASSL_X509* x509, DecodedCert* dCert)
 #endif /* KEEP_PEER_CERT || SESSION_CERTS */
 
 
-static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx)
+static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx,
+                                                                    word32 size)
 {
-    word32 listSz, i = *inOutIdx;
+    word32 listSz, begin = *inOutIdx;
     int    ret = 0;
     int    anyError = 0;
     int    totalCerts = 0;    /* number of certs in certs buffer */
@@ -3256,46 +3257,58 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx)
         if (ssl->hsInfoOn) AddPacketName("Certificate", &ssl->handShakeInfo);
         if (ssl->toInfoOn) AddLateName("Certificate", &ssl->timeoutInfo);
     #endif
-    c24to32(&input[i], &listSz);
-    i += CERT_HEADER_SZ;
+
+    if ((*inOutIdx - begin) + OPAQUE24_LEN > size)
+        return BUFFER_ERROR;
+
+    c24to32(input + *inOutIdx, &listSz);
+    *inOutIdx += OPAQUE24_LEN;
+
+#ifdef HAVE_MAX_FRAGMENT
+    if (listSz > ssl->max_fragment)
+        return BUFFER_E;
+#else
+    if (listSz > MAX_RECORD_SIZE)
+        return BUFFER_E;
+#endif
+
+    if ((*inOutIdx - begin) + listSz != size)
+        return BUFFER_ERROR;
 
     CYASSL_MSG("Loading peer's cert chain");
     /* first put cert chain into buffer so can verify top down
        we're sent bottom up */
     while (listSz) {
-        /* cert size */
         word32 certSz;
 
         if (totalCerts >= MAX_CHAIN_DEPTH)
             return MAX_CHAIN_ERROR;
 
-        c24to32(&input[i], &certSz);
-        i += CERT_HEADER_SZ;
-       
-#ifdef HAVE_MAX_FRAGMENT
-        if (listSz > ssl->max_fragment || certSz > ssl->max_fragment)
-            return BUFFER_E;
-#else
-        if (listSz > MAX_RECORD_SIZE || certSz > MAX_RECORD_SIZE)
-            return BUFFER_E;
-#endif
+        if ((*inOutIdx - begin) + OPAQUE24_LEN > size)
+            return BUFFER_ERROR;
+
+        c24to32(input + *inOutIdx, &certSz);
+        *inOutIdx += OPAQUE24_LEN;
+
+        if ((*inOutIdx - begin) + certSz > size)
+            return BUFFER_ERROR;
 
         certs[totalCerts].length = certSz;
-        certs[totalCerts].buffer = input + i;
+        certs[totalCerts].buffer = input + *inOutIdx;
 
 #ifdef SESSION_CERTS
         if (ssl->session.chain.count < MAX_CHAIN_DEPTH &&
                                        certSz < MAX_X509_SIZE) {
             ssl->session.chain.certs[ssl->session.chain.count].length = certSz;
             XMEMCPY(ssl->session.chain.certs[ssl->session.chain.count].buffer,
-                    input + i, certSz);
+                    input + *inOutIdx, certSz);
             ssl->session.chain.count++;
         } else {
             CYASSL_MSG("Couldn't store chain cert for session");
         }
 #endif
 
-        i += certSz;
+        *inOutIdx += certSz;
         listSz -= certSz + CERT_HEADER_SZ;
 
         totalCerts++;
@@ -3625,7 +3638,6 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx)
     }
 #endif
 
-    *inOutIdx = i;
     return ret;
 }
 
@@ -3816,7 +3828,7 @@ static int DoHandShakeMsgType(CYASSL* ssl, byte* input, word32* inOutIdx,
 #ifndef NO_CERTS
     case certificate:
         CYASSL_MSG("processing certificate");
-        ret =  DoCertificate(ssl, input, inOutIdx);
+        ret =  DoCertificate(ssl, input, inOutIdx, size);
         break;
 #endif
 
