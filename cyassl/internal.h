@@ -586,7 +586,6 @@ enum Misc {
     SEQ_SZ         =  8,       /* 64 bit sequence number  */
     BYTE3_LEN      =  3,       /* up to 24 bit byte lengths */
     ALERT_SIZE     =  2,       /* level + description     */
-    REQUEST_HEADER =  2,       /* always use 2 bytes      */
     VERIFY_HEADER  =  2,       /* always use 2 bytes      */
     EXT_ID_SZ      =  2,       /* always use 2 bytes      */
     MAX_DH_SIZE    = 513,      /* 4096 bit plus possible leading 0 */
@@ -820,7 +819,7 @@ CYASSL_LOCAL void InitSSL_Method(CYASSL_METHOD*, ProtocolVersion);
 
 /* for sniffer */
 CYASSL_LOCAL int DoFinished(CYASSL* ssl, const byte* input, word32* inOutIdx,
-                            int sniff);
+                            word32 size, word32 totalSz, int sniff);
 CYASSL_LOCAL int DoApplicationData(CYASSL* ssl, byte* input, word32* inOutIdx);
 
 

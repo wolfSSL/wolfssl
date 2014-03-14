@@ -1444,7 +1444,7 @@ static int ProcessClientHello(const byte* input, int* sslBytes,
 
 
 /* Process Finished */
-static int ProcessFinished(const byte* input, int* sslBytes, 
+static int ProcessFinished(const byte* input, int size, int* sslBytes,
                            SnifferSession* session, char* error)
 {
     SSL*   ssl;
@@ -1455,7 +1455,9 @@ static int ProcessFinished(const byte* input, int* sslBytes,
         ssl = session->sslServer;
     else
         ssl = session->sslClient;
-    ret = DoFinished(ssl, input, &inOutIdx, SNIFF);
+
+    ret = DoFinished(ssl, input, &inOutIdx, (word32) size, (word32) *sslBytes,
+                                                                         SNIFF);
     *sslBytes -= (int)inOutIdx;
 
     if (ret < 0) {
@@ -1533,7 +1535,7 @@ static int DoHandShake(const byte* input, int* sslBytes,
             break;
         case finished:
             Trace(GOT_FINISHED_STR);
-            ret = ProcessFinished(input, sslBytes, session, error);
+            ret = ProcessFinished(input, size, sslBytes, session, error);
             break;
         case client_hello:
             Trace(GOT_CLIENT_HELLO_STR);

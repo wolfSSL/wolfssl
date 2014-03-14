@@ -69,11 +69,14 @@ CYASSL_CALLBACKS needs LARGE_STATIC_BUFFERS, please add LARGE_STATIC_BUFFERS
 
 
 #ifndef NO_CYASSL_CLIENT
-    static int DoHelloVerifyRequest(CYASSL* ssl, const byte* input, word32*);
+    static int DoHelloVerifyRequest(CYASSL* ssl, const byte* input, word32*,
+                                                                        word32);
     static int DoServerHello(CYASSL* ssl, const byte* input, word32*, word32);
-    static int DoServerKeyExchange(CYASSL* ssl, const byte* input, word32*);
+    static int DoServerKeyExchange(CYASSL* ssl, const byte* input, word32*,
+                                                                        word32);
     #ifndef NO_CERTS
-        static int DoCertificateRequest(CYASSL* ssl, const byte* input,word32*);
+        static int DoCertificateRequest(CYASSL* ssl, const byte* input, word32*,
+                                                                        word32);
     #endif
 #endif
 
@@ -3239,9 +3242,10 @@ int CopyDecodedToX509(CYASSL_X509* x509, DecodedCert* dCert)
 #endif /* KEEP_PEER_CERT || SESSION_CERTS */
 
 
-static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx)
+static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx,
+                                                                    word32 size)
 {
-    word32 listSz, i = *inOutIdx;
+    word32 listSz, begin = *inOutIdx;
     int    ret = 0;
     int    anyError = 0;
     int    totalCerts = 0;    /* number of certs in certs buffer */
@@ -3253,46 +3257,58 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx)
         if (ssl->hsInfoOn) AddPacketName("Certificate", &ssl->handShakeInfo);
         if (ssl->toInfoOn) AddLateName("Certificate", &ssl->timeoutInfo);
     #endif
-    c24to32(&input[i], &listSz);
-    i += CERT_HEADER_SZ;
+
+    if ((*inOutIdx - begin) + OPAQUE24_LEN > size)
+        return BUFFER_ERROR;
+
+    c24to32(input + *inOutIdx, &listSz);
+    *inOutIdx += OPAQUE24_LEN;
+
+#ifdef HAVE_MAX_FRAGMENT
+    if (listSz > ssl->max_fragment)
+        return BUFFER_E;
+#else
+    if (listSz > MAX_RECORD_SIZE)
+        return BUFFER_E;
+#endif
+
+    if ((*inOutIdx - begin) + listSz != size)
+        return BUFFER_ERROR;
 
     CYASSL_MSG("Loading peer's cert chain");
     /* first put cert chain into buffer so can verify top down
        we're sent bottom up */
     while (listSz) {
-        /* cert size */
         word32 certSz;
 
         if (totalCerts >= MAX_CHAIN_DEPTH)
             return MAX_CHAIN_ERROR;
 
-        c24to32(&input[i], &certSz);
-        i += CERT_HEADER_SZ;
-       
-#ifdef HAVE_MAX_FRAGMENT
-        if (listSz > ssl->max_fragment || certSz > ssl->max_fragment)
-            return BUFFER_E;
-#else
-        if (listSz > MAX_RECORD_SIZE || certSz > MAX_RECORD_SIZE)
-            return BUFFER_E;
-#endif
+        if ((*inOutIdx - begin) + OPAQUE24_LEN > size)
+            return BUFFER_ERROR;
+
+        c24to32(input + *inOutIdx, &certSz);
+        *inOutIdx += OPAQUE24_LEN;
+
+        if ((*inOutIdx - begin) + certSz > size)
+            return BUFFER_ERROR;
 
         certs[totalCerts].length = certSz;
-        certs[totalCerts].buffer = input + i;
+        certs[totalCerts].buffer = input + *inOutIdx;
 
 #ifdef SESSION_CERTS
         if (ssl->session.chain.count < MAX_CHAIN_DEPTH &&
                                        certSz < MAX_X509_SIZE) {
             ssl->session.chain.certs[ssl->session.chain.count].length = certSz;
             XMEMCPY(ssl->session.chain.certs[ssl->session.chain.count].buffer,
-                    input + i, certSz);
+                    input + *inOutIdx, certSz);
             ssl->session.chain.count++;
         } else {
             CYASSL_MSG("Couldn't store chain cert for session");
         }
 #endif
 
-        i += certSz;
+        *inOutIdx += certSz;
         listSz -= certSz + CERT_HEADER_SZ;
 
         totalCerts++;
@@ -3622,37 +3638,40 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx)
     }
 #endif
 
-    *inOutIdx = i;
     return ret;
 }
 
 #endif /* !NO_CERTS */
 
 
-static int DoHelloRequest(CYASSL* ssl, const byte* input, word32* inOutIdx)
+static int DoHelloRequest(CYASSL* ssl, const byte* input, word32* inOutIdx,
+                                                    word32 size, word32 totalSz)
 {
+    if (size) /* must be 0 */
+        return BUFFER_ERROR;
+
     if (ssl->keys.encryptionOn) {
-        const byte* mac;
-        int         padSz = ssl->keys.encryptSz - HANDSHAKE_HEADER_SZ - 
-                            ssl->specs.hash_size;
-        byte        verify[MAX_DIGEST_SIZE];
-       
+        byte verify[MAX_DIGEST_SIZE];
+        int  padSz = ssl->keys.encryptSz - HANDSHAKE_HEADER_SZ -
+                     ssl->specs.hash_size;
+
         ssl->hmac(ssl, verify, input + *inOutIdx - HANDSHAKE_HEADER_SZ,
                   HANDSHAKE_HEADER_SZ, handshake, 1);
-        /* read mac and fill */
-        mac = input + *inOutIdx;
-        *inOutIdx += ssl->specs.hash_size;
 
         if (ssl->options.tls1_1 && ssl->specs.cipher_type == block)
             padSz -= ssl->specs.block_size;
 
-        *inOutIdx += padSz;
+        /* access beyond input + size should be checked against totalSz */
+        if ((word32) (*inOutIdx + ssl->specs.hash_size + padSz) > totalSz)
+            return INCOMPLETE_DATA;
 
         /* verify */
-        if (XMEMCMP(mac, verify, ssl->specs.hash_size) != 0) {
+        if (XMEMCMP(input + *inOutIdx, verify, ssl->specs.hash_size) != 0) {
             CYASSL_MSG("    hello_request verify mac error");
             return VERIFY_MAC_ERROR;
         }
+
+        *inOutIdx += ssl->specs.hash_size + padSz;
     }
 
     if (ssl->options.side == CYASSL_SERVER_END) {
@@ -3664,28 +3683,36 @@ static int DoHelloRequest(CYASSL* ssl, const byte* input, word32* inOutIdx)
 }
 
 
-int DoFinished(CYASSL* ssl, const byte* input, word32* inOutIdx, int sniff)
+int DoFinished(CYASSL* ssl, const byte* input, word32* inOutIdx, word32 size,
+                                                      word32 totalSz, int sniff)
 {
-    int    finishedSz = ssl->options.tls ? TLS_FINISHED_SZ : FINISHED_SZ;
-    word32 idx = *inOutIdx;
+    if ((ssl->options.tls ? TLS_FINISHED_SZ : FINISHED_SZ) != size)
+        return BUFFER_ERROR;
 
     #ifdef CYASSL_CALLBACKS
         if (ssl->hsInfoOn) AddPacketName("Finished", &ssl->handShakeInfo);
         if (ssl->toInfoOn) AddLateName("Finished", &ssl->timeoutInfo);
     #endif
+
     if (sniff == NO_SNIFF) {
-        if (XMEMCMP(input + idx, &ssl->verifyHashes, finishedSz) != 0) {
+        if (XMEMCMP(input + *inOutIdx, &ssl->verifyHashes, size) != 0) {
             CYASSL_MSG("Verify finished error on hashes");
             return VERIFY_FINISHED_ERROR;
         }
     }
-    idx += finishedSz;
-    idx += ssl->keys.padSz;
-   
+
+    /* increment beyond input + size should be checked against totalSz */
+    if (*inOutIdx + size + ssl->keys.padSz > totalSz)
+        return INCOMPLETE_DATA;
+
+    /* force input exhaustion at ProcessReply consuming padSz */
+    *inOutIdx += size + ssl->keys.padSz;
+
     if (ssl->options.side == CYASSL_CLIENT_END) {
         ssl->options.serverState = SERVER_FINISHED_COMPLETE;
         if (!ssl->options.resuming) {
             ssl->options.handShakeState = HANDSHAKE_DONE;
+
 #ifdef CYASSL_DTLS
             if (ssl->options.dtls) {
                 /* Other side has received our Finished, go to next epoch */
@@ -3699,6 +3726,7 @@ int DoFinished(CYASSL* ssl, const byte* input, word32* inOutIdx, int sniff)
         ssl->options.clientState = CLIENT_FINISHED_COMPLETE;
         if (ssl->options.resuming) {
             ssl->options.handShakeState = HANDSHAKE_DONE;
+
 #ifdef CYASSL_DTLS
             if (ssl->options.dtls) {
                 /* Other side has received our Finished, go to next epoch */
@@ -3709,7 +3737,6 @@ int DoFinished(CYASSL* ssl, const byte* input, word32* inOutIdx, int sniff)
         }
     }
 
-    *inOutIdx = idx;
     return 0;
 }
 
@@ -3771,13 +3798,13 @@ static int DoHandShakeMsgType(CYASSL* ssl, byte* input, word32* inOutIdx,
 
     case hello_request:
         CYASSL_MSG("processing hello request");
-        ret = DoHelloRequest(ssl, input, inOutIdx);
+        ret = DoHelloRequest(ssl, input, inOutIdx, size, totalSz);
         break;
 
 #ifndef NO_CYASSL_CLIENT
     case hello_verify_request:
         CYASSL_MSG("processing hello verify request");
-        ret = DoHelloVerifyRequest(ssl, input,inOutIdx);
+        ret = DoHelloVerifyRequest(ssl, input,inOutIdx, size);
         break;
             
     case server_hello:
@@ -3788,20 +3815,20 @@ static int DoHandShakeMsgType(CYASSL* ssl, byte* input, word32* inOutIdx,
 #ifndef NO_CERTS
     case certificate_request:
         CYASSL_MSG("processing certificate request");
-        ret = DoCertificateRequest(ssl, input, inOutIdx);
+        ret = DoCertificateRequest(ssl, input, inOutIdx, size);
         break;
 #endif
 
     case server_key_exchange:
         CYASSL_MSG("processing server key exchange");
-        ret = DoServerKeyExchange(ssl, input, inOutIdx);
+        ret = DoServerKeyExchange(ssl, input, inOutIdx, size);
         break;
 #endif
 
 #ifndef NO_CERTS
     case certificate:
         CYASSL_MSG("processing certificate");
-        ret =  DoCertificate(ssl, input, inOutIdx);
+        ret =  DoCertificate(ssl, input, inOutIdx, size);
         break;
 #endif
 
@@ -3818,7 +3845,7 @@ static int DoHandShakeMsgType(CYASSL* ssl, byte* input, word32* inOutIdx,
 
     case finished:
         CYASSL_MSG("processing finished");
-        ret = DoFinished(ssl, input, inOutIdx, NO_SNIFF);
+        ret = DoFinished(ssl, input, inOutIdx, size, totalSz, NO_SNIFF);
         break;
 
 #ifndef NO_CYASSL_SERVER
@@ -3835,7 +3862,7 @@ static int DoHandShakeMsgType(CYASSL* ssl, byte* input, word32* inOutIdx,
 #if !defined(NO_RSA) || defined(HAVE_ECC)
     case certificate_verify:
         CYASSL_MSG("processing certificate verify");
-        ret = DoCertificateVerify(ssl, input, inOutIdx, totalSz);
+        ret = DoCertificateVerify(ssl, input, inOutIdx, size);
         break;
 #endif /* !NO_RSA || HAVE_ECC */
 
@@ -7432,27 +7459,36 @@ static void PickHashSigAlgo(CYASSL* ssl,
 
 
     static int DoHelloVerifyRequest(CYASSL* ssl, const byte* input,
-                                    word32* inOutIdx)
+                                    word32* inOutIdx, word32 size)
     {
         ProtocolVersion pv;
         byte            cookieSz;
+        word32          begin = *inOutIdx;
         
 #ifdef CYASSL_CALLBACKS
         if (ssl->hsInfoOn) AddPacketName("HelloVerifyRequest",
                                          &ssl->handShakeInfo);
         if (ssl->toInfoOn) AddLateName("HelloVerifyRequest", &ssl->timeoutInfo);
 #endif
+
 #ifdef CYASSL_DTLS
         if (ssl->options.dtls) {
             DtlsPoolReset(ssl);
         }
 #endif
-        XMEMCPY(&pv, input + *inOutIdx, sizeof(pv));
-        *inOutIdx += (word32)sizeof(pv);
         
+        if ((*inOutIdx - begin) + OPAQUE16_LEN + OPAQUE8_LEN > size)
+            return BUFFER_ERROR;
+
+        XMEMCPY(&pv, input + *inOutIdx, OPAQUE16_LEN);
+        *inOutIdx += OPAQUE16_LEN;
+
         cookieSz = input[(*inOutIdx)++];
         
         if (cookieSz) {
+            if ((*inOutIdx - begin) + cookieSz > size)
+                return BUFFER_ERROR;
+
 #ifdef CYASSL_DTLS
             if (cookieSz <= MAX_COOKIE_LEN) {
                 XMEMCPY(ssl->arrays->cookie, input + *inOutIdx, cookieSz);
@@ -7631,9 +7667,10 @@ static void PickHashSigAlgo(CYASSL* ssl,
 #ifndef NO_CERTS
     /* just read in and ignore for now TODO: */
     static int DoCertificateRequest(CYASSL* ssl, const byte* input, word32*
-                                    inOutIdx)
+                                    inOutIdx, word32 size)
     {
         word16 len;
+        word32 begin = *inOutIdx;
        
         #ifdef CYASSL_CALLBACKS
             if (ssl->hsInfoOn)
@@ -7641,28 +7678,57 @@ static void PickHashSigAlgo(CYASSL* ssl,
             if (ssl->toInfoOn)
                 AddLateName("CertificateRequest", &ssl->timeoutInfo);
         #endif
+
+        if ((*inOutIdx - begin) + OPAQUE8_LEN > size)
+            return BUFFER_ERROR;
+
         len = input[(*inOutIdx)++];
+
+        if ((*inOutIdx - begin) + len > size)
+            return BUFFER_ERROR;
 
         /* types, read in here */
         *inOutIdx += len;
 
+        /* signature and hash signature algorithm */
         if (IsAtLeastTLSv1_2(ssl)) {
-            /* hash sig format */
-            ato16(&input[*inOutIdx], &len);
-            *inOutIdx += LENGTH_SZ;
-            PickHashSigAlgo(ssl, &input[*inOutIdx], len);
+            if ((*inOutIdx - begin) + OPAQUE16_LEN > size)
+                return BUFFER_ERROR;
+
+            ato16(input + *inOutIdx, &len);
+            *inOutIdx += OPAQUE16_LEN;
+
+            if ((*inOutIdx - begin) + len > size)
+                return BUFFER_ERROR;
+
+            PickHashSigAlgo(ssl, input + *inOutIdx, len);
             *inOutIdx += len;
         }
 
         /* authorities */
-        ato16(&input[*inOutIdx], &len);
-        *inOutIdx += LENGTH_SZ;
+        if ((*inOutIdx - begin) + OPAQUE16_LEN > size)
+            return BUFFER_ERROR;
+
+        ato16(input + *inOutIdx, &len);
+        *inOutIdx += OPAQUE16_LEN;
+
+        if ((*inOutIdx - begin) + len > size)
+            return BUFFER_ERROR;
+
         while (len) {
             word16 dnSz;
-       
-            ato16(&input[*inOutIdx], &dnSz);
-            *inOutIdx += (REQUEST_HEADER + dnSz);
-            len -= dnSz + REQUEST_HEADER;
+
+            if ((*inOutIdx - begin) + OPAQUE16_LEN > size)
+                return BUFFER_ERROR;
+
+            ato16(input + *inOutIdx, &dnSz);
+            *inOutIdx += OPAQUE16_LEN;
+
+            if ((*inOutIdx - begin) + dnSz > size)
+                return BUFFER_ERROR;
+
+            *inOutIdx += dnSz;
+            len -= OPAQUE16_LEN + dnSz;
         }
 
         /* don't send client cert or cert verify if user hasn't provided
@@ -7678,18 +7744,16 @@ static void PickHashSigAlgo(CYASSL* ssl,
 
 
     static int DoServerKeyExchange(CYASSL* ssl, const byte* input,
-                                   word32* inOutIdx)
+                                   word32* inOutIdx, word32 size)
     {
-    #if defined(OPENSSL_EXTRA) || defined(HAVE_ECC)
-        word16 length    = 0;
-        word16 sigLen    = 0;
-        word16 verifySz  = (word16)*inOutIdx;  /* keep start idx */
-        byte*  signature = 0;
-    #endif 
+        word16 length = 0;
+        word32 begin  = *inOutIdx;
 
+        (void)length; /* shut up compiler warnings */
+        (void)begin;
         (void)ssl;
         (void)input;
-        (void)inOutIdx;
+        (void)size;
 
     #ifdef CYASSL_CALLBACKS
         if (ssl->hsInfoOn)
@@ -7700,16 +7764,21 @@ static void PickHashSigAlgo(CYASSL* ssl,
 
     #ifndef NO_PSK
         if (ssl->specs.kea == psk_kea) {
-            word16 pskLen = 0;
-            ato16(&input[*inOutIdx], &pskLen);
-            *inOutIdx += LENGTH_SZ;
-            XMEMCPY(ssl->arrays->server_hint, &input[*inOutIdx],
-                   min(pskLen, MAX_PSK_ID_LEN));
-            if (pskLen < MAX_PSK_ID_LEN)
-                ssl->arrays->server_hint[pskLen] = 0;
-            else
-                ssl->arrays->server_hint[MAX_PSK_ID_LEN - 1] = 0;
-            *inOutIdx += pskLen;
+
+            if ((*inOutIdx - begin) + OPAQUE16_LEN > size)
+                return BUFFER_ERROR;
+
+            ato16(input + *inOutIdx, &length);
+            *inOutIdx += OPAQUE16_LEN;
+
+            if ((*inOutIdx - begin) + length > size)
+                return BUFFER_ERROR;
+
+            XMEMCPY(ssl->arrays->server_hint, input + *inOutIdx,
+                   min(length, MAX_PSK_ID_LEN));
+
+            ssl->arrays->server_hint[min(length, MAX_PSK_ID_LEN - 1)] = 0;
+            *inOutIdx += length;
 
             return 0;
         }
@@ -7718,42 +7787,66 @@ static void PickHashSigAlgo(CYASSL* ssl,
         if (ssl->specs.kea == diffie_hellman_kea)
         {
         /* p */
-        ato16(&input[*inOutIdx], &length);
-        *inOutIdx += LENGTH_SZ;
+        if ((*inOutIdx - begin) + OPAQUE16_LEN > size)
+            return BUFFER_ERROR;
+
+        ato16(input + *inOutIdx, &length);
+        *inOutIdx += OPAQUE16_LEN;
+
+        if ((*inOutIdx - begin) + length > size)
+            return BUFFER_ERROR;
 
         ssl->buffers.serverDH_P.buffer = (byte*) XMALLOC(length, ssl->heap,
                                                          DYNAMIC_TYPE_DH);
+
         if (ssl->buffers.serverDH_P.buffer)
             ssl->buffers.serverDH_P.length = length;
         else
             return MEMORY_ERROR;
-        XMEMCPY(ssl->buffers.serverDH_P.buffer, &input[*inOutIdx], length);
+
+        XMEMCPY(ssl->buffers.serverDH_P.buffer, input + *inOutIdx, length);
         *inOutIdx += length;
 
         /* g */
-        ato16(&input[*inOutIdx], &length);
-        *inOutIdx += LENGTH_SZ;
+        if ((*inOutIdx - begin) + OPAQUE16_LEN > size)
+            return BUFFER_ERROR;
+
+        ato16(input + *inOutIdx, &length);
+        *inOutIdx += OPAQUE16_LEN;
+
+        if ((*inOutIdx - begin) + length > size)
+            return BUFFER_ERROR;
 
         ssl->buffers.serverDH_G.buffer = (byte*) XMALLOC(length, ssl->heap,
                                                          DYNAMIC_TYPE_DH);
+
         if (ssl->buffers.serverDH_G.buffer)
             ssl->buffers.serverDH_G.length = length;
         else
             return MEMORY_ERROR;
-        XMEMCPY(ssl->buffers.serverDH_G.buffer, &input[*inOutIdx], length);
+
+        XMEMCPY(ssl->buffers.serverDH_G.buffer, input + *inOutIdx, length);
         *inOutIdx += length;
 
         /* pub */
-        ato16(&input[*inOutIdx], &length);
-        *inOutIdx += LENGTH_SZ;
+        if ((*inOutIdx - begin) + OPAQUE16_LEN > size)
+            return BUFFER_ERROR;
+
+        ato16(input + *inOutIdx, &length);
+        *inOutIdx += OPAQUE16_LEN;
+
+        if ((*inOutIdx - begin) + length > size)
+            return BUFFER_ERROR;
 
         ssl->buffers.serverDH_Pub.buffer = (byte*) XMALLOC(length, ssl->heap,
                                                            DYNAMIC_TYPE_DH);
+
         if (ssl->buffers.serverDH_Pub.buffer)
             ssl->buffers.serverDH_Pub.length = length;
         else
             return MEMORY_ERROR;
-        XMEMCPY(ssl->buffers.serverDH_Pub.buffer, &input[*inOutIdx], length);
+
+        XMEMCPY(ssl->buffers.serverDH_Pub.buffer, input + *inOutIdx, length);
         *inOutIdx += length;
         }  /* dh_kea */
     #endif /* OPENSSL_EXTRA */
@@ -7761,24 +7854,29 @@ static void PickHashSigAlgo(CYASSL* ssl,
     #ifdef HAVE_ECC
         if (ssl->specs.kea == ecc_diffie_hellman_kea)
         {
-        byte b = input[*inOutIdx];
-        *inOutIdx += 1;
+        byte b;
+
+        if ((*inOutIdx - begin) + ENUM_LEN + OPAQUE16_LEN + OPAQUE8_LEN > size)
+            return BUFFER_ERROR;
+
+        b = input[(*inOutIdx)++];
 
         if (b != named_curve)
             return ECC_CURVETYPE_ERROR;
 
         *inOutIdx += 1;   /* curve type, eat leading 0 */
-        b = input[*inOutIdx];
-        *inOutIdx += 1;
+        b = input[(*inOutIdx)++];
 
         if (b != secp256r1 && b != secp384r1 && b != secp521r1 && b !=
                  secp160r1 && b != secp192r1 && b != secp224r1)
             return ECC_CURVE_ERROR;
 
-        length = input[*inOutIdx];
-        *inOutIdx += 1;
+        length = input[(*inOutIdx)++];
 
-        if (ecc_import_x963(&input[*inOutIdx], length, ssl->peerEccKey) != 0)
+        if ((*inOutIdx - begin) + length > size)
+            return BUFFER_ERROR;
+
+        if (ecc_import_x963(input + *inOutIdx, length, ssl->peerEccKey) != 0)
             return ECC_PEERKEY_ERROR;
 
         *inOutIdx += length;
@@ -7792,41 +7890,45 @@ static void PickHashSigAlgo(CYASSL* ssl,
         Md5    md5;
         Sha    sha;
 #endif
+#ifndef NO_SHA256
+        Sha256 sha256;
+        byte hash256[SHA256_DIGEST_SIZE];
+#endif
+#ifdef CYASSL_SHA384
+        Sha384 sha384;
+        byte hash384[SHA384_DIGEST_SIZE];
+#endif
         byte   hash[FINISHED_SZ];
-        #ifndef NO_SHA256
-            Sha256 sha256;
-            byte hash256[SHA256_DIGEST_SIZE];
-        #endif
-        #ifdef CYASSL_SHA384
-            Sha384 sha384;
-            byte hash384[SHA384_DIGEST_SIZE];
-        #endif
         byte   messageVerify[MAX_DH_SZ];
         byte   hashAlgo = sha_mac;
-        byte   sigAlgo = ssl->specs.sig_algo;
-
-        /* adjust from start idx */
-        verifySz = (word16)(*inOutIdx - verifySz);
+        byte   sigAlgo  = ssl->specs.sig_algo;
+        word16 verifySz = (word16) (*inOutIdx - begin);
 
         /* save message for hash verify */
         if (verifySz > sizeof(messageVerify))
             return BUFFER_ERROR;
-        XMEMCPY(messageVerify, &input[*inOutIdx - verifySz], verifySz);
+
+        XMEMCPY(messageVerify, input + begin, verifySz);
 
         if (IsAtLeastTLSv1_2(ssl)) {
-            hashAlgo = input[*inOutIdx];
-            *inOutIdx += 1;
-            sigAlgo = input[*inOutIdx];
-            *inOutIdx += 1;
+            if ((*inOutIdx - begin) + ENUM_LEN + ENUM_LEN > size)
+                return BUFFER_ERROR;
+
+            hashAlgo = input[(*inOutIdx)++];
+            sigAlgo  = input[(*inOutIdx)++];
         }
 
         /* signature */
-        ato16(&input[*inOutIdx], &length);
-        *inOutIdx += LENGTH_SZ;
+        if ((*inOutIdx - begin) + OPAQUE16_LEN > size)
+            return BUFFER_ERROR;
 
-        signature = (byte*)&input[*inOutIdx];
-        *inOutIdx += length;
-        sigLen = length;
+        ato16(input + *inOutIdx, &length);
+        *inOutIdx += OPAQUE16_LEN;
+
+        if ((*inOutIdx - begin) + length > size)
+            return BUFFER_ERROR;
+
+        /* inOutIdx updated at the end of the function */
 
         /* verify signature */
 #ifndef NO_OLD_TLS
@@ -7842,23 +7944,25 @@ static void PickHashSigAlgo(CYASSL* ssl,
         ShaUpdate(&sha, ssl->arrays->clientRandom, RAN_LEN);
         ShaUpdate(&sha, ssl->arrays->serverRandom, RAN_LEN);
         ShaUpdate(&sha, messageVerify, verifySz);
-        ShaFinal(&sha, &hash[MD5_DIGEST_SIZE]);
+        ShaFinal(&sha, hash + MD5_DIGEST_SIZE);
 #endif
-        #ifndef NO_SHA256
-            InitSha256(&sha256);
-            Sha256Update(&sha256, ssl->arrays->clientRandom, RAN_LEN);
-            Sha256Update(&sha256, ssl->arrays->serverRandom, RAN_LEN);
-            Sha256Update(&sha256, messageVerify, verifySz);
-            Sha256Final(&sha256, hash256);
-        #endif
 
-        #ifdef CYASSL_SHA384
-            InitSha384(&sha384);
-            Sha384Update(&sha384, ssl->arrays->clientRandom, RAN_LEN);
-            Sha384Update(&sha384, ssl->arrays->serverRandom, RAN_LEN);
-            Sha384Update(&sha384, messageVerify, verifySz);
-            Sha384Final(&sha384, hash384);
-        #endif
+#ifndef NO_SHA256
+        InitSha256(&sha256);
+        Sha256Update(&sha256, ssl->arrays->clientRandom, RAN_LEN);
+        Sha256Update(&sha256, ssl->arrays->serverRandom, RAN_LEN);
+        Sha256Update(&sha256, messageVerify, verifySz);
+        Sha256Final(&sha256, hash256);
+#endif
+
+#ifdef CYASSL_SHA384
+        InitSha384(&sha384);
+        Sha384Update(&sha384, ssl->arrays->clientRandom, RAN_LEN);
+        Sha384Update(&sha384, ssl->arrays->serverRandom, RAN_LEN);
+        Sha384Update(&sha384, messageVerify, verifySz);
+        Sha384Final(&sha384, hash384);
+#endif
+
 #ifndef NO_RSA
         /* rsa */
         if (sigAlgo == rsa_sa_algo)
@@ -7877,7 +7981,7 @@ static void PickHashSigAlgo(CYASSL* ssl,
 
             if (doUserRsa) {
             #ifdef HAVE_PK_CALLBACKS
-                ret = ssl->ctx->RsaVerifyCb(ssl, signature, sigLen,
+                ret = ssl->ctx->RsaVerifyCb(ssl, input + *inOutIdx, length,
                                             &out, 
                                             ssl->buffers.peerRsaKey.buffer,
                                             ssl->buffers.peerRsaKey.length,
@@ -7885,8 +7989,8 @@ static void PickHashSigAlgo(CYASSL* ssl,
             #endif /*HAVE_PK_CALLBACKS */
             }
             else {
-                ret = RsaSSL_VerifyInline(signature, sigLen,&out,
-                                          ssl->peerRsaKey);
+                ret = RsaSSL_VerifyInline((byte *) input + *inOutIdx, length,
+                                          &out, ssl->peerRsaKey);
             }
 
             if (IsAtLeastTLSv1_2(ssl)) {
@@ -7951,11 +8055,9 @@ static void PickHashSigAlgo(CYASSL* ssl,
             byte doUserEcc = 0;
 
             #ifdef HAVE_PK_CALLBACKS
-                #ifdef HAVE_ECC
-                    if (ssl->ctx->EccVerifyCb)
-                        doUserEcc = 1;
-                #endif /* HAVE_ECC */
-            #endif /*HAVE_PK_CALLBACKS */
+                if (ssl->ctx->EccVerifyCb)
+                    doUserEcc = 1;
+            #endif
 
             if (!ssl->peerEccDsaKeyPresent)
                 return NO_PEER_KEY;
@@ -7982,18 +8084,16 @@ static void PickHashSigAlgo(CYASSL* ssl,
             }
             if (doUserEcc) {
             #ifdef HAVE_PK_CALLBACKS
-                #ifdef HAVE_ECC
-                    ret = ssl->ctx->EccVerifyCb(ssl, signature, sigLen,
-                                    digest, digestSz,
-                                    ssl->buffers.peerEccDsaKey.buffer,
-                                    ssl->buffers.peerEccDsaKey.length,
-                                    &verify, ssl->EccVerifyCtx);
-                #endif /* HAVE_ECC */
-            #endif /*HAVE_PK_CALLBACKS */
+                ret = ssl->ctx->EccVerifyCb(ssl, input + *inOutIdx, length,
+                                            digest, digestSz,
+                                            ssl->buffers.peerEccDsaKey.buffer,
+                                            ssl->buffers.peerEccDsaKey.length,
+                                            &verify, ssl->EccVerifyCtx);
+            #endif
             }
             else {
-                ret = ecc_verify_hash(signature, sigLen, digest, digestSz,
-                                      &verify, ssl->peerEccDsaKey);
+                ret = ecc_verify_hash(input + *inOutIdx, length,
+                                 digest, digestSz, &verify, ssl->peerEccDsaKey);
             }
             if (ret != 0 || verify == 0)
                 return VERIFY_SIGN_ERROR;
@@ -8002,10 +8102,12 @@ static void PickHashSigAlgo(CYASSL* ssl,
 #endif /* HAVE_ECC */
             return ALGO_ID_E;
 
+        /* signature length */
+        *inOutIdx += length;
+
         ssl->options.serverState = SERVER_KEYEXCHANGE_COMPLETE;
 
         return 0;
-
     }
 #else  /* HAVE_OPENSSL or HAVE_ECC */
         return NOT_COMPILED_IN;  /* not supported by build */
@@ -10306,15 +10408,14 @@ static void PickHashSigAlgo(CYASSL* ssl,
     }
 
 #if !defined(NO_RSA) || defined(HAVE_ECC)
-    static int DoCertificateVerify(CYASSL* ssl, byte* input, word32* inOutsz,
-                                   word32 totalSz)
+    static int DoCertificateVerify(CYASSL* ssl, byte* input, word32* inOutIdx,
+                                   word32 size)
     {
         word16      sz = 0;
-        word32      i = *inOutsz;
         int         ret = VERIFY_CERT_ERROR;   /* start in error state */
-        byte*       sig;
         byte        hashAlgo = sha_mac;
         byte        sigAlgo = anonymous_sa_algo;
+        word32      begin = *inOutIdx;
 
         #ifdef CYASSL_CALLBACKS
             if (ssl->hsInfoOn)
@@ -10322,24 +10423,24 @@ static void PickHashSigAlgo(CYASSL* ssl,
             if (ssl->toInfoOn)
                 AddLateName("CertificateVerify", &ssl->timeoutInfo);
         #endif
-        if ( (i + VERIFY_HEADER) > totalSz)
-            return INCOMPLETE_DATA;
+
 
         if (IsAtLeastTLSv1_2(ssl)) {
-            hashAlgo = input[i++];
-            sigAlgo = input[i++];
+            if ((*inOutIdx - begin) + ENUM_LEN + ENUM_LEN > size)
+                return BUFFER_ERROR;
+
+            hashAlgo = input[(*inOutIdx)++];
+            sigAlgo  = input[(*inOutIdx)++];
         }
-        ato16(&input[i], &sz);
-        i += VERIFY_HEADER;
 
-        if ( (i + sz) > totalSz)
-            return INCOMPLETE_DATA;
-
-        if (sz > ENCRYPT_LEN)
+        if ((*inOutIdx - begin) + OPAQUE16_LEN > size)
             return BUFFER_ERROR;
 
-        sig = &input[i];
-        *inOutsz = i + sz;
+        ato16(input + *inOutIdx, &sz);
+        *inOutIdx += OPAQUE16_LEN;
+
+        if ((*inOutIdx - begin) + sz > size || sz > ENCRYPT_LEN)
+            return BUFFER_ERROR;
 
         /* RSA */
 #ifndef NO_RSA
@@ -10357,7 +10458,7 @@ static void PickHashSigAlgo(CYASSL* ssl,
 
             if (doUserRsa) {
             #ifdef HAVE_PK_CALLBACKS
-                outLen = ssl->ctx->RsaVerifyCb(ssl, sig, sz,
+                outLen = ssl->ctx->RsaVerifyCb(ssl, input + *inOutIdx, sz,
                                             &out, 
                                             ssl->buffers.peerRsaKey.buffer,
                                             ssl->buffers.peerRsaKey.length,
@@ -10365,7 +10466,8 @@ static void PickHashSigAlgo(CYASSL* ssl,
             #endif /*HAVE_PK_CALLBACKS */
             }
             else {
-                outLen = RsaSSL_VerifyInline(sig, sz, &out, ssl->peerRsaKey);
+                outLen = RsaSSL_VerifyInline(input + *inOutIdx, sz, &out,
+                                                               ssl->peerRsaKey);
             }
 
             if (IsAtLeastTLSv1_2(ssl)) {
@@ -10398,12 +10500,12 @@ static void PickHashSigAlgo(CYASSL* ssl,
 
                 if (outLen == (int)sigSz && out && XMEMCMP(out, encodedSig,
                                            min(sigSz, MAX_ENCODED_SIG_SZ)) == 0)
-                    ret = 0;  /* verified */
+                    ret = 0; /* verified */
             }
             else {
                 if (outLen == FINISHED_SZ && out && XMEMCMP(out,
-                                &ssl->certHashes, FINISHED_SZ) == 0)
-                    ret = 0;  /* verified */
+                                            &ssl->certHashes, FINISHED_SZ) == 0)
+                    ret = 0; /* verified */
             }
         }
 #endif
@@ -10416,11 +10518,9 @@ static void PickHashSigAlgo(CYASSL* ssl,
             byte doUserEcc = 0;
 
             #ifdef HAVE_PK_CALLBACKS
-                #ifdef HAVE_ECC
-                    if (ssl->ctx->EccVerifyCb)
-                        doUserEcc = 1;
-                #endif /* HAVE_ECC */
-            #endif /*HAVE_PK_CALLBACKS */
+                if (ssl->ctx->EccVerifyCb)
+                    doUserEcc = 1;
+            #endif
 
             CYASSL_MSG("Doing ECC peer cert verify");
 
@@ -10428,6 +10528,7 @@ static void PickHashSigAlgo(CYASSL* ssl,
                 if (sigAlgo != ecc_dsa_sa_algo) {
                     CYASSL_MSG("Oops, peer sent ECC key but not in verify");
                 }
+
                 if (hashAlgo == sha256_mac) {
                     #ifndef NO_SHA256
                         digest = ssl->certHashes.sha256;
@@ -10441,24 +10542,27 @@ static void PickHashSigAlgo(CYASSL* ssl,
                     #endif
                 }
             }
+
             if (doUserEcc) {
             #ifdef HAVE_PK_CALLBACKS
-                #ifdef HAVE_ECC
-                    ret = ssl->ctx->EccVerifyCb(ssl, sig, sz, digest, digestSz,
-                                    ssl->buffers.peerEccDsaKey.buffer,
-                                    ssl->buffers.peerEccDsaKey.length,
-                                    &verify, ssl->EccVerifyCtx);
-                #endif /* HAVE_ECC */
-            #endif /*HAVE_PK_CALLBACKS */
+                ret = ssl->ctx->EccVerifyCb(ssl, input + *inOutIdx, sz, digest,
+                                            digestSz,
+                                            ssl->buffers.peerEccDsaKey.buffer,
+                                            ssl->buffers.peerEccDsaKey.length,
+                                            &verify, ssl->EccVerifyCtx);
+            #endif
             }
             else {
-                err = ecc_verify_hash(sig, sz, digest, digestSz,
-                                      &verify, ssl->peerEccDsaKey);
+                err = ecc_verify_hash(input + *inOutIdx, sz, digest, digestSz,
+                                                   &verify, ssl->peerEccDsaKey);
             }
+
             if (err == 0 && verify == 1)
-               ret = 0;   /* verified */ 
+               ret = 0; /* verified */
         }
 #endif
+        *inOutIdx += sz;
+
         if (ret == 0)
             ssl->options.havePeerVerify = 1;
           
@@ -10566,7 +10670,6 @@ static void PickHashSigAlgo(CYASSL* ssl,
         (void)length; /* shut up compiler warnings */
         (void)out;
         (void)input;
-        (void)inOutIdx;
         (void)size;
 
         if (ssl->options.clientState < CLIENT_HELLO_COMPLETE) {
@@ -10639,14 +10742,12 @@ static void PickHashSigAlgo(CYASSL* ssl,
 
                     if (doUserRsa) {
                         #ifdef HAVE_PK_CALLBACKS
-                            #ifndef NO_RSA
-                                ret = ssl->ctx->RsaDecCb(ssl,
-                                            input + *inOutIdx, length, &out,
-                                            ssl->buffers.key.buffer,
-                                            ssl->buffers.key.length,
-                                            ssl->RsaDecCtx);
-                            #endif /* NO_RSA */
-                        #endif /*HAVE_PK_CALLBACKS */
+                            ret = ssl->ctx->RsaDecCb(ssl,
+                                        input + *inOutIdx, length, &out,
+                                        ssl->buffers.key.buffer,
+                                        ssl->buffers.key.length,
+                                        ssl->RsaDecCtx);
+                        #endif
                     }
                     else {
                         ret = RsaPrivateDecryptInline(input + *inOutIdx, length,
@@ -10770,8 +10871,7 @@ static void PickHashSigAlgo(CYASSL* ssl,
                 if ((*inOutIdx - begin) + OPAQUE8_LEN > size)
                     return BUFFER_ERROR;
 
-                length = input[*inOutIdx];
-                *inOutIdx += OPAQUE8_LEN;
+                length = input[(*inOutIdx)++];
 
                 if ((*inOutIdx - begin) + length > size)
                     return BUFFER_ERROR;
