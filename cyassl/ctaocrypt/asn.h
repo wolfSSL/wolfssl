@@ -216,7 +216,9 @@ enum Extensions_Sum {
     AUTH_KEY_OID    = 149,
     SUBJ_KEY_OID    = 128,
     CERT_POLICY_OID = 146,
-    KEY_USAGE_OID   = 129  /* 2.5.29.15 */
+    KEY_USAGE_OID   = 129,  /* 2.5.29.15 */
+    INHIBIT_ANY_OID = 168,  /* 2.5.29.54 */
+    EXT_KEY_USAGE_OID = 151, /* 2.5.29.37 */
 };
 
 enum CertificatePolicy_Sum {
@@ -332,6 +334,8 @@ struct DecodedCert {
     byte    extAuthKeyId[SHA_SIZE];  /* Authority Key ID                 */
     byte    extAuthKeyIdSet;         /* Set when the AKID was read from cert */
     byte    isCA;                    /* CA basic constraint true         */
+    byte    extKeyUsageSet;
+    word16  extKeyUsage;             /* Key usage bitfield               */
 #ifdef OPENSSL_EXTRA
     byte    extBasicConstSet;
     byte    extBasicConstCrit;
@@ -341,9 +345,7 @@ struct DecodedCert {
     byte    extSubjAltNameCrit;
     byte    extAuthKeyIdCrit;
     byte    extSubjKeyIdCrit;
-    byte    extKeyUsageSet;
     byte    extKeyUsageCrit;
-    word16  extKeyUsage;             /* Key usage bitfield               */
     byte*   extAuthKeyIdSrc;
     word32  extAuthKeyIdSz;
     byte*   extSubjKeyIdSrc;

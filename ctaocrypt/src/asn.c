@@ -1280,6 +1280,8 @@ void InitDecodedCert(DecodedCert* cert, byte* source, word32 inSz, void* heap)
     cert->extSubjKeyIdSet = 0;
     XMEMSET(cert->extAuthKeyId, 0, SHA_SIZE);
     cert->extAuthKeyIdSet = 0;
+    cert->extKeyUsageSet  = 0;
+    cert->extKeyUsage     = 0;
     cert->isCA            = 0;
 #ifdef HAVE_PKCS7
     cert->issuerRaw       = NULL;
@@ -1316,9 +1318,7 @@ void InitDecodedCert(DecodedCert* cert, byte* source, word32 inSz, void* heap)
     cert->extSubjAltNameCrit = 0;
     cert->extAuthKeyIdCrit = 0;
     cert->extSubjKeyIdCrit = 0;
-    cert->extKeyUsageSet = 0;
     cert->extKeyUsageCrit = 0;
-    cert->extKeyUsage = 0;
     cert->extAuthKeyIdSrc = NULL;
     cert->extAuthKeyIdSz = 0;
     cert->extSubjKeyIdSrc = NULL;
@@ -2950,11 +2950,13 @@ static int DecodeBasicCaConstraint(byte* input, int sz, DecodedCert* cert)
     int length = 0;
 
     CYASSL_ENTER("DecodeBasicCaConstraint");
-    if (GetSequence(input, &idx, &length, sz) < 0)
+    if (GetSequence(input, &idx, &length, sz) < 0) {
+        CYASSL_MSG("\tfail: bad SEQUENCE");
         return ASN_PARSE_E;
+    }
 
     if (length == 0)
-        return ASN_PARSE_E;
+        return 0;
 
     /* If the basic ca constraint is false, this extension may be named, but
      * left empty. So, if the length is 0, just return. */
@@ -3205,37 +3207,35 @@ static int DecodeSubjKeyId(byte* input, int sz, DecodedCert* cert)
 }
 
 
-#ifdef OPENSSL_EXTRA
-    static int DecodeKeyUsage(byte* input, int sz, DecodedCert* cert)
-    {
-        word32 idx = 0;
-        int length;
-        byte unusedBits;
-        CYASSL_ENTER("DecodeKeyUsage");
+static int DecodeKeyUsage(byte* input, int sz, DecodedCert* cert)
+{
+    word32 idx = 0;
+    int length;
+    byte unusedBits;
+    CYASSL_ENTER("DecodeKeyUsage");
 
-        if (input[idx++] != ASN_BIT_STRING) {
-            CYASSL_MSG("\tfail: key usage expected bit string");
-            return ASN_PARSE_E;
-        }
-
-        if (GetLength(input, &idx, &length, sz) < 0) {
-            CYASSL_MSG("\tfail: key usage bad length");
-            return ASN_PARSE_E;
-        }
-
-        unusedBits = input[idx++];
-        length--;
-
-        if (length == 2) {
-            cert->extKeyUsage = (word16)((input[idx] << 8) | input[idx+1]);
-            cert->extKeyUsage >>= unusedBits;
-        }
-        else if (length == 1)
-            cert->extKeyUsage = (word16)(input[idx] << 1);
-
-        return 0;
+    if (input[idx++] != ASN_BIT_STRING) {
+        CYASSL_MSG("\tfail: key usage expected bit string");
+        return ASN_PARSE_E;
     }
-#endif /* OPENSSL_EXTRA */
+
+    if (GetLength(input, &idx, &length, sz) < 0) {
+        CYASSL_MSG("\tfail: key usage bad length");
+        return ASN_PARSE_E;
+    }
+
+    unusedBits = input[idx++];
+    length--;
+
+    if (length == 2) {
+        cert->extKeyUsage = (word16)((input[idx] << 8) | input[idx+1]);
+        cert->extKeyUsage >>= unusedBits;
+    }
+    else if (length == 1)
+        cert->extKeyUsage = (word16)(input[idx] << 1);
+
+    return 0;
+}
 
 
 #ifdef CYASSL_SEP
@@ -3394,25 +3394,34 @@ static int DecodeCertExtensions(DecodedCert* cert)
                     return ASN_PARSE_E;
                 break;
 
-            #ifdef CYASSL_SEP
             case CERT_POLICY_OID:
-                #ifdef OPENSSL_EXTRA
-                    cert->extCertPolicySet = 1;
-                    cert->extCertPolicyCrit = critical;
+                CYASSL_MSG("Certificate Policy extension not supported yet.");
+                #ifdef CYASSL_SEP
+                    #ifdef OPENSSL_EXTRA
+                        cert->extCertPolicySet = 1;
+                        cert->extCertPolicyCrit = critical;
+                    #endif
+                    if (DecodeCertPolicy(&input[idx], length, cert) < 0)
+                        return ASN_PARSE_E;
                 #endif
-                if (DecodeCertPolicy(&input[idx], length, cert) < 0)
-                    return ASN_PARSE_E;
                 break;
-            #endif
 
-            #ifdef OPENSSL_EXTRA
             case KEY_USAGE_OID:
                 cert->extKeyUsageSet = 1;
-                cert->extKeyUsageCrit = critical;
+                #ifdef OPENSSL_EXTRA
+                    cert->extKeyUsageCrit = critical;
+                #endif
                 if (DecodeKeyUsage(&input[idx], length, cert) < 0)
                     return ASN_PARSE_E;
                 break;
-            #endif
+
+            case EXT_KEY_USAGE_OID:
+                CYASSL_MSG("Extended Key Usage extension not supported yet.");
+                break;
+
+            case INHIBIT_ANY_OID:
+                CYASSL_MSG("Inhibit anyPolicy extension not supported yet.");
+                break;
 
             default:
                 /* While it is a failure to not support critical extensions,
