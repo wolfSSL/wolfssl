@@ -60,6 +60,7 @@
 # AX_APPEND_COMPILE_FLAGS([-Wlogical-op],,[$ax_append_compile_cflags_extra])
 # AX_APPEND_COMPILE_FLAGS([-fstack-check],,[$ax_append_compile_cflags_extra]) -- problems with fastmath stack size checks
 # AX_APPEND_COMPILE_FLAGS([-floop-parallelize-all],,[$ax_append_compile_cflags_extra]) -- causes RSA verify problem on x64
+# AX_APPEND_COMPILE_FLAGS([-Wunreachable-code],,[$ax_append_compile_cflags_extra])  -- older clang and when gcc had it are buggy
 
 #serial 4
 
@@ -121,7 +122,6 @@
       AX_APPEND_COMPILE_FLAGS([-Wextra],,[$ax_append_compile_cflags_extra])
       AX_APPEND_COMPILE_FLAGS([-Wunknown-pragmas],,[$ax_append_compile_cflags_extra])
       AX_APPEND_COMPILE_FLAGS([-Wthis-test-should-fail],,[$ax_append_compile_cflags_extra])
-      AX_APPEND_COMPILE_FLAGS([-Wunreachable-code],,[$ax_append_compile_cflags_extra])
       dnl Anything below this comment please keep sorted.
       AS_IF([test "$CC" = "clang"],[],[
         AX_APPEND_COMPILE_FLAGS([--param=ssp-buffer-size=1],,[$ax_append_compile_cflags_extra])
@@ -191,7 +191,6 @@
       AX_APPEND_COMPILE_FLAGS([-Wextra],,[$ax_append_compile_cxxflags_extra])
       AX_APPEND_COMPILE_FLAGS([-Wunknown-pragmas],,[$ax_append_compile_cxxflags_extra])
       AX_APPEND_COMPILE_FLAGS([-Wthis-test-should-fail],,[$ax_append_compile_cxxflags_extra])
-      AX_APPEND_COMPILE_FLAGS([-Wunreachable-code],,[$ax_append_compile_cxxflags_extra])
       dnl Anything below this comment please keep sorted.
       AX_APPEND_COMPILE_FLAGS([--param=ssp-buffer-size=1],,[$ax_append_compile_cxxflags_extra])
       AX_APPEND_COMPILE_FLAGS([-Waddress],,[$ax_append_compile_cxxflags_extra])
