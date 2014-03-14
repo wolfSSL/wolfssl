@@ -226,14 +226,6 @@ int CyaSSL_get_fd(const CYASSL* ssl)
 }
 
 
-#ifndef CYASSL_LEANPSK
-void CyaSSL_set_using_nonblock(CYASSL* ssl, int nonblock)
-{
-    CYASSL_ENTER("CyaSSL_set_using_nonblock");
-    ssl->options.usingNonblock = (nonblock != 0);
-}
-
-
 int CyaSSL_get_using_nonblock(CYASSL* ssl)
 {
     CYASSL_ENTER("CyaSSL_get_using_nonblock");
@@ -245,6 +237,14 @@ int CyaSSL_get_using_nonblock(CYASSL* ssl)
 int CyaSSL_dtls(CYASSL* ssl)
 {
     return ssl->options.dtls;
+}
+
+
+#ifndef CYASSL_LEANPSK
+void CyaSSL_set_using_nonblock(CYASSL* ssl, int nonblock)
+{
+    CYASSL_ENTER("CyaSSL_set_using_nonblock");
+    ssl->options.usingNonblock = (nonblock != 0);
 }
 
 

@@ -212,6 +212,29 @@
     #define NO_PSK
 #endif
 
+#ifdef CYASSL_EROAD
+    #define FREESCALE_MQX
+    #define FREESCALE_MMCAU
+    #define SINGLE_THREADED
+    #define NO_STDIO_FILESYSTEM
+    #define CYASSL_LEANPSK
+    #define HAVE_NULL_CIPHER
+    #define NO_OLD_TLS
+    #define NO_ASN
+    #define NO_BIG_INT
+    #define NO_RSA
+    #define NO_DSA
+    #define NO_DH
+    #define NO_CERTS
+    #define NO_PWDBASED
+    #define NO_DES3
+    #define NO_MD4
+    #define NO_RC4
+    #define NO_MD5
+    #define NO_SESSION_CACHE
+    #define NO_MAIN_DRIVER
+#endif
+
 #ifdef FREERTOS_WINSIM
     #define FREERTOS
     #define USE_WINDOWS_API
