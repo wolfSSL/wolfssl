@@ -102,3 +102,82 @@ void* CyaSSL_Realloc(void *ptr, size_t size)
 }
 
 #endif /* USE_CYASSL_MEMORY */
+
+
+#ifdef HAVE_IO_POOL
+
+/* Example for user io pool, shared build may need definitions in lib proper */
+
+#include <cyassl/ctaocrypt/types.h>
+#include <stdlib.h>
+
+#ifndef HAVE_THREAD_LS
+    #error "Oops, simple I/O pool example needs thread local storage"
+#endif
+
+
+/* allow simple per thread in and out pools */
+/* use 17k size sense max record size is 16k plus overhead */
+static THREAD_LS_T byte pool_in[17*1024];
+static THREAD_LS_T byte pool_out[17*1024];
+
+
+void* XMALLOC(size_t n, void* heap, int type)
+{
+    (void)heap;
+
+    if (type == DYNAMIC_TYPE_IN_BUFFER) {
+        if (n < sizeof(pool_in))
+            return pool_in;
+        else
+            return NULL;
+    }
+
+    if (type == DYNAMIC_TYPE_OUT_BUFFER) {
+        if (n < sizeof(pool_out))
+            return pool_out;
+        else
+            return NULL;
+    }
+
+    return malloc(n);
+}
+
+void* XREALLOC(void *p, size_t n, void* heap, int type)
+{
+    (void)heap;
+
+    if (type == DYNAMIC_TYPE_IN_BUFFER) {
+        if (n < sizeof(pool_in))
+            return pool_in;
+        else
+            return NULL;
+    }
+
+    if (type == DYNAMIC_TYPE_OUT_BUFFER) {
+        if (n < sizeof(pool_out))
+            return pool_out;
+        else
+            return NULL;
+    }
+
+    return realloc(p, n);
+}
+
+
+/* unit api calls, let's make sure visisble with CYASSL_API */
+CYASSL_API void XFREE(void *p, void* heap, int type)
+{
+    (void)heap;
+
+    if (type == DYNAMIC_TYPE_IN_BUFFER)
+        return;  /* do nothing, static pool */
+
+    if (type == DYNAMIC_TYPE_OUT_BUFFER)
+        return;  /* do nothing, static pool */
+
+    free(p);
+}
+
+#endif /* HAVE_IO_POOL */
+

@@ -101,8 +101,13 @@ OPTIMIZE_FAST_CFLAGS="-O2 -fomit-frame-pointer"
 OPTIMIZE_HUGE_CFLAGS="-funroll-loops -DTFM_SMALL_SET -DTFM_HUGE_SET"
 DEBUG_CFLAGS="-g -DDEBUG -DDEBUG_CYASSL"
 
+thread_ls_on=no
 # Thread local storage
-AX_TLS([AM_CFLAGS="$AM_CFLAGS -DHAVE_THREAD_LS"], [:])
+AX_TLS([
+        [AM_CFLAGS="$AM_CFLAGS -DHAVE_THREAD_LS"]
+        [thread_ls_on=yes]
+       ] , [:])
+
 
 # DEBUG
 AX_DEBUG
@@ -1338,6 +1343,24 @@ then
 fi
 
 
+# I/O Pool, an example to show user how to override memory handler and use
+# a pool for the input/output buffer requests
+AC_ARG_ENABLE([iopool],
+    [  --enable-iopool         Enable I/O Pool example (default: disabled)],
+    [ ENABLED_IOPOOL=$enableval ],
+    [ ENABLED_IOPOOL=no ]
+    )
+
+if test "$ENABLED_IOPOOL" = "yes"
+then
+    if test "$thread_ls_on" = "no"
+    then
+        AC_MSG_ERROR([I/O Pool example requires Thread Local Storage])
+    fi
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_IO_POOL -DXMALLOC_USER"
+fi
+
+
 # Certificate Service Support 
 AC_ARG_ENABLE([certservice],
     [  --enable-certservice    Enable cert service (default: disabled)],
@@ -1690,6 +1713,7 @@ echo "   * ECC_ENCRYPT:               $ENABLED_ECC_ENCRYPT"
 echo "   * ASN:                       $ENABLED_ASN"
 echo "   * CODING:                    $ENABLED_CODING"
 echo "   * MEMORY:                    $ENABLED_MEMORY"
+echo "   * I/O POOL:                  $ENABLED_IOPOOL"
 echo "   * ERROR_STRINGS:             $ENABLED_ERROR_STRINGS"
 echo "   * DTLS:                      $ENABLED_DTLS"
 echo "   * Old TLS Versions:          $ENABLED_OLD_TLS"

@@ -25,6 +25,10 @@
 
 #include <cyassl/ctaocrypt/settings.h>
 
+#ifdef XMALLOC_USER
+    #include <stdlib.h>  /* we're using malloc / free direct here */
+#endif
+
 #ifndef NO_CRYPT_TEST
 
 #ifdef CYASSL_TEST_CERT

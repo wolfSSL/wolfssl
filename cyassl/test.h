@@ -1674,6 +1674,9 @@ static INLINE void SetupPkCallbacks(CYASSL_CTX* ctx, CYASSL* ssl)
 #endif /* HAVE_PK_CALLBACKS */
 
 
+
+
+
 #if defined(__hpux__) || defined(__MINGW32__)
 
 /* HP/UX doesn't have strsep, needed by test/suites.c */

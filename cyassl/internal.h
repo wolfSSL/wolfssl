@@ -894,7 +894,7 @@ enum {
              MTU_EXTRA + MAX_MSG_EXTRA
 #else
     /* don't fragment memory from the record header */
-    #define STATIC_BUFFER_LEN RECORD_HEADER_SZ 
+    #define STATIC_BUFFER_LEN RECORD_HEADER_SZ
 #endif
 
 typedef struct {
