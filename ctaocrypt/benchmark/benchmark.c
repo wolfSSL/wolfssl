@@ -295,7 +295,7 @@ void bench_aes(int show)
 #endif
 
     if (show)
-        printf("AES      %d %s took %5.3f seconds, %6.3f MB/s\n", numBlocks,
+        printf("AES      %d %s took %5.3f seconds, %7.3f MB/s\n", numBlocks,
                                                   blockType, total, persec);
 #ifdef HAVE_CAVIUM
     AesFreeCavium(&enc);
@@ -332,7 +332,7 @@ void bench_aesgcm(void)
     persec = persec / 1024;
 #endif
 
-    printf("AES-GCM  %d %s took %5.3f seconds, %6.3f MB/s\n", numBlocks,
+    printf("AES-GCM  %d %s took %5.3f seconds, %7.3f MB/s\n", numBlocks,
                                               blockType, total, persec);
 }
 #endif
@@ -358,7 +358,7 @@ void bench_aesctr(void)
     persec = persec / 1024;
 #endif
 
-    printf("AES-CTR  %d %s took %5.3f seconds, %6.3f MB/s\n", numBlocks,
+    printf("AES-CTR  %d %s took %5.3f seconds, %7.3f MB/s\n", numBlocks,
                                               blockType, total, persec);
 }
 #endif
@@ -387,7 +387,7 @@ void bench_aesccm(void)
     persec = persec / 1024;
 #endif
 
-    printf("AES-CCM  %d %s took %5.3f seconds, %6.3f MB/s\n", numBlocks,
+    printf("AES-CCM  %d %s took %5.3f seconds, %7.3f MB/s\n", numBlocks,
                                               blockType, total, persec);
 }
 #endif
@@ -414,7 +414,7 @@ void bench_camellia(void)
     persec = persec / 1024;
 #endif
 
-    printf("Camellia %d %s took %5.3f seconds, %6.3f MB/s\n", numBlocks,
+    printf("Camellia %d %s took %5.3f seconds, %7.3f MB/s\n", numBlocks,
                                               blockType, total, persec);
 }
 #endif
@@ -445,7 +445,7 @@ void bench_des(void)
     persec = persec / 1024;
 #endif
 
-    printf("3DES     %d %s took %5.3f seconds, %6.3f MB/s\n", numBlocks,
+    printf("3DES     %d %s took %5.3f seconds, %7.3f MB/s\n", numBlocks,
                                               blockType, total, persec);
 #ifdef HAVE_CAVIUM
     Des3_FreeCavium(&enc);
@@ -479,7 +479,7 @@ void bench_arc4(void)
     persec = persec / 1024;
 #endif
 
-    printf("ARC4     %d %s took %5.3f seconds, %6.3f MB/s\n", numBlocks,
+    printf("ARC4     %d %s took %5.3f seconds, %7.3f MB/s\n", numBlocks,
                                               blockType, total, persec);
 #ifdef HAVE_CAVIUM
     Arc4FreeCavium(&enc);
@@ -508,7 +508,7 @@ void bench_hc128(void)
     persec = persec / 1024;
 #endif
 
-    printf("HC128    %d %s took %5.3f seconds, %6.3f MB/s\n", numBlocks,
+    printf("HC128    %d %s took %5.3f seconds, %7.3f MB/s\n", numBlocks,
                                               blockType, total, persec);
 }
 #endif /* HAVE_HC128 */
@@ -534,7 +534,7 @@ void bench_rabbit(void)
     persec = persec / 1024;
 #endif
 
-    printf("RABBIT   %d %s took %5.3f seconds, %6.3f MB/s\n", numBlocks,
+    printf("RABBIT   %d %s took %5.3f seconds, %7.3f MB/s\n", numBlocks,
                                               blockType, total, persec);
 }
 #endif /* NO_RABBIT */
@@ -563,7 +563,7 @@ void bench_md5(void)
     persec = persec / 1024;
 #endif
 
-    printf("MD5      %d %s took %5.3f seconds, %6.3f MB/s\n", numBlocks,
+    printf("MD5      %d %s took %5.3f seconds, %7.3f MB/s\n", numBlocks,
                                               blockType, total, persec);
 }
 #endif /* NO_MD5 */
@@ -592,7 +592,7 @@ void bench_sha(void)
     persec = persec / 1024;
 #endif
 
-    printf("SHA      %d %s took %5.3f seconds, %6.3f MB/s\n", numBlocks,
+    printf("SHA      %d %s took %5.3f seconds, %7.3f MB/s\n", numBlocks,
                                               blockType, total, persec);
 }
 #endif /* NO_SHA */
@@ -621,7 +621,7 @@ void bench_sha256(void)
     persec = persec / 1024;
 #endif
 
-    printf("SHA-256  %d %s took %5.3f seconds, %6.3f MB/s\n", numBlocks,
+    printf("SHA-256  %d %s took %5.3f seconds, %7.3f MB/s\n", numBlocks,
                                               blockType, total, persec);
 }
 #endif
@@ -649,7 +649,7 @@ void bench_sha512(void)
     persec = persec / 1024;
 #endif
 
-    printf("SHA-512  %d %s took %5.3f seconds, %6.3f MB/s\n", numBlocks,
+    printf("SHA-512  %d %s took %5.3f seconds, %7.3f MB/s\n", numBlocks,
                                               blockType, total, persec);
 }
 #endif
@@ -677,7 +677,7 @@ void bench_ripemd(void)
     persec = persec / 1024;
 #endif
 
-    printf("RIPEMD   %d %s took %5.3f seconds, %6.3f MB/s\n", numBlocks,
+    printf("RIPEMD   %d %s took %5.3f seconds, %7.3f MB/s\n", numBlocks,
                                               blockType, total, persec);
 }
 #endif
@@ -706,7 +706,7 @@ void bench_blake2(void)
     persec = persec / 1024;
 #endif
 
-    printf("BLAKE2b  %d %s took %5.3f seconds, %6.3f MB/s\n", numBlocks,
+    printf("BLAKE2b  %d %s took %5.3f seconds, %7.3f MB/s\n", numBlocks,
                                               blockType, total, persec);
 }
 #endif
