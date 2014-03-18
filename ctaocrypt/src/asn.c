@@ -2936,8 +2936,17 @@ static int DecodeAltNames(byte* input, int sz, DecodedCert* cert)
         }
 #endif /* CYASSL_SEP */
         else {
-            CYASSL_MSG("\tNot DNS type");
-            return ASN_PARSE_E;
+            int strLen;
+            word32 lenStartIdx = idx;
+
+            CYASSL_MSG("\tUnsupported name type, skipping");
+
+            if (GetLength(input, &idx, &strLen, sz) < 0) {
+                CYASSL_MSG("\tfail: unsupported name length");
+                return ASN_PARSE_E;
+            }
+            length -= (strLen + idx - lenStartIdx);
+            idx += strLen;
         }
     }
     return 0;
