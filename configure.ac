@@ -1060,13 +1060,17 @@ AM_CONDITIONAL([BUILD_RABBIT], [test "x$ENABLED_RABBIT" = "xyes"])
 
 # FIPS 
 AC_ARG_ENABLE([fips],
-    [  --enable-fips           Enable FIPS 140-2(default: disabled)],
+    [  --enable-fips           Enable FIPS 140-2 (default: disabled)],
     [ ENABLED_FIPS=$enableval ],
     [ ENABLED_FIPS=no ]
     )
 
 if test "x$ENABLED_FIPS" = "xyes"
 then
+    if test "$thread_ls_on" = "no"
+    then
+        AC_MSG_ERROR([FIPS requires Thread Local Storage])
+    fi
     AM_CFLAGS="$AM_CFLAGS -DHAVE_FIPS"
 fi
 
