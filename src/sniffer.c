@@ -224,7 +224,8 @@ static const char* const msgTable[] =
     "Bad Finished Message Processing",
     "Bad Compression Type",
     "Bad DeriveKeys Error",
-    "Saw ACK for Missing Packet Error"
+    "Saw ACK for Missing Packet Error",
+    "Bad Decrypt Operation"
 };
 
 
@@ -1557,9 +1558,11 @@ static int DoHandShake(const byte* input, int* sslBytes,
 }
 
 
-/* Decrypt input into plain output */
-static void Decrypt(SSL* ssl, byte* output, const byte* input, word32 sz)
+/* Decrypt input into plain output, 0 on success */
+static int Decrypt(SSL* ssl, byte* output, const byte* input, word32 sz)
 {
+    int ret = 0;
+
     switch (ssl->specs.bulk_cipher_algorithm) {
         #ifdef BUILD_ARC4
         case cyassl_rc4:
@@ -1575,7 +1578,7 @@ static void Decrypt(SSL* ssl, byte* output, const byte* input, word32 sz)
             
         #ifdef BUILD_AES
         case cyassl_aes:
-            AesCbcDecrypt(ssl->decrypt.aes, output, input, sz);
+            ret = AesCbcDecrypt(ssl->decrypt.aes, output, input, sz);
             break;
         #endif
             
@@ -1599,18 +1602,25 @@ static void Decrypt(SSL* ssl, byte* output, const byte* input, word32 sz)
 
         default:
             Trace(BAD_DECRYPT_TYPE);
+            ret = -1;
             break;
     }
+
+    return ret;
 }
 
 
 /* Decrypt input message into output, adjust output steam if needed */
 static const byte* DecryptMessage(SSL* ssl, const byte* input, word32 sz,
-                                  byte* output)
+                                  byte* output, int* error)
 {
     int ivExtra = 0;
 
-    Decrypt(ssl, output, input, sz);
+    int ret = Decrypt(ssl, output, input, sz);
+    if (ret != 0) {
+        *error = ret;
+        return NULL;
+    }
     ssl->keys.encryptSz = sz;
     if (ssl->options.tls1_1 && ssl->specs.cipher_type == block) {
         output += ssl->specs.block_size;     /* go past TLSv1.1 IV */
@@ -2320,6 +2330,7 @@ static int ProcessMessage(const byte* sslFrame, SnifferSession* session,
     RecordLayerHeader rh;
     int               rhSize = 0;
     int               ret;
+    int               errCode = 0;
     int               decoded = 0;      /* bytes stored for user in data */
     int               notEnough;        /* notEnough bytes yet flag */
     SSL*              ssl = (session->flags.side == CYASSL_SERVER_END) ?
@@ -2372,7 +2383,11 @@ doMessage:
             return -1;
         }
         sslFrame = DecryptMessage(ssl, sslFrame, rhSize,
-                                  ssl->buffers.outputBuffer.buffer);
+                                  ssl->buffers.outputBuffer.buffer, &errCode);
+        if (errCode != 0) {
+            SetError(BAD_DECRYPT, error, session, FATAL_ERROR_STATE);
+            return -1;
+        }
     }
             
     switch ((enum ContentType)rh.type) {

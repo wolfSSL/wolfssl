@@ -1875,8 +1875,12 @@ int aes_test(void)
     if (ret != 0)
         return -1002;
 
-    AesCbcEncrypt(&enc, cipher, msg,   AES_BLOCK_SIZE);
-    AesCbcDecrypt(&dec, plain, cipher, AES_BLOCK_SIZE);
+    ret = AesCbcEncrypt(&enc, cipher, msg,   AES_BLOCK_SIZE);
+    if (ret != 0)
+        return -1005;
+    ret = AesCbcDecrypt(&dec, plain, cipher, AES_BLOCK_SIZE);
+    if (ret != 0)
+        return -1006;
 
     if (memcmp(plain, msg, AES_BLOCK_SIZE))
         return -60;

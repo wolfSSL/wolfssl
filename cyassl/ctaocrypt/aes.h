@@ -154,10 +154,15 @@ CYASSL_API int  AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
     /* fips wrapper calls, user can call direct */
     CYASSL_API int  AesSetKey_fips(Aes* aes, const byte* key, word32 len,
                                    const byte* iv, int dir);
-
+    CYASSL_API int  AesCbcEncrypt_fips(Aes* aes, byte* out, const byte* in,
+                                       word32 sz);
+    CYASSL_API int  AesCbcDecrypt_fips(Aes* aes, byte* out, const byte* in,
+                                       word32 sz);
     #ifndef FIPS_NO_WRAPPERS
         /* if not internal or fips.c consumer force fips calls if fips build */
-        #define AesSetKey AesSetKey_fips
+        #define AesSetKey     AesSetKey_fips
+        #define AesCbcEncrypt AesCbcEncrypt_fips
+        #define AesCbcDecrypt AesCbcDecrypt_fips
     #endif /* FIPS_NO_WRAPPERS */
 
 #endif /* HAVE_FIPS */
