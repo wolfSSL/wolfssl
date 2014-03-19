@@ -1,1 +1,1 @@
-/* dummy fips.c for distribution */
+/* dummy fips.c */
