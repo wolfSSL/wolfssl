@@ -2018,6 +2018,7 @@ int CyaSSL_Init(void)
                 XFREE(der.buffer, heap, dynamicType);
                 return ret;
             }
+            ret = 0; /* back to good status */
 
             if (XSTRNCMP(info.name, "DES-CBC", 7) == 0) {
                 Des enc;
@@ -2031,22 +2032,33 @@ int CyaSSL_Init(void)
             }
             else if (XSTRNCMP(info.name, "AES-128-CBC", 13) == 0) {
                 Aes enc;
-                AesSetKey(&enc, key, AES_128_KEY_SIZE, info.iv, AES_DECRYPTION);
-                AesCbcDecrypt(&enc, der.buffer, der.buffer, der.length);
+                ret = AesSetKey(&enc, key, AES_128_KEY_SIZE, info.iv,
+                                AES_DECRYPTION);
+                if (ret == 0)
+                    ret = AesCbcDecrypt(&enc, der.buffer,der.buffer,der.length);
             }
             else if (XSTRNCMP(info.name, "AES-192-CBC", 13) == 0) {
                 Aes enc;
-                AesSetKey(&enc, key, AES_192_KEY_SIZE, info.iv, AES_DECRYPTION);
-                AesCbcDecrypt(&enc, der.buffer, der.buffer, der.length);
+                ret = AesSetKey(&enc, key, AES_192_KEY_SIZE, info.iv,
+                                AES_DECRYPTION);
+                if (ret == 0)
+                    ret = AesCbcDecrypt(&enc, der.buffer,der.buffer,der.length);
             }
             else if (XSTRNCMP(info.name, "AES-256-CBC", 13) == 0) {
                 Aes enc;
-                AesSetKey(&enc, key, AES_256_KEY_SIZE, info.iv, AES_DECRYPTION);
-                AesCbcDecrypt(&enc, der.buffer, der.buffer, der.length);
+                ret = AesSetKey(&enc, key, AES_256_KEY_SIZE, info.iv,
+                                AES_DECRYPTION);
+                if (ret == 0)
+                    ret = AesCbcDecrypt(&enc, der.buffer,der.buffer,der.length);
             }
             else { 
                 XFREE(der.buffer, heap, dynamicType);
                 return SSL_BAD_FILE;
+            }
+
+            if (ret != 0) {
+                XFREE(der.buffer, heap, dynamicType);
+                return ret;
             }
         }
 #endif /* OPENSSL_EXTRA || HAVE_WEBSERVER */
@@ -6723,6 +6735,8 @@ int CyaSSL_set_compression(CYASSL* ssl)
                                const CYASSL_EVP_CIPHER* type, byte* key,
                                byte* iv, int enc)
     {
+        int ret = 0;
+
         CYASSL_ENTER("CyaSSL_EVP_CipherInit");
         if (ctx == NULL) {
             CYASSL_MSG("no ctx");
@@ -6741,9 +6755,12 @@ int CyaSSL_set_compression(CYASSL* ssl)
             ctx->keyLen     = 16;
             if (enc == 0 || enc == 1)
                 ctx->enc = enc ? 1 : 0;
-            if (key)
-                AesSetKey(&ctx->cipher.aes, key, ctx->keyLen, iv,
-                          ctx->enc ? AES_ENCRYPTION : AES_DECRYPTION);
+            if (key) {
+                ret = AesSetKey(&ctx->cipher.aes, key, ctx->keyLen, iv,
+                                ctx->enc ? AES_ENCRYPTION : AES_DECRYPTION);
+                if (ret != 0)
+                    return ret;
+            }
             if (iv && key == NULL)
                 AesSetIV(&ctx->cipher.aes, iv);
         }
@@ -6754,9 +6771,12 @@ int CyaSSL_set_compression(CYASSL* ssl)
             ctx->keyLen     = 24;
             if (enc == 0 || enc == 1)
                 ctx->enc = enc ? 1 : 0;
-            if (key)
-                AesSetKey(&ctx->cipher.aes, key, ctx->keyLen, iv,
-                          ctx->enc ? AES_ENCRYPTION : AES_DECRYPTION);
+            if (key) {
+                ret = AesSetKey(&ctx->cipher.aes, key, ctx->keyLen, iv,
+                                ctx->enc ? AES_ENCRYPTION : AES_DECRYPTION);
+                if (ret != 0)
+                    return ret;
+            }
             if (iv && key == NULL)
                 AesSetIV(&ctx->cipher.aes, iv);
         }
@@ -6767,9 +6787,12 @@ int CyaSSL_set_compression(CYASSL* ssl)
             ctx->keyLen     = 32;
             if (enc == 0 || enc == 1)
                 ctx->enc = enc ? 1 : 0;
-            if (key)
-                AesSetKey(&ctx->cipher.aes, key, ctx->keyLen, iv,
-                          ctx->enc ? AES_ENCRYPTION : AES_DECRYPTION);
+            if (key) {
+                ret = AesSetKey(&ctx->cipher.aes, key, ctx->keyLen, iv,
+                                ctx->enc ? AES_ENCRYPTION : AES_DECRYPTION);
+                if (ret != 0)
+                    return ret;
+            }
             if (iv && key == NULL)
                 AesSetIV(&ctx->cipher.aes, iv);
         }
@@ -6781,9 +6804,12 @@ int CyaSSL_set_compression(CYASSL* ssl)
             ctx->keyLen     = 16;
             if (enc == 0 || enc == 1)
                 ctx->enc = enc ? 1 : 0;
-            if (key)
-                AesSetKey(&ctx->cipher.aes, key, ctx->keyLen, iv,
-                          AES_ENCRYPTION);
+            if (key) {
+                ret = AesSetKey(&ctx->cipher.aes, key, ctx->keyLen, iv,
+                                AES_ENCRYPTION);
+                if (ret != 0)
+                    return ret;
+            }
             if (iv && key == NULL)
                 AesSetIV(&ctx->cipher.aes, iv);
         }
@@ -6794,9 +6820,12 @@ int CyaSSL_set_compression(CYASSL* ssl)
             ctx->keyLen     = 24;
             if (enc == 0 || enc == 1)
                 ctx->enc = enc ? 1 : 0;
-            if (key)
-                AesSetKey(&ctx->cipher.aes, key, ctx->keyLen, iv,
-                          AES_ENCRYPTION);
+            if (key) {
+                ret = AesSetKey(&ctx->cipher.aes, key, ctx->keyLen, iv,
+                                AES_ENCRYPTION);
+                if (ret != 0)
+                    return ret;
+            }
             if (iv && key == NULL)
                 AesSetIV(&ctx->cipher.aes, iv);
         }
@@ -6807,9 +6836,12 @@ int CyaSSL_set_compression(CYASSL* ssl)
             ctx->keyLen     = 32;
             if (enc == 0 || enc == 1)
                 ctx->enc = enc ? 1 : 0;
-            if (key)
-                AesSetKey(&ctx->cipher.aes, key, ctx->keyLen, iv,
-                          AES_ENCRYPTION);
+            if (key) {
+                ret = AesSetKey(&ctx->cipher.aes, key, ctx->keyLen, iv,
+                                AES_ENCRYPTION);
+                if (ret != 0)
+                    return ret;
+            }
             if (iv && key == NULL)
                 AesSetIV(&ctx->cipher.aes, iv);
         }

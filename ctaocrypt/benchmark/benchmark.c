@@ -274,13 +274,20 @@ void bench_aes(int show)
     Aes    enc;
     double start, total, persec;
     int    i;
+    int    ret;
 
 #ifdef HAVE_CAVIUM
-    if (AesInitCavium(&enc, CAVIUM_DEV_ID) != 0)
+    if (AesInitCavium(&enc, CAVIUM_DEV_ID) != 0) {
         printf("aes init cavium failed\n");
+        return;
+    }
 #endif
 
-    AesSetKey(&enc, key, 16, iv, AES_ENCRYPTION);
+    ret = AesSetKey(&enc, key, 16, iv, AES_ENCRYPTION);
+    if (ret != 0) {
+        printf("AesSetKey failed, ret = %d\n", ret);
+        return;
+    }
     start = current_time(1);
 
     for(i = 0; i < numBlocks; i++)

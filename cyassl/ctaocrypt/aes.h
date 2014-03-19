@@ -149,6 +149,20 @@ CYASSL_API int  AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
     CYASSL_API void AesFreeCavium(Aes*);
 #endif
 
+
+#ifdef HAVE_FIPS
+    /* fips wrapper calls, user can call direct */
+    CYASSL_API int  AesSetKey_fips(Aes* aes, const byte* key, word32 len,
+                                   const byte* iv, int dir);
+
+    #ifndef FIPS_NO_WRAPPERS
+        /* if not internal or fips.c consumer force fips calls if fips build */
+        #define AesSetKey AesSetKey_fips
+    #endif /* FIPS_NO_WRAPPERS */
+
+#endif /* HAVE_FIPS */
+
+
 #ifdef __cplusplus
     } /* extern "C" */
 #endif
