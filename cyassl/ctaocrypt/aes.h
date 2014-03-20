@@ -159,7 +159,7 @@ CYASSL_API int  AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
     CYASSL_API int  AesCbcDecrypt_fips(Aes* aes, byte* out, const byte* in,
                                        word32 sz);
     #ifndef FIPS_NO_WRAPPERS
-        /* if not internal or fips.c consumer force fips calls if fips build */
+        /* if not impl or fips.c impl wrapper force fips calls if fips build */
         #define AesSetKey     AesSetKey_fips
         #define AesCbcEncrypt AesCbcEncrypt_fips
         #define AesCbcDecrypt AesCbcDecrypt_fips
