@@ -1614,6 +1614,8 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
 
 #ifdef BUILD_AES
     if (specs->bulk_cipher_algorithm == cyassl_aes) {
+        int aesRet = 0;
+
         if (enc->aes == NULL)
             enc->aes = (Aes*)XMALLOC(sizeof(Aes), heap, DYNAMIC_TYPE_CIPHER);
         if (enc->aes == NULL)
@@ -1635,20 +1637,28 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
         }
 #endif
         if (side == CYASSL_CLIENT_END) {
-            AesSetKey(enc->aes, keys->client_write_key,
-                      specs->key_size, keys->client_write_IV,
-                      AES_ENCRYPTION);
-            AesSetKey(dec->aes, keys->server_write_key,
-                      specs->key_size, keys->server_write_IV,
-                      AES_DECRYPTION);
+            aesRet = AesSetKey(enc->aes, keys->client_write_key,
+                               specs->key_size, keys->client_write_IV,
+                               AES_ENCRYPTION);
+            if (aesRet != 0)
+                return aesRet;
+            aesRet = AesSetKey(dec->aes, keys->server_write_key,
+                               specs->key_size, keys->server_write_IV,
+                               AES_DECRYPTION);
+            if (aesRet != 0)
+                return aesRet;
         }
         else {
-            AesSetKey(enc->aes, keys->server_write_key,
-                      specs->key_size, keys->server_write_IV,
-                      AES_ENCRYPTION);
-            AesSetKey(dec->aes, keys->client_write_key,
-                      specs->key_size, keys->client_write_IV,
-                      AES_DECRYPTION);
+            aesRet = AesSetKey(enc->aes, keys->server_write_key,
+                               specs->key_size, keys->server_write_IV,
+                               AES_ENCRYPTION);
+            if (aesRet != 0)
+                return aesRet;
+            aesRet = AesSetKey(dec->aes, keys->client_write_key,
+                               specs->key_size, keys->client_write_IV,
+                               AES_DECRYPTION);
+            if (aesRet != 0)
+                return aesRet;
         }
         enc->setup = 1;
         dec->setup = 1;

@@ -101,6 +101,7 @@
 #define BAD_COMPRESSION_STR 67
 #define BAD_DERIVE_STR 68
 #define ACK_MISSED_STR 69
+#define BAD_DECRYPT    70 
 
 /* !!!! also add to msgTable in sniffer.c and .rc file !!!! */
 

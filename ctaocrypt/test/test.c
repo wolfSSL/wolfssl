@@ -1860,6 +1860,7 @@ int aes_test(void)
 
     byte cipher[AES_BLOCK_SIZE * 4];
     byte plain [AES_BLOCK_SIZE * 4];
+    int  ret;
 
 #ifdef HAVE_CAVIUM
         if (AesInitCavium(&enc, CAVIUM_DEV_ID) != 0)
@@ -1867,11 +1868,19 @@ int aes_test(void)
         if (AesInitCavium(&dec, CAVIUM_DEV_ID) != 0)
             return -20004; 
 #endif
-    AesSetKey(&enc, key, AES_BLOCK_SIZE, iv, AES_ENCRYPTION);
-    AesSetKey(&dec, key, AES_BLOCK_SIZE, iv, AES_DECRYPTION);
+    ret = AesSetKey(&enc, key, AES_BLOCK_SIZE, iv, AES_ENCRYPTION);
+    if (ret != 0)
+        return -1001;
+    ret = AesSetKey(&dec, key, AES_BLOCK_SIZE, iv, AES_DECRYPTION);
+    if (ret != 0)
+        return -1002;
 
-    AesCbcEncrypt(&enc, cipher, msg,   AES_BLOCK_SIZE);
-    AesCbcDecrypt(&dec, plain, cipher, AES_BLOCK_SIZE);
+    ret = AesCbcEncrypt(&enc, cipher, msg,   AES_BLOCK_SIZE);
+    if (ret != 0)
+        return -1005;
+    ret = AesCbcDecrypt(&dec, plain, cipher, AES_BLOCK_SIZE);
+    if (ret != 0)
+        return -1006;
 
     if (memcmp(plain, msg, AES_BLOCK_SIZE))
         return -60;
@@ -1990,13 +1999,17 @@ int aes_test(void)
         };
 
         XMEMSET(cipher, 0, AES_BLOCK_SIZE);
-        AesSetKey(&enc, niKey, sizeof(niKey), cipher, AES_ENCRYPTION);
+        ret = AesSetKey(&enc, niKey, sizeof(niKey), cipher, AES_ENCRYPTION);
+        if (ret != 0)
+            return -1003;
         AesEncryptDirect(&enc, cipher, niPlain);
         if (XMEMCMP(cipher, niCipher, AES_BLOCK_SIZE) != 0)
             return -20006;
 
         XMEMSET(plain, 0, AES_BLOCK_SIZE);
-        AesSetKey(&dec, niKey, sizeof(niKey), plain, AES_DECRYPTION);
+        ret = AesSetKey(&dec, niKey, sizeof(niKey), plain, AES_DECRYPTION);
+        if (ret != 0)
+            return -1004;
         AesDecryptDirect(&dec, plain, niCipher);
         if (XMEMCMP(plain, niPlain, AES_BLOCK_SIZE) != 0)
             return -20007;

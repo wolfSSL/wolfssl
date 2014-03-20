@@ -27,6 +27,11 @@
 
 #ifndef NO_AES
 
+#ifdef HAVE_FIPS
+    /* set NO_WRAPPERS before headers, use direct internal f()s not wrappers */
+    #define FIPS_NO_WRAPPERS
+#endif
+
 #include <cyassl/ctaocrypt/aes.h>
 #include <cyassl/ctaocrypt/error.h>
 #include <cyassl/ctaocrypt/logging.h>
@@ -44,6 +49,7 @@
     /* 4127 warning constant while(1)  */
     #pragma warning(disable: 4127)
 #endif
+
 
 
 #ifdef HAVE_CAVIUM
