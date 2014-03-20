@@ -5,7 +5,7 @@
 [ ! -x ./examples/client/client ] && echo -e "\n\nClient doesn't exist" && exit 1
 
 # is our desired server there?
-ping -c 3 -o www.google.com
+ping -c 2 -i 0.2 www.google.com
 RESULT=$?
 [ $RESULT -ne 0 ] && echo -e "\n\nCouldn't find server, skipping" && exit 0
 
