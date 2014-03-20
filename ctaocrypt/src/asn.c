@@ -1282,6 +1282,8 @@ void InitDecodedCert(DecodedCert* cert, byte* source, word32 inSz, void* heap)
     cert->extAuthKeyIdSet = 0;
     cert->extKeyUsageSet  = 0;
     cert->extKeyUsage     = 0;
+    cert->extExtKeyUsageSet = 0;
+    cert->extExtKeyUsage    = 0;
     cert->isCA            = 0;
 #ifdef HAVE_PKCS7
     cert->issuerRaw       = NULL;
@@ -3247,6 +3249,42 @@ static int DecodeKeyUsage(byte* input, int sz, DecodedCert* cert)
 }
 
 
+static int DecodeExtKeyUsage(byte* input, int sz, DecodedCert* cert)
+{
+    word32 idx = 0, oid;
+    int length;
+
+    CYASSL_ENTER("DecodeExtKeyUsage");
+
+    if (GetSequence(input, &idx, &length, sz) < 0) {
+        CYASSL_MSG("\tfail: should be a SEQUENCE\n");
+        return ASN_PARSE_E;
+    }
+
+    while (idx < (word32)sz) {
+        if (GetObjectId(input, &idx, &oid, sz) < 0)
+            return ASN_PARSE_E;
+
+        switch (oid) {
+            case EKU_ANY_OID:
+                cert->extExtKeyUsage = EXTKEYUSE_ANY;
+                break;
+            case EKU_SERVER_AUTH_OID:
+                cert->extExtKeyUsage |= EXTKEYUSE_SERVER_AUTH;
+                break;
+            case EKU_CLIENT_AUTH_OID:
+                cert->extExtKeyUsage |= EXTKEYUSE_CLIENT_AUTH;
+                break;
+            case EKU_OCSP_SIGN_OID:
+                cert->extExtKeyUsage |= EXTKEYUSE_OCSP_SIGN;
+                break;
+        }
+    }
+
+    return 0;
+}
+
+
 #ifdef CYASSL_SEP
     static int DecodeCertPolicy(byte* input, int sz, DecodedCert* cert)
     {
@@ -3425,7 +3463,12 @@ static int DecodeCertExtensions(DecodedCert* cert)
                 break;
 
             case EXT_KEY_USAGE_OID:
-                CYASSL_MSG("Extended Key Usage extension not supported yet.");
+                cert->extExtKeyUsageSet = 1;
+                #ifdef OPENSSL_EXTRA
+                    cert->extExtKeyUsageCrit = critical;
+                #endif
+                if (DecodeExtKeyUsage(&input[idx], length, cert) < 0)
+                    return ASN_PARSE_E;
                 break;
 
             case INHIBIT_ANY_OID:
