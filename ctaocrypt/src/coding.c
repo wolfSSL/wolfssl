@@ -324,10 +324,20 @@ int Base64_EncodeEsc(const byte* in, word32 inLen, byte* out, word32* outLen)
 }
 
 
+#endif  /* defined(OPENSSL_EXTRA) || defined (SESSION_CERTS) || defined(CYASSL_KEY_GEN) || defined(CYASSL_CERT_GEN) || defined(HAVE_WEBSERVER) */
+
+
+#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) || defined(HAVE_FIPS)
+
 static
 const byte hexDecode[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
                            BAD, BAD, BAD, BAD, BAD, BAD, BAD,
-                           10, 11, 12, 13, 14, 15 
+                           10, 11, 12, 13, 14, 15,  /* upper case A-F */
+                           BAD, BAD, BAD, BAD, BAD, BAD, BAD, BAD,
+                           BAD, BAD, BAD, BAD, BAD, BAD, BAD, BAD,
+                           BAD, BAD, BAD, BAD, BAD, BAD, BAD, BAD,
+                           BAD, BAD,  /* G - ` */
+                           10, 11, 12, 13, 14, 15   /* lower case a-f */
                          };  /* A starts at 0x41 not 0x3A */
 
 int Base16_Decode(const byte* in, word32 inLen, byte* out, word32* outLen)
@@ -384,5 +394,6 @@ int Base16_Decode(const byte* in, word32 inLen, byte* out, word32* outLen)
 }
 
 
-#endif  /* defined(OPENSSL_EXTRA) || defined (SESSION_CERTS) || defined(CYASSL_KEY_GEN) || defined(CYASSL_CERT_GEN) || defined(HAVE_WEBSERVER) */
+#endif /* (OPENSSL_EXTRA) || (HAVE_WEBSERVER) || (HAVE_FIPS) */
+
 #endif /* NO_CODING */

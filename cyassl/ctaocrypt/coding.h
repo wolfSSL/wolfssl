@@ -42,9 +42,13 @@ CYASSL_LOCAL int Base64_Decode(const byte* in, word32 inLen, byte* out,
     CYASSL_API
     int Base64_EncodeEsc(const byte* in, word32 inLen, byte* out,
                                   word32* outLen);
-    CYASSL_LOCAL 
+#endif
+
+#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) || defined(HAVE_FIPS)
+    CYASSL_API
     int Base16_Decode(const byte* in, word32 inLen, byte* out, word32* outLen);
 #endif
+
 
 #ifdef __cplusplus
     } /* extern "C" */
