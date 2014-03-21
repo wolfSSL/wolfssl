@@ -1321,6 +1321,10 @@ void InitDecodedCert(DecodedCert* cert, byte* source, word32 inSz, void* heap)
     cert->extAuthKeyIdCrit = 0;
     cert->extSubjKeyIdCrit = 0;
     cert->extKeyUsageCrit = 0;
+    cert->extExtKeyUsageCrit = 0;
+    cert->extExtKeyUsageSrc = NULL;
+    cert->extExtKeyUsageSz = 0;
+    cert->extExtKeyUsageCount = 0;
     cert->extAuthKeyIdSrc = NULL;
     cert->extAuthKeyIdSz = 0;
     cert->extSubjKeyIdSrc = NULL;
@@ -3261,13 +3265,18 @@ static int DecodeExtKeyUsage(byte* input, int sz, DecodedCert* cert)
         return ASN_PARSE_E;
     }
 
+    #ifdef OPENSSL_EXTRA
+        cert->extExtKeyUsageSrc = input + idx;
+        cert->extExtKeyUsageSz = length;
+    #endif
+
     while (idx < (word32)sz) {
         if (GetObjectId(input, &idx, &oid, sz) < 0)
             return ASN_PARSE_E;
 
         switch (oid) {
             case EKU_ANY_OID:
-                cert->extExtKeyUsage = EXTKEYUSE_ANY;
+                cert->extExtKeyUsage |= EXTKEYUSE_ANY;
                 break;
             case EKU_SERVER_AUTH_OID:
                 cert->extExtKeyUsage |= EXTKEYUSE_SERVER_AUTH;
@@ -3279,6 +3288,10 @@ static int DecodeExtKeyUsage(byte* input, int sz, DecodedCert* cert)
                 cert->extExtKeyUsage |= EXTKEYUSE_OCSP_SIGN;
                 break;
         }
+
+        #ifdef OPENSSL_EXTRA
+            cert->extExtKeyUsageCount++;
+        #endif
     }
 
     return 0;

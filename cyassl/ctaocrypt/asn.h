@@ -259,10 +259,10 @@ enum VerifyType {
 #define KEYUSE_ENCIPHER_ONLY  0x0002
 #define KEYUSE_DECIPHER_ONLY  0x0001
 
+#define EXTKEYUSE_ANY         0x08
 #define EXTKEYUSE_OCSP_SIGN   0x04
 #define EXTKEYUSE_CLIENT_AUTH 0x02
 #define EXTKEYUSE_SERVER_AUTH 0x01
-#define EXTKEYUSE_ANY         0xFF
 
 typedef struct DNS_entry   DNS_entry;
 
@@ -360,6 +360,9 @@ struct DecodedCert {
     byte    extSubjKeyIdCrit;
     byte    extKeyUsageCrit;
     byte    extExtKeyUsageCrit;
+    byte*   extExtKeyUsageSrc;
+    word32  extExtKeyUsageSz;
+    word32  extExtKeyUsageCount;
     byte*   extAuthKeyIdSrc;
     word32  extAuthKeyIdSz;
     byte*   extSubjKeyIdSrc;
