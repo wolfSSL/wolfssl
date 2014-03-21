@@ -234,6 +234,13 @@ enum AuthInfo_Sum {
     AIA_CA_ISSUER_OID = 117  /* 1.3.6.1.5.5.7.48.2 */
 };
 
+enum ExtKeyUsage_Sum { /* From RFC 5280 */
+    EKU_ANY_OID         = 151, /* 2.5.29.37.0, anyExtendedKeyUsage         */
+    EKU_SERVER_AUTH_OID = 71,  /* 1.3.6.1.5.5.7.3.1, id-kp-serverAuth      */
+    EKU_CLIENT_AUTH_OID = 72,  /* 1.3.6.1.5.5.7.3.2, id-kp-clientAuth      */
+    EKU_OCSP_SIGN_OID   = 79,  /* 1.3.6.1.5.5.7.3.9, OCSPSigning           */
+};
+
 
 enum VerifyType {
     NO_VERIFY = 0,
@@ -252,6 +259,10 @@ enum VerifyType {
 #define KEYUSE_ENCIPHER_ONLY  0x0002
 #define KEYUSE_DECIPHER_ONLY  0x0001
 
+#define EXTKEYUSE_ANY         0x08
+#define EXTKEYUSE_OCSP_SIGN   0x04
+#define EXTKEYUSE_CLIENT_AUTH 0x02
+#define EXTKEYUSE_SERVER_AUTH 0x01
 
 typedef struct DNS_entry   DNS_entry;
 
@@ -336,6 +347,8 @@ struct DecodedCert {
     byte    isCA;                    /* CA basic constraint true         */
     byte    extKeyUsageSet;
     word16  extKeyUsage;             /* Key usage bitfield               */
+    byte    extExtKeyUsageSet;       /* Extended Key Usage               */
+    byte    extExtKeyUsage;          /* Extended Key usage bitfield      */
 #ifdef OPENSSL_EXTRA
     byte    extBasicConstSet;
     byte    extBasicConstCrit;
@@ -346,6 +359,10 @@ struct DecodedCert {
     byte    extAuthKeyIdCrit;
     byte    extSubjKeyIdCrit;
     byte    extKeyUsageCrit;
+    byte    extExtKeyUsageCrit;
+    byte*   extExtKeyUsageSrc;
+    word32  extExtKeyUsageSz;
+    word32  extExtKeyUsageCount;
     byte*   extAuthKeyIdSrc;
     word32  extAuthKeyIdSz;
     byte*   extSubjKeyIdSrc;

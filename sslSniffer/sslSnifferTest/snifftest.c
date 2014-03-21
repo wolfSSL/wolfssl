@@ -273,7 +273,7 @@ int main(int argc, char** argv)
         packetNumber++;
         if (packet) {
 
-            byte data[65535];
+            byte data[65535+16384];  /* may have a partial 16k record cached */
 
             if (header.caplen > 40)  { /* min ip(20) + min tcp(20) */
 				packet        += frame;
