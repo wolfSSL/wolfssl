@@ -55,9 +55,9 @@
 #ifdef HAVE_CAVIUM
     static int  AesCaviumSetKey(Aes* aes, const byte* key, word32 length,
                                 const byte* iv);
-    static void AesCaviumCbcEncrypt(Aes* aes, byte* out, const byte* in,
+    static int  AesCaviumCbcEncrypt(Aes* aes, byte* out, const byte* in,
                                     word32 length);
-    static void AesCaviumCbcDecrypt(Aes* aes, byte* out, const byte* in,
+    static int  AesCaviumCbcDecrypt(Aes* aes, byte* out, const byte* in,
                                     word32 length);
 #endif
 
@@ -3421,8 +3421,8 @@ static int AesCaviumSetKey(Aes* aes, const byte* key, word32 length,
 }
 
 
-static void AesCaviumCbcEncrypt(Aes* aes, byte* out, const byte* in,
-                                word32 length)
+static int AesCaviumCbcEncrypt(Aes* aes, byte* out, const byte* in,
+                               word32 length)
 {
     word   offset = 0;
     word32 requestId;
@@ -3434,6 +3434,7 @@ static void AesCaviumCbcEncrypt(Aes* aes, byte* out, const byte* in,
                           (byte*)aes->reg, (byte*)aes->key, &requestId,
                           aes->devId) != 0) {
             CYASSL_MSG("Bad Cavium Aes Encrypt");
+            return -1;
         }
         length -= CYASSL_MAX_16BIT;
         offset += CYASSL_MAX_16BIT;
@@ -3446,13 +3447,15 @@ static void AesCaviumCbcEncrypt(Aes* aes, byte* out, const byte* in,
                           (byte*)aes->reg, (byte*)aes->key, &requestId,
                           aes->devId) != 0) {
             CYASSL_MSG("Bad Cavium Aes Encrypt");
+            return -1;
         }
         XMEMCPY(aes->reg, out + offset+length - AES_BLOCK_SIZE, AES_BLOCK_SIZE);
     }
+    return 0;
 }
 
-static void AesCaviumCbcDecrypt(Aes* aes, byte* out, const byte* in,
-                                word32 length)
+static int AesCaviumCbcDecrypt(Aes* aes, byte* out, const byte* in,
+                               word32 length)
 {
     word32 requestId;
     word   offset = 0;
@@ -3465,6 +3468,7 @@ static void AesCaviumCbcDecrypt(Aes* aes, byte* out, const byte* in,
                           (byte*)aes->reg, (byte*)aes->key, &requestId,
                           aes->devId) != 0) {
             CYASSL_MSG("Bad Cavium Aes Decrypt");
+            return -1;
         }
         length -= CYASSL_MAX_16BIT;
         offset += CYASSL_MAX_16BIT;
@@ -3478,9 +3482,11 @@ static void AesCaviumCbcDecrypt(Aes* aes, byte* out, const byte* in,
                           (byte*)aes->reg, (byte*)aes->key, &requestId,
                           aes->devId) != 0) {
             CYASSL_MSG("Bad Cavium Aes Decrypt");
+            return -1;
         }
         XMEMCPY(aes->reg, aes->tmp, AES_BLOCK_SIZE);
     }
+    return 0;
 }
 
 #endif /* HAVE_CAVIUM */

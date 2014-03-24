@@ -4094,8 +4094,7 @@ static INLINE int Encrypt(CYASSL* ssl, byte* out, const byte* input, word16 sz)
 
         #ifdef BUILD_DES3
             case cyassl_triple_des:
-                Des3_CbcEncrypt(ssl->encrypt.des3, out, input, sz);
-                break;
+                return Des3_CbcEncrypt(ssl->encrypt.des3, out, input, sz);
         #endif
 
         #ifdef BUILD_AES
@@ -4245,8 +4244,7 @@ static INLINE int Decrypt(CYASSL* ssl, byte* plain, const byte* input,
 
         #ifdef BUILD_DES3
             case cyassl_triple_des:
-                Des3_CbcDecrypt(ssl->decrypt.des3, plain, input, sz);
-                break;
+                return Des3_CbcDecrypt(ssl->decrypt.des3, plain, input, sz);
         #endif
 
         #ifdef BUILD_AES

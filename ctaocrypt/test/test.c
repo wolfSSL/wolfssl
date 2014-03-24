@@ -1810,6 +1810,8 @@ int des3_test(void)
         0x18,0x94,0x15,0x74,0x87,0x12,0x7d,0xb0
     };
 
+    int ret;
+
 
 #ifdef HAVE_CAVIUM
     if (Des3_InitCavium(&enc, CAVIUM_DEV_ID) != 0)
@@ -1817,16 +1819,24 @@ int des3_test(void)
     if (Des3_InitCavium(&dec, CAVIUM_DEV_ID) != 0)
         return -20006; 
 #endif
-    Des3_SetKey(&enc, key3, iv3, DES_ENCRYPTION);
-    Des3_SetKey(&dec, key3, iv3, DES_DECRYPTION);
-    Des3_CbcEncrypt(&enc, cipher, vector, sizeof(vector));
-    Des3_CbcDecrypt(&dec, plain, cipher, sizeof(cipher));
+    ret = Des3_SetKey(&enc, key3, iv3, DES_ENCRYPTION);
+    if (ret != 0)
+        return -31;
+    ret = Des3_SetKey(&dec, key3, iv3, DES_DECRYPTION);
+    if (ret != 0)
+        return -32;
+    ret = Des3_CbcEncrypt(&enc, cipher, vector, sizeof(vector));
+    if (ret != 0)
+        return -33;
+    ret = Des3_CbcDecrypt(&dec, plain, cipher, sizeof(cipher));
+    if (ret != 0)
+        return -34;
 
     if (memcmp(plain, vector, sizeof(plain)))
-        return -33;
+        return -35;
 
     if (memcmp(cipher, verify3, sizeof(cipher)))
-        return -34;
+        return -36;
 
 #ifdef HAVE_CAVIUM
     Des3_FreeCavium(&enc);

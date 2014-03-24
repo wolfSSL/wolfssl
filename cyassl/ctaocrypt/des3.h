@@ -96,16 +96,36 @@ CYASSL_API void Des_CbcEncrypt(Des* des, byte* out, const byte* in, word32 sz);
 CYASSL_API void Des_CbcDecrypt(Des* des, byte* out, const byte* in, word32 sz);
 CYASSL_API void Des_EcbEncrypt(Des* des, byte* out, const byte* in, word32 sz);
 
-CYASSL_API void Des3_SetKey(Des3* des, const byte* key, const byte* iv,int dir);
-CYASSL_API void Des3_SetIV(Des3* des, const byte* iv);
-CYASSL_API void Des3_CbcEncrypt(Des3* des, byte* out, const byte* in,word32 sz);
-CYASSL_API void Des3_CbcDecrypt(Des3* des, byte* out, const byte* in,word32 sz);
+CYASSL_API int  Des3_SetKey(Des3* des, const byte* key, const byte* iv,int dir);
+CYASSL_API int  Des3_SetIV(Des3* des, const byte* iv);
+CYASSL_API int  Des3_CbcEncrypt(Des3* des, byte* out, const byte* in,word32 sz);
+CYASSL_API int  Des3_CbcDecrypt(Des3* des, byte* out, const byte* in,word32 sz);
 
 
 #ifdef HAVE_CAVIUM
     CYASSL_API int  Des3_InitCavium(Des3*, int);
     CYASSL_API void Des3_FreeCavium(Des3*);
 #endif
+
+
+#ifdef HAVE_FIPS
+    /* fips wrapper calls, user can call direct */
+    CYASSL_API int  Des3_SetKey_fips(Des3* des, const byte* key, const byte* iv,
+                                     int dir);
+    CYASSL_API int  Des3_SetIV_fips(Des3* des, const byte* iv);
+    CYASSL_API int  Des3_CbcEncrypt_fips(Des3* des, byte* out, const byte* in,
+                                         word32 sz);
+    CYASSL_API int  Des3_CbcDecrypt_fips(Des3* des, byte* out, const byte* in,
+                                         word32 sz);
+    #ifndef FIPS_NO_WRAPPERS
+        /* if not impl or fips.c impl wrapper force fips calls if fips build */
+        #define Des3_SetKey     Des3_SetKey_fips
+        #define Des3_SetIV      Des3_SetIV_fips
+        #define Des3_CbcEncrypt Des3_CbcEncrypt_fips
+        #define Des3_CbcDecrypt Des3_CbcDecrypt_fips
+    #endif /* FIPS_NO_WRAPPERS */
+
+#endif /* HAVE_FIPS */
 
 
 #ifdef __cplusplus

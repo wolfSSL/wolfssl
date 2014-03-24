@@ -1572,7 +1572,7 @@ static int Decrypt(SSL* ssl, byte* output, const byte* input, word32 sz)
             
         #ifdef BUILD_DES3
         case cyassl_triple_des:
-            Des3_CbcDecrypt(ssl->decrypt.des3, output, input, sz);
+            ret = Des3_CbcDecrypt(ssl->decrypt.des3, output, input, sz);
             break;
         #endif
             

@@ -927,8 +927,12 @@ static int DecryptKey(const char* password, int passwordSz, byte* salt,
 
             if (version == PKCS5v2 || version == PKCS12)
                 desIv = cbcIv;
-            Des3_SetKey(&dec, key, desIv, DES_DECRYPTION);
-            Des3_CbcDecrypt(&dec, input, input, length);
+            ret = Des3_SetKey(&dec, key, desIv, DES_DECRYPTION);
+            if (ret != 0)
+                return ret;
+            ret = Des3_CbcDecrypt(&dec, input, input, length);
+            if (ret != 0)
+                return ret;
             break;
         }
 #endif

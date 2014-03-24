@@ -27,6 +27,11 @@
 
 #ifndef NO_DES3
 
+#ifdef HAVE_FIPS
+    /* set NO_WRAPPERS before headers, use direct internal f()s not wrappers */
+    #define FIPS_NO_WRAPPERS
+#endif
+
 #include <cyassl/ctaocrypt/des3.h>
 
 #ifdef NO_INLINE
@@ -37,10 +42,10 @@
 
 
 #ifdef HAVE_CAVIUM
-    static void Des3_CaviumSetKey(Des3* des3, const byte* key, const byte* iv);
-    static void Des3_CaviumCbcEncrypt(Des3* des3, byte* out, const byte* in,
+    static int Des3_CaviumSetKey(Des3* des3, const byte* key, const byte* iv);
+    static int Des3_CaviumCbcEncrypt(Des3* des3, byte* out, const byte* in,
                                       word32 length);
-    static void Des3_CaviumCbcDecrypt(Des3* des3, byte* out, const byte* in,
+    static int Des3_CaviumCbcDecrypt(Des3* des3, byte* out, const byte* in,
                                       word32 length);
 #endif
 
@@ -66,7 +71,7 @@
         Des_SetIV(des, iv);
     }
 
-    void Des3_SetKey(Des3* des, const byte* key, const byte* iv, int dir)
+    int Des3_SetKey(Des3* des, const byte* key, const byte* iv, int dir)
     {
         word32 *dkey1 = des->key[0];
         word32 *dkey2 = des->key[1];
@@ -80,7 +85,7 @@
         ByteReverseWords(dkey2, dkey2, 8);
         ByteReverseWords(dkey3, dkey3, 8);
 
-        Des3_SetIV(des, iv);
+        return Des3_SetIV(des, iv);
     }
 
     void DesCrypt(Des* des, byte* out, const byte* in, word32 sz,
@@ -253,14 +258,16 @@
 
     }
 
-    void Des3_CbcEncrypt(Des3* des, byte* out, const byte* in, word32 sz)
+    int Des3_CbcEncrypt(Des3* des, byte* out, const byte* in, word32 sz)
     {
         Des3Crypt(des, out, in, sz, DES_ENCRYPTION);
+        return 0;
     }
 
-    void Des3_CbcDecrypt(Des3* des, byte* out, const byte* in, word32 sz)
+    int Des3_CbcDecrypt(Des3* des, byte* out, const byte* in, word32 sz)
     {
         Des3Crypt(des, out, in, sz, DES_DECRYPTION);
+        return 0;
     }
 
 
@@ -361,14 +368,16 @@ void Des_CbcDecrypt(Des* des, byte* out, const byte* in, word32 sz)
     Des_Cbc(des, out, in, sz, SEC_DESC_DES_CBC_DECRYPT) ;
 }
 
-void Des3_CbcEncrypt(Des3* des3, byte* out, const byte* in, word32 sz)
+int Des3_CbcEncrypt(Des3* des3, byte* out, const byte* in, word32 sz)
 {
     Des_Cbc((Des *)des3, out, in, sz, SEC_DESC_DES3_CBC_ENCRYPT) ;
+    return 0;
 }
 
-void Des3_CbcDecrypt(Des3* des3, byte* out, const byte* in, word32 sz)
+int Des3_CbcDecrypt(Des3* des3, byte* out, const byte* in, word32 sz)
 {
     Des_Cbc((Des *)des3, out, in, sz, SEC_DESC_DES3_CBC_DECRYPT) ;
+    return 0;
 }
 
 
@@ -393,7 +402,7 @@ void Des_SetKey(Des* des, const byte* key, const byte* iv, int dir)
 
 }
 
-void Des3_SetKey(Des3* des3, const byte* key, const byte* iv, int dir)
+int Des3_SetKey(Des3* des3, const byte* key, const byte* iv, int dir)
 {
     int i ; int status ;
     
@@ -411,6 +420,7 @@ void Des3_SetKey(Des3* des3, const byte* key, const byte* iv, int dir)
         for(i=0; i<DES_IVLEN; i++)
             des3->iv[i] = 0x0 ;
     }
+    return 0;
 }
 
 #elif defined FREESCALE_MMCAU
@@ -444,9 +454,9 @@ void Des3_SetKey(Des3* des3, const byte* key, const byte* iv, int dir)
         }
     }
 
-    void Des3_SetKey(Des3* des, const byte* key, const byte* iv, int dir)
+    int Des3_SetKey(Des3* des, const byte* key, const byte* iv, int dir)
     {
-        int i = 0;
+        int i = 0, ret = 0;
         byte* dkey1 = (byte*)des->key[0];
         byte* dkey2 = (byte*)des->key[1];
         byte* dkey3 = (byte*)des->key[2];
@@ -455,7 +465,9 @@ void Des3_SetKey(Des3* des3, const byte* key, const byte* iv, int dir)
         XMEMCPY(dkey2, key + 8, 8);     /* set key 2 */
         XMEMCPY(dkey3, key + 16, 8);    /* set key 3 */
 
-        Des3_SetIV(des, iv);
+        ret = Des3_SetIV(des, iv);
+        if (ret != 0)
+            return ret;
 
         /* fix key parity if needed */
         for (i = 0; i < 8; i++)
@@ -466,6 +478,8 @@ void Des3_SetKey(Des3* des3, const byte* key, const byte* iv, int dir)
 
         for (i = 0; i < 8; i++)
            dkey3[i] = ((dkey3[i] & 0xFE) | parityLookup[dkey3[i] >> 1]);
+
+        return ret;
     }
 
     void Des_CbcEncrypt(Des* des, byte* out, const byte* in, word32 sz)
@@ -528,7 +542,7 @@ void Des3_SetKey(Des3* des3, const byte* key, const byte* iv, int dir)
         return;
     }
 
-    void Des3_CbcEncrypt(Des3* des, byte* out, const byte* in, word32 sz)
+    int Des3_CbcEncrypt(Des3* des, byte* out, const byte* in, word32 sz)
     {
         int i;
         int offset = 0;
@@ -558,10 +572,10 @@ void Des3_SetKey(Des3* des3, const byte* key, const byte* iv, int dir)
             XMEMCPY(iv, out + offset - DES_BLOCK_SIZE, DES_BLOCK_SIZE);
         }
 
-        return;
+        return 0;
     }
 
-    void Des3_CbcDecrypt(Des3* des, byte* out, const byte* in, word32 sz)
+    int Des3_CbcDecrypt(Des3* des, byte* out, const byte* in, word32 sz)
     {
         int i;
         int offset = 0;
@@ -591,7 +605,7 @@ void Des3_SetKey(Des3* des3, const byte* key, const byte* iv, int dir)
             offset += DES_BLOCK_SIZE;
         }
 
-        return;
+        return 0;
     }
 
 
@@ -600,7 +614,7 @@ void Des3_SetKey(Des3* des3, const byte* key, const byte* iv, int dir)
     #include "../../cyassl/ctaocrypt/port/pic32/pic32mz-crypt.h"
 
 void Des_SetIV(Des* des, const byte* iv);
-void Des3_SetIV(Des3* des, const byte* iv);
+int  Des3_SetIV(Des3* des, const byte* iv);
 
     void Des_SetKey(Des* des, const byte* key, const byte* iv, int dir)
     {
@@ -613,7 +627,7 @@ void Des3_SetIV(Des3* des, const byte* iv);
         ByteReverseWords(dreg, dreg, 8);
     }
 
-    void Des3_SetKey(Des3* des, const byte* key, const byte* iv, int dir)
+    int Des3_SetKey(Des3* des, const byte* key, const byte* iv, int dir)
     {
         word32 *dkey1 = des->key[0];
         word32 *dreg = des->reg ;
@@ -623,6 +637,7 @@ void Des3_SetIV(Des3* des, const byte* iv);
         XMEMCPY(dreg, iv, 8);
         ByteReverseWords(dreg, dreg, 8) ;
 
+        return 0;
     }
 
     void DesCrypt(word32 *key, word32 *iv, byte* out, const byte* in, word32 sz,
@@ -714,16 +729,18 @@ void Des3_SetIV(Des3* des, const byte* iv);
                 PIC32_DECRYPTION, PIC32_ALGO_DES, PIC32_CRYPTOALGO_CBC);
     }
 
-    void Des3_CbcEncrypt(Des3* des, byte* out, const byte* in, word32 sz)
+    int Des3_CbcEncrypt(Des3* des, byte* out, const byte* in, word32 sz)
     {
         DesCrypt(des->key[0], des->reg, out, in, sz, 
                 PIC32_ENCRYPTION, PIC32_ALGO_TDES, PIC32_CRYPTOALGO_TCBC);
+        return 0;
     }
 
-    void Des3_CbcDecrypt(Des3* des, byte* out, const byte* in, word32 sz)
+    int Des3_CbcDecrypt(Des3* des, byte* out, const byte* in, word32 sz)
     {
         DesCrypt(des->key[0], des->reg, out, in, sz, 
                 PIC32_DECRYPTION, PIC32_ALGO_TDES, PIC32_CRYPTOALGO_TCBC);
+        return 0;
     }
 
 #else /* CTaoCrypt software implementation */
@@ -1029,7 +1046,7 @@ void Des_SetKey(Des* des, const byte* key, const byte* iv, int dir)
 }
 
 
-void Des3_SetKey(Des3* des, const byte* key, const byte* iv, int dir)
+int Des3_SetKey(Des3* des, const byte* key, const byte* iv, int dir)
 {
 #ifdef HAVE_CAVIUM
     if (des->magic == CYASSL_3DES_CAVIUM_MAGIC)
@@ -1040,7 +1057,7 @@ void Des3_SetKey(Des3* des, const byte* key, const byte* iv, int dir)
     DesSetKey(key + 8, Reverse(dir), des->key[1]);
     DesSetKey(key + (dir == DES_DECRYPTION ? 0 : 16), dir, des->key[2]);
 
-    Des3_SetIV(des, iv);  
+    return Des3_SetIV(des, iv);
 }
 
 
@@ -1162,7 +1179,7 @@ void Des_CbcDecrypt(Des* des, byte* out, const byte* in, word32 sz)
 }
 
 
-void Des3_CbcEncrypt(Des3* des, byte* out, const byte* in, word32 sz)
+int Des3_CbcEncrypt(Des3* des, byte* out, const byte* in, word32 sz)
 {
     word32 blocks;
 
@@ -1180,10 +1197,11 @@ void Des3_CbcEncrypt(Des3* des, byte* out, const byte* in, word32 sz)
         out += DES_BLOCK_SIZE;
         in  += DES_BLOCK_SIZE; 
     }
+    return 0;
 }
 
 
-void Des3_CbcDecrypt(Des3* des, byte* out, const byte* in, word32 sz)
+int Des3_CbcDecrypt(Des3* des, byte* out, const byte* in, word32 sz)
 {
     word32 blocks;
 
@@ -1202,6 +1220,7 @@ void Des3_CbcDecrypt(Des3* des, byte* out, const byte* in, word32 sz)
         out += DES_BLOCK_SIZE;
         in  += DES_BLOCK_SIZE; 
     }
+    return 0;
 }
 
 #ifdef CYASSL_DES_ECB
@@ -1232,12 +1251,14 @@ void Des_SetIV(Des* des, const byte* iv)
 }
 
 
-void Des3_SetIV(Des3* des, const byte* iv)
+int Des3_SetIV(Des3* des, const byte* iv)
 {
     if (des && iv)
         XMEMCPY(des->reg, iv, DES_BLOCK_SIZE);
     else if (des)
         XMEMSET(des->reg,  0, DES_BLOCK_SIZE);
+
+    return 0;
 }
 
 
@@ -1276,19 +1297,19 @@ void Des3_FreeCavium(Des3* des3)
 }
 
 
-static void Des3_CaviumSetKey(Des3* des3, const byte* key, const byte* iv)
+static int Des3_CaviumSetKey(Des3* des3, const byte* key, const byte* iv)
 {
     if (des3 == NULL)
-        return;
+        return -1;
 
     /* key[0] holds key, iv in reg */
     XMEMCPY(des3->key[0], key, DES_BLOCK_SIZE*3);
 
-    Des3_SetIV(des3, iv);
+    return Des3_SetIV(des3, iv);
 }
 
 
-static void Des3_CaviumCbcEncrypt(Des3* des3, byte* out, const byte* in,
+static int Des3_CaviumCbcEncrypt(Des3* des3, byte* out, const byte* in,
                                   word32 length)
 {
     word   offset = 0;
@@ -1301,6 +1322,7 @@ static void Des3_CaviumCbcEncrypt(Des3* des3, byte* out, const byte* in,
                            out + offset, (byte*)des3->reg, (byte*)des3->key[0],
                            &requestId, des3->devId) != 0) {
             CYASSL_MSG("Bad Cavium 3DES Cbc Encrypt");
+            return -1;
         }
         length -= CYASSL_MAX_16BIT;
         offset += CYASSL_MAX_16BIT;
@@ -1314,13 +1336,15 @@ static void Des3_CaviumCbcEncrypt(Des3* des3, byte* out, const byte* in,
                            out + offset, (byte*)des3->reg, (byte*)des3->key[0],
                            &requestId, des3->devId) != 0) {
             CYASSL_MSG("Bad Cavium 3DES Cbc Encrypt");
+            return -1;
         }
         XMEMCPY(des3->reg, out+offset+length - DES_BLOCK_SIZE, DES_BLOCK_SIZE);
     }
+    return 0;
 }
 
-static void Des3_CaviumCbcDecrypt(Des3* des3, byte* out, const byte* in,
-                                  word32 length)
+static int Des3_CaviumCbcDecrypt(Des3* des3, byte* out, const byte* in,
+                                 word32 length)
 {
     word32 requestId;
     word   offset = 0;
@@ -1333,6 +1357,7 @@ static void Des3_CaviumCbcDecrypt(Des3* des3, byte* out, const byte* in,
                            (byte*)des3->reg, (byte*)des3->key[0], &requestId,
                            des3->devId) != 0) {
             CYASSL_MSG("Bad Cavium 3Des Decrypt");
+            return -1;
         }
         length -= CYASSL_MAX_16BIT;
         offset += CYASSL_MAX_16BIT;
@@ -1346,9 +1371,11 @@ static void Des3_CaviumCbcDecrypt(Des3* des3, byte* out, const byte* in,
                            (byte*)des3->reg, (byte*)des3->key[0], &requestId,
                            des3->devId) != 0) {
             CYASSL_MSG("Bad Cavium 3Des Decrypt");
+            return -1;
         }
         XMEMCPY(des3->reg, des3->tmp, DES_BLOCK_SIZE);
     }
+    return 0;
 }
 
 #endif /* HAVE_CAVIUM */

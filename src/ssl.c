@@ -2027,8 +2027,12 @@ int CyaSSL_Init(void)
             }
             else if (XSTRNCMP(info.name, "DES-EDE3-CBC", 13) == 0) {
                 Des3 enc;
-                Des3_SetKey(&enc, key, info.iv, DES_DECRYPTION);
-                Des3_CbcDecrypt(&enc, der.buffer, der.buffer, der.length);
+                ret = Des3_SetKey(&enc, key, info.iv, DES_DECRYPTION);
+                if (ret != 0)
+                    return ret;
+                ret = Des3_CbcDecrypt(&enc, der.buffer, der.buffer, der.length);
+                if (ret != 0)
+                    return ret;
             }
             else if (XSTRNCMP(info.name, "AES-128-CBC", 13) == 0) {
                 Aes enc;
@@ -6866,11 +6870,17 @@ int CyaSSL_set_compression(CYASSL* ssl)
             ctx->keyLen     = 24;
             if (enc == 0 || enc == 1)
                 ctx->enc = enc ? 1 : 0;
-            if (key)
-                Des3_SetKey(&ctx->cipher.des3, key, iv,
+            if (key) {
+                ret = Des3_SetKey(&ctx->cipher.des3, key, iv,
                           ctx->enc ? DES_ENCRYPTION : DES_DECRYPTION);
-            if (iv && key == NULL)
-                Des3_SetIV(&ctx->cipher.des3, iv);
+                if (ret != 0)
+                    return ret;
+            }
+            if (iv && key == NULL) {
+                ret = Des3_SetIV(&ctx->cipher.des3, iv);
+                if (ret != 0)
+                    return ret;
+            }
         }
         else if (ctx->cipherType == ARC4_TYPE || (type &&
                                      XSTRNCMP(type, "ARC4", 4) == 0)) {
@@ -6967,9 +6977,9 @@ int CyaSSL_set_compression(CYASSL* ssl)
                 
             case DES_EDE3_CBC_TYPE :
                 if (ctx->enc)
-                    Des3_CbcEncrypt(&ctx->cipher.des3, dst, src, len);
+                    ret = Des3_CbcEncrypt(&ctx->cipher.des3, dst, src, len);
                 else
-                    Des3_CbcDecrypt(&ctx->cipher.des3, dst, src, len);
+                    ret = Des3_CbcDecrypt(&ctx->cipher.des3, dst, src, len);
                 break;
 
             case ARC4_TYPE :
@@ -10842,7 +10852,7 @@ static int initGlobalRNG = 0;
         }
 
         if (doset)
-            Des3_SetIV(&ctx->cipher.des3, iv);
+            Des3_SetIV(&ctx->cipher.des3, iv);  /* OpenSSL compat, no ret */
         else
             memcpy(iv, &ctx->cipher.des3.reg, DES_BLOCK_SIZE);
     }
@@ -10861,7 +10871,7 @@ static int initGlobalRNG = 0;
         }
 
         if (doset)
-            AesSetIV(&ctx->cipher.aes, iv);
+            AesSetIV(&ctx->cipher.aes, iv);  /* OpenSSL compat, no ret */
         else
             memcpy(iv, &ctx->cipher.aes.reg, AES_BLOCK_SIZE);
     }

@@ -1575,6 +1575,8 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
     
 #ifdef BUILD_DES3
     if (specs->bulk_cipher_algorithm == cyassl_triple_des) {
+        int desRet = 0;
+
         if (enc->des3 == NULL)
             enc->des3 = (Des3*)XMALLOC(sizeof(Des3), heap, DYNAMIC_TYPE_CIPHER);
         if (enc->des3 == NULL)
@@ -1596,16 +1598,24 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
         }
 #endif
         if (side == CYASSL_CLIENT_END) {
-            Des3_SetKey(enc->des3, keys->client_write_key,
+            desRet = Des3_SetKey(enc->des3, keys->client_write_key,
                         keys->client_write_IV, DES_ENCRYPTION);
-            Des3_SetKey(dec->des3, keys->server_write_key,
+            if (desRet != 0)
+                return desRet;
+            desRet = Des3_SetKey(dec->des3, keys->server_write_key,
                         keys->server_write_IV, DES_DECRYPTION);
+            if (desRet != 0)
+                return desRet;
         }
         else {
-            Des3_SetKey(enc->des3, keys->server_write_key,
+            desRet = Des3_SetKey(enc->des3, keys->server_write_key,
                         keys->server_write_IV, DES_ENCRYPTION);
-            Des3_SetKey(dec->des3, keys->client_write_key,
+            if (desRet != 0)
+                return desRet;
+            desRet = Des3_SetKey(dec->des3, keys->client_write_key,
                 keys->client_write_IV, DES_DECRYPTION);
+            if (desRet != 0)
+                return desRet;
         }
         enc->setup = 1;
         dec->setup = 1;

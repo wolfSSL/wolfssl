@@ -592,14 +592,22 @@ static int check_des3(void)
         printf("mcapi tdes key set failed\n");
         return -1;
     }
-    Des3_SetKey(&defDes3, key, iv, DES_ENCRYPTION);
+    ret = Des3_SetKey(&defDes3, key, iv, DES_ENCRYPTION);
+    if (ret != 0) {
+        printf("default des3 key set failed\n");
+        return -1;
+    }
 
     ret = CRYPT_TDES_CBC_Encrypt(&mcDes3, out1, ourData, TDES_TEST_SIZE);
     if (ret != 0) {
         printf("mcapi tdes cbc encrypt failed\n");
         return -1;
     }
-    Des3_CbcEncrypt(&defDes3, out2, ourData, TDES_TEST_SIZE);
+    ret = Des3_CbcEncrypt(&defDes3, out2, ourData, TDES_TEST_SIZE);
+    if (ret != 0) {
+        printf("mcapi default tdes cbc encrypt failed\n");
+        return -1;
+    }
 
     if (memcmp(out1, out2, TDES_TEST_SIZE) != 0) {
         printf("mcapi tdes cbc encrypt cmp failed\n");
@@ -612,14 +620,22 @@ static int check_des3(void)
         printf("mcapi tdes key set failed\n");
         return -1;
     }
-    Des3_SetKey(&defDes3, key, iv, DES_DECRYPTION);
+    ret = Des3_SetKey(&defDes3, key, iv, DES_DECRYPTION);
+    if (ret != 0) {
+        printf("default des3 key set failed\n");
+        return -1;
+    }
 
     ret = CRYPT_TDES_CBC_Decrypt(&mcDes3, out2, out1, TDES_TEST_SIZE);
     if (ret != 0) {
         printf("mcapi tdes cbc decrypt failed\n");
         return -1;
     }
-    Des3_CbcDecrypt(&defDes3, out1, out1, TDES_TEST_SIZE);
+    ret = Des3_CbcDecrypt(&defDes3, out1, out1, TDES_TEST_SIZE);
+    if (ret != 0) {
+        printf("mcapi default tdes cbc decrypt failed\n");
+        return -1;
+    }
 
     if (memcmp(out1, out2, TDES_TEST_SIZE) != 0) {
         printf("mcapi tdes cbc decrypt cmp failed\n");

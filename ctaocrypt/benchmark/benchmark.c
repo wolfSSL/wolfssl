@@ -432,13 +432,17 @@ void bench_des(void)
 {
     Des3   enc;
     double start, total, persec;
-    int    i;
+    int    i, ret;
 
 #ifdef HAVE_CAVIUM
     if (Des3_InitCavium(&enc, CAVIUM_DEV_ID) != 0)
         printf("des3 init cavium failed\n");
 #endif
-    Des3_SetKey(&enc, key, iv, DES_ENCRYPTION);
+    ret = Des3_SetKey(&enc, key, iv, DES_ENCRYPTION);
+    if (ret != 0) {
+        printf("Des3_SetKey failed, ret = %d\n", ret);
+        return;
+    }
     start = current_time(1);
 
     for(i = 0; i < numBlocks; i++)

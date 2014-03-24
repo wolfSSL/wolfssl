@@ -909,7 +909,7 @@ CYASSL_LOCAL int CreateRecipientInfo(const byte* cert, word32 certSz,
 /* build PKCS#7 envelopedData content type, return enveloped size */
 int PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
 {
-    int i, idx = 0;
+    int i, ret = 0, idx = 0;
     int totalSz = 0, padSz = 0, desOutSz = 0;
 
     int contentInfoSeqSz, outerContentTypeSz, outerContentSz;
@@ -1040,8 +1040,15 @@ int PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
 
     } else if (pkcs7->encryptOID == DES3b) {
         Des3 des3;
-        Des3_SetKey(&des3, contentKeyPlain, tmpIv, DES_ENCRYPTION);
-        Des3_CbcEncrypt(&des3, encryptedContent, plain, desOutSz);
+        ret = Des3_SetKey(&des3, contentKeyPlain, tmpIv, DES_ENCRYPTION);
+        if (ret == 0)
+            ret = Des3_CbcEncrypt(&des3, encryptedContent, plain, desOutSz);
+        if (ret != 0) {
+            XFREE(encryptedContent, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            if (dynamicFlag)
+                XFREE(plain, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            return ret;
+        }
     }
 
     encContentOctetSz = SetImplicit(ASN_OCTET_STRING, 0,
@@ -1313,9 +1320,14 @@ CYASSL_API int PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* pkiMsg,
                        encryptedContentSz);
     } else if (encOID == DES3b) {
         Des3 des;
-        Des3_SetKey(&des, decryptedKey, tmpIv, DES_DECRYPTION);
-        Des3_CbcDecrypt(&des, encryptedContent, encryptedContent,
-                       encryptedContentSz);
+        ret = Des3_SetKey(&des, decryptedKey, tmpIv, DES_DECRYPTION);
+        if (ret == 0)
+            ret = Des3_CbcDecrypt(&des, encryptedContent, encryptedContent,
+                                  encryptedContentSz);
+        if (ret != 0) {
+            XFREE(encryptedContent, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            return ret;
+        }
     } else {
         CYASSL_MSG("Unsupported content encryption OID type");
         return ALGO_ID_E;

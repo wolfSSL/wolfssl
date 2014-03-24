@@ -360,9 +360,7 @@ int CRYPT_TDES_KeySet(CRYPT_TDES_CTX* tdes, const unsigned char* key,
     if (tdes == NULL || key == NULL)
         return BAD_FUNC_ARG;
 
-    Des3_SetKey((Des3*)tdes, key, iv, dir);
-
-    return 0;
+    return Des3_SetKey((Des3*)tdes, key, iv, dir);
 }
 
 
@@ -372,9 +370,7 @@ int CRYPT_TDES_IvSet(CRYPT_TDES_CTX* tdes, const unsigned char* iv)
     if (tdes == NULL || iv == NULL)
         return BAD_FUNC_ARG;
 
-    Des3_SetIV((Des3*)tdes, iv);
-
-    return 0;
+    return Des3_SetIV((Des3*)tdes, iv);
 }
 
 
@@ -385,9 +381,7 @@ int CRYPT_TDES_CBC_Encrypt(CRYPT_TDES_CTX* tdes, unsigned char* out,
     if (tdes == NULL || out == NULL || in == NULL)
         return BAD_FUNC_ARG;
 
-    Des3_CbcEncrypt((Des3*)tdes, out, in, inSz);
-
-    return 0;
+    return Des3_CbcEncrypt((Des3*)tdes, out, in, inSz);
 }
 
 
@@ -398,9 +392,7 @@ int CRYPT_TDES_CBC_Decrypt(CRYPT_TDES_CTX* tdes, unsigned char* out,
     if (tdes == NULL || out == NULL || in == NULL)
         return BAD_FUNC_ARG;
 
-    Des3_CbcDecrypt((Des3*)tdes, out, in, inSz);
-
-    return 0;
+    return Des3_CbcDecrypt((Des3*)tdes, out, in, inSz);
 }
 
 
