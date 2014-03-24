@@ -6765,8 +6765,11 @@ int CyaSSL_set_compression(CYASSL* ssl)
                 if (ret != 0)
                     return ret;
             }
-            if (iv && key == NULL)
-                AesSetIV(&ctx->cipher.aes, iv);
+            if (iv && key == NULL) {
+                ret = AesSetIV(&ctx->cipher.aes, iv);
+                if (ret != 0)
+                    return ret;
+            }
         }
         else if (ctx->cipherType == AES_192_CBC_TYPE || (type &&
                                        XSTRNCMP(type, "AES192-CBC", 10) == 0)) {
@@ -6781,8 +6784,11 @@ int CyaSSL_set_compression(CYASSL* ssl)
                 if (ret != 0)
                     return ret;
             }
-            if (iv && key == NULL)
-                AesSetIV(&ctx->cipher.aes, iv);
+            if (iv && key == NULL) {
+                ret = AesSetIV(&ctx->cipher.aes, iv);
+                if (ret != 0)
+                    return ret;
+            }
         }
         else if (ctx->cipherType == AES_256_CBC_TYPE || (type &&
                                        XSTRNCMP(type, "AES256-CBC", 10) == 0)) {
@@ -6797,8 +6803,11 @@ int CyaSSL_set_compression(CYASSL* ssl)
                 if (ret != 0)
                     return ret;
             }
-            if (iv && key == NULL)
-                AesSetIV(&ctx->cipher.aes, iv);
+            if (iv && key == NULL) {
+                ret = AesSetIV(&ctx->cipher.aes, iv);
+                if (ret != 0)
+                    return ret;
+            }
         }
 #ifdef CYASSL_AES_COUNTER
         else if (ctx->cipherType == AES_128_CTR_TYPE || (type &&
@@ -6814,8 +6823,11 @@ int CyaSSL_set_compression(CYASSL* ssl)
                 if (ret != 0)
                     return ret;
             }
-            if (iv && key == NULL)
-                AesSetIV(&ctx->cipher.aes, iv);
+            if (iv && key == NULL) {
+                ret = AesSetIV(&ctx->cipher.aes, iv);
+                if (ret != 0)
+                    return ret;
+            }
         }
         else if (ctx->cipherType == AES_192_CTR_TYPE || (type &&
                                        XSTRNCMP(type, "AES192-CTR", 10) == 0)) {
@@ -6830,8 +6842,11 @@ int CyaSSL_set_compression(CYASSL* ssl)
                 if (ret != 0)
                     return ret;
             }
-            if (iv && key == NULL)
-                AesSetIV(&ctx->cipher.aes, iv);
+            if (iv && key == NULL) {
+                ret = AesSetIV(&ctx->cipher.aes, iv);
+                if (ret != 0)
+                    return ret;
+            }
         }
         else if (ctx->cipherType == AES_256_CTR_TYPE || (type &&
                                        XSTRNCMP(type, "AES256-CTR", 10) == 0)) {
@@ -6846,8 +6861,11 @@ int CyaSSL_set_compression(CYASSL* ssl)
                 if (ret != 0)
                     return ret;
             }
-            if (iv && key == NULL)
-                AesSetIV(&ctx->cipher.aes, iv);
+            if (iv && key == NULL) {
+                ret = AesSetIV(&ctx->cipher.aes, iv);
+                if (ret != 0)
+                    return ret;
+            }
         }
 #endif /* CYASSL_AES_CTR */
         else if (ctx->cipherType == DES_CBC_TYPE || (type &&

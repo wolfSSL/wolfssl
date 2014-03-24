@@ -416,9 +416,7 @@ int CRYPT_AES_IvSet(CRYPT_AES_CTX* aes, const unsigned char* iv)
     if (aes == NULL || iv == NULL)
         return BAD_FUNC_ARG;
 
-    AesSetIV((Aes*)aes, iv);
-
-    return 0;
+    return AesSetIV((Aes*)aes, iv);
 }
 
 
