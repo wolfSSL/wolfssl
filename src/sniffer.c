@@ -44,7 +44,7 @@
 
 #include <cyassl/openssl/ssl.h>
 #include <cyassl/internal.h>
-#include <cyassl/error.h>
+#include <cyassl/error-ssl.h>
 #include <cyassl/sniffer.h>
 #include <cyassl/sniffer_error.h>
 

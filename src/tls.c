@@ -27,7 +27,7 @@
 
 #include <cyassl/ssl.h>
 #include <cyassl/internal.h>
-#include <cyassl/error.h>
+#include <cyassl/error-ssl.h>
 #include <cyassl/ctaocrypt/hmac.h>
 
 

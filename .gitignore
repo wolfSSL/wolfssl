@@ -100,3 +100,20 @@ IDE\MDK-ARM\LPC43xx\LPC43xx/
 *.gcno
 *.gcda
 *.gcov
+
+# MPLAB Generated Files (OS X)
+mcapi/ctaocrypt_mcapi.X/nbproject/Makefile-*
+mcapi/ctaocrypt_mcapi.X/nbproject/Package-default.bash
+mcapi/ctaocrypt_test.X/nbproject/Makefile-*
+mcapi/ctaocrypt_test.X/nbproject/Package-default.bash
+mcapi/cyassl.X/nbproject/Makefile-*
+mcapi/cyassl.X/nbproject/Package-default.bash
+mcapi/zlib.X/nbproject/Makefile-*
+mcapi/zlib.X/nbproject/Package-default.bash
+mplabx/ctaocrypt_benchmark.X/nbproject/Makefile-*
+mplabx/ctaocrypt_benchmark.X/nbproject/Package-default.bash
+mplabx/ctaocrypt_test.X/nbproject/Makefile-*
+mplabx/ctaocrypt_test.X/nbproject/Package-default.bash
+mplabx/cyassl.X/nbproject/Makefile-*
+mplabx/cyassl.X/nbproject/Package-default.bash
+

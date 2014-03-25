@@ -55,9 +55,9 @@ Included Project Files
     This project builds the zlib library for use in the ctaocrypt_test.X
     and ctaocrypt_mcapi.X projects. This project expects the zlib sources
     to be located under the CyaSSL root directory. Currently it is set up
-    to work with zlib 1.2.7, and looks for sources under:
+    to work with zlib 1.2.8, and looks for sources under:
 
-    <cyassl_root>/zlib-1.2.7
+    <cyassl_root>/zlib-1.2.8
 
 PIC32MX/PIC32MZ
 ---------------

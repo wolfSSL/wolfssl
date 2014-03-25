@@ -25,7 +25,7 @@
 
 #include <cyassl/ctaocrypt/settings.h>
 #include <cyassl/ctaocrypt/types.h>
-#include <cyassl/ctaocrypt/error.h>
+#include <cyassl/ctaocrypt/error-crypt.h>
 
 
 #ifdef _MSC_VER
@@ -352,7 +352,7 @@ int UnLockMutex(CyaSSL_Mutex *m)
                 return BAD_MUTEX_E;
         }
         
-    #elif defined(CYASSL_MDK_ARM)
+    #elif defined(CYASSL_MDK_ARM)|| defined(CYASSL_CMSIS_RTOS)
     
         #if defined(CYASSL_CMSIS_RTOS)
             #include "cmsis_os.h"

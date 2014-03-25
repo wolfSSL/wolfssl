@@ -30,7 +30,7 @@
 
 #include <cyassl/ctaocrypt/rsa.h>
 #include <cyassl/ctaocrypt/random.h>
-#include <cyassl/ctaocrypt/error.h>
+#include <cyassl/ctaocrypt/error-crypt.h>
 #include <cyassl/ctaocrypt/logging.h>
 
 #ifdef SHOW_GEN

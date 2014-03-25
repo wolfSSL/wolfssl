@@ -12,21 +12,21 @@
     <logicalFolder name="SourceFiles"
                    displayName="Source Files"
                    projectFiles="true">
-      <itemPath>../../zlib-1.2.7/adler32.c</itemPath>
-      <itemPath>../../zlib-1.2.7/compress.c</itemPath>
-      <itemPath>../../zlib-1.2.7/crc32.c</itemPath>
-      <itemPath>../../zlib-1.2.7/deflate.c</itemPath>
-      <itemPath>../../zlib-1.2.7/gzclose.c</itemPath>
-      <itemPath>../../zlib-1.2.7/gzlib.c</itemPath>
-      <itemPath>../../zlib-1.2.7/gzread.c</itemPath>
-      <itemPath>../../zlib-1.2.7/gzwrite.c</itemPath>
-      <itemPath>../../zlib-1.2.7/infback.c</itemPath>
-      <itemPath>../../zlib-1.2.7/inffast.c</itemPath>
-      <itemPath>../../zlib-1.2.7/inflate.c</itemPath>
-      <itemPath>../../zlib-1.2.7/inftrees.c</itemPath>
-      <itemPath>../../zlib-1.2.7/trees.c</itemPath>
-      <itemPath>../../zlib-1.2.7/uncompr.c</itemPath>
-      <itemPath>../../zlib-1.2.7/zutil.c</itemPath>
+      <itemPath>../../zlib-1.2.8/adler32.c</itemPath>
+      <itemPath>../../zlib-1.2.8/compress.c</itemPath>
+      <itemPath>../../zlib-1.2.8/crc32.c</itemPath>
+      <itemPath>../../zlib-1.2.8/deflate.c</itemPath>
+      <itemPath>../../zlib-1.2.8/gzclose.c</itemPath>
+      <itemPath>../../zlib-1.2.8/gzlib.c</itemPath>
+      <itemPath>../../zlib-1.2.8/gzread.c</itemPath>
+      <itemPath>../../zlib-1.2.8/gzwrite.c</itemPath>
+      <itemPath>../../zlib-1.2.8/infback.c</itemPath>
+      <itemPath>../../zlib-1.2.8/inffast.c</itemPath>
+      <itemPath>../../zlib-1.2.8/inflate.c</itemPath>
+      <itemPath>../../zlib-1.2.8/inftrees.c</itemPath>
+      <itemPath>../../zlib-1.2.8/trees.c</itemPath>
+      <itemPath>../../zlib-1.2.8/uncompr.c</itemPath>
+      <itemPath>../../zlib-1.2.8/zutil.c</itemPath>
     </logicalFolder>
     <logicalFolder name="ExternalFiles"
                    displayName="Important Files"
@@ -44,8 +44,8 @@
         <targetPluginBoard></targetPluginBoard>
         <platformTool>SKDEPIC32PlatformTool</platformTool>
         <languageToolchain>XC32</languageToolchain>
-        <languageToolchainVersion>1.30</languageToolchainVersion>
-        <platform>3</platform>
+        <languageToolchainVersion>1.10</languageToolchainVersion>
+        <platform>4</platform>
       </toolsSet>
       <compileType>
         <archiverTool>
@@ -67,7 +67,7 @@
         <property key="enable-symbols" value="true"/>
         <property key="enable-unroll-loops" value="false"/>
         <property key="exclude-floating-point" value="false"/>
-        <property key="extra-include-directories" value="../../zlib-1.2.7"/>
+        <property key="extra-include-directories" value="../../zlib-1.2.8"/>
         <property key="generate-16-bit-code" value="false"/>
         <property key="isolate-each-function" value="false"/>
         <property key="make-warnings-into-errors" value="false"/>
@@ -80,7 +80,6 @@
         <property key="strict-ansi" value="false"/>
         <property key="support-ansi" value="false"/>
         <property key="use-cci" value="false"/>
-        <property key="use-iar" value="false"/>
         <property key="use-indirect-calls" value="false"/>
       </C32>
       <C32-AS>
@@ -114,7 +113,6 @@
         <property key="linker-symbols" value=""/>
         <property key="map-file" value=""/>
         <property key="no-startup-files" value="false"/>
-        <property key="oXC32ld-extra-opts" value=""/>
         <property key="optimization-level" value=""/>
         <property key="preprocessor-macros" value=""/>
         <property key="remove-unused-sections" value="false"/>
@@ -150,8 +148,6 @@
       </C32CPP>
       <C32Global>
         <property key="legacy-libc" value="false"/>
-        <property key="save-temps" value="false"/>
-        <property key="wpo-lto" value="false"/>
       </C32Global>
       <SKDEPIC32PlatformTool>
         <property key="whatToProgram" value="all"/>

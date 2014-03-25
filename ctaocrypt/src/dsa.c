@@ -30,7 +30,7 @@
 #include <cyassl/ctaocrypt/dsa.h>
 #include <cyassl/ctaocrypt/sha.h>
 #include <cyassl/ctaocrypt/random.h>
-#include <cyassl/ctaocrypt/error.h>
+#include <cyassl/ctaocrypt/error-crypt.h>
 
 
 enum {

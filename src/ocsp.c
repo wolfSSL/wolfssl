@@ -27,7 +27,7 @@
 
 #ifdef HAVE_OCSP
 
-#include <cyassl/error.h>
+#include <cyassl/error-ssl.h>
 #include <cyassl/ocsp.h>
 #include <cyassl/internal.h>
 

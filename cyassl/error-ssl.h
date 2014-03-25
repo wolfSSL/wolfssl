@@ -1,4 +1,4 @@
-/* error.h
+/* error-ssl.h
  *
  * Copyright (C) 2006-2013 wolfSSL Inc.
  *
@@ -23,7 +23,7 @@
 #ifndef CYASSL_ERROR_H
 #define CYASSL_ERROR_H
 
-#include <cyassl/ctaocrypt/error.h>   /* pull in CTaoCrypt errors */
+#include <cyassl/ctaocrypt/error-crypt.h>   /* pull in CTaoCrypt errors */
 
 #ifdef __cplusplus
     extern "C" {
@@ -142,4 +142,5 @@ void SetErrorString(int err, char* buff);
 
 
 #endif /* CyaSSL_ERROR_H */
+
 

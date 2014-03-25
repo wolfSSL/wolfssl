@@ -95,6 +95,8 @@
     #else
         #include <rtl.h>
     #endif
+#elif defined(MBED)
+
 #else
     #ifndef SINGLE_THREADED
         #define CYASSL_PTHREADS

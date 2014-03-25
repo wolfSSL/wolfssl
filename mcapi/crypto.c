@@ -39,7 +39,7 @@
 #include <cyassl/ctaocrypt/aes.h>
 #include <cyassl/ctaocrypt/rsa.h>
 #include <cyassl/ctaocrypt/ecc.h>
-#include <cyassl/ctaocrypt/error.h>
+#include <cyassl/ctaocrypt/error-crypt.h>
 
 
 /* Initialize MD5 */

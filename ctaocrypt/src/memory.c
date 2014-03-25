@@ -28,7 +28,7 @@
 #ifdef USE_CYASSL_MEMORY
 
 #include <cyassl/ctaocrypt/memory.h>
-#include <cyassl/ctaocrypt/error.h>
+#include <cyassl/ctaocrypt/error-crypt.h>
 
 #ifdef CYASSL_MALLOC_CHECK
     #include <stdio.h>

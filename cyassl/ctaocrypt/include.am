@@ -13,7 +13,7 @@ nobase_include_HEADERS+= \
                          cyassl/ctaocrypt/dh.h \
                          cyassl/ctaocrypt/dsa.h \
                          cyassl/ctaocrypt/ecc.h \
-                         cyassl/ctaocrypt/error.h \
+                         cyassl/ctaocrypt/error-crypt.h \
                          cyassl/ctaocrypt/fips_test.h \
                          cyassl/ctaocrypt/hc128.h \
                          cyassl/ctaocrypt/hmac.h \

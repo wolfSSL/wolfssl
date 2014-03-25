@@ -28,7 +28,7 @@
 #ifndef NO_DH
 
 #include <cyassl/ctaocrypt/dh.h>
-#include <cyassl/ctaocrypt/error.h>
+#include <cyassl/ctaocrypt/error-crypt.h>
 
 #ifndef USER_MATH_LIB
     #include <math.h>

@@ -167,20 +167,26 @@
 #endif
 
 #ifdef MBED
-    #define SINGLE_THREADED
     #define CYASSL_USER_IO
+    #define NO_FILESYSTEM
+    #define NO_CERT
+    #define USE_CERT_BUFFERS_1024
     #define NO_WRITEV
     #define NO_DEV_RANDOM
     #define NO_SHA512
     #define NO_DH
     #define NO_DSA
     #define NO_HC128
-#endif /* MBED */
+    #define HAVE_ECC
+    #define NO_SESSION_CACHE
+    #define CYASSL_CMSIS_RTOS
+#endif
 
 #ifdef CYASSL_TYTO
     #include "rand.h"
     #define FREERTOS
     #define NO_FILESYSTEM
+    #define NO_MAIN_DRIVER
     #define CYASSL_USER_IO
     #define NO_DEV_RANDOM
     #define HAVE_ECC
