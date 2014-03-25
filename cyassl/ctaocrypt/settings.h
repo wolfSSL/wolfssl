@@ -186,6 +186,7 @@
     #include "rand.h"
     #define FREERTOS
     #define NO_FILESYSTEM
+    #define NO_MAIN_DRIVER
     #define CYASSL_USER_IO
     #define NO_DEV_RANDOM
     #define HAVE_ECC
