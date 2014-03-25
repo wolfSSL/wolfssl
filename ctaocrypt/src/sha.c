@@ -136,7 +136,7 @@
         return 0;
     }
 
-    void ShaFinal(Sha* sha, byte* hash)
+    int ShaFinal(Sha* sha, byte* hash)
     {
         __IO uint16_t nbvalidbitsdata = 0;
         
@@ -169,7 +169,7 @@
 
         XMEMCPY(hash, sha->digest, SHA_DIGEST_SIZE);
 
-        InitSha(sha);  /* reset state */
+        return InitSha(sha);  /* reset state */
     }
 
 #else /* CTaoCrypt software implementation */
@@ -340,7 +340,7 @@ int ShaUpdate(Sha* sha, const byte* data, word32 len)
 }
 
 
-void ShaFinal(Sha* sha, byte* hash)
+int ShaFinal(Sha* sha, byte* hash)
 {
     byte* local = (byte*)sha->buffer;
 
@@ -387,7 +387,7 @@ void ShaFinal(Sha* sha, byte* hash)
     #endif
     XMEMCPY(hash, sha->digest, SHA_DIGEST_SIZE);
 
-    InitSha(sha);  /* reset state */
+    return InitSha(sha);  /* reset state */
 }
 
 #endif /* STM32F2_HASH */
