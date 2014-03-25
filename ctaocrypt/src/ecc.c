@@ -3658,17 +3658,27 @@ static void ecc_ctx_init(ecEncCtx* ctx, int flags)
 }
 
 
+/* allow ecc context reset so user doesn't have to init/free for resue */
+int ecc_ctx_reset(ecEncCtx* ctx, RNG* rng)
+{
+    if (ctx == NULL || rng == NULL)
+        return BAD_FUNC_ARG;
+
+    ecc_ctx_init(ctx, ctx->protocol);
+    return ecc_ctx_set_salt(ctx, ctx->protocol, rng);
+}
+
+
 /* alloc/init and set defaults, return new Context  */
 ecEncCtx* ecc_ctx_new(int flags, RNG* rng)
 {
     int       ret = 0;
     ecEncCtx* ctx = (ecEncCtx*)XMALLOC(sizeof(ecEncCtx), 0, DYNAMIC_TYPE_ECC);
 
-    ecc_ctx_init(ctx, flags);
+    if (ctx)
+        ctx->protocol = (byte)flags;
 
-    if (ctx && flags)
-        ret = ecc_ctx_set_salt(ctx, flags, rng);
-
+    ret = ecc_ctx_reset(ctx, rng);
     if (ret != 0) {
         ecc_ctx_free(ctx);
         ctx = NULL;

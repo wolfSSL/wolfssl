@@ -157,6 +157,8 @@ CYASSL_API
 ecEncCtx* ecc_ctx_new(int flags, RNG* rng);
 CYASSL_API
 void ecc_ctx_free(ecEncCtx*);
+CYASSL_API
+int ecc_ctx_reset(ecEncCtx*, RNG*);   /* reset for use again w/o alloc/free */
 
 CYASSL_API
 const byte* ecc_ctx_get_own_salt(ecEncCtx*);
