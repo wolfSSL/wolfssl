@@ -4460,7 +4460,10 @@ int CyaSSL_dtls_got_timeout(CYASSL* ssl)
                     /* re-init hashes, exclude first hello and verify request */
 #ifndef NO_OLD_TLS
                     InitMd5(&ssl->hashMd5);
-                    InitSha(&ssl->hashSha);
+                    if ( (ssl->error = InitSha(&ssl->hashSha)) != 0) {
+                        CYASSL_ERROR(ssl->error);
+                        return SSL_FATAL_ERROR;
+                    }
 #endif
                     if (IsAtLeastTLSv1_2(ssl)) {
                         #ifndef NO_SHA256
@@ -4731,7 +4734,10 @@ int CyaSSL_dtls_got_timeout(CYASSL* ssl)
                     /* re-init hashes, exclude first hello and verify request */
 #ifndef NO_OLD_TLS
                     InitMd5(&ssl->hashMd5);
-                    InitSha(&ssl->hashSha);
+                    if ( (ssl->error = InitSha(&ssl->hashSha)) != 0) {
+                        CYASSL_ERROR(ssl->error);
+                        return SSL_FATAL_ERROR;
+                    }
 #endif
                     if (IsAtLeastTLSv1_2(ssl)) {
                         #ifndef NO_SHA256
@@ -4899,10 +4905,12 @@ int CyaSSL_Cleanup(void)
 
 /* some session IDs aren't random afterall, let's make them random */
 
-static INLINE word32 HashSession(const byte* sessionID, word32 len)
+static INLINE word32 HashSession(const byte* sessionID, word32 len, int* error)
 {
     byte digest[MD5_DIGEST_SIZE];
     Md5  md5;
+
+    (void)error;
 
     InitMd5(&md5);
     Md5Update(&md5, sessionID, len);
@@ -4913,12 +4921,18 @@ static INLINE word32 HashSession(const byte* sessionID, word32 len)
 
 #elif !defined(NO_SHA)
 
-static INLINE word32 HashSession(const byte* sessionID, word32 len)
+/* 0 on failure */
+static INLINE word32 HashSession(const byte* sessionID, word32 len, int* error)
 {
     byte digest[SHA_DIGEST_SIZE];
     Sha  sha;
+    int  ret = 0;
 
-    InitSha(&sha);
+    ret = InitSha(&sha);
+    if (ret != 0) {
+        *error = ret;
+        return 0;
+    }
     ShaUpdate(&sha, sessionID, len);
     ShaFinal(&sha, digest);
 
@@ -4927,10 +4941,12 @@ static INLINE word32 HashSession(const byte* sessionID, word32 len)
 
 #elif !defined(NO_SHA256)
 
-static INLINE word32 HashSession(const byte* sessionID, word32 len)
+static INLINE word32 HashSession(const byte* sessionID, word32 len, int* error)
 {
     byte    digest[SHA256_DIGEST_SIZE];
     Sha256  sha256;
+
+    (void)error;
 
     InitSha256(&sha256);
     Sha256Update(&sha256, sessionID, len);
@@ -4987,6 +5003,7 @@ CYASSL_SESSION* GetSessionClient(CYASSL* ssl, const byte* id, int len)
     word32          row;
     int             idx;
     int             count;
+    int             error = 0;
 
     CYASSL_ENTER("GetSessionClient");
 
@@ -4994,7 +5011,11 @@ CYASSL_SESSION* GetSessionClient(CYASSL* ssl, const byte* id, int len)
         return NULL;
 
     len = min(SERVER_ID_LEN, (word32)len);
-    row = HashSession(id, len) % SESSION_ROWS;
+    row = HashSession(id, len, &error) % SESSION_ROWS;
+    if (error != 0) {
+        CYASSL_MSG("Hash session failed");
+        return NULL;
+    }
 
     if (LockMutex(&session_mutex) != 0) {
         CYASSL_MSG("Lock session mutex failed");
@@ -5048,6 +5069,7 @@ CYASSL_SESSION* GetSession(CYASSL* ssl, byte* masterSecret)
     word32       row;
     int          idx;
     int          count;
+    int          error = 0;
     
     if (ssl->options.sessionCacheOff)
         return NULL;
@@ -5060,7 +5082,11 @@ CYASSL_SESSION* GetSession(CYASSL* ssl, byte* masterSecret)
     else
         id = ssl->session.sessionID;
 
-    row = HashSession(id, ID_LEN) % SESSION_ROWS;
+    row = HashSession(id, ID_LEN, &error) % SESSION_ROWS;
+    if (error != 0) {
+        CYASSL_MSG("Hash session failed");
+        return NULL;
+    }
 
     if (LockMutex(&session_mutex) != 0)
         return 0;
@@ -5126,6 +5152,7 @@ int SetSession(CYASSL* ssl, CYASSL_SESSION* session)
 int AddSession(CYASSL* ssl)
 {
     word32 row, idx;
+    int    error = 0;
 
     if (ssl->options.sessionCacheOff)
         return 0;
@@ -5133,7 +5160,11 @@ int AddSession(CYASSL* ssl)
     if (ssl->options.haveSessionId == 0)
         return 0;
 
-    row = HashSession(ssl->arrays->sessionID, ID_LEN) % SESSION_ROWS;
+    row = HashSession(ssl->arrays->sessionID, ID_LEN, &error) % SESSION_ROWS;
+    if (error != 0) {
+        CYASSL_MSG("Hash session failed");
+        return error;
+    } 
 
     if (LockMutex(&session_mutex) != 0)
         return BAD_MUTEX_E;
@@ -5175,8 +5206,12 @@ int AddSession(CYASSL* ssl)
         XMEMCPY(SessionCache[row].Sessions[idx].serverID, ssl->session.serverID,
                 ssl->session.idLen);
 
-        clientRow = HashSession(ssl->session.serverID, ssl->session.idLen)
-                                % SESSION_ROWS;
+        clientRow = HashSession(ssl->session.serverID, ssl->session.idLen,
+                                &error) % SESSION_ROWS;
+        if (error != 0) {
+            CYASSL_MSG("Hash session failed");
+            return error;
+        }
         clientIdx = ClientCache[clientRow].nextIdx++;
 
         ClientCache[clientRow].Clients[clientIdx].serverRow = (word16)row;
@@ -6443,7 +6478,7 @@ int CyaSSL_set_compression(CYASSL* ssl)
         (void)sizeof(sha_test);
 
         CYASSL_ENTER("SHA_Init");
-        InitSha((Sha*)sha);
+        InitSha((Sha*)sha);  /* OpenSSL compat, no ret */
     }
 
 

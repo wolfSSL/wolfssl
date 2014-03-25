@@ -1524,7 +1524,7 @@ CYASSL_SESSION* GetSession(CYASSL*, byte*);
 CYASSL_LOCAL
 int          SetSession(CYASSL*, CYASSL_SESSION*);
 
-typedef void (*hmacfp) (CYASSL*, byte*, const byte*, word32, int, int);
+typedef int (*hmacfp) (CYASSL*, byte*, const byte*, word32, int, int);
 
 #ifndef NO_CLIENT_CACHE
     CYASSL_SESSION* GetSessionClient(CYASSL*, const byte*, int);
@@ -2078,7 +2078,7 @@ CYASSL_LOCAL  int GrowInputBuffer(CYASSL* ssl, int size, int usedLength);
 
 #ifndef NO_TLS
     CYASSL_LOCAL int  MakeTlsMasterSecret(CYASSL*);
-    CYASSL_LOCAL void TLS_hmac(CYASSL* ssl, byte* digest, const byte* in,
+    CYASSL_LOCAL int  TLS_hmac(CYASSL* ssl, byte* digest, const byte* in,
                                word32 sz, int content, int verify);
 #endif
 

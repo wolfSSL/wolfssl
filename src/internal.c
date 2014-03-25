@@ -107,8 +107,8 @@ typedef enum {
 } processReply;
 
 #ifndef NO_OLD_TLS
-static void SSL_hmac(CYASSL* ssl, byte* digest, const byte* in, word32 sz,
-                 int content, int verify);
+static int SSL_hmac(CYASSL* ssl, byte* digest, const byte* in, word32 sz,
+                    int content, int verify);
 
 #endif
 
@@ -1444,7 +1444,10 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
     InitMd5(&ssl->hashMd5);
 #endif
 #ifndef NO_SHA
-    InitSha(&ssl->hashSha);
+    ret = InitSha(&ssl->hashSha);
+    if (ret != 0) {
+        return ret;
+    }
 #endif
 #endif
 #ifndef NO_SHA256
@@ -3647,6 +3650,8 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx,
 static int DoHelloRequest(CYASSL* ssl, const byte* input, word32* inOutIdx,
                                                     word32 size, word32 totalSz)
 {
+    int ret = 0;
+
     if (size) /* must be 0 */
         return BUFFER_ERROR;
 
@@ -3655,8 +3660,10 @@ static int DoHelloRequest(CYASSL* ssl, const byte* input, word32* inOutIdx,
         int  padSz = ssl->keys.encryptSz - HANDSHAKE_HEADER_SZ -
                      ssl->specs.hash_size;
 
-        ssl->hmac(ssl, verify, input + *inOutIdx - HANDSHAKE_HEADER_SZ,
-                  HANDSHAKE_HEADER_SZ, handshake, 1);
+        ret = ssl->hmac(ssl, verify, input + *inOutIdx - HANDSHAKE_HEADER_SZ,
+                        HANDSHAKE_HEADER_SZ, handshake, 1);
+        if (ret != 0)
+            return ret;
 
         if (ssl->options.tls1_1 && ssl->specs.cipher_type == block)
             padSz -= ssl->specs.block_size;
@@ -4413,12 +4420,13 @@ static INLINE void Md5Rounds(int rounds, const byte* data, int sz)
 
 
 
+/* do a dummy sha round */
 static INLINE void ShaRounds(int rounds, const byte* data, int sz)
 {
     Sha sha;
     int i;
 
-    InitSha(&sha);
+    InitSha(&sha);  /* no error check on purpose, dummy round */
 
     for (i = 0; i < rounds; i++)
         ShaUpdate(&sha, data, sz);
@@ -4490,6 +4498,7 @@ static INLINE void RmdRounds(int rounds, const byte* data, int sz)
 #endif
 
 
+/* Do dummy rounds */
 static INLINE void DoRounds(int type, int rounds, const byte* data, int sz)
 {
     switch (type) {
@@ -4625,13 +4634,14 @@ static int TimingPadVerify(CYASSL* ssl, const byte* input, int padLen, int t,
 {
     byte verify[MAX_DIGEST_SIZE];
     byte dummy[MAX_PAD_SIZE];
+    int  ret = 0;
 
     XMEMSET(dummy, 1, sizeof(dummy));
 
     if ( (t + padLen + 1) > pLen) {
         CYASSL_MSG("Plain Len not long enough for pad/mac");
         PadCheck(dummy, (byte)padLen, MAX_PAD_SIZE);
-        ssl->hmac(ssl, verify, input, pLen - t, content, 1);
+        ssl->hmac(ssl, verify, input, pLen - t, content, 1); /* still compare */
         ConstantCompare(verify, input + pLen - t, t);
 
         return VERIFY_MAC_ERROR;
@@ -4640,14 +4650,14 @@ static int TimingPadVerify(CYASSL* ssl, const byte* input, int padLen, int t,
     if (PadCheck(input + pLen - (padLen + 1), (byte)padLen, padLen + 1) != 0) {
         CYASSL_MSG("PadCheck failed");
         PadCheck(dummy, (byte)padLen, MAX_PAD_SIZE - padLen - 1);
-        ssl->hmac(ssl, verify, input, pLen - t, content, 1);
+        ssl->hmac(ssl, verify, input, pLen - t, content, 1); /* still compare */
         ConstantCompare(verify, input + pLen - t, t);
 
         return VERIFY_MAC_ERROR;
     }
 
     PadCheck(dummy, (byte)padLen, MAX_PAD_SIZE - padLen - 1);
-    ssl->hmac(ssl, verify, input, pLen - padLen - 1 - t, content, 1);
+    ret = ssl->hmac(ssl, verify, input, pLen - padLen - 1 - t, content, 1);
 
     CompressRounds(ssl, GetRounds(pLen, padLen, t), dummy);
 
@@ -4656,7 +4666,7 @@ static int TimingPadVerify(CYASSL* ssl, const byte* input, int padLen, int t,
         return VERIFY_MAC_ERROR;
     }
 
-    return 0;
+    return ret;
 }
 
 
@@ -4849,18 +4859,22 @@ static INLINE int VerifyMac(CYASSL* ssl, const byte* input, word32 msgSz,
                 return ret;
         }
         else {  /* sslv3, some implementations have bad padding */
-            ssl->hmac(ssl, verify, input, msgSz - digestSz - pad - 1,
-                      content, 1);
+            ret = ssl->hmac(ssl, verify, input, msgSz - digestSz - pad - 1,
+                            content, 1);
             if (ConstantCompare(verify, input + msgSz - digestSz - pad - 1,
                                 digestSz) != 0)
+                return VERIFY_MAC_ERROR;
+            if (ret != 0)
                 return VERIFY_MAC_ERROR;
         }
     }
     else if (ssl->specs.cipher_type == stream) {
-        ssl->hmac(ssl, verify, input, msgSz - digestSz, content, 1);
+        ret = ssl->hmac(ssl, verify, input, msgSz - digestSz, content, 1);
         if (ConstantCompare(verify, input + msgSz - digestSz, digestSz) != 0){
             return VERIFY_MAC_ERROR;
         }
+        if (ret != 0)
+            return VERIFY_MAC_ERROR;
     }
 
     if (ssl->specs.cipher_type == aead) {
@@ -5281,12 +5295,13 @@ int SendChangeCipher(CYASSL* ssl)
 
 
 #ifndef NO_OLD_TLS
-static void SSL_hmac(CYASSL* ssl, byte* digest, const byte* in, word32 sz,
+static int SSL_hmac(CYASSL* ssl, byte* digest, const byte* in, word32 sz,
                  int content, int verify)
 {
     byte   result[MAX_DIGEST_SIZE];
     word32 digestSz = ssl->specs.hash_size;            /* actual sizes */
     word32 padSz    = ssl->specs.pad_size;
+    int    ret      = 0;
 
     Md5 md5;
     Sha sha;
@@ -5318,7 +5333,9 @@ static void SSL_hmac(CYASSL* ssl, byte* digest, const byte* in, word32 sz,
         Md5Final(&md5, digest);        
     }
     else {
-        InitSha(&sha);
+        ret = InitSha(&sha);
+        if (ret != 0)
+            return ret;
         /* inner */
         ShaUpdate(&sha, macSecret, digestSz);
         ShaUpdate(&sha, PAD1, padSz);
@@ -5333,6 +5350,7 @@ static void SSL_hmac(CYASSL* ssl, byte* digest, const byte* in, word32 sz,
         ShaUpdate(&sha, result, digestSz);
         ShaFinal(&sha, digest);        
     }
+    return 0;
 }
 
 #ifndef NO_CERTS
@@ -5516,14 +5534,16 @@ static int BuildMessage(CYASSL* ssl, byte* output, const byte* input, int inSz,
             if (ssl->truncated_hmac && ssl->specs.hash_size > digestSz) {
                 byte hmac[MAX_DIGEST_SIZE];
 
-                ssl->hmac(ssl, hmac, output + headerSz + ivSz, inSz, type, 0);
-
+                ret = ssl->hmac(ssl, hmac, output + headerSz + ivSz, inSz,
+                                type, 0);
                 XMEMCPY(output + idx, hmac, digestSz);
             } else
 #endif
-                ssl->hmac(ssl, output+idx, output + headerSz + ivSz, inSz,
+                ret = ssl->hmac(ssl, output+idx, output + headerSz + ivSz, inSz,
                                                                        type, 0);
         }
+        if (ret != 0)
+            return ret;
 
         if ( (ret = Encrypt(ssl, output + headerSz, output+headerSz,size)) != 0)
             return ret;
@@ -7746,12 +7766,14 @@ static void PickHashSigAlgo(CYASSL* ssl,
     {
         word16 length = 0;
         word32 begin  = *inOutIdx;
+        int    ret    = 0;
 
         (void)length; /* shut up compiler warnings */
         (void)begin;
         (void)ssl;
         (void)input;
         (void)size;
+        (void)ret;
 
     #ifdef CYASSL_CALLBACKS
         if (ssl->hsInfoOn)
@@ -7938,7 +7960,9 @@ static void PickHashSigAlgo(CYASSL* ssl,
         Md5Final(&md5, hash);
 
         /* sha */
-        InitSha(&sha);
+        ret = InitSha(&sha);
+        if (ret != 0)
+            return ret;
         ShaUpdate(&sha, ssl->arrays->clientRandom, RAN_LEN);
         ShaUpdate(&sha, ssl->arrays->serverRandom, RAN_LEN);
         ShaUpdate(&sha, messageVerify, verifySz);
@@ -7965,7 +7989,6 @@ static void PickHashSigAlgo(CYASSL* ssl,
         /* rsa */
         if (sigAlgo == rsa_sa_algo)
         {
-            int   ret       = 0;
             byte* out       = NULL;
             byte  doUserRsa = 0;
 
@@ -8042,7 +8065,7 @@ static void PickHashSigAlgo(CYASSL* ssl,
 #ifdef HAVE_ECC
         /* ecdsa */
         if (sigAlgo == ecc_dsa_sa_algo) {
-            int verify = 0, ret = 0;
+            int verify = 0;
 #ifndef NO_OLD_TLS
             byte* digest = &hash[MD5_DIGEST_SIZE];
             word32 digestSz = SHA_DIGEST_SIZE;
@@ -8985,7 +9008,9 @@ static void PickHashSigAlgo(CYASSL* ssl,
                 Md5Final(&md5, hash);
 
                 /* sha */
-                InitSha(&sha);
+                ret = InitSha(&sha);
+                if (ret != 0)
+                    return ret;
                 ShaUpdate(&sha, ssl->arrays->clientRandom, RAN_LEN);
                 ShaUpdate(&sha, ssl->arrays->serverRandom, RAN_LEN);
                 ShaUpdate(&sha, output + preSigIdx, preSigSz);
@@ -9309,7 +9334,9 @@ static void PickHashSigAlgo(CYASSL* ssl,
                 Md5Final(&md5, hash);
 
                 /* sha */
-                InitSha(&sha);
+                ret = InitSha(&sha);
+                if (ret != 0)
+                    return ret;
                 ShaUpdate(&sha, ssl->arrays->clientRandom, RAN_LEN);
                 ShaUpdate(&sha, ssl->arrays->serverRandom, RAN_LEN);
                 ShaUpdate(&sha, output + preSigIdx, preSigSz);

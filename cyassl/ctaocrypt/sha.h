@@ -54,19 +54,34 @@ typedef struct Sha {
     word32  hiLen;     /* length in bytes   */
     word32  buffer[SHA_BLOCK_SIZE  / sizeof(word32)];
     #ifndef CYASSL_PIC32MZ_HASH
-    word32  digest[SHA_DIGEST_SIZE / sizeof(word32)];
+        word32  digest[SHA_DIGEST_SIZE / sizeof(word32)];
     #else
-    word32  digest[PIC32_HASH_SIZE / sizeof(word32)];
-    pic32mz_desc desc ; /* Crypt Engine descripter */
+        word32  digest[PIC32_HASH_SIZE / sizeof(word32)];
+        pic32mz_desc desc; /* Crypt Engine descripter */
     #endif
 } Sha;
 
 
-CYASSL_API void InitSha(Sha*);
-CYASSL_API void ShaUpdate(Sha*, const byte*, word32);
+CYASSL_API int InitSha(Sha*);
+CYASSL_API int  ShaUpdate(Sha*, const byte*, word32);
 CYASSL_API void ShaFinal(Sha*, byte*);
 
 
+#ifdef HAVE_FIPS
+    /* fips wrapper calls, user can call direct */
+    CYASSL_API int InitSha_fips(Sha*);
+    CYASSL_API int ShaUpdate_fips(Sha*, const byte*, word32);
+    CYASSL_API int ShaFinal_fips(Sha*, byte*);
+    #ifndef FIPS_NO_WRAPPERS
+        /* if not impl or fips.c impl wrapper force fips calls if fips build */
+        #define InitSha   InitSha_fips
+        #define ShaUpdate ShaUpdate_fips
+        #define ShaFinal  ShaFinal_fips
+    #endif /* FIPS_NO_WRAPPERS */
+
+#endif /* HAVE_FIPS */
+
+ 
 #ifdef __cplusplus
     } /* extern "C" */
 #endif

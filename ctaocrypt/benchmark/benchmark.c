@@ -586,9 +586,13 @@ void bench_sha(void)
     Sha    hash;
     byte   digest[SHA_DIGEST_SIZE];
     double start, total, persec;
-    int    i;
+    int    i, ret;
         
-    InitSha(&hash);
+    ret = InitSha(&hash);
+    if (ret != 0) {
+        printf("InitSha failed, ret = %d\n", ret);
+        return;
+    }
     start = current_time(1);
     
     for(i = 0; i < numBlocks; i++)

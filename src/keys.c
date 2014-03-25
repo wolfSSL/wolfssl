@@ -1835,6 +1835,7 @@ int DeriveKeys(CYASSL* ssl)
                  2 * ssl->specs.key_size  +
                  2 * ssl->specs.iv_size;
     int rounds = (length + MD5_DIGEST_SIZE - 1 ) / MD5_DIGEST_SIZE, i;
+    int ret = 0;
 
     byte shaOutput[SHA_DIGEST_SIZE];
     byte md5Input[SECRET_LEN + SHA_DIGEST_SIZE];
@@ -1846,7 +1847,9 @@ int DeriveKeys(CYASSL* ssl)
     byte keyData[KEY_PREFIX * MD5_DIGEST_SIZE];  /* max size */
 
     InitMd5(&md5);
-    InitSha(&sha);
+    ret = InitSha(&sha);
+    if (ret != 0) 
+        return ret;
 
     XMEMCPY(md5Input, ssl->arrays->masterSecret, SECRET_LEN);
 
@@ -1915,7 +1918,9 @@ static int MakeSslMasterSecret(CYASSL* ssl)
 #endif
 
     InitMd5(&md5);
-    InitSha(&sha);
+    ret = InitSha(&sha);
+    if (ret != 0) 
+        return ret;
 
     XMEMCPY(md5Input, ssl->arrays->preMasterSecret, pmsSz);
 

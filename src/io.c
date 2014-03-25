@@ -475,6 +475,7 @@ int EmbedGenerateCookie(CYASSL* ssl, byte *buf, int sz, void *ctx)
     XSOCKLENT peerSz = sizeof(peer);
     Sha sha;
     byte digest[SHA_DIGEST_SIZE];
+    int  ret = 0;
 
     (void)ctx;
 
@@ -484,7 +485,9 @@ int EmbedGenerateCookie(CYASSL* ssl, byte *buf, int sz, void *ctx)
         return GEN_COOKIE_E;
     }
     
-    InitSha(&sha);
+    ret = InitSha(&sha);
+    if (ret != 0)
+        return ret;
     ShaUpdate(&sha, (byte*)&peer, peerSz);
     ShaFinal(&sha, digest);
 

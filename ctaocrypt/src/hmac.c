@@ -56,6 +56,8 @@
 
 static int InitHmac(Hmac* hmac, int type)
 {
+    int ret = 0;
+
     hmac->innerHashKeyed = 0;
     hmac->macType = (byte)type;
 
@@ -72,7 +74,7 @@ static int InitHmac(Hmac* hmac, int type)
 
         #ifndef NO_SHA
         case SHA:
-            InitSha(&hmac->hash.sha);
+            ret = InitSha(&hmac->hash.sha);
         break;
         #endif
         
@@ -104,7 +106,7 @@ static int InitHmac(Hmac* hmac, int type)
             return BAD_FUNC_ARG;
     }
 
-    return 0;
+    return ret;
 }
 
 

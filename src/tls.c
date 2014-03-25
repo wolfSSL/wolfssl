@@ -498,7 +498,7 @@ int CyaSSL_SetTlsHmacInner(CYASSL* ssl, byte* inner, word32 sz, int content,
 
 
 /* TLS type HMAC */
-void TLS_hmac(CYASSL* ssl, byte* digest, const byte* in, word32 sz,
+int TLS_hmac(CYASSL* ssl, byte* digest, const byte* in, word32 sz,
               int content, int verify)
 {
     Hmac hmac;
@@ -511,6 +511,8 @@ void TLS_hmac(CYASSL* ssl, byte* digest, const byte* in, word32 sz,
     HmacUpdate(&hmac, myInner, sizeof(myInner));
     HmacUpdate(&hmac, in, sz);                                /* content */
     HmacFinal(&hmac, digest);
+
+    return 0;
 }
 
 #ifdef HAVE_TLS_EXTENSIONS

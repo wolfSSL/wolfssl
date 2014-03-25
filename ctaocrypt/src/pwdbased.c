@@ -74,7 +74,7 @@ int PBKDF1(byte* output, const byte* passwd, int pLen, const byte* salt,
     Md5  md5;
     Sha  sha;
     int  hLen = (hashType == MD5) ? (int)MD5_DIGEST_SIZE : (int)SHA_DIGEST_SIZE;
-    int  i;
+    int  i, ret = 0;
     byte buffer[SHA_DIGEST_SIZE];  /* max size */
 
     if (hashType != MD5 && hashType != SHA)
@@ -93,7 +93,9 @@ int PBKDF1(byte* output, const byte* passwd, int pLen, const byte* salt,
         Md5Final(&md5,  buffer);
     }
     else {
-        InitSha(&sha);
+        ret = InitSha(&sha);
+        if (ret != 0)
+            return ret;
         ShaUpdate(&sha, passwd, pLen);
         ShaUpdate(&sha, salt,   sLen);
         ShaFinal(&sha,  buffer);
@@ -269,7 +271,9 @@ int PKCS12_PBKDF(byte* output, const byte* passwd, int passLen,const byte* salt,
         else if (hashType == SHA) {
             Sha sha;
 
-            InitSha(&sha);
+            ret = InitSha(&sha);
+            if (ret != 0)
+                break;
             ShaUpdate(&sha, buffer, totalLen);
             ShaFinal(&sha, Ai);
 

@@ -328,7 +328,7 @@ int PKCS7_EncodeSignedData(PKCS7* pkcs7, byte* output, word32 outputSz)
     ESD esd;
     word32 signerInfoSz = 0;
     word32 totalSz = 0;
-    int idx = 0;
+    int idx = 0, ret = 0;
     byte* flatSignedAttribs = NULL;
     word32 flatSignedAttribsSz = 0;
     word32 innerOidSz = sizeof(innerOid);
@@ -342,7 +342,9 @@ int PKCS7_EncodeSignedData(PKCS7* pkcs7, byte* output, word32 outputSz)
         return BAD_FUNC_ARG;
 
     XMEMSET(&esd, 0, sizeof(esd));
-    InitSha(&esd.sha);
+    ret = InitSha(&esd.sha);
+    if (ret != 0)
+        return ret;
 
     if (pkcs7->contentSz != 0)
     {
@@ -431,7 +433,11 @@ int PKCS7_EncodeSignedData(PKCS7* pkcs7, byte* output, word32 outputSz)
 
             attribSetSz = SetSet(flatSignedAttribsSz, attribSet);
 
-            InitSha(&esd.sha);
+            ret = InitSha(&esd.sha);
+            if (result < 0) {
+                XFREE(flatSignedAttribs, 0, NULL);
+                return ret;
+            }
             ShaUpdate(&esd.sha, attribSet, attribSetSz);
             ShaUpdate(&esd.sha, flatSignedAttribs, flatSignedAttribsSz);
         }

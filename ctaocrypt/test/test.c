@@ -767,6 +767,7 @@ int sha_test(void)
 
     testVector a, b, c, d;
     testVector test_sha[4];
+    int ret;
     int times = sizeof(test_sha) / sizeof(struct testVector), i;
 
     a.input  = "abc";
@@ -801,7 +802,9 @@ int sha_test(void)
     test_sha[2] = c;
     test_sha[3] = d;
 
-    InitSha(&sha);
+    ret = InitSha(&sha);
+    if (ret != 0)
+        return -4001;
 
     for (i = 0; i < times; ++i) {
         ShaUpdate(&sha, (byte*)test_sha[i].input, (word32)test_sha[i].inLen);
@@ -3310,7 +3313,9 @@ int dsa_test(void)
     fclose(file);
 #endif /* USE_CERT_BUFFERS */
   
-    InitSha(&sha);
+    ret = InitSha(&sha);
+    if (ret != 0)
+        return -4002;
     ShaUpdate(&sha, tmp, bytes);
     ShaFinal(&sha, hash);
 
@@ -4273,7 +4278,9 @@ int pkcs7signed_test(void)
         transId[0] = 0x13;
         transId[1] = SHA_DIGEST_SIZE * 2;
 
-        InitSha(&sha);
+        ret = InitSha(&sha);
+        if (ret != 0)
+            return -4003;
         ShaUpdate(&sha, msg.publicKey, msg.publicKeySz);
         ShaFinal(&sha, digest);
 

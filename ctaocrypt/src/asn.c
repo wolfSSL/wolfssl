@@ -1587,6 +1587,7 @@ static int GetName(DecodedCert* cert, int nameType)
     Sha    sha;     /* MUST have SHA-1 hash for cert names */
     int    length;  /* length of all distinguished names */
     int    dummy;
+    int    ret;
     char* full = (nameType == ISSUER) ? cert->issuer : cert->subject;
     word32 idx;
     #ifdef OPENSSL_EXTRA
@@ -1613,7 +1614,9 @@ static int GetName(DecodedCert* cert, int nameType)
     if (GetSequence(cert->source, &cert->srcIdx, &length, cert->maxIdx) < 0)
         return ASN_PARSE_E;
 
-    InitSha(&sha);
+    ret = InitSha(&sha);
+    if (ret != 0)
+        return ret;
     ShaUpdate(&sha, &cert->source[idx], length + cert->srcIdx - idx);
     if (nameType == ISSUER)
         ShaFinal(&sha, cert->issuerHash);
@@ -2664,7 +2667,11 @@ static int ConfirmSignature(const byte* buf, word32 bufSz,
         case CTC_SHAwECDSA:
         {
             Sha sha;
-            InitSha(&sha);
+            ret = InitSha(&sha);
+            if (ret != 0) {
+                CYASSL_MSG("InitSha failed");
+                return 0;  /*  not confirmed */
+            }
             ShaUpdate(&sha, buf, bufSz);
             ShaFinal(&sha, digest);
             typeH    = SHAh;
@@ -3152,7 +3159,7 @@ static int DecodeAuthInfo(byte* input, int sz, DecodedCert* cert)
 static int DecodeAuthKeyId(byte* input, int sz, DecodedCert* cert)
 {
     word32 idx = 0;
-    int length = 0;
+    int length = 0, ret = 0;
 
     CYASSL_ENTER("DecodeAuthKeyId");
 
@@ -3181,7 +3188,9 @@ static int DecodeAuthKeyId(byte* input, int sz, DecodedCert* cert)
     }
     else {
         Sha sha;
-        InitSha(&sha);
+        ret = InitSha(&sha);
+        if (ret != 0)
+            return ret;
         ShaUpdate(&sha, input + idx, length);
         ShaFinal(&sha, cert->extAuthKeyId);
     }
@@ -3193,7 +3202,7 @@ static int DecodeAuthKeyId(byte* input, int sz, DecodedCert* cert)
 static int DecodeSubjKeyId(byte* input, int sz, DecodedCert* cert)
 {
     word32 idx = 0;
-    int length = 0;
+    int length = 0, ret = 0;
 
     CYASSL_ENTER("DecodeSubjKeyId");
 
@@ -3217,12 +3226,14 @@ static int DecodeSubjKeyId(byte* input, int sz, DecodedCert* cert)
     }
     else {
         Sha sha;
-        InitSha(&sha);
+        ret = InitSha(&sha);
+        if (ret != 0)
+            return ret;
         ShaUpdate(&sha, input + idx, length);
         ShaFinal(&sha, cert->extSubjKeyId);
     }
 
-    return 0;
+    return ret;
 }
 
 
@@ -3604,7 +3615,9 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
         if (cert->extSubjKeyIdSet == 0
                           && cert->publicKey != NULL && cert->pubKeySize > 0) {
             Sha sha;
-            InitSha(&sha);
+            ret = InitSha(&sha);
+            if (ret != 0)
+                return ret;
             ShaUpdate(&sha, cert->publicKey, cert->pubKeySize);
             ShaFinal(&sha, cert->extSubjKeyId);
         }
@@ -3627,7 +3640,9 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
             /* Need the ca's public key hash for OCSP */
             {
                 Sha sha;
-                InitSha(&sha);
+                ret = InitSha(&sha);
+                if (ret != 0)
+                    return ret;
                 ShaUpdate(&sha, ca->publicKey, ca->pubKeySize);
                 ShaFinal(&sha, cert->issuerKeyHash);
             }
@@ -4718,7 +4733,7 @@ static int MakeSignature(const byte* buffer, int sz, byte* sig, int sigSz,
 {
     byte    digest[SHA256_DIGEST_SIZE];     /* max size */
     byte    encSig[MAX_ENCODED_DIG_SZ + MAX_ALGO_SZ + MAX_SEQ_SZ];
-    int     encSigSz, digestSz, typeH;
+    int     encSigSz, digestSz, typeH, ret = 0;
 
     (void)eccKey;
 
@@ -4732,7 +4747,9 @@ static int MakeSignature(const byte* buffer, int sz, byte* sig, int sigSz,
     }
     else if (sigAlgoType == CTC_SHAwRSA || sigAlgoType == CTC_SHAwECDSA) {
         Sha     sha;
-        InitSha(&sha);
+        ret = InitSha(&sha);
+        if (ret != 0)
+            return ret;
         ShaUpdate(&sha, buffer, sz);
         ShaFinal(&sha, digest);
         digestSz = SHA_DIGEST_SIZE;
@@ -6202,6 +6219,7 @@ CYASSL_LOCAL int GetNameHash(const byte* source, word32* idx, byte* hash,
 {
     Sha    sha;
     int    length;  /* length of all distinguished names */
+    int    ret = 0;
     word32 dummy;
 
     CYASSL_ENTER("GetNameHash");
@@ -6223,7 +6241,9 @@ CYASSL_LOCAL int GetNameHash(const byte* source, word32* idx, byte* hash,
     if (GetSequence(source, idx, &length, maxIdx) < 0)
         return ASN_PARSE_E;
 
-    InitSha(&sha);
+    ret = InitSha(&sha);
+    if (ret != 0)
+        return ret;
     ShaUpdate(&sha, source + dummy, length + *idx - dummy);
     ShaFinal(&sha, hash);
 

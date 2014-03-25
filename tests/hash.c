@@ -302,6 +302,7 @@ int sha_test(void)
 
     testVector a, b, c, d;
     testVector test_sha[4];
+    int ret   = 0;
     int times = sizeof(test_sha) / sizeof(struct testVector), i;
 
     a.input  = "abc";
@@ -336,7 +337,9 @@ int sha_test(void)
     test_sha[2] = c;
     test_sha[3] = d;
 
-    InitSha(&sha);
+    ret = InitSha(&sha);
+    if (ret != 0)
+        return ret;
 
     for (i = 0; i < times; ++i) {
         ShaUpdate(&sha, (byte*)test_sha[i].input, (word32)test_sha[i].inLen);

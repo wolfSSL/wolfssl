@@ -34,6 +34,11 @@
 #define ShaFinal  ShaFinal_sw
 #endif
 
+#ifdef HAVE_FIPS
+    /* set NO_WRAPPERS before headers, use direct internal f()s not wrappers */
+    #define FIPS_NO_WRAPPERS
+#endif
+
 #include <cyassl/ctaocrypt/sha.h>
 #ifdef NO_INLINE
     #include <cyassl/ctaocrypt/misc.h>
@@ -58,7 +63,7 @@
     #include "stm32f2xx.h"
     #include "stm32f2xx_hash.h"
 
-    void InitSha(Sha* sha)
+    int InitSha(Sha* sha)
     {
         /* STM32F2 struct notes:
          * sha->buffer  = first 4 bytes used to hold partial block if needed 
@@ -79,9 +84,11 @@
 
         /* reset HASH processor */
         HASH->CR |= HASH_CR_INIT;
+
+        return 0;
     }
 
-    void ShaUpdate(Sha* sha, const byte* data, word32 len)
+    int ShaUpdate(Sha* sha, const byte* data, word32 len)
     {
         word32 i = 0;
         word32 fill = 0;
@@ -125,6 +132,8 @@
 
         /* keep track of total data length thus far */ 
         sha->loLen += (len - sha->buffLen);
+
+        return 0;
     }
 
     void ShaFinal(Sha* sha, byte* hash)
@@ -175,7 +184,7 @@
 #endif /* min */
 
 
-void InitSha(Sha* sha)
+int InitSha(Sha* sha)
 {
     #ifdef FREESCALE_MMCAU
         cau_sha1_initialize_output(sha->digest);
@@ -190,6 +199,8 @@ void InitSha(Sha* sha)
     sha->buffLen = 0;
     sha->loLen   = 0;
     sha->hiLen   = 0;
+
+    return 0;
 }
 
 #ifndef FREESCALE_MMCAU
@@ -302,7 +313,7 @@ static INLINE void AddLength(Sha* sha, word32 len)
 }
 
 
-void ShaUpdate(Sha* sha, const byte* data, word32 len)
+int ShaUpdate(Sha* sha, const byte* data, word32 len)
 {
     /* do block size increments */
     byte* local = (byte*)sha->buffer;
@@ -324,6 +335,8 @@ void ShaUpdate(Sha* sha, const byte* data, word32 len)
             sha->buffLen = 0;
         }
     }
+
+    return 0;
 }
 
 

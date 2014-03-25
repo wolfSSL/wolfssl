@@ -91,9 +91,7 @@ int CRYPT_SHA_Initialize(CRYPT_SHA_CTX* sha)
     if (sha == NULL)
         return BAD_FUNC_ARG;
 
-    InitSha((Sha*)sha);
-
-    return 0;
+    return InitSha((Sha*)sha);
 }
 
 
