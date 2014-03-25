@@ -167,7 +167,6 @@
 #endif
 
 #ifdef MBED
-    //#define SINGLE_THREADED
     #define CYASSL_USER_IO
     #define NO_FILESYSTEM
     #define NO_CERT
