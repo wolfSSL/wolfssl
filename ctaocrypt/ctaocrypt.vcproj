@@ -177,7 +177,7 @@
 				>
 			</File>
 			<File
-				RelativePath=".\include\error.h"
+				RelativePath=".\include\error-crypt.h"
 				>
 			</File>
 			<File

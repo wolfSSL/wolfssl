@@ -28,7 +28,7 @@
 #ifndef NO_CODING
 
 #include <cyassl/ctaocrypt/coding.h>
-#include <cyassl/ctaocrypt/error.h>
+#include <cyassl/ctaocrypt/error-crypt.h>
 #include <cyassl/ctaocrypt/logging.h>
 
 

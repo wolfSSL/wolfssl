@@ -61,7 +61,7 @@
 #ifdef HAVE_CAMELLIA
 
 #include <cyassl/ctaocrypt/camellia.h>
-#include <cyassl/ctaocrypt/error.h>
+#include <cyassl/ctaocrypt/error-crypt.h>
 #include <cyassl/ctaocrypt/logging.h>
 #ifdef NO_INLINE
     #include <cyassl/ctaocrypt/misc.h>

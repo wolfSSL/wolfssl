@@ -31,7 +31,7 @@
 
 #include <cyassl/ctaocrypt/ecc.h>
 #include <cyassl/ctaocrypt/asn.h>
-#include <cyassl/ctaocrypt/error.h>
+#include <cyassl/ctaocrypt/error-crypt.h>
 
 #ifdef HAVE_ECC_ENCRYPT
     #include <cyassl/ctaocrypt/hmac.h>

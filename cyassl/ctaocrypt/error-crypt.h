@@ -1,4 +1,4 @@
-/* error.h
+/* error-crypt.h
  *
  * Copyright (C) 2006-2013 wolfSSL Inc.
  *
@@ -135,4 +135,5 @@ CYASSL_API void CTaoCryptErrorString(int err, char* buff);
 #endif
 
 #endif /* CTAO_CRYPT_ERROR_H */
+
 

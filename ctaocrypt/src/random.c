@@ -31,7 +31,7 @@
 */
 
 #include <cyassl/ctaocrypt/random.h>
-#include <cyassl/ctaocrypt/error.h>
+#include <cyassl/ctaocrypt/error-crypt.h>
 
 #ifdef NO_RC4
     #include <cyassl/ctaocrypt/sha256.h>

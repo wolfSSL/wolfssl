@@ -28,7 +28,7 @@
 #ifdef HAVE_PKCS7
 
 #include <cyassl/ctaocrypt/pkcs7.h>
-#include <cyassl/ctaocrypt/error.h>
+#include <cyassl/ctaocrypt/error-crypt.h>
 #include <cyassl/ctaocrypt/logging.h>
 
 #ifndef min

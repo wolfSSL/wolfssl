@@ -27,7 +27,7 @@
 #include <cyassl/ctaocrypt/settings.h>
 
 #include <cyassl/internal.h>
-#include <cyassl/error.h>
+#include <cyassl/error-ssl.h>
 #include <cyassl/ctaocrypt/asn.h>
 
 #ifdef HAVE_LIBZ

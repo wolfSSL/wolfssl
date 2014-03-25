@@ -8,7 +8,7 @@ include cyassl/openssl/include.am
 EXTRA_DIST+= cyassl/sniffer_error.rc
 
 nobase_include_HEADERS+= \
-                         cyassl/error.h \
+                         cyassl/error-ssl.h \
                          cyassl/ssl.h \
                          cyassl/sniffer_error.h \
                          cyassl/sniffer.h \

@@ -46,7 +46,7 @@
 #include <cyassl/ctaocrypt/pwdbased.h>
 #include <cyassl/ctaocrypt/hmac.h>
 #include <cyassl/ctaocrypt/integer.h>
-#include <cyassl/ctaocrypt/error.h>
+#include <cyassl/ctaocrypt/error-crypt.h>
 #if defined(CYASSL_SHA512) || defined(CYASSL_SHA384)
     #include <cyassl/ctaocrypt/sha512.h>
 #endif

@@ -92,7 +92,7 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_includedir}/cyassl/ctaocrypt/dh.h
 %{_includedir}/cyassl/ctaocrypt/dsa.h
 %{_includedir}/cyassl/ctaocrypt/ecc.h
-%{_includedir}/cyassl/ctaocrypt/error.h
+%{_includedir}/cyassl/ctaocrypt/error-crypt.h
 %{_includedir}/cyassl/ctaocrypt/hc128.h
 %{_includedir}/cyassl/ctaocrypt/hmac.h
 %{_includedir}/cyassl/ctaocrypt/integer.h
@@ -118,7 +118,7 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_includedir}/cyassl/ctaocrypt/tfm.h
 %{_includedir}/cyassl/ctaocrypt/types.h
 %{_includedir}/cyassl/ctaocrypt/visibility.h
-%{_includedir}/cyassl/error.h
+%{_includedir}/cyassl/error-ssl.h
 %{_includedir}/cyassl/ocsp.h
 %{_includedir}/cyassl/openssl/asn1.h
 %{_includedir}/cyassl/openssl/bio.h

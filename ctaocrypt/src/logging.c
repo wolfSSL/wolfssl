@@ -28,7 +28,7 @@
 /* submitted by eof */
 
 #include <cyassl/ctaocrypt/logging.h>
-#include <cyassl/ctaocrypt/error.h>
+#include <cyassl/ctaocrypt/error-crypt.h>
 
 
 #ifdef __cplusplus

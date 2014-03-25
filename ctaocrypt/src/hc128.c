@@ -28,7 +28,7 @@
 #ifdef HAVE_HC128
 
 #include <cyassl/ctaocrypt/hc128.h>
-#include <cyassl/ctaocrypt/error.h>
+#include <cyassl/ctaocrypt/error-crypt.h>
 #include <cyassl/ctaocrypt/logging.h>
 #ifdef NO_INLINE
     #include <cyassl/ctaocrypt/hc128.h>

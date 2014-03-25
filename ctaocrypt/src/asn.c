@@ -38,7 +38,7 @@
 #include <cyassl/ctaocrypt/sha.h>
 #include <cyassl/ctaocrypt/md5.h>
 #include <cyassl/ctaocrypt/md2.h>
-#include <cyassl/ctaocrypt/error.h>
+#include <cyassl/ctaocrypt/error-crypt.h>
 #include <cyassl/ctaocrypt/pwdbased.h>
 #include <cyassl/ctaocrypt/des3.h>
 #include <cyassl/ctaocrypt/sha256.h>
