@@ -4927,6 +4927,11 @@ int ProcessReply(CYASSL* ssl)
         atomicUser = 1;
 #endif
 
+    if (ssl->error != 0 && ssl->error != WANT_READ && ssl->error != WANT_WRITE){
+        CYASSL_MSG("ProcessReply retry in error state, not allowed");
+        return ssl->error;
+    }
+
     for (;;) {
         switch (ssl->options.processReply) {
 
@@ -5955,6 +5960,11 @@ int ReceiveData(CYASSL* ssl, byte* output, int sz, int peek)
 
     if (ssl->error == WANT_READ)
         ssl->error = 0;
+
+    if (ssl->error != 0 && ssl->error != WANT_WRITE) {
+        CYASSL_MSG("User calling CyaSSL_read in error state, not allowed");
+        return ssl->error;
+    }
 
     if (ssl->options.handShakeState != HANDSHAKE_DONE) {
         int err;
