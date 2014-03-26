@@ -4669,7 +4669,9 @@ static int TimingPadVerify(CYASSL* ssl, const byte* input, int padLen, int t,
         return VERIFY_MAC_ERROR;
     }
 
-    return ret;
+    if (ret != 0)
+        return VERIFY_MAC_ERROR;
+    return 0;
 }
 
 
@@ -4861,13 +4863,25 @@ static INLINE int VerifyMac(CYASSL* ssl, const byte* input, word32 msgSz,
             if (ret != 0)
                 return ret;
         }
-        else {  /* sslv3, some implementations have bad padding */
+        else {  /* sslv3, some implementations have bad padding, but don't
+                 * allow bad read */ 
+            int  badPadLen = 0;
+            byte dummy[MAX_PAD_SIZE];
+
+            XMEMSET(dummy, 1, sizeof(dummy));
+
+            if (pad > (msgSz - digestSz - 1)) {
+                CYASSL_MSG("Plain Len not long enough for pad/mac");
+                pad       = 0;  /* no bad read */
+                badPadLen = 1;
+            }
+            PadCheck(dummy, (byte)pad, MAX_PAD_SIZE);  /* timing only */
             ret = ssl->hmac(ssl, verify, input, msgSz - digestSz - pad - 1,
                             content, 1);
             if (ConstantCompare(verify, input + msgSz - digestSz - pad - 1,
                                 digestSz) != 0)
                 return VERIFY_MAC_ERROR;
-            if (ret != 0)
+            if (ret != 0 || badPadLen)
                 return VERIFY_MAC_ERROR;
         }
     }
