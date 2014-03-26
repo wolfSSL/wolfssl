@@ -4739,7 +4739,8 @@ int DoApplicationData(CYASSL* ssl, byte* input, word32* inOutIdx)
 
 
 /* process alert, return level */
-static int DoAlert(CYASSL* ssl, byte* input, word32* inOutIdx, int* type)
+static int DoAlert(CYASSL* ssl, byte* input, word32* inOutIdx, int* type,
+                   word32 totalSz)
 {
     byte level;
     byte code;
@@ -4752,6 +4753,11 @@ static int DoAlert(CYASSL* ssl, byte* input, word32* inOutIdx, int* type)
             AddPacketInfo("Alert", &ssl->timeoutInfo, input + *inOutIdx -
                           RECORD_HEADER_SZ, 2 + RECORD_HEADER_SZ, ssl->heap);
     #endif
+
+    /* make sure can read the message */
+    if (*inOutIdx + ALERT_SIZE > totalSz)
+        return BUFFER_E;
+
     level = input[(*inOutIdx)++];
     code  = input[(*inOutIdx)++];
     ssl->alert_history.last_rx.code = code;
@@ -4769,6 +4775,8 @@ static int DoAlert(CYASSL* ssl, byte* input, word32* inOutIdx, int* type)
     CYASSL_ERROR(*type);
 
     if (ssl->keys.encryptionOn) {
+        if (*inOutIdx + ssl->keys.padSz > totalSz)
+            return BUFFER_E;
         *inOutIdx += ssl->keys.padSz;
     }
 
@@ -5213,7 +5221,8 @@ int ProcessReply(CYASSL* ssl)
                 case alert:
                     CYASSL_MSG("got ALERT!");
                     ret = DoAlert(ssl, ssl->buffers.inputBuffer.buffer,
-                           &ssl->buffers.inputBuffer.idx, &type);
+                                  &ssl->buffers.inputBuffer.idx, &type,
+                                   ssl->buffers.inputBuffer.length);
                     if (ret == alert_fatal)
                         return FATAL_ERROR;
                     else if (ret < 0)
