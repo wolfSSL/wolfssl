@@ -273,7 +273,8 @@ enum {
     DYNAMIC_TYPE_CAVIUM_RSA   = 41,
     DYNAMIC_TYPE_X509         = 42,
     DYNAMIC_TYPE_TLSX         = 43,
-    DYNAMIC_TYPE_OCSP         = 44
+    DYNAMIC_TYPE_OCSP         = 44,
+    DYNAMIC_TYPE_SIGNATURE    = 45
 };
 
 /* max error buffer string size */

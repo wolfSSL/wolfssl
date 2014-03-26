@@ -1324,7 +1324,7 @@ void FreeX509(CYASSL_X509* x509)
     if (x509->pubKey.buffer)
         XFREE(x509->pubKey.buffer, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
     XFREE(x509->derCert.buffer, NULL, DYNAMIC_TYPE_SUBJECT_CN);
-    XFREE(x509->sig.buffer, NULL, 0);
+    XFREE(x509->sig.buffer, NULL, DYNAMIC_TYPE_SIGNATURE);
     #ifdef OPENSSL_EXTRA
         XFREE(x509->authKeyId, NULL, 0);
         XFREE(x509->subjKeyId, NULL, 0);
@@ -3172,14 +3172,17 @@ int CopyDecodedToX509(CYASSL_X509* x509, DecodedCert* dCert)
             ret = MEMORY_E;
     }
 
-    x509->sig.buffer = (byte*)XMALLOC(dCert->sigLength, NULL, 0);
-    if (x509->sig.buffer == NULL) {
-        ret = MEMORY_E;
-    }
-    else {
-        XMEMCPY(x509->sig.buffer, dCert->signature, dCert->sigLength);
-        x509->sig.length = dCert->sigLength;
-        x509->sigOID = dCert->signatureOID;
+    if (dCert->signature != NULL && dCert->sigLength != 0) {
+        x509->sig.buffer = (byte*)XMALLOC(
+                                dCert->sigLength, NULL, DYNAMIC_TYPE_SIGNATURE);
+        if (x509->sig.buffer == NULL) {
+            ret = MEMORY_E;
+        }
+        else {
+            XMEMCPY(x509->sig.buffer, dCert->signature, dCert->sigLength);
+            x509->sig.length = dCert->sigLength;
+            x509->sigOID = dCert->signatureOID;
+        }
     }
 
     /* store cert for potential retrieval */
