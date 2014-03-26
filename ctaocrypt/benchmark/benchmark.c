@@ -620,8 +620,13 @@ void bench_sha256(void)
     byte   digest[SHA256_DIGEST_SIZE];
     double start, total, persec;
     int    i;
+    int    ret;
         
-    InitSha256(&hash);
+    ret = InitSha256(&hash);
+    if (ret != 0) {
+        printf("InitSha256 failed, ret = %d\n", ret);
+        return;
+    }
     start = current_time(1);
     
     for(i = 0; i < numBlocks; i++)

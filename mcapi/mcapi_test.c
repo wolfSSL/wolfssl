@@ -272,11 +272,16 @@ static int check_sha256(void)
 {
     CRYPT_SHA256_CTX mcSha256;
     Sha256           defSha256;
+    int              ret;
     byte             mcDigest[CRYPT_SHA256_DIGEST_SIZE];
     byte             defDigest[SHA256_DIGEST_SIZE];
 
     CRYPT_SHA256_Initialize(&mcSha256);
-    InitSha256(&defSha256);
+    ret = InitSha256(&defSha256);
+    if (ret != 0) {
+        printf("sha init default failed\n");
+        return -1;
+    }
 
     CRYPT_SHA256_DataAdd(&mcSha256, ourData, OUR_DATA_SIZE);
     Sha256Update(&defSha256, ourData, OUR_DATA_SIZE);

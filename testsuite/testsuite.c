@@ -307,12 +307,16 @@ void FreeTcpReady(tcp_ready* ready)
 void file_test(const char* file, byte* check)
 {
     FILE* f;
-    int   i = 0, j;
+    int   i = 0, j, ret;
     Sha256   sha256;
     byte  buf[1024];
     byte  shasum[SHA256_DIGEST_SIZE];
    
-    InitSha256(&sha256); 
+    ret = InitSha256(&sha256);
+    if (ret != 0) {
+        printf("Can't InitSha256 %d\n", ret);
+        return;
+    }
     if( !( f = fopen( file, "rb" ) )) {
         printf("Can't open %s\n", file);
         return;

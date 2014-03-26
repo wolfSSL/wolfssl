@@ -347,6 +347,10 @@ void CTaoCryptErrorString(int error, char* buffer)
         XSTRNCPY(buffer, "PKCS#7 error: no matching recipient found", max);
         break;
 
+    case FIPS_NOT_ALLOWED_E:
+        XSTRNCPY(buffer, "FIPS mode not allowed error", max);
+        break;
+
     default:
         XSTRNCPY(buffer, "unknown error number", max);
 

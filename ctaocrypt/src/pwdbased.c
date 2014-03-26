@@ -286,7 +286,9 @@ int PKCS12_PBKDF(byte* output, const byte* passwd, int passLen,const byte* salt,
         else if (hashType == SHA256) {
             Sha256 sha256;
 
-            InitSha256(&sha256);
+            ret = InitSha256(&sha256);
+            if (ret != 0)
+                break;
             Sha256Update(&sha256, buffer, totalLen);
             Sha256Final(&sha256, Ai);
 

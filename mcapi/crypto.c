@@ -129,9 +129,7 @@ int CRYPT_SHA256_Initialize(CRYPT_SHA256_CTX* sha256)
     if (sha256 == NULL)
         return BAD_FUNC_ARG;
 
-    InitSha256((Sha256*)sha256);
-
-    return 0;
+    return InitSha256((Sha256*)sha256);
 }
 
 

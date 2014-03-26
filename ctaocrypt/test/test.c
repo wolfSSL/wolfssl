@@ -949,6 +949,7 @@ int sha256_test(void)
 
     testVector a, b;
     testVector test_sha[2];
+    int ret;
     int times = sizeof(test_sha) / sizeof(struct testVector), i;
 
     a.input  = "abc";
@@ -968,7 +969,9 @@ int sha256_test(void)
     test_sha[0] = a;
     test_sha[1] = b;
 
-    InitSha256(&sha);
+    ret = InitSha256(&sha);
+    if (ret != 0)
+        return -4003;
 
     for (i = 0; i < times; ++i) {
         Sha256Update(&sha, (byte*)test_sha[i].input,(word32)test_sha[i].inLen);

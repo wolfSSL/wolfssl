@@ -61,11 +61,26 @@ typedef struct Sha256 {
 } Sha256;
 
 
-CYASSL_API void InitSha256(Sha256*);
-CYASSL_API void Sha256Update(Sha256*, const byte*, word32);
-CYASSL_API void Sha256Final(Sha256*, byte*);
+CYASSL_API int  InitSha256(Sha256*);
+CYASSL_API int  Sha256Update(Sha256*, const byte*, word32);
+CYASSL_API int  Sha256Final(Sha256*, byte*);
 
 
+#ifdef HAVE_FIPS
+    /* fips wrapper calls, user can call direct */
+    CYASSL_API int InitSha256_fips(Sha256*);
+    CYASSL_API int Sha256Update_fips(Sha256*, const byte*, word32);
+    CYASSL_API int Sha256Final_fips(Sha256*, byte*);
+    #ifndef FIPS_NO_WRAPPERS
+        /* if not impl or fips.c impl wrapper force fips calls if fips build */
+        #define InitSha256   InitSha256_fips
+        #define Sha256Update Sha256Update_fips
+        #define Sha256Final  Sha256Final_fips
+    #endif /* FIPS_NO_WRAPPERS */
+
+#endif /* HAVE_FIPS */
+
+ 
 #ifdef __cplusplus
     } /* extern "C" */
 #endif

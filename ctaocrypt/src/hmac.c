@@ -80,7 +80,7 @@ static int InitHmac(Hmac* hmac, int type)
         
         #ifndef NO_SHA256
         case SHA256:
-            InitSha256(&hmac->hash.sha256);
+            ret = InitSha256(&hmac->hash.sha256);
         break;
         #endif
         

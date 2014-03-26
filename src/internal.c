@@ -1451,7 +1451,10 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
 #endif
 #endif
 #ifndef NO_SHA256
-    InitSha256(&ssl->hashSha256);
+    ret = InitSha256(&ssl->hashSha256);
+    if (ret != 0) {
+        return ret;
+    }
 #endif
 #ifdef CYASSL_SHA384
     InitSha384(&ssl->hashSha384);
@@ -4441,7 +4444,7 @@ static INLINE void Sha256Rounds(int rounds, const byte* data, int sz)
     Sha256 sha256;
     int i;
 
-    InitSha256(&sha256);
+    InitSha256(&sha256);  /* no error check on purpose, dummy round */
 
     for (i = 0; i < rounds; i++)
         Sha256Update(&sha256, data, sz);
@@ -7970,7 +7973,9 @@ static void PickHashSigAlgo(CYASSL* ssl,
 #endif
 
 #ifndef NO_SHA256
-        InitSha256(&sha256);
+        ret = InitSha256(&sha256);
+        if (ret != 0)
+            return ret;
         Sha256Update(&sha256, ssl->arrays->clientRandom, RAN_LEN);
         Sha256Update(&sha256, ssl->arrays->serverRandom, RAN_LEN);
         Sha256Update(&sha256, messageVerify, verifySz);
@@ -9018,7 +9023,9 @@ static void PickHashSigAlgo(CYASSL* ssl,
 #endif
 
                 #ifndef NO_SHA256
-                    InitSha256(&sha256);
+                    ret = InitSha256(&sha256);
+                    if (ret != 0)
+                        return ret;
                     Sha256Update(&sha256, ssl->arrays->clientRandom, RAN_LEN);
                     Sha256Update(&sha256, ssl->arrays->serverRandom, RAN_LEN);
                     Sha256Update(&sha256, output + preSigIdx, preSigSz);
@@ -9344,7 +9351,9 @@ static void PickHashSigAlgo(CYASSL* ssl,
 #endif
 
                 #ifndef NO_SHA256
-                    InitSha256(&sha256);
+                    ret = InitSha256(&sha256);
+                    if (ret != 0)
+                        return ret;
                     Sha256Update(&sha256, ssl->arrays->clientRandom, RAN_LEN);
                     Sha256Update(&sha256, ssl->arrays->serverRandom, RAN_LEN);
                     Sha256Update(&sha256, output + preSigIdx, preSigSz);

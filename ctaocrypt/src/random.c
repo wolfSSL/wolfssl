@@ -103,7 +103,8 @@ static int Hash_df(RNG* rng, byte* out, word32 outSz, byte type, byte* inA, word
 
     for (i = 0, ctr = 1; i < len; i++, ctr++)
     {
-        InitSha256(&rng->sha);
+        if (InitSha256(&rng->sha) != 0)
+            return DBRG_ERROR;
         Sha256Update(&rng->sha, &ctr, sizeof(ctr));
         Sha256Update(&rng->sha, (byte*)&bits, sizeof(bits));
         /* churning V is the only string that doesn't have 
@@ -157,16 +158,17 @@ static INLINE void array_add_one(byte* data, word32 dataSz)
     }
 }
 
-static void Hash_gen(RNG* rng, byte* out, word32 outSz, byte* V)
+static int Hash_gen(RNG* rng, byte* out, word32 outSz, byte* V)
 {
     byte data[DBRG_SEED_LEN];
-    int i;
+    int i, ret;
     int len = (outSz / SHA256_DIGEST_SIZE)
         + ((outSz % SHA256_DIGEST_SIZE) ? 1 : 0);
 
     XMEMCPY(data, V, sizeof(data));
     for (i = 0; i < len; i++) {
-        InitSha256(&rng->sha);
+        ret = InitSha256(&rng->sha);
+            return ret;
         Sha256Update(&rng->sha, data, sizeof(data));
         Sha256Final(&rng->sha, rng->digest);
         if (outSz > SHA256_DIGEST_SIZE) {
@@ -180,6 +182,8 @@ static void Hash_gen(RNG* rng, byte* out, word32 outSz, byte* V)
         }
     }
     XMEMSET(data, 0, sizeof(data));
+
+    return 0;
 }
 
 
@@ -209,8 +213,10 @@ static int Hash_DBRG_Generate(RNG* rng, byte* out, word32 outSz)
     if (rng->reseed_ctr != RESEED_MAX) {
         byte type = dbrgGenerateH;
 
-        Hash_gen(rng, out, outSz, rng->V);
-        InitSha256(&rng->sha);
+        if (Hash_gen(rng, out, outSz, rng->V) != 0)
+            return DBRG_ERROR;
+        if (InitSha256(&rng->sha) != 0)
+            return DBRG_ERROR;
         Sha256Update(&rng->sha, &type, sizeof(type));
         Sha256Update(&rng->sha, rng->V, sizeof(rng->V));
         Sha256Final(&rng->sha, rng->digest);

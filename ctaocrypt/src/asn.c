@@ -2684,7 +2684,11 @@ static int ConfirmSignature(const byte* buf, word32 bufSz,
         case CTC_SHA256wECDSA:
         {
             Sha256 sha256;
-            InitSha256(&sha256);
+            ret = InitSha256(&sha256);
+            if (ret != 0) {
+                CYASSL_MSG("InitSha256 failed");
+                return 0;  /*  not confirmed */
+            }
             Sha256Update(&sha256, buf, bufSz);
             Sha256Final(&sha256, digest);
             typeH    = SHA256h;
@@ -4757,7 +4761,9 @@ static int MakeSignature(const byte* buffer, int sz, byte* sig, int sigSz,
     }
     else if (sigAlgoType == CTC_SHA256wRSA || sigAlgoType == CTC_SHA256wECDSA) {
         Sha256     sha256;
-        InitSha256(&sha256);
+        ret = InitSha256(&sha256);
+        if (ret != 0)
+            return ret;
         Sha256Update(&sha256, buffer, sz);
         Sha256Final(&sha256, digest);
         digestSz = SHA256_DIGEST_SIZE;

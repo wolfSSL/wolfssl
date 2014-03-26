@@ -4467,7 +4467,11 @@ int CyaSSL_dtls_got_timeout(CYASSL* ssl)
 #endif
                     if (IsAtLeastTLSv1_2(ssl)) {
                         #ifndef NO_SHA256
-                            InitSha256(&ssl->hashSha256);
+                            if ( (ssl->error =
+                                           InitSha256(&ssl->hashSha256)) != 0) {
+                                CYASSL_ERROR(ssl->error);
+                                return SSL_FATAL_ERROR;
+                            }
                         #endif
                         #ifdef CYASSL_SHA384
                             InitSha384(&ssl->hashSha384);
@@ -4741,7 +4745,11 @@ int CyaSSL_dtls_got_timeout(CYASSL* ssl)
 #endif
                     if (IsAtLeastTLSv1_2(ssl)) {
                         #ifndef NO_SHA256
-                             InitSha256(&ssl->hashSha256);
+                             if ( (ssl->error =
+                                           InitSha256(&ssl->hashSha256)) != 0) {
+                                CYASSL_ERROR(ssl->error);
+                                return SSL_FATAL_ERROR;
+                             }
                         #endif
                         #ifdef CYASSL_SHA384
                             InitSha384(&ssl->hashSha384);
@@ -4945,10 +4953,13 @@ static INLINE word32 HashSession(const byte* sessionID, word32 len, int* error)
 {
     byte    digest[SHA256_DIGEST_SIZE];
     Sha256  sha256;
+    int     ret;
 
-    (void)error;
-
-    InitSha256(&sha256);
+    ret = InitSha256(&sha256);
+    if (ret != 0) {
+        *error = ret;
+        return 0;
+    }
     Sha256Update(&sha256, sessionID, len);
     Sha256Final(&sha256, digest);
 
@@ -6525,7 +6536,7 @@ int CyaSSL_set_compression(CYASSL* ssl)
         (void)sizeof(sha_test);
 
         CYASSL_ENTER("SHA256_Init");
-        InitSha256((Sha256*)sha256);
+        InitSha256((Sha256*)sha256);  /* OpenSSL compat, no error */
     }
 
 

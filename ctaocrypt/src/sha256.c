@@ -36,6 +36,11 @@
 #define Sha256Final  Sha256Final_sw
 #endif
 
+#ifdef HAVE_FIPS
+    /* set NO_WRAPPERS before headers, use direct internal f()s not wrappers */
+    #define FIPS_NO_WRAPPERS
+#endif
+
 #include <cyassl/ctaocrypt/sha256.h>
 #ifdef NO_INLINE
     #include <cyassl/ctaocrypt/misc.h>
@@ -61,7 +66,7 @@
 #endif /* min */
 
 
-void InitSha256(Sha256* sha256)
+int InitSha256(Sha256* sha256)
 {
     #ifdef FREESCALE_MMCAU
         cau_sha256_initialize_output(sha256->digest);
@@ -79,6 +84,8 @@ void InitSha256(Sha256* sha256)
     sha256->buffLen = 0;
     sha256->loLen   = 0;
     sha256->hiLen   = 0;
+
+    return 0;
 }
 
 #ifndef FREESCALE_MMCAU
@@ -158,7 +165,7 @@ static INLINE void AddLength(Sha256* sha256, word32 len)
 }
 
 
-void Sha256Update(Sha256* sha256, const byte* data, word32 len)
+int Sha256Update(Sha256* sha256, const byte* data, word32 len)
 {
     /* do block size increments */
     byte* local = (byte*)sha256->buffer;
@@ -181,10 +188,12 @@ void Sha256Update(Sha256* sha256, const byte* data, word32 len)
             sha256->buffLen = 0;
         }
     }
+
+    return 0;
 }
 
 
-void Sha256Final(Sha256* sha256, byte* hash)
+int Sha256Final(Sha256* sha256, byte* hash)
 {
     byte* local = (byte*)sha256->buffer;
 
@@ -232,7 +241,7 @@ void Sha256Final(Sha256* sha256, byte* hash)
     #endif
     XMEMCPY(hash, sha256->digest, SHA256_DIGEST_SIZE);
 
-    InitSha256(sha256);  /* reset state */
+    return InitSha256(sha256);  /* reset state */
 }
 
 
