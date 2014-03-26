@@ -10733,6 +10733,12 @@ static void PickHashSigAlgo(CYASSL* ssl,
         (void)input;
         (void)size;
 
+        if (ssl->options.side != CYASSL_SERVER_END) {
+            CYASSL_MSG("Client received client keyexchange, attack?");
+            CYASSL_ERROR(ssl->error = SIDE_ERROR);
+            return SSL_FATAL_ERROR;
+        }
+
         if (ssl->options.clientState < CLIENT_HELLO_COMPLETE) {
             CYASSL_MSG("Client sending keyexchange at wrong time");
             SendAlert(ssl, alert_fatal, unexpected_message);

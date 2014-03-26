@@ -1126,6 +1126,9 @@ int DhKeyDecode(const byte* input, word32* inOutIdx, DhKey* key, word32 inSz)
 
 int DhSetKey(DhKey* key, const byte* p, word32 pSz, const byte* g, word32 gSz)
 {
+    if (key == NULL || p == NULL || g == NULL || pSz == 0 || gSz == 0)
+        return BAD_FUNC_ARG;
+
     /* may have leading 0 */
     if (p[0] == 0) {
         pSz--; p++;
@@ -5469,6 +5472,9 @@ int EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
     byte   b;
     byte   priv[ECC_MAXSIZE];
     byte   pub[ECC_MAXSIZE * 2 + 1]; /* public key has two parts plus header */
+
+    if (input == NULL || inOutIdx == NULL || key == NULL || inSz == 0)
+        return BAD_FUNC_ARG;
 
     if (GetSequence(input, inOutIdx, &length, inSz) < 0)
         return ASN_PARSE_E;
