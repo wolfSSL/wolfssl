@@ -1041,6 +1041,7 @@ int sha384_test(void)
 {
     Sha384 sha;
     byte   hash[SHA384_DIGEST_SIZE];
+    int    ret;
 
     testVector a, b;
     testVector test_sha[2];
@@ -1066,7 +1067,9 @@ int sha384_test(void)
     test_sha[0] = a;
     test_sha[1] = b;
 
-    InitSha384(&sha);
+    ret = InitSha384(&sha);
+    if (ret != 0)
+        return -4010;
 
     for (i = 0; i < times; ++i) {
         Sha384Update(&sha, (byte*)test_sha[i].input,(word32)test_sha[i].inLen);

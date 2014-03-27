@@ -402,11 +402,11 @@ int sha512_test(void)
 {
     Sha512 sha;
     byte   hash[SHA512_DIGEST_SIZE];
-    int    ret;
 
     testVector a, b;
     testVector test_sha[2];
     int times = sizeof(test_sha) / sizeof(struct testVector), i;
+    int ret;
 
     a.input  = "abc";
     a.output = "\xdd\xaf\x35\xa1\x93\x61\x7a\xba\xcc\x41\x73\x49\xae\x20\x41"
@@ -455,6 +455,7 @@ int sha384_test()
     testVector a, b;
     testVector test_sha[2];
     int times = sizeof(test_sha) / sizeof(struct testVector), i;
+    int ret;
 
     a.input  = "abc";
     a.output = "\xcb\x00\x75\x3f\x45\xa3\x5e\x8b\xb5\xa0\x3d\x69\x9a\xc6\x50"
@@ -476,7 +477,9 @@ int sha384_test()
     test_sha[0] = a;
     test_sha[1] = b;
 
-    InitSha384(&sha);
+    ret = InitSha384(&sha);
+    if (ret != 0)
+        return ret;
 
     for (i = 0; i < times; ++i) {
         Sha384Update(&sha, (byte*)test_sha[i].input,(word32)test_sha[i].inLen);

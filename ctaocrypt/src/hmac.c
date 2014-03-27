@@ -86,7 +86,7 @@ static int InitHmac(Hmac* hmac, int type)
         
         #ifdef CYASSL_SHA384
         case SHA384:
-            InitSha384(&hmac->hash.sha384);
+            ret = InitSha384(&hmac->hash.sha384);
         break;
         #endif
         

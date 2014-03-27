@@ -77,9 +77,9 @@ typedef struct Sha384 {
 } Sha384;
 
 
-CYASSL_API void InitSha384(Sha384*);
-CYASSL_API void Sha384Update(Sha384*, const byte*, word32);
-CYASSL_API void Sha384Final(Sha384*, byte*);
+CYASSL_API int InitSha384(Sha384*);
+CYASSL_API int Sha384Update(Sha384*, const byte*, word32);
+CYASSL_API int Sha384Final(Sha384*, byte*);
 
 
 #ifdef HAVE_FIPS
@@ -92,6 +92,17 @@ CYASSL_API void Sha384Final(Sha384*, byte*);
         #define InitSha512   InitSha512_fips
         #define Sha512Update Sha512Update_fips
         #define Sha512Final  Sha512Final_fips
+    #endif /* FIPS_NO_WRAPPERS */
+
+    /* fips wrapper calls, user can call direct */
+    CYASSL_API int InitSha384_fips(Sha384*);
+    CYASSL_API int Sha384Update_fips(Sha384*, const byte*, word32);
+    CYASSL_API int Sha384Final_fips(Sha384*, byte*);
+    #ifndef FIPS_NO_WRAPPERS
+        /* if not impl or fips.c impl wrapper force fips calls if fips build */
+        #define InitSha384   InitSha384_fips
+        #define Sha384Update Sha384Update_fips
+        #define Sha384Final  Sha384Final_fips
     #endif /* FIPS_NO_WRAPPERS */
 
 #endif /* HAVE_FIPS */

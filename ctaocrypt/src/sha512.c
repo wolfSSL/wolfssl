@@ -271,7 +271,7 @@ int Sha512Final(Sha512* sha512, byte* hash)
 
 #ifdef CYASSL_SHA384
 
-void InitSha384(Sha384* sha384)
+int InitSha384(Sha384* sha384)
 {
     sha384->digest[0] = W64LIT(0xcbbb9d5dc1059ed8);
     sha384->digest[1] = W64LIT(0x629a292a367cd507);
@@ -285,6 +285,8 @@ void InitSha384(Sha384* sha384)
     sha384->buffLen = 0;
     sha384->loLen   = 0;
     sha384->hiLen   = 0;
+
+    return 0;
 }
 
 
@@ -343,7 +345,7 @@ static INLINE void AddLength384(Sha384* sha384, word32 len)
 }
 
 
-void Sha384Update(Sha384* sha384, const byte* data, word32 len)
+int Sha384Update(Sha384* sha384, const byte* data, word32 len)
 {
     /* do block size increments */
     byte* local = (byte*)sha384->buffer;
@@ -366,10 +368,11 @@ void Sha384Update(Sha384* sha384, const byte* data, word32 len)
             sha384->buffLen = 0;
         }
     }
+    return 0;
 }
 
 
-void Sha384Final(Sha384* sha384, byte* hash)
+int Sha384Final(Sha384* sha384, byte* hash)
 {
     byte* local = (byte*)sha384->buffer;
 
@@ -409,7 +412,7 @@ void Sha384Final(Sha384* sha384, byte* hash)
     #endif
     XMEMCPY(hash, sha384->digest, SHA384_DIGEST_SIZE);
 
-    InitSha384(sha384);  /* reset state */
+    return InitSha384(sha384);  /* reset state */
 }
 
 #endif /* CYASSL_SHA384 */

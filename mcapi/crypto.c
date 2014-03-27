@@ -102,9 +102,7 @@ int CRYPT_SHA_DataAdd(CRYPT_SHA_CTX* sha, const unsigned char* input,
     if (sha == NULL || input == NULL)
         return BAD_FUNC_ARG;
 
-    ShaUpdate((Sha*)sha, input, sz);
-
-    return 0;
+    return ShaUpdate((Sha*)sha, input, sz);
 }
 
 
@@ -114,9 +112,7 @@ int CRYPT_SHA_Finalize(CRYPT_SHA_CTX* sha, unsigned char* digest)
     if (sha == NULL || digest == NULL)
         return BAD_FUNC_ARG;
 
-    ShaFinal((Sha*)sha, digest);
-
-    return 0;
+    return ShaFinal((Sha*)sha, digest);
 }
 
 
@@ -140,9 +136,7 @@ int CRYPT_SHA256_DataAdd(CRYPT_SHA256_CTX* sha256, const unsigned char* input,
     if (sha256 == NULL || input == NULL)
         return BAD_FUNC_ARG;
 
-    Sha256Update((Sha256*)sha256, input, sz);
-
-    return 0;
+    return Sha256Update((Sha256*)sha256, input, sz);
 }
 
 
@@ -152,9 +146,7 @@ int CRYPT_SHA256_Finalize(CRYPT_SHA256_CTX* sha256, unsigned char* digest)
     if (sha256 == NULL || digest == NULL)
         return BAD_FUNC_ARG;
 
-    Sha256Final((Sha256*)sha256, digest);
-
-    return 0;
+    return Sha256Final((Sha256*)sha256, digest);
 }
 
 
@@ -167,9 +159,7 @@ int CRYPT_SHA384_Initialize(CRYPT_SHA384_CTX* sha384)
     if (sha384 == NULL)
         return BAD_FUNC_ARG;
 
-    InitSha384((Sha384*)sha384);
-
-    return 0;
+    return InitSha384((Sha384*)sha384);
 }
 
 
@@ -180,9 +170,7 @@ int CRYPT_SHA384_DataAdd(CRYPT_SHA384_CTX* sha384, const unsigned char* input,
     if (sha384 == NULL || input == NULL)
         return BAD_FUNC_ARG;
 
-    Sha384Update((Sha384*)sha384, input, sz);
-
-    return 0;
+    return Sha384Update((Sha384*)sha384, input, sz);
 }
 
 
@@ -192,9 +180,7 @@ int CRYPT_SHA384_Finalize(CRYPT_SHA384_CTX* sha384, unsigned char* digest)
     if (sha384 == NULL || digest == NULL)
         return BAD_FUNC_ARG;
 
-    Sha384Final((Sha384*)sha384, digest);
-
-    return 0;
+    return Sha384Final((Sha384*)sha384, digest);
 }
 
 
@@ -218,9 +204,7 @@ int CRYPT_SHA512_DataAdd(CRYPT_SHA512_CTX* sha512, const unsigned char* input,
     if (sha512 == NULL || input == NULL)
         return BAD_FUNC_ARG;
 
-    Sha512Update((Sha512*)sha512, input, sz);
-
-    return 0;
+    return Sha512Update((Sha512*)sha512, input, sz);
 }
 
 
@@ -230,9 +214,7 @@ int CRYPT_SHA512_Finalize(CRYPT_SHA512_CTX* sha512, unsigned char* digest)
     if (sha512 == NULL || digest == NULL)
         return BAD_FUNC_ARG;
 
-    Sha512Final((Sha512*)sha512, digest);
-
-    return 0;
+    return Sha512Final((Sha512*)sha512, digest);
 }
 
 

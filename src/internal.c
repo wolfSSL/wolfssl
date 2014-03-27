@@ -1457,7 +1457,10 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
     }
 #endif
 #ifdef CYASSL_SHA384
-    InitSha384(&ssl->hashSha384);
+    ret = InitSha384(&ssl->hashSha384);
+    if (ret != 0) {
+        return ret;
+    }
 #endif
 #ifndef NO_RSA
     ssl->peerRsaKey = NULL;
@@ -4470,7 +4473,7 @@ static INLINE void Sha384Rounds(int rounds, const byte* data, int sz)
     Sha384 sha384;
     int i;
 
-    InitSha384(&sha384);
+    InitSha384(&sha384);  /* no error check on purpose, dummy round */
 
     for (i = 0; i < rounds; i++)
         Sha384Update(&sha384, data, sz);
@@ -8026,7 +8029,9 @@ static void PickHashSigAlgo(CYASSL* ssl,
 #endif
 
 #ifdef CYASSL_SHA384
-        InitSha384(&sha384);
+        ret = InitSha384(&sha384);
+        if (ret != 0)
+            return ret;
         Sha384Update(&sha384, ssl->arrays->clientRandom, RAN_LEN);
         Sha384Update(&sha384, ssl->arrays->serverRandom, RAN_LEN);
         Sha384Update(&sha384, messageVerify, verifySz);
@@ -9076,7 +9081,9 @@ static void PickHashSigAlgo(CYASSL* ssl,
                 #endif
 
                 #ifdef CYASSL_SHA384
-                    InitSha384(&sha384);
+                    ret = InitSha384(&sha384);
+                    if (ret != 0)
+                        return ret;
                     Sha384Update(&sha384, ssl->arrays->clientRandom, RAN_LEN);
                     Sha384Update(&sha384, ssl->arrays->serverRandom, RAN_LEN);
                     Sha384Update(&sha384, output + preSigIdx, preSigSz);
@@ -9404,7 +9411,9 @@ static void PickHashSigAlgo(CYASSL* ssl,
                 #endif
 
                 #ifdef CYASSL_SHA384
-                    InitSha384(&sha384);
+                    ret = InitSha384(&sha384);
+                    if (ret != 0)
+                        return ret;
                     Sha384Update(&sha384, ssl->arrays->clientRandom, RAN_LEN);
                     Sha384Update(&sha384, ssl->arrays->serverRandom, RAN_LEN);
                     Sha384Update(&sha384, output + preSigIdx, preSigSz);

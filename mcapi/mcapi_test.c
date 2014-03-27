@@ -304,11 +304,16 @@ static int check_sha384(void)
 {
     CRYPT_SHA384_CTX mcSha384;
     Sha384           defSha384;
+    int              ret;
     byte             mcDigest[CRYPT_SHA384_DIGEST_SIZE];
     byte             defDigest[SHA384_DIGEST_SIZE];
 
     CRYPT_SHA384_Initialize(&mcSha384);
-    InitSha384(&defSha384);
+    ret = InitSha384(&defSha384);
+    if (ret != 0) {
+        printf("sha384 init default failed\n");
+        return -1;
+    }
 
     CRYPT_SHA384_DataAdd(&mcSha384, ourData, OUR_DATA_SIZE);
     Sha384Update(&defSha384, ourData, OUR_DATA_SIZE);
@@ -331,6 +336,7 @@ static int check_sha512(void)
 {
     CRYPT_SHA512_CTX mcSha512;
     Sha512           defSha512;
+    int              ret;
     byte             mcDigest[CRYPT_SHA512_DIGEST_SIZE];
     byte             defDigest[SHA512_DIGEST_SIZE];
 

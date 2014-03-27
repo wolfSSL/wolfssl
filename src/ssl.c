@@ -4474,7 +4474,11 @@ int CyaSSL_dtls_got_timeout(CYASSL* ssl)
                             }
                         #endif
                         #ifdef CYASSL_SHA384
-                            InitSha384(&ssl->hashSha384);
+                            if ( (ssl->error = 
+                                           InitSha384(&ssl->hashSha384)) != 0) {
+                                CYASSL_ERROR(ssl->error);
+                                return SSL_FATAL_ERROR;
+                            }
                         #endif
                     }
                     if ( (ssl->error = SendClientHello(ssl)) != 0) {
@@ -4745,14 +4749,18 @@ int CyaSSL_dtls_got_timeout(CYASSL* ssl)
 #endif
                     if (IsAtLeastTLSv1_2(ssl)) {
                         #ifndef NO_SHA256
-                             if ( (ssl->error =
+                            if ( (ssl->error =
                                            InitSha256(&ssl->hashSha256)) != 0) {
-                                CYASSL_ERROR(ssl->error);
-                                return SSL_FATAL_ERROR;
-                             }
+                               CYASSL_ERROR(ssl->error);
+                               return SSL_FATAL_ERROR;
+                            }
                         #endif
                         #ifdef CYASSL_SHA384
-                            InitSha384(&ssl->hashSha384);
+                            if ( (ssl->error =
+                                           InitSha384(&ssl->hashSha384)) != 0) {
+                               CYASSL_ERROR(ssl->error);
+                               return SSL_FATAL_ERROR;
+                            }
                         #endif
                     }
 
@@ -6563,7 +6571,7 @@ int CyaSSL_set_compression(CYASSL* ssl)
         (void)sizeof(sha_test);
 
         CYASSL_ENTER("SHA384_Init");
-        InitSha384((Sha384*)sha);
+        InitSha384((Sha384*)sha);   /* OpenSSL compat, no error */
     }
 
 

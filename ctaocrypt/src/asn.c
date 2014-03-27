@@ -2721,7 +2721,11 @@ static int ConfirmSignature(const byte* buf, word32 bufSz,
         case CTC_SHA384wECDSA:
         {
             Sha384 sha384;
-            InitSha384(&sha384);
+            ret = InitSha384(&sha384);
+            if (ret != 0) {
+                CYASSL_MSG("InitSha384 failed");
+                return 0;  /*  not confirmed */
+            }
             Sha384Update(&sha384, buf, bufSz);
             Sha384Final(&sha384, digest);
             typeH    = SHA384h;
