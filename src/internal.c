@@ -3012,6 +3012,8 @@ static int MatchDomainName(const char* pattern, int len, const char* str)
     while (len > 0) {
 
         p = (char)XTOLOWER(*pattern++);
+        if (p == 0)
+            break;
 
         if (p == '*') {
             while (--len > 0 && (p = (char)XTOLOWER(*pattern++)) == '*')
