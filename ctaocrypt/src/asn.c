@@ -4783,7 +4783,7 @@ static int MakeSignature(const byte* buffer, int sz, byte* sig, int sigSz,
 #ifdef HAVE_ECC
     else if (eccKey) {
         word32 outSz = sigSz;
-        int ret = ecc_sign_hash(digest, digestSz, sig, &outSz, rng, eccKey);
+        ret = ecc_sign_hash(digest, digestSz, sig, &outSz, rng, eccKey);
 
         if (ret != 0)
             return ret;
