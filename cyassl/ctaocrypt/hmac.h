@@ -151,9 +151,9 @@ typedef struct Hmac {
 
 
 /* does init */
-CYASSL_API int  HmacSetKey(Hmac*, int type, const byte* key, word32 keySz);
-CYASSL_API void HmacUpdate(Hmac*, const byte*, word32);
-CYASSL_API void HmacFinal(Hmac*, byte*);
+CYASSL_API int HmacSetKey(Hmac*, int type, const byte* key, word32 keySz);
+CYASSL_API int HmacUpdate(Hmac*, const byte*, word32);
+CYASSL_API int HmacFinal(Hmac*, byte*);
 
 #ifdef HAVE_CAVIUM
     CYASSL_API int  HmacInitCavium(Hmac*, int);
@@ -171,6 +171,23 @@ CYASSL_API int HKDF(int type, const byte* inKey, word32 inKeySz,
                     byte* out, word32 outSz);
 
 #endif /* HAVE_HKDF */
+
+
+#ifdef HAVE_FIPS
+    /* fips wrapper calls, user can call direct */
+    CYASSL_API int HmacSetKey_fips(Hmac*, int type, const byte* key,
+                                   word32 keySz);
+    CYASSL_API int HmacUpdate_fips(Hmac*, const byte*, word32);
+    CYASSL_API int HmacFinal_fips(Hmac*, byte*);
+    #ifndef FIPS_NO_WRAPPERS
+        /* if not impl or fips.c impl wrapper force fips calls if fips build */
+        #define HmacSetKey HmacSetKey_fips
+        #define HmacUpdate HmacUpdate_fips
+        #define HmacFinal  HmacFinal_fips
+    #endif /* FIPS_NO_WRAPPERS */
+
+#endif /* HAVE_FIPS */
+
 
 #ifdef __cplusplus
     } /* extern "C" */

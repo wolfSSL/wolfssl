@@ -564,6 +564,7 @@ int hmac_md5_test(void)
     testVector a, b, c;
     testVector test_hmac[3];
 
+    int ret;
     int times = sizeof(test_hmac) / sizeof(testVector), i;
 
     a.input  = "Hi There";
@@ -592,7 +593,9 @@ int hmac_md5_test(void)
     test_hmac[2] = c;
 
     for (i = 0; i < times; ++i) {
-        HmacSetKey(&hmac, MD5, (byte*)keys[i], (word32)strlen(keys[i]));
+        ret = HmacSetKey(&hmac, MD5, (byte*)keys[i], (word32)strlen(keys[i]));
+        if (ret != 0)
+            return -4014;
         HmacUpdate(&hmac, (byte*)test_hmac[i].input,
                    (word32)test_hmac[i].inLen);
         HmacFinal(&hmac, hash);
@@ -623,6 +626,7 @@ int hmac_sha_test(void)
     testVector a, b, c;
     testVector test_hmac[3];
 
+    int ret;
     int times = sizeof(test_hmac) / sizeof(testVector), i;
 
     a.input  = "Hi There";
@@ -651,7 +655,9 @@ int hmac_sha_test(void)
     test_hmac[2] = c;
 
     for (i = 0; i < times; ++i) {
-        HmacSetKey(&hmac, SHA, (byte*)keys[i], (word32)strlen(keys[i]));
+        ret = HmacSetKey(&hmac, SHA, (byte*)keys[i], (word32)strlen(keys[i]));
+        if (ret != 0)
+            return -4015;
         HmacUpdate(&hmac, (byte*)test_hmac[i].input,
                    (word32)test_hmac[i].inLen);
         HmacFinal(&hmac, hash);
@@ -682,6 +688,7 @@ int hmac_sha256_test(void)
     testVector a, b, c;
     testVector test_hmac[3];
 
+    int ret;
     int times = sizeof(test_hmac) / sizeof(testVector), i;
 
     a.input  = "Hi There";
@@ -713,7 +720,9 @@ int hmac_sha256_test(void)
     test_hmac[2] = c;
 
     for (i = 0; i < times; ++i) {
-        HmacSetKey(&hmac, SHA256, (byte*)keys[i], (word32)strlen(keys[i]));
+        ret = HmacSetKey(&hmac,SHA256, (byte*)keys[i], (word32)strlen(keys[i]));
+        if (ret != 0)
+            return -4016;
         HmacUpdate(&hmac, (byte*)test_hmac[i].input,
                    (word32)test_hmac[i].inLen);
         HmacFinal(&hmac, hash);
@@ -745,6 +754,7 @@ int hmac_sha384_test(void)
     testVector a, b, c;
     testVector test_hmac[3];
 
+    int ret;
     int times = sizeof(test_hmac) / sizeof(testVector), i;
 
     a.input  = "Hi There";
@@ -779,7 +789,9 @@ int hmac_sha384_test(void)
     test_hmac[2] = c;
 
     for (i = 0; i < times; ++i) {
-        HmacSetKey(&hmac, SHA384, (byte*)keys[i], (word32)strlen(keys[i]));
+        ret = HmacSetKey(&hmac,SHA384, (byte*)keys[i], (word32)strlen(keys[i]));
+        if (ret != 0)
+            return -4017;
         HmacUpdate(&hmac, (byte*)test_hmac[i].input,
                    (word32)test_hmac[i].inLen);
         HmacFinal(&hmac, hash);

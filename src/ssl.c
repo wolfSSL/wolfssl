@@ -7304,20 +7304,24 @@ int CyaSSL_set_compression(CYASSL* ssl)
                                unsigned char* md, unsigned int* md_len)
     {
         Hmac hmac;
+        int  ret;
 
         CYASSL_ENTER("HMAC");
-        if (!md) return 0;  /* no static buffer support */
+        if (!md) return NULL;  /* no static buffer support */
 
         if (XSTRNCMP(evp_md, "MD5", 3) == 0) {
-            HmacSetKey(&hmac, MD5, (const byte*)key, key_len);
+            ret = HmacSetKey(&hmac, MD5, (const byte*)key, key_len);
             if (md_len) *md_len = MD5_DIGEST_SIZE;
         }
         else if (XSTRNCMP(evp_md, "SHA", 3) == 0) {
-            HmacSetKey(&hmac, SHA, (const byte*)key, key_len);    
+            ret = HmacSetKey(&hmac, SHA, (const byte*)key, key_len);    
             if (md_len) *md_len = SHA_DIGEST_SIZE;
         }
         else
-            return 0;
+            return NULL;
+
+        if (ret != 0)
+            return NULL;
 
         HmacUpdate(&hmac, d, n);
         HmacFinal(&hmac, md);
@@ -10778,6 +10782,7 @@ static int initGlobalRNG = 0;
         if (key && keylen) {
             CYASSL_MSG("keying hmac");
             HmacSetKey(&ctx->hmac, ctx->type, (const byte*)key, (word32)keylen);
+            /* OpenSSL compat, no error */
         }
     }
 

@@ -2072,7 +2072,7 @@ CYASSL_LOCAL void ShrinkOutputBuffer(CYASSL* ssl);
         CYASSL_LOCAL Signer* GetCAByName(void* cm, byte* hash);
     #endif
 #endif
-CYASSL_LOCAL void BuildTlsFinished(CYASSL* ssl, Hashes* hashes,
+CYASSL_LOCAL int  BuildTlsFinished(CYASSL* ssl, Hashes* hashes,
                                    const byte* sender);
 CYASSL_LOCAL void FreeArrays(CYASSL* ssl, int keep);
 CYASSL_LOCAL  int CheckAvailableSize(CYASSL *ssl, int size);

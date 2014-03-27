@@ -2947,7 +2947,7 @@ static void BuildSHA(CYASSL* ssl, Hashes* hashes, const byte* sender)
 #endif
 
 
-static void BuildFinished(CYASSL* ssl, Hashes* hashes, const byte* sender)
+static int BuildFinished(CYASSL* ssl, Hashes* hashes, const byte* sender)
 {
     /* store current states, building requires get_digest which resets state */
 #ifndef NO_OLD_TLS
@@ -2965,9 +2965,11 @@ static void BuildFinished(CYASSL* ssl, Hashes* hashes, const byte* sender)
     Sha384 sha384 = ssl->hashSha384;
 #endif
 
+    int ret = 0;
+
 #ifndef NO_TLS
     if (ssl->options.tls) {
-        BuildTlsFinished(ssl, hashes, sender);
+        ret = BuildTlsFinished(ssl, hashes, sender);
     }
 #endif
 #ifndef NO_OLD_TLS
@@ -2994,6 +2996,8 @@ static void BuildFinished(CYASSL* ssl, Hashes* hashes, const byte* sender)
         ssl->hashSha384 = sha384;
     #endif
     }
+
+    return ret;
 }
 
 
@@ -5211,10 +5215,12 @@ int ProcessReply(CYASSL* ssl)
                     #endif
                     if (ssl->options.resuming && ssl->options.side ==
                                                               CYASSL_CLIENT_END)
-                        BuildFinished(ssl, &ssl->verifyHashes, server);
+                        ret = BuildFinished(ssl, &ssl->verifyHashes, server);
                     else if (!ssl->options.resuming && ssl->options.side ==
                                                               CYASSL_SERVER_END)
-                        BuildFinished(ssl, &ssl->verifyHashes, client);
+                        ret = BuildFinished(ssl, &ssl->verifyHashes, client);
+                    if (ret != 0)
+                        return ret;
                     break;
 
                 case application_data:
@@ -5636,8 +5642,9 @@ int SendFinished(CYASSL* ssl)
 
     /* make finished hashes */
     hashes = (Hashes*)&input[headerSz];
-    BuildFinished(ssl, hashes, ssl->options.side == CYASSL_CLIENT_END ? client :
-                  server);
+    ret = BuildFinished(ssl, hashes,
+                      ssl->options.side == CYASSL_CLIENT_END ? client : server);
+    if (ret != 0) return ret;
 
     sendSz = BuildMessage(ssl, output, input, headerSz + finishedSz, handshake);
 
@@ -5656,7 +5663,8 @@ int SendFinished(CYASSL* ssl)
         AddSession(ssl);    /* just try */
 #endif
         if (ssl->options.side == CYASSL_CLIENT_END) {
-            BuildFinished(ssl, &ssl->verifyHashes, server);
+            ret = BuildFinished(ssl, &ssl->verifyHashes, server);
+            if (ret != 0) return ret;
         }
         else {
             ssl->options.handShakeState = HANDSHAKE_DONE;
@@ -5683,7 +5691,8 @@ int SendFinished(CYASSL* ssl)
             #endif
         }
         else {
-            BuildFinished(ssl, &ssl->verifyHashes, client);
+            ret = BuildFinished(ssl, &ssl->verifyHashes, client);
+            if (ret != 0) return ret;
         }
     }
     #ifdef CYASSL_DTLS

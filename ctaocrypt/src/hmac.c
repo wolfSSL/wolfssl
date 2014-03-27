@@ -43,6 +43,11 @@
 
 #endif
 
+#ifdef HAVE_FIPS
+    /* set NO_WRAPPERS before headers, use direct internal f()s not wrappers */
+    #define FIPS_NO_WRAPPERS
+#endif
+
 #include <cyassl/ctaocrypt/hmac.h>
 #include <cyassl/ctaocrypt/error-crypt.h>
 
@@ -288,7 +293,7 @@ static void HmacKeyInnerHash(Hmac* hmac)
 }
 
 
-void HmacUpdate(Hmac* hmac, const byte* msg, word32 length)
+int HmacUpdate(Hmac* hmac, const byte* msg, word32 length)
 {
 #ifdef HAVE_CAVIUM
     if (hmac->magic == CYASSL_HMAC_CAVIUM_MAGIC)
@@ -339,10 +344,11 @@ void HmacUpdate(Hmac* hmac, const byte* msg, word32 length)
         break;
     }
 
+    return 0;
 }
 
 
-void HmacFinal(Hmac* hmac, byte* hash)
+int HmacFinal(Hmac* hmac, byte* hash)
 {
 #ifdef HAVE_CAVIUM
     if (hmac->magic == CYASSL_HMAC_CAVIUM_MAGIC)
@@ -445,6 +451,8 @@ void HmacFinal(Hmac* hmac, byte* hash)
     }
 
     hmac->innerHashKeyed = 0;
+
+    return 0;
 }
 
 

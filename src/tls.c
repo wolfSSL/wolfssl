@@ -52,7 +52,7 @@
 #endif
 
 /* compute p_hash for MD5, SHA-1, SHA-256, or SHA-384 for TLSv1 PRF */
-static void p_hash(byte* result, word32 resLen, const byte* secret,
+static int p_hash(byte* result, word32 resLen, const byte* secret,
                    word32 secLen, const byte* seed, word32 seedLen, int hash)
 {
     word32   len = PHASH_MAX_DIGEST_SIZE;
@@ -61,6 +61,7 @@ static void p_hash(byte* result, word32 resLen, const byte* secret,
     word32   lastTime;
     word32   i;
     word32   idx = 0;
+    int      ret;
     byte     previous[PHASH_MAX_DIGEST_SIZE];  /* max size */
     byte     current[PHASH_MAX_DIGEST_SIZE];   /* max size */
 
@@ -107,7 +108,9 @@ static void p_hash(byte* result, word32 resLen, const byte* secret,
     if (lastLen) times += 1;
     lastTime = times - 1;
 
-    HmacSetKey(&hmac, hash, secret, secLen);
+    ret = HmacSetKey(&hmac, hash, secret, secLen);
+    if (ret != 0)
+        return ret;
     HmacUpdate(&hmac, seed, seedLen);       /* A0 = seed */
     HmacFinal(&hmac, previous);             /* A1 */
 
@@ -128,6 +131,8 @@ static void p_hash(byte* result, word32 resLen, const byte* secret,
     XMEMSET(previous, 0, sizeof previous);
     XMEMSET(current, 0, sizeof current);
     XMEMSET(&hmac, 0, sizeof hmac);
+
+    return 0;
 }
 
 
@@ -145,9 +150,11 @@ static INLINE void get_xor(byte *digest, word32 digLen, byte* md5, byte* sha)
 
 
 /* compute TLSv1 PRF (pseudo random function using HMAC) */
-static void doPRF(byte* digest, word32 digLen, const byte* secret,word32 secLen,
-            const byte* label, word32 labLen, const byte* seed, word32 seedLen)
+static int doPRF(byte* digest, word32 digLen, const byte* secret,word32 secLen,
+                 const byte* label, word32 labLen, const byte* seed,
+                 word32 seedLen)
 {
+    int    ret;
     word32 half = (secLen + 1) / 2;
 
     byte md5_half[MAX_PRF_HALF];        /* half is real size */
@@ -157,11 +164,11 @@ static void doPRF(byte* digest, word32 digLen, const byte* secret,word32 secLen,
     byte sha_result[MAX_PRF_DIG];       /* digLen is real size */
 
     if (half > MAX_PRF_HALF)
-        return;
+        return BUFFER_E;
     if (labLen + seedLen > MAX_PRF_LABSEED)
-        return;
+        return BUFFER_E;
     if (digLen > MAX_PRF_DIG)
-        return;
+        return BUFFER_E;
 
     XMEMSET(md5_result, 0, digLen);
     XMEMSET(sha_result, 0, digLen);
@@ -172,11 +179,17 @@ static void doPRF(byte* digest, word32 digLen, const byte* secret,word32 secLen,
     XMEMCPY(labelSeed, label, labLen);
     XMEMCPY(labelSeed + labLen, seed, seedLen);
 
-    p_hash(md5_result, digLen, md5_half, half, labelSeed, labLen + seedLen,
-           md5_mac);
-    p_hash(sha_result, digLen, sha_half, half, labelSeed, labLen + seedLen,
-           sha_mac);
+    ret = p_hash(md5_result, digLen, md5_half, half, labelSeed,
+                 labLen + seedLen, md5_mac);
+    if (ret != 0)
+        return ret;
+    ret = p_hash(sha_result, digLen, sha_half, half, labelSeed,
+                 labLen + seedLen, sha_mac);
+    if (ret != 0)
+        return ret;
     get_xor(digest, digLen, md5_result, sha_result);
+
+    return 0;
 }
 
 #endif
@@ -184,15 +197,17 @@ static void doPRF(byte* digest, word32 digLen, const byte* secret,word32 secLen,
 
 /* Wrapper to call straight thru to p_hash in TSL 1.2 cases to remove stack
    use */
-static void PRF(byte* digest, word32 digLen, const byte* secret, word32 secLen,
+static int PRF(byte* digest, word32 digLen, const byte* secret, word32 secLen,
             const byte* label, word32 labLen, const byte* seed, word32 seedLen,
             int useAtLeastSha256, int hash_type)
 {
+    int ret = 0;
+
     if (useAtLeastSha256) {
         byte labelSeed[MAX_PRF_LABSEED];    /* labLen + seedLen is real size */
 
         if (labLen + seedLen > MAX_PRF_LABSEED)
-            return;
+            return BUFFER_E;
 
         XMEMCPY(labelSeed, label, labLen);
         XMEMCPY(labelSeed + labLen, seed, seedLen);
@@ -201,13 +216,17 @@ static void PRF(byte* digest, word32 digLen, const byte* secret, word32 secLen,
          * should use better. */
         if (hash_type < sha256_mac)
             hash_type = sha256_mac;
-        p_hash(digest, digLen, secret, secLen, labelSeed, labLen + seedLen,
-               hash_type);
+        ret = p_hash(digest, digLen, secret, secLen, labelSeed,
+                     labLen + seedLen, hash_type);
     }
 #ifndef NO_OLD_TLS
-    else
-        doPRF(digest, digLen, secret, secLen, label, labLen, seed, seedLen);
+    else {
+        ret = doPRF(digest, digLen, secret, secLen, label, labLen, seed,
+                    seedLen);
+    }
 #endif
+
+    return ret;
 }
 
 
@@ -218,7 +237,7 @@ static void PRF(byte* digest, word32 digLen, const byte* secret, word32 secLen,
 #endif
 
 
-void BuildTlsFinished(CYASSL* ssl, Hashes* hashes, const byte* sender)
+int BuildTlsFinished(CYASSL* ssl, Hashes* hashes, const byte* sender)
 {
     const byte* side;
     byte        handshake_hash[HSHASH_SZ];
@@ -249,9 +268,9 @@ void BuildTlsFinished(CYASSL* ssl, Hashes* hashes, const byte* sender)
     else
         side = tls_server;
 
-    PRF((byte*)hashes, TLS_FINISHED_SZ, ssl->arrays->masterSecret, SECRET_LEN,
-        side, FINISHED_LABEL_SZ, handshake_hash, hashSz, IsAtLeastTLSv1_2(ssl),
-        ssl->specs.mac_algorithm);
+    return PRF((byte*)hashes, TLS_FINISHED_SZ, ssl->arrays->masterSecret,
+               SECRET_LEN, side, FINISHED_LABEL_SZ, handshake_hash, hashSz,
+               IsAtLeastTLSv1_2(ssl), ssl->specs.mac_algorithm);
 }
 
 
@@ -295,6 +314,7 @@ static const byte key_label   [KEY_LABEL_SZ + 1]    = "key expansion";
 
 int DeriveTlsKeys(CYASSL* ssl)
 {
+    int ret;
     int length = 2 * ssl->specs.hash_size + 
                  2 * ssl->specs.key_size  +
                  2 * ssl->specs.iv_size;
@@ -304,9 +324,11 @@ int DeriveTlsKeys(CYASSL* ssl)
     XMEMCPY(seed, ssl->arrays->serverRandom, RAN_LEN);
     XMEMCPY(&seed[RAN_LEN], ssl->arrays->clientRandom, RAN_LEN);
 
-    PRF(key_data, length, ssl->arrays->masterSecret, SECRET_LEN, key_label,
-        KEY_LABEL_SZ, seed, SEED_LEN, IsAtLeastTLSv1_2(ssl),
-        ssl->specs.mac_algorithm);
+    ret = PRF(key_data, length, ssl->arrays->masterSecret, SECRET_LEN, 
+              key_label, KEY_LABEL_SZ, seed, SEED_LEN, IsAtLeastTLSv1_2(ssl),
+              ssl->specs.mac_algorithm);
+    if (ret != 0)
+        return ret;
 
     return StoreKeys(ssl, key_data);
 }
@@ -314,15 +336,18 @@ int DeriveTlsKeys(CYASSL* ssl)
 
 int MakeTlsMasterSecret(CYASSL* ssl)
 {
+    int  ret;
     byte seed[SEED_LEN];
     
     XMEMCPY(seed, ssl->arrays->clientRandom, RAN_LEN);
     XMEMCPY(&seed[RAN_LEN], ssl->arrays->serverRandom, RAN_LEN);
 
-    PRF(ssl->arrays->masterSecret, SECRET_LEN,
-        ssl->arrays->preMasterSecret, ssl->arrays->preMasterSz,
-        master_label, MASTER_LABEL_SZ, 
-        seed, SEED_LEN, IsAtLeastTLSv1_2(ssl), ssl->specs.mac_algorithm);
+    ret = PRF(ssl->arrays->masterSecret, SECRET_LEN,
+              ssl->arrays->preMasterSecret, ssl->arrays->preMasterSz,
+              master_label, MASTER_LABEL_SZ, 
+              seed, SEED_LEN, IsAtLeastTLSv1_2(ssl), ssl->specs.mac_algorithm);
+    if (ret != 0)
+        return ret;
 
 #ifdef SHOW_SECRETS
     {
@@ -352,12 +377,11 @@ int CyaSSL_make_eap_keys(CYASSL* ssl, void* msk, unsigned int len,
     XMEMCPY(seed, ssl->arrays->clientRandom, RAN_LEN);
     XMEMCPY(&seed[RAN_LEN], ssl->arrays->serverRandom, RAN_LEN);
 
-    PRF((byte*)msk, len,
-        ssl->arrays->masterSecret, SECRET_LEN,
-        (const byte *)label, (word32)strlen(label),
-        seed, SEED_LEN, IsAtLeastTLSv1_2(ssl), ssl->specs.mac_algorithm);
+    return PRF((byte*)msk, len,
+               ssl->arrays->masterSecret, SECRET_LEN,
+               (const byte *)label, (word32)strlen(label),
+               seed, SEED_LEN, IsAtLeastTLSv1_2(ssl), ssl->specs.mac_algorithm);
 
-    return 0;
 }
 
 
@@ -502,12 +526,15 @@ int TLS_hmac(CYASSL* ssl, byte* digest, const byte* in, word32 sz,
               int content, int verify)
 {
     Hmac hmac;
+    int  ret;
     byte myInner[CYASSL_TLS_HMAC_INNER_SZ];
     
     CyaSSL_SetTlsHmacInner(ssl, myInner, sz, content, verify);
 
-    HmacSetKey(&hmac, CyaSSL_GetHmacType(ssl), CyaSSL_GetMacSecret(ssl, verify),
-               ssl->specs.hash_size);
+    ret = HmacSetKey(&hmac, CyaSSL_GetHmacType(ssl),
+                     CyaSSL_GetMacSecret(ssl, verify), ssl->specs.hash_size);
+    if (ret != 0)
+        return ret;
     HmacUpdate(&hmac, myInner, sizeof(myInner));
     HmacUpdate(&hmac, in, sz);                                /* content */
     HmacFinal(&hmac, digest);

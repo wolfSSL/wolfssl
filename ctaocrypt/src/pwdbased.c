@@ -122,7 +122,7 @@ int PBKDF2(byte* output, const byte* passwd, int pLen, const byte* salt,
 {
     word32 i = 1;
     int    hLen;
-    int    j;
+    int    j, ret;
     Hmac   hmac;
     byte   buffer[MAX_DIGEST_SIZE];
 
@@ -145,7 +145,9 @@ int PBKDF2(byte* output, const byte* passwd, int pLen, const byte* salt,
     else
         return BAD_FUNC_ARG;
 
-    HmacSetKey(&hmac, hashType, passwd, pLen);
+    ret = HmacSetKey(&hmac, hashType, passwd, pLen);
+    if (ret != 0)
+        return ret;
 
     while (kLen) {
         int currentLen;

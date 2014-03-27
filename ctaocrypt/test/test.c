@@ -1100,6 +1100,7 @@ int hmac_md5_test(void)
     testVector a, b, c;
     testVector test_hmac[3];
 
+    int ret;
     int times = sizeof(test_hmac) / sizeof(testVector), i;
 
     a.input  = "Hi There";
@@ -1134,7 +1135,9 @@ int hmac_md5_test(void)
         if (HmacInitCavium(&hmac, CAVIUM_DEV_ID) != 0)
             return -20009; 
 #endif
-        HmacSetKey(&hmac, MD5, (byte*)keys[i], (word32)strlen(keys[i]));
+        ret = HmacSetKey(&hmac, MD5, (byte*)keys[i], (word32)strlen(keys[i]));
+        if (ret != 0)
+            return -4011;
         HmacUpdate(&hmac, (byte*)test_hmac[i].input,
                    (word32)test_hmac[i].inLen);
         HmacFinal(&hmac, hash);
@@ -1168,6 +1171,7 @@ int hmac_sha_test(void)
     testVector a, b, c;
     testVector test_hmac[3];
 
+    int ret;
     int times = sizeof(test_hmac) / sizeof(testVector), i;
 
     a.input  = "Hi There";
@@ -1202,7 +1206,9 @@ int hmac_sha_test(void)
         if (HmacInitCavium(&hmac, CAVIUM_DEV_ID) != 0)
             return -20010; 
 #endif
-        HmacSetKey(&hmac, SHA, (byte*)keys[i], (word32)strlen(keys[i]));
+        ret = HmacSetKey(&hmac, SHA, (byte*)keys[i], (word32)strlen(keys[i]));
+        if (ret != 0)
+            return -4012;
         HmacUpdate(&hmac, (byte*)test_hmac[i].input,
                    (word32)test_hmac[i].inLen);
         HmacFinal(&hmac, hash);
@@ -1237,6 +1243,7 @@ int hmac_sha256_test(void)
     testVector a, b, c;
     testVector test_hmac[3];
 
+    int ret;
     int times = sizeof(test_hmac) / sizeof(testVector), i;
 
     a.input  = "Hi There";
@@ -1274,7 +1281,9 @@ int hmac_sha256_test(void)
         if (HmacInitCavium(&hmac, CAVIUM_DEV_ID) != 0)
             return -20011; 
 #endif
-        HmacSetKey(&hmac, SHA256, (byte*)keys[i], (word32)strlen(keys[i]));
+        ret = HmacSetKey(&hmac, SHA256, (byte*)keys[i],(word32)strlen(keys[i]));
+        if (ret != 0)
+            return -4013;
         HmacUpdate(&hmac, (byte*)test_hmac[i].input,
                    (word32)test_hmac[i].inLen);
         HmacFinal(&hmac, hash);
@@ -1309,6 +1318,7 @@ int hmac_blake2b_test(void)
     testVector a, b, c;
     testVector test_hmac[3];
 
+    int ret;
     int times = sizeof(test_hmac) / sizeof(testVector), i;
 
     a.input  = "Hi There";
@@ -1346,7 +1356,10 @@ int hmac_blake2b_test(void)
         if (HmacInitCavium(&hmac, CAVIUM_DEV_ID) != 0)
             return -20011; 
 #endif
-        HmacSetKey(&hmac, BLAKE2B_ID, (byte*)keys[i], (word32)strlen(keys[i]));
+        ret = HmacSetKey(&hmac, BLAKE2B_ID, (byte*)keys[i],
+                         (word32)strlen(keys[i]));
+        if (ret != 0)
+            return -4014;
         HmacUpdate(&hmac, (byte*)test_hmac[i].input,
                    (word32)test_hmac[i].inLen);
         HmacFinal(&hmac, hash);
@@ -1381,6 +1394,7 @@ int hmac_sha384_test(void)
     testVector a, b, c;
     testVector test_hmac[3];
 
+    int ret;
     int times = sizeof(test_hmac) / sizeof(testVector), i;
 
     a.input  = "Hi There";
@@ -1415,7 +1429,9 @@ int hmac_sha384_test(void)
     test_hmac[2] = c;
 
     for (i = 0; i < times; ++i) {
-        HmacSetKey(&hmac, SHA384, (byte*)keys[i], (word32)strlen(keys[i]));
+        ret = HmacSetKey(&hmac, SHA384, (byte*)keys[i],(word32)strlen(keys[i]));
+        if (ret != 0)
+            return -4015;
         HmacUpdate(&hmac, (byte*)test_hmac[i].input,
                    (word32)test_hmac[i].inLen);
         HmacFinal(&hmac, hash);
@@ -1447,6 +1463,7 @@ int hmac_sha512_test(void)
     testVector a, b, c;
     testVector test_hmac[3];
 
+    int ret;
     int times = sizeof(test_hmac) / sizeof(testVector), i;
 
     a.input  = "Hi There";
@@ -1484,7 +1501,9 @@ int hmac_sha512_test(void)
     test_hmac[2] = c;
 
     for (i = 0; i < times; ++i) {
-        HmacSetKey(&hmac, SHA512, (byte*)keys[i], (word32)strlen(keys[i]));
+        ret = HmacSetKey(&hmac, SHA512, (byte*)keys[i],(word32)strlen(keys[i]));
+        if (ret != 0)
+            return -4016;
         HmacUpdate(&hmac, (byte*)test_hmac[i].input,
                    (word32)test_hmac[i].inLen);
         HmacFinal(&hmac, hash);

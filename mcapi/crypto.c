@@ -233,9 +233,7 @@ int CRYPT_HMAC_SetKey(CRYPT_HMAC_CTX* hmac, int type, const unsigned char* key,
         return BAD_FUNC_ARG;  /* bad hmac type */
     }
 
-    HmacSetKey((Hmac*)hmac, type, key, sz);
-
-    return 0;
+    return HmacSetKey((Hmac*)hmac, type, key, sz);
 }
 
 
@@ -245,9 +243,7 @@ int CRYPT_HMAC_DataAdd(CRYPT_HMAC_CTX* hmac, const unsigned char* input,
     if (hmac == NULL || input == NULL)
         return BAD_FUNC_ARG;
 
-    HmacUpdate((Hmac*)hmac, input, sz);
-
-    return 0;
+    return HmacUpdate((Hmac*)hmac, input, sz);
 }
 
 
@@ -257,9 +253,7 @@ int CRYPT_HMAC_Finalize(CRYPT_HMAC_CTX* hmac, unsigned char* digest)
     if (hmac == NULL || digest == NULL)
         return BAD_FUNC_ARG;
 
-    HmacFinal((Hmac*)hmac, digest);
-
-    return 0;
+    return HmacFinal((Hmac*)hmac, digest);
 }
 
 

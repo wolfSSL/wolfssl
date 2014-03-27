@@ -1341,8 +1341,10 @@ static INLINE int myMacEncryptCb(CYASSL* ssl, unsigned char* macOut,
     /* hmac, not needed if aead mode */
     CyaSSL_SetTlsHmacInner(ssl, myInner, macInSz, macContent, macVerify);
 
-    HmacSetKey(&hmac, CyaSSL_GetHmacType(ssl),
+    ret = HmacSetKey(&hmac, CyaSSL_GetHmacType(ssl),
                CyaSSL_GetMacSecret(ssl, macVerify), CyaSSL_GetHmacSize(ssl));
+    if (ret != 0)
+        return ret;
     HmacUpdate(&hmac, myInner, sizeof(myInner));
     HmacUpdate(&hmac, macIn, macInSz);
     HmacFinal(&hmac, macOut);
@@ -1448,8 +1450,10 @@ static INLINE int myDecryptVerifyCb(CYASSL* ssl,
 
     CyaSSL_SetTlsHmacInner(ssl, myInner, macInSz, macContent, macVerify);
 
-    HmacSetKey(&hmac, CyaSSL_GetHmacType(ssl),
+    ret = HmacSetKey(&hmac, CyaSSL_GetHmacType(ssl),
                CyaSSL_GetMacSecret(ssl, macVerify), digestSz);
+    if (ret != 0)
+        return ret;
     HmacUpdate(&hmac, myInner, sizeof(myInner));
     HmacUpdate(&hmac, decOut + ivExtra, macInSz);
     HmacFinal(&hmac, verify);
