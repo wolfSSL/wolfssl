@@ -652,9 +652,13 @@ void bench_sha512(void)
     Sha512 hash;
     byte   digest[SHA512_DIGEST_SIZE];
     double start, total, persec;
-    int    i;
+    int    i, ret;
         
-    InitSha512(&hash);
+    ret = InitSha512(&hash);
+    if (ret != 0) {
+        printf("InitSha512 failed, ret = %d\n", ret);
+        return;
+    }
     start = current_time(1);
     
     for(i = 0; i < numBlocks; i++)

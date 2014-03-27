@@ -279,7 +279,7 @@ static int check_sha256(void)
     CRYPT_SHA256_Initialize(&mcSha256);
     ret = InitSha256(&defSha256);
     if (ret != 0) {
-        printf("sha init default failed\n");
+        printf("sha256 init default failed\n");
         return -1;
     }
 
@@ -335,7 +335,11 @@ static int check_sha512(void)
     byte             defDigest[SHA512_DIGEST_SIZE];
 
     CRYPT_SHA512_Initialize(&mcSha512);
-    InitSha512(&defSha512);
+    ret = InitSha512(&defSha512);
+    if (ret != 0) {
+        printf("sha512 init default failed\n");
+        return -1;
+    }
 
     CRYPT_SHA512_DataAdd(&mcSha512, ourData, OUR_DATA_SIZE);
     Sha512Update(&defSha512, ourData, OUR_DATA_SIZE);

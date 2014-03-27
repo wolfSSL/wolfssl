@@ -302,7 +302,9 @@ int PKCS12_PBKDF(byte* output, const byte* passwd, int passLen,const byte* salt,
         else if (hashType == SHA512) {
             Sha512 sha512;
 
-            InitSha512(&sha512);
+            ret = InitSha512(&sha512);
+            if (ret != 0)
+                break;
             Sha512Update(&sha512, buffer, totalLen);
             Sha512Final(&sha512, Ai);
 

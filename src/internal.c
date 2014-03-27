@@ -4486,7 +4486,7 @@ static INLINE void Sha512Rounds(int rounds, const byte* data, int sz)
     Sha512 sha512;
     int i;
 
-    InitSha512(&sha512);
+    InitSha512(&sha512);  /* no error check on purpose, dummy round */
 
     for (i = 0; i < rounds; i++)
         Sha512Update(&sha512, data, sz);

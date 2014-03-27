@@ -92,7 +92,7 @@ static int InitHmac(Hmac* hmac, int type)
         
         #ifdef CYASSL_SHA512
         case SHA512:
-            InitSha512(&hmac->hash.sha512);
+            ret = InitSha512(&hmac->hash.sha512);
         break;
         #endif
         

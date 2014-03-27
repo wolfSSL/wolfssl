@@ -6592,7 +6592,7 @@ int CyaSSL_set_compression(CYASSL* ssl)
         (void)sizeof(sha_test);
 
         CYASSL_ENTER("SHA512_Init");
-        InitSha512((Sha512*)sha);
+        InitSha512((Sha512*)sha);  /* OpenSSL compat, no error */
     }
 
 

@@ -27,6 +27,11 @@
 
 #ifdef CYASSL_SHA512
 
+#ifdef HAVE_FIPS
+    /* set NO_WRAPPERS before headers, use direct internal f()s not wrappers */
+    #define FIPS_NO_WRAPPERS
+#endif
+
 #include <cyassl/ctaocrypt/sha512.h>
 #ifdef NO_INLINE
     #include <cyassl/ctaocrypt/misc.h>
@@ -45,7 +50,7 @@
 #endif /* min */
 
 
-void InitSha512(Sha512* sha512)
+int InitSha512(Sha512* sha512)
 {
     sha512->digest[0] = W64LIT(0x6a09e667f3bcc908);
     sha512->digest[1] = W64LIT(0xbb67ae8584caa73b);
@@ -59,6 +64,8 @@ void InitSha512(Sha512* sha512)
     sha512->buffLen = 0;
     sha512->loLen   = 0;
     sha512->hiLen   = 0;
+
+    return 0;
 }
 
 
@@ -190,7 +197,7 @@ static INLINE void AddLength(Sha512* sha512, word32 len)
 }
 
 
-void Sha512Update(Sha512* sha512, const byte* data, word32 len)
+int Sha512Update(Sha512* sha512, const byte* data, word32 len)
 {
     /* do block size increments */
     byte* local = (byte*)sha512->buffer;
@@ -213,10 +220,11 @@ void Sha512Update(Sha512* sha512, const byte* data, word32 len)
             sha512->buffLen = 0;
         }
     }
+    return 0;
 }
 
 
-void Sha512Final(Sha512* sha512, byte* hash)
+int Sha512Final(Sha512* sha512, byte* hash)
 {
     byte* local = (byte*)sha512->buffer;
 
@@ -256,7 +264,7 @@ void Sha512Final(Sha512* sha512, byte* hash)
     #endif
     XMEMCPY(hash, sha512->digest, SHA512_DIGEST_SIZE);
 
-    InitSha512(sha512);  /* reset state */
+    return InitSha512(sha512);  /* reset state */
 }
 
 

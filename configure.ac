@@ -1067,9 +1067,17 @@ AC_ARG_ENABLE([fips],
 
 if test "x$ENABLED_FIPS" = "xyes"
 then
+    # requires thread local storage
     if test "$thread_ls_on" = "no"
     then
         AC_MSG_ERROR([FIPS requires Thread Local Storage])
+    fi
+    # requires SHA512
+    if test "x$ENABLED_SHA512" = "xno"
+    then
+        ENABLED_SHA512="yes"
+        AM_CFLAGS="$AM_CFLAGS -DCYASSL_SHA512 -DCYASSL_SHA384"
+        AM_CONDITIONAL([BUILD_SHA512], [test "x$ENABLED_SHA512" = "xyes"])
     fi
     AM_CFLAGS="$AM_CFLAGS -DHAVE_FIPS"
 fi

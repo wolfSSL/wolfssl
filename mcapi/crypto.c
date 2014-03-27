@@ -207,9 +207,7 @@ int CRYPT_SHA512_Initialize(CRYPT_SHA512_CTX* sha512)
     if (sha512 == NULL)
         return BAD_FUNC_ARG;
 
-    InitSha512((Sha512*)sha512);
-
-    return 0;
+    return InitSha512((Sha512*)sha512);
 }
 
 

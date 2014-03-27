@@ -991,6 +991,7 @@ int sha512_test(void)
 {
     Sha512 sha;
     byte   hash[SHA512_DIGEST_SIZE];
+    int    ret;
 
     testVector a, b;
     testVector test_sha[2];
@@ -1018,7 +1019,9 @@ int sha512_test(void)
     test_sha[0] = a;
     test_sha[1] = b;
 
-    InitSha512(&sha);
+    ret = InitSha512(&sha);
+    if (ret != 0)
+        return -4009;
 
     for (i = 0; i < times; ++i) {
         Sha512Update(&sha, (byte*)test_sha[i].input,(word32)test_sha[i].inLen);
