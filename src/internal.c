@@ -3009,7 +3009,10 @@ static int MatchDomainName(const char* pattern, int len, const char* str)
     if (pattern == NULL || str == NULL || len <= 0)
         return 0;
 
-    while (len > 0 && (p = (char)XTOLOWER(*pattern++))) {
+    while (len > 0) {
+
+        p = (char)XTOLOWER(*pattern++);
+
         if (p == '*') {
             while (--len > 0 && (p = (char)XTOLOWER(*pattern++)) == '*')
                 ;
@@ -3699,7 +3702,9 @@ static int DoHelloRequest(CYASSL* ssl, const byte* input, word32* inOutIdx,
 int DoFinished(CYASSL* ssl, const byte* input, word32* inOutIdx, word32 size,
                                                       word32 totalSz, int sniff)
 {
-    if ((ssl->options.tls ? TLS_FINISHED_SZ : FINISHED_SZ) != size)
+    word32 finishedSz = (ssl->options.tls ? TLS_FINISHED_SZ : FINISHED_SZ);
+
+    if (finishedSz != size)
         return BUFFER_ERROR;
 
     #ifdef CYASSL_CALLBACKS
