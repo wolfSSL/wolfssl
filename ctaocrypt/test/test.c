@@ -1763,17 +1763,23 @@ int des_test(void)
         0x15,0x85,0xb3,0x22,0x4b,0x86,0x2b,0x4b
     };
 
+    int ret;
 
-    Des_SetKey(&enc, key, iv, DES_ENCRYPTION);
+    ret = Des_SetKey(&enc, key, iv, DES_ENCRYPTION);
+    if (ret != 0)
+        return -31;
+
     Des_CbcEncrypt(&enc, cipher, vector, sizeof(vector));
-    Des_SetKey(&dec, key, iv, DES_DECRYPTION);
+    ret = Des_SetKey(&dec, key, iv, DES_DECRYPTION);
+    if (ret != 0)
+        return -32;
     Des_CbcDecrypt(&dec, plain, cipher, sizeof(cipher));
 
     if (memcmp(plain, vector, sizeof(plain)))
-        return -31;
+        return -33;
 
     if (memcmp(cipher, verify, sizeof(cipher)))
-        return -32;
+        return -34;
 
     return 0;
 }

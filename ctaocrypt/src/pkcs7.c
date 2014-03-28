@@ -1041,14 +1041,27 @@ int PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
     /* encrypt content */
     if (pkcs7->encryptOID == DESb) {
         Des des;
-        Des_SetKey(&des, contentKeyPlain, tmpIv, DES_ENCRYPTION);
-        Des_CbcEncrypt(&des, encryptedContent, plain, desOutSz);
 
-    } else if (pkcs7->encryptOID == DES3b) {
+        ret = Des_SetKey(&des, contentKeyPlain, tmpIv, DES_ENCRYPTION);
+
+        if (ret == 0)
+            ret = Des_CbcEncrypt(&des, encryptedContent, plain, desOutSz);
+
+        if (ret != 0) {
+            XFREE(encryptedContent, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            if (dynamicFlag)
+                XFREE(plain, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            return ret;
+        }
+    }
+    else if (pkcs7->encryptOID == DES3b) {
         Des3 des3;
+
         ret = Des3_SetKey(&des3, contentKeyPlain, tmpIv, DES_ENCRYPTION);
+
         if (ret == 0)
             ret = Des3_CbcEncrypt(&des3, encryptedContent, plain, desOutSz);
+
         if (ret != 0) {
             XFREE(encryptedContent, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             if (dynamicFlag)
@@ -1321,15 +1334,24 @@ CYASSL_API int PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* pkiMsg,
     /* decrypt encryptedContent */
     if (encOID == DESb) {
         Des des;
-        Des_SetKey(&des, decryptedKey, tmpIv, DES_DECRYPTION);
-        Des_CbcDecrypt(&des, encryptedContent, encryptedContent,
-                       encryptedContentSz);
-    } else if (encOID == DES3b) {
+        ret = Des_SetKey(&des, decryptedKey, tmpIv, DES_DECRYPTION);
+
+        if (ret == 0)
+            ret = Des_CbcDecrypt(&des, encryptedContent, encryptedContent,
+                                 encryptedContentSz);
+
+        if (ret != 0) {
+            XFREE(encryptedContent, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            return ret;
+        }
+    }
+    else if (encOID == DES3b) {
         Des3 des;
         ret = Des3_SetKey(&des, decryptedKey, tmpIv, DES_DECRYPTION);
         if (ret == 0)
             ret = Des3_CbcDecrypt(&des, encryptedContent, encryptedContent,
                                   encryptedContentSz);
+
         if (ret != 0) {
             XFREE(encryptedContent, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             return ret;

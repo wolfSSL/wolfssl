@@ -33,6 +33,7 @@
 #endif
 
 #include <cyassl/ctaocrypt/des3.h>
+#include <cyassl/ctaocrypt/error.h>
 
 #ifdef NO_INLINE
     #include <cyassl/ctaocrypt/misc.h>
@@ -61,7 +62,7 @@
     #include "stm32f2xx.h"
 		#include "stm32f2xx_cryp.h"
 
-    void Des_SetKey(Des* des, const byte* key, const byte* iv, int dir)
+    int Des_SetKey(Des* des, const byte* key, const byte* iv, int dir)
     {
         word32 *dkey = des->key;
 
@@ -69,6 +70,8 @@
         ByteReverseWords(dkey, dkey, 8);
 
         Des_SetIV(des, iv);
+
+        return 0;
     }
 
     int Des3_SetKey(Des3* des, const byte* key, const byte* iv, int dir)
@@ -381,7 +384,7 @@ int Des3_CbcDecrypt(Des3* des3, byte* out, const byte* in, word32 sz)
 }
 
 
-void Des_SetKey(Des* des, const byte* key, const byte* iv, int dir)
+int Des_SetKey(Des* des, const byte* key, const byte* iv, int dir)
 {
     int i ; int status ;
     
@@ -400,6 +403,7 @@ void Des_SetKey(Des* des, const byte* key, const byte* iv, int dir)
             des->iv[i] = 0x0 ;
     }
 
+    return 0;
 }
 
 int Des3_SetKey(Des3* des3, const byte* key, const byte* iv, int dir)
@@ -420,6 +424,7 @@ int Des3_SetKey(Des3* des3, const byte* key, const byte* iv, int dir)
         for(i=0; i<DES_IVLEN; i++)
             des3->iv[i] = 0x0 ;
     }
+
     return 0;
 }
 
@@ -439,7 +444,7 @@ int Des3_SetKey(Des3* des3, const byte* key, const byte* iv, int dir)
         1,0,0,1,0,1,1,0,0,1,1,0,1,0,0,1,0,1,1,0,1,0,0,1,1,0,0,1,0,1,1,0
      };
 
-    void Des_SetKey(Des* des, const byte* key, const byte* iv, int dir)
+    int Des_SetKey(Des* des, const byte* key, const byte* iv, int dir)
     {
         int i = 0;
         byte* dkey = (byte*)des->key;
@@ -452,6 +457,8 @@ int Des3_SetKey(Des3* des3, const byte* key, const byte* iv, int dir)
         for (i = 0; i < 8; i++) {
             dkey[i] = ((dkey[i] & 0xFE) | parityLookup[dkey[i] >> 1]);
         }
+
+        return 0;
     }
 
     int Des3_SetKey(Des3* des, const byte* key, const byte* iv, int dir)
@@ -616,7 +623,7 @@ int Des3_SetKey(Des3* des3, const byte* key, const byte* iv, int dir)
 void Des_SetIV(Des* des, const byte* iv);
 int  Des3_SetIV(Des3* des, const byte* iv);
 
-    void Des_SetKey(Des* des, const byte* key, const byte* iv, int dir)
+    int Des_SetKey(Des* des, const byte* key, const byte* iv, int dir)
     {
         word32 *dkey = des->key ;
         word32 *dreg = des->reg ;
@@ -625,6 +632,8 @@ int  Des3_SetIV(Des3* des, const byte* iv);
         ByteReverseWords(dkey, dkey, 8);
         XMEMCPY((byte *)dreg, (byte *)iv, 8);
         ByteReverseWords(dreg, dreg, 8);
+
+        return 0;
     }
 
     int Des3_SetKey(Des3* des, const byte* key, const byte* iv, int dir)
@@ -977,58 +986,72 @@ static INLINE void FPERM(word32* left, word32* right)
 }
 
 
-static void DesSetKey(const byte* key, int dir, word32* out)
+static int DesSetKey(const byte* key, int dir, word32* out)
 {
-    byte buffer[56+56+8];
-    byte *const pc1m = buffer;                 /* place to modify pc1 into */
-    byte *const pcr = pc1m + 56;               /* place to rotate pc1 into */
-    byte *const ks = pcr + 56;
-    register int i,j,l;
-    int m;
+    byte* buffer = XMALLOC(56+56+8, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
-    for (j = 0; j < 56; j++) {          /* convert pc1 to bits of key */
-        l = pc1[j] - 1;                 /* integer bit location  */
-        m = l & 07;                     /* find bit              */
-        pc1m[j] = (key[l >> 3] &        /* find which key byte l is in */
-            bytebit[m])                 /* and which bit of that byte */
-            ? 1 : 0;                    /* and store 1-bit result */
+    if (!buffer) {
+        return MEMORY_E;
     }
-    for (i = 0; i < 16; i++) {          /* key chunk for each iteration */
-        XMEMSET(ks, 0, 8);               /* Clear key schedule */
-        for (j = 0; j < 56; j++)        /* rotate pc1 the right amount */
-            pcr[j] = pc1m[(l = j + totrot[i]) < (j < 28 ? 28 : 56) ? l: l-28];
-        /* rotate left and right halves independently */
-        for (j = 0; j < 48; j++){   /* select bits individually */
-            /* check bit that goes to ks[j] */
-            if (pcr[pc2[j] - 1]){
-                /* mask it in if it's there */
-                l= j % 6;
-                ks[j/6] |= bytebit[l] >> 2;
+    else {
+        byte* const  pc1m = buffer;               /* place to modify pc1 into */
+        byte* const  pcr  = pc1m + 56;            /* place to rotate pc1 into */
+        byte* const  ks   = pcr  + 56;
+        register int i, j, l;
+        int          m;
+
+        for (j = 0; j < 56; j++) {             /* convert pc1 to bits of key  */
+            l = pc1[j] - 1;                    /* integer bit location        */
+            m = l & 07;                        /* find bit                    */
+            pc1m[j] = (key[l >> 3] &           /* find which key byte l is in */
+                bytebit[m])                    /* and which bit of that byte  */
+                ? 1 : 0;                       /* and store 1-bit result      */
+        }
+
+        for (i = 0; i < 16; i++) {            /* key chunk for each iteration */
+            XMEMSET(ks, 0, 8);                /* Clear key schedule */
+
+            for (j = 0; j < 56; j++)          /* rotate pc1 the right amount  */
+                pcr[j] =
+                      pc1m[(l = j + totrot[i]) < (j < 28 ? 28 : 56) ? l : l-28];
+
+            /* rotate left and right halves independently */
+            for (j = 0; j < 48; j++) {        /* select bits individually     */
+                if (pcr[pc2[j] - 1]) {        /* check bit that goes to ks[j] */
+                    l= j % 6;                 /* mask it in if it's there     */
+                    ks[j/6] |= bytebit[l] >> 2;
+                }
+            }
+
+            /* Now convert to odd/even interleaved form for use in F */
+            out[2*i] = ((word32) ks[0] << 24)
+                     | ((word32) ks[2] << 16)
+                     | ((word32) ks[4] << 8)
+                     | ((word32) ks[6]);
+
+            out[2*i + 1] = ((word32) ks[1] << 24)
+                         | ((word32) ks[3] << 16)
+                         | ((word32) ks[5] << 8)
+                         | ((word32) ks[7]);
+        }
+
+        /* reverse key schedule order */
+        if (dir == DES_DECRYPTION) {
+            for (i = 0; i < 16; i += 2) {
+                word32 swap = out[i];
+                out[i] = out[DES_KS_SIZE - 2 - i];
+                out[DES_KS_SIZE - 2 - i] = swap;
+    
+                swap = out[i + 1];
+                out[i + 1] = out[DES_KS_SIZE - 1 - i];
+                out[DES_KS_SIZE - 1 - i] = swap;
             }
         }
-        /* Now convert to odd/even interleaved form for use in F */
-        out[2*i] = ((word32)ks[0] << 24)
-            | ((word32)ks[2] << 16)
-            | ((word32)ks[4] << 8)
-            | ((word32)ks[6]);
-        out[2*i + 1] = ((word32)ks[1] << 24)
-            | ((word32)ks[3] << 16)
-            | ((word32)ks[5] << 8)
-            | ((word32)ks[7]);
-    }
-    
-    /* reverse key schedule order */
-    if (dir == DES_DECRYPTION)
-        for (i = 0; i < 16; i += 2) {
-            word32 swap = out[i];
-            out[i] = out[DES_KS_SIZE - 2 - i];
-            out[DES_KS_SIZE - 2 - i] = swap;
 
-            swap = out[i + 1];
-            out[i + 1] = out[DES_KS_SIZE - 1 - i];
-            out[DES_KS_SIZE - 1 - i] = swap;
-        }
-   
+        XFREE(buffer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+
+    return 0;
 }
 
 
@@ -1038,24 +1061,34 @@ static INLINE int Reverse(int dir)
 }
 
 
-void Des_SetKey(Des* des, const byte* key, const byte* iv, int dir)
+int Des_SetKey(Des* des, const byte* key, const byte* iv, int dir)
 {
-    DesSetKey(key, dir, des->key);
-
     Des_SetIV(des, iv);
+
+    return DesSetKey(key, dir, des->key);
 }
 
 
 int Des3_SetKey(Des3* des, const byte* key, const byte* iv, int dir)
 {
+    int ret;
+
 #ifdef HAVE_CAVIUM
     if (des->magic == CYASSL_3DES_CAVIUM_MAGIC)
         return Des3_CaviumSetKey(des, key, iv);
 #endif
 
-    DesSetKey(key + (dir == DES_ENCRYPTION ? 0 : 16), dir, des->key[0]);
-    DesSetKey(key + 8, Reverse(dir), des->key[1]);
-    DesSetKey(key + (dir == DES_DECRYPTION ? 0 : 16), dir, des->key[2]);
+    ret = DesSetKey(key + (dir == DES_ENCRYPTION ? 0:16), dir, des->key[0]);
+    if (ret != 0)
+        return ret;
+
+    ret = DesSetKey(key + 8, Reverse(dir), des->key[1]);
+    if (ret != 0)
+        return ret;
+
+    ret = DesSetKey(key + (dir == DES_DECRYPTION ? 0:16), dir, des->key[2]);
+    if (ret != 0)
+        return ret;
 
     return Des3_SetIV(des, iv);
 }

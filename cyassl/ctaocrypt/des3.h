@@ -90,7 +90,7 @@ typedef struct Des3 {
 } Des3;
 
 
-CYASSL_API void Des_SetKey(Des* des, const byte* key, const byte* iv, int dir);
+CYASSL_API int  Des_SetKey(Des* des, const byte* key, const byte* iv, int dir);
 CYASSL_API void Des_SetIV(Des* des, const byte* iv);
 CYASSL_API void Des_CbcEncrypt(Des* des, byte* out, const byte* in, word32 sz);
 CYASSL_API void Des_CbcDecrypt(Des* des, byte* out, const byte* in, word32 sz);
