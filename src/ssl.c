@@ -1497,6 +1497,13 @@ int AddCA(CYASSL_CERT_MANAGER* cm, buffer der, int type, int verify)
         CYASSL_MSG("    Can't add as CA if not actually one");
         ret = NOT_CA_ERROR;
     }
+    else if (ret == 0 && cert.isCA == 1 && type != CYASSL_USER_CA &&
+                               (cert.extKeyUsage & KEYUSE_KEY_CERT_SIGN) == 0) {
+        /* Intermediate CA certs are required to have the keyCertSign
+         * extension set. User loaded root certs are not. */
+        CYASSL_MSG("    Doesn't have key usage certificate signing");
+        ret = NOT_CA_ERROR;
+    }
     else if (ret == 0 && AlreadySigner(cm, subjectHash)) {
         CYASSL_MSG("    Already have this CA, not adding again");
         (void)ret;
