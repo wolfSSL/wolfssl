@@ -3594,13 +3594,18 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
 
     CYASSL_MSG("Parsed Past Key");
 
-    if (cert->srcIdx != cert->sigIndex) {
-        if (cert->srcIdx < cert->sigIndex) {
-            /* save extensions */
-            cert->extensions    = &cert->source[cert->srcIdx];
-            cert->extensionsSz  =  cert->sigIndex - cert->srcIdx;
-            cert->extensionsIdx = cert->srcIdx;   /* for potential later use */
-        }
+    if (cert->srcIdx < cert->sigIndex) {
+        #ifndef ALLOW_V1_EXTENSIONS
+            if (cert->version < 2) {
+                CYASSL_MSG("    v1 and v2 certs not allowed extensions");
+                return ASN_VERSION_E;
+            }
+        #endif
+        /* save extensions */
+        cert->extensions    = &cert->source[cert->srcIdx];
+        cert->extensionsSz  =  cert->sigIndex - cert->srcIdx;
+        cert->extensionsIdx = cert->srcIdx;   /* for potential later use */
+
         if ((ret = DecodeCertExtensions(cert)) < 0) {
             if (ret == ASN_CRIT_EXT_E)
                 criticalExt = ret;
