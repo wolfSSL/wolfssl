@@ -33,7 +33,7 @@
 #endif
 
 #include <cyassl/ctaocrypt/des3.h>
-#include <cyassl/ctaocrypt/error.h>
+#include <cyassl/ctaocrypt/error-crypt.h>
 
 #ifdef NO_INLINE
     #include <cyassl/ctaocrypt/misc.h>
