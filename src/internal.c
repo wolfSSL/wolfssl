@@ -2330,10 +2330,23 @@ ProtocolVersion MakeDTLSv1_2(void)
 
 #elif defined(MICROCHIP_TCPIP)
 
-    word32 LowResTimer(void)
-    {
-        return (word32) SYS_TICK_Get();
-    }
+    #if defined(MICROCHIP_MPLAB_HARMONY)
+
+        #include <system/tmr/sys_tmr.h>
+
+        word32 LowResTimer(void)
+        {
+            return (word32) SYS_TMR_TickCountGet();
+        }
+
+    #else
+
+        word32 LowResTimer(void)
+        {
+            return (word32) SYS_TICK_Get();
+        }
+
+    #endif
 
 #elif defined(FREESCALE_MQX)
 
