@@ -2759,7 +2759,8 @@ static int ConfirmSignature(const byte* buf, word32 bufSz,
                 return 0;
             }
                 
-            InitRsaKey(&pubKey, heap);
+            ret = InitRsaKey(&pubKey, heap);
+            if (ret != 0) return ret;
             if (RsaPublicKeyDecode(key, &idx, &pubKey, keySz) < 0) {
                 CYASSL_MSG("ASN Key decode error RSA");
                 ret = 0;

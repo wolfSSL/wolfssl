@@ -434,7 +434,7 @@ int PKCS7_EncodeSignedData(PKCS7* pkcs7, byte* output, word32 outputSz)
             attribSetSz = SetSet(flatSignedAttribsSz, attribSet);
 
             ret = InitSha(&esd.sha);
-            if (result < 0) {
+            if (ret < 0) {
                 XFREE(flatSignedAttribs, 0, NULL);
                 return ret;
             }
@@ -458,9 +458,10 @@ int PKCS7_EncodeSignedData(PKCS7* pkcs7, byte* output, word32 outputSz)
         XMEMCPY(digestInfo + digIdx, esd.contentAttribsDigest, SHA_DIGEST_SIZE);
         digIdx += SHA_DIGEST_SIZE;
 
-        InitRsaKey(&privKey, NULL);
-        result = RsaPrivateKeyDecode(pkcs7->privateKey, &scratch, &privKey,
-                               pkcs7->privateKeySz);
+        result = InitRsaKey(&privKey, NULL);
+        if (result == 0)
+            result = RsaPrivateKeyDecode(pkcs7->privateKey, &scratch, &privKey,
+                                         pkcs7->privateKeySz);
         if (result < 0) {
             XFREE(flatSignedAttribs, 0, NULL);
             return PUBLIC_KEY_E;
@@ -580,7 +581,7 @@ int PKCS7_EncodeSignedData(PKCS7* pkcs7, byte* output, word32 outputSz)
 int PKCS7_VerifySignedData(PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz)
 {
     word32 idx, contentType;
-    int length, version;
+    int length, version, ret;
     byte* content = NULL;
     byte* sig = NULL;
     byte* cert = NULL;
@@ -781,7 +782,8 @@ int PKCS7_VerifySignedData(PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz)
         pkcs7->content = content;
         pkcs7->contentSz = contentSz;
 
-        InitRsaKey(&key, NULL);
+        ret = InitRsaKey(&key, NULL);
+        if (ret != 0) return ret;
         if (RsaPublicKeyDecode(pkcs7->publicKey, &scratch, &key,
                                pkcs7->publicKeySz) < 0) {
             CYASSL_MSG("ASN RSA key decode error");
@@ -859,7 +861,8 @@ CYASSL_LOCAL int CreateRecipientInfo(const byte* cert, word32 certSz,
         return BAD_FUNC_ARG;
 
     /* EncryptedKey */
-    InitRsaKey(&pubKey, 0);
+    ret = InitRsaKey(&pubKey, 0);
+    if (ret != 0) return ret;
     if (RsaPublicKeyDecode(decoded.publicKey, &idx, &pubKey,
                            decoded.pubKeySize) < 0) {
         CYASSL_MSG("ASN RSA key decode error");
@@ -1045,7 +1048,7 @@ int PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
         ret = Des_SetKey(&des, contentKeyPlain, tmpIv, DES_ENCRYPTION);
 
         if (ret == 0)
-            ret = Des_CbcEncrypt(&des, encryptedContent, plain, desOutSz);
+            Des_CbcEncrypt(&des, encryptedContent, plain, desOutSz);
 
         if (ret != 0) {
             XFREE(encryptedContent, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -1178,7 +1181,8 @@ CYASSL_API int PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* pkiMsg,
         return BAD_FUNC_ARG;
 
     /* load private key */
-    InitRsaKey(&privKey, 0);
+    ret = InitRsaKey(&privKey, 0);
+    if (ret != 0) return ret;
     ret = RsaPrivateKeyDecode(pkcs7->privateKey, &idx, &privKey,
                               pkcs7->privateKeySz);
     if (ret != 0) {
@@ -1337,7 +1341,7 @@ CYASSL_API int PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* pkiMsg,
         ret = Des_SetKey(&des, decryptedKey, tmpIv, DES_DECRYPTION);
 
         if (ret == 0)
-            ret = Des_CbcDecrypt(&des, encryptedContent, encryptedContent,
+            Des_CbcDecrypt(&des, encryptedContent, encryptedContent,
                                  encryptedContentSz);
 
         if (ret != 0) {

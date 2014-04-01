@@ -1696,7 +1696,8 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
         CYASSL_MSG("PeerRsaKey Memory error");
         return MEMORY_E;
     }
-    InitRsaKey(ssl->peerRsaKey, ctx->heap);
+    ret = InitRsaKey(ssl->peerRsaKey, ctx->heap);
+    if (ret != 0) return ret;
 #endif
 #ifndef NO_CERTS
     /* make sure server has cert and key unless using PSK */
@@ -8483,6 +8484,7 @@ static void PickHashSigAlgo(CYASSL* ssl,
         word32             sigOutSz = 0;
 #ifndef NO_RSA
         RsaKey             key;
+        int                initRsaKey = 0;
 #endif
         int                usingEcc = 0;
 #ifdef HAVE_ECC
@@ -8508,9 +8510,11 @@ static void PickHashSigAlgo(CYASSL* ssl,
         ecc_init(&eccKey);
 #endif
 #ifndef NO_RSA
-        InitRsaKey(&key, ssl->heap);
-        ret = RsaPrivateKeyDecode(ssl->buffers.key.buffer, &idx, &key,
-                                  ssl->buffers.key.length);
+        ret = InitRsaKey(&key, ssl->heap);
+        if (ret == 0) initRsaKey = 1;
+        if (ret == 0)
+            ret = RsaPrivateKeyDecode(ssl->buffers.key.buffer, &idx, &key,
+                                      ssl->buffers.key.length);
         if (ret == 0)
             sigOutSz = RsaEncryptSize(&key);
         else 
@@ -8711,7 +8715,8 @@ static void PickHashSigAlgo(CYASSL* ssl,
             }
         }
 #ifndef NO_RSA
-        FreeRsaKey(&key);
+        if (initRsaKey)
+            FreeRsaKey(&key);
 #endif
 #ifdef HAVE_ECC
         ecc_free(&eccKey);
@@ -8960,7 +8965,8 @@ static void PickHashSigAlgo(CYASSL* ssl,
             preSigIdx = idx;
 
 #ifndef NO_RSA
-            InitRsaKey(&rsaKey, ssl->heap);
+            ret = InitRsaKey(&rsaKey, ssl->heap);
+            if (ret != 0) return ret;
 #endif
             ecc_init(&dsaKey);
 
@@ -9293,7 +9299,10 @@ static void PickHashSigAlgo(CYASSL* ssl,
                                         &ssl->buffers.serverDH_Pub.length);
             FreeDhKey(&dhKey);
 
-            InitRsaKey(&rsaKey, ssl->heap);
+            if (ret == 0) {
+                ret = InitRsaKey(&rsaKey, ssl->heap);
+                if (ret != 0) return ret;
+            }
             if (ret == 0) {
                 length = LENGTH_SZ * 3;  /* p, g, pub */
                 length += ssl->buffers.serverDH_P.length +
@@ -10807,7 +10816,8 @@ static void PickHashSigAlgo(CYASSL* ssl,
                         doUserRsa = 1;
                 #endif
 
-                InitRsaKey(&key, ssl->heap);
+                ret = InitRsaKey(&key, ssl->heap);
+                if (ret != 0) return ret;
 
                 if (ssl->buffers.key.buffer)
                     ret = RsaPrivateKeyDecode(ssl->buffers.key.buffer, &idx,

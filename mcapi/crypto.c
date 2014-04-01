@@ -461,9 +461,7 @@ int CRYPT_RSA_Initialize(CRYPT_RSA_CTX* rsa)
     if (rsa->holder == NULL)
         return -1;
 
-    InitRsaKey((RsaKey*)rsa->holder, NULL);
-
-    return 0;
+    return InitRsaKey((RsaKey*)rsa->holder, NULL);
 }
 
 

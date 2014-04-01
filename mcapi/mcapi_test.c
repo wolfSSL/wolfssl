@@ -1219,8 +1219,9 @@ static int check_rsa(void)
     byte          out1[256];
     byte          out2[256];
 
-    InitRsaKey(&defRsa, NULL);
-    ret = CRYPT_RSA_Initialize(&mcRsa);
+    ret = InitRsaKey(&defRsa, NULL);
+    if (ret == 0)
+        ret = CRYPT_RSA_Initialize(&mcRsa);
     if (ret != 0) {
         printf("mcapi rsa init failed\n");
         return -1;

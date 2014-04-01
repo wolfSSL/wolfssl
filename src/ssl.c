@@ -2121,7 +2121,8 @@ int CyaSSL_Init(void)
                 RsaKey key;
                 word32 idx = 0;
         
-                InitRsaKey(&key, 0);
+                ret = InitRsaKey(&key, 0);
+                if (ret != 0) return ret;
                 if (RsaPrivateKeyDecode(der.buffer,&idx,&key,der.length) != 0) {
 #ifdef HAVE_ECC  
                     /* could have DER ECC (or pkcs8 ecc), no easy way to tell */
@@ -10341,7 +10342,12 @@ static int initGlobalRNG = 0;
         }
 
         InitCyaSSL_Rsa(external);
-        InitRsaKey(key, NULL);
+        if (InitRsaKey(key, NULL) != 0) {
+            CYASSL_MSG("InitRsaKey CYASSL_RSA failure");
+            XFREE(external, NULL, DYNAMIC_TYPE_RSA);
+            XFREE(key, NULL, DYNAMIC_TYPE_RSA);
+            return NULL;
+        }
         external->internal = key;
 
         return external;

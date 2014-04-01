@@ -2681,7 +2681,8 @@ int rsa_test(void)
 #ifdef HAVE_CAVIUM
     RsaInitCavium(&key, CAVIUM_DEV_ID);
 #endif 
-    InitRsaKey(&key, 0);  
+    ret = InitRsaKey(&key, 0);  
+    if (ret != 0) return -39;
     ret = RsaPrivateKeyDecode(tmp, &idx, &key, (word32)bytes);
     if (ret != 0) return -41;
 
@@ -2751,7 +2752,8 @@ int rsa_test(void)
         FILE* keyFile;
         FILE* pemFile;
 
-        InitRsaKey(&genKey, 0);
+        ret = InitRsaKey(&genKey, 0);
+        if (ret != 0) return -300;
         ret = MakeRsaKey(&genKey, 1024, 65537, &rng);
         if (ret != 0)
             return -301;
@@ -2783,7 +2785,8 @@ int rsa_test(void)
         ret = (int)fwrite(pem, pemSz, 1, pemFile);
         fclose(pemFile);
 
-        InitRsaKey(&derIn, 0);
+        ret = InitRsaKey(&derIn, 0);
+        if (ret != 0) return -3060;
         idx = 0;
         ret = RsaPrivateKeyDecode(der, &idx, &derIn, derSz);
         if (ret != 0)
@@ -2891,7 +2894,8 @@ int rsa_test(void)
         bytes3 = fread(tmp, 1, FOURK_BUF, file3);
         fclose(file3);
   
-        InitRsaKey(&caKey, 0);  
+        ret = InitRsaKey(&caKey, 0);  
+        if (ret != 0) return -411;
         ret = RsaPrivateKeyDecode(tmp, &idx3, &caKey, (word32)bytes3);
         if (ret != 0) return -413;
 
@@ -3092,7 +3096,8 @@ int rsa_test(void)
         bytes = fread(tmp, 1, FOURK_BUF, caFile);
         fclose(caFile);
   
-        InitRsaKey(&caKey, 0);  
+        ret = InitRsaKey(&caKey, 0);  
+        if (ret != 0) return -459;
         ret = RsaPrivateKeyDecode(tmp, &idx, &caKey, (word32)bytes);
         if (ret != 0) return -454;
 

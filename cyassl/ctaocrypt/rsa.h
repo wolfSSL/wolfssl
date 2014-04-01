@@ -61,8 +61,8 @@ typedef struct RsaKey {
 } RsaKey;
 
 
-CYASSL_API void InitRsaKey(RsaKey* key, void*);
-CYASSL_API void FreeRsaKey(RsaKey* key);
+CYASSL_API int  InitRsaKey(RsaKey* key, void*);
+CYASSL_API int  FreeRsaKey(RsaKey* key);
 
 CYASSL_API int  RsaPublicEncrypt(const byte* in, word32 inLen, byte* out,
                                  word32 outLen, RsaKey* key, RNG* rng);
@@ -91,6 +91,46 @@ CYASSL_API int RsaPublicKeyDecode(const byte* input, word32* inOutIdx, RsaKey*,
     CYASSL_API int  RsaInitCavium(RsaKey*, int);
     CYASSL_API void RsaFreeCavium(RsaKey*);
 #endif
+
+
+#ifdef HAVE_FIPS
+    /* fips wrapper calls, user can call direct */
+    CYASSL_API int  InitRsaKey_fips(RsaKey* key, void*);
+    CYASSL_API int  FreeRsaKey_fips(RsaKey* key);
+
+    CYASSL_API int  RsaPublicEncrypt_fips(const byte* in,word32 inLen,byte* out,
+                                 word32 outLen, RsaKey* key, RNG* rng);
+    CYASSL_API int  RsaPrivateDecryptInline_fips(byte* in, word32 inLen,
+                                                 byte** out, RsaKey* key);
+    CYASSL_API int  RsaPrivateDecrypt_fips(const byte* in, word32 inLen,
+                                           byte* out,word32 outLen,RsaKey* key);
+    CYASSL_API int  RsaSSL_Sign_fips(const byte* in, word32 inLen, byte* out,
+                            word32 outLen, RsaKey* key, RNG* rng);
+    CYASSL_API int  RsaSSL_VerifyInline_fips(byte* in, word32 inLen, byte** out,
+                                    RsaKey* key);
+    CYASSL_API int  RsaSSL_Verify_fips(const byte* in, word32 inLen, byte* out,
+                              word32 outLen, RsaKey* key);
+    CYASSL_API int  RsaEncryptSize_fips(RsaKey* key);
+
+    CYASSL_API int RsaPrivateKeyDecode_fips(const byte* input, word32* inOutIdx,
+                                            RsaKey*, word32);
+    CYASSL_API int RsaPublicKeyDecode_fips(const byte* input, word32* inOutIdx,
+                                           RsaKey*, word32);
+    #ifndef FIPS_NO_WRAPPERS
+        /* if not impl or fips.c impl wrapper force fips calls if fips build */
+        #define InitRsaKey              InitRsaKey_fips 
+        #define FreeRsaKey              FreeRsaKey_fips 
+        #define RsaPublicEncrypt        RsaPublicEncrypt_fips 
+        #define RsaPrivateDecryptInline RsaPrivateDecryptInline_fips 
+        #define RsaPrivateDecrypt       RsaPrivateDecrypt_fips 
+        #define RsaSSL_Sign             RsaSSL_Sign_fips
+        #define RsaSSL_VerifyInline     RsaSSL_VerifyInline_fips
+        #define RsaSSL_Verify           RsaSSL_Verify_fips
+        #define RsaEncryptSize          RsaEncryptSize_fips
+        /* no implicit KeyDecodes since in asn.c (not rsa.c) */
+    #endif /* FIPS_NO_WRAPPERS */
+
+#endif /* HAVE_FIPS */
 
 
 #ifdef __cplusplus

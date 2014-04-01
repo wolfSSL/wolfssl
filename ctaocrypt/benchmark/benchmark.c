@@ -800,7 +800,11 @@ void bench_rsa(void)
         printf("InitRNG failed\n");
         return;
     }
-    InitRsaKey(&rsaKey, 0);
+    ret = InitRsaKey(&rsaKey, 0);
+    if (ret < 0) {
+        printf("InitRsaKey failed\n");
+        return;
+    }
     ret = RsaPrivateKeyDecode(tmp, &idx, &rsaKey, (word32)bytes);
     
     start = current_time(1);

@@ -28,6 +28,11 @@
 
 #ifndef NO_RSA
 
+#ifdef HAVE_FIPS
+    /* set NO_WRAPPERS before headers, use direct internal f()s not wrappers */
+    #define FIPS_NO_WRAPPERS
+#endif
+
 #include <cyassl/ctaocrypt/rsa.h>
 #include <cyassl/ctaocrypt/random.h>
 #include <cyassl/ctaocrypt/error-crypt.h>
@@ -42,8 +47,8 @@
 #endif
 
 #ifdef HAVE_CAVIUM
-    static void InitCaviumRsaKey(RsaKey* key, void* heap);
-    static void FreeCaviumRsaKey(RsaKey* key);
+    static int  InitCaviumRsaKey(RsaKey* key, void* heap);
+    static int  FreeCaviumRsaKey(RsaKey* key);
     static int  CaviumRsaPublicEncrypt(const byte* in, word32 inLen, byte* out,
                                        word32 outLen, RsaKey* key);
     static int  CaviumRsaPrivateDecrypt(const byte* in, word32 inLen, byte* out,
@@ -70,7 +75,7 @@ enum {
 };
 
 
-void InitRsaKey(RsaKey* key, void* heap)
+int InitRsaKey(RsaKey* key, void* heap)
 {
 #ifdef HAVE_CAVIUM
     if (key->magic == CYASSL_RSA_CAVIUM_MAGIC)
@@ -88,10 +93,12 @@ void InitRsaKey(RsaKey* key, void* heap)
     key->q.dp = key->dP.dp = 0;  
     key->u.dp = key->dQ.dp = 0;
 #endif
+
+    return 0;
 }
 
 
-void FreeRsaKey(RsaKey* key)
+int FreeRsaKey(RsaKey* key)
 {
     (void)key;
 
@@ -113,6 +120,8 @@ void FreeRsaKey(RsaKey* key)
     mp_clear(&key->e);
     mp_clear(&key->n);
 #endif
+
+    return 0;
 }
 
 static void RsaPad(const byte* input, word32 inputLen, byte* pkcsBlock,
@@ -664,10 +673,10 @@ void RsaFreeCavium(RsaKey* rsa)
 
 
 /* Initialize cavium RSA key */
-static void InitCaviumRsaKey(RsaKey* key, void* heap)
+static int InitCaviumRsaKey(RsaKey* key, void* heap)
 {
     if (key == NULL)
-        return;
+        return BAD_FUNC_ARG;
 
     key->heap = heap;
     key->type = -1;   /* don't know yet */
@@ -689,14 +698,16 @@ static void InitCaviumRsaKey(RsaKey* key, void* heap)
     key->c_dP_Sz = 0;
     key->c_dQ_Sz = 0;
     key->c_uSz   = 0;
+    
+    return 0;
 }
 
 
 /* Free cavium RSA key */
-static void FreeCaviumRsaKey(RsaKey* key)
+static int FreeCaviumRsaKey(RsaKey* key)
 {
     if (key == NULL)
-        return;
+        return BAD_FUNC_ARG;
 
     XFREE(key->c_n,  key->heap, DYNAMIC_TYPE_CAVIUM_TMP);
     XFREE(key->c_e,  key->heap, DYNAMIC_TYPE_CAVIUM_TMP);
@@ -707,7 +718,7 @@ static void FreeCaviumRsaKey(RsaKey* key)
     XFREE(key->c_dQ, key->heap, DYNAMIC_TYPE_CAVIUM_TMP);
     XFREE(key->c_u,  key->heap, DYNAMIC_TYPE_CAVIUM_TMP);
 
-    InitCaviumRsaKey(key, key->heap);  /* reset pointers */
+    return InitCaviumRsaKey(key, key->heap);  /* reset pointers */
 }
 
 
