@@ -988,7 +988,7 @@ static INLINE void FPERM(word32* left, word32* right)
 
 static int DesSetKey(const byte* key, int dir, word32* out)
 {
-    byte* buffer = XMALLOC(56+56+8, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    byte* buffer = (byte*)XMALLOC(56+56+8, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     if (!buffer) {
         return MEMORY_E;
