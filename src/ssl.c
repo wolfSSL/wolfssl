@@ -2022,14 +2022,20 @@ int CyaSSL_Init(void)
 
             if (XSTRNCMP(info.name, "DES-CBC", 7) == 0) {
                 Des enc;
-                Des_SetKey(&enc, key, info.iv, DES_DECRYPTION);
+
+                ret = Des_SetKey(&enc, key, info.iv, DES_DECRYPTION);
+                if (ret != 0)
+                    return ret;
+
                 Des_CbcDecrypt(&enc, der.buffer, der.buffer, der.length);
             }
             else if (XSTRNCMP(info.name, "DES-EDE3-CBC", 13) == 0) {
                 Des3 enc;
+
                 ret = Des3_SetKey(&enc, key, info.iv, DES_DECRYPTION);
                 if (ret != 0)
                     return ret;
+
                 ret = Des3_CbcDecrypt(&enc, der.buffer, der.buffer, der.length);
                 if (ret != 0)
                     return ret;
@@ -6929,9 +6935,13 @@ int CyaSSL_set_compression(CYASSL* ssl)
             ctx->keyLen     = 8;
             if (enc == 0 || enc == 1)
                 ctx->enc = enc ? 1 : 0;
-            if (key)
-                Des_SetKey(&ctx->cipher.des, key, iv,
+            if (key) {
+                ret = Des_SetKey(&ctx->cipher.des, key, iv,
                           ctx->enc ? DES_ENCRYPTION : DES_DECRYPTION);
+                if (ret != 0)
+                    return ret;
+            }
+
             if (iv && key == NULL)
                 Des_SetIV(&ctx->cipher.des, iv);
         }
@@ -6948,6 +6958,7 @@ int CyaSSL_set_compression(CYASSL* ssl)
                 if (ret != 0)
                     return ret;
             }
+
             if (iv && key == NULL) {
                 ret = Des3_SetIV(&ctx->cipher.des3, iv);
                 if (ret != 0)
@@ -7369,7 +7380,10 @@ int CyaSSL_set_compression(CYASSL* ssl)
                      int enc)
     {
         Des myDes;
+
         CYASSL_ENTER("DES_cbc_encrypt");
+
+        /* OpenSSL compat, no ret */
         Des_SetKey(&myDes, (const byte*)schedule, (const byte*)ivec, !enc);
 
         if (enc)
@@ -7386,7 +7400,10 @@ int CyaSSL_set_compression(CYASSL* ssl)
                      int enc)
     {
         Des myDes;
+
         CYASSL_ENTER("DES_ncbc_encrypt");
+
+        /* OpenSSL compat, no ret */
         Des_SetKey(&myDes, (const byte*)schedule, (const byte*)ivec, !enc);
 
         if (enc)
