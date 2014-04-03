@@ -405,9 +405,13 @@ void bench_camellia(void)
 {
     Camellia cam;
     double start, total, persec;
-    int    i;
+    int    i, ret;
 
-    CamelliaSetKey(&cam, key, 16, iv);
+    ret = CamelliaSetKey(&cam, key, 16, iv);
+    if (ret != 0) {
+        printf("CamelliaSetKey failed, ret = %d\n", ret);
+        return;
+    }
     start = current_time(1);
 
     for(i = 0; i < numBlocks; i++)

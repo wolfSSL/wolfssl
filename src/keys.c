@@ -1748,27 +1748,41 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
 
 #ifdef HAVE_CAMELLIA
     if (specs->bulk_cipher_algorithm == cyassl_camellia) {
+        int camRet;
+
         if (enc->cam == NULL)
             enc->cam =
                 (Camellia*)XMALLOC(sizeof(Camellia), heap, DYNAMIC_TYPE_CIPHER);
         if (enc->cam == NULL)
             return MEMORY_E;
+
         if (dec->cam == NULL)
             dec->cam =
                 (Camellia*)XMALLOC(sizeof(Camellia), heap, DYNAMIC_TYPE_CIPHER);
         if (dec->cam == NULL)
             return MEMORY_E;
+
         if (side == CYASSL_CLIENT_END) {
-            CamelliaSetKey(enc->cam, keys->client_write_key,
+            camRet = CamelliaSetKey(enc->cam, keys->client_write_key,
                       specs->key_size, keys->client_write_IV);
-            CamelliaSetKey(dec->cam, keys->server_write_key,
+            if (camRet != 0)
+                return camRet;
+
+            camRet = CamelliaSetKey(dec->cam, keys->server_write_key,
                       specs->key_size, keys->server_write_IV);
+            if (camRet != 0)
+                return camRet;
         }
         else {
-            CamelliaSetKey(enc->cam, keys->server_write_key,
+            camRet = CamelliaSetKey(enc->cam, keys->server_write_key,
                       specs->key_size, keys->server_write_IV);
-            CamelliaSetKey(dec->cam, keys->client_write_key,
+            if (camRet != 0)
+                return camRet;
+
+            camRet = CamelliaSetKey(dec->cam, keys->client_write_key,
                       specs->key_size, keys->client_write_IV);
+            if (camRet != 0)
+                return camRet;
         }
         enc->setup = 1;
         dec->setup = 1;

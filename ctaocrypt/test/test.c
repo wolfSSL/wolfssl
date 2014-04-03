@@ -2476,8 +2476,9 @@ int camellia_test(void)
 
     testsSz = sizeof(testVectors)/sizeof(test_vector_t);
     for (i = 0; i < testsSz; i++) {
-        CamelliaSetKey(&cam, testVectors[i].key, testVectors[i].keySz,
-                                                             testVectors[i].iv);
+        if (CamelliaSetKey(&cam, testVectors[i].key, testVectors[i].keySz,
+                                                        testVectors[i].iv) != 0)
+            return testVectors[i].errorCode;
 
         switch (testVectors[i].type) {
             case CAM_ECB_ENC:
