@@ -527,21 +527,6 @@ int GenerateSeed(OS_Seed* os, byte* output, word32 sz)
             return 0;
         }
     #endif /* CYASSL_MIC32MZ_RNG */
-#elif defined(CYASSL_SAFERTOS) || defined(CYASSL_LEANPSK) \
-   || defined(CYASSL_IAR_ARM)                               
-
-#warning "write a real random seed!!!!, just for testing now"
-
-int GenerateSeed(OS_Seed* os, byte* output, word32 sz)
-{
-    word32 i;
-    for (i = 0; i < sz; i++ )
-        output[i] = i;
-
-    (void)os;
-
-    return 0;
-}
 
 #elif defined(FREESCALE_MQX)
 
@@ -629,6 +614,22 @@ int GenerateSeed(OS_Seed* os, byte* output, word32 sz)
             return 0;
         }
 	#endif /* FREESCALE_K70_RNGA */
+
+#elif defined(CYASSL_SAFERTOS) || defined(CYASSL_LEANPSK) \
+   || defined(CYASSL_IAR_ARM)
+
+#warning "write a real random seed!!!!, just for testing now"
+
+int GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+{
+    word32 i;
+    for (i = 0; i < sz; i++ )
+        output[i] = i;
+
+    (void)os;
+
+    return 0;
+}
 
 #elif defined(STM32F2_RNG)
     #undef RNG
