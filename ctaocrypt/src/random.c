@@ -107,7 +107,7 @@ static int Hash_df(RNG* rng, byte* out, word32 outSz, byte type, byte* inA, word
             return DBRG_ERROR;
         Sha256Update(&rng->sha, &ctr, sizeof(ctr));
         Sha256Update(&rng->sha, (byte*)&bits, sizeof(bits));
-        /* churning V is the only string that doesn't have 
+        /* churning V is the only string that doesn't have
          * the type added */
         if (type != dbrgInitV)
             Sha256Update(&rng->sha, &type, sizeof(type));
@@ -193,13 +193,13 @@ static INLINE void array_add(byte* d, word32 dLen, byte* s, word32 sLen)
 
     if (dLen > 0 && sLen > 0 && dLen >= sLen) {
         int sIdx, dIdx;
-            
+
         for (sIdx = sLen - 1, dIdx = dLen - 1; sIdx >= 0; dIdx--, sIdx--)
         {
             carry += d[dIdx] + s[sIdx];
             d[dIdx] = carry;
             carry >>= 8;
-        } 
+        }
         if (dIdx > 0)
             d[dIdx] += carry;
     }
@@ -321,7 +321,7 @@ int InitRng(RNG* rng)
 
 #ifdef HAVE_CAVIUM
     if (rng->magic == CYASSL_RNG_CAVIUM_MAGIC)
-        return 0; 
+        return 0;
 #endif
     ret = GenerateSeed(&rng->seed, key, sizeof(key));
 
@@ -342,7 +342,7 @@ void RNG_GenerateBlock(RNG* rng, byte* output, word32 sz)
 {
 #ifdef HAVE_CAVIUM
     if (rng->magic == CYASSL_RNG_CAVIUM_MAGIC)
-        return CaviumRNG_GenerateBlock(rng, output, sz); 
+        return CaviumRNG_GenerateBlock(rng, output, sz);
 #endif
     XMEMSET(output, 0, sz);
     Arc4Process(&rng->cipher, output, output, sz);
@@ -371,7 +371,7 @@ int InitRngCavium(RNG* rng, int devId)
 
     rng->devId = devId;
     rng->magic = CYASSL_RNG_CAVIUM_MAGIC;
-   
+
     return 0;
 }
 
@@ -636,8 +636,8 @@ int GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     #include "stm32f2xx_rng.h"
     #include "stm32f2xx_rcc.h"
     /*
-     * Generate a RNG seed using the hardware random number generator 
-     * on the STM32F2. Documentation located in STM32F2xx Standard Peripheral 
+     * Generate a RNG seed using the hardware random number generator
+     * on the STM32F2. Documentation located in STM32F2xx Standard Peripheral
      * Library document (See note in README).
      */
     int GenerateSeed(OS_Seed* os, byte* output, word32 sz)
@@ -674,17 +674,21 @@ int GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         return 0;
     }
 
-#elif defined(CYASSL_TYTO)
+#elif defined(CUSTOM_RAND_GENERATE)
 
-    int GenerateSeed(OS_Seed* os, byte* output, word32 sz)
-    {
-        int i;
+   /* Implement your own random generation function
+    * word32 rand_gen(void);
+    * #define CUSTOM_RAND_GENERATE  rand_gen  */
 
-        for (i = 0; i < sz; i++ )
-            output[i] = rand_gen();
+   int GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+   {
+     int i;
 
-        return 0;
-    }
+     for (i = 0; i < sz; i++ )
+         output[i] = CUSTOM_RAND_GENERATE();
+
+     return 0;
+   }
 
 #elif defined(NO_DEV_RANDOM)
 
@@ -716,7 +720,7 @@ int GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 
     while (sz) {
         int len = (int)read(os->fd, output, sz);
-        if (len == -1) { 
+        if (len == -1) {
             ret = READ_RAN_E;
             break;
         }

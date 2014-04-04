@@ -52,7 +52,7 @@
 #if !defined(_MSC_VER) && !defined(__BCPLUSPLUS__)
     #if !defined(SIZEOF_LONG_LONG) && !defined(SIZEOF_LONG)
         #if (defined(__alpha__) || defined(__ia64__) || defined(_ARCH_PPC64) \
-                || defined(__mips64)  || defined(__x86_64__)) 
+                || defined(__mips64)  || defined(__x86_64__))
             /* long should be 64bit */
             #define SIZEOF_LONG 8
         #elif defined(__i386__) || defined(__CORTEX_M3__)
@@ -71,11 +71,11 @@
     #define WORD64_AVAILABLE
     #define W64LIT(x) x##LL
     typedef unsigned long word64;
-#elif defined(SIZEOF_LONG_LONG) && SIZEOF_LONG_LONG == 8 
+#elif defined(SIZEOF_LONG_LONG) && SIZEOF_LONG_LONG == 8
     #define WORD64_AVAILABLE
     #define W64LIT(x) x##LL
     typedef unsigned long long word64;
-#elif defined(__SIZEOF_LONG_LONG__) && __SIZEOF_LONG_LONG__ == 8 
+#elif defined(__SIZEOF_LONG_LONG__) && __SIZEOF_LONG_LONG__ == 8
     #define WORD64_AVAILABLE
     #define W64LIT(x) x##LL
     typedef unsigned long long word64;
@@ -87,7 +87,7 @@
 
 /* These platforms have 64-bit CPU registers.  */
 #if (defined(__alpha__) || defined(__ia64__) || defined(_ARCH_PPC64) || \
-     defined(__mips64)  || defined(__x86_64__) || defined(_M_X64)) 
+     defined(__mips64)  || defined(__x86_64__) || defined(_M_X64))
     typedef word64 word;
 #else
     typedef word32 word;
@@ -117,10 +117,10 @@ enum {
     #elif defined(THREADX)
         #define INLINE _Inline
     #else
-        #define INLINE 
+        #define INLINE
     #endif
 #else
-    #define INLINE 
+    #define INLINE
 #endif
 #endif
 
@@ -211,9 +211,7 @@ enum {
 #endif
 
 #ifndef CTYPE_USER
-    #ifndef CYASSL_TYTO
-        #include <ctype.h>
-    #endif
+    #include <ctype.h>
     #if defined(HAVE_ECC) || defined(HAVE_OCSP)
         #define XTOUPPER(c)     toupper((c))
         #define XISALPHA(c)     isalpha((c))

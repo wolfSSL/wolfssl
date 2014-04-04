@@ -58,10 +58,10 @@
 #include <cyassl/ctaocrypt/ripemd.h>
 #ifdef HAVE_ECC
     #include <cyassl/ctaocrypt/ecc.h>
-#endif    
+#endif
 #ifdef HAVE_BLAKE2
     #include <cyassl/ctaocrypt/blake2.h>
-#endif    
+#endif
 #ifdef HAVE_LIBZ
     #include <cyassl/ctaocrypt/compress.h>
 #endif
@@ -85,8 +85,8 @@
 #if defined(USE_CERT_BUFFERS_1024) || defined(USE_CERT_BUFFERS_2048)
     /* include test cert and key buffers for use with NO_FILESYSTEM */
     #if defined(CYASSL_MDK_ARM)
-        #include "cert_data.h" 
-                        /* use certs_test.c for initial data, so other 
+        #include "cert_data.h"
+                        /* use certs_test.c for initial data, so other
                                                commands can share the data. */
     #else
         #include <cyassl/certs_test.h>
@@ -125,14 +125,12 @@
         #define printf dc_log_printf
 #endif
 
-#ifndef CYASSL_TYTO
-    #include "ctaocrypt/test/test.h"
-#endif
+#include "ctaocrypt/test/test.h"
 
 
 typedef struct testVector {
     const char*  input;
-    const char*  output; 
+    const char*  output;
     size_t inLen;
     size_t outLen;
 } testVector;
@@ -227,63 +225,63 @@ void ctaocrypt_test(void* args)
 
 
 #ifndef NO_MD5
-    if ( (ret = md5_test()) != 0) 
+    if ( (ret = md5_test()) != 0)
         err_sys("MD5      test failed!\n", ret);
     else
         printf( "MD5      test passed!\n");
 #endif
 
 #ifdef CYASSL_MD2
-    if ( (ret = md2_test()) != 0) 
+    if ( (ret = md2_test()) != 0)
         err_sys("MD2      test failed!\n", ret);
     else
         printf( "MD2      test passed!\n");
 #endif
 
 #ifndef NO_MD4
-    if ( (ret = md4_test()) != 0) 
+    if ( (ret = md4_test()) != 0)
         err_sys("MD4      test failed!\n", ret);
     else
         printf( "MD4      test passed!\n");
 #endif
 
 #ifndef NO_SHA
-    if ( (ret = sha_test()) != 0) 
+    if ( (ret = sha_test()) != 0)
         err_sys("SHA      test failed!\n", ret);
     else
         printf( "SHA      test passed!\n");
 #endif
 
 #ifndef NO_SHA256
-    if ( (ret = sha256_test()) != 0) 
+    if ( (ret = sha256_test()) != 0)
         err_sys("SHA-256  test failed!\n", ret);
     else
         printf( "SHA-256  test passed!\n");
 #endif
 
 #ifdef CYASSL_SHA384
-    if ( (ret = sha384_test()) != 0) 
+    if ( (ret = sha384_test()) != 0)
         err_sys("SHA-384  test failed!\n", ret);
     else
         printf( "SHA-384  test passed!\n");
 #endif
 
 #ifdef CYASSL_SHA512
-    if ( (ret = sha512_test()) != 0) 
+    if ( (ret = sha512_test()) != 0)
         err_sys("SHA-512  test failed!\n", ret);
     else
         printf( "SHA-512  test passed!\n");
 #endif
 
 #ifdef CYASSL_RIPEMD
-    if ( (ret = ripemd_test()) != 0) 
+    if ( (ret = ripemd_test()) != 0)
         err_sys("RIPEMD   test failed!\n", ret);
     else
         printf( "RIPEMD   test passed!\n");
 #endif
 
-#ifdef HAVE_BLAKE2 
-    if ( (ret = blake2b_test()) != 0) 
+#ifdef HAVE_BLAKE2
+    if ( (ret = blake2b_test()) != 0)
         err_sys("BLAKE2b  test failed!\n", ret);
     else
         printf( "BLAKE2b  test passed!\n");
@@ -291,49 +289,49 @@ void ctaocrypt_test(void* args)
 
 #ifndef NO_HMAC
     #ifndef NO_MD5
-        if ( (ret = hmac_md5_test()) != 0) 
+        if ( (ret = hmac_md5_test()) != 0)
             err_sys("HMAC-MD5 test failed!\n", ret);
         else
             printf( "HMAC-MD5 test passed!\n");
     #endif
 
     #ifndef NO_SHA
-    if ( (ret = hmac_sha_test()) != 0) 
+    if ( (ret = hmac_sha_test()) != 0)
         err_sys("HMAC-SHA test failed!\n", ret);
     else
         printf( "HMAC-SHA test passed!\n");
     #endif
 
     #ifndef NO_SHA256
-        if ( (ret = hmac_sha256_test()) != 0) 
+        if ( (ret = hmac_sha256_test()) != 0)
             err_sys("HMAC-SHA256 test failed!\n", ret);
         else
             printf( "HMAC-SHA256 test passed!\n");
     #endif
 
     #ifdef CYASSL_SHA384
-        if ( (ret = hmac_sha384_test()) != 0) 
+        if ( (ret = hmac_sha384_test()) != 0)
             err_sys("HMAC-SHA384 test failed!\n", ret);
         else
             printf( "HMAC-SHA384 test passed!\n");
     #endif
 
     #ifdef CYASSL_SHA512
-        if ( (ret = hmac_sha512_test()) != 0) 
+        if ( (ret = hmac_sha512_test()) != 0)
             err_sys("HMAC-SHA512 test failed!\n", ret);
         else
             printf( "HMAC-SHA512 test passed!\n");
     #endif
 
-    #ifdef HAVE_BLAKE2 
-        if ( (ret = hmac_blake2b_test()) != 0) 
+    #ifdef HAVE_BLAKE2
+        if ( (ret = hmac_blake2b_test()) != 0)
             err_sys("HMAC-BLAKE2 test failed!\n", ret);
         else
             printf( "HMAC-BLAKE2 test passed!\n");
     #endif
 
     #ifdef HAVE_HKDF
-        if ( (ret = hkdf_test()) != 0) 
+        if ( (ret = hkdf_test()) != 0)
             err_sys("HMAC-KDF    test failed!\n", ret);
         else
             printf( "HMAC-KDF    test passed!\n");
@@ -417,47 +415,47 @@ void ctaocrypt_test(void* args)
         printf( "RANDOM   test passed!\n");
 
 #ifndef NO_RSA
-    if ( (ret = rsa_test()) != 0) 
+    if ( (ret = rsa_test()) != 0)
         err_sys("RSA      test failed!\n", ret);
     else
         printf( "RSA      test passed!\n");
 #endif
 
 #ifndef NO_DH
-    if ( (ret = dh_test()) != 0) 
+    if ( (ret = dh_test()) != 0)
         err_sys("DH       test failed!\n", ret);
     else
         printf( "DH       test passed!\n");
 #endif
 
 #ifndef NO_DSA
-    if ( (ret = dsa_test()) != 0) 
+    if ( (ret = dsa_test()) != 0)
         err_sys("DSA      test failed!\n", ret);
     else
         printf( "DSA      test passed!\n");
 #endif
-    
+
 #ifndef NO_PWDBASED
-    if ( (ret = pwdbased_test()) != 0) 
+    if ( (ret = pwdbased_test()) != 0)
         err_sys("PWDBASED test failed!\n", ret);
     else
         printf( "PWDBASED test passed!\n");
 #endif
-    
+
 #ifdef OPENSSL_EXTRA
-    if ( (ret = openssl_test()) != 0) 
+    if ( (ret = openssl_test()) != 0)
         err_sys("OPENSSL  test failed!\n", ret);
     else
         printf( "OPENSSL  test passed!\n");
 #endif
 
 #ifdef HAVE_ECC
-    if ( (ret = ecc_test()) != 0) 
+    if ( (ret = ecc_test()) != 0)
         err_sys("ECC      test failed!\n", ret);
     else
         printf( "ECC      test passed!\n");
     #ifdef HAVE_ECC_ENCRYPT
-        if ( (ret = ecc_encrypt_test()) != 0) 
+        if ( (ret = ecc_encrypt_test()) != 0)
             err_sys("ECC Enc  test failed!\n", ret);
         else
             printf( "ECC Enc  test passed!\n");
@@ -465,7 +463,7 @@ void ctaocrypt_test(void* args)
 #endif
 
 #ifdef HAVE_LIBZ
-    if ( (ret = compress_test()) != 0) 
+    if ( (ret = compress_test()) != 0)
         err_sys("COMPRESS test failed!\n", ret);
     else
         printf( "COMPRESS test passed!\n");
@@ -519,7 +517,7 @@ static int OpenNitroxDevice(int dma_mode,int dev_id)
 
         func_args args;
 
-			
+
 #ifdef HAVE_CAVIUM
         int ret = OpenNitroxDevice(CAVIUM_DIRECT, CAVIUM_DEV_ID);
         if (ret != 0)
@@ -534,7 +532,7 @@ static int OpenNitroxDevice(int dma_mode,int dev_id)
 #ifdef HAVE_CAVIUM
         CspShutdown(CAVIUM_DEV_ID);
 #endif
-				
+
         return args.return_code;
     }
 
@@ -615,7 +613,7 @@ int md2_test()
 
     return 0;
 }
-#endif 
+#endif
 
 #ifndef NO_MD5
 int md5_test(void)
@@ -643,21 +641,21 @@ int md5_test(void)
     c.output = "\xc3\xfc\xd3\xd7\x61\x92\xe4\x00\x7d\xfb\x49\x6c\xca\x67\xe1"
                "\x3b";
     c.inLen  = strlen(c.input);
-    c.outLen = MD5_DIGEST_SIZE; 
+    c.outLen = MD5_DIGEST_SIZE;
 
     d.input  = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz012345"
                "6789";
     d.output = "\xd1\x74\xab\x98\xd2\x77\xd9\xf5\xa5\x61\x1c\x2c\x9f\x41\x9d"
                "\x9f";
     d.inLen  = strlen(d.input);
-    d.outLen = MD5_DIGEST_SIZE; 
+    d.outLen = MD5_DIGEST_SIZE;
 
     e.input  = "1234567890123456789012345678901234567890123456789012345678"
                "9012345678901234567890";
     e.output = "\x57\xed\xf4\xa2\x2b\xe3\xc9\x55\xac\x49\xda\x2e\x21\x07\xb6"
                "\x7a";
     e.inLen  = strlen(e.input);
-    e.outLen = MD5_DIGEST_SIZE; 
+    e.outLen = MD5_DIGEST_SIZE;
 
     test_md5[0] = a;
     test_md5[1] = b;
@@ -692,45 +690,45 @@ int md4_test(void)
     int times = sizeof(test_md4) / sizeof(testVector), i;
 
     a.input  = "";
-    a.output = "\x31\xd6\xcf\xe0\xd1\x6a\xe9\x31\xb7\x3c\x59\xd7\xe0\xc0\x89" 
+    a.output = "\x31\xd6\xcf\xe0\xd1\x6a\xe9\x31\xb7\x3c\x59\xd7\xe0\xc0\x89"
                "\xc0";
     a.inLen  = strlen(a.input);
     a.outLen = MD4_DIGEST_SIZE;
 
     b.input  = "a";
-    b.output = "\xbd\xe5\x2c\xb3\x1d\xe3\x3e\x46\x24\x5e\x05\xfb\xdb\xd6\xfb" 
+    b.output = "\xbd\xe5\x2c\xb3\x1d\xe3\x3e\x46\x24\x5e\x05\xfb\xdb\xd6\xfb"
                "\x24";
     b.inLen  = strlen(b.input);
-    b.outLen = MD4_DIGEST_SIZE; 
+    b.outLen = MD4_DIGEST_SIZE;
 
     c.input  = "abc";
-    c.output = "\xa4\x48\x01\x7a\xaf\x21\xd8\x52\x5f\xc1\x0a\xe8\x7a\xa6\x72" 
+    c.output = "\xa4\x48\x01\x7a\xaf\x21\xd8\x52\x5f\xc1\x0a\xe8\x7a\xa6\x72"
                "\x9d";
     c.inLen  = strlen(c.input);
     c.outLen = MD4_DIGEST_SIZE;
 
     d.input  = "message digest";
-    d.output = "\xd9\x13\x0a\x81\x64\x54\x9f\xe8\x18\x87\x48\x06\xe1\xc7\x01" 
+    d.output = "\xd9\x13\x0a\x81\x64\x54\x9f\xe8\x18\x87\x48\x06\xe1\xc7\x01"
                "\x4b";
     d.inLen  = strlen(d.input);
     d.outLen = MD4_DIGEST_SIZE;
 
     e.input  = "abcdefghijklmnopqrstuvwxyz";
-    e.output = "\xd7\x9e\x1c\x30\x8a\xa5\xbb\xcd\xee\xa8\xed\x63\xdf\x41\x2d" 
+    e.output = "\xd7\x9e\x1c\x30\x8a\xa5\xbb\xcd\xee\xa8\xed\x63\xdf\x41\x2d"
                "\xa9";
     e.inLen  = strlen(e.input);
     e.outLen = MD4_DIGEST_SIZE;
 
     f.input  = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz012345"
                "6789";
-    f.output = "\x04\x3f\x85\x82\xf2\x41\xdb\x35\x1c\xe6\x27\xe1\x53\xe7\xf0" 
+    f.output = "\x04\x3f\x85\x82\xf2\x41\xdb\x35\x1c\xe6\x27\xe1\x53\xe7\xf0"
                "\xe4";
     f.inLen  = strlen(f.input);
     f.outLen = MD4_DIGEST_SIZE;
 
     g.input  = "1234567890123456789012345678901234567890123456789012345678"
                "9012345678901234567890";
-    g.output = "\xe3\x3b\x4d\xdc\x9c\x38\xf2\x19\x9c\x3e\x7b\x16\x4f\xcc\x05" 
+    g.output = "\xe3\x3b\x4d\xdc\x9c\x38\xf2\x19\x9c\x3e\x7b\x16\x4f\xcc\x05"
                "\x36";
     g.inLen  = strlen(g.input);
     g.outLen = MD4_DIGEST_SIZE;
@@ -787,7 +785,7 @@ int sha_test(void)
     c.output = "\x00\x98\xBA\x82\x4B\x5C\x16\x42\x7B\xD7\xA1\x12\x2A\x5A\x44"
                "\x2A\x25\xEC\x64\x4D";
     c.inLen  = strlen(c.input);
-    c.outLen = SHA_DIGEST_SIZE; 
+    c.outLen = SHA_DIGEST_SIZE;
 
     d.input  = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
                "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
@@ -841,7 +839,7 @@ int ripemd_test(void)
     b.inLen  = strlen(b.input);
     b.outLen = RIPEMD_DIGEST_SIZE;
 
-    c.input  = "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq"; 
+    c.input  = "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq";
     c.output = "\x12\xa0\x53\x38\x4a\x9c\x0c\x88\xe4\x05\xa0\x6c\x27\xdc"
                "\xf4\x9a\xda\x62\xeb\x2b";
     c.inLen  = strlen(c.input);
@@ -850,7 +848,7 @@ int ripemd_test(void)
     d.input  = "12345678901234567890123456789012345678901234567890123456"
                "789012345678901234567890";
     d.output = "\x9b\x75\x2e\x45\x57\x3d\x4b\x39\xf4\xdb\xd3\x32\x3c\xab"
-               "\x82\xbf\x63\x32\x6b\xfb"; 
+               "\x82\xbf\x63\x32\x6b\xfb";
     d.inLen  = strlen(d.input);
     d.outLen = RIPEMD_DIGEST_SIZE;
 
@@ -1012,7 +1010,7 @@ int sha512_test(void)
                "\x3f\x8f\x77\x79\xc6\xeb\x9f\x7f\xa1\x72\x99\xae\xad\xb6\x88"
                "\x90\x18\x50\x1d\x28\x9e\x49\x00\xf7\xe4\x33\x1b\x99\xde\xc4"
                "\xb5\x43\x3a\xc7\xd3\x29\xee\xb6\xdd\x26\x54\x5e\x96\xe5\x5b"
-               "\x87\x4b\xe9\x09"; 
+               "\x87\x4b\xe9\x09";
     b.inLen  = strlen(b.input);
     b.outLen = SHA512_DIGEST_SIZE;
 
@@ -1062,7 +1060,7 @@ int sha384_test(void)
                "\xf7\x12\xfc\xc7\xc7\x1a\x55\x7e\x2d\xb9\x66\xc3\xe9\xfa\x91"
                "\x74\x60\x39";
     b.inLen  = strlen(b.input);
-    b.outLen = SHA384_DIGEST_SIZE; 
+    b.outLen = SHA384_DIGEST_SIZE;
 
     test_sha[0] = a;
     test_sha[1] = b;
@@ -1133,7 +1131,7 @@ int hmac_md5_test(void)
         if (i == 1)
             continue; /* driver can't handle keys <= bytes */
         if (HmacInitCavium(&hmac, CAVIUM_DEV_ID) != 0)
-            return -20009; 
+            return -20009;
 #endif
         ret = HmacSetKey(&hmac, MD5, (byte*)keys[i], (word32)strlen(keys[i]));
         if (ret != 0)
@@ -1204,7 +1202,7 @@ int hmac_sha_test(void)
         if (i == 1)
             continue; /* driver can't handle keys <= bytes */
         if (HmacInitCavium(&hmac, CAVIUM_DEV_ID) != 0)
-            return -20010; 
+            return -20010;
 #endif
         ret = HmacSetKey(&hmac, SHA, (byte*)keys[i], (word32)strlen(keys[i]));
         if (ret != 0)
@@ -1279,7 +1277,7 @@ int hmac_sha256_test(void)
         if (i == 1)
             continue; /* driver can't handle keys <= bytes */
         if (HmacInitCavium(&hmac, CAVIUM_DEV_ID) != 0)
-            return -20011; 
+            return -20011;
 #endif
         ret = HmacSetKey(&hmac, SHA256, (byte*)keys[i],(word32)strlen(keys[i]));
         if (ret != 0)
@@ -1354,7 +1352,7 @@ int hmac_blake2b_test(void)
         if (i == 1)
             continue; /* driver can't handle keys <= bytes */
         if (HmacInitCavium(&hmac, CAVIUM_DEV_ID) != 0)
-            return -20011; 
+            return -20011;
 #endif
         ret = HmacSetKey(&hmac, BLAKE2B_ID, (byte*)keys[i],
                          (word32)strlen(keys[i]));
@@ -1523,8 +1521,8 @@ int arc4_test(void)
     byte cipher[16];
     byte plain[16];
 
-    const char* keys[] = 
-    {           
+    const char* keys[] =
+    {
         "\x01\x23\x45\x67\x89\xab\xcd\xef",
         "\x01\x23\x45\x67\x89\xab\xcd\xef",
         "\x00\x00\x00\x00\x00\x00\x00\x00",
@@ -1570,9 +1568,9 @@ int arc4_test(void)
 
 #ifdef HAVE_CAVIUM
         if (Arc4InitCavium(&enc, CAVIUM_DEV_ID) != 0)
-            return -20001; 
+            return -20001;
         if (Arc4InitCavium(&dec, CAVIUM_DEV_ID) != 0)
-            return -20002; 
+            return -20002;
 #endif
 
         Arc4SetKey(&enc, (byte*)keys[i], keylen);
@@ -1605,8 +1603,8 @@ int hc128_test(void)
     byte cipher[16];
     byte plain[16];
 
-    const char* keys[] = 
-    {           
+    const char* keys[] =
+    {
         "\x80\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00",
         "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00",
         "\x00\x53\xA6\xF9\x4C\x9F\xF2\x45\x98\xEB\x3E\x91\xE4\x37\x8A\xDD",
@@ -1657,8 +1655,8 @@ int hc128_test(void)
         HC128 dec;
 
         /* align keys/ivs in plain/cipher buffers */
-        memcpy(plain,  keys[i], 16); 
-        memcpy(cipher, ivs[i],  16); 
+        memcpy(plain,  keys[i], 16);
+        memcpy(cipher, ivs[i],  16);
 
         Hc128_SetKey(&enc, plain, cipher);
         Hc128_SetKey(&dec, plain, cipher);
@@ -1686,8 +1684,8 @@ int rabbit_test(void)
     byte cipher[16];
     byte plain[16];
 
-    const char* keys[] = 
-    {           
+    const char* keys[] =
+    {
         "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00",
         "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00",
         "\xAC\xC3\x51\xDC\xF1\x62\xFC\x3B\xFE\x36\x3D\x2E\x29\x13\x28\x91"
@@ -1771,17 +1769,17 @@ int des_test(void)
     Des enc;
     Des dec;
 
-    const byte key[] = 
+    const byte key[] =
     {
         0x01,0x23,0x45,0x67,0x89,0xab,0xcd,0xef
     };
 
-    const byte iv[] = 
+    const byte iv[] =
     {
         0x12,0x34,0x56,0x78,0x90,0xab,0xcd,0xef
     };
 
-    const byte verify[] = 
+    const byte verify[] =
     {
         0x8b,0x7c,0x52,0xb0,0x01,0x2b,0x6c,0xb8,
         0x4f,0x0f,0xeb,0xf3,0xfb,0x5f,0x86,0x73,
@@ -1826,21 +1824,21 @@ int des3_test(void)
     Des3 enc;
     Des3 dec;
 
-    const byte key3[] = 
+    const byte key3[] =
     {
         0x01,0x23,0x45,0x67,0x89,0xab,0xcd,0xef,
         0xfe,0xde,0xba,0x98,0x76,0x54,0x32,0x10,
         0x89,0xab,0xcd,0xef,0x01,0x23,0x45,0x67
     };
-    const byte iv3[] = 
+    const byte iv3[] =
     {
         0x12,0x34,0x56,0x78,0x90,0xab,0xcd,0xef,
         0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,
         0x11,0x21,0x31,0x41,0x51,0x61,0x71,0x81
-        
+
     };
 
-    const byte verify3[] = 
+    const byte verify3[] =
     {
         0x43,0xa0,0x29,0x7e,0xd1,0x84,0xf8,0x0e,
         0x89,0x64,0x84,0x32,0x12,0xd5,0x08,0x98,
@@ -1852,9 +1850,9 @@ int des3_test(void)
 
 #ifdef HAVE_CAVIUM
     if (Des3_InitCavium(&enc, CAVIUM_DEV_ID) != 0)
-        return -20005; 
+        return -20005;
     if (Des3_InitCavium(&dec, CAVIUM_DEV_ID) != 0)
-        return -20006; 
+        return -20006;
 #endif
     ret = Des3_SetKey(&enc, key3, iv3, DES_ENCRYPTION);
     if (ret != 0)
@@ -1896,7 +1894,7 @@ int aes_test(void)
         0x66,0x6f,0x72,0x20,0x61,0x6c,0x6c,0x20
     };
 
-    const byte verify[] = 
+    const byte verify[] =
     {
         0x95,0x94,0x92,0x57,0x5f,0x42,0x81,0x53,
         0x2c,0xcc,0x9d,0x46,0x77,0xa2,0x33,0xcb
@@ -1911,9 +1909,9 @@ int aes_test(void)
 
 #ifdef HAVE_CAVIUM
         if (AesInitCavium(&enc, CAVIUM_DEV_ID) != 0)
-            return -20003; 
+            return -20003;
         if (AesInitCavium(&dec, CAVIUM_DEV_ID) != 0)
-            return -20004; 
+            return -20004;
 #endif
     ret = AesSetKey(&enc, key, AES_BLOCK_SIZE, iv, AES_ENCRYPTION);
     if (ret != 0)
@@ -1941,7 +1939,7 @@ int aes_test(void)
 #endif
 #ifdef CYASSL_AES_COUNTER
     {
-        const byte ctrKey[] = 
+        const byte ctrKey[] =
         {
             0x2b,0x7e,0x15,0x16,0x28,0xae,0xd2,0xa6,
             0xab,0xf7,0x15,0x88,0x09,0xcf,0x4f,0x3c
@@ -2034,7 +2032,7 @@ int aes_test(void)
         const byte niCipher[] =
         {
             0xf3,0xee,0xd1,0xbd,0xb5,0xd2,0xa0,0x3c,
-            0x06,0x4b,0x5a,0x7e,0x3d,0xb1,0x81,0xf8 
+            0x06,0x4b,0x5a,0x7e,0x3d,0xb1,0x81,0xf8
         };
 
         const byte niKey[] =
@@ -2042,7 +2040,7 @@ int aes_test(void)
             0x60,0x3d,0xeb,0x10,0x15,0xca,0x71,0xbe,
             0x2b,0x73,0xae,0xf0,0x85,0x7d,0x77,0x81,
             0x1f,0x35,0x2c,0x07,0x3b,0x61,0x08,0xd7,
-            0x2d,0x98,0x10,0xa3,0x09,0x14,0xdf,0xf4 
+            0x2d,0x98,0x10,0xa3,0x09,0x14,0xdf,0xf4
         };
 
         XMEMSET(cipher, 0, AES_BLOCK_SIZE);
@@ -2089,7 +2087,7 @@ int aesgcm_test(void)
         0xca, 0xfe, 0xba, 0xbe, 0xfa, 0xce, 0xdb, 0xad,
         0xde, 0xca, 0xf8, 0x88
     };
-    
+
     const byte p[] =
     {
         0xd9, 0x31, 0x32, 0x25, 0xf8, 0x84, 0x06, 0xe5,
@@ -2101,14 +2099,14 @@ int aesgcm_test(void)
         0xb1, 0x6a, 0xed, 0xf5, 0xaa, 0x0d, 0xe6, 0x57,
         0xba, 0x63, 0x7b, 0x39
     };
-    
+
     const byte a[] =
     {
         0xfe, 0xed, 0xfa, 0xce, 0xde, 0xad, 0xbe, 0xef,
         0xfe, 0xed, 0xfa, 0xce, 0xde, 0xad, 0xbe, 0xef,
         0xab, 0xad, 0xda, 0xd2
     };
-    
+
     const byte c[] =
     {
         0x52, 0x2d, 0xc1, 0xf0, 0x99, 0x56, 0x7d, 0x07,
@@ -2287,7 +2285,7 @@ int aesccm_test(void)
 
     const byte t[] =
     {
-        0x17, 0xe8, 0xd1, 0x2c, 0xfd, 0xf9, 0x26, 0xe0 
+        0x17, 0xe8, 0xd1, 0x2c, 0xfd, 0xf9, 0x26, 0xe0
     };
 
     byte t2[sizeof(t)];
@@ -2356,7 +2354,7 @@ typedef struct {
 int camellia_test(void)
 {
     /* Camellia ECB Test Plaintext */
-    static const byte pte[] = 
+    static const byte pte[] =
     {
         0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef,
         0xfe, 0xdc, 0xba, 0x98, 0x76, 0x54, 0x32, 0x10
@@ -2408,26 +2406,26 @@ int camellia_test(void)
     static const byte ptc[] =
     {
         0x6B, 0xC1, 0xBE, 0xE2, 0x2E, 0x40, 0x9F, 0x96,
-        0xE9, 0x3D, 0x7E, 0x11, 0x73, 0x93, 0x17, 0x2A 
+        0xE9, 0x3D, 0x7E, 0x11, 0x73, 0x93, 0x17, 0x2A
     };
 
     /* Camellia CBC Test Initialization Vector */
     static const byte ivc[] =
     {
         0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
-        0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F 
+        0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F
     };
 
     /* Test 4: Camellia-CBC 128-bit key */
     static const byte k4[] =
     {
         0x2B, 0x7E, 0x15, 0x16, 0x28, 0xAE, 0xD2, 0xA6,
-        0xAB, 0xF7, 0x15, 0x88, 0x09, 0xCF, 0x4F, 0x3C 
+        0xAB, 0xF7, 0x15, 0x88, 0x09, 0xCF, 0x4F, 0x3C
     };
     static const byte c4[] =
     {
         0x16, 0x07, 0xCF, 0x49, 0x4B, 0x36, 0xBB, 0xF0,
-        0x0D, 0xAE, 0xB0, 0xB5, 0x03, 0xC8, 0x31, 0xAB 
+        0x0D, 0xAE, 0xB0, 0xB5, 0x03, 0xC8, 0x31, 0xAB
     };
 
     /* Test 5: Camellia-CBC 192-bit key */
@@ -2435,12 +2433,12 @@ int camellia_test(void)
     {
         0x8E, 0x73, 0xB0, 0xF7, 0xDA, 0x0E, 0x64, 0x52,
         0xC8, 0x10, 0xF3, 0x2B, 0x80, 0x90, 0x79, 0xE5,
-        0x62, 0xF8, 0xEA, 0xD2, 0x52, 0x2C, 0x6B, 0x7B 
+        0x62, 0xF8, 0xEA, 0xD2, 0x52, 0x2C, 0x6B, 0x7B
     };
     static const byte c5[] =
     {
         0x2A, 0x48, 0x30, 0xAB, 0x5A, 0xC4, 0xA1, 0xA2,
-        0x40, 0x59, 0x55, 0xFD, 0x21, 0x95, 0xCF, 0x93 
+        0x40, 0x59, 0x55, 0xFD, 0x21, 0x95, 0xCF, 0x93
     };
 
     /* Test 6: CBC 256-bit key */
@@ -2449,12 +2447,12 @@ int camellia_test(void)
         0x60, 0x3D, 0xEB, 0x10, 0x15, 0xCA, 0x71, 0xBE,
         0x2B, 0x73, 0xAE, 0xF0, 0x85, 0x7D, 0x77, 0x81,
         0x1F, 0x35, 0x2C, 0x07, 0x3B, 0x61, 0x08, 0xD7,
-        0x2D, 0x98, 0x10, 0xA3, 0x09, 0x14, 0xDF, 0xF4 
+        0x2D, 0x98, 0x10, 0xA3, 0x09, 0x14, 0xDF, 0xF4
     };
     static const byte c6[] =
     {
         0xE6, 0xCF, 0xA3, 0x5F, 0xC0, 0x2B, 0x13, 0x4A,
-        0x4D, 0x2C, 0x0B, 0x67, 0x37, 0xAC, 0x3E, 0xDA 
+        0x4D, 0x2C, 0x0B, 0x67, 0x37, 0xAC, 0x3E, 0xDA
     };
 
     byte out[CAMELLIA_BLOCK_SIZE];
@@ -2518,7 +2516,7 @@ int camellia_test(void)
     if (CamelliaSetIV(&cam, NULL) != 0 ||
                                     XMEMCMP(cam.reg, ive, CAMELLIA_BLOCK_SIZE))
         return -1;
-    
+
     /* First parameter should never be null */
     if (CamelliaSetIV(NULL, NULL) == 0)
         return -1;
@@ -2601,7 +2599,7 @@ byte GetEntropy(ENTROPY_CMD cmd, byte* out)
             #ifdef HAVE_ECC
                 static const char* eccCaKeyFile  = "a:\\certs\\ecc-key.der";
                 static const char* eccCaCertFile = "a:\\certs\\server-ecc.pem";
-            #endif 
+            #endif
         #endif
     #elif defined(CYASSL_MKD_SHELL)
         static char* clientKey = "certs/client-key.der";
@@ -2618,7 +2616,7 @@ byte GetEntropy(ENTROPY_CMD cmd, byte* out)
                 static const char* eccCaCertFile = "certs/server-ecc.pem";
                 void set_eccCaKeyFile (char * key)  { eccCaKeyFile  = key ; }
                 void set_eccCaCertFile(char * cert) { eccCaCertFile = cert ; }
-            #endif 
+            #endif
         #endif
     #else
         static const char* clientKey  = "./certs/client-key.der";
@@ -2629,7 +2627,7 @@ byte GetEntropy(ENTROPY_CMD cmd, byte* out)
             #ifdef HAVE_ECC
                 static const char* eccCaKeyFile  = "./certs/ecc-key.der";
                 static const char* eccCaCertFile = "./certs/server-ecc.pem";
-            #endif 
+            #endif
         #endif
     #endif
 #endif
@@ -2677,11 +2675,11 @@ int rsa_test(void)
     bytes = fread(tmp, 1, FOURK_BUF, file);
     fclose(file);
 #endif /* USE_CERT_BUFFERS */
- 
+
 #ifdef HAVE_CAVIUM
     RsaInitCavium(&key, CAVIUM_DEV_ID);
-#endif 
-    ret = InitRsaKey(&key, 0);  
+#endif
+    ret = InitRsaKey(&key, 0);
     if (ret != 0) return -39;
     ret = RsaPrivateKeyDecode(tmp, &idx, &key, (word32)bytes);
     if (ret != 0) return -41;
@@ -2727,7 +2725,7 @@ int rsa_test(void)
 
 #ifdef sizeof
 		#undef sizeof
-#endif		
+#endif
 
 #ifdef CYASSL_TEST_CERT
     InitDecodedCert(&cert, tmp, (word32)bytes, 0);
@@ -2780,7 +2778,7 @@ int rsa_test(void)
             return -304;
 
         pemFile = fopen("./key.pem", "wb");
-        if (!pemFile) 
+        if (!pemFile)
             return -305;
         ret = (int)fwrite(pem, pemSz, 1, pemFile);
         fclose(pemFile);
@@ -2833,7 +2831,7 @@ int rsa_test(void)
         myCert.isCA    = 1;
         myCert.sigType = CTC_SHA256wRSA;
 
-        certSz = MakeSelfCert(&myCert, derCert, FOURK_BUF, &key, &rng); 
+        certSz = MakeSelfCert(&myCert, derCert, FOURK_BUF, &key, &rng);
         if (certSz < 0)
             return -401;
 
@@ -2893,8 +2891,8 @@ int rsa_test(void)
 
         bytes3 = fread(tmp, 1, FOURK_BUF, file3);
         fclose(file3);
-  
-        ret = InitRsaKey(&caKey, 0);  
+
+        ret = InitRsaKey(&caKey, 0);
         if (ret != 0) return -411;
         ret = RsaPrivateKeyDecode(tmp, &idx3, &caKey, (word32)bytes3);
         if (ret != 0) return -413;
@@ -2913,7 +2911,7 @@ int rsa_test(void)
         if (ret < 0)
             return -405;
 
-        certSz = MakeCert(&myCert, derCert, FOURK_BUF, &key, NULL, &rng); 
+        certSz = MakeCert(&myCert, derCert, FOURK_BUF, &key, NULL, &rng);
         if (certSz < 0)
             return -407;
 
@@ -2982,13 +2980,13 @@ int rsa_test(void)
 
         bytes3 = fread(tmp, 1, FOURK_BUF, file3);
         fclose(file3);
-  
-        ecc_init(&caKey);  
+
+        ecc_init(&caKey);
         ret = EccPrivateKeyDecode(tmp, &idx3, &caKey, (word32)bytes3);
         if (ret != 0) return -5413;
 
         InitCert(&myCert);
-        myCert.sigType = CTC_SHA256wECDSA; 
+        myCert.sigType = CTC_SHA256wECDSA;
 
         strncpy(myCert.subject.country, "US", CTC_NAME_SIZE);
         strncpy(myCert.subject.state, "OR", CTC_NAME_SIZE);
@@ -3002,7 +3000,7 @@ int rsa_test(void)
         if (ret < 0)
             return -5405;
 
-        certSz = MakeCert(&myCert, derCert, FOURK_BUF, NULL, &caKey, &rng); 
+        certSz = MakeCert(&myCert, derCert, FOURK_BUF, NULL, &caKey, &rng);
         if (certSz < 0)
             return -5407;
 
@@ -3095,8 +3093,8 @@ int rsa_test(void)
 
         bytes = fread(tmp, 1, FOURK_BUF, caFile);
         fclose(caFile);
-  
-        ret = InitRsaKey(&caKey, 0);  
+
+        ret = InitRsaKey(&caKey, 0);
         if (ret != 0) return -459;
         ret = RsaPrivateKeyDecode(tmp, &idx, &caKey, (word32)bytes);
         if (ret != 0) return -454;
@@ -3116,7 +3114,7 @@ int rsa_test(void)
             return -455;
 
         certSz = MakeNtruCert(&myCert, derCert, FOURK_BUF, public_key,
-                              public_key_len, &rng); 
+                              public_key_len, &rng);
         if (certSz < 0)
             return -456;
 
@@ -3224,7 +3222,7 @@ int rsa_test(void)
     FreeRsaKey(&key);
 #ifdef HAVE_CAVIUM
     RsaFreeCavium(&key);
-#endif 
+#endif
     free(tmp);
 
     return 0;
@@ -3258,8 +3256,8 @@ int dh_test(void)
     DhKey  key;
     DhKey  key2;
     RNG    rng;
-	
-		
+
+
 #ifdef USE_CERT_BUFFERS_1024
     XMEMCPY(tmp, dh_key_der_1024, sizeof_dh_key_der_1024);
     bytes = sizeof_dh_key_der_1024;
@@ -3276,8 +3274,8 @@ int dh_test(void)
     fclose(file);
 #endif /* USE_CERT_BUFFERS */
 
-    InitDhKey(&key);  
-    InitDhKey(&key2);  
+    InitDhKey(&key);
+    InitDhKey(&key2);
     ret = DhKeyDecode(tmp, &idx, &key, bytes);
     if (ret != 0)
         return -51;
@@ -3290,7 +3288,7 @@ int dh_test(void)
     ret = InitRng(&rng);
     if (ret != 0)
         return -53;
-    
+
     ret =  DhGenerateKeyPair(&key, &rng, priv, &privSz, pub, &pubSz);
     ret += DhGenerateKeyPair(&key2, &rng, priv2, &privSz2, pub2, &pubSz2);
     if (ret != 0)
@@ -3335,7 +3333,7 @@ int dsa_test(void)
     byte   hash[SHA_DIGEST_SIZE];
     byte   signature[40];
 
-		
+
 #ifdef USE_CERT_BUFFERS_1024
     XMEMCPY(tmp, dsa_key_der_1024, sizeof_dsa_key_der_1024);
     bytes = sizeof_dsa_key_der_1024;
@@ -3351,7 +3349,7 @@ int dsa_test(void)
     bytes = (word32) fread(tmp, 1, sizeof(tmp), file);
     fclose(file);
 #endif /* USE_CERT_BUFFERS */
-  
+
     ret = InitSha(&sha);
     if (ret != 0)
         return -4002;
@@ -3371,9 +3369,9 @@ int dsa_test(void)
     ret = DsaVerify(hash, signature, &key, &answer);
     if (ret != 0) return -64;
     if (answer != 1) return -65;
-    
+
     FreeDsaKey(&key);
-    
+
     return 0;
 }
 
@@ -3448,7 +3446,7 @@ int openssl_test(void)
     e.output = "\x09\x33\x0c\x33\xf7\x11\x47\xe8\x3d\x19\x2f\xc7\x82\xcd\x1b"
                "\x47\x53\x11\x1b\x17\x3b\x3b\x05\xd2\x2f\xa0\x80\x86\xe3\xb0"
                "\xf7\x12\xfc\xc7\xc7\x1a\x55\x7e\x2d\xb9\x66\xc3\xe9\xfa\x91"
-               "\x74\x60\x39";    
+               "\x74\x60\x39";
     e.inLen  = strlen(e.input);
     e.outLen = SHA384_DIGEST_SIZE;
 
@@ -3472,9 +3470,9 @@ int openssl_test(void)
                "\x3f\x8f\x77\x79\xc6\xeb\x9f\x7f\xa1\x72\x99\xae\xad\xb6\x88"
                "\x90\x18\x50\x1d\x28\x9e\x49\x00\xf7\xe4\x33\x1b\x99\xde\xc4"
                "\xb5\x43\x3a\xc7\xd3\x29\xee\xb6\xdd\x26\x54\x5e\x96\xe5\x5b"
-               "\x87\x4b\xe9\x09"; 
+               "\x87\x4b\xe9\x09";
     f.inLen  = strlen(f.input);
-    f.outLen = SHA512_DIGEST_SIZE; 
+    f.outLen = SHA512_DIGEST_SIZE;
 
     EVP_MD_CTX_init(&md_ctx);
     EVP_DigestInit(&md_ctx, EVP_sha512());
@@ -3490,7 +3488,7 @@ int openssl_test(void)
 
     if (RAND_bytes(hash, sizeof(hash)) != 1)
         return -73;
-            
+
     c.input  = "what do ya want for nothing?";
     c.output = "\x75\x0c\x78\x3e\x6a\xb0\xb5\x03\xea\xa8\x6e\x31\x0a\x5d\xb7"
                "\x38";
@@ -3512,19 +3510,19 @@ int openssl_test(void)
     byte plain[24];
     byte cipher[24];
 
-    const_DES_cblock key = 
+    const_DES_cblock key =
     {
         0x01,0x23,0x45,0x67,0x89,0xab,0xcd,0xef
     };
 
-    DES_cblock iv = 
+    DES_cblock iv =
     {
         0x12,0x34,0x56,0x78,0x90,0xab,0xcd,0xef
     };
 
     DES_key_schedule sched;
 
-    const byte verify[] = 
+    const byte verify[] =
     {
         0x8b,0x7c,0x52,0xb0,0x01,0x2b,0x6c,0xb8,
         0x4f,0x0f,0xeb,0xf3,0xfb,0x5f,0x86,0x73,
@@ -3561,7 +3559,7 @@ int openssl_test(void)
             0x66,0x6f,0x72,0x20,0x61,0x6c,0x6c,0x20
         };
 
-        const byte verify[] = 
+        const byte verify[] =
         {
             0x95,0x94,0x92,0x57,0x5f,0x42,0x81,0x53,
             0x2c,0xcc,0x9d,0x46,0x77,0xa2,0x33,0xcb
@@ -3607,11 +3605,11 @@ int openssl_test(void)
 int pkcs12_test(void)
 {
     const byte passwd[] = { 0x00, 0x73, 0x00, 0x6d, 0x00, 0x65, 0x00, 0x67,
-                            0x00, 0x00 }; 
+                            0x00, 0x00 };
     const byte salt[] =   { 0x0a, 0x58, 0xCF, 0x64, 0x53, 0x0d, 0x82, 0x3f };
 
     const byte passwd2[] = { 0x00, 0x71, 0x00, 0x75, 0x00, 0x65, 0x00, 0x65,
-                             0x00, 0x67, 0x00, 0x00 }; 
+                             0x00, 0x67, 0x00, 0x00 };
     const byte salt2[] =   { 0x16, 0x82, 0xC0, 0xfC, 0x5b, 0x3f, 0x7e, 0xc5 };
     byte  derived[64];
 
@@ -3640,7 +3638,7 @@ int pkcs12_test(void)
         return -104;
 
     iterations = 1000;
-    ret = PKCS12_PBKDF(derived, passwd2, sizeof(passwd2), salt2, 8, iterations, 
+    ret = PKCS12_PBKDF(derived, passwd2, sizeof(passwd2), salt2, 8, iterations,
                        kLen, SHA, id);
     if (ret < 0)
         return -105;
@@ -3760,7 +3758,7 @@ int hkdf_test(void)
 
     if (memcmp(okm1, res1, L) != 0)
         return -2002;
-   
+
     ret = HKDF(SHA, ikm1, 11, salt1, 13, info1, 10, okm1, L);
     if (ret != 0)
         return -2003;
@@ -3821,10 +3819,10 @@ int ecc_test(void)
 
     x = sizeof(sharedA);
     ret = ecc_shared_secret(&userA, &userB, sharedA, &x);
-   
+
     y = sizeof(sharedB);
     ret = ecc_shared_secret(&userB, &userA, sharedB, &y);
-    
+
     if (ret != 0)
         return -1003;
 
@@ -3841,12 +3839,12 @@ int ecc_test(void)
 
     ret = ecc_import_x963(exportBuf, x, &pubKey);
 
-    if (ret != 0) 
+    if (ret != 0)
         return -1007;
 
     y = sizeof(sharedB);
     ret = ecc_shared_secret(&userB, &pubKey, sharedB, &y);
-   
+
     if (ret != 0)
         return -1008;
 
@@ -3859,7 +3857,7 @@ int ecc_test(void)
 
     x = sizeof(sig);
     ret = ecc_sign_hash(digest, sizeof(digest), sig, &x, &rng, &userA);
-    
+
     verify = 0;
     ret = ecc_verify_hash(sig, x, digest, sizeof(digest), &verify, &userA);
 
@@ -3924,7 +3922,7 @@ int ecc_encrypt_test(void)
     if (memcmp(plain, msg, sizeof(msg)) != 0)
         return -3005;
 
-    
+
     {  /* let's verify message exchange works, A is client, B is server */
         ecEncCtx* cliCtx = ecc_ctx_new(REQ_RESP_CLIENT, &rng);
         ecEncCtx* srvCtx = ecc_ctx_new(REQ_RESP_SERVER, &rng);
@@ -4118,7 +4116,7 @@ int compress_test(void)
 
     if (ret == 0 && memcmp(d, sample_text, dSz))
         ret = -303;
-    
+
     if (c) free(c);
     if (d) free(d);
 

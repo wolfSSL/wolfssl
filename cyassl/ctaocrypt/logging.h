@@ -58,7 +58,7 @@ CYASSL_API int CyaSSL_SetLoggingCb(CyaSSL_Logging_cb log_function);
     #define CYASSL_ENTER(m)
     #define CYASSL_LEAVE(m, r)
 
-    #define CYASSL_ERROR(e) 
+    #define CYASSL_ERROR(e) printf("Cyassl Error 0x%x\n", e);
     #define CYASSL_MSG(m)
 
 #endif /* DEBUG_CYASSL  */

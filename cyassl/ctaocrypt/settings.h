@@ -97,6 +97,11 @@
 #endif
 
 
+#ifdef CYASSL_USER_SETTINGS
+    #include <user_settings.h>
+#endif
+
+
 #ifdef COMVERGE
     #define THREADX
     #define HAVE_NETX
@@ -185,41 +190,6 @@
     #define CYASSL_CMSIS_RTOS
 #endif
 
-#ifdef CYASSL_TYTO
-    #include "rand.h"
-    #define FREERTOS
-    #define NO_FILESYSTEM
-    #define NO_MAIN_DRIVER
-    #define CYASSL_USER_IO
-    #define NO_DEV_RANDOM
-    #define HAVE_ECC
-    #define HAVE_ECC_ENCRYPT
-    #define ECC_SHAMIR
-    #define HAVE_HKDF
-    #define USE_FAST_MATH
-    #define TFM_TIMING_RESISTANT
-    #define FP_MAX_BITS 512
-    #define NO_OLD_TLS
-    #define NO_MD4
-    #define NO_RABBIT
-    #define NO_HC128
-    #define NO_RSA
-    #define NO_DSA
-    #define NO_PWDBASED
-    #define NO_PSK
-    #define FP_LUT 4
-    #define FP_MAX_BITS 512
-
-    /* remove features */
-    #define NO_OLD_TLS
-    #define NO_MD4
-    #define NO_RABBIT
-    #define NO_HC128
-    #define NO_RSA
-    #define NO_DSA
-    #define NO_PWDBASED
-    #define NO_PSK
-#endif
 
 #ifdef CYASSL_EROAD
     #define FREESCALE_MQX
