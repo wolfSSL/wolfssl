@@ -87,6 +87,9 @@
 /* Uncomment next line if using LwIP native TCP socket settings */
 /* #define HAVE_LWIP_NATIVE */
 
+/* Uncomment next line if building for EROAD */
+/* #define CYASSL_EROAD */
+
 #include <cyassl/ctaocrypt/visibility.h>
 
 #ifdef IPHONE
@@ -249,7 +252,7 @@
 
 /* Micrium will use Visual Studio for compilation but not the Win32 API */
 #if defined(_WIN32) && !defined(MICRIUM) && !defined(FREERTOS) \
-        && !defined(EBSNET)
+        && !defined(EBSNET) && !defined(CYASSL_EROAD)
     #define USE_WINDOWS_API
 #endif
 
