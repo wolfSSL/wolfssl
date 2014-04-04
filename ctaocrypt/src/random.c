@@ -168,7 +168,7 @@ static int Hash_gen(RNG* rng, byte* out, word32 outSz, byte* V)
     XMEMCPY(data, V, sizeof(data));
     for (i = 0; i < len; i++) {
         ret = InitSha256(&rng->sha);
-            return ret;
+        if (ret != 0) return ret;
         Sha256Update(&rng->sha, data, sizeof(data));
         Sha256Final(&rng->sha, rng->digest);
         if (outSz > SHA256_DIGEST_SIZE) {
