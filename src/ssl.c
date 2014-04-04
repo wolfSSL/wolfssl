@@ -124,10 +124,6 @@ static volatile int initRefCount = 0;
 static CyaSSL_Mutex count_mutex;   /* init ref count mutex */
 
 
-#undef CYASSL_MSG
-#define CYASSL_MSG(m) printf("%s\n", m);
-
-
 CYASSL_CTX* CyaSSL_CTX_new(CYASSL_METHOD* method)
 {
     CYASSL_CTX* ctx = NULL;
