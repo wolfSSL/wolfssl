@@ -341,7 +341,7 @@ void c32to24(word32 in, word24 out);
             #define BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256
             #define BUILD_TLS_ECDH_ECDSA_WITH_AES_128_GCM_SHA256
             
-            #if defined(CYASS_SHA384)
+            #if defined(CYASSL_SHA384)
                 #define BUILD_TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384
                 #define BUILD_TLS_ECDH_ECDSA_WITH_AES_256_GCM_SHA384
             #endif
