@@ -633,10 +633,19 @@ void bench_sha256(void)
     }
     start = current_time(1);
     
-    for(i = 0; i < numBlocks; i++)
-        Sha256Update(&hash, plain, sizeof(plain));
+    for(i = 0; i < numBlocks; i++) {
+        ret = Sha256Update(&hash, plain, sizeof(plain));
+        if (ret != 0) {
+            printf("Sha256Update failed, ret = %d\n", ret);
+            return;
+        }
+    }
    
-    Sha256Final(&hash, digest);
+    ret = Sha256Final(&hash, digest);
+    if (ret != 0) {
+        printf("Sha256Final failed, ret = %d\n", ret);
+        return;
+    }
 
     total = current_time(0) - start;
     persec = 1 / total * numBlocks;
@@ -665,10 +674,19 @@ void bench_sha512(void)
     }
     start = current_time(1);
     
-    for(i = 0; i < numBlocks; i++)
-        Sha512Update(&hash, plain, sizeof(plain));
-   
-    Sha512Final(&hash, digest);
+    for(i = 0; i < numBlocks; i++) {
+        ret = Sha512Update(&hash, plain, sizeof(plain));
+        if (ret != 0) {
+            printf("Sha512Update failed, ret = %d\n", ret);
+            return;
+        }
+    }
+
+    ret = Sha512Final(&hash, digest);
+    if (ret != 0) {
+        printf("Sha512Final failed, ret = %d\n", ret);
+        return;
+    }
 
     total = current_time(0) - start;
     persec = 1 / total * numBlocks;

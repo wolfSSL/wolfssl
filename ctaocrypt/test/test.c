@@ -972,8 +972,12 @@ int sha256_test(void)
         return -4003;
 
     for (i = 0; i < times; ++i) {
-        Sha256Update(&sha, (byte*)test_sha[i].input,(word32)test_sha[i].inLen);
-        Sha256Final(&sha, hash);
+        ret = Sha256Update(&sha, (byte*)test_sha[i].input,(word32)test_sha[i].inLen);
+        if (ret != 0)
+            return -4004;
+        ret = Sha256Final(&sha, hash);
+        if (ret != 0)
+            return -4005;
 
         if (memcmp(hash, test_sha[i].output, SHA256_DIGEST_SIZE) != 0)
             return -10 - i;
@@ -1022,8 +1026,13 @@ int sha512_test(void)
         return -4009;
 
     for (i = 0; i < times; ++i) {
-        Sha512Update(&sha, (byte*)test_sha[i].input,(word32)test_sha[i].inLen);
-        Sha512Final(&sha, hash);
+        ret = Sha512Update(&sha, (byte*)test_sha[i].input,(word32)test_sha[i].inLen);
+        if (ret != 0)
+            return -4010;
+
+        ret = Sha512Final(&sha, hash);
+        if (ret != 0)
+            return -4011;
 
         if (memcmp(hash, test_sha[i].output, SHA512_DIGEST_SIZE) != 0)
             return -10 - i;
@@ -1067,11 +1076,16 @@ int sha384_test(void)
 
     ret = InitSha384(&sha);
     if (ret != 0)
-        return -4010;
+        return -4012;
 
     for (i = 0; i < times; ++i) {
-        Sha384Update(&sha, (byte*)test_sha[i].input,(word32)test_sha[i].inLen);
-        Sha384Final(&sha, hash);
+        ret = Sha384Update(&sha, (byte*)test_sha[i].input,(word32)test_sha[i].inLen);
+        if (ret != 0)
+            return -4013;
+
+        ret = Sha384Final(&sha, hash);
+        if (ret != 0)
+            return -4014;
 
         if (memcmp(hash, test_sha[i].output, SHA384_DIGEST_SIZE) != 0)
             return -10 - i;

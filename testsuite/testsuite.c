@@ -321,10 +321,20 @@ void file_test(const char* file, byte* check)
         printf("Can't open %s\n", file);
         return;
     }
-    while( ( i = (int)fread(buf, 1, sizeof(buf), f )) > 0 )
-        Sha256Update(&sha256, buf, i);
+    while( ( i = (int)fread(buf, 1, sizeof(buf), f )) > 0 ) {
+        ret = Sha256Update(&sha256, buf, i);
+        if (ret != 0) {
+            printf("Can't Sha256Update %d\n", ret);
+            return;
+        }
+    }
     
-    Sha256Final(&sha256, shasum);
+    ret = Sha256Final(&sha256, shasum);
+    if (ret != 0) {
+        printf("Can't Sha256Final %d\n", ret);
+        return;
+    }
+
     memcpy(check, shasum, sizeof(shasum));
 
     for(j = 0; j < SHA256_DIGEST_SIZE; ++j ) 
