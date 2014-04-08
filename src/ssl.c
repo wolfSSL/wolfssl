@@ -4985,8 +4985,18 @@ static INLINE word32 HashSession(const byte* sessionID, word32 len, int* error)
         *error = ret;
         return 0;
     }
-    Sha256Update(&sha256, sessionID, len);
-    Sha256Final(&sha256, digest);
+
+    ret = Sha256Update(&sha256, sessionID, len);
+    if (ret != 0) {
+        *error = ret;
+        return 0;
+    }
+
+    ret = Sha256Final(&sha256, digest);
+    if (ret != 0) {
+        *error = ret;
+        return 0;
+    }
 
     return MakeWordFromHash(digest);
 }
@@ -6570,6 +6580,7 @@ int CyaSSL_set_compression(CYASSL* ssl)
     {
         CYASSL_ENTER("SHA256_Update");
         Sha256Update((Sha256*)sha, (const byte*)input, (word32)sz);
+        /* OpenSSL compat, no error */
     }
 
 
@@ -6577,6 +6588,7 @@ int CyaSSL_set_compression(CYASSL* ssl)
     {
         CYASSL_ENTER("SHA256_Final");
         Sha256Final((Sha256*)sha, input);
+        /* OpenSSL compat, no error */
     }
 
 
@@ -6597,6 +6609,7 @@ int CyaSSL_set_compression(CYASSL* ssl)
     {
         CYASSL_ENTER("SHA384_Update");
         Sha384Update((Sha384*)sha, (const byte*)input, (word32)sz);
+        /* OpenSSL compat, no error */
     }
 
 
@@ -6604,6 +6617,7 @@ int CyaSSL_set_compression(CYASSL* ssl)
     {
         CYASSL_ENTER("SHA384_Final");
         Sha384Final((Sha384*)sha, input);
+        /* OpenSSL compat, no error */
     }
 
     #endif /* CYASSL_SHA384 */
@@ -6626,6 +6640,7 @@ int CyaSSL_set_compression(CYASSL* ssl)
     {
         CYASSL_ENTER("SHA512_Update");
         Sha512Update((Sha512*)sha, (const byte*)input, (word32)sz);
+        /* OpenSSL compat, no error */
     }
 
 
@@ -6633,6 +6648,7 @@ int CyaSSL_set_compression(CYASSL* ssl)
     {
         CYASSL_ENTER("SHA512_Final");
         Sha512Final((Sha512*)sha, input);
+        /* OpenSSL compat, no error */
     }
 
     #endif /* CYASSL_SHA512 */

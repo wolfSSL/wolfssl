@@ -291,12 +291,23 @@ int PKCS12_PBKDF(byte* output, const byte* passwd, int passLen,const byte* salt,
             ret = InitSha256(&sha256);
             if (ret != 0)
                 break;
-            Sha256Update(&sha256, buffer, totalLen);
-            Sha256Final(&sha256, Ai);
+
+            ret = Sha256Update(&sha256, buffer, totalLen);
+            if (ret != 0)
+                break;
+
+            ret = Sha256Final(&sha256, Ai);
+            if (ret != 0)
+                break;
 
             for (i = 1; i < iterations; i++) {
-                Sha256Update(&sha256, Ai, u);
-                Sha256Final(&sha256, Ai);
+                ret = Sha256Update(&sha256, Ai, u);
+                if (ret != 0)
+                    break;
+
+                ret = Sha256Final(&sha256, Ai);
+                if (ret != 0)
+                    break;
             }
         }
 #endif
@@ -307,12 +318,23 @@ int PKCS12_PBKDF(byte* output, const byte* passwd, int passLen,const byte* salt,
             ret = InitSha512(&sha512);
             if (ret != 0)
                 break;
-            Sha512Update(&sha512, buffer, totalLen);
-            Sha512Final(&sha512, Ai);
+
+            ret = Sha512Update(&sha512, buffer, totalLen);
+            if (ret != 0)
+                break;
+
+            ret = Sha512Final(&sha512, Ai);
+            if (ret != 0)
+                break;
 
             for (i = 1; i < iterations; i++) {
-                Sha512Update(&sha512, Ai, u);
-                Sha512Final(&sha512, Ai);
+                ret = Sha512Update(&sha512, Ai, u);
+                if (ret != 0)
+                    break;
+
+                ret = Sha512Final(&sha512, Ai);
+                if (ret != 0)
+                    break;
             }
         }
 #endif

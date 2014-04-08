@@ -3679,8 +3679,10 @@ int pbkdf2_test(void)
 
     };
 
-    PBKDF2(derived, (byte*)passwd, (int)strlen(passwd), salt, 8, iterations,
-           kLen, SHA);
+    int ret = PBKDF2(derived, (byte*)passwd, (int)strlen(passwd), salt, 8,
+                                                         iterations, kLen, SHA);
+    if (ret != 0)
+        return ret;
 
     if (memcmp(derived, verify, sizeof(verify)) != 0)
         return -102;

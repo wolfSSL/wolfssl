@@ -2696,8 +2696,19 @@ static int ConfirmSignature(const byte* buf, word32 bufSz,
                 CYASSL_MSG("InitSha256 failed");
                 return 0;  /*  not confirmed */
             }
-            Sha256Update(&sha256, buf, bufSz);
-            Sha256Final(&sha256, digest);
+
+            ret = Sha256Update(&sha256, buf, bufSz);
+            if (ret != 0) {
+                CYASSL_MSG("Sha256Update failed");
+                return 0;  /*  not confirmed */
+            }
+
+            ret = Sha256Final(&sha256, digest);
+            if (ret != 0) {
+                CYASSL_MSG("Sha256Final failed");
+                return 0;  /*  not confirmed */
+            }
+
             typeH    = SHA256h;
             digestSz = SHA256_DIGEST_SIZE;
         }
@@ -2713,8 +2724,19 @@ static int ConfirmSignature(const byte* buf, word32 bufSz,
                 CYASSL_MSG("InitSha512 failed");
                 return 0;  /*  not confirmed */
             }
-            Sha512Update(&sha512, buf, bufSz);
-            Sha512Final(&sha512, digest);
+
+            ret = Sha512Update(&sha512, buf, bufSz);
+            if (ret != 0) {
+                CYASSL_MSG("Sha512Update failed");
+                return 0;  /*  not confirmed */
+            }
+
+            ret = Sha512Final(&sha512, digest);
+            if (ret != 0) {
+                CYASSL_MSG("Sha512Final failed");
+                return 0;  /*  not confirmed */
+            }
+
             typeH    = SHA512h;
             digestSz = SHA512_DIGEST_SIZE;
         }
@@ -2730,8 +2752,19 @@ static int ConfirmSignature(const byte* buf, word32 bufSz,
                 CYASSL_MSG("InitSha384 failed");
                 return 0;  /*  not confirmed */
             }
-            Sha384Update(&sha384, buf, bufSz);
-            Sha384Final(&sha384, digest);
+
+            ret = Sha384Update(&sha384, buf, bufSz);
+            if (ret != 0) {
+                CYASSL_MSG("Sha384Update failed");
+                return 0;  /*  not confirmed */
+            }
+
+            ret = Sha384Final(&sha384, digest);
+            if (ret != 0) {
+                CYASSL_MSG("Sha384Final failed");
+                return 0;  /*  not confirmed */
+            }
+
             typeH    = SHA384h;
             digestSz = SHA384_DIGEST_SIZE;
         }
@@ -4763,30 +4796,43 @@ static int MakeSignature(const byte* buffer, int sz, byte* sig, int sigSz,
     (void)eccKey;
 
     if (sigAlgoType == CTC_MD5wRSA) {
-        Md5     md5;
+        Md5 md5;
+
         InitMd5(&md5);
         Md5Update(&md5, buffer, sz);
         Md5Final(&md5, digest);
+
         digestSz = MD5_DIGEST_SIZE;
         typeH    = MD5h;
     }
     else if (sigAlgoType == CTC_SHAwRSA || sigAlgoType == CTC_SHAwECDSA) {
-        Sha     sha;
+        Sha sha;
+
         ret = InitSha(&sha);
         if (ret != 0)
             return ret;
+
         ShaUpdate(&sha, buffer, sz);
         ShaFinal(&sha, digest);
+
         digestSz = SHA_DIGEST_SIZE;
         typeH    = SHAh;
     }
     else if (sigAlgoType == CTC_SHA256wRSA || sigAlgoType == CTC_SHA256wECDSA) {
-        Sha256     sha256;
+        Sha256 sha256;
+
         ret = InitSha256(&sha256);
         if (ret != 0)
             return ret;
-        Sha256Update(&sha256, buffer, sz);
-        Sha256Final(&sha256, digest);
+
+        ret = Sha256Update(&sha256, buffer, sz);
+        if (ret != 0)
+            return ret;
+
+        ret = Sha256Final(&sha256, digest);
+        if (ret != 0)
+            return ret;
+
         digestSz = SHA256_DIGEST_SIZE;
         typeH    = SHA256h;
     }
