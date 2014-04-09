@@ -5,7 +5,7 @@
   <description>Light weight SSL/TLS and Crypt Library for Embedded Systems</description>  <!-- brief description of PACK -->
   <vendor>wolfSSL</vendor>                                                  <!-- unique vendor/distributor of PACK -->
   <url>http://www.wolfSSL.com/files/ide</url>                              <!-- Required but NOT USED AT THE MOMENT -->
-  <license>cyassl\IDE\MDK5-ARM\Docs\CyaSSL-Licnese.txt</license>
+  <license>cyassl\IDE\MDK5-ARM\Docs\CyaSSL-License.txt</license>
   <taxonomy>
     <description Cclass="wolfSSL"
                  >wolfSSL: SSL/TLS and Crypt Library</description>

@@ -959,19 +959,19 @@
         </targetInfos>
       </component>
       <component Cbundle="wolfSSL" Cclass="wolfSSL" Cgroup="CyaSSL" Csub="Core" Cvendor="wolfSSL" Cversion="2.8.1" condition="CyaSSL-Core">
-        <package license="cyassl\IDE\MDK5-ARM\Docs\CyaSSL-Licnese.txt" name="CyaSSL" url="http://www.wolfSSL.com/files/ide" vendor="wolfSSL" version="2.8.1"/>
+        <package license="cyassl\IDE\MDK5-ARM\Docs\CyaSSL-License.txt" name="CyaSSL" url="http://www.wolfSSL.com/files/ide" vendor="wolfSSL" version="2.8.1"/>
         <targetInfos>
           <targetInfo name="CyaSSL-Full"/>
         </targetInfos>
       </component>
       <component Cbundle="wolfSSL" Cclass="wolfSSL" Cgroup="Device" Csub="Timer" Cvendor="wolfSSL" Cversion="2.8.1" condition="wolfCrypt-Core">
-        <package license="cyassl\IDE\MDK5-ARM\Docs\CyaSSL-Licnese.txt" name="CyaSSL" url="http://www.wolfSSL.com/files/ide" vendor="wolfSSL" version="2.8.1"/>
+        <package license="cyassl\IDE\MDK5-ARM\Docs\CyaSSL-License.txt" name="CyaSSL" url="http://www.wolfSSL.com/files/ide" vendor="wolfSSL" version="2.8.1"/>
         <targetInfos>
           <targetInfo name="CyaSSL-Full"/>
         </targetInfos>
       </component>
       <component Cbundle="wolfSSL" Cclass="wolfSSL" Cgroup="wolfCrypt" Csub="CORE" Cvendor="wolfSSL" Cversion="2.8.1" condition="wolfCrypt-Core">
-        <package license="cyassl\IDE\MDK5-ARM\Docs\CyaSSL-Licnese.txt" name="CyaSSL" url="http://www.wolfSSL.com/files/ide" vendor="wolfSSL" version="2.8.1"/>
+        <package license="cyassl\IDE\MDK5-ARM\Docs\CyaSSL-License.txt" name="CyaSSL" url="http://www.wolfSSL.com/files/ide" vendor="wolfSSL" version="2.8.1"/>
         <targetInfos>
           <targetInfo name="CyaSSL-Full"/>
         </targetInfos>
@@ -1097,7 +1097,7 @@
       <file attr="config" category="header" name="cyassl\IDE\MDK5-ARM\MDK-ARM\CyaSSL\config-Crypt.h">
         <instance index="0">RTE\wolfSSL\config-Crypt.h</instance>
         <component Cbundle="wolfSSL" Cclass="wolfSSL" Cgroup="wolfCrypt" Csub="CORE" Cvendor="wolfSSL" Cversion="2.8.1" condition="wolfCrypt-Core"/>
-        <package license="cyassl\IDE\MDK5-ARM\Docs\CyaSSL-Licnese.txt" name="CyaSSL" url="http://www.wolfSSL.com/files/ide" vendor="wolfSSL" version="2.8.1"/>
+        <package license="cyassl\IDE\MDK5-ARM\Docs\CyaSSL-License.txt" name="CyaSSL" url="http://www.wolfSSL.com/files/ide" vendor="wolfSSL" version="2.8.1"/>
         <targetInfos>
           <targetInfo name="CyaSSL-Full"/>
         </targetInfos>
@@ -1105,7 +1105,7 @@
       <file attr="config" category="header" name="cyassl\IDE\MDK5-ARM\MDK-ARM\CyaSSL\config-CyaSSL.h">
         <instance index="0">RTE\wolfSSL\config-CyaSSL.h</instance>
         <component Cbundle="wolfSSL" Cclass="wolfSSL" Cgroup="CyaSSL" Csub="Core" Cvendor="wolfSSL" Cversion="2.8.1" condition="CyaSSL-Core"/>
-        <package license="cyassl\IDE\MDK5-ARM\Docs\CyaSSL-Licnese.txt" name="CyaSSL" url="http://www.wolfSSL.com/files/ide" vendor="wolfSSL" version="2.8.1"/>
+        <package license="cyassl\IDE\MDK5-ARM\Docs\CyaSSL-License.txt" name="CyaSSL" url="http://www.wolfSSL.com/files/ide" vendor="wolfSSL" version="2.8.1"/>
         <targetInfos>
           <targetInfo name="CyaSSL-Full"/>
         </targetInfos>
