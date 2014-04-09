@@ -4295,87 +4295,79 @@ static INLINE int Decrypt(CYASSL* ssl, byte* plain, const byte* input,
 
         #ifdef BUILD_AESGCM
             case cyassl_aes_gcm:
-                if (AEAD_EXP_IV_SZ + ssl->specs.aead_mac_size > sz) {
-                    return INCOMPLETE_DATA;
-                }
-                else {
-                    byte additional[AES_BLOCK_SIZE];
-                    byte nonce[AEAD_NONCE_SZ];
+            {
+                byte additional[AES_BLOCK_SIZE];
+                byte nonce[AEAD_NONCE_SZ];
 
-                    XMEMSET(additional, 0, AES_BLOCK_SIZE);
+                XMEMSET(additional, 0, AES_BLOCK_SIZE);
 
-                    /* sequence number field is 64-bits, we only use 32-bits */
-                    c32toa(GetSEQIncrement(ssl, 1),
-                                                  additional + AEAD_SEQ_OFFSET);
+                /* sequence number field is 64-bits, we only use 32-bits */
+                c32toa(GetSEQIncrement(ssl, 1), additional + AEAD_SEQ_OFFSET);
+                
+                additional[AEAD_TYPE_OFFSET] = ssl->curRL.type;
+                additional[AEAD_VMAJ_OFFSET] = ssl->curRL.pvMajor;
+                additional[AEAD_VMIN_OFFSET] = ssl->curRL.pvMinor;
 
-                    additional[AEAD_TYPE_OFFSET] = ssl->curRL.type;
-                    additional[AEAD_VMAJ_OFFSET] = ssl->curRL.pvMajor;
-                    additional[AEAD_VMIN_OFFSET] = ssl->curRL.pvMinor;
-
-                    c16toa(sz - AEAD_EXP_IV_SZ - ssl->specs.aead_mac_size,
-                                            additional + AEAD_LEN_OFFSET);
-                    XMEMCPY(nonce, ssl->keys.aead_dec_imp_IV, AEAD_IMP_IV_SZ);
-                    XMEMCPY(nonce + AEAD_IMP_IV_SZ, input, AEAD_EXP_IV_SZ);
-                    if (AesGcmDecrypt(ssl->decrypt.aes,
-                                plain + AEAD_EXP_IV_SZ,
-                                input + AEAD_EXP_IV_SZ,
+                c16toa(sz - AEAD_EXP_IV_SZ - ssl->specs.aead_mac_size,
+                                        additional + AEAD_LEN_OFFSET);
+                XMEMCPY(nonce, ssl->keys.aead_dec_imp_IV, AEAD_IMP_IV_SZ);
+                XMEMCPY(nonce + AEAD_IMP_IV_SZ, input, AEAD_EXP_IV_SZ);
+                if (AesGcmDecrypt(ssl->decrypt.aes,
+                            plain + AEAD_EXP_IV_SZ,
+                            input + AEAD_EXP_IV_SZ,
                                 sz - AEAD_EXP_IV_SZ - ssl->specs.aead_mac_size,
-                                nonce, AEAD_NONCE_SZ,
-                                input + sz - ssl->specs.aead_mac_size,
-                                ssl->specs.aead_mac_size,
-                                additional, AEAD_AUTH_DATA_SZ) < 0) {
-                        SendAlert(ssl, alert_fatal, bad_record_mac);
-                        XMEMSET(nonce, 0, AEAD_NONCE_SZ);
-                        return VERIFY_MAC_ERROR;
-                    }
+                            nonce, AEAD_NONCE_SZ,
+                            input + sz - ssl->specs.aead_mac_size,
+                            ssl->specs.aead_mac_size,
+                            additional, AEAD_AUTH_DATA_SZ) < 0) {
+                    SendAlert(ssl, alert_fatal, bad_record_mac);
                     XMEMSET(nonce, 0, AEAD_NONCE_SZ);
-                    break;
+                    return VERIFY_MAC_ERROR;
                 }
+                XMEMSET(nonce, 0, AEAD_NONCE_SZ);
+                break;
+            }
         #endif
 
         #ifdef HAVE_AESCCM
             case cyassl_aes_ccm:
-                if (AEAD_EXP_IV_SZ + ssl->specs.aead_mac_size > sz) {
-                    return INCOMPLETE_DATA;
-                }
-                else {
-                    byte additional[AES_BLOCK_SIZE];
-                    byte nonce[AEAD_NONCE_SZ];
+            {
+                byte additional[AES_BLOCK_SIZE];
+                byte nonce[AEAD_NONCE_SZ];
 
-                    XMEMSET(additional, 0, AES_BLOCK_SIZE);
+                XMEMSET(additional, 0, AES_BLOCK_SIZE);
 
-                    /* sequence number field is 64-bits, we only use 32-bits */
-                    c32toa(GetSEQIncrement(ssl, 1),
-                                                  additional + AEAD_SEQ_OFFSET);
+                /* sequence number field is 64-bits, we only use 32-bits */
+                c32toa(GetSEQIncrement(ssl, 1), additional + AEAD_SEQ_OFFSET);
 
-                    #ifdef CYASSL_DTLS
-                        if (ssl->options.dtls)
-                            c16toa(ssl->keys.dtls_state.curEpoch, additional);
-                    #endif
+                #ifdef CYASSL_DTLS
+                    if (ssl->options.dtls)
+                        c16toa(ssl->keys.dtls_state.curEpoch, additional);
+                #endif
 
-                    additional[AEAD_TYPE_OFFSET] = ssl->curRL.type;
-                    additional[AEAD_VMAJ_OFFSET] = ssl->curRL.pvMajor;
-                    additional[AEAD_VMIN_OFFSET] = ssl->curRL.pvMinor;
+                additional[AEAD_TYPE_OFFSET] = ssl->curRL.type;
+                additional[AEAD_VMAJ_OFFSET] = ssl->curRL.pvMajor;
+                additional[AEAD_VMIN_OFFSET] = ssl->curRL.pvMinor;
 
-                    c16toa(sz - AEAD_EXP_IV_SZ - ssl->specs.aead_mac_size,
-                                            additional + AEAD_LEN_OFFSET);
-                    XMEMCPY(nonce, ssl->keys.aead_dec_imp_IV, AEAD_IMP_IV_SZ);
-                    XMEMCPY(nonce + AEAD_IMP_IV_SZ, input, AEAD_EXP_IV_SZ);
-                    if (AesCcmDecrypt(ssl->decrypt.aes,
-                                plain + AEAD_EXP_IV_SZ,
-                                input + AEAD_EXP_IV_SZ,
+                c16toa(sz - AEAD_EXP_IV_SZ - ssl->specs.aead_mac_size,
+                                        additional + AEAD_LEN_OFFSET);
+                XMEMCPY(nonce, ssl->keys.aead_dec_imp_IV, AEAD_IMP_IV_SZ);
+                XMEMCPY(nonce + AEAD_IMP_IV_SZ, input, AEAD_EXP_IV_SZ);
+                if (AesCcmDecrypt(ssl->decrypt.aes,
+                            plain + AEAD_EXP_IV_SZ,
+                            input + AEAD_EXP_IV_SZ,
                                 sz - AEAD_EXP_IV_SZ - ssl->specs.aead_mac_size,
-                                nonce, AEAD_NONCE_SZ,
-                                input + sz - ssl->specs.aead_mac_size,
-                                ssl->specs.aead_mac_size,
-                                additional, AEAD_AUTH_DATA_SZ) < 0) {
-                        SendAlert(ssl, alert_fatal, bad_record_mac);
-                        XMEMSET(nonce, 0, AEAD_NONCE_SZ);
-                        return VERIFY_MAC_ERROR;
-                    }
+                            nonce, AEAD_NONCE_SZ,
+                            input + sz - ssl->specs.aead_mac_size,
+                            ssl->specs.aead_mac_size,
+                            additional, AEAD_AUTH_DATA_SZ) < 0) {
+                    SendAlert(ssl, alert_fatal, bad_record_mac);
                     XMEMSET(nonce, 0, AEAD_NONCE_SZ);
-                    break;
+                    return VERIFY_MAC_ERROR;
                 }
+                XMEMSET(nonce, 0, AEAD_NONCE_SZ);
+                break;
+            }
         #endif
 
         #ifdef HAVE_CAMELLIA
@@ -4435,7 +4427,8 @@ static int SanityCheckCipherText(CYASSL* ssl, word32 encryptSz)
             minLength += ssl->specs.block_size;  /* explicit IV */
     }
     else if (ssl->specs.cipher_type == aead) {
-        minLength = ssl->specs.block_size; /* explicit IV + implicit IV + CTR */
+        minLength = ssl->specs.aead_mac_size + AEAD_EXP_IV_SZ;
+                                               /* explicit IV + authTag size */
     }
 
     if (encryptSz < minLength) {
