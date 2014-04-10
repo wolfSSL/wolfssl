@@ -9945,18 +9945,40 @@ static void PickHashSigAlgo(CYASSL* ssl,
     }
 
 
+    /* Make sure client setup is valid for this suite, true on success */
+    int VerifyClientSuite(CYASSL* ssl)
+    {
+        int  havePSK = 0;
+        byte first   = ssl->options.cipherSuite0;
+        byte second  = ssl->options.cipherSuite;
+
+        CYASSL_ENTER("VerifyClientSuite");
+
+        #ifndef NO_PSK
+            havePSK = ssl->options.havePSK;
+        #endif
+
+        if (CipherRequires(first, second, REQUIRES_PSK)) {
+            CYASSL_MSG("Requires PSK");
+            if (havePSK == 0) {
+                CYASSL_MSG("Don't have PSK");
+                return 0;
+            }
+        }
+    
+        return 1;  /* success */
+    }
 
 
-
-    /* Make sure cert/key are valid for this suite, true on success */
-    static int VerifySuite(CYASSL* ssl, word16 idx)
+    /* Make sure server cert/key are valid for this suite, true on success */
+    static int VerifyServerSuite(CYASSL* ssl, word16 idx)
     {
         int  haveRSA = !ssl->options.haveStaticECC;
         int  havePSK = 0;
         byte first;
         byte second;
 
-        CYASSL_ENTER("VerifySuite");
+        CYASSL_ENTER("VerifyServerSuite");
 
         if (ssl->suites == NULL) {
             CYASSL_MSG("Suites pointer error");
@@ -10061,7 +10083,7 @@ static void PickHashSigAlgo(CYASSL* ssl,
                 if (ssl->suites->suites[i]   == peerSuites->suites[j] &&
                     ssl->suites->suites[i+1] == peerSuites->suites[j+1] ) {
 
-                    if (VerifySuite(ssl, i)) {
+                    if (VerifyServerSuite(ssl, i)) {
                         int result;
                         CYASSL_MSG("Verified suite validity");
                         ssl->options.cipherSuite0 = ssl->suites->suites[i];

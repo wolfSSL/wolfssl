@@ -2066,6 +2066,8 @@ CYASSL_LOCAL int IsAtLeastTLSv1_2(const CYASSL* ssl);
 CYASSL_LOCAL void FreeHandshakeResources(CYASSL* ssl);
 CYASSL_LOCAL void ShrinkInputBuffer(CYASSL* ssl, int forcedFree);
 CYASSL_LOCAL void ShrinkOutputBuffer(CYASSL* ssl);
+
+CYASSL_LOCAL int VerifyClientSuite(CYASSL* ssl);
 #ifndef NO_CERTS
     CYASSL_LOCAL Signer* GetCA(void* cm, byte* hash);
     #ifndef NO_SKID

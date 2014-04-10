@@ -39,6 +39,13 @@
 
 int SetCipherSpecs(CYASSL* ssl)
 {
+    if (ssl->options.side == CYASSL_CLIENT_END) {
+        /* server side verified before SetCipherSpecs call */
+        if (VerifyClientSuite(ssl) != 1) {
+            CYASSL_MSG("SetCipherSpecs() client has an unusuable suite");
+            return UNSUPPORTED_SUITE;
+        }
+    }
     /* ECC extensions, or AES-CCM */
     if (ssl->options.cipherSuite0 == ECC_BYTE) {
     
