@@ -9965,7 +9965,7 @@ static void PickHashSigAlgo(CYASSL* ssl,
                 return 0;
             }
         }
-    
+
         return 1;  /* success */
     }
 
