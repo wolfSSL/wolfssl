@@ -6493,6 +6493,12 @@ int ParseCRL(DecodedCRL* dcrl, const byte* buff, word32 sz, void* cm)
     if (ca) {
         CYASSL_MSG("Found CRL issuer CA");
         /* try to confirm/verify signature */
+        #ifndef IGNORE_KEY_EXTENSIONS
+            if ((ca->keyUsage & KEYUSE_CRL_SIGN) == 0) {
+                CYASSL_MSG("CA cannot sign CRLs");
+                return ASN_CRL_NO_SIGNER_E;
+            }
+        #endif /* IGNORE_KEY_EXTENSIONS */
         if (!ConfirmSignature(buff + dcrl->certBegin,
                 dcrl->sigIndex - dcrl->certBegin,
                 ca->publicKey, ca->pubKeySize, ca->keyOID,

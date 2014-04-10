@@ -1526,6 +1526,8 @@ int AddCA(CYASSL_CERT_MANAGER* cm, buffer der, int type, int verify)
                                             cert.extSubjKeyId, SHA_DIGEST_SIZE);
             #endif
             XMEMCPY(signer->subjectNameHash, cert.subjectHash, SHA_DIGEST_SIZE);
+            signer->keyUsage = cert.extKeyUsageSet ? cert.extKeyUsage : 0xFFFF;
+                                   /* If Key Usage not set, all uses valid. */
             signer->next = NULL;   /* in case lock fails */
 
             cert.publicKey = 0;  /* don't free here */

@@ -115,6 +115,10 @@ enum CyaSSL_ErrorCodes {
     UNKNOWN_SNI_HOST_NAME_E = -281,        /* Unrecognized host name Error */
     UNKNOWN_MAX_FRAG_LEN_E  = -282,        /* Unrecognized max frag len Error */
     /* add strings to SetErrorString !!!!! */
+    KEYUSE_SIGNATURE_E      = -283,        /* KeyUse digSignature error */
+    KEYUSE_AGREEMENT_E      = -284,        /* KeyUse keyAgreement error */
+    KEYUSE_ENCIPHER_E       = -285,        /* KeyUse keyEncipher error */
+    EXTKEYUSE_AUTH_E        = -286,        /* ExtKeyUse server|client_auth */
 
     /* begin negotiation parameter errors */
     UNSUPPORTED_SUITE       = -290,        /* unsupported cipher suite */
