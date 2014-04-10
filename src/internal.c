@@ -9749,6 +9749,14 @@ static void PickHashSigAlgo(CYASSL* ssl,
                 return 1;
             break;
 
+        case TLS_PSK_WITH_AES_128_CCM:
+        case TLS_PSK_WITH_AES_256_CCM:
+        case TLS_PSK_WITH_AES_128_CCM_8:
+        case TLS_PSK_WITH_AES_256_CCM_8:
+            if (requirement == REQUIRES_PSK)
+                return 1;
+            break;
+
         default:
             CYASSL_MSG("Unsupported cipher suite, CipherRequires ECC");
             return 0;
@@ -9821,25 +9829,9 @@ static void PickHashSigAlgo(CYASSL* ssl,
 #endif
 
         case TLS_PSK_WITH_AES_128_CBC_SHA256 :
-            if (requirement == REQUIRES_PSK)
-                return 1;
-            break;
-
         case TLS_PSK_WITH_AES_128_CBC_SHA :
-            if (requirement == REQUIRES_PSK)
-                return 1;
-            break;
-
         case TLS_PSK_WITH_AES_256_CBC_SHA :
-            if (requirement == REQUIRES_PSK)
-                return 1;
-            break;
-
         case TLS_PSK_WITH_NULL_SHA256 :
-            if (requirement == REQUIRES_PSK)
-                return 1;
-            break;
-
         case TLS_PSK_WITH_NULL_SHA :
             if (requirement == REQUIRES_PSK)
                 return 1;
