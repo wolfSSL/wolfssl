@@ -15,7 +15,7 @@
 //   <o>Number of BSD Sockets <1-20>
 //   <i> Number of available Berkeley Sockets
 //   <i> Default: 2
-#define BSD_NUM_SOCKS           15
+#define BSD_NUM_SOCKS           10
 
 //   <o>Number of Streaming Server Sockets <0-20>
 //   <i> Defines a number of Streaming (TCP) Server sockets,

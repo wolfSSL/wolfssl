@@ -62,8 +62,9 @@ int main()
 {
     void * arg = NULL ;
 
-    init_time() ;
     init_filesystem ();
+     init_time() ;
+
     printf("=== Start: Crypt Benchmark ===\n") ;
         benchmark_test(arg) ;
     printf("=== End: Crypt Benchmark  ===\n") ;   

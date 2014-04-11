@@ -3,7 +3,7 @@
  *----------------------------------------------------------------------------
  *      Name:    RTX_Conf_CM.C
  *      Purpose: Configuration of CMSIS RTX Kernel for Cortex-M
- *      Rev.:    V4.70
+ *      Rev.:    V4.73
  *----------------------------------------------------------------------------
  *
  * Copyright (c) 1999-2009 KEIL, 2009-2013 ARM Germany GmbH
@@ -48,21 +48,21 @@
 //   <i> Defines max. number of threads that will run at the same time.
 //   <i> Default: 6
 #ifndef OS_TASKCNT
- #define OS_TASKCNT     5
+ #define OS_TASKCNT     6
 #endif
 
 //   <o>Default Thread stack size [bytes] <64-4096:8><#/4>
 //   <i> Defines default stack size for threads with osThreadDef stacksz = 0
 //   <i> Default: 200
 #ifndef OS_STKSIZE
- #define OS_STKSIZE     250
+ #define OS_STKSIZE     300
 #endif
 
-//   <o>Main Thread stack size [bytes] <64-20000:8><#/4>
+//   <o>Main Thread stack size [bytes] <64-32768:8><#/4>
 //   <i> Defines stack size for main thread.
 //   <i> Default: 200
 #ifndef OS_MAINSTKSIZE
- #define OS_MAINSTKSIZE 3000
+ #define OS_MAINSTKSIZE 2500
 #endif
 
 //   <o>Number of threads with user-provided stack size <0-250>
@@ -72,11 +72,11 @@
  #define OS_PRIVCNT     0
 #endif
 
-//   <o>Total stack size [bytes] for threads with user-provided stack size <0-0x10000:8><#/4>
+//   <o>Total stack size [bytes] for threads with user-provided stack size <0-1048576:8><#/4>
 //   <i> Defines the combined stack size for threads with user-provided stack size.
 //   <i> Default: 0
 #ifndef OS_PRIVSTKSIZE
- #define OS_PRIVSTKSIZE 4500
+ #define OS_PRIVSTKSIZE 3000
 #endif
 
 // <q>Check for stack overflow
@@ -158,7 +158,7 @@
  #define OS_TIMERPRIO   5
 #endif
 
-//   <o>Timer Thread stack size [bytes] <64-64000:8><#/4>
+//   <o>Timer Thread stack size [bytes] <64-4096:8><#/4>
 //   <i> Defines stack size for Timer thread.
 //   <i> Default: 200
 #ifndef OS_TIMERSTKSZ
@@ -256,11 +256,30 @@ void os_tick_irqack (void) {
 
 /*--------------------------- os_error --------------------------------------*/
 
-void os_error (uint32_t err_code) {
-  /* This function is called when a runtime error is detected. Parameter */
-  /* 'err_code' holds the runtime error code (defined in RTL.H).         */
+/* OS Error Codes */
+#define OS_ERROR_STACK_OVF      1
+#define OS_ERROR_FIFO_OVF       2
+#define OS_ERROR_MBX_OVF        3
+
+extern osThreadId svcThreadGetId (void);
+
+void os_error (uint32_t error_code) {
+  /* This function is called when a runtime error is detected.  */
+  /* Parameter 'error_code' holds the runtime error code.       */
 
   /* HERE: include optional code to be executed on runtime error. */
+  switch (error_code) {
+    case OS_ERROR_STACK_OVF:
+      /* Stack overflow detected for the currently running task. */
+      /* Thread can be identified by calling svcThreadGetId().   */
+      break;
+    case OS_ERROR_FIFO_OVF:
+      /* ISR FIFO Queue buffer overflow detected. */
+      break;
+    case OS_ERROR_MBX_OVF:
+      /* Mailbox overflow detected. */
+      break;
+  }
   for (;;);
 }
 

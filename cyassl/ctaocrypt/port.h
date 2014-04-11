@@ -168,6 +168,7 @@ CYASSL_LOCAL int UnLockMutex(CyaSSL_Mutex*);
     /* stdio, default case */
     #define XFILE      FILE*
     #if defined(CYASSL_MDK_ARM)
+        #include <stdio.h>
         extern FILE * CyaSSL_fopen(const char *name, const char *mode) ;
         #define XFOPEN     CyaSSL_fopen
     #else

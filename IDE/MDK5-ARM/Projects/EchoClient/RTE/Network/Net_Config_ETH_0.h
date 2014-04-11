@@ -14,7 +14,7 @@
 
 //   <o>Connect to hardware via Driver_ETH# <0-255>
 //   <i>Select driver control block for MAC and PHY interface
-#define ETH0_DRIVER             1
+#define ETH0_DRIVER             0
 
 //   <h>MAC Address
 //   <i> Local Ethernet MAC Address
@@ -61,11 +61,11 @@
 
 //     <o>Address byte 3 <0-255>
 //     <i> Default: 0
-#define ETH0_IP3                0
+#define ETH0_IP3                11
 
 //     <o>Address byte 4 <0-255>
 //     <i> Default: 100
-#define ETH0_IP4                100
+#define ETH0_IP4                101
 //   </h>
 
 //   <h>Subnet mask
@@ -99,30 +99,30 @@
 
 //     <o>Address byte 3 <0-255>
 //     <i> Default: 0
-#define ETH0_GW3                0
+#define ETH0_GW3                11
 
 //     <o>Address byte 4 <0-255>
 //     <i> Default: 254
-#define ETH0_GW4                254
+#define ETH0_GW4                1
 //   </h>
 
 //   <h>Primary DNS Server
 //   <i> Primary DNS Server IP Address
 //     <o>Address byte 1 <0-255>
 //     <i> Default: 194
-#define ETH0_PRI_DNS1           194
+#define ETH0_PRI_DNS1           192
 
 //     <o>Address byte 2 <0-255>
 //     <i> Default: 25
-#define ETH0_PRI_DNS2           25
+#define ETH0_PRI_DNS2           168
 
 //     <o>Address byte 3 <0-255>
 //     <i> Default: 2
-#define ETH0_PRI_DNS3           2
+#define ETH0_PRI_DNS3           11
 
 //     <o>Address byte 4 <0-255>
 //     <i> Default: 129
-#define ETH0_PRI_DNS4           129
+#define ETH0_PRI_DNS4           1
 //   </h>
 
 //   <h>Secondary DNS Server
@@ -190,7 +190,7 @@
 //   <i> accessed by his name on the local LAN using NBNS protocol.
 //   <i> You need to modify also the number of UDP Sockets,
 //   <i> because NBNS protocol uses one UDP socket to run.
-#define ETH0_NBNS_ENABLE        1
+#define ETH0_NBNS_ENABLE        0
 
 //   <e>Dynamic Host Configuration
 //   <i> When this option is enabled, local IP address, Net Mask

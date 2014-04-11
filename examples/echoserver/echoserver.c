@@ -26,10 +26,18 @@
 #include <cyassl/ctaocrypt/settings.h>
 
 #if defined(CYASSL_MDK_ARM)
-    #include <stdio.h>
-    #include <string.h>
-    #include <rtl.h>
-    #include "cyassl_MDK_ARM.h"
+        #include <stdio.h>
+        #include <string.h>
+
+        #if defined(CYASSL_MDK5)
+            #include "cmsis_os.h"
+            #include "rl_fs.h" 
+            #include "rl_net.h" 
+        #else
+            #include "rtl.h"
+        #endif
+
+        #include "cyassl_MDK_ARM.h"
 #endif
 
 #include <cyassl/ssl.h>

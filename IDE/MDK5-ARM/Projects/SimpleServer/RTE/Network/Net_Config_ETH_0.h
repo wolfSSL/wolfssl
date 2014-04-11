@@ -14,7 +14,7 @@
 
 //   <o>Connect to hardware via Driver_ETH# <0-255>
 //   <i>Select driver control block for MAC and PHY interface
-#define ETH0_DRIVER             1
+#define ETH0_DRIVER             0
 
 //   <h>MAC Address
 //   <i> Local Ethernet MAC Address
@@ -61,11 +61,11 @@
 
 //     <o>Address byte 3 <0-255>
 //     <i> Default: 0
-#define ETH0_IP3                0
+#define ETH0_IP3                11
 
 //     <o>Address byte 4 <0-255>
 //     <i> Default: 100
-#define ETH0_IP4                100
+#define ETH0_IP4                101
 //   </h>
 
 //   <h>Subnet mask
@@ -99,11 +99,11 @@
 
 //     <o>Address byte 3 <0-255>
 //     <i> Default: 0
-#define ETH0_GW3                0
+#define ETH0_GW3                11
 
 //     <o>Address byte 4 <0-255>
 //     <i> Default: 254
-#define ETH0_GW4                254
+#define ETH0_GW4                1
 //   </h>
 
 //   <h>Primary DNS Server

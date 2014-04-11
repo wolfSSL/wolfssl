@@ -79,9 +79,10 @@ char* myoptarg = NULL;
 int main() 
 {
     void *arg = NULL ;
-    init_time() ;
     init_filesystem ();
     net_initialize() ;
+    init_time() ;
+    
     osThreadCreate (osThread (tcp_poll), NULL); 
     osDelay(10000) ;  /* wait for DHCP */
     #if defined(DEBUG_CYASSL)

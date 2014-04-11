@@ -616,7 +616,7 @@ int GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 	#endif /* FREESCALE_K70_RNGA */
 
 #elif defined(CYASSL_SAFERTOS) || defined(CYASSL_LEANPSK) \
-   || defined(CYASSL_IAR_ARM)
+   || defined(CYASSL_IAR_ARM)  || defined(CYASSL_MDK_ARM)
 
 #warning "write a real random seed!!!!, just for testing now"
 

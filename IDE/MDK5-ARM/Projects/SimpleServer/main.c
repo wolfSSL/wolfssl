@@ -33,6 +33,8 @@
 #include "cyassl_MDK_ARM.h"
 #include <cyassl/ssl.h>
 
+#include "config-SimpleServer.h"
+
 /*-----------------------------------------------------------------------------
  *        Initialize a Flash Memory Card
  *----------------------------------------------------------------------------*/
@@ -82,10 +84,9 @@ char* myoptarg = NULL;
 
 int main() 
 {
-    static char *argv[]    = {  "client",   ""} ;
-    static func_args args  = {  2, argv } ; 
+    static char *argv[]    = {  "server",   "-p", CYASSL_LISTEN_PORT, "-d"} ;
+    static func_args args  = {  4, argv } ; 
         
-    init_time() ;
     init_filesystem ();
     net_initialize() ;
     osThreadCreate (osThread (tcp_poll), NULL); 

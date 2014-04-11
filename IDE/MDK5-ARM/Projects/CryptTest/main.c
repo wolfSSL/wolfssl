@@ -62,7 +62,6 @@ int main()
 {
     void * arg = NULL ;
 
-    init_time() ;
     init_filesystem ();
     printf("=== Start: Crypt test ===\n") ;
         ctaocrypt_test(arg) ;

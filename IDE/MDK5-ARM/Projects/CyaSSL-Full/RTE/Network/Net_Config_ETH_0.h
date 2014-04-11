@@ -14,13 +14,13 @@
 
 //   <o>Connect to hardware via Driver_ETH# <0-255>
 //   <i>Select driver control block for MAC and PHY interface
-#define ETH0_DRIVER             1
+#define ETH0_DRIVER             0
 
 //   <h>MAC Address
 //   <i> Local Ethernet MAC Address
 //   <i> Value FF:FF:FF:FF:FF:FF is not allowed.
 //   <i> It is an ethernet Broadcast MAC address.
-//     <o>Address byte 1 <0x00-0xff:2>
+//     <o>A0dress byte 1 <0x00-0xff:2>
 //     <i> LSB is an ethernet Multicast bit.
 //     <i> Must be 0 for local MAC address.
 //     <i> Default: 0x1E
@@ -61,11 +61,11 @@
 
 //     <o>Address byte 3 <0-255>
 //     <i> Default: 0
-#define ETH0_IP3                0
+#define ETH0_IP3                11
 
 //     <o>Address byte 4 <0-255>
 //     <i> Default: 100
-#define ETH0_IP4                100
+#define ETH0_IP4                101
 //   </h>
 
 //   <h>Subnet mask
@@ -99,30 +99,30 @@
 
 //     <o>Address byte 3 <0-255>
 //     <i> Default: 0
-#define ETH0_GW3                0
+#define ETH0_GW3                11
 
 //     <o>Address byte 4 <0-255>
 //     <i> Default: 254
-#define ETH0_GW4                254
+#define ETH0_GW4                1
 //   </h>
 
 //   <h>Primary DNS Server
 //   <i> Primary DNS Server IP Address
 //     <o>Address byte 1 <0-255>
 //     <i> Default: 194
-#define ETH0_PRI_DNS1           194
+#define ETH0_PRI_DNS1           192
 
 //     <o>Address byte 2 <0-255>
 //     <i> Default: 25
-#define ETH0_PRI_DNS2           25
+#define ETH0_PRI_DNS2           168
 
 //     <o>Address byte 3 <0-255>
 //     <i> Default: 2
-#define ETH0_PRI_DNS3           2
+#define ETH0_PRI_DNS3           11
 
 //     <o>Address byte 4 <0-255>
 //     <i> Default: 129
-#define ETH0_PRI_DNS4           129
+#define ETH0_PRI_DNS4           1
 //   </h>
 
 //   <h>Secondary DNS Server
@@ -198,7 +198,7 @@
 //   <i> the DHCP Server on local LAN.
 //   <i> You need to modify also the number of UDP Sockets,
 //   <i> because DHCP protocol uses one UDP socket to run.
-#define ETH0_DHCP_ENABLE        1
+#define ETH0_DHCP_ENABLE        0
 
 //     <s.40>Vendor Class Identifier
 //     <i> This value is optional. If specified, it is added

@@ -96,7 +96,6 @@ extern void ctaocrypt_test(void *args) ;
 extern void client_test(void *args) ;
 extern void server_test(void *args) ;
 extern void kill_task(void *args) ;
-extern void time_main(void *args) ;
 extern void ipaddr_comm(void *args) ;
 extern void stack_comm(void *args) ;
 extern void for_command(void *args) ;
@@ -214,7 +213,6 @@ static struct {
     "test", ctaocrypt_test,
     "client", client_test,
     "server", server_test,
-    "time", time_main,          /* get/set RTC:  [-d mm/dd/yyyy] [-t hh:mm:ss]*/
     "ipaddr", ipaddr_comm,      /* TBD */
     "stack", stack_comm,        /* On/Off check stack size */
     "for", for_command,         /* iterate next command X times */
@@ -470,7 +468,6 @@ static void dbg_comm(void *args)
 static void help_comm(void *args) 
 {
     static char *commands[] = {
-        "time [-d mm/dd/yyyy][-t hh:mm:ss]  : set/get time, for cert validation",
         "test", 
         "benchmark",
         "echoserver&            : simple echo server in background mode",
@@ -604,7 +601,6 @@ void shell_main(void *arg) {
  #if defined(HAVE_KEIL_RTX)
     InitMutex(&command_mutex) ;
 #endif
-    time_main(NULL) ;
     help_comm(NULL) ;
     
     printf("Starting Shell\n") ;
@@ -617,14 +613,14 @@ void shell_main(void *arg) {
                     #if defined(HAVE_KEIL_RTX) && !defined(CYASSL_CMSIS_RTOS)
                         UnLockMutex((CyaSSL_Mutex *)&command_mutex) ;
                         os_tsk_create_user_ex( (void(*)(void *))&command_invoke, 7,
-                             command_stack, COMMAND_STACK_SIZE, &args) ;
-                                      #else
-                                            #if defined(CYASSL_CMSIS_RTOS)
-                                UnLockMutex((CyaSSL_Mutex *)&command_mutex) ;
-                          osThreadCreate (osThread (command_invoke) , &args);   
-                          #else
-                          command_invoke(&args) ;
-                                            #endif
+                                 command_stack, COMMAND_STACK_SIZE, &args) ;
+                    #else
+                        #if defined(CYASSL_CMSIS_RTOS)
+                             UnLockMutex((CyaSSL_Mutex *)&command_mutex) ;
+                             osThreadCreate (osThread (command_invoke) , &args);   
+                        #else
+                              command_invoke(&args) ;
+                        #endif
                     #endif
                     #ifdef  HAVE_KEIL_RTX
                     LockMutex((CyaSSL_Mutex *)&command_mutex) ;

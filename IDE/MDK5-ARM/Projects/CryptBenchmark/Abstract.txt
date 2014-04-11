@@ -1,7 +1,7 @@
 This program is a simple benchmark of wolfCrypt library.
 
 In order to run this benchmark, copy 
-{PACK}\wolfSSL\CyaSSL\2.8.0\cyassl\certs folder and files to the SD memory.
+{PACK}\wolfSSL\CyaSSL\{version}\cyassl\certs folder and files to the SD memory.
 
 For benchmark configuration, refer config-Crypt.h.
 

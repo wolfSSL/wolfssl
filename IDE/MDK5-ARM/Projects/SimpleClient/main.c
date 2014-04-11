@@ -89,8 +89,7 @@ int main()
                                    "-v",  CYASSL_SSL_VER,  CYASSL_HTTP_GET } ;
     static   func_args args  = 
           {  7 + CYASSL_HTTP_GET_COUNT, argv } ; 
-        
-    init_time() ;
+
     init_filesystem ();
     net_initialize() ;
     osThreadCreate (osThread (tcp_poll), NULL); 

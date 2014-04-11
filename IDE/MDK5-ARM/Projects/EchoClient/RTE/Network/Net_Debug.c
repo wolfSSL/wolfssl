@@ -52,7 +52,7 @@
 
 //   <o>TCP Debug   <0=> Off <1=> Errors only <2=> Full debug
 //   <i> Turn On/Off TCP debug messages
-#define DBG_TCP                 1
+#define DBG_TCP                 2
 
 //   <o>NBNS Debug  <0=> Off <1=> Errors only <2=> Full debug
 //   <i> Turn On/Off NetBIOS Name Service debug messages
