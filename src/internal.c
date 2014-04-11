@@ -3472,13 +3472,6 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx,
                 fatal = 1;
                 ret = KEYUSE_ENCIPHER_E;
             }
-            if ((ssl->specs.kea == diffie_hellman_kea ||
-                    ssl->specs.kea == ecc_diffie_hellman_kea ||
-                    ssl->specs.kea == ecc_static_diffie_hellman_kea) &&
-                (dCert.extKeyUsage & KEYUSE_KEY_AGREE) == 0) {
-                fatal = 1;
-                ret = KEYUSE_AGREEMENT_E;
-            }
             if ((ssl->specs.sig_algo == rsa_sa_algo ||
                     ssl->specs.sig_algo == ecc_dsa_sa_algo) &&
                 (dCert.extKeyUsage & KEYUSE_DIGITAL_SIG) == 0) {
@@ -6496,10 +6489,6 @@ void SetErrorString(int error, char* str)
 
     case KEYUSE_SIGNATURE_E:
         XSTRNCPY(str, "Key Use digitalSignature not set Error", max);
-        break;
-
-    case KEYUSE_AGREEMENT_E:
-        XSTRNCPY(str, "Key Use keyAgreement not set Error", max);
         break;
 
     case KEYUSE_ENCIPHER_E:
