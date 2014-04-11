@@ -1,6 +1,6 @@
 # configure.ac
 #
-# Copyright (C) 2006-2013 wolfSSL Inc.
+# Copyright (C) 2006-2014 wolfSSL Inc.
 #
 # This file is part of CyaSSL.
 #
@@ -1649,7 +1649,7 @@ rm -f $OPTION_FILE
 echo "/* cyassl options.h" >> $OPTION_FILE 
 echo " * generated from configure options" >> $OPTION_FILE
 echo " *" >> $OPTION_FILE
-echo " * Copyright (C) 2006-2013 wolfSSL Inc." >> $OPTION_FILE
+echo " * Copyright (C) 2006-2014 wolfSSL Inc." >> $OPTION_FILE
 echo " *" >> $OPTION_FILE
 echo " * This file is part of CyaSSL." >> $OPTION_FILE
 echo " *" >> $OPTION_FILE
