@@ -426,6 +426,7 @@ struct DecodedCert {
 struct Signer {
     word32  pubKeySize;
     word32  keyOID;                  /* key type */
+    word16  keyUsage;
     byte*   publicKey;
     int     nameLen;
     char*   name;                    /* common name */

@@ -3486,6 +3486,42 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx,
         }
 #endif    
 
+#ifndef IGNORE_KEY_EXTENSIONS
+        if (dCert.extKeyUsageSet) {
+            if ((ssl->specs.kea == rsa_kea) &&
+                (dCert.extKeyUsage & KEYUSE_KEY_ENCIPHER) == 0) {
+                fatal = 1;
+                ret = KEYUSE_ENCIPHER_E;
+            }
+            if ((ssl->specs.sig_algo == rsa_sa_algo ||
+                    ssl->specs.sig_algo == ecc_dsa_sa_algo) &&
+                (dCert.extKeyUsage & KEYUSE_DIGITAL_SIG) == 0) {
+                CYASSL_MSG("KeyUse Digital Sig not set");
+                fatal = 1;
+                ret = KEYUSE_SIGNATURE_E;
+            }
+        }
+
+        if (dCert.extExtKeyUsageSet) {
+            if (ssl->options.side == CYASSL_CLIENT_END) {
+                if ((dCert.extExtKeyUsage &
+                        (EXTKEYUSE_ANY | EXTKEYUSE_SERVER_AUTH)) == 0) {
+                    CYASSL_MSG("ExtKeyUse Server Auth not set");
+                    fatal = 1;
+                    ret = EXTKEYUSE_AUTH_E;
+                }
+            }
+            else {
+                if ((dCert.extExtKeyUsage &
+                        (EXTKEYUSE_ANY | EXTKEYUSE_CLIENT_AUTH)) == 0) {
+                    CYASSL_MSG("ExtKeyUse Client Auth not set");
+                    fatal = 1;
+                    ret = EXTKEYUSE_AUTH_E;
+                }
+            }
+        }
+#endif /* IGNORE_KEY_EXTENSIONS */
+
         if (fatal) {
             FreeDecodedCert(&dCert);
             ssl->error = ret;
@@ -6476,6 +6512,18 @@ void SetErrorString(int error, char* str)
 
     case UNKNOWN_SNI_HOST_NAME_E:
         XSTRNCPY(str, "Unrecognized host name Error", max);
+        break;
+
+    case KEYUSE_SIGNATURE_E:
+        XSTRNCPY(str, "Key Use digitalSignature not set Error", max);
+        break;
+
+    case KEYUSE_ENCIPHER_E:
+        XSTRNCPY(str, "Key Use keyEncipherment not set Error", max);
+        break;
+
+    case EXTKEYUSE_AUTH_E:
+        XSTRNCPY(str, "Ext Key Use server/client auth not set Error", max);
         break;
 
     default :
