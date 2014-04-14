@@ -3834,9 +3834,15 @@ int ecc_encrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
                 ret = HmacSetKey(&hmac, SHA256, macKey, SHA256_DIGEST_SIZE);
                 if (ret != 0)
                     return ret;
-                HmacUpdate(&hmac, out, msgSz);
-                HmacUpdate(&hmac, ctx->macSalt, ctx->macSaltSz);
-                HmacFinal(&hmac, out+msgSz);
+                ret = HmacUpdate(&hmac, out, msgSz);
+                if (ret != 0)
+                    return ret;
+                ret = HmacUpdate(&hmac, ctx->macSalt, ctx->macSaltSz);
+                if (ret != 0)
+                    return ret;
+                ret = HmacFinal(&hmac, out+msgSz);
+                if (ret != 0)
+                    return ret;
             }
             break;
 
@@ -3939,9 +3945,15 @@ int ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
                 ret = HmacSetKey(&hmac, SHA256, macKey, SHA256_DIGEST_SIZE);
                 if (ret != 0)
                     return ret;
-                HmacUpdate(&hmac, msg, msgSz-digestSz);
-                HmacUpdate(&hmac, ctx->macSalt, ctx->macSaltSz);
-                HmacFinal(&hmac, verify);
+                ret = HmacUpdate(&hmac, msg, msgSz-digestSz);
+                if (ret != 0)
+                    return ret;
+                ret = HmacUpdate(&hmac, ctx->macSalt, ctx->macSaltSz);
+                if (ret != 0)
+                    return ret;
+                ret = HmacFinal(&hmac, verify);
+                if (ret != 0)
+                    return ret;
 
                 if (memcmp(verify, msg + msgSz - digestSz, digestSz) != 0) {
                     return -1;

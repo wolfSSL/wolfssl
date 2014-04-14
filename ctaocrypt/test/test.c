@@ -1149,10 +1149,14 @@ int hmac_md5_test(void)
 #endif
         ret = HmacSetKey(&hmac, MD5, (byte*)keys[i], (word32)strlen(keys[i]));
         if (ret != 0)
-            return -4011;
-        HmacUpdate(&hmac, (byte*)test_hmac[i].input,
+            return -4015;
+        ret = HmacUpdate(&hmac, (byte*)test_hmac[i].input,
                    (word32)test_hmac[i].inLen);
-        HmacFinal(&hmac, hash);
+        if (ret != 0)
+            return -4016;
+        ret = HmacFinal(&hmac, hash);
+        if (ret != 0)
+            return -4017;
 
         if (memcmp(hash, test_hmac[i].output, MD5_DIGEST_SIZE) != 0)
             return -20 - i;
@@ -1220,10 +1224,14 @@ int hmac_sha_test(void)
 #endif
         ret = HmacSetKey(&hmac, SHA, (byte*)keys[i], (word32)strlen(keys[i]));
         if (ret != 0)
-            return -4012;
-        HmacUpdate(&hmac, (byte*)test_hmac[i].input,
+            return -4018;
+        ret = HmacUpdate(&hmac, (byte*)test_hmac[i].input,
                    (word32)test_hmac[i].inLen);
-        HmacFinal(&hmac, hash);
+        if (ret != 0)
+            return -4019;
+        ret = HmacFinal(&hmac, hash);
+        if (ret != 0)
+            return -4020;
 
         if (memcmp(hash, test_hmac[i].output, SHA_DIGEST_SIZE) != 0)
             return -20 - i;
@@ -1295,10 +1303,14 @@ int hmac_sha256_test(void)
 #endif
         ret = HmacSetKey(&hmac, SHA256, (byte*)keys[i],(word32)strlen(keys[i]));
         if (ret != 0)
-            return -4013;
-        HmacUpdate(&hmac, (byte*)test_hmac[i].input,
+            return -4021;
+        ret = HmacUpdate(&hmac, (byte*)test_hmac[i].input,
                    (word32)test_hmac[i].inLen);
-        HmacFinal(&hmac, hash);
+        if (ret != 0)
+            return -4022;
+        ret = HmacFinal(&hmac, hash);
+        if (ret != 0)
+            return -4023;
 
         if (memcmp(hash, test_hmac[i].output, SHA256_DIGEST_SIZE) != 0)
             return -20 - i;
@@ -1371,10 +1383,14 @@ int hmac_blake2b_test(void)
         ret = HmacSetKey(&hmac, BLAKE2B_ID, (byte*)keys[i],
                          (word32)strlen(keys[i]));
         if (ret != 0)
-            return -4014;
-        HmacUpdate(&hmac, (byte*)test_hmac[i].input,
+            return -4024;
+        ret = HmacUpdate(&hmac, (byte*)test_hmac[i].input,
                    (word32)test_hmac[i].inLen);
-        HmacFinal(&hmac, hash);
+        if (ret != 0)
+            return -4025;
+        ret = HmacFinal(&hmac, hash);
+        if (ret != 0)
+            return -4026;
 
         if (memcmp(hash, test_hmac[i].output, BLAKE2B_256) != 0)
             return -20 - i;
@@ -1443,10 +1459,14 @@ int hmac_sha384_test(void)
     for (i = 0; i < times; ++i) {
         ret = HmacSetKey(&hmac, SHA384, (byte*)keys[i],(word32)strlen(keys[i]));
         if (ret != 0)
-            return -4015;
-        HmacUpdate(&hmac, (byte*)test_hmac[i].input,
+            return -4027;
+        ret = HmacUpdate(&hmac, (byte*)test_hmac[i].input,
                    (word32)test_hmac[i].inLen);
-        HmacFinal(&hmac, hash);
+        if (ret != 0)
+            return -4028;
+        ret = HmacFinal(&hmac, hash);
+        if (ret != 0)
+            return -4029;
 
         if (memcmp(hash, test_hmac[i].output, SHA384_DIGEST_SIZE) != 0)
             return -20 - i;
@@ -1515,10 +1535,14 @@ int hmac_sha512_test(void)
     for (i = 0; i < times; ++i) {
         ret = HmacSetKey(&hmac, SHA512, (byte*)keys[i],(word32)strlen(keys[i]));
         if (ret != 0)
-            return -4016;
-        HmacUpdate(&hmac, (byte*)test_hmac[i].input,
+            return -4030;
+        ret = HmacUpdate(&hmac, (byte*)test_hmac[i].input,
                    (word32)test_hmac[i].inLen);
-        HmacFinal(&hmac, hash);
+        if (ret != 0)
+            return -4031;
+        ret = HmacFinal(&hmac, hash);
+        if (ret != 0)
+            return -4032;
 
         if (memcmp(hash, test_hmac[i].output, SHA512_DIGEST_SIZE) != 0)
             return -20 - i;

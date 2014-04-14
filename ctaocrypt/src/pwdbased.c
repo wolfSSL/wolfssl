@@ -151,21 +151,34 @@ int PBKDF2(byte* output, const byte* passwd, int pLen, const byte* salt,
 
     while (kLen) {
         int currentLen;
-        HmacUpdate(&hmac, salt, sLen);
+
+        ret = HmacUpdate(&hmac, salt, sLen);
+        if (ret != 0)
+            return ret;
 
         /* encode i */
         for (j = 0; j < 4; j++) {
             byte b = (byte)(i >> ((3-j) * 8));
-            HmacUpdate(&hmac, &b, 1);
+
+            ret = HmacUpdate(&hmac, &b, 1);
+            if (ret != 0)
+                return ret;
         }
-        HmacFinal(&hmac, buffer);
+
+        ret = HmacFinal(&hmac, buffer);
+        if (ret != 0)
+            return ret;
 
         currentLen = min(kLen, hLen);
         XMEMCPY(output, buffer, currentLen);
 
         for (j = 1; j < iterations; j++) {
-            HmacUpdate(&hmac, buffer, hLen);
-            HmacFinal(&hmac, buffer);
+            ret = HmacUpdate(&hmac, buffer, hLen);
+            if (ret != 0)
+                return ret;
+            ret = HmacFinal(&hmac, buffer);
+            if (ret != 0)
+                return ret;
             xorbuf(output, buffer, currentLen);
         }
 
