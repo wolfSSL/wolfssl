@@ -156,21 +156,14 @@ static byte GetEntropy(ENTROPY_CMD cmd, byte* out)
     /* TODO: add locking? */
     static RNG rng;
 
-    if (cmd == INIT) {
-        int ret = InitRng(&rng);
-        if (ret == 0)
-            return 1;
-        else
-            return 0;
-    }
+    if (cmd == INIT)
+        return (InitRng(&rng) == 0) ? 1 : 0;
 
     if (out == NULL)
         return 0;
 
-    if (cmd == GET_BYTE_OF_ENTROPY) {
-        RNG_GenerateBlock(&rng, out, 1);
-        return 1;
-    }
+    if (cmd == GET_BYTE_OF_ENTROPY)
+        return (RNG_GenerateBlock(&rng, out, 1) == 0) ? 1 : 0;
 
     if (cmd == GET_NUM_BYTES_PER_BYTE_OF_ENTROPY) {
         *out = 1;
@@ -5612,7 +5605,11 @@ static int BuildMessage(CYASSL* ssl, byte* output, const byte* input, int inSz,
         if (ssl->options.tls1_1) {
             ivSz = blockSz;
             sz  += ivSz;
-            RNG_GenerateBlock(ssl->rng, iv, ivSz);
+
+            ret = RNG_GenerateBlock(ssl->rng, iv, ivSz);
+            if (ret != 0)
+                return ret;
+
         }
         sz += 1;       /* pad byte */
         pad = (sz - headerSz) % blockSz;
@@ -7544,7 +7541,9 @@ static void PickHashSigAlgo(CYASSL* ssl,
 
             /* then random */
         if (ssl->options.connectState == CONNECT_BEGIN) {
-            RNG_GenerateBlock(ssl->rng, output + idx, RAN_LEN);
+            ret = RNG_GenerateBlock(ssl->rng, output + idx, RAN_LEN);
+            if (ret != 0)
+                return ret;
             
                 /* store random */
             XMEMCPY(ssl->arrays->clientRandom, output + idx, RAN_LEN);
@@ -8338,8 +8337,11 @@ static void PickHashSigAlgo(CYASSL* ssl,
         switch (ssl->specs.kea) {
         #ifndef NO_RSA
             case rsa_kea:
-                RNG_GenerateBlock(ssl->rng, ssl->arrays->preMasterSecret,
-                                  SECRET_LEN);
+                ret = RNG_GenerateBlock(ssl->rng, ssl->arrays->preMasterSecret,
+                                                                    SECRET_LEN);
+                if (ret != 0)
+                    return ret;
+
                 ssl->arrays->preMasterSecret[0] = ssl->chVersion.major;
                 ssl->arrays->preMasterSecret[1] = ssl->chVersion.minor;
                 ssl->arrays->preMasterSz = SECRET_LEN;
@@ -8441,8 +8443,11 @@ static void PickHashSigAlgo(CYASSL* ssl,
                         'C', 'y', 'a', 'S', 'S', 'L', ' ', 'N', 'T', 'R', 'U'
                     };
 
-                    RNG_GenerateBlock(ssl->rng, ssl->arrays->preMasterSecret,
-                                      SECRET_LEN);
+                    ret = RNG_GenerateBlock(ssl->rng,
+                                      ssl->arrays->preMasterSecret, SECRET_LEN);
+                    if (ret != 0)
+                        return ret;
+
                     ssl->arrays->preMasterSz = SECRET_LEN;
 
                     if (ssl->peerNtruKeyPresent == 0)
@@ -8911,8 +8916,13 @@ static void PickHashSigAlgo(CYASSL* ssl,
         output[idx++] = ssl->version.minor;
 
             /* then random */
-        if (!ssl->options.resuming)         
-            RNG_GenerateBlock(ssl->rng, ssl->arrays->serverRandom, RAN_LEN);
+        if (!ssl->options.resuming) {
+            ret = RNG_GenerateBlock(ssl->rng, ssl->arrays->serverRandom,
+                                                                       RAN_LEN);
+            if (ret != 0)
+                return ret;
+        }
+
         XMEMCPY(output + idx, ssl->arrays->serverRandom, RAN_LEN);
         idx += RAN_LEN;
 
@@ -8927,8 +8937,13 @@ static void PickHashSigAlgo(CYASSL* ssl,
 #endif
             /* then session id */
         output[idx++] = ID_LEN;
-        if (!ssl->options.resuming)
-            RNG_GenerateBlock(ssl->rng, ssl->arrays->sessionID, ID_LEN);
+
+        if (!ssl->options.resuming) {
+            ret = RNG_GenerateBlock(ssl->rng, ssl->arrays->sessionID, ID_LEN);
+            if (ret != 0)
+                return ret;
+        }
+
         XMEMCPY(output + idx, ssl->arrays->sessionID, ID_LEN);
         idx += ID_LEN;
 
@@ -10401,7 +10416,12 @@ static void PickHashSigAlgo(CYASSL* ssl,
                 #ifdef SESSION_CERTS
                     ssl->session = *session; /* restore session certs. */
                 #endif
-                RNG_GenerateBlock(ssl->rng, ssl->arrays->serverRandom, RAN_LEN);
+
+                ret = RNG_GenerateBlock(ssl->rng, ssl->arrays->serverRandom,
+                                                                       RAN_LEN);
+                if (ret != 0)
+                    return ret;
+
                 #ifdef NO_OLD_TLS
                     ret = DeriveTlsKeys(ssl);
                 #else
@@ -10678,7 +10698,12 @@ static void PickHashSigAlgo(CYASSL* ssl,
                 #ifdef SESSION_CERTS
                     ssl->session = *session; /* restore session certs. */
                 #endif
-                RNG_GenerateBlock(ssl->rng, ssl->arrays->serverRandom, RAN_LEN);
+
+                ret = RNG_GenerateBlock(ssl->rng, ssl->arrays->serverRandom,
+                                                                       RAN_LEN);
+                if (ret != 0)
+                    return ret;
+
                 #ifdef NO_OLD_TLS
                     ret = DeriveTlsKeys(ssl);
                 #else

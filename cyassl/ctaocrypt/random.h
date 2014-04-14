@@ -104,8 +104,8 @@ typedef struct RNG {
 #endif
 
 CYASSL_API int  InitRng(RNG*);
-CYASSL_API void RNG_GenerateBlock(RNG*, byte*, word32 sz);
-CYASSL_API byte RNG_GenerateByte(RNG*);
+CYASSL_API int  RNG_GenerateBlock(RNG*, byte*, word32 sz);
+CYASSL_API int  RNG_GenerateByte(RNG*, byte*);
 
 #ifdef NO_RC4
     CYASSL_API void FreeRng(RNG*);

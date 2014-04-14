@@ -4621,6 +4621,8 @@ static int SetName(byte* output, CertName* name)
 static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
                       RNG* rng, const byte* ntruKey, word16 ntruSz)
 {
+    int ret;
+
     (void)eccKey;
     (void)ntruKey;
     (void)ntruSz;
@@ -4632,7 +4634,10 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
     der->versionSz = SetMyVersion(cert->version, der->version, TRUE);
 
     /* serial number */
-    RNG_GenerateBlock(rng, cert->serial, CTC_SERIAL_SIZE);
+    ret = RNG_GenerateBlock(rng, cert->serial, CTC_SERIAL_SIZE);
+    if (ret != 0)
+        return ret;
+
     cert->serial[0] = 0x01;   /* ensure positive */
     der->serialSz  = SetSerial(cert->serial, der->serial);
 
@@ -6167,10 +6172,13 @@ int EncodeOcspRequest(OcspRequest* req)
         if (InitRng(&rng) != 0) {
             CYASSL_MSG("\tCannot initialize RNG. Skipping the OSCP Nonce.");
         } else {
-            req->nonceSz = MAX_OCSP_NONCE_SZ;
-            RNG_GenerateBlock(&rng, req->nonce, req->nonceSz);
-            extSz = SetOcspReqExtensions(MAX_OCSP_EXT_SZ, extArray,
+            if (RNG_GenerateBlock(&rng, req->nonce, MAX_OCSP_NONCE_SZ) != 0)
+                CYASSL_MSG("\tCannot run RNG. Skipping the OSCP Nonce.");
+            else {
+                req->nonceSz = MAX_OCSP_NONCE_SZ;
+                extSz = SetOcspReqExtensions(MAX_OCSP_EXT_SZ, extArray,
                                                       req->nonce, req->nonceSz);
+            }
         }
     }
 

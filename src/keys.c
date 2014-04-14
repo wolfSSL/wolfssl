@@ -1900,18 +1900,21 @@ int DeriveKeys(CYASSL* ssl)
 }
 
 
-static void CleanPreMaster(CYASSL* ssl)
+static int CleanPreMaster(CYASSL* ssl)
 {
-    int i, sz = ssl->arrays->preMasterSz;
+    int i, ret, sz = ssl->arrays->preMasterSz;
 
     for (i = 0; i < sz; i++)
         ssl->arrays->preMasterSecret[i] = 0;
 
-    RNG_GenerateBlock(ssl->rng, ssl->arrays->preMasterSecret, sz);
+    ret = RNG_GenerateBlock(ssl->rng, ssl->arrays->preMasterSecret, sz);
+    if (ret != 0)
+        return ret;
 
     for (i = 0; i < sz; i++)
         ssl->arrays->preMasterSecret[i] = 0;
 
+    return 0;
 }
 
 
@@ -1982,9 +1985,13 @@ static int MakeSslMasterSecret(CYASSL* ssl)
 #endif
 
     ret = DeriveKeys(ssl);
-    CleanPreMaster(ssl);
+    if (ret != 0) {
+        /* always try to clean PreMaster */
+        CleanPreMaster(ssl);
+        return ret;
+    }
 
-    return ret;
+    return CleanPreMaster(ssl);
 }
 #endif
 

@@ -980,8 +980,13 @@ int PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
     verSz = SetMyVersion(0, ver, 0);
 
     /* generate random content encryption key */
-    InitRng(&rng);
-    RNG_GenerateBlock(&rng, contentKeyPlain, blockKeySz);
+    ret = InitRng(&rng);
+    if (ret != 0)
+        return ret;
+
+    ret = RNG_GenerateBlock(&rng, contentKeyPlain, blockKeySz);
+    if (ret != 0)
+        return ret;
 
     /* build RecipientInfo, only handle 1 for now */
     recipSz = CreateRecipientInfo(pkcs7->singleCert, pkcs7->singleCertSz, RSAk,
@@ -994,6 +999,11 @@ int PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
         return recipSz;
     }
     recipSetSz = SetSet(recipSz, recipSet);
+
+    /* generate IV for block cipher */
+    ret = RNG_GenerateBlock(&rng, tmpIv, DES_BLOCK_SIZE);
+    if (ret != 0)
+        return ret;
 
     /* EncryptedContentInfo */
     contentTypeSz = SetContentType(pkcs7->contentOID, contentType);
@@ -1027,9 +1037,6 @@ int PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
             XFREE(plain, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         return MEMORY_E;
     }
-
-    /* generate IV for block cipher */
-    RNG_GenerateBlock(&rng, tmpIv, DES_BLOCK_SIZE);
 
     /* put together IV OCTET STRING */
     ivOctetStringSz = SetOctetString(DES_BLOCK_SIZE, ivOctetString);

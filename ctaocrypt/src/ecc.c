@@ -1333,7 +1333,10 @@ int ecc_make_key_ex(RNG* rng, ecc_key* key, const ecc_set_type* dp)
    base = NULL;
 
    /* make up random string */
-   RNG_GenerateBlock(rng, buf, keysize);
+   err = RNG_GenerateBlock(rng, buf, keysize);
+   if (err != 0)
+       return err;
+
    buf[0] |= 0x0c;
 
    /* setup the key variables */
@@ -3634,9 +3637,8 @@ static int ecc_ctx_set_salt(ecEncCtx* ctx, int flags, RNG* rng)
         return BAD_FUNC_ARG;
 
     saltBuffer = (flags == REQ_RESP_CLIENT) ? ctx->clientSalt : ctx->serverSalt;
-    RNG_GenerateBlock(rng, saltBuffer, EXCHANGE_SALT_SZ);
 
-    return 0;
+    return RNG_GenerateBlock(rng, saltBuffer, EXCHANGE_SALT_SZ);
 }
 
 

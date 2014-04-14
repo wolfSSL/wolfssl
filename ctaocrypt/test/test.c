@@ -2586,7 +2586,8 @@ int random_test(void)
     ret = InitRng(&rng);
     if (ret != 0) return -39;
 
-    RNG_GenerateBlock(&rng, block, sizeof(block));
+    ret = RNG_GenerateBlock(&rng, block, sizeof(block));
+    if (ret != 0) return -40;
 
     return 0;
 }
@@ -2600,21 +2601,14 @@ byte GetEntropy(ENTROPY_CMD cmd, byte* out)
 {
     static RNG rng;
 
-    if (cmd == INIT) {
-        int ret = InitRng(&rng);
-        if (ret == 0)
-            return 1;
-        else
-            return 0;
-    }
+    if (cmd == INIT)
+        return (InitRng(&rng) == 0) ? 1 : 0;
 
     if (out == NULL)
         return 0;
 
-    if (cmd == GET_BYTE_OF_ENTROPY) {
-        RNG_GenerateBlock(&rng, out, 1);
-        return 1;
-    }
+    if (cmd == GET_BYTE_OF_ENTROPY)
+        return (RNG_GenerateBlock(&rng, out, 1) == 0) ? 1 : 0;
 
     if (cmd == GET_NUM_BYTES_PER_BYTE_OF_ENTROPY) {
         *out = 1;
@@ -4334,9 +4328,15 @@ int pkcs7signed_test(void)
     fclose(file);
 
     ret = InitRng(&rng);
+    if (ret != 0)
+        return -210;
+
     senderNonce[0] = 0x04;
     senderNonce[1] = PKCS7_NONCE_SZ;
-    RNG_GenerateBlock(&rng, &senderNonce[2], PKCS7_NONCE_SZ);
+
+    ret = RNG_GenerateBlock(&rng, &senderNonce[2], PKCS7_NONCE_SZ);
+    if (ret != 0)
+        return -211;
 
     PKCS7_InitWithCert(&msg, certDer, certDerSz);
     msg.privateKey = keyDer;
@@ -4372,7 +4372,7 @@ int pkcs7signed_test(void)
         free(keyDer);
         free(out);
         PKCS7_Free(&msg);
-        return -210;
+        return -212;
     }
     else
         outSz = ret;
@@ -4384,7 +4384,7 @@ int pkcs7signed_test(void)
         free(keyDer);
         free(out);
         PKCS7_Free(&msg);
-        return -211;
+        return -213;
     }
     ret = (int)fwrite(out, 1, outSz, file);
     fclose(file);
@@ -4398,7 +4398,7 @@ int pkcs7signed_test(void)
         free(keyDer);
         free(out);
         PKCS7_Free(&msg);
-        return -212;
+        return -214;
     }
 
     if (msg.singleCert == NULL || msg.singleCertSz == 0) {
@@ -4406,7 +4406,7 @@ int pkcs7signed_test(void)
         free(keyDer);
         free(out);
         PKCS7_Free(&msg);
-        return -213;
+        return -215;
     }
 
     file = fopen("./pkcs7cert.der", "wb");
@@ -4415,7 +4415,7 @@ int pkcs7signed_test(void)
         free(keyDer);
         free(out);
         PKCS7_Free(&msg);
-        return -214;
+        return -216;
     }
     ret = (int)fwrite(msg.singleCert, 1, msg.singleCertSz, file);
     fclose(file);

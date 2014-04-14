@@ -9545,6 +9545,7 @@ static int initGlobalRNG = 0;
         if (initGlobalRNG == 0) {
             if (InitRng(&globalRNG) < 0) {
                 CYASSL_MSG("CyaSSL Init Global RNG failed");
+                return 0;
             }
             initGlobalRNG = 1;
         }
@@ -9569,7 +9570,10 @@ static int initGlobalRNG = 0;
             rng = &globalRNG;
         }
 
-        RNG_GenerateBlock(rng, buf, num);
+        if (RNG_GenerateBlock(rng, buf, num) != 0) {
+            CYASSL_MSG("Bad RNG_GenerateBlock");
+            return 0;
+        }
 
         return SSL_SUCCESS;
     }
@@ -9864,7 +9868,11 @@ static int initGlobalRNG = 0;
             rng = &globalRNG;
         }
 
-        RNG_GenerateBlock(rng, buff, len);
+        if (RNG_GenerateBlock(rng, buff, len) != 0) {
+            CYASSL_MSG("Bad RNG_GenerateBlock");
+            return 0;
+        }
+
         buff[0]     |= 0x80 | 0x40;
         buff[len-1] |= 0x01;
 

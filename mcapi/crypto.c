@@ -301,9 +301,7 @@ int CRYPT_RNG_Get(CRYPT_RNG_CTX* rng, unsigned char* b)
     if (rng == NULL || b == NULL)
         return BAD_FUNC_ARG;
 
-    *b = RNG_GenerateByte((RNG*)rng);
-
-    return 0;
+    return RNG_GenerateByte((RNG*)rng, (byte*)b);
 }
 
 
@@ -314,9 +312,7 @@ int CRYPT_RNG_BlockGenerate(CRYPT_RNG_CTX* rng, unsigned char* b,
     if (rng == NULL || b == NULL)
         return BAD_FUNC_ARG;
 
-    RNG_GenerateBlock((RNG*)rng, b, sz);
-
-    return 0;
+    return RNG_GenerateBlock((RNG*)rng, b, sz);
 }
 
 

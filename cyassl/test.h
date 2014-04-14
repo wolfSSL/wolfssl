@@ -1532,7 +1532,10 @@ static INLINE int myEccSign(CYASSL* ssl, const byte* in, word32 inSz,
     (void)ssl;
     (void)ctx;
 
-    InitRng(&rng);
+    ret = InitRng(&rng);
+    if (ret != 0)
+        return ret;
+
     ecc_init(&myKey);
     
     ret = EccPrivateKeyDecode(key, &idx, &myKey, keySz);    
@@ -1579,7 +1582,10 @@ static INLINE int myRsaSign(CYASSL* ssl, const byte* in, word32 inSz,
     (void)ssl;
     (void)ctx;
 
-    InitRng(&rng);
+    ret = InitRng(&rng);
+    if (ret != 0)
+        return ret;
+
     InitRsaKey(&myKey, NULL);
     
     ret = RsaPrivateKeyDecode(key, &idx, &myKey, keySz);    
@@ -1630,7 +1636,10 @@ static INLINE int myRsaEnc(CYASSL* ssl, const byte* in, word32 inSz,
     (void)ssl;
     (void)ctx;
 
-    InitRng(&rng);
+    ret = InitRng(&rng);
+    if (ret != 0)
+        return ret;
+
     InitRsaKey(&myKey, NULL);
     
     ret = RsaPublicKeyDecode(key, &idx, &myKey, keySz);
