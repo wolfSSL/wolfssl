@@ -3490,14 +3490,12 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx,
         if (dCert.extKeyUsageSet) {
             if ((ssl->specs.kea == rsa_kea) &&
                 (dCert.extKeyUsage & KEYUSE_KEY_ENCIPHER) == 0) {
-                fatal = 1;
                 ret = KEYUSE_ENCIPHER_E;
             }
             if ((ssl->specs.sig_algo == rsa_sa_algo ||
                     ssl->specs.sig_algo == ecc_dsa_sa_algo) &&
                 (dCert.extKeyUsage & KEYUSE_DIGITAL_SIG) == 0) {
                 CYASSL_MSG("KeyUse Digital Sig not set");
-                fatal = 1;
                 ret = KEYUSE_SIGNATURE_E;
             }
         }
@@ -3507,7 +3505,6 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx,
                 if ((dCert.extExtKeyUsage &
                         (EXTKEYUSE_ANY | EXTKEYUSE_SERVER_AUTH)) == 0) {
                     CYASSL_MSG("ExtKeyUse Server Auth not set");
-                    fatal = 1;
                     ret = EXTKEYUSE_AUTH_E;
                 }
             }
@@ -3515,7 +3512,6 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx,
                 if ((dCert.extExtKeyUsage &
                         (EXTKEYUSE_ANY | EXTKEYUSE_CLIENT_AUTH)) == 0) {
                     CYASSL_MSG("ExtKeyUse Client Auth not set");
-                    fatal = 1;
                     ret = EXTKEYUSE_AUTH_E;
                 }
             }
