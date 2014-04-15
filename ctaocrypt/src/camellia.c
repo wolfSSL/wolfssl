@@ -499,8 +499,10 @@ static int camellia_setup128(const unsigned char *key, u32 *subkey)
         return MEMORY_E;
 
     subR = (u32*) XMALLOC(sizeof(u32) * 26, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    if (subR == NULL)
+    if (subR == NULL) {
+        XFREE(subL, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         return MEMORY_E;
+    }
 
     /**
      *  k == kll || klr || krl || krr (|| is concatination)
@@ -722,8 +724,10 @@ static int camellia_setup256(const unsigned char *key, u32 *subkey)
         return MEMORY_E;
 
     subR = (u32*) XMALLOC(sizeof(u32) * 34, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    if (subR == NULL)
+    if (subR == NULL) {
+        XFREE(subL, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         return MEMORY_E;
+    }
 
     /**
      *  key = (kll || klr || krl || krr || krll || krlr || krrl || krrr)
