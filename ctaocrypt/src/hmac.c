@@ -103,7 +103,7 @@ static int InitHmac(Hmac* hmac, int type)
         
         #ifdef HAVE_BLAKE2 
         case BLAKE2B_ID:
-            InitBlake2b(&hmac->hash.blake2b, BLAKE2B_256);
+            ret = InitBlake2b(&hmac->hash.blake2b, BLAKE2B_256);
         break;
         #endif
         
@@ -238,8 +238,14 @@ int HmacSetKey(Hmac* hmac, int type, const byte* key, word32 length)
                 XMEMCPY(ip, key, length);
             }
             else {
-                Blake2bUpdate(&hmac->hash.blake2b, key, length);
-                Blake2bFinal(&hmac->hash.blake2b, ip, BLAKE2B_256);
+                ret = Blake2bUpdate(&hmac->hash.blake2b, key, length);
+                if (ret != 0)
+                    return ret;
+
+                ret = Blake2bFinal(&hmac->hash.blake2b, ip, BLAKE2B_256);
+                if (ret != 0)
+                    return ret;
+
                 length = BLAKE2B_256;
             }
         }
@@ -306,8 +312,10 @@ static int HmacKeyInnerHash(Hmac* hmac)
 
         #ifdef HAVE_BLAKE2 
         case BLAKE2B_ID:
-            Blake2bUpdate(&hmac->hash.blake2b,
+            ret = Blake2bUpdate(&hmac->hash.blake2b,
                                          (byte*) hmac->ipad,BLAKE2B_BLOCKBYTES);
+            if (ret != 0)
+                return ret;
         break;
         #endif
 
@@ -375,7 +383,9 @@ int HmacUpdate(Hmac* hmac, const byte* msg, word32 length)
 
         #ifdef HAVE_BLAKE2 
         case BLAKE2B_ID:
-            Blake2bUpdate(&hmac->hash.blake2b, msg, length);
+            ret = Blake2bUpdate(&hmac->hash.blake2b, msg, length);
+            if (ret != 0)
+                return ret;
         break;
         #endif
 
@@ -506,13 +516,24 @@ int HmacFinal(Hmac* hmac, byte* hash)
         #ifdef HAVE_BLAKE2 
         case BLAKE2B_ID:
         {
-            Blake2bFinal(&hmac->hash.blake2b, (byte*) hmac->innerHash,
+            ret = Blake2bFinal(&hmac->hash.blake2b, (byte*) hmac->innerHash,
                          BLAKE2B_256);
-            Blake2bUpdate(&hmac->hash.blake2b,
+            if (ret != 0)
+                return ret;
+
+            ret = Blake2bUpdate(&hmac->hash.blake2b,
                                  (byte*) hmac->opad, BLAKE2B_BLOCKBYTES);
-            Blake2bUpdate(&hmac->hash.blake2b,
+            if (ret != 0)
+                return ret;
+
+            ret = Blake2bUpdate(&hmac->hash.blake2b,
                                  (byte*) hmac->innerHash, BLAKE2B_256);
-            Blake2bFinal(&hmac->hash.blake2b, hash, BLAKE2B_256);
+            if (ret != 0)
+                return ret;
+
+            ret = Blake2bFinal(&hmac->hash.blake2b, hash, BLAKE2B_256);
+            if (ret != 0)
+                return ret;
         }
         break;
         #endif

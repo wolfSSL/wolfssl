@@ -623,8 +623,7 @@ void bench_sha256(void)
     Sha256 hash;
     byte   digest[SHA256_DIGEST_SIZE];
     double start, total, persec;
-    int    i;
-    int    ret;
+    int    i, ret;
         
     ret = InitSha256(&hash);
     if (ret != 0) {
@@ -735,15 +734,28 @@ void bench_blake2(void)
     Blake2b b2b;
     byte    digest[64];
     double  start, total, persec;
-    int     i;
+    int     i, ret;
        
-    InitBlake2b(&b2b, 64); 
+    ret = InitBlake2b(&b2b, 64);
+    if (ret != 0) {
+        printf("InitBlake2b failed, ret = %d\n", ret);
+        return;
+    }
     start = current_time(1);
     
-    for(i = 0; i < numBlocks; i++)
-        Blake2bUpdate(&b2b, plain, sizeof(plain));
+    for(i = 0; i < numBlocks; i++) {
+        ret = Blake2bUpdate(&b2b, plain, sizeof(plain));
+        if (ret != 0) {
+            printf("Blake2bUpdate failed, ret = %d\n", ret);
+            return;
+        }
+    }
    
-    Blake2bFinal(&b2b, digest, 64);
+    ret = Blake2bFinal(&b2b, digest, 64);
+    if (ret != 0) {
+        printf("Blake2bFinal failed, ret = %d\n", ret);
+        return;
+    }
 
     total = current_time(0) - start;
     persec = 1 / total * numBlocks;

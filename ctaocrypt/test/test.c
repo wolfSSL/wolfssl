@@ -919,15 +919,23 @@ int blake2b_test(void)
     Blake2b b2b;
     byte    digest[64];
     byte    input[64];
-    int     i;
+    int     i, ret;
 
     for (i = 0; i < (int)sizeof(input); i++)
         input[i] = (byte)i;
 
     for (i = 0; i < BLAKE2_TESTS; i++) {
-        InitBlake2b(&b2b, 64);
-        Blake2bUpdate(&b2b, input, i);
-        Blake2bFinal(&b2b, digest, 64);
+        ret = InitBlake2b(&b2b, 64);
+        if (ret != 0)
+            return -4002;
+
+        ret = Blake2bUpdate(&b2b, input, i);
+        if (ret != 0)
+            return -4003;
+
+        ret = Blake2bFinal(&b2b, digest, 64);
+        if (ret != 0)
+            return -4004;
 
         if (memcmp(digest, blake2b_vec[i], 64) != 0) {
             return -300 - i;
@@ -969,15 +977,15 @@ int sha256_test(void)
 
     ret = InitSha256(&sha);
     if (ret != 0)
-        return -4003;
+        return -4005;
 
     for (i = 0; i < times; ++i) {
         ret = Sha256Update(&sha, (byte*)test_sha[i].input,(word32)test_sha[i].inLen);
         if (ret != 0)
-            return -4004;
+            return -4006;
         ret = Sha256Final(&sha, hash);
         if (ret != 0)
-            return -4005;
+            return -4007;
 
         if (memcmp(hash, test_sha[i].output, SHA256_DIGEST_SIZE) != 0)
             return -10 - i;

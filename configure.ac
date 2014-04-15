@@ -1334,6 +1334,19 @@ then
 fi
 
 
+# Small Stack
+AC_ARG_ENABLE([smallstack],
+    [  --enable-smallstack     Enable Small Stack Usage (default: enabled)],
+    [ ENABLED_SMALL_STACK=$enableval ],
+    [ ENABLED_SMALL_STACK=yes ]
+    )
+
+if test "$ENABLED_SMALL_STACK" = "no"
+then
+    AM_CFLAGS="$AM_CFLAGS -DNO_SMALL_STACK"
+fi
+
+
 #valgrind
 AC_ARG_ENABLE([valgrind],
     [  --enable-valgrind       Enable valgrind for unit tests (default: disabled)],
@@ -1760,6 +1773,7 @@ echo "   * Supported Elliptic Curves: $ENABLED_SUPPORTED_CURVES"
 echo "   * All TLS Extensions:        $ENABLED_TLSX"
 echo "   * PKCS#7                     $ENABLED_PKCS7"
 echo "   * wolfSCEP                   $ENABLED_WOLFSCEP"
+echo "   * Small Stack:               $ENABLED_SMALL_STACK"
 echo "   * valgrind unit tests:       $ENABLED_VALGRIND"
 echo "   * LIBZ:                      $ENABLED_LIBZ"
 echo "   * Examples:                  $ENABLED_EXAMPLES"
