@@ -1344,8 +1344,6 @@ AC_ARG_ENABLE([smallstack],
 if test "x$ENABLED_SMALL_STACK" = "xyes"
 then
     AM_CFLAGS="$AM_CFLAGS -DCYASSL_SMALL_STACK"
-else
-    AM_CFLAGS="$AM_CFLAGS -DNO_CYASSL_SMALL_STACK"
 fi
 
 
