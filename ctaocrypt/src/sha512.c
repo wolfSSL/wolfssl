@@ -149,11 +149,16 @@ static int Transform(Sha512* sha512)
 
     word32 j;
     word64 T[8];
+
+#ifdef CYASSL_SMALL_STACK
     word64* W;
 
     W = (word64*) XMALLOC(sizeof(word64) * 16, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (W == NULL)
         return MEMORY_E;
+#else
+    word64 W[16];
+#endif
 
     /* Copy digest to working vars */
     XMEMCPY(T, sha512->digest, sizeof(T));
@@ -192,7 +197,9 @@ static int Transform(Sha512* sha512)
     XMEMSET(W, 0, sizeof(word64) * 16);
     XMEMSET(T, 0, sizeof(T));
 
+#ifdef CYASSL_SMALL_STACK
     XFREE(W, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 
     return 0;
 }
@@ -317,11 +324,16 @@ static int Transform384(Sha384* sha384)
 
     word32 j;
     word64 T[8];
+
+#ifdef CYASSL_SMALL_STACK
     word64* W;
 
     W = (word64*) XMALLOC(sizeof(word64) * 16, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (W == NULL)
         return MEMORY_E;
+#else
+    word64 W[16];
+#endif
 
     /* Copy digest to working vars */
     XMEMCPY(T, sha384->digest, sizeof(T));
@@ -360,7 +372,9 @@ static int Transform384(Sha384* sha384)
     XMEMSET(W, 0, sizeof(word64) * 16);
     XMEMSET(T, 0, sizeof(T));
 
+#ifdef CYASSL_SMALL_STACK
     XFREE(W, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 
     return 0;
 }

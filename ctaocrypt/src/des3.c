@@ -988,12 +988,16 @@ static INLINE void FPERM(word32* left, word32* right)
 
 static int DesSetKey(const byte* key, int dir, word32* out)
 {
+#ifdef CYASSL_SMALL_STACK
     byte* buffer = (byte*)XMALLOC(56+56+8, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
-    if (!buffer) {
+    if (buffer == NULL)
         return MEMORY_E;
-    }
-    else {
+#else
+    byte buffer[56+56+8];
+#endif
+
+    {
         byte* const  pc1m = buffer;               /* place to modify pc1 into */
         byte* const  pcr  = pc1m + 56;            /* place to rotate pc1 into */
         byte* const  ks   = pcr  + 56;
@@ -1048,7 +1052,9 @@ static int DesSetKey(const byte* key, int dir, word32* out)
             }
         }
 
+#ifdef CYASSL_SMALL_STACK
         XFREE(buffer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
     }
 
     return 0;

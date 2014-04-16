@@ -163,7 +163,7 @@ int blake2b_init_key( blake2b_state *S, const byte outlen, const void *key,
   if( blake2b_init_param( S, P ) < 0 ) return -1;
 
   {
-#ifndef NO_SMALL_STACK
+#ifdef CYASSL_SMALL_STACK
     byte* block;
 
     block = (byte*)XMALLOC(BLAKE2B_BLOCKBYTES, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -179,7 +179,7 @@ int blake2b_init_key( blake2b_state *S, const byte outlen, const void *key,
     secure_zero_memory( block, BLAKE2B_BLOCKBYTES ); /* Burn the key from */
                                                      /* memory */
 
-#ifndef NO_SMALL_STACK
+#ifdef CYASSL_SMALL_STACK
     XFREE(block, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
   }
@@ -191,7 +191,7 @@ static int blake2b_compress( blake2b_state *S,
 {
   int i;
 
-#ifndef NO_SMALL_STACK
+#ifdef CYASSL_SMALL_STACK
   word64* m;
   word64* v;
 
@@ -266,7 +266,7 @@ static int blake2b_compress( blake2b_state *S,
 #undef G
 #undef ROUND
 
-#ifndef NO_SMALL_STACK
+#ifdef CYASSL_SMALL_STACK
   XFREE(m, NULL, DYNAMIC_TYPE_TMP_BUFFER);
   XFREE(v, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif

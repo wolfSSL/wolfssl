@@ -133,12 +133,17 @@ static const word32 K[64] = {
 static int Transform(Sha256* sha256)
 {
     word32 S[8], t0, t1;
-    word32* W;
     int i;
+
+#ifdef CYASSL_SMALL_STACK
+    word32* W;
 
     W = (word32*) XMALLOC(sizeof(word32) * 64, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (W == NULL)
         return MEMORY_E;
+#else
+    word32 W[64];
+#endif
 
     /* Copy context->state[] to working vars */
     for (i = 0; i < 8; i++)
@@ -166,7 +171,9 @@ static int Transform(Sha256* sha256)
         sha256->digest[i] += S[i];
     }
 
+#ifdef CYASSL_SMALL_STACK
     XFREE(W, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 
     return 0;
 }
