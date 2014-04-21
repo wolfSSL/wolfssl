@@ -124,7 +124,11 @@ int PBKDF2(byte* output, const byte* passwd, int pLen, const byte* salt,
     int    hLen;
     int    j, ret;
     Hmac   hmac;
+#ifdef CYASSL_SMALL_STACK
+    byte*  buffer;
+#else
     byte   buffer[MAX_DIGEST_SIZE];
+#endif
 
     if (hashType == MD5) {
         hLen = MD5_DIGEST_SIZE;
@@ -145,16 +149,21 @@ int PBKDF2(byte* output, const byte* passwd, int pLen, const byte* salt,
     else
         return BAD_FUNC_ARG;
 
-    ret = HmacSetKey(&hmac, hashType, passwd, pLen);
-    if (ret != 0)
-        return ret;
+#ifdef CYASSL_SMALL_STACK
+    buffer = (byte*)XMALLOC(MAX_DIGEST_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (buffer == NULL)
+        return MEMORY_E;
+#endif
 
+    ret = HmacSetKey(&hmac, hashType, passwd, pLen);
+
+    if (ret == 0) {
     while (kLen) {
         int currentLen;
 
         ret = HmacUpdate(&hmac, salt, sLen);
         if (ret != 0)
-            return ret;
+            break;
 
         /* encode i */
         for (j = 0; j < 4; j++) {
@@ -162,12 +171,16 @@ int PBKDF2(byte* output, const byte* passwd, int pLen, const byte* salt,
 
             ret = HmacUpdate(&hmac, &b, 1);
             if (ret != 0)
-                return ret;
+                break;
         }
+
+        /* check ret from inside for loop */
+        if (ret != 0)
+            break;
 
         ret = HmacFinal(&hmac, buffer);
         if (ret != 0)
-            return ret;
+            break;
 
         currentLen = min(kLen, hLen);
         XMEMCPY(output, buffer, currentLen);
@@ -175,21 +188,37 @@ int PBKDF2(byte* output, const byte* passwd, int pLen, const byte* salt,
         for (j = 1; j < iterations; j++) {
             ret = HmacUpdate(&hmac, buffer, hLen);
             if (ret != 0)
-                return ret;
+                break;
             ret = HmacFinal(&hmac, buffer);
             if (ret != 0)
-                return ret;
+                break;
             xorbuf(output, buffer, currentLen);
         }
+
+        /* check ret from inside for loop */
+        if (ret != 0)
+            break;
 
         output += currentLen;
         kLen   -= currentLen;
         i++;
     }
+    }
 
-    return 0;
+#ifdef CYASSL_SMALL_STACK
+    XFREE(buffer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
+    return ret;
 }
 
+#ifdef CYASSL_SHA512
+#define PBKDF_DIGEST_SIZE SHA512_BLOCK_SIZE
+#elif !defined(NO_SHA256)
+#define PBKDF_DIGEST_SIZE SHA256_BLOCK_SIZE
+#else
+#define PBKDF_DIGEST_SIZE SHA_DIGEST_SIZE
+#endif
 
 int PKCS12_PBKDF(byte* output, const byte* passwd, int passLen,const byte* salt,
                  int saltLen, int iterations, int kLen, int hashType, int id)
@@ -200,17 +229,19 @@ int PKCS12_PBKDF(byte* output, const byte* passwd, int passLen,const byte* salt,
     int    ret = 0;
     int    i;
     byte   *D, *S, *P, *I;
-    byte   staticBuffer[1024];
-    byte*  buffer = staticBuffer;
-#ifdef CYASSL_SHA512
-    byte   Ai[SHA512_DIGEST_SIZE];
-    byte   B[SHA512_BLOCK_SIZE];
-#elif !defined(NO_SHA256)
-    byte   Ai[SHA256_DIGEST_SIZE];
-    byte   B[SHA256_BLOCK_SIZE];
+#ifdef CYASSL_SMALL_STACK
+    byte   staticBuffer[1]; /* force dynamic usage */
 #else
-    byte   Ai[SHA_DIGEST_SIZE];
-    byte   B[SHA_BLOCK_SIZE];
+    byte   staticBuffer[1024];
+#endif
+    byte*  buffer = staticBuffer;
+
+#ifdef CYASSL_SMALL_STACK
+    byte*  Ai;
+    byte*  B;
+#else
+    byte   Ai[PBKDF_DIGEST_SIZE];
+    byte   B[PBKDF_DIGEST_SIZE];
 #endif
 
     if (!iterations)
@@ -237,7 +268,19 @@ int PKCS12_PBKDF(byte* output, const byte* passwd, int passLen,const byte* salt,
     }
 #endif
     else
-        return BAD_FUNC_ARG; 
+        return BAD_FUNC_ARG;
+
+#ifdef CYASSL_SMALL_STACK
+    Ai = (byte*)XMALLOC(PBKDF_DIGEST_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (Ai == NULL)
+        return MEMORY_E;
+
+    B = (byte*)XMALLOC(PBKDF_DIGEST_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (B == NULL) {
+        XFREE(Ai, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        return MEMORY_E;
+    }
+#endif
 
     dLen = v;
     sLen =  v * ((saltLen + v - 1) / v);
@@ -251,7 +294,13 @@ int PKCS12_PBKDF(byte* output, const byte* passwd, int passLen,const byte* salt,
 
     if (totalLen > sizeof(staticBuffer)) {
         buffer = (byte*)XMALLOC(totalLen, 0, DYNAMIC_TYPE_KEY);
-        if (buffer == NULL) return MEMORY_E;
+        if (buffer == NULL) {
+#ifdef CYASSL_SMALL_STACK
+            XFREE(Ai, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(B,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+            return MEMORY_E;
+        }
         dynamic = 1;
     } 
 
@@ -410,8 +459,16 @@ int PKCS12_PBKDF(byte* output, const byte* passwd, int passLen,const byte* salt,
     }
 
     if (dynamic) XFREE(buffer, 0, DYNAMIC_TYPE_KEY);
+
+#ifdef CYASSL_SMALL_STACK
+    XFREE(Ai, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(B,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
     return ret;
 }
+
+#undef PBKDF_DIGEST_SIZE
 
 #endif /* NO_PWDBASED */
 
