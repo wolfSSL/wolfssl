@@ -732,8 +732,13 @@ int HKDF(int type, const byte* inKey, word32 inKeySz,
                    byte* out,         word32 outSz)
 {
     Hmac   myHmac;
+#ifdef CYASSL_SMALL_STACK
+    byte* tmp;
+    byte* prk;
+#else
     byte   tmp[MAX_DIGEST_SIZE]; /* localSalt helper and T */
     byte   prk[MAX_DIGEST_SIZE];
+#endif
     const  byte* localSalt;  /* either points to user input or tmp */
     int    hashSz = GetHashSizeByType(type);
     word32 outIdx = 0;
@@ -743,6 +748,18 @@ int HKDF(int type, const byte* inKey, word32 inKeySz,
     if (hashSz < 0)
         return BAD_FUNC_ARG;
 
+#ifdef CYASSL_SMALL_STACK
+    tmp = (byte*)XMALLOC(MAX_DIGEST_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (tmp == NULL)
+        return MEMORY_E;
+
+    prk = (byte*)XMALLOC(MAX_DIGEST_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (prk == NULL) {
+        XFREE(tmp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        return MEMORY_E;
+    }
+#endif
+
     localSalt = salt;
     if (localSalt == NULL) {
         XMEMSET(tmp, 0, hashSz);
@@ -750,35 +767,19 @@ int HKDF(int type, const byte* inKey, word32 inKeySz,
         saltSz    = hashSz;
     }
     
-    ret = HmacSetKey(&myHmac, type, localSalt, saltSz);
-    if (ret != 0)
-        return ret;
-    ret = HmacUpdate(&myHmac, inKey, inKeySz);
-    if (ret != 0)
-        return ret;
-    ret = HmacFinal(&myHmac,  prk);
-    if (ret != 0)
-        return ret;
+    if ((ret = HmacSetKey(&myHmac, type, localSalt, saltSz)) == 0)
+        if ((ret = HmacUpdate(&myHmac, inKey, inKeySz)) == 0)
+            ret = HmacFinal(&myHmac,  prk);
 
-    while (outIdx < outSz) {
+    while (ret == 0 && outIdx < outSz) {
         int    tmpSz = (n == 1) ? 0 : hashSz;
         word32 left = outSz - outIdx;
 
-        ret = HmacSetKey(&myHmac, type, prk, hashSz);
-        if (ret != 0)
-            return ret;
-        ret = HmacUpdate(&myHmac, tmp, tmpSz);
-        if (ret != 0)
-            return ret;
-        ret = HmacUpdate(&myHmac, info, infoSz);
-        if (ret != 0)
-            return ret;
-        ret = HmacUpdate(&myHmac, &n, 1);
-        if (ret != 0)
-            return ret;
-        ret = HmacFinal(&myHmac, tmp);
-        if (ret != 0)
-            return ret;
+        if ((ret = HmacSetKey(&myHmac, type, prk, hashSz)) == 0)
+            if ((ret = HmacUpdate(&myHmac, tmp, tmpSz)) == 0)
+                if ((ret = HmacUpdate(&myHmac, info, infoSz)) == 0)
+                    if ((ret = HmacUpdate(&myHmac, &n, 1)) == 0)
+                        ret = HmacFinal(&myHmac, tmp);
 
         left = min(left, (word32)hashSz);
         XMEMCPY(out+outIdx, tmp, left);
@@ -787,7 +788,12 @@ int HKDF(int type, const byte* inKey, word32 inKeySz,
         n++;
     }
 
-    return 0;
+#ifdef CYASSL_SMALL_STACK
+    XFREE(tmp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(prk, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
+    return ret;
 }
 
 #endif /* HAVE_HKDF */
