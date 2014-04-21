@@ -778,32 +778,32 @@ int HKDF(int type, const byte* inKey, word32 inKeySz,
     } while (0);
 
     if (ret == 0) {
-    while (outIdx < outSz) {
-        int    tmpSz = (n == 1) ? 0 : hashSz;
-        word32 left = outSz - outIdx;
+        while (outIdx < outSz) {
+            int    tmpSz = (n == 1) ? 0 : hashSz;
+            word32 left = outSz - outIdx;
 
-        ret = HmacSetKey(&myHmac, type, prk, hashSz);
-        if (ret != 0)
-            break;
-        ret = HmacUpdate(&myHmac, tmp, tmpSz);
-        if (ret != 0)
-            break;
-        ret = HmacUpdate(&myHmac, info, infoSz);
-        if (ret != 0)
-            break;
-        ret = HmacUpdate(&myHmac, &n, 1);
-        if (ret != 0)
-            break;
-        ret = HmacFinal(&myHmac, tmp);
-        if (ret != 0)
-            break;
+            ret = HmacSetKey(&myHmac, type, prk, hashSz);
+            if (ret != 0)
+                break;
+            ret = HmacUpdate(&myHmac, tmp, tmpSz);
+            if (ret != 0)
+                break;
+            ret = HmacUpdate(&myHmac, info, infoSz);
+            if (ret != 0)
+                break;
+            ret = HmacUpdate(&myHmac, &n, 1);
+            if (ret != 0)
+                break;
+            ret = HmacFinal(&myHmac, tmp);
+            if (ret != 0)
+                break;
 
-        left = min(left, (word32)hashSz);
-        XMEMCPY(out+outIdx, tmp, left);
+            left = min(left, (word32)hashSz);
+            XMEMCPY(out+outIdx, tmp, left);
 
-        outIdx += hashSz;
-        n++;
-    }
+            outIdx += hashSz;
+            n++;
+        }
     }
 
 #ifdef CYASSL_SMALL_STACK

@@ -158,51 +158,51 @@ int PBKDF2(byte* output, const byte* passwd, int pLen, const byte* salt,
     ret = HmacSetKey(&hmac, hashType, passwd, pLen);
 
     if (ret == 0) {
-    while (kLen) {
-        int currentLen;
+        while (kLen) {
+            int currentLen;
 
-        ret = HmacUpdate(&hmac, salt, sLen);
-        if (ret != 0)
-            break;
-
-        /* encode i */
-        for (j = 0; j < 4; j++) {
-            byte b = (byte)(i >> ((3-j) * 8));
-
-            ret = HmacUpdate(&hmac, &b, 1);
+            ret = HmacUpdate(&hmac, salt, sLen);
             if (ret != 0)
                 break;
-        }
 
-        /* check ret from inside for loop */
-        if (ret != 0)
-            break;
+            /* encode i */
+            for (j = 0; j < 4; j++) {
+                byte b = (byte)(i >> ((3-j) * 8));
 
-        ret = HmacFinal(&hmac, buffer);
-        if (ret != 0)
-            break;
+                ret = HmacUpdate(&hmac, &b, 1);
+                if (ret != 0)
+                    break;
+            }
 
-        currentLen = min(kLen, hLen);
-        XMEMCPY(output, buffer, currentLen);
-
-        for (j = 1; j < iterations; j++) {
-            ret = HmacUpdate(&hmac, buffer, hLen);
+            /* check ret from inside for loop */
             if (ret != 0)
                 break;
+
             ret = HmacFinal(&hmac, buffer);
             if (ret != 0)
                 break;
-            xorbuf(output, buffer, currentLen);
+
+            currentLen = min(kLen, hLen);
+            XMEMCPY(output, buffer, currentLen);
+
+            for (j = 1; j < iterations; j++) {
+                ret = HmacUpdate(&hmac, buffer, hLen);
+                if (ret != 0)
+                    break;
+                ret = HmacFinal(&hmac, buffer);
+                if (ret != 0)
+                    break;
+                xorbuf(output, buffer, currentLen);
+            }
+
+            /* check ret from inside for loop */
+            if (ret != 0)
+                break;
+
+            output += currentLen;
+            kLen   -= currentLen;
+            i++;
         }
-
-        /* check ret from inside for loop */
-        if (ret != 0)
-            break;
-
-        output += currentLen;
-        kLen   -= currentLen;
-        i++;
-    }
     }
 
 #ifdef CYASSL_SMALL_STACK
