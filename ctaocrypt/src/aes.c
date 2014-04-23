@@ -148,14 +148,14 @@
            (cryptoalgo == PIC32_CRYPTOALGO_RCBC)) {
             /* set iv for the next call */
             if(dir == PIC32_ENCRYPTION) {
-	        XMEMCPY((void *)aes->iv_ce,
+            XMEMCPY((void *)aes->iv_ce,
                         (void*)KVA0_TO_KVA1(out + sz - AES_BLOCK_SIZE),
                         AES_BLOCK_SIZE) ;
-	    } else {
+        } else {
                 ByteReverseWords((word32*)aes->iv_ce,
                         (word32 *)KVA0_TO_KVA1(in + sz - AES_BLOCK_SIZE),
                         AES_BLOCK_SIZE);
-	    }
+        }
         }
         XMEMCPY((byte *)out, (byte *)KVA0_TO_KVA1(out), sz) ;
         ByteReverseWords((word32*)out, (word32 *)out, sz);
@@ -603,124 +603,152 @@
 
     #endif /* CYASSL_AES_COUNTER */
 
+#elif defined(HAVE_COLDFIRE_SEC)
 
-#elif  defined(HAVE_COLDFIRE_SEC)
+#include <cyassl/internal.h>
 
 #include "sec.h"
-#include "mcf548x_sec.h"
-#include "mcf548x_siu.h"
+#include "mcf5475_sec.h"
+#include "mcf5475_siu.h"
 
+#if defined (HAVE_THREADX)
 #include "memory_pools.h"
 extern TX_BYTE_POOL mp_ncached;  /* Non Cached memory pool */
-#define AES_BUFFER_SIZE (AES_BLOCK_SIZE * 8)
-static unsigned char *AESBuffer = NULL ;
+#endif
 
+#define AES_BUFFER_SIZE (AES_BLOCK_SIZE * 64)
+static unsigned char *AESBuffIn = NULL ;
+static unsigned char *AESBuffOut = NULL ;
+static byte *secReg ; 
+static byte *secKey ; 
+static volatile SECdescriptorType *secDesc ;
+
+static CyaSSL_Mutex Mutex_AesSEC ;
+  
 #define SEC_DESC_AES_CBC_ENCRYPT 0x60300010
 #define SEC_DESC_AES_CBC_DECRYPT 0x60200010
-#define AES_BLOCK_LENGTH 16
 
 extern volatile unsigned char __MBAR[];
+ 
+static int TimeCount = 0 ;
+    
+static int AesCbcCrypt(Aes* aes, byte* po, const byte* pi, word32 sz, word32 descHeader)
+{
+
+    int i ; int stat1, stat2 ;
+    int ret ; int size ;
+    volatile int v ;
+
+    if((pi == NULL) || (po == NULL))
+        return BAD_FUNC_ARG;/*wrong pointer*/
+
+    LockMutex(&Mutex_AesSEC) ;
+
+    /* Set descriptor for SEC */            
+    secDesc->length1 = 0x0;
+    secDesc->pointer1 = NULL;
+        
+    secDesc->length2 = AES_BLOCK_SIZE;
+    secDesc->pointer2 = (byte *)secReg ; /* Initial Vector */
+    
+    switch(aes->rounds) {
+        case 10: secDesc->length3 = 16 ; break ;
+        case 12: secDesc->length3 = 24 ; break ;
+        case 14: secDesc->length3 = 32 ; break ;
+    } 
+    XMEMCPY(secKey, aes->key, secDesc->length3) ;
+
+    secDesc->pointer3 = (byte *)secKey;
+    secDesc->pointer4 = AESBuffIn ;
+    secDesc->pointer5 = AESBuffOut ;
+    secDesc->length6 = 0x0;
+    secDesc->pointer6 = NULL;
+    secDesc->length7 = 0x0;
+    secDesc->pointer7 = NULL;
+    secDesc->nextDescriptorPtr = NULL;
+  
+    while(sz) {
+        secDesc->header = descHeader ;
+        XMEMCPY(secReg, aes->reg, AES_BLOCK_SIZE) ;
+        if((sz%AES_BUFFER_SIZE) == sz) {
+            size = sz ;
+            sz = 0 ;
+        } else {
+            size = AES_BUFFER_SIZE ;
+            sz -= AES_BUFFER_SIZE ;
+        }
+        secDesc->length4 = size;
+        secDesc->length5 = size;
+        
+        XMEMCPY(AESBuffIn, pi, size) ;
+        if(descHeader == SEC_DESC_AES_CBC_DECRYPT) {
+            XMEMCPY((void*)aes->tmp, (void*)&(pi[size-AES_BLOCK_SIZE]), AES_BLOCK_SIZE) ;
+        }
+
+        /* Point SEC to the location of the descriptor */
+        MCF_SEC_FR0 = (uint32)secDesc;
+        /* Initialize SEC and wait for encryption to complete */
+        MCF_SEC_CCCR0 = 0x0000001a;
+        /* poll SISR to determine when channel is complete */
+        v=0 ;
+        while((secDesc->header>> 24) != 0xff)v++ ;
+
+        ret = MCF_SEC_SISRH;
+        stat1 = MCF_SEC_AESSR ; 
+        stat2 = MCF_SEC_AESISR ;
+        if(ret & 0xe0000000)
+        {
+            db_printf("Aes_Cbc(i=%d):ISRH=%08x, AESSR=%08x, AESISR=%08x\n", i, ret, stat1, stat2) ;
+        }
+
+        XMEMCPY(po, AESBuffOut, size) ;
+
+        if(descHeader == SEC_DESC_AES_CBC_ENCRYPT) {
+            XMEMCPY((void*)aes->reg, (void*)&(po[size-AES_BLOCK_SIZE]), AES_BLOCK_SIZE) ;
+        } else {
+            XMEMCPY((void*)aes->reg, (void*)aes->tmp, AES_BLOCK_SIZE) ;
+        }
+
+        pi += size ; 
+        po += size ;
+    }
+    UnLockMutex(&Mutex_AesSEC) ;
+    return 0 ; /* for descriptier header 0xff000000 mode */
+}
 
 int AesCbcEncrypt(Aes* aes, byte* po, const byte* pi, word32 sz)
 {
-	return(AesCbcCrypt(aes, po, pi, sz, SEC_DESC_AES_CBC_ENCRYPT)) ;
+    return(AesCbcCrypt(aes, po, pi, sz, SEC_DESC_AES_CBC_ENCRYPT)) ;
 }
 
 int AesCbcDecrypt(Aes* aes, byte* po, const byte* pi, word32 sz)
 {
-	return(AesCbcCrypt(aes, po, pi, sz, SEC_DESC_AES_CBC_DECRYPT)) ;
-}
-	
-static int AesCbcCrypt(Aes* aes, byte* po, const byte* pi, word32 sz, word32 descHeader)
-{
-
-	int i ; int stat1, stat2 ;
-	int ret ; int size ;
-	static SECdescriptorType descriptor;
-	volatile int v ;
-    
-    if((pi == NULL) || (po == NULL))
-        return BAD_FUNC_ARG;/*wrong pointer*/
-    
-	while(sz) {
-		if((sz%AES_BUFFER_SIZE) == sz) {
-			size = sz ;
-			sz = 0 ;
-		} else {
-			size = AES_BUFFER_SIZE ;
-			sz -= AES_BUFFER_SIZE ;
-		}
-		
-   		/* Set descriptor for SEC */
-		descriptor.header = descHeader ;
-		/*
-		descriptor.length1 = 0x0;
-		descriptor.pointer1 = NULL;
-		*/
-		descriptor.length2 = AES_BLOCK_SIZE;
-		descriptor.pointer2 = (byte *)aes->reg ; /* Initial Vector */
-	
-		switch(aes->rounds) {
-			case 10: descriptor.length3 = 16 ; break ;
-			case 12: descriptor.length3 = 24 ; break ;
-			case 14: descriptor.length3 = 32 ; break ;
-		}
-
-		descriptor.pointer3 = (byte *)aes->key;
-		descriptor.length4 = size;
-		descriptor.pointer4 = (byte *)pi ;
-		descriptor.length5 = size;
-		descriptor.pointer5 = AESBuffer ;
-		/*
-		descriptor.length6 = 0x0;
-		descriptor.pointer6 = NULL;
-		descriptor.length7 = 0x0;
-		descriptor.pointer7 = NULL;
-		descriptor.nextDescriptorPtr = NULL;
-		*/
-		
-		/* Initialize SEC and wait for encryption to complete */
-		MCF_SEC_CCCR0 = 0x00000000;
-			
-		/* Point SEC to the location of the descriptor */
-		MCF_SEC_FR0 = (uint32)&descriptor;	
-
-		/* poll SISR to determine when channel is complete */
-		i=0 ;
-		while (!(MCF_SEC_SISRL) && !(MCF_SEC_SISRH))i++ ;
-		for(v=0; v<100; v++) ;
-		
-		ret = MCF_SEC_SISRH;
-		stat1 = MCF_SEC_AESSR ;	
-		stat2 = MCF_SEC_AESISR ;
-		if(ret & 0xe0000000)
-		{
-			db_printf("Aes_Cbc(i=%d):ISRH=%08x, AESSR=%08x, AESISR=%08x\n", i, ret, stat1, stat2) ;
-		}
-		
-		XMEMCPY(po, AESBuffer, size) ;
-
-		if(descHeader == SEC_DESC_AES_CBC_ENCRYPT) {
-			XMEMCPY((void*)aes->reg, (void*)&(po[size-AES_BLOCK_SIZE]), AES_BLOCK_SIZE) ;
-		} else {
-			XMEMCPY((void*)aes->reg, (void*)&(pi[size-AES_BLOCK_SIZE]), AES_BLOCK_SIZE) ;
-		}
-		
-		pi += size ; 
-		po += size ;
-	}
-	
-	return 0 ; /* for descriptier header 0xff000000 mode */
+    return(AesCbcCrypt(aes, po, pi, sz, SEC_DESC_AES_CBC_DECRYPT)) ;
 }
 
 int AesSetKey(Aes* aes, const byte* userKey, word32 keylen, const byte* iv,
                   int dir)
 {
-	int status ;
-	
-	if(AESBuffer == NULL) {
-		status = tx_byte_allocate(&mp_ncached,(void *)&AESBuffer, AES_BUFFER_SIZE,TX_NO_WAIT);
-	}
+    int s1, s2, s3, s4, s5 ;
+    
+    if(AESBuffIn == NULL) {
+        #if defined (HAVE_THREADX)
+        s5 = tx_byte_allocate(&mp_ncached,(void *)&secDesc, sizeof(SECdescriptorType), TX_NO_WAIT);
+        s1 = tx_byte_allocate(&mp_ncached,(void *)&AESBuffIn, AES_BUFFER_SIZE, TX_NO_WAIT);
+        s2 = tx_byte_allocate(&mp_ncached,(void *)&AESBuffOut, AES_BUFFER_SIZE, TX_NO_WAIT);
+        s3 = tx_byte_allocate(&mp_ncached,(void *)&secKey, AES_BLOCK_SIZE*2,TX_NO_WAIT);
+        s4 = tx_byte_allocate(&mp_ncached,(void *)&secReg, AES_BLOCK_SIZE,  TX_NO_WAIT);
+        TimeCount = 0 ;
+        
+        if(s1 || s2 || s3 || s4 || s5)
+         return BAD_FUNC_ARG;
+        
+        #else
+        #error "Allocate non-Cache buffers"
+        #endif
+        
+        InitMutex(&Mutex_AesSEC) ;
+    }
 
     if (!((keylen == 16) || (keylen == 24) || (keylen == 32)))
         return BAD_FUNC_ARG;
@@ -732,6 +760,7 @@ int AesSetKey(Aes* aes, const byte* userKey, word32 keylen, const byte* iv,
     XMEMCPY(aes->key, userKey, keylen);         
     if (iv)
         XMEMCPY(aes->reg, iv, AES_BLOCK_SIZE);
+    
     return 0;
 }
 
@@ -2724,7 +2753,7 @@ static void GMULT(word64* X, word64* Y)
 {
     word64 Z[2] = {0,0};
     word64 V[2] ; 
-		int i, j;
+        int i, j;
     V[0] = X[0] ;  V[1] = X[1] ;
 
     for (i = 0; i < 2; i++)
@@ -2825,7 +2854,7 @@ static void GHASH(Aes* aes, const byte* a, word32 aSz,
     /* Hash in the lengths in bits of A and C */
     {
         word64 len[2] ; 
-			  len[0] = aSz ; len[1] = cSz;
+              len[0] = aSz ; len[1] = cSz;
 
         /* Lengths are in bytes. Convert to bits. */
         len[0] *= 8;
@@ -2851,7 +2880,7 @@ static void GMULT(word32* X, word32* Y)
     int i, j;
 
     V[0] = X[0];  V[1] = X[1]; V[2] =  X[2]; V[3] =  X[3];
-			
+            
     for (i = 0; i < 4; i++)
     {
         word32 y = Y[i];
