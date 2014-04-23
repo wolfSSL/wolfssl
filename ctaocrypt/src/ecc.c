@@ -2005,23 +2005,23 @@ int ecc_export_x963(ecc_key* key, byte* out, word32* outLen)
 #endif
 
    do {
-   /* pad and store x */
-   XMEMSET(buf, 0, ECC_BUFSIZE);
-   ret = mp_to_unsigned_bin(&key->pubkey.x,
-                      buf + (numlen - mp_unsigned_bin_size(&key->pubkey.x)));
-   if (ret != MP_OKAY)
-      break;
-   XMEMCPY(out+1, buf, numlen);
+      /* pad and store x */
+      XMEMSET(buf, 0, ECC_BUFSIZE);
+      ret = mp_to_unsigned_bin(&key->pubkey.x,
+                         buf + (numlen - mp_unsigned_bin_size(&key->pubkey.x)));
+      if (ret != MP_OKAY)
+         break;
+      XMEMCPY(out+1, buf, numlen);
 
-   /* pad and store y */
-   XMEMSET(buf, 0, ECC_BUFSIZE);
-   ret = mp_to_unsigned_bin(&key->pubkey.y,
-                      buf + (numlen - mp_unsigned_bin_size(&key->pubkey.y)));
-   if (ret != MP_OKAY)
-      break;
-   XMEMCPY(out+1+numlen, buf, numlen);
+      /* pad and store y */
+      XMEMSET(buf, 0, ECC_BUFSIZE);
+      ret = mp_to_unsigned_bin(&key->pubkey.y,
+                         buf + (numlen - mp_unsigned_bin_size(&key->pubkey.y)));
+      if (ret != MP_OKAY)
+         break;
+      XMEMCPY(out+1+numlen, buf, numlen);
 
-   *outLen = 1 + 2*numlen;
+      *outLen = 1 + 2*numlen;
    } while (0);
 
 #ifdef CYASSL_SMALL_STACK
@@ -3041,62 +3041,63 @@ static int accel_fp_mul(int idx, mp_int* k, ecc_point *R, mp_int* modulus,
       mp_clear(&tk);
    }
    else {
-   /* let's reverse kb so it's little endian */
-   x = 0;
-   y = mp_unsigned_bin_size(&tk) - 1;
-   mp_clear(&tk);
+      /* let's reverse kb so it's little endian */
+      x = 0;
+      y = mp_unsigned_bin_size(&tk) - 1;
+      mp_clear(&tk);
 
-   while ((unsigned)x < y) {
-      z = kb[x]; kb[x] = kb[y]; kb[y] = z;
-      ++x; --y;
-   }      
-   
-   /* at this point we can start, yipee */
-   first = 1;
-   for (x = lut_gap-1; x >= 0; x--) {
-       /* extract FP_LUT bits from kb spread out by lut_gap bits and offset
-          by x bits from the start */
-       bitpos = x;
-       for (y = z = 0; y < FP_LUT; y++) {
-          z |= ((kb[bitpos>>3] >> (bitpos&7)) & 1) << y;
-          bitpos += lut_gap;  /* it's y*lut_gap + x, but here we can avoid
-                                 the mult in each loop */
-       }
-              
-       /* double if not first */
-       if (!first) {
-          if ((err = ecc_projective_dbl_point(R, R, modulus, mp)) != MP_OKAY) {
-             break;
+      while ((unsigned)x < y) {
+         z = kb[x]; kb[x] = kb[y]; kb[y] = z;
+         ++x; --y;
+      }
+
+      /* at this point we can start, yipee */
+      first = 1;
+      for (x = lut_gap-1; x >= 0; x--) {
+          /* extract FP_LUT bits from kb spread out by lut_gap bits and offset
+             by x bits from the start */
+          bitpos = x;
+          for (y = z = 0; y < FP_LUT; y++) {
+             z |= ((kb[bitpos>>3] >> (bitpos&7)) & 1) << y;
+             bitpos += lut_gap;  /* it's y*lut_gap + x, but here we can avoid
+                                    the mult in each loop */
           }
-       }
-       
-       /* add if not first, otherwise copy */          
-       if (!first && z) {
-          if ((err = ecc_projective_add_point(R, fp_cache[idx].LUT[z], R,
-                                              modulus, mp)) != MP_OKAY) {
-             break;
+
+          /* double if not first */
+          if (!first) {
+             if ((err = ecc_projective_dbl_point(R, R, modulus,
+                                                              mp)) != MP_OKAY) {
+                break;
+             }
           }
-       } else if (z) {
-          if ((mp_copy(&fp_cache[idx].LUT[z]->x, &R->x) != MP_OKAY) || 
-              (mp_copy(&fp_cache[idx].LUT[z]->y, &R->y) != MP_OKAY) || 
-              (mp_copy(&fp_cache[idx].mu,        &R->z) != MP_OKAY)) {
-              err = GEN_MEM_ERR;
-              break;
+
+          /* add if not first, otherwise copy */
+          if (!first && z) {
+             if ((err = ecc_projective_add_point(R, fp_cache[idx].LUT[z], R,
+                                                     modulus, mp)) != MP_OKAY) {
+                break;
+             }
+          } else if (z) {
+             if ((mp_copy(&fp_cache[idx].LUT[z]->x, &R->x) != MP_OKAY) ||
+                 (mp_copy(&fp_cache[idx].LUT[z]->y, &R->y) != MP_OKAY) ||
+                 (mp_copy(&fp_cache[idx].mu,        &R->z) != MP_OKAY)) {
+                 err = GEN_MEM_ERR;
+                 break;
+             }
+                 first = 0;
           }
-              first = 0;              
-       }
-   }
+      }
    }
 
    if (err == MP_OKAY) {
-   z = 0;
-   XMEMSET(kb, 0, KB_SIZE);
-   /* map R back from projective space */
-   if (map) {
-      err = ecc_map(R, modulus, mp);
-   } else {
-      err = MP_OKAY;
-   }
+      z = 0;
+      XMEMSET(kb, 0, KB_SIZE);
+      /* map R back from projective space */
+      if (map) {
+         err = ecc_map(R, modulus, mp);
+      } else {
+         err = MP_OKAY;
+      }
    }
 
 #ifdef CYASSL_SMALL_STACK
@@ -3262,76 +3263,77 @@ static int accel_fp_mul2add(int idx1, int idx2,
       mp_clear(&tkb);
    }
    else {
-   x = 0;
-   y = mp_unsigned_bin_size(&tkb) - 1;
-   mp_clear(&tkb);
-   while ((unsigned)x < y) {
-      z = kb[1][x]; kb[1][x] = kb[1][y]; kb[1][y] = z;
-      ++x; --y;
-   }      
+      x = 0;
+      y = mp_unsigned_bin_size(&tkb) - 1;
+      mp_clear(&tkb);
+      while ((unsigned)x < y) {
+         z = kb[1][x]; kb[1][x] = kb[1][y]; kb[1][y] = z;
+         ++x; --y;
+      }
 
-   /* at this point we can start, yipee */
-   first = 1;
-   for (x = lut_gap-1; x >= 0; x--) {
-       /* extract FP_LUT bits from kb spread out by lut_gap bits and
-          offset by x bits from the start */
-       bitpos = x;
-       for (y = zA = zB = 0; y < FP_LUT; y++) {
-          zA |= ((kb[0][bitpos>>3] >> (bitpos&7)) & 1) << y;
-          zB |= ((kb[1][bitpos>>3] >> (bitpos&7)) & 1) << y;
-          bitpos += lut_gap;    /* it's y*lut_gap + x, but here we can avoid
-                                   the mult in each loop */
-       }
-              
-       /* double if not first */
-       if (!first) {
-          if ((err = ecc_projective_dbl_point(R, R, modulus, mp)) != MP_OKAY) {
-             break;
+      /* at this point we can start, yipee */
+      first = 1;
+      for (x = lut_gap-1; x >= 0; x--) {
+          /* extract FP_LUT bits from kb spread out by lut_gap bits and
+             offset by x bits from the start */
+          bitpos = x;
+          for (y = zA = zB = 0; y < FP_LUT; y++) {
+             zA |= ((kb[0][bitpos>>3] >> (bitpos&7)) & 1) << y;
+             zB |= ((kb[1][bitpos>>3] >> (bitpos&7)) & 1) << y;
+             bitpos += lut_gap;    /* it's y*lut_gap + x, but here we can avoid
+                                      the mult in each loop */
           }
-       }
-       
-       /* add if not first, otherwise copy */          
-       if (!first) {
-          if (zA) {
-             if ((err = ecc_projective_add_point(R, fp_cache[idx1].LUT[zA],
-                                                 R, modulus, mp)) != MP_OKAY) {
+
+          /* double if not first */
+          if (!first) {
+             if ((err = ecc_projective_dbl_point(R, R, modulus,
+                                                              mp)) != MP_OKAY) {
                 break;
              }
           }
-          if (zB) {
-             if ((err = ecc_projective_add_point(R, fp_cache[idx2].LUT[zB],
-                                                 R, modulus, mp)) != MP_OKAY) {
-                break;
-             }
-          }
-       } else {
-          if (zA) {
-              if ((mp_copy(&fp_cache[idx1].LUT[zA]->x, &R->x) != MP_OKAY) || 
-                 (mp_copy(&fp_cache[idx1].LUT[zA]->y, &R->y) != MP_OKAY) || 
-                 (mp_copy(&fp_cache[idx1].mu,        &R->z) != MP_OKAY)) {
-                  err = GEN_MEM_ERR;
-                  break;
-              }
-                 first = 0;              
-          }
-          if (zB && first == 0) {
-             if (zB) {
-                if ((err = ecc_projective_add_point(R, fp_cache[idx2].LUT[zB],
-                                                   R, modulus, mp)) != MP_OKAY){
+
+          /* add if not first, otherwise copy */
+          if (!first) {
+             if (zA) {
+                if ((err = ecc_projective_add_point(R, fp_cache[idx1].LUT[zA],
+                                                  R, modulus, mp)) != MP_OKAY) {
                    break;
                 }
              }
-          } else if (zB && first == 1) {
-              if ((mp_copy(&fp_cache[idx2].LUT[zB]->x, &R->x) != MP_OKAY) || 
-                 (mp_copy(&fp_cache[idx2].LUT[zB]->y, &R->y) != MP_OKAY) || 
-                 (mp_copy(&fp_cache[idx2].mu,        &R->z) != MP_OKAY)) {
-                  err = GEN_MEM_ERR;
-                  break;
-              }
-                 first = 0;              
+             if (zB) {
+                if ((err = ecc_projective_add_point(R, fp_cache[idx2].LUT[zB],
+                                                  R, modulus, mp)) != MP_OKAY) {
+                   break;
+                }
+             }
+          } else {
+             if (zA) {
+                 if ((mp_copy(&fp_cache[idx1].LUT[zA]->x, &R->x) != MP_OKAY) ||
+                    (mp_copy(&fp_cache[idx1].LUT[zA]->y,  &R->y) != MP_OKAY) ||
+                    (mp_copy(&fp_cache[idx1].mu,          &R->z) != MP_OKAY)) {
+                     err = GEN_MEM_ERR;
+                     break;
+                 }
+                    first = 0;
+             }
+             if (zB && first == 0) {
+                if (zB) {
+                   if ((err = ecc_projective_add_point(R,
+                           fp_cache[idx2].LUT[zB], R, modulus, mp)) != MP_OKAY){
+                      break;
+                   }
+                }
+             } else if (zB && first == 1) {
+                 if ((mp_copy(&fp_cache[idx2].LUT[zB]->x, &R->x) != MP_OKAY) ||
+                    (mp_copy(&fp_cache[idx2].LUT[zB]->y, &R->y) != MP_OKAY) ||
+                    (mp_copy(&fp_cache[idx2].mu,        &R->z) != MP_OKAY)) {
+                     err = GEN_MEM_ERR;
+                     break;
+                 }
+                    first = 0;
+             }
           }
-       }
-   }
+      }
    }
 
    XMEMSET(kb[0], 0, KB_SIZE);
@@ -3901,66 +3903,68 @@ int ecc_encrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
     ret = ecc_shared_secret(privKey, pubKey, sharedSecret, &sharedSz);
 
     if (ret == 0) {
-    switch (ctx->kdfAlgo) {
-        case ecHKDF_SHA256 :
-            ret = HKDF(SHA256, sharedSecret, sharedSz, ctx->kdfSalt,
-                   ctx->kdfSaltSz, ctx->kdfInfo, ctx->kdfInfoSz, keys, keysLen);
-            break;
+       switch (ctx->kdfAlgo) {
+           case ecHKDF_SHA256 :
+               ret = HKDF(SHA256, sharedSecret, sharedSz, ctx->kdfSalt,
+                          ctx->kdfSaltSz, ctx->kdfInfo, ctx->kdfInfoSz,
+                          keys, keysLen);
+               break;
 
-        default:
-            ret = BAD_FUNC_ARG;
-            break;
-    }
-    }
-
-    if (ret == 0) {
-    encKey = keys + offset;
-    encIv  = encKey + encKeySz;
-    macKey = encKey + encKeySz + ivSz;
-
-    switch (ctx->encAlgo) {
-        case ecAES_128_CBC:
-            {
-                Aes aes;
-                ret = AesSetKey(&aes, encKey,KEY_SIZE_128,encIv,AES_ENCRYPTION);
-                if (ret != 0)
-                    break;
-                ret = AesCbcEncrypt(&aes, out, msg, msgSz);
-            }
-            break;
-
-        default:
-            ret = BAD_FUNC_ARG;
-            break;
-    }
+           default:
+               ret = BAD_FUNC_ARG;
+               break;
+       }
     }
 
     if (ret == 0) {
-    switch (ctx->macAlgo) {
-        case ecHMAC_SHA256:
-            {
-                Hmac hmac;
-                ret = HmacSetKey(&hmac, SHA256, macKey, SHA256_DIGEST_SIZE);
-                if (ret != 0)
-                    break;
-                ret = HmacUpdate(&hmac, out, msgSz);
-                if (ret != 0)
-                    break;
-                ret = HmacUpdate(&hmac, ctx->macSalt, ctx->macSaltSz);
-                if (ret != 0)
-                    break;
-                ret = HmacFinal(&hmac, out+msgSz);
-            }
-            break;
+       encKey = keys + offset;
+       encIv  = encKey + encKeySz;
+       macKey = encKey + encKeySz + ivSz;
 
-        default:
-            ret = BAD_FUNC_ARG;
-            break;
+       switch (ctx->encAlgo) {
+           case ecAES_128_CBC:
+               {
+                   Aes aes;
+                   ret = AesSetKey(&aes, encKey, KEY_SIZE_128, encIv,
+                                                                AES_ENCRYPTION);
+                   if (ret != 0)
+                       break;
+                   ret = AesCbcEncrypt(&aes, out, msg, msgSz);
+               }
+               break;
+
+           default:
+               ret = BAD_FUNC_ARG;
+               break;
+       }
     }
+
+    if (ret == 0) {
+       switch (ctx->macAlgo) {
+           case ecHMAC_SHA256:
+               {
+                   Hmac hmac;
+                   ret = HmacSetKey(&hmac, SHA256, macKey, SHA256_DIGEST_SIZE);
+                   if (ret != 0)
+                       break;
+                   ret = HmacUpdate(&hmac, out, msgSz);
+                   if (ret != 0)
+                       break;
+                   ret = HmacUpdate(&hmac, ctx->macSalt, ctx->macSaltSz);
+                   if (ret != 0)
+                       break;
+                   ret = HmacFinal(&hmac, out+msgSz);
+               }
+               break;
+
+           default:
+               ret = BAD_FUNC_ARG;
+               break;
+       }
     }
 
     if (ret == 0)
-    *outSz = msgSz + digestSz;
+       *outSz = msgSz + digestSz;
 
 #ifdef CYASSL_SMALL_STACK
     XFREE(sharedSecret, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -4051,71 +4055,73 @@ int ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
     ret = ecc_shared_secret(privKey, pubKey, sharedSecret, &sharedSz);
 
     if (ret == 0) {
-    switch (ctx->kdfAlgo) {
-        case ecHKDF_SHA256 :
-            ret = HKDF(SHA256, sharedSecret, sharedSz, ctx->kdfSalt,
-                   ctx->kdfSaltSz, ctx->kdfInfo, ctx->kdfInfoSz, keys, keysLen);
-            break;
+       switch (ctx->kdfAlgo) {
+           case ecHKDF_SHA256 :
+               ret = HKDF(SHA256, sharedSecret, sharedSz, ctx->kdfSalt,
+                          ctx->kdfSaltSz, ctx->kdfInfo, ctx->kdfInfoSz,
+                          keys, keysLen);
+               break;
 
-        default:
-            ret = BAD_FUNC_ARG;
-            break;
-    }
-    }
-
-    if (ret == 0) {
-    encKey = keys + offset;
-    encIv  = encKey + encKeySz;
-    macKey = encKey + encKeySz + ivSz;
-
-    switch (ctx->macAlgo) {
-        case ecHMAC_SHA256:
-            {
-                byte verify[SHA256_DIGEST_SIZE];
-                Hmac hmac;
-                ret = HmacSetKey(&hmac, SHA256, macKey, SHA256_DIGEST_SIZE);
-                if (ret != 0)
-                    break;
-                ret = HmacUpdate(&hmac, msg, msgSz-digestSz);
-                if (ret != 0)
-                    break;
-                ret = HmacUpdate(&hmac, ctx->macSalt, ctx->macSaltSz);
-                if (ret != 0)
-                    break;
-                ret = HmacFinal(&hmac, verify);
-                if (ret != 0)
-                    break;
-                if (memcmp(verify, msg + msgSz - digestSz, digestSz) != 0)
-                    ret = -1;
-            }
-            break;
-
-        default:
-            ret = BAD_FUNC_ARG;
-            break;
-    }
+           default:
+               ret = BAD_FUNC_ARG;
+               break;
+       }
     }
 
     if (ret == 0) {
-    switch (ctx->encAlgo) {
-        case ecAES_128_CBC:
-            {
-                Aes aes;
-                ret = AesSetKey(&aes, encKey,KEY_SIZE_128,encIv,AES_DECRYPTION);
-                if (ret != 0)
-                    break;
-                ret = AesCbcDecrypt(&aes, out, msg, msgSz-digestSz);
-            }
-            break;
+       encKey = keys + offset;
+       encIv  = encKey + encKeySz;
+       macKey = encKey + encKeySz + ivSz;
 
-        default:
-            ret = BAD_FUNC_ARG;
-            break;
+       switch (ctx->macAlgo) {
+           case ecHMAC_SHA256:
+               {
+                   byte verify[SHA256_DIGEST_SIZE];
+                   Hmac hmac;
+                   ret = HmacSetKey(&hmac, SHA256, macKey, SHA256_DIGEST_SIZE);
+                   if (ret != 0)
+                       break;
+                   ret = HmacUpdate(&hmac, msg, msgSz-digestSz);
+                   if (ret != 0)
+                       break;
+                   ret = HmacUpdate(&hmac, ctx->macSalt, ctx->macSaltSz);
+                   if (ret != 0)
+                       break;
+                   ret = HmacFinal(&hmac, verify);
+                   if (ret != 0)
+                       break;
+                   if (memcmp(verify, msg + msgSz - digestSz, digestSz) != 0)
+                       ret = -1;
+               }
+               break;
+
+           default:
+               ret = BAD_FUNC_ARG;
+               break;
+       }
     }
+
+    if (ret == 0) {
+       switch (ctx->encAlgo) {
+           case ecAES_128_CBC:
+               {
+                   Aes aes;
+                   ret = AesSetKey(&aes, encKey, KEY_SIZE_128, encIv,
+                                                                AES_DECRYPTION);
+                   if (ret != 0)
+                       break;
+                   ret = AesCbcDecrypt(&aes, out, msg, msgSz-digestSz);
+               }
+               break;
+
+           default:
+               ret = BAD_FUNC_ARG;
+               break;
+       }
     }
 
     if (ret == 0)
-    *outSz = msgSz - digestSz;
+       *outSz = msgSz - digestSz;
 
 #ifdef CYASSL_SMALL_STACK
     XFREE(sharedSecret, NULL, DYNAMIC_TYPE_TMP_BUFFER);
