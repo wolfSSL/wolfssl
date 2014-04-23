@@ -307,13 +307,28 @@ static int Hash_DBRG_Uninstantiate(RNG* rng)
 /* Get seed and key cipher */
 int InitRng(RNG* rng)
 {
+#ifdef CYASSL_SMALL_STACK
+    byte* entropy;
+#else
     byte entropy[ENTROPY_SZ];
+#endif
     int  ret = DBRG_ERROR;
 
-    if (GenerateSeed(&rng->seed, entropy, sizeof(entropy)) == 0)
-        ret = Hash_DBRG_Instantiate(rng, entropy, sizeof(entropy));
+#ifdef CYASSL_SMALL_STACK
+    entropy = (byte*)XMALLOC(ENTROPY_SZ, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (entropy == NULL)
+        return MEMORY_E;
+#endif
 
-    XMEMSET(entropy, 0, sizeof(entropy));
+    if (GenerateSeed(&rng->seed, entropy, ENTROPY_SZ) == 0)
+        ret = Hash_DBRG_Instantiate(rng, entropy, ENTROPY_SZ);
+
+    XMEMSET(entropy, 0, ENTROPY_SZ);
+
+#ifdef CYASSL_SMALL_STACK
+    XFREE(entropy, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
     return ret;
 }
 
@@ -327,17 +342,33 @@ int RNG_GenerateBlock(RNG* rng, byte* output, word32 sz)
     ret = Hash_DBRG_Generate(rng, output, sz);
 
     if (ret == DBRG_NEED_RESEED) {
+#ifdef CYASSL_SMALL_STACK
+        byte* entropy;
+#else
         byte entropy[ENTROPY_SZ];
-        ret = GenerateSeed(&rng->seed, entropy, sizeof(entropy));
+#endif
+
+#ifdef CYASSL_SMALL_STACK
+        entropy = (byte*)XMALLOC(ENTROPY_SZ, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        if (entropy == NULL)
+            return MEMORY_E;
+#endif
+
+        ret = GenerateSeed(&rng->seed, entropy, ENTROPY_SZ);
         if (ret == 0) {
-            ret = Hash_DBRG_Reseed(rng, entropy, sizeof(entropy));
+            ret = Hash_DBRG_Reseed(rng, entropy, ENTROPY_SZ);
 
             if (ret == 0)
                 ret = Hash_DBRG_Generate(rng, output, sz);
         }
         else
             ret = DBRG_ERROR;
-        XMEMSET(entropy, 0, sizeof(entropy));
+
+        XMEMSET(entropy, 0, ENTROPY_SZ);
+
+#ifdef CYASSL_SMALL_STACK
+        XFREE(entropy, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
     }
 
     return ret;
@@ -360,21 +391,44 @@ void FreeRng(RNG* rng)
 /* Get seed and key cipher */
 int InitRng(RNG* rng)
 {
+    int  ret;
+#ifdef CYASSL_SMALL_STACK
+    byte* key;
+    byte* junk;
+#else
     byte key[32];
     byte junk[256];
-    int  ret;
+#endif
 
 #ifdef HAVE_CAVIUM
     if (rng->magic == CYASSL_RNG_CAVIUM_MAGIC)
         return 0;
 #endif
-    ret = GenerateSeed(&rng->seed, key, sizeof(key));
+
+#ifdef CYASSL_SMALL_STACK
+    key = (byte*)XMALLOC(32, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (key == NULL)
+        return MEMORY_E;
+
+    junk = (byte*)XMALLOC(256, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (junk == NULL) {
+        XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        return MEMORY_E;
+    }
+#endif
+
+    ret = GenerateSeed(&rng->seed, key, 32);
 
     if (ret == 0) {
         Arc4SetKey(&rng->cipher, key, sizeof(key));
 
-        return RNG_GenerateBlock(rng, junk, sizeof(junk)); /*rid initial state*/
+        ret = RNG_GenerateBlock(rng, junk, 256); /*rid initial state*/
     }
+
+#ifdef CYASSL_SMALL_STACK
+    XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(junk, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 
     return ret;
 }
