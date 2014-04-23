@@ -307,13 +307,11 @@ static CyaSSL_Mutex Mutex_DesSEC ;
 
 extern volatile unsigned char __MBAR[];
 
-static int TimeCount = 0 ;
-
 static void Des_Cbc(byte* out, const byte* in, word32 sz, 
                     byte *key, byte *iv, word32 desc)
 {
-    int ret ; int stat1,stat2 ;
-    int i ; int size ;
+    int ret ;  /* int stat1,stat2 ; */
+    int size ;
     volatile int v ;
  
     LockMutex(&Mutex_DesSEC) ;
@@ -364,11 +362,12 @@ static void Des_Cbc(byte* out, const byte* in, word32 sz,
         }
 
         ret = MCF_SEC_SISRH;
-        stat1 = MCF_SEC_DSR ;   
-        stat2 = MCF_SEC_DISR ;
-        if(ret & 0xe0000000)
-            db_printf("Des_Cbc(%x):ISRH=%08x, DSR=%08x, DISR=%08x\n", desc, ret, stat1, stat2) ;
-
+        /* stat1 = MCF_SEC_DSR ; */   
+        /* stat2 = MCF_SEC_DISR ; */
+        if(ret & 0xe0000000) {
+            /* db_printf("Des_Cbc(%x):ISRH=%08x, DSR=%08x, DISR=%08x\n", desc, ret, stat1, stat2) ; */
+        }
+				
         XMEMCPY(out, desBuffOut, size) ;
 
         if((desc==SEC_DESC_DES3_CBC_ENCRYPT)||(desc==SEC_DESC_DES_CBC_ENCRYPT)) {
@@ -383,30 +382,30 @@ static void Des_Cbc(byte* out, const byte* in, word32 sz,
     }
     UnLockMutex(&Mutex_DesSEC) ;
     
-    if((TimeCount++ % 6)==0)
-        tx_thread_sleep(1) ; /* DELAY */
 }
 
 
 void Des_CbcEncrypt(Des* des, byte* out, const byte* in, word32 sz)
 {
-    Des_Cbc(out, in, sz, des->key, des->reg, SEC_DESC_DES_CBC_ENCRYPT) ;
+    Des_Cbc(out, in, sz,  (byte *)des->key,  (byte *)des->reg, SEC_DESC_DES_CBC_ENCRYPT) ;
 }
 
 void Des_CbcDecrypt(Des* des, byte* out, const byte* in, word32 sz)
 {
-    Des_Cbc(out, in, sz,  des->key, des->reg, SEC_DESC_DES_CBC_DECRYPT) ;
+    Des_Cbc(out, in, sz,   (byte *)des->key,  (byte *)des->reg, SEC_DESC_DES_CBC_DECRYPT) ;
 }
 
-void Des3_CbcEncrypt(Des3* des3, byte* out, const byte* in, word32 sz)
+int Des3_CbcEncrypt(Des3* des3, byte* out, const byte* in, word32 sz)
 {
-    Des_Cbc(out, in, sz,  des3->key, des3->reg, SEC_DESC_DES3_CBC_ENCRYPT) ;
+    Des_Cbc(out, in, sz,  (byte *)des3->key,  (byte *)des3->reg, SEC_DESC_DES3_CBC_ENCRYPT) ;
+	  return 0;
 }
 
 
-void Des3_CbcDecrypt(Des3* des3, byte* out, const byte* in, word32 sz)
+int Des3_CbcDecrypt(Des3* des3, byte* out, const byte* in, word32 sz)
 {
-    Des_Cbc(out, in, sz,  des3->key, des3->reg, SEC_DESC_DES3_CBC_DECRYPT) ;
+    Des_Cbc(out, in, sz,   (byte *)des3->key,  (byte *)des3->reg, SEC_DESC_DES3_CBC_DECRYPT) ;
+	  return 0;
 }
 
 static void setParity(byte *buf, int len) 
@@ -431,12 +430,11 @@ static void setParity(byte *buf, int len)
 }
 
 
-void Des_SetKey(Des* des, const byte* key, const byte* iv, int dir)
+int Des_SetKey(Des* des, const byte* key, const byte* iv, int dir)
 {
-    int i ; int s1, s2, s3, s4, s5 ;
-    
     if(desBuffIn == NULL) {
         #if defined (HAVE_THREADX)
+			  int s1, s2, s3, s4, s5 ;
         s5 = tx_byte_allocate(&mp_ncached,(void *)&secDesc, 
                                                      sizeof(SECdescriptorType), TX_NO_WAIT);
         s1 = tx_byte_allocate(&mp_ncached,(void *)&desBuffIn,  DES_BUFFER_SIZE, TX_NO_WAIT);
@@ -445,7 +443,7 @@ void Des_SetKey(Des* des, const byte* key, const byte* iv, int dir)
         s3 = tx_byte_allocate(&mp_ncached,(void *)&secKey,     DES3_KEYLEN,TX_NO_WAIT);
         s4 = tx_byte_allocate(&mp_ncached,(void *)&secIV,      DES3_IVLEN,  TX_NO_WAIT);              
         #else
-        #error "Allocate non-Cache buffers"
+        #warning "Allocate non-Cache buffers"
         #endif
         
         InitMutex(&Mutex_DesSEC) ;
@@ -457,21 +455,25 @@ void Des_SetKey(Des* des, const byte* key, const byte* iv, int dir)
     }   else {
         XMEMSET(des->reg, 0x0, DES_IVLEN) ;
     }
-
+		return 0;
 }
 
-void Des3_SetKey(Des3* des3, const byte* key, const byte* iv, int dir)
+int Des3_SetKey(Des3* des3, const byte* key, const byte* iv, int dir)
 {
-    int i ; int s1, s2, s3, s4, s5 ;
     
     if(desBuffIn == NULL) {
+        #if defined (HAVE_THREADX)
+			  int s1, s2, s3, s4, s5 ;
         s5 = tx_byte_allocate(&mp_ncached,(void *)&secDesc, 
                                                      sizeof(SECdescriptorType), TX_NO_WAIT);
         s1 = tx_byte_allocate(&mp_ncached,(void *)&desBuffIn,  DES_BUFFER_SIZE, TX_NO_WAIT);
         s2 = tx_byte_allocate(&mp_ncached,(void *)&desBuffOut, DES_BUFFER_SIZE, TX_NO_WAIT);
         s3 = tx_byte_allocate(&mp_ncached,(void *)&secKey,     DES3_KEYLEN,TX_NO_WAIT);
         s4 = tx_byte_allocate(&mp_ncached,(void *)&secIV,      DES3_IVLEN,  TX_NO_WAIT);              
-                          
+        #else
+        #warning "Allocate non-Cache buffers"
+        #endif
+        
         InitMutex(&Mutex_DesSEC) ;
     }
     
@@ -482,6 +484,7 @@ void Des3_SetKey(Des3* des3, const byte* key, const byte* iv, int dir)
     }   else {
         XMEMSET(des3->reg, 0x0, DES3_IVLEN) ;
     }
+    return 0;
 
 }
 

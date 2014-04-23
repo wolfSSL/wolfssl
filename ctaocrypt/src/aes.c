@@ -698,7 +698,7 @@ static int AesCbcCrypt(Aes* aes, byte* po, const byte* pi, word32 sz, word32 des
         stat2 = MCF_SEC_AESISR ;
         if(ret & 0xe0000000)
         {
-            db_printf("Aes_Cbc(i=%d):ISRH=%08x, AESSR=%08x, AESISR=%08x\n", i, ret, stat1, stat2) ;
+            /* db_printf("Aes_Cbc(i=%d):ISRH=%08x, AESSR=%08x, AESISR=%08x\n", i, ret, stat1, stat2) ; */
         }
 
         XMEMCPY(po, AESBuffOut, size) ;
@@ -744,7 +744,7 @@ int AesSetKey(Aes* aes, const byte* userKey, word32 keylen, const byte* iv,
          return BAD_FUNC_ARG;
         
         #else
-        #error "Allocate non-Cache buffers"
+        #warning "Allocate non-Cache buffers"
         #endif
         
         InitMutex(&Mutex_AesSEC) ;
