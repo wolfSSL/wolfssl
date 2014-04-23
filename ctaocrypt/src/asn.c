@@ -1057,7 +1057,7 @@ int RsaPublicKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
 
     key->type = RSA_PUBLIC;
 
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) || defined(RSA_DECODE_EXTRA)
     {
     byte b = input[*inOutIdx];
     if (b != ASN_INTEGER) {
