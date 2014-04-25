@@ -148,14 +148,14 @@
            (cryptoalgo == PIC32_CRYPTOALGO_RCBC)) {
             /* set iv for the next call */
             if(dir == PIC32_ENCRYPTION) {
-            XMEMCPY((void *)aes->iv_ce,
+                XMEMCPY((void *)aes->iv_ce,
                         (void*)KVA0_TO_KVA1(out + sz - AES_BLOCK_SIZE),
                         AES_BLOCK_SIZE) ;
-        } else {
+            } else {
                 ByteReverseWords((word32*)aes->iv_ce,
                         (word32 *)KVA0_TO_KVA1(in + sz - AES_BLOCK_SIZE),
                         AES_BLOCK_SIZE);
-        }
+            }
         }
         XMEMCPY((byte *)out, (byte *)KVA0_TO_KVA1(out), sz) ;
         ByteReverseWords((word32*)out, (word32 *)out, sz);
@@ -2754,7 +2754,7 @@ static void GMULT(word64* X, word64* Y)
 {
     word64 Z[2] = {0,0};
     word64 V[2] ; 
-        int i, j;
+    int i, j;
     V[0] = X[0] ;  V[1] = X[1] ;
 
     for (i = 0; i < 2; i++)
@@ -2855,7 +2855,7 @@ static void GHASH(Aes* aes, const byte* a, word32 aSz,
     /* Hash in the lengths in bits of A and C */
     {
         word64 len[2] ; 
-              len[0] = aSz ; len[1] = cSz;
+        len[0] = aSz ; len[1] = cSz;
 
         /* Lengths are in bytes. Convert to bits. */
         len[0] *= 8;
@@ -2881,7 +2881,7 @@ static void GMULT(word32* X, word32* Y)
     int i, j;
 
     V[0] = X[0];  V[1] = X[1]; V[2] =  X[2]; V[3] =  X[3];
-            
+
     for (i = 0; i < 4; i++)
     {
         word32 y = Y[i];
