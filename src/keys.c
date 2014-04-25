@@ -1473,25 +1473,6 @@ static int SetPrefix(byte* sha_input, int idx)
 #endif
 
 
-static void setParity(byte *out, byte *in, int len) /* set parity for DES3 */
-{
-    int i, j ;
-    byte v ;
-    int bits ;
-
-    for(i=0; i<len; i++) {
-        out[i] = in[i] ;
-        v = out[i] >> 1 ;
-        out[i] = v << 1 ;
-        bits = 0 ;
-        for(j=0; j<7; j++) {
-            bits += (v&0x1) ;
-            v = v >> 1 ;
-        }
-        out[i] |= (1 - (bits&0x1)) ;
-    }
-} 
-
 static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
                    byte side, void* heap, int devId)
 {
@@ -1624,28 +1605,22 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
         }
 #endif
         if (side == CYASSL_CLIENT_END) {
-            byte key[DES_KEYLEN*3] ; 
-            setParity(key, keys->client_write_key, DES_KEYLEN*3) ;
-            desRet = Des3_SetKey(enc->des3, key,
+            desRet = Des3_SetKey(enc->des3, keys->client_write_key,
                         keys->client_write_IV, DES_ENCRYPTION);
             if (desRet != 0)
                 return desRet;
-            setParity(key, keys->server_write_key, DES_KEYLEN*3) ;
-            desRet = Des3_SetKey(dec->des3, key,
+            desRet = Des3_SetKey(dec->des3, keys->server_write_key,
                         keys->server_write_IV, DES_DECRYPTION);
             if (desRet != 0)
                 return desRet;
         }
         else {
-            byte key[DES_KEYLEN*3] ; 
-            setParity(key, keys->server_write_key, DES_KEYLEN*3) ;
-            desRet = Des3_SetKey(enc->des3, key,
+            desRet = Des3_SetKey(enc->des3, keys->server_write_key,
                         keys->server_write_IV, DES_ENCRYPTION);
             if (desRet != 0)
                 return desRet;
-            setParity(key, keys->client_write_key, DES_KEYLEN*3) ;
-            desRet = Des3_SetKey(dec->des3, key, 
-                        keys->client_write_IV, DES_DECRYPTION);
+            desRet = Des3_SetKey(dec->des3, keys->client_write_key,
+                keys->client_write_IV, DES_DECRYPTION);
             if (desRet != 0)
                 return desRet;
         }

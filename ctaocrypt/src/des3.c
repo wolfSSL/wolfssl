@@ -275,7 +275,7 @@
 
 #elif defined(HAVE_COLDFIRE_SEC)
 
-#include <cyassl/internal.h>
+#include <cyassl/ctaocrypt/types.h>
 
 #include "sec.h"
 #include "mcf5475_sec.h"
@@ -310,7 +310,9 @@ extern volatile unsigned char __MBAR[];
 static void Des_Cbc(byte* out, const byte* in, word32 sz, 
                     byte *key, byte *iv, word32 desc)
 {
-    int ret ;  /* int stat1,stat2 ; */
+    #ifdef DEBUG_CYASSL
+    int ret ;  int stat1,stat2 ; 
+	  #endif
     int size ;
     volatile int v ;
  
@@ -360,13 +362,15 @@ static void Des_Cbc(byte* out, const byte* in, word32 sz,
         while((secDesc->header>> 24) != 0xff) {
             if(v++ > 1000)break ;
         }
-
+				
+#ifdef DEBUG_CYASSL
         ret = MCF_SEC_SISRH;
-        /* stat1 = MCF_SEC_DSR ; */   
-        /* stat2 = MCF_SEC_DISR ; */
+        stat1 = MCF_SEC_DSR ; 
+        stat2 = MCF_SEC_DISR ; 
         if(ret & 0xe0000000) {
             /* db_printf("Des_Cbc(%x):ISRH=%08x, DSR=%08x, DISR=%08x\n", desc, ret, stat1, stat2) ; */
         }
+#endif
 				
         XMEMCPY(out, desBuffOut, size) ;
 
@@ -448,8 +452,10 @@ int Des_SetKey(Des* des, const byte* key, const byte* iv, int dir)
         
         InitMutex(&Mutex_DesSEC) ;
     }
-
-    XMEMCPY(des->key, key, DES_KEYLEN);      
+     
+    XMEMCPY(des->key, key, DES_KEYLEN);  
+    setParity((byte *)des->key, DES_KEYLEN) ;  
+		
     if (iv) {
         XMEMCPY(des->reg, iv, DES_IVLEN);
     }   else {
@@ -478,7 +484,8 @@ int Des3_SetKey(Des3* des3, const byte* key, const byte* iv, int dir)
     }
     
     XMEMCPY(des3->key[0], key, DES3_KEYLEN); 
-    setParity((byte *)des3->key[0], DES3_KEYLEN) ;     
+    setParity((byte *)des3->key[0], DES3_KEYLEN) ;  
+		
     if (iv) {
         XMEMCPY(des3->reg, iv, DES3_IVLEN);
     }   else {

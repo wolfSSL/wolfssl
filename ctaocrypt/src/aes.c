@@ -605,7 +605,7 @@
 
 #elif defined(HAVE_COLDFIRE_SEC)
 
-#include <cyassl/internal.h>
+#include <cyassl/ctaocrypt/types.h>
 
 #include "sec.h"
 #include "mcf5475_sec.h"
@@ -629,14 +629,14 @@ static CyaSSL_Mutex Mutex_AesSEC ;
 #define SEC_DESC_AES_CBC_DECRYPT 0x60200010
 
 extern volatile unsigned char __MBAR[];
- 
-static int TimeCount = 0 ;
     
 static int AesCbcCrypt(Aes* aes, byte* po, const byte* pi, word32 sz, word32 descHeader)
 {
+    #ifdef DEBUG_CYASSL
+    int i ;  int stat1, stat2 ;   int ret ; 
+	  #endif
 
-    int i ; int stat1, stat2 ;
-    int ret ; int size ;
+    int size ;
     volatile int v ;
 
     if((pi == NULL) || (po == NULL))
@@ -693,13 +693,15 @@ static int AesCbcCrypt(Aes* aes, byte* po, const byte* pi, word32 sz, word32 des
         v=0 ;
         while((secDesc->header>> 24) != 0xff)v++ ;
 
+#ifdef DEBUG_CYASSL
         ret = MCF_SEC_SISRH;
         stat1 = MCF_SEC_AESSR ; 
-        stat2 = MCF_SEC_AESISR ;
+        stat2 = MCF_SEC_AESISR ; 
         if(ret & 0xe0000000)
         {
-            /* db_printf("Aes_Cbc(i=%d):ISRH=%08x, AESSR=%08x, AESISR=%08x\n", i, ret, stat1, stat2) ; */
+            db_printf("Aes_Cbc(i=%d):ISRH=%08x, AESSR=%08x, AESISR=%08x\n", i, ret, stat1, stat2) ; 
         }
+#endif
 
         XMEMCPY(po, AESBuffOut, size) ;
 
@@ -713,7 +715,7 @@ static int AesCbcCrypt(Aes* aes, byte* po, const byte* pi, word32 sz, word32 des
         po += size ;
     }
     UnLockMutex(&Mutex_AesSEC) ;
-    return 0 ; /* for descriptier header 0xff000000 mode */
+    return 0 ; 
 }
 
 int AesCbcEncrypt(Aes* aes, byte* po, const byte* pi, word32 sz)
@@ -729,16 +731,15 @@ int AesCbcDecrypt(Aes* aes, byte* po, const byte* pi, word32 sz)
 int AesSetKey(Aes* aes, const byte* userKey, word32 keylen, const byte* iv,
                   int dir)
 {
-    int s1, s2, s3, s4, s5 ;
     
     if(AESBuffIn == NULL) {
         #if defined (HAVE_THREADX)
+			  int s1, s2, s3, s4, s5 ;
         s5 = tx_byte_allocate(&mp_ncached,(void *)&secDesc, sizeof(SECdescriptorType), TX_NO_WAIT);
         s1 = tx_byte_allocate(&mp_ncached,(void *)&AESBuffIn, AES_BUFFER_SIZE, TX_NO_WAIT);
         s2 = tx_byte_allocate(&mp_ncached,(void *)&AESBuffOut, AES_BUFFER_SIZE, TX_NO_WAIT);
         s3 = tx_byte_allocate(&mp_ncached,(void *)&secKey, AES_BLOCK_SIZE*2,TX_NO_WAIT);
         s4 = tx_byte_allocate(&mp_ncached,(void *)&secReg, AES_BLOCK_SIZE,  TX_NO_WAIT);
-        TimeCount = 0 ;
         
         if(s1 || s2 || s3 || s4 || s5)
          return BAD_FUNC_ARG;
