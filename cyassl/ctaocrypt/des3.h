@@ -1,6 +1,6 @@
 /* des3.h
  *
- * Copyright (C) 2006-2014 wolfSSL Inc.
+ * Copyright (C) 2006-2013 wolfSSL Inc.
  *
  * This file is part of CyaSSL.
  *
@@ -40,10 +40,16 @@ enum {
     DES3_ENC_TYPE   = 3,     /* cipher unique type */
     DES_BLOCK_SIZE  = 8,
     DES_KS_SIZE     = 32,
-    DES_KEYLEN      = 8 ,
+
     DES_ENCRYPTION  = 0,
     DES_DECRYPTION  = 1
 };
+
+#define DES_IVLEN 8
+#define DES_KEYLEN 8
+#define DES3_IVLEN 8
+#define DES3_KEYLEN 24
+
 
 #ifdef STM32F2_CRYPTO
 enum {
