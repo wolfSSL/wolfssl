@@ -685,7 +685,7 @@ int Des3_SetKey(Des3* des3, const byte* key, const byte* iv, int dir)
 
 #elif defined(CYASSL_PIC32MZ_CRYPT)
 
-    #include "../../cyassl/ctaocrypt/port/pic32/pic32mz-crypt.h"
+    #include "cyassl/ctaocrypt/port/pic32/pic32mz-crypt.h"
 
 void Des_SetIV(Des* des, const byte* iv);
 int  Des3_SetIV(Des3* des, const byte* iv);

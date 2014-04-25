@@ -63,7 +63,7 @@
 
 #if defined(CYASSL_PIC32MZ_CRYPT)
 
-#include "../../cyassl/ctaocrypt/port/pic32/pic32mz-crypt.h"
+#include "cyassl/ctaocrypt/port/pic32/pic32mz-crypt.h"
 #define DEBUG_CYASSL
 
     /* core hardware crypt engine driver */
