@@ -1520,6 +1520,10 @@ int AddCA(CYASSL_CERT_MANAGER* cm, buffer der, int type, int verify)
             signer->pubKeySize = cert.pubKeySize;
             signer->nameLen    = cert.subjectCNLen;
             signer->name       = cert.subjectCN;
+            #ifndef IGNORE_NAME_CONSTRAINTS
+                signer->permittedNames = cert.permittedNames;
+                signer->excludedNames = cert.excludedNames;
+            #endif
             #ifndef NO_SKID
                 XMEMCPY(signer->subjectKeyIdHash,
                                             cert.extSubjKeyId, SHA_DIGEST_SIZE);
@@ -1531,6 +1535,10 @@ int AddCA(CYASSL_CERT_MANAGER* cm, buffer der, int type, int verify)
 
             cert.publicKey = 0;  /* don't free here */
             cert.subjectCN = 0;
+            #ifndef IGNORE_NAME_CONSTRAINTS
+                cert.permittedNames = NULL;
+                cert.excludedNames = NULL;
+            #endif
 
             #ifndef NO_SKID
                 row = HashSigner(signer->subjectKeyIdHash);
