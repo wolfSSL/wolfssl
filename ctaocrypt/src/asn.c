@@ -1672,6 +1672,12 @@ static int GetName(DecodedCert* cert, int nameType)
         cert->issuerRawLen = length - cert->srcIdx;
     }
 #endif
+#ifndef IGNORE_NAME_CONSTRAINTS
+    if (nameType == SUBJECT) {
+        cert->subjectRaw = &cert->source[cert->srcIdx];
+        cert->subjectRawLen = length - cert->srcIdx;
+    }
+#endif
 
     while (cert->srcIdx < (word32)length) {
         byte   b;
@@ -3004,7 +3010,7 @@ static int ConfirmNameConstraints(Signer* signer, DecodedCert* cert)
                 while (name != NULL) {
                     if (MatchBaseName(ASN_DNS_TYPE,
                                           name->name, (int)XSTRLEN(name->name),
-                                          base->name, (int)XSTRLEN(base->name)))
+                                          base->name, base->nameSz))
                         return 0;
                     name = name->next;
                 }
@@ -3014,9 +3020,17 @@ static int ConfirmNameConstraints(Signer* signer, DecodedCert* cert)
                 while (name != NULL) {
                     if (MatchBaseName(ASN_RFC822_TYPE,
                                           name->name, (int)XSTRLEN(name->name),
-                                          base->name, (int)XSTRLEN(base->name)))
+                                          base->name, base->nameSz))
                         return 0;
+
                     name = name->next;
+                }
+            }
+            else if (base->type == ASN_DIR_TYPE) {
+                if (cert->subjectRawLen == base->nameSz &&
+                    XMEMCMP(cert->subjectRaw, base->name, base->nameSz) == 0) {
+
+                    return 0;
                 }
             }
             base = base->next;
@@ -3029,6 +3043,8 @@ static int ConfirmNameConstraints(Signer* signer, DecodedCert* cert)
         int matchDns = 0;
         int needEmail = 0;
         int matchEmail = 0;
+        int needDir = 0;
+        int matchDir = 0;
         Base_entry* base = signer->permittedNames;
 
         while (base != NULL) {
@@ -3041,7 +3057,7 @@ static int ConfirmNameConstraints(Signer* signer, DecodedCert* cert)
                 while (name != NULL) {
                     matchDns = MatchBaseName(ASN_DNS_TYPE,
                                           name->name, (int)XSTRLEN(name->name),
-                                          base->name, (int)XSTRLEN(base->name));
+                                          base->name, base->nameSz);
                     name = name->next;
                 }
             }
@@ -3054,15 +3070,27 @@ static int ConfirmNameConstraints(Signer* signer, DecodedCert* cert)
                 while (name != NULL) {
                     matchEmail = MatchBaseName(ASN_DNS_TYPE,
                                           name->name, (int)XSTRLEN(name->name),
-                                          base->name, (int)XSTRLEN(base->name));
+                                          base->name, base->nameSz);
                     name = name->next;
+                }
+            }
+            else if (base->type == ASN_DIR_TYPE) {
+                needDir = 1;
+                if (cert->subjectRaw != NULL &&
+                    cert->subjectRawLen == base->nameSz &&
+                    XMEMCMP(cert->subjectRaw, base->name, base->nameSz) == 0) {
+
+                    matchDir = 1;
                 }
             }
             base = base->next;
         }
 
-        if ((needDns && !matchDns) || (needEmail && !matchEmail))
+        if ((needDns && !matchDns) || (needEmail && !matchEmail) ||
+            (needDir && !matchDir)) {
+
             return 0;
+        }
     }
 
     return 1;
@@ -3629,7 +3657,8 @@ static int DecodeSubtree(byte* input, int sz, Base_entry** head, void* heap)
         }
 
         if (b == (ASN_CONTEXT_SPECIFIC | ASN_DNS_TYPE) ||
-            b == (ASN_CONTEXT_SPECIFIC | ASN_RFC822_TYPE)) {
+            b == (ASN_CONTEXT_SPECIFIC | ASN_RFC822_TYPE) ||
+            b == (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | ASN_DIR_TYPE)) {
 
             Base_entry* entry = (Base_entry*)XMALLOC(sizeof(Base_entry),
                                                     heap, DYNAMIC_TYPE_ALTNAME);
@@ -3639,15 +3668,14 @@ static int DecodeSubtree(byte* input, int sz, Base_entry** head, void* heap)
                 return MEMORY_E;
             }
 
-            entry->name = (char*)XMALLOC(strLength + 1,
-                                                    heap, DYNAMIC_TYPE_ALTNAME);
+            entry->name = (char*)XMALLOC(strLength, heap, DYNAMIC_TYPE_ALTNAME);
             if (entry->name == NULL) {
                 CYASSL_MSG("allocate error");
                 return MEMORY_E;
             }
 
             XMEMCPY(entry->name, &input[nameIdx], strLength);
-            entry->name[strLength] = '\0';
+            entry->nameSz = strLength;
             entry->type = b & 0x0F;
 
             entry->next = *head;

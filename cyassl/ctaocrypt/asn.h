@@ -66,6 +66,7 @@ enum ASN_Tags {
     ASN_OTHER_TYPE        = 0x00,
     ASN_RFC822_TYPE       = 0x01,
     ASN_DNS_TYPE          = 0x02,
+    ASN_DIR_TYPE          = 0x04,
     ASN_GENERALIZED_TIME  = 0x18,
     CRL_EXTENSIONS        = 0xa0,
     ASN_EXTENSIONS        = 0xa3,
@@ -279,6 +280,7 @@ typedef struct Base_entry  Base_entry;
 struct Base_entry {
     Base_entry* next;   /* next on name base list */
     char*       name;   /* actual name base */
+    int         nameSz; /* name length */
     byte        type;   /* Name base type (DNS or RFC822) */
 };
 
@@ -400,6 +402,10 @@ struct DecodedCert {
 #ifdef HAVE_PKCS7
     byte*   issuerRaw;               /* pointer to issuer inside source */
     int     issuerRawLen;
+#endif
+#ifndef IGNORE_NAME_CONSTRAINT
+    byte*   subjectRaw;               /* pointer to subject inside source */
+    int     subjectRawLen;
 #endif
 #if defined(CYASSL_CERT_GEN)
     /* easy access to subject info for other sign */
