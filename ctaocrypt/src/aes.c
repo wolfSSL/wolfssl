@@ -165,12 +165,14 @@
     {
         AesCrypt(aes, out, in, sz, PIC32_ENCRYPTION, PIC32_ALGO_AES,
                                                       PIC32_CRYPTOALGO_RCBC );
+        return 0 ;
     }
 
     int AesCbcDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     {
         AesCrypt(aes, out, in, sz, PIC32_DECRYPTION, PIC32_ALGO_AES,
                                                       PIC32_CRYPTOALGO_RCBC);
+        return 0 ;
     }
 
     #if defined(CYASSL_AES_COUNTER)
