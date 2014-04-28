@@ -64,6 +64,7 @@ enum ASN_Tags {
     ASN_SET               = 0x11,
     ASN_UTC_TIME          = 0x17,
     ASN_OTHER_TYPE        = 0x00,
+    ASN_RFC822_TYPE       = 0x01,
     ASN_DNS_TYPE          = 0x02,
     ASN_GENERALIZED_TIME  = 0x18,
     CRL_EXTENSIONS        = 0xa0,
@@ -219,6 +220,7 @@ enum Extensions_Sum {
     KEY_USAGE_OID   = 129,  /* 2.5.29.15 */
     INHIBIT_ANY_OID = 168,  /* 2.5.29.54 */
     EXT_KEY_USAGE_OID = 151, /* 2.5.29.37 */
+    NAME_CONS_OID   = 144   /* 2.5.29.30 */
 };
 
 enum CertificatePolicy_Sum {
@@ -272,6 +274,15 @@ struct DNS_entry {
 };
 
 
+typedef struct Base_entry  Base_entry;
+
+struct Base_entry {
+    Base_entry* next;   /* next on name base list */
+    char*       name;   /* actual name base */
+    byte        type;   /* Name base type (DNS or RFC822) */
+};
+
+
 struct DecodedName {
     char*   fullName;
     int     fullNameLen;
@@ -315,6 +326,11 @@ struct DecodedCert {
     word32  keyOID;                  /* sum of key algo  object id       */
     int     version;                 /* cert version, 1 or 3             */
     DNS_entry* altNames;             /* alt names list of dns entries    */
+#ifndef IGNORE_NAME_CONSTRAINTS
+    DNS_entry* altEmailNames;        /* alt names list of RFC822 entries */
+    Base_entry* permittedNames;      /* Permitted name bases             */
+    Base_entry* excludedNames;       /* Excluded name bases              */
+#endif /* IGNORE_NAME_CONSTRAINTS */
     byte    subjectHash[SHA_SIZE];   /* hash of all Names                */
     byte    issuerHash[SHA_SIZE];    /* hash of all Names                */
 #ifdef HAVE_OCSP
@@ -344,6 +360,9 @@ struct DecodedCert {
     byte    extSubjKeyIdSet;         /* Set when the SKID was read from cert */
     byte    extAuthKeyId[SHA_SIZE];  /* Authority Key ID                 */
     byte    extAuthKeyIdSet;         /* Set when the AKID was read from cert */
+#ifndef IGNORE_NAME_CONSTRAINTS
+    byte    extNameConstraintSet;
+#endif /* IGNORE_NAME_CONSTRAINTS */
     byte    isCA;                    /* CA basic constraint true         */
     byte    extKeyUsageSet;
     word16  extKeyUsage;             /* Key usage bitfield               */
@@ -357,6 +376,9 @@ struct DecodedCert {
     byte    extSubjAltNameSet;
     byte    extSubjAltNameCrit;
     byte    extAuthKeyIdCrit;
+#ifndef IGNORE_NAME_CONSTRAINTS
+    byte    extNameConstraintCrit;
+#endif /* IGNORE_NAME_CONSTRAINTS */
     byte    extSubjKeyIdCrit;
     byte    extKeyUsageCrit;
     byte    extExtKeyUsageCrit;
@@ -430,6 +452,10 @@ struct Signer {
     byte*   publicKey;
     int     nameLen;
     char*   name;                    /* common name */
+#ifndef IGNORE_NAME_CONSTRAINTS
+        Base_entry* permittedNames;
+        Base_entry* excludedNames;
+#endif /* IGNORE_NAME_CONSTRAINTS */
     byte    subjectNameHash[SIGNER_DIGEST_SIZE];
                                      /* sha hash of names in certificate */
     #ifndef NO_SKID
@@ -448,6 +474,9 @@ struct Signer {
 #endif
 
 CYASSL_TEST_API void FreeAltNames(DNS_entry*, void*);
+#ifndef IGNORE_NAME_CONSTRAINTS
+    CYASSL_TEST_API void FreeNameSubtrees(Base_entry*, void*);
+#endif /* IGNORE_NAME_CONSTRAINTS */
 CYASSL_TEST_API void InitDecodedCert(DecodedCert*, byte*, word32, void*);
 CYASSL_TEST_API void FreeDecodedCert(DecodedCert*);
 CYASSL_TEST_API int  ParseCert(DecodedCert*, int type, int verify, void* cm);
