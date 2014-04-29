@@ -1299,6 +1299,9 @@ int ecc_make_key(RNG* rng, int keysize, ecc_key* key)
 {
    int x, err;
 
+   if (key == NULL || rng == NULL)
+       return ECC_BAD_ARG_E;
+
    /* find key size */
    for (x = 0; (keysize > ecc_sets[x].size) && (ecc_sets[x].size != 0); x++)
        ;

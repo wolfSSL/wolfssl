@@ -2036,7 +2036,6 @@ int CyaSSL_Init(void)
                 XFREE(der.buffer, heap, dynamicType);
                 return ret;
             }
-            ret = 0; /* back to good status */
 
             if (XSTRNCMP(info.name, "DES-CBC", 7) == 0) {
                 Des enc;
@@ -7823,7 +7822,7 @@ int CyaSSL_set_compression(CYASSL* ssl)
                 break;
         }
 
-        if (buf != NULL) {
+        if (buf != NULL && text != NULL) {
             textSz = min(textSz, len);
             XMEMCPY(buf, text, textSz);
             buf[textSz] = '\0';

@@ -550,6 +550,9 @@ int TLS_hmac(CYASSL* ssl, byte* digest, const byte* in, word32 sz,
     Hmac hmac;
     int  ret;
     byte myInner[CYASSL_TLS_HMAC_INNER_SZ];
+
+    if (ssl == NULL)
+        return BAD_FUNC_ARG;
     
     CyaSSL_SetTlsHmacInner(ssl, myInner, sz, content, verify);
 
