@@ -3280,6 +3280,9 @@ int CyaSSL_CTX_SetTmpDH_file(CYASSL_CTX* ctx, const char* fname, int format)
 int CyaSSL_CTX_use_NTRUPrivateKey_file(CYASSL_CTX* ctx, const char* file)
 {
     CYASSL_ENTER("CyaSSL_CTX_use_NTRUPrivateKey_file");
+    if (ctx == NULL)
+        return SSL_FAILURE;
+
     if (ProcessFile(ctx, file, SSL_FILETYPE_RAW, PRIVATEKEY_TYPE, NULL, 0, NULL)
                          == SSL_SUCCESS) {
         ctx->haveNTRU = 1;

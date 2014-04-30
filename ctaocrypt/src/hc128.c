@@ -338,6 +338,7 @@ static INLINE int DoProcess(HC128* ctx, byte* output, const byte* input,
 
   if (msglen > 0)
   {
+      XMEMSET(keystream, 0, sizeof(keystream)); /* hush the static analysis */
       generate_keystream(ctx, keystream);
 
 #ifdef BIG_ENDIAN_ORDER
