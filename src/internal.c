@@ -8183,8 +8183,8 @@ static void PickHashSigAlgo(CYASSL* ssl,
 
             if (doUserRsa) {
             #ifdef HAVE_PK_CALLBACKS
-                ret = ssl->ctx->RsaVerifyCb(ssl, input + *inOutIdx, length,
-                                            &out, 
+                ret = ssl->ctx->RsaVerifyCb(ssl, (byte *) input + *inOutIdx,
+                                            length, &out, 
                                             ssl->buffers.peerRsaKey.buffer,
                                             ssl->buffers.peerRsaKey.length,
                                             ssl->RsaVerifyCtx);
