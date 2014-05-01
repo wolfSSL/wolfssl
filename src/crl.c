@@ -476,7 +476,7 @@ static void* DoMonitor(void* arg)
 /* shutdown monitor thread, 0 on success */
 static int StopMonitor(int mfd)
 {
-
+    (void)mfd;
 
     return -1;
 }
