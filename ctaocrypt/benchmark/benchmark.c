@@ -786,7 +786,7 @@ static void set_Bench_RSA_File(char * cert) { certRSAname = cert ; }
 #elif defined(CYASSL_MDK_SHELL)
     /* nothing */
 #else
-    /* nothing */
+static const char *certRSAname = "certs/rsa2048.der" ;
 #endif
 
 void bench_rsa(void)
@@ -891,7 +891,7 @@ void set_Bench_DH_File(char * cert) { certDHname = cert ; }
 #elif defined(CYASSL_MDK_SHELL)
     /* nothing */
 #else
-    /* nothing */
+static const char *certDHname = "certs/dh2048.der" ;
 #endif
 
 void bench_dh(void)
