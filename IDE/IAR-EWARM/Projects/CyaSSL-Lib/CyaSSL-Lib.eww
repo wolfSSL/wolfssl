@@ -2,6 +2,9 @@
 
 <workspace>
   <project>
+    <path>$WS_DIR$\CyaSSL-Lib.ewp</path>
+  </project>
+  <project>
     <path>$WS_DIR$\wolfCrypt-benchmark.ewp</path>
   </project>
   <project>

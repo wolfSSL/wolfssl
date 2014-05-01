@@ -1,0 +1,52 @@
+CyaSSL IAR Project Files 
+ 
+ 
+This directory contains project files for IAR EWARM IDE. These 
+projects have been set up to use generic ARM Cortex-M MPUs. 
+ 
+ 
+Included Project Files 
+----------------------- 
+1. Workspace: CyaSSL-Lib.eww 
+   The workspace includes CyaSSL-Lib library and wolfCrypt-test, wolfCrypt-benchmark  
+   executable projects. The library project generates full set library of wolfCrypt  
+   and CyaSSL functions. 
+ 
+ 
+2. Test suites Project: wolfCrypt-test.ewp 
+   generates test.out test suites executable 
+    
+3. Benchmark Project: wolfCrypt-benchmark.ewp 
+   generates benchmark.out benchmark executable 
+ 
+ 
+ 
+ 
+In order to generate project for specific target MPU, take following steps. 
+ 
+ 
+1. Project option settings 
+   For each project,... 
+   General Options: Choose appropriate "Target" options 
+    
+   For executable projects,... 
+   Linker->Config: Check "Override default" and "edit"->"Stack/Heap Sizes"  
+   Debugger: Choose your "Driver" 
+    
+2. For benchmark project,... 
+   Write your own "current_time" benchmark timer under "defined(CYASSL_IAR_ARM)" in benchmark.c 
+    
+3. settings.h 
+   Uncomment the "CYASSL_IAR_ARM" define located in: 
+    <cyassl_root>/cyassl/ctaocrypt/settings. 
+ 
+ 
+4. Build and download 
+   Go to "Project->Make" and "Download and Debug" in Menu bar for EWARM build and download.  
+ 
+ 
+ 
+ 
+Support 
+------- 
+Please send questions or comments to support@wolfssl.com 

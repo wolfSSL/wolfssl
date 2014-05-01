@@ -626,7 +626,7 @@
         <debug>1</debug>
         <option>
           <name>IlinkOutputFile</name>
-          <state>c.out</state>
+          <state>benchmark.out</state>
         </option>
         <option>
           <name>IlinkLibIOConfig</name>

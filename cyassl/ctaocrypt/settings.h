@@ -140,6 +140,9 @@
     #define SINGLE_THREADED
     #define USE_CERT_BUFFERS_1024
     #define BENCH_EMBEDDED
+    #define NO_FILESYSTEM
+    #define NO_WRITEV
+    #define CYASSL_USER_IO
 #endif
       
 #ifdef MICROCHIP_PIC32
