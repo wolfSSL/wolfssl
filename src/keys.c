@@ -1,6 +1,6 @@
 /* keys.c
  *
- * Copyright (C) 2006-2013 wolfSSL Inc.
+ * Copyright (C) 2006-2014 wolfSSL Inc.
  *
  * This file is part of CyaSSL.
  *
@@ -16,7 +16,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
 
@@ -39,6 +39,13 @@
 
 int SetCipherSpecs(CYASSL* ssl)
 {
+    if (ssl->options.side == CYASSL_CLIENT_END) {
+        /* server side verified before SetCipherSpecs call */
+        if (VerifyClientSuite(ssl) != 1) {
+            CYASSL_MSG("SetCipherSpecs() client has an unusuable suite");
+            return UNSUPPORTED_SUITE;
+        }
+    }
     /* ECC extensions, or AES-CCM */
     if (ssl->options.cipherSuite0 == ECC_BYTE) {
     
@@ -1741,27 +1748,41 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
 
 #ifdef HAVE_CAMELLIA
     if (specs->bulk_cipher_algorithm == cyassl_camellia) {
+        int camRet;
+
         if (enc->cam == NULL)
             enc->cam =
                 (Camellia*)XMALLOC(sizeof(Camellia), heap, DYNAMIC_TYPE_CIPHER);
         if (enc->cam == NULL)
             return MEMORY_E;
+
         if (dec->cam == NULL)
             dec->cam =
                 (Camellia*)XMALLOC(sizeof(Camellia), heap, DYNAMIC_TYPE_CIPHER);
         if (dec->cam == NULL)
             return MEMORY_E;
+
         if (side == CYASSL_CLIENT_END) {
-            CamelliaSetKey(enc->cam, keys->client_write_key,
+            camRet = CamelliaSetKey(enc->cam, keys->client_write_key,
                       specs->key_size, keys->client_write_IV);
-            CamelliaSetKey(dec->cam, keys->server_write_key,
+            if (camRet != 0)
+                return camRet;
+
+            camRet = CamelliaSetKey(dec->cam, keys->server_write_key,
                       specs->key_size, keys->server_write_IV);
+            if (camRet != 0)
+                return camRet;
         }
         else {
-            CamelliaSetKey(enc->cam, keys->server_write_key,
+            camRet = CamelliaSetKey(enc->cam, keys->server_write_key,
                       specs->key_size, keys->server_write_IV);
-            CamelliaSetKey(dec->cam, keys->client_write_key,
+            if (camRet != 0)
+                return camRet;
+
+            camRet = CamelliaSetKey(dec->cam, keys->client_write_key,
                       specs->key_size, keys->client_write_IV);
+            if (camRet != 0)
+                return camRet;
         }
         enc->setup = 1;
         dec->setup = 1;
@@ -1879,18 +1900,21 @@ int DeriveKeys(CYASSL* ssl)
 }
 
 
-static void CleanPreMaster(CYASSL* ssl)
+static int CleanPreMaster(CYASSL* ssl)
 {
-    int i, sz = ssl->arrays->preMasterSz;
+    int i, ret, sz = ssl->arrays->preMasterSz;
 
     for (i = 0; i < sz; i++)
         ssl->arrays->preMasterSecret[i] = 0;
 
-    RNG_GenerateBlock(ssl->rng, ssl->arrays->preMasterSecret, sz);
+    ret = RNG_GenerateBlock(ssl->rng, ssl->arrays->preMasterSecret, sz);
+    if (ret != 0)
+        return ret;
 
     for (i = 0; i < sz; i++)
         ssl->arrays->preMasterSecret[i] = 0;
 
+    return 0;
 }
 
 
@@ -1961,9 +1985,13 @@ static int MakeSslMasterSecret(CYASSL* ssl)
 #endif
 
     ret = DeriveKeys(ssl);
-    CleanPreMaster(ssl);
+    if (ret != 0) {
+        /* always try to clean PreMaster */
+        CleanPreMaster(ssl);
+        return ret;
+    }
 
-    return ret;
+    return CleanPreMaster(ssl);
 }
 #endif
 

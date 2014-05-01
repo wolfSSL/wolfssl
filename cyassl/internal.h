@@ -1,6 +1,6 @@
 /* internal.h
  *
- * Copyright (C) 2006-2013 wolfSSL Inc.
+ * Copyright (C) 2006-2014 wolfSSL Inc.
  *
  * This file is part of CyaSSL.
  *
@@ -16,7 +16,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
 
@@ -520,8 +520,8 @@ enum {
      * with non-ECC AES-GCM */
     TLS_RSA_WITH_AES_128_CCM_8         = 0xa0,
     TLS_RSA_WITH_AES_256_CCM_8         = 0xa1,
-    TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8 = 0xc6, /* Still TBD, made up */
-    TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8 = 0xc7, /* Still TBD, made up */
+    TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8 = 0xae,
+    TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8 = 0xaf,
     TLS_PSK_WITH_AES_128_CCM           = 0xa4,
     TLS_PSK_WITH_AES_256_CCM           = 0xa5,
     TLS_PSK_WITH_AES_128_CCM_8         = 0xa8,
@@ -2066,6 +2066,8 @@ CYASSL_LOCAL int IsAtLeastTLSv1_2(const CYASSL* ssl);
 CYASSL_LOCAL void FreeHandshakeResources(CYASSL* ssl);
 CYASSL_LOCAL void ShrinkInputBuffer(CYASSL* ssl, int forcedFree);
 CYASSL_LOCAL void ShrinkOutputBuffer(CYASSL* ssl);
+
+CYASSL_LOCAL int VerifyClientSuite(CYASSL* ssl);
 #ifndef NO_CERTS
     CYASSL_LOCAL Signer* GetCA(void* cm, byte* hash);
     #ifndef NO_SKID

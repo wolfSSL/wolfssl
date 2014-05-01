@@ -1,6 +1,6 @@
 /* sha512.c
  *
- * Copyright (C) 2006-2013 wolfSSL Inc.
+ * Copyright (C) 2006-2014 wolfSSL Inc.
  *
  * This file is part of CyaSSL.
  *
@@ -16,7 +16,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
 #ifdef HAVE_CONFIG_H
@@ -33,6 +33,7 @@
 #endif
 
 #include <cyassl/ctaocrypt/sha512.h>
+#include <cyassl/ctaocrypt/error-crypt.h>
 #ifdef NO_INLINE
     #include <cyassl/ctaocrypt/misc.h>
 #else
@@ -142,13 +143,22 @@ static const word64 K512[80] = {
 	d(i)+=h(i);h(i)+=S0(a(i))+Maj(a(i),b(i),c(i))
 
 
-static void Transform(Sha512* sha512)
+static int Transform(Sha512* sha512)
 {
     const word64* K = K512;
 
     word32 j;
-    word64 W[16];
     word64 T[8];
+
+#ifdef CYASSL_SMALL_STACK
+    word64* W;
+
+    W = (word64*) XMALLOC(sizeof(word64) * 16, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (W == NULL)
+        return MEMORY_E;
+#else
+    word64 W[16];
+#endif
 
     /* Copy digest to working vars */
     XMEMCPY(T, sha512->digest, sizeof(T));
@@ -184,8 +194,14 @@ static void Transform(Sha512* sha512)
     sha512->digest[7] += h(0);
 
     /* Wipe variables */
-    XMEMSET(W, 0, sizeof(W));
+    XMEMSET(W, 0, sizeof(word64) * 16);
     XMEMSET(T, 0, sizeof(T));
+
+#ifdef CYASSL_SMALL_STACK
+    XFREE(W, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
+    return 0;
 }
 
 
@@ -211,11 +227,16 @@ int Sha512Update(Sha512* sha512, const byte* data, word32 len)
         len          -= add;
 
         if (sha512->buffLen == SHA512_BLOCK_SIZE) {
+            int ret;
+
             #ifdef LITTLE_ENDIAN_ORDER
                 ByteReverseWords64(sha512->buffer, sha512->buffer,
                                    SHA512_BLOCK_SIZE);
             #endif
-            Transform(sha512);
+            ret = Transform(sha512);
+            if (ret != 0)
+                return ret;
+
             AddLength(sha512, SHA512_BLOCK_SIZE);
             sha512->buffLen = 0;
         }
@@ -227,6 +248,7 @@ int Sha512Update(Sha512* sha512, const byte* data, word32 len)
 int Sha512Final(Sha512* sha512, byte* hash)
 {
     byte* local = (byte*)sha512->buffer;
+    int ret;
 
     AddLength(sha512, sha512->buffLen);               /* before adding pads */
 
@@ -240,7 +262,10 @@ int Sha512Final(Sha512* sha512, byte* hash)
         #ifdef LITTLE_ENDIAN_ORDER
             ByteReverseWords64(sha512->buffer,sha512->buffer,SHA512_BLOCK_SIZE);
         #endif
-        Transform(sha512);
+        ret = Transform(sha512);
+        if (ret != 0)
+            return ret;
+
         sha512->buffLen = 0;
     }
     XMEMSET(&local[sha512->buffLen], 0, SHA512_PAD_SIZE - sha512->buffLen);
@@ -258,7 +283,10 @@ int Sha512Final(Sha512* sha512, byte* hash)
     sha512->buffer[SHA512_BLOCK_SIZE / sizeof(word64) - 2] = sha512->hiLen;
     sha512->buffer[SHA512_BLOCK_SIZE / sizeof(word64) - 1] = sha512->loLen;
 
-    Transform(sha512);
+    ret = Transform(sha512);
+    if (ret != 0)
+        return ret;
+
     #ifdef LITTLE_ENDIAN_ORDER
         ByteReverseWords64(sha512->digest, sha512->digest, SHA512_DIGEST_SIZE);
     #endif
@@ -290,13 +318,22 @@ int InitSha384(Sha384* sha384)
 }
 
 
-static void Transform384(Sha384* sha384)
+static int Transform384(Sha384* sha384)
 {
     const word64* K = K512;
 
     word32 j;
-    word64 W[16];
     word64 T[8];
+
+#ifdef CYASSL_SMALL_STACK
+    word64* W;
+
+    W = (word64*) XMALLOC(sizeof(word64) * 16, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (W == NULL)
+        return MEMORY_E;
+#else
+    word64 W[16];
+#endif
 
     /* Copy digest to working vars */
     XMEMCPY(T, sha384->digest, sizeof(T));
@@ -332,8 +369,14 @@ static void Transform384(Sha384* sha384)
     sha384->digest[7] += h(0);
 
     /* Wipe variables */
-    XMEMSET(W, 0, sizeof(W));
+    XMEMSET(W, 0, sizeof(word64) * 16);
     XMEMSET(T, 0, sizeof(T));
+
+#ifdef CYASSL_SMALL_STACK
+    XFREE(W, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
+    return 0;
 }
 
 
@@ -359,11 +402,16 @@ int Sha384Update(Sha384* sha384, const byte* data, word32 len)
         len          -= add;
 
         if (sha384->buffLen == SHA384_BLOCK_SIZE) {
+            int ret;
+
             #ifdef LITTLE_ENDIAN_ORDER
                 ByteReverseWords64(sha384->buffer, sha384->buffer,
                                    SHA384_BLOCK_SIZE);
             #endif
-            Transform384(sha384);
+            ret = Transform384(sha384);
+            if (ret != 0)
+                return ret;
+
             AddLength384(sha384, SHA384_BLOCK_SIZE);
             sha384->buffLen = 0;
         }
@@ -375,6 +423,7 @@ int Sha384Update(Sha384* sha384, const byte* data, word32 len)
 int Sha384Final(Sha384* sha384, byte* hash)
 {
     byte* local = (byte*)sha384->buffer;
+    int ret;
 
     AddLength384(sha384, sha384->buffLen);              /* before adding pads */
 
@@ -388,7 +437,10 @@ int Sha384Final(Sha384* sha384, byte* hash)
         #ifdef LITTLE_ENDIAN_ORDER
             ByteReverseWords64(sha384->buffer,sha384->buffer,SHA384_BLOCK_SIZE);
         #endif
-        Transform384(sha384);
+        ret = Transform384(sha384);
+        if (ret !=  0)
+            return ret;
+
         sha384->buffLen = 0;
     }
     XMEMSET(&local[sha384->buffLen], 0, SHA384_PAD_SIZE - sha384->buffLen);
@@ -406,7 +458,10 @@ int Sha384Final(Sha384* sha384, byte* hash)
     sha384->buffer[SHA384_BLOCK_SIZE / sizeof(word64) - 2] = sha384->hiLen;
     sha384->buffer[SHA384_BLOCK_SIZE / sizeof(word64) - 1] = sha384->loLen;
 
-    Transform384(sha384);
+    ret = Transform384(sha384);
+    if (ret != 0)
+        return ret;
+
     #ifdef LITTLE_ENDIAN_ORDER
         ByteReverseWords64(sha384->digest, sha384->digest, SHA384_DIGEST_SIZE);
     #endif

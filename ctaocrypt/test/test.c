@@ -1,6 +1,6 @@
 /* test.c
  *
- * Copyright (C) 2006-2013 wolfSSL Inc.
+ * Copyright (C) 2006-2014 wolfSSL Inc.
  *
  * This file is part of CyaSSL.
  *
@@ -16,7 +16,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
 #ifdef HAVE_CONFIG_H
@@ -919,15 +919,23 @@ int blake2b_test(void)
     Blake2b b2b;
     byte    digest[64];
     byte    input[64];
-    int     i;
+    int     i, ret;
 
     for (i = 0; i < (int)sizeof(input); i++)
         input[i] = (byte)i;
 
     for (i = 0; i < BLAKE2_TESTS; i++) {
-        InitBlake2b(&b2b, 64);
-        Blake2bUpdate(&b2b, input, i);
-        Blake2bFinal(&b2b, digest, 64);
+        ret = InitBlake2b(&b2b, 64);
+        if (ret != 0)
+            return -4002;
+
+        ret = Blake2bUpdate(&b2b, input, i);
+        if (ret != 0)
+            return -4003;
+
+        ret = Blake2bFinal(&b2b, digest, 64);
+        if (ret != 0)
+            return -4004;
 
         if (memcmp(digest, blake2b_vec[i], 64) != 0) {
             return -300 - i;
@@ -969,11 +977,15 @@ int sha256_test(void)
 
     ret = InitSha256(&sha);
     if (ret != 0)
-        return -4003;
+        return -4005;
 
     for (i = 0; i < times; ++i) {
-        Sha256Update(&sha, (byte*)test_sha[i].input,(word32)test_sha[i].inLen);
-        Sha256Final(&sha, hash);
+        ret = Sha256Update(&sha, (byte*)test_sha[i].input,(word32)test_sha[i].inLen);
+        if (ret != 0)
+            return -4006;
+        ret = Sha256Final(&sha, hash);
+        if (ret != 0)
+            return -4007;
 
         if (memcmp(hash, test_sha[i].output, SHA256_DIGEST_SIZE) != 0)
             return -10 - i;
@@ -1022,8 +1034,13 @@ int sha512_test(void)
         return -4009;
 
     for (i = 0; i < times; ++i) {
-        Sha512Update(&sha, (byte*)test_sha[i].input,(word32)test_sha[i].inLen);
-        Sha512Final(&sha, hash);
+        ret = Sha512Update(&sha, (byte*)test_sha[i].input,(word32)test_sha[i].inLen);
+        if (ret != 0)
+            return -4010;
+
+        ret = Sha512Final(&sha, hash);
+        if (ret != 0)
+            return -4011;
 
         if (memcmp(hash, test_sha[i].output, SHA512_DIGEST_SIZE) != 0)
             return -10 - i;
@@ -1067,11 +1084,16 @@ int sha384_test(void)
 
     ret = InitSha384(&sha);
     if (ret != 0)
-        return -4010;
+        return -4012;
 
     for (i = 0; i < times; ++i) {
-        Sha384Update(&sha, (byte*)test_sha[i].input,(word32)test_sha[i].inLen);
-        Sha384Final(&sha, hash);
+        ret = Sha384Update(&sha, (byte*)test_sha[i].input,(word32)test_sha[i].inLen);
+        if (ret != 0)
+            return -4013;
+
+        ret = Sha384Final(&sha, hash);
+        if (ret != 0)
+            return -4014;
 
         if (memcmp(hash, test_sha[i].output, SHA384_DIGEST_SIZE) != 0)
             return -10 - i;
@@ -1135,10 +1157,14 @@ int hmac_md5_test(void)
 #endif
         ret = HmacSetKey(&hmac, MD5, (byte*)keys[i], (word32)strlen(keys[i]));
         if (ret != 0)
-            return -4011;
-        HmacUpdate(&hmac, (byte*)test_hmac[i].input,
+            return -4015;
+        ret = HmacUpdate(&hmac, (byte*)test_hmac[i].input,
                    (word32)test_hmac[i].inLen);
-        HmacFinal(&hmac, hash);
+        if (ret != 0)
+            return -4016;
+        ret = HmacFinal(&hmac, hash);
+        if (ret != 0)
+            return -4017;
 
         if (memcmp(hash, test_hmac[i].output, MD5_DIGEST_SIZE) != 0)
             return -20 - i;
@@ -1206,10 +1232,14 @@ int hmac_sha_test(void)
 #endif
         ret = HmacSetKey(&hmac, SHA, (byte*)keys[i], (word32)strlen(keys[i]));
         if (ret != 0)
-            return -4012;
-        HmacUpdate(&hmac, (byte*)test_hmac[i].input,
+            return -4018;
+        ret = HmacUpdate(&hmac, (byte*)test_hmac[i].input,
                    (word32)test_hmac[i].inLen);
-        HmacFinal(&hmac, hash);
+        if (ret != 0)
+            return -4019;
+        ret = HmacFinal(&hmac, hash);
+        if (ret != 0)
+            return -4020;
 
         if (memcmp(hash, test_hmac[i].output, SHA_DIGEST_SIZE) != 0)
             return -20 - i;
@@ -1281,10 +1311,14 @@ int hmac_sha256_test(void)
 #endif
         ret = HmacSetKey(&hmac, SHA256, (byte*)keys[i],(word32)strlen(keys[i]));
         if (ret != 0)
-            return -4013;
-        HmacUpdate(&hmac, (byte*)test_hmac[i].input,
+            return -4021;
+        ret = HmacUpdate(&hmac, (byte*)test_hmac[i].input,
                    (word32)test_hmac[i].inLen);
-        HmacFinal(&hmac, hash);
+        if (ret != 0)
+            return -4022;
+        ret = HmacFinal(&hmac, hash);
+        if (ret != 0)
+            return -4023;
 
         if (memcmp(hash, test_hmac[i].output, SHA256_DIGEST_SIZE) != 0)
             return -20 - i;
@@ -1357,10 +1391,14 @@ int hmac_blake2b_test(void)
         ret = HmacSetKey(&hmac, BLAKE2B_ID, (byte*)keys[i],
                          (word32)strlen(keys[i]));
         if (ret != 0)
-            return -4014;
-        HmacUpdate(&hmac, (byte*)test_hmac[i].input,
+            return -4024;
+        ret = HmacUpdate(&hmac, (byte*)test_hmac[i].input,
                    (word32)test_hmac[i].inLen);
-        HmacFinal(&hmac, hash);
+        if (ret != 0)
+            return -4025;
+        ret = HmacFinal(&hmac, hash);
+        if (ret != 0)
+            return -4026;
 
         if (memcmp(hash, test_hmac[i].output, BLAKE2B_256) != 0)
             return -20 - i;
@@ -1429,10 +1467,14 @@ int hmac_sha384_test(void)
     for (i = 0; i < times; ++i) {
         ret = HmacSetKey(&hmac, SHA384, (byte*)keys[i],(word32)strlen(keys[i]));
         if (ret != 0)
-            return -4015;
-        HmacUpdate(&hmac, (byte*)test_hmac[i].input,
+            return -4027;
+        ret = HmacUpdate(&hmac, (byte*)test_hmac[i].input,
                    (word32)test_hmac[i].inLen);
-        HmacFinal(&hmac, hash);
+        if (ret != 0)
+            return -4028;
+        ret = HmacFinal(&hmac, hash);
+        if (ret != 0)
+            return -4029;
 
         if (memcmp(hash, test_hmac[i].output, SHA384_DIGEST_SIZE) != 0)
             return -20 - i;
@@ -1501,10 +1543,14 @@ int hmac_sha512_test(void)
     for (i = 0; i < times; ++i) {
         ret = HmacSetKey(&hmac, SHA512, (byte*)keys[i],(word32)strlen(keys[i]));
         if (ret != 0)
-            return -4016;
-        HmacUpdate(&hmac, (byte*)test_hmac[i].input,
+            return -4030;
+        ret = HmacUpdate(&hmac, (byte*)test_hmac[i].input,
                    (word32)test_hmac[i].inLen);
-        HmacFinal(&hmac, hash);
+        if (ret != 0)
+            return -4031;
+        ret = HmacFinal(&hmac, hash);
+        if (ret != 0)
+            return -4032;
 
         if (memcmp(hash, test_hmac[i].output, SHA512_DIGEST_SIZE) != 0)
             return -20 - i;
@@ -2476,8 +2522,9 @@ int camellia_test(void)
 
     testsSz = sizeof(testVectors)/sizeof(test_vector_t);
     for (i = 0; i < testsSz; i++) {
-        CamelliaSetKey(&cam, testVectors[i].key, testVectors[i].keySz,
-                                                             testVectors[i].iv);
+        if (CamelliaSetKey(&cam, testVectors[i].key, testVectors[i].keySz,
+                                                        testVectors[i].iv) != 0)
+            return testVectors[i].errorCode;
 
         switch (testVectors[i].type) {
             case CAM_ECB_ENC:
@@ -2547,7 +2594,8 @@ int random_test(void)
     ret = InitRng(&rng);
     if (ret != 0) return -39;
 
-    RNG_GenerateBlock(&rng, block, sizeof(block));
+    ret = RNG_GenerateBlock(&rng, block, sizeof(block));
+    if (ret != 0) return -40;
 
     return 0;
 }
@@ -2561,21 +2609,14 @@ byte GetEntropy(ENTROPY_CMD cmd, byte* out)
 {
     static RNG rng;
 
-    if (cmd == INIT) {
-        int ret = InitRng(&rng);
-        if (ret == 0)
-            return 1;
-        else
-            return 0;
-    }
+    if (cmd == INIT)
+        return (InitRng(&rng) == 0) ? 1 : 0;
 
     if (out == NULL)
         return 0;
 
-    if (cmd == GET_BYTE_OF_ENTROPY) {
-        RNG_GenerateBlock(&rng, out, 1);
-        return 1;
-    }
+    if (cmd == GET_BYTE_OF_ENTROPY)
+        return (RNG_GenerateBlock(&rng, out, 1) == 0) ? 1 : 0;
 
     if (cmd == GET_NUM_BYTES_PER_BYTE_OF_ENTROPY) {
         *out = 1;
@@ -2751,44 +2792,87 @@ int rsa_test(void)
         FILE* pemFile;
 
         ret = InitRsaKey(&genKey, 0);
-        if (ret != 0) return -300;
+        if (ret != 0)
+            return -300;
         ret = MakeRsaKey(&genKey, 1024, 65537, &rng);
         if (ret != 0)
             return -301;
 
         der = (byte*)malloc(FOURK_BUF);
-        if (der == NULL)
+        if (der == NULL) {
+            FreeRsaKey(&genKey);
             return -307;
+        }
         pem = (byte*)malloc(FOURK_BUF);
-        if (pem == NULL)
+        if (pem == NULL) {
+            free(der);
+            FreeRsaKey(&genKey);
             return -308;
+        }
 
         derSz = RsaKeyToDer(&genKey, der, FOURK_BUF);
-        if (derSz < 0)
+        if (derSz < 0) {
+            free(der);
+            free(pem);
             return -302;
+        }
 
         keyFile = fopen("./key.der", "wb");
-        if (!keyFile)
+        if (!keyFile) {
+            free(der);
+            free(pem);
+            FreeRsaKey(&genKey);
             return -303;
-        ret = (int)fwrite(der, derSz, 1, keyFile);
+        }
+        ret = (int)fwrite(der, 1, derSz, keyFile);
         fclose(keyFile);
+        if (ret != derSz) {
+            free(der);
+            free(pem);
+            FreeRsaKey(&genKey);
+            return -313;
+        }
 
         pemSz = DerToPem(der, derSz, pem, FOURK_BUF, PRIVATEKEY_TYPE);
-        if (pemSz < 0)
+        if (pemSz < 0) {
+            free(der);
+            free(pem);
+            FreeRsaKey(&genKey);
             return -304;
+        }
 
         pemFile = fopen("./key.pem", "wb");
-        if (!pemFile)
+        if (!pemFile) {
+            free(der);
+            free(pem);
+            FreeRsaKey(&genKey);
             return -305;
-        ret = (int)fwrite(pem, pemSz, 1, pemFile);
+        }
+        ret = (int)fwrite(pem, 1, pemSz, pemFile);
         fclose(pemFile);
+        if (ret != pemSz) {
+            free(der);
+            free(pem);
+            FreeRsaKey(&genKey);
+            return -314;
+        }
 
         ret = InitRsaKey(&derIn, 0);
-        if (ret != 0) return -3060;
+        if (ret != 0) {
+            free(der);
+            free(pem);
+            FreeRsaKey(&genKey);
+            return -3060;
+        }
         idx = 0;
         ret = RsaPrivateKeyDecode(der, &idx, &derIn, derSz);
-        if (ret != 0)
+        if (ret != 0) {
+            free(der);
+            free(pem);
+            FreeRsaKey(&derIn);
+            FreeRsaKey(&genKey);
             return -306;
+        }
 
         FreeRsaKey(&derIn);
         FreeRsaKey(&genKey);
@@ -2816,8 +2900,10 @@ int rsa_test(void)
         if (derCert == NULL)
             return -309;
         pem = (byte*)malloc(FOURK_BUF);
-        if (pem == NULL)
+        if (pem == NULL) {
+            free(derCert);
             return -310;
+        }
 
         InitCert(&myCert);
 
@@ -2832,31 +2918,56 @@ int rsa_test(void)
         myCert.sigType = CTC_SHA256wRSA;
 
         certSz = MakeSelfCert(&myCert, derCert, FOURK_BUF, &key, &rng);
-        if (certSz < 0)
+        if (certSz < 0) {
+            free(derCert);
+            free(pem);
             return -401;
+        }
 
 #ifdef CYASSL_TEST_CERT
         InitDecodedCert(&decode, derCert, certSz, 0);
         ret = ParseCert(&decode, CERT_TYPE, NO_VERIFY, 0);
-        if (ret != 0)
+        if (ret != 0) {
+            free(derCert);
+            free(pem);
             return -402;
+        }
         FreeDecodedCert(&decode);
 #endif
         derFile = fopen("./cert.der", "wb");
-        if (!derFile)
+        if (!derFile) {
+            free(derCert);
+            free(pem);
             return -403;
-        ret = (int)fwrite(derCert, certSz, 1, derFile);
+        }
+        ret = (int)fwrite(derCert, 1, certSz, derFile);
         fclose(derFile);
+        if (ret != certSz) {
+            free(derCert);
+            free(pem);
+            return -414;
+        }
 
         pemSz = DerToPem(derCert, certSz, pem, FOURK_BUF, CERT_TYPE);
-        if (pemSz < 0)
+        if (pemSz < 0) {
+            free(derCert);
+            free(pem);
             return -404;
+        }
 
         pemFile = fopen("./cert.pem", "wb");
-        if (!pemFile)
+        if (!pemFile) {
+            free(derCert);
+            free(pem);
             return -405;
-        ret = (int)fwrite(pem, pemSz, 1, pemFile);
+        }
+        ret = (int)fwrite(pem, 1, pemSz, pemFile);
         fclose(pemFile);
+        if (ret != pemSz) {
+            free(derCert);
+            free(pem);
+            return -406;
+        }
         free(pem);
         free(derCert);
     }
@@ -2881,21 +2992,35 @@ int rsa_test(void)
         if (derCert == NULL)
             return -311;
         pem = (byte*)malloc(FOURK_BUF);
-        if (pem == NULL)
+        if (pem == NULL) {
+            free(derCert);
             return -312;
+        }
 
         file3 = fopen(caKeyFile, "rb");
 
-        if (!file3)
+        if (!file3) {
+            free(derCert);
+            free(pem);
             return -412;
+        }
 
         bytes3 = fread(tmp, 1, FOURK_BUF, file3);
         fclose(file3);
 
         ret = InitRsaKey(&caKey, 0);
-        if (ret != 0) return -411;
+        if (ret != 0) {
+            free(derCert);
+            free(pem);
+            return -411;
+        }
         ret = RsaPrivateKeyDecode(tmp, &idx3, &caKey, (word32)bytes3);
-        if (ret != 0) return -413;
+        if (ret != 0) {
+            free(derCert);
+            free(pem);
+            FreeRsaKey(&caKey);
+            return -413;
+        }
 
         InitCert(&myCert);
 
@@ -2908,41 +3033,81 @@ int rsa_test(void)
         strncpy(myCert.subject.email, "info@yassl.com", CTC_NAME_SIZE);
 
         ret = SetIssuer(&myCert, caCertFile);
-        if (ret < 0)
+        if (ret < 0) {
+            free(derCert);
+            free(pem);
+            FreeRsaKey(&caKey);
             return -405;
+        }
 
         certSz = MakeCert(&myCert, derCert, FOURK_BUF, &key, NULL, &rng);
-        if (certSz < 0)
+        if (certSz < 0) {
+            free(derCert);
+            free(pem);
+            FreeRsaKey(&caKey);
             return -407;
+        }
 
         certSz = SignCert(myCert.bodySz, myCert.sigType, derCert, FOURK_BUF,
                           &caKey, NULL, &rng);
-        if (certSz < 0)
+        if (certSz < 0) {
+            free(derCert);
+            free(pem);
+            FreeRsaKey(&caKey);
             return -408;
+        }
 
 
 #ifdef CYASSL_TEST_CERT
         InitDecodedCert(&decode, derCert, certSz, 0);
         ret = ParseCert(&decode, CERT_TYPE, NO_VERIFY, 0);
-        if (ret != 0)
+        if (ret != 0) {
+            free(derCert);
+            free(pem);
+            FreeRsaKey(&caKey);
             return -409;
+        }
         FreeDecodedCert(&decode);
 #endif
 
         derFile = fopen("./othercert.der", "wb");
-        if (!derFile)
+        if (!derFile) {
+            free(derCert);
+            free(pem);
+            FreeRsaKey(&caKey);
             return -410;
-        ret = (int)fwrite(derCert, certSz, 1, derFile);
+        }
+        ret = (int)fwrite(derCert, 1, certSz, derFile);
         fclose(derFile);
+        if (ret != certSz) {
+            free(derCert);
+            free(pem);
+            FreeRsaKey(&caKey);
+            return -416;
+        }
 
         pemSz = DerToPem(derCert, certSz, pem, FOURK_BUF, CERT_TYPE);
-        if (pemSz < 0)
+        if (pemSz < 0) {
+            free(derCert);
+            free(pem);
+            FreeRsaKey(&caKey);
             return -411;
+        }
 
         pemFile = fopen("./othercert.pem", "wb");
-        if (!pemFile)
+        if (!pemFile) {
+            free(derCert);
+            free(pem);
+            FreeRsaKey(&caKey);
             return -412;
-        ret = (int)fwrite(pem, pemSz, 1, pemFile);
+        }
+        ret = (int)fwrite(pem, 1, pemSz, pemFile);
+        if (ret != pemSz) {
+            free(derCert);
+            free(pem);
+            FreeRsaKey(&caKey);
+            return -415;
+        }
         fclose(pemFile);
         free(pem);
         free(derCert);
@@ -2961,7 +3126,7 @@ int rsa_test(void)
         int         pemSz;
         size_t      bytes3;
         word32      idx3 = 0;
-			  FILE* file3 ;
+        FILE*       file3;
 #ifdef CYASSL_TEST_CERT
         DecodedCert decode;
 #endif
@@ -2970,20 +3135,29 @@ int rsa_test(void)
         if (derCert == NULL)
             return -5311;
         pem = (byte*)malloc(FOURK_BUF);
-        if (pem == NULL)
+        if (pem == NULL) {
+            free(derCert);
             return -5312;
+        }
 
         file3 = fopen(eccCaKeyFile, "rb");
 
-        if (!file3)
+        if (!file3) {
+            free(derCert);
+            free(pem);
             return -5412;
+        }
 
         bytes3 = fread(tmp, 1, FOURK_BUF, file3);
         fclose(file3);
 
         ecc_init(&caKey);
         ret = EccPrivateKeyDecode(tmp, &idx3, &caKey, (word32)bytes3);
-        if (ret != 0) return -5413;
+        if (ret != 0) {
+            free(derCert);
+            free(pem);
+            return -5413;
+        }
 
         InitCert(&myCert);
         myCert.sigType = CTC_SHA256wECDSA;
@@ -2997,40 +3171,80 @@ int rsa_test(void)
         strncpy(myCert.subject.email, "info@wolfssl.com", CTC_NAME_SIZE);
 
         ret = SetIssuer(&myCert, eccCaCertFile);
-        if (ret < 0)
+        if (ret < 0) {
+            free(pem);
+            free(derCert);
+            ecc_free(&caKey);
             return -5405;
+        }
 
         certSz = MakeCert(&myCert, derCert, FOURK_BUF, NULL, &caKey, &rng);
-        if (certSz < 0)
+        if (certSz < 0) {
+            free(pem);
+            free(derCert);
+            ecc_free(&caKey);
             return -5407;
+        }
 
         certSz = SignCert(myCert.bodySz, myCert.sigType, derCert, FOURK_BUF,
                           NULL, &caKey, &rng);
-        if (certSz < 0)
+        if (certSz < 0) {
+            free(pem);
+            free(derCert);
+            ecc_free(&caKey);
             return -5408;
+        }
 
 #ifdef CYASSL_TEST_CERT
         InitDecodedCert(&decode, derCert, certSz, 0);
         ret = ParseCert(&decode, CERT_TYPE, NO_VERIFY, 0);
-        if (ret != 0)
+        if (ret != 0) {
+            free(pem);
+            free(derCert);
+            ecc_free(&caKey);
             return -5409;
+        }
         FreeDecodedCert(&decode);
 #endif
 
         derFile = fopen("./certecc.der", "wb");
-        if (!derFile)
+        if (!derFile) {
+            free(pem);
+            free(derCert);
+            ecc_free(&caKey);
             return -5410;
-        ret = (int)fwrite(derCert, certSz, 1, derFile);
+        }
+        ret = (int)fwrite(derCert, 1, certSz, derFile);
         fclose(derFile);
+        if (ret != certSz) {
+            free(pem);
+            free(derCert);
+            ecc_free(&caKey);
+            return -5414;
+        }
 
         pemSz = DerToPem(derCert, certSz, pem, FOURK_BUF, CERT_TYPE);
-        if (pemSz < 0)
+        if (pemSz < 0) {
+            free(pem);
+            free(derCert);
+            ecc_free(&caKey);
             return -5411;
+        }
 
         pemFile = fopen("./certecc.pem", "wb");
-        if (!pemFile)
+        if (!pemFile) {
+            free(pem);
+            free(derCert);
+            ecc_free(&caKey);
             return -5412;
-        ret = (int)fwrite(pem, pemSz, 1, pemFile);
+        }
+        ret = (int)fwrite(pem, 1, pemSz, pemFile);
+        if (ret != pemSz) {
+            free(pem);
+            free(derCert);
+            ecc_free(&caKey);
+            return -5415;
+        }
         fclose(pemFile);
         free(pem);
         free(derCert);
@@ -3049,8 +3263,7 @@ int rsa_test(void)
         FILE*       ntruPrivFile;
         int         certSz;
         int         pemSz;
-        size_t      bytes;
-        word32      idx = 0;
+        word32      idx3;
 #ifdef CYASSL_TEST_CERT
         DecodedCert decode;
 #endif
@@ -3058,8 +3271,10 @@ int rsa_test(void)
         if (derCert == NULL)
             return -311;
         pem = (byte*)malloc(FOURK_BUF);
-        if (pem == NULL)
+        if (pem == NULL) {
+            free(derCert);
             return -312;
+        }
 
         byte   public_key[557];          /* sized for EES401EP2 */
         word16 public_key_len;           /* no. of octets in public key */
@@ -3071,33 +3286,53 @@ int rsa_test(void)
         };
         word32 rc = crypto_drbg_instantiate(112, pers_str, sizeof(pers_str),
                                             GetEntropy, &drbg);
-        if (rc != DRBG_OK)
+        if (rc != DRBG_OK) {
+            free(derCert);
+            free(pem);
             return -450;
+        }
 
         rc = crypto_ntru_encrypt_keygen(drbg, NTRU_EES401EP2, &public_key_len,
                                         NULL, &private_key_len, NULL);
-        if (rc != NTRU_OK)
+        if (rc != NTRU_OK) {
+            free(derCert);
+            free(pem);
             return -451;
+        }
 
         rc = crypto_ntru_encrypt_keygen(drbg, NTRU_EES401EP2, &public_key_len,
                                      public_key, &private_key_len, private_key);
         crypto_drbg_uninstantiate(drbg);
 
-        if (rc != NTRU_OK)
+        if (rc != NTRU_OK) {
+            free(derCert);
+            free(pem);
             return -452;
+        }
 
         caFile = fopen(caKeyFile, "rb");
 
-        if (!caFile)
+        if (!caFile) {
+            free(derCert);
+            free(pem);
             return -453;
+        }
 
         bytes = fread(tmp, 1, FOURK_BUF, caFile);
         fclose(caFile);
 
         ret = InitRsaKey(&caKey, 0);
-        if (ret != 0) return -459;
-        ret = RsaPrivateKeyDecode(tmp, &idx, &caKey, (word32)bytes);
-        if (ret != 0) return -454;
+        if (ret != 0) {
+            free(derCert);
+            free(pem);
+            return -459;
+        }
+        ret = RsaPrivateKeyDecode(tmp, &idx3, &caKey, (word32)bytes);
+        if (ret != 0) {
+            free(derCert);
+            free(pem);
+            return -454;
+        }
 
         InitCert(&myCert);
 
@@ -3110,51 +3345,92 @@ int rsa_test(void)
         strncpy(myCert.subject.email, "info@yassl.com", CTC_NAME_SIZE);
 
         ret = SetIssuer(&myCert, caCertFile);
-        if (ret < 0)
+        if (ret < 0) {
+            free(derCert);
+            free(pem);
+            FreeRsaKey(&caKey);
             return -455;
+        }
 
         certSz = MakeNtruCert(&myCert, derCert, FOURK_BUF, public_key,
                               public_key_len, &rng);
-        if (certSz < 0)
+        if (certSz < 0) {
+            free(derCert);
+            free(pem);
+            FreeRsaKey(&caKey);
             return -456;
+        }
 
         certSz = SignCert(myCert.bodySz, myCert.sigType, derCert, FOURK_BUF,
                           &caKey, NULL, &rng);
-        if (certSz < 0)
+        FreeRsaKey(&caKey);
+        if (certSz < 0) {
+            free(derCert);
+            free(pem);
             return -457;
+        }
 
 
 #ifdef CYASSL_TEST_CERT
         InitDecodedCert(&decode, derCert, certSz, 0);
         ret = ParseCert(&decode, CERT_TYPE, NO_VERIFY, 0);
-        if (ret != 0)
+        if (ret != 0) {
+            free(derCert);
+            free(pem);
             return -458;
+        }
         FreeDecodedCert(&decode);
 #endif
         derFile = fopen("./ntru-cert.der", "wb");
-        if (!derFile)
+        if (!derFile) {
+            free(derCert);
+            free(pem);
             return -459;
-        ret = fwrite(derCert, certSz, 1, derFile);
+        }
+        ret = (int)fwrite(derCert, 1, certSz, derFile);
         fclose(derFile);
+        if (ret != certSz) {
+            free(derCert);
+            free(pem);
+            return -473;
+        }
 
         pemSz = DerToPem(derCert, certSz, pem, FOURK_BUF, CERT_TYPE);
-        if (pemSz < 0)
+        if (pemSz < 0) {
+            free(derCert);
+            free(pem);
             return -460;
+        }
 
         pemFile = fopen("./ntru-cert.pem", "wb");
-        if (!pemFile)
+        if (!pemFile) {
+            free(derCert);
+            free(pem);
             return -461;
-        ret = fwrite(pem, pemSz, 1, pemFile);
+        }
+        ret = (int)fwrite(pem, 1, pemSz, pemFile);
         fclose(pemFile);
+        if (ret != pemSz) {
+            free(derCert);
+            free(pem);
+            return -474;
+        }
 
         ntruPrivFile = fopen("./ntru-key.raw", "wb");
-        if (!ntruPrivFile)
+        if (!ntruPrivFile) {
+            free(derCert);
+            free(pem);
             return -462;
-        ret = fwrite(private_key, private_key_len, 1, ntruPrivFile);
+        }
+        ret = (int)fwrite(private_key, 1, private_key_len, ntruPrivFile);
         fclose(ntruPrivFile);
+        if (ret != private_key_len) {
+            free(pem);
+            free(derCert);
+            return -475;
+        }
         free(pem);
         free(derCert);
-        FreeRsaKey(&caKey);
     }
 #endif /* HAVE_NTRU */
 #ifdef CYASSL_CERT_REQ
@@ -3170,8 +3446,10 @@ int rsa_test(void)
         if (der == NULL)
             return -463;
         pem = (byte*)malloc(FOURK_BUF);
-        if (pem == NULL)
+        if (pem == NULL) {
+            free(der);
             return -464;
+        }
 
         InitCert(&req);
 
@@ -3188,30 +3466,55 @@ int rsa_test(void)
         req.sigType = CTC_SHA256wRSA;
 
         derSz = MakeCertReq(&req, der, FOURK_BUF, &key, NULL);
-        if (derSz < 0)
+        if (derSz < 0) {
+            free(pem);
+            free(der);
             return -465;
+        }
 
         derSz = SignCert(req.bodySz, req.sigType, der, FOURK_BUF,
                           &key, NULL, &rng);
-        if (derSz < 0)
+        if (derSz < 0) {
+            free(pem);
+            free(der);
             return -466;
+        }
 
         pemSz = DerToPem(der, derSz, pem, FOURK_BUF, CERTREQ_TYPE);
-        if (pemSz < 0)
+        if (pemSz < 0) {
+            free(pem);
+            free(der);
             return -467;
+        }
 
         reqFile = fopen("./certreq.der", "wb");
-        if (!reqFile)
+        if (!reqFile) {
+            free(pem);
+            free(der);
             return -468;
+        }
 
-        ret = (int)fwrite(der, derSz, 1, reqFile);
+        ret = (int)fwrite(der, 1, derSz, reqFile);
         fclose(reqFile);
+        if (ret != derSz) {
+            free(pem);
+            free(der);
+            return -471;
+        }
 
         reqFile = fopen("./certreq.pem", "wb");
-        if (!reqFile)
+        if (!reqFile) {
+            free(pem);
+            free(der);
             return -469;
-        ret = (int)fwrite(pem, pemSz, 1, reqFile);
+        }
+        ret = (int)fwrite(pem, 1, pemSz, reqFile);
         fclose(reqFile);
+        if (ret != pemSz) {
+            free(pem);
+            free(der);
+            return -470;
+        }
 
         free(pem);
         free(der);
@@ -3664,8 +3967,10 @@ int pbkdf2_test(void)
 
     };
 
-    PBKDF2(derived, (byte*)passwd, (int)strlen(passwd), salt, 8, iterations,
-           kLen, SHA);
+    int ret = PBKDF2(derived, (byte*)passwd, (int)strlen(passwd), salt, 8,
+                                                         iterations, kLen, SHA);
+    if (ret != 0)
+        return ret;
 
     if (memcmp(derived, verify, sizeof(verify)) != 0)
         return -102;
@@ -3812,6 +4117,10 @@ int ecc_test(void)
     ecc_init(&pubKey);
 
     ret = ecc_make_key(&rng, 32, &userA);
+
+    if (ret != 0)
+        return -1014;
+
     ret = ecc_make_key(&rng, 32, &userB);
 
     if (ret != 0)
@@ -3819,6 +4128,9 @@ int ecc_test(void)
 
     x = sizeof(sharedA);
     ret = ecc_shared_secret(&userA, &userB, sharedA, &x);
+
+    if (ret != 0)
+        return -1015;
 
     y = sizeof(sharedB);
     ret = ecc_shared_secret(&userB, &userA, sharedB, &y);
@@ -3857,6 +4169,9 @@ int ecc_test(void)
 
     x = sizeof(sig);
     ret = ecc_sign_hash(digest, sizeof(digest), sig, &x, &rng, &userA);
+
+    if (ret != 0)
+        return -1016;
 
     verify = 0;
     ret = ecc_verify_hash(sig, x, digest, sizeof(digest), &verify, &userA);
@@ -4157,21 +4472,29 @@ int pkcs7enveloped_test(void)
         return -201;
 
     privKey = (byte*)malloc(FOURK_BUF);
-    if (privKey == NULL)
+    if (privKey == NULL) {
+        free(cert);
         return -202;
+    }
 
     certFile = fopen(clientCert, "rb");
-    if (!certFile)
+    if (!certFile) {
+        free(cert);
+        free(privKey);
         err_sys("can't open ./certs/client-cert.der, "
                 "Please run from CyaSSL home dir", -42);
+    }
 
     certSz = fread(cert, 1, FOURK_BUF, certFile);
     fclose(certFile);
 
     keyFile = fopen(clientKey, "rb");
-    if (!keyFile)
+    if (!keyFile) {
+        free(cert);
+        free(privKey);
         err_sys("can't open ./certs/client-key.der, "
                 "Please run from CyaSSL home dir", -43);
+    }
 
     privKeySz = fread(privKey, 1, FOURK_BUF, keyFile);
     fclose(keyFile);
@@ -4187,24 +4510,35 @@ int pkcs7enveloped_test(void)
     /* encode envelopedData */
     envelopedSz = PKCS7_EncodeEnvelopedData(&pkcs7, enveloped,
                                             sizeof(enveloped));
-    if (envelopedSz <= 0)
+    if (envelopedSz <= 0) {
+        free(cert);
+        free(privKey);
         return -203;
+    }
 
     /* decode envelopedData */
     decodedSz = PKCS7_DecodeEnvelopedData(&pkcs7, enveloped, envelopedSz,
                                           decoded, sizeof(decoded));
-    if (decodedSz <= 0)
+    if (decodedSz <= 0) {
+        free(cert);
+        free(privKey);
         return -204;
+    }
 
     /* test decode result */
     if (memcmp(decoded, data, sizeof(data)) != 0) {
+        free(cert);
+        free(privKey);
         return -205;
     }
 
     /* output pkcs7 envelopedData for external testing */
     pkcs7File = fopen(pkcs7OutFile, "wb");
-    if (!pkcs7File)
+    if (!pkcs7File) {
+        free(cert);
+        free(privKey);
         return -206;
+    }
 
     ret = (int)fwrite(enveloped, envelopedSz, 1, pkcs7File);
     fclose(pkcs7File);
@@ -4259,15 +4593,19 @@ int pkcs7signed_test(void)
     outSz = FOURK_BUF;
 
     certDer = (byte*)malloc(FOURK_BUF);
-    keyDer = (byte*)malloc(FOURK_BUF);
-    out = (byte*)malloc(FOURK_BUF);
-
     if (certDer == NULL)
         return -207;
-    if (keyDer == NULL)
+    keyDer = (byte*)malloc(FOURK_BUF);
+    if (keyDer == NULL) {
+        free(certDer);
         return -208;
-    if (out == NULL)
+    }
+    out = (byte*)malloc(FOURK_BUF);
+    if (out == NULL) {
+        free(certDer);
+        free(keyDer);
         return -209;
+    }
 
     /* read in DER cert of recipient, into cert of size certSz */
     file = fopen(clientCert, "rb");
@@ -4293,9 +4631,23 @@ int pkcs7signed_test(void)
     fclose(file);
 
     ret = InitRng(&rng);
+    if (ret != 0) {
+        free(certDer);
+        free(keyDer);
+        free(out);
+        return -210;
+    }
+
     senderNonce[0] = 0x04;
     senderNonce[1] = PKCS7_NONCE_SZ;
-    RNG_GenerateBlock(&rng, &senderNonce[2], PKCS7_NONCE_SZ);
+
+    ret = RNG_GenerateBlock(&rng, &senderNonce[2], PKCS7_NONCE_SZ);
+    if (ret != 0) {
+        free(certDer);
+        free(keyDer);
+        free(out);
+        return -211;
+    }
 
     PKCS7_InitWithCert(&msg, certDer, certDerSz);
     msg.privateKey = keyDer;
@@ -4316,8 +4668,12 @@ int pkcs7signed_test(void)
         transId[1] = SHA_DIGEST_SIZE * 2;
 
         ret = InitSha(&sha);
-        if (ret != 0)
+        if (ret != 0) {
+            free(certDer);
+            free(keyDer);
+            free(out);
             return -4003;
+        }
         ShaUpdate(&sha, msg.publicKey, msg.publicKeySz);
         ShaFinal(&sha, digest);
 
@@ -4331,7 +4687,7 @@ int pkcs7signed_test(void)
         free(keyDer);
         free(out);
         PKCS7_Free(&msg);
-        return -210;
+        return -212;
     }
     else
         outSz = ret;
@@ -4343,10 +4699,17 @@ int pkcs7signed_test(void)
         free(keyDer);
         free(out);
         PKCS7_Free(&msg);
-        return -211;
+        return -213;
     }
     ret = (int)fwrite(out, 1, outSz, file);
     fclose(file);
+    if (ret != (int)outSz) {
+        free(certDer);
+        free(keyDer);
+        free(out);
+        PKCS7_Free(&msg);
+        return -218;
+    }
 
     PKCS7_Free(&msg);
     PKCS7_InitWithCert(&msg, NULL, 0);
@@ -4357,7 +4720,7 @@ int pkcs7signed_test(void)
         free(keyDer);
         free(out);
         PKCS7_Free(&msg);
-        return -212;
+        return -214;
     }
 
     if (msg.singleCert == NULL || msg.singleCertSz == 0) {
@@ -4365,7 +4728,7 @@ int pkcs7signed_test(void)
         free(keyDer);
         free(out);
         PKCS7_Free(&msg);
-        return -213;
+        return -215;
     }
 
     file = fopen("./pkcs7cert.der", "wb");
@@ -4374,7 +4737,7 @@ int pkcs7signed_test(void)
         free(keyDer);
         free(out);
         PKCS7_Free(&msg);
-        return -214;
+        return -216;
     }
     ret = (int)fwrite(msg.singleCert, 1, msg.singleCertSz, file);
     fclose(file);

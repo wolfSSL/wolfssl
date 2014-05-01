@@ -1,6 +1,6 @@
 /* random.c
  *
- * Copyright (C) 2006-2013 wolfSSL Inc.
+ * Copyright (C) 2006-2014 wolfSSL Inc.
  *
  * This file is part of CyaSSL.
  *
@@ -16,7 +16,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
 #ifdef HAVE_CONFIG_H
@@ -105,18 +105,32 @@ static int Hash_df(RNG* rng, byte* out, word32 outSz, byte type, byte* inA, word
     {
         if (InitSha256(&rng->sha) != 0)
             return DBRG_ERROR;
-        Sha256Update(&rng->sha, &ctr, sizeof(ctr));
-        Sha256Update(&rng->sha, (byte*)&bits, sizeof(bits));
-        /* churning V is the only string that doesn't have
+
+        if (Sha256Update(&rng->sha, &ctr, sizeof(ctr)) != 0)
+            return DBRG_ERROR;
+
+        if (Sha256Update(&rng->sha, (byte*)&bits, sizeof(bits)) != 0)
+            return DBRG_ERROR;
+
+        /* churning V is the only string that doesn't have 
          * the type added */
         if (type != dbrgInitV)
-            Sha256Update(&rng->sha, &type, sizeof(type));
-        Sha256Update(&rng->sha, inA, inASz);
+            if (Sha256Update(&rng->sha, &type, sizeof(type)) != 0)
+                return DBRG_ERROR;
+
+        if (Sha256Update(&rng->sha, inA, inASz) != 0)
+            return DBRG_ERROR;
+
         if (inB != NULL && inBSz > 0)
-            Sha256Update(&rng->sha, inB, inBSz);
+            if (Sha256Update(&rng->sha, inB, inBSz) != 0)
+                return DBRG_ERROR;
+
         if (inC != NULL && inCSz > 0)
-            Sha256Update(&rng->sha, inC, inCSz);
-        Sha256Final(&rng->sha, rng->digest);
+            if (Sha256Update(&rng->sha, inC, inCSz) != 0)
+                return DBRG_ERROR;
+
+        if (Sha256Final(&rng->sha, rng->digest) != 0)
+            return DBRG_ERROR;
 
         if (outSz > SHA256_DIGEST_SIZE) {
             XMEMCPY(out, rng->digest, SHA256_DIGEST_SIZE);
@@ -134,15 +148,22 @@ static int Hash_df(RNG* rng, byte* out, word32 outSz, byte type, byte* inA, word
 
 static int Hash_DBRG_Reseed(RNG* rng, byte* entropy, word32 entropySz)
 {
+    int  ret;
     byte seed[DBRG_SEED_LEN];
 
-    Hash_df(rng, seed, sizeof(seed), dbrgInitV, rng->V, sizeof(rng->V),
-                                                  entropy, entropySz, NULL, 0);
+    ret = Hash_df(rng, seed, sizeof(seed), dbrgInitV, rng->V, sizeof(rng->V),
+                                                   entropy, entropySz, NULL, 0);
+    if (ret != 0)
+        return ret;
+
     XMEMCPY(rng->V, seed, sizeof(rng->V));
     XMEMSET(seed, 0, sizeof(seed));
 
-    Hash_df(rng, rng->C, sizeof(rng->C), dbrgInitC, rng->V, sizeof(rng->V),
-                                                             NULL, 0, NULL, 0);
+    ret = Hash_df(rng, rng->C, sizeof(rng->C), dbrgInitC, rng->V,
+                                              sizeof(rng->V), NULL, 0, NULL, 0);
+    if (ret != 0)
+        return ret;
+
     rng->reseed_ctr = 1;
     return 0;
 }
@@ -168,9 +189,17 @@ static int Hash_gen(RNG* rng, byte* out, word32 outSz, byte* V)
     XMEMCPY(data, V, sizeof(data));
     for (i = 0; i < len; i++) {
         ret = InitSha256(&rng->sha);
-        if (ret != 0) return ret;
-        Sha256Update(&rng->sha, data, sizeof(data));
-        Sha256Final(&rng->sha, rng->digest);
+        if (ret != 0)
+            return ret;
+
+        ret = Sha256Update(&rng->sha, data, sizeof(data));
+        if (ret != 0)
+            return ret;
+
+        ret = Sha256Final(&rng->sha, rng->digest);
+        if (ret != 0)
+            return ret;
+
         if (outSz > SHA256_DIGEST_SIZE) {
             XMEMCPY(out, rng->digest, SHA256_DIGEST_SIZE);
             outSz -= SHA256_DIGEST_SIZE;
@@ -217,9 +246,13 @@ static int Hash_DBRG_Generate(RNG* rng, byte* out, word32 outSz)
             return DBRG_ERROR;
         if (InitSha256(&rng->sha) != 0)
             return DBRG_ERROR;
-        Sha256Update(&rng->sha, &type, sizeof(type));
-        Sha256Update(&rng->sha, rng->V, sizeof(rng->V));
-        Sha256Final(&rng->sha, rng->digest);
+        if (Sha256Update(&rng->sha, &type, sizeof(type)) != 0)
+            return DBRG_ERROR;
+        if (Sha256Update(&rng->sha, rng->V, sizeof(rng->V)) != 0)
+            return DBRG_ERROR;
+        if (Sha256Final(&rng->sha, rng->digest) != 0)
+            return DBRG_ERROR;
+
         array_add(rng->V, sizeof(rng->V), rng->digest, sizeof(rng->digest));
         array_add(rng->V, sizeof(rng->V), rng->C, sizeof(rng->C));
         array_add(rng->V, sizeof(rng->V),
@@ -234,13 +267,24 @@ static int Hash_DBRG_Generate(RNG* rng, byte* out, word32 outSz)
 }
 
 
-static void Hash_DBRG_Instantiate(RNG* rng, byte* seed, word32 seedSz)
+static int Hash_DBRG_Instantiate(RNG* rng, byte* seed, word32 seedSz)
 {
+    int ret;
+
     XMEMSET(rng, 0, sizeof(*rng));
-    Hash_df(rng, rng->V, sizeof(rng->V), dbrgInitV, seed, seedSz, NULL, 0, NULL, 0);
-    Hash_df(rng, rng->C, sizeof(rng->C), dbrgInitC, rng->V, sizeof(rng->V),
-                                                             NULL, 0, NULL, 0);
+    ret = Hash_df(rng, rng->V, sizeof(rng->V), dbrgInitV, seed, seedSz, NULL, 0,
+                                                                       NULL, 0);
+    if (ret != 0)
+        return ret;
+
+    ret = Hash_df(rng, rng->C, sizeof(rng->C), dbrgInitC, rng->V,
+                                              sizeof(rng->V), NULL, 0, NULL, 0);
+    if (ret != 0)
+        return ret;
+
     rng->reseed_ctr = 1;
+
+    return 0;
 }
 
 
@@ -263,45 +307,77 @@ static int Hash_DBRG_Uninstantiate(RNG* rng)
 /* Get seed and key cipher */
 int InitRng(RNG* rng)
 {
+#ifdef CYASSL_SMALL_STACK
+    byte* entropy;
+#else
     byte entropy[ENTROPY_SZ];
+#endif
     int  ret = DBRG_ERROR;
 
-    if (GenerateSeed(&rng->seed, entropy, sizeof(entropy)) == 0) {
-        Hash_DBRG_Instantiate(rng, entropy, sizeof(entropy));
-        ret = DBRG_SUCCESS;
-    }
-    XMEMSET(entropy, 0, sizeof(entropy));
+#ifdef CYASSL_SMALL_STACK
+    entropy = (byte*)XMALLOC(ENTROPY_SZ, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (entropy == NULL)
+        return MEMORY_E;
+#endif
+
+    if (GenerateSeed(&rng->seed, entropy, ENTROPY_SZ) == 0)
+        ret = Hash_DBRG_Instantiate(rng, entropy, ENTROPY_SZ);
+
+    XMEMSET(entropy, 0, ENTROPY_SZ);
+
+#ifdef CYASSL_SMALL_STACK
+    XFREE(entropy, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
     return ret;
 }
 
 
 /* place a generated block in output */
-void RNG_GenerateBlock(RNG* rng, byte* output, word32 sz)
+int RNG_GenerateBlock(RNG* rng, byte* output, word32 sz)
 {
     int ret;
 
     XMEMSET(output, 0, sz);
     ret = Hash_DBRG_Generate(rng, output, sz);
+
     if (ret == DBRG_NEED_RESEED) {
+#ifdef CYASSL_SMALL_STACK
+        byte* entropy;
+#else
         byte entropy[ENTROPY_SZ];
-        ret = GenerateSeed(&rng->seed, entropy, sizeof(entropy));
+#endif
+
+#ifdef CYASSL_SMALL_STACK
+        entropy = (byte*)XMALLOC(ENTROPY_SZ, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        if (entropy == NULL)
+            return MEMORY_E;
+#endif
+
+        ret = GenerateSeed(&rng->seed, entropy, ENTROPY_SZ);
         if (ret == 0) {
-            Hash_DBRG_Reseed(rng, entropy, sizeof(entropy));
-            ret = Hash_DBRG_Generate(rng, output, sz);
+            ret = Hash_DBRG_Reseed(rng, entropy, ENTROPY_SZ);
+
+            if (ret == 0)
+                ret = Hash_DBRG_Generate(rng, output, sz);
         }
         else
             ret = DBRG_ERROR;
-        XMEMSET(entropy, 0, sizeof(entropy));
+
+        XMEMSET(entropy, 0, ENTROPY_SZ);
+
+#ifdef CYASSL_SMALL_STACK
+        XFREE(entropy, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
     }
+
+    return ret;
 }
 
 
-byte RNG_GenerateByte(RNG* rng)
+int RNG_GenerateByte(RNG* rng, byte* b)
 {
-    byte b;
-    RNG_GenerateBlock(rng, &b, 1);
-
-    return b;
+    return RNG_GenerateBlock(rng, b, 1);
 }
 
 
@@ -315,20 +391,44 @@ void FreeRng(RNG* rng)
 /* Get seed and key cipher */
 int InitRng(RNG* rng)
 {
+    int  ret;
+#ifdef CYASSL_SMALL_STACK
+    byte* key;
+    byte* junk;
+#else
     byte key[32];
     byte junk[256];
-    int  ret;
+#endif
 
 #ifdef HAVE_CAVIUM
     if (rng->magic == CYASSL_RNG_CAVIUM_MAGIC)
         return 0;
 #endif
-    ret = GenerateSeed(&rng->seed, key, sizeof(key));
+
+#ifdef CYASSL_SMALL_STACK
+    key = (byte*)XMALLOC(32, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (key == NULL)
+        return MEMORY_E;
+
+    junk = (byte*)XMALLOC(256, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (junk == NULL) {
+        XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        return MEMORY_E;
+    }
+#endif
+
+    ret = GenerateSeed(&rng->seed, key, 32);
 
     if (ret == 0) {
         Arc4SetKey(&rng->cipher, key, sizeof(key));
-        RNG_GenerateBlock(rng, junk, sizeof(junk));  /* rid initial state */
+
+        ret = RNG_GenerateBlock(rng, junk, 256); /*rid initial state*/
     }
+
+#ifdef CYASSL_SMALL_STACK
+    XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(junk, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 
     return ret;
 }
@@ -338,7 +438,7 @@ int InitRng(RNG* rng)
 #endif
 
 /* place a generated block in output */
-void RNG_GenerateBlock(RNG* rng, byte* output, word32 sz)
+int RNG_GenerateBlock(RNG* rng, byte* output, word32 sz)
 {
 #ifdef HAVE_CAVIUM
     if (rng->magic == CYASSL_RNG_CAVIUM_MAGIC)
@@ -346,15 +446,14 @@ void RNG_GenerateBlock(RNG* rng, byte* output, word32 sz)
 #endif
     XMEMSET(output, 0, sz);
     Arc4Process(&rng->cipher, output, output, sz);
+
+    return 0;
 }
 
 
-byte RNG_GenerateByte(RNG* rng)
+int RNG_GenerateByte(RNG* rng, byte* b)
 {
-    byte b;
-    RNG_GenerateBlock(rng, &b, 1);
-
-    return b;
+    return RNG_GenerateBlock(rng, b, 1);
 }
 
 

@@ -1,6 +1,6 @@
 /* crypto.c
  *
- * Copyright (C) 2006-2013 wolfSSL Inc.
+ * Copyright (C) 2006-2014 wolfSSL Inc.
  *
  * This file is part of CyaSSL.
  *
@@ -16,7 +16,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
 
@@ -301,9 +301,7 @@ int CRYPT_RNG_Get(CRYPT_RNG_CTX* rng, unsigned char* b)
     if (rng == NULL || b == NULL)
         return BAD_FUNC_ARG;
 
-    *b = RNG_GenerateByte((RNG*)rng);
-
-    return 0;
+    return RNG_GenerateByte((RNG*)rng, (byte*)b);
 }
 
 
@@ -314,9 +312,7 @@ int CRYPT_RNG_BlockGenerate(CRYPT_RNG_CTX* rng, unsigned char* b,
     if (rng == NULL || b == NULL)
         return BAD_FUNC_ARG;
 
-    RNG_GenerateBlock((RNG*)rng, b, sz);
-
-    return 0;
+    return RNG_GenerateBlock((RNG*)rng, b, sz);
 }
 
 

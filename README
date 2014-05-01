@@ -35,7 +35,23 @@ before calling SSL_new();  Though it's not recommended.
 *** end Notes ***
 
 
-CyaSSL Release 2.9.4 (04/09/2014)
+CyaSSL Release 3.0.0 (04/29/2014)
+
+Release 3.0.0 CyaSSL has bug fixes and new features including:
+
+- FIPS release candidate
+- X.509 improvements that address items reported by Suman Jana with security
+  researchers at UT Austin and UC Davis
+- Small stack size improvements, --enable-smallstack. Offloads large local
+  variables to the heap. (Note this is not complete.)
+- Updated AES-CCM-8 cipher suites to use approved suite numbers.
+
+The CyaSSL manual is available at:
+http://www.yassl.com/documentation/CyaSSL-Manual.pdf.  For build instructions
+and comments about the new features please check the manual.
+
+
+************ CyaSSL Release 2.9.4 (04/09/2014)
 
 Release 2.9.4 CyaSSL has bug fixes and new features including:
 

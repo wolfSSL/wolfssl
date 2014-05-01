@@ -1,6 +1,6 @@
 /* pic32mz-hash.c
  *
- * Copyright (C) 2006-2013 wolfSSL Inc.
+ * Copyright (C) 2006-2014 wolfSSL Inc.
  *
  * This file is part of CyaSSL.
  *
@@ -16,7 +16,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
 #ifdef HAVE_CONFIG_H
@@ -221,19 +221,23 @@ void InitSha256(Sha256* sha256)
     reset_engine(&(sha256->desc), PIC32_ALGO_SHA256) ;
 }
 
-void Sha256Update(Sha256* sha256, const byte* data, word32 len)
+int Sha256Update(Sha256* sha256, const byte* data, word32 len)
 {
     CYASSL_ENTER("Sha256Update\n") ;
     update_engine(&(sha256->desc), data, len, sha256->digest) ;
+
+    return 0;
 }
 
-void Sha256Final(Sha256* sha256, byte* hash)
+int Sha256Final(Sha256* sha256, byte* hash)
 {
     CYASSL_ENTER("Sha256Final\n") ;
     start_engine(&(sha256->desc)) ;
     wait_engine(&(sha256->desc), (char *)sha256->digest, SHA256_HASH_SIZE) ;
     XMEMCPY(hash, sha256->digest, SHA256_HASH_SIZE) ;
     InitSha256(sha256);  /* reset state */
+
+    return 0;
 }
 #endif /* NO_SHA256 */
 

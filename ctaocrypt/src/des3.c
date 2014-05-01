@@ -1,6 +1,6 @@
 /* des3.c
  *
- * Copyright (C) 2006-2013 wolfSSL Inc.
+ * Copyright (C) 2006-2014 wolfSSL Inc.
  *
  * This file is part of CyaSSL.
  *
@@ -16,7 +16,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
 #ifdef HAVE_CONFIG_H
@@ -988,12 +988,16 @@ static INLINE void FPERM(word32* left, word32* right)
 
 static int DesSetKey(const byte* key, int dir, word32* out)
 {
+#ifdef CYASSL_SMALL_STACK
     byte* buffer = (byte*)XMALLOC(56+56+8, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
-    if (!buffer) {
+    if (buffer == NULL)
         return MEMORY_E;
-    }
-    else {
+#else
+    byte buffer[56+56+8];
+#endif
+
+    {
         byte* const  pc1m = buffer;               /* place to modify pc1 into */
         byte* const  pcr  = pc1m + 56;            /* place to rotate pc1 into */
         byte* const  ks   = pcr  + 56;
@@ -1048,7 +1052,9 @@ static int DesSetKey(const byte* key, int dir, word32* out)
             }
         }
 
+#ifdef CYASSL_SMALL_STACK
         XFREE(buffer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
     }
 
     return 0;

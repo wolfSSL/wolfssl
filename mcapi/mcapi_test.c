@@ -1,6 +1,6 @@
 /* test.c
  *
- * Copyright (C) 2006-2013 wolfSSL Inc.
+ * Copyright (C) 2006-2014 wolfSSL Inc.
  *
  * This file is part of CyaSSL.
  *
@@ -16,7 +16,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
 
@@ -284,10 +284,18 @@ static int check_sha256(void)
     }
 
     CRYPT_SHA256_DataAdd(&mcSha256, ourData, OUR_DATA_SIZE);
-    Sha256Update(&defSha256, ourData, OUR_DATA_SIZE);
+    ret = Sha256Update(&defSha256, ourData, OUR_DATA_SIZE);
+    if (ret != 0) {
+        printf("sha256 update default failed\n");
+        return -1;
+    }
 
     CRYPT_SHA256_Finalize(&mcSha256, mcDigest);
-    Sha256Final(&defSha256, defDigest);
+    ret = Sha256Final(&defSha256, defDigest);
+    if (ret != 0) {
+        printf("sha256 final default failed\n");
+        return -1;
+    }
 
     if (memcmp(mcDigest, defDigest, CRYPT_SHA256_DIGEST_SIZE) != 0) {
         printf("sha256 final memcmp fialed\n");
@@ -316,10 +324,18 @@ static int check_sha384(void)
     }
 
     CRYPT_SHA384_DataAdd(&mcSha384, ourData, OUR_DATA_SIZE);
-    Sha384Update(&defSha384, ourData, OUR_DATA_SIZE);
+    ret = Sha384Update(&defSha384, ourData, OUR_DATA_SIZE);
+    if (ret != 0) {
+        printf("sha384 update default failed\n");
+        return -1;
+    }
 
     CRYPT_SHA384_Finalize(&mcSha384, mcDigest);
-    Sha384Final(&defSha384, defDigest);
+    ret = Sha384Final(&defSha384, defDigest);
+    if (ret != 0) {
+        printf("sha384 final default failed\n");
+        return -1;
+    }
 
     if (memcmp(mcDigest, defDigest, CRYPT_SHA384_DIGEST_SIZE) != 0) {
         printf("sha384 final memcmp fialed\n");
@@ -348,10 +364,18 @@ static int check_sha512(void)
     }
 
     CRYPT_SHA512_DataAdd(&mcSha512, ourData, OUR_DATA_SIZE);
-    Sha512Update(&defSha512, ourData, OUR_DATA_SIZE);
+    ret = Sha512Update(&defSha512, ourData, OUR_DATA_SIZE);
+    if (ret != 0) {
+        printf("sha512 update default failed\n");
+        return -1;
+    }
 
     CRYPT_SHA512_Finalize(&mcSha512, mcDigest);
-    Sha512Final(&defSha512, defDigest);
+    ret = Sha512Final(&defSha512, defDigest);
+    if (ret != 0) {
+        printf("sha512 final default failed\n");
+        return -1;
+    }
 
     if (memcmp(mcDigest, defDigest, CRYPT_SHA512_DIGEST_SIZE) != 0) {
         printf("sha512 final memcmp fialed\n");
@@ -383,10 +407,18 @@ static int check_hmac(void)
     }
 
     CRYPT_HMAC_DataAdd(&mcHmac, ourData, OUR_DATA_SIZE);
-    HmacUpdate(&defHmac, ourData, OUR_DATA_SIZE);
+    ret = HmacUpdate(&defHmac, ourData, OUR_DATA_SIZE);
+    if (ret != 0) {
+        printf("hmac sha update default failed\n");
+        return -1;
+    }
 
     CRYPT_HMAC_Finalize(&mcHmac, mcDigest);
-    HmacFinal(&defHmac, defDigest);
+    ret = HmacFinal(&defHmac, defDigest);
+    if (ret != 0) {
+        printf("hmac sha final default failed\n");
+        return -1;
+    }
 
     if (memcmp(mcDigest, defDigest, CRYPT_SHA_DIGEST_SIZE) != 0) {
         printf("hmac sha final memcmp fialed\n");
@@ -403,10 +435,18 @@ static int check_hmac(void)
     }
 
     CRYPT_HMAC_DataAdd(&mcHmac, ourData, OUR_DATA_SIZE);
-    HmacUpdate(&defHmac, ourData, OUR_DATA_SIZE);
+    ret = HmacUpdate(&defHmac, ourData, OUR_DATA_SIZE);
+    if (ret != 0) {
+        printf("hmac sha256 update default failed\n");
+        return -1;
+    }
 
     CRYPT_HMAC_Finalize(&mcHmac, mcDigest);
-    HmacFinal(&defHmac, defDigest);
+    ret = HmacFinal(&defHmac, defDigest);
+    if (ret != 0) {
+        printf("hmac sha256 final default failed\n");
+        return -1;
+    }
 
     if (memcmp(mcDigest, defDigest, CRYPT_SHA256_DIGEST_SIZE) != 0) {
         printf("hmac sha256 final memcmp fialed\n");
@@ -423,10 +463,18 @@ static int check_hmac(void)
     }
 
     CRYPT_HMAC_DataAdd(&mcHmac, ourData, OUR_DATA_SIZE);
-    HmacUpdate(&defHmac, ourData, OUR_DATA_SIZE);
+    ret = HmacUpdate(&defHmac, ourData, OUR_DATA_SIZE);
+    if (ret != 0) {
+        printf("hmac sha384 update default failed\n");
+        return -1;
+    }
 
     CRYPT_HMAC_Finalize(&mcHmac, mcDigest);
-    HmacFinal(&defHmac, defDigest);
+    ret = HmacFinal(&defHmac, defDigest);
+    if (ret != 0) {
+        printf("hmac sha384 final default failed\n");
+        return -1;
+    }
 
     if (memcmp(mcDigest, defDigest, CRYPT_SHA384_DIGEST_SIZE) != 0) {
         printf("hmac sha384 final memcmp fialed\n");
@@ -443,10 +491,18 @@ static int check_hmac(void)
     }
 
     CRYPT_HMAC_DataAdd(&mcHmac, ourData, OUR_DATA_SIZE);
-    HmacUpdate(&defHmac, ourData, OUR_DATA_SIZE);
+    ret = HmacUpdate(&defHmac, ourData, OUR_DATA_SIZE);
+    if (ret != 0) {
+        printf("hmac sha512 update default failed\n");
+        return -1;
+    }
 
     CRYPT_HMAC_Finalize(&mcHmac, mcDigest);
-    HmacFinal(&defHmac, defDigest);
+    ret = HmacFinal(&defHmac, defDigest);
+    if (ret != 0) {
+        printf("hmac sha512 final default failed\n");
+        return -1;
+    }
 
     if (memcmp(mcDigest, defDigest, CRYPT_SHA512_DIGEST_SIZE) != 0) {
         printf("hmac sha512 final memcmp fialed\n");

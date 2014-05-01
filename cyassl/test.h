@@ -1345,9 +1345,15 @@ static INLINE int myMacEncryptCb(CYASSL* ssl, unsigned char* macOut,
                CyaSSL_GetMacSecret(ssl, macVerify), CyaSSL_GetHmacSize(ssl));
     if (ret != 0)
         return ret;
-    HmacUpdate(&hmac, myInner, sizeof(myInner));
-    HmacUpdate(&hmac, macIn, macInSz);
-    HmacFinal(&hmac, macOut);
+    ret = HmacUpdate(&hmac, myInner, sizeof(myInner));
+    if (ret != 0)
+        return ret;
+    ret = HmacUpdate(&hmac, macIn, macInSz);
+    if (ret != 0)
+        return ret;
+    ret = HmacFinal(&hmac, macOut);
+    if (ret != 0)
+        return ret;
 
 
     /* encrypt setup on first time */
@@ -1454,9 +1460,15 @@ static INLINE int myDecryptVerifyCb(CYASSL* ssl,
                CyaSSL_GetMacSecret(ssl, macVerify), digestSz);
     if (ret != 0)
         return ret;
-    HmacUpdate(&hmac, myInner, sizeof(myInner));
-    HmacUpdate(&hmac, decOut + ivExtra, macInSz);
-    HmacFinal(&hmac, verify);
+    ret = HmacUpdate(&hmac, myInner, sizeof(myInner));
+    if (ret != 0)
+        return ret;
+    ret = HmacUpdate(&hmac, decOut + ivExtra, macInSz);
+    if (ret != 0)
+        return ret;
+    ret = HmacFinal(&hmac, verify);
+    if (ret != 0)
+        return ret;
 
     if (memcmp(verify, decOut + decSz - digestSz - pad - padByte,
                digestSz) != 0) {
@@ -1520,7 +1532,10 @@ static INLINE int myEccSign(CYASSL* ssl, const byte* in, word32 inSz,
     (void)ssl;
     (void)ctx;
 
-    InitRng(&rng);
+    ret = InitRng(&rng);
+    if (ret != 0)
+        return ret;
+
     ecc_init(&myKey);
     
     ret = EccPrivateKeyDecode(key, &idx, &myKey, keySz);    
@@ -1567,7 +1582,10 @@ static INLINE int myRsaSign(CYASSL* ssl, const byte* in, word32 inSz,
     (void)ssl;
     (void)ctx;
 
-    InitRng(&rng);
+    ret = InitRng(&rng);
+    if (ret != 0)
+        return ret;
+
     InitRsaKey(&myKey, NULL);
     
     ret = RsaPrivateKeyDecode(key, &idx, &myKey, keySz);    
@@ -1618,7 +1636,10 @@ static INLINE int myRsaEnc(CYASSL* ssl, const byte* in, word32 inSz,
     (void)ssl;
     (void)ctx;
 
-    InitRng(&rng);
+    ret = InitRng(&rng);
+    if (ret != 0)
+        return ret;
+
     InitRsaKey(&myKey, NULL);
     
     ret = RsaPublicKeyDecode(key, &idx, &myKey, keySz);

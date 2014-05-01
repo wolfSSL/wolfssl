@@ -1,6 +1,6 @@
 /* benchmark.c
  *
- * Copyright (C) 2006-2013 wolfSSL Inc.
+ * Copyright (C) 2006-2014 wolfSSL Inc.
  *
  * This file is part of CyaSSL.
  *
@@ -16,7 +16,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
 /* CTaoCrypt benchmark */
@@ -405,9 +405,13 @@ void bench_camellia(void)
 {
     Camellia cam;
     double start, total, persec;
-    int    i;
+    int    i, ret;
 
-    CamelliaSetKey(&cam, key, 16, iv);
+    ret = CamelliaSetKey(&cam, key, 16, iv);
+    if (ret != 0) {
+        printf("CamelliaSetKey failed, ret = %d\n", ret);
+        return;
+    }
     start = current_time(1);
 
     for(i = 0; i < numBlocks; i++)
@@ -619,8 +623,7 @@ void bench_sha256(void)
     Sha256 hash;
     byte   digest[SHA256_DIGEST_SIZE];
     double start, total, persec;
-    int    i;
-    int    ret;
+    int    i, ret;
         
     ret = InitSha256(&hash);
     if (ret != 0) {
@@ -629,10 +632,19 @@ void bench_sha256(void)
     }
     start = current_time(1);
     
-    for(i = 0; i < numBlocks; i++)
-        Sha256Update(&hash, plain, sizeof(plain));
+    for(i = 0; i < numBlocks; i++) {
+        ret = Sha256Update(&hash, plain, sizeof(plain));
+        if (ret != 0) {
+            printf("Sha256Update failed, ret = %d\n", ret);
+            return;
+        }
+    }
    
-    Sha256Final(&hash, digest);
+    ret = Sha256Final(&hash, digest);
+    if (ret != 0) {
+        printf("Sha256Final failed, ret = %d\n", ret);
+        return;
+    }
 
     total = current_time(0) - start;
     persec = 1 / total * numBlocks;
@@ -661,10 +673,19 @@ void bench_sha512(void)
     }
     start = current_time(1);
     
-    for(i = 0; i < numBlocks; i++)
-        Sha512Update(&hash, plain, sizeof(plain));
-   
-    Sha512Final(&hash, digest);
+    for(i = 0; i < numBlocks; i++) {
+        ret = Sha512Update(&hash, plain, sizeof(plain));
+        if (ret != 0) {
+            printf("Sha512Update failed, ret = %d\n", ret);
+            return;
+        }
+    }
+
+    ret = Sha512Final(&hash, digest);
+    if (ret != 0) {
+        printf("Sha512Final failed, ret = %d\n", ret);
+        return;
+    }
 
     total = current_time(0) - start;
     persec = 1 / total * numBlocks;
@@ -713,15 +734,28 @@ void bench_blake2(void)
     Blake2b b2b;
     byte    digest[64];
     double  start, total, persec;
-    int     i;
+    int     i, ret;
        
-    InitBlake2b(&b2b, 64); 
+    ret = InitBlake2b(&b2b, 64);
+    if (ret != 0) {
+        printf("InitBlake2b failed, ret = %d\n", ret);
+        return;
+    }
     start = current_time(1);
     
-    for(i = 0; i < numBlocks; i++)
-        Blake2bUpdate(&b2b, plain, sizeof(plain));
+    for(i = 0; i < numBlocks; i++) {
+        ret = Blake2bUpdate(&b2b, plain, sizeof(plain));
+        if (ret != 0) {
+            printf("Blake2bUpdate failed, ret = %d\n", ret);
+            return;
+        }
+    }
    
-    Blake2bFinal(&b2b, digest, 64);
+    ret = Blake2bFinal(&b2b, digest, 64);
+    if (ret != 0) {
+        printf("Blake2bFinal failed, ret = %d\n", ret);
+        return;
+    }
 
     total = current_time(0) - start;
     persec = 1 / total * numBlocks;

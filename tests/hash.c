@@ -1,6 +1,6 @@
 /* hash.c has unit tests
  *
- * Copyright (C) 2006-2013 wolfSSL Inc.
+ * Copyright (C) 2006-2014 wolfSSL Inc.
  *
  * This file is part of CyaSSL.
  *
@@ -16,7 +16,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
 #ifdef HAVE_CONFIG_H
@@ -386,8 +386,13 @@ int sha256_test(void)
         return ret;
 
     for (i = 0; i < times; ++i) {
-        Sha256Update(&sha, (byte*)test_sha[i].input,(word32)test_sha[i].inLen);
-        Sha256Final(&sha, hash);
+        ret = Sha256Update(&sha, (byte*)test_sha[i].input,(word32)test_sha[i].inLen);
+        if (ret != 0)
+            return ret;
+
+        ret = Sha256Final(&sha, hash);
+        if (ret != 0)
+            return ret;
 
         if (memcmp(hash, test_sha[i].output, SHA256_DIGEST_SIZE) != 0)
             return -10 - i;
@@ -432,11 +437,16 @@ int sha512_test(void)
 
     ret = InitSha512(&sha);
     if (ret != 0)
-        return -4009;
+        return ret;
 
     for (i = 0; i < times; ++i) {
-        Sha512Update(&sha, (byte*)test_sha[i].input,(word32)test_sha[i].inLen);
-        Sha512Final(&sha, hash);
+        ret = Sha512Update(&sha, (byte*)test_sha[i].input,(word32)test_sha[i].inLen);
+        if (ret != 0)
+            return ret;
+
+        ret = Sha512Final(&sha, hash);
+        if (ret != 0)
+            return ret;
 
         if (memcmp(hash, test_sha[i].output, SHA512_DIGEST_SIZE) != 0)
             return -10 - i;
@@ -482,8 +492,13 @@ int sha384_test()
         return ret;
 
     for (i = 0; i < times; ++i) {
-        Sha384Update(&sha, (byte*)test_sha[i].input,(word32)test_sha[i].inLen);
-        Sha384Final(&sha, hash);
+        ret = Sha384Update(&sha, (byte*)test_sha[i].input,(word32)test_sha[i].inLen);
+        if (ret != 0)
+            return ret;
+
+        ret = Sha384Final(&sha, hash);
+        if (ret != 0)
+            return ret;
 
         if (memcmp(hash, test_sha[i].output, SHA384_DIGEST_SIZE) != 0)
             return -10 - i;
@@ -596,9 +611,13 @@ int hmac_md5_test(void)
         ret = HmacSetKey(&hmac, MD5, (byte*)keys[i], (word32)strlen(keys[i]));
         if (ret != 0)
             return -4014;
-        HmacUpdate(&hmac, (byte*)test_hmac[i].input,
+        ret = HmacUpdate(&hmac, (byte*)test_hmac[i].input,
                    (word32)test_hmac[i].inLen);
-        HmacFinal(&hmac, hash);
+        if (ret != 0)
+            return -4015;
+        ret = HmacFinal(&hmac, hash);
+        if (ret != 0)
+            return -4016;
 
         if (memcmp(hash, test_hmac[i].output, MD5_DIGEST_SIZE) != 0)
             return -20 - i;
@@ -657,10 +676,14 @@ int hmac_sha_test(void)
     for (i = 0; i < times; ++i) {
         ret = HmacSetKey(&hmac, SHA, (byte*)keys[i], (word32)strlen(keys[i]));
         if (ret != 0)
-            return -4015;
-        HmacUpdate(&hmac, (byte*)test_hmac[i].input,
+            return -4017;
+        ret = HmacUpdate(&hmac, (byte*)test_hmac[i].input,
                    (word32)test_hmac[i].inLen);
-        HmacFinal(&hmac, hash);
+        if (ret != 0)
+            return -4018;
+        ret = HmacFinal(&hmac, hash);
+        if (ret != 0)
+            return -4019;
 
         if (memcmp(hash, test_hmac[i].output, SHA_DIGEST_SIZE) != 0)
             return -20 - i;
@@ -722,10 +745,14 @@ int hmac_sha256_test(void)
     for (i = 0; i < times; ++i) {
         ret = HmacSetKey(&hmac,SHA256, (byte*)keys[i], (word32)strlen(keys[i]));
         if (ret != 0)
-            return -4016;
-        HmacUpdate(&hmac, (byte*)test_hmac[i].input,
+            return -4020;
+        ret = HmacUpdate(&hmac, (byte*)test_hmac[i].input,
                    (word32)test_hmac[i].inLen);
-        HmacFinal(&hmac, hash);
+        if (ret != 0)
+            return -4021;
+        ret = HmacFinal(&hmac, hash);
+        if (ret != 0)
+            return -4022;
 
         if (memcmp(hash, test_hmac[i].output, SHA256_DIGEST_SIZE) != 0)
             return -20 - i;
@@ -791,10 +818,14 @@ int hmac_sha384_test(void)
     for (i = 0; i < times; ++i) {
         ret = HmacSetKey(&hmac,SHA384, (byte*)keys[i], (word32)strlen(keys[i]));
         if (ret != 0)
-            return -4017;
-        HmacUpdate(&hmac, (byte*)test_hmac[i].input,
+            return -4023;
+        ret = HmacUpdate(&hmac, (byte*)test_hmac[i].input,
                    (word32)test_hmac[i].inLen);
-        HmacFinal(&hmac, hash);
+        if (ret != 0)
+            return -4024;
+        ret = HmacFinal(&hmac, hash);
+        if (ret != 0)
+            return -4025;
 
         if (memcmp(hash, test_hmac[i].output, SHA384_DIGEST_SIZE) != 0)
             return -20 - i;
