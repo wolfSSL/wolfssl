@@ -37,7 +37,7 @@
 #ifdef HAVE_CRL_MONITOR
     static int StopMonitor(int mfd);
 #endif
-    
+
 
 /* Initialze CRL members */
 int InitCRL(CYASSL_CRL* crl, CYASSL_CERT_MANAGER* cm)
