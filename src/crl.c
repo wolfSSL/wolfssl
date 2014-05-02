@@ -50,7 +50,7 @@ int InitCRL(CYASSL_CRL* crl, CYASSL_CERT_MANAGER* cm)
     crl->monitors[1].path = NULL;
 #ifdef HAVE_CRL_MONITOR
     crl->tid =  0;
-    crl->mfd = -1;   /* mfd for bsd is kqueue fd */
+    crl->mfd = -1;   /* mfd for bsd is kqueue fd, eventfd for linux */
 #endif
     if (InitMutex(&crl->crlLock) != 0)
         return BAD_MUTEX_E; 
@@ -470,15 +470,30 @@ static void* DoMonitor(void* arg)
 
 #include <sys/types.h>
 #include <sys/inotify.h>
+#include <sys/eventfd.h>
 #include <unistd.h>
+
+
+#ifndef max
+    static INLINE int max(int a, int b)
+    {
+        return a > b ? a : b;
+    }
+#endif /* max */
 
 
 /* shutdown monitor thread, 0 on success */
 static int StopMonitor(int mfd)
 {
-    (void)mfd;
+    word64 w64 = 1;
 
-    return -1;
+    /* write to our custom event */
+    if (write(mfd, &w64, sizeof(w64)) < 0) {
+        CYASSL_MSG("StopMonitor write failed");
+        return -1;
+    }
+
+    return 0;
 }
 
 
@@ -491,9 +506,16 @@ static void* DoMonitor(void* arg)
 
     CYASSL_ENTER("DoMonitor");
 
+    crl->mfd = eventfd(0, 0);  /* our custom shutdown event */
+    if (crl->mfd < 0) {
+        CYASSL_MSG("eventfd failed");
+        return NULL;
+    }
+
     notifyFd = inotify_init();
     if (notifyFd < 0) {
         CYASSL_MSG("inotify failed");
+        close(crl->mfd);
         return NULL;
     }
 
@@ -502,6 +524,8 @@ static void* DoMonitor(void* arg)
                                                                 IN_DELETE);
         if (wd < 0) {
             CYASSL_MSG("PEM notify add watch failed");
+            close(crl->mfd);
+            close(notifyFd);
             return NULL;
         }
     }
@@ -511,16 +535,36 @@ static void* DoMonitor(void* arg)
                                                                 IN_DELETE);
         if (wd < 0) {
             CYASSL_MSG("DER notify add watch failed");
+            close(crl->mfd);
+            close(notifyFd);
             return NULL;
         }
     }
 
     for (;;) {
+        fd_set        readfds;
         char          buff[8192];
-        int           length = read(notifyFd, buff, sizeof(buff));
+        int           result, length;
+
+        FD_ZERO(&readfds);
+        FD_SET(notifyFd, &readfds);
+        FD_SET(crl->mfd, &readfds);
+
+        result = select(max(notifyFd, crl->mfd) + 1, &readfds, NULL, NULL,NULL);
        
         CYASSL_MSG("Got notify event");
 
+        if (result < 0) {
+            CYASSL_MSG("select problem, continue");
+            continue;
+        }
+
+        if (FD_ISSET(crl->mfd, &readfds)) {
+            CYASSL_MSG("got custom shutdown event, breaking out");
+            break;
+        }
+
+        length = read(notifyFd, buff, sizeof(buff));
         if (length < 0) {
             CYASSL_MSG("notify read problem, continue");
             continue;
@@ -530,6 +574,10 @@ static void* DoMonitor(void* arg)
             CYASSL_MSG("SwapLists problem, continue");
         }
     }
+
+    inotify_rm_watch(notifyFd, wd);
+    close(crl->mfd);
+    close(notifyFd);
 
     return NULL;
 }
