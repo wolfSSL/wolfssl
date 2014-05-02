@@ -34,6 +34,10 @@
 #include <sys/stat.h>
 #include <string.h>
 
+#ifdef HAVE_CRL_MONITOR
+    static int StopMonitor(int mfd);
+#endif
+
 
 /* Initialze CRL members */
 int InitCRL(CYASSL_CRL* crl, CYASSL_CERT_MANAGER* cm)
@@ -45,7 +49,8 @@ int InitCRL(CYASSL_CRL* crl, CYASSL_CERT_MANAGER* cm)
     crl->monitors[0].path = NULL;
     crl->monitors[1].path = NULL;
 #ifdef HAVE_CRL_MONITOR
-    crl->tid = 0;
+    crl->tid =  0;
+    crl->mfd = -1;   /* mfd for bsd is kqueue fd */
 #endif
     if (InitMutex(&crl->crlLock) != 0)
         return BAD_MUTEX_E; 
@@ -113,8 +118,13 @@ void FreeCRL(CYASSL_CRL* crl, int dynamic)
 
 #ifdef HAVE_CRL_MONITOR
     if (crl->tid != 0) {
-        CYASSL_MSG("Canceling monitor thread");
-        pthread_cancel(crl->tid);
+        CYASSL_MSG("stopping monitor thread");
+        if (StopMonitor(crl->mfd) == 0)
+            pthread_join(crl->tid, NULL);
+        else {
+            CYASSL_MSG("stop monitor failed, cancel instead");
+            pthread_cancel(crl->tid);
+        }
     }
 #endif
     FreeMutex(&crl->crlLock);
@@ -339,6 +349,7 @@ static int SwapLists(CYASSL_CRL* crl)
 #include <sys/event.h>
 #include <sys/time.h>
 #include <fcntl.h>
+#include <unistd.h>
 
 #ifdef __MACH__
     #define XEVENT_MODE O_EVTONLY
@@ -347,19 +358,50 @@ static int SwapLists(CYASSL_CRL* crl)
 #endif
 
 
+/* we need a unique kqueue user filter fd for crl in case user is doing custom
+ * events too */
+#ifndef CRL_CUSTOM_FD
+    #define CRL_CUSTOM_FD 123456
+#endif
+
+
+/* shutdown monitor thread, 0 on success */
+static int StopMonitor(int mfd)
+{
+    struct kevent change;
+
+    /* trigger custom shutdown */
+    EV_SET(&change, CRL_CUSTOM_FD, EVFILT_USER, 0, NOTE_TRIGGER, 0, NULL);
+    if (kevent(mfd, &change, 1, NULL, 0, NULL) < 0) {
+        CYASSL_MSG("kevent trigger customer event failed");
+        return -1;
+    }
+
+    return 0;
+}
+
+
 /* OS X  monitoring */
 static void* DoMonitor(void* arg)
 {
-    int fPEM, fDER, kq;
+    int fPEM, fDER;
     struct kevent change;
 
     CYASSL_CRL* crl = (CYASSL_CRL*)arg;
 
     CYASSL_ENTER("DoMonitor");
 
-    kq = kqueue();
-    if (kq == -1) {
+    crl->mfd = kqueue();
+    if (crl->mfd == -1) {
         CYASSL_MSG("kqueue failed");
+        return NULL;
+    }
+
+    /* listen for custom shutdown event */
+    EV_SET(&change, CRL_CUSTOM_FD, EVFILT_USER, EV_ADD, 0, 0, NULL);
+    if (kevent(crl->mfd, &change, 1, NULL, 0, NULL) < 0) {
+        CYASSL_MSG("kevent monitor customer event failed");
+        close(crl->mfd);
         return NULL;
     }
 
@@ -370,6 +412,7 @@ static void* DoMonitor(void* arg)
         fPEM = open(crl->monitors[0].path, XEVENT_MODE);
         if (fPEM == -1) {
             CYASSL_MSG("PEM event dir open failed");
+            close(crl->mfd);
             return NULL;
         }
     }
@@ -378,6 +421,7 @@ static void* DoMonitor(void* arg)
         fDER = open(crl->monitors[1].path, XEVENT_MODE);
         if (fDER == -1) {
             CYASSL_MSG("DER event dir open failed");
+            close(crl->mfd);
             return NULL;
         }
     }
@@ -392,7 +436,7 @@ static void* DoMonitor(void* arg)
 
     for (;;) {
         struct kevent event;
-        int           numEvents = kevent(kq, &change, 1, &event, 1, NULL);
+        int           numEvents = kevent(crl->mfd, &change, 1, &event, 1, NULL);
        
         CYASSL_MSG("Got kevent");
 
@@ -401,10 +445,22 @@ static void* DoMonitor(void* arg)
             continue;
         }
 
+        if (event.filter == EVFILT_USER) {
+            CYASSL_MSG("Got user shutdown event, breaking out");
+            break;
+        }
+
         if (SwapLists(crl) < 0) {
             CYASSL_MSG("SwapLists problem, continue");
         }
     }
+
+    if (fPEM != -1)
+        close(fPEM);
+    if (fDER != -1)
+        close(fDER);
+
+    close(crl->mfd);
 
     return NULL;
 }
@@ -415,6 +471,16 @@ static void* DoMonitor(void* arg)
 #include <sys/types.h>
 #include <sys/inotify.h>
 #include <unistd.h>
+
+
+/* shutdown monitor thread, 0 on success */
+static int StopMonitor(int mfd)
+{
+    (void)mfd;
+
+    return -1;
+}
+
 
 /* linux monitoring */
 static void* DoMonitor(void* arg)

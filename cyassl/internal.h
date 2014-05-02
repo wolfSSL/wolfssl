@@ -1057,6 +1057,7 @@ struct CYASSL_CRL {
     CRL_Monitor          monitors[2];   /* PEM and DER possible */
 #ifdef HAVE_CRL_MONITOR
     pthread_t            tid;           /* monitoring thread */
+    int                  mfd;           /* monitor fd, -1 if no init yet */
 #endif
 };
 
