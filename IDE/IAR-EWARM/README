@@ -20,13 +20,18 @@ Included Project Files
 
 Set Up Steps
 ------------
+0. Default Setting
+   Default Target of the projects are set to Cortex-M3 Simulator.
+   For check the projects, you can build and download to the simulator.
+   Open Terminal I/O window, by "view"->"Terminal I/O", and start execution.
+
 1. Project option settings 
    For each project,... 
    General Options: Choose appropriate "Target" options 
 
    For executable projects,... 
-   Linker->Config: Check "Override default" and "edit"->"Stack/Heap Sizes"  
-   Debugger: Choose your "Driver" 
+   Add "SystemInit" and "startup" for your MPU
+   Debugger: Choose your debug "Driver" 
 
 2. For benchmark project,... 
    Write your own "current_time" benchmark timer under "defined(CYASSL_IAR_ARM)" in benchmark.c 
