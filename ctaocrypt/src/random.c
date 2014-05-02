@@ -70,12 +70,12 @@
 #define OUTPUT_BLOCK_LEN (256/8)
 #define MAX_REQUEST_LEN  (0x1000)
 #define MAX_STRING_LEN   (0x100000000)
-#define RESEED_MAX       (0x100000000000LL)
+#define RESEED_INTERVAL  (0xFFFFFFFF)
 #define ENTROPY_SZ       256
 
-#define DBRG_SUCCESS 0
-#define DBRG_ERROR 1
-#define DBRG_NEED_RESEED 2
+#define DRBG_SUCCESS 0
+#define DRBG_ERROR 1
+#define DRBG_NEED_RESEED 2
 
 
 enum {
@@ -87,8 +87,10 @@ enum {
 };
 
 
-static int Hash_df(RNG* rng, byte* out, word32 outSz, byte type, byte* inA, word32 inASz,
-                               byte* inB, word32 inBSz, byte* inC, word32 inCSz)
+static int Hash_df(RNG* rng, byte* out, word32 outSz, byte type,
+                                                        byte* inA, word32 inASz,
+                                                        byte* inB, word32 inBSz,
+                                                        byte* inC, word32 inCSz)
 {
     byte ctr;
     int i;
@@ -104,33 +106,33 @@ static int Hash_df(RNG* rng, byte* out, word32 outSz, byte type, byte* inA, word
     for (i = 0, ctr = 1; i < len; i++, ctr++)
     {
         if (InitSha256(&rng->sha) != 0)
-            return DBRG_ERROR;
+            return DRBG_ERROR;
 
         if (Sha256Update(&rng->sha, &ctr, sizeof(ctr)) != 0)
-            return DBRG_ERROR;
+            return DRBG_ERROR;
 
         if (Sha256Update(&rng->sha, (byte*)&bits, sizeof(bits)) != 0)
-            return DBRG_ERROR;
+            return DRBG_ERROR;
 
         /* churning V is the only string that doesn't have 
          * the type added */
         if (type != dbrgInitV)
             if (Sha256Update(&rng->sha, &type, sizeof(type)) != 0)
-                return DBRG_ERROR;
+                return DRBG_ERROR;
 
         if (Sha256Update(&rng->sha, inA, inASz) != 0)
-            return DBRG_ERROR;
+            return DRBG_ERROR;
 
         if (inB != NULL && inBSz > 0)
             if (Sha256Update(&rng->sha, inB, inBSz) != 0)
-                return DBRG_ERROR;
+                return DRBG_ERROR;
 
         if (inC != NULL && inCSz > 0)
             if (Sha256Update(&rng->sha, inC, inCSz) != 0)
-                return DBRG_ERROR;
+                return DRBG_ERROR;
 
         if (Sha256Final(&rng->sha, rng->digest) != 0)
-            return DBRG_ERROR;
+            return DRBG_ERROR;
 
         if (outSz > SHA256_DIGEST_SIZE) {
             XMEMCPY(out, rng->digest, SHA256_DIGEST_SIZE);
@@ -142,14 +144,14 @@ static int Hash_df(RNG* rng, byte* out, word32 outSz, byte type, byte* inA, word
         }
     }
 
-    return DBRG_SUCCESS;
+    return DRBG_SUCCESS;
 }
 
 
-static int Hash_DBRG_Reseed(RNG* rng, byte* entropy, word32 entropySz)
+static int Hash_DRBG_Reseed(RNG* rng, byte* entropy, word32 entropySz)
 {
     int  ret;
-    byte seed[DBRG_SEED_LEN];
+    byte seed[DRBG_SEED_LEN];
 
     ret = Hash_df(rng, seed, sizeof(seed), dbrgInitV, rng->V, sizeof(rng->V),
                                                    entropy, entropySz, NULL, 0);
@@ -164,7 +166,7 @@ static int Hash_DBRG_Reseed(RNG* rng, byte* entropy, word32 entropySz)
     if (ret != 0)
         return ret;
 
-    rng->reseed_ctr = 1;
+    rng->reseedCtr = 1;
     return 0;
 }
 
@@ -181,7 +183,7 @@ static INLINE void array_add_one(byte* data, word32 dataSz)
 
 static int Hash_gen(RNG* rng, byte* out, word32 outSz, byte* V)
 {
-    byte data[DBRG_SEED_LEN];
+    byte data[DRBG_SEED_LEN];
     int i, ret;
     int len = (outSz / SHA256_DIGEST_SIZE)
         + ((outSz % SHA256_DIGEST_SIZE) ? 1 : 0);
@@ -204,7 +206,7 @@ static int Hash_gen(RNG* rng, byte* out, word32 outSz, byte* V)
             XMEMCPY(out, rng->digest, SHA256_DIGEST_SIZE);
             outSz -= SHA256_DIGEST_SIZE;
             out += SHA256_DIGEST_SIZE;
-            array_add_one(data, DBRG_SEED_LEN);
+            array_add_one(data, DRBG_SEED_LEN);
         }
         else {
             XMEMCPY(out, rng->digest, outSz);
@@ -235,39 +237,42 @@ static INLINE void array_add(byte* d, word32 dLen, byte* s, word32 sLen)
 }
 
 
-static int Hash_DBRG_Generate(RNG* rng, byte* out, word32 outSz)
+static int Hash_DRBG_Generate(RNG* rng, byte* out, word32 outSz)
 {
     int ret;
 
-    if (rng->reseed_ctr != RESEED_MAX) {
+    if (rng->reseedCtr != RESEED_INTERVAL) {
         byte type = dbrgGenerateH;
+        word32 reseedCtr = rng->reseedCtr;
 
+        rng->reseedCtr++;
         if (Hash_gen(rng, out, outSz, rng->V) != 0)
-            return DBRG_ERROR;
+            return DRBG_ERROR;
         if (InitSha256(&rng->sha) != 0)
-            return DBRG_ERROR;
+            return DRBG_ERROR;
         if (Sha256Update(&rng->sha, &type, sizeof(type)) != 0)
-            return DBRG_ERROR;
+            return DRBG_ERROR;
         if (Sha256Update(&rng->sha, rng->V, sizeof(rng->V)) != 0)
-            return DBRG_ERROR;
+            return DRBG_ERROR;
         if (Sha256Final(&rng->sha, rng->digest) != 0)
-            return DBRG_ERROR;
+            return DRBG_ERROR;
 
         array_add(rng->V, sizeof(rng->V), rng->digest, sizeof(rng->digest));
         array_add(rng->V, sizeof(rng->V), rng->C, sizeof(rng->C));
-        array_add(rng->V, sizeof(rng->V),
-                              (byte*)&rng->reseed_ctr, sizeof(rng->reseed_ctr));
-        rng->reseed_ctr++;
-        ret = DBRG_SUCCESS;
+        #ifdef LITTLE_ENDIAN_ORDER
+            reseedCtr = ByteReverseWord32(reseedCtr);
+        #endif
+        array_add(rng->V, sizeof(rng->V), (byte*)&reseedCtr, sizeof(reseedCtr));
+        ret = DRBG_SUCCESS;
     }
     else {
-        ret = DBRG_NEED_RESEED;
+        ret = DRBG_NEED_RESEED;
     }
     return ret;
 }
 
 
-static int Hash_DBRG_Instantiate(RNG* rng, byte* seed, word32 seedSz)
+static int Hash_DRBG_Instantiate(RNG* rng, byte* seed, word32 seedSz)
 {
     int ret;
 
@@ -282,19 +287,19 @@ static int Hash_DBRG_Instantiate(RNG* rng, byte* seed, word32 seedSz)
     if (ret != 0)
         return ret;
 
-    rng->reseed_ctr = 1;
+    rng->reseedCtr = 1;
 
     return 0;
 }
 
 
-static int Hash_DBRG_Uninstantiate(RNG* rng)
+static int Hash_DRBG_Uninstantiate(RNG* rng)
 {
-    int result = DBRG_ERROR;
+    int result = DRBG_ERROR;
 
     if (rng != NULL) {
         XMEMSET(rng, 0, sizeof(*rng));
-        result = DBRG_SUCCESS;
+        result = DRBG_SUCCESS;
     }
 
     return result;
@@ -312,7 +317,7 @@ int InitRng(RNG* rng)
 #else
     byte entropy[ENTROPY_SZ];
 #endif
-    int  ret = DBRG_ERROR;
+    int  ret = DRBG_ERROR;
 
 #ifdef CYASSL_SMALL_STACK
     entropy = (byte*)XMALLOC(ENTROPY_SZ, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -321,7 +326,7 @@ int InitRng(RNG* rng)
 #endif
 
     if (GenerateSeed(&rng->seed, entropy, ENTROPY_SZ) == 0)
-        ret = Hash_DBRG_Instantiate(rng, entropy, ENTROPY_SZ);
+        ret = Hash_DRBG_Instantiate(rng, entropy, ENTROPY_SZ);
 
     XMEMSET(entropy, 0, ENTROPY_SZ);
 
@@ -339,9 +344,9 @@ int RNG_GenerateBlock(RNG* rng, byte* output, word32 sz)
     int ret;
 
     XMEMSET(output, 0, sz);
-    ret = Hash_DBRG_Generate(rng, output, sz);
+    ret = Hash_DRBG_Generate(rng, output, sz);
 
-    if (ret == DBRG_NEED_RESEED) {
+    if (ret == DRBG_NEED_RESEED) {
 #ifdef CYASSL_SMALL_STACK
         byte* entropy;
 #else
@@ -356,13 +361,13 @@ int RNG_GenerateBlock(RNG* rng, byte* output, word32 sz)
 
         ret = GenerateSeed(&rng->seed, entropy, ENTROPY_SZ);
         if (ret == 0) {
-            ret = Hash_DBRG_Reseed(rng, entropy, ENTROPY_SZ);
+            ret = Hash_DRBG_Reseed(rng, entropy, ENTROPY_SZ);
 
             if (ret == 0)
-                ret = Hash_DBRG_Generate(rng, output, sz);
+                ret = Hash_DRBG_Generate(rng, output, sz);
         }
         else
-            ret = DBRG_ERROR;
+            ret = DRBG_ERROR;
 
         XMEMSET(entropy, 0, ENTROPY_SZ);
 
@@ -383,7 +388,7 @@ int RNG_GenerateByte(RNG* rng, byte* b)
 
 void FreeRng(RNG* rng)
 {
-    Hash_DBRG_Uninstantiate(rng);
+    Hash_DRBG_Uninstantiate(rng);
 }
 
 #else /* NO_RC4 */

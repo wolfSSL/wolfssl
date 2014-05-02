@@ -87,7 +87,7 @@ typedef struct RNG {
 
 #else /* NO_RC4 */
 
-#define DBRG_SEED_LEN (440/8)
+#define DRBG_SEED_LEN (440/8)
 
 
 /* secure Random Nnumber Generator */
@@ -96,9 +96,9 @@ typedef struct RNG {
 
     Sha256 sha;
     byte digest[SHA256_DIGEST_SIZE];
-    byte V[DBRG_SEED_LEN];
-    byte C[DBRG_SEED_LEN];
-    word64 reseed_ctr;
+    byte V[DRBG_SEED_LEN];
+    byte C[DRBG_SEED_LEN];
+    word32 reseedCtr;
 } RNG;
 
 #endif
