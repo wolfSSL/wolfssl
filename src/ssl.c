@@ -1977,6 +1977,8 @@ int CyaSSL_Init(void)
 
                     if (ret < 0) {
                         CYASSL_MSG("   Error in Cert in Chain");
+                        if (dynamicBuffer)
+                            XFREE(chainBuffer, heap, DYNAMIC_TYPE_FILE);
                         XFREE(der.buffer, heap, dynamicType);
                         return ret;
                     }
@@ -1986,6 +1988,9 @@ int CyaSSL_Init(void)
 
                 if (ctx == NULL) {
                     CYASSL_MSG("certChain needs context");
+                    if (dynamicBuffer)
+                        XFREE(chainBuffer, heap, DYNAMIC_TYPE_FILE);
+                    XFREE(der.buffer, heap, dynamicType);
                     return BAD_FUNC_ARG;
                 }
                 ctx->certChain.buffer = (byte*)XMALLOC(idx, heap,
