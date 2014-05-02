@@ -1451,8 +1451,6 @@ static int GetCertHeader(DecodedCert* cert)
     len = mp_unsigned_bin_size(&mpi);
     if (len < (int)sizeof(serialTmp)) {
         if ( (ret = mp_to_unsigned_bin(&mpi, serialTmp)) == MP_OKAY) {
-            if (len > EXTERNAL_SERIAL_SIZE)
-                len = EXTERNAL_SERIAL_SIZE;
             XMEMCPY(cert->serial, serialTmp, len);
             cert->serialSz = len;
         }
