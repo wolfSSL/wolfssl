@@ -2116,7 +2116,7 @@ static int DateGreaterThan(const struct tm* a, const struct tm* b)
 
 static INLINE int DateLessThan(const struct tm* a, const struct tm* b)
 {
-    return !DateGreaterThan(a,b);
+    return DateGreaterThan(b,a);
 }
 
 
