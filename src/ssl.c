@@ -1,6 +1,6 @@
 /* ssl.c
  *
- * Copyright (C) 2006-2013 wolfSSL Inc.
+ * Copyright (C) 2006-2014 wolfSSL Inc.
  *
  * This file is part of CyaSSL.
  *
@@ -16,7 +16,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
 #ifdef HAVE_CONFIG_H
@@ -1496,6 +1496,15 @@ int AddCA(CYASSL_CERT_MANAGER* cm, buffer der, int type, int verify)
         CYASSL_MSG("    Can't add as CA if not actually one");
         ret = NOT_CA_ERROR;
     }
+    #ifndef ALLOW_INVALID_CERTSIGN
+        else if (ret == 0 && cert.isCA == 1 && type != CYASSL_USER_CA &&
+                               (cert.extKeyUsage & KEYUSE_KEY_CERT_SIGN) == 0) {
+            /* Intermediate CA certs are required to have the keyCertSign
+            * extension set. User loaded root certs are not. */
+            CYASSL_MSG("    Doesn't have key usage certificate signing");
+            ret = NOT_CA_ERROR;
+        }
+    #endif
     else if (ret == 0 && AlreadySigner(cm, subjectHash)) {
         CYASSL_MSG("    Already have this CA, not adding again");
         (void)ret;
@@ -1511,15 +1520,25 @@ int AddCA(CYASSL_CERT_MANAGER* cm, buffer der, int type, int verify)
             signer->pubKeySize = cert.pubKeySize;
             signer->nameLen    = cert.subjectCNLen;
             signer->name       = cert.subjectCN;
+            #ifndef IGNORE_NAME_CONSTRAINTS
+                signer->permittedNames = cert.permittedNames;
+                signer->excludedNames = cert.excludedNames;
+            #endif
             #ifndef NO_SKID
                 XMEMCPY(signer->subjectKeyIdHash,
                                             cert.extSubjKeyId, SHA_DIGEST_SIZE);
             #endif
             XMEMCPY(signer->subjectNameHash, cert.subjectHash, SHA_DIGEST_SIZE);
+            signer->keyUsage = cert.extKeyUsageSet ? cert.extKeyUsage : 0xFFFF;
+                                   /* If Key Usage not set, all uses valid. */
             signer->next = NULL;   /* in case lock fails */
 
             cert.publicKey = 0;  /* don't free here */
             cert.subjectCN = 0;
+            #ifndef IGNORE_NAME_CONSTRAINTS
+                cert.permittedNames = NULL;
+                cert.excludedNames = NULL;
+            #endif
 
             #ifndef NO_SKID
                 row = HashSigner(signer->subjectKeyIdHash);
@@ -1958,6 +1977,8 @@ int CyaSSL_Init(void)
 
                     if (ret < 0) {
                         CYASSL_MSG("   Error in Cert in Chain");
+                        if (dynamicBuffer)
+                            XFREE(chainBuffer, heap, DYNAMIC_TYPE_FILE);
                         XFREE(der.buffer, heap, dynamicType);
                         return ret;
                     }
@@ -1967,6 +1988,9 @@ int CyaSSL_Init(void)
 
                 if (ctx == NULL) {
                     CYASSL_MSG("certChain needs context");
+                    if (dynamicBuffer)
+                        XFREE(chainBuffer, heap, DYNAMIC_TYPE_FILE);
+                    XFREE(der.buffer, heap, dynamicType);
                     return BAD_FUNC_ARG;
                 }
                 ctx->certChain.buffer = (byte*)XMALLOC(idx, heap,
@@ -2017,7 +2041,6 @@ int CyaSSL_Init(void)
                 XFREE(der.buffer, heap, dynamicType);
                 return ret;
             }
-            ret = 0; /* back to good status */
 
             if (XSTRNCMP(info.name, "DES-CBC", 7) == 0) {
                 Des enc;
@@ -3262,6 +3285,9 @@ int CyaSSL_CTX_SetTmpDH_file(CYASSL_CTX* ctx, const char* fname, int format)
 int CyaSSL_CTX_use_NTRUPrivateKey_file(CYASSL_CTX* ctx, const char* file)
 {
     CYASSL_ENTER("CyaSSL_CTX_use_NTRUPrivateKey_file");
+    if (ctx == NULL)
+        return SSL_FAILURE;
+
     if (ProcessFile(ctx, file, SSL_FILETYPE_RAW, PRIVATEKEY_TYPE, NULL, 0, NULL)
                          == SSL_SUCCESS) {
         ctx->haveNTRU = 1;
@@ -4974,8 +5000,18 @@ static INLINE word32 HashSession(const byte* sessionID, word32 len, int* error)
         *error = ret;
         return 0;
     }
-    Sha256Update(&sha256, sessionID, len);
-    Sha256Final(&sha256, digest);
+
+    ret = Sha256Update(&sha256, sessionID, len);
+    if (ret != 0) {
+        *error = ret;
+        return 0;
+    }
+
+    ret = Sha256Final(&sha256, digest);
+    if (ret != 0) {
+        *error = ret;
+        return 0;
+    }
 
     return MakeWordFromHash(digest);
 }
@@ -6559,6 +6595,7 @@ int CyaSSL_set_compression(CYASSL* ssl)
     {
         CYASSL_ENTER("SHA256_Update");
         Sha256Update((Sha256*)sha, (const byte*)input, (word32)sz);
+        /* OpenSSL compat, no error */
     }
 
 
@@ -6566,6 +6603,7 @@ int CyaSSL_set_compression(CYASSL* ssl)
     {
         CYASSL_ENTER("SHA256_Final");
         Sha256Final((Sha256*)sha, input);
+        /* OpenSSL compat, no error */
     }
 
 
@@ -6586,6 +6624,7 @@ int CyaSSL_set_compression(CYASSL* ssl)
     {
         CYASSL_ENTER("SHA384_Update");
         Sha384Update((Sha384*)sha, (const byte*)input, (word32)sz);
+        /* OpenSSL compat, no error */
     }
 
 
@@ -6593,6 +6632,7 @@ int CyaSSL_set_compression(CYASSL* ssl)
     {
         CYASSL_ENTER("SHA384_Final");
         Sha384Final((Sha384*)sha, input);
+        /* OpenSSL compat, no error */
     }
 
     #endif /* CYASSL_SHA384 */
@@ -6615,6 +6655,7 @@ int CyaSSL_set_compression(CYASSL* ssl)
     {
         CYASSL_ENTER("SHA512_Update");
         Sha512Update((Sha512*)sha, (const byte*)input, (word32)sz);
+        /* OpenSSL compat, no error */
     }
 
 
@@ -6622,6 +6663,7 @@ int CyaSSL_set_compression(CYASSL* ssl)
     {
         CYASSL_ENTER("SHA512_Final");
         Sha512Final((Sha512*)sha, input);
+        /* OpenSSL compat, no error */
     }
 
     #endif /* CYASSL_SHA512 */
@@ -7315,28 +7357,31 @@ int CyaSSL_set_compression(CYASSL* ssl)
                                unsigned char* md, unsigned int* md_len)
     {
         Hmac hmac;
-        int  ret;
 
         CYASSL_ENTER("HMAC");
         if (!md) return NULL;  /* no static buffer support */
 
         if (XSTRNCMP(evp_md, "MD5", 3) == 0) {
-            ret = HmacSetKey(&hmac, MD5, (const byte*)key, key_len);
+            if (HmacSetKey(&hmac, MD5, (const byte*)key, key_len) != 0)
+                return NULL;
+
             if (md_len) *md_len = MD5_DIGEST_SIZE;
         }
         else if (XSTRNCMP(evp_md, "SHA", 3) == 0) {
-            ret = HmacSetKey(&hmac, SHA, (const byte*)key, key_len);
+            if (HmacSetKey(&hmac, SHA, (const byte*)key, key_len) != 0)
+                return NULL;
+
             if (md_len) *md_len = SHA_DIGEST_SIZE;
         }
         else
             return NULL;
 
-        if (ret != 0)
+        if (HmacUpdate(&hmac, d, n) != 0)
             return NULL;
 
-        HmacUpdate(&hmac, d, n);
-        HmacFinal(&hmac, md);
-
+        if (HmacFinal(&hmac, md) != 0)
+            return NULL;
+    
         return md;
     }
 
@@ -7785,7 +7830,7 @@ int CyaSSL_set_compression(CYASSL* ssl)
                 break;
         }
 
-        if (buf != NULL) {
+        if (buf != NULL && text != NULL) {
             textSz = min(textSz, len);
             XMEMCPY(buf, text, textSz);
             buf[textSz] = '\0';
@@ -9515,6 +9560,7 @@ static int initGlobalRNG = 0;
         if (initGlobalRNG == 0) {
             if (InitRng(&globalRNG) < 0) {
                 CYASSL_MSG("CyaSSL Init Global RNG failed");
+                return 0;
             }
             initGlobalRNG = 1;
         }
@@ -9539,7 +9585,10 @@ static int initGlobalRNG = 0;
             rng = &globalRNG;
         }
 
-        RNG_GenerateBlock(rng, buf, num);
+        if (RNG_GenerateBlock(rng, buf, num) != 0) {
+            CYASSL_MSG("Bad RNG_GenerateBlock");
+            return 0;
+        }
 
         return SSL_SUCCESS;
     }
@@ -9834,7 +9883,11 @@ static int initGlobalRNG = 0;
             rng = &globalRNG;
         }
 
-        RNG_GenerateBlock(rng, buff, len);
+        if (RNG_GenerateBlock(rng, buff, len) != 0) {
+            CYASSL_MSG("Bad RNG_GenerateBlock");
+            return 0;
+        }
+
         buff[0]     |= 0x80 | 0x40;
         buff[len-1] |= 0x01;
 
@@ -10820,6 +10873,7 @@ static int initGlobalRNG = 0;
         if (ctx && data) {
             CYASSL_MSG("updating hmac");
             HmacUpdate(&ctx->hmac, data, (word32)len);
+            /* OpenSSL compat, no error */
         }
     }
 
@@ -10832,6 +10886,7 @@ static int initGlobalRNG = 0;
         if (ctx && hash) {
             CYASSL_MSG("final hmac");
             HmacFinal(&ctx->hmac, hash);
+            /* OpenSSL compat, no error */
 
             if (len) {
                 CYASSL_MSG("setting output len");

@@ -1,6 +1,6 @@
 /* random.h
  *
- * Copyright (C) 2006-2013 wolfSSL Inc.
+ * Copyright (C) 2006-2014 wolfSSL Inc.
  *
  * This file is part of CyaSSL.
  *
@@ -16,7 +16,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
 
@@ -87,7 +87,7 @@ typedef struct RNG {
 
 #else /* NO_RC4 */
 
-#define DBRG_SEED_LEN (440/8)
+#define DRBG_SEED_LEN (440/8)
 
 
 /* secure Random Nnumber Generator */
@@ -96,16 +96,16 @@ typedef struct RNG {
 
     Sha256 sha;
     byte digest[SHA256_DIGEST_SIZE];
-    byte V[DBRG_SEED_LEN];
-    byte C[DBRG_SEED_LEN];
-    word64 reseed_ctr;
+    byte V[DRBG_SEED_LEN];
+    byte C[DRBG_SEED_LEN];
+    word32 reseedCtr;
 } RNG;
 
 #endif
 
 CYASSL_API int  InitRng(RNG*);
-CYASSL_API void RNG_GenerateBlock(RNG*, byte*, word32 sz);
-CYASSL_API byte RNG_GenerateByte(RNG*);
+CYASSL_API int  RNG_GenerateBlock(RNG*, byte*, word32 sz);
+CYASSL_API int  RNG_GenerateByte(RNG*, byte*);
 
 #ifdef NO_RC4
     CYASSL_API void FreeRng(RNG*);

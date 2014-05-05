@@ -1,6 +1,6 @@
 /* tls.c
  *
- * Copyright (C) 2006-2013 wolfSSL Inc.
+ * Copyright (C) 2006-2014 wolfSSL Inc.
  *
  * This file is part of CyaSSL.
  *
@@ -16,7 +16,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
 #ifdef HAVE_CONFIG_H
@@ -111,21 +111,35 @@ static int p_hash(byte* result, word32 resLen, const byte* secret,
     ret = HmacSetKey(&hmac, hash, secret, secLen);
     if (ret != 0)
         return ret;
-    HmacUpdate(&hmac, seed, seedLen);       /* A0 = seed */
-    HmacFinal(&hmac, previous);             /* A1 */
+    ret = HmacUpdate(&hmac, seed, seedLen);       /* A0 = seed */
+    if (ret != 0)
+        return ret;
+    ret = HmacFinal(&hmac, previous);             /* A1 */
+    if (ret != 0)
+        return ret;
 
     for (i = 0; i < times; i++) {
-        HmacUpdate(&hmac, previous, len);
-        HmacUpdate(&hmac, seed, seedLen);
-        HmacFinal(&hmac, current);
+        ret = HmacUpdate(&hmac, previous, len);
+        if (ret != 0)
+            return ret;
+        ret = HmacUpdate(&hmac, seed, seedLen);
+        if (ret != 0)
+            return ret;
+        ret = HmacFinal(&hmac, current);
+        if (ret != 0)
+            return ret;
 
         if ( (i == lastTime) && lastLen)
             XMEMCPY(&result[idx], current, min(lastLen, sizeof(current)));
         else {
             XMEMCPY(&result[idx], current, len);
             idx += len;
-            HmacUpdate(&hmac, previous, len);
-            HmacFinal(&hmac, previous);
+            ret = HmacUpdate(&hmac, previous, len);
+            if (ret != 0)
+                return ret;
+            ret = HmacFinal(&hmac, previous);
+            if (ret != 0)
+                return ret;
         }
     }
     XMEMSET(previous, 0, sizeof previous);
@@ -251,13 +265,21 @@ int BuildTlsFinished(CYASSL* ssl, Hashes* hashes, const byte* sender)
     if (IsAtLeastTLSv1_2(ssl)) {
 #ifndef NO_SHA256
         if (ssl->specs.mac_algorithm <= sha256_mac) {
-            Sha256Final(&ssl->hashSha256, handshake_hash);
+            int ret = Sha256Final(&ssl->hashSha256, handshake_hash);
+
+            if (ret != 0)
+                return ret;
+
             hashSz = SHA256_DIGEST_SIZE;
         }
 #endif
 #ifdef CYASSL_SHA384
         if (ssl->specs.mac_algorithm == sha384_mac) {
-            Sha384Final(&ssl->hashSha384, handshake_hash);
+            int ret = Sha384Final(&ssl->hashSha384, handshake_hash);
+
+            if (ret != 0)
+                return ret;
+
             hashSz = SHA384_DIGEST_SIZE;
         }
 #endif
@@ -528,6 +550,9 @@ int TLS_hmac(CYASSL* ssl, byte* digest, const byte* in, word32 sz,
     Hmac hmac;
     int  ret;
     byte myInner[CYASSL_TLS_HMAC_INNER_SZ];
+
+    if (ssl == NULL)
+        return BAD_FUNC_ARG;
     
     CyaSSL_SetTlsHmacInner(ssl, myInner, sz, content, verify);
 
@@ -535,9 +560,15 @@ int TLS_hmac(CYASSL* ssl, byte* digest, const byte* in, word32 sz,
                      CyaSSL_GetMacSecret(ssl, verify), ssl->specs.hash_size);
     if (ret != 0)
         return ret;
-    HmacUpdate(&hmac, myInner, sizeof(myInner));
-    HmacUpdate(&hmac, in, sz);                                /* content */
-    HmacFinal(&hmac, digest);
+    ret = HmacUpdate(&hmac, myInner, sizeof(myInner));
+    if (ret != 0)
+        return ret;
+    ret = HmacUpdate(&hmac, in, sz);                                /* content */
+    if (ret != 0)
+        return ret;
+    ret = HmacFinal(&hmac, digest);
+    if (ret != 0)
+        return ret;
 
     return 0;
 }

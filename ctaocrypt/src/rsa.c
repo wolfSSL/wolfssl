@@ -1,6 +1,6 @@
 /* rsa.c
  *
- * Copyright (C) 2006-2013 wolfSSL Inc.
+ * Copyright (C) 2006-2014 wolfSSL Inc.
  *
  * This file is part of CyaSSL.
  *
@@ -16,7 +16,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
 
@@ -124,10 +124,11 @@ int FreeRsaKey(RsaKey* key)
     return 0;
 }
 
-static void RsaPad(const byte* input, word32 inputLen, byte* pkcsBlock,
+static int RsaPad(const byte* input, word32 inputLen, byte* pkcsBlock,
                    word32 pkcsBlockLen, byte padValue, RNG* rng)
 {
-    if (inputLen == 0) return;
+    if (inputLen == 0)
+        return 0;
 
     pkcsBlock[0] = 0x0;       /* set first byte to zero and advance */
     pkcsBlock++; pkcsBlockLen--;
@@ -139,7 +140,10 @@ static void RsaPad(const byte* input, word32 inputLen, byte* pkcsBlock,
     else {
         /* pad with non-zero random bytes */
         word32 padLen = pkcsBlockLen - inputLen - 1, i;
-        RNG_GenerateBlock(rng, &pkcsBlock[1], padLen);
+        int    ret    = RNG_GenerateBlock(rng, &pkcsBlock[1], padLen);
+
+        if (ret != 0)
+            return ret;
 
         /* remove zeros */
         for (i = 1; i < padLen; i++)
@@ -148,6 +152,8 @@ static void RsaPad(const byte* input, word32 inputLen, byte* pkcsBlock,
 
     pkcsBlock[pkcsBlockLen-inputLen-1] = 0;     /* separator */
     XMEMCPY(pkcsBlock+pkcsBlockLen-inputLen, input, inputLen);
+
+    return 0;
 }
 
 
@@ -297,7 +303,9 @@ int RsaPublicEncrypt(const byte* in, word32 inLen, byte* out, word32 outLen,
     if (inLen > (word32)(sz - RSA_MIN_PAD_SZ))
         return RSA_BUFFER_E;
 
-    RsaPad(in, inLen, out, sz, RSA_BLOCK_TYPE_2, rng);
+    ret = RsaPad(in, inLen, out, sz, RSA_BLOCK_TYPE_2, rng);
+    if (ret != 0)
+        return ret;
 
     if ((ret = RsaFunction(out, sz, out, &outLen, RSA_PUBLIC_ENCRYPT, key)) < 0)
         sz = ret;
@@ -444,7 +452,9 @@ int RsaSSL_Sign(const byte* in, word32 inLen, byte* out, word32 outLen,
     if (inLen > (word32)(sz - RSA_MIN_PAD_SZ))
         return RSA_BUFFER_E;
 
-    RsaPad(in, inLen, out, sz, RSA_BLOCK_TYPE_1, rng);
+    ret = RsaPad(in, inLen, out, sz, RSA_BLOCK_TYPE_1, rng);
+    if (ret != 0)
+        return ret;
 
     if ((ret = RsaFunction(out, sz, out, &outLen, RSA_PRIVATE_ENCRYPT,key)) < 0)
         sz = ret;
@@ -502,7 +512,11 @@ static int rand_prime(mp_int* N, int len, RNG* rng, void* heap)
         fflush(stdout);
 #endif
         /* generate value */
-        RNG_GenerateBlock(rng, buf, len);
+        err = RNG_GenerateBlock(rng, buf, len);
+        if (err != 0) {
+            XFREE(buf, heap, DYNAMIC_TYPE_RSA);
+            return err;
+        }
 
         /* munge bits */
         buf[0]     |= 0x80 | 0x40;

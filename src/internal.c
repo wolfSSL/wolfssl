@@ -1,6 +1,6 @@
 /* internal.c
  *
- * Copyright (C) 2006-2013 wolfSSL Inc.
+ * Copyright (C) 2006-2014 wolfSSL Inc.
  *
  * This file is part of CyaSSL.
  *
@@ -16,7 +16,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
 
@@ -113,7 +113,7 @@ static int SSL_hmac(CYASSL* ssl, byte* digest, const byte* in, word32 sz,
 #endif
 
 #ifndef NO_CERTS
-static void BuildCertHashes(CYASSL* ssl, Hashes* hashes);
+static int BuildCertHashes(CYASSL* ssl, Hashes* hashes);
 #endif
 
 static void PickHashSigAlgo(CYASSL* ssl,
@@ -156,21 +156,14 @@ static byte GetEntropy(ENTROPY_CMD cmd, byte* out)
     /* TODO: add locking? */
     static RNG rng;
 
-    if (cmd == INIT) {
-        int ret = InitRng(&rng);
-        if (ret == 0)
-            return 1;
-        else
-            return 0;
-    }
+    if (cmd == INIT)
+        return (InitRng(&rng) == 0) ? 1 : 0;
 
     if (out == NULL)
         return 0;
 
-    if (cmd == GET_BYTE_OF_ENTROPY) {
-        RNG_GenerateBlock(&rng, out, 1);
-        return 1;
-    }
+    if (cmd == GET_BYTE_OF_ENTROPY)
+        return (RNG_GenerateBlock(&rng, out, 1) == 0) ? 1 : 0;
 
     if (cmd == GET_NUM_BYTES_PER_BYTE_OF_ENTROPY) {
         *out = 1;
@@ -2384,7 +2377,7 @@ ProtocolVersion MakeDTLSv1_2(void)
 
 
 /* add output to md5 and sha handshake hashes, exclude record header */
-static void HashOutput(CYASSL* ssl, const byte* output, int sz, int ivSz)
+static int HashOutput(CYASSL* ssl, const byte* output, int sz, int ivSz)
 {
     const byte* adj = output + RECORD_HEADER_SZ + ivSz;
     sz -= RECORD_HEADER_SZ;
@@ -2405,18 +2398,26 @@ static void HashOutput(CYASSL* ssl, const byte* output, int sz, int ivSz)
 #endif
 
     if (IsAtLeastTLSv1_2(ssl)) {
+        int ret;
+
 #ifndef NO_SHA256
-        Sha256Update(&ssl->hashSha256, adj, sz);
+        ret = Sha256Update(&ssl->hashSha256, adj, sz);
+        if (ret != 0)
+            return ret;
 #endif
 #ifdef CYASSL_SHA384
-        Sha384Update(&ssl->hashSha384, adj, sz);
+        ret = Sha384Update(&ssl->hashSha384, adj, sz);
+        if (ret != 0)
+            return ret;
 #endif
     }
+
+    return 0;
 }
 
 
 /* add input to md5 and sha handshake hashes, include handshake header */
-static void HashInput(CYASSL* ssl, const byte* input, int sz)
+static int HashInput(CYASSL* ssl, const byte* input, int sz)
 {
     const byte* adj = input - HANDSHAKE_HEADER_SZ;
     sz += HANDSHAKE_HEADER_SZ;
@@ -2438,13 +2439,21 @@ static void HashInput(CYASSL* ssl, const byte* input, int sz)
 #endif
 
     if (IsAtLeastTLSv1_2(ssl)) {
+        int ret;
+
 #ifndef NO_SHA256
-        Sha256Update(&ssl->hashSha256, adj, sz);
+        ret = Sha256Update(&ssl->hashSha256, adj, sz);
+        if (ret != 0)
+            return ret;
 #endif
 #ifdef CYASSL_SHA384
-        Sha384Update(&ssl->hashSha384, adj, sz);
+        ret = Sha384Update(&ssl->hashSha384, adj, sz);
+        if (ret != 0)
+            return ret;
 #endif
     }
+
+    return 0;
 }
 
 
@@ -3486,6 +3495,38 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx,
         }
 #endif    
 
+#ifndef IGNORE_KEY_EXTENSIONS
+        if (dCert.extKeyUsageSet) {
+            if ((ssl->specs.kea == rsa_kea) &&
+                (dCert.extKeyUsage & KEYUSE_KEY_ENCIPHER) == 0) {
+                ret = KEYUSE_ENCIPHER_E;
+            }
+            if ((ssl->specs.sig_algo == rsa_sa_algo ||
+                    ssl->specs.sig_algo == ecc_dsa_sa_algo) &&
+                (dCert.extKeyUsage & KEYUSE_DIGITAL_SIG) == 0) {
+                CYASSL_MSG("KeyUse Digital Sig not set");
+                ret = KEYUSE_SIGNATURE_E;
+            }
+        }
+
+        if (dCert.extExtKeyUsageSet) {
+            if (ssl->options.side == CYASSL_CLIENT_END) {
+                if ((dCert.extExtKeyUsage &
+                        (EXTKEYUSE_ANY | EXTKEYUSE_SERVER_AUTH)) == 0) {
+                    CYASSL_MSG("ExtKeyUse Server Auth not set");
+                    ret = EXTKEYUSE_AUTH_E;
+                }
+            }
+            else {
+                if ((dCert.extExtKeyUsage &
+                        (EXTKEYUSE_ANY | EXTKEYUSE_CLIENT_AUTH)) == 0) {
+                    CYASSL_MSG("ExtKeyUse Client Auth not set");
+                    ret = EXTKEYUSE_AUTH_E;
+                }
+            }
+        }
+#endif /* IGNORE_KEY_EXTENSIONS */
+
         if (fatal) {
             FreeDecodedCert(&dCert);
             ssl->error = ret;
@@ -3794,7 +3835,9 @@ static int DoHandShakeMsgType(CYASSL* ssl, byte* input, word32* inOutIdx,
     if (*inOutIdx + size > totalSz)
         return INCOMPLETE_DATA;
 
-    HashInput(ssl, input + *inOutIdx, size);
+    ret = HashInput(ssl, input + *inOutIdx, size);
+    if (ret != 0)
+        return ret;
 
 #ifdef CYASSL_CALLBACKS
     /* add name later, add on record and handshake header part back on */
@@ -4478,8 +4521,11 @@ static INLINE void Sha256Rounds(int rounds, const byte* data, int sz)
 
     InitSha256(&sha256);  /* no error check on purpose, dummy round */
 
-    for (i = 0; i < rounds; i++)
+    for (i = 0; i < rounds; i++) {
         Sha256Update(&sha256, data, sz);
+        /* no error check on purpose, dummy round */
+    }
+
 }
 
 #endif
@@ -4494,8 +4540,10 @@ static INLINE void Sha384Rounds(int rounds, const byte* data, int sz)
 
     InitSha384(&sha384);  /* no error check on purpose, dummy round */
 
-    for (i = 0; i < rounds; i++)
+    for (i = 0; i < rounds; i++) {
         Sha384Update(&sha384, data, sz);
+        /* no error check on purpose, dummy round */
+    }
 }
 
 #endif
@@ -4510,8 +4558,10 @@ static INLINE void Sha512Rounds(int rounds, const byte* data, int sz)
 
     InitSha512(&sha512);  /* no error check on purpose, dummy round */
 
-    for (i = 0; i < rounds; i++)
+    for (i = 0; i < rounds; i++) {
         Sha512Update(&sha512, data, sz);
+        /* no error check on purpose, dummy round */
+    }
 }
 
 #endif
@@ -5459,7 +5509,7 @@ static void BuildSHA_CertVerify(CYASSL* ssl, byte* digest)
 
 #ifndef NO_CERTS
 
-static void BuildCertHashes(CYASSL* ssl, Hashes* hashes)
+static int BuildCertHashes(CYASSL* ssl, Hashes* hashes)
 {
     /* store current states, building requires get_digest which resets state */
     #ifndef NO_OLD_TLS
@@ -5479,11 +5529,17 @@ static void BuildCertHashes(CYASSL* ssl, Hashes* hashes)
         ShaFinal(&ssl->hashSha, hashes->sha);
 #endif
         if (IsAtLeastTLSv1_2(ssl)) {
+            int ret;
+
             #ifndef NO_SHA256
-                Sha256Final(&ssl->hashSha256, hashes->sha256);
+                ret = Sha256Final(&ssl->hashSha256, hashes->sha256);
+                if (ret != 0)
+                    return ret;
             #endif
             #ifdef CYASSL_SHA384
-                Sha384Final(&ssl->hashSha384, hashes->sha384);
+                ret = Sha384Final(&ssl->hashSha384, hashes->sha384);
+                if (ret != 0)
+                    return ret;
             #endif
         }
     }
@@ -5505,6 +5561,8 @@ static void BuildCertHashes(CYASSL* ssl, Hashes* hashes)
             ssl->hashSha384 = sha384;
         #endif
     }
+
+    return 0;
 }
 
 #endif /* CYASSL_LEANPSK */
@@ -5547,7 +5605,11 @@ static int BuildMessage(CYASSL* ssl, byte* output, const byte* input, int inSz,
         if (ssl->options.tls1_1) {
             ivSz = blockSz;
             sz  += ivSz;
-            RNG_GenerateBlock(ssl->rng, iv, ivSz);
+
+            ret = RNG_GenerateBlock(ssl->rng, iv, ivSz);
+            if (ret != 0)
+                return ret;
+
         }
         sz += 1;       /* pad byte */
         pad = (sz - headerSz) % blockSz;
@@ -5574,7 +5636,9 @@ static int BuildMessage(CYASSL* ssl, byte* output, const byte* input, int inSz,
     idx += inSz;
 
     if (type == handshake) {
-        HashOutput(ssl, output, headerSz + inSz, ivSz);
+        ret = HashOutput(ssl, output, headerSz + inSz, ivSz);
+        if (ret != 0)
+            return ret;
     }
 
     if (ssl->specs.cipher_type == block) {
@@ -5800,7 +5864,11 @@ int SendCertificate(CYASSL* ssl)
                 return ret;
         }
     #endif
-    HashOutput(ssl, output, sendSz, 0);
+
+    ret = HashOutput(ssl, output, sendSz, 0);
+    if (ret != 0)
+        return ret;
+
     #ifdef CYASSL_CALLBACKS
         if (ssl->hsInfoOn) AddPacketName("Certificate", &ssl->handShakeInfo);
         if (ssl->toInfoOn)
@@ -5876,7 +5944,10 @@ int SendCertificateRequest(CYASSL* ssl)
                 return ret;
         }
     #endif
-    HashOutput(ssl, output, sendSz, 0);
+
+    ret = HashOutput(ssl, output, sendSz, 0);
+    if (ret != 0)
+        return ret;
 
     #ifdef CYASSL_CALLBACKS
         if (ssl->hsInfoOn)
@@ -6476,6 +6547,18 @@ void SetErrorString(int error, char* str)
 
     case UNKNOWN_SNI_HOST_NAME_E:
         XSTRNCPY(str, "Unrecognized host name Error", max);
+        break;
+
+    case KEYUSE_SIGNATURE_E:
+        XSTRNCPY(str, "Key Use digitalSignature not set Error", max);
+        break;
+
+    case KEYUSE_ENCIPHER_E:
+        XSTRNCPY(str, "Key Use keyEncipherment not set Error", max);
+        break;
+
+    case EXTKEYUSE_AUTH_E:
+        XSTRNCPY(str, "Ext Key Use server/client auth not set Error", max);
         break;
 
     default :
@@ -7458,7 +7541,9 @@ static void PickHashSigAlgo(CYASSL* ssl,
 
             /* then random */
         if (ssl->options.connectState == CONNECT_BEGIN) {
-            RNG_GenerateBlock(ssl->rng, output + idx, RAN_LEN);
+            ret = RNG_GenerateBlock(ssl->rng, output + idx, RAN_LEN);
+            if (ret != 0)
+                return ret;
             
                 /* store random */
             XMEMCPY(ssl->arrays->clientRandom, output + idx, RAN_LEN);
@@ -7532,7 +7617,10 @@ static void PickHashSigAlgo(CYASSL* ssl,
                     return ret;
             }
         #endif
-        HashOutput(ssl, output, sendSz, 0);
+
+        ret = HashOutput(ssl, output, sendSz, 0);
+        if (ret != 0)
+            return ret;
 
         ssl->options.clientState = CLIENT_HELLO_COMPLETE;
 
@@ -8046,20 +8134,36 @@ static void PickHashSigAlgo(CYASSL* ssl,
         ret = InitSha256(&sha256);
         if (ret != 0)
             return ret;
-        Sha256Update(&sha256, ssl->arrays->clientRandom, RAN_LEN);
-        Sha256Update(&sha256, ssl->arrays->serverRandom, RAN_LEN);
-        Sha256Update(&sha256, messageVerify, verifySz);
-        Sha256Final(&sha256, hash256);
+        ret = Sha256Update(&sha256, ssl->arrays->clientRandom, RAN_LEN);
+        if (ret != 0)
+            return ret;
+        ret = Sha256Update(&sha256, ssl->arrays->serverRandom, RAN_LEN);
+        if (ret != 0)
+            return ret;
+        ret = Sha256Update(&sha256, messageVerify, verifySz);
+        if (ret != 0)
+            return ret;
+        ret = Sha256Final(&sha256, hash256);
+        if (ret != 0)
+            return ret;
 #endif
 
 #ifdef CYASSL_SHA384
         ret = InitSha384(&sha384);
         if (ret != 0)
             return ret;
-        Sha384Update(&sha384, ssl->arrays->clientRandom, RAN_LEN);
-        Sha384Update(&sha384, ssl->arrays->serverRandom, RAN_LEN);
-        Sha384Update(&sha384, messageVerify, verifySz);
-        Sha384Final(&sha384, hash384);
+        ret = Sha384Update(&sha384, ssl->arrays->clientRandom, RAN_LEN);
+        if (ret != 0)
+            return ret;
+        ret = Sha384Update(&sha384, ssl->arrays->serverRandom, RAN_LEN);
+        if (ret != 0)
+            return ret;
+        ret = Sha384Update(&sha384, messageVerify, verifySz);
+        if (ret != 0)
+            return ret;
+        ret = Sha384Final(&sha384, hash384);
+        if (ret != 0)
+            return ret;
 #endif
 
 #ifndef NO_RSA
@@ -8079,8 +8183,8 @@ static void PickHashSigAlgo(CYASSL* ssl,
 
             if (doUserRsa) {
             #ifdef HAVE_PK_CALLBACKS
-                ret = ssl->ctx->RsaVerifyCb(ssl, input + *inOutIdx, length,
-                                            &out, 
+                ret = ssl->ctx->RsaVerifyCb(ssl, (byte *) input + *inOutIdx,
+                                            length, &out, 
                                             ssl->buffers.peerRsaKey.buffer,
                                             ssl->buffers.peerRsaKey.length,
                                             ssl->RsaVerifyCtx);
@@ -8233,8 +8337,11 @@ static void PickHashSigAlgo(CYASSL* ssl,
         switch (ssl->specs.kea) {
         #ifndef NO_RSA
             case rsa_kea:
-                RNG_GenerateBlock(ssl->rng, ssl->arrays->preMasterSecret,
-                                  SECRET_LEN);
+                ret = RNG_GenerateBlock(ssl->rng, ssl->arrays->preMasterSecret,
+                                                                    SECRET_LEN);
+                if (ret != 0)
+                    return ret;
+
                 ssl->arrays->preMasterSecret[0] = ssl->chVersion.major;
                 ssl->arrays->preMasterSecret[1] = ssl->chVersion.minor;
                 ssl->arrays->preMasterSz = SECRET_LEN;
@@ -8336,8 +8443,11 @@ static void PickHashSigAlgo(CYASSL* ssl,
                         'C', 'y', 'a', 'S', 'S', 'L', ' ', 'N', 'T', 'R', 'U'
                     };
 
-                    RNG_GenerateBlock(ssl->rng, ssl->arrays->preMasterSecret,
-                                      SECRET_LEN);
+                    ret = RNG_GenerateBlock(ssl->rng,
+                                      ssl->arrays->preMasterSecret, SECRET_LEN);
+                    if (ret != 0)
+                        return ret;
+
                     ssl->arrays->preMasterSz = SECRET_LEN;
 
                     if (ssl->peerNtruKeyPresent == 0)
@@ -8458,7 +8568,10 @@ static void PickHashSigAlgo(CYASSL* ssl,
                         return ret;
                 }
             #endif
-            HashOutput(ssl, output, sendSz, 0);
+
+            ret = HashOutput(ssl, output, sendSz, 0);
+            if (ret != 0)
+                return ret;
 
             #ifdef CYASSL_CALLBACKS
                 if (ssl->hsInfoOn)
@@ -8518,7 +8631,9 @@ static void PickHashSigAlgo(CYASSL* ssl,
         output = ssl->buffers.outputBuffer.buffer +
                  ssl->buffers.outputBuffer.length;
 
-        BuildCertHashes(ssl, &ssl->certHashes);
+        ret = BuildCertHashes(ssl, &ssl->certHashes);
+        if (ret != 0)
+            return ret;
 
 #ifdef HAVE_ECC
         ecc_init(&eccKey);
@@ -8725,7 +8840,8 @@ static void PickHashSigAlgo(CYASSL* ssl,
                             return ret;
                     }
                 #endif
-                HashOutput(ssl, output, sendSz, 0);
+
+                ret = HashOutput(ssl, output, sendSz, 0);
             }
         }
 #ifndef NO_RSA
@@ -8800,8 +8916,13 @@ static void PickHashSigAlgo(CYASSL* ssl,
         output[idx++] = ssl->version.minor;
 
             /* then random */
-        if (!ssl->options.resuming)         
-            RNG_GenerateBlock(ssl->rng, ssl->arrays->serverRandom, RAN_LEN);
+        if (!ssl->options.resuming) {
+            ret = RNG_GenerateBlock(ssl->rng, ssl->arrays->serverRandom,
+                                                                       RAN_LEN);
+            if (ret != 0)
+                return ret;
+        }
+
         XMEMCPY(output + idx, ssl->arrays->serverRandom, RAN_LEN);
         idx += RAN_LEN;
 
@@ -8816,8 +8937,13 @@ static void PickHashSigAlgo(CYASSL* ssl,
 #endif
             /* then session id */
         output[idx++] = ID_LEN;
-        if (!ssl->options.resuming)
-            RNG_GenerateBlock(ssl->rng, ssl->arrays->sessionID, ID_LEN);
+
+        if (!ssl->options.resuming) {
+            ret = RNG_GenerateBlock(ssl->rng, ssl->arrays->sessionID, ID_LEN);
+            if (ret != 0)
+                return ret;
+        }
+
         XMEMCPY(output + idx, ssl->arrays->sessionID, ID_LEN);
         idx += ID_LEN;
 
@@ -8844,7 +8970,10 @@ static void PickHashSigAlgo(CYASSL* ssl,
                     return ret;
             }
         #endif
-        HashOutput(ssl, output, sendSz, 0);
+
+        ret = HashOutput(ssl, output, sendSz, 0);
+        if (ret != 0)
+            return ret;
 
         #ifdef CYASSL_CALLBACKS
             if (ssl->hsInfoOn)
@@ -8928,7 +9057,9 @@ static void PickHashSigAlgo(CYASSL* ssl,
             idx += HINT_LEN_SZ;
             XMEMCPY(output + idx, ssl->arrays->server_hint,length -HINT_LEN_SZ);
 
-            HashOutput(ssl, output, sendSz, 0);
+            ret = HashOutput(ssl, output, sendSz, 0);
+            if (ret != 0)
+                return ret;
 
             #ifdef CYASSL_CALLBACKS
                 if (ssl->hsInfoOn)
@@ -9103,20 +9234,36 @@ static void PickHashSigAlgo(CYASSL* ssl,
                     ret = InitSha256(&sha256);
                     if (ret != 0)
                         return ret;
-                    Sha256Update(&sha256, ssl->arrays->clientRandom, RAN_LEN);
-                    Sha256Update(&sha256, ssl->arrays->serverRandom, RAN_LEN);
-                    Sha256Update(&sha256, output + preSigIdx, preSigSz);
-                    Sha256Final(&sha256, hash256);
+                    ret = Sha256Update(&sha256, ssl->arrays->clientRandom, RAN_LEN);
+                    if (ret != 0)
+                        return ret;
+                    ret = Sha256Update(&sha256, ssl->arrays->serverRandom, RAN_LEN);
+                    if (ret != 0)
+                        return ret;
+                    ret = Sha256Update(&sha256, output + preSigIdx, preSigSz);
+                    if (ret != 0)
+                        return ret;
+                    ret = Sha256Final(&sha256, hash256);
+                    if (ret != 0)
+                        return ret;
                 #endif
 
                 #ifdef CYASSL_SHA384
                     ret = InitSha384(&sha384);
                     if (ret != 0)
                         return ret;
-                    Sha384Update(&sha384, ssl->arrays->clientRandom, RAN_LEN);
-                    Sha384Update(&sha384, ssl->arrays->serverRandom, RAN_LEN);
-                    Sha384Update(&sha384, output + preSigIdx, preSigSz);
-                    Sha384Final(&sha384, hash384);
+                    ret = Sha384Update(&sha384, ssl->arrays->clientRandom, RAN_LEN);
+                    if (ret != 0)
+                        return ret;
+                    ret = Sha384Update(&sha384, ssl->arrays->serverRandom, RAN_LEN);
+                    if (ret != 0)
+                        return ret;
+                    ret = Sha384Update(&sha384, output + preSigIdx, preSigSz);
+                    if (ret != 0)
+                        return ret;
+                    ret = Sha384Final(&sha384, hash384);
+                    if (ret != 0)
+                        return ret;
                 #endif
 #ifndef NO_RSA
                 if (ssl->suites->sigAlgo == rsa_sa_algo) {
@@ -9251,7 +9398,10 @@ static void PickHashSigAlgo(CYASSL* ssl,
             }
 
             AddHeaders(output, length, server_key_exchange, ssl);
-            HashOutput(ssl, output, sendSz, 0);
+
+            ret = HashOutput(ssl, output, sendSz, 0);
+            if (ret != 0)
+                return ret;
 
             #ifdef CYASSL_CALLBACKS
                 if (ssl->hsInfoOn)
@@ -9436,20 +9586,36 @@ static void PickHashSigAlgo(CYASSL* ssl,
                     ret = InitSha256(&sha256);
                     if (ret != 0)
                         return ret;
-                    Sha256Update(&sha256, ssl->arrays->clientRandom, RAN_LEN);
-                    Sha256Update(&sha256, ssl->arrays->serverRandom, RAN_LEN);
-                    Sha256Update(&sha256, output + preSigIdx, preSigSz);
-                    Sha256Final(&sha256, hash256);
+                    ret = Sha256Update(&sha256, ssl->arrays->clientRandom, RAN_LEN);
+                    if (ret != 0)
+                        return ret;
+                    ret = Sha256Update(&sha256, ssl->arrays->serverRandom, RAN_LEN);
+                    if (ret != 0)
+                        return ret;
+                    ret = Sha256Update(&sha256, output + preSigIdx, preSigSz);
+                    if (ret != 0)
+                        return ret;
+                    ret = Sha256Final(&sha256, hash256);
+                    if (ret != 0)
+                        return ret;
                 #endif
 
                 #ifdef CYASSL_SHA384
                     ret = InitSha384(&sha384);
                     if (ret != 0)
                         return ret;
-                    Sha384Update(&sha384, ssl->arrays->clientRandom, RAN_LEN);
-                    Sha384Update(&sha384, ssl->arrays->serverRandom, RAN_LEN);
-                    Sha384Update(&sha384, output + preSigIdx, preSigSz);
-                    Sha384Final(&sha384, hash384);
+                    ret = Sha384Update(&sha384, ssl->arrays->clientRandom, RAN_LEN);
+                    if (ret != 0)
+                        return ret;
+                    ret = Sha384Update(&sha384, ssl->arrays->serverRandom, RAN_LEN);
+                    if (ret != 0)
+                        return ret;
+                    ret = Sha384Update(&sha384, output + preSigIdx, preSigSz);
+                    if (ret != 0)
+                        return ret;
+                    ret = Sha384Final(&sha384, hash384);
+                    if (ret != 0)
+                        return ret;
                 #endif
 #ifndef NO_RSA
                 if (ssl->suites->sigAlgo == rsa_sa_algo) {
@@ -9515,7 +9681,10 @@ static void PickHashSigAlgo(CYASSL* ssl,
                         return ret;
                 }
             #endif
-            HashOutput(ssl, output, sendSz, 0);
+
+            ret = HashOutput(ssl, output, sendSz, 0);
+            if (ret != 0)
+                return ret;
 
             #ifdef CYASSL_CALLBACKS
                 if (ssl->hsInfoOn)
@@ -9749,6 +9918,14 @@ static void PickHashSigAlgo(CYASSL* ssl,
                 return 1;
             break;
 
+        case TLS_PSK_WITH_AES_128_CCM:
+        case TLS_PSK_WITH_AES_256_CCM:
+        case TLS_PSK_WITH_AES_128_CCM_8:
+        case TLS_PSK_WITH_AES_256_CCM_8:
+            if (requirement == REQUIRES_PSK)
+                return 1;
+            break;
+
         default:
             CYASSL_MSG("Unsupported cipher suite, CipherRequires ECC");
             return 0;
@@ -9821,25 +9998,9 @@ static void PickHashSigAlgo(CYASSL* ssl,
 #endif
 
         case TLS_PSK_WITH_AES_128_CBC_SHA256 :
-            if (requirement == REQUIRES_PSK)
-                return 1;
-            break;
-
         case TLS_PSK_WITH_AES_128_CBC_SHA :
-            if (requirement == REQUIRES_PSK)
-                return 1;
-            break;
-
         case TLS_PSK_WITH_AES_256_CBC_SHA :
-            if (requirement == REQUIRES_PSK)
-                return 1;
-            break;
-
         case TLS_PSK_WITH_NULL_SHA256 :
-            if (requirement == REQUIRES_PSK)
-                return 1;
-            break;
-
         case TLS_PSK_WITH_NULL_SHA :
             if (requirement == REQUIRES_PSK)
                 return 1;
@@ -9945,18 +10106,40 @@ static void PickHashSigAlgo(CYASSL* ssl,
     }
 
 
+    /* Make sure client setup is valid for this suite, true on success */
+    int VerifyClientSuite(CYASSL* ssl)
+    {
+        int  havePSK = 0;
+        byte first   = ssl->options.cipherSuite0;
+        byte second  = ssl->options.cipherSuite;
+
+        CYASSL_ENTER("VerifyClientSuite");
+
+        #ifndef NO_PSK
+            havePSK = ssl->options.havePSK;
+        #endif
+
+        if (CipherRequires(first, second, REQUIRES_PSK)) {
+            CYASSL_MSG("Requires PSK");
+            if (havePSK == 0) {
+                CYASSL_MSG("Don't have PSK");
+                return 0;
+            }
+        }
+
+        return 1;  /* success */
+    }
 
 
-
-    /* Make sure cert/key are valid for this suite, true on success */
-    static int VerifySuite(CYASSL* ssl, word16 idx)
+    /* Make sure server cert/key are valid for this suite, true on success */
+    static int VerifyServerSuite(CYASSL* ssl, word16 idx)
     {
         int  haveRSA = !ssl->options.haveStaticECC;
         int  havePSK = 0;
         byte first;
         byte second;
 
-        CYASSL_ENTER("VerifySuite");
+        CYASSL_ENTER("VerifyServerSuite");
 
         if (ssl->suites == NULL) {
             CYASSL_MSG("Suites pointer error");
@@ -10061,7 +10244,7 @@ static void PickHashSigAlgo(CYASSL* ssl,
                 if (ssl->suites->suites[i]   == peerSuites->suites[j] &&
                     ssl->suites->suites[i+1] == peerSuites->suites[j+1] ) {
 
-                    if (VerifySuite(ssl, i)) {
+                    if (VerifyServerSuite(ssl, i)) {
                         int result;
                         CYASSL_MSG("Verified suite validity");
                         ssl->options.cipherSuite0 = ssl->suites->suites[i];
@@ -10111,8 +10294,12 @@ static void PickHashSigAlgo(CYASSL* ssl,
 #endif
 #endif
 #ifndef NO_SHA256
-    if (IsAtLeastTLSv1_2(ssl))
-        Sha256Update(&ssl->hashSha256, input + idx, sz);
+        if (IsAtLeastTLSv1_2(ssl)) {
+            int shaRet = Sha256Update(&ssl->hashSha256, input + idx, sz);
+
+            if (shaRet != 0)
+                return shaRet;
+        }
 #endif
 
         /* does this value mean client_hello? */
@@ -10229,7 +10416,12 @@ static void PickHashSigAlgo(CYASSL* ssl,
                 #ifdef SESSION_CERTS
                     ssl->session = *session; /* restore session certs. */
                 #endif
-                RNG_GenerateBlock(ssl->rng, ssl->arrays->serverRandom, RAN_LEN);
+
+                ret = RNG_GenerateBlock(ssl->rng, ssl->arrays->serverRandom,
+                                                                       RAN_LEN);
+                if (ret != 0)
+                    return ret;
+
                 #ifdef NO_OLD_TLS
                     ret = DeriveTlsKeys(ssl);
                 #else
@@ -10506,7 +10698,12 @@ static void PickHashSigAlgo(CYASSL* ssl,
                 #ifdef SESSION_CERTS
                     ssl->session = *session; /* restore session certs. */
                 #endif
-                RNG_GenerateBlock(ssl->rng, ssl->arrays->serverRandom, RAN_LEN);
+
+                ret = RNG_GenerateBlock(ssl->rng, ssl->arrays->serverRandom,
+                                                                       RAN_LEN);
+                if (ret != 0)
+                    return ret;
+
                 #ifdef NO_OLD_TLS
                     ret = DeriveTlsKeys(ssl);
                 #else
@@ -10714,7 +10911,11 @@ static void PickHashSigAlgo(CYASSL* ssl,
                     return 0;
             }
         #endif
-        HashOutput(ssl, output, sendSz, 0);
+
+        ret = HashOutput(ssl, output, sendSz, 0);
+            if (ret != 0)
+                return ret;
+
 #ifdef CYASSL_CALLBACKS
         if (ssl->hsInfoOn)
             AddPacketName("ServerHelloDone", &ssl->handShakeInfo);
@@ -10761,7 +10962,10 @@ static void PickHashSigAlgo(CYASSL* ssl,
                                         ssl->IOCB_CookieCtx)) < 0)
             return ret;
 
-        HashOutput(ssl, output, sendSz, 0);
+        ret = HashOutput(ssl, output, sendSz, 0);
+        if (ret != 0)
+            return ret;
+
 #ifdef CYASSL_CALLBACKS
         if (ssl->hsInfoOn)
             AddPacketName("HelloVerifyRequest", &ssl->handShakeInfo);
@@ -11086,7 +11290,7 @@ static void PickHashSigAlgo(CYASSL* ssl,
             ssl->options.clientState = CLIENT_KEYEXCHANGE_COMPLETE;
             #ifndef NO_CERTS
                 if (ssl->options.verifyPeer)
-                    BuildCertHashes(ssl, &ssl->certHashes);
+                    ret = BuildCertHashes(ssl, &ssl->certHashes);
             #endif
         }
 

@@ -1,6 +1,6 @@
 /* error-ssl.h
  *
- * Copyright (C) 2006-2013 wolfSSL Inc.
+ * Copyright (C) 2006-2014 wolfSSL Inc.
  *
  * This file is part of CyaSSL.
  *
@@ -16,7 +16,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
 
@@ -115,6 +115,9 @@ enum CyaSSL_ErrorCodes {
     UNKNOWN_SNI_HOST_NAME_E = -281,        /* Unrecognized host name Error */
     UNKNOWN_MAX_FRAG_LEN_E  = -282,        /* Unrecognized max frag len Error */
     /* add strings to SetErrorString !!!!! */
+    KEYUSE_SIGNATURE_E      = -283,        /* KeyUse digSignature error */
+    KEYUSE_ENCIPHER_E       = -285,        /* KeyUse keyEncipher error */
+    EXTKEYUSE_AUTH_E        = -286,        /* ExtKeyUse server|client_auth */
 
     /* begin negotiation parameter errors */
     UNSUPPORTED_SUITE       = -290,        /* unsupported cipher suite */

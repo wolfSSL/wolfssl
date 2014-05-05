@@ -12,7 +12,7 @@
 */
 /* blake2b.c
  *
- * Copyright (C) 2006-2013 wolfSSL Inc.
+ * Copyright (C) 2006-2014 wolfSSL Inc.
  *
  * This file is part of CyaSSL.
  *
@@ -28,7 +28,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
 
@@ -163,12 +163,25 @@ int blake2b_init_key( blake2b_state *S, const byte outlen, const void *key,
   if( blake2b_init_param( S, P ) < 0 ) return -1;
 
   {
+#ifdef CYASSL_SMALL_STACK
+    byte* block;
+
+    block = (byte*)XMALLOC(BLAKE2B_BLOCKBYTES, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    if ( block == NULL ) return -1;
+#else
     byte block[BLAKE2B_BLOCKBYTES];
+#endif
+
     XMEMSET( block, 0, BLAKE2B_BLOCKBYTES );
     XMEMCPY( block, key, keylen );
     blake2b_update( S, block, BLAKE2B_BLOCKBYTES );
     secure_zero_memory( block, BLAKE2B_BLOCKBYTES ); /* Burn the key from */
-                                                     /*stack */
+                                                     /* memory */
+
+#ifdef CYASSL_SMALL_STACK
+    XFREE(block, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
   }
   return 0;
 }
@@ -176,9 +189,27 @@ int blake2b_init_key( blake2b_state *S, const byte outlen, const void *key,
 static int blake2b_compress( blake2b_state *S,
                              const byte block[BLAKE2B_BLOCKBYTES] )
 {
+  int i;
+
+#ifdef CYASSL_SMALL_STACK
+  word64* m;
+  word64* v;
+
+  m = (word64*)XMALLOC(sizeof(word64) * 16, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+  if ( m == NULL ) return -1;
+
+  v = (word64*)XMALLOC(sizeof(word64) * 16, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+  if ( v == NULL )
+  {
+    XFREE(m, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    return -1;
+  }
+#else
   word64 m[16];
   word64 v[16];
-  int i;
+#endif
 
   for( i = 0; i < 16; ++i )
     m[i] = load64( block + i * sizeof( m[i] ) );
@@ -234,6 +265,12 @@ static int blake2b_compress( blake2b_state *S,
 
 #undef G
 #undef ROUND
+
+#ifdef CYASSL_SMALL_STACK
+  XFREE(m, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+  XFREE(v, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
   return 0;
 }
 
@@ -250,7 +287,9 @@ int blake2b_update( blake2b_state *S, const byte *in, word64 inlen )
       XMEMCPY( S->buf + left, in, (word)fill ); /* Fill buffer */
       S->buflen += fill;
       blake2b_increment_counter( S, BLAKE2B_BLOCKBYTES );
-      blake2b_compress( S, S->buf ); /* Compress */
+
+      if ( blake2b_compress( S, S->buf ) < 0 ) return -1; /* Compress */
+
       XMEMCPY( S->buf, S->buf + BLAKE2B_BLOCKBYTES, BLAKE2B_BLOCKBYTES );
               /* Shift buffer left */
       S->buflen -= BLAKE2B_BLOCKBYTES;
@@ -278,7 +317,9 @@ int blake2b_final( blake2b_state *S, byte *out, byte outlen )
   if( S->buflen > BLAKE2B_BLOCKBYTES )
   {
     blake2b_increment_counter( S, BLAKE2B_BLOCKBYTES );
-    blake2b_compress( S, S->buf );
+
+    if ( blake2b_compress( S, S->buf ) < 0 ) return -1;
+
     S->buflen -= BLAKE2B_BLOCKBYTES;
     XMEMCPY( S->buf, S->buf + BLAKE2B_BLOCKBYTES, (word)S->buflen );
   }
@@ -287,7 +328,7 @@ int blake2b_final( blake2b_state *S, byte *out, byte outlen )
   blake2b_set_lastblock( S );
   XMEMSET( S->buf + S->buflen, 0, (word)(2 * BLAKE2B_BLOCKBYTES - S->buflen) );
          /* Padding */
-  blake2b_compress( S, S->buf );
+  if ( blake2b_compress( S, S->buf ) < 0 ) return -1;
 
   for( i = 0; i < 8; ++i ) /* Output full hash to temp buffer */
     store64( buffer + sizeof( S->h[i] ) * i, S->h[i] );
@@ -318,9 +359,9 @@ int blake2b( byte *out, const void *in, const void *key, const byte outlen,
     if( blake2b_init( S, outlen ) < 0 ) return -1;
   }
 
-  blake2b_update( S, ( byte * )in, inlen );
-  blake2b_final( S, out, outlen );
-  return 0;
+  if ( blake2b_update( S, ( byte * )in, inlen ) < 0) return -1;
+
+  return blake2b_final( S, out, outlen );
 }
 
 #if defined(BLAKE2B_SELFTEST)
@@ -340,7 +381,11 @@ int main( int argc, char **argv )
   for( word32 i = 0; i < KAT_LENGTH; ++i )
   {
     byte hash[BLAKE2B_OUTBYTES];
-    blake2b( hash, buf, key, BLAKE2B_OUTBYTES, i, BLAKE2B_KEYBYTES );
+    if ( blake2b( hash, buf, key, BLAKE2B_OUTBYTES, i, BLAKE2B_KEYBYTES ) < 0 )
+    {
+      puts( "error" );
+      return -1;
+    }
 
     if( 0 != memcmp( hash, blake2b_keyed_kat[i], BLAKE2B_OUTBYTES ) )
     {

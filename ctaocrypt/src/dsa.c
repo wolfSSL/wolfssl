@@ -1,6 +1,6 @@
 /* dsa.c
  *
- * Copyright (C) 2006-2013 wolfSSL Inc.
+ * Copyright (C) 2006-2014 wolfSSL Inc.
  *
  * This file is part of CyaSSL.
  *
@@ -16,7 +16,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
 #ifdef HAVE_CONFIG_H
@@ -83,22 +83,25 @@ void FreeDsaKey(DsaKey* key)
 int DsaSign(const byte* digest, byte* out, DsaKey* key, RNG* rng)
 {
     mp_int k, kInv, r, s, H;
-    int    ret = 0, sz;
+    int    ret, sz;
     byte   buffer[DSA_HALF_SIZE];
-
-    if (mp_init_multi(&k, &kInv, &r, &s, &H, 0) != MP_OKAY)
-        return MP_INIT_E;
 
     sz = min(sizeof(buffer), mp_unsigned_bin_size(&key->q)); 
 
     /* generate k */
-    RNG_GenerateBlock(rng, buffer, sz);
+    ret = RNG_GenerateBlock(rng, buffer, sz);
+    if (ret != 0)
+        return ret;
+
     buffer[0] |= 0x0C;
+
+    if (mp_init_multi(&k, &kInv, &r, &s, &H, 0) != MP_OKAY)
+        return MP_INIT_E;
 
     if (mp_read_unsigned_bin(&k, buffer, sz) != MP_OKAY)
         ret = MP_READ_E;
 
-    if (mp_cmp_d(&k, 1) != MP_GT)
+    if (ret == 0 && mp_cmp_d(&k, 1) != MP_GT)
         ret = MP_CMP_E;
 
     /* inverse k mod q */

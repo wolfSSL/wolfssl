@@ -27,7 +27,7 @@
 
 /* camellia.c
  *
- * Copyright (C) 2006-2013 wolfSSL Inc.
+ * Copyright (C) 2006-2014 wolfSSL Inc.
  *
  * This file is part of CyaSSL.
  *
@@ -43,7 +43,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
 /*
@@ -486,13 +486,29 @@ static const u32 camellia_sp4404[256] = {
 #define subl(x) subL[(x)]
 #define subr(x) subR[(x)]
 
-static void camellia_setup128(const unsigned char *key, u32 *subkey)
+static int camellia_setup128(const unsigned char *key, u32 *subkey)
 {
     u32 kll, klr, krl, krr;
     u32 il, ir, t0, t1, w0, w1;
     u32 kw4l, kw4r, dw, tl, tr;
+
+#ifdef CYASSL_SMALL_STACK
+    u32* subL;
+    u32* subR;
+
+    subL = (u32*) XMALLOC(sizeof(u32) * 26, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (subL == NULL)
+        return MEMORY_E;
+
+    subR = (u32*) XMALLOC(sizeof(u32) * 26, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (subR == NULL) {
+        XFREE(subL, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        return MEMORY_E;
+    }
+#else
     u32 subL[26];
     u32 subR[26];
+#endif
 
     /**
      *  k == kll || klr || krl || krr (|| is concatination)
@@ -694,17 +710,38 @@ static void camellia_setup128(const unsigned char *key, u32 *subkey)
     dw = CamelliaSubkeyL(23) ^ CamelliaSubkeyR(23), dw = CAMELLIA_RL8(dw);
     CamelliaSubkeyR(23) = CamelliaSubkeyL(23) ^ dw, CamelliaSubkeyL(23) = dw;
 
-    return;
+#ifdef CYASSL_SMALL_STACK
+    XFREE(subL, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(subR, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
+    return 0;
 }
 
-static void camellia_setup256(const unsigned char *key, u32 *subkey)
+static int camellia_setup256(const unsigned char *key, u32 *subkey)
 {
     u32 kll,klr,krl,krr;           /* left half of key */
     u32 krll,krlr,krrl,krrr;       /* right half of key */
     u32 il, ir, t0, t1, w0, w1;    /* temporary variables */
     u32 kw4l, kw4r, dw, tl, tr;
+
+#ifdef CYASSL_SMALL_STACK
+    u32* subL;
+    u32* subR;
+
+    subL = (u32*) XMALLOC(sizeof(u32) * 34, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (subL == NULL)
+        return MEMORY_E;
+
+    subR = (u32*) XMALLOC(sizeof(u32) * 34, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (subR == NULL) {
+        XFREE(subL, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        return MEMORY_E;
+    }
+#else
     u32 subL[34];
     u32 subR[34];
+#endif
 
     /**
      *  key = (kll || klr || krl || krr || krll || krlr || krrl || krrr)
@@ -980,10 +1017,15 @@ static void camellia_setup256(const unsigned char *key, u32 *subkey)
     dw = CamelliaSubkeyL(31) ^ CamelliaSubkeyR(31), dw = CAMELLIA_RL8(dw);
     CamelliaSubkeyR(31) = CamelliaSubkeyL(31) ^ dw,CamelliaSubkeyL(31) = dw;
     
-    return;
+#ifdef CYASSL_SMALL_STACK
+    XFREE(subL, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(subR, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
+    return 0;
 }
 
-static void camellia_setup192(const unsigned char *key, u32 *subkey)
+static int camellia_setup192(const unsigned char *key, u32 *subkey)
 {
     unsigned char kk[32];
     u32 krll, krlr, krrl,krrr;
@@ -995,8 +1037,8 @@ static void camellia_setup192(const unsigned char *key, u32 *subkey)
     krrr = ~krlr;
     memcpy(kk+24, (unsigned char *)&krrl, 4);
     memcpy(kk+28, (unsigned char *)&krrr, 4);
-    camellia_setup256(kk, subkey);
-    return;
+
+    return camellia_setup256(kk, subkey);
 }
 
 
@@ -1488,22 +1530,29 @@ static void Camellia_DecryptBlock(const int keyBitLength,
 
 int CamelliaSetKey(Camellia* cam, const byte* key, word32 len, const byte* iv)
 {
+    int ret = 0;
+
     if (cam == NULL) return BAD_FUNC_ARG;
 
     XMEMSET(cam->key, 0, sizeof(KEY_TABLE_TYPE));
+
     switch (len) {
         case 16:
-        	camellia_setup128(key, cam->key);
+        	ret = camellia_setup128(key, cam->key);
             break;
         case 24:
-        	camellia_setup192(key, cam->key);
+        	ret = camellia_setup192(key, cam->key);
             break;
         case 32:
-	        camellia_setup256(key, cam->key);
+            ret = camellia_setup256(key, cam->key);
             break;
         default:
             return BAD_FUNC_ARG;
     }
+
+    if (ret != 0)
+        return ret;
+
     cam->keySz = len * 8;
 
     return CamelliaSetIV(cam, iv);

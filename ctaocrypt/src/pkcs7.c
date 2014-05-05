@@ -1,6 +1,6 @@
 /* pkcs7.c
  *
- * Copyright (C) 2006-2013 wolfSSL Inc.
+ * Copyright (C) 2006-2014 wolfSSL Inc.
  *
  * This file is part of CyaSSL.
  *
@@ -16,7 +16,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
 #ifdef HAVE_CONFIG_H
@@ -585,11 +585,7 @@ int PKCS7_VerifySignedData(PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz)
     byte* content = NULL;
     byte* sig = NULL;
     byte* cert = NULL;
-    byte* signedAttr = NULL;
-    int contentSz = 0, sigSz = 0, certSz = 0, signedAttrSz = 0;
-
-    (void)signedAttr;    /* not used yet, just set */
-    (void)signedAttrSz;
+    int contentSz = 0, sigSz = 0, certSz = 0;
 
     if (pkcs7 == NULL || pkiMsg == NULL || pkiMsgSz == 0)
         return BAD_FUNC_ARG;
@@ -749,10 +745,6 @@ int PKCS7_VerifySignedData(PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz)
 
             if (GetLength(pkiMsg, &idx, &length, pkiMsgSz) < 0)
                 return ASN_PARSE_E;
-
-            /* save pointer and length */
-            signedAttr = &pkiMsg[idx];
-            signedAttrSz = length;
 
             idx += length;
         }
@@ -980,8 +972,13 @@ int PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
     verSz = SetMyVersion(0, ver, 0);
 
     /* generate random content encryption key */
-    InitRng(&rng);
-    RNG_GenerateBlock(&rng, contentKeyPlain, blockKeySz);
+    ret = InitRng(&rng);
+    if (ret != 0)
+        return ret;
+
+    ret = RNG_GenerateBlock(&rng, contentKeyPlain, blockKeySz);
+    if (ret != 0)
+        return ret;
 
     /* build RecipientInfo, only handle 1 for now */
     recipSz = CreateRecipientInfo(pkcs7->singleCert, pkcs7->singleCertSz, RSAk,
@@ -994,6 +991,11 @@ int PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
         return recipSz;
     }
     recipSetSz = SetSet(recipSz, recipSet);
+
+    /* generate IV for block cipher */
+    ret = RNG_GenerateBlock(&rng, tmpIv, DES_BLOCK_SIZE);
+    if (ret != 0)
+        return ret;
 
     /* EncryptedContentInfo */
     contentTypeSz = SetContentType(pkcs7->contentOID, contentType);
@@ -1027,9 +1029,6 @@ int PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
             XFREE(plain, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         return MEMORY_E;
     }
-
-    /* generate IV for block cipher */
-    RNG_GenerateBlock(&rng, tmpIv, DES_BLOCK_SIZE);
 
     /* put together IV OCTET STRING */
     ivOctetStringSz = SetOctetString(DES_BLOCK_SIZE, ivOctetString);

@@ -1,12 +1,12 @@
 # configure.ac
 #
-# Copyright (C) 2006-2013 wolfSSL Inc.
+# Copyright (C) 2006-2014 wolfSSL Inc.
 #
 # This file is part of CyaSSL.
 #
 #
 
-AC_INIT([cyassl],[2.9.4],[https://github.com/cyassl/cyassl/issues],[cyassl],[http://www.yassl.com])
+AC_INIT([cyassl],[3.0.0],[https://github.com/cyassl/cyassl/issues],[cyassl],[http://www.wolfssl.com])
 
 AC_CONFIG_AUX_DIR([build-aux])
 
@@ -31,7 +31,7 @@ AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_HEADERS([config.h:config.in])dnl Keep filename to 8.3 for MS-DOS.
 
 #shared library versioning
-CYASSL_LIBRARY_VERSION=5:4:0
+CYASSL_LIBRARY_VERSION=5:5:0
 #                      | | |
 #               +------+ | +---+
 #               |        |     |
@@ -1334,6 +1334,19 @@ then
 fi
 
 
+# Small Stack
+AC_ARG_ENABLE([smallstack],
+    [  --enable-smallstack     Enable Small Stack Usage (default: enabled)],
+    [ ENABLED_SMALL_STACK=$enableval ],
+    [ ENABLED_SMALL_STACK=yes ]
+    )
+
+if test "x$ENABLED_SMALL_STACK" = "xyes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DCYASSL_SMALL_STACK"
+fi
+
+
 #valgrind
 AC_ARG_ENABLE([valgrind],
     [  --enable-valgrind       Enable valgrind for unit tests (default: disabled)],
@@ -1649,7 +1662,7 @@ rm -f $OPTION_FILE
 echo "/* cyassl options.h" >> $OPTION_FILE 
 echo " * generated from configure options" >> $OPTION_FILE
 echo " *" >> $OPTION_FILE
-echo " * Copyright (C) 2006-2013 wolfSSL Inc." >> $OPTION_FILE
+echo " * Copyright (C) 2006-2014 wolfSSL Inc." >> $OPTION_FILE
 echo " *" >> $OPTION_FILE
 echo " * This file is part of CyaSSL." >> $OPTION_FILE
 echo " *" >> $OPTION_FILE
@@ -1760,6 +1773,7 @@ echo "   * Supported Elliptic Curves: $ENABLED_SUPPORTED_CURVES"
 echo "   * All TLS Extensions:        $ENABLED_TLSX"
 echo "   * PKCS#7                     $ENABLED_PKCS7"
 echo "   * wolfSCEP                   $ENABLED_WOLFSCEP"
+echo "   * Small Stack:               $ENABLED_SMALL_STACK"
 echo "   * valgrind unit tests:       $ENABLED_VALGRIND"
 echo "   * LIBZ:                      $ENABLED_LIBZ"
 echo "   * Examples:                  $ENABLED_EXAMPLES"
