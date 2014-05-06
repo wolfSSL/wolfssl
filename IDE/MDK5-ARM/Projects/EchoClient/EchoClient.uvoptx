@@ -76,6 +76,23 @@
         <IsCurrentTarget>1</IsCurrentTarget>
       </OPTFL>
       <CpuCode>255</CpuCode>
+      <Books>
+        <Book>
+          <Number>0</Number>
+          <Title>Schematics (MCBSTM32F200)</Title>
+          <Path>C:\Keil5\ARM\PACK\Keil\STM32F2xx_DFP\1.0.7\Documents\mcbstm32f200-schematics.pdf</Path>
+        </Book>
+        <Book>
+          <Number>1</Number>
+          <Title>User Manual (MCBSTM32F200)</Title>
+          <Path>C:\Keil5\ARM\PACK\Keil\STM32F2xx_DFP\1.0.7\Documents\mcbstm32f200.chm</Path>
+        </Book>
+        <Book>
+          <Number>2</Number>
+          <Title>MCBSTM32F200 Evaluation Board Web Page (MCBSTM32F200)</Title>
+          <Path>http://www.keil.com/mcbstm32f200/</Path>
+        </Book>
+      </Books>
       <DllOpt>
         <SimDllName>SARMCM3.DLL</SimDllName>
         <SimDllArguments>-REMAP -MPU</SimDllArguments>
@@ -118,7 +135,7 @@
         <tDllPa></tDllPa>
         <tDlgDll></tDlgDll>
         <tDlgPa></tDlgPa>
-        <tIfile>.\STM32_SWO.ini</tIfile>
+        <tIfile></tIfile>
         <pMon>BIN\ULP2CM3.DLL</pMon>
       </DebugOpt>
       <TargetDriverDllRegistry>
@@ -390,38 +407,6 @@
     <File>
       <GroupNumber>6</GroupNumber>
       <FileNumber>10</FileNumber>
-      <FileType>1</FileType>
-      <tvExp>0</tvExp>
-      <Focus>0</Focus>
-      <ColumnNumber>0</ColumnNumber>
-      <tvExpOptDlg>0</tvExpOptDlg>
-      <TopLine>0</TopLine>
-      <CurrentLine>0</CurrentLine>
-      <bDave2>0</bDave2>
-      <PathWithFileName>C:\Keil5\ARM\PACK\Keil\STM32F2xx_DFP\1.0.4\RTE_Driver\DMA_STM32F2xx.c</PathWithFileName>
-      <FilenameWithoutPath>DMA_STM32F2xx.c</FilenameWithoutPath>
-      <RteFlg>1</RteFlg>
-      <bShared>0</bShared>
-    </File>
-    <File>
-      <GroupNumber>6</GroupNumber>
-      <FileNumber>11</FileNumber>
-      <FileType>1</FileType>
-      <tvExp>0</tvExp>
-      <Focus>0</Focus>
-      <ColumnNumber>0</ColumnNumber>
-      <tvExpOptDlg>0</tvExpOptDlg>
-      <TopLine>0</TopLine>
-      <CurrentLine>0</CurrentLine>
-      <bDave2>0</bDave2>
-      <PathWithFileName>C:\Keil5\ARM\PACK\Keil\STM32F2xx_DFP\1.0.4\RTE_Driver\GPIO_STM32F2xx.c</PathWithFileName>
-      <FilenameWithoutPath>GPIO_STM32F2xx.c</FilenameWithoutPath>
-      <RteFlg>1</RteFlg>
-      <bShared>0</bShared>
-    </File>
-    <File>
-      <GroupNumber>6</GroupNumber>
-      <FileNumber>12</FileNumber>
       <FileType>5</FileType>
       <tvExp>0</tvExp>
       <Focus>0</Focus>
@@ -437,7 +422,7 @@
     </File>
     <File>
       <GroupNumber>6</GroupNumber>
-      <FileNumber>13</FileNumber>
+      <FileNumber>11</FileNumber>
       <FileType>2</FileType>
       <tvExp>0</tvExp>
       <Focus>0</Focus>
@@ -453,7 +438,7 @@
     </File>
     <File>
       <GroupNumber>6</GroupNumber>
-      <FileNumber>14</FileNumber>
+      <FileNumber>12</FileNumber>
       <FileType>1</FileType>
       <tvExp>0</tvExp>
       <Focus>0</Focus>
@@ -464,6 +449,38 @@
       <bDave2>0</bDave2>
       <PathWithFileName>RTE\Device\STM32F207IG\system_stm32f2xx.c</PathWithFileName>
       <FilenameWithoutPath>system_stm32f2xx.c</FilenameWithoutPath>
+      <RteFlg>1</RteFlg>
+      <bShared>0</bShared>
+    </File>
+    <File>
+      <GroupNumber>6</GroupNumber>
+      <FileNumber>13</FileNumber>
+      <FileType>1</FileType>
+      <tvExp>0</tvExp>
+      <Focus>0</Focus>
+      <ColumnNumber>0</ColumnNumber>
+      <tvExpOptDlg>0</tvExpOptDlg>
+      <TopLine>0</TopLine>
+      <CurrentLine>0</CurrentLine>
+      <bDave2>0</bDave2>
+      <PathWithFileName>C:\Keil5\ARM\PACK\Keil\STM32F2xx_DFP\1.0.7\RTE_Driver\DMA_STM32F2xx.c</PathWithFileName>
+      <FilenameWithoutPath>DMA_STM32F2xx.c</FilenameWithoutPath>
+      <RteFlg>1</RteFlg>
+      <bShared>0</bShared>
+    </File>
+    <File>
+      <GroupNumber>6</GroupNumber>
+      <FileNumber>14</FileNumber>
+      <FileType>1</FileType>
+      <tvExp>0</tvExp>
+      <Focus>0</Focus>
+      <ColumnNumber>0</ColumnNumber>
+      <tvExpOptDlg>0</tvExpOptDlg>
+      <TopLine>0</TopLine>
+      <CurrentLine>0</CurrentLine>
+      <bDave2>0</bDave2>
+      <PathWithFileName>C:\Keil5\ARM\PACK\Keil\STM32F2xx_DFP\1.0.7\RTE_Driver\GPIO_STM32F2xx.c</PathWithFileName>
+      <FilenameWithoutPath>GPIO_STM32F2xx.c</FilenameWithoutPath>
       <RteFlg>1</RteFlg>
       <bShared>0</bShared>
     </File>
@@ -486,8 +503,8 @@
       <TopLine>0</TopLine>
       <CurrentLine>0</CurrentLine>
       <bDave2>0</bDave2>
-      <PathWithFileName>C:\Keil5\ARM\PACK\Keil\STM32F2xx_DFP\1.0.4\RTE_Driver\EMAC_STM32F2xx.c</PathWithFileName>
-      <FilenameWithoutPath>EMAC_STM32F2xx.c</FilenameWithoutPath>
+      <PathWithFileName>C:\Keil5\ARM\PACK\Keil\MDK-Middleware\5.1.4\Network\Driver\PHY_ST802RT1.c</PathWithFileName>
+      <FilenameWithoutPath>PHY_ST802RT1.c</FilenameWithoutPath>
       <RteFlg>1</RteFlg>
       <bShared>0</bShared>
     </File>
@@ -502,8 +519,8 @@
       <TopLine>0</TopLine>
       <CurrentLine>0</CurrentLine>
       <bDave2>0</bDave2>
-      <PathWithFileName>C:\Keil5\ARM\PACK\Keil\STM32F2xx_DFP\1.0.4\RTE_Driver\MCI_STM32F2xx.c</PathWithFileName>
-      <FilenameWithoutPath>MCI_STM32F2xx.c</FilenameWithoutPath>
+      <PathWithFileName>C:\Keil5\ARM\PACK\Keil\STM32F2xx_DFP\1.0.7\RTE_Driver\EMAC_STM32F2xx.c</PathWithFileName>
+      <FilenameWithoutPath>EMAC_STM32F2xx.c</FilenameWithoutPath>
       <RteFlg>1</RteFlg>
       <bShared>0</bShared>
     </File>
@@ -518,8 +535,8 @@
       <TopLine>0</TopLine>
       <CurrentLine>0</CurrentLine>
       <bDave2>0</bDave2>
-      <PathWithFileName>C:\Keil5\ARM\PACK\Keil\MDK-Middleware\5.1.4\Network\Driver\PHY_ST802RT1.c</PathWithFileName>
-      <FilenameWithoutPath>PHY_ST802RT1.c</FilenameWithoutPath>
+      <PathWithFileName>C:\Keil5\ARM\PACK\Keil\STM32F2xx_DFP\1.0.7\RTE_Driver\MCI_STM32F2xx.c</PathWithFileName>
+      <FilenameWithoutPath>MCI_STM32F2xx.c</FilenameWithoutPath>
       <RteFlg>1</RteFlg>
       <bShared>0</bShared>
     </File>

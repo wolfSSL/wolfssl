@@ -156,7 +156,7 @@
             <CpuDllArguments></CpuDllArguments>
             <PeripheralDll></PeripheralDll>
             <PeripheralDllArguments></PeripheralDllArguments>
-            <InitializationFile>.\STM32_SWO.ini</InitializationFile>
+            <InitializationFile></InitializationFile>
             <Driver>BIN\ULP2CM3.DLL</Driver>
           </TargetDlls>
         </DebugOption>
@@ -460,16 +460,6 @@
           <GroupName>::Device</GroupName>
           <Files>
             <File>
-              <FileName>DMA_STM32F2xx.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>C:\Keil5\ARM\PACK\Keil\STM32F2xx_DFP\1.0.4\RTE_Driver\DMA_STM32F2xx.c</FilePath>
-            </File>
-            <File>
-              <FileName>GPIO_STM32F2xx.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>C:\Keil5\ARM\PACK\Keil\STM32F2xx_DFP\1.0.4\RTE_Driver\GPIO_STM32F2xx.c</FilePath>
-            </File>
-            <File>
               <FileName>RTE_Device.h</FileName>
               <FileType>5</FileType>
               <FilePath>RTE\Device\STM32F207IG\RTE_Device.h</FilePath>
@@ -484,6 +474,16 @@
               <FileType>1</FileType>
               <FilePath>RTE\Device\STM32F207IG\system_stm32f2xx.c</FilePath>
             </File>
+            <File>
+              <FileName>DMA_STM32F2xx.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>C:\Keil5\ARM\PACK\Keil\STM32F2xx_DFP\1.0.7\RTE_Driver\DMA_STM32F2xx.c</FilePath>
+            </File>
+            <File>
+              <FileName>GPIO_STM32F2xx.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>C:\Keil5\ARM\PACK\Keil\STM32F2xx_DFP\1.0.7\RTE_Driver\GPIO_STM32F2xx.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
@@ -492,7 +492,7 @@
             <File>
               <FileName>MCI_STM32F2xx.c</FileName>
               <FileType>1</FileType>
-              <FilePath>C:\Keil5\ARM\PACK\Keil\STM32F2xx_DFP\1.0.4\RTE_Driver\MCI_STM32F2xx.c</FilePath>
+              <FilePath>C:\Keil5\ARM\PACK\Keil\STM32F2xx_DFP\1.0.7\RTE_Driver\MCI_STM32F2xx.c</FilePath>
             </File>
           </Files>
         </Group>
@@ -528,11 +528,6 @@
               <FileName>settings.h</FileName>
               <FileType>5</FileType>
               <FilePath>RTE\wolfSSL\settings.h</FilePath>
-            </File>
-            <File>
-              <FileName>time-STM32F2xx.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>C:\Keil5\ARM\PACK\wolfSSL\CyaSSL\3.0.0\cyassl\IDE\MDK5-ARM\STM32F2xx_StdPeriph_Lib\time-STM32F2xx.c</FilePath>
             </File>
             <File>
               <FileName>cyassl_MDK_ARM.c</FileName>
@@ -708,6 +703,11 @@
               <FileName>tfm.c</FileName>
               <FileType>1</FileType>
               <FilePath>C:\Keil5\ARM\PACK\wolfSSL\CyaSSL\3.0.0\cyassl\ctaocrypt\src\tfm.c</FilePath>
+            </File>
+            <File>
+              <FileName>time-STM32F2xx.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>C:\Keil5\ARM\PACK\wolfSSL\CyaSSL\2.8.2\cyassl\IDE\MDK5-ARM\STM32F2xx_StdPeriph_Lib\time-STM32F2xx.c</FilePath>
             </File>
           </Files>
         </Group>

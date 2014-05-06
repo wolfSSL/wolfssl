@@ -156,7 +156,7 @@
             <CpuDllArguments></CpuDllArguments>
             <PeripheralDll></PeripheralDll>
             <PeripheralDllArguments></PeripheralDllArguments>
-            <InitializationFile>.\STM32_SWO.ini</InitializationFile>
+            <InitializationFile></InitializationFile>
             <Driver>BIN\ULP2CM3.DLL</Driver>
           </TargetDlls>
         </DebugOption>
@@ -480,16 +480,6 @@
           <GroupName>::Device</GroupName>
           <Files>
             <File>
-              <FileName>DMA_STM32F2xx.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>C:\Keil5\ARM\PACK\Keil\STM32F2xx_DFP\1.0.4\RTE_Driver\DMA_STM32F2xx.c</FilePath>
-            </File>
-            <File>
-              <FileName>GPIO_STM32F2xx.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>C:\Keil5\ARM\PACK\Keil\STM32F2xx_DFP\1.0.4\RTE_Driver\GPIO_STM32F2xx.c</FilePath>
-            </File>
-            <File>
               <FileName>RTE_Device.h</FileName>
               <FileType>5</FileType>
               <FilePath>RTE\Device\STM32F207IG\RTE_Device.h</FilePath>
@@ -504,25 +494,35 @@
               <FileType>1</FileType>
               <FilePath>RTE\Device\STM32F207IG\system_stm32f2xx.c</FilePath>
             </File>
+            <File>
+              <FileName>DMA_STM32F2xx.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>C:\Keil5\ARM\PACK\Keil\STM32F2xx_DFP\1.0.7\RTE_Driver\DMA_STM32F2xx.c</FilePath>
+            </File>
+            <File>
+              <FileName>GPIO_STM32F2xx.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>C:\Keil5\ARM\PACK\Keil\STM32F2xx_DFP\1.0.7\RTE_Driver\GPIO_STM32F2xx.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
           <GroupName>::Drivers</GroupName>
           <Files>
             <File>
+              <FileName>PHY_ST802RT1.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>C:\Keil5\ARM\PACK\Keil\MDK-Middleware\5.1.4\Network\Driver\PHY_ST802RT1.c</FilePath>
+            </File>
+            <File>
               <FileName>EMAC_STM32F2xx.c</FileName>
               <FileType>1</FileType>
-              <FilePath>C:\Keil5\ARM\PACK\Keil\STM32F2xx_DFP\1.0.4\RTE_Driver\EMAC_STM32F2xx.c</FilePath>
+              <FilePath>C:\Keil5\ARM\PACK\Keil\STM32F2xx_DFP\1.0.7\RTE_Driver\EMAC_STM32F2xx.c</FilePath>
             </File>
             <File>
               <FileName>MCI_STM32F2xx.c</FileName>
               <FileType>1</FileType>
-              <FilePath>C:\Keil5\ARM\PACK\Keil\STM32F2xx_DFP\1.0.4\RTE_Driver\MCI_STM32F2xx.c</FilePath>
-            </File>
-            <File>
-              <FileName>PHY_ST802RT1.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>C:\Keil5\ARM\PACK\Keil\MDK-Middleware\5.1.4\Network\Driver\PHY_ST802RT1.c</FilePath>
+              <FilePath>C:\Keil5\ARM\PACK\Keil\STM32F2xx_DFP\1.0.7\RTE_Driver\MCI_STM32F2xx.c</FilePath>
             </File>
           </Files>
         </Group>
@@ -827,25 +827,25 @@
 
   <RTE>
     <apis>
-      <api Cclass="CMSIS" Cgroup="RTOS" exclusive="0">
+      <api Cclass="CMSIS" Cgroup="RTOS" Cvendor="ARM" exclusive="0">
         <package name="CMSIS" url="http://www.keil.com/pack/" vendor="ARM" version="3.20.1"/>
         <targetInfos>
           <targetInfo name="SimpleServer"/>
         </targetInfos>
       </api>
-      <api Cclass="Drivers" Cgroup="Ethernet MAC" exclusive="0">
+      <api Cclass="Drivers" Cgroup="Ethernet MAC" Cvendor="Keil" exclusive="0">
         <package name="MDK-Middleware" url="http://www.keil.com/pack/" vendor="Keil" version="5.1.0"/>
         <targetInfos>
           <targetInfo name="SimpleServer"/>
         </targetInfos>
       </api>
-      <api Cclass="Drivers" Cgroup="Ethernet PHY" exclusive="0">
+      <api Cclass="Drivers" Cgroup="Ethernet PHY" Cvendor="Keil" exclusive="0">
         <package name="MDK-Middleware" url="http://www.keil.com/pack/" vendor="Keil" version="5.1.0"/>
         <targetInfos>
           <targetInfo name="SimpleServer"/>
         </targetInfos>
       </api>
-      <api Cclass="Drivers" Cgroup="MCI" exclusive="0">
+      <api Cclass="Drivers" Cgroup="MCI" Cvendor="Keil" exclusive="0">
         <package name="MDK-Middleware" url="http://www.keil.com/pack/" vendor="Keil" version="5.1.0"/>
         <targetInfos>
           <targetInfo name="SimpleServer"/>
