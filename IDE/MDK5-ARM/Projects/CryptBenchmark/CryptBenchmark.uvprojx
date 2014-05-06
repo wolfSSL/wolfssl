@@ -445,9 +445,9 @@
           <GroupName>Devices</GroupName>
           <Files>
             <File>
-              <FileName>time-STM32F2xx.c</FileName>
+              <FileName>time-CortexM3-4.c</FileName>
               <FileType>1</FileType>
-              <FilePath>.\time-STM32F2xx.c</FilePath>
+              <FilePath>.\time-CortexM3-4.c</FilePath>
             </File>
             <File>
               <FileName>time-dummy.c</FileName>

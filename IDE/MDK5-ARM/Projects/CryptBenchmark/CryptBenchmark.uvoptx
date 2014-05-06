@@ -318,8 +318,8 @@
       <TopLine>0</TopLine>
       <CurrentLine>0</CurrentLine>
       <bDave2>0</bDave2>
-      <PathWithFileName>.\time-STM32F2xx.c</PathWithFileName>
-      <FilenameWithoutPath>time-STM32F2xx.c</FilenameWithoutPath>
+      <PathWithFileName>.\time-CortexM3-4.c</PathWithFileName>
+      <FilenameWithoutPath>time-CortexM3-4.c</FilenameWithoutPath>
       <RteFlg>0</RteFlg>
       <bShared>0</bShared>
     </File>
