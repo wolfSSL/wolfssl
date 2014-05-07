@@ -33,16 +33,15 @@
 #include <cyassl/ctaocrypt/random.h>
 #include <cyassl/ctaocrypt/error-crypt.h>
 
-#ifdef NO_RC4
+#if defined(HAVE_HASHDRBG) || defined(NO_RC4)
     #include <cyassl/ctaocrypt/sha256.h>
 
     #ifdef NO_INLINE
         #include <cyassl/ctaocrypt/misc.h>
     #else
-        #define MISC_DUMM_FUNC misc_dummy_random
         #include <ctaocrypt/src/misc.c>
     #endif
-#endif
+#endif /* HAVE_HASHDRBG || NO_RC4 */
 
 #if defined(USE_WINDOWS_API)
     #ifndef _WIN32_WINNT
@@ -63,7 +62,7 @@
 #endif /* USE_WINDOWS_API */
 
 
-#ifdef NO_RC4
+#if defined(HAVE_HASHDRBG) || defined(NO_RC4)
 
 /* Start NIST DRBG code */
 
@@ -370,7 +369,7 @@ void FreeRng(RNG* rng)
     Hash_DRBG_Uninstantiate(rng);
 }
 
-#else /* NO_RC4 */
+#else /* HAVE_HASHDRBG || NO_RC4 */
 
 /* Get seed and key cipher */
 int InitRng(RNG* rng)
@@ -484,7 +483,7 @@ static void CaviumRNG_GenerateBlock(RNG* rng, byte* output, word32 sz)
 
 #endif /* HAVE_CAVIUM */
 
-#endif /* NO_RC4 */
+#endif /* HAVE_HASHDRBG || NO_RC4 */
 
 
 #if defined(USE_WINDOWS_API)

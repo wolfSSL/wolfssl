@@ -1085,6 +1085,26 @@ fi
 AM_CONDITIONAL([BUILD_FIPS], [test "x$ENABLED_FIPS" = "xyes"])
 
 
+# Hash DRBG
+AC_ARG_ENABLE([hashdrbg],
+    [  --enable-hashdrbg       Enable Hash DRBG support (default: disabled)],
+    [ ENABLED_HASHDRBG=$enableval ],
+    [ ENABLED_HASHDRBG=no ]
+    )
+
+if test "x$ENABLED_HASHDRBG" = "xyes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_HASHDRBG"
+else
+    # turn on Hash DRBG if FIPS is on or ARC4 is off
+    if test "x$ENABLED_FIPS" = "xyes" || test "x$ENABLED_ARC4" = "xno"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_HASHDRBG"
+        ENABLED_HASHDRBG=yes
+    fi
+fi
+
+
 # Filesystem Build 
 AC_ARG_ENABLE([filesystem],
     [  --enable-filesystem     Enable Filesystem support (default: enabled)],
@@ -1739,6 +1759,7 @@ echo "   * certgen:                   $ENABLED_CERTGEN"
 echo "   * certreq:                   $ENABLED_CERTREQ"
 echo "   * HC-128:                    $ENABLED_HC128"
 echo "   * RABBIT:                    $ENABLED_RABBIT"
+echo "   * Hash DRBG:                 $ENABLED_HASHDRBG"
 echo "   * PWDBASED:                  $ENABLED_PWDBASED"
 echo "   * HKDF:                      $ENABLED_HKDF"
 echo "   * MD4:                       $ENABLED_MD4"
