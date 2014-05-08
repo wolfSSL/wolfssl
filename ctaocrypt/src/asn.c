@@ -320,6 +320,21 @@ time_t mqx_time(time_t* timer)
 
 #endif /* FREESCALE_MQX */
 
+#ifdef TIRTOS
+
+time_t XTIME(time_t * timer)
+{
+    time_t sec = 0;
+   
+    sec = (time_t) MYTIME_gettime();
+
+    if (timer != NULL)
+        *timer = sec;
+
+    return sec; 
+}
+
+#endif /* TIRTOS */
 
 static INLINE word32 btoi(byte b)
 {

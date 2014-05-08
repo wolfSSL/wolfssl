@@ -351,7 +351,42 @@ int UnLockMutex(CyaSSL_Mutex *m)
             else
                 return BAD_MUTEX_E;
         }
-        
+
+    #elif defined (TIRTOS)
+
+        int InitMutex(CyaSSL_Mutex* m)
+        {
+           Semaphore_Params params;
+               
+           Semaphore_Params_init(&params);
+           params.mode = Semaphore_Mode_BINARY;
+
+           *m = Semaphore_create(1, &params, NULL);
+
+           return 0;
+        }   
+
+        int FreeMutex(CyaSSL_Mutex* m)
+        {
+            Semaphore_delete(m);
+
+            return 0;
+        }
+
+        int LockMutex(CyaSSL_Mutex* m)
+        {
+            Semaphore_pend(*m, BIOS_WAIT_FOREVER);
+
+            return 0;
+        }
+
+        int UnLockMutex(CyaSSL_Mutex* m)
+        {
+            Semaphore_post(*m);
+            
+            return 0;
+        }
+
     #elif defined(CYASSL_MDK_ARM)|| defined(CYASSL_CMSIS_RTOS)
     
         #if defined(CYASSL_CMSIS_RTOS)

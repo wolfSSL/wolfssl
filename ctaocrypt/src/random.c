@@ -756,6 +756,25 @@ int GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         return 0;
     }
 
+#elif defined(TIRTOS)
+
+    #include <xdc/runtime/Timestamp.h>
+    #include <stdlib.h>
+    int GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+    {
+        int i;
+        srand(xdc_runtime_Timestamp_get32());
+
+        for (i = 0; i < sz; i++ ) {
+            output[i] = rand() % 256;
+            if ((i % 8) == 7) {
+                srand(xdc_runtime_Timestamp_get32());
+            }
+        } 
+       
+        return 0;
+    }
+
 #elif defined(CUSTOM_RAND_GENERATE)
 
    /* Implement your own random generation function

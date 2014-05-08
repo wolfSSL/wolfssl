@@ -2352,6 +2352,12 @@ ProtocolVersion MakeDTLSv1_2(void)
         return (word32) mqxTime.SECONDS;
     }
 
+#elif defined(TIRTOS)
+
+    word32 LowResTimer(void)
+    {
+        return (word32) MYTIME_gettime();
+    }
 
 #elif defined(USER_TICKS)
 #if 0

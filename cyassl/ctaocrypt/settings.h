@@ -90,6 +90,9 @@
 /* Uncomment next line if building for EROAD */
 /* #define CYASSL_EROAD */
 
+/* Uncomment next line if using TI-RTOS settings */
+/* #define TIRTOS */
+
 #include <cyassl/ctaocrypt/visibility.h>
 
 #ifdef IPHONE
@@ -265,6 +268,32 @@
         #include "FreeRTOS.h"
         #include "semphr.h"
     #endif
+#endif
+
+#ifdef TIRTOS
+    #define SIZEOF_LONG_LONG 8
+    #define NO_WRITEV
+    #define NO_CYASSL_DIR
+    #define NO_SHA512
+    #define NO_DH
+    #define NO_HC128
+    #define NO_RABBIT
+    #define USE_FAST_MATH
+    #define TFM_TIMING_RESISTANT
+    #define NO_DEV_RANDOM
+    #define NO_FILESYSTEM
+    #define USE_CERT_BUFFERS_2048
+    #define NO_ERROR_STRINGS
+    #define USER_TIME
+    
+    #ifdef __IAR_SYSTEMS_ICC__
+        #pragma diag_suppress=Pa089
+    #elif !defined(__GNUC__)
+        /* Suppress the sslpro warning */
+        #pragma diag_suppress=11
+    #endif
+
+    #include <ti/ndk/nettools/mytime/mytime.h>
 #endif
 
 #ifdef EBSNET

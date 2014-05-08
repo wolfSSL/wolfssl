@@ -241,7 +241,7 @@ enum ExtKeyUsage_Sum { /* From RFC 5280 */
     EKU_ANY_OID         = 151, /* 2.5.29.37.0, anyExtendedKeyUsage         */
     EKU_SERVER_AUTH_OID = 71,  /* 1.3.6.1.5.5.7.3.1, id-kp-serverAuth      */
     EKU_CLIENT_AUTH_OID = 72,  /* 1.3.6.1.5.5.7.3.2, id-kp-clientAuth      */
-    EKU_OCSP_SIGN_OID   = 79,  /* 1.3.6.1.5.5.7.3.9, OCSPSigning           */
+    EKU_OCSP_SIGN_OID   = 79   /* 1.3.6.1.5.5.7.3.9, OCSPSigning           */
 };
 
 
