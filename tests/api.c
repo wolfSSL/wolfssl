@@ -738,8 +738,10 @@ int test_CyaSSL_CTX_load_verify_locations(void)
         "CyaSSL_CTX_load_verify_locations(ctx, NULL, NULL)");
     test_lvl(NULL, caCert, NULL, SSL_FAILURE,
         "CyaSSL_CTX_load_verify_locations(ctx, NULL, NULL)");
+#ifndef TIRTOS
     test_lvl(ctx, caCert, bogusFile, SSL_FAILURE,
         "CyaSSL_CTX_load_verify_locations(ctx, caCert, bogusFile)");
+#endif
     /* Add a test for the certs directory path loading. */
     /* There is a leak here. If you load a second cert, the first one
        is lost. */
@@ -925,6 +927,10 @@ static int test_CyaSSL_read_write(void)
     func_args server_args;
     THREAD_TYPE serverThread;
 
+#ifdef TIRTOS
+    fdOpenSession(TaskSelf());
+#endif
+
     StartTCP();
 
     InitTcpReady(&ready);
@@ -948,6 +954,9 @@ static int test_CyaSSL_read_write(void)
 
     FreeTcpReady(&ready);
 
+#ifdef TIRTOS
+    fdOpenSession(TaskSelf());
+#endif
     return test_result;
 }
 
@@ -966,13 +975,17 @@ THREAD_RETURN CYASSL_THREAD test_server_nofail(void* args)
     char msg[] = "I hear you fa shizzle!";
     char input[1024];
     int idx;
-   
+
+#ifdef TIRTOS
+    fdOpenSession(TaskSelf());     
+#endif   
     ((func_args*)args)->return_code = TEST_FAIL;
     method = CyaSSLv23_server_method();
     ctx = CyaSSL_CTX_new(method);
 
 #if defined(NO_MAIN_DRIVER) && !defined(USE_WINDOWS_API) && \
-                      !defined(CYASSL_SNIFFER) && !defined(CYASSL_MDK_SHELL)
+                      !defined(CYASSL_SNIFFER) && !defined(CYASSL_MDK_SHELL) && \
+					  !defined(TIRTOS)
     port = 0;
 #endif
 
@@ -1033,8 +1046,16 @@ THREAD_RETURN CYASSL_THREAD test_server_nofail(void* args)
     if (CyaSSL_write(ssl, msg, sizeof(msg)) != sizeof(msg))
     {
         /*err_sys("SSL_write failed");*/
+#ifdef TIRTOS
+        return;
+#else
         return 0;
+#endif
     }
+
+#ifdef TIRTOS
+    Task_yield();
+#endif
 
 done:
     CyaSSL_shutdown(ssl);
@@ -1043,7 +1064,13 @@ done:
     
     CloseSocket(clientfd);
     ((func_args*)args)->return_code = TEST_SUCCESS;
+
+#ifdef TIRTOS
+    fdCloseSession(TaskSelf());
+#endif
+#ifndef TIRTOS        
     return 0;
+#endif
 }
 
 void test_client_nofail(void* args)
@@ -1058,6 +1085,10 @@ void test_client_nofail(void* args)
     char reply[1024];
     int  input;
     int  msgSz = (int)strlen(msg);
+
+#ifdef TIRTOS
+    fdOpenSession(TaskSelf());
+#endif
 
     ((func_args*)args)->return_code = TEST_FAIL;
     method = CyaSSLv23_client_method();
@@ -1119,6 +1150,10 @@ done2:
     
     CloseSocket(sockfd);
     ((func_args*)args)->return_code = TEST_SUCCESS;
+
+#ifdef TIRTOS
+    fdCloseSession(TaskSelf());
+#endif
     return;
 }
 
@@ -1134,6 +1169,10 @@ void run_cyassl_client(void* args)
     int  len   = (int) XSTRLEN(msg);
     char input[1024];
     int  idx;
+
+#ifdef TIRTOS
+    fdOpenSession(TaskSelf());
+#endif
 
     ((func_args*)args)->return_code = TEST_FAIL;
 
@@ -1181,6 +1220,10 @@ void run_cyassl_client(void* args)
     CyaSSL_CTX_free(ctx);
     CloseSocket(sfd);
     ((func_args*)args)->return_code = TEST_SUCCESS;
+
+#ifdef TIRTOS
+    fdCloseSession(TaskSelf());
+#endif
 }
 
 THREAD_RETURN CYASSL_THREAD run_cyassl_server(void* args)
@@ -1198,10 +1241,14 @@ THREAD_RETURN CYASSL_THREAD run_cyassl_server(void* args)
     char input[1024];
     int  idx;
 
+#ifdef TIRTOS
+    fdOpenSession(TaskSelf());
+#endif
     ((func_args*)args)->return_code = TEST_FAIL;
 
 #if defined(NO_MAIN_DRIVER) && !defined(USE_WINDOWS_API) && \
-                      !defined(CYASSL_SNIFFER) && !defined(CYASSL_MDK_SHELL)
+                      !defined(CYASSL_SNIFFER) && !defined(CYASSL_MDK_SHELL) && \
+					  !defined(TIRTOS)
     port = 0;
 #endif
 
@@ -1255,7 +1302,9 @@ THREAD_RETURN CYASSL_THREAD run_cyassl_server(void* args)
         }
 
         AssertIntEQ(len, CyaSSL_write(ssl, msg, len));
-
+#ifdef TIRTOS
+        Task_yield();
+#endif
         CyaSSL_shutdown(ssl);
     }
 
@@ -1268,7 +1317,12 @@ THREAD_RETURN CYASSL_THREAD run_cyassl_server(void* args)
 
     ((func_args*)args)->return_code = TEST_SUCCESS;
 
+#ifdef TIRTOS
+    fdCloseSession(TaskSelf());
+#endif
+#ifndef TIRTOS
     return 0;
+#endif
 }
 
 void test_CyaSSL_client_server(callback_functions* client_callbacks,
@@ -1284,6 +1338,10 @@ void test_CyaSSL_client_server(callback_functions* client_callbacks,
     client_args.callbacks = client_callbacks;
     server_args.callbacks = server_callbacks;
 
+#ifdef TIRTOS
+    fdOpenSession(TaskSelf());
+#endif
+
     /* RUN Server side */
     InitTcpReady(&ready);
     server_args.signal = &ready;
@@ -1296,6 +1354,9 @@ void test_CyaSSL_client_server(callback_functions* client_callbacks,
     join_thread(serverThread);
 
     FreeTcpReady(&ready);
+#ifdef TIRTOS
+    fdCloseSession(TaskSelf());
+#endif
 }
 
 #endif /* SINGLE_THREADED*/
