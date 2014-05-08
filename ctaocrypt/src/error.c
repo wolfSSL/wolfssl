@@ -351,6 +351,10 @@ void CTaoCryptErrorString(int error, char* buffer)
         XSTRNCPY(buffer, "FIPS mode not allowed error", max);
         break;
 
+    case ASN_NAME_INVALID_E:
+        XSTRNCPY(buffer, "Name Constraint error", max);
+        break;
+
     default:
         XSTRNCPY(buffer, "unknown error number", max);
 

@@ -503,6 +503,38 @@ int EmbedGenerateCookie(CYASSL* ssl, byte *buf, int sz, void *ctx)
 #ifdef HAVE_OCSP
 
 
+static int Word16ToString(char* d, word16 number)
+{
+    int i = 0;
+
+    if (d != NULL) {
+        word16 order = 10000;
+        word16 digit;
+
+        if (number == 0) {
+            d[i++] = '0';
+        }
+        else {
+            while (order) {
+                digit = number / order;
+                if (i > 0 || digit != 0) {
+                    d[i++] = digit + '0';
+                }
+                if (digit != 0)
+                    number %= digit * order;
+                if (order > 1)
+                    order /= 10;
+                else
+                    order = 0;
+            }
+        }
+        d[i] = 0;
+    }
+
+    return i;
+}
+
+
 static int tcp_connect(SOCKET_T* sockfd, const char* ip, word16 port)
 {
     struct sockaddr_storage addr;
@@ -513,15 +545,17 @@ static int tcp_connect(SOCKET_T* sockfd, const char* ip, word16 port)
     {
         struct addrinfo hints;
         struct addrinfo* answer = NULL;
-        char strPort[8];
+        char strPort[6];
 
         XMEMSET(&hints, 0, sizeof(hints));
         hints.ai_family = AF_UNSPEC;
         hints.ai_socktype = SOCK_STREAM;
         hints.ai_protocol = IPPROTO_TCP;
 
-        XSNPRINTF(strPort, sizeof(strPort), "%d", port);
-        strPort[7] = '\0';
+        if (Word16ToString(strPort, port) == 0) {
+            CYASSL_MSG("invalid port number for OCSP responder");
+            return -1;
+        }
 
         if (getaddrinfo(ip, strPort, &hints, &answer) < 0 || answer == NULL) {
             CYASSL_MSG("no addr info for OCSP responder");
@@ -569,13 +603,33 @@ static int tcp_connect(SOCKET_T* sockfd, const char* ip, word16 port)
 static int build_http_request(const char* domainName, const char* path,
                                     int ocspReqSz, byte* buf, int bufSize)
 {
-    return XSNPRINTF((char*)buf, bufSize,
-        "POST %s HTTP/1.1\r\n"
-        "Host: %s\r\n"
-        "Content-Length: %d\r\n"
-        "Content-Type: application/ocsp-request\r\n"
-        "\r\n", 
-        path, domainName, ocspReqSz);
+    word32 domainNameLen, pathLen, ocspReqSzStrLen, completeLen;
+    char ocspReqSzStr[6];
+
+    domainNameLen = (word32)XSTRLEN(domainName);
+    pathLen = (word32)XSTRLEN(path);
+    ocspReqSzStrLen = Word16ToString(ocspReqSzStr, ocspReqSz);
+
+    completeLen = domainNameLen + pathLen + ocspReqSzStrLen + 84;
+    if (completeLen > (word32)bufSize)
+        return 0;
+
+    XSTRNCPY((char*)buf, "POST ", 5);
+    buf += 5;
+    XSTRNCPY((char*)buf, path, pathLen);
+    buf += pathLen;
+    XSTRNCPY((char*)buf, " HTTP/1.1\r\nHost: ", 17);
+    buf += 17;
+    XSTRNCPY((char*)buf, domainName, domainNameLen);
+    buf += domainNameLen;
+    XSTRNCPY((char*)buf, "\r\nContent-Length: ", 18);
+    buf += 18;
+    XSTRNCPY((char*)buf, ocspReqSzStr, ocspReqSzStrLen);
+    buf += ocspReqSzStrLen;
+    XSTRNCPY((char*)buf,
+                      "\r\nContent-Type: application/ocsp-request\r\n\r\n", 44);
+
+    return completeLen;
 }
 
 

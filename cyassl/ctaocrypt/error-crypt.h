@@ -123,6 +123,7 @@ enum {
     PKCS7_OID_E         = -195,  /* PKCS#7, mismatched OID error */
     PKCS7_RECIP_E       = -196,  /* PKCS#7, recipient error */
     FIPS_NOT_ALLOWED_E  = -197,  /* FIPS not allowed error */
+    ASN_NAME_INVALID_E  = -198,  /* ASN name constraint error */
 
     MIN_CODE_E         = -200   /* errors -101 - -199 */
 };

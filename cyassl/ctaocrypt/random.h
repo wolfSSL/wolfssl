@@ -25,11 +25,15 @@
 
 #include <cyassl/ctaocrypt/types.h>
 
-#ifndef NO_RC4
-    #include <cyassl/ctaocrypt/arc4.h>
-#else
+#if defined(HAVE_HASHDRBG) || defined(NO_RC4)
+    #ifdef NO_SHA256
+        #error "Hash DRBG requires SHA-256."
+    #endif /* NO_SHA256 */
+
     #include <cyassl/ctaocrypt/sha256.h>
-#endif
+#else /* HAVE_HASHDRBG || NO_RC4 */
+    #include <cyassl/ctaocrypt/arc4.h>
+#endif /* HAVE_HASHDRBG || NO_RC4 */
 
 #ifdef __cplusplus
     extern "C" {
@@ -64,11 +68,31 @@ int GenerateSeed(OS_Seed* os, byte* seed, word32 sz);
 #define RNG CyaSSL_RNG   /* for avoiding name conflict in "stm32f2xx.h" */
 #endif
 
-#ifndef NO_RC4
+
+#if defined(HAVE_HASHDRBG) || defined(NO_RC4)
+
+
+#define DRBG_SEED_LEN (440/8)
+
+
+/* Hash-based Deterministic Random Bit Generator */
+typedef struct RNG {
+    OS_Seed seed;
+
+    Sha256 sha;
+    byte digest[SHA256_DIGEST_SIZE];
+    byte V[DRBG_SEED_LEN];
+    byte C[DRBG_SEED_LEN];
+    word32 reseedCtr;
+} RNG;
+
+
+#else /* HAVE_HASHDRBG || NO_RC4 */
+
 
 #define CYASSL_RNG_CAVIUM_MAGIC 0xBEEF0004
 
-/* secure Random Nnumber Generator */
+/* secure Random Number Generator */
 
 
 typedef struct RNG {
@@ -85,31 +109,19 @@ typedef struct RNG {
     CYASSL_API int  InitRngCavium(RNG*, int);
 #endif
 
-#else /* NO_RC4 */
 
-#define DBRG_SEED_LEN (440/8)
+#endif /* HAVE_HASH_DRBG || NO_RC4 */
 
-
-/* secure Random Nnumber Generator */
-typedef struct RNG {
-    OS_Seed seed;
-
-    Sha256 sha;
-    byte digest[SHA256_DIGEST_SIZE];
-    byte V[DBRG_SEED_LEN];
-    byte C[DBRG_SEED_LEN];
-    word64 reseed_ctr;
-} RNG;
-
-#endif
 
 CYASSL_API int  InitRng(RNG*);
 CYASSL_API int  RNG_GenerateBlock(RNG*, byte*, word32 sz);
 CYASSL_API int  RNG_GenerateByte(RNG*, byte*);
 
-#ifdef NO_RC4
+
+#if defined(HAVE_HASHDRBG) || defined(NO_RC4)
     CYASSL_API void FreeRng(RNG*);
-#endif
+#endif /* HAVE_HASHDRBG || NO_RC4 */
+
 
 #ifdef __cplusplus
     } /* extern "C" */

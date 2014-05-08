@@ -95,7 +95,7 @@ void s_fp_add(fp_int *a, fp_int *b, fp_int *c)
   register fp_word  t;
 
   y       = MAX(a->used, b->used);
-  oldused = c->used;
+  oldused = MAX(c->used, FP_SIZE);   /* help static analysis w/ max size */
   c->used = y;
  
   t = 0;

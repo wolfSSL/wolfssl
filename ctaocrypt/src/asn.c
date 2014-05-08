@@ -1057,7 +1057,7 @@ int RsaPublicKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
 
     key->type = RSA_PUBLIC;
 
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) || defined(RSA_DECODE_EXTRA)
     {
     byte b = input[*inOutIdx];
     if (b != ASN_INTEGER) {
@@ -1272,6 +1272,11 @@ void InitDecodedCert(DecodedCert* cert, byte* source, word32 inSz, void* heap)
     cert->subjectCNLen    = 0;
     cert->subjectCNStored = 0;
     cert->altNames        = NULL;
+#ifndef IGNORE_NAME_CONSTRAINTS
+    cert->altEmailNames   = NULL;
+    cert->permittedNames  = NULL;
+    cert->excludedNames   = NULL;
+#endif /* IGNORE_NAME_CONSTRAINTS */
     cert->issuer[0]       = '\0';
     cert->subject[0]      = '\0';
     cert->source          = source;  /* don't own */
@@ -1341,6 +1346,9 @@ void InitDecodedCert(DecodedCert* cert, byte* source, word32 inSz, void* heap)
     cert->extSubjKeyIdSrc = NULL;
     cert->extSubjKeyIdSz = 0;
 #endif /* OPENSSL_EXTRA */
+#if defined(OPENSSL_EXTRA) || !defined(IGNORE_NAME_CONSTRAINTS)
+    cert->extNameConstraintSet = 0;
+#endif /* OPENSSL_EXTRA || !IGNORE_NAME_CONSTRAINTS */
 #ifdef HAVE_ECC
     cert->pkCurveOID = 0;
 #endif /* HAVE_ECC */
@@ -1372,6 +1380,22 @@ void FreeAltNames(DNS_entry* altNames, void* heap)
     }
 }
 
+#ifndef IGNORE_NAME_CONSTRAINTS
+
+void FreeNameSubtrees(Base_entry* names, void* heap)
+{
+    (void)heap;
+
+    while (names) {
+        Base_entry* tmp = names->next;
+
+        XFREE(names->name, heap, DYNAMIC_TYPE_ALTNAME);
+        XFREE(names,       heap, DYNAMIC_TYPE_ALTNAME);
+        names = tmp;
+    }
+}
+
+#endif /* IGNORE_NAME_CONSTRAINTS */
 
 void FreeDecodedCert(DecodedCert* cert)
 {
@@ -1381,6 +1405,14 @@ void FreeDecodedCert(DecodedCert* cert)
         XFREE(cert->publicKey, cert->heap, DYNAMIC_TYPE_PUBLIC_KEY);
     if (cert->altNames)
         FreeAltNames(cert->altNames, cert->heap);
+#ifndef IGNORE_NAME_CONSTRAINTS
+    if (cert->altEmailNames)
+        FreeAltNames(cert->altEmailNames, cert->heap);
+    if (cert->permittedNames)
+        FreeNameSubtrees(cert->permittedNames, cert->heap);
+    if (cert->excludedNames)
+        FreeNameSubtrees(cert->excludedNames, cert->heap);
+#endif /* IGNORE_NAME_CONSTRAINTS */
 #ifdef CYASSL_SEP
     XFREE(cert->deviceType, cert->heap, 0);
     XFREE(cert->hwType, cert->heap, 0);
@@ -1419,8 +1451,6 @@ static int GetCertHeader(DecodedCert* cert)
     len = mp_unsigned_bin_size(&mpi);
     if (len < (int)sizeof(serialTmp)) {
         if ( (ret = mp_to_unsigned_bin(&mpi, serialTmp)) == MP_OKAY) {
-            if (len > EXTERNAL_SERIAL_SIZE)
-                len = EXTERNAL_SERIAL_SIZE;
             XMEMCPY(cert->serial, serialTmp, len);
             cert->serialSz = len;
         }
@@ -1638,6 +1668,12 @@ static int GetName(DecodedCert* cert, int nameType)
     if (nameType == ISSUER) {
         cert->issuerRaw = &cert->source[cert->srcIdx];
         cert->issuerRawLen = length - cert->srcIdx;
+    }
+#endif
+#ifndef IGNORE_NAME_CONSTRAINTS
+    if (nameType == SUBJECT) {
+        cert->subjectRaw = &cert->source[cert->srcIdx];
+        cert->subjectRawLen = length - cert->srcIdx;
     }
 #endif
 
@@ -1863,7 +1899,30 @@ static int GetName(DecodedCert* cert, int nameType)
                     dName->emailIdx = cert->srcIdx;
                     dName->emailLen = adv;
                 #endif /* OPENSSL_EXTRA */
+                #ifndef IGNORE_NAME_CONSTRAINTS
+                    {
+                        DNS_entry* emailName = NULL;
 
+                        emailName = (DNS_entry*)XMALLOC(sizeof(DNS_entry),
+                                              cert->heap, DYNAMIC_TYPE_ALTNAME);
+                        if (emailName == NULL) {
+                            CYASSL_MSG("\tOut of Memory");
+                            return MEMORY_E;
+                        }
+                        emailName->name = (char*)XMALLOC(adv + 1,
+                                              cert->heap, DYNAMIC_TYPE_ALTNAME);
+                        if (emailName->name == NULL) {
+                            CYASSL_MSG("\tOut of Memory");
+                            return MEMORY_E;
+                        }
+                        XMEMCPY(emailName->name,
+                                              &cert->source[cert->srcIdx], adv);
+                        emailName->name[adv] = 0;
+
+                        emailName->next = cert->altEmailNames;
+                        cert->altEmailNames = emailName;
+                    }
+                #endif /* IGNORE_NAME_CONSTRAINTS */
                 if (!tooBig) {
                     XMEMCPY(&full[idx], &cert->source[cert->srcIdx], adv);
                     idx += adv;
@@ -2057,7 +2116,7 @@ static int DateGreaterThan(const struct tm* a, const struct tm* b)
 
 static INLINE int DateLessThan(const struct tm* a, const struct tm* b)
 {
-    return !DateGreaterThan(a,b);
+    return DateGreaterThan(b,a);
 }
 
 
@@ -2870,6 +2929,174 @@ static int ConfirmSignature(const byte* buf, word32 bufSz,
 }
 
 
+#ifndef IGNORE_NAME_CONSTRAINTS
+
+static int MatchBaseName(int type, const char* name, int nameSz,
+                                                   const char* base, int baseSz)
+{
+    if (base == NULL || baseSz <= 0 || name == NULL || nameSz <= 0 ||
+            name[0] == '.' || nameSz < baseSz ||
+            (type != ASN_RFC822_TYPE && type != ASN_DNS_TYPE))
+        return 0;
+
+    /* If an email type, handle special cases where the base is only
+     * a domain, or is an email address itself. */
+    if (type == ASN_RFC822_TYPE) {
+        const char* p = NULL;
+        int count = 0;
+
+        if (base[0] != '.') {
+            p = base;
+            count = 0;
+
+            /* find the '@' in the base */
+            while (*p != '@' && count < baseSz) {
+                count++;
+                p++;
+            }
+
+            /* No '@' in base, reset p to NULL */
+            if (count >= baseSz)
+                p = NULL;
+        }
+
+        if (p == NULL) {
+            /* Base isn't an email address, it is a domain name,
+             * wind the name forward one character past its '@'. */
+            p = name;
+            count = 0;
+            while (*p != '@' && count < baseSz) {
+                count++;
+                p++;
+            }
+
+            if (count < baseSz && *p == '@') {
+                name = p + 1;
+                nameSz -= count + 1;
+            }
+        }
+    }
+
+    if ((type == ASN_DNS_TYPE || type == ASN_RFC822_TYPE) && base[0] == '.') {
+        int szAdjust = nameSz - baseSz;
+        name += szAdjust;
+        nameSz -= szAdjust;
+    }
+
+    while (nameSz > 0) {
+        if (XTOLOWER(*name++) != XTOLOWER(*base++))
+            return 0;
+        nameSz--;
+    }
+
+    return 1;
+}
+
+
+static int ConfirmNameConstraints(Signer* signer, DecodedCert* cert)
+{
+    if (signer == NULL || cert == NULL)
+        return 0;
+
+    /* Check against the excluded list */
+    if (signer->excludedNames) {
+        Base_entry* base = signer->excludedNames;
+
+        while (base != NULL) {
+            if (base->type == ASN_DNS_TYPE) {
+                DNS_entry* name = cert->altNames;
+                while (name != NULL) {
+                    if (MatchBaseName(ASN_DNS_TYPE,
+                                          name->name, (int)XSTRLEN(name->name),
+                                          base->name, base->nameSz))
+                        return 0;
+                    name = name->next;
+                }
+            }
+            else if (base->type == ASN_RFC822_TYPE) {
+                DNS_entry* name = cert->altEmailNames;
+                while (name != NULL) {
+                    if (MatchBaseName(ASN_RFC822_TYPE,
+                                          name->name, (int)XSTRLEN(name->name),
+                                          base->name, base->nameSz))
+                        return 0;
+
+                    name = name->next;
+                }
+            }
+            else if (base->type == ASN_DIR_TYPE) {
+                if (cert->subjectRawLen == base->nameSz &&
+                    XMEMCMP(cert->subjectRaw, base->name, base->nameSz) == 0) {
+
+                    return 0;
+                }
+            }
+            base = base->next;
+        }
+    }
+
+    /* Check against the permitted list */
+    if (signer->permittedNames != NULL) {
+        int needDns = 0;
+        int matchDns = 0;
+        int needEmail = 0;
+        int matchEmail = 0;
+        int needDir = 0;
+        int matchDir = 0;
+        Base_entry* base = signer->permittedNames;
+
+        while (base != NULL) {
+            if (base->type == ASN_DNS_TYPE) {
+                DNS_entry* name = cert->altNames;
+
+                if (name != NULL)
+                    needDns = 1;
+
+                while (name != NULL) {
+                    matchDns = MatchBaseName(ASN_DNS_TYPE,
+                                          name->name, (int)XSTRLEN(name->name),
+                                          base->name, base->nameSz);
+                    name = name->next;
+                }
+            }
+            else if (base->type == ASN_RFC822_TYPE) {
+                DNS_entry* name = cert->altEmailNames;
+
+                if (name != NULL)
+                    needEmail = 1;
+
+                while (name != NULL) {
+                    matchEmail = MatchBaseName(ASN_DNS_TYPE,
+                                          name->name, (int)XSTRLEN(name->name),
+                                          base->name, base->nameSz);
+                    name = name->next;
+                }
+            }
+            else if (base->type == ASN_DIR_TYPE) {
+                needDir = 1;
+                if (cert->subjectRaw != NULL &&
+                    cert->subjectRawLen == base->nameSz &&
+                    XMEMCMP(cert->subjectRaw, base->name, base->nameSz) == 0) {
+
+                    matchDir = 1;
+                }
+            }
+            base = base->next;
+        }
+
+        if ((needDns && !matchDns) || (needEmail && !matchEmail) ||
+            (needDir && !matchDir)) {
+
+            return 0;
+        }
+    }
+
+    return 1;
+}
+
+#endif /* IGNORE_NAME_CONSTRAINTS */
+
+
 static int DecodeAltNames(byte* input, int sz, DecodedCert* cert)
 {
     word32 idx = 0;
@@ -2924,6 +3151,43 @@ static int DecodeAltNames(byte* input, int sz, DecodedCert* cert)
             length -= strLen;
             idx    += strLen;
         }
+#ifndef IGNORE_NAME_CONSTRAINTS
+        else if (b == (ASN_CONTEXT_SPECIFIC | ASN_RFC822_TYPE)) {
+            DNS_entry* emailEntry;
+            int strLen;
+            word32 lenStartIdx = idx;
+
+            if (GetLength(input, &idx, &strLen, sz) < 0) {
+                CYASSL_MSG("\tfail: str length");
+                return ASN_PARSE_E;
+            }
+            length -= (idx - lenStartIdx);
+
+            emailEntry = (DNS_entry*)XMALLOC(sizeof(DNS_entry), cert->heap,
+                                        DYNAMIC_TYPE_ALTNAME);
+            if (emailEntry == NULL) {
+                CYASSL_MSG("\tOut of Memory");
+                return ASN_PARSE_E;
+            }
+
+            emailEntry->name = (char*)XMALLOC(strLen + 1, cert->heap,
+                                         DYNAMIC_TYPE_ALTNAME);
+            if (emailEntry->name == NULL) {
+                CYASSL_MSG("\tOut of Memory");
+                XFREE(emailEntry, cert->heap, DYNAMIC_TYPE_ALTNAME);
+                return ASN_PARSE_E;
+            }
+
+            XMEMCPY(emailEntry->name, &input[idx], strLen);
+            emailEntry->name[strLen] = '\0';
+
+            emailEntry->next = cert->altEmailNames;
+            cert->altEmailNames = emailEntry;
+
+            length -= strLen;
+            idx    += strLen;
+        }
+#endif /* IGNORE_NAME_CONSTRAINTS */
 #ifdef CYASSL_SEP
         else if (b == (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | ASN_OTHER_TYPE))
         {
@@ -3329,7 +3593,7 @@ static int DecodeExtKeyUsage(byte* input, int sz, DecodedCert* cert)
     CYASSL_ENTER("DecodeExtKeyUsage");
 
     if (GetSequence(input, &idx, &length, sz) < 0) {
-        CYASSL_MSG("\tfail: should be a SEQUENCE\n");
+        CYASSL_MSG("\tfail: should be a SEQUENCE");
         return ASN_PARSE_E;
     }
 
@@ -3364,6 +3628,103 @@ static int DecodeExtKeyUsage(byte* input, int sz, DecodedCert* cert)
 
     return 0;
 }
+
+
+#ifndef IGNORE_NAME_CONSTRAINTS
+static int DecodeSubtree(byte* input, int sz, Base_entry** head, void* heap)
+{
+    word32 idx = 0;
+
+    (void)heap;
+
+    while (idx < (word32)sz) {
+        int seqLength, strLength;
+        word32 nameIdx;
+        byte b;
+
+        if (GetSequence(input, &idx, &seqLength, sz) < 0) {
+            CYASSL_MSG("\tfail: should be a SEQUENCE");
+            return ASN_PARSE_E;
+        }
+
+        nameIdx = idx;
+        b = input[nameIdx++];
+        if (GetLength(input, &nameIdx, &strLength, sz) <= 0) {
+            CYASSL_MSG("\tinvalid length");
+            return ASN_PARSE_E;
+        }
+
+        if (b == (ASN_CONTEXT_SPECIFIC | ASN_DNS_TYPE) ||
+            b == (ASN_CONTEXT_SPECIFIC | ASN_RFC822_TYPE) ||
+            b == (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | ASN_DIR_TYPE)) {
+
+            Base_entry* entry = (Base_entry*)XMALLOC(sizeof(Base_entry),
+                                                    heap, DYNAMIC_TYPE_ALTNAME);
+
+            if (entry == NULL) {
+                CYASSL_MSG("allocate error");
+                return MEMORY_E;
+            }
+
+            entry->name = (char*)XMALLOC(strLength, heap, DYNAMIC_TYPE_ALTNAME);
+            if (entry->name == NULL) {
+                CYASSL_MSG("allocate error");
+                return MEMORY_E;
+            }
+
+            XMEMCPY(entry->name, &input[nameIdx], strLength);
+            entry->nameSz = strLength;
+            entry->type = b & 0x0F;
+
+            entry->next = *head;
+            *head = entry;
+        }
+
+        idx += seqLength;
+    }
+
+    return 0;
+}
+
+
+static int DecodeNameConstraints(byte* input, int sz, DecodedCert* cert)
+{
+    word32 idx = 0;
+    int length = 0;
+
+    CYASSL_ENTER("DecodeNameConstraints");
+
+    if (GetSequence(input, &idx, &length, sz) < 0) {
+        CYASSL_MSG("\tfail: should be a SEQUENCE");
+        return ASN_PARSE_E;
+    }
+
+    while (idx < (word32)sz) {
+        byte b = input[idx++];
+        Base_entry** subtree = NULL;
+
+        if (GetLength(input, &idx, &length, sz) <= 0) {
+            CYASSL_MSG("\tinvalid length");
+            return ASN_PARSE_E;
+        }
+
+        if (b == (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | 0))
+            subtree = &cert->permittedNames;
+        else if (b == (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | 1))
+            subtree = &cert->excludedNames;
+        else {
+            CYASSL_MSG("\tinvalid subtree");
+            return ASN_PARSE_E;
+        }
+
+        DecodeSubtree(input + idx, length, subtree, cert->heap);
+
+        idx += length;
+    }
+
+    return 0;
+}
+#endif /* IGNORE_NAME_CONSTRAINTS */
 
 
 #ifdef CYASSL_SEP
@@ -3552,6 +3913,17 @@ static int DecodeCertExtensions(DecodedCert* cert)
                     return ASN_PARSE_E;
                 break;
 
+            #ifndef IGNORE_NAME_CONSTRAINTS
+            case NAME_CONS_OID:
+                cert->extNameConstraintSet = 1;
+                #ifdef OPENSSL_EXTRA
+                    cert->extNameConstraintCrit = critical;
+                #endif
+                if (DecodeNameConstraints(&input[idx], length, cert) < 0)
+                    return ASN_PARSE_E;
+                break;
+            #endif /* IGNORE_NAME_CONSTRAINTS */
+
             case INHIBIT_ANY_OID:
                 CYASSL_MSG("Inhibit anyPolicy extension not supported yet.");
                 break;
@@ -3714,6 +4086,14 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
                 CYASSL_MSG("Confirm signature failed");
                 return ASN_SIG_CONFIRM_E;
             }
+#ifndef IGNORE_NAME_CONSTRAINTS
+            /* check that this cert's name is permitted by the signer's
+             * name constraints */
+            if (!ConfirmNameConstraints(ca, cert)) {
+                CYASSL_MSG("Confirm name constraint failed");
+                return ASN_NAME_INVALID_E;
+            }
+#endif /* IGNORE_NAME_CONSTRAINTS */
         }
         else {
             /* no signer */
@@ -3743,6 +4123,10 @@ Signer* MakeSigner(void* heap)
         signer->publicKey  = NULL;
         signer->nameLen    = 0;
         signer->name       = NULL;
+        #ifndef IGNORE_NAME_CONSTRAINTS
+            signer->permittedNames = NULL;
+            signer->excludedNames = NULL;
+        #endif /* IGNORE_NAME_CONSTRAINTS */
         signer->next       = NULL;
     }
     (void)heap;
@@ -3756,6 +4140,12 @@ void FreeSigner(Signer* signer, void* heap)
 {
     XFREE(signer->name, heap, DYNAMIC_TYPE_SUBJECT_CN);
     XFREE(signer->publicKey, heap, DYNAMIC_TYPE_PUBLIC_KEY);
+    #ifndef IGNORE_NAME_CONSTRAINTS
+        if (signer->permittedNames)
+            FreeNameSubtrees(signer->permittedNames, heap);
+        if (signer->excludedNames)
+            FreeNameSubtrees(signer->excludedNames, heap);
+    #endif
     XFREE(signer, heap, DYNAMIC_TYPE_SIGNER);
 
     (void)heap;

@@ -585,11 +585,7 @@ int PKCS7_VerifySignedData(PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz)
     byte* content = NULL;
     byte* sig = NULL;
     byte* cert = NULL;
-    byte* signedAttr = NULL;
-    int contentSz = 0, sigSz = 0, certSz = 0, signedAttrSz = 0;
-
-    (void)signedAttr;    /* not used yet, just set */
-    (void)signedAttrSz;
+    int contentSz = 0, sigSz = 0, certSz = 0;
 
     if (pkcs7 == NULL || pkiMsg == NULL || pkiMsgSz == 0)
         return BAD_FUNC_ARG;
@@ -749,10 +745,6 @@ int PKCS7_VerifySignedData(PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz)
 
             if (GetLength(pkiMsg, &idx, &length, pkiMsgSz) < 0)
                 return ASN_PARSE_E;
-
-            /* save pointer and length */
-            signedAttr = &pkiMsg[idx];
-            signedAttrSz = length;
 
             idx += length;
         }
