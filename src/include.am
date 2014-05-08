@@ -3,7 +3,13 @@
 # All paths should be given relative to the root
 
 lib_LTLIBRARIES+= src/libcyassl.la
-src_libcyassl_la_SOURCES = \
+src_libcyassl_la_SOURCES =
+
+if BUILD_FIPS
+src_libcyassl_la_SOURCES += ctaocrypt/src/wolfcrypt_first.c
+endif
+
+src_libcyassl_la_SOURCES += \
                src/internal.c \
                src/io.c \
                src/keys.c \
@@ -143,5 +149,9 @@ endif
 
 if BUILD_PKCS7
 src_libcyassl_la_SOURCES += ctaocrypt/src/pkcs7.c
+endif
+
+if BUILD_FIPS
+src_libcyassl_la_SOURCES += ctaocrypt/src/wolfcrypt_last.c
 endif
 
