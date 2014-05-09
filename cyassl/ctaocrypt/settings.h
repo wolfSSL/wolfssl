@@ -285,7 +285,7 @@
     #define USE_CERT_BUFFERS_2048
     #define NO_ERROR_STRINGS
     #define USER_TIME
-    
+
     #ifdef __IAR_SYSTEMS_ICC__
         #pragma diag_suppress=Pa089
     #elif !defined(__GNUC__)

@@ -357,14 +357,14 @@ int UnLockMutex(CyaSSL_Mutex *m)
         int InitMutex(CyaSSL_Mutex* m)
         {
            Semaphore_Params params;
-               
+
            Semaphore_Params_init(&params);
            params.mode = Semaphore_Mode_BINARY;
 
            *m = Semaphore_create(1, &params, NULL);
 
            return 0;
-        }   
+        }
 
         int FreeMutex(CyaSSL_Mutex* m)
         {
@@ -383,7 +383,7 @@ int UnLockMutex(CyaSSL_Mutex *m)
         int UnLockMutex(CyaSSL_Mutex* m)
         {
             Semaphore_post(*m);
-            
+
             return 0;
         }
 

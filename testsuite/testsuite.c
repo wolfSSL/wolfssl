@@ -57,12 +57,18 @@ enum {
 int myoptind = 0;
 char* myoptarg = NULL;
 
+
 #ifndef NO_TESTSUITE_MAIN_DRIVER
-int main(int argc, char** argv)
-{
-     return testsuite_test(argc, argv);
-}
-#endif
+
+    static int testsuite_test(int argc, char** argv);
+
+    int main(int argc, char** argv)
+    {
+        return testsuite_test(argc, argv);
+    }
+
+#endif /* NO_TESTSUITE_MAIN_DRIVER */
+
 
 int testsuite_test(int argc, char** argv)
 {
@@ -172,7 +178,7 @@ int testsuite_test(int argc, char** argv)
 #ifdef TIRTOS
     fdCloseSession(TaskSelf());
 #endif
-  
+
 #ifdef HAVE_CAVIUM
         CspShutdown(CAVIUM_DEV_ID);
 #endif

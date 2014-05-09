@@ -770,8 +770,8 @@ int GenerateSeed(OS_Seed* os, byte* output, word32 sz)
             if ((i % 8) == 7) {
                 srand(xdc_runtime_Timestamp_get32());
             }
-        } 
-       
+        }
+
         return 0;
     }
 

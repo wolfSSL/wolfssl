@@ -325,13 +325,13 @@ time_t mqx_time(time_t* timer)
 time_t XTIME(time_t * timer)
 {
     time_t sec = 0;
-   
+
     sec = (time_t) MYTIME_gettime();
 
     if (timer != NULL)
         *timer = sec;
 
-    return sec; 
+    return sec;
 }
 
 #endif /* TIRTOS */

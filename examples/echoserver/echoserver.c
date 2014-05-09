@@ -108,7 +108,7 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
 
     #if defined(NO_MAIN_DRIVER) && !defined(USE_WINDOWS_API) && \
         !defined(CYASSL_SNIFFER) && !defined(CYASSL_MDK_SHELL) && \
-        !defined(TIRTOS)   
+        !defined(TIRTOS)
         port = 0;
     #endif
     #if defined(USE_ANY_ADDR)

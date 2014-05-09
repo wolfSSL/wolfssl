@@ -192,7 +192,7 @@ static int execute_test_case(int svr_argc, char** svr_argv,
             strcat(commandLine, flagSep);
         }
     }
-    #if !defined(USE_WINDOWS_API) && !defined(TIRTOS) 
+    #if !defined(USE_WINDOWS_API) && !defined(TIRTOS)
         /* add port 0 */
         if (svr_argc + 2 > MAX_ARGS)
             printf("cannot add the magic port number flag to server\n");

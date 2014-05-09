@@ -977,8 +977,8 @@ THREAD_RETURN CYASSL_THREAD test_server_nofail(void* args)
     int idx;
 
 #ifdef TIRTOS
-    fdOpenSession(TaskSelf());     
-#endif   
+    fdOpenSession(TaskSelf());
+#endif
     ((func_args*)args)->return_code = TEST_FAIL;
     method = CyaSSLv23_server_method();
     ctx = CyaSSL_CTX_new(method);
@@ -1068,7 +1068,7 @@ done:
 #ifdef TIRTOS
     fdCloseSession(TaskSelf());
 #endif
-#ifndef TIRTOS        
+#ifndef TIRTOS
     return 0;
 #endif
 }

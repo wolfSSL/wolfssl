@@ -41,7 +41,7 @@
     #include <arpa/inet.h>
     #include <sys/socket.h>
     #include <ti/sysbios/knl/Task.h>
-    #define SOCKET_T int    
+    #define SOCKET_T int
 #else
     #include <string.h>
     #include <sys/types.h>
@@ -480,7 +480,7 @@ static INLINE void tcp_socket(SOCKET_T* sockfd, int udp)
     if (*sockfd == INVALID_SOCKET)
         err_sys("socket failed\n");
 #elif defined(TIRTOS)
-    if (*sockfd == -1) 
+    if (*sockfd == -1)
         err_sys("socket failed\n");
 #else
     if (*sockfd < 0)
