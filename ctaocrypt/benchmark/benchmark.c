@@ -1166,10 +1166,10 @@ void bench_eccKeyAgree(void)
 
 #elif defined MICROCHIP_PIC32
     #if defined(CYASSL_MICROCHIP_PIC32MZ)
-        #define CLOCK 8000000.0
+        #define CLOCK 80000000.0
     #else
         #include <peripheral/timer.h>
-        #define CLOCK 4000000.0
+        #define CLOCK 40000000.0
     #endif
 
     double current_time(int reset)

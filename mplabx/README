@@ -33,6 +33,8 @@ Included Project Files
 3. CTaoCrypt Benchmark App (ctaocrypt_benchmark.X)
     
     This project builds the CTaoCrypt benchmark application.
+    For the benchmark timer, adjust CLOCK value under
+    "#elif defined MICROCHIP_PIC32" in ctaocrypt/benchmark/benchmark.c
 
 PIC32MX/PIC32MZ
 ---------------

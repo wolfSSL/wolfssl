@@ -187,21 +187,23 @@ void Md5Final(Md5* md5, byte* hash)
 #endif
 
 #ifndef NO_SHA
-void InitSha(Sha* sha)
+int InitSha(Sha* sha)
 {
     CYASSL_ENTER("InitSha\n") ;
     XMEMSET((void *)sha, 0xcc, sizeof(Sha)) ;
     XMEMSET((void *)KVA0_TO_KVA1(sha), 0xcc, sizeof(Sha)) ;
     reset_engine(&(sha->desc), PIC32_ALGO_SHA1) ;
+    return 0;
 }
 
-void ShaUpdate(Sha* sha, const byte* data, word32 len)
+int ShaUpdate(Sha* sha, const byte* data, word32 len)
 {
     CYASSL_ENTER("ShaUpdate\n") ;
     update_engine(&(sha->desc), data, len, sha->digest) ;
+    return 0;
 }
 
-void ShaFinal(Sha* sha, byte* hash)
+int ShaFinal(Sha* sha, byte* hash)
 {
     CYASSL_ENTER("ShaFinal\n") ;
     start_engine(&(sha->desc)) ;
@@ -209,16 +211,18 @@ void ShaFinal(Sha* sha, byte* hash)
     XMEMCPY(hash, sha->digest, SHA1_HASH_SIZE) ;
 
     InitSha(sha);  /* reset state */
+    return 0;
 }
 #endif /* NO_SHA */
 
 #ifndef NO_SHA256
-void InitSha256(Sha256* sha256)
+int InitSha256(Sha256* sha256)
 {
     CYASSL_ENTER("InitSha256\n") ;
     XMEMSET((void *)sha256, 0xcc, sizeof(Sha256)) ;
     XMEMSET((void *)KVA0_TO_KVA1(sha256), 0xcc, sizeof(Sha256)) ;
     reset_engine(&(sha256->desc), PIC32_ALGO_SHA256) ;
+    return 0;
 }
 
 int Sha256Update(Sha256* sha256, const byte* data, word32 len)

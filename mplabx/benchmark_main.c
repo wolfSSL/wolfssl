@@ -27,8 +27,9 @@
 #if defined(CYASSL_MICROCHIP_PIC32MZ)
     #define MICROCHIP_PIC32
     #include <xc.h>
-    #pragma config ICESEL = ICS_PGx2
-        /* ICE/ICD Comm Channel Select (Communicate on PGEC2/PGED2) */
+
+    #include "MZ-configBits.h"
+
     #include "PIC32MZ-serial.h"
     #define SYSTEMConfigPerformance /* void out SYSTEMConfigPerformance(); */
 #else
@@ -66,11 +67,18 @@ void bench_eccKeyAgree(void);
 int main(int argc, char** argv) {
     volatile int i ;
     int j ;
-    
+
+    PRECONbits.PFMWS = 2;
+    PRECONbits.PREFEN = 0b11;
+
     init_serial() ;  /* initialize PIC32MZ serial I/O */
     SYSTEMConfigPerformance(80000000);
     DBINIT();
 
+    for(j=0; j<100; j++) {
+        for(i=0; i<10000000; i++);
+        printf("time=%f\n", current_time(0)) ;
+    }  
     printf("wolfCrypt Benchmark:\n");
 
 #ifndef NO_AES
