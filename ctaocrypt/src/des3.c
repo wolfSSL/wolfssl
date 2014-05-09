@@ -273,32 +273,72 @@
         return 0;
     }
 
+#elif defined(HAVE_COLDFIRE_SEC)
 
-#elif  defined(HAVE_COLDFIRE_SEC)
+#include <cyassl/ctaocrypt/types.h>
 
 #include "sec.h"
-#include "mcf548x_sec.h"
+#include "mcf5475_sec.h"
+#include "mcf5475_siu.h"
 
+#if defined (HAVE_THREADX)
 #include "memory_pools.h"
 extern TX_BYTE_POOL mp_ncached;  /* Non Cached memory pool */
-#define DES_BUFFER_SIZE (DES_BLOCK_SIZE * 16)
-static unsigned char *DesBuffer = NULL ;
+#endif
+
+#define DES_BUFFER_SIZE (DES_BLOCK_SIZE * 64)
+static unsigned char *desBuffIn = NULL ;
+static unsigned char *desBuffOut = NULL ;
+static byte *secIV ; 
+static byte *secKey ; 
+static volatile SECdescriptorType *secDesc ;
+
+static CyaSSL_Mutex Mutex_DesSEC ;
 
 #define SEC_DESC_DES_CBC_ENCRYPT  0x20500010
 #define SEC_DESC_DES_CBC_DECRYPT  0x20400010
 #define SEC_DESC_DES3_CBC_ENCRYPT 0x20700010
 #define SEC_DESC_DES3_CBC_DECRYPT 0x20600010
 
+#define DES_IVLEN 8
+#define DES_KEYLEN 8
+#define DES3_IVLEN 8
+#define DES3_KEYLEN 24
+
 extern volatile unsigned char __MBAR[];
 
-static void Des_Cbc(Des* des, byte* out, const byte* in, word32 sz, word32 desc)
+static void Des_Cbc(byte* out, const byte* in, word32 sz, 
+                    byte *key, byte *iv, word32 desc)
 {
-    static volatile SECdescriptorType descriptor = {    NULL } ;
-    int ret ; int stat1,stat2 ;
-    int i ; int size ;
+    #ifdef DEBUG_CYASSL
+    int ret ;  int stat1,stat2 ; 
+	  #endif
+    int size ;
     volatile int v ;
-
+ 
+    LockMutex(&Mutex_DesSEC) ;
+    
+    secDesc->length1 = 0x0;
+    secDesc->pointer1 = NULL;
+    if((desc==SEC_DESC_DES_CBC_ENCRYPT)||(desc==SEC_DESC_DES_CBC_DECRYPT)){
+        secDesc->length2 = DES_IVLEN ;  
+        secDesc->length3 = DES_KEYLEN ;
+    } else {
+        secDesc->length2 = DES3_IVLEN ; 
+        secDesc->length3 = DES3_KEYLEN ;
+    }
+    secDesc->pointer2 = secIV ;
+    secDesc->pointer3 = secKey;
+    secDesc->pointer4 = desBuffIn ;
+    secDesc->pointer5 = desBuffOut ;
+    secDesc->length6 = 0; 
+    secDesc->pointer6 = NULL; 
+    secDesc->length7 = 0x0;
+    secDesc->pointer7 = NULL;
+    secDesc->nextDescriptorPtr = NULL ; 
+    
     while(sz) {
+        XMEMCPY(secIV, iv, secDesc->length2) ;
         if((sz%DES_BUFFER_SIZE) == sz) {
             size = sz ;
             sz = 0 ;
@@ -307,125 +347,152 @@ static void Des_Cbc(Des* des, byte* out, const byte* in, word32 sz, word32 desc)
             sz -= DES_BUFFER_SIZE ;
         }
         
-        descriptor.header = desc ;
-        /*
-        escriptor.length1 = 0x0;
-        descriptor.pointer1 = NULL;
-        */
-        descriptor.length2 = des->ivlen ;
-        descriptor.pointer2 = (byte *)des->iv ;
-        descriptor.length3 = des->keylen ;
-        descriptor.pointer3 = (byte *)des->key;
-        descriptor.length4 = size;
-        descriptor.pointer4 = (byte *)in ;
-        descriptor.length5 = size;
-        descriptor.pointer5 = DesBuffer ;
-        /*
-        descriptor.length6 = 0; 
-        descriptor.pointer6 = NULL; 
-        descriptor.length7 = 0x0;
-        descriptor.pointer7 = NULL;
-        descriptor.nextDescriptorPtr = NULL ; 
-        */
+        XMEMCPY(desBuffIn, in, size) ;
+        XMEMCPY(secKey, key, secDesc->length3) ;
         
-        /* Initialize SEC and wait for encryption to complete */
-        MCF_SEC_CCCR0 = 0x0000001A; //enable channel done notification
-
+        secDesc->header = desc ;
+        secDesc->length4 = size;
+        secDesc->length5 = size;
         /* Point SEC to the location of the descriptor */
-        MCF_SEC_FR0 = (uint32)&descriptor;  
-                
+        MCF_SEC_FR0 = (uint32)secDesc;
+        /* Initialize SEC and wait for encryption to complete */
+        MCF_SEC_CCCR0 = 0x0000001a;
         /* poll SISR to determine when channel is complete */
-        while (!(MCF_SEC_SISRL) && !(MCF_SEC_SISRH))
-            ;   
-            
-        for(v=0; v<500; v++) ; 
-
+        v=0 ;
+        while((secDesc->header>> 24) != 0xff) {
+            if(v++ > 1000)break ;
+        }
+				
+#ifdef DEBUG_CYASSL
         ret = MCF_SEC_SISRH;
-        stat1 = MCF_SEC_DSR ;   
-        stat2 = MCF_SEC_DISR ;
-        if(ret & 0xe0000000)
-            db_printf("Des_Cbc(%x):ISRH=%08x, DSR=%08x, DISR=%08x\n", desc, ret, stat1, stat2) ;
-
-        XMEMCPY(out, DesBuffer, size) ;
+        stat1 = MCF_SEC_DSR ; 
+        stat2 = MCF_SEC_DISR ; 
+        if(ret & 0xe0000000) {
+            /* db_printf("Des_Cbc(%x):ISRH=%08x, DSR=%08x, DISR=%08x\n", desc, ret, stat1, stat2) ; */
+        }
+#endif
+				
+        XMEMCPY(out, desBuffOut, size) ;
 
         if((desc==SEC_DESC_DES3_CBC_ENCRYPT)||(desc==SEC_DESC_DES_CBC_ENCRYPT)) {
-            XMEMCPY((void*)des->iv, (void*)&(out[size-DES_IVLEN]), DES_IVLEN) ;
+            XMEMCPY((void*)iv, (void*)&(out[size-secDesc->length2]), secDesc->length2) ;
         } else {
-            XMEMCPY((void*)des->iv, (void*)&(in[size-DES_IVLEN]), DES_IVLEN) ;
+            XMEMCPY((void*)iv, (void*)&(in[size-secDesc->length2]), secDesc->length2) ;
         }
         
         in  += size ;   
         out += size ;
                 
     }
+    UnLockMutex(&Mutex_DesSEC) ;
+    
 }
 
 
 void Des_CbcEncrypt(Des* des, byte* out, const byte* in, word32 sz)
 {
-    Des_Cbc(des, out, in, sz, SEC_DESC_DES_CBC_ENCRYPT) ;
+    Des_Cbc(out, in, sz,  (byte *)des->key,  (byte *)des->reg, SEC_DESC_DES_CBC_ENCRYPT) ;
 }
 
 void Des_CbcDecrypt(Des* des, byte* out, const byte* in, word32 sz)
 {
-    Des_Cbc(des, out, in, sz, SEC_DESC_DES_CBC_DECRYPT) ;
+    Des_Cbc(out, in, sz,   (byte *)des->key,  (byte *)des->reg, SEC_DESC_DES_CBC_DECRYPT) ;
 }
 
 int Des3_CbcEncrypt(Des3* des3, byte* out, const byte* in, word32 sz)
 {
-    Des_Cbc((Des *)des3, out, in, sz, SEC_DESC_DES3_CBC_ENCRYPT) ;
-    return 0;
+    Des_Cbc(out, in, sz,  (byte *)des3->key,  (byte *)des3->reg, SEC_DESC_DES3_CBC_ENCRYPT) ;
+	  return 0;
 }
+
 
 int Des3_CbcDecrypt(Des3* des3, byte* out, const byte* in, word32 sz)
 {
-    Des_Cbc((Des *)des3, out, in, sz, SEC_DESC_DES3_CBC_DECRYPT) ;
-    return 0;
+    Des_Cbc(out, in, sz,   (byte *)des3->key,  (byte *)des3->reg, SEC_DESC_DES3_CBC_DECRYPT) ;
+	  return 0;
+}
+
+static void setParity(byte *buf, int len) 
+{
+    int i, j ;
+    byte v ;
+    int bits ;
+
+    for(i=0; i<len; i++) 
+    {
+        v = buf[i] >> 1 ;
+        buf[i] = v << 1 ;
+        bits = 0 ;
+        for(j=0; j<7; j++)
+        {
+            bits += (v&0x1) ;
+            v = v >> 1 ;
+        }
+        buf[i] |= (1 - (bits&0x1)) ;
+    }
+    
 }
 
 
 int Des_SetKey(Des* des, const byte* key, const byte* iv, int dir)
 {
-    int i ; int status ;
-    
-    if(DesBuffer == NULL) {
-        status = tx_byte_allocate(&mp_ncached,(void *)&DesBuffer,DES_BUFFER_SIZE,TX_NO_WAIT);       
+    if(desBuffIn == NULL) {
+        #if defined (HAVE_THREADX)
+			  int s1, s2, s3, s4, s5 ;
+        s5 = tx_byte_allocate(&mp_ncached,(void *)&secDesc, 
+                                                     sizeof(SECdescriptorType), TX_NO_WAIT);
+        s1 = tx_byte_allocate(&mp_ncached,(void *)&desBuffIn,  DES_BUFFER_SIZE, TX_NO_WAIT);
+        s2 = tx_byte_allocate(&mp_ncached,(void *)&desBuffOut, DES_BUFFER_SIZE, TX_NO_WAIT);
+        /* Don't know des or des3 to be used. Allocate larger buffers */
+        s3 = tx_byte_allocate(&mp_ncached,(void *)&secKey,     DES3_KEYLEN,TX_NO_WAIT);
+        s4 = tx_byte_allocate(&mp_ncached,(void *)&secIV,      DES3_IVLEN,  TX_NO_WAIT);              
+        #else
+        #warning "Allocate non-Cache buffers"
+        #endif
+        
+        InitMutex(&Mutex_DesSEC) ;
     }
-    
-    XMEMCPY(des->key, key, DES_KEYLEN);
-    des->keylen = DES_KEYLEN ;
-    des->ivlen = 0 ;      
+     
+    XMEMCPY(des->key, key, DES_KEYLEN);  
+    setParity((byte *)des->key, DES_KEYLEN) ;  
+		
     if (iv) {
-        XMEMCPY(des->iv, iv, DES_IVLEN);
-        des->ivlen = DES_IVLEN ;
+        XMEMCPY(des->reg, iv, DES_IVLEN);
     }   else {
-        for(i=0; i<DES_IVLEN; i++)
-            des->iv[i] = 0x0 ;
+        XMEMSET(des->reg, 0x0, DES_IVLEN) ;
     }
-
-    return 0;
+		return 0;
 }
 
 int Des3_SetKey(Des3* des3, const byte* key, const byte* iv, int dir)
 {
-    int i ; int status ;
     
-    if(DesBuffer == NULL) {
-        status = tx_byte_allocate(&mp_ncached,(void *)&DesBuffer,DES_BUFFER_SIZE,TX_NO_WAIT);       
+    if(desBuffIn == NULL) {
+        #if defined (HAVE_THREADX)
+			  int s1, s2, s3, s4, s5 ;
+        s5 = tx_byte_allocate(&mp_ncached,(void *)&secDesc, 
+                                                     sizeof(SECdescriptorType), TX_NO_WAIT);
+        s1 = tx_byte_allocate(&mp_ncached,(void *)&desBuffIn,  DES_BUFFER_SIZE, TX_NO_WAIT);
+        s2 = tx_byte_allocate(&mp_ncached,(void *)&desBuffOut, DES_BUFFER_SIZE, TX_NO_WAIT);
+        s3 = tx_byte_allocate(&mp_ncached,(void *)&secKey,     DES3_KEYLEN,TX_NO_WAIT);
+        s4 = tx_byte_allocate(&mp_ncached,(void *)&secIV,      DES3_IVLEN,  TX_NO_WAIT);              
+        #else
+        #warning "Allocate non-Cache buffers"
+        #endif
+        
+        InitMutex(&Mutex_DesSEC) ;
     }
     
-    XMEMCPY(des3->key, key, DES3_KEYLEN);  
-    des3->keylen = DES3_KEYLEN ;   
-    des3->ivlen = 0 ;         
+    XMEMCPY(des3->key[0], key, DES3_KEYLEN); 
+    setParity((byte *)des3->key[0], DES3_KEYLEN) ;  
+		
     if (iv) {
-        XMEMCPY(des3->iv, iv, DES3_IVLEN);
-        des3->ivlen = DES3_IVLEN ;
+        XMEMCPY(des3->reg, iv, DES3_IVLEN);
     }   else {
-        for(i=0; i<DES_IVLEN; i++)
-            des3->iv[i] = 0x0 ;
+        XMEMSET(des3->reg, 0x0, DES3_IVLEN) ;
     }
-
     return 0;
+
 }
 
 #elif defined FREESCALE_MMCAU
@@ -618,7 +685,7 @@ int Des3_SetKey(Des3* des3, const byte* key, const byte* iv, int dir)
 
 #elif defined(CYASSL_PIC32MZ_CRYPT)
 
-    #include "../../cyassl/ctaocrypt/port/pic32/pic32mz-crypt.h"
+    #include "cyassl/ctaocrypt/port/pic32/pic32mz-crypt.h"
 
 void Des_SetIV(Des* des, const byte* iv);
 int  Des3_SetIV(Des3* des, const byte* iv);

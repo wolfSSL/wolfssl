@@ -7,12 +7,12 @@ static void init_serial() {
     SYSKEY = 0x00000000;
     SYSKEY = 0xAA996655;
     SYSKEY = 0x556699AA;
-    PB2DIV = 0x00008018;
+    PB2DIV = 0x00008808;
     SYSKEY = 0x33333333;
  
     /* UART2 Init */
 //    U2BRG = 0x0C;
-    U2BRG = 0x7;
+    U2BRG = 0x047;
     ANSELBCLR = 0x4000;
     ANSELGCLR = 0x0040;
     RPB14R = 0x02;
