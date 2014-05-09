@@ -19,7 +19,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-/* This file needs to be linked first in order to work correctly */ 
+/* This file needs to be linked first in order to work correctly */
 
 #ifdef HAVE_CONFIG_H
     #include <config.h>
