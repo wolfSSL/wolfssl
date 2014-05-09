@@ -62,6 +62,9 @@
     #endif
 #elif defined(CYASSL_CMSIS_RTOS)
     #include "cmsis_os.h"    
+#elif defined(TIRTOS)
+    #include <ti/sysbios/BIOS.h>
+    #include <ti/sysbios/knl/Semaphore.h>
 #else
     #ifndef SINGLE_THREADED
         #define CYASSL_PTHREADS
@@ -104,6 +107,8 @@
         #endif
     #elif defined(CYASSL_CMSIS_RTOS)
         typedef osMutexId CyaSSL_Mutex;
+    #elif defined(TIRTOS)
+        typedef ti_sysbios_knl_Semaphore_Handle CyaSSL_Mutex; 
     #else
         #error Need a mutex type in multithreaded mode
     #endif /* USE_WINDOWS_API */

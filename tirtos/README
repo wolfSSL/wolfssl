@@ -1,0 +1,36 @@
+CyaSSL library for TI-RTOS
+
+This directory contains the files that build CyaSSL library for TI-RTOS. 
+Please follow the instructions in TI-RTOS user guide (www.ti.com/tool/ti-rtos) 
+to build the CyaSSL library and the example applications.
+
+Included Files
+---------------
+
+1. CyaSSL library build files (packages/ti/net/cyassl)
+
+    Build instructions provided in TI-RTOS user guide (www.ti.com/tool/ti-rtos)
+
+2. CTaoCrypt test application (packages/ti/net/cyassl/tests/ctaocrypt/test)
+
+    This application is the standard CTaoCrypt test application provided with
+    CyaSSL.
+   
+    It will be built along with the CyaSSL library. Load the built executable
+    on the target and make sure the CyaSSL library works as expected.
+
+3. CTaoCrypt benchmark application 
+   (packages/ti/net/cyassl/tests/ctaocrypt/benchmark)
+
+    This application is the standard CTaoCrypt benchmark application provided
+    with CyaSSL.
+
+    It will be built along with the CyaSSL library. Load the built executable
+    on the target and run to get the benchmark results for the configured 
+    CyaSSL library.
+
+Examples Application
+--------------------
+
+A simple 'TCP echo server with SSL' example application is provided with TI-RTOS
+product. Look in the TI-RTOS user guide for instructions to build examples.

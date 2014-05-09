@@ -96,7 +96,8 @@
         #include <rtl.h>
     #endif
 #elif defined(MBED)
-
+#elif defined(TIRTOS)
+    /* do nothing */
 #else
     #ifndef SINGLE_THREADED
         #define CYASSL_PTHREADS

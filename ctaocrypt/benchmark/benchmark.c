@@ -783,7 +783,7 @@ static RNG rng;
 static char *certRSAname = "certs/rsa2048.der" ;
 static void set_Bench_RSA_File(char * cert) { certRSAname = cert ; }   
                                                  /* set by shell command */
-#elif defined(CYASSL_MDK_SHELL)
+#elif defined(CYASSL_MDK_SHELL) || defined(TIRTOS)
     /* nothing */
 #else
 static const char *certRSAname = "certs/rsa2048.der" ;
@@ -888,7 +888,7 @@ void bench_rsa(void)
 static char *certDHname = "certs/dh2048.der" ;
 void set_Bench_DH_File(char * cert) { certDHname = cert ; }    
                                             /* set by shell command */
-#elif defined(CYASSL_MDK_SHELL)
+#elif defined(CYASSL_MDK_SHELL) || defined(TIRTOS)
     /* nothing */
 #else
 static const char *certDHname = "certs/dh2048.der" ;
@@ -1203,6 +1203,10 @@ void bench_eccKeyAgree(void)
         tickCount = xTaskGetTickCount();
         return (double)tickCount / 1000;
     }
+
+#elif defined (TIRTOS)
+
+    extern double current_time(int reset);
 
 #else
 
