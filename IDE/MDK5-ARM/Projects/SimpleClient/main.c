@@ -71,7 +71,6 @@ typedef struct func_args {
 } func_args;
 
 extern void client_test(func_args * args) ;
-extern void init_time(void) ;
 
     osThreadDef (tcp_poll, osPriorityHigh , 1, 0) ;
 /*-----------------------------------------------------------------------------

@@ -822,25 +822,25 @@
 
   <RTE>
     <apis>
-      <api Cclass="CMSIS" Cgroup="RTOS" exclusive="0">
+      <api Cclass="CMSIS" Cgroup="RTOS" Cvendor="ARM" exclusive="0">
         <package name="CMSIS" url="http://www.keil.com/pack/" vendor="ARM" version="3.20.1"/>
         <targetInfos>
           <targetInfo name="EchoServer"/>
         </targetInfos>
       </api>
-      <api Cclass="Drivers" Cgroup="Ethernet MAC" exclusive="0">
+      <api Cclass="Drivers" Cgroup="Ethernet MAC" Cvendor="Keil" exclusive="0">
         <package name="MDK-Middleware" url="http://www.keil.com/pack/" vendor="Keil" version="5.1.0"/>
         <targetInfos>
           <targetInfo name="EchoServer"/>
         </targetInfos>
       </api>
-      <api Cclass="Drivers" Cgroup="Ethernet PHY" exclusive="0">
+      <api Cclass="Drivers" Cgroup="Ethernet PHY" Cvendor="Keil" exclusive="0">
         <package name="MDK-Middleware" url="http://www.keil.com/pack/" vendor="Keil" version="5.1.0"/>
         <targetInfos>
           <targetInfo name="EchoServer"/>
         </targetInfos>
       </api>
-      <api Cclass="Drivers" Cgroup="MCI" exclusive="0">
+      <api Cclass="Drivers" Cgroup="MCI" Cvendor="Keil" exclusive="0">
         <package name="MDK-Middleware" url="http://www.keil.com/pack/" vendor="Keil" version="5.1.0"/>
         <targetInfos>
           <targetInfo name="EchoServer"/>

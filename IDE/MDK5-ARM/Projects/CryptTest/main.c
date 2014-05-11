@@ -27,13 +27,15 @@
 #include <cyassl/ctaocrypt/logging.h>
 
 #include "cmsis_os.h"
-#include "rl_fs.h" 
- 
+
 #include <stdio.h>
 
 /*-----------------------------------------------------------------------------
  *        Initialize a Flash Memory Card
  *----------------------------------------------------------------------------*/
+#if !defined(NO_FILESYSTEM)
+#include "rl_fs.h" 
+
 static void init_filesystem (void) {
   int32_t retv;
 
@@ -51,8 +53,9 @@ static void init_filesystem (void) {
     printf ("Drive M0 initialization failed!\n");
   }
 }
+#endif
+
 extern void ctaocrypt_test(void * arg) ;
-extern void init_time(void) ;
 
 /*-----------------------------------------------------------------------------
  *       mian entry 
@@ -62,7 +65,10 @@ int main()
 {
     void * arg = NULL ;
 
+	#if !defined(NO_FILESYSTEM)
     init_filesystem ();
+	#endif
+	
     printf("=== Start: Crypt test ===\n") ;
         ctaocrypt_test(arg) ;
     printf("=== End: Crypt test  ===\n") ;    
