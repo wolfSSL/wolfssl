@@ -1,13 +1,12 @@
 This program gives  wolfCrypt and CyaSSL library demo.
 
 In order to run the demo,
-Copy {PACK}\wolfSSL\CyaSSL\2.8.0\cyassl\certs folder and files to the SD memory.
+Copy {PACK}\wolfSSL\CyaSSL\{version}\cyassl\certs folder and files to the SD memory.
 For demo configuration, refer config-Crypt.h and config-CyaSSL.h.
 
 After download and start the execution, you can type in commands through the
 Debug(printf) viewer. 
 
-time [-d date][-t time]      Set/Get RTC: The time is used for certificate validation.
 test                                wolfCrypt Simple test suite
 benchmark                      wolfCrypt Simple benchmark
 server&                          simple server in background mode
@@ -20,9 +19,6 @@ server/client -h              help for server/client command
 === Typical Command Usage Scenario ===
 
 Starting Shell
->time -d 9/23/2013
->time
-Date: 9/23/2013, Time: 00:38:31
 >test
 MD5      test passed!
 MD4      test passed!

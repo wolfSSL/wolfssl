@@ -28,18 +28,18 @@
 #include <cyassl/openssl/ssl.h>
 
 #if defined(CYASSL_MDK_ARM)
-    #include <stdio.h>
-    #include <string.h>
-    
-    #if defined(CYASSL_MDK5)
-        #include "cmsis_os.h"
-        #include "rl_fs.h" 
-        #include "rl_net.h" 
-    #else
-        #include "rtl.h"
-    #endif
-    
-    #include "cyassl_MDK_ARM.h"
+        #include <stdio.h>
+        #include <string.h>
+
+        #if defined(CYASSL_MDK5)
+            #include "cmsis_os.h"
+            #include "rl_fs.h" 
+            #include "rl_net.h" 
+        #else
+            #include "rtl.h"
+        #endif
+
+        #include "cyassl_MDK_ARM.h"
 #endif
 
 #include <cyassl/test.h>
@@ -68,11 +68,11 @@ void echoclient_test(void* args)
     int sendSz;
     int argc    = 0;
     char** argv = 0;
-    int port = yasslPort;
+    word16 port = yasslPort;
 
     ((func_args*)args)->return_code = -1; /* error state */
     
-#ifndef CYASSL_MDK_ARM
+#ifndef CYASSL_MDK_SHELL
     argc = ((func_args*)args)->argc;
     argv = ((func_args*)args)->argv;
 #endif
@@ -103,9 +103,6 @@ void echoclient_test(void* args)
 
 #if defined(NO_MAIN_DRIVER) && !defined(USE_WINDOWS_API) && !defined(CYASSL_MDK_SHELL)
     port = ((func_args*)args)->signal->port;
-#endif
-#if defined (CYASSL_CALLEE_PORT)
-    port = CYASSL_CALLEE_PORT ;
 #endif
 
 #if defined(CYASSL_DTLS)
@@ -150,7 +147,7 @@ void echoclient_test(void* args)
 #endif
     }
 
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
     SSL_CTX_set_default_passwd_cb(ctx, PasswordCallBack);
 #endif
 
@@ -159,8 +156,8 @@ void echoclient_test(void* args)
     #endif
 
     ssl = SSL_new(ctx);
-    CyaSSL_set_quiet_shutdown(ssl, 1) ;
-    
+        
+
     if (doDTLS) {
         SOCKADDR_IN_T addr;
         build_addr(&addr, yasslIP, port, 1);
@@ -221,10 +218,6 @@ void echoclient_test(void* args)
         #endif
     }
 
-#ifdef CYASSL_CMSIS_RTOS
-    osDelay(5000) ;
-#endif
-
 
 #ifdef CYASSL_DTLS
     strncpy(msg, "break", 6);
@@ -270,8 +263,10 @@ void echoclient_test(void* args)
         CyaSSL_Debugging_ON();
 #endif
 
-        if (CurrentDir("echoclient") || CurrentDir("build"))
+        if (CurrentDir("echoclient"))
             ChangeDirBack(2);
+        else if (CurrentDir("Debug") || CurrentDir("Release"))
+            ChangeDirBack(3);
         echoclient_test(&args);
 
         CyaSSL_Cleanup();
