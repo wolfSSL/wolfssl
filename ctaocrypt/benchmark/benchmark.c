@@ -896,7 +896,10 @@ static const char *certDHname = "certs/dh2048.der" ;
 
 void bench_dh(void)
 {
-    int    i, ret;
+#if !defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048)
+    int    ret;
+#endif
+    int    i ;
     byte   tmp[1024];
     size_t bytes;
     word32 idx = 0, pubSz, privSz = 0, pubSz2, privSz2, agreeSz;
@@ -1139,7 +1142,6 @@ void bench_eccKeyAgree(void)
 }
 #endif /* HAVE_ECC */
 
-
 #ifdef _WIN32
 
     #define WIN32_LEAN_AND_MEAN
@@ -1187,10 +1189,10 @@ void bench_eccKeyAgree(void)
         return ( ns / CLOCK * 2.0);
     }
 
-#elif defined CYASSL_MDK_ARM
-
-    extern double current_time(int reset) ;
-
+#elif defined(CYASSL_IAR_ARM) || defined (CYASSL_MDK_ARM)
+    #warning "Write your current_time()"
+    double current_time(int reset) { return 0.0 ; }
+    
 #elif defined FREERTOS
 
     double current_time(int reset)

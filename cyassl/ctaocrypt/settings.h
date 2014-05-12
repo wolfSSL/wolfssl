@@ -84,11 +84,11 @@
 /* Uncomment next line if using QL SEP settings */
 /* #define CYASSL_QL */
 
-/* Uncomment next line if using LwIP native TCP socket settings */
-/* #define HAVE_LWIP_NATIVE */
-
 /* Uncomment next line if building for EROAD */
 /* #define CYASSL_EROAD */
+      
+/* Uncomment next line if building for IAR EWARM */
+/* #define CYASSL_IAR_ARM */
 
 #include <cyassl/ctaocrypt/visibility.h>
 
@@ -134,7 +134,18 @@
     #define CYASSL_USER_IO
     #define NO_FILESYSTEM
 #endif 
-
+    
+#if defined(CYASSL_IAR_ARM)
+    #define NO_MAIN_DRIVER
+    #define SINGLE_THREADED
+    #define USE_CERT_BUFFERS_1024
+    #define BENCH_EMBEDDED
+    #define NO_FILESYSTEM
+    #define NO_WRITEV
+    #define CYASSL_USER_IO
+    #define  BENCH_EMBEDDED
+#endif
+      
 #ifdef MICROCHIP_PIC32
     /* #define CYASSL_MICROCHIP_PIC32MZ */
     #define SIZEOF_LONG_LONG 8

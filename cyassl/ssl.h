@@ -886,7 +886,7 @@ CYASSL_API int CyaSSL_make_eap_keys(CYASSL*, void* key, unsigned int len,
         #ifdef __PPU
             #include <sys/types.h>
             #include <sys/socket.h>
-        #elif !defined(CYASSL_MDK_ARM)
+        #elif !defined(CYASSL_MDK_ARM) && !defined(CYASSL_IAR_ARM)
             #include <sys/uio.h>
         #endif
         /* allow writev style writing */
