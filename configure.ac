@@ -1356,9 +1356,9 @@ fi
 
 # Small Stack
 AC_ARG_ENABLE([smallstack],
-    [  --enable-smallstack     Enable Small Stack Usage (default: enabled)],
+    [  --enable-smallstack     Enable Small Stack Usage (default: disabled)],
     [ ENABLED_SMALL_STACK=$enableval ],
-    [ ENABLED_SMALL_STACK=yes ]
+    [ ENABLED_SMALL_STACK=no ]
     )
 
 if test "x$ENABLED_SMALL_STACK" = "xyes"
