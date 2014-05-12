@@ -31,12 +31,19 @@
 #endif
 
 #if defined(CYASSL_MDK_ARM)
-    #include <stdio.h>
-    #include <string.h>
-    #include <rtl.h>
-    #include "cyassl_MDK_ARM.h"
-#endif
+        #include <stdio.h>
+        #include <string.h>
 
+        #if defined(CYASSL_MDK5)
+            #include "cmsis_os.h"
+            #include "rl_fs.h" 
+            #include "rl_net.h" 
+        #else
+            #include "rtl.h"
+        #endif
+
+        #include "cyassl_MDK_ARM.h"
+#endif
 #include <cyassl/openssl/ssl.h>
 #include <cyassl/test.h>
 
@@ -131,11 +138,6 @@ static void Usage(void)
     printf("-P          Public Key Callbacks\n");
 #endif
 }
-
-#ifdef CYASSL_MDK_SHELL
-#define exit(code) return(code)
-#endif
-
 
 THREAD_RETURN CYASSL_THREAD server_test(void* args)
 {

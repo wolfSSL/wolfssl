@@ -71,7 +71,6 @@ typedef struct func_args {
 } func_args;
 
 extern void client_test(func_args * args) ;
-extern void init_time(void) ;
 
     osThreadDef (tcp_poll, osPriorityHigh , 1, 0) ;
 /*-----------------------------------------------------------------------------
@@ -89,8 +88,7 @@ int main()
                                    "-v",  CYASSL_SSL_VER,  CYASSL_HTTP_GET } ;
     static   func_args args  = 
           {  7 + CYASSL_HTTP_GET_COUNT, argv } ; 
-        
-    init_time() ;
+
     init_filesystem ();
     net_initialize() ;
     osThreadCreate (osThread (tcp_poll), NULL); 

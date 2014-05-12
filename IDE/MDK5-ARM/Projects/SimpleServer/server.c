@@ -31,20 +31,19 @@
 #endif
 
 #if defined(CYASSL_MDK_ARM)
-    #include <stdio.h>
-    #include <string.h>
-    
-    #if defined(CYASSL_MDK5)
-        #include "cmsis_os.h"
-        #include "rl_fs.h" 
-        #include "rl_net.h" 
-    #else
-        #include "rtl.h"
-    #endif
-    
-    #include "cyassl_MDK_ARM.h"
-#endif
+        #include <stdio.h>
+        #include <string.h>
 
+        #if defined(CYASSL_MDK5)
+            #include "cmsis_os.h"
+            #include "rl_fs.h" 
+            #include "rl_net.h" 
+        #else
+            #include "rtl.h"
+        #endif
+
+        #include "cyassl_MDK_ARM.h"
+#endif
 #include <cyassl/openssl/ssl.h>
 #include <cyassl/test.h>
 
@@ -131,12 +130,14 @@ static void Usage(void)
     printf("-f          Fewer packets/group messages\n");
     printf("-N          Use Non-blocking sockets\n");
     printf("-S <str>    Use Host Name Indication\n");
-}
-
-#ifdef CYASSL_MDK_SHELL
-#define exit(code) return(code)
+#ifdef HAVE_OCSP
+    printf("-o          Perform OCSP lookup on peer certificate\n");
+    printf("-O <url>    Perform OCSP lookup using <url> as responder\n");
 #endif
-
+#ifdef HAVE_PK_CALLBACKS 
+    printf("-P          Public Key Callbacks\n");
+#endif
+}
 
 THREAD_RETURN CYASSL_THREAD server_test(void* args)
 {
@@ -154,13 +155,14 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     int    version = SERVER_DEFAULT_VERSION;
     int    doCliCertCheck = 1;
     int    useAnyAddr = 0;
-    int    port = yasslPort;
+    word16 port = yasslPort;
     int    usePsk = 0;
     int    doDTLS = 0;
     int    useNtruKey   = 0;
     int    nonBlocking  = 0;
     int    trackMemory  = 0;
     int    fewerPackets = 0;
+    int    pkCallbacks  = 0;
     char*  cipherList = NULL;
     char*  verifyCert = (char*)cliCert;
     char*  ourCert    = (char*)svrCert;
@@ -172,6 +174,11 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     char*  sniHostName = NULL;
 #endif
 
+#ifdef HAVE_OCSP
+    int    useOcsp  = 0;
+    char*  ocspUrl  = NULL;
+#endif
+
     ((func_args*)args)->return_code = -1; /* error state */
 
 #ifdef NO_RSA
@@ -180,8 +187,9 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     ourKey     = (char*)eccKey;
 #endif
     (void)trackMemory;
+    (void)pkCallbacks;
 
-    while ((ch = mygetopt(argc, argv, "?dbstnNufp:v:l:A:c:k:S:")) != -1) {
+    while ((ch = mygetopt(argc, argv, "?dbstnNufPp:v:l:A:c:k:S:oO:")) != -1) {
         switch (ch) {
             case '?' :
                 Usage();
@@ -217,8 +225,14 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
                 fewerPackets = 1;
                 break;
 
+            case 'P' :
+            #ifdef HAVE_PK_CALLBACKS 
+                pkCallbacks = 1;
+            #endif
+                break;
+
             case 'p' :
-                port = atoi(myoptarg);
+                port = (word16)atoi(myoptarg);
                 #if !defined(NO_MAIN_DRIVER) || defined(USE_WINDOWS_API)
                     if (port == 0)
                         err_sys("port number cannot be 0");
@@ -256,6 +270,19 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
             case 'S' :
                 #ifdef HAVE_SNI
                     sniHostName = myoptarg;
+                #endif
+                break;
+
+            case 'o' :
+                #ifdef HAVE_OCSP
+                    useOcsp = 1;
+                #endif
+                break;
+
+            case 'O' :
+                #ifdef HAVE_OCSP
+                    useOcsp = 1;
+                    ocspUrl = myoptarg;
                 #endif
                 break;
 
@@ -349,6 +376,10 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     if (fewerPackets)
         CyaSSL_CTX_set_group_messages(ctx);
 
+#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
+    SSL_CTX_set_default_passwd_cb(ctx, PasswordCallBack);
+#endif
+
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
     if (!usePsk) {
         if (SSL_CTX_use_certificate_file(ctx, ourCert, SSL_FILETYPE_PEM)
@@ -371,8 +402,8 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     if (!useNtruKey && !usePsk) {
         if (SSL_CTX_use_PrivateKey_file(ctx, ourKey, SSL_FILETYPE_PEM)
                                          != SSL_SUCCESS)
-            err_sys("can't load server cert file, check file and run from"
-                " CyaSSL home dir");
+            err_sys("can't load server private key file, check file and run "
+                "from CyaSSL home dir");
     }
 #endif
 
@@ -403,10 +434,6 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     }
 #endif
 
-#ifdef OPENSSL_EXTRA
-    SSL_CTX_set_default_passwd_cb(ctx, PasswordCallBack);
-#endif
-
 #if defined(CYASSL_SNIFFER) && !defined(HAVE_NTRU) && !defined(HAVE_ECC)
     /* don't use EDH, can't sniff tmp keys */
     if (cipherList == NULL) {
@@ -416,27 +443,38 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 #endif
 
 #ifdef HAVE_SNI
-    if (sniHostName) {
+    if (sniHostName)
         if (CyaSSL_CTX_UseSNI(ctx, CYASSL_SNI_HOST_NAME, sniHostName,
                                            XSTRLEN(sniHostName)) != SSL_SUCCESS)
             err_sys("UseSNI failed");
-        else
-            CyaSSL_CTX_SNI_SetOptions(ctx, CYASSL_SNI_HOST_NAME,
-                                                  CYASSL_SNI_ABORT_ON_MISMATCH);
-    }
 #endif
 
     ssl = SSL_new(ctx);
     if (ssl == NULL)
         err_sys("unable to get SSL");
-    CyaSSL_set_quiet_shutdown(ssl, 1) ;
+
 #ifdef HAVE_CRL
     CyaSSL_EnableCRL(ssl, 0);
     CyaSSL_LoadCRL(ssl, crlPemDir, SSL_FILETYPE_PEM, CYASSL_CRL_MONITOR |
                                                      CYASSL_CRL_START_MON);
     CyaSSL_SetCRL_Cb(ssl, CRL_CallBack);
 #endif
-        osDelay(5000) ;
+#ifdef HAVE_OCSP
+    if (useOcsp) {
+        if (ocspUrl != NULL) {
+            CyaSSL_CTX_SetOCSP_OverrideURL(ctx, ocspUrl);
+            CyaSSL_CTX_EnableOCSP(ctx, CYASSL_OCSP_NO_NONCE
+                                                    | CYASSL_OCSP_URL_OVERRIDE);
+        }
+        else
+            CyaSSL_CTX_EnableOCSP(ctx, CYASSL_OCSP_NO_NONCE);
+    }
+#endif
+#ifdef HAVE_PK_CALLBACKS
+    if (pkCallbacks)
+        SetupPkCallbacks(ctx, ssl);
+#endif
+
     tcp_accept(&sockfd, &clientfd, (func_args*)args, port, useAnyAddr, doDTLS);
     if (!doDTLS) 
         CloseSocket(sockfd);
@@ -449,7 +487,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
             SetDH(ssl);  /* repick suites with DHE, higher priority than PSK */
         #endif
     }
-        osDelay(5000) ;
+
 #ifndef CYASSL_CALLBACKS
     if (nonBlocking) {
         CyaSSL_set_using_nonblock(ssl, 1);
@@ -457,7 +495,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
         NonBlockingSSL_Accept(ssl);
     } else if (SSL_accept(ssl) != SSL_SUCCESS) {
         int err = SSL_get_error(ssl, 0);
-        char buffer[80];
+        char buffer[CYASSL_MAX_ERROR_SZ];
         printf("error = %d, %s\n", err, ERR_error_string(err, buffer));
         err_sys("SSL_accept failed");
     }
@@ -465,7 +503,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     NonBlockingSSL_Accept(ssl);
 #endif
     showPeer(ssl);
-        osDelay(5000) ;
+
     idx = SSL_read(ssl, input, sizeof(input)-1);
     if (idx > 0) {
         input[idx] = 0;
@@ -481,6 +519,10 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     if (SSL_write(ssl, msg, sizeof(msg)) != sizeof(msg))
         err_sys("SSL_write failed");
         
+    #if defined(CYASSL_MDK_SHELL) && defined(HAVE_MDK_RTX)
+        os_dly_wait(500) ;
+    #endif
+
     SSL_shutdown(ssl);
     SSL_free(ssl);
     SSL_CTX_free(ctx);
@@ -519,8 +561,10 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 #if defined(DEBUG_CYASSL) && !defined(CYASSL_MDK_SHELL)
         CyaSSL_Debugging_ON();
 #endif
-        if (CurrentDir("server") || CurrentDir("build"))
+        if (CurrentDir("server"))
             ChangeDirBack(2);
+        else if (CurrentDir("Debug") || CurrentDir("Release"))
+            ChangeDirBack(3);
    
 #ifdef HAVE_STACK_SIZE
         StackSizeCheck(&args, server_test);

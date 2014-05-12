@@ -86,7 +86,6 @@ char* myoptarg = NULL;
 int main() 
 {
     void *args = NULL ;
-    init_time() ;
     init_filesystem ();
     net_initialize() ;
     osThreadCreate (osThread (tcp_poll), NULL); 

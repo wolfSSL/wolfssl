@@ -22,7 +22,7 @@
 #ifdef HAVE_CONFIG_H
         #include <config.h>
 #endif
- #define CYASSL_MDK_ARM
+
 #if defined(CYASSL_MDK_ARM)
         #include <stdio.h>
         #include <string.h>
@@ -46,11 +46,11 @@
 #endif
 
 #include <cyassl/ssl.h>
+
 #include <cyassl/test.h>
 
 #include "examples/client/client.h"
 
-#define USE_CYASSL_MEMORY
 
 #ifdef CYASSL_CALLBACKS
     int handShakeCB(HandShakeInfo*);
@@ -139,17 +139,26 @@ static void Usage(void)
 #ifdef SHOW_SIZES
     printf("-z          Print structure sizes\n");
 #endif
+#ifdef HAVE_SNI
     printf("-S <str>    Use Host Name Indication\n");
+#endif
+#ifdef HAVE_MAX_FRAGMENT
+    printf("-L <num>    Use Maximum Fragment Length [1-5]\n");
+#endif
+#ifdef HAVE_TRUNCATED_HMAC
+    printf("-T          Use Truncated HMAC\n");
+#endif
+#ifdef HAVE_OCSP
+    printf("-o          Perform OCSP lookup on peer certificate\n");
+    printf("-O <url>    Perform OCSP lookup using <url> as responder\n");
+#endif
+#ifdef ATOMIC_USER
+    printf("-U          Atomic User Record Layer Callbacks\n");
+#endif
+#ifdef HAVE_PK_CALLBACKS 
+    printf("-P          Public Key Callbacks\n");
+#endif
 }
-
-#ifdef CYASSL_MDK_SHELL
-#define exit(code) return(code)
-#endif
-
-#ifdef CYASSL_MDK_SHELL
-    #define exit(code) return(code)
-#endif
-
 
 THREAD_RETURN CYASSL_THREAD client_test(void* args)
 {
@@ -169,7 +178,7 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
     int  input;
     int  msgSz = (int)strlen(msg);
 
-    int   port   = yasslPort;
+    word16 port   = yasslPort;
     char* host   = (char*)yasslIP;
     char* domain = (char*)"www.yassl.com";
 
@@ -186,6 +195,8 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
     int    trackMemory   = 0;
     int    useClientCert = 1;
     int    fewerPackets  = 0;
+    int    atomicUser    = 0;
+    int    pkCallbacks   = 0;
     char*  cipherList = NULL;
     char*  verifyCert = (char*)caCert;
     char*  ourCert    = (char*)cliCert;
@@ -193,6 +204,18 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
 
 #ifdef HAVE_SNI
     char*  sniHostName = NULL;
+#endif
+#ifdef HAVE_MAX_FRAGMENT
+    byte maxFragment = 0;
+#endif
+#ifdef HAVE_TRUNCATED_HMAC
+    byte  truncatedHMAC = 0;
+#endif
+
+
+#ifdef HAVE_OCSP
+    int    useOcsp  = 0;
+    char*  ocspUrl  = NULL;
 #endif
 
     int     argc = ((func_args*)args)->argc;
@@ -209,8 +232,13 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
     (void)session;
     (void)sslResume;
     (void)trackMemory;
+    (void)atomicUser;
+    (void)pkCallbacks;
 
-    while ((ch = mygetopt(argc, argv, "?gdusmNrtfxh:p:v:l:A:c:k:b:zS:")) != -1){
+    StackTrap();
+
+    while ((ch = mygetopt(argc, argv,
+                          "?gdusmNrtfxUPh:p:v:l:A:c:k:b:zS:L:ToO:")) != -1) {
         switch (ch) {
             case '?' :
                 Usage();
@@ -250,13 +278,25 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
                 fewerPackets = 1;
                 break;
 
+            case 'U' :
+            #ifdef ATOMIC_USER
+                atomicUser = 1;
+            #endif
+                break;
+
+            case 'P' :
+            #ifdef HAVE_PK_CALLBACKS 
+                pkCallbacks = 1;
+            #endif
+                break;
+
             case 'h' :
                 host   = myoptarg;
                 domain = myoptarg;
                 break;
 
             case 'p' :
-                port = atoi(myoptarg);
+                port = (word16)atoi(myoptarg);
                 #if !defined(NO_MAIN_DRIVER) || defined(USE_WINDOWS_API)
                     if (port == 0)
                         err_sys("port number cannot be 0");
@@ -312,6 +352,36 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
             case 'S' :
                 #ifdef HAVE_SNI
                     sniHostName = myoptarg;
+                #endif
+                break;
+
+            case 'L' :
+                #ifdef HAVE_MAX_FRAGMENT
+                    maxFragment = atoi(myoptarg);
+                    if (maxFragment < CYASSL_MFL_2_9 ||
+                                                maxFragment > CYASSL_MFL_2_13) {
+                        Usage();
+                        exit(MY_EX_USAGE);
+                    }
+                #endif
+                break;
+
+            case 'T' :
+                #ifdef HAVE_TRUNCATED_HMAC
+                    truncatedHMAC = 1;
+                #endif
+                break;
+
+            case 'o' :
+                #ifdef HAVE_OCSP
+                    useOcsp = 1;
+                #endif
+                break;
+
+            case 'O' :
+                #ifdef HAVE_OCSP
+                    useOcsp = 1;
+                    ocspUrl = myoptarg;
                 #endif
                 break;
 
@@ -390,7 +460,7 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
     ctx = CyaSSL_CTX_new(method);
     if (ctx == NULL)
         err_sys("unable to get ctx");
-		
+
     if (cipherList)
         if (CyaSSL_CTX_set_cipher_list(ctx, cipherList) != SSL_SUCCESS)
             err_sys("client can't set cipher list 1");
@@ -423,7 +493,7 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
         useClientCert = 0;
     }
 
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
     CyaSSL_CTX_set_default_passwd_cb(ctx, PasswordCallBack);
 #endif
 
@@ -433,6 +503,18 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
         if (CyaSSL_CTX_set_cipher_list(ctx, "AES256-SHA256") != SSL_SUCCESS) {
             err_sys("client can't set cipher list 3");
         }
+    }
+#endif
+
+#ifdef HAVE_OCSP
+    if (useOcsp) {
+        if (ocspUrl != NULL) {
+            CyaSSL_CTX_SetOCSP_OverrideURL(ctx, ocspUrl);
+            CyaSSL_CTX_EnableOCSP(ctx, CYASSL_OCSP_NO_NONCE
+                                                    | CYASSL_OCSP_URL_OVERRIDE);
+        }
+        else
+            CyaSSL_CTX_EnableOCSP(ctx, CYASSL_OCSP_NO_NONCE);
     }
 #endif
 
@@ -475,6 +557,16 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
                                                                  != SSL_SUCCESS)
             err_sys("UseSNI failed");
 #endif
+#ifdef HAVE_MAX_FRAGMENT
+    if (maxFragment)
+        if (CyaSSL_CTX_UseMaxFragment(ctx, maxFragment) != SSL_SUCCESS)
+            err_sys("UseMaxFragment failed");
+#endif
+#ifdef HAVE_TRUNCATED_HMAC
+    if (truncatedHMAC)
+        if (CyaSSL_CTX_UseTruncatedHMAC(ctx) != SSL_SUCCESS)
+            err_sys("UseTruncatedHMAC failed");
+#endif
 
     if (benchmark) {
         /* time passed in number of connects give average */
@@ -513,9 +605,6 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
     ssl = CyaSSL_new(ctx);
     if (ssl == NULL)
         err_sys("unable to get SSL object");
-
-    CyaSSL_set_quiet_shutdown(ssl, 1) ;
-
     if (doDTLS) {
         SOCKADDR_IN_T addr;
         build_addr(&addr, host, port, 1);
@@ -534,6 +623,14 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
     if (CyaSSL_SetCRL_Cb(ssl, CRL_CallBack) != SSL_SUCCESS)
         err_sys("can't set crl callback");
 #endif
+#ifdef ATOMIC_USER
+    if (atomicUser)
+        SetupAtomicUser(ctx, ssl);
+#endif
+#ifdef HAVE_PK_CALLBACKS
+    if (pkCallbacks)
+        SetupPkCallbacks(ctx, ssl);
+#endif
     if (matchName && doPeerCheck)
         CyaSSL_check_domain_name(ssl, domain);
 #ifndef CYASSL_CALLBACKS
@@ -545,7 +642,7 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
     else if (CyaSSL_connect(ssl) != SSL_SUCCESS) {
         /* see note at top of README */
         int  err = CyaSSL_get_error(ssl, 0);
-        char buffer[80];
+        char buffer[CYASSL_MAX_ERROR_SZ];
         printf("err = %d, %s\n", err,
                                 CyaSSL_ERR_error_string(err, buffer));
         err_sys("SSL_connect failed");
@@ -570,32 +667,25 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
     input = CyaSSL_read(ssl, reply, sizeof(reply)-1);
     if (input > 0) {
         reply[input] = 0;
-        printf("Server response: %s", reply);
+        printf("Server response: %s\n", reply);
 
-        if (sendGET && (input == (sizeof(reply)-1))) {  /* get html */
+        if (sendGET) {  /* get html */
             while (1) {
                 input = CyaSSL_read(ssl, reply, sizeof(reply)-1);
                 if (input > 0) {
                     reply[input] = 0;
-                    printf("%s", reply);
-                    if(input < sizeof(reply)-1)
-                        break ;
+                    printf("%s\n", reply);
                 }
                 else
                     break;
             }
         }
-        printf("\n");
     }
     else if (input < 0) {
         int readErr = CyaSSL_get_error(ssl, 0);
         if (readErr != SSL_ERROR_WANT_READ)
             err_sys("CyaSSL_read failed");
     }
-    
-#ifdef CYASSL_CMSIS_RTOS
-    osDelay(5000) ;
-#endif
 
 #ifndef NO_SESSION_CACHE
     if (resumeSession) {
@@ -612,6 +702,10 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
 
     if (doDTLS == 0)            /* don't send alert after "break" command */
         CyaSSL_shutdown(ssl);  /* echoserver will interpret as new conn */
+#ifdef ATOMIC_USER
+    if (atomicUser)
+        FreeAtomicUser(ssl);
+#endif
     CyaSSL_free(ssl);
     CloseSocket(sockfd);
 
@@ -713,11 +807,13 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
         args.argv = argv;
 
         CyaSSL_Init();
-#if defined(DEBUG_CYASSL) && !defined(CYASSL_MDK_SHELL)
+#if defined(DEBUG_CYASSL) && !defined(CYASSL_MDK_SHELL) && !defined(STACK_TRAP)
         CyaSSL_Debugging_ON();
 #endif
-        if (CurrentDir("client") || CurrentDir("build"))
+        if (CurrentDir("client"))
             ChangeDirBack(2);
+        else if (CurrentDir("Debug") || CurrentDir("Release"))
+            ChangeDirBack(3);
   
 #ifdef HAVE_STACK_SIZE
         StackSizeCheck(&args, client_test);
