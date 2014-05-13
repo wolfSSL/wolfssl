@@ -804,6 +804,11 @@ int AesSetKey(Aes* aes, const byte* userKey, word32 keylen, const byte* iv,
         iv      = (byte*)aes->reg;
         enc_key = (byte*)aes->key;
 
+        if ((word)out % CYASSL_MMCAU_ALIGNMENT) {
+            CYASSL_MSG("Bad cau_aes_encrypt alignment"); 
+            return BAD_ALIGN_E;
+        }
+
         while (len > 0)
         {
             XMEMCPY(temp_block, in + offset, AES_BLOCK_SIZE);
@@ -835,6 +840,11 @@ int AesSetKey(Aes* aes, const byte* userKey, word32 keylen, const byte* iv,
 
         iv      = (byte*)aes->reg;
         dec_key = (byte*)aes->key;
+
+        if ((word)out % CYASSL_MMCAU_ALIGNMENT) {
+            CYASSL_MSG("Bad cau_aes_decrypt alignment"); 
+            return BAD_ALIGN_E;
+        }
 
         while (len > 0)
         {
