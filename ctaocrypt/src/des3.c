@@ -169,19 +169,22 @@
         CRYP_Cmd(DISABLE);
     }
 
-    void Des_CbcEncrypt(Des* des, byte* out, const byte* in, word32 sz)
+    int Des_CbcEncrypt(Des* des, byte* out, const byte* in, word32 sz)
     {
         DesCrypt(des, out, in, sz, DES_ENCRYPTION, DES_CBC);
+        return 0;
     }
 
-    void Des_CbcDecrypt(Des* des, byte* out, const byte* in, word32 sz)
+    int Des_CbcDecrypt(Des* des, byte* out, const byte* in, word32 sz)
     {
         DesCrypt(des, out, in, sz, DES_DECRYPTION, DES_CBC);
+        return 0;
     }
 
-    void Des_EcbEncrypt(Des* des, byte* out, const byte* in, word32 sz)
+    int Des_EcbEncrypt(Des* des, byte* out, const byte* in, word32 sz)
     {
         DesCrypt(des, out, in, sz, DES_ENCRYPTION, DES_ECB);
+        return 0;
     }
 
     void Des3Crypt(Des3* des, byte* out, const byte* in, word32 sz,
@@ -389,14 +392,16 @@ static void Des_Cbc(byte* out, const byte* in, word32 sz,
 }
 
 
-void Des_CbcEncrypt(Des* des, byte* out, const byte* in, word32 sz)
+int Des_CbcEncrypt(Des* des, byte* out, const byte* in, word32 sz)
 {
     Des_Cbc(out, in, sz,  (byte *)des->key,  (byte *)des->reg, SEC_DESC_DES_CBC_ENCRYPT) ;
+    return 0;
 }
 
-void Des_CbcDecrypt(Des* des, byte* out, const byte* in, word32 sz)
+int Des_CbcDecrypt(Des* des, byte* out, const byte* in, word32 sz)
 {
     Des_Cbc(out, in, sz,   (byte *)des->key,  (byte *)des->reg, SEC_DESC_DES_CBC_DECRYPT) ;
+    return 0;
 }
 
 int Des3_CbcEncrypt(Des3* des3, byte* out, const byte* in, word32 sz)
@@ -556,7 +561,7 @@ int Des3_SetKey(Des3* des3, const byte* key, const byte* iv, int dir)
         return ret;
     }
 
-    void Des_CbcEncrypt(Des* des, byte* out, const byte* in, word32 sz)
+    int Des_CbcEncrypt(Des* des, byte* out, const byte* in, word32 sz)
     {
         int i;
         int offset = 0;
@@ -588,10 +593,10 @@ int Des3_SetKey(Des3* des3, const byte* key, const byte* iv, int dir)
             XMEMCPY(iv, out + offset - DES_BLOCK_SIZE, DES_BLOCK_SIZE);
         }
 
-        return;
+        return 0;
     }
 
-    void Des_CbcDecrypt(Des* des, byte* out, const byte* in, word32 sz)
+    int Des_CbcDecrypt(Des* des, byte* out, const byte* in, word32 sz)
     {
         int i;
         int offset = 0;
@@ -623,7 +628,7 @@ int Des3_SetKey(Des3* des3, const byte* key, const byte* iv, int dir)
             offset += DES_BLOCK_SIZE;
         }
 
-        return;
+        return 0;
     }
 
     int Des3_CbcEncrypt(Des3* des, byte* out, const byte* in, word32 sz)
@@ -813,16 +818,18 @@ int  Des3_SetIV(Des3* des, const byte* iv);
         ByteReverseWords((word32*)out, (word32 *)KVA0_TO_KVA1(out), sz);
     }
 
-    void Des_CbcEncrypt(Des* des, byte* out, const byte* in, word32 sz)
+    int Des_CbcEncrypt(Des* des, byte* out, const byte* in, word32 sz)
     {
         DesCrypt(des->key, des->reg, out, in, sz, 
                 PIC32_ENCRYPTION, PIC32_ALGO_DES, PIC32_CRYPTOALGO_CBC );
+        return 0;
     }
 
-    void Des_CbcDecrypt(Des* des, byte* out, const byte* in, word32 sz)
+    int Des_CbcDecrypt(Des* des, byte* out, const byte* in, word32 sz)
     {
         DesCrypt(des->key, des->reg, out, in, sz, 
                 PIC32_DECRYPTION, PIC32_ALGO_DES, PIC32_CRYPTOALGO_CBC);
+        return 0;
     }
 
     int Des3_CbcEncrypt(Des3* des, byte* out, const byte* in, word32 sz)
@@ -1270,7 +1277,7 @@ static void Des3ProcessBlock(Des3* des, const byte* in, byte* out)
 }
 
 
-void Des_CbcEncrypt(Des* des, byte* out, const byte* in, word32 sz)
+int Des_CbcEncrypt(Des* des, byte* out, const byte* in, word32 sz)
 {
     word32 blocks = sz / DES_BLOCK_SIZE;
 
@@ -1282,10 +1289,11 @@ void Des_CbcEncrypt(Des* des, byte* out, const byte* in, word32 sz)
         out += DES_BLOCK_SIZE;
         in  += DES_BLOCK_SIZE; 
     }
+    return 0;
 }
 
 
-void Des_CbcDecrypt(Des* des, byte* out, const byte* in, word32 sz)
+int Des_CbcDecrypt(Des* des, byte* out, const byte* in, word32 sz)
 {
     word32 blocks = sz / DES_BLOCK_SIZE;
     byte   hold[DES_BLOCK_SIZE];
@@ -1302,6 +1310,7 @@ void Des_CbcDecrypt(Des* des, byte* out, const byte* in, word32 sz)
         out += DES_BLOCK_SIZE;
         in  += DES_BLOCK_SIZE; 
     }
+    return 0;
 }
 
 
@@ -1352,7 +1361,7 @@ int Des3_CbcDecrypt(Des3* des, byte* out, const byte* in, word32 sz)
 #ifdef CYASSL_DES_ECB
 
 /* One block, compatibility only */
-void Des_EcbEncrypt(Des* des, byte* out, const byte* in, word32 sz)
+int Des_EcbEncrypt(Des* des, byte* out, const byte* in, word32 sz)
 {
     word32 blocks = sz / DES_BLOCK_SIZE;
 
@@ -1362,6 +1371,7 @@ void Des_EcbEncrypt(Des* des, byte* out, const byte* in, word32 sz)
         out += DES_BLOCK_SIZE;
         in  += DES_BLOCK_SIZE; 
     }
+    return 0;
 }
 
 #endif /* CYASSL_DES_ECB */
