@@ -566,6 +566,11 @@ int Des3_SetKey(Des3* des3, const byte* key, const byte* iv, int dir)
 
         iv = (byte*)des->reg;
 
+        if ((word)out % CYASSL_MMCAU_ALIGNMENT) {
+            CYASSL_MSG("Bad cau_des_encrypt alignment"); 
+            return BAD_ALIGN_E;
+        }
+
         while (len > 0)
         {
             XMEMCPY(temp_block, in + offset, DES_BLOCK_SIZE);
@@ -595,6 +600,11 @@ int Des3_SetKey(Des3* des3, const byte* key, const byte* iv, int dir)
         byte temp_block[DES_BLOCK_SIZE];
 
         iv = (byte*)des->reg;
+
+        if ((word)out % CYASSL_MMCAU_ALIGNMENT) {
+            CYASSL_MSG("Bad cau_des_decrypt alignment"); 
+            return BAD_ALIGN_E;
+        }
 
         while (len > 0)
         {
@@ -626,6 +636,11 @@ int Des3_SetKey(Des3* des3, const byte* key, const byte* iv, int dir)
         byte temp_block[DES_BLOCK_SIZE];
 
         iv = (byte*)des->reg;
+
+        if ((word)out % CYASSL_MMCAU_ALIGNMENT) {
+            CYASSL_MSG("Bad 3ede cau_des_encrypt alignment"); 
+            return BAD_ALIGN_E;
+        }
 
         while (len > 0)
         {
@@ -659,6 +674,11 @@ int Des3_SetKey(Des3* des3, const byte* key, const byte* iv, int dir)
         byte temp_block[DES_BLOCK_SIZE];
 
         iv = (byte*)des->reg;
+
+        if ((word)out % CYASSL_MMCAU_ALIGNMENT) {
+            CYASSL_MSG("Bad 3ede cau_des_decrypt alignment"); 
+            return BAD_ALIGN_E;
+        }
 
         while (len > 0)
         {
