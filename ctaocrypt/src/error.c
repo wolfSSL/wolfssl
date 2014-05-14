@@ -274,6 +274,9 @@ const char* CTaoCryptGetErrorString(int error)
     case ASN_NAME_INVALID_E:
         return "Name Constraint error";
 
+    case RNG_FAILURE_E:
+        return "Random Number Generator failed";
+
     default:
         return "unknown error number";
 
