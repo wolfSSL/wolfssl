@@ -32,7 +32,7 @@
     #pragma warning(disable: 4996)
 #endif
 
-const char *CTaoCryptGetErrorString(int error)
+const char* CTaoCryptGetErrorString(int error)
 {
 #ifdef NO_ERROR_STRINGS
 
@@ -191,8 +191,7 @@ const char *CTaoCryptGetErrorString(int error)
         return "ASN NTRU key decode error, invalid input";
 
     case ASN_CRIT_EXT_E:
-        XSTRNCPY(buffer, "X.509 Critical extension ignored", max);
-        break;
+        return "X.509 Critical extension ignored";
 
     case ECC_BAD_ARG_E :
         return "ECC input argument wrong type, invalid input";
@@ -261,24 +260,19 @@ const char *CTaoCryptGetErrorString(int error)
         return "Bad padding, message wrong length";
 
     case REQ_ATTRIBUTE_E:
-        XSTRNCPY(buffer, "Setting cert request attributes error", max);
-        break;
+        return "Setting cert request attributes error";
 
     case PKCS7_OID_E:
-        XSTRNCPY(buffer, "PKCS#7 error: mismatched OID value", max);
-        break;
+        return "PKCS#7 error: mismatched OID value";
 
     case PKCS7_RECIP_E:
-        XSTRNCPY(buffer, "PKCS#7 error: no matching recipient found", max);
-        break;
+        return "PKCS#7 error: no matching recipient found";
 
     case FIPS_NOT_ALLOWED_E:
-        XSTRNCPY(buffer, "FIPS mode not allowed error", max);
-        break;
+        return "FIPS mode not allowed error";
 
     case ASN_NAME_INVALID_E:
-        XSTRNCPY(buffer, "Name Constraint error", max);
-        break;
+        return "Name Constraint error";
 
     default:
         return "unknown error number";

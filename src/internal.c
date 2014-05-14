@@ -6206,7 +6206,7 @@ const char* CyaSSL_ERR_reason_error_string(unsigned long e)
 
 #else
 
-    int error = (long) e;
+    int error = (int)e;
 
     /* pass to CTaoCrypt */
     if (error < MAX_CODE_E && error > MIN_CODE_E) {
@@ -6465,16 +6465,13 @@ const char* CyaSSL_ERR_reason_error_string(unsigned long e)
         return "Unrecognized host name Error";
 
     case KEYUSE_SIGNATURE_E:
-        XSTRNCPY(str, "Key Use digitalSignature not set Error", max);
-        break;
+        return "Key Use digitalSignature not set Error";
 
     case KEYUSE_ENCIPHER_E:
-        XSTRNCPY(str, "Key Use keyEncipherment not set Error", max);
-        break;
+        return "Key Use keyEncipherment not set Error";
 
     case EXTKEYUSE_AUTH_E:
-        XSTRNCPY(str, "Ext Key Use server/client auth not set Error", max);
-        break;
+        return "Ext Key Use server/client auth not set Error";
 
     default :
         return "unknown error number";
