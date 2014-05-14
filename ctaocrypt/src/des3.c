@@ -34,6 +34,7 @@
 
 #include <cyassl/ctaocrypt/des3.h>
 #include <cyassl/ctaocrypt/error-crypt.h>
+#include <cyassl/ctaocrypt/logging.h>
 
 #ifdef NO_INLINE
     #include <cyassl/ctaocrypt/misc.h>
@@ -1400,7 +1401,6 @@ int Des3_SetIV(Des3* des, const byte* iv)
 
 #ifdef HAVE_CAVIUM
 
-#include <cyassl/ctaocrypt/logging.h>
 #include "cavium_common.h"
 
 /* Initiliaze Des3 for use with Nitrox device */
