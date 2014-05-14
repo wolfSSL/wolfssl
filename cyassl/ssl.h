@@ -312,6 +312,7 @@ CYASSL_API int   CyaSSL_ERR_GET_REASON(int err);
 CYASSL_API char* CyaSSL_ERR_error_string(unsigned long,char*);
 CYASSL_API void  CyaSSL_ERR_error_string_n(unsigned long e, char* buf,
                                            unsigned long sz);
+CYASSL_API const char* CyaSSL_ERR_reason_error_string(unsigned long);
 
 /* extras */
 

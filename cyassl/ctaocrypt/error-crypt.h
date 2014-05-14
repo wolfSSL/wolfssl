@@ -130,6 +130,7 @@ enum {
 
 
 CYASSL_API void CTaoCryptErrorString(int err, char* buff);
+CYASSL_API const char* CTaoCryptGetErrorString(int error);
 
 
 #ifdef __cplusplus
