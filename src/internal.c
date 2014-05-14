@@ -6197,357 +6197,272 @@ int SendAlert(CYASSL* ssl, int severity, int type)
     return SendBuffered(ssl);
 }
 
-
-
-void SetErrorString(int error, char* str)
+const char* CyaSSL_ERR_reason_error_string(unsigned long e)
 {
-    const int max = CYASSL_MAX_ERROR_SZ;  /* shorthand */
-
 #ifdef NO_ERROR_STRINGS
 
-    (void)error;
-    XSTRNCPY(str, "no support for error strings built in", max);
+    (void)e;
+    return "no support for error strings built in";
 
 #else
 
+    int error = (long) e;
+
     /* pass to CTaoCrypt */
     if (error < MAX_CODE_E && error > MIN_CODE_E) {
-        CTaoCryptErrorString(error, str);
-        return;
+        return CTaoCryptGetErrorString(error);
     }
 
     switch (error) {
 
     case UNSUPPORTED_SUITE :
-        XSTRNCPY(str, "unsupported cipher suite", max);
-        break;
+        return "unsupported cipher suite";
 
     case INPUT_CASE_ERROR :
-        XSTRNCPY(str, "input state error", max);
-        break;
+        return "input state error";
 
     case PREFIX_ERROR :
-        XSTRNCPY(str, "bad index to key rounds", max);
-        break;
+        return "bad index to key rounds";
 
     case MEMORY_ERROR :
-        XSTRNCPY(str, "out of memory", max);
-        break;
+        return "out of memory";
 
     case VERIFY_FINISHED_ERROR :
-        XSTRNCPY(str, "verify problem on finished", max);
-        break;
+        return "verify problem on finished";
 
     case VERIFY_MAC_ERROR :
-        XSTRNCPY(str, "verify mac problem", max);
-        break;
+        return "verify mac problem";
 
     case PARSE_ERROR :
-        XSTRNCPY(str, "parse error on header", max);
-        break;
+        return "parse error on header";
 
     case SIDE_ERROR :
-        XSTRNCPY(str, "wrong client/server type", max);
-        break;
+        return "wrong client/server type";
 
     case NO_PEER_CERT :
-        XSTRNCPY(str, "peer didn't send cert", max);
-        break;
+        return "peer didn't send cert";
 
     case UNKNOWN_HANDSHAKE_TYPE :
-        XSTRNCPY(str, "weird handshake type", max);
-        break;
+        return "weird handshake type";
 
     case SOCKET_ERROR_E :
-        XSTRNCPY(str, "error state on socket", max);
-        break;
+        return "error state on socket";
 
     case SOCKET_NODATA :
-        XSTRNCPY(str, "expected data, not there", max);
-        break;
+        return "expected data, not there";
 
     case INCOMPLETE_DATA :
-        XSTRNCPY(str, "don't have enough data to complete task", max);
-        break;
+        return "don't have enough data to complete task";
 
     case UNKNOWN_RECORD_TYPE :
-        XSTRNCPY(str, "unknown type in record hdr", max);
-        break;
+        return "unknown type in record hdr";
 
     case DECRYPT_ERROR :
-        XSTRNCPY(str, "error during decryption", max);
-        break;
+        return "error during decryption";
 
     case FATAL_ERROR :
-        XSTRNCPY(str, "revcd alert fatal error", max);
-        break;
+        return "revcd alert fatal error";
 
     case ENCRYPT_ERROR :
-        XSTRNCPY(str, "error during encryption", max);
-        break;
+        return "error during encryption";
 
     case FREAD_ERROR :
-        XSTRNCPY(str, "fread problem", max);
-        break;
+        return "fread problem";
 
     case NO_PEER_KEY :
-        XSTRNCPY(str, "need peer's key", max);
-        break;
+        return "need peer's key";
 
     case NO_PRIVATE_KEY :
-        XSTRNCPY(str, "need the private key", max);
-        break;
+        return "need the private key";
 
     case NO_DH_PARAMS :
-        XSTRNCPY(str, "server missing DH params", max);
-        break;
+        return "server missing DH params";
 
     case RSA_PRIVATE_ERROR :
-        XSTRNCPY(str, "error during rsa priv op", max);
-        break;
+        return "error during rsa priv op";
 
     case MATCH_SUITE_ERROR :
-        XSTRNCPY(str, "can't match cipher suite", max);
-        break;
+        return "can't match cipher suite";
 
     case BUILD_MSG_ERROR :
-        XSTRNCPY(str, "build message failure", max);
-        break;
+        return "build message failure";
 
     case BAD_HELLO :
-        XSTRNCPY(str, "client hello malformed", max);
-        break;
+        return "client hello malformed";
 
     case DOMAIN_NAME_MISMATCH :
-        XSTRNCPY(str, "peer subject name mismatch", max);
-        break;
+        return "peer subject name mismatch";
 
     case WANT_READ :
     case SSL_ERROR_WANT_READ :
-        XSTRNCPY(str, "non-blocking socket wants data to be read", max);
-        break;
+        return "non-blocking socket wants data to be read";
 
     case NOT_READY_ERROR :
-        XSTRNCPY(str, "handshake layer not ready yet, complete first", max);
-        break;
+        return "handshake layer not ready yet, complete first";
 
     case PMS_VERSION_ERROR :
-        XSTRNCPY(str, "premaster secret version mismatch error", max);
-        break;
+        return "premaster secret version mismatch error";
 
     case VERSION_ERROR :
-        XSTRNCPY(str, "record layer version error", max);
-        break;
+        return "record layer version error";
 
     case WANT_WRITE :
     case SSL_ERROR_WANT_WRITE :
-        XSTRNCPY(str, "non-blocking socket write buffer full", max);
-        break;
+        return "non-blocking socket write buffer full";
 
     case BUFFER_ERROR :
-        XSTRNCPY(str, "malformed buffer input error", max);
-        break;
+        return "malformed buffer input error";
 
     case VERIFY_CERT_ERROR :
-        XSTRNCPY(str, "verify problem on certificate", max);
-        break;
+        return "verify problem on certificate";
 
     case VERIFY_SIGN_ERROR :
-        XSTRNCPY(str, "verify problem based on signature", max);
-        break;
+        return "verify problem based on signature";
 
     case CLIENT_ID_ERROR :
-        XSTRNCPY(str, "psk client identity error", max);
-        break;
+        return "psk client identity error";
 
     case SERVER_HINT_ERROR:
-        XSTRNCPY(str, "psk server hint error", max);
-        break;
+        return "psk server hint error";
 
     case PSK_KEY_ERROR:
-        XSTRNCPY(str, "psk key callback error", max);
-        break;
+        return "psk key callback error";
 
     case NTRU_KEY_ERROR:
-        XSTRNCPY(str, "NTRU key error", max);
-        break;
+        return "NTRU key error";
 
     case NTRU_DRBG_ERROR:
-        XSTRNCPY(str, "NTRU drbg error", max);
-        break;
+        return "NTRU drbg error";
 
     case NTRU_ENCRYPT_ERROR:
-        XSTRNCPY(str, "NTRU encrypt error", max);
-        break;
+        return "NTRU encrypt error";
 
     case NTRU_DECRYPT_ERROR:
-        XSTRNCPY(str, "NTRU decrypt error", max);
-        break;
+        return "NTRU decrypt error";
 
     case ZLIB_INIT_ERROR:
-        XSTRNCPY(str, "zlib init error", max);
-        break;
+        return "zlib init error";
 
     case ZLIB_COMPRESS_ERROR:
-        XSTRNCPY(str, "zlib compress error", max);
-        break;
+        return "zlib compress error";
 
     case ZLIB_DECOMPRESS_ERROR:
-        XSTRNCPY(str, "zlib decompress error", max);
-        break;
+        return "zlib decompress error";
 
     case GETTIME_ERROR:
-        XSTRNCPY(str, "gettimeofday() error", max);
-        break;
+        return "gettimeofday() error";
 
     case GETITIMER_ERROR:
-        XSTRNCPY(str, "getitimer() error", max);
-        break;
+        return "getitimer() error";
 
     case SIGACT_ERROR:
-        XSTRNCPY(str, "sigaction() error", max);
-        break;
+        return "sigaction() error";
 
     case SETITIMER_ERROR:
-        XSTRNCPY(str, "setitimer() error", max);
-        break;
+        return "setitimer() error";
 
     case LENGTH_ERROR:
-        XSTRNCPY(str, "record layer length error", max);
-        break;
+        return "record layer length error";
 
     case PEER_KEY_ERROR:
-        XSTRNCPY(str, "cant decode peer key", max);
-        break;
+        return "cant decode peer key";
 
     case ZERO_RETURN:
     case SSL_ERROR_ZERO_RETURN:
-        XSTRNCPY(str, "peer sent close notify alert", max);
-        break;
+        return "peer sent close notify alert";
 
     case ECC_CURVETYPE_ERROR:
-        XSTRNCPY(str, "Bad ECC Curve Type or unsupported", max);
-        break;
+        return "Bad ECC Curve Type or unsupported";
 
     case ECC_CURVE_ERROR:
-        XSTRNCPY(str, "Bad ECC Curve or unsupported", max);
-        break;
+        return "Bad ECC Curve or unsupported";
 
     case ECC_PEERKEY_ERROR:
-        XSTRNCPY(str, "Bad ECC Peer Key", max);
-        break;
+        return "Bad ECC Peer Key";
 
     case ECC_MAKEKEY_ERROR:
-        XSTRNCPY(str, "ECC Make Key failure", max);
-        break;
+        return "ECC Make Key failure";
 
     case ECC_EXPORT_ERROR:
-        XSTRNCPY(str, "ECC Export Key failure", max);
-        break;
+        return "ECC Export Key failure";
 
     case ECC_SHARED_ERROR:
-        XSTRNCPY(str, "ECC DHE shared failure", max);
-        break;
+        return "ECC DHE shared failure";
 
     case NOT_CA_ERROR:
-        XSTRNCPY(str, "Not a CA by basic constraint error", max);
-        break;
+        return "Not a CA by basic constraint error";
 
     case BAD_PATH_ERROR:
-        XSTRNCPY(str, "Bad path for opendir error", max);
-        break;
+        return "Bad path for opendir error";
 
     case BAD_CERT_MANAGER_ERROR:
-        XSTRNCPY(str, "Bad Cert Manager error", max);
-        break;
+        return "Bad Cert Manager error";
 
     case OCSP_CERT_REVOKED:
-        XSTRNCPY(str, "OCSP Cert revoked", max);
-        break;
+        return "OCSP Cert revoked";
 
     case CRL_CERT_REVOKED:
-        XSTRNCPY(str, "CRL Cert revoked", max);
-        break;
+        return "CRL Cert revoked";
 
     case CRL_MISSING:
-        XSTRNCPY(str, "CRL missing, not loaded", max);
-        break;
+        return "CRL missing, not loaded";
 
     case MONITOR_RUNNING_E:
-        XSTRNCPY(str, "CRL monitor already running", max);
-        break;
+        return "CRL monitor already running";
 
     case THREAD_CREATE_E:
-        XSTRNCPY(str, "Thread creation problem", max);
-        break;
+        return "Thread creation problem";
 
     case OCSP_NEED_URL:
-        XSTRNCPY(str, "OCSP need URL", max);
-        break;
+        return "OCSP need URL";
 
     case OCSP_CERT_UNKNOWN:
-        XSTRNCPY(str, "OCSP Cert unknown", max);
-        break;
+        return "OCSP Cert unknown";
 
     case OCSP_LOOKUP_FAIL:
-        XSTRNCPY(str, "OCSP Responder lookup fail", max);
-        break;
+        return "OCSP Responder lookup fail";
 
     case MAX_CHAIN_ERROR:
-        XSTRNCPY(str, "Maximum Chain Depth Exceeded", max);
-        break;
+        return "Maximum Chain Depth Exceeded";
 
     case COOKIE_ERROR:
-        XSTRNCPY(str, "DTLS Cookie Error", max);
-        break;
+        return "DTLS Cookie Error";
 
     case SEQUENCE_ERROR:
-        XSTRNCPY(str, "DTLS Sequence Error", max);
-        break;
+        return "DTLS Sequence Error";
 
     case SUITES_ERROR:
-        XSTRNCPY(str, "Suites Pointer Error", max);
-        break;
+        return "Suites Pointer Error";
 
     case SSL_NO_PEM_HEADER:
-        XSTRNCPY(str, "No PEM Header Error", max);
-        break;
+        return "No PEM Header Error";
 
     case OUT_OF_ORDER_E:
-        XSTRNCPY(str, "Out of order message, fatal", max);
-        break;
+        return "Out of order message, fatal";
 
     case BAD_KEA_TYPE_E:
-        XSTRNCPY(str, "Bad KEA type found", max);
-        break;
+        return "Bad KEA type found";
 
     case SANITY_CIPHER_E:
-        XSTRNCPY(str, "Sanity check on ciphertext failed", max);
-        break;
+        return "Sanity check on ciphertext failed";
 
     case RECV_OVERFLOW_E:
-        XSTRNCPY(str, "Receive callback returned more than requested", max);
-        break;
+        return "Receive callback returned more than requested";
 
     case GEN_COOKIE_E:
-        XSTRNCPY(str, "Generate Cookie Error", max);
-        break;
+        return "Generate Cookie Error";
 
     case NO_PEER_VERIFY:
-        XSTRNCPY(str, "Need peer certificate verify Error", max);
-        break;
+        return "Need peer certificate verify Error";
 
     case FWRITE_ERROR:
-        XSTRNCPY(str, "fwrite Error", max);
-        break;
+        return "fwrite Error";
 
     case CACHE_MATCH_ERROR:
-        XSTRNCPY(str, "Cache restore header match Error", max);
-        break;
+        return "Cache restore header match Error";
 
     case UNKNOWN_SNI_HOST_NAME_E:
-        XSTRNCPY(str, "Unrecognized host name Error", max);
-        break;
+        return "Unrecognized host name Error";
 
     case KEYUSE_SIGNATURE_E:
         XSTRNCPY(str, "Key Use digitalSignature not set Error", max);
@@ -6562,12 +6477,16 @@ void SetErrorString(int error, char* str)
         break;
 
     default :
-        XSTRNCPY(str, "unknown error number", max);
+        return "unknown error number";
     }
 
 #endif /* NO_ERROR_STRINGS */
 }
 
+void SetErrorString(int error, char* str)
+{
+    XSTRNCPY(str, CyaSSL_ERR_reason_error_string(error), CYASSL_MAX_ERROR_SZ);
+}
 
 
 /* be sure to add to cipher_name_idx too !!!! */
