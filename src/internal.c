@@ -5969,7 +5969,8 @@ int SendData(CYASSL* ssl, const void* data, int sz)
 {
     int sent = 0,  /* plainText size */
         sendSz,
-        ret;
+        ret,
+        dtlsExtra = 0;
 
     if (ssl->error == WANT_WRITE)
         ssl->error = 0;
@@ -5997,6 +5998,12 @@ int SendData(CYASSL* ssl, const void* data, int sz)
         }
     }
 
+#ifdef CYASSL_DTLS
+    if (ssl->options.dtls) {
+        dtlsExtra = DTLS_RECORD_EXTRA;
+    }
+#endif
+
     for (;;) {
 #ifdef HAVE_MAX_FRAGMENT
         int   len = min(sz - sent, min(ssl->max_fragment, OUTPUT_RECORD_SIZE));
@@ -6021,7 +6028,7 @@ int SendData(CYASSL* ssl, const void* data, int sz)
 
         /* check for available size */
         if ((ret = CheckAvailableSize(ssl, len + COMP_EXTRA +
-                                      MAX_MSG_EXTRA)) != 0)
+                                               dtlsExtra + MAX_MSG_EXTRA)) != 0)
             return ssl->error = ret;
 
         /* get ouput buffer */
