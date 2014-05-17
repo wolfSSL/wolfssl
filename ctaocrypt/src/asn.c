@@ -3486,8 +3486,8 @@ static int DecodeAuthKeyId(byte* input, int sz, DecodedCert* cert)
     }
 
     if (input[idx++] != (ASN_CONTEXT_SPECIFIC | 0)) {
-        CYASSL_MSG("\tfail: wanted OPTIONAL item 0, not available\n");
-        return ASN_PARSE_E;
+        CYASSL_MSG("\tinfo: OPTIONAL item 0, not available\n");
+        return 0;
     }
 
     if (GetLength(input, &idx, &length, sz) < 0) {
