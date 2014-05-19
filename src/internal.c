@@ -4189,11 +4189,11 @@ static INLINE int Encrypt(CYASSL* ssl, byte* out, const byte* input, word16 sz)
         #ifdef BUILD_AESGCM
             case cyassl_aes_gcm:
                 {
-                    byte additional[AES_BLOCK_SIZE];
+                    byte additional[AEAD_AUTH_DATA_SZ];
                     byte nonce[AEAD_NONCE_SZ];
                     const byte* additionalSrc = input - 5;
 
-                    XMEMSET(additional, 0, AES_BLOCK_SIZE);
+                    XMEMSET(additional, 0, AEAD_AUTH_DATA_SZ);
 
                     /* sequence number field is 64-bits, we only use 32-bits */
                     c32toa(GetSEQIncrement(ssl, 0),
@@ -4202,8 +4202,10 @@ static INLINE int Encrypt(CYASSL* ssl, byte* out, const byte* input, word16 sz)
                     /* Store the type, version. Unfortunately, they are in
                      * the input buffer ahead of the plaintext. */
                     #ifdef CYASSL_DTLS
-                        if (ssl->options.dtls)
+                        if (ssl->options.dtls) {
+                            c16toa(ssl->keys.dtls_epoch, additional);
                             additionalSrc -= DTLS_HANDSHAKE_EXTRA;
+                        }
                     #endif
                     XMEMCPY(additional + AEAD_TYPE_OFFSET, additionalSrc, 3);
 
@@ -4220,8 +4222,8 @@ static INLINE int Encrypt(CYASSL* ssl, byte* out, const byte* input, word16 sz)
                             sz - AEAD_EXP_IV_SZ - ssl->specs.aead_mac_size,
                         nonce, AEAD_NONCE_SZ,
                         out + sz - ssl->specs.aead_mac_size,
-                        ssl->specs.aead_mac_size, additional,
-                        AEAD_AUTH_DATA_SZ);
+                        ssl->specs.aead_mac_size,
+                        additional, AEAD_AUTH_DATA_SZ);
                     AeadIncrementExpIV(ssl);
                     XMEMSET(nonce, 0, AEAD_NONCE_SZ);
                 }
@@ -4231,11 +4233,11 @@ static INLINE int Encrypt(CYASSL* ssl, byte* out, const byte* input, word16 sz)
         #ifdef HAVE_AESCCM
             case cyassl_aes_ccm:
                 {
-                    byte additional[AES_BLOCK_SIZE];
+                    byte additional[AEAD_AUTH_DATA_SZ];
                     byte nonce[AEAD_NONCE_SZ];
                     const byte* additionalSrc = input - 5;
 
-                    XMEMSET(additional, 0, AES_BLOCK_SIZE);
+                    XMEMSET(additional, 0, AEAD_AUTH_DATA_SZ);
 
                     /* sequence number field is 64-bits, we only use 32-bits */
                     c32toa(GetSEQIncrement(ssl, 0),
@@ -4268,9 +4270,8 @@ static INLINE int Encrypt(CYASSL* ssl, byte* out, const byte* input, word16 sz)
                         additional, AEAD_AUTH_DATA_SZ);
                     AeadIncrementExpIV(ssl);
                     XMEMSET(nonce, 0, AEAD_NONCE_SZ);
-
-                    break;
                 }
+                break;
         #endif
 
         #ifdef HAVE_CAMELLIA
@@ -4339,14 +4340,19 @@ static INLINE int Decrypt(CYASSL* ssl, byte* plain, const byte* input,
         #ifdef BUILD_AESGCM
             case cyassl_aes_gcm:
             {
-                byte additional[AES_BLOCK_SIZE];
+                byte additional[AEAD_AUTH_DATA_SZ];
                 byte nonce[AEAD_NONCE_SZ];
 
-                XMEMSET(additional, 0, AES_BLOCK_SIZE);
+                XMEMSET(additional, 0, AEAD_AUTH_DATA_SZ);
 
                 /* sequence number field is 64-bits, we only use 32-bits */
                 c32toa(GetSEQIncrement(ssl, 1), additional + AEAD_SEQ_OFFSET);
-                
+
+                #ifdef CYASSL_DTLS
+                    if (ssl->options.dtls)
+                        c16toa(ssl->keys.dtls_state.curEpoch, additional);
+                #endif
+
                 additional[AEAD_TYPE_OFFSET] = ssl->curRL.type;
                 additional[AEAD_VMAJ_OFFSET] = ssl->curRL.pvMajor;
                 additional[AEAD_VMIN_OFFSET] = ssl->curRL.pvMinor;
@@ -4368,17 +4374,17 @@ static INLINE int Decrypt(CYASSL* ssl, byte* plain, const byte* input,
                     return VERIFY_MAC_ERROR;
                 }
                 XMEMSET(nonce, 0, AEAD_NONCE_SZ);
-                break;
             }
+            break;
         #endif
 
         #ifdef HAVE_AESCCM
             case cyassl_aes_ccm:
             {
-                byte additional[AES_BLOCK_SIZE];
+                byte additional[AEAD_AUTH_DATA_SZ];
                 byte nonce[AEAD_NONCE_SZ];
 
-                XMEMSET(additional, 0, AES_BLOCK_SIZE);
+                XMEMSET(additional, 0, AEAD_AUTH_DATA_SZ);
 
                 /* sequence number field is 64-bits, we only use 32-bits */
                 c32toa(GetSEQIncrement(ssl, 1), additional + AEAD_SEQ_OFFSET);
@@ -4409,8 +4415,8 @@ static INLINE int Decrypt(CYASSL* ssl, byte* plain, const byte* input,
                     return VERIFY_MAC_ERROR;
                 }
                 XMEMSET(nonce, 0, AEAD_NONCE_SZ);
-                break;
             }
+            break;
         #endif
 
         #ifdef HAVE_CAMELLIA
