@@ -1566,7 +1566,7 @@ static const word32 Td[5][256] = {
 #else
 
     #include <intrin.h>
-    #define cpuid(a,b) __cpuid(a,b)
+    #define cpuid(a,b) __cpuid((int*)a,b)
 
     #define XASM_LINK(f)
 
