@@ -13,6 +13,7 @@ endif
 EXTRA_DIST += examples/echoserver/echoserver.sln
 EXTRA_DIST += examples/echoserver/echoserver-ntru.vcproj
 EXTRA_DIST += examples/echoserver/echoserver.vcproj
+EXTRA_DIST += examples/echoserver/echoserver.vcxproj
 
 dist_example_DATA+= examples/echoserver/echoserver.c
 DISTCLEANFILES+= examples/echoserver/.libs/echoserver

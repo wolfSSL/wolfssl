@@ -43,6 +43,10 @@ AES_CBC_encrypt PROC
 ;#	parameter	5:	r8
 ;#	parameter	6:	r9d
 
+; save rdi and rsi to rax and r11, restore before ret
+	mov rax,rdi
+	mov r11,rsi
+
 	mov rdi,rcx
 	mov rsi,rdx
 	mov rdx,r8
@@ -89,6 +93,8 @@ LAST:
 	aesenclast	xmm1,xmm2
 	movdqu	[rsi],xmm1
 	jne	LOOP_1
+	mov rdi,rax
+	mov rsi,r11
 	ret
 AES_CBC_encrypt ENDP
 
@@ -110,6 +116,10 @@ AES_CBC_decrypt PROC
 ;#	parameter	4:	rcx
 ;#	parameter	5:	r8
 ;#	parameter	6:	r9d
+
+; save rdi and rsi to rax and r11, restore before ret
+	mov rax,rdi
+	mov r11,rsi
 
 	mov rdi,rcx
 	mov rsi,rdx
@@ -276,6 +286,8 @@ DLAST_4_2:
 	dec	r10
 	jne	DLOOP_4_2
 DEND_4:
+	mov rdi,rax
+	mov rsi,r11
 	ret
 AES_CBC_decrypt ENDP
 
@@ -293,6 +305,11 @@ AES_ECB_encrypt PROC
 ;#	parameter	3:	rdx
 ;#	parameter	4:	rcx
 ;#	parameter	5:	r8d
+
+; save rdi and rsi to rax and r11, restore before ret
+	mov rax,rdi
+	mov r11,rsi
+
     mov rdi,rcx
 	mov rsi,rdx
 	mov rdx,r8
@@ -441,6 +458,8 @@ EECB_LAST_4_2:
 	dec	r10
 	jne	EECB_LOOP_4_2
 EECB_END_4:
+	mov rdi,rax
+	mov rsi,r11
 	ret
 AES_ECB_encrypt ENDP
 
@@ -458,6 +477,11 @@ AES_ECB_decrypt PROC
 ;#	parameter	3:	rdx
 ;#	parameter	4:	rcx
 ;#	parameter	5:	r8d
+
+; save rdi and rsi to rax and r11, restore before ret
+	mov rax,rdi
+	mov r11,rsi
+
 	mov rdi,rcx
 	mov rsi,rdx
 	mov rdx,r8
@@ -606,6 +630,8 @@ DECB_LAST_4_2:
 	dec	r10
 	jne	DECB_LOOP_4_2
 DECB_END_4:
+	mov rdi,rax
+	mov rsi,r11
 	ret
 AES_ECB_decrypt ENDP
 
@@ -620,6 +646,11 @@ AES_ECB_decrypt ENDP
 AES_128_Key_Expansion PROC
 ;#	parameter	1:	rdi
 ;#	parameter	2:	rsi
+
+; save rdi and rsi to rax and r11, restore before ret
+	mov rax,rdi
+	mov r11,rsi
+
 	mov rdi,rcx
 	mov rsi,rdx
 
@@ -666,6 +697,8 @@ ASSISTS:
 	aeskeygenassist	xmm2,xmm1,36h
 	call	PREPARE_ROUNDKEY_128
 	movdqa	160[rsi],xmm1
+	mov rdi,rax
+	mov rsi,r11
 	ret
 
 PREPARE_ROUNDKEY_128:
@@ -689,6 +722,11 @@ AES_128_Key_Expansion ENDP
 AES_192_Key_Expansion PROC
 ;#	parameter	1:	rdi
 ;#	parameter	2:	rsi
+
+; save rdi and rsi to rax and r11, restore before ret
+	mov rax,rdi
+	mov r11,rsi
+
     mov rdi,rcx
 	mov rsi,rdx
 
@@ -699,10 +737,10 @@ AES_192_Key_Expansion PROC
 
 	aeskeygenassist	xmm2,xmm3,1h
 	call	PREPARE_ROUNDKEY_192
-	shufpd	xmm1,xmm5,0
+	shufpd	xmm5,xmm1,0
 	movdqa	16[rsi],xmm5
 	movdqa	xmm6,xmm1
-	shufpd	xmm3,xmm6,1
+	shufpd	xmm6,xmm3,1
 	movdqa	32[rsi],xmm6
 
 	aeskeygenassist	xmm2,xmm3,2h
@@ -712,10 +750,10 @@ AES_192_Key_Expansion PROC
 
 	aeskeygenassist	xmm2,xmm3,4h
 	call	PREPARE_ROUNDKEY_192
-	shufpd	xmm1,xmm5,0
+	shufpd	xmm5,xmm1,0
 	movdqa	64[rsi],xmm5
 	movdqa	xmm6,xmm1
-	shufpd	xmm3,xmm6,1
+	shufpd	xmm6,xmm3,1
 	movdqa	80[rsi],xmm6
 
 	aeskeygenassist	xmm2,xmm3,8h
@@ -725,10 +763,10 @@ AES_192_Key_Expansion PROC
 
 	aeskeygenassist	xmm2,xmm3,10h
 	call	PREPARE_ROUNDKEY_192
-	shufpd	xmm1,xmm5,0
+	shufpd	xmm5,xmm1,0
 	movdqa	112[rsi],xmm5
 	movdqa	xmm6,xmm1
-	shufpd	xmm3,xmm6,1
+	shufpd	xmm6,xmm3,1
 	movdqa	128[rsi],xmm6
 
 	aeskeygenassist	xmm2,xmm3,20h
@@ -738,16 +776,18 @@ AES_192_Key_Expansion PROC
 
 	aeskeygenassist	xmm2,xmm3,40h
 	call	PREPARE_ROUNDKEY_192
-	shufpd	xmm1,xmm5,0
+	shufpd	xmm5,xmm1,0
 	movdqa	160[rsi],xmm5
 	movdqa	xmm6,xmm1
-	shufpd	xmm3,xmm6,1
+	shufpd	xmm6,xmm3,1
 	movdqa	176[rsi],xmm6
 
 	aeskeygenassist	xmm2,xmm3,80h
 	call	PREPARE_ROUNDKEY_192
 	movdqa	192[rsi],xmm1
 	movdqa	208[rsi],xmm3
+	mov rdi,rax
+	mov rsi,r11
 	ret
 
 PREPARE_ROUNDKEY_192:
@@ -777,6 +817,11 @@ AES_192_Key_Expansion ENDP
 AES_256_Key_Expansion PROC
 ;#	parameter	1:	rdi
 ;#	parameter	2:	rsi
+
+; save rdi and rsi to rax and r11, restore before ret
+	mov rax,rdi
+	mov r11,rsi
+
     mov rdi,rcx
 	mov rsi,rdx
 
@@ -826,6 +871,8 @@ AES_256_Key_Expansion PROC
 	call	MAKE_RK256_a
 	movdqa	224[rsi],xmm1
 
+	mov rdi,rax
+	mov rsi,r11
 	ret
 AES_256_Key_Expansion ENDP
 
