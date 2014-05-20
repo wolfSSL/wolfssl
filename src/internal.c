@@ -1026,10 +1026,31 @@ void InitSuites(Suites* suites, ProtocolVersion pv, byte haveRSA, byte havePSK,
     }
 #endif
 
+#ifdef BUILD_TLS_PSK_WITH_AES_256_GCM_SHA384
+    if (tls1_2 && havePSK) {
+        suites->suites[idx++] = 0;
+        suites->suites[idx++] = TLS_PSK_WITH_AES_256_GCM_SHA384;
+    }
+#endif
+
 #ifdef BUILD_TLS_PSK_WITH_AES_256_CBC_SHA
     if (tls && havePSK) {
         suites->suites[idx++] = 0; 
         suites->suites[idx++] = TLS_PSK_WITH_AES_256_CBC_SHA;
+    }
+#endif
+
+#ifdef BUILD_TLS_PSK_WITH_AES_256_CBC_SHA384
+    if (tls && havePSK) {
+        suites->suites[idx++] = 0;
+        suites->suites[idx++] = TLS_PSK_WITH_AES_256_CBC_SHA384;
+    }
+#endif
+
+#ifdef BUILD_TLS_PSK_WITH_AES_128_GCM_SHA256
+    if (tls1_2 && havePSK) {
+        suites->suites[idx++] = 0;
+        suites->suites[idx++] = TLS_PSK_WITH_AES_128_GCM_SHA256;
     }
 #endif
 
@@ -1058,6 +1079,13 @@ void InitSuites(Suites* suites, ProtocolVersion pv, byte haveRSA, byte havePSK,
     if (tls && havePSK) {
         suites->suites[idx++] = ECC_BYTE; 
         suites->suites[idx++] = TLS_PSK_WITH_AES_256_CCM_8;
+    }
+#endif
+
+#ifdef BUILD_TLS_PSK_WITH_NULL_SHA384
+    if (tls && havePSK) {
+        suites->suites[idx++] = 0;
+        suites->suites[idx++] = TLS_PSK_WITH_NULL_SHA384;
     }
 #endif
 
@@ -6538,6 +6566,18 @@ static const char* const cipher_names[] =
     "DHE-RSA-AES256-SHA",
 #endif
 
+#ifdef BUILD_TLS_PSK_WITH_AES_256_GCM_SHA384
+    "PSK-AES256-GCM-SHA384",
+#endif
+
+#ifdef BUILD_TLS_PSK_WITH_AES_128_GCM_SHA256
+    "PSK-AES128-GCM-SHA256",
+#endif
+
+#ifdef BUILD_TLS_PSK_WITH_AES_256_CBC_SHA384
+    "PSK-AES256-CBC-SHA384",
+#endif
+
 #ifdef BUILD_TLS_PSK_WITH_AES_128_CBC_SHA256
     "PSK-AES128-CBC-SHA256",
 #endif
@@ -6556,6 +6596,10 @@ static const char* const cipher_names[] =
 
 #ifdef BUILD_TLS_PSK_WITH_AES_256_CCM_8
     "PSK-AES256-CCM-8",
+#endif
+
+#ifdef BUILD_TLS_PSK_WITH_NULL_SHA384
+    "PSK-NULL-SHA384",
 #endif
 
 #ifdef BUILD_TLS_PSK_WITH_NULL_SHA256
@@ -6858,6 +6902,18 @@ static int cipher_name_idx[] =
     TLS_DHE_RSA_WITH_AES_256_CBC_SHA,
 #endif
 
+#ifdef BUILD_TLS_PSK_WITH_AES_256_GCM_SHA384
+    TLS_PSK_WITH_AES_256_GCM_SHA384,
+#endif
+
+#ifdef BUILD_TLS_PSK_WITH_AES_128_GCM_SHA256
+    TLS_PSK_WITH_AES_128_GCM_SHA256,
+#endif
+
+#ifdef BUILD_TLS_PSK_WITH_AES_256_CBC_SHA384
+    TLS_PSK_WITH_AES_256_CBC_SHA384,
+#endif
+
 #ifdef BUILD_TLS_PSK_WITH_AES_128_CBC_SHA256
     TLS_PSK_WITH_AES_128_CBC_SHA256,    
 #endif
@@ -6876,6 +6932,10 @@ static int cipher_name_idx[] =
 
 #ifdef BUILD_TLS_PSK_WITH_AES_256_CCM_8
     TLS_PSK_WITH_AES_256_CCM_8,
+#endif
+
+#ifdef BUILD_TLS_PSK_WITH_NULL_SHA384
+    TLS_PSK_WITH_NULL_SHA384,
 #endif
 
 #ifdef BUILD_TLS_PSK_WITH_NULL_SHA256
@@ -9926,9 +9986,13 @@ static void PickHashSigAlgo(CYASSL* ssl,
             break;
 #endif
 
+        case TLS_PSK_WITH_AES_128_GCM_SHA256 :
+        case TLS_PSK_WITH_AES_256_GCM_SHA384 :
         case TLS_PSK_WITH_AES_128_CBC_SHA256 :
+        case TLS_PSK_WITH_AES_256_CBC_SHA384 :
         case TLS_PSK_WITH_AES_128_CBC_SHA :
         case TLS_PSK_WITH_AES_256_CBC_SHA :
+        case TLS_PSK_WITH_NULL_SHA384 :
         case TLS_PSK_WITH_NULL_SHA256 :
         case TLS_PSK_WITH_NULL_SHA :
             if (requirement == REQUIRES_PSK)
