@@ -3772,7 +3772,7 @@ int openssl_test(void)
     EVP_MD_CTX_init(&md_ctx);
     EVP_DigestInit(&md_ctx, EVP_md5());
 
-    EVP_DigestUpdate(&md_ctx, a.input, a.inLen);
+    EVP_DigestUpdate(&md_ctx, a.input, (unsigned long)a.inLen);
     EVP_DigestFinal(&md_ctx, hash, 0);
 
     if (memcmp(hash, a.output, MD5_DIGEST_SIZE) != 0)
@@ -3789,7 +3789,7 @@ int openssl_test(void)
     EVP_MD_CTX_init(&md_ctx);
     EVP_DigestInit(&md_ctx, EVP_sha1());
 
-    EVP_DigestUpdate(&md_ctx, b.input, b.inLen);
+    EVP_DigestUpdate(&md_ctx, b.input, (unsigned long)b.inLen);
     EVP_DigestFinal(&md_ctx, hash, 0);
 
     if (memcmp(hash, b.output, SHA_DIGEST_SIZE) != 0)
@@ -3806,7 +3806,7 @@ int openssl_test(void)
     EVP_MD_CTX_init(&md_ctx);
     EVP_DigestInit(&md_ctx, EVP_sha256());
 
-    EVP_DigestUpdate(&md_ctx, d.input, d.inLen);
+    EVP_DigestUpdate(&md_ctx, d.input, (unsigned long)d.inLen);
     EVP_DigestFinal(&md_ctx, hash, 0);
 
     if (memcmp(hash, d.output, SHA256_DIGEST_SIZE) != 0)
@@ -3850,7 +3850,7 @@ int openssl_test(void)
     EVP_MD_CTX_init(&md_ctx);
     EVP_DigestInit(&md_ctx, EVP_sha512());
 
-    EVP_DigestUpdate(&md_ctx, f.input, f.inLen);
+    EVP_DigestUpdate(&md_ctx, f.input, (unsigned long)f.inLen);
     EVP_DigestFinal(&md_ctx, hash, 0);
 
     if (memcmp(hash, f.output, SHA512_DIGEST_SIZE) != 0)
