@@ -30,10 +30,12 @@ EXTRA_DIST+= lib/dummy
 
 EXTRA_DIST+= cyassl-ntru.vcproj
 EXTRA_DIST+= cyassl.vcproj
+EXTRA_DIST+= cyassl.vcxproj
 EXTRA_DIST+= cyassl-iphone.xcodeproj/project.pbxproj
 EXTRA_DIST+= cyassl-ios.xcodeproj/project.pbxproj
 EXTRA_DIST+= cyassl-ntru.sln
 EXTRA_DIST+= cyassl.sln
+EXTRA_DIST+= cyassl64.sln
 EXTRA_DIST+= valgrind-error.sh
 EXTRA_DIST+= gencertbuf.pl
 EXTRA_DIST+= IDE 
@@ -81,7 +83,10 @@ TESTS += $(check_PROGRAMS)
 test: check
 tests/unit.log: testsuite/testsuite.log
 
-DISTCLEANFILES+= cyassl-config 
+DISTCLEANFILES+= cyassl-config
+# fips files shouldn't be left after make distclean
+DISTCLEANFILES+= ctaocrypt/src/fips.c
+DISTCLEANFILES+= ctaocrypt/src/fips_test.c
 
 maintainer-clean-local:
 	-rm Makefile.in

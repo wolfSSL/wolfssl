@@ -9,5 +9,6 @@ sslSniffer_sslSnifferTest_snifftest_LDADD        = src/libcyassl.la -lpcap
 sslSniffer_sslSnifferTest_snifftest_DEPENDENCIES = src/libcyassl.la
 endif
 EXTRA_DIST += sslSniffer/sslSniffer.vcproj
+EXTRA_DIST += sslSniffer/sslSniffer.vcxproj
 EXTRA_DIST += sslSniffer/sslSnifferTest/sslSniffTest.vcproj
 DISTCLEANFILES+= sslSniffer/sslSnifferTest/.libs/snifftest
