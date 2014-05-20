@@ -243,7 +243,7 @@ void c32to24(word32 in, word24 out);
         #endif
     #endif
     #ifdef CYASSL_SHA384
-        #define BUILD_TLS_PSK_WITH_AES_128_CBC_SHA384
+        #define BUILD_TLS_PSK_WITH_AES_256_CBC_SHA384
         #ifdef HAVE_AESGCM
             #define BUILD_TLS_PSK_WITH_AES_256_GCM_SHA384
         #endif

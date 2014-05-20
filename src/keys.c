@@ -939,8 +939,8 @@ int SetCipherSpecs(CYASSL* ssl)
 
 #ifdef BUILD_TLS_PSK_WITH_AES_128_GCM_SHA256
     case TLS_PSK_WITH_AES_128_GCM_SHA256 :
-        ssl->specs.bulk_cipher_algorithm = cyassl_aes;
-        ssl->specs.cipher_type           = block;
+        ssl->specs.bulk_cipher_algorithm = cyassl_aes_gcm;
+        ssl->specs.cipher_type           = aead;
         ssl->specs.mac_algorithm         = sha256_mac;
         ssl->specs.kea                   = psk_kea;
         ssl->specs.sig_algo              = anonymous_sa_algo;
@@ -949,7 +949,8 @@ int SetCipherSpecs(CYASSL* ssl)
         ssl->specs.static_ecdh           = 0;
         ssl->specs.key_size              = AES_128_KEY_SIZE;
         ssl->specs.block_size            = AES_BLOCK_SIZE;
-        ssl->specs.iv_size               = AES_IV_SIZE;
+        ssl->specs.iv_size               = AEAD_IMP_IV_SZ;
+        ssl->specs.aead_mac_size         = AES_GCM_AUTH_SZ;
 
         ssl->options.usingPSK_cipher     = 1;
         break;
@@ -957,8 +958,8 @@ int SetCipherSpecs(CYASSL* ssl)
 
 #ifdef BUILD_TLS_PSK_WITH_AES_256_GCM_SHA384
     case TLS_PSK_WITH_AES_256_GCM_SHA384 :
-        ssl->specs.bulk_cipher_algorithm = cyassl_aes;
-        ssl->specs.cipher_type           = block;
+        ssl->specs.bulk_cipher_algorithm = cyassl_aes_gcm;
+        ssl->specs.cipher_type           = aead;
         ssl->specs.mac_algorithm         = sha384_mac;
         ssl->specs.kea                   = psk_kea;
         ssl->specs.sig_algo              = anonymous_sa_algo;
@@ -967,7 +968,8 @@ int SetCipherSpecs(CYASSL* ssl)
         ssl->specs.static_ecdh           = 0;
         ssl->specs.key_size              = AES_256_KEY_SIZE;
         ssl->specs.block_size            = AES_BLOCK_SIZE;
-        ssl->specs.iv_size               = AES_IV_SIZE;
+        ssl->specs.iv_size               = AEAD_IMP_IV_SZ;
+        ssl->specs.aead_mac_size         = AES_GCM_AUTH_SZ;
 
         ssl->options.usingPSK_cipher     = 1;
         break;
