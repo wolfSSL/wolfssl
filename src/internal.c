@@ -1026,6 +1026,13 @@ void InitSuites(Suites* suites, ProtocolVersion pv, byte haveRSA, byte havePSK,
     }
 #endif
 
+#ifdef BUILD_TLS_DHE_PSK_WITH_AES_256_GCM_SHA384
+    if (tls1_2 && haveDH && havePSK) {
+        suites->suites[idx++] = 0;
+        suites->suites[idx++] = TLS_DHE_PSK_WITH_AES_256_GCM_SHA384;
+    }
+#endif
+
 #ifdef BUILD_TLS_PSK_WITH_AES_256_GCM_SHA384
     if (tls1_2 && havePSK) {
         suites->suites[idx++] = 0;
@@ -1040,6 +1047,13 @@ void InitSuites(Suites* suites, ProtocolVersion pv, byte haveRSA, byte havePSK,
     }
 #endif
 
+#ifdef BUILD_TLS_DHE_PSK_WITH_AES_256_CBC_SHA384
+    if (tls && haveDH && havePSK) {
+        suites->suites[idx++] = 0;
+        suites->suites[idx++] = TLS_DHE_PSK_WITH_AES_256_CBC_SHA384;
+    }
+#endif
+
 #ifdef BUILD_TLS_PSK_WITH_AES_256_CBC_SHA384
     if (tls && havePSK) {
         suites->suites[idx++] = 0;
@@ -1047,10 +1061,24 @@ void InitSuites(Suites* suites, ProtocolVersion pv, byte haveRSA, byte havePSK,
     }
 #endif
 
+#ifdef BUILD_TLS_DHE_PSK_WITH_AES_128_GCM_SHA256
+    if (tls1_2 && haveDH && havePSK) {
+        suites->suites[idx++] = 0;
+        suites->suites[idx++] = TLS_DHE_PSK_WITH_AES_128_GCM_SHA256;
+    }
+#endif
+
 #ifdef BUILD_TLS_PSK_WITH_AES_128_GCM_SHA256
     if (tls1_2 && havePSK) {
         suites->suites[idx++] = 0;
         suites->suites[idx++] = TLS_PSK_WITH_AES_128_GCM_SHA256;
+    }
+#endif
+
+#ifdef BUILD_TLS_DHE_PSK_WITH_AES_128_CBC_SHA256
+    if (tls && haveDH && havePSK) {
+        suites->suites[idx++] = 0;
+        suites->suites[idx++] = TLS_DHE_PSK_WITH_AES_128_CBC_SHA256;
     }
 #endif
 
@@ -1068,6 +1096,34 @@ void InitSuites(Suites* suites, ProtocolVersion pv, byte haveRSA, byte havePSK,
     }
 #endif
 
+#ifdef BUILD_TLS_DHE_PSK_WITH_AES_128_CCM
+    if (tls && haveDH && havePSK) {
+        suites->suites[idx++] = ECC_BYTE;
+        suites->suites[idx++] = TLS_DHE_PSK_WITH_AES_128_CCM;
+    }
+#endif
+
+#ifdef BUILD_TLS_DHE_PSK_WITH_AES_256_CCM
+    if (tls && haveDH && havePSK) {
+        suites->suites[idx++] = ECC_BYTE;
+        suites->suites[idx++] = TLS_DHE_PSK_WITH_AES_256_CCM;
+    }
+#endif
+
+#ifdef BUILD_TLS_PSK_WITH_AES_128_CCM
+    if (tls && havePSK) {
+        suites->suites[idx++] = ECC_BYTE;
+        suites->suites[idx++] = TLS_PSK_WITH_AES_128_CCM;
+    }
+#endif
+
+#ifdef BUILD_TLS_PSK_WITH_AES_256_CCM
+    if (tls && havePSK) {
+        suites->suites[idx++] = ECC_BYTE;
+        suites->suites[idx++] = TLS_PSK_WITH_AES_256_CCM;
+    }
+#endif
+
 #ifdef BUILD_TLS_PSK_WITH_AES_128_CCM_8
     if (tls && havePSK) {
         suites->suites[idx++] = ECC_BYTE; 
@@ -1082,10 +1138,24 @@ void InitSuites(Suites* suites, ProtocolVersion pv, byte haveRSA, byte havePSK,
     }
 #endif
 
+#ifdef BUILD_TLS_DHE_PSK_WITH_NULL_SHA384
+    if (tls && haveDH && havePSK) {
+        suites->suites[idx++] = 0;
+        suites->suites[idx++] = TLS_DHE_PSK_WITH_NULL_SHA384;
+    }
+#endif
+
 #ifdef BUILD_TLS_PSK_WITH_NULL_SHA384
     if (tls && havePSK) {
         suites->suites[idx++] = 0;
         suites->suites[idx++] = TLS_PSK_WITH_NULL_SHA384;
+    }
+#endif
+
+#ifdef BUILD_TLS_DHE_PSK_WITH_NULL_SHA256
+    if (tls && haveDH && havePSK) {
+        suites->suites[idx++] = 0;
+        suites->suites[idx++] = TLS_DHE_PSK_WITH_NULL_SHA256;
     }
 #endif
 
@@ -6566,12 +6636,28 @@ static const char* const cipher_names[] =
     "DHE-RSA-AES256-SHA",
 #endif
 
+#ifdef BUILD_TLS_DHE_PSK_WITH_AES_256_GCM_SHA384
+    "DHE-PSK-AES256-GCM-SHA384",
+#endif
+
+#ifdef BUILD_TLS_DHE_PSK_WITH_AES_128_GCM_SHA256
+    "DHE-PSK-AES128-GCM-SHA256",
+#endif
+
 #ifdef BUILD_TLS_PSK_WITH_AES_256_GCM_SHA384
     "PSK-AES256-GCM-SHA384",
 #endif
 
 #ifdef BUILD_TLS_PSK_WITH_AES_128_GCM_SHA256
     "PSK-AES128-GCM-SHA256",
+#endif
+
+#ifdef BUILD_TLS_DHE_PSK_WITH_AES_256_CBC_SHA384
+    "DHE-PSK-AES256-CBC-SHA384",
+#endif
+
+#ifdef BUILD_TLS_DHE_PSK_WITH_AES_128_CBC_SHA256
+    "DHE-PSK-AES128-CBC-SHA256",
 #endif
 
 #ifdef BUILD_TLS_PSK_WITH_AES_256_CBC_SHA384
@@ -6590,12 +6676,36 @@ static const char* const cipher_names[] =
     "PSK-AES256-CBC-SHA",
 #endif
 
+#ifdef BUILD_TLS_DHE_PSK_WITH_AES_128_CCM
+    "DHE-PSK-AES128-CCM",
+#endif
+
+#ifdef BUILD_TLS_DHE_PSK_WITH_AES_256_CCM
+    "DHE-PSK-AES256-CCM",
+#endif
+
+#ifdef BUILD_TLS_PSK_WITH_AES_128_CCM
+    "PSK-AES128-CCM",
+#endif
+
+#ifdef BUILD_TLS_PSK_WITH_AES_256_CCM
+    "PSK-AES256-CCM",
+#endif
+
 #ifdef BUILD_TLS_PSK_WITH_AES_128_CCM_8
     "PSK-AES128-CCM-8",
 #endif
 
 #ifdef BUILD_TLS_PSK_WITH_AES_256_CCM_8
     "PSK-AES256-CCM-8",
+#endif
+
+#ifdef BUILD_TLS_DHE_PSK_WITH_NULL_SHA384
+    "DHE-PSK-NULL-SHA384",
+#endif
+
+#ifdef BUILD_TLS_DHE_PSK_WITH_NULL_SHA256
+    "DHE-PSK-NULL-SHA256",
 #endif
 
 #ifdef BUILD_TLS_PSK_WITH_NULL_SHA384
@@ -6902,12 +7012,28 @@ static int cipher_name_idx[] =
     TLS_DHE_RSA_WITH_AES_256_CBC_SHA,
 #endif
 
+#ifdef BUILD_TLS_DHE_PSK_WITH_AES_256_GCM_SHA384
+    TLS_DHE_PSK_WITH_AES_256_GCM_SHA384,
+#endif
+
+#ifdef BUILD_TLS_DHE_PSK_WITH_AES_128_GCM_SHA256
+    TLS_DHE_PSK_WITH_AES_128_GCM_SHA256,
+#endif
+
 #ifdef BUILD_TLS_PSK_WITH_AES_256_GCM_SHA384
     TLS_PSK_WITH_AES_256_GCM_SHA384,
 #endif
 
 #ifdef BUILD_TLS_PSK_WITH_AES_128_GCM_SHA256
     TLS_PSK_WITH_AES_128_GCM_SHA256,
+#endif
+
+#ifdef BUILD_TLS_DHE_PSK_WITH_AES_256_CBC_SHA384
+    TLS_DHE_PSK_WITH_AES_256_CBC_SHA384,
+#endif
+
+#ifdef BUILD_TLS_DHE_PSK_WITH_AES_128_CBC_SHA256
+    TLS_DHE_PSK_WITH_AES_128_CBC_SHA256,
 #endif
 
 #ifdef BUILD_TLS_PSK_WITH_AES_256_CBC_SHA384
@@ -6926,12 +7052,36 @@ static int cipher_name_idx[] =
     TLS_PSK_WITH_AES_256_CBC_SHA,
 #endif
 
+#ifdef BUILD_TLS_DHE_PSK_WITH_AES_128_CCM
+    TLS_DHE_PSK_WITH_AES_128_CCM,
+#endif
+
+#ifdef BUILD_TLS_DHE_PSK_WITH_AES_256_CCM
+    TLS_DHE_PSK_WITH_AES_256_CCM,
+#endif
+
+#ifdef BUILD_TLS_PSK_WITH_AES_128_CCM
+    TLS_PSK_WITH_AES_128_CCM,
+#endif
+
+#ifdef BUILD_TLS_PSK_WITH_AES_256_CCM
+    TLS_PSK_WITH_AES_256_CCM,
+#endif
+
 #ifdef BUILD_TLS_PSK_WITH_AES_128_CCM_8
     TLS_PSK_WITH_AES_128_CCM_8,
 #endif
 
 #ifdef BUILD_TLS_PSK_WITH_AES_256_CCM_8
     TLS_PSK_WITH_AES_256_CCM_8,
+#endif
+
+#ifdef BUILD_TLS_DHE_PSK_WITH_NULL_SHA384
+    TLS_DHE_PSK_WITH_NULL_SHA384,
+#endif
+
+#ifdef BUILD_TLS_DHE_PSK_WITH_NULL_SHA256
+    TLS_DHE_PSK_WITH_NULL_SHA256,
 #endif
 
 #ifdef BUILD_TLS_PSK_WITH_NULL_SHA384
@@ -8054,7 +8204,91 @@ static void PickHashSigAlgo(CYASSL* ssl,
         }
     #endif /* HAVE_ECC */
 
+    #if defined(OPENSSL_EXTRA) || !defined(NO_PSK)
+    if (ssl->specs.kea == dhe_psk_kea) {
+        if ((*inOutIdx - begin) + OPAQUE16_LEN > size)
+            return BUFFER_ERROR;
+
+        ato16(input + *inOutIdx, &length);
+        *inOutIdx += OPAQUE16_LEN;
+
+        if ((*inOutIdx - begin) + length > size)
+            return BUFFER_ERROR;
+
+        XMEMCPY(ssl->arrays->server_hint, input + *inOutIdx,
+               min(length, MAX_PSK_ID_LEN));
+
+        ssl->arrays->server_hint[min(length, MAX_PSK_ID_LEN - 1)] = 0;
+        *inOutIdx += length;
+
+        /* p */
+        if ((*inOutIdx - begin) + OPAQUE16_LEN > size)
+            return BUFFER_ERROR;
+
+        ato16(input + *inOutIdx, &length);
+        *inOutIdx += OPAQUE16_LEN;
+
+        if ((*inOutIdx - begin) + length > size)
+            return BUFFER_ERROR;
+
+        ssl->buffers.serverDH_P.buffer = (byte*) XMALLOC(length, ssl->heap,
+                                                         DYNAMIC_TYPE_DH);
+
+        if (ssl->buffers.serverDH_P.buffer)
+            ssl->buffers.serverDH_P.length = length;
+        else
+            return MEMORY_ERROR;
+
+        XMEMCPY(ssl->buffers.serverDH_P.buffer, input + *inOutIdx, length);
+        *inOutIdx += length;
+
+        /* g */
+        if ((*inOutIdx - begin) + OPAQUE16_LEN > size)
+            return BUFFER_ERROR;
+
+        ato16(input + *inOutIdx, &length);
+        *inOutIdx += OPAQUE16_LEN;
+
+        if ((*inOutIdx - begin) + length > size)
+            return BUFFER_ERROR;
+
+        ssl->buffers.serverDH_G.buffer = (byte*) XMALLOC(length, ssl->heap,
+                                                         DYNAMIC_TYPE_DH);
+
+        if (ssl->buffers.serverDH_G.buffer)
+            ssl->buffers.serverDH_G.length = length;
+        else
+            return MEMORY_ERROR;
+
+        XMEMCPY(ssl->buffers.serverDH_G.buffer, input + *inOutIdx, length);
+        *inOutIdx += length;
+
+        /* pub */
+        if ((*inOutIdx - begin) + OPAQUE16_LEN > size)
+            return BUFFER_ERROR;
+
+        ato16(input + *inOutIdx, &length);
+        *inOutIdx += OPAQUE16_LEN;
+
+        if ((*inOutIdx - begin) + length > size)
+            return BUFFER_ERROR;
+
+        ssl->buffers.serverDH_Pub.buffer = (byte*) XMALLOC(length, ssl->heap,
+                                                           DYNAMIC_TYPE_DH);
+
+        if (ssl->buffers.serverDH_Pub.buffer)
+            ssl->buffers.serverDH_Pub.length = length;
+        else
+            return MEMORY_ERROR;
+
+        XMEMCPY(ssl->buffers.serverDH_Pub.buffer, input + *inOutIdx, length);
+        *inOutIdx += length;
+    }
+    #endif /* OPENSSL_EXTRA || !NO_PSK */
+
     #if defined(OPENSSL_EXTRA) || defined(HAVE_ECC)
+    if (ssl->specs.kea == ecc_diffie_hellman_kea ||
+        ssl->specs.kea == diffie_hellman_kea)
     {
 #ifndef NO_OLD_TLS
         Md5    md5;
@@ -8297,9 +8531,8 @@ static void PickHashSigAlgo(CYASSL* ssl,
         *inOutIdx += length;
 
         ssl->options.serverState = SERVER_KEYEXCHANGE_COMPLETE;
-
-        return 0;
     }
+    return 0;
 #else  /* HAVE_OPENSSL or HAVE_ECC */
         return NOT_COMPILED_IN;  /* not supported by build */
 #endif /* HAVE_OPENSSL or HAVE_ECC */
@@ -8422,6 +8655,73 @@ static void PickHashSigAlgo(CYASSL* ssl,
                 }
                 break;
         #endif /* NO_PSK */
+        #if defined(OPENSSL_EXTRA) && !defined(NO_PSK)
+            case dhe_psk_kea:
+                {
+                    byte* pms = ssl->arrays->preMasterSecret;
+                    byte* es  = encSecret;
+                    buffer  serverP   = ssl->buffers.serverDH_P;
+                    buffer  serverG   = ssl->buffers.serverDH_G;
+                    buffer  serverPub = ssl->buffers.serverDH_Pub;
+                    byte    priv[ENCRYPT_LEN];
+                    word32  privSz = 0;
+                    word32  pubSz = 0;
+                    word32  esSz = 0;
+                    DhKey   key;
+
+                    if (serverP.buffer == 0 || serverG.buffer == 0 ||
+                                               serverPub.buffer == 0)
+                        return NO_PEER_KEY;
+
+                    ssl->arrays->psk_keySz = ssl->options.client_psk_cb(ssl,
+                         ssl->arrays->server_hint, ssl->arrays->client_identity,
+                         MAX_PSK_ID_LEN, ssl->arrays->psk_key, MAX_PSK_KEY_LEN);
+                    if (ssl->arrays->psk_keySz == 0 ||
+                                       ssl->arrays->psk_keySz > MAX_PSK_KEY_LEN)
+                        return PSK_KEY_ERROR;
+                    esSz = (word32)XSTRLEN(ssl->arrays->client_identity);
+
+                    if (esSz > MAX_PSK_ID_LEN)
+                        return CLIENT_ID_ERROR;
+                    c16toa(esSz, es);
+                    es += OPAQUE16_LEN;
+                    XMEMCPY(es, ssl->arrays->client_identity, esSz);
+                    es += esSz;
+                    encSz = esSz + OPAQUE16_LEN;
+
+                    InitDhKey(&key);
+                    ret = DhSetKey(&key, serverP.buffer, serverP.length,
+                                   serverG.buffer, serverG.length);
+                    if (ret == 0)
+                        /* for DH, encSecret is Yc, agree is pre-master */
+                        ret = DhGenerateKeyPair(&key, ssl->rng, priv, &privSz,
+                                                es + OPAQUE16_LEN, &pubSz);
+                    if (ret == 0)
+                        ret = DhAgree(&key, pms + OPAQUE16_LEN,
+                                      &ssl->arrays->preMasterSz, priv, privSz,
+                                      serverPub.buffer, serverPub.length);
+                    FreeDhKey(&key);
+                    if (ret != 0)
+                        return ret;
+
+                    c16toa((word16)pubSz, es);
+                    encSz += pubSz + OPAQUE16_LEN;
+                    c16toa((word16)ssl->arrays->preMasterSz, pms);
+                    ssl->arrays->preMasterSz += OPAQUE16_LEN;
+                    pms += ssl->arrays->preMasterSz;
+
+                    /* make psk pre master secret */
+                    /* length of key + length 0s + length of key + key */
+                    c16toa((word16)ssl->arrays->psk_keySz, pms);
+                    pms += OPAQUE16_LEN;
+                    XMEMCPY(pms, ssl->arrays->psk_key, ssl->arrays->psk_keySz);
+                    ssl->arrays->preMasterSz +=
+                                          ssl->arrays->psk_keySz + OPAQUE16_LEN;
+                    XMEMSET(ssl->arrays->psk_key, 0, ssl->arrays->psk_keySz);
+                    ssl->arrays->psk_keySz = 0; /* No further need */
+                }
+                break;
+        #endif /* OPENSSL_EXTRA && !NO_PSK */
         #ifdef HAVE_NTRU
             case ntru_kea:
                 {
@@ -8521,7 +8821,8 @@ static void PickHashSigAlgo(CYASSL* ssl,
             if (ssl->options.tls || ssl->specs.kea == diffie_hellman_kea)
                 tlsSz = 2;
 
-            if (ssl->specs.kea == ecc_diffie_hellman_kea)  /* always off */
+            if (ssl->specs.kea == ecc_diffie_hellman_kea ||
+                ssl->specs.kea == dhe_psk_kea)  /* always off */
                 tlsSz = 0;
 
             sendSz = encSz + tlsSz + HANDSHAKE_HEADER_SZ + RECORD_HEADER_SZ;
@@ -9066,6 +9367,126 @@ static void PickHashSigAlgo(CYASSL* ssl,
             ssl->options.serverState = SERVER_KEYEXCHANGE_COMPLETE;
         }
         #endif /*NO_PSK */
+
+        #if defined(OPENSSL_EXTRA) && !defined(NO_PSK)
+        if (ssl->specs.kea == dhe_psk_kea) {
+            byte    *output;
+            word32   length, idx = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
+            word32   hintLen;
+            int      sendSz;
+            DhKey    dhKey;
+
+            if (ssl->buffers.serverDH_P.buffer == NULL ||
+                ssl->buffers.serverDH_G.buffer == NULL)
+                return NO_DH_PARAMS;
+
+            if (ssl->buffers.serverDH_Pub.buffer == NULL) {
+                ssl->buffers.serverDH_Pub.buffer = (byte*)XMALLOC(
+                        ssl->buffers.serverDH_P.length + 2, ssl->ctx->heap,
+                        DYNAMIC_TYPE_DH);
+                if (ssl->buffers.serverDH_Pub.buffer == NULL)
+                    return MEMORY_E;
+            }
+
+            if (ssl->buffers.serverDH_Priv.buffer == NULL) {
+                ssl->buffers.serverDH_Priv.buffer = (byte*)XMALLOC(
+                        ssl->buffers.serverDH_P.length + 2, ssl->ctx->heap,
+                        DYNAMIC_TYPE_DH);
+                if (ssl->buffers.serverDH_Priv.buffer == NULL)
+                    return MEMORY_E;
+            }
+
+            InitDhKey(&dhKey);
+            ret = DhSetKey(&dhKey, ssl->buffers.serverDH_P.buffer,
+                                   ssl->buffers.serverDH_P.length,
+                                   ssl->buffers.serverDH_G.buffer,
+                                   ssl->buffers.serverDH_G.length);
+            if (ret == 0)
+                ret = DhGenerateKeyPair(&dhKey, ssl->rng,
+                                         ssl->buffers.serverDH_Priv.buffer,
+                                        &ssl->buffers.serverDH_Priv.length,
+                                         ssl->buffers.serverDH_Pub.buffer,
+                                        &ssl->buffers.serverDH_Pub.length);
+            FreeDhKey(&dhKey);
+            if (ret != 0)
+                return ret;
+
+            length = LENGTH_SZ * 3 + /* p, g, pub */
+                     ssl->buffers.serverDH_P.length +
+                     ssl->buffers.serverDH_G.length +
+                     ssl->buffers.serverDH_Pub.length;
+
+            /* include size part */
+            hintLen = (word32)XSTRLEN(ssl->arrays->server_hint);
+            if (hintLen > MAX_PSK_ID_LEN)
+                return SERVER_HINT_ERROR;
+            length += hintLen + HINT_LEN_SZ;
+            sendSz = length + HANDSHAKE_HEADER_SZ + RECORD_HEADER_SZ;
+
+            #ifdef CYASSL_DTLS
+                if (ssl->options.dtls) {
+                    sendSz += DTLS_RECORD_EXTRA + DTLS_HANDSHAKE_EXTRA;
+                    idx    += DTLS_RECORD_EXTRA + DTLS_HANDSHAKE_EXTRA;
+                }
+            #endif
+            /* check for available size */
+            if ((ret = CheckAvailableSize(ssl, sendSz)) != 0)
+               return ret;
+
+            /* get ouput buffer */
+            output = ssl->buffers.outputBuffer.buffer +
+                     ssl->buffers.outputBuffer.length;
+
+            AddHeaders(output, length, server_key_exchange, ssl);
+
+            /* key data */
+            c16toa((word16)hintLen, output + idx);
+            idx += HINT_LEN_SZ;
+            XMEMCPY(output + idx, ssl->arrays->server_hint, hintLen);
+            idx += hintLen;
+
+            /* add p, g, pub */
+            c16toa((word16)ssl->buffers.serverDH_P.length, output + idx);
+            idx += LENGTH_SZ;
+            XMEMCPY(output + idx, ssl->buffers.serverDH_P.buffer,
+                                  ssl->buffers.serverDH_P.length);
+            idx += ssl->buffers.serverDH_P.length;
+
+            /*  g */
+            c16toa((word16)ssl->buffers.serverDH_G.length, output + idx);
+            idx += LENGTH_SZ;
+            XMEMCPY(output + idx, ssl->buffers.serverDH_G.buffer,
+                                  ssl->buffers.serverDH_G.length);
+            idx += ssl->buffers.serverDH_G.length;
+
+            /*  pub */
+            c16toa((word16)ssl->buffers.serverDH_Pub.length, output + idx);
+            idx += LENGTH_SZ;
+            XMEMCPY(output + idx, ssl->buffers.serverDH_Pub.buffer,
+                                  ssl->buffers.serverDH_Pub.length);
+            idx += ssl->buffers.serverDH_Pub.length;
+
+            ret = HashOutput(ssl, output, sendSz, 0);
+
+            if (ret != 0)
+                return ret;
+
+            #ifdef CYASSL_CALLBACKS
+                if (ssl->hsInfoOn)
+                    AddPacketName("ServerKeyExchange", &ssl->handShakeInfo);
+                if (ssl->toInfoOn)
+                    AddPacketInfo("ServerKeyExchange", &ssl->timeoutInfo,
+                                  output, sendSz, ssl->heap);
+            #endif
+
+            ssl->buffers.outputBuffer.length += sendSz;
+            if (ssl->options.groupMessages)
+                ret = 0;
+            else
+                ret = SendBuffered(ssl);
+            ssl->options.serverState = SERVER_KEYEXCHANGE_COMPLETE;
+        }
+        #endif /* OPENSSL_EXTRA && !NO_PSK */
 
         #ifdef HAVE_ECC
         if (ssl->specs.kea == ecc_diffie_hellman_kea)
@@ -9915,6 +10336,14 @@ static void PickHashSigAlgo(CYASSL* ssl,
                 return 1;
             break;
 
+        case TLS_DHE_PSK_WITH_AES_128_CCM:
+        case TLS_DHE_PSK_WITH_AES_256_CCM:
+            if (requirement == REQUIRES_PSK)
+                return 1;
+            if (requirement == REQUIRES_DHE)
+                return 1;
+            break;
+
         default:
             CYASSL_MSG("Unsupported cipher suite, CipherRequires ECC");
             return 0;
@@ -9995,6 +10424,18 @@ static void PickHashSigAlgo(CYASSL* ssl,
         case TLS_PSK_WITH_NULL_SHA384 :
         case TLS_PSK_WITH_NULL_SHA256 :
         case TLS_PSK_WITH_NULL_SHA :
+            if (requirement == REQUIRES_PSK)
+                return 1;
+            break;
+
+        case TLS_DHE_PSK_WITH_AES_128_GCM_SHA256 :
+        case TLS_DHE_PSK_WITH_AES_256_GCM_SHA384 :
+        case TLS_DHE_PSK_WITH_AES_128_CBC_SHA256 :
+        case TLS_DHE_PSK_WITH_AES_256_CBC_SHA384 :
+        case TLS_DHE_PSK_WITH_NULL_SHA384 :
+        case TLS_DHE_PSK_WITH_NULL_SHA256 :
+            if (requirement == REQUIRES_DHE)
+                return 1;
             if (requirement == REQUIRES_PSK)
                 return 1;
             break;
@@ -11267,6 +11708,84 @@ static void PickHashSigAlgo(CYASSL* ssl,
             }
             break;
         #endif /* OPENSSL_EXTRA */
+        #if defined(OPENSSL_EXTRA) && !defined(NO_PSK)
+            case dhe_psk_kea:
+            {
+                byte* pms = ssl->arrays->preMasterSecret;
+                word16 clientSz;
+                DhKey  dhKey;
+
+                /* Read in the PSK hint */
+                if ((*inOutIdx - begin) + OPAQUE16_LEN > size)
+                    return BUFFER_ERROR;
+
+                ato16(input + *inOutIdx, &clientSz);
+                *inOutIdx += OPAQUE16_LEN;
+                if (clientSz > MAX_PSK_ID_LEN)
+                    return CLIENT_ID_ERROR;
+
+                if ((*inOutIdx - begin) + clientSz > size)
+                    return BUFFER_ERROR;
+
+                XMEMCPY(ssl->arrays->client_identity,
+                                                   input + *inOutIdx, clientSz);
+                *inOutIdx += clientSz;
+                ssl->arrays->client_identity[min(clientSz, MAX_PSK_ID_LEN-1)] =
+                                                                              0;
+
+                /* Read in the DHE business */
+                if ((*inOutIdx - begin) + OPAQUE16_LEN > size)
+                    return BUFFER_ERROR;
+
+                ato16(input + *inOutIdx, &clientSz);
+                *inOutIdx += OPAQUE16_LEN;
+
+                if ((*inOutIdx - begin) + clientSz > size)
+                    return BUFFER_ERROR;
+
+                InitDhKey(&dhKey);
+                ret = DhSetKey(&dhKey, ssl->buffers.serverDH_P.buffer,
+                                       ssl->buffers.serverDH_P.length,
+                                       ssl->buffers.serverDH_G.buffer,
+                                       ssl->buffers.serverDH_G.length);
+                if (ret == 0)
+                    ret = DhAgree(&dhKey, pms + OPAQUE16_LEN,
+                                          &ssl->arrays->preMasterSz,
+                                          ssl->buffers.serverDH_Priv.buffer,
+                                          ssl->buffers.serverDH_Priv.length,
+                                          input + *inOutIdx, clientSz);
+                FreeDhKey(&dhKey);
+
+                *inOutIdx += clientSz;
+                c16toa(ssl->arrays->preMasterSz, pms);
+                ssl->arrays->preMasterSz += OPAQUE16_LEN;
+                pms += ssl->arrays->preMasterSz;
+
+                /* Use the PSK hint to look up the PSK and add it to the
+                 * preMasterSecret here. */
+                ssl->arrays->psk_keySz = ssl->options.server_psk_cb(ssl,
+                    ssl->arrays->client_identity, ssl->arrays->psk_key,
+                    MAX_PSK_KEY_LEN);
+
+                if (ssl->arrays->psk_keySz == 0 ||
+                                       ssl->arrays->psk_keySz > MAX_PSK_KEY_LEN)
+                    return PSK_KEY_ERROR;
+
+                c16toa((word16) ssl->arrays->psk_keySz, pms);
+                pms += OPAQUE16_LEN;
+
+                XMEMCPY(pms, ssl->arrays->psk_key, ssl->arrays->psk_keySz);
+                ssl->arrays->preMasterSz +=
+                                          ssl->arrays->psk_keySz + OPAQUE16_LEN;
+                if (ret == 0)
+                    ret = MakeMasterSecret(ssl);
+
+                /* No further need for PSK */
+                XMEMSET(ssl->arrays->psk_key, 0, ssl->arrays->psk_keySz);
+                ssl->arrays->psk_keySz = 0;
+            }
+            break;
+        #endif /* OPENSSL_EXTRA && !NO_PSK */
             default:
             {
                 CYASSL_MSG("Bad kea type");
