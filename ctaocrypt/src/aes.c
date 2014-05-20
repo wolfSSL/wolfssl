@@ -2241,6 +2241,7 @@ int AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
         if ((word)in % 16) {
         #ifndef NO_CYASSL_ALLOC_ALIGN
             byte* tmp = (byte*)XMALLOC(sz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            CYASSL_MSG("AES-CBC encrypt with bad alignment");
             if (tmp == NULL) return MEMORY_E;
 
             XMEMCPY(tmp, in, sz);

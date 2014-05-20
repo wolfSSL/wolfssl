@@ -128,6 +128,9 @@ static int OpenNitroxDevice(int dma_mode,int dev_id)
 
 #endif
 
+#if defined(DEBUG_CYASSL) && !defined(HAVE_VALGRIND)
+    CYASSL_API int CyaSSL_Debugging_ON();
+#endif
 
 /* so embedded projects can pull in tests on their own */
 #if !defined(NO_MAIN_DRIVER)
@@ -141,6 +144,10 @@ int main(int argc, char** argv)
 int benchmark_test(void *args) 
 {
 #endif
+
+    #if defined(DEBUG_CYASSL) && !defined(HAVE_VALGRIND)
+        CyaSSL_Debugging_ON();
+    #endif
 
 	#ifdef HAVE_CAVIUM
     int ret = OpenNitroxDevice(CAVIUM_DIRECT, CAVIUM_DEV_ID);
