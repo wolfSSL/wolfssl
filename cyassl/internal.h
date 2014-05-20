@@ -235,9 +235,18 @@ void c32to24(word32 in, word24 out);
   #endif
     #ifndef NO_SHA256
         #define BUILD_TLS_PSK_WITH_AES_128_CBC_SHA256
+        #ifdef HAVE_AESGCM
+            #define BUILD_TLS_PSK_WITH_AES_128_GCM_SHA256
+        #endif
         #ifdef HAVE_AESCCM
             #define BUILD_TLS_PSK_WITH_AES_128_CCM_8
             #define BUILD_TLS_PSK_WITH_AES_256_CCM_8
+        #endif
+    #endif
+    #ifdef CYASSL_SHA384
+        #define BUILD_TLS_PSK_WITH_AES_256_CBC_SHA384
+        #ifdef HAVE_AESGCM
+            #define BUILD_TLS_PSK_WITH_AES_256_GCM_SHA384
         #endif
     #endif
 #endif
@@ -257,6 +266,9 @@ void c32to24(word32 in, word24 out);
       #endif
         #ifndef NO_SHA256
             #define BUILD_TLS_PSK_WITH_NULL_SHA256
+        #endif
+        #ifdef CYASSL_SHA384
+            #define BUILD_TLS_PSK_WITH_NULL_SHA384
         #endif
     #endif
 #endif
@@ -441,8 +453,10 @@ enum {
     TLS_RSA_WITH_NULL_SHA             = 0x02,
     TLS_PSK_WITH_AES_256_CBC_SHA      = 0x8d,
     TLS_PSK_WITH_AES_128_CBC_SHA256   = 0xae,
+    TLS_PSK_WITH_AES_256_CBC_SHA384   = 0xaf,
     TLS_PSK_WITH_AES_128_CBC_SHA      = 0x8c,
     TLS_PSK_WITH_NULL_SHA256          = 0xb0,
+    TLS_PSK_WITH_NULL_SHA384          = 0xb1,
     TLS_PSK_WITH_NULL_SHA             = 0x2c,
     SSL_RSA_WITH_RC4_128_SHA          = 0x05,
     SSL_RSA_WITH_RC4_128_MD5          = 0x04,
@@ -489,7 +503,7 @@ enum {
     /* CyaSSL extension - NTRU */
     TLS_NTRU_RSA_WITH_RC4_128_SHA      = 0xe5,
     TLS_NTRU_RSA_WITH_3DES_EDE_CBC_SHA = 0xe6,
-    TLS_NTRU_RSA_WITH_AES_128_CBC_SHA  = 0xe7,  /* clases w/ official SHA-256 */
+    TLS_NTRU_RSA_WITH_AES_128_CBC_SHA  = 0xe7,  /* clashes w/official SHA-256 */
     TLS_NTRU_RSA_WITH_AES_256_CBC_SHA  = 0xe8,
 
     /* SHA256 */
@@ -504,6 +518,8 @@ enum {
     TLS_RSA_WITH_AES_256_GCM_SHA384          = 0x9d,
     TLS_DHE_RSA_WITH_AES_128_GCM_SHA256      = 0x9e,
     TLS_DHE_RSA_WITH_AES_256_GCM_SHA384      = 0x9f,
+    TLS_PSK_WITH_AES_128_GCM_SHA256          = 0xa8,
+    TLS_PSK_WITH_AES_256_GCM_SHA384          = 0xa9,
 
     /* ECC AES-GCM, first byte is 0xC0 (ECC_BYTE) */
     TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256  = 0x2b,
@@ -528,6 +544,7 @@ enum {
     TLS_PSK_WITH_AES_128_CCM_8         = 0xa8,
     TLS_PSK_WITH_AES_256_CCM_8         = 0xa9,
 
+    /* Camellia */
     TLS_RSA_WITH_CAMELLIA_128_CBC_SHA        = 0x41,
     TLS_RSA_WITH_CAMELLIA_256_CBC_SHA        = 0x84,
     TLS_RSA_WITH_CAMELLIA_128_CBC_SHA256     = 0xba,
