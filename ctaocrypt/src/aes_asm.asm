@@ -24,7 +24,7 @@
 ;	*by	Israel,Intel	Mobility	Group	Development	Center,Israel	Shay	Gueron
 ;	*/
 ;
-;   /* This file is in intel sm syntax, see .s for intel syntax */
+;   /* This file is in intel asm syntax, see .s for at&t syntax */
 ;
 ;	/*
 ;	AES_CBC_encrypt[const	,unsigned	char*in
