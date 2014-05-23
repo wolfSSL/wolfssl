@@ -4450,21 +4450,35 @@ void InitCert(Cert* cert)
     XMEMSET(cert->serial, 0, CTC_SERIAL_SIZE);
 
     cert->issuer.country[0] = '\0';
+    cert->issuer.countryEnc = CTC_PRINTABLE;
     cert->issuer.state[0] = '\0';
+    cert->issuer.stateEnc = CTC_UTF8;
     cert->issuer.locality[0] = '\0';
+    cert->issuer.localityEnc = CTC_UTF8;
     cert->issuer.sur[0] = '\0';
+    cert->issuer.surEnc = CTC_UTF8;
     cert->issuer.org[0] = '\0';
+    cert->issuer.orgEnc = CTC_UTF8;
     cert->issuer.unit[0] = '\0';
+    cert->issuer.unitEnc = CTC_UTF8;
     cert->issuer.commonName[0] = '\0';
+    cert->issuer.commonNameEnc = CTC_UTF8;
     cert->issuer.email[0] = '\0';
 
     cert->subject.country[0] = '\0';
+    cert->subject.countryEnc = CTC_PRINTABLE;
     cert->subject.state[0] = '\0';
+    cert->subject.stateEnc = CTC_UTF8;
     cert->subject.locality[0] = '\0';
+    cert->subject.localityEnc = CTC_UTF8;
     cert->subject.sur[0] = '\0';
+    cert->subject.surEnc = CTC_UTF8;
     cert->subject.org[0] = '\0';
+    cert->subject.orgEnc = CTC_UTF8;
     cert->subject.unit[0] = '\0';
+    cert->subject.unitEnc = CTC_UTF8;
     cert->subject.commonName[0] = '\0';
+    cert->subject.commonNameEnc = CTC_UTF8;
     cert->subject.email[0] = '\0';
 
 #ifdef CYASSL_CERT_REQ
@@ -4823,6 +4837,37 @@ static const char* GetOneName(CertName* name, int idx)
 }
 
 
+/* Get Which Name Encoding from index */
+static char GetNameType(CertName* name, int idx)
+{
+    switch (idx) {
+    case 0:
+       return name->countryEnc;
+
+    case 1:
+       return name->stateEnc;
+
+    case 2:
+       return name->localityEnc;
+
+    case 3:
+       return name->surEnc;
+
+    case 4:
+       return name->orgEnc;
+
+    case 5:
+       return name->unitEnc;
+
+    case 6:
+       return name->commonNameEnc;
+
+    default:
+       return 0;
+    }
+}
+
+
 /* Get ASN Name from index */
 static byte GetNameId(int idx)
 {
@@ -4972,10 +5017,7 @@ static int SetName(byte* output, CertName* name)
                 /* id type */
                 names[i].encoded[idx++] = bType; 
                 /* str type */
-                if (bType == ASN_COUNTRY_NAME)
-                    names[i].encoded[idx++] = 0x13;   /* printable */
-                else
-                    names[i].encoded[idx++] = 0x0c;   /* utf8 */
+                names[i].encoded[idx++] = GetNameType(name, i);
             }
             /* second length */
             XMEMCPY(names[i].encoded + idx, secondLen, secondSz);
