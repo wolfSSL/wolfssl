@@ -1270,6 +1270,7 @@ void InitDecodedCert(DecodedCert* cert, byte* source, word32 inSz, void* heap)
     cert->signature       = 0;
     cert->subjectCN       = 0;
     cert->subjectCNLen    = 0;
+    cert->subjectCNEnc    = CTC_UTF8;
     cert->subjectCNStored = 0;
     cert->altNames        = NULL;
 #ifndef IGNORE_NAME_CONSTRAINTS
@@ -1308,16 +1309,22 @@ void InitDecodedCert(DecodedCert* cert, byte* source, word32 inSz, void* heap)
 #ifdef CYASSL_CERT_GEN
     cert->subjectSN       = 0;
     cert->subjectSNLen    = 0;
+    cert->subjectSNEnc    = CTC_UTF8;
     cert->subjectC        = 0;
     cert->subjectCLen     = 0;
+    cert->subjectCEnc     = CTC_PRINTABLE;
     cert->subjectL        = 0;
     cert->subjectLLen     = 0;
+    cert->subjectLEnc     = CTC_UTF8;
     cert->subjectST       = 0;
     cert->subjectSTLen    = 0;
+    cert->subjectSTEnc    = CTC_UTF8;
     cert->subjectO        = 0;
     cert->subjectOLen     = 0;
+    cert->subjectOEnc     = CTC_UTF8;
     cert->subjectOU       = 0;
     cert->subjectOULen    = 0;
+    cert->subjectOUEnc    = CTC_UTF8;
     cert->subjectEmail    = 0;
     cert->subjectEmailLen = 0;
 #endif /* CYASSL_CERT_GEN */
@@ -1707,8 +1714,7 @@ static int GetName(DecodedCert* cert, int nameType)
 
             cert->srcIdx += 2;
             id = cert->source[cert->srcIdx++]; 
-            b  = cert->source[cert->srcIdx++];    /* strType */
-            (void)b;                              /* may want to validate? */
+            b  = cert->source[cert->srcIdx++]; /* encoding */
 
             if (GetLength(cert->source, &cert->srcIdx, &strLen,
                           cert->maxIdx) < 0)
@@ -1724,6 +1730,7 @@ static int GetName(DecodedCert* cert, int nameType)
                 if (nameType == SUBJECT) {
                     cert->subjectCN = (char *)&cert->source[cert->srcIdx];
                     cert->subjectCNLen = strLen;
+                    cert->subjectCNEnc = b;
                 }
 
                 if (!tooBig) {
@@ -1746,6 +1753,7 @@ static int GetName(DecodedCert* cert, int nameType)
                     if (nameType == SUBJECT) {
                         cert->subjectSN = (char*)&cert->source[cert->srcIdx];
                         cert->subjectSNLen = strLen;
+                        cert->subjectSNEnc = b;
                     }
                 #endif /* CYASSL_CERT_GEN */
                 #ifdef OPENSSL_EXTRA
@@ -1763,6 +1771,7 @@ static int GetName(DecodedCert* cert, int nameType)
                     if (nameType == SUBJECT) {
                         cert->subjectC = (char*)&cert->source[cert->srcIdx];
                         cert->subjectCLen = strLen;
+                        cert->subjectCEnc = b;
                     }
                 #endif /* CYASSL_CERT_GEN */
                 #ifdef OPENSSL_EXTRA
@@ -1780,6 +1789,7 @@ static int GetName(DecodedCert* cert, int nameType)
                     if (nameType == SUBJECT) {
                         cert->subjectL = (char*)&cert->source[cert->srcIdx];
                         cert->subjectLLen = strLen;
+                        cert->subjectLEnc = b;
                     }
                 #endif /* CYASSL_CERT_GEN */
                 #ifdef OPENSSL_EXTRA
@@ -1797,6 +1807,7 @@ static int GetName(DecodedCert* cert, int nameType)
                     if (nameType == SUBJECT) {
                         cert->subjectST = (char*)&cert->source[cert->srcIdx];
                         cert->subjectSTLen = strLen;
+                        cert->subjectSTEnc = b;
                     }
                 #endif /* CYASSL_CERT_GEN */
                 #ifdef OPENSSL_EXTRA
@@ -1814,6 +1825,7 @@ static int GetName(DecodedCert* cert, int nameType)
                     if (nameType == SUBJECT) {
                         cert->subjectO = (char*)&cert->source[cert->srcIdx];
                         cert->subjectOLen = strLen;
+                        cert->subjectOEnc = b;
                     }
                 #endif /* CYASSL_CERT_GEN */
                 #ifdef OPENSSL_EXTRA
@@ -1831,6 +1843,7 @@ static int GetName(DecodedCert* cert, int nameType)
                     if (nameType == SUBJECT) {
                         cert->subjectOU = (char*)&cert->source[cert->srcIdx];
                         cert->subjectOULen = strLen;
+                        cert->subjectOUEnc = b;
                     }
                 #endif /* CYASSL_CERT_GEN */
                 #ifdef OPENSSL_EXTRA
@@ -5741,42 +5754,49 @@ static int SetNameFromCert(CertName* cn, const byte* der, int derSz)
                                                   CTC_NAME_SIZE - 1;
         strncpy(cn->commonName, decoded.subjectCN, CTC_NAME_SIZE);
         cn->commonName[sz] = 0;
+        cn->commonNameEnc = decoded.subjectCNEnc;
     }
     if (decoded.subjectC) {
         sz = (decoded.subjectCLen < CTC_NAME_SIZE) ? decoded.subjectCLen :
                                                  CTC_NAME_SIZE - 1;
         strncpy(cn->country, decoded.subjectC, CTC_NAME_SIZE);
         cn->country[sz] = 0;
+        cn->countryEnc = decoded.subjectCEnc;
     }
     if (decoded.subjectST) {
         sz = (decoded.subjectSTLen < CTC_NAME_SIZE) ? decoded.subjectSTLen :
                                                   CTC_NAME_SIZE - 1;
         strncpy(cn->state, decoded.subjectST, CTC_NAME_SIZE);
         cn->state[sz] = 0;
+        cn->stateEnc = decoded.subjectSTEnc;
     }
     if (decoded.subjectL) {
         sz = (decoded.subjectLLen < CTC_NAME_SIZE) ? decoded.subjectLLen :
                                                  CTC_NAME_SIZE - 1;
         strncpy(cn->locality, decoded.subjectL, CTC_NAME_SIZE);
         cn->locality[sz] = 0;
+        cn->localityEnc = decoded.subjectLEnc;
     }
     if (decoded.subjectO) {
         sz = (decoded.subjectOLen < CTC_NAME_SIZE) ? decoded.subjectOLen :
                                                  CTC_NAME_SIZE - 1;
         strncpy(cn->org, decoded.subjectO, CTC_NAME_SIZE);
         cn->org[sz] = 0;
+        cn->orgEnc = decoded.subjectOEnc;
     }
     if (decoded.subjectOU) {
         sz = (decoded.subjectOULen < CTC_NAME_SIZE) ? decoded.subjectOULen :
                                                   CTC_NAME_SIZE - 1;
         strncpy(cn->unit, decoded.subjectOU, CTC_NAME_SIZE);
         cn->unit[sz] = 0;
+        cn->unitEnc = decoded.subjectOUEnc;
     }
     if (decoded.subjectSN) {
         sz = (decoded.subjectSNLen < CTC_NAME_SIZE) ? decoded.subjectSNLen :
                                                   CTC_NAME_SIZE - 1;
         strncpy(cn->sur, decoded.subjectSN, CTC_NAME_SIZE);
         cn->sur[sz] = 0;
+        cn->surEnc = decoded.subjectSNEnc;
     }
     if (decoded.subjectEmail) {
         sz = (decoded.subjectEmailLen < CTC_NAME_SIZE) ?

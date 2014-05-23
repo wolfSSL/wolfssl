@@ -62,6 +62,11 @@ enum Ctc_SigType {
     CTC_SHA512wECDSA = 526
 };
 
+enum Ctc_Encoding {
+    CTC_UTF8       = 0x0c, /* utf8      */
+    CTC_PRINTABLE  = 0x13  /* printable */
+};
+
 
 #ifdef CYASSL_CERT_GEN
 
@@ -74,11 +79,6 @@ enum Ctc_Misc {
     CTC_DATE_SIZE    =   32,
     CTC_MAX_ALT_SIZE = 8192,    /* may be huge */
     CTC_SERIAL_SIZE  =    8
-};
-
-enum Ctc_Encoding {
-    CTC_UTF8       = 0x0c, /* utf8      */
-    CTC_PRINTABLE  = 0x13  /* printable */
 };
 
 typedef struct CertName {
