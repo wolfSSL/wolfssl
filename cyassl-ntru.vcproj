@@ -251,7 +251,7 @@
 				>
 			</File>
 			<File
-				RelativePath=".\ctaocrypt\src\port.c"
+				RelativePath=".\ctaocrypt\src\wc_port.c"
 				>
 			</File>
 			<File

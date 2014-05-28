@@ -49,7 +49,7 @@
       <itemPath>../../ctaocrypt/src/sha256.c</itemPath>
       <itemPath>../../ctaocrypt/src/sha512.c</itemPath>
       <itemPath>../../ctaocrypt/src/tfm.c</itemPath>
-      <itemPath>../../ctaocrypt/src/port.c</itemPath>
+      <itemPath>../../ctaocrypt/src/wc_port.c</itemPath>
     </logicalFolder>
     <logicalFolder name="ExternalFiles"
                    displayName="Important Files"
@@ -72,7 +72,7 @@
         <targetPluginBoard></targetPluginBoard>
         <platformTool>PKOBSKDEPlatformTool</platformTool>
         <languageToolchain>XC32</languageToolchain>
-        <languageToolchainVersion>1.30</languageToolchainVersion>
+        <languageToolchainVersion>1.10</languageToolchainVersion>
         <platform>3</platform>
       </toolsSet>
       <compileType>

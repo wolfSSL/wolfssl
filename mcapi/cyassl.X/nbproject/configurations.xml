@@ -52,7 +52,7 @@
       <itemPath>../../mcapi/crypto.c</itemPath>
       <itemPath>../../ctaocrypt/src/compress.c</itemPath>
       <itemPath>../../ctaocrypt/src/camellia.c</itemPath>
-      <itemPath>../../ctaocrypt/src/port.c</itemPath>
+      <itemPath>../../ctaocrypt/src/wc_port.c</itemPath>
     </logicalFolder>
     <logicalFolder name="ExternalFiles"
                    displayName="Important Files"

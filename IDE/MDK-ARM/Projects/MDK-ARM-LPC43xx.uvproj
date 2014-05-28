@@ -726,9 +726,9 @@
               <FilePath>..\..\..\ctaocrypt\src\misc.c</FilePath>
             </File>
             <File>
-              <FileName>port.c</FileName>
+              <FileName>wc_port.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\ctaocrypt\src\port.c</FilePath>
+              <FilePath>..\..\..\ctaocrypt\src\wc_port.c</FilePath>
             </File>
             <File>
               <FileName>pwdbased.c</FileName>
@@ -1970,9 +1970,9 @@
               </FileOption>
             </File>
             <File>
-              <FileName>port.c</FileName>
+              <FileName>wc_port.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\ctaocrypt\src\port.c</FilePath>
+              <FilePath>..\..\..\ctaocrypt\src\wc_port.c</FilePath>
             </File>
           </Files>
         </Group>
@@ -3267,9 +3267,9 @@
               </FileOption>
             </File>
             <File>
-              <FileName>port.c</FileName>
+              <FileName>wc_port.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\ctaocrypt\src\port.c</FilePath>
+              <FilePath>..\..\..\ctaocrypt\src\wc_port.c</FilePath>
             </File>
           </Files>
         </Group>
