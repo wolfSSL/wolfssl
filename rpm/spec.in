@@ -106,7 +106,7 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_includedir}/cyassl/ctaocrypt/mpi_class.h
 %{_includedir}/cyassl/ctaocrypt/mpi_superclass.h
 %{_includedir}/cyassl/ctaocrypt/pkcs7.h
-%{_includedir}/cyassl/ctaocrypt/port.h
+%{_includedir}/cyassl/ctaocrypt/wc_port.h
 %{_includedir}/cyassl/ctaocrypt/pwdbased.h
 %{_includedir}/cyassl/ctaocrypt/rabbit.h
 %{_includedir}/cyassl/ctaocrypt/random.h

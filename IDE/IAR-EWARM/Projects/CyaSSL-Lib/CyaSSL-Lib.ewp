@@ -1965,7 +1965,7 @@
       <name>$PROJ_DIR$\..\..\..\..\ctaocrypt\src\misc.c</name>
     </file>
     <file>
-      <name>$PROJ_DIR$\..\..\..\..\ctaocrypt\src\port.c</name>
+      <name>$PROJ_DIR$\..\..\..\..\ctaocrypt\src\wc_port.c</name>
     </file>
     <file>
       <name>$PROJ_DIR$\..\..\..\..\ctaocrypt\src\pwdbased.c</name>

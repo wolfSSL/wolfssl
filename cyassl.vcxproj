@@ -154,7 +154,7 @@
     <ClCompile Include="ctaocrypt\src\md5.c" />
     <ClCompile Include="ctaocrypt\src\memory.c" />
     <ClCompile Include="src\ocsp.c" />
-    <ClCompile Include="ctaocrypt\src\port.c" />
+    <ClCompile Include="ctaocrypt\src\wc_port.c" />
     <ClCompile Include="ctaocrypt\src\pwdbased.c" />
     <ClCompile Include="ctaocrypt\src\rabbit.c" />
     <ClCompile Include="ctaocrypt\src\random.c" />

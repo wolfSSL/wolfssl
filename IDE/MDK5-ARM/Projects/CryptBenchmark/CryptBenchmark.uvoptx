@@ -1015,8 +1015,8 @@
       <TopLine>0</TopLine>
       <CurrentLine>0</CurrentLine>
       <bDave2>0</bDave2>
-      <PathWithFileName>C:\Keil5\ARM\PACK\wolfSSL\CyaSSL\3.0.0\cyassl\ctaocrypt\src\port.c</PathWithFileName>
-      <FilenameWithoutPath>port.c</FilenameWithoutPath>
+      <PathWithFileName>C:\Keil5\ARM\PACK\wolfSSL\CyaSSL\3.0.0\cyassl\ctaocrypt\src\wc_port.c</PathWithFileName>
+      <FilenameWithoutPath>wc_port.c</FilenameWithoutPath>
       <RteFlg>1</RteFlg>
       <bShared>0</bShared>
     </File>
