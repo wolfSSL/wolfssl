@@ -62,6 +62,11 @@ enum Ctc_SigType {
     CTC_SHA512wECDSA = 526
 };
 
+enum Ctc_Encoding {
+    CTC_UTF8       = 0x0c, /* utf8      */
+    CTC_PRINTABLE  = 0x13  /* printable */
+};
+
 
 #ifdef CYASSL_CERT_GEN
 
@@ -78,12 +83,19 @@ enum Ctc_Misc {
 
 typedef struct CertName {
     char country[CTC_NAME_SIZE];
+    char countryEnc;
     char state[CTC_NAME_SIZE];
+    char stateEnc;
     char locality[CTC_NAME_SIZE];
+    char localityEnc;
     char sur[CTC_NAME_SIZE];
+    char surEnc;
     char org[CTC_NAME_SIZE];
+    char orgEnc;
     char unit[CTC_NAME_SIZE];
+    char unitEnc;
     char commonName[CTC_NAME_SIZE];
+    char commonNameEnc;
     char email[CTC_NAME_SIZE];  /* !!!! email has to be last !!!! */
 } CertName;
 
