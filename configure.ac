@@ -1635,6 +1635,13 @@ then
     fi
 fi
 
+# ICC command line warning for non supported warning flags
+if test "$CC" = "icc"
+then
+    AM_CFLAGS="$AM_CFLAGS -wd10006"
+fi
+
+
 LIB_SOCKET_NSL
 AX_HARDEN_CC_COMPILER_FLAGS
 

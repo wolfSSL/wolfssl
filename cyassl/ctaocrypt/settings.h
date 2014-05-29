@@ -702,6 +702,12 @@
     #define NO_SKID
 #endif
 
+
+#ifdef __INTEL_COMPILER
+    #pragma warning(disable:2259) /* explicit casts to smaller sizes, disable */
+#endif
+
+
 /* Place any other flags or defines here */
 
 

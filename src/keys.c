@@ -2023,8 +2023,8 @@ static int MakeSslMasterSecret(CYASSL* ssl)
     XMEMCPY(md5Input, ssl->arrays->preMasterSecret, pmsSz);
 
     for (i = 0; i < MASTER_ROUNDS; ++i) {
-        byte prefix[PREFIX];
-        if (!SetPrefix(prefix, i)) {
+        byte prefix[KEY_PREFIX];      /* only need PREFIX bytes but static */
+        if (!SetPrefix(prefix, i)) {  /* analysis thinks will overrun      */
             return PREFIX_ERROR;
         }
 
