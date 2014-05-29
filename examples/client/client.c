@@ -180,7 +180,7 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
 
     word16 port   = yasslPort;
     char* host   = (char*)yasslIP;
-    char* domain = (char*)"www.yassl.com";
+    const char* domain = "www.yassl.com";
 
     int    ch;
     int    version = CLIENT_INVALID_VERSION;
@@ -198,9 +198,9 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
     int    atomicUser    = 0;
     int    pkCallbacks   = 0;
     char*  cipherList = NULL;
-    char*  verifyCert = (char*)caCert;
-    char*  ourCert    = (char*)cliCert;
-    char*  ourKey     = (char*)cliKey;
+    const char* verifyCert = caCert;
+    const char* ourCert    = cliCert;
+    const char* ourKey     = cliKey;
 
 #ifdef HAVE_SNI
     char*  sniHostName = NULL;
