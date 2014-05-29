@@ -390,7 +390,10 @@ then
     then
         # GCC needs these flags, icc doesn't
         # opt levels greater than 2 may cause problems on systems w/o aesni
-        AM_CFLAGS="$AM_CFLAGS -maes -msse4"
+        if test "$CC" != "icc"
+        then
+            AM_CFLAGS="$AM_CFLAGS -maes -msse4"
+        fi
     fi
 fi
 
