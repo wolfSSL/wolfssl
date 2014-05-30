@@ -8425,6 +8425,14 @@ CYASSL_X509* CyaSSL_X509_load_certificate_file(const char* fname, int format)
                     return "TLS_PSK_WITH_AES_128_CCM_8";
                 case TLS_PSK_WITH_AES_256_CCM_8 :
                     return "TLS_PSK_WITH_AES_256_CCM_8";
+                case TLS_PSK_WITH_AES_128_CCM :
+                    return "TLS_PSK_WITH_AES_128_CCM";
+                case TLS_PSK_WITH_AES_256_CCM :
+                    return "TLS_PSK_WITH_AES_256_CCM";
+                case TLS_DHE_PSK_WITH_AES_128_CCM :
+                    return "TLS_DHE_PSK_WITH_AES_128_CCM";
+                case TLS_DHE_PSK_WITH_AES_256_CCM :
+                    return "TLS_DHE_PSK_WITH_AES_256_CCM";
     #endif
     #ifdef HAVE_ECC
                 case TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8:
@@ -8492,9 +8500,15 @@ CYASSL_X509* CyaSSL_X509_load_certificate_file(const char* fname, int format)
                     return "TLS_PSK_WITH_AES_128_CBC_SHA256";
                 case TLS_PSK_WITH_NULL_SHA256 :
                     return "TLS_PSK_WITH_NULL_SHA256";
+                case TLS_DHE_PSK_WITH_AES_128_CBC_SHA256 :
+                    return "TLS_DHE_PSK_WITH_AES_128_CBC_SHA256";
+                case TLS_DHE_PSK_WITH_NULL_SHA256 :
+                    return "TLS_DHE_PSK_WITH_NULL_SHA256";
         #ifdef HAVE_AESGCM
                 case TLS_PSK_WITH_AES_128_GCM_SHA256 :
                     return "TLS_PSK_WITH_AES_128_GCM_SHA256";
+                case TLS_DHE_PSK_WITH_AES_128_GCM_SHA256 :
+                    return "TLS_DHE_PSK_WITH_AES_128_GCM_SHA256";
         #endif
     #endif
     #ifdef CYASSL_SHA384
@@ -8502,9 +8516,15 @@ CYASSL_X509* CyaSSL_X509_load_certificate_file(const char* fname, int format)
                     return "TLS_PSK_WITH_AES_256_CBC_SHA384";
                 case TLS_PSK_WITH_NULL_SHA384 :
                     return "TLS_PSK_WITH_NULL_SHA384";
+                case TLS_DHE_PSK_WITH_AES_256_CBC_SHA384 :
+                    return "TLS_DHE_PSK_WITH_AES_256_CBC_SHA384";
+                case TLS_DHE_PSK_WITH_NULL_SHA384 :
+                    return "TLS_DHE_PSK_WITH_NULL_SHA384";
         #ifdef HAVE_AESGCM
                 case TLS_PSK_WITH_AES_256_GCM_SHA384 :
                     return "TLS_PSK_WITH_AES_256_GCM_SHA384";
+                case TLS_DHE_PSK_WITH_AES_256_GCM_SHA384 :
+                    return "TLS_DHE_PSK_WITH_AES_256_GCM_SHA384";
         #endif
     #endif
     #ifndef NO_SHA
