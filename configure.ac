@@ -81,6 +81,7 @@ AC_CHECK_HEADERS([errno.h])
 AC_CHECK_LIB(network,socket)
 AC_CHECK_SIZEOF(long long, 8)
 AC_CHECK_SIZEOF(long, 4)
+AC_CHECK_TYPES(__uint128_t)
 AC_C_BIGENDIAN
 # mktime check takes forever on some systems, if time supported it would be
 # highly unusual for mktime to be missing

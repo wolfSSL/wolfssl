@@ -484,7 +484,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
         CloseSocket(sockfd);
 
     SSL_set_fd(ssl, clientfd);
-    if (usePsk == 0) {
+    if (usePsk == 0 || cipherList != NULL) {
         #if !defined(NO_FILESYSTEM) && defined(OPENSSL_EXTRA)
             CyaSSL_SetTmpDH_file(ssl, dhParam, SSL_FILETYPE_PEM);
         #elif !defined(NO_CERTS)

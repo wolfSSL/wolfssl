@@ -241,6 +241,8 @@ void c32to24(word32 in, word24 out);
         #ifdef HAVE_AESCCM
             #define BUILD_TLS_PSK_WITH_AES_128_CCM_8
             #define BUILD_TLS_PSK_WITH_AES_256_CCM_8
+            #define BUILD_TLS_PSK_WITH_AES_128_CCM
+            #define BUILD_TLS_PSK_WITH_AES_256_CCM
         #endif
     #endif
     #ifdef CYASSL_SHA384
@@ -303,6 +305,33 @@ void c32to24(word32 in, word24 out);
             #if defined (CYASSL_SHA384)
                 #define BUILD_TLS_DHE_RSA_WITH_AES_256_GCM_SHA384
             #endif
+        #endif
+    #endif
+#endif
+
+
+#if !defined(NO_DH) && !defined(NO_PSK) && !defined(NO_TLS) && \
+    defined(OPENSSL_EXTRA)
+    #ifndef NO_SHA256
+        #define BUILD_TLS_DHE_PSK_WITH_AES_128_CBC_SHA256
+        #ifdef HAVE_NULL_CIPHER
+            #define BUILD_TLS_DHE_PSK_WITH_NULL_SHA256
+        #endif
+        #ifdef HAVE_AESGCM
+            #define BUILD_TLS_DHE_PSK_WITH_AES_128_GCM_SHA256
+        #endif
+        #ifdef HAVE_AESGCM
+            #define BUILD_TLS_DHE_PSK_WITH_AES_128_CCM
+            #define BUILD_TLS_DHE_PSK_WITH_AES_256_CCM
+        #endif
+    #endif
+    #ifdef CYASSL_SHA384
+        #define BUILD_TLS_DHE_PSK_WITH_AES_256_CBC_SHA384
+        #ifdef HAVE_NULL_CIPHER
+            #define BUILD_TLS_DHE_PSK_WITH_NULL_SHA384
+        #endif
+        #ifdef HAVE_AESGCM
+            #define BUILD_TLS_DHE_PSK_WITH_AES_256_GCM_SHA384
         #endif
     #endif
 #endif
@@ -512,6 +541,12 @@ enum {
     TLS_RSA_WITH_AES_256_CBC_SHA256     = 0x3d,
     TLS_RSA_WITH_AES_128_CBC_SHA256     = 0x3c,
     TLS_RSA_WITH_NULL_SHA256            = 0x3b,
+    TLS_DHE_PSK_WITH_AES_128_CBC_SHA256 = 0xb2,
+    TLS_DHE_PSK_WITH_NULL_SHA256        = 0xb4,
+
+    /* SHA384 */
+    TLS_DHE_PSK_WITH_AES_256_CBC_SHA384 = 0xb3,
+    TLS_DHE_PSK_WITH_NULL_SHA384        = 0xb5,
 
     /* AES-GCM */
     TLS_RSA_WITH_AES_128_GCM_SHA256          = 0x9c,
@@ -520,6 +555,8 @@ enum {
     TLS_DHE_RSA_WITH_AES_256_GCM_SHA384      = 0x9f,
     TLS_PSK_WITH_AES_128_GCM_SHA256          = 0xa8,
     TLS_PSK_WITH_AES_256_GCM_SHA384          = 0xa9,
+    TLS_DHE_PSK_WITH_AES_128_GCM_SHA256      = 0xaa,
+    TLS_DHE_PSK_WITH_AES_256_GCM_SHA384      = 0xab,
 
     /* ECC AES-GCM, first byte is 0xC0 (ECC_BYTE) */
     TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256  = 0x2b,
@@ -543,6 +580,8 @@ enum {
     TLS_PSK_WITH_AES_256_CCM           = 0xa5,
     TLS_PSK_WITH_AES_128_CCM_8         = 0xa8,
     TLS_PSK_WITH_AES_256_CCM_8         = 0xa9,
+    TLS_DHE_PSK_WITH_AES_128_CCM       = 0xa6,
+    TLS_DHE_PSK_WITH_AES_256_CCM       = 0xa7,
 
     /* Camellia */
     TLS_RSA_WITH_CAMELLIA_128_CBC_SHA        = 0x41,
@@ -649,7 +688,7 @@ enum Misc {
     TLS_FINISHED_SZ     = 12,  /* TLS has a shorter size  */
     MASTER_LABEL_SZ     = 13,  /* TLS master secret label sz */
     KEY_LABEL_SZ        = 13,  /* TLS key block expansion sz */
-    MAX_PRF_HALF        = 128, /* Maximum half secret len */
+    MAX_PRF_HALF        = 256, /* Maximum half secret len */
     MAX_PRF_LABSEED     = 128, /* Maximum label + seed len */
     MAX_PRF_DIG         = 224, /* Maximum digest len      */
     MAX_REQUEST_SZ      = 256, /* Maximum cert req len (no auth yet */
@@ -1358,6 +1397,7 @@ enum KeyExchangeAlgorithm {
     diffie_hellman_kea, 
     fortezza_kea,
     psk_kea,
+    dhe_psk_kea,
     ntru_kea,
     ecc_diffie_hellman_kea,
     ecc_static_diffie_hellman_kea       /* for verify suite only */

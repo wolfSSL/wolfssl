@@ -73,6 +73,11 @@
 #if defined(__x86_64__) && !defined(FP_64BIT)
     #define FP_64BIT
 #endif
+/* if intel compiler doesn't provide 128 bit type don't turn on 64bit */
+#if defined(FP_64BIT) && defined(__INTEL_COMPILER) && !defined(HAVE___UINT128_T)
+    #undef FP_64BIT
+    #undef TFM_X86_64
+#endif
 #endif /* NO_64BIT */
 
 /* try to detect x86-32 */
