@@ -70,6 +70,10 @@ extern "C" {
       #define MP_64BIT
    #endif
 #endif
+/* if intel compiler doesn't provide 128 bit type don't turn on 64bit */
+#if defined(MP_64BIT) && defined(__INTEL_COMPILER) && !defined(HAVE___UINT128_T)
+    #undef MP_64BIT
+#endif
 
 /* some default configurations.
  *
