@@ -8210,7 +8210,7 @@ static void PickHashSigAlgo(CYASSL* ssl,
         }
     #endif /* HAVE_ECC */
 
-    #if defined(OPENSSL_EXTRA) || !defined(NO_PSK)
+    #if defined(OPENSSL_EXTRA) && !defined(NO_PSK)
     if (ssl->specs.kea == dhe_psk_kea) {
         if ((*inOutIdx - begin) + OPAQUE16_LEN > size)
             return BUFFER_ERROR;
