@@ -325,7 +325,13 @@ int PKCS7_EncodeSignedData(PKCS7* pkcs7, byte* output, word32 outputSz)
         { ASN_OBJECT_ID, 0x09, 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01,
                          0x07, 0x01 };
 
-    ESD esd;
+#ifdef CYASSL_SMALL_STACK
+    ESD* esd = NULL;
+#else
+    ESD stack_esd;
+    ESD* esd = &stack_esd;
+#endif
+
     word32 signerInfoSz = 0;
     word32 totalSz = 0;
     int idx = 0, ret = 0;
@@ -341,41 +347,51 @@ int PKCS7_EncodeSignedData(PKCS7* pkcs7, byte* output, word32 outputSz)
         output == NULL || outputSz == 0)
         return BAD_FUNC_ARG;
 
-    XMEMSET(&esd, 0, sizeof(esd));
-    ret = InitSha(&esd.sha);
-    if (ret != 0)
+#ifdef CYASSL_SMALL_STACK
+    esd = (ESD*)XMALLOC(sizeof(ESD), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (esd == NULL)
+        return MEMORY_E;
+#endif
+
+    XMEMSET(esd, 0, sizeof(ESD));
+    ret = InitSha(&esd->sha);
+    if (ret != 0) {
+#ifdef CYASSL_SMALL_STACK
+        XFREE(esd, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
         return ret;
+    }
 
     if (pkcs7->contentSz != 0)
     {
-        ShaUpdate(&esd.sha, pkcs7->content, pkcs7->contentSz);
-        esd.contentDigest[0] = ASN_OCTET_STRING;
-        esd.contentDigest[1] = SHA_DIGEST_SIZE;
-        ShaFinal(&esd.sha, &esd.contentDigest[2]);
+        ShaUpdate(&esd->sha, pkcs7->content, pkcs7->contentSz);
+        esd->contentDigest[0] = ASN_OCTET_STRING;
+        esd->contentDigest[1] = SHA_DIGEST_SIZE;
+        ShaFinal(&esd->sha, &esd->contentDigest[2]);
     }
 
-    esd.innerOctetsSz = SetOctetString(pkcs7->contentSz, esd.innerOctets);
-    esd.innerContSeqSz = SetExplicit(0, esd.innerOctetsSz + pkcs7->contentSz,
-                                esd.innerContSeq);
-    esd.contentInfoSeqSz = SetSequence(pkcs7->contentSz + esd.innerOctetsSz +
-                                    innerOidSz + esd.innerContSeqSz,
-                                    esd.contentInfoSeq);
+    esd->innerOctetsSz = SetOctetString(pkcs7->contentSz, esd->innerOctets);
+    esd->innerContSeqSz = SetExplicit(0, esd->innerOctetsSz + pkcs7->contentSz,
+                                esd->innerContSeq);
+    esd->contentInfoSeqSz = SetSequence(pkcs7->contentSz + esd->innerOctetsSz +
+                                    innerOidSz + esd->innerContSeqSz,
+                                    esd->contentInfoSeq);
 
-    esd.issuerSnSz = SetSerialNumber(pkcs7->issuerSn, pkcs7->issuerSnSz,
-                                     esd.issuerSn);
-    signerInfoSz += esd.issuerSnSz;
-    esd.issuerNameSz = SetSequence(pkcs7->issuerSz, esd.issuerName);
-    signerInfoSz += esd.issuerNameSz + pkcs7->issuerSz;
-    esd.issuerSnSeqSz = SetSequence(signerInfoSz, esd.issuerSnSeq);
-    signerInfoSz += esd.issuerSnSeqSz;
-    esd.signerVersionSz = SetMyVersion(1, esd.signerVersion, 0);
-    signerInfoSz += esd.signerVersionSz;
-    esd.signerDigAlgoIdSz = SetAlgoID(pkcs7->hashOID, esd.signerDigAlgoId,
+    esd->issuerSnSz = SetSerialNumber(pkcs7->issuerSn, pkcs7->issuerSnSz,
+                                     esd->issuerSn);
+    signerInfoSz += esd->issuerSnSz;
+    esd->issuerNameSz = SetSequence(pkcs7->issuerSz, esd->issuerName);
+    signerInfoSz += esd->issuerNameSz + pkcs7->issuerSz;
+    esd->issuerSnSeqSz = SetSequence(signerInfoSz, esd->issuerSnSeq);
+    signerInfoSz += esd->issuerSnSeqSz;
+    esd->signerVersionSz = SetMyVersion(1, esd->signerVersion, 0);
+    signerInfoSz += esd->signerVersionSz;
+    esd->signerDigAlgoIdSz = SetAlgoID(pkcs7->hashOID, esd->signerDigAlgoId,
                                       hashType, 0);
-    signerInfoSz += esd.signerDigAlgoIdSz;
-    esd.digEncAlgoIdSz = SetAlgoID(pkcs7->encryptOID, esd.digEncAlgoId,
+    signerInfoSz += esd->signerDigAlgoIdSz;
+    esd->digEncAlgoIdSz = SetAlgoID(pkcs7->encryptOID, esd->digEncAlgoId,
                                    keyType, 0);
-    signerInfoSz += esd.digEncAlgoIdSz;
+    signerInfoSz += esd->digEncAlgoIdSz;
 
     if (pkcs7->signedAttribsSz != 0) {
         byte contentTypeOid[] =
@@ -393,35 +409,45 @@ int PKCS7_EncodeSignedData(PKCS7* pkcs7, byte* output, word32 outputSz)
             { contentTypeOid, sizeof(contentTypeOid),
                              contentType, sizeof(contentType) },
             { messageDigestOid, sizeof(messageDigestOid),
-                             esd.contentDigest, sizeof(esd.contentDigest) }
+                             esd->contentDigest, sizeof(esd->contentDigest) }
         };
         word32 cannedAttribsCount = sizeof(cannedAttribs)/sizeof(PKCS7Attrib);
 
-        esd.signedAttribsCount += cannedAttribsCount;
-        esd.signedAttribsSz += EncodeAttributes(&esd.signedAttribs[0], 2,
+        esd->signedAttribsCount += cannedAttribsCount;
+        esd->signedAttribsSz += EncodeAttributes(&esd->signedAttribs[0], 2,
                                              cannedAttribs, cannedAttribsCount);
 
-        esd.signedAttribsCount += pkcs7->signedAttribsSz;
-        esd.signedAttribsSz += EncodeAttributes(&esd.signedAttribs[2], 4,
+        esd->signedAttribsCount += pkcs7->signedAttribsSz;
+        esd->signedAttribsSz += EncodeAttributes(&esd->signedAttribs[2], 4,
                                   pkcs7->signedAttribs, pkcs7->signedAttribsSz);
 
-        flatSignedAttribs = (byte*)XMALLOC(esd.signedAttribsSz, 0, NULL);
-        flatSignedAttribsSz = esd.signedAttribsSz;
-        if (flatSignedAttribs == NULL)
+        flatSignedAttribs = (byte*)XMALLOC(esd->signedAttribsSz, 0, NULL);
+        flatSignedAttribsSz = esd->signedAttribsSz;
+        if (flatSignedAttribs == NULL) {
+#ifdef CYASSL_SMALL_STACK
+            XFREE(esd, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif   
             return MEMORY_E;
+        }
         FlattenAttributes(flatSignedAttribs,
-                                     esd.signedAttribs, esd.signedAttribsCount);
-        esd.signedAttribSetSz = SetImplicit(ASN_SET, 0, esd.signedAttribsSz,
-                                                           esd.signedAttribSet);
+                                   esd->signedAttribs, esd->signedAttribsCount);
+        esd->signedAttribSetSz = SetImplicit(ASN_SET, 0, esd->signedAttribsSz,
+                                                          esd->signedAttribSet);
     }
     /* Calculate the final hash and encrypt it. */
     {
-        RsaKey privKey;
         int result;
         word32 scratch = 0;
 
+#ifdef CYASSL_SMALL_STACK
+        byte* digestInfo;
+        RsaKey* privKey;
+#else
+        RsaKey stack_privKey;
+        RsaKey* privKey = &stack_privKey;
         byte digestInfo[MAX_SEQ_SZ + MAX_ALGO_SZ +
                         MAX_OCTET_STR_SZ + SHA_DIGEST_SIZE];
+#endif
         byte digestInfoSeq[MAX_SEQ_SZ];
         byte digestStr[MAX_OCTET_STR_SZ];
         word32 digestInfoSeqSz, digestStrSz;
@@ -433,149 +459,203 @@ int PKCS7_EncodeSignedData(PKCS7* pkcs7, byte* output, word32 outputSz)
 
             attribSetSz = SetSet(flatSignedAttribsSz, attribSet);
 
-            ret = InitSha(&esd.sha);
+            ret = InitSha(&esd->sha);
             if (ret < 0) {
                 XFREE(flatSignedAttribs, 0, NULL);
+#ifdef CYASSL_SMALL_STACK
+                XFREE(esd, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
                 return ret;
             }
-            ShaUpdate(&esd.sha, attribSet, attribSetSz);
-            ShaUpdate(&esd.sha, flatSignedAttribs, flatSignedAttribsSz);
+            ShaUpdate(&esd->sha, attribSet, attribSetSz);
+            ShaUpdate(&esd->sha, flatSignedAttribs, flatSignedAttribsSz);
         }
-        ShaFinal(&esd.sha, esd.contentAttribsDigest);
+        ShaFinal(&esd->sha, esd->contentAttribsDigest);
 
         digestStrSz = SetOctetString(SHA_DIGEST_SIZE, digestStr);
-        digestInfoSeqSz = SetSequence(esd.signerDigAlgoIdSz +
+        digestInfoSeqSz = SetSequence(esd->signerDigAlgoIdSz +
                                       digestStrSz + SHA_DIGEST_SIZE,
                                       digestInfoSeq);
+
+#ifdef CYASSL_SMALL_STACK
+        digestInfo = (byte*)XMALLOC(MAX_SEQ_SZ + MAX_ALGO_SZ +
+                                    MAX_OCTET_STR_SZ + SHA_DIGEST_SIZE,
+                                    NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        if (digestInfo == NULL) {
+            if (pkcs7->signedAttribsSz != 0)
+                XFREE(flatSignedAttribs, 0, NULL);
+            XFREE(esd, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            return MEMORY_E;
+        }
+#endif
 
         XMEMCPY(digestInfo + digIdx, digestInfoSeq, digestInfoSeqSz);
         digIdx += digestInfoSeqSz;
         XMEMCPY(digestInfo + digIdx,
-                                    esd.signerDigAlgoId, esd.signerDigAlgoIdSz);
-        digIdx += esd.signerDigAlgoIdSz;
+                                  esd->signerDigAlgoId, esd->signerDigAlgoIdSz);
+        digIdx += esd->signerDigAlgoIdSz;
         XMEMCPY(digestInfo + digIdx, digestStr, digestStrSz);
         digIdx += digestStrSz;
-        XMEMCPY(digestInfo + digIdx, esd.contentAttribsDigest, SHA_DIGEST_SIZE);
+        XMEMCPY(digestInfo + digIdx, esd->contentAttribsDigest,
+                                                               SHA_DIGEST_SIZE);
         digIdx += SHA_DIGEST_SIZE;
 
-        result = InitRsaKey(&privKey, NULL);
+#ifdef CYASSL_SMALL_STACK
+        privKey = (RsaKey*)XMALLOC(sizeof(RsaKey), NULL,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+        if (privKey == NULL) {
+            if (pkcs7->signedAttribsSz != 0)
+                XFREE(flatSignedAttribs, 0, NULL);
+            XFREE(digestInfo, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(esd,        NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            return MEMORY_E;
+        }
+#endif
+
+        result = InitRsaKey(privKey, NULL);
         if (result == 0)
-            result = RsaPrivateKeyDecode(pkcs7->privateKey, &scratch, &privKey,
+            result = RsaPrivateKeyDecode(pkcs7->privateKey, &scratch, privKey,
                                          pkcs7->privateKeySz);
         if (result < 0) {
-            XFREE(flatSignedAttribs, 0, NULL);
+            if (pkcs7->signedAttribsSz != 0)
+                XFREE(flatSignedAttribs, 0, NULL);
+#ifdef CYASSL_SMALL_STACK
+            XFREE(privKey,    NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(digestInfo, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(esd,        NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
             return PUBLIC_KEY_E;
         }
+
         result = RsaSSL_Sign(digestInfo, digIdx,
-                             esd.encContentDigest, sizeof(esd.encContentDigest),
-                             &privKey, pkcs7->rng);
-        FreeRsaKey(&privKey);
+                             esd->encContentDigest,
+                             sizeof(esd->encContentDigest),
+                             privKey, pkcs7->rng);
+
+        FreeRsaKey(privKey);
+
+#ifdef CYASSL_SMALL_STACK
+        XFREE(privKey,    NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(digestInfo, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
         if (result < 0) {
-            XFREE(flatSignedAttribs, 0, NULL);
+            if (pkcs7->signedAttribsSz != 0)
+                XFREE(flatSignedAttribs, 0, NULL);
+#ifdef CYASSL_SMALL_STACK
+            XFREE(esd, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
             return result;
         }
-        esd.encContentDigestSz = (word32)result;
+        esd->encContentDigestSz = (word32)result;
     }
-    signerInfoSz += flatSignedAttribsSz + esd.signedAttribSetSz;
+    signerInfoSz += flatSignedAttribsSz + esd->signedAttribSetSz;
 
-    esd.signerDigestSz = SetOctetString(esd.encContentDigestSz,
-                                                              esd.signerDigest);
-    signerInfoSz += esd.signerDigestSz + esd.encContentDigestSz;
+    esd->signerDigestSz = SetOctetString(esd->encContentDigestSz,
+                                                             esd->signerDigest);
+    signerInfoSz += esd->signerDigestSz + esd->encContentDigestSz;
 
-    esd.signerInfoSeqSz = SetSequence(signerInfoSz, esd.signerInfoSeq);
-    signerInfoSz += esd.signerInfoSeqSz;
-    esd.signerInfoSetSz = SetSet(signerInfoSz, esd.signerInfoSet);
-    signerInfoSz += esd.signerInfoSetSz;
+    esd->signerInfoSeqSz = SetSequence(signerInfoSz, esd->signerInfoSeq);
+    signerInfoSz += esd->signerInfoSeqSz;
+    esd->signerInfoSetSz = SetSet(signerInfoSz, esd->signerInfoSet);
+    signerInfoSz += esd->signerInfoSetSz;
 
-    esd.certsSetSz = SetImplicit(ASN_SET, 0, pkcs7->singleCertSz, esd.certsSet);
+    esd->certsSetSz = SetImplicit(ASN_SET, 0, pkcs7->singleCertSz,
+                                                                 esd->certsSet);
 
-    esd.singleDigAlgoIdSz = SetAlgoID(pkcs7->hashOID, esd.singleDigAlgoId,
+    esd->singleDigAlgoIdSz = SetAlgoID(pkcs7->hashOID, esd->singleDigAlgoId,
                                       hashType, 0);
-    esd.digAlgoIdSetSz = SetSet(esd.singleDigAlgoIdSz, esd.digAlgoIdSet);
+    esd->digAlgoIdSetSz = SetSet(esd->singleDigAlgoIdSz, esd->digAlgoIdSet);
 
 
-    esd.versionSz = SetMyVersion(1, esd.version, 0);
+    esd->versionSz = SetMyVersion(1, esd->version, 0);
 
-    totalSz = esd.versionSz + esd.singleDigAlgoIdSz + esd.digAlgoIdSetSz +
-              esd.contentInfoSeqSz + esd.certsSetSz + pkcs7->singleCertSz +
-              esd.innerOctetsSz + esd.innerContSeqSz +
+    totalSz = esd->versionSz + esd->singleDigAlgoIdSz + esd->digAlgoIdSetSz +
+              esd->contentInfoSeqSz + esd->certsSetSz + pkcs7->singleCertSz +
+              esd->innerOctetsSz + esd->innerContSeqSz +
               innerOidSz + pkcs7->contentSz +
               signerInfoSz;
-    esd.innerSeqSz = SetSequence(totalSz, esd.innerSeq);
-    totalSz += esd.innerSeqSz;
-    esd.outerContentSz = SetExplicit(0, totalSz, esd.outerContent);
-    totalSz += esd.outerContentSz + outerOidSz;
-    esd.outerSeqSz = SetSequence(totalSz, esd.outerSeq);
-    totalSz += esd.outerSeqSz;
+    esd->innerSeqSz = SetSequence(totalSz, esd->innerSeq);
+    totalSz += esd->innerSeqSz;
+    esd->outerContentSz = SetExplicit(0, totalSz, esd->outerContent);
+    totalSz += esd->outerContentSz + outerOidSz;
+    esd->outerSeqSz = SetSequence(totalSz, esd->outerSeq);
+    totalSz += esd->outerSeqSz;
 
     if (outputSz < totalSz) {
-        if (flatSignedAttribs)
+        if (pkcs7->signedAttribsSz != 0)
             XFREE(flatSignedAttribs, 0, NULL);
-
+#ifdef CYASSL_SMALL_STACK
+        XFREE(esd, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
         return BUFFER_E;
     }
 
     idx = 0;
-    XMEMCPY(output + idx, esd.outerSeq, esd.outerSeqSz);
-    idx += esd.outerSeqSz;
+    XMEMCPY(output + idx, esd->outerSeq, esd->outerSeqSz);
+    idx += esd->outerSeqSz;
     XMEMCPY(output + idx, outerOid, outerOidSz);
     idx += outerOidSz;
-    XMEMCPY(output + idx, esd.outerContent, esd.outerContentSz);
-    idx += esd.outerContentSz;
-    XMEMCPY(output + idx, esd.innerSeq, esd.innerSeqSz);
-    idx += esd.innerSeqSz;
-    XMEMCPY(output + idx, esd.version, esd.versionSz);
-    idx += esd.versionSz;
-    XMEMCPY(output + idx, esd.digAlgoIdSet, esd.digAlgoIdSetSz);
-    idx += esd.digAlgoIdSetSz;
-    XMEMCPY(output + idx, esd.singleDigAlgoId, esd.singleDigAlgoIdSz);
-    idx += esd.singleDigAlgoIdSz;
-    XMEMCPY(output + idx, esd.contentInfoSeq, esd.contentInfoSeqSz);
-    idx += esd.contentInfoSeqSz;
+    XMEMCPY(output + idx, esd->outerContent, esd->outerContentSz);
+    idx += esd->outerContentSz;
+    XMEMCPY(output + idx, esd->innerSeq, esd->innerSeqSz);
+    idx += esd->innerSeqSz;
+    XMEMCPY(output + idx, esd->version, esd->versionSz);
+    idx += esd->versionSz;
+    XMEMCPY(output + idx, esd->digAlgoIdSet, esd->digAlgoIdSetSz);
+    idx += esd->digAlgoIdSetSz;
+    XMEMCPY(output + idx, esd->singleDigAlgoId, esd->singleDigAlgoIdSz);
+    idx += esd->singleDigAlgoIdSz;
+    XMEMCPY(output + idx, esd->contentInfoSeq, esd->contentInfoSeqSz);
+    idx += esd->contentInfoSeqSz;
     XMEMCPY(output + idx, innerOid, innerOidSz);
     idx += innerOidSz;
-    XMEMCPY(output + idx, esd.innerContSeq, esd.innerContSeqSz);
-    idx += esd.innerContSeqSz;
-    XMEMCPY(output + idx, esd.innerOctets, esd.innerOctetsSz);
-    idx += esd.innerOctetsSz;
+    XMEMCPY(output + idx, esd->innerContSeq, esd->innerContSeqSz);
+    idx += esd->innerContSeqSz;
+    XMEMCPY(output + idx, esd->innerOctets, esd->innerOctetsSz);
+    idx += esd->innerOctetsSz;
     XMEMCPY(output + idx, pkcs7->content, pkcs7->contentSz);
     idx += pkcs7->contentSz;
-    XMEMCPY(output + idx, esd.certsSet, esd.certsSetSz);
-    idx += esd.certsSetSz;
+    XMEMCPY(output + idx, esd->certsSet, esd->certsSetSz);
+    idx += esd->certsSetSz;
     XMEMCPY(output + idx, pkcs7->singleCert, pkcs7->singleCertSz);
     idx += pkcs7->singleCertSz;
-    XMEMCPY(output + idx, esd.signerInfoSet, esd.signerInfoSetSz);
-    idx += esd.signerInfoSetSz;
-    XMEMCPY(output + idx, esd.signerInfoSeq, esd.signerInfoSeqSz);
-    idx += esd.signerInfoSeqSz;
-    XMEMCPY(output + idx, esd.signerVersion, esd.signerVersionSz);
-    idx += esd.signerVersionSz;
-    XMEMCPY(output + idx, esd.issuerSnSeq, esd.issuerSnSeqSz);
-    idx += esd.issuerSnSeqSz;
-    XMEMCPY(output + idx, esd.issuerName, esd.issuerNameSz);
-    idx += esd.issuerNameSz;
+    XMEMCPY(output + idx, esd->signerInfoSet, esd->signerInfoSetSz);
+    idx += esd->signerInfoSetSz;
+    XMEMCPY(output + idx, esd->signerInfoSeq, esd->signerInfoSeqSz);
+    idx += esd->signerInfoSeqSz;
+    XMEMCPY(output + idx, esd->signerVersion, esd->signerVersionSz);
+    idx += esd->signerVersionSz;
+    XMEMCPY(output + idx, esd->issuerSnSeq, esd->issuerSnSeqSz);
+    idx += esd->issuerSnSeqSz;
+    XMEMCPY(output + idx, esd->issuerName, esd->issuerNameSz);
+    idx += esd->issuerNameSz;
     XMEMCPY(output + idx, pkcs7->issuer, pkcs7->issuerSz);
     idx += pkcs7->issuerSz;
-    XMEMCPY(output + idx, esd.issuerSn, esd.issuerSnSz);
-    idx += esd.issuerSnSz;
-    XMEMCPY(output + idx, esd.signerDigAlgoId, esd.signerDigAlgoIdSz);
-    idx += esd.signerDigAlgoIdSz;
+    XMEMCPY(output + idx, esd->issuerSn, esd->issuerSnSz);
+    idx += esd->issuerSnSz;
+    XMEMCPY(output + idx, esd->signerDigAlgoId, esd->signerDigAlgoIdSz);
+    idx += esd->signerDigAlgoIdSz;
 
     /* SignerInfo:Attributes */
     if (pkcs7->signedAttribsSz != 0) {
-        XMEMCPY(output + idx, esd.signedAttribSet, esd.signedAttribSetSz);
-        idx += esd.signedAttribSetSz;
+        XMEMCPY(output + idx, esd->signedAttribSet, esd->signedAttribSetSz);
+        idx += esd->signedAttribSetSz;
         XMEMCPY(output + idx, flatSignedAttribs, flatSignedAttribsSz);
         idx += flatSignedAttribsSz;
         XFREE(flatSignedAttribs, 0, NULL);
     }
 
-    XMEMCPY(output + idx, esd.digEncAlgoId, esd.digEncAlgoIdSz);
-    idx += esd.digEncAlgoIdSz;
-    XMEMCPY(output + idx, esd.signerDigest, esd.signerDigestSz);
-    idx += esd.signerDigestSz;
-    XMEMCPY(output + idx, esd.encContentDigest, esd.encContentDigestSz);
-    idx += esd.encContentDigestSz;
+    XMEMCPY(output + idx, esd->digEncAlgoId, esd->digEncAlgoIdSz);
+    idx += esd->digEncAlgoIdSz;
+    XMEMCPY(output + idx, esd->signerDigest, esd->signerDigestSz);
+    idx += esd->signerDigestSz;
+    XMEMCPY(output + idx, esd->encContentDigest, esd->encContentDigestSz);
+    idx += esd->encContentDigestSz;
+
+#ifdef CYASSL_SMALL_STACK
+    XFREE(esd, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 
     return idx;
 }
