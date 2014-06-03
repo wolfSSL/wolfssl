@@ -75,10 +75,10 @@ enum Ctc_Encoding {
 #endif
 
 enum Ctc_Misc {
-    CTC_NAME_SIZE    =   64,
-    CTC_DATE_SIZE    =   32,
-    CTC_MAX_ALT_SIZE = 8192,    /* may be huge */
-    CTC_SERIAL_SIZE  =    8
+    CTC_NAME_SIZE    =    64,
+    CTC_DATE_SIZE    =    32,
+    CTC_MAX_ALT_SIZE = 16384,   /* may be huge */
+    CTC_SERIAL_SIZE  =     8
 };
 
 typedef struct CertName {
