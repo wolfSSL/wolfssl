@@ -47,6 +47,7 @@ AES_CBC_encrypt PROC
 	mov rax,rdi
 	mov r11,rsi
 
+; convert to what we had for att&t convention
 	mov rdi,rcx
 	mov rsi,rdx
 	mov rdx,r8
@@ -93,6 +94,7 @@ LAST:
 	aesenclast	xmm1,xmm2
 	movdqu	[rsi],xmm1
 	jne	LOOP_1
+	; restore non volatile rdi,rsi
 	mov rdi,rax
 	mov rsi,r11
 	ret
@@ -121,12 +123,24 @@ AES_CBC_decrypt PROC
 	mov rax,rdi
 	mov r11,rsi
 
+; convert to what we had for att&t convention
 	mov rdi,rcx
 	mov rsi,rdx
 	mov rdx,r8
 	mov rcx,r9
 	mov r8,[rsp+40]
 	mov r9d,[rsp+48]
+
+; on microsoft xmm6-xmm15 are non volaitle, let's save on stack and restore at end
+	sub rsp,8+8*64  ; 8 = align stack , 8 xmm6-12,15 8 bytes each
+	movdqa xmm6, [rsp+0]
+	movdqa xmm7, [rsp+16]
+	movdqa xmm8, [rsp+32]
+	movdqa xmm9, [rsp+48]
+	movdqa xmm10, [rsp+64]
+	movdqa xmm11, [rsp+80]
+	movdqa xmm12, [rsp+96]
+	movdqa xmm15, [rsp+112]
 
 	mov	r10,rcx
 	shr	rcx,4
@@ -286,8 +300,19 @@ DLAST_4_2:
 	dec	r10
 	jne	DLOOP_4_2
 DEND_4:
+	; restore non volatile rdi,rsi
 	mov rdi,rax
 	mov rsi,r11
+	; restore non volatile xmms from stack
+	movdqa [rsp+0], xmm6
+	movdqa [rsp+16], xmm7
+	movdqa [rsp+32], xmm8
+	movdqa [rsp+48], xmm9
+	movdqa [rsp+64], xmm10
+	movdqa [rsp+80], xmm11
+	movdqa [rsp+96], xmm12
+	movdqa [rsp+112], xmm15
+	add rsp,8+8*64 ; 8 = align stack , 8 xmm6-12,15 8 bytes each
 	ret
 AES_CBC_decrypt ENDP
 
@@ -310,11 +335,20 @@ AES_ECB_encrypt PROC
 	mov rax,rdi
 	mov r11,rsi
 
+; convert to what we had for att&t convention
     mov rdi,rcx
 	mov rsi,rdx
 	mov rdx,r8
 	mov rcx,r9
 	mov r8d,[rsp+40]
+
+; on microsoft xmm6-xmm15 are non volaitle, let's save on stack and restore at end
+	sub rsp,8+4*64  ; 8 = align stack , 4 xmm9-12, 8 bytes each
+	movdqa xmm9, [rsp+0]
+	movdqa xmm10, [rsp+16]
+	movdqa xmm11, [rsp+32]
+	movdqa xmm12, [rsp+48]
+
 
 	mov	r10,rdx
 	shr	rdx,4
@@ -458,8 +492,15 @@ EECB_LAST_4_2:
 	dec	r10
 	jne	EECB_LOOP_4_2
 EECB_END_4:
+	; restore non volatile rdi,rsi
 	mov rdi,rax
 	mov rsi,r11
+	; restore non volatile xmms from stack
+	movdqa [rsp+0], xmm9
+	movdqa [rsp+16], xmm10
+	movdqa [rsp+32], xmm11
+	movdqa [rsp+48], xmm12
+	add rsp,8+4*64 ; 8 = align stack , 4 xmm9-12 8 bytes each
 	ret
 AES_ECB_encrypt ENDP
 
@@ -482,11 +523,19 @@ AES_ECB_decrypt PROC
 	mov rax,rdi
 	mov r11,rsi
 
+; convert to what we had for att&t convention
 	mov rdi,rcx
 	mov rsi,rdx
 	mov rdx,r8
 	mov rcx,r9
 	mov r8d,[rsp+40]
+
+; on microsoft xmm6-xmm15 are non volaitle, let's save on stack and restore at end
+	sub rsp,8+4*64  ; 8 = align stack , 4 xmm9-12, 8 bytes each
+	movdqa xmm9, [rsp+0]
+	movdqa xmm10, [rsp+16]
+	movdqa xmm11, [rsp+32]
+	movdqa xmm12, [rsp+48]
 
 	mov	r10,rdx
 	shr	rdx,4
@@ -630,8 +679,15 @@ DECB_LAST_4_2:
 	dec	r10
 	jne	DECB_LOOP_4_2
 DECB_END_4:
+	; restore non volatile rdi,rsi
 	mov rdi,rax
 	mov rsi,r11
+	; restore non volatile xmms from stack
+	movdqa [rsp+0], xmm9
+	movdqa [rsp+16], xmm10
+	movdqa [rsp+32], xmm11
+	movdqa [rsp+48], xmm12
+	add rsp,8+4*64 ; 8 = align stack , 4 xmm9-12 8 bytes each
 	ret
 AES_ECB_decrypt ENDP
 
@@ -651,6 +707,7 @@ AES_128_Key_Expansion PROC
 	mov rax,rdi
 	mov r11,rsi
 
+; convert to what we had for att&t convention
 	mov rdi,rcx
 	mov rsi,rdx
 
@@ -697,6 +754,7 @@ ASSISTS:
 	aeskeygenassist	xmm2,xmm1,36h
 	call	PREPARE_ROUNDKEY_128
 	movdqa	160[rsi],xmm1
+	; restore non volatile rdi,rsi
 	mov rdi,rax
 	mov rsi,r11
 	ret
@@ -727,8 +785,13 @@ AES_192_Key_Expansion PROC
 	mov rax,rdi
 	mov r11,rsi
 
+; convert to what we had for att&t convention
     mov rdi,rcx
 	mov rsi,rdx
+
+; on microsoft xmm6-xmm15 are non volaitle, let's save on stack and restore at end
+	sub rsp,8+1*64  ; 8 = align stack , 1 xmm6, 8 bytes each
+	movdqa xmm6, [rsp+0]
 
 	movdqu  xmm1,[rdi]
 	movdqu	xmm3,16[rdi]
@@ -786,8 +849,12 @@ AES_192_Key_Expansion PROC
 	call	PREPARE_ROUNDKEY_192
 	movdqa	192[rsi],xmm1
 	movdqa	208[rsi],xmm3
+	; restore non volatile rdi,rsi
 	mov rdi,rax
 	mov rsi,r11
+; restore non volatile xmms from stack
+	movdqa [rsp+0], xmm6
+	add rsp,8+1*64 ; 8 = align stack , 1 xmm6 8 bytes each
 	ret
 
 PREPARE_ROUNDKEY_192:
@@ -822,6 +889,7 @@ AES_256_Key_Expansion PROC
 	mov rax,rdi
 	mov r11,rsi
 
+; convert to what we had for att&t convention
     mov rdi,rcx
 	mov rsi,rdx
 
@@ -871,6 +939,7 @@ AES_256_Key_Expansion PROC
 	call	MAKE_RK256_a
 	movdqa	224[rsi],xmm1
 
+	; restore non volatile rdi,rsi
 	mov rdi,rax
 	mov rsi,r11
 	ret
