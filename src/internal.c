@@ -4111,7 +4111,7 @@ static INLINE int DtlsCheckWindow(DtlsState* state)
     if ((next > DTLS_SEQ_BITS) && (cur < next - DTLS_SEQ_BITS)) {
         return 0;
     }
-    else if ((cur < next) && (window & (1 << (next - cur - 1)))) {
+    else if ((cur < next) && (window & ((DtlsSeq)1 << (next - cur - 1)))) {
         return 0;
     }
 
@@ -4137,7 +4137,7 @@ static INLINE int DtlsUpdateWindow(DtlsState* state)
     cur = state->curSeq;
 
     if (cur < *next) {
-        *window |= (1 << (*next - cur - 1));
+        *window |= ((DtlsSeq)1 << (*next - cur - 1));
     }
     else {
         *window <<= (1 + cur - *next);
@@ -8689,7 +8689,7 @@ static void PickHashSigAlgo(CYASSL* ssl,
 
                     if (esSz > MAX_PSK_ID_LEN)
                         return CLIENT_ID_ERROR;
-                    c16toa(esSz, es);
+                    c16toa((word16)esSz, es);
                     es += OPAQUE16_LEN;
                     XMEMCPY(es, ssl->arrays->client_identity, esSz);
                     es += esSz;
@@ -11763,7 +11763,7 @@ static void PickHashSigAlgo(CYASSL* ssl,
                 FreeDhKey(&dhKey);
 
                 *inOutIdx += clientSz;
-                c16toa(ssl->arrays->preMasterSz, pms);
+                c16toa((word16)ssl->arrays->preMasterSz, pms);
                 ssl->arrays->preMasterSz += OPAQUE16_LEN;
                 pms += ssl->arrays->preMasterSz;
 
