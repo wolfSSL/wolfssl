@@ -497,9 +497,9 @@ EECB_END_4:
 	mov rsi,r11
 	; restore non volatile xmms from stack
 	movdqa xmm9, [rsp+0]
-	movdqa xmm9, [rsp+16]
-	movdqa xmm9, [rsp+32]
-	movdqa xmm9, [rsp+48]
+	movdqa xmm10, [rsp+16]
+	movdqa xmm11, [rsp+32]
+	movdqa xmm12, [rsp+48]
 	add rsp,8+4*64 ; 8 = align stack , 4 xmm9-12 8 bytes each
 	ret
 AES_ECB_encrypt ENDP
