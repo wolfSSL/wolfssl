@@ -5678,8 +5678,8 @@ static int BuildCertHashes(CYASSL* ssl, Hashes* hashes)
 #endif /* CYASSL_LEANPSK */
 
 /* Build SSL Message, encrypted */
-static int BuildMessage(CYASSL* ssl, byte* output, const byte* input, int inSz,
-                        int type)
+static int BuildMessage(CYASSL* ssl, byte* output, int outSz,
+                        const byte* input, int inSz, int type)
 {
 #ifdef HAVE_TRUNCATED_HMAC
     word32 digestSz = min(ssl->specs.hash_size,
@@ -5734,6 +5734,10 @@ static int BuildMessage(CYASSL* ssl, byte* output, const byte* input, int inSz,
         XMEMCPY(iv, ssl->keys.aead_exp_IV, AEAD_EXP_IV_SZ);
     }
 #endif
+    if (sz > (word32)outSz) {
+        CYASSL_MSG("Oops, want to write past output buffer size");
+        return BUFFER_E;
+    }
     size = (word16)(sz - headerSz);    /* include mac and digest */
     AddRecordHeader(output, size, (byte)type, ssl);    
 
@@ -5802,6 +5806,7 @@ int SendFinished(CYASSL* ssl)
     Hashes*          hashes;
     int              ret;
     int              headerSz = HANDSHAKE_HEADER_SZ;
+    int              outputSz;
 
     #ifdef CYASSL_DTLS
         word32 sequence_number = ssl->keys.dtls_sequence_number;
@@ -5810,7 +5815,8 @@ int SendFinished(CYASSL* ssl)
 
 
     /* check for available size */
-    if ((ret = CheckAvailableSize(ssl, sizeof(input) + MAX_MSG_EXTRA)) != 0)
+    outputSz = sizeof(input) + MAX_MSG_EXTRA;
+    if ((ret = CheckAvailableSize(ssl, outputSz)) != 0)
         return ret;
 
     #ifdef CYASSL_DTLS
@@ -5835,7 +5841,10 @@ int SendFinished(CYASSL* ssl)
                       ssl->options.side == CYASSL_CLIENT_END ? client : server);
     if (ret != 0) return ret;
 
-    sendSz = BuildMessage(ssl, output, input, headerSz + finishedSz, handshake);
+    sendSz = BuildMessage(ssl, output, outputSz, input, headerSz + finishedSz,
+                          handshake);
+    if (sendSz < 0)
+        return BUILD_MSG_ERROR;
 
     #ifdef CYASSL_DTLS
     if (ssl->options.dtls) {
@@ -5843,9 +5852,6 @@ int SendFinished(CYASSL* ssl)
         ssl->keys.dtls_sequence_number = sequence_number;
     }
     #endif
-
-    if (sendSz < 0)
-        return BUILD_MSG_ERROR;
 
     if (!ssl->options.resuming) {
 #ifndef NO_SESSION_CACHE
@@ -6122,7 +6128,8 @@ int SendData(CYASSL* ssl, const void* data, int sz)
 #endif
         byte* out;
         byte* sendBuffer = (byte*)data + sent;  /* may switch on comp */
-        int   buffSz = len;                       /* may switch on comp */
+        int   buffSz = len;                     /* may switch on comp */
+        int   outputSz;
 #ifdef HAVE_LIBZ
         byte  comp[MAX_RECORD_SIZE + MAX_COMP_EXTRA];
 #endif
@@ -6137,8 +6144,8 @@ int SendData(CYASSL* ssl, const void* data, int sz)
 #endif
 
         /* check for available size */
-        if ((ret = CheckAvailableSize(ssl, len + COMP_EXTRA +
-                                               dtlsExtra + MAX_MSG_EXTRA)) != 0)
+        outputSz = len + COMP_EXTRA + dtlsExtra + MAX_MSG_EXTRA;
+        if ((ret = CheckAvailableSize(ssl, outputSz)) != 0)
             return ssl->error = ret;
 
         /* get ouput buffer */
@@ -6154,8 +6161,10 @@ int SendData(CYASSL* ssl, const void* data, int sz)
             sendBuffer = comp;
         }
 #endif
-        sendSz = BuildMessage(ssl, out, sendBuffer, buffSz,
+        sendSz = BuildMessage(ssl, out, outputSz, sendBuffer, buffSz,
                               application_data);
+        if (sendSz < 0)
+            return BUILD_MSG_ERROR;
 
         ssl->buffers.outputBuffer.length += sendSz;
 
@@ -6248,6 +6257,7 @@ int SendAlert(CYASSL* ssl, int severity, int type)
     byte *output;
     int  sendSz;
     int  ret;
+    int  outputSz;
     int  dtlsExtra = 0;
 
     /* if sendalert is called again for nonbloking */
@@ -6264,8 +6274,8 @@ int SendAlert(CYASSL* ssl, int severity, int type)
    #endif
 
     /* check for available size */
-    if ((ret = CheckAvailableSize(ssl,
-                                  ALERT_SIZE + MAX_MSG_EXTRA + dtlsExtra)) != 0)
+    outputSz = ALERT_SIZE + MAX_MSG_EXTRA + dtlsExtra;
+    if ((ret = CheckAvailableSize(ssl, outputSz)) != 0)
         return ret;
 
     /* get ouput buffer */
@@ -6283,7 +6293,7 @@ int SendAlert(CYASSL* ssl, int severity, int type)
     /* only send encrypted alert if handshake actually complete, otherwise
        other side may not be able to handle it */
     if (ssl->keys.encryptionOn && ssl->options.handShakeState == HANDSHAKE_DONE)
-        sendSz = BuildMessage(ssl, output, input, ALERT_SIZE, alert);
+        sendSz = BuildMessage(ssl, output, outputSz, input, ALERT_SIZE, alert);
     else {
 
         AddRecordHeader(output, ALERT_SIZE, alert, ssl);
@@ -6300,6 +6310,8 @@ int SendAlert(CYASSL* ssl, int severity, int type)
                 sendSz += DTLS_RECORD_EXTRA;
         #endif
     }
+    if (sendSz < 0)
+        return BUILD_MSG_ERROR;
 
     #ifdef CYASSL_CALLBACKS
         if (ssl->hsInfoOn)
