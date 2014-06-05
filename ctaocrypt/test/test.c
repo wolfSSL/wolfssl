@@ -101,7 +101,7 @@
 #endif
 
 #ifdef HAVE_NTRU
-    #include "crypto_ntru.h"
+    #include "ntru_crypto.h"
 #endif
 #ifdef HAVE_CAVIUM
     #include "cavium_sysdep.h"
@@ -3354,25 +3354,27 @@ int rsa_test(void)
         static uint8_t const pers_str[] = {
                 'C', 'y', 'a', 'S', 'S', 'L', ' ', 't', 'e', 's', 't'
         };
-        word32 rc = crypto_drbg_instantiate(112, pers_str, sizeof(pers_str),
-                                            GetEntropy, &drbg);
+        word32 rc = ntru_crypto_drbg_instantiate(112, pers_str,
+                          sizeof(pers_str), GetEntropy, &drbg);
         if (rc != DRBG_OK) {
             free(derCert);
             free(pem);
             return -450;
         }
 
-        rc = crypto_ntru_encrypt_keygen(drbg, NTRU_EES401EP2, &public_key_len,
-                                        NULL, &private_key_len, NULL);
+        rc = ntru_crypto_ntru_encrypt_keygen(drbg, NTRU_EES401EP2,
+                                             &public_key_len, NULL,
+                                             &private_key_len, NULL);
         if (rc != NTRU_OK) {
             free(derCert);
             free(pem);
             return -451;
         }
 
-        rc = crypto_ntru_encrypt_keygen(drbg, NTRU_EES401EP2, &public_key_len,
-                                     public_key, &private_key_len, private_key);
-        crypto_drbg_uninstantiate(drbg);
+        rc = ntru_crypto_ntru_encrypt_keygen(drbg, NTRU_EES401EP2,
+                                             &public_key_len, public_key,
+                                             &private_key_len, private_key);
+        ntru_crypto_drbg_uninstantiate(drbg);
 
         if (rc != NTRU_OK) {
             free(derCert);
