@@ -35,7 +35,7 @@
 #endif
 
 #ifdef HAVE_NTRU
-    #include "crypto_ntru.h"
+    #include "ntru_crypto.h"
 #endif
 
 #if defined(DEBUG_CYASSL) || defined(SHOW_SECRETS)
@@ -8760,18 +8760,18 @@ static void PickHashSigAlgo(CYASSL* ssl,
                     if (ssl->peerNtruKeyPresent == 0)
                         return NO_PEER_KEY;
 
-                    rc = crypto_drbg_instantiate(MAX_NTRU_BITS, cyasslStr,
-                                                  sizeof(cyasslStr), GetEntropy,
-                                                  &drbg);
+                    rc = ntru_crypto_drbg_instantiate(MAX_NTRU_BITS, cyasslStr,
+                                                 sizeof(cyasslStr), GetEntropy,
+                                                 &drbg);
                     if (rc != DRBG_OK)
                         return NTRU_DRBG_ERROR; 
 
-                    rc = crypto_ntru_encrypt(drbg, ssl->peerNtruKeyLen,
-                                             ssl->peerNtruKey,
-                                             ssl->arrays->preMasterSz,
-                                             ssl->arrays->preMasterSecret,
-                                             &cipherLen, encSecret);
-                    crypto_drbg_uninstantiate(drbg);
+                    rc = ntru_crypto_ntru_encrypt(drbg, ssl->peerNtruKeyLen,
+                                                  ssl->peerNtruKey,
+                                                  ssl->arrays->preMasterSz,
+                                                  ssl->arrays->preMasterSecret,
+                                                  &cipherLen, encSecret);
+                    ntru_crypto_drbg_uninstantiate(drbg);
                     if (rc != NTRU_OK)
                         return NTRU_ENCRYPT_ERROR;
 
@@ -11629,7 +11629,7 @@ static void PickHashSigAlgo(CYASSL* ssl,
                 if ((*inOutIdx - begin) + cipherLen > size)
                     return BUFFER_ERROR;
 
-                if (NTRU_OK != crypto_ntru_decrypt(
+                if (NTRU_OK != ntru_crypto_ntru_decrypt(
                             (word16) ssl->buffers.key.length,
                             ssl->buffers.key.buffer, cipherLen,
                             input + *inOutIdx, &plainLen,

@@ -101,7 +101,7 @@
 #endif
 
 #ifdef HAVE_NTRU
-    #include "crypto_ntru.h"
+    #include "ntru_crypto.h"
 #endif
 #ifdef HAVE_CAVIUM
     #include "cavium_sysdep.h"
@@ -2858,8 +2858,8 @@ int rsa_test(void)
         int    pemSz = 0;
         RsaKey derIn;
         RsaKey genKey;
-        FILE* keyFile;
-        FILE* pemFile;
+        FILE*  keyFile;
+        FILE*  pemFile;
 
         ret = InitRsaKey(&genKey, 0);
         if (ret != 0)
@@ -3053,7 +3053,7 @@ int rsa_test(void)
         int         pemSz;
         size_t      bytes3;
         word32      idx3 = 0;
-			  FILE* file3 ;
+        FILE*       file3 ;
 #ifdef CYASSL_TEST_CERT
         DecodedCert decode;
 #endif
@@ -3354,30 +3354,38 @@ int rsa_test(void)
         static uint8_t const pers_str[] = {
                 'C', 'y', 'a', 'S', 'S', 'L', ' ', 't', 'e', 's', 't'
         };
-        word32 rc = crypto_drbg_instantiate(112, pers_str, sizeof(pers_str),
-                                            GetEntropy, &drbg);
+        word32 rc = ntru_crypto_drbg_instantiate(112, pers_str,
+                          sizeof(pers_str), GetEntropy, &drbg);
         if (rc != DRBG_OK) {
+            free(derCert);
+            free(pem);
+            return -448;
+        }
+
+        rc = ntru_crypto_ntru_encrypt_keygen(drbg, NTRU_EES401EP2,
+                                             &public_key_len, NULL,
+                                             &private_key_len, NULL);
+        if (rc != NTRU_OK) {
+            free(derCert);
+            free(pem);
+            return -449;
+        }
+
+        rc = ntru_crypto_ntru_encrypt_keygen(drbg, NTRU_EES401EP2,
+                                             &public_key_len, public_key,
+                                             &private_key_len, private_key);
+        if (rc != NTRU_OK) {
             free(derCert);
             free(pem);
             return -450;
         }
 
-        rc = crypto_ntru_encrypt_keygen(drbg, NTRU_EES401EP2, &public_key_len,
-                                        NULL, &private_key_len, NULL);
+        rc = ntru_crypto_drbg_uninstantiate(drbg);
+
         if (rc != NTRU_OK) {
             free(derCert);
             free(pem);
             return -451;
-        }
-
-        rc = crypto_ntru_encrypt_keygen(drbg, NTRU_EES401EP2, &public_key_len,
-                                     public_key, &private_key_len, private_key);
-        crypto_drbg_uninstantiate(drbg);
-
-        if (rc != NTRU_OK) {
-            free(derCert);
-            free(pem);
-            return -452;
         }
 
         caFile = fopen(caKeyFile, "rb");
@@ -3385,7 +3393,7 @@ int rsa_test(void)
         if (!caFile) {
             free(derCert);
             free(pem);
-            return -453;
+            return -452;
         }
 
         bytes = fread(tmp, 1, FOURK_BUF, caFile);
@@ -3395,7 +3403,7 @@ int rsa_test(void)
         if (ret != 0) {
             free(derCert);
             free(pem);
-            return -459;
+            return -453;
         }
         ret = RsaPrivateKeyDecode(tmp, &idx3, &caKey, (word32)bytes);
         if (ret != 0) {

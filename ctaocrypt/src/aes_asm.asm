@@ -132,7 +132,7 @@ AES_CBC_decrypt PROC
 	mov r9d,[rsp+48]
 
 ; on microsoft xmm6-xmm15 are non volaitle, let's save on stack and restore at end
-	sub rsp,8+8*64  ; 8 = align stack , 8 xmm6-12,15 8 bytes each
+	sub rsp,8+8*16  ; 8 = align stack , 8 xmm6-12,15 16 bytes each
 	movdqa [rsp+0], xmm6
 	movdqa [rsp+16], xmm7
 	movdqa [rsp+32], xmm8
@@ -312,7 +312,7 @@ DEND_4:
 	movdqa xmm11, [rsp+80]
 	movdqa xmm12, [rsp+96]
 	movdqa xmm15, [rsp+112]
-	add rsp,8+8*64 ; 8 = align stack , 8 xmm6-12,15 8 bytes each
+	add rsp,8+8*16 ; 8 = align stack , 8 xmm6-12,15 16 bytes each
 	ret
 AES_CBC_decrypt ENDP
 
@@ -343,7 +343,7 @@ AES_ECB_encrypt PROC
 	mov r8d,[rsp+40]
 
 ; on microsoft xmm6-xmm15 are non volaitle, let's save on stack and restore at end
-	sub rsp,8+4*64  ; 8 = align stack , 4 xmm9-12, 8 bytes each
+	sub rsp,8+4*16  ; 8 = align stack , 4 xmm9-12, 16 bytes each
 	movdqa [rsp+0], xmm9
 	movdqa [rsp+16], xmm10
 	movdqa [rsp+32], xmm11
@@ -500,7 +500,7 @@ EECB_END_4:
 	movdqa xmm10, [rsp+16]
 	movdqa xmm11, [rsp+32]
 	movdqa xmm12, [rsp+48]
-	add rsp,8+4*64 ; 8 = align stack , 4 xmm9-12 8 bytes each
+	add rsp,8+4*16 ; 8 = align stack , 4 xmm9-12 16 bytes each
 	ret
 AES_ECB_encrypt ENDP
 
@@ -531,7 +531,7 @@ AES_ECB_decrypt PROC
 	mov r8d,[rsp+40]
 
 ; on microsoft xmm6-xmm15 are non volaitle, let's save on stack and restore at end
-	sub rsp,8+4*64  ; 8 = align stack , 4 xmm9-12, 8 bytes each
+	sub rsp,8+4*16  ; 8 = align stack , 4 xmm9-12, 16 bytes each
 	movdqa [rsp+0], xmm9
 	movdqa [rsp+16], xmm10
 	movdqa [rsp+32], xmm11
@@ -687,7 +687,7 @@ DECB_END_4:
 	movdqa xmm10, [rsp+16]
 	movdqa xmm11, [rsp+32]
 	movdqa xmm12, [rsp+48]
-	add rsp,8+4*64 ; 8 = align stack , 4 xmm9-12 8 bytes each
+	add rsp,8+4*16 ; 8 = align stack , 4 xmm9-12 16 bytes each
 	ret
 AES_ECB_decrypt ENDP
 
@@ -790,7 +790,7 @@ AES_192_Key_Expansion PROC
 	mov rsi,rdx
 
 ; on microsoft xmm6-xmm15 are non volaitle, let's save on stack and restore at end
-	sub rsp,8+1*64  ; 8 = align stack , 1 xmm6, 8 bytes each
+	sub rsp,8+1*16  ; 8 = align stack , 1 xmm6, 16 bytes each
 	movdqa [rsp+0], xmm6
 
 	movdqu  xmm1,[rdi]
@@ -854,7 +854,7 @@ AES_192_Key_Expansion PROC
 	mov rsi,r11
 ; restore non volatile xmms from stack
 	movdqa xmm6, [rsp+0]
-	add rsp,8+1*64 ; 8 = align stack , 1 xmm6 8 bytes each
+	add rsp,8+1*16 ; 8 = align stack , 1 xmm6 16 bytes each
 	ret
 
 PREPARE_ROUNDKEY_192:

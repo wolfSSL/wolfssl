@@ -1209,21 +1209,44 @@ AM_CONDITIONAL([BUILD_CRL_MONITOR], [test "x$ENABLED_CRL_MONITOR" = "xyes"])
 
 
 # NTRU
-ntruHome=`pwd`/NTRU_algorithm
-ntruInclude=$ntruHome/cryptolib
-ntruLib=$ntruHome
-AC_ARG_ENABLE([ntru],
-    [  --enable-ntru           Enable NTRU (default: disabled)],
-    [ ENABLED_NTRU=$enableval ],
-    [ ENABLED_NTRU=no ]
-    )
+ENABLED_NTRU="no"
+tryntrudir=""
+AC_ARG_WITH([ntru],
+    [  --with-ntru=PATH        Path to NTRU install (default /usr/) ],
+    [
+        AC_MSG_CHECKING([for NTRU])
+        CPPFLAGS="$CPPFLAGS -DHAVE_NTRU"
+        LIBS="$LIBS -lNTRUEncrypt"
 
-if test "$ENABLED_NTRU" = "yes"
-then
-    AM_CFLAGS="$AM_CFLAGS -DHAVE_NTRU -I$ntruInclude"
-    AM_LDFLAGS="$AM_LDFLAGS -L$ntruLib"
-    LIBS="$LIBS -lntru_encrypt"
-fi
+        AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <ntru_crypto_drbg.h>]], [[ ntru_crypto_drbg_instantiate(0, 0, 0, 0, 0); ]])], [ ntru_linked=yes ],[ ntru_linked=no ])
+
+        if test "x$ntru_linked" == "xno" ; then
+            if test "x$withval" != "xno" ; then
+                tryntrudir=$withval
+            fi
+            if test "x$withval" == "xyes" ; then
+                tryntrudir="/usr"
+            fi
+
+            LDFLAGS="$AM_LDFLAGS -L$tryntrudir/lib"
+            CPPFLAGS="$CPPFLAGS -I$tryntrudir/include"
+
+            AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <ntru_crypto_drbg.h>]], [[ ntru_crypto_drbg_instantiate(0, 0, 0, 0, 0); ]])], [ ntru_linked=yes ],[ ntru_linked=no ])
+
+            if test "x$ntru_linked" == "xno" ; then
+                AC_MSG_ERROR([NTRU isn't found.
+                If it's already installed, specify its path using --with-ntru=/dir/])
+            fi
+            AC_MSG_RESULT([yes])
+            AM_LDFLAGS="$AM_LDFLAGS -L$tryntrudir/lib"
+        else
+            AC_MSG_RESULT([yes])
+        fi
+
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_NTRU"
+        ENABLED_NTRU="yes"
+    ]
+)
 
 AM_CONDITIONAL([BUILD_NTRU], [test "x$ENABLED_NTRU" = "xyes"])
 

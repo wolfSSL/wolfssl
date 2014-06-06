@@ -53,7 +53,7 @@
 #endif
 
 #ifdef HAVE_NTRU
-    #include "crypto_ntru.h"
+    #include "ntru_crypto.h"
 #endif
 
 #ifdef HAVE_ECC
@@ -641,7 +641,7 @@ CYASSL_LOCAL int GetAlgoId(const byte* input, word32* inOutIdx, word32* oid,
     
     if (b == ASN_TAG_NULL) {
         b = input[i++];
-        if (b != 0) 
+        if (b != 0)
             return ASN_EXPECT_0_E;
     }
     else
@@ -1559,8 +1559,9 @@ static int GetKey(DecodedCert* cert)
             byte*       next = (byte*)key;
             word16      keyLen;
             byte        keyBlob[MAX_NTRU_KEY_SZ];
+            word32      rc;
 
-            word32 rc = crypto_ntru_encrypt_subjectPublicKeyInfo2PublicKey(key,
+            rc = ntru_crypto_ntru_encrypt_subjectPublicKeyInfo2PublicKey(key,
                                 &keyLen, NULL, &next);
 
             if (rc != NTRU_OK)
@@ -1568,8 +1569,8 @@ static int GetKey(DecodedCert* cert)
             if (keyLen > sizeof(keyBlob))
                 return ASN_NTRU_KEY_E;
 
-            rc = crypto_ntru_encrypt_subjectPublicKeyInfo2PublicKey(key,&keyLen,
-                                                                keyBlob, &next);
+            rc = ntru_crypto_ntru_encrypt_subjectPublicKeyInfo2PublicKey(key,
+                                &keyLen, keyBlob, &next);
             if (rc != NTRU_OK)
                 return ASN_NTRU_KEY_E;
 
@@ -5130,15 +5131,15 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
         word32 rc;
         word16 encodedSz;
 
-        rc  = crypto_ntru_encrypt_publicKey2SubjectPublicKeyInfo( ntruSz,
-                                              ntruKey, &encodedSz, NULL);
+        rc  = ntru_crypto_ntru_encrypt_publicKey2SubjectPublicKeyInfo( ntruSz,
+                                                   ntruKey, &encodedSz, NULL);
         if (rc != NTRU_OK)
             return PUBLIC_KEY_E;
         if (encodedSz > MAX_PUBLIC_KEY_SZ)
             return PUBLIC_KEY_E;
 
-        rc  = crypto_ntru_encrypt_publicKey2SubjectPublicKeyInfo( ntruSz,
-                              ntruKey, &encodedSz, der->publicKey);
+        rc  = ntru_crypto_ntru_encrypt_publicKey2SubjectPublicKeyInfo( ntruSz,
+                                         ntruKey, &encodedSz, der->publicKey);
         if (rc != NTRU_OK)
             return PUBLIC_KEY_E;
 

@@ -189,7 +189,7 @@ enum Block_Sum {
 enum Key_Sum {
     DSAk   = 515,
     RSAk   = 645,
-    NTRUk  = 364,
+    NTRUk  = 274,
     ECDSAk = 518
 };
 

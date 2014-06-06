@@ -21,6 +21,23 @@ dist_doc_DATA=
 @INC_AMINCLUDE@
 DISTCLEANFILES+= aminclude.am
 
+CLEANFILES+= cert.der \
+             cert.pem \
+             certecc.der \
+             certecc.pem \
+             certreq.der \
+             certreq.pem \
+             key.der \
+             key.pem \
+             ntru-cert.der \
+             ntru-cert.pem \
+             ntru-key.raw \
+             othercert.der \
+             othercert.pem \
+             pkcs7cert.der \
+             pkcs7envelopedData.der \
+             pkcs7signedData.der
+
 exampledir = $(docdir)/example
 dist_example_DATA=
 
