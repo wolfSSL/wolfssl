@@ -390,9 +390,15 @@ static void test_CyaSSL_SNI_GetFromBuffer(void)
 
     AssertIntEQ(SSL_SUCCESS, CyaSSL_SNI_GetFromBuffer(buffer3, sizeof(buffer3),
                                                            0, result, &length));
+    AssertIntEQ(XSTRLEN(""), length);
+
+    length = 32;
 
     AssertIntEQ(SSL_SUCCESS, CyaSSL_SNI_GetFromBuffer(buffer2, sizeof(buffer2),
                                                            1, result, &length));
+    AssertIntEQ(XSTRLEN(""), length);
+
+    length = 32;
 
     AssertIntEQ(-228, CyaSSL_SNI_GetFromBuffer(buffer, sizeof(buffer), 0,
                                                               result, &length));
@@ -410,15 +416,15 @@ static void test_CyaSSL_SNI_GetFromBuffer(void)
                                                               result, &length));
     buffer[4] = 0x64;
 
-    AssertIntEQ(1, CyaSSL_SNI_GetFromBuffer(buffer, sizeof(buffer), 0,
-                                                              result, &length));
+    AssertIntEQ(SSL_SUCCESS, CyaSSL_SNI_GetFromBuffer(buffer, sizeof(buffer),
+                                                           0, result, &length));
     result[length] = 0;
     AssertStrEQ("www.paypal.com", (const char*) result);
 
     length = 32;
 
-    AssertIntEQ(1, CyaSSL_SNI_GetFromBuffer(buffer2, sizeof(buffer2), 0,
-                                                              result, &length));
+    AssertIntEQ(SSL_SUCCESS, CyaSSL_SNI_GetFromBuffer(buffer2, sizeof(buffer2),
+                                                           0, result, &length));
     result[length] = 0;
     AssertStrEQ("api.textmate.org", (const char*) result);
 }
