@@ -2780,6 +2780,11 @@ int SendBuffered(CYASSL* ssl)
             return SOCKET_ERROR_E;
         }
 
+        if (sent > (int)ssl->buffers.outputBuffer.length) {
+            CYASSL_MSG("SendBuffered() out of bounds read");
+            return SEND_OOB_READ_E;
+        }
+
         ssl->buffers.outputBuffer.idx += sent;
         ssl->buffers.outputBuffer.length -= sent;
     }
@@ -6595,6 +6600,9 @@ const char* CyaSSL_ERR_reason_error_string(unsigned long e)
 
     case EXTKEYUSE_AUTH_E:
         return "Ext Key Use server/client auth not set Error";
+
+    case SEND_OOB_READ_E:
+        return "Send Callback Out of Bounds Read Error";
 
     default :
         return "unknown error number";
