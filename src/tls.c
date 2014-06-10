@@ -997,7 +997,7 @@ int TLSX_SNI_GetFromBuffer(const byte* clientHello, word32 helloSz,
     if (helloSz < offset + len16)
         return BUFFER_ERROR;
 
-    while (len16 > OPAQUE16_LEN + OPAQUE16_LEN) {
+    while (len16 >= OPAQUE16_LEN + OPAQUE16_LEN) {
         word16 extType;
         word16 extLen;
 
