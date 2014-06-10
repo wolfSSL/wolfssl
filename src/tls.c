@@ -1047,9 +1047,7 @@ int TLSX_SNI_GetFromBuffer(const byte* clientHello, word32 helloSz,
         len16 -= min(2 * OPAQUE16_LEN + extLen, len16);
     }
 
-    *inOutSz = 0;
-
-    return len16 ? BUFFER_ERROR : SSL_SUCCESS;
+    return len16 ? BUFFER_ERROR : 0;
 }
 
 #endif
