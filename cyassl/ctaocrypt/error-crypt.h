@@ -127,7 +127,7 @@ enum {
 
     RNG_FAILURE_E       = -199,  /* RNG Failed, Reinitialize */
 
-    MIN_CODE_E         = -200   /* errors -101 - -199 */
+    MIN_CODE_E         = -300   /* errors -101 - -299 */
 };
 
 
