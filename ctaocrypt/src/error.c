@@ -277,6 +277,9 @@ const char* CTaoCryptGetErrorString(int error)
     case RNG_FAILURE_E:
         return "Random Number Generator failed";
 
+    case HMAC_MIN_KEYLEN_E:
+        return "FIPS Mode HMAC Minimum Key Length error";
+
     default:
         return "unknown error number";
 

@@ -133,7 +133,7 @@ int HmacSetKey(Hmac* hmac, int type, const byte* key, word32 length)
 
 #ifdef HAVE_FIPS
     if (length < HMAC_FIPS_MIN_KEY)
-        return -1; /* TODO: next, fix wolfCrypt error range */
+        return HMAC_MIN_KEYLEN_E;
 #endif
 
     switch (hmac->macType) {
