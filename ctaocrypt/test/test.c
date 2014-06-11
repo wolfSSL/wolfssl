@@ -1149,9 +1149,11 @@ int hmac_md5_test(void)
     test_hmac[2] = c;
 
     for (i = 0; i < times; ++i) {
-#ifdef HAVE_CAVIUM
+#if defined(HAVE_FIPS) || defined(HAVE_CAVIUM)
         if (i == 1)
-            continue; /* driver can't handle keys <= bytes */
+            continue; /* cavium can't handle short keys, fips not allowed */
+#endif
+#ifdef HAVE_CAVIUM
         if (HmacInitCavium(&hmac, CAVIUM_DEV_ID) != 0)
             return -20009;
 #endif
@@ -1224,9 +1226,11 @@ int hmac_sha_test(void)
     test_hmac[2] = c;
 
     for (i = 0; i < times; ++i) {
-#ifdef HAVE_CAVIUM
+#if defined(HAVE_FIPS) || defined(HAVE_CAVIUM)
         if (i == 1)
-            continue; /* driver can't handle keys <= bytes */
+            continue; /* cavium can't handle short keys, fips not allowed */
+#endif
+#ifdef HAVE_CAVIUM
         if (HmacInitCavium(&hmac, CAVIUM_DEV_ID) != 0)
             return -20010;
 #endif
@@ -1303,9 +1307,11 @@ int hmac_sha256_test(void)
     test_hmac[2] = c;
 
     for (i = 0; i < times; ++i) {
-#ifdef HAVE_CAVIUM
+#if defined(HAVE_FIPS) || defined(HAVE_CAVIUM)
         if (i == 1)
-            continue; /* driver can't handle keys <= bytes */
+            continue; /* cavium can't handle short keys, fips not allowed */
+#endif
+#ifdef HAVE_CAVIUM
         if (HmacInitCavium(&hmac, CAVIUM_DEV_ID) != 0)
             return -20011;
 #endif
@@ -1382,9 +1388,11 @@ int hmac_blake2b_test(void)
     test_hmac[2] = c;
 
     for (i = 0; i < times; ++i) {
-#ifdef HAVE_CAVIUM
+#if defined(HAVE_FIPS) || defined(HAVE_CAVIUM)
         if (i == 1)
-            continue; /* driver can't handle keys <= bytes */
+            continue; /* cavium can't handle short keys, fips not allowed */
+#endif
+#ifdef HAVE_CAVIUM
         if (HmacInitCavium(&hmac, CAVIUM_DEV_ID) != 0)
             return -20011;
 #endif
@@ -1465,6 +1473,10 @@ int hmac_sha384_test(void)
     test_hmac[2] = c;
 
     for (i = 0; i < times; ++i) {
+#if defined(HAVE_FIPS)
+        if (i == 1)
+            continue; /* fips not allowed */
+#endif
         ret = HmacSetKey(&hmac, SHA384, (byte*)keys[i],(word32)strlen(keys[i]));
         if (ret != 0)
             return -4027;
@@ -1541,6 +1553,10 @@ int hmac_sha512_test(void)
     test_hmac[2] = c;
 
     for (i = 0; i < times; ++i) {
+#if defined(HAVE_FIPS)
+        if (i == 1)
+            continue; /* fips not allowed */
+#endif
         ret = HmacSetKey(&hmac, SHA512, (byte*)keys[i],(word32)strlen(keys[i]));
         if (ret != 0)
             return -4030;

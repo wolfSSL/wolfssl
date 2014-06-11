@@ -33,7 +33,7 @@
 
 /* error codes */
 enum {
-    MAX_CODE_E         = -100,  /* errors -101 - -199 */
+    MAX_CODE_E         = -100,  /* errors -101 - -299 */
     OPEN_RAN_E         = -101,  /* opening random device error */
     READ_RAN_E         = -102,  /* reading random device error */
     WINCRYPT_E         = -103,  /* windows crypt init error */
@@ -127,7 +127,9 @@ enum {
 
     RNG_FAILURE_E       = -199,  /* RNG Failed, Reinitialize */
 
-    MIN_CODE_E         = -200   /* errors -101 - -199 */
+    HMAC_MIN_KEYLEN_E   = -200,  /* FIPS Mode HMAC Minimum Key Length error */
+
+    MIN_CODE_E         = -300   /* errors -101 - -299 */
 };
 
 
