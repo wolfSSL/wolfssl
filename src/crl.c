@@ -501,7 +501,7 @@ static int StopMonitor(int mfd)
 static void* DoMonitor(void* arg)
 {
     int         notifyFd;
-    int         wd  = 1;
+    int         wd  = -1;
     CYASSL_CRL* crl = (CYASSL_CRL*)arg;
 
     CYASSL_ENTER("DoMonitor");
