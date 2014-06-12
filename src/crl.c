@@ -501,7 +501,7 @@ static int StopMonitor(int mfd)
 static void* DoMonitor(void* arg)
 {
     int         notifyFd;
-    int         wd;
+    int         wd  = 1;
     CYASSL_CRL* crl = (CYASSL_CRL*)arg;
 
     CYASSL_ENTER("DoMonitor");
@@ -575,7 +575,8 @@ static void* DoMonitor(void* arg)
         }
     }
 
-    inotify_rm_watch(notifyFd, wd);
+    if (wd > 0)
+        inotify_rm_watch(notifyFd, wd);
     close(crl->mfd);
     close(notifyFd);
 
