@@ -292,13 +292,13 @@ static void use_SNI_WITH_FAKE_ANSWER_at_ssl(CYASSL* ssl)
 static void verify_SNI_abort_on_client(CYASSL* ssl)
 {
     /* FATAL_ERROR */
-    AssertIntEQ(-213, CyaSSL_get_error(ssl, 0));
+    AssertIntEQ(-313, CyaSSL_get_error(ssl, 0));
 }
 
 static void verify_SNI_abort_on_server(CYASSL* ssl)
 {
     /* UNKNOWN_SNI_HOST_NAME_E */
-    AssertIntEQ(-281, CyaSSL_get_error(ssl, 0));
+    AssertIntEQ(-381, CyaSSL_get_error(ssl, 0));
 }
 
 static void verify_SNI_no_matching(CYASSL* ssl)
@@ -417,19 +417,19 @@ static void test_CyaSSL_SNI_GetFromBuffer(void)
     AssertIntEQ(0, CyaSSL_SNI_GetFromBuffer(buffer2, sizeof(buffer2),
                                                            1, result, &length));
 
-    AssertIntEQ(-228, CyaSSL_SNI_GetFromBuffer(buffer, sizeof(buffer), 0,
+    AssertIntEQ(-328, CyaSSL_SNI_GetFromBuffer(buffer, sizeof(buffer), 0,
                                                               result, &length));
     buffer[0] = 0x16;
 
-    AssertIntEQ(-228, CyaSSL_SNI_GetFromBuffer(buffer, sizeof(buffer), 0,
+    AssertIntEQ(-328, CyaSSL_SNI_GetFromBuffer(buffer, sizeof(buffer), 0,
                                                               result, &length));
     buffer[1] = 0x03;
 
-    AssertIntEQ(-228, CyaSSL_SNI_GetFromBuffer(buffer, sizeof(buffer), 0,
+    AssertIntEQ(-328, CyaSSL_SNI_GetFromBuffer(buffer, sizeof(buffer), 0,
                                                               result, &length));
     buffer[2] = 0x03;
 
-    AssertIntEQ(-210, CyaSSL_SNI_GetFromBuffer(buffer, sizeof(buffer), 0,
+    AssertIntEQ(-310, CyaSSL_SNI_GetFromBuffer(buffer, sizeof(buffer), 0,
                                                               result, &length));
     buffer[4] = 0x64;
 
