@@ -791,11 +791,6 @@ int PKCS7_VerifySignedData(PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz)
         return ASN_PARSE_E;
 
     if (length > 0) {
-        RsaKey key;
-        word32 scratch = 0;
-        int plainSz = 0;
-        byte digest[MAX_SEQ_SZ+MAX_ALGO_SZ+MAX_OCTET_STR_SZ+SHA_DIGEST_SIZE];
-
         /* Get the sequence of the first signerInfo */
         if (GetSequence(pkiMsg, &idx, &length, pkiMsgSz) < 0)
             return ASN_PARSE_E;
@@ -854,21 +849,67 @@ int PKCS7_VerifySignedData(PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz)
             idx += length;
         }
 
-        XMEMSET(digest, 0, sizeof(digest));
         pkcs7->content = content;
         pkcs7->contentSz = contentSz;
 
-        ret = InitRsaKey(&key, NULL);
-        if (ret != 0) return ret;
-        if (RsaPublicKeyDecode(pkcs7->publicKey, &scratch, &key,
-                               pkcs7->publicKeySz) < 0) {
-            CYASSL_MSG("ASN RSA key decode error");
-            return PUBLIC_KEY_E;
+        {
+            word32 scratch = 0;
+            int plainSz = 0;
+            int digestSz = MAX_SEQ_SZ + MAX_ALGO_SZ +
+                           MAX_OCTET_STR_SZ + SHA_DIGEST_SIZE;
+
+#ifdef CYASSL_SMALL_STACK
+            byte* digest;
+            RsaKey* key;
+
+            digest = (byte*)XMALLOC(digestSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+            if (digest == NULL)
+                return MEMORY_E;
+
+            key = (RsaKey*)XMALLOC(sizeof(RsaKey), NULL,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+            if (key == NULL) {
+                XFREE(digest, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                return MEMORY_E;
+            }
+#else
+            byte digest[digestSz];
+            RsaKey stack_key;
+            RsaKey* key = &stack_key;
+#endif
+
+            XMEMSET(digest, 0, digestSz);
+
+            ret = InitRsaKey(key, NULL);
+            if (ret != 0) {
+#ifdef CYASSL_SMALL_STACK
+                XFREE(digest, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                XFREE(key,    NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+                return ret;
+            }       
+            if (RsaPublicKeyDecode(pkcs7->publicKey, &scratch, key,
+                                   pkcs7->publicKeySz) < 0) {
+                CYASSL_MSG("ASN RSA key decode error");
+#ifdef CYASSL_SMALL_STACK
+                XFREE(digest, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                XFREE(key,    NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+                return PUBLIC_KEY_E;
+            }
+
+            plainSz = RsaSSL_Verify(sig, sigSz, digest, digestSz, key);
+            FreeRsaKey(key);
+
+#ifdef CYASSL_SMALL_STACK
+            XFREE(digest, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(key,    NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
+            if (plainSz < 0)
+                return plainSz;
         }
-        plainSz = RsaSSL_Verify(sig, sigSz, digest, sizeof(digest), &key);
-        FreeRsaKey(&key);
-        if (plainSz < 0)
-            return plainSz;
     }
 
     return 0;
