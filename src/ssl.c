@@ -1771,7 +1771,7 @@ int CyaSSL_Init(void)
     {
         /* remove encrypted header if there */
         char encHeader[] = "Proc-Type";
-        char* line = XSTRNSTR((char*)buff, encHeader, PEM_LINE_LEN);
+        char* line = XSTRNSTR(headerEnd, encHeader, PEM_LINE_LEN);
         if (line) {
             char* newline;
             char* finish;
