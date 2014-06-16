@@ -320,7 +320,7 @@ void c32to24(word32 in, word24 out);
         #ifdef HAVE_AESGCM
             #define BUILD_TLS_DHE_PSK_WITH_AES_128_GCM_SHA256
         #endif
-        #ifdef HAVE_AESGCM
+        #ifdef HAVE_AESCCM
             #define BUILD_TLS_DHE_PSK_WITH_AES_128_CCM
             #define BUILD_TLS_DHE_PSK_WITH_AES_256_CCM
         #endif
