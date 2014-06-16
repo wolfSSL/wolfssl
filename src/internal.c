@@ -2082,7 +2082,7 @@ int DtlsPoolSave(CYASSL* ssl, const byte *src, int sz)
     DtlsPool *pool = ssl->dtls_pool;
     if (pool != NULL && pool->used < DTLS_POOL_SZ) {
         buffer *pBuf = &pool->buf[pool->used];
-        pBuf->buffer = (byte*)XMALLOC(sz, ssl->heap, DYNAMIC_TYPE_OUT_BUFFER);
+        pBuf->buffer = (byte*)XMALLOC(sz, ssl->heap, DYNAMIC_TYPE_DTLS_POOL);
         if (pBuf->buffer == NULL) {
             CYASSL_MSG("DTLS Buffer Memory error");
             return MEMORY_ERROR;
@@ -2104,7 +2104,7 @@ void DtlsPoolReset(CYASSL* ssl)
 
         used = pool->used;
         for (i = 0, pBuf = &pool->buf[0]; i < used; i++, pBuf++) {
-            XFREE(pBuf->buffer, ssl->heap, DYNAMIC_TYPE_OUT_BUFFER);
+            XFREE(pBuf->buffer, ssl->heap, DYNAMIC_TYPE_DTLS_POOL);
             pBuf->buffer = NULL;
             pBuf->length = 0;
         }
