@@ -24,6 +24,7 @@
 #endif
 
 #include <cyassl/ctaocrypt/settings.h>
+#include <cyassl/error-ssl.h>
 
 #include <stdlib.h>
 #include <cyassl/ssl.h>
@@ -252,7 +253,8 @@ static void use_SNI_at_ctx(CYASSL_CTX* ctx)
     byte type = CYASSL_SNI_HOST_NAME;
     char name[] = "www.yassl.com";
 
-    AssertIntEQ(1, CyaSSL_CTX_UseSNI(ctx, type, (void *) name, XSTRLEN(name)));
+    AssertIntEQ(SSL_SUCCESS,
+                    CyaSSL_CTX_UseSNI(ctx, type, (void *) name, XSTRLEN(name)));
 }
 
 static void use_SNI_at_ssl(CYASSL* ssl)
@@ -260,7 +262,8 @@ static void use_SNI_at_ssl(CYASSL* ssl)
     byte type = CYASSL_SNI_HOST_NAME;
     char name[] = "www.yassl.com";
 
-    AssertIntEQ(1, CyaSSL_UseSNI(ssl, type, (void *) name, XSTRLEN(name)));
+    AssertIntEQ(SSL_SUCCESS,
+                        CyaSSL_UseSNI(ssl, type, (void *) name, XSTRLEN(name)));
 }
 
 static void different_SNI_at_ssl(CYASSL* ssl)
@@ -268,7 +271,8 @@ static void different_SNI_at_ssl(CYASSL* ssl)
     byte type = CYASSL_SNI_HOST_NAME;
     char name[] = "ww2.yassl.com";
 
-    AssertIntEQ(1, CyaSSL_UseSNI(ssl, type, (void *) name, XSTRLEN(name)));
+    AssertIntEQ(SSL_SUCCESS,
+                        CyaSSL_UseSNI(ssl, type, (void *) name, XSTRLEN(name)));
 }
 
 static void use_SNI_WITH_CONTINUE_at_ssl(CYASSL* ssl)
@@ -291,14 +295,12 @@ static void use_SNI_WITH_FAKE_ANSWER_at_ssl(CYASSL* ssl)
 
 static void verify_SNI_abort_on_client(CYASSL* ssl)
 {
-    /* FATAL_ERROR */
-    AssertIntEQ(-313, CyaSSL_get_error(ssl, 0));
+    AssertIntEQ(FATAL_ERROR, CyaSSL_get_error(ssl, 0));
 }
 
 static void verify_SNI_abort_on_server(CYASSL* ssl)
 {
-    /* UNKNOWN_SNI_HOST_NAME_E */
-    AssertIntEQ(-381, CyaSSL_get_error(ssl, 0));
+    AssertIntEQ(UNKNOWN_SNI_HOST_NAME_E, CyaSSL_get_error(ssl, 0));
 }
 
 static void verify_SNI_no_matching(CYASSL* ssl)
@@ -386,23 +388,23 @@ static void test_CyaSSL_SNI_GetFromBuffer(void)
     };
 
     byte buffer4[] = { /* last extension has zero size */
-            0x16, 0x03, 0x01, 0x00, 0xba, 0x01, 0x00, 0x00,
-            0xb6, 0x03, 0x03, 0x83, 0xa3, 0xe6, 0xdc, 0x16, 0xa1, 0x43, 0xe9, 0x45,
-            0x15, 0xbd, 0x64, 0xa9, 0xb6, 0x07, 0xb4, 0x50, 0xc6, 0xdd, 0xff, 0xc2,
-            0xd3, 0x0d, 0x4f, 0x36, 0xb4, 0x41, 0x51, 0x61, 0xc1, 0xa5, 0x9e, 0x00,
-            0x00, 0x28, 0xcc, 0x14, 0xcc, 0x13, 0xc0, 0x2b, 0xc0, 0x2f, 0x00, 0x9e,
-            0xc0, 0x0a, 0xc0, 0x09, 0xc0, 0x13, 0xc0, 0x14, 0xc0, 0x07, 0xc0, 0x11,
-            0x00, 0x33, 0x00, 0x32, 0x00, 0x39, 0x00, 0x9c, 0x00, 0x2f, 0x00, 0x35,
-            0x00, 0x0a, 0x00, 0x05, 0x00, 0x04, 0x01, 0x00, 0x00, 0x65, 0xff, 0x01,
-            0x00, 0x01, 0x00, 0x00, 0x0a, 0x00, 0x08, 0x00, 0x06, 0x00, 0x17, 0x00,
-            0x18, 0x00, 0x19, 0x00, 0x0b, 0x00, 0x02, 0x01, 0x00, 0x00, 0x23, 0x00,
-            0x00, 0x33, 0x74, 0x00, 0x00, 0x00, 0x10, 0x00, 0x1b, 0x00, 0x19, 0x06,
-            0x73, 0x70, 0x64, 0x79, 0x2f, 0x33, 0x08, 0x73, 0x70, 0x64, 0x79, 0x2f,
-            0x33, 0x2e, 0x31, 0x08, 0x68, 0x74, 0x74, 0x70, 0x2f, 0x31, 0x2e, 0x31,
-            0x75, 0x50, 0x00, 0x00, 0x00, 0x05, 0x00, 0x05, 0x01, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0x0d, 0x00, 0x12, 0x00, 0x10, 0x04, 0x01, 0x05, 0x01, 0x02,
-            0x01, 0x04, 0x03, 0x05, 0x03, 0x02, 0x03, 0x04, 0x02, 0x02, 0x02, 0x00,
-            0x12, 0x00, 0x00
+        0x16, 0x03, 0x01, 0x00, 0xba, 0x01, 0x00, 0x00,
+        0xb6, 0x03, 0x03, 0x83, 0xa3, 0xe6, 0xdc, 0x16, 0xa1, 0x43, 0xe9, 0x45,
+        0x15, 0xbd, 0x64, 0xa9, 0xb6, 0x07, 0xb4, 0x50, 0xc6, 0xdd, 0xff, 0xc2,
+        0xd3, 0x0d, 0x4f, 0x36, 0xb4, 0x41, 0x51, 0x61, 0xc1, 0xa5, 0x9e, 0x00,
+        0x00, 0x28, 0xcc, 0x14, 0xcc, 0x13, 0xc0, 0x2b, 0xc0, 0x2f, 0x00, 0x9e,
+        0xc0, 0x0a, 0xc0, 0x09, 0xc0, 0x13, 0xc0, 0x14, 0xc0, 0x07, 0xc0, 0x11,
+        0x00, 0x33, 0x00, 0x32, 0x00, 0x39, 0x00, 0x9c, 0x00, 0x2f, 0x00, 0x35,
+        0x00, 0x0a, 0x00, 0x05, 0x00, 0x04, 0x01, 0x00, 0x00, 0x65, 0xff, 0x01,
+        0x00, 0x01, 0x00, 0x00, 0x0a, 0x00, 0x08, 0x00, 0x06, 0x00, 0x17, 0x00,
+        0x18, 0x00, 0x19, 0x00, 0x0b, 0x00, 0x02, 0x01, 0x00, 0x00, 0x23, 0x00,
+        0x00, 0x33, 0x74, 0x00, 0x00, 0x00, 0x10, 0x00, 0x1b, 0x00, 0x19, 0x06,
+        0x73, 0x70, 0x64, 0x79, 0x2f, 0x33, 0x08, 0x73, 0x70, 0x64, 0x79, 0x2f,
+        0x33, 0x2e, 0x31, 0x08, 0x68, 0x74, 0x74, 0x70, 0x2f, 0x31, 0x2e, 0x31,
+        0x75, 0x50, 0x00, 0x00, 0x00, 0x05, 0x00, 0x05, 0x01, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x0d, 0x00, 0x12, 0x00, 0x10, 0x04, 0x01, 0x05, 0x01, 0x02,
+        0x01, 0x04, 0x03, 0x05, 0x03, 0x02, 0x03, 0x04, 0x02, 0x02, 0x02, 0x00,
+        0x12, 0x00, 0x00
     };
 
     byte result[32] = {0};
@@ -417,20 +419,20 @@ static void test_CyaSSL_SNI_GetFromBuffer(void)
     AssertIntEQ(0, CyaSSL_SNI_GetFromBuffer(buffer2, sizeof(buffer2),
                                                            1, result, &length));
 
-    AssertIntEQ(-328, CyaSSL_SNI_GetFromBuffer(buffer, sizeof(buffer), 0,
-                                                              result, &length));
+    AssertIntEQ(BUFFER_ERROR, CyaSSL_SNI_GetFromBuffer(buffer, sizeof(buffer),
+                                                           0, result, &length));
     buffer[0] = 0x16;
 
-    AssertIntEQ(-328, CyaSSL_SNI_GetFromBuffer(buffer, sizeof(buffer), 0,
-                                                              result, &length));
+    AssertIntEQ(BUFFER_ERROR, CyaSSL_SNI_GetFromBuffer(buffer, sizeof(buffer),
+                                                           0, result, &length));
     buffer[1] = 0x03;
 
-    AssertIntEQ(-328, CyaSSL_SNI_GetFromBuffer(buffer, sizeof(buffer), 0,
-                                                              result, &length));
+    AssertIntEQ(BUFFER_ERROR, CyaSSL_SNI_GetFromBuffer(buffer, sizeof(buffer),
+                                                           0, result, &length));
     buffer[2] = 0x03;
 
-    AssertIntEQ(-310, CyaSSL_SNI_GetFromBuffer(buffer, sizeof(buffer), 0,
-                                                              result, &length));
+    AssertIntEQ(INCOMPLETE_DATA, CyaSSL_SNI_GetFromBuffer(buffer,
+                                           sizeof(buffer), 0, result, &length));
     buffer[4] = 0x64;
 
     AssertIntEQ(SSL_SUCCESS, CyaSSL_SNI_GetFromBuffer(buffer, sizeof(buffer),
@@ -458,16 +460,24 @@ void test_CyaSSL_UseSNI(void)
     AssertNotNull(ssl);
 
     /* error cases */
-    AssertIntNE(1, CyaSSL_CTX_UseSNI(NULL, 0, (void *) "ctx", XSTRLEN("ctx")));
-    AssertIntNE(1, CyaSSL_UseSNI(    NULL, 0, (void *) "ssl", XSTRLEN("ssl")));
-    AssertIntNE(1, CyaSSL_CTX_UseSNI(ctx, -1, (void *) "ctx", XSTRLEN("ctx")));
-    AssertIntNE(1, CyaSSL_UseSNI(    ssl, -1, (void *) "ssl", XSTRLEN("ssl")));
-    AssertIntNE(1, CyaSSL_CTX_UseSNI(ctx,  0, (void *) NULL,  XSTRLEN("ctx")));
-    AssertIntNE(1, CyaSSL_UseSNI(    ssl,  0, (void *) NULL,  XSTRLEN("ssl")));
+    AssertIntNE(SSL_SUCCESS,
+                    CyaSSL_CTX_UseSNI(NULL, 0, (void *) "ctx", XSTRLEN("ctx")));
+    AssertIntNE(SSL_SUCCESS,
+                    CyaSSL_UseSNI(    NULL, 0, (void *) "ssl", XSTRLEN("ssl")));
+    AssertIntNE(SSL_SUCCESS,
+                    CyaSSL_CTX_UseSNI(ctx, -1, (void *) "ctx", XSTRLEN("ctx")));
+    AssertIntNE(SSL_SUCCESS,
+                    CyaSSL_UseSNI(    ssl, -1, (void *) "ssl", XSTRLEN("ssl")));
+    AssertIntNE(SSL_SUCCESS,
+                    CyaSSL_CTX_UseSNI(ctx,  0, (void *) NULL,  XSTRLEN("ctx")));
+    AssertIntNE(SSL_SUCCESS,
+                    CyaSSL_UseSNI(    ssl,  0, (void *) NULL,  XSTRLEN("ssl")));
 
     /* success case */
-    AssertIntEQ(1, CyaSSL_CTX_UseSNI(ctx,  0, (void *) "ctx", XSTRLEN("ctx")));
-    AssertIntEQ(1, CyaSSL_UseSNI(    ssl,  0, (void *) "ssl", XSTRLEN("ssl")));
+    AssertIntEQ(SSL_SUCCESS,
+                    CyaSSL_CTX_UseSNI(ctx,  0, (void *) "ctx", XSTRLEN("ctx")));
+    AssertIntEQ(SSL_SUCCESS,
+                    CyaSSL_UseSNI(    ssl,  0, (void *) "ssl", XSTRLEN("ssl")));
 
     CyaSSL_free(ssl);
     CyaSSL_CTX_free(ctx);
@@ -523,24 +533,24 @@ static void test_CyaSSL_UseMaxFragment(void)
     AssertNotNull(ssl);
 
     /* error cases */
-    AssertIntNE(1, CyaSSL_CTX_UseMaxFragment(NULL, CYASSL_MFL_2_9));
-    AssertIntNE(1, CyaSSL_UseMaxFragment(    NULL, CYASSL_MFL_2_9));
-    AssertIntNE(1, CyaSSL_CTX_UseMaxFragment(ctx, 0));
-    AssertIntNE(1, CyaSSL_CTX_UseMaxFragment(ctx, 6));
-    AssertIntNE(1, CyaSSL_UseMaxFragment(ssl, 0));
-    AssertIntNE(1, CyaSSL_UseMaxFragment(ssl, 6));
+    AssertIntNE(SSL_SUCCESS, CyaSSL_CTX_UseMaxFragment(NULL, CYASSL_MFL_2_9));
+    AssertIntNE(SSL_SUCCESS, CyaSSL_UseMaxFragment(    NULL, CYASSL_MFL_2_9));
+    AssertIntNE(SSL_SUCCESS, CyaSSL_CTX_UseMaxFragment(ctx, 0));
+    AssertIntNE(SSL_SUCCESS, CyaSSL_CTX_UseMaxFragment(ctx, 6));
+    AssertIntNE(SSL_SUCCESS, CyaSSL_UseMaxFragment(ssl, 0));
+    AssertIntNE(SSL_SUCCESS, CyaSSL_UseMaxFragment(ssl, 6));
 
     /* success case */
-    AssertIntEQ(1, CyaSSL_CTX_UseMaxFragment(ctx,  CYASSL_MFL_2_9));
-    AssertIntEQ(1, CyaSSL_CTX_UseMaxFragment(ctx,  CYASSL_MFL_2_10));
-    AssertIntEQ(1, CyaSSL_CTX_UseMaxFragment(ctx,  CYASSL_MFL_2_11));
-    AssertIntEQ(1, CyaSSL_CTX_UseMaxFragment(ctx,  CYASSL_MFL_2_12));
-    AssertIntEQ(1, CyaSSL_CTX_UseMaxFragment(ctx,  CYASSL_MFL_2_13));
-    AssertIntEQ(1, CyaSSL_UseMaxFragment(    ssl,  CYASSL_MFL_2_9));
-    AssertIntEQ(1, CyaSSL_UseMaxFragment(    ssl,  CYASSL_MFL_2_10));
-    AssertIntEQ(1, CyaSSL_UseMaxFragment(    ssl,  CYASSL_MFL_2_11));
-    AssertIntEQ(1, CyaSSL_UseMaxFragment(    ssl,  CYASSL_MFL_2_12));
-    AssertIntEQ(1, CyaSSL_UseMaxFragment(    ssl,  CYASSL_MFL_2_13));
+    AssertIntEQ(SSL_SUCCESS, CyaSSL_CTX_UseMaxFragment(ctx,  CYASSL_MFL_2_9));
+    AssertIntEQ(SSL_SUCCESS, CyaSSL_CTX_UseMaxFragment(ctx,  CYASSL_MFL_2_10));
+    AssertIntEQ(SSL_SUCCESS, CyaSSL_CTX_UseMaxFragment(ctx,  CYASSL_MFL_2_11));
+    AssertIntEQ(SSL_SUCCESS, CyaSSL_CTX_UseMaxFragment(ctx,  CYASSL_MFL_2_12));
+    AssertIntEQ(SSL_SUCCESS, CyaSSL_CTX_UseMaxFragment(ctx,  CYASSL_MFL_2_13));
+    AssertIntEQ(SSL_SUCCESS, CyaSSL_UseMaxFragment(    ssl,  CYASSL_MFL_2_9));
+    AssertIntEQ(SSL_SUCCESS, CyaSSL_UseMaxFragment(    ssl,  CYASSL_MFL_2_10));
+    AssertIntEQ(SSL_SUCCESS, CyaSSL_UseMaxFragment(    ssl,  CYASSL_MFL_2_11));
+    AssertIntEQ(SSL_SUCCESS, CyaSSL_UseMaxFragment(    ssl,  CYASSL_MFL_2_12));
+    AssertIntEQ(SSL_SUCCESS, CyaSSL_UseMaxFragment(    ssl,  CYASSL_MFL_2_13));
 
     CyaSSL_free(ssl);
     CyaSSL_CTX_free(ctx);
@@ -557,12 +567,12 @@ static void test_CyaSSL_UseTruncatedHMAC(void)
     AssertNotNull(ssl);
 
     /* error cases */
-    AssertIntNE(1, CyaSSL_CTX_UseTruncatedHMAC(NULL));
-    AssertIntNE(1, CyaSSL_UseTruncatedHMAC(NULL));
+    AssertIntNE(SSL_SUCCESS, CyaSSL_CTX_UseTruncatedHMAC(NULL));
+    AssertIntNE(SSL_SUCCESS, CyaSSL_UseTruncatedHMAC(NULL));
 
     /* success case */
-    AssertIntEQ(1, CyaSSL_CTX_UseTruncatedHMAC(ctx));
-    AssertIntEQ(1, CyaSSL_UseTruncatedHMAC(ssl));
+    AssertIntEQ(SSL_SUCCESS, CyaSSL_CTX_UseTruncatedHMAC(ctx));
+    AssertIntEQ(SSL_SUCCESS, CyaSSL_UseTruncatedHMAC(ssl));
 
     CyaSSL_free(ssl);
     CyaSSL_CTX_free(ctx);
@@ -580,15 +590,19 @@ static void test_CyaSSL_UseSupportedCurve(void)
 
 #ifndef NO_CYASSL_CLIENT
     /* error cases */
-    AssertIntNE(1, CyaSSL_CTX_UseSupportedCurve(NULL, CYASSL_ECC_SECP160R1));
-    AssertIntNE(1, CyaSSL_CTX_UseSupportedCurve(ctx,  0));
+    AssertIntNE(SSL_SUCCESS,
+                      CyaSSL_CTX_UseSupportedCurve(NULL, CYASSL_ECC_SECP160R1));
+    AssertIntNE(SSL_SUCCESS, CyaSSL_CTX_UseSupportedCurve(ctx,  0));
 
-    AssertIntNE(1, CyaSSL_UseSupportedCurve(NULL, CYASSL_ECC_SECP160R1));
-    AssertIntNE(1, CyaSSL_UseSupportedCurve(ssl,  0));
+    AssertIntNE(SSL_SUCCESS,
+                          CyaSSL_UseSupportedCurve(NULL, CYASSL_ECC_SECP160R1));
+    AssertIntNE(SSL_SUCCESS, CyaSSL_UseSupportedCurve(ssl,  0));
 
     /* success case */
-    AssertIntEQ(1, CyaSSL_CTX_UseSupportedCurve(ctx, CYASSL_ECC_SECP160R1));
-    AssertIntEQ(1, CyaSSL_UseSupportedCurve(ssl, CYASSL_ECC_SECP160R1));
+    AssertIntEQ(SSL_SUCCESS,
+                       CyaSSL_CTX_UseSupportedCurve(ctx, CYASSL_ECC_SECP160R1));
+    AssertIntEQ(SSL_SUCCESS,
+                           CyaSSL_UseSupportedCurve(ssl, CYASSL_ECC_SECP160R1));
 #endif
 
     CyaSSL_free(ssl);
