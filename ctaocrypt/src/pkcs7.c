@@ -508,8 +508,12 @@ int PKCS7_EncodeSignedData(PKCS7* pkcs7, byte* output, word32 outputSz)
     esd.outerSeqSz = SetSequence(totalSz, esd.outerSeq);
     totalSz += esd.outerSeqSz;
 
-    if (outputSz < totalSz)
+    if (outputSz < totalSz) {
+        if (flatSignedAttribs)
+            XFREE(flatSignedAttribs, 0, NULL);
+
         return BUFFER_E;
+    }
 
     idx = 0;
     XMEMCPY(output + idx, esd.outerSeq, esd.outerSeqSz);
@@ -845,12 +849,16 @@ CYASSL_LOCAL int CreateRecipientInfo(const byte* cert, word32 certSz,
                                     issuerSerialSeq);
 
     /* KeyEncryptionAlgorithmIdentifier, only support RSA now */
-    if (keyEncAlgo != RSAk)
+    if (keyEncAlgo != RSAk) {
+        FreeDecodedCert(&decoded);
         return ALGO_ID_E;
+    }
 
     keyEncAlgSz = SetAlgoID(keyEncAlgo, keyAlgArray, keyType, 0);
-    if (keyEncAlgSz == 0)
+    if (keyEncAlgSz == 0) {
+        FreeDecodedCert(&decoded);
         return BAD_FUNC_ARG;
+    }
 
     /* EncryptedKey */
     ret = InitRsaKey(&pubKey, 0);
@@ -858,6 +866,7 @@ CYASSL_LOCAL int CreateRecipientInfo(const byte* cert, word32 certSz,
     if (RsaPublicKeyDecode(decoded.publicKey, &idx, &pubKey,
                            decoded.pubKeySize) < 0) {
         CYASSL_MSG("ASN RSA key decode error");
+        FreeDecodedCert(&decoded);
         return PUBLIC_KEY_E;
     }
 
@@ -866,6 +875,7 @@ CYASSL_LOCAL int CreateRecipientInfo(const byte* cert, word32 certSz,
     FreeRsaKey(&pubKey);
     if (*keyEncSz < 0) {
         CYASSL_MSG("RSA Public Encrypt failed");
+        FreeDecodedCert(&decoded);
         return *keyEncSz;
     }
 
@@ -879,6 +889,7 @@ CYASSL_LOCAL int CreateRecipientInfo(const byte* cert, word32 certSz,
     if (recipSeqSz + verSz + issuerSerialSeqSz + issuerSeqSz + snSz +
         keyEncAlgSz + encKeyOctetStrSz + *keyEncSz > (int)outSz) {
         CYASSL_MSG("RecipientInfo output buffer too small");
+        FreeDecodedCert(&decoded);
         return BUFFER_E;
     }
 
@@ -1037,8 +1048,13 @@ int PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
      * adding (ivOctetStringSz + DES_BLOCK_SIZE) for IV OCTET STRING */
     contentEncAlgoSz = SetAlgoID(pkcs7->encryptOID, contentEncAlgo,
                                  blkType, ivOctetStringSz + DES_BLOCK_SIZE);
-    if (contentEncAlgoSz == 0)
+
+    if (contentEncAlgoSz == 0) {
+        XFREE(encryptedContent, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        if (dynamicFlag)
+            XFREE(plain, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         return BAD_FUNC_ARG;
+    }
 
     /* encrypt content */
     if (pkcs7->encryptOID == DESb) {
@@ -1324,6 +1340,8 @@ CYASSL_API int PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* pkiMsg,
 
     encryptedContent = XMALLOC(encryptedContentSz, NULL,
                                DYNAMIC_TYPE_TMP_BUFFER);
+    if (encryptedContent == NULL)
+        return MEMORY_E;
 
     XMEMCPY(encryptedContent, &pkiMsg[idx], encryptedContentSz);
 
@@ -1331,8 +1349,10 @@ CYASSL_API int PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* pkiMsg,
     keySz = RsaPrivateDecryptInline(encryptedKey, encryptedKeySz,
                                     &decryptedKey, &privKey);
     FreeRsaKey(&privKey);
-    if (keySz <= 0)
+    if (keySz <= 0) {
+        XFREE(encryptedContent, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         return keySz;
+    }
 
     /* decrypt encryptedContent */
     if (encOID == DESb) {
@@ -1361,6 +1381,7 @@ CYASSL_API int PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* pkiMsg,
         }
     } else {
         CYASSL_MSG("Unsupported content encryption OID type");
+        XFREE(encryptedContent, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         return ALGO_ID_E;
     }
 
