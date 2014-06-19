@@ -9856,7 +9856,7 @@ static void PickHashSigAlgo(CYASSL* ssl,
         }
         #endif /* HAVE_ECC */
 
-        #ifdef OPENSSL_EXTRA 
+        #if defined(OPENSSL_EXTRA) && !defined(NO_RSA)
         if (ssl->specs.kea == diffie_hellman_kea) {
             byte    *output;
             word32   length = 0, idx = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
@@ -11453,6 +11453,7 @@ static void PickHashSigAlgo(CYASSL* ssl,
         (void)out;
         (void)input;
         (void)size;
+        (void)begin;
 
         if (ssl->options.side != CYASSL_SERVER_END) {
             CYASSL_MSG("Client received client keyexchange, attack?");
