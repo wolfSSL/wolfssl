@@ -153,25 +153,43 @@ int PKCS7_InitWithCert(PKCS7* pkcs7, byte* cert, word32 certSz)
 
     XMEMSET(pkcs7, 0, sizeof(PKCS7));
     if (cert != NULL && certSz > 0) {
-        DecodedCert dCert;
+#ifdef CYASSL_SMALL_STACK
+        DecodedCert* dCert;
+
+        dCert = (DecodedCert*)XMALLOC(sizeof(DecodedCert), NULL,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+        if (dCert == NULL)
+            return MEMORY_E;
+#else
+        DecodedCert stack_dCert;
+        DecodedCert* dCert = &stack_dCert;
+#endif
 
         pkcs7->singleCert = cert;
         pkcs7->singleCertSz = certSz;
-        InitDecodedCert(&dCert, cert, certSz, 0);
+        InitDecodedCert(dCert, cert, certSz, 0);
 
-        ret = ParseCert(&dCert, CA_TYPE, NO_VERIFY, 0);
+        ret = ParseCert(dCert, CA_TYPE, NO_VERIFY, 0);
         if (ret < 0) {
-            FreeDecodedCert(&dCert);
+            FreeDecodedCert(dCert);
+#ifdef CYASSL_SMALL_STACK
+            XFREE(dCert, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
             return ret;
         }
-        XMEMCPY(pkcs7->publicKey, dCert.publicKey, dCert.pubKeySize);
-        pkcs7->publicKeySz = dCert.pubKeySize;
-        XMEMCPY(pkcs7->issuerHash, dCert.issuerHash, SHA_SIZE);
-        pkcs7->issuer = dCert.issuerRaw;
-        pkcs7->issuerSz = dCert.issuerRawLen;
-        XMEMCPY(pkcs7->issuerSn, dCert.serial, dCert.serialSz);
-        pkcs7->issuerSnSz = dCert.serialSz;
-        FreeDecodedCert(&dCert);
+
+        XMEMCPY(pkcs7->publicKey, dCert->publicKey, dCert->pubKeySize);
+        pkcs7->publicKeySz = dCert->pubKeySize;
+        XMEMCPY(pkcs7->issuerHash, dCert->issuerHash, SHA_SIZE);
+        pkcs7->issuer = dCert->issuerRaw;
+        pkcs7->issuerSz = dCert->issuerRawLen;
+        XMEMCPY(pkcs7->issuerSn, dCert->serial, dCert->serialSz);
+        pkcs7->issuerSnSz = dCert->serialSz;
+        FreeDecodedCert(dCert);
+
+#ifdef CYASSL_SMALL_STACK
+        XFREE(dCert, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
     }
 
     return ret;
