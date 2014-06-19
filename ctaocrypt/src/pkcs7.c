@@ -1410,14 +1410,23 @@ CYASSL_API int PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* pkiMsg,
     word32 savedIdx = 0, idx = 0;
     word32 contentType, encOID;
     byte   issuerHash[SHA_DIGEST_SIZE];
-    mp_int serialNum;
 
     int encryptedKeySz, keySz;
     byte tmpIv[DES_BLOCK_SIZE];
-    byte encryptedKey[MAX_ENCRYPTED_KEY_SZ];
     byte* decryptedKey = NULL;
 
-    RsaKey privKey;
+#ifdef CYASSL_SMALL_STACK
+    mp_int* serialNum;
+    byte* encryptedKey;
+    RsaKey* privKey;
+#else
+    mp_int stack_serialNum;
+    mp_int* serialNum = &stack_serialNum;
+    byte encryptedKey[MAX_ENCRYPTED_KEY_SZ];
+    
+    RsaKey stack_privKey;
+    RsaKey* privKey = &stack_privKey;
+#endif
     int encryptedContentSz;
     byte padLen;
     byte* encryptedContent = NULL;
@@ -1430,18 +1439,6 @@ CYASSL_API int PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* pkiMsg,
     if (pkiMsg == NULL || pkiMsgSz == 0 ||
         output == NULL || outputSz == 0)
         return BAD_FUNC_ARG;
-
-    /* load private key */
-    ret = InitRsaKey(&privKey, 0);
-    if (ret != 0) return ret;
-    ret = RsaPrivateKeyDecode(pkcs7->privateKey, &idx, &privKey,
-                              pkcs7->privateKeySz);
-    if (ret != 0) {
-        CYASSL_MSG("Failed to decode RSA private key");
-        return ret;
-    }
-
-    idx = 0;
 
     /* read past ContentInfo, verify type is envelopedData */
     if (GetSequence(pkiMsg, &idx, &length, pkiMsgSz) < 0)
@@ -1476,7 +1473,14 @@ CYASSL_API int PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* pkiMsg,
     /* walk through RecipientInfo set, find correct recipient */
     if (GetSet(pkiMsg, &idx, &length, pkiMsgSz) < 0)
         return ASN_PARSE_E;
-
+    
+#ifdef CYASSL_SMALL_STACK
+    encryptedKey = (byte*) XMALLOC(MAX_ENCRYPTED_KEY_SZ, NULL,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+    if (encryptedKey == NULL)
+        return MEMORY_E;
+#endif
+    
     savedIdx = idx;
     recipFound = 0;
 
@@ -1496,39 +1500,86 @@ CYASSL_API int PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* pkiMsg,
             break;
         }
 
-        if (version != 0)
+        if (version != 0) {
+#ifdef CYASSL_SMALL_STACK
+            XFREE(encryptedKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
             return ASN_VERSION_E;
-
+        }
+        
         /* remove IssuerAndSerialNumber */
-        if (GetSequence(pkiMsg, &idx, &length, pkiMsgSz) < 0)
+        if (GetSequence(pkiMsg, &idx, &length, pkiMsgSz) < 0) {
+#ifdef CYASSL_SMALL_STACK
+            XFREE(encryptedKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
             return ASN_PARSE_E;
-
-        if (GetNameHash(pkiMsg, &idx, issuerHash, pkiMsgSz) < 0)
+        }
+        
+        if (GetNameHash(pkiMsg, &idx, issuerHash, pkiMsgSz) < 0) {
+#ifdef CYASSL_SMALL_STACK
+            XFREE(encryptedKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
             return ASN_PARSE_E;
-
+        }
+        
         /* if we found correct recipient, issuer hashes will match */
         if (XMEMCMP(issuerHash, pkcs7->issuerHash, SHA_DIGEST_SIZE) == 0) {
             recipFound = 1;
         }
-
-        if (GetInt(&serialNum, pkiMsg, &idx, pkiMsgSz) < 0)
+        
+#ifdef CYASSL_SMALL_STACK
+        serialNum = (mp_int*)XMALLOC(sizeof(mp_int), NULL,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+        if (serialNum == NULL) {
+            XFREE(encryptedKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            return MEMORY_E;
+        }
+#endif
+        
+        if (GetInt(serialNum, pkiMsg, &idx, pkiMsgSz) < 0) {
+#ifdef CYASSL_SMALL_STACK
+            XFREE(encryptedKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(serialNum,    NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
             return ASN_PARSE_E;
-        mp_clear(&serialNum);
-
-        if (GetAlgoId(pkiMsg, &idx, &encOID, pkiMsgSz) < 0)
+        }
+        
+        mp_clear(serialNum);
+        
+#ifdef CYASSL_SMALL_STACK
+        XFREE(serialNum, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+        
+        if (GetAlgoId(pkiMsg, &idx, &encOID, pkiMsgSz) < 0) {
+#ifdef CYASSL_SMALL_STACK
+            XFREE(encryptedKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
             return ASN_PARSE_E;
-
+        }
+        
         /* key encryption algorithm must be RSA for now */
-        if (encOID != RSAk)
+        if (encOID != RSAk) {
+#ifdef CYASSL_SMALL_STACK
+            XFREE(encryptedKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
             return ALGO_ID_E;
-
+        }
+        
         /* read encryptedKey */
-        if (pkiMsg[idx++] != ASN_OCTET_STRING)
+        if (pkiMsg[idx++] != ASN_OCTET_STRING) {
+#ifdef CYASSL_SMALL_STACK
+            XFREE(encryptedKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
             return ASN_PARSE_E;
-
-        if (GetLength(pkiMsg, &idx, &encryptedKeySz, pkiMsgSz) < 0)
+        }
+        
+        if (GetLength(pkiMsg, &idx, &encryptedKeySz, pkiMsgSz) < 0) {
+#ifdef CYASSL_SMALL_STACK
+            XFREE(encryptedKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
             return ASN_PARSE_E;
-
+        }
+          
         if (recipFound == 1)
             XMEMCPY(encryptedKey, &pkiMsg[idx], encryptedKeySz);
         idx += encryptedKeySz;
@@ -1539,28 +1590,54 @@ CYASSL_API int PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* pkiMsg,
 
     if (recipFound == 0) {
         CYASSL_MSG("No recipient found in envelopedData that matches input");
+#ifdef CYASSL_SMALL_STACK
+        XFREE(encryptedKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
         return PKCS7_RECIP_E;
     }
 
     /* remove EncryptedContentInfo */
-    if (GetSequence(pkiMsg, &idx, &length, pkiMsgSz) < 0)
+    if (GetSequence(pkiMsg, &idx, &length, pkiMsgSz) < 0) {
+#ifdef CYASSL_SMALL_STACK
+        XFREE(encryptedKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
         return ASN_PARSE_E;
-
-    if (GetContentType(pkiMsg, &idx, &contentType, pkiMsgSz) < 0)
+    }
+    
+    if (GetContentType(pkiMsg, &idx, &contentType, pkiMsgSz) < 0) {
+#ifdef CYASSL_SMALL_STACK
+        XFREE(encryptedKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
         return ASN_PARSE_E;
+    }
 
-    if (GetAlgoId(pkiMsg, &idx, &encOID, pkiMsgSz) < 0)
+    if (GetAlgoId(pkiMsg, &idx, &encOID, pkiMsgSz) < 0) {
+#ifdef CYASSL_SMALL_STACK
+        XFREE(encryptedKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
         return ASN_PARSE_E;
-
+    }
+    
     /* get block cipher IV, stored in OPTIONAL parameter of AlgoID */
-    if (pkiMsg[idx++] != ASN_OCTET_STRING)
+    if (pkiMsg[idx++] != ASN_OCTET_STRING) {
+#ifdef CYASSL_SMALL_STACK
+        XFREE(encryptedKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
         return ASN_PARSE_E;
-
-    if (GetLength(pkiMsg, &idx, &length, pkiMsgSz) < 0)
+    }
+    
+    if (GetLength(pkiMsg, &idx, &length, pkiMsgSz) < 0) {
+#ifdef CYASSL_SMALL_STACK
+        XFREE(encryptedKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
         return ASN_PARSE_E;
-
+    }
+    
     if (length != DES_BLOCK_SIZE) {
         CYASSL_MSG("Incorrect IV length, must be of DES_BLOCK_SIZE");
+#ifdef CYASSL_SMALL_STACK
+        XFREE(encryptedKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
         return ASN_PARSE_E;
     }
 
@@ -1568,25 +1645,78 @@ CYASSL_API int PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* pkiMsg,
     idx += length;
 
     /* read encryptedContent, cont[0] */
-    if (pkiMsg[idx++] != (ASN_CONTEXT_SPECIFIC | 0))
+    if (pkiMsg[idx++] != (ASN_CONTEXT_SPECIFIC | 0)) {
+#ifdef CYASSL_SMALL_STACK
+        XFREE(encryptedKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
         return ASN_PARSE_E;
+    }
 
-    if (GetLength(pkiMsg, &idx, &encryptedContentSz, pkiMsgSz) < 0)
+    if (GetLength(pkiMsg, &idx, &encryptedContentSz, pkiMsgSz) < 0) {
+#ifdef CYASSL_SMALL_STACK
+        XFREE(encryptedKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
         return ASN_PARSE_E;
-
-    encryptedContent = XMALLOC(encryptedContentSz, NULL,
-                               DYNAMIC_TYPE_TMP_BUFFER);
-    if (encryptedContent == NULL)
+    }
+    
+    encryptedContent = (byte*)XMALLOC(encryptedContentSz, NULL,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+    if (encryptedContent == NULL) {
+#ifdef CYASSL_SMALL_STACK
+        XFREE(encryptedKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
         return MEMORY_E;
+    }
 
     XMEMCPY(encryptedContent, &pkiMsg[idx], encryptedContentSz);
 
+    /* load private key */
+#ifdef CYASSL_SMALL_STACK
+    privKey = (RsaKey*)XMALLOC(sizeof(RsaKey), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (privKey == NULL) {
+        XFREE(encryptedContent, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(encryptedKey,     NULL, DYNAMIC_TYPE_TMP_BUFFER);        return MEMORY_E;
+    }
+#endif
+
+    ret = InitRsaKey(privKey, 0);
+    if (ret != 0) {
+        XFREE(encryptedContent, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#ifdef CYASSL_SMALL_STACK
+        XFREE(privKey,      NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(encryptedKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+        return ret;
+    }
+
+    idx = 0;
+
+    ret = RsaPrivateKeyDecode(pkcs7->privateKey, &idx, privKey,
+                              pkcs7->privateKeySz);
+    if (ret != 0) {
+        CYASSL_MSG("Failed to decode RSA private key");
+        XFREE(encryptedContent, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#ifdef CYASSL_SMALL_STACK
+        XFREE(privKey,      NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(encryptedKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+        return ret;
+    }
+
     /* decrypt encryptedKey */
     keySz = RsaPrivateDecryptInline(encryptedKey, encryptedKeySz,
-                                    &decryptedKey, &privKey);
-    FreeRsaKey(&privKey);
+                                    &decryptedKey, privKey);
+    FreeRsaKey(privKey);
+
+#ifdef CYASSL_SMALL_STACK
+    XFREE(privKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
     if (keySz <= 0) {
         XFREE(encryptedContent, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#ifdef CYASSL_SMALL_STACK
+        XFREE(encryptedKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
         return keySz;
     }
 
@@ -1601,6 +1731,9 @@ CYASSL_API int PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* pkiMsg,
 
         if (ret != 0) {
             XFREE(encryptedContent, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#ifdef CYASSL_SMALL_STACK
+            XFREE(encryptedKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
             return ret;
         }
     }
@@ -1613,11 +1746,17 @@ CYASSL_API int PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* pkiMsg,
 
         if (ret != 0) {
             XFREE(encryptedContent, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#ifdef CYASSL_SMALL_STACK
+            XFREE(encryptedKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
             return ret;
         }
     } else {
         CYASSL_MSG("Unsupported content encryption OID type");
         XFREE(encryptedContent, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#ifdef CYASSL_SMALL_STACK
+        XFREE(encryptedKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
         return ALGO_ID_E;
     }
 
@@ -1630,7 +1769,10 @@ CYASSL_API int PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* pkiMsg,
     XMEMSET(encryptedKey, 0, MAX_ENCRYPTED_KEY_SZ);
     XMEMSET(encryptedContent, 0, encryptedContentSz);
     XFREE(encryptedContent, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-
+#ifdef CYASSL_SMALL_STACK
+    XFREE(encryptedKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    
     return encryptedContentSz - padLen;
 }
 
