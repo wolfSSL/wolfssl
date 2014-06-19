@@ -948,20 +948,49 @@ CYASSL_LOCAL int CreateRecipientInfo(const byte* cert, word32 certSz,
     int encKeyOctetStrSz;
 
     byte ver[MAX_VERSION_SZ];
-    byte serial[MAX_SN_SZ];
     byte issuerSerialSeq[MAX_SEQ_SZ];
     byte recipSeq[MAX_SEQ_SZ];
     byte issuerSeq[MAX_SEQ_SZ];
-    byte keyAlgArray[MAX_ALGO_SZ];
     byte encKeyOctetStr[MAX_OCTET_STR_SZ];
 
-    RsaKey pubKey;
-    DecodedCert decoded;
+#ifdef CYASSL_SMALL_STACK
+    byte *serial;
+    byte *keyAlgArray;
+    
+    RsaKey* pubKey;
+    DecodedCert* decoded;
 
-    InitDecodedCert(&decoded, (byte*)cert, certSz, 0);
-    ret = ParseCert(&decoded, CA_TYPE, NO_VERIFY, 0);
+    serial = (byte*)XMALLOC(MAX_SN_SZ, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    keyAlgArray = (byte*)XMALLOC(MAX_SN_SZ, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    decoded = (DecodedCert*)XMALLOC(sizeof(DecodedCert), NULL,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+
+    if (decoded == NULL || serial == NULL || keyAlgArray == NULL) {
+        if (serial)      XFREE(serial,      NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        if (keyAlgArray) XFREE(keyAlgArray, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        if (decoded)     XFREE(decoded,     NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        return MEMORY_E;
+    }
+    
+#else
+    byte serial[MAX_SN_SZ];
+    byte keyAlgArray[MAX_ALGO_SZ];
+    
+    RsaKey stack_pubKey;
+    RsaKey* pubKey = &stack_pubKey;
+    DecodedCert stack_decoded;
+    DecodedCert* decoded = &stack_decoded;
+#endif
+
+    InitDecodedCert(decoded, (byte*)cert, certSz, 0);
+    ret = ParseCert(decoded, CA_TYPE, NO_VERIFY, 0);
     if (ret < 0) {
-        FreeDecodedCert(&decoded);
+        FreeDecodedCert(decoded);
+#ifdef CYASSL_SMALL_STACK
+        XFREE(serial,      NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(keyAlgArray, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(decoded,     NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
         return ret;
     }
 
@@ -969,52 +998,109 @@ CYASSL_LOCAL int CreateRecipientInfo(const byte* cert, word32 certSz,
     verSz = SetMyVersion(0, ver, 0);
 
     /* IssuerAndSerialNumber */
-    if (decoded.issuerRaw == NULL || decoded.issuerRawLen == 0) {
+    if (decoded->issuerRaw == NULL || decoded->issuerRawLen == 0) {
         CYASSL_MSG("DecodedCert lacks raw issuer pointer and length");
-        FreeDecodedCert(&decoded);
+        FreeDecodedCert(decoded);
+#ifdef CYASSL_SMALL_STACK
+        XFREE(serial,      NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(keyAlgArray, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(decoded,     NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
         return -1;
     }
-    issuerSz    = decoded.issuerRawLen;
+    issuerSz    = decoded->issuerRawLen;
     issuerSeqSz = SetSequence(issuerSz, issuerSeq);
 
-    if (decoded.serial == NULL || decoded.serialSz == 0) {
+    if (decoded->serial == NULL || decoded->serialSz == 0) {
         CYASSL_MSG("DecodedCert missing serial number");
-        FreeDecodedCert(&decoded);
+        FreeDecodedCert(decoded);
+#ifdef CYASSL_SMALL_STACK
+        XFREE(serial,      NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(keyAlgArray, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(decoded,     NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
         return -1;
     }
-    snSz = SetSerialNumber(decoded.serial, decoded.serialSz, serial);
+    snSz = SetSerialNumber(decoded->serial, decoded->serialSz, serial);
 
     issuerSerialSeqSz = SetSequence(issuerSeqSz + issuerSz + snSz,
                                     issuerSerialSeq);
 
     /* KeyEncryptionAlgorithmIdentifier, only support RSA now */
     if (keyEncAlgo != RSAk) {
-        FreeDecodedCert(&decoded);
+        FreeDecodedCert(decoded);
+#ifdef CYASSL_SMALL_STACK
+        XFREE(serial,      NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(keyAlgArray, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(decoded,     NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
         return ALGO_ID_E;
     }
 
     keyEncAlgSz = SetAlgoID(keyEncAlgo, keyAlgArray, keyType, 0);
     if (keyEncAlgSz == 0) {
-        FreeDecodedCert(&decoded);
+        FreeDecodedCert(decoded);
+#ifdef CYASSL_SMALL_STACK
+        XFREE(serial,      NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(keyAlgArray, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(decoded,     NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
         return BAD_FUNC_ARG;
     }
 
+#ifdef CYASSL_SMALL_STACK
+    pubKey = (RsaKey*)XMALLOC(sizeof(RsaKey), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (pubKey == NULL) {
+        FreeDecodedCert(decoded);
+        XFREE(serial,      NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(keyAlgArray, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(decoded,     NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        return MEMORY_E;
+    }
+#endif
+
     /* EncryptedKey */
-    ret = InitRsaKey(&pubKey, 0);
-    if (ret != 0) return ret;
-    if (RsaPublicKeyDecode(decoded.publicKey, &idx, &pubKey,
-                           decoded.pubKeySize) < 0) {
+    ret = InitRsaKey(pubKey, 0);
+    if (ret != 0) {
+        FreeDecodedCert(decoded);
+#ifdef CYASSL_SMALL_STACK
+        XFREE(pubKey,      NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(serial,      NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(keyAlgArray, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(decoded,     NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+        return ret;
+    }
+
+    if (RsaPublicKeyDecode(decoded->publicKey, &idx, pubKey,
+                           decoded->pubKeySize) < 0) {
         CYASSL_MSG("ASN RSA key decode error");
-        FreeDecodedCert(&decoded);
+        FreeDecodedCert(decoded);
+#ifdef CYASSL_SMALL_STACK
+        XFREE(pubKey,      NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(serial,      NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(keyAlgArray, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(decoded,     NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
         return PUBLIC_KEY_E;
     }
 
     *keyEncSz = RsaPublicEncrypt(contentKeyPlain, blockKeySz, contentKeyEnc,
-                                 MAX_ENCRYPTED_KEY_SZ, &pubKey, rng);
-    FreeRsaKey(&pubKey);
+                                 MAX_ENCRYPTED_KEY_SZ, pubKey, rng);
+    FreeRsaKey(pubKey);
+
+#ifdef CYASSL_SMALL_STACK
+    XFREE(pubKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
     if (*keyEncSz < 0) {
         CYASSL_MSG("RSA Public Encrypt failed");
-        FreeDecodedCert(&decoded);
+        FreeDecodedCert(decoded);
+#ifdef CYASSL_SMALL_STACK
+        XFREE(serial,      NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(keyAlgArray, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(decoded,     NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
         return *keyEncSz;
     }
 
@@ -1028,7 +1114,12 @@ CYASSL_LOCAL int CreateRecipientInfo(const byte* cert, word32 certSz,
     if (recipSeqSz + verSz + issuerSerialSeqSz + issuerSeqSz + snSz +
         keyEncAlgSz + encKeyOctetStrSz + *keyEncSz > (int)outSz) {
         CYASSL_MSG("RecipientInfo output buffer too small");
-        FreeDecodedCert(&decoded);
+        FreeDecodedCert(decoded);
+#ifdef CYASSL_SMALL_STACK
+        XFREE(serial,      NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(keyAlgArray, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(decoded,     NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
         return BUFFER_E;
     }
 
@@ -1040,7 +1131,7 @@ CYASSL_LOCAL int CreateRecipientInfo(const byte* cert, word32 certSz,
     totalSz += issuerSerialSeqSz;
     XMEMCPY(out + totalSz, issuerSeq, issuerSeqSz);
     totalSz += issuerSeqSz;
-    XMEMCPY(out + totalSz, decoded.issuerRaw, issuerSz);
+    XMEMCPY(out + totalSz, decoded->issuerRaw, issuerSz);
     totalSz += issuerSz;
     XMEMCPY(out + totalSz, serial, snSz);
     totalSz += snSz;
@@ -1051,7 +1142,13 @@ CYASSL_LOCAL int CreateRecipientInfo(const byte* cert, word32 certSz,
     XMEMCPY(out + totalSz, contentKeyEnc, *keyEncSz);
     totalSz += *keyEncSz;
 
-    FreeDecodedCert(&decoded);
+    FreeDecodedCert(decoded);
+
+#ifdef CYASSL_SMALL_STACK
+    XFREE(serial,      NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(keyAlgArray, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(decoded,     NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 
     return totalSz;
 }
