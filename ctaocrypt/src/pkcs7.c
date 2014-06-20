@@ -153,25 +153,43 @@ int PKCS7_InitWithCert(PKCS7* pkcs7, byte* cert, word32 certSz)
 
     XMEMSET(pkcs7, 0, sizeof(PKCS7));
     if (cert != NULL && certSz > 0) {
-        DecodedCert dCert;
+#ifdef CYASSL_SMALL_STACK
+        DecodedCert* dCert;
+
+        dCert = (DecodedCert*)XMALLOC(sizeof(DecodedCert), NULL,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+        if (dCert == NULL)
+            return MEMORY_E;
+#else
+        DecodedCert stack_dCert;
+        DecodedCert* dCert = &stack_dCert;
+#endif
 
         pkcs7->singleCert = cert;
         pkcs7->singleCertSz = certSz;
-        InitDecodedCert(&dCert, cert, certSz, 0);
+        InitDecodedCert(dCert, cert, certSz, 0);
 
-        ret = ParseCert(&dCert, CA_TYPE, NO_VERIFY, 0);
+        ret = ParseCert(dCert, CA_TYPE, NO_VERIFY, 0);
         if (ret < 0) {
-            FreeDecodedCert(&dCert);
+            FreeDecodedCert(dCert);
+#ifdef CYASSL_SMALL_STACK
+            XFREE(dCert, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
             return ret;
         }
-        XMEMCPY(pkcs7->publicKey, dCert.publicKey, dCert.pubKeySize);
-        pkcs7->publicKeySz = dCert.pubKeySize;
-        XMEMCPY(pkcs7->issuerHash, dCert.issuerHash, SHA_SIZE);
-        pkcs7->issuer = dCert.issuerRaw;
-        pkcs7->issuerSz = dCert.issuerRawLen;
-        XMEMCPY(pkcs7->issuerSn, dCert.serial, dCert.serialSz);
-        pkcs7->issuerSnSz = dCert.serialSz;
-        FreeDecodedCert(&dCert);
+
+        XMEMCPY(pkcs7->publicKey, dCert->publicKey, dCert->pubKeySize);
+        pkcs7->publicKeySz = dCert->pubKeySize;
+        XMEMCPY(pkcs7->issuerHash, dCert->issuerHash, SHA_SIZE);
+        pkcs7->issuer = dCert->issuerRaw;
+        pkcs7->issuerSz = dCert->issuerRawLen;
+        XMEMCPY(pkcs7->issuerSn, dCert->serial, dCert->serialSz);
+        pkcs7->issuerSnSz = dCert->serialSz;
+        FreeDecodedCert(dCert);
+
+#ifdef CYASSL_SMALL_STACK
+        XFREE(dCert, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
     }
 
     return ret;
@@ -325,7 +343,13 @@ int PKCS7_EncodeSignedData(PKCS7* pkcs7, byte* output, word32 outputSz)
         { ASN_OBJECT_ID, 0x09, 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01,
                          0x07, 0x01 };
 
-    ESD esd;
+#ifdef CYASSL_SMALL_STACK
+    ESD* esd = NULL;
+#else
+    ESD stack_esd;
+    ESD* esd = &stack_esd;
+#endif
+
     word32 signerInfoSz = 0;
     word32 totalSz = 0;
     int idx = 0, ret = 0;
@@ -341,41 +365,51 @@ int PKCS7_EncodeSignedData(PKCS7* pkcs7, byte* output, word32 outputSz)
         output == NULL || outputSz == 0)
         return BAD_FUNC_ARG;
 
-    XMEMSET(&esd, 0, sizeof(esd));
-    ret = InitSha(&esd.sha);
-    if (ret != 0)
+#ifdef CYASSL_SMALL_STACK
+    esd = (ESD*)XMALLOC(sizeof(ESD), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (esd == NULL)
+        return MEMORY_E;
+#endif
+
+    XMEMSET(esd, 0, sizeof(ESD));
+    ret = InitSha(&esd->sha);
+    if (ret != 0) {
+#ifdef CYASSL_SMALL_STACK
+        XFREE(esd, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
         return ret;
+    }
 
     if (pkcs7->contentSz != 0)
     {
-        ShaUpdate(&esd.sha, pkcs7->content, pkcs7->contentSz);
-        esd.contentDigest[0] = ASN_OCTET_STRING;
-        esd.contentDigest[1] = SHA_DIGEST_SIZE;
-        ShaFinal(&esd.sha, &esd.contentDigest[2]);
+        ShaUpdate(&esd->sha, pkcs7->content, pkcs7->contentSz);
+        esd->contentDigest[0] = ASN_OCTET_STRING;
+        esd->contentDigest[1] = SHA_DIGEST_SIZE;
+        ShaFinal(&esd->sha, &esd->contentDigest[2]);
     }
 
-    esd.innerOctetsSz = SetOctetString(pkcs7->contentSz, esd.innerOctets);
-    esd.innerContSeqSz = SetExplicit(0, esd.innerOctetsSz + pkcs7->contentSz,
-                                esd.innerContSeq);
-    esd.contentInfoSeqSz = SetSequence(pkcs7->contentSz + esd.innerOctetsSz +
-                                    innerOidSz + esd.innerContSeqSz,
-                                    esd.contentInfoSeq);
+    esd->innerOctetsSz = SetOctetString(pkcs7->contentSz, esd->innerOctets);
+    esd->innerContSeqSz = SetExplicit(0, esd->innerOctetsSz + pkcs7->contentSz,
+                                esd->innerContSeq);
+    esd->contentInfoSeqSz = SetSequence(pkcs7->contentSz + esd->innerOctetsSz +
+                                    innerOidSz + esd->innerContSeqSz,
+                                    esd->contentInfoSeq);
 
-    esd.issuerSnSz = SetSerialNumber(pkcs7->issuerSn, pkcs7->issuerSnSz,
-                                     esd.issuerSn);
-    signerInfoSz += esd.issuerSnSz;
-    esd.issuerNameSz = SetSequence(pkcs7->issuerSz, esd.issuerName);
-    signerInfoSz += esd.issuerNameSz + pkcs7->issuerSz;
-    esd.issuerSnSeqSz = SetSequence(signerInfoSz, esd.issuerSnSeq);
-    signerInfoSz += esd.issuerSnSeqSz;
-    esd.signerVersionSz = SetMyVersion(1, esd.signerVersion, 0);
-    signerInfoSz += esd.signerVersionSz;
-    esd.signerDigAlgoIdSz = SetAlgoID(pkcs7->hashOID, esd.signerDigAlgoId,
+    esd->issuerSnSz = SetSerialNumber(pkcs7->issuerSn, pkcs7->issuerSnSz,
+                                     esd->issuerSn);
+    signerInfoSz += esd->issuerSnSz;
+    esd->issuerNameSz = SetSequence(pkcs7->issuerSz, esd->issuerName);
+    signerInfoSz += esd->issuerNameSz + pkcs7->issuerSz;
+    esd->issuerSnSeqSz = SetSequence(signerInfoSz, esd->issuerSnSeq);
+    signerInfoSz += esd->issuerSnSeqSz;
+    esd->signerVersionSz = SetMyVersion(1, esd->signerVersion, 0);
+    signerInfoSz += esd->signerVersionSz;
+    esd->signerDigAlgoIdSz = SetAlgoID(pkcs7->hashOID, esd->signerDigAlgoId,
                                       hashType, 0);
-    signerInfoSz += esd.signerDigAlgoIdSz;
-    esd.digEncAlgoIdSz = SetAlgoID(pkcs7->encryptOID, esd.digEncAlgoId,
+    signerInfoSz += esd->signerDigAlgoIdSz;
+    esd->digEncAlgoIdSz = SetAlgoID(pkcs7->encryptOID, esd->digEncAlgoId,
                                    keyType, 0);
-    signerInfoSz += esd.digEncAlgoIdSz;
+    signerInfoSz += esd->digEncAlgoIdSz;
 
     if (pkcs7->signedAttribsSz != 0) {
         byte contentTypeOid[] =
@@ -393,35 +427,45 @@ int PKCS7_EncodeSignedData(PKCS7* pkcs7, byte* output, word32 outputSz)
             { contentTypeOid, sizeof(contentTypeOid),
                              contentType, sizeof(contentType) },
             { messageDigestOid, sizeof(messageDigestOid),
-                             esd.contentDigest, sizeof(esd.contentDigest) }
+                             esd->contentDigest, sizeof(esd->contentDigest) }
         };
         word32 cannedAttribsCount = sizeof(cannedAttribs)/sizeof(PKCS7Attrib);
 
-        esd.signedAttribsCount += cannedAttribsCount;
-        esd.signedAttribsSz += EncodeAttributes(&esd.signedAttribs[0], 2,
+        esd->signedAttribsCount += cannedAttribsCount;
+        esd->signedAttribsSz += EncodeAttributes(&esd->signedAttribs[0], 2,
                                              cannedAttribs, cannedAttribsCount);
 
-        esd.signedAttribsCount += pkcs7->signedAttribsSz;
-        esd.signedAttribsSz += EncodeAttributes(&esd.signedAttribs[2], 4,
+        esd->signedAttribsCount += pkcs7->signedAttribsSz;
+        esd->signedAttribsSz += EncodeAttributes(&esd->signedAttribs[2], 4,
                                   pkcs7->signedAttribs, pkcs7->signedAttribsSz);
 
-        flatSignedAttribs = (byte*)XMALLOC(esd.signedAttribsSz, 0, NULL);
-        flatSignedAttribsSz = esd.signedAttribsSz;
-        if (flatSignedAttribs == NULL)
+        flatSignedAttribs = (byte*)XMALLOC(esd->signedAttribsSz, 0, NULL);
+        flatSignedAttribsSz = esd->signedAttribsSz;
+        if (flatSignedAttribs == NULL) {
+#ifdef CYASSL_SMALL_STACK
+            XFREE(esd, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif   
             return MEMORY_E;
+        }
         FlattenAttributes(flatSignedAttribs,
-                                     esd.signedAttribs, esd.signedAttribsCount);
-        esd.signedAttribSetSz = SetImplicit(ASN_SET, 0, esd.signedAttribsSz,
-                                                           esd.signedAttribSet);
+                                   esd->signedAttribs, esd->signedAttribsCount);
+        esd->signedAttribSetSz = SetImplicit(ASN_SET, 0, esd->signedAttribsSz,
+                                                          esd->signedAttribSet);
     }
     /* Calculate the final hash and encrypt it. */
     {
-        RsaKey privKey;
         int result;
         word32 scratch = 0;
 
+#ifdef CYASSL_SMALL_STACK
+        byte* digestInfo;
+        RsaKey* privKey;
+#else
+        RsaKey stack_privKey;
+        RsaKey* privKey = &stack_privKey;
         byte digestInfo[MAX_SEQ_SZ + MAX_ALGO_SZ +
                         MAX_OCTET_STR_SZ + SHA_DIGEST_SIZE];
+#endif
         byte digestInfoSeq[MAX_SEQ_SZ];
         byte digestStr[MAX_OCTET_STR_SZ];
         word32 digestInfoSeqSz, digestStrSz;
@@ -433,149 +477,203 @@ int PKCS7_EncodeSignedData(PKCS7* pkcs7, byte* output, word32 outputSz)
 
             attribSetSz = SetSet(flatSignedAttribsSz, attribSet);
 
-            ret = InitSha(&esd.sha);
+            ret = InitSha(&esd->sha);
             if (ret < 0) {
                 XFREE(flatSignedAttribs, 0, NULL);
+#ifdef CYASSL_SMALL_STACK
+                XFREE(esd, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
                 return ret;
             }
-            ShaUpdate(&esd.sha, attribSet, attribSetSz);
-            ShaUpdate(&esd.sha, flatSignedAttribs, flatSignedAttribsSz);
+            ShaUpdate(&esd->sha, attribSet, attribSetSz);
+            ShaUpdate(&esd->sha, flatSignedAttribs, flatSignedAttribsSz);
         }
-        ShaFinal(&esd.sha, esd.contentAttribsDigest);
+        ShaFinal(&esd->sha, esd->contentAttribsDigest);
 
         digestStrSz = SetOctetString(SHA_DIGEST_SIZE, digestStr);
-        digestInfoSeqSz = SetSequence(esd.signerDigAlgoIdSz +
+        digestInfoSeqSz = SetSequence(esd->signerDigAlgoIdSz +
                                       digestStrSz + SHA_DIGEST_SIZE,
                                       digestInfoSeq);
+
+#ifdef CYASSL_SMALL_STACK
+        digestInfo = (byte*)XMALLOC(MAX_SEQ_SZ + MAX_ALGO_SZ +
+                                    MAX_OCTET_STR_SZ + SHA_DIGEST_SIZE,
+                                    NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        if (digestInfo == NULL) {
+            if (pkcs7->signedAttribsSz != 0)
+                XFREE(flatSignedAttribs, 0, NULL);
+            XFREE(esd, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            return MEMORY_E;
+        }
+#endif
 
         XMEMCPY(digestInfo + digIdx, digestInfoSeq, digestInfoSeqSz);
         digIdx += digestInfoSeqSz;
         XMEMCPY(digestInfo + digIdx,
-                                    esd.signerDigAlgoId, esd.signerDigAlgoIdSz);
-        digIdx += esd.signerDigAlgoIdSz;
+                                  esd->signerDigAlgoId, esd->signerDigAlgoIdSz);
+        digIdx += esd->signerDigAlgoIdSz;
         XMEMCPY(digestInfo + digIdx, digestStr, digestStrSz);
         digIdx += digestStrSz;
-        XMEMCPY(digestInfo + digIdx, esd.contentAttribsDigest, SHA_DIGEST_SIZE);
+        XMEMCPY(digestInfo + digIdx, esd->contentAttribsDigest,
+                                                               SHA_DIGEST_SIZE);
         digIdx += SHA_DIGEST_SIZE;
 
-        result = InitRsaKey(&privKey, NULL);
+#ifdef CYASSL_SMALL_STACK
+        privKey = (RsaKey*)XMALLOC(sizeof(RsaKey), NULL,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+        if (privKey == NULL) {
+            if (pkcs7->signedAttribsSz != 0)
+                XFREE(flatSignedAttribs, 0, NULL);
+            XFREE(digestInfo, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(esd,        NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            return MEMORY_E;
+        }
+#endif
+
+        result = InitRsaKey(privKey, NULL);
         if (result == 0)
-            result = RsaPrivateKeyDecode(pkcs7->privateKey, &scratch, &privKey,
+            result = RsaPrivateKeyDecode(pkcs7->privateKey, &scratch, privKey,
                                          pkcs7->privateKeySz);
         if (result < 0) {
-            XFREE(flatSignedAttribs, 0, NULL);
+            if (pkcs7->signedAttribsSz != 0)
+                XFREE(flatSignedAttribs, 0, NULL);
+#ifdef CYASSL_SMALL_STACK
+            XFREE(privKey,    NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(digestInfo, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(esd,        NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
             return PUBLIC_KEY_E;
         }
+
         result = RsaSSL_Sign(digestInfo, digIdx,
-                             esd.encContentDigest, sizeof(esd.encContentDigest),
-                             &privKey, pkcs7->rng);
-        FreeRsaKey(&privKey);
+                             esd->encContentDigest,
+                             sizeof(esd->encContentDigest),
+                             privKey, pkcs7->rng);
+
+        FreeRsaKey(privKey);
+
+#ifdef CYASSL_SMALL_STACK
+        XFREE(privKey,    NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(digestInfo, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
         if (result < 0) {
-            XFREE(flatSignedAttribs, 0, NULL);
+            if (pkcs7->signedAttribsSz != 0)
+                XFREE(flatSignedAttribs, 0, NULL);
+#ifdef CYASSL_SMALL_STACK
+            XFREE(esd, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
             return result;
         }
-        esd.encContentDigestSz = (word32)result;
+        esd->encContentDigestSz = (word32)result;
     }
-    signerInfoSz += flatSignedAttribsSz + esd.signedAttribSetSz;
+    signerInfoSz += flatSignedAttribsSz + esd->signedAttribSetSz;
 
-    esd.signerDigestSz = SetOctetString(esd.encContentDigestSz,
-                                                              esd.signerDigest);
-    signerInfoSz += esd.signerDigestSz + esd.encContentDigestSz;
+    esd->signerDigestSz = SetOctetString(esd->encContentDigestSz,
+                                                             esd->signerDigest);
+    signerInfoSz += esd->signerDigestSz + esd->encContentDigestSz;
 
-    esd.signerInfoSeqSz = SetSequence(signerInfoSz, esd.signerInfoSeq);
-    signerInfoSz += esd.signerInfoSeqSz;
-    esd.signerInfoSetSz = SetSet(signerInfoSz, esd.signerInfoSet);
-    signerInfoSz += esd.signerInfoSetSz;
+    esd->signerInfoSeqSz = SetSequence(signerInfoSz, esd->signerInfoSeq);
+    signerInfoSz += esd->signerInfoSeqSz;
+    esd->signerInfoSetSz = SetSet(signerInfoSz, esd->signerInfoSet);
+    signerInfoSz += esd->signerInfoSetSz;
 
-    esd.certsSetSz = SetImplicit(ASN_SET, 0, pkcs7->singleCertSz, esd.certsSet);
+    esd->certsSetSz = SetImplicit(ASN_SET, 0, pkcs7->singleCertSz,
+                                                                 esd->certsSet);
 
-    esd.singleDigAlgoIdSz = SetAlgoID(pkcs7->hashOID, esd.singleDigAlgoId,
+    esd->singleDigAlgoIdSz = SetAlgoID(pkcs7->hashOID, esd->singleDigAlgoId,
                                       hashType, 0);
-    esd.digAlgoIdSetSz = SetSet(esd.singleDigAlgoIdSz, esd.digAlgoIdSet);
+    esd->digAlgoIdSetSz = SetSet(esd->singleDigAlgoIdSz, esd->digAlgoIdSet);
 
 
-    esd.versionSz = SetMyVersion(1, esd.version, 0);
+    esd->versionSz = SetMyVersion(1, esd->version, 0);
 
-    totalSz = esd.versionSz + esd.singleDigAlgoIdSz + esd.digAlgoIdSetSz +
-              esd.contentInfoSeqSz + esd.certsSetSz + pkcs7->singleCertSz +
-              esd.innerOctetsSz + esd.innerContSeqSz +
+    totalSz = esd->versionSz + esd->singleDigAlgoIdSz + esd->digAlgoIdSetSz +
+              esd->contentInfoSeqSz + esd->certsSetSz + pkcs7->singleCertSz +
+              esd->innerOctetsSz + esd->innerContSeqSz +
               innerOidSz + pkcs7->contentSz +
               signerInfoSz;
-    esd.innerSeqSz = SetSequence(totalSz, esd.innerSeq);
-    totalSz += esd.innerSeqSz;
-    esd.outerContentSz = SetExplicit(0, totalSz, esd.outerContent);
-    totalSz += esd.outerContentSz + outerOidSz;
-    esd.outerSeqSz = SetSequence(totalSz, esd.outerSeq);
-    totalSz += esd.outerSeqSz;
+    esd->innerSeqSz = SetSequence(totalSz, esd->innerSeq);
+    totalSz += esd->innerSeqSz;
+    esd->outerContentSz = SetExplicit(0, totalSz, esd->outerContent);
+    totalSz += esd->outerContentSz + outerOidSz;
+    esd->outerSeqSz = SetSequence(totalSz, esd->outerSeq);
+    totalSz += esd->outerSeqSz;
 
     if (outputSz < totalSz) {
-        if (flatSignedAttribs)
+        if (pkcs7->signedAttribsSz != 0)
             XFREE(flatSignedAttribs, 0, NULL);
-
+#ifdef CYASSL_SMALL_STACK
+        XFREE(esd, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
         return BUFFER_E;
     }
 
     idx = 0;
-    XMEMCPY(output + idx, esd.outerSeq, esd.outerSeqSz);
-    idx += esd.outerSeqSz;
+    XMEMCPY(output + idx, esd->outerSeq, esd->outerSeqSz);
+    idx += esd->outerSeqSz;
     XMEMCPY(output + idx, outerOid, outerOidSz);
     idx += outerOidSz;
-    XMEMCPY(output + idx, esd.outerContent, esd.outerContentSz);
-    idx += esd.outerContentSz;
-    XMEMCPY(output + idx, esd.innerSeq, esd.innerSeqSz);
-    idx += esd.innerSeqSz;
-    XMEMCPY(output + idx, esd.version, esd.versionSz);
-    idx += esd.versionSz;
-    XMEMCPY(output + idx, esd.digAlgoIdSet, esd.digAlgoIdSetSz);
-    idx += esd.digAlgoIdSetSz;
-    XMEMCPY(output + idx, esd.singleDigAlgoId, esd.singleDigAlgoIdSz);
-    idx += esd.singleDigAlgoIdSz;
-    XMEMCPY(output + idx, esd.contentInfoSeq, esd.contentInfoSeqSz);
-    idx += esd.contentInfoSeqSz;
+    XMEMCPY(output + idx, esd->outerContent, esd->outerContentSz);
+    idx += esd->outerContentSz;
+    XMEMCPY(output + idx, esd->innerSeq, esd->innerSeqSz);
+    idx += esd->innerSeqSz;
+    XMEMCPY(output + idx, esd->version, esd->versionSz);
+    idx += esd->versionSz;
+    XMEMCPY(output + idx, esd->digAlgoIdSet, esd->digAlgoIdSetSz);
+    idx += esd->digAlgoIdSetSz;
+    XMEMCPY(output + idx, esd->singleDigAlgoId, esd->singleDigAlgoIdSz);
+    idx += esd->singleDigAlgoIdSz;
+    XMEMCPY(output + idx, esd->contentInfoSeq, esd->contentInfoSeqSz);
+    idx += esd->contentInfoSeqSz;
     XMEMCPY(output + idx, innerOid, innerOidSz);
     idx += innerOidSz;
-    XMEMCPY(output + idx, esd.innerContSeq, esd.innerContSeqSz);
-    idx += esd.innerContSeqSz;
-    XMEMCPY(output + idx, esd.innerOctets, esd.innerOctetsSz);
-    idx += esd.innerOctetsSz;
+    XMEMCPY(output + idx, esd->innerContSeq, esd->innerContSeqSz);
+    idx += esd->innerContSeqSz;
+    XMEMCPY(output + idx, esd->innerOctets, esd->innerOctetsSz);
+    idx += esd->innerOctetsSz;
     XMEMCPY(output + idx, pkcs7->content, pkcs7->contentSz);
     idx += pkcs7->contentSz;
-    XMEMCPY(output + idx, esd.certsSet, esd.certsSetSz);
-    idx += esd.certsSetSz;
+    XMEMCPY(output + idx, esd->certsSet, esd->certsSetSz);
+    idx += esd->certsSetSz;
     XMEMCPY(output + idx, pkcs7->singleCert, pkcs7->singleCertSz);
     idx += pkcs7->singleCertSz;
-    XMEMCPY(output + idx, esd.signerInfoSet, esd.signerInfoSetSz);
-    idx += esd.signerInfoSetSz;
-    XMEMCPY(output + idx, esd.signerInfoSeq, esd.signerInfoSeqSz);
-    idx += esd.signerInfoSeqSz;
-    XMEMCPY(output + idx, esd.signerVersion, esd.signerVersionSz);
-    idx += esd.signerVersionSz;
-    XMEMCPY(output + idx, esd.issuerSnSeq, esd.issuerSnSeqSz);
-    idx += esd.issuerSnSeqSz;
-    XMEMCPY(output + idx, esd.issuerName, esd.issuerNameSz);
-    idx += esd.issuerNameSz;
+    XMEMCPY(output + idx, esd->signerInfoSet, esd->signerInfoSetSz);
+    idx += esd->signerInfoSetSz;
+    XMEMCPY(output + idx, esd->signerInfoSeq, esd->signerInfoSeqSz);
+    idx += esd->signerInfoSeqSz;
+    XMEMCPY(output + idx, esd->signerVersion, esd->signerVersionSz);
+    idx += esd->signerVersionSz;
+    XMEMCPY(output + idx, esd->issuerSnSeq, esd->issuerSnSeqSz);
+    idx += esd->issuerSnSeqSz;
+    XMEMCPY(output + idx, esd->issuerName, esd->issuerNameSz);
+    idx += esd->issuerNameSz;
     XMEMCPY(output + idx, pkcs7->issuer, pkcs7->issuerSz);
     idx += pkcs7->issuerSz;
-    XMEMCPY(output + idx, esd.issuerSn, esd.issuerSnSz);
-    idx += esd.issuerSnSz;
-    XMEMCPY(output + idx, esd.signerDigAlgoId, esd.signerDigAlgoIdSz);
-    idx += esd.signerDigAlgoIdSz;
+    XMEMCPY(output + idx, esd->issuerSn, esd->issuerSnSz);
+    idx += esd->issuerSnSz;
+    XMEMCPY(output + idx, esd->signerDigAlgoId, esd->signerDigAlgoIdSz);
+    idx += esd->signerDigAlgoIdSz;
 
     /* SignerInfo:Attributes */
     if (pkcs7->signedAttribsSz != 0) {
-        XMEMCPY(output + idx, esd.signedAttribSet, esd.signedAttribSetSz);
-        idx += esd.signedAttribSetSz;
+        XMEMCPY(output + idx, esd->signedAttribSet, esd->signedAttribSetSz);
+        idx += esd->signedAttribSetSz;
         XMEMCPY(output + idx, flatSignedAttribs, flatSignedAttribsSz);
         idx += flatSignedAttribsSz;
         XFREE(flatSignedAttribs, 0, NULL);
     }
 
-    XMEMCPY(output + idx, esd.digEncAlgoId, esd.digEncAlgoIdSz);
-    idx += esd.digEncAlgoIdSz;
-    XMEMCPY(output + idx, esd.signerDigest, esd.signerDigestSz);
-    idx += esd.signerDigestSz;
-    XMEMCPY(output + idx, esd.encContentDigest, esd.encContentDigestSz);
-    idx += esd.encContentDigestSz;
+    XMEMCPY(output + idx, esd->digEncAlgoId, esd->digEncAlgoIdSz);
+    idx += esd->digEncAlgoIdSz;
+    XMEMCPY(output + idx, esd->signerDigest, esd->signerDigestSz);
+    idx += esd->signerDigestSz;
+    XMEMCPY(output + idx, esd->encContentDigest, esd->encContentDigestSz);
+    idx += esd->encContentDigestSz;
+
+#ifdef CYASSL_SMALL_STACK
+    XFREE(esd, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 
     return idx;
 }
@@ -711,11 +809,6 @@ int PKCS7_VerifySignedData(PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz)
         return ASN_PARSE_E;
 
     if (length > 0) {
-        RsaKey key;
-        word32 scratch = 0;
-        int plainSz = 0;
-        byte digest[MAX_SEQ_SZ+MAX_ALGO_SZ+MAX_OCTET_STR_SZ+SHA_DIGEST_SIZE];
-
         /* Get the sequence of the first signerInfo */
         if (GetSequence(pkiMsg, &idx, &length, pkiMsgSz) < 0)
             return ASN_PARSE_E;
@@ -774,21 +867,67 @@ int PKCS7_VerifySignedData(PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz)
             idx += length;
         }
 
-        XMEMSET(digest, 0, sizeof(digest));
         pkcs7->content = content;
         pkcs7->contentSz = contentSz;
 
-        ret = InitRsaKey(&key, NULL);
-        if (ret != 0) return ret;
-        if (RsaPublicKeyDecode(pkcs7->publicKey, &scratch, &key,
-                               pkcs7->publicKeySz) < 0) {
-            CYASSL_MSG("ASN RSA key decode error");
-            return PUBLIC_KEY_E;
+        {
+            word32 scratch = 0;
+            int plainSz = 0;
+            int digestSz = MAX_SEQ_SZ + MAX_ALGO_SZ +
+                           MAX_OCTET_STR_SZ + SHA_DIGEST_SIZE;
+
+#ifdef CYASSL_SMALL_STACK
+            byte* digest;
+            RsaKey* key;
+
+            digest = (byte*)XMALLOC(digestSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+            if (digest == NULL)
+                return MEMORY_E;
+
+            key = (RsaKey*)XMALLOC(sizeof(RsaKey), NULL,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+            if (key == NULL) {
+                XFREE(digest, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                return MEMORY_E;
+            }
+#else
+            byte digest[digestSz];
+            RsaKey stack_key;
+            RsaKey* key = &stack_key;
+#endif
+
+            XMEMSET(digest, 0, digestSz);
+
+            ret = InitRsaKey(key, NULL);
+            if (ret != 0) {
+#ifdef CYASSL_SMALL_STACK
+                XFREE(digest, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                XFREE(key,    NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+                return ret;
+            }       
+            if (RsaPublicKeyDecode(pkcs7->publicKey, &scratch, key,
+                                   pkcs7->publicKeySz) < 0) {
+                CYASSL_MSG("ASN RSA key decode error");
+#ifdef CYASSL_SMALL_STACK
+                XFREE(digest, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                XFREE(key,    NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+                return PUBLIC_KEY_E;
+            }
+
+            plainSz = RsaSSL_Verify(sig, sigSz, digest, digestSz, key);
+            FreeRsaKey(key);
+
+#ifdef CYASSL_SMALL_STACK
+            XFREE(digest, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(key,    NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
+            if (plainSz < 0)
+                return plainSz;
         }
-        plainSz = RsaSSL_Verify(sig, sigSz, digest, sizeof(digest), &key);
-        FreeRsaKey(&key);
-        if (plainSz < 0)
-            return plainSz;
     }
 
     return 0;
@@ -809,20 +948,49 @@ CYASSL_LOCAL int CreateRecipientInfo(const byte* cert, word32 certSz,
     int encKeyOctetStrSz;
 
     byte ver[MAX_VERSION_SZ];
-    byte serial[MAX_SN_SZ];
     byte issuerSerialSeq[MAX_SEQ_SZ];
     byte recipSeq[MAX_SEQ_SZ];
     byte issuerSeq[MAX_SEQ_SZ];
-    byte keyAlgArray[MAX_ALGO_SZ];
     byte encKeyOctetStr[MAX_OCTET_STR_SZ];
 
-    RsaKey pubKey;
-    DecodedCert decoded;
+#ifdef CYASSL_SMALL_STACK
+    byte *serial;
+    byte *keyAlgArray;
+    
+    RsaKey* pubKey;
+    DecodedCert* decoded;
 
-    InitDecodedCert(&decoded, (byte*)cert, certSz, 0);
-    ret = ParseCert(&decoded, CA_TYPE, NO_VERIFY, 0);
+    serial = (byte*)XMALLOC(MAX_SN_SZ, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    keyAlgArray = (byte*)XMALLOC(MAX_SN_SZ, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    decoded = (DecodedCert*)XMALLOC(sizeof(DecodedCert), NULL,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+
+    if (decoded == NULL || serial == NULL || keyAlgArray == NULL) {
+        if (serial)      XFREE(serial,      NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        if (keyAlgArray) XFREE(keyAlgArray, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        if (decoded)     XFREE(decoded,     NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        return MEMORY_E;
+    }
+    
+#else
+    byte serial[MAX_SN_SZ];
+    byte keyAlgArray[MAX_ALGO_SZ];
+    
+    RsaKey stack_pubKey;
+    RsaKey* pubKey = &stack_pubKey;
+    DecodedCert stack_decoded;
+    DecodedCert* decoded = &stack_decoded;
+#endif
+
+    InitDecodedCert(decoded, (byte*)cert, certSz, 0);
+    ret = ParseCert(decoded, CA_TYPE, NO_VERIFY, 0);
     if (ret < 0) {
-        FreeDecodedCert(&decoded);
+        FreeDecodedCert(decoded);
+#ifdef CYASSL_SMALL_STACK
+        XFREE(serial,      NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(keyAlgArray, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(decoded,     NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
         return ret;
     }
 
@@ -830,52 +998,109 @@ CYASSL_LOCAL int CreateRecipientInfo(const byte* cert, word32 certSz,
     verSz = SetMyVersion(0, ver, 0);
 
     /* IssuerAndSerialNumber */
-    if (decoded.issuerRaw == NULL || decoded.issuerRawLen == 0) {
+    if (decoded->issuerRaw == NULL || decoded->issuerRawLen == 0) {
         CYASSL_MSG("DecodedCert lacks raw issuer pointer and length");
-        FreeDecodedCert(&decoded);
+        FreeDecodedCert(decoded);
+#ifdef CYASSL_SMALL_STACK
+        XFREE(serial,      NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(keyAlgArray, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(decoded,     NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
         return -1;
     }
-    issuerSz    = decoded.issuerRawLen;
+    issuerSz    = decoded->issuerRawLen;
     issuerSeqSz = SetSequence(issuerSz, issuerSeq);
 
-    if (decoded.serial == NULL || decoded.serialSz == 0) {
+    if (decoded->serial == NULL || decoded->serialSz == 0) {
         CYASSL_MSG("DecodedCert missing serial number");
-        FreeDecodedCert(&decoded);
+        FreeDecodedCert(decoded);
+#ifdef CYASSL_SMALL_STACK
+        XFREE(serial,      NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(keyAlgArray, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(decoded,     NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
         return -1;
     }
-    snSz = SetSerialNumber(decoded.serial, decoded.serialSz, serial);
+    snSz = SetSerialNumber(decoded->serial, decoded->serialSz, serial);
 
     issuerSerialSeqSz = SetSequence(issuerSeqSz + issuerSz + snSz,
                                     issuerSerialSeq);
 
     /* KeyEncryptionAlgorithmIdentifier, only support RSA now */
     if (keyEncAlgo != RSAk) {
-        FreeDecodedCert(&decoded);
+        FreeDecodedCert(decoded);
+#ifdef CYASSL_SMALL_STACK
+        XFREE(serial,      NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(keyAlgArray, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(decoded,     NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
         return ALGO_ID_E;
     }
 
     keyEncAlgSz = SetAlgoID(keyEncAlgo, keyAlgArray, keyType, 0);
     if (keyEncAlgSz == 0) {
-        FreeDecodedCert(&decoded);
+        FreeDecodedCert(decoded);
+#ifdef CYASSL_SMALL_STACK
+        XFREE(serial,      NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(keyAlgArray, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(decoded,     NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
         return BAD_FUNC_ARG;
     }
 
+#ifdef CYASSL_SMALL_STACK
+    pubKey = (RsaKey*)XMALLOC(sizeof(RsaKey), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (pubKey == NULL) {
+        FreeDecodedCert(decoded);
+        XFREE(serial,      NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(keyAlgArray, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(decoded,     NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        return MEMORY_E;
+    }
+#endif
+
     /* EncryptedKey */
-    ret = InitRsaKey(&pubKey, 0);
-    if (ret != 0) return ret;
-    if (RsaPublicKeyDecode(decoded.publicKey, &idx, &pubKey,
-                           decoded.pubKeySize) < 0) {
+    ret = InitRsaKey(pubKey, 0);
+    if (ret != 0) {
+        FreeDecodedCert(decoded);
+#ifdef CYASSL_SMALL_STACK
+        XFREE(pubKey,      NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(serial,      NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(keyAlgArray, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(decoded,     NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+        return ret;
+    }
+
+    if (RsaPublicKeyDecode(decoded->publicKey, &idx, pubKey,
+                           decoded->pubKeySize) < 0) {
         CYASSL_MSG("ASN RSA key decode error");
-        FreeDecodedCert(&decoded);
+        FreeDecodedCert(decoded);
+#ifdef CYASSL_SMALL_STACK
+        XFREE(pubKey,      NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(serial,      NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(keyAlgArray, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(decoded,     NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
         return PUBLIC_KEY_E;
     }
 
     *keyEncSz = RsaPublicEncrypt(contentKeyPlain, blockKeySz, contentKeyEnc,
-                                 MAX_ENCRYPTED_KEY_SZ, &pubKey, rng);
-    FreeRsaKey(&pubKey);
+                                 MAX_ENCRYPTED_KEY_SZ, pubKey, rng);
+    FreeRsaKey(pubKey);
+
+#ifdef CYASSL_SMALL_STACK
+    XFREE(pubKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
     if (*keyEncSz < 0) {
         CYASSL_MSG("RSA Public Encrypt failed");
-        FreeDecodedCert(&decoded);
+        FreeDecodedCert(decoded);
+#ifdef CYASSL_SMALL_STACK
+        XFREE(serial,      NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(keyAlgArray, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(decoded,     NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
         return *keyEncSz;
     }
 
@@ -889,7 +1114,12 @@ CYASSL_LOCAL int CreateRecipientInfo(const byte* cert, word32 certSz,
     if (recipSeqSz + verSz + issuerSerialSeqSz + issuerSeqSz + snSz +
         keyEncAlgSz + encKeyOctetStrSz + *keyEncSz > (int)outSz) {
         CYASSL_MSG("RecipientInfo output buffer too small");
-        FreeDecodedCert(&decoded);
+        FreeDecodedCert(decoded);
+#ifdef CYASSL_SMALL_STACK
+        XFREE(serial,      NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(keyAlgArray, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(decoded,     NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
         return BUFFER_E;
     }
 
@@ -901,7 +1131,7 @@ CYASSL_LOCAL int CreateRecipientInfo(const byte* cert, word32 certSz,
     totalSz += issuerSerialSeqSz;
     XMEMCPY(out + totalSz, issuerSeq, issuerSeqSz);
     totalSz += issuerSeqSz;
-    XMEMCPY(out + totalSz, decoded.issuerRaw, issuerSz);
+    XMEMCPY(out + totalSz, decoded->issuerRaw, issuerSz);
     totalSz += issuerSz;
     XMEMCPY(out + totalSz, serial, snSz);
     totalSz += snSz;
@@ -912,7 +1142,13 @@ CYASSL_LOCAL int CreateRecipientInfo(const byte* cert, word32 certSz,
     XMEMCPY(out + totalSz, contentKeyEnc, *keyEncSz);
     totalSz += *keyEncSz;
 
-    FreeDecodedCert(&decoded);
+    FreeDecodedCert(decoded);
+
+#ifdef CYASSL_SMALL_STACK
+    XFREE(serial,      NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(keyAlgArray, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(decoded,     NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 
     return totalSz;
 }
@@ -937,12 +1173,20 @@ int PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
     int contentKeyEncSz, blockKeySz;
     int dynamicFlag = 0;
     byte contentKeyPlain[MAX_CONTENT_KEY_LEN];
+#ifdef CYASSL_SMALL_STACK
+    byte* contentKeyEnc;
+#else
     byte contentKeyEnc[MAX_ENCRYPTED_KEY_SZ];
+#endif
     byte* plain;
     byte* encryptedContent;
 
     int recipSz, recipSetSz;
+#ifdef CYASSL_SMALL_STACK
+    byte* recip;
+#else
     byte recip[MAX_RECIP_SZ];
+#endif
     byte recipSet[MAX_SET_SZ];
 
     int encContentOctetSz, encContentSeqSz, contentTypeSz;
@@ -990,36 +1234,68 @@ int PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
     ret = RNG_GenerateBlock(&rng, contentKeyPlain, blockKeySz);
     if (ret != 0)
         return ret;
+    
+#ifdef CYASSL_SMALL_STACK
+    recip         = (byte*)XMALLOC(MAX_RECIP_SZ, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    contentKeyEnc = (byte*)XMALLOC(MAX_ENCRYPTED_KEY_SZ, NULL, 
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+    if (contentKeyEnc == NULL || recip == NULL) {
+        if (recip)         XFREE(recip,         NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        if (contentKeyEnc) XFREE(contentKeyEnc, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        return MEMORY_E;
+    }
+    
+#endif
 
     /* build RecipientInfo, only handle 1 for now */
     recipSz = CreateRecipientInfo(pkcs7->singleCert, pkcs7->singleCertSz, RSAk,
                                   blockKeySz, &rng, contentKeyPlain,
                                   contentKeyEnc, &contentKeyEncSz, recip,
                                   MAX_RECIP_SZ);
+                                                                      
+    XMEMSET(contentKeyEnc,   0, MAX_ENCRYPTED_KEY_SZ);
+    
+#ifdef CYASSL_SMALL_STACK
+    XFREE(contentKeyEnc, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 
     if (recipSz < 0) {
         CYASSL_MSG("Failed to create RecipientInfo");
+#ifdef CYASSL_SMALL_STACK
+        XFREE(recip, NULL, DYNAMMIC_TYPE_TMP_BUFFER);
+#endif
         return recipSz;
     }
     recipSetSz = SetSet(recipSz, recipSet);
 
     /* generate IV for block cipher */
     ret = RNG_GenerateBlock(&rng, tmpIv, DES_BLOCK_SIZE);
-    if (ret != 0)
+    if (ret != 0) {
+#ifdef CYASSL_SMALL_STACK
+        XFREE(recip, NULL, DYNAMMIC_TYPE_TMP_BUFFER);
+#endif
         return ret;
+    }
 
     /* EncryptedContentInfo */
     contentTypeSz = SetContentType(pkcs7->contentOID, contentType);
-    if (contentTypeSz == 0)
+    if (contentTypeSz == 0) {
+#ifdef CYASSL_SMALL_STACK
+        XFREE(recip, NULL, DYNAMMIC_TYPE_TMP_BUFFER);
+#endif
         return BAD_FUNC_ARG;
+    }
 
     /* allocate encrypted content buffer, pad if necessary, PKCS#7 padding */
     padSz = DES_BLOCK_SIZE - (pkcs7->contentSz % DES_BLOCK_SIZE);
     desOutSz = pkcs7->contentSz + padSz;
 
     if (padSz != 0) {
-        plain = XMALLOC(desOutSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        plain = (byte*)XMALLOC(desOutSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         if (plain == NULL) {
+#ifdef CYASSL_SMALL_STACK
+            XFREE(recip, NULL, DYNAMMIC_TYPE_TMP_BUFFER);
+#endif
             return MEMORY_E;
         }
         XMEMCPY(plain, pkcs7->content, pkcs7->contentSz);
@@ -1034,10 +1310,13 @@ int PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
         desOutSz = pkcs7->contentSz;
     }
 
-    encryptedContent = XMALLOC(desOutSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    encryptedContent = (byte*)XMALLOC(desOutSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (encryptedContent == NULL) {
         if (dynamicFlag)
             XFREE(plain, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#ifdef CYASSL_SMALL_STACK
+        XFREE(recip, NULL, DYNAMMIC_TYPE_TMP_BUFFER);
+#endif
         return MEMORY_E;
     }
 
@@ -1053,6 +1332,9 @@ int PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
         XFREE(encryptedContent, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         if (dynamicFlag)
             XFREE(plain, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#ifdef CYASSL_SMALL_STACK
+        XFREE(recip, NULL, DYNAMMIC_TYPE_TMP_BUFFER);
+#endif
         return BAD_FUNC_ARG;
     }
 
@@ -1069,6 +1351,9 @@ int PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
             XFREE(encryptedContent, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             if (dynamicFlag)
                 XFREE(plain, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#ifdef CYASSL_SMALL_STACK
+            XFREE(recip, NULL, DYNAMMIC_TYPE_TMP_BUFFER);
+#endif
             return ret;
         }
     }
@@ -1084,6 +1369,9 @@ int PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
             XFREE(encryptedContent, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             if (dynamicFlag)
                 XFREE(plain, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#ifdef CYASSL_SMALL_STACK
+            XFREE(recip, NULL, DYNAMMIC_TYPE_TMP_BUFFER);
+#endif
             return ret;
         }
     }
@@ -1118,6 +1406,9 @@ int PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
         XFREE(encryptedContent, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         if (dynamicFlag)
             XFREE(plain, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#ifdef CYASSL_SMALL_STACK
+        XFREE(recip, NULL, DYNAMMIC_TYPE_TMP_BUFFER);
+#endif
         return BUFFER_E;
     }
 
@@ -1155,11 +1446,14 @@ int PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
 #endif
 
     XMEMSET(contentKeyPlain, 0, MAX_CONTENT_KEY_LEN);
-    XMEMSET(contentKeyEnc,   0, MAX_ENCRYPTED_KEY_SZ);
 
     if (dynamicFlag)
         XFREE(plain, NULL, DYNAMMIC_TYPE_TMP_BUFFER);
     XFREE(encryptedContent, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    
+#ifdef CYASSL_SMALL_STACK
+    XFREE(recip, NULL, DYNAMMIC_TYPE_TMP_BUFFER);
+#endif
 
     return idx;
 }
@@ -1174,14 +1468,23 @@ CYASSL_API int PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* pkiMsg,
     word32 savedIdx = 0, idx = 0;
     word32 contentType, encOID;
     byte   issuerHash[SHA_DIGEST_SIZE];
-    mp_int serialNum;
 
     int encryptedKeySz, keySz;
     byte tmpIv[DES_BLOCK_SIZE];
-    byte encryptedKey[MAX_ENCRYPTED_KEY_SZ];
     byte* decryptedKey = NULL;
 
-    RsaKey privKey;
+#ifdef CYASSL_SMALL_STACK
+    mp_int* serialNum;
+    byte* encryptedKey;
+    RsaKey* privKey;
+#else
+    mp_int stack_serialNum;
+    mp_int* serialNum = &stack_serialNum;
+    byte encryptedKey[MAX_ENCRYPTED_KEY_SZ];
+    
+    RsaKey stack_privKey;
+    RsaKey* privKey = &stack_privKey;
+#endif
     int encryptedContentSz;
     byte padLen;
     byte* encryptedContent = NULL;
@@ -1194,18 +1497,6 @@ CYASSL_API int PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* pkiMsg,
     if (pkiMsg == NULL || pkiMsgSz == 0 ||
         output == NULL || outputSz == 0)
         return BAD_FUNC_ARG;
-
-    /* load private key */
-    ret = InitRsaKey(&privKey, 0);
-    if (ret != 0) return ret;
-    ret = RsaPrivateKeyDecode(pkcs7->privateKey, &idx, &privKey,
-                              pkcs7->privateKeySz);
-    if (ret != 0) {
-        CYASSL_MSG("Failed to decode RSA private key");
-        return ret;
-    }
-
-    idx = 0;
 
     /* read past ContentInfo, verify type is envelopedData */
     if (GetSequence(pkiMsg, &idx, &length, pkiMsgSz) < 0)
@@ -1240,7 +1531,14 @@ CYASSL_API int PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* pkiMsg,
     /* walk through RecipientInfo set, find correct recipient */
     if (GetSet(pkiMsg, &idx, &length, pkiMsgSz) < 0)
         return ASN_PARSE_E;
-
+    
+#ifdef CYASSL_SMALL_STACK
+    encryptedKey = (byte*)XMALLOC(MAX_ENCRYPTED_KEY_SZ, NULL,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+    if (encryptedKey == NULL)
+        return MEMORY_E;
+#endif
+    
     savedIdx = idx;
     recipFound = 0;
 
@@ -1260,39 +1558,86 @@ CYASSL_API int PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* pkiMsg,
             break;
         }
 
-        if (version != 0)
+        if (version != 0) {
+#ifdef CYASSL_SMALL_STACK
+            XFREE(encryptedKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
             return ASN_VERSION_E;
-
+        }
+        
         /* remove IssuerAndSerialNumber */
-        if (GetSequence(pkiMsg, &idx, &length, pkiMsgSz) < 0)
+        if (GetSequence(pkiMsg, &idx, &length, pkiMsgSz) < 0) {
+#ifdef CYASSL_SMALL_STACK
+            XFREE(encryptedKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
             return ASN_PARSE_E;
-
-        if (GetNameHash(pkiMsg, &idx, issuerHash, pkiMsgSz) < 0)
+        }
+        
+        if (GetNameHash(pkiMsg, &idx, issuerHash, pkiMsgSz) < 0) {
+#ifdef CYASSL_SMALL_STACK
+            XFREE(encryptedKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
             return ASN_PARSE_E;
-
+        }
+        
         /* if we found correct recipient, issuer hashes will match */
         if (XMEMCMP(issuerHash, pkcs7->issuerHash, SHA_DIGEST_SIZE) == 0) {
             recipFound = 1;
         }
-
-        if (GetInt(&serialNum, pkiMsg, &idx, pkiMsgSz) < 0)
+        
+#ifdef CYASSL_SMALL_STACK
+        serialNum = (mp_int*)XMALLOC(sizeof(mp_int), NULL,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+        if (serialNum == NULL) {
+            XFREE(encryptedKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            return MEMORY_E;
+        }
+#endif
+        
+        if (GetInt(serialNum, pkiMsg, &idx, pkiMsgSz) < 0) {
+#ifdef CYASSL_SMALL_STACK
+            XFREE(encryptedKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(serialNum,    NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
             return ASN_PARSE_E;
-        mp_clear(&serialNum);
-
-        if (GetAlgoId(pkiMsg, &idx, &encOID, pkiMsgSz) < 0)
+        }
+        
+        mp_clear(serialNum);
+        
+#ifdef CYASSL_SMALL_STACK
+        XFREE(serialNum, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+        
+        if (GetAlgoId(pkiMsg, &idx, &encOID, pkiMsgSz) < 0) {
+#ifdef CYASSL_SMALL_STACK
+            XFREE(encryptedKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
             return ASN_PARSE_E;
-
+        }
+        
         /* key encryption algorithm must be RSA for now */
-        if (encOID != RSAk)
+        if (encOID != RSAk) {
+#ifdef CYASSL_SMALL_STACK
+            XFREE(encryptedKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
             return ALGO_ID_E;
-
+        }
+        
         /* read encryptedKey */
-        if (pkiMsg[idx++] != ASN_OCTET_STRING)
+        if (pkiMsg[idx++] != ASN_OCTET_STRING) {
+#ifdef CYASSL_SMALL_STACK
+            XFREE(encryptedKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
             return ASN_PARSE_E;
-
-        if (GetLength(pkiMsg, &idx, &encryptedKeySz, pkiMsgSz) < 0)
+        }
+        
+        if (GetLength(pkiMsg, &idx, &encryptedKeySz, pkiMsgSz) < 0) {
+#ifdef CYASSL_SMALL_STACK
+            XFREE(encryptedKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
             return ASN_PARSE_E;
-
+        }
+          
         if (recipFound == 1)
             XMEMCPY(encryptedKey, &pkiMsg[idx], encryptedKeySz);
         idx += encryptedKeySz;
@@ -1303,28 +1648,54 @@ CYASSL_API int PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* pkiMsg,
 
     if (recipFound == 0) {
         CYASSL_MSG("No recipient found in envelopedData that matches input");
+#ifdef CYASSL_SMALL_STACK
+        XFREE(encryptedKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
         return PKCS7_RECIP_E;
     }
 
     /* remove EncryptedContentInfo */
-    if (GetSequence(pkiMsg, &idx, &length, pkiMsgSz) < 0)
+    if (GetSequence(pkiMsg, &idx, &length, pkiMsgSz) < 0) {
+#ifdef CYASSL_SMALL_STACK
+        XFREE(encryptedKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
         return ASN_PARSE_E;
-
-    if (GetContentType(pkiMsg, &idx, &contentType, pkiMsgSz) < 0)
+    }
+    
+    if (GetContentType(pkiMsg, &idx, &contentType, pkiMsgSz) < 0) {
+#ifdef CYASSL_SMALL_STACK
+        XFREE(encryptedKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
         return ASN_PARSE_E;
+    }
 
-    if (GetAlgoId(pkiMsg, &idx, &encOID, pkiMsgSz) < 0)
+    if (GetAlgoId(pkiMsg, &idx, &encOID, pkiMsgSz) < 0) {
+#ifdef CYASSL_SMALL_STACK
+        XFREE(encryptedKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
         return ASN_PARSE_E;
-
+    }
+    
     /* get block cipher IV, stored in OPTIONAL parameter of AlgoID */
-    if (pkiMsg[idx++] != ASN_OCTET_STRING)
+    if (pkiMsg[idx++] != ASN_OCTET_STRING) {
+#ifdef CYASSL_SMALL_STACK
+        XFREE(encryptedKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
         return ASN_PARSE_E;
-
-    if (GetLength(pkiMsg, &idx, &length, pkiMsgSz) < 0)
+    }
+    
+    if (GetLength(pkiMsg, &idx, &length, pkiMsgSz) < 0) {
+#ifdef CYASSL_SMALL_STACK
+        XFREE(encryptedKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
         return ASN_PARSE_E;
-
+    }
+    
     if (length != DES_BLOCK_SIZE) {
         CYASSL_MSG("Incorrect IV length, must be of DES_BLOCK_SIZE");
+#ifdef CYASSL_SMALL_STACK
+        XFREE(encryptedKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
         return ASN_PARSE_E;
     }
 
@@ -1332,25 +1703,78 @@ CYASSL_API int PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* pkiMsg,
     idx += length;
 
     /* read encryptedContent, cont[0] */
-    if (pkiMsg[idx++] != (ASN_CONTEXT_SPECIFIC | 0))
+    if (pkiMsg[idx++] != (ASN_CONTEXT_SPECIFIC | 0)) {
+#ifdef CYASSL_SMALL_STACK
+        XFREE(encryptedKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
         return ASN_PARSE_E;
+    }
 
-    if (GetLength(pkiMsg, &idx, &encryptedContentSz, pkiMsgSz) < 0)
+    if (GetLength(pkiMsg, &idx, &encryptedContentSz, pkiMsgSz) < 0) {
+#ifdef CYASSL_SMALL_STACK
+        XFREE(encryptedKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
         return ASN_PARSE_E;
-
-    encryptedContent = XMALLOC(encryptedContentSz, NULL,
-                               DYNAMIC_TYPE_TMP_BUFFER);
-    if (encryptedContent == NULL)
+    }
+    
+    encryptedContent = (byte*)XMALLOC(encryptedContentSz, NULL,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+    if (encryptedContent == NULL) {
+#ifdef CYASSL_SMALL_STACK
+        XFREE(encryptedKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
         return MEMORY_E;
+    }
 
     XMEMCPY(encryptedContent, &pkiMsg[idx], encryptedContentSz);
 
+    /* load private key */
+#ifdef CYASSL_SMALL_STACK
+    privKey = (RsaKey*)XMALLOC(sizeof(RsaKey), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (privKey == NULL) {
+        XFREE(encryptedContent, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(encryptedKey,     NULL, DYNAMIC_TYPE_TMP_BUFFER);        return MEMORY_E;
+    }
+#endif
+
+    ret = InitRsaKey(privKey, 0);
+    if (ret != 0) {
+        XFREE(encryptedContent, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#ifdef CYASSL_SMALL_STACK
+        XFREE(privKey,      NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(encryptedKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+        return ret;
+    }
+
+    idx = 0;
+
+    ret = RsaPrivateKeyDecode(pkcs7->privateKey, &idx, privKey,
+                              pkcs7->privateKeySz);
+    if (ret != 0) {
+        CYASSL_MSG("Failed to decode RSA private key");
+        XFREE(encryptedContent, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#ifdef CYASSL_SMALL_STACK
+        XFREE(privKey,      NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(encryptedKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+        return ret;
+    }
+
     /* decrypt encryptedKey */
     keySz = RsaPrivateDecryptInline(encryptedKey, encryptedKeySz,
-                                    &decryptedKey, &privKey);
-    FreeRsaKey(&privKey);
+                                    &decryptedKey, privKey);
+    FreeRsaKey(privKey);
+
+#ifdef CYASSL_SMALL_STACK
+    XFREE(privKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
     if (keySz <= 0) {
         XFREE(encryptedContent, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#ifdef CYASSL_SMALL_STACK
+        XFREE(encryptedKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
         return keySz;
     }
 
@@ -1365,6 +1789,9 @@ CYASSL_API int PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* pkiMsg,
 
         if (ret != 0) {
             XFREE(encryptedContent, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#ifdef CYASSL_SMALL_STACK
+            XFREE(encryptedKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
             return ret;
         }
     }
@@ -1377,11 +1804,17 @@ CYASSL_API int PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* pkiMsg,
 
         if (ret != 0) {
             XFREE(encryptedContent, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#ifdef CYASSL_SMALL_STACK
+            XFREE(encryptedKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
             return ret;
         }
     } else {
         CYASSL_MSG("Unsupported content encryption OID type");
         XFREE(encryptedContent, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#ifdef CYASSL_SMALL_STACK
+        XFREE(encryptedKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
         return ALGO_ID_E;
     }
 
@@ -1394,7 +1827,10 @@ CYASSL_API int PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* pkiMsg,
     XMEMSET(encryptedKey, 0, MAX_ENCRYPTED_KEY_SZ);
     XMEMSET(encryptedContent, 0, encryptedContentSz);
     XFREE(encryptedContent, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-
+#ifdef CYASSL_SMALL_STACK
+    XFREE(encryptedKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    
     return encryptedContentSz - padLen;
 }
 
