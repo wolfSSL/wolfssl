@@ -1173,12 +1173,20 @@ int PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
     int contentKeyEncSz, blockKeySz;
     int dynamicFlag = 0;
     byte contentKeyPlain[MAX_CONTENT_KEY_LEN];
+#ifdef CYASSL_SMALL_STACK
+    byte* contentKeyEnc;
+#else
     byte contentKeyEnc[MAX_ENCRYPTED_KEY_SZ];
+#endif
     byte* plain;
     byte* encryptedContent;
 
     int recipSz, recipSetSz;
+#ifdef CYASSL_SMALL_STACK
+    byte* recip;
+#else
     byte recip[MAX_RECIP_SZ];
+#endif
     byte recipSet[MAX_SET_SZ];
 
     int encContentOctetSz, encContentSeqSz, contentTypeSz;
@@ -1226,36 +1234,68 @@ int PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
     ret = RNG_GenerateBlock(&rng, contentKeyPlain, blockKeySz);
     if (ret != 0)
         return ret;
+    
+#ifdef CYASSL_SMALL_STACK
+    recip         = (byte*)XMALLOC(MAX_RECIP_SZ, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    contentKeyEnc = (byte*)XMALLOC(MAX_ENCRYPTED_KEY_SZ, NULL, 
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+    if (contentKeyEnc == NULL || recip == NULL) {
+        if (recip)         XFREE(recip,         NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        if (contentKeyEnc) XFREE(contentKeyEnc, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        return MEMORY_E;
+    }
+    
+#endif
 
     /* build RecipientInfo, only handle 1 for now */
     recipSz = CreateRecipientInfo(pkcs7->singleCert, pkcs7->singleCertSz, RSAk,
                                   blockKeySz, &rng, contentKeyPlain,
                                   contentKeyEnc, &contentKeyEncSz, recip,
                                   MAX_RECIP_SZ);
+                                                                      
+    XMEMSET(contentKeyEnc,   0, MAX_ENCRYPTED_KEY_SZ);
+    
+#ifdef CYASSL_SMALL_STACK
+    XFREE(contentKeyEnc, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 
     if (recipSz < 0) {
         CYASSL_MSG("Failed to create RecipientInfo");
+#ifdef CYASSL_SMALL_STACK
+        XFREE(recip, NULL, DYNAMMIC_TYPE_TMP_BUFFER);
+#endif
         return recipSz;
     }
     recipSetSz = SetSet(recipSz, recipSet);
 
     /* generate IV for block cipher */
     ret = RNG_GenerateBlock(&rng, tmpIv, DES_BLOCK_SIZE);
-    if (ret != 0)
+    if (ret != 0) {
+#ifdef CYASSL_SMALL_STACK
+        XFREE(recip, NULL, DYNAMMIC_TYPE_TMP_BUFFER);
+#endif
         return ret;
+    }
 
     /* EncryptedContentInfo */
     contentTypeSz = SetContentType(pkcs7->contentOID, contentType);
-    if (contentTypeSz == 0)
+    if (contentTypeSz == 0) {
+#ifdef CYASSL_SMALL_STACK
+        XFREE(recip, NULL, DYNAMMIC_TYPE_TMP_BUFFER);
+#endif
         return BAD_FUNC_ARG;
+    }
 
     /* allocate encrypted content buffer, pad if necessary, PKCS#7 padding */
     padSz = DES_BLOCK_SIZE - (pkcs7->contentSz % DES_BLOCK_SIZE);
     desOutSz = pkcs7->contentSz + padSz;
 
     if (padSz != 0) {
-        plain = XMALLOC(desOutSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        plain = (byte*)XMALLOC(desOutSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         if (plain == NULL) {
+#ifdef CYASSL_SMALL_STACK
+            XFREE(recip, NULL, DYNAMMIC_TYPE_TMP_BUFFER);
+#endif
             return MEMORY_E;
         }
         XMEMCPY(plain, pkcs7->content, pkcs7->contentSz);
@@ -1270,10 +1310,13 @@ int PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
         desOutSz = pkcs7->contentSz;
     }
 
-    encryptedContent = XMALLOC(desOutSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    encryptedContent = (byte*)XMALLOC(desOutSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (encryptedContent == NULL) {
         if (dynamicFlag)
             XFREE(plain, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#ifdef CYASSL_SMALL_STACK
+        XFREE(recip, NULL, DYNAMMIC_TYPE_TMP_BUFFER);
+#endif
         return MEMORY_E;
     }
 
@@ -1289,6 +1332,9 @@ int PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
         XFREE(encryptedContent, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         if (dynamicFlag)
             XFREE(plain, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#ifdef CYASSL_SMALL_STACK
+        XFREE(recip, NULL, DYNAMMIC_TYPE_TMP_BUFFER);
+#endif
         return BAD_FUNC_ARG;
     }
 
@@ -1305,6 +1351,9 @@ int PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
             XFREE(encryptedContent, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             if (dynamicFlag)
                 XFREE(plain, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#ifdef CYASSL_SMALL_STACK
+            XFREE(recip, NULL, DYNAMMIC_TYPE_TMP_BUFFER);
+#endif
             return ret;
         }
     }
@@ -1320,6 +1369,9 @@ int PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
             XFREE(encryptedContent, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             if (dynamicFlag)
                 XFREE(plain, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#ifdef CYASSL_SMALL_STACK
+            XFREE(recip, NULL, DYNAMMIC_TYPE_TMP_BUFFER);
+#endif
             return ret;
         }
     }
@@ -1354,6 +1406,9 @@ int PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
         XFREE(encryptedContent, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         if (dynamicFlag)
             XFREE(plain, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#ifdef CYASSL_SMALL_STACK
+        XFREE(recip, NULL, DYNAMMIC_TYPE_TMP_BUFFER);
+#endif
         return BUFFER_E;
     }
 
@@ -1391,11 +1446,14 @@ int PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
 #endif
 
     XMEMSET(contentKeyPlain, 0, MAX_CONTENT_KEY_LEN);
-    XMEMSET(contentKeyEnc,   0, MAX_ENCRYPTED_KEY_SZ);
 
     if (dynamicFlag)
         XFREE(plain, NULL, DYNAMMIC_TYPE_TMP_BUFFER);
     XFREE(encryptedContent, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    
+#ifdef CYASSL_SMALL_STACK
+    XFREE(recip, NULL, DYNAMMIC_TYPE_TMP_BUFFER);
+#endif
 
     return idx;
 }
@@ -1475,7 +1533,7 @@ CYASSL_API int PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* pkiMsg,
         return ASN_PARSE_E;
     
 #ifdef CYASSL_SMALL_STACK
-    encryptedKey = (byte*) XMALLOC(MAX_ENCRYPTED_KEY_SZ, NULL,
+    encryptedKey = (byte*)XMALLOC(MAX_ENCRYPTED_KEY_SZ, NULL,
                                                        DYNAMIC_TYPE_TMP_BUFFER);
     if (encryptedKey == NULL)
         return MEMORY_E;
