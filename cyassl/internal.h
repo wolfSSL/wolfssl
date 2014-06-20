@@ -1631,7 +1631,7 @@ typedef struct Buffers {
 #ifndef NO_CERTS
     buffer          certificate;            /* CYASSL_CTX owns, unless we own */
     buffer          key;                    /* CYASSL_CTX owns, unless we own */
-    buffer          certChain;              /* CYASSL_CTX owns */
+    buffer          certChain;              /* CYASSL_CTX owns, unless we own */
                  /* chain after self, in DER, with leading size for each cert */
     buffer          serverDH_P;             /* CYASSL_CTX owns, unless we own */
     buffer          serverDH_G;             /* CYASSL_CTX owns, unless we own */
@@ -1647,6 +1647,7 @@ typedef struct Buffers {
     int             plainSz;               /* plain text bytes in buffer to send
                                               when got WANT_WRITE            */
     byte            weOwnCert;             /* SSL own cert flag */
+    byte            weOwnCertChain;        /* SSL own cert chain flag */
     byte            weOwnKey;              /* SSL own key  flag */
     byte            weOwnDH;               /* SSL own dh (p,g)  flag */
 #ifdef CYASSL_DTLS

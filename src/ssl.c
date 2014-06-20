@@ -1905,6 +1905,9 @@ int CyaSSL_Init(void)
                                         && format != SSL_FILETYPE_RAW)
             return SSL_BAD_FILETYPE;
 
+        if (ctx == NULL && ssl == NULL)
+            return BAD_FUNC_ARG;
+
         if (type == CA_TYPE)
             dynamicType = DYNAMIC_TYPE_CA;
         else if (type == CERT_TYPE)
@@ -1924,6 +1927,8 @@ int CyaSSL_Init(void)
             if (userChain && type == CERT_TYPE && info.consumed < sz) {
                 byte   staticBuffer[FILE_BUFFER_SIZE];  /* tmp chain buffer */
                 byte*  chainBuffer = staticBuffer;
+                byte*  shrinked    = NULL;   /* shrinked to size chainBuffer
+                                              * or staticBuffer */
                 int    dynamicBuffer = 0;
                 word32 bufferSz = sizeof(staticBuffer);
                 long   consumed = info.consumed;
@@ -1986,22 +1991,30 @@ int CyaSSL_Init(void)
                 }
                 CYASSL_MSG("Finished Processing Cert Chain");
 
-                if (ctx == NULL) {
-                    CYASSL_MSG("certChain needs context");
-                    if (dynamicBuffer)
-                        XFREE(chainBuffer, heap, DYNAMIC_TYPE_FILE);
-                    XFREE(der.buffer, heap, dynamicType);
-                    return BAD_FUNC_ARG;
-                }
-                ctx->certChain.buffer = (byte*)XMALLOC(idx, heap,
-                                                       dynamicType);
-                if (ctx->certChain.buffer) {
-                    ctx->certChain.length = idx;
-                    XMEMCPY(ctx->certChain.buffer, chainBuffer, idx);
+                /* only retain actual size used */
+                shrinked = (byte*)XMALLOC(idx, heap, dynamicType);
+                if (shrinked) {
+                    if (ssl) {
+                        if (ssl->buffers.certChain.buffer &&
+                                         ssl->buffers.weOwnCertChain) {
+                            XFREE(ssl->buffers.certChain.buffer, heap,
+                                  dynamicType);
+                        }
+                        ssl->buffers.certChain.buffer = shrinked;
+                        ssl->buffers.certChain.length = idx;
+                        XMEMCPY(ssl->buffers.certChain.buffer, chainBuffer,idx);
+                        ssl->buffers.weOwnCertChain = 1;
+                    } else if (ctx) {
+                        if (ctx->certChain.buffer)
+                            XFREE(ctx->certChain.buffer, heap, dynamicType);
+                        ctx->certChain.buffer = shrinked;
+                        ctx->certChain.length = idx;
+                        XMEMCPY(ctx->certChain.buffer, chainBuffer, idx);
+                    }
                 }
                 if (dynamicBuffer)
                     XFREE(chainBuffer, heap, DYNAMIC_TYPE_FILE);
-                if (ctx->certChain.buffer == NULL) {
+                if (shrinked == NULL) {
                     XFREE(der.buffer, heap, dynamicType);
                     return MEMORY_E;
                 }
@@ -5864,6 +5877,14 @@ int CyaSSL_set_compression(CYASSL* ssl)
             ssl->buffers.weOwnCert = 0;
             ssl->buffers.certificate.length = 0;
             ssl->buffers.certificate.buffer = NULL;
+        }
+
+        if (ssl->buffers.weOwnCertChain) {
+            CYASSL_MSG("Unloading cert chain");
+            XFREE(ssl->buffers.certChain.buffer, ssl->heap,DYNAMIC_TYPE_CERT);
+            ssl->buffers.weOwnCertChain = 0;
+            ssl->buffers.certChain.length = 0;
+            ssl->buffers.certChain.buffer = NULL;
         }
 
         if (ssl->buffers.weOwnKey) {

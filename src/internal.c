@@ -1647,9 +1647,10 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
         ssl->buffers.serverDH_G = ctx->serverDH_G;
     }
 #endif
-    ssl->buffers.weOwnCert = 0;
-    ssl->buffers.weOwnKey  = 0;
-    ssl->buffers.weOwnDH   = 0;
+    ssl->buffers.weOwnCert      = 0;
+    ssl->buffers.weOwnCertChain = 0;
+    ssl->buffers.weOwnKey       = 0;
+    ssl->buffers.weOwnDH        = 0;
 
 #ifdef CYASSL_DTLS
     ssl->buffers.dtlsCtx.fd = -1;
@@ -1874,9 +1875,10 @@ void SSL_ResourceFree(CYASSL* ssl)
         XFREE(ssl->buffers.serverDH_P.buffer, ssl->heap, DYNAMIC_TYPE_DH);
     }
 
-    /* CYASSL_CTX always owns certChain */
     if (ssl->buffers.weOwnCert)
         XFREE(ssl->buffers.certificate.buffer, ssl->heap, DYNAMIC_TYPE_CERT);
+    if (ssl->buffers.weOwnCertChain)
+        XFREE(ssl->buffers.certChain.buffer, ssl->heap, DYNAMIC_TYPE_CERT);
     if (ssl->buffers.weOwnKey)
         XFREE(ssl->buffers.key.buffer, ssl->heap, DYNAMIC_TYPE_KEY);
 #endif
