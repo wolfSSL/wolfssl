@@ -6009,7 +6009,7 @@ int SendCertificateRequest(CYASSL* ssl)
     int    sendSz;
     word32 i = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
     
-    int  typeTotal = 1;  /* only rsa for now */
+    int  typeTotal = 1;  /* only 1 for now */
     int  reqSz = ENUM_LEN + typeTotal + REQ_HEADER_SZ;  /* add auth later */
 
     if (IsAtLeastTLSv1_2(ssl))
@@ -6037,7 +6037,15 @@ int SendCertificateRequest(CYASSL* ssl)
 
     /* write to output */
     output[i++] = (byte)typeTotal;  /* # of types */
-    output[i++] = rsa_sign;
+#ifdef HAVE_ECC
+    if (ssl->options.cipherSuite0 == ECC_BYTE &&
+                     ssl->specs.sig_algo == ecc_dsa_sa_algo) {
+        output[i++] = ecdsa_sign;
+    } else
+#endif /* HAVE_ECC */
+    {
+        output[i++] = rsa_sign;
+    }
 
     /* supported hash/sig */
     if (IsAtLeastTLSv1_2(ssl)) {

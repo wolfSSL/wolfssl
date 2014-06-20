@@ -1438,7 +1438,10 @@ enum ClientCertificateType {
     dss_fixed_dh        = 4,
     rsa_ephemeral_dh    = 5,
     dss_ephemeral_dh    = 6,
-    fortezza_kea_cert   = 20
+    fortezza_kea_cert   = 20,
+    ecdsa_sign          = 64,
+    rsa_fixed_ecdh      = 65,
+    ecdsa_fixed_ecdh    = 66
 };
 
 
