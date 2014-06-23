@@ -1075,6 +1075,7 @@ CYASSL_LOCAL int CreateRecipientInfo(const byte* cert, word32 certSz,
     if (RsaPublicKeyDecode(decoded->publicKey, &idx, pubKey,
                            decoded->pubKeySize) < 0) {
         CYASSL_MSG("ASN RSA key decode error");
+        FreeRsaKey(pubKey);
         FreeDecodedCert(decoded);
 #ifdef CYASSL_SMALL_STACK
         XFREE(pubKey,      NULL, DYNAMIC_TYPE_TMP_BUFFER);
