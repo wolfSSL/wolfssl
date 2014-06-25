@@ -1433,9 +1433,14 @@ void FreeDecodedCert(DecodedCert* cert)
 
 static int GetCertHeader(DecodedCert* cert)
 {
-    int    ret = 0, len;
-    byte   serialTmp[EXTERNAL_SERIAL_SIZE];
-    mp_int mpi;
+    int ret = 0, len;
+    byte serialTmp[EXTERNAL_SERIAL_SIZE];
+#if defined(CYASSL_SMALL_STACK) && defined(USE_FAST_MATH)
+    mp_int* mpi = NULL;
+#else
+    mp_int stack_mpi;
+    mp_int* mpi = &stack_mpi;
+#endif
 
     if (GetSequence(cert->source, &cert->srcIdx, &len, cert->maxIdx) < 0)
         return ASN_PARSE_E;
@@ -1449,17 +1454,32 @@ static int GetCertHeader(DecodedCert* cert)
     if (GetExplicitVersion(cert->source, &cert->srcIdx, &cert->version) < 0)
         return ASN_PARSE_E;
 
-    if (GetInt(&mpi, cert->source, &cert->srcIdx, cert->maxIdx) < 0) 
-        return ASN_PARSE_E;
+#if defined(CYASSL_SMALL_STACK) && defined(USE_FAST_MATH)
+    mpi = (mp_int*)XMALLOC(sizeof(mp_int), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (mpi == NULL)
+        return MEMORY_E;
+#endif
 
-    len = mp_unsigned_bin_size(&mpi);
+    if (GetInt(mpi, cert->source, &cert->srcIdx, cert->maxIdx) < 0) {
+#if defined(CYASSL_SMALL_STACK) && defined(USE_FAST_MATH)
+        XFREE(mpi, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+        return ASN_PARSE_E;
+    }
+
+    len = mp_unsigned_bin_size(mpi);
     if (len < (int)sizeof(serialTmp)) {
-        if ( (ret = mp_to_unsigned_bin(&mpi, serialTmp)) == MP_OKAY) {
+        if ( (ret = mp_to_unsigned_bin(mpi, serialTmp)) == MP_OKAY) {
             XMEMCPY(cert->serial, serialTmp, len);
             cert->serialSz = len;
         }
     }
-    mp_clear(&mpi);
+    mp_clear(mpi);
+
+#if defined(CYASSL_SMALL_STACK) && defined(USE_FAST_MATH)
+    XFREE(mpi, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
     return ret;
 }
 
