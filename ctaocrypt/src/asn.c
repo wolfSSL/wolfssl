@@ -5726,9 +5726,9 @@ static int SetDatesFromCert(Cert* cert, const byte* der, int derSz)
 
     cert->beforeDateSz = decoded.beforeDateLen;
     cert->afterDateSz  = decoded.afterDateLen;
-    
+
     FreeDecodedCert(&decoded);
-    
+
     return 0;
 }
 
