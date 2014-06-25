@@ -1214,8 +1214,8 @@ static int TLSX_THM_Parse(CYASSL* ssl, byte* input, word16 length,
 #ifdef HAVE_SUPPORTED_CURVES
 
 #ifndef HAVE_ECC
-#error "Elliptic Curves Extension requires Elliptic Curve Cryptography. \
-Use --enable-ecc in the configure script or define HAVE_ECC."
+#error Elliptic Curves Extension requires Elliptic Curve Cryptography. \
+       Use --enable-ecc in the configure script or define HAVE_ECC.
 #endif
 
 static void TLSX_EllipticCurve_FreeAll(EllipticCurve* list)
@@ -1536,6 +1536,10 @@ void TLSX_FreeAll(TLSX* list)
     }
 }
 
+int TLSX_SupportExtensions(CYASSL* ssl) {
+    return ssl && (IsTLS(ssl) || ssl->version.major == DTLS_MAJOR);
+}
+
 static word16 TLSX_GetSize(TLSX* list, byte* semaphore, byte isRequest)
 {
     TLSX* extension;
@@ -1635,7 +1639,7 @@ word16 TLSX_GetRequestSize(CYASSL* ssl)
 {
     word16 length = 0;
 
-    if (ssl && IsTLS(ssl)) {
+    if (TLSX_SupportExtensions(ssl)) {
         byte semaphore[16] = {0};
 
         EC_VALIDATE_REQUEST(ssl, semaphore);
@@ -1660,7 +1664,7 @@ word16 TLSX_WriteRequest(CYASSL* ssl, byte* output)
 {
     word16 offset = 0;
 
-    if (ssl && IsTLS(ssl) && output) {
+    if (TLSX_SupportExtensions(ssl) && output) {
         byte semaphore[16] = {0};
 
         offset += OPAQUE16_LEN; /* extensions length */
@@ -1711,7 +1715,7 @@ word16 TLSX_GetResponseSize(CYASSL* ssl)
     word16 length = 0;
     byte semaphore[16] = {0};
 
-    if (ssl && IsTLS(ssl))
+    if (TLSX_SupportExtensions(ssl))
         length += TLSX_GetSize(ssl->extensions, semaphore, 0);
 
     /* All the response data is set at the ssl object only, so no ctx here. */
@@ -1726,7 +1730,7 @@ word16 TLSX_WriteResponse(CYASSL *ssl, byte* output)
 {
     word16 offset = 0;
 
-    if (ssl && IsTLS(ssl) && output) {
+    if (TLSX_SupportExtensions(ssl) && output) {
         byte semaphore[16] = {0};
 
         offset += OPAQUE16_LEN; /* extensions length */
@@ -1829,7 +1833,7 @@ int TLSX_Parse(CYASSL* ssl, byte* input, word16 length, byte isRequest,
    || defined(HAVE_TRUNCATED_HMAC)  \
    || defined(HAVE_SUPPORTED_CURVES)
 
-#error "Using TLS extensions requires HAVE_TLS_EXTENSIONS to be defined."
+#error Using TLS extensions requires HAVE_TLS_EXTENSIONS to be defined.
 
 #endif /* HAVE_TLS_EXTENSIONS */
 

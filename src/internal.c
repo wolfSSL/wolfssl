@@ -7942,7 +7942,7 @@ static void PickHashSigAlgo(CYASSL* ssl,
         /* tls extensions */
         if ( (i - begin) < helloSz) {
 #ifdef HAVE_TLS_EXTENSIONS
-            if (IsTLS(ssl)) {
+            if (TLSX_SupportExtensions(ssl)) {
                 int    ret = 0;
                 word16 totalExtSz;
                 Suites clSuites; /* just for compatibility right now */
@@ -9279,8 +9279,7 @@ static void PickHashSigAlgo(CYASSL* ssl,
 
             /* last, extensions */
 #ifdef HAVE_TLS_EXTENSIONS
-        if (IsTLS(ssl))
-            TLSX_WriteResponse(ssl, output + idx);
+        TLSX_WriteResponse(ssl, output + idx);
 #endif
             
         ssl->buffers.outputBuffer.length += sendSz;
@@ -11080,7 +11079,7 @@ static void PickHashSigAlgo(CYASSL* ssl,
         /* tls extensions */
         if ((i - begin) < helloSz) {
 #ifdef HAVE_TLS_EXTENSIONS
-            if (IsTLS(ssl)) {
+            if (TLSX_SupportExtensions(ssl)) {
                 int ret = 0;
 #else
             if (IsAtLeastTLSv1_2(ssl)) {
