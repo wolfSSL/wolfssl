@@ -838,11 +838,15 @@ static int DecryptKey(const char* password, int passwordSz, byte* salt,
                       int saltSz, int iterations, int id, byte* input,
                       int length, int version, byte* cbcIv)
 {
-    byte   key[MAX_KEY_SIZE];
-    int    typeH;
-    int    derivedLen;
-    int    decryptionType;
-    int    ret = 0; 
+    int typeH;
+    int derivedLen;
+    int decryptionType;
+    int ret = 0;
+#ifdef CYASSL_SMALL_STACK
+    byte* key;
+#else
+    byte key[MAX_KEY_SIZE];
+#endif
 
     switch (id) {
         case PBE_MD5_DES:
@@ -873,6 +877,12 @@ static int DecryptKey(const char* password, int passwordSz, byte* salt,
             return ALGO_ID_E;
     }
 
+#ifdef CYASSL_SMALL_STACK
+    key = (byte*)XMALLOC(MAX_KEY_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (key == NULL)
+        return MEMORY_E;
+#endif
+
     if (version == PKCS5v2)
         ret = PBKDF2(key, (byte*)password, passwordSz, salt, saltSz, iterations,
                derivedLen, typeH);
@@ -883,8 +893,12 @@ static int DecryptKey(const char* password, int passwordSz, byte* salt,
         int  i, idx = 0;
         byte unicodePasswd[MAX_UNICODE_SZ];
 
-        if ( (passwordSz * 2 + 2) > (int)sizeof(unicodePasswd))
+        if ( (passwordSz * 2 + 2) > (int)sizeof(unicodePasswd)) {
+#ifdef CYASSL_SMALL_STACK
+            XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
             return UNICODE_SIZE_E; 
+        }
 
         for (i = 0; i < passwordSz; i++) {
             unicodePasswd[idx++] = 0x00;
@@ -900,11 +914,19 @@ static int DecryptKey(const char* password, int passwordSz, byte* salt,
             ret += PKCS12_PBKDF(cbcIv, unicodePasswd, idx, salt, saltSz,
                                 iterations, 8, typeH, 2);
     }
-    else
+    else {
+#ifdef CYASSL_SMALL_STACK
+        XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
         return ALGO_ID_E;
+    }
 
-    if (ret != 0)
+    if (ret != 0) {
+#ifdef CYASSL_SMALL_STACK
+        XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
         return ret;
+    }
 
     switch (decryptionType) {
 #ifndef NO_DES3
@@ -917,8 +939,12 @@ static int DecryptKey(const char* password, int passwordSz, byte* salt,
                 desIv = cbcIv;
 
             ret = Des_SetKey(&dec, key, desIv, DES_DECRYPTION);
-            if (ret != 0)
+            if (ret != 0) {
+#ifdef CYASSL_SMALL_STACK
+                XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
                 return ret;
+            }
 
             Des_CbcDecrypt(&dec, input, input, length);
             break;
@@ -932,11 +958,19 @@ static int DecryptKey(const char* password, int passwordSz, byte* salt,
             if (version == PKCS5v2 || version == PKCS12)
                 desIv = cbcIv;
             ret = Des3_SetKey(&dec, key, desIv, DES_DECRYPTION);
-            if (ret != 0)
+            if (ret != 0) {
+#ifdef CYASSL_SMALL_STACK
+                XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
                 return ret;
+            }
             ret = Des3_CbcDecrypt(&dec, input, input, length);
-            if (ret != 0)
+            if (ret != 0) {
+#ifdef CYASSL_SMALL_STACK
+                XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
                 return ret;
+            }
             break;
         }
 #endif
@@ -952,8 +986,15 @@ static int DecryptKey(const char* password, int passwordSz, byte* salt,
 #endif
 
         default:
+#ifdef CYASSL_SMALL_STACK
+            XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
             return ALGO_ID_E; 
     }
+
+#ifdef CYASSL_SMALL_STACK
+    XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 
     return 0;
 }
