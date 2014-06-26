@@ -1184,6 +1184,7 @@ typedef struct TLSX {
 
 CYASSL_LOCAL TLSX* TLSX_Find(TLSX* list, TLSX_Type type);
 CYASSL_LOCAL void TLSX_FreeAll(TLSX* list);
+CYASSL_LOCAL int TLSX_SupportExtensions(CYASSL* ssl);
 
 #ifndef NO_CYASSL_CLIENT
 CYASSL_LOCAL word16 TLSX_GetRequestSize(CYASSL* ssl);
