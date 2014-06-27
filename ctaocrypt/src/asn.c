@@ -4383,11 +4383,16 @@ CYASSL_LOCAL int SetSerialNumber(const byte* sn, word32 snSz, byte* output)
 int DerToPem(const byte* der, word32 derSz, byte* output, word32 outSz,
              int type)
 {
+#ifdef CYASSL_SMALL_STACK
+    char* header = NULL;
+    char* footer = NULL;
+#else
     char header[80];
     char footer[80];
+#endif
 
-    int headerLen;
-    int footerLen;
+    int headerLen = 80;
+    int footerLen = 80;
     int i;
     int err;
     int outLen;   /* return length or error */
@@ -4395,55 +4400,98 @@ int DerToPem(const byte* der, word32 derSz, byte* output, word32 outSz,
     if (der == output)      /* no in place conversion */
         return BAD_FUNC_ARG;
 
+#ifdef CYASSL_SMALL_STACK
+    header = (char*)XMALLOC(headerLen, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (header == NULL)
+        return MEMORY_E;
+    
+    footer = (char*)XMALLOC(footerLen, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (footer == NULL) {
+        XFREE(header, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        return MEMORY_E;
+    }
+#endif
+
     if (type == CERT_TYPE) {
-        XSTRNCPY(header, "-----BEGIN CERTIFICATE-----\n", sizeof(header));
-        XSTRNCPY(footer, "-----END CERTIFICATE-----\n", sizeof(footer));
+        XSTRNCPY(header, "-----BEGIN CERTIFICATE-----\n", headerLen);
+        XSTRNCPY(footer, "-----END CERTIFICATE-----\n",   footerLen);
     }
     else if (type == PRIVATEKEY_TYPE) {
-        XSTRNCPY(header, "-----BEGIN RSA PRIVATE KEY-----\n", sizeof(header));
-        XSTRNCPY(footer, "-----END RSA PRIVATE KEY-----\n", sizeof(footer));
+        XSTRNCPY(header, "-----BEGIN RSA PRIVATE KEY-----\n", headerLen);
+        XSTRNCPY(footer, "-----END RSA PRIVATE KEY-----\n",   footerLen);
     }
     #ifdef HAVE_ECC
     else if (type == ECC_PRIVATEKEY_TYPE) {
-        XSTRNCPY(header, "-----BEGIN EC PRIVATE KEY-----\n", sizeof(header));
-        XSTRNCPY(footer, "-----END EC PRIVATE KEY-----\n", sizeof(footer));
+        XSTRNCPY(header, "-----BEGIN EC PRIVATE KEY-----\n", headerLen);
+        XSTRNCPY(footer, "-----END EC PRIVATE KEY-----\n",   footerLen);
     }
     #endif
     #ifdef CYASSL_CERT_REQ
     else if (type == CERTREQ_TYPE)
     {
         XSTRNCPY(header,
-                       "-----BEGIN CERTIFICATE REQUEST-----\n", sizeof(header));
-        XSTRNCPY(footer, "-----END CERTIFICATE REQUEST-----\n", sizeof(footer));
+                       "-----BEGIN CERTIFICATE REQUEST-----\n", headerLen);
+        XSTRNCPY(footer, "-----END CERTIFICATE REQUEST-----\n", footerLen);
     }
     #endif
-    else
+    else {
+#ifdef CYASSL_SMALL_STACK
+        XFREE(header, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(footer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
         return BAD_FUNC_ARG;
+    }
 
     headerLen = (int)XSTRLEN(header);
     footerLen = (int)XSTRLEN(footer);
 
-    if (!der || !output)
+    if (!der || !output) {
+#ifdef CYASSL_SMALL_STACK
+        XFREE(header, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(footer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
         return BAD_FUNC_ARG;
+    }
 
     /* don't even try if outSz too short */
-    if (outSz < headerLen + footerLen + derSz)
+    if (outSz < headerLen + footerLen + derSz) {
+#ifdef CYASSL_SMALL_STACK
+        XFREE(header, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(footer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
         return BAD_FUNC_ARG;
+    }
 
     /* header */
     XMEMCPY(output, header, headerLen);
     i = headerLen;
 
+#ifdef CYASSL_SMALL_STACK
+    XFREE(header, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
     /* body */
     outLen = outSz - (headerLen + footerLen);  /* input to Base64_Encode */
-    if ( (err = Base64_Encode(der, derSz, output + i, (word32*)&outLen)) < 0)
+    if ( (err = Base64_Encode(der, derSz, output + i, (word32*)&outLen)) < 0) {
+#ifdef CYASSL_SMALL_STACK
+        XFREE(footer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
         return err;
+    }
     i += outLen;
 
     /* footer */
-    if ( (i + footerLen) > (int)outSz)
+    if ( (i + footerLen) > (int)outSz) {
+#ifdef CYASSL_SMALL_STACK
+        XFREE(footer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
         return BAD_FUNC_ARG;
+    }
     XMEMCPY(output + i, footer, footerLen);
+
+#ifdef CYASSL_SMALL_STACK
+    XFREE(footer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 
     return outLen + headerLen + footerLen;
 }
