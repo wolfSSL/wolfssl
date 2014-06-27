@@ -4759,22 +4759,62 @@ static int SetSerial(const byte* serial, byte* output)
 /* Write a public ECC key to output */
 static int SetEccPublicKey(byte* output, ecc_key* key)
 {
-    byte algo[MAX_ALGO_SZ];
-    byte curve[MAX_ALGO_SZ];
     byte len[MAX_LENGTH_SZ + 1];  /* trailing 0 */
-    byte pub[ECC_BUFSIZE];
     int  algoSz;
     int  curveSz;
     int  lenSz;
     int  idx;
-    word32 pubSz = sizeof(pub);
+    word32 pubSz = ECC_BUFSIZE;
+#ifdef CYASSL_SMALL_STACK
+    byte* algo = NULL;
+    byte* curve = NULL;
+    byte* pub = NULL;
+#else
+    byte algo[MAX_ALGO_SZ];
+    byte curve[MAX_ALGO_SZ];
+    byte pub[ECC_BUFSIZE];
+#endif
+
+#ifdef CYASSL_SMALL_STACK
+    pub = (byte*)XMALLOC(ECC_BUFSIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (pub == NULL)
+        return MEMORY_E;
+#endif
 
     int ret = ecc_export_x963(key, pub, &pubSz);
-    if (ret != 0) return ret;
+    if (ret != 0) {
+#ifdef CYASSL_SMALL_STACK
+        XFREE(pub, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+        return ret;
+    }
+
+#ifdef CYASSL_SMALL_STACK
+    curve = (byte*)XMALLOC(MAX_ALGO_SZ, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (curve == NULL) {
+        XFREE(pub, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        return MEMORY_E;
+    }
+#endif
 
     /* headers */
     curveSz = SetCurve(key, curve);
-    if (curveSz <= 0) return curveSz;
+    if (curveSz <= 0) {
+#ifdef CYASSL_SMALL_STACK
+        XFREE(curve, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(pub,   NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+        return curveSz;
+    }
+
+#ifdef CYASSL_SMALL_STACK
+    algo = (byte*)XMALLOC(MAX_ALGO_SZ, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (algo == NULL) {
+        XFREE(curve, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(pub,   NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        return MEMORY_E;
+    }
+#endif
 
     algoSz  = SetAlgoID(ECDSAk, algo, keyType, curveSz);
     lenSz   = SetLength(pubSz + 1, len);
@@ -4797,6 +4837,12 @@ static int SetEccPublicKey(byte* output, ecc_key* key)
     /* pub */
     XMEMCPY(output + idx, pub, pubSz);
     idx += pubSz;
+
+#ifdef CYASSL_SMALL_STACK
+    XFREE(algo,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(curve, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(pub,   NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 
     return idx;
 }
