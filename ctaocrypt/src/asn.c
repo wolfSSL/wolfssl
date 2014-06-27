@@ -1664,34 +1664,61 @@ static int GetKey(DecodedCert* cert)
             const byte* key = &cert->source[tmpIdx];
             byte*       next = (byte*)key;
             word16      keyLen;
-            byte        keyBlob[MAX_NTRU_KEY_SZ];
             word32      rc;
+#ifdef CYASSL_SMALL_STACK
+            byte*       keyBlob = NULL;
+#else
+            byte        keyBlob[MAX_NTRU_KEY_SZ];
+#endif
 
             rc = ntru_crypto_ntru_encrypt_subjectPublicKeyInfo2PublicKey(key,
                                 &keyLen, NULL, &next);
 
             if (rc != NTRU_OK)
                 return ASN_NTRU_KEY_E;
-            if (keyLen > sizeof(keyBlob))
+            if (keyLen > MAX_NTRU_KEY_SZ)
                 return ASN_NTRU_KEY_E;
+
+#ifdef CYASSL_SMALL_STACK
+            keyBlob = (byte*)XMALLOC(MAX_NTRU_KEY_SZ, NULL,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+            if (keyBlob == NULL)
+                return MEMORY_E;
+#endif
 
             rc = ntru_crypto_ntru_encrypt_subjectPublicKeyInfo2PublicKey(key,
                                 &keyLen, keyBlob, &next);
-            if (rc != NTRU_OK)
+            if (rc != NTRU_OK) {
+#ifdef CYASSL_SMALL_STACK
+                XFREE(keyBlob, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
                 return ASN_NTRU_KEY_E;
+            }
 
-            if ( (next - key) < 0)
+            if ( (next - key) < 0) {
+#ifdef CYASSL_SMALL_STACK
+                XFREE(keyBlob, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
                 return ASN_NTRU_KEY_E;
+            }
 
             cert->srcIdx = tmpIdx + (int)(next - key);
 
             cert->publicKey = (byte*) XMALLOC(keyLen, cert->heap,
                                               DYNAMIC_TYPE_PUBLIC_KEY);
-            if (cert->publicKey == NULL)
+            if (cert->publicKey == NULL) {
+#ifdef CYASSL_SMALL_STACK
+                XFREE(keyBlob, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
                 return MEMORY_E;
+            }
             XMEMCPY(cert->publicKey, keyBlob, keyLen);
             cert->pubKeyStored = 1;
             cert->pubKeySize   = keyLen;
+
+#ifdef CYASSL_SMALL_STACK
+            XFREE(keyBlob, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 
             return 0;
         }
