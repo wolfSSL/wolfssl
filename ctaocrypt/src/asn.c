@@ -5254,8 +5254,19 @@ static int SetCa(byte* output)
 /* encode CertName into output, return total bytes written */
 static int SetName(byte* output, CertName* name)
 {
-    int         totalBytes = 0, i, idx;
-    EncodedName names[NAME_ENTRIES];
+    int          totalBytes = 0, i, idx;
+#ifdef CYASSL_SMALL_STACK
+    EncodedName* names = NULL;
+#else
+    EncodedName  names[NAME_ENTRIES];
+#endif
+
+#ifdef CYASSL_SMALL_STACK
+    names = (EncodedName*)XMALLOC(sizeof(EncodedName) * NAME_ENTRIES, NULL,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+    if (names == NULL)
+        return MEMORY_E;
+#endif
 
     for (i = 0; i < NAME_ENTRIES; i++) {
         const char* nameStr = GetOneName(name, i);
@@ -5297,8 +5308,12 @@ static int SetName(byte* output, CertName* name)
             setSz = SetSet(thisLen, set);
             thisLen += setSz;
 
-            if (thisLen > (int)sizeof(names[i].encoded))
+            if (thisLen > (int)sizeof(names[i].encoded)) {
+#ifdef CYASSL_SMALL_STACK
+                XFREE(names, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
                 return BUFFER_E;
+            }
 
             /* store it */
             idx = 0;
@@ -5348,8 +5363,12 @@ static int SetName(byte* output, CertName* name)
     /* header */
     idx = SetSequence(totalBytes, output);
     totalBytes += idx;
-    if (totalBytes > ASN_NAME_MAX)
+    if (totalBytes > ASN_NAME_MAX) {
+#ifdef CYASSL_SMALL_STACK
+        XFREE(names, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
         return BUFFER_E;
+    }
 
     for (i = 0; i < NAME_ENTRIES; i++) {
         if (names[i].used) {
@@ -5357,6 +5376,11 @@ static int SetName(byte* output, CertName* name)
             idx += names[i].totalLen;
         }
     }
+
+#ifdef CYASSL_SMALL_STACK
+    XFREE(names, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
     return totalBytes;
 }
 
