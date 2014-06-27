@@ -4854,9 +4854,15 @@ static int SetEccPublicKey(byte* output, ecc_key* key)
 /* Write a public RSA key to output */
 static int SetRsaPublicKey(byte* output, RsaKey* key)
 {
+#ifdef CYASSL_SMALL_STACK
+    byte* n = NULL;
+    byte* e = NULL;
+    byte* algo = NULL;
+#else
     byte n[MAX_RSA_INT_SZ];
     byte e[MAX_RSA_E_SZ];
     byte algo[MAX_ALGO_SZ];
+#endif
     byte seq[MAX_SEQ_SZ];
     byte len[MAX_LENGTH_SZ + 1];  /* trailing 0 */
     int  nSz;
@@ -4870,40 +4876,83 @@ static int SetRsaPublicKey(byte* output, RsaKey* key)
     int  err;
 
     /* n */
+#ifdef CYASSL_SMALL_STACK
+    n = (byte*)XMALLOC(MAX_RSA_INT_SZ, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (n == NULL)
+        return MEMORY_E;
+#endif
+
     leadingBit = mp_leading_bit(&key->n);
     rawLen = mp_unsigned_bin_size(&key->n) + leadingBit;
     n[0] = ASN_INTEGER;
     nSz  = SetLength(rawLen, n + 1) + 1;  /* int tag */
 
-    if ( (nSz + rawLen) < (int)sizeof(n)) {
+    if ( (nSz + rawLen) < MAX_RSA_INT_SZ) {
         if (leadingBit)
             n[nSz] = 0;
         err = mp_to_unsigned_bin(&key->n, n + nSz + leadingBit);
         if (err == MP_OKAY)
             nSz += rawLen;
-        else
+        else {
+#ifdef CYASSL_SMALL_STACK
+            XFREE(n, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
             return MP_TO_E;
+        }
     }
-    else
+    else {
+#ifdef CYASSL_SMALL_STACK
+        XFREE(n, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
         return BUFFER_E;
+    }
 
     /* e */
+#ifdef CYASSL_SMALL_STACK
+    e = (byte*)XMALLOC(MAX_RSA_E_SZ, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (e == NULL) {
+#ifdef CYASSL_SMALL_STACK
+        XFREE(n, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+        return MEMORY_E;
+    }
+#endif
+
     leadingBit = mp_leading_bit(&key->e);
     rawLen = mp_unsigned_bin_size(&key->e) + leadingBit;
     e[0] = ASN_INTEGER;
     eSz  = SetLength(rawLen, e + 1) + 1;  /* int tag */
 
-    if ( (eSz + rawLen) < (int)sizeof(e)) {
+    if ( (eSz + rawLen) < MAX_RSA_E_SZ) {
         if (leadingBit)
             e[eSz] = 0;
         err = mp_to_unsigned_bin(&key->e, e + eSz + leadingBit);
         if (err == MP_OKAY)
             eSz += rawLen;
-        else
+        else {
+#ifdef CYASSL_SMALL_STACK
+            XFREE(n, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(e, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
             return MP_TO_E;
+        }
     }
-    else
+    else {
+#ifdef CYASSL_SMALL_STACK
+        XFREE(n, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(e, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
         return BUFFER_E;
+    }
+
+#ifdef CYASSL_SMALL_STACK
+    algo = (byte*)XMALLOC(MAX_ALGO_SZ, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (algo == NULL) {
+        XFREE(n, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(e, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        return MEMORY_E;
+    }
+#endif
 
     /* headers */
     algoSz = SetAlgoID(RSAk, algo, keyType, 0);
@@ -4931,6 +4980,12 @@ static int SetRsaPublicKey(byte* output, RsaKey* key)
     /* e */
     XMEMCPY(output + idx, e, eSz);
     idx += eSz;
+
+#ifdef CYASSL_SMALL_STACK
+    XFREE(n,    NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(e,    NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(algo, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 
     return idx;
 }
