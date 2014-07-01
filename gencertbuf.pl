@@ -54,22 +54,32 @@ print OUT_FILE "#define CYASSL_CERTS_TEST_H\n\n";
 
 # convert and print 1024-bit cert/keys
 print OUT_FILE "#ifdef USE_CERT_BUFFERS_1024\n\n";
-for(my $i = 0; $i < $num_1024; $i++) {
-    print OUT_FILE "/* $fileList_1024[$i][0], 1024-bit */\n";
-    print OUT_FILE "const unsigned char $fileList_1024[$i][1]\[] =\n";
+for (my $i = 0; $i < $num_1024; $i++) {
+
+    my $fname = $fileList_1024[$i][0];
+    my $sname = $fileList_1024[$i][1];
+
+    print OUT_FILE "/* $fname, 1024-bit */\n";
+    print OUT_FILE "const unsigned char $sname\[] =\n";
     print OUT_FILE "{\n";
-    file_to_hex($fileList_1024[$i][0]);
-    print OUT_FILE "};\n\n";
+    file_to_hex($fname);
+    print OUT_FILE "};\n";
+    print OUT_FILE "const int sizeof_$sname = sizeof($sname);\n\n";
 }
 
 # convert and print 2048-bit certs/keys
 print OUT_FILE "#elif defined(USE_CERT_BUFFERS_2048)\n\n";
-for(my $i = 0; $i < $num_2048; $i++) {
-    print OUT_FILE "/* $fileList_2048[$i][0], 2048-bit */\n";
-    print OUT_FILE "const unsigned char $fileList_2048[$i][1]\[] =\n";
+for (my $i = 0; $i < $num_2048; $i++) {
+
+    my $fname = $fileList_2048[$i][0];
+    my $sname = $fileList_2048[$i][1];
+
+    print OUT_FILE "/* $fname, 2048-bit */\n";
+    print OUT_FILE "const unsigned char $sname\[] =\n";
     print OUT_FILE "{\n";
-    file_to_hex($fileList_2048[$i][0]);
-    print OUT_FILE "};\n\n";
+    file_to_hex($fname);
+    print OUT_FILE "};\n";
+    print OUT_FILE "const int sizeof_$sname = sizeof($sname);\n\n";
 }
 
 print OUT_FILE "#endif /* USE_CERT_BUFFERS_1024 */\n\n";
@@ -111,3 +121,4 @@ sub file_to_hex {
 
     close($fp); 
 }
+
