@@ -990,32 +990,6 @@ int  SetCipherList(Suites*, const char* list);
 #endif /* PSK_TYPES_DEFINED */
 
 
-#ifndef CYASSL_USER_IO
-    /* default IO callbacks */
-    CYASSL_LOCAL
-    int EmbedReceive(CYASSL *ssl, char *buf, int sz, void *ctx);
-    CYASSL_LOCAL 
-    int EmbedSend(CYASSL *ssl, char *buf, int sz, void *ctx);
-
-    #ifdef HAVE_OCSP
-        CYASSL_LOCAL
-        int EmbedOcspLookup(void*, const char*, int, byte*, int, byte**);
-        CYASSL_LOCAL
-        void EmbedOcspRespFree(void*, byte*);
-    #endif
-
-    #ifdef CYASSL_DTLS
-        CYASSL_LOCAL
-        int EmbedReceiveFrom(CYASSL *ssl, char *buf, int sz, void *ctx);
-        CYASSL_LOCAL 
-        int EmbedSendTo(CYASSL *ssl, char *buf, int sz, void *ctx);
-        CYASSL_LOCAL
-        int EmbedGenerateCookie(CYASSL* ssl, byte *buf, int sz, void *ctx);
-        CYASSL_LOCAL
-        int IsUDP(void*);
-    #endif /* CYASSL_DTLS */
-#endif /* CYASSL_USER_IO */
-
 #ifdef HAVE_NETX
     CYASSL_LOCAL int NetX_Receive(CYASSL *ssl, char *buf, int sz, void *ctx);
     CYASSL_LOCAL int NetX_Send(CYASSL *ssl, char *buf, int sz, void *ctx);

@@ -938,6 +938,27 @@ CYASSL_API void* CyaSSL_GetIOWriteCtx(CYASSL* ssl);
 CYASSL_API void CyaSSL_SetIOReadFlags( CYASSL* ssl, int flags);
 CYASSL_API void CyaSSL_SetIOWriteFlags(CYASSL* ssl, int flags);
 
+
+#ifndef CYASSL_USER_IO
+    /* default IO callbacks */
+    CYASSL_API int EmbedReceive(CYASSL* ssl, char* buf, int sz, void* ctx);
+    CYASSL_API int EmbedSend(CYASSL* ssl, char* buf, int sz, void* ctx);
+
+    #ifdef HAVE_OCSP
+        CYASSL_API int EmbedOcspLookup(void*, const char*, int, unsigned char*,
+                                       int, unsigned char**);
+        CYASSL_API void EmbedOcspRespFree(void*, unsigned char*);
+    #endif
+
+    #ifdef CYASSL_DTLS
+        CYASSL_API int EmbedReceiveFrom(CYASSL* ssl, char* buf, int sz, void*);
+        CYASSL_API int EmbedSendTo(CYASSL* ssl, char* buf, int sz, void* ctx);
+        CYASSL_API int EmbedGenerateCookie(CYASSL* ssl, unsigned char* buf,
+                                           int sz, void*);
+    #endif /* CYASSL_DTLS */
+#endif /* CYASSL_USER_IO */
+
+
 #ifdef HAVE_NETX
     CYASSL_API void CyaSSL_SetIO_NetX(CYASSL* ssl, NX_TCP_SOCKET* nxsocket,
                                       ULONG waitoption);
