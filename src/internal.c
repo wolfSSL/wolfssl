@@ -2461,7 +2461,6 @@ static int HashInput(CYASSL* ssl, const byte* input, int sz)
 #ifndef NO_MD5
     Md5Update(&ssl->hashMd5, adj, sz);
 #endif
-//    Poly1305Update(&ssl->hashMd5, adj, sz);
 #endif
 
     if (IsAtLeastTLSv1_2(ssl)) {
@@ -2975,25 +2974,6 @@ static void BuildMD5(CYASSL* ssl, Hashes* hashes, const byte* sender)
 }
 
 
-///* calculate POLY13055 hash for finished */
-//static void BuildMD5(CYASSL* ssl, Hashes* hashes, const byte* sender)
-//{
-//    byte poly1305_result[POLY1305_DIGEST_SIZE];
-//
-//    /* make poly1305 inner */    
-//    Poly1305Update(&ssl->hashPoly1305, sender, SIZEOF_SENDER);
-//    Poly1305Update(&ssl->hashPoly1305, ssl->arrays->masterSecret, SECRET_LEN);
-//    Poly1305Update(&ssl->hashPoly1305, PAD1, PAD_POLY1305);
-//    Poly1305Final(&ssl->hashPoly1305, poly1305_result);
-//
-//    /* make poly1305 outer */
-//    Poly1305Update(&ssl->hashPoly1305, ssl->arrays->masterSecret, SECRET_LEN);
-//    Poly1305Update(&ssl->hashPoly1305, PAD2, PAD_POLY1305);
-//    Poly1305Update(&ssl->hashPoly1305, poly1305_result, POLY1305_DIGEST_SIZE);
-//
-//    Poly1305Final(&ssl->hashPoly1305, hashes->poly1305);
-//}
-
 /* calculate SHA hash for finished */
 static void BuildSHA(CYASSL* ssl, Hashes* hashes, const byte* sender)
 {
@@ -3022,9 +3002,6 @@ static int BuildFinished(CYASSL* ssl, Hashes* hashes, const byte* sender)
 #ifndef NO_MD5
     Md5 md5 = ssl->hashMd5;
 #endif
-
-//    Poly1305 poly1305 = ssl->hashPoly1305;
-
 #ifndef NO_SHA
     Sha sha = ssl->hashSha;
 #endif
@@ -3047,7 +3024,6 @@ static int BuildFinished(CYASSL* ssl, Hashes* hashes, const byte* sender)
     if (!ssl->options.tls) {
         BuildMD5(ssl, hashes, sender);
         BuildSHA(ssl, hashes, sender);
-//        BuildPOLY1305(ssl, hashes, sender);
     }
 #endif
     
@@ -5749,7 +5725,6 @@ static int BuildCertHashes(CYASSL* ssl, Hashes* hashes)
     /* store current states, building requires get_digest which resets state */
     #ifndef NO_OLD_TLS
     Md5 md5 = ssl->hashMd5;
-//    Poly1305 poly1305 = ssl->hashPoly1305;
     Sha sha = ssl->hashSha;
     #endif
     #ifndef NO_SHA256
@@ -5762,7 +5737,6 @@ static int BuildCertHashes(CYASSL* ssl, Hashes* hashes)
     if (ssl->options.tls) {
 #if ! defined( NO_OLD_TLS )
         Md5Final(&ssl->hashMd5, hashes->md5);
-//        Poly1305Final(&ssl->hashPoly1305, hashes->poly1305);
         ShaFinal(&ssl->hashSha, hashes->sha);
 #endif
         if (IsAtLeastTLSv1_2(ssl)) {
@@ -7126,14 +7100,6 @@ static const char* const cipher_names[] =
     "ECDHE-RSA-CHACHA20-256-POLY1305-SHA256",
 #endif
 
-#ifdef BUILD_TLS_ECDH_RSA_WITH_CHACHA20_256_SHA
-    "ECDH-RSA-CHACHA20-256-SHA",
-#endif
-
-#ifdef BUILD_TLS_ECDH_RSA_WITH_RC4_128_POLY1305
-    "ECDH-RSA-RC4-128-POLY1305"
-#endif
-
 };
 
 
@@ -7460,14 +7426,6 @@ static int cipher_name_idx[] =
 
 #ifdef BUILD_TLS_ECDHE_RSA_WITH_CHACHA20_256_POLY1305_SHA256
     TLS_ECDHE_RSA_WITH_CHACHA20_256_POLY1305_SHA256,
-#endif
-
-#ifdef BUILD_TLS_ECDH_RSA_WITH_CHACHA20_256_SHA
-    TLS_ECDH_RSA_WITH_CHACHA20_256_SHA,
-#endif
-
-#ifdef BUILD_TLS_ECDH_RSA_WITH_RC4_128_POLY1305_SHA
-    TLS_ECDH_RSA_WITH_RC4_128_POLY1305
 #endif
 };
 
@@ -8338,7 +8296,6 @@ static void PickHashSigAlgo(CYASSL* ssl,
     {
 #ifndef NO_OLD_TLS
         Md5      md5;
-//        Poly1305 poly1305;
         Sha      sha;
 #endif
 #ifndef NO_SHA256
