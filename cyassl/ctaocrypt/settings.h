@@ -270,6 +270,10 @@
     #define DESTROY_ARRAY(var)
 #endif
 
+#define DECLARE_VAR(type, var) DECLARE_ARRAY(type, var, 1)
+#define CREATE_VAR(type, var)  CREATE_ARRAY(type, var, 1)
+#define DESTROY_VAR(var)       DESTROY_ARRAY(var)
+
 #ifdef FREERTOS
     #ifndef NO_WRITEV
         #define NO_WRITEV

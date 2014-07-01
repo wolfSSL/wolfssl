@@ -35,14 +35,11 @@
 #include <cyassl/ctaocrypt/integer.h>
 #include <cyassl/ctaocrypt/asn.h>
 #include <cyassl/ctaocrypt/coding.h>
-#include <cyassl/ctaocrypt/sha.h>
-#include <cyassl/ctaocrypt/md5.h>
 #include <cyassl/ctaocrypt/md2.h>
+#include <cyassl/ctaocrypt/hmac.h>
 #include <cyassl/ctaocrypt/error-crypt.h>
 #include <cyassl/ctaocrypt/pwdbased.h>
 #include <cyassl/ctaocrypt/des3.h>
-#include <cyassl/ctaocrypt/sha256.h>
-#include <cyassl/ctaocrypt/sha512.h>
 #include <cyassl/ctaocrypt/logging.h>
 
 #include <cyassl/ctaocrypt/random.h>
@@ -2842,50 +2839,56 @@ word32 EncodeSignature(byte* out, const byte* digest, word32 digSz, int hashOID)
 }
 
 
-/* return true (1) for Confirmation */
+/* return true (1) or false (0) for Confirmation */
 static int ConfirmSignature(const byte* buf, word32 bufSz,
     const byte* key, word32 keySz, word32 keyOID,
     const byte* sig, word32 sigSz, word32 sigOID,
     void* heap)
 {
-#ifdef CYASSL_SHA512
-    byte digest[SHA512_DIGEST_SIZE]; /* max size */
-#elif !defined(NO_SHA256)
-    byte digest[SHA256_DIGEST_SIZE]; /* max size */
-#else
-    byte digest[SHA_DIGEST_SIZE];    /* max size */
-#endif
-    int  typeH, digestSz, ret = 0;
+    int  typeH = 0, digestSz = 0, ret = 0;
+    DECLARE_ARRAY(byte, digest, MAX_DIGEST_SIZE);
+
+    if (!CREATE_ARRAY(byte, digest, MAX_DIGEST_SIZE))
+        return 0; /* not confirmed */
 
     (void)key;
     (void)keySz;
     (void)sig;
     (void)sigSz;
     (void)heap;
-    (void)ret;
 
     switch (sigOID) {
 #ifndef NO_MD5
         case CTC_MD5wRSA:
         {
-            Md5 md5;
-            InitMd5(&md5);
-            Md5Update(&md5, buf, bufSz);
-            Md5Final(&md5, digest);
-            typeH    = MD5h;
-            digestSz = MD5_DIGEST_SIZE;
+            DECLARE_VAR(Md5, md5);
+            
+            if (CREATE_VAR(Md5, md5)) {
+                InitMd5(md5);
+                Md5Update(md5, buf, bufSz);
+                Md5Final(md5, digest);
+            
+                typeH    = MD5h;
+                digestSz = MD5_DIGEST_SIZE;
+                DESTROY_VAR(md5);
+            }
         }
         break;
 #endif
     #if defined(CYASSL_MD2)
         case CTC_MD2wRSA:
         {
-            Md2 md2;
-            InitMd2(&md2);
-            Md2Update(&md2, buf, bufSz);
-            Md2Final(&md2, digest);
-            typeH    = MD2h;
-            digestSz = MD2_DIGEST_SIZE;
+            DECLARE_VAR(Md2, md2);
+            
+            if (CREATE_VAR(Md2, md2)) {
+                InitMd2(md2);
+                Md2Update(md2, buf, bufSz);
+                Md2Final(md2, digest);
+            
+                typeH    = MD2h;
+                digestSz = MD2_DIGEST_SIZE;
+                DESTROY_VAR(md2);
+            }
         }
         break;
     #endif
@@ -2894,16 +2897,22 @@ static int ConfirmSignature(const byte* buf, word32 bufSz,
         case CTC_SHAwDSA:
         case CTC_SHAwECDSA:
         {
-            Sha sha;
-            ret = InitSha(&sha);
-            if (ret != 0) {
-                CYASSL_MSG("InitSha failed");
-                return 0;  /*  not confirmed */
+            DECLARE_VAR(Sha, sha);
+            
+            if (CREATE_VAR(Sha, sha)) {
+                if (InitSha(sha) != 0) {
+                    CYASSL_MSG("InitSha failed");
+                }
+                else {
+                    ShaUpdate(sha, buf, bufSz);
+                    ShaFinal(sha, digest);
+            
+                    typeH    = SHAh;
+                    digestSz = SHA_DIGEST_SIZE;                
+                }
+                
+                DESTROY_VAR(sha);
             }
-            ShaUpdate(&sha, buf, bufSz);
-            ShaFinal(&sha, digest);
-            typeH    = SHAh;
-            digestSz = SHA_DIGEST_SIZE;
         }
         break;
 #endif
@@ -2911,27 +2920,25 @@ static int ConfirmSignature(const byte* buf, word32 bufSz,
         case CTC_SHA256wRSA:
         case CTC_SHA256wECDSA:
         {
-            Sha256 sha256;
-            ret = InitSha256(&sha256);
-            if (ret != 0) {
-                CYASSL_MSG("InitSha256 failed");
-                return 0;  /*  not confirmed */
+            DECLARE_VAR(Sha256, sha256);
+            
+            if (CREATE_VAR(Sha256, sha256)) {
+                if (InitSha256(sha256) != 0) {
+                    CYASSL_MSG("InitSha256 failed");
+                }
+                else if (Sha256Update(sha256, buf, bufSz) != 0) {
+                    CYASSL_MSG("Sha256Update failed");
+                }
+                else if (Sha256Final(sha256, digest) != 0) {
+                    CYASSL_MSG("Sha256Final failed");
+                }
+                else {
+                    typeH    = SHA256h;
+                    digestSz = SHA256_DIGEST_SIZE;
+                }
+                
+                DESTROY_VAR(sha256);
             }
-
-            ret = Sha256Update(&sha256, buf, bufSz);
-            if (ret != 0) {
-                CYASSL_MSG("Sha256Update failed");
-                return 0;  /*  not confirmed */
-            }
-
-            ret = Sha256Final(&sha256, digest);
-            if (ret != 0) {
-                CYASSL_MSG("Sha256Final failed");
-                return 0;  /*  not confirmed */
-            }
-
-            typeH    = SHA256h;
-            digestSz = SHA256_DIGEST_SIZE;
         }
         break;
     #endif
@@ -2939,27 +2946,25 @@ static int ConfirmSignature(const byte* buf, word32 bufSz,
         case CTC_SHA512wRSA:
         case CTC_SHA512wECDSA:
         {
-            Sha512 sha512;
-            ret = InitSha512(&sha512);
-            if (ret != 0) {
-                CYASSL_MSG("InitSha512 failed");
-                return 0;  /*  not confirmed */
+            DECLARE_VAR(Sha512, sha512);
+            
+            if (CREATE_VAR(Sha512, sha512)) {
+                if (InitSha512(sha512) != 0) {
+                    CYASSL_MSG("InitSha512 failed");
+                }
+                else if (Sha512Update(sha512, buf, bufSz) != 0) {
+                    CYASSL_MSG("Sha512Update failed");
+                }
+                else if (Sha512Final(sha512, digest) != 0) {
+                    CYASSL_MSG("Sha512Final failed");
+                }
+                else {
+                    typeH    = SHA512h;
+                    digestSz = SHA512_DIGEST_SIZE;
+                }
+                
+                DESTROY_VAR(sha512);
             }
-
-            ret = Sha512Update(&sha512, buf, bufSz);
-            if (ret != 0) {
-                CYASSL_MSG("Sha512Update failed");
-                return 0;  /*  not confirmed */
-            }
-
-            ret = Sha512Final(&sha512, digest);
-            if (ret != 0) {
-                CYASSL_MSG("Sha512Final failed");
-                return 0;  /*  not confirmed */
-            }
-
-            typeH    = SHA512h;
-            digestSz = SHA512_DIGEST_SIZE;
         }
         break;
     #endif
@@ -2967,127 +2972,149 @@ static int ConfirmSignature(const byte* buf, word32 bufSz,
         case CTC_SHA384wRSA:
         case CTC_SHA384wECDSA:
         {
-            Sha384 sha384;
-            ret = InitSha384(&sha384);
-            if (ret != 0) {
-                CYASSL_MSG("InitSha384 failed");
-                return 0;  /*  not confirmed */
-            }
+            DECLARE_VAR(Sha384, sha384);
+            
+            if (CREATE_VAR(Sha384, sha384)) {
+                if (InitSha384(sha384) != 0) {
+                    CYASSL_MSG("InitSha384 failed");
+                }
+                else if (Sha384Update(sha384, buf, bufSz) != 0) {
+                    CYASSL_MSG("Sha384Update failed");
+                }
+                else if (Sha384Final(sha384, digest) != 0) {
+                    CYASSL_MSG("Sha384Final failed");
+                }
+                else {
+                    typeH    = SHA384h;
+                    digestSz = SHA384_DIGEST_SIZE;
+                }            
 
-            ret = Sha384Update(&sha384, buf, bufSz);
-            if (ret != 0) {
-                CYASSL_MSG("Sha384Update failed");
-                return 0;  /*  not confirmed */
+                DESTROY_VAR(sha384);
             }
-
-            ret = Sha384Final(&sha384, digest);
-            if (ret != 0) {
-                CYASSL_MSG("Sha384Final failed");
-                return 0;  /*  not confirmed */
-            }
-
-            typeH    = SHA384h;
-            digestSz = SHA384_DIGEST_SIZE;
         }
         break;
     #endif
         default:
             CYASSL_MSG("Verify Signautre has unsupported type");
-            return 0;
     }
-    (void)typeH;  /* some builds won't read */
+    
+    if (typeH == 0) {
+        DESTROY_ARRAY(digest);        
+        return 0; /* not confirmed */
+    }
 
     switch (keyOID) {
     #ifndef NO_RSA
         case RSAk:
         {
-            RsaKey pubKey;
-            byte   encodedSig[MAX_ENCODED_SIG_SZ];
-            byte   plain[MAX_ENCODED_SIG_SZ];
             word32 idx = 0;
             int    encodedSigSz, verifySz;
             byte*  out;
-
+            DECLARE_VAR(RsaKey, pubKey);
+            DECLARE_ARRAY(byte, plain,      MAX_ENCODED_SIG_SZ);
+            DECLARE_ARRAY(byte, encodedSig, MAX_ENCODED_SIG_SZ);
+            
             if (sigSz > MAX_ENCODED_SIG_SZ) {
                 CYASSL_MSG("Verify Signautre is too big");
-                return 0;
             }
-                
-            ret = InitRsaKey(&pubKey, heap);
-            if (ret != 0) return ret;
-            if (RsaPublicKeyDecode(key, &idx, &pubKey, keySz) < 0) {
+            else if (!CREATE_VAR(RsaKey, pubKey)) {
+                CYASSL_MSG("Failed to allocate pubKey");
+            }
+            else if (InitRsaKey(pubKey, heap) != 0) {
+                CYASSL_MSG("InitRsaKey failed");
+            }
+            else if (RsaPublicKeyDecode(key, &idx, pubKey, keySz) < 0) {
                 CYASSL_MSG("ASN Key decode error RSA");
-                ret = 0;
             }
-            else {
+            else if (CREATE_ARRAY(byte, plain, MAX_ENCODED_SIG_SZ)) {
                 XMEMCPY(plain, sig, sigSz);
-                if ( (verifySz = RsaSSL_VerifyInline(plain, sigSz, &out,
-                                               &pubKey)) < 0) {
+
+                if ((verifySz = RsaSSL_VerifyInline(plain, sigSz, &out,
+                                                                 pubKey)) < 0) {
                     CYASSL_MSG("Rsa SSL verify error");
-                    ret = 0;
                 }
-                else {
+                else if (CREATE_ARRAY(byte, encodedSig, MAX_ENCODED_SIG_SZ)) {
                     /* make sure we're right justified */
                     encodedSigSz =
                         EncodeSignature(encodedSig, digest, digestSz, typeH);
                     if (encodedSigSz != verifySz ||
                                 XMEMCMP(out, encodedSig, encodedSigSz) != 0) {
                         CYASSL_MSG("Rsa SSL verify match encode error");
-                        ret = 0;
                     }
                     else
                         ret = 1; /* match */
 
                     #ifdef CYASSL_DEBUG_ENCODING
                     {
-                    int x;
-                    printf("cyassl encodedSig:\n");
-                    for (x = 0; x < encodedSigSz; x++) {
-                        printf("%02x ", encodedSig[x]);
-                        if ( (x % 16) == 15)
-                            printf("\n");
-                    }
-                    printf("\n");
-                    printf("actual digest:\n");
-                    for (x = 0; x < verifySz; x++) {
-                        printf("%02x ", out[x]);
-                        if ( (x % 16) == 15)
-                            printf("\n");
-                    }
-                    printf("\n");
+                        int x;
+                        
+                        printf("cyassl encodedSig:\n");
+                        
+                        for (x = 0; x < encodedSigSz; x++) {
+                            printf("%02x ", encodedSig[x]);
+                            if ( (x % 16) == 15)
+                                printf("\n");
+                        }
+                        
+                        printf("\n");
+                        printf("actual digest:\n");
+                        
+                        for (x = 0; x < verifySz; x++) {
+                            printf("%02x ", out[x]);
+                            if ( (x % 16) == 15)
+                                printf("\n");
+                        }
+                        
+                        printf("\n");
                     }
                     #endif /* CYASSL_DEBUG_ENCODING */
+                    
+                    DESTROY_ARRAY(encodedSig);
                 }
+                
+                DESTROY_ARRAY(plain);
             }
-            FreeRsaKey(&pubKey);
-            return ret;
+            
+            if (pubKey) {
+                FreeRsaKey(pubKey);
+                DESTROY_VAR(pubKey);
+            }
         }
 
     #endif /* NO_RSA */
     #ifdef HAVE_ECC
         case ECDSAk:
         {
-            ecc_key pubKey;
-            int     verify = 0;
-            
-            if (ecc_import_x963(key, keySz, &pubKey) < 0) {
-                CYASSL_MSG("ASN Key import error ECC");
-                return 0;
-            }
-        
-            ret = ecc_verify_hash(sig,sigSz,digest,digestSz,&verify,&pubKey);
-            ecc_free(&pubKey);
-            if (ret == 0 && verify == 1)
-                return 1;  /* match */
+            int verify = 0;
+            DECLARE_VAR(ecc_key, pubKey);
 
-            CYASSL_MSG("ECC Verify didn't match");
-            return 0;
+            if (!CREATE_VAR(ecc_key, pubKey)) {
+                CYASSL_MSG("Failed to allocate pubKey");
+            }
+            else if (ecc_import_x963(key, keySz, pubKey) < 0) {
+                CYASSL_MSG("ASN Key import error ECC");
+            }
+            else if (ecc_verify_hash(sig, sigSz, digest, digestSz, &verify,
+                                                                pubKey) != 0) {
+                CYASSL_MSG("ECC verify hash error");
+            }
+            else if (1 != verify) {
+                CYASSL_MSG("ECC Verify didn't match");
+            } else
+                ret = 1; /* match */
+             
+            if (pubKey) {
+                ecc_free(pubKey);
+                DESTROY_VAR(pubKey);
+            }
         }
     #endif /* HAVE_ECC */
         default:
             CYASSL_MSG("Verify Key type unknown");
-            return 0;
     }
+    
+    DESTROY_ARRAY(digest);
+    return ret;
 }
 
 
