@@ -189,7 +189,7 @@ enum Block_Sum {
 enum Key_Sum {
     DSAk   = 515,
     RSAk   = 645,
-    NTRUk  = 274,
+    NTRUk  = 364,
     ECDSAk = 518
 };
 
@@ -340,8 +340,7 @@ struct DecodedCert {
 #endif /* HAVE_OCSP */
     byte*   signature;               /* not owned, points into raw cert  */
     char*   subjectCN;               /* CommonName                       */
-    int     subjectCNLen;            /* CommonName Length                */
-    char    subjectCNEnc;            /* CommonName Encoding              */
+    int     subjectCNLen;
     int     subjectCNStored;         /* have we saved a copy we own      */
     char    issuer[ASN_NAME_MAX];    /* full name including common name  */
     char    subject[ASN_NAME_MAX];   /* full name including common name  */
@@ -412,22 +411,16 @@ struct DecodedCert {
     /* easy access to subject info for other sign */
     char*   subjectSN;
     int     subjectSNLen;
-    char    subjectSNEnc;
     char*   subjectC;
     int     subjectCLen;
-    char    subjectCEnc;
     char*   subjectL;
     int     subjectLLen;
-    char    subjectLEnc;
     char*   subjectST;
     int     subjectSTLen;
-    char    subjectSTEnc;
     char*   subjectO;
     int     subjectOLen;
-    char    subjectOEnc;
     char*   subjectOU;
     int     subjectOULen;
-    char    subjectOUEnc;
     char*   subjectEmail;
     int     subjectEmailLen;
 #endif /* CYASSL_CERT_GEN */

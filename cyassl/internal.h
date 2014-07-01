@@ -31,10 +31,12 @@
 #include <cyassl/ctaocrypt/des3.h>
 #include <cyassl/ctaocrypt/hc128.h>
 #include <cyassl/ctaocrypt/rabbit.h>
+#include <cyassl/ctaocrypt/chacha.h>
 #include <cyassl/ctaocrypt/asn.h>
 #include <cyassl/ctaocrypt/md5.h>
 #include <cyassl/ctaocrypt/sha.h>
 #include <cyassl/ctaocrypt/aes.h>
+#include <cyassl/ctaocrypt/poly1305.h>
 #include <cyassl/ctaocrypt/camellia.h>
 #include <cyassl/ctaocrypt/logging.h>
 #include <cyassl/ctaocrypt/hmac.h>
@@ -240,14 +242,6 @@ void c32to24(word32 in, word24 out);
         #ifdef HAVE_AESCCM
             #define BUILD_TLS_PSK_WITH_AES_128_CCM_8
             #define BUILD_TLS_PSK_WITH_AES_256_CCM_8
-            #define BUILD_TLS_PSK_WITH_AES_128_CCM
-            #define BUILD_TLS_PSK_WITH_AES_256_CCM
-        #endif
-    #endif
-    #ifdef CYASSL_SHA384
-        #define BUILD_TLS_PSK_WITH_AES_256_CBC_SHA384
-        #ifdef HAVE_AESGCM
-            #define BUILD_TLS_PSK_WITH_AES_256_GCM_SHA384
         #endif
     #endif
 #endif
@@ -267,9 +261,6 @@ void c32to24(word32 in, word24 out);
       #endif
         #ifndef NO_SHA256
             #define BUILD_TLS_PSK_WITH_NULL_SHA256
-        #endif
-        #ifdef CYASSL_SHA384
-            #define BUILD_TLS_PSK_WITH_NULL_SHA384
         #endif
     #endif
 #endif
@@ -304,33 +295,6 @@ void c32to24(word32 in, word24 out);
             #if defined (CYASSL_SHA384)
                 #define BUILD_TLS_DHE_RSA_WITH_AES_256_GCM_SHA384
             #endif
-        #endif
-    #endif
-#endif
-
-
-#if !defined(NO_DH) && !defined(NO_PSK) && !defined(NO_TLS) && \
-    defined(OPENSSL_EXTRA)
-    #ifndef NO_SHA256
-        #define BUILD_TLS_DHE_PSK_WITH_AES_128_CBC_SHA256
-        #ifdef HAVE_NULL_CIPHER
-            #define BUILD_TLS_DHE_PSK_WITH_NULL_SHA256
-        #endif
-        #ifdef HAVE_AESGCM
-            #define BUILD_TLS_DHE_PSK_WITH_AES_128_GCM_SHA256
-        #endif
-        #ifdef HAVE_AESGCM
-            #define BUILD_TLS_DHE_PSK_WITH_AES_128_CCM
-            #define BUILD_TLS_DHE_PSK_WITH_AES_256_CCM
-        #endif
-    #endif
-    #ifdef CYASSL_SHA384
-        #define BUILD_TLS_DHE_PSK_WITH_AES_256_CBC_SHA384
-        #ifdef HAVE_NULL_CIPHER
-            #define BUILD_TLS_DHE_PSK_WITH_NULL_SHA384
-        #endif
-        #ifdef HAVE_AESGCM
-            #define BUILD_TLS_DHE_PSK_WITH_AES_256_GCM_SHA384
         #endif
     #endif
 #endif
@@ -465,11 +429,15 @@ void c32to24(word32 in, word24 out);
     #define BUILD_ARC4
 #endif
 
+#ifdef HAVE_CHACHA
+    #define CHACHA20_BLOCK_SIZE 16 
+    #define BUILD_TLS_ECDHE_RSA_WITH_CHACHA20_256_POLY1305_SHA256
+#endif
 
-
-#if defined(BUILD_AESGCM) || defined(HAVE_AESCCM)
+#if defined(BUILD_AESGCM) || defined(HAVE_AESCCM) || defined(HAVE_CHACHA)
     #define HAVE_AEAD
 #endif
+
 
 
 /* actual cipher values, 2nd byte */
@@ -481,10 +449,8 @@ enum {
     TLS_RSA_WITH_NULL_SHA             = 0x02,
     TLS_PSK_WITH_AES_256_CBC_SHA      = 0x8d,
     TLS_PSK_WITH_AES_128_CBC_SHA256   = 0xae,
-    TLS_PSK_WITH_AES_256_CBC_SHA384   = 0xaf,
     TLS_PSK_WITH_AES_128_CBC_SHA      = 0x8c,
     TLS_PSK_WITH_NULL_SHA256          = 0xb0,
-    TLS_PSK_WITH_NULL_SHA384          = 0xb1,
     TLS_PSK_WITH_NULL_SHA             = 0x2c,
     SSL_RSA_WITH_RC4_128_SHA          = 0x05,
     SSL_RSA_WITH_RC4_128_MD5          = 0x04,
@@ -518,6 +484,7 @@ enum {
     TLS_ECDH_RSA_WITH_AES_256_CBC_SHA384   = 0x2A,
     TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA384 = 0x26,
 
+
     /* CyaSSL extension - eSTREAM */
     TLS_RSA_WITH_HC_128_MD5       = 0xFB,
     TLS_RSA_WITH_HC_128_SHA       = 0xFC,
@@ -531,7 +498,7 @@ enum {
     /* CyaSSL extension - NTRU */
     TLS_NTRU_RSA_WITH_RC4_128_SHA      = 0xe5,
     TLS_NTRU_RSA_WITH_3DES_EDE_CBC_SHA = 0xe6,
-    TLS_NTRU_RSA_WITH_AES_128_CBC_SHA  = 0xe7,  /* clashes w/official SHA-256 */
+    TLS_NTRU_RSA_WITH_AES_128_CBC_SHA  = 0xe7,  /* clases w/ official SHA-256 */
     TLS_NTRU_RSA_WITH_AES_256_CBC_SHA  = 0xe8,
 
     /* SHA256 */
@@ -540,22 +507,12 @@ enum {
     TLS_RSA_WITH_AES_256_CBC_SHA256     = 0x3d,
     TLS_RSA_WITH_AES_128_CBC_SHA256     = 0x3c,
     TLS_RSA_WITH_NULL_SHA256            = 0x3b,
-    TLS_DHE_PSK_WITH_AES_128_CBC_SHA256 = 0xb2,
-    TLS_DHE_PSK_WITH_NULL_SHA256        = 0xb4,
-
-    /* SHA384 */
-    TLS_DHE_PSK_WITH_AES_256_CBC_SHA384 = 0xb3,
-    TLS_DHE_PSK_WITH_NULL_SHA384        = 0xb5,
 
     /* AES-GCM */
     TLS_RSA_WITH_AES_128_GCM_SHA256          = 0x9c,
     TLS_RSA_WITH_AES_256_GCM_SHA384          = 0x9d,
     TLS_DHE_RSA_WITH_AES_128_GCM_SHA256      = 0x9e,
     TLS_DHE_RSA_WITH_AES_256_GCM_SHA384      = 0x9f,
-    TLS_PSK_WITH_AES_128_GCM_SHA256          = 0xa8,
-    TLS_PSK_WITH_AES_256_GCM_SHA384          = 0xa9,
-    TLS_DHE_PSK_WITH_AES_128_GCM_SHA256      = 0xaa,
-    TLS_DHE_PSK_WITH_AES_256_GCM_SHA384      = 0xab,
 
     /* ECC AES-GCM, first byte is 0xC0 (ECC_BYTE) */
     TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256  = 0x2b,
@@ -579,10 +536,7 @@ enum {
     TLS_PSK_WITH_AES_256_CCM           = 0xa5,
     TLS_PSK_WITH_AES_128_CCM_8         = 0xa8,
     TLS_PSK_WITH_AES_256_CCM_8         = 0xa9,
-    TLS_DHE_PSK_WITH_AES_128_CCM       = 0xa6,
-    TLS_DHE_PSK_WITH_AES_256_CCM       = 0xa7,
 
-    /* Camellia */
     TLS_RSA_WITH_CAMELLIA_128_CBC_SHA        = 0x41,
     TLS_RSA_WITH_CAMELLIA_256_CBC_SHA        = 0x84,
     TLS_RSA_WITH_CAMELLIA_128_CBC_SHA256     = 0xba,
@@ -592,13 +546,16 @@ enum {
     TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA256 = 0xbe,
     TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA256 = 0xc4,
 
+    TLS_ECDHE_RSA_WITH_CHACHA20_256_POLY1305_SHA256 = 0x13,
+
     /* Renegotiation Indication Extension Special Suite */
     TLS_EMPTY_RENEGOTIATION_INFO_SCSV        = 0xff
 };
 
 
 enum Misc {
-    ECC_BYTE =  0xC0,           /* ECC first cipher suite byte */
+    ECC_BYTE    =  0xC0,           /* ECC first cipher suite byte */
+    CHACHA_BYTE = 0xCC,            /* ChaCha first cipher suite */
 
     SEND_CERT       = 1,
     SEND_BLANK_CERT = 2,
@@ -687,7 +644,7 @@ enum Misc {
     TLS_FINISHED_SZ     = 12,  /* TLS has a shorter size  */
     MASTER_LABEL_SZ     = 13,  /* TLS master secret label sz */
     KEY_LABEL_SZ        = 13,  /* TLS key block expansion sz */
-    MAX_PRF_HALF        = 256, /* Maximum half secret len */
+    MAX_PRF_HALF        = 128, /* Maximum half secret len */
     MAX_PRF_LABSEED     = 128, /* Maximum label + seed len */
     MAX_PRF_DIG         = 224, /* Maximum digest len      */
     MAX_REQUEST_SZ      = 256, /* Maximum cert req len (no auth yet */
@@ -720,6 +677,12 @@ enum Misc {
     CAMELLIA_192_KEY_SIZE = 24, /* for 192 bit */
     CAMELLIA_256_KEY_SIZE = 32, /* for 256 bit */
     CAMELLIA_IV_SIZE      = 16, /* always block size */
+
+    CHACHA20_256_KEY_SIZE = 32,  /* for 256 bit             */
+    CHACHA20_128_KEY_SIZE = 16,  /* for 128 bit             */
+    CHACHA20_IV_SIZE      =  8,  /* 64 bits for iv          */
+
+    POLY1305_AUTH_SZ    = 16,  /* 128 bits                */
 
     HC_128_KEY_SIZE     = 16,  /* 128 bits                */
     HC_128_IV_SIZE      = 16,  /* also 128 bits           */
@@ -1379,6 +1342,7 @@ void InitCipherSpecs(CipherSpecs* cs);
 enum MACAlgorithm { 
     no_mac,
     md5_mac,
+    poly1305_mac,
     sha_mac,
     sha224_mac,
     sha256_mac,
@@ -1396,7 +1360,6 @@ enum KeyExchangeAlgorithm {
     diffie_hellman_kea, 
     fortezza_kea,
     psk_kea,
-    dhe_psk_kea,
     ntru_kea,
     ecc_diffie_hellman_kea,
     ecc_static_diffie_hellman_kea       /* for verify suite only */
@@ -1516,6 +1479,12 @@ typedef struct Ciphers {
 #endif
 #ifdef HAVE_CAMELLIA
     Camellia* cam;
+#endif
+#ifdef HAVE_CHACHA 
+    ChaCha*   chacha;
+#endif
+#ifdef HAVE_POLY1305 
+    Poly1305* poly1305;
 #endif
 #ifdef HAVE_HC128
     HC128*  hc128;
@@ -2141,6 +2110,8 @@ CYASSL_LOCAL  int GrowInputBuffer(CYASSL* ssl, int size, int usedLength);
 #ifndef NO_TLS
     CYASSL_LOCAL int  MakeTlsMasterSecret(CYASSL*);
     CYASSL_LOCAL int  TLS_hmac(CYASSL* ssl, byte* digest, const byte* in,
+                               word32 sz, int content, int verify);
+    CYASSL_LOCAL int  TLS_poly1305(CYASSL* ssl, byte* digest, const byte* in,
                                word32 sz, int content, int verify);
 #endif
 

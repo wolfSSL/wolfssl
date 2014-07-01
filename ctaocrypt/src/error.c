@@ -22,7 +22,7 @@
 #ifdef HAVE_CONFIG_H
     #include <config.h>
 #endif
-
+ 
 #include <cyassl/ctaocrypt/settings.h>
 
 #include <cyassl/ctaocrypt/error-crypt.h>
@@ -32,261 +32,334 @@
     #pragma warning(disable: 4996)
 #endif
 
-const char* CTaoCryptGetErrorString(int error)
+
+void CTaoCryptErrorString(int error, char* buffer)
 {
+    const int max = CYASSL_MAX_ERROR_SZ;   /* shorthand */
+
 #ifdef NO_ERROR_STRINGS
 
     (void)error;
-    return "no support for error strings built in";
+    XSTRNCPY(buffer, "no support for error strings built in", max);
 
 #else
 
     switch (error) {
 
-    case OPEN_RAN_E :
-        return "opening random device error";
+    case OPEN_RAN_E :        
+        XSTRNCPY(buffer, "opening random device error", max);
+        break;
 
     case READ_RAN_E :
-        return "reading random device error";
+        XSTRNCPY(buffer, "reading random device error", max);
+        break;
 
     case WINCRYPT_E :
-        return "windows crypt init error";
+        XSTRNCPY(buffer, "windows crypt init error", max);
+        break;
 
-    case CRYPTGEN_E :
-        return "windows crypt generation error";
+    case CRYPTGEN_E : 
+        XSTRNCPY(buffer, "windows crypt generation error", max);
+        break;
 
-    case RAN_BLOCK_E :
-        return "random device read would block error";
+    case RAN_BLOCK_E : 
+        XSTRNCPY(buffer, "random device read would block error", max);
+        break;
 
-    case BAD_MUTEX_E :
-        return "Bad mutex, operation failed";
+    case BAD_MUTEX_E : 
+        XSTRNCPY(buffer, "Bad mutex, operation failed", max);
+        break;
 
     case MP_INIT_E :
-        return "mp_init error state";
+        XSTRNCPY(buffer, "mp_init error state", max);
+        break;
 
     case MP_READ_E :
-        return "mp_read error state";
+        XSTRNCPY(buffer, "mp_read error state", max);
+        break;
 
     case MP_EXPTMOD_E :
-        return "mp_exptmod error state";
+        XSTRNCPY(buffer, "mp_exptmod error state", max);
+        break;
 
     case MP_TO_E :
-        return "mp_to_xxx error state, can't convert";
+        XSTRNCPY(buffer, "mp_to_xxx error state, can't convert", max);
+        break;
 
     case MP_SUB_E :
-        return "mp_sub error state, can't subtract";
+        XSTRNCPY(buffer, "mp_sub error state, can't subtract", max);
+        break;
 
     case MP_ADD_E :
-        return "mp_add error state, can't add";
+        XSTRNCPY(buffer, "mp_add error state, can't add", max);
+        break;
 
     case MP_MUL_E :
-        return "mp_mul error state, can't multiply";
+        XSTRNCPY(buffer, "mp_mul error state, can't multiply", max);
+        break;
 
     case MP_MULMOD_E :
-        return "mp_mulmod error state, can't multiply mod";
+        XSTRNCPY(buffer, "mp_mulmod error state, can't multiply mod", max);
+        break;
 
     case MP_MOD_E :
-        return "mp_mod error state, can't mod";
+        XSTRNCPY(buffer, "mp_mod error state, can't mod", max);
+        break;
 
     case MP_INVMOD_E :
-        return "mp_invmod error state, can't inv mod";
-
+        XSTRNCPY(buffer, "mp_invmod error state, can't inv mod", max);
+        break; 
+        
     case MP_CMP_E :
-        return "mp_cmp error state";
-
+        XSTRNCPY(buffer, "mp_cmp error state", max);
+        break; 
+        
     case MP_ZERO_E :
-        return "mp zero result, not expected";
-
+        XSTRNCPY(buffer, "mp zero result, not expected", max);
+        break; 
+        
     case MEMORY_E :
-        return "out of memory error";
+        XSTRNCPY(buffer, "out of memory error", max);
+        break;
 
     case RSA_WRONG_TYPE_E :
-        return "RSA wrong block type for RSA function";
+        XSTRNCPY(buffer, "RSA wrong block type for RSA function", max);
+        break; 
 
     case RSA_BUFFER_E :
-        return "RSA buffer error, output too small or input too big";
+        XSTRNCPY(buffer, "RSA buffer error, output too small or input too big",
+                max);
+        break; 
 
     case BUFFER_E :
-        return "Buffer error, output too small or input too big";
+        XSTRNCPY(buffer, "Buffer error, output too small or input too big",max);
+        break; 
 
     case ALGO_ID_E :
-        return "Setting Cert AlogID error";
+        XSTRNCPY(buffer, "Setting Cert AlogID error", max);
+        break; 
 
     case PUBLIC_KEY_E :
-        return "Setting Cert Public Key error";
+        XSTRNCPY(buffer, "Setting Cert Public Key error", max);
+        break; 
 
     case DATE_E :
-        return "Setting Cert Date validity error";
+        XSTRNCPY(buffer, "Setting Cert Date validity error", max);
+        break; 
 
     case SUBJECT_E :
-        return "Setting Cert Subject name error";
+        XSTRNCPY(buffer, "Setting Cert Subject name error", max);
+        break; 
 
     case ISSUER_E :
-        return "Setting Cert Issuer name error";
+        XSTRNCPY(buffer, "Setting Cert Issuer name error", max);
+        break; 
 
     case CA_TRUE_E :
-        return "Setting basic constraint CA true error";
+        XSTRNCPY(buffer, "Setting basic constraint CA true error", max);
+        break; 
 
     case EXTENSIONS_E :
-        return "Setting extensions error";
+        XSTRNCPY(buffer, "Setting extensions error", max);
+        break; 
 
     case ASN_PARSE_E :
-        return "ASN parsing error, invalid input";
+        XSTRNCPY(buffer, "ASN parsing error, invalid input", max);
+        break;
 
     case ASN_VERSION_E :
-        return "ASN version error, invalid number";
+        XSTRNCPY(buffer, "ASN version error, invalid number", max);
+        break;
 
     case ASN_GETINT_E :
-        return "ASN get big int error, invalid data";
+        XSTRNCPY(buffer, "ASN get big int error, invalid data", max);
+        break;
 
     case ASN_RSA_KEY_E :
-        return "ASN key init error, invalid input";
+        XSTRNCPY(buffer, "ASN key init error, invalid input", max);
+        break;
 
     case ASN_OBJECT_ID_E :
-        return "ASN object id error, invalid id";
+        XSTRNCPY(buffer, "ASN object id error, invalid id", max);
+        break;
 
     case ASN_TAG_NULL_E :
-        return "ASN tag error, not null";
+        XSTRNCPY(buffer, "ASN tag error, not null", max);
+        break;
 
     case ASN_EXPECT_0_E :
-        return "ASN expect error, not zero";
+        XSTRNCPY(buffer, "ASN expect error, not zero", max);
+        break;
 
     case ASN_BITSTR_E :
-        return "ASN bit string error, wrong id";
+        XSTRNCPY(buffer, "ASN bit string error, wrong id", max);
+        break;
 
     case ASN_UNKNOWN_OID_E :
-        return "ASN oid error, unknown sum id";
+        XSTRNCPY(buffer, "ASN oid error, unknown sum id", max);
+        break;
 
     case ASN_DATE_SZ_E :
-        return "ASN date error, bad size";
+        XSTRNCPY(buffer, "ASN date error, bad size", max);
+        break;
 
     case ASN_BEFORE_DATE_E :
-        return "ASN date error, current date before";
+        XSTRNCPY(buffer, "ASN date error, current date before", max);
+        break;
 
     case ASN_AFTER_DATE_E :
-        return "ASN date error, current date after";
+        XSTRNCPY(buffer, "ASN date error, current date after", max);
+        break;
 
     case ASN_SIG_OID_E :
-        return "ASN signature error, mismatched oid";
+        XSTRNCPY(buffer, "ASN signature error, mismatched oid", max);
+        break;
 
     case ASN_TIME_E :
-        return "ASN time error, unkown time type";
+        XSTRNCPY(buffer, "ASN time error, unkown time type", max);
+        break;
 
     case ASN_INPUT_E :
-        return "ASN input error, not enough data";
+        XSTRNCPY(buffer, "ASN input error, not enough data", max);
+        break;
 
     case ASN_SIG_CONFIRM_E :
-        return "ASN sig error, confirm failure";
+        XSTRNCPY(buffer, "ASN sig error, confirm failure", max);
+        break;
 
     case ASN_SIG_HASH_E :
-        return "ASN sig error, unsupported hash type";
+        XSTRNCPY(buffer, "ASN sig error, unsupported hash type", max);
+        break;
 
     case ASN_SIG_KEY_E :
-        return "ASN sig error, unsupported key type";
+        XSTRNCPY(buffer, "ASN sig error, unsupported key type", max);
+        break;
 
     case ASN_DH_KEY_E :
-        return "ASN key init error, invalid input";
+        XSTRNCPY(buffer, "ASN key init error, invalid input", max);
+        break;
 
     case ASN_NTRU_KEY_E :
-        return "ASN NTRU key decode error, invalid input";
+        XSTRNCPY(buffer, "ASN NTRU key decode error, invalid input", max);
+        break;
 
     case ASN_CRIT_EXT_E:
-        return "X.509 Critical extension ignored";
+        XSTRNCPY(buffer, "X.509 Critical extension ignored", max);
+        break;
 
     case ECC_BAD_ARG_E :
-        return "ECC input argument wrong type, invalid input";
+        XSTRNCPY(buffer, "ECC input argument wrong type, invalid input", max);
+        break;
 
     case ASN_ECC_KEY_E :
-        return "ECC ASN1 bad key data, invalid input";
+        XSTRNCPY(buffer, "ECC ASN1 bad key data, invalid input", max);
+        break;
 
     case ECC_CURVE_OID_E :
-        return "ECC curve sum OID unsupported, invalid input";
+        XSTRNCPY(buffer, "ECC curve sum OID unsupported, invalid input", max);
+        break;
 
     case BAD_FUNC_ARG :
-        return "Bad function argument";
+        XSTRNCPY(buffer, "Bad function argument", max);
+        break;
 
     case NOT_COMPILED_IN :
-        return "Feature not compiled in";
+        XSTRNCPY(buffer, "Feature not compiled in", max);
+        break;
 
     case UNICODE_SIZE_E :
-        return "Unicode password too big";
+        XSTRNCPY(buffer, "Unicode password too big", max);
+        break;
 
     case NO_PASSWORD :
-        return "No password provided by user";
+        XSTRNCPY(buffer, "No password provided by user", max);
+        break;
 
     case ALT_NAME_E :
-        return "Alt Name problem, too big";
+        XSTRNCPY(buffer, "Alt Name problem, too big", max);
+        break;
 
     case AES_GCM_AUTH_E:
-        return "AES-GCM Authentication check fail";
+        XSTRNCPY(buffer, "AES-GCM Authentication check fail", max);
+        break;
 
     case AES_CCM_AUTH_E:
-        return "AES-CCM Authentication check fail";
+        XSTRNCPY(buffer, "AES-CCM Authentication check fail", max);
+        break;
 
     case CAVIUM_INIT_E:
-        return "Cavium Init type error";
+        XSTRNCPY(buffer, "Cavium Init type error", max);
+        break;
 
     case COMPRESS_INIT_E:
-        return "Compress Init error";
+        XSTRNCPY(buffer, "Compress Init error", max);
+        break;
 
     case COMPRESS_E:
-        return "Compress error";
+        XSTRNCPY(buffer, "Compress error", max);
+        break;
 
     case DECOMPRESS_INIT_E:
-        return "DeCompress Init error";
+        XSTRNCPY(buffer, "DeCompress Init error", max);
+        break;
 
     case DECOMPRESS_E:
-        return "DeCompress error";
+        XSTRNCPY(buffer, "DeCompress error", max);
+        break;
 
     case BAD_ALIGN_E:
-        return "Bad alignment error, no alloc help";
+        XSTRNCPY(buffer, "Bad alignment error, no alloc help", max);
+        break;
 
     case ASN_NO_SIGNER_E :
-        return "ASN no signer error to confirm failure";
+        XSTRNCPY(buffer, "ASN no signer error to confirm failure", max);
+        break;
 
     case ASN_CRL_CONFIRM_E :
-        return "ASN CRL sig error, confirm failure";
+        XSTRNCPY(buffer, "ASN CRL sig error, confirm failure", max);
+        break;
 
     case ASN_CRL_NO_SIGNER_E :
-        return "ASN CRL no signer error to confirm failure";
+        XSTRNCPY(buffer, "ASN CRL no signer error to confirm failure", max);
+        break;
 
     case ASN_OCSP_CONFIRM_E :
-        return "ASN OCSP sig error, confirm failure";
+        XSTRNCPY(buffer, "ASN OCSP sig error, confirm failure", max);
+        break;
 
     case BAD_ENC_STATE_E:
-        return "Bad ecc encrypt state operation";
+        XSTRNCPY(buffer, "Bad ecc encrypt state operation", max);
+        break;
 
     case BAD_PADDING_E:
-        return "Bad padding, message wrong length";
+        XSTRNCPY(buffer, "Bad padding, message wrong length", max);
+        break;
 
     case REQ_ATTRIBUTE_E:
-        return "Setting cert request attributes error";
+        XSTRNCPY(buffer, "Setting cert request attributes error", max);
+        break;
 
     case PKCS7_OID_E:
-        return "PKCS#7 error: mismatched OID value";
+        XSTRNCPY(buffer, "PKCS#7 error: mismatched OID value", max);
+        break;
 
     case PKCS7_RECIP_E:
-        return "PKCS#7 error: no matching recipient found";
+        XSTRNCPY(buffer, "PKCS#7 error: no matching recipient found", max);
+        break;
 
     case FIPS_NOT_ALLOWED_E:
-        return "FIPS mode not allowed error";
+        XSTRNCPY(buffer, "FIPS mode not allowed error", max);
+        break;
 
     case ASN_NAME_INVALID_E:
-        return "Name Constraint error";
-
-    case RNG_FAILURE_E:
-        return "Random Number Generator failed";
+        XSTRNCPY(buffer, "Name Constraint error", max);
+        break;
 
     default:
-        return "unknown error number";
+        XSTRNCPY(buffer, "unknown error number", max);
 
     }
 
 #endif /* NO_ERROR_STRINGS */
 
-}
-
-void CTaoCryptErrorString(int error, char* buffer)
-{
-    XSTRNCPY(buffer, CTaoCryptGetErrorString(error), CYASSL_MAX_ERROR_SZ);
 }

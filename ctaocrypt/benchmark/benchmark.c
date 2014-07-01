@@ -34,7 +34,9 @@
 #include <cyassl/ctaocrypt/arc4.h>
 #include <cyassl/ctaocrypt/hc128.h>
 #include <cyassl/ctaocrypt/rabbit.h>
+#include <cyassl/ctaocrypt/chacha.h>
 #include <cyassl/ctaocrypt/aes.h>
+#include <cyassl/ctaocrypt/poly1305.h>
 #include <cyassl/ctaocrypt/camellia.h>
 #include <cyassl/ctaocrypt/md5.h>
 #include <cyassl/ctaocrypt/sha.h>
@@ -82,10 +84,12 @@ void bench_des(void);
 void bench_arc4(void);
 void bench_hc128(void);
 void bench_rabbit(void);
+void bench_chacha(void);
 void bench_aes(int);
 void bench_aesgcm(void);
 void bench_aesccm(void);
 void bench_aesctr(void);
+void bench_poly1305(void);
 void bench_camellia(void);
 
 void bench_md5(void);
@@ -128,9 +132,6 @@ static int OpenNitroxDevice(int dma_mode,int dev_id)
 
 #endif
 
-#if defined(DEBUG_CYASSL) && !defined(HAVE_VALGRIND)
-    CYASSL_API int CyaSSL_Debugging_ON();
-#endif
 
 /* so embedded projects can pull in tests on their own */
 #if !defined(NO_MAIN_DRIVER)
@@ -144,10 +145,6 @@ int main(int argc, char** argv)
 int benchmark_test(void *args) 
 {
 #endif
-
-    #if defined(DEBUG_CYASSL) && !defined(HAVE_VALGRIND)
-        CyaSSL_Debugging_ON();
-    #endif
 
 	#ifdef HAVE_CAVIUM
     int ret = OpenNitroxDevice(CAVIUM_DIRECT, CAVIUM_DEV_ID);
@@ -183,6 +180,9 @@ int benchmark_test(void *args)
 #ifndef NO_RABBIT
     bench_rabbit();
 #endif
+#ifdef HAVE_CHACHA
+    bench_chacha();
+#endif
 #ifndef NO_DES3
     bench_des();
 #endif
@@ -191,6 +191,9 @@ int benchmark_test(void *args)
 
 #ifndef NO_MD5
     bench_md5();
+#endif
+#ifdef HAVE_POLY1305
+    bench_poly1305();
 #endif
 #ifndef NO_SHA
     bench_sha();
@@ -407,6 +410,41 @@ void bench_aesccm(void)
 #endif
 
 
+#ifdef HAVE_POLY1305
+void bench_poly1305()
+{
+    Poly1305    enc;
+    byte   mac[16];
+    double start, total, persec;
+    int    i;
+    int    ret;
+
+
+    ret = Poly1305SetKey(&enc, key, 32);
+    if (ret != 0) {
+        printf("Poly1305SetKey failed, ret = %d\n", ret);
+        return;
+    }
+    start = current_time(1);
+
+    for(i = 0; i < numBlocks; i++)
+        Poly1305Update(&enc, plain, sizeof(plain));
+
+    Poly1305Final(&enc, mac);
+    total = current_time(0) - start;
+
+    persec = 1 / total * numBlocks;
+#ifdef BENCH_EMBEDDED
+    /* since using kB, convert to MB/s */
+    persec = persec / 1024;
+#endif
+
+        printf("POLY1305    %d %s took %5.3f seconds, %7.3f MB/s\n", numBlocks,
+                                                  blockType, total, persec);
+}
+#endif /* HAVE_POLY1305 */
+
+
 #ifdef HAVE_CAMELLIA
 void bench_camellia(void)
 {
@@ -560,6 +598,33 @@ void bench_rabbit(void)
                                               blockType, total, persec);
 }
 #endif /* NO_RABBIT */
+
+
+#ifdef HAVE_CHACHA
+void bench_chacha(void)
+{
+    ChaCha enc;
+    double start, total, persec;
+    int    i;
+
+    Chacha_SetKey(&enc, key, 16);
+    start = current_time(1);
+
+    for (i = 0; i < numBlocks; i++) {
+        Chacha_SetIV(&enc, iv, 0);
+        Chacha_Process(&enc, cipher, plain, sizeof(plain));
+    }
+    total = current_time(0) - start;
+    persec = 1 / total * numBlocks;
+#ifdef BENCH_EMBEDDED
+    /* since using kB, convert to MB/s */
+    persec = persec / 1024;
+#endif
+
+    printf("CHACHA   %d %s took %5.3f seconds, %7.3f MB/s\n", numBlocks, blockType, total, persec);
+
+}
+#endif /* HAVE_CHACHA*/
 
 
 #ifndef NO_MD5
@@ -903,10 +968,7 @@ static const char *certDHname = "certs/dh2048.der" ;
 
 void bench_dh(void)
 {
-#if !defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048)
-    int    ret;
-#endif
-    int    i ;
+    int    i, ret;
     byte   tmp[1024];
     size_t bytes;
     word32 idx = 0, pubSz, privSz = 0, pubSz2, privSz2, agreeSz;
@@ -1149,6 +1211,7 @@ void bench_eccKeyAgree(void)
 }
 #endif /* HAVE_ECC */
 
+
 #ifdef _WIN32
 
     #define WIN32_LEAN_AND_MEAN
@@ -1175,10 +1238,10 @@ void bench_eccKeyAgree(void)
 
 #elif defined MICROCHIP_PIC32
     #if defined(CYASSL_MICROCHIP_PIC32MZ)
-        #define CLOCK 80000000.0
+        #define CLOCK 8000000.0
     #else
         #include <peripheral/timer.h>
-        #define CLOCK 40000000.0
+        #define CLOCK 4000000.0
     #endif
 
     double current_time(int reset)
@@ -1196,10 +1259,10 @@ void bench_eccKeyAgree(void)
         return ( ns / CLOCK * 2.0);
     }
 
-#elif defined(CYASSL_IAR_ARM) || defined (CYASSL_MDK_ARM)
-    #warning "Write your current_time()"
-    double current_time(int reset) { return 0.0 ; }
-    
+#elif defined CYASSL_MDK_ARM
+
+    extern double current_time(int reset) ;
+
 #elif defined FREERTOS
 
     double current_time(int reset)

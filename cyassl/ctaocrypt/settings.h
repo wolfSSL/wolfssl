@@ -647,11 +647,6 @@
 #endif
 
 
-/* FreeScale MMCAU hardware crypto has 4 byte alignment */
-#ifdef FREESCALE_MMCAU
-    #define CYASSL_MMCAU_ALIGNMENT 4
-#endif
-
 /* if using hardware crypto and have alignment requirements, specify the
    requirement here.  The record header of SSL/TLS will prvent easy alignment.
    This hint tries to help as much as possible.  */
@@ -660,8 +655,6 @@
         #define CYASSL_GENERAL_ALIGNMENT 16
     #elif defined(XSTREAM_ALIGNMENT)
         #define CYASSL_GENERAL_ALIGNMENT  4
-    #elif defined(FREESCALE_MMCAU)
-        #define CYASSL_GENERAL_ALIGNMENT  CYASSL_MMCAU_ALIGNMENT
     #else 
         #define CYASSL_GENERAL_ALIGNMENT  0 
     #endif
@@ -672,12 +665,6 @@
     #undef NO_SKID
     #define NO_SKID
 #endif
-
-
-#ifdef __INTEL_COMPILER
-    #pragma warning(disable:2259) /* explicit casts to smaller sizes, disable */
-#endif
-
 
 /* Place any other flags or defines here */
 

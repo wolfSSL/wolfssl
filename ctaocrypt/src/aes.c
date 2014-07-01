@@ -804,11 +804,6 @@ int AesSetKey(Aes* aes, const byte* userKey, word32 keylen, const byte* iv,
         iv      = (byte*)aes->reg;
         enc_key = (byte*)aes->key;
 
-        if ((word)out % CYASSL_MMCAU_ALIGNMENT) {
-            CYASSL_MSG("Bad cau_aes_encrypt alignment"); 
-            return BAD_ALIGN_E;
-        }
-
         while (len > 0)
         {
             XMEMCPY(temp_block, in + offset, AES_BLOCK_SIZE);
@@ -840,11 +835,6 @@ int AesSetKey(Aes* aes, const byte* userKey, word32 keylen, const byte* iv,
 
         iv      = (byte*)aes->reg;
         dec_key = (byte*)aes->key;
-
-        if ((word)out % CYASSL_MMCAU_ALIGNMENT) {
-            CYASSL_MSG("Bad cau_aes_decrypt alignment"); 
-            return BAD_ALIGN_E;
-        }
 
         while (len > 0)
         {
@@ -1551,34 +1541,31 @@ static const word32 Td[5][256] = {
 
 #ifdef CYASSL_AESNI
 
-/* Each platform needs to query info type 1 from cpuid to see if aesni is
- * supported. Also, let's setup a macro for proper linkage w/o ABI conflicts
- */
-
 #ifndef _MSC_VER
 
-    #define cpuid(reg, func)\
+    #define cpuid(func,ax,bx,cx,dx)\
         __asm__ __volatile__ ("cpuid":\
-             "=a" (reg[0]), "=b" (reg[1]), "=c" (reg[2]), "=d" (reg[3]) :\
-             "a" (func));
+                       "=a" (ax), "=b" (bx), "=c" (cx), "=d" (dx) : "a" (func));
 
-    #define XASM_LINK(f) asm(f)
 #else
 
-    #include <intrin.h>
-    #define cpuid(a,b) __cpuid((int*)a,b)
-
-    #define XASM_LINK(f)
+    #define cpuid(func,ax,bx,cx,dx)\
+        __asm mov eax, func \
+        __asm cpuid \
+        __asm mov ax, eax \
+        __asm mov bx, ebx \
+        __asm mov cx, ecx \
+        __asm mov dx, edx
 
 #endif /* _MSC_VER */
 
             
 static int Check_CPU_support_AES(void)
 {
-    unsigned int reg[4];  /* put a,b,c,d into 0,1,2,3 */
-    cpuid(reg, 1);        /* query info 1 */
+    unsigned int a,b,c,d;
+    cpuid(1,a,b,c,d);
 
-    if (reg[2] & 0x2000000)
+    if (c & 0x2000000)
         return 1;
 
     return 0;
@@ -1593,34 +1580,34 @@ static int haveAESNI  = 0;
 void AES_CBC_encrypt(const unsigned char* in, unsigned char* out,
                      unsigned char* ivec, unsigned long length,
                      const unsigned char* KS, int nr)
-                     XASM_LINK("AES_CBC_encrypt");
+                     asm ("AES_CBC_encrypt");
 
 
 void AES_CBC_decrypt(const unsigned char* in, unsigned char* out,
                      unsigned char* ivec, unsigned long length,
                      const unsigned char* KS, int nr)
-                     XASM_LINK("AES_CBC_decrypt");
+                     asm ("AES_CBC_decrypt");
 
 void AES_ECB_encrypt(const unsigned char* in, unsigned char* out,
                      unsigned long length, const unsigned char* KS, int nr)
-                     XASM_LINK("AES_ECB_encrypt");
+                     asm ("AES_ECB_encrypt");
 
 
 void AES_ECB_decrypt(const unsigned char* in, unsigned char* out,
                      unsigned long length, const unsigned char* KS, int nr)
-                     XASM_LINK("AES_ECB_decrypt");
+                     asm ("AES_ECB_decrypt");
 
 void AES_128_Key_Expansion(const unsigned char* userkey, 
                            unsigned char* key_schedule)
-                           XASM_LINK("AES_128_Key_Expansion");
+                           asm ("AES_128_Key_Expansion");
 
 void AES_192_Key_Expansion(const unsigned char* userkey, 
                            unsigned char* key_schedule)
-                           XASM_LINK("AES_192_Key_Expansion");
+                           asm ("AES_192_Key_Expansion");
 
 void AES_256_Key_Expansion(const unsigned char* userkey, 
                            unsigned char* key_schedule)
-                           XASM_LINK("AES_256_Key_Expansion");
+                           asm ("AES_256_Key_Expansion");
 
 
 static int AES_set_encrypt_key(const unsigned char *userKey, const int bits,
@@ -2241,7 +2228,6 @@ int AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
         if ((word)in % 16) {
         #ifndef NO_CYASSL_ALLOC_ALIGN
             byte* tmp = (byte*)XMALLOC(sz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            CYASSL_MSG("AES-CBC encrypt with bad alignment");
             if (tmp == NULL) return MEMORY_E;
 
             XMEMCPY(tmp, in, sz);

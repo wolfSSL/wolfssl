@@ -325,6 +325,9 @@ int CyaSSL_GetObjectSize(void)
 #ifndef NO_RABBIT
     printf("    sizeof rabbit       = %lu\n", sizeof(Rabbit));
 #endif
+#ifdef HAVE_CHACHA
+    printf("    sizeof chacha       = %lu\n", sizeof(Chacha));
+#endif
     printf("sizeof cipher specs     = %lu\n", sizeof(CipherSpecs));
     printf("sizeof keys             = %lu\n", sizeof(Keys));
     printf("sizeof Hashes(2)        = %lu\n", sizeof(Hashes));
@@ -8301,14 +8304,21 @@ CYASSL_X509* CyaSSL_X509_load_certificate_file(const char* fname, int format)
         CYASSL_ENTER("SSL_CIPHER_get_name");
 #ifndef NO_ERROR_STRINGS
         if (cipher) {
-#if defined(HAVE_ECC) || defined(HAVE_AESCCM)
-            /* Awkwardly, the ECC cipher suites use the ECC_BYTE as expected,
-             * but the AES-CCM cipher suites also use it, even the ones that
-             * aren't ECC. */
+            if (cipher->ssl->options.cipherSuite0 == CHACHA_BYTE) {
+            /* ChaCha suites */
+            switch (cipher->ssl->options.cipherSuite) {
+#ifdef HAVE_CHACHA
+    #ifndef NO_RSA
+                case TLS_ECDHE_RSA_WITH_CHACHA20_256_POLY1305_SHA256 :
+                    return "TLS_ECDHE_RSA_WITH_CHACHA20_256_POLY1305_SHA256";
+    #endif 
+#endif
+                }
+            }
+#ifdef HAVE_ECC
             if (cipher->ssl->options.cipherSuite0 == ECC_BYTE) {
             /* ECC suites */
             switch (cipher->ssl->options.cipherSuite) {
-#ifdef HAVE_ECC
 #ifndef NO_RSA
                 case TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256 :
                     return "TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256";
@@ -8375,6 +8385,7 @@ CYASSL_X509* CyaSSL_X509_load_certificate_file(const char* fname, int format)
         #ifndef NO_RSA
                 case TLS_ECDH_RSA_WITH_RC4_128_SHA :
                     return "TLS_ECDH_RSA_WITH_RC4_128_SHA";
+
         #endif
                 case TLS_ECDH_ECDSA_WITH_RC4_128_SHA :
                     return "TLS_ECDH_ECDSA_WITH_RC4_128_SHA";
@@ -8411,7 +8422,6 @@ CYASSL_X509* CyaSSL_X509_load_certificate_file(const char* fname, int format)
                 case TLS_ECDH_ECDSA_WITH_AES_256_GCM_SHA384 :
                     return "TLS_ECDH_ECDSA_WITH_AES_256_GCM_SHA384";
 #endif
-#endif /* HAVE_ECC */
 
 #ifdef HAVE_AESCCM
     #ifndef NO_RSA
@@ -8420,26 +8430,10 @@ CYASSL_X509* CyaSSL_X509_load_certificate_file(const char* fname, int format)
                 case TLS_RSA_WITH_AES_256_CCM_8 :
                     return "TLS_RSA_WITH_AES_256_CCM_8";
     #endif
-    #ifndef NO_PSK
-                case TLS_PSK_WITH_AES_128_CCM_8 :
-                    return "TLS_PSK_WITH_AES_128_CCM_8";
-                case TLS_PSK_WITH_AES_256_CCM_8 :
-                    return "TLS_PSK_WITH_AES_256_CCM_8";
-                case TLS_PSK_WITH_AES_128_CCM :
-                    return "TLS_PSK_WITH_AES_128_CCM";
-                case TLS_PSK_WITH_AES_256_CCM :
-                    return "TLS_PSK_WITH_AES_256_CCM";
-                case TLS_DHE_PSK_WITH_AES_128_CCM :
-                    return "TLS_DHE_PSK_WITH_AES_128_CCM";
-                case TLS_DHE_PSK_WITH_AES_256_CCM :
-                    return "TLS_DHE_PSK_WITH_AES_256_CCM";
-    #endif
-    #ifdef HAVE_ECC
                 case TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8:
                     return "TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8";
                 case TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8 :
                     return "TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8";
-    #endif
 #endif
 
                 default:
@@ -8447,7 +8441,7 @@ CYASSL_X509* CyaSSL_X509_load_certificate_file(const char* fname, int format)
             }
             }
 #endif  /* ECC */
-            if (cipher->ssl->options.cipherSuite0 != ECC_BYTE) {
+            if (cipher->ssl->options.cipherSuite0 != ECC_BYTE && cipher->ssl->options.cipherSuite0 != CHACHA_BYTE) {
             /* normal suites */
             switch (cipher->ssl->options.cipherSuite) {
 #ifndef NO_RSA
@@ -8489,6 +8483,8 @@ CYASSL_X509* CyaSSL_X509_load_certificate_file(const char* fname, int format)
                     return "TLS_RSA_WITH_NULL_SHA256";
 #endif /* NO_RSA */
 #ifndef NO_PSK
+                case TLS_PSK_WITH_AES_128_CBC_SHA256 :
+                    return "TLS_PSK_WITH_AES_128_CBC_SHA256";
     #ifndef NO_SHA
                 case TLS_PSK_WITH_AES_128_CBC_SHA :
                     return "TLS_PSK_WITH_AES_128_CBC_SHA";
@@ -8496,36 +8492,14 @@ CYASSL_X509* CyaSSL_X509_load_certificate_file(const char* fname, int format)
                     return "TLS_PSK_WITH_AES_256_CBC_SHA";
     #endif
     #ifndef NO_SHA256
-                case TLS_PSK_WITH_AES_128_CBC_SHA256 :
-                    return "TLS_PSK_WITH_AES_128_CBC_SHA256";
+        #ifdef HAVE_AESCCM
+                case TLS_PSK_WITH_AES_128_CCM_8 :
+                    return "TLS_PSK_WITH_AES_128_CCM_8";
+                case TLS_PSK_WITH_AES_256_CCM_8 :
+                    return "TLS_PSK_WITH_AES_256_CCM_8";
+        #endif
                 case TLS_PSK_WITH_NULL_SHA256 :
                     return "TLS_PSK_WITH_NULL_SHA256";
-                case TLS_DHE_PSK_WITH_AES_128_CBC_SHA256 :
-                    return "TLS_DHE_PSK_WITH_AES_128_CBC_SHA256";
-                case TLS_DHE_PSK_WITH_NULL_SHA256 :
-                    return "TLS_DHE_PSK_WITH_NULL_SHA256";
-        #ifdef HAVE_AESGCM
-                case TLS_PSK_WITH_AES_128_GCM_SHA256 :
-                    return "TLS_PSK_WITH_AES_128_GCM_SHA256";
-                case TLS_DHE_PSK_WITH_AES_128_GCM_SHA256 :
-                    return "TLS_DHE_PSK_WITH_AES_128_GCM_SHA256";
-        #endif
-    #endif
-    #ifdef CYASSL_SHA384
-                case TLS_PSK_WITH_AES_256_CBC_SHA384 :
-                    return "TLS_PSK_WITH_AES_256_CBC_SHA384";
-                case TLS_PSK_WITH_NULL_SHA384 :
-                    return "TLS_PSK_WITH_NULL_SHA384";
-                case TLS_DHE_PSK_WITH_AES_256_CBC_SHA384 :
-                    return "TLS_DHE_PSK_WITH_AES_256_CBC_SHA384";
-                case TLS_DHE_PSK_WITH_NULL_SHA384 :
-                    return "TLS_DHE_PSK_WITH_NULL_SHA384";
-        #ifdef HAVE_AESGCM
-                case TLS_PSK_WITH_AES_256_GCM_SHA384 :
-                    return "TLS_PSK_WITH_AES_256_GCM_SHA384";
-                case TLS_DHE_PSK_WITH_AES_256_GCM_SHA384 :
-                    return "TLS_DHE_PSK_WITH_AES_256_GCM_SHA384";
-        #endif
     #endif
     #ifndef NO_SHA
                 case TLS_PSK_WITH_NULL_SHA :

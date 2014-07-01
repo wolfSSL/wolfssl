@@ -23,13 +23,17 @@
     #include <config.h>
 #endif
 
+#ifdef CHACHA_AEAD_TEST
+    #include <stdio.h>
+#endif
+
 #include <cyassl/ctaocrypt/settings.h>
 
 #include <cyassl/ssl.h>
 #include <cyassl/internal.h>
 #include <cyassl/error-ssl.h>
 #include <cyassl/ctaocrypt/hmac.h>
-
+#include <cyassl/ctaocrypt/poly1305.h>
 
 
 #ifndef NO_TLS
@@ -481,11 +485,19 @@ int CyaSSL_GetHmacType(CYASSL* ssl)
     if (ssl == NULL)
         return BAD_FUNC_ARG;
 
+            printf("getting mac \n");
     switch (ssl->specs.mac_algorithm) {
         #ifndef NO_MD5
         case md5_mac:
         {
             return MD5;
+        }
+        #endif
+        #ifdef HAVE_POLY1305
+        case poly1305_mac:
+        {
+            printf("poly1305 selected\n");
+            return POLY1305;
         }
         #endif
         #ifndef NO_SHA256
@@ -547,30 +559,31 @@ int CyaSSL_SetTlsHmacInner(CYASSL* ssl, byte* inner, word32 sz, int content,
 int TLS_hmac(CYASSL* ssl, byte* digest, const byte* in, word32 sz,
               int content, int verify)
 {
-    Hmac hmac;
     int  ret;
-    byte myInner[CYASSL_TLS_HMAC_INNER_SZ];
-
+    
     if (ssl == NULL)
         return BAD_FUNC_ARG;
     
-    CyaSSL_SetTlsHmacInner(ssl, myInner, sz, content, verify);
+        Hmac hmac;
+        byte myInner[CYASSL_TLS_HMAC_INNER_SZ];
 
-    ret = HmacSetKey(&hmac, CyaSSL_GetHmacType(ssl),
+        CyaSSL_SetTlsHmacInner(ssl, myInner, sz, content, verify);
+
+        ret = HmacSetKey(&hmac, CyaSSL_GetHmacType(ssl),
                      CyaSSL_GetMacSecret(ssl, verify), ssl->specs.hash_size);
-    if (ret != 0)
-        return ret;
-    ret = HmacUpdate(&hmac, myInner, sizeof(myInner));
-    if (ret != 0)
-        return ret;
-    ret = HmacUpdate(&hmac, in, sz);                                /* content */
-    if (ret != 0)
-        return ret;
-    ret = HmacFinal(&hmac, digest);
-    if (ret != 0)
-        return ret;
+        if (ret != 0)
+            return ret;
+        ret = HmacUpdate(&hmac, myInner, sizeof(myInner));
+        if (ret != 0)
+            return ret;
+        ret = HmacUpdate(&hmac, in, sz);                           /* content */
+        if (ret != 0)
+            return ret;
+        ret = HmacFinal(&hmac, digest);
+        if (ret != 0)
+            return ret;
 
-    return 0;
+        return 0;
 }
 
 #ifdef HAVE_TLS_EXTENSIONS

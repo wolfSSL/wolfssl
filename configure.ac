@@ -6,7 +6,7 @@
 #
 #
 
-AC_INIT([cyassl],[3.0.3],[https://github.com/cyassl/cyassl/issues],[cyassl],[http://www.wolfssl.com])
+AC_INIT([cyassl],[3.0.0],[https://github.com/cyassl/cyassl/issues],[cyassl],[http://www.wolfssl.com])
 
 AC_CONFIG_AUX_DIR([build-aux])
 
@@ -81,7 +81,6 @@ AC_CHECK_HEADERS([errno.h])
 AC_CHECK_LIB(network,socket)
 AC_CHECK_SIZEOF(long long, 8)
 AC_CHECK_SIZEOF(long, 4)
-AC_CHECK_TYPES(__uint128_t)
 AC_C_BIGENDIAN
 # mktime check takes forever on some systems, if time supported it would be
 # highly unusual for mktime to be missing
@@ -391,14 +390,26 @@ then
     then
         # GCC needs these flags, icc doesn't
         # opt levels greater than 2 may cause problems on systems w/o aesni
-        if test "$CC" != "icc"
-        then
-            AM_CFLAGS="$AM_CFLAGS -maes -msse4"
-        fi
+        AM_CFLAGS="$AM_CFLAGS -maes -msse4"
     fi
 fi
 
 AM_CONDITIONAL([BUILD_AESNI], [test "x$ENABLED_AESNI" = "xyes"])
+
+
+# POLY1305
+AC_ARG_ENABLE([poly1305],
+    [  --enable-poly1305         Enable CyaSSL POLY1305 support (default: disabled)],
+    [ ENABLED_POLY1305=$enableval ],
+    [ ENABLED_POLY1305=no ]
+    )
+
+if test "$ENABLED_POLY1305" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_POLY1305"
+fi
+
+AM_CONDITIONAL([BUILD_POLY1305], [test "x$ENABLED_POLY1305" = "xyes"])
 
 
 # Camellia
@@ -1062,6 +1073,21 @@ fi
 AM_CONDITIONAL([BUILD_RABBIT], [test "x$ENABLED_RABBIT" = "xyes"])
 
 
+# CHACHA
+AC_ARG_ENABLE([chacha],
+    [  --enable-chacha         Enable CHACHA (default: disabled)],
+    [ ENABLED_CHACHA=$enableval ],
+    [ ENABLED_CHACHA=no ]
+    )
+
+if test "$ENABLED_CHACHA" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_CHACHA"
+fi
+
+AM_CONDITIONAL([BUILD_CHACHA], [test "x$ENABLED_CHACHA" = "xyes"])
+
+
 # FIPS 
 AC_ARG_ENABLE([fips],
     [  --enable-fips           Enable FIPS 140-2 (default: disabled)],
@@ -1209,44 +1235,21 @@ AM_CONDITIONAL([BUILD_CRL_MONITOR], [test "x$ENABLED_CRL_MONITOR" = "xyes"])
 
 
 # NTRU
-ENABLED_NTRU="no"
-tryntrudir=""
-AC_ARG_WITH([ntru],
-    [  --with-ntru=PATH        Path to NTRU install (default /usr/) ],
-    [
-        AC_MSG_CHECKING([for NTRU])
-        CPPFLAGS="$CPPFLAGS -DHAVE_NTRU"
-        LIBS="$LIBS -lNTRUEncrypt"
+ntruHome=`pwd`/NTRU_algorithm
+ntruInclude=$ntruHome/cryptolib
+ntruLib=$ntruHome
+AC_ARG_ENABLE([ntru],
+    [  --enable-ntru           Enable NTRU (default: disabled)],
+    [ ENABLED_NTRU=$enableval ],
+    [ ENABLED_NTRU=no ]
+    )
 
-        AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <ntru_crypto_drbg.h>]], [[ ntru_crypto_drbg_instantiate(0, 0, 0, 0, 0); ]])], [ ntru_linked=yes ],[ ntru_linked=no ])
-
-        if test "x$ntru_linked" == "xno" ; then
-            if test "x$withval" != "xno" ; then
-                tryntrudir=$withval
-            fi
-            if test "x$withval" == "xyes" ; then
-                tryntrudir="/usr"
-            fi
-
-            LDFLAGS="$AM_LDFLAGS -L$tryntrudir/lib"
-            CPPFLAGS="$CPPFLAGS -I$tryntrudir/include"
-
-            AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <ntru_crypto_drbg.h>]], [[ ntru_crypto_drbg_instantiate(0, 0, 0, 0, 0); ]])], [ ntru_linked=yes ],[ ntru_linked=no ])
-
-            if test "x$ntru_linked" == "xno" ; then
-                AC_MSG_ERROR([NTRU isn't found.
-                If it's already installed, specify its path using --with-ntru=/dir/])
-            fi
-            AC_MSG_RESULT([yes])
-            AM_LDFLAGS="$AM_LDFLAGS -L$tryntrudir/lib"
-        else
-            AC_MSG_RESULT([yes])
-        fi
-
-        AM_CFLAGS="$AM_CFLAGS -DHAVE_NTRU"
-        ENABLED_NTRU="yes"
-    ]
-)
+if test "$ENABLED_NTRU" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_NTRU -I$ntruInclude"
+    AM_LDFLAGS="$AM_LDFLAGS -L$ntruLib"
+    LIBS="$LIBS -lntru_encrypt"
+fi
 
 AM_CONDITIONAL([BUILD_NTRU], [test "x$ENABLED_NTRU" = "xyes"])
 
@@ -1662,13 +1665,6 @@ then
     fi
 fi
 
-# ICC command line warning for non supported warning flags
-if test "$CC" = "icc"
-then
-    AM_CFLAGS="$AM_CFLAGS -wd10006"
-fi
-
-
 LIB_SOCKET_NSL
 AX_HARDEN_CC_COMPILER_FLAGS
 
@@ -1717,7 +1713,7 @@ echo "Generating user options header..."
 OPTION_FILE="cyassl/options.h"
 rm -f $OPTION_FILE
 
-echo "/* cyassl options.h" > $OPTION_FILE 
+echo "/* cyassl options.h" >> $OPTION_FILE 
 echo " * generated from configure options" >> $OPTION_FILE
 echo " *" >> $OPTION_FILE
 echo " * Copyright (C) 2006-2014 wolfSSL Inc." >> $OPTION_FILE
@@ -1797,11 +1793,13 @@ echo "   * certgen:                   $ENABLED_CERTGEN"
 echo "   * certreq:                   $ENABLED_CERTREQ"
 echo "   * HC-128:                    $ENABLED_HC128"
 echo "   * RABBIT:                    $ENABLED_RABBIT"
+echo "   * CHACHA:                    $ENABLED_CHACHA"
 echo "   * Hash DRBG:                 $ENABLED_HASHDRBG"
 echo "   * PWDBASED:                  $ENABLED_PWDBASED"
 echo "   * HKDF:                      $ENABLED_HKDF"
 echo "   * MD4:                       $ENABLED_MD4"
 echo "   * PSK:                       $ENABLED_PSK"
+echo "   * Poly1305:                  $ENABLED_POLY1305"
 echo "   * LEANPSK:                   $ENABLED_LEANPSK"
 echo "   * RSA:                       $ENABLED_RSA"
 echo "   * DSA:                       $ENABLED_DSA"

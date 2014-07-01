@@ -1,4 +1,4 @@
-/* cyassl_version.h.in
+/* chacha.h
  *
  * Copyright (C) 2006-2014 wolfSSL Inc.
  *
@@ -19,17 +19,37 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
+#ifndef CHACHA_H
+#define CHACHA_H
 
-#pragma once
+#include "types.h"
 
 #ifdef __cplusplus
-extern "C" {
+    extern "C" {
 #endif
 
-#define LIBCYASSL_VERSION_STRING "3.0.0"
-#define LIBCYASSL_VERSION_HEX 0x03000000
+
+enum {
+	CHACHA_ENC_TYPE = 7     /* cipher unique type */
+};
+
+typedef struct ChaCha {
+    word32 X[16];           /* state of cipher */
+} ChaCha;
+
+CYASSL_API int Chacha_Process(ChaCha* ctx, byte* cipher, const byte* plain,
+                              word32 msglen);
+CYASSL_API int Chacha_SetKey(ChaCha* ctx, const byte* key, word32 keySz);
+
+/**
+  * IV(nonce) changes with each record 
+  * counter is for what value the block counter should start ... usually 0
+  */
+CYASSL_API int Chacha_SetIV(ChaCha* ctx, const byte* inIv, word32 counter);
 
 #ifdef __cplusplus
-}
+    } /* extern "C" */
+#endif
+
 #endif
 

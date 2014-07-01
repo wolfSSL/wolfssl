@@ -24,8 +24,6 @@
  * by Intel Mobility Group, Israel Development Center, Israel Shay Gueron
  */
 
-/* This file is in at&t asm syntax, see .asm for intel syntax */
-
 
 /*
 AES_CBC_encrypt (const unsigned char *in,

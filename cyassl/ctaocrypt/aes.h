@@ -41,8 +41,6 @@
     #if defined (__GNUC__)
         #define ALIGN16 __attribute__ ( (aligned (16)))
     #elif defined(_MSC_VER)
-        /* disable align warning, we want alignment ! */
-        #pragma warning(disable: 4324)
         #define ALIGN16 __declspec (align (16))
     #else
         #define ALIGN16

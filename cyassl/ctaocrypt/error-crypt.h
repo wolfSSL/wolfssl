@@ -125,14 +125,11 @@ enum {
     FIPS_NOT_ALLOWED_E  = -197,  /* FIPS not allowed error */
     ASN_NAME_INVALID_E  = -198,  /* ASN name constraint error */
 
-    RNG_FAILURE_E       = -199,  /* RNG Failed, Reinitialize */
-
     MIN_CODE_E         = -200   /* errors -101 - -199 */
 };
 
 
 CYASSL_API void CTaoCryptErrorString(int err, char* buff);
-CYASSL_API const char* CTaoCryptGetErrorString(int error);
 
 
 #ifdef __cplusplus

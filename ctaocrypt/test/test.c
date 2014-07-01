@@ -48,12 +48,14 @@
 #include <cyassl/ctaocrypt/rsa.h>
 #include <cyassl/ctaocrypt/des3.h>
 #include <cyassl/ctaocrypt/aes.h>
+#include <cyassl/ctaocrypt/poly1305.h>
 #include <cyassl/ctaocrypt/camellia.h>
 #include <cyassl/ctaocrypt/hmac.h>
 #include <cyassl/ctaocrypt/dh.h>
 #include <cyassl/ctaocrypt/dsa.h>
 #include <cyassl/ctaocrypt/hc128.h>
 #include <cyassl/ctaocrypt/rabbit.h>
+#include <cyassl/ctaocrypt/chacha.h>
 #include <cyassl/ctaocrypt/pwdbased.h>
 #include <cyassl/ctaocrypt/ripemd.h>
 #ifdef HAVE_ECC
@@ -101,7 +103,7 @@
 #endif
 
 #ifdef HAVE_NTRU
-    #include "ntru_crypto.h"
+    #include "crypto_ntru.h"
 #endif
 #ifdef HAVE_CAVIUM
     #include "cavium_sysdep.h"
@@ -152,9 +154,11 @@ int  hkdf_test(void);
 int  arc4_test(void);
 int  hc128_test(void);
 int  rabbit_test(void);
+int  chacha_test(void);
 int  des_test(void);
 int  des3_test(void);
 int  aes_test(void);
+int  poly1305_test(void);
 int  aesgcm_test(void);
 int  gmac_test(void);
 int  aesccm_test(void);
@@ -367,6 +371,13 @@ void ctaocrypt_test(void* args)
         printf( "Rabbit   test passed!\n");
 #endif
 
+#ifdef HAVE_CHACHA
+    if ( (ret = chacha_test()) != 0)
+        err_sys("Chacha   test failed!\n", ret);
+    else
+        printf( "Chacha   test passed!\n");
+#endif
+
 #ifndef NO_DES3
     if ( (ret = des_test()) != 0)
         err_sys("DES      test failed!\n", ret);
@@ -386,6 +397,13 @@ void ctaocrypt_test(void* args)
         err_sys("AES      test failed!\n", ret);
     else
         printf( "AES      test passed!\n");
+
+#ifdef HAVE_POLY1305
+    if ( (ret = poly1305_test()) != 0)
+        err_sys("POLY1305 test failed!\n", ret);
+    else
+        printf( "POLY1305 test passed!\n");
+#endif
 
 #ifdef HAVE_AESGCM
     if ( (ret = aesgcm_test()) != 0)
@@ -1800,6 +1818,107 @@ int rabbit_test(void)
 #endif /* NO_RABBIT */
 
 
+#ifdef HAVE_CHACHA
+int chacha_test(void)
+{
+    byte   cipher[32];
+    byte   plain[32];
+    byte   input[] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
+    word32 keySz;
+    int    i;
+    int    times = 4;
+
+    const byte key1[] =
+    {
+         0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+         0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+         0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+         0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
+    };
+
+    const byte key2[] =
+    {
+         0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+         0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+         0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+         0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x01
+    };
+
+    const byte key3[] = 
+    {
+         0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+         0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+         0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+         0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
+    };
+
+    /* 128 bit key */
+    const byte key4[] =
+    {
+         0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+         0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
+    };
+
+
+    const byte* keys[] = {key1, key2, key3, key4};
+    
+    const byte ivs1[] = {0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00};
+    const byte ivs2[] = {0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00};
+    const byte ivs3[] = {0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x01};
+    const byte ivs4[] = {0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00};
+
+
+    const byte* ivs[] = {ivs1, ivs2, ivs3, ivs4};
+
+
+    byte a[] = {0x76,0xb8,0xe0,0xad,0xa0,0xf1,0x3d,0x90};
+    byte b[] = {0x45,0x40,0xf0,0x5a,0x9f,0x1f,0xb2,0x96};
+    byte c[] = {0xde,0x9c,0xba,0x7b,0xf3,0xd6,0x9e,0xf5};
+    byte d[] = {0x89,0x67,0x09,0x52,0x60,0x83,0x64,0xfd};
+
+    byte* test_chacha[4];
+
+    test_chacha[0] = a;
+    test_chacha[1] = b;
+    test_chacha[2] = c;
+    test_chacha[3] = d;
+
+    for (i = 0; i < times; ++i) {
+        if (i < 3) {
+            keySz = 32;
+        }
+        else {
+            keySz = 16;
+        }
+        ChaCha enc;
+        ChaCha dec;
+
+        XMEMCPY(plain, keys[i], keySz);
+        XMEMSET(cipher, 0, 32);
+        XMEMCPY(cipher + 4, ivs[i], 8);
+    
+        Chacha_SetKey(&enc, keys[i], keySz);
+        Chacha_SetKey(&dec, keys[i], keySz);
+
+        Chacha_SetIV(&enc, cipher,0);
+        Chacha_SetIV(&dec, cipher,0);
+        XMEMCPY(plain, input, 8);
+
+        Chacha_Process(&enc, cipher, plain,  (word32)8);
+        Chacha_Process(&dec, plain,  cipher, (word32)8);
+
+        if (memcmp(test_chacha[i], cipher, 8)) 
+            return -130 - 5 - i;
+
+        if (memcmp(plain, input, 8))
+            return -130 - i;
+    }
+
+    return 0;
+}
+#endif /* HAVE_CHACHA */
+
+
 #ifndef NO_DES3
 int des_test(void)
 {
@@ -2109,6 +2228,96 @@ int aes_test(void)
 
     return 0;
 }
+
+#ifdef HAVE_POLY1305
+int poly1305_test(void)
+{
+    int      ret = 0;
+    int      i;
+    byte     tag[16];
+    Poly1305 enc;
+
+    const byte msg[] = 
+    {
+        0x43,0x72,0x79,0x70,0x74,0x6f,0x67,0x72,
+        0x61,0x70,0x68,0x69,0x63,0x20,0x46,0x6f,
+        0x72,0x75,0x6d,0x20,0x52,0x65,0x73,0x65,
+        0x61,0x72,0x63,0x68,0x20,0x47,0x72,0x6f,
+        0x75,0x70
+    };
+
+    const byte msg2[] =
+    {
+        0x48,0x65,0x6c,0x6c,0x6f,0x20,0x77,0x6f,0x72,
+        0x6c,0x64,0x21
+    };
+
+    const byte msg3[] = 
+    {
+        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
+    };
+
+    const byte correct[] =
+    {
+        0xa8,0x06,0x1d,0xc1,0x30,0x51,0x36,0xc6,
+        0xc2,0x2b,0x8b,0xaf,0x0c,0x01,0x27,0xa9
+
+    };
+    
+    const byte correct2[] =
+    {
+        0xa6,0xf7,0x45,0x00,0x8f,0x81,0xc9,0x16,
+        0xa2,0x0d,0xcc,0x74,0xee,0xf2,0xb2,0xf0
+    };
+
+    const byte correct3[] =
+    {
+        0x49,0xec,0x78,0x09,0x0e,0x48,0x1e,0xc6,
+        0xc2,0x6b,0x33,0xb9,0x1c,0xcc,0x03,0x07
+    };
+
+    const byte key[] = {
+        0x85,0xd6,0xbe,0x78,0x57,0x55,0x6d,0x33,
+        0x7f,0x44,0x52,0xfe,0x42,0xd5,0x06,0xa8,
+        0x01,0x03,0x80,0x8a,0xfb,0x0d,0xb2,0xfd,
+        0x4a,0xbf,0xf6,0xaf,0x41,0x49,0xf5,0x1b
+    };
+
+    const byte key2[] = {
+        0x74,0x68,0x69,0x73,0x20,0x69,0x73,0x20,
+        0x33,0x32,0x2d,0x62,0x79,0x74,0x65,0x20,
+        0x6b,0x65,0x79,0x20,0x66,0x6f,0x72,0x20,
+        0x50,0x6f,0x6c,0x79,0x31,0x33,0x30,0x35           
+    };  
+
+    const byte* msgs[]  = {msg, msg2, msg3};
+    word32      szm[]   = {sizeof(msg),sizeof(msg2),sizeof(msg3)};
+    const byte* keys[]  = {key, key2, key2};
+    const byte* tests[] = {correct, correct2, correct3};
+
+    for (i = 0; i < 3; i++) {
+        ret = Poly1305SetKey(&enc, keys[i], 32);
+        if (ret != 0)
+            return -1001;
+
+        ret = Poly1305Update(&enc, msgs[i], szm[i]);
+        if (ret != 0)
+            return -1005;
+
+        ret = Poly1305Final(&enc, tag);
+        if (ret != 0)
+            return -60;
+
+        if (memcmp(tag, tests[i], sizeof(tag)))
+            return -61;
+    }
+
+    return 0;
+} 
+#endif /* HAVE_POLY1305 */
 
 #ifdef HAVE_AESGCM
 int aesgcm_test(void)
@@ -2581,74 +2790,6 @@ int camellia_test(void)
 #endif /* HAVE_CAMELLIA */
 
 
-#if defined(HAVE_HASHDRBG) || defined(NO_RC4)
-
-int random_test(void)
-{
-    const byte test1Entropy[] =
-    {
-        0xa6, 0x5a, 0xd0, 0xf3, 0x45, 0xdb, 0x4e, 0x0e, 0xff, 0xe8, 0x75, 0xc3,
-        0xa2, 0xe7, 0x1f, 0x42, 0xc7, 0x12, 0x9d, 0x62, 0x0f, 0xf5, 0xc1, 0x19,
-        0xa9, 0xef, 0x55, 0xf0, 0x51, 0x85, 0xe0, 0xfb, 0x85, 0x81, 0xf9, 0x31,
-        0x75, 0x17, 0x27, 0x6e, 0x06, 0xe9, 0x60, 0x7d, 0xdb, 0xcb, 0xcc, 0x2e
-    };
-    const byte test1Output[] =
-    {
-        0xd3, 0xe1, 0x60, 0xc3, 0x5b, 0x99, 0xf3, 0x40, 0xb2, 0x62, 0x82, 0x64,
-        0xd1, 0x75, 0x10, 0x60, 0xe0, 0x04, 0x5d, 0xa3, 0x83, 0xff, 0x57, 0xa5,
-        0x7d, 0x73, 0xa6, 0x73, 0xd2, 0xb8, 0xd8, 0x0d, 0xaa, 0xf6, 0xa6, 0xc3,
-        0x5a, 0x91, 0xbb, 0x45, 0x79, 0xd7, 0x3f, 0xd0, 0xc8, 0xfe, 0xd1, 0x11,
-        0xb0, 0x39, 0x13, 0x06, 0x82, 0x8a, 0xdf, 0xed, 0x52, 0x8f, 0x01, 0x81,
-        0x21, 0xb3, 0xfe, 0xbd, 0xc3, 0x43, 0xe7, 0x97, 0xb8, 0x7d, 0xbb, 0x63,
-        0xdb, 0x13, 0x33, 0xde, 0xd9, 0xd1, 0xec, 0xe1, 0x77, 0xcf, 0xa6, 0xb7,
-        0x1f, 0xe8, 0xab, 0x1d, 0xa4, 0x66, 0x24, 0xed, 0x64, 0x15, 0xe5, 0x1c,
-        0xcd, 0xe2, 0xc7, 0xca, 0x86, 0xe2, 0x83, 0x99, 0x0e, 0xea, 0xeb, 0x91,
-        0x12, 0x04, 0x15, 0x52, 0x8b, 0x22, 0x95, 0x91, 0x02, 0x81, 0xb0, 0x2d,
-        0xd4, 0x31, 0xf4, 0xc9, 0xf7, 0x04, 0x27, 0xdf
-    };
-    const byte test2EntropyA[] =
-    {
-        0x63, 0x36, 0x33, 0x77, 0xe4, 0x1e, 0x86, 0x46, 0x8d, 0xeb, 0x0a, 0xb4,
-        0xa8, 0xed, 0x68, 0x3f, 0x6a, 0x13, 0x4e, 0x47, 0xe0, 0x14, 0xc7, 0x00,
-        0x45, 0x4e, 0x81, 0xe9, 0x53, 0x58, 0xa5, 0x69, 0x80, 0x8a, 0xa3, 0x8f,
-        0x2a, 0x72, 0xa6, 0x23, 0x59, 0x91, 0x5a, 0x9f, 0x8a, 0x04, 0xca, 0x68
-    };
-    const byte test2EntropyB[] =
-    {
-        0xe6, 0x2b, 0x8a, 0x8e, 0xe8, 0xf1, 0x41, 0xb6, 0x98, 0x05, 0x66, 0xe3,
-        0xbf, 0xe3, 0xc0, 0x49, 0x03, 0xda, 0xd4, 0xac, 0x2c, 0xdf, 0x9f, 0x22,
-        0x80, 0x01, 0x0a, 0x67, 0x39, 0xbc, 0x83, 0xd3
-    };
-    const byte test2Output[] =
-    {
-        0x04, 0xee, 0xc6, 0x3b, 0xb2, 0x31, 0xdf, 0x2c, 0x63, 0x0a, 0x1a, 0xfb,
-        0xe7, 0x24, 0x94, 0x9d, 0x00, 0x5a, 0x58, 0x78, 0x51, 0xe1, 0xaa, 0x79,
-        0x5e, 0x47, 0x73, 0x47, 0xc8, 0xb0, 0x56, 0x62, 0x1c, 0x18, 0xbd, 0xdc,
-        0xdd, 0x8d, 0x99, 0xfc, 0x5f, 0xc2, 0xb9, 0x20, 0x53, 0xd8, 0xcf, 0xac,
-        0xfb, 0x0b, 0xb8, 0x83, 0x12, 0x05, 0xfa, 0xd1, 0xdd, 0xd6, 0xc0, 0x71,
-        0x31, 0x8a, 0x60, 0x18, 0xf0, 0x3b, 0x73, 0xf5, 0xed, 0xe4, 0xd4, 0xd0,
-        0x71, 0xf9, 0xde, 0x03, 0xfd, 0x7a, 0xea, 0x10, 0x5d, 0x92, 0x99, 0xb8,
-        0xaf, 0x99, 0xaa, 0x07, 0x5b, 0xdb, 0x4d, 0xb9, 0xaa, 0x28, 0xc1, 0x8d,
-        0x17, 0x4b, 0x56, 0xee, 0x2a, 0x01, 0x4d, 0x09, 0x88, 0x96, 0xff, 0x22,
-        0x82, 0xc9, 0x55, 0xa8, 0x19, 0x69, 0xe0, 0x69, 0xfa, 0x8c, 0xe0, 0x07,
-        0xa1, 0x80, 0x18, 0x3a, 0x07, 0xdf, 0xae, 0x17
-    };
-    int ret;
-
-    ret = RNG_HealthTest(0, test1Entropy, sizeof(test1Entropy), NULL, 0,
-                            test1Output, sizeof(test1Output));
-    if (ret != 0) return -39;
-
-    ret = RNG_HealthTest(1, test2EntropyA, sizeof(test2EntropyA),
-                            test2EntropyB, sizeof(test2EntropyB),
-                            test2Output, sizeof(test2Output));
-    if (ret != 0) return -40;
-
-    return 0;
-}
-
-#else /* HAVE_HASHDRBG || NO_RC4 */
-
 int random_test(void)
 {
     RNG  rng;
@@ -2667,8 +2808,6 @@ int random_test(void)
 
     return 0;
 }
-
-#endif /* HAVE_HASHDRBG || NO_RC4 */
 
 
 #ifdef HAVE_NTRU
@@ -2858,8 +2997,8 @@ int rsa_test(void)
         int    pemSz = 0;
         RsaKey derIn;
         RsaKey genKey;
-        FILE*  keyFile;
-        FILE*  pemFile;
+        FILE* keyFile;
+        FILE* pemFile;
 
         ret = InitRsaKey(&genKey, 0);
         if (ret != 0)
@@ -3053,7 +3192,7 @@ int rsa_test(void)
         int         pemSz;
         size_t      bytes3;
         word32      idx3 = 0;
-        FILE*       file3 ;
+			  FILE* file3 ;
 #ifdef CYASSL_TEST_CERT
         DecodedCert decode;
 #endif
@@ -3354,38 +3493,30 @@ int rsa_test(void)
         static uint8_t const pers_str[] = {
                 'C', 'y', 'a', 'S', 'S', 'L', ' ', 't', 'e', 's', 't'
         };
-        word32 rc = ntru_crypto_drbg_instantiate(112, pers_str,
-                          sizeof(pers_str), GetEntropy, &drbg);
+        word32 rc = crypto_drbg_instantiate(112, pers_str, sizeof(pers_str),
+                                            GetEntropy, &drbg);
         if (rc != DRBG_OK) {
-            free(derCert);
-            free(pem);
-            return -448;
-        }
-
-        rc = ntru_crypto_ntru_encrypt_keygen(drbg, NTRU_EES401EP2,
-                                             &public_key_len, NULL,
-                                             &private_key_len, NULL);
-        if (rc != NTRU_OK) {
-            free(derCert);
-            free(pem);
-            return -449;
-        }
-
-        rc = ntru_crypto_ntru_encrypt_keygen(drbg, NTRU_EES401EP2,
-                                             &public_key_len, public_key,
-                                             &private_key_len, private_key);
-        if (rc != NTRU_OK) {
             free(derCert);
             free(pem);
             return -450;
         }
 
-        rc = ntru_crypto_drbg_uninstantiate(drbg);
-
+        rc = crypto_ntru_encrypt_keygen(drbg, NTRU_EES401EP2, &public_key_len,
+                                        NULL, &private_key_len, NULL);
         if (rc != NTRU_OK) {
             free(derCert);
             free(pem);
             return -451;
+        }
+
+        rc = crypto_ntru_encrypt_keygen(drbg, NTRU_EES401EP2, &public_key_len,
+                                     public_key, &private_key_len, private_key);
+        crypto_drbg_uninstantiate(drbg);
+
+        if (rc != NTRU_OK) {
+            free(derCert);
+            free(pem);
+            return -452;
         }
 
         caFile = fopen(caKeyFile, "rb");
@@ -3393,7 +3524,7 @@ int rsa_test(void)
         if (!caFile) {
             free(derCert);
             free(pem);
-            return -452;
+            return -453;
         }
 
         bytes = fread(tmp, 1, FOURK_BUF, caFile);
@@ -3403,7 +3534,7 @@ int rsa_test(void)
         if (ret != 0) {
             free(derCert);
             free(pem);
-            return -453;
+            return -459;
         }
         ret = RsaPrivateKeyDecode(tmp, &idx3, &caKey, (word32)bytes);
         if (ret != 0) {
@@ -3780,7 +3911,7 @@ int openssl_test(void)
     EVP_MD_CTX_init(&md_ctx);
     EVP_DigestInit(&md_ctx, EVP_md5());
 
-    EVP_DigestUpdate(&md_ctx, a.input, (unsigned long)a.inLen);
+    EVP_DigestUpdate(&md_ctx, a.input, a.inLen);
     EVP_DigestFinal(&md_ctx, hash, 0);
 
     if (memcmp(hash, a.output, MD5_DIGEST_SIZE) != 0)
@@ -3797,7 +3928,7 @@ int openssl_test(void)
     EVP_MD_CTX_init(&md_ctx);
     EVP_DigestInit(&md_ctx, EVP_sha1());
 
-    EVP_DigestUpdate(&md_ctx, b.input, (unsigned long)b.inLen);
+    EVP_DigestUpdate(&md_ctx, b.input, b.inLen);
     EVP_DigestFinal(&md_ctx, hash, 0);
 
     if (memcmp(hash, b.output, SHA_DIGEST_SIZE) != 0)
@@ -3814,7 +3945,7 @@ int openssl_test(void)
     EVP_MD_CTX_init(&md_ctx);
     EVP_DigestInit(&md_ctx, EVP_sha256());
 
-    EVP_DigestUpdate(&md_ctx, d.input, (unsigned long)d.inLen);
+    EVP_DigestUpdate(&md_ctx, d.input, d.inLen);
     EVP_DigestFinal(&md_ctx, hash, 0);
 
     if (memcmp(hash, d.output, SHA256_DIGEST_SIZE) != 0)
@@ -3858,7 +3989,7 @@ int openssl_test(void)
     EVP_MD_CTX_init(&md_ctx);
     EVP_DigestInit(&md_ctx, EVP_sha512());
 
-    EVP_DigestUpdate(&md_ctx, f.input, (unsigned long)f.inLen);
+    EVP_DigestUpdate(&md_ctx, f.input, f.inLen);
     EVP_DigestFinal(&md_ctx, hash, 0);
 
     if (memcmp(hash, f.output, SHA512_DIGEST_SIZE) != 0)
