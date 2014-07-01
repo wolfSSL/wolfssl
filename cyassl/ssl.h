@@ -1042,10 +1042,10 @@ enum BulkCipherAlgorithm {
     cyassl_aes,
     cyassl_aes_gcm,
     cyassl_aes_ccm,
+    cyassl_chacha,
     cyassl_camellia,
     cyassl_hc128,                  /* CyaSSL extensions */
-    cyassl_rabbit,
-    cyassl_chacha
+    cyassl_rabbit
 };
 
 

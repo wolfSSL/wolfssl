@@ -2419,7 +2419,6 @@ static int HashOutput(CYASSL* ssl, const byte* output, int sz, int ivSz)
 #ifndef NO_MD5
     Md5Update(&ssl->hashMd5, adj, sz);
 #endif
-//    Poly1305Update(&ssl->hashPoly1395, adj, sz);
 #endif
 
     if (IsAtLeastTLSv1_2(ssl)) {
@@ -4313,7 +4312,7 @@ static INLINE int Encrypt(CYASSL* ssl, byte* out, const byte* input, word16 sz)
                 return Hc128_Process(ssl->encrypt.hc128, out, input, sz);
         #endif
 
-        #ifdef BILD_RABBIT
+        #ifdef BUILD_RABBIT
             case cyassl_rabbit:
                 return RabbitProcess(ssl->encrypt.rabbit, out, input, sz);
         #endif
@@ -4381,8 +4380,19 @@ static INLINE int Encrypt(CYASSL* ssl, byte* out, const byte* input, word16 sz)
                 /* add size of AD and size of cipher to poly input */
                 (p + CHACHA20_BLOCK_SIZE + padding2)[0] = 
                    (CHACHA20_BLOCK_SIZE);
+
+                /* 32 bit size of cipher to 64 bit endian */
                 ((p + CHACHA20_BLOCK_SIZE + padding2))[8] = 
-                   (byte)(sz - AEAD_EXP_IV_SZ - ssl->specs.aead_mac_size);
+                (sz - AEAD_EXP_IV_SZ - ssl->specs.aead_mac_size)        & 0xff;
+                
+                ((p + CHACHA20_BLOCK_SIZE + padding2))[9] = 
+                ((sz - AEAD_EXP_IV_SZ - ssl->specs.aead_mac_size) >> 8) & 0xff;
+                
+                ((p + CHACHA20_BLOCK_SIZE + padding2))[10] = 
+                ((sz - AEAD_EXP_IV_SZ - ssl->specs.aead_mac_size) >>16) & 0xff;
+                
+                ((p + CHACHA20_BLOCK_SIZE + padding2))[11] = 
+                ((sz - AEAD_EXP_IV_SZ - ssl->specs.aead_mac_size) >>24) & 0xff;
 
                 /* generate tag */
                 Poly1305SetKey(ssl->encrypt.poly1305,
@@ -4556,8 +4566,7 @@ static INLINE int Decrypt(CYASSL* ssl, byte* plain, const byte* input,
                       +  (sz - AEAD_EXP_IV_SZ - ssl->specs.aead_mac_size) % 16; 
 
                 byte p[CHACHA20_BLOCK_SIZE + padding2 + 16];
-			    int i;
-                int ret;
+			    int i, ret;
 
                 XMEMSET(tag, 0, 16);
                 XMEMSET(cipher, 0, sizeof(cipher));
@@ -4594,17 +4603,30 @@ static INLINE int Decrypt(CYASSL* ssl, byte* plain, const byte* input,
                 Chacha_SetIV(ssl->decrypt.chacha, nonce, 0);               
 	            Chacha_Process(ssl->decrypt.chacha, cipher, cipher, 32);
 
-                /* create Poly1305 tag */
+                /* create input for Poly1305 */
                 XMEMCPY(ssl->keys.server_write_MAC_secret, cipher, 32);
                 XMEMCPY(p, additional, CHACHA20_BLOCK_SIZE);
                 XMEMCPY((p + (CHACHA20_BLOCK_SIZE)), input + AEAD_EXP_IV_SZ, 
                         sz - AEAD_EXP_IV_SZ - ssl->specs.aead_mac_size);
 
+                /* add size of AD and of cipher */
                 (p + CHACHA20_BLOCK_SIZE + padding2)[0] = 
                    (CHACHA20_BLOCK_SIZE);
+                
+                /* 32 bit size of cipher to 64 bit endian */
                 ((p + CHACHA20_BLOCK_SIZE + padding2))[8] = 
-                   (byte)(sz - AEAD_EXP_IV_SZ - ssl->specs.aead_mac_size);
+                (sz - AEAD_EXP_IV_SZ - ssl->specs.aead_mac_size)        & 0xff;
+                
+                ((p + CHACHA20_BLOCK_SIZE + padding2))[9] = 
+                ((sz - AEAD_EXP_IV_SZ - ssl->specs.aead_mac_size) >> 8) & 0xff;
+                
+                ((p + CHACHA20_BLOCK_SIZE + padding2))[10] = 
+                ((sz - AEAD_EXP_IV_SZ - ssl->specs.aead_mac_size) >>16) & 0xff;
+                
+                ((p + CHACHA20_BLOCK_SIZE + padding2))[11] = 
+                ((sz - AEAD_EXP_IV_SZ - ssl->specs.aead_mac_size) >>24) & 0xff;
 
+                /* create Poly1305 tag */
                 Poly1305SetKey(ssl->decrypt.poly1305,
                                ssl->keys.server_write_MAC_secret,
                                sizeof(ssl->keys.server_write_MAC_secret));
