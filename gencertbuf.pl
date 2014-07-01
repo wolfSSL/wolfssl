@@ -1,10 +1,10 @@
 #!/usr/bin/perl
 
 # gencertbuf.pl
-# version 1.0
-# Updated 01/28/2013
+# version 1.1
+# Updated 07/01/2014
 #
-# Copyright (C) 2006-2013 wolfSSL
+# Copyright (C) 2006-2014 wolfSSL Inc.
 #
 
 use strict;
@@ -34,7 +34,10 @@ my @fileList_2048 = (
         [ "./certs/client-cert.der", "client_cert_der_2048" ],
         [ "./certs/dh2048.der", "dh_key_der_2048" ],
         [ "./certs/dsa2048.der", "dsa_key_der_2048" ],
-        [ "./certs/rsa2048.der", "rsa_key_der_2048" ]
+        [ "./certs/rsa2048.der", "rsa_key_der_2048" ],
+        [ "./certs/ca-cert.der", "ca_cert_der_2048" ],
+        [ "./certs/server-key.der", "server_key_der_2048" ],
+        [ "./certs/server-cert.der", "server_cert_der_2048" ]
         );
 
 # ----------------------------------------------------------------------------
