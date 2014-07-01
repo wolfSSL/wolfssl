@@ -785,15 +785,14 @@ static RNG rng;
 #ifndef NO_RSA
 
 
-#if !defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048) && \
-                                                    defined(CYASSL_MDK_SHELL)
-static char *certRSAname = "certs/rsa2048.der" ;
-static void set_Bench_RSA_File(char * cert) { certRSAname = cert ; }   
-                                                 /* set by shell command */
-#elif defined(CYASSL_MDK_SHELL)
-    /* nothing */
-#else
-static const char *certRSAname = "certs/rsa2048.der" ;
+#if !defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048)
+    #if defined(CYASSL_MDK_SHELL)
+        static char *certRSAname = "certs/rsa2048.der";
+        /* set by shell command */
+        static void set_Bench_RSA_File(char * cert) { certRSAname = cert ; }
+    #else
+        static const char *certRSAname = "certs/rsa2048.der";
+    #endif
 #endif
 
 void bench_rsa(void)
@@ -890,15 +889,14 @@ void bench_rsa(void)
 #ifndef NO_DH
 
 
-#if !defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048) && \
-                                                    defined(CYASSL_MDK_SHELL)
-static char *certDHname = "certs/dh2048.der" ;
-void set_Bench_DH_File(char * cert) { certDHname = cert ; }    
-                                            /* set by shell command */
-#elif defined(CYASSL_MDK_SHELL)
-    /* nothing */
-#else
-static const char *certDHname = "certs/dh2048.der" ;
+#if !defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048)
+    #if defined(CYASSL_MDK_SHELL)
+        static char *certDHname = "certs/dh2048.der";
+        /* set by shell command */
+        void set_Bench_DH_File(char * cert) { certDHname = cert ; }
+    #else
+        static const char *certDHname = "certs/dh2048.der";
+    #endif
 #endif
 
 void bench_dh(void)
