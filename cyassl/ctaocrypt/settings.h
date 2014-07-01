@@ -254,6 +254,21 @@
     #define XREALLOC    yaXREALLOC
 #endif
 
+#ifdef CYASSL_SMALL_STACK
+    #define DECLARE_ARRAY(type, var, size) \
+        type* var = NULL
+
+    #define CREATE_ARRAY(type, var, size) \
+        (var = (type*)XMALLOC(sizeof(type) * size, NULL, \
+                              DYNAMIC_TYPE_TMP_BUFFER))
+
+    #define DESTROY_ARRAY(var) \
+        XFREE(var, NULL, DYNAMIC_TYPE_TMP_BUFFER)
+#else
+    #define DECLARE_ARRAY(type, var, size) type var[size]
+    #define CREATE_ARRAY(type, var, size) 1
+    #define DESTROY_ARRAY(var)
+#endif
 
 #ifdef FREERTOS
     #ifndef NO_WRITEV
