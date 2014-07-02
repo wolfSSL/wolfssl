@@ -39,6 +39,7 @@
 
 int SetCipherSpecs(CYASSL* ssl)
 {
+#ifndef NO_CYASSL_CLIENT
     if (ssl->options.side == CYASSL_CLIENT_END) {
         /* server side verified before SetCipherSpecs call */
         if (VerifyClientSuite(ssl) != 1) {
@@ -46,6 +47,8 @@ int SetCipherSpecs(CYASSL* ssl)
             return UNSUPPORTED_SUITE;
         }
     }
+#endif /* NO_CYASSL_CLIENT */
+
     /* ECC extensions, or AES-CCM */
     if (ssl->options.cipherSuite0 == ECC_BYTE) {
     
