@@ -4149,6 +4149,8 @@ int hkdf_test(void)
     (void)res2;
     (void)res3;
     (void)res4;
+    (void)salt1;
+    (void)info1;
 
 #ifndef NO_SHA
     ret = HKDF(SHA, ikm1, 22, NULL, 0, NULL, 0, okm1, L);
@@ -4158,12 +4160,15 @@ int hkdf_test(void)
     if (memcmp(okm1, res1, L) != 0)
         return -2002;
 
+#ifndef HAVE_FIPS
+    /* fips can't have key size under 14 bytes, salt is key too */
     ret = HKDF(SHA, ikm1, 11, salt1, 13, info1, 10, okm1, L);
     if (ret != 0)
         return -2003;
 
     if (memcmp(okm1, res2, L) != 0)
         return -2004;
+#endif /* HAVE_FIPS */
 #endif /* NO_SHA */
 
 #ifndef NO_SHA256
@@ -4174,12 +4179,15 @@ int hkdf_test(void)
     if (memcmp(okm1, res3, L) != 0)
         return -2006;
 
+#ifndef HAVE_FIPS
+    /* fips can't have key size under 14 bytes, salt is key too */
     ret = HKDF(SHA256, ikm1, 22, salt1, 13, info1, 10, okm1, L);
     if (ret != 0)
         return -2007;
 
     if (memcmp(okm1, res4, L) != 0)
         return -2007;
+#endif /* HAVE_FIPS */
 #endif /* NO_SHA256 */
 
     return 0;
@@ -4357,6 +4365,9 @@ int ecc_encrypt_test(void)
         /* in actual use, we'd get the peer's salt over the transport */
         ret  = ecc_ctx_set_peer_salt(cliCtx, srvSalt);
         ret += ecc_ctx_set_peer_salt(srvCtx, cliSalt);
+
+        ret += ecc_ctx_set_info(cliCtx, (byte*)"CyaSSL MSGE", 11);
+        ret += ecc_ctx_set_info(srvCtx, (byte*)"CyaSSL MSGE", 11);
 
         if (ret != 0)
             return -3008;
