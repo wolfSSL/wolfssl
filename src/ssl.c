@@ -8962,7 +8962,7 @@ CYASSL_X509* CyaSSL_X509_load_certificate_file(const char* fname, int format)
                                                        NULL, DYNAMIC_TYPE_CERT);
             if (derCert.buffer != NULL) {
                 derCert.length = x509->derCert.length;
-                    // AddCA() frees the buffer.
+                    /* AddCA() frees the buffer. */
                 XMEMCPY(derCert.buffer,
                                     x509->derCert.buffer, x509->derCert.length);
                 result = AddCA(store->cm, derCert, CYASSL_USER_CA, 1);

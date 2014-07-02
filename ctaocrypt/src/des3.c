@@ -787,9 +787,9 @@ int  Des3_SetIV(Des3* des, const byte* iv);
         bd_p->BD_CTRL.LAST_BD = 1;
         bd_p->BD_CTRL.DESC_EN = 1;
     
-        bd_p->SA_ADDR = (unsigned int)KVA_TO_PA(&sa) ; // (unsigned int)sa_p  ;
-        bd_p->SRCADDR = (unsigned int)KVA_TO_PA(in) ; // (unsigned int)in_p  ;
-        bd_p->DSTADDR = (unsigned int)KVA_TO_PA(out); // (unsigned int)out_p  ;
+        bd_p->SA_ADDR = (unsigned int)KVA_TO_PA(&sa) ; /* (unsigned int)sa_p; */
+        bd_p->SRCADDR = (unsigned int)KVA_TO_PA(in) ; /* (unsigned int)in_p; */
+        bd_p->DSTADDR = (unsigned int)KVA_TO_PA(out); /* (unsigned int)out_p; */
         bd_p->NXTPTR = (unsigned int)KVA_TO_PA(&bd);
         bd_p->MSGLEN = sz ;
         
@@ -798,7 +798,7 @@ int  Des3_SetIV(Des3* des, const byte* iv);
         while (CECON);
         
         /* Run the engine */
-        CEBDPADDR = (unsigned int)KVA_TO_PA(&bd) ; // (unsigned int)bd_p ;
+        CEBDPADDR = (unsigned int)KVA_TO_PA(&bd) ; /* (unsigned int)bd_p ; */
         CEINTEN = 0x07;
         CECON = 0x27;
 
