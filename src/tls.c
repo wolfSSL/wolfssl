@@ -560,30 +560,31 @@ int TLS_hmac(CYASSL* ssl, byte* digest, const byte* in, word32 sz,
               int content, int verify)
 {
     int  ret;
+    Hmac hmac;
+    byte myInner[CYASSL_TLS_HMAC_INNER_SZ];
     
     if (ssl == NULL)
         return BAD_FUNC_ARG;
     
-        Hmac hmac;
-        byte myInner[CYASSL_TLS_HMAC_INNER_SZ];
+        
 
-        CyaSSL_SetTlsHmacInner(ssl, myInner, sz, content, verify);
+    CyaSSL_SetTlsHmacInner(ssl, myInner, sz, content, verify);
 
-        ret = HmacSetKey(&hmac, CyaSSL_GetHmacType(ssl),
+    ret = HmacSetKey(&hmac, CyaSSL_GetHmacType(ssl),
                      CyaSSL_GetMacSecret(ssl, verify), ssl->specs.hash_size);
-        if (ret != 0)
-            return ret;
-        ret = HmacUpdate(&hmac, myInner, sizeof(myInner));
-        if (ret != 0)
-            return ret;
-        ret = HmacUpdate(&hmac, in, sz);                           /* content */
-        if (ret != 0)
-            return ret;
-        ret = HmacFinal(&hmac, digest);
-        if (ret != 0)
-            return ret;
+    if (ret != 0)
+        return ret;
+    ret = HmacUpdate(&hmac, myInner, sizeof(myInner));
+    if (ret != 0)
+        return ret;
+    ret = HmacUpdate(&hmac, in, sz);                           /* content */
+    if (ret != 0)
+        return ret;
+    ret = HmacFinal(&hmac, digest);
+    if (ret != 0)
+        return ret;
 
-        return 0;
+    return 0;
 }
 
 #ifdef HAVE_TLS_EXTENSIONS
