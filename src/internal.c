@@ -3129,12 +3129,435 @@ static int BuildFinished(CYASSL* ssl, Hashes* hashes, const byte* sender)
 }
 
 
+    /* cipher requirements */
+    enum {
+        REQUIRES_RSA,
+        REQUIRES_DHE,
+        REQUIRES_ECC_DSA,
+        REQUIRES_ECC_STATIC,
+        REQUIRES_PSK,
+        REQUIRES_NTRU,
+        REQUIRES_RSA_SIG
+    };
+
+
+
+    /* Does this cipher suite (first, second) have the requirement
+       an ephemeral key exchange will still require the key for signing
+       the key exchange so ECHDE_RSA requires an rsa key thus rsa_kea */
+    static int CipherRequires(byte first, byte second, int requirement)
+    {
+        /* ECC extensions */
+        if (first == ECC_BYTE) {
+
+        switch (second) {
+
+#ifndef NO_RSA
+        case TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA :
+            if (requirement == REQUIRES_RSA)
+                return 1;
+            break;
+
+        case TLS_ECDH_RSA_WITH_AES_128_CBC_SHA :
+            if (requirement == REQUIRES_ECC_STATIC)
+                return 1;
+            if (requirement == REQUIRES_RSA_SIG)
+                return 1;
+            break;
+
+#ifndef NO_DES3
+        case TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA :
+            if (requirement == REQUIRES_RSA)
+                return 1;
+            break;
+
+        case TLS_ECDH_RSA_WITH_3DES_EDE_CBC_SHA :
+            if (requirement == REQUIRES_ECC_STATIC)
+                return 1;
+            if (requirement == REQUIRES_RSA_SIG)
+                return 1;
+            break;
+#endif
+
+#ifndef NO_RC4
+        case TLS_ECDHE_RSA_WITH_RC4_128_SHA :
+            if (requirement == REQUIRES_RSA)
+                return 1;
+            break;
+
+        case TLS_ECDH_RSA_WITH_RC4_128_SHA :
+            if (requirement == REQUIRES_ECC_STATIC)
+                return 1;
+            if (requirement == REQUIRES_RSA_SIG)
+                return 1;
+            break;
+#endif
+#endif /* NO_RSA */
+
+#ifndef NO_DES3
+        case TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA :
+            if (requirement == REQUIRES_ECC_DSA)
+                return 1;
+            break;
+
+        case TLS_ECDH_ECDSA_WITH_3DES_EDE_CBC_SHA :
+            if (requirement == REQUIRES_ECC_STATIC)
+                return 1;
+            break;
+#endif
+#ifndef NO_RC4
+        case TLS_ECDHE_ECDSA_WITH_RC4_128_SHA :
+            if (requirement == REQUIRES_ECC_DSA)
+                return 1;
+            break;
+
+        case TLS_ECDH_ECDSA_WITH_RC4_128_SHA :
+            if (requirement == REQUIRES_ECC_STATIC)
+                return 1;
+            break;
+#endif
+#ifndef NO_RSA
+        case TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA :
+            if (requirement == REQUIRES_RSA)
+                return 1;
+            break;
+
+        case TLS_ECDH_RSA_WITH_AES_256_CBC_SHA :
+            if (requirement == REQUIRES_ECC_STATIC)
+                return 1;
+            if (requirement == REQUIRES_RSA_SIG)
+                return 1;
+            break;
+#endif
+
+        case TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA :
+            if (requirement == REQUIRES_ECC_DSA)
+                return 1;
+            break;
+
+        case TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA :
+            if (requirement == REQUIRES_ECC_STATIC)
+                return 1;
+            break;
+
+        case TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA :
+            if (requirement == REQUIRES_ECC_DSA)
+                return 1;
+            break;
+
+        case TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA :
+            if (requirement == REQUIRES_ECC_STATIC)
+                return 1;
+            break;
+
+        case TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256 :
+            if (requirement == REQUIRES_ECC_DSA)
+                return 1;
+            break;
+
+        case TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384 :
+            if (requirement == REQUIRES_ECC_DSA)
+                return 1;
+            break;
+
+        case TLS_ECDH_ECDSA_WITH_AES_128_GCM_SHA256 :
+            if (requirement == REQUIRES_ECC_STATIC)
+                return 1;
+            break;
+
+        case TLS_ECDH_ECDSA_WITH_AES_256_GCM_SHA384 :
+            if (requirement == REQUIRES_ECC_STATIC)
+                return 1;
+            break;
+
+#ifndef NO_RSA
+        case TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256 :
+            if (requirement == REQUIRES_RSA)
+                return 1;
+            break;
+
+        case TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384 :
+            if (requirement == REQUIRES_RSA)
+                return 1;
+            break;
+
+        case TLS_ECDH_RSA_WITH_AES_128_GCM_SHA256 :
+            if (requirement == REQUIRES_ECC_STATIC)
+                return 1;
+            if (requirement == REQUIRES_RSA_SIG)
+                return 1;
+            break;
+
+        case TLS_ECDH_RSA_WITH_AES_256_GCM_SHA384 :
+            if (requirement == REQUIRES_ECC_STATIC)
+                return 1;
+            if (requirement == REQUIRES_RSA_SIG)
+                return 1;
+            break;
+
+        case TLS_RSA_WITH_AES_128_CCM_8 :
+        case TLS_RSA_WITH_AES_256_CCM_8 :
+            if (requirement == REQUIRES_RSA)
+                return 1;
+            if (requirement == REQUIRES_RSA_SIG)
+                return 1;
+            break;
+
+        case TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256 :
+        case TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384 :
+            if (requirement == REQUIRES_RSA)
+                return 1;
+            if (requirement == REQUIRES_RSA_SIG)
+                return 1;
+            break;
+
+        case TLS_ECDH_RSA_WITH_AES_128_CBC_SHA256 :
+        case TLS_ECDH_RSA_WITH_AES_256_CBC_SHA384 :
+            if (requirement == REQUIRES_RSA_SIG)
+                return 1;
+            if (requirement == REQUIRES_ECC_STATIC)
+                return 1;
+            break;
+#endif
+
+        case TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8 :
+        case TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8 :
+            if (requirement == REQUIRES_ECC_DSA)
+                return 1;
+            break;
+
+        case TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384 :
+        case TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256 :
+            if (requirement == REQUIRES_ECC_DSA)
+                return 1;
+            break;
+
+        case TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA256 :
+        case TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA384 :
+            if (requirement == REQUIRES_ECC_DSA)
+                return 1;
+            if (requirement == REQUIRES_ECC_STATIC)
+                return 1;
+            break;
+
+        case TLS_PSK_WITH_AES_128_CCM:
+        case TLS_PSK_WITH_AES_256_CCM:
+        case TLS_PSK_WITH_AES_128_CCM_8:
+        case TLS_PSK_WITH_AES_256_CCM_8:
+            if (requirement == REQUIRES_PSK)
+                return 1;
+            break;
+
+        case TLS_DHE_PSK_WITH_AES_128_CCM:
+        case TLS_DHE_PSK_WITH_AES_256_CCM:
+            if (requirement == REQUIRES_PSK)
+                return 1;
+            if (requirement == REQUIRES_DHE)
+                return 1;
+            break;
+
+        default:
+            CYASSL_MSG("Unsupported cipher suite, CipherRequires ECC");
+            return 0;
+        }   /* switch */
+        }   /* if     */
+        if (first != ECC_BYTE) {   /* normal suites */
+        switch (second) {
+
+#ifndef NO_RSA
+        case SSL_RSA_WITH_RC4_128_SHA :
+            if (requirement == REQUIRES_RSA)
+                return 1;
+            break;
+
+        case TLS_NTRU_RSA_WITH_RC4_128_SHA :
+            if (requirement == REQUIRES_NTRU)
+                return 1;
+            break;
+
+        case SSL_RSA_WITH_RC4_128_MD5 :
+            if (requirement == REQUIRES_RSA)
+                return 1;
+            break;
+
+        case SSL_RSA_WITH_3DES_EDE_CBC_SHA :
+            if (requirement == REQUIRES_RSA)
+                return 1;
+            break;
+
+        case TLS_NTRU_RSA_WITH_3DES_EDE_CBC_SHA :
+            if (requirement == REQUIRES_NTRU)
+                return 1;
+            break;
+
+        case TLS_RSA_WITH_AES_128_CBC_SHA :
+            if (requirement == REQUIRES_RSA)
+                return 1;
+            break;
+
+        case TLS_RSA_WITH_AES_128_CBC_SHA256 :
+            if (requirement == REQUIRES_RSA)
+                return 1;
+            break;
+
+        case TLS_NTRU_RSA_WITH_AES_128_CBC_SHA :
+            if (requirement == REQUIRES_NTRU)
+                return 1;
+            break;
+
+        case TLS_RSA_WITH_AES_256_CBC_SHA :
+            if (requirement == REQUIRES_RSA)
+                return 1;
+            break;
+
+        case TLS_RSA_WITH_AES_256_CBC_SHA256 :
+            if (requirement == REQUIRES_RSA)
+                return 1;
+            break;
+
+        case TLS_RSA_WITH_NULL_SHA :
+        case TLS_RSA_WITH_NULL_SHA256 :
+            if (requirement == REQUIRES_RSA)
+                return 1;
+            break;
+
+        case TLS_NTRU_RSA_WITH_AES_256_CBC_SHA :
+            if (requirement == REQUIRES_NTRU)
+                return 1;
+            break;
+#endif
+
+        case TLS_PSK_WITH_AES_128_GCM_SHA256 :
+        case TLS_PSK_WITH_AES_256_GCM_SHA384 :
+        case TLS_PSK_WITH_AES_128_CBC_SHA256 :
+        case TLS_PSK_WITH_AES_256_CBC_SHA384 :
+        case TLS_PSK_WITH_AES_128_CBC_SHA :
+        case TLS_PSK_WITH_AES_256_CBC_SHA :
+        case TLS_PSK_WITH_NULL_SHA384 :
+        case TLS_PSK_WITH_NULL_SHA256 :
+        case TLS_PSK_WITH_NULL_SHA :
+            if (requirement == REQUIRES_PSK)
+                return 1;
+            break;
+
+        case TLS_DHE_PSK_WITH_AES_128_GCM_SHA256 :
+        case TLS_DHE_PSK_WITH_AES_256_GCM_SHA384 :
+        case TLS_DHE_PSK_WITH_AES_128_CBC_SHA256 :
+        case TLS_DHE_PSK_WITH_AES_256_CBC_SHA384 :
+        case TLS_DHE_PSK_WITH_NULL_SHA384 :
+        case TLS_DHE_PSK_WITH_NULL_SHA256 :
+            if (requirement == REQUIRES_DHE)
+                return 1;
+            if (requirement == REQUIRES_PSK)
+                return 1;
+            break;
+
+#ifndef NO_RSA
+        case TLS_DHE_RSA_WITH_AES_128_CBC_SHA256 :
+            if (requirement == REQUIRES_RSA)
+                return 1;
+            if (requirement == REQUIRES_DHE)
+                return 1;
+            break;
+
+        case TLS_DHE_RSA_WITH_AES_256_CBC_SHA256 :
+            if (requirement == REQUIRES_RSA)
+                return 1;
+            if (requirement == REQUIRES_DHE)
+                return 1;
+            break;
+
+        case TLS_DHE_RSA_WITH_AES_128_CBC_SHA :
+            if (requirement == REQUIRES_RSA)
+                return 1;
+            if (requirement == REQUIRES_DHE)
+                return 1;
+            break;
+
+        case TLS_DHE_RSA_WITH_AES_256_CBC_SHA :
+            if (requirement == REQUIRES_RSA)
+                return 1;
+            if (requirement == REQUIRES_DHE)
+                return 1;
+            break;
+
+        case TLS_RSA_WITH_HC_128_MD5 :
+            if (requirement == REQUIRES_RSA)
+                return 1;
+            break;
+
+        case TLS_RSA_WITH_HC_128_SHA :
+            if (requirement == REQUIRES_RSA)
+                return 1;
+            break;
+
+        case TLS_RSA_WITH_HC_128_B2B256:
+            if (requirement == REQUIRES_RSA)
+                return 1;
+            break;
+
+        case TLS_RSA_WITH_AES_128_CBC_B2B256:
+        case TLS_RSA_WITH_AES_256_CBC_B2B256:
+            if (requirement == REQUIRES_RSA)
+                return 1;
+            break;
+
+        case TLS_RSA_WITH_RABBIT_SHA :
+            if (requirement == REQUIRES_RSA)
+                return 1;
+            break;
+
+        case TLS_RSA_WITH_AES_128_GCM_SHA256 :
+        case TLS_RSA_WITH_AES_256_GCM_SHA384 :
+            if (requirement == REQUIRES_RSA)
+                return 1;
+            break;
+
+        case TLS_DHE_RSA_WITH_AES_128_GCM_SHA256 :
+        case TLS_DHE_RSA_WITH_AES_256_GCM_SHA384 :
+            if (requirement == REQUIRES_RSA)
+                return 1;
+            if (requirement == REQUIRES_DHE)
+                return 1;
+            break;
+
+        case TLS_RSA_WITH_CAMELLIA_128_CBC_SHA :
+        case TLS_RSA_WITH_CAMELLIA_256_CBC_SHA :
+        case TLS_RSA_WITH_CAMELLIA_128_CBC_SHA256 :
+        case TLS_RSA_WITH_CAMELLIA_256_CBC_SHA256 :
+            if (requirement == REQUIRES_RSA)
+                return 1;
+            break;
+
+        case TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA :
+        case TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA :
+        case TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA256 :
+        case TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA256 :
+            if (requirement == REQUIRES_RSA)
+                return 1;
+            if (requirement == REQUIRES_RSA_SIG)
+                return 1;
+            if (requirement == REQUIRES_DHE)
+                return 1;
+            break;
+#endif
+
+        default:
+            CYASSL_MSG("Unsupported cipher suite, CipherRequires");
+            return 0;
+        }  /* switch */
+        }  /* if ECC / Normal suites else */
+
+        return 0;
+    }
+
+
 #ifndef NO_CERTS
 
 
 /* Match names with wildcards, each wildcard can represent a single name
    component or fragment but not mulitple names, i.e.,
-   *.z.com matches y.z.com but not x.y.z.com 
+   *.z.com matches y.z.com but not x.y.z.com
 
    return 1 on success */
 static int MatchDomainName(const char* pattern, int len, const char* str)
@@ -3199,7 +3622,7 @@ static int CheckAltNames(DecodedCert* dCert, char* domain)
             match = 1;
             break;
         }
-           
+
         altName = altName->next;
     }
 
@@ -3581,7 +4004,7 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx,
             if (doCrlLookup) {
                 CYASSL_MSG("Doing Leaf CRL check");
                 ret = CheckCertCRL(ssl->ctx->cm->crl, &dCert);
-    
+
                 if (ret != 0) {
                     CYASSL_MSG("\tCRL check not ok");
                     fatal = 0;
@@ -3598,7 +4021,7 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx,
         if (copyRet == MEMORY_E)
             fatal = 1;
         }
-#endif    
+#endif
 
 #ifndef IGNORE_KEY_EXTENSIONS
         if (dCert.extKeyUsageSet) {
@@ -3648,7 +4071,7 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx,
             domain[0] = '\0';
 
         if (!ssl->options.verifyNone && ssl->buffers.domainName.buffer) {
-            if (MatchDomainName(dCert.subjectCN, dCert.subjectCNLen, 
+            if (MatchDomainName(dCert.subjectCN, dCert.subjectCNLen,
                                 (char*)ssl->buffers.domainName.buffer) == 0) {
                 CYASSL_MSG("DomainName match on common name failed");
                 if (CheckAltNames(&dCert,
@@ -3681,7 +4104,7 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx,
                                 else {
                                     XMEMCPY(ssl->buffers.peerRsaKey.buffer,
                                             dCert.publicKey, dCert.pubKeySize);
-                                    ssl->buffers.peerRsaKey.length = 
+                                    ssl->buffers.peerRsaKey.length =
                                             dCert.pubKeySize;
                                 }
                             #endif /* NO_RSA */
@@ -3723,7 +4146,7 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx,
                                 else {
                                     XMEMCPY(ssl->buffers.peerEccDsaKey.buffer,
                                             dCert.publicKey, dCert.pubKeySize);
-                                    ssl->buffers.peerEccDsaKey.length = 
+                                    ssl->buffers.peerEccDsaKey.length =
                                             dCert.pubKeySize;
                                 }
                             #endif /* HAVE_ECC */
@@ -3738,7 +4161,7 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx,
 
         FreeDecodedCert(&dCert);
     }
-    
+
     if (anyError != 0 && ret == 0)
         ret = anyError;
 
@@ -3769,7 +4192,7 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx,
 #endif
                 ok = ssl->verifyCallback(0, &store);
                 if (ok) {
-                    CYASSL_MSG("Verify callback overriding error!"); 
+                    CYASSL_MSG("Verify callback overriding error!");
                     ret = 0;
                 }
                 #ifdef SESSION_CERTS
@@ -3995,7 +4418,7 @@ static int DoHandShakeMsgType(CYASSL* ssl, byte* input, word32* inOutIdx,
         CYASSL_MSG("processing hello verify request");
         ret = DoHelloVerifyRequest(ssl, input,inOutIdx, size);
         break;
-            
+
     case server_hello:
         CYASSL_MSG("processing server hello");
         ret = DoServerHello(ssl, input, inOutIdx, size);
@@ -4024,7 +4447,7 @@ static int DoHandShakeMsgType(CYASSL* ssl, byte* input, word32* inOutIdx,
     case server_hello_done:
         CYASSL_MSG("processing server hello done");
         #ifdef CYASSL_CALLBACKS
-            if (ssl->hsInfoOn) 
+            if (ssl->hsInfoOn)
                 AddPacketName("ServerHelloDone", &ssl->handShakeInfo);
             if (ssl->toInfoOn)
                 AddLateName("ServerHelloDone", &ssl->timeoutInfo);
@@ -4246,9 +4669,9 @@ static int DoDtlsHandShakeMsg(CYASSL* ssl, byte* input, word32* inOutIdx,
 static INLINE word32 GetSEQIncrement(CYASSL* ssl, int verify)
 {
     if (verify)
-        return ssl->keys.peer_sequence_number++; 
+        return ssl->keys.peer_sequence_number++;
     else
-        return ssl->keys.sequence_number++; 
+        return ssl->keys.sequence_number++;
 }
 
 
@@ -8012,6 +8435,31 @@ static void PickHashSigAlgo(CYASSL* ssl,
     }
 
 
+    /* Make sure client setup is valid for this suite, true on success */
+    int VerifyClientSuite(CYASSL* ssl)
+    {
+        int  havePSK = 0;
+        byte first   = ssl->options.cipherSuite0;
+        byte second  = ssl->options.cipherSuite;
+
+        CYASSL_ENTER("VerifyClientSuite");
+
+        #ifndef NO_PSK
+            havePSK = ssl->options.havePSK;
+        #endif
+
+        if (CipherRequires(first, second, REQUIRES_PSK)) {
+            CYASSL_MSG("Requires PSK");
+            if (havePSK == 0) {
+                CYASSL_MSG("Don't have PSK");
+                return 0;
+            }
+        }
+
+        return 1;  /* success */
+    }
+
+
 #ifndef NO_CERTS
     /* just read in and ignore for now TODO: */
     static int DoCertificateRequest(CYASSL* ssl, const byte* input, word32*
@@ -10143,454 +10591,6 @@ static void PickHashSigAlgo(CYASSL* ssl,
         #endif /* OPENSSL_EXTRA */
 
         return ret;
-    }
-
-
-    /* cipher requirements */
-    enum {
-        REQUIRES_RSA,
-        REQUIRES_DHE,
-        REQUIRES_ECC_DSA,
-        REQUIRES_ECC_STATIC,
-        REQUIRES_PSK,
-        REQUIRES_NTRU,
-        REQUIRES_RSA_SIG
-    };
-
-
-
-    /* Does this cipher suite (first, second) have the requirement
-       an ephemeral key exchange will still require the key for signing
-       the key exchange so ECHDE_RSA requires an rsa key thus rsa_kea */
-    static int CipherRequires(byte first, byte second, int requirement)
-    {
-        /* ECC extensions */
-        if (first == ECC_BYTE) {
-        
-        switch (second) {
-
-#ifndef NO_RSA
-        case TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA :
-            if (requirement == REQUIRES_RSA)
-                return 1;
-            break;
-
-        case TLS_ECDH_RSA_WITH_AES_128_CBC_SHA :
-            if (requirement == REQUIRES_ECC_STATIC)
-                return 1;
-            if (requirement == REQUIRES_RSA_SIG)
-                return 1;
-            break;
-
-#ifndef NO_DES3
-        case TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA :
-            if (requirement == REQUIRES_RSA)
-                return 1;
-            break;
-
-        case TLS_ECDH_RSA_WITH_3DES_EDE_CBC_SHA :
-            if (requirement == REQUIRES_ECC_STATIC)
-                return 1;
-            if (requirement == REQUIRES_RSA_SIG)
-                return 1;
-            break;
-#endif
-
-#ifndef NO_RC4
-        case TLS_ECDHE_RSA_WITH_RC4_128_SHA :
-            if (requirement == REQUIRES_RSA)
-                return 1;
-            break;
-
-        case TLS_ECDH_RSA_WITH_RC4_128_SHA :
-            if (requirement == REQUIRES_ECC_STATIC)
-                return 1;
-            if (requirement == REQUIRES_RSA_SIG)
-                return 1;
-            break;
-#endif
-#endif /* NO_RSA */
-
-#ifndef NO_DES3
-        case TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA :
-            if (requirement == REQUIRES_ECC_DSA)
-                return 1;
-            break;
-
-        case TLS_ECDH_ECDSA_WITH_3DES_EDE_CBC_SHA :
-            if (requirement == REQUIRES_ECC_STATIC)
-                return 1;
-            break;
-#endif
-#ifndef NO_RC4
-        case TLS_ECDHE_ECDSA_WITH_RC4_128_SHA :
-            if (requirement == REQUIRES_ECC_DSA)
-                return 1;
-            break;
-
-        case TLS_ECDH_ECDSA_WITH_RC4_128_SHA :
-            if (requirement == REQUIRES_ECC_STATIC)
-                return 1;
-            break;
-#endif
-#ifndef NO_RSA
-        case TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA :
-            if (requirement == REQUIRES_RSA)
-                return 1;
-            break;
-
-        case TLS_ECDH_RSA_WITH_AES_256_CBC_SHA :
-            if (requirement == REQUIRES_ECC_STATIC)
-                return 1;
-            if (requirement == REQUIRES_RSA_SIG)
-                return 1;
-            break;
-#endif
-
-        case TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA :
-            if (requirement == REQUIRES_ECC_DSA)
-                return 1;
-            break;
-
-        case TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA :
-            if (requirement == REQUIRES_ECC_STATIC)
-                return 1;
-            break;
-
-        case TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA :
-            if (requirement == REQUIRES_ECC_DSA)
-                return 1;
-            break;
-
-        case TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA :
-            if (requirement == REQUIRES_ECC_STATIC)
-                return 1;
-            break;
-
-        case TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256 :
-            if (requirement == REQUIRES_ECC_DSA)
-                return 1;
-            break;
-
-        case TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384 :
-            if (requirement == REQUIRES_ECC_DSA)
-                return 1;
-            break;
-
-        case TLS_ECDH_ECDSA_WITH_AES_128_GCM_SHA256 :
-            if (requirement == REQUIRES_ECC_STATIC)
-                return 1;
-            break;
-
-        case TLS_ECDH_ECDSA_WITH_AES_256_GCM_SHA384 :
-            if (requirement == REQUIRES_ECC_STATIC)
-                return 1;
-            break;
-
-#ifndef NO_RSA
-        case TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256 :
-            if (requirement == REQUIRES_RSA)
-                return 1;
-            break;
-
-        case TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384 :
-            if (requirement == REQUIRES_RSA)
-                return 1;
-            break;
-
-        case TLS_ECDH_RSA_WITH_AES_128_GCM_SHA256 :
-            if (requirement == REQUIRES_ECC_STATIC)
-                return 1;
-            if (requirement == REQUIRES_RSA_SIG)
-                return 1;
-            break;
-
-        case TLS_ECDH_RSA_WITH_AES_256_GCM_SHA384 :
-            if (requirement == REQUIRES_ECC_STATIC)
-                return 1;
-            if (requirement == REQUIRES_RSA_SIG)
-                return 1;
-            break;
-
-        case TLS_RSA_WITH_AES_128_CCM_8 :
-        case TLS_RSA_WITH_AES_256_CCM_8 :
-            if (requirement == REQUIRES_RSA)
-                return 1;
-            if (requirement == REQUIRES_RSA_SIG)
-                return 1;
-            break;
-
-        case TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256 :
-        case TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384 :
-            if (requirement == REQUIRES_RSA)
-                return 1;
-            if (requirement == REQUIRES_RSA_SIG)
-                return 1;
-            break;
-
-        case TLS_ECDH_RSA_WITH_AES_128_CBC_SHA256 :
-        case TLS_ECDH_RSA_WITH_AES_256_CBC_SHA384 :
-            if (requirement == REQUIRES_RSA_SIG)
-                return 1;
-            if (requirement == REQUIRES_ECC_STATIC)
-                return 1;
-            break;
-#endif
-
-        case TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8 :
-        case TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8 :
-            if (requirement == REQUIRES_ECC_DSA)
-                return 1;
-            break;
-
-        case TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384 :
-        case TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256 :
-            if (requirement == REQUIRES_ECC_DSA)
-                return 1;
-            break;
-
-        case TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA256 :
-        case TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA384 :
-            if (requirement == REQUIRES_ECC_DSA)
-                return 1;
-            if (requirement == REQUIRES_ECC_STATIC)
-                return 1;
-            break;
-
-        case TLS_PSK_WITH_AES_128_CCM:
-        case TLS_PSK_WITH_AES_256_CCM:
-        case TLS_PSK_WITH_AES_128_CCM_8:
-        case TLS_PSK_WITH_AES_256_CCM_8:
-            if (requirement == REQUIRES_PSK)
-                return 1;
-            break;
-
-        case TLS_DHE_PSK_WITH_AES_128_CCM:
-        case TLS_DHE_PSK_WITH_AES_256_CCM:
-            if (requirement == REQUIRES_PSK)
-                return 1;
-            if (requirement == REQUIRES_DHE)
-                return 1;
-            break;
-
-        default:
-            CYASSL_MSG("Unsupported cipher suite, CipherRequires ECC");
-            return 0;
-        }   /* switch */
-        }   /* if     */
-        if (first != ECC_BYTE) {   /* normal suites */
-        switch (second) {
-
-#ifndef NO_RSA
-        case SSL_RSA_WITH_RC4_128_SHA :
-            if (requirement == REQUIRES_RSA)
-                return 1;
-            break;
-
-        case TLS_NTRU_RSA_WITH_RC4_128_SHA :
-            if (requirement == REQUIRES_NTRU)
-                return 1;
-            break;
-
-        case SSL_RSA_WITH_RC4_128_MD5 :
-            if (requirement == REQUIRES_RSA)
-                return 1;
-            break;
-
-        case SSL_RSA_WITH_3DES_EDE_CBC_SHA :
-            if (requirement == REQUIRES_RSA)
-                return 1;
-            break;
-
-        case TLS_NTRU_RSA_WITH_3DES_EDE_CBC_SHA :
-            if (requirement == REQUIRES_NTRU)
-                return 1;
-            break;
-
-        case TLS_RSA_WITH_AES_128_CBC_SHA :
-            if (requirement == REQUIRES_RSA)
-                return 1;
-            break;
-
-        case TLS_RSA_WITH_AES_128_CBC_SHA256 :
-            if (requirement == REQUIRES_RSA)
-                return 1;
-            break;
-
-        case TLS_NTRU_RSA_WITH_AES_128_CBC_SHA :
-            if (requirement == REQUIRES_NTRU)
-                return 1;
-            break;
-
-        case TLS_RSA_WITH_AES_256_CBC_SHA :
-            if (requirement == REQUIRES_RSA)
-                return 1;
-            break;
-
-        case TLS_RSA_WITH_AES_256_CBC_SHA256 :
-            if (requirement == REQUIRES_RSA)
-                return 1;
-            break;
-
-        case TLS_RSA_WITH_NULL_SHA :
-        case TLS_RSA_WITH_NULL_SHA256 :
-            if (requirement == REQUIRES_RSA)
-                return 1;
-            break;
-
-        case TLS_NTRU_RSA_WITH_AES_256_CBC_SHA :
-            if (requirement == REQUIRES_NTRU)
-                return 1;
-            break;
-#endif
-
-        case TLS_PSK_WITH_AES_128_GCM_SHA256 :
-        case TLS_PSK_WITH_AES_256_GCM_SHA384 :
-        case TLS_PSK_WITH_AES_128_CBC_SHA256 :
-        case TLS_PSK_WITH_AES_256_CBC_SHA384 :
-        case TLS_PSK_WITH_AES_128_CBC_SHA :
-        case TLS_PSK_WITH_AES_256_CBC_SHA :
-        case TLS_PSK_WITH_NULL_SHA384 :
-        case TLS_PSK_WITH_NULL_SHA256 :
-        case TLS_PSK_WITH_NULL_SHA :
-            if (requirement == REQUIRES_PSK)
-                return 1;
-            break;
-
-        case TLS_DHE_PSK_WITH_AES_128_GCM_SHA256 :
-        case TLS_DHE_PSK_WITH_AES_256_GCM_SHA384 :
-        case TLS_DHE_PSK_WITH_AES_128_CBC_SHA256 :
-        case TLS_DHE_PSK_WITH_AES_256_CBC_SHA384 :
-        case TLS_DHE_PSK_WITH_NULL_SHA384 :
-        case TLS_DHE_PSK_WITH_NULL_SHA256 :
-            if (requirement == REQUIRES_DHE)
-                return 1;
-            if (requirement == REQUIRES_PSK)
-                return 1;
-            break;
-
-#ifndef NO_RSA
-        case TLS_DHE_RSA_WITH_AES_128_CBC_SHA256 :
-            if (requirement == REQUIRES_RSA)
-                return 1;
-            if (requirement == REQUIRES_DHE)
-                return 1;
-            break;
-
-        case TLS_DHE_RSA_WITH_AES_256_CBC_SHA256 :
-            if (requirement == REQUIRES_RSA)
-                return 1;
-            if (requirement == REQUIRES_DHE)
-                return 1;
-            break;
-
-        case TLS_DHE_RSA_WITH_AES_128_CBC_SHA :
-            if (requirement == REQUIRES_RSA)
-                return 1;
-            if (requirement == REQUIRES_DHE)
-                return 1;
-            break;
-
-        case TLS_DHE_RSA_WITH_AES_256_CBC_SHA :
-            if (requirement == REQUIRES_RSA)
-                return 1;
-            if (requirement == REQUIRES_DHE)
-                return 1;
-            break;
-
-        case TLS_RSA_WITH_HC_128_MD5 :
-            if (requirement == REQUIRES_RSA)
-                return 1;
-            break;
-                
-        case TLS_RSA_WITH_HC_128_SHA :
-            if (requirement == REQUIRES_RSA)
-                return 1;
-            break;
-
-        case TLS_RSA_WITH_HC_128_B2B256:
-            if (requirement == REQUIRES_RSA)
-                return 1;
-            break;
-
-        case TLS_RSA_WITH_AES_128_CBC_B2B256:
-        case TLS_RSA_WITH_AES_256_CBC_B2B256:
-            if (requirement == REQUIRES_RSA)
-                return 1;
-            break;
-
-        case TLS_RSA_WITH_RABBIT_SHA :
-            if (requirement == REQUIRES_RSA)
-                return 1;
-            break;
-
-        case TLS_RSA_WITH_AES_128_GCM_SHA256 :
-        case TLS_RSA_WITH_AES_256_GCM_SHA384 :
-            if (requirement == REQUIRES_RSA)
-                return 1;
-            break;
-
-        case TLS_DHE_RSA_WITH_AES_128_GCM_SHA256 :
-        case TLS_DHE_RSA_WITH_AES_256_GCM_SHA384 :
-            if (requirement == REQUIRES_RSA)
-                return 1;
-            if (requirement == REQUIRES_DHE)
-                return 1;
-            break;
-
-        case TLS_RSA_WITH_CAMELLIA_128_CBC_SHA :
-        case TLS_RSA_WITH_CAMELLIA_256_CBC_SHA :
-        case TLS_RSA_WITH_CAMELLIA_128_CBC_SHA256 :
-        case TLS_RSA_WITH_CAMELLIA_256_CBC_SHA256 :
-            if (requirement == REQUIRES_RSA)
-                return 1;
-            break;
-
-        case TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA :
-        case TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA :
-        case TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA256 :
-        case TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA256 :
-            if (requirement == REQUIRES_RSA)
-                return 1;
-            if (requirement == REQUIRES_RSA_SIG)
-                return 1;
-            if (requirement == REQUIRES_DHE)
-                return 1;
-            break;
-#endif
-
-        default:
-            CYASSL_MSG("Unsupported cipher suite, CipherRequires");
-            return 0;
-        }  /* switch */
-        }  /* if ECC / Normal suites else */
-
-        return 0;
-    }
-
-
-    /* Make sure client setup is valid for this suite, true on success */
-    int VerifyClientSuite(CYASSL* ssl)
-    {
-        int  havePSK = 0;
-        byte first   = ssl->options.cipherSuite0;
-        byte second  = ssl->options.cipherSuite;
-
-        CYASSL_ENTER("VerifyClientSuite");
-
-        #ifndef NO_PSK
-            havePSK = ssl->options.havePSK;
-        #endif
-
-        if (CipherRequires(first, second, REQUIRES_PSK)) {
-            CYASSL_MSG("Requires PSK");
-            if (havePSK == 0) {
-                CYASSL_MSG("Don't have PSK");
-                return 0;
-            }
-        }
-
-        return 1;  /* success */
     }
 
 
