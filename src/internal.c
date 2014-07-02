@@ -4398,11 +4398,15 @@ static INLINE int Encrypt(CYASSL* ssl, byte* out, const byte* input, word16 sz)
                 Poly1305SetKey(ssl->encrypt.poly1305,
                                ssl->keys.server_write_MAC_secret,
                                sizeof(ssl->keys.server_write_MAC_secret));
-                Poly1305Update(ssl->encrypt.poly1305, p, sizeof(p));
+                Poly1305Update(ssl->encrypt.poly1305, p, 
+                               CHACHA20_BLOCK_SIZE + padding2 + 16);
                 Poly1305Final(ssl->encrypt.poly1305, tag);
 
                 /* append Poly1305 tag to ciphertext */                
                 XMEMCPY(out + sz - ssl->specs.aead_mac_size, tag, sizeof(tag));
+
+                AeadIncrementExpIV(ssl);
+                XMEMSET(nonce, 0, AEAD_NONCE_SZ);
 
 		        #ifdef CHACHA_AEAD_TEST
                    printf("output after encrypt : ");
@@ -4630,7 +4634,8 @@ static INLINE int Decrypt(CYASSL* ssl, byte* plain, const byte* input,
                 Poly1305SetKey(ssl->decrypt.poly1305,
                                ssl->keys.server_write_MAC_secret,
                                sizeof(ssl->keys.server_write_MAC_secret));
-                Poly1305Update(ssl->decrypt.poly1305, p, sizeof(p));
+                Poly1305Update(ssl->decrypt.poly1305, p,
+                               CHACHA20_BLOCK_SIZE + padding2 + 16);
                 Poly1305Final(ssl->decrypt.poly1305, tag);
 
                 /* check mac sent along with packet */
