@@ -1163,8 +1163,6 @@ int DhSetKey(DhKey* key, const byte* p, word32 pSz, const byte* g, word32 gSz)
 }
 
 
-#ifdef OPENSSL_EXTRA
-
 int DhParamsLoad(const byte* input, word32 inSz, byte* p, word32* pInOutSz,
                  byte* g, word32* gInOutSz)
 {
@@ -1213,7 +1211,6 @@ int DhParamsLoad(const byte* input, word32 inSz, byte* p, word32* pInOutSz,
     return 0;
 }
 
-#endif /* OPENSSL_EXTRA */
 #endif /* NO_DH */
 
 

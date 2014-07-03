@@ -58,10 +58,6 @@
 #endif
 
 
-#if defined(OPENSSL_EXTRA) && defined(NO_DH)
-    #error OPENSSL_EXTRA needs DH, please remove NO_DH
-#endif
-
 #if defined(CYASSL_CALLBACKS) && !defined(LARGE_STATIC_BUFFERS)
     #error \
 CYASSL_CALLBACKS needs LARGE_STATIC_BUFFERS, please add LARGE_STATIC_BUFFERS
@@ -8581,7 +8577,7 @@ static void PickHashSigAlgo(CYASSL* ssl,
             return 0;
         }
     #endif
-    #ifdef OPENSSL_EXTRA
+    #ifndef NO_DH
         if (ssl->specs.kea == diffie_hellman_kea)
         {
         /* p */
@@ -8647,7 +8643,7 @@ static void PickHashSigAlgo(CYASSL* ssl,
         XMEMCPY(ssl->buffers.serverDH_Pub.buffer, input + *inOutIdx, length);
         *inOutIdx += length;
         }  /* dh_kea */
-    #endif /* OPENSSL_EXTRA */
+    #endif /* NO_DH */
 
     #ifdef HAVE_ECC
         if (ssl->specs.kea == ecc_diffie_hellman_kea)
@@ -8682,7 +8678,7 @@ static void PickHashSigAlgo(CYASSL* ssl,
         }
     #endif /* HAVE_ECC */
 
-    #if defined(OPENSSL_EXTRA) && !defined(NO_PSK)
+    #if !defined(NO_DH) && !defined(NO_PSK)
     if (ssl->specs.kea == dhe_psk_kea) {
         if ((*inOutIdx - begin) + OPAQUE16_LEN > size)
             return BUFFER_ERROR;
@@ -8762,9 +8758,9 @@ static void PickHashSigAlgo(CYASSL* ssl,
         XMEMCPY(ssl->buffers.serverDH_Pub.buffer, input + *inOutIdx, length);
         *inOutIdx += length;
     }
-    #endif /* OPENSSL_EXTRA || !NO_PSK */
+    #endif /* !NO_DH || !NO_PSK */
 
-    #if defined(OPENSSL_EXTRA) || defined(HAVE_ECC)
+    #if !defined(NO_DH) || defined(HAVE_ECC)
     if (ssl->specs.kea == ecc_diffie_hellman_kea ||
         ssl->specs.kea == diffie_hellman_kea)
     {
@@ -9011,9 +9007,9 @@ static void PickHashSigAlgo(CYASSL* ssl,
         ssl->options.serverState = SERVER_KEYEXCHANGE_COMPLETE;
     }
     return 0;
-#else  /* HAVE_OPENSSL or HAVE_ECC */
+#else  /* !NO_DH or HAVE_ECC */
         return NOT_COMPILED_IN;  /* not supported by build */
-#endif /* HAVE_OPENSSL or HAVE_ECC */
+#endif /* !NO_DH or HAVE_ECC */
     }
 
 
@@ -9074,7 +9070,7 @@ static void PickHashSigAlgo(CYASSL* ssl,
                 }
                 break;
         #endif
-        #ifdef OPENSSL_EXTRA
+        #ifndef NO_DH
             case diffie_hellman_kea:
                 {
                     buffer  serverP   = ssl->buffers.serverDH_P;
@@ -9102,7 +9098,7 @@ static void PickHashSigAlgo(CYASSL* ssl,
                     FreeDhKey(&key);
                 }
                 break;
-        #endif /* OPENSSL_EXTRA */
+        #endif /* NO_DH */
         #ifndef NO_PSK
             case psk_kea:
                 {
@@ -9133,7 +9129,7 @@ static void PickHashSigAlgo(CYASSL* ssl,
                 }
                 break;
         #endif /* NO_PSK */
-        #if defined(OPENSSL_EXTRA) && !defined(NO_PSK)
+        #if !defined(NO_DH) && !defined(NO_PSK)
             case dhe_psk_kea:
                 {
                     byte* pms = ssl->arrays->preMasterSecret;
@@ -9199,7 +9195,7 @@ static void PickHashSigAlgo(CYASSL* ssl,
                     ssl->arrays->psk_keySz = 0; /* No further need */
                 }
                 break;
-        #endif /* OPENSSL_EXTRA && !NO_PSK */
+        #endif /* !NO_DH && !NO_PSK */
         #ifdef HAVE_NTRU
             case ntru_kea:
                 {
@@ -9845,7 +9841,7 @@ static void PickHashSigAlgo(CYASSL* ssl,
         }
         #endif /*NO_PSK */
 
-        #if defined(OPENSSL_EXTRA) && !defined(NO_PSK)
+        #if !defined(NO_DH) && !defined(NO_PSK)
         if (ssl->specs.kea == dhe_psk_kea) {
             byte    *output;
             word32   length, idx = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
@@ -9963,7 +9959,7 @@ static void PickHashSigAlgo(CYASSL* ssl,
                 ret = SendBuffered(ssl);
             ssl->options.serverState = SERVER_KEYEXCHANGE_COMPLETE;
         }
-        #endif /* OPENSSL_EXTRA && !NO_PSK */
+        #endif /* !NO_DH && !NO_PSK */
 
         #ifdef HAVE_ECC
         if (ssl->specs.kea == ecc_diffie_hellman_kea)
@@ -10307,7 +10303,7 @@ static void PickHashSigAlgo(CYASSL* ssl,
         }
         #endif /* HAVE_ECC */
 
-        #if defined(OPENSSL_EXTRA) && !defined(NO_RSA)
+        #if !defined(NO_DH) && !defined(NO_RSA)
         if (ssl->specs.kea == diffie_hellman_kea) {
             byte    *output;
             word32   length = 0, idx = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
@@ -10588,7 +10584,7 @@ static void PickHashSigAlgo(CYASSL* ssl,
                 ret = SendBuffered(ssl);
             ssl->options.serverState = SERVER_KEYEXCHANGE_COMPLETE;
         }
-        #endif /* OPENSSL_EXTRA */
+        #endif /* NO_DH */
 
         return ret;
     }
@@ -11703,7 +11699,7 @@ static void PickHashSigAlgo(CYASSL* ssl,
             }
             break;
         #endif /* HAVE_ECC */
-        #ifdef OPENSSL_EXTRA 
+        #ifndef NO_DH
             case diffie_hellman_kea:
             {
                 word16 clientPubSz;
@@ -11737,8 +11733,8 @@ static void PickHashSigAlgo(CYASSL* ssl,
                     ret = MakeMasterSecret(ssl);
             }
             break;
-        #endif /* OPENSSL_EXTRA */
-        #if defined(OPENSSL_EXTRA) && !defined(NO_PSK)
+        #endif /* NO_DH */
+        #if !defined(NO_DH) && !defined(NO_PSK)
             case dhe_psk_kea:
             {
                 byte* pms = ssl->arrays->preMasterSecret;
@@ -11815,7 +11811,7 @@ static void PickHashSigAlgo(CYASSL* ssl,
                 ssl->arrays->psk_keySz = 0;
             }
             break;
-        #endif /* OPENSSL_EXTRA && !NO_PSK */
+        #endif /* !NO_DH && !NO_PSK */
             default:
             {
                 CYASSL_MSG("Bad kea type");

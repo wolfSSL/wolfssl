@@ -772,9 +772,9 @@ AM_CONDITIONAL([BUILD_RSA], [test "x$ENABLED_RSA" = "xyes"])
 
 # DH
 AC_ARG_ENABLE([dh],
-    [  --enable-dh             Enable DH (default: enabled)],
+    [  --enable-dh             Enable DH (default: disabled)],
     [ ENABLED_DH=$enableval ],
-    [ ENABLED_DH=yes ]
+    [ ENABLED_DH=no ]
     )
 
 if test "$ENABLED_DH" = "no"

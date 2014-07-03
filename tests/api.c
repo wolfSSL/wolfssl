@@ -1046,9 +1046,9 @@ THREAD_RETURN CYASSL_THREAD test_server_nofail(void* args)
     CyaSSL_set_fd(ssl, clientfd);
 
 #ifdef NO_PSK
-    #if !defined(NO_FILESYSTEM) && defined(OPENSSL_EXTRA)
+    #if !defined(NO_FILESYSTEM) && !defined(NO_DH)
         CyaSSL_SetTmpDH_file(ssl, dhParam, SSL_FILETYPE_PEM);
-    #else
+    #elif !defined(NO_DH)
         SetDH(ssl);  /* will repick suites with DHE, higher priority than PSK */
     #endif
 #endif
@@ -1269,9 +1269,9 @@ THREAD_RETURN CYASSL_THREAD run_cyassl_server(void* args)
     CyaSSL_set_fd(ssl, cfd);
 
 #ifdef NO_PSK
-    #if !defined(NO_FILESYSTEM) && defined(OPENSSL_EXTRA)
+    #if !defined(NO_FILESYSTEM) && !defined(NO_DH)
         CyaSSL_SetTmpDH_file(ssl, dhParam, SSL_FILETYPE_PEM);
-    #else
+    #elif !defined(NO_DH)
         SetDH(ssl);  /* will repick suites with DHE, higher priority than PSK */
     #endif
 #endif
