@@ -3629,9 +3629,9 @@ enum ecSrvState {
 
 
 struct ecEncCtx {
-    byte*     kdfSalt;     /* optional salt for kdf */
-    byte*     kdfInfo;     /* optional info for kdf */
-    byte*     macSalt;     /* optional salt for mac */
+    const byte* kdfSalt;   /* optional salt for kdf */
+    const byte* kdfInfo;   /* optional info for kdf */
+    const byte* macSalt;   /* optional salt for mac */
     word32    kdfSaltSz;   /* size of kdfSalt */
     word32    kdfInfoSz;   /* size of kdfInfo */
     word32    macSaltSz;   /* size of macSalt */
@@ -3676,6 +3676,19 @@ const byte* ecc_ctx_get_own_salt(ecEncCtx* ctx)
 }
 
 
+/* optional set info, can be called before or after set_peer_salt */
+int ecc_ctx_set_info(ecEncCtx* ctx, const byte* info, int sz)
+{
+    if (ctx == NULL || info == 0 || sz < 0)
+        return BAD_FUNC_ARG;
+
+    ctx->kdfInfo   = info;
+    ctx->kdfInfoSz = sz;
+
+    return 0;
+}
+
+
 static const char* exchange_info = "Secure Message Exchange";
 
 int ecc_ctx_set_peer_salt(ecEncCtx* ctx, const byte* salt)
@@ -3717,8 +3730,11 @@ int ecc_ctx_set_peer_salt(ecEncCtx* ctx, const byte* salt)
     ctx->macSalt   = ctx->serverSalt;
     ctx->macSaltSz = EXCHANGE_SALT_SZ;
 
-    ctx->kdfInfo   = (byte*)exchange_info;
-    ctx->kdfInfoSz = EXCHANGE_INFO_SZ;
+    if (ctx->kdfInfo == NULL) {
+        /* default info */
+        ctx->kdfInfo   = (const byte*)exchange_info;
+        ctx->kdfInfoSz = EXCHANGE_INFO_SZ;
+    }
 
     return 0;
 }
