@@ -964,6 +964,7 @@ static INLINE void CaCb(unsigned char* der, int sz, int type)
 }
 
 
+#ifndef NO_DH
 static INLINE void SetDH(CYASSL* ssl)
 {
     /* dh1024 p */
@@ -1017,7 +1018,7 @@ static INLINE void SetDHCtx(CYASSL_CTX* ctx)
 
     CyaSSL_CTX_SetTmpDH(ctx, p, sizeof(p), g, sizeof(g));
 }
-
+#endif /* NO_DH */
 #endif /* !NO_CERTS */
 
 #ifdef HAVE_CAVIUM

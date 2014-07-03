@@ -215,7 +215,7 @@ void c32to24(word32 in, word24 out);
             #define BUILD_TLS_RSA_WITH_CAMELLIA_128_CBC_SHA256
             #define BUILD_TLS_RSA_WITH_CAMELLIA_256_CBC_SHA256
         #endif
-        #if !defined(NO_DH) && defined(OPENSSL_EXTRA)
+        #if !defined(NO_DH)
           #if !defined(NO_SHA)
             #define BUILD_TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA
             #define BUILD_TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA
@@ -292,7 +292,7 @@ void c32to24(word32 in, word24 out);
 #endif
 
 #if !defined(NO_DH) && !defined(NO_AES) && !defined(NO_TLS) && \
-    !defined(NO_RSA) && defined(OPENSSL_EXTRA)
+    !defined(NO_RSA)
   #if !defined(NO_SHA)
     #define BUILD_TLS_DHE_RSA_WITH_AES_128_CBC_SHA
     #define BUILD_TLS_DHE_RSA_WITH_AES_256_CBC_SHA
@@ -310,8 +310,7 @@ void c32to24(word32 in, word24 out);
 #endif
 
 
-#if !defined(NO_DH) && !defined(NO_PSK) && !defined(NO_TLS) && \
-    defined(OPENSSL_EXTRA)
+#if !defined(NO_DH) && !defined(NO_PSK) && !defined(NO_TLS)
     #ifndef NO_SHA256
         #define BUILD_TLS_DHE_PSK_WITH_AES_128_CBC_SHA256
         #ifdef HAVE_NULL_CIPHER
