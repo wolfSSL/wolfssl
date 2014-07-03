@@ -33,7 +33,9 @@
 #endif
 
 #include <cyassl/ctaocrypt/sha512.h>
+#include <cyassl/ctaocrypt/logging.h>
 #include <cyassl/ctaocrypt/error-crypt.h>
+
 #ifdef NO_INLINE
     #include <cyassl/ctaocrypt/misc.h>
 #else
@@ -296,6 +298,29 @@ int Sha512Final(Sha512* sha512, byte* hash)
 }
 
 
+int Sha512Hash(const byte* data, word32 len, byte* hash)
+{
+    int ret = 0;
+    DECLARE_VAR(Sha512, sha512);
+    
+    if (!CREATE_VAR(Sha512, sha512))
+        return MEMORY_E;
+    
+    if ((ret = InitSha512(sha512)) != 0) {
+        CYASSL_MSG("InitSha512 failed");
+    }
+    else if ((ret = Sha512Update(sha512, data, len)) != 0) {
+        CYASSL_MSG("Sha512Update failed");
+    }
+    else if ((ret = Sha512Final(sha512, hash)) != 0) {
+        CYASSL_MSG("Sha512Final failed");
+    }
+    
+    DESTROY_VAR(sha512);
+    
+    return ret;
+}
+
 
 #ifdef CYASSL_SHA384
 
@@ -468,6 +493,30 @@ int Sha384Final(Sha384* sha384, byte* hash)
     XMEMCPY(hash, sha384->digest, SHA384_DIGEST_SIZE);
 
     return InitSha384(sha384);  /* reset state */
+}
+
+
+int Sha384Hash(const byte* data, word32 len, byte* hash)
+{
+    int ret = 0;
+    DECLARE_VAR(Sha384, sha384);
+
+    if (!CREATE_VAR(Sha384, sha384))
+        return MEMORY_E;
+
+    if ((ret = InitSha384(sha384)) != 0) {
+        CYASSL_MSG("InitSha384 failed");
+    }
+    else if ((ret = Sha384Update(sha384, data, len)) != 0) {
+        CYASSL_MSG("Sha384Update failed");
+    }
+    else if ((ret = Sha384Final(sha384, hash)) != 0) {
+        CYASSL_MSG("Sha384Final failed");
+    }
+
+    DESTROY_VAR(sha384);
+
+    return ret;
 }
 
 #endif /* CYASSL_SHA384 */

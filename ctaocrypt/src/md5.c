@@ -35,6 +35,7 @@
 #endif
 
 #include <cyassl/ctaocrypt/md5.h>
+#include <cyassl/ctaocrypt/error-crypt.h>
 
 #ifdef NO_INLINE
     #include <cyassl/ctaocrypt/misc.h>
@@ -360,5 +361,22 @@ void Md5Final(Md5* md5, byte* hash)
 }
 
 #endif /* STM32F2_HASH */
+
+
+int Md5Hash(const byte* data, word32 len, byte* hash)
+{
+    DECLARE_VAR(Md5, md5);
+
+    if (!CREATE_VAR(Md5, md5))
+        return MEMORY_E;
+
+    InitMd5(md5);
+    Md5Update(md5, data, len);
+    Md5Final(md5, hash);
+
+    DESTROY_VAR(md5);
+
+    return 0;
+}
 
 #endif /* NO_MD5 */

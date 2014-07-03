@@ -2858,140 +2858,57 @@ static int ConfirmSignature(const byte* buf, word32 bufSz,
     (void)heap;
 
     switch (sigOID) {
-#ifndef NO_MD5
+    #ifndef NO_MD5
         case CTC_MD5wRSA:
-        {
-            DECLARE_VAR(Md5, md5);
-            
-            if (CREATE_VAR(Md5, md5)) {
-                InitMd5(md5);
-                Md5Update(md5, buf, bufSz);
-                Md5Final(md5, digest);
-            
-                typeH    = MD5h;
-                digestSz = MD5_DIGEST_SIZE;
-                DESTROY_VAR(md5);
-            }
-        }
-        break;
-#endif
-    #if defined(CYASSL_MD2)
-        case CTC_MD2wRSA:
-        {
-            DECLARE_VAR(Md2, md2);
-            
-            if (CREATE_VAR(Md2, md2)) {
-                InitMd2(md2);
-                Md2Update(md2, buf, bufSz);
-                Md2Final(md2, digest);
-            
-                typeH    = MD2h;
-                digestSz = MD2_DIGEST_SIZE;
-                DESTROY_VAR(md2);
-            }
+        if (Md5Hash(buf, bufSz, digest) == 0) {
+            typeH    = MD5h;
+            digestSz = MD5_DIGEST_SIZE;
         }
         break;
     #endif
-#ifndef NO_SHA
+    #if defined(CYASSL_MD2)
+        case CTC_MD2wRSA:
+        if (Md2Hash(buf, bufSz, digest) == 0) {
+            typeH    = MD2h;
+            digestSz = MD2_DIGEST_SIZE;
+        }
+        break;
+    #endif
+    #ifndef NO_SHA
         case CTC_SHAwRSA:
         case CTC_SHAwDSA:
         case CTC_SHAwECDSA:
-        {
-            DECLARE_VAR(Sha, sha);
-            
-            if (CREATE_VAR(Sha, sha)) {
-                if (InitSha(sha) != 0) {
-                    CYASSL_MSG("InitSha failed");
-                }
-                else {
-                    ShaUpdate(sha, buf, bufSz);
-                    ShaFinal(sha, digest);
-            
-                    typeH    = SHAh;
-                    digestSz = SHA_DIGEST_SIZE;                
-                }
-                
-                DESTROY_VAR(sha);
-            }
+        if (ShaHash(buf, bufSz, digest) == 0) {    
+            typeH    = SHAh;
+            digestSz = SHA_DIGEST_SIZE;                
         }
         break;
-#endif
+    #endif
     #ifndef NO_SHA256
         case CTC_SHA256wRSA:
         case CTC_SHA256wECDSA:
-        {
-            DECLARE_VAR(Sha256, sha256);
-            
-            if (CREATE_VAR(Sha256, sha256)) {
-                if (InitSha256(sha256) != 0) {
-                    CYASSL_MSG("InitSha256 failed");
-                }
-                else if (Sha256Update(sha256, buf, bufSz) != 0) {
-                    CYASSL_MSG("Sha256Update failed");
-                }
-                else if (Sha256Final(sha256, digest) != 0) {
-                    CYASSL_MSG("Sha256Final failed");
-                }
-                else {
-                    typeH    = SHA256h;
-                    digestSz = SHA256_DIGEST_SIZE;
-                }
-                
-                DESTROY_VAR(sha256);
-            }
+        if (Sha256Hash(buf, bufSz, digest) == 0) {    
+            typeH    = SHA256h;
+            digestSz = SHA256_DIGEST_SIZE;
         }
         break;
     #endif
     #ifdef CYASSL_SHA512
         case CTC_SHA512wRSA:
         case CTC_SHA512wECDSA:
-        {
-            DECLARE_VAR(Sha512, sha512);
-            
-            if (CREATE_VAR(Sha512, sha512)) {
-                if (InitSha512(sha512) != 0) {
-                    CYASSL_MSG("InitSha512 failed");
-                }
-                else if (Sha512Update(sha512, buf, bufSz) != 0) {
-                    CYASSL_MSG("Sha512Update failed");
-                }
-                else if (Sha512Final(sha512, digest) != 0) {
-                    CYASSL_MSG("Sha512Final failed");
-                }
-                else {
-                    typeH    = SHA512h;
-                    digestSz = SHA512_DIGEST_SIZE;
-                }
-                
-                DESTROY_VAR(sha512);
-            }
+        if (Sha512Hash(buf, bufSz, digest) == 0) {    
+            typeH    = SHA512h;
+            digestSz = SHA512_DIGEST_SIZE;
         }
         break;
     #endif
     #ifdef CYASSL_SHA384
         case CTC_SHA384wRSA:
         case CTC_SHA384wECDSA:
-        {
-            DECLARE_VAR(Sha384, sha384);
-            
-            if (CREATE_VAR(Sha384, sha384)) {
-                if (InitSha384(sha384) != 0) {
-                    CYASSL_MSG("InitSha384 failed");
-                }
-                else if (Sha384Update(sha384, buf, bufSz) != 0) {
-                    CYASSL_MSG("Sha384Update failed");
-                }
-                else if (Sha384Final(sha384, digest) != 0) {
-                    CYASSL_MSG("Sha384Final failed");
-                }
-                else {
-                    typeH    = SHA384h;
-                    digestSz = SHA384_DIGEST_SIZE;
-                }            
-
-                DESTROY_VAR(sha384);
-            }
-        }
+        if (Sha384Hash(buf, bufSz, digest) == 0) {    
+            typeH    = SHA384h;
+            digestSz = SHA384_DIGEST_SIZE;
+        }            
         break;
     #endif
         default:
