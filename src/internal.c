@@ -4161,8 +4161,6 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx,
     if (anyError != 0 && ret == 0)
         ret = anyError;
 
-    if (ret == 0 && ssl->options.side == CYASSL_CLIENT_END)
-        ssl->options.serverState = SERVER_CERT_COMPLETE;
 
     if (ret != 0) {
         if (!ssl->options.verifyNone) {
@@ -4237,6 +4235,15 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx,
         }
     }
 #endif
+
+    if (ssl->options.verifyNone &&
+                              (ret == CRL_MISSING || ret == CRL_CERT_REVOKED)) {
+        CYASSL_MSG("Ignoring CRL problem based on verify setting");
+        ret = ssl->error = 0;
+    }
+
+    if (ret == 0 && ssl->options.side == CYASSL_CLIENT_END)
+        ssl->options.serverState = SERVER_CERT_COMPLETE;
 
     return ret;
 }
