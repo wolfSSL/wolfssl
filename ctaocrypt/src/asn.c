@@ -5905,129 +5905,128 @@ int MakeSelfCert(Cert* cert, byte* buffer, word32 buffSz, RsaKey* key, RNG* rng)
 /* Set Alt Names from der cert, return 0 on success */
 static int SetAltNamesFromCert(Cert* cert, const byte* der, int derSz)
 {
-    DecodedCert decoded;
-    int         ret;
+    int ret;
+    DECLARE_VAR(DecodedCert, decoded);
 
     if (derSz < 0)
         return derSz;
 
-    InitDecodedCert(&decoded, (byte*)der, derSz, 0);
-    ret = ParseCertRelative(&decoded, CA_TYPE, NO_VERIFY, 0);
+    if (!CREATE_VAR(DecodedCert, decoded))
+        return MEMORY_E;
+    
+    InitDecodedCert(decoded, (byte*)der, derSz, 0);
+    ret = ParseCertRelative(decoded, CA_TYPE, NO_VERIFY, 0);
 
     if (ret < 0) {
-        FreeDecodedCert(&decoded);
-        return ret;
+        CYASSL_MSG("ParseCertRelative error");
     }
-
-    if (decoded.extensions) {
+    else if (decoded->extensions) {
         byte   b;
         int    length;
         word32 maxExtensionsIdx;
 
-        decoded.srcIdx = decoded.extensionsIdx;
-        b = decoded.source[decoded.srcIdx++];
+        decoded->srcIdx = decoded->extensionsIdx;
+        b = decoded->source[decoded->srcIdx++];
+        
         if (b != ASN_EXTENSIONS) {
-            FreeDecodedCert(&decoded);
-            return ASN_PARSE_E;
+            ret = ASN_PARSE_E;
         }
-
-        if (GetLength(decoded.source, &decoded.srcIdx, &length,
-                      decoded.maxIdx) < 0) {
-            FreeDecodedCert(&decoded);
-            return ASN_PARSE_E;
+        else if (GetLength(decoded->source, &decoded->srcIdx, &length,
+                                                         decoded->maxIdx) < 0) {
+            ret = ASN_PARSE_E;
         }
-
-        if (GetSequence(decoded.source, &decoded.srcIdx, &length,
-                        decoded.maxIdx) < 0) {
-            FreeDecodedCert(&decoded);
-            return ASN_PARSE_E;
+        else if (GetSequence(decoded->source, &decoded->srcIdx, &length,
+                                                         decoded->maxIdx) < 0) {
+            ret = ASN_PARSE_E;
         }
+        else {
+            maxExtensionsIdx = decoded->srcIdx + length;
 
-        maxExtensionsIdx = decoded.srcIdx + length;
+            while (decoded->srcIdx < maxExtensionsIdx) {
+                word32 oid;
+                word32 startIdx = decoded->srcIdx;
+                word32 tmpIdx;
 
-        while (decoded.srcIdx < maxExtensionsIdx) {
-            word32 oid;
-            word32 startIdx = decoded.srcIdx;
-            word32 tmpIdx;
-
-            if (GetSequence(decoded.source, &decoded.srcIdx, &length,
-                        decoded.maxIdx) < 0) {
-                FreeDecodedCert(&decoded);
-                return ASN_PARSE_E;
-            }
-
-            tmpIdx = decoded.srcIdx;
-            decoded.srcIdx = startIdx;
-
-            if (GetAlgoId(decoded.source, &decoded.srcIdx, &oid,
-                          decoded.maxIdx) < 0) {
-                FreeDecodedCert(&decoded);
-                return ASN_PARSE_E;
-            }
-
-            if (oid == ALT_NAMES_OID) {
-                cert->altNamesSz = length + (tmpIdx - startIdx);
-
-                if (cert->altNamesSz < (int)sizeof(cert->altNames))
-                    XMEMCPY(cert->altNames, &decoded.source[startIdx],
-                        cert->altNamesSz);
-                else {
-                    cert->altNamesSz = 0;
-                    CYASSL_MSG("AltNames extensions too big");
-                    FreeDecodedCert(&decoded);
-                    return ALT_NAME_E;
+                if (GetSequence(decoded->source, &decoded->srcIdx, &length,
+                            decoded->maxIdx) < 0) {
+                    ret = ASN_PARSE_E;
+                    break;
                 }
+
+                tmpIdx = decoded->srcIdx;
+                decoded->srcIdx = startIdx;
+
+                if (GetAlgoId(decoded->source, &decoded->srcIdx, &oid,
+                              decoded->maxIdx) < 0) {
+                    ret = ASN_PARSE_E;
+                    break;
+                }
+
+                if (oid == ALT_NAMES_OID) {
+                    cert->altNamesSz = length + (tmpIdx - startIdx);
+
+                    if (cert->altNamesSz < (int)sizeof(cert->altNames))
+                        XMEMCPY(cert->altNames, &decoded->source[startIdx],
+                                cert->altNamesSz);
+                    else {
+                        cert->altNamesSz = 0;
+                        CYASSL_MSG("AltNames extensions too big");
+                        ret = ALT_NAME_E;
+                        break;
+                    }
+                }
+                decoded->srcIdx = tmpIdx + length;
             }
-            decoded.srcIdx = tmpIdx + length;
         }
     }
-    FreeDecodedCert(&decoded);
 
-    return 0;
+    FreeDecodedCert(decoded);
+    DESTROY_VAR(decoded);
+
+    return ret < 0 ? ret : 0;
 }
 
 
 /* Set Dates from der cert, return 0 on success */
 static int SetDatesFromCert(Cert* cert, const byte* der, int derSz)
 {
-    DecodedCert decoded;
-    int         ret;
+    int ret;
+    DECLARE_VAR(DecodedCert, decoded);
 
     CYASSL_ENTER("SetDatesFromCert");
     if (derSz < 0)
         return derSz;
+    
+    if (!CREATE_VAR(DecodedCert, decoded))
+        return MEMORY_E;
 
-    InitDecodedCert(&decoded, (byte*)der, derSz, 0);
-    ret = ParseCertRelative(&decoded, CA_TYPE, NO_VERIFY, 0);
+    InitDecodedCert(decoded, (byte*)der, derSz, 0);
+    ret = ParseCertRelative(decoded, CA_TYPE, NO_VERIFY, 0);
 
     if (ret < 0) {
         CYASSL_MSG("ParseCertRelative error");
-        FreeDecodedCert(&decoded);
-        return ret;
     }
-
-    if (decoded.beforeDate == NULL || decoded.afterDate == NULL) {
+    else if (decoded->beforeDate == NULL || decoded->afterDate == NULL) {
         CYASSL_MSG("Couldn't extract dates");
-        FreeDecodedCert(&decoded);
-        return -1;
+        ret = -1;
     }
-
-    if (decoded.beforeDateLen > MAX_DATE_SIZE || decoded.afterDateLen >
-                                                 MAX_DATE_SIZE) {
+    else if (decoded->beforeDateLen > MAX_DATE_SIZE || 
+                                        decoded->afterDateLen > MAX_DATE_SIZE) {
         CYASSL_MSG("Bad date size");
-        FreeDecodedCert(&decoded);
-        return -1;
+        ret = -1;
+    }
+    else {
+        XMEMCPY(cert->beforeDate, decoded->beforeDate, decoded->beforeDateLen);
+        XMEMCPY(cert->afterDate,  decoded->afterDate,  decoded->afterDateLen);
+
+        cert->beforeDateSz = decoded->beforeDateLen;
+        cert->afterDateSz  = decoded->afterDateLen;
     }
 
-    XMEMCPY(cert->beforeDate, decoded.beforeDate, decoded.beforeDateLen);
-    XMEMCPY(cert->afterDate,  decoded.afterDate,  decoded.afterDateLen);
+    FreeDecodedCert(decoded);
+    DESTROY_VAR(decoded);
 
-    cert->beforeDateSz = decoded.beforeDateLen;
-    cert->afterDateSz  = decoded.afterDateLen;
-
-    FreeDecodedCert(&decoded);
-
-    return 0;
+    return ret < 0 ? ret : 0;
 }
 
 
@@ -6037,78 +6036,83 @@ static int SetDatesFromCert(Cert* cert, const byte* der, int derSz)
 /* Set cn name from der buffer, return 0 on success */
 static int SetNameFromCert(CertName* cn, const byte* der, int derSz)
 {
-    DecodedCert decoded;
-    int         ret;
-    int         sz;
+    int ret, sz;
+    DECLARE_VAR(DecodedCert, decoded);
 
     if (derSz < 0)
         return derSz;
 
-    InitDecodedCert(&decoded, (byte*)der, derSz, 0);
-    ret = ParseCertRelative(&decoded, CA_TYPE, NO_VERIFY, 0);
+    if (!CREATE_VAR(DecodedCert, decoded))
+        return MEMORY_E;
 
-    if (ret < 0)
-        return ret;
+    InitDecodedCert(decoded, (byte*)der, derSz, 0);
+    ret = ParseCertRelative(decoded, CA_TYPE, NO_VERIFY, 0);
 
-    if (decoded.subjectCN) {
-        sz = (decoded.subjectCNLen < CTC_NAME_SIZE) ? decoded.subjectCNLen :
-                                                  CTC_NAME_SIZE - 1;
-        strncpy(cn->commonName, decoded.subjectCN, CTC_NAME_SIZE);
-        cn->commonName[sz] = 0;
-        cn->commonNameEnc = decoded.subjectCNEnc;
+    if (ret < 0) {
+        CYASSL_MSG("ParseCertRelative error");
     }
-    if (decoded.subjectC) {
-        sz = (decoded.subjectCLen < CTC_NAME_SIZE) ? decoded.subjectCLen :
-                                                 CTC_NAME_SIZE - 1;
-        strncpy(cn->country, decoded.subjectC, CTC_NAME_SIZE);
-        cn->country[sz] = 0;
-        cn->countryEnc = decoded.subjectCEnc;
-    }
-    if (decoded.subjectST) {
-        sz = (decoded.subjectSTLen < CTC_NAME_SIZE) ? decoded.subjectSTLen :
-                                                  CTC_NAME_SIZE - 1;
-        strncpy(cn->state, decoded.subjectST, CTC_NAME_SIZE);
-        cn->state[sz] = 0;
-        cn->stateEnc = decoded.subjectSTEnc;
-    }
-    if (decoded.subjectL) {
-        sz = (decoded.subjectLLen < CTC_NAME_SIZE) ? decoded.subjectLLen :
-                                                 CTC_NAME_SIZE - 1;
-        strncpy(cn->locality, decoded.subjectL, CTC_NAME_SIZE);
-        cn->locality[sz] = 0;
-        cn->localityEnc = decoded.subjectLEnc;
-    }
-    if (decoded.subjectO) {
-        sz = (decoded.subjectOLen < CTC_NAME_SIZE) ? decoded.subjectOLen :
-                                                 CTC_NAME_SIZE - 1;
-        strncpy(cn->org, decoded.subjectO, CTC_NAME_SIZE);
-        cn->org[sz] = 0;
-        cn->orgEnc = decoded.subjectOEnc;
-    }
-    if (decoded.subjectOU) {
-        sz = (decoded.subjectOULen < CTC_NAME_SIZE) ? decoded.subjectOULen :
-                                                  CTC_NAME_SIZE - 1;
-        strncpy(cn->unit, decoded.subjectOU, CTC_NAME_SIZE);
-        cn->unit[sz] = 0;
-        cn->unitEnc = decoded.subjectOUEnc;
-    }
-    if (decoded.subjectSN) {
-        sz = (decoded.subjectSNLen < CTC_NAME_SIZE) ? decoded.subjectSNLen :
-                                                  CTC_NAME_SIZE - 1;
-        strncpy(cn->sur, decoded.subjectSN, CTC_NAME_SIZE);
-        cn->sur[sz] = 0;
-        cn->surEnc = decoded.subjectSNEnc;
-    }
-    if (decoded.subjectEmail) {
-        sz = (decoded.subjectEmailLen < CTC_NAME_SIZE) ?
-                              decoded.subjectEmailLen : CTC_NAME_SIZE - 1;
-        strncpy(cn->email, decoded.subjectEmail, CTC_NAME_SIZE);
-        cn->email[sz] = 0;
+    else {
+        if (decoded->subjectCN) {
+            sz = (decoded->subjectCNLen < CTC_NAME_SIZE) ? decoded->subjectCNLen
+                                                         : CTC_NAME_SIZE - 1;
+            strncpy(cn->commonName, decoded->subjectCN, CTC_NAME_SIZE);
+            cn->commonName[sz] = 0;
+            cn->commonNameEnc = decoded->subjectCNEnc;
+        }
+        if (decoded->subjectC) {
+            sz = (decoded->subjectCLen < CTC_NAME_SIZE) ? decoded->subjectCLen
+                                                        : CTC_NAME_SIZE - 1;
+            strncpy(cn->country, decoded->subjectC, CTC_NAME_SIZE);
+            cn->country[sz] = 0;
+            cn->countryEnc = decoded->subjectCEnc;
+        }
+        if (decoded->subjectST) {
+            sz = (decoded->subjectSTLen < CTC_NAME_SIZE) ? decoded->subjectSTLen
+                                                         : CTC_NAME_SIZE - 1;
+            strncpy(cn->state, decoded->subjectST, CTC_NAME_SIZE);
+            cn->state[sz] = 0;
+            cn->stateEnc = decoded->subjectSTEnc;
+        }
+        if (decoded->subjectL) {
+            sz = (decoded->subjectLLen < CTC_NAME_SIZE) ? decoded->subjectLLen
+                                                        : CTC_NAME_SIZE - 1;
+            strncpy(cn->locality, decoded->subjectL, CTC_NAME_SIZE);
+            cn->locality[sz] = 0;
+            cn->localityEnc = decoded->subjectLEnc;
+        }
+        if (decoded->subjectO) {
+            sz = (decoded->subjectOLen < CTC_NAME_SIZE) ? decoded->subjectOLen
+                                                        : CTC_NAME_SIZE - 1;
+            strncpy(cn->org, decoded->subjectO, CTC_NAME_SIZE);
+            cn->org[sz] = 0;
+            cn->orgEnc = decoded->subjectOEnc;
+        }
+        if (decoded->subjectOU) {
+            sz = (decoded->subjectOULen < CTC_NAME_SIZE) ? decoded->subjectOULen
+                                                         : CTC_NAME_SIZE - 1;
+            strncpy(cn->unit, decoded->subjectOU, CTC_NAME_SIZE);
+            cn->unit[sz] = 0;
+            cn->unitEnc = decoded->subjectOUEnc;
+        }
+        if (decoded->subjectSN) {
+            sz = (decoded->subjectSNLen < CTC_NAME_SIZE) ? decoded->subjectSNLen
+                                                         : CTC_NAME_SIZE - 1;
+            strncpy(cn->sur, decoded->subjectSN, CTC_NAME_SIZE);
+            cn->sur[sz] = 0;
+            cn->surEnc = decoded->subjectSNEnc;
+        }
+        if (decoded->subjectEmail) {
+            sz = (decoded->subjectEmailLen < CTC_NAME_SIZE)
+               ?  decoded->subjectEmailLen : CTC_NAME_SIZE - 1;
+            strncpy(cn->email, decoded->subjectEmail, CTC_NAME_SIZE);
+            cn->email[sz] = 0;
+        }
     }
 
-    FreeDecodedCert(&decoded);
+    FreeDecodedCert(decoded);
+    DESTROY_VAR(decoded);
 
-    return 0;
+    return ret < 0 ? ret : 0;
 }
 
 
