@@ -6296,8 +6296,10 @@ int EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
     int    version, length;
     int    privSz, pubSz;
     byte   b;
-    byte   priv[ECC_MAXSIZE];
-    byte   pub[ECC_MAXSIZE * 2 + 1]; /* public key has two parts plus header */
+    int    ret = 0;
+    DECLARE_ARRAY(byte, priv, ECC_MAXSIZE);
+    DECLARE_ARRAY(byte, pub,  ECC_MAXSIZE * 2 + 1); /* public key has two parts
+                                                       plus header */
 
     if (input == NULL || inOutIdx == NULL || key == NULL || inSz == 0)
         return BAD_FUNC_ARG;
@@ -6319,6 +6321,9 @@ int EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
         return ASN_PARSE_E;
 
     /* priv key */
+    if (!CREATE_ARRAY(byte, priv, ECC_MAXSIZE))
+        return MEMORY_E;
+
     privSz = length;
     XMEMCPY(priv, &input[*inOutIdx], privSz);
     *inOutIdx += length;
@@ -6329,54 +6334,78 @@ int EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
         *inOutIdx += 1;
 
         if (GetLength(input, inOutIdx, &length, inSz) < 0)
-            return ASN_PARSE_E;
+            ret = ASN_PARSE_E;
+        else {
+            /* object id */
+            b = input[*inOutIdx];
+            *inOutIdx += 1;
 
-        /* object id */
+            if (b != ASN_OBJECT_ID) {
+                ret = ASN_OBJECT_ID_E;
+            }
+            else if (GetLength(input, inOutIdx, &length, inSz) < 0) {
+                ret = ASN_PARSE_E;
+            }
+            else {
+                while(length--) {
+                    oid += input[*inOutIdx];
+                    *inOutIdx += 1;
+                }
+                if (CheckCurve(oid) < 0)
+                    ret = ECC_CURVE_OID_E;
+            }
+        }
+    }
+
+    if (ret == 0) {
+        /* prefix 1 */
         b = input[*inOutIdx];
         *inOutIdx += 1;
-    
-        if (b != ASN_OBJECT_ID) 
-            return ASN_OBJECT_ID_E;
 
-        if (GetLength(input, inOutIdx, &length, inSz) < 0)
-            return ASN_PARSE_E;
-
-        while(length--) {
-            oid += input[*inOutIdx];
-            *inOutIdx += 1;
+        if (b != ECC_PREFIX_1) {
+            ret = ASN_ECC_KEY_E;
         }
-        if (CheckCurve(oid) < 0)
-            return ECC_CURVE_OID_E;
+        else if (GetLength(input, inOutIdx, &length, inSz) < 0) {
+            ret = ASN_PARSE_E;
+        }
+        else {
+            /* key header */
+            b = input[*inOutIdx];
+            *inOutIdx += 1;
+            
+            if (b != ASN_BIT_STRING) {
+                ret = ASN_BITSTR_E;
+            }
+            else if (GetLength(input, inOutIdx, &length, inSz) < 0) {
+                ret = ASN_PARSE_E;
+            }
+            else {
+                b = input[*inOutIdx];
+                *inOutIdx += 1;
+
+                if (b != 0x00) {
+                    ret = ASN_EXPECT_0_E;
+                }
+                else if (!CREATE_ARRAY(byte, pub, ECC_MAXSIZE * 2 + 1))
+                    ret = MEMORY_E;
+                else {
+                    /* pub key */
+                    pubSz = length - 1;  /* null prefix */
+                    XMEMCPY(pub, &input[*inOutIdx], pubSz);
+
+                    *inOutIdx += length;
+
+                    ret = ecc_import_private_key(priv, privSz, pub, pubSz, key);
+
+                    DESTROY_ARRAY(pub);
+                }
+            }
+        }
     }
-    
-    /* prefix 1 */
-    b = input[*inOutIdx];
-    *inOutIdx += 1;
-    if (b != ECC_PREFIX_1)
-        return ASN_ECC_KEY_E;
 
-    if (GetLength(input, inOutIdx, &length, inSz) < 0)
-        return ASN_PARSE_E;
+    DESTROY_ARRAY(priv);
 
-    /* key header */
-    b = input[*inOutIdx];
-    *inOutIdx += 1;
-    if (b != ASN_BIT_STRING)
-        return ASN_BITSTR_E;
-
-    if (GetLength(input, inOutIdx, &length, inSz) < 0)
-        return ASN_PARSE_E;
-    b = input[*inOutIdx];
-    *inOutIdx += 1;
-    if (b != 0x00)
-        return ASN_EXPECT_0_E;
-
-    pubSz = length - 1;  /* null prefix */
-    XMEMCPY(pub, &input[*inOutIdx], pubSz);
-
-    *inOutIdx += length;
-    
-    return ecc_import_private_key(priv, privSz, pub, pubSz, key);
+    return ret;
 }
 
 #endif  /* HAVE_ECC */
