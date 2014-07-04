@@ -5621,21 +5621,26 @@ static int MakeAnyCert(Cert* cert, byte* derBuffer, word32 derSz,
                        RsaKey* rsaKey, ecc_key* eccKey, RNG* rng,
                        const byte* ntruKey, word16 ntruSz)
 {
-    DerCert der;
-    int     ret;
+    int ret;
+    DECLARE_VAR(DerCert, der);
 
-    if (eccKey)
-        cert->keyType = ECC_KEY;
-    else
-        cert->keyType = rsaKey ? RSA_KEY : NTRU_KEY;
-    ret = EncodeCert(cert, &der, rsaKey, eccKey, rng, ntruKey, ntruSz);
-    if (ret != 0)
-        return ret;
+    cert->keyType = eccKey ? ECC_KEY : (rsaKey ? RSA_KEY : NTRU_KEY);
 
-    if (der.total + MAX_SEQ_SZ * 2 > (int)derSz)
-        return BUFFER_E;
+    if (!CREATE_VAR(DerCert, der))
+        return MEMORY_E;
 
-    return cert->bodySz = WriteCertBody(&der, derBuffer);
+    ret = EncodeCert(cert, der, rsaKey, eccKey, rng, ntruKey, ntruSz);
+
+    if (ret == 0) {
+        if (der->total + MAX_SEQ_SZ * 2 > (int)derSz)
+            ret = BUFFER_E;
+        else
+            ret = cert->bodySz = WriteCertBody(der, derBuffer);
+    }
+
+    DESTROY_VAR(der);
+
+    return ret;
 }
 
 
@@ -5831,18 +5836,26 @@ static int WriteCertReqBody(DerCert* der, byte* buffer)
 int MakeCertReq(Cert* cert, byte* derBuffer, word32 derSz,
                 RsaKey* rsaKey, ecc_key* eccKey)
 {
-    DerCert der;
-    int     ret;
+    int ret;
+    DECLARE_VAR(DerCert, der);
 
-    cert->keyType = (eccKey != NULL) ? ECC_KEY : RSA_KEY;
-    ret = EncodeCertReq(cert, &der, rsaKey, eccKey);
-    if (ret != 0)
-        return ret;
+    cert->keyType = eccKey ? ECC_KEY : RSA_KEY;
 
-    if (der.total + MAX_SEQ_SZ * 2 > (int)derSz)
-        return BUFFER_E;
+    if (!CREATE_VAR(DerCert, der))
+        return MEMORY_E;
 
-    return cert->bodySz = WriteCertReqBody(&der, derBuffer);
+    ret = EncodeCertReq(cert, der, rsaKey, eccKey);
+
+    if (ret == 0) {
+        if (der->total + MAX_SEQ_SZ * 2 > (int)derSz)
+            ret = BUFFER_E;
+        else
+            ret = cert->bodySz = WriteCertReqBody(der, derBuffer);
+    }
+
+    DESTROY_VAR(der);
+
+    return ret;
 }
 
 #endif /* CYASSL_CERT_REQ */
