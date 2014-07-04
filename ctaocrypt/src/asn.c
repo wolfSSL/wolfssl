@@ -5505,73 +5505,86 @@ static int MakeSignature(const byte* buffer, int sz, byte* sig, int sigSz,
                          RsaKey* rsaKey, ecc_key* eccKey, RNG* rng,
                          int sigAlgoType)
 {
-    byte    digest[SHA256_DIGEST_SIZE];     /* max size */
-    byte    encSig[MAX_ENCODED_DIG_SZ + MAX_ALGO_SZ + MAX_SEQ_SZ];
-    int     encSigSz, digestSz, typeH, ret = 0;
+    int encSigSz, digestSz, typeH = 0, ret = 0;
+    byte digest[SHA256_DIGEST_SIZE]; /* max size */
+    DECLARE_ARRAY(byte, encSig, MAX_ENCODED_DIG_SZ + MAX_ALGO_SZ + MAX_SEQ_SZ);
 
+    (void)digest;
+    (void)digestSz;
+    (void)encSig;
+    (void)encSigSz;
+    (void)typeH;
+
+    (void)buffer;
+    (void)sz;
+    (void)sig;
+    (void)sigSz;
+    (void)rsaKey;
     (void)eccKey;
+    (void)rng;
 
-    if (sigAlgoType == CTC_MD5wRSA) {
-        Md5 md5;
-
-        InitMd5(&md5);
-        Md5Update(&md5, buffer, sz);
-        Md5Final(&md5, digest);
-
-        digestSz = MD5_DIGEST_SIZE;
-        typeH    = MD5h;
+    switch (sigAlgoType) {
+    #ifndef NO_MD5
+        case CTC_MD5wRSA:
+        if ((ret = Md5Hash(buffer, sz, digest)) == 0) {
+            typeH    = MD5h;
+            digestSz = MD5_DIGEST_SIZE;
+        }
+        break;
+    #endif
+    #ifndef NO_SHA
+        case CTC_SHAwRSA:
+        case CTC_SHAwECDSA:
+        if ((ret = ShaHash(buffer, sz, digest)) == 0) {
+            typeH    = SHAh;
+            digestSz = SHA_DIGEST_SIZE;          
+        }
+        break;
+    #endif
+    #ifndef NO_SHA256
+        case CTC_SHA256wRSA:
+        case CTC_SHA256wECDSA:
+        if ((ret = Sha256Hash(buffer, sz, digest)) == 0) {
+            typeH    = SHA256h;
+            digestSz = SHA256_DIGEST_SIZE;
+        }
+        break;
+    #endif
+        default:
+            CYASSL_MSG("MakeSignautre called with unsupported type");
+            ret = ALGO_ID_E;
     }
-    else if (sigAlgoType == CTC_SHAwRSA || sigAlgoType == CTC_SHAwECDSA) {
-        Sha sha;
-
-        ret = InitSha(&sha);
-        if (ret != 0)
-            return ret;
-
-        ShaUpdate(&sha, buffer, sz);
-        ShaFinal(&sha, digest);
-
-        digestSz = SHA_DIGEST_SIZE;
-        typeH    = SHAh;
+    
+    if (ret != 0)
+        return ret;
+    
+    if (!CREATE_ARRAY(byte, encSig, MAX_ENCODED_DIG_SZ + 
+                                                    MAX_ALGO_SZ + MAX_SEQ_SZ)) {
+        return MEMORY_E;
     }
-    else if (sigAlgoType == CTC_SHA256wRSA || sigAlgoType == CTC_SHA256wECDSA) {
-        Sha256 sha256;
-
-        ret = InitSha256(&sha256);
-        if (ret != 0)
-            return ret;
-
-        ret = Sha256Update(&sha256, buffer, sz);
-        if (ret != 0)
-            return ret;
-
-        ret = Sha256Final(&sha256, digest);
-        if (ret != 0)
-            return ret;
-
-        digestSz = SHA256_DIGEST_SIZE;
-        typeH    = SHA256h;
-    }
-    else
-        return ALGO_ID_E;
-
-    if (rsaKey) {
+#ifndef NO_RSA
+    else if (rsaKey) {
         /* signature */
         encSigSz = EncodeSignature(encSig, digest, digestSz, typeH);
-        return RsaSSL_Sign(encSig, encSigSz, sig, sigSz, rsaKey, rng);
+        ret = RsaSSL_Sign(encSig, encSigSz, sig, sigSz, rsaKey, rng);
     }
+#endif
 #ifdef HAVE_ECC
     else if (eccKey) {
         word32 outSz = sigSz;
         ret = ecc_sign_hash(digest, digestSz, sig, &outSz, rng, eccKey);
 
-        if (ret != 0)
-            return ret;
-        return outSz;
+        if (ret == 0)
+            ret = outSz;
     }
 #endif /* HAVE_ECC */
+    else {
+        ret = ALGO_ID_E;
+    }
 
-    return ALGO_ID_E;
+    DESTROY_ARRAY(encSig);
+
+    return ret;
 }
 
 
