@@ -5851,21 +5851,28 @@ int MakeCertReq(Cert* cert, byte* derBuffer, word32 derSz,
 int SignCert(int requestSz, int sType, byte* buffer, word32 buffSz,
              RsaKey* rsaKey, ecc_key* eccKey, RNG* rng)
 {
-    byte    sig[MAX_ENCODED_SIG_SZ];
-    int     sigSz;
+    int sigSz;
+    DECLARE_ARRAY(byte, sig, MAX_ENCODED_SIG_SZ);
 
     if (requestSz < 0)
         return requestSz;
 
-    sigSz = MakeSignature(buffer, requestSz, sig, sizeof(sig), rsaKey, eccKey,
-                          rng, sType);
-    if (sigSz < 0)
-        return sigSz; 
+    if (!CREATE_ARRAY(byte, sig, MAX_ENCODED_SIG_SZ))
+        return MEMORY_E;
 
-    if (requestSz + MAX_SEQ_SZ * 2 + sigSz > (int)buffSz)
-        return BUFFER_E; 
+    sigSz = MakeSignature(buffer, requestSz, sig, MAX_ENCODED_SIG_SZ, rsaKey,
+                          eccKey, rng, sType);
 
-    return AddSignature(buffer, requestSz, sig, sigSz, sType);
+    if (sigSz >= 0) {
+        if (requestSz + MAX_SEQ_SZ * 2 + sigSz > (int)buffSz)
+            sigSz = BUFFER_E;
+        else
+            sigSz = AddSignature(buffer, requestSz, sig, sigSz, sType);
+    }
+    
+    DESTROY_ARRAY(sig);
+
+    return sigSz;
 }
 
 
