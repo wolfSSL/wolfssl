@@ -29,6 +29,8 @@
 #ifdef CYASSL_MD2
 
 #include <cyassl/ctaocrypt/md2.h>
+#include <cyassl/ctaocrypt/error-crypt.h>
+
 #ifdef NO_INLINE
     #include <cyassl/ctaocrypt/misc.h>
 #else
@@ -125,6 +127,23 @@ void Md2Final(Md2* md2, byte* hash)
     XMEMCPY(hash, md2->X, MD2_DIGEST_SIZE);
 
     InitMd2(md2);
+}
+
+
+int Md2Hash(const byte* data, word32 len, byte* hash)
+{
+    DECLARE_VAR(Md2, md2);
+
+    if (!CREATE_VAR(Md2, md2))
+        return MEMORY_E;
+
+    InitMd2(md2);
+    Md2Update(md2, data, len);
+    Md2Final(md2, hash);
+
+    DESTROY_VAR(md2);
+
+    return 0;
 }
 
 

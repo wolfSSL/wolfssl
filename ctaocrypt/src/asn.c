@@ -35,14 +35,11 @@
 #include <cyassl/ctaocrypt/integer.h>
 #include <cyassl/ctaocrypt/asn.h>
 #include <cyassl/ctaocrypt/coding.h>
-#include <cyassl/ctaocrypt/sha.h>
-#include <cyassl/ctaocrypt/md5.h>
 #include <cyassl/ctaocrypt/md2.h>
+#include <cyassl/ctaocrypt/hmac.h>
 #include <cyassl/ctaocrypt/error-crypt.h>
 #include <cyassl/ctaocrypt/pwdbased.h>
 #include <cyassl/ctaocrypt/des3.h>
-#include <cyassl/ctaocrypt/sha256.h>
-#include <cyassl/ctaocrypt/sha512.h>
 #include <cyassl/ctaocrypt/logging.h>
 
 #include <cyassl/ctaocrypt/random.h>
@@ -853,11 +850,15 @@ static int DecryptKey(const char* password, int passwordSz, byte* salt,
                       int saltSz, int iterations, int id, byte* input,
                       int length, int version, byte* cbcIv)
 {
-    byte   key[MAX_KEY_SIZE];
-    int    typeH;
-    int    derivedLen;
-    int    decryptionType;
-    int    ret = 0; 
+    int typeH;
+    int derivedLen;
+    int decryptionType;
+    int ret = 0;
+#ifdef CYASSL_SMALL_STACK
+    byte* key;
+#else
+    byte key[MAX_KEY_SIZE];
+#endif
 
     switch (id) {
         case PBE_MD5_DES:
@@ -888,6 +889,12 @@ static int DecryptKey(const char* password, int passwordSz, byte* salt,
             return ALGO_ID_E;
     }
 
+#ifdef CYASSL_SMALL_STACK
+    key = (byte*)XMALLOC(MAX_KEY_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (key == NULL)
+        return MEMORY_E;
+#endif
+
     if (version == PKCS5v2)
         ret = PBKDF2(key, (byte*)password, passwordSz, salt, saltSz, iterations,
                derivedLen, typeH);
@@ -898,8 +905,12 @@ static int DecryptKey(const char* password, int passwordSz, byte* salt,
         int  i, idx = 0;
         byte unicodePasswd[MAX_UNICODE_SZ];
 
-        if ( (passwordSz * 2 + 2) > (int)sizeof(unicodePasswd))
+        if ( (passwordSz * 2 + 2) > (int)sizeof(unicodePasswd)) {
+#ifdef CYASSL_SMALL_STACK
+            XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
             return UNICODE_SIZE_E; 
+        }
 
         for (i = 0; i < passwordSz; i++) {
             unicodePasswd[idx++] = 0x00;
@@ -915,11 +926,19 @@ static int DecryptKey(const char* password, int passwordSz, byte* salt,
             ret += PKCS12_PBKDF(cbcIv, unicodePasswd, idx, salt, saltSz,
                                 iterations, 8, typeH, 2);
     }
-    else
+    else {
+#ifdef CYASSL_SMALL_STACK
+        XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
         return ALGO_ID_E;
+    }
 
-    if (ret != 0)
+    if (ret != 0) {
+#ifdef CYASSL_SMALL_STACK
+        XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
         return ret;
+    }
 
     switch (decryptionType) {
 #ifndef NO_DES3
@@ -932,8 +951,12 @@ static int DecryptKey(const char* password, int passwordSz, byte* salt,
                 desIv = cbcIv;
 
             ret = Des_SetKey(&dec, key, desIv, DES_DECRYPTION);
-            if (ret != 0)
+            if (ret != 0) {
+#ifdef CYASSL_SMALL_STACK
+                XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
                 return ret;
+            }
 
             Des_CbcDecrypt(&dec, input, input, length);
             break;
@@ -947,11 +970,19 @@ static int DecryptKey(const char* password, int passwordSz, byte* salt,
             if (version == PKCS5v2 || version == PKCS12)
                 desIv = cbcIv;
             ret = Des3_SetKey(&dec, key, desIv, DES_DECRYPTION);
-            if (ret != 0)
+            if (ret != 0) {
+#ifdef CYASSL_SMALL_STACK
+                XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
                 return ret;
+            }
             ret = Des3_CbcDecrypt(&dec, input, input, length);
-            if (ret != 0)
+            if (ret != 0) {
+#ifdef CYASSL_SMALL_STACK
+                XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
                 return ret;
+            }
             break;
         }
 #endif
@@ -967,8 +998,15 @@ static int DecryptKey(const char* password, int passwordSz, byte* salt,
 #endif
 
         default:
+#ifdef CYASSL_SMALL_STACK
+            XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
             return ALGO_ID_E; 
     }
+
+#ifdef CYASSL_SMALL_STACK
+    XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 
     return 0;
 }
@@ -981,8 +1019,13 @@ int ToTraditionalEnc(byte* input, word32 sz,const char* password,int passwordSz)
     word32 inOutIdx = 0, oid;
     int    first, second, length, version, saltSz, id;
     int    iterations = 0;
+#ifdef CYASSL_SMALL_STACK
+    byte*  salt = NULL;
+    byte*  cbcIv = NULL;
+#else
     byte   salt[MAX_SALT_SIZE];
     byte   cbcIv[MAX_IV_SIZE];
+#endif
     
     if (GetSequence(input, &inOutIdx, &length, sz) < 0)
         return ASN_PARSE_E;
@@ -1020,39 +1063,97 @@ int ToTraditionalEnc(byte* input, word32 sz,const char* password,int passwordSz)
     if (saltSz > MAX_SALT_SIZE)
         return ASN_PARSE_E;
      
+#ifdef CYASSL_SMALL_STACK
+    salt = (byte*)XMALLOC(MAX_SALT_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (salt == NULL)
+        return MEMORY_E;
+#endif
+
     XMEMCPY(salt, &input[inOutIdx], saltSz);
     inOutIdx += saltSz;
 
-    if (GetShortInt(input, &inOutIdx, &iterations) < 0)
+    if (GetShortInt(input, &inOutIdx, &iterations) < 0) {
+#ifdef CYASSL_SMALL_STACK
+        XFREE(salt,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
         return ASN_PARSE_E;
+    }
+
+#ifdef CYASSL_SMALL_STACK
+    cbcIv = (byte*)XMALLOC(MAX_IV_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (cbcIv == NULL) {
+        XFREE(salt,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        return MEMORY_E;
+    }
+#endif
 
     if (version == PKCS5v2) {
         /* get encryption algo */
-        if (GetAlgoId(input, &inOutIdx, &oid, sz) < 0)
+        if (GetAlgoId(input, &inOutIdx, &oid, sz) < 0) {
+#ifdef CYASSL_SMALL_STACK
+            XFREE(salt,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(cbcIv, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
             return ASN_PARSE_E;
+        }
 
-        if (CheckAlgoV2(oid, &id) < 0)
+        if (CheckAlgoV2(oid, &id) < 0) {
+#ifdef CYASSL_SMALL_STACK
+            XFREE(salt,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(cbcIv, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
             return ASN_PARSE_E;  /* PKCS v2 algo id error */
+        }
 
-        if (input[inOutIdx++] != ASN_OCTET_STRING)
+        if (input[inOutIdx++] != ASN_OCTET_STRING) {
+#ifdef CYASSL_SMALL_STACK
+            XFREE(salt,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(cbcIv, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
             return ASN_PARSE_E;
+        }
     
-        if (GetLength(input, &inOutIdx, &length, sz) < 0)
+        if (GetLength(input, &inOutIdx, &length, sz) < 0) {
+#ifdef CYASSL_SMALL_STACK
+            XFREE(salt,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(cbcIv, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
             return ASN_PARSE_E;
+        }
 
         XMEMCPY(cbcIv, &input[inOutIdx], length);
         inOutIdx += length;
     }
 
-    if (input[inOutIdx++] != ASN_OCTET_STRING)
+    if (input[inOutIdx++] != ASN_OCTET_STRING) {
+#ifdef CYASSL_SMALL_STACK
+        XFREE(salt,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(cbcIv, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
         return ASN_PARSE_E;
-    
-    if (GetLength(input, &inOutIdx, &length, sz) < 0)
+    }
+
+    if (GetLength(input, &inOutIdx, &length, sz) < 0) {
+#ifdef CYASSL_SMALL_STACK
+        XFREE(salt,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(cbcIv, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
         return ASN_PARSE_E;
+    }
 
     if (DecryptKey(password, passwordSz, salt, saltSz, iterations, id,
-                   input + inOutIdx, length, version, cbcIv) < 0)
+                   input + inOutIdx, length, version, cbcIv) < 0) {
+#ifdef CYASSL_SMALL_STACK
+        XFREE(salt,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(cbcIv, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
         return ASN_INPUT_E;  /* decrypt failure */
+    }
+
+#ifdef CYASSL_SMALL_STACK
+    XFREE(salt,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(cbcIv, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 
     XMEMMOVE(input, input + inOutIdx, length);
     return ToTraditional(input, length);
@@ -1448,9 +1549,14 @@ void FreeDecodedCert(DecodedCert* cert)
 
 static int GetCertHeader(DecodedCert* cert)
 {
-    int    ret = 0, len;
-    byte   serialTmp[EXTERNAL_SERIAL_SIZE];
-    mp_int mpi;
+    int ret = 0, len;
+    byte serialTmp[EXTERNAL_SERIAL_SIZE];
+#if defined(CYASSL_SMALL_STACK) && defined(USE_FAST_MATH)
+    mp_int* mpi = NULL;
+#else
+    mp_int stack_mpi;
+    mp_int* mpi = &stack_mpi;
+#endif
 
     if (GetSequence(cert->source, &cert->srcIdx, &len, cert->maxIdx) < 0)
         return ASN_PARSE_E;
@@ -1464,17 +1570,32 @@ static int GetCertHeader(DecodedCert* cert)
     if (GetExplicitVersion(cert->source, &cert->srcIdx, &cert->version) < 0)
         return ASN_PARSE_E;
 
-    if (GetInt(&mpi, cert->source, &cert->srcIdx, cert->maxIdx) < 0) 
-        return ASN_PARSE_E;
+#if defined(CYASSL_SMALL_STACK) && defined(USE_FAST_MATH)
+    mpi = (mp_int*)XMALLOC(sizeof(mp_int), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (mpi == NULL)
+        return MEMORY_E;
+#endif
 
-    len = mp_unsigned_bin_size(&mpi);
+    if (GetInt(mpi, cert->source, &cert->srcIdx, cert->maxIdx) < 0) {
+#if defined(CYASSL_SMALL_STACK) && defined(USE_FAST_MATH)
+        XFREE(mpi, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+        return ASN_PARSE_E;
+    }
+
+    len = mp_unsigned_bin_size(mpi);
     if (len < (int)sizeof(serialTmp)) {
-        if ( (ret = mp_to_unsigned_bin(&mpi, serialTmp)) == MP_OKAY) {
+        if ( (ret = mp_to_unsigned_bin(mpi, serialTmp)) == MP_OKAY) {
             XMEMCPY(cert->serial, serialTmp, len);
             cert->serialSz = len;
         }
     }
-    mp_clear(&mpi);
+    mp_clear(mpi);
+
+#if defined(CYASSL_SMALL_STACK) && defined(USE_FAST_MATH)
+    XFREE(mpi, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
     return ret;
 }
 
@@ -1555,34 +1676,61 @@ static int GetKey(DecodedCert* cert)
             const byte* key = &cert->source[tmpIdx];
             byte*       next = (byte*)key;
             word16      keyLen;
-            byte        keyBlob[MAX_NTRU_KEY_SZ];
             word32      rc;
+#ifdef CYASSL_SMALL_STACK
+            byte*       keyBlob = NULL;
+#else
+            byte        keyBlob[MAX_NTRU_KEY_SZ];
+#endif
 
             rc = ntru_crypto_ntru_encrypt_subjectPublicKeyInfo2PublicKey(key,
                                 &keyLen, NULL, &next);
 
             if (rc != NTRU_OK)
                 return ASN_NTRU_KEY_E;
-            if (keyLen > sizeof(keyBlob))
+            if (keyLen > MAX_NTRU_KEY_SZ)
                 return ASN_NTRU_KEY_E;
+
+#ifdef CYASSL_SMALL_STACK
+            keyBlob = (byte*)XMALLOC(MAX_NTRU_KEY_SZ, NULL,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+            if (keyBlob == NULL)
+                return MEMORY_E;
+#endif
 
             rc = ntru_crypto_ntru_encrypt_subjectPublicKeyInfo2PublicKey(key,
                                 &keyLen, keyBlob, &next);
-            if (rc != NTRU_OK)
+            if (rc != NTRU_OK) {
+#ifdef CYASSL_SMALL_STACK
+                XFREE(keyBlob, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
                 return ASN_NTRU_KEY_E;
+            }
 
-            if ( (next - key) < 0)
+            if ( (next - key) < 0) {
+#ifdef CYASSL_SMALL_STACK
+                XFREE(keyBlob, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
                 return ASN_NTRU_KEY_E;
+            }
 
             cert->srcIdx = tmpIdx + (int)(next - key);
 
             cert->publicKey = (byte*) XMALLOC(keyLen, cert->heap,
                                               DYNAMIC_TYPE_PUBLIC_KEY);
-            if (cert->publicKey == NULL)
+            if (cert->publicKey == NULL) {
+#ifdef CYASSL_SMALL_STACK
+                XFREE(keyBlob, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
                 return MEMORY_E;
+            }
             XMEMCPY(cert->publicKey, keyBlob, keyLen);
             cert->pubKeyStored = 1;
             cert->pubKeySize   = keyLen;
+
+#ifdef CYASSL_SMALL_STACK
+            XFREE(keyBlob, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 
             return 0;
         }
@@ -2706,94 +2854,55 @@ word32 EncodeSignature(byte* out, const byte* digest, word32 digSz, int hashOID)
 }
 
 
-/* return true (1) for Confirmation */
+/* return true (1) or false (0) for Confirmation */
 static int ConfirmSignature(const byte* buf, word32 bufSz,
     const byte* key, word32 keySz, word32 keyOID,
     const byte* sig, word32 sigSz, word32 sigOID,
     void* heap)
 {
-#ifdef CYASSL_SHA512
-    byte digest[SHA512_DIGEST_SIZE]; /* max size */
-#elif !defined(NO_SHA256)
-    byte digest[SHA256_DIGEST_SIZE]; /* max size */
-#else
-    byte digest[SHA_DIGEST_SIZE];    /* max size */
-#endif
-    int  typeH, digestSz, ret = 0;
+    int  typeH = 0, digestSz = 0, ret = 0;
+    DECLARE_ARRAY(byte, digest, MAX_DIGEST_SIZE);
+
+    if (!CREATE_ARRAY(byte, digest, MAX_DIGEST_SIZE))
+        return 0; /* not confirmed */
 
     (void)key;
     (void)keySz;
     (void)sig;
     (void)sigSz;
     (void)heap;
-    (void)ret;
 
     switch (sigOID) {
-#ifndef NO_MD5
+    #ifndef NO_MD5
         case CTC_MD5wRSA:
-        {
-            Md5 md5;
-            InitMd5(&md5);
-            Md5Update(&md5, buf, bufSz);
-            Md5Final(&md5, digest);
+        if (Md5Hash(buf, bufSz, digest) == 0) {
             typeH    = MD5h;
             digestSz = MD5_DIGEST_SIZE;
         }
         break;
-#endif
+    #endif
     #if defined(CYASSL_MD2)
         case CTC_MD2wRSA:
-        {
-            Md2 md2;
-            InitMd2(&md2);
-            Md2Update(&md2, buf, bufSz);
-            Md2Final(&md2, digest);
+        if (Md2Hash(buf, bufSz, digest) == 0) {
             typeH    = MD2h;
             digestSz = MD2_DIGEST_SIZE;
         }
         break;
     #endif
-#ifndef NO_SHA
+    #ifndef NO_SHA
         case CTC_SHAwRSA:
         case CTC_SHAwDSA:
         case CTC_SHAwECDSA:
-        {
-            Sha sha;
-            ret = InitSha(&sha);
-            if (ret != 0) {
-                CYASSL_MSG("InitSha failed");
-                return 0;  /*  not confirmed */
-            }
-            ShaUpdate(&sha, buf, bufSz);
-            ShaFinal(&sha, digest);
+        if (ShaHash(buf, bufSz, digest) == 0) {    
             typeH    = SHAh;
-            digestSz = SHA_DIGEST_SIZE;
+            digestSz = SHA_DIGEST_SIZE;                
         }
         break;
-#endif
+    #endif
     #ifndef NO_SHA256
         case CTC_SHA256wRSA:
         case CTC_SHA256wECDSA:
-        {
-            Sha256 sha256;
-            ret = InitSha256(&sha256);
-            if (ret != 0) {
-                CYASSL_MSG("InitSha256 failed");
-                return 0;  /*  not confirmed */
-            }
-
-            ret = Sha256Update(&sha256, buf, bufSz);
-            if (ret != 0) {
-                CYASSL_MSG("Sha256Update failed");
-                return 0;  /*  not confirmed */
-            }
-
-            ret = Sha256Final(&sha256, digest);
-            if (ret != 0) {
-                CYASSL_MSG("Sha256Final failed");
-                return 0;  /*  not confirmed */
-            }
-
+        if (Sha256Hash(buf, bufSz, digest) == 0) {    
             typeH    = SHA256h;
             digestSz = SHA256_DIGEST_SIZE;
         }
@@ -2802,26 +2911,7 @@ static int ConfirmSignature(const byte* buf, word32 bufSz,
     #ifdef CYASSL_SHA512
         case CTC_SHA512wRSA:
         case CTC_SHA512wECDSA:
-        {
-            Sha512 sha512;
-            ret = InitSha512(&sha512);
-            if (ret != 0) {
-                CYASSL_MSG("InitSha512 failed");
-                return 0;  /*  not confirmed */
-            }
-
-            ret = Sha512Update(&sha512, buf, bufSz);
-            if (ret != 0) {
-                CYASSL_MSG("Sha512Update failed");
-                return 0;  /*  not confirmed */
-            }
-
-            ret = Sha512Final(&sha512, digest);
-            if (ret != 0) {
-                CYASSL_MSG("Sha512Final failed");
-                return 0;  /*  not confirmed */
-            }
-
+        if (Sha512Hash(buf, bufSz, digest) == 0) {    
             typeH    = SHA512h;
             digestSz = SHA512_DIGEST_SIZE;
         }
@@ -2830,128 +2920,133 @@ static int ConfirmSignature(const byte* buf, word32 bufSz,
     #ifdef CYASSL_SHA384
         case CTC_SHA384wRSA:
         case CTC_SHA384wECDSA:
-        {
-            Sha384 sha384;
-            ret = InitSha384(&sha384);
-            if (ret != 0) {
-                CYASSL_MSG("InitSha384 failed");
-                return 0;  /*  not confirmed */
-            }
-
-            ret = Sha384Update(&sha384, buf, bufSz);
-            if (ret != 0) {
-                CYASSL_MSG("Sha384Update failed");
-                return 0;  /*  not confirmed */
-            }
-
-            ret = Sha384Final(&sha384, digest);
-            if (ret != 0) {
-                CYASSL_MSG("Sha384Final failed");
-                return 0;  /*  not confirmed */
-            }
-
+        if (Sha384Hash(buf, bufSz, digest) == 0) {    
             typeH    = SHA384h;
             digestSz = SHA384_DIGEST_SIZE;
-        }
+        }            
         break;
     #endif
         default:
             CYASSL_MSG("Verify Signautre has unsupported type");
-            return 0;
     }
-    (void)typeH;  /* some builds won't read */
+    
+    if (typeH == 0) {
+        DESTROY_ARRAY(digest);        
+        return 0; /* not confirmed */
+    }
 
     switch (keyOID) {
     #ifndef NO_RSA
         case RSAk:
         {
-            RsaKey pubKey;
-            byte   encodedSig[MAX_ENCODED_SIG_SZ];
-            byte   plain[MAX_ENCODED_SIG_SZ];
             word32 idx = 0;
             int    encodedSigSz, verifySz;
             byte*  out;
-
+            DECLARE_VAR(RsaKey, pubKey);
+            DECLARE_ARRAY(byte, plain,      MAX_ENCODED_SIG_SZ);
+            DECLARE_ARRAY(byte, encodedSig, MAX_ENCODED_SIG_SZ);
+            
             if (sigSz > MAX_ENCODED_SIG_SZ) {
                 CYASSL_MSG("Verify Signautre is too big");
-                return 0;
             }
-                
-            ret = InitRsaKey(&pubKey, heap);
-            if (ret != 0) return ret;
-            if (RsaPublicKeyDecode(key, &idx, &pubKey, keySz) < 0) {
+            else if (!CREATE_VAR(RsaKey, pubKey)) {
+                CYASSL_MSG("Failed to allocate pubKey");
+            }
+            else if (InitRsaKey(pubKey, heap) != 0) {
+                CYASSL_MSG("InitRsaKey failed");
+            }
+            else if (RsaPublicKeyDecode(key, &idx, pubKey, keySz) < 0) {
                 CYASSL_MSG("ASN Key decode error RSA");
-                ret = 0;
             }
-            else {
+            else if (CREATE_ARRAY(byte, plain, MAX_ENCODED_SIG_SZ)) {
                 XMEMCPY(plain, sig, sigSz);
-                if ( (verifySz = RsaSSL_VerifyInline(plain, sigSz, &out,
-                                               &pubKey)) < 0) {
+
+                if ((verifySz = RsaSSL_VerifyInline(plain, sigSz, &out,
+                                                                 pubKey)) < 0) {
                     CYASSL_MSG("Rsa SSL verify error");
-                    ret = 0;
                 }
-                else {
+                else if (CREATE_ARRAY(byte, encodedSig, MAX_ENCODED_SIG_SZ)) {
                     /* make sure we're right justified */
                     encodedSigSz =
                         EncodeSignature(encodedSig, digest, digestSz, typeH);
                     if (encodedSigSz != verifySz ||
                                 XMEMCMP(out, encodedSig, encodedSigSz) != 0) {
                         CYASSL_MSG("Rsa SSL verify match encode error");
-                        ret = 0;
                     }
                     else
                         ret = 1; /* match */
 
                     #ifdef CYASSL_DEBUG_ENCODING
                     {
-                    int x;
-                    printf("cyassl encodedSig:\n");
-                    for (x = 0; x < encodedSigSz; x++) {
-                        printf("%02x ", encodedSig[x]);
-                        if ( (x % 16) == 15)
-                            printf("\n");
-                    }
-                    printf("\n");
-                    printf("actual digest:\n");
-                    for (x = 0; x < verifySz; x++) {
-                        printf("%02x ", out[x]);
-                        if ( (x % 16) == 15)
-                            printf("\n");
-                    }
-                    printf("\n");
+                        int x;
+                        
+                        printf("cyassl encodedSig:\n");
+                        
+                        for (x = 0; x < encodedSigSz; x++) {
+                            printf("%02x ", encodedSig[x]);
+                            if ( (x % 16) == 15)
+                                printf("\n");
+                        }
+                        
+                        printf("\n");
+                        printf("actual digest:\n");
+                        
+                        for (x = 0; x < verifySz; x++) {
+                            printf("%02x ", out[x]);
+                            if ( (x % 16) == 15)
+                                printf("\n");
+                        }
+                        
+                        printf("\n");
                     }
                     #endif /* CYASSL_DEBUG_ENCODING */
+                    
+                    DESTROY_ARRAY(encodedSig);
                 }
+                
+                DESTROY_ARRAY(plain);
             }
-            FreeRsaKey(&pubKey);
-            return ret;
+            
+            if (pubKey) {
+                FreeRsaKey(pubKey);
+                DESTROY_VAR(pubKey);
+            }
         }
 
     #endif /* NO_RSA */
     #ifdef HAVE_ECC
         case ECDSAk:
         {
-            ecc_key pubKey;
-            int     verify = 0;
-            
-            if (ecc_import_x963(key, keySz, &pubKey) < 0) {
-                CYASSL_MSG("ASN Key import error ECC");
-                return 0;
-            }
-        
-            ret = ecc_verify_hash(sig,sigSz,digest,digestSz,&verify,&pubKey);
-            ecc_free(&pubKey);
-            if (ret == 0 && verify == 1)
-                return 1;  /* match */
+            int verify = 0;
+            DECLARE_VAR(ecc_key, pubKey);
 
-            CYASSL_MSG("ECC Verify didn't match");
-            return 0;
+            if (!CREATE_VAR(ecc_key, pubKey)) {
+                CYASSL_MSG("Failed to allocate pubKey");
+            }
+            else if (ecc_import_x963(key, keySz, pubKey) < 0) {
+                CYASSL_MSG("ASN Key import error ECC");
+            }
+            else if (ecc_verify_hash(sig, sigSz, digest, digestSz, &verify,
+                                                                pubKey) != 0) {
+                CYASSL_MSG("ECC verify hash error");
+            }
+            else if (1 != verify) {
+                CYASSL_MSG("ECC Verify didn't match");
+            } else
+                ret = 1; /* match */
+             
+            if (pubKey) {
+                ecc_free(pubKey);
+                DESTROY_VAR(pubKey);
+            }
         }
     #endif /* HAVE_ECC */
         default:
             CYASSL_MSG("Verify Key type unknown");
-            return 0;
     }
+    
+    DESTROY_ARRAY(digest);
+    return ret;
 }
 
 
@@ -4247,11 +4342,16 @@ CYASSL_LOCAL int SetSerialNumber(const byte* sn, word32 snSz, byte* output)
 int DerToPem(const byte* der, word32 derSz, byte* output, word32 outSz,
              int type)
 {
+#ifdef CYASSL_SMALL_STACK
+    char* header = NULL;
+    char* footer = NULL;
+#else
     char header[80];
     char footer[80];
+#endif
 
-    int headerLen;
-    int footerLen;
+    int headerLen = 80;
+    int footerLen = 80;
     int i;
     int err;
     int outLen;   /* return length or error */
@@ -4259,55 +4359,98 @@ int DerToPem(const byte* der, word32 derSz, byte* output, word32 outSz,
     if (der == output)      /* no in place conversion */
         return BAD_FUNC_ARG;
 
+#ifdef CYASSL_SMALL_STACK
+    header = (char*)XMALLOC(headerLen, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (header == NULL)
+        return MEMORY_E;
+    
+    footer = (char*)XMALLOC(footerLen, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (footer == NULL) {
+        XFREE(header, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        return MEMORY_E;
+    }
+#endif
+
     if (type == CERT_TYPE) {
-        XSTRNCPY(header, "-----BEGIN CERTIFICATE-----\n", sizeof(header));
-        XSTRNCPY(footer, "-----END CERTIFICATE-----\n", sizeof(footer));
+        XSTRNCPY(header, "-----BEGIN CERTIFICATE-----\n", headerLen);
+        XSTRNCPY(footer, "-----END CERTIFICATE-----\n",   footerLen);
     }
     else if (type == PRIVATEKEY_TYPE) {
-        XSTRNCPY(header, "-----BEGIN RSA PRIVATE KEY-----\n", sizeof(header));
-        XSTRNCPY(footer, "-----END RSA PRIVATE KEY-----\n", sizeof(footer));
+        XSTRNCPY(header, "-----BEGIN RSA PRIVATE KEY-----\n", headerLen);
+        XSTRNCPY(footer, "-----END RSA PRIVATE KEY-----\n",   footerLen);
     }
     #ifdef HAVE_ECC
     else if (type == ECC_PRIVATEKEY_TYPE) {
-        XSTRNCPY(header, "-----BEGIN EC PRIVATE KEY-----\n", sizeof(header));
-        XSTRNCPY(footer, "-----END EC PRIVATE KEY-----\n", sizeof(footer));
+        XSTRNCPY(header, "-----BEGIN EC PRIVATE KEY-----\n", headerLen);
+        XSTRNCPY(footer, "-----END EC PRIVATE KEY-----\n",   footerLen);
     }
     #endif
     #ifdef CYASSL_CERT_REQ
     else if (type == CERTREQ_TYPE)
     {
         XSTRNCPY(header,
-                       "-----BEGIN CERTIFICATE REQUEST-----\n", sizeof(header));
-        XSTRNCPY(footer, "-----END CERTIFICATE REQUEST-----\n", sizeof(footer));
+                       "-----BEGIN CERTIFICATE REQUEST-----\n", headerLen);
+        XSTRNCPY(footer, "-----END CERTIFICATE REQUEST-----\n", footerLen);
     }
     #endif
-    else
+    else {
+#ifdef CYASSL_SMALL_STACK
+        XFREE(header, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(footer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
         return BAD_FUNC_ARG;
+    }
 
     headerLen = (int)XSTRLEN(header);
     footerLen = (int)XSTRLEN(footer);
 
-    if (!der || !output)
+    if (!der || !output) {
+#ifdef CYASSL_SMALL_STACK
+        XFREE(header, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(footer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
         return BAD_FUNC_ARG;
+    }
 
     /* don't even try if outSz too short */
-    if (outSz < headerLen + footerLen + derSz)
+    if (outSz < headerLen + footerLen + derSz) {
+#ifdef CYASSL_SMALL_STACK
+        XFREE(header, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(footer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
         return BAD_FUNC_ARG;
+    }
 
     /* header */
     XMEMCPY(output, header, headerLen);
     i = headerLen;
 
+#ifdef CYASSL_SMALL_STACK
+    XFREE(header, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
     /* body */
     outLen = outSz - (headerLen + footerLen);  /* input to Base64_Encode */
-    if ( (err = Base64_Encode(der, derSz, output + i, (word32*)&outLen)) < 0)
+    if ( (err = Base64_Encode(der, derSz, output + i, (word32*)&outLen)) < 0) {
+#ifdef CYASSL_SMALL_STACK
+        XFREE(footer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
         return err;
+    }
     i += outLen;
 
     /* footer */
-    if ( (i + footerLen) > (int)outSz)
+    if ( (i + footerLen) > (int)outSz) {
+#ifdef CYASSL_SMALL_STACK
+        XFREE(footer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
         return BAD_FUNC_ARG;
+    }
     XMEMCPY(output + i, footer, footerLen);
+
+#ifdef CYASSL_SMALL_STACK
+    XFREE(footer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 
     return outLen + headerLen + footerLen;
 }
@@ -4575,22 +4718,62 @@ static int SetSerial(const byte* serial, byte* output)
 /* Write a public ECC key to output */
 static int SetEccPublicKey(byte* output, ecc_key* key)
 {
-    byte algo[MAX_ALGO_SZ];
-    byte curve[MAX_ALGO_SZ];
     byte len[MAX_LENGTH_SZ + 1];  /* trailing 0 */
-    byte pub[ECC_BUFSIZE];
     int  algoSz;
     int  curveSz;
     int  lenSz;
     int  idx;
-    word32 pubSz = sizeof(pub);
+    word32 pubSz = ECC_BUFSIZE;
+#ifdef CYASSL_SMALL_STACK
+    byte* algo = NULL;
+    byte* curve = NULL;
+    byte* pub = NULL;
+#else
+    byte algo[MAX_ALGO_SZ];
+    byte curve[MAX_ALGO_SZ];
+    byte pub[ECC_BUFSIZE];
+#endif
+
+#ifdef CYASSL_SMALL_STACK
+    pub = (byte*)XMALLOC(ECC_BUFSIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (pub == NULL)
+        return MEMORY_E;
+#endif
 
     int ret = ecc_export_x963(key, pub, &pubSz);
-    if (ret != 0) return ret;
+    if (ret != 0) {
+#ifdef CYASSL_SMALL_STACK
+        XFREE(pub, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+        return ret;
+    }
+
+#ifdef CYASSL_SMALL_STACK
+    curve = (byte*)XMALLOC(MAX_ALGO_SZ, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (curve == NULL) {
+        XFREE(pub, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        return MEMORY_E;
+    }
+#endif
 
     /* headers */
     curveSz = SetCurve(key, curve);
-    if (curveSz <= 0) return curveSz;
+    if (curveSz <= 0) {
+#ifdef CYASSL_SMALL_STACK
+        XFREE(curve, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(pub,   NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+        return curveSz;
+    }
+
+#ifdef CYASSL_SMALL_STACK
+    algo = (byte*)XMALLOC(MAX_ALGO_SZ, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (algo == NULL) {
+        XFREE(curve, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(pub,   NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        return MEMORY_E;
+    }
+#endif
 
     algoSz  = SetAlgoID(ECDSAk, algo, keyType, curveSz);
     lenSz   = SetLength(pubSz + 1, len);
@@ -4614,6 +4797,12 @@ static int SetEccPublicKey(byte* output, ecc_key* key)
     XMEMCPY(output + idx, pub, pubSz);
     idx += pubSz;
 
+#ifdef CYASSL_SMALL_STACK
+    XFREE(algo,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(curve, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(pub,   NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
     return idx;
 }
 
@@ -4624,9 +4813,15 @@ static int SetEccPublicKey(byte* output, ecc_key* key)
 /* Write a public RSA key to output */
 static int SetRsaPublicKey(byte* output, RsaKey* key)
 {
+#ifdef CYASSL_SMALL_STACK
+    byte* n = NULL;
+    byte* e = NULL;
+    byte* algo = NULL;
+#else
     byte n[MAX_RSA_INT_SZ];
     byte e[MAX_RSA_E_SZ];
     byte algo[MAX_ALGO_SZ];
+#endif
     byte seq[MAX_SEQ_SZ];
     byte len[MAX_LENGTH_SZ + 1];  /* trailing 0 */
     int  nSz;
@@ -4640,40 +4835,83 @@ static int SetRsaPublicKey(byte* output, RsaKey* key)
     int  err;
 
     /* n */
+#ifdef CYASSL_SMALL_STACK
+    n = (byte*)XMALLOC(MAX_RSA_INT_SZ, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (n == NULL)
+        return MEMORY_E;
+#endif
+
     leadingBit = mp_leading_bit(&key->n);
     rawLen = mp_unsigned_bin_size(&key->n) + leadingBit;
     n[0] = ASN_INTEGER;
     nSz  = SetLength(rawLen, n + 1) + 1;  /* int tag */
 
-    if ( (nSz + rawLen) < (int)sizeof(n)) {
+    if ( (nSz + rawLen) < MAX_RSA_INT_SZ) {
         if (leadingBit)
             n[nSz] = 0;
         err = mp_to_unsigned_bin(&key->n, n + nSz + leadingBit);
         if (err == MP_OKAY)
             nSz += rawLen;
-        else
+        else {
+#ifdef CYASSL_SMALL_STACK
+            XFREE(n, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
             return MP_TO_E;
+        }
     }
-    else
+    else {
+#ifdef CYASSL_SMALL_STACK
+        XFREE(n, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
         return BUFFER_E;
+    }
 
     /* e */
+#ifdef CYASSL_SMALL_STACK
+    e = (byte*)XMALLOC(MAX_RSA_E_SZ, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (e == NULL) {
+#ifdef CYASSL_SMALL_STACK
+        XFREE(n, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+        return MEMORY_E;
+    }
+#endif
+
     leadingBit = mp_leading_bit(&key->e);
     rawLen = mp_unsigned_bin_size(&key->e) + leadingBit;
     e[0] = ASN_INTEGER;
     eSz  = SetLength(rawLen, e + 1) + 1;  /* int tag */
 
-    if ( (eSz + rawLen) < (int)sizeof(e)) {
+    if ( (eSz + rawLen) < MAX_RSA_E_SZ) {
         if (leadingBit)
             e[eSz] = 0;
         err = mp_to_unsigned_bin(&key->e, e + eSz + leadingBit);
         if (err == MP_OKAY)
             eSz += rawLen;
-        else
+        else {
+#ifdef CYASSL_SMALL_STACK
+            XFREE(n, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(e, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
             return MP_TO_E;
+        }
     }
-    else
+    else {
+#ifdef CYASSL_SMALL_STACK
+        XFREE(n, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(e, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
         return BUFFER_E;
+    }
+
+#ifdef CYASSL_SMALL_STACK
+    algo = (byte*)XMALLOC(MAX_ALGO_SZ, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (algo == NULL) {
+        XFREE(n, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(e, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        return MEMORY_E;
+    }
+#endif
 
     /* headers */
     algoSz = SetAlgoID(RSAk, algo, keyType, 0);
@@ -4701,6 +4939,12 @@ static int SetRsaPublicKey(byte* output, RsaKey* key)
     /* e */
     XMEMCPY(output + idx, e, eSz);
     idx += eSz;
+
+#ifdef CYASSL_SMALL_STACK
+    XFREE(n,    NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(e,    NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(algo, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 
     return idx;
 }
@@ -4969,8 +5213,19 @@ static int SetCa(byte* output)
 /* encode CertName into output, return total bytes written */
 static int SetName(byte* output, CertName* name)
 {
-    int         totalBytes = 0, i, idx;
-    EncodedName names[NAME_ENTRIES];
+    int          totalBytes = 0, i, idx;
+#ifdef CYASSL_SMALL_STACK
+    EncodedName* names = NULL;
+#else
+    EncodedName  names[NAME_ENTRIES];
+#endif
+
+#ifdef CYASSL_SMALL_STACK
+    names = (EncodedName*)XMALLOC(sizeof(EncodedName) * NAME_ENTRIES, NULL,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+    if (names == NULL)
+        return MEMORY_E;
+#endif
 
     for (i = 0; i < NAME_ENTRIES; i++) {
         const char* nameStr = GetOneName(name, i);
@@ -5012,8 +5267,12 @@ static int SetName(byte* output, CertName* name)
             setSz = SetSet(thisLen, set);
             thisLen += setSz;
 
-            if (thisLen > (int)sizeof(names[i].encoded))
+            if (thisLen > (int)sizeof(names[i].encoded)) {
+#ifdef CYASSL_SMALL_STACK
+                XFREE(names, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
                 return BUFFER_E;
+            }
 
             /* store it */
             idx = 0;
@@ -5063,8 +5322,12 @@ static int SetName(byte* output, CertName* name)
     /* header */
     idx = SetSequence(totalBytes, output);
     totalBytes += idx;
-    if (totalBytes > ASN_NAME_MAX)
+    if (totalBytes > ASN_NAME_MAX) {
+#ifdef CYASSL_SMALL_STACK
+        XFREE(names, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
         return BUFFER_E;
+    }
 
     for (i = 0; i < NAME_ENTRIES; i++) {
         if (names[i].used) {
@@ -5072,6 +5335,11 @@ static int SetName(byte* output, CertName* name)
             idx += names[i].totalLen;
         }
     }
+
+#ifdef CYASSL_SMALL_STACK
+    XFREE(names, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
     return totalBytes;
 }
 
@@ -5252,73 +5520,86 @@ static int MakeSignature(const byte* buffer, int sz, byte* sig, int sigSz,
                          RsaKey* rsaKey, ecc_key* eccKey, RNG* rng,
                          int sigAlgoType)
 {
-    byte    digest[SHA256_DIGEST_SIZE];     /* max size */
-    byte    encSig[MAX_ENCODED_DIG_SZ + MAX_ALGO_SZ + MAX_SEQ_SZ];
-    int     encSigSz, digestSz, typeH, ret = 0;
+    int encSigSz, digestSz, typeH = 0, ret = 0;
+    byte digest[SHA256_DIGEST_SIZE]; /* max size */
+    DECLARE_ARRAY(byte, encSig, MAX_ENCODED_DIG_SZ + MAX_ALGO_SZ + MAX_SEQ_SZ);
 
+    (void)digest;
+    (void)digestSz;
+    (void)encSig;
+    (void)encSigSz;
+    (void)typeH;
+
+    (void)buffer;
+    (void)sz;
+    (void)sig;
+    (void)sigSz;
+    (void)rsaKey;
     (void)eccKey;
+    (void)rng;
 
-    if (sigAlgoType == CTC_MD5wRSA) {
-        Md5 md5;
-
-        InitMd5(&md5);
-        Md5Update(&md5, buffer, sz);
-        Md5Final(&md5, digest);
-
-        digestSz = MD5_DIGEST_SIZE;
-        typeH    = MD5h;
+    switch (sigAlgoType) {
+    #ifndef NO_MD5
+        case CTC_MD5wRSA:
+        if ((ret = Md5Hash(buffer, sz, digest)) == 0) {
+            typeH    = MD5h;
+            digestSz = MD5_DIGEST_SIZE;
+        }
+        break;
+    #endif
+    #ifndef NO_SHA
+        case CTC_SHAwRSA:
+        case CTC_SHAwECDSA:
+        if ((ret = ShaHash(buffer, sz, digest)) == 0) {
+            typeH    = SHAh;
+            digestSz = SHA_DIGEST_SIZE;          
+        }
+        break;
+    #endif
+    #ifndef NO_SHA256
+        case CTC_SHA256wRSA:
+        case CTC_SHA256wECDSA:
+        if ((ret = Sha256Hash(buffer, sz, digest)) == 0) {
+            typeH    = SHA256h;
+            digestSz = SHA256_DIGEST_SIZE;
+        }
+        break;
+    #endif
+        default:
+            CYASSL_MSG("MakeSignautre called with unsupported type");
+            ret = ALGO_ID_E;
     }
-    else if (sigAlgoType == CTC_SHAwRSA || sigAlgoType == CTC_SHAwECDSA) {
-        Sha sha;
-
-        ret = InitSha(&sha);
-        if (ret != 0)
-            return ret;
-
-        ShaUpdate(&sha, buffer, sz);
-        ShaFinal(&sha, digest);
-
-        digestSz = SHA_DIGEST_SIZE;
-        typeH    = SHAh;
+    
+    if (ret != 0)
+        return ret;
+    
+    if (!CREATE_ARRAY(byte, encSig, MAX_ENCODED_DIG_SZ + 
+                                                    MAX_ALGO_SZ + MAX_SEQ_SZ)) {
+        return MEMORY_E;
     }
-    else if (sigAlgoType == CTC_SHA256wRSA || sigAlgoType == CTC_SHA256wECDSA) {
-        Sha256 sha256;
-
-        ret = InitSha256(&sha256);
-        if (ret != 0)
-            return ret;
-
-        ret = Sha256Update(&sha256, buffer, sz);
-        if (ret != 0)
-            return ret;
-
-        ret = Sha256Final(&sha256, digest);
-        if (ret != 0)
-            return ret;
-
-        digestSz = SHA256_DIGEST_SIZE;
-        typeH    = SHA256h;
-    }
-    else
-        return ALGO_ID_E;
-
-    if (rsaKey) {
+#ifndef NO_RSA
+    else if (rsaKey) {
         /* signature */
         encSigSz = EncodeSignature(encSig, digest, digestSz, typeH);
-        return RsaSSL_Sign(encSig, encSigSz, sig, sigSz, rsaKey, rng);
+        ret = RsaSSL_Sign(encSig, encSigSz, sig, sigSz, rsaKey, rng);
     }
+#endif
 #ifdef HAVE_ECC
     else if (eccKey) {
         word32 outSz = sigSz;
         ret = ecc_sign_hash(digest, digestSz, sig, &outSz, rng, eccKey);
 
-        if (ret != 0)
-            return ret;
-        return outSz;
+        if (ret == 0)
+            ret = outSz;
     }
 #endif /* HAVE_ECC */
+    else {
+        ret = ALGO_ID_E;
+    }
 
-    return ALGO_ID_E;
+    DESTROY_ARRAY(encSig);
+
+    return ret;
 }
 
 
@@ -5355,21 +5636,26 @@ static int MakeAnyCert(Cert* cert, byte* derBuffer, word32 derSz,
                        RsaKey* rsaKey, ecc_key* eccKey, RNG* rng,
                        const byte* ntruKey, word16 ntruSz)
 {
-    DerCert der;
-    int     ret;
+    int ret;
+    DECLARE_VAR(DerCert, der);
 
-    if (eccKey)
-        cert->keyType = ECC_KEY;
-    else
-        cert->keyType = rsaKey ? RSA_KEY : NTRU_KEY;
-    ret = EncodeCert(cert, &der, rsaKey, eccKey, rng, ntruKey, ntruSz);
-    if (ret != 0)
-        return ret;
+    cert->keyType = eccKey ? ECC_KEY : (rsaKey ? RSA_KEY : NTRU_KEY);
 
-    if (der.total + MAX_SEQ_SZ * 2 > (int)derSz)
-        return BUFFER_E;
+    if (!CREATE_VAR(DerCert, der))
+        return MEMORY_E;
 
-    return cert->bodySz = WriteCertBody(&der, derBuffer);
+    ret = EncodeCert(cert, der, rsaKey, eccKey, rng, ntruKey, ntruSz);
+
+    if (ret == 0) {
+        if (der->total + MAX_SEQ_SZ * 2 > (int)derSz)
+            ret = BUFFER_E;
+        else
+            ret = cert->bodySz = WriteCertBody(der, derBuffer);
+    }
+
+    DESTROY_VAR(der);
+
+    return ret;
 }
 
 
@@ -5565,18 +5851,26 @@ static int WriteCertReqBody(DerCert* der, byte* buffer)
 int MakeCertReq(Cert* cert, byte* derBuffer, word32 derSz,
                 RsaKey* rsaKey, ecc_key* eccKey)
 {
-    DerCert der;
-    int     ret;
+    int ret;
+    DECLARE_VAR(DerCert, der);
 
-    cert->keyType = (eccKey != NULL) ? ECC_KEY : RSA_KEY;
-    ret = EncodeCertReq(cert, &der, rsaKey, eccKey);
-    if (ret != 0)
-        return ret;
+    cert->keyType = eccKey ? ECC_KEY : RSA_KEY;
 
-    if (der.total + MAX_SEQ_SZ * 2 > (int)derSz)
-        return BUFFER_E;
+    if (!CREATE_VAR(DerCert, der))
+        return MEMORY_E;
 
-    return cert->bodySz = WriteCertReqBody(&der, derBuffer);
+    ret = EncodeCertReq(cert, der, rsaKey, eccKey);
+
+    if (ret == 0) {
+        if (der->total + MAX_SEQ_SZ * 2 > (int)derSz)
+            ret = BUFFER_E;
+        else
+            ret = cert->bodySz = WriteCertReqBody(der, derBuffer);
+    }
+
+    DESTROY_VAR(der);
+
+    return ret;
 }
 
 #endif /* CYASSL_CERT_REQ */
@@ -5585,21 +5879,28 @@ int MakeCertReq(Cert* cert, byte* derBuffer, word32 derSz,
 int SignCert(int requestSz, int sType, byte* buffer, word32 buffSz,
              RsaKey* rsaKey, ecc_key* eccKey, RNG* rng)
 {
-    byte    sig[MAX_ENCODED_SIG_SZ];
-    int     sigSz;
+    int sigSz;
+    DECLARE_ARRAY(byte, sig, MAX_ENCODED_SIG_SZ);
 
     if (requestSz < 0)
         return requestSz;
 
-    sigSz = MakeSignature(buffer, requestSz, sig, sizeof(sig), rsaKey, eccKey,
-                          rng, sType);
-    if (sigSz < 0)
-        return sigSz; 
+    if (!CREATE_ARRAY(byte, sig, MAX_ENCODED_SIG_SZ))
+        return MEMORY_E;
 
-    if (requestSz + MAX_SEQ_SZ * 2 + sigSz > (int)buffSz)
-        return BUFFER_E; 
+    sigSz = MakeSignature(buffer, requestSz, sig, MAX_ENCODED_SIG_SZ, rsaKey,
+                          eccKey, rng, sType);
 
-    return AddSignature(buffer, requestSz, sig, sigSz, sType);
+    if (sigSz >= 0) {
+        if (requestSz + MAX_SEQ_SZ * 2 + sigSz > (int)buffSz)
+            sigSz = BUFFER_E;
+        else
+            sigSz = AddSignature(buffer, requestSz, sig, sigSz, sType);
+    }
+    
+    DESTROY_ARRAY(sig);
+
+    return sigSz;
 }
 
 
@@ -5619,129 +5920,128 @@ int MakeSelfCert(Cert* cert, byte* buffer, word32 buffSz, RsaKey* key, RNG* rng)
 /* Set Alt Names from der cert, return 0 on success */
 static int SetAltNamesFromCert(Cert* cert, const byte* der, int derSz)
 {
-    DecodedCert decoded;
-    int         ret;
+    int ret;
+    DECLARE_VAR(DecodedCert, decoded);
 
     if (derSz < 0)
         return derSz;
 
-    InitDecodedCert(&decoded, (byte*)der, derSz, 0);
-    ret = ParseCertRelative(&decoded, CA_TYPE, NO_VERIFY, 0);
+    if (!CREATE_VAR(DecodedCert, decoded))
+        return MEMORY_E;
+    
+    InitDecodedCert(decoded, (byte*)der, derSz, 0);
+    ret = ParseCertRelative(decoded, CA_TYPE, NO_VERIFY, 0);
 
     if (ret < 0) {
-        FreeDecodedCert(&decoded);
-        return ret;
+        CYASSL_MSG("ParseCertRelative error");
     }
-
-    if (decoded.extensions) {
+    else if (decoded->extensions) {
         byte   b;
         int    length;
         word32 maxExtensionsIdx;
 
-        decoded.srcIdx = decoded.extensionsIdx;
-        b = decoded.source[decoded.srcIdx++];
+        decoded->srcIdx = decoded->extensionsIdx;
+        b = decoded->source[decoded->srcIdx++];
+        
         if (b != ASN_EXTENSIONS) {
-            FreeDecodedCert(&decoded);
-            return ASN_PARSE_E;
+            ret = ASN_PARSE_E;
         }
-
-        if (GetLength(decoded.source, &decoded.srcIdx, &length,
-                      decoded.maxIdx) < 0) {
-            FreeDecodedCert(&decoded);
-            return ASN_PARSE_E;
+        else if (GetLength(decoded->source, &decoded->srcIdx, &length,
+                                                         decoded->maxIdx) < 0) {
+            ret = ASN_PARSE_E;
         }
-
-        if (GetSequence(decoded.source, &decoded.srcIdx, &length,
-                        decoded.maxIdx) < 0) {
-            FreeDecodedCert(&decoded);
-            return ASN_PARSE_E;
+        else if (GetSequence(decoded->source, &decoded->srcIdx, &length,
+                                                         decoded->maxIdx) < 0) {
+            ret = ASN_PARSE_E;
         }
+        else {
+            maxExtensionsIdx = decoded->srcIdx + length;
 
-        maxExtensionsIdx = decoded.srcIdx + length;
+            while (decoded->srcIdx < maxExtensionsIdx) {
+                word32 oid;
+                word32 startIdx = decoded->srcIdx;
+                word32 tmpIdx;
 
-        while (decoded.srcIdx < maxExtensionsIdx) {
-            word32 oid;
-            word32 startIdx = decoded.srcIdx;
-            word32 tmpIdx;
-
-            if (GetSequence(decoded.source, &decoded.srcIdx, &length,
-                        decoded.maxIdx) < 0) {
-                FreeDecodedCert(&decoded);
-                return ASN_PARSE_E;
-            }
-
-            tmpIdx = decoded.srcIdx;
-            decoded.srcIdx = startIdx;
-
-            if (GetAlgoId(decoded.source, &decoded.srcIdx, &oid,
-                          decoded.maxIdx) < 0) {
-                FreeDecodedCert(&decoded);
-                return ASN_PARSE_E;
-            }
-
-            if (oid == ALT_NAMES_OID) {
-                cert->altNamesSz = length + (tmpIdx - startIdx);
-
-                if (cert->altNamesSz < (int)sizeof(cert->altNames))
-                    XMEMCPY(cert->altNames, &decoded.source[startIdx],
-                        cert->altNamesSz);
-                else {
-                    cert->altNamesSz = 0;
-                    CYASSL_MSG("AltNames extensions too big");
-                    FreeDecodedCert(&decoded);
-                    return ALT_NAME_E;
+                if (GetSequence(decoded->source, &decoded->srcIdx, &length,
+                            decoded->maxIdx) < 0) {
+                    ret = ASN_PARSE_E;
+                    break;
                 }
+
+                tmpIdx = decoded->srcIdx;
+                decoded->srcIdx = startIdx;
+
+                if (GetAlgoId(decoded->source, &decoded->srcIdx, &oid,
+                              decoded->maxIdx) < 0) {
+                    ret = ASN_PARSE_E;
+                    break;
+                }
+
+                if (oid == ALT_NAMES_OID) {
+                    cert->altNamesSz = length + (tmpIdx - startIdx);
+
+                    if (cert->altNamesSz < (int)sizeof(cert->altNames))
+                        XMEMCPY(cert->altNames, &decoded->source[startIdx],
+                                cert->altNamesSz);
+                    else {
+                        cert->altNamesSz = 0;
+                        CYASSL_MSG("AltNames extensions too big");
+                        ret = ALT_NAME_E;
+                        break;
+                    }
+                }
+                decoded->srcIdx = tmpIdx + length;
             }
-            decoded.srcIdx = tmpIdx + length;
         }
     }
-    FreeDecodedCert(&decoded);
 
-    return 0;
+    FreeDecodedCert(decoded);
+    DESTROY_VAR(decoded);
+
+    return ret < 0 ? ret : 0;
 }
 
 
 /* Set Dates from der cert, return 0 on success */
 static int SetDatesFromCert(Cert* cert, const byte* der, int derSz)
 {
-    DecodedCert decoded;
-    int         ret;
+    int ret;
+    DECLARE_VAR(DecodedCert, decoded);
 
     CYASSL_ENTER("SetDatesFromCert");
     if (derSz < 0)
         return derSz;
+    
+    if (!CREATE_VAR(DecodedCert, decoded))
+        return MEMORY_E;
 
-    InitDecodedCert(&decoded, (byte*)der, derSz, 0);
-    ret = ParseCertRelative(&decoded, CA_TYPE, NO_VERIFY, 0);
+    InitDecodedCert(decoded, (byte*)der, derSz, 0);
+    ret = ParseCertRelative(decoded, CA_TYPE, NO_VERIFY, 0);
 
     if (ret < 0) {
         CYASSL_MSG("ParseCertRelative error");
-        FreeDecodedCert(&decoded);
-        return ret;
     }
-
-    if (decoded.beforeDate == NULL || decoded.afterDate == NULL) {
+    else if (decoded->beforeDate == NULL || decoded->afterDate == NULL) {
         CYASSL_MSG("Couldn't extract dates");
-        FreeDecodedCert(&decoded);
-        return -1;
+        ret = -1;
     }
-
-    if (decoded.beforeDateLen > MAX_DATE_SIZE || decoded.afterDateLen >
-                                                 MAX_DATE_SIZE) {
+    else if (decoded->beforeDateLen > MAX_DATE_SIZE || 
+                                        decoded->afterDateLen > MAX_DATE_SIZE) {
         CYASSL_MSG("Bad date size");
-        FreeDecodedCert(&decoded);
-        return -1;
+        ret = -1;
+    }
+    else {
+        XMEMCPY(cert->beforeDate, decoded->beforeDate, decoded->beforeDateLen);
+        XMEMCPY(cert->afterDate,  decoded->afterDate,  decoded->afterDateLen);
+
+        cert->beforeDateSz = decoded->beforeDateLen;
+        cert->afterDateSz  = decoded->afterDateLen;
     }
 
-    XMEMCPY(cert->beforeDate, decoded.beforeDate, decoded.beforeDateLen);
-    XMEMCPY(cert->afterDate,  decoded.afterDate,  decoded.afterDateLen);
+    FreeDecodedCert(decoded);
+    DESTROY_VAR(decoded);
 
-    cert->beforeDateSz = decoded.beforeDateLen;
-    cert->afterDateSz  = decoded.afterDateLen;
-
-    FreeDecodedCert(&decoded);
-
-    return 0;
+    return ret < 0 ? ret : 0;
 }
 
 
@@ -5751,78 +6051,83 @@ static int SetDatesFromCert(Cert* cert, const byte* der, int derSz)
 /* Set cn name from der buffer, return 0 on success */
 static int SetNameFromCert(CertName* cn, const byte* der, int derSz)
 {
-    DecodedCert decoded;
-    int         ret;
-    int         sz;
+    int ret, sz;
+    DECLARE_VAR(DecodedCert, decoded);
 
     if (derSz < 0)
         return derSz;
 
-    InitDecodedCert(&decoded, (byte*)der, derSz, 0);
-    ret = ParseCertRelative(&decoded, CA_TYPE, NO_VERIFY, 0);
+    if (!CREATE_VAR(DecodedCert, decoded))
+        return MEMORY_E;
 
-    if (ret < 0)
-        return ret;
+    InitDecodedCert(decoded, (byte*)der, derSz, 0);
+    ret = ParseCertRelative(decoded, CA_TYPE, NO_VERIFY, 0);
 
-    if (decoded.subjectCN) {
-        sz = (decoded.subjectCNLen < CTC_NAME_SIZE) ? decoded.subjectCNLen :
-                                                  CTC_NAME_SIZE - 1;
-        strncpy(cn->commonName, decoded.subjectCN, CTC_NAME_SIZE);
-        cn->commonName[sz] = 0;
-        cn->commonNameEnc = decoded.subjectCNEnc;
+    if (ret < 0) {
+        CYASSL_MSG("ParseCertRelative error");
     }
-    if (decoded.subjectC) {
-        sz = (decoded.subjectCLen < CTC_NAME_SIZE) ? decoded.subjectCLen :
-                                                 CTC_NAME_SIZE - 1;
-        strncpy(cn->country, decoded.subjectC, CTC_NAME_SIZE);
-        cn->country[sz] = 0;
-        cn->countryEnc = decoded.subjectCEnc;
-    }
-    if (decoded.subjectST) {
-        sz = (decoded.subjectSTLen < CTC_NAME_SIZE) ? decoded.subjectSTLen :
-                                                  CTC_NAME_SIZE - 1;
-        strncpy(cn->state, decoded.subjectST, CTC_NAME_SIZE);
-        cn->state[sz] = 0;
-        cn->stateEnc = decoded.subjectSTEnc;
-    }
-    if (decoded.subjectL) {
-        sz = (decoded.subjectLLen < CTC_NAME_SIZE) ? decoded.subjectLLen :
-                                                 CTC_NAME_SIZE - 1;
-        strncpy(cn->locality, decoded.subjectL, CTC_NAME_SIZE);
-        cn->locality[sz] = 0;
-        cn->localityEnc = decoded.subjectLEnc;
-    }
-    if (decoded.subjectO) {
-        sz = (decoded.subjectOLen < CTC_NAME_SIZE) ? decoded.subjectOLen :
-                                                 CTC_NAME_SIZE - 1;
-        strncpy(cn->org, decoded.subjectO, CTC_NAME_SIZE);
-        cn->org[sz] = 0;
-        cn->orgEnc = decoded.subjectOEnc;
-    }
-    if (decoded.subjectOU) {
-        sz = (decoded.subjectOULen < CTC_NAME_SIZE) ? decoded.subjectOULen :
-                                                  CTC_NAME_SIZE - 1;
-        strncpy(cn->unit, decoded.subjectOU, CTC_NAME_SIZE);
-        cn->unit[sz] = 0;
-        cn->unitEnc = decoded.subjectOUEnc;
-    }
-    if (decoded.subjectSN) {
-        sz = (decoded.subjectSNLen < CTC_NAME_SIZE) ? decoded.subjectSNLen :
-                                                  CTC_NAME_SIZE - 1;
-        strncpy(cn->sur, decoded.subjectSN, CTC_NAME_SIZE);
-        cn->sur[sz] = 0;
-        cn->surEnc = decoded.subjectSNEnc;
-    }
-    if (decoded.subjectEmail) {
-        sz = (decoded.subjectEmailLen < CTC_NAME_SIZE) ?
-                              decoded.subjectEmailLen : CTC_NAME_SIZE - 1;
-        strncpy(cn->email, decoded.subjectEmail, CTC_NAME_SIZE);
-        cn->email[sz] = 0;
+    else {
+        if (decoded->subjectCN) {
+            sz = (decoded->subjectCNLen < CTC_NAME_SIZE) ? decoded->subjectCNLen
+                                                         : CTC_NAME_SIZE - 1;
+            strncpy(cn->commonName, decoded->subjectCN, CTC_NAME_SIZE);
+            cn->commonName[sz] = 0;
+            cn->commonNameEnc = decoded->subjectCNEnc;
+        }
+        if (decoded->subjectC) {
+            sz = (decoded->subjectCLen < CTC_NAME_SIZE) ? decoded->subjectCLen
+                                                        : CTC_NAME_SIZE - 1;
+            strncpy(cn->country, decoded->subjectC, CTC_NAME_SIZE);
+            cn->country[sz] = 0;
+            cn->countryEnc = decoded->subjectCEnc;
+        }
+        if (decoded->subjectST) {
+            sz = (decoded->subjectSTLen < CTC_NAME_SIZE) ? decoded->subjectSTLen
+                                                         : CTC_NAME_SIZE - 1;
+            strncpy(cn->state, decoded->subjectST, CTC_NAME_SIZE);
+            cn->state[sz] = 0;
+            cn->stateEnc = decoded->subjectSTEnc;
+        }
+        if (decoded->subjectL) {
+            sz = (decoded->subjectLLen < CTC_NAME_SIZE) ? decoded->subjectLLen
+                                                        : CTC_NAME_SIZE - 1;
+            strncpy(cn->locality, decoded->subjectL, CTC_NAME_SIZE);
+            cn->locality[sz] = 0;
+            cn->localityEnc = decoded->subjectLEnc;
+        }
+        if (decoded->subjectO) {
+            sz = (decoded->subjectOLen < CTC_NAME_SIZE) ? decoded->subjectOLen
+                                                        : CTC_NAME_SIZE - 1;
+            strncpy(cn->org, decoded->subjectO, CTC_NAME_SIZE);
+            cn->org[sz] = 0;
+            cn->orgEnc = decoded->subjectOEnc;
+        }
+        if (decoded->subjectOU) {
+            sz = (decoded->subjectOULen < CTC_NAME_SIZE) ? decoded->subjectOULen
+                                                         : CTC_NAME_SIZE - 1;
+            strncpy(cn->unit, decoded->subjectOU, CTC_NAME_SIZE);
+            cn->unit[sz] = 0;
+            cn->unitEnc = decoded->subjectOUEnc;
+        }
+        if (decoded->subjectSN) {
+            sz = (decoded->subjectSNLen < CTC_NAME_SIZE) ? decoded->subjectSNLen
+                                                         : CTC_NAME_SIZE - 1;
+            strncpy(cn->sur, decoded->subjectSN, CTC_NAME_SIZE);
+            cn->sur[sz] = 0;
+            cn->surEnc = decoded->subjectSNEnc;
+        }
+        if (decoded->subjectEmail) {
+            sz = (decoded->subjectEmailLen < CTC_NAME_SIZE)
+               ?  decoded->subjectEmailLen : CTC_NAME_SIZE - 1;
+            strncpy(cn->email, decoded->subjectEmail, CTC_NAME_SIZE);
+            cn->email[sz] = 0;
+        }
     }
 
-    FreeDecodedCert(&decoded);
+    FreeDecodedCert(decoded);
+    DESTROY_VAR(decoded);
 
-    return 0;
+    return ret < 0 ? ret : 0;
 }
 
 
@@ -6006,8 +6311,10 @@ int EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
     int    version, length;
     int    privSz, pubSz;
     byte   b;
-    byte   priv[ECC_MAXSIZE];
-    byte   pub[ECC_MAXSIZE * 2 + 1]; /* public key has two parts plus header */
+    int    ret = 0;
+    DECLARE_ARRAY(byte, priv, ECC_MAXSIZE);
+    DECLARE_ARRAY(byte, pub,  ECC_MAXSIZE * 2 + 1); /* public key has two parts
+                                                       plus header */
 
     if (input == NULL || inOutIdx == NULL || key == NULL || inSz == 0)
         return BAD_FUNC_ARG;
@@ -6029,6 +6336,9 @@ int EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
         return ASN_PARSE_E;
 
     /* priv key */
+    if (!CREATE_ARRAY(byte, priv, ECC_MAXSIZE))
+        return MEMORY_E;
+
     privSz = length;
     XMEMCPY(priv, &input[*inOutIdx], privSz);
     *inOutIdx += length;
@@ -6039,54 +6349,78 @@ int EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
         *inOutIdx += 1;
 
         if (GetLength(input, inOutIdx, &length, inSz) < 0)
-            return ASN_PARSE_E;
+            ret = ASN_PARSE_E;
+        else {
+            /* object id */
+            b = input[*inOutIdx];
+            *inOutIdx += 1;
 
-        /* object id */
+            if (b != ASN_OBJECT_ID) {
+                ret = ASN_OBJECT_ID_E;
+            }
+            else if (GetLength(input, inOutIdx, &length, inSz) < 0) {
+                ret = ASN_PARSE_E;
+            }
+            else {
+                while(length--) {
+                    oid += input[*inOutIdx];
+                    *inOutIdx += 1;
+                }
+                if (CheckCurve(oid) < 0)
+                    ret = ECC_CURVE_OID_E;
+            }
+        }
+    }
+
+    if (ret == 0) {
+        /* prefix 1 */
         b = input[*inOutIdx];
         *inOutIdx += 1;
-    
-        if (b != ASN_OBJECT_ID) 
-            return ASN_OBJECT_ID_E;
 
-        if (GetLength(input, inOutIdx, &length, inSz) < 0)
-            return ASN_PARSE_E;
-
-        while(length--) {
-            oid += input[*inOutIdx];
-            *inOutIdx += 1;
+        if (b != ECC_PREFIX_1) {
+            ret = ASN_ECC_KEY_E;
         }
-        if (CheckCurve(oid) < 0)
-            return ECC_CURVE_OID_E;
+        else if (GetLength(input, inOutIdx, &length, inSz) < 0) {
+            ret = ASN_PARSE_E;
+        }
+        else {
+            /* key header */
+            b = input[*inOutIdx];
+            *inOutIdx += 1;
+            
+            if (b != ASN_BIT_STRING) {
+                ret = ASN_BITSTR_E;
+            }
+            else if (GetLength(input, inOutIdx, &length, inSz) < 0) {
+                ret = ASN_PARSE_E;
+            }
+            else {
+                b = input[*inOutIdx];
+                *inOutIdx += 1;
+
+                if (b != 0x00) {
+                    ret = ASN_EXPECT_0_E;
+                }
+                else if (!CREATE_ARRAY(byte, pub, ECC_MAXSIZE * 2 + 1))
+                    ret = MEMORY_E;
+                else {
+                    /* pub key */
+                    pubSz = length - 1;  /* null prefix */
+                    XMEMCPY(pub, &input[*inOutIdx], pubSz);
+
+                    *inOutIdx += length;
+
+                    ret = ecc_import_private_key(priv, privSz, pub, pubSz, key);
+
+                    DESTROY_ARRAY(pub);
+                }
+            }
+        }
     }
-    
-    /* prefix 1 */
-    b = input[*inOutIdx];
-    *inOutIdx += 1;
-    if (b != ECC_PREFIX_1)
-        return ASN_ECC_KEY_E;
 
-    if (GetLength(input, inOutIdx, &length, inSz) < 0)
-        return ASN_PARSE_E;
+    DESTROY_ARRAY(priv);
 
-    /* key header */
-    b = input[*inOutIdx];
-    *inOutIdx += 1;
-    if (b != ASN_BIT_STRING)
-        return ASN_BITSTR_E;
-
-    if (GetLength(input, inOutIdx, &length, inSz) < 0)
-        return ASN_PARSE_E;
-    b = input[*inOutIdx];
-    *inOutIdx += 1;
-    if (b != 0x00)
-        return ASN_EXPECT_0_E;
-
-    pubSz = length - 1;  /* null prefix */
-    XMEMCPY(pub, &input[*inOutIdx], pubSz);
-
-    *inOutIdx += length;
-    
-    return ecc_import_private_key(priv, privSz, pub, pubSz, key);
+    return ret;
 }
 
 #endif  /* HAVE_ECC */

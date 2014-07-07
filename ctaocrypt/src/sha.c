@@ -40,6 +40,9 @@
 #endif
 
 #include <cyassl/ctaocrypt/sha.h>
+#include <cyassl/ctaocrypt/logging.h>
+#include <cyassl/ctaocrypt/error-crypt.h>
+
 #ifdef NO_INLINE
     #include <cyassl/ctaocrypt/misc.h>
 #else
@@ -391,5 +394,27 @@ int ShaFinal(Sha* sha, byte* hash)
 }
 
 #endif /* STM32F2_HASH */
+
+
+int ShaHash(const byte* data, word32 len, byte* hash)
+{
+    int ret = 0;
+    DECLARE_VAR(Sha, sha);
+
+    if (!CREATE_VAR(Sha, sha))
+        return MEMORY_E;
+
+    if ((ret = InitSha(sha)) != 0) {
+        CYASSL_MSG("InitSha failed");
+    }
+    else {
+        ShaUpdate(sha, data, len);
+        ShaFinal(sha, hash);
+    }
+
+    DESTROY_VAR(sha);
+
+    return ret;
+}
 
 #endif /* NO_SHA */
