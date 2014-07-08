@@ -3056,16 +3056,18 @@ static int ConfirmSignature(const byte* buf, word32 bufSz,
             if (ecc_import_x963(key, keySz, pubKey) < 0) {
                 CYASSL_MSG("ASN Key import error ECC");
             }
-            else if (ecc_verify_hash(sig, sigSz, digest, digestSz, &verify,
+            else {   
+                if (ecc_verify_hash(sig, sigSz, digest, digestSz, &verify,
                                                                 pubKey) != 0) {
-                CYASSL_MSG("ECC verify hash error");
-            }
-            else if (1 != verify) {
-                CYASSL_MSG("ECC Verify didn't match");
-            } else
-                ret = 1; /* match */
+                    CYASSL_MSG("ECC verify hash error");
+                }
+                else if (1 != verify) {
+                    CYASSL_MSG("ECC Verify didn't match");
+                } else
+                    ret = 1; /* match */
 
-            ecc_free(pubKey);
+                ecc_free(pubKey);
+            }
 #ifdef CYASSL_SMALL_STACK
             XFREE(pubKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
