@@ -3064,13 +3064,11 @@ static int ConfirmSignature(const byte* buf, word32 bufSz,
                 CYASSL_MSG("ECC Verify didn't match");
             } else
                 ret = 1; /* match */
-             
-            if (pubKey) {
-                ecc_free(pubKey);
+
+            ecc_free(pubKey);
 #ifdef CYASSL_SMALL_STACK
-                XFREE(pubKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(pubKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
-            }
         }
     #endif /* HAVE_ECC */
         default:
