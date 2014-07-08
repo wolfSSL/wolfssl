@@ -301,10 +301,17 @@ int Sha512Final(Sha512* sha512, byte* hash)
 int Sha512Hash(const byte* data, word32 len, byte* hash)
 {
     int ret = 0;
-    DECLARE_VAR(Sha512, sha512);
-    
-    if (!CREATE_VAR(Sha512, sha512))
+#ifdef CYASSL_SMALL_STACK
+    Sha512* sha512;
+#else
+    Sha512 sha512[1];
+#endif
+
+#ifdef CYASSL_SMALL_STACK
+    sha512 = (Sha512*)XMALLOC(sizeof(Sha512), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (sha512 == NULL)
         return MEMORY_E;
+#endif
     
     if ((ret = InitSha512(sha512)) != 0) {
         CYASSL_MSG("InitSha512 failed");
@@ -316,7 +323,9 @@ int Sha512Hash(const byte* data, word32 len, byte* hash)
         CYASSL_MSG("Sha512Final failed");
     }
     
-    DESTROY_VAR(sha512);
+#ifdef CYASSL_SMALL_STACK
+    XFREE(sha512, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
     
     return ret;
 }
@@ -499,10 +508,17 @@ int Sha384Final(Sha384* sha384, byte* hash)
 int Sha384Hash(const byte* data, word32 len, byte* hash)
 {
     int ret = 0;
-    DECLARE_VAR(Sha384, sha384);
+#ifdef CYASSL_SMALL_STACK
+    Sha384* sha384;
+#else
+    Sha384 sha384[1];
+#endif
 
-    if (!CREATE_VAR(Sha384, sha384))
+#ifdef CYASSL_SMALL_STACK
+    sha384 = (Sha384*)XMALLOC(sizeof(Sha384), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (sha384 == NULL)
         return MEMORY_E;
+#endif
 
     if ((ret = InitSha384(sha384)) != 0) {
         CYASSL_MSG("InitSha384 failed");
@@ -514,7 +530,9 @@ int Sha384Hash(const byte* data, word32 len, byte* hash)
         CYASSL_MSG("Sha384Final failed");
     }
 
-    DESTROY_VAR(sha384);
+#ifdef CYASSL_SMALL_STACK
+    XFREE(sha384, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 
     return ret;
 }

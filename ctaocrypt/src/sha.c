@@ -399,10 +399,17 @@ int ShaFinal(Sha* sha, byte* hash)
 int ShaHash(const byte* data, word32 len, byte* hash)
 {
     int ret = 0;
-    DECLARE_VAR(Sha, sha);
+#ifdef CYASSL_SMALL_STACK
+    Sha* sha;
+#else
+    Sha sha[1];
+#endif
 
-    if (!CREATE_VAR(Sha, sha))
+#ifdef CYASSL_SMALL_STACK
+    sha = (Sha*)XMALLOC(sizeof(Sha), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (sha == NULL)
         return MEMORY_E;
+#endif
 
     if ((ret = InitSha(sha)) != 0) {
         CYASSL_MSG("InitSha failed");
@@ -412,7 +419,9 @@ int ShaHash(const byte* data, word32 len, byte* hash)
         ShaFinal(sha, hash);
     }
 
-    DESTROY_VAR(sha);
+#ifdef CYASSL_SMALL_STACK
+    XFREE(sha, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 
     return ret;
 }

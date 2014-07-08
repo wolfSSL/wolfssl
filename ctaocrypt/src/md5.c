@@ -365,16 +365,25 @@ void Md5Final(Md5* md5, byte* hash)
 
 int Md5Hash(const byte* data, word32 len, byte* hash)
 {
-    DECLARE_VAR(Md5, md5);
+#ifdef CYASSL_SMALL_STACK
+    Md5* md5;
+#else
+    Md5 md5[1];
+#endif
 
-    if (!CREATE_VAR(Md5, md5))
+#ifdef CYASSL_SMALL_STACK
+    md5 = (Md5*)XMALLOC(sizeof(Md5), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (md5 == NULL)
         return MEMORY_E;
+#endif
 
     InitMd5(md5);
     Md5Update(md5, data, len);
     Md5Final(md5, hash);
 
-    DESTROY_VAR(md5);
+#ifdef CYASSL_SMALL_STACK
+    XFREE(md5, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 
     return 0;
 }
