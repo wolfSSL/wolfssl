@@ -450,10 +450,10 @@ int Poly1305Final(Poly1305* ctx, byte* mac) {
 	h3 = ((h3 >> 18) | (h4 <<  8)) & 0xffffffff;
 
 	/* mac = (h + pad) % (2^128) */
-	f = (word64)h0 + ctx->pad[0]            ; h0 = (word64)f;
-	f = (word64)h1 + ctx->pad[1] + (f >> 32); h1 = (word64)f;
-	f = (word64)h2 + ctx->pad[2] + (f >> 32); h2 = (word64)f;
-	f = (word64)h3 + ctx->pad[3] + (f >> 32); h3 = (word64)f;
+	f = (word64)h0 + ctx->pad[0]            ; h0 = (word32)f;
+	f = (word64)h1 + ctx->pad[1] + (f >> 32); h1 = (word32)f;
+	f = (word64)h2 + ctx->pad[2] + (f >> 32); h2 = (word32)f;
+	f = (word64)h3 + ctx->pad[3] + (f >> 32); h3 = (word32)f;
 
 	U32TO8(mac + 0, h0);
 	U32TO8(mac + 4, h1);
