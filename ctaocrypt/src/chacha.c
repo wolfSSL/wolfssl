@@ -17,7 +17,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
- *
+ *  
+ *  based from
  *  chacha-ref.c version 20080118
  *  D. J. Bernstein
  *  Public domain.
@@ -90,7 +91,7 @@ int Chacha_SetIV(ChaCha* ctx, const byte* inIv, word32 counter)
 
     XMEMCPY(temp, inIv, 12);
 
-    ctx->X[12] = counter;       /* block counter */
+    ctx->X[12] = counter; /* block counter */
     ctx->X[13] = temp[0]; /* fixed variable from nonce */
     ctx->X[14] = temp[1]; /* counter from nonce */
     ctx->X[15] = temp[2]; /* counter from nonce */
@@ -115,7 +116,7 @@ int Chacha_SetKey(ChaCha* ctx, const byte* key, word32 keySz)
         return BAD_FUNC_ARG;
 
 #ifdef XSTREAM_ALIGN
-    word32 alignKey[4];
+    word32 alignKey[keySz / 4];
     if ((word)key % 4) {
         CYASSL_MSG("ChachaSetKey unaligned key");
         XMEMCPY(alignKey, key, sizeof(alignKey));

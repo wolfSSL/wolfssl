@@ -2111,8 +2111,6 @@ CYASSL_LOCAL  int GrowInputBuffer(CYASSL* ssl, int size, int usedLength);
     CYASSL_LOCAL int  MakeTlsMasterSecret(CYASSL*);
     CYASSL_LOCAL int  TLS_hmac(CYASSL* ssl, byte* digest, const byte* in,
                                word32 sz, int content, int verify);
-    CYASSL_LOCAL int  TLS_poly1305(CYASSL* ssl, byte* digest, const byte* in,
-                               word32 sz, int content, int verify);
 #endif
 
 #ifndef NO_CYASSL_CLIENT

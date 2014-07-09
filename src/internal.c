@@ -4329,7 +4329,8 @@ static INLINE int Encrypt(CYASSL* ssl, byte* out, const byte* input, word16 sz)
                       +  (sz - AEAD_EXP_IV_SZ - ssl->specs.aead_mac_size) % 16; 
                 byte p[CHACHA20_BLOCK_SIZE + padding2 + 16];
 
-                XMEMSET(tag, 0, 16);
+                XMEMSET(tag, 0, ssl->specs.aead_mac_size);
+                XMEMSET(nonce, 0, AEAD_NONCE_SZ);
                 XMEMSET(cipher, 0, sizeof(cipher));
                 XMEMSET(additional, 0, CHACHA20_BLOCK_SIZE);
                 XMEMSET(p, 0, CHACHA20_BLOCK_SIZE + padding2 + 16);
@@ -8384,13 +8385,6 @@ static void PickHashSigAlgo(CYASSL* ssl,
         ShaFinal(&sha, hash + MD5_DIGEST_SIZE);
 
 #endif
-
-        /* poly1305 */
-        InitMd5(&md5);
-        Md5Update(&md5, ssl->arrays->clientRandom, RAN_LEN);
-        Md5Update(&md5, ssl->arrays->serverRandom, RAN_LEN);
-        Md5Update(&md5, messageVerify, verifySz);
-        Md5Final(&md5, hash);
 
 #ifndef NO_SHA256
         ret = InitSha256(&sha256);

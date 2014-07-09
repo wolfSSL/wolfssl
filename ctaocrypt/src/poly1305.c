@@ -18,7 +18,8 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  *
- * Based off the implementation by Andrew Moon
+ * Based off the public domain implementations by Andrew Moon 
+ * and Daniel J. Bernstein
  */
 
 #ifdef HAVE_POLY1305
@@ -48,145 +49,86 @@
     #define LITTLE32(x) (x)
 #endif
 
-#ifdef POLY130564
-#if defined(_MSC_VER)
-	#define POLY1305_NOINLINE __declspec(noinline)
-#elif defined(__GNUC__)
-	#define POLY1305_NOINLINE __attribute__((noinline))
-#else
-	#define POLY1305_NOINLINE
-#endif
-
-#if defined(_MSC_VER)
-    #include <intrin.h>
+#if defined(POLY130564)
 	
-    typedef struct word128 {
-		word64 lo;
-		word64 hi;
-	} word128;
-
-	#define MUL(out, x, y) out.lo = _umul128((x), (y), &out.hi)
-	#define ADD(out, in) { word64 t = out.lo; out.lo += in.lo;
-                           out.hi += (out.lo < t) + in.hi; }
-	#define ADDLO(out, in) { word64 t = out.lo; out.lo += in;
-                             out.hi += (out.lo < t); }
-	#define SHR(in, shift) (__shiftright128(in.lo, in.hi, (shift)))
-	#define LO(in) (in.lo)
-
-#elif defined(__GNUC__)
-	#if defined(__SIZEOF_INT128__)
-		typedef unsigned __int128 word128;
+	#if defined(_MSC_VER)
+		#define POLY1305_NOINLINE __declspec(noinline)
+	#elif defined(__GNUC__)
+		#define POLY1305_NOINLINE __attribute__((noinline))
 	#else
-		typedef unsigned word128 __attribute__((mode(TI)));
+		#define POLY1305_NOINLINE
 	#endif
-
-	#define MUL(out, x, y) out = ((word128)x * y)
-	#define ADD(out, in) out += in
-	#define ADDLO(out, in) out += in
-	#define SHR(in, shift) (word64)(in >> (shift))
-	#define LO(in) (word64)(in)
-#endif
-
-static word64 U8TO64(const byte* p) {
-	return
-		(((word64)(p[0] & 0xff)      ) |
-	     ((word64)(p[1] & 0xff) <<  8) |
-         ((word64)(p[2] & 0xff) << 16) |
-         ((word64)(p[3] & 0xff) << 24) |
-		 ((word64)(p[4] & 0xff) << 32) |
-		 ((word64)(p[5] & 0xff) << 40) |
-		 ((word64)(p[6] & 0xff) << 48) |
-		 ((word64)(p[7] & 0xff) << 56));
-}
-
-static void U64TO8(byte* p, word64 v) {
-	p[0] = (v      ) & 0xff;
-	p[1] = (v >>  8) & 0xff;
-	p[2] = (v >> 16) & 0xff;
-	p[3] = (v >> 24) & 0xff;
-	p[4] = (v >> 32) & 0xff;
-	p[5] = (v >> 40) & 0xff;
-	p[6] = (v >> 48) & 0xff;
-	p[7] = (v >> 56) & 0xff;
-}
-#else /* if not 64 bit then use 32 bit */
-static word32 U8TO32(const byte *p) {
-	return
-		(((word32)(p[0] & 0xff)      ) |
-	     ((word32)(p[1] & 0xff) <<  8) |
-         ((word32)(p[2] & 0xff) << 16) |
-         ((word32)(p[3] & 0xff) << 24));
-}
-
-static void U32TO8(byte *p, word32 v) {
-	p[0] = (v      ) & 0xff;
-	p[1] = (v >>  8) & 0xff;
-	p[2] = (v >> 16) & 0xff;
-	p[3] = (v >> 24) & 0xff;
-}
-#endif
-
-int Poly1305SetKey(Poly1305* ctx, const byte* key, word32 keySz) {
-
-    if (keySz != 32)
-        return 1;
-
-#ifdef CHACHA_AEAD_TEST
-    int k;
-    printf("Poly key used: ");
-    for (k = 0; k < keySz; k++)
-        printf("%02x", key[k]);
-	printf("\n");
-#endif
-
-#ifdef POLY130564
-	word64 t0,t1;
-
-	/* r &= 0xffffffc0ffffffc0ffffffc0fffffff */
-	t0 = U8TO64(key + 0);
-	t1 = U8TO64(key + 8);
-
-	ctx->r[0] = ( t0                    ) & 0xffc0fffffff;
-	ctx->r[1] = ((t0 >> 44) | (t1 << 20)) & 0xfffffc0ffff;
-	ctx->r[2] = ((t1 >> 24)             ) & 0x00ffffffc0f;
-
-	/* h (accumulator) = 0 */
-	ctx->h[0] = 0;
-	ctx->h[1] = 0;
-	ctx->h[2] = 0;
-
-	/* save pad for later */
-	ctx->pad[0] = U8TO64(key + 16);
-	ctx->pad[1] = U8TO64(key + 24);
+	
+	#if defined(_MSC_VER)
+	    #include <intrin.h>
+		
+	    typedef struct word128 {
+			word64 lo;
+			word64 hi;
+		} word128;
+	
+		#define MUL(out, x, y) out.lo = _umul128((x), (y), &out.hi)
+		#define ADD(out, in) { word64 t = out.lo; out.lo += in.lo;
+	                           out.hi += (out.lo < t) + in.hi; }
+		#define ADDLO(out, in) { word64 t = out.lo; out.lo += in;
+	                             out.hi += (out.lo < t); }
+		#define SHR(in, shift) (__shiftright128(in.lo, in.hi, (shift)))
+		#define LO(in) (in.lo)
+	
+	#elif defined(__GNUC__)
+		#if defined(__SIZEOF_INT128__)
+			typedef unsigned __int128 word128;
+		#else
+			typedef unsigned word128 __attribute__((mode(TI)));
+		#endif
+	
+		#define MUL(out, x, y) out = ((word128)x * y)
+		#define ADD(out, in) out += in
+		#define ADDLO(out, in) out += in
+		#define SHR(in, shift) (word64)(in >> (shift))
+		#define LO(in) (word64)(in)
+	#endif
+	
+	static word64 U8TO64(const byte* p) {
+		return
+			(((word64)(p[0] & 0xff)      ) |
+		     ((word64)(p[1] & 0xff) <<  8) |
+	         ((word64)(p[2] & 0xff) << 16) |
+	         ((word64)(p[3] & 0xff) << 24) |
+			 ((word64)(p[4] & 0xff) << 32) |
+			 ((word64)(p[5] & 0xff) << 40) |
+			 ((word64)(p[6] & 0xff) << 48) |
+			 ((word64)(p[7] & 0xff) << 56));
+	}
+	
+	static void U64TO8(byte* p, word64 v) {
+		p[0] = (v      ) & 0xff;
+		p[1] = (v >>  8) & 0xff;
+		p[2] = (v >> 16) & 0xff;
+		p[3] = (v >> 24) & 0xff;
+		p[4] = (v >> 32) & 0xff;
+		p[5] = (v >> 40) & 0xff;
+		p[6] = (v >> 48) & 0xff;
+		p[7] = (v >> 56) & 0xff;
+	}
 
 #else /* if not 64 bit then use 32 bit */
 	
-    /* r &= 0xffffffc0ffffffc0ffffffc0fffffff */
-	ctx->r[0] = (U8TO32(key +  0)     ) & 0x3ffffff;
-	ctx->r[1] = (U8TO32(key +  3) >> 2) & 0x3ffff03;
-	ctx->r[2] = (U8TO32(key +  6) >> 4) & 0x3ffc0ff;
-	ctx->r[3] = (U8TO32(key +  9) >> 6) & 0x3f03fff;
-	ctx->r[4] = (U8TO32(key + 12) >> 8) & 0x00fffff;
-
-	/* h = 0 */
-	ctx->h[0] = 0;
-	ctx->h[1] = 0;
-	ctx->h[2] = 0;
-	ctx->h[3] = 0;
-	ctx->h[4] = 0;
-
-	/* save pad for later */
-	ctx->pad[0] = U8TO32(key + 16);
-	ctx->pad[1] = U8TO32(key + 20);
-	ctx->pad[2] = U8TO32(key + 24);
-	ctx->pad[3] = U8TO32(key + 28);
+	static word32 U8TO32(const byte *p) {
+		return
+			(((word32)(p[0] & 0xff)      ) |
+		     ((word32)(p[1] & 0xff) <<  8) |
+	         ((word32)(p[2] & 0xff) << 16) |
+	         ((word32)(p[3] & 0xff) << 24));
+	}
+	
+	static void U32TO8(byte *p, word32 v) {
+		p[0] = (v      ) & 0xff;
+		p[1] = (v >>  8) & 0xff;
+		p[2] = (v >> 16) & 0xff;
+		p[3] = (v >> 24) & 0xff;
+	}
 #endif
-
-	ctx->leftover = 0;
-	ctx->final = 0;
-
-    return 0;
-}
 
 static void poly1305_blocks(Poly1305* ctx, const unsigned char *m,
                             size_t bytes) {
@@ -306,13 +248,78 @@ static void poly1305_blocks(Poly1305* ctx, const unsigned char *m,
 	ctx->h[3] = h3;
 	ctx->h[4] = h4;
 
+#endif /* end of 64 bit cpu blocks or 32 bit cpu */
+}
+
+
+int Poly1305SetKey(Poly1305* ctx, const byte* key, word32 keySz) {
+
+    if (keySz != 32)
+        return 1;
+
+#ifdef CHACHA_AEAD_TEST
+    int k;
+    printf("Poly key used: ");
+    for (k = 0; k < keySz; k++)
+        printf("%02x", key[k]);
+	printf("\n");
 #endif
 
+#if defined(POLY130564)
+	
+    word64 t0,t1;
+
+	/* r &= 0xffffffc0ffffffc0ffffffc0fffffff */
+	t0 = U8TO64(key + 0);
+	t1 = U8TO64(key + 8);
+
+	ctx->r[0] = ( t0                    ) & 0xffc0fffffff;
+	ctx->r[1] = ((t0 >> 44) | (t1 << 20)) & 0xfffffc0ffff;
+	ctx->r[2] = ((t1 >> 24)             ) & 0x00ffffffc0f;
+
+	/* h (accumulator) = 0 */
+	ctx->h[0] = 0;
+	ctx->h[1] = 0;
+	ctx->h[2] = 0;
+
+	/* save pad for later */
+	ctx->pad[0] = U8TO64(key + 16);
+	ctx->pad[1] = U8TO64(key + 24);
+
+#else /* if not 64 bit then use 32 bit */
+	
+    /* r &= 0xffffffc0ffffffc0ffffffc0fffffff */
+	ctx->r[0] = (U8TO32(key +  0)     ) & 0x3ffffff;
+	ctx->r[1] = (U8TO32(key +  3) >> 2) & 0x3ffff03;
+	ctx->r[2] = (U8TO32(key +  6) >> 4) & 0x3ffc0ff;
+	ctx->r[3] = (U8TO32(key +  9) >> 6) & 0x3f03fff;
+	ctx->r[4] = (U8TO32(key + 12) >> 8) & 0x00fffff;
+
+	/* h = 0 */
+	ctx->h[0] = 0;
+	ctx->h[1] = 0;
+	ctx->h[2] = 0;
+	ctx->h[3] = 0;
+	ctx->h[4] = 0;
+
+	/* save pad for later */
+	ctx->pad[0] = U8TO32(key + 16);
+	ctx->pad[1] = U8TO32(key + 20);
+	ctx->pad[2] = U8TO32(key + 24);
+	ctx->pad[3] = U8TO32(key + 28);
+
+#endif
+
+	ctx->leftover = 0;
+	ctx->final = 0;
+
+    return 0;
 }
+
 
 int Poly1305Final(Poly1305* ctx, byte* mac) {
 
-#ifdef POLY130564
+#if defined(POLY130564)
 
     word64 h0,h1,h2,c;
 	word64 g0,g1,g2;
@@ -476,7 +483,6 @@ int Poly1305Final(Poly1305* ctx, byte* mac) {
 
 
 int Poly1305Update(Poly1305* ctx, const byte* m, word32 bytes) {
-	size_t i;
 
 #ifdef CHACHA_AEAD_TEST
     int k;
@@ -485,6 +491,7 @@ int Poly1305Update(Poly1305* ctx, const byte* m, word32 bytes) {
         printf("%02x", m[k]);
 	printf("\n");
 #endif
+	size_t i;
 
 	/* handle leftover */
 	if (ctx->leftover) {
@@ -516,7 +523,6 @@ int Poly1305Update(Poly1305* ctx, const byte* m, word32 bytes) {
 			ctx->buffer[ctx->leftover + i] = m[i];
 		ctx->leftover += bytes;
 	}
-
     return 0;
 }
 #endif /* HAVE_POLY1305 */

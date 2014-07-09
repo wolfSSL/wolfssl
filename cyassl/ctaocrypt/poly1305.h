@@ -31,8 +31,6 @@
     extern "C" {
 #endif
 
-//#define POLY1305_BLOCK_SIZE 16
-
 /* auto detect between 32bit / 64bit */
 #define HAS_SIZEOF_INT128_64BIT (defined(__SIZEOF_INT128__) && defined(__LP64__))
 #define HAS_MSVC_64BIT (defined(_MSC_VER) && defined(_M_X64))
@@ -51,24 +49,20 @@ enum {
     POLY1305_PAD_SIZE = 56
 };
 
-
 /* Poly1305 state */
 typedef struct Poly1305 {
-#ifdef POLY130564
+#if defined(POLY130564)
 	word64 r[3];
 	word64 h[3];
 	word64 pad[2];
-	size_t leftover;
-	unsigned char buffer[POLY1305_BLOCK_SIZE];
-	unsigned char final;
 #else
 	word32 r[5];
 	word32 h[5];
 	word32 pad[4];
+#endif
 	size_t leftover;
 	unsigned char buffer[POLY1305_BLOCK_SIZE];
 	unsigned char final;
-#endif
 } Poly1305;
 
 
