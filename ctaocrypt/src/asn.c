@@ -1662,16 +1662,14 @@ static int GetKey(DecodedCert* cert)
             byte*       next = (byte*)key;
             word16      keyLen;
             word32      rc;
+            word32      remaining = cert->maxIdx - cert->srcIdx;
 #ifdef CYASSL_SMALL_STACK
             byte*       keyBlob = NULL;
 #else
             byte        keyBlob[MAX_NTRU_KEY_SZ];
 #endif
-	    uint32_t    remaining = (uint32_t)cert->maxIdx - cert->srcIdx;
-
             rc = ntru_crypto_ntru_encrypt_subjectPublicKeyInfo2PublicKey(key,
                                 &keyLen, NULL, &next, &remaining);
-
             if (rc != NTRU_OK)
                 return ASN_NTRU_KEY_E;
             if (keyLen > MAX_NTRU_KEY_SZ)

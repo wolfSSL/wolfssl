@@ -226,9 +226,10 @@ int benchmark_test(void *args)
 
 #if defined(CYASSL_KEY_GEN) && !defined(NO_RSA)
     bench_rsaKeyGen();
-    #ifdef HAVE_NTRU
-        bench_ntruKeyGen();
-    #endif
+#endif
+
+#ifdef HAVE_NTRU
+    bench_ntruKeyGen();
 #endif
 
 #ifdef HAVE_ECC 
@@ -1063,7 +1064,7 @@ void bench_ntruKeyGen(void)
     byte   public_key[5951]; /* 2048 key equivalent to rsa */
     word16 public_key_len;
     byte   private_key[5951];
-    word16 private_key_len;
+    word16 private_key_len = sizeof(private_key);
 
     DRBG_HANDLE drbg;
     static uint8_t const pers_str[] = {
@@ -1080,10 +1081,8 @@ void bench_ntruKeyGen(void)
     start = current_time(1);
 
     for(i = 0; i < genTimes; i++) {
-        ntru_crypto_ntru_encrypt_keygen(drbg, NTRU_EES401EP2,
-            &public_key_len, NULL, &private_key_len, NULL);
-        ntru_crypto_ntru_encrypt_keygen(drbg, NTRU_EES401EP2,
-            &public_key_len, public_key, &private_key_len, private_key);
+        ntru_crypto_ntru_encrypt_keygen(drbg, NTRU_EES401EP2, &public_key_len,
+                                     public_key, &private_key_len, private_key);
     }
 
     total = current_time(0) - start;
@@ -1099,7 +1098,7 @@ void bench_ntruKeyGen(void)
     milliEach = each * 1000;
 
     printf("\n");
-    printf("NTRU 2048 key generation  %6.3f milliseconds, avg over %d"
+    printf("NTRU 112 key generation  %6.3f milliseconds, avg over %d"
         " iterations\n", milliEach, genTimes);
 
 }
