@@ -51,6 +51,9 @@
     #include "cavium_common.h"
     #include "cavium_ioctl.h"
 #endif
+#ifdef HAVE_NTRU
+    #include "ntru_crypto.h"
+#endif
 
 #if defined(CYASSL_MDK_ARM)
     extern FILE * CyaSSL_fopen(const char *fname, const char *mode) ;
@@ -100,6 +103,9 @@ void bench_dh(void);
 #ifdef HAVE_ECC
 void bench_eccKeyGen(void);
 void bench_eccKeyAgree(void);
+#endif
+#ifdef HAVE_NTRU
+void bench_ntruKeyGen(void);
 #endif
 
 double current_time(int);
@@ -220,6 +226,9 @@ int benchmark_test(void *args)
 
 #if defined(CYASSL_KEY_GEN) && !defined(NO_RSA)
     bench_rsaKeyGen();
+    #ifdef HAVE_NTRU
+        bench_ntruKeyGen();
+    #endif
 #endif
 
 #ifdef HAVE_ECC 
@@ -1025,6 +1034,76 @@ void bench_rsaKeyGen(void)
            " iterations\n", milliEach, genTimes);
 }
 #endif /* CYASSL_KEY_GEN */
+#ifdef HAVE_NTRU
+byte GetEntropy(ENTROPY_CMD cmd, byte* out);
+
+byte GetEntropy(ENTROPY_CMD cmd, byte* out)
+{
+    if (cmd == INIT)
+        return (InitRng(&rng) == 0) ? 1 : 0;
+
+    if (out == NULL)
+        return 0;
+
+    if (cmd == GET_BYTE_OF_ENTROPY)
+        return (RNG_GenerateBlock(&rng, out, 1) == 0) ? 1 : 0;
+
+    if (cmd == GET_NUM_BYTES_PER_BYTE_OF_ENTROPY) {
+        *out = 1;
+        return 1;
+    }
+
+    return 0;
+}
+void bench_ntruKeyGen(void)
+{
+    double start, total, each, milliEach;
+    int    i;
+
+    byte   public_key[5951]; /* 2048 key equivalent to rsa */
+    word16 public_key_len;
+    byte   private_key[5951];
+    word16 private_key_len;
+
+    DRBG_HANDLE drbg;
+    static uint8_t const pers_str[] = {
+                'C', 'y', 'a', 'S', 'S', 'L', ' ', 't', 'e', 's', 't'
+    };
+
+    word32 rc = ntru_crypto_drbg_instantiate(112, pers_str, sizeof(pers_str), GetEntropy, &drbg);
+
+    if(rc != DRBG_OK) {
+        printf("NTRU drbg instantiate failed\n");
+        return;
+    }
+
+    start = current_time(1);
+
+    for(i = 0; i < genTimes; i++) {
+        ntru_crypto_ntru_encrypt_keygen(drbg, NTRU_EES401EP2,
+            &public_key_len, NULL, &private_key_len, NULL);
+        ntru_crypto_ntru_encrypt_keygen(drbg, NTRU_EES401EP2,
+            &public_key_len, public_key, &private_key_len, private_key);
+    }
+
+    total = current_time(0) - start;
+
+    rc = ntru_crypto_drbg_uninstantiate(drbg);
+
+    if (rc != NTRU_OK) {
+        printf("NTRU drbg uninstantiate failed\n");
+        return;
+    }
+
+    each = total / genTimes;
+    milliEach = each * 1000;
+
+    printf("\n");
+    printf("NTRU 2048 key generation  %6.3f milliseconds, avg over %d"
+        " iterations\n", milliEach, genTimes);
+
+}
+#endif
 
 #ifdef HAVE_ECC 
 void bench_eccKeyGen(void)
