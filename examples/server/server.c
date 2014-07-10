@@ -481,9 +481,9 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 
     SSL_set_fd(ssl, clientfd);
     if (usePsk == 0 || cipherList != NULL) {
-        #if !defined(NO_FILESYSTEM) && defined(OPENSSL_EXTRA)
+        #if !defined(NO_FILESYSTEM) && !defined(NO_DH)
             CyaSSL_SetTmpDH_file(ssl, dhParam, SSL_FILETYPE_PEM);
-        #elif !defined(NO_CERTS)
+        #elif !defined(NO_DH)
             SetDH(ssl);  /* repick suites with DHE, higher priority than PSK */
         #endif
     }

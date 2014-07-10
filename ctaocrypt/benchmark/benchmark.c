@@ -53,6 +53,9 @@
     #include "cavium_common.h"
     #include "cavium_ioctl.h"
 #endif
+#ifdef HAVE_NTRU
+    #include "ntru_crypto.h"
+#endif
 
 #if defined(CYASSL_MDK_ARM)
     extern FILE * CyaSSL_fopen(const char *fname, const char *mode) ;
@@ -105,6 +108,9 @@ void bench_dh(void);
 void bench_eccKeyGen(void);
 void bench_eccKeyAgree(void);
 #endif
+#ifdef HAVE_NTRU
+void bench_ntruKeyGen(void);
+#endif
 
 double current_time(int);
 
@@ -132,6 +138,9 @@ static int OpenNitroxDevice(int dma_mode,int dev_id)
 
 #endif
 
+#if defined(DEBUG_CYASSL) && !defined(HAVE_VALGRIND)
+    CYASSL_API int CyaSSL_Debugging_ON();
+#endif
 
 /* so embedded projects can pull in tests on their own */
 #if !defined(NO_MAIN_DRIVER)
@@ -145,6 +154,10 @@ int main(int argc, char** argv)
 int benchmark_test(void *args) 
 {
 #endif
+
+    #if defined(DEBUG_CYASSL) && !defined(HAVE_VALGRIND)
+        CyaSSL_Debugging_ON();
+    #endif
 
 	#ifdef HAVE_CAVIUM
     int ret = OpenNitroxDevice(CAVIUM_DIRECT, CAVIUM_DEV_ID);
@@ -223,6 +236,10 @@ int benchmark_test(void *args)
 
 #if defined(CYASSL_KEY_GEN) && !defined(NO_RSA)
     bench_rsaKeyGen();
+#endif
+
+#ifdef HAVE_NTRU
+    bench_ntruKeyGen();
 #endif
 
 #ifdef HAVE_ECC 
@@ -850,15 +867,14 @@ static RNG rng;
 #ifndef NO_RSA
 
 
-#if !defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048) && \
-                                                    defined(CYASSL_MDK_SHELL)
-static char *certRSAname = "certs/rsa2048.der" ;
-static void set_Bench_RSA_File(char * cert) { certRSAname = cert ; }   
-                                                 /* set by shell command */
-#elif defined(CYASSL_MDK_SHELL)
-    /* nothing */
-#else
-static const char *certRSAname = "certs/rsa2048.der" ;
+#if !defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048)
+    #if defined(CYASSL_MDK_SHELL)
+        static char *certRSAname = "certs/rsa2048.der";
+        /* set by shell command */
+        static void set_Bench_RSA_File(char * cert) { certRSAname = cert ; }
+    #else
+        static const char *certRSAname = "certs/rsa2048.der";
+    #endif
 #endif
 
 void bench_rsa(void)
@@ -955,20 +971,22 @@ void bench_rsa(void)
 #ifndef NO_DH
 
 
-#if !defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048) && \
-                                                    defined(CYASSL_MDK_SHELL)
-static char *certDHname = "certs/dh2048.der" ;
-void set_Bench_DH_File(char * cert) { certDHname = cert ; }    
-                                            /* set by shell command */
-#elif defined(CYASSL_MDK_SHELL)
-    /* nothing */
-#else
-static const char *certDHname = "certs/dh2048.der" ;
+#if !defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048)
+    #if defined(CYASSL_MDK_SHELL)
+        static char *certDHname = "certs/dh2048.der";
+        /* set by shell command */
+        void set_Bench_DH_File(char * cert) { certDHname = cert ; }
+    #else
+        static const char *certDHname = "certs/dh2048.der";
+    #endif
 #endif
 
 void bench_dh(void)
 {
-    int    i, ret;
+#if !defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048)
+    int    ret;
+#endif
+    int    i ;
     byte   tmp[1024];
     size_t bytes;
     word32 idx = 0, pubSz, privSz = 0, pubSz2, privSz2, agreeSz;
@@ -1089,6 +1107,74 @@ void bench_rsaKeyGen(void)
            " iterations\n", milliEach, genTimes);
 }
 #endif /* CYASSL_KEY_GEN */
+#ifdef HAVE_NTRU
+byte GetEntropy(ENTROPY_CMD cmd, byte* out);
+
+byte GetEntropy(ENTROPY_CMD cmd, byte* out)
+{
+    if (cmd == INIT)
+        return (InitRng(&rng) == 0) ? 1 : 0;
+
+    if (out == NULL)
+        return 0;
+
+    if (cmd == GET_BYTE_OF_ENTROPY)
+        return (RNG_GenerateBlock(&rng, out, 1) == 0) ? 1 : 0;
+
+    if (cmd == GET_NUM_BYTES_PER_BYTE_OF_ENTROPY) {
+        *out = 1;
+        return 1;
+    }
+
+    return 0;
+}
+void bench_ntruKeyGen(void)
+{
+    double start, total, each, milliEach;
+    int    i;
+
+    byte   public_key[5951]; /* 2048 key equivalent to rsa */
+    word16 public_key_len;
+    byte   private_key[5951];
+    word16 private_key_len = sizeof(private_key);
+
+    DRBG_HANDLE drbg;
+    static uint8_t const pers_str[] = {
+                'C', 'y', 'a', 'S', 'S', 'L', ' ', 't', 'e', 's', 't'
+    };
+
+    word32 rc = ntru_crypto_drbg_instantiate(112, pers_str, sizeof(pers_str), GetEntropy, &drbg);
+
+    if(rc != DRBG_OK) {
+        printf("NTRU drbg instantiate failed\n");
+        return;
+    }
+
+    start = current_time(1);
+
+    for(i = 0; i < genTimes; i++) {
+        ntru_crypto_ntru_encrypt_keygen(drbg, NTRU_EES401EP2, &public_key_len,
+                                     public_key, &private_key_len, private_key);
+    }
+
+    total = current_time(0) - start;
+
+    rc = ntru_crypto_drbg_uninstantiate(drbg);
+
+    if (rc != NTRU_OK) {
+        printf("NTRU drbg uninstantiate failed\n");
+        return;
+    }
+
+    each = total / genTimes;
+    milliEach = each * 1000;
+
+    printf("\n");
+    printf("NTRU 112 key generation  %6.3f milliseconds, avg over %d"
+        " iterations\n", milliEach, genTimes);
+
+}
+#endif
 
 #ifdef HAVE_ECC 
 void bench_eccKeyGen(void)
@@ -1211,7 +1297,6 @@ void bench_eccKeyAgree(void)
 }
 #endif /* HAVE_ECC */
 
-
 #ifdef _WIN32
 
     #define WIN32_LEAN_AND_MEAN
@@ -1238,10 +1323,10 @@ void bench_eccKeyAgree(void)
 
 #elif defined MICROCHIP_PIC32
     #if defined(CYASSL_MICROCHIP_PIC32MZ)
-        #define CLOCK 8000000.0
+        #define CLOCK 80000000.0
     #else
         #include <peripheral/timer.h>
-        #define CLOCK 4000000.0
+        #define CLOCK 40000000.0
     #endif
 
     double current_time(int reset)
@@ -1259,10 +1344,10 @@ void bench_eccKeyAgree(void)
         return ( ns / CLOCK * 2.0);
     }
 
-#elif defined CYASSL_MDK_ARM
-
-    extern double current_time(int reset) ;
-
+#elif defined(CYASSL_IAR_ARM) || defined (CYASSL_MDK_ARM)
+    #warning "Write your current_time()"
+    double current_time(int reset) { return 0.0 ; }
+    
 #elif defined FREERTOS
 
     double current_time(int reset)

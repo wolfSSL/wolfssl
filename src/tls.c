@@ -23,17 +23,13 @@
     #include <config.h>
 #endif
 
-#ifdef CHACHA_AEAD_TEST
-    #include <stdio.h>
-#endif
-
 #include <cyassl/ctaocrypt/settings.h>
 
 #include <cyassl/ssl.h>
 #include <cyassl/internal.h>
 #include <cyassl/error-ssl.h>
 #include <cyassl/ctaocrypt/hmac.h>
-#include <cyassl/ctaocrypt/poly1305.h>
+
 
 
 #ifndef NO_TLS
@@ -485,19 +481,11 @@ int CyaSSL_GetHmacType(CYASSL* ssl)
     if (ssl == NULL)
         return BAD_FUNC_ARG;
 
-            printf("getting mac \n");
     switch (ssl->specs.mac_algorithm) {
         #ifndef NO_MD5
         case md5_mac:
         {
             return MD5;
-        }
-        #endif
-        #ifdef HAVE_POLY1305
-        case poly1305_mac:
-        {
-            printf("poly1305 selected\n");
-            return POLY1305;
         }
         #endif
         #ifndef NO_SHA256
@@ -559,15 +547,13 @@ int CyaSSL_SetTlsHmacInner(CYASSL* ssl, byte* inner, word32 sz, int content,
 int TLS_hmac(CYASSL* ssl, byte* digest, const byte* in, word32 sz,
               int content, int verify)
 {
-    int  ret;
     Hmac hmac;
+    int  ret;
     byte myInner[CYASSL_TLS_HMAC_INNER_SZ];
-    
+
     if (ssl == NULL)
         return BAD_FUNC_ARG;
     
-        
-
     CyaSSL_SetTlsHmacInner(ssl, myInner, sz, content, verify);
 
     ret = HmacSetKey(&hmac, CyaSSL_GetHmacType(ssl),
@@ -577,7 +563,7 @@ int TLS_hmac(CYASSL* ssl, byte* digest, const byte* in, word32 sz,
     ret = HmacUpdate(&hmac, myInner, sizeof(myInner));
     if (ret != 0)
         return ret;
-    ret = HmacUpdate(&hmac, in, sz);                           /* content */
+    ret = HmacUpdate(&hmac, in, sz);                                /* content */
     if (ret != 0)
         return ret;
     ret = HmacFinal(&hmac, digest);
@@ -1011,7 +997,7 @@ int TLSX_SNI_GetFromBuffer(const byte* clientHello, word32 helloSz,
     if (helloSz < offset + len16)
         return BUFFER_ERROR;
 
-    while (len16 > OPAQUE16_LEN + OPAQUE16_LEN) {
+    while (len16 >= OPAQUE16_LEN + OPAQUE16_LEN) {
         word16 extType;
         word16 extLen;
 
@@ -1061,7 +1047,7 @@ int TLSX_SNI_GetFromBuffer(const byte* clientHello, word32 helloSz,
         len16 -= min(2 * OPAQUE16_LEN + extLen, len16);
     }
 
-    return len16 ? BUFFER_ERROR : SSL_SUCCESS;
+    return len16 ? BUFFER_ERROR : 0;
 }
 
 #endif
@@ -1228,8 +1214,8 @@ static int TLSX_THM_Parse(CYASSL* ssl, byte* input, word16 length,
 #ifdef HAVE_SUPPORTED_CURVES
 
 #ifndef HAVE_ECC
-#error "Elliptic Curves Extension requires Elliptic Curve Cryptography. \
-Use --enable-ecc in the configure script or define HAVE_ECC."
+#error Elliptic Curves Extension requires Elliptic Curve Cryptography. \
+       Use --enable-ecc in the configure script or define HAVE_ECC.
 #endif
 
 static void TLSX_EllipticCurve_FreeAll(EllipticCurve* list)
@@ -1550,6 +1536,10 @@ void TLSX_FreeAll(TLSX* list)
     }
 }
 
+int TLSX_SupportExtensions(CYASSL* ssl) {
+    return ssl && (IsTLS(ssl) || ssl->version.major == DTLS_MAJOR);
+}
+
 static word16 TLSX_GetSize(TLSX* list, byte* semaphore, byte isRequest)
 {
     TLSX* extension;
@@ -1649,7 +1639,7 @@ word16 TLSX_GetRequestSize(CYASSL* ssl)
 {
     word16 length = 0;
 
-    if (ssl && IsTLS(ssl)) {
+    if (TLSX_SupportExtensions(ssl)) {
         byte semaphore[16] = {0};
 
         EC_VALIDATE_REQUEST(ssl, semaphore);
@@ -1674,7 +1664,7 @@ word16 TLSX_WriteRequest(CYASSL* ssl, byte* output)
 {
     word16 offset = 0;
 
-    if (ssl && IsTLS(ssl) && output) {
+    if (TLSX_SupportExtensions(ssl) && output) {
         byte semaphore[16] = {0};
 
         offset += OPAQUE16_LEN; /* extensions length */
@@ -1725,7 +1715,7 @@ word16 TLSX_GetResponseSize(CYASSL* ssl)
     word16 length = 0;
     byte semaphore[16] = {0};
 
-    if (ssl && IsTLS(ssl))
+    if (TLSX_SupportExtensions(ssl))
         length += TLSX_GetSize(ssl->extensions, semaphore, 0);
 
     /* All the response data is set at the ssl object only, so no ctx here. */
@@ -1740,7 +1730,7 @@ word16 TLSX_WriteResponse(CYASSL *ssl, byte* output)
 {
     word16 offset = 0;
 
-    if (ssl && IsTLS(ssl) && output) {
+    if (TLSX_SupportExtensions(ssl) && output) {
         byte semaphore[16] = {0};
 
         offset += OPAQUE16_LEN; /* extensions length */
@@ -1843,7 +1833,7 @@ int TLSX_Parse(CYASSL* ssl, byte* input, word16 length, byte isRequest,
    || defined(HAVE_TRUNCATED_HMAC)  \
    || defined(HAVE_SUPPORTED_CURVES)
 
-#error "Using TLS extensions requires HAVE_TLS_EXTENSIONS to be defined."
+#error Using TLS extensions requires HAVE_TLS_EXTENSIONS to be defined.
 
 #endif /* HAVE_TLS_EXTENSIONS */
 

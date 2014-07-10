@@ -608,6 +608,10 @@ int hmac_md5_test(void)
     test_hmac[2] = c;
 
     for (i = 0; i < times; ++i) {
+#if defined(HAVE_FIPS)
+        if (i == 1)
+            continue; /* fips not allowed */
+#endif
         ret = HmacSetKey(&hmac, MD5, (byte*)keys[i], (word32)strlen(keys[i]));
         if (ret != 0)
             return -4014;
@@ -674,6 +678,10 @@ int hmac_sha_test(void)
     test_hmac[2] = c;
 
     for (i = 0; i < times; ++i) {
+#if defined(HAVE_FIPS)
+        if (i == 1)
+            continue; /* fips not allowed */
+#endif
         ret = HmacSetKey(&hmac, SHA, (byte*)keys[i], (word32)strlen(keys[i]));
         if (ret != 0)
             return -4017;
@@ -743,6 +751,10 @@ int hmac_sha256_test(void)
     test_hmac[2] = c;
 
     for (i = 0; i < times; ++i) {
+#if defined(HAVE_FIPS)
+        if (i == 1)
+            continue; /* fips not allowed */
+#endif
         ret = HmacSetKey(&hmac,SHA256, (byte*)keys[i], (word32)strlen(keys[i]));
         if (ret != 0)
             return -4020;
@@ -816,6 +828,10 @@ int hmac_sha384_test(void)
     test_hmac[2] = c;
 
     for (i = 0; i < times; ++i) {
+#if defined(HAVE_FIPS)
+        if (i == 1)
+            continue; /* fips not allowed */
+#endif
         ret = HmacSetKey(&hmac,SHA384, (byte*)keys[i], (word32)strlen(keys[i]));
         if (ret != 0)
             return -4023;

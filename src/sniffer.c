@@ -1594,12 +1594,6 @@ static int Decrypt(SSL* ssl, byte* output, const byte* input, word32 sz)
             break;
         #endif
 
-        #ifdef BUILD_CHACHA
-        case cyassl_chacha:
-            Chacha_Process(ssl->decrypt.chacha, output, input, sz);
-            break;
-        #endif
-
         #ifdef HAVE_CAMELLIA 
         case cyassl_camellia:
             CamelliaCbcDecrypt(ssl->decrypt.cam, output, input, sz);

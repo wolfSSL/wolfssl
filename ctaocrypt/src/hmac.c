@@ -131,6 +131,11 @@ int HmacSetKey(Hmac* hmac, int type, const byte* key, word32 length)
     if (ret != 0)
         return ret;
 
+#ifdef HAVE_FIPS
+    if (length < HMAC_FIPS_MIN_KEY)
+        return HMAC_MIN_KEYLEN_E;
+#endif
+
     switch (hmac->macType) {
         #ifndef NO_MD5
         case MD5:

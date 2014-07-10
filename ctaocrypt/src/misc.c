@@ -45,6 +45,8 @@
 
     #include <stdlib.h>      /* get intrinsic definitions */
 
+    /* for non visual studio probably need no long version, 32 bit only
+     * i.e., _rotl and _rotr */
     #pragma intrinsic(_lrotl, _lrotr)
 
     STATIC INLINE word32 rotlFixed(word32 x, word32 y)

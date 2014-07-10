@@ -60,6 +60,8 @@
 #define CYASSL_HMAC_CAVIUM_MAGIC 0xBEEF0005
 
 enum {
+    HMAC_FIPS_MIN_KEY = 14,   /* 112 bit key length minimum */
+
     IPAD    = 0x36,
     OPAD    = 0x5C,
 

@@ -35,6 +35,7 @@
 #endif
 
 #include <cyassl/ctaocrypt/md5.h>
+#include <cyassl/ctaocrypt/error-crypt.h>
 
 #ifdef NO_INLINE
     #include <cyassl/ctaocrypt/misc.h>
@@ -360,5 +361,31 @@ void Md5Final(Md5* md5, byte* hash)
 }
 
 #endif /* STM32F2_HASH */
+
+
+int Md5Hash(const byte* data, word32 len, byte* hash)
+{
+#ifdef CYASSL_SMALL_STACK
+    Md5* md5;
+#else
+    Md5 md5[1];
+#endif
+
+#ifdef CYASSL_SMALL_STACK
+    md5 = (Md5*)XMALLOC(sizeof(Md5), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (md5 == NULL)
+        return MEMORY_E;
+#endif
+
+    InitMd5(md5);
+    Md5Update(md5, data, len);
+    Md5Final(md5, hash);
+
+#ifdef CYASSL_SMALL_STACK
+    XFREE(md5, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
+    return 0;
+}
 
 #endif /* NO_MD5 */

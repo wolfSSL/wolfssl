@@ -42,7 +42,9 @@
 #endif
 
 #include <cyassl/ctaocrypt/sha256.h>
+#include <cyassl/ctaocrypt/logging.h>
 #include <cyassl/ctaocrypt/error-crypt.h>
+
 #ifdef NO_INLINE
     #include <cyassl/ctaocrypt/misc.h>
 #else
@@ -280,6 +282,39 @@ int Sha256Final(Sha256* sha256, byte* hash)
     XMEMCPY(hash, sha256->digest, SHA256_DIGEST_SIZE);
 
     return InitSha256(sha256);  /* reset state */
+}
+
+
+int Sha256Hash(const byte* data, word32 len, byte* hash)
+{
+    int ret = 0;
+#ifdef CYASSL_SMALL_STACK
+    Sha256* sha256;
+#else
+    Sha256 sha256[1];
+#endif
+
+#ifdef CYASSL_SMALL_STACK
+    sha256 = (Sha256*)XMALLOC(sizeof(Sha256), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (sha256 == NULL)
+        return MEMORY_E;
+#endif
+
+    if ((ret = InitSha256(sha256)) != 0) {
+        CYASSL_MSG("InitSha256 failed");
+    }
+    else if ((ret = Sha256Update(sha256, data, len)) != 0) {
+        CYASSL_MSG("Sha256Update failed");
+    }
+    else if ((ret = Sha256Final(sha256, hash)) != 0) {
+        CYASSL_MSG("Sha256Final failed");
+    }
+
+#ifdef CYASSL_SMALL_STACK
+    XFREE(sha256, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
+    return ret;
 }
 
 

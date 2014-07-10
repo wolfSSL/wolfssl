@@ -54,6 +54,7 @@ typedef struct Md2 {
 CYASSL_API void InitMd2(Md2*);
 CYASSL_API void Md2Update(Md2*, const byte*, word32);
 CYASSL_API void Md2Final(Md2*, byte*);
+CYASSL_API int  Md2Hash(const byte*, word32, byte*);
 
 
 #ifdef __cplusplus

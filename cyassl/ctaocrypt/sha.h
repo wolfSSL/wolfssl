@@ -65,6 +65,7 @@ typedef struct Sha {
 CYASSL_API int InitSha(Sha*);
 CYASSL_API int ShaUpdate(Sha*, const byte*, word32);
 CYASSL_API int ShaFinal(Sha*, byte*);
+CYASSL_API int ShaHash(const byte*, word32, byte*);
 
 
 #ifdef HAVE_FIPS

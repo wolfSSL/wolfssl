@@ -54,6 +54,7 @@ typedef struct Sha512 {
 CYASSL_API int InitSha512(Sha512*);
 CYASSL_API int Sha512Update(Sha512*, const byte*, word32);
 CYASSL_API int Sha512Final(Sha512*, byte*);
+CYASSL_API int Sha512Hash(const byte*, word32, byte*);
 
 
 #if defined(CYASSL_SHA384) || defined(HAVE_AESGCM)
@@ -80,6 +81,7 @@ typedef struct Sha384 {
 CYASSL_API int InitSha384(Sha384*);
 CYASSL_API int Sha384Update(Sha384*, const byte*, word32);
 CYASSL_API int Sha384Final(Sha384*, byte*);
+CYASSL_API int Sha384Hash(const byte*, word32, byte*);
 
 
 #ifdef HAVE_FIPS

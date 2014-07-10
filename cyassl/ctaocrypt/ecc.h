@@ -164,6 +164,8 @@ CYASSL_API
 const byte* ecc_ctx_get_own_salt(ecEncCtx*);
 CYASSL_API
 int ecc_ctx_set_peer_salt(ecEncCtx*, const byte* salt);
+CYASSL_API
+int ecc_ctx_set_info(ecEncCtx*, const byte* info, int sz);
 
 CYASSL_API
 int ecc_encrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,

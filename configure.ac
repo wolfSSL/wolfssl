@@ -6,7 +6,7 @@
 #
 #
 
-AC_INIT([cyassl],[3.0.0],[https://github.com/cyassl/cyassl/issues],[cyassl],[http://www.wolfssl.com])
+AC_INIT([cyassl],[3.0.3],[https://github.com/cyassl/cyassl/issues],[cyassl],[http://www.wolfssl.com])
 
 AC_CONFIG_AUX_DIR([build-aux])
 
@@ -81,6 +81,7 @@ AC_CHECK_HEADERS([errno.h])
 AC_CHECK_LIB(network,socket)
 AC_CHECK_SIZEOF(long long, 8)
 AC_CHECK_SIZEOF(long, 4)
+AC_CHECK_TYPES(__uint128_t)
 AC_C_BIGENDIAN
 # mktime check takes forever on some systems, if time supported it would be
 # highly unusual for mktime to be missing
@@ -390,7 +391,10 @@ then
     then
         # GCC needs these flags, icc doesn't
         # opt levels greater than 2 may cause problems on systems w/o aesni
-        AM_CFLAGS="$AM_CFLAGS -maes -msse4"
+        if test "$CC" != "icc"
+        then
+            AM_CFLAGS="$AM_CFLAGS -maes -msse4"
+        fi
     fi
 fi
 
@@ -783,9 +787,9 @@ AM_CONDITIONAL([BUILD_RSA], [test "x$ENABLED_RSA" = "xyes"])
 
 # DH
 AC_ARG_ENABLE([dh],
-    [  --enable-dh             Enable DH (default: enabled)],
+    [  --enable-dh             Enable DH (default: disabled)],
     [ ENABLED_DH=$enableval ],
-    [ ENABLED_DH=yes ]
+    [ ENABLED_DH=no ]
     )
 
 if test "$ENABLED_DH" = "no"
@@ -1235,21 +1239,44 @@ AM_CONDITIONAL([BUILD_CRL_MONITOR], [test "x$ENABLED_CRL_MONITOR" = "xyes"])
 
 
 # NTRU
-ntruHome=`pwd`/NTRU_algorithm
-ntruInclude=$ntruHome/cryptolib
-ntruLib=$ntruHome
-AC_ARG_ENABLE([ntru],
-    [  --enable-ntru           Enable NTRU (default: disabled)],
-    [ ENABLED_NTRU=$enableval ],
-    [ ENABLED_NTRU=no ]
-    )
+ENABLED_NTRU="no"
+tryntrudir=""
+AC_ARG_WITH([ntru],
+    [  --with-ntru=PATH        Path to NTRU install (default /usr/) ],
+    [
+        AC_MSG_CHECKING([for NTRU])
+        CPPFLAGS="$CPPFLAGS -DHAVE_NTRU"
+        LIBS="$LIBS -lNTRUEncrypt"
 
-if test "$ENABLED_NTRU" = "yes"
-then
-    AM_CFLAGS="$AM_CFLAGS -DHAVE_NTRU -I$ntruInclude"
-    AM_LDFLAGS="$AM_LDFLAGS -L$ntruLib"
-    LIBS="$LIBS -lntru_encrypt"
-fi
+        AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <ntru_crypto_drbg.h>]], [[ ntru_crypto_drbg_instantiate(0, 0, 0, 0, 0); ]])], [ ntru_linked=yes ],[ ntru_linked=no ])
+
+        if test "x$ntru_linked" == "xno" ; then
+            if test "x$withval" != "xno" ; then
+                tryntrudir=$withval
+            fi
+            if test "x$withval" == "xyes" ; then
+                tryntrudir="/usr"
+            fi
+
+            LDFLAGS="$AM_LDFLAGS -L$tryntrudir/lib"
+            CPPFLAGS="$CPPFLAGS -I$tryntrudir/include"
+
+            AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <ntru_crypto_drbg.h>]], [[ ntru_crypto_drbg_instantiate(0, 0, 0, 0, 0); ]])], [ ntru_linked=yes ],[ ntru_linked=no ])
+
+            if test "x$ntru_linked" == "xno" ; then
+                AC_MSG_ERROR([NTRU isn't found.
+                If it's already installed, specify its path using --with-ntru=/dir/])
+            fi
+            AC_MSG_RESULT([yes])
+            AM_LDFLAGS="$AM_LDFLAGS -L$tryntrudir/lib"
+        else
+            AC_MSG_RESULT([yes])
+        fi
+
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_NTRU"
+        ENABLED_NTRU="yes"
+    ]
+)
 
 AM_CONDITIONAL([BUILD_NTRU], [test "x$ENABLED_NTRU" = "xyes"])
 
@@ -1664,6 +1691,13 @@ then
         fi
     fi
 fi
+
+# ICC command line warning for non supported warning flags
+if test "$CC" = "icc"
+then
+    AM_CFLAGS="$AM_CFLAGS -wd10006"
+fi
+
 
 LIB_SOCKET_NSL
 AX_HARDEN_CC_COMPILER_FLAGS

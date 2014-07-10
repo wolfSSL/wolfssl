@@ -1854,15 +1854,15 @@ int mp_exptmod_fast (mp_int * G, mp_int * X, mp_int * P, mp_int * Y,
   }
 
   /* compute the value at M[1<<(winsize-1)] by squaring M[1] (winsize-1) times*/
-  if ((err = mp_copy (&M[1], &M[1 << (winsize - 1)])) != MP_OKAY) {
+  if ((err = mp_copy (&M[1], &M[(mp_digit)(1 << (winsize - 1))])) != MP_OKAY) {
     goto LBL_RES;
   }
 
   for (x = 0; x < (winsize - 1); x++) {
-    if ((err = mp_sqr (&M[1 << (winsize - 1)], &M[1 << (winsize - 1)])) != MP_OKAY) {
+    if ((err = mp_sqr (&M[(mp_digit)(1 << (winsize - 1))], &M[(mp_digit)(1 << (winsize - 1))])) != MP_OKAY) {
       goto LBL_RES;
     }
-    if ((err = redux (&M[1 << (winsize - 1)], P, mp)) != MP_OKAY) {
+    if ((err = redux (&M[(mp_digit)(1 << (winsize - 1))], P, mp)) != MP_OKAY) {
       goto LBL_RES;
     }
   }
@@ -3250,19 +3250,19 @@ int s_mp_exptmod (mp_int * G, mp_int * X, mp_int * P, mp_int * Y, int redmode)
   /* compute the value at M[1<<(winsize-1)] by squaring 
    * M[1] (winsize-1) times 
    */
-  if ((err = mp_copy (&M[1], &M[1 << (winsize - 1)])) != MP_OKAY) {
+  if ((err = mp_copy (&M[1], &M[(mp_digit)(1 << (winsize - 1))])) != MP_OKAY) {
     goto LBL_MU;
   }
 
   for (x = 0; x < (winsize - 1); x++) {
     /* square it */
-    if ((err = mp_sqr (&M[1 << (winsize - 1)], 
-                       &M[1 << (winsize - 1)])) != MP_OKAY) {
+    if ((err = mp_sqr (&M[(mp_digit)(1 << (winsize - 1))], 
+                       &M[(mp_digit)(1 << (winsize - 1))])) != MP_OKAY) {
       goto LBL_MU;
     }
 
     /* reduce modulo P */
-    if ((err = redux (&M[1 << (winsize - 1)], P, &mu)) != MP_OKAY) {
+    if ((err = redux (&M[(mp_digit)(1 << (winsize - 1))], P, &mu)) != MP_OKAY) {
       goto LBL_MU;
     }
   }
@@ -3765,7 +3765,7 @@ int mp_sqrmod (mp_int * a, mp_int * b, mp_int * c)
 #endif
 
 
-#if defined(HAVE_ECC) || !defined(NO_PWDBASED) || defined(CYASSL_SNIFFER) || defined(CYASSL_HAVE_WOLFSCEP)
+#if defined(HAVE_ECC) || !defined(NO_PWDBASED) || defined(CYASSL_SNIFFER) || defined(CYASSL_HAVE_WOLFSCEP) || defined(CYASSL_KEY_GEN)
 
 /* single digit addition */
 int mp_add_d (mp_int* a, mp_digit b, mp_int* c)

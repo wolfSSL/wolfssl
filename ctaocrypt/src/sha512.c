@@ -33,7 +33,9 @@
 #endif
 
 #include <cyassl/ctaocrypt/sha512.h>
+#include <cyassl/ctaocrypt/logging.h>
 #include <cyassl/ctaocrypt/error-crypt.h>
+
 #ifdef NO_INLINE
     #include <cyassl/ctaocrypt/misc.h>
 #else
@@ -296,6 +298,38 @@ int Sha512Final(Sha512* sha512, byte* hash)
 }
 
 
+int Sha512Hash(const byte* data, word32 len, byte* hash)
+{
+    int ret = 0;
+#ifdef CYASSL_SMALL_STACK
+    Sha512* sha512;
+#else
+    Sha512 sha512[1];
+#endif
+
+#ifdef CYASSL_SMALL_STACK
+    sha512 = (Sha512*)XMALLOC(sizeof(Sha512), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (sha512 == NULL)
+        return MEMORY_E;
+#endif
+    
+    if ((ret = InitSha512(sha512)) != 0) {
+        CYASSL_MSG("InitSha512 failed");
+    }
+    else if ((ret = Sha512Update(sha512, data, len)) != 0) {
+        CYASSL_MSG("Sha512Update failed");
+    }
+    else if ((ret = Sha512Final(sha512, hash)) != 0) {
+        CYASSL_MSG("Sha512Final failed");
+    }
+    
+#ifdef CYASSL_SMALL_STACK
+    XFREE(sha512, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    
+    return ret;
+}
+
 
 #ifdef CYASSL_SHA384
 
@@ -468,6 +502,39 @@ int Sha384Final(Sha384* sha384, byte* hash)
     XMEMCPY(hash, sha384->digest, SHA384_DIGEST_SIZE);
 
     return InitSha384(sha384);  /* reset state */
+}
+
+
+int Sha384Hash(const byte* data, word32 len, byte* hash)
+{
+    int ret = 0;
+#ifdef CYASSL_SMALL_STACK
+    Sha384* sha384;
+#else
+    Sha384 sha384[1];
+#endif
+
+#ifdef CYASSL_SMALL_STACK
+    sha384 = (Sha384*)XMALLOC(sizeof(Sha384), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (sha384 == NULL)
+        return MEMORY_E;
+#endif
+
+    if ((ret = InitSha384(sha384)) != 0) {
+        CYASSL_MSG("InitSha384 failed");
+    }
+    else if ((ret = Sha384Update(sha384, data, len)) != 0) {
+        CYASSL_MSG("Sha384Update failed");
+    }
+    else if ((ret = Sha384Final(sha384, hash)) != 0) {
+        CYASSL_MSG("Sha384Final failed");
+    }
+
+#ifdef CYASSL_SMALL_STACK
+    XFREE(sha384, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
+    return ret;
 }
 
 #endif /* CYASSL_SHA384 */

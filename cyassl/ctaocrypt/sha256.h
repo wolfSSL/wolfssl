@@ -61,9 +61,10 @@ typedef struct Sha256 {
 } Sha256;
 
 
-CYASSL_API int  InitSha256(Sha256*);
-CYASSL_API int  Sha256Update(Sha256*, const byte*, word32);
-CYASSL_API int  Sha256Final(Sha256*, byte*);
+CYASSL_API int InitSha256(Sha256*);
+CYASSL_API int Sha256Update(Sha256*, const byte*, word32);
+CYASSL_API int Sha256Final(Sha256*, byte*);
+CYASSL_API int Sha256Hash(const byte*, word32, byte*);
 
 
 #ifdef HAVE_FIPS

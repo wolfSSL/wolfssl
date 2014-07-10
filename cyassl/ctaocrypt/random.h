@@ -84,6 +84,7 @@ typedef struct RNG {
     byte V[DRBG_SEED_LEN];
     byte C[DRBG_SEED_LEN];
     word32 reseedCtr;
+    byte status;
 } RNG;
 
 
@@ -119,8 +120,31 @@ CYASSL_API int  RNG_GenerateByte(RNG*, byte*);
 
 
 #if defined(HAVE_HASHDRBG) || defined(NO_RC4)
-    CYASSL_API void FreeRng(RNG*);
+    CYASSL_API int FreeRng(RNG*);
+    CYASSL_API int RNG_HealthTest(int reseed,
+                                        const byte* entropyA, word32 entropyASz,
+                                        const byte* entropyB, word32 entropyBSz,
+                                        const byte* output, word32 outputSz);
 #endif /* HAVE_HASHDRBG || NO_RC4 */
+
+
+#ifdef HAVE_FIPS
+    /* fips wrapper calls, user can call direct */
+    CYASSL_API int InitRng_fips(RNG* rng);
+    CYASSL_API int FreeRng_fips(RNG* rng);
+    CYASSL_API int RNG_GenerateBlock_fips(RNG* rng, byte* buf, word32 bufSz);
+    CYASSL_API int RNG_HealthTest_fips(int reseed,
+                                        const byte* entropyA, word32 entropyASz,
+                                        const byte* entropyB, word32 entropyBSz,
+                                        const byte* output, word32 outputSz);
+    #ifndef FIPS_NO_WRAPPERS
+        /* if not impl or fips.c impl wrapper force fips calls if fips build */
+        #define InitRng              InitRng_fips
+        #define FreeRng              FreeRng_fips
+        #define RNG_GenerateBlock    RNG_GenerateBlock_fips
+        #define RNG_HealthTest       RNG_HealthTest_fips
+    #endif /* FIPS_NO_WRAPPERS */
+#endif /* HAVE_FIPS */
 
 
 #ifdef __cplusplus

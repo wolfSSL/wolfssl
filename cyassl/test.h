@@ -9,6 +9,7 @@
 #include <ctype.h>
 #include <cyassl/ssl.h>
 #include <cyassl/ctaocrypt/types.h>
+#include <cyassl/ctaocrypt/error-crypt.h>
 
 #ifdef ATOMIC_USER
     #include <cyassl/ctaocrypt/aes.h>
@@ -894,6 +895,25 @@ static INLINE int myVerify(int preverify, CYASSL_X509_STORE_CTX* store)
 #endif /* VERIFY_CALLBACK */
 
 
+static INLINE int myDateCb(int preverify, CYASSL_X509_STORE_CTX* store)
+{
+    (void)preverify;
+    char buffer[CYASSL_MAX_ERROR_SZ];
+
+    printf("In verification callback, error = %d, %s\n", store->error,
+                                 CyaSSL_ERR_error_string(store->error, buffer));
+    printf("Subject's domain name is %s\n", store->domain);
+
+    if (store->error == ASN_BEFORE_DATE_E || store->error == ASN_AFTER_DATE_E) {
+        printf("Overriding cert date error as example for bad clock testing\n");
+        return 1;
+    }
+    printf("Cert error is not date error, not overriding\n");
+
+    return 0;
+}
+
+
 #ifdef HAVE_CRL
 
 static INLINE void CRL_CallBack(const char* url)
@@ -912,6 +932,7 @@ static INLINE void CaCb(unsigned char* der, int sz, int type)
 }
 
 
+#ifndef NO_DH
 static INLINE void SetDH(CYASSL* ssl)
 {
     /* dh1024 p */
@@ -965,7 +986,7 @@ static INLINE void SetDHCtx(CYASSL_CTX* ctx)
 
     CyaSSL_CTX_SetTmpDH(ctx, p, sizeof(p), g, sizeof(g));
 }
-
+#endif /* NO_DH */
 #endif /* !NO_CERTS */
 
 #ifdef HAVE_CAVIUM
