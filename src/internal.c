@@ -905,13 +905,27 @@ void InitSuites(Suites* suites, ProtocolVersion pv, byte haveRSA, byte havePSK,
     }
 #endif
 
-#ifdef BUILD_TLS_ECDHE_RSA_WITH_CHACHA20_256_POLY1305_SHA256
+#ifdef BUILD_TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256
     if (tls && haveRSA) {
         suites->suites[idx++] = CHACHA_BYTE;
-        suites->suites[idx++] = TLS_ECDHE_RSA_WITH_CHACHA20_256_POLY1305_SHA256;
+        suites->suites[idx++] = TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256;
     }
 #endif
 
+#ifdef BUILD_TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256
+    if (tls1_2 && haveECDSAsig) {
+        suites->suites[idx++] = CHACHA_BYTE;
+        suites->suites[idx++] = TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256;
+    }
+#endif
+
+#ifdef BUILD_TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256
+    if (tls && haveRSA) {
+        suites->suites[idx++] = CHACHA_BYTE;
+        suites->suites[idx++] = TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256;
+    }
+#endif
+    
 #ifdef BUILD_TLS_ECDH_RSA_WITH_3DES_EDE_CBC_SHA
     if (tls && haveRSAsig && haveStaticECC) {
         suites->suites[idx++] = ECC_BYTE; 
@@ -3171,12 +3185,25 @@ static int BuildFinished(CYASSL* ssl, Hashes* hashes, const byte* sender)
         
         switch (second) {
 
-        case TLS_ECDHE_RSA_WITH_CHACHA20_256_POLY1305_SHA256 :
+        case TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256 :
             if (requirement == REQUIRES_RSA)
+                return 1;
+            break;
+
+        case TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256 :
+            if (requirement == REQUIRES_ECC_DSA)
+                return 1;
+            break;
+
+        case TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256 :
+            if (requirement == REQUIRES_RSA)
+                return 1;
+            if (requirement == REQUIRES_DHE)
                 return 1;
             break;
             }
         }
+
         /* ECC extensions */
         if (first == ECC_BYTE) {
 
@@ -7671,8 +7698,16 @@ static const char* const cipher_names[] =
     "ECDH-ECDSA-AES256-SHA384",
 #endif
 
-#ifdef BUILD_TLS_ECDHE_RSA_WITH_CHACHA20_256_POLY1305_SHA256
+#ifdef BUILD_TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256
     "ECDHE-RSA-CHACHA20-256-POLY1305-SHA256",
+#endif
+
+#ifdef BUILD_TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256
+    "ECDHE-ECDSA-CHACHA20-256-POLY1305-SHA256",
+#endif
+
+#ifdef BUILD_TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256
+    "DHE-RSA-CHACHA20-256-POLY1305-SHA256",
 #endif
 
 };
@@ -8051,8 +8086,16 @@ static int cipher_name_idx[] =
     TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA384,
 #endif
 
-#ifdef BUILD_TLS_ECDHE_RSA_WITH_CHACHA20_256_POLY1305_SHA256
-    TLS_ECDHE_RSA_WITH_CHACHA20_256_POLY1305_SHA256,
+#ifdef BUILD_TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256
+    TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256,
+#endif
+
+#ifdef BUILD_TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256
+    TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256,
+#endif
+
+#ifdef BUILD_TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256
+    TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256,
 #endif
 };
 

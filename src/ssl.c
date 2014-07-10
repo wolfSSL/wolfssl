@@ -8371,9 +8371,14 @@ CYASSL_X509* CyaSSL_X509_load_certificate_file(const char* fname, int format)
             switch (cipher->ssl->options.cipherSuite) {
 #ifdef HAVE_CHACHA
     #ifndef NO_RSA
-                case TLS_ECDHE_RSA_WITH_CHACHA20_256_POLY1305_SHA256 :
-                    return "TLS_ECDHE_RSA_WITH_CHACHA20_256_POLY1305_SHA256";
+                case TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256 :
+                    return "TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256";
+
+                case TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256 :
+                    return "TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256";
     #endif 
+                case TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256 :
+                    return "TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256";
 #endif
                 }
             }
@@ -8525,8 +8530,10 @@ CYASSL_X509* CyaSSL_X509_load_certificate_file(const char* fname, int format)
             }
             }
 #endif  /* ECC */
-            if (cipher->ssl->options.cipherSuite0 != ECC_BYTE && cipher->ssl->options.cipherSuite0 != CHACHA_BYTE) {
-            /* normal suites */
+            if (cipher->ssl->options.cipherSuite0 != ECC_BYTE && 
+                cipher->ssl->options.cipherSuite0 != CHACHA_BYTE) {
+            
+                /* normal suites */
             switch (cipher->ssl->options.cipherSuite) {
 #ifndef NO_RSA
     #ifndef NO_RC4
