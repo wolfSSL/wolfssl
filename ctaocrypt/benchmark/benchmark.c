@@ -1062,7 +1062,7 @@ void bench_ntruKeyGen(void)
     int    i;
 
     byte   public_key[5951]; /* 2048 key equivalent to rsa */
-    word16 public_key_len;
+    word16 public_key_len = sizeof(public_key);
     byte   private_key[5951];
     word16 private_key_len = sizeof(private_key);
 
@@ -1071,8 +1071,8 @@ void bench_ntruKeyGen(void)
                 'C', 'y', 'a', 'S', 'S', 'L', ' ', 't', 'e', 's', 't'
     };
 
-    word32 rc = ntru_crypto_drbg_instantiate(112, pers_str, sizeof(pers_str), GetEntropy, &drbg);
-
+    word32 rc = ntru_crypto_drbg_instantiate(112, pers_str, sizeof(pers_str),
+                                             GetEntropy, &drbg);
     if(rc != DRBG_OK) {
         printf("NTRU drbg instantiate failed\n");
         return;
