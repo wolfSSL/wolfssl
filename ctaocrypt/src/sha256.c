@@ -288,10 +288,17 @@ int Sha256Final(Sha256* sha256, byte* hash)
 int Sha256Hash(const byte* data, word32 len, byte* hash)
 {
     int ret = 0;
-    DECLARE_VAR(Sha256, sha256);
+#ifdef CYASSL_SMALL_STACK
+    Sha256* sha256;
+#else
+    Sha256 sha256[1];
+#endif
 
-    if (!CREATE_VAR(Sha256, sha256))
+#ifdef CYASSL_SMALL_STACK
+    sha256 = (Sha256*)XMALLOC(sizeof(Sha256), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (sha256 == NULL)
         return MEMORY_E;
+#endif
 
     if ((ret = InitSha256(sha256)) != 0) {
         CYASSL_MSG("InitSha256 failed");
@@ -303,7 +310,9 @@ int Sha256Hash(const byte* data, word32 len, byte* hash)
         CYASSL_MSG("Sha256Final failed");
     }
 
-    DESTROY_VAR(sha256);
+#ifdef CYASSL_SMALL_STACK
+    XFREE(sha256, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 
     return ret;
 }

@@ -1677,15 +1677,14 @@ static int GetKey(DecodedCert* cert)
             byte*       next = (byte*)key;
             word16      keyLen;
             word32      rc;
+            word32      remaining = cert->maxIdx - cert->srcIdx;
 #ifdef CYASSL_SMALL_STACK
             byte*       keyBlob = NULL;
 #else
             byte        keyBlob[MAX_NTRU_KEY_SZ];
 #endif
-
             rc = ntru_crypto_ntru_encrypt_subjectPublicKeyInfo2PublicKey(key,
-                                &keyLen, NULL, &next);
-
+                                &keyLen, NULL, &next, &remaining);
             if (rc != NTRU_OK)
                 return ASN_NTRU_KEY_E;
             if (keyLen > MAX_NTRU_KEY_SZ)
@@ -1699,7 +1698,7 @@ static int GetKey(DecodedCert* cert)
 #endif
 
             rc = ntru_crypto_ntru_encrypt_subjectPublicKeyInfo2PublicKey(key,
-                                &keyLen, keyBlob, &next);
+                                &keyLen, keyBlob, &next, &remaining);
             if (rc != NTRU_OK) {
 #ifdef CYASSL_SMALL_STACK
                 XFREE(keyBlob, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -2861,10 +2860,17 @@ static int ConfirmSignature(const byte* buf, word32 bufSz,
     void* heap)
 {
     int  typeH = 0, digestSz = 0, ret = 0;
-    DECLARE_ARRAY(byte, digest, MAX_DIGEST_SIZE);
+#ifdef CYASSL_SMALL_STACK
+    byte* digest;
+#else
+    byte digest[MAX_DIGEST_SIZE];
+#endif
 
-    if (!CREATE_ARRAY(byte, digest, MAX_DIGEST_SIZE))
+#ifdef CYASSL_SMALL_STACK
+    digest = (byte*)XMALLOC(MAX_DIGEST_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (digest == NULL)
         return 0; /* not confirmed */
+#endif
 
     (void)key;
     (void)keySz;
@@ -2931,7 +2937,9 @@ static int ConfirmSignature(const byte* buf, word32 bufSz,
     }
     
     if (typeH == 0) {
-        DESTROY_ARRAY(digest);        
+#ifdef CYASSL_SMALL_STACK
+        XFREE(digest, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
         return 0; /* not confirmed */
     }
 
@@ -2942,15 +2950,40 @@ static int ConfirmSignature(const byte* buf, word32 bufSz,
             word32 idx = 0;
             int    encodedSigSz, verifySz;
             byte*  out;
-            DECLARE_VAR(RsaKey, pubKey);
-            DECLARE_ARRAY(byte, plain,      MAX_ENCODED_SIG_SZ);
-            DECLARE_ARRAY(byte, encodedSig, MAX_ENCODED_SIG_SZ);
+#ifdef CYASSL_SMALL_STACK
+            RsaKey* pubKey;
+            byte* plain;
+            byte* encodedSig;
+#else
+            RsaKey pubKey[1];
+            byte plain[MAX_ENCODED_SIG_SZ];
+            byte encodedSig[MAX_ENCODED_SIG_SZ];
+#endif
+
+#ifdef CYASSL_SMALL_STACK
+            pubKey = (RsaKey*)XMALLOC(sizeof(RsaKey), NULL,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+            plain = (byte*)XMALLOC(MAX_ENCODED_SIG_SZ, NULL,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+            encodedSig = (byte*)XMALLOC(MAX_ENCODED_SIG_SZ, NULL,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
             
+            if (pubKey == NULL || plain == NULL || encodedSig == NULL) {
+                CYASSL_MSG("Failed to allocate memory at ConfirmSignature");
+                
+                if (pubKey)
+                    XFREE(pubKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                if (plain)
+                    XFREE(plain, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                if (encodedSig)
+                    XFREE(encodedSig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                
+                break; /* not confirmed */
+            }
+#endif
+
             if (sigSz > MAX_ENCODED_SIG_SZ) {
                 CYASSL_MSG("Verify Signautre is too big");
-            }
-            else if (!CREATE_VAR(RsaKey, pubKey)) {
-                CYASSL_MSG("Failed to allocate pubKey");
             }
             else if (InitRsaKey(pubKey, heap) != 0) {
                 CYASSL_MSG("InitRsaKey failed");
@@ -2958,14 +2991,14 @@ static int ConfirmSignature(const byte* buf, word32 bufSz,
             else if (RsaPublicKeyDecode(key, &idx, pubKey, keySz) < 0) {
                 CYASSL_MSG("ASN Key decode error RSA");
             }
-            else if (CREATE_ARRAY(byte, plain, MAX_ENCODED_SIG_SZ)) {
+            else {
                 XMEMCPY(plain, sig, sigSz);
 
                 if ((verifySz = RsaSSL_VerifyInline(plain, sigSz, &out,
                                                                  pubKey)) < 0) {
                     CYASSL_MSG("Rsa SSL verify error");
                 }
-                else if (CREATE_ARRAY(byte, encodedSig, MAX_ENCODED_SIG_SZ)) {
+                else {
                     /* make sure we're right justified */
                     encodedSigSz =
                         EncodeSignature(encodedSig, digest, digestSz, typeH);
@@ -3001,16 +3034,17 @@ static int ConfirmSignature(const byte* buf, word32 bufSz,
                     }
                     #endif /* CYASSL_DEBUG_ENCODING */
                     
-                    DESTROY_ARRAY(encodedSig);
                 }
                 
-                DESTROY_ARRAY(plain);
             }
             
-            if (pubKey) {
-                FreeRsaKey(pubKey);
-                DESTROY_VAR(pubKey);
-            }
+            FreeRsaKey(pubKey);
+            
+#ifdef CYASSL_SMALL_STACK
+            XFREE(pubKey,     NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(plain,      NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(encodedSig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
         }
 
     #endif /* NO_RSA */
@@ -3018,34 +3052,49 @@ static int ConfirmSignature(const byte* buf, word32 bufSz,
         case ECDSAk:
         {
             int verify = 0;
-            DECLARE_VAR(ecc_key, pubKey);
+#ifdef CYASSL_SMALL_STACK
+            ecc_key* pubKey;
+#else
+            ecc_key pubKey[1];
+#endif
 
-            if (!CREATE_VAR(ecc_key, pubKey)) {
+#ifdef CYASSL_SMALL_STACK
+            pubKey = (ecc_key*)XMALLOC(sizeof(ecc_key), NULL,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+            if (pubKey == NULL) {
                 CYASSL_MSG("Failed to allocate pubKey");
+                break; /* not confirmed */
             }
-            else if (ecc_import_x963(key, keySz, pubKey) < 0) {
+#endif
+
+            if (ecc_import_x963(key, keySz, pubKey) < 0) {
                 CYASSL_MSG("ASN Key import error ECC");
             }
-            else if (ecc_verify_hash(sig, sigSz, digest, digestSz, &verify,
+            else {   
+                if (ecc_verify_hash(sig, sigSz, digest, digestSz, &verify,
                                                                 pubKey) != 0) {
-                CYASSL_MSG("ECC verify hash error");
-            }
-            else if (1 != verify) {
-                CYASSL_MSG("ECC Verify didn't match");
-            } else
-                ret = 1; /* match */
-             
-            if (pubKey) {
+                    CYASSL_MSG("ECC verify hash error");
+                }
+                else if (1 != verify) {
+                    CYASSL_MSG("ECC Verify didn't match");
+                } else
+                    ret = 1; /* match */
+
                 ecc_free(pubKey);
-                DESTROY_VAR(pubKey);
             }
+#ifdef CYASSL_SMALL_STACK
+            XFREE(pubKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
         }
     #endif /* HAVE_ECC */
         default:
             CYASSL_MSG("Verify Key type unknown");
     }
     
-    DESTROY_ARRAY(digest);
+#ifdef CYASSL_SMALL_STACK
+    XFREE(digest, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
     return ret;
 }
 
@@ -5522,7 +5571,11 @@ static int MakeSignature(const byte* buffer, int sz, byte* sig, int sigSz,
 {
     int encSigSz, digestSz, typeH = 0, ret = 0;
     byte digest[SHA256_DIGEST_SIZE]; /* max size */
-    DECLARE_ARRAY(byte, encSig, MAX_ENCODED_DIG_SZ + MAX_ALGO_SZ + MAX_SEQ_SZ);
+#ifdef CYASSL_SMALL_STACK
+    byte* encSig;
+#else
+    byte encSig[MAX_ENCODED_DIG_SZ + MAX_ALGO_SZ + MAX_SEQ_SZ];
+#endif
 
     (void)digest;
     (void)digestSz;
@@ -5573,31 +5626,36 @@ static int MakeSignature(const byte* buffer, int sz, byte* sig, int sigSz,
     if (ret != 0)
         return ret;
     
-    if (!CREATE_ARRAY(byte, encSig, MAX_ENCODED_DIG_SZ + 
-                                                    MAX_ALGO_SZ + MAX_SEQ_SZ)) {
+#ifdef CYASSL_SMALL_STACK
+    encSig = (byte*)XMALLOC(MAX_ENCODED_DIG_SZ + MAX_ALGO_SZ + MAX_SEQ_SZ,
+                                                 NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (encSig == NULL)
         return MEMORY_E;
-    }
+#endif
+    
+    ret = ALGO_ID_E;
+    
 #ifndef NO_RSA
-    else if (rsaKey) {
+    if (rsaKey) {
         /* signature */
         encSigSz = EncodeSignature(encSig, digest, digestSz, typeH);
         ret = RsaSSL_Sign(encSig, encSigSz, sig, sigSz, rsaKey, rng);
     }
 #endif
+    
 #ifdef HAVE_ECC
-    else if (eccKey) {
+    if (!rsaKey && eccKey) {
         word32 outSz = sigSz;
         ret = ecc_sign_hash(digest, digestSz, sig, &outSz, rng, eccKey);
 
         if (ret == 0)
             ret = outSz;
     }
-#endif /* HAVE_ECC */
-    else {
-        ret = ALGO_ID_E;
-    }
+#endif
 
-    DESTROY_ARRAY(encSig);
+#ifdef CYASSL_SMALL_STACK
+    XFREE(encSig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 
     return ret;
 }
@@ -5637,12 +5695,19 @@ static int MakeAnyCert(Cert* cert, byte* derBuffer, word32 derSz,
                        const byte* ntruKey, word16 ntruSz)
 {
     int ret;
-    DECLARE_VAR(DerCert, der);
+#ifdef CYASSL_SMALL_STACK
+    DerCert* der;
+#else
+    DerCert der[1];
+#endif
 
     cert->keyType = eccKey ? ECC_KEY : (rsaKey ? RSA_KEY : NTRU_KEY);
 
-    if (!CREATE_VAR(DerCert, der))
+#ifdef CYASSL_SMALL_STACK
+    der = (DerCert*)XMALLOC(sizeof(DerCert), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (der == NULL)
         return MEMORY_E;
+#endif
 
     ret = EncodeCert(cert, der, rsaKey, eccKey, rng, ntruKey, ntruSz);
 
@@ -5653,7 +5718,9 @@ static int MakeAnyCert(Cert* cert, byte* derBuffer, word32 derSz,
             ret = cert->bodySz = WriteCertBody(der, derBuffer);
     }
 
-    DESTROY_VAR(der);
+#ifdef CYASSL_SMALL_STACK
+    XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 
     return ret;
 }
@@ -5852,12 +5919,19 @@ int MakeCertReq(Cert* cert, byte* derBuffer, word32 derSz,
                 RsaKey* rsaKey, ecc_key* eccKey)
 {
     int ret;
-    DECLARE_VAR(DerCert, der);
+#ifdef CYASSL_SMALL_STACK
+    DerCert* der;
+#else
+    DerCert der[1];
+#endif
 
     cert->keyType = eccKey ? ECC_KEY : RSA_KEY;
 
-    if (!CREATE_VAR(DerCert, der))
+#ifdef CYASSL_SMALL_STACK
+    der = (DerCert*)XMALLOC(sizeof(DerCert), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (der == NULL)
         return MEMORY_E;
+#endif
 
     ret = EncodeCertReq(cert, der, rsaKey, eccKey);
 
@@ -5868,7 +5942,9 @@ int MakeCertReq(Cert* cert, byte* derBuffer, word32 derSz,
             ret = cert->bodySz = WriteCertReqBody(der, derBuffer);
     }
 
-    DESTROY_VAR(der);
+#ifdef CYASSL_SMALL_STACK
+    XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 
     return ret;
 }
@@ -5880,13 +5956,20 @@ int SignCert(int requestSz, int sType, byte* buffer, word32 buffSz,
              RsaKey* rsaKey, ecc_key* eccKey, RNG* rng)
 {
     int sigSz;
-    DECLARE_ARRAY(byte, sig, MAX_ENCODED_SIG_SZ);
+#ifdef CYASSL_SMALL_STACK
+    byte* sig;
+#else
+    byte sig[MAX_ENCODED_SIG_SZ];
+#endif
 
     if (requestSz < 0)
         return requestSz;
 
-    if (!CREATE_ARRAY(byte, sig, MAX_ENCODED_SIG_SZ))
+#ifdef CYASSL_SMALL_STACK
+    sig = (byte*)XMALLOC(MAX_ENCODED_SIG_SZ, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (sig == NULL)
         return MEMORY_E;
+#endif
 
     sigSz = MakeSignature(buffer, requestSz, sig, MAX_ENCODED_SIG_SZ, rsaKey,
                           eccKey, rng, sType);
@@ -5898,7 +5981,9 @@ int SignCert(int requestSz, int sType, byte* buffer, word32 buffSz,
             sigSz = AddSignature(buffer, requestSz, sig, sigSz, sType);
     }
     
-    DESTROY_ARRAY(sig);
+#ifdef CYASSL_SMALL_STACK
+    XFREE(sig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 
     return sigSz;
 }
@@ -5921,13 +6006,21 @@ int MakeSelfCert(Cert* cert, byte* buffer, word32 buffSz, RsaKey* key, RNG* rng)
 static int SetAltNamesFromCert(Cert* cert, const byte* der, int derSz)
 {
     int ret;
-    DECLARE_VAR(DecodedCert, decoded);
+#ifdef CYASSL_SMALL_STACK
+    DecodedCert* decoded;
+#else
+    DecodedCert decoded[1];
+#endif
 
     if (derSz < 0)
         return derSz;
 
-    if (!CREATE_VAR(DecodedCert, decoded))
+#ifdef CYASSL_SMALL_STACK
+    decoded = (DecodedCert*)XMALLOC(sizeof(DecodedCert), NULL,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+    if (decoded == NULL)
         return MEMORY_E;
+#endif
     
     InitDecodedCert(decoded, (byte*)der, derSz, 0);
     ret = ParseCertRelative(decoded, CA_TYPE, NO_VERIFY, 0);
@@ -5996,7 +6089,9 @@ static int SetAltNamesFromCert(Cert* cert, const byte* der, int derSz)
     }
 
     FreeDecodedCert(decoded);
-    DESTROY_VAR(decoded);
+#ifdef CYASSL_SMALL_STACK
+    XFREE(decoded, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 
     return ret < 0 ? ret : 0;
 }
@@ -6006,14 +6101,22 @@ static int SetAltNamesFromCert(Cert* cert, const byte* der, int derSz)
 static int SetDatesFromCert(Cert* cert, const byte* der, int derSz)
 {
     int ret;
-    DECLARE_VAR(DecodedCert, decoded);
+#ifdef CYASSL_SMALL_STACK
+    DecodedCert* decoded;
+#else
+    DecodedCert decoded[1];
+#endif
 
     CYASSL_ENTER("SetDatesFromCert");
     if (derSz < 0)
         return derSz;
     
-    if (!CREATE_VAR(DecodedCert, decoded))
+#ifdef CYASSL_SMALL_STACK
+    decoded = (DecodedCert*)XMALLOC(sizeof(DecodedCert), NULL,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+    if (decoded == NULL)
         return MEMORY_E;
+#endif
 
     InitDecodedCert(decoded, (byte*)der, derSz, 0);
     ret = ParseCertRelative(decoded, CA_TYPE, NO_VERIFY, 0);
@@ -6039,7 +6142,10 @@ static int SetDatesFromCert(Cert* cert, const byte* der, int derSz)
     }
 
     FreeDecodedCert(decoded);
-    DESTROY_VAR(decoded);
+
+#ifdef CYASSL_SMALL_STACK
+    XFREE(decoded, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 
     return ret < 0 ? ret : 0;
 }
@@ -6052,13 +6158,21 @@ static int SetDatesFromCert(Cert* cert, const byte* der, int derSz)
 static int SetNameFromCert(CertName* cn, const byte* der, int derSz)
 {
     int ret, sz;
-    DECLARE_VAR(DecodedCert, decoded);
+#ifdef CYASSL_SMALL_STACK
+    DecodedCert* decoded;
+#else
+    DecodedCert decoded[1];
+#endif
 
     if (derSz < 0)
         return derSz;
 
-    if (!CREATE_VAR(DecodedCert, decoded))
+#ifdef CYASSL_SMALL_STACK
+    decoded = (DecodedCert*)XMALLOC(sizeof(DecodedCert), NULL,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+    if (decoded == NULL)
         return MEMORY_E;
+#endif
 
     InitDecodedCert(decoded, (byte*)der, derSz, 0);
     ret = ParseCertRelative(decoded, CA_TYPE, NO_VERIFY, 0);
@@ -6125,7 +6239,10 @@ static int SetNameFromCert(CertName* cn, const byte* der, int derSz)
     }
 
     FreeDecodedCert(decoded);
-    DESTROY_VAR(decoded);
+
+#ifdef CYASSL_SMALL_STACK
+    XFREE(decoded, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 
     return ret < 0 ? ret : 0;
 }
@@ -6312,9 +6429,13 @@ int EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
     int    privSz, pubSz;
     byte   b;
     int    ret = 0;
-    DECLARE_ARRAY(byte, priv, ECC_MAXSIZE);
-    DECLARE_ARRAY(byte, pub,  ECC_MAXSIZE * 2 + 1); /* public key has two parts
-                                                       plus header */
+#ifdef CYASSL_SMALL_STACK
+    byte* priv;
+    byte* pub;
+#else
+    byte priv[ECC_MAXSIZE];
+    byte pub[ECC_MAXSIZE * 2 + 1]; /* public key has two parts plus header */
+#endif
 
     if (input == NULL || inOutIdx == NULL || key == NULL || inSz == 0)
         return BAD_FUNC_ARG;
@@ -6335,10 +6456,19 @@ int EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
     if (GetLength(input, inOutIdx, &length, inSz) < 0)
         return ASN_PARSE_E;
 
-    /* priv key */
-    if (!CREATE_ARRAY(byte, priv, ECC_MAXSIZE))
+#ifdef CYASSL_SMALL_STACK
+    priv = (byte*)XMALLOC(ECC_MAXSIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (priv == NULL)
         return MEMORY_E;
+    
+    pub = (byte*)XMALLOC(ECC_MAXSIZE * 2 + 1, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (pub == NULL) {
+        XFREE(priv, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        return MEMORY_E;
+    }
+#endif
 
+    /* priv key */
     privSz = length;
     XMEMCPY(priv, &input[*inOutIdx], privSz);
     *inOutIdx += length;
@@ -6401,8 +6531,6 @@ int EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
                 if (b != 0x00) {
                     ret = ASN_EXPECT_0_E;
                 }
-                else if (!CREATE_ARRAY(byte, pub, ECC_MAXSIZE * 2 + 1))
-                    ret = MEMORY_E;
                 else {
                     /* pub key */
                     pubSz = length - 1;  /* null prefix */
@@ -6411,14 +6539,15 @@ int EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
                     *inOutIdx += length;
 
                     ret = ecc_import_private_key(priv, privSz, pub, pubSz, key);
-
-                    DESTROY_ARRAY(pub);
                 }
             }
         }
     }
 
-    DESTROY_ARRAY(priv);
+#ifdef CYASSL_SMALL_STACK
+    XFREE(priv, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(pub,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 
     return ret;
 }
