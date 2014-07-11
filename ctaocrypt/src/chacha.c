@@ -80,13 +80,16 @@ int Chacha_SetIV(ChaCha* ctx, const byte* inIv, word32 counter)
     word32 temp[3];       /* used for alignment of memory */
     XMEMSET(temp, 0, 12);
 
+    if (ctx == NULL)
+        return BAD_FUNC_ARG;
+
 #ifdef CHACHA_AEAD_TEST
-    int k;
+    word32 i;
     printf("NONCE : ");
-    for (k = 0; k < 12; k++) {
-        printf("%02x", nonce[k]);
+    for (i = 0; i < 12; i++) {
+        printf("%02x", inIv[i]);
     }
-    printf("\n");
+    printf("\n\n");
 #endif
 
     XMEMCPY(temp, inIv, 12);
@@ -130,12 +133,14 @@ int Chacha_SetKey(ChaCha* ctx, const byte* key, word32 keySz)
 #endif /* XSTREAM_ALIGN */
 
 #ifdef CHACHA_AEAD_TEST
-    int k;
-    printf("ChaCha key used : ");
-    for (k = 0; k < keySz; k++) {
-        printf("%02x", key[k]);
+    word32 i;
+    printf("ChaCha key used :\n");
+    for (i = 0; i < keySz; i++) {
+        printf("%02x", key[i]);
+        if ((i + 1) % 8 == 0)
+           printf("\n"); 
     }
-    printf("\n");
+    printf("\n\n");
 #endif
 
     ctx->X[4] = U8TO32_LITTLE(k +  0);

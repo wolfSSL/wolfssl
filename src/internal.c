@@ -4891,7 +4891,7 @@ static INLINE int Encrypt(CYASSL* ssl, byte* out, const byte* input, word16 sz)
                 byte nonce[AEAD_NONCE_SZ];
                 byte cipher[32]; /* generated key for poly1305 */
                 int padding2 = (sz - AEAD_EXP_IV_SZ - ssl->specs.aead_mac_size)
-                      +  (sz - AEAD_EXP_IV_SZ - ssl->specs.aead_mac_size) % 16; 
+                      +(16 - (sz - AEAD_EXP_IV_SZ - ssl->specs.aead_mac_size) % 16); 
                 byte p[CHACHA20_BLOCK_SIZE + padding2 + 16];
 
                 XMEMSET(tag, 0, ssl->specs.aead_mac_size);
@@ -4920,7 +4920,7 @@ static INLINE int Encrypt(CYASSL* ssl, byte* out, const byte* input, word16 sz)
                 for (i = 0; i < CHACHA20_BLOCK_SIZE; i++) {
                     printf("%02x", additional[i]);
                 }
-                printf("\n");
+                printf("\n\n");
 #endif
 
                 /* get nonce using implicit and explicit IV */
@@ -4975,9 +4975,11 @@ static INLINE int Encrypt(CYASSL* ssl, byte* out, const byte* input, word16 sz)
                 XMEMSET(nonce, 0, AEAD_NONCE_SZ);
 
 		        #ifdef CHACHA_AEAD_TEST
-                   printf("output after encrypt : ");
+                   printf("output after encrypt :\n");
                     for (i = 0; i < sz; i++) {
                        printf("%02x", out[i]);
+                       if ((i + 1) % 16 == 0)
+                           printf("\n");
                     }
                     printf("\n");
                 #endif
@@ -5138,7 +5140,7 @@ static INLINE int Decrypt(CYASSL* ssl, byte* plain, const byte* input,
                 byte tag[16];
                 byte cipher[32];
                 int padding2 = (sz - AEAD_EXP_IV_SZ - ssl->specs.aead_mac_size)
-                      +  (sz - AEAD_EXP_IV_SZ - ssl->specs.aead_mac_size) % 16; 
+                 +(16 - (sz - AEAD_EXP_IV_SZ - ssl->specs.aead_mac_size) % 16); 
 
                 byte p[CHACHA20_BLOCK_SIZE + padding2 + 16];
 			    int i, ret;
@@ -5172,7 +5174,7 @@ static INLINE int Decrypt(CYASSL* ssl, byte* plain, const byte* input,
                 for (i = 0; i < CHACHA20_BLOCK_SIZE; i++) {
                     printf("%02x", additional[i]);
                 }
-                printf("\n");
+                printf("\n\n");
 #endif
 
                 /* set nonce and get poly1305 key */
@@ -5229,9 +5231,11 @@ static INLINE int Decrypt(CYASSL* ssl, byte* plain, const byte* input,
                        ssl->specs.aead_mac_size);
 
 		        #ifdef CHACHA_AEAD_TEST
-                   printf("plain after decrypt : ");
+                   printf("plain after decrypt :\n");
                     for (i = 0; i < sz; i++) {
                        printf("%02x", plain[i]);
+                       if ((i + 1) % 16 == 0)
+                           printf("\n");
                     }
                     printf("\n");
                 #endif

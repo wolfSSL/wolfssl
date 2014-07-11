@@ -37,16 +37,13 @@
 #else
     #include <ctaocrypt/src/misc.c>
 #endif
+#ifdef CHACHA_AEAD_TEST
+    #include <stdio.h>
+#endif
 
 #ifdef _MSC_VER
     /* 4127 warning constant while(1)  */
     #pragma warning(disable: 4127)
-#endif
-
-#ifdef BIG_ENDIAN_ORDER
-    #define LITTLE32(x) ByteReverseWord32(x)
-#else
-    #define LITTLE32(x) (x)
 #endif
 
 #if defined(POLY130564)
@@ -254,14 +251,17 @@ static void poly1305_blocks(Poly1305* ctx, const unsigned char *m,
 
 int Poly1305SetKey(Poly1305* ctx, const byte* key, word32 keySz) {
 
-    if (keySz != 32)
-        return 1;
+    if (keySz != 32 || ctx == NULL)
+        return BAD_FUNC_ARG;
 
 #ifdef CHACHA_AEAD_TEST
-    int k;
-    printf("Poly key used: ");
-    for (k = 0; k < keySz; k++)
+    word32 k;
+    printf("Poly key used:\n");
+    for (k = 0; k < keySz; k++) {
         printf("%02x", key[k]);
+        if ((k+1) % 8 == 0)
+            printf("\n");
+    }
 	printf("\n");
 #endif
 
@@ -318,6 +318,9 @@ int Poly1305SetKey(Poly1305* ctx, const byte* key, word32 keySz) {
 
 
 int Poly1305Final(Poly1305* ctx, byte* mac) {
+
+    if (ctx == NULL)
+        return BAD_FUNC_ARG;
 
 #if defined(POLY130564)
 
@@ -484,11 +487,17 @@ int Poly1305Final(Poly1305* ctx, byte* mac) {
 
 int Poly1305Update(Poly1305* ctx, const byte* m, word32 bytes) {
 
+    if (ctx == NULL)
+        return BAD_FUNC_ARG;
+
 #ifdef CHACHA_AEAD_TEST
-    int k;
-    printf("Raw input to poly: ");
-    for (k = 0; k < bytes; k++)
+    word32 k;
+    printf("Raw input to poly:\n");
+    for (k = 0; k < bytes; k++) {
         printf("%02x", m[k]);
+        if ((k+1) % 16 == 0)
+            printf("\n");
+    }
 	printf("\n");
 #endif
 	size_t i;
