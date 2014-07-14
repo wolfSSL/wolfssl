@@ -243,7 +243,11 @@ int BufferLoadCRL(CYASSL_CRL* crl, const byte* buff, long sz, int type)
     int          ret = SSL_SUCCESS;
     const byte*  myBuffer = buff;    /* if DER ok, otherwise switch */
     buffer       der;
-    DecodedCRL   dcrl;
+#ifdef CYASSL_SMALL_STACK
+    DecodedCRL*  dcrl;
+#else
+    DecodedCRL   dcrl[1];
+#endif
 
     der.buffer = NULL;
 
@@ -268,25 +272,38 @@ int BufferLoadCRL(CYASSL_CRL* crl, const byte* buff, long sz, int type)
         }
     }
 
-    InitDecodedCRL(&dcrl);
-    ret = ParseCRL(&dcrl, myBuffer, (word32)sz, crl->cm);
+#ifdef CYASSL_SMALL_STACK
+    dcrl = (DecodedCRL*)XMALLOC(sizeof(DecodedCRL), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (dcrl == NULL) {
+        if (der.buffer)
+            XFREE(der.buffer, NULL, DYNAMIC_TYPE_CRL);
+
+        return MEMORY_E;
+    }
+#endif
+
+    InitDecodedCRL(dcrl);
+    ret = ParseCRL(dcrl, myBuffer, (word32)sz, crl->cm);
     if (ret != 0) {
         CYASSL_MSG("ParseCRL error");
     }
     else {
-        ret = AddCRL(crl, &dcrl);
+        ret = AddCRL(crl, dcrl);
         if (ret != 0) {
             CYASSL_MSG("AddCRL error");
         }
     }
-    FreeDecodedCRL(&dcrl);
+
+    FreeDecodedCRL(dcrl);
+
+#ifdef CYASSL_SMALL_STACK
+    XFREE(dcrl, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 
     if (der.buffer)
         XFREE(der.buffer, NULL, DYNAMIC_TYPE_CRL);
 
-    if (ret == 0)
-        return SSL_SUCCESS;  /* convert */
-    return ret;
+    return ret ? ret : SSL_SUCCESS; /* convert 0 to SSL_SUCCESS */
 }
 
 
