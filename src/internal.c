@@ -4921,6 +4921,13 @@ static INLINE int Encrypt(CYASSL* ssl, byte* out, const byte* input, word16 sz)
                     printf("%02x", additional[i]);
                 }
                 printf("\n\n");
+                printf("input before encryption :\n");
+                for (i = 0; i < sz; i++) {
+                    printf("%02x", input[i]);
+                    if ((i + 1) % 16 == 0)
+                        printf("\n");
+                }
+                printf("\n");
 #endif
 
                 /* get nonce using implicit and explicit IV */
@@ -4961,9 +4968,7 @@ static INLINE int Encrypt(CYASSL* ssl, byte* out, const byte* input, word16 sz)
                 ((sz - AEAD_EXP_IV_SZ - ssl->specs.aead_mac_size) >>24) & 0xff;
 
                 /* generate tag */
-                Poly1305SetKey(ssl->encrypt.poly1305,
-                               ssl->keys.server_write_MAC_secret,
-                               sizeof(ssl->keys.server_write_MAC_secret));
+                Poly1305SetKey(ssl->encrypt.poly1305, cipher, sizeof(cipher));
                 Poly1305Update(ssl->encrypt.poly1305, p, 
                                CHACHA20_BLOCK_SIZE + padding2 + 16);
                 Poly1305Final(ssl->encrypt.poly1305, tag);
@@ -4975,7 +4980,13 @@ static INLINE int Encrypt(CYASSL* ssl, byte* out, const byte* input, word16 sz)
                 XMEMSET(nonce, 0, AEAD_NONCE_SZ);
 
 		        #ifdef CHACHA_AEAD_TEST
-                   printf("output after encrypt :\n");
+                   printf("mac tag :\n");
+                    for (i = 0; i < 16; i++) {
+                       printf("%02x", tag[i]);
+                       if ((i + 1) % 16 == 0)
+                           printf("\n");
+                    }
+                   printf("\n\noutput after encrypt :\n");
                     for (i = 0; i < sz; i++) {
                        printf("%02x", out[i]);
                        if ((i + 1) % 16 == 0)
@@ -5152,7 +5163,7 @@ static INLINE int Decrypt(CYASSL* ssl, byte* plain, const byte* input,
                 XMEMSET(p, 0, CHACHA20_BLOCK_SIZE + padding2 + 16);
 
                 /* sequence number field is 64-bits, we only use 32-bits */
-                c32toa(GetSEQIncrement(ssl, 0), additional + AEAD_SEQ_OFFSET);
+                c32toa(GetSEQIncrement(ssl, 1), additional + AEAD_SEQ_OFFSET);
 
                 /* get AD info */
                 additional[AEAD_TYPE_OFFSET] = ssl->curRL.type;
@@ -5205,9 +5216,7 @@ static INLINE int Decrypt(CYASSL* ssl, byte* plain, const byte* input,
                 ((sz - AEAD_EXP_IV_SZ - ssl->specs.aead_mac_size) >>24) & 0xff;
 
                 /* create Poly1305 tag */
-                Poly1305SetKey(ssl->decrypt.poly1305,
-                               ssl->keys.server_write_MAC_secret,
-                               sizeof(ssl->keys.server_write_MAC_secret));
+                Poly1305SetKey(ssl->decrypt.poly1305, cipher, sizeof(cipher));
                 Poly1305Update(ssl->decrypt.poly1305, p,
                                CHACHA20_BLOCK_SIZE + padding2 + 16);
                 Poly1305Final(ssl->decrypt.poly1305, tag);
@@ -5220,6 +5229,7 @@ static INLINE int Decrypt(CYASSL* ssl, byte* plain, const byte* input,
                 }
 
                 if (ret == 1) {
+                    CYASSL_MSG("Mac did not match");
                     SendAlert(ssl, alert_fatal, bad_record_mac);
                     XMEMSET(nonce, 0, AEAD_NONCE_SZ);
                     return VERIFY_MAC_ERROR;
