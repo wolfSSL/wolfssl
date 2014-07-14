@@ -96,7 +96,7 @@ TESTS_ENVIRONMENT=./valgrind-error.sh
 endif
 
 TEST_EXTENSIONS=.test
-TESTS += $(check_PROGRAMS) ./client-test.sh
+TESTS += $(check_PROGRAMS)
 test: check
 tests/unit.log: testsuite/testsuite.log
 
