@@ -929,8 +929,8 @@ static INLINE int myVerify(int preverify, CYASSL_X509_STORE_CTX* store)
 
 static INLINE int myDateCb(int preverify, CYASSL_X509_STORE_CTX* store)
 {
-    (void)preverify;
     char buffer[CYASSL_MAX_ERROR_SZ];
+    (void)preverify;
 
     printf("In verification callback, error = %d, %s\n", store->error,
                                  CyaSSL_ERR_error_string(store->error, buffer));

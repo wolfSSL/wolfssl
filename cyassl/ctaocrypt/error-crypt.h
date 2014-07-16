@@ -126,10 +126,10 @@ enum {
     ASN_NAME_INVALID_E  = -198,  /* ASN name constraint error */
 
     RNG_FAILURE_E       = -199,  /* RNG Failed, Reinitialize */
-
     HMAC_MIN_KEYLEN_E   = -200,  /* FIPS Mode HMAC Minimum Key Length error */
+    RSA_PAD_E           = -201,  /* RSA Padding Error */
 
-    MIN_CODE_E         = -300   /* errors -101 - -299 */
+    MIN_CODE_E          = -300   /* errors -101 - -299 */
 };
 
 
