@@ -1371,7 +1371,6 @@ void InitCipherSpecs(CipherSpecs* cs);
 enum MACAlgorithm { 
     no_mac,
     md5_mac,
-    poly1305_mac,
     sha_mac,
     sha224_mac,
     sha256_mac,
