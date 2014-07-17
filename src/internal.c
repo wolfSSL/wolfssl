@@ -4751,8 +4751,8 @@ static INLINE void AeadIncrementExpIV(CYASSL* ssl)
     }
 }
 
-#ifdef HAVE_POLY1305
 
+#ifdef HAVE_POLY1305
 /*more recent rfc's concatonate input for poly1305 differently*/
 static int Poly1305Tag(CYASSL* ssl, byte* additional, const byte* out,
                        byte* cipher, word16 sz, byte* tag)
@@ -4780,7 +4780,7 @@ static int Poly1305Tag(CYASSL* ssl, byte* additional, const byte* out,
     if ((ret = Poly1305Update(ssl->encrypt.poly1305, out, msglen)) != 0)
         return ret;
 
-    /* handle padding for cipher input */
+    /* handle padding for cipher input to make it 16 bytes long */
     if (msglen % 16 != 0) { 
           paddingSz = (16 - (sz - ssl->specs.aead_mac_size) % 16);
           if (paddingSz < 0)
@@ -4800,7 +4800,6 @@ static int Poly1305Tag(CYASSL* ssl, byte* additional, const byte* out,
     padding[9]  = (msglen >> 8) & 0xff;
     padding[10] = (msglen >>16) & 0xff;
     padding[11] = (msglen >>24) & 0xff;
-
     if ((ret = Poly1305Update(ssl->encrypt.poly1305, padding, sizeof(padding)))
                 != 0)
         return ret;
@@ -4812,9 +4811,8 @@ static int Poly1305Tag(CYASSL* ssl, byte* additional, const byte* out,
     return ret;
 }
 
-/**
-  * Used for the older version of creating AEAD tags with Poly1305
-  */
+
+/* Used for the older version of creating AEAD tags with Poly1305 */
 static int Poly1305TagOld(CYASSL* ssl, byte* additional, const byte* out,
                        byte* cipher, word16 sz, byte* tag)
 {
@@ -4870,6 +4868,7 @@ static int Poly1305TagOld(CYASSL* ssl, byte* additional, const byte* out,
 }
 #endif /*HAVE_POLY1305*/
 
+
 #ifdef HAVE_CHACHA
 static int  ChachaAEADEncrypt(CYASSL* ssl, byte* out, const byte* input,
                               word16 sz)
@@ -4906,19 +4905,19 @@ static int  ChachaAEADEncrypt(CYASSL* ssl, byte* out, const byte* input,
 	XMEMCPY(additional + AEAD_TYPE_OFFSET, additionalSrc, 3);
 	
 	#ifdef CHACHA_AEAD_TEST
-	int i;
-	printf("Encrypt Additional : ");
-	for (i = 0; i < CHACHA20_BLOCK_SIZE; i++) {
-	    printf("%02x", additional[i]);
-	}
-	printf("\n\n");
-	printf("input before encryption :\n");
-	for (i = 0; i < sz; i++) {
-	    printf("%02x", input[i]);
-	    if ((i + 1) % 16 == 0)
-	        printf("\n");
-	}
-	printf("\n");
+		int i;
+		printf("Encrypt Additional : ");
+		for (i = 0; i < CHACHA20_BLOCK_SIZE; i++) {
+		    printf("%02x", additional[i]);
+		}
+		printf("\n\n");
+		printf("input before encryption :\n");
+		for (i = 0; i < sz; i++) {
+		    printf("%02x", input[i]);
+		    if ((i + 1) % 16 == 0)
+		        printf("\n");
+		}
+		printf("\n");
 	#endif
 	
 	/* set the nonce for chacha and get poly1305 key */
@@ -4935,17 +4934,17 @@ static int  ChachaAEADEncrypt(CYASSL* ssl, byte* out, const byte* input,
 	    return ret;
 	
 	#ifdef HAVE_POLY1305
-	/* get the tag : future use of hmac could go here*/
-	if (ssl->options.oldPoly == 1) {
-	    if ((ret = Poly1305TagOld(ssl, additional, (const byte* )out,
-	                cipher, sz, tag)) != 0)
-	        return ret;
-	}
-	else {
-	    if ((ret = Poly1305Tag(ssl, additional, (const byte* )out,
-	                cipher, sz, tag)) != 0)
-	        return ret;
-	}
+		/* get the tag : future use of hmac could go here*/
+		if (ssl->options.oldPoly == 1) {
+		    if ((ret = Poly1305TagOld(ssl, additional, (const byte* )out,
+		                cipher, sz, tag)) != 0)
+		        return ret;
+		}
+		else {
+		    if ((ret = Poly1305Tag(ssl, additional, (const byte* )out,
+		                cipher, sz, tag)) != 0)
+		        return ret;
+		}
 	#endif
 	
 	/* append tag to ciphertext */                
@@ -4954,7 +4953,7 @@ static int  ChachaAEADEncrypt(CYASSL* ssl, byte* out, const byte* input,
 	AeadIncrementExpIV(ssl);
 	XMEMSET(nonce, 0, AEAD_NONCE_SZ);
 	
-	   #ifdef CHACHA_AEAD_TEST
+	#ifdef CHACHA_AEAD_TEST
 	   printf("mac tag :\n");
 	    for (i = 0; i < 16; i++) {
 	       printf("%02x", tag[i]);
@@ -4973,6 +4972,7 @@ static int  ChachaAEADEncrypt(CYASSL* ssl, byte* out, const byte* input,
 	return ret;
 }
 
+
 static int ChachaAEADDecrypt(CYASSL* ssl, byte* plain, const byte* input,
                            word16 sz)
 {
@@ -4980,7 +4980,7 @@ static int ChachaAEADDecrypt(CYASSL* ssl, byte* plain, const byte* input,
 	byte nonce[AEAD_NONCE_SZ];
 	byte tag[ssl->specs.aead_mac_size];
 	byte cipher[32]; /* generated key for mac */
-				   int i;
+    int i;
 	int ret = 0;
 	
 	XMEMSET(tag, 0, sizeof(tag));
@@ -4988,7 +4988,7 @@ static int ChachaAEADDecrypt(CYASSL* ssl, byte* plain, const byte* input,
 	XMEMSET(nonce, 0, AEAD_NONCE_SZ);
 	XMEMSET(additional, 0, CHACHA20_BLOCK_SIZE);
 	
-			       #ifdef CHACHA_AEAD_TEST
+    #ifdef CHACHA_AEAD_TEST
 	   printf("input before decrypt :\n");
 	    for (i = 0; i < sz; i++) {
 	       printf("%02x", input[i]);
@@ -5015,36 +5015,35 @@ static int ChachaAEADDecrypt(CYASSL* ssl, byte* plain, const byte* input,
 	    if (ssl->options.dtls)
 	        c16toa(ssl->keys.dtls_state.curEpoch, additional);
 	#endif
-	
-	       
+		       
 	#ifdef CHACHA_AEAD_TEST
-	printf("Decrypt Additional : ");
-	for (i = 0; i < CHACHA20_BLOCK_SIZE; i++) {
-	    printf("%02x", additional[i]);
-	}
-	printf("\n\n");
+		printf("Decrypt Additional : ");
+		for (i = 0; i < CHACHA20_BLOCK_SIZE; i++) {
+		    printf("%02x", additional[i]);
+		}
+		printf("\n\n");
 	#endif
 	
 	/* set nonce and get poly1305 key */
 	if ((ret = Chacha_SetIV(ssl->decrypt.chacha, nonce, 0)) != 0)
 	    return ret;
 	
-		           if ((ret = Chacha_Process(ssl->decrypt.chacha, cipher,
+	if ((ret = Chacha_Process(ssl->decrypt.chacha, cipher,
 	                cipher, sizeof(cipher))) != 0)
 	    return ret;
 	
 	#ifdef HAVE_POLY1305
-	/* get the tag : future use of hmac could go here*/
-	if (ssl->options.oldPoly == 1) {
-	    if ((ret = Poly1305TagOld(ssl, additional, input, cipher,
-	                    sz, tag)) != 0)
-	        return ret;
-	}
-	else {
-	    if ((ret = Poly1305Tag(ssl, additional, input, cipher,
-	                    sz, tag)) != 0)
-	        return ret;
-	}
+		/* get the tag : future use of hmac could go here*/
+		if (ssl->options.oldPoly == 1) {
+		    if ((ret = Poly1305TagOld(ssl, additional, input, cipher,
+		                    sz, tag)) != 0)
+		        return ret;
+		}
+		else {
+		    if ((ret = Poly1305Tag(ssl, additional, input, cipher,
+		                    sz, tag)) != 0)
+		        return ret;
+		}
 	#endif
 	
 	/* check mac sent along with packet */
@@ -5065,8 +5064,7 @@ static int ChachaAEADDecrypt(CYASSL* ssl, byte* plain, const byte* input,
 	if ((ret = Chacha_Process(ssl->decrypt.chacha, plain, input,
 	               sz - ssl->specs.aead_mac_size)) != 0)
 	    return ret;
-	
-	
+		
 	#ifdef CHACHA_AEAD_TEST
 	   printf("plain after decrypt :\n");
 	    for (i = 0; i < sz; i++) {
