@@ -217,6 +217,10 @@ CYASSL_API int CyaSSL_use_RSAPrivateKey_file(CYASSL*, const char*, int);
                                                     const char*, int);
 #endif
 
+#ifdef HAVE_POLY1305
+    CYASSL_API int CyaSSL_use_old_poly(CYASSL*, int);
+#endif
+
 #ifdef HAVE_NTRU
     CYASSL_API int CyaSSL_CTX_use_NTRUPrivateKey_file(CYASSL_CTX*, const char*);
     /* load NTRU private key blob */

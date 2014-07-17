@@ -194,6 +194,16 @@ void CyaSSL_free(CYASSL* ssl)
     CYASSL_LEAVE("SSL_free", 0);
 }
 
+#ifdef HAVE_POLY1305
+/* set if to use old poly 1 for yes 0 to use new poly */
+int CyaSSL_use_old_poly(CYASSL* ssl, int value)
+{
+    CYASSL_ENTER("SSL_use_old_poly");
+    ssl->options.oldPoly = value;
+    CYASSL_LEAVE("SSL_use_old_poly", 0);
+    return 0;
+}
+#endif
 
 int CyaSSL_set_fd(CYASSL* ssl, int fd)
 {

@@ -468,9 +468,20 @@ void c32to24(word32 in, word24 out);
 
 #ifdef HAVE_CHACHA
     #define CHACHA20_BLOCK_SIZE 16 
-    #define BUILD_TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256
-    #define BUILD_TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256
-    #define BUILD_TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256
+    /* ChaCha - Poly AEAD suites */
+    #if defined(HAVE_POLY1305) && !defined(NO_SHA256)
+        #if defined(HAVE_ECC)
+            #if !defined(NO_RSA)
+                #define BUILD_TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256
+            #endif
+            #if !defined(NO_DSA)
+                #define BUILD_TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256
+            #endif
+        #endif
+        #if !defined(NO_DH) && !defined(NO_RSA)
+            #define BUILD_TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256
+        #endif
+    #endif /* end of ChaCha - Poly AEAD suites */
 #endif
 
 #if defined(BUILD_AESGCM) || defined(HAVE_AESCCM) || defined(HAVE_CHACHA)
@@ -1704,6 +1715,10 @@ typedef struct Options {
     byte            usingNonblock;      /* set when using nonblocking socket */
     byte            saveArrays;         /* save array Memory for user get keys
                                            or psk */
+#ifdef HAVE_POLY1305
+    byte            oldPoly;            /* set when to use old rfc way of poly*/
+#endif
+
 #ifndef NO_PSK
     byte            havePSK;            /* psk key set by user */
     psk_client_callback client_psk_cb;
