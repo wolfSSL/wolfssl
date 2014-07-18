@@ -203,6 +203,8 @@ static INLINE void c16toa(word16 u16, byte* c)
 }
 
 
+#if !defined(NO_OLD_TLS) || defined(HAVE_CHACHA) || defined(HAVE_AESCCM) \
+    || defined(HAVE_AESGCM)
 /* convert 32 bit integer to opaque */
 static INLINE void c32toa(word32 u32, byte* c)
 {
@@ -211,6 +213,7 @@ static INLINE void c32toa(word32 u32, byte* c)
     c[2] = (u32 >>  8) & 0xff;
     c[3] =  u32 & 0xff;
 }
+#endif
 
 
 /* convert a 24 bit integer into a 32 bit one */
@@ -3012,10 +3015,8 @@ static int GetRecordHeader(CYASSL* ssl, const byte* input, word32* inOutIdx,
 static int GetHandShakeHeader(CYASSL* ssl, const byte* input, word32* inOutIdx,
                               byte *type, word32 *size)
 {
-
     const byte *ptr = input + *inOutIdx;
     (void)ssl;
-    
     *inOutIdx += HANDSHAKE_HEADER_SZ;
     
     *type = ptr[0];
@@ -4379,7 +4380,7 @@ int DoFinished(CYASSL* ssl, const byte* input, word32* inOutIdx, word32 size,
 
     /* increment beyond input + size should be checked against totalSz */
     if (*inOutIdx + size + ssl->keys.padSz > totalSz)
-      return INCOMPLETE_DATA;
+        return INCOMPLETE_DATA;
 
     /* force input exhaustion at ProcessReply consuming padSz */
     *inOutIdx += size + ssl->keys.padSz;
@@ -4427,9 +4428,8 @@ static int DoHandShakeMsgType(CYASSL* ssl, byte* input, word32* inOutIdx,
 
     /* make sure can read the message */
     if (*inOutIdx + size > totalSz)
-    {
         return INCOMPLETE_DATA;
-    }
+
     ret = HashInput(ssl, input + *inOutIdx, size);
     if (ret != 0)
         return ret;
@@ -4733,6 +4733,8 @@ static int DoDtlsHandShakeMsg(CYASSL* ssl, byte* input, word32* inOutIdx,
 #endif
 
 
+#if !defined(NO_OLD_TLS) || defined(HAVE_CHACHA) || defined(HAVE_AESCCM) \
+    || defined(HAVE_AESGCM)
 static INLINE word32 GetSEQIncrement(CYASSL* ssl, int verify)
 {
     if (verify)
@@ -4740,6 +4742,7 @@ static INLINE word32 GetSEQIncrement(CYASSL* ssl, int verify)
     else
         return ssl->keys.sequence_number++;
 }
+#endif
 
 
 #ifdef HAVE_AEAD
@@ -5409,8 +5412,9 @@ static int SanityCheckCipherText(CYASSL* ssl, word32 encryptSz)
             minLength += ssl->specs.block_size;  /* explicit IV */
     }
     else if (ssl->specs.cipher_type == aead) {
-        minLength = ssl->specs.aead_mac_size + AEAD_EXP_IV_SZ;
-                                               /* explicit IV + authTag size */
+        minLength = ssl->specs.aead_mac_size;    /* authTag size */
+        if (ssl->specs.bulk_cipher_algorithm != cyassl_chacha)
+           minLength += AEAD_EXP_IV_SZ;          /* explicit IV  */
     }
 
     if (encryptSz < minLength) {
@@ -9373,26 +9377,13 @@ static void PickHashSigAlgo(CYASSL* ssl,
 
                 if (encSigSz != (word32)ret || !out || XMEMCMP(out, encodedSig,
                                         min(encSigSz, MAX_ENCODED_SIG_SZ)) != 0)
-                {
-                    CYASSL_MSG("line 9258");
-                if (encSigSz != (word32)ret)
-                {CYASSL_MSG("encSigSz != ret");}
-                if (!out)
-                {CYASSL_MSG("!out");}
-                if (XMEMCMP(out, encodedSig,
-                                        min(encSigSz, MAX_ENCODED_SIG_SZ)) != 0)
-                {CYASSL_MSG("xmemcmp != 0");}
-
                     return VERIFY_SIGN_ERROR;
-
-                }
             }
             else { 
                 if (ret != sizeof(hash) || !out || XMEMCMP(out,
                                                        hash, sizeof(hash)) != 0)
-                {CYASSL_MSG("line 9266");
                     return VERIFY_SIGN_ERROR;
-            }}
+            }
         } else
 #endif
 #ifdef HAVE_ECC
@@ -9450,9 +9441,8 @@ static void PickHashSigAlgo(CYASSL* ssl,
                                  digest, digestSz, &verify, ssl->peerEccDsaKey);
             }
             if (ret != 0 || verify == 0)
-                {CYASSL_MSG("line 9326");
                 return VERIFY_SIGN_ERROR;
-                }}
+        }
         else
 #endif /* HAVE_ECC */
             return ALGO_ID_E;

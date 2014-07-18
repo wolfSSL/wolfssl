@@ -611,7 +611,6 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
     #endif
     
     ssl = CyaSSL_new(ctx);
-
     if (ssl == NULL)
         err_sys("unable to get SSL object");
     if (doDTLS) {

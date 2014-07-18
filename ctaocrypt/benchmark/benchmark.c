@@ -269,6 +269,17 @@ enum BenchmarkBounds {
 static const char blockType[] = "megs"; /* used in printf output */
 #endif
 
+
+/* use kB instead of mB for embedded benchmarking */
+#ifdef BENCH_EMBEDDED
+static byte plain [1024];
+#else
+static byte plain [1024*1024];
+#endif
+
+
+#ifndef NO_AES
+
 static const byte key[] = 
 {
     0x01,0x23,0x45,0x67,0x89,0xab,0xcd,0xef,
@@ -287,15 +298,12 @@ static const byte iv[] =
 
 /* use kB instead of mB for embedded benchmarking */
 #ifdef BENCH_EMBEDDED
-static byte plain [1024];
 static byte cipher[1024];
 #else
-static byte plain [1024*1024];
 static byte cipher[1024*1024];
 #endif
 
 
-#ifndef NO_AES
 void bench_aes(int show)
 {
     Aes    enc;
@@ -1133,9 +1141,9 @@ void bench_ntruKeyGen(void)
     double start, total, each, milliEach;
     int    i;
 
-    byte   public_key[5951]; /* 2048 key equivalent to rsa */
-    word16 public_key_len;
-    byte   private_key[5951];
+    byte   public_key[557]; /* 2048 key equivalent to rsa */
+    word16 public_key_len = sizeof(public_key);
+    byte   private_key[607];
     word16 private_key_len = sizeof(private_key);
 
     DRBG_HANDLE drbg;
@@ -1143,8 +1151,8 @@ void bench_ntruKeyGen(void)
                 'C', 'y', 'a', 'S', 'S', 'L', ' ', 't', 'e', 's', 't'
     };
 
-    word32 rc = ntru_crypto_drbg_instantiate(112, pers_str, sizeof(pers_str), GetEntropy, &drbg);
-
+    word32 rc = ntru_crypto_drbg_instantiate(112, pers_str, sizeof(pers_str),
+                                             GetEntropy, &drbg);
     if(rc != DRBG_OK) {
         printf("NTRU drbg instantiate failed\n");
         return;

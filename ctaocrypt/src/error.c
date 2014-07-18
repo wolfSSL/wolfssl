@@ -280,6 +280,9 @@ const char* CTaoCryptGetErrorString(int error)
     case HMAC_MIN_KEYLEN_E:
         return "FIPS Mode HMAC Minimum Key Length error";
 
+    case RSA_PAD_E:
+        return "Rsa Padding error";
+
     default:
         return "unknown error number";
 

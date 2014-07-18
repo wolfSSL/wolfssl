@@ -1,41 +1,13 @@
-Certificate Revocation List (CRL):
-        Version 2 (0x1)
-    Signature Algorithm: sha1WithRSAEncryption
-        Issuer: /C=US/ST=Montana/L=Bozeman/O=Sawtooth/OU=Consulting/CN=www.yassl.com/emailAddress=info@yassl.com
-        Last Update: Feb  7 20:14:06 2014 GMT
-        Next Update: Feb  7 20:14:06 2015 GMT
-        CRL extensions:
-            X509v3 CRL Number: 
-                2
-Revoked Certificates:
-    Serial Number: 02
-        Revocation Date: Feb  7 20:14:06 2014 GMT
-    Signature Algorithm: sha1WithRSAEncryption
-         10:5d:b1:d0:79:d2:8a:15:2d:40:0b:44:d6:d9:df:58:73:eb:
-         55:2c:81:fe:e1:7b:62:48:8f:34:c5:06:51:e5:e8:50:70:8c:
-         12:ba:e3:6e:fe:7d:0d:ce:44:08:9d:dc:d9:57:43:6c:54:12:
-         82:d4:ed:6c:71:e5:74:44:bd:d1:a8:98:96:63:8b:68:5f:d2:
-         87:28:dd:99:4f:aa:ba:8e:18:9e:c4:4f:69:9e:66:13:03:28:
-         5f:3c:35:01:15:77:22:7c:ed:c5:4a:67:44:af:85:7f:df:8a:
-         fd:49:8b:e1:be:52:e3:ca:e8:ae:a3:ad:07:91:2c:51:c6:28:
-         5f:26:17:14:39:5d:4e:21:9f:11:6f:c4:a2:ef:ef:b8:ec:27:
-         af:45:ad:b9:ed:e0:14:09:60:a0:50:ee:dd:f7:b1:3e:58:c4:
-         0d:e8:b5:0b:a9:0d:98:ad:7c:74:ab:1c:d6:fa:c8:7d:e7:5a:
-         3b:91:23:d5:62:ba:d4:e4:be:58:78:fe:09:ba:63:f6:9e:2c:
-         3f:93:c2:fe:de:c5:00:21:50:39:91:ac:71:e6:fc:4a:37:a4:
-         e4:e9:5e:e7:ac:8d:95:21:d6:76:aa:10:a8:3c:28:3e:ef:1c:
-         64:58:e9:1e:f6:7e:54:f3:cb:bb:ed:6f:5d:27:5a:b1:4b:91:
-         8e:8c:67:7d
 -----BEGIN X509 CRL-----
-MIICADCB6QIBATANBgkqhkiG9w0BAQUFADCBkDELMAkGA1UEBhMCVVMxEDAOBgNV
-BAgTB01vbnRhbmExEDAOBgNVBAcTB0JvemVtYW4xETAPBgNVBAoTCFNhd3Rvb3Ro
-MRMwEQYDVQQLEwpDb25zdWx0aW5nMRYwFAYDVQQDEw13d3cueWFzc2wuY29tMR0w
-GwYJKoZIhvcNAQkBFg5pbmZvQHlhc3NsLmNvbRcNMTQwMjA3MjAxNDA2WhcNMTUw
-MjA3MjAxNDA2WjAUMBICAQIXDTE0MDIwNzIwMTQwNlqgDjAMMAoGA1UdFAQDAgEC
-MA0GCSqGSIb3DQEBBQUAA4IBAQAQXbHQedKKFS1AC0TW2d9Yc+tVLIH+4XtiSI80
-xQZR5ehQcIwSuuNu/n0NzkQIndzZV0NsVBKC1O1sceV0RL3RqJiWY4toX9KHKN2Z
-T6q6jhiexE9pnmYTAyhfPDUBFXcifO3FSmdEr4V/34r9SYvhvlLjyuiuo60HkSxR
-xihfJhcUOV1OIZ8Rb8Si7++47CevRa257eAUCWCgUO7d97E+WMQN6LULqQ2YrXx0
-qxzW+sh951o7kSPVYrrU5L5YeP4JumP2niw/k8L+3sUAIVA5kaxx5vxKN6Tk6V7n
-rI2VIdZ2qhCoPCg+7xxkWOke9n5U88u77W9dJ1qxS5GOjGd9
+MIICBDCB7QIBATANBgkqhkiG9w0BAQsFADCBlDELMAkGA1UEBhMCVVMxEDAOBgNV
+BAgMB01vbnRhbmExEDAOBgNVBAcMB0JvemVtYW4xETAPBgNVBAoMCFNhd3Rvb3Ro
+MRMwEQYDVQQLDApDb25zdWx0aW5nMRgwFgYDVQQDDA93d3cud29sZnNzbC5jb20x
+HzAdBgkqhkiG9w0BCQEWEGluZm9Ad29sZnNzbC5jb20XDTE0MDcxMTEyMzUyN1oX
+DTE1MDcxMTEyMzUyN1owFDASAgEBFw0xNDA3MTExMjM1MjdaoA4wDDAKBgNVHRQE
+AwIBOzANBgkqhkiG9w0BAQsFAAOCAQEAB+ao48FzCAbRKKPkFJX8Ho5SZl44YhNW
+Uy/JxMkonyjyaMwp7GSwd2hNpv3geC6tHO7YLSRcyvyKu1BQVbeoa6FpultQSv5+
+twk6mmeSenzhzNhfJmzSEhJicXOgBoLAh4aBXkixQis9dAVg16/nNSS2DAJwEKMW
+kXcJpuBLt6XLL0aM71+NDqB8HAUUPyuNWLiYEb4NlScIWNh7lI6ZWmsv8vb1PMmn
+2hn4CVJIkHkfEHYnikek55iE31QMUyobCXzro+cR9jGR1iPZSQu9dxstRHF5bXai
+eBYWZIblBVCSJ896a5TJ5uaA1RKk6ZZbAG43oQTB/hupaEPjTTXysw==
 -----END X509 CRL-----
