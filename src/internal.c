@@ -203,6 +203,7 @@ static INLINE void c16toa(word16 u16, byte* c)
 }
 
 
+#if !defined(NO_OLD_TLS) || defined(HAVE_AESCCM) || defined(HAVE_AESGCM)
 /* convert 32 bit integer to opaque */
 static INLINE void c32toa(word32 u32, byte* c)
 {
@@ -211,6 +212,7 @@ static INLINE void c32toa(word32 u32, byte* c)
     c[2] = (u32 >>  8) & 0xff;
     c[3] =  u32 & 0xff;
 }
+#endif
 
 
 /* convert a 24 bit integer into a 32 bit one */
@@ -4675,6 +4677,7 @@ static int DoDtlsHandShakeMsg(CYASSL* ssl, byte* input, word32* inOutIdx,
 #endif
 
 
+#if !defined(NO_OLD_TLS) || defined(HAVE_AESCCM) || defined(HAVE_AESGCM)
 static INLINE word32 GetSEQIncrement(CYASSL* ssl, int verify)
 {
     if (verify)
@@ -4682,6 +4685,7 @@ static INLINE word32 GetSEQIncrement(CYASSL* ssl, int verify)
     else
         return ssl->keys.sequence_number++;
 }
+#endif
 
 
 #ifdef HAVE_AEAD

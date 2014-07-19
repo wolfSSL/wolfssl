@@ -259,6 +259,17 @@ enum BenchmarkBounds {
 static const char blockType[] = "megs"; /* used in printf output */
 #endif
 
+
+/* use kB instead of mB for embedded benchmarking */
+#ifdef BENCH_EMBEDDED
+static byte plain [1024];
+#else
+static byte plain [1024*1024];
+#endif
+
+
+#ifndef NO_AES
+
 static const byte key[] = 
 {
     0x01,0x23,0x45,0x67,0x89,0xab,0xcd,0xef,
@@ -277,15 +288,12 @@ static const byte iv[] =
 
 /* use kB instead of mB for embedded benchmarking */
 #ifdef BENCH_EMBEDDED
-static byte plain [1024];
 static byte cipher[1024];
 #else
-static byte plain [1024*1024];
 static byte cipher[1024*1024];
 #endif
 
 
-#ifndef NO_AES
 void bench_aes(int show)
 {
     Aes    enc;
