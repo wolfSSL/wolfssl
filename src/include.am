@@ -55,6 +55,10 @@ if BUILD_AES
 src_libcyassl_la_SOURCES += ctaocrypt/src/aes.c
 endif
 
+if BUILD_POLY1305
+src_libcyassl_la_SOURCES += ctaocrypt/src/poly1305.c
+endif
+
 if BUILD_DES3
 src_libcyassl_la_SOURCES += ctaocrypt/src/des3.c
 endif
@@ -117,6 +121,10 @@ endif
 
 if BUILD_RABBIT
 src_libcyassl_la_SOURCES += ctaocrypt/src/rabbit.c
+endif
+
+if BUILD_CHACHA
+src_libcyassl_la_SOURCES += ctaocrypt/src/chacha.c
 endif
 
 if !BUILD_INLINE

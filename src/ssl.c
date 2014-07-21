@@ -194,6 +194,16 @@ void CyaSSL_free(CYASSL* ssl)
     CYASSL_LEAVE("SSL_free", 0);
 }
 
+#ifdef HAVE_POLY1305
+/* set if to use old poly 1 for yes 0 to use new poly */
+int CyaSSL_use_old_poly(CYASSL* ssl, int value)
+{
+    CYASSL_ENTER("SSL_use_old_poly");
+    ssl->options.oldPoly = value;
+    CYASSL_LEAVE("SSL_use_old_poly", 0);
+    return 0;
+}
+#endif
 
 int CyaSSL_set_fd(CYASSL* ssl, int fd)
 {
@@ -324,6 +334,9 @@ int CyaSSL_GetObjectSize(void)
 #endif
 #ifndef NO_RABBIT
     printf("    sizeof rabbit       = %lu\n", sizeof(Rabbit));
+#endif
+#ifdef HAVE_CHACHA
+    printf("    sizeof chacha       = %lu\n", sizeof(Chacha));
 #endif
     printf("sizeof cipher specs     = %lu\n", sizeof(CipherSpecs));
     printf("sizeof keys             = %lu\n", sizeof(Keys));
@@ -8362,6 +8375,25 @@ CYASSL_X509* CyaSSL_X509_load_certificate_file(const char* fname, int format)
         CYASSL_ENTER("SSL_CIPHER_get_name");
 #ifndef NO_ERROR_STRINGS
         if (cipher) {
+#if defined(HAVE_CHACHA)
+            if (cipher->ssl->options.cipherSuite0 == CHACHA_BYTE) {
+            /* ChaCha suites */
+            switch (cipher->ssl->options.cipherSuite) {
+#ifdef HAVE_CHACHA
+    #ifndef NO_RSA
+                case TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256 :
+                    return "TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256";
+
+                case TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256 :
+                    return "TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256";
+    #endif 
+                case TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256 :
+                    return "TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256";
+#endif
+                }
+            }
+#endif
+
 #if defined(HAVE_ECC) || defined(HAVE_AESCCM)
             /* Awkwardly, the ECC cipher suites use the ECC_BYTE as expected,
              * but the AES-CCM cipher suites also use it, even the ones that
@@ -8508,8 +8540,10 @@ CYASSL_X509* CyaSSL_X509_load_certificate_file(const char* fname, int format)
             }
             }
 #endif  /* ECC */
-            if (cipher->ssl->options.cipherSuite0 != ECC_BYTE) {
-            /* normal suites */
+            if (cipher->ssl->options.cipherSuite0 != ECC_BYTE && 
+                cipher->ssl->options.cipherSuite0 != CHACHA_BYTE) {
+            
+                /* normal suites */
             switch (cipher->ssl->options.cipherSuite) {
 #ifndef NO_RSA
     #ifndef NO_RC4

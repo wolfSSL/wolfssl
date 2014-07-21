@@ -31,10 +31,12 @@
 #include <cyassl/ctaocrypt/des3.h>
 #include <cyassl/ctaocrypt/hc128.h>
 #include <cyassl/ctaocrypt/rabbit.h>
+#include <cyassl/ctaocrypt/chacha.h>
 #include <cyassl/ctaocrypt/asn.h>
 #include <cyassl/ctaocrypt/md5.h>
 #include <cyassl/ctaocrypt/sha.h>
 #include <cyassl/ctaocrypt/aes.h>
+#include <cyassl/ctaocrypt/poly1305.h>
 #include <cyassl/ctaocrypt/camellia.h>
 #include <cyassl/ctaocrypt/logging.h>
 #include <cyassl/ctaocrypt/hmac.h>
@@ -464,9 +466,25 @@ void c32to24(word32 in, word24 out);
     #define BUILD_ARC4
 #endif
 
+#ifdef HAVE_CHACHA
+    #define CHACHA20_BLOCK_SIZE 16 
+    /* ChaCha - Poly AEAD suites */
+    #if defined(HAVE_POLY1305) && !defined(NO_SHA256)
+        #if defined(HAVE_ECC)
+            #if !defined(NO_RSA)
+                #define BUILD_TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256
+            #endif
+            #if !defined(NO_DSA)
+                #define BUILD_TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256
+            #endif
+        #endif
+        #if !defined(NO_DH) && !defined(NO_RSA)
+            #define BUILD_TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256
+        #endif
+    #endif /* end of ChaCha - Poly AEAD suites */
+#endif
 
-
-#if defined(BUILD_AESGCM) || defined(HAVE_AESCCM)
+#if defined(BUILD_AESGCM) || defined(HAVE_AESCCM) || defined(HAVE_CHACHA)
     #define HAVE_AEAD
 #endif
 
@@ -591,13 +609,18 @@ enum {
     TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA256 = 0xbe,
     TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA256 = 0xc4,
 
+    TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256   = 0x13,
+    TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256 = 0x14,
+    TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256     = 0x15,
+
     /* Renegotiation Indication Extension Special Suite */
     TLS_EMPTY_RENEGOTIATION_INFO_SCSV        = 0xff
 };
 
 
 enum Misc {
-    ECC_BYTE =  0xC0,           /* ECC first cipher suite byte */
+    ECC_BYTE    =  0xC0,           /* ECC first cipher suite byte */
+    CHACHA_BYTE = 0xCC,            /* ChaCha first cipher suite */
 
     SEND_CERT       = 1,
     SEND_BLANK_CERT = 2,
@@ -719,6 +742,12 @@ enum Misc {
     CAMELLIA_192_KEY_SIZE = 24, /* for 192 bit */
     CAMELLIA_256_KEY_SIZE = 32, /* for 256 bit */
     CAMELLIA_IV_SIZE      = 16, /* always block size */
+
+    CHACHA20_256_KEY_SIZE = 32,  /* for 256 bit             */
+    CHACHA20_128_KEY_SIZE = 16,  /* for 128 bit             */
+    CHACHA20_IV_SIZE      =  8,  /* 64 bits for iv          */
+
+    POLY1305_AUTH_SZ    = 16,  /* 128 bits                */
 
     HC_128_KEY_SIZE     = 16,  /* 128 bits                */
     HC_128_IV_SIZE      = 16,  /* also 128 bits           */
@@ -1494,6 +1523,12 @@ typedef struct Ciphers {
 #ifdef HAVE_CAMELLIA
     Camellia* cam;
 #endif
+#ifdef HAVE_CHACHA 
+    ChaCha*   chacha;
+#endif
+#ifdef HAVE_POLY1305 
+    Poly1305* poly1305;
+#endif
 #ifdef HAVE_HC128
     HC128*  hc128;
 #endif
@@ -1680,6 +1715,10 @@ typedef struct Options {
     byte            usingNonblock;      /* set when using nonblocking socket */
     byte            saveArrays;         /* save array Memory for user get keys
                                            or psk */
+#ifdef HAVE_POLY1305
+    byte            oldPoly;            /* set when to use old rfc way of poly*/
+#endif
+
 #ifndef NO_PSK
     byte            havePSK;            /* psk key set by user */
     psk_client_callback client_psk_cb;
