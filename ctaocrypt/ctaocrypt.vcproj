@@ -301,7 +301,7 @@
 				>
 			</File>
 			<File
-				RelativePath=".\src\port.c"
+				RelativePath=".\src\wc_port.c"
 				>
 			</File>
 			<File
