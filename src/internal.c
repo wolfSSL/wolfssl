@@ -57,7 +57,6 @@
     #define FALSE 0
 #endif
 
-
 #if defined(CYASSL_CALLBACKS) && !defined(LARGE_STATIC_BUFFERS)
     #error \
 CYASSL_CALLBACKS needs LARGE_STATIC_BUFFERS, please add LARGE_STATIC_BUFFERS
@@ -6569,7 +6568,7 @@ static int BuildMessage(CYASSL* ssl, byte* output, int outSz,
             ivSz = AEAD_EXP_IV_SZ;
 
         sz += (ivSz + ssl->specs.aead_mac_size - digestSz);
-        XMEMCPY(iv, ssl->keys.aead_exp_IV, AEAD_EXP_IV_SZ); 
+        XMEMCPY(iv, ssl->keys.aead_exp_IV, AEAD_EXP_IV_SZ);
     }
 #endif
     if (sz > (word32)outSz) {

@@ -35,7 +35,29 @@ before calling SSL_new();  Though it's not recommended.
 *** end Notes ***
 
 
-CyaSSL Release 3.0.2 (05/30/2014)
+CyaSSL Release 3.1.0 (07/14/2014)
+
+Release 3.1.0 CyaSSL has bug fixes and new features including:
+
+- Fix for older versions of icc without 128-bit type
+- Intel ASM syntax for AES-NI
+- Updated NTRU support, keygen benchmark
+- FIPS check for minimum required HMAC key length
+- Small stack (--enable-smallstack) improvements for PKCS#7, ASN
+- TLS extension support for DTLS
+- Default I/O callbacks external to user
+- Updated example client with bad clock test
+- Ability to set optional ECC context info
+- Ability to enable/disable DH separate from opensslextra
+- Additional test key/cert buffers for CA and server
+- Updated example certificates
+
+The CyaSSL manual is available at:
+http://www.yassl.com/documentation/CyaSSL-Manual.pdf.  For build instructions
+and comments about the new features please check the manual.
+
+
+************ CyaSSL Release 3.0.2 (05/30/2014)
 
 Release 3.0.2 CyaSSL has bug fixes and new features including:
 
