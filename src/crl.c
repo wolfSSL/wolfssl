@@ -546,6 +546,11 @@ static void* DoMonitor(void* arg)
     int         notifyFd;
     int         wd  = -1;
     CYASSL_CRL* crl = (CYASSL_CRL*)arg;
+#ifdef CYASSL_SMALL_STACK
+    char*       buff;
+#else
+    char        buff[8192];
+#endif
 
     CYASSL_ENTER("DoMonitor");
 
@@ -584,10 +589,16 @@ static void* DoMonitor(void* arg)
         }
     }
 
+#ifdef CYASSL_SMALL_STACK
+    buff = (char*)XMALLOC(8192, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (buff == NULL)
+        return NULL;
+#endif
+
     for (;;) {
-        fd_set        readfds;
-        char          buff[8192];
-        int           result, length;
+        fd_set readfds;
+        int    result;
+        int    length;
 
         FD_ZERO(&readfds);
         FD_SET(notifyFd, &readfds);
@@ -607,7 +618,7 @@ static void* DoMonitor(void* arg)
             break;
         }
 
-        length = read(notifyFd, buff, sizeof(buff));
+        length = read(notifyFd, buff, 8192);
         if (length < 0) {
             CYASSL_MSG("notify read problem, continue");
             continue;
@@ -617,6 +628,10 @@ static void* DoMonitor(void* arg)
             CYASSL_MSG("SwapLists problem, continue");
         }
     }
+
+#ifdef CYASSL_SMALL_STACK
+    XFREE(buff, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 
     if (wd > 0)
         inotify_rm_watch(notifyFd, wd);
