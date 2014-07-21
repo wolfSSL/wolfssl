@@ -464,7 +464,7 @@ void bench_poly1305()
     persec = persec / 1024;
 #endif
 
-        printf("POLY1305    %d %s took %5.3f seconds, %7.3f MB/s\n", numBlocks,
+        printf("POLY1305 %d %s took %5.3f seconds, %7.3f MB/s\n", numBlocks,
                                                   blockType, total, persec);
 }
 #endif /* HAVE_POLY1305 */

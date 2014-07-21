@@ -1672,6 +1672,9 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
     ssl->options.groupMessages = ctx->groupMessages;
     ssl->options.usingNonblock = 0;
     ssl->options.saveArrays = 0;
+#ifdef HAVE_POLY1305
+    ssl->options.oldPoly = 0;
+#endif
 
 #ifndef NO_CERTS
     /* ctx still owns certificate, certChain, key, dh, and cm */
@@ -4876,13 +4879,12 @@ static int Poly1305TagOld(CYASSL* ssl, byte* additional, const byte* out,
 static int  ChachaAEADEncrypt(CYASSL* ssl, byte* out, const byte* input,
                               word16 sz)
 {
-	int offset = 5; /*where to find type,version in record header */
-	const byte* additionalSrc = input - offset;
-	int ret    = 0;
-	byte tag[ssl->specs.aead_mac_size];
+	const byte* additionalSrc = input - RECORD_HEADER_SZ;
+	int ret = 0;
+	byte tag[POLY1305_AUTH_SZ];
 	byte additional[CHACHA20_BLOCK_SIZE];
 	byte nonce[AEAD_NONCE_SZ];
-	byte cipher[32]; /* generated key for poly1305 */
+	byte cipher[CHACHA20_256_KEY_SIZE]; /* generated key for poly1305 */
 	
 	XMEMSET(tag, 0, sizeof(tag));
 	XMEMSET(nonce, 0, AEAD_NONCE_SZ);
@@ -4928,7 +4930,7 @@ static int  ChachaAEADEncrypt(CYASSL* ssl, byte* out, const byte* input,
 	    return ret;
 	
 		if ((ret = Chacha_Process(ssl->encrypt.chacha, cipher,
-	                cipher, 32)) != 0)
+	                cipher, sizeof(cipher))) != 0)
 	    return ret;
 	
 	/* encrypt the plain text */
@@ -4981,8 +4983,8 @@ static int ChachaAEADDecrypt(CYASSL* ssl, byte* plain, const byte* input,
 {
 	byte additional[CHACHA20_BLOCK_SIZE];
 	byte nonce[AEAD_NONCE_SZ];
-	byte tag[ssl->specs.aead_mac_size];
-	byte cipher[32]; /* generated key for mac */
+	byte tag[POLY1305_AUTH_SZ];
+	byte cipher[CHACHA20_256_KEY_SIZE]; /* generated key for mac */
     int i;
 	int ret = 0;
 	

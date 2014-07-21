@@ -474,9 +474,7 @@ void c32to24(word32 in, word24 out);
             #if !defined(NO_RSA)
                 #define BUILD_TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256
             #endif
-            #if !defined(NO_DSA)
-                #define BUILD_TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256
-            #endif
+            #define BUILD_TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256
         #endif
         #if !defined(NO_DH) && !defined(NO_RSA)
             #define BUILD_TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256
