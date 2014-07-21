@@ -401,6 +401,21 @@ fi
 AM_CONDITIONAL([BUILD_AESNI], [test "x$ENABLED_AESNI" = "xyes"])
 
 
+# POLY1305
+AC_ARG_ENABLE([poly1305],
+    [  --enable-poly1305         Enable CyaSSL POLY1305 support (default: disabled)],
+    [ ENABLED_POLY1305=$enableval ],
+    [ ENABLED_POLY1305=no ]
+    )
+
+if test "$ENABLED_POLY1305" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_POLY1305"
+fi
+
+AM_CONDITIONAL([BUILD_POLY1305], [test "x$ENABLED_POLY1305" = "xyes"])
+
+
 # Camellia
 AC_ARG_ENABLE([camellia],
     [  --enable-camellia       Enable CyaSSL Camellia support (default: disabled)],
@@ -1060,6 +1075,21 @@ else
 fi
 
 AM_CONDITIONAL([BUILD_RABBIT], [test "x$ENABLED_RABBIT" = "xyes"])
+
+
+# CHACHA
+AC_ARG_ENABLE([chacha],
+    [  --enable-chacha         Enable CHACHA (default: disabled)],
+    [ ENABLED_CHACHA=$enableval ],
+    [ ENABLED_CHACHA=no ]
+    )
+
+if test "$ENABLED_CHACHA" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_CHACHA"
+fi
+
+AM_CONDITIONAL([BUILD_CHACHA], [test "x$ENABLED_CHACHA" = "xyes"])
 
 
 # FIPS 
@@ -1797,11 +1827,13 @@ echo "   * certgen:                   $ENABLED_CERTGEN"
 echo "   * certreq:                   $ENABLED_CERTREQ"
 echo "   * HC-128:                    $ENABLED_HC128"
 echo "   * RABBIT:                    $ENABLED_RABBIT"
+echo "   * CHACHA:                    $ENABLED_CHACHA"
 echo "   * Hash DRBG:                 $ENABLED_HASHDRBG"
 echo "   * PWDBASED:                  $ENABLED_PWDBASED"
 echo "   * HKDF:                      $ENABLED_HKDF"
 echo "   * MD4:                       $ENABLED_MD4"
 echo "   * PSK:                       $ENABLED_PSK"
+echo "   * Poly1305:                  $ENABLED_POLY1305"
 echo "   * LEANPSK:                   $ENABLED_LEANPSK"
 echo "   * RSA:                       $ENABLED_RSA"
 echo "   * DSA:                       $ENABLED_DSA"

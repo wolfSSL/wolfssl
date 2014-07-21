@@ -217,6 +217,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\include\chacha.h"
+				>
+			</File>
+			<File
 				RelativePath=".\include\random.h"
 				>
 			</File>
@@ -302,6 +306,10 @@
 			</File>
 			<File
 				RelativePath=".\src\rabbit.c"
+				>
+			</File>
+			<File
+				RelativePath=".\src\chacha.c"
 				>
 			</File>
 			<File

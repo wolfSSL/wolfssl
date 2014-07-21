@@ -28,7 +28,7 @@
 
 #include <cyassl/internal.h>
 #include <cyassl/error-ssl.h>
-#ifdef SHOW_SECRETS
+#if defined(SHOW_SECRETS) || defined(CHACHA_AEAD_TEST)
     #ifdef FREESCALE_MQX
         #include <fio.h>
     #else
@@ -48,6 +48,69 @@ int SetCipherSpecs(CYASSL* ssl)
         }
     }
 #endif /* NO_CYASSL_CLIENT */
+
+    /* Chacha extensions, 0xcc */
+    if (ssl->options.cipherSuite0 == CHACHA_BYTE) {
+    
+    switch (ssl->options.cipherSuite) {
+#ifdef BUILD_TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256
+    case TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256:
+        ssl->specs.bulk_cipher_algorithm = cyassl_chacha;
+        ssl->specs.cipher_type           = aead;
+        ssl->specs.mac_algorithm         = sha256_mac;
+        ssl->specs.kea                   = ecc_diffie_hellman_kea;
+        ssl->specs.sig_algo              = rsa_sa_algo;
+        ssl->specs.hash_size             = SHA256_DIGEST_SIZE;
+        ssl->specs.pad_size              = PAD_SHA;
+        ssl->specs.static_ecdh           = 0;
+        ssl->specs.key_size              = CHACHA20_256_KEY_SIZE;
+        ssl->specs.block_size            = CHACHA20_BLOCK_SIZE;
+        ssl->specs.iv_size               = CHACHA20_IV_SIZE;
+        ssl->specs.aead_mac_size         = POLY1305_AUTH_SZ;
+
+        break;
+#endif
+
+#ifdef BUILD_TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256
+    case TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256:
+        ssl->specs.bulk_cipher_algorithm = cyassl_chacha;
+        ssl->specs.cipher_type           = aead;
+        ssl->specs.mac_algorithm         = sha256_mac;
+        ssl->specs.kea                   = ecc_diffie_hellman_kea;
+        ssl->specs.sig_algo              = ecc_dsa_sa_algo;
+        ssl->specs.hash_size             = SHA256_DIGEST_SIZE;
+        ssl->specs.pad_size              = PAD_SHA;
+        ssl->specs.static_ecdh           = 0;
+        ssl->specs.key_size              = CHACHA20_256_KEY_SIZE;
+        ssl->specs.block_size            = CHACHA20_BLOCK_SIZE;
+        ssl->specs.iv_size               = CHACHA20_IV_SIZE;
+        ssl->specs.aead_mac_size         = POLY1305_AUTH_SZ;
+
+        break;
+#endif
+
+#ifdef BUILD_TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256
+    case TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256:
+        ssl->specs.bulk_cipher_algorithm = cyassl_chacha;
+        ssl->specs.cipher_type           = aead;
+        ssl->specs.mac_algorithm         = sha256_mac;
+        ssl->specs.kea                   = diffie_hellman_kea;
+        ssl->specs.sig_algo              = rsa_sa_algo;
+        ssl->specs.hash_size             = SHA256_DIGEST_SIZE;
+        ssl->specs.pad_size              = PAD_SHA;
+        ssl->specs.static_ecdh           = 0;
+        ssl->specs.key_size              = CHACHA20_256_KEY_SIZE;
+        ssl->specs.block_size            = CHACHA20_BLOCK_SIZE;
+        ssl->specs.iv_size               = CHACHA20_IV_SIZE;
+        ssl->specs.aead_mac_size         = POLY1305_AUTH_SZ;
+
+        break;
+#endif
+    default:
+        CYASSL_MSG("Unsupported cipher suite, SetCipherSpecs ChaCha");
+        return UNSUPPORTED_SUITE;
+    }
+    }
 
     /* ECC extensions, or AES-CCM */
     if (ssl->options.cipherSuite0 == ECC_BYTE) {
@@ -792,7 +855,8 @@ int SetCipherSpecs(CYASSL* ssl)
         return UNSUPPORTED_SUITE;
     }   /* switch */
     }   /* if     */
-    if (ssl->options.cipherSuite0 != ECC_BYTE) {   /* normal suites */
+    if (ssl->options.cipherSuite0 != ECC_BYTE && 
+            ssl->options.cipherSuite0 != CHACHA_BYTE) {   /* normal suites */
     switch (ssl->options.cipherSuite) {
 
 #ifdef BUILD_SSL_RSA_WITH_RC4_128_SHA
@@ -1774,7 +1838,62 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
         dec->setup = 1;
     }
 #endif
+
+#ifdef HAVE_POLY1305
+        /* set up memory space for poly1305 */
+        if (enc->poly1305 == NULL)
+            enc->poly1305 =  (Poly1305*)malloc(sizeof(Poly1305));
+        if (enc->poly1305 == NULL)
+            return MEMORY_E;
+        if (dec->poly1305 == NULL) 
+            dec->poly1305 =
+                (Poly1305*)XMALLOC(sizeof(Poly1305), heap, DYNAMIC_TYPE_CIPHER);
+        if (dec->poly1305 == NULL)
+            return MEMORY_E;
+#endif
     
+#ifdef HAVE_CHACHA
+    if (specs->bulk_cipher_algorithm == cyassl_chacha) {
+        int chachaRet;
+        if (enc->chacha == NULL)
+            enc->chacha =  (ChaCha*)malloc(sizeof(ChaCha));
+        if (enc->chacha == NULL)
+            return MEMORY_E;
+        if (dec->chacha == NULL) 
+            dec->chacha =
+                    (ChaCha*)XMALLOC(sizeof(ChaCha), heap, DYNAMIC_TYPE_CIPHER);
+        if (dec->chacha == NULL)
+            return MEMORY_E;
+        if (side == CYASSL_CLIENT_END) {
+            chachaRet = Chacha_SetKey(enc->chacha, keys->client_write_key,
+                                  specs->key_size);
+            XMEMCPY(keys->aead_enc_imp_IV,
+                                     keys->client_write_IV, AEAD_IMP_IV_SZ);
+            if (chachaRet != 0) return chachaRet;
+            chachaRet = Chacha_SetKey(dec->chacha, keys->server_write_key,
+                                  specs->key_size);
+            XMEMCPY(keys->aead_dec_imp_IV,
+                                     keys->server_write_IV, AEAD_IMP_IV_SZ);
+            if (chachaRet != 0) return chachaRet;
+        }
+        else {
+            chachaRet = Chacha_SetKey(enc->chacha, keys->server_write_key,
+                                  specs->key_size);
+            XMEMCPY(keys->aead_enc_imp_IV,
+                                     keys->server_write_IV, AEAD_IMP_IV_SZ);
+            if (chachaRet != 0) return chachaRet;
+            chachaRet = Chacha_SetKey(dec->chacha, keys->client_write_key,
+                                  specs->key_size);
+            XMEMCPY(keys->aead_dec_imp_IV,
+                                     keys->client_write_IV, AEAD_IMP_IV_SZ);
+            if (chachaRet != 0) return chachaRet;
+        }
+
+        enc->setup = 1;
+        dec->setup = 1;
+    }
+#endif
+
 #ifdef HAVE_HC128
     if (specs->bulk_cipher_algorithm == cyassl_hc128) {
         int hcRet;

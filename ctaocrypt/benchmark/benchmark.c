@@ -34,7 +34,9 @@
 #include <cyassl/ctaocrypt/arc4.h>
 #include <cyassl/ctaocrypt/hc128.h>
 #include <cyassl/ctaocrypt/rabbit.h>
+#include <cyassl/ctaocrypt/chacha.h>
 #include <cyassl/ctaocrypt/aes.h>
+#include <cyassl/ctaocrypt/poly1305.h>
 #include <cyassl/ctaocrypt/camellia.h>
 #include <cyassl/ctaocrypt/md5.h>
 #include <cyassl/ctaocrypt/sha.h>
@@ -85,10 +87,12 @@ void bench_des(void);
 void bench_arc4(void);
 void bench_hc128(void);
 void bench_rabbit(void);
+void bench_chacha(void);
 void bench_aes(int);
 void bench_aesgcm(void);
 void bench_aesccm(void);
 void bench_aesctr(void);
+void bench_poly1305(void);
 void bench_camellia(void);
 
 void bench_md5(void);
@@ -189,6 +193,9 @@ int benchmark_test(void *args)
 #ifndef NO_RABBIT
     bench_rabbit();
 #endif
+#ifdef HAVE_CHACHA
+    bench_chacha();
+#endif
 #ifndef NO_DES3
     bench_des();
 #endif
@@ -197,6 +204,9 @@ int benchmark_test(void *args)
 
 #ifndef NO_MD5
     bench_md5();
+#endif
+#ifdef HAVE_POLY1305
+    bench_poly1305();
 #endif
 #ifndef NO_SHA
     bench_sha();
@@ -425,6 +435,41 @@ void bench_aesccm(void)
 #endif
 
 
+#ifdef HAVE_POLY1305
+void bench_poly1305()
+{
+    Poly1305    enc;
+    byte   mac[16];
+    double start, total, persec;
+    int    i;
+    int    ret;
+
+
+    ret = Poly1305SetKey(&enc, key, 32);
+    if (ret != 0) {
+        printf("Poly1305SetKey failed, ret = %d\n", ret);
+        return;
+    }
+    start = current_time(1);
+
+    for(i = 0; i < numBlocks; i++)
+        Poly1305Update(&enc, plain, sizeof(plain));
+
+    Poly1305Final(&enc, mac);
+    total = current_time(0) - start;
+
+    persec = 1 / total * numBlocks;
+#ifdef BENCH_EMBEDDED
+    /* since using kB, convert to MB/s */
+    persec = persec / 1024;
+#endif
+
+        printf("POLY1305 %d %s took %5.3f seconds, %7.3f MB/s\n", numBlocks,
+                                                  blockType, total, persec);
+}
+#endif /* HAVE_POLY1305 */
+
+
 #ifdef HAVE_CAMELLIA
 void bench_camellia(void)
 {
@@ -578,6 +623,33 @@ void bench_rabbit(void)
                                               blockType, total, persec);
 }
 #endif /* NO_RABBIT */
+
+
+#ifdef HAVE_CHACHA
+void bench_chacha(void)
+{
+    ChaCha enc;
+    double start, total, persec;
+    int    i;
+
+    Chacha_SetKey(&enc, key, 16);
+    start = current_time(1);
+
+    for (i = 0; i < numBlocks; i++) {
+        Chacha_SetIV(&enc, iv, 0);
+        Chacha_Process(&enc, cipher, plain, sizeof(plain));
+    }
+    total = current_time(0) - start;
+    persec = 1 / total * numBlocks;
+#ifdef BENCH_EMBEDDED
+    /* since using kB, convert to MB/s */
+    persec = persec / 1024;
+#endif
+
+    printf("CHACHA   %d %s took %5.3f seconds, %7.3f MB/s\n", numBlocks, blockType, total, persec);
+
+}
+#endif /* HAVE_CHACHA*/
 
 
 #ifndef NO_MD5

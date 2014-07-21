@@ -622,6 +622,15 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
     else {
         tcp_connect(&sockfd, host, port, 0);
     }
+
+#ifdef HAVE_POLY1305
+    /* use old poly to connect with google server */
+    if (!XSTRNCMP(domain, "www.google.com", 14)) {
+        if (CyaSSL_use_old_poly(ssl, 1) != 0)
+            err_sys("unable to set to old poly");
+    }
+#endif
+
     CyaSSL_set_fd(ssl, sockfd);
 #ifdef HAVE_CRL
     if (CyaSSL_EnableCRL(ssl, CYASSL_CRL_CHECKALL) != SSL_SUCCESS)
