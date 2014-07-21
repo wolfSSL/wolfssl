@@ -109,6 +109,7 @@ void bench_eccKeyGen(void);
 void bench_eccKeyAgree(void);
 #endif
 #ifdef HAVE_NTRU
+void bench_ntru(void);
 void bench_ntruKeyGen(void);
 #endif
 
@@ -228,6 +229,10 @@ int benchmark_test(void *args)
 
 #ifndef NO_RSA
     bench_rsa();
+#endif
+
+#ifdef HAVE_NTRU
+    bench_ntru();
 #endif
 
 #ifndef NO_DH
@@ -1136,6 +1141,131 @@ byte GetEntropy(ENTROPY_CMD cmd, byte* out)
 
     return 0;
 }
+
+void bench_ntru(void)
+{
+    int    i;
+    double start, total, each, milliEach;
+
+    byte   public_key[557];
+    word16 public_key_len = sizeof(public_key);
+    byte   private_key[607];
+    word16 private_key_len = sizeof(private_key);
+
+    byte ciphertext[552];
+    word16 ciphertext_len;
+    byte plaintext[16];
+    word16 plaintext_len;
+
+    DRBG_HANDLE drbg;
+    static byte const aes_key[] = {
+        0xf3, 0xe9, 0x87, 0xbb, 0x18, 0x08, 0x3c, 0xaa,
+        0x7b, 0x12, 0x49, 0x88, 0xaf, 0xb3, 0x22, 0xd8
+    };
+
+    static byte const cyasslStr[] = {
+        'C', 'y', 'a', 'S', 'S', 'L', ' ', 'N', 'T', 'R', 'U'
+    };
+
+    word32 rc = ntru_crypto_drbg_instantiate(112, cyasslStr, sizeof(cyasslStr),
+                                            (ENTROPY_FN) GetEntropy, &drbg);
+    if(rc != DRBG_OK) {
+        printf("NTRU drbg instantiate failed\n");
+        return;
+    }
+
+    rc = ntru_crypto_ntru_encrypt_keygen(drbg, NTRU_EES401EP2, 
+        &public_key_len, NULL, &private_key_len, NULL);
+    if (rc != NTRU_OK) {
+        ntru_crypto_drbg_uninstantiate(drbg);
+        printf("NTRU failed to get key lengths\n");
+        return;
+    }
+
+    rc = ntru_crypto_ntru_encrypt_keygen(drbg, NTRU_EES401EP2, &public_key_len,
+                                     public_key, &private_key_len, 
+                                     private_key);
+
+    ntru_crypto_drbg_uninstantiate(drbg);
+
+    if (rc != NTRU_OK) {
+        ntru_crypto_drbg_uninstantiate(drbg);
+        printf("NTRU keygen failed\n");
+        return;
+    }
+
+    rc = ntru_crypto_drbg_instantiate(112, NULL, 0, (ENTROPY_FN)GetEntropy,
+                                      &drbg);
+    if (rc != DRBG_OK) {
+        printf("NTRU error occurred during DRBG instantiation\n");
+        return;
+    }
+
+    rc = ntru_crypto_ntru_encrypt(drbg, public_key_len, public_key, sizeof(
+        aes_key), aes_key, &ciphertext_len, NULL);
+
+    if (rc != NTRU_OK) {
+        printf("NTRU error occurred requesting the buffer size needed\n");
+        return;
+    }
+    start = current_time(1);
+
+    for (i = 0; i < ntimes; i++) {
+
+        rc = ntru_crypto_ntru_encrypt(drbg, public_key_len, public_key, sizeof(
+            aes_key), aes_key, &ciphertext_len, ciphertext);
+
+        if (rc != NTRU_OK) {
+            printf("NTRU encrypt error\n");
+            return;
+        }
+
+    }
+    rc = ntru_crypto_drbg_uninstantiate(drbg);
+
+    if (rc != DRBG_OK) {
+        printf("NTRU error occurred uninstantiating the DRBG\n");
+        return;
+    }
+
+    total = current_time(0) - start;
+    each  = total / ntimes;   /* per second   */
+    milliEach = each * 1000; /* milliseconds */
+
+    printf("NTRU 112 encryption took %6.3f milliseconds, avg over %d"
+           " iterations\n", milliEach, ntimes);
+
+
+    rc = ntru_crypto_ntru_decrypt(private_key_len, private_key, ciphertext_len,
+                                  ciphertext, &plaintext_len, NULL);
+
+    if (rc != NTRU_OK) {
+        printf("NTRU decrypt error occurred getting the buffer size needed\n");
+        return;
+    }
+
+    plaintext_len = sizeof(plaintext);
+    start = current_time(1);
+
+    for (i = 0; i < ntimes; i++) {
+        rc = ntru_crypto_ntru_decrypt(private_key_len, private_key,
+                                      ciphertext_len, ciphertext,
+                                      &plaintext_len, plaintext);
+
+        if (rc != NTRU_OK) {
+            printf("NTRU error occurred decrypting the key\n");
+            return;
+        }
+    }
+
+    total = current_time(0) - start;
+    each  = total / ntimes;   /* per second   */
+    milliEach = each * 1000; /* milliseconds */
+
+    printf("NTRU 112 decryption took %6.3f milliseconds, avg over %d"
+           " iterations\n", milliEach, ntimes);
+}
+
 void bench_ntruKeyGen(void)
 {
     double start, total, each, milliEach;
@@ -1162,7 +1292,8 @@ void bench_ntruKeyGen(void)
 
     for(i = 0; i < genTimes; i++) {
         ntru_crypto_ntru_encrypt_keygen(drbg, NTRU_EES401EP2, &public_key_len,
-                                     public_key, &private_key_len, private_key);
+                                     public_key, &private_key_len, 
+                                     private_key);
     }
 
     total = current_time(0) - start;
