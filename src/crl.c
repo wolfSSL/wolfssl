@@ -314,47 +314,73 @@ int BufferLoadCRL(CYASSL_CRL* crl, const byte* buff, long sz, int type)
 static int SwapLists(CYASSL_CRL* crl)
 {
     int        ret;
-    CYASSL_CRL tmp;
     CRL_Entry* newList;
+#ifdef CYASSL_SMALL_STACK
+    CYASSL_CRL* tmp;    
+#else
+    CYASSL_CRL tmp[1];
+#endif
+    
+#ifdef CYASSL_SMALL_STACK
+    tmp = (CYASSL_CRL*)XMALLOC(sizeof(CYASSL_CRL), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (tmp == NULL)
+        return MEMORY_E;
+#endif   
 
-    if (InitCRL(&tmp, crl->cm) < 0) {
+    if (InitCRL(tmp, crl->cm) < 0) {
         CYASSL_MSG("Init tmp CRL failed");
+#ifdef CYASSL_SMALL_STACK
+        XFREE(tmp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
         return -1;
     }
 
     if (crl->monitors[0].path) {
-        ret = LoadCRL(&tmp, crl->monitors[0].path, SSL_FILETYPE_PEM, 0);
+        ret = LoadCRL(tmp, crl->monitors[0].path, SSL_FILETYPE_PEM, 0);
         if (ret != SSL_SUCCESS) {
             CYASSL_MSG("PEM LoadCRL on dir change failed");
-            FreeCRL(&tmp, 0);
+            FreeCRL(tmp, 0);
+#ifdef CYASSL_SMALL_STACK
+            XFREE(tmp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
             return -1;
         }
     }
 
     if (crl->monitors[1].path) {
-        ret = LoadCRL(&tmp, crl->monitors[1].path, SSL_FILETYPE_ASN1, 0);
+        ret = LoadCRL(tmp, crl->monitors[1].path, SSL_FILETYPE_ASN1, 0);
         if (ret != SSL_SUCCESS) {
             CYASSL_MSG("DER LoadCRL on dir change failed");
-            FreeCRL(&tmp, 0);
+            FreeCRL(tmp, 0);
+#ifdef CYASSL_SMALL_STACK
+            XFREE(tmp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
             return -1;
         }
     }
 
     if (LockMutex(&crl->crlLock) != 0) {
         CYASSL_MSG("LockMutex failed");
-        FreeCRL(&tmp, 0);
+        FreeCRL(tmp, 0);
+#ifdef CYASSL_SMALL_STACK
+        XFREE(tmp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
         return -1;
     }
 
-    newList = tmp.crlList;
+    newList = tmp->crlList;
 
     /* swap lists */
-    tmp.crlList  = crl->crlList;
+    tmp->crlList  = crl->crlList;
     crl->crlList = newList;
 
     UnLockMutex(&crl->crlLock);
 
-    FreeCRL(&tmp, 0);
+    FreeCRL(tmp, 0);
+
+#ifdef CYASSL_SMALL_STACK
+    XFREE(tmp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 
     return 0;
 }
