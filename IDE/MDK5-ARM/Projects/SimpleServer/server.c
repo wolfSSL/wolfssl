@@ -164,9 +164,9 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     int    fewerPackets = 0;
     int    pkCallbacks  = 0;
     char*  cipherList = NULL;
-    char*  verifyCert = (char*)cliCert;
-    char*  ourCert    = (char*)svrCert;
-    char*  ourKey     = (char*)svrKey;
+    const char* verifyCert = cliCert;
+    const char* ourCert    = svrCert;
+    const char* ourKey     = svrKey;
     int    argc = ((func_args*)args)->argc;
     char** argv = ((func_args*)args)->argv;
 
@@ -480,10 +480,10 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
         CloseSocket(sockfd);
 
     SSL_set_fd(ssl, clientfd);
-    if (usePsk == 0) {
-        #if !defined(NO_FILESYSTEM) && defined(OPENSSL_EXTRA)
+    if (usePsk == 0 || cipherList != NULL) {
+        #if !defined(NO_FILESYSTEM) && !defined(NO_DH)
             CyaSSL_SetTmpDH_file(ssl, dhParam, SSL_FILETYPE_PEM);
-        #elif !defined(NO_CERTS)
+        #elif !defined(NO_DH)
             SetDH(ssl);  /* repick suites with DHE, higher priority than PSK */
         #endif
     }
