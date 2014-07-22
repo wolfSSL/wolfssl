@@ -82,7 +82,7 @@ char* myoptarg = NULL;
 
 int main() 
 {
-    void *args = NULL ;
+    func_args args = { 0 } ;
     init_filesystem ();
     net_initialize() ;
     osThreadCreate (osThread (tcp_poll), NULL); 
@@ -93,6 +93,6 @@ int main()
     #endif
 
         printf("echoserver: Started\n") ;
-    echoserver_test(args) ;
+    echoserver_test(&args) ;
     printf("echoserver: Terminated\n") ;
 }
