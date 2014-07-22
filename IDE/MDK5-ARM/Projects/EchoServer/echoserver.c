@@ -115,7 +115,7 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
 #endif
 
     #if defined(NO_MAIN_DRIVER) && !defined(USE_WINDOWS_API) && \
-                      !defined(CYASSL_SNIFFER) && !defined(CYASSL_MDK_SHELL)
+                      !defined(CYASSL_SNIFFER) && !defined(CYASSL_MDK_ARM)
         port = 0;
     #endif
     #if defined(USE_ANY_ADDR)
@@ -227,9 +227,9 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
         ssl = CyaSSL_new(ctx);
         if (ssl == NULL) err_sys("SSL_new failed");
         CyaSSL_set_fd(ssl, clientfd);
-        #if !defined(NO_FILESYSTEM) && defined(OPENSSL_EXTRA)
+        #if !defined(NO_FILESYSTEM) && !defined(NO_DH)
             CyaSSL_SetTmpDH_file(ssl, dhParam, SSL_FILETYPE_PEM);
-        #elif !defined(NO_CERTS)
+        #elif !defined(NO_DH)
             SetDH(ssl);  /* will repick suites with DHE, higher than PSK */
         #endif
         if (CyaSSL_accept(ssl) != SSL_SUCCESS) {

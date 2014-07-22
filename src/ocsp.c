@@ -107,14 +107,20 @@ int CheckCertOCSP(CYASSL_OCSP* ocsp, DecodedCert* cert)
     byte* ocspReqBuf = NULL;
     int ocspReqSz = 2048;
     byte* ocspRespBuf = NULL;
-    OcspRequest ocspRequest;
-    OcspResponse ocspResponse;
     int result = -1;
     OCSP_Entry* ocspe;
     CertStatus* certStatus = NULL;
-    CertStatus newStatus;
     const char *url;
     int urlSz;
+#ifdef CYASSL_SMALL_STACK
+    CertStatus* newStatus;
+    OcspRequest* ocspRequest;
+    OcspResponse* ocspResponse;
+#else
+    CertStatus newStatus[1];
+    OcspRequest ocspRequest[1];
+    OcspResponse ocspResponse[1];
+#endif
 
     CYASSL_ENTER("CheckCertOCSP");
 
@@ -197,38 +203,59 @@ int CheckCertOCSP(CYASSL_OCSP* ocsp, DecodedCert* cert)
         CYASSL_LEAVE("CheckCertOCSP", MEMORY_ERROR);
         return MEMORY_ERROR;
     }
-    InitOcspRequest(&ocspRequest, cert, ocsp->cm->ocspSendNonce,
+
+#ifdef CYASSL_SMALL_STACK
+    newStatus = (CertStatus*)XMALLOC(sizeof(CertStatus), NULL,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+    ocspRequest = (OcspRequest*)XMALLOC(sizeof(OcspRequest), NULL,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+    ocspResponse = (OcspResponse*)XMALLOC(sizeof(OcspResponse), NULL,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+
+    if (newStatus == NULL || ocspRequest == NULL || ocspResponse == NULL) {
+        if (newStatus)    XFREE(newStatus,    NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        if (ocspRequest)  XFREE(ocspRequest,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        if (ocspResponse) XFREE(ocspResponse, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+        XFREE(ocspReqBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+        CYASSL_LEAVE("CheckCertOCSP", MEMORY_ERROR);
+        return MEMORY_E;
+    }
+#endif
+
+    InitOcspRequest(ocspRequest, cert, ocsp->cm->ocspSendNonce,
                                                          ocspReqBuf, ocspReqSz);
-    ocspReqSz = EncodeOcspRequest(&ocspRequest);
+    ocspReqSz = EncodeOcspRequest(ocspRequest);
     
     if (ocsp->cm->ocspIOCb)
         result = ocsp->cm->ocspIOCb(ocsp->cm->ocspIOCtx, url, urlSz,
                                            ocspReqBuf, ocspReqSz, &ocspRespBuf);
 
     if (result >= 0 && ocspRespBuf) {
-        XMEMSET(&newStatus, 0, sizeof(CertStatus));
+        XMEMSET(newStatus, 0, sizeof(CertStatus));
 
-        InitOcspResponse(&ocspResponse, &newStatus, ocspRespBuf, result);
-        OcspResponseDecode(&ocspResponse);
+        InitOcspResponse(ocspResponse, newStatus, ocspRespBuf, result);
+        OcspResponseDecode(ocspResponse);
     
-        if (ocspResponse.responseStatus != OCSP_SUCCESSFUL)
+        if (ocspResponse->responseStatus != OCSP_SUCCESSFUL)
             result = OCSP_LOOKUP_FAIL;
         else {
-            if (CompareOcspReqResp(&ocspRequest, &ocspResponse) == 0) {
-                result = xstat2err(ocspResponse.status->status);
+            if (CompareOcspReqResp(ocspRequest, ocspResponse) == 0) {
+                result = xstat2err(ocspResponse->status->status);
 
                 if (LockMutex(&ocsp->ocspLock) != 0)
                     result = BAD_MUTEX_E;
                 else {
                     if (certStatus != NULL)
                         /* Replace existing certificate entry with updated */
-                        XMEMCPY(certStatus, &newStatus, sizeof(CertStatus));
+                        XMEMCPY(certStatus, newStatus, sizeof(CertStatus));
                     else {
                         /* Save new certificate entry */
                         certStatus = (CertStatus*)XMALLOC(sizeof(CertStatus),
                                           NULL, DYNAMIC_TYPE_OCSP_STATUS);
                         if (certStatus != NULL) {
-                            XMEMCPY(certStatus, &newStatus, sizeof(CertStatus));
+                            XMEMCPY(certStatus, newStatus, sizeof(CertStatus));
                             certStatus->next = ocspe->status;
                             ocspe->status = certStatus;
                             ocspe->totalStatus++;
@@ -245,8 +272,13 @@ int CheckCertOCSP(CYASSL_OCSP* ocsp, DecodedCert* cert)
     else
         result = OCSP_LOOKUP_FAIL;
 
-    if (ocspReqBuf != NULL)
-        XFREE(ocspReqBuf, NULL, DYNAMIC_TYPE_IN_BUFFER);
+    XFREE(ocspReqBuf, NULL, DYNAMIC_TYPE_IN_BUFFER);
+
+#ifdef CYASSL_SMALL_STACK
+    XFREE(newStatus,    NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(ocspRequest,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(ocspResponse, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 
     if (ocspRespBuf != NULL && ocsp->cm->ocspRespFreeCb)
         ocsp->cm->ocspRespFreeCb(ocsp->cm->ocspIOCtx, ocspRespBuf);

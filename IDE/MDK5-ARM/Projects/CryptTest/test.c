@@ -101,7 +101,7 @@
 #endif
 
 #ifdef HAVE_NTRU
-    #include "crypto_ntru.h"
+    #include "ntru_crypto.h"
 #endif
 #ifdef HAVE_CAVIUM
     #include "cavium_sysdep.h"
@@ -1149,9 +1149,11 @@ int hmac_md5_test(void)
     test_hmac[2] = c;
 
     for (i = 0; i < times; ++i) {
-#ifdef HAVE_CAVIUM
+#if defined(HAVE_FIPS) || defined(HAVE_CAVIUM)
         if (i == 1)
-            continue; /* driver can't handle keys <= bytes */
+            continue; /* cavium can't handle short keys, fips not allowed */
+#endif
+#ifdef HAVE_CAVIUM
         if (HmacInitCavium(&hmac, CAVIUM_DEV_ID) != 0)
             return -20009;
 #endif
@@ -1224,9 +1226,11 @@ int hmac_sha_test(void)
     test_hmac[2] = c;
 
     for (i = 0; i < times; ++i) {
-#ifdef HAVE_CAVIUM
+#if defined(HAVE_FIPS) || defined(HAVE_CAVIUM)
         if (i == 1)
-            continue; /* driver can't handle keys <= bytes */
+            continue; /* cavium can't handle short keys, fips not allowed */
+#endif
+#ifdef HAVE_CAVIUM
         if (HmacInitCavium(&hmac, CAVIUM_DEV_ID) != 0)
             return -20010;
 #endif
@@ -1303,9 +1307,11 @@ int hmac_sha256_test(void)
     test_hmac[2] = c;
 
     for (i = 0; i < times; ++i) {
-#ifdef HAVE_CAVIUM
+#if defined(HAVE_FIPS) || defined(HAVE_CAVIUM)
         if (i == 1)
-            continue; /* driver can't handle keys <= bytes */
+            continue; /* cavium can't handle short keys, fips not allowed */
+#endif
+#ifdef HAVE_CAVIUM
         if (HmacInitCavium(&hmac, CAVIUM_DEV_ID) != 0)
             return -20011;
 #endif
@@ -1382,9 +1388,11 @@ int hmac_blake2b_test(void)
     test_hmac[2] = c;
 
     for (i = 0; i < times; ++i) {
-#ifdef HAVE_CAVIUM
+#if defined(HAVE_FIPS) || defined(HAVE_CAVIUM)
         if (i == 1)
-            continue; /* driver can't handle keys <= bytes */
+            continue; /* cavium can't handle short keys, fips not allowed */
+#endif
+#ifdef HAVE_CAVIUM
         if (HmacInitCavium(&hmac, CAVIUM_DEV_ID) != 0)
             return -20011;
 #endif
@@ -1465,6 +1473,10 @@ int hmac_sha384_test(void)
     test_hmac[2] = c;
 
     for (i = 0; i < times; ++i) {
+#if defined(HAVE_FIPS)
+        if (i == 1)
+            continue; /* fips not allowed */
+#endif
         ret = HmacSetKey(&hmac, SHA384, (byte*)keys[i],(word32)strlen(keys[i]));
         if (ret != 0)
             return -4027;
@@ -1541,6 +1553,10 @@ int hmac_sha512_test(void)
     test_hmac[2] = c;
 
     for (i = 0; i < times; ++i) {
+#if defined(HAVE_FIPS)
+        if (i == 1)
+            continue; /* fips not allowed */
+#endif
         ret = HmacSetKey(&hmac, SHA512, (byte*)keys[i],(word32)strlen(keys[i]));
         if (ret != 0)
             return -4030;
@@ -2581,6 +2597,74 @@ int camellia_test(void)
 #endif /* HAVE_CAMELLIA */
 
 
+#if defined(HAVE_HASHDRBG) || defined(NO_RC4)
+
+int random_test(void)
+{
+    const byte test1Entropy[] =
+    {
+        0xa6, 0x5a, 0xd0, 0xf3, 0x45, 0xdb, 0x4e, 0x0e, 0xff, 0xe8, 0x75, 0xc3,
+        0xa2, 0xe7, 0x1f, 0x42, 0xc7, 0x12, 0x9d, 0x62, 0x0f, 0xf5, 0xc1, 0x19,
+        0xa9, 0xef, 0x55, 0xf0, 0x51, 0x85, 0xe0, 0xfb, 0x85, 0x81, 0xf9, 0x31,
+        0x75, 0x17, 0x27, 0x6e, 0x06, 0xe9, 0x60, 0x7d, 0xdb, 0xcb, 0xcc, 0x2e
+    };
+    const byte test1Output[] =
+    {
+        0xd3, 0xe1, 0x60, 0xc3, 0x5b, 0x99, 0xf3, 0x40, 0xb2, 0x62, 0x82, 0x64,
+        0xd1, 0x75, 0x10, 0x60, 0xe0, 0x04, 0x5d, 0xa3, 0x83, 0xff, 0x57, 0xa5,
+        0x7d, 0x73, 0xa6, 0x73, 0xd2, 0xb8, 0xd8, 0x0d, 0xaa, 0xf6, 0xa6, 0xc3,
+        0x5a, 0x91, 0xbb, 0x45, 0x79, 0xd7, 0x3f, 0xd0, 0xc8, 0xfe, 0xd1, 0x11,
+        0xb0, 0x39, 0x13, 0x06, 0x82, 0x8a, 0xdf, 0xed, 0x52, 0x8f, 0x01, 0x81,
+        0x21, 0xb3, 0xfe, 0xbd, 0xc3, 0x43, 0xe7, 0x97, 0xb8, 0x7d, 0xbb, 0x63,
+        0xdb, 0x13, 0x33, 0xde, 0xd9, 0xd1, 0xec, 0xe1, 0x77, 0xcf, 0xa6, 0xb7,
+        0x1f, 0xe8, 0xab, 0x1d, 0xa4, 0x66, 0x24, 0xed, 0x64, 0x15, 0xe5, 0x1c,
+        0xcd, 0xe2, 0xc7, 0xca, 0x86, 0xe2, 0x83, 0x99, 0x0e, 0xea, 0xeb, 0x91,
+        0x12, 0x04, 0x15, 0x52, 0x8b, 0x22, 0x95, 0x91, 0x02, 0x81, 0xb0, 0x2d,
+        0xd4, 0x31, 0xf4, 0xc9, 0xf7, 0x04, 0x27, 0xdf
+    };
+    const byte test2EntropyA[] =
+    {
+        0x63, 0x36, 0x33, 0x77, 0xe4, 0x1e, 0x86, 0x46, 0x8d, 0xeb, 0x0a, 0xb4,
+        0xa8, 0xed, 0x68, 0x3f, 0x6a, 0x13, 0x4e, 0x47, 0xe0, 0x14, 0xc7, 0x00,
+        0x45, 0x4e, 0x81, 0xe9, 0x53, 0x58, 0xa5, 0x69, 0x80, 0x8a, 0xa3, 0x8f,
+        0x2a, 0x72, 0xa6, 0x23, 0x59, 0x91, 0x5a, 0x9f, 0x8a, 0x04, 0xca, 0x68
+    };
+    const byte test2EntropyB[] =
+    {
+        0xe6, 0x2b, 0x8a, 0x8e, 0xe8, 0xf1, 0x41, 0xb6, 0x98, 0x05, 0x66, 0xe3,
+        0xbf, 0xe3, 0xc0, 0x49, 0x03, 0xda, 0xd4, 0xac, 0x2c, 0xdf, 0x9f, 0x22,
+        0x80, 0x01, 0x0a, 0x67, 0x39, 0xbc, 0x83, 0xd3
+    };
+    const byte test2Output[] =
+    {
+        0x04, 0xee, 0xc6, 0x3b, 0xb2, 0x31, 0xdf, 0x2c, 0x63, 0x0a, 0x1a, 0xfb,
+        0xe7, 0x24, 0x94, 0x9d, 0x00, 0x5a, 0x58, 0x78, 0x51, 0xe1, 0xaa, 0x79,
+        0x5e, 0x47, 0x73, 0x47, 0xc8, 0xb0, 0x56, 0x62, 0x1c, 0x18, 0xbd, 0xdc,
+        0xdd, 0x8d, 0x99, 0xfc, 0x5f, 0xc2, 0xb9, 0x20, 0x53, 0xd8, 0xcf, 0xac,
+        0xfb, 0x0b, 0xb8, 0x83, 0x12, 0x05, 0xfa, 0xd1, 0xdd, 0xd6, 0xc0, 0x71,
+        0x31, 0x8a, 0x60, 0x18, 0xf0, 0x3b, 0x73, 0xf5, 0xed, 0xe4, 0xd4, 0xd0,
+        0x71, 0xf9, 0xde, 0x03, 0xfd, 0x7a, 0xea, 0x10, 0x5d, 0x92, 0x99, 0xb8,
+        0xaf, 0x99, 0xaa, 0x07, 0x5b, 0xdb, 0x4d, 0xb9, 0xaa, 0x28, 0xc1, 0x8d,
+        0x17, 0x4b, 0x56, 0xee, 0x2a, 0x01, 0x4d, 0x09, 0x88, 0x96, 0xff, 0x22,
+        0x82, 0xc9, 0x55, 0xa8, 0x19, 0x69, 0xe0, 0x69, 0xfa, 0x8c, 0xe0, 0x07,
+        0xa1, 0x80, 0x18, 0x3a, 0x07, 0xdf, 0xae, 0x17
+    };
+    int ret;
+
+    ret = RNG_HealthTest(0, test1Entropy, sizeof(test1Entropy), NULL, 0,
+                            test1Output, sizeof(test1Output));
+    if (ret != 0) return -39;
+
+    ret = RNG_HealthTest(1, test2EntropyA, sizeof(test2EntropyA),
+                            test2EntropyB, sizeof(test2EntropyB),
+                            test2Output, sizeof(test2Output));
+    if (ret != 0) return -40;
+
+    return 0;
+}
+
+#else /* HAVE_HASHDRBG || NO_RC4 */
+
 int random_test(void)
 {
     RNG  rng;
@@ -2599,6 +2683,8 @@ int random_test(void)
 
     return 0;
 }
+
+#endif /* HAVE_HASHDRBG || NO_RC4 */
 
 
 #ifdef HAVE_NTRU
@@ -2788,8 +2874,8 @@ int rsa_test(void)
         int    pemSz = 0;
         RsaKey derIn;
         RsaKey genKey;
-        FILE* keyFile;
-        FILE* pemFile;
+        FILE*  keyFile;
+        FILE*  pemFile;
 
         ret = InitRsaKey(&genKey, 0);
         if (ret != 0)
@@ -2983,7 +3069,7 @@ int rsa_test(void)
         int         pemSz;
         size_t      bytes3;
         word32      idx3 = 0;
-			  FILE* file3 ;
+        FILE*       file3 ;
 #ifdef CYASSL_TEST_CERT
         DecodedCert decode;
 #endif
@@ -3284,30 +3370,38 @@ int rsa_test(void)
         static uint8_t const pers_str[] = {
                 'C', 'y', 'a', 'S', 'S', 'L', ' ', 't', 'e', 's', 't'
         };
-        word32 rc = crypto_drbg_instantiate(112, pers_str, sizeof(pers_str),
-                                            GetEntropy, &drbg);
+        word32 rc = ntru_crypto_drbg_instantiate(112, pers_str,
+                          sizeof(pers_str), GetEntropy, &drbg);
         if (rc != DRBG_OK) {
+            free(derCert);
+            free(pem);
+            return -448;
+        }
+
+        rc = ntru_crypto_ntru_encrypt_keygen(drbg, NTRU_EES401EP2,
+                                             &public_key_len, NULL,
+                                             &private_key_len, NULL);
+        if (rc != NTRU_OK) {
+            free(derCert);
+            free(pem);
+            return -449;
+        }
+
+        rc = ntru_crypto_ntru_encrypt_keygen(drbg, NTRU_EES401EP2,
+                                             &public_key_len, public_key,
+                                             &private_key_len, private_key);
+        if (rc != NTRU_OK) {
             free(derCert);
             free(pem);
             return -450;
         }
 
-        rc = crypto_ntru_encrypt_keygen(drbg, NTRU_EES401EP2, &public_key_len,
-                                        NULL, &private_key_len, NULL);
+        rc = ntru_crypto_drbg_uninstantiate(drbg);
+
         if (rc != NTRU_OK) {
             free(derCert);
             free(pem);
             return -451;
-        }
-
-        rc = crypto_ntru_encrypt_keygen(drbg, NTRU_EES401EP2, &public_key_len,
-                                     public_key, &private_key_len, private_key);
-        crypto_drbg_uninstantiate(drbg);
-
-        if (rc != NTRU_OK) {
-            free(derCert);
-            free(pem);
-            return -452;
         }
 
         caFile = fopen(caKeyFile, "rb");
@@ -3315,7 +3409,7 @@ int rsa_test(void)
         if (!caFile) {
             free(derCert);
             free(pem);
-            return -453;
+            return -452;
         }
 
         bytes = fread(tmp, 1, FOURK_BUF, caFile);
@@ -3325,7 +3419,7 @@ int rsa_test(void)
         if (ret != 0) {
             free(derCert);
             free(pem);
-            return -459;
+            return -453;
         }
         ret = RsaPrivateKeyDecode(tmp, &idx3, &caKey, (word32)bytes);
         if (ret != 0) {
@@ -3702,7 +3796,7 @@ int openssl_test(void)
     EVP_MD_CTX_init(&md_ctx);
     EVP_DigestInit(&md_ctx, EVP_md5());
 
-    EVP_DigestUpdate(&md_ctx, a.input, a.inLen);
+    EVP_DigestUpdate(&md_ctx, a.input, (unsigned long)a.inLen);
     EVP_DigestFinal(&md_ctx, hash, 0);
 
     if (memcmp(hash, a.output, MD5_DIGEST_SIZE) != 0)
@@ -3719,7 +3813,7 @@ int openssl_test(void)
     EVP_MD_CTX_init(&md_ctx);
     EVP_DigestInit(&md_ctx, EVP_sha1());
 
-    EVP_DigestUpdate(&md_ctx, b.input, b.inLen);
+    EVP_DigestUpdate(&md_ctx, b.input, (unsigned long)b.inLen);
     EVP_DigestFinal(&md_ctx, hash, 0);
 
     if (memcmp(hash, b.output, SHA_DIGEST_SIZE) != 0)
@@ -3736,7 +3830,7 @@ int openssl_test(void)
     EVP_MD_CTX_init(&md_ctx);
     EVP_DigestInit(&md_ctx, EVP_sha256());
 
-    EVP_DigestUpdate(&md_ctx, d.input, d.inLen);
+    EVP_DigestUpdate(&md_ctx, d.input, (unsigned long)d.inLen);
     EVP_DigestFinal(&md_ctx, hash, 0);
 
     if (memcmp(hash, d.output, SHA256_DIGEST_SIZE) != 0)
@@ -3780,7 +3874,7 @@ int openssl_test(void)
     EVP_MD_CTX_init(&md_ctx);
     EVP_DigestInit(&md_ctx, EVP_sha512());
 
-    EVP_DigestUpdate(&md_ctx, f.input, f.inLen);
+    EVP_DigestUpdate(&md_ctx, f.input, (unsigned long)f.inLen);
     EVP_DigestFinal(&md_ctx, hash, 0);
 
     if (memcmp(hash, f.output, SHA512_DIGEST_SIZE) != 0)
@@ -4055,6 +4149,8 @@ int hkdf_test(void)
     (void)res2;
     (void)res3;
     (void)res4;
+    (void)salt1;
+    (void)info1;
 
 #ifndef NO_SHA
     ret = HKDF(SHA, ikm1, 22, NULL, 0, NULL, 0, okm1, L);
@@ -4064,12 +4160,15 @@ int hkdf_test(void)
     if (memcmp(okm1, res1, L) != 0)
         return -2002;
 
+#ifndef HAVE_FIPS
+    /* fips can't have key size under 14 bytes, salt is key too */
     ret = HKDF(SHA, ikm1, 11, salt1, 13, info1, 10, okm1, L);
     if (ret != 0)
         return -2003;
 
     if (memcmp(okm1, res2, L) != 0)
         return -2004;
+#endif /* HAVE_FIPS */
 #endif /* NO_SHA */
 
 #ifndef NO_SHA256
@@ -4080,12 +4179,15 @@ int hkdf_test(void)
     if (memcmp(okm1, res3, L) != 0)
         return -2006;
 
+#ifndef HAVE_FIPS
+    /* fips can't have key size under 14 bytes, salt is key too */
     ret = HKDF(SHA256, ikm1, 22, salt1, 13, info1, 10, okm1, L);
     if (ret != 0)
         return -2007;
 
     if (memcmp(okm1, res4, L) != 0)
         return -2007;
+#endif /* HAVE_FIPS */
 #endif /* NO_SHA256 */
 
     return 0;
@@ -4263,6 +4365,9 @@ int ecc_encrypt_test(void)
         /* in actual use, we'd get the peer's salt over the transport */
         ret  = ecc_ctx_set_peer_salt(cliCtx, srvSalt);
         ret += ecc_ctx_set_peer_salt(srvCtx, cliSalt);
+
+        ret += ecc_ctx_set_info(cliCtx, (byte*)"CyaSSL MSGE", 11);
+        ret += ecc_ctx_set_info(srvCtx, (byte*)"CyaSSL MSGE", 11);
 
         if (ret != 0)
             return -3008;

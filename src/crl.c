@@ -243,7 +243,11 @@ int BufferLoadCRL(CYASSL_CRL* crl, const byte* buff, long sz, int type)
     int          ret = SSL_SUCCESS;
     const byte*  myBuffer = buff;    /* if DER ok, otherwise switch */
     buffer       der;
-    DecodedCRL   dcrl;
+#ifdef CYASSL_SMALL_STACK
+    DecodedCRL*  dcrl;
+#else
+    DecodedCRL   dcrl[1];
+#endif
 
     der.buffer = NULL;
 
@@ -268,25 +272,38 @@ int BufferLoadCRL(CYASSL_CRL* crl, const byte* buff, long sz, int type)
         }
     }
 
-    InitDecodedCRL(&dcrl);
-    ret = ParseCRL(&dcrl, myBuffer, (word32)sz, crl->cm);
+#ifdef CYASSL_SMALL_STACK
+    dcrl = (DecodedCRL*)XMALLOC(sizeof(DecodedCRL), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (dcrl == NULL) {
+        if (der.buffer)
+            XFREE(der.buffer, NULL, DYNAMIC_TYPE_CRL);
+
+        return MEMORY_E;
+    }
+#endif
+
+    InitDecodedCRL(dcrl);
+    ret = ParseCRL(dcrl, myBuffer, (word32)sz, crl->cm);
     if (ret != 0) {
         CYASSL_MSG("ParseCRL error");
     }
     else {
-        ret = AddCRL(crl, &dcrl);
+        ret = AddCRL(crl, dcrl);
         if (ret != 0) {
             CYASSL_MSG("AddCRL error");
         }
     }
-    FreeDecodedCRL(&dcrl);
+
+    FreeDecodedCRL(dcrl);
+
+#ifdef CYASSL_SMALL_STACK
+    XFREE(dcrl, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 
     if (der.buffer)
         XFREE(der.buffer, NULL, DYNAMIC_TYPE_CRL);
 
-    if (ret == 0)
-        return SSL_SUCCESS;  /* convert */
-    return ret;
+    return ret ? ret : SSL_SUCCESS; /* convert 0 to SSL_SUCCESS */
 }
 
 
@@ -297,47 +314,73 @@ int BufferLoadCRL(CYASSL_CRL* crl, const byte* buff, long sz, int type)
 static int SwapLists(CYASSL_CRL* crl)
 {
     int        ret;
-    CYASSL_CRL tmp;
     CRL_Entry* newList;
+#ifdef CYASSL_SMALL_STACK
+    CYASSL_CRL* tmp;    
+#else
+    CYASSL_CRL tmp[1];
+#endif
+    
+#ifdef CYASSL_SMALL_STACK
+    tmp = (CYASSL_CRL*)XMALLOC(sizeof(CYASSL_CRL), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (tmp == NULL)
+        return MEMORY_E;
+#endif   
 
-    if (InitCRL(&tmp, crl->cm) < 0) {
+    if (InitCRL(tmp, crl->cm) < 0) {
         CYASSL_MSG("Init tmp CRL failed");
+#ifdef CYASSL_SMALL_STACK
+        XFREE(tmp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
         return -1;
     }
 
     if (crl->monitors[0].path) {
-        ret = LoadCRL(&tmp, crl->monitors[0].path, SSL_FILETYPE_PEM, 0);
+        ret = LoadCRL(tmp, crl->monitors[0].path, SSL_FILETYPE_PEM, 0);
         if (ret != SSL_SUCCESS) {
             CYASSL_MSG("PEM LoadCRL on dir change failed");
-            FreeCRL(&tmp, 0);
+            FreeCRL(tmp, 0);
+#ifdef CYASSL_SMALL_STACK
+            XFREE(tmp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
             return -1;
         }
     }
 
     if (crl->monitors[1].path) {
-        ret = LoadCRL(&tmp, crl->monitors[1].path, SSL_FILETYPE_ASN1, 0);
+        ret = LoadCRL(tmp, crl->monitors[1].path, SSL_FILETYPE_ASN1, 0);
         if (ret != SSL_SUCCESS) {
             CYASSL_MSG("DER LoadCRL on dir change failed");
-            FreeCRL(&tmp, 0);
+            FreeCRL(tmp, 0);
+#ifdef CYASSL_SMALL_STACK
+            XFREE(tmp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
             return -1;
         }
     }
 
     if (LockMutex(&crl->crlLock) != 0) {
         CYASSL_MSG("LockMutex failed");
-        FreeCRL(&tmp, 0);
+        FreeCRL(tmp, 0);
+#ifdef CYASSL_SMALL_STACK
+        XFREE(tmp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
         return -1;
     }
 
-    newList = tmp.crlList;
+    newList = tmp->crlList;
 
     /* swap lists */
-    tmp.crlList  = crl->crlList;
+    tmp->crlList  = crl->crlList;
     crl->crlList = newList;
 
     UnLockMutex(&crl->crlLock);
 
-    FreeCRL(&tmp, 0);
+    FreeCRL(tmp, 0);
+
+#ifdef CYASSL_SMALL_STACK
+    XFREE(tmp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 
     return 0;
 }
@@ -503,6 +546,11 @@ static void* DoMonitor(void* arg)
     int         notifyFd;
     int         wd  = -1;
     CYASSL_CRL* crl = (CYASSL_CRL*)arg;
+#ifdef CYASSL_SMALL_STACK
+    char*       buff;
+#else
+    char        buff[8192];
+#endif
 
     CYASSL_ENTER("DoMonitor");
 
@@ -541,10 +589,16 @@ static void* DoMonitor(void* arg)
         }
     }
 
+#ifdef CYASSL_SMALL_STACK
+    buff = (char*)XMALLOC(8192, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (buff == NULL)
+        return NULL;
+#endif
+
     for (;;) {
-        fd_set        readfds;
-        char          buff[8192];
-        int           result, length;
+        fd_set readfds;
+        int    result;
+        int    length;
 
         FD_ZERO(&readfds);
         FD_SET(notifyFd, &readfds);
@@ -564,7 +618,7 @@ static void* DoMonitor(void* arg)
             break;
         }
 
-        length = read(notifyFd, buff, sizeof(buff));
+        length = read(notifyFd, buff, 8192);
         if (length < 0) {
             CYASSL_MSG("notify read problem, continue");
             continue;
@@ -574,6 +628,10 @@ static void* DoMonitor(void* arg)
             CYASSL_MSG("SwapLists problem, continue");
         }
     }
+
+#ifdef CYASSL_SMALL_STACK
+    XFREE(buff, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 
     if (wd > 0)
         inotify_rm_watch(notifyFd, wd);
@@ -636,8 +694,13 @@ static int StartMonitorCRL(CYASSL_CRL* crl)
 int LoadCRL(CYASSL_CRL* crl, const char* path, int type, int monitor)
 {
     struct dirent* entry;
-    DIR*   dir;
-    int    ret = SSL_SUCCESS;
+    DIR*           dir;
+    int            ret = SSL_SUCCESS;
+#ifdef CYASSL_SMALL_STACK
+    char*          name;
+#else
+    char           name[MAX_FILENAME_SZ];
+#endif
 
     CYASSL_ENTER("LoadCRL");
     if (crl == NULL)
@@ -648,11 +711,17 @@ int LoadCRL(CYASSL_CRL* crl, const char* path, int type, int monitor)
         CYASSL_MSG("opendir path crl load failed");
         return BAD_PATH_ERROR;
     }
+
+#ifdef CYASSL_SMALL_STACK
+    name = (char*)XMALLOC(MAX_FILENAME_SZ, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (name == NULL)
+        return MEMORY_E;
+#endif
+
     while ( (entry = readdir(dir)) != NULL) {
-        char name[MAX_FILENAME_SZ];
         struct stat s;
 
-        XMEMSET(name, 0, sizeof(name));
+        XMEMSET(name, 0, MAX_FILENAME_SZ);
         XSTRNCPY(name, path, MAX_FILENAME_SZ/2 - 2);
         XSTRNCAT(name, "/", 1);
         XSTRNCAT(name, entry->d_name, MAX_FILENAME_SZ/2);
@@ -684,6 +753,10 @@ int LoadCRL(CYASSL_CRL* crl, const char* path, int type, int monitor)
             }
         }
     }
+
+#ifdef CYASSL_SMALL_STACK
+    XFREE(name, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 
     if (monitor & CYASSL_CRL_MONITOR) {
         CYASSL_MSG("monitor path requested");

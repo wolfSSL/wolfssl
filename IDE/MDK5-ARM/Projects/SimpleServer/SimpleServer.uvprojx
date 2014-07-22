@@ -72,6 +72,8 @@
             <UserProg2Name></UserProg2Name>
             <UserProg1Dos16Mode>0</UserProg1Dos16Mode>
             <UserProg2Dos16Mode>0</UserProg2Dos16Mode>
+            <nStopB1X>0</nStopB1X>
+            <nStopB2X>0</nStopB2X>
           </BeforeMake>
           <AfterMake>
             <RunUserProg1>0</RunUserProg1>
@@ -128,6 +130,7 @@
             <RestoreFunctions>1</RestoreFunctions>
             <RestoreToolbox>1</RestoreToolbox>
             <LimitSpeedToRealTime>0</LimitSpeedToRealTime>
+            <RestoreSysVw>1</RestoreSysVw>
           </Simulator>
           <Target>
             <UseTarget>1</UseTarget>
@@ -139,8 +142,8 @@
             <RestoreFunctions>0</RestoreFunctions>
             <RestoreToolbox>1</RestoreToolbox>
             <RestoreTracepoints>1</RestoreTracepoints>
-            <RestoreTracepoints>1</RestoreTracepoints>
-            <RestoreTracepoints>1</RestoreTracepoints>
+            <RestoreSysVw>1</RestoreSysVw>
+            <UsePdscDebugDescription>1</UsePdscDebugDescription>
           </Target>
           <RunDebugAfterBuild>0</RunDebugAfterBuild>
           <TargetSelection>8</TargetSelection>
@@ -156,7 +159,7 @@
             <CpuDllArguments></CpuDllArguments>
             <PeripheralDll></PeripheralDll>
             <PeripheralDllArguments></PeripheralDllArguments>
-            <InitializationFile></InitializationFile>
+            <InitializationFile>.\STM32_SWO.ini</InitializationFile>
             <Driver>BIN\ULP2CM3.DLL</Driver>
           </TargetDlls>
         </DebugOption>
@@ -209,7 +212,7 @@
             <GenPPlst>0</GenPPlst>
             <AdsCpuType>"Cortex-M3"</AdsCpuType>
             <RvctDeviceName></RvctDeviceName>
-            <mOS>0</mOS>
+            <mOS>1</mOS>
             <uocRom>0</uocRom>
             <uocRam>0</uocRam>
             <hadIROM>1</hadIROM>
@@ -510,11 +513,6 @@
           <GroupName>::Drivers</GroupName>
           <Files>
             <File>
-              <FileName>PHY_ST802RT1.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>C:\Keil5\ARM\PACK\Keil\MDK-Middleware\5.1.4\Network\Driver\PHY_ST802RT1.c</FilePath>
-            </File>
-            <File>
               <FileName>EMAC_STM32F2xx.c</FileName>
               <FileType>1</FileType>
               <FilePath>C:\Keil5\ARM\PACK\Keil\STM32F2xx_DFP\1.0.7\RTE_Driver\EMAC_STM32F2xx.c</FilePath>
@@ -523,6 +521,11 @@
               <FileName>MCI_STM32F2xx.c</FileName>
               <FileType>1</FileType>
               <FilePath>C:\Keil5\ARM\PACK\Keil\STM32F2xx_DFP\1.0.7\RTE_Driver\MCI_STM32F2xx.c</FilePath>
+            </File>
+            <File>
+              <FileName>PHY_ST802RT1.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>C:\Keil5\ARM\PACK\Keil\MDK-Middleware\5.1.6\Network\Driver\PHY_ST802RT1.c</FilePath>
             </File>
           </Files>
         </Group>
@@ -542,7 +545,7 @@
             <File>
               <FileName>FS_LFN_CM3_L.lib</FileName>
               <FileType>4</FileType>
-              <FilePath>C:\Keil5\ARM\PACK\Keil\MDK-Middleware\5.1.4\FileSystem\Lib\ARM\FS_LFN_CM3_L.lib</FilePath>
+              <FilePath>C:\Keil5\ARM\PACK\Keil\MDK-Middleware\5.1.6\FileSystem\Lib\ARM\FS_LFN_CM3_L.lib</FilePath>
             </File>
           </Files>
         </Group>
@@ -587,7 +590,7 @@
             <File>
               <FileName>Net_Dbg_CM3_L.lib</FileName>
               <FileType>4</FileType>
-              <FilePath>C:\Keil5\ARM\PACK\Keil\MDK-Middleware\5.1.4\Network\Lib\ARM\Net_Dbg_CM3_L.lib</FilePath>
+              <FilePath>C:\Keil5\ARM\PACK\Keil\MDK-Middleware\5.1.6\Network\Lib\ARM\Net_Dbg_CM3_L.lib</FilePath>
             </File>
           </Files>
         </Group>
@@ -612,212 +615,212 @@
             <File>
               <FileName>cyassl_MDK_ARM.c</FileName>
               <FileType>1</FileType>
-              <FilePath>C:\Keil5\ARM\PACK\wolfSSL\CyaSSL\3.0.0\cyassl\IDE\MDK5-ARM\Src\cyassl_MDK_ARM.c</FilePath>
+              <FilePath>C:\Keil5\ARM\PACK\wolfSSL\CyaSSL\3.1.0\cyassl\IDE\MDK5-ARM\Src\cyassl_MDK_ARM.c</FilePath>
             </File>
             <File>
               <FileName>aes.c</FileName>
               <FileType>1</FileType>
-              <FilePath>C:\Keil5\ARM\PACK\wolfSSL\CyaSSL\3.0.0\cyassl\ctaocrypt\src\aes.c</FilePath>
+              <FilePath>C:\Keil5\ARM\PACK\wolfSSL\CyaSSL\3.1.0\cyassl\ctaocrypt\src\aes.c</FilePath>
             </File>
             <File>
               <FileName>arc4.c</FileName>
               <FileType>1</FileType>
-              <FilePath>C:\Keil5\ARM\PACK\wolfSSL\CyaSSL\3.0.0\cyassl\ctaocrypt\src\arc4.c</FilePath>
+              <FilePath>C:\Keil5\ARM\PACK\wolfSSL\CyaSSL\3.1.0\cyassl\ctaocrypt\src\arc4.c</FilePath>
             </File>
             <File>
               <FileName>asm.c</FileName>
               <FileType>1</FileType>
-              <FilePath>C:\Keil5\ARM\PACK\wolfSSL\CyaSSL\3.0.0\cyassl\ctaocrypt\src\asm.c</FilePath>
+              <FilePath>C:\Keil5\ARM\PACK\wolfSSL\CyaSSL\3.1.0\cyassl\ctaocrypt\src\asm.c</FilePath>
             </File>
             <File>
               <FileName>asn.c</FileName>
               <FileType>1</FileType>
-              <FilePath>C:\Keil5\ARM\PACK\wolfSSL\CyaSSL\3.0.0\cyassl\ctaocrypt\src\asn.c</FilePath>
+              <FilePath>C:\Keil5\ARM\PACK\wolfSSL\CyaSSL\3.1.0\cyassl\ctaocrypt\src\asn.c</FilePath>
             </File>
             <File>
               <FileName>blake2b.c</FileName>
               <FileType>1</FileType>
-              <FilePath>C:\Keil5\ARM\PACK\wolfSSL\CyaSSL\3.0.0\cyassl\ctaocrypt\src\blake2b.c</FilePath>
+              <FilePath>C:\Keil5\ARM\PACK\wolfSSL\CyaSSL\3.1.0\cyassl\ctaocrypt\src\blake2b.c</FilePath>
             </File>
             <File>
               <FileName>camellia.c</FileName>
               <FileType>1</FileType>
-              <FilePath>C:\Keil5\ARM\PACK\wolfSSL\CyaSSL\3.0.0\cyassl\ctaocrypt\src\camellia.c</FilePath>
+              <FilePath>C:\Keil5\ARM\PACK\wolfSSL\CyaSSL\3.1.0\cyassl\ctaocrypt\src\camellia.c</FilePath>
             </File>
             <File>
               <FileName>coding.c</FileName>
               <FileType>1</FileType>
-              <FilePath>C:\Keil5\ARM\PACK\wolfSSL\CyaSSL\3.0.0\cyassl\ctaocrypt\src\coding.c</FilePath>
+              <FilePath>C:\Keil5\ARM\PACK\wolfSSL\CyaSSL\3.1.0\cyassl\ctaocrypt\src\coding.c</FilePath>
             </File>
             <File>
               <FileName>compress.c</FileName>
               <FileType>1</FileType>
-              <FilePath>C:\Keil5\ARM\PACK\wolfSSL\CyaSSL\3.0.0\cyassl\ctaocrypt\src\compress.c</FilePath>
+              <FilePath>C:\Keil5\ARM\PACK\wolfSSL\CyaSSL\3.1.0\cyassl\ctaocrypt\src\compress.c</FilePath>
             </File>
             <File>
               <FileName>des3.c</FileName>
               <FileType>1</FileType>
-              <FilePath>C:\Keil5\ARM\PACK\wolfSSL\CyaSSL\3.0.0\cyassl\ctaocrypt\src\des3.c</FilePath>
+              <FilePath>C:\Keil5\ARM\PACK\wolfSSL\CyaSSL\3.1.0\cyassl\ctaocrypt\src\des3.c</FilePath>
             </File>
             <File>
               <FileName>dh.c</FileName>
               <FileType>1</FileType>
-              <FilePath>C:\Keil5\ARM\PACK\wolfSSL\CyaSSL\3.0.0\cyassl\ctaocrypt\src\dh.c</FilePath>
+              <FilePath>C:\Keil5\ARM\PACK\wolfSSL\CyaSSL\3.1.0\cyassl\ctaocrypt\src\dh.c</FilePath>
             </File>
             <File>
               <FileName>dsa.c</FileName>
               <FileType>1</FileType>
-              <FilePath>C:\Keil5\ARM\PACK\wolfSSL\CyaSSL\3.0.0\cyassl\ctaocrypt\src\dsa.c</FilePath>
+              <FilePath>C:\Keil5\ARM\PACK\wolfSSL\CyaSSL\3.1.0\cyassl\ctaocrypt\src\dsa.c</FilePath>
             </File>
             <File>
               <FileName>ecc.c</FileName>
               <FileType>1</FileType>
-              <FilePath>C:\Keil5\ARM\PACK\wolfSSL\CyaSSL\3.0.0\cyassl\ctaocrypt\src\ecc.c</FilePath>
+              <FilePath>C:\Keil5\ARM\PACK\wolfSSL\CyaSSL\3.1.0\cyassl\ctaocrypt\src\ecc.c</FilePath>
             </File>
             <File>
               <FileName>ecc_fp.c</FileName>
               <FileType>1</FileType>
-              <FilePath>C:\Keil5\ARM\PACK\wolfSSL\CyaSSL\3.0.0\cyassl\ctaocrypt\src\ecc_fp.c</FilePath>
+              <FilePath>C:\Keil5\ARM\PACK\wolfSSL\CyaSSL\3.1.0\cyassl\ctaocrypt\src\ecc_fp.c</FilePath>
             </File>
             <File>
               <FileName>error.c</FileName>
               <FileType>1</FileType>
-              <FilePath>C:\Keil5\ARM\PACK\wolfSSL\CyaSSL\3.0.0\cyassl\ctaocrypt\src\error.c</FilePath>
+              <FilePath>C:\Keil5\ARM\PACK\wolfSSL\CyaSSL\3.1.0\cyassl\ctaocrypt\src\error.c</FilePath>
             </File>
             <File>
               <FileName>hc128.c</FileName>
               <FileType>1</FileType>
-              <FilePath>C:\Keil5\ARM\PACK\wolfSSL\CyaSSL\3.0.0\cyassl\ctaocrypt\src\hc128.c</FilePath>
+              <FilePath>C:\Keil5\ARM\PACK\wolfSSL\CyaSSL\3.1.0\cyassl\ctaocrypt\src\hc128.c</FilePath>
             </File>
             <File>
               <FileName>hmac.c</FileName>
               <FileType>1</FileType>
-              <FilePath>C:\Keil5\ARM\PACK\wolfSSL\CyaSSL\3.0.0\cyassl\ctaocrypt\src\hmac.c</FilePath>
+              <FilePath>C:\Keil5\ARM\PACK\wolfSSL\CyaSSL\3.1.0\cyassl\ctaocrypt\src\hmac.c</FilePath>
             </File>
             <File>
               <FileName>integer.c</FileName>
               <FileType>1</FileType>
-              <FilePath>C:\Keil5\ARM\PACK\wolfSSL\CyaSSL\3.0.0\cyassl\ctaocrypt\src\integer.c</FilePath>
+              <FilePath>C:\Keil5\ARM\PACK\wolfSSL\CyaSSL\3.1.0\cyassl\ctaocrypt\src\integer.c</FilePath>
             </File>
             <File>
               <FileName>logging.c</FileName>
               <FileType>1</FileType>
-              <FilePath>C:\Keil5\ARM\PACK\wolfSSL\CyaSSL\3.0.0\cyassl\ctaocrypt\src\logging.c</FilePath>
+              <FilePath>C:\Keil5\ARM\PACK\wolfSSL\CyaSSL\3.1.0\cyassl\ctaocrypt\src\logging.c</FilePath>
             </File>
             <File>
               <FileName>md2.c</FileName>
               <FileType>1</FileType>
-              <FilePath>C:\Keil5\ARM\PACK\wolfSSL\CyaSSL\3.0.0\cyassl\ctaocrypt\src\md2.c</FilePath>
+              <FilePath>C:\Keil5\ARM\PACK\wolfSSL\CyaSSL\3.1.0\cyassl\ctaocrypt\src\md2.c</FilePath>
             </File>
             <File>
               <FileName>md4.c</FileName>
               <FileType>1</FileType>
-              <FilePath>C:\Keil5\ARM\PACK\wolfSSL\CyaSSL\3.0.0\cyassl\ctaocrypt\src\md4.c</FilePath>
+              <FilePath>C:\Keil5\ARM\PACK\wolfSSL\CyaSSL\3.1.0\cyassl\ctaocrypt\src\md4.c</FilePath>
             </File>
             <File>
               <FileName>md5.c</FileName>
               <FileType>1</FileType>
-              <FilePath>C:\Keil5\ARM\PACK\wolfSSL\CyaSSL\3.0.0\cyassl\ctaocrypt\src\md5.c</FilePath>
+              <FilePath>C:\Keil5\ARM\PACK\wolfSSL\CyaSSL\3.1.0\cyassl\ctaocrypt\src\md5.c</FilePath>
             </File>
             <File>
               <FileName>memory.c</FileName>
               <FileType>1</FileType>
-              <FilePath>C:\Keil5\ARM\PACK\wolfSSL\CyaSSL\3.0.0\cyassl\ctaocrypt\src\memory.c</FilePath>
+              <FilePath>C:\Keil5\ARM\PACK\wolfSSL\CyaSSL\3.1.0\cyassl\ctaocrypt\src\memory.c</FilePath>
             </File>
             <File>
               <FileName>misc.c</FileName>
               <FileType>1</FileType>
-              <FilePath>C:\Keil5\ARM\PACK\wolfSSL\CyaSSL\3.0.0\cyassl\ctaocrypt\src\misc.c</FilePath>
-            </File>
-            <File>
-              <FileName>wc_port.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>C:\Keil5\ARM\PACK\wolfSSL\CyaSSL\3.0.0\cyassl\ctaocrypt\src\wc_port.c</FilePath>
+              <FilePath>C:\Keil5\ARM\PACK\wolfSSL\CyaSSL\3.1.0\cyassl\ctaocrypt\src\misc.c</FilePath>
             </File>
             <File>
               <FileName>pwdbased.c</FileName>
               <FileType>1</FileType>
-              <FilePath>C:\Keil5\ARM\PACK\wolfSSL\CyaSSL\3.0.0\cyassl\ctaocrypt\src\pwdbased.c</FilePath>
+              <FilePath>C:\Keil5\ARM\PACK\wolfSSL\CyaSSL\3.1.0\cyassl\ctaocrypt\src\pwdbased.c</FilePath>
             </File>
             <File>
               <FileName>rabbit.c</FileName>
               <FileType>1</FileType>
-              <FilePath>C:\Keil5\ARM\PACK\wolfSSL\CyaSSL\3.0.0\cyassl\ctaocrypt\src\rabbit.c</FilePath>
+              <FilePath>C:\Keil5\ARM\PACK\wolfSSL\CyaSSL\3.1.0\cyassl\ctaocrypt\src\rabbit.c</FilePath>
             </File>
             <File>
               <FileName>random.c</FileName>
               <FileType>1</FileType>
-              <FilePath>C:\Keil5\ARM\PACK\wolfSSL\CyaSSL\3.0.0\cyassl\ctaocrypt\src\random.c</FilePath>
+              <FilePath>C:\Keil5\ARM\PACK\wolfSSL\CyaSSL\3.1.0\cyassl\ctaocrypt\src\random.c</FilePath>
             </File>
             <File>
               <FileName>ripemd.c</FileName>
               <FileType>1</FileType>
-              <FilePath>C:\Keil5\ARM\PACK\wolfSSL\CyaSSL\3.0.0\cyassl\ctaocrypt\src\ripemd.c</FilePath>
+              <FilePath>C:\Keil5\ARM\PACK\wolfSSL\CyaSSL\3.1.0\cyassl\ctaocrypt\src\ripemd.c</FilePath>
             </File>
             <File>
               <FileName>rsa.c</FileName>
               <FileType>1</FileType>
-              <FilePath>C:\Keil5\ARM\PACK\wolfSSL\CyaSSL\3.0.0\cyassl\ctaocrypt\src\rsa.c</FilePath>
+              <FilePath>C:\Keil5\ARM\PACK\wolfSSL\CyaSSL\3.1.0\cyassl\ctaocrypt\src\rsa.c</FilePath>
             </File>
             <File>
               <FileName>sha.c</FileName>
               <FileType>1</FileType>
-              <FilePath>C:\Keil5\ARM\PACK\wolfSSL\CyaSSL\3.0.0\cyassl\ctaocrypt\src\sha.c</FilePath>
+              <FilePath>C:\Keil5\ARM\PACK\wolfSSL\CyaSSL\3.1.0\cyassl\ctaocrypt\src\sha.c</FilePath>
             </File>
             <File>
               <FileName>sha256.c</FileName>
               <FileType>1</FileType>
-              <FilePath>C:\Keil5\ARM\PACK\wolfSSL\CyaSSL\3.0.0\cyassl\ctaocrypt\src\sha256.c</FilePath>
+              <FilePath>C:\Keil5\ARM\PACK\wolfSSL\CyaSSL\3.1.0\cyassl\ctaocrypt\src\sha256.c</FilePath>
             </File>
             <File>
               <FileName>sha512.c</FileName>
               <FileType>1</FileType>
-              <FilePath>C:\Keil5\ARM\PACK\wolfSSL\CyaSSL\3.0.0\cyassl\ctaocrypt\src\sha512.c</FilePath>
+              <FilePath>C:\Keil5\ARM\PACK\wolfSSL\CyaSSL\3.1.0\cyassl\ctaocrypt\src\sha512.c</FilePath>
             </File>
             <File>
               <FileName>tfm.c</FileName>
               <FileType>1</FileType>
-              <FilePath>C:\Keil5\ARM\PACK\wolfSSL\CyaSSL\3.0.0\cyassl\ctaocrypt\src\tfm.c</FilePath>
+              <FilePath>C:\Keil5\ARM\PACK\wolfSSL\CyaSSL\3.1.0\cyassl\ctaocrypt\src\tfm.c</FilePath>
+            </File>
+            <File>
+              <FileName>wc_port.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>C:\Keil5\ARM\PACK\wolfSSL\CyaSSL\3.1.0\cyassl\ctaocrypt\src\wc_port.c</FilePath>
             </File>
             <File>
               <FileName>crl.c</FileName>
               <FileType>1</FileType>
-              <FilePath>C:\Keil5\ARM\PACK\wolfSSL\CyaSSL\3.0.0\cyassl\src\crl.c</FilePath>
+              <FilePath>C:\Keil5\ARM\PACK\wolfSSL\CyaSSL\3.1.0\cyassl\src\crl.c</FilePath>
             </File>
             <File>
               <FileName>internal.c</FileName>
               <FileType>1</FileType>
-              <FilePath>C:\Keil5\ARM\PACK\wolfSSL\CyaSSL\3.0.0\cyassl\src\internal.c</FilePath>
+              <FilePath>C:\Keil5\ARM\PACK\wolfSSL\CyaSSL\3.1.0\cyassl\src\internal.c</FilePath>
             </File>
             <File>
               <FileName>io.c</FileName>
               <FileType>1</FileType>
-              <FilePath>C:\Keil5\ARM\PACK\wolfSSL\CyaSSL\3.0.0\cyassl\src\io.c</FilePath>
+              <FilePath>C:\Keil5\ARM\PACK\wolfSSL\CyaSSL\3.1.0\cyassl\src\io.c</FilePath>
             </File>
             <File>
               <FileName>keys.c</FileName>
               <FileType>1</FileType>
-              <FilePath>C:\Keil5\ARM\PACK\wolfSSL\CyaSSL\3.0.0\cyassl\src\keys.c</FilePath>
+              <FilePath>C:\Keil5\ARM\PACK\wolfSSL\CyaSSL\3.1.0\cyassl\src\keys.c</FilePath>
             </File>
             <File>
               <FileName>ocsp.c</FileName>
               <FileType>1</FileType>
-              <FilePath>C:\Keil5\ARM\PACK\wolfSSL\CyaSSL\3.0.0\cyassl\src\ocsp.c</FilePath>
+              <FilePath>C:\Keil5\ARM\PACK\wolfSSL\CyaSSL\3.1.0\cyassl\src\ocsp.c</FilePath>
             </File>
             <File>
               <FileName>sniffer.c</FileName>
               <FileType>1</FileType>
-              <FilePath>C:\Keil5\ARM\PACK\wolfSSL\CyaSSL\3.0.0\cyassl\src\sniffer.c</FilePath>
+              <FilePath>C:\Keil5\ARM\PACK\wolfSSL\CyaSSL\3.1.0\cyassl\src\sniffer.c</FilePath>
             </File>
             <File>
               <FileName>ssl.c</FileName>
               <FileType>1</FileType>
-              <FilePath>C:\Keil5\ARM\PACK\wolfSSL\CyaSSL\3.0.0\cyassl\src\ssl.c</FilePath>
+              <FilePath>C:\Keil5\ARM\PACK\wolfSSL\CyaSSL\3.1.0\cyassl\src\ssl.c</FilePath>
             </File>
             <File>
               <FileName>tls.c</FileName>
               <FileType>1</FileType>
-              <FilePath>C:\Keil5\ARM\PACK\wolfSSL\CyaSSL\3.0.0\cyassl\src\tls.c</FilePath>
+              <FilePath>C:\Keil5\ARM\PACK\wolfSSL\CyaSSL\3.1.0\cyassl\src\tls.c</FilePath>
             </File>
           </Files>
         </Group>
@@ -826,6 +829,33 @@
   </Targets>
 
   <RTE>
+    <packages>
+      <package name="CMSIS" schemaVersion="1.0" url="http://www.keil.com/pack/" vendor="ARM" version="3.20.4">
+        <targetInfos>
+          <targetInfo name="SimpleServer" versionMatchMode="fixed"/>
+        </targetInfos>
+      </package>
+      <package name="MDK-Middleware" schemaVersion="1.0" url="http://www.keil.com/pack/" vendor="Keil" version="5.1.5">
+        <targetInfos>
+          <targetInfo name="SimpleServer" versionMatchMode="fixed"/>
+        </targetInfos>
+      </package>
+      <package name="MDK-Middleware" schemaVersion="1.0" url="http://www.keil.com/pack/" vendor="Keil" version="5.1.6">
+        <targetInfos>
+          <targetInfo name="SimpleServer" versionMatchMode="fixed"/>
+        </targetInfos>
+      </package>
+      <package name="STM32F2xx_DFP" schemaVersion="1.2" url="http://www.keil.com/pack" vendor="Keil" version="1.0.7">
+        <targetInfos>
+          <targetInfo name="SimpleServer" versionMatchMode="fixed"/>
+        </targetInfos>
+      </package>
+      <package license="cyassl\IDE\MDK5-ARM\Docs\CyaSSL-License.txt" name="CyaSSL" schemaVersion="1.0" url="http://www.wolfSSL.com/files/ide" vendor="wolfSSL" version="3.1.0">
+        <targetInfos>
+          <targetInfo name="SimpleServer" versionMatchMode="fixed"/>
+        </targetInfos>
+      </package>
+    </packages>
     <apis>
       <api Cclass="CMSIS" Cgroup="RTOS" exclusive="0">
         <package name="CMSIS" url="http://www.keil.com/pack/" vendor="ARM" version="3.20.1"/>
@@ -919,8 +949,8 @@
           <targetInfo name="SimpleServer"/>
         </targetInfos>
       </component>
-      <component Cclass="Device" Cgroup="GPIO" Cvendor="Keil" Cversion="1.0.0" Dname="STM32F207IG" condition="STM32F2xx CMSIS Device">
-        <package name="STM32F2xx_DFP" url="http://www.keil.com/pack" vendor="Keil" version="1.0.3"/>
+      <component Cclass="Device" Cgroup="GPIO" Cvendor="Keil" Cversion="1.0.1" condition="STM32F2xx CMSIS Device">
+        <package name="STM32F2xx_DFP" schemaVersion="1.2" url="http://www.keil.com/pack" vendor="Keil" version="1.0.7"/>
         <targetInfos>
           <targetInfo name="SimpleServer"/>
         </targetInfos>
@@ -949,14 +979,14 @@
           <targetInfo name="SimpleServer"/>
         </targetInfos>
       </component>
-      <component Cbundle="wolfSSL" Cclass="wolfSSL" Cgroup="CyaSSL" Csub="Core" Cvendor="wolfSSL" Cversion="2.9.0" condition="CyaSSL-Core">
-        <package license="cyassl\IDE\MDK5-ARM\Docs\CyaSSL-Licnese.txt" name="CyaSSL" schemaVersion="1.0" url="http://www.wolfSSL.com/files/ide" vendor="wolfSSL" version="2.9.0"/>
+      <component Cbundle="wolfSSL" Cclass="wolfSSL" Cgroup="CyaSSL" Csub="Core" Cvendor="wolfSSL" Cversion="3.0.0" condition="CyaSSL-Core">
+        <package license="cyassl\IDE\MDK5-ARM\Docs\CyaSSL-License.txt" name="CyaSSL" schemaVersion="1.0" url="http://www.wolfSSL.com/files/ide" vendor="wolfSSL" version="3.1.0"/>
         <targetInfos>
           <targetInfo name="SimpleServer"/>
         </targetInfos>
       </component>
-      <component Cbundle="wolfSSL" Cclass="wolfSSL" Cgroup="wolfCrypt" Csub="CORE" Cvendor="wolfSSL" Cversion="2.9.0" condition="wolfCrypt-Core">
-        <package license="cyassl\IDE\MDK5-ARM\Docs\CyaSSL-Licnese.txt" name="CyaSSL" schemaVersion="1.0" url="http://www.wolfSSL.com/files/ide" vendor="wolfSSL" version="2.9.0"/>
+      <component Cbundle="wolfSSL" Cclass="wolfSSL" Cgroup="wolfCrypt" Csub="CORE" Cvendor="wolfSSL" Cversion="3.0.0" condition="wolfCrypt-Core">
+        <package license="cyassl\IDE\MDK5-ARM\Docs\CyaSSL-License.txt" name="CyaSSL" schemaVersion="1.0" url="http://www.wolfSSL.com/files/ide" vendor="wolfSSL" version="3.1.0"/>
         <targetInfos>
           <targetInfo name="SimpleServer"/>
         </targetInfos>

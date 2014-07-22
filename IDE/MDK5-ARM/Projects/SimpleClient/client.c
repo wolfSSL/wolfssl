@@ -128,6 +128,7 @@ static void Usage(void)
     printf("-s          Use pre Shared keys\n");
     printf("-t          Track CyaSSL memory use\n");
     printf("-d          Disable peer checks\n");
+    printf("-D          Override Date Errors example\n");
     printf("-g          Send server HTTP GET\n");
     printf("-u          Use UDP DTLS,"
            " add -v 2 for DTLSv1 (default), -v 3 for DTLSv1.2\n");
@@ -180,7 +181,7 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
 
     word16 port   = yasslPort;
     char* host   = (char*)yasslIP;
-    char* domain = (char*)"www.yassl.com";
+    const char* domain = "www.yassl.com";
 
     int    ch;
     int    version = CLIENT_INVALID_VERSION;
@@ -197,10 +198,11 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
     int    fewerPackets  = 0;
     int    atomicUser    = 0;
     int    pkCallbacks   = 0;
+    int    overrideDateErrors = 0;
     char*  cipherList = NULL;
-    char*  verifyCert = (char*)caCert;
-    char*  ourCert    = (char*)cliCert;
-    char*  ourKey     = (char*)cliKey;
+    const char* verifyCert = caCert;
+    const char* ourCert    = cliCert;
+    const char* ourKey     = cliKey;
 
 #ifdef HAVE_SNI
     char*  sniHostName = NULL;
@@ -238,7 +240,7 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
     StackTrap();
 
     while ((ch = mygetopt(argc, argv,
-                          "?gdusmNrtfxUPh:p:v:l:A:c:k:b:zS:L:ToO:")) != -1) {
+                          "?gdDusmNrtfxUPh:p:v:l:A:c:k:b:zS:L:ToO:")) != -1) {
         switch (ch) {
             case '?' :
                 Usage();
@@ -250,6 +252,10 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
 
             case 'd' :
                 doPeerCheck = 0;
+                break;
+
+            case 'D' :
+                overrideDateErrors = 1;
                 break;
 
             case 'u' :
@@ -545,6 +551,8 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
 #if !defined(NO_CERTS)
     if (!usePsk && doPeerCheck == 0)
         CyaSSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, 0);
+    if (!usePsk && overrideDateErrors == 1)
+        CyaSSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, myDateCb);
 #endif
 
 #ifdef HAVE_CAVIUM
