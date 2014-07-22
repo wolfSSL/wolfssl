@@ -694,8 +694,13 @@ static int StartMonitorCRL(CYASSL_CRL* crl)
 int LoadCRL(CYASSL_CRL* crl, const char* path, int type, int monitor)
 {
     struct dirent* entry;
-    DIR*   dir;
-    int    ret = SSL_SUCCESS;
+    DIR*           dir;
+    int            ret = SSL_SUCCESS;
+#ifdef CYASSL_SMALL_STACK
+    char*          name;
+#else
+    char           name[MAX_FILENAME_SZ];
+#endif
 
     CYASSL_ENTER("LoadCRL");
     if (crl == NULL)
@@ -706,11 +711,17 @@ int LoadCRL(CYASSL_CRL* crl, const char* path, int type, int monitor)
         CYASSL_MSG("opendir path crl load failed");
         return BAD_PATH_ERROR;
     }
+
+#ifdef CYASSL_SMALL_STACK
+    name = (char*)XMALLOC(MAX_FILENAME_SZ, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (name == NULL)
+        return MEMORY_E;
+#endif
+
     while ( (entry = readdir(dir)) != NULL) {
-        char name[MAX_FILENAME_SZ];
         struct stat s;
 
-        XMEMSET(name, 0, sizeof(name));
+        XMEMSET(name, 0, MAX_FILENAME_SZ);
         XSTRNCPY(name, path, MAX_FILENAME_SZ/2 - 2);
         XSTRNCAT(name, "/", 1);
         XSTRNCAT(name, entry->d_name, MAX_FILENAME_SZ/2);
@@ -742,6 +753,10 @@ int LoadCRL(CYASSL_CRL* crl, const char* path, int type, int monitor)
             }
         }
     }
+
+#ifdef CYASSL_SMALL_STACK
+    XFREE(name, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 
     if (monitor & CYASSL_CRL_MONITOR) {
         CYASSL_MSG("monitor path requested");
