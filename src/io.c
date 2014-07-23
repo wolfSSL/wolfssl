@@ -475,7 +475,6 @@ int EmbedGenerateCookie(CYASSL* ssl, byte *buf, int sz, void *ctx)
     int sd = ssl->wfd;
     struct sockaddr_storage peer;
     XSOCKLENT peerSz = sizeof(peer);
-    Sha sha;
     byte digest[SHA_DIGEST_SIZE];
     int  ret = 0;
 
@@ -486,12 +485,10 @@ int EmbedGenerateCookie(CYASSL* ssl, byte *buf, int sz, void *ctx)
         CYASSL_MSG("getpeername failed in EmbedGenerateCookie");
         return GEN_COOKIE_E;
     }
-    
-    ret = InitSha(&sha);
+
+    ret = ShaHash((byte*)&peer, peerSz, digest);
     if (ret != 0)
         return ret;
-    ShaUpdate(&sha, (byte*)&peer, peerSz);
-    ShaFinal(&sha, digest);
 
     if (sz > SHA_DIGEST_SIZE)
         sz = SHA_DIGEST_SIZE;
@@ -839,12 +836,18 @@ static int process_http_response(int sfd, byte** respBuf,
 int EmbedOcspLookup(void* ctx, const char* url, int urlSz,
                         byte* ocspReqBuf, int ocspReqSz, byte** ocspRespBuf)
 {
-    char domainName[80], path[80];
     int httpBufSz;
     SOCKET_T sfd = 0;
     word16 port;
     int ocspRespSz = 0;
     byte* httpBuf = NULL;
+#ifdef CYASSL_SMALL_STACK
+    char* path;
+    char* domainName;
+#else
+    char path[80];
+    char domainName[80];
+#endif
 
     (void)ctx;
 
@@ -858,8 +861,24 @@ int EmbedOcspLookup(void* ctx, const char* url, int urlSz,
         return -1;
     }
 
+#ifdef CYASSL_SMALL_STACK
+    path = (char*)XMALLOC(80, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (path == NULL)
+        return MEMORY_E;
+    
+    domainName = (char*)XMALLOC(80, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (domainName == NULL) {
+        XFREE(path, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        return MEMORY_E;
+    }
+#endif
+
     if (decode_url(url, urlSz, domainName, path, &port) < 0) {
         CYASSL_MSG("Unable to decode OCSP URL");
+#ifdef CYASSL_SMALL_STACK
+        XFREE(path,       NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(domainName, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
         return -1;
     }
     
@@ -870,6 +889,10 @@ int EmbedOcspLookup(void* ctx, const char* url, int urlSz,
 
     if (httpBuf == NULL) {
         CYASSL_MSG("Unable to create OCSP response buffer");
+#ifdef CYASSL_SMALL_STACK
+        XFREE(path,       NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(domainName, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
         return -1;
     }
 
@@ -889,17 +912,30 @@ int EmbedOcspLookup(void* ctx, const char* url, int urlSz,
         close(sfd);
         if (ocspRespSz == 0) {
             CYASSL_MSG("OCSP response was not OK, no OCSP response");
-            XFREE(httpBuf, NULL, DYNAMIC_TYPE_IN_BUFFER);
+            XFREE(httpBuf,    NULL, DYNAMIC_TYPE_IN_BUFFER);
+#ifdef CYASSL_SMALL_STACK
+            XFREE(path,       NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(domainName, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
             return -1;
         }
     } else {
         CYASSL_MSG("OCSP Responder connection failed");
         close(sfd);
-        XFREE(httpBuf, NULL, DYNAMIC_TYPE_IN_BUFFER);
+        XFREE(httpBuf,    NULL, DYNAMIC_TYPE_IN_BUFFER);
+#ifdef CYASSL_SMALL_STACK
+        XFREE(path,       NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(domainName, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
         return -1;
     }
 
-    XFREE(httpBuf, NULL, DYNAMIC_TYPE_IN_BUFFER);
+    XFREE(httpBuf,    NULL, DYNAMIC_TYPE_IN_BUFFER);
+#ifdef CYASSL_SMALL_STACK
+    XFREE(path,       NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(domainName, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
     return ocspRespSz;
 }
 
