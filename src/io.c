@@ -836,107 +836,81 @@ static int process_http_response(int sfd, byte** respBuf,
 int EmbedOcspLookup(void* ctx, const char* url, int urlSz,
                         byte* ocspReqBuf, int ocspReqSz, byte** ocspRespBuf)
 {
-    int httpBufSz;
     SOCKET_T sfd = 0;
-    word16 port;
-    int ocspRespSz = 0;
-    byte* httpBuf = NULL;
+    word16   port;
+    int      ret = -1;
 #ifdef CYASSL_SMALL_STACK
-    char* path;
-    char* domainName;
+    char*    path;
+    char*    domainName;
 #else
-    char path[80];
-    char domainName[80];
+    char     path[80];
+    char     domainName[80];
+#endif
+
+#ifdef CYASSL_SMALL_STACK
+    path = (char*)XMALLOC(80, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (path == NULL)
+        return -1;
+    
+    domainName = (char*)XMALLOC(80, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (domainName == NULL) {
+        XFREE(path, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        return -1;
+    }
 #endif
 
     (void)ctx;
 
     if (ocspReqBuf == NULL || ocspReqSz == 0) {
         CYASSL_MSG("OCSP request is required for lookup");
-        return -1;
     }
-
-    if (ocspRespBuf == NULL) {
+    else if (ocspRespBuf == NULL) {
         CYASSL_MSG("Cannot save OCSP response");
-        return -1;
     }
-
-#ifdef CYASSL_SMALL_STACK
-    path = (char*)XMALLOC(80, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    if (path == NULL)
-        return MEMORY_E;
-    
-    domainName = (char*)XMALLOC(80, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    if (domainName == NULL) {
-        XFREE(path, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        return MEMORY_E;
-    }
-#endif
-
-    if (decode_url(url, urlSz, domainName, path, &port) < 0) {
+    else if (decode_url(url, urlSz, domainName, path, &port) < 0) {
         CYASSL_MSG("Unable to decode OCSP URL");
-#ifdef CYASSL_SMALL_STACK
-        XFREE(path,       NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(domainName, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
-        return -1;
     }
-    
-    /* Note, the library uses the EmbedOcspRespFree() callback to
-     * free this buffer. */
-    httpBufSz = SCRATCH_BUFFER_SIZE;
-    httpBuf = (byte*)XMALLOC(httpBufSz, NULL, DYNAMIC_TYPE_IN_BUFFER);
+    else {
+        /* Note, the library uses the EmbedOcspRespFree() callback to
+         * free this buffer. */
+        int   httpBufSz = SCRATCH_BUFFER_SIZE;
+        byte* httpBuf   = (byte*)XMALLOC(httpBufSz, NULL, 
+                                                        DYNAMIC_TYPE_IN_BUFFER);
 
-    if (httpBuf == NULL) {
-        CYASSL_MSG("Unable to create OCSP response buffer");
-#ifdef CYASSL_SMALL_STACK
-        XFREE(path,       NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(domainName, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
-        return -1;
-    }
+        if (httpBuf == NULL) {
+            CYASSL_MSG("Unable to create OCSP response buffer");
+        }
+        else {
+            httpBufSz = build_http_request(domainName, path, ocspReqSz,
+                                                            httpBuf, httpBufSz);
 
-    httpBufSz = build_http_request(domainName, path, ocspReqSz,
-                                                        httpBuf, httpBufSz);
-
-    if ((tcp_connect(&sfd, domainName, port) == 0) && (sfd > 0)) {
-        int written;
-        written = (int)send(sfd, (char*)httpBuf, httpBufSz, 0);
-        if (written == httpBufSz) {
-            written = (int)send(sfd, (char*)ocspReqBuf, ocspReqSz, 0);
-            if (written == ocspReqSz) {
-                ocspRespSz = process_http_response(sfd, ocspRespBuf,
-                                                 httpBuf, SCRATCH_BUFFER_SIZE);
+            if ((tcp_connect(&sfd, domainName, port) != 0) || (sfd <= 0)) {
+                CYASSL_MSG("OCSP Responder connection failed");
             }
+            else if ((int)send(sfd, (char*)httpBuf, httpBufSz, 0) !=
+                                                                    httpBufSz) {
+                CYASSL_MSG("OCSP http request failed");
+            }
+            else if ((int)send(sfd, (char*)ocspReqBuf, ocspReqSz, 0) !=
+                                                                    ocspReqSz) {
+                CYASSL_MSG("OCSP ocsp request failed");
+            }
+            else {
+                ret = process_http_response(sfd, ocspRespBuf, httpBuf,
+                                                           SCRATCH_BUFFER_SIZE);
+            }
+
+            close(sfd);
+            XFREE(httpBuf, NULL, DYNAMIC_TYPE_IN_BUFFER);
         }
-        close(sfd);
-        if (ocspRespSz == 0) {
-            CYASSL_MSG("OCSP response was not OK, no OCSP response");
-            XFREE(httpBuf,    NULL, DYNAMIC_TYPE_IN_BUFFER);
-#ifdef CYASSL_SMALL_STACK
-            XFREE(path,       NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            XFREE(domainName, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
-            return -1;
-        }
-    } else {
-        CYASSL_MSG("OCSP Responder connection failed");
-        close(sfd);
-        XFREE(httpBuf,    NULL, DYNAMIC_TYPE_IN_BUFFER);
-#ifdef CYASSL_SMALL_STACK
-        XFREE(path,       NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(domainName, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
-        return -1;
     }
 
-    XFREE(httpBuf,    NULL, DYNAMIC_TYPE_IN_BUFFER);
 #ifdef CYASSL_SMALL_STACK
     XFREE(path,       NULL, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(domainName, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
 
-    return ocspRespSz;
+    return ret;
 }
 
 
