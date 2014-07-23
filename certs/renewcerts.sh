@@ -149,7 +149,7 @@ function move_ntru(){
 
 #start in root.
 cd ../
-#if HAVE_NTRU already defined
+#if HAVE_NTRU already defined && there is no argument
 if grep HAVE_NTRU "cyassl/options.h" && [ -z "$1" ]
 then
 
@@ -171,17 +171,21 @@ then
     #copy/paste ntru-certs and key to certs/
     move_ntru
 
-#else if HAVE_NTRU not already defined
+#else if there was an argument given, check it for validity or print out error
 elif [ ! -z "$1" ]; then
+    #valid argument then renew certs without ntru
     if [ "$1" == "--override-ntru" ]; then
         echo "overriding ntru, update all certs except ntru."
         run_renewcerts
+    #valid argument print out other valid arguments
     elif [ "$1" == "-h" ] || [ "$1" == "-help" ]; then
         echo ""
         echo "\"no argument\"        will attempt to update all certificates"
         echo "--override-ntru      updates all certificates except ntru"
+        echo "-h or -help          display this menu"
         echo ""
         echo ""
+    #else the argument was invalid, tell user to use -h or -help
     else 
         echo ""
         echo "That is not a valid option."
@@ -189,6 +193,7 @@ elif [ ! -z "$1" ]; then
         echo "use -h or -help for a list of available options."
         echo ""
     fi
+#else HAVE_NTRU not already defined
 else
     echo "Saving the configure state"
     echo ""
@@ -199,6 +204,7 @@ else
     echo ""
     make clean
 
+    #attempt to define ntru by configuring with ntru
     echo "Configuring with ntru, enabling certgen and keygen"
     echo ""
     ./configure --with-ntru --enable-certgen --enable-keygen
@@ -212,7 +218,7 @@ else
     # ntru in the default location
 
     # if now defined
-    if [ grep HAVE_NTRU "cyassl/options.h" ]; then
+    if grep HAVE_NTRU "cyassl/options.h"; then
         run_renewcerts
         #run_renewcerts leaves us in cyassl/certs/crl, backup to root
         cd ../../
@@ -244,3 +250,4 @@ else
 
     fi #END now defined
 fi #END already defined
+
