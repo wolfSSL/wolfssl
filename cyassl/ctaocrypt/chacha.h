@@ -19,8 +19,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-#ifndef CHACHA_H
-#define CHACHA_H
+#ifndef CTAO_CRYPT_CHACHA_H
+#define CTAO_CRYPT_CHACHA_H
 
 #include "types.h"
 

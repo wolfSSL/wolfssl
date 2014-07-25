@@ -4891,7 +4891,10 @@ static int  ChachaAEADEncrypt(CYASSL* ssl, byte* out, const byte* input,
 	byte additional[CHACHA20_BLOCK_SIZE];
 	byte nonce[AEAD_NONCE_SZ];
 	byte cipher[CHACHA20_256_KEY_SIZE]; /* generated key for poly1305 */
-	
+    #ifdef CHACHA_AEAD_TEST
+        int i;
+    #endif
+
 	XMEMSET(tag, 0, sizeof(tag));
 	XMEMSET(nonce, 0, AEAD_NONCE_SZ);
 	XMEMSET(cipher, 0, sizeof(cipher));
@@ -4916,7 +4919,6 @@ static int  ChachaAEADEncrypt(CYASSL* ssl, byte* out, const byte* input,
 	XMEMCPY(additional + AEAD_TYPE_OFFSET, additionalSrc, 3);
 	
 	#ifdef CHACHA_AEAD_TEST
-		int i;
 		printf("Encrypt Additional : ");
 		for (i = 0; i < CHACHA20_BLOCK_SIZE; i++) {
 		    printf("%02x", additional[i]);
