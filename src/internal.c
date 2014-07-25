@@ -4885,8 +4885,8 @@ static int  ChachaAEADEncrypt(CYASSL* ssl, byte* out, const byte* input,
 	byte additional[CHACHA20_BLOCK_SIZE];
 	byte nonce[AEAD_NONCE_SZ];
 	byte cipher[CHACHA20_256_KEY_SIZE]; /* generated key for poly1305 */
-		#ifdef CHACHA_AEAD_TEST
-		int i;
+    #ifdef CHACHA_AEAD_TEST
+        int i;
     #endif
 
 	XMEMSET(tag, 0, sizeof(tag));
