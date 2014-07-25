@@ -22,13 +22,13 @@
  * and Daniel J. Bernstein
  */
 
-#ifdef HAVE_POLY1305
-
 #ifdef HAVE_CONFIG_H
     #include <config.h>
 #endif
 
 #include <cyassl/ctaocrypt/settings.h>
+
+#ifdef HAVE_POLY1305
 #include <cyassl/ctaocrypt/poly1305.h>
 #include <cyassl/ctaocrypt/error-crypt.h>
 #include <cyassl/ctaocrypt/logging.h>
@@ -129,6 +129,7 @@
 
 static void poly1305_blocks(Poly1305* ctx, const unsigned char *m,
                             size_t bytes) {
+
 #ifdef POLY130564
 
 	const word64 hibit = (ctx->final) ? 0 : ((word64)1 << 40); /* 1 << 128 */
@@ -138,7 +139,20 @@ static void poly1305_blocks(Poly1305* ctx, const unsigned char *m,
 	word64 c;
 	word128 d0,d1,d2,d;
 
-	r0 = ctx->r[0];
+#else
+
+    const word32 hibit = (ctx->final) ? 0 : (1 << 24); /* 1 << 128 */
+	word32 r0,r1,r2,r3,r4;
+	word32 s1,s2,s3,s4;
+	word32 h0,h1,h2,h3,h4;
+	word64 d0,d1,d2,d3,d4;
+	word32 c;
+
+#endif
+
+#ifdef POLY130564
+
+    r0 = ctx->r[0];
 	r1 = ctx->r[1];
 	r2 = ctx->r[2];
 
@@ -181,14 +195,7 @@ static void poly1305_blocks(Poly1305* ctx, const unsigned char *m,
 	ctx->h[2] = h2;
 
 #else /* if not 64 bit then use 32 bit */
-    
-    const word32 hibit = (ctx->final) ? 0 : (1 << 24); /* 1 << 128 */
-	word32 r0,r1,r2,r3,r4;
-	word32 s1,s2,s3,s4;
-	word32 h0,h1,h2,h3,h4;
-	word64 d0,d1,d2,d3,d4;
-	word32 c;
-
+   
 	r0 = ctx->r[0];
 	r1 = ctx->r[1];
 	r2 = ctx->r[2];
@@ -251,8 +258,9 @@ static void poly1305_blocks(Poly1305* ctx, const unsigned char *m,
 
 int Poly1305SetKey(Poly1305* ctx, const byte* key, word32 keySz) {
 
-    if (keySz != 32 || ctx == NULL)
-        return BAD_FUNC_ARG;
+#if defined(POLY130564)
+    word64 t0,t1;
+#endif
 
 #ifdef CHACHA_AEAD_TEST
     word32 k;
@@ -265,9 +273,10 @@ int Poly1305SetKey(Poly1305* ctx, const byte* key, word32 keySz) {
 	printf("\n");
 #endif
 
+    if (keySz != 32 || ctx == NULL)
+        return BAD_FUNC_ARG;
+
 #if defined(POLY130564)
-	
-    word64 t0,t1;
 
 	/* r &= 0xffffffc0ffffffc0ffffffc0fffffff */
 	t0 = U8TO64(key + 0);
@@ -319,14 +328,25 @@ int Poly1305SetKey(Poly1305* ctx, const byte* key, word32 keySz) {
 
 int Poly1305Final(Poly1305* ctx, byte* mac) {
 
-    if (ctx == NULL)
-        return BAD_FUNC_ARG;
-
 #if defined(POLY130564)
 
     word64 h0,h1,h2,c;
 	word64 g0,g1,g2;
 	word64 t0,t1;
+
+#else
+
+    word32 h0,h1,h2,h3,h4,c;
+	word32 g0,g1,g2,g3,g4;
+	word64 f;
+	word32 mask;
+
+#endif
+
+    if (ctx == NULL)
+        return BAD_FUNC_ARG;
+
+#if defined(POLY130564)
 
 	/* process the remaining block */
 	if (ctx->leftover) {
@@ -396,11 +416,6 @@ int Poly1305Final(Poly1305* ctx, byte* mac) {
 
 #else /* if not 64 bit then use 32 bit */
     
-    word32 h0,h1,h2,h3,h4,c;
-	word32 g0,g1,g2,g3,g4;
-	word64 f;
-	word32 mask;
-
 	/* process the remaining block */
 	if (ctx->leftover) {
 		size_t i = ctx->leftover;
@@ -487,8 +502,7 @@ int Poly1305Final(Poly1305* ctx, byte* mac) {
 
 int Poly1305Update(Poly1305* ctx, const byte* m, word32 bytes) {
 
-    if (ctx == NULL)
-        return BAD_FUNC_ARG;
+	size_t i;
 
 #ifdef CHACHA_AEAD_TEST
     word32 k;
@@ -500,7 +514,9 @@ int Poly1305Update(Poly1305* ctx, const byte* m, word32 bytes) {
     }
 	printf("\n");
 #endif
-	size_t i;
+    
+    if (ctx == NULL)
+        return BAD_FUNC_ARG;
 
 	/* handle leftover */
 	if (ctx->leftover) {
