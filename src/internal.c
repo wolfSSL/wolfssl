@@ -4746,6 +4746,14 @@ static int DoDtlsHandShakeMsg(CYASSL* ssl, byte* input, word32* inOutIdx,
     || defined(HAVE_AESGCM)
 static INLINE word32 GetSEQIncrement(CYASSL* ssl, int verify)
 {
+#ifdef CYASSL_DTLS
+    if (ssl->options.dtls) {
+        if (verify)
+            return ssl->keys.dtls_state.curSeq; /* explicit from peer */
+        else
+            return ssl->keys.dtls_sequence_number - 1; /* already incremented */
+    }
+#endif
     if (verify)
         return ssl->keys.peer_sequence_number++;
     else

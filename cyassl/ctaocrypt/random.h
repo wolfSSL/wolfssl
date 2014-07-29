@@ -75,15 +75,13 @@ int GenerateSeed(OS_Seed* os, byte* seed, word32 sz);
 #define DRBG_SEED_LEN (440/8)
 
 
+struct DRBG; /* Private DRBG state */
+
+
 /* Hash-based Deterministic Random Bit Generator */
 typedef struct RNG {
     OS_Seed seed;
-
-    Sha256 sha;
-    byte digest[SHA256_DIGEST_SIZE];
-    byte V[DRBG_SEED_LEN];
-    byte C[DRBG_SEED_LEN];
-    word32 reseedCtr;
+    struct DRBG* drbg;
     byte status;
 } RNG;
 
