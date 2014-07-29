@@ -190,14 +190,22 @@ static int doPRF(byte* digest, word32 digLen, const byte* secret,word32 secLen,
                  const byte* label, word32 labLen, const byte* seed,
                  word32 seedLen)
 {
-    int    ret;
+    int    ret  = 0;
     word32 half = (secLen + 1) / 2;
 
-    byte md5_half[MAX_PRF_HALF];        /* half is real size */
-    byte sha_half[MAX_PRF_HALF];        /* half is real size */
-    byte labelSeed[MAX_PRF_LABSEED];    /* labLen + seedLen is real size */
-    byte md5_result[MAX_PRF_DIG];       /* digLen is real size */
-    byte sha_result[MAX_PRF_DIG];       /* digLen is real size */
+#ifdef CYASSL_SMALL_STACK
+    byte* md5_half;
+    byte* sha_half;
+    byte* labelSeed;
+    byte* md5_result;
+    byte* sha_result;
+#else
+    byte  md5_half[MAX_PRF_HALF];     /* half is real size */
+    byte  sha_half[MAX_PRF_HALF];     /* half is real size */
+    byte  labelSeed[MAX_PRF_LABSEED]; /* labLen + seedLen is real size */
+    byte  md5_result[MAX_PRF_DIG];    /* digLen is real size */
+    byte  sha_result[MAX_PRF_DIG];    /* digLen is real size */
+#endif
 
     if (half > MAX_PRF_HALF)
         return BUFFER_E;
@@ -206,26 +214,51 @@ static int doPRF(byte* digest, word32 digLen, const byte* secret,word32 secLen,
     if (digLen > MAX_PRF_DIG)
         return BUFFER_E;
 
+#ifdef CYASSL_SMALL_STACK
+    md5_half   = (byte*)XMALLOC(MAX_PRF_HALF,    NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    sha_half   = (byte*)XMALLOC(MAX_PRF_HALF,    NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    labelSeed  = (byte*)XMALLOC(MAX_PRF_LABSEED, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    md5_result = (byte*)XMALLOC(MAX_PRF_DIG,     NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    sha_result = (byte*)XMALLOC(MAX_PRF_DIG,     NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    if (md5_half == NULL || sha_half == NULL || labelSeed == NULL ||
+                                     md5_result == NULL || sha_result == NULL) {
+        if (md5_half)   XFREE(md5_half,   NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        if (sha_half)   XFREE(sha_half,   NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        if (labelSeed)  XFREE(labelSeed,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        if (md5_result) XFREE(md5_result, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        if (sha_result) XFREE(sha_result, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+        return MEMORY_E;
+    }
+#endif
+
     XMEMSET(md5_result, 0, digLen);
     XMEMSET(sha_result, 0, digLen);
-    
+
     XMEMCPY(md5_half, secret, half);
     XMEMCPY(sha_half, secret + half - secLen % 2, half);
 
     XMEMCPY(labelSeed, label, labLen);
     XMEMCPY(labelSeed + labLen, seed, seedLen);
 
-    ret = p_hash(md5_result, digLen, md5_half, half, labelSeed,
-                 labLen + seedLen, md5_mac);
-    if (ret != 0)
-        return ret;
-    ret = p_hash(sha_result, digLen, sha_half, half, labelSeed,
-                 labLen + seedLen, sha_mac);
-    if (ret != 0)
-        return ret;
-    get_xor(digest, digLen, md5_result, sha_result);
+    if ((ret = p_hash(md5_result, digLen, md5_half, half, labelSeed,
+                                             labLen + seedLen, md5_mac)) == 0) {
+        if ((ret = p_hash(sha_result, digLen, sha_half, half, labelSeed,
+                                             labLen + seedLen, sha_mac)) == 0) {
+            get_xor(digest, digLen, md5_result, sha_result);
+        }
+    }
 
-    return 0;
+#ifdef CYASSL_SMALL_STACK
+    XFREE(md5_half,   NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(sha_half,   NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(labelSeed,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(md5_result, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(sha_result, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
+    return ret;
 }
 
 #endif
@@ -240,10 +273,21 @@ static int PRF(byte* digest, word32 digLen, const byte* secret, word32 secLen,
     int ret = 0;
 
     if (useAtLeastSha256) {
-        byte labelSeed[MAX_PRF_LABSEED];    /* labLen + seedLen is real size */
+#ifdef CYASSL_SMALL_STACK
+        byte* labelSeed;
+#else
+        byte labelSeed[MAX_PRF_LABSEED]; /* labLen + seedLen is real size */
+#endif
 
         if (labLen + seedLen > MAX_PRF_LABSEED)
             return BUFFER_E;
+        
+#ifdef CYASSL_SMALL_STACK
+        labelSeed = (byte*)XMALLOC(MAX_PRF_LABSEED, NULL,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+        if (labelSeed == NULL)
+           return MEMORY_E;
+#endif
 
         XMEMCPY(labelSeed, label, labLen);
         XMEMCPY(labelSeed + labLen, seed, seedLen);
@@ -254,6 +298,10 @@ static int PRF(byte* digest, word32 digLen, const byte* secret, word32 secLen,
             hash_type = sha256_mac;
         ret = p_hash(digest, digLen, secret, secLen, labelSeed,
                      labLen + seedLen, hash_type);
+
+#ifdef CYASSL_SMALL_STACK
+        XFREE(labelSeed, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
     }
 #ifndef NO_OLD_TLS
     else {
