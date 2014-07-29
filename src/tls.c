@@ -46,109 +46,131 @@
 
 
 #ifdef CYASSL_SHA384
-    #define PHASH_MAX_DIGEST_SIZE SHA384_DIGEST_SIZE
+    #define P_HASH_MAX_SIZE SHA384_DIGEST_SIZE
 #else
-    #define PHASH_MAX_DIGEST_SIZE SHA256_DIGEST_SIZE
+    #define P_HASH_MAX_SIZE SHA256_DIGEST_SIZE
 #endif
 
 /* compute p_hash for MD5, SHA-1, SHA-256, or SHA-384 for TLSv1 PRF */
 static int p_hash(byte* result, word32 resLen, const byte* secret,
                    word32 secLen, const byte* seed, word32 seedLen, int hash)
 {
-    word32   len = PHASH_MAX_DIGEST_SIZE;
-    word32   times;
-    word32   lastLen;
-    word32   lastTime;
-    word32   i;
-    word32   idx = 0;
-    int      ret;
-    byte     previous[PHASH_MAX_DIGEST_SIZE];  /* max size */
-    byte     current[PHASH_MAX_DIGEST_SIZE];   /* max size */
+    word32 len = P_HASH_MAX_SIZE;
+    word32 times;
+    word32 lastLen;
+    word32 lastTime;
+    word32 i;
+    word32 idx = 0;
+    int    ret = 0;
+#ifdef CYASSL_SMALL_STACK
+    byte*  previous;
+    byte*  current;
+    Hmac*  hmac;    
+#else
+    byte   previous[P_HASH_MAX_SIZE];  /* max size */
+    byte   current[P_HASH_MAX_SIZE];   /* max size */
+    Hmac   hmac[1];
+#endif
 
-    Hmac hmac;
+#ifdef CYASSL_SMALL_STACK
+    previous = (byte*)XMALLOC(P_HASH_MAX_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    current  = (byte*)XMALLOC(P_HASH_MAX_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    hmac     = (Hmac*)XMALLOC(sizeof(Hmac),    NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    if (previous == NULL || current == NULL || hmac == NULL) {
+        if (previous) XFREE(previous, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        if (current)  XFREE(current,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        if (hmac)     XFREE(hmac,     NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+        return MEMORY_E;
+    }
+#endif
 
     switch (hash) {
         #ifndef NO_MD5
-        case md5_mac:
-        {
-            len = MD5_DIGEST_SIZE;
-            hash = MD5;
-        }
-        break;
+            case md5_mac:
+                hash = MD5;
+                len  = MD5_DIGEST_SIZE;
+            break;
         #endif
+
         #ifndef NO_SHA256
-        case sha256_mac:
-        {
-            len = SHA256_DIGEST_SIZE;
-            hash = SHA256;
-        }
-        break;
+            case sha256_mac:
+                hash = SHA256;
+                len  = SHA256_DIGEST_SIZE;
+            break;
         #endif
+
         #ifdef CYASSL_SHA384
-        case sha384_mac:
-        {
-            len = SHA384_DIGEST_SIZE;
-            hash = SHA384;
-        }
-        break;
+            case sha384_mac:
+                hash = SHA384;
+                len  = SHA384_DIGEST_SIZE;
+            break;
         #endif
-#ifndef NO_SHA
-        case sha_mac:
-        default:
-        {
-            len = SHA_DIGEST_SIZE;
-            hash = SHA;
-        }
-        break;
-#endif
+
+        #ifndef NO_SHA
+            case sha_mac:
+            default:
+                hash = SHA;
+                len  = SHA_DIGEST_SIZE;
+            break;
+        #endif
     }
 
-    times = resLen / len;
+    times   = resLen / len;
     lastLen = resLen % len;
-    if (lastLen) times += 1;
+
+    if (lastLen)
+        times += 1;
+
     lastTime = times - 1;
 
-    ret = HmacSetKey(&hmac, hash, secret, secLen);
-    if (ret != 0)
-        return ret;
-    ret = HmacUpdate(&hmac, seed, seedLen);       /* A0 = seed */
-    if (ret != 0)
-        return ret;
-    ret = HmacFinal(&hmac, previous);             /* A1 */
-    if (ret != 0)
-        return ret;
+    if ((ret = HmacSetKey(hmac, hash, secret, secLen)) == 0) {
+        if ((ret = HmacUpdate(hmac, seed, seedLen)) == 0) { /* A0 = seed */
+            if ((ret = HmacFinal(hmac, previous)) == 0) {   /* A1 */
+                for (i = 0; i < times; i++) {
+                    ret = HmacUpdate(hmac, previous, len);
+                    if (ret != 0)
+                        break;
+                    ret = HmacUpdate(hmac, seed, seedLen);
+                    if (ret != 0)
+                        break;
+                    ret = HmacFinal(hmac, current);
+                    if (ret != 0)
+                        break;
 
-    for (i = 0; i < times; i++) {
-        ret = HmacUpdate(&hmac, previous, len);
-        if (ret != 0)
-            return ret;
-        ret = HmacUpdate(&hmac, seed, seedLen);
-        if (ret != 0)
-            return ret;
-        ret = HmacFinal(&hmac, current);
-        if (ret != 0)
-            return ret;
-
-        if ( (i == lastTime) && lastLen)
-            XMEMCPY(&result[idx], current, min(lastLen, sizeof(current)));
-        else {
-            XMEMCPY(&result[idx], current, len);
-            idx += len;
-            ret = HmacUpdate(&hmac, previous, len);
-            if (ret != 0)
-                return ret;
-            ret = HmacFinal(&hmac, previous);
-            if (ret != 0)
-                return ret;
+                    if ((i == lastTime) && lastLen)
+                        XMEMCPY(&result[idx], current, 
+                                                 min(lastLen, P_HASH_MAX_SIZE));
+                    else {
+                        XMEMCPY(&result[idx], current, len);
+                        idx += len;
+                        ret = HmacUpdate(hmac, previous, len);
+                        if (ret != 0)
+                            break;
+                        ret = HmacFinal(hmac, previous);
+                        if (ret != 0)
+                            break;
+                    }
+                }
+            }
         }
     }
-    XMEMSET(previous, 0, sizeof previous);
-    XMEMSET(current, 0, sizeof current);
-    XMEMSET(&hmac, 0, sizeof hmac);
 
-    return 0;
+    XMEMSET(previous, 0, P_HASH_MAX_SIZE);
+    XMEMSET(current,  0, P_HASH_MAX_SIZE);
+    XMEMSET(hmac,     0, sizeof(Hmac));
+
+#ifdef CYASSL_SMALL_STACK
+    XFREE(previous, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(current,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(hmac,     NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
+    return ret;
 }
 
+#undef P_HASH_MAX_SIZE
 
 
 #ifndef NO_OLD_TLS
