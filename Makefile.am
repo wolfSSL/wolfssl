@@ -90,6 +90,7 @@ include mcapi/ctaocrypt_mcapi.X/nbproject/include.am
 include mcapi/ctaocrypt_test.X/nbproject/include.am
 include mcapi/cyassl.X/nbproject/include.am
 include mcapi/zlib.X/nbproject/include.am
+include tirtos/include.am
 
 if USE_VALGRIND
 TESTS_ENVIRONMENT=./valgrind-error.sh
