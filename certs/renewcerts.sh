@@ -139,7 +139,6 @@ function restore_config(){
 #function for copy and pasting ntru updates
 function move_ntru(){
     cp ntru-cert.pem certs/ntru-cert.pem
-    cp ntru-cert.der certs/ntru-cert.der
     cp ntru-key.raw certs/ntru-key.raw
 }
 
