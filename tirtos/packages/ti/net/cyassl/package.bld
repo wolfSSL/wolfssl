@@ -22,7 +22,7 @@ var cyaSSLObjList = [
         "ctaocrypt/src/md4.c",
         "ctaocrypt/src/md5.c",
         "ctaocrypt/src/memory.c",
-        "ctaocrypt/src/port.c",
+        "ctaocrypt/src/wc_port.c",
         "ctaocrypt/src/pwdbased.c",
         "ctaocrypt/src/random.c",
         "ctaocrypt/src/rsa.c",
