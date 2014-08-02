@@ -410,19 +410,42 @@ int DeriveTlsKeys(CYASSL* ssl)
     int length = 2 * ssl->specs.hash_size + 
                  2 * ssl->specs.key_size  +
                  2 * ssl->specs.iv_size;
+#ifdef CYASSL_SMALL_STACK
+    byte*        seed;
+    byte*        key_data;
+#else
     byte         seed[SEED_LEN];
     byte         key_data[MAX_PRF_DIG];
+#endif
 
-    XMEMCPY(seed, ssl->arrays->serverRandom, RAN_LEN);
-    XMEMCPY(&seed[RAN_LEN], ssl->arrays->clientRandom, RAN_LEN);
+#ifdef CYASSL_SMALL_STACK
+    seed = (byte*)XMALLOC(SEED_LEN, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (seed == NULL)
+        return MEMORY_E;
+
+    key_data = (byte*)XMALLOC(MAX_PRF_DIG, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (key_data == NULL) {
+        XFREE(seed, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        return MEMORY_E;
+    }
+#endif
+
+    XMEMCPY(seed,           ssl->arrays->serverRandom, RAN_LEN);
+    XMEMCPY(seed + RAN_LEN, ssl->arrays->clientRandom, RAN_LEN);
 
     ret = PRF(key_data, length, ssl->arrays->masterSecret, SECRET_LEN, 
               key_label, KEY_LABEL_SZ, seed, SEED_LEN, IsAtLeastTLSv1_2(ssl),
               ssl->specs.mac_algorithm);
-    if (ret != 0)
-        return ret;
 
-    return StoreKeys(ssl, key_data);
+    if (ret == 0)
+        ret = StoreKeys(ssl, key_data);
+
+#ifdef CYASSL_SMALL_STACK
+    XFREE(seed,     NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(key_data, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
+    return ret;
 }
 
 
