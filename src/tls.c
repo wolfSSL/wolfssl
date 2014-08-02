@@ -406,16 +406,16 @@ static const byte key_label   [KEY_LABEL_SZ + 1]    = "key expansion";
 
 int DeriveTlsKeys(CYASSL* ssl)
 {
-    int ret;
-    int length = 2 * ssl->specs.hash_size + 
-                 2 * ssl->specs.key_size  +
-                 2 * ssl->specs.iv_size;
+    int   ret;
+    int   length = 2 * ssl->specs.hash_size + 
+                   2 * ssl->specs.key_size  +
+                   2 * ssl->specs.iv_size;
 #ifdef CYASSL_SMALL_STACK
-    byte*        seed;
-    byte*        key_data;
+    byte* seed;
+    byte* key_data;
 #else
-    byte         seed[SEED_LEN];
-    byte         key_data[MAX_PRF_DIG];
+    byte  seed[SEED_LEN];
+    byte  key_data[MAX_PRF_DIG];
 #endif
 
 #ifdef CYASSL_SMALL_STACK
@@ -451,11 +451,11 @@ int DeriveTlsKeys(CYASSL* ssl)
 
 int MakeTlsMasterSecret(CYASSL* ssl)
 {
-    int  ret;
+    int   ret;
 #ifdef CYASSL_SMALL_STACK
     byte* seed;
 #else
-    byte seed[SEED_LEN];
+    byte  seed[SEED_LEN];
 #endif
 
 #ifdef CYASSL_SMALL_STACK
@@ -498,20 +498,35 @@ int MakeTlsMasterSecret(CYASSL* ssl)
 int CyaSSL_make_eap_keys(CYASSL* ssl, void* msk, unsigned int len,
                                                               const char* label)
 {
-    byte seed[SEED_LEN];
+    int   ret;
+#ifdef CYASSL_SMALL_STACK
+    byte* seed;
+#else
+    byte  seed[SEED_LEN];
+#endif
+
+#ifdef CYASSL_SMALL_STACK
+    seed = (byte*)XMALLOC(SEED_LEN, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (seed == NULL)
+        return MEMORY_E;
+#endif
 
     /*
      * As per RFC-5281, the order of the client and server randoms is reversed
      * from that used by the TLS protocol to derive keys.
      */
-    XMEMCPY(seed, ssl->arrays->clientRandom, RAN_LEN);
-    XMEMCPY(&seed[RAN_LEN], ssl->arrays->serverRandom, RAN_LEN);
+    XMEMCPY(seed,           ssl->arrays->clientRandom, RAN_LEN);
+    XMEMCPY(seed + RAN_LEN, ssl->arrays->serverRandom, RAN_LEN);
 
-    return PRF((byte*)msk, len,
-               ssl->arrays->masterSecret, SECRET_LEN,
-               (const byte *)label, (word32)strlen(label),
-               seed, SEED_LEN, IsAtLeastTLSv1_2(ssl), ssl->specs.mac_algorithm);
+    ret = PRF((byte*)msk, len, ssl->arrays->masterSecret, SECRET_LEN,
+              (const byte *)label, (word32)strlen(label), seed, SEED_LEN,
+              IsAtLeastTLSv1_2(ssl), ssl->specs.mac_algorithm);
 
+#ifdef CYASSL_SMALL_STACK
+    XFREE(seed, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
+    return ret;
 }
 
 
