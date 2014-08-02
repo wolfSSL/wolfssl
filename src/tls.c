@@ -452,29 +452,44 @@ int DeriveTlsKeys(CYASSL* ssl)
 int MakeTlsMasterSecret(CYASSL* ssl)
 {
     int  ret;
+#ifdef CYASSL_SMALL_STACK
+    byte* seed;
+#else
     byte seed[SEED_LEN];
-    
-    XMEMCPY(seed, ssl->arrays->clientRandom, RAN_LEN);
-    XMEMCPY(&seed[RAN_LEN], ssl->arrays->serverRandom, RAN_LEN);
+#endif
+
+#ifdef CYASSL_SMALL_STACK
+    seed = (byte*)XMALLOC(SEED_LEN, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (seed == NULL)
+        return MEMORY_E;
+#endif
+
+    XMEMCPY(seed,           ssl->arrays->clientRandom, RAN_LEN);
+    XMEMCPY(seed + RAN_LEN, ssl->arrays->serverRandom, RAN_LEN);
 
     ret = PRF(ssl->arrays->masterSecret, SECRET_LEN,
               ssl->arrays->preMasterSecret, ssl->arrays->preMasterSz,
               master_label, MASTER_LABEL_SZ, 
               seed, SEED_LEN, IsAtLeastTLSv1_2(ssl), ssl->specs.mac_algorithm);
-    if (ret != 0)
-        return ret;
 
-#ifdef SHOW_SECRETS
-    {
+    if (ret == 0) {
+    #ifdef SHOW_SECRETS
         int i;
+
         printf("master secret: ");
         for (i = 0; i < SECRET_LEN; i++)
             printf("%02x", ssl->arrays->masterSecret[i]);
         printf("\n");
+    #endif
+
+        ret = DeriveTlsKeys(ssl);
     }
+
+#ifdef CYASSL_SMALL_STACK
+    XFREE(seed, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
 
-    return DeriveTlsKeys(ssl);
+    return ret;
 }
 
 
