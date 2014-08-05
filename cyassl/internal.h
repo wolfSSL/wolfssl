@@ -134,6 +134,10 @@
     #define SHA256_DIGEST_SIZE 32 
 #endif
 
+#ifdef NO_MD5
+    #define MD5_DIGEST_SIZE 20
+#endif
+
 
 #ifdef __cplusplus
     extern "C" {
