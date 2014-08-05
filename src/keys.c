@@ -2234,51 +2234,98 @@ int StoreKeys(CYASSL* ssl, const byte* keyData)
 #ifndef NO_OLD_TLS
 int DeriveKeys(CYASSL* ssl)
 {
-    int length = 2 * ssl->specs.hash_size + 
-                 2 * ssl->specs.key_size  +
-                 2 * ssl->specs.iv_size;
-    int rounds = (length + MD5_DIGEST_SIZE - 1 ) / MD5_DIGEST_SIZE, i;
-    int ret = 0;
+    int    length = 2 * ssl->specs.hash_size + 
+                    2 * ssl->specs.key_size  +
+                    2 * ssl->specs.iv_size;
+    int    rounds = (length + MD5_DIGEST_SIZE - 1 ) / MD5_DIGEST_SIZE, i;
+    int    ret = 0;
+    
+    word32 md5InputSz  = SECRET_LEN + SHA_DIGEST_SIZE;
+    word32 shaInputSz  = KEY_PREFIX + SECRET_LEN + 2 * RAN_LEN;
+    word32 keyDataSz   = KEY_PREFIX * MD5_DIGEST_SIZE; /* max size */
+    
+#ifdef CYASSL_SMALL_STACK
+    byte*  shaOutput;
+    byte*  md5Input;
+    byte*  shaInput;
+    byte*  keyData;
+    Md5*   md5;
+    Sha*   sha;
+#else
+    byte   shaOutput[SHA_DIGEST_SIZE];
+    byte   md5Input[md5InputSz];
+    byte   shaInput[shaInputSz];
+    byte   keyData[keyDataSz];
+    Md5    md5[1];
+    Sha    sha[1];
+#endif
+    
+#ifdef CYASSL_SMALL_STACK
+    shaOutput = (byte*)XMALLOC(SHA_DIGEST_SIZE, 
+                                            NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    md5Input  = (byte*)XMALLOC(md5InputSz,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    shaInput  = (byte*)XMALLOC(shaInputSz,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    keyData   = (byte*)XMALLOC(keyDataSz,   NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    md5       =  (Md5*)XMALLOC(sizeof(Md5), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    sha       =  (Sha*)XMALLOC(sizeof(Sha), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    
+    if (shaOutput == NULL || md5Input == NULL || shaInput == NULL ||
+        keyData   == NULL || md5      == NULL || sha      == NULL) {
+        if (shaOutput) XFREE(shaOutput, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        if (md5Input)  XFREE(md5Input,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        if (shaInput)  XFREE(shaInput,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        if (keyData)   XFREE(keyData,   NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        if (md5)       XFREE(md5,       NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        if (sha)       XFREE(sha,       NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        
+        return MEMORY_E;
+    }
+#endif
 
-    byte shaOutput[SHA_DIGEST_SIZE];
-    byte md5Input[SECRET_LEN + SHA_DIGEST_SIZE];
-    byte shaInput[KEY_PREFIX + SECRET_LEN + 2 * RAN_LEN];
-  
-    Md5 md5;
-    Sha sha;
+    InitMd5(md5);
 
-    byte keyData[KEY_PREFIX * MD5_DIGEST_SIZE];  /* max size */
+    ret = InitSha(sha);
 
-    InitMd5(&md5);
-    ret = InitSha(&sha);
-    if (ret != 0) 
-        return ret;
+    if (ret == 0) {
+        XMEMCPY(md5Input, ssl->arrays->masterSecret, SECRET_LEN);
 
-    XMEMCPY(md5Input, ssl->arrays->masterSecret, SECRET_LEN);
+        for (i = 0; i < rounds; ++i) {
+            int j   = i + 1;
+            int idx = j;
 
-    for (i = 0; i < rounds; ++i) {
-        int j   = i + 1;
-        int idx = j;
+            if (!SetPrefix(shaInput, i)) {
+                ret = PREFIX_ERROR;
+                break;
+            }
 
-        if (!SetPrefix(shaInput, i)) {
-            return PREFIX_ERROR;
+            XMEMCPY(shaInput + idx, ssl->arrays->masterSecret, SECRET_LEN);
+            idx += SECRET_LEN;
+            XMEMCPY(shaInput + idx, ssl->arrays->serverRandom, RAN_LEN);
+            idx += RAN_LEN;
+            XMEMCPY(shaInput + idx, ssl->arrays->clientRandom, RAN_LEN);
+
+            ShaUpdate(sha, shaInput, shaInputSz - KEY_PREFIX + j);
+            ShaFinal(sha, shaOutput);
+
+            XMEMCPY(md5Input + SECRET_LEN, shaOutput, SHA_DIGEST_SIZE);
+            Md5Update(md5, md5Input, md5InputSz);
+            Md5Final(md5, keyData + i * MD5_DIGEST_SIZE);
         }
 
-        XMEMCPY(shaInput + idx, ssl->arrays->masterSecret, SECRET_LEN);
-        idx += SECRET_LEN;
-        XMEMCPY(shaInput + idx, ssl->arrays->serverRandom, RAN_LEN);
-        idx += RAN_LEN;
-        XMEMCPY(shaInput + idx, ssl->arrays->clientRandom, RAN_LEN);
-
-        ShaUpdate(&sha, shaInput, (word32)sizeof(shaInput) - KEY_PREFIX + j);
-        ShaFinal(&sha, shaOutput);
-
-        XMEMCPY(&md5Input[SECRET_LEN], shaOutput, SHA_DIGEST_SIZE);
-        Md5Update(&md5, md5Input, sizeof(md5Input));
-        Md5Final(&md5, keyData + i * MD5_DIGEST_SIZE);
+        if (ret == 0)
+            ret = StoreKeys(ssl, keyData);
     }
 
-    return StoreKeys(ssl, keyData);
+#ifdef CYASSL_SMALL_STACK
+    XFREE(shaOutput, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(md5Input,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(shaInput,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(keyData,   NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(md5,       NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(sha,       NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
+    return ret;
 }
 
 
