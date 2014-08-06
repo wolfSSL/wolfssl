@@ -127,15 +127,15 @@
 #endif
 
 #ifdef NO_SHA
-    #define SHA_DIGEST_SIZE 20 
+    #define SHA_DIGEST_SIZE 20
 #endif
 
 #ifdef NO_SHA256
-    #define SHA256_DIGEST_SIZE 32 
+    #define SHA256_DIGEST_SIZE 32
 #endif
 
 #ifdef NO_MD5
-    #define MD5_DIGEST_SIZE 20
+    #define MD5_DIGEST_SIZE 16
 #endif
 
 
