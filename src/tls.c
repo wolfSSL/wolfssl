@@ -677,6 +677,11 @@ int TLS_hmac(CYASSL* ssl, byte* digest, const byte* in, word32 sz,
     if (ssl == NULL)
         return BAD_FUNC_ARG;
     
+#ifdef HAVE_FUZZER
+    if (ssl->fuzzerCb)
+        ssl->fuzzerCb(in, sz, FUZZ_HMAC, ssl->ctx);
+#endif
+
     CyaSSL_SetTlsHmacInner(ssl, myInner, sz, content, verify);
 
     ret = HmacSetKey(&hmac, CyaSSL_GetHmacType(ssl),

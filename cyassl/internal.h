@@ -1969,6 +1969,9 @@ struct CYASSL {
     byte            hsInfoOn;           /* track handshake info        */
     byte            toInfoOn;           /* track timeout   info        */
 #endif
+#ifdef HAVE_FUZZER
+    CallbackFuzzer  fuzzerCb;           /* for testing with using fuzzer */
+#endif
 #ifdef KEEP_PEER_CERT
     CYASSL_X509     peerCert;           /* X509 peer cert */
 #endif

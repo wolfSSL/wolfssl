@@ -11501,6 +11501,13 @@ const byte* CyaSSL_get_sessionID(const CYASSL_SESSION* session)
 
 #endif /* SESSION_CERTS */
 
+#ifdef HAVE_FUZZER
+void CyaSSL_SetFuzzerCb(CYASSL* ssl, CallbackFuzzer cbf)
+{
+    if (ssl)
+        ssl->fuzzerCb = cbf;
+}
+#endif
 
 #ifndef NO_CERTS
 #ifdef  HAVE_PK_CALLBACKS

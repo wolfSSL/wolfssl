@@ -930,6 +930,20 @@ CYASSL_API int CyaSSL_set_group_messages(CYASSL*);
 typedef int (*CallbackIORecv)(CYASSL *ssl, char *buf, int sz, void *ctx);
 typedef int (*CallbackIOSend)(CYASSL *ssl, char *buf, int sz, void *ctx);
 
+#ifdef HAVE_FUZZER
+enum fuzzer_type {
+    FUZZ_HMAC      = 0,
+    FUZZ_ENCRYPT   = 1,
+    FUZZ_SIGNATURE = 2,
+    FUZZ_HASH      = 3
+};
+
+typedef int (*CallbackFuzzer)(const unsigned char* buf, int sz, int type,
+        void* ctx);
+
+CYASSL_API void CyaSSL_SetFuzzerCb(CYASSL* ssl, CallbackFuzzer cbf);
+#endif
+
 CYASSL_API void CyaSSL_SetIORecv(CYASSL_CTX*, CallbackIORecv);
 CYASSL_API void CyaSSL_SetIOSend(CYASSL_CTX*, CallbackIOSend);
 
