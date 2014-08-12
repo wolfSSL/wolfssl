@@ -679,7 +679,7 @@ int TLS_hmac(CYASSL* ssl, byte* digest, const byte* in, word32 sz,
     
 #ifdef HAVE_FUZZER
     if (ssl->fuzzerCb)
-        ssl->fuzzerCb(in, sz, FUZZ_HMAC, ssl->ctx);
+        ssl->fuzzerCb(ssl, in, sz, FUZZ_HMAC, ssl->fuzzerCtx);
 #endif
 
     CyaSSL_SetTlsHmacInner(ssl, myInner, sz, content, verify);

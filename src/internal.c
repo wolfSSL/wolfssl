@@ -1754,6 +1754,7 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
 #endif
 #ifdef HAVE_FUZZER
     ssl->fuzzerCb         = NULL;
+    ssl->fuzzerCtx        = NULL;
 #endif
 #ifdef HAVE_PK_CALLBACKS
     #ifdef HAVE_ECC
@@ -2532,7 +2533,7 @@ static int HashOutput(CYASSL* ssl, const byte* output, int sz, int ivSz)
     
 #ifdef HAVE_FUZZER
     if (ssl->fuzzerCb)
-        ssl->fuzzerCb(output, sz, FUZZ_HASH, ssl->ctx);
+        ssl->fuzzerCb(ssl, output, sz, FUZZ_HASH, ssl->fuzzerCtx);
 #endif
 #ifdef CYASSL_DTLS
     if (ssl->options.dtls) {
@@ -2961,8 +2962,8 @@ static int GetRecordHeader(CYASSL* ssl, const byte* input, word32* inOutIdx,
     if (!ssl->options.dtls) {
 #ifdef HAVE_FUZZER
         if (ssl->fuzzerCb)
-            ssl->fuzzerCb(input + *inOutIdx, RECORD_HEADER_SZ, FUZZ_HEAD,
-                    ssl->ctx);
+            ssl->fuzzerCb(ssl, input + *inOutIdx, RECORD_HEADER_SZ, FUZZ_HEAD,
+                    ssl->fuzzerCtx);
 #endif
         XMEMCPY(rh, input + *inOutIdx, RECORD_HEADER_SZ);
         *inOutIdx += RECORD_HEADER_SZ;
@@ -2981,9 +2982,9 @@ static int GetRecordHeader(CYASSL* ssl, const byte* input, word32* inOutIdx,
         *inOutIdx += LENGTH_SZ;
 #ifdef HAVE_FUZZER
         if (ssl->fuzzerCb)
-            ssl->fuzzerCb(input + *inOutIdx - LENGTH_SZ - 8 - ENUM_LEN -
-                      VERSION_SZ, ENUM_LEN + VERSION_SZ + 8 + LENGTH_SZ,
-                      FUZZ_HEAD, ssl->ctx);
+            ssl->fuzzerCb(ssl, input + *inOutIdx - LENGTH_SZ - 8 - ENUM_LEN -
+                           VERSION_SZ, ENUM_LEN + VERSION_SZ + 8 + LENGTH_SZ,
+                           FUZZ_HEAD, ssl->fuzzerCtx);
 #endif
 #endif
     }
@@ -5133,7 +5134,7 @@ static INLINE int Encrypt(CYASSL* ssl, byte* out, const byte* input, word16 sz)
 
 #ifdef HAVE_FUZZER
     if (ssl->fuzzerCb)
-        ssl->fuzzerCb(input, sz, FUZZ_ENCRYPT, ssl->ctx);
+        ssl->fuzzerCb(ssl, input, sz, FUZZ_ENCRYPT, ssl->fuzzerCtx);
 #endif
 
     switch (ssl->specs.bulk_cipher_algorithm) {
@@ -6415,7 +6416,7 @@ static int SSL_hmac(CYASSL* ssl, byte* digest, const byte* in, word32 sz,
     
 #ifdef HAVE_FUZZER
     if (ssl->fuzzerCb)
-        ssl->fuzzerCb(in, sz, FUZZ_HMAC, ssl->ctx);
+        ssl->fuzzerCb(ssl, in, sz, FUZZ_HMAC, ssl->fuzzerCtx);
 #endif
 
     XMEMSET(seq, 0, SEQ_SZ);
@@ -10573,7 +10574,8 @@ static void PickHashSigAlgo(CYASSL* ssl,
 
 #ifdef HAVE_FUZZER
     if (ssl->fuzzerCb)
-        ssl->fuzzerCb(output + preSigIdx, preSigSz, FUZZ_SIGNATURE, ssl->ctx);
+        ssl->fuzzerCb(ssl, output + preSigIdx, preSigSz, FUZZ_SIGNATURE,
+                ssl->fuzzerCtx);
 #endif
 
             /* do signature */
@@ -10930,7 +10932,8 @@ static void PickHashSigAlgo(CYASSL* ssl,
 
 #ifdef HAVE_FUZZER
     if (ssl->fuzzerCb)
-        ssl->fuzzerCb(output + preSigIdx, preSigSz, FUZZ_SIGNATURE, ssl->ctx);
+        ssl->fuzzerCb(ssl, output + preSigIdx, preSigSz, FUZZ_SIGNATURE,
+                ssl->fuzzerCtx);
 #endif
 
             /* do signature */

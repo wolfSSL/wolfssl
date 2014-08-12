@@ -939,10 +939,10 @@ enum fuzzer_type {
     FUZZ_HEAD      = 4
 };
 
-typedef int (*CallbackFuzzer)(const unsigned char* buf, int sz, int type,
-        void* ctx);
+typedef int (*CallbackFuzzer)(CYASSL* ssl, const unsigned char* buf, int sz,
+        int type, void* fuzzCtx);
 
-CYASSL_API void CyaSSL_SetFuzzerCb(CYASSL* ssl, CallbackFuzzer cbf);
+CYASSL_API void CyaSSL_SetFuzzerCb(CYASSL* ssl, CallbackFuzzer cbf, void* fCtx);
 #endif
 
 CYASSL_API void CyaSSL_SetIORecv(CYASSL_CTX*, CallbackIORecv);
