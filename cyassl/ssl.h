@@ -935,7 +935,8 @@ enum fuzzer_type {
     FUZZ_HMAC      = 0,
     FUZZ_ENCRYPT   = 1,
     FUZZ_SIGNATURE = 2,
-    FUZZ_HASH      = 3
+    FUZZ_HASH      = 3,
+    FUZZ_HEAD      = 4
 };
 
 typedef int (*CallbackFuzzer)(const unsigned char* buf, int sz, int type,

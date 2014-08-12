@@ -2959,6 +2959,11 @@ static int GetRecordHeader(CYASSL* ssl, const byte* input, word32* inOutIdx,
                            RecordLayerHeader* rh, word16 *size)
 {
     if (!ssl->options.dtls) {
+#ifdef HAVE_FUZZER
+        if (ssl->fuzzerCb)
+            ssl->fuzzerCb(input + *inOutIdx, RECORD_HEADER_SZ, FUZZ_HEAD,
+                    ssl->ctx);
+#endif
         XMEMCPY(rh, input + *inOutIdx, RECORD_HEADER_SZ);
         *inOutIdx += RECORD_HEADER_SZ;
         ato16(rh->length, size);
@@ -2974,6 +2979,12 @@ static int GetRecordHeader(CYASSL* ssl, const byte* input, word32* inOutIdx,
         *inOutIdx += 4;  /* advance past rest of seq */
         ato16(input + *inOutIdx, size);
         *inOutIdx += LENGTH_SZ;
+#ifdef HAVE_FUZZER
+        if (ssl->fuzzerCb)
+            ssl->fuzzerCb(input + *inOutIdx - LENGTH_SZ - 8 - ENUM_LEN -
+                      VERSION_SZ, ENUM_LEN + VERSION_SZ + 8 + LENGTH_SZ,
+                      FUZZ_HEAD, ssl->ctx);
+#endif
 #endif
     }
 
