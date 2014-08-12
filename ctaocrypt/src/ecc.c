@@ -1160,6 +1160,168 @@ static int ecc_mulmod(mp_int* k, ecc_point *G, ecc_point *R, mp_int* modulus,
 }
 
 #undef WINSIZE
+
+#else /* ECC_TIMING_RESISTANT */
+
+/**
+   Perform a point multiplication  (timing resistant)
+   k    The scalar to multiply by
+   G    The base point
+   R    [out] Destination for kG
+   modulus  The modulus of the field the ECC curve is in
+   map      Boolean whether to map back to affine or not
+            (1==map, 0 == leave in projective)
+   return MP_OKAY on success
+*/
+#ifdef FP_ECC
+static int normal_ecc_mulmod(mp_int* k, ecc_point *G, ecc_point *R,
+                             mp_int* modulus, int map)
+#else
+static int ecc_mulmod(mp_int* k, ecc_point *G, ecc_point *R, mp_int* modulus,
+                      int map)
+#endif
+{
+   ecc_point    *tG, *M[3];
+   int           i, j, err;
+   mp_int        mu;
+   mp_digit      mp;
+   unsigned long buf;
+   int           first = 1, bitbuf = 0, bitcpy = 0, bitcnt = 0, mode = 0,
+                 digidx = 0;
+
+   if (k == NULL || G == NULL || R == NULL || modulus == NULL)
+       return ECC_BAD_ARG_E;
+
+   /* init montgomery reduction */
+   if ((err = mp_montgomery_setup(modulus, &mp)) != MP_OKAY) {
+      return err;
+   }
+   if ((err = mp_init(&mu)) != MP_OKAY) {
+      return err;
+   }
+   if ((err = mp_montgomery_calc_normalization(&mu, modulus)) != MP_OKAY) {
+      mp_clear(&mu);
+      return err;
+   }
+
+  /* alloc ram for window temps */
+  for (i = 0; i < 3; i++) {
+      M[i] = ecc_new_point();
+      if (M[i] == NULL) {
+         for (j = 0; j < i; j++) {
+             ecc_del_point(M[j]);
+         }
+         mp_clear(&mu);
+         return MEMORY_E;
+      }
+  }
+
+   /* make a copy of G incase R==G */
+   tG = ecc_new_point();
+   if (tG == NULL)
+       err = MEMORY_E;
+
+   /* tG = G  and convert to montgomery */
+   if (err == MP_OKAY) {
+       err = mp_mulmod(&G->x, &mu, modulus, &tG->x);
+       if (err == MP_OKAY)
+           err = mp_mulmod(&G->y, &mu, modulus, &tG->y);
+       if (err == MP_OKAY)
+           err = mp_mulmod(&G->z, &mu, modulus, &tG->z);
+   }
+   mp_clear(&mu);
+
+   /* calc the M tab */
+   /* M[0] == G */
+   if (err == MP_OKAY)
+       err = mp_copy(&tG->x, &M[0]->x);
+   if (err == MP_OKAY)
+       err = mp_copy(&tG->y, &M[0]->y);
+   if (err == MP_OKAY)
+       err = mp_copy(&tG->z, &M[0]->z);
+
+   /* M[1] == 2G */
+   if (err == MP_OKAY)
+       err = ecc_projective_dbl_point(tG, M[1], modulus, &mp);
+
+   /* setup sliding window */
+   mode   = 0;
+   bitcnt = 1;
+   buf    = 0;
+   digidx = get_digit_count(k) - 1;
+   bitcpy = bitbuf = 0;
+   first  = 1;
+
+   /* perform ops */
+   if (err == MP_OKAY) {
+       for (;;) {
+           /* grab next digit as required */
+           if (--bitcnt == 0) {
+               if (digidx == -1) {
+                   break;
+               }
+               buf = get_digit(k, digidx);
+               bitcnt = (int) DIGIT_BIT;
+               --digidx;
+           }
+
+           /* grab the next msb from the ltiplicand */
+           i = (buf >> (DIGIT_BIT - 1)) & 1;
+           buf <<= 1;
+
+           if (mode == 0 && i == 0) {
+               /* dummy operations */
+               if (err == MP_OKAY)
+                   err = ecc_projective_add_point(M[0], M[1], M[2], modulus,
+                                                  &mp);
+               if (err == MP_OKAY)
+                   err = ecc_projective_dbl_point(M[1], M[2], modulus, &mp);
+               if (err == MP_OKAY)
+                   continue;
+           }
+
+           if (mode == 0 && i == 1) {
+               mode = 1;
+               /* dummy operations */
+               if (err == MP_OKAY)
+                   err = ecc_projective_add_point(M[0], M[1], M[2], modulus,
+                                                  &mp);
+               if (err == MP_OKAY)
+                   err = ecc_projective_dbl_point(M[1], M[2], modulus, &mp);
+               if (err == MP_OKAY)
+                   continue;
+           }
+
+           if (err == MP_OKAY)
+               err = ecc_projective_add_point(M[0], M[1], M[i^1], modulus, &mp);
+           if (err == MP_OKAY)
+               err = ecc_projective_dbl_point(M[i], M[i], modulus, &mp);
+           if (err != MP_OKAY)
+               break;
+       } /* end for */
+   }
+
+   /* copy result out */
+   if (err == MP_OKAY)
+       err = mp_copy(&M[0]->x, &R->x);
+   if (err == MP_OKAY)
+       err = mp_copy(&M[0]->y, &R->y);
+   if (err == MP_OKAY)
+       err = mp_copy(&M[0]->z, &R->z);
+
+   /* map R back from projective space */
+   if (err == MP_OKAY && map)
+      err = ecc_map(R, modulus, &mp);
+
+   /* done */
+   mp_clear(&mu);
+   ecc_del_point(tG);
+   for (i = 0; i < 3; i++) {
+       ecc_del_point(M[i]);
+   }
+   return err;
+}
+
 #endif /* ECC_TIMING_RESISTANT */
 
 
