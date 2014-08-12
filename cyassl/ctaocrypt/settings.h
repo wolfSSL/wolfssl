@@ -285,10 +285,6 @@
     #define SIZEOF_LONG_LONG 8
     #define NO_WRITEV
     #define NO_CYASSL_DIR
-    #define NO_SHA512
-    #define NO_DH
-    #define NO_HC128
-    #define NO_RABBIT
     #define USE_FAST_MATH
     #define TFM_TIMING_RESISTANT
     #define NO_DEV_RANDOM
