@@ -7482,8 +7482,7 @@ void SetErrorString(int error, char* str)
 }
 
 
-/* be sure to add to cipher_names in 
-   internal.h and cipher_name_idx too !!!! */
+/* be sure to add to cipher_name_idx too !!!! */
 static const char* const cipher_names[] = 
 {
 #ifdef BUILD_SSL_RSA_WITH_RC4_128_SHA
