@@ -7482,7 +7482,8 @@ void SetErrorString(int error, char* str)
 }
 
 
-/* be sure to add to cipher_name_idx too !!!! */
+/* be sure to add to cipher_names in 
+   internal.h and cipher_name_idx too !!!! */
 static const char* const cipher_names[] = 
 {
 #ifdef BUILD_SSL_RSA_WITH_RC4_128_SHA
@@ -7866,7 +7867,6 @@ static const char* const cipher_names[] =
 #endif
 
 };
-
 
 
 /* cipher suite number that matches above name table */
@@ -8254,6 +8254,17 @@ static int cipher_name_idx[] =
 #endif
 };
 
+
+/* returns the cipher_names array */
+const char* const* GetCipherNames(void)
+{
+    return cipher_names;
+}
+/* returns the size of the cipher_names array */
+int GetCipherNamesSize(void)
+{
+    return sizeof(cipher_names) / sizeof(char*);
+}
 
 /* return true if set, else false */
 /* only supports full name from cipher_name[] delimited by : */

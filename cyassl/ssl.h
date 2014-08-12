@@ -233,6 +233,7 @@ CYASSL_API int CyaSSL_PemCertToDer(const char*, unsigned char*, int);
 CYASSL_API CYASSL_CTX* CyaSSL_CTX_new(CYASSL_METHOD*);
 CYASSL_API CYASSL* CyaSSL_new(CYASSL_CTX*);
 CYASSL_API int  CyaSSL_set_fd (CYASSL*, int);
+CYASSL_API int  CyaSSL_get_ciphers(char*, int);
 CYASSL_API int  CyaSSL_get_fd(const CYASSL*);
 CYASSL_API void CyaSSL_set_using_nonblock(CYASSL*, int);
 CYASSL_API int  CyaSSL_get_using_nonblock(CYASSL*);

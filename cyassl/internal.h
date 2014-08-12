@@ -156,6 +156,10 @@ typedef byte word24[3];
 /* used by ssl.c and cyassl_int.c */
 void c32to24(word32 in, word24 out);
 
+/* used by ssl.c */
+const char* const* GetCipherNames(void);
+int GetCipherNamesSize(void);
+
 /* Define or comment out the cipher suites you'd like to be compiled in
    make sure to use at least one BUILD_SSL_xxx or BUILD_TLS_xxx is defined
 
@@ -801,7 +805,6 @@ enum Misc {
     NO_COPY            =   0,  /* should we copy static buffer for write */
     COPY               =   1   /* should we copy static buffer for write */
 };
-
 
 #ifdef SESSION_INDEX
 /* Shift values for making a session index */
