@@ -8259,6 +8259,11 @@ const char* const* GetCipherNames(void)
 {
     return cipher_names;
 }
+/* returns the cipher at the specified index of cipher_names */
+const char* GetCipherName(int index)
+{
+    return cipher_names[index];
+}
 /* returns the size of the cipher_names array */
 int GetCipherNamesSize(void)
 {

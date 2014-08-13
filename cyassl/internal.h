@@ -159,6 +159,7 @@ void c32to24(word32 in, word24 out);
 /* used by ssl.c */
 const char* const* GetCipherNames(void);
 int GetCipherNamesSize(void);
+const char* GetCipherName(int);
 
 /* Define or comment out the cipher suites you'd like to be compiled in
    make sure to use at least one BUILD_SSL_xxx or BUILD_TLS_xxx is defined
