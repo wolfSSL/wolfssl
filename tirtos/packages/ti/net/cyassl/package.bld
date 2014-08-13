@@ -10,7 +10,7 @@ Pkg.makePrologue = "vpath %.c $(subst ;,  ,$(XPKGPATH))";
 
 /* CYASSL sources */
 var cyaSSLObjList = [
-"ctaocrypt/src/aes.c",
+    "ctaocrypt/src/aes.c",
     "ctaocrypt/src/arc4.c",
     "ctaocrypt/src/asm.c",
     "ctaocrypt/src/asn.c",
