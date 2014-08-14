@@ -718,11 +718,11 @@ When liblightcomp is linked with the SSL_LIBs the linker may complain about
 the duplicate symbol.  This can be fixed by editing the lighttpd src file md5.c
 and adding this line to the beginning of the file:
 
-#if 0
+\#if 0
 
 and this line to the end of the file
 
-#endif
+\#endif
 
 Then from the lighttpd src dir do a:
 
