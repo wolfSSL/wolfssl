@@ -38,7 +38,7 @@ before calling SSL_new();  Though it's not recommended.
 
 # CyaSSL Release 3.1.0 (07/14/2014)
 
-Release 3.1.0 CyaSSL has bug fixes and new features including:
+#### Release 3.1.0 CyaSSL has bug fixes and new features including:
 
 - Fix for older versions of icc without 128-bit type
 - Intel ASM syntax for AES-NI
@@ -58,9 +58,9 @@ http://www.yassl.com/documentation/CyaSSL-Manual.pdf.  For build instructions
 and comments about the new features please check the manual.
 
 
-************ CyaSSL Release 3.0.2 (05/30/2014)
+# CyaSSL Release 3.0.2 (05/30/2014)
 
-Release 3.0.2 CyaSSL has bug fixes and new features including:
+#### Release 3.0.2 CyaSSL has bug fixes and new features including:
 
 - Added the following cipher suites:
   * TLS_PSK_WITH_AES_128_GCM_SHA256
@@ -84,9 +84,9 @@ http://www.yassl.com/documentation/CyaSSL-Manual.pdf.  For build instructions
 and comments about the new features please check the manual.
 
 
-************ CyaSSL Release 3.0.0 (04/29/2014)
+# CyaSSL Release 3.0.0 (04/29/2014)
 
-Release 3.0.0 CyaSSL has bug fixes and new features including:
+#### Release 3.0.0 CyaSSL has bug fixes and new features including:
 
 - FIPS release candidate
 - X.509 improvements that address items reported by Suman Jana with security
