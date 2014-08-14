@@ -100,9 +100,9 @@ http://www.yassl.com/documentation/CyaSSL-Manual.pdf.  For build instructions
 and comments about the new features please check the manual.
 
 
-************ CyaSSL Release 2.9.4 (04/09/2014)
+# CyaSSL Release 2.9.4 (04/09/2014)
 
-Release 2.9.4 CyaSSL has bug fixes and new features including:
+#### Release 2.9.4 CyaSSL has bug fixes and new features including:
 
 - Security fixes that address items reported by Ivan Fratric of the Google
   Security Team
@@ -122,9 +122,9 @@ http://www.yassl.com/documentation/CyaSSL-Manual.pdf.  For build instructions
 and comments about the new features please check the manual.
 
 
-************ CyaSSL Release 2.9.0 (02/07/2014)
+# CyaSSL Release 2.9.0 (02/07/2014)
 
-Release 2.9.0 CyaSSL has bug fixes and new features including:
+#### Release 2.9.0 CyaSSL has bug fixes and new features including:
 - Freescale Kinetis RNGB support
 - Freescale Kinetis mmCAU support
 - TLS Hello extensions
@@ -160,9 +160,9 @@ User Guide":
 http://cache.freescale.com/files/32bit/doc/user_guide/CAUAPIUG.pdf
 
 
-*****************CyaSSL Release 2.8.0 (8/30/2013)
+# CyaSSL Release 2.8.0 (8/30/2013)
 
-Release 2.8.0 CyaSSL has bug fixes and new features including:
+#### Release 2.8.0 CyaSSL has bug fixes and new features including:
 - AES-GCM and AES-CCM use AES-NI
 - NetX default IO callback handlers
 - IPv6 fixes for DTLS Hello Cookies
@@ -180,9 +180,9 @@ http://www.yassl.com/documentation/CyaSSL-Manual.pdf.  For build instructions
 and comments about the new features please check the manual.
 
 
-*****************CyaSSL Release 2.7.0 (6/17/2013)
+# CyaSSL Release 2.7.0 (6/17/2013)
 
-Release 2.7.0 CyaSSL has bug fixes and new features including:
+#### Release 2.7.0 CyaSSL has bug fixes and new features including:
 - SNI support for client and server
 - KEIL MDK-ARM projects
 - Wildcard check to domain name match, and Subject altnames are checked too
@@ -202,9 +202,11 @@ Release 2.7.0 CyaSSL has bug fixes and new features including:
 
 When compiling with Mingw, libtool may give the following warning due to
 path conversion errors:
-
+ 
+```
 libtool: link: Could not determine host file name corresponding to **
 libtool: link: Continuing, but uninstalled executables may not work.
+```
 
 If so, examples and testsuite will have problems when run, showing an
 error while loading shared libraries. To resolve, please run "make install".
@@ -214,9 +216,9 @@ http://www.yassl.com/documentation/CyaSSL-Manual.pdf.  For build instructions
 and comments about the new features please check the manual.
 
 
-************** CyaSSL Release 2.6.0 (04/15/2013)
+# CyaSSL Release 2.6.0 (04/15/2013)
 
-Release 2.6.0 CyaSSL has bug fixes and new features including:
+#### Release 2.6.0 CyaSSL has bug fixes and new features including:
 - DTLS 1.2 support including AEAD ciphers
 - SHA-3 finalist Blake2 support, it's fast and uses little resources
 - SHA-384 cipher suites including ECC ones
@@ -268,9 +270,9 @@ and comments about the new features please check the manual.
 
 
 
-************** CyaSSL Release 2.5.0 (02/04/2013)
+# CyaSSL Release 2.5.0 (02/04/2013)
 
-Release 2.5.0 CyaSSL has bug fixes and new features including:
+#### Release 2.5.0 CyaSSL has bug fixes and new features including:
 - Fix for TLS CBC padding timing attack identified by Nadhem Alfardan and
   Kenny Paterson: http://www.isg.rhul.ac.uk/tls/
 - Microchip PIC32 (MIPS16, MIPS32) support
@@ -316,9 +318,9 @@ and comments about the new features please check the manual.
 
 
 
-*************** CyaSSL Release 2.4.6 (12/20/2012)
+# CyaSSL Release 2.4.6 (12/20/2012)
 
-Release 2.4.6 CyaSSL has bug fixes and a few new features including:
+#### Release 2.4.6 CyaSSL has bug fixes and a few new features including:
 - ECC into main version
 - Lean PSK build (reduced code size, RAM usage, and stack usage)
 - FreeBSD CRL monitor support
@@ -343,9 +345,9 @@ http://www.yassl.com/documentation/CyaSSL-Manual.pdf.  For build instructions
 and comments about the new features please check the manual.
 
 
-*************** CyaSSL Release 2.4.0 (10/10/2012)
+# CyaSSL Release 2.4.0 (10/10/2012)
 
-Release 2.4.0 CyaSSL has bug fixes and a few new features including:
+#### Release 2.4.0 CyaSSL has bug fixes and a few new features including:
 - DTLS reliability
 - Reduced memory usage after handshake
 - Updated build process
@@ -356,9 +358,9 @@ and comments about the new features please check the manual.
 
 
 
-*************** CyaSSL Release 2.3.0 (8/10/2012)
+# CyaSSL Release 2.3.0 (8/10/2012)
 
-Release 2.3.0 CyaSSL has bug fixes and a few new features including:
+#### Release 2.3.0 CyaSSL has bug fixes and a few new features including:
 - AES-GCM crypto and cipher suites
 - make test cipher suite checks
 - Subject AltName processing
@@ -375,9 +377,9 @@ and comments about the new features please check the manual.
 
 
 
-***************CyaSSL Release 2.2.0 (5/18/2012)
+# CyaSSL Release 2.2.0 (5/18/2012)
 
-Release 2.2.0 CyaSSL has bug fixes and a few new features including:
+#### Release 2.2.0 CyaSSL has bug fixes and a few new features including:
 - Initial CRL support (--enable-crl)
 - Initial OCSP support (--enable-ocsp)
 - Add static ECDH suites
@@ -394,9 +396,9 @@ and comments about the new features please check the manual.
 
 
 
-***************CyaSSL Release 2.0.8 (2/24/2012)
+# CyaSSL Release 2.0.8 (2/24/2012)
 
-Release 2.0.8 CyaSSL has bug fixes and a few new features including:
+#### Release 2.0.8 CyaSSL has bug fixes and a few new features including:
 - A fix for malicious certificates pointed out by Remi Gacogne (thanks)
   resulting in NULL pointer use.
 - Respond to renegotiation attempt with no_renegoatation alert
@@ -411,9 +413,9 @@ and comments about the new features please check the manual.
 
 
 
-************* CyaSSL Release 2.0.6 (1/27/2012)
+# CyaSSL Release 2.0.6 (1/27/2012)
 
-Release 2.0.6 CyaSSL has bug fixes and a few new features including:
+#### Release 2.0.6 CyaSSL has bug fixes and a few new features including:
 - Fixes for CA basis constraint check
 - CTX reference counting
 - Initial unit test additions
@@ -430,9 +432,9 @@ and comments about the new features please check the manual.
 
 
 
-************* CyaSSL Release 2.0.2 (12/05/2011)
+# CyaSSL Release 2.0.2 (12/05/2011)
 
-Release 2.0.2 CyaSSL has bug fixes and a few new features including:
+#### Release 2.0.2 CyaSSL has bug fixes and a few new features including:
 - CTaoCrypt Runtime library detection settings when directly using the crypto
   library
 - Default certificate generation now uses SHAwRSA and adds SHA256wRSA generation
@@ -447,9 +449,9 @@ and comments about the new features please check the manual.
 
 
 
-************* CyaSSL Release 2.0.0rc3 (9/28/2011)
+# CyaSSL Release 2.0.0rc3 (9/28/2011)
 
-Release 2.0.0rc3 for CyaSSL has bug fixes and a few new features including:
+#### Release 2.0.0rc3 for CyaSSL has bug fixes and a few new features including:
 - updated autoconf support
 - better make install and uninstall  (uses system directories)
 - make test / make check
@@ -469,9 +471,9 @@ The CyaSSL manual is available at:
 http://www.yassl.com/documentation/CyaSSL-Manual.pdf.  For build instructions 
 and comments about the new features please check the manual.
 
-************CyaSSL Release 2.0.0rc2 (6/6/2011)
+# CyaSSL Release 2.0.0rc2 (6/6/2011)
 
-Release 2.0.0rc2 for CyaSSL has bug fixes and a few new features including:
+#### Release 2.0.0rc2 for CyaSSL has bug fixes and a few new features including:
 - bug fixes (Alerts, DTLS with DHE)
 - FreeRTOS support
 - lwIP support
@@ -488,9 +490,9 @@ The CyaSSL manual is available at:
 http://www.yassl.com/documentation/CyaSSL-Manual.pdf.  For build instructions 
 and comments about the new features please check the manual.
 
-***********CyaSSL Release 2.0.0rc1 (5/2/2011)
+# CyaSSL Release 2.0.0rc1 (5/2/2011)
 
-Release 2.0.0rc1 for CyaSSL has many new features including:
+#### Release 2.0.0rc1 for CyaSSL has many new features including:
 - bug fixes
 - SHA-256 cipher suites 
 - Root Certificate Verification (instead of needing all certs in the chain) 
@@ -521,7 +523,7 @@ The CyaSSL manual is available at:
 http://www.yassl.com/documentation/CyaSSL-Manual.pdf.  For build instructions 
 and comments about the new features please check the manual.
 
-****************** CyaSSL Release 1.9.0 (3/2/2011)
+# CyaSSL Release 1.9.0 (3/2/2011)
 
 Release 1.9.0 for CyaSSL adds bug fixes, improved TLSv1.2 through testing and
 better hash/sig algo ids, --enable-webServer for the yaSSL embedded web server,
@@ -533,7 +535,7 @@ instructions and comments about the new features please check the manual.
 
 Please send any comments or questions to support@yassl.com.
 
-****************** CyaSSL Release 1.8.0 (12/23/2010)
+# CyaSSL Release 1.8.0 (12/23/2010)
 
 Release 1.8.0 for CyaSSL adds bug fixes, x509 v3 CA signed certificate
 generation, a C standard library abstraction layer, lower memory use, increased
@@ -548,7 +550,7 @@ Please send any comments or questions to support@yassl.com.
 Happy Holidays.
  
 
-********************* CyaSSL Release 1.6.5 (9/9/2010)
+# CyaSSL Release 1.6.5 (9/9/2010)
 
 Release 1.6.5 for CyaSSL adds bug fixes and x509 v3 self signed certificate
 generation.
@@ -561,7 +563,7 @@ To enable certificate generation support add this option to ./configure
 An example is included in ctaocrypt/test/test.c and documentation is provided
 in doc/CyaSSL_Extensions_Reference.pdf item 11.
 
-********************** CyaSSL Release 1.6.0 (8/27/2010)
+# CyaSSL Release 1.6.0 (8/27/2010)
 
 Release 1.6.0 for CyaSSL adds bug fixes, RIPEMD-160, SHA-512, and RSA key
 generation.
@@ -584,7 +586,7 @@ off by default.  To turn key generation on add the define CYASSL_KEY_GEN to
 CyaSSL.
 
 
-*************   CyaSSL Release 1.5.6 (7/28/2010)
+# CyaSSL Release 1.5.6 (7/28/2010)
 
 Release 1.5.6 for CyaSSL adds bug fixes, compatibility for our JSSE provider,
 and a fix for GCC builds on some systems.
@@ -596,7 +598,7 @@ To add AES-NI support add this option to ./configure
 
 You'll need GCC 4.4.3 or later to make use of the assembly.
 
-**************  CyaSSL Release 1.5.4 (7/7/2010)
+# CyaSSL Release 1.5.4 (7/7/2010)
 
 Release 1.5.4 for CyaSSL adds bug fixes, support for AES-NI, SHA1 speed 
 improvements from loop unrolling, and support for the Mongoose Web Server.
@@ -608,7 +610,7 @@ To add AES-NI support add this option to ./configure
 
 You'll need GCC 4.4.3 or later to make use of the assembly.
 
-***************  CyaSSL Release 1.5.0 (5/11/2010)
+# CyaSSL Release 1.5.0 (5/11/2010)
 
 Release 1.5.0 for CyaSSL adds bug fixes, GoAhead WebServer support, sniffer
 support, and initial swig interface support.
@@ -632,74 +634,82 @@ please send questions or comments to support@yassl.com.
 When doing load testing with CyaSSL, on the echoserver example say, the client
 machine may run out of tcp ephemeral ports, they will end up in the TIME_WAIT
 queue, and can't be reused by default.  There are generally two ways to fix
-this.  1) Reduce the length sockets remain on the TIME_WAIT queue or 2) Allow
-items on the TIME_WAIT queue to be reused.
+this. 
+
+1. Reduce the length sockets remain on the TIME_WAIT queue OR
+2. Allow items on the TIME_WAIT queue to be reused.
 
 
 To reduce the TIME_WAIT length in OS X to 3 seconds (3000 milliseconds)
 
-sudo sysctl -w net.inet.tcp.msl=3000
+`sudo sysctl -w net.inet.tcp.msl=3000`
 
 In Linux
 
-sudo sysctl -w net.ipv4.tcp_tw_reuse=1
+`sudo sysctl -w net.ipv4.tcp_tw_reuse=1`
 
 allows reuse of sockets in TIME_WAIT
 
-sudo sysctl -w net.ipv4.tcp_tw_recycle=1
+`sudo sysctl -w net.ipv4.tcp_tw_recycle=1`
 
 works but seems to remove sockets from  TIME_WAIT entirely?
 
-sudo sysctl -w net.ipv4.tcp_fin_timeout=1
+`sudo sysctl -w net.ipv4.tcp_fin_timeout=1`
 
 doen't control TIME_WAIT, it controls FIN_WAIT(2) contrary to some posts
 
 
-******************** CyaSSL Release 1.4.0 (2/18/2010)
+# CyaSSL Release 1.4.0 (2/18/2010)
 
 Release 1.3.0 for CyaSSL adds bug fixes, better multi TLS/SSL version support
 through SSLv23_server_method(), and improved documentation in the doc/ folder.
 
 For general build instructions doc/Building_CyaSSL.pdf.
 
-******************** CyaSSL Release 1.3.0 (1/21/2010)
+# CyaSSL Release 1.3.0 (1/21/2010)
 
 Release 1.3.0 for CyaSSL adds bug fixes, a potential security problem fix,
 better porting support, removal of assert()s, and a complete THREADX port.
 
 For general build instructions see rc1 below.
 
-******************** CyaSSL Release 1.2.0 (11/2/2009)
+# CyaSSL Release 1.2.0 (11/2/2009)
 
 Release 1.2.0 for CyaSSL adds bug fixes and session negotiation if first use is
 read or write.
 
 For general build instructions see rc1 below.
 
-******************** CyaSSL Release 1.1.0 (9/2/2009)
+# CyaSSL Release 1.1.0 (9/2/2009)
 
 Release 1.1.0 for CyaSSL adds bug fixes, a check against malicious session
 cache use, support for lighttpd, and TLS 1.2.
 
 To get TLS 1.2 support please use the client and server functions:
 
+```c
 SSL_METHOD *TLSv1_2_server_method(void);
 SSL_METHOD *TLSv1_2_client_method(void);
+```
 
 CyaSSL was tested against lighttpd 1.4.23.  To build CyaSSL for use with 
 lighttpd use the following commands from the CyaSSL install dir <CyaSSLDir>:
 
+```
 ./configure --disable-shared --enable-opensslExtra --enable-fastmath --without-zlib
 
 make
 make openssl-links
+```
 
 Then to build lighttpd with CyaSSL use the following commands from the
 lighttpd install dir:
 
+```
 ./configure --with-openssl --with-openssl-includes=<CyaSSLDir>/include --with-openssl-libs=<CyaSSLDir>/lib LDFLAGS=-lm
 
 make
+```
 
 On some systems you may get a linker error about a duplicate symbol for
 MD5_Init or other MD5 calls.  This seems to be caused by the lighttpd src file
@@ -725,16 +735,18 @@ OpenSSL libraries are found by the linker before the CyaSSL openssl-links that
 point to the CyaSSL library, causing the linker confusion.  This can be fixed
 by editing the Makefile in the lighttpd src directory and changing the line:
 
-SSL_LIB = -lssl -lcrypto
+`SSL_LIB = -lssl -lcrypto`
 
 to
 
-SSL_LIB = -lcyassl
+`SSL_LIB = -lcyassl`
 
 Then from the lighttpd src dir do a:
 
+```
 make clean
 make
+```
 
 This should remove any confusion the linker may be having with missing symbols.
 
@@ -742,7 +754,7 @@ For any questions or concerns please contact support@yassl.com .
 
 For general build instructions see rc1 below.
 
-******************CyaSSL Release 1.0.6 (8/03/2009)
+# CyaSSL Release 1.0.6 (8/03/2009)
 
 Release 1.0.6 for CyaSSL adds bug fixes, an improved session cache, and faster
 math with a huge code option.
@@ -759,7 +771,7 @@ the benchmark utility to compare public key operations.
 
 For general build instructions see rc1 below.
 
-******************CyaSSL Release 1.0.3 (5/10/2009)
+# CyaSSL Release 1.0.3 (5/10/2009)
 
 Release 1.0.3 for CyaSSL adds bug fixes and add increased support for OpenSSL
 compatibility when building other applications.
@@ -770,7 +782,7 @@ aren't fully implemented at this time but will be for the next release.
 
 For general build instructions see rc1 below.
 
-******************CyaSSL Release 1.0.2 (4/3/2009)
+# CyaSSL Release 1.0.2 (4/3/2009)
 
 Release 1.0.2 for CyaSSL adds bug fixes for a couple I/O issues.  Some systems
 will send a SIGPIPE on socket recv() at any time and this should be handled by
@@ -783,7 +795,7 @@ aren't fully implemented at this time but will be for the next release.
 
 For general build instructions see rc1 below.
 
-*****************CyaSSL Release Candidiate 3 rc3-1.0.0 (2/25/2009)
+## CyaSSL Release Candidiate 3 rc3-1.0.0 (2/25/2009)
 
 
 Release Candidate 3 for CyaSSL 1.0.0 adds bug fixes and adds a project file for
@@ -794,36 +806,42 @@ lost when cyassl i/o was re-implemented but is now fixed.
 
 For general build instructions see rc1 below.
 
-*****************CyaSSL Release Candidiate 2 rc2-1.0.0 (1/21/2009)
+## CyaSSL Release Candidiate 2 rc2-1.0.0 (1/21/2009)
 
 
 Release Candidate 2 for CyaSSL 1.0.0 adds bug fixes and adds two new stream
 ciphers along with their respective cipher suites.  CyaSSL adds support for
 HC-128 and RABBIT stream ciphers.  The new suites are:
 
+```
 TLS_RSA_WITH_HC_128_SHA
 TLS_RSA_WITH_RABBIT_SHA
+```
 
 And the corresponding cipher names are
 
+```
 HC128-SHA
 RABBIT-SHA
+```
 
 CyaSSL also adds support for building with devkitPro for PPC by changing the
 library proper to use libogc.  The examples haven't been changed yet but if
 there's interest they can be.  Here's an example ./configure to build CyaSSL
 for devkitPro:
 
+```
 ./configure --disable-shared CC=/pathTo/devkitpro/devkitPPC/bin/powerpc-gekko-gcc --host=ppc --without-zlib --enable-singleThreaded RANLIB=/pathTo/devkitpro/devkitPPC/bin/powerpc-gekko-ranlib CFLAGS="-DDEVKITPRO -DGEKKO"
+```
 
 For linking purposes you'll need
 
-LDFLAGS="-g -mrvl -mcpu=750 -meabi -mhard-float -Wl,-Map,$(notdir $@).map"
+`LDFLAGS="-g -mrvl -mcpu=750 -meabi -mhard-float -Wl,-Map,$(notdir $@).map"`
 
 For general build instructions see rc1 below.
 
 
-********************CyaSSL Release Candidiate 1 rc1-1.0.0 (12/17/2008)
+## CyaSSL Release Candidiate 1 rc1-1.0.0 (12/17/2008)
 
 
 Release Candidate 1 for CyaSSL 1.0.0 contains major internal changes.  Several
@@ -841,33 +859,33 @@ on some platforms.  This is new so please report any problems as every compiler,
 mode, OS combination hasn't been tested.  On ia32 all of the registers need to
 be available so be sure to pass these options to CFLAGS:
 
-CFLAGS="-O3 -fomit-frame-pointer"
+`CFLAGS="-O3 -fomit-frame-pointer"`
 
 OS X will also need -mdynamic-no-pic added to CFLAGS
 
 Also if you're building in shared mode for ia32 you'll need to pass options to
 LDFLAGS as well on OS X:
 
-LDFLAGS=-Wl,-read_only_relocs,warning
+`LDFLAGS=-Wl,-read_only_relocs,warning`
 
 This gives warnings for some symbols but seems to work.
 
 
---To build on Linux, Solaris, *BSD, Mac OS X, or Cygwin:
+#### To build on Linux, Solaris, *BSD, Mac OS X, or Cygwin:
 
     ./configure
     make
 
     from the ./testsuite/ directory run ./testsuite 
 
-to make a debug build:
+#### To make a debug build:
 
     ./configure --enable-debug --disable-shared
     make
 
 
 
---To build on Win32
+#### To build on Win32
 
 Choose (Re)Build All from the project workspace
 
@@ -877,7 +895,7 @@ Run the testsuite program
 
 
 
-*************************CyaSSL version 0.9.9 (7/25/2008) 
+# CyaSSL version 0.9.9 (7/25/2008) 
 
 This release of CyaSSL adds bug fixes, Pre-Shared Keys, over-rideable memory
 handling, and optionally TomsFastMath.  Thanks to Moisés Guimarães for the
@@ -892,12 +910,12 @@ always seems to be faster.  On x86-64 machines with GCC the normal math library
 may outperform the fast one when using CFLAGS=-m64 because TomsFastMath can't
 yet use -m64 because of GCCs inability to do 128bit division.
 
-     **** UPDATE GCC 4.2.1 can now do 128bit division ***
+     *** UPDATE GCC 4.2.1 can now do 128bit division ***
 
 See notes below (0.2.0) for complete build instructions.
 
 
-****************CyaSSL version 0.9.8 (5/7/2008) 
+# CyaSSL version 0.9.8 (5/7/2008) 
 
 This release of CyaSSL adds bug fixes, client side Diffie-Hellman, and better
 socket handling.
@@ -905,7 +923,7 @@ socket handling.
 See notes below (0.2.0) for complete build instructions.
 
 
-****************CyaSSL version 0.9.6 (1/31/2008) 
+# CyaSSL version 0.9.6 (1/31/2008) 
 
 This release of CyaSSL adds bug fixes, increased session management, and a fix
 for gnutls.
@@ -913,7 +931,7 @@ for gnutls.
 See notes below (0.2.0) for complete build instructions.
 
 
-****************CyaSSL version 0.9.0 (10/15/2007) 
+# CyaSSL version 0.9.0 (10/15/2007) 
 
 This release of CyaSSL adds bug fixes, MSVC 2005 support, GCC 4.2 support, 
 IPV6 support and test, and new test certificates.
@@ -921,7 +939,7 @@ IPV6 support and test, and new test certificates.
 See notes below (0.2.0) for complete build instructions.
 
 
-****************CyaSSL version 0.8.0 (1/10/2007) 
+# CyaSSL version 0.8.0 (1/10/2007) 
 
 This release of CyaSSL adds increased socket support, for non-blocking writes,
 connects, and interrupted system calls.
@@ -929,7 +947,7 @@ connects, and interrupted system calls.
 See notes below (0.2.0) for complete build instructions.
 
 
-****************CyaSSL version 0.6.3 (10/30/2006) 
+# CyaSSL version 0.6.3 (10/30/2006) 
 
 This release of CyaSSL adds debug logging to stderr to aid in the debugging of
 CyaSSL on systems that may not provide the best support.
@@ -947,7 +965,7 @@ To turn logging back off call CyaSSL_Debugging_OFF()
 See notes below (0.2.0) for complete build instructions.
 
 
-*****************CyaSSL version 0.6.2 (10/29/2006) 
+# CyaSSL version 0.6.2 (10/29/2006) 
 
 This release of CyaSSL adds TLS 1.1.
 
@@ -959,7 +977,7 @@ CyaSSL_check_domain_name() to prevent man in the middle attacks.
 
 See notes below (0.2.0) for build instructions.
 
-*****************CyaSSL version 0.6.0 (10/25/2006) 
+# CyaSSL version 0.6.0 (10/25/2006) 
 
 This release of CyaSSL adds more SSL functions, better autoconf, nonblocking
 I/O for accept, connect, and read.  There is now an --enable-small configure
@@ -969,7 +987,7 @@ for the defines.  Note that TLS requires HMAC and AES requires TLS.
 See notes below (0.2.0) for build instructions.
 
 
-*****************CyaSSL version 0.5.5 (09/27/2006) 
+# CyaSSL version 0.5.5 (09/27/2006) 
 
 This mini release of CyaSSL adds better input processing through buffered input
 and big message support.  Added SSL_pending() and some sanity checks on user
@@ -978,28 +996,28 @@ settings.
 See notes below (0.2.0) for build instructions.
 
 
-*****************CyaSSL version 0.5.0 (03/27/2006) 
+# CyaSSL version 0.5.0 (03/27/2006) 
 
 This release of CyaSSL adds AES support and minor bug fixes. 
 
 See notes below (0.2.0) for build instructions.
 
 
-*****************CyaSSL version 0.4.0 (03/15/2006)
+# CyaSSL version 0.4.0 (03/15/2006)
 
 This release of CyaSSL adds TLSv1 client/server support and libtool. 
 
 See notes below for build instructions.
 
 
-*****************CyaSSL version 0.3.0 (02/26/2006)
+# CyaSSL version 0.3.0 (02/26/2006)
 
 This release of CyaSSL adds SSLv3 server support and session resumption. 
 
 See notes below for build instructions.
 
 
-*****************CyaSSL version 0.2.0 (02/19/2006)
+# CyaSSL version 0.2.0 (02/19/2006)
 
 
 This is the first release of CyaSSL and its crypt brother, CTaoCrypt.  CyaSSL
@@ -1015,21 +1033,21 @@ The first release of CyaSSL supports normal client RSA mode SSLv3 connections
 with support for SHA-1 and MD5 digests.  Ciphers include 3DES and RC4.
 
 
---To build on Linux, Solaris, *BSD, Mac OS X, or Cygwin:
+#### To build on Linux, Solaris, *BSD, Mac OS X, or Cygwin:
 
     ./configure
     make
 
     from the ./testsuite/ directory run ./testsuite 
 
-to make a debug build:
+#### to make a debug build:
 
     ./configure --enable-debug --disable-shared
     make
 
 
 
---To build on Win32
+#### To build on Win32
 
 Choose (Re)Build All from the project workspace
 
