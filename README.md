@@ -726,9 +726,10 @@ and this line to the end of the file
 
 Then from the lighttpd src dir do a:
 
+```
 make clean
 make
-
+```
 
 If you get link errors about undefined symbols more than likely the actual
 OpenSSL libraries are found by the linker before the CyaSSL openssl-links that
