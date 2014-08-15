@@ -29,7 +29,6 @@
     #include <errno.h>
 #endif
 
-
 #include <cyassl/ssl.h>
 #include <cyassl/internal.h>
 #include <cyassl/error-ssl.h>
@@ -225,7 +224,37 @@ int CyaSSL_set_fd(CYASSL* ssl, int fd)
     CYASSL_LEAVE("SSL_set_fd", SSL_SUCCESS);
     return SSL_SUCCESS;
 }
+int CyaSSL_get_ciphers(char* buf, int len)
+{
+    const char* const* ciphers = GetCipherNames();
+    int totalInc    = 0;
+    int step        = 0;
+    char delim      = ':';
+    char* tmp       = buf;
+    int size        = GetCipherNamesSize();
+    int i;
+    /* Loop the array, add each member to the
+       buffer delimitted by a :
+    */
+    for (i = 0; i < size; i++)
+    {
+        step = strlen(ciphers[i]) + strlen(&delim)-2;
+        totalInc += step;
 
+        /* Check to make sure buf is large enough and will not overflow */
+        if(totalInc <= len) {
+            memcpy(tmp, ciphers[i], strlen(ciphers[i]));
+            tmp += strlen(ciphers[i]);
+            if(i < size - 1) {
+                memcpy(tmp, &delim, strlen(&delim)-2);
+                tmp += strlen(&delim)-2;
+            }
+        }
+        else
+            return BUFFER_E;
+    }
+    return SSL_SUCCESS;
+}
 
 int CyaSSL_get_fd(const CYASSL* ssl)
 {
