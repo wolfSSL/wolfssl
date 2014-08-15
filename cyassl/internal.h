@@ -153,14 +153,6 @@
 
 typedef byte word24[3];
 
-/* used by ssl.c and cyassl_int.c */
-void c32to24(word32 in, word24 out);
-
-/* used by ssl.c */
-const char* const* GetCipherNames(void);
-int GetCipherNamesSize(void);
-const char* GetCipherName(int);
-
 /* Define or comment out the cipher suites you'd like to be compiled in
    make sure to use at least one BUILD_SSL_xxx or BUILD_TLS_xxx is defined
 
@@ -2219,6 +2211,12 @@ CYASSL_LOCAL void FreeX509(CYASSL_X509*);
 #ifndef NO_CERTS
     CYASSL_LOCAL int  CopyDecodedToX509(CYASSL_X509*, DecodedCert*);
 #endif
+
+/* used by ssl.c and cyassl_int.c */
+CYASSL_LOCAL void c32to24(word32 in, word24 out);
+
+CYASSL_LOCAL const char* const* GetCipherNames(void);
+CYASSL_LOCAL int GetCipherNamesSize(void);
 
 
 #ifdef __cplusplus

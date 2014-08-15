@@ -224,37 +224,39 @@ int CyaSSL_set_fd(CYASSL* ssl, int fd)
     CYASSL_LEAVE("SSL_set_fd", SSL_SUCCESS);
     return SSL_SUCCESS;
 }
+
+
 int CyaSSL_get_ciphers(char* buf, int len)
 {
     const char* const* ciphers = GetCipherNames();
-    int totalInc    = 0;
-    int step        = 0;
-    char delim      = ':';
-    char* tmp       = buf;
-    int size        = GetCipherNamesSize();
-    int i;
-    /* Loop the array, add each member to the
-       buffer delimitted by a :
-    */
-    for (i = 0; i < size; i++)
-    {
-        step = strlen(ciphers[i]) + strlen(&delim)-2;
+    int  totalInc = 0;
+    int  step     = 0;
+    char delim    = ':';
+    int  size     = GetCipherNamesSize();
+    int  i;
+
+    if (buf == NULL || len <= 0)
+        return BAD_FUNC_ARG;
+
+    /* Add each member to the buffer delimitted by a : */
+    for (i = 0; i < size; i++) {
+        step = (int)(XSTRLEN(ciphers[i]) + 1);  /* delimiter */
         totalInc += step;
 
         /* Check to make sure buf is large enough and will not overflow */
-        if(totalInc <= len) {
-            memcpy(tmp, ciphers[i], strlen(ciphers[i]));
-            tmp += strlen(ciphers[i]);
-            if(i < size - 1) {
-                memcpy(tmp, &delim, strlen(&delim)-2);
-                tmp += strlen(&delim)-2;
-            }
+        if (totalInc < len) {
+            XSTRNCPY(buf, ciphers[i], XSTRLEN(ciphers[i]));
+            buf += XSTRLEN(ciphers[i]);
+
+            if (i < size - 1)
+                *buf++ = delim;
         }
         else
             return BUFFER_E;
     }
     return SSL_SUCCESS;
 }
+
 
 int CyaSSL_get_fd(const CYASSL* ssl)
 {

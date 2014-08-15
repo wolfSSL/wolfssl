@@ -8290,16 +8290,14 @@ const char* const* GetCipherNames(void)
 {
     return cipher_names;
 }
-/* returns the cipher at the specified index of cipher_names */
-const char* GetCipherName(int index)
-{
-    return cipher_names[index];
-}
+
+
 /* returns the size of the cipher_names array */
 int GetCipherNamesSize(void)
 {
-    return sizeof(cipher_names) / sizeof(char*);
+    return (int)(sizeof(cipher_names) / sizeof(char*));
 }
+
 
 /* return true if set, else false */
 /* only supports full name from cipher_name[] delimited by : */
