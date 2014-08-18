@@ -120,3 +120,5 @@ mplabx/ctaocrypt_test.X/nbproject/Package-default.bash
 mplabx/cyassl.X/nbproject/Makefile-*
 mplabx/cyassl.X/nbproject/Package-default.bash
 
+# Vagrant folder
+.vagrant/
