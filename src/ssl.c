@@ -1178,10 +1178,14 @@ int CyaSSL_CertPemToDer(const unsigned char* pem, int pemSz,
                         unsigned char* buff, int buffSz,
                         int type)
 {
-    EncryptedInfo info;
-    int           eccKey = 0;
-    int           ret;
-    buffer        der;
+    int            eccKey = 0;
+    int            ret;
+    buffer         der;
+#ifdef CYASSL_SMALL_STACK
+	EncryptedInfo* info;
+#else
+    EncryptedInfo  info[1];
+#endif
 
     CYASSL_ENTER("CyaSSL_CertPemToDer");
 
@@ -1194,13 +1198,25 @@ int CyaSSL_CertPemToDer(const unsigned char* pem, int pemSz,
         CYASSL_MSG("Bad cert type");
         return BAD_FUNC_ARG;
     }
+	
+#ifdef CYASSL_SMALL_STACK
+	info = (EncryptedInfo*)XMALLOC(sizeof(EncryptedInfo), NULL, 
+	                                                   DYNAMIC_TYPE_TMP_BUFFER);
+	if (info == NULL)
+		return MEMORY_E;
+#endif
 
-    info.set       = 0;
-    info.ctx      = NULL;
-    info.consumed = 0;
-    der.buffer    = NULL;
+    info->set      = 0;
+    info->ctx      = NULL;
+    info->consumed = 0;
+    der.buffer     = NULL;
 
-    ret = PemToDer(pem, pemSz, type, &der, NULL, &info, &eccKey);
+    ret = PemToDer(pem, pemSz, type, &der, NULL, info, &eccKey);
+	
+#ifdef CYASSL_SMALL_STACK
+	XFREE(info, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+	
     if (ret < 0) {
         CYASSL_MSG("Bad Pem To Der");
     }
@@ -1242,10 +1258,14 @@ static INLINE int OurPasswordCb(char* passwd, int sz, int rw, void* userdata)
 int CyaSSL_KeyPemToDer(const unsigned char* pem, int pemSz, unsigned char* buff,
                        int buffSz, const char* pass)
 {
-    EncryptedInfo info;
-    int           eccKey = 0;
-    int           ret;
-    buffer        der;
+    int            eccKey = 0;
+    int            ret;
+    buffer         der;
+#ifdef CYASSL_SMALL_STACK
+	EncryptedInfo* info;
+#else
+    EncryptedInfo  info[1];
+#endif
 
     (void)pass;
 
@@ -1256,22 +1276,42 @@ int CyaSSL_KeyPemToDer(const unsigned char* pem, int pemSz, unsigned char* buff,
         return BAD_FUNC_ARG;
     }
 
-    info.set       = 0;
-    info.ctx      = NULL;
-    info.consumed = 0;
-    der.buffer    = NULL;
+#ifdef CYASSL_SMALL_STACK
+	info = (EncryptedInfo*)XMALLOC(sizeof(EncryptedInfo), NULL, 
+	                                                   DYNAMIC_TYPE_TMP_BUFFER);
+	if (info == NULL)
+		return MEMORY_E;
+#endif
+
+    info->set      = 0;
+    info->ctx      = NULL;
+    info->consumed = 0;
+    der.buffer     = NULL;
 
 #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
     if (pass) {
-        info.ctx = CyaSSL_CTX_new(CyaSSLv23_client_method());
-        if (info.ctx == NULL)
+        info->ctx = CyaSSL_CTX_new(CyaSSLv23_client_method());
+        if (info->ctx == NULL) {
+#ifdef CYASSL_SMALL_STACK
+			XFREE(info, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif        	
             return MEMORY_E;
-        CyaSSL_CTX_set_default_passwd_cb(info.ctx, OurPasswordCb);
-        CyaSSL_CTX_set_default_passwd_cb_userdata(info.ctx, (void*)pass);
+        }
+
+        CyaSSL_CTX_set_default_passwd_cb(info->ctx, OurPasswordCb);
+        CyaSSL_CTX_set_default_passwd_cb_userdata(info->ctx, (void*)pass);
     }
 #endif
 
-    ret = PemToDer(pem, pemSz, PRIVATEKEY_TYPE, &der, NULL, &info, &eccKey);
+    ret = PemToDer(pem, pemSz, PRIVATEKEY_TYPE, &der, NULL, info, &eccKey);
+
+    if (info->ctx)
+        CyaSSL_CTX_free(info->ctx);
+
+#ifdef CYASSL_SMALL_STACK
+		XFREE(info, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif        	
+
     if (ret < 0) {
         CYASSL_MSG("Bad Pem To Der");
     }
@@ -1287,9 +1327,6 @@ int CyaSSL_KeyPemToDer(const unsigned char* pem, int pemSz, unsigned char* buff,
     }
 
     XFREE(der.buffer, NULL, DYNAMIC_TYPE_KEY);
-
-    if (info.ctx)
-        CyaSSL_CTX_free(info.ctx);
 
     return ret;
 }
