@@ -29,7 +29,6 @@
     #include <errno.h>
 #endif
 
-
 #include <cyassl/ssl.h>
 #include <cyassl/internal.h>
 #include <cyassl/error-ssl.h>
@@ -223,6 +222,38 @@ int CyaSSL_set_fd(CYASSL* ssl, int fd)
     #endif
 
     CYASSL_LEAVE("SSL_set_fd", SSL_SUCCESS);
+    return SSL_SUCCESS;
+}
+
+
+int CyaSSL_get_ciphers(char* buf, int len)
+{
+    const char* const* ciphers = GetCipherNames();
+    int  totalInc = 0;
+    int  step     = 0;
+    char delim    = ':';
+    int  size     = GetCipherNamesSize();
+    int  i;
+
+    if (buf == NULL || len <= 0)
+        return BAD_FUNC_ARG;
+
+    /* Add each member to the buffer delimitted by a : */
+    for (i = 0; i < size; i++) {
+        step = (int)(XSTRLEN(ciphers[i]) + 1);  /* delimiter */
+        totalInc += step;
+
+        /* Check to make sure buf is large enough and will not overflow */
+        if (totalInc < len) {
+            XSTRNCPY(buf, ciphers[i], XSTRLEN(ciphers[i]));
+            buf += XSTRLEN(ciphers[i]);
+
+            if (i < size - 1)
+                *buf++ = delim;
+        }
+        else
+            return BUFFER_E;
+    }
     return SSL_SUCCESS;
 }
 
@@ -11501,6 +11532,15 @@ const byte* CyaSSL_get_sessionID(const CYASSL_SESSION* session)
 
 #endif /* SESSION_CERTS */
 
+#ifdef HAVE_FUZZER
+void CyaSSL_SetFuzzerCb(CYASSL* ssl, CallbackFuzzer cbf, void* fCtx)
+{
+    if (ssl) {
+        ssl->fuzzerCb  = cbf;
+        ssl->fuzzerCtx = fCtx;
+    }
+}
+#endif
 
 #ifndef NO_CERTS
 #ifdef  HAVE_PK_CALLBACKS

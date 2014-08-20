@@ -161,6 +161,14 @@ int testsuite_test(int argc, char** argv)
         if (server_args.return_code != 0) return server_args.return_code;
     }
 
+    /* show ciphers */
+    {
+        char ciphers[1024];
+        XMEMSET(ciphers, 0, sizeof(ciphers));
+        CyaSSL_get_ciphers(ciphers, sizeof(ciphers)-1);
+        printf("ciphers = %s\n", ciphers);
+    }
+
     /* validate output equals input */
     {
         byte input[SHA256_DIGEST_SIZE];

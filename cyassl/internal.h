@@ -153,9 +153,6 @@
 
 typedef byte word24[3];
 
-/* used by ssl.c and cyassl_int.c */
-void c32to24(word32 in, word24 out);
-
 /* Define or comment out the cipher suites you'd like to be compiled in
    make sure to use at least one BUILD_SSL_xxx or BUILD_TLS_xxx is defined
 
@@ -801,7 +798,6 @@ enum Misc {
     NO_COPY            =   0,  /* should we copy static buffer for write */
     COPY               =   1   /* should we copy static buffer for write */
 };
-
 
 #ifdef SESSION_INDEX
 /* Shift values for making a session index */
@@ -1969,6 +1965,10 @@ struct CYASSL {
     byte            hsInfoOn;           /* track handshake info        */
     byte            toInfoOn;           /* track timeout   info        */
 #endif
+#ifdef HAVE_FUZZER
+    CallbackFuzzer  fuzzerCb;           /* for testing with using fuzzer */
+    void*           fuzzerCtx;          /* user defined pointer */
+#endif
 #ifdef KEEP_PEER_CERT
     CYASSL_X509     peerCert;           /* X509 peer cert */
 #endif
@@ -2211,6 +2211,12 @@ CYASSL_LOCAL void FreeX509(CYASSL_X509*);
 #ifndef NO_CERTS
     CYASSL_LOCAL int  CopyDecodedToX509(CYASSL_X509*, DecodedCert*);
 #endif
+
+/* used by ssl.c and cyassl_int.c */
+CYASSL_LOCAL void c32to24(word32 in, word24 out);
+
+CYASSL_LOCAL const char* const* GetCipherNames(void);
+CYASSL_LOCAL int GetCipherNamesSize(void);
 
 
 #ifdef __cplusplus
