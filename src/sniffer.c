@@ -225,7 +225,10 @@ static const char* const msgTable[] =
     "Bad Compression Type",
     "Bad DeriveKeys Error",
     "Saw ACK for Missing Packet Error",
-    "Bad Decrypt Operation"
+    "Bad Decrypt Operation",
+
+    /* 71 */
+    "Decrypt Keys Not Set Up"
 };
 
 
@@ -2378,6 +2381,10 @@ doMessage:
                                                session->flags.serverCipherOn)
      || (session->flags.side == CYASSL_CLIENT_END &&
                                                session->flags.clientCipherOn)) {
+        if (ssl->decrypt.setup != 1) {
+            SetError(DECRYPT_KEYS_NOT_SETUP, error, session, FATAL_ERROR_STATE);
+            return -1;
+        }
         if (CheckAvailableSize(ssl, rhSize) < 0) {
             SetError(MEMORY_STR, error, session, FATAL_ERROR_STATE);
             return -1;

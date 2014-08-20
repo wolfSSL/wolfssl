@@ -103,6 +103,7 @@
 #define ACK_MISSED_STR 69
 #define BAD_DECRYPT    70 
 
+#define DECRYPT_KEYS_NOT_SETUP 71
 /* !!!! also add to msgTable in sniffer.c and .rc file !!!! */
 
 
