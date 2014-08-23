@@ -1309,7 +1309,7 @@ int CyaSSL_KeyPemToDer(const unsigned char* pem, int pemSz, unsigned char* buff,
         CyaSSL_CTX_free(info->ctx);
 
 #ifdef CYASSL_SMALL_STACK
-		XFREE(info, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+	XFREE(info, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif        	
 
     if (ret < 0) {
@@ -1984,18 +1984,17 @@ int CyaSSL_Init(void)
                              long sz, int format, int type, CYASSL* ssl,
                              long* used, int userChain)
     {
-        EncryptedInfo info;
         buffer        der;        /* holds DER or RAW (for NTRU) */
         int           ret;
         int           dynamicType = 0;
         int           eccKey = 0;
         int           rsaKey = 0;
         void*         heap = ctx ? ctx->heap : NULL;
-
-        info.set      = 0;
-        info.ctx      = ctx;
-        info.consumed = 0;
-        der.buffer    = 0;
+#ifdef CYASSL_SMALL_STACK
+		EncryptedInfo* info;
+#else
+	    EncryptedInfo  info[1];
+#endif
 
         (void)dynamicType;
         (void)rsaKey;
@@ -2016,24 +2015,41 @@ int CyaSSL_Init(void)
             dynamicType = DYNAMIC_TYPE_CERT;
         else
             dynamicType = DYNAMIC_TYPE_KEY;
+        
+#ifdef CYASSL_SMALL_STACK
+        info = (EncryptedInfo*)XMALLOC(sizeof(EncryptedInfo), NULL,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+        if (info == NULL)
+            return MEMORY_E;
+#endif
+
+        info->set      = 0;
+        info->ctx      = ctx;
+        info->consumed = 0;        
+        der.buffer     = 0;
 
         if (format == SSL_FILETYPE_PEM) {
-            ret = PemToDer(buff, sz, type, &der, heap, &info, &eccKey);
+            ret = PemToDer(buff, sz, type, &der, heap, info, &eccKey);
             if (ret < 0) {
+#ifdef CYASSL_SMALL_STACK
+                XFREE(info, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
                 XFREE(der.buffer, heap, dynamicType);
                 return ret;
             }
+
             if (used)
-                *used = info.consumed;
+                *used = info->consumed;
+
             /* we may have a user cert chain, try to consume */
-            if (userChain && type == CERT_TYPE && info.consumed < sz) {
+            if (userChain && type == CERT_TYPE && info->consumed < sz) {
                 byte   staticBuffer[FILE_BUFFER_SIZE];  /* tmp chain buffer */
                 byte*  chainBuffer = staticBuffer;
                 byte*  shrinked    = NULL;   /* shrinked to size chainBuffer
                                               * or staticBuffer */
                 int    dynamicBuffer = 0;
                 word32 bufferSz = sizeof(staticBuffer);
-                long   consumed = info.consumed;
+                long   consumed = info->consumed;
                 word32 idx = 0;
                 int    gotOne = 0;
 
@@ -2044,6 +2060,9 @@ int CyaSSL_Init(void)
                     chainBuffer = (byte*)XMALLOC(bufferSz, heap,
                                                  DYNAMIC_TYPE_FILE);
                     if (chainBuffer == NULL) {
+#ifdef CYASSL_SMALL_STACK
+                        XFREE(info, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
                         XFREE(der.buffer, heap, dynamicType);
                         return MEMORY_E;
                     }
@@ -2053,11 +2072,11 @@ int CyaSSL_Init(void)
                 CYASSL_MSG("Processing Cert Chain");
                 while (consumed < sz) {
                     buffer part;
-                    info.consumed = 0;
+                    info->consumed = 0;
                     part.buffer = 0;
 
                     ret = PemToDer(buff + consumed, sz - consumed, type, &part,
-                                   heap, &info, &eccKey);
+                                   heap, info, &eccKey);
                     if (ret == 0) {
                         gotOne = 1;
                         if ( (idx + part.length) > bufferSz) {
@@ -2069,9 +2088,9 @@ int CyaSSL_Init(void)
                             idx += CERT_HEADER_SZ;
                             XMEMCPY(&chainBuffer[idx], part.buffer,part.length);
                             idx += part.length;
-                            consumed  += info.consumed;
+                            consumed  += info->consumed;
                             if (used)
-                                *used += info.consumed;
+                                *used += info->consumed;
                         }
                     }
 
@@ -2086,6 +2105,9 @@ int CyaSSL_Init(void)
                         CYASSL_MSG("   Error in Cert in Chain");
                         if (dynamicBuffer)
                             XFREE(chainBuffer, heap, DYNAMIC_TYPE_FILE);
+#ifdef CYASSL_SMALL_STACK
+                        XFREE(info, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
                         XFREE(der.buffer, heap, dynamicType);
                         return ret;
                     }
@@ -2114,9 +2136,14 @@ int CyaSSL_Init(void)
                         XMEMCPY(ctx->certChain.buffer, chainBuffer, idx);
                     }
                 }
+
                 if (dynamicBuffer)
                     XFREE(chainBuffer, heap, DYNAMIC_TYPE_FILE);
+
                 if (shrinked == NULL) {
+#ifdef CYASSL_SMALL_STACK
+                    XFREE(info, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
                     XFREE(der.buffer, heap, dynamicType);
                     return MEMORY_E;
                 }
@@ -2124,13 +2151,19 @@ int CyaSSL_Init(void)
         }
         else {  /* ASN1 (DER) or RAW (NTRU) */
             der.buffer = (byte*) XMALLOC(sz, heap, dynamicType);
-            if (!der.buffer) return MEMORY_ERROR;
+            if (!der.buffer) {
+#ifdef CYASSL_SMALL_STACK
+                XFREE(info, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+                return MEMORY_ERROR;
+            }
+
             XMEMCPY(der.buffer, buff, sz);
             der.length = (word32)sz;
         }
 
 #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
-        if (info.set) {
+        if (info->set) {
             /* decrypt */
             char password[80];
             int  passwordSz;
@@ -2139,76 +2172,79 @@ int CyaSSL_Init(void)
             byte  iv[AES_IV_SIZE];
 
             if (!ctx || !ctx->passwd_cb) {
-                XFREE(der.buffer, heap, dynamicType);
                 return NO_PASSWORD;
             }
-
-            /* use file's salt for key derivation, hex decode first */
-            if (Base16_Decode(info.iv, info.ivSz, info.iv, &info.ivSz) != 0) {
-                XFREE(der.buffer, heap, dynamicType);
-                return ASN_INPUT_E;
-            }
-
-            passwordSz = ctx->passwd_cb(password, sizeof(password), 0,
-                                    ctx->userdata);
-            if ( (ret = EVP_BytesToKey(info.name, "MD5", info.iv,
-                            (byte*)password, passwordSz, 1, key, iv)) <= 0) {
-                XFREE(der.buffer, heap, dynamicType);
-                return ret;
-            }
-
-            if (XSTRNCMP(info.name, "DES-CBC", 7) == 0) {
-                Des enc;
-
-                ret = Des_SetKey(&enc, key, info.iv, DES_DECRYPTION);
-                if (ret != 0)
-                    return ret;
-
-                Des_CbcDecrypt(&enc, der.buffer, der.buffer, der.length);
-            }
-            else if (XSTRNCMP(info.name, "DES-EDE3-CBC", 13) == 0) {
-                Des3 enc;
-
-                ret = Des3_SetKey(&enc, key, info.iv, DES_DECRYPTION);
-                if (ret != 0)
-                    return ret;
-
-                ret = Des3_CbcDecrypt(&enc, der.buffer, der.buffer, der.length);
-                if (ret != 0)
-                    return ret;
-            }
-            else if (XSTRNCMP(info.name, "AES-128-CBC", 13) == 0) {
-                Aes enc;
-                ret = AesSetKey(&enc, key, AES_128_KEY_SIZE, info.iv,
-                                AES_DECRYPTION);
-                if (ret == 0)
-                    ret = AesCbcDecrypt(&enc, der.buffer,der.buffer,der.length);
-            }
-            else if (XSTRNCMP(info.name, "AES-192-CBC", 13) == 0) {
-                Aes enc;
-                ret = AesSetKey(&enc, key, AES_192_KEY_SIZE, info.iv,
-                                AES_DECRYPTION);
-                if (ret == 0)
-                    ret = AesCbcDecrypt(&enc, der.buffer,der.buffer,der.length);
-            }
-            else if (XSTRNCMP(info.name, "AES-256-CBC", 13) == 0) {
-                Aes enc;
-                ret = AesSetKey(&enc, key, AES_256_KEY_SIZE, info.iv,
-                                AES_DECRYPTION);
-                if (ret == 0)
-                    ret = AesCbcDecrypt(&enc, der.buffer,der.buffer,der.length);
-            }
             else {
-                XFREE(der.buffer, heap, dynamicType);
-                return SSL_BAD_FILE;
+                passwordSz = ctx->passwd_cb(password, sizeof(password), 0,
+                                                                 ctx->userdata);
+
+                /* use file's salt for key derivation, hex decode first */
+                if (Base16_Decode(info->iv, info->ivSz, info->iv, &info->ivSz)
+                                                                         != 0) {
+                    ret = ASN_INPUT_E;
+                }
+                else if ((ret = EVP_BytesToKey(info->name, "MD5", info->iv,
+                               (byte*)password, passwordSz, 1, key, iv)) <= 0) {
+                    /* empty */
+                }
+                else if (XSTRNCMP(info->name, "DES-CBC", 7) == 0) {
+                    Des enc;
+
+                    ret = Des_SetKey(&enc, key, info->iv, DES_DECRYPTION);
+                    if (ret == 0)
+                        Des_CbcDecrypt(&enc, der.buffer, der.buffer,
+                                                                    der.length);
+                }
+                else if (XSTRNCMP(info->name, "DES-EDE3-CBC", 13) == 0) {
+                    Des3 enc;
+
+                    ret = Des3_SetKey(&enc, key, info->iv, DES_DECRYPTION);
+                    if (ret == 0)
+                        ret = Des3_CbcDecrypt(&enc, der.buffer, der.buffer, 
+                                                                    der.length);
+                }
+                else if (XSTRNCMP(info->name, "AES-128-CBC", 13) == 0) {
+                    Aes enc;
+                    ret = AesSetKey(&enc, key, AES_128_KEY_SIZE, info->iv,
+                                    AES_DECRYPTION);
+                    if (ret == 0)
+                        ret = AesCbcDecrypt(&enc, der.buffer, der.buffer, 
+                                                                    der.length);
+                }
+                else if (XSTRNCMP(info->name, "AES-192-CBC", 13) == 0) {
+                    Aes enc;
+                    ret = AesSetKey(&enc, key, AES_192_KEY_SIZE, info->iv,
+                                    AES_DECRYPTION);
+                    if (ret == 0)
+                        ret = AesCbcDecrypt(&enc, der.buffer, der.buffer,  
+                                                                    der.length);
+                }
+                else if (XSTRNCMP(info->name, "AES-256-CBC", 13) == 0) {
+                    Aes enc;
+                    ret = AesSetKey(&enc, key, AES_256_KEY_SIZE, info->iv,
+                                    AES_DECRYPTION);
+                    if (ret == 0)
+                        ret = AesCbcDecrypt(&enc, der.buffer, der.buffer, 
+                                                                    der.length);
+                }
+                else {
+                    ret = SSL_BAD_FILE;
+                }
             }
 
             if (ret != 0) {
+#ifdef CYASSL_SMALL_STACK
+                XFREE(info, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
                 XFREE(der.buffer, heap, dynamicType);
                 return ret;
             }
         }
 #endif /* OPENSSL_EXTRA || HAVE_WEBSERVER */
+        
+#ifdef CYASSL_SMALL_STACK
+        XFREE(info, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 
         if (type == CA_TYPE) {
             if (ctx == NULL) {
@@ -2387,13 +2423,28 @@ int CyaSSL_CertManagerVerifyBuffer(CYASSL_CERT_MANAGER* cm, const byte* buff,
     der.length = 0;
 
     if (format == SSL_FILETYPE_PEM) {
-        EncryptedInfo info;
+#ifdef CYASSL_SMALL_STACK
+		EncryptedInfo* info;
+#else
+	    EncryptedInfo  info[1];
+#endif
 
-        info.set      = 0;
-        info.ctx      = NULL;
-        info.consumed = 0;
-        ret = PemToDer(buff, sz, CERT_TYPE, &der, cm->heap, &info, &eccKey);
+#ifdef CYASSL_SMALL_STACK
+        info = (EncryptedInfo*)XMALLOC(sizeof(EncryptedInfo), NULL, 
+		                                               DYNAMIC_TYPE_TMP_BUFFER);
+        if (info == NULL)
+            return MEMORY_E;
+#endif
+
+        info->set      = 0;
+        info->ctx      = NULL;
+        info->consumed = 0;
+        ret = PemToDer(buff, sz, CERT_TYPE, &der, cm->heap, info, &eccKey);
         InitDecodedCert(&cert, der.buffer, der.length, cm->heap);
+		
+#ifdef CYASSL_SMALL_STACK
+	    XFREE(info, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
     }
     else
         InitDecodedCert(&cert, (byte*)buff, (word32)sz, cm->heap);
@@ -3124,15 +3175,22 @@ int CyaSSL_PemCertToDer(const char* fileName, unsigned char* derBuf, int derSz)
     int    ecc = 0;
     long   sz = 0;
     XFILE  file = XFOPEN(fileName, "rb");
-    EncryptedInfo info;
     buffer        converted;
 
     CYASSL_ENTER("CyaSSL_PemCertToDer");
     converted.buffer = 0;
 
-    if (file == XBADFILE) return SSL_BAD_FILE;
+    if (file == XBADFILE)
+        return SSL_BAD_FILE;
+
     XFSEEK(file, 0, XSEEK_END);
+
     sz = XFTELL(file);
+    if (sz < 0) {
+        XFCLOSE(file);
+        return SSL_BAD_FILE;
+    }
+
     XREWIND(file);
 
     if (sz > (long)sizeof(staticBuffer)) {
@@ -3143,15 +3201,31 @@ int CyaSSL_PemCertToDer(const char* fileName, unsigned char* derBuf, int derSz)
         }
         dynamic = 1;
     }
-    else if (sz < 0) {
-        XFCLOSE(file);
-        return SSL_BAD_FILE;
-    }
 
     if ( (ret = (int)XFREAD(fileBuf, sz, 1, file)) < 0)
         ret = SSL_BAD_FILE;
-    else
-        ret = PemToDer(fileBuf, sz, CA_TYPE, &converted, 0, &info, &ecc);
+    else {
+#ifdef CYASSL_SMALL_STACK
+    	EncryptedInfo* info;
+#else
+        EncryptedInfo  info[1];
+#endif
+        
+#ifdef CYASSL_SMALL_STACK
+        info = (EncryptedInfo*)XMALLOC(sizeof(EncryptedInfo), NULL,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+        if (info == NULL)
+            ret = MEMORY_E;
+        else
+#endif
+        {
+            ret = PemToDer(fileBuf, sz, CA_TYPE, &converted, 0, info, &ecc);
+
+#ifdef CYASSL_SMALL_STACK
+            XFREE(info, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+        }
+    }
 
     if (ret == 0) {
         if (converted.length < (word32)derSz) {
@@ -3165,6 +3239,7 @@ int CyaSSL_PemCertToDer(const char* fileName, unsigned char* derBuf, int derSz)
     XFREE(converted.buffer, 0, DYNAMIC_TYPE_CA);
     if (dynamic)
         XFREE(fileBuf, 0, DYNAMIC_TYPE_FILE);
+
     XFCLOSE(file);
 
     return ret;
@@ -8238,7 +8313,9 @@ CYASSL_X509* CyaSSL_X509_load_certificate_file(const char* fname, int format)
         return NULL;
 
     file = XFOPEN(fname, "rb");
-    if (file == XBADFILE) return NULL;
+    if (file == XBADFILE)
+        return NULL;
+
     XFSEEK(file, 0, XSEEK_END);
     sz = XFTELL(file);
     XREWIND(file);
@@ -8251,25 +8328,43 @@ CYASSL_X509* CyaSSL_X509_load_certificate_file(const char* fname, int format)
         }
         dynamic = 1;
     }
+
     if ((int)XFREAD(fileBuffer, sz, 1, file) < 0) {
         XFCLOSE(file);
-        if (dynamic) XFREE(fileBuffer, NULL, DYNAMIC_TYPE_FILE);
+        if (dynamic)
+            XFREE(fileBuffer, NULL, DYNAMIC_TYPE_FILE);
         return NULL;
     }
+
     XFCLOSE(file);
 
     der.buffer = NULL;
     der.length = 0;
 
     if (format == SSL_FILETYPE_PEM) {
-        EncryptedInfo info;
         int ecc = 0;
+#ifdef CYASSL_SMALL_STACK
+		EncryptedInfo* info;
+#else
+	    EncryptedInfo  info[1];
+#endif
 
-        info.set = 0;
-        info.ctx = NULL;
-        info.consumed = 0;
+#ifdef CYASSL_SMALL_STACK
+        info = (EncryptedInfo*)XMALLOC(sizeof(EncryptedInfo), NULL,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+        if (info == NULL) {
+            if (dynamic)
+                XFREE(fileBuffer, NULL, DYNAMIC_TYPE_FILE);
+                 
+            return NULL;
+        }
+#endif
 
-        if (PemToDer(fileBuffer, sz, CERT_TYPE, &der, NULL, &info, &ecc) != 0)
+        info->set = 0;
+        info->ctx = NULL;
+        info->consumed = 0;
+
+        if (PemToDer(fileBuffer, sz, CERT_TYPE, &der, NULL, info, &ecc) != 0)
         {
             /* Only time this should fail, and leave `der` with a buffer
                is when the Base64 Decode fails. Release `der.buffer` in
@@ -8279,6 +8374,10 @@ CYASSL_X509* CyaSSL_X509_load_certificate_file(const char* fname, int format)
                 der.buffer = NULL;
             }
         }
+
+#ifdef CYASSL_SMALL_STACK
+        XFREE(info, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
     }
     else {
         der.buffer = (byte*)XMALLOC(sz, NULL, DYNAMIC_TYPE_CERT);
@@ -8287,7 +8386,9 @@ CYASSL_X509* CyaSSL_X509_load_certificate_file(const char* fname, int format)
             der.length = (word32)sz;
         }
     }
-    if (dynamic) XFREE(fileBuffer, NULL, DYNAMIC_TYPE_FILE);
+
+    if (dynamic)
+        XFREE(fileBuffer, NULL, DYNAMIC_TYPE_FILE);
 
     /* At this point we want `der` to have the certificate in DER format */
     /* ready to be decoded. */
@@ -9649,44 +9750,66 @@ CYASSL_X509* CyaSSL_X509_load_certificate_file(const char* fname, int format)
             byte          staticBuffer[FILE_BUFFER_SIZE];
             byte*         myBuffer = staticBuffer;
             CYASSL_CTX*   ctx = ssl->ctx;
-            EncryptedInfo info;
             buffer        fileDer;
             int           eccKey = 0;
+            int           dynamic = 0;
             CYASSL_X509*  peer_cert = &ssl->peerCert;
-
-            info.set = 0;
-            info.ctx = ctx;
-            info.consumed = 0;
-            fileDer.buffer = 0;
+#ifdef CYASSL_SMALL_STACK
+			EncryptedInfo* info;
+#else
+		    EncryptedInfo  info[1];
+#endif
 
             file = XFOPEN(fname, "rb");
-            if (file == XBADFILE) return SSL_BAD_FILE;
+            if (file == XBADFILE)
+                return SSL_BAD_FILE;
+
             XFSEEK(file, 0, XSEEK_END);
             sz = XFTELL(file);
             XREWIND(file);
+
             if (sz > (long)sizeof(staticBuffer)) {
                 CYASSL_MSG("Getting dynamic buffer");
                 myBuffer = (byte*) XMALLOC(sz, ctx->heap, DYNAMIC_TYPE_FILE);
+                dynamic = 1;
             }
 
-            if ((myBuffer != NULL) &&
-                (sz > 0) &&
-                (XFREAD(myBuffer, sz, 1, file) > 0) &&
-                (PemToDer(myBuffer, sz, CERT_TYPE,
-                                &fileDer, ctx->heap, &info, &eccKey) == 0) &&
-                (fileDer.length != 0) &&
-                (fileDer.length == peer_cert->derCert.length) &&
-                (XMEMCMP(peer_cert->derCert.buffer, fileDer.buffer,
-                                                    fileDer.length) == 0))
+#ifdef CYASSL_SMALL_STACK
+            info = (EncryptedInfo*)XMALLOC(sizeof(EncryptedInfo), NULL,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+            if (info == NULL)
+                ret = MEMORY_E;
+            else
+#endif
             {
-                ret = 0;
+                info->set = 0;
+                info->ctx = ctx;
+                info->consumed = 0;
+                fileDer.buffer = 0;
+
+                if ((myBuffer != NULL) &&
+                    (sz > 0) &&
+                    (XFREAD(myBuffer, sz, 1, file) > 0) &&
+                    (PemToDer(myBuffer, sz, CERT_TYPE,
+                                    &fileDer, ctx->heap, info, &eccKey) == 0) &&
+                    (fileDer.length != 0) &&
+                    (fileDer.length == peer_cert->derCert.length) &&
+                    (XMEMCMP(peer_cert->derCert.buffer, fileDer.buffer,
+                                                        fileDer.length) == 0))
+                {
+                    ret = 0;
+                }
+
+#ifdef CYASSL_SMALL_STACK
+                XFREE(info, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
             }
+
+            XFREE(fileDer.buffer, ctx->heap, DYNAMIC_TYPE_CERT);
+            if (dynamic)
+                XFREE(myBuffer, ctx->heap, DYNAMIC_TYPE_FILE);
 
             XFCLOSE(file);
-            if (fileDer.buffer)
-                XFREE(fileDer.buffer, ctx->heap, DYNAMIC_TYPE_CERT);
-            if (myBuffer && (myBuffer != staticBuffer))
-                XFREE(myBuffer, ctx->heap, DYNAMIC_TYPE_FILE);
         }
 
         return ret;
