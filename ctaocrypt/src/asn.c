@@ -3045,6 +3045,7 @@ static int ConfirmSignature(const byte* buf, word32 bufSz,
             XFREE(plain,      NULL, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(encodedSig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
+            break;
         }
 
     #endif /* NO_RSA */
@@ -3085,6 +3086,7 @@ static int ConfirmSignature(const byte* buf, word32 bufSz,
 #ifdef CYASSL_SMALL_STACK
             XFREE(pubKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
+            break;
         }
     #endif /* HAVE_ECC */
         default:
