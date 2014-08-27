@@ -2412,17 +2412,27 @@ int CyaSSL_CertManagerVerifyBuffer(CYASSL_CERT_MANAGER* cm, const byte* buff,
                                    long sz, int format)
 {
     int ret = 0;
-    int eccKey = 0;  /* not used */
-
-    DecodedCert cert;
-    buffer      der;
+    buffer der;
+#ifdef CYASSL_SMALL_STACK
+    DecodedCert* cert;
+#else
+    DecodedCert  cert[1];
+#endif
 
     CYASSL_ENTER("CyaSSL_CertManagerVerifyBuffer");
+
+#ifdef CYASSL_SMALL_STACK
+    cert = (DecodedCert*)XMALLOC(sizeof(DecodedCert), NULL,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+    if (cert == NULL)
+        return MEMORY_E;
+#endif
 
     der.buffer = NULL;
     der.length = 0;
 
     if (format == SSL_FILETYPE_PEM) {
+        int eccKey = 0; /* not used */
 #ifdef CYASSL_SMALL_STACK
 		EncryptedInfo* info;
 #else
@@ -2432,36 +2442,44 @@ int CyaSSL_CertManagerVerifyBuffer(CYASSL_CERT_MANAGER* cm, const byte* buff,
 #ifdef CYASSL_SMALL_STACK
         info = (EncryptedInfo*)XMALLOC(sizeof(EncryptedInfo), NULL, 
 		                                               DYNAMIC_TYPE_TMP_BUFFER);
-        if (info == NULL)
+        if (info == NULL) {
+            XFREE(cert, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             return MEMORY_E;
+        }
 #endif
 
         info->set      = 0;
         info->ctx      = NULL;
         info->consumed = 0;
+
         ret = PemToDer(buff, sz, CERT_TYPE, &der, cm->heap, info, &eccKey);
-        InitDecodedCert(&cert, der.buffer, der.length, cm->heap);
+        
+        if (ret == 0)
+            InitDecodedCert(cert, der.buffer, der.length, cm->heap);
 		
 #ifdef CYASSL_SMALL_STACK
 	    XFREE(info, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
     }
     else
-        InitDecodedCert(&cert, (byte*)buff, (word32)sz, cm->heap);
+        InitDecodedCert(cert, (byte*)buff, (word32)sz, cm->heap);
 
     if (ret == 0)
-        ret = ParseCertRelative(&cert, CERT_TYPE, 1, cm);
+        ret = ParseCertRelative(cert, CERT_TYPE, 1, cm);
+
 #ifdef HAVE_CRL
     if (ret == 0 && cm->crlEnabled)
-        ret = CheckCertCRL(cm->crl, &cert);
+        ret = CheckCertCRL(cm->crl, cert);
 #endif
 
-    FreeDecodedCert(&cert);
-    XFREE(der.buffer, cm->heap, DYNAMIC_TYPE_CERT);
+    FreeDecodedCert(cert);
 
-    if (ret == 0)
-        return SSL_SUCCESS;
-    return ret;
+    XFREE(der.buffer, cm->heap, DYNAMIC_TYPE_CERT);
+#ifdef CYASSL_SMALL_STACK
+    XFREE(cert, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
+    return ret == 0 ? SSL_SUCCESS : ret;
 }
 
 
