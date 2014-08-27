@@ -4796,19 +4796,6 @@ int CyaSSL_dtls_got_timeout(CYASSL* ssl)
             }
         #endif
 
-        #ifdef HAVE_ECC
-            /* in case used set_accept_state after init */
-            if (ssl->eccTempKeyPresent == 0) {
-                if (ecc_make_key(ssl->rng, ssl->eccTempKeySz,
-                                 ssl->eccTempKey) != 0) {
-                    ssl->error = ECC_MAKEKEY_ERROR;
-                    CYASSL_ERROR(ssl->error);
-                    return SSL_FATAL_ERROR;
-                }
-                ssl->eccTempKeyPresent = 1;
-            }
-        #endif
-
         #ifdef CYASSL_DTLS
             if (ssl->version.major == DTLS_MAJOR) {
                 ssl->options.dtls   = 1;

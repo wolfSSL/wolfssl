@@ -10493,6 +10493,16 @@ static void PickHashSigAlgo(CYASSL* ssl,
             length = ENUM_LEN + CURVE_LEN + ENUM_LEN;
             /* pub key size */
             CYASSL_MSG("Using ephemeral ECDH");
+
+            /* need ephemeral key now, create it if missing */
+            if (ssl->eccTempKeyPresent == 0) {
+                if (ecc_make_key(ssl->rng, ssl->eccTempKeySz,
+                                 ssl->eccTempKey) != 0) {
+                    return ECC_MAKEKEY_ERROR;
+                }
+                ssl->eccTempKeyPresent = 1;
+            }
+
             if (ecc_export_x963(ssl->eccTempKey, exportBuf, &expSz) != 0)
                 return ECC_EXPORT_ERROR;
             length += expSz;
@@ -12207,9 +12217,15 @@ static void PickHashSigAlgo(CYASSL* ssl,
 
                     ecc_free(&staticKey);
                 }
-                else
-                    ret = ecc_shared_secret(ssl->eccTempKey, ssl->peerEccKey,
+                else {
+                    if (ssl->eccTempKeyPresent == 0) {
+                        CYASSL_MSG("Ecc ephemeral key not made correctly");
+                        ret = ECC_MAKEKEY_ERROR;
+                    } else {
+                        ret = ecc_shared_secret(ssl->eccTempKey,ssl->peerEccKey,
                                          ssl->arrays->preMasterSecret, &length);
+                    }
+                }
 
                 if (ret != 0)
                     return ECC_SHARED_ERROR;
