@@ -2043,7 +2043,11 @@ int CyaSSL_Init(void)
 
             /* we may have a user cert chain, try to consume */
             if (userChain && type == CERT_TYPE && info->consumed < sz) {
+#ifdef CYASSL_SMALL_STACK
+                byte   staticBuffer[1];                 /* force heap usage */
+#else
                 byte   staticBuffer[FILE_BUFFER_SIZE];  /* tmp chain buffer */
+#endif
                 byte*  chainBuffer = staticBuffer;
                 byte*  shrinked    = NULL;   /* shrinked to size chainBuffer
                                               * or staticBuffer */
@@ -2718,7 +2722,11 @@ int CyaSSL_CTX_SetOCSP_Cb(CYASSL_CTX* ctx,
 int ProcessFile(CYASSL_CTX* ctx, const char* fname, int format, int type,
                 CYASSL* ssl, int userChain, CYASSL_CRL* crl)
 {
+#ifdef CYASSL_SMALL_STACK
+    byte   staticBuffer[1]; /* force heap usage */
+#else
     byte   staticBuffer[FILE_BUFFER_SIZE];
+#endif
     byte*  myBuffer = staticBuffer;
     int    dynamic = 0;
     int    ret;
@@ -2856,7 +2864,11 @@ int CyaSSL_CertManagerVerify(CYASSL_CERT_MANAGER* cm, const char* fname,
                              int format)
 {
     int    ret = SSL_FATAL_ERROR;
+#ifdef CYASSL_SMALL_STACK
+    byte   staticBuffer[1]; /* force heap usage */
+#else
     byte   staticBuffer[FILE_BUFFER_SIZE];
+#endif
     byte*  myBuffer = staticBuffer;
     int    dynamic = 0;
     long   sz = 0;
@@ -3186,7 +3198,11 @@ int CyaSSL_CTX_der_load_verify_locations(CYASSL_CTX* ctx, const char* file,
 /* load pem cert from file into der buffer, return der size or error */
 int CyaSSL_PemCertToDer(const char* fileName, unsigned char* derBuf, int derSz)
 {
+#ifdef CYASSL_SMALL_STACK
+    byte   staticBuffer[1]; /* force XMALLOC */
+#else
     byte   staticBuffer[FILE_BUFFER_SIZE];
+#endif
     byte*  fileBuf = staticBuffer;
     int    dynamic = 0;
     int    ret;
@@ -3366,7 +3382,11 @@ int CyaSSL_CTX_SetTmpDH_buffer(CYASSL_CTX* ctx, const unsigned char* buf,
 static int CyaSSL_SetTmpDH_file_wrapper(CYASSL_CTX* ctx, CYASSL* ssl,
                                         const char* fname, int format)
 {
+#ifdef CYASSL_SMALL_STACK
+    byte   staticBuffer[1]; /* force heap usage */
+#else
     byte   staticBuffer[FILE_BUFFER_SIZE];
+#endif
     byte*  myBuffer = staticBuffer;
     int    dynamic = 0;
     int    ret;
@@ -5670,10 +5690,14 @@ int CyaSSL_set_compression(CYASSL* ssl)
            because of SSL_write behavior and because front adds may be small */
         int CyaSSL_writev(CYASSL* ssl, const struct iovec* iov, int iovcnt)
         {
-            byte  tmp[FILE_BUFFER_SIZE];
-            byte* myBuffer    = tmp;
+#ifdef CYASSL_SMALL_STACK
+            byte   staticBuffer[1]; /* force heap usage */
+#else
+            byte   staticBuffer[FILE_BUFFER_SIZE];
+#endif
+            byte* myBuffer  = staticBuffer;
+            int   dynamic   = 0;
             int   sending   = 0;
-            int   newBuffer = 0;
             int   idx       = 0;
             int   i;
             int   ret;
@@ -5683,13 +5707,13 @@ int CyaSSL_set_compression(CYASSL* ssl)
             for (i = 0; i < iovcnt; i++)
                 sending += (int)iov[i].iov_len;
 
-            if (sending > (int)sizeof(tmp)) {
-                byte* tmp2 = (byte*) XMALLOC(sending, ssl->heap,
-                                             DYNAMIC_TYPE_WRITEV);
-                if (!tmp2)
+            if (sending > (int)sizeof(staticBuffer)) {
+                myBuffer = (byte*)XMALLOC(sending, ssl->heap, 
+                                                           DYNAMIC_TYPE_WRITEV);
+                if (!myBuffer)
                     return MEMORY_ERROR;
-                myBuffer = tmp2;
-                newBuffer = 1;
+
+                dynamic = 1;
             }
 
             for (i = 0; i < iovcnt; i++) {
@@ -5699,7 +5723,8 @@ int CyaSSL_set_compression(CYASSL* ssl)
 
             ret = CyaSSL_write(ssl, myBuffer, sending);
 
-            if (newBuffer) XFREE(myBuffer, ssl->heap, DYNAMIC_TYPE_WRITEV);
+            if (dynamic)
+                XFREE(myBuffer, ssl->heap, DYNAMIC_TYPE_WRITEV);
 
             return ret;
         }
@@ -8315,11 +8340,16 @@ CYASSL_X509* CyaSSL_X509_d2i_fp(CYASSL_X509** x509, XFILE file)
 
 CYASSL_X509* CyaSSL_X509_load_certificate_file(const char* fname, int format)
 {
-    byte staticBuffer[FILE_BUFFER_SIZE];
+#ifdef CYASSL_SMALL_STACK
+    byte  staticBuffer[1]; /* force heap usage */
+#else
+    byte  staticBuffer[FILE_BUFFER_SIZE];
+#endif
     byte* fileBuffer = staticBuffer;
-    int dynamic = 0;
-    long sz = 0;
+    int   dynamic = 0;
+    long  sz = 0;
     XFILE file;
+    
     CYASSL_X509* x509 = NULL;
     buffer der;
 
@@ -9765,12 +9795,16 @@ CYASSL_X509* CyaSSL_X509_load_certificate_file(const char* fname, int format)
         {
             XFILE         file = XBADFILE;
             long          sz = 0;
+#ifdef CYASSL_SMALL_STACK
+            byte          staticBuffer[1]; /* force heap usage */
+#else
             byte          staticBuffer[FILE_BUFFER_SIZE];
+#endif
             byte*         myBuffer = staticBuffer;
+            int           dynamic = 0;
             CYASSL_CTX*   ctx = ssl->ctx;
             buffer        fileDer;
             int           eccKey = 0;
-            int           dynamic = 0;
             CYASSL_X509*  peer_cert = &ssl->peerCert;
 #ifdef CYASSL_SMALL_STACK
 			EncryptedInfo* info;
@@ -9788,7 +9822,7 @@ CYASSL_X509* CyaSSL_X509_load_certificate_file(const char* fname, int format)
 
             if (sz > (long)sizeof(staticBuffer)) {
                 CYASSL_MSG("Getting dynamic buffer");
-                myBuffer = (byte*) XMALLOC(sz, ctx->heap, DYNAMIC_TYPE_FILE);
+                myBuffer = (byte*)XMALLOC(sz, ctx->heap, DYNAMIC_TYPE_FILE);
                 dynamic = 1;
             }
 
