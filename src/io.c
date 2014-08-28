@@ -519,7 +519,7 @@ static int Word16ToString(char* d, word16 number)
             while (order) {
                 digit = number / order;
                 if (i > 0 || digit != 0) {
-                    d[i++] = digit + '0';
+                    d[i++] = (char)digit + '0';
                 }
                 if (digit != 0)
                     number %= digit * order;
@@ -587,10 +587,18 @@ static int tcp_connect(SOCKET_T* sockfd, const char* ip, word16 port)
     #endif /* HAVE_GETADDRINFO */
 
     *sockfd = socket(addr.ss_family, SOCK_STREAM, 0);
-    if (*sockfd < 0) {
+
+#ifdef USE_WINDOWS_API
+    if (*sockfd == INVALID_SOCKET) {
         CYASSL_MSG("bad socket fd, out of fds?");
         return -1;
     }
+#else
+     if (*sockfd < 0) {
+         CYASSL_MSG("bad socket fd, out of fds?");
+         return -1;
+     }
+#endif
 
     if (connect(*sockfd, (struct sockaddr *)&addr, sockaddr_len) != 0) {
         CYASSL_MSG("OCSP responder tcp connect failed");
@@ -609,7 +617,7 @@ static int build_http_request(const char* domainName, const char* path,
 
     domainNameLen = (word32)XSTRLEN(domainName);
     pathLen = (word32)XSTRLEN(path);
-    ocspReqSzStrLen = Word16ToString(ocspReqSzStr, ocspReqSz);
+    ocspReqSzStrLen = Word16ToString(ocspReqSzStr, (word16)ocspReqSz);
 
     completeLen = domainNameLen + pathLen + ocspReqSzStrLen + 84;
     if (completeLen > (word32)bufSize)
@@ -807,7 +815,7 @@ static int process_http_response(int sfd, byte** respBuf,
         }
     } while (state != phr_http_end);
 
-    recvBuf = XMALLOC(recvBufSz, NULL, DYNAMIC_TYPE_IN_BUFFER);
+    recvBuf = (byte*)XMALLOC(recvBufSz, NULL, DYNAMIC_TYPE_IN_BUFFER);
     if (recvBuf == NULL) {
         CYASSL_MSG("process_http_response couldn't create response buffer");
         return -1;
