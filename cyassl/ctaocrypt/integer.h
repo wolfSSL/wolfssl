@@ -310,6 +310,9 @@ int mp_init_multi(mp_int* a, mp_int* b, mp_int* c, mp_int* d, mp_int* e,
     int mp_lcm (mp_int * a, mp_int * b, mp_int * c);
 #endif
 
+int mp_cnt_lsb(mp_int *a);
+int mp_mod_d(mp_int* a, mp_digit b, mp_digit* c);
+
 #ifdef __cplusplus
    }
 #endif

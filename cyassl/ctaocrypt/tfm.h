@@ -398,7 +398,7 @@ void fp_mul_2(fp_int *a, fp_int *c);
 void fp_div_2(fp_int *a, fp_int *c);
 
 /* Counts the number of lsbs which are zero before the first zero bit */
-/*int fp_cnt_lsb(fp_int *a);*/
+int fp_cnt_lsb(fp_int *a);
 
 /* c = a + b */
 void fp_add(fp_int *a, fp_int *b, fp_int *c);
@@ -630,11 +630,14 @@ void fp_sqr_comba64(fp_int *a, fp_int *b);
     #define MP_LT   FP_LT   /* less than    */
     #define MP_EQ   FP_EQ   /* equal to     */
     #define MP_GT   FP_GT   /* greater than */
+    #define MP_VAL  FP_VAL  /* invalid */
     #define MP_OKAY FP_OKAY /* ok result    */
     #define MP_NO   FP_NO   /* yes/no result */
     #define MP_YES  FP_YES  /* yes/no result */
 
 /* Prototypes */
+#define mp_zero(a)  fp_zero(a)
+#define mp_iseven(a)  fp_iseven(a)
 int  mp_init (mp_int * a);
 void mp_clear (mp_int * a);
 int mp_init_multi(mp_int* a, mp_int* b, mp_int* c, mp_int* d, mp_int* e, mp_int* f);
@@ -685,6 +688,10 @@ int  mp_gcd(fp_int *a, fp_int *b, fp_int *c);
 int  mp_lcm(fp_int *a, fp_int *b, fp_int *c);
 int  mp_prime_is_prime(mp_int* a, int t, int* result);
 #endif /* CYASSL_KEY_GEN */
+
+int  mp_cnt_lsb(fp_int *a);
+int  mp_div_2d(fp_int *a, int b, fp_int *c, fp_int *d);
+int  mp_mod_d(fp_int* a, fp_digit b, fp_digit* c);
 
 CYASSL_API word32 CheckRunTimeFastMath(void);
 

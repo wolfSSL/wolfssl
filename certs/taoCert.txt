@@ -123,6 +123,8 @@ openssl dhparam -in dh2048.param -text > dh2048.pem
     make a new key
         openssl ecparam -genkey -text -name secp256r1 -out ecc-key.pem
 
+    convert to compressed
+        openssl ec -in ecc-key.pem -conv_form compressed -out ecc-key-comp.pem 
 
 *** CRL ***
 
