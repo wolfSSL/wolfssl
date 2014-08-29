@@ -4407,6 +4407,17 @@ int hkdf_test(void)
 
 #ifdef HAVE_ECC
 
+typedef struct rawEccVector {
+    const char* msg;
+    const char* Qx;
+    const char* Qy;
+    const char* d;
+    const char* R;
+    const char* S;
+    const char* curveName;
+    size_t msgLen;
+} rawEccVector;
+
 int ecc_test(void)
 {
     RNG     rng;
@@ -4498,9 +4509,92 @@ int ecc_test(void)
     if (ret != 0)
         return -1013;
 
+    {
+        /* test raw ECC key import */
+        Sha sha;
+        byte hash[SHA_DIGEST_SIZE];
+        rawEccVector a, b;
+        rawEccVector test_ecc[2];
+        int times = sizeof(test_ecc) / sizeof(rawEccVector);
+
+        /* first [P-192,SHA-1] vector from FIPS 186-3 NIST vectors */
+        a.msg = "\xeb\xf7\x48\xd7\x48\xeb\xbc\xa7\xd2\x9f\xb4\x73\x69\x8a"
+                "\x6e\x6b\x4f\xb1\x0c\x86\x5d\x4a\xf0\x24\xcc\x39\xae\x3d"
+                "\xf3\x46\x4b\xa4\xf1\xd6\xd4\x0f\x32\xbf\x96\x18\xa9\x1b"
+                "\xb5\x98\x6f\xa1\xa2\xaf\x04\x8a\x0e\x14\xdc\x51\xe5\x26"
+                "\x7e\xb0\x5e\x12\x7d\x68\x9d\x0a\xc6\xf1\xa7\xf1\x56\xce"
+                "\x06\x63\x16\xb9\x71\xcc\x7a\x11\xd0\xfd\x7a\x20\x93\xe2"
+                "\x7c\xf2\xd0\x87\x27\xa4\xe6\x74\x8c\xc3\x2f\xd5\x9c\x78"
+                "\x10\xc5\xb9\x01\x9d\xf2\x1c\xdc\xc0\xbc\xa4\x32\xc0\xa3"
+                "\xee\xd0\x78\x53\x87\x50\x88\x77\x11\x43\x59\xce\xe4\xa0"
+                "\x71\xcf";
+        a.msgLen = 128;
+        a.Qx = "07008ea40b08dbe76432096e80a2494c94982d2d5bcf98e6";
+        a.Qy = "76fab681d00b414ea636ba215de26d98c41bd7f2e4d65477";
+        a.d  = "e14f37b3d1374ff8b03f41b9b3fdd2f0ebccf275d660d7f3";
+        a.R  = "6994d962bdd0d793ffddf855ec5bf2f91a9698b46258a63e";
+        a.S  = "02ba6465a234903744ab02bc8521405b73cf5fc00e1a9f41";
+        a.curveName = "ECC-192";
+
+        /* first [P-224,SHA-1] vector from FIPS 186-3 NIST vectors */
+        b.msg = "\x36\xc8\xb2\x29\x86\x48\x7f\x67\x7c\x18\xd0\x97\x2a\x9e"
+                "\x20\x47\xb3\xaf\xa5\x9e\xc1\x62\x76\x4e\xc3\x0b\x5b\x69"
+                "\xe0\x63\x0f\x99\x0d\x4e\x05\xc2\x73\xb0\xe5\xa9\xd4\x28"
+                "\x27\xb6\x95\xfc\x2d\x64\xd9\x13\x8b\x1c\xf4\xc1\x21\x55"
+                "\x89\x4c\x42\x13\x21\xa7\xbb\x97\x0b\xdc\xe0\xfb\xf0\xd2"
+                "\xae\x85\x61\xaa\xd8\x71\x7f\x2e\x46\xdf\xe3\xff\x8d\xea"
+                "\xb4\xd7\x93\x23\x56\x03\x2c\x15\x13\x0d\x59\x9e\x26\xc1"
+                "\x0f\x2f\xec\x96\x30\x31\xac\x69\x38\xa1\x8d\x66\x45\x38"
+                "\xb9\x4d\xac\x55\x34\xef\x7b\x59\x94\x24\xd6\x9b\xe1\xf7"
+                "\x1c\x20";
+        b.msgLen = 128;
+        b.Qx = "8a4dca35136c4b70e588e23554637ae251077d1365a6ba5db9585de7";
+        b.Qy = "ad3dee06de0be8279d4af435d7245f14f3b4f82eb578e519ee0057b1";
+        b.d  = "97c4b796e1639dd1035b708fc00dc7ba1682cec44a1002a1a820619f";
+        b.R  = "147b33758321e722a0360a4719738af848449e2c1d08defebc1671a7";
+        b.S  = "24fc7ed7f1352ca3872aa0916191289e2e04d454935d50fe6af3ad5b";
+        b.curveName = "ECC-224";
+
+        test_ecc[0] = a;
+        test_ecc[1] = b;
+
+        for (i = 0; i < times; i++) {
+
+            ecc_init(&userA);
+
+            memset(sig, 0, sizeof(sig));
+            x = sizeof(sig);
+
+            /* calculate SHA-1 hash of message */
+            ret = InitSha(&sha);
+            if (ret != 0)
+                return -1015 - i;
+
+            ShaUpdate(&sha, (byte*)test_ecc[i].msg, (word32)test_ecc[i].msgLen);
+            ShaFinal(&sha, hash);
+
+            ret = ecc_import_raw(&userA, test_ecc[i].Qx, test_ecc[i].Qy,
+                                 test_ecc[i].d, test_ecc[i].curveName);
+            if (ret != 0)
+                return -1017 - i;
+
+            ret = ecc_rs_to_sig(test_ecc[i].R, test_ecc[i].S, sig, &x);
+            if (ret != 0)
+                return -1019 - i;
+
+            ret = ecc_verify_hash(sig, x, hash, sizeof(hash), &verify, &userA);
+            if (ret != 0)
+                return -1021 - i;
+
+            if (verify != 1)
+                return -1023 - i;
+
+            ecc_free(&userA);
+        }
+    }
+
     ecc_free(&pubKey);
     ecc_free(&userB);
-    ecc_free(&userA);
 
     return 0;
 }

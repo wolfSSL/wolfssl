@@ -2299,6 +2299,112 @@ int ecc_import_private_key(const byte* priv, word32 privSz, const byte* pub,
     return mp_read_unsigned_bin(&key->k, priv, privSz);
 }
 
+/**
+   Convert ECC R,S to signature
+   r       R component of signature
+   s       S component of signature
+   out     DER-encoded ECDSA signature
+   outlen  [in/out] output buffer size, output signature size
+   return  MP_OKAY on success
+*/
+int ecc_rs_to_sig(const char* r, const char* s, byte* out, word32* outlen)
+{
+    int err;
+    mp_int rtmp;
+    mp_int stmp;
+
+    if (r == NULL || s == NULL || out == NULL)
+        return ECC_BAD_ARG_E;
+
+    err = mp_read_radix(&rtmp, r, 16);
+
+    if (err == MP_OKAY)
+        err = mp_read_radix(&stmp, s, 16);
+
+    /* convert mp_ints to ECDSA sig, initializes rtmp and stmp internally */
+    err = StoreECC_DSA_Sig(out, outlen, &rtmp, &stmp);
+
+    if (err == MP_OKAY) {
+        if (mp_iszero(&rtmp) || mp_iszero(&stmp))
+            err = MP_ZERO_E;
+    }
+
+    mp_clear(&rtmp);
+    mp_clear(&stmp);
+
+    return err;
+}
+
+/**
+   Import raw ECC key
+   key       The destination ecc_key structure
+   qx        x component of base point, as ASCII hex string
+   qy        y component of base point, as ASCII hex string
+   d         private key, as ASCII hex string
+   curveName ECC curve name, from ecc_sets[]
+   return    MP_OKAY on success
+*/
+int ecc_import_raw(ecc_key* key, const char* qx, const char* qy,
+                   const char* d, const char* curveName)
+{
+    int err, x;
+
+    if (key == NULL || qx == NULL || qy == NULL || d == NULL ||
+        curveName == NULL)
+        return ECC_BAD_ARG_E;
+
+    /* init key */
+    if (mp_init_multi(&key->pubkey.x, &key->pubkey.y, &key->pubkey.z, &key->k,
+                      NULL, NULL) != MP_OKAY) {
+        return MEMORY_E;
+    }
+    err = MP_OKAY;
+
+    /* read Qx */
+    if (err == MP_OKAY)
+        err = mp_read_radix(&key->pubkey.x, qx, 16);
+
+    /* read Qy */
+    if (err == MP_OKAY)
+        err = mp_read_radix(&key->pubkey.y, qy, 16);
+
+    if (err == MP_OKAY)
+        mp_set(&key->pubkey.z, 1);
+
+    /* read and set the curve */
+    if (err == MP_OKAY) {
+        for (x = 0; ecc_sets[x].size != 0; x++) {
+            if (XSTRNCMP(ecc_sets[x].name, curveName,
+                         XSTRLEN(curveName)) == 0) {
+                break;
+            }
+        }
+        if (ecc_sets[x].size == 0) {
+            err = ASN_PARSE_E;
+        } else {
+            /* set the curve */
+            key->idx = x;
+            key->dp = &ecc_sets[x];
+            key->type = ECC_PUBLICKEY;
+        }
+    }
+
+    /* import private key */
+    if (err == MP_OKAY) {
+        key->type = ECC_PRIVATEKEY;
+        err = mp_read_radix(&key->k, d, 16);
+    }
+
+    if (err != MP_OKAY) {
+        mp_clear(&key->pubkey.x);
+        mp_clear(&key->pubkey.y);
+        mp_clear(&key->pubkey.z);
+        mp_clear(&key->k);
+    }
+
+    return err;
+}
+
 
 /* key size in octets */
 int ecc_size(ecc_key* key)

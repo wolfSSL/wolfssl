@@ -110,6 +110,12 @@ CYASSL_API
 int ecc_import_private_key(const byte* priv, word32 privSz, const byte* pub,
                            word32 pubSz, ecc_key* key);
 CYASSL_API
+int ecc_rs_to_sig(const char* r, const char* s, byte* out, word32* outlen);
+CYASSL_API
+int ecc_import_raw(ecc_key* key, const char* qx, const char* qy,
+                   const char* d, const char* curveName);
+
+CYASSL_API
 int ecc_export_private_only(ecc_key* key, byte* out, word32* outLen);
 
 /* size helper */
