@@ -2313,11 +2313,14 @@ int ecc_rs_to_sig(const char* r, const char* s, byte* out, word32* outlen)
     mp_int rtmp;
     mp_int stmp;
 
-    if (r == NULL || s == NULL || out == NULL)
+    if (r == NULL || s == NULL || out == NULL || outlen == NULL)
         return ECC_BAD_ARG_E;
 
-    err = mp_read_radix(&rtmp, r, 16);
+    err = mp_init_multi(&rtmp, &stmp, NULL, NULL, NULL, NULL);
+    if (err != MP_OKAY)
+        return err;
 
+    err = mp_read_radix(&rtmp, r, 16);
     if (err == MP_OKAY)
         err = mp_read_radix(&stmp, s, 16);
 
