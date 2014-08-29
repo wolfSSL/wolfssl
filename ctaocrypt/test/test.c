@@ -4584,6 +4584,7 @@ int ecc_test(void)
 
         for (i = 0; i < times; i++) {
 
+            ecc_free(&userA);
             ecc_init(&userA);
 
             memset(sig, 0, sizeof(sig));
@@ -4612,13 +4613,12 @@ int ecc_test(void)
 
             if (verify != 1)
                 return -1023 - i;
-
-            ecc_free(&userA);
         }
     }
 
     ecc_free(&pubKey);
     ecc_free(&userB);
+    ecc_free(&userA);
 
     return 0;
 }

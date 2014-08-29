@@ -2338,6 +2338,8 @@ int ecc_import_x963(const byte* in, word32 inLen, ecc_key* key)
             }
         }
 
+        mp_clear(&a);
+        mp_clear(&b);
         mp_clear(&prime);
         mp_clear(&t2);
         mp_clear(&t1);
