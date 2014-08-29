@@ -4483,7 +4483,31 @@ int ecc_test(void)
         return -1008;
 
     if (memcmp(sharedA, sharedB, y))
+        return -1009;
+
+#ifdef HAVE_COMP_KEY
+    /* try compressed export / import too */
+    x = sizeof(exportBuf);
+    ret = ecc_export_x963_ex(&userA, exportBuf, &x, 1);
+    if (ret != 0)
         return -1010;
+
+    ecc_free(&pubKey);
+    ecc_init(&pubKey);
+    ret = ecc_import_x963(exportBuf, x, &pubKey);
+
+    if (ret != 0)
+        return -1011;
+#endif
+
+    y = sizeof(sharedB);
+    ret = ecc_shared_secret(&userB, &pubKey, sharedB, &y);
+
+    if (ret != 0)
+        return -1012;
+
+    if (memcmp(sharedA, sharedB, y))
+        return -1013;
 
     /* test DSA sign hash */
     for (i = 0; i < (int)sizeof(digest); i++)
@@ -4493,21 +4517,21 @@ int ecc_test(void)
     ret = ecc_sign_hash(digest, sizeof(digest), sig, &x, &rng, &userA);
 
     if (ret != 0)
-        return -1016;
+        return -1014;
 
     verify = 0;
     ret = ecc_verify_hash(sig, x, digest, sizeof(digest), &verify, &userA);
 
     if (ret != 0)
-        return -1011;
+        return -1015;
 
     if (verify != 1)
-        return -1012;
+        return -1016;
 
     x = sizeof(exportBuf);
     ret = ecc_export_private_only(&userA, exportBuf, &x);
     if (ret != 0)
-        return -1013;
+        return -1017;
 
     {
         /* test raw ECC key import */

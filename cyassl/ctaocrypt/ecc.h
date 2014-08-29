@@ -49,6 +49,7 @@ typedef struct {
     int size;       /* The size of the curve in octets */
     const char* name;     /* name of this curve */
     const char* prime;    /* prime that defines the field, curve is in (hex) */
+    const char* Af;       /* fields A param (hex) */
     const char* Bf;       /* fields B param (hex) */
     const char* order;    /* order of the curve (hex) */
     const char* Gx;       /* x coordinate of the base point on curve (hex) */
@@ -104,6 +105,9 @@ void ecc_fp_free(void);
 /* ASN key helpers */
 CYASSL_API
 int ecc_export_x963(ecc_key*, byte* out, word32* outLen);
+CYASSL_API
+int ecc_export_x963_ex(ecc_key*, byte* out, word32* outLen, int compressed);
+    /* extended functionality with compressed option */
 CYASSL_API
 int ecc_import_x963(const byte* in, word32 inLen, ecc_key* key);
 CYASSL_API

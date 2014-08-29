@@ -2035,33 +2035,39 @@ int mp_montgomery_calc_normalization(mp_int *a, mp_int *b)
 #endif /* CYASSL_KEYGEN || HAVE_ECC */
 
 
-#ifdef CYASSL_KEY_GEN
+#if defined(CYASSL_KEY_GEN) || defined(HAVE_COMP_KEY)
 
-void fp_gcd(fp_int *a, fp_int *b, fp_int *c);
-void fp_lcm(fp_int *a, fp_int *b, fp_int *c);
-int  fp_isprime(fp_int *a);
-int  fp_cnt_lsb(fp_int *a);
+static const int lnz[16] = {
+   4, 0, 1, 0, 2, 0, 1, 0, 3, 0, 1, 0, 2, 0, 1, 0
+};
 
-int mp_gcd(fp_int *a, fp_int *b, fp_int *c)
+/* Counts the number of lsbs which are zero before the first zero bit */
+int fp_cnt_lsb(fp_int *a)
 {
-    fp_gcd(a, b, c);
-    return MP_OKAY;
+   int x;
+   fp_digit q, qq;
+
+   /* easy out */
+   if (fp_iszero(a) == 1) {
+      return 0;
+   }
+
+   /* scan lower digits until non-zero */
+   for (x = 0; x < a->used && a->dp[x] == 0; x++);
+   q = a->dp[x];
+   x *= DIGIT_BIT;
+
+   /* now scan this digit until a 1 is found */
+   if ((q & 1) == 0) {
+      do {
+         qq  = q & 15;
+         x  += lnz[qq];
+         q >>= 4;
+      } while (qq == 0);
+   }
+   return x;
 }
 
-
-int mp_lcm(fp_int *a, fp_int *b, fp_int *c)
-{
-    fp_lcm(a, b, c);
-    return MP_OKAY;
-}
-
-
-int mp_prime_is_prime(mp_int* a, int t, int* result)
-{
-    (void)t;
-    *result = fp_isprime(a);
-    return MP_OKAY;
-}
 
 
 
@@ -2155,6 +2161,39 @@ static int fp_mod_d(fp_int *a, fp_digit b, fp_digit *c)
    return fp_div_d(a, b, NULL, c);
 }
 
+int mp_mod_d(fp_int *a, fp_digit b, fp_digit *c)
+{
+   return fp_mod_d(a, b, c);
+}
+
+#endif /* defined(CYASSL_KEY_GEN) || defined(HAVE_COMP_KEY) */
+
+#ifdef CYASSL_KEY_GEN
+
+void fp_gcd(fp_int *a, fp_int *b, fp_int *c);
+void fp_lcm(fp_int *a, fp_int *b, fp_int *c);
+int  fp_isprime(fp_int *a);
+
+int mp_gcd(fp_int *a, fp_int *b, fp_int *c)
+{
+    fp_gcd(a, b, c);
+    return MP_OKAY;
+}
+
+
+int mp_lcm(fp_int *a, fp_int *b, fp_int *c)
+{
+    fp_lcm(a, b, c);
+    return MP_OKAY;
+}
+
+
+int mp_prime_is_prime(mp_int* a, int t, int* result)
+{
+    (void)t;
+    *result = fp_isprime(a);
+    return MP_OKAY;
+}
 
 /* Miller-Rabin test of "a" to the base of "b" as described in 
  * HAC pp. 139 Algorithm 4.24
@@ -2303,37 +2342,6 @@ void fp_lcm(fp_int *a, fp_int *b, fp_int *c)
    }   
 }
 
-
-static const int lnz[16] = {
-   4, 0, 1, 0, 2, 0, 1, 0, 3, 0, 1, 0, 2, 0, 1, 0
-};
-
-/* Counts the number of lsbs which are zero before the first zero bit */
-int fp_cnt_lsb(fp_int *a)
-{
-   int x;
-   fp_digit q, qq;
-
-   /* easy out */
-   if (fp_iszero(a) == 1) {
-      return 0;
-   }
-
-   /* scan lower digits until non-zero */
-   for (x = 0; x < a->used && a->dp[x] == 0; x++);
-   q = a->dp[x];
-   x *= DIGIT_BIT;
-
-   /* now scan this digit until a 1 is found */
-   if ((q & 1) == 0) {
-      do {
-         qq  = q & 15;
-         x  += lnz[qq];
-         q >>= 4;
-      } while (qq == 0);
-   }
-   return x;
-}
 
 
 /* c = (a, b) */
@@ -2507,6 +2515,22 @@ int mp_init_copy(fp_int * a, fp_int * b)
     return MP_OKAY;
 }
 
+
+#ifdef HAVE_COMP_KEY
+
+int mp_cnt_lsb(fp_int* a)
+{
+    fp_cnt_lsb(a);
+    return MP_OKAY;
+}
+
+int mp_div_2d(fp_int* a, int b, fp_int* c, fp_int* d)
+{
+    fp_div_2d(a, b, c, d);
+    return MP_OKAY;
+}
+
+#endif /* HAVE_COMP_KEY */
 
 
 #endif /* HAVE_ECC */
