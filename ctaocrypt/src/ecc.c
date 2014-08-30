@@ -2427,7 +2427,8 @@ int ecc_rs_to_sig(const char* r, const char* s, byte* out, word32* outlen)
         err = mp_read_radix(&stmp, s, 16);
 
     /* convert mp_ints to ECDSA sig, initializes rtmp and stmp internally */
-    err = StoreECC_DSA_Sig(out, outlen, &rtmp, &stmp);
+    if (err == MP_OKAY)
+        err = StoreECC_DSA_Sig(out, outlen, &rtmp, &stmp);
 
     if (err == MP_OKAY) {
         if (mp_iszero(&rtmp) || mp_iszero(&stmp))
@@ -4687,7 +4688,7 @@ int mp_sqrtmod_prime(mp_int* n, mp_int* prime, mp_int* ret)
     /* Z = 2 */
     while (res == MP_OKAY) {
       res = mp_jacobi(&Z, prime, &legendre);
-      if (legendre == -1)
+      if (res == MP_OKAY && legendre == -1)
         break;
       if (res == MP_OKAY)
         res = mp_add_d(&Z, 1, &Z);
