@@ -4660,14 +4660,12 @@ int mp_sqrtmod_prime(mp_int* n, mp_int* prime, mp_int* ret)
     done = 1;
   }
 
-
   /* NOW: TonelliShanks algorithm */
 
  if (res == MP_OKAY && done == 0) {
 
    /* factor out powers of 2 from prime-1, defining Q and S
     *                                      as: prime-1 = Q*2^S */
-
     res = mp_copy(prime, &Q);
     if (res == MP_OKAY)
       res = mp_sub_d(&Q, 1, &Q);
@@ -4716,8 +4714,6 @@ int mp_sqrtmod_prime(mp_int* n, mp_int* prime, mp_int* ret)
     if (res == MP_OKAY)
       res = mp_set_int(&two, 2);
 
-    if (res == MP_OKAY)
-      res = MP_VAL;
     while (res == MP_OKAY && done == 0) {
       res = mp_copy(&T, &t1);
       i = 0;
