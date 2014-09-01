@@ -4356,36 +4356,16 @@ int CM_GetCertCacheMemSize(CYASSL_CERT_MANAGER* cm)
 int CyaSSL_CTX_set_cipher_list(CYASSL_CTX* ctx, const char* list)
 {
     CYASSL_ENTER("CyaSSL_CTX_set_cipher_list");
-    if (SetCipherList(&ctx->suites, list))
-        return SSL_SUCCESS;
-    else
-        return SSL_FAILURE;
+    return (SetCipherList(&ctx->suites, list, ctx->method->side)) ? SSL_SUCCESS
+                                                                  : SSL_FAILURE;
 }
 
 
 int CyaSSL_set_cipher_list(CYASSL* ssl, const char* list)
 {
     CYASSL_ENTER("CyaSSL_set_cipher_list");
-    if (SetCipherList(ssl->suites, list)) {
-        byte haveRSA = 1;
-        byte havePSK = 0;
-
-        #ifdef NO_RSA
-            haveRSA = 0;
-        #endif
-        #ifndef NO_PSK
-            havePSK = ssl->options.havePSK;
-        #endif
-
-        InitSuites(ssl->suites, ssl->version, haveRSA, havePSK,
-                   ssl->options.haveDH, ssl->options.haveNTRU,
-                   ssl->options.haveECDSAsig, ssl->options.haveStaticECC,
-                   ssl->options.side);
-
-        return SSL_SUCCESS;
-    }
-    else
-        return SSL_FAILURE;
+    return (SetCipherList(ssl->suites, list, ssl->options.side)) ? SSL_SUCCESS
+                                                                 : SSL_FAILURE;
 }
 
 

@@ -614,6 +614,43 @@ void InitCipherSpecs(CipherSpecs* cs)
     cs->block_size  = 0;
 }
 
+static void InitSuitesHashSigAlgo(Suites* suites, int haveECDSAsig, 
+                                                                 int haveRSAsig)
+{
+    int idx = 0;
+    
+    if (haveECDSAsig) {
+        #ifdef CYASSL_SHA384
+            suites->hashSigAlgo[idx++] = sha384_mac;
+            suites->hashSigAlgo[idx++] = ecc_dsa_sa_algo;
+        #endif
+        #ifndef NO_SHA256
+            suites->hashSigAlgo[idx++] = sha256_mac;
+            suites->hashSigAlgo[idx++] = ecc_dsa_sa_algo;
+        #endif
+        #ifndef NO_SHA
+            suites->hashSigAlgo[idx++] = sha_mac;
+            suites->hashSigAlgo[idx++] = ecc_dsa_sa_algo;
+        #endif
+    }
+
+    if (haveRSAsig) {
+        #ifdef CYASSL_SHA384
+            suites->hashSigAlgo[idx++] = sha384_mac;
+            suites->hashSigAlgo[idx++] = rsa_sa_algo;
+        #endif
+        #ifndef NO_SHA256
+            suites->hashSigAlgo[idx++] = sha256_mac;
+            suites->hashSigAlgo[idx++] = rsa_sa_algo;
+        #endif
+        #ifndef NO_SHA
+            suites->hashSigAlgo[idx++] = sha_mac;
+            suites->hashSigAlgo[idx++] = rsa_sa_algo;
+        #endif
+    }
+
+    suites->hashSigAlgoSz = idx;
+}
 
 void InitSuites(Suites* suites, ProtocolVersion pv, byte haveRSA, byte havePSK,
                 byte haveDH, byte haveNTRU, byte haveECDSAsig,
@@ -1329,42 +1366,8 @@ void InitSuites(Suites* suites, ProtocolVersion pv, byte haveRSA, byte havePSK,
 #endif
 
     suites->suiteSz = idx;
-
-    {
-        idx = 0;
-        
-        if (haveECDSAsig) {
-            #ifdef CYASSL_SHA384
-                suites->hashSigAlgo[idx++] = sha384_mac;
-                suites->hashSigAlgo[idx++] = ecc_dsa_sa_algo;
-            #endif
-            #ifndef NO_SHA256
-                suites->hashSigAlgo[idx++] = sha256_mac;
-                suites->hashSigAlgo[idx++] = ecc_dsa_sa_algo;
-            #endif
-            #ifndef NO_SHA
-                suites->hashSigAlgo[idx++] = sha_mac;
-                suites->hashSigAlgo[idx++] = ecc_dsa_sa_algo;
-            #endif
-        }
-
-        if (haveRSAsig) {
-            #ifdef CYASSL_SHA384
-                suites->hashSigAlgo[idx++] = sha384_mac;
-                suites->hashSigAlgo[idx++] = rsa_sa_algo;
-            #endif
-            #ifndef NO_SHA256
-                suites->hashSigAlgo[idx++] = sha256_mac;
-                suites->hashSigAlgo[idx++] = rsa_sa_algo;
-            #endif
-            #ifndef NO_SHA
-                suites->hashSigAlgo[idx++] = sha_mac;
-                suites->hashSigAlgo[idx++] = rsa_sa_algo;
-            #endif
-        }
-
-        suites->hashSigAlgoSz = idx;
-    }
+    
+    InitSuitesHashSigAlgo(suites, haveECDSAsig, haveRSAsig);
 }
 
 
@@ -8299,107 +8302,82 @@ int GetCipherNamesSize(void)
 }
 
 
-/* return true if set, else false */
-/* only supports full name from cipher_name[] delimited by : */
-int SetCipherList(Suites* s, const char* list)
+/**
+Set the enabled cipher suites.
+
+@param [out] suites Suites structure.
+@param [in]  list   List of cipher suites, only supports full name from
+                    cipher_name[] delimited by ':'.
+@param [in]  side   client(CYASSL_CLIENT_END) or server(CYASSL_SERVER_END) side.
+
+@return true on success, else false.
+*/
+int SetCipherList(Suites* suites, const char* list, int side)
 {
-    int  ret = 0, i;
-    char name[MAX_SUITE_NAME];
+    int       ret          = 0;
+    int       idx          = 0;
+    int       haveRSAsig   = 0;
+    int       haveECDSAsig = 0;
+    const int suiteSz      = sizeof(cipher_names) / sizeof(cipher_names[0]);
+    char*     next         = (char*)list;
 
-    char  needle[] = ":";
-    char* haystack = (char*)list;
-    char* prev;
-
-    const int suiteSz = sizeof(cipher_names) / sizeof(cipher_names[0]);
-    int idx = 0;
-    int haveRSA = 0, haveECDSA = 0;
-
-    if (s == NULL) {
-        CYASSL_MSG("SetCipherList suite pointer error");
-        return 0;    
+    if (suites == NULL || list == NULL) {
+        CYASSL_MSG("SetCipherList parameter error");
+        return 0;
     }
 
-    if (!list)
-        return 0;
-    
-    if (*list == 0) return 1;   /* CyaSSL default */
+    if (next[0] == 0 || XSTRNCMP(next, "ALL", 3) == 0) 
+        return 1; /* CyaSSL defualt */
 
-    if (XSTRNCMP(haystack, "ALL", 3) == 0) return 1;  /* CyaSSL defualt */
+#ifdef HAVE_RENEGOTIATION_INDICATION
+    if (side == CYASSL_CLIENT_END) {
+        suites->suites[idx++] = 0;
+        suites->suites[idx++] = TLS_EMPTY_RENEGOTIATION_INFO_SCSV;
+    }
+#else
+    (void)side; /* shut up compiler warnings */
+#endif
 
-    for(;;) {
-        word32 len;
-        prev = haystack;
-        haystack = XSTRSTR(haystack, needle);
+    do {
+        char*  current = next;
+        char   name[MAX_SUITE_NAME + 1];
+        int    i;
+        word32 length;
 
-        if (!haystack)    /* last cipher */
-            len = min(sizeof(name), (word32)XSTRLEN(prev));
-        else
-            len = min(sizeof(name), (word32)(haystack - prev));
+        next   = XSTRSTR(next, ":");
+        length = min(sizeof(name), !next ? (word32)XSTRLEN(current) /* last */
+                                         : (word32)(next - current));
 
-        XSTRNCPY(name, prev, len);
-        name[(len == sizeof(name)) ? len - 1 : len] = 0;
+        XSTRNCPY(name, current, length);
+        name[length] = 0;
 
-        for (i = 0; i < suiteSz; i++)
+        for (i = 0; i < suiteSz; i++) {
             if (XSTRNCMP(name, cipher_names[i], sizeof(name)) == 0) {
-				if (XSTRSTR(name, "CHACHA")) 
-                	s->suites[idx++] = CHACHA_BYTE;
-                else if (XSTRSTR(name, "EC") || XSTRSTR(name, "CCM")) {
-                    
-                        s->suites[idx++] = ECC_BYTE;  /* ECC suite */
-                }
-                else
-                    s->suites[idx++] = 0x00;      /* normal */
-                s->suites[idx++] = (byte)cipher_name_idx[i];
+                suites->suites[idx++] = (XSTRSTR(name, "CHACHA")) ? CHACHA_BYTE
+                                      : (XSTRSTR(name, "EC"))     ? ECC_BYTE
+                                      : (XSTRSTR(name, "CCM"))    ? ECC_BYTE
+                                      : 0x00; /* normal */
+
+                suites->suites[idx++] = (byte)cipher_name_idx[i];
 
                 /* The suites are either ECDSA, RSA, or PSK. The RSA suites
                  * don't necessarily have RSA in the name. */
-                if ((haveECDSA == 0) && XSTRSTR(name, "ECDSA")) {
-                    haveECDSA = 1;
-                }
-                else if ((haveRSA == 0) && (XSTRSTR(name, "PSK") == NULL)) {
-                    haveRSA = 1;
-                }
+                if ((haveECDSAsig == 0) && XSTRSTR(name, "ECDSA"))
+                    haveECDSAsig = 1;
+                else if ((haveRSAsig == 0) && (XSTRSTR(name, "PSK") == NULL))
+                    haveRSAsig = 1;
 
-                if (!ret) ret = 1;   /* found at least one */
+                ret = 1; /* found at least one */
                 break;
             }
-        if (!haystack) break;
-        haystack++;
+        }
     }
+    while (next++); /* ++ needed to skip ':' */
 
     if (ret) {
-        s->setSuites = 1;
-        s->suiteSz   = (word16)idx;
-
-        idx = 0;
-        
-        if (haveECDSA) {
-            #ifdef CYASSL_SHA384
-                s->hashSigAlgo[idx++] = sha384_mac;
-                s->hashSigAlgo[idx++] = ecc_dsa_sa_algo;
-            #endif
-            #ifndef NO_SHA256
-                s->hashSigAlgo[idx++] = sha256_mac;
-                s->hashSigAlgo[idx++] = ecc_dsa_sa_algo;
-            #endif
-            s->hashSigAlgo[idx++] = sha_mac;
-            s->hashSigAlgo[idx++] = ecc_dsa_sa_algo;
-        }
-
-        if (haveRSA) {
-            #ifdef CYASSL_SHA384
-                s->hashSigAlgo[idx++] = sha384_mac;
-                s->hashSigAlgo[idx++] = rsa_sa_algo;
-            #endif
-            #ifndef NO_SHA256
-                s->hashSigAlgo[idx++] = sha256_mac;
-                s->hashSigAlgo[idx++] = rsa_sa_algo;
-            #endif
-            s->hashSigAlgo[idx++] = sha_mac;
-            s->hashSigAlgo[idx++] = rsa_sa_algo;
-        }
-
-        s->hashSigAlgoSz = (word16)idx;
+        suites->setSuites = 1;
+        suites->suiteSz   = (word16)idx;
+        InitSuitesHashSigAlgo(suites, haveECDSAsig, haveRSAsig);
     }
 
     return ret;
