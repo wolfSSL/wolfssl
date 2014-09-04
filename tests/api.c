@@ -19,6 +19,10 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
+/*----------------------------------------------------------------------------*
+ | Includes
+ *----------------------------------------------------------------------------*/
+
 #ifdef HAVE_CONFIG_H
     #include <config.h>
 #endif
@@ -31,109 +35,27 @@
 #include <cyassl/test.h>
 #include <tests/unit.h>
 
-#define TEST_FAIL       (-1)
-#define TEST_SUCCESS    (0)
+/*----------------------------------------------------------------------------*
+ | Constants
+ *----------------------------------------------------------------------------*/
 
-static int test_CyaSSL_Init(void);
-static int test_CyaSSL_Cleanup(void);
-static int test_CyaSSL_Method_Allocators(void);
-static int test_CyaSSL_CTX_new(CYASSL_METHOD *method);
-#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
-static int test_CyaSSL_CTX_use_certificate_file(void);
-static int test_CyaSSL_CTX_use_PrivateKey_file(void);
-static int test_CyaSSL_CTX_load_verify_locations(void);
-#ifndef NO_RSA
-static int test_server_CyaSSL_new(void);
-static int test_client_CyaSSL_new(void);
-#ifndef SINGLE_THREADED
-static int test_CyaSSL_read_write(void);
-#endif /* SINGLE_THREADED */
-#endif /* NO_RSA */
-#endif /* NO_FILESYSTEM */
-#ifdef HAVE_SNI
-static void test_CyaSSL_UseSNI(void);
-#endif /* HAVE_SNI */
-#ifdef HAVE_MAX_FRAGMENT
-static void test_CyaSSL_UseMaxFragment(void);
-#endif /* HAVE_MAX_FRAGMENT */
-#ifdef HAVE_TRUNCATED_HMAC
-static void test_CyaSSL_UseTruncatedHMAC(void);
-#endif /* HAVE_TRUNCATED_HMAC */
-#ifdef HAVE_SUPPORTED_CURVES
-static void test_CyaSSL_UseSupportedCurve(void);
-#endif /* HAVE_SUPPORTED_CURVES */
-
-/* test function helpers */
-static int test_method(CYASSL_METHOD *method, const char *name);
-#ifdef OPENSSL_EXTRA
-static int test_method2(CYASSL_METHOD *method, const char *name);
-#endif
-#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
-static int test_ucf(CYASSL_CTX *ctx, const char* file, int type,
-    int cond, const char* name);
-static int test_upkf(CYASSL_CTX *ctx, const char* file, int type,
-    int cond, const char* name);
-static int test_lvl(CYASSL_CTX *ctx, const char* file, const char* path,
-    int cond, const char* name);
-
-THREAD_RETURN CYASSL_THREAD test_server_nofail(void*);
-void test_client_nofail(void*);
-
-void run_cyassl_client(void* args);
-THREAD_RETURN CYASSL_THREAD run_cyassl_server(void* args);
-
-void test_CyaSSL_client_server(callback_functions* client_callbacks,
-                                          callback_functions* server_callbacks);
-
-static const char* bogusFile  = "/dev/null";
-#endif
+#define TEST_SUCCESS    (1)
+#define TEST_FAIL       (0)
 
 #define testingFmt "   %s:"
 #define resultFmt  " %s\n"
-static const char* passed     = "passed";
-static const char* failed     = "failed";
+static const char* passed = "passed";
+static const char* failed = "failed";
 
-/* List of methods found in echoserver.c that I'm skipping for the moment:
- * - CyaSSL_CTX_set_session_cache_mode()
- */
-
-int ApiTest(void)
-{
-    printf(" Begin API Tests\n");
-    test_CyaSSL_Init();
-    test_CyaSSL_Method_Allocators();
-    test_CyaSSL_CTX_new(CyaSSLv23_server_method());
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
-    test_CyaSSL_CTX_use_certificate_file();
-    test_CyaSSL_CTX_use_PrivateKey_file();
-    test_CyaSSL_CTX_load_verify_locations();
-#ifndef NO_RSA
-    test_server_CyaSSL_new();
-    test_client_CyaSSL_new();
-#ifndef SINGLE_THREADED
-    test_CyaSSL_read_write();
-#endif /* SINGLE_THREADED */
-#endif /* NO_RSA */
-#endif /* NO_FILESYSTEM */
-#ifdef HAVE_SNI
-    test_CyaSSL_UseSNI();
-#endif /* HAVE_SNI */
-#ifdef HAVE_MAX_FRAGMENT
-    test_CyaSSL_UseMaxFragment();
-#endif /* HAVE_MAX_FRAGMENT */
-#ifdef HAVE_TRUNCATED_HMAC
-    test_CyaSSL_UseTruncatedHMAC();
-#endif /* HAVE_TRUNCATED_HMAC */
-#ifdef HAVE_SUPPORTED_CURVES
-    test_CyaSSL_UseSupportedCurve();
-#endif /* HAVE_SUPPORTED_CURVES */
-    test_CyaSSL_Cleanup();
-    printf(" End API Tests\n");
+static const char* bogusFile  = "/dev/null";
+#endif
 
-    return TEST_SUCCESS;
-}
+/*----------------------------------------------------------------------------*
+ | Setup
+ *----------------------------------------------------------------------------*/
 
-int test_CyaSSL_Init(void)
+static int test_CyaSSL_Init(void)
 {
     int result;
 
@@ -143,6 +65,7 @@ int test_CyaSSL_Init(void)
 
     return result;
 }
+
 
 static int test_CyaSSL_Cleanup(void)
 {
@@ -155,97 +78,654 @@ static int test_CyaSSL_Cleanup(void)
     return result;
 }
 
-int test_method(CYASSL_METHOD *method, const char *name)
-{
-    printf(testingFmt, name);
-    if (method == NULL)
-    {
-        printf(resultFmt, failed);
-        return TEST_FAIL;
-    }
-    XFREE(method, 0, DYNAMIC_TYPE_METHOD);
-    printf(resultFmt, passed);
-    return TEST_SUCCESS;
-}
+/*----------------------------------------------------------------------------*
+ | Method Allocators
+ *----------------------------------------------------------------------------*/
 
-#ifdef OPENSSL_EXTRA
-int test_method2(CYASSL_METHOD *method, const char *name)
+static void test_CyaSSL_Method_Allocators(void)
 {
-    printf(testingFmt, name);
-    if (method != NULL)
-    {
-        XFREE(method, 0, DYNAMIC_TYPE_METHOD);
-        printf(resultFmt, failed);
-        return TEST_FAIL;
-    }
-    printf(resultFmt, passed);
-    return TEST_SUCCESS;
-}
-#endif
+    #define TEST_METHOD_ALLOCATOR(allocator, condition) \
+        do {                                            \
+            CYASSL_METHOD *method;                      \
+            condition(method = allocator());            \
+            XFREE(method, 0, DYNAMIC_TYPE_METHOD);      \
+        } while(0)
 
-int test_CyaSSL_Method_Allocators(void)
-{
+    #define TEST_VALID_METHOD_ALLOCATOR(a) \
+            TEST_METHOD_ALLOCATOR(a, AssertNotNull)
+
+    #define TEST_INVALID_METHOD_ALLOCATOR(a) \
+            TEST_METHOD_ALLOCATOR(a, AssertNull)
+
 #ifndef NO_OLD_TLS
-    test_method(CyaSSLv3_server_method(), "CyaSSLv3_server_method()");
-    test_method(CyaSSLv3_client_method(), "CyaSSLv3_client_method()");
-    test_method(CyaTLSv1_server_method(), "CyaTLSv1_server_method()");
-    test_method(CyaTLSv1_client_method(), "CyaTLSv1_client_method()");
-    test_method(CyaTLSv1_1_server_method(), "CyaTLSv1_1_server_method()");
-    test_method(CyaTLSv1_1_client_method(), "CyaTLSv1_1_client_method()");
-#endif /* NO_OLD_TLS */
-    test_method(CyaTLSv1_2_server_method(), "CyaTLSv1_2_server_method()");
-    test_method(CyaTLSv1_2_client_method(), "CyaTLSv1_2_client_method()");
-    test_method(CyaSSLv23_client_method(), "CyaSSLv23_client_method()");
+    TEST_VALID_METHOD_ALLOCATOR(CyaSSLv3_server_method);
+    TEST_VALID_METHOD_ALLOCATOR(CyaSSLv3_client_method);
+    TEST_VALID_METHOD_ALLOCATOR(CyaTLSv1_server_method);
+    TEST_VALID_METHOD_ALLOCATOR(CyaTLSv1_client_method);
+    TEST_VALID_METHOD_ALLOCATOR(CyaTLSv1_1_server_method);
+    TEST_VALID_METHOD_ALLOCATOR(CyaTLSv1_1_client_method);
+#endif
+    TEST_VALID_METHOD_ALLOCATOR(CyaTLSv1_2_server_method);
+    TEST_VALID_METHOD_ALLOCATOR(CyaTLSv1_2_client_method);
+    TEST_VALID_METHOD_ALLOCATOR(CyaSSLv23_client_method);
 
 #ifdef CYASSL_DTLS
-    test_method(CyaDTLSv1_server_method(), "CyaDTLSv1_server_method()");
-    test_method(CyaDTLSv1_client_method(), "CyaDTLSv1_client_method()");
-#endif /* CYASSL_DTLS */
+    TEST_VALID_METHOD_ALLOCATOR(CyaDTLSv1_server_method);
+    TEST_VALID_METHOD_ALLOCATOR(CyaDTLSv1_client_method);
+#endif
 
 #ifdef OPENSSL_EXTRA
-    test_method2(CyaSSLv2_server_method(), "CyaSSLv2_server_method()");
-    test_method2(CyaSSLv2_client_method(), "CyaSSLv2_client_method()");
-#endif /* OPENSSL_EXTRA */
-
-    return TEST_SUCCESS;
+    TEST_INVALID_METHOD_ALLOCATOR(CyaSSLv2_server_method);
+    TEST_INVALID_METHOD_ALLOCATOR(CyaSSLv2_client_method);
+#endif
 }
 
-int test_CyaSSL_CTX_new(CYASSL_METHOD *method)
+/*----------------------------------------------------------------------------*
+ | Context
+ *----------------------------------------------------------------------------*/
+
+static void test_CyaSSL_CTX_new(CYASSL_METHOD *method)
 {
-    if (method != NULL)
+    CYASSL_CTX *ctx;
+    
+    AssertNull(ctx = CyaSSL_CTX_new(NULL));
+    
+    AssertNotNull(method);
+    AssertNotNull(ctx = CyaSSL_CTX_new(method));
+
+    CyaSSL_CTX_free(ctx);
+}
+
+
+static void test_CyaSSL_CTX_use_certificate_file(void)
+{
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
+    CYASSL_CTX *ctx;
+
+    AssertNotNull(ctx = CyaSSL_CTX_new(CyaSSLv23_server_method()));
+
+    /* invalid context */
+    AssertFalse(CyaSSL_CTX_use_certificate_file(NULL, svrCert, 
+                                                             SSL_FILETYPE_PEM));
+    /* invalid cert file */
+    AssertFalse(CyaSSL_CTX_use_certificate_file(ctx, bogusFile, 
+                                                             SSL_FILETYPE_PEM));
+    /* invalid cert type */
+    AssertFalse(CyaSSL_CTX_use_certificate_file(ctx, svrCert, 9999));
+
+#ifdef NO_RSA
+    /* rsa needed */
+    AssertFalse(CyaSSL_CTX_use_certificate_file(ctx, svrCert,SSL_FILETYPE_PEM));
+#else
+    /* success */
+    AssertTrue(CyaSSL_CTX_use_certificate_file(ctx, svrCert, SSL_FILETYPE_PEM));
+#endif
+
+    CyaSSL_CTX_free(ctx);
+#endif
+}
+
+
+static void test_CyaSSL_CTX_use_PrivateKey_file(void)
+{
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
+    CYASSL_CTX *ctx;
+
+    AssertNotNull(ctx = CyaSSL_CTX_new(CyaSSLv23_server_method()));
+
+    /* invalid context */
+    AssertFalse(CyaSSL_CTX_use_PrivateKey_file(NULL, svrKey, 
+                                                             SSL_FILETYPE_PEM));
+    /* invalid key file */
+    AssertFalse(CyaSSL_CTX_use_PrivateKey_file(ctx, bogusFile, 
+                                                             SSL_FILETYPE_PEM));
+    /* invalid key type */
+    AssertFalse(CyaSSL_CTX_use_PrivateKey_file(ctx, svrKey, 9999));
+
+    /* success */
+#ifdef NO_RSA
+    /* rsa needed */
+    AssertFalse(CyaSSL_CTX_use_PrivateKey_file(ctx, svrKey, SSL_FILETYPE_PEM));
+#else
+    /* success */
+    AssertTrue(CyaSSL_CTX_use_PrivateKey_file(ctx, svrKey, SSL_FILETYPE_PEM));
+#endif
+
+    CyaSSL_CTX_free(ctx);
+#endif
+}
+
+
+static void test_CyaSSL_CTX_load_verify_locations(void)
+{
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
+    CYASSL_CTX *ctx;
+
+    AssertNotNull(ctx = CyaSSL_CTX_new(CyaSSLv23_client_method()));
+    
+    /* invalid context */
+    AssertFalse(CyaSSL_CTX_load_verify_locations(NULL, caCert, 0));
+
+    /* invalid ca file */
+    AssertFalse(CyaSSL_CTX_load_verify_locations(ctx, NULL,      0));
+    AssertFalse(CyaSSL_CTX_load_verify_locations(ctx, bogusFile, 0));
+
+#ifndef TIRTOS
+    /* invalid path */
+    /* not working... investigate! */
+    /* AssertFalse(CyaSSL_CTX_load_verify_locations(ctx, caCert, bogusFile)); */
+#endif
+
+    /* success */
+    AssertTrue(CyaSSL_CTX_load_verify_locations(ctx, caCert, 0));
+
+    CyaSSL_CTX_free(ctx);
+#endif
+}
+
+/*----------------------------------------------------------------------------*
+ | SSL
+ *----------------------------------------------------------------------------*/
+
+static void test_server_CyaSSL_new(void)
+{
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_RSA)
+    CYASSL_CTX *ctx;
+    CYASSL_CTX *ctx_nocert;
+    CYASSL *ssl;
+
+    AssertNotNull(ctx_nocert = CyaSSL_CTX_new(CyaSSLv23_server_method()));
+    AssertNotNull(ctx        = CyaSSL_CTX_new(CyaSSLv23_server_method()));
+
+    AssertTrue(CyaSSL_CTX_use_certificate_file(ctx, svrCert, SSL_FILETYPE_PEM));
+    AssertTrue(CyaSSL_CTX_use_PrivateKey_file(ctx, svrKey, SSL_FILETYPE_PEM));
+
+    /* invalid context */
+    AssertNull(ssl = CyaSSL_new(NULL));
+    AssertNull(ssl = CyaSSL_new(ctx_nocert));
+
+    /* success */
+    AssertNotNull(ssl = CyaSSL_new(ctx));
+
+    CyaSSL_free(ssl);
+    CyaSSL_CTX_free(ctx);
+    CyaSSL_CTX_free(ctx_nocert);
+#endif
+}
+
+
+static void test_client_CyaSSL_new(void)
+{
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_RSA)
+    CYASSL_CTX *ctx;
+    CYASSL_CTX *ctx_nocert;
+    CYASSL *ssl;
+
+    AssertNotNull(ctx_nocert = CyaSSL_CTX_new(CyaSSLv23_client_method()));
+    AssertNotNull(ctx        = CyaSSL_CTX_new(CyaSSLv23_client_method()));
+
+    AssertTrue(CyaSSL_CTX_load_verify_locations(ctx, caCert, 0));
+    
+    /* invalid context */
+    AssertNull(ssl = CyaSSL_new(NULL));
+
+    /* success */
+    AssertNotNull(ssl = CyaSSL_new(ctx_nocert));
+    CyaSSL_free(ssl);
+    
+    /* success */
+    AssertNotNull(ssl = CyaSSL_new(ctx));
+    CyaSSL_free(ssl);
+    
+    CyaSSL_CTX_free(ctx);
+    CyaSSL_CTX_free(ctx_nocert);
+#endif
+}
+
+/*----------------------------------------------------------------------------*
+ | IO
+ *----------------------------------------------------------------------------*/
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && \
+    !defined(NO_RSA)        && !defined(SINGLE_THREADED)
+#define HAVE_IO_TESTS_DEPENDENCIES
+#endif
+
+/* helper functions */
+#ifdef HAVE_IO_TESTS_DEPENDENCIES
+static THREAD_RETURN CYASSL_THREAD test_server_nofail(void* args)
+{
+    SOCKET_T sockfd = 0;
+    SOCKET_T clientfd = 0;
+    word16 port = yasslPort;
+
+    CYASSL_METHOD* method = 0;
+    CYASSL_CTX* ctx = 0;
+    CYASSL* ssl = 0;
+
+    char msg[] = "I hear you fa shizzle!";
+    char input[1024];
+    int idx;
+
+#ifdef TIRTOS
+    fdOpenSession(TaskSelf());
+#endif
+
+    ((func_args*)args)->return_code = TEST_FAIL;
+    method = CyaSSLv23_server_method();
+    ctx = CyaSSL_CTX_new(method);
+
+#if defined(NO_MAIN_DRIVER) && !defined(USE_WINDOWS_API) && \
+   !defined(CYASSL_SNIFFER) && !defined(CYASSL_MDK_SHELL) && \
+   !defined(TIRTOS)
+    port = 0;
+#endif
+
+    CyaSSL_CTX_set_verify(ctx,
+                          SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT, 0);
+
+#ifdef OPENSSL_EXTRA
+    CyaSSL_CTX_set_default_passwd_cb(ctx, PasswordCallBack);
+#endif
+
+    if (CyaSSL_CTX_load_verify_locations(ctx, cliCert, 0) != SSL_SUCCESS)
     {
-        CYASSL_CTX *ctx;
+        /*err_sys("can't load ca file, Please run from CyaSSL home dir");*/
+        goto done;
+    }
+    if (CyaSSL_CTX_use_certificate_file(ctx, svrCert, SSL_FILETYPE_PEM)
+            != SSL_SUCCESS)
+    {
+        /*err_sys("can't load server cert chain file, "
+                "Please run from CyaSSL home dir");*/
+        goto done;
+    }
+    if (CyaSSL_CTX_use_PrivateKey_file(ctx, svrKey, SSL_FILETYPE_PEM)
+            != SSL_SUCCESS)
+    {
+        /*err_sys("can't load server key file, "
+                "Please run from CyaSSL home dir");*/
+        goto done;
+    }
     
-        printf(testingFmt, "CyaSSL_CTX_new(NULL)");
-        ctx = CyaSSL_CTX_new(NULL);
-        if (ctx != NULL)
-        {
-            CyaSSL_CTX_free(ctx);
-            printf(resultFmt, failed);
-        }
-        else
-            printf(resultFmt, passed);
+    ssl = CyaSSL_new(ctx);
+    tcp_accept(&sockfd, &clientfd, (func_args*)args, port, 0, 0);
+    CloseSocket(sockfd);
+
+    CyaSSL_set_fd(ssl, clientfd);
+
+#ifdef NO_PSK
+    #if !defined(NO_FILESYSTEM) && !defined(NO_DH)
+        CyaSSL_SetTmpDH_file(ssl, dhParam, SSL_FILETYPE_PEM);
+    #elif !defined(NO_DH)
+        SetDH(ssl);  /* will repick suites with DHE, higher priority than PSK */
+    #endif
+#endif
+
+    if (CyaSSL_accept(ssl) != SSL_SUCCESS)
+    {
+        int err = CyaSSL_get_error(ssl, 0);
+        char buffer[CYASSL_MAX_ERROR_SZ];
+        printf("error = %d, %s\n", err, CyaSSL_ERR_error_string(err, buffer));
+        /*err_sys("SSL_accept failed");*/
+        goto done;
+    }
+
+    idx = CyaSSL_read(ssl, input, sizeof(input)-1);
+    if (idx > 0) {
+        input[idx] = 0;
+        printf("Client message: %s\n", input);
+    }
     
-        printf(testingFmt, "CyaSSL_CTX_new(method)");
-        ctx = CyaSSL_CTX_new(method);
-        if (ctx == NULL)
-        {
-            printf(resultFmt, failed);
-            XFREE(method, 0, DYNAMIC_TYPE_METHOD);
-            /* free the method data. if this was successful, freeing
-               the CTX frees the method. */
+    if (CyaSSL_write(ssl, msg, sizeof(msg)) != sizeof(msg))
+    {
+        /*err_sys("SSL_write failed");*/
+#ifdef TIRTOS
+        return;
+#else
+        return 0;
+#endif
+    }
+
+#ifdef TIRTOS
+    Task_yield();
+#endif
+
+done:
+    CyaSSL_shutdown(ssl);
+    CyaSSL_free(ssl);
+    CyaSSL_CTX_free(ctx);
+    
+    CloseSocket(clientfd);
+    ((func_args*)args)->return_code = TEST_SUCCESS;
+
+#ifdef TIRTOS
+    fdCloseSession(TaskSelf());
+#endif
+
+#ifndef TIRTOS
+    return 0;
+#endif
+}
+
+
+static void test_client_nofail(void* args)
+{
+    SOCKET_T sockfd = 0;
+
+    CYASSL_METHOD*  method  = 0;
+    CYASSL_CTX*     ctx     = 0;
+    CYASSL*         ssl     = 0;
+
+    char msg[64] = "hello cyassl!";
+    char reply[1024];
+    int  input;
+    int  msgSz = (int)strlen(msg);
+
+#ifdef TIRTOS
+    fdOpenSession(TaskSelf());
+#endif
+
+    ((func_args*)args)->return_code = TEST_FAIL;
+    method = CyaSSLv23_client_method();
+    ctx = CyaSSL_CTX_new(method);
+
+#ifdef OPENSSL_EXTRA
+    CyaSSL_CTX_set_default_passwd_cb(ctx, PasswordCallBack);
+#endif
+
+    if (CyaSSL_CTX_load_verify_locations(ctx, caCert, 0) != SSL_SUCCESS)
+    {
+        /* err_sys("can't load ca file, Please run from CyaSSL home dir");*/
+        goto done2;
+    }
+    if (CyaSSL_CTX_use_certificate_file(ctx, cliCert, SSL_FILETYPE_PEM)
+            != SSL_SUCCESS)
+    {
+        /*err_sys("can't load client cert file, "
+                "Please run from CyaSSL home dir");*/
+        goto done2;
+    }
+    if (CyaSSL_CTX_use_PrivateKey_file(ctx, cliKey, SSL_FILETYPE_PEM)
+            != SSL_SUCCESS)
+    {
+        /*err_sys("can't load client key file, "
+                "Please run from CyaSSL home dir");*/
+        goto done2;
+    }
+
+    tcp_connect(&sockfd, yasslIP, ((func_args*)args)->signal->port, 0);
+
+    ssl = CyaSSL_new(ctx);
+    CyaSSL_set_fd(ssl, sockfd);
+    if (CyaSSL_connect(ssl) != SSL_SUCCESS)
+    {
+        int  err = CyaSSL_get_error(ssl, 0);
+        char buffer[CYASSL_MAX_ERROR_SZ];
+        printf("err = %d, %s\n", err, CyaSSL_ERR_error_string(err, buffer));
+        /*printf("SSL_connect failed");*/
+        goto done2;
+    }
+
+    if (CyaSSL_write(ssl, msg, msgSz) != msgSz)
+    {
+        /*err_sys("SSL_write failed");*/
+        goto done2;
+    }
+
+    input = CyaSSL_read(ssl, reply, sizeof(reply)-1);
+    if (input > 0)
+    {
+        reply[input] = 0;
+        printf("Server response: %s\n", reply);
+    }
+
+done2:
+    CyaSSL_free(ssl);
+    CyaSSL_CTX_free(ctx);
+    
+    CloseSocket(sockfd);
+    ((func_args*)args)->return_code = TEST_SUCCESS;
+
+#ifdef TIRTOS
+    fdCloseSession(TaskSelf());
+#endif
+
+    return;
+}
+
+/* SNI helper functions */
+#ifdef HAVE_SNI
+
+static THREAD_RETURN CYASSL_THREAD run_cyassl_server(void* args)
+{
+    callback_functions* callbacks = ((func_args*)args)->callbacks;
+
+    CYASSL_CTX* ctx = CyaSSL_CTX_new(callbacks->method());
+    CYASSL*     ssl = NULL;
+    SOCKET_T    sfd = 0;
+    SOCKET_T    cfd = 0;
+    word16      port = yasslPort;
+
+    char msg[] = "I hear you fa shizzle!";
+    int  len   = (int) XSTRLEN(msg);
+    char input[1024];
+    int  idx;
+
+#ifdef TIRTOS
+    fdOpenSession(TaskSelf());
+#endif
+    ((func_args*)args)->return_code = TEST_FAIL;
+
+#if defined(NO_MAIN_DRIVER) && !defined(USE_WINDOWS_API) && \
+   !defined(CYASSL_SNIFFER) && !defined(CYASSL_MDK_SHELL) && \
+   !defined(TIRTOS)
+    port = 0;
+#endif
+
+    CyaSSL_CTX_set_verify(ctx,
+                          SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT, 0);
+
+#ifdef OPENSSL_EXTRA
+    CyaSSL_CTX_set_default_passwd_cb(ctx, PasswordCallBack);
+#endif
+
+
+    AssertIntEQ(SSL_SUCCESS, CyaSSL_CTX_load_verify_locations(ctx, cliCert, 0));
+
+    AssertIntEQ(SSL_SUCCESS,
+               CyaSSL_CTX_use_certificate_file(ctx, svrCert, SSL_FILETYPE_PEM));
+
+    AssertIntEQ(SSL_SUCCESS,
+                 CyaSSL_CTX_use_PrivateKey_file(ctx, svrKey, SSL_FILETYPE_PEM));
+
+    if (callbacks->ctx_ready)
+        callbacks->ctx_ready(ctx);
+
+    ssl = CyaSSL_new(ctx);
+
+    tcp_accept(&sfd, &cfd, (func_args*)args, port, 0, 0);
+    CloseSocket(sfd);
+
+    CyaSSL_set_fd(ssl, cfd);
+
+#ifdef NO_PSK
+    #if !defined(NO_FILESYSTEM) && !defined(NO_DH)
+        CyaSSL_SetTmpDH_file(ssl, dhParam, SSL_FILETYPE_PEM);
+    #elif !defined(NO_DH)
+        SetDH(ssl);  /* will repick suites with DHE, higher priority than PSK */
+    #endif
+#endif
+
+    if (callbacks->ssl_ready)
+        callbacks->ssl_ready(ssl);
+
+    /* AssertIntEQ(SSL_SUCCESS, CyaSSL_accept(ssl)); */
+    if (CyaSSL_accept(ssl) != SSL_SUCCESS) {
+        int err = CyaSSL_get_error(ssl, 0);
+        char buffer[CYASSL_MAX_ERROR_SZ];
+        printf("error = %d, %s\n", err, CyaSSL_ERR_error_string(err, buffer));
+
+    } else {
+        if (0 < (idx = CyaSSL_read(ssl, input, sizeof(input)-1))) {
+            input[idx] = 0;
+            printf("Client message: %s\n", input);
         }
-        else
-        {
-            CyaSSL_CTX_free(ctx);
-            printf(resultFmt, passed);
+
+        AssertIntEQ(len, CyaSSL_write(ssl, msg, len));
+#ifdef TIRTOS
+        Task_yield();
+#endif
+        CyaSSL_shutdown(ssl);
+    }
+
+    if (callbacks->on_result)
+        callbacks->on_result(ssl);
+
+    CyaSSL_free(ssl);
+    CyaSSL_CTX_free(ctx);
+    CloseSocket(cfd);
+
+    ((func_args*)args)->return_code = TEST_SUCCESS;
+
+#ifdef TIRTOS
+    fdCloseSession(TaskSelf());
+#endif
+#ifndef TIRTOS
+    return 0;
+#endif
+}
+
+
+static void run_cyassl_client(void* args)
+{
+    callback_functions* callbacks = ((func_args*)args)->callbacks;
+
+    CYASSL_CTX* ctx = CyaSSL_CTX_new(callbacks->method());
+    CYASSL*     ssl = NULL;
+    SOCKET_T    sfd = 0;
+
+    char msg[] = "hello cyassl server!";
+    int  len   = (int) XSTRLEN(msg);
+    char input[1024];
+    int  idx;
+
+#ifdef TIRTOS
+    fdOpenSession(TaskSelf());
+#endif
+
+    ((func_args*)args)->return_code = TEST_FAIL;
+
+#ifdef OPENSSL_EXTRA
+    CyaSSL_CTX_set_default_passwd_cb(ctx, PasswordCallBack);
+#endif
+
+    AssertIntEQ(SSL_SUCCESS, CyaSSL_CTX_load_verify_locations(ctx, caCert, 0));
+
+    AssertIntEQ(SSL_SUCCESS,
+               CyaSSL_CTX_use_certificate_file(ctx, cliCert, SSL_FILETYPE_PEM));
+
+    AssertIntEQ(SSL_SUCCESS,
+                 CyaSSL_CTX_use_PrivateKey_file(ctx, cliKey, SSL_FILETYPE_PEM));
+
+    if (callbacks->ctx_ready)
+        callbacks->ctx_ready(ctx);
+
+    tcp_connect(&sfd, yasslIP, ((func_args*)args)->signal->port, 0);
+
+    ssl = CyaSSL_new(ctx);
+    CyaSSL_set_fd(ssl, sfd);
+
+    if (callbacks->ssl_ready)
+        callbacks->ssl_ready(ssl);
+
+    if (CyaSSL_connect(ssl) != SSL_SUCCESS) {
+        int err = CyaSSL_get_error(ssl, 0);
+        char buffer[CYASSL_MAX_ERROR_SZ];
+        printf("error = %d, %s\n", err, CyaSSL_ERR_error_string(err, buffer));
+
+    } else {
+        AssertIntEQ(len, CyaSSL_write(ssl, msg, len));
+
+        if (0 < (idx = CyaSSL_read(ssl, input, sizeof(input)-1))) {
+            input[idx] = 0;
+            printf("Server response: %s\n", input);
         }
     }
-    else
-        printf("test_CyaSSL_CTX_new() called without method\n");
 
-    return TEST_SUCCESS;
+    if (callbacks->on_result)
+        callbacks->on_result(ssl);
+
+    CyaSSL_free(ssl);
+    CyaSSL_CTX_free(ctx);
+    CloseSocket(sfd);
+    ((func_args*)args)->return_code = TEST_SUCCESS;
+
+#ifdef TIRTOS
+    fdCloseSession(TaskSelf());
+#endif
 }
+
+#endif /* HAVE_SNI */
+#endif /* io tests dependencies */
+
+
+static void test_CyaSSL_read_write(void)
+{
+#ifdef HAVE_IO_TESTS_DEPENDENCIES
+    /* The unit testing for read and write shall happen simutaneously, since
+     * one can't do anything with one without the other. (Except for a failure
+     * test case.) This function will call all the others that will set up,
+     * execute, and report their test findings.
+     *
+     * Set up the success case first. This function will become the template
+     * for the other tests. This should eventually be renamed
+     *
+     * The success case isn't interesting, how can this fail?
+     * - Do not give the client context a CA certificate. The connect should
+     *   fail. Do not need server for this?
+     * - Using NULL for the ssl object on server. Do not need client for this.
+     * - Using NULL for the ssl object on client. Do not need server for this.
+     * - Good ssl objects for client and server. Client write() without server
+     *   read().
+     * - Good ssl objects for client and server. Server write() without client
+     *   read().
+     * - Forgetting the password callback?
+    */
+    tcp_ready ready;
+    func_args client_args;
+    func_args server_args;
+    THREAD_TYPE serverThread;
+
+#ifdef TIRTOS
+    fdOpenSession(TaskSelf());
+#endif
+
+    StartTCP();
+    InitTcpReady(&ready);
+    
+    server_args.signal = &ready;
+    client_args.signal = &ready;
+    
+    start_thread(test_server_nofail, &server_args, &serverThread);
+    wait_tcp_ready(&server_args);
+    test_client_nofail(&client_args);
+    join_thread(serverThread);
+
+    AssertTrue(client_args.return_code);
+    AssertTrue(server_args.return_code);
+
+    FreeTcpReady(&ready);
+
+#ifdef TIRTOS
+    fdOpenSession(TaskSelf());
+#endif
+
+#endif
+}
+
+/*----------------------------------------------------------------------------*
+ | TLS extensions tests
+ *----------------------------------------------------------------------------*/
 
 #ifdef HAVE_SNI
 static void use_SNI_at_ctx(CYASSL_CTX* ctx)
@@ -448,8 +928,51 @@ static void test_CyaSSL_SNI_GetFromBuffer(void)
     AssertStrEQ("api.textmate.org", (const char*) result);
 }
 
-void test_CyaSSL_UseSNI(void)
+static void test_CyaSSL_client_server(callback_functions* client_callbacks,
+                                      callback_functions* server_callbacks)
 {
+#ifdef HAVE_IO_TESTS_DEPENDENCIES
+    tcp_ready ready;
+    func_args client_args;
+    func_args server_args;
+    THREAD_TYPE serverThread;
+
+    StartTCP();
+
+    client_args.callbacks = client_callbacks;
+    server_args.callbacks = server_callbacks;
+
+#ifdef TIRTOS
+    fdOpenSession(TaskSelf());
+#endif
+
+    /* RUN Server side */
+    InitTcpReady(&ready);
+    server_args.signal = &ready;
+    client_args.signal = &ready;
+    start_thread(run_cyassl_server, &server_args, &serverThread);
+    wait_tcp_ready(&server_args);
+
+    /* RUN Client side */
+    run_cyassl_client(&client_args);
+    join_thread(serverThread);
+
+    FreeTcpReady(&ready);
+#ifdef TIRTOS
+    fdCloseSession(TaskSelf());
+#endif
+    
+#else
+    (void)client_callbacks;
+    (void)server_callbacks;
+#endif
+}
+
+#endif /* HAVE_SNI */
+
+static void test_CyaSSL_UseSNI(void)
+{
+#ifdef HAVE_SNI
     callback_functions client_callbacks = {CyaSSLv23_client_method, 0, 0, 0};
     callback_functions server_callbacks = {CyaSSLv23_server_method, 0, 0, 0};
 
@@ -481,8 +1004,6 @@ void test_CyaSSL_UseSNI(void)
 
     CyaSSL_free(ssl);
     CyaSSL_CTX_free(ctx);
-
-#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
 
     /* Testing success case at ctx */
     client_callbacks.ctx_ready = server_callbacks.ctx_ready = use_SNI_at_ctx;
@@ -517,15 +1038,13 @@ void test_CyaSSL_UseSNI(void)
 
     test_CyaSSL_client_server(&client_callbacks, &server_callbacks);
 
-#endif
-
     test_CyaSSL_SNI_GetFromBuffer();
+#endif
 }
-#endif /* HAVE_SNI */
 
-#ifdef HAVE_MAX_FRAGMENT
 static void test_CyaSSL_UseMaxFragment(void)
 {
+#ifdef HAVE_MAX_FRAGMENT
     CYASSL_CTX *ctx = CyaSSL_CTX_new(CyaSSLv23_client_method());
     CYASSL     *ssl = CyaSSL_new(ctx);
 
@@ -554,12 +1073,12 @@ static void test_CyaSSL_UseMaxFragment(void)
 
     CyaSSL_free(ssl);
     CyaSSL_CTX_free(ctx);
+#endif
 }
-#endif /* HAVE_MAX_FRAGMENT */
 
-#ifdef HAVE_TRUNCATED_HMAC
 static void test_CyaSSL_UseTruncatedHMAC(void)
 {
+#ifdef HAVE_TRUNCATED_HMAC
     CYASSL_CTX *ctx = CyaSSL_CTX_new(CyaSSLv23_client_method());
     CYASSL     *ssl = CyaSSL_new(ctx);
 
@@ -576,12 +1095,12 @@ static void test_CyaSSL_UseTruncatedHMAC(void)
 
     CyaSSL_free(ssl);
     CyaSSL_CTX_free(ctx);
+#endif
 }
-#endif /* HAVE_TRUNCATED_HMAC */
 
-#ifdef HAVE_SUPPORTED_CURVES
 static void test_CyaSSL_UseSupportedCurve(void)
 {
+#ifdef HAVE_SUPPORTED_CURVES
     CYASSL_CTX *ctx = CyaSSL_CTX_new(CyaSSLv23_client_method());
     CYASSL     *ssl = CyaSSL_new(ctx);
 
@@ -607,795 +1126,33 @@ static void test_CyaSSL_UseSupportedCurve(void)
 
     CyaSSL_free(ssl);
     CyaSSL_CTX_free(ctx);
+#endif
 }
-#endif /* HAVE_SUPPORTED_CURVES */
 
-#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
-/* Helper for testing CyaSSL_CTX_use_certificate_file() */
-int test_ucf(CYASSL_CTX *ctx, const char* file, int type, int cond,
-    const char* name)
+/*----------------------------------------------------------------------------*
+ | Main
+ *----------------------------------------------------------------------------*/
+
+void ApiTest(void)
 {
-    int result;
+    printf(" Begin API Tests\n");
+    test_CyaSSL_Init();
 
-    printf(testingFmt, name);
-    result = CyaSSL_CTX_use_certificate_file(ctx, file, type);
-    if (result != cond)
-    {
-        printf(resultFmt, failed);
-        return TEST_FAIL;
-    }
-    printf(resultFmt, passed);
-    return TEST_SUCCESS;
+    test_CyaSSL_Method_Allocators();
+    test_CyaSSL_CTX_new(CyaSSLv23_server_method());
+    test_CyaSSL_CTX_use_certificate_file();
+    test_CyaSSL_CTX_use_PrivateKey_file();
+    test_CyaSSL_CTX_load_verify_locations();
+    test_server_CyaSSL_new();
+    test_client_CyaSSL_new();
+    test_CyaSSL_read_write();
+
+    /* TLS extensions tests */
+    test_CyaSSL_UseSNI();
+    test_CyaSSL_UseMaxFragment();
+    test_CyaSSL_UseTruncatedHMAC();
+    test_CyaSSL_UseSupportedCurve();
+
+    test_CyaSSL_Cleanup();
+    printf(" End API Tests\n");
 }
-
-int test_CyaSSL_CTX_use_certificate_file(void)
-{
-    CYASSL_METHOD *method;
-    CYASSL_CTX *ctx;
-
-    method = CyaSSLv23_server_method();
-    if (method == NULL)
-    {
-        printf("test_CyaSSL_CTX_use_certificate_file() cannot create method\n");
-        return TEST_FAIL;
-    }
-
-    ctx = CyaSSL_CTX_new(method);
-    if (ctx == NULL)
-    {
-        printf("test_CyaSSL_CTX_use_certificate_file() cannot create context\n");
-        XFREE(method, 0, DYNAMIC_TYPE_METHOD);
-        return TEST_FAIL;
-    }
-
-    /* setting all parameters to garbage. this should succeed with
-        failure */
-    /* Then set the parameters to legit values but set each item to
-        bogus and call again. Finish with a successful success. */
-    /* If the build is configured to not have RSA, loading the
-       certificate files will fail. */
-
-    test_ucf(NULL, NULL, 9999, SSL_FAILURE,
-        "CyaSSL_CTX_use_certificate_file(NULL, NULL, 9999)");
-/*  test_ucf(NULL, svrCert, SSL_FILETYPE_PEM, SSL_FAILURE,
-        "CyaSSL_CTX_use_certificate_file(NULL, svrCert, SSL_FILETYPE_PEM)");*/
-    test_ucf(ctx, bogusFile, SSL_FILETYPE_PEM, SSL_FAILURE,
-        "CyaSSL_CTX_use_certificate_file(ctx, bogusFile, SSL_FILETYPE_PEM)");
-    test_ucf(ctx, svrCert, 9999, SSL_FAILURE,
-        "CyaSSL_CTX_use_certificate_file(ctx, svrCert, 9999)");
-#ifndef NO_RSA
-    test_ucf(ctx, svrCert, SSL_FILETYPE_PEM, SSL_SUCCESS,
-        "CyaSSL_CTX_use_certificate_file(ctx, svrCert, SSL_FILETYPE_PEM)");
-#else
-    test_ucf(ctx, svrCert, SSL_FILETYPE_PEM, SSL_FAILURE,
-        "NO_RSA: CyaSSL_CTX_use_certificate_file(ctx, svrCert, SSL_FILETYPE_PEM)");
-#endif
-
-    CyaSSL_CTX_free(ctx);
-    return TEST_SUCCESS;
-}
-
-/* Helper for testing CyaSSL_CTX_use_PrivateKey_file() */
-int test_upkf(CYASSL_CTX *ctx, const char* file, int type, int cond,
-    const char* name)
-{
-    int result;
-
-    printf(testingFmt, name);
-    result = CyaSSL_CTX_use_PrivateKey_file(ctx, file, type);
-    if (result != cond)
-    {
-        printf(resultFmt, failed);
-        return TEST_FAIL;
-    }
-    printf(resultFmt, passed);
-    return TEST_SUCCESS;
-}
-
-int test_CyaSSL_CTX_use_PrivateKey_file(void)
-{
-    CYASSL_METHOD *method;
-    CYASSL_CTX *ctx;
-
-    method = CyaSSLv23_server_method();
-    if (method == NULL)
-    {
-        printf("test_CyaSSL_CTX_use_PrivateKey_file() cannot create method\n");
-        return TEST_FAIL;
-    }
-
-    ctx = CyaSSL_CTX_new(method);
-    if (ctx == NULL)
-    {
-        printf("test_CyaSSL_CTX_use_PrivateKey_file() cannot create context\n");
-        XFREE(method, 0, DYNAMIC_TYPE_METHOD);
-        return TEST_FAIL;
-    }
-
-    test_upkf(NULL, NULL, 9999, SSL_FAILURE,
-        "CyaSSL_CTX_use_PrivateKey_file(NULL, NULL, 9999)");
-/*  test_upkf(NULL, svrKey, SSL_FILETYPE_PEM, SSL_FAILURE,
-        "CyaSSL_CTX_use_PrivateKey_file(NULL, svrKey, SSL_FILETYPE_PEM)");*/
-    test_upkf(ctx, bogusFile, SSL_FILETYPE_PEM, SSL_FAILURE,
-        "CyaSSL_CTX_use_PrivateKey_file(ctx, bogusFile, SSL_FILETYPE_PEM)");
-    test_upkf(ctx, svrKey, 9999, SSL_FAILURE,
-        "CyaSSL_CTX_use_PrivateKey_file(ctx, svrKey, 9999)");
-    test_upkf(ctx, svrKey, SSL_FILETYPE_PEM, SSL_SUCCESS,
-        "CyaSSL_CTX_use_PrivateKey_file(ctx, svrKey, SSL_FILETYPE_PEM)");
-
-    CyaSSL_CTX_free(ctx);
-    return TEST_SUCCESS;
-}
-
-/* Helper for testing CyaSSL_CTX_load_verify_locations() */
-int test_lvl(CYASSL_CTX *ctx, const char* file, const char* path, int cond,
-    const char* name)
-{
-    int result;
-
-    printf(testingFmt, name);
-    /*
-     * CyaSSL_CTX_load_verify_locations() returns SSL_SUCCESS (1) for 
-     * success, SSL_FAILURE (0) for a non-specific failure, or a specific
-     * failure code (<0). Need to normalize the return code to 1 or 0.
-     */
-    result = CyaSSL_CTX_load_verify_locations(ctx, file, path) >= SSL_SUCCESS;
-    if (result != cond)
-    {
-        printf(resultFmt, failed);
-        return TEST_FAIL;
-    }
-    printf(resultFmt, passed);
-    return TEST_SUCCESS;
-}
-
-int test_CyaSSL_CTX_load_verify_locations(void)
-{
-    CYASSL_METHOD *method;
-    CYASSL_CTX *ctx;
-
-    method = CyaSSLv23_client_method();
-    if (method == NULL)
-    {
-        printf("test_CyaSSL_CTX_load_verify_locations() cannot create method\n");
-        return TEST_FAIL;
-    }
-
-    ctx = CyaSSL_CTX_new(method);
-    if (ctx == NULL)
-    {
-        printf("test_CyaSSL_CTX_load_verify_locations() cannot create context\n");
-        free(method);
-        return TEST_FAIL;
-    }
-    
-    test_lvl(NULL, NULL, NULL, SSL_FAILURE,
-        "CyaSSL_CTX_load_verify_locations(NULL, NULL, NULL)");
-    test_lvl(ctx, NULL, NULL, SSL_FAILURE,
-        "CyaSSL_CTX_load_verify_locations(ctx, NULL, NULL)");
-    test_lvl(NULL, caCert, NULL, SSL_FAILURE,
-        "CyaSSL_CTX_load_verify_locations(ctx, NULL, NULL)");
-#ifndef TIRTOS
-    test_lvl(ctx, caCert, bogusFile, SSL_FAILURE,
-        "CyaSSL_CTX_load_verify_locations(ctx, caCert, bogusFile)");
-#endif
-    /* Add a test for the certs directory path loading. */
-    /* There is a leak here. If you load a second cert, the first one
-       is lost. */
-#ifndef NO_RSA
-    test_lvl(ctx, caCert, 0, SSL_SUCCESS,
-        "CyaSSL_CTX_load_verify_locations(ctx, caCert, 0)");
-#else
-    test_lvl(ctx, caCert, 0, SSL_FAILURE,
-        "NO_RSA: CyaSSL_CTX_load_verify_locations(ctx, caCert, 0)");
-#endif
-
-    CyaSSL_CTX_free(ctx);
-    return TEST_SUCCESS;
-}
-
-#ifndef NO_RSA
-
-int test_server_CyaSSL_new(void)
-{
-    int result;
-    CYASSL_CTX *ctx;
-    CYASSL_CTX *ctx_nocert;
-    CYASSL *ssl;
-
-    ctx = CyaSSL_CTX_new(CyaSSLv23_server_method());
-    if (ctx == NULL)
-    {
-        printf("test_server_CyaSSL_new() cannot create context\n");
-        return TEST_FAIL;
-    }
-
-    result = CyaSSL_CTX_use_certificate_file(ctx, svrCert, SSL_FILETYPE_PEM);
-    if (result == SSL_FAILURE)
-    {
-        printf("test_server_CyaSSL_new() cannot obtain certificate\n");
-        CyaSSL_CTX_free(ctx);
-        return TEST_FAIL;
-    }
-
-    result = CyaSSL_CTX_use_PrivateKey_file(ctx, svrKey, SSL_FILETYPE_PEM);
-    if (result == SSL_FAILURE)
-    {
-        printf("test_server_CyaSSL_new() cannot obtain key\n");
-        CyaSSL_CTX_free(ctx);
-        return TEST_FAIL;
-    }
-
-    ctx_nocert = CyaSSL_CTX_new(CyaSSLv23_server_method());
-    if (ctx_nocert == NULL)
-    {
-        printf("test_server_CyaSSL_new() cannot create bogus context\n");
-        CyaSSL_CTX_free(ctx);
-        return TEST_FAIL;
-    }
-
-    printf(testingFmt, "CyaSSL_new(NULL) server");
-    ssl = CyaSSL_new(NULL);
-    if (ssl != NULL)
-    {
-        printf(resultFmt, failed);
-        CyaSSL_free(ssl);
-    }
-    else
-        printf(resultFmt, passed);
-
-    printf(testingFmt, "CyaSSL_new(ctx_nocert) server");
-    ssl = CyaSSL_new(ctx_nocert);
-    if (ssl != NULL)
-    {
-        printf(resultFmt, failed);
-        CyaSSL_free(ssl);
-    }
-    else
-        printf(resultFmt, passed);
-
-    printf(testingFmt, "CyaSSL_new(ctx) server");
-    ssl = CyaSSL_new(ctx);
-    if (ssl == NULL)
-        printf(resultFmt, failed);
-    else
-    {
-        printf(resultFmt, passed);
-        CyaSSL_free(ssl);
-    }
-    
-    CyaSSL_CTX_free(ctx_nocert);
-    CyaSSL_CTX_free(ctx);
-    return TEST_SUCCESS;
-}
-
-int test_client_CyaSSL_new(void)
-{
-    int result;
-    CYASSL_CTX *ctx;
-    CYASSL_CTX *ctx_nocert;
-    CYASSL *ssl;
-
-    ctx = CyaSSL_CTX_new(CyaSSLv23_client_method());
-    if (ctx == NULL)
-    {
-        printf("test_client_CyaSSL_new() cannot create context\n");
-        return TEST_FAIL;
-    }
-
-    result = CyaSSL_CTX_load_verify_locations(ctx, caCert, 0);
-    if (result == SSL_FAILURE)
-    {
-        printf("test_client_CyaSSL_new() cannot obtain certificate\n");
-        CyaSSL_CTX_free(ctx);
-        return TEST_FAIL;
-    }
-
-    ctx_nocert = CyaSSL_CTX_new(CyaSSLv23_client_method());
-    if (ctx_nocert == NULL)
-    {
-        printf("test_client_CyaSSL_new() cannot create bogus context\n");
-        CyaSSL_CTX_free(ctx);
-        return TEST_FAIL;
-    }
-
-    printf(testingFmt, "CyaSSL_new(NULL) client");
-    ssl = CyaSSL_new(NULL);
-    if (ssl != NULL)
-    {
-        printf(resultFmt, failed);
-        CyaSSL_free(ssl);
-    }
-    else
-        printf(resultFmt, passed);
-
-    printf(testingFmt, "CyaSSL_new(ctx_nocert) client");
-    ssl = CyaSSL_new(ctx_nocert);
-    if (ssl == NULL)
-        printf(resultFmt, failed);
-    else
-    {
-        printf(resultFmt, passed);
-        CyaSSL_free(ssl);
-    }
-
-    printf(testingFmt, "CyaSSL_new(ctx) client");
-    ssl = CyaSSL_new(ctx);
-    if (ssl == NULL)
-        printf(resultFmt, failed);
-    else
-    {
-        printf(resultFmt, passed);
-        CyaSSL_free(ssl);
-    }
-
-    CyaSSL_CTX_free(ctx_nocert);
-    CyaSSL_CTX_free(ctx);
-    return TEST_SUCCESS;
-}
-
-
-#ifndef SINGLE_THREADED
-
-static int test_CyaSSL_read_write(void)
-{
-    /* The unit testing for read and write shall happen simutaneously, since
-     * one can't do anything with one without the other. (Except for a failure
-     * test case.) This function will call all the others that will set up,
-     * execute, and report their test findings.
-     *
-     * Set up the success case first. This function will become the template
-     * for the other tests. This should eventually be renamed
-     *
-     * The success case isn't interesting, how can this fail?
-     * - Do not give the client context a CA certificate. The connect should
-     *   fail. Do not need server for this?
-     * - Using NULL for the ssl object on server. Do not need client for this.
-     * - Using NULL for the ssl object on client. Do not need server for this.
-     * - Good ssl objects for client and server. Client write() without server
-     *   read().
-     * - Good ssl objects for client and server. Server write() without client
-     *   read().
-     * - Forgetting the password callback?
-    */
-    int test_result = TEST_SUCCESS;
-    tcp_ready ready;
-    func_args client_args;
-    func_args server_args;
-    THREAD_TYPE serverThread;
-
-#ifdef TIRTOS
-    fdOpenSession(TaskSelf());
-#endif
-
-    StartTCP();
-
-    InitTcpReady(&ready);
-    server_args.signal = &ready;
-    client_args.signal = &ready;
-    start_thread(test_server_nofail, &server_args, &serverThread);
-    wait_tcp_ready(&server_args);
-    test_client_nofail(&client_args);
-    join_thread(serverThread);
-
-    if (client_args.return_code != TEST_SUCCESS)
-    {
-        printf(resultFmt, "client failure");
-        test_result = TEST_FAIL;
-    }
-    if (server_args.return_code != TEST_SUCCESS)
-    {
-        printf(resultFmt, "server failure");
-        test_result = TEST_FAIL;
-    }
-
-    FreeTcpReady(&ready);
-
-#ifdef TIRTOS
-    fdOpenSession(TaskSelf());
-#endif
-    return test_result;
-}
-
-#endif
-
-THREAD_RETURN CYASSL_THREAD test_server_nofail(void* args)
-{
-    SOCKET_T sockfd = 0;
-    SOCKET_T clientfd = 0;
-    word16 port = yasslPort;
-
-    CYASSL_METHOD* method = 0;
-    CYASSL_CTX* ctx = 0;
-    CYASSL* ssl = 0;
-
-    char msg[] = "I hear you fa shizzle!";
-    char input[1024];
-    int idx;
-
-#ifdef TIRTOS
-    fdOpenSession(TaskSelf());
-#endif
-    ((func_args*)args)->return_code = TEST_FAIL;
-    method = CyaSSLv23_server_method();
-    ctx = CyaSSL_CTX_new(method);
-
-#if defined(NO_MAIN_DRIVER) && !defined(USE_WINDOWS_API) && \
-                      !defined(CYASSL_SNIFFER) && !defined(CYASSL_MDK_SHELL) && \
-					  !defined(TIRTOS)
-    port = 0;
-#endif
-
-    CyaSSL_CTX_set_verify(ctx,
-                    SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT, 0);
-
-#ifdef OPENSSL_EXTRA
-    CyaSSL_CTX_set_default_passwd_cb(ctx, PasswordCallBack);
-#endif
-
-    if (CyaSSL_CTX_load_verify_locations(ctx, cliCert, 0) != SSL_SUCCESS)
-    {
-        /*err_sys("can't load ca file, Please run from CyaSSL home dir");*/
-        goto done;
-    }
-    if (CyaSSL_CTX_use_certificate_file(ctx, svrCert, SSL_FILETYPE_PEM)
-            != SSL_SUCCESS)
-    {
-        /*err_sys("can't load server cert chain file, "
-                "Please run from CyaSSL home dir");*/
-        goto done;
-    }
-    if (CyaSSL_CTX_use_PrivateKey_file(ctx, svrKey, SSL_FILETYPE_PEM)
-            != SSL_SUCCESS)
-    {
-        /*err_sys("can't load server key file, "
-                "Please run from CyaSSL home dir");*/
-        goto done;
-    }
-    ssl = CyaSSL_new(ctx);
-    tcp_accept(&sockfd, &clientfd, (func_args*)args, port, 0, 0);
-    CloseSocket(sockfd);
-
-    CyaSSL_set_fd(ssl, clientfd);
-
-#ifdef NO_PSK
-    #if !defined(NO_FILESYSTEM) && !defined(NO_DH)
-        CyaSSL_SetTmpDH_file(ssl, dhParam, SSL_FILETYPE_PEM);
-    #elif !defined(NO_DH)
-        SetDH(ssl);  /* will repick suites with DHE, higher priority than PSK */
-    #endif
-#endif
-    if (CyaSSL_accept(ssl) != SSL_SUCCESS)
-    {
-        int err = CyaSSL_get_error(ssl, 0);
-        char buffer[CYASSL_MAX_ERROR_SZ];
-        printf("error = %d, %s\n", err, CyaSSL_ERR_error_string(err, buffer));
-        /*err_sys("SSL_accept failed");*/
-        goto done;
-    }
-
-    idx = CyaSSL_read(ssl, input, sizeof(input)-1);
-    if (idx > 0) {
-        input[idx] = 0;
-        printf("Client message: %s\n", input);
-    }
-    
-    if (CyaSSL_write(ssl, msg, sizeof(msg)) != sizeof(msg))
-    {
-        /*err_sys("SSL_write failed");*/
-#ifdef TIRTOS
-        return;
-#else
-        return 0;
-#endif
-    }
-
-#ifdef TIRTOS
-    Task_yield();
-#endif
-
-done:
-    CyaSSL_shutdown(ssl);
-    CyaSSL_free(ssl);
-    CyaSSL_CTX_free(ctx);
-    
-    CloseSocket(clientfd);
-    ((func_args*)args)->return_code = TEST_SUCCESS;
-
-#ifdef TIRTOS
-    fdCloseSession(TaskSelf());
-#endif
-#ifndef TIRTOS
-    return 0;
-#endif
-}
-
-void test_client_nofail(void* args)
-{
-    SOCKET_T sockfd = 0;
-
-    CYASSL_METHOD*  method  = 0;
-    CYASSL_CTX*     ctx     = 0;
-    CYASSL*         ssl     = 0;
-
-    char msg[64] = "hello cyassl!";
-    char reply[1024];
-    int  input;
-    int  msgSz = (int)strlen(msg);
-
-#ifdef TIRTOS
-    fdOpenSession(TaskSelf());
-#endif
-
-    ((func_args*)args)->return_code = TEST_FAIL;
-    method = CyaSSLv23_client_method();
-    ctx = CyaSSL_CTX_new(method);
-
-#ifdef OPENSSL_EXTRA
-    CyaSSL_CTX_set_default_passwd_cb(ctx, PasswordCallBack);
-#endif
-
-    if (CyaSSL_CTX_load_verify_locations(ctx, caCert, 0) != SSL_SUCCESS)
-    {
-        /* err_sys("can't load ca file, Please run from CyaSSL home dir");*/
-        goto done2;
-    }
-    if (CyaSSL_CTX_use_certificate_file(ctx, cliCert, SSL_FILETYPE_PEM)
-            != SSL_SUCCESS)
-    {
-        /*err_sys("can't load client cert file, "
-                "Please run from CyaSSL home dir");*/
-        goto done2;
-    }
-    if (CyaSSL_CTX_use_PrivateKey_file(ctx, cliKey, SSL_FILETYPE_PEM)
-            != SSL_SUCCESS)
-    {
-        /*err_sys("can't load client key file, "
-                "Please run from CyaSSL home dir");*/
-        goto done2;
-    }
-
-    tcp_connect(&sockfd, yasslIP, ((func_args*)args)->signal->port, 0);
-
-    ssl = CyaSSL_new(ctx);
-    CyaSSL_set_fd(ssl, sockfd);
-    if (CyaSSL_connect(ssl) != SSL_SUCCESS)
-    {
-        int  err = CyaSSL_get_error(ssl, 0);
-        char buffer[CYASSL_MAX_ERROR_SZ];
-        printf("err = %d, %s\n", err, CyaSSL_ERR_error_string(err, buffer));
-        /*printf("SSL_connect failed");*/
-        goto done2;
-    }
-
-    if (CyaSSL_write(ssl, msg, msgSz) != msgSz)
-    {
-        /*err_sys("SSL_write failed");*/
-        goto done2;
-    }
-
-    input = CyaSSL_read(ssl, reply, sizeof(reply)-1);
-    if (input > 0)
-    {
-        reply[input] = 0;
-        printf("Server response: %s\n", reply);
-    }
-
-done2:
-    CyaSSL_free(ssl);
-    CyaSSL_CTX_free(ctx);
-    
-    CloseSocket(sockfd);
-    ((func_args*)args)->return_code = TEST_SUCCESS;
-
-#ifdef TIRTOS
-    fdCloseSession(TaskSelf());
-#endif
-    return;
-}
-
-void run_cyassl_client(void* args)
-{
-    callback_functions* callbacks = ((func_args*)args)->callbacks;
-
-    CYASSL_CTX* ctx = CyaSSL_CTX_new(callbacks->method());
-    CYASSL*     ssl = NULL;
-    SOCKET_T    sfd = 0;
-
-    char msg[] = "hello cyassl server!";
-    int  len   = (int) XSTRLEN(msg);
-    char input[1024];
-    int  idx;
-
-#ifdef TIRTOS
-    fdOpenSession(TaskSelf());
-#endif
-
-    ((func_args*)args)->return_code = TEST_FAIL;
-
-#ifdef OPENSSL_EXTRA
-    CyaSSL_CTX_set_default_passwd_cb(ctx, PasswordCallBack);
-#endif
-
-    AssertIntEQ(SSL_SUCCESS, CyaSSL_CTX_load_verify_locations(ctx, caCert, 0));
-
-    AssertIntEQ(SSL_SUCCESS,
-               CyaSSL_CTX_use_certificate_file(ctx, cliCert, SSL_FILETYPE_PEM));
-
-    AssertIntEQ(SSL_SUCCESS,
-                 CyaSSL_CTX_use_PrivateKey_file(ctx, cliKey, SSL_FILETYPE_PEM));
-
-    if (callbacks->ctx_ready)
-        callbacks->ctx_ready(ctx);
-
-    tcp_connect(&sfd, yasslIP, ((func_args*)args)->signal->port, 0);
-
-    ssl = CyaSSL_new(ctx);
-    CyaSSL_set_fd(ssl, sfd);
-
-    if (callbacks->ssl_ready)
-        callbacks->ssl_ready(ssl);
-
-    if (CyaSSL_connect(ssl) != SSL_SUCCESS) {
-        int err = CyaSSL_get_error(ssl, 0);
-        char buffer[CYASSL_MAX_ERROR_SZ];
-        printf("error = %d, %s\n", err, CyaSSL_ERR_error_string(err, buffer));
-
-    } else {
-        AssertIntEQ(len, CyaSSL_write(ssl, msg, len));
-
-        if (0 < (idx = CyaSSL_read(ssl, input, sizeof(input)-1))) {
-            input[idx] = 0;
-            printf("Server response: %s\n", input);
-        }
-    }
-
-    if (callbacks->on_result)
-        callbacks->on_result(ssl);
-
-    CyaSSL_free(ssl);
-    CyaSSL_CTX_free(ctx);
-    CloseSocket(sfd);
-    ((func_args*)args)->return_code = TEST_SUCCESS;
-
-#ifdef TIRTOS
-    fdCloseSession(TaskSelf());
-#endif
-}
-
-THREAD_RETURN CYASSL_THREAD run_cyassl_server(void* args)
-{
-    callback_functions* callbacks = ((func_args*)args)->callbacks;
-
-    CYASSL_CTX* ctx = CyaSSL_CTX_new(callbacks->method());
-    CYASSL*     ssl = NULL;
-    SOCKET_T    sfd = 0;
-    SOCKET_T    cfd = 0;
-    word16      port = yasslPort;
-
-    char msg[] = "I hear you fa shizzle!";
-    int  len   = (int) XSTRLEN(msg);
-    char input[1024];
-    int  idx;
-
-#ifdef TIRTOS
-    fdOpenSession(TaskSelf());
-#endif
-    ((func_args*)args)->return_code = TEST_FAIL;
-
-#if defined(NO_MAIN_DRIVER) && !defined(USE_WINDOWS_API) && \
-                      !defined(CYASSL_SNIFFER) && !defined(CYASSL_MDK_SHELL) && \
-					  !defined(TIRTOS)
-    port = 0;
-#endif
-
-    CyaSSL_CTX_set_verify(ctx,
-                          SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT, 0);
-
-#ifdef OPENSSL_EXTRA
-    CyaSSL_CTX_set_default_passwd_cb(ctx, PasswordCallBack);
-#endif
-
-
-    AssertIntEQ(SSL_SUCCESS, CyaSSL_CTX_load_verify_locations(ctx, cliCert, 0));
-
-    AssertIntEQ(SSL_SUCCESS,
-               CyaSSL_CTX_use_certificate_file(ctx, svrCert, SSL_FILETYPE_PEM));
-
-    AssertIntEQ(SSL_SUCCESS,
-                 CyaSSL_CTX_use_PrivateKey_file(ctx, svrKey, SSL_FILETYPE_PEM));
-
-    if (callbacks->ctx_ready)
-        callbacks->ctx_ready(ctx);
-
-    ssl = CyaSSL_new(ctx);
-
-    tcp_accept(&sfd, &cfd, (func_args*)args, port, 0, 0);
-    CloseSocket(sfd);
-
-    CyaSSL_set_fd(ssl, cfd);
-
-#ifdef NO_PSK
-    #if !defined(NO_FILESYSTEM) && !defined(NO_DH)
-        CyaSSL_SetTmpDH_file(ssl, dhParam, SSL_FILETYPE_PEM);
-    #elif !defined(NO_DH)
-        SetDH(ssl);  /* will repick suites with DHE, higher priority than PSK */
-    #endif
-#endif
-
-    if (callbacks->ssl_ready)
-        callbacks->ssl_ready(ssl);
-
-    /* AssertIntEQ(SSL_SUCCESS, CyaSSL_accept(ssl)); */
-    if (CyaSSL_accept(ssl) != SSL_SUCCESS) {
-        int err = CyaSSL_get_error(ssl, 0);
-        char buffer[CYASSL_MAX_ERROR_SZ];
-        printf("error = %d, %s\n", err, CyaSSL_ERR_error_string(err, buffer));
-
-    } else {
-        if (0 < (idx = CyaSSL_read(ssl, input, sizeof(input)-1))) {
-            input[idx] = 0;
-            printf("Client message: %s\n", input);
-        }
-
-        AssertIntEQ(len, CyaSSL_write(ssl, msg, len));
-#ifdef TIRTOS
-        Task_yield();
-#endif
-        CyaSSL_shutdown(ssl);
-    }
-
-    if (callbacks->on_result)
-        callbacks->on_result(ssl);
-
-    CyaSSL_free(ssl);
-    CyaSSL_CTX_free(ctx);
-    CloseSocket(cfd);
-
-    ((func_args*)args)->return_code = TEST_SUCCESS;
-
-#ifdef TIRTOS
-    fdCloseSession(TaskSelf());
-#endif
-#ifndef TIRTOS
-    return 0;
-#endif
-}
-
-void test_CyaSSL_client_server(callback_functions* client_callbacks,
-                                           callback_functions* server_callbacks)
-{
-    tcp_ready ready;
-    func_args client_args;
-    func_args server_args;
-    THREAD_TYPE serverThread;
-
-    StartTCP();
-
-    client_args.callbacks = client_callbacks;
-    server_args.callbacks = server_callbacks;
-
-#ifdef TIRTOS
-    fdOpenSession(TaskSelf());
-#endif
-
-    /* RUN Server side */
-    InitTcpReady(&ready);
-    server_args.signal = &ready;
-    client_args.signal = &ready;
-    start_thread(run_cyassl_server, &server_args, &serverThread);
-    wait_tcp_ready(&server_args);
-
-    /* RUN Client side */
-    run_cyassl_client(&client_args);
-    join_thread(serverThread);
-
-    FreeTcpReady(&ready);
-#ifdef TIRTOS
-    fdCloseSession(TaskSelf());
-#endif
-}
-
-#endif /* SINGLE_THREADED*/
-
-#endif /* NO_FILESYSTEM */

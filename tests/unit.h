@@ -55,7 +55,7 @@
 #define AssertStrLE(x, y) AssertStr(x, y, <=,  >)
 
 
-int ApiTest(void);
+void ApiTest(void);
 int SuiteTest(void);
 int HashTest(void);
 
