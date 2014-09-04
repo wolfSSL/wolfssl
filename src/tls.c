@@ -1467,6 +1467,9 @@ int TLSX_ValidateEllipticCurves(CYASSL* ssl, byte first, byte second) {
     int            sig       = 0; /* valitade signature */
     int            key       = 0; /* validate key       */
 
+    (void)oid;
+    (void)octets;
+
     if (!extension)
         return 1; /* no suite restriction */
 
