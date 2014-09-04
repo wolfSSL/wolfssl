@@ -82,6 +82,8 @@ CYASSL_API int RsaPrivateKeyDecode(const byte* input, word32* inOutIdx, RsaKey*,
                                    word32);
 CYASSL_API int RsaPublicKeyDecode(const byte* input, word32* inOutIdx, RsaKey*,
                                   word32);
+CYASSL_API int RsaFlattenPublicKey(RsaKey*, byte*, word32*, byte*, word32*);
+
 #ifdef CYASSL_KEY_GEN
     CYASSL_API int MakeRsaKey(RsaKey* key, int size, long e, RNG* rng);
     CYASSL_API int RsaKeyToDer(RsaKey*, byte* output, word32 inLen);
