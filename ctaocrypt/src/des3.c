@@ -572,7 +572,7 @@ int Des3_SetKey(Des3* des3, const byte* key, const byte* iv, int dir)
 
         iv = (byte*)des->reg;
 
-        if ((word)out % CYASSL_MMCAU_ALIGNMENT) {
+        if ((cyassl_word)out % CYASSL_MMCAU_ALIGNMENT) {
             CYASSL_MSG("Bad cau_des_encrypt alignment"); 
             return BAD_ALIGN_E;
         }
@@ -607,7 +607,7 @@ int Des3_SetKey(Des3* des3, const byte* key, const byte* iv, int dir)
 
         iv = (byte*)des->reg;
 
-        if ((word)out % CYASSL_MMCAU_ALIGNMENT) {
+        if ((cyassl_word)out % CYASSL_MMCAU_ALIGNMENT) {
             CYASSL_MSG("Bad cau_des_decrypt alignment"); 
             return BAD_ALIGN_E;
         }
@@ -643,7 +643,7 @@ int Des3_SetKey(Des3* des3, const byte* key, const byte* iv, int dir)
 
         iv = (byte*)des->reg;
 
-        if ((word)out % CYASSL_MMCAU_ALIGNMENT) {
+        if ((cyassl_word)out % CYASSL_MMCAU_ALIGNMENT) {
             CYASSL_MSG("Bad 3ede cau_des_encrypt alignment"); 
             return BAD_ALIGN_E;
         }
@@ -681,7 +681,7 @@ int Des3_SetKey(Des3* des3, const byte* key, const byte* iv, int dir)
 
         iv = (byte*)des->reg;
 
-        if ((word)out % CYASSL_MMCAU_ALIGNMENT) {
+        if ((cyassl_word)out % CYASSL_MMCAU_ALIGNMENT) {
             CYASSL_MSG("Bad 3ede cau_des_decrypt alignment"); 
             return BAD_ALIGN_E;
         }
@@ -811,7 +811,8 @@ int  Des3_SetIV(Des3* des, const byte* iv);
             if(dir == PIC32_ENCRYPTION) {
 	        XMEMCPY((void *)iv, (void*)&(out_p[sz-DES_IVLEN]), DES_IVLEN) ;
 	        } else {
-                ByteReverseWords((word32*)iv, (word32 *)&(in_p[sz-DES_IVLEN]), DES_IVLEN);
+                ByteReverseWords((word32*)iv, (word32 *)&(in_p[sz-DES_IVLEN]),
+                                 DES_IVLEN);
 	        }
 
         }
@@ -1448,7 +1449,7 @@ static int Des3_CaviumSetKey(Des3* des3, const byte* key, const byte* iv)
 static int Des3_CaviumCbcEncrypt(Des3* des3, byte* out, const byte* in,
                                   word32 length)
 {
-    word   offset = 0;
+    cyassl_word offset = 0;
     word32 requestId;
    
     while (length > CYASSL_MAX_16BIT) {
@@ -1483,7 +1484,7 @@ static int Des3_CaviumCbcDecrypt(Des3* des3, byte* out, const byte* in,
                                  word32 length)
 {
     word32 requestId;
-    word   offset = 0;
+    cyassl_word offset = 0;
 
     while (length > CYASSL_MAX_16BIT) {
         word16 slen = (word16)CYASSL_MAX_16BIT;

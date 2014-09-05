@@ -290,7 +290,7 @@ static INLINE int DoKey(HC128* ctx, const byte* key, const byte* iv)
 int Hc128_SetKey(HC128* ctx, const byte* key, const byte* iv)
 {
 #ifdef XSTREAM_ALIGN
-    if ((word)key % 4) {
+    if ((cyassl_word)key % 4) {
         int alignKey[4];
 
         /* iv gets aligned in SetIV */
@@ -362,7 +362,7 @@ static INLINE int DoProcess(HC128* ctx, byte* output, const byte* input,
 int Hc128_Process(HC128* ctx, byte* output, const byte* input, word32 msglen)
 {
 #ifdef XSTREAM_ALIGN
-    if ((word)input % 4 || (word)output % 4) {
+    if ((cyassl_word)input % 4 || (cyassl_word)output % 4) {
         #ifndef NO_CYASSL_ALLOC_ALIGN
             byte* tmp;
             CYASSL_MSG("Hc128Process unaligned");

@@ -88,9 +88,9 @@
 /* These platforms have 64-bit CPU registers.  */
 #if (defined(__alpha__) || defined(__ia64__) || defined(_ARCH_PPC64) || \
      defined(__mips64)  || defined(__x86_64__) || defined(_M_X64))
-    typedef word64 word;
+    typedef word64 cyassl_word;
 #else
-    typedef word32 word;
+    typedef word32 cyassl_word;
     #ifdef WORD64_AVAILABLE
         #define CTAOCRYPT_SLOW_WORD64
     #endif
@@ -98,7 +98,7 @@
 
 
 enum {
-    CYASSL_WORD_SIZE  = sizeof(word),
+    CYASSL_WORD_SIZE  = sizeof(cyassl_word),
     CYASSL_BIT_SIZE   = 8,
     CYASSL_WORD_BITS  = CYASSL_WORD_SIZE * CYASSL_BIT_SIZE
 };

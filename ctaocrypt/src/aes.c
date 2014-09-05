@@ -940,7 +940,7 @@ static void AesEncrypt(Aes* aes, const byte* inBlock, byte* outBlock)
         #endif
 
         /* check alignment, decrypt doesn't need alignment */
-        if ((word)inBlock % 16) {
+        if ((cyassl_word)inBlock % 16) {
         #ifndef NO_CYASSL_ALLOC_ALIGN
             byte* tmp = (byte*)XMALLOC(AES_BLOCK_SIZE, NULL,
                                                       DYNAMIC_TYPE_TMP_BUFFER);
@@ -1968,7 +1968,7 @@ int AesSetIV(Aes* aes, const byte* iv)
         iv      = (byte*)aes->reg;
         enc_key = (byte*)aes->key;
 
-        if ((word)out % CYASSL_MMCAU_ALIGNMENT) {
+        if ((cyassl_word)out % CYASSL_MMCAU_ALIGNMENT) {
             CYASSL_MSG("Bad cau_aes_encrypt alignment");
             return BAD_ALIGN_E;
         }
@@ -2005,7 +2005,7 @@ int AesSetIV(Aes* aes, const byte* iv)
         iv      = (byte*)aes->reg;
         dec_key = (byte*)aes->key;
 
-        if ((word)out % CYASSL_MMCAU_ALIGNMENT) {
+        if ((cyassl_word)out % CYASSL_MMCAU_ALIGNMENT) {
             CYASSL_MSG("Bad cau_aes_decrypt alignment");
             return BAD_ALIGN_E;
         }
@@ -2163,7 +2163,7 @@ int AesSetIV(Aes* aes, const byte* iv)
             #endif
 
             /* check alignment, decrypt doesn't need alignment */
-            if ((word)in % 16) {
+            if ((cyassl_word)in % 16) {
             #ifndef NO_CYASSL_ALLOC_ALIGN
                 byte* tmp = (byte*)XMALLOC(sz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
                 CYASSL_MSG("AES-CBC encrypt with bad alignment");
@@ -3643,7 +3643,7 @@ static int AesCaviumSetKey(Aes* aes, const byte* key, word32 length,
 static int AesCaviumCbcEncrypt(Aes* aes, byte* out, const byte* in,
                                word32 length)
 {
-    word   offset = 0;
+    cyassl_word offset = 0;
     word32 requestId;
 
     while (length > CYASSL_MAX_16BIT) {
@@ -3677,7 +3677,7 @@ static int AesCaviumCbcDecrypt(Aes* aes, byte* out, const byte* in,
                                word32 length)
 {
     word32 requestId;
-    word   offset = 0;
+    cyassl_word offset = 0;
 
     while (length > CYASSL_MAX_16BIT) {
         word16 slen = (word16)CYASSL_MAX_16BIT;

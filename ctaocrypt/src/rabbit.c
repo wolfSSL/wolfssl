@@ -202,7 +202,7 @@ static INLINE int DoKey(Rabbit* ctx, const byte* key, const byte* iv)
 int RabbitSetKey(Rabbit* ctx, const byte* key, const byte* iv)
 {
 #ifdef XSTREAM_ALIGN
-    if ((word)key % 4) {
+    if ((cyassl_word)key % 4) {
         int alignKey[4];
 
         /* iv aligned in SetIV */
@@ -282,7 +282,7 @@ static INLINE int DoProcess(Rabbit* ctx, byte* output, const byte* input,
 int RabbitProcess(Rabbit* ctx, byte* output, const byte* input, word32 msglen)
 {
 #ifdef XSTREAM_ALIGN
-    if ((word)input % 4 || (word)output % 4) {
+    if ((cyassl_word)input % 4 || (cyassl_word)output % 4) {
         #ifndef NO_CYASSL_ALLOC_ALIGN
             byte* tmp;
             CYASSL_MSG("RabbitProcess unaligned");

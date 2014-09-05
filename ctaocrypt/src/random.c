@@ -550,8 +550,8 @@ int InitRngCavium(RNG* rng, int devId)
 
 static void CaviumRNG_GenerateBlock(RNG* rng, byte* output, word32 sz)
 {
-    word   offset = 0;
-    word32 requestId;
+    cyassl_word offset = 0;
+    word32      requestId;
 
     while (sz > CYASSL_MAX_16BIT) {
         word16 slen = (word16)CYASSL_MAX_16BIT;
