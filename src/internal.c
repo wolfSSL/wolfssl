@@ -4351,20 +4351,14 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx,
 static int DoHelloRequest(CYASSL* ssl, const byte* input, word32* inOutIdx,
                                                     word32 size, word32 totalSz)
 {
-    int ret = 0;
+    (void)input;
 
     if (size) /* must be 0 */
         return BUFFER_ERROR;
 
     if (ssl->keys.encryptionOn) {
-        byte verify[MAX_DIGEST_SIZE];
         int  padSz = ssl->keys.encryptSz - HANDSHAKE_HEADER_SZ -
                      ssl->specs.hash_size;
-
-        ret = ssl->hmac(ssl, verify, input + *inOutIdx - HANDSHAKE_HEADER_SZ,
-                        HANDSHAKE_HEADER_SZ, handshake, 1);
-        if (ret != 0)
-            return ret;
 
         if (ssl->options.tls1_1 && ssl->specs.cipher_type == block)
             padSz -= ssl->specs.block_size;
@@ -4372,12 +4366,6 @@ static int DoHelloRequest(CYASSL* ssl, const byte* input, word32* inOutIdx,
         /* access beyond input + size should be checked against totalSz */
         if ((word32) (*inOutIdx + ssl->specs.hash_size + padSz) > totalSz)
             return INCOMPLETE_DATA;
-
-        /* verify */
-        if (XMEMCMP(input + *inOutIdx, verify, ssl->specs.hash_size) != 0) {
-            CYASSL_MSG("    hello_request verify mac error");
-            return VERIFY_MAC_ERROR;
-        }
 
         *inOutIdx += ssl->specs.hash_size + padSz;
     }
