@@ -4357,17 +4357,11 @@ static int DoHelloRequest(CYASSL* ssl, const byte* input, word32* inOutIdx,
         return BUFFER_ERROR;
 
     if (ssl->keys.encryptionOn) {
-        int  padSz = ssl->keys.encryptSz - HANDSHAKE_HEADER_SZ -
-                     ssl->specs.hash_size;
-
-        if (ssl->options.tls1_1 && ssl->specs.cipher_type == block)
-            padSz -= ssl->specs.block_size;
-
         /* access beyond input + size should be checked against totalSz */
-        if ((word32) (*inOutIdx + ssl->specs.hash_size + padSz) > totalSz)
-            return INCOMPLETE_DATA;
+        if (*inOutIdx + ssl->keys.padSz > totalSz)
+            return BUFFER_E;
 
-        *inOutIdx += ssl->specs.hash_size + padSz;
+        *inOutIdx += ssl->keys.padSz;
     }
 
     if (ssl->options.side == CYASSL_SERVER_END) {
