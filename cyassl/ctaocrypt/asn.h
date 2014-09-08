@@ -118,6 +118,8 @@ enum Misc_ASN {
     PKCS12              =  12,     /* PKCS #12 */
     MAX_UNICODE_SZ      = 256,
     ASN_BOOL_SIZE       =   2,     /* including type */
+    ASN_ECC_HEADER_SZ   =   2,     /* String type + 1 byte len */
+    ASN_ECC_CONTEXT_SZ  =   2,     /* Content specific type + 1 byte len */
     SHA_SIZE            =  20,
     RSA_INTS            =   8,     /* RSA ints in private key */
     MIN_DATE_SIZE       =  13,

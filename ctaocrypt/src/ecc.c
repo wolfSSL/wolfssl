@@ -2162,8 +2162,15 @@ int ecc_export_x963(ecc_key* key, byte* out, word32* outLen)
    word32 numlen;
    int    ret = MP_OKAY;
 
+   /* return length needed only */
+   if (key != NULL && out == NULL && outLen != NULL) {
+      numlen = key->dp->size;
+      *outLen = 1 + 2*numlen;
+      return LENGTH_ONLY_E;
+   }
+
    if (key == NULL || out == NULL || outLen == NULL)
-       return ECC_BAD_ARG_E;
+      return ECC_BAD_ARG_E;
 
    if (ecc_is_valid_idx(key->idx) == 0) {
       return ECC_BAD_ARG_E;

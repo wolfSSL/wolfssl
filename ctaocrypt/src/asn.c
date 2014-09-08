@@ -2545,7 +2545,7 @@ CYASSL_LOCAL word32 SetExplicit(byte number, word32 len, byte* output)
 }
 
 
-#if defined(HAVE_ECC) && defined(CYASSL_CERT_GEN)
+#if defined(HAVE_ECC) && (defined(CYASSL_CERT_GEN) || defined(CYASSL_KEY_GEN))
 
 static word32 SetCurve(ecc_key* key, byte* output)
 {
@@ -4766,6 +4766,7 @@ static int SetSerial(const byte* serial, byte* output)
 
 #ifdef HAVE_ECC 
 
+
 /* Write a public ECC key to output */
 static int SetEccPublicKey(byte* output, ecc_key* key)
 {
@@ -6553,6 +6554,96 @@ int EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
 
     return ret;
 }
+
+
+#ifdef CYASSL_KEY_GEN
+
+/* Write a Private ecc key to DER format, length on success else < 0 */
+int EccKeyToDer(ecc_key* key, byte* output, word32 inLen)
+{
+    byte   curve[MAX_ALGO_SZ];
+    byte   ver[MAX_VERSION_SZ];
+    byte   seq[MAX_SEQ_SZ];
+    int    ret;
+    int    curveSz;
+    int    verSz;
+    int    privHdrSz  = ASN_ECC_HEADER_SZ;
+    int    pubHdrSz   = ASN_ECC_CONTEXT_SZ + ASN_ECC_HEADER_SZ;
+    int    curveHdrSz = ASN_ECC_CONTEXT_SZ;
+    word32 seqSz;
+    word32 idx = 0;
+    word32 pubSz = ECC_BUFSIZE;
+    word32 privSz;
+    word32 totalSz;
+
+    if (key == NULL || output == NULL || inLen == 0)
+        return BAD_FUNC_ARG;
+
+    ret = ecc_export_x963(key, NULL, &pubSz);
+    if (ret != LENGTH_ONLY_E) {
+        return ret;
+    }
+    curveSz = SetCurve(key, curve);
+    if (curveSz < 0) {
+        return curveSz;
+    }
+
+    privSz = key->dp->size;
+
+    verSz = SetMyVersion(1, ver, FALSE);
+    if (verSz < 0) {
+        return verSz;
+    }
+
+    totalSz = verSz + privSz + privHdrSz + curveSz + curveHdrSz +
+              pubSz + pubHdrSz + 1;  /* plus null byte b4 public */
+    seqSz = SetSequence(totalSz, seq);
+    totalSz += seqSz;
+
+    if (totalSz > inLen) {
+        return BUFFER_E;
+    }
+
+    /* write it out */
+    /* seq */
+    XMEMCPY(output + idx, seq, seqSz);
+    idx += seqSz;
+
+   /* ver */
+    XMEMCPY(output + idx, ver, verSz);
+    idx += verSz;
+
+    /* private */
+    output[idx++] = ASN_OCTET_STRING;
+    output[idx++] = (byte)privSz;
+    ret = ecc_export_private_only(key, output + idx, &privSz);
+    if (ret < 0) {
+        return ret;
+    }
+    idx += privSz;
+
+    /* curve */
+    output[idx++] = ECC_PREFIX_0;
+    output[idx++] = (byte)curveSz;
+    XMEMCPY(output + idx, curve, curveSz);
+    idx += curveSz;
+
+    /* public */
+    output[idx++] = ECC_PREFIX_1;
+    output[idx++] = (byte)pubSz + ASN_ECC_CONTEXT_SZ + 1;  /* plus null byte */
+    output[idx++] = ASN_BIT_STRING;
+    output[idx++] = (byte)pubSz + 1;  /* plus null byte */
+    output[idx++] = (byte)0;          /* null byte */
+    ret = ecc_export_x963(key, output + idx, &pubSz);
+    if (ret != 0) {
+        return ret;
+    }
+    /* idx += pubSz if do more later */
+
+    return totalSz;
+}
+
+#endif /* CYASSL_KEY_GEN */
 
 #endif  /* HAVE_ECC */
 

@@ -193,12 +193,9 @@ int pbkdf2_test(void);
 
 
 static void err_sys(const char* msg, int es)
+
 {
     printf("%s error = %d\n", msg, es);
-    #if !defined(THREADX) && !defined(CYASSL_MDK_ARM)
-  	if (msg)
-        exit(es);
-    #endif
     return;
 }
 
@@ -219,74 +216,75 @@ void ctaocrypt_test(void* args)
 
 #if !defined(NO_BIG_INT)
     if (CheckCtcSettings() != 1)
-        err_sys("Build vs runtime math mismatch\n", -1234);
+        return err_sys("Build vs runtime math mismatch\n", -1234);
 
 #ifdef USE_FAST_MATH
     if (CheckFastMathSettings() != 1)
-        err_sys("Build vs runtime fastmath FP_MAX_BITS mismatch\n", -1235);
+        return err_sys("Build vs runtime fastmath FP_MAX_BITS mismatch\n",
+                       -1235);
 #endif /* USE_FAST_MATH */
 #endif /* !NO_BIG_INT */
 
 
 #ifndef NO_MD5
     if ( (ret = md5_test()) != 0)
-        err_sys("MD5      test failed!\n", ret);
+        return err_sys("MD5      test failed!\n", ret);
     else
         printf( "MD5      test passed!\n");
 #endif
 
 #ifdef CYASSL_MD2
     if ( (ret = md2_test()) != 0)
-        err_sys("MD2      test failed!\n", ret);
+        return err_sys("MD2      test failed!\n", ret);
     else
         printf( "MD2      test passed!\n");
 #endif
 
 #ifndef NO_MD4
     if ( (ret = md4_test()) != 0)
-        err_sys("MD4      test failed!\n", ret);
+        return err_sys("MD4      test failed!\n", ret);
     else
         printf( "MD4      test passed!\n");
 #endif
 
 #ifndef NO_SHA
     if ( (ret = sha_test()) != 0)
-        err_sys("SHA      test failed!\n", ret);
+        return err_sys("SHA      test failed!\n", ret);
     else
         printf( "SHA      test passed!\n");
 #endif
 
 #ifndef NO_SHA256
     if ( (ret = sha256_test()) != 0)
-        err_sys("SHA-256  test failed!\n", ret);
+        return err_sys("SHA-256  test failed!\n", ret);
     else
         printf( "SHA-256  test passed!\n");
 #endif
 
 #ifdef CYASSL_SHA384
     if ( (ret = sha384_test()) != 0)
-        err_sys("SHA-384  test failed!\n", ret);
+        return err_sys("SHA-384  test failed!\n", ret);
     else
         printf( "SHA-384  test passed!\n");
 #endif
 
 #ifdef CYASSL_SHA512
     if ( (ret = sha512_test()) != 0)
-        err_sys("SHA-512  test failed!\n", ret);
+        return err_sys("SHA-512  test failed!\n", ret);
     else
         printf( "SHA-512  test passed!\n");
 #endif
 
 #ifdef CYASSL_RIPEMD
     if ( (ret = ripemd_test()) != 0)
-        err_sys("RIPEMD   test failed!\n", ret);
+        return err_sys("RIPEMD   test failed!\n", ret);
     else
         printf( "RIPEMD   test passed!\n");
 #endif
 
 #ifdef HAVE_BLAKE2
     if ( (ret = blake2b_test()) != 0)
-        err_sys("BLAKE2b  test failed!\n", ret);
+        return err_sys("BLAKE2b  test failed!\n", ret);
     else
         printf( "BLAKE2b  test passed!\n");
 #endif
@@ -294,49 +292,49 @@ void ctaocrypt_test(void* args)
 #ifndef NO_HMAC
     #ifndef NO_MD5
         if ( (ret = hmac_md5_test()) != 0)
-            err_sys("HMAC-MD5 test failed!\n", ret);
+            return err_sys("HMAC-MD5 test failed!\n", ret);
         else
             printf( "HMAC-MD5 test passed!\n");
     #endif
 
     #ifndef NO_SHA
     if ( (ret = hmac_sha_test()) != 0)
-        err_sys("HMAC-SHA test failed!\n", ret);
+        return err_sys("HMAC-SHA test failed!\n", ret);
     else
         printf( "HMAC-SHA test passed!\n");
     #endif
 
     #ifndef NO_SHA256
         if ( (ret = hmac_sha256_test()) != 0)
-            err_sys("HMAC-SHA256 test failed!\n", ret);
+            return err_sys("HMAC-SHA256 test failed!\n", ret);
         else
             printf( "HMAC-SHA256 test passed!\n");
     #endif
 
     #ifdef CYASSL_SHA384
         if ( (ret = hmac_sha384_test()) != 0)
-            err_sys("HMAC-SHA384 test failed!\n", ret);
+            return err_sys("HMAC-SHA384 test failed!\n", ret);
         else
             printf( "HMAC-SHA384 test passed!\n");
     #endif
 
     #ifdef CYASSL_SHA512
         if ( (ret = hmac_sha512_test()) != 0)
-            err_sys("HMAC-SHA512 test failed!\n", ret);
+            return err_sys("HMAC-SHA512 test failed!\n", ret);
         else
             printf( "HMAC-SHA512 test passed!\n");
     #endif
 
     #ifdef HAVE_BLAKE2
         if ( (ret = hmac_blake2b_test()) != 0)
-            err_sys("HMAC-BLAKE2 test failed!\n", ret);
+            return err_sys("HMAC-BLAKE2 test failed!\n", ret);
         else
             printf( "HMAC-BLAKE2 test passed!\n");
     #endif
 
     #ifdef HAVE_HKDF
         if ( (ret = hkdf_test()) != 0)
-            err_sys("HMAC-KDF    test failed!\n", ret);
+            return err_sys("HMAC-KDF    test failed!\n", ret);
         else
             printf( "HMAC-KDF    test passed!\n");
     #endif
@@ -345,76 +343,76 @@ void ctaocrypt_test(void* args)
 
 #ifdef HAVE_AESGCM
     if ( (ret = gmac_test()) != 0)
-        err_sys("GMAC     test passed!\n", ret);
+        return err_sys("GMAC     test passed!\n", ret);
     else
         printf( "GMAC     test passed!\n");
 #endif
 
 #ifndef NO_RC4
     if ( (ret = arc4_test()) != 0)
-        err_sys("ARC4     test failed!\n", ret);
+        return err_sys("ARC4     test failed!\n", ret);
     else
         printf( "ARC4     test passed!\n");
 #endif
 
 #ifndef NO_HC128
     if ( (ret = hc128_test()) != 0)
-        err_sys("HC-128   test failed!\n", ret);
+        return err_sys("HC-128   test failed!\n", ret);
     else
         printf( "HC-128   test passed!\n");
 #endif
 
 #ifndef NO_RABBIT
     if ( (ret = rabbit_test()) != 0)
-        err_sys("Rabbit   test failed!\n", ret);
+        return err_sys("Rabbit   test failed!\n", ret);
     else
         printf( "Rabbit   test passed!\n");
 #endif
 
 #ifdef HAVE_CHACHA
     if ( (ret = chacha_test()) != 0)
-        err_sys("Chacha   test failed!\n", ret);
+        return err_sys("Chacha   test failed!\n", ret);
     else
         printf( "Chacha   test passed!\n");
 #endif
 
 #ifndef NO_DES3
     if ( (ret = des_test()) != 0)
-        err_sys("DES      test failed!\n", ret);
+        return err_sys("DES      test failed!\n", ret);
     else
         printf( "DES      test passed!\n");
 #endif
 
 #ifndef NO_DES3
     if ( (ret = des3_test()) != 0)
-        err_sys("DES3     test failed!\n", ret);
+        return err_sys("DES3     test failed!\n", ret);
     else
         printf( "DES3     test passed!\n");
 #endif
 
 #ifndef NO_AES
     if ( (ret = aes_test()) != 0)
-        err_sys("AES      test failed!\n", ret);
+        return err_sys("AES      test failed!\n", ret);
     else
         printf( "AES      test passed!\n");
 
 #ifdef HAVE_POLY1305
     if ( (ret = poly1305_test()) != 0)
-        err_sys("POLY1305 test failed!\n", ret);
+        return err_sys("POLY1305 test failed!\n", ret);
     else
         printf( "POLY1305 test passed!\n");
 #endif
 
 #ifdef HAVE_AESGCM
     if ( (ret = aesgcm_test()) != 0)
-        err_sys("AES-GCM  test failed!\n", ret);
+        return err_sys("AES-GCM  test failed!\n", ret);
     else
         printf( "AES-GCM  test passed!\n");
 #endif
 
 #ifdef HAVE_AESCCM
     if ( (ret = aesccm_test()) != 0)
-        err_sys("AES-CCM  test failed!\n", ret);
+        return err_sys("AES-CCM  test failed!\n", ret);
     else
         printf( "AES-CCM  test passed!\n");
 #endif
@@ -422,59 +420,59 @@ void ctaocrypt_test(void* args)
 
 #ifdef HAVE_CAMELLIA
     if ( (ret = camellia_test()) != 0)
-        err_sys("CAMELLIA test failed!\n", ret);
+        return err_sys("CAMELLIA test failed!\n", ret);
     else
         printf( "CAMELLIA test passed!\n");
 #endif
 
     if ( (ret = random_test()) != 0)
-        err_sys("RANDOM   test failed!\n", ret);
+        return err_sys("RANDOM   test failed!\n", ret);
     else
         printf( "RANDOM   test passed!\n");
 
 #ifndef NO_RSA
     if ( (ret = rsa_test()) != 0)
-        err_sys("RSA      test failed!\n", ret);
+        return err_sys("RSA      test failed!\n", ret);
     else
         printf( "RSA      test passed!\n");
 #endif
 
 #ifndef NO_DH
     if ( (ret = dh_test()) != 0)
-        err_sys("DH       test failed!\n", ret);
+        return err_sys("DH       test failed!\n", ret);
     else
         printf( "DH       test passed!\n");
 #endif
 
 #ifndef NO_DSA
     if ( (ret = dsa_test()) != 0)
-        err_sys("DSA      test failed!\n", ret);
+        return err_sys("DSA      test failed!\n", ret);
     else
         printf( "DSA      test passed!\n");
 #endif
 
 #ifndef NO_PWDBASED
     if ( (ret = pwdbased_test()) != 0)
-        err_sys("PWDBASED test failed!\n", ret);
+        return err_sys("PWDBASED test failed!\n", ret);
     else
         printf( "PWDBASED test passed!\n");
 #endif
 
 #ifdef OPENSSL_EXTRA
     if ( (ret = openssl_test()) != 0)
-        err_sys("OPENSSL  test failed!\n", ret);
+        return err_sys("OPENSSL  test failed!\n", ret);
     else
         printf( "OPENSSL  test passed!\n");
 #endif
 
 #ifdef HAVE_ECC
     if ( (ret = ecc_test()) != 0)
-        err_sys("ECC      test failed!\n", ret);
+        return err_sys("ECC      test failed!\n", ret);
     else
         printf( "ECC      test passed!\n");
     #ifdef HAVE_ECC_ENCRYPT
         if ( (ret = ecc_encrypt_test()) != 0)
-            err_sys("ECC Enc  test failed!\n", ret);
+            return err_sys("ECC Enc  test failed!\n", ret);
         else
             printf( "ECC Enc  test passed!\n");
     #endif
@@ -482,19 +480,19 @@ void ctaocrypt_test(void* args)
 
 #ifdef HAVE_LIBZ
     if ( (ret = compress_test()) != 0)
-        err_sys("COMPRESS test failed!\n", ret);
+        return err_sys("COMPRESS test failed!\n", ret);
     else
         printf( "COMPRESS test passed!\n");
 #endif
 
 #ifdef HAVE_PKCS7
     if ( (ret = pkcs7enveloped_test()) != 0)
-        err_sys("PKCS7enveloped test failed!\n", ret);
+        return err_sys("PKCS7enveloped test failed!\n", ret);
     else
         printf( "PKCS7enveloped test passed!\n");
 
     if ( (ret = pkcs7signed_test()) != 0)
-        err_sys("PKCS7signed    test failed!\n", ret);
+        return err_sys("PKCS7signed    test failed!\n", ret);
     else
         printf( "PKCS7signed    test passed!\n");
 #endif
@@ -538,8 +536,10 @@ static int OpenNitroxDevice(int dma_mode,int dev_id)
 
 #ifdef HAVE_CAVIUM
         int ret = OpenNitroxDevice(CAVIUM_DIRECT, CAVIUM_DEV_ID);
-        if (ret != 0)
+        if (ret != 0) {
             err_sys("Cavium OpenNitroxDevice failed", -1236);
+            return -1236;
+        }
 #endif /* HAVE_CAVIUM */
 
         args.argc = argc;
@@ -3004,9 +3004,11 @@ int rsa_test(void)
 #else
     file = fopen(clientKey, "rb");
 
-    if (!file)
+    if (!file) {
         err_sys("can't open ./certs/client-key.der, "
                 "Please run from CyaSSL home dir", -40);
+        return -40;
+    }
 
     bytes = fread(tmp, 1, FOURK_BUF, file);
     fclose(file);
@@ -4616,6 +4618,47 @@ int ecc_test(void)
         }
     }
 
+
+#ifdef CYASSL_KEY_GEN
+    {
+        int   derSz, pemSz;
+        byte  der[FOURK_BUF];
+        byte  pem[FOURK_BUF];
+        FILE* keyFile;
+        FILE* pemFile;
+
+        derSz = EccKeyToDer(&userB, der, FOURK_BUF);
+        if (derSz < 0) {
+            return -1024;
+        }
+
+        keyFile = fopen("./ecc-key.der", "wb");
+        if (!keyFile) {
+            return -1025;
+        }
+        ret = (int)fwrite(der, 1, derSz, keyFile);
+        fclose(keyFile);
+        if (ret != derSz) {
+            return -1026;
+        }
+
+        pemSz = DerToPem(der, derSz, pem, FOURK_BUF, ECC_PRIVATEKEY_TYPE);
+        if (pemSz < 0) {
+            return -1027;
+        }
+
+        pemFile = fopen("./ecc-key.pem", "wb");
+        if (!pemFile) {
+            return -1028;
+        }
+        ret = (int)fwrite(pem, 1, pemSz, pemFile);
+        fclose(pemFile);
+        if (ret != pemSz) {
+            return -1029;
+        }
+    }
+#endif /* CYASSL_KEY_GEN */
+
     ecc_free(&pubKey);
     ecc_free(&userB);
     ecc_free(&userA);
@@ -4915,6 +4958,7 @@ int pkcs7enveloped_test(void)
         free(privKey);
         err_sys("can't open ./certs/client-cert.der, "
                 "Please run from CyaSSL home dir", -42);
+        return -42;
     }
 
     certSz = fread(cert, 1, FOURK_BUF, certFile);
@@ -4926,6 +4970,7 @@ int pkcs7enveloped_test(void)
         free(privKey);
         err_sys("can't open ./certs/client-key.der, "
                 "Please run from CyaSSL home dir", -43);
+        return -43;
     }
 
     privKeySz = fread(privKey, 1, FOURK_BUF, keyFile);
@@ -5047,6 +5092,7 @@ int pkcs7signed_test(void)
         free(out);
         err_sys("can't open ./certs/client-cert.der, "
                 "Please run from CyaSSL home dir", -44);
+        return -44;
     }
     certDerSz = (word32)fread(certDer, 1, FOURK_BUF, file);
     fclose(file);
@@ -5058,6 +5104,7 @@ int pkcs7signed_test(void)
         free(out);
         err_sys("can't open ./certs/client-key.der, "
                 "Please run from CyaSSL home dir", -45);
+        return -45;
     }
     keyDerSz = (word32)fread(keyDer, 1, FOURK_BUF, file);
     fclose(file);

@@ -59,6 +59,8 @@ ntru-cert.pem
 ntru-key.raw
 key.der
 key.pem
+ecc-key.der
+ecc-key.pem
 certreq.der
 certreq.pem
 pkcs7cert.der

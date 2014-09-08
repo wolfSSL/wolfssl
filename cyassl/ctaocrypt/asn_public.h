@@ -178,6 +178,7 @@ CYASSL_API int  SetDatesBuffer(Cert*, const byte*, int);
     /* private key helpers */
     CYASSL_API int EccPrivateKeyDecode(const byte* input,word32* inOutIdx,
                                          ecc_key*,word32);
+    CYASSL_API int EccKeyToDer(ecc_key*, byte* output, word32 inLen);
 #endif
 
 

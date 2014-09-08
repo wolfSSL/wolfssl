@@ -283,6 +283,9 @@ const char* CTaoCryptGetErrorString(int error)
     case RSA_PAD_E:
         return "Rsa Padding error";
 
+    case LENGTH_ONLY_E:
+        return "Output length only set, not for other use error";
+
     default:
         return "unknown error number";
 
