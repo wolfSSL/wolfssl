@@ -3199,82 +3199,78 @@ int CyaSSL_CTX_der_load_verify_locations(CYASSL_CTX* ctx, const char* file,
 int CyaSSL_PemCertToDer(const char* fileName, unsigned char* derBuf, int derSz)
 {
 #ifdef CYASSL_SMALL_STACK
+	EncryptedInfo* info;
     byte   staticBuffer[1]; /* force XMALLOC */
 #else
+    EncryptedInfo info[1];
     byte   staticBuffer[FILE_BUFFER_SIZE];
 #endif
     byte*  fileBuf = staticBuffer;
     int    dynamic = 0;
-    int    ret;
-    int    ecc = 0;
-    long   sz = 0;
-    XFILE  file = XFOPEN(fileName, "rb");
-    buffer        converted;
+    int    ret     = 0;
+    int    ecc     = 0;
+    long   sz      = 0;
+    XFILE  file    = XFOPEN(fileName, "rb");
+    buffer converted;
 
     CYASSL_ENTER("CyaSSL_PemCertToDer");
-    converted.buffer = 0;
 
     if (file == XBADFILE)
-        return SSL_BAD_FILE;
-
-    XFSEEK(file, 0, XSEEK_END);
-
-    sz = XFTELL(file);
-    if (sz < 0) {
-        XFCLOSE(file);
-        return SSL_BAD_FILE;
-    }
-
-    XREWIND(file);
-
-    if (sz > (long)sizeof(staticBuffer)) {
-        fileBuf = (byte*) XMALLOC(sz, 0, DYNAMIC_TYPE_FILE);
-        if (fileBuf == NULL) {
-            XFCLOSE(file);
-            return SSL_BAD_FILE;
-        }
-        dynamic = 1;
-    }
-
-    if ( (ret = (int)XFREAD(fileBuf, sz, 1, file)) < 0)
         ret = SSL_BAD_FILE;
     else {
-#ifdef CYASSL_SMALL_STACK
-    	EncryptedInfo* info;
-#else
-        EncryptedInfo  info[1];
-#endif
-        
-#ifdef CYASSL_SMALL_STACK
-        info = (EncryptedInfo*)XMALLOC(sizeof(EncryptedInfo), NULL,
+        XFSEEK(file, 0, XSEEK_END);
+        sz = XFTELL(file);
+        XREWIND(file);
+
+        if (sz < 0) {
+            ret = SSL_BAD_FILE;
+        }
+        else if (sz > (long)sizeof(staticBuffer)) {
+            fileBuf = (byte*)XMALLOC(sz, 0, DYNAMIC_TYPE_FILE);
+            if (fileBuf == NULL)
+                ret = MEMORY_E;
+            else
+                dynamic = 1;
+        }
+
+        converted.buffer = 0;
+
+        if (ret == 0) {
+            if ( (ret = (int)XFREAD(fileBuf, sz, 1, file)) < 0)
+                ret = SSL_BAD_FILE;
+            else {
+            #ifdef CYASSL_SMALL_STACK
+                info = (EncryptedInfo*)XMALLOC(sizeof(EncryptedInfo), NULL,
                                                        DYNAMIC_TYPE_TMP_BUFFER);
-        if (info == NULL)
-            ret = MEMORY_E;
-        else
-#endif
-        {
-            ret = PemToDer(fileBuf, sz, CA_TYPE, &converted, 0, info, &ecc);
+                if (info == NULL)
+                    ret = MEMORY_E;
+                else
+            #endif
+                {
+                    ret = PemToDer(fileBuf, sz, CA_TYPE, &converted, 0, info, 
+                                                                          &ecc);
+                #ifdef CYASSL_SMALL_STACK
+                    XFREE(info, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                #endif
+                }
+            }
 
-#ifdef CYASSL_SMALL_STACK
-            XFREE(info, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+            if (ret == 0) {
+                if (converted.length < (word32)derSz) {
+                    XMEMCPY(derBuf, converted.buffer, converted.length);
+                    ret = converted.length;
+                }
+                else
+                    ret = BUFFER_E;
+            }
+
+            XFREE(converted.buffer, 0, DYNAMIC_TYPE_CA);
         }
+
+        XFCLOSE(file);
+        if (dynamic)
+            XFREE(fileBuf, 0, DYNAMIC_TYPE_FILE);
     }
-
-    if (ret == 0) {
-        if (converted.length < (word32)derSz) {
-            XMEMCPY(derBuf, converted.buffer, converted.length);
-            ret = converted.length;
-        }
-        else
-            ret = BUFFER_E;
-    }
-
-    XFREE(converted.buffer, 0, DYNAMIC_TYPE_CA);
-    if (dynamic)
-        XFREE(fileBuf, 0, DYNAMIC_TYPE_FILE);
-
-    XFCLOSE(file);
 
     return ret;
 }
