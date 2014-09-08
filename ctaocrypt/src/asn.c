@@ -6459,6 +6459,9 @@ int EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
     if (GetLength(input, inOutIdx, &length, inSz) < 0)
         return ASN_PARSE_E;
 
+    if (length > ECC_MAXSIZE)
+        return BUFFER_E;
+
 #ifdef CYASSL_SMALL_STACK
     priv = (byte*)XMALLOC(ECC_MAXSIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (priv == NULL)
@@ -6537,11 +6540,13 @@ int EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
                 else {
                     /* pub key */
                     pubSz = length - 1;  /* null prefix */
-                    XMEMCPY(pub, &input[*inOutIdx], pubSz);
-
-                    *inOutIdx += length;
-
-                    ret = ecc_import_private_key(priv, privSz, pub, pubSz, key);
+                    if (pubSz < (ECC_MAXSIZE*2 + 1)) {
+                        XMEMCPY(pub, &input[*inOutIdx], pubSz);
+                        *inOutIdx += length;
+                        ret = ecc_import_private_key(priv, privSz, pub, pubSz,
+                                                     key);
+                    } else
+                        ret = BUFFER_E;
                 }
             }
         }
