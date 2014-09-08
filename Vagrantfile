@@ -3,8 +3,7 @@
 
 $setup = <<SCRIPT
 apt-get update
-apt-get install -y git autoconf libtool make valgrind
-
+apt-get install -y git autoconf libtool make valgrind libpq-dev
 cp -rp /vagrant/ cyassl/
 
 echo "cd cyassl"                                    >> .bashrc

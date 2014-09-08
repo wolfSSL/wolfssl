@@ -4356,16 +4356,14 @@ int CM_GetCertCacheMemSize(CYASSL_CERT_MANAGER* cm)
 int CyaSSL_CTX_set_cipher_list(CYASSL_CTX* ctx, const char* list)
 {
     CYASSL_ENTER("CyaSSL_CTX_set_cipher_list");
-    return (SetCipherList(&ctx->suites, list, ctx->method->side)) ? SSL_SUCCESS
-                                                                  : SSL_FAILURE;
+    return (SetCipherList(&ctx->suites, list)) ? SSL_SUCCESS : SSL_FAILURE;
 }
 
 
 int CyaSSL_set_cipher_list(CYASSL* ssl, const char* list)
 {
     CYASSL_ENTER("CyaSSL_set_cipher_list");
-    return (SetCipherList(ssl->suites, list, ssl->options.side)) ? SSL_SUCCESS
-                                                                 : SSL_FAILURE;
+    return (SetCipherList(ssl->suites, list)) ? SSL_SUCCESS : SSL_FAILURE;
 }
 
 
