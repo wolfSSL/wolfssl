@@ -7881,6 +7881,9 @@ static const char* const cipher_names[] =
     "DHE-RSA-CHACHA20-POLY1305",
 #endif
 
+#ifdef HAVE_RENEGOTIATION_INDICATION
+    "RENEGOTIATION-INFO",
+#endif
 };
 
 
@@ -8267,6 +8270,10 @@ static int cipher_name_idx[] =
 #ifdef BUILD_TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256
     TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256,
 #endif
+
+#ifdef HAVE_RENEGOTIATION_INDICATION
+    TLS_EMPTY_RENEGOTIATION_INFO_SCSV,
+#endif
 };
 
 
@@ -8290,17 +8297,16 @@ Set the enabled cipher suites.
 @param [out] suites Suites structure.
 @param [in]  list   List of cipher suites, only supports full name from
                     cipher_name[] delimited by ':'.
-@param [in]  side   client(CYASSL_CLIENT_END) or server(CYASSL_SERVER_END) side.
 
 @return true on success, else false.
 */
-int SetCipherList(Suites* suites, const char* list, int side)
+int SetCipherList(Suites* suites, const char* list)
 {
     int       ret          = 0;
     int       idx          = 0;
     int       haveRSAsig   = 0;
     int       haveECDSAsig = 0;
-    const int suiteSz      = sizeof(cipher_names) / sizeof(cipher_names[0]);
+    const int suiteSz      = GetCipherNamesSize();
     char*     next         = (char*)list;
 
     if (suites == NULL || list == NULL) {
@@ -8310,15 +8316,6 @@ int SetCipherList(Suites* suites, const char* list, int side)
 
     if (next[0] == 0 || XSTRNCMP(next, "ALL", 3) == 0) 
         return 1; /* CyaSSL defualt */
-
-#ifdef HAVE_RENEGOTIATION_INDICATION
-    if (side == CYASSL_CLIENT_END) {
-        suites->suites[idx++] = 0;
-        suites->suites[idx++] = TLS_EMPTY_RENEGOTIATION_INFO_SCSV;
-    }
-#else
-    (void)side; /* shut up compiler warnings */
-#endif
 
     do {
         char*  current = next;

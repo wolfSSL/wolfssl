@@ -1007,7 +1007,7 @@ CYASSL_LOCAL
 void InitSuites(Suites*, ProtocolVersion,
                                      byte, byte, byte, byte, byte, byte, int);
 CYASSL_LOCAL
-int  SetCipherList(Suites*, const char* list, int);
+int  SetCipherList(Suites*, const char* list);
 
 #ifndef PSK_TYPES_DEFINED
     typedef unsigned int (*psk_client_callback)(CYASSL*, const char*, char*,
