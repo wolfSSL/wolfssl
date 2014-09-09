@@ -174,9 +174,14 @@ static int RsaUnPad(const byte *pkcsBlock, unsigned int pkcsBlockLen,
     /* Require block type padValue */
     invalid = (pkcsBlock[0] != padValue) || invalid;
 
-    /* skip past the padding until we find the separator */
-    while (i<pkcsBlockLen && pkcsBlock[i++]) { /* null body */
-        }
+    /* verify the padding until we find the separator */
+    if (padValue == RSA_BLOCK_TYPE_1) {
+        while (i<pkcsBlockLen && pkcsBlock[i++] == 0xFF) {/* Null body */}
+    }
+    else {
+        while (i<pkcsBlockLen && pkcsBlock[i++]) {/* Null body */}
+    }
+
     if(!(i==pkcsBlockLen || pkcsBlock[i-1]==0)) {
         CYASSL_MSG("RsaUnPad error, bad formatting");
         return RSA_PAD_E;
