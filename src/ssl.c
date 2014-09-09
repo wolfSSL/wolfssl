@@ -1578,35 +1578,47 @@ Signer* GetCAByName(void* vp, byte* hash)
 int AddCA(CYASSL_CERT_MANAGER* cm, buffer der, int type, int verify)
 {
     int         ret;
-    DecodedCert cert;
     Signer*     signer = 0;
     word32      row;
     byte*       subjectHash;
+#ifdef CYASSL_SMALL_STACK
+    DecodedCert* cert;
+#else
+    DecodedCert  cert[1];
+#endif
 
     CYASSL_MSG("Adding a CA");
-    InitDecodedCert(&cert, der.buffer, der.length, cm->heap);
-    ret = ParseCert(&cert, CA_TYPE, verify, cm);
+
+#ifdef CYASSL_SMALL_STACK
+    cert = (DecodedCert*)XMALLOC(sizeof(DecodedCert), NULL,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+    if (cert == NULL)
+        return MEMORY_E;
+#endif
+
+    InitDecodedCert(cert, der.buffer, der.length, cm->heap);
+    ret = ParseCert(cert, CA_TYPE, verify, cm);
     CYASSL_MSG("    Parsed new CA");
 
-    #ifndef NO_SKID
-        subjectHash = cert.extSubjKeyId;
-    #else
-        subjectHash = cert.subjectHash;
-    #endif
+#ifndef NO_SKID
+    subjectHash = cert->extSubjKeyId;
+#else
+    subjectHash = cert->subjectHash;
+#endif
 
-    if (ret == 0 && cert.isCA == 0 && type != CYASSL_USER_CA) {
+    if (ret == 0 && cert->isCA == 0 && type != CYASSL_USER_CA) {
         CYASSL_MSG("    Can't add as CA if not actually one");
         ret = NOT_CA_ERROR;
     }
-    #ifndef ALLOW_INVALID_CERTSIGN
-        else if (ret == 0 && cert.isCA == 1 && type != CYASSL_USER_CA &&
-                               (cert.extKeyUsage & KEYUSE_KEY_CERT_SIGN) == 0) {
-            /* Intermediate CA certs are required to have the keyCertSign
-            * extension set. User loaded root certs are not. */
-            CYASSL_MSG("    Doesn't have key usage certificate signing");
-            ret = NOT_CA_ERROR;
-        }
-    #endif
+#ifndef ALLOW_INVALID_CERTSIGN
+    else if (ret == 0 && cert->isCA == 1 && type != CYASSL_USER_CA &&
+                              (cert->extKeyUsage & KEYUSE_KEY_CERT_SIGN) == 0) {
+        /* Intermediate CA certs are required to have the keyCertSign
+        * extension set. User loaded root certs are not. */
+        CYASSL_MSG("    Doesn't have key usage certificate signing");
+        ret = NOT_CA_ERROR;
+    }
+#endif
     else if (ret == 0 && AlreadySigner(cm, subjectHash)) {
         CYASSL_MSG("    Already have this CA, not adding again");
         (void)ret;
@@ -1617,36 +1629,36 @@ int AddCA(CYASSL_CERT_MANAGER* cm, buffer der, int type, int verify)
         if (!signer)
             ret = MEMORY_ERROR;
         else {
-            signer->keyOID     = cert.keyOID;
-            signer->publicKey  = cert.publicKey;
-            signer->pubKeySize = cert.pubKeySize;
-            signer->nameLen    = cert.subjectCNLen;
-            signer->name       = cert.subjectCN;
-            #ifndef IGNORE_NAME_CONSTRAINTS
-                signer->permittedNames = cert.permittedNames;
-                signer->excludedNames = cert.excludedNames;
-            #endif
-            #ifndef NO_SKID
-                XMEMCPY(signer->subjectKeyIdHash,
-                                            cert.extSubjKeyId, SHA_DIGEST_SIZE);
-            #endif
-            XMEMCPY(signer->subjectNameHash, cert.subjectHash, SHA_DIGEST_SIZE);
-            signer->keyUsage = cert.extKeyUsageSet ? cert.extKeyUsage : 0xFFFF;
-                                   /* If Key Usage not set, all uses valid. */
-            signer->next = NULL;   /* in case lock fails */
+            signer->keyOID         = cert->keyOID;
+            signer->publicKey      = cert->publicKey;
+            signer->pubKeySize     = cert->pubKeySize;
+            signer->nameLen        = cert->subjectCNLen;
+            signer->name           = cert->subjectCN;
+        #ifndef IGNORE_NAME_CONSTRAINTS
+            signer->permittedNames = cert->permittedNames;
+            signer->excludedNames  = cert->excludedNames;
+        #endif
+        #ifndef NO_SKID
+            XMEMCPY(signer->subjectKeyIdHash, cert->extSubjKeyId,
+                                                               SHA_DIGEST_SIZE);
+        #endif
+            XMEMCPY(signer->subjectNameHash, cert->subjectHash,
+                                                               SHA_DIGEST_SIZE);
+            signer->keyUsage = cert->extKeyUsageSet ? cert->extKeyUsage
+                                                    : 0xFFFF;
+            signer->next    = NULL; /* If Key Usage not set, all uses valid. */
+            cert->publicKey = 0;    /* in case lock fails don't free here.   */
+            cert->subjectCN = 0;
+        #ifndef IGNORE_NAME_CONSTRAINTS
+            cert->permittedNames = NULL;
+            cert->excludedNames = NULL;
+        #endif
 
-            cert.publicKey = 0;  /* don't free here */
-            cert.subjectCN = 0;
-            #ifndef IGNORE_NAME_CONSTRAINTS
-                cert.permittedNames = NULL;
-                cert.excludedNames = NULL;
-            #endif
-
-            #ifndef NO_SKID
-                row = HashSigner(signer->subjectKeyIdHash);
-            #else
-                row = HashSigner(signer->subjectNameHash);
-            #endif
+        #ifndef NO_SKID
+            row = HashSigner(signer->subjectKeyIdHash);
+        #else
+            row = HashSigner(signer->subjectNameHash);
+        #endif
 
             if (LockMutex(&cm->caLock) == 0) {
                 signer->next = cm->caTable[row];
@@ -1664,14 +1676,17 @@ int AddCA(CYASSL_CERT_MANAGER* cm, buffer der, int type, int verify)
     }
 
     CYASSL_MSG("    Freeing Parsed CA");
-    FreeDecodedCert(&cert);
+    FreeDecodedCert(cert);
+#ifdef CYASSL_SMALL_STACK
+    XFREE(cert, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
     CYASSL_MSG("    Freeing der CA");
     XFREE(der.buffer, cm->heap, DYNAMIC_TYPE_CA);
     CYASSL_MSG("        OK Freeing der CA");
 
     CYASSL_LEAVE("AddCA", ret);
-    if (ret == 0) return SSL_SUCCESS;
-    return ret;
+
+    return ret == 0 ? SSL_SUCCESS : ret;
 }
 
 #endif /* !NO_CERTS */
@@ -2335,16 +2350,30 @@ static int ProcessBuffer(CYASSL_CTX* ctx, const unsigned char* buff,
     #endif /* HAVE_ECC */
     }
     else if (type == CERT_TYPE) {
-        DecodedCert cert;
+    #ifdef CYASSL_SMALL_STACK
+        DecodedCert* cert;
+    #else
+        DecodedCert  cert[1];
+    #endif
+        
+    #ifdef CYASSL_SMALL_STACK
+        cert = (DecodedCert*)XMALLOC(sizeof(DecodedCert), NULL,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+        if (cert == NULL)
+            return MEMORY_E;
+    #endif
 
         CYASSL_MSG("Checking cert signature type");
-        InitDecodedCert(&cert, der.buffer, der.length, heap);
+        InitDecodedCert(cert, der.buffer, der.length, heap);
 
-        if (DecodeToKey(&cert, 0) < 0) {
+        if (DecodeToKey(cert, 0) < 0) {
             CYASSL_MSG("Decode to key failed");
+        #ifdef CYASSL_SMALL_STACK
+            XFREE(cert, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        #endif
             return SSL_BAD_FILE;
         }
-        switch (cert.signatureOID) {
+        switch (cert->signatureOID) {
             case CTC_SHAwECDSA:
             case CTC_SHA256wECDSA:
             case CTC_SHA384wECDSA:
@@ -2362,12 +2391,15 @@ static int ProcessBuffer(CYASSL_CTX* ctx, const unsigned char* buff,
 
     #ifdef HAVE_ECC
         if (ctx)
-            ctx->pkCurveOID = cert.pkCurveOID;
+            ctx->pkCurveOID = cert->pkCurveOID;
         if (ssl)
-            ssl->pkCurveOID = cert.pkCurveOID;
+            ssl->pkCurveOID = cert->pkCurveOID;
     #endif
 
-        FreeDecodedCert(&cert);
+        FreeDecodedCert(cert);
+    #ifdef CYASSL_SMALL_STACK
+        XFREE(cert, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
     }
 
     return SSL_SUCCESS;
@@ -2545,8 +2577,12 @@ int CyaSSL_CertManagerDisableOCSP(CYASSL_CERT_MANAGER* cm)
 /* check CRL if enabled, SSL_SUCCESS  */
 int CyaSSL_CertManagerCheckOCSP(CYASSL_CERT_MANAGER* cm, byte* der, int sz)
 {
-    int         ret;
-    DecodedCert cert;
+    int ret;
+#ifdef CYASSL_SMALL_STACK
+    DecodedCert* cert;
+#else
+    DecodedCert  cert[1];
+#endif
 
     CYASSL_ENTER("CyaSSL_CertManagerCheckOCSP");
 
@@ -2556,26 +2592,26 @@ int CyaSSL_CertManagerCheckOCSP(CYASSL_CERT_MANAGER* cm, byte* der, int sz)
     if (cm->ocspEnabled == 0)
         return SSL_SUCCESS;
 
-    InitDecodedCert(&cert, der, sz, NULL);
+#ifdef CYASSL_SMALL_STACK
+    cert = (DecodedCert*)XMALLOC(sizeof(DecodedCert), NULL,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+    if (cert == NULL)
+        return MEMORY_E;
+#endif
 
-    ret = ParseCertRelative(&cert, CERT_TYPE, NO_VERIFY, cm);
-    if (ret != 0) {
+    InitDecodedCert(cert, der, sz, NULL);
+
+    if ((ret = ParseCertRelative(cert, CERT_TYPE, NO_VERIFY, cm)) != 0)
         CYASSL_MSG("ParseCert failed");
-        return ret;
-    }
-    else {
-        ret = CheckCertOCSP(cm->ocsp, &cert);
-        if (ret != 0) {
-            CYASSL_MSG("CheckCertOCSP failed");
-        }
-    }
+    else if ((ret = CheckCertOCSP(cm->ocsp, cert)) != 0)
+        CYASSL_MSG("CheckCertOCSP failed");
 
-    FreeDecodedCert(&cert);
+    FreeDecodedCert(cert);
+#ifdef CYASSL_SMALL_STACK
+    XFREE(cert, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 
-    if (ret == 0)
-        return SSL_SUCCESS;  /* convert */
-
-    return ret;
+    return ret == 0 ? SSL_SUCCESS : ret;
 }
 
 
@@ -3025,8 +3061,12 @@ int CyaSSL_CTX_check_private_key(CYASSL_CTX* ctx)
 /* check CRL if enabled, SSL_SUCCESS  */
 int CyaSSL_CertManagerCheckCRL(CYASSL_CERT_MANAGER* cm, byte* der, int sz)
 {
-    int         ret;
-    DecodedCert cert;
+    int ret = 0;
+#ifdef CYASSL_SMALL_STACK
+    DecodedCert* cert;
+#else
+    DecodedCert  cert[1];
+#endif
 
     CYASSL_ENTER("CyaSSL_CertManagerCheckCRL");
 
@@ -3036,26 +3076,26 @@ int CyaSSL_CertManagerCheckCRL(CYASSL_CERT_MANAGER* cm, byte* der, int sz)
     if (cm->crlEnabled == 0)
         return SSL_SUCCESS;
 
-    InitDecodedCert(&cert, der, sz, NULL);
+#ifdef CYASSL_SMALL_STACK
+    cert = (DecodedCert*)XMALLOC(sizeof(DecodedCert), NULL,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+    if (cert == NULL)
+        return MEMORY_E;
+#endif
+    
+    InitDecodedCert(cert, der, sz, NULL);
 
-    ret = ParseCertRelative(&cert, CERT_TYPE, NO_VERIFY, cm);
-    if (ret != 0) {
+    if ((ret = ParseCertRelative(cert, CERT_TYPE, NO_VERIFY, cm)) != 0)
         CYASSL_MSG("ParseCert failed");
-        return ret;
-    }
-    else {
-        ret = CheckCertCRL(cm->crl, &cert);
-        if (ret != 0) {
-            CYASSL_MSG("CheckCertCRL failed");
-        }
-    }
+    else if ((ret = CheckCertCRL(cm->crl, cert)) != 0)
+        CYASSL_MSG("CheckCertCRL failed");
 
-    FreeDecodedCert(&cert);
-
-    if (ret == 0)
-        return SSL_SUCCESS;  /* convert */
-
-    return ret;
+    FreeDecodedCert(cert);
+#ifdef CYASSL_SMALL_STACK
+    XFREE(cert, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    
+    return ret == 0 ? SSL_SUCCESS : ret;
 }
 
 
@@ -8274,21 +8314,35 @@ CYASSL_X509* CyaSSL_X509_d2i(CYASSL_X509** x509, const byte* in, int len)
     CYASSL_ENTER("CyaSSL_X509_d2i");
 
     if (in != NULL && len != 0) {
-        DecodedCert cert;
+    #ifdef CYASSL_SMALL_STACK
+        DecodedCert* cert;
+    #else
+        DecodedCert  cert[1];
+    #endif
 
-        InitDecodedCert(&cert, (byte*)in, len, NULL);
-        if (ParseCertRelative(&cert, CERT_TYPE, 0, NULL) == 0) {
+    #ifdef CYASSL_SMALL_STACK
+        cert = (DecodedCert*)XMALLOC(sizeof(DecodedCert), NULL,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+        if (cert == NULL)
+            return NULL;
+    #endif
+
+        InitDecodedCert(cert, (byte*)in, len, NULL);
+        if (ParseCertRelative(cert, CERT_TYPE, 0, NULL) == 0) {
             newX509 = (CYASSL_X509*)XMALLOC(sizeof(CYASSL_X509),
                                                        NULL, DYNAMIC_TYPE_X509);
             if (newX509 != NULL) {
                 InitX509(newX509, 1);
-                if (CopyDecodedToX509(newX509, &cert) != 0) {
+                if (CopyDecodedToX509(newX509, cert) != 0) {
                     XFREE(newX509, NULL, DYNAMIC_TYPE_X509);
                     newX509 = NULL;
                 }
             }
         }
-        FreeDecodedCert(&cert);
+        FreeDecodedCert(cert);
+    #ifdef CYASSL_SMALL_STACK
+        XFREE(cert, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
     }
 
     if (x509 != NULL)
@@ -8436,21 +8490,36 @@ CYASSL_X509* CyaSSL_X509_load_certificate_file(const char* fname, int format)
     /* At this point we want `der` to have the certificate in DER format */
     /* ready to be decoded. */
     if (der.buffer != NULL) {
-        DecodedCert cert;
+    #ifdef CYASSL_SMALL_STACK
+        DecodedCert* cert;
+    #else
+        DecodedCert  cert[1];
+    #endif
 
-        InitDecodedCert(&cert, der.buffer, der.length, NULL);
-        if (ParseCertRelative(&cert, CERT_TYPE, 0, NULL) == 0) {
-            x509 = (CYASSL_X509*)XMALLOC(sizeof(CYASSL_X509),
-                                                       NULL, DYNAMIC_TYPE_X509);
-            if (x509 != NULL) {
-                InitX509(x509, 1);
-                if (CopyDecodedToX509(x509, &cert) != 0) {
-                    XFREE(x509, NULL, DYNAMIC_TYPE_X509);
-                    x509 = NULL;
+    #ifdef CYASSL_SMALL_STACK
+        cert = (DecodedCert*)XMALLOC(sizeof(DecodedCert), NULL,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+        if (cert != NULL)
+    #endif
+        {
+            InitDecodedCert(cert, der.buffer, der.length, NULL);
+            if (ParseCertRelative(cert, CERT_TYPE, 0, NULL) == 0) {
+                x509 = (CYASSL_X509*)XMALLOC(sizeof(CYASSL_X509), NULL, 
+                                                             DYNAMIC_TYPE_X509);
+                if (x509 != NULL) {
+                    InitX509(x509, 1);
+                    if (CopyDecodedToX509(x509, cert) != 0) {
+                        XFREE(x509, NULL, DYNAMIC_TYPE_X509);
+                        x509 = NULL;
+                    }
                 }
             }
+
+            FreeDecodedCert(cert);
+        #ifdef CYASSL_SMALL_STACK
+            XFREE(cert, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        #endif
         }
-        FreeDecodedCert(&cert);
 
         XFREE(der.buffer, NULL, DYNAMIC_TYPE_CERT);
     }
@@ -11630,37 +11699,49 @@ byte* CyaSSL_get_chain_cert(CYASSL_X509_CHAIN* chain, int idx)
 CYASSL_X509* CyaSSL_get_chain_X509(CYASSL_X509_CHAIN* chain, int idx)
 {
     int          ret;
-    CYASSL_X509* x509;
-    DecodedCert  dCert;
+    CYASSL_X509* x509 = NULL;
+#ifdef CYASSL_SMALL_STACK
+    DecodedCert* cert;
+#else
+    DecodedCert  cert[1];
+#endif
 
     CYASSL_ENTER("CyaSSL_get_chain_X509");
-    if (chain == NULL)
-        return NULL;
+    if (chain != NULL) {
+    #ifdef CYASSL_SMALL_STACK
+        cert = (DecodedCert*)XMALLOC(sizeof(DecodedCert), NULL,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+        if (cert != NULL)
+    #endif
+        {
+            InitDecodedCert(cert, chain->certs[idx].buffer, 
+                                  chain->certs[idx].length, NULL);
 
-    InitDecodedCert(&dCert, chain->certs[idx].buffer, chain->certs[idx].length,
-                    NULL);
-    ret = ParseCertRelative(&dCert, CERT_TYPE, 0, NULL);
-    if (ret != 0) {
-        CYASSL_MSG("Failed to parse cert");
-        FreeDecodedCert(&dCert);
-        return NULL;
-    }
+            if ((ret = ParseCertRelative(cert, CERT_TYPE, 0, NULL)) != 0)
+                CYASSL_MSG("Failed to parse cert");
+            else {
+                x509 = (CYASSL_X509*)XMALLOC(sizeof(CYASSL_X509), NULL,
+                                                             DYNAMIC_TYPE_X509);
+                if (x509 == NULL) {
+                    CYASSL_MSG("Failed alloc X509");
+                }
+                else {
+                    InitX509(x509, 1);
 
-    x509 = (CYASSL_X509*)XMALLOC(sizeof(CYASSL_X509), NULL, DYNAMIC_TYPE_X509);
-    if (x509 == NULL) {
-        CYASSL_MSG("Failed alloc X509");
-        FreeDecodedCert(&dCert);
-        return NULL;
-    }
-    InitX509(x509, 1);
+                    if ((ret = CopyDecodedToX509(x509, cert)) != 0) {
+                        CYASSL_MSG("Failed to copy decoded");
+                        XFREE(x509, NULL, DYNAMIC_TYPE_X509);
+                        x509 = NULL;
+                    }
+                }
+            }
 
-    ret = CopyDecodedToX509(x509, &dCert);
-    if (ret != 0) {
-        CYASSL_MSG("Failed to copy decoded");
-        XFREE(x509, NULL, DYNAMIC_TYPE_X509);
-        x509 = NULL;
+            FreeDecodedCert(cert);
+        #ifdef CYASSL_SMALL_STACK
+            XFREE(cert, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        #endif
+        }
     }
-    FreeDecodedCert(&dCert);
 
     return x509;
 }
