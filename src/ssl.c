@@ -7591,33 +7591,45 @@ int CyaSSL_set_compression(CYASSL* ssl)
                                int key_len, const unsigned char* d, int n,
                                unsigned char* md, unsigned int* md_len)
     {
-        Hmac hmac;
+        int type;
+        unsigned char* ret = NULL;
+#ifdef CYASSL_SMALL_STACK
+        Hmac* hmac;
+#else
+        Hmac  hmac[1];
+#endif
 
         CYASSL_ENTER("HMAC");
-        if (!md) return NULL;  /* no static buffer support */
+        if (!md)
+            return NULL;  /* no static buffer support */
 
-        if (XSTRNCMP(evp_md, "MD5", 3) == 0) {
-            if (HmacSetKey(&hmac, MD5, (const byte*)key, key_len) != 0)
-                return NULL;
-
-            if (md_len) *md_len = MD5_DIGEST_SIZE;
-        }
-        else if (XSTRNCMP(evp_md, "SHA", 3) == 0) {
-            if (HmacSetKey(&hmac, SHA, (const byte*)key, key_len) != 0)
-                return NULL;
-
-            if (md_len) *md_len = SHA_DIGEST_SIZE;
-        }
+        if (XSTRNCMP(evp_md, "MD5", 3) == 0)
+            type = MD5;
+        else if (XSTRNCMP(evp_md, "SHA", 3) == 0)
+            type = MD5;
         else
             return NULL;
 
-        if (HmacUpdate(&hmac, d, n) != 0)
+    #ifdef CYASSL_SMALL_STACK
+        hmac = (Hmac*)XMALLOC(sizeof(Hmac), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        if (hmac == NULL)
             return NULL;
+    #endif
 
-        if (HmacFinal(&hmac, md) != 0)
-            return NULL;
+        if (HmacSetKey(hmac, type, (const byte*)key, key_len) == 0)
+            if (HmacUpdate(hmac, d, n) == 0)
+                if (HmacFinal(hmac, md) == 0) {
+                    if (md_len)
+                        *md_len = type == MD5 ? MD5_DIGEST_SIZE
+                                              : SHA_DIGEST_SIZE;
+                    ret = md;                    
+                }
 
-        return md;
+    #ifdef CYASSL_SMALL_STACK
+        XFREE(hmac, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
+
+        return ret;
     }
 
     void CyaSSL_ERR_clear_error(void)
