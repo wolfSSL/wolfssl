@@ -93,7 +93,7 @@ int testsuite_test(int argc, char** argv)
     CyaSSL_Debugging_ON();
 #endif
 
-#if !defined(TIRTOS)
+#if !defined(CYASSL_TIRTOS)
     if (CurrentDir("testsuite") || CurrentDir("_build"))
         ChangeDirBack(1);
     else if (CurrentDir("Debug") || CurrentDir("Release"))
@@ -103,8 +103,8 @@ int testsuite_test(int argc, char** argv)
                                    /* Debug or Release */
 #endif
 
-#ifdef TIRTOS
-    fdOpenSession(TaskSelf());
+#ifdef CYASSL_TIRTOS
+    fdOpenSession(Task_self());
 #endif
 
     server_args.signal = &ready;
@@ -183,8 +183,8 @@ int testsuite_test(int argc, char** argv)
     CyaSSL_Cleanup();
     FreeTcpReady(&ready);
 
-#ifdef TIRTOS
-    fdCloseSession(TaskSelf());
+#ifdef CYASSL_TIRTOS
+    fdCloseSession(Task_self());
 #endif
 
 #ifdef HAVE_CAVIUM
@@ -238,7 +238,7 @@ void simple_test(func_args* args)
    
     strcpy(svrArgs.argv[0], "SimpleServer");
     #if !defined(USE_WINDOWS_API) && !defined(CYASSL_SNIFFER)  && \
-                                     !defined(TIRTOS)
+                                     !defined(CYASSL_TIRTOS)
         strcpy(svrArgs.argv[svrArgs.argc++], "-p");
         strcpy(svrArgs.argv[svrArgs.argc++], "0");
     #endif
@@ -296,7 +296,7 @@ void start_thread(THREAD_FUNC fun, func_args* args, THREAD_TYPE* thread)
 #if defined(_POSIX_THREADS) && !defined(__MINGW32__)
     pthread_create(thread, 0, fun, args);
     return;
-#elif defined(TIRTOS)
+#elif defined(CYASSL_TIRTOS)
     /* Initialize the defaults and set the parameters. */
     Task_Params taskParams;
     Task_Params_init(&taskParams);
@@ -317,7 +317,7 @@ void join_thread(THREAD_TYPE thread)
 {
 #if defined(_POSIX_THREADS) && !defined(__MINGW32__)
     pthread_join(thread, 0);
-#elif defined(TIRTOS)
+#elif defined(CYASSL_TIRTOS)
     while(1) {
         if (Task_getMode(thread) == Task_Mode_TERMINATED) {
 		    Task_sleep(5);

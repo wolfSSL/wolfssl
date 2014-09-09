@@ -35,7 +35,7 @@
     #define SNPRINTF _snprintf
 #elif defined(CYASSL_MDK_ARM)
     #include <string.h>
-#elif defined(TIRTOS)
+#elif defined(CYASSL_TIRTOS)
     #include <string.h>
     #include <netdb.h>
     #include <sys/types.h>
@@ -128,7 +128,7 @@
         typedef unsigned int  THREAD_RETURN;
         typedef int           THREAD_TYPE;
         #define CYASSL_THREAD
-    #elif defined(TIRTOS)
+    #elif defined(CYASSL_TIRTOS)
         typedef void          THREAD_RETURN;
         typedef Task_Handle   THREAD_TYPE;
         #define CYASSL_THREAD
@@ -480,7 +480,7 @@ static INLINE void tcp_socket(SOCKET_T* sockfd, int udp)
 #ifdef USE_WINDOWS_API
     if (*sockfd == INVALID_SOCKET)
         err_sys("socket failed\n");
-#elif defined(TIRTOS)
+#elif defined(CYASSL_TIRTOS)
     if (*sockfd == -1)
         err_sys("socket failed\n");
 #else
@@ -497,7 +497,7 @@ static INLINE void tcp_socket(SOCKET_T* sockfd, int udp)
         if (res < 0)
             err_sys("setsockopt SO_NOSIGPIPE failed\n");
     }
-#elif defined(CYASSL_MDK_ARM) || defined (TIRTOS)
+#elif defined(CYASSL_MDK_ARM) || defined (CYASSL_TIRTOS)
     /* nothing to define */
 #else  /* no S_NOSIGPIPE */
     signal(SIGPIPE, SIG_IGN);
@@ -545,7 +545,7 @@ enum {
 };
 
 
-#if !defined(CYASSL_MDK_ARM) && !defined(TIRTOS)
+#if !defined(CYASSL_MDK_ARM) && !defined(CYASSL_TIRTOS)
 static INLINE int tcp_select(SOCKET_T socketfd, int to_sec)
 {
     fd_set recvfds, errfds;
@@ -571,7 +571,7 @@ static INLINE int tcp_select(SOCKET_T socketfd, int to_sec)
 
     return TEST_SELECT_FAIL;
 }
-#elif defined(TIRTOS)
+#elif defined(CYASSL_TIRTOS)
 static INLINE int tcp_select(SOCKET_T socketfd, int to_sec)
 {
     return TEST_RECV_READY;
@@ -686,7 +686,7 @@ static INLINE void udp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
     pthread_cond_signal(&ready->cond);
     pthread_mutex_unlock(&ready->mutex);
     }
-#elif defined (TIRTOS)
+#elif defined (CYASSL_TIRTOS)
     /* Need mutex? */
     tcp_ready* ready = args->signal;
     ready->ready = 1;
@@ -720,7 +720,7 @@ static INLINE void tcp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
     pthread_cond_signal(&ready->cond);
     pthread_mutex_unlock(&ready->mutex);
     }
-#elif defined (TIRTOS)
+#elif defined (CYASSL_TIRTOS)
     /* Need mutex? */
     tcp_ready* ready = args->signal;
     ready->ready = 1;
@@ -746,7 +746,7 @@ static INLINE void tcp_set_nonblocking(SOCKET_T* sockfd)
         int ret = ioctlsocket(*sockfd, FIONBIO, &blocking);
         if (ret == SOCKET_ERROR)
             err_sys("ioctlsocket failed");
-    #elif defined(CYASSL_MDK_ARM) || defined (TIRTOS)
+    #elif defined(CYASSL_MDK_ARM) || defined (CYASSL_TIRTOS)
          /* non blocking not suppported, for now */ 
     #else
         int flags = fcntl(*sockfd, F_GETFL, 0);
@@ -829,7 +829,7 @@ static INLINE unsigned int my_psk_server_cb(CYASSL* ssl, const char* identity,
         return (double)count.QuadPart / freq.QuadPart;
     }
 
-#elif defined(TIRTOS)
+#elif defined(CYASSL_TIRTOS)
     extern double current_time();
 #else
 
@@ -1088,7 +1088,7 @@ static INLINE int CurrentDir(const char* str)
 
 #elif defined(CYASSL_MDK_ARM)
     /* KEIL-RL File System does not support relative directry */
-#elif defined(TIRTOS)
+#elif defined(CYASSL_TIRTOS)
 #else
 
 #ifndef MAX_PATH
@@ -1756,7 +1756,7 @@ static INLINE void SetupPkCallbacks(CYASSL_CTX* ctx, CYASSL* ssl)
 
 
 
-#if defined(__hpux__) || defined(__MINGW32__) || defined (TIRTOS)
+#if defined(__hpux__) || defined(__MINGW32__) || defined (CYASSL_TIRTOS)
 
 /* HP/UX doesn't have strsep, needed by test/suites.c */
 static INLINE char* strsep(char **stringp, const char *delim)

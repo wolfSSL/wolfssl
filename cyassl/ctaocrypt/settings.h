@@ -91,7 +91,7 @@
 /* #define CYASSL_IAR_ARM */
 
 /* Uncomment next line if using TI-RTOS settings */
-/* #define TIRTOS */
+/* #define CYASSL_TIRTOS */
 
 #include <cyassl/ctaocrypt/visibility.h>
 
@@ -281,7 +281,7 @@
     #endif
 #endif
 
-#ifdef TIRTOS
+#ifdef CYASSL_TIRTOS
     #define SIZEOF_LONG_LONG 8
     #define NO_WRITEV
     #define NO_CYASSL_DIR

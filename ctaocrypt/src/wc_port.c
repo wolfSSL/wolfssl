@@ -352,7 +352,7 @@ int UnLockMutex(CyaSSL_Mutex *m)
                 return BAD_MUTEX_E;
         }
 
-    #elif defined (TIRTOS)
+    #elif defined (CYASSL_TIRTOS)
 
         int InitMutex(CyaSSL_Mutex* m)
         {

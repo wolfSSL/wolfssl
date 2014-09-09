@@ -189,8 +189,8 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     (void)trackMemory;
     (void)pkCallbacks;
 
-#ifdef TIRTOS
-    fdOpenSession(TaskSelf());
+#ifdef CYASSL_TIRTOS
+    fdOpenSession(Task_self());
 #endif
 
     while ((ch = mygetopt(argc, argv, "?dbstnNufPp:v:l:A:c:k:S:oO:")) != -1) {
@@ -525,7 +525,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
         
     #if defined(CYASSL_MDK_SHELL) && defined(HAVE_MDK_RTX)
         os_dly_wait(500) ;
-    #elif defined (TIRTOS)
+    #elif defined (CYASSL_TIRTOS)
         Task_yield();
     #endif
 
@@ -541,11 +541,11 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
         ShowMemoryTracker();
 #endif /* USE_CYASSL_MEMORY */
 
-#ifdef TIRTOS
-    fdCloseSession(TaskSelf());
+#ifdef CYASSL_TIRTOS
+    fdCloseSession(Task_self());
 #endif
 
-#ifndef TIRTOS
+#ifndef CYASSL_TIRTOS
     return 0;
 #endif
 }

@@ -1500,7 +1500,7 @@ void bench_eccKeyAgree(void)
         return (double)tickCount / 1000;
     }
 
-#elif defined (TIRTOS)
+#elif defined (CYASSL_TIRTOS)
 
     extern double current_time(int reset);
 

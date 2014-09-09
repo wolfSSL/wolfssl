@@ -78,8 +78,7 @@ for (arg = 0; arg < arguments.length; arg++) {
 
 /* Include Path (needed to find NDK headers) */
 var ndkPath = "$(NDK_INSTALL_DIR)/packages/ti/ndk/";
-var cyasslPathInclude = " -I" + ndkPath + "/inc" + " -I" + ndkPath 
-                        + "/inc/bsd -DTIRTOS ";
+var cyasslPathInclude = " -I" + ndkPath + "/inc/bsd -DCYASSL_TIRTOS ";
 
 /* lib/ is a generated directory that 'xdc clean' should remove */
 var Pkg = xdc.useModule('xdc.bld.PackageContents'); 

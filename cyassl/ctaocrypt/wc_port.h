@@ -62,7 +62,7 @@
     #endif
 #elif defined(CYASSL_CMSIS_RTOS)
     #include "cmsis_os.h"    
-#elif defined(TIRTOS)
+#elif defined(CYASSL_TIRTOS)
     #include <ti/sysbios/BIOS.h>
     #include <ti/sysbios/knl/Semaphore.h>
 #else
@@ -107,7 +107,7 @@
         #endif
     #elif defined(CYASSL_CMSIS_RTOS)
         typedef osMutexId CyaSSL_Mutex;
-    #elif defined(TIRTOS)
+    #elif defined(CYASSL_TIRTOS)
         typedef ti_sysbios_knl_Semaphore_Handle CyaSSL_Mutex;
     #else
         #error Need a mutex type in multithreaded mode

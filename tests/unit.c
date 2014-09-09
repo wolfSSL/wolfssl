@@ -34,7 +34,7 @@ int unit_test(int argc, char** argv)
         err_sys("Cavium OpenNitroxDevice failed");
 #endif /* HAVE_CAVIUM */
 
-#ifndef TIRTOS
+#ifndef CYASSL_TIRTOS
     if (CurrentDir("tests") || CurrentDir("_build"))
         ChangeDirBack(1);
     else if (CurrentDir("Debug") || CurrentDir("Release"))
@@ -91,7 +91,7 @@ void start_thread(THREAD_FUNC fun, func_args* args, THREAD_TYPE* thread)
 #elif defined(_POSIX_THREADS) && !defined(__MINGW32__)
     pthread_create(thread, 0, fun, args);
     return;
-#elif defined (TIRTOS)
+#elif defined (CYASSL_TIRTOS)
     /* Initialize the defaults and set the parameters. */
     Task_Params taskParams;
     Task_Params_init(&taskParams);
@@ -114,7 +114,7 @@ void join_thread(THREAD_TYPE thread)
     (void)thread;
 #elif defined(_POSIX_THREADS) && !defined(__MINGW32__)
     pthread_join(thread, 0);
-#elif defined (TIRTOS)
+#elif defined (CYASSL_TIRTOS)
     while(1) {
         if (Task_getMode(thread) == Task_Mode_TERMINATED) {
             Task_sleep(5);

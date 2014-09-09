@@ -317,7 +317,7 @@ time_t mqx_time(time_t* timer)
 
 #endif /* FREESCALE_MQX */
 
-#ifdef TIRTOS
+#ifdef CYASSL_TIRTOS
 
 time_t XTIME(time_t * timer)
 {
@@ -331,7 +331,7 @@ time_t XTIME(time_t * timer)
     return sec;
 }
 
-#endif /* TIRTOS */
+#endif /* CYASSL_TIRTOS */
 
 static INLINE word32 btoi(byte b)
 {

@@ -846,7 +846,7 @@ int GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         return 0;
     }
 
-#elif defined(TIRTOS)
+#elif defined(CYASSL_TIRTOS)
 
     #include <xdc/runtime/Timestamp.h>
     #include <stdlib.h>

@@ -69,7 +69,7 @@
         #define RNG CyaSSL_RNG 
         /* for avoiding name conflict in "stm32f2xx.h" */
         static int errno;
-    #elif defined(TIRTOS)
+    #elif defined(CYASSL_TIRTOS)
         #include <sys/socket.h>
     #elif defined(CYASSL_IAR_ARM)
         /* nothing */

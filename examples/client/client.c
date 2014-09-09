@@ -732,7 +732,7 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
             SOCKADDR_IN_T addr;
             #ifdef USE_WINDOWS_API 
                 Sleep(500);
-            #elif defined(TIRTOS)
+            #elif defined(CYASSL_TIRTOS)
                 Task_sleep(1);
             #else
                 sleep(1);
@@ -774,7 +774,7 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
             /* give server a chance to bounce a message back to client */
             #ifdef USE_WINDOWS_API
                 Sleep(500);
-            #elif defined(TIRTOS)
+            #elif defined(CYASSL_TIRTOS)
                 Task_sleep(1);
             #else
                 sleep(1);
@@ -805,7 +805,7 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
         ShowMemoryTracker();
 #endif /* USE_CYASSL_MEMORY */
 
-#if !defined(TIRTOS)
+#if !defined(CYASSL_TIRTOS)
     return 0;
 #endif
 }

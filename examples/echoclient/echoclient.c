@@ -262,7 +262,7 @@ void echoclient_test(void* args)
 #if defined(DEBUG_CYASSL) && !defined(CYASSL_MDK_SHELL)
         CyaSSL_Debugging_ON();
 #endif
-#ifndef TIRTOS
+#ifndef CYASSL_TIRTOS
         if (CurrentDir("echoclient"))
             ChangeDirBack(2);
         else if (CurrentDir("Debug") || CurrentDir("Release"))

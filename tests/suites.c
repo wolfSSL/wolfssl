@@ -121,7 +121,7 @@ static int execute_test_case(int svr_argc, char** svr_argv,
                               int cli_argc, char** cli_argv,
                               int addNoVerify, int addNonBlocking)
 {
-#ifdef TIRTOS
+#ifdef CYASSL_TIRTOS
     func_args cliArgs = {0};
     func_args svrArgs = {0};
     cliArgs.argc = cli_argc;
@@ -192,7 +192,7 @@ static int execute_test_case(int svr_argc, char** svr_argv,
             strcat(commandLine, flagSep);
         }
     }
-    #if !defined(USE_WINDOWS_API) && !defined(TIRTOS)
+    #if !defined(USE_WINDOWS_API) && !defined(CYASSL_TIRTOS)
         /* add port 0 */
         if (svr_argc + 2 > MAX_ARGS)
             printf("cannot add the magic port number flag to server\n");
@@ -231,15 +231,15 @@ static int execute_test_case(int svr_argc, char** svr_argv,
 
     InitTcpReady(&ready);
 
-#ifdef TIRTOS
-    fdOpenSession(TaskSelf());
+#ifdef CYASSL_TIRTOS
+    fdOpenSession(Task_self());
 #endif
 
     /* start server */
     svrArgs.signal = &ready;
     start_thread(server_test, &svrArgs, &serverThread);
     wait_tcp_ready(&svrArgs);
-    #if !defined(USE_WINDOWS_API) && !defined(TIRTOS)
+    #if !defined(USE_WINDOWS_API) && !defined(CYASSL_TIRTOS)
         if (ready.port != 0)
         {
             if (cli_argc + 2 > MAX_ARGS)
@@ -268,8 +268,8 @@ static int execute_test_case(int svr_argc, char** svr_argv,
         exit(EXIT_FAILURE);
     }
 
-#ifdef TIRTOS
-    fdCloseSession(TaskSelf());
+#ifdef CYASSL_TIRTOS
+    fdCloseSession(Task_self());
 #endif
     FreeTcpReady(&ready);
     

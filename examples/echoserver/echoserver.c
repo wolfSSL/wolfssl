@@ -116,15 +116,15 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
 
     #if defined(NO_MAIN_DRIVER) && !defined(USE_WINDOWS_API) && \
         !defined(CYASSL_SNIFFER) && !defined(CYASSL_MDK_SHELL) && \
-        !defined(TIRTOS)
+        !defined(CYASSL_TIRTOS)
         port = 0;
     #endif
     #if defined(USE_ANY_ADDR)
         useAnyAddr = 1;
     #endif
 
-#ifdef TIRTOS
-    fdOpenSession(TaskSelf());
+#ifdef CYASSL_TIRTOS
+    fdOpenSession(Task_self());
 #endif
 
     tcp_listen(&sockfd, &port, useAnyAddr, doDTLS);
@@ -328,11 +328,11 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
 
     ((func_args*)args)->return_code = 0;
 
-#ifdef TIRTOS
-    fdCloseSession(TaskSelf());
+#ifdef CYASSL_TIRTOS
+    fdCloseSession(Task_self());
 #endif
 
-#ifndef TIRTOS
+#ifndef CYASSL_TIRTOS
     return 0;
 #endif
 }

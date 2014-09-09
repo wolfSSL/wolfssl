@@ -2500,7 +2500,7 @@ ProtocolVersion MakeDTLSv1_2(void)
         return (word32) mqxTime.SECONDS;
     }
 
-#elif defined(TIRTOS)
+#elif defined(CYASSL_TIRTOS)
 
     word32 LowResTimer(void)
     {
