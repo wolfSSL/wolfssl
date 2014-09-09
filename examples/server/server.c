@@ -24,6 +24,9 @@
 #endif
 
 #include <cyassl/ctaocrypt/settings.h>
+#ifdef HAVE_ECC
+    #include <cyassl/ctaocrypt/ecc.h>   /* ecc_fp_free */
+#endif
 
 #if !defined(CYASSL_TRACK_MEMORY) && !defined(NO_MAIN_DRIVER)
     /* in case memory tracker wants stats */
@@ -536,10 +539,16 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     CloseSocket(clientfd);
     ((func_args*)args)->return_code = 0;
 
+
+#if defined(NO_MAIN_DRIVER) && defined(HAVE_ECC) && defined(FP_ECC) \
+                            && defined(HAVE_THREAD_LS)
+    ecc_fp_free();  /* free per thread cache */
+#endif
+
 #ifdef USE_CYASSL_MEMORY
     if (trackMemory)
         ShowMemoryTracker();
-#endif /* USE_CYASSL_MEMORY */
+#endif
 
 #ifdef CYASSL_TIRTOS
     fdCloseSession(Task_self());

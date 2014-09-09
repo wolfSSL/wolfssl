@@ -460,6 +460,7 @@ int SuiteTest(void)
     printf(" End Cipher Suite Tests\n");
 
     CyaSSL_CTX_free(cipherSuiteCtx);
+    CyaSSL_Cleanup();
 
     return args.return_code;
 }

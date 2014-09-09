@@ -24,6 +24,9 @@
 #endif
 
 #include <cyassl/ctaocrypt/settings.h>
+#ifdef HAVE_ECC
+    #include <cyassl/ctaocrypt/ecc.h>   /* ecc_fp_free */
+#endif
 
 #if defined(CYASSL_MDK_ARM)
         #include <stdio.h>
@@ -327,6 +330,11 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
 #endif
 
     ((func_args*)args)->return_code = 0;
+
+#if defined(NO_MAIN_DRIVER) && defined(HAVE_ECC) && defined(FP_ECC) \
+                            && defined(HAVE_THREAD_LS)
+    ecc_fp_free();  /* free per thread cache */
+#endif
 
 #ifdef CYASSL_TIRTOS
     fdCloseSession(Task_self());

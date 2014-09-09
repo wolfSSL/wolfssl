@@ -250,6 +250,9 @@ int benchmark_test(void *args)
 #ifdef HAVE_ECC 
     bench_eccKeyGen();
     bench_eccKeyAgree();
+    #if defined(FP_ECC)
+        ecc_fp_free();
+    #endif
 #endif
 
     return 0;
