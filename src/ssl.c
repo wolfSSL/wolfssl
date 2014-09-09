@@ -5210,78 +5210,24 @@ int CyaSSL_Cleanup(void)
 
 #ifndef NO_SESSION_CACHE
 
-#ifndef NO_MD5
 
 /* some session IDs aren't random afterall, let's make them random */
-
 static INLINE word32 HashSession(const byte* sessionID, word32 len, int* error)
 {
     byte digest[MD5_DIGEST_SIZE];
-    Md5  md5;
 
-    (void)error;
-
-    InitMd5(&md5);
-    Md5Update(&md5, sessionID, len);
-    Md5Final(&md5, digest);
-
-    return MakeWordFromHash(digest);
-}
-
+#ifndef NO_MD5
+    *error =    Md5Hash(sessionID, len, digest);
 #elif !defined(NO_SHA)
-
-/* 0 on failure */
-static INLINE word32 HashSession(const byte* sessionID, word32 len, int* error)
-{
-    byte digest[SHA_DIGEST_SIZE];
-    Sha  sha;
-    int  ret = 0;
-
-    ret = InitSha(&sha);
-    if (ret != 0) {
-        *error = ret;
-        return 0;
-    }
-    ShaUpdate(&sha, sessionID, len);
-    ShaFinal(&sha, digest);
-
-    return MakeWordFromHash(digest);
-}
-
+    *error =    ShaHash(sessionID, len, digest);
 #elif !defined(NO_SHA256)
-
-static INLINE word32 HashSession(const byte* sessionID, word32 len, int* error)
-{
-    byte    digest[SHA256_DIGEST_SIZE];
-    Sha256  sha256;
-    int     ret;
-
-    ret = InitSha256(&sha256);
-    if (ret != 0) {
-        *error = ret;
-        return 0;
-    }
-
-    ret = Sha256Update(&sha256, sessionID, len);
-    if (ret != 0) {
-        *error = ret;
-        return 0;
-    }
-
-    ret = Sha256Final(&sha256, digest);
-    if (ret != 0) {
-        *error = ret;
-        return 0;
-    }
-
-    return MakeWordFromHash(digest);
-}
-
+    *error = Sha256Hash(sessionID, len, digest);
 #else
+    #error "We need a digest to hash the session IDs"
+#endif
 
-#error "We need a digest to hash the session IDs"
-
-#endif /* NO_MD5 */
+    return *error == 0 ? MakeWordFromHash(digest) : 0; /* 0 on failure */
+}
 
 
 void CyaSSL_flush_sessions(CYASSL_CTX* ctx, long tm)
@@ -6680,19 +6626,27 @@ int CyaSSL_set_compression(CYASSL* ssl)
                        const CYASSL_EVP_MD* md, const byte* salt,
                        const byte* data, int sz, int count, byte* key, byte* iv)
     {
-        int keyLen = 0;
-        int ivLen  = 0;
+        int  keyLen = 0;
+        int  ivLen  = 0;
+        int  j;
+        int  keyLeft;
+        int  ivLeft;
+        int  keyOutput = 0;
+        byte digest[MD5_DIGEST_SIZE];
+    #ifdef CYASSL_SMALL_STACK
+        Md5* md5;
+    #else
+        Md5  md5[1];
+    #endif
 
-        Md5    myMD;
-        byte   digest[MD5_DIGEST_SIZE];
-
-        int j;
-        int keyLeft;
-        int ivLeft;
-        int keyOutput = 0;
+    #ifdef CYASSL_SMALL_STACK
+        md5 = (Md5*)XMALLOC(sizeof(Md5), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        if (md5 == NULL)
+            return 0;
+    #endif
 
         CYASSL_ENTER("EVP_BytesToKey");
-        InitMd5(&myMD);
+        InitMd5(md5);
 
         /* only support MD5 for now */
         if (XSTRNCMP(md, "MD5", 3) != 0) return 0;
@@ -6718,8 +6672,12 @@ int CyaSSL_set_compression(CYASSL* ssl)
             keyLen = AES_256_KEY_SIZE;
             ivLen  = AES_IV_SIZE;
         }
-        else
-            return 0;
+        else {
+        #ifdef CYASSL_SMALL_STACK
+            XFREE(md5, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        #endif
+            return 0;            
+        }
 
         keyLeft   = keyLen;
         ivLeft    = ivLen;
@@ -6728,17 +6686,17 @@ int CyaSSL_set_compression(CYASSL* ssl)
             int digestLeft = MD5_DIGEST_SIZE;
             /* D_(i - 1) */
             if (keyOutput)                      /* first time D_0 is empty */
-                Md5Update(&myMD, digest, MD5_DIGEST_SIZE);
+                Md5Update(md5, digest, MD5_DIGEST_SIZE);
             /* data */
-            Md5Update(&myMD, data, sz);
+            Md5Update(md5, data, sz);
             /* salt */
             if (salt)
-                Md5Update(&myMD, salt, EVP_SALT_SIZE);
-            Md5Final(&myMD, digest);
+                Md5Update(md5, salt, EVP_SALT_SIZE);
+            Md5Final(md5, digest);
             /* count */
             for (j = 1; j < count; j++) {
-                Md5Update(&myMD, digest, MD5_DIGEST_SIZE);
-                Md5Final(&myMD, digest);
+                Md5Update(md5, digest, MD5_DIGEST_SIZE);
+                Md5Final(md5, digest);
             }
 
             if (keyLeft) {
@@ -6758,9 +6716,12 @@ int CyaSSL_set_compression(CYASSL* ssl)
                 ivLeft    -= store;
             }
         }
-        if (keyOutput != (keyLen + ivLen))
-            return 0;
-        return keyOutput;
+
+    #ifdef CYASSL_SMALL_STACK
+        XFREE(md5, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
+
+        return keyOutput == (keyLen + ivLen) ? keyOutput : 0;
     }
 
 #endif /* OPENSSL_EXTRA || HAVE_WEBSERVER */
