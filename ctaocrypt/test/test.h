@@ -25,7 +25,7 @@
     extern "C" {
 #endif
 
-void ctaocrypt_test(void* args);
+int ctaocrypt_test(void* args);
 
 #ifdef __cplusplus
     }  /* extern "C" */

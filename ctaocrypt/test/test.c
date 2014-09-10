@@ -192,11 +192,11 @@ int pbkdf2_test(void);
 
 
 
-static void err_sys(const char* msg, int es)
+static int err_sys(const char* msg, int es)
 
 {
     printf("%s error = %d\n", msg, es);
-    return;
+    return -1; /* error state */
 }
 
 /* func_args from test.h, so don't have to pull in other junk */
@@ -208,7 +208,7 @@ typedef struct func_args {
 
 
 
-void ctaocrypt_test(void* args)
+int ctaocrypt_test(void* args)
 {
     int ret = 0;
 
@@ -498,6 +498,8 @@ void ctaocrypt_test(void* args)
 #endif
 
     ((func_args*)args)->return_code = ret;
+
+    return ret;
 }
 
 
