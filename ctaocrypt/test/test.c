@@ -3009,6 +3009,7 @@ int rsa_test(void)
     if (!file) {
         err_sys("can't open ./certs/client-key.der, "
                 "Please run from CyaSSL home dir", -40);
+        free(tmp);
         return -40;
     }
 

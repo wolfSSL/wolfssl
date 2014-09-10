@@ -649,7 +649,7 @@ static void InitSuitesHashSigAlgo(Suites* suites, int haveECDSAsig,
         #endif
     }
 
-    suites->hashSigAlgoSz = idx;
+    suites->hashSigAlgoSz = (word16)idx;
 }
 
 void InitSuites(Suites* suites, ProtocolVersion pv, byte haveRSA, byte havePSK,
