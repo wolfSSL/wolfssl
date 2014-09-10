@@ -4123,7 +4123,8 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx,
                 ret = KEYUSE_ENCIPHER_E;
             }
             if ((ssl->specs.sig_algo == rsa_sa_algo ||
-                    ssl->specs.sig_algo == ecc_dsa_sa_algo) &&
+                    (ssl->specs.sig_algo == ecc_dsa_sa_algo &&
+                         !ssl->specs.static_ecdh)) &&
                 (dCert.extKeyUsage & KEYUSE_DIGITAL_SIG) == 0) {
                 CYASSL_MSG("KeyUse Digital Sig not set");
                 ret = KEYUSE_SIGNATURE_E;
