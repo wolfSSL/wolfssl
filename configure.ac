@@ -6,7 +6,7 @@
 #
 #
 
-AC_INIT([cyassl],[3.1.2],[https://github.com/cyassl/cyassl/issues],[cyassl],[http://www.wolfssl.com])
+AC_INIT([cyassl],[3.2.0],[https://github.com/cyassl/cyassl/issues],[cyassl],[http://www.wolfssl.com])
 
 AC_CONFIG_AUX_DIR([build-aux])
 
@@ -31,7 +31,7 @@ AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_HEADERS([config.h:config.in])dnl Keep filename to 8.3 for MS-DOS.
 
 #shared library versioning
-CYASSL_LIBRARY_VERSION=5:6:0
+CYASSL_LIBRARY_VERSION=6:0:1
 #                      | | |
 #               +------+ | +---+
 #               |        |     |
