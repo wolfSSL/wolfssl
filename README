@@ -34,8 +34,32 @@ before calling SSL_new();  Though it's not recommended.
 
 *** end Notes ***
 
+CyaSSL Release 3.2.0 (09/10/2014)
 
-CyaSSL Release 3.1.0 (07/14/2014)
+Release 3.2.0 CyaSSL has bug fixes and new features including:
+
+- ChaCha20 and Poly1305 crypto and suites
+- Small stack improvements for OCSP, CRL, TLS, DTLS
+- NTRU Encrypt and Decrypt benchmarks
+- Updated Visual Studio project files
+- Updated Keil MDK5 project files
+- Fix for DTLS sequence numbers with GCM/CCM
+- Updated HashDRBG with more secure struct declaration
+- TI-RTOS support and example Code Composer Studio project files
+- Ability to get enabled cipher suites, CyaSSL_get_ciphers()
+- AES-GCM/CCM/Direct support for Freescale mmCAU and CAU
+- Sniffer improvement checking for decrypt key setup
+- Support for raw ECC key import
+- Ability to convert ecc_key to DER, EccKeyToDer()
+- Security fix for RSA Padding check vulnerability reported by Intel Security
+  Advanced Threat Research team
+
+The CyaSSL manual is available at:
+http://www.wolfssl.com/documentation/CyaSSL-Manual.pdf.  For build instructions
+and comments about the new features please check the manual.
+
+
+************ CyaSSL Release 3.1.0 (07/14/2014)
 
 Release 3.1.0 CyaSSL has bug fixes and new features including:
 
@@ -53,7 +77,7 @@ Release 3.1.0 CyaSSL has bug fixes and new features including:
 - Updated example certificates
 
 The CyaSSL manual is available at:
-http://www.yassl.com/documentation/CyaSSL-Manual.pdf.  For build instructions
+http://www.wolfssl.com/documentation/CyaSSL-Manual.pdf.  For build instructions
 and comments about the new features please check the manual.
 
 
@@ -79,7 +103,7 @@ Release 3.0.2 CyaSSL has bug fixes and new features including:
 - Updated the Hash DRBG and provided a configure option to enable.
 
 The CyaSSL manual is available at:
-http://www.yassl.com/documentation/CyaSSL-Manual.pdf.  For build instructions
+http://www.wolfssl.com/documentation/CyaSSL-Manual.pdf.  For build instructions
 and comments about the new features please check the manual.
 
 
@@ -95,7 +119,7 @@ Release 3.0.0 CyaSSL has bug fixes and new features including:
 - Updated AES-CCM-8 cipher suites to use approved suite numbers.
 
 The CyaSSL manual is available at:
-http://www.yassl.com/documentation/CyaSSL-Manual.pdf.  For build instructions
+http://www.wolfssl.com/documentation/CyaSSL-Manual.pdf.  For build instructions
 and comments about the new features please check the manual.
 
 
@@ -117,7 +141,7 @@ Release 2.9.4 CyaSSL has bug fixes and new features including:
   handling and reduce memory fragmentation on I/O large sizes
 
 The CyaSSL manual is available at:
-http://www.yassl.com/documentation/CyaSSL-Manual.pdf.  For build instructions 
+http://www.wolfssl.com/documentation/CyaSSL-Manual.pdf.  For build instructions 
 and comments about the new features please check the manual.
 
 
@@ -175,7 +199,7 @@ Release 2.8.0 CyaSSL has bug fixes and new features including:
 
 
 The CyaSSL manual is available at:
-http://www.yassl.com/documentation/CyaSSL-Manual.pdf.  For build instructions 
+http://www.wolfssl.com/documentation/CyaSSL-Manual.pdf.  For build instructions 
 and comments about the new features please check the manual.
 
 
@@ -209,7 +233,7 @@ If so, examples and testsuite will have problems when run, showing an
 error while loading shared libraries. To resolve, please run "make install".
 
 The CyaSSL manual is available at:
-http://www.yassl.com/documentation/CyaSSL-Manual.pdf.  For build instructions 
+http://www.wolfssl.com/documentation/CyaSSL-Manual.pdf.  For build instructions 
 and comments about the new features please check the manual.
 
 
@@ -262,7 +286,7 @@ Release 2.6.0 CyaSSL has bug fixes and new features including:
   automake to 1.11 and autoconf to 2.63
 
 The CyaSSL manual is available at:
-http://www.yassl.com/documentation/CyaSSL-Manual.pdf.  For build instructions 
+http://www.wolfssl.com/documentation/CyaSSL-Manual.pdf.  For build instructions 
 and comments about the new features please check the manual.
 
 
@@ -310,7 +334,7 @@ STM32F2 Standard Peripheral Library can be found in the following document:
 http://www.st.com/internet/com/TECHNICAL_RESOURCES/TECHNICAL_LITERATURE/USER_MANUAL/DM00023896.pdf
 
 The CyaSSL manual is available at:
-http://www.yassl.com/documentation/CyaSSL-Manual.pdf.  For build instructions 
+http://www.wolfssl.com/documentation/CyaSSL-Manual.pdf.  For build instructions 
 and comments about the new features please check the manual.
 
 
@@ -338,7 +362,7 @@ K70 Sub-Family Reference Manual:
 http://cache.freescale.com/files/microcontrollers/doc/ref_manual/K70P256M150SF3RM.pdf
 
 The CyaSSL manual is available at:
-http://www.yassl.com/documentation/CyaSSL-Manual.pdf.  For build instructions 
+http://www.wolfssl.com/documentation/CyaSSL-Manual.pdf.  For build instructions 
 and comments about the new features please check the manual.
 
 
@@ -350,7 +374,7 @@ Release 2.4.0 CyaSSL has bug fixes and a few new features including:
 - Updated build process
 
 The CyaSSL manual is available at:
-http://www.yassl.com/documentation/CyaSSL-Manual.pdf.  For build instructions 
+http://www.wolfssl.com/documentation/CyaSSL-Manual.pdf.  For build instructions 
 and comments about the new features please check the manual.
 
 
@@ -369,7 +393,7 @@ Release 2.3.0 CyaSSL has bug fixes and a few new features including:
 - DTLS Cookie support, reliability coming soon
 
 The CyaSSL manual is available at:
-http://www.yassl.com/documentation/CyaSSL-Manual.pdf.  For build instructions 
+http://www.wolfssl.com/documentation/CyaSSL-Manual.pdf.  For build instructions 
 and comments about the new features please check the manual.
 
 
@@ -388,7 +412,7 @@ Release 2.2.0 CyaSSL has bug fixes and a few new features including:
 
 
 The CyaSSL manual is available at:
-http://www.yassl.com/documentation/CyaSSL-Manual.pdf.  For build instructions 
+http://www.wolfssl.com/documentation/CyaSSL-Manual.pdf.  For build instructions 
 and comments about the new features please check the manual.
 
 
@@ -405,7 +429,7 @@ Release 2.0.8 CyaSSL has bug fixes and a few new features including:
 
 
 The CyaSSL manual is available at:
-http://www.yassl.com/documentation/CyaSSL-Manual.pdf.  For build instructions 
+http://www.wolfssl.com/documentation/CyaSSL-Manual.pdf.  For build instructions 
 and comments about the new features please check the manual.
 
 
@@ -424,7 +448,7 @@ Release 2.0.6 CyaSSL has bug fixes and a few new features including:
 - Export Base64_Encode for general use
 
 The CyaSSL manual is available at:
-http://www.yassl.com/documentation/CyaSSL-Manual.pdf.  For build instructions 
+http://www.wolfssl.com/documentation/CyaSSL-Manual.pdf.  For build instructions 
 and comments about the new features please check the manual.
 
 
@@ -441,7 +465,7 @@ Release 2.0.2 CyaSSL has bug fixes and a few new features including:
 - Microchip pic32 support
 
 The CyaSSL manual is available at:
-http://www.yassl.com/documentation/CyaSSL-Manual.pdf.  For build instructions 
+http://www.wolfssl.com/documentation/CyaSSL-Manual.pdf.  For build instructions 
 and comments about the new features please check the manual.
 
 
@@ -465,7 +489,7 @@ changes are required.
 Special Thanks to Brian Aker for his autoconf, install, and header patches.
 
 The CyaSSL manual is available at:
-http://www.yassl.com/documentation/CyaSSL-Manual.pdf.  For build instructions 
+http://www.wolfssl.com/documentation/CyaSSL-Manual.pdf.  For build instructions 
 and comments about the new features please check the manual.
 
 ************CyaSSL Release 2.0.0rc2 (6/6/2011)
@@ -481,10 +505,10 @@ Release 2.0.0rc2 for CyaSSL has bug fixes and a few new features including:
 - and more.
 
 This is the 2nd and perhaps final release candidate for version 2.
-Please send any comments or questions to support@yassl.com.
+Please send any comments or questions to support@wolfssl.com.
 
 The CyaSSL manual is available at:
-http://www.yassl.com/documentation/CyaSSL-Manual.pdf.  For build instructions 
+http://www.wolfssl.com/documentation/CyaSSL-Manual.pdf.  For build instructions 
 and comments about the new features please check the manual.
 
 ***********CyaSSL Release 2.0.0rc1 (5/2/2011)
@@ -514,10 +538,10 @@ Release 2.0.0rc1 for CyaSSL has many new features including:
 
 Because of all the new features and the multiple OS, compiler, feature-set
 options that CyaSSL allows, there may be some configuration fixes needed.
-Please send any comments or questions to support@yassl.com.
+Please send any comments or questions to support@wolfssl.com.
 
 The CyaSSL manual is available at:
-http://www.yassl.com/documentation/CyaSSL-Manual.pdf.  For build instructions 
+http://www.wolfssl.com/documentation/CyaSSL-Manual.pdf.  For build instructions 
 and comments about the new features please check the manual.
 
 ****************** CyaSSL Release 1.9.0 (3/2/2011)
@@ -530,7 +554,7 @@ more.
 The CyaSSL manual offering is included in the doc/ directory.  For build
 instructions and comments about the new features please check the manual.
 
-Please send any comments or questions to support@yassl.com.
+Please send any comments or questions to support@wolfssl.com.
 
 ****************** CyaSSL Release 1.8.0 (12/23/2010)
 
@@ -542,7 +566,7 @@ suites when used in conjunction with an NTRU license and library.
 The initial CyaSSL manual offering is included in the doc/ directory.  For
 build instructions and comments about the new features please check the manual.
 
-Please send any comments or questions to support@yassl.com.
+Please send any comments or questions to support@wolfssl.com.
 
 Happy Holidays.
  
@@ -626,7 +650,7 @@ WinPcap on windows.
 
 A swig interface file is now located in the swig directory for using Python,
 Java, Perl, and others with CyaSSL.  This is initial support and experimental,
-please send questions or comments to support@yassl.com.
+please send questions or comments to support@wolfssl.com.
 
 When doing load testing with CyaSSL, on the echoserver example say, the client
 machine may run out of tcp ephemeral ports, they will end up in the TIME_WAIT
@@ -737,7 +761,7 @@ make
 
 This should remove any confusion the linker may be having with missing symbols.
 
-For any questions or concerns please contact support@yassl.com .
+For any questions or concerns please contact support@wolfssl.com .
 
 For general build instructions see rc1 below.
 
@@ -833,7 +857,7 @@ Many thanks to Thierry Fournier for providing these ideas and most of the work.
 Because of these changes, this release is only a candidate since some problems
 are probably inevitable on some platform with some I/O use.  Please report any
 problems and we'll try to resolve them as soon as possible.  You can contact us
-at support@yassl.com or todd@yassl.com.
+at support@wolfssl.com or todd@wolfssl.com.
 
 Using TomsFastMath by passing --enable-fastmath to ./configure now uses assembly
 on some platforms.  This is new so please report any problems as every compiler,
@@ -1040,5 +1064,5 @@ Run the testsuite program
 compatibility functions.
 
 
-Please send questions or comments to todd@yassl.com
+Please send questions or comments to todd@wolfssl.com
 
