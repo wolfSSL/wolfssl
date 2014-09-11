@@ -36,6 +36,31 @@ before calling SSL_new();  Though it's not recommended.
 ```
 
 
+# CyaSSL Release 3.2.0 (09/10/2014)
+
+#### Release 3.2.0 CyaSSL has bug fixes and new features including:
+
+- ChaCha20 and Poly1305 crypto and suites
+- Small stack improvements for OCSP, CRL, TLS, DTLS
+- NTRU Encrypt and Decrypt benchmarks
+- Updated Visual Studio project files
+- Updated Keil MDK5 project files
+- Fix for DTLS sequence numbers with GCM/CCM
+- Updated HashDRBG with more secure struct declaration
+- TI-RTOS support and example Code Composer Studio project files
+- Ability to get enabled cipher suites, CyaSSL_get_ciphers()
+- AES-GCM/CCM/Direct support for Freescale mmCAU and CAU
+- Sniffer improvement checking for decrypt key setup
+- Support for raw ECC key import
+- Ability to convert ecc_key to DER, EccKeyToDer()
+- Security fix for RSA Padding check vulnerability reported by Intel Security
+  Advanced Threat Research team
+
+The CyaSSL manual is available at:
+http://www.wolfssl.com/documentation/CyaSSL-Manual.pdf.  For build instructions
+and comments about the new features please check the manual.
+
+
 # CyaSSL Release 3.1.0 (07/14/2014)
 
 #### Release 3.1.0 CyaSSL has bug fixes and new features including:
