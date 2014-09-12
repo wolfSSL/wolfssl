@@ -10930,7 +10930,7 @@ static int SetRsaExternal(CYASSL_RSA* rsa)
 int CyaSSL_RSA_generate_key_ex(CYASSL_RSA* rsa, int bits, CYASSL_BIGNUM* bn,
                                void* cb)
 {
-    RNG rng;
+    int ret = SSL_FATAL_ERROR;
 
     CYASSL_MSG("CyaSSL_RSA_generate_key_ex");
 
@@ -10939,30 +10939,39 @@ int CyaSSL_RSA_generate_key_ex(CYASSL_RSA* rsa, int bits, CYASSL_BIGNUM* bn,
     (void)cb;
     (void)bn;
 
-    if (InitRng(&rng) < 0) {
-        CYASSL_MSG("RNG init failed");
-        return SSL_FATAL_ERROR;
-    }
-
 #ifdef CYASSL_KEY_GEN
-    if (MakeRsaKey((RsaKey*)rsa->internal, bits, 65537, &rng) < 0) {
-        CYASSL_MSG("MakeRsaKey failed");
-        return SSL_FATAL_ERROR;
+    {
+    #ifdef CYASSL_SMALL_STACK
+        RNG* rng = NULL;
+    #else
+        RNG  rng[1];
+    #endif
+
+    #ifdef CYASSL_SMALL_STACK
+        rng = (RNG*)XMALLOC(sizeof(RNG), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        if (rng == NULL)
+            return SSL_FATAL_ERROR;
+    #endif
+
+        if (InitRng(rng) < 0)
+            CYASSL_MSG("RNG init failed");
+        else if (MakeRsaKey((RsaKey*)rsa->internal, bits, 65537, rng) < 0)
+            CYASSL_MSG("MakeRsaKey failed");
+        else if (SetRsaExternal(rsa) < 0)
+            CYASSL_MSG("SetRsaExternal failed");
+        else {
+            rsa->inSet = 1;
+            ret = SSL_SUCCESS;
+        }
+
+    #ifdef CYASSL_SMALL_STACK
+        XFREE(rng, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
     }
-
-    if (SetRsaExternal(rsa) < 0) {
-        CYASSL_MSG("SetRsaExternal failed");
-        return SSL_FATAL_ERROR;
-    }
-
-    rsa->inSet = 1;
-
-    return SSL_SUCCESS;
 #else
     CYASSL_MSG("No Key Gen built in");
-    return SSL_FATAL_ERROR;
 #endif
-
+    return ret;
 }
 
 
