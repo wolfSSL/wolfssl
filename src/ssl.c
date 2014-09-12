@@ -11025,36 +11025,50 @@ int CyaSSL_RSA_size(const CYASSL_RSA* rsa)
 int CyaSSL_DSA_do_sign(const unsigned char* d, unsigned char* sigRet,
                        CYASSL_DSA* dsa)
 {
-    RNG    tmpRNG;
-    RNG*   rng = &tmpRNG;
+    int    ret = SSL_FATAL_ERROR;
+    RNG*   rng = NULL;
+#ifdef CYASSL_SMALL_STACK
+    RNG*   tmpRNG = NULL;
+#else
+    RNG    tmpRNG[1];
+#endif
 
     CYASSL_MSG("CyaSSL_DSA_do_sign");
 
-    if (d == NULL || sigRet == NULL || dsa == NULL) {
+    if (d == NULL || sigRet == NULL || dsa == NULL)
         CYASSL_MSG("Bad function arguments");
-        return SSL_FATAL_ERROR;
-    }
-
-    if (dsa->inSet == 0) {
+    else if (dsa->inSet == 0)
         CYASSL_MSG("No DSA internal set");
-        return SSL_FATAL_ERROR;
-    }
-
-    if (InitRng(&tmpRNG) != 0) {
-        CYASSL_MSG("Bad RNG Init, trying global");
-        if (initGlobalRNG == 0) {
-            CYASSL_MSG("Global RNG no Init");
+    else {
+    #ifdef CYASSL_SMALL_STACK
+        tmpRNG = (RNG*)XMALLOC(sizeof(RNG), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        if (tmpRNG == NULL)
             return SSL_FATAL_ERROR;
+    #endif
+
+        if (InitRng(tmpRNG) == 0)
+            rng = tmpRNG;
+        else {
+            CYASSL_MSG("Bad RNG Init, trying global");
+            if (initGlobalRNG == 0)
+                CYASSL_MSG("Global RNG no Init");
+            else
+                rng = &globalRNG;
         }
-        rng = &globalRNG;
+
+        if (rng) {
+            if (DsaSign(d, sigRet, (DsaKey*)dsa->internal, rng) < 0)
+                CYASSL_MSG("DsaSign failed");
+            else
+                ret = SSL_SUCCESS;
+        }
+
+    #ifdef CYASSL_SMALL_STACK
+        XFREE(RNG, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
     }
 
-    if (DsaSign(d, sigRet, (DsaKey*)dsa->internal, rng) < 0) {
-        CYASSL_MSG("DsaSign failed");
-        return SSL_FATAL_ERROR;
-    }
-
-    return SSL_SUCCESS;
+    return ret;
 }
 #endif /* NO_DSA */
 
@@ -11103,9 +11117,8 @@ int CyaSSL_RSA_sign(int type, const unsigned char* m,
 
         if (outLen == 0)
             CYASSL_MSG("Bad RSA size");
-        else if (InitRng(tmpRNG) == 0) {
+        else if (InitRng(tmpRNG) == 0)
             rng = tmpRNG;
-        }
         else {
             CYASSL_MSG("Bad RNG Init, trying global");
 
