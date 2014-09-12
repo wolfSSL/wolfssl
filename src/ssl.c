@@ -10500,70 +10500,87 @@ int CyaSSL_DH_size(CYASSL_DH* dh)
 /* return SSL_SUCCESS on ok, else 0 */
 int CyaSSL_DH_generate_key(CYASSL_DH* dh)
 {
-    unsigned char pub [768];
-    unsigned char priv[768];
-    word32        pubSz  = sizeof(pub);
-    word32        privSz = sizeof(priv);
-    RNG           tmpRNG;
-    RNG*          rng = &tmpRNG;
+    int            ret    = 0;
+    word32         pubSz  = 768;
+    word32         privSz = 768;
+    RNG*           rng    = NULL;
+#ifdef CYASSL_SMALL_STACK
+    unsigned char* pub    = NULL;
+    unsigned char* priv   = NULL;
+    RNG*           tmpRNG = NULL;
+#else
+    unsigned char  pub [768];
+    unsigned char  priv[768];
+    RNG            tmpRNG[1];
+#endif
 
     CYASSL_MSG("CyaSSL_DH_generate_key");
 
-    if (dh == NULL || dh->p == NULL || dh->g == NULL) {
+#ifdef CYASSL_SMALL_STACK
+    tmpRNG = (RNG*)XMALLOC(sizeof(RNG),      NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    pub    = (unsigned char*)XMALLOC(pubSz,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    priv   = (unsigned char*)XMALLOC(privSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    if (tmpRNG == NULL || pub == NULL || priv == NULL) {
+        XFREE(tmpRNG, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(pub,    NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(priv,   NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        return ret;
+    }
+#endif
+
+    if (dh == NULL || dh->p == NULL || dh->g == NULL)
         CYASSL_MSG("Bad function arguments");
-        return 0;
-    }
-
-    if (dh->inSet == 0) {
-        if (SetDhInternal(dh) < 0) {
+    else if (dh->inSet == 0 && SetDhInternal(dh) < 0)
             CYASSL_MSG("Bad DH set internal");
-            return 0;
-        }
-    }
-
-    if ( (InitRng(&tmpRNG)) != 0) {
+    else if (InitRng(tmpRNG) == 0)
+        rng = tmpRNG;
+    else {
         CYASSL_MSG("Bad RNG Init, trying global");
-        if (initGlobalRNG == 0) {
+        if (initGlobalRNG == 0)
             CYASSL_MSG("Global RNG no Init");
-            return 0;
+        else
+            rng = &globalRNG;
+    }
+
+    if (rng) {
+       if (DhGenerateKeyPair((DhKey*)dh->internal, rng, priv, &privSz,
+                                                               pub, &pubSz) < 0)
+            CYASSL_MSG("Bad DhGenerateKeyPair");
+       else {
+            if (dh->pub_key)
+                CyaSSL_BN_free(dh->pub_key);
+   
+            dh->pub_key = CyaSSL_BN_new();
+            if (dh->pub_key == NULL)
+                CYASSL_MSG("Bad DH new pub");
+
+            if (dh->priv_key)
+                CyaSSL_BN_free(dh->priv_key);
+
+            dh->priv_key = CyaSSL_BN_new();
+
+            if (dh->priv_key == NULL)
+                CYASSL_MSG("Bad DH new priv");
+
+            if (dh->pub_key && dh->priv_key) {
+               if (CyaSSL_BN_bin2bn(pub, pubSz, dh->pub_key) == NULL)
+                   CYASSL_MSG("Bad DH bn2bin error pub");
+               else if (CyaSSL_BN_bin2bn(priv, privSz, dh->priv_key) == NULL)
+                   CYASSL_MSG("Bad DH bn2bin error priv");
+               else
+                   ret = SSL_SUCCESS;
+            }
         }
-        rng = &globalRNG;
     }
 
-    if (DhGenerateKeyPair((DhKey*)dh->internal, rng, priv, &privSz,
-                            pub, &pubSz) < 0) {
-        CYASSL_MSG("Bad DhGenerateKeyPair");
-        return 0;
-    }
+#ifdef CYASSL_SMALL_STACK
+    XFREE(tmpRNG, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(pub,    NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(priv,   NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 
-    if (dh->pub_key)
-        CyaSSL_BN_free(dh->pub_key);
-    dh->pub_key = CyaSSL_BN_new();
-    if (dh->pub_key == NULL) {
-        CYASSL_MSG("Bad DH new pub");
-        return 0;
-    }
-
-    if (dh->priv_key)
-        CyaSSL_BN_free(dh->priv_key);
-    dh->priv_key = CyaSSL_BN_new();
-    if (dh->priv_key == NULL) {
-        CYASSL_MSG("Bad DH new priv");
-        return 0;
-    }
-
-    if (CyaSSL_BN_bin2bn(pub, pubSz, dh->pub_key) == NULL) {
-        CYASSL_MSG("Bad DH bn2bin error pub");
-        return 0;
-    }
-
-    if (CyaSSL_BN_bin2bn(priv, privSz, dh->priv_key) == NULL) {
-        CYASSL_MSG("Bad DH bn2bin error priv");
-        return 0;
-    }
-
-    CYASSL_MSG("CyaSSL_generate_key success");
-    return SSL_SUCCESS;
+    return ret;
 }
 
 
