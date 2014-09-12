@@ -1182,7 +1182,7 @@ int CyaSSL_CertPemToDer(const unsigned char* pem, int pemSz,
     int            ret;
     buffer         der;
 #ifdef CYASSL_SMALL_STACK
-    EncryptedInfo* info;
+    EncryptedInfo* info = NULL;
 #else
     EncryptedInfo  info[1];
 #endif
@@ -1262,7 +1262,7 @@ int CyaSSL_KeyPemToDer(const unsigned char* pem, int pemSz, unsigned char* buff,
     int            ret;
     buffer         der;
 #ifdef CYASSL_SMALL_STACK
-    EncryptedInfo* info;
+    EncryptedInfo* info = NULL;
 #else
     EncryptedInfo  info[1];
 #endif
@@ -1582,7 +1582,7 @@ int AddCA(CYASSL_CERT_MANAGER* cm, buffer der, int type, int verify)
     word32      row;
     byte*       subjectHash;
 #ifdef CYASSL_SMALL_STACK
-    DecodedCert* cert;
+    DecodedCert* cert = NULL;
 #else
     DecodedCert  cert[1];
 #endif
@@ -2006,7 +2006,7 @@ static int ProcessBuffer(CYASSL_CTX* ctx, const unsigned char* buff,
     int           rsaKey = 0;
     void*         heap = ctx ? ctx->heap : NULL;
 #ifdef CYASSL_SMALL_STACK
-    EncryptedInfo* info;
+    EncryptedInfo* info = NULL;
 #else
     EncryptedInfo  info[1];
 #endif
@@ -2351,7 +2351,7 @@ static int ProcessBuffer(CYASSL_CTX* ctx, const unsigned char* buff,
     }
     else if (type == CERT_TYPE) {
     #ifdef CYASSL_SMALL_STACK
-        DecodedCert* cert;
+        DecodedCert* cert = NULL;
     #else
         DecodedCert  cert[1];
     #endif
@@ -2446,7 +2446,7 @@ int CyaSSL_CertManagerVerifyBuffer(CYASSL_CERT_MANAGER* cm, const byte* buff,
     int ret = 0;
     buffer der;
 #ifdef CYASSL_SMALL_STACK
-    DecodedCert* cert;
+    DecodedCert* cert = NULL;
 #else
     DecodedCert  cert[1];
 #endif
@@ -2466,7 +2466,7 @@ int CyaSSL_CertManagerVerifyBuffer(CYASSL_CERT_MANAGER* cm, const byte* buff,
     if (format == SSL_FILETYPE_PEM) {
         int eccKey = 0; /* not used */
     #ifdef CYASSL_SMALL_STACK
-        EncryptedInfo* info;
+        EncryptedInfo* info = NULL;
     #else
         EncryptedInfo  info[1];
     #endif
@@ -2579,7 +2579,7 @@ int CyaSSL_CertManagerCheckOCSP(CYASSL_CERT_MANAGER* cm, byte* der, int sz)
 {
     int ret;
 #ifdef CYASSL_SMALL_STACK
-    DecodedCert* cert;
+    DecodedCert* cert = NULL;
 #else
     DecodedCert  cert[1];
 #endif
@@ -3063,7 +3063,7 @@ int CyaSSL_CertManagerCheckCRL(CYASSL_CERT_MANAGER* cm, byte* der, int sz)
 {
     int ret = 0;
 #ifdef CYASSL_SMALL_STACK
-    DecodedCert* cert;
+    DecodedCert* cert = NULL;
 #else
     DecodedCert  cert[1];
 #endif
@@ -3237,7 +3237,7 @@ int CyaSSL_CTX_der_load_verify_locations(CYASSL_CTX* ctx, const char* file,
 int CyaSSL_PemCertToDer(const char* fileName, unsigned char* derBuf, int derSz)
 {
 #ifdef CYASSL_SMALL_STACK
-    EncryptedInfo* info;
+    EncryptedInfo* info = NULL;
     byte   staticBuffer[1]; /* force XMALLOC */
 #else
     EncryptedInfo info[1];
@@ -6634,7 +6634,7 @@ int CyaSSL_set_compression(CYASSL* ssl)
         int  keyOutput = 0;
         byte digest[MD5_DIGEST_SIZE];
     #ifdef CYASSL_SMALL_STACK
-        Md5* md5;
+        Md5* md5 = NULL;
     #else
         Md5  md5[1];
     #endif
@@ -7594,7 +7594,7 @@ int CyaSSL_set_compression(CYASSL* ssl)
         int type;
         unsigned char* ret = NULL;
 #ifdef CYASSL_SMALL_STACK
-        Hmac* hmac;
+        Hmac* hmac = NULL;
 #else
         Hmac  hmac[1];
 #endif
@@ -8288,7 +8288,7 @@ CYASSL_X509* CyaSSL_X509_d2i(CYASSL_X509** x509, const byte* in, int len)
 
     if (in != NULL && len != 0) {
     #ifdef CYASSL_SMALL_STACK
-        DecodedCert* cert;
+        DecodedCert* cert = NULL;
     #else
         DecodedCert  cert[1];
     #endif
@@ -8414,7 +8414,7 @@ CYASSL_X509* CyaSSL_X509_load_certificate_file(const char* fname, int format)
     if (format == SSL_FILETYPE_PEM) {
         int ecc = 0;
     #ifdef CYASSL_SMALL_STACK
-        EncryptedInfo* info;
+        EncryptedInfo* info = NULL;
     #else
         EncryptedInfo  info[1];
     #endif
@@ -8464,7 +8464,7 @@ CYASSL_X509* CyaSSL_X509_load_certificate_file(const char* fname, int format)
     /* ready to be decoded. */
     if (der.buffer != NULL) {
     #ifdef CYASSL_SMALL_STACK
-        DecodedCert* cert;
+        DecodedCert* cert = NULL;
     #else
         DecodedCert  cert[1];
     #endif
@@ -9831,7 +9831,7 @@ int CyaSSL_cmp_peer_cert_to_file(CYASSL* ssl, const char *fname)
     if (ssl != NULL && fname != NULL)
     {
     #ifdef CYASSL_SMALL_STACK
-        EncryptedInfo* info;
+        EncryptedInfo* info = NULL;
         byte           staticBuffer[1]; /* force heap usage */
     #else
         EncryptedInfo  info[1];
@@ -11065,68 +11065,82 @@ int CyaSSL_RSA_sign(int type, const unsigned char* m,
                            unsigned int mLen, unsigned char* sigRet,
                            unsigned int* sigLen, CYASSL_RSA* rsa)
 {
-    byte   encodedSig[MAX_ENCODED_SIG_SZ];
-    word32 outLen;
+    word32 outLen;    
     word32 signSz;
-    RNG    tmpRNG;
-    RNG*   rng = &tmpRNG;
+    RNG*   rng        = NULL;
+    int    ret        = 0;
+#ifdef CYASSL_SMALL_STACK
+    RNG*   tmpRNG     = NULL;
+    byte*  encodedSig = NULL;
+#else
+    RNG    tmpRNG[1];
+    byte   encodedSig[MAX_ENCODED_SIG_SZ];
+#endif
 
     CYASSL_MSG("CyaSSL_RSA_sign");
 
-    if (m == NULL || sigRet == NULL || sigLen == NULL || rsa == NULL) {
+    if (m == NULL || sigRet == NULL || sigLen == NULL || rsa == NULL)
         CYASSL_MSG("Bad function arguments");
-        return 0;
-    }
-
-    if (rsa->inSet == 0) {
+    else if (rsa->inSet == 0)
         CYASSL_MSG("No RSA internal set");
-        return 0;
-    }
+    else if (type != NID_md5 && type != NID_sha1)
+        CYASSL_MSG("Bad md type");
+    else {
+        outLen = (word32)CyaSSL_BN_num_bytes(rsa->n);
 
-    outLen = (word32)CyaSSL_BN_num_bytes(rsa->n);
-    if (outLen == 0) {
-        CYASSL_MSG("Bad RSA size");
-        return 0;
-    }
+    #ifdef CYASSL_SMALL_STACK
+        tmpRNG = (RNG*)XMALLOC(sizeof(RNG), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        if (tmpRNG == NULL)
+            return 0;
 
-    if (InitRng(&tmpRNG) != 0) {
-        CYASSL_MSG("Bad RNG Init, trying global");
-        if (initGlobalRNG == 0) {
-            CYASSL_MSG("Global RNG no Init");
+        encodedSig = (byte*)XMALLOC(MAX_ENCODED_SIG_SZ, NULL,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+        if (encodedSig == NULL) {
+            XFREE(tmpRNG, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             return 0;
         }
-        rng = &globalRNG;
+    #endif
+
+        if (outLen == 0)
+            CYASSL_MSG("Bad RSA size");
+        else if (InitRng(tmpRNG) == 0) {
+            rng = tmpRNG;
+        }
+        else {
+            CYASSL_MSG("Bad RNG Init, trying global");
+
+            if (initGlobalRNG == 0)
+                CYASSL_MSG("Global RNG no Init");
+            else
+                rng = &globalRNG;
+        }
     }
 
-    switch (type) {
-        case NID_md5:
-            type = MD5h;
-            break;
+    if (rng) {
+        type = (type == NID_md5) ? MD5h : SHAh;
 
-        case NID_sha1:
-            type = SHAh;
-            break;
+        signSz = EncodeSignature(encodedSig, m, mLen, type);
+        if (signSz == 0) {
+            CYASSL_MSG("Bad Encode Signature");
+        }
+        else {
+            *sigLen = RsaSSL_Sign(encodedSig, signSz, sigRet, outLen,
+                                  (RsaKey*)rsa->internal, rng);
+            if (*sigLen <= 0)
+                CYASSL_MSG("Bad Rsa Sign");
+            else
+                ret = SSL_SUCCESS;
+        }
 
-        default:
-            CYASSL_MSG("Bad md type");
-            return 0;
     }
 
-    signSz = EncodeSignature(encodedSig, m, mLen, type);
-    if (signSz == 0) {
-        CYASSL_MSG("Bad Encode Signature");
-        return 0;
-    }
-
-    *sigLen = RsaSSL_Sign(encodedSig, signSz, sigRet, outLen,
-                          (RsaKey*)rsa->internal, rng);
-    if (*sigLen <= 0) {
-        CYASSL_MSG("Bad Rsa Sign");
-        return 0;
-    }
+#ifdef CYASSL_SMALL_STACK
+    XFREE(tmpRNG,     NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(encodedSig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 
     CYASSL_MSG("CyaSSL_RSA_sign success");
-    return SSL_SUCCESS;
+    return ret;
 }
 
 
@@ -11674,7 +11688,7 @@ CYASSL_X509* CyaSSL_get_chain_X509(CYASSL_X509_CHAIN* chain, int idx)
     int          ret;
     CYASSL_X509* x509 = NULL;
 #ifdef CYASSL_SMALL_STACK
-    DecodedCert* cert;
+    DecodedCert* cert = NULL;
 #else
     DecodedCert  cert[1];
 #endif
