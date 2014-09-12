@@ -10571,51 +10571,59 @@ int CyaSSL_DH_generate_key(CYASSL_DH* dh)
 int CyaSSL_DH_compute_key(unsigned char* key, CYASSL_BIGNUM* otherPub,
                           CYASSL_DH* dh)
 {
-    unsigned char pub [1024];
-    unsigned char priv[1024];
-    word32        pubSz  = sizeof(pub);
-    word32        privSz = sizeof(priv);
-    word32        keySz;
+    int            ret    = 0;
+    word32         keySz  = 0;
+    word32         pubSz  = 1024;
+    word32         privSz = 1024;
+#ifdef CYASSL_SMALL_STACK
+    unsigned char* pub    = NULL;
+    unsigned char* priv   = NULL;
+#else
+    unsigned char  pub [1024];
+    unsigned char  priv[1024];
+#endif
 
     CYASSL_MSG("CyaSSL_DH_compute_key");
 
-    if (dh == NULL || dh->priv_key == NULL || otherPub == NULL) {
+#ifdef CYASSL_SMALL_STACK
+    pub = (unsigned char*)XMALLOC(pubSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (pub == NULL)
+        return ret;
+
+    priv = (unsigned char*)XMALLOC(privSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (priv == NULL) {
+        XFREE(pub, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        return 0;
+    }
+#endif
+
+    if (dh == NULL || dh->priv_key == NULL || otherPub == NULL)
         CYASSL_MSG("Bad function arguments");
-        return 0;
-    }
-
-    keySz = (word32)DH_size(dh);
-    if (keySz == 0) {
+    else if ((keySz = (word32)DH_size(dh)) == 0)
         CYASSL_MSG("Bad DH_size");
-        return 0;
-    }
-
-    if (CyaSSL_BN_bn2bin(dh->priv_key, NULL) > (int)privSz) {
+    else if (CyaSSL_BN_bn2bin(dh->priv_key, NULL) > (int)privSz)
         CYASSL_MSG("Bad priv internal size");
-        return 0;
-    }
-
-    if (CyaSSL_BN_bn2bin(otherPub, NULL) > (int)pubSz) {
+    else if (CyaSSL_BN_bn2bin(otherPub, NULL) > (int)pubSz)
         CYASSL_MSG("Bad otherPub size");
-        return 0;
+    else {
+        privSz = CyaSSL_BN_bn2bin(dh->priv_key, priv);
+        pubSz  = CyaSSL_BN_bn2bin(otherPub, pub);
+
+        if (privSz <= 0 || pubSz <= 0)
+            CYASSL_MSG("Bad BN2bin set");
+        else if (DhAgree((DhKey*)dh->internal, key, &keySz, priv, privSz, pub,
+                                                                     pubSz) < 0)
+            CYASSL_MSG("DhAgree failed");
+        else
+            ret = (int)keySz;
     }
 
-    privSz = CyaSSL_BN_bn2bin(dh->priv_key, priv);
-    pubSz  = CyaSSL_BN_bn2bin(otherPub, pub);
+#ifdef CYASSL_SMALL_STACK
+    XFREE(pub,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(priv, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 
-    if (privSz <= 0 || pubSz <= 0) {
-        CYASSL_MSG("Bad BN2bin set");
-        return 0;
-    }
-
-    if (DhAgree((DhKey*)dh->internal, key, &keySz, priv, privSz, pub,
-                pubSz) < 0) {
-        CYASSL_MSG("DhAgree failed");
-        return 0;
-    }
-
-    CYASSL_MSG("CyaSSL_compute_key success");
-    return (int)keySz;
+    return ret;
 }
 #endif /* NO_DH */
 
