@@ -10404,6 +10404,7 @@ static void PickHashSigAlgo(CYASSL* ssl,
             XMEMCPY(output + idx, ssl->buffers.serverDH_Pub.buffer,
                                   ssl->buffers.serverDH_Pub.length);
             idx += ssl->buffers.serverDH_Pub.length;
+            (void)idx; /* suppress analyzer warning, and keep idx current */
 
             ret = HashOutput(ssl, output, sendSz, 0);
 
