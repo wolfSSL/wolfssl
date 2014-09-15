@@ -2183,14 +2183,34 @@ static int ProcessBuffer(CYASSL_CTX* ctx, const unsigned char* buff,
 #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
     if (info->set) {
         /* decrypt */
-        char password[80];
-        int  passwordSz;
-
-        byte key[AES_256_KEY_SIZE];
+        int   passwordSz;
+#ifdef CYASSL_SMALL_STACK
+        char* password = NULL;
+        byte* key      = NULL;
+        byte* iv       = NULL;
+#else
+        char  password[80];
+        byte  key[AES_256_KEY_SIZE];
         byte  iv[AES_IV_SIZE];
+#endif
 
+    #ifdef CYASSL_SMALL_STACK
+        password = (char*)XMALLOC(80, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        key      = (byte*)XMALLOC(AES_256_KEY_SIZE, NULL,
+                                                   DYNAMIC_TYPE_TMP_BUFFER);
+        iv       = (byte*)XMALLOC(AES_IV_SIZE, NULL, 
+                                                   DYNAMIC_TYPE_TMP_BUFFER);
+
+        if (password == NULL || key == NULL || iv == NULL) {
+            XFREE(password, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(key,      NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(iv,       NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            ret = MEMORY_E;
+        }
+        else
+    #endif
         if (!ctx || !ctx->passwd_cb) {
-            return NO_PASSWORD;
+            ret = NO_PASSWORD;
         }
         else {
             passwordSz = ctx->passwd_cb(password, sizeof(password), 0,
@@ -2206,49 +2226,35 @@ static int ProcessBuffer(CYASSL_CTX* ctx, const unsigned char* buff,
                 /* empty */
             }
             else if (XSTRNCMP(info->name, "DES-CBC", 7) == 0) {
-                Des enc;
-
-                ret = Des_SetKey(&enc, key, info->iv, DES_DECRYPTION);
-                if (ret == 0)
-                    Des_CbcDecrypt(&enc, der.buffer, der.buffer,
-                                                                    der.length);
+                ret = Des_CbcDecryptWithKey(der.buffer, der.buffer, der.length,
+                                                                 key, info->iv);
             }
             else if (XSTRNCMP(info->name, "DES-EDE3-CBC", 13) == 0) {
-                Des3 enc;
-
-                ret = Des3_SetKey(&enc, key, info->iv, DES_DECRYPTION);
-                if (ret == 0)
-                    ret = Des3_CbcDecrypt(&enc, der.buffer, der.buffer,
-                                                                    der.length);
+                ret = Des3_CbcDecryptWithKey(der.buffer, der.buffer, der.length,
+                                                                 key, info->iv);
             }
             else if (XSTRNCMP(info->name, "AES-128-CBC", 13) == 0) {
-                Aes enc;
-                ret = AesSetKey(&enc, key, AES_128_KEY_SIZE, info->iv,
-                                                                AES_DECRYPTION);
-                if (ret == 0)
-                    ret = AesCbcDecrypt(&enc, der.buffer, der.buffer,
-                                                                    der.length);
+                ret = AesCbcDecryptWithKey(der.buffer, der.buffer, der.length,
+                                               key, AES_128_KEY_SIZE, info->iv);
             }
             else if (XSTRNCMP(info->name, "AES-192-CBC", 13) == 0) {
-                Aes enc;
-                ret = AesSetKey(&enc, key, AES_192_KEY_SIZE, info->iv,
-                                                                AES_DECRYPTION);
-                if (ret == 0)
-                    ret = AesCbcDecrypt(&enc, der.buffer, der.buffer,
-                                                                    der.length);
+                ret = AesCbcDecryptWithKey(der.buffer, der.buffer, der.length,
+                                               key, AES_192_KEY_SIZE, info->iv);
             }
             else if (XSTRNCMP(info->name, "AES-256-CBC", 13) == 0) {
-                Aes enc;
-                ret = AesSetKey(&enc, key, AES_256_KEY_SIZE, info->iv,
-                                                                AES_DECRYPTION);
-                if (ret == 0)
-                    ret = AesCbcDecrypt(&enc, der.buffer, der.buffer,
-                                                                    der.length);
+                ret = AesCbcDecryptWithKey(der.buffer, der.buffer, der.length,
+                                               key, AES_256_KEY_SIZE, info->iv);
             }
             else {
                 ret = SSL_BAD_FILE;
             }
         }
+
+    #ifdef CYASSL_SMALL_STACK
+        XFREE(password, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(key,      NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(iv,       NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
 
         if (ret != 0) {
         #ifdef CYASSL_SMALL_STACK
@@ -2308,25 +2314,44 @@ static int ProcessBuffer(CYASSL_CTX* ctx, const unsigned char* buff,
     #ifndef NO_RSA
         if (!eccKey) {
             /* make sure RSA key can be used */
-            RsaKey key;
             word32 idx = 0;
+        #ifdef CYASSL_SMALL_STACK
+            RsaKey* key = NULL;
+        #else
+            RsaKey  key[1];
+        #endif
 
-            ret = InitRsaKey(&key, 0);
-            if (ret != 0) return ret;
-            if (RsaPrivateKeyDecode(der.buffer,&idx,&key,der.length) != 0) {
-            #ifdef HAVE_ECC
-                /* could have DER ECC (or pkcs8 ecc), no easy way to tell */
-                eccKey = 1;  /* so try it out */
-            #endif
-                if (!eccKey) {
-                    FreeRsaKey(&key);
-                    return SSL_BAD_FILE;
+        #ifdef CYASSL_SMALL_STACK
+            key = (RsaKey*)XMALLOC(sizeof(RsaKey), NULL,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+            if (key == NULL)
+                return MEMORY_E;
+        #endif
+
+            ret = InitRsaKey(key, 0);
+            if (ret == 0) {
+                if (RsaPrivateKeyDecode(der.buffer, &idx, key, der.length) !=
+                                                                            0) {
+                #ifdef HAVE_ECC
+                    /* could have DER ECC (or pkcs8 ecc), no easy way to tell */
+                    eccKey = 1;  /* so try it out */
+                #endif
+                    if (!eccKey)
+                        ret = SSL_BAD_FILE;
+                } else {
+                    rsaKey = 1;
+                    (void)rsaKey;  /* for no ecc builds */
                 }
-            } else {
-                rsaKey = 1;
-                (void)rsaKey;  /* for no ecc builds */
             }
-            FreeRsaKey(&key);
+
+            FreeRsaKey(key);
+
+        #ifdef CYASSL_SMALL_STACK
+            XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        #endif
+
+            if (ret != 0)
+                return ret;
         }
     #endif
     #ifdef HAVE_ECC

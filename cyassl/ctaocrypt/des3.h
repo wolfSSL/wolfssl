@@ -85,11 +85,15 @@ CYASSL_API void Des_SetIV(Des* des, const byte* iv);
 CYASSL_API int  Des_CbcEncrypt(Des* des, byte* out, const byte* in, word32 sz);
 CYASSL_API int  Des_CbcDecrypt(Des* des, byte* out, const byte* in, word32 sz);
 CYASSL_API int  Des_EcbEncrypt(Des* des, byte* out, const byte* in, word32 sz);
+CYASSL_API int  Des_CbcDecryptWithKey(byte* out, const byte* in, word32 sz,
+                                               const byte* key, const byte* iv);
 
 CYASSL_API int  Des3_SetKey(Des3* des, const byte* key, const byte* iv,int dir);
 CYASSL_API int  Des3_SetIV(Des3* des, const byte* iv);
 CYASSL_API int  Des3_CbcEncrypt(Des3* des, byte* out, const byte* in,word32 sz);
 CYASSL_API int  Des3_CbcDecrypt(Des3* des, byte* out, const byte* in,word32 sz);
+CYASSL_API int  Des3_CbcDecryptWithKey(byte* out, const byte* in, word32 sz,
+                                               const byte* key, const byte* iv);
 
 
 #ifdef HAVE_CAVIUM

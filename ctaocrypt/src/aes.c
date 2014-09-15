@@ -1575,6 +1575,34 @@ int AesSetIV(Aes* aes, const byte* iv)
 }
 
 
+int AesCbcDecryptWithKey(byte* out, const byte* in, word32 inSz,
+                                  const byte* key, word32 keySz, const byte* iv)
+{
+    int  ret = 0;
+#ifdef CYASSL_SMALL_STACK
+    Aes* aes = NULL;
+#else
+    Aes  aes[1];
+#endif
+
+#ifdef CYASSL_SMALL_STACK
+    aes = (Aes*)XMALLOC(sizeof(Aes), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (aes == NULL)
+        return MEMORY_E;
+#endif
+
+    ret = AesSetKey(aes, key, keySz, iv, AES_DECRYPTION);
+    if (ret == 0)
+        ret = AesCbcDecrypt(aes, out, in, inSz); 
+
+#ifdef CYASSL_SMALL_STACK
+    XFREE(aes, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
+    return ret;
+}
+
+
 /* AES-DIRECT */
 #if defined(CYASSL_AES_DIRECT)
     #if defined(FREESCALE_MMCAU)
