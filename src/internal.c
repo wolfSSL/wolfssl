@@ -1772,6 +1772,11 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
     #endif /* NO_RSA */
 #endif /* HAVE_PK_CALLBACKS */
 
+#ifdef HAVE_SECURE_RENEGOTIATION
+        ssl->secureR_state.secure_renegotation = 0;
+        ssl->secureR_state.doing_secure_renegotation = 0;
+#endif /* HAVE_SECURE_RENEGOTIATION */
+
     /* all done with init, now can return errors, call other stuff */
 
     /* increment CTX reference count */
