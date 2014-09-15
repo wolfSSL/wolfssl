@@ -2833,15 +2833,28 @@ int CyaSSL_CTX_load_verify_locations(CYASSL_CTX* ctx, const char* file,
     #ifdef USE_WINDOWS_API
         WIN32_FIND_DATAA FindFileData;
         HANDLE hFind;
+	#ifdef CYASSL_SMALL_STACK
+		char*  name = NULL;
+	#else
         char   name[MAX_FILENAME_SZ];
+	#endif
 
-        XMEMSET(name, 0, sizeof(name));
+	#ifdef CYASSL_SMALL_STACK
+		name = (char*)XMALLOC(MAX_FILENAME_SZ, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+		if (name == NULL)
+		    return MEMORY_E;
+	#endif
+
+        XMEMSET(name, 0, MAX_FILENAME_SZ);
         XSTRNCPY(name, path, MAX_FILENAME_SZ - 4);
         XSTRNCAT(name, "\\*", 3);
 
         hFind = FindFirstFileA(name, &FindFileData);
         if (hFind == INVALID_HANDLE_VALUE) {
             CYASSL_MSG("FindFirstFile for path verify locations failed");
+		#ifdef CYASSL_SMALL_STACK
+			XFREE(name, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+		#endif
             return BAD_PATH_ERROR;
         }
 
@@ -2852,38 +2865,55 @@ int CyaSSL_CTX_load_verify_locations(CYASSL_CTX* ctx, const char* file,
                 XSTRNCAT(name, FindFileData.cFileName, MAX_FILENAME_SZ/2);
 
                 ret = ProcessFile(ctx, name, SSL_FILETYPE_PEM, CA_TYPE, NULL,0,
-                                  NULL);
+                                                                          NULL);
             }
         } while (ret == SSL_SUCCESS && FindNextFileA(hFind, &FindFileData));
+
+	#ifdef CYASSL_SMALL_STACK
+		XFREE(name, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+	#endif
 
         FindClose(hFind);
     #elif !defined(NO_CYASSL_DIR)
         struct dirent* entry;
         DIR*   dir = opendir(path);
+	#ifdef CYASSL_SMALL_STACK
+		char*  name = NULL;
+	#else
+	    char   name[MAX_FILENAME_SZ];
+	#endif
 
         if (dir == NULL) {
             CYASSL_MSG("opendir path verify locations failed");
             return BAD_PATH_ERROR;
         }
+
+	#ifdef CYASSL_SMALL_STACK
+		name = (char*)XMALLOC(MAX_FILENAME_SZ, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+		if (name == NULL)
+		    return MEMORY_E;
+	#endif
+
         while ( ret == SSL_SUCCESS && (entry = readdir(dir)) != NULL) {
-            char name[MAX_FILENAME_SZ];
             struct stat s;
 
-            XMEMSET(name, 0, sizeof(name));
+            XMEMSET(name, 0, MAX_FILENAME_SZ);
             XSTRNCPY(name, path, MAX_FILENAME_SZ/2 - 2);
             XSTRNCAT(name, "/", 1);
             XSTRNCAT(name, entry->d_name, MAX_FILENAME_SZ/2);
 
             if (stat(name, &s) != 0) {
                 CYASSL_MSG("stat on name failed");
-                closedir(dir);
-                return BAD_PATH_ERROR;
-            }
-            if (s.st_mode & S_IFREG) {
+                ret = BAD_PATH_ERROR;
+            } else if (s.st_mode & S_IFREG)
                 ret = ProcessFile(ctx, name, SSL_FILETYPE_PEM, CA_TYPE, NULL,0,
-                                  NULL);
-            }
+                                                                          NULL);
         }
+
+	#ifdef CYASSL_SMALL_STACK
+		XFREE(name, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+	#endif
+
         closedir(dir);
     #endif
     }
