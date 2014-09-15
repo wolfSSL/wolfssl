@@ -3357,40 +3357,58 @@ static int CyaSSL_SetTmpDH_buffer_wrapper(CYASSL_CTX* ctx, CYASSL* ssl,
                                   const unsigned char* buf, long sz, int format)
 {
     buffer der;
-    int    ret;
+    int    ret      = 0;
     int    weOwnDer = 0;
+    word32 pSz = MAX_DH_SIZE;
+    word32 gSz = MAX_DH_SIZE;
+#ifdef CYASSL_SMALL_STACK
+    byte*  p = NULL;
+    byte*  g = NULL;
+#else
     byte   p[MAX_DH_SIZE];
     byte   g[MAX_DH_SIZE];
-    word32 pSz = sizeof(p);
-    word32 gSz = sizeof(g);
+#endif
 
     der.buffer = (byte*)buf;
     der.length = (word32)sz;
 
+#ifdef CYASSL_SMALL_STACK
+	p = (byte*)XMALLOC(pSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+	g = (byte*)XMALLOC(gSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+	if (p == NULL || g == NULL) {
+		XFREE(p, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+		XFREE(g, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+	    return MEMORY_E;
+	}
+#endif
+
     if (format != SSL_FILETYPE_ASN1 && format != SSL_FILETYPE_PEM)
-        return SSL_BAD_FILETYPE;
-
-    if (format == SSL_FILETYPE_PEM) {
-        der.buffer = NULL;
-        ret = PemToDer(buf, sz, DH_PARAM_TYPE, &der, ctx->heap, NULL,NULL);
-        if (ret < 0) {
-            XFREE(der.buffer, ctx->heap, DYNAMIC_TYPE_KEY);
-            return ret;
-        }
-        weOwnDer = 1;
-    }
-
-    if (DhParamsLoad(der.buffer, der.length, p, &pSz, g, &gSz) < 0)
         ret = SSL_BAD_FILETYPE;
-    else {
-        if (ssl)
-            ret = CyaSSL_SetTmpDH(ssl, p, pSz, g, gSz);
-        else
-            ret = CyaSSL_CTX_SetTmpDH(ctx, p, pSz, g, gSz);
+	else {
+		if (format == SSL_FILETYPE_PEM) {
+	        der.buffer = NULL;
+	        ret = PemToDer(buf, sz, DH_PARAM_TYPE, &der, ctx->heap, NULL,NULL);
+	        weOwnDer = 1;
+		}
+		
+		if (ret == 0) {
+		    if (DhParamsLoad(der.buffer, der.length, p, &pSz, g, &gSz) < 0)
+		        ret = SSL_BAD_FILETYPE;
+		    else if (ssl)
+	            ret = CyaSSL_SetTmpDH(ssl, p, pSz, g, gSz);
+	        else
+	            ret = CyaSSL_CTX_SetTmpDH(ctx, p, pSz, g, gSz);
+		}
     }
 
     if (weOwnDer)
         XFREE(der.buffer, ctx->heap, DYNAMIC_TYPE_KEY);
+
+#ifdef CYASSL_SMALL_STACK
+	XFREE(p, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+	XFREE(g, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 
     return ret;
 }
