@@ -10215,46 +10215,61 @@ int CyaSSL_mask_bits(CYASSL_BIGNUM* bn, int n)
 /* SSL_SUCCESS on ok */
 int CyaSSL_BN_rand(CYASSL_BIGNUM* bn, int bits, int top, int bottom)
 {
+	int 		  ret    = 0;
+    int           len    = bits / 8;
+    RNG*          rng    = NULL;
+#ifdef CYASSL_SMALL_STACK
+    RNG*          tmpRNG = NULL;
+    byte*         buff   = NULL;
+#else
+    RNG           tmpRNG[1];
     byte          buff[1024];
-    RNG           tmpRNG;
-    RNG*          rng = &tmpRNG;
-    int           len = bits/8;
+#endif
 
     (void)top;
     (void)bottom;
     CYASSL_MSG("CyaSSL_BN_rand");
 
-    if (bn == NULL || bn->internal == NULL) {
-        CYASSL_MSG("Bad function arguments");
-        return 0;
-    }
-
     if (bits % 8)
         len++;
 
-    if ( (InitRng(&tmpRNG)) != 0) {
-        CYASSL_MSG("Bad RNG Init, trying global");
-        if (initGlobalRNG == 0) {
-            CYASSL_MSG("Global RNG no Init");
-            return 0;
-        }
+#ifdef CYASSL_SMALL_STACK
+	buff   = (byte*)XMALLOC(1024,        NULL, DYNAMIC_TYPE_TMP_BUFFER);
+	tmpRNG = (RNG*) XMALLOC(sizeof(RNG), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+	if (buff == NULL || tmpRNG == NULL) {
+		XFREE(buff,   NULL, DYNAMIC_TYPE_TMP_BUFFER);
+		XFREE(tmpRNG, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+	    return ret;
+	}
+#endif
+
+    if (bn == NULL || bn->internal == NULL)
+        CYASSL_MSG("Bad function arguments");
+    else if (InitRng(tmpRNG) == 0)
+		rng = tmpRNG;
+	else if (initGlobalRNG)
         rng = &globalRNG;
-    }
 
-    if (RNG_GenerateBlock(rng, buff, len) != 0) {
-        CYASSL_MSG("Bad RNG_GenerateBlock");
-        return 0;
-    }
+	if (rng) {
+	    if (RNG_GenerateBlock(rng, buff, len) != 0)
+	        CYASSL_MSG("Bad RNG_GenerateBlock");
+		else {
+		    buff[0]     |= 0x80 | 0x40;
+		    buff[len-1] |= 0x01;
 
-    buff[0]     |= 0x80 | 0x40;
-    buff[len-1] |= 0x01;
+		    if (mp_read_unsigned_bin((mp_int*)bn->internal,buff,len) != MP_OKAY)
+		        CYASSL_MSG("mp read bin failed");
+			else
+				ret = SSL_SUCCESS;    	
+	    }		
+	}
 
-    if (mp_read_unsigned_bin((mp_int*)bn->internal,buff,len) != MP_OKAY) {
-        CYASSL_MSG("mp read bin failed");
-        return 0;
-    }
+#ifdef CYASSL_SMALL_STACK
+	XFREE(buff,   NULL, DYNAMIC_TYPE_TMP_BUFFER);
+	XFREE(tmpRNG, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 
-    return SSL_SUCCESS;
+    return ret;
 }
 
 
@@ -10285,7 +10300,7 @@ int CyaSSL_BN_hex2bn(CYASSL_BIGNUM** bn, const char* str)
 #ifdef CYASSL_SMALL_STACK
 	decoded = (byte*)XMALLOC(decSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 	if (decoded == NULL)
-	    return 0;
+	    return ret;
 #endif
 
     if (str == NULL)
