@@ -2833,17 +2833,17 @@ int CyaSSL_CTX_load_verify_locations(CYASSL_CTX* ctx, const char* file,
     #ifdef USE_WINDOWS_API
         WIN32_FIND_DATAA FindFileData;
         HANDLE hFind;
-	#ifdef CYASSL_SMALL_STACK
-		char*  name = NULL;
-	#else
+    #ifdef CYASSL_SMALL_STACK
+        char*  name = NULL;
+    #else
         char   name[MAX_FILENAME_SZ];
-	#endif
+    #endif
 
-	#ifdef CYASSL_SMALL_STACK
-		name = (char*)XMALLOC(MAX_FILENAME_SZ, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-		if (name == NULL)
-		    return MEMORY_E;
-	#endif
+    #ifdef CYASSL_SMALL_STACK
+        name = (char*)XMALLOC(MAX_FILENAME_SZ, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        if (name == NULL)
+            return MEMORY_E;
+    #endif
 
         XMEMSET(name, 0, MAX_FILENAME_SZ);
         XSTRNCPY(name, path, MAX_FILENAME_SZ - 4);
@@ -2852,9 +2852,9 @@ int CyaSSL_CTX_load_verify_locations(CYASSL_CTX* ctx, const char* file,
         hFind = FindFirstFileA(name, &FindFileData);
         if (hFind == INVALID_HANDLE_VALUE) {
             CYASSL_MSG("FindFirstFile for path verify locations failed");
-		#ifdef CYASSL_SMALL_STACK
-			XFREE(name, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-		#endif
+        #ifdef CYASSL_SMALL_STACK
+            XFREE(name, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        #endif
             return BAD_PATH_ERROR;
         }
 
@@ -2869,30 +2869,30 @@ int CyaSSL_CTX_load_verify_locations(CYASSL_CTX* ctx, const char* file,
             }
         } while (ret == SSL_SUCCESS && FindNextFileA(hFind, &FindFileData));
 
-	#ifdef CYASSL_SMALL_STACK
-		XFREE(name, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-	#endif
+    #ifdef CYASSL_SMALL_STACK
+        XFREE(name, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
 
         FindClose(hFind);
     #elif !defined(NO_CYASSL_DIR)
         struct dirent* entry;
         DIR*   dir = opendir(path);
-	#ifdef CYASSL_SMALL_STACK
-		char*  name = NULL;
-	#else
-	    char   name[MAX_FILENAME_SZ];
-	#endif
+    #ifdef CYASSL_SMALL_STACK
+        char*  name = NULL;
+    #else
+        char   name[MAX_FILENAME_SZ];
+    #endif
 
         if (dir == NULL) {
             CYASSL_MSG("opendir path verify locations failed");
             return BAD_PATH_ERROR;
         }
 
-	#ifdef CYASSL_SMALL_STACK
-		name = (char*)XMALLOC(MAX_FILENAME_SZ, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-		if (name == NULL)
-		    return MEMORY_E;
-	#endif
+    #ifdef CYASSL_SMALL_STACK
+        name = (char*)XMALLOC(MAX_FILENAME_SZ, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        if (name == NULL)
+            return MEMORY_E;
+    #endif
 
         while ( ret == SSL_SUCCESS && (entry = readdir(dir)) != NULL) {
             struct stat s;
@@ -2910,9 +2910,9 @@ int CyaSSL_CTX_load_verify_locations(CYASSL_CTX* ctx, const char* file,
                                                                           NULL);
         }
 
-	#ifdef CYASSL_SMALL_STACK
-		XFREE(name, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-	#endif
+    #ifdef CYASSL_SMALL_STACK
+        XFREE(name, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
 
         closedir(dir);
     #endif
@@ -3403,41 +3403,41 @@ static int CyaSSL_SetTmpDH_buffer_wrapper(CYASSL_CTX* ctx, CYASSL* ssl,
     der.length = (word32)sz;
 
 #ifdef CYASSL_SMALL_STACK
-	p = (byte*)XMALLOC(pSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-	g = (byte*)XMALLOC(gSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    p = (byte*)XMALLOC(pSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    g = (byte*)XMALLOC(gSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
-	if (p == NULL || g == NULL) {
-		XFREE(p, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-		XFREE(g, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-	    return MEMORY_E;
-	}
+    if (p == NULL || g == NULL) {
+        XFREE(p, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(g, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        return MEMORY_E;
+    }
 #endif
 
     if (format != SSL_FILETYPE_ASN1 && format != SSL_FILETYPE_PEM)
         ret = SSL_BAD_FILETYPE;
-	else {
-		if (format == SSL_FILETYPE_PEM) {
-	        der.buffer = NULL;
-	        ret = PemToDer(buf, sz, DH_PARAM_TYPE, &der, ctx->heap, NULL,NULL);
-	        weOwnDer = 1;
-		}
-		
-		if (ret == 0) {
-		    if (DhParamsLoad(der.buffer, der.length, p, &pSz, g, &gSz) < 0)
-		        ret = SSL_BAD_FILETYPE;
-		    else if (ssl)
-	            ret = CyaSSL_SetTmpDH(ssl, p, pSz, g, gSz);
-	        else
-	            ret = CyaSSL_CTX_SetTmpDH(ctx, p, pSz, g, gSz);
-		}
+    else {
+        if (format == SSL_FILETYPE_PEM) {
+            der.buffer = NULL;
+            ret = PemToDer(buf, sz, DH_PARAM_TYPE, &der, ctx->heap, NULL,NULL);
+            weOwnDer = 1;
+        }
+        
+        if (ret == 0) {
+            if (DhParamsLoad(der.buffer, der.length, p, &pSz, g, &gSz) < 0)
+                ret = SSL_BAD_FILETYPE;
+            else if (ssl)
+                ret = CyaSSL_SetTmpDH(ssl, p, pSz, g, gSz);
+            else
+                ret = CyaSSL_CTX_SetTmpDH(ctx, p, pSz, g, gSz);
+        }
     }
 
     if (weOwnDer)
         XFREE(der.buffer, ctx->heap, DYNAMIC_TYPE_KEY);
 
 #ifdef CYASSL_SMALL_STACK
-	XFREE(p, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-	XFREE(g, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(p, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(g, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
 
     return ret;
@@ -9978,7 +9978,7 @@ int CyaSSL_RAND_seed(const void* seed, int len)
 /* SSL_SUCCESS on ok */
 int CyaSSL_RAND_bytes(unsigned char* buf, int num)
 {
-	int    ret = 0;
+    int    ret = 0;
     RNG*   rng = NULL;
 #ifdef CYASSL_SMALL_STACK
     RNG*   tmpRNG = NULL;
@@ -9988,25 +9988,25 @@ int CyaSSL_RAND_bytes(unsigned char* buf, int num)
 
     CYASSL_ENTER("RAND_bytes");
 
-	#ifdef CYASSL_SMALL_STACK
-	tmpRNG = (RNG*)XMALLOC(sizeof(RNG), NULL, DYNAMIC_TYPE_TMP_BUFFER);
-	if (tmpRNG == NULL)
-	    return ret;
-	#endif
+    #ifdef CYASSL_SMALL_STACK
+    tmpRNG = (RNG*)XMALLOC(sizeof(RNG), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (tmpRNG == NULL)
+        return ret;
+    #endif
 
     if (InitRng(tmpRNG) == 0)
-		rng = tmpRNG;
-	else if (initGlobalRNG)
+        rng = tmpRNG;
+    else if (initGlobalRNG)
         rng = &globalRNG;
 
-	if (rng) {
-		if (RNG_GenerateBlock(rng, buf, num) != 0)
-	        CYASSL_MSG("Bad RNG_GenerateBlock");
-		else
-			ret = SSL_SUCCESS;
-	}
+    if (rng) {
+        if (RNG_GenerateBlock(rng, buf, num) != 0)
+            CYASSL_MSG("Bad RNG_GenerateBlock");
+        else
+            ret = SSL_SUCCESS;
+    }
 
-	return ret;
+    return ret;
 }
 
 CYASSL_BN_CTX* CyaSSL_BN_CTX_new(void)
@@ -10273,7 +10273,7 @@ int CyaSSL_mask_bits(CYASSL_BIGNUM* bn, int n)
 /* SSL_SUCCESS on ok */
 int CyaSSL_BN_rand(CYASSL_BIGNUM* bn, int bits, int top, int bottom)
 {
-	int 		  ret    = 0;
+    int           ret    = 0;
     int           len    = bits / 8;
     RNG*          rng    = NULL;
 #ifdef CYASSL_SMALL_STACK
@@ -10292,39 +10292,39 @@ int CyaSSL_BN_rand(CYASSL_BIGNUM* bn, int bits, int top, int bottom)
         len++;
 
 #ifdef CYASSL_SMALL_STACK
-	buff   = (byte*)XMALLOC(1024,        NULL, DYNAMIC_TYPE_TMP_BUFFER);
-	tmpRNG = (RNG*) XMALLOC(sizeof(RNG), NULL, DYNAMIC_TYPE_TMP_BUFFER);
-	if (buff == NULL || tmpRNG == NULL) {
-		XFREE(buff,   NULL, DYNAMIC_TYPE_TMP_BUFFER);
-		XFREE(tmpRNG, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-	    return ret;
-	}
+    buff   = (byte*)XMALLOC(1024,        NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    tmpRNG = (RNG*) XMALLOC(sizeof(RNG), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (buff == NULL || tmpRNG == NULL) {
+        XFREE(buff,   NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(tmpRNG, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        return ret;
+    }
 #endif
 
     if (bn == NULL || bn->internal == NULL)
         CYASSL_MSG("Bad function arguments");
     else if (InitRng(tmpRNG) == 0)
-		rng = tmpRNG;
-	else if (initGlobalRNG)
+        rng = tmpRNG;
+    else if (initGlobalRNG)
         rng = &globalRNG;
 
-	if (rng) {
-	    if (RNG_GenerateBlock(rng, buff, len) != 0)
-	        CYASSL_MSG("Bad RNG_GenerateBlock");
-		else {
-		    buff[0]     |= 0x80 | 0x40;
-		    buff[len-1] |= 0x01;
+    if (rng) {
+        if (RNG_GenerateBlock(rng, buff, len) != 0)
+            CYASSL_MSG("Bad RNG_GenerateBlock");
+        else {
+            buff[0]     |= 0x80 | 0x40;
+            buff[len-1] |= 0x01;
 
-		    if (mp_read_unsigned_bin((mp_int*)bn->internal,buff,len) != MP_OKAY)
-		        CYASSL_MSG("mp read bin failed");
-			else
-				ret = SSL_SUCCESS;    	
-	    }		
-	}
+            if (mp_read_unsigned_bin((mp_int*)bn->internal,buff,len) != MP_OKAY)
+                CYASSL_MSG("mp read bin failed");
+            else
+                ret = SSL_SUCCESS;        
+        }        
+    }
 
 #ifdef CYASSL_SMALL_STACK
-	XFREE(buff,   NULL, DYNAMIC_TYPE_TMP_BUFFER);
-	XFREE(tmpRNG, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(buff,   NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(tmpRNG, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
 
     return ret;
@@ -10348,39 +10348,39 @@ int CyaSSL_BN_hex2bn(CYASSL_BIGNUM** bn, const char* str)
     int     ret     = 0;
     word32  decSz   = 1024;
 #ifdef CYASSL_SMALL_STACK
-	byte*   decoded = NULL;
+    byte*   decoded = NULL;
 #else
-	byte    decoded[1024];
+    byte    decoded[1024];
 #endif
 
     CYASSL_MSG("CyaSSL_BN_hex2bn");
 
 #ifdef CYASSL_SMALL_STACK
-	decoded = (byte*)XMALLOC(decSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-	if (decoded == NULL)
-	    return ret;
+    decoded = (byte*)XMALLOC(decSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (decoded == NULL)
+        return ret;
 #endif
 
     if (str == NULL)
         CYASSL_MSG("Bad function argument");
-	else if (Base16_Decode((byte*)str, (int)XSTRLEN(str), decoded, &decSz) < 0)
+    else if (Base16_Decode((byte*)str, (int)XSTRLEN(str), decoded, &decSz) < 0)
         CYASSL_MSG("Bad Base16_Decode error");
     else if (bn == NULL)
         ret = decSz;
-	else {
-		if (*bn == NULL)
+    else {
+        if (*bn == NULL)
             *bn = CyaSSL_BN_new();
 
-		if (*bn == NULL)
+        if (*bn == NULL)
             CYASSL_MSG("BN new failed");
         else if (CyaSSL_BN_bin2bn(decoded, decSz, *bn) == NULL)
-	        CYASSL_MSG("Bad bin2bn error");
+            CYASSL_MSG("Bad bin2bn error");
         else
-			ret = SSL_SUCCESS;
+            ret = SSL_SUCCESS;
     }
 
 #ifdef CYASSL_SMALL_STACK
-	XFREE(decoded, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(decoded, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
 
     return ret;
