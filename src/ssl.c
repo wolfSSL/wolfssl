@@ -9930,25 +9930,35 @@ int CyaSSL_RAND_seed(const void* seed, int len)
 /* SSL_SUCCESS on ok */
 int CyaSSL_RAND_bytes(unsigned char* buf, int num)
 {
-    RNG    tmpRNG;
-    RNG*   rng = &tmpRNG;
+	int    ret = 0;
+    RNG*   rng = NULL;
+#ifdef CYASSL_SMALL_STACK
+    RNG*   tmpRNG = NULL;
+#else
+    RNG    tmpRNG[1];
+#endif
 
     CYASSL_ENTER("RAND_bytes");
-    if (InitRng(&tmpRNG) != 0) {
-        CYASSL_MSG("Bad RNG Init, trying global");
-        if (initGlobalRNG == 0) {
-            CYASSL_MSG("Global RNG no Init");
-            return 0;
-        }
+
+	#ifdef CYASSL_SMALL_STACK
+	tmpRNG = (RNG*)XMALLOC(sizeof(RNG), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+	if (tmpRNG == NULL)
+	    return ret;
+	#endif
+
+    if (InitRng(tmpRNG) == 0)
+		rng = tmpRNG;
+	else if (initGlobalRNG)
         rng = &globalRNG;
-    }
 
-    if (RNG_GenerateBlock(rng, buf, num) != 0) {
-        CYASSL_MSG("Bad RNG_GenerateBlock");
-        return 0;
-    }
+	if (rng) {
+		if (RNG_GenerateBlock(rng, buf, num) != 0)
+	        CYASSL_MSG("Bad RNG_GenerateBlock");
+		else
+			ret = SSL_SUCCESS;
+	}
 
-    return SSL_SUCCESS;
+	return ret;
 }
 
 CYASSL_BN_CTX* CyaSSL_BN_CTX_new(void)
