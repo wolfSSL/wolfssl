@@ -10272,38 +10272,45 @@ int CyaSSL_BN_is_bit_set(const CYASSL_BIGNUM* bn, int n)
 /* SSL_SUCCESS on ok */
 int CyaSSL_BN_hex2bn(CYASSL_BIGNUM** bn, const char* str)
 {
-    byte    decoded[1024];
-    word32  decSz = sizeof(decoded);
+    int     ret     = 0;
+    word32  decSz   = 1024;
+#ifdef CYASSL_SMALL_STACK
+	byte*   decoded = NULL;
+#else
+	byte    decoded[1024];
+#endif
 
     CYASSL_MSG("CyaSSL_BN_hex2bn");
 
-    if (str == NULL) {
+#ifdef CYASSL_SMALL_STACK
+	decoded = (byte*)XMALLOC(decSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+	if (decoded == NULL)
+	    return 0;
+#endif
+
+    if (str == NULL)
         CYASSL_MSG("Bad function argument");
-        return 0;
-    }
-
-    if (Base16_Decode((byte*)str, (int)XSTRLEN(str), decoded, &decSz) < 0) {
+	else if (Base16_Decode((byte*)str, (int)XSTRLEN(str), decoded, &decSz) < 0)
         CYASSL_MSG("Bad Base16_Decode error");
-        return 0;
-    }
+    else if (bn == NULL)
+        ret = decSz;
+	else {
+		if (*bn == NULL)
+            *bn = CyaSSL_BN_new();
 
-    if (bn == NULL)
-        return decSz;
-
-    if (*bn == NULL) {
-        *bn = CyaSSL_BN_new();
-        if (*bn == NULL) {
+		if (*bn == NULL)
             CYASSL_MSG("BN new failed");
-            return 0;
-        }
+        else if (CyaSSL_BN_bin2bn(decoded, decSz, *bn) == NULL)
+	        CYASSL_MSG("Bad bin2bn error");
+        else
+			ret = SSL_SUCCESS;
     }
 
-    if (CyaSSL_BN_bin2bn(decoded, decSz, *bn) == NULL) {
-        CYASSL_MSG("Bad bin2bn error");
-        return 0;
-    }
+#ifdef CYASSL_SMALL_STACK
+	XFREE(decoded, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 
-    return SSL_SUCCESS;
+    return ret;
 }
 
 
