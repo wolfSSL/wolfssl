@@ -1169,10 +1169,11 @@ typedef struct CYASSL_DTLS_CTX {
 #ifdef HAVE_TLS_EXTENSIONS
 
 typedef enum {
-    SERVER_NAME_INDICATION =  0,
-    MAX_FRAGMENT_LENGTH    =  1,
-    TRUNCATED_HMAC         =  4,
-    ELLIPTIC_CURVES        = 10
+    SERVER_NAME_INDICATION = 0x0000,
+    MAX_FRAGMENT_LENGTH    = 0x0001,
+    TRUNCATED_HMAC         = 0x0004,
+    ELLIPTIC_CURVES        = 0x000a,
+    SECURE_RENEGOTIATION   = 0xff01
 } TLSX_Type;
 
 typedef struct TLSX {
@@ -1256,6 +1257,19 @@ CYASSL_LOCAL int TLSX_ValidateEllipticCurves(CYASSL* ssl, byte first,
 #endif
 
 #endif /* HAVE_SUPPORTED_CURVES */
+
+#ifdef HAVE_SECURE_RENEGOTIATION
+
+/* Additional Conection State according to rfc5746 section 3.1 */
+typedef struct SecureRenegotiation {
+   byte secure_renegotation;
+   byte client_verify_data[TLS_FINISHED_SZ];
+   byte server_verify_data[TLS_FINISHED_SZ];
+} SecureRenegotiation;
+
+CYASSL_LOCAL int TLSX_UseSecureRenegotiation(TLSX** extensions);
+
+#endif /* HAVE_SECURE_RENEGOTIATION */
 
 #endif /* HAVE_TLS_EXTENSIONS */
 
