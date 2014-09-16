@@ -1882,9 +1882,9 @@ typedef struct DtlsMsg {
     typedef struct SecureR_State {
         byte client_verify_data[TLS_FINISHED_SZ]; /* previous handshake value */
         byte server_verify_data[TLS_FINISHED_SZ]; /* previous handshake value */
-        byte secure_renegotation;         /* is current connection using */
-        byte doing_secure_renegotation;   /* are we doing it now flag */
-        byte enabled;                     /* runtime allowed? */
+        byte secure_renegotation;      /* extensions flag */
+        byte previous_handshake_used;  /* did previous handshake use secure r */
+        byte enabled;                  /* runtime allowed? */
     } SecureR_State;
 
 #endif
@@ -1994,13 +1994,16 @@ struct CYASSL {
 #endif
 #ifdef HAVE_TLS_EXTENSIONS
     TLSX* extensions;                  /* RFC 6066 TLS Extensions data */
-#ifdef HAVE_MAX_FRAGMENT
-    word16 max_fragment;
-#endif
-#ifdef HAVE_TRUNCATED_HMAC
-    byte truncated_hmac;
-#endif
-#endif
+    #ifdef HAVE_MAX_FRAGMENT
+        word16 max_fragment;
+    #endif
+    #ifdef HAVE_TRUNCATED_HMAC
+        byte truncated_hmac;
+    #endif
+    #ifdef HAVE_SECURE_RENEGOTIATION
+        SecureR_State secureR_state;    /* secure renegotiation state */
+    #endif
+#endif /* HAVE_TLS_EXTENSIONS */
 #ifdef HAVE_NETX
     NetX_Ctx        nxCtx;             /* NetX IO Context */
 #endif
@@ -2024,9 +2027,6 @@ struct CYASSL {
         void* RsaDecCtx;      /* Rsa Private Decrypt   Callback Context */
     #endif /* NO_RSA */
 #endif /* HAVE_PK_CALLBACKS */
-#ifdef HAVE_SECURE_RENEGOTIATION
-    SecureR_State secureR_state;   /* secure renegotiation state */
-#endif
 };
 
 
