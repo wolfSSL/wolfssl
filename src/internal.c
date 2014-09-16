@@ -1774,7 +1774,7 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
 
 #if defined(HAVE_SECURE_RENEGOTIATION) && defined(HAVE_TLS_EXTENSIONS)
         ssl->secureR_state.secure_renegotation = 0;
-        ssl->secureR_state.doing_secure_renegotation = 0;
+        ssl->secureR_state.previous_handshake_used = 0;
         ssl->secureR_state.enabled = 0;
 #endif /* HAVE_SECURE_RENEGOTIATION && HAVE_TLS_EXTENSIONS */
 
