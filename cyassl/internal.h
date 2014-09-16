@@ -1262,7 +1262,7 @@ CYASSL_LOCAL int TLSX_ValidateEllipticCurves(CYASSL* ssl, byte first,
 
 /* Additional Conection State according to rfc5746 section 3.1 */
 typedef struct SecureRenegotiation {
-   byte secure_renegotation;
+   byte enabled; /* secure_renegotiation flag from rfc */
    byte client_verify_data[TLS_FINISHED_SZ];
    byte server_verify_data[TLS_FINISHED_SZ];
 } SecureRenegotiation;
@@ -1896,7 +1896,7 @@ typedef struct DtlsMsg {
     typedef struct SecureR_State {
         byte client_verify_data[TLS_FINISHED_SZ]; /* previous handshake value */
         byte server_verify_data[TLS_FINISHED_SZ]; /* previous handshake value */
-        byte secure_renegotation;      /* extensions flag */
+        byte secure_renegotiation;     /* extensions flag */
         byte previous_handshake_used;  /* did previous handshake use secure r */
         byte enabled;                  /* runtime allowed? */
     } SecureR_State;
@@ -2016,6 +2016,7 @@ struct CYASSL {
     #endif
     #ifdef HAVE_SECURE_RENEGOTIATION
         SecureR_State secureR_state;    /* secure renegotiation state */
+        SecureRenegotiation* secure_renegotiation;
     #endif
 #endif /* HAVE_TLS_EXTENSIONS */
 #ifdef HAVE_NETX

@@ -118,6 +118,7 @@ enum CyaSSL_ErrorCodes {
     KEYUSE_ENCIPHER_E       = -385,        /* KeyUse keyEncipher error */
     EXTKEYUSE_AUTH_E        = -386,        /* ExtKeyUse server|client_auth */
     SEND_OOB_READ_E         = -387,        /* Send Cb out of bounds read */
+    SECURE_RENEGOTIATION_E  = -388,        /* Invalid Renegotiation Info */
     /* add strings to SetErrorString !!!!! */
 
     /* begin negotiation parameter errors */

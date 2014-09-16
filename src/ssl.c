@@ -714,6 +714,27 @@ int CyaSSL_CTX_UseSupportedCurve(CYASSL_CTX* ctx, word16 name)
 #endif /* NO_CYASSL_CLIENT */
 #endif /* HAVE_SUPPORTED_CURVES */
 
+/* Secure Renegotiation */
+#ifdef HAVE_SECURE_RENEGOTIATION
+
+int CyaSSL_UseSecureRenegotiation(CYASSL* ssl)
+{
+    int ret = BAD_FUNC_ARG;
+
+    if (ssl)
+        ret = TLSX_UseSecureRenegotiation(&ssl->extensions);
+
+    if (ret == SSL_SUCCESS) {
+        TLSX* extension = TLSX_Find(ssl->extensions, SECURE_RENEGOTIATION);
+        
+        if (extension)
+            ssl->secure_renegotiation = (SecureRenegotiation*)extension->data;
+    }
+
+    return ret;
+}
+
+#endif
 
 #ifndef CYASSL_LEANPSK
 int CyaSSL_send(CYASSL* ssl, const void* data, int sz, int flags)

@@ -1216,6 +1216,7 @@ CYASSL_API int CyaSSL_CTX_UseCavium(CYASSL_CTX*, int devId);
 
 /* Server Name Indication */
 #ifdef HAVE_SNI
+
 /* SNI types */
 enum {
     CYASSL_SNI_HOST_NAME = 0
@@ -1227,6 +1228,7 @@ CYASSL_API int CyaSSL_CTX_UseSNI(CYASSL_CTX* ctx, unsigned char type,
                                          const void* data, unsigned short size);
 
 #ifndef NO_CYASSL_SERVER
+
 /* SNI options */
 enum {
     CYASSL_SNI_CONTINUE_ON_MISMATCH = 0x01, /* do not abort on mismatch flag */
@@ -1249,16 +1251,16 @@ CYASSL_API unsigned char CyaSSL_SNI_Status(CYASSL* ssl, unsigned char type);
 
 CYASSL_API unsigned short CyaSSL_SNI_GetRequest(CYASSL *ssl, unsigned char type,
                                                                    void** data);
-
 CYASSL_API int CyaSSL_SNI_GetFromBuffer(
                  const unsigned char* clientHello, unsigned int helloSz,
                  unsigned char type, unsigned char* sni, unsigned int* inOutSz);
 
-#endif /* NO_CYASSL_SERVER */
-#endif /* HAVE_SNI */
+#endif
+#endif
 
 /* Maximum Fragment Length */
 #ifdef HAVE_MAX_FRAGMENT
+
 /* Fragment lengths */
 enum {
     CYASSL_MFL_2_9  = 1, /*  512 bytes */
@@ -1273,8 +1275,8 @@ enum {
 CYASSL_API int CyaSSL_UseMaxFragment(CYASSL* ssl, unsigned char mfl);
 CYASSL_API int CyaSSL_CTX_UseMaxFragment(CYASSL_CTX* ctx, unsigned char mfl);
 
-#endif /* NO_CYASSL_CLIENT */
-#endif /* HAVE_MAX_FRAGMENT */
+#endif
+#endif
 
 /* Truncated HMAC */
 #ifdef HAVE_TRUNCATED_HMAC
@@ -1283,8 +1285,8 @@ CYASSL_API int CyaSSL_CTX_UseMaxFragment(CYASSL_CTX* ctx, unsigned char mfl);
 CYASSL_API int CyaSSL_UseTruncatedHMAC(CYASSL* ssl);
 CYASSL_API int CyaSSL_CTX_UseTruncatedHMAC(CYASSL_CTX* ctx);
 
-#endif /* NO_CYASSL_CLIENT */
-#endif /* HAVE_TRUNCATED_HMAC */
+#endif
+#endif
 
 /* Elliptic Curves */
 #ifdef HAVE_SUPPORTED_CURVES
@@ -1302,11 +1304,19 @@ enum {
 
 CYASSL_API int CyaSSL_UseSupportedCurve(CYASSL* ssl, unsigned short name);
 CYASSL_API int CyaSSL_CTX_UseSupportedCurve(CYASSL_CTX* ctx,
-                                                          unsigned short name);
+                                                           unsigned short name);
 
-#endif /* NO_CYASSL_CLIENT */
-#endif /* HAVE_SUPPORTED_CURVES */
+#endif
+#endif
 
+/* Secure Renegotiation */
+#ifdef HAVE_SECURE_RENEGOTIATION
+#ifndef NO_CYASSL_CLIENT
+
+CYASSL_API int CyaSSL_UseSecureRenegotiation(CYASSL* ssl);
+
+#endif
+#endif
 
 #define CYASSL_CRL_MONITOR   0x01   /* monitor this dir flag */
 #define CYASSL_CRL_START_MON 0x02   /* start monitoring flag */

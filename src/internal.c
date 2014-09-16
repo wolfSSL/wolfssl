@@ -1738,6 +1738,9 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
 #ifdef HAVE_TRUNCATED_HMAC
     ssl->truncated_hmac = 0;
 #endif
+#ifdef HAVE_SECURE_RENEGOTIATION
+    ssl->secure_renegotiation = NULL;
+#endif
 #endif
 
     ssl->rng    = NULL;
@@ -1773,7 +1776,7 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
 #endif /* HAVE_PK_CALLBACKS */
 
 #if defined(HAVE_SECURE_RENEGOTIATION) && defined(HAVE_TLS_EXTENSIONS)
-        ssl->secureR_state.secure_renegotation = 0;
+        ssl->secureR_state.secure_renegotiation = 0;
         ssl->secureR_state.previous_handshake_used = 0;
         ssl->secureR_state.enabled = 0;
 #endif /* HAVE_SECURE_RENEGOTIATION && HAVE_TLS_EXTENSIONS */

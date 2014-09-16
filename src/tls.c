@@ -1617,7 +1617,7 @@ static byte TLSX_SCR_GetSize(SecureRenegotiation* data, int isRequest)
 {
     byte length = OPAQUE8_LEN; /* RenegotiationInfo length */
 
-    if (data->secure_renegotiation) {
+    if (data->enabled) {
         /* client sends client_verify_data only */
         length += TLS_FINISHED_SZ;
 
@@ -1636,7 +1636,7 @@ static word16 TLSX_SCR_Write(SecureRenegotiation* data, byte* output,
 
     output[0] = TLSX_SCR_GetSize(data, isRequest);
     
-    if (data->secure_renegotiation) {
+    if (data->enabled) {
         /* client sends client_verify_data only */
         XMEMCPY(output + offset, data->client_verify_data, TLS_FINISHED_SZ);
         offset += TLS_FINISHED_SZ;
@@ -1654,33 +1654,44 @@ static word16 TLSX_SCR_Write(SecureRenegotiation* data, byte* output,
 static int TLSX_SCR_Parse(CYASSL* ssl, byte* input, word16 length,
                                                                  byte isRequest)
 {
-    if (length != ENUM_LEN)
-        return BUFFER_ERROR;
+    int ret = SECURE_RENEGOTIATION_E;
 
-    switch (*input) {
-        case CYASSL_MFL_2_9 : ssl->max_fragment =  512; break;
-        case CYASSL_MFL_2_10: ssl->max_fragment = 1024; break;
-        case CYASSL_MFL_2_11: ssl->max_fragment = 2048; break;
-        case CYASSL_MFL_2_12: ssl->max_fragment = 4096; break;
-        case CYASSL_MFL_2_13: ssl->max_fragment = 8192; break;
-
-        default:
-            SendAlert(ssl, alert_fatal, illegal_parameter);
-
-            return UNKNOWN_MAX_FRAG_LEN_E;
+    if (length >= OPAQUE8_LEN && *input == (length - OPAQUE8_LEN)) {
+        if (ssl->secure_renegotiation == NULL) {
+        #ifndef NO_CYASSL_SERVER
+            if (isRequest && *input == 0) {
+                ret = CyaSSL_UseSecureRenegotiation(ssl);
+            }
+        #endif
+        }
+        else if (isRequest) {
+        #ifndef NO_CYASSL_SERVER
+            if (*input == TLS_FINISHED_SZ) {
+                /* TODO compare client_verify_data */
+                ret = 0;
+            }
+        #endif
+        }
+        else {
+        #ifndef NO_CYASSL_CLIENT
+            if (!ssl->secure_renegotiation->enabled) {
+                if (*input == 0) {
+                    ssl->secure_renegotiation->enabled = 1;
+                    ret = 0;                    
+                }
+            }
+            else if (*input == 2 * TLS_FINISHED_SZ) {
+                /* TODO compare client_verify_data and server_verify_data */
+                ret = 0;
+            }
+        #endif
+        }
     }
 
-#ifndef NO_CYASSL_SERVER
-    if (isRequest) {
-        int r = TLSX_UseMaxFragment(&ssl->extensions, *input);
+    if (ret != 0)
+        SendAlert(ssl, alert_fatal, handshake_failure);
 
-        if (r != SSL_SUCCESS) return r; /* throw error */
-
-        TLSX_SetResponse(ssl, MAX_FRAGMENT_LENGTH);
-    }
-#endif
-
-    return 0;
+    return ret;
 }
 
 int TLSX_UseSecureRenegotiation(TLSX** extensions)

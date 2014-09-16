@@ -1321,7 +1321,7 @@ then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_TRUNCATED_HMAC"
 fi
 
-# Renegotiation Indication
+# Renegotiation Indication - (FAKE Secure Renegotiation)
 AC_ARG_ENABLE([renegotiation-indication],
     [  --enable-renegotiation-indication  Enable Renegotiation Indication (default: disabled)],
     [ ENABLED_RENEGOTIATION_INDICATION=$enableval ],
@@ -1331,6 +1331,18 @@ AC_ARG_ENABLE([renegotiation-indication],
 if test "x$ENABLED_RENEGOTIATION_INDICATION" = "xyes"
 then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_RENEGOTIATION_INDICATION"
+fi
+
+# Secure Renegotiation
+AC_ARG_ENABLE([secure-renegotiation],
+    [  --enable-secure-renegotiation Enable Secure Renegotiation (default: disabled)],
+    [ ENABLED_SECURE_RENEGOTIATION=$enableval ],
+    [ ENABLED_SECURE_RENEGOTIATION=no ]
+    )
+
+if test "x$ENABLED_SECURE_RENEGOTIATION" = "xyes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_SECURE_RENEGOTIATION"
 fi
 
 # Supported Elliptic Curves Extensions
@@ -1357,9 +1369,8 @@ then
 	ENABLED_SNI=yes
 	ENABLED_MAX_FRAGMENT=yes
 	ENABLED_TRUNCATED_HMAC=yes
-	ENABLED_RENEGOTIATION_INDICATION=yes
 	ENABLED_SUPPORTED_CURVES=yes
-    AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_SNI -DHAVE_MAX_FRAGMENT -DHAVE_TRUNCATED_HMAC -DHAVE_RENEGOTIATION_INDICATION -DHAVE_SUPPORTED_CURVES"
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_SNI -DHAVE_MAX_FRAGMENT -DHAVE_TRUNCATED_HMAC -DHAVE_SUPPORTED_CURVES"
 fi
 
 # PKCS7
@@ -1860,6 +1871,7 @@ echo "   * SNI:                       $ENABLED_SNI"
 echo "   * Maximum Fragment Length:   $ENABLED_MAX_FRAGMENT"
 echo "   * Truncated HMAC:            $ENABLED_TRUNCATED_HMAC"
 echo "   * Renegotiation Indication:  $ENABLED_RENEGOTIATION_INDICATION"
+echo "   * Secure Renegotiation:      $ENABLED_SECURE_RENEGOTIATION"
 echo "   * Supported Elliptic Curves: $ENABLED_SUPPORTED_CURVES"
 echo "   * All TLS Extensions:        $ENABLED_TLSX"
 echo "   * PKCS#7                     $ENABLED_PKCS7"
