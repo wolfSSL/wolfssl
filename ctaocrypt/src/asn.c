@@ -98,9 +98,8 @@
     #define XGMTIME(c) gmtime((c))
     #define XVALIDATE_DATE(d, f, t) ValidateDate((d), (f), (t))
 #elif defined(FREESCALE_MQX)
-    #include <time.h>
-    #define XTIME(t1) mqx_time((t1))
-    #define XGMTIME(c) gmtime((c))
+    #define XTIME(t1)  mqx_time((t1))
+    #define XGMTIME(c) mqx_gmtime((c))
     #define XVALIDATE_DATE(d, f, t) ValidateDate((d), (f), (t))
 #elif defined(CYASSL_MDK_ARM)
     #if defined(CYASSL_MDK5)
@@ -313,6 +312,14 @@ time_t mqx_time(time_t* timer)
     *timer = (time_t) time_s.SECONDS;
 
     return *timer;
+}
+
+/* CodeWarrior GCC toolchain only has gmtime_r(), no gmtime() */
+struct tm* mqx_gmtime(const time_t* clock)
+{
+    struct tm tmpTime;
+
+    return gmtime_r(clock, &tmpTime);
 }
 
 #endif /* FREESCALE_MQX */
@@ -2316,12 +2323,13 @@ int ValidateDate(const byte* date, byte format, int dateType)
         certTime.tm_year += btoi(date[i++]) * 100;
     }
 
-    GetTime(&certTime.tm_year, date, &i); certTime.tm_year -= 1900; /* adjust */
-    GetTime(&certTime.tm_mon,  date, &i); certTime.tm_mon  -= 1;    /* adjust */
-    GetTime(&certTime.tm_mday, date, &i);
-    GetTime(&certTime.tm_hour, date, &i); 
-    GetTime(&certTime.tm_min,  date, &i); 
-    GetTime(&certTime.tm_sec,  date, &i); 
+    /* adjust tm_year, tm_mon */
+    GetTime((int*)&certTime.tm_year, date, &i); certTime.tm_year -= 1900;
+    GetTime((int*)&certTime.tm_mon,  date, &i); certTime.tm_mon  -= 1;
+    GetTime((int*)&certTime.tm_mday, date, &i);
+    GetTime((int*)&certTime.tm_hour, date, &i);
+    GetTime((int*)&certTime.tm_min,  date, &i);
+    GetTime((int*)&certTime.tm_sec,  date, &i);
         
         if (date[i] != 'Z') {     /* only Zulu supported for this profile */
         CYASSL_MSG("Only Zulu time supported for this profile"); 

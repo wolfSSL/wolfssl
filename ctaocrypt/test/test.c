@@ -3846,7 +3846,7 @@ int rsa_test(void)
 
 #if !defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048)
     #ifdef FREESCALE_MQX
-        static const char* dhKey = "a:\certs\\dh2048.der";
+        static const char* dhKey = "a:\\certs\\dh2048.der";
     #else
         static const char* dhKey = "./certs/dh2048.der";
     #endif
