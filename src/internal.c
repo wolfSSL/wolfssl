@@ -1775,6 +1775,7 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
 #ifdef HAVE_SECURE_RENEGOTIATION
         ssl->secureR_state.secure_renegotation = 0;
         ssl->secureR_state.doing_secure_renegotation = 0;
+        ssl->secureR_state.enabled = 0;
 #endif /* HAVE_SECURE_RENEGOTIATION */
 
     /* all done with init, now can return errors, call other stuff */
@@ -4387,6 +4388,10 @@ int DoFinished(CYASSL* ssl, const byte* input, word32* inOutIdx, word32 size,
     if (finishedSz != size)
         return BUFFER_ERROR;
 
+    /* check against totalSz */
+    if (*inOutIdx + size + ssl->keys.padSz > totalSz)
+        return BUFFER_E;
+
     #ifdef CYASSL_CALLBACKS
         if (ssl->hsInfoOn) AddPacketName("Finished", &ssl->handShakeInfo);
         if (ssl->toInfoOn) AddLateName("Finished", &ssl->timeoutInfo);
@@ -4399,9 +4404,17 @@ int DoFinished(CYASSL* ssl, const byte* input, word32* inOutIdx, word32 size,
         }
     }
 
-    /* increment beyond input + size should be checked against totalSz */
-    if (*inOutIdx + size + ssl->keys.padSz > totalSz)
-        return INCOMPLETE_DATA;
+#ifdef HAVE_SECURE_RENEGOTIATION
+    if (ssl->secureR_state.enabled) {
+        /* save peer's state */
+        if (ssl->options.side == CYASSL_CLIENT_END)
+            XMEMCPY(ssl->secureR_state.server_verify_data, input + *inOutIdx,
+                    TLS_FINISHED_SZ);
+        else
+            XMEMCPY(ssl->secureR_state.client_verify_data, input + *inOutIdx,
+                    TLS_FINISHED_SZ);
+    }
+#endif /* HAVE_SECURE_RENEGOTIATION */
 
     /* force input exhaustion at ProcessReply consuming padSz */
     *inOutIdx += size + ssl->keys.padSz;
@@ -6718,6 +6731,17 @@ int SendFinished(CYASSL* ssl)
     ret = BuildFinished(ssl, hashes,
                       ssl->options.side == CYASSL_CLIENT_END ? client : server);
     if (ret != 0) return ret;
+
+#ifdef HAVE_SECURE_RENEGOTIATION
+    if (ssl->secureR_state.enabled) {
+        if (ssl->options.side == CYASSL_CLIENT_END)
+            XMEMCPY(ssl->secureR_state.client_verify_data, hashes,
+                    TLS_FINISHED_SZ);
+        else
+            XMEMCPY(ssl->secureR_state.server_verify_data, hashes,
+                    TLS_FINISHED_SZ);
+    }
+#endif /* HAVE_SECURE_RENEGOTIATION */
 
     sendSz = BuildMessage(ssl, output, outputSz, input, headerSz + finishedSz,
                           handshake);

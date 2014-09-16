@@ -1884,6 +1884,7 @@ typedef struct DtlsMsg {
         byte server_verify_data[TLS_FINISHED_SZ]; /* previous handshake value */
         byte secure_renegotation;         /* is current connection using */
         byte doing_secure_renegotation;   /* are we doing it now flag */
+        byte enabled;                     /* runtime allowed? */
     } SecureR_State;
 
 #endif
