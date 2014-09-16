@@ -703,30 +703,48 @@ int TLS_hmac(CYASSL* ssl, byte* digest, const byte* in, word32 sz,
 
 #ifdef HAVE_TLS_EXTENSIONS
 
+
 #define IS_OFF(semaphore, light) \
     ((semaphore)[(light) / 8] ^  (byte) (0x01 << ((light) % 8)))
+
 
 #define TURN_ON(semaphore, light) \
     ((semaphore)[(light) / 8] |= (byte) (0x01 << ((light) % 8)))
 
-static int TLSX_Append(TLSX** list, TLSX_Type type)
+
+static int TLSX_Push(TLSX** list, TLSX_Type type, void* data)
 {
     TLSX* extension;
 
-    if (list == NULL) /* won't check type since this function is static */
-        return BAD_FUNC_ARG;
-
-    if ((extension = XMALLOC(sizeof(TLSX), 0, DYNAMIC_TYPE_TLSX)) == NULL)
+    extension = (TLSX*)XMALLOC(sizeof(TLSX), 0, DYNAMIC_TYPE_TLSX);
+    if (extension == NULL)
         return MEMORY_E;
 
     extension->type = type;
-    extension->data = NULL;
+    extension->data = data;
     extension->resp = 0;
     extension->next = *list;
     *list = extension;
 
+    /* remove duplicated extensions, there should be only one of each type. */
+    do {
+        if (extension->next && extension->next->type == type) {
+            TLSX *next = extension->next;
+
+            extension->next = next->next;
+            next->next = NULL;
+
+            TLSX_FreeAll(next);
+
+            /* there is no way to occur more than */
+            /* two extensions of the same type.   */
+            break;
+        }
+    } while ((extension = extension->next));
+
     return 0;
 }
+
 
 #ifndef NO_CYASSL_SERVER
 
@@ -784,7 +802,7 @@ static int TLSX_SNI_Append(SNI** list, byte type, const void* data, word16 size)
             sni->data.host_name = XMALLOC(size + 1, 0, DYNAMIC_TYPE_TLSX);
 
             if (sni->data.host_name) {
-                XSTRNCPY(sni->data.host_name, (const char*) data, size);
+                XSTRNCPY(sni->data.host_name, (const char*)data, size);
                 sni->data.host_name[size] = 0;
             } else {
                 XFREE(sni, 0, DYNAMIC_TYPE_TLSX);
@@ -823,7 +841,7 @@ static word16 TLSX_SNI_GetSize(SNI* list)
 
         switch (sni->type) {
             case CYASSL_SNI_HOST_NAME:
-                length += XSTRLEN((char*) sni->data.host_name);
+                length += XSTRLEN((char*)sni->data.host_name);
             break;
         }
     }
@@ -844,7 +862,7 @@ static word16 TLSX_SNI_Write(SNI* list, byte* output)
 
         switch (sni->type) {
             case CYASSL_SNI_HOST_NAME:
-                length = XSTRLEN((char*) sni->data.host_name);
+                length = XSTRLEN((char*)sni->data.host_name);
 
                 c16toa(length, output + offset); /* sni length */
                 offset += OPAQUE16_LEN;
@@ -941,7 +959,7 @@ static int TLSX_SNI_Parse(CYASSL* ssl, byte* input, word16 length,
         if (offset + size > length)
             return BUFFER_ERROR;
 
-        if (!(sni = TLSX_SNI_Find((SNI *) extension->data, type))) {
+        if (!(sni = TLSX_SNI_Find((SNI*)extension->data, type))) {
             continue; /* not using this SNI type */
         }
 
@@ -949,7 +967,7 @@ static int TLSX_SNI_Parse(CYASSL* ssl, byte* input, word16 length,
             case CYASSL_SNI_HOST_NAME: {
                 byte matched = (XSTRLEN(sni->data.host_name) == size)
                             && (XSTRNCMP(sni->data.host_name,
-                                     (const char *) input + offset, size) == 0);
+                                       (const char*)input + offset, size) == 0);
 
                 if (matched || sni->options & CYASSL_SNI_ANSWER_ON_MISMATCH) {
                     int r = TLSX_UseSNI(&ssl->extensions,
@@ -979,7 +997,7 @@ static int TLSX_SNI_Parse(CYASSL* ssl, byte* input, word16 length,
 
 int TLSX_UseSNI(TLSX** extensions, byte type, const void* data, word16 size)
 {
-    TLSX* extension = NULL;
+    TLSX* extension = TLSX_Find(*extensions, SERVER_NAME_INDICATION);
     SNI*  sni       = NULL;
     int   ret       = 0;
 
@@ -989,37 +1007,30 @@ int TLSX_UseSNI(TLSX** extensions, byte type, const void* data, word16 size)
     if ((ret = TLSX_SNI_Append(&sni, type, data, size)) != 0)
         return ret;
 
-    extension = *extensions;
-
-    /* find SNI extension if it already exists. */
-    while (extension && extension->type != SERVER_NAME_INDICATION)
-        extension = extension->next;
-
-    /* push new SNI extension if it doesn't exists. */
     if (!extension) {
-        if ((ret = TLSX_Append(extensions, SERVER_NAME_INDICATION)) != 0) {
+        if ((ret = TLSX_Push(extensions, SERVER_NAME_INDICATION, (void*)sni)) 
+                                                                         != 0) {
             TLSX_SNI_Free(sni);
             return ret;
         }
-
-        extension = *extensions;
     }
+    else {
+        /* push new SNI object to extension data. */
+        sni->next = (SNI*)extension->data;
+        extension->data = (void*)sni;        
 
-    /* push new SNI object to extension data. */
-    sni->next = (SNI*) extension->data;
-    extension->data = (void*) sni;
+        /* look for another server name of the same type to remove */
+        do {
+            if (sni->next && sni->next->type == type) {
+                SNI *next = sni->next;
 
-    /* look for another server name of the same type to remove (replacement) */
-    do {
-        if (sni->next && sni->next->type == type) {
-            SNI *next = sni->next;
+                sni->next = next->next;
+                TLSX_SNI_Free(next);
 
-            sni->next = next->next;
-            TLSX_SNI_Free(next);
-
-            break;
-        }
-    } while ((sni = sni->next));
+                break;
+            }
+        } while ((sni = sni->next));
+    }
 
     return SSL_SUCCESS;
 }
@@ -1237,9 +1248,8 @@ static int TLSX_MFL_Parse(CYASSL* ssl, byte* input, word16 length,
 
 int TLSX_UseMaxFragment(TLSX** extensions, byte mfl)
 {
-    TLSX* extension = NULL;
-    byte* data      = NULL;
-    int   ret       = 0;
+    byte* data = NULL;
+    int   ret  = 0;
 
     if (extensions == NULL)
         return BAD_FUNC_ARG;
@@ -1253,28 +1263,10 @@ int TLSX_UseMaxFragment(TLSX** extensions, byte mfl)
     data[0] = mfl;
 
     /* push new MFL extension. */
-    if ((ret = TLSX_Append(extensions, MAX_FRAGMENT_LENGTH)) != 0) {
+    if ((ret = TLSX_Push(extensions, MAX_FRAGMENT_LENGTH, data)) != 0) {
         XFREE(data, 0, DYNAMIC_TYPE_TLSX);
         return ret;
     }
-
-    /* place new mfl to extension data. */
-    extension = *extensions;
-    extension->data = (void*) data;
-
-    /* remove duplicated extensions */
-    do {
-        if (extension->next && extension->next->type == MAX_FRAGMENT_LENGTH) {
-            TLSX *next = extension->next;
-
-            extension->next = next->next;
-            next->next = NULL;
-
-            TLSX_FreeAll(next);
-
-            break;
-        }
-    } while ((extension = extension->next));
 
     return SSL_SUCCESS;
 }
@@ -1304,7 +1296,7 @@ int TLSX_UseTruncatedHMAC(TLSX** extensions)
         return BAD_FUNC_ARG;
 
     if (!TLSX_Find(*extensions, TRUNCATED_HMAC))
-        if ((ret = TLSX_Append(extensions, TRUNCATED_HMAC)) != 0)
+        if ((ret = TLSX_Push(extensions, TRUNCATED_HMAC, NULL)) != 0)
             return ret;
 
     return SSL_SUCCESS;
@@ -1556,7 +1548,7 @@ int TLSX_ValidateEllipticCurves(CYASSL* ssl, byte first, byte second) {
 
 int TLSX_UseSupportedCurve(TLSX** extensions, word16 name)
 {
-    TLSX*          extension = NULL;
+    TLSX*          extension = TLSX_Find(*extensions, ELLIPTIC_CURVES);
     EllipticCurve* curve     = NULL;
     int            ret       = 0;
 
@@ -1566,37 +1558,29 @@ int TLSX_UseSupportedCurve(TLSX** extensions, word16 name)
     if ((ret = TLSX_EllipticCurve_Append(&curve, name)) != 0)
         return ret;
 
-    extension = *extensions;
-
-    /* find EllipticCurve extension if it already exists. */
-    while (extension && extension->type != ELLIPTIC_CURVES)
-        extension = extension->next;
-
-    /* push new EllipticCurve extension if it doesn't exists. */
     if (!extension) {
-        if ((ret = TLSX_Append(extensions, ELLIPTIC_CURVES)) != 0) {
+        if ((ret = TLSX_Push(extensions, ELLIPTIC_CURVES, curve)) != 0) {
             XFREE(curve, 0, DYNAMIC_TYPE_TLSX);
             return ret;
         }
-
-        extension = *extensions;
     }
+    else {
+        /* push new EllipticCurve object to extension data. */
+        curve->next = (EllipticCurve*)extension->data;
+        extension->data = (void*)curve;
 
-    /* push new EllipticCurve object to extension data. */
-    curve->next = (EllipticCurve*) extension->data;
-    extension->data = (void*) curve;
+        /* look for another curve of the same name to remove (replacement) */
+        do {
+            if (curve->next && curve->next->name == name) {
+                EllipticCurve *next = curve->next;
 
-    /* look for another curve of the same name to remove (replacement) */
-    do {
-        if (curve->next && curve->next->name == name) {
-            EllipticCurve *next = curve->next;
+                curve->next = next->next;
+                XFREE(next, 0, DYNAMIC_TYPE_TLSX);
 
-            curve->next = next->next;
-            XFREE(next, 0, DYNAMIC_TYPE_TLSX);
-
-            break;
-        }
-    } while ((curve = curve->next));
+                break;
+            }
+        } while ((curve = curve->next));        
+    }
 
     return SSL_SUCCESS;
 }
@@ -1627,6 +1611,113 @@ int TLSX_UseSupportedCurve(TLSX** extensions, word16 name)
 #define EC_VALIDATE_REQUEST(a, b)
 
 #endif /* HAVE_SUPPORTED_CURVES */
+#ifdef HAVE_SECURE_RENEGOTIATION
+
+static byte TLSX_SCR_GetSize(SecureRenegotiation* data, int isRequest)
+{
+    byte length = OPAQUE8_LEN; /* RenegotiationInfo length */
+
+    if (data->secure_renegotiation) {
+        /* client sends client_verify_data only */
+        length += TLS_FINISHED_SZ;
+
+        /* server also sends server_verify_data */
+        if (!isRequest)
+            length += TLS_FINISHED_SZ;
+    }
+
+    return length;
+}
+
+static word16 TLSX_SCR_Write(SecureRenegotiation* data, byte* output, 
+                                                                  int isRequest)
+{   
+    word16 offset = OPAQUE8_LEN; /* RenegotiationInfo length */
+
+    output[0] = TLSX_SCR_GetSize(data, isRequest);
+    
+    if (data->secure_renegotiation) {
+        /* client sends client_verify_data only */
+        XMEMCPY(output + offset, data->client_verify_data, TLS_FINISHED_SZ);
+        offset += TLS_FINISHED_SZ;
+
+        /* server also sends server_verify_data */
+        if (!isRequest) {
+            XMEMCPY(output + offset, data->server_verify_data, TLS_FINISHED_SZ);
+            offset += TLS_FINISHED_SZ;
+        }
+    }
+    
+    return offset;
+}   
+    
+static int TLSX_SCR_Parse(CYASSL* ssl, byte* input, word16 length,
+                                                                 byte isRequest)
+{
+    if (length != ENUM_LEN)
+        return BUFFER_ERROR;
+
+    switch (*input) {
+        case CYASSL_MFL_2_9 : ssl->max_fragment =  512; break;
+        case CYASSL_MFL_2_10: ssl->max_fragment = 1024; break;
+        case CYASSL_MFL_2_11: ssl->max_fragment = 2048; break;
+        case CYASSL_MFL_2_12: ssl->max_fragment = 4096; break;
+        case CYASSL_MFL_2_13: ssl->max_fragment = 8192; break;
+
+        default:
+            SendAlert(ssl, alert_fatal, illegal_parameter);
+
+            return UNKNOWN_MAX_FRAG_LEN_E;
+    }
+
+#ifndef NO_CYASSL_SERVER
+    if (isRequest) {
+        int r = TLSX_UseMaxFragment(&ssl->extensions, *input);
+
+        if (r != SSL_SUCCESS) return r; /* throw error */
+
+        TLSX_SetResponse(ssl, MAX_FRAGMENT_LENGTH);
+    }
+#endif
+
+    return 0;
+}
+
+int TLSX_UseSecureRenegotiation(TLSX** extensions)
+{
+    int ret = 0;
+    SecureRenegotiation* data = NULL;
+    
+    data = (SecureRenegotiation*)XMALLOC(sizeof(SecureRenegotiation), NULL,
+                                                             DYNAMIC_TYPE_TLSX);
+    if (data == NULL)
+        return MEMORY_E;
+
+    XMEMSET(data, 0, sizeof(SecureRenegotiation));
+
+    ret = TLSX_Push(extensions, SECURE_RENEGOTIATION, data);
+    if (ret != 0) {
+        XFREE(data, 0, DYNAMIC_TYPE_TLSX);
+        return ret;
+    }
+
+    return SSL_SUCCESS;
+}
+
+
+#define SCR_FREE_ALL(data) XFREE(data, NULL, DYNAMIC_TYPE_TLSX)
+#define SCR_GET_SIZE       TLSX_SCR_GetSize
+#define SCR_WRITE          TLSX_SCR_Write
+#define SCR_PARSE          TLSX_SCR_Parse
+
+#else
+
+#define SCR_FREE_ALL(a)
+#define SCR_GET_SIZE(a, b)    0
+#define SCR_WRITE(a, b, c)    0
+#define SCR_PARSE(a, b, c, d) 0
+
+#endif /* HAVE_SECURE_RENEGOTIATION */
 
 TLSX* TLSX_Find(TLSX* list, TLSX_Type type)
 {
@@ -1647,7 +1738,7 @@ void TLSX_FreeAll(TLSX* list)
 
         switch (extension->type) {
             case SERVER_NAME_INDICATION:
-                SNI_FREE_ALL((SNI *) extension->data);
+                SNI_FREE_ALL((SNI*)extension->data);
                 break;
 
             case MAX_FRAGMENT_LENGTH:
@@ -1660,6 +1751,10 @@ void TLSX_FreeAll(TLSX* list)
 
             case ELLIPTIC_CURVES:
                 EC_FREE_ALL(extension->data);
+                break;
+
+            case SECURE_RENEGOTIATION:
+                SCR_FREE_ALL(extension->data);
                 break;
         }
 
@@ -1682,30 +1777,35 @@ static word16 TLSX_GetSize(TLSX* list, byte* semaphore, byte isRequest)
         if (!isRequest && !extension->resp)
             continue; /* skip! */
 
-        if (IS_OFF(semaphore, extension->type)) {
-            /* type + data length */
-            length += HELLO_EXT_TYPE_SZ + OPAQUE16_LEN;
+        if (!IS_OFF(semaphore, extension->type))
+            continue; /* skip! */
 
-            switch (extension->type) {
-                case SERVER_NAME_INDICATION:
-                    if (isRequest)
-                        length += SNI_GET_SIZE((SNI *) extension->data);
-                    break;
-                case MAX_FRAGMENT_LENGTH:
-                    length += MFL_GET_SIZE(extension->data);
-                    break;
+        /* type + data length */
+        length += HELLO_EXT_TYPE_SZ + OPAQUE16_LEN;
 
-                case TRUNCATED_HMAC:
-                    /* empty extension. */
-                    break;
+        switch (extension->type) {
+            case SERVER_NAME_INDICATION:
+                if (isRequest)
+                    length += SNI_GET_SIZE(extension->data);
+                break;
+            case MAX_FRAGMENT_LENGTH:
+                length += MFL_GET_SIZE(extension->data);
+                break;
 
-                case ELLIPTIC_CURVES:
-                    length += EC_GET_SIZE((EllipticCurve *) extension->data);
-                    break;
-            }
+            case TRUNCATED_HMAC:
+                /* empty extension. */
+                break;
 
-            TURN_ON(semaphore, extension->type);
+            case ELLIPTIC_CURVES:
+                length += EC_GET_SIZE(extension->data);
+                break;
+
+            case SECURE_RENEGOTIATION:
+                length += SCR_GET_SIZE(extension->data, isRequest);
+                break;
         }
+
+        TURN_ON(semaphore, extension->type);
     }
 
     return length;
@@ -1724,41 +1824,44 @@ static word16 TLSX_Write(TLSX* list, byte* output, byte* semaphore,
         if (!isRequest && !extension->resp)
             continue; /* skip! */
 
-        if (IS_OFF(semaphore, extension->type)) {
-            /* extension type */
-            c16toa(extension->type, output + offset);
-            offset += HELLO_EXT_TYPE_SZ + OPAQUE16_LEN;
-            length_offset = offset;
+        if (!IS_OFF(semaphore, extension->type))
+            continue; /* skip! */
 
-            /* extension data should be written internally */
-            switch (extension->type) {
-                case SERVER_NAME_INDICATION:
-                    if (isRequest)
-                        offset += SNI_WRITE((SNI *) extension->data,
-                                                               output + offset);
-                    break;
+        /* extension type */
+        c16toa(extension->type, output + offset);
+        offset += HELLO_EXT_TYPE_SZ + OPAQUE16_LEN;
+        length_offset = offset;
 
-                case MAX_FRAGMENT_LENGTH:
-                    offset += MFL_WRITE((byte *) extension->data,
-                                                               output + offset);
-                    break;
+        /* extension data should be written internally */
+        switch (extension->type) {
+            case SERVER_NAME_INDICATION:
+                if (isRequest)
+                    offset += SNI_WRITE((SNI*)extension->data, output + offset);
+                break;
 
-                case TRUNCATED_HMAC:
-                    /* empty extension. */
-                    break;
+            case MAX_FRAGMENT_LENGTH:
+                offset += MFL_WRITE((byte*)extension->data, output + offset);
+                break;
+
+            case TRUNCATED_HMAC:
+                /* empty extension. */
+                break;
 
                 case ELLIPTIC_CURVES:
-                    offset += EC_WRITE((EllipticCurve *) extension->data,
+                    offset += EC_WRITE((EllipticCurve*)extension->data,
                                                                output + offset);
                     break;
-            }
 
-            /* writing extension data length */
-            c16toa(offset - length_offset,
-                                         output + length_offset - OPAQUE16_LEN);
-
-            TURN_ON(semaphore, extension->type);
+                case SECURE_RENEGOTIATION:
+                    offset += SCR_WRITE((SecureRenegotiation*)extension->data,
+                                                    output + offset, isRequest);
+                    break;
         }
+
+        /* writing extension data length */
+        c16toa(offset - length_offset, output + length_offset - OPAQUE16_LEN);
+
+        TURN_ON(semaphore, extension->type);
     }
 
     return offset;
@@ -1925,6 +2028,12 @@ int TLSX_Parse(CYASSL* ssl, byte* input, word16 length, byte isRequest,
                 CYASSL_MSG("Elliptic Curves extension received");
 
                 ret = EC_PARSE(ssl, input + offset, size, isRequest);
+                break;
+
+            case SECURE_RENEGOTIATION:
+                CYASSL_MSG("Secure Renegotiation extension received");
+
+                ret = SCR_PARSE(ssl, input + offset, size, isRequest);
                 break;
 
             case HELLO_EXT_SIG_ALGO:
