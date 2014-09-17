@@ -2,8 +2,11 @@
 
 #include <mqx.h>
 #include <bsp.h>
-#include <mfs.h>
 #include <fio.h>
+#include <mfs.h>
+#include <sdcard.h>
+#include <spi.h>
+#include <part_mgr.h>
 
 #include "util.h"
 
@@ -42,14 +45,13 @@
     #error "SDCARD low level communication device not defined!"
 #endif
 
-int sdcard_open(MQX_FILE_PTR *com_handle, MQX_FILE_PTR *sdcard_handle, 
-			 	MQX_FILE_PTR *partman_handle, MQX_FILE_PTR *filesystem_handle,
-		        char *partman_name, char *filesystem_name) 
+int sdcard_open(MQX_FILE_PTR *com_handle, MQX_FILE_PTR *sdcard_handle,
+                MQX_FILE_PTR *partman_handle, MQX_FILE_PTR *filesystem_handle,
+                char *partman_name, char *filesystem_name)
 {
-	
 	_mqx_int	error_code;
 	_mqx_uint	param;
-	
+
 	/* Open low level communication device */
 	*com_handle = fopen(SDCARD_COM_CHANNEL, NULL);
 
@@ -59,7 +61,7 @@ int sdcard_open(MQX_FILE_PTR *com_handle, MQX_FILE_PTR *sdcard_handle,
 	}
 
 	/* Install SD card device */
-	error_code = _io_sdcard_install("sdcard:", (pointer) &_bsp_sdcard0_init,
+	error_code = _io_sdcard_install("sdcard:", (void *)&_bsp_sdcard0_init,
 			*com_handle);
 	if (error_code != MQX_OK) {
 		printf("Error installing SD card device (0x%x)\n", error_code);
@@ -79,7 +81,7 @@ int sdcard_open(MQX_FILE_PTR *com_handle, MQX_FILE_PTR *sdcard_handle,
 	error_code = _io_part_mgr_install(*sdcard_handle, partman_name, 0);
 	if (error_code != MFS_NO_ERROR) {
 		printf("Error installing partition manager: %s\n", MFS_Error_text(
-				(uint_32) error_code));
+				(uint32_t) error_code));
 		return -63;
 	}
 
@@ -88,7 +90,7 @@ int sdcard_open(MQX_FILE_PTR *com_handle, MQX_FILE_PTR *sdcard_handle,
 	if (*partman_handle == NULL) {
 		error_code = ferror(*partman_handle);
 		printf("Error opening partition manager: %s\n", MFS_Error_text(
-				(uint_32) error_code));
+				(uint32_t) error_code));
 		return -64;
 	}
 
@@ -100,17 +102,17 @@ int sdcard_open(MQX_FILE_PTR *com_handle, MQX_FILE_PTR *sdcard_handle,
 		error_code = _io_mfs_install(*partman_handle, filesystem_name, param);
 		if (error_code != MFS_NO_ERROR) {
 			printf("Error initializing MFS over partition: %s\n",
-					MFS_Error_text((uint_32) error_code));
+					MFS_Error_text((uint32_t) error_code));
 			return -65;
 		}
 
 	} else {
 		/* Install MFS over SD card driver */
-		error_code = _io_mfs_install(*sdcard_handle, filesystem_name, 
+		error_code = _io_mfs_install(*sdcard_handle, filesystem_name,
                 (_file_size) 0);
 		if (error_code != MFS_NO_ERROR) {
 			printf("Error initializing MFS: %s\n", MFS_Error_text(
-					(uint_32) error_code));
+					(uint32_t) error_code));
 			return -66;
 		}
 	} /* end Validate partition 1 */
@@ -120,7 +122,7 @@ int sdcard_open(MQX_FILE_PTR *com_handle, MQX_FILE_PTR *sdcard_handle,
 	error_code = ferror(*filesystem_handle);
 	if ((error_code != MFS_NO_ERROR) && (error_code != MFS_NOT_A_DOS_DISK)) {
 		printf("Error opening filesystem: %s\n", MFS_Error_text(
-				(uint_32) error_code));
+				(uint32_t) error_code));
 		return -67;
 	}
 	if (error_code == MFS_NOT_A_DOS_DISK) {
@@ -133,10 +135,10 @@ int sdcard_open(MQX_FILE_PTR *com_handle, MQX_FILE_PTR *sdcard_handle,
 
 int sdcard_close(MQX_FILE_PTR *sdcard_handle, MQX_FILE_PTR *partman_handle,
 		         MQX_FILE_PTR *filesystem_handle,
-		         char *partman_name, char *filesystem_name) 
+		         char *partman_name, char *filesystem_name)
 {
 	_mqx_int	error_code;
-	
+
 	/* Close the filesystem */
 	if (MQX_OK != fclose(*filesystem_handle)) {
 		printf("Error closing filesystem.\n");
@@ -171,7 +173,7 @@ int sdcard_close(MQX_FILE_PTR *sdcard_handle, MQX_FILE_PTR *partman_handle,
 		return -73;
 	}
 	*sdcard_handle = NULL;
-	
+
 	return 0;
 }
 
