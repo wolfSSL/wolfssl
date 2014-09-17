@@ -5,17 +5,16 @@
 
 #include <mqx.h>
 #include <bsp.h>
-
-#include <mfs.h>
 #include <fio.h>
+#include <mfs.h>
 #include <sdcard.h>
-#include <sdcard_spi.h>
 #include <spi.h>
 #include <part_mgr.h>
 
-#define MAIN_TASK 1
+#define MAIN_TASK   1
 
-extern void Main_task(uint_32);
+extern void Main_task (uint32_t);
+void ctaocrypt_test(void* args);
 
 #endif /* __main_h_ */
 
