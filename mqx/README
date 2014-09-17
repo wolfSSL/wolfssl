@@ -1,8 +1,8 @@
 CyaSSL Freescale CodeWarrior Project Files
 
-This directory contains project files for Freescale CodeWarrior 10.2. These
-project have been created to use MQX, RTCS, and MFS on the Freescale
-Kinetis K70 Tower System.
+This directory contains project files for Freescale CodeWarrior 10.6 with
+the Freescale GCC compiler. These project have been created to use MQX, RTCS,
+and MFS on the Freescale Kinetis K70 Tower System (TWRK70F120M).
 
 Included Project Files
 -----------------------
@@ -14,10 +14,14 @@ Included Project Files
 
     <cyassl_root>/cyassl/ctaocrypt/settings.h
 
-2. CTaoCrypt Test App (/ctaocrypt_test)
+2. wolfCrypt Test App (/wolfcrypt_test)
 
 3. Example CyaSSL Client (/cyassl_client)
 
+4. Utility library (/util_lib)
+
+    This library is used by the CyaSSL example client project and wolfCrypt
+    test app project for opening/closing the SD card, etc.
 
 Importing into CodeWarrior Workspace
 ------------------------------------
