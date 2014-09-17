@@ -1628,7 +1628,7 @@ static byte TLSX_SCR_GetSize(SecureRenegotiation* data, int isRequest)
 
     if (data->enabled) {
         /* client sends client_verify_data only */
-        length = TLS_FINISHED_SZ;
+        length += TLS_FINISHED_SZ;
 
         /* server also sends server_verify_data */
         if (!isRequest)
@@ -1641,7 +1641,7 @@ static byte TLSX_SCR_GetSize(SecureRenegotiation* data, int isRequest)
 static word16 TLSX_SCR_Write(SecureRenegotiation* data, byte* output, 
                                                                   int isRequest)
 {   
-    word16 offset = 0; /* RenegotiationInfo length */
+    word16 offset = OPAQUE8_LEN; /* RenegotiationInfo length */
 
     if (data->enabled) {
         /* client sends client_verify_data only */
@@ -1653,9 +1653,9 @@ static word16 TLSX_SCR_Write(SecureRenegotiation* data, byte* output,
             XMEMCPY(output + offset, data->server_verify_data, TLS_FINISHED_SZ);
             offset += TLS_FINISHED_SZ;
         }
-    } else {
-        output[offset++] = 0x00;  /* empty info */
     }
+
+    output[0] = offset - 1;  /* info length - self */
     
     return offset;
 }   
