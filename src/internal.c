@@ -1775,12 +1775,6 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
     #endif /* NO_RSA */
 #endif /* HAVE_PK_CALLBACKS */
 
-#if defined(HAVE_SECURE_RENEGOTIATION) && defined(HAVE_TLS_EXTENSIONS)
-        ssl->secureR_state.secure_renegotiation = 0;
-        ssl->secureR_state.previous_handshake_used = 0;
-        ssl->secureR_state.enabled = 0;
-#endif /* HAVE_SECURE_RENEGOTIATION && HAVE_TLS_EXTENSIONS */
-
     /* all done with init, now can return errors, call other stuff */
 
     /* increment CTX reference count */
@@ -4408,14 +4402,14 @@ int DoFinished(CYASSL* ssl, const byte* input, word32* inOutIdx, word32 size,
     }
 
 #if defined(HAVE_SECURE_RENEGOTIATION) && defined(HAVE_TLS_EXTENSIONS)
-    if (ssl->secureR_state.enabled) {
+    if (ssl->secure_renegotiation) {
         /* save peer's state */
         if (ssl->options.side == CYASSL_CLIENT_END)
-            XMEMCPY(ssl->secureR_state.server_verify_data, input + *inOutIdx,
-                    TLS_FINISHED_SZ);
+            XMEMCPY(ssl->secure_renegotiation->server_verify_data,
+                    input + *inOutIdx, TLS_FINISHED_SZ);
         else
-            XMEMCPY(ssl->secureR_state.client_verify_data, input + *inOutIdx,
-                    TLS_FINISHED_SZ);
+            XMEMCPY(ssl->secure_renegotiation->client_verify_data,
+                    input + *inOutIdx, TLS_FINISHED_SZ);
     }
 #endif /* (HAVE_SECURE_RENEGOTIATION) && (HAVE_TLS_EXTENSIONS) */
 
@@ -6736,12 +6730,13 @@ int SendFinished(CYASSL* ssl)
     if (ret != 0) return ret;
 
 #if defined(HAVE_SECURE_RENEGOTIATION) && defined(HAVE_TLS_EXTENSIONS)
-    if (ssl->secureR_state.enabled) {
+    if (ssl->secure_renegotiation) {
+        printf("doing secure ren memcpy\n");
         if (ssl->options.side == CYASSL_CLIENT_END)
-            XMEMCPY(ssl->secureR_state.client_verify_data, hashes,
+            XMEMCPY(ssl->secure_renegotiation->client_verify_data, hashes,
                     TLS_FINISHED_SZ);
         else
-            XMEMCPY(ssl->secureR_state.server_verify_data, hashes,
+            XMEMCPY(ssl->secure_renegotiation->server_verify_data, hashes,
                     TLS_FINISHED_SZ);
     }
 #endif /* HAVE_SECURE_RENEGOTIATION && HAVE_TLS_EXTENSIONS */

@@ -1890,20 +1890,6 @@ typedef struct DtlsMsg {
 #endif
 
 
-#ifdef HAVE_SECURE_RENEGOTIATION
-
-    /* Secure Renegotiation State */
-    typedef struct SecureR_State {
-        byte client_verify_data[TLS_FINISHED_SZ]; /* previous handshake value */
-        byte server_verify_data[TLS_FINISHED_SZ]; /* previous handshake value */
-        byte secure_renegotiation;     /* extensions flag */
-        byte previous_handshake_used;  /* did previous handshake use secure r */
-        byte enabled;                  /* runtime allowed? */
-    } SecureR_State;
-
-#endif
-
-
 /* CyaSSL ssl type */
 struct CYASSL {
     CYASSL_CTX*     ctx;
@@ -2015,7 +2001,6 @@ struct CYASSL {
         byte truncated_hmac;
     #endif
     #ifdef HAVE_SECURE_RENEGOTIATION
-        SecureR_State secureR_state;    /* secure renegotiation state */
         SecureRenegotiation* secure_renegotiation;
     #endif
 #endif /* HAVE_TLS_EXTENSIONS */
