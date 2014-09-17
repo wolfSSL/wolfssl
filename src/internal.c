@@ -6731,7 +6731,6 @@ int SendFinished(CYASSL* ssl)
 
 #if defined(HAVE_SECURE_RENEGOTIATION) && defined(HAVE_TLS_EXTENSIONS)
     if (ssl->secure_renegotiation) {
-        printf("doing secure ren memcpy\n");
         if (ssl->options.side == CYASSL_CLIENT_END)
             XMEMCPY(ssl->secure_renegotiation->client_verify_data, hashes,
                     TLS_FINISHED_SZ);
@@ -7512,6 +7511,9 @@ const char* CyaSSL_ERR_reason_error_string(unsigned long e)
 
     case SEND_OOB_READ_E:
         return "Send Callback Out of Bounds Read Error";
+
+    case SECURE_RENEGOTIATION_E:
+        return "Invalid Renegotiation Error";
 
     default :
         return "unknown error number";

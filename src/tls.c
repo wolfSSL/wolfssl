@@ -704,6 +704,15 @@ int TLS_hmac(CYASSL* ssl, byte* digest, const byte* in, word32 sz,
 #ifdef HAVE_TLS_EXTENSIONS
 
 
+static INLINE word16 ConvertExtType(word16 type)
+{
+    if (type < 0x10)
+        return type;
+
+    return 0x0a + (type & 0xFF);
+}
+
+
 #define IS_OFF(semaphore, light) \
     ((semaphore)[(light) / 8] ^  (byte) (0x01 << ((light) % 8)))
 
@@ -1377,7 +1386,7 @@ static void TLSX_EllipticCurve_ValidateRequest(CYASSL* ssl, byte* semaphore)
             return;
 
     /* No elliptic curve suite found */
-    TURN_ON(semaphore, ELLIPTIC_CURVES);
+    TURN_ON(semaphore, ConvertExtType(ELLIPTIC_CURVES));
 }
 
 static word16 TLSX_EllipticCurve_GetSize(EllipticCurve* list)
@@ -1615,11 +1624,11 @@ int TLSX_UseSupportedCurve(TLSX** extensions, word16 name)
 
 static byte TLSX_SCR_GetSize(SecureRenegotiation* data, int isRequest)
 {
-    byte length = OPAQUE8_LEN; /* RenegotiationInfo length */
+    byte length = OPAQUE8_LEN; /* empty info length */
 
     if (data->enabled) {
         /* client sends client_verify_data only */
-        length += TLS_FINISHED_SZ;
+        length = TLS_FINISHED_SZ;
 
         /* server also sends server_verify_data */
         if (!isRequest)
@@ -1632,10 +1641,8 @@ static byte TLSX_SCR_GetSize(SecureRenegotiation* data, int isRequest)
 static word16 TLSX_SCR_Write(SecureRenegotiation* data, byte* output, 
                                                                   int isRequest)
 {   
-    word16 offset = OPAQUE8_LEN; /* RenegotiationInfo length */
+    word16 offset = 0; /* RenegotiationInfo length */
 
-    output[0] = TLSX_SCR_GetSize(data, isRequest);
-    
     if (data->enabled) {
         /* client sends client_verify_data only */
         XMEMCPY(output + offset, data->client_verify_data, TLS_FINISHED_SZ);
@@ -1646,6 +1653,8 @@ static word16 TLSX_SCR_Write(SecureRenegotiation* data, byte* output,
             XMEMCPY(output + offset, data->server_verify_data, TLS_FINISHED_SZ);
             offset += TLS_FINISHED_SZ;
         }
+    } else {
+        output[offset++] = 0x00;  /* empty info */
     }
     
     return offset;
@@ -1656,11 +1665,11 @@ static int TLSX_SCR_Parse(CYASSL* ssl, byte* input, word16 length,
 {
     int ret = SECURE_RENEGOTIATION_E;
 
-    if (length >= OPAQUE8_LEN && *input == (length - OPAQUE8_LEN)) {
+    if (length >= OPAQUE8_LEN) {
         if (ssl->secure_renegotiation == NULL) {
         #ifndef NO_CYASSL_SERVER
             if (isRequest && *input == 0) {
-                ret = CyaSSL_UseSecureRenegotiation(ssl);
+                ret = 0;  /* don't reply, user didn't enable */
             }
         #endif
         }
@@ -1688,8 +1697,10 @@ static int TLSX_SCR_Parse(CYASSL* ssl, byte* input, word16 length,
         }
     }
 
-    if (ret != 0)
+    if (ret != 0) {
+        /* TODO: turn on fatal error at ssl level too */
         SendAlert(ssl, alert_fatal, handshake_failure);
+    }
 
     return ret;
 }
@@ -1788,7 +1799,7 @@ static word16 TLSX_GetSize(TLSX* list, byte* semaphore, byte isRequest)
         if (!isRequest && !extension->resp)
             continue; /* skip! */
 
-        if (!IS_OFF(semaphore, extension->type))
+        if (!IS_OFF(semaphore, ConvertExtType(extension->type)))
             continue; /* skip! */
 
         /* type + data length */
@@ -1816,7 +1827,7 @@ static word16 TLSX_GetSize(TLSX* list, byte* semaphore, byte isRequest)
                 break;
         }
 
-        TURN_ON(semaphore, extension->type);
+        TURN_ON(semaphore, ConvertExtType(extension->type));
     }
 
     return length;
@@ -1835,7 +1846,7 @@ static word16 TLSX_Write(TLSX* list, byte* output, byte* semaphore,
         if (!isRequest && !extension->resp)
             continue; /* skip! */
 
-        if (!IS_OFF(semaphore, extension->type))
+        if (!IS_OFF(semaphore, ConvertExtType(extension->type)))
             continue; /* skip! */
 
         /* extension type */
@@ -1872,7 +1883,7 @@ static word16 TLSX_Write(TLSX* list, byte* output, byte* semaphore,
         /* writing extension data length */
         c16toa(offset - length_offset, output + length_offset - OPAQUE16_LEN);
 
-        TURN_ON(semaphore, extension->type);
+        TURN_ON(semaphore, ConvertExtType(extension->type));
     }
 
     return offset;
