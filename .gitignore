@@ -124,3 +124,13 @@ mplabx/cyassl.X/nbproject/Package-default.bash
 
 # Vagrant folder
 .vagrant/
+
+# CodeWarrior Generated Files (Windows)
+mqx/cyassl/.settings
+mqx/cyassl_client/.settings
+mqx/cyassl_client/.cwGeneratedFileSetLog
+mqx/cyassl_client/SaAnalysispointsManager.apconfig
+mqx/util_lib/.settings
+mqx/wolfcrypt_test/.settings
+mqx/wolfcrypt_test/.cwGeneratedFileSetLog
+mqx/wolfcrypt_test/SaAnalysispointsManager.apconfig
