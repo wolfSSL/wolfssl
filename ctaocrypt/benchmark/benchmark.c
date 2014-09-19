@@ -98,6 +98,7 @@ void bench_camellia(void);
 void bench_md5(void);
 void bench_sha(void);
 void bench_sha256(void);
+void bench_sha384(void);
 void bench_sha512(void);
 void bench_ripemd(void);
 
@@ -214,6 +215,9 @@ int benchmark_test(void *args)
 #endif
 #ifndef NO_SHA256
     bench_sha256();
+#endif
+#ifdef CYASSL_SHA384
+    bench_sha384();
 #endif
 #ifdef CYASSL_SHA512
     bench_sha512();
@@ -759,6 +763,47 @@ void bench_sha256(void)
 #endif
 
     printf("SHA-256  %d %s took %5.3f seconds, %7.3f MB/s\n", numBlocks,
+                                              blockType, total, persec);
+}
+#endif
+
+#ifdef CYASSL_SHA384
+void bench_sha384(void)
+{
+    Sha384 hash;
+    byte   digest[SHA384_DIGEST_SIZE];
+    double start, total, persec;
+    int    i, ret;
+
+    ret = InitSha384(&hash);
+    if (ret != 0) {
+        printf("InitSha384 failed, ret = %d\n", ret);
+        return;
+    }
+    start = current_time(1);
+
+    for(i = 0; i < numBlocks; i++) {
+        ret = Sha384Update(&hash, plain, sizeof(plain));
+        if (ret != 0) {
+            printf("Sha384Update failed, ret = %d\n", ret);
+            return;
+        }
+    }
+
+    ret = Sha384Final(&hash, digest);
+    if (ret != 0) {
+        printf("Sha384Final failed, ret = %d\n", ret);
+        return;
+    }
+
+    total = current_time(0) - start;
+    persec = 1 / total * numBlocks;
+#ifdef BENCH_EMBEDDED
+    /* since using kB, convert to MB/s */
+    persec = persec / 1024;
+#endif
+
+    printf("SHA-384  %d %s took %5.3f seconds, %7.3f MB/s\n", numBlocks,
                                               blockType, total, persec);
 }
 #endif
