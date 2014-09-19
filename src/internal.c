@@ -3021,8 +3021,10 @@ static int GetRecordHeader(CYASSL* ssl, const byte* input, word32* inOutIdx,
 
     /* record layer length check */
 #ifdef HAVE_MAX_FRAGMENT
-    if (*size > (ssl->max_fragment + MAX_COMP_EXTRA + MAX_MSG_EXTRA))
+    if (*size > (ssl->max_fragment + MAX_COMP_EXTRA + MAX_MSG_EXTRA)) {
+        SendAlert(ssl, alert_fatal, record_overflow);
         return LENGTH_ERROR;
+    }
 #else
     if (*size > (MAX_RECORD_SIZE + MAX_COMP_EXTRA + MAX_MSG_EXTRA))
         return LENGTH_ERROR;
@@ -3933,8 +3935,10 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx,
     *inOutIdx += OPAQUE24_LEN;
 
 #ifdef HAVE_MAX_FRAGMENT
-    if (listSz > ssl->max_fragment)
+    if (listSz > ssl->max_fragment) {
+        SendAlert(ssl, alert_fatal, record_overflow);
         return BUFFER_E;
+    }
 #else
     if (listSz > MAX_RECORD_SIZE)
         return BUFFER_E;

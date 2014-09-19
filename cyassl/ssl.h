@@ -159,6 +159,7 @@ enum AlertDescription {
     close_notify            = 0,
     unexpected_message      = 10,
     bad_record_mac          = 20,
+    record_overflow         = 22,
     decompression_failure   = 30,
     handshake_failure       = 40,
     no_certificate          = 41,
