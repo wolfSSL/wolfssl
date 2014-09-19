@@ -28,7 +28,13 @@
 #include <cyassl/ctaocrypt/settings.h>
 
 #include <string.h>
-#include <stdio.h>
+
+#ifdef FREESCALE_MQX
+    #include <mqx.h>
+    #include <fio.h>
+#else
+    #include <stdio.h>
+#endif
 
 #include <cyassl/ctaocrypt/des3.h>
 #include <cyassl/ctaocrypt/arc4.h>
@@ -933,6 +939,8 @@ static RNG rng;
         static char *certRSAname = "certs/rsa2048.der";
         /* set by shell command */
         static void set_Bench_RSA_File(char * cert) { certRSAname = cert ; }
+    #elif defined(FREESCALE_MQX)
+        static char *certRSAname = "a:\\certs\\rsa2048.der";
     #else
         static const char *certRSAname = "certs/rsa2048.der";
     #endif
@@ -1037,6 +1045,8 @@ void bench_rsa(void)
         static char *certDHname = "certs/dh2048.der";
         /* set by shell command */
         void set_Bench_DH_File(char * cert) { certDHname = cert ; }
+    #elif defined(FREESCALE_MQX)
+        static char *certDHname = "a:\\certs\\dh2048.der";
     #else
         static const char *certDHname = "certs/dh2048.der";
     #endif
@@ -1551,6 +1561,16 @@ void bench_eccKeyAgree(void)
 #elif defined (CYASSL_TIRTOS)
 
     extern double current_time(int reset);
+
+#elif defined(FREESCALE_MQX)
+
+    double current_time(int reset)
+    {
+        TIME_STRUCT tv;
+        _time_get(&tv);
+
+        return (double)tv.SECONDS + (double)tv.MILLISECONDS / 1000;
+    }
 
 #else
 

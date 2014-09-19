@@ -134,3 +134,6 @@ mqx/util_lib/.settings
 mqx/wolfcrypt_test/.settings
 mqx/wolfcrypt_test/.cwGeneratedFileSetLog
 mqx/wolfcrypt_test/SaAnalysispointsManager.apconfig
+mqx/wolfcrypt_benchmark/.settings
+mqx/wolfcrypt_benchmark/.cwGeneratedFileSetLog
+mqx/wolfcrypt_benchmark/SaAnalysispointsManager.apconfig
