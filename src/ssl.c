@@ -2637,10 +2637,12 @@ int CyaSSL_CertManagerCheckOCSP(CYASSL_CERT_MANAGER* cm, byte* der, int sz)
 
     InitDecodedCert(cert, der, sz, NULL);
 
-    if ((ret = ParseCertRelative(cert, CERT_TYPE, NO_VERIFY, cm)) != 0)
+    if ((ret = ParseCertRelative(cert, CERT_TYPE, NO_VERIFY, cm)) != 0) {
         CYASSL_MSG("ParseCert failed");
-    else if ((ret = CheckCertOCSP(cm->ocsp, cert)) != 0)
+    }
+    else if ((ret = CheckCertOCSP(cm->ocsp, cert)) != 0) {
         CYASSL_MSG("CheckCertOCSP failed");
+    }
 
     FreeDecodedCert(cert);
 #ifdef CYASSL_SMALL_STACK
@@ -3151,10 +3153,12 @@ int CyaSSL_CertManagerCheckCRL(CYASSL_CERT_MANAGER* cm, byte* der, int sz)
 
     InitDecodedCert(cert, der, sz, NULL);
 
-    if ((ret = ParseCertRelative(cert, CERT_TYPE, NO_VERIFY, cm)) != 0)
+    if ((ret = ParseCertRelative(cert, CERT_TYPE, NO_VERIFY, cm)) != 0) {
         CYASSL_MSG("ParseCert failed");
-    else if ((ret = CheckCertCRL(cm->crl, cert)) != 0)
+    }
+    else if ((ret = CheckCertCRL(cm->crl, cert)) != 0) {
         CYASSL_MSG("CheckCertCRL failed");
+    }
 
     FreeDecodedCert(cert);
 #ifdef CYASSL_SMALL_STACK
