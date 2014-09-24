@@ -1693,6 +1693,7 @@ typedef struct Options {
     byte            serverState;
     byte            clientState;
     byte            handShakeState;
+    byte            handShakeDone;      /* at least one handshake complete */
     byte            side;               /* client or server end */
     byte            verifyPeer;
     byte            verifyNone;

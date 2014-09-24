@@ -1629,6 +1629,7 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
     ssl->options.connectState = CONNECT_BEGIN;
     ssl->options.acceptState  = ACCEPT_BEGIN; 
     ssl->options.handShakeState  = NULL_STATE; 
+    ssl->options.handShakeDone   = 0;
     ssl->options.processReply = doProcessInit;
 
 #ifdef CYASSL_DTLS
@@ -4424,6 +4425,7 @@ int DoFinished(CYASSL* ssl, const byte* input, word32* inOutIdx, word32 size,
         ssl->options.serverState = SERVER_FINISHED_COMPLETE;
         if (!ssl->options.resuming) {
             ssl->options.handShakeState = HANDSHAKE_DONE;
+            ssl->options.handShakeDone  = 1;
 
 #ifdef CYASSL_DTLS
             if (ssl->options.dtls) {
@@ -4438,6 +4440,7 @@ int DoFinished(CYASSL* ssl, const byte* input, word32* inOutIdx, word32 size,
         ssl->options.clientState = CLIENT_FINISHED_COMPLETE;
         if (ssl->options.resuming) {
             ssl->options.handShakeState = HANDSHAKE_DONE;
+            ssl->options.handShakeDone  = 1;
 
 #ifdef CYASSL_DTLS
             if (ssl->options.dtls) {
@@ -5760,8 +5763,8 @@ int DoApplicationData(CYASSL* ssl, byte* input, word32* inOutIdx)
     byte   decomp[MAX_RECORD_SIZE + MAX_COMP_EXTRA];
 #endif
 
-    if (ssl->options.handShakeState != HANDSHAKE_DONE) {
-        CYASSL_MSG("Received App data before handshake complete");
+    if (ssl->options.handShakeDone == 0) {
+        CYASSL_MSG("Received App data before a handshake completed");
         SendAlert(ssl, alert_fatal, unexpected_message);
         return OUT_OF_ORDER_E;
     }
@@ -6773,6 +6776,7 @@ int SendFinished(CYASSL* ssl)
         }
         else {
             ssl->options.handShakeState = HANDSHAKE_DONE;
+            ssl->options.handShakeDone  = 1;
             #ifdef CYASSL_DTLS
                 if (ssl->options.dtls) {
                     /* Other side will soon receive our Finished, go to next
@@ -6786,6 +6790,7 @@ int SendFinished(CYASSL* ssl)
     else {
         if (ssl->options.side == CYASSL_CLIENT_END) {
             ssl->options.handShakeState = HANDSHAKE_DONE;
+            ssl->options.handShakeDone  = 1;
             #ifdef CYASSL_DTLS
                 if (ssl->options.dtls) {
                     /* Other side will soon receive our Finished, go to next
@@ -7210,7 +7215,7 @@ int SendAlert(CYASSL* ssl, int severity, int type)
 
     /* only send encrypted alert if handshake actually complete, otherwise
        other side may not be able to handle it */
-    if (ssl->keys.encryptionOn && ssl->options.handShakeState == HANDSHAKE_DONE)
+    if (ssl->keys.encryptionOn && ssl->options.handShakeDone)
         sendSz = BuildMessage(ssl, output, outputSz, input, ALERT_SIZE, alert);
     else {
 
