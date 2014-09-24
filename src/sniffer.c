@@ -1106,8 +1106,16 @@ static int ProcessClientKeyExchange(const byte* input, int* sslBytes,
         return -1;
     }
 
-    MakeMasterSecret(session->sslServer);
-    MakeMasterSecret(session->sslClient);
+    ret  = MakeMasterSecret(session->sslServer);
+    ret += MakeMasterSecret(session->sslClient);
+    ret += SetKeysSide(session->sslServer, ENCRYPT_AND_DECRYPT_SIDE);
+    ret += SetKeysSide(session->sslClient, ENCRYPT_AND_DECRYPT_SIDE);
+
+    if (ret != 0) {
+        SetError(BAD_DERIVE_STR, error, session, FATAL_ERROR_STATE);
+        return -1;
+    }
+
 #ifdef SHOW_SECRETS
     {
         int i;
@@ -1278,6 +1286,9 @@ static int ProcessServerHello(const byte* input, int* sslBytes,
             ret =  DeriveKeys(session->sslServer);
             ret += DeriveKeys(session->sslClient);
         }
+        ret += SetKeysSide(session->sslServer, ENCRYPT_AND_DECRYPT_SIDE);
+        ret += SetKeysSide(session->sslClient, ENCRYPT_AND_DECRYPT_SIDE);
+
         if (ret != 0) {
             SetError(BAD_DERIVE_STR, error, session, FATAL_ERROR_STATE);
             return -1;

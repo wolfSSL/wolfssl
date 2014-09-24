@@ -2264,9 +2264,10 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
     }
 #endif
 
-    keys->sequence_number      = 0;
-    keys->peer_sequence_number = 0;
-    keys->encryptionOn         = 0;
+    if (enc)
+        keys->sequence_number      = 0;
+    if (dec)
+        keys->peer_sequence_number = 0;
     (void)side;
     (void)heap;
     (void)enc;
@@ -2278,15 +2279,44 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
 }
 
 
-/* TLS can call too */
-int StoreKeys(CYASSL* ssl, const byte* keyData)
+/* Set encrypt/decrypt or both sides of key setup */
+int SetKeysSide(CYASSL* ssl, enum encrypt_side side)
 {
-    int sz, i = 0;
     int devId = NO_CAVIUM_DEVICE;
+    Ciphers* encrypt = NULL;
+    Ciphers* decrypt = NULL;
 
 #ifdef HAVE_CAVIUM
     devId = ssl->devId;
 #endif
+
+    switch (side) {
+        case ENCRYPT_SIDE_ONLY:
+            encrypt = &ssl->encrypt;
+            break;
+
+        case DECRYPT_SIDE_ONLY:
+            decrypt = &ssl->decrypt;
+            break;
+
+        case ENCRYPT_AND_DECRYPT_SIDE:
+            encrypt = &ssl->encrypt;
+            decrypt = &ssl->decrypt;
+            break;
+
+        default:
+            return BAD_FUNC_ARG;
+    }
+
+    return SetKeys(encrypt, decrypt, &ssl->keys, &ssl->specs, ssl->options.side,
+                   ssl->heap, devId);
+}
+
+
+/* TLS can call too */
+int StoreKeys(CYASSL* ssl, const byte* keyData)
+{
+    int sz, i = 0;
 
     if (ssl->specs.cipher_type != aead) {
         sz = ssl->specs.hash_size;
@@ -2313,8 +2343,7 @@ int StoreKeys(CYASSL* ssl, const byte* keyData)
     }
 #endif
 
-    return SetKeys(&ssl->encrypt, &ssl->decrypt, &ssl->keys, &ssl->specs,
-                   ssl->options.side, ssl->heap, devId);
+    return 0;
 }
 
 #ifndef NO_OLD_TLS

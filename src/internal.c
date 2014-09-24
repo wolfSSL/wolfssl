@@ -6260,6 +6260,10 @@ int ProcessReply(CYASSL* ssl)
                     ssl->buffers.inputBuffer.idx++;
                     ssl->keys.encryptionOn = 1;
 
+                    /* setup decrypt keys for following messages */
+                    if ((ret = SetKeysSide(ssl, DECRYPT_SIDE_ONLY)) != 0)
+                        return ret;
+
                     #ifdef CYASSL_DTLS
                         if (ssl->options.dtls) {
                             DtlsPoolReset(ssl);
@@ -6705,6 +6709,9 @@ int SendFinished(CYASSL* ssl)
         word16 epoch           = ssl->keys.dtls_epoch;
     #endif
 
+    /* setup encrypt keys */
+    if ((ret = SetKeysSide(ssl, ENCRYPT_SIDE_ONLY)) != 0)
+        return ret;
 
     /* check for available size */
     outputSz = sizeof(input) + MAX_MSG_EXTRA;

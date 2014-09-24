@@ -2236,6 +2236,15 @@ CYASSL_LOCAL const char* const* GetCipherNames(void);
 CYASSL_LOCAL int GetCipherNamesSize(void);
 
 
+enum encrypt_side {
+    ENCRYPT_SIDE_ONLY = 1,
+    DECRYPT_SIDE_ONLY,
+    ENCRYPT_AND_DECRYPT_SIDE
+};
+
+CYASSL_LOCAL int SetKeysSide(CYASSL*, enum encrypt_side);
+
+
 #ifdef __cplusplus
     }  /* extern "C" */
 #endif
