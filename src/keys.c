@@ -1806,159 +1806,199 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
 #ifdef BUILD_ARC4
     word32 sz = specs->key_size;
     if (specs->bulk_cipher_algorithm == cyassl_rc4) {
-        if (enc->arc4 == NULL)
+        if (enc && enc->arc4 == NULL)
             enc->arc4 = (Arc4*)XMALLOC(sizeof(Arc4), heap, DYNAMIC_TYPE_CIPHER);
-        if (enc->arc4 == NULL)
+        if (enc && enc->arc4 == NULL)
             return MEMORY_E;
-        if (dec->arc4 == NULL)
+        if (dec && dec->arc4 == NULL)
             dec->arc4 = (Arc4*)XMALLOC(sizeof(Arc4), heap, DYNAMIC_TYPE_CIPHER);
-        if (dec->arc4 == NULL)
+        if (dec && dec->arc4 == NULL)
             return MEMORY_E;
 #ifdef HAVE_CAVIUM
         if (devId != NO_CAVIUM_DEVICE) {
-            if (Arc4InitCavium(enc->arc4, devId) != 0) {
-                CYASSL_MSG("Arc4InitCavium failed in SetKeys");
-                return CAVIUM_INIT_E;
+            if (enc) {
+                if (Arc4InitCavium(enc->arc4, devId) != 0) {
+                    CYASSL_MSG("Arc4InitCavium failed in SetKeys");
+                    return CAVIUM_INIT_E;
+                }
             }
-            if (Arc4InitCavium(dec->arc4, devId) != 0) {
-                CYASSL_MSG("Arc4InitCavium failed in SetKeys");
-                return CAVIUM_INIT_E;
+            if (dec) {
+                if (Arc4InitCavium(dec->arc4, devId) != 0) {
+                    CYASSL_MSG("Arc4InitCavium failed in SetKeys");
+                    return CAVIUM_INIT_E;
+                }
             }
         }
 #endif
         if (side == CYASSL_CLIENT_END) {
-            Arc4SetKey(enc->arc4, keys->client_write_key, sz);
-            Arc4SetKey(dec->arc4, keys->server_write_key, sz);
+            if (enc)
+                Arc4SetKey(enc->arc4, keys->client_write_key, sz);
+            if (dec)
+                Arc4SetKey(dec->arc4, keys->server_write_key, sz);
         }
         else {
-            Arc4SetKey(enc->arc4, keys->server_write_key, sz);
-            Arc4SetKey(dec->arc4, keys->client_write_key, sz);
+            if (enc)
+                Arc4SetKey(enc->arc4, keys->server_write_key, sz);
+            if (dec)
+                Arc4SetKey(dec->arc4, keys->client_write_key, sz);
         }
-        enc->setup = 1;
-        dec->setup = 1;
+        if (enc)
+            enc->setup = 1;
+        if (dec)
+            dec->setup = 1;
     }
 #endif
 
 #ifdef HAVE_POLY1305
         /* set up memory space for poly1305 */
-        if (enc->poly1305 == NULL)
+        if (enc && enc->poly1305 == NULL)
             enc->poly1305 =  (Poly1305*)malloc(sizeof(Poly1305));
-        if (enc->poly1305 == NULL)
+        if (enc && enc->poly1305 == NULL)
             return MEMORY_E;
-        if (dec->poly1305 == NULL) 
+        if (dec && dec->poly1305 == NULL)
             dec->poly1305 =
                 (Poly1305*)XMALLOC(sizeof(Poly1305), heap, DYNAMIC_TYPE_CIPHER);
-        if (dec->poly1305 == NULL)
+        if (dec && dec->poly1305 == NULL)
             return MEMORY_E;
 #endif
     
 #ifdef HAVE_CHACHA
     if (specs->bulk_cipher_algorithm == cyassl_chacha) {
         int chachaRet;
-        if (enc->chacha == NULL)
+        if (enc && enc->chacha == NULL)
             enc->chacha =  (ChaCha*)malloc(sizeof(ChaCha));
-        if (enc->chacha == NULL)
+        if (enc && enc->chacha == NULL)
             return MEMORY_E;
-        if (dec->chacha == NULL) 
+        if (dec && dec->chacha == NULL)
             dec->chacha =
                     (ChaCha*)XMALLOC(sizeof(ChaCha), heap, DYNAMIC_TYPE_CIPHER);
-        if (dec->chacha == NULL)
+        if (dec && dec->chacha == NULL)
             return MEMORY_E;
         if (side == CYASSL_CLIENT_END) {
-            chachaRet = Chacha_SetKey(enc->chacha, keys->client_write_key,
-                                  specs->key_size);
-            XMEMCPY(keys->aead_enc_imp_IV,
-                                     keys->client_write_IV, AEAD_IMP_IV_SZ);
-            if (chachaRet != 0) return chachaRet;
-            chachaRet = Chacha_SetKey(dec->chacha, keys->server_write_key,
-                                  specs->key_size);
-            XMEMCPY(keys->aead_dec_imp_IV,
-                                     keys->server_write_IV, AEAD_IMP_IV_SZ);
-            if (chachaRet != 0) return chachaRet;
+            if (enc) {
+                chachaRet = Chacha_SetKey(enc->chacha, keys->client_write_key,
+                                          specs->key_size);
+                XMEMCPY(keys->aead_enc_imp_IV, keys->client_write_IV,
+                        AEAD_IMP_IV_SZ);
+                if (chachaRet != 0) return chachaRet;
+            }
+            if (dec) {
+                chachaRet = Chacha_SetKey(dec->chacha, keys->server_write_key,
+                                          specs->key_size);
+                XMEMCPY(keys->aead_dec_imp_IV, keys->server_write_IV,
+                        AEAD_IMP_IV_SZ);
+                if (chachaRet != 0) return chachaRet;
+            }
         }
         else {
-            chachaRet = Chacha_SetKey(enc->chacha, keys->server_write_key,
-                                  specs->key_size);
-            XMEMCPY(keys->aead_enc_imp_IV,
-                                     keys->server_write_IV, AEAD_IMP_IV_SZ);
-            if (chachaRet != 0) return chachaRet;
-            chachaRet = Chacha_SetKey(dec->chacha, keys->client_write_key,
-                                  specs->key_size);
-            XMEMCPY(keys->aead_dec_imp_IV,
-                                     keys->client_write_IV, AEAD_IMP_IV_SZ);
-            if (chachaRet != 0) return chachaRet;
+            if (enc) {
+                chachaRet = Chacha_SetKey(enc->chacha, keys->server_write_key,
+                                          specs->key_size);
+                XMEMCPY(keys->aead_enc_imp_IV, keys->server_write_IV,
+                        AEAD_IMP_IV_SZ);
+                if (chachaRet != 0) return chachaRet;
+            }
+            if (dec) {
+                chachaRet = Chacha_SetKey(dec->chacha, keys->client_write_key,
+                                          specs->key_size);
+                XMEMCPY(keys->aead_dec_imp_IV, keys->client_write_IV,
+                        AEAD_IMP_IV_SZ);
+                if (chachaRet != 0) return chachaRet;
+            }
         }
 
-        enc->setup = 1;
-        dec->setup = 1;
+        if (enc)
+            enc->setup = 1;
+        if (dec)
+            dec->setup = 1;
     }
 #endif
 
 #ifdef HAVE_HC128
     if (specs->bulk_cipher_algorithm == cyassl_hc128) {
         int hcRet;
-        if (enc->hc128 == NULL)
+        if (enc && enc->hc128 == NULL)
             enc->hc128 =
                       (HC128*)XMALLOC(sizeof(HC128), heap, DYNAMIC_TYPE_CIPHER);
-        if (enc->hc128 == NULL)
+        if (enc && enc->hc128 == NULL)
             return MEMORY_E;
-        if (dec->hc128 == NULL)
+        if (dec && dec->hc128 == NULL)
             dec->hc128 =
                       (HC128*)XMALLOC(sizeof(HC128), heap, DYNAMIC_TYPE_CIPHER);
-        if (dec->hc128 == NULL)
+        if (dec && dec->hc128 == NULL)
             return MEMORY_E;
         if (side == CYASSL_CLIENT_END) {
-            hcRet = Hc128_SetKey(enc->hc128, keys->client_write_key,
-                                 keys->client_write_IV);
-            if (hcRet != 0) return hcRet;
-            hcRet = Hc128_SetKey(dec->hc128, keys->server_write_key,
-                                  keys->server_write_IV);
-            if (hcRet != 0) return hcRet;
+            if (enc) {
+                hcRet = Hc128_SetKey(enc->hc128, keys->client_write_key,
+                                     keys->client_write_IV);
+                if (hcRet != 0) return hcRet;
+            }
+            if (dec) {
+                hcRet = Hc128_SetKey(dec->hc128, keys->server_write_key,
+                                     keys->server_write_IV);
+                if (hcRet != 0) return hcRet;
+            }
         }
         else {
-            hcRet = Hc128_SetKey(enc->hc128, keys->server_write_key,
-                                  keys->server_write_IV);
-            if (hcRet != 0) return hcRet;
-            hcRet = Hc128_SetKey(dec->hc128, keys->client_write_key,
-                                  keys->client_write_IV);
-            if (hcRet != 0) return hcRet;
+            if (enc) {
+                hcRet = Hc128_SetKey(enc->hc128, keys->server_write_key,
+                                     keys->server_write_IV);
+                if (hcRet != 0) return hcRet;
+            }
+            if (dec) {
+                hcRet = Hc128_SetKey(dec->hc128, keys->client_write_key,
+                                     keys->client_write_IV);
+                if (hcRet != 0) return hcRet;
+            }
         }
-        enc->setup = 1;
-        dec->setup = 1;
+        if (enc)
+            enc->setup = 1;
+        if (dec)
+            dec->setup = 1;
     }
 #endif
     
 #ifdef BUILD_RABBIT
     if (specs->bulk_cipher_algorithm == cyassl_rabbit) {
         int rabRet;
-        if (enc->rabbit == NULL)
+        if (enc && enc->rabbit == NULL)
             enc->rabbit =
                     (Rabbit*)XMALLOC(sizeof(Rabbit), heap, DYNAMIC_TYPE_CIPHER);
-        if (enc->rabbit == NULL)
+        if (enc && enc->rabbit == NULL)
             return MEMORY_E;
-        if (dec->rabbit == NULL)
+        if (dec && dec->rabbit == NULL)
             dec->rabbit =
                     (Rabbit*)XMALLOC(sizeof(Rabbit), heap, DYNAMIC_TYPE_CIPHER);
-        if (dec->rabbit == NULL)
+        if (dec && dec->rabbit == NULL)
             return MEMORY_E;
         if (side == CYASSL_CLIENT_END) {
-            rabRet = RabbitSetKey(enc->rabbit, keys->client_write_key,
-                                  keys->client_write_IV);
-            if (rabRet != 0) return rabRet;
-            rabRet = RabbitSetKey(dec->rabbit, keys->server_write_key,
-                                  keys->server_write_IV);
-            if (rabRet != 0) return rabRet;
+            if (enc) {
+                rabRet = RabbitSetKey(enc->rabbit, keys->client_write_key,
+                                      keys->client_write_IV);
+                if (rabRet != 0) return rabRet;
+            }
+            if (dec) {
+                rabRet = RabbitSetKey(dec->rabbit, keys->server_write_key,
+                                      keys->server_write_IV);
+                if (rabRet != 0) return rabRet;
+            }
         }
         else {
-            rabRet = RabbitSetKey(enc->rabbit, keys->server_write_key,
-                                           keys->server_write_IV);
-            if (rabRet != 0) return rabRet;
-            rabRet = RabbitSetKey(dec->rabbit, keys->client_write_key,
-                                           keys->client_write_IV);
-            if (rabRet != 0) return rabRet;
+            if (enc) {
+                rabRet = RabbitSetKey(enc->rabbit, keys->server_write_key,
+                                      keys->server_write_IV);
+                if (rabRet != 0) return rabRet;
+            }
+            if (dec) {
+                rabRet = RabbitSetKey(dec->rabbit, keys->client_write_key,
+                                      keys->client_write_IV);
+                if (rabRet != 0) return rabRet;
+            }
         }
-        enc->setup = 1;
-        dec->setup = 1;
+        if (enc)
+            enc->setup = 1;
+        if (dec)
+            dec->setup = 1;
     }
 #endif
     
@@ -1966,48 +2006,58 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
     if (specs->bulk_cipher_algorithm == cyassl_triple_des) {
         int desRet = 0;
 
-        if (enc->des3 == NULL)
+        if (enc && enc->des3 == NULL)
             enc->des3 = (Des3*)XMALLOC(sizeof(Des3), heap, DYNAMIC_TYPE_CIPHER);
-        if (enc->des3 == NULL)
+        if (enc && enc->des3 == NULL)
             return MEMORY_E;
-        if (dec->des3 == NULL)
+        if (dec && dec->des3 == NULL)
             dec->des3 = (Des3*)XMALLOC(sizeof(Des3), heap, DYNAMIC_TYPE_CIPHER);
-        if (dec->des3 == NULL)
+        if (dec && dec->des3 == NULL)
             return MEMORY_E;
 #ifdef HAVE_CAVIUM
         if (devId != NO_CAVIUM_DEVICE) {
-            if (Des3_InitCavium(enc->des3, devId) != 0) {
-                CYASSL_MSG("Des3_InitCavium failed in SetKeys");
-                return CAVIUM_INIT_E;
+            if (enc) {
+                if (Des3_InitCavium(enc->des3, devId) != 0) {
+                    CYASSL_MSG("Des3_InitCavium failed in SetKeys");
+                    return CAVIUM_INIT_E;
+                }
             }
-            if (Des3_InitCavium(dec->des3, devId) != 0) {
-                CYASSL_MSG("Des3_InitCavium failed in SetKeys");
-                return CAVIUM_INIT_E;
+            if (dec) {
+                if (Des3_InitCavium(dec->des3, devId) != 0) {
+                    CYASSL_MSG("Des3_InitCavium failed in SetKeys");
+                    return CAVIUM_INIT_E;
+                }
             }
         }
 #endif
         if (side == CYASSL_CLIENT_END) {
-            desRet = Des3_SetKey(enc->des3, keys->client_write_key,
-                        keys->client_write_IV, DES_ENCRYPTION);
-            if (desRet != 0)
-                return desRet;
-            desRet = Des3_SetKey(dec->des3, keys->server_write_key,
-                        keys->server_write_IV, DES_DECRYPTION);
-            if (desRet != 0)
-                return desRet;
+            if (enc) {
+                desRet = Des3_SetKey(enc->des3, keys->client_write_key,
+                                     keys->client_write_IV, DES_ENCRYPTION);
+                if (desRet != 0) return desRet;
+            }
+            if (dec) {
+                desRet = Des3_SetKey(dec->des3, keys->server_write_key,
+                                     keys->server_write_IV, DES_DECRYPTION);
+                if (desRet != 0) return desRet;
+            }
         }
         else {
-            desRet = Des3_SetKey(enc->des3, keys->server_write_key,
-                        keys->server_write_IV, DES_ENCRYPTION);
-            if (desRet != 0)
-                return desRet;
-            desRet = Des3_SetKey(dec->des3, keys->client_write_key,
-                keys->client_write_IV, DES_DECRYPTION);
-            if (desRet != 0)
-                return desRet;
+            if (enc) {
+                desRet = Des3_SetKey(enc->des3, keys->server_write_key,
+                                     keys->server_write_IV, DES_ENCRYPTION);
+                if (desRet != 0) return desRet;
+            }
+            if (dec) {
+                desRet = Des3_SetKey(dec->des3, keys->client_write_key,
+                                     keys->client_write_IV, DES_DECRYPTION);
+                if (desRet != 0) return desRet;
+            }
         }
-        enc->setup = 1;
-        dec->setup = 1;
+        if (enc)
+            enc->setup = 1;
+        if (dec)
+            dec->setup = 1;
     }
 #endif
 
@@ -2015,116 +2065,146 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
     if (specs->bulk_cipher_algorithm == cyassl_aes) {
         int aesRet = 0;
 
-        if (enc->aes == NULL)
+        if (enc && enc->aes == NULL)
             enc->aes = (Aes*)XMALLOC(sizeof(Aes), heap, DYNAMIC_TYPE_CIPHER);
-        if (enc->aes == NULL)
+        if (enc && enc->aes == NULL)
             return MEMORY_E;
-        if (dec->aes == NULL)
+        if (dec && dec->aes == NULL)
             dec->aes = (Aes*)XMALLOC(sizeof(Aes), heap, DYNAMIC_TYPE_CIPHER);
-        if (dec->aes == NULL)
+        if (dec && dec->aes == NULL)
             return MEMORY_E;
 #ifdef HAVE_CAVIUM
         if (devId != NO_CAVIUM_DEVICE) {
-            if (AesInitCavium(enc->aes, devId) != 0) {
-                CYASSL_MSG("AesInitCavium failed in SetKeys");
-                return CAVIUM_INIT_E;
+            if (enc) {
+                if (AesInitCavium(enc->aes, devId) != 0) {
+                    CYASSL_MSG("AesInitCavium failed in SetKeys");
+                    return CAVIUM_INIT_E;
+                }
             }
-            if (AesInitCavium(dec->aes, devId) != 0) {
-                CYASSL_MSG("AesInitCavium failed in SetKeys");
-                return CAVIUM_INIT_E;
+            if (dec) {
+                if (AesInitCavium(dec->aes, devId) != 0) {
+                    CYASSL_MSG("AesInitCavium failed in SetKeys");
+                    return CAVIUM_INIT_E;
+                }
             }
         }
 #endif
         if (side == CYASSL_CLIENT_END) {
-            aesRet = AesSetKey(enc->aes, keys->client_write_key,
-                               specs->key_size, keys->client_write_IV,
-                               AES_ENCRYPTION);
-            if (aesRet != 0)
-                return aesRet;
-            aesRet = AesSetKey(dec->aes, keys->server_write_key,
-                               specs->key_size, keys->server_write_IV,
-                               AES_DECRYPTION);
-            if (aesRet != 0)
-                return aesRet;
+            if (enc) {
+                aesRet = AesSetKey(enc->aes, keys->client_write_key,
+                                   specs->key_size, keys->client_write_IV,
+                                   AES_ENCRYPTION);
+                if (aesRet != 0) return aesRet;
+            }
+            if (dec) {
+                aesRet = AesSetKey(dec->aes, keys->server_write_key,
+                                   specs->key_size, keys->server_write_IV,
+                                   AES_DECRYPTION);
+                if (aesRet != 0) return aesRet;
+            }
         }
         else {
-            aesRet = AesSetKey(enc->aes, keys->server_write_key,
-                               specs->key_size, keys->server_write_IV,
-                               AES_ENCRYPTION);
-            if (aesRet != 0)
-                return aesRet;
-            aesRet = AesSetKey(dec->aes, keys->client_write_key,
-                               specs->key_size, keys->client_write_IV,
-                               AES_DECRYPTION);
-            if (aesRet != 0)
-                return aesRet;
+            if (enc) {
+                aesRet = AesSetKey(enc->aes, keys->server_write_key,
+                                   specs->key_size, keys->server_write_IV,
+                                   AES_ENCRYPTION);
+                if (aesRet != 0) return aesRet;
+            }
+            if (dec) {
+                aesRet = AesSetKey(dec->aes, keys->client_write_key,
+                                   specs->key_size, keys->client_write_IV,
+                                   AES_DECRYPTION);
+                if (aesRet != 0) return aesRet;
+            }
         }
-        enc->setup = 1;
-        dec->setup = 1;
+        if (enc)
+            enc->setup = 1;
+        if (dec)
+            dec->setup = 1;
     }
 #endif
 
 #ifdef BUILD_AESGCM
     if (specs->bulk_cipher_algorithm == cyassl_aes_gcm) {
-        if (enc->aes == NULL)
+        if (enc && enc->aes == NULL)
             enc->aes = (Aes*)XMALLOC(sizeof(Aes), heap, DYNAMIC_TYPE_CIPHER);
-        if (enc->aes == NULL)
+        if (enc && enc->aes == NULL)
             return MEMORY_E;
-        if (dec->aes == NULL)
+        if (dec && dec->aes == NULL)
             dec->aes = (Aes*)XMALLOC(sizeof(Aes), heap, DYNAMIC_TYPE_CIPHER);
-        if (dec->aes == NULL)
+        if (dec && dec->aes == NULL)
             return MEMORY_E;
 
         if (side == CYASSL_CLIENT_END) {
-            AesGcmSetKey(enc->aes, keys->client_write_key, specs->key_size);
-            XMEMCPY(keys->aead_enc_imp_IV,
-                                     keys->client_write_IV, AEAD_IMP_IV_SZ);
-            AesGcmSetKey(dec->aes, keys->server_write_key, specs->key_size);
-            XMEMCPY(keys->aead_dec_imp_IV,
-                                     keys->server_write_IV, AEAD_IMP_IV_SZ);
+            if (enc) {
+                AesGcmSetKey(enc->aes, keys->client_write_key, specs->key_size);
+                XMEMCPY(keys->aead_enc_imp_IV, keys->client_write_IV,
+                        AEAD_IMP_IV_SZ);
+            }
+            if (dec) {
+                AesGcmSetKey(dec->aes, keys->server_write_key, specs->key_size);
+                XMEMCPY(keys->aead_dec_imp_IV, keys->server_write_IV,
+                        AEAD_IMP_IV_SZ);
+            }
         }
         else {
-            AesGcmSetKey(enc->aes, keys->server_write_key, specs->key_size);
-            XMEMCPY(keys->aead_enc_imp_IV,
-                                     keys->server_write_IV, AEAD_IMP_IV_SZ);
-            AesGcmSetKey(dec->aes, keys->client_write_key, specs->key_size);
-            XMEMCPY(keys->aead_dec_imp_IV,
-                                     keys->client_write_IV, AEAD_IMP_IV_SZ);
+            if (enc) {
+                AesGcmSetKey(enc->aes, keys->server_write_key, specs->key_size);
+                XMEMCPY(keys->aead_enc_imp_IV, keys->server_write_IV,
+                        AEAD_IMP_IV_SZ);
+            }
+            if (dec) {
+                AesGcmSetKey(dec->aes, keys->client_write_key, specs->key_size);
+                XMEMCPY(keys->aead_dec_imp_IV, keys->client_write_IV,
+                        AEAD_IMP_IV_SZ);
+            }
         }
-        enc->setup = 1;
-        dec->setup = 1;
+        if (enc)
+            enc->setup = 1;
+        if (dec)
+            dec->setup = 1;
     }
 #endif
 
 #ifdef HAVE_AESCCM
     if (specs->bulk_cipher_algorithm == cyassl_aes_ccm) {
-        if (enc->aes == NULL)
+        if (enc && enc->aes == NULL)
             enc->aes = (Aes*)XMALLOC(sizeof(Aes), heap, DYNAMIC_TYPE_CIPHER);
-        if (enc->aes == NULL)
+        if (enc && enc->aes == NULL)
             return MEMORY_E;
-        if (dec->aes == NULL)
+        if (dec && dec->aes == NULL)
             dec->aes = (Aes*)XMALLOC(sizeof(Aes), heap, DYNAMIC_TYPE_CIPHER);
-        if (dec->aes == NULL)
+        if (dec && dec->aes == NULL)
             return MEMORY_E;
 
         if (side == CYASSL_CLIENT_END) {
-            AesCcmSetKey(enc->aes, keys->client_write_key, specs->key_size);
-            XMEMCPY(keys->aead_enc_imp_IV,
-                                     keys->client_write_IV, AEAD_IMP_IV_SZ);
-            AesCcmSetKey(dec->aes, keys->server_write_key, specs->key_size);
-            XMEMCPY(keys->aead_dec_imp_IV,
-                                     keys->server_write_IV, AEAD_IMP_IV_SZ);
+            if (enc) {
+                AesCcmSetKey(enc->aes, keys->client_write_key, specs->key_size);
+                XMEMCPY(keys->aead_enc_imp_IV, keys->client_write_IV,
+                        AEAD_IMP_IV_SZ);
+            }
+            if (dec) {
+                AesCcmSetKey(dec->aes, keys->server_write_key, specs->key_size);
+                XMEMCPY(keys->aead_dec_imp_IV, keys->server_write_IV,
+                        AEAD_IMP_IV_SZ);
+            }
         }
         else {
-            AesCcmSetKey(enc->aes, keys->server_write_key, specs->key_size);
-            XMEMCPY(keys->aead_enc_imp_IV,
-                                     keys->server_write_IV, AEAD_IMP_IV_SZ);
-            AesCcmSetKey(dec->aes, keys->client_write_key, specs->key_size);
-            XMEMCPY(keys->aead_dec_imp_IV,
-                                     keys->client_write_IV, AEAD_IMP_IV_SZ);
+            if (enc) {
+                AesCcmSetKey(enc->aes, keys->server_write_key, specs->key_size);
+                XMEMCPY(keys->aead_enc_imp_IV, keys->server_write_IV,
+                        AEAD_IMP_IV_SZ);
+            }
+            if (dec) {
+                AesCcmSetKey(dec->aes, keys->client_write_key, specs->key_size);
+                XMEMCPY(keys->aead_dec_imp_IV, keys->client_write_IV,
+                        AEAD_IMP_IV_SZ);
+            }
         }
-        enc->setup = 1;
-        dec->setup = 1;
+        if (enc)
+            enc->setup = 1;
+        if (dec)
+            dec->setup = 1;
     }
 #endif
 
@@ -2132,49 +2212,55 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
     if (specs->bulk_cipher_algorithm == cyassl_camellia) {
         int camRet;
 
-        if (enc->cam == NULL)
+        if (enc && enc->cam == NULL)
             enc->cam =
                 (Camellia*)XMALLOC(sizeof(Camellia), heap, DYNAMIC_TYPE_CIPHER);
-        if (enc->cam == NULL)
+        if (enc && enc->cam == NULL)
             return MEMORY_E;
 
-        if (dec->cam == NULL)
+        if (dec && dec->cam == NULL)
             dec->cam =
                 (Camellia*)XMALLOC(sizeof(Camellia), heap, DYNAMIC_TYPE_CIPHER);
-        if (dec->cam == NULL)
+        if (dec && dec->cam == NULL)
             return MEMORY_E;
 
         if (side == CYASSL_CLIENT_END) {
-            camRet = CamelliaSetKey(enc->cam, keys->client_write_key,
-                      specs->key_size, keys->client_write_IV);
-            if (camRet != 0)
-                return camRet;
-
-            camRet = CamelliaSetKey(dec->cam, keys->server_write_key,
-                      specs->key_size, keys->server_write_IV);
-            if (camRet != 0)
-                return camRet;
+            if (enc) {
+                camRet = CamelliaSetKey(enc->cam, keys->client_write_key,
+                                        specs->key_size, keys->client_write_IV);
+                if (camRet != 0) return camRet;
+            }
+            if (dec) {
+                camRet = CamelliaSetKey(dec->cam, keys->server_write_key,
+                                        specs->key_size, keys->server_write_IV);
+                if (camRet != 0) return camRet;
+            }
         }
         else {
-            camRet = CamelliaSetKey(enc->cam, keys->server_write_key,
-                      specs->key_size, keys->server_write_IV);
-            if (camRet != 0)
-                return camRet;
-
-            camRet = CamelliaSetKey(dec->cam, keys->client_write_key,
-                      specs->key_size, keys->client_write_IV);
-            if (camRet != 0)
-                return camRet;
+            if (enc) {
+                camRet = CamelliaSetKey(enc->cam, keys->server_write_key,
+                                        specs->key_size, keys->server_write_IV);
+                if (camRet != 0) return camRet;
+            }
+            if (dec) {
+                camRet = CamelliaSetKey(dec->cam, keys->client_write_key,
+                                        specs->key_size, keys->client_write_IV);
+                if (camRet != 0) return camRet;
+            }
         }
-        enc->setup = 1;
-        dec->setup = 1;
+        if (enc)
+            enc->setup = 1;
+        if (dec)
+            dec->setup = 1;
     }
 #endif
 
 #ifdef HAVE_NULL_CIPHER
     if (specs->bulk_cipher_algorithm == cyassl_cipher_null) {
-        enc->setup = 1;
-        dec->setup = 1;
+        if (enc)
+            enc->setup = 1;
+        if (dec)
+            dec->setup = 1;
     }
 #endif
 
