@@ -1849,24 +1849,13 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
     }
 #endif
 
-#ifdef HAVE_POLY1305
-        /* set up memory space for poly1305 */
-        if (enc && enc->poly1305 == NULL)
-            enc->poly1305 =  (Poly1305*)malloc(sizeof(Poly1305));
-        if (enc && enc->poly1305 == NULL)
-            return MEMORY_E;
-        if (dec && dec->poly1305 == NULL)
-            dec->poly1305 =
-                (Poly1305*)XMALLOC(sizeof(Poly1305), heap, DYNAMIC_TYPE_CIPHER);
-        if (dec && dec->poly1305 == NULL)
-            return MEMORY_E;
-#endif
     
 #ifdef HAVE_CHACHA
     if (specs->bulk_cipher_algorithm == cyassl_chacha) {
         int chachaRet;
         if (enc && enc->chacha == NULL)
-            enc->chacha =  (ChaCha*)malloc(sizeof(ChaCha));
+            enc->chacha =
+                    (ChaCha*)XMALLOC(sizeof(ChaCha), heap, DYNAMIC_TYPE_CIPHER);
         if (enc && enc->chacha == NULL)
             return MEMORY_E;
         if (dec && dec->chacha == NULL)
@@ -2279,6 +2268,31 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
 }
 
 
+#ifdef HAVE_ONE_TIME_AUTH
+/* set one time authentication keys */
+static int SetAuthKeys(OneTimeAuth* authentication, Keys* keys,
+                       CipherSpecs* specs, void* heap, int devId)
+{
+
+#ifdef HAVE_POLY1305
+        /* set up memory space for poly1305 */
+        if (authentication && authentication->poly1305 == NULL)
+            authentication->poly1305 =
+                (Poly1305*)XMALLOC(sizeof(Poly1305), heap, DYNAMIC_TYPE_CIPHER);
+        if (authentication && authentication->poly1305 == NULL)
+            return MEMORY_E;
+        authentication->setup = 1;
+#endif
+        (void)heap;
+        (void)keys;
+        (void)specs;
+        (void)devId;
+
+        return 0;
+}
+#endif /* HAVE_ONE_TIME_AUTH */
+
+
 /* Set encrypt/decrypt or both sides of key setup */
 int SetKeysSide(CYASSL* ssl, enum encrypt_side side)
 {
@@ -2317,6 +2331,14 @@ int SetKeysSide(CYASSL* ssl, enum encrypt_side side)
         default:
             return BAD_FUNC_ARG;
     }
+
+#ifdef HAVE_ONE_TIME_AUTH
+    if (!ssl->auth.setup) {
+        ret = SetAuthKeys(&ssl->auth, keys, &ssl->specs, ssl->heap, devId);
+        if (ret != 0)
+           return ret;
+    }
+#endif
 
     ret = SetKeys(encrypt, decrypt, keys, &ssl->specs, ssl->options.side,
                   ssl->heap, devId);

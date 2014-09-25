@@ -1556,9 +1556,6 @@ typedef struct Ciphers {
 #ifdef HAVE_CHACHA 
     ChaCha*   chacha;
 #endif
-#ifdef HAVE_POLY1305 
-    Poly1305* poly1305;
-#endif
 #ifdef HAVE_HC128
     HC128*  hc128;
 #endif
@@ -1567,6 +1564,18 @@ typedef struct Ciphers {
 #endif
     byte    setup;       /* have we set it up flag for detection */
 } Ciphers;
+
+
+#ifdef HAVE_ONE_TIME_AUTH
+/* Ciphers for one time authentication such as poly1305 */
+typedef struct OneTimeAuth {
+#ifdef HAVE_POLY1305 
+    Poly1305* poly1305;
+#endif
+    byte    setup;      /* flag for if a cipher has been set */
+
+} OneTimeAuth;
+#endif
 
 
 CYASSL_LOCAL void InitCiphers(CYASSL* ssl);
@@ -1917,6 +1926,9 @@ struct CYASSL {
     Suites*         suites;             /* only need during handshake */
     Ciphers         encrypt;
     Ciphers         decrypt;
+#ifdef HAVE_ONE_TIME_AUTH
+    OneTimeAuth     auth;
+#endif
     CipherSpecs     specs;
     Keys            keys;
     int             rfd;                /* read  file descriptor */

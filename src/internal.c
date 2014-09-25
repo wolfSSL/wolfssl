@@ -536,11 +536,13 @@ void InitCiphers(CYASSL* ssl)
     ssl->decrypt.chacha = NULL;
 #endif
 #ifdef HAVE_POLY1305
-    ssl->encrypt.poly1305 = NULL;
-    ssl->decrypt.poly1305 = NULL;
+    ssl->auth.poly1305 = NULL;
 #endif
     ssl->encrypt.setup = 0;
     ssl->decrypt.setup = 0;
+#ifdef HAVE_ONE_TIME_AUTH
+    ssl->auth.setup    = 0;
+#endif
 }
 
 
@@ -595,8 +597,7 @@ void FreeCiphers(CYASSL* ssl)
     XFREE(ssl->decrypt.chacha, ssl->heap, DYNAMIC_TYPE_CIPHER);
 #endif
 #ifdef HAVE_POLY1305
-    XFREE(ssl->encrypt.poly1305, ssl->heap, DYNAMIC_TYPE_CIPHER);
-    XFREE(ssl->decrypt.poly1305, ssl->heap, DYNAMIC_TYPE_CIPHER);
+    XFREE(ssl->auth.poly1305, ssl->heap, DYNAMIC_TYPE_CIPHER);
 #endif
 }
 
@@ -4836,16 +4837,16 @@ static int Poly1305Tag(CYASSL* ssl, byte* additional, const byte* out,
 
     XMEMSET(padding, 0, sizeof(padding));
 
-    if ((ret = Poly1305SetKey(ssl->encrypt.poly1305, cipher, keySz)) != 0)
+    if ((ret = Poly1305SetKey(ssl->auth.poly1305, cipher, keySz)) != 0)
         return ret;
 
 	/* additional input to poly1305 */
-    if ((ret = Poly1305Update(ssl->encrypt.poly1305, additional,
+    if ((ret = Poly1305Update(ssl->auth.poly1305, additional,
                    CHACHA20_BLOCK_SIZE)) != 0)
         return ret;
 
     /* cipher input */
-    if ((ret = Poly1305Update(ssl->encrypt.poly1305, out, msglen)) != 0)
+    if ((ret = Poly1305Update(ssl->auth.poly1305, out, msglen)) != 0)
         return ret;
 
     /* handle padding for cipher input to make it 16 bytes long */
@@ -4854,7 +4855,7 @@ static int Poly1305Tag(CYASSL* ssl, byte* additional, const byte* out,
           if (paddingSz < 0)
               return INPUT_CASE_ERROR;
 
-          if ((ret = Poly1305Update(ssl->encrypt.poly1305, padding, paddingSz))
+          if ((ret = Poly1305Update(ssl->auth.poly1305, padding, paddingSz))
                  != 0)
               return ret;
     }
@@ -4868,12 +4869,12 @@ static int Poly1305Tag(CYASSL* ssl, byte* additional, const byte* out,
     padding[9]  = (msglen >> 8) & 0xff;
     padding[10] = (msglen >>16) & 0xff;
     padding[11] = (msglen >>24) & 0xff;
-    if ((ret = Poly1305Update(ssl->encrypt.poly1305, padding, sizeof(padding)))
+    if ((ret = Poly1305Update(ssl->auth.poly1305, padding, sizeof(padding)))
                 != 0)
         return ret;
 
     /* generate tag */
-    if ((ret = Poly1305Final(ssl->encrypt.poly1305, tag)) != 0)
+    if ((ret = Poly1305Final(ssl->auth.poly1305, tag)) != 0)
         return ret;
 
     return ret;
@@ -4896,27 +4897,27 @@ static int Poly1305TagOld(CYASSL* ssl, byte* additional, const byte* out,
     if (msglen < 0)
         return INPUT_CASE_ERROR;
 
-    if ((ret = Poly1305SetKey(ssl->encrypt.poly1305, cipher, keySz)) != 0)
+    if ((ret = Poly1305SetKey(ssl->auth.poly1305, cipher, keySz)) != 0)
         return ret;
 
 	/* add TLS compressed length and additional input to poly1305 */
     additional[AEAD_AUTH_DATA_SZ - 2] = (msglen >> 8) & 0xff;
     additional[AEAD_AUTH_DATA_SZ - 1] =  msglen       & 0xff;
-    if ((ret = Poly1305Update(ssl->encrypt.poly1305, additional,
+    if ((ret = Poly1305Update(ssl->auth.poly1305, additional,
                    AEAD_AUTH_DATA_SZ)) != 0)
         return ret;
 
     /* length of additional input plus padding */
     XMEMSET(padding, 0, sizeof(padding));
     padding[0] = AEAD_AUTH_DATA_SZ;
-    if ((ret = Poly1305Update(ssl->encrypt.poly1305, padding, 
+    if ((ret = Poly1305Update(ssl->auth.poly1305, padding, 
                     sizeof(padding))) != 0)
         return ret;
 
 
     /* add cipher info and then its length */
     XMEMSET(padding, 0, sizeof(padding));
-    if ((ret = Poly1305Update(ssl->encrypt.poly1305, out, msglen)) != 0)
+    if ((ret = Poly1305Update(ssl->auth.poly1305, out, msglen)) != 0)
         return ret;
 
     /* 32 bit size of cipher to 64 bit endian */
@@ -4924,12 +4925,12 @@ static int Poly1305TagOld(CYASSL* ssl, byte* additional, const byte* out,
     padding[1] = (msglen >>  8) & 0xff;
     padding[2] = (msglen >> 16) & 0xff;
     padding[3] = (msglen >> 24) & 0xff;
-    if ((ret = Poly1305Update(ssl->encrypt.poly1305, padding, sizeof(padding)))
+    if ((ret = Poly1305Update(ssl->auth.poly1305, padding, sizeof(padding)))
         != 0)
         return ret;
 
     /* generate tag */
-    if ((ret = Poly1305Final(ssl->encrypt.poly1305, tag)) != 0)
+    if ((ret = Poly1305Final(ssl->auth.poly1305, tag)) != 0)
         return ret;
 
     return ret;
