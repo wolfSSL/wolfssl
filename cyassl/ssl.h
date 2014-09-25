@@ -1312,12 +1312,11 @@ CYASSL_API int CyaSSL_CTX_UseSupportedCurve(CYASSL_CTX* ctx,
 
 /* Secure Renegotiation */
 #ifdef HAVE_SECURE_RENEGOTIATION
-#ifndef NO_CYASSL_CLIENT
 
 CYASSL_API int CyaSSL_UseSecureRenegotiation(CYASSL* ssl);
+CYASSL_API int CyaSSL_Rehandshake(CYASSL* ssl);
 
-#endif
-#endif
+#endif /* HAVE_SECURE_RENEGOTIATION */
 
 #define CYASSL_CRL_MONITOR   0x01   /* monitor this dir flag */
 #define CYASSL_CRL_START_MON 0x02   /* start monitoring flag */

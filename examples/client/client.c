@@ -135,6 +135,9 @@ static void Usage(void)
     printf("-m          Match domain name in cert\n");
     printf("-N          Use Non-blocking sockets\n");
     printf("-r          Resume session\n");
+#ifdef HAVE_SECURE_RENEGOTIATION
+    printf("-R          Secure Renegotiation\n");
+#endif
     printf("-f          Fewer packets/group messages\n");
     printf("-x          Disable client cert/key loading\n");
 #ifdef SHOW_SIZES
@@ -193,6 +196,7 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
     int    doPeerCheck = 1;
     int    nonBlocking = 0;
     int    resumeSession = 0;
+    int    scr           = 0;    /* secure renegotiation */
     int    trackMemory   = 0;
     int    useClientCert = 1;
     int    fewerPackets  = 0;
@@ -236,11 +240,12 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
     (void)trackMemory;
     (void)atomicUser;
     (void)pkCallbacks;
+    (void)scr;
 
     StackTrap();
 
     while ((ch = mygetopt(argc, argv,
-                          "?gdDusmNrtfxUPh:p:v:l:A:c:k:b:zS:L:ToO:")) != -1) {
+                          "?gdDusmNrRtfxUPh:p:v:l:A:c:k:b:zS:L:ToO:")) != -1) {
         switch (ch) {
             case '?' :
                 Usage();
@@ -347,6 +352,12 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
 
             case 'r' :
                 resumeSession = 1;
+                break;
+
+            case 'R' :
+                #ifdef HAVE_SECURE_RENEGOTIATION
+                    scr = 1;
+                #endif
                 break;
 
             case 'z' :
@@ -640,6 +651,12 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
     if (CyaSSL_SetCRL_Cb(ssl, CRL_CallBack) != SSL_SUCCESS)
         err_sys("can't set crl callback");
 #endif
+#ifdef HAVE_SECURE_RENEGOTIATION
+    if (scr) {
+        if (CyaSSL_UseSecureRenegotiation(ssl) != SSL_SUCCESS)
+            err_sys("can't enable secure renegotiation");
+    }
+#endif
 #ifdef ATOMIC_USER
     if (atomicUser)
         SetupAtomicUser(ctx, ssl);
@@ -671,6 +688,22 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
     NonBlockingSSL_Connect(ssl);  /* will keep retrying on timeout */
 #endif
     showPeer(ssl);
+
+#ifdef HAVE_SECURE_RENEGOTIATION
+    if (scr) {
+        if (nonBlocking) {
+            printf("not doing secure renegotiation on example with"
+                   " nonblocking yet");
+        }
+        else if (CyaSSL_Rehandshake(ssl) != SSL_SUCCESS) {
+            int  err = CyaSSL_get_error(ssl, 0);
+            char buffer[CYASSL_MAX_ERROR_SZ];
+            printf("err = %d, %s\n", err,
+                                CyaSSL_ERR_error_string(err, buffer));
+            err_sys("CyaSSL_Rehandshake failed");
+        }
+    }
+#endif /* HAVE_SECURE_RENEGOTIATION */
 
     if (sendGET) {
         printf("SSL connect ok, sending GET...\n");

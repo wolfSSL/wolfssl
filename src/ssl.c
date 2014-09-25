@@ -717,6 +717,7 @@ int CyaSSL_CTX_UseSupportedCurve(CYASSL_CTX* ctx, word16 name)
 /* Secure Renegotiation */
 #ifdef HAVE_SECURE_RENEGOTIATION
 
+/* user is forcing ability to use secure renegotiation, we discourage it */
 int CyaSSL_UseSecureRenegotiation(CYASSL* ssl)
 {
     int ret = BAD_FUNC_ARG;
@@ -734,9 +735,70 @@ int CyaSSL_UseSecureRenegotiation(CYASSL* ssl)
     return ret;
 }
 
+
+/* do a secure renegotiation handshake, use forced, we discourage */
+int CyaSSL_Rehandshake(CYASSL* ssl)
+{
+    int ret;
+
+    if (ssl == NULL)
+        return BAD_FUNC_ARG;
+
+    if (ssl->secure_renegotiation == NULL) {
+        CYASSL_MSG("Secure Renegotiation not forced on by user");
+        return SECURE_RENEGOTIATION_E;
+    }
+
+    if (ssl->secure_renegotiation->enabled == 0) {
+        CYASSL_MSG("Secure Renegotiation not enabled at extension level");
+        return SECURE_RENEGOTIATION_E;
+    }
+
+    if (ssl->options.handShakeState != HANDSHAKE_DONE) {
+        CYASSL_MSG("Can't renegotiate until previous handshake complete");
+        return SECURE_RENEGOTIATION_E;
+    }
+
+    /* reset handshake states */
+    ssl->options.serverState = NULL_STATE;
+    ssl->options.clientState = NULL_STATE;
+    ssl->options.connectState  = CONNECT_BEGIN;
+    ssl->options.acceptState   = ACCEPT_BEGIN;
+    ssl->options.handShakeState = NULL_STATE;
+    ssl->options.processReply  = 0;  /* TODO, move states in internal.h */
+
+    ssl->secure_renegotiation->cache_status = SCR_CACHE_NEEDED;
+
+#ifndef NO_OLD_TLS
+#ifndef NO_MD5
+    InitMd5(&ssl->hashMd5);
+#endif
+#ifndef NO_SHA
+    ret = InitSha(&ssl->hashSha);
+    if (ret !=0)
+        return ret;
+#endif
+#endif /* NO_OLD_TLS */
+#ifndef NO_SHA256
+    ret = InitSha256(&ssl->hashSha256);
+    if (ret !=0)
+        return ret;
+#endif
+#ifdef CYASSL_SHA384
+    ret = InitSha384(&ssl->hashSha384);
+    if (ret !=0)
+        return ret;
 #endif
 
+    ret = CyaSSL_negotiate(ssl);
+    return ret;
+}
+
+#endif /* HAVE_SECURE_RENEGOTIATION */
+
+
 #ifndef CYASSL_LEANPSK
+
 int CyaSSL_send(CYASSL* ssl, const void* data, int sz, int flags)
 {
     int ret;

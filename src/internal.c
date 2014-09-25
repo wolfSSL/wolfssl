@@ -63,6 +63,8 @@
 CYASSL_CALLBACKS needs LARGE_STATIC_BUFFERS, please add LARGE_STATIC_BUFFERS
 #endif
 
+static int BuildMessage(CYASSL* ssl, byte* output, int outSz,
+                        const byte* input, int inSz, int type);
 
 #ifndef NO_CYASSL_CLIENT
     static int DoHelloVerifyRequest(CYASSL* ssl, const byte* input, word32*,
@@ -2008,6 +2010,14 @@ void SSL_ResourceFree(CYASSL* ssl)
 /* Free any handshake resources no longer needed */
 void FreeHandshakeResources(CYASSL* ssl)
 {
+
+#ifdef HAVE_SECURE_RENEGOTIATION
+    if (ssl->secure_renegotiation && ssl->secure_renegotiation->enabled) {
+        CYASSL_MSG("Secure Renegottation needs to retain handshake resources"); 
+        return;
+    }
+#endif
+
     /* input buffer */
     if (ssl->buffers.inputBuffer.dynamicFlag)
         ShrinkInputBuffer(ssl, NO_FORCED_FREE);
@@ -4351,6 +4361,10 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx,
     if (ret == 0 && ssl->options.side == CYASSL_CLIENT_END)
         ssl->options.serverState = SERVER_CERT_COMPLETE;
 
+    if (ssl->keys.encryptionOn) {
+        *inOutIdx += ssl->keys.padSz;
+    }
+
     return ret;
 }
 
@@ -4468,9 +4482,11 @@ static int DoHandShakeMsgType(CYASSL* ssl, byte* input, word32* inOutIdx,
     if (*inOutIdx + size > totalSz)
         return INCOMPLETE_DATA;
 
-    ret = HashInput(ssl, input + *inOutIdx, size);
-    if (ret != 0)
-        return ret;
+    /* hello_request not hashed */
+    if (type != hello_request) {
+        ret = HashInput(ssl, input + *inOutIdx, size);
+        if (ret != 0) return ret;
+    }
 
 #ifdef CYASSL_CALLBACKS
     /* add name later, add on record and handshake header part back on */
@@ -4558,6 +4574,9 @@ static int DoHandShakeMsgType(CYASSL* ssl, byte* input, word32* inOutIdx,
                 AddLateName("ServerHelloDone", &ssl->timeoutInfo);
         #endif
         ssl->options.serverState = SERVER_HELLODONE_COMPLETE;
+        if (ssl->keys.encryptionOn) {
+            *inOutIdx += ssl->keys.padSz;
+        }
         break;
 
     case finished:
@@ -6245,6 +6264,11 @@ int ProcessReply(CYASSL* ssl)
                         }
                     #endif
 
+                    if (ssl->keys.encryptionOn && ssl->options.handShakeDone) {
+                        ssl->buffers.inputBuffer.idx += ssl->keys.padSz;
+                        ssl->curSize -= ssl->buffers.inputBuffer.idx;
+                    }
+
                     if (ssl->curSize != 1) {
                         CYASSL_MSG("Malicious or corrupted ChangeCipher msg");
                         return LENGTH_ERROR;
@@ -6371,6 +6395,11 @@ int SendChangeCipher(CYASSL* ssl)
         }
     #endif
 
+    /* are we in scr */
+    if (ssl->keys.encryptionOn && ssl->options.handShakeDone) {
+        sendSz += MAX_MSG_EXTRA;
+    }
+
     /* check for avalaible size */
     if ((ret = CheckAvailableSize(ssl, sendSz)) != 0)
         return ret;
@@ -6382,6 +6411,17 @@ int SendChangeCipher(CYASSL* ssl)
     AddRecordHeader(output, 1, change_cipher_spec, ssl);
 
     output[idx] = 1;             /* turn it on */
+
+    if (ssl->keys.encryptionOn && ssl->options.handShakeDone) {
+        byte input[ENUM_LEN];
+        int  inputSz = ENUM_LEN;
+
+        input[0] = 1;  /* turn it on */
+        sendSz = BuildMessage(ssl, output, sendSz, input, inputSz,
+                              change_cipher_spec);
+        if (sendSz < 0)
+            return sendSz;
+    }
 
     #ifdef CYASSL_DTLS
         if (ssl->options.dtls) {
@@ -8623,6 +8663,9 @@ static void PickHashSigAlgo(CYASSL* ssl,
         }
 #endif
 
+        if (ssl->keys.encryptionOn)
+            sendSz += MAX_MSG_EXTRA;
+
         /* check for available size */
         if ((ret = CheckAvailableSize(ssl, sendSz)) != 0)
             return ret;
@@ -8710,16 +8753,32 @@ static void PickHashSigAlgo(CYASSL* ssl,
         }
 #endif
 
+        if (ssl->keys.encryptionOn) {
+            byte* input;
+            int   inputSz = idx - RECORD_HEADER_SZ; /* build msg adds rec hdr */
+
+            input = (byte*)XMALLOC(inputSz, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            if (input == NULL)
+                return MEMORY_E;
+
+            XMEMCPY(input, output + RECORD_HEADER_SZ, inputSz);
+            sendSz = BuildMessage(ssl, output, sendSz, input,inputSz,handshake);
+            XFREE(input, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+
+            if (sendSz < 0)
+                return sendSz;
+        } else {
+            ret = HashOutput(ssl, output, sendSz, 0);
+            if (ret != 0)
+                return ret;
+        }
+
         #ifdef CYASSL_DTLS
             if (ssl->options.dtls) {
                 if ((ret = DtlsPoolSave(ssl, output, sendSz)) != 0)
                     return ret;
             }
         #endif
-
-        ret = HashOutput(ssl, output, sendSz, 0);
-        if (ret != 0)
-            return ret;
 
         ssl->options.clientState = CLIENT_HELLO_COMPLETE;
 
@@ -8937,6 +8996,10 @@ static void PickHashSigAlgo(CYASSL* ssl,
                 DtlsPoolReset(ssl);
             }
         #endif
+
+        if (ssl->keys.encryptionOn) {
+            *inOutIdx += ssl->keys.padSz;
+        }
 
         return SetCipherSpecs(ssl);
     }
@@ -9820,6 +9883,9 @@ static void PickHashSigAlgo(CYASSL* ssl,
                 }
             #endif
 
+            if (ssl->keys.encryptionOn)
+                sendSz += MAX_MSG_EXTRA;
+
             /* check for available size */
             if ((ret = CheckAvailableSize(ssl, sendSz)) != 0)
                 return ret;
@@ -9835,18 +9901,35 @@ static void PickHashSigAlgo(CYASSL* ssl,
                 idx += 2;
             }
             XMEMCPY(output + idx, encSecret, encSz);
-            /* if add more to output, adjust idx
-            idx += encSz; */
+            idx += encSz;
+
+            if (ssl->keys.encryptionOn) {
+                byte* input;
+                int   inputSz = idx-RECORD_HEADER_SZ; /* buildmsg adds rechdr */
+
+                input = (byte*)XMALLOC(inputSz, ssl->heap,
+                                       DYNAMIC_TYPE_TMP_BUFFER);
+                if (input == NULL)
+                    return MEMORY_E;
+
+                XMEMCPY(input, output + RECORD_HEADER_SZ, inputSz);
+                sendSz = BuildMessage(ssl, output, sendSz, input, inputSz,
+                                      handshake);
+                XFREE(input, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+                if (sendSz < 0)
+                    return sendSz;
+            } else {
+                ret = HashOutput(ssl, output, sendSz, 0);
+                if (ret != 0)
+                    return ret;
+            }
+
             #ifdef CYASSL_DTLS
                 if (ssl->options.dtls) {
                     if ((ret = DtlsPoolSave(ssl, output, sendSz)) != 0)
                         return ret;
                 }
             #endif
-
-            ret = HashOutput(ssl, output, sendSz, 0);
-            if (ret != 0)
-                return ret;
 
             #ifdef CYASSL_CALLBACKS
                 if (ssl->hsInfoOn)

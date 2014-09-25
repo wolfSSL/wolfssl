@@ -2282,13 +2282,23 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
 /* Set encrypt/decrypt or both sides of key setup */
 int SetKeysSide(CYASSL* ssl, enum encrypt_side side)
 {
-    int devId = NO_CAVIUM_DEVICE;
+    int devId = NO_CAVIUM_DEVICE, ret, copy = 0;
     Ciphers* encrypt = NULL;
     Ciphers* decrypt = NULL;
+    Keys*    keys    = &ssl->keys;
+
+    (void)copy;
 
 #ifdef HAVE_CAVIUM
     devId = ssl->devId;
 #endif
+
+#ifdef HAVE_SECURE_RENEGOTIATION
+    if (ssl->secure_renegotiation && ssl->secure_renegotiation->cache_status) {
+        keys = &ssl->secure_renegotiation->tmp_keys;
+        copy = 1;
+    }
+#endif /* HAVE_SECURE_RENEGOTIATION */
 
     switch (side) {
         case ENCRYPT_SIDE_ONLY:
@@ -2308,8 +2318,50 @@ int SetKeysSide(CYASSL* ssl, enum encrypt_side side)
             return BAD_FUNC_ARG;
     }
 
-    return SetKeys(encrypt, decrypt, &ssl->keys, &ssl->specs, ssl->options.side,
-                   ssl->heap, devId);
+    ret = SetKeys(encrypt, decrypt, keys, &ssl->specs, ssl->options.side,
+                  ssl->heap, devId);
+
+#ifdef HAVE_SECURE_RENEGOTIATION
+    if (copy) {
+        int clientCopy = 0;
+
+        if (ssl->options.side == CYASSL_CLIENT_END && encrypt)
+            clientCopy = 1;
+        else if (ssl->options.side == CYASSL_SERVER_END && decrypt)
+            clientCopy = 1;
+
+        if (clientCopy) {
+            XMEMCPY(ssl->keys.client_write_MAC_secret,
+                    keys->client_write_MAC_secret, MAX_DIGEST_SIZE);
+            XMEMCPY(ssl->keys.client_write_key,
+                    keys->client_write_key, AES_256_KEY_SIZE);
+            XMEMCPY(ssl->keys.client_write_IV,
+                    keys->client_write_IV, AES_IV_SIZE);
+        } else {
+            XMEMCPY(ssl->keys.server_write_MAC_secret,
+                    keys->server_write_MAC_secret, MAX_DIGEST_SIZE);
+            XMEMCPY(ssl->keys.server_write_key,
+                    keys->server_write_key, AES_256_KEY_SIZE);
+            XMEMCPY(ssl->keys.server_write_IV,
+                    keys->server_write_IV, AES_IV_SIZE);
+        }
+        if (encrypt) {
+            ssl->keys.sequence_number = keys->sequence_number;
+            #ifdef HAVE_AEAD
+                if (ssl->specs.cipher_type == aead) {
+                    /* Initialize the AES-GCM/CCM explicit IV to a zero. */
+                    XMEMCPY(ssl->keys.aead_exp_IV, keys->aead_exp_IV,
+                            AEAD_EXP_IV_SZ);
+                }
+            #endif
+        }
+        if (decrypt)
+            ssl->keys.peer_sequence_number = keys->peer_sequence_number;
+        ssl->secure_renegotiation->cache_status++;
+    }
+#endif /* HAVE_SECURE_RENEGOTIATION */
+
+    return ret;
 }
 
 
@@ -2317,29 +2369,38 @@ int SetKeysSide(CYASSL* ssl, enum encrypt_side side)
 int StoreKeys(CYASSL* ssl, const byte* keyData)
 {
     int sz, i = 0;
+    Keys* keys = &ssl->keys;
+
+#ifdef HAVE_SECURE_RENEGOTIATION
+    if (ssl->secure_renegotiation && ssl->secure_renegotiation->cache_status ==
+                                                            SCR_CACHE_NEEDED) {
+        keys = &ssl->secure_renegotiation->tmp_keys;
+        ssl->secure_renegotiation->cache_status++;
+    }
+#endif /* HAVE_SECURE_RENEGOTIATION */
 
     if (ssl->specs.cipher_type != aead) {
         sz = ssl->specs.hash_size;
-        XMEMCPY(ssl->keys.client_write_MAC_secret,&keyData[i], sz);
+        XMEMCPY(keys->client_write_MAC_secret,&keyData[i], sz);
         i += sz;
-        XMEMCPY(ssl->keys.server_write_MAC_secret,&keyData[i], sz);
+        XMEMCPY(keys->server_write_MAC_secret,&keyData[i], sz);
         i += sz;
     }
     sz = ssl->specs.key_size;
-    XMEMCPY(ssl->keys.client_write_key, &keyData[i], sz);
+    XMEMCPY(keys->client_write_key, &keyData[i], sz);
     i += sz;
-    XMEMCPY(ssl->keys.server_write_key, &keyData[i], sz);
+    XMEMCPY(keys->server_write_key, &keyData[i], sz);
     i += sz;
 
     sz = ssl->specs.iv_size;
-    XMEMCPY(ssl->keys.client_write_IV, &keyData[i], sz);
+    XMEMCPY(keys->client_write_IV, &keyData[i], sz);
     i += sz;
-    XMEMCPY(ssl->keys.server_write_IV, &keyData[i], sz);
+    XMEMCPY(keys->server_write_IV, &keyData[i], sz);
 
 #ifdef HAVE_AEAD
     if (ssl->specs.cipher_type == aead) {
         /* Initialize the AES-GCM/CCM explicit IV to a zero. */
-        XMEMSET(ssl->keys.aead_exp_IV, 0, AEAD_EXP_IV_SZ);
+        XMEMSET(keys->aead_exp_IV, 0, AEAD_EXP_IV_SZ);
     }
 #endif
 

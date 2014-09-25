@@ -1165,6 +1165,66 @@ typedef struct CYASSL_DTLS_CTX {
     int fd;
 } CYASSL_DTLS_CTX;
 
+
+#ifdef CYASSL_DTLS
+
+    #ifdef WORD64_AVAILABLE
+        typedef word64 DtlsSeq;
+    #else
+        typedef word32 DtlsSeq;
+    #endif
+    #define DTLS_SEQ_BITS (sizeof(DtlsSeq) * CHAR_BIT)
+
+    typedef struct DtlsState {
+        DtlsSeq window;     /* Sliding window for current epoch    */
+        word16 nextEpoch;   /* Expected epoch in next record       */
+        word32 nextSeq;     /* Expected sequence in next record    */
+
+        word16 curEpoch;    /* Received epoch in current record    */
+        word32 curSeq;      /* Received sequence in current record */
+
+        DtlsSeq prevWindow; /* Sliding window for old epoch        */
+        word32 prevSeq;     /* Next sequence in allowed old epoch  */
+    } DtlsState;
+
+#endif /* CYASSL_DTLS */
+
+
+/* keys and secrets */
+typedef struct Keys {
+    byte client_write_MAC_secret[MAX_DIGEST_SIZE];   /* max sizes */
+    byte server_write_MAC_secret[MAX_DIGEST_SIZE];
+    byte client_write_key[AES_256_KEY_SIZE];         /* max sizes */
+    byte server_write_key[AES_256_KEY_SIZE];
+    byte client_write_IV[AES_IV_SIZE];               /* max sizes */
+    byte server_write_IV[AES_IV_SIZE];
+#ifdef HAVE_AEAD
+    byte aead_exp_IV[AEAD_EXP_IV_SZ];
+    byte aead_enc_imp_IV[AEAD_IMP_IV_SZ];
+    byte aead_dec_imp_IV[AEAD_IMP_IV_SZ];
+#endif
+
+    word32 peer_sequence_number;
+    word32 sequence_number;
+
+#ifdef CYASSL_DTLS
+    DtlsState dtls_state;                       /* Peer's state */
+    word16 dtls_peer_handshake_number;
+    word16 dtls_expected_peer_handshake_number;
+
+    word16 dtls_epoch;                          /* Current tx epoch    */
+    word32 dtls_sequence_number;                /* Current tx sequence */
+    word16 dtls_handshake_number;               /* Current tx handshake seq */
+#endif
+
+    word32 encryptSz;             /* last size of encrypted data   */
+    word32 padSz;                 /* how much to advance after decrypt part */
+    byte   encryptionOn;          /* true after change cipher spec */
+    byte   decryptedCur;          /* only decrypt current record once */
+} Keys;
+
+
+
 /* RFC 6066 TLS Extensions */
 #ifdef HAVE_TLS_EXTENSIONS
 
@@ -1260,11 +1320,22 @@ CYASSL_LOCAL int TLSX_ValidateEllipticCurves(CYASSL* ssl, byte first,
 
 #ifdef HAVE_SECURE_RENEGOTIATION
 
+enum key_cache_state {
+    SCR_CACHE_NULL   = 0,       /* empty / begin state */
+    SCR_CACHE_NEEDED,           /* need to cache keys */
+    SCR_CACHE_COPY,             /* we have a cached copy */
+    SCR_CACHE_PARTIAL,          /* partial restore to real keys */
+    SCR_CACHE_COMPLETE          /* complete restore to real keys */
+};
+
+
 /* Additional Conection State according to rfc5746 section 3.1 */
 typedef struct SecureRenegotiation {
-   byte enabled; /* secure_renegotiation flag from rfc */
-   byte client_verify_data[TLS_FINISHED_SZ];
-   byte server_verify_data[TLS_FINISHED_SZ];
+   byte                 enabled; /* secure_renegotiation flag in rfc */
+   enum key_cache_state cache_status;  /* track key cache state */
+   byte                 client_verify_data[TLS_FINISHED_SZ];  /* cached */
+   byte                 server_verify_data[TLS_FINISHED_SZ];  /* cached */
+   Keys                 tmp_keys;  /* can't overwrite real keys yet */
 } SecureRenegotiation;
 
 CYASSL_LOCAL int TLSX_UseSecureRenegotiation(TLSX** extensions);
@@ -1464,62 +1535,8 @@ enum ClientCertificateType {
 enum CipherType { stream, block, aead };
 
 
-#ifdef CYASSL_DTLS
-
-    #ifdef WORD64_AVAILABLE
-        typedef word64 DtlsSeq;
-    #else
-        typedef word32 DtlsSeq;
-    #endif
-    #define DTLS_SEQ_BITS (sizeof(DtlsSeq) * CHAR_BIT)
-
-    typedef struct DtlsState {
-        DtlsSeq window;     /* Sliding window for current epoch    */
-        word16 nextEpoch;   /* Expected epoch in next record       */
-        word32 nextSeq;     /* Expected sequence in next record    */
-
-        word16 curEpoch;    /* Received epoch in current record    */
-        word32 curSeq;      /* Received sequence in current record */
-
-        DtlsSeq prevWindow; /* Sliding window for old epoch        */
-        word32 prevSeq;     /* Next sequence in allowed old epoch  */
-    } DtlsState;
-
-#endif /* CYASSL_DTLS */
 
 
-/* keys and secrets */
-typedef struct Keys {
-    byte client_write_MAC_secret[MAX_DIGEST_SIZE];   /* max sizes */
-    byte server_write_MAC_secret[MAX_DIGEST_SIZE]; 
-    byte client_write_key[AES_256_KEY_SIZE];         /* max sizes */
-    byte server_write_key[AES_256_KEY_SIZE]; 
-    byte client_write_IV[AES_IV_SIZE];               /* max sizes */
-    byte server_write_IV[AES_IV_SIZE];
-#ifdef HAVE_AEAD
-    byte aead_exp_IV[AEAD_EXP_IV_SZ];
-    byte aead_enc_imp_IV[AEAD_IMP_IV_SZ];
-    byte aead_dec_imp_IV[AEAD_IMP_IV_SZ];
-#endif
-
-    word32 peer_sequence_number;
-    word32 sequence_number;
-    
-#ifdef CYASSL_DTLS
-    DtlsState dtls_state;                       /* Peer's state */
-    word16 dtls_peer_handshake_number;
-    word16 dtls_expected_peer_handshake_number;
-
-    word16 dtls_epoch;                          /* Current tx epoch    */
-    word32 dtls_sequence_number;                /* Current tx sequence */
-    word16 dtls_handshake_number;               /* Current tx handshake seq */
-#endif
-
-    word32 encryptSz;             /* last size of encrypted data   */
-    word32 padSz;                 /* how much to advance after decrypt part */
-    byte   encryptionOn;          /* true after change cipher spec */
-    byte   decryptedCur;          /* only decrypt current record once */
-} Keys;
 
 
 /* cipher for now */
@@ -2002,8 +2019,8 @@ struct CYASSL {
         byte truncated_hmac;
     #endif
     #ifdef HAVE_SECURE_RENEGOTIATION
-        SecureRenegotiation* secure_renegotiation;
-    #endif
+        SecureRenegotiation* secure_renegotiation; /* valid pointer indicates */
+    #endif                                         /* user turned on */
 #endif /* HAVE_TLS_EXTENSIONS */
 #ifdef HAVE_NETX
     NetX_Ctx        nxCtx;             /* NetX IO Context */
