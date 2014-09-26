@@ -8960,6 +8960,10 @@ static void PickHashSigAlgo(CYASSL* ssl,
 
         ssl->options.serverState = SERVER_HELLO_COMPLETE;
 
+        if (ssl->keys.encryptionOn) {
+            *inOutIdx += ssl->keys.padSz;
+        }
+
         if (ssl->options.resuming) {
             if (ssl->options.haveSessionId && XMEMCMP(ssl->arrays->sessionID,
                                          ssl->session.sessionID, ID_LEN) == 0) {
@@ -8997,10 +9001,6 @@ static void PickHashSigAlgo(CYASSL* ssl,
                 DtlsPoolReset(ssl);
             }
         #endif
-
-        if (ssl->keys.encryptionOn) {
-            *inOutIdx += ssl->keys.padSz;
-        }
 
         return SetCipherSpecs(ssl);
     }

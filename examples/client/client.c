@@ -694,13 +694,21 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
         if (nonBlocking) {
             printf("not doing secure renegotiation on example with"
                    " nonblocking yet");
-        }
-        else if (CyaSSL_Rehandshake(ssl) != SSL_SUCCESS) {
-            int  err = CyaSSL_get_error(ssl, 0);
-            char buffer[CYASSL_MAX_ERROR_SZ];
-            printf("err = %d, %s\n", err,
+        } else {
+            #ifndef NO_SESSION_CACHE
+                if (resumeSession) {
+                    session = CyaSSL_get_session(ssl);
+                    CyaSSL_set_session(ssl, session);
+                    resumeSession = 0;  /* only resume once */
+                }
+            #endif
+            if (CyaSSL_Rehandshake(ssl) != SSL_SUCCESS) {
+                int  err = CyaSSL_get_error(ssl, 0);
+                char buffer[CYASSL_MAX_ERROR_SZ];
+                printf("err = %d, %s\n", err,
                                 CyaSSL_ERR_error_string(err, buffer));
-            err_sys("CyaSSL_Rehandshake failed");
+                err_sys("CyaSSL_Rehandshake failed");
+            }
         }
     }
 #endif /* HAVE_SECURE_RENEGOTIATION */
