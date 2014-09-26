@@ -1233,7 +1233,7 @@ typedef enum {
     MAX_FRAGMENT_LENGTH    = 0x0001,
     TRUNCATED_HMAC         = 0x0004,
     ELLIPTIC_CURVES        = 0x000a,
-    SESSION_TICKET         = 0x0023,
+    /*SESSION_TICKET         = 0x0023,  not used yet in switch statements */
     SECURE_RENEGOTIATION   = 0xff01
 } TLSX_Type;
 
