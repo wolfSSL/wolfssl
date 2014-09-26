@@ -9581,6 +9581,11 @@ static void PickHashSigAlgo(CYASSL* ssl,
 
         ssl->options.serverState = SERVER_KEYEXCHANGE_COMPLETE;
     }
+
+    if (ssl->keys.encryptionOn) {
+        *inOutIdx += ssl->keys.padSz;
+    }
+
     return 0;
 #else  /* !NO_DH or HAVE_ECC */
         return NOT_COMPILED_IN;  /* not supported by build */
