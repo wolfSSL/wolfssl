@@ -4421,7 +4421,7 @@ int DoFinished(CYASSL* ssl, const byte* input, word32* inOutIdx, word32 size,
         }
     }
 
-#if defined(HAVE_SECURE_RENEGOTIATION) && defined(HAVE_TLS_EXTENSIONS)
+#ifdef HAVE_SECURE_RENEGOTIATION
     if (ssl->secure_renegotiation) {
         /* save peer's state */
         if (ssl->options.side == CYASSL_CLIENT_END)
@@ -4431,7 +4431,7 @@ int DoFinished(CYASSL* ssl, const byte* input, word32* inOutIdx, word32 size,
             XMEMCPY(ssl->secure_renegotiation->client_verify_data,
                     input + *inOutIdx, TLS_FINISHED_SZ);
     }
-#endif /* (HAVE_SECURE_RENEGOTIATION) && (HAVE_TLS_EXTENSIONS) */
+#endif
 
     /* force input exhaustion at ProcessReply consuming padSz */
     *inOutIdx += size + ssl->keys.padSz;
@@ -6784,7 +6784,7 @@ int SendFinished(CYASSL* ssl)
                       ssl->options.side == CYASSL_CLIENT_END ? client : server);
     if (ret != 0) return ret;
 
-#if defined(HAVE_SECURE_RENEGOTIATION) && defined(HAVE_TLS_EXTENSIONS)
+#ifdef HAVE_SECURE_RENEGOTIATION
     if (ssl->secure_renegotiation) {
         if (ssl->options.side == CYASSL_CLIENT_END)
             XMEMCPY(ssl->secure_renegotiation->client_verify_data, hashes,
@@ -6793,7 +6793,7 @@ int SendFinished(CYASSL* ssl)
             XMEMCPY(ssl->secure_renegotiation->server_verify_data, hashes,
                     TLS_FINISHED_SZ);
     }
-#endif /* HAVE_SECURE_RENEGOTIATION && HAVE_TLS_EXTENSIONS */
+#endif
 
     sendSz = BuildMessage(ssl, output, outputSz, input, headerSz + finishedSz,
                           handshake);

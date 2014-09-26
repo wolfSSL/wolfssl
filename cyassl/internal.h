@@ -1233,6 +1233,7 @@ typedef enum {
     MAX_FRAGMENT_LENGTH    = 0x0001,
     TRUNCATED_HMAC         = 0x0004,
     ELLIPTIC_CURVES        = 0x000a,
+    SESSION_TICKET         = 0x0023,
     SECURE_RENEGOTIATION   = 0xff01
 } TLSX_Type;
 
@@ -1243,9 +1244,9 @@ typedef struct TLSX {
     struct TLSX* next; /* List Behavior   */
 } TLSX;
 
-CYASSL_LOCAL TLSX* TLSX_Find(TLSX* list, TLSX_Type type);
-CYASSL_LOCAL void TLSX_FreeAll(TLSX* list);
-CYASSL_LOCAL int TLSX_SupportExtensions(CYASSL* ssl);
+CYASSL_LOCAL TLSX*  TLSX_Find(TLSX* list, TLSX_Type type);
+CYASSL_LOCAL void   TLSX_FreeAll(TLSX* list);
+CYASSL_LOCAL int    TLSX_SupportExtensions(CYASSL* ssl);
 
 #ifndef NO_CYASSL_CLIENT
 CYASSL_LOCAL word16 TLSX_GetRequestSize(CYASSL* ssl);
@@ -1259,6 +1260,16 @@ CYASSL_LOCAL word16 TLSX_WriteResponse(CYASSL* ssl, byte* output);
 
 CYASSL_LOCAL int    TLSX_Parse(CYASSL* ssl, byte* input, word16 length,
                                                 byte isRequest, Suites *suites);
+                                                
+#elif defined(HAVE_SNI)                 \
+   || defined(HAVE_MAX_FRAGMENT)        \
+   || defined(HAVE_TRUNCATED_HMAC)      \
+   || defined(HAVE_SUPPORTED_CURVES)    \
+   || defined(HAVE_SECURE_RENEGOTIATION)
+
+#error Using TLS extensions requires HAVE_TLS_EXTENSIONS to be defined.
+
+#endif /* HAVE_TLS_EXTENSIONS */
 
 /* Server Name Indication */
 #ifdef HAVE_SNI
@@ -1342,7 +1353,6 @@ CYASSL_LOCAL int TLSX_UseSecureRenegotiation(TLSX** extensions);
 
 #endif /* HAVE_SECURE_RENEGOTIATION */
 
-#endif /* HAVE_TLS_EXTENSIONS */
 
 /* CyaSSL context type */
 struct CYASSL_CTX {

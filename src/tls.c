@@ -704,12 +704,29 @@ int TLS_hmac(CYASSL* ssl, byte* digest, const byte* in, word32 sz,
 #ifdef HAVE_TLS_EXTENSIONS
 
 
-static INLINE word16 ConvertExtType(word16 type)
-{
-    if (type < 0x10)
-        return type;
+/** Supports up to 64 flags. Update as needed. */
+#define SEMAPHORE_SIZE 8
 
-    return 0x0a + (type & 0xFF);
+
+static INLINE word16 TLSX_ToSemaphore(word16 type)
+{
+    switch (type) {
+        case SECURE_RENEGOTIATION:
+            return 63;
+
+        default:
+            if (type > 62) {
+                /* This message SHOULD only happens during the adding of
+                   new TLS extensions in which its IANA number overflows
+                   the current semaphore's range, or if its number already
+                   is assigned to be used by another extension.
+                   Use this check value for the new extension and decrement
+                   the check value by one. */
+                CYASSL_MSG("### TLSX semaphore colision or overflow detected!");
+            }
+    }
+    
+    return type;
 }
 
 
@@ -718,7 +735,7 @@ static INLINE word16 ConvertExtType(word16 type)
 
 
 #define TURN_ON(semaphore, light) \
-    ((semaphore)[(light) / 8] |= (byte) (0x01 << ((light) % 8)))
+    ((semaphore)[(light) / 8] |= (byte) (0xff01 << ((light) % 8)))
 
 
 static int TLSX_Push(TLSX** list, TLSX_Type type, void* data)
@@ -1386,7 +1403,7 @@ static void TLSX_EllipticCurve_ValidateRequest(CYASSL* ssl, byte* semaphore)
             return;
 
     /* No elliptic curve suite found */
-    TURN_ON(semaphore, ConvertExtType(ELLIPTIC_CURVES));
+    TURN_ON(semaphore, TLSX_ToSemaphore(ELLIPTIC_CURVES));
 }
 
 static word16 TLSX_EllipticCurve_GetSize(EllipticCurve* list)
@@ -1799,7 +1816,7 @@ static word16 TLSX_GetSize(TLSX* list, byte* semaphore, byte isRequest)
         if (!isRequest && !extension->resp)
             continue; /* skip! */
 
-        if (!IS_OFF(semaphore, ConvertExtType(extension->type)))
+        if (!IS_OFF(semaphore, TLSX_ToSemaphore(extension->type)))
             continue; /* skip! */
 
         /* type + data length */
@@ -1827,7 +1844,7 @@ static word16 TLSX_GetSize(TLSX* list, byte* semaphore, byte isRequest)
                 break;
         }
 
-        TURN_ON(semaphore, ConvertExtType(extension->type));
+        TURN_ON(semaphore, TLSX_ToSemaphore(extension->type));
     }
 
     return length;
@@ -1846,7 +1863,7 @@ static word16 TLSX_Write(TLSX* list, byte* output, byte* semaphore,
         if (!isRequest && !extension->resp)
             continue; /* skip! */
 
-        if (!IS_OFF(semaphore, ConvertExtType(extension->type)))
+        if (!IS_OFF(semaphore, TLSX_ToSemaphore(extension->type)))
             continue; /* skip! */
 
         /* extension type */
@@ -1869,21 +1886,21 @@ static word16 TLSX_Write(TLSX* list, byte* output, byte* semaphore,
                 /* empty extension. */
                 break;
 
-                case ELLIPTIC_CURVES:
-                    offset += EC_WRITE((EllipticCurve*)extension->data,
+            case ELLIPTIC_CURVES:
+                offset += EC_WRITE((EllipticCurve*)extension->data,
                                                                output + offset);
-                    break;
+                break;
 
-                case SECURE_RENEGOTIATION:
-                    offset += SCR_WRITE((SecureRenegotiation*)extension->data,
+            case SECURE_RENEGOTIATION:
+                offset += SCR_WRITE((SecureRenegotiation*)extension->data,
                                                     output + offset, isRequest);
-                    break;
+                break;
         }
 
         /* writing extension data length */
         c16toa(offset - length_offset, output + length_offset - OPAQUE16_LEN);
 
-        TURN_ON(semaphore, ConvertExtType(extension->type));
+        TURN_ON(semaphore, TLSX_ToSemaphore(extension->type));
     }
 
     return offset;
@@ -1896,7 +1913,7 @@ word16 TLSX_GetRequestSize(CYASSL* ssl)
     word16 length = 0;
 
     if (TLSX_SupportExtensions(ssl)) {
-        byte semaphore[16] = {0};
+        byte semaphore[SEMAPHORE_SIZE] = {0};
 
         EC_VALIDATE_REQUEST(ssl, semaphore);
 
@@ -1921,7 +1938,7 @@ word16 TLSX_WriteRequest(CYASSL* ssl, byte* output)
     word16 offset = 0;
 
     if (TLSX_SupportExtensions(ssl) && output) {
-        byte semaphore[16] = {0};
+        byte semaphore[SEMAPHORE_SIZE] = {0};
 
         offset += OPAQUE16_LEN; /* extensions length */
 
@@ -1969,7 +1986,7 @@ word16 TLSX_WriteRequest(CYASSL* ssl, byte* output)
 word16 TLSX_GetResponseSize(CYASSL* ssl)
 {
     word16 length = 0;
-    byte semaphore[16] = {0};
+    byte semaphore[SEMAPHORE_SIZE] = {0};
 
     if (TLSX_SupportExtensions(ssl))
         length += TLSX_GetSize(ssl->extensions, semaphore, 0);
@@ -1987,7 +2004,7 @@ word16 TLSX_WriteResponse(CYASSL *ssl, byte* output)
     word16 offset = 0;
 
     if (TLSX_SupportExtensions(ssl) && output) {
-        byte semaphore[16] = {0};
+        byte semaphore[SEMAPHORE_SIZE] = {0};
 
         offset += OPAQUE16_LEN; /* extensions length */
 
@@ -2089,15 +2106,9 @@ int TLSX_Parse(CYASSL* ssl, byte* input, word16 length, byte isRequest,
 /* undefining semaphore macros */
 #undef IS_OFF
 #undef TURN_ON
+#undef SEMAPHORE_SIZE
 
-#elif defined(HAVE_SNI)             \
-   || defined(HAVE_MAX_FRAGMENT)    \
-   || defined(HAVE_TRUNCATED_HMAC)  \
-   || defined(HAVE_SUPPORTED_CURVES)
-
-#error Using TLS extensions requires HAVE_TLS_EXTENSIONS to be defined.
-
-#endif /* HAVE_TLS_EXTENSIONS */
+#endif
 
 
 #ifndef NO_CYASSL_CLIENT
