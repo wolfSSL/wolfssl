@@ -1357,6 +1357,18 @@ then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_SUPPORTED_CURVES"
 fi
 
+# Session Ticket Extension
+AC_ARG_ENABLE([session-ticket],
+    [  --enable-session-ticket  Enable Session Ticket (default: disabled)],
+    [ ENABLED_SESSION_TICKET=$enableval ],
+    [ ENABLED_SESSION_TICKET=no ]
+    )
+
+if test "x$ENABLED_SESSION_TICKET" = "xyes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_SESSION_TICKET"
+fi
+
 # TLS Extensions
 AC_ARG_ENABLE([tlsx],
     [  --enable-tlsx           Enable all TLS Extensions (default: disabled)],
@@ -1873,6 +1885,7 @@ echo "   * Truncated HMAC:            $ENABLED_TRUNCATED_HMAC"
 echo "   * Renegotiation Indication:  $ENABLED_RENEGOTIATION_INDICATION"
 echo "   * Secure Renegotiation:      $ENABLED_SECURE_RENEGOTIATION"
 echo "   * Supported Elliptic Curves: $ENABLED_SUPPORTED_CURVES"
+echo "   * Session Ticket:            $ENABLED_SESSION_TICKET"
 echo "   * All TLS Extensions:        $ENABLED_TLSX"
 echo "   * PKCS#7                     $ENABLED_PKCS7"
 echo "   * wolfSCEP                   $ENABLED_WOLFSCEP"

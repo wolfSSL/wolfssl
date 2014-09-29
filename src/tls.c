@@ -735,7 +735,7 @@ static INLINE word16 TLSX_ToSemaphore(word16 type)
 
 
 #define TURN_ON(semaphore, light) \
-    ((semaphore)[(light) / 8] |= (byte) (0xff01 << ((light) % 8)))
+    ((semaphore)[(light) / 8] |= (byte) (0x01 << ((light) % 8)))
 
 
 static int TLSX_Push(TLSX** list, TLSX_Type type, void* data)
