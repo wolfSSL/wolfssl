@@ -2014,7 +2014,7 @@ void FreeHandshakeResources(CYASSL* ssl)
 
 #ifdef HAVE_SECURE_RENEGOTIATION
     if (ssl->secure_renegotiation && ssl->secure_renegotiation->enabled) {
-        CYASSL_MSG("Secure Renegottation needs to retain handshake resources"); 
+        CYASSL_MSG("Secure Renegotiation needs to retain handshake resources"); 
         return;
     }
 #endif
@@ -4392,8 +4392,15 @@ static int DoHelloRequest(CYASSL* ssl, const byte* input, word32* inOutIdx,
         SendAlert(ssl, alert_fatal, unexpected_message); /* try */
         return FATAL_ERROR;
     }
-    else
+#ifdef HAVE_SECURE_RENEGOTIATION
+    else if (ssl->secure_renegotiation && ssl->secure_renegotiation->enabled) {
+        ssl->secure_renegotiation->startScr = 1;
+        return 0;
+    }
+#endif
+    else {
         return SendAlert(ssl, alert_warning, no_renegotiation);
+    }
 }
 
 
@@ -7196,7 +7203,18 @@ int ReceiveData(CYASSL* ssl, byte* output, int sz, int peek)
             return  err;
     }
 
-    while (ssl->buffers.clearOutputBuffer.length == 0)
+#ifdef HAVE_SECURE_RENEGOTIATION
+startScr:
+    if (ssl->secure_renegotiation && ssl->secure_renegotiation->startScr) {
+        int err;
+        ssl->secure_renegotiation->startScr = 0;  /* only start once */
+        CYASSL_MSG("Need to start scr, server requested");
+        if ( (err = CyaSSL_Rehandshake(ssl)) != SSL_SUCCESS)
+            return  err;
+    }
+#endif
+
+    while (ssl->buffers.clearOutputBuffer.length == 0) {
         if ( (ssl->error = ProcessReply(ssl)) < 0) {
             CYASSL_ERROR(ssl->error);
             if (ssl->error == ZERO_RETURN) {
@@ -7211,6 +7229,13 @@ int ReceiveData(CYASSL* ssl, byte* output, int sz, int peek)
             }
             return ssl->error;
         }
+        #ifdef HAVE_SECURE_RENEGOTIATION
+            if (ssl->secure_renegotiation &&
+                ssl->secure_renegotiation->startScr) {
+                goto startScr;
+            }
+        #endif
+    }
 
     if (sz < (int)ssl->buffers.clearOutputBuffer.length)
         size = sz;

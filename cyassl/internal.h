@@ -1342,7 +1342,8 @@ enum key_cache_state {
 
 /* Additional Conection State according to rfc5746 section 3.1 */
 typedef struct SecureRenegotiation {
-   byte                 enabled; /* secure_renegotiation flag in rfc */
+   byte                 enabled;  /* secure_renegotiation flag in rfc */
+   byte                 startScr; /* server requested client to start scr */
    enum key_cache_state cache_status;  /* track key cache state */
    byte                 client_verify_data[TLS_FINISHED_SZ];  /* cached */
    byte                 server_verify_data[TLS_FINISHED_SZ];  /* cached */
@@ -1768,7 +1769,6 @@ typedef struct Options {
 #ifdef HAVE_POLY1305
     byte            oldPoly;            /* set when to use old rfc way of poly*/
 #endif
-
 #ifndef NO_PSK
     byte            havePSK;            /* psk key set by user */
     psk_client_callback client_psk_cb;
