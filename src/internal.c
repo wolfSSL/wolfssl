@@ -6901,6 +6901,9 @@ int SendCertificate(CYASSL* ssl)
         }
     #endif
 
+    if (ssl->keys.encryptionOn)
+        sendSz += MAX_MSG_EXTRA;
+
     /* check for available size */
     if ((ret = CheckAvailableSize(ssl, sendSz)) != 0)
         return ret;
@@ -6926,20 +6929,36 @@ int SendCertificate(CYASSL* ssl)
         if (ssl->buffers.certChain.buffer) {
             XMEMCPY(output + i, ssl->buffers.certChain.buffer,
                                 ssl->buffers.certChain.length);
-            /* if add more to output adjust i
-               i += ssl->buffers.certChain.length; */
+            i += ssl->buffers.certChain.length;
         }
     }
+
+    if (ssl->keys.encryptionOn) {
+        byte* input;
+        int   inputSz = i - RECORD_HEADER_SZ; /* build msg adds rec hdr */
+
+        input = (byte*)XMALLOC(inputSz, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        if (input == NULL)
+            return MEMORY_E;
+
+        XMEMCPY(input, output + RECORD_HEADER_SZ, inputSz);
+        sendSz = BuildMessage(ssl, output, sendSz, input,inputSz,handshake);
+        XFREE(input, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+
+        if (sendSz < 0)
+            return sendSz;
+    } else {
+        ret = HashOutput(ssl, output, sendSz, 0);
+        if (ret != 0)
+            return ret;
+    }
+
     #ifdef CYASSL_DTLS
         if (ssl->options.dtls) {
             if ((ret = DtlsPoolSave(ssl, output, sendSz)) != 0)
                 return ret;
         }
     #endif
-
-    ret = HashOutput(ssl, output, sendSz, 0);
-    if (ret != 0)
-        return ret;
 
     #ifdef CYASSL_CALLBACKS
         if (ssl->hsInfoOn) AddPacketName("Certificate", &ssl->handShakeInfo);
@@ -9970,7 +9989,7 @@ static void PickHashSigAlgo(CYASSL* ssl,
     int SendCertificateVerify(CYASSL* ssl)
     {
         byte              *output;
-        int                sendSz = 0, length, ret;
+        int                sendSz = MAX_CERT_VERIFY_SZ, length, ret;
         word32             idx = 0;
         word32             sigOutSz = 0;
 #ifndef NO_RSA
@@ -9987,8 +10006,11 @@ static void PickHashSigAlgo(CYASSL* ssl,
         if (ssl->options.sendVerify == SEND_BLANK_CERT)
             return 0;  /* sent blank cert, can't verify */
 
+        if (ssl->keys.encryptionOn)
+            sendSz += MAX_MSG_EXTRA;
+
         /* check for available size */
-        if ((ret = CheckAvailableSize(ssl, MAX_CERT_VERIFY_SZ)) != 0)
+        if ((ret = CheckAvailableSize(ssl, sendSz)) != 0)
             return ret;
 
         /* get ouput buffer */
@@ -10197,15 +10219,41 @@ static void PickHashSigAlgo(CYASSL* ssl,
 
                 sendSz = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ + length +
                          extraSz + VERIFY_HEADER;
+
                 #ifdef CYASSL_DTLS
                     if (ssl->options.dtls) {
                         sendSz += DTLS_RECORD_EXTRA + DTLS_HANDSHAKE_EXTRA;
+                    }
+                #endif
+
+                if (ssl->keys.encryptionOn) {
+                    byte* input;
+                    int   inputSz = sendSz - RECORD_HEADER_SZ;
+                                    /* build msg adds rec hdr */
+                    input = (byte*)XMALLOC(inputSz, ssl->heap,
+                                           DYNAMIC_TYPE_TMP_BUFFER);
+                    if (input == NULL)
+                        ret = MEMORY_E;
+                    else {
+                        XMEMCPY(input, output + RECORD_HEADER_SZ, inputSz);
+                        sendSz = BuildMessage(ssl, output,
+                                              MAX_CERT_VERIFY_SZ +MAX_MSG_EXTRA,
+                                              input, inputSz, handshake);
+                        XFREE(input, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+
+                        if (sendSz < 0)
+                            ret = sendSz;
+                    }
+                } else {
+                    ret = HashOutput(ssl, output, sendSz, 0);
+                }
+
+                #ifdef CYASSL_DTLS
+                    if (ssl->options.dtls) {
                         if ((ret = DtlsPoolSave(ssl, output, sendSz)) != 0)
                             return ret;
                     }
                 #endif
-
-                ret = HashOutput(ssl, output, sendSz, 0);
             }
         }
 #ifndef NO_RSA
