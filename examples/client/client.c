@@ -136,7 +136,8 @@ static void Usage(void)
     printf("-N          Use Non-blocking sockets\n");
     printf("-r          Resume session\n");
 #ifdef HAVE_SECURE_RENEGOTIATION
-    printf("-R          Secure Renegotiation\n");
+    printf("-R          Allow Secure Renegotiation\n");
+    printf("-i          Force client Initiated Secure Renegotiation\n");
 #endif
     printf("-f          Fewer packets/group messages\n");
     printf("-x          Disable client cert/key loading\n");
@@ -196,7 +197,8 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
     int    doPeerCheck = 1;
     int    nonBlocking = 0;
     int    resumeSession = 0;
-    int    scr           = 0;    /* secure renegotiation */
+    int    scr           = 0;    /* allow secure renegotiation */
+    int    forceScr      = 0;    /* force client initiaed scr */
     int    trackMemory   = 0;
     int    useClientCert = 1;
     int    fewerPackets  = 0;
@@ -241,11 +243,12 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
     (void)atomicUser;
     (void)pkCallbacks;
     (void)scr;
+    (void)forceScr;
 
     StackTrap();
 
     while ((ch = mygetopt(argc, argv,
-                          "?gdDusmNrRtfxUPh:p:v:l:A:c:k:b:zS:L:ToO:")) != -1) {
+                          "?gdDusmNrRitfxUPh:p:v:l:A:c:k:b:zS:L:ToO:")) != -1) {
         switch (ch) {
             case '?' :
                 Usage();
@@ -357,6 +360,13 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
             case 'R' :
                 #ifdef HAVE_SECURE_RENEGOTIATION
                     scr = 1;
+                #endif
+                break;
+
+            case 'i' :
+                #ifdef HAVE_SECURE_RENEGOTIATION
+                    scr      = 1;
+                    forceScr = 1;
                 #endif
                 break;
 
@@ -690,7 +700,7 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
     showPeer(ssl);
 
 #ifdef HAVE_SECURE_RENEGOTIATION
-    if (scr) {
+    if (scr && forceScr) {
         if (nonBlocking) {
             printf("not doing secure renegotiation on example with"
                    " nonblocking yet");
