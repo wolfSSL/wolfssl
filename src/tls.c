@@ -1802,12 +1802,16 @@ static word16 TLSX_SessionTicket_Write(SessionTicket* ticket, byte* output,
 static int TLSX_SessionTicket_Parse(CYASSL* ssl, byte* input, word16 length,
                                                                  byte isRequest)
 {
-    if (!isRequest)
-        return length != 0 ? BUFFER_ERROR : 0;
-
-    /* TODO server side */
-    (void)ssl;
-    (void)input;
+    if (!isRequest) {
+        if (length != 0)
+            return BUFFER_ERROR;
+        
+        ssl->expect_session_ticket = 1;
+    }
+    else {
+        /* TODO server side */
+        (void)input;        
+    }
 
     return 0;
 }

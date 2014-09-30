@@ -1261,11 +1261,12 @@ CYASSL_LOCAL word16 TLSX_WriteResponse(CYASSL* ssl, byte* output);
 CYASSL_LOCAL int    TLSX_Parse(CYASSL* ssl, byte* input, word16 length,
                                                 byte isRequest, Suites *suites);
                                                 
-#elif defined(HAVE_SNI)                 \
-   || defined(HAVE_MAX_FRAGMENT)        \
-   || defined(HAVE_TRUNCATED_HMAC)      \
-   || defined(HAVE_SUPPORTED_CURVES)    \
-   || defined(HAVE_SECURE_RENEGOTIATION)
+#elif defined(HAVE_SNI)                  \
+   || defined(HAVE_MAX_FRAGMENT)         \
+   || defined(HAVE_TRUNCATED_HMAC)       \
+   || defined(HAVE_SUPPORTED_CURVES)     \
+   || defined(HAVE_SECURE_RENEGOTIATION) \
+   || defined(HAVE_SESSION_TICKET)
 
 #error Using TLS extensions requires HAVE_TLS_EXTENSIONS to be defined.
 
@@ -2069,6 +2070,7 @@ struct CYASSL {
              This function doesn't free an early ticket, but will erase it's 
              reference inside the extensions.
         */
+        byte           expect_session_ticket; 
         SessionTicket* candidate_ticket;
         SessionTicket* session_ticket;
     #endif

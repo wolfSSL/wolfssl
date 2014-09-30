@@ -1747,6 +1747,7 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
 #endif
 #ifdef HAVE_SESSION_TICKET
 #ifndef NO_CYASSL_CLIENT
+    ssl->expect_session_ticket = 0;
     ssl->candidate_ticket = NULL;
     ssl->session_ticket = NULL;
 #endif
