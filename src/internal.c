@@ -6384,6 +6384,12 @@ int ProcessReply(CYASSL* ssl)
                     }
                 #endif
                 ssl->options.processReply = runProcessingOneMessage;
+
+                if (ssl->keys.encryptionOn) {
+                    CYASSL_MSG("Bundled encrypted messages, remove middle pad");
+                    ssl->buffers.inputBuffer.idx -= ssl->keys.padSz;
+                }
+
                 continue;
             }
             /* more records */
@@ -9160,6 +9166,9 @@ static void PickHashSigAlgo(CYASSL* ssl,
             ssl->options.sendVerify = SEND_CERT;
         else if (IsTLS(ssl))
             ssl->options.sendVerify = SEND_BLANK_CERT;
+
+        if (ssl->keys.encryptionOn)
+            *inOutIdx += ssl->keys.padSz;
 
         return 0;
     }
