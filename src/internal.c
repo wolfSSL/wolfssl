@@ -8907,6 +8907,8 @@ static void PickHashSigAlgo(CYASSL* ssl,
                              word32 helloSz)
     {
         byte            b;
+        byte            cs0;   /* cipher suite bytes 0, 1 */
+        byte            cs1;
         ProtocolVersion pv;
         byte            compression;
         word32          i = *inOutIdx;
@@ -8980,8 +8982,22 @@ static void PickHashSigAlgo(CYASSL* ssl,
         if ((i - begin) + OPAQUE16_LEN + OPAQUE8_LEN > helloSz)
             return BUFFER_ERROR;
 
-        ssl->options.cipherSuite0 = input[i++];
-        ssl->options.cipherSuite  = input[i++];  
+        cs0 = input[i++];
+        cs1 = input[i++];
+
+#ifdef HAVE_SECURE_RENEGOTIATION
+        if (ssl->secure_renegotiation && ssl->secure_renegotiation->enabled &&
+                                         ssl->options.handShakeDone) {
+            if (ssl->options.cipherSuite0 != cs0 ||
+                ssl->options.cipherSuite  != cs1) {
+                CYASSL_MSG("Server changed cipher suite during scr");
+                return MATCH_SUITE_ERROR;
+            }
+        }
+#endif
+
+        ssl->options.cipherSuite0 = cs0;
+        ssl->options.cipherSuite  = cs1;
         compression = input[i++];
 
         if (compression != ZLIB_COMPRESSION && ssl->options.usingCompression) {
