@@ -1316,7 +1316,17 @@ CYASSL_API int CyaSSL_CTX_UseSupportedCurve(CYASSL_CTX* ctx,
 CYASSL_API int CyaSSL_UseSecureRenegotiation(CYASSL* ssl);
 CYASSL_API int CyaSSL_Rehandshake(CYASSL* ssl);
 
-#endif /* HAVE_SECURE_RENEGOTIATION */
+#endif
+
+/* Session Ticket */
+#ifdef HAVE_SESSION_TICKET
+#ifndef NO_CYASSL_CLIENT
+
+CYASSL_API int CyaSSL_UseSessionTicket(CYASSL* ssl);
+CYASSL_API int CyaSSL_CTX_UseSessionTicket(CYASSL_CTX* ctx);
+
+#endif
+#endif
 
 #define CYASSL_CRL_MONITOR   0x01   /* monitor this dir flag */
 #define CYASSL_CRL_START_MON 0x02   /* start monitoring flag */

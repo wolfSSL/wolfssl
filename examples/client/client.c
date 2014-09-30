@@ -596,6 +596,10 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
         if (CyaSSL_CTX_UseTruncatedHMAC(ctx) != SSL_SUCCESS)
             err_sys("UseTruncatedHMAC failed");
 #endif
+#ifdef HAVE_SESSION_TICKET
+    if (CyaSSL_CTX_UseSessionTicket(ctx) != SSL_SUCCESS)
+        err_sys("UseSessionTicket failed");
+#endif
 
     if (benchmark) {
         /* time passed in number of connects give average */

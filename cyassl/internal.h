@@ -1233,7 +1233,7 @@ typedef enum {
     MAX_FRAGMENT_LENGTH    = 0x0001,
     TRUNCATED_HMAC         = 0x0004,
     ELLIPTIC_CURVES        = 0x000a,
-    /*SESSION_TICKET         = 0x0023,  not used yet in switch statements */
+    SESSION_TICKET         = 0x0023,
     SECURE_RENEGOTIATION   = 0xff01
 } TLSX_Type;
 
@@ -1317,7 +1317,6 @@ CYASSL_LOCAL int TLSX_UseTruncatedHMAC(TLSX** extensions);
 typedef struct EllipticCurve {
     word16                name; /* CurveNames    */
     struct EllipticCurve* next; /* List Behavior */
-
 } EllipticCurve;
 
 CYASSL_LOCAL int TLSX_UseSupportedCurve(TLSX** extensions, word16 name);
@@ -1354,6 +1353,20 @@ CYASSL_LOCAL int TLSX_UseSecureRenegotiation(TLSX** extensions);
 
 #endif /* HAVE_SECURE_RENEGOTIATION */
 
+#ifdef HAVE_SESSION_TICKET
+
+typedef struct SessionTicket {
+    word32 lifetime;
+    byte*  data;
+    word16 size;
+} SessionTicket;
+
+CYASSL_LOCAL int  TLSX_UseSessionTicket(TLSX** extensions, 
+                                                         SessionTicket* ticket);
+CYASSL_LOCAL SessionTicket* TLSX_SessionTicket_Create(word32 lifetime,
+                                                       byte* data, word16 size);
+CYASSL_LOCAL void TLSX_SessionTicket_Free(SessionTicket* ticket);
+#endif /* HAVE_SESSION_TICKET */
 
 /* CyaSSL context type */
 struct CYASSL_CTX {
@@ -2043,6 +2056,23 @@ struct CYASSL {
     #ifdef HAVE_SECURE_RENEGOTIATION
         SecureRenegotiation* secure_renegotiation; /* valid pointer indicates */
     #endif                                         /* user turned on */
+    #ifdef HAVE_SESSION_TICKET
+    #ifndef NO_CYASSL_CLIENT
+        /*
+           Create cantidate_ticket when processing New Session Ticket Handshake
+           Message. When the ticket is validated at Finished Handshake Message,
+           move canditate_ticket to session_ticket and call:
+             TLSX_UseSessionTicket(&ssl->extensions, ssl->session_ticket);
+           
+           If the session_ticket must be destroyed, call:
+             TLSX_UseSessionTicket(&ssl->extensions, NULL);
+             This function doesn't free an early ticket, but will erase it's 
+             reference inside the extensions.
+        */
+        SessionTicket* candidate_ticket;
+        SessionTicket* session_ticket;
+    #endif
+    #endif
 #endif /* HAVE_TLS_EXTENSIONS */
 #ifdef HAVE_NETX
     NetX_Ctx        nxCtx;             /* NetX IO Context */

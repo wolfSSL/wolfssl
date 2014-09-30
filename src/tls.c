@@ -1314,20 +1314,6 @@ int TLSX_UseMaxFragment(TLSX** extensions, byte mfl)
 
 #ifdef HAVE_TRUNCATED_HMAC
 
-int TLSX_UseTruncatedHMAC(TLSX** extensions)
-{
-    int ret = 0;
-
-    if (extensions == NULL)
-        return BAD_FUNC_ARG;
-
-    if (!TLSX_Find(*extensions, TRUNCATED_HMAC))
-        if ((ret = TLSX_Push(extensions, TRUNCATED_HMAC, NULL)) != 0)
-            return ret;
-
-    return SSL_SUCCESS;
-}
-
 static int TLSX_THM_Parse(CYASSL* ssl, byte* input, word16 length,
                                                                  byte isRequest)
 {
@@ -1347,6 +1333,19 @@ static int TLSX_THM_Parse(CYASSL* ssl, byte* input, word16 length,
     ssl->truncated_hmac = 1;
 
     return 0;
+}
+
+int TLSX_UseTruncatedHMAC(TLSX** extensions)
+{
+    int ret = 0;
+
+    if (extensions == NULL)
+        return BAD_FUNC_ARG;
+
+    if ((ret = TLSX_Push(extensions, TRUNCATED_HMAC, NULL)) != 0)
+        return ret;
+
+    return SSL_SUCCESS;
 }
 
 #define THM_PARSE TLSX_THM_Parse
@@ -1637,9 +1636,11 @@ int TLSX_UseSupportedCurve(TLSX** extensions, word16 name)
 #define EC_VALIDATE_REQUEST(a, b)
 
 #endif /* HAVE_SUPPORTED_CURVES */
+
 #ifdef HAVE_SECURE_RENEGOTIATION
 
-static byte TLSX_SCR_GetSize(SecureRenegotiation* data, int isRequest)
+static byte TLSX_SecureRenegotiation_GetSize(SecureRenegotiation* data,
+                                                                  int isRequest)
 {
     byte length = OPAQUE8_LEN; /* empty info length */
 
@@ -1655,8 +1656,8 @@ static byte TLSX_SCR_GetSize(SecureRenegotiation* data, int isRequest)
     return length;
 }
 
-static word16 TLSX_SCR_Write(SecureRenegotiation* data, byte* output, 
-                                                                  int isRequest)
+static word16 TLSX_SecureRenegotiation_Write(SecureRenegotiation* data,
+                                                    byte* output, int isRequest)
 {   
     word16 offset = OPAQUE8_LEN; /* RenegotiationInfo length */
 
@@ -1677,8 +1678,8 @@ static word16 TLSX_SCR_Write(SecureRenegotiation* data, byte* output,
     return offset;
 }   
     
-static int TLSX_SCR_Parse(CYASSL* ssl, byte* input, word16 length,
-                                                                 byte isRequest)
+static int TLSX_SecureRenegotiation_Parse(CYASSL* ssl, byte* input, 
+                                                  word16 length, byte isRequest)
 {
     int ret = SECURE_RENEGOTIATION_E;
 
@@ -1745,9 +1746,9 @@ int TLSX_UseSecureRenegotiation(TLSX** extensions)
 
 
 #define SCR_FREE_ALL(data) XFREE(data, NULL, DYNAMIC_TYPE_TLSX)
-#define SCR_GET_SIZE       TLSX_SCR_GetSize
-#define SCR_WRITE          TLSX_SCR_Write
-#define SCR_PARSE          TLSX_SCR_Parse
+#define SCR_GET_SIZE       TLSX_SecureRenegotiation_GetSize
+#define SCR_WRITE          TLSX_SecureRenegotiation_Write
+#define SCR_PARSE          TLSX_SecureRenegotiation_Parse
 
 #else
 
@@ -1757,6 +1758,116 @@ int TLSX_UseSecureRenegotiation(TLSX** extensions)
 #define SCR_PARSE(a, b, c, d) 0
 
 #endif /* HAVE_SECURE_RENEGOTIATION */
+
+#ifdef HAVE_SESSION_TICKET
+
+static void TLSX_SessionTicket_ValidateRequest(CYASSL* ssl)
+{
+    TLSX*          extension = TLSX_Find(ssl->extensions, SESSION_TICKET);
+    SessionTicket* ticket    = extension ? extension->data : NULL;
+
+    if (ticket) {
+        /* TODO validate ticket timeout here! */
+        if (ticket->lifetime == 0xfffffff) {
+            /* send empty ticket on timeout */
+            TLSX_UseSessionTicket(&ssl->extensions, NULL);
+        }
+    }
+}
+
+
+static byte TLSX_SessionTicket_GetSize(SessionTicket* ticket, int isRequest)
+{
+    return isRequest && ticket ? OPAQUE16_LEN + ticket->size : 0;
+}
+
+
+static word16 TLSX_SessionTicket_Write(SessionTicket* ticket, byte* output,
+                                                                  int isRequest)
+{
+    int offset = 0; /* empty ticket */
+    
+    if (isRequest && ticket) {
+        c16toa(ticket->size, output + offset);
+        offset += OPAQUE16_LEN;
+        
+        XMEMCPY(output + offset, ticket->data, ticket->size);
+        offset += ticket->size;
+    }
+
+    return offset;
+}
+
+
+static int TLSX_SessionTicket_Parse(CYASSL* ssl, byte* input, word16 length,
+                                                                 byte isRequest)
+{
+    if (!isRequest)
+        return length != 0 ? BUFFER_ERROR : 0;
+
+    /* TODO server side */
+    (void)ssl;
+    (void)input;
+
+    return 0;
+}
+
+CYASSL_LOCAL SessionTicket* TLSX_SessionTicket_Create(word32 lifetime,
+                                                       byte* data, word16 size)
+{
+    SessionTicket* ticket = (SessionTicket*)XMALLOC(sizeof(SessionTicket),
+                                                       NULL, DYNAMIC_TYPE_TLSX);
+    if (ticket) {
+        ticket->data = (byte*)XMALLOC(size, NULL, DYNAMIC_TYPE_TLSX);
+        if (ticket->data == NULL) {
+            XFREE(ticket, NULL, DYNAMIC_TYPE_TLSX);
+            return NULL;
+        }
+
+        XMEMCPY(ticket->data, data, size);
+        ticket->size     = size;
+        ticket->lifetime = lifetime;
+    }
+
+    return ticket;
+}
+CYASSL_LOCAL void TLSX_SessionTicket_Free(SessionTicket* ticket)
+{
+    if (ticket) {
+        XFREE(ticket->data, NULL, DYNAMIC_TYPE_TLSX);
+        XFREE(ticket,       NULL, DYNAMIC_TYPE_TLSX);
+    }
+}
+
+int TLSX_UseSessionTicket(TLSX** extensions, SessionTicket* ticket)
+{
+    int ret = 0;
+
+    if (extensions == NULL)
+        return BAD_FUNC_ARG;
+
+    /* If the ticket is NULL, the client will request a new ticket from the
+       server. Otherwise, the client will use it in the next client hello. */
+    if ((ret = TLSX_Push(extensions, SESSION_TICKET, (void*)ticket)) != 0)
+        return ret;
+
+    return SSL_SUCCESS;
+}
+
+#define STK_VALIDATE_REQUEST TLSX_SessionTicket_ValidateRequest
+#define STK_GET_SIZE         TLSX_SessionTicket_GetSize
+#define STK_WRITE            TLSX_SessionTicket_Write
+#define STK_PARSE            TLSX_SessionTicket_Parse
+
+#else
+
+#define STK_VALIDATE_REQUEST(a)
+#define STK_GET_SIZE(a, b)      0
+#define STK_WRITE(a, b, c)      0
+#define STK_PARSE(a, b, c, d)   0
+
+#endif /* HAVE_SESSION_TICKET */
+
 
 TLSX* TLSX_Find(TLSX* list, TLSX_Type type)
 {
@@ -1794,6 +1905,10 @@ void TLSX_FreeAll(TLSX* list)
 
             case SECURE_RENEGOTIATION:
                 SCR_FREE_ALL(extension->data);
+                break;
+
+            case SESSION_TICKET:
+                /* Nothing to do. */
                 break;
         }
 
@@ -1842,6 +1957,10 @@ static word16 TLSX_GetSize(TLSX* list, byte* semaphore, byte isRequest)
             case SECURE_RENEGOTIATION:
                 length += SCR_GET_SIZE(extension->data, isRequest);
                 break;
+
+            case SESSION_TICKET:
+                length += STK_GET_SIZE(extension->data, isRequest);
+                break;
         }
 
         TURN_ON(semaphore, TLSX_ToSemaphore(extension->type));
@@ -1875,11 +1994,11 @@ static word16 TLSX_Write(TLSX* list, byte* output, byte* semaphore,
         switch (extension->type) {
             case SERVER_NAME_INDICATION:
                 if (isRequest)
-                    offset += SNI_WRITE((SNI*)extension->data, output + offset);
+                    offset += SNI_WRITE(extension->data, output + offset);
                 break;
 
             case MAX_FRAGMENT_LENGTH:
-                offset += MFL_WRITE((byte*)extension->data, output + offset);
+                offset += MFL_WRITE(extension->data, output + offset);
                 break;
 
             case TRUNCATED_HMAC:
@@ -1887,13 +2006,17 @@ static word16 TLSX_Write(TLSX* list, byte* output, byte* semaphore,
                 break;
 
             case ELLIPTIC_CURVES:
-                offset += EC_WRITE((EllipticCurve*)extension->data,
-                                                               output + offset);
+                offset += EC_WRITE(extension->data, output + offset);
                 break;
 
             case SECURE_RENEGOTIATION:
-                offset += SCR_WRITE((SecureRenegotiation*)extension->data,
-                                                    output + offset, isRequest);
+                offset += SCR_WRITE(extension->data, output + offset,
+                                                                     isRequest);
+                break;
+
+            case SESSION_TICKET:
+                offset += STK_WRITE(extension->data, output + offset,
+                                                                     isRequest);
                 break;
         }
 
@@ -1916,6 +2039,7 @@ word16 TLSX_GetRequestSize(CYASSL* ssl)
         byte semaphore[SEMAPHORE_SIZE] = {0};
 
         EC_VALIDATE_REQUEST(ssl, semaphore);
+        STK_VALIDATE_REQUEST(ssl);
 
         if (ssl->extensions)
             length += TLSX_GetSize(ssl->extensions, semaphore, 1);
@@ -2073,6 +2197,12 @@ int TLSX_Parse(CYASSL* ssl, byte* input, word16 length, byte isRequest,
                 CYASSL_MSG("Secure Renegotiation extension received");
 
                 ret = SCR_PARSE(ssl, input + offset, size, isRequest);
+                break;
+
+            case SESSION_TICKET:
+                CYASSL_MSG("Session Ticket extension received");
+
+                ret = STK_PARSE(ssl, input + offset, size, isRequest);
                 break;
 
             case HELLO_EXT_SIG_ALGO:
