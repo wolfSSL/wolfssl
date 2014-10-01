@@ -4214,7 +4214,15 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx,
             case RSAk:
                 {
                     word32 idx = 0;
-                    if (RsaPublicKeyDecode(dCert.publicKey, &idx,
+                    int    keyRet = 0;
+
+                    if (ssl->peerRsaKeyPresent) {  /* don't leak on reuse */
+                        FreeRsaKey(ssl->peerRsaKey);
+                        ssl->peerRsaKeyPresent = 0;
+                        keyRet = InitRsaKey(ssl->peerRsaKey, ssl->heap);
+                    }
+
+                    if (keyRet != 0 || RsaPublicKeyDecode(dCert.publicKey, &idx,
                                       ssl->peerRsaKey, dCert.pubKeySize) != 0) {
                         ret = PEER_KEY_ERROR;
                     }
@@ -4256,6 +4264,11 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx,
         #ifdef HAVE_ECC
             case ECDSAk:
                 {
+                    if (ssl->peerEccDsaKeyPresent) {  /* don't leak on reuse */
+                        ecc_free(ssl->peerEccDsaKey);
+                        ssl->peerEccDsaKeyPresent = 0;
+                        ecc_init(ssl->peerEccDsaKey);
+                    }
                     if (ecc_import_x963(dCert.publicKey, dCert.pubKeySize,
                                         ssl->peerEccDsaKey) != 0) {
                         ret = PEER_KEY_ERROR;
@@ -9336,6 +9349,12 @@ static void PickHashSigAlgo(CYASSL* ssl,
         if ((*inOutIdx - begin) + length > size)
             return BUFFER_ERROR;
 
+        if (ssl->peerEccKeyPresent) {  /* don't leak on reuse */
+            ecc_free(ssl->peerEccKey);
+            ssl->peerEccKeyPresent = 0;
+            ecc_init(ssl->peerEccKey);
+        }
+
         if (ecc_import_x963(input + *inOutIdx, length, ssl->peerEccKey) != 0)
             return ECC_PEERKEY_ERROR;
 
@@ -12407,6 +12426,12 @@ static void PickHashSigAlgo(CYASSL* ssl,
 
                 if ((*inOutIdx - begin) + length > size)
                     return BUFFER_ERROR;
+
+                if (ssl->peerEccKeyPresent) {  /* don't leak on reuse */
+                    ecc_free(ssl->peerEccKey);
+                    ssl->peerEccKeyPresent = 0;
+                    ecc_init(ssl->peerEccKey);
+                }
 
                 if (ecc_import_x963(input + *inOutIdx, length, ssl->peerEccKey))
                     return ECC_PEERKEY_ERROR;
