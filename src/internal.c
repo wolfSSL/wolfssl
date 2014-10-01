@@ -8939,6 +8939,15 @@ static void PickHashSigAlgo(CYASSL* ssl,
                 return VERSION_ERROR;
             }
 
+            #ifdef HAVE_SECURE_RENEGOTIATION
+                if (ssl->secure_renegotiation &&
+                                         ssl->secure_renegotiation->enabled &&
+                                         ssl->options.handShakeDone) {
+                    CYASSL_MSG("Server changed version during scr");
+                    return VERSION_ERROR;
+                }
+            #endif
+
             if (pv.minor == SSLv3_MINOR) {
                 /* turn off tls */
                 CYASSL_MSG("    downgrading to SSLv3");

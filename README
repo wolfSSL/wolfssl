@@ -34,7 +34,17 @@ before calling SSL_new();  Though it's not recommended.
 
 *** end Notes ***
 
-CyaSSL Release 3.2.0 (09/10/2014)
+CyaSSL intermediate Release 3.2.1c (9/30/2014)
+
+- Small stack improvements for at TLS/SSL layer
+- Adds client side Secure Renegotiation, * not recommended *
+
+The CyaSSL manual is available at:
+http://www.wolfssl.com/documentation/CyaSSL-Manual.pdf.  For build instructions
+and comments about the new features please check the manual.
+
+
+***********CyaSSL Release 3.2.0 (09/10/2014)
 
 Release 3.2.0 CyaSSL has bug fixes and new features including:
 
