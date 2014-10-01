@@ -123,9 +123,11 @@ enum CyaSSL_ErrorCodes {
 
     /* begin negotiation parameter errors */
     UNSUPPORTED_SUITE       = -390,        /* unsupported cipher suite */
-    MATCH_SUITE_ERROR       = -391         /* can't match cipher suite */
+    MATCH_SUITE_ERROR       = -391,        /* can't match cipher suite */
     /* end negotiation parameter errors only 10 for now */
     /* add strings to SetErrorString !!!!! */
+
+    SESSION_TICKET_LEN_E    = -392         /* Session Ticket too large */
 };
 
 

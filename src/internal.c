@@ -76,6 +76,10 @@ static int BuildMessage(CYASSL* ssl, byte* output, int outSz,
         static int DoCertificateRequest(CYASSL* ssl, const byte* input, word32*,
                                                                         word32);
     #endif
+    #ifdef HAVE_SESSION_TICKET
+        static int DoSessionTicket(CYASSL* ssl, const byte* input, word32*,
+                                                                        word32);
+    #endif
 #endif
 
 
@@ -232,7 +236,7 @@ static INLINE void ato16(const byte* c, word16* u16)
 }
 
 
-#ifdef CYASSL_DTLS
+#if defined(CYASSL_DTLS) || defined(HAVE_SESSION_TICKET)
 
 /* convert opaque to 32 bit integer */
 static INLINE void ato32(const byte* c, word32* u32)
@@ -4590,6 +4594,13 @@ static int DoHandShakeMsgType(CYASSL* ssl, byte* input, word32* inOutIdx,
         CYASSL_MSG("processing server key exchange");
         ret = DoServerKeyExchange(ssl, input, inOutIdx, size);
         break;
+
+#ifdef HAVE_SESSION_TICKET
+    case session_ticket:
+        CYASSL_MSG("processing session ticket");
+        ret = DoSessionTicket(ssl, input, inOutIdx, size);
+        break;
+#endif /* HAVE_SESSION_TICKET */
 #endif
 
 #ifndef NO_CERTS
@@ -7648,6 +7659,9 @@ const char* CyaSSL_ERR_reason_error_string(unsigned long e)
     case SECURE_RENEGOTIATION_E:
         return "Invalid Renegotiation Error";
 
+    case SESSION_TICKET_LEN_E:
+        return "Session Ticket Too Long Error";
+
     default :
         return "unknown error number";
     }
@@ -10374,6 +10388,49 @@ static void PickHashSigAlgo(CYASSL* ssl,
     }
 #endif /* NO_CERTS */
 
+
+#ifdef HAVE_SESSION_TICKET
+int DoSessionTicket(CYASSL* ssl,
+                               const byte* input, word32* inOutIdx, word32 size)
+{
+    word32 begin = *inOutIdx;
+    word32 lifetime;
+    word16 length;
+
+    if ((*inOutIdx - begin) + OPAQUE32_LEN > size)
+        return BUFFER_ERROR;
+
+    ato32(input + *inOutIdx, &lifetime);
+    *inOutIdx += OPAQUE32_LEN;
+
+    if ((*inOutIdx - begin) + OPAQUE16_LEN > size)
+        return BUFFER_ERROR;
+
+    ato16(input + *inOutIdx, &length);
+    *inOutIdx += OPAQUE16_LEN;
+
+    if (length > sizeof(ssl->session.ticket))
+        return SESSION_TICKET_LEN_E;
+
+    if ((*inOutIdx - begin) + length > size)
+        return BUFFER_ERROR;
+
+    if (length > 0) {
+        XMEMCPY(ssl->session.ticket, input + *inOutIdx, length);
+        *inOutIdx += length;
+        ssl->session.ticketLen = length;
+        ssl->session.ticketTimeout = lifetime;
+        ssl->session.ticketBornOn = LowResTimer();
+    }
+    else {
+        ssl->session.ticketLen = 0;
+        ssl->session.ticketTimeout = 0;
+        ssl->session.ticketBornOn = 0;
+    }
+
+    return BuildFinished(ssl, &ssl->verifyHashes, server);
+}
+#endif /* HAVE_SESSION_TICKET */
 
 #endif /* NO_CYASSL_CLIENT */
 

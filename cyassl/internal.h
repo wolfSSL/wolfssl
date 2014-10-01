@@ -681,9 +681,11 @@ enum Misc {
     OPAQUE8_LEN  =  1,         /* 1 byte                  */
     OPAQUE16_LEN =  2,         /* 2 bytes                 */
     OPAQUE24_LEN =  3,         /* 3 bytes                 */
+    OPAQUE32_LEN =  4,         /* 4 bytes                 */
     COMP_LEN     =  1,         /* compression length      */
     CURVE_LEN    =  2,         /* ecc named curve length  */
     SERVER_ID_LEN = 20,        /* server session id length  */
+    SESSION_TICKET_LEN    = 256, /* Session ticket length */
     
     HANDSHAKE_HEADER_SZ   = 4,  /* type + length(3)        */
     RECORD_HEADER_SZ      = 5,  /* type + version + len(2) */
@@ -1651,6 +1653,12 @@ struct CYASSL_SESSION {
 #ifndef NO_CLIENT_CACHE
     byte         serverID[SERVER_ID_LEN];       /* for easier client lookup */
     word16       idLen;                         /* serverID length */
+#endif
+#ifdef HAVE_SESSION_TICKET
+    word32       ticketBornOn;                  /* create time in seconds   */
+    word32       ticketTimeout;                 /* timeout in seconds       */
+    byte         ticket[SESSION_TICKET_LEN];
+    word16       ticketLen;
 #endif
 };
 
