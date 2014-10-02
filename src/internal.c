@@ -63,6 +63,10 @@
 CYASSL_CALLBACKS needs LARGE_STATIC_BUFFERS, please add LARGE_STATIC_BUFFERS
 #endif
 
+#if defined(HAVE_SECURE_RENEGOTIATION) && defined(HAVE_RENEGOTIATION_INDICATION)
+    #error Cannot use both secure-renegotiation and renegotiation-indication
+#endif
+
 static int BuildMessage(CYASSL* ssl, byte* output, int outSz,
                         const byte* input, int inSz, int type);
 

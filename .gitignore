@@ -2,6 +2,7 @@
 *.lo
 *.la
 *.o
+*.patch
 *.deps
 *.libs
 *.cache
