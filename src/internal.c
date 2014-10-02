@@ -10432,6 +10432,10 @@ int DoSessionTicket(CYASSL* ssl,
         ssl->session.ticketBornOn = 0;
     }
 
+    if (ssl->keys.encryptionOn) {
+        *inOutIdx += ssl->keys.padSz;
+    }
+
     return BuildFinished(ssl, &ssl->verifyHashes, server);
 }
 #endif /* HAVE_SESSION_TICKET */
