@@ -1342,6 +1342,10 @@ AC_ARG_ENABLE([secure-renegotiation],
 
 if test "x$ENABLED_SECURE_RENEGOTIATION" = "xyes"
 then
+    if test "x$ENABLED_RENEGOTIATION_INDICATION" = "xyes"
+    then
+        AC_MSG_ERROR([cannot enable renegotiation-indication and secure-renegotiation.])
+    fi
     AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_SECURE_RENEGOTIATION"
 fi
 
