@@ -1721,6 +1721,10 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
     ssl->session.idLen = 0;
 #endif
 
+#ifdef HAVE_SESSION_TICKET
+    ssl->session.ticketLen = 0;
+#endif
+
     ssl->cipher.ssl = ssl;
 
 #ifdef FORTRESS
@@ -8731,6 +8735,21 @@ static void PickHashSigAlgo(CYASSL* ssl,
             return SUITES_ERROR;
         } 
 
+#ifdef HAVE_SESSION_TICKET
+        if (ssl->session.ticketLen > 0) {
+            SessionTicket* ticket;
+
+            ticket = TLSX_SessionTicket_Create(0,
+                                   ssl->session.ticket, ssl->session.ticketLen);
+            if (ticket == NULL) return MEMORY_E;
+
+            ret = TLSX_UseSessionTicket(&ssl->extensions, ticket);
+            if (ret != SSL_SUCCESS) return ret;
+
+            idSz = 0;
+        }
+#endif
+
         length = VERSION_SZ + RAN_LEN
                + idSz + ENUM_LEN                      
                + ssl->suites->suiteSz + SUITE_LEN
@@ -8931,6 +8950,22 @@ static void PickHashSigAlgo(CYASSL* ssl,
     }
 
 
+    static INLINE int DSH_CheckSessionId(CYASSL* ssl)
+    {
+        int ret;
+
+        #ifndef HAVE_SESSION_TICKET
+            ret = (ssl->options.haveSessionId && XMEMCMP(ssl->arrays->sessionID,
+                                          ssl->session.sessionID, ID_LEN) == 0);
+        #else
+            ret = (ssl->session.ticketLen > 0) ||
+                  (ssl->options.haveSessionId && XMEMCMP(ssl->arrays->sessionID,
+                                          ssl->session.sessionID, ID_LEN) == 0);
+        #endif
+
+        return ret;
+    }
+
     static int DoServerHello(CYASSL* ssl, const byte* input, word32* inOutIdx,
                              word32 helloSz)
     {
@@ -9080,8 +9115,7 @@ static void PickHashSigAlgo(CYASSL* ssl,
         }
 
         if (ssl->options.resuming) {
-            if (ssl->options.haveSessionId && XMEMCMP(ssl->arrays->sessionID,
-                                         ssl->session.sessionID, ID_LEN) == 0) {
+            if (DSH_CheckSessionId(ssl)) {
                 if (SetCipherSpecs(ssl) == 0) {
                     int ret = -1;
 
@@ -10388,7 +10422,6 @@ static void PickHashSigAlgo(CYASSL* ssl,
     }
 #endif /* NO_CERTS */
 
-
 #ifdef HAVE_SESSION_TICKET
 int DoSessionTicket(CYASSL* ssl,
                                const byte* input, word32* inOutIdx, word32 size)
@@ -10415,17 +10448,25 @@ int DoSessionTicket(CYASSL* ssl,
     if ((*inOutIdx - begin) + length > size)
         return BUFFER_ERROR;
 
+    /* If the received ticket including its length is greater than
+     * a length value, the save it. Otherwise, don't save it. */
     if (length > 0) {
         XMEMCPY(ssl->session.ticket, input + *inOutIdx, length);
         *inOutIdx += length;
         ssl->session.ticketLen = length;
-        ssl->session.ticketTimeout = lifetime;
-        ssl->session.ticketBornOn = LowResTimer();
+        ssl->timeout = lifetime;
+        /* Create a fake sessionID based on the ticket, this will
+         * supercede the existing session cache info. */
+        ssl->options.haveSessionId = 1;
+        XMEMCPY(ssl->arrays->sessionID,
+                                 ssl->session.ticket + length - ID_LEN, ID_LEN);
+#ifndef NO_SESSION_CACHE
+        AddSession(ssl);
+#endif
+
     }
     else {
         ssl->session.ticketLen = 0;
-        ssl->session.ticketTimeout = 0;
-        ssl->session.ticketBornOn = 0;
     }
 
     return BuildFinished(ssl, &ssl->verifyHashes, server);

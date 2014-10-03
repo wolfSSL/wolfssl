@@ -1778,9 +1778,8 @@ static void TLSX_SessionTicket_ValidateRequest(CYASSL* ssl)
 
 static byte TLSX_SessionTicket_GetSize(SessionTicket* ticket, int isRequest)
 {
-    return isRequest && ticket ? OPAQUE16_LEN + ticket->size : 0;
+    return isRequest && ticket ? ticket->size : 0;
 }
-
 
 static word16 TLSX_SessionTicket_Write(SessionTicket* ticket, byte* output,
                                                                   int isRequest)
@@ -1788,9 +1787,6 @@ static word16 TLSX_SessionTicket_Write(SessionTicket* ticket, byte* output,
     int offset = 0; /* empty ticket */
     
     if (isRequest && ticket) {
-        c16toa(ticket->size, output + offset);
-        offset += OPAQUE16_LEN;
-        
         XMEMCPY(output + offset, ticket->data, ticket->size);
         offset += ticket->size;
     }

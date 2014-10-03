@@ -1655,8 +1655,6 @@ struct CYASSL_SESSION {
     word16       idLen;                         /* serverID length */
 #endif
 #ifdef HAVE_SESSION_TICKET
-    word32       ticketBornOn;                  /* create time in seconds   */
-    word32       ticketTimeout;                 /* timeout in seconds       */
     byte         ticket[SESSION_TICKET_LEN];
     word16       ticketLen;
 #endif

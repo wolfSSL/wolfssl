@@ -5620,6 +5620,12 @@ int AddSession(CYASSL* ssl)
     SessionCache[row].Sessions[idx].timeout = ssl->timeout;
     SessionCache[row].Sessions[idx].bornOn  = LowResTimer();
 
+#ifdef HAVE_SESSION_TICKET
+    SessionCache[row].Sessions[idx].ticketLen     = ssl->session.ticketLen;
+    XMEMCPY(SessionCache[row].Sessions[idx].ticket,
+                                   ssl->session.ticket, ssl->session.ticketLen);
+#endif
+
 #ifdef SESSION_CERTS
     SessionCache[row].Sessions[idx].chain.count = ssl->session.chain.count;
     XMEMCPY(SessionCache[row].Sessions[idx].chain.certs,
