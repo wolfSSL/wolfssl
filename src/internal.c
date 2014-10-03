@@ -2986,6 +2986,12 @@ int GrowInputBuffer(CYASSL* ssl, int size, int usedLength)
 /* check available size into output buffer, make room if needed */
 int CheckAvailableSize(CYASSL *ssl, int size)
 {
+
+    if (size < 0) {
+        CYASSL_MSG("CheckAvailableSize() called with negative number");
+        return BAD_FUNC_ARG;
+    }
+
     if (ssl->buffers.outputBuffer.bufferSize - ssl->buffers.outputBuffer.length
                                              < (word32)size) {
         if (GrowOutputBuffer(ssl, size) < 0)
@@ -7148,6 +7154,11 @@ int SendData(CYASSL* ssl, const void* data, int sz)
             /* advance sent to previous sent + plain size just sent */
             sent = ssl->buffers.prevSent + ssl->buffers.plainSz;
             CYASSL_MSG("sent write buffered data");
+
+            if (sent > sz) {
+                CYASSL_MSG("error: write() after WANT_WRITE with short size");
+                return ssl->error = BAD_FUNC_ARG;
+            }
         }
     }
 
