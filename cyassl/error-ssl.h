@@ -127,7 +127,8 @@ enum CyaSSL_ErrorCodes {
     /* end negotiation parameter errors only 10 for now */
     /* add strings to SetErrorString !!!!! */
 
-    SESSION_TICKET_LEN_E    = -392         /* Session Ticket too large */
+    SESSION_TICKET_LEN_E    = -392,        /* Session Ticket too large */
+    SESSION_TICKET_EXPECT_E = -393         /* Session Ticket missing   */
 };
 
 

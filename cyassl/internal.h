@@ -685,7 +685,6 @@ enum Misc {
     COMP_LEN     =  1,         /* compression length      */
     CURVE_LEN    =  2,         /* ecc named curve length  */
     SERVER_ID_LEN = 20,        /* server session id length  */
-    SESSION_TICKET_LEN    = 256, /* Session ticket length */
     
     HANDSHAKE_HEADER_SZ   = 4,  /* type + length(3)        */
     RECORD_HEADER_SZ      = 5,  /* type + version + len(2) */
@@ -811,6 +810,10 @@ enum Misc {
 /* max cert chain peer depth */
 #ifndef MAX_CHAIN_DEPTH
     #define MAX_CHAIN_DEPTH 9
+#endif
+
+#ifndef SESSION_TICKET_LEN
+    #define SESSION_TICKET_LEN 256
 #endif
 
 

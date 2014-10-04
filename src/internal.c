@@ -6323,6 +6323,14 @@ int ProcessReply(CYASSL* ssl)
                         }
                     #endif
 
+#ifdef HAVE_SESSION_TICKET
+                    if (ssl->options.side == CYASSL_CLIENT_END &&
+                                                  ssl->expect_session_ticket) {
+                        CYASSL_MSG("Expected session ticket missing");
+                        return SESSION_TICKET_EXPECT_E;
+                    }
+#endif
+
                     if (ssl->keys.encryptionOn && ssl->options.handShakeDone) {
                         ssl->buffers.inputBuffer.idx += ssl->keys.padSz;
                         ssl->curSize -= ssl->buffers.inputBuffer.idx;
@@ -7678,8 +7686,13 @@ const char* CyaSSL_ERR_reason_error_string(unsigned long e)
     case SECURE_RENEGOTIATION_E:
         return "Invalid Renegotiation Error";
 
+#ifdef HAVE_SESSION_TICKET
     case SESSION_TICKET_LEN_E:
         return "Session Ticket Too Long Error";
+
+    case SESSION_TICKET_EXPECT_E:
+        return "Session Ticket Error";
+#endif
 
     default :
         return "unknown error number";
@@ -10445,6 +10458,11 @@ int DoSessionTicket(CYASSL* ssl,
     word32 lifetime;
     word16 length;
 
+    if (ssl->expect_session_ticket == 0) {
+        CYASSL_MSG("Unexpected session ticket");
+        return SESSION_TICKET_EXPECT_E;
+    }
+
     if ((*inOutIdx - begin) + OPAQUE32_LEN > size)
         return BUFFER_ERROR;
 
@@ -10487,6 +10505,8 @@ int DoSessionTicket(CYASSL* ssl,
     if (ssl->keys.encryptionOn) {
         *inOutIdx += ssl->keys.padSz;
     }
+
+    ssl->expect_session_ticket = 0;
 
     return BuildFinished(ssl, &ssl->verifyHashes, server);
 }
