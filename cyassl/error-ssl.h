@@ -119,16 +119,19 @@ enum CyaSSL_ErrorCodes {
     EXTKEYUSE_AUTH_E        = -386,        /* ExtKeyUse server|client_auth */
     SEND_OOB_READ_E         = -387,        /* Send Cb out of bounds read */
     SECURE_RENEGOTIATION_E  = -388,        /* Invalid Renegotiation Info */
+    SESSION_TICKET_LEN_E    = -389,        /* Session Ticket too large */
+    SESSION_TICKET_EXPECT_E = -390,        /* Session Ticket missing   */
+    SCR_DIFFERENT_CERT_E    = -391,        /* SCR Different cert error  */
+
     /* add strings to SetErrorString !!!!! */
 
     /* begin negotiation parameter errors */
-    UNSUPPORTED_SUITE       = -390,        /* unsupported cipher suite */
-    MATCH_SUITE_ERROR       = -391,        /* can't match cipher suite */
+    UNSUPPORTED_SUITE       = -500,        /* unsupported cipher suite */
+    MATCH_SUITE_ERROR       = -501,        /* can't match cipher suite */
     /* end negotiation parameter errors only 10 for now */
     /* add strings to SetErrorString !!!!! */
 
-    SESSION_TICKET_LEN_E    = -392,        /* Session Ticket too large */
-    SESSION_TICKET_EXPECT_E = -393         /* Session Ticket missing   */
+    /* no error stings go down here, add above negotiation errors !!!! */
 };
 
 

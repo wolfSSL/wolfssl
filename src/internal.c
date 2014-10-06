@@ -4114,6 +4114,29 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx,
             }
         }
 
+#ifdef HAVE_SECURE_RENEGOTIATION
+        if (fatal == 0 && ssl->secure_renegotiation
+                       && ssl->secure_renegotiation->enabled) {
+
+            if (ssl->keys.encryptionOn) {
+                /* compare against previous time */
+                if (XMEMCMP(dCert.subjectHash,
+                            ssl->secure_renegotiation->subject_hash,
+                            SHA_DIGEST_SIZE) != 0) {
+                    CYASSL_MSG("Peer sent different cert during scr, fatal");
+                    fatal = 1;
+                    ret   = SCR_DIFFERENT_CERT_E;
+                }
+            }
+
+            /* cache peer's hash */
+            if (fatal == 0) {
+                XMEMCPY(ssl->secure_renegotiation->subject_hash,
+                        dCert.subjectHash, SHA_DIGEST_SIZE);
+            }
+        }
+#endif
+
 #ifdef HAVE_OCSP
         if (fatal == 0 && ssl->ctx->cm->ocspEnabled) {
             ret = CheckCertOCSP(ssl->ctx->cm->ocsp, &dCert);
@@ -7676,13 +7699,14 @@ const char* CyaSSL_ERR_reason_error_string(unsigned long e)
     case SECURE_RENEGOTIATION_E:
         return "Invalid Renegotiation Error";
 
-#ifdef HAVE_SESSION_TICKET
     case SESSION_TICKET_LEN_E:
         return "Session Ticket Too Long Error";
 
     case SESSION_TICKET_EXPECT_E:
         return "Session Ticket Error";
-#endif
+
+    case SCR_DIFFERENT_CERT_E:
+        return "Peer sent different cert during SCR";
 
     default :
         return "unknown error number";
@@ -8754,7 +8778,7 @@ static void PickHashSigAlgo(CYASSL* ssl,
         } 
 
 #ifdef HAVE_SESSION_TICKET
-        if (ssl->session.ticketLen > 0) {
+        if (ssl->options.resuming && ssl->session.ticketLen > 0) {
             SessionTicket* ticket;
 
             ticket = TLSX_SessionTicket_Create(0,
