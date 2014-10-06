@@ -797,8 +797,7 @@ int CyaSSL_Rehandshake(CYASSL* ssl)
 #endif /* HAVE_SECURE_RENEGOTIATION */
 
 /* Session Ticket */
-#ifdef HAVE_SESSION_TICKET
-#ifndef NO_CYASSL_CLIENT
+#if !defined(NO_CYASSL_CLIENT) && defined(HAVE_SESSION_TICKET)
 int CyaSSL_UseSessionTicket(CYASSL* ssl)
 {
     if (ssl == NULL)
@@ -814,7 +813,6 @@ int CyaSSL_CTX_UseSessionTicket(CYASSL_CTX* ctx)
 
     return TLSX_UseSessionTicket(&ctx->extensions, NULL);
 }
-#endif
 #endif
 
 #ifndef CYASSL_LEANPSK

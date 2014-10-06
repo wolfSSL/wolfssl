@@ -1757,12 +1757,8 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
 #ifdef HAVE_SECURE_RENEGOTIATION
     ssl->secure_renegotiation = NULL;
 #endif
-#ifdef HAVE_SESSION_TICKET
-#ifndef NO_CYASSL_CLIENT
+#if !defined(NO_CYASSL_CLIENT) && defined(HAVE_SESSION_TICKET)
     ssl->expect_session_ticket = 0;
-    ssl->candidate_ticket = NULL;
-    ssl->session_ticket = NULL;
-#endif
 #endif
 #endif
 
@@ -2019,12 +2015,6 @@ void SSL_ResourceFree(CYASSL* ssl)
 #endif /* HAVE_PK_CALLBACKS */
 #ifdef HAVE_TLS_EXTENSIONS
     TLSX_FreeAll(ssl->extensions);
-#endif
-#ifdef HAVE_SESSION_TICKET
-#ifndef NO_CYASSL_CLIENT
-    TLSX_SessionTicket_Free(ssl->candidate_ticket);
-    TLSX_SessionTicket_Free(ssl->session_ticket);
-#endif
 #endif
 #ifdef HAVE_NETX
     if (ssl->nxCtx.nxPacket)

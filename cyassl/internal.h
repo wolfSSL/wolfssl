@@ -2066,23 +2066,8 @@ struct CYASSL {
     #ifdef HAVE_SECURE_RENEGOTIATION
         SecureRenegotiation* secure_renegotiation; /* valid pointer indicates */
     #endif                                         /* user turned on */
-    #ifdef HAVE_SESSION_TICKET
-    #ifndef NO_CYASSL_CLIENT
-        /*
-           Create cantidate_ticket when processing New Session Ticket Handshake
-           Message. When the ticket is validated at Finished Handshake Message,
-           move canditate_ticket to session_ticket and call:
-             TLSX_UseSessionTicket(&ssl->extensions, ssl->session_ticket);
-           
-           If the session_ticket must be destroyed, call:
-             TLSX_UseSessionTicket(&ssl->extensions, NULL);
-             This function doesn't free an early ticket, but will erase it's 
-             reference inside the extensions.
-        */
+    #if !defined(NO_CYASSL_CLIENT) && defined(HAVE_SESSION_TICKET)
         byte           expect_session_ticket; 
-        SessionTicket* candidate_ticket;
-        SessionTicket* session_ticket;
-    #endif
     #endif
 #endif /* HAVE_TLS_EXTENSIONS */
 #ifdef HAVE_NETX
