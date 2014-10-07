@@ -1806,7 +1806,7 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
 
     /* arrays */
     ssl->arrays = (Arrays*)XMALLOC(sizeof(Arrays), ssl->heap,
-                                   DYNAMIC_TYPE_ARRAYS);
+                                                           DYNAMIC_TYPE_ARRAYS);
     if (ssl->arrays == NULL) {
         CYASSL_MSG("Arrays Memory error");
         return MEMORY_E;
@@ -9079,18 +9079,19 @@ static void PickHashSigAlgo(CYASSL* ssl,
         /* session id */
         b = input[i++];
 
-        if (b == ID_LEN) {
-            if ((i - begin) + ID_LEN > helloSz)
-                return BUFFER_ERROR;
-
-            XMEMCPY(ssl->arrays->sessionID, input + i, min(b, ID_LEN));
-            i += ID_LEN;
-            ssl->options.haveSessionId = 1;
+        if (b > ID_LEN) {
+            CYASSL_MSG("Invalid session ID size");
+            return BUFFER_ERROR;
         }
         else if (b) {
-            CYASSL_MSG("Invalid session ID size");
-            return BUFFER_ERROR; /* session ID nor 0 neither 32 bytes long */
+            if ((i - begin) + b > helloSz)
+                return BUFFER_ERROR;
+        
+            XMEMCPY(ssl->arrays->sessionID, input + i, b);
+            i += b;
+            ssl->options.haveSessionId = 1;
         }
+        
 
         /* suite and compression */
         if ((i - begin) + OPAQUE16_LEN + OPAQUE8_LEN > helloSz)
