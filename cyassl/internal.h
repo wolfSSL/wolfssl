@@ -649,7 +649,7 @@ enum Misc {
     MAX_COMP_EXTRA  = 1024,     /* max compression extra */
     MAX_MTU         = 1500,     /* max expected MTU */
     MAX_UDP_SIZE    = 8192 - 100, /* was MAX_MTU - 100 */
-    MAX_DH_SZ       = 612,      /* 2240 p, pub, g + 2 byte size for each */
+    MAX_DH_SZ       = 1036,     /* 4096 p, pub, g + 2 byte size for each */
     MAX_STR_VERSION = 8,        /* string rep of protocol version */
 
     PAD_MD5        = 48,       /* pad length for finished */
