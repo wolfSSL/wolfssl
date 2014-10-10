@@ -424,6 +424,8 @@ CYASSL_LOCAL int GetLength(const byte* input, word32* inOutIdx, int* len,
     word32  i = *inOutIdx;
     byte    b;
 
+    *len = 0;    /* default length */
+
     if ( (i+1) > maxIdx) {   /* for first read */
         CYASSL_MSG("GetLength bad index on input");
         return BUFFER_E;
@@ -452,7 +454,8 @@ CYASSL_LOCAL int GetLength(const byte* input, word32* inOutIdx, int* len,
     }
 
     *inOutIdx = i;
-    *len      = length;
+    if (length > 0)
+        *len = length;
 
     return length;
 }
