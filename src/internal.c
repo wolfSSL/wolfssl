@@ -8770,7 +8770,9 @@ static void PickHashSigAlgo(CYASSL* ssl,
         byte              *output;
         word32             length, idx = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
         int                sendSz;
-        int                idSz = ssl->options.resuming ? ID_LEN : 0;
+        int                idSz = ssl->options.resuming
+                                ? ssl->session.sessionIDSz
+                                : 0;
         int                ret;
 
         if (ssl->suites == NULL) {
@@ -8853,8 +8855,9 @@ static void PickHashSigAlgo(CYASSL* ssl,
             /* then session id */
         output[idx++] = (byte)idSz;
         if (idSz) {
-            XMEMCPY(output + idx, ssl->session.sessionID, ID_LEN);
-            idx += ID_LEN;
+            XMEMCPY(output + idx, ssl->session.sessionID,
+                                                      ssl->session.sessionIDSz);
+            idx += ssl->session.sessionIDSz;
         }
         
             /* then DTLS cookie */
