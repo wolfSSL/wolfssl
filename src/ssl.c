@@ -5623,6 +5623,7 @@ int AddSession(CYASSL* ssl)
            ssl->arrays->masterSecret, SECRET_LEN);
     XMEMCPY(SessionCache[row].Sessions[idx].sessionID, ssl->arrays->sessionID,
            ID_LEN);
+    SessionCache[row].Sessions[idx].sessionIDSz = ssl->arrays->sessionIDSz;
 
     SessionCache[row].Sessions[idx].timeout = ssl->timeout;
     SessionCache[row].Sessions[idx].bornOn  = LowResTimer();

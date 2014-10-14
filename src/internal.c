@@ -1919,6 +1919,7 @@ void FreeArrays(CYASSL* ssl, int keep)
     if (ssl->arrays && keep) {
         /* keeps session id for user retrieval */
         XMEMCPY(ssl->session.sessionID, ssl->arrays->sessionID, ID_LEN);
+        ssl->session.sessionIDSz = ssl->arrays->sessionIDSz;
     }
     XFREE(ssl->arrays, ssl->heap, DYNAMIC_TYPE_ARRAYS);
     ssl->arrays = NULL;
