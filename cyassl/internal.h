@@ -1645,6 +1645,7 @@ struct CYASSL_X509_CHAIN {
 /* CyaSSL session type */
 struct CYASSL_SESSION {
     byte         sessionID[ID_LEN];             /* id for protocol */
+    byte         sessionIDSz;
     byte         masterSecret[SECRET_LEN];      /* stored secret */
     word32       bornOn;                        /* create time in seconds   */
     word32       timeout;                       /* timeout in seconds       */
@@ -1804,6 +1805,7 @@ typedef struct Arrays {
     byte            clientRandom[RAN_LEN];
     byte            serverRandom[RAN_LEN];
     byte            sessionID[ID_LEN];
+    byte            sessionIDSz;
     byte            preMasterSecret[ENCRYPT_LEN];
     byte            masterSecret[SECRET_LEN];
 #ifdef CYASSL_DTLS
