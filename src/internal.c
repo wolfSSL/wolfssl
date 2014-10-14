@@ -9011,7 +9011,6 @@ static void PickHashSigAlgo(CYASSL* ssl,
     static int DoServerHello(CYASSL* ssl, const byte* input, word32* inOutIdx,
                              word32 helloSz)
     {
-        byte            b;
         byte            cs0;   /* cipher suite bytes 0, 1 */
         byte            cs1;
         ProtocolVersion pv;
@@ -9077,18 +9076,20 @@ static void PickHashSigAlgo(CYASSL* ssl,
         i += RAN_LEN;
 
         /* session id */
-        b = input[i++];
+        ssl->arrays->sessionIDSz = input[i++];
 
-        if (b > ID_LEN) {
+        if (ssl->arrays->sessionIDSz > ID_LEN) {
             CYASSL_MSG("Invalid session ID size");
+            ssl->arrays->sessionIDSz = 0;
             return BUFFER_ERROR;
         }
-        else if (b) {
-            if ((i - begin) + b > helloSz)
+        else if (ssl->arrays->sessionIDSz) {
+            if ((i - begin) + ssl->arrays->sessionIDSz > helloSz)
                 return BUFFER_ERROR;
-        
-            XMEMCPY(ssl->arrays->sessionID, input + i, b);
-            i += b;
+
+            XMEMCPY(ssl->arrays->sessionID, input + i,
+                                                      ssl->arrays->sessionIDSz);
+            i += ssl->arrays->sessionIDSz;
             ssl->options.haveSessionId = 1;
         }
         
