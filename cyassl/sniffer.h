@@ -46,6 +46,12 @@ SSL_SNIFFER_API int ssl_SetPrivateKey(const char* address, int port,
                                       const char* keyFile, int keyType,
                                       const char* password, char* error);
 
+CYASSL_API
+SSL_SNIFFER_API int ssl_SetNamedPrivateKey(const char* name,
+                                           const char* address, int port,
+                                           const char* keyFile, int keyType,
+                                           const char* password, char* error);
+
 CYASSL_API 
 SSL_SNIFFER_API int ssl_DecodePacket(const unsigned char* packet, int length,
                                      unsigned char* data, char* error);

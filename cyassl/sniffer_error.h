@@ -104,6 +104,7 @@
 #define BAD_DECRYPT    70 
 
 #define DECRYPT_KEYS_NOT_SETUP 71
+#define CLIENT_HELLO_LATE_KEY_STR 72
 /* !!!! also add to msgTable in sniffer.c and .rc file !!!! */
 
 

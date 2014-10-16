@@ -226,6 +226,25 @@ int main(int argc, char** argv)
         if (ret != 0) {
             printf("Please run directly from sslSniffer/sslSnifferTest dir\n");
         }
+
+#ifdef HAVE_SNI
+        {
+            char altName[128];
+
+            printf("Enter alternate SNI: ");
+            ret = scanf("%s", altName);
+
+            if (strnlen(altName, 128) > 0) {
+                ret = ssl_SetNamedPrivateKey(altName,
+                                   server, port, "../../certs/server-key.pem",
+                                   FILETYPE_PEM, NULL, err);
+                if (ret != 0) {
+                    printf("Please run directly from "
+                           "sslSniffer/sslSnifferTest dir\n");
+                }
+            }
+        }
+#endif
     }
     else if (argc >= 3) {
         saveFile = 1;

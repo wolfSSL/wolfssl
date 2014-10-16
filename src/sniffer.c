@@ -62,6 +62,7 @@ static INLINE word32 min(word32 a, word32 b)
 /* Misc constants */
 enum {
     MAX_SERVER_ADDRESS = 128, /* maximum server address length */
+    MAX_SERVER_NAME    = 128, /* maximum server name length */
     MAX_ERROR_LEN      = 80,  /* maximum error length */
     ETHER_IF_ADDR_LEN  = 6,   /* ethernet interface address length */
     LOCAL_IF_ADDR_LEN  = 4,   /* localhost interface address length, !windows */
@@ -228,7 +229,8 @@ static const char* const msgTable[] =
     "Bad Decrypt Operation",
 
     /* 71 */
-    "Decrypt Keys Not Set Up"
+    "Decrypt Keys Not Set Up",
+    "Late Key Load Error"
 };
 
 
@@ -262,12 +264,30 @@ typedef struct PacketBuffer {
 } PacketBuffer;
 
 
+#ifdef HAVE_SNI
+
+/* NamedKey maps a SNI name to a specific private key */
+typedef struct NamedKey {
+    char             name[MAX_SERVER_NAME];      /* server DNS name */
+    word32           nameSz;                     /* size of server DNS name */
+    byte*            key;                        /* DER private key */
+    word32           keySz;                      /* size of DER private key */
+    struct NamedKey* next;                       /* for list */
+} NamedKey;
+
+#endif
+
+
 /* Sniffer Server holds info for each server/port monitored */
 typedef struct SnifferServer {
     SSL_CTX*       ctx;                          /* SSL context */
     char           address[MAX_SERVER_ADDRESS];  /* passed in server address */
     word32         server;                       /* netowrk order address */
     int            port;                         /* server port */
+#ifdef HAVE_SNI
+    NamedKey*      namedKeys;                    /* mapping of names and keys */
+    CyaSSL_Mutex   namedKeysMutex;               /* mutex for namedKey list */
+#endif
     struct SnifferServer* next;                  /* for list */
 } SnifferServer;
 
@@ -337,11 +357,47 @@ void ssl_InitSniffer(void)
 }
 
 
+#ifdef HAVE_SNI
+
+/* Free Named Key and the zero out the private key it holds */
+static void FreeNamedKey(NamedKey* in)
+{
+    if (in) {
+        if (in->key) {
+            XMEMSET(in->key, 0, in->keySz);
+            free(in->key);
+        }
+        free(in);
+    }
+}
+
+
+static void FreeNamedKeyList(NamedKey* in)
+{
+    NamedKey* next;
+
+    while (in) {
+        next = in->next;
+        FreeNamedKey(in);
+        in = next;
+    }
+}
+
+#endif
+
+
 /* Free Sniffer Server's resources/self */
 static void FreeSnifferServer(SnifferServer* srv)
 {
-    if (srv)
+    if (srv) {
+#ifdef HAVE_SNI
+        LockMutex(&srv->namedKeysMutex);
+        FreeNamedKeyList(srv->namedKeys);
+        UnLockMutex(&srv->namedKeysMutex);
+        FreeMutex(&srv->namedKeysMutex);
+#endif
         SSL_CTX_free(srv->ctx);
+    }
     free(srv);
 }
 
@@ -439,6 +495,10 @@ static void InitSnifferServer(SnifferServer* sniffer)
     XMEMSET(sniffer->address, 0, MAX_SERVER_ADDRESS);
     sniffer->server   = 0;
     sniffer->port     = 0;
+#ifdef HAVE_SNI
+    sniffer->namedKeys = 0;
+    InitMutex(&sniffer->namedKeysMutex);
+#endif
     sniffer->next     = 0;
 }
 
@@ -617,6 +677,22 @@ static void TraceSetServer(const char* srv, int port, const char* keyFile)
                                                                     keyFile);
     }
 }
+
+
+#ifdef HAVE_SNI
+
+/* Show Set Named Server info for Trace */
+static void TraceSetNamedServer(const char* name,
+                                 const char* srv, int port, const char* keyFile)
+{
+    if (TraceOn) {
+        fprintf(TraceFile, "\tTrying to install a new Sniffer Server with\n");
+        fprintf(TraceFile, "\tname: %s, server: %s, port: %d, keyFile: %s\n",
+                                                      name, srv, port, keyFile);
+    }
+}
+
+#endif
 
 
 /* Trace got packet number */
@@ -907,6 +983,143 @@ static SnifferSession* GetSnifferSession(IpInfo* ipInfo, TcpInfo* tcpInfo)
     
     return session;
 }
+
+
+#ifdef HAVE_SNI
+
+static int LoadKeyFile(byte** keyBuf, word32* keyBufSz,
+                const char* keyFile, int typeKey,
+                const char* password)
+{
+    byte* loadBuf;
+    byte* saveBuf;
+    long fileSz = 0;
+    int saveBufSz;
+    XFILE file;
+    int ret;
+
+    if (keyBuf == NULL || keyBufSz == NULL || keyFile == NULL) {
+        return -1;
+    }
+
+    typeKey = (typeKey == FILETYPE_PEM) ? SSL_FILETYPE_PEM : SSL_FILETYPE_ASN1;
+
+    file = XFOPEN(keyFile, "rb");
+    if (file == XBADFILE) return -1;
+    XFSEEK(file, 0, XSEEK_END);
+    fileSz = XFTELL(file);
+    XREWIND(file);
+
+    loadBuf = (byte*)malloc(fileSz);
+    if (loadBuf == NULL) {
+        XFCLOSE(file);
+        return -1;
+    }
+
+    ret = (int)XFREAD(loadBuf, fileSz, 1, file);
+    XFCLOSE(file);
+
+    if (typeKey == SSL_FILETYPE_PEM) {
+        saveBuf = (byte*)malloc(fileSz);
+
+        saveBufSz = CyaSSL_KeyPemToDer(loadBuf, (int)fileSz,
+                                                saveBuf, (int)fileSz, password);
+        free(loadBuf);
+
+        *keyBuf = saveBuf;
+        *keyBufSz = (word32)saveBufSz;
+    }
+    else {
+        *keyBuf = loadBuf;
+        *keyBufSz = (word32)fileSz;
+    }
+
+
+    if (ret < 0) {
+        return -1;
+    }
+
+    return ret;
+}
+
+
+/* Sets the private key for a specific name, server and port  */
+/* returns 0 on success, -1 on error */
+int ssl_SetNamedPrivateKey(const char* name,
+                           const char* address, int port,
+                           const char* keyFile, int typeKey,
+                           const char* password, char* error)
+{
+    int            ret;
+    SnifferServer* sniffer;
+    NamedKey*      namedKey;
+    word32         serverIp;
+
+    TraceHeader();
+    TraceSetNamedServer(name, address, port, keyFile);
+
+    /* Create the new Name-Key map item. */
+    namedKey = (NamedKey*)malloc(sizeof(NamedKey));
+    if (namedKey == NULL) {
+        SetError(MEMORY_STR, error, NULL, 0);
+        return -1;
+    }
+    XMEMSET(namedKey, 0, sizeof(NamedKey));
+
+    namedKey->nameSz = (word32)strnlen(name, sizeof(namedKey->name));
+    strncpy(namedKey->name, name, sizeof(namedKey->name));
+
+    ret = LoadKeyFile(&namedKey->key, &namedKey->keySz,
+                                                    keyFile, typeKey, password);
+
+    /* Find the server in the list. */
+    serverIp = inet_addr(address);
+
+    LockMutex(&ServerListMutex);
+    sniffer = ServerList;
+    while (sniffer != NULL &&
+           (sniffer->server != serverIp || sniffer->port != port)) {
+        sniffer = sniffer->next;
+    }
+    UnLockMutex(&ServerListMutex);
+
+    /* if sniffer doesn't exist, create it. */
+    if (sniffer == NULL) {
+        sniffer = (SnifferServer*)malloc(sizeof(SnifferServer));
+        if (sniffer == NULL) {
+            SetError(MEMORY_STR, error, NULL, 0);
+            return -1;
+        }
+        InitSnifferServer(sniffer);
+
+        XSTRNCPY(sniffer->address, address, MAX_SERVER_ADDRESS);
+        sniffer->server = inet_addr(sniffer->address);
+        sniffer->port = port;
+
+        sniffer->ctx = SSL_CTX_new(SSLv3_client_method());
+        if (!sniffer->ctx) {
+            SetError(MEMORY_STR, error, NULL, 0);
+            FreeSnifferServer(sniffer);
+            return -1;
+        }
+
+        LockMutex(&ServerListMutex);
+        sniffer->next = ServerList;
+        ServerList = sniffer;
+        UnLockMutex(&ServerListMutex);
+    }
+
+    LockMutex(&sniffer->namedKeysMutex);
+    namedKey->next = sniffer->namedKeys;
+    sniffer->namedKeys = namedKey;
+    UnLockMutex(&sniffer->namedKeysMutex);
+
+    Trace(NEW_SERVER_STR);
+
+    return 0;
+}
+
+#endif
 
 
 /* Sets the private key for a specific server and port  */
@@ -1317,6 +1530,44 @@ static int ProcessClientHello(const byte* input, int* sslBytes,
     word16 len;
     int    toRead = VERSION_SZ + RAN_LEN + ENUM_LEN;
     
+#ifdef HAVE_SNI
+    {
+        byte name[MAX_SERVER_NAME];
+        word32 nameSz = sizeof(name);
+        int ret;
+
+        ret = CyaSSL_SNI_GetFromBuffer(
+                             input - HANDSHAKE_HEADER_SZ - RECORD_HEADER_SZ,
+                             *sslBytes + HANDSHAKE_HEADER_SZ + RECORD_HEADER_SZ,
+                             CYASSL_SNI_HOST_NAME, name, &nameSz);
+        name[nameSz] = 0;
+
+        if (ret == SSL_SUCCESS) {
+            NamedKey* namedKey;
+
+            LockMutex(&session->context->namedKeysMutex);
+            namedKey = session->context->namedKeys;
+            while (namedKey != NULL) {
+                if (nameSz == namedKey->nameSz &&
+                           XSTRNCMP((char*)name, namedKey->name, nameSz) == 0) {
+                    if (CyaSSL_use_PrivateKey_buffer(session->sslServer,
+                                            namedKey->key, namedKey->keySz,
+                                            SSL_FILETYPE_ASN1) != SSL_SUCCESS) {
+                        UnLockMutex(&session->context->namedKeysMutex);
+                        SetError(CLIENT_HELLO_LATE_KEY_STR, error, session,
+                                                             FATAL_ERROR_STATE);
+                        return -1;
+                    }
+                    break;
+                }
+                else
+                    namedKey = namedKey->next;
+            }
+            UnLockMutex(&session->context->namedKeysMutex);
+        }
+    }
+#endif
+
     session->flags.clientHello = 1;  /* don't process again */
     
     /* make sure can read up to session len */

@@ -86,5 +86,6 @@ STRINGTABLE
     70, "Bad Decrypt Operation"
 
     71, "Decrypt Keys Not Set Up"
+    72, "Late Key Load Error"
 }
 
