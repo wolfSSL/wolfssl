@@ -6928,11 +6928,26 @@ static int BuildMessage(CYASSL* ssl, byte* output, int outSz,
         if (ssl->specs.cipher_type != aead) {
 #ifdef HAVE_TRUNCATED_HMAC
             if (ssl->truncated_hmac && ssl->specs.hash_size > digestSz) {
-                byte hmac[MAX_DIGEST_SIZE];
+            #ifdef CYASSL_SMALL_STACK
+                byte* hmac = NULL;
+            #else
+                byte  hmac[MAX_DIGEST_SIZE];
+            #endif
+
+            #ifdef CYASSL_SMALL_STACK
+                hmac = (byte*)XMALLOC(MAX_DIGEST_SIZE, NULL,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+                if (hmac == NULL)
+                    return MEMORY_E;
+            #endif
 
                 ret = ssl->hmac(ssl, hmac, output + headerSz + ivSz, inSz,
-                                type, 0);
+                                                                       type, 0);
                 XMEMCPY(output + idx, hmac, digestSz);
+
+            #ifdef CYASSL_SMALL_STACK
+                XFREE(hmac, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            #endif
             } else
 #endif
                 ret = ssl->hmac(ssl, output+idx, output + headerSz + ivSz, inSz,
