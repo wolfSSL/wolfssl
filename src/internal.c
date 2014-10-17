@@ -8976,7 +8976,7 @@ static void PickHashSigAlgo(CYASSL* ssl,
             ret = (ssl->options.haveSessionId && XMEMCMP(ssl->arrays->sessionID,
                                           ssl->session.sessionID, ID_LEN) == 0);
         #else
-            ret = (ssl->session.ticketLen > 0) ||
+            ret = (!ssl->expect_session_ticket && ssl->session.ticketLen > 0) ||
                   (ssl->options.haveSessionId && XMEMCMP(ssl->arrays->sessionID,
                                           ssl->session.sessionID, ID_LEN) == 0);
         #endif

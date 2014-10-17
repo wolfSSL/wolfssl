@@ -1324,6 +1324,8 @@ CYASSL_API int CyaSSL_Rehandshake(CYASSL* ssl);
 
 CYASSL_API int CyaSSL_UseSessionTicket(CYASSL* ssl);
 CYASSL_API int CyaSSL_CTX_UseSessionTicket(CYASSL_CTX* ctx);
+CYASSL_API int CyaSSL_get_SessionTicket(CYASSL*, unsigned char*, unsigned int*);
+CYASSL_API int CyaSSL_set_SessionTicket(CYASSL*, unsigned char*, unsigned int);
 
 #endif
 #endif

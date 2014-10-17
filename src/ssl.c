@@ -813,6 +813,32 @@ int CyaSSL_CTX_UseSessionTicket(CYASSL_CTX* ctx)
 
     return TLSX_UseSessionTicket(&ctx->extensions, NULL);
 }
+
+CYASSL_API int CyaSSL_get_SessionTicket(CYASSL* ssl, byte* buf, word32* bufSz)
+{
+    if (ssl == NULL || buf == NULL || bufSz == NULL || *bufSz == 0)
+        return BAD_FUNC_ARG;
+
+    if (ssl->session.ticketLen <= *bufSz) {
+        XMEMCPY(buf, ssl->session.ticket, ssl->session.ticketLen);
+        *bufSz = ssl->session.ticketLen;
+    }
+    else
+        *bufSz = 0;
+
+    return SSL_SUCCESS;
+}
+
+CYASSL_API int CyaSSL_set_SessionTicket(CYASSL* ssl, byte* buf, word32 bufSz)
+{
+    if (ssl == NULL || buf == NULL || bufSz == 0)
+        return BAD_FUNC_ARG;
+
+    XMEMCPY(ssl->session.ticket, buf, bufSz);
+    ssl->session.ticketLen = bufSz;
+
+    return SSL_SUCCESS;
+}
 #endif
 
 #ifndef CYASSL_LEANPSK
