@@ -4035,13 +4035,23 @@ int CopyDecodedToX509(CYASSL_X509* x509, DecodedCert* dCert)
 static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx,
                                                                     word32 size)
 {
-    word32 listSz, begin = *inOutIdx;
+    word32 listSz;
+    word32 begin = *inOutIdx;
     int    ret = 0;
     int    anyError = 0;
     int    totalCerts = 0;    /* number of certs in certs buffer */
     int    count;
-    char   domain[ASN_NAME_MAX];
     buffer certs[MAX_CHAIN_DEPTH];
+
+#ifdef CYASSL_SMALL_STACK
+    char*                  domain = NULL;
+    DecodedCert*           dCert  = NULL;
+    CYASSL_X509_STORE_CTX* store  = NULL;
+#else
+    char                   domain[ASN_NAME_MAX];
+    DecodedCert            dCert[1];
+    CYASSL_X509_STORE_CTX  store[1];
+#endif    
 
     #ifdef CYASSL_CALLBACKS
         if (ssl->hsInfoOn) AddPacketName("Certificate", &ssl->handShakeInfo);
@@ -4109,22 +4119,28 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx,
 
     count = totalCerts;
 
+#ifdef CYASSL_SMALL_STACK
+    dCert = (DecodedCert*)XMALLOC(sizeof(DecodedCert), NULL,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+    if (dCert == NULL)
+        return MEMORY_E;
+#endif
+
     /* verify up to peer's first */
     while (count > 1) {
         buffer myCert = certs[count - 1];
-        DecodedCert dCert;
         byte* subjectHash;
 
-        InitDecodedCert(&dCert, myCert.buffer, myCert.length, ssl->heap);
-        ret = ParseCertRelative(&dCert, CERT_TYPE, !ssl->options.verifyNone,
+        InitDecodedCert(dCert, myCert.buffer, myCert.length, ssl->heap);
+        ret = ParseCertRelative(dCert, CERT_TYPE, !ssl->options.verifyNone,
                                 ssl->ctx->cm);
         #ifndef NO_SKID
-            subjectHash = dCert.extSubjKeyId;
+            subjectHash = dCert->extSubjKeyId;
         #else
-            subjectHash = dCert.subjectHash;
+            subjectHash = dCert->subjectHash;
         #endif
 
-        if (ret == 0 && dCert.isCA == 0) {
+        if (ret == 0 && dCert->isCA == 0) {
             CYASSL_MSG("Chain cert is not a CA, not adding as one");
         }
         else if (ret == 0 && ssl->options.verifyNone) {
@@ -4155,7 +4171,7 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx,
 #ifdef HAVE_CRL
         if (ret == 0 && ssl->ctx->cm->crlEnabled && ssl->ctx->cm->crlCheckAll) {
             CYASSL_MSG("Doing Non Leaf CRL check");
-            ret = CheckCertCRL(ssl->ctx->cm->crl, &dCert);
+            ret = CheckCertCRL(ssl->ctx->cm->crl, dCert);
 
             if (ret != 0) {
                 CYASSL_MSG("\tCRL check not ok");
@@ -4166,20 +4182,19 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx,
         if (ret != 0 && anyError == 0)
             anyError = ret;   /* save error from last time */
 
-        FreeDecodedCert(&dCert);
+        FreeDecodedCert(dCert);
         count--;
     }
 
     /* peer's, may not have one if blank client cert sent by TLSv1.2 */
     if (count) {
         buffer myCert = certs[0];
-        DecodedCert dCert;
-        int         fatal = 0;
+        int    fatal  = 0;
 
         CYASSL_MSG("Verifying Peer's cert");
 
-        InitDecodedCert(&dCert, myCert.buffer, myCert.length, ssl->heap);
-        ret = ParseCertRelative(&dCert, CERT_TYPE, !ssl->options.verifyNone,
+        InitDecodedCert(dCert, myCert.buffer, myCert.length, ssl->heap);
+        ret = ParseCertRelative(dCert, CERT_TYPE, !ssl->options.verifyNone,
                                 ssl->ctx->cm);
         if (ret == 0) {
             CYASSL_MSG("Verified Peer's cert");
@@ -4207,7 +4222,7 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx,
 
             if (ssl->keys.encryptionOn) {
                 /* compare against previous time */
-                if (XMEMCMP(dCert.subjectHash,
+                if (XMEMCMP(dCert->subjectHash,
                             ssl->secure_renegotiation->subject_hash,
                             SHA_DIGEST_SIZE) != 0) {
                     CYASSL_MSG("Peer sent different cert during scr, fatal");
@@ -4219,14 +4234,14 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx,
             /* cache peer's hash */
             if (fatal == 0) {
                 XMEMCPY(ssl->secure_renegotiation->subject_hash,
-                        dCert.subjectHash, SHA_DIGEST_SIZE);
+                        dCert->subjectHash, SHA_DIGEST_SIZE);
             }
         }
 #endif
 
 #ifdef HAVE_OCSP
         if (fatal == 0 && ssl->ctx->cm->ocspEnabled) {
-            ret = CheckCertOCSP(ssl->ctx->cm->ocsp, &dCert);
+            ret = CheckCertOCSP(ssl->ctx->cm->ocsp, dCert);
             if (ret != 0) {
                 CYASSL_MSG("\tOCSP Lookup not ok");
                 fatal = 0;
@@ -4246,7 +4261,7 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx,
 
             if (doCrlLookup) {
                 CYASSL_MSG("Doing Leaf CRL check");
-                ret = CheckCertCRL(ssl->ctx->cm->crl, &dCert);
+                ret = CheckCertCRL(ssl->ctx->cm->crl, dCert);
 
                 if (ret != 0) {
                     CYASSL_MSG("\tCRL check not ok");
@@ -4260,37 +4275,37 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx,
 #ifdef KEEP_PEER_CERT
         {
         /* set X509 format for peer cert even if fatal */
-        int copyRet = CopyDecodedToX509(&ssl->peerCert, &dCert);
+        int copyRet = CopyDecodedToX509(&ssl->peerCert, dCert);
         if (copyRet == MEMORY_E)
             fatal = 1;
         }
 #endif
 
 #ifndef IGNORE_KEY_EXTENSIONS
-        if (dCert.extKeyUsageSet) {
+        if (dCert->extKeyUsageSet) {
             if ((ssl->specs.kea == rsa_kea) &&
-                (dCert.extKeyUsage & KEYUSE_KEY_ENCIPHER) == 0) {
+                (dCert->extKeyUsage & KEYUSE_KEY_ENCIPHER) == 0) {
                 ret = KEYUSE_ENCIPHER_E;
             }
             if ((ssl->specs.sig_algo == rsa_sa_algo ||
                     (ssl->specs.sig_algo == ecc_dsa_sa_algo &&
                          !ssl->specs.static_ecdh)) &&
-                (dCert.extKeyUsage & KEYUSE_DIGITAL_SIG) == 0) {
+                (dCert->extKeyUsage & KEYUSE_DIGITAL_SIG) == 0) {
                 CYASSL_MSG("KeyUse Digital Sig not set");
                 ret = KEYUSE_SIGNATURE_E;
             }
         }
 
-        if (dCert.extExtKeyUsageSet) {
+        if (dCert->extExtKeyUsageSet) {
             if (ssl->options.side == CYASSL_CLIENT_END) {
-                if ((dCert.extExtKeyUsage &
+                if ((dCert->extExtKeyUsage &
                         (EXTKEYUSE_ANY | EXTKEYUSE_SERVER_AUTH)) == 0) {
                     CYASSL_MSG("ExtKeyUse Server Auth not set");
                     ret = EXTKEYUSE_AUTH_E;
                 }
             }
             else {
-                if ((dCert.extExtKeyUsage &
+                if ((dCert->extExtKeyUsage &
                         (EXTKEYUSE_ANY | EXTKEYUSE_CLIENT_AUTH)) == 0) {
                     CYASSL_MSG("ExtKeyUse Client Auth not set");
                     ret = EXTKEYUSE_AUTH_E;
@@ -4300,25 +4315,36 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx,
 #endif /* IGNORE_KEY_EXTENSIONS */
 
         if (fatal) {
-            FreeDecodedCert(&dCert);
+            FreeDecodedCert(dCert);
+        #ifdef CYASSL_SMALL_STACK
+            XFREE(dCert, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        #endif
             ssl->error = ret;
             return ret;
         }
         ssl->options.havePeerCert = 1;
 
+#ifdef CYASSL_SMALL_STACK
+        domain = (char*)XMALLOC(ASN_NAME_MAX, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        if (domain == NULL) {
+            FreeDecodedCert(dCert);
+            XFREE(dCert, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            return MEMORY_E;
+        }
+#endif
         /* store for callback use */
-        if (dCert.subjectCNLen < ASN_NAME_MAX) {
-            XMEMCPY(domain, dCert.subjectCN, dCert.subjectCNLen);
-            domain[dCert.subjectCNLen] = '\0';
+        if (dCert->subjectCNLen < ASN_NAME_MAX) {
+            XMEMCPY(domain, dCert->subjectCN, dCert->subjectCNLen);
+            domain[dCert->subjectCNLen] = '\0';
         }
         else
             domain[0] = '\0';
 
         if (!ssl->options.verifyNone && ssl->buffers.domainName.buffer) {
-            if (MatchDomainName(dCert.subjectCN, dCert.subjectCNLen,
+            if (MatchDomainName(dCert->subjectCN, dCert->subjectCNLen,
                                 (char*)ssl->buffers.domainName.buffer) == 0) {
                 CYASSL_MSG("DomainName match on common name failed");
-                if (CheckAltNames(&dCert,
+                if (CheckAltNames(dCert,
                                  (char*)ssl->buffers.domainName.buffer) == 0 ) {
                     CYASSL_MSG("DomainName match on alt names failed too");
                     ret = DOMAIN_NAME_MISMATCH; /* try to get peer key still */
@@ -4327,7 +4353,7 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx,
         }
 
         /* decode peer key */
-        switch (dCert.keyOID) {
+        switch (dCert->keyOID) {
         #ifndef NO_RSA
             case RSAk:
                 {
@@ -4340,8 +4366,8 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx,
                         keyRet = InitRsaKey(ssl->peerRsaKey, ssl->heap);
                     }
 
-                    if (keyRet != 0 || RsaPublicKeyDecode(dCert.publicKey, &idx,
-                                      ssl->peerRsaKey, dCert.pubKeySize) != 0) {
+                    if (keyRet != 0 || RsaPublicKeyDecode(dCert->publicKey,
+                               &idx, ssl->peerRsaKey, dCert->pubKeySize) != 0) {
                         ret = PEER_KEY_ERROR;
                     }
                     else {
@@ -4349,15 +4375,15 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx,
                         #ifdef HAVE_PK_CALLBACKS
                             #ifndef NO_RSA
                                 ssl->buffers.peerRsaKey.buffer =
-                                       XMALLOC(dCert.pubKeySize,
+                                       XMALLOC(dCert->pubKeySize,
                                                ssl->heap, DYNAMIC_TYPE_RSA);
                                 if (ssl->buffers.peerRsaKey.buffer == NULL)
                                     ret = MEMORY_ERROR;
                                 else {
                                     XMEMCPY(ssl->buffers.peerRsaKey.buffer,
-                                            dCert.publicKey, dCert.pubKeySize);
+                                           dCert->publicKey, dCert->pubKeySize);
                                     ssl->buffers.peerRsaKey.length =
-                                            dCert.pubKeySize;
+                                            dCert->pubKeySize;
                                 }
                             #endif /* NO_RSA */
                         #endif /*HAVE_PK_CALLBACKS */
@@ -4368,12 +4394,13 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx,
         #ifdef HAVE_NTRU
             case NTRUk:
                 {
-                    if (dCert.pubKeySize > sizeof(ssl->peerNtruKey)) {
+                    if (dCert->pubKeySize > sizeof(ssl->peerNtruKey)) {
                         ret = PEER_KEY_ERROR;
                     }
                     else {
-                        XMEMCPY(ssl->peerNtruKey, dCert.publicKey, dCert.pubKeySize);
-                        ssl->peerNtruKeyLen = (word16)dCert.pubKeySize;
+                        XMEMCPY(ssl->peerNtruKey, dCert->publicKey,
+                                                             dCert->pubKeySize);
+                        ssl->peerNtruKeyLen = (word16)dCert->pubKeySize;
                         ssl->peerNtruKeyPresent = 1;
                     }
                 }
@@ -4387,7 +4414,7 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx,
                         ssl->peerEccDsaKeyPresent = 0;
                         ecc_init(ssl->peerEccDsaKey);
                     }
-                    if (ecc_import_x963(dCert.publicKey, dCert.pubKeySize,
+                    if (ecc_import_x963(dCert->publicKey, dCert->pubKeySize,
                                         ssl->peerEccDsaKey) != 0) {
                         ret = PEER_KEY_ERROR;
                     }
@@ -4396,15 +4423,15 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx,
                         #ifdef HAVE_PK_CALLBACKS
                             #ifdef HAVE_ECC
                                 ssl->buffers.peerEccDsaKey.buffer =
-                                       XMALLOC(dCert.pubKeySize,
+                                       XMALLOC(dCert->pubKeySize,
                                                ssl->heap, DYNAMIC_TYPE_ECC);
                                 if (ssl->buffers.peerEccDsaKey.buffer == NULL)
                                     ret = MEMORY_ERROR;
                                 else {
                                     XMEMCPY(ssl->buffers.peerEccDsaKey.buffer,
-                                            dCert.publicKey, dCert.pubKeySize);
+                                           dCert->publicKey, dCert->pubKeySize);
                                     ssl->buffers.peerEccDsaKey.length =
-                                            dCert.pubKeySize;
+                                            dCert->pubKeySize;
                                 }
                             #endif /* HAVE_ECC */
                         #endif /*HAVE_PK_CALLBACKS */
@@ -4416,42 +4443,52 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx,
                 break;
         }
 
-        FreeDecodedCert(&dCert);
+        FreeDecodedCert(dCert);
     }
+
+#ifdef CYASSL_SMALL_STACK
+    XFREE(dCert, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    store = (CYASSL_X509_STORE_CTX*)XMALLOC(sizeof(CYASSL_X509_STORE_CTX),
+                                                 NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (store == NULL) {
+        XFREE(domain, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        return MEMORY_E;
+    }
+#endif
 
     if (anyError != 0 && ret == 0)
         ret = anyError;
 
-
     if (ret != 0) {
         if (!ssl->options.verifyNone) {
             int why = bad_certificate;
+
             if (ret == ASN_AFTER_DATE_E || ret == ASN_BEFORE_DATE_E)
                 why = certificate_expired;
             if (ssl->verifyCallback) {
-                int            ok;
-                CYASSL_X509_STORE_CTX store;
+                int ok;
 
-                store.error = ret;
-                store.error_depth = totalCerts;
-                store.discardSessionCerts = 0;
-                store.domain = domain;
-                store.userCtx = ssl->verifyCbCtx;
+                store->error = ret;
+                store->error_depth = totalCerts;
+                store->discardSessionCerts = 0;
+                store->domain = domain;
+                store->userCtx = ssl->verifyCbCtx;
 #ifdef KEEP_PEER_CERT
-                store.current_cert = &ssl->peerCert;
+                store->current_cert = &ssl->peerCert;
 #else
-                store.current_cert = NULL;
+                store->current_cert = NULL;
 #endif
 #ifdef FORTRESS
-                store.ex_data = ssl;
+                store->ex_data = ssl;
 #endif
-                ok = ssl->verifyCallback(0, &store);
+                ok = ssl->verifyCallback(0, store);
                 if (ok) {
                     CYASSL_MSG("Verify callback overriding error!");
                     ret = 0;
                 }
                 #ifdef SESSION_CERTS
-                if (store.discardSessionCerts) {
+                if (store->discardSessionCerts) {
                     CYASSL_MSG("Verify callback requested discard sess certs");
                     ssl->session.chain.count = 0;
                 }
@@ -4468,19 +4505,18 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx,
     else {
         if (ssl->verifyCallback) {
             int ok;
-            CYASSL_X509_STORE_CTX store;
 
-            store.error = ret;
-            store.error_depth = totalCerts;
-            store.discardSessionCerts = 0;
-            store.domain = domain;
-            store.userCtx = ssl->verifyCbCtx;
+            store->error = ret;
+            store->error_depth = totalCerts;
+            store->discardSessionCerts = 0;
+            store->domain = domain;
+            store->userCtx = ssl->verifyCbCtx;
 #ifdef KEEP_PEER_CERT
-            store.current_cert = &ssl->peerCert;
+            store->current_cert = &ssl->peerCert;
 #endif
-            store.ex_data = ssl;
+            store->ex_data = ssl;
 
-            ok = ssl->verifyCallback(1, &store);
+            ok = ssl->verifyCallback(1, store);
             if (!ok) {
                 CYASSL_MSG("Verify callback overriding valid certificate!");
                 ret = -1;
@@ -4488,7 +4524,7 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx,
                 ssl->options.isClosed = 1;
             }
             #ifdef SESSION_CERTS
-            if (store.discardSessionCerts) {
+            if (store->discardSessionCerts) {
                 CYASSL_MSG("Verify callback requested discard sess certs");
                 ssl->session.chain.count = 0;
             }
@@ -4509,6 +4545,11 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx,
     if (ssl->keys.encryptionOn) {
         *inOutIdx += ssl->keys.padSz;
     }
+
+#ifdef CYASSL_SMALL_STACK
+    XFREE(store,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(domain, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 
     return ret;
 }
