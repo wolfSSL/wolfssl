@@ -3187,23 +3187,90 @@ static void BuildSHA(CYASSL* ssl, Hashes* hashes, const byte* sender)
 
 static int BuildFinished(CYASSL* ssl, Hashes* hashes, const byte* sender)
 {
+    int ret = 0;
+#ifdef CYASSL_SMALL_STACK
+    #ifndef NO_OLD_TLS
+    #ifndef NO_MD5
+        Md5* md5 = (Md5*)XMALLOC(sizeof(Md5), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
+    #ifndef NO_SHA
+        Sha* sha = (Sha*)XMALLOC(sizeof(Sha), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
+    #endif
+    #ifndef NO_SHA256
+        Sha256* sha256 = (Sha256*)XMALLOC(sizeof(Sha256), NULL,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
+    #ifdef CYASSL_SHA384
+        Sha384* sha384 = (Sha384*)XMALLOC(sizeof(Sha384), NULL,                                                                        DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
+#else
+    #ifndef NO_OLD_TLS
+    #ifndef NO_MD5
+        Md5 md5[1];
+    #endif
+    #ifndef NO_SHA
+        Sha sha[1];
+    #endif
+    #endif
+    #ifndef NO_SHA256
+        Sha256 sha256[1];
+    #endif
+    #ifdef CYASSL_SHA384
+        Sha384 sha384[1];
+    #endif
+#endif
+
+#ifdef CYASSL_SMALL_STACK
+    if (ssl == NULL
+    #ifndef NO_OLD_TLS
+    #ifndef NO_MD5
+        || md5 == NULL
+    #endif
+    #ifndef NO_SHA
+        || sha == NULL
+    #endif
+    #endif
+    #ifndef NO_SHA256
+        || sha256 == NULL
+    #endif
+    #ifdef CYASSL_SHA384
+        || sha384 == NULL
+    #endif            
+        ) {
+    #ifndef NO_OLD_TLS
+    #ifndef NO_MD5
+        XFREE(md5, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
+    #ifndef NO_SHA
+        XFREE(sha, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
+    #endif
+    #ifndef NO_SHA256
+        XFREE(sha256, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
+    #ifdef CYASSL_SHA384
+        XFREE(sha384, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
+        return MEMORY_E;  
+    }
+#endif
+
     /* store current states, building requires get_digest which resets state */
 #ifndef NO_OLD_TLS
 #ifndef NO_MD5
-    Md5 md5 = ssl->hashMd5;
+    md5[0] = ssl->hashMd5;
 #endif
 #ifndef NO_SHA
-    Sha sha = ssl->hashSha;
-#endif
+    sha[0] = ssl->hashSha;
+    #endif
 #endif
 #ifndef NO_SHA256
-    Sha256 sha256 = ssl->hashSha256;
+    sha256[0] = ssl->hashSha256;
 #endif
 #ifdef CYASSL_SHA384
-    Sha384 sha384 = ssl->hashSha384;
+    sha384[0] = ssl->hashSha384;
 #endif
-
-    int ret = 0;
 
 #ifndef NO_TLS
     if (ssl->options.tls) {
@@ -3220,20 +3287,37 @@ static int BuildFinished(CYASSL* ssl, Hashes* hashes, const byte* sender)
     /* restore */
 #ifndef NO_OLD_TLS
     #ifndef NO_MD5
-        ssl->hashMd5 = md5;
+        ssl->hashMd5 = md5[0];
     #endif
     #ifndef NO_SHA
-    ssl->hashSha = sha;
+    ssl->hashSha = sha[0];
     #endif
 #endif
     if (IsAtLeastTLSv1_2(ssl)) {
     #ifndef NO_SHA256
-        ssl->hashSha256 = sha256;
+        ssl->hashSha256 = sha256[0];
     #endif
     #ifdef CYASSL_SHA384
-        ssl->hashSha384 = sha384;
+        ssl->hashSha384 = sha384[0];
     #endif
     }
+
+#ifdef CYASSL_SMALL_STACK
+#ifndef NO_OLD_TLS
+#ifndef NO_MD5
+    XFREE(md5, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+#ifndef NO_SHA
+    XFREE(sha, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+#endif
+#ifndef NO_SHA256
+    XFREE(sha256, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+#ifdef CYASSL_SHA384
+    XFREE(sha384, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+#endif
 
     return ret;
 }
