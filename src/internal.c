@@ -9275,7 +9275,6 @@ static void PickHashSigAlgo(CYASSL* ssl,
             if (TLSX_SupportExtensions(ssl)) {
                 int    ret = 0;
                 word16 totalExtSz;
-                Suites clSuites; /* just for compatibility right now */
 
                 if ((i - begin) + OPAQUE16_LEN > helloSz)
                     return BUFFER_ERROR;
@@ -9287,7 +9286,7 @@ static void PickHashSigAlgo(CYASSL* ssl,
                     return BUFFER_ERROR;
 
                 if ((ret = TLSX_Parse(ssl, (byte *) input + i,
-                                                     totalExtSz, 0, &clSuites)))
+                                                          totalExtSz, 0, NULL)))
                     return ret;
 
                 i += totalExtSz;
