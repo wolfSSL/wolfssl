@@ -736,7 +736,7 @@ int CyaSSL_UseSecureRenegotiation(CYASSL* ssl)
 }
 
 
-/* do a secure renegotiation handshake, use forced, we discourage */
+/* do a secure renegotiation handshake, user forced, we discourage */
 int CyaSSL_Rehandshake(CYASSL* ssl)
 {
     int ret;
@@ -758,6 +758,15 @@ int CyaSSL_Rehandshake(CYASSL* ssl)
         CYASSL_MSG("Can't renegotiate until previous handshake complete");
         return SECURE_RENEGOTIATION_E;
     }
+
+#ifndef NO_FORCE_SCR_SAME_SUITE
+    /* force same suite */
+    if (ssl->suites) {
+        ssl->suites->suiteSz = SUITE_LEN;
+        ssl->suites->suites[0] = ssl->options.cipherSuite0;
+        ssl->suites->suites[1] = ssl->options.cipherSuite;
+    }
+#endif
 
     /* reset handshake states */
     ssl->options.serverState = NULL_STATE;
@@ -5640,6 +5649,7 @@ int AddSession(CYASSL* ssl)
            ssl->arrays->masterSecret, SECRET_LEN);
     XMEMCPY(SessionCache[row].Sessions[idx].sessionID, ssl->arrays->sessionID,
            ID_LEN);
+    SessionCache[row].Sessions[idx].sessionIDSz = ssl->arrays->sessionIDSz;
 
     SessionCache[row].Sessions[idx].timeout = ssl->timeout;
     SessionCache[row].Sessions[idx].bornOn  = LowResTimer();

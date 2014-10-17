@@ -649,7 +649,7 @@ enum Misc {
     MAX_COMP_EXTRA  = 1024,     /* max compression extra */
     MAX_MTU         = 1500,     /* max expected MTU */
     MAX_UDP_SIZE    = 8192 - 100, /* was MAX_MTU - 100 */
-    MAX_DH_SZ       = 612,      /* 2240 p, pub, g + 2 byte size for each */
+    MAX_DH_SZ       = 1036,     /* 4096 p, pub, g + 2 byte size for each */
     MAX_STR_VERSION = 8,        /* string rep of protocol version */
 
     PAD_MD5        = 48,       /* pad length for finished */
@@ -1352,6 +1352,7 @@ typedef struct SecureRenegotiation {
    enum key_cache_state cache_status;  /* track key cache state */
    byte                 client_verify_data[TLS_FINISHED_SZ];  /* cached */
    byte                 server_verify_data[TLS_FINISHED_SZ];  /* cached */
+   byte                 subject_hash[SHA_DIGEST_SIZE];  /* peer cert hash */
    Keys                 tmp_keys;  /* can't overwrite real keys yet */
 } SecureRenegotiation;
 
@@ -1644,6 +1645,7 @@ struct CYASSL_X509_CHAIN {
 /* CyaSSL session type */
 struct CYASSL_SESSION {
     byte         sessionID[ID_LEN];             /* id for protocol */
+    byte         sessionIDSz;
     byte         masterSecret[SECRET_LEN];      /* stored secret */
     word32       bornOn;                        /* create time in seconds   */
     word32       timeout;                       /* timeout in seconds       */
@@ -1803,6 +1805,7 @@ typedef struct Arrays {
     byte            clientRandom[RAN_LEN];
     byte            serverRandom[RAN_LEN];
     byte            sessionID[ID_LEN];
+    byte            sessionIDSz;
     byte            preMasterSecret[ENCRYPT_LEN];
     byte            masterSecret[SECRET_LEN];
 #ifdef CYASSL_DTLS

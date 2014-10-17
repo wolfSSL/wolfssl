@@ -1806,7 +1806,7 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
 
     /* arrays */
     ssl->arrays = (Arrays*)XMALLOC(sizeof(Arrays), ssl->heap,
-                                   DYNAMIC_TYPE_ARRAYS);
+                                                           DYNAMIC_TYPE_ARRAYS);
     if (ssl->arrays == NULL) {
         CYASSL_MSG("Arrays Memory error");
         return MEMORY_E;
@@ -1919,6 +1919,7 @@ void FreeArrays(CYASSL* ssl, int keep)
     if (ssl->arrays && keep) {
         /* keeps session id for user retrieval */
         XMEMCPY(ssl->session.sessionID, ssl->arrays->sessionID, ID_LEN);
+        ssl->session.sessionIDSz = ssl->arrays->sessionIDSz;
     }
     XFREE(ssl->arrays, ssl->heap, DYNAMIC_TYPE_ARRAYS);
     ssl->arrays = NULL;
@@ -4113,6 +4114,29 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx,
                 fatal = 1;
             }
         }
+
+#ifdef HAVE_SECURE_RENEGOTIATION
+        if (fatal == 0 && ssl->secure_renegotiation
+                       && ssl->secure_renegotiation->enabled) {
+
+            if (ssl->keys.encryptionOn) {
+                /* compare against previous time */
+                if (XMEMCMP(dCert.subjectHash,
+                            ssl->secure_renegotiation->subject_hash,
+                            SHA_DIGEST_SIZE) != 0) {
+                    CYASSL_MSG("Peer sent different cert during scr, fatal");
+                    fatal = 1;
+                    ret   = SCR_DIFFERENT_CERT_E;
+                }
+            }
+
+            /* cache peer's hash */
+            if (fatal == 0) {
+                XMEMCPY(ssl->secure_renegotiation->subject_hash,
+                        dCert.subjectHash, SHA_DIGEST_SIZE);
+            }
+        }
+#endif
 
 #ifdef HAVE_OCSP
         if (fatal == 0 && ssl->ctx->cm->ocspEnabled) {
@@ -7676,13 +7700,14 @@ const char* CyaSSL_ERR_reason_error_string(unsigned long e)
     case SECURE_RENEGOTIATION_E:
         return "Invalid Renegotiation Error";
 
-#ifdef HAVE_SESSION_TICKET
     case SESSION_TICKET_LEN_E:
         return "Session Ticket Too Long Error";
 
     case SESSION_TICKET_EXPECT_E:
         return "Session Ticket Error";
-#endif
+
+    case SCR_DIFFERENT_CERT_E:
+        return "Peer sent different cert during SCR";
 
     default :
         return "unknown error number";
@@ -8745,7 +8770,9 @@ static void PickHashSigAlgo(CYASSL* ssl,
         byte              *output;
         word32             length, idx = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
         int                sendSz;
-        int                idSz = ssl->options.resuming ? ID_LEN : 0;
+        int                idSz = ssl->options.resuming
+                                ? ssl->session.sessionIDSz
+                                : 0;
         int                ret;
 
         if (ssl->suites == NULL) {
@@ -8754,7 +8781,7 @@ static void PickHashSigAlgo(CYASSL* ssl,
         } 
 
 #ifdef HAVE_SESSION_TICKET
-        if (ssl->session.ticketLen > 0) {
+        if (ssl->options.resuming && ssl->session.ticketLen > 0) {
             SessionTicket* ticket;
 
             ticket = TLSX_SessionTicket_Create(0,
@@ -8828,8 +8855,9 @@ static void PickHashSigAlgo(CYASSL* ssl,
             /* then session id */
         output[idx++] = (byte)idSz;
         if (idSz) {
-            XMEMCPY(output + idx, ssl->session.sessionID, ID_LEN);
-            idx += ID_LEN;
+            XMEMCPY(output + idx, ssl->session.sessionID,
+                                                      ssl->session.sessionIDSz);
+            idx += ssl->session.sessionIDSz;
         }
         
             /* then DTLS cookie */
@@ -8987,7 +9015,6 @@ static void PickHashSigAlgo(CYASSL* ssl,
     static int DoServerHello(CYASSL* ssl, const byte* input, word32* inOutIdx,
                              word32 helloSz)
     {
-        byte            b;
         byte            cs0;   /* cipher suite bytes 0, 1 */
         byte            cs1;
         ProtocolVersion pv;
@@ -9053,20 +9080,23 @@ static void PickHashSigAlgo(CYASSL* ssl,
         i += RAN_LEN;
 
         /* session id */
-        b = input[i++];
+        ssl->arrays->sessionIDSz = input[i++];
 
-        if (b == ID_LEN) {
-            if ((i - begin) + ID_LEN > helloSz)
+        if (ssl->arrays->sessionIDSz > ID_LEN) {
+            CYASSL_MSG("Invalid session ID size");
+            ssl->arrays->sessionIDSz = 0;
+            return BUFFER_ERROR;
+        }
+        else if (ssl->arrays->sessionIDSz) {
+            if ((i - begin) + ssl->arrays->sessionIDSz > helloSz)
                 return BUFFER_ERROR;
 
-            XMEMCPY(ssl->arrays->sessionID, input + i, min(b, ID_LEN));
-            i += ID_LEN;
+            XMEMCPY(ssl->arrays->sessionID, input + i,
+                                                      ssl->arrays->sessionIDSz);
+            i += ssl->arrays->sessionIDSz;
             ssl->options.haveSessionId = 1;
         }
-        else if (b) {
-            CYASSL_MSG("Invalid session ID size");
-            return BUFFER_ERROR; /* session ID nor 0 neither 32 bytes long */
-        }
+        
 
         /* suite and compression */
         if ((i - begin) + OPAQUE16_LEN + OPAQUE8_LEN > helloSz)

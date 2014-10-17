@@ -1776,7 +1776,7 @@ static void TLSX_SessionTicket_ValidateRequest(CYASSL* ssl)
 }
 
 
-static byte TLSX_SessionTicket_GetSize(SessionTicket* ticket, int isRequest)
+static word16 TLSX_SessionTicket_GetSize(SessionTicket* ticket, int isRequest)
 {
     return isRequest && ticket ? ticket->size : 0;
 }
