@@ -12333,11 +12333,22 @@ int DoSessionTicket(CYASSL* ssl,
             }
 
             if (IsAtLeastTLSv1_2(ssl)) {
+#ifdef CYASSL_SMALL_STACK
+                byte*  encodedSig = NULL;
+#else
                 byte   encodedSig[MAX_ENCODED_SIG_SZ];
+#endif
                 word32 sigSz;
                 byte*  digest = ssl->certHashes.sha;
                 int    typeH = SHAh;
                 int    digestSz = SHA_DIGEST_SIZE;
+
+#ifdef CYASSL_SMALL_STACK
+                encodedSig = (byte*)XMALLOC(MAX_ENCODED_SIG_SZ, NULL,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+                if (encodedSig == NULL)
+                    return MEMORY_E;
+#endif
 
                 if (sigAlgo != rsa_sa_algo) {
                     CYASSL_MSG("Oops, peer sent RSA key but not in verify");
@@ -12363,6 +12374,10 @@ int DoSessionTicket(CYASSL* ssl,
                 if (outLen == (int)sigSz && out && XMEMCMP(out, encodedSig,
                                            min(sigSz, MAX_ENCODED_SIG_SZ)) == 0)
                     ret = 0; /* verified */
+
+#ifdef CYASSL_SMALL_STACK
+                XFREE(encodedSig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
             }
             else {
                 if (outLen == FINISHED_SZ && out && XMEMCMP(out,
