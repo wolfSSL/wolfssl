@@ -9687,22 +9687,35 @@ static void PickHashSigAlgo(CYASSL* ssl,
         ssl->specs.kea == diffie_hellman_kea)
     {
 #ifndef NO_OLD_TLS
-        Md5    md5;
-        Sha    sha;
+#ifdef CYASSL_SMALL_STACK
+        Md5*    md5;
+        Sha*    sha;
+#else
+        Md5     md5[0];
+        Sha     sha[0];
+#endif
 #endif
 #ifndef NO_SHA256
-        Sha256 sha256;
-        byte hash256[SHA256_DIGEST_SIZE];
+#ifdef CYASSL_SMALL_STACK
+        Sha256* sha256;
+#else
+        Sha256  sha256[0];
+#endif
+        byte    hash256[SHA256_DIGEST_SIZE];
 #endif
 #ifdef CYASSL_SHA384
-        Sha384 sha384;
-        byte hash384[SHA384_DIGEST_SIZE];
+#ifdef CYASSL_SMALL_STACK
+        Sha384* sha384;
+#else
+        Sha384  sha384[0];
 #endif
-        byte   hash[FINISHED_SZ];
-        byte   messageVerify[MAX_DH_SZ];
-        byte   hashAlgo = sha_mac;
-        byte   sigAlgo  = ssl->specs.sig_algo;
-        word16 verifySz = (word16) (*inOutIdx - begin);
+        byte    hash384[SHA384_DIGEST_SIZE];
+#endif
+        byte    hash[FINISHED_SZ];
+        byte    messageVerify[MAX_DH_SZ];
+        byte    hashAlgo = sha_mac;
+        byte    sigAlgo  = ssl->specs.sig_algo;
+        word16  verifySz = (word16) (*inOutIdx - begin);
 
         /* save message for hash verify */
         if (verifySz > sizeof(messageVerify))
@@ -9733,54 +9746,76 @@ static void PickHashSigAlgo(CYASSL* ssl,
         /* verify signature */
 #ifndef NO_OLD_TLS
         /* md5 */
-        InitMd5(&md5);
-        Md5Update(&md5, ssl->arrays->clientRandom, RAN_LEN);
-        Md5Update(&md5, ssl->arrays->serverRandom, RAN_LEN);
-        Md5Update(&md5, messageVerify, verifySz);
-        Md5Final(&md5, hash);
+    #ifdef CYASSL_SMALL_STACK
+        md5 = (Md5*)XMALLOC(sizeof(Md5), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        if (md5 == NULL)
+            return MEMORY_E;
+    #endif
+        InitMd5(md5);
+        Md5Update(md5, ssl->arrays->clientRandom, RAN_LEN);
+        Md5Update(md5, ssl->arrays->serverRandom, RAN_LEN);
+        Md5Update(md5, messageVerify, verifySz);
+        Md5Final(md5, hash);
+    #ifdef CYASSL_SMALL_STACK
+        XFREE(md5, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
 
         /* sha */
-        ret = InitSha(&sha);
-        if (ret != 0)
+    #ifdef CYASSL_SMALL_STACK
+        sha = (Sha*)XMALLOC(sizeof(Sha), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        if (sha == NULL)
+            return MEMORY_E;
+    #endif
+        ret = InitSha(sha);
+        if (ret != 0) {
+        #ifdef CYASSL_SMALL_STACK
+            XFREE(sha, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        #endif
             return ret;
-        ShaUpdate(&sha, ssl->arrays->clientRandom, RAN_LEN);
-        ShaUpdate(&sha, ssl->arrays->serverRandom, RAN_LEN);
-        ShaUpdate(&sha, messageVerify, verifySz);
-        ShaFinal(&sha, hash + MD5_DIGEST_SIZE);
+        }
+        ShaUpdate(sha, ssl->arrays->clientRandom, RAN_LEN);
+        ShaUpdate(sha, ssl->arrays->serverRandom, RAN_LEN);
+        ShaUpdate(sha, messageVerify, verifySz);
+        ShaFinal(sha, hash + MD5_DIGEST_SIZE);
+    #ifdef CYASSL_SMALL_STACK
+        XFREE(sha, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
 #endif
 
 #ifndef NO_SHA256
-        ret = InitSha256(&sha256);
-        if (ret != 0)
-            return ret;
-        ret = Sha256Update(&sha256, ssl->arrays->clientRandom, RAN_LEN);
-        if (ret != 0)
-            return ret;
-        ret = Sha256Update(&sha256, ssl->arrays->serverRandom, RAN_LEN);
-        if (ret != 0)
-            return ret;
-        ret = Sha256Update(&sha256, messageVerify, verifySz);
-        if (ret != 0)
-            return ret;
-        ret = Sha256Final(&sha256, hash256);
+    #ifdef CYASSL_SMALL_STACK
+        sha256 = (Sha256*)XMALLOC(sizeof(Sha256), NULL,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+        if (sha256 == NULL)
+            return MEMORY_E;
+    #endif
+        if (!(ret = InitSha256(sha256))
+        &&  !(ret = Sha256Update(sha256, ssl->arrays->clientRandom, RAN_LEN))
+        &&  !(ret = Sha256Update(sha256, ssl->arrays->serverRandom, RAN_LEN))
+        &&  !(ret = Sha256Update(sha256, messageVerify, verifySz)))
+              ret = Sha256Final(sha256, hash256);
+    #ifdef CYASSL_SMALL_STACK
+        XFREE(sha256, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
         if (ret != 0)
             return ret;
 #endif
 
 #ifdef CYASSL_SHA384
-        ret = InitSha384(&sha384);
-        if (ret != 0)
-            return ret;
-        ret = Sha384Update(&sha384, ssl->arrays->clientRandom, RAN_LEN);
-        if (ret != 0)
-            return ret;
-        ret = Sha384Update(&sha384, ssl->arrays->serverRandom, RAN_LEN);
-        if (ret != 0)
-            return ret;
-        ret = Sha384Update(&sha384, messageVerify, verifySz);
-        if (ret != 0)
-            return ret;
-        ret = Sha384Final(&sha384, hash384);
+    #ifdef CYASSL_SMALL_STACK
+        sha384 = (Sha384*)XMALLOC(sizeof(Sha384), NULL,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+        if (sha384 == NULL)
+            return MEMORY_E;
+    #endif
+        if (!(ret = InitSha384(sha384))
+        &&  !(ret = Sha384Update(sha384, ssl->arrays->clientRandom, RAN_LEN))
+        &&  !(ret = Sha384Update(sha384, ssl->arrays->serverRandom, RAN_LEN))
+        &&  !(ret = Sha384Update(sha384, messageVerify, verifySz)))
+              ret = Sha384Final(sha384, hash384);
+    #ifdef CYASSL_SMALL_STACK
+        XFREE(sha384, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
         if (ret != 0)
             return ret;
 #endif
