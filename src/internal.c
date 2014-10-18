@@ -9942,7 +9942,11 @@ static void PickHashSigAlgo(CYASSL* ssl,
 
     int SendClientKeyExchange(CYASSL* ssl)
     {
+#ifdef CYASSL_SMALL_STACK
+        byte*  encSecret = NULL;
+#else
         byte   encSecret[MAX_ENCRYPT_SZ];
+#endif
         word32 encSz = 0;
         word32 idx = 0;
         int    ret = 0;
@@ -9950,32 +9954,47 @@ static void PickHashSigAlgo(CYASSL* ssl,
 
         (void)doUserRsa;
 
-        #ifdef HAVE_PK_CALLBACKS
-            #ifndef NO_RSA
-                if (ssl->ctx->RsaEncCb)
-                    doUserRsa = 1;
-            #endif /* NO_RSA */
-        #endif /*HAVE_PK_CALLBACKS */
+#ifdef HAVE_PK_CALLBACKS
+    #ifndef NO_RSA
+        if (ssl->ctx->RsaEncCb)
+            doUserRsa = 1;
+    #endif /* NO_RSA */
+#endif /*HAVE_PK_CALLBACKS */
+
+    #ifdef CYASSL_SMALL_STACK
+        encSecret = (byte*)XMALLOC(MAX_ENCRYPT_SZ, NULL,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+        if (encSecret == NULL)
+            return MEMORY_E;
+    #endif
 
         switch (ssl->specs.kea) {
         #ifndef NO_RSA
             case rsa_kea:
                 ret = RNG_GenerateBlock(ssl->rng, ssl->arrays->preMasterSecret,
                                                                     SECRET_LEN);
-                if (ret != 0)
+                if (ret != 0) {
+                #ifdef CYASSL_SMALL_STACK
+                    XFREE(encSecret, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                #endif
                     return ret;
+                }
 
                 ssl->arrays->preMasterSecret[0] = ssl->chVersion.major;
                 ssl->arrays->preMasterSecret[1] = ssl->chVersion.minor;
                 ssl->arrays->preMasterSz = SECRET_LEN;
 
-                if (ssl->peerRsaKeyPresent == 0)
+                if (ssl->peerRsaKeyPresent == 0) {
+                #ifdef CYASSL_SMALL_STACK
+                    XFREE(encSecret, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                #endif
                     return NO_PEER_KEY;
+                }
 
                 if (doUserRsa) {
                 #ifdef HAVE_PK_CALLBACKS
                     #ifndef NO_RSA
-                        encSz = sizeof(encSecret);
+                        encSz = MAX_ENCRYPT_SZ;
                         ret = ssl->ctx->RsaEncCb(ssl,
                                             ssl->arrays->preMasterSecret,
                                             SECRET_LEN,
@@ -9988,7 +10007,7 @@ static void PickHashSigAlgo(CYASSL* ssl,
                 }
                 else {
                     ret = RsaPublicEncrypt(ssl->arrays->preMasterSecret,
-                                 SECRET_LEN, encSecret, sizeof(encSecret),
+                                 SECRET_LEN, encSecret, MAX_ENCRYPT_SZ,
                                  ssl->peerRsaKey, ssl->rng);
                     if (ret > 0) {
                         encSz = ret;
@@ -10003,13 +10022,30 @@ static void PickHashSigAlgo(CYASSL* ssl,
                     buffer  serverP   = ssl->buffers.serverDH_P;
                     buffer  serverG   = ssl->buffers.serverDH_G;
                     buffer  serverPub = ssl->buffers.serverDH_Pub;
+                #ifdef CYASSL_SMALL_STACK
+                    byte*   priv = NULL;
+                #else
                     byte    priv[ENCRYPT_LEN];
+                #endif
                     word32  privSz = 0;
                     DhKey   key;
 
                     if (serverP.buffer == 0 || serverG.buffer == 0 ||
-                                               serverPub.buffer == 0)
+                                               serverPub.buffer == 0) {
+                    #ifdef CYASSL_SMALL_STACK
+                        XFREE(encSecret, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                    #endif
                         return NO_PEER_KEY;
+                    }
+
+                #ifdef CYASSL_SMALL_STACK
+                    priv = (byte*)XMALLOC(ENCRYPT_LEN, NULL,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+                    if (priv == NULL) {
+                        XFREE(encSecret, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                        return MEMORY_E;
+                    }
+                #endif
 
                     InitDhKey(&key);
                     ret = DhSetKey(&key, serverP.buffer, serverP.length,
@@ -10022,6 +10058,9 @@ static void PickHashSigAlgo(CYASSL* ssl,
                         ret = DhAgree(&key, ssl->arrays->preMasterSecret,
                                       &ssl->arrays->preMasterSz, priv, privSz,
                                       serverPub.buffer, serverPub.length);
+                #ifdef CYASSL_SMALL_STACK
+                    XFREE(priv, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                #endif
                     FreeDhKey(&key);
                 }
                 break;
@@ -10035,10 +10074,19 @@ static void PickHashSigAlgo(CYASSL* ssl,
                         ssl->arrays->server_hint, ssl->arrays->client_identity,
                         MAX_PSK_ID_LEN, ssl->arrays->psk_key, MAX_PSK_KEY_LEN);
                     if (ssl->arrays->psk_keySz == 0 || 
-                        ssl->arrays->psk_keySz > MAX_PSK_KEY_LEN)
+                        ssl->arrays->psk_keySz > MAX_PSK_KEY_LEN) {
+                    #ifdef CYASSL_SMALL_STACK
+                        XFREE(encSecret, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                    #endif
                         return PSK_KEY_ERROR;
+                    }
                     encSz = (word32)XSTRLEN(ssl->arrays->client_identity);
-                    if (encSz > MAX_PSK_ID_LEN) return CLIENT_ID_ERROR;
+                    if (encSz > MAX_PSK_ID_LEN) {
+                    #ifdef CYASSL_SMALL_STACK
+                        XFREE(encSecret, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                    #endif
+                        return CLIENT_ID_ERROR;
+                    }
                     XMEMCPY(encSecret, ssl->arrays->client_identity, encSz);
 
                     /* make psk pre master secret */
@@ -10064,26 +10112,51 @@ static void PickHashSigAlgo(CYASSL* ssl,
                     buffer  serverP   = ssl->buffers.serverDH_P;
                     buffer  serverG   = ssl->buffers.serverDH_G;
                     buffer  serverPub = ssl->buffers.serverDH_Pub;
+                #ifdef CYASSSL_SMALL_STACK
+                    byte*   priv = NULL;
+                #else
                     byte    priv[ENCRYPT_LEN];
+                #endif
                     word32  privSz = 0;
                     word32  pubSz = 0;
                     word32  esSz = 0;
                     DhKey   key;
 
                     if (serverP.buffer == 0 || serverG.buffer == 0 ||
-                                               serverPub.buffer == 0)
+                                               serverPub.buffer == 0) {
+                    #ifdef CYASSL_SMALL_STACK
+                        XFREE(encSecret, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                    #endif
                         return NO_PEER_KEY;
+                    }
 
                     ssl->arrays->psk_keySz = ssl->options.client_psk_cb(ssl,
                          ssl->arrays->server_hint, ssl->arrays->client_identity,
                          MAX_PSK_ID_LEN, ssl->arrays->psk_key, MAX_PSK_KEY_LEN);
                     if (ssl->arrays->psk_keySz == 0 ||
-                                       ssl->arrays->psk_keySz > MAX_PSK_KEY_LEN)
+                                     ssl->arrays->psk_keySz > MAX_PSK_KEY_LEN) {
+                    #ifdef CYASSL_SMALL_STACK
+                        XFREE(encSecret, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                    #endif
                         return PSK_KEY_ERROR;
+                    }
                     esSz = (word32)XSTRLEN(ssl->arrays->client_identity);
 
-                    if (esSz > MAX_PSK_ID_LEN)
+                    if (esSz > MAX_PSK_ID_LEN) {
+                    #ifdef CYASSL_SMALL_STACK
+                        XFREE(encSecret, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                    #endif
                         return CLIENT_ID_ERROR;
+                    }
+                    
+                #ifdef CYASSL_SMALL_STACK
+                    priv = (byte*)XMALLOC(ENCRYPT_LEN, NULL,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+                    if (priv == NULL) {
+                        XFREE(encSecret, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                        return MEMORY_E;
+                    }
+                #endif
                     c16toa((word16)esSz, es);
                     es += OPAQUE16_LEN;
                     XMEMCPY(es, ssl->arrays->client_identity, esSz);
@@ -10102,8 +10175,15 @@ static void PickHashSigAlgo(CYASSL* ssl,
                                       &ssl->arrays->preMasterSz, priv, privSz,
                                       serverPub.buffer, serverPub.length);
                     FreeDhKey(&key);
-                    if (ret != 0)
+                #ifdef CYASSL_SMALL_STACK
+                    XFREE(priv, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                #endif
+                    if (ret != 0) {
+                    #ifdef CYASSL_SMALL_STACK
+                        XFREE(encSecret, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                    #endif
                         return ret;
+                    }
 
                     c16toa((word16)pubSz, es);
                     encSz += pubSz + OPAQUE16_LEN;
@@ -10127,7 +10207,7 @@ static void PickHashSigAlgo(CYASSL* ssl,
             case ntru_kea:
                 {
                     word32 rc;
-                    word16 cipherLen = sizeof(encSecret);
+                    word16 cipherLen = MAX_ENCRYPT_SZ;
                     DRBG_HANDLE drbg;
                     static uint8_t const cyasslStr[] = {
                         'C', 'y', 'a', 'S', 'S', 'L', ' ', 'N', 'T', 'R', 'U'
@@ -10135,19 +10215,31 @@ static void PickHashSigAlgo(CYASSL* ssl,
 
                     ret = RNG_GenerateBlock(ssl->rng,
                                       ssl->arrays->preMasterSecret, SECRET_LEN);
-                    if (ret != 0)
+                    if (ret != 0) {
+                    #ifdef CYASSL_SMALL_STACK
+                        XFREE(encSecret, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                    #endif
                         return ret;
+                    }
 
                     ssl->arrays->preMasterSz = SECRET_LEN;
 
-                    if (ssl->peerNtruKeyPresent == 0)
+                    if (ssl->peerNtruKeyPresent == 0) {
+                    #ifdef CYASSL_SMALL_STACK
+                        XFREE(encSecret, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                    #endif
                         return NO_PEER_KEY;
+                    }
 
                     rc = ntru_crypto_drbg_instantiate(MAX_NTRU_BITS, cyasslStr,
                                                  sizeof(cyasslStr), GetEntropy,
                                                  &drbg);
-                    if (rc != DRBG_OK)
-                        return NTRU_DRBG_ERROR; 
+                    if (rc != DRBG_OK) {
+                    #ifdef CYASSL_SMALL_STACK
+                        XFREE(encSecret, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                    #endif
+                        return NTRU_DRBG_ERROR;
+                    }
 
                     rc = ntru_crypto_ntru_encrypt(drbg, ssl->peerNtruKeyLen,
                                                   ssl->peerNtruKey,
@@ -10155,8 +10247,12 @@ static void PickHashSigAlgo(CYASSL* ssl,
                                                   ssl->arrays->preMasterSecret,
                                                   &cipherLen, encSecret);
                     ntru_crypto_drbg_uninstantiate(drbg);
-                    if (rc != NTRU_OK)
+                    if (rc != NTRU_OK) {
+                    #ifdef CYASSL_SMALL_STACK
+                        XFREE(encSecret, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                    #endif
                         return NTRU_ENCRYPT_ERROR;
+                    }
 
                     encSz = cipherLen;
                     ret = 0;
@@ -10168,27 +10264,44 @@ static void PickHashSigAlgo(CYASSL* ssl,
                 {
                     ecc_key  myKey;
                     ecc_key* peerKey = NULL;
-                    word32   size = sizeof(encSecret);
+                    word32   size = MAX_ENCRYPT_SZ;
 
                     if (ssl->specs.static_ecdh) {
                         /* TODO: EccDsa is really fixed Ecc change naming */
-                        if (!ssl->peerEccDsaKeyPresent || !ssl->peerEccDsaKey->dp)
+                        if (!ssl->peerEccDsaKeyPresent ||
+                                                      !ssl->peerEccDsaKey->dp) {
+                        #ifdef CYASSL_SMALL_STACK
+                            XFREE(encSecret, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                        #endif
                             return NO_PEER_KEY;
+                        }
                         peerKey = ssl->peerEccDsaKey;
                     }
                     else {
-                        if (!ssl->peerEccKeyPresent || !ssl->peerEccKey->dp)
+                        if (!ssl->peerEccKeyPresent || !ssl->peerEccKey->dp) {
+                        #ifdef CYASSL_SMALL_STACK
+                            XFREE(encSecret, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                        #endif
                             return NO_PEER_KEY;
+                        }
                         peerKey = ssl->peerEccKey;
                     }
 
-                    if (peerKey == NULL)
+                    if (peerKey == NULL) {
+                    #ifdef CYASSL_SMALL_STACK
+                        XFREE(encSecret, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                    #endif
                         return NO_PEER_KEY;
+                    }
 
                     ecc_init(&myKey);
                     ret = ecc_make_key(ssl->rng, peerKey->dp->size, &myKey);
-                    if (ret != 0)
+                    if (ret != 0) {
+                    #ifdef CYASSL_SMALL_STACK
+                        XFREE(encSecret, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                    #endif
                         return ECC_MAKEKEY_ERROR;
+                    }
 
                     /* precede export with 1 byte length */
                     ret = ecc_export_x963(&myKey, encSecret + 1, &size);
@@ -10211,6 +10324,9 @@ static void PickHashSigAlgo(CYASSL* ssl,
                 break;
         #endif /* HAVE_ECC */
             default:
+            #ifdef CYASSL_SMALL_STACK
+                XFREE(encSecret, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            #endif
                 return ALGO_ID_E; /* unsupported kea */
         }
 
@@ -10240,8 +10356,12 @@ static void PickHashSigAlgo(CYASSL* ssl,
                 sendSz += MAX_MSG_EXTRA;
 
             /* check for available size */
-            if ((ret = CheckAvailableSize(ssl, sendSz)) != 0)
+            if ((ret = CheckAvailableSize(ssl, sendSz)) != 0) {
+            #ifdef CYASSL_SMALL_STACK
+                XFREE(encSecret, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            #endif
                 return ret;
+            }
 
             /* get ouput buffer */
             output = ssl->buffers.outputBuffer.buffer + 
@@ -10262,25 +10382,41 @@ static void PickHashSigAlgo(CYASSL* ssl,
 
                 input = (byte*)XMALLOC(inputSz, ssl->heap,
                                        DYNAMIC_TYPE_TMP_BUFFER);
-                if (input == NULL)
+                if (input == NULL) {
+                #ifdef CYASSL_SMALL_STACK
+                    XFREE(encSecret, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                #endif
                     return MEMORY_E;
+                }
 
                 XMEMCPY(input, output + RECORD_HEADER_SZ, inputSz);
                 sendSz = BuildMessage(ssl, output, sendSz, input, inputSz,
                                       handshake);
                 XFREE(input, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
-                if (sendSz < 0)
+                if (sendSz < 0) {
+                #ifdef CYASSL_SMALL_STACK
+                    XFREE(encSecret, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                #endif
                     return sendSz;
+                }
             } else {
                 ret = HashOutput(ssl, output, sendSz, 0);
-                if (ret != 0)
+                if (ret != 0) {
+                #ifdef CYASSL_SMALL_STACK
+                    XFREE(encSecret, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                #endif
                     return ret;
+                }
             }
 
             #ifdef CYASSL_DTLS
                 if (ssl->options.dtls) {
-                    if ((ret = DtlsPoolSave(ssl, output, sendSz)) != 0)
+                    if ((ret = DtlsPoolSave(ssl, output, sendSz)) != 0) {
+                    #ifdef CYASSL_SMALL_STACK
+                        XFREE(encSecret, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                    #endif
                         return ret;
+                    }
                 }
             #endif
 
@@ -10299,7 +10435,11 @@ static void PickHashSigAlgo(CYASSL* ssl,
             else
                 ret = SendBuffered(ssl);
         }
-    
+
+    #ifdef CYASSL_SMALL_STACK
+        XFREE(encSecret, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
+
         if (ret == 0 || ret == WANT_WRITE) {
             int tmpRet = MakeMasterSecret(ssl);
             if (tmpRet != 0)
