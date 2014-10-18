@@ -10388,8 +10388,27 @@ static void PickHashSigAlgo(CYASSL* ssl,
             byte*  signBuffer = NULL;
 #endif
             word32 signSz = FINISHED_SZ;
-            byte   encodedSig[MAX_ENCODED_SIG_SZ];
             word32 extraSz = 0;  /* tls 1.2 hash/sig */
+#ifdef CYASSL_SMALL_STACK
+            byte*  encodedSig = NULL;
+#else
+            byte   encodedSig[MAX_ENCODED_SIG_SZ];
+#endif
+
+#ifdef CYASSL_SMALL_STACK
+            encodedSig = (byte*)XMALLOC(MAX_ENCODED_SIG_SZ, NULL,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+            if (encodedSig == NULL) {
+            #ifndef NO_RSA
+                if (initRsaKey)
+                    FreeRsaKey(&key);
+            #endif
+            #ifdef HAVE_ECC
+                ecc_free(&eccKey);
+            #endif
+                return MEMORY_E;
+            }
+#endif
 
             (void)encodedSig;
             (void)signSz;
@@ -10541,6 +10560,10 @@ static void PickHashSigAlgo(CYASSL* ssl,
                     ret = 0;  /* RSA reset */
             }
 #endif
+#ifdef CYASSL_SMALL_STACK
+            XFREE(encodedSig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
             if (ret == 0) {
                 AddHeaders(output, length + extraSz + VERIFY_HEADER,
                            certificate_verify, ssl);
