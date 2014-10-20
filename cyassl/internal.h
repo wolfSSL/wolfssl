@@ -2070,7 +2070,9 @@ struct CYASSL {
         SecureRenegotiation* secure_renegotiation; /* valid pointer indicates */
     #endif                                         /* user turned on */
     #if !defined(NO_CYASSL_CLIENT) && defined(HAVE_SESSION_TICKET)
-        byte           expect_session_ticket; 
+        CallbackSessionTicket session_ticket_cb;
+        void*                 session_ticket_ctx;
+        byte                  expect_session_ticket;
     #endif
 #endif /* HAVE_TLS_EXTENSIONS */
 #ifdef HAVE_NETX

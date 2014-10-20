@@ -1758,6 +1758,8 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
     ssl->secure_renegotiation = NULL;
 #endif
 #if !defined(NO_CYASSL_CLIENT) && defined(HAVE_SESSION_TICKET)
+    ssl->session_ticket_cb = NULL;
+    ssl->session_ticket_ctx = NULL;
     ssl->expect_session_ticket = 0;
 #endif
 #endif
@@ -10508,6 +10510,11 @@ int DoSessionTicket(CYASSL* ssl,
         *inOutIdx += length;
         ssl->session.ticketLen = length;
         ssl->timeout = lifetime;
+        if (ssl->session_ticket_cb != NULL) {
+            ssl->session_ticket_cb(ssl,
+                                   ssl->session.ticket, ssl->session.ticketLen,
+                                   ssl->session_ticket_ctx);
+        }
         /* Create a fake sessionID based on the ticket, this will
          * supercede the existing session cache info. */
         ssl->options.haveSessionId = 1;

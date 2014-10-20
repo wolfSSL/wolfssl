@@ -848,6 +848,19 @@ CYASSL_API int CyaSSL_set_SessionTicket(CYASSL* ssl, byte* buf, word32 bufSz)
 
     return SSL_SUCCESS;
 }
+
+
+CYASSL_API int CyaSSL_set_SessionTicket_cb(CYASSL* ssl,
+                                            CallbackSessionTicket cb, void* ctx)
+{
+    if (ssl == NULL)
+        return BAD_FUNC_ARG;
+
+    ssl->session_ticket_cb = cb;
+    ssl->session_ticket_ctx = ctx;
+
+    return SSL_SUCCESS;
+}
 #endif
 
 #ifndef CYASSL_LEANPSK

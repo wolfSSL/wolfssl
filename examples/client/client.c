@@ -58,6 +58,10 @@
     Timeval timeout;
 #endif
 
+#ifdef HAVE_SESSION_TICKET
+    int sessionTicketCB(CYASSL*, const unsigned char*, int, void*);
+#endif
+
 
 static void NonBlockingSSL_Connect(CYASSL* ssl)
 {
@@ -638,6 +642,9 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
     ssl = CyaSSL_new(ctx);
     if (ssl == NULL)
         err_sys("unable to get SSL object");
+    #ifdef HAVE_SESSION_TICKET
+    CyaSSL_set_SessionTicket_cb(ssl, sessionTicketCB, (void*)"initial session");
+    #endif
     if (doDTLS) {
         SOCKADDR_IN_T addr;
         build_addr(&addr, host, port, 1);
@@ -801,6 +808,10 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
         }
         CyaSSL_set_fd(sslResume, sockfd);
         CyaSSL_set_session(sslResume, session);
+#ifdef HAVE_SESSION_TICKET
+        CyaSSL_set_SessionTicket_cb(sslResume, sessionTicketCB,
+                                    (void*)"resumed session");
+#endif
        
         showPeer(sslResume);
 #ifndef CYASSL_CALLBACKS
@@ -925,6 +936,22 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
     int timeoutCB(TimeoutInfo* info)
     {
         (void)info;
+        return 0;
+    }
+
+#endif
+
+
+#ifdef HAVE_SESSION_TICKET
+
+    int sessionTicketCB(CYASSL* ssl,
+                        const unsigned char* ticket, int ticketSz,
+                        void* ctx)
+    {
+        (void)ssl;
+        (void)ticket;
+        printf("Session Ticket CB: ticketSz = %d, ctx = %s\n",
+               ticketSz, (char*)ctx);
         return 0;
     }
 
