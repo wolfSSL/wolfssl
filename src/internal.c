@@ -9457,6 +9457,7 @@ static void PickHashSigAlgo(CYASSL* ssl,
         word16 length = 0;
         word32 begin  = *inOutIdx;
         int    ret    = 0;
+        #define ERROR_OUT(err, exit) do { ret = err; goto exit; } while(0)
 
         (void)length; /* shut up compiler warnings */
         (void)begin;
@@ -9691,8 +9692,8 @@ static void PickHashSigAlgo(CYASSL* ssl,
         Md5*    md5 = NULL;
         Sha*    sha = NULL;
 #else
-        Md5     md5[0];
-        Sha     sha[0];
+        Md5     md5[1];
+        Sha     sha[1];
 #endif
 #endif
 #ifndef NO_SHA256
@@ -9700,7 +9701,7 @@ static void PickHashSigAlgo(CYASSL* ssl,
         Sha256* sha256  = NULL;
         byte*   hash256 = NULL;
 #else
-        Sha256  sha256[0];
+        Sha256  sha256[1];
         byte    hash256[SHA256_DIGEST_SIZE];
 #endif
 #endif
@@ -9709,7 +9710,7 @@ static void PickHashSigAlgo(CYASSL* ssl,
         Sha384* sha384  = NULL;
         byte*   hash384 = NULL;
 #else
-        Sha384  sha384[0];
+        Sha384  sha384[1];
         byte    hash384[SHA384_DIGEST_SIZE];
 #endif
 #endif
@@ -9726,102 +9727,70 @@ static void PickHashSigAlgo(CYASSL* ssl,
 
         /* save message for hash verify */
         if (verifySz > MAX_DH_SZ)
-            return BUFFER_ERROR;
+            ERROR_OUT(BUFFER_ERROR, done);
 
     #ifdef CYASSL_SMALL_STACK
         messageVerify = (byte*)XMALLOC(MAX_DH_SZ, NULL,
                                                        DYNAMIC_TYPE_TMP_BUFFER);
         if (messageVerify == NULL)
-            return MEMORY_E;
+            ERROR_OUT(MEMORY_E, done);
     #endif
 
         XMEMCPY(messageVerify, input + begin, verifySz);
 
         if (IsAtLeastTLSv1_2(ssl)) {
-            if ((*inOutIdx - begin) + ENUM_LEN + ENUM_LEN > size) {
-            #ifdef CYASSL_SMALL_STACK
-                XFREE(messageVerify, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            #endif
-                return BUFFER_ERROR;
-            }
+            if ((*inOutIdx - begin) + ENUM_LEN + ENUM_LEN > size)
+                ERROR_OUT(BUFFER_ERROR, done);
 
             hashAlgo = input[(*inOutIdx)++];
             sigAlgo  = input[(*inOutIdx)++];
         }
 
         /* signature */
-        if ((*inOutIdx - begin) + OPAQUE16_LEN > size) {
-        #ifdef CYASSL_SMALL_STACK
-            XFREE(messageVerify, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        #endif
-            return BUFFER_ERROR;
-        }
+        if ((*inOutIdx - begin) + OPAQUE16_LEN > size)
+            ERROR_OUT(BUFFER_ERROR, done);
 
         ato16(input + *inOutIdx, &length);
         *inOutIdx += OPAQUE16_LEN;
 
-        if ((*inOutIdx - begin) + length > size) {
-        #ifdef CYASSL_SMALL_STACK
-            XFREE(messageVerify, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        #endif
-            return BUFFER_ERROR;
-        }
+        if ((*inOutIdx - begin) + length > size)
+            ERROR_OUT(BUFFER_ERROR, done);
 
         /* inOutIdx updated at the end of the function */
 
         /* verify signature */
     #ifdef CYASSL_SMALL_STACK
         hash = (byte*)XMALLOC(FINISHED_SZ, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        if (hash == NULL) {
-            XFREE(messageVerify, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            return MEMORY_E;
-        }
+        if (hash == NULL)
+            ERROR_OUT(MEMORY_E, done);
     #endif
 
 #ifndef NO_OLD_TLS
         /* md5 */
     #ifdef CYASSL_SMALL_STACK
         md5 = (Md5*)XMALLOC(sizeof(Md5), NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        if (md5 == NULL) {
-            XFREE(hash,          NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            XFREE(messageVerify, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            return MEMORY_E;
-        }
+        if (md5 == NULL)
+            ERROR_OUT(MEMORY_E, done);
     #endif
         InitMd5(md5);
         Md5Update(md5, ssl->arrays->clientRandom, RAN_LEN);
         Md5Update(md5, ssl->arrays->serverRandom, RAN_LEN);
         Md5Update(md5, messageVerify, verifySz);
         Md5Final(md5, hash);
-    #ifdef CYASSL_SMALL_STACK
-        XFREE(md5, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    #endif
 
         /* sha */
     #ifdef CYASSL_SMALL_STACK
         sha = (Sha*)XMALLOC(sizeof(Sha), NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        if (sha == NULL) {
-            XFREE(hash,          NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            XFREE(messageVerify, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            return MEMORY_E;
-        }
+        if (sha == NULL)
+            ERROR_OUT(MEMORY_E, done);
     #endif
         ret = InitSha(sha);
-        if (ret != 0) {
-        #ifdef CYASSL_SMALL_STACK
-            XFREE(sha,           NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            XFREE(hash,          NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            XFREE(messageVerify, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        #endif
-            return ret;
-        }
+        if (ret != 0)
+            goto done;
         ShaUpdate(sha, ssl->arrays->clientRandom, RAN_LEN);
         ShaUpdate(sha, ssl->arrays->serverRandom, RAN_LEN);
         ShaUpdate(sha, messageVerify, verifySz);
         ShaFinal(sha, hash + MD5_DIGEST_SIZE);
-    #ifdef CYASSL_SMALL_STACK
-        XFREE(sha, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    #endif
 #endif
 
 #ifndef NO_SHA256
@@ -9830,30 +9799,16 @@ static void PickHashSigAlgo(CYASSL* ssl,
                                                        DYNAMIC_TYPE_TMP_BUFFER);
         hash256 = (byte*)XMALLOC(SHA256_DIGEST_SIZE, NULL,
                                                        DYNAMIC_TYPE_TMP_BUFFER);
-        if (sha256 == NULL || hash256 == NULL) {
-            XFREE(sha256,        NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            XFREE(hash256,       NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            XFREE(hash,          NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            XFREE(messageVerify, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            return MEMORY_E;
-        }
+        if (sha256 == NULL || hash256 == NULL)
+            ERROR_OUT(MEMORY_E, done);
     #endif
         if (!(ret = InitSha256(sha256))
         &&  !(ret = Sha256Update(sha256, ssl->arrays->clientRandom, RAN_LEN))
         &&  !(ret = Sha256Update(sha256, ssl->arrays->serverRandom, RAN_LEN))
         &&  !(ret = Sha256Update(sha256, messageVerify, verifySz)))
               ret = Sha256Final(sha256, hash256);
-    #ifdef CYASSL_SMALL_STACK
-        XFREE(sha256, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    #endif
-        if (ret != 0) {
-        #ifdef CYASSL_SMALL_STACK
-            XFREE(hash256,       NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            XFREE(hash,          NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            XFREE(messageVerify, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        #endif
-            return ret;
-        }
+        if (ret != 0)
+            goto done;
 #endif
 
 #ifdef CYASSL_SHA384
@@ -9862,80 +9817,47 @@ static void PickHashSigAlgo(CYASSL* ssl,
                                                        DYNAMIC_TYPE_TMP_BUFFER);
         hash384 = (byte*)XMALLOC(SHA384_DIGEST_SIZE, NULL,
                                                        DYNAMIC_TYPE_TMP_BUFFER);
-        if (sha384 == NULL || hash384 == NULL) {
-            XFREE(sha384,        NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            XFREE(hash384,       NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        #ifndef NO_SHA256
-            XFREE(hash256,       NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        #endif
-            XFREE(hash,          NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            XFREE(messageVerify, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            return MEMORY_E;
-        }
+        if (sha384 == NULL || hash384 == NULL)
+            ERROR_OUT(MEMORY_E, done);
     #endif
         if (!(ret = InitSha384(sha384))
         &&  !(ret = Sha384Update(sha384, ssl->arrays->clientRandom, RAN_LEN))
         &&  !(ret = Sha384Update(sha384, ssl->arrays->serverRandom, RAN_LEN))
         &&  !(ret = Sha384Update(sha384, messageVerify, verifySz)))
               ret = Sha384Final(sha384, hash384);
-    #ifdef CYASSL_SMALL_STACK
-        XFREE(sha384, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    #endif
-        if (ret != 0) {
-        #ifdef CYASSL_SMALL_STACK
-        #ifndef NO_SHA256
-            XFREE(hash256,       NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        #endif
-            XFREE(hash384,       NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            XFREE(hash,          NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            XFREE(messageVerify, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        #endif
-            return ret;
-        }
+        if (ret != 0)
+            goto done;
 #endif
-
-    #ifdef CYASSL_SMALL_STACK
-        XFREE(messageVerify, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    #endif
 
 #ifndef NO_RSA
         /* rsa */
         if (sigAlgo == rsa_sa_algo)
         {
-            byte* out       = NULL;
-            byte  doUserRsa = 0;
+            byte*  out        = NULL;
+            byte   doUserRsa  = 0;
+            word32 verifiedSz = 0;
 
             #ifdef HAVE_PK_CALLBACKS
                 if (ssl->ctx->RsaVerifyCb)
                     doUserRsa = 1;
             #endif /*HAVE_PK_CALLBACKS */
 
-            if (!ssl->peerRsaKeyPresent) {
-            #ifdef CYASSL_SMALL_STACK
-            #ifndef NO_SHA256
-                XFREE(hash256, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            #endif
-            #ifdef CYASSL_SHA384
-                XFREE(hash384, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            #endif
-                XFREE(hash,    NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            #endif                
-                return NO_PEER_KEY;
-            }
+            if (!ssl->peerRsaKeyPresent)
+                ERROR_OUT(NO_PEER_KEY, done);
 
             if (doUserRsa) {
             #ifdef HAVE_PK_CALLBACKS
-                ret = ssl->ctx->RsaVerifyCb(ssl, (byte *) input + *inOutIdx,
-                                            length, &out, 
-                                            ssl->buffers.peerRsaKey.buffer,
-                                            ssl->buffers.peerRsaKey.length,
-                                            ssl->RsaVerifyCtx);
+                verifiedSz = ssl->ctx->RsaVerifyCb(ssl, 
+                                                 (byte *)input + *inOutIdx,
+                                                 length, &out, 
+                                                 ssl->buffers.peerRsaKey.buffer,
+                                                 ssl->buffers.peerRsaKey.length,
+                                                 ssl->RsaVerifyCtx);
             #endif /*HAVE_PK_CALLBACKS */
             }
-            else {
-                ret = RsaSSL_VerifyInline((byte *) input + *inOutIdx, length,
-                                          &out, ssl->peerRsaKey);
-            }
+            else
+                verifiedSz = RsaSSL_VerifyInline((byte *)input + *inOutIdx,
+                                                 length, &out, ssl->peerRsaKey);
 
             if (IsAtLeastTLSv1_2(ssl)) {
                 word32 encSigSz;
@@ -9979,55 +9901,25 @@ static void PickHashSigAlgo(CYASSL* ssl,
             #ifdef CYASSL_SMALL_STACK
                 encodedSig = (byte*)XMALLOC(MAX_ENCODED_SIG_SZ, NULL,
                                                        DYNAMIC_TYPE_TMP_BUFFER);
-                if (encodedSig == NULL) {
-                #ifdef CYASSL_SMALL_STACK
-                #ifndef NO_SHA256
-                    XFREE(hash256, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-                #endif
-                #ifdef CYASSL_SHA384
-                    XFREE(hash384, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-                #endif
-                    XFREE(hash,    NULL, DYNAMIC_TYPE_TMP_BUFFER);
-                #endif
-                    return MEMORY_E;
-                }
+                if (encodedSig == NULL)
+                    ERROR_OUT(MEMORY_E, done);
             #endif
+
                 encSigSz = EncodeSignature(encodedSig, digest, digestSz, typeH);
 
-                if (encSigSz != (word32)ret || !out || XMEMCMP(out, encodedSig,
-                                      min(encSigSz, MAX_ENCODED_SIG_SZ)) != 0) {
-                #ifdef CYASSL_SMALL_STACK
-                #ifndef NO_SHA256
-                    XFREE(hash256,    NULL, DYNAMIC_TYPE_TMP_BUFFER);
-                #endif
-                #ifdef CYASSL_SHA384
-                    XFREE(hash384,    NULL, DYNAMIC_TYPE_TMP_BUFFER);
-                #endif
-                    XFREE(hash,       NULL, DYNAMIC_TYPE_TMP_BUFFER);
-                    XFREE(encodedSig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-                #endif
-                    return VERIFY_SIGN_ERROR;
-                }
+                if (encSigSz != verifiedSz || !out || XMEMCMP(out, encodedSig,
+                                        min(encSigSz, MAX_ENCODED_SIG_SZ)) != 0)
+                    ret = VERIFY_SIGN_ERROR;
 
             #ifdef CYASSL_SMALL_STACK
                 XFREE(encodedSig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             #endif
+                if (ret != 0)
+                    goto done;
             }
-            else { 
-                if (ret != FINISHED_SZ || !out || XMEMCMP(out,
-                                                     hash, FINISHED_SZ) != 0) {
-                #ifdef CYASSL_SMALL_STACK
-                #ifndef NO_SHA256
-                    XFREE(hash256, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-                #endif
-                #ifdef CYASSL_SHA384
-                    XFREE(hash384, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-                #endif
-                    XFREE(hash,    NULL, DYNAMIC_TYPE_TMP_BUFFER);
-                #endif
-                    return VERIFY_SIGN_ERROR;
-                }
-            }
+            else if (verifiedSz != FINISHED_SZ || !out || XMEMCMP(out,
+                                                        hash, FINISHED_SZ) != 0)
+                ERROR_OUT(VERIFY_SIGN_ERROR, done);
         } else
 #endif
 #ifdef HAVE_ECC
@@ -10048,18 +9940,8 @@ static void PickHashSigAlgo(CYASSL* ssl,
                     doUserEcc = 1;
             #endif
 
-            if (!ssl->peerEccDsaKeyPresent) {
-            #ifdef CYASSL_SMALL_STACK
-            #ifndef NO_SHA256
-                XFREE(hash256, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            #endif
-            #ifdef CYASSL_SHA384
-                XFREE(hash384, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            #endif
-                XFREE(hash,    NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            #endif
-                return NO_PEER_KEY;
-            }
+            if (!ssl->peerEccDsaKeyPresent)
+                ERROR_OUT(NO_PEER_KEY, done);
 
             if (IsAtLeastTLSv1_2(ssl)) {
                 if (hashAlgo == sha_mac) {
@@ -10094,47 +9976,37 @@ static void PickHashSigAlgo(CYASSL* ssl,
                 ret = ecc_verify_hash(input + *inOutIdx, length,
                                  digest, digestSz, &verify, ssl->peerEccDsaKey);
             }
-            if (ret != 0 || verify == 0) {
-            #ifdef CYASSL_SMALL_STACK
-            #ifndef NO_SHA256
-                XFREE(hash256, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            #endif
-            #ifdef CYASSL_SHA384
-                XFREE(hash384, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            #endif
-                XFREE(hash,    NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            #endif
-                return VERIFY_SIGN_ERROR;
-            }
+            if (ret != 0 || verify == 0)
+                ERROR_OUT(VERIFY_SIGN_ERROR, done);
         }
-        else {
+        else
 #endif /* HAVE_ECC */
-        #ifdef CYASSL_SMALL_STACK
-        #ifndef NO_SHA256
-            XFREE(hash256, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        #endif
-        #ifdef CYASSL_SHA384
-            XFREE(hash384, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        #endif
-            XFREE(hash,    NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        #endif
-            return ALGO_ID_E;
-        }
+            ERROR_OUT(ALGO_ID_E, done);
 
         /* signature length */
         *inOutIdx += length;
 
         ssl->options.serverState = SERVER_KEYEXCHANGE_COMPLETE;
 
-    #ifdef CYASSL_SMALL_STACK
+    done:
+#ifdef CYASSL_SMALL_STACK
+    #ifndef NO_OLD_TLS
+        XFREE(md5,           NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(sha,           NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
     #ifndef NO_SHA256
-        XFREE(hash256, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(sha256,        NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(hash256,       NULL, DYNAMIC_TYPE_TMP_BUFFER);
     #endif
     #ifdef CYASSL_SHA384
-        XFREE(hash384, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(sha384,        NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(hash384,       NULL, DYNAMIC_TYPE_TMP_BUFFER);
     #endif
-        XFREE(hash,    NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    #endif
+        XFREE(hash,          NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(messageVerify, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+        if (ret != 0)      
+            return ret;
     }
 
     if (ssl->keys.encryptionOn) {
