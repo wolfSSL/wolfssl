@@ -239,17 +239,20 @@
     #include "pico_defines.h"
     #include "pico_stack.h"
     #include "pico_constants.h"
-    #include "pico_bsd_sockets.h"
     #define CUSTOM_RAND_GENERATE pico_rand
 #endif
 
 #ifdef CYASSL_PICOTCP_DEMO
     #define CYASSL_STM32
-    #define FREERTOS
     #define USE_FAST_MATH
     #define TFM_TIMING_RESISTANT
-    #define XMALLOC(s, h, type)  pvPortMalloc((s))
-    #define XFREE(p, h, type)    vPortFree((p))
+    #define XMALLOC(s, h, type)  PICO_ZALLOC((s))
+    #define XFREE(p, h, type)    PICO_FREE((p))
+    #define SINGLE_THREADED
+    #define NO_WRITEV
+    #define CYASSL_USER_IO
+    #define NO_DEV_RANDOM
+    #define NO_FILESYSTEM
 #endif
 
 #ifdef FREERTOS_WINSIM
