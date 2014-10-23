@@ -2149,7 +2149,7 @@ int TLSX_Parse(CYASSL* ssl, byte* input, word16 length, byte isRequest,
     int ret = 0;
     word16 offset = 0;
 
-    if (!ssl || !input || !suites)
+    if (!ssl || !input || (isRequest && !suites))
         return BAD_FUNC_ARG;
 
     while (ret == 0 && offset < length) {

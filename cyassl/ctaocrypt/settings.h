@@ -93,6 +93,12 @@
 /* Uncomment next line if using TI-RTOS settings */
 /* #define CYASSL_TIRTOS */
 
+/* Uncomment next line if building with PicoTCP */
+/* #define CYASSL_PICOTCP */
+
+/* Uncomment next line if building for PicoTCP demo bundle */
+/* #define CYASSL_PICOTCP_DEMO */
+
 #include <cyassl/ctaocrypt/visibility.h>
 
 #ifdef IPHONE
@@ -226,6 +232,27 @@
     #define NO_MD5
     #define NO_SESSION_CACHE
     #define NO_MAIN_DRIVER
+#endif
+
+#ifdef CYASSL_PICOTCP
+    #define errno pico_err
+    #include "pico_defines.h"
+    #include "pico_stack.h"
+    #include "pico_constants.h"
+    #define CUSTOM_RAND_GENERATE pico_rand
+#endif
+
+#ifdef CYASSL_PICOTCP_DEMO
+    #define CYASSL_STM32
+    #define USE_FAST_MATH
+    #define TFM_TIMING_RESISTANT
+    #define XMALLOC(s, h, type)  PICO_ZALLOC((s))
+    #define XFREE(p, h, type)    PICO_FREE((p))
+    #define SINGLE_THREADED
+    #define NO_WRITEV
+    #define CYASSL_USER_IO
+    #define NO_DEV_RANDOM
+    #define NO_FILESYSTEM
 #endif
 
 #ifdef FREERTOS_WINSIM

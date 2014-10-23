@@ -56,6 +56,8 @@ EXTRA_DIST+= cyassl64.sln
 EXTRA_DIST+= valgrind-error.sh
 EXTRA_DIST+= gencertbuf.pl
 EXTRA_DIST+= IDE 
+EXTRA_DIST+= README.md
+EXTRA_DIST+= LICENSING
 
 include cyassl/include.am
 include certs/include.am

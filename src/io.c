@@ -80,7 +80,8 @@
             #include <unistd.h>
         #endif
         #include <fcntl.h>
-        #if !(defined(DEVKITPRO) || defined(HAVE_RTP_SYS) || defined(EBSNET))
+        #if !(defined(DEVKITPRO) || defined(HAVE_RTP_SYS) || defined(EBSNET)) \
+            || defined(CYASSL_PICOTCP)
             #include <sys/socket.h>
             #include <arpa/inet.h>
             #include <netinet/in.h>
@@ -153,6 +154,14 @@
         #define SOCKET_ECONNREFUSED SCK_ERROR
         #define SOCKET_ECONNABORTED SCK_ERROR
     #endif
+#elif defined(CYASSL_PICOTCP)
+    #define SOCKET_EWOULDBLOCK  PICO_ERR_EAGAIN
+    #define SOCKET_EAGAIN       PICO_ERR_EAGAIN
+    #define SOCKET_ECONNRESET   PICO_ERR_ECONNRESET
+    #define SOCKET_EINTR        PICO_ERR_EINTR
+    #define SOCKET_EPIPE        PICO_ERR_EIO
+    #define SOCKET_ECONNREFUSED PICO_ERR_ECONNREFUSED
+    #define SOCKET_ECONNABORTED PICO_ERR_ESHUTDOWN
 #else
     #define SOCKET_EWOULDBLOCK EWOULDBLOCK
     #define SOCKET_EAGAIN      EAGAIN
@@ -173,6 +182,9 @@
 #elif defined(CYASSL_LWIP)
     #define SEND_FUNCTION lwip_send
     #define RECV_FUNCTION lwip_recv
+#elif defined(CYASSL_PICOTCP)
+    #define SEND_FUNCTION pico_send
+    #define RECV_FUNCTION pico_recv
 #else
     #define SEND_FUNCTION send
     #define RECV_FUNCTION recv
