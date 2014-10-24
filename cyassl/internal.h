@@ -2098,6 +2098,10 @@ struct CYASSL {
         void* RsaDecCtx;      /* Rsa Private Decrypt   Callback Context */
     #endif /* NO_RSA */
 #endif /* HAVE_PK_CALLBACKS */
+#ifdef HAVE_SECRET_CALLBACK
+        SessionSecretCb sessionSecretCb;
+        void*           sessionSecretCtx;
+#endif /* HAVE_SECRET_CALLBACK */
 };
 
 

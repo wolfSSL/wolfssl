@@ -122,6 +122,7 @@ enum CyaSSL_ErrorCodes {
     SESSION_TICKET_LEN_E    = -389,        /* Session Ticket too large */
     SESSION_TICKET_EXPECT_E = -390,        /* Session Ticket missing   */
     SCR_DIFFERENT_CERT_E    = -391,        /* SCR Different cert error  */
+    SESSION_SECRET_CB_E     = -392,        /* Session secret Cb fcn failure */
 
     /* add strings to SetErrorString !!!!! */
 

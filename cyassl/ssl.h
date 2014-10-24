@@ -286,6 +286,12 @@ CYASSL_API void CyaSSL_load_error_strings(void);
 CYASSL_API int  CyaSSL_library_init(void);
 CYASSL_API long CyaSSL_CTX_set_session_cache_mode(CYASSL_CTX*, long);
 
+#ifdef HAVE_SECRET_CALLBACK
+typedef int (*SessionSecretCb)(CYASSL* ssl,
+                                        void* secret, int* secretSz, void* ctx);
+CYASSL_API int  CyaSSL_set_session_secret_cb(CYASSL*, SessionSecretCb, void*);
+#endif /* HAVE_SECRET_CALLBACK */
+
 /* session cache persistence */
 CYASSL_API int  CyaSSL_save_session_cache(const char*);
 CYASSL_API int  CyaSSL_restore_session_cache(const char*);

@@ -4310,6 +4310,26 @@ int CyaSSL_library_init(void)
 }
 
 
+#ifdef HAVE_SECRET_CALLBACK
+
+int CyaSSL_set_session_secret_cb(CYASSL* ssl, SessionSecretCb cb, void* ctx)
+{
+    CYASSL_ENTER("CyaSSL_set_session_secret_cb");
+    if (ssl == NULL)
+        return SSL_FATAL_ERROR;
+
+    ssl->sessionSecretCb = cb;
+    ssl->sessionSecretCtx = ctx;
+    /* If using a pre-set key, assume session resumption. */
+    ssl->session.sessionIDSz = 0;
+    ssl->options.resuming = 1;
+
+    return SSL_SUCCESS;
+}
+
+#endif
+
+
 #ifndef NO_SESSION_CACHE
 
 /* on by default if built in but allow user to turn off */

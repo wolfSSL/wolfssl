@@ -1899,6 +1899,10 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
     ecc_init(ssl->eccDsaKey);
     ecc_init(ssl->eccTempKey);
 #endif
+#ifdef HAVE_SECRET_CALLBACK
+    ssl->sessionSecretCb  = NULL;
+    ssl->sessionSecretCtx = NULL;
+#endif
 
     /* make sure server has DH parms, and add PSK if there, add NTRU too */
     if (ssl->options.side == CYASSL_SERVER_END)
@@ -7851,6 +7855,9 @@ const char* CyaSSL_ERR_reason_error_string(unsigned long e)
     case SCR_DIFFERENT_CERT_E:
         return "Peer sent different cert during SCR";
 
+    case SESSION_SECRET_CB_E:
+        return "Session Secret Callback Error";
+
     default :
         return "unknown error number";
     }
@@ -9140,16 +9147,22 @@ static void PickHashSigAlgo(CYASSL* ssl,
 
     static INLINE int DSH_CheckSessionId(CYASSL* ssl)
     {
-        int ret;
+        int ret = 0;
 
-        #ifndef HAVE_SESSION_TICKET
-            ret = (ssl->options.haveSessionId && XMEMCMP(ssl->arrays->sessionID,
+#ifdef HAVE_SECRET_CALLBACK
+        /* If a session secret callback exists, we are using that
+         * key instead of the saved session key. */
+        ret = ret || (ssl->sessionSecretCb != NULL);
+#endif
+
+#ifdef HAVE_SESSION_TICKET
+        ret = ret ||
+              (!ssl->expect_session_ticket && ssl->session.ticketLen > 0);
+#endif
+
+        ret = ret ||
+              (ssl->options.haveSessionId && XMEMCMP(ssl->arrays->sessionID,
                                           ssl->session.sessionID, ID_LEN) == 0);
-        #else
-            ret = (!ssl->expect_session_ticket && ssl->session.ticketLen > 0) ||
-                  (ssl->options.haveSessionId && XMEMCMP(ssl->arrays->sessionID,
-                                          ssl->session.sessionID, ID_LEN) == 0);
-        #endif
 
         return ret;
     }
@@ -9302,6 +9315,16 @@ static void PickHashSigAlgo(CYASSL* ssl,
         if (ssl->keys.encryptionOn) {
             *inOutIdx += ssl->keys.padSz;
         }
+
+#ifdef HAVE_SECRET_CALLBACK
+        if (ssl->sessionSecretCb != NULL) {
+            int secretSz = SECRET_LEN, ret;
+            ret = ssl->sessionSecretCb(ssl, ssl->session.masterSecret,
+                                              &secretSz, ssl->sessionSecretCtx);
+            if (ret != 0 || secretSz != SECRET_LEN)
+                return SESSION_SECRET_CB_E;
+        }
+#endif /* HAVE_SECRET_CALLBACK */
 
         if (ssl->options.resuming) {
             if (DSH_CheckSessionId(ssl)) {
