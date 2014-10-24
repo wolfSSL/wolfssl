@@ -10017,6 +10017,8 @@ static void PickHashSigAlgo(CYASSL* ssl,
 #else  /* !NO_DH or HAVE_ECC */
         return NOT_COMPILED_IN;  /* not supported by build */
 #endif /* !NO_DH or HAVE_ECC */
+
+        #undef ERROR_OUT
     }
 
 
@@ -11069,8 +11071,9 @@ int DoSessionTicket(CYASSL* ssl,
     {
         int ret = 0;
         (void)ssl;
+        #define ERROR_OUT(err, exit) do { ret = err; goto exit; } while(0)
 
-        #ifndef NO_PSK
+    #ifndef NO_PSK
         if (ssl->specs.kea == psk_kea)
         {
             byte    *output;
@@ -11080,16 +11083,18 @@ int DoSessionTicket(CYASSL* ssl,
 
             /* include size part */
             length = (word32)XSTRLEN(ssl->arrays->server_hint);
-            if (length > MAX_PSK_ID_LEN) return SERVER_HINT_ERROR;
+            if (length > MAX_PSK_ID_LEN)
+                return SERVER_HINT_ERROR;
+
             length += HINT_LEN_SZ;
             sendSz = length + HANDSHAKE_HEADER_SZ + RECORD_HEADER_SZ;
 
-            #ifdef CYASSL_DTLS
-                if (ssl->options.dtls) {
-                    sendSz += DTLS_RECORD_EXTRA + DTLS_HANDSHAKE_EXTRA;
-                    idx    += DTLS_RECORD_EXTRA + DTLS_HANDSHAKE_EXTRA;
-                }
-            #endif
+        #ifdef CYASSL_DTLS
+            if (ssl->options.dtls) {
+                sendSz += DTLS_RECORD_EXTRA + DTLS_HANDSHAKE_EXTRA;
+                idx    += DTLS_RECORD_EXTRA + DTLS_HANDSHAKE_EXTRA;
+            }
+        #endif
             /* check for available size */
             if ((ret = CheckAvailableSize(ssl, sendSz)) != 0)
                return ret;
@@ -11109,13 +11114,13 @@ int DoSessionTicket(CYASSL* ssl,
             if (ret != 0)
                 return ret;
 
-            #ifdef CYASSL_CALLBACKS
-                if (ssl->hsInfoOn)
-                    AddPacketName("ServerKeyExchange", &ssl->handShakeInfo);
-                if (ssl->toInfoOn)
-                    AddPacketInfo("ServerKeyExchange", &ssl->timeoutInfo,
-                                  output, sendSz, ssl->heap);
-            #endif
+        #ifdef CYASSL_CALLBACKS
+            if (ssl->hsInfoOn)
+                AddPacketName("ServerKeyExchange", &ssl->handShakeInfo);
+            if (ssl->toInfoOn)
+                AddPacketInfo("ServerKeyExchange", &ssl->timeoutInfo, output,
+                                                             sendSz, ssl->heap);
+        #endif
 
             ssl->buffers.outputBuffer.length += sendSz;
             if (ssl->options.groupMessages)
@@ -11124,9 +11129,9 @@ int DoSessionTicket(CYASSL* ssl,
                 ret = SendBuffered(ssl);
             ssl->options.serverState = SERVER_KEYEXCHANGE_COMPLETE;
         }
-        #endif /*NO_PSK */
+    #endif /*NO_PSK */
 
-        #if !defined(NO_DH) && !defined(NO_PSK)
+    #if !defined(NO_DH) && !defined(NO_PSK)
         if (ssl->specs.kea == dhe_psk_kea) {
             byte    *output;
             word32   length, idx = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
@@ -11181,12 +11186,13 @@ int DoSessionTicket(CYASSL* ssl,
             length += hintLen + HINT_LEN_SZ;
             sendSz = length + HANDSHAKE_HEADER_SZ + RECORD_HEADER_SZ;
 
-            #ifdef CYASSL_DTLS
-                if (ssl->options.dtls) {
-                    sendSz += DTLS_RECORD_EXTRA + DTLS_HANDSHAKE_EXTRA;
-                    idx    += DTLS_RECORD_EXTRA + DTLS_HANDSHAKE_EXTRA;
-                }
-            #endif
+        #ifdef CYASSL_DTLS
+            if (ssl->options.dtls) {
+                sendSz += DTLS_RECORD_EXTRA + DTLS_HANDSHAKE_EXTRA;
+                idx    += DTLS_RECORD_EXTRA + DTLS_HANDSHAKE_EXTRA;
+            }
+        #endif
+
             /* check for available size */
             if ((ret = CheckAvailableSize(ssl, sendSz)) != 0)
                return ret;
@@ -11230,13 +11236,13 @@ int DoSessionTicket(CYASSL* ssl,
             if (ret != 0)
                 return ret;
 
-            #ifdef CYASSL_CALLBACKS
-                if (ssl->hsInfoOn)
-                    AddPacketName("ServerKeyExchange", &ssl->handShakeInfo);
-                if (ssl->toInfoOn)
-                    AddPacketInfo("ServerKeyExchange", &ssl->timeoutInfo,
-                                  output, sendSz, ssl->heap);
-            #endif
+        #ifdef CYASSL_CALLBACKS
+            if (ssl->hsInfoOn)
+                AddPacketName("ServerKeyExchange", &ssl->handShakeInfo);
+            if (ssl->toInfoOn)
+                AddPacketInfo("ServerKeyExchange", &ssl->timeoutInfo, output,
+                                                             sendSz, ssl->heap);
+        #endif
 
             ssl->buffers.outputBuffer.length += sendSz;
             if (ssl->options.groupMessages)
@@ -11245,22 +11251,26 @@ int DoSessionTicket(CYASSL* ssl,
                 ret = SendBuffered(ssl);
             ssl->options.serverState = SERVER_KEYEXCHANGE_COMPLETE;
         }
-        #endif /* !NO_DH && !NO_PSK */
+    #endif /* !NO_DH && !NO_PSK */
 
-        #ifdef HAVE_ECC
+    #ifdef HAVE_ECC
         if (ssl->specs.kea == ecc_diffie_hellman_kea)
         {
             byte    *output;
             word32   length, idx = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
             int      sendSz;
-            byte     exportBuf[MAX_EXPORT_ECC_SZ];
-            word32   expSz = sizeof(exportBuf);
             word32   sigSz;
             word32   preSigSz, preSigIdx;
-#ifndef NO_RSA
+        #ifndef NO_RSA
             RsaKey   rsaKey;
-#endif
+        #endif
             ecc_key  dsaKey;
+        #ifdef CYASSL_SMALL_STACK
+            byte*    exportBuf = NULL;
+        #else
+            byte     exportBuf[MAX_EXPORT_ECC_SZ];
+        #endif
+            word32   expSz = MAX_EXPORT_ECC_SZ;
 
             if (ssl->specs.static_ecdh) {
                 CYASSL_MSG("Using Static ECDH, not sending ServerKeyExchagne");
@@ -11281,54 +11291,66 @@ int DoSessionTicket(CYASSL* ssl,
                 ssl->eccTempKeyPresent = 1;
             }
 
+        #ifdef CYASSL_SMALL_STACK
+            exportBuf = (byte*)XMALLOC(MAX_EXPORT_ECC_SZ, NULL,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+            if (exportBuf == NULL)
+                return MEMORY_E;
+        #endif
+
             if (ecc_export_x963(ssl->eccTempKey, exportBuf, &expSz) != 0)
-                return ECC_EXPORT_ERROR;
+                ERROR_OUT(ECC_EXPORT_ERROR, done_a);
             length += expSz;
 
             preSigSz  = length;
             preSigIdx = idx;
 
-#ifndef NO_RSA
+        #ifndef NO_RSA
             ret = InitRsaKey(&rsaKey, ssl->heap);
-            if (ret != 0) return ret;
-#endif
+            if (ret != 0)
+                goto done_a;
+        #endif
+
             ecc_init(&dsaKey);
 
             /* sig length */
             length += LENGTH_SZ;
 
             if (!ssl->buffers.key.buffer) {
-#ifndef NO_RSA
+            #ifndef NO_RSA
                 FreeRsaKey(&rsaKey);
-#endif
+            #endif
                 ecc_free(&dsaKey);
-                return NO_PRIVATE_KEY;
+                ERROR_OUT(NO_PRIVATE_KEY, done_a);
             }
 
-#ifndef NO_RSA
+        #ifndef NO_RSA
             if (ssl->specs.sig_algo == rsa_sa_algo) {
                 /* rsa sig size */
                 word32 i = 0;
                 ret = RsaPrivateKeyDecode(ssl->buffers.key.buffer, &i,
                                           &rsaKey, ssl->buffers.key.length);
-                if (ret != 0) return ret;
+                if (ret != 0)
+                    goto done_a;
                 sigSz = RsaEncryptSize(&rsaKey);
             } else
-#endif
+        #endif
+
             if (ssl->specs.sig_algo == ecc_dsa_sa_algo) {
                 /* ecdsa sig size */
                 word32 i = 0;
                 ret = EccPrivateKeyDecode(ssl->buffers.key.buffer, &i,
                                           &dsaKey, ssl->buffers.key.length);
-                if (ret != 0) return ret;
+                if (ret != 0)
+                    goto done_a;
                 sigSz = ecc_sig_size(&dsaKey);  /* worst case estimate */
             }
             else {
-#ifndef NO_RSA
+            #ifndef NO_RSA
                 FreeRsaKey(&rsaKey);
-#endif
+            #endif
                 ecc_free(&dsaKey);
-                return ALGO_ID_E;  /* unsupported type */
+                ERROR_OUT(ALGO_ID_E, done_a);  /* unsupported type */
             }
             length += sigSz;
 
@@ -11337,20 +11359,20 @@ int DoSessionTicket(CYASSL* ssl,
 
             sendSz = length + HANDSHAKE_HEADER_SZ + RECORD_HEADER_SZ;
 
-            #ifdef CYASSL_DTLS
-                if (ssl->options.dtls) {
-                    sendSz += DTLS_RECORD_EXTRA + DTLS_HANDSHAKE_EXTRA;
-                    idx    += DTLS_RECORD_EXTRA + DTLS_HANDSHAKE_EXTRA;
-                    preSigIdx = idx;
-                }
-            #endif
+        #ifdef CYASSL_DTLS
+            if (ssl->options.dtls) {
+                sendSz += DTLS_RECORD_EXTRA + DTLS_HANDSHAKE_EXTRA;
+                idx    += DTLS_RECORD_EXTRA + DTLS_HANDSHAKE_EXTRA;
+                preSigIdx = idx;
+            }
+        #endif
             /* check for available size */
             if ((ret = CheckAvailableSize(ssl, sendSz)) != 0) {
-#ifndef NO_RSA
+            #ifndef NO_RSA
                 FreeRsaKey(&rsaKey);
-#endif
+            #endif
                 ecc_free(&dsaKey);
-                return ret;
+                goto done_a;
             }
 
             /* get ouput buffer */
@@ -11375,11 +11397,11 @@ int DoSessionTicket(CYASSL* ssl,
             /* Signtaure length will be written later, when we're sure what it
                is */
 
-#ifdef HAVE_FUZZER
-    if (ssl->fuzzerCb)
-        ssl->fuzzerCb(ssl, output + preSigIdx, preSigSz, FUZZ_SIGNATURE,
-                ssl->fuzzerCtx);
-#endif
+        #ifdef HAVE_FUZZER
+            if (ssl->fuzzerCb)
+                ssl->fuzzerCb(ssl, output + preSigIdx, preSigSz, FUZZ_SIGNATURE,
+                              ssl->fuzzerCtx);
+        #endif
 
             /* do signature */
             {
@@ -11408,7 +11430,7 @@ int DoSessionTicket(CYASSL* ssl,
                 /* sha */
                 ret = InitSha(&sha);
                 if (ret != 0)
-                    return ret;
+                    goto done_a;
                 ShaUpdate(&sha, ssl->arrays->clientRandom, RAN_LEN);
                 ShaUpdate(&sha, ssl->arrays->serverRandom, RAN_LEN);
                 ShaUpdate(&sha, output + preSigIdx, preSigSz);
@@ -11418,37 +11440,37 @@ int DoSessionTicket(CYASSL* ssl,
                 #ifndef NO_SHA256
                     ret = InitSha256(&sha256);
                     if (ret != 0)
-                        return ret;
+                        goto done_a;
                     ret = Sha256Update(&sha256, ssl->arrays->clientRandom, RAN_LEN);
                     if (ret != 0)
-                        return ret;
+                        goto done_a;
                     ret = Sha256Update(&sha256, ssl->arrays->serverRandom, RAN_LEN);
                     if (ret != 0)
-                        return ret;
+                        goto done_a;
                     ret = Sha256Update(&sha256, output + preSigIdx, preSigSz);
                     if (ret != 0)
-                        return ret;
+                        goto done_a;
                     ret = Sha256Final(&sha256, hash256);
                     if (ret != 0)
-                        return ret;
+                        goto done_a;
                 #endif
 
                 #ifdef CYASSL_SHA384
                     ret = InitSha384(&sha384);
                     if (ret != 0)
-                        return ret;
+                        goto done_a;
                     ret = Sha384Update(&sha384, ssl->arrays->clientRandom, RAN_LEN);
                     if (ret != 0)
-                        return ret;
+                        goto done_a;
                     ret = Sha384Update(&sha384, ssl->arrays->serverRandom, RAN_LEN);
                     if (ret != 0)
-                        return ret;
+                        goto done_a;
                     ret = Sha384Update(&sha384, output + preSigIdx, preSigSz);
                     if (ret != 0)
-                        return ret;
+                        goto done_a;
                     ret = Sha384Final(&sha384, hash384);
                     if (ret != 0)
-                        return ret;
+                        goto done_a;
                 #endif
 #ifndef NO_RSA
                 if (ssl->suites->sigAlgo == rsa_sa_algo) {
@@ -11457,10 +11479,10 @@ int DoSessionTicket(CYASSL* ssl,
                     byte   encodedSig[MAX_ENCODED_SIG_SZ];
                     byte   doUserRsa = 0;
 
-                    #ifdef HAVE_PK_CALLBACKS
-                        if (ssl->ctx->RsaSignCb)
-                            doUserRsa = 1;
-                    #endif /*HAVE_PK_CALLBACKS */
+                #ifdef HAVE_PK_CALLBACKS
+                    if (ssl->ctx->RsaSignCb)
+                        doUserRsa = 1;
+                #endif /*HAVE_PK_CALLBACKS */
 
                     if (IsAtLeastTLSv1_2(ssl)) {
                         byte* digest   = &hash[MD5_DIGEST_SIZE];
@@ -11468,18 +11490,18 @@ int DoSessionTicket(CYASSL* ssl,
                         int   digestSz = SHA_DIGEST_SIZE;
 
                         if (ssl->suites->hashAlgo == sha256_mac) {
-                            #ifndef NO_SHA256
-                                digest   = hash256;
-                                typeH    = SHA256h;
-                                digestSz = SHA256_DIGEST_SIZE;
-                            #endif
+                        #ifndef NO_SHA256
+                            digest   = hash256;
+                            typeH    = SHA256h;
+                            digestSz = SHA256_DIGEST_SIZE;
+                        #endif
                         }
                         else if (ssl->suites->hashAlgo == sha384_mac) {
-                            #ifdef CYASSL_SHA384
-                                digest   = hash384;
-                                typeH    = SHA384h;
-                                digestSz = SHA384_DIGEST_SIZE;
-                            #endif
+                        #ifdef CYASSL_SHA384
+                            digest   = hash384;
+                            typeH    = SHA384h;
+                            digestSz = SHA384_DIGEST_SIZE;
+                        #endif
                         }
 
                         signSz = EncodeSignature(encodedSig, digest, digestSz,
@@ -11491,87 +11513,82 @@ int DoSessionTicket(CYASSL* ssl,
                     idx += LENGTH_SZ;
 
                     if (doUserRsa) {
-                        #ifdef HAVE_PK_CALLBACKS
-                            word32 ioLen = sigSz;
-                            ret = ssl->ctx->RsaSignCb(ssl, signBuffer, signSz,
-                                                output + idx,
-                                                &ioLen,
-                                                ssl->buffers.key.buffer,
-                                                ssl->buffers.key.length,
-                                                ssl->RsaSignCtx);
-                        #endif /*HAVE_PK_CALLBACKS */
+                    #ifdef HAVE_PK_CALLBACKS
+                        word32 ioLen = sigSz;
+                        ret = ssl->ctx->RsaSignCb(ssl, signBuffer, signSz,
+                                            output + idx, &ioLen,
+                                            ssl->buffers.key.buffer,
+                                            ssl->buffers.key.length,
+                                            ssl->RsaSignCtx);
+                    #endif /*HAVE_PK_CALLBACKS */
                     }
-                    else {
+                    else
                         ret = RsaSSL_Sign(signBuffer, signSz, output + idx,
                                           sigSz, &rsaKey, ssl->rng);
-                        if (ret > 0)
-                            ret = 0; /* reset on success */
-                    }
+
                     FreeRsaKey(&rsaKey);
                     ecc_free(&dsaKey);
                     if (ret < 0)
-                        return ret;
+                        goto done_a;
                 } else
-#endif
+            #endif
+
                 if (ssl->suites->sigAlgo == ecc_dsa_sa_algo) {
-#ifndef NO_OLD_TLS
+                #ifndef NO_OLD_TLS
                     byte* digest = &hash[MD5_DIGEST_SIZE];
                     word32 digestSz = SHA_DIGEST_SIZE;
-#else
+                #else
                     byte* digest = hash256;
                     word32 digestSz = SHA256_DIGEST_SIZE;
-#endif
+                #endif
                     word32 sz = sigSz;
                     byte   doUserEcc = 0;
 
-                    #ifdef HAVE_PK_CALLBACKS
-                        #ifdef HAVE_ECC
-                            if (ssl->ctx->EccSignCb)
-                                doUserEcc = 1;
-                        #endif /* HAVE_ECC */
-                    #endif /*HAVE_PK_CALLBACKS */
+                #if defined(HAVE_PK_CALLBACKS) && defined(HAVE_ECC)
+                    if (ssl->ctx->EccSignCb)
+                        doUserEcc = 1;
+                #endif
 
                     if (IsAtLeastTLSv1_2(ssl)) {
                         if (ssl->suites->hashAlgo == sha_mac) {
-                            #ifndef NO_SHA
-                                digest   = &hash[MD5_DIGEST_SIZE];
-                                digestSz = SHA_DIGEST_SIZE;
-                            #endif
+                        #ifndef NO_SHA
+                            digest   = &hash[MD5_DIGEST_SIZE];
+                            digestSz = SHA_DIGEST_SIZE;
+                        #endif
                         }
                         else if (ssl->suites->hashAlgo == sha256_mac) {
-                            #ifndef NO_SHA256
-                                digest   = hash256;
-                                digestSz = SHA256_DIGEST_SIZE;
-                            #endif
+                        #ifndef NO_SHA256
+                            digest   = hash256;
+                            digestSz = SHA256_DIGEST_SIZE;
+                        #endif
                         }
                         else if (ssl->suites->hashAlgo == sha384_mac) {
-                            #ifdef CYASSL_SHA384
-                                digest   = hash384;
-                                digestSz = SHA384_DIGEST_SIZE;
-                            #endif
+                        #ifdef CYASSL_SHA384
+                            digest   = hash384;
+                            digestSz = SHA384_DIGEST_SIZE;
+                        #endif
                         }
                     }
 
                     if (doUserEcc) {
-                    #ifdef HAVE_PK_CALLBACKS
-                        #ifdef HAVE_ECC
-                            ret = ssl->ctx->EccSignCb(ssl, digest, digestSz,
-                                            output + LENGTH_SZ + idx, &sz,
-                                            ssl->buffers.key.buffer,
-                                            ssl->buffers.key.length,
-                                            ssl->EccSignCtx);
-                        #endif /* HAVE_ECC */
-                    #endif /*HAVE_PK_CALLBACKS */
+                    #if defined(HAVE_PK_CALLBACKS) && defined(HAVE_ECC)
+                        ret = ssl->ctx->EccSignCb(ssl, digest, digestSz,
+                                                  output + LENGTH_SZ + idx, &sz,
+                                                  ssl->buffers.key.buffer,
+                                                  ssl->buffers.key.length,
+                                                  ssl->EccSignCtx);
+                    #endif
                     }
                     else {
                         ret = ecc_sign_hash(digest, digestSz,
                               output + LENGTH_SZ + idx, &sz, ssl->rng, &dsaKey);
                     }
-#ifndef NO_RSA
+                #ifndef NO_RSA
                     FreeRsaKey(&rsaKey);
-#endif
+                #endif
                     ecc_free(&dsaKey);
-                    if (ret < 0) return ret;
+                    if (ret < 0)
+                        goto done_a;
 
                     /* Now that we know the real sig size, write it. */
                     c16toa((word16)sz, output + idx);
@@ -11584,17 +11601,16 @@ int DoSessionTicket(CYASSL* ssl,
 
             AddHeaders(output, length, server_key_exchange, ssl);
 
-            ret = HashOutput(ssl, output, sendSz, 0);
-            if (ret != 0)
-                return ret;
+            if ((ret = HashOutput(ssl, output, sendSz, 0)) != 0)
+                goto done_a;
 
-            #ifdef CYASSL_CALLBACKS
-                if (ssl->hsInfoOn)
-                    AddPacketName("ServerKeyExchange", &ssl->handShakeInfo);
-                if (ssl->toInfoOn)
-                    AddPacketInfo("ServerKeyExchange", &ssl->timeoutInfo,
-                                  output, sendSz, ssl->heap);
-            #endif
+        #ifdef CYASSL_CALLBACKS
+            if (ssl->hsInfoOn)
+                AddPacketName("ServerKeyExchange", &ssl->handShakeInfo);
+            if (ssl->toInfoOn)
+                AddPacketInfo("ServerKeyExchange", &ssl->timeoutInfo,
+                              output, sendSz, ssl->heap);
+        #endif
 
             ssl->buffers.outputBuffer.length += sendSz;
             if (ssl->options.groupMessages)
@@ -11602,10 +11618,17 @@ int DoSessionTicket(CYASSL* ssl,
             else
                 ret = SendBuffered(ssl);
             ssl->options.serverState = SERVER_KEYEXCHANGE_COMPLETE;
-        }
-        #endif /* HAVE_ECC */
 
-        #if !defined(NO_DH) && !defined(NO_RSA)
+        done_a:
+        #ifdef CYASSL_SMALL_STACK
+            XFREE(exportBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        #endif
+
+            return ret;
+        }
+    #endif /* HAVE_ECC */
+
+    #if !defined(NO_DH) && !defined(NO_RSA)
         if (ssl->specs.kea == diffie_hellman_kea) {
             byte    *output;
             word32   length = 0, idx = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
@@ -11684,13 +11707,14 @@ int DoSessionTicket(CYASSL* ssl,
 
             sendSz = length + HANDSHAKE_HEADER_SZ + RECORD_HEADER_SZ;
 
-            #ifdef CYASSL_DTLS
-                if (ssl->options.dtls) {
-                    sendSz += DTLS_RECORD_EXTRA + DTLS_HANDSHAKE_EXTRA;
-                    idx    += DTLS_RECORD_EXTRA + DTLS_HANDSHAKE_EXTRA;
-                    preSigIdx = idx;
-                }
-            #endif
+        #ifdef CYASSL_DTLS
+            if (ssl->options.dtls) {
+                sendSz += DTLS_RECORD_EXTRA + DTLS_HANDSHAKE_EXTRA;
+                idx    += DTLS_RECORD_EXTRA + DTLS_HANDSHAKE_EXTRA;
+                preSigIdx = idx;
+            }
+        #endif
+
             /* check for available size */
             if ((ret = CheckAvailableSize(ssl, sendSz)) != 0) {
                 FreeRsaKey(&rsaKey);
@@ -11733,11 +11757,11 @@ int DoSessionTicket(CYASSL* ssl,
             c16toa((word16)sigSz, output + idx);
             idx += LENGTH_SZ;
 
-#ifdef HAVE_FUZZER
-    if (ssl->fuzzerCb)
-        ssl->fuzzerCb(ssl, output + preSigIdx, preSigSz, FUZZ_SIGNATURE,
-                ssl->fuzzerCtx);
-#endif
+        #ifdef HAVE_FUZZER
+            if (ssl->fuzzerCb)
+                ssl->fuzzerCb(ssl, output + preSigIdx, preSigSz, FUZZ_SIGNATURE,
+                        ssl->fuzzerCtx);
+        #endif
 
             /* do signature */
             {
@@ -11808,17 +11832,17 @@ int DoSessionTicket(CYASSL* ssl,
                     if (ret != 0)
                         return ret;
                 #endif
-#ifndef NO_RSA
+            #ifndef NO_RSA
                 if (ssl->suites->sigAlgo == rsa_sa_algo) {
                     byte*  signBuffer = hash;
-                    word32 signSz    = sizeof(hash);
+                    word32 signSz     = FINISHED_SZ;
                     byte   encodedSig[MAX_ENCODED_SIG_SZ];
                     byte   doUserRsa = 0;
 
-                    #ifdef HAVE_PK_CALLBACKS
-                        if (ssl->ctx->RsaSignCb)
-                            doUserRsa = 1;
-                    #endif /*HAVE_PK_CALLBACKS */
+                #ifdef HAVE_PK_CALLBACKS
+                    if (ssl->ctx->RsaSignCb)
+                        doUserRsa = 1;
+                #endif
 
                     if (IsAtLeastTLSv1_2(ssl)) {
                         byte* digest   = &hash[MD5_DIGEST_SIZE];
@@ -11826,18 +11850,18 @@ int DoSessionTicket(CYASSL* ssl,
                         int   digestSz = SHA_DIGEST_SIZE;
 
                         if (ssl->suites->hashAlgo == sha256_mac) {
-                            #ifndef NO_SHA256
-                                digest   = hash256;
-                                typeH    = SHA256h;
-                                digestSz = SHA256_DIGEST_SIZE;
-                            #endif
+                        #ifndef NO_SHA256
+                            digest   = hash256;
+                            typeH    = SHA256h;
+                            digestSz = SHA256_DIGEST_SIZE;
+                        #endif
                         }
                         else if (ssl->suites->hashAlgo == sha384_mac) {
-                            #ifdef CYASSL_SHA384
-                                digest   = hash384;
-                                typeH    = SHA384h;
-                                digestSz = SHA384_DIGEST_SIZE;
-                            #endif
+                        #ifdef CYASSL_SHA384
+                            digest   = hash384;
+                            typeH    = SHA384h;
+                            digestSz = SHA384_DIGEST_SIZE;
+                        #endif
                         }
 
                         signSz = EncodeSignature(encodedSig, digest, digestSz,
@@ -11845,45 +11869,43 @@ int DoSessionTicket(CYASSL* ssl,
                         signBuffer = encodedSig;
                     }
                     if (doUserRsa) {
-                        #ifdef HAVE_PK_CALLBACKS
-                            word32 ioLen = sigSz;
-                            ret = ssl->ctx->RsaSignCb(ssl, signBuffer, signSz,
-                                                output + idx,
-                                                &ioLen,
-                                                ssl->buffers.key.buffer,
-                                                ssl->buffers.key.length,
-                                                ssl->RsaSignCtx);
-                        #endif /*HAVE_PK_CALLBACKS */
+                    #ifdef HAVE_PK_CALLBACKS
+                        word32 ioLen = sigSz;
+                        ret = ssl->ctx->RsaSignCb(ssl, signBuffer, signSz,
+                                                  output + idx, &ioLen,
+                                                  ssl->buffers.key.buffer,
+                                                  ssl->buffers.key.length,
+                                                  ssl->RsaSignCtx);
+                    #endif
                     }
-                    else {
+                    else
                         ret = RsaSSL_Sign(signBuffer, signSz, output + idx,
                                           sigSz, &rsaKey, ssl->rng);
-                    }
+
                     FreeRsaKey(&rsaKey);
-                    if (ret < 0)
-                        return ret;
                 }
-#endif
+            #endif
+
+                if (ret < 0)
+                    return ret;
             }
 
-            #ifdef CYASSL_DTLS
-                if (ssl->options.dtls) {
-                    if ((ret = DtlsPoolSave(ssl, output, sendSz)) != 0)
-                        return ret;
-                }
-            #endif
+        #ifdef CYASSL_DTLS
+            if (ssl->options.dtls)
+                if ((ret = DtlsPoolSave(ssl, output, sendSz)) != 0)
+                    return ret;
+        #endif
 
-            ret = HashOutput(ssl, output, sendSz, 0);
-            if (ret != 0)
+            if ((ret = HashOutput(ssl, output, sendSz, 0)) != 0)
                 return ret;
 
-            #ifdef CYASSL_CALLBACKS
-                if (ssl->hsInfoOn)
-                    AddPacketName("ServerKeyExchange", &ssl->handShakeInfo);
-                if (ssl->toInfoOn)
-                    AddPacketInfo("ServerKeyExchange", &ssl->timeoutInfo,
-                                  output, sendSz, ssl->heap);
-            #endif
+        #ifdef CYASSL_CALLBACKS
+            if (ssl->hsInfoOn)
+                AddPacketName("ServerKeyExchange", &ssl->handShakeInfo);
+            if (ssl->toInfoOn)
+                AddPacketInfo("ServerKeyExchange", &ssl->timeoutInfo,
+                              output, sendSz, ssl->heap);
+        #endif
 
             ssl->buffers.outputBuffer.length += sendSz;
             if (ssl->options.groupMessages)
@@ -11892,9 +11914,10 @@ int DoSessionTicket(CYASSL* ssl,
                 ret = SendBuffered(ssl);
             ssl->options.serverState = SERVER_KEYEXCHANGE_COMPLETE;
         }
-        #endif /* NO_DH */
+    #endif /* NO_DH */
 
         return ret;
+        #undef ERROR_OUT
     }
 
 
