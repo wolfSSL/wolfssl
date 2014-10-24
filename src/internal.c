@@ -11405,84 +11405,140 @@ int DoSessionTicket(CYASSL* ssl,
 
             /* do signature */
             {
-#ifndef NO_OLD_TLS
-                Md5    md5;
-                Sha    sha;
-#endif
+        #ifndef NO_OLD_TLS
+            #ifdef CYASSL_SMALL_STACK
+                Md5*   md5  = NULL;
+                Sha*   sha  = NULL;
+            #else
+                Md5    md5[1];
+                Sha    sha[1];
+            #endif
+        #endif
+            #ifdef CYASSL_SMALL_STACK
+                byte*  hash = NULL;
+            #else
                 byte   hash[FINISHED_SZ];
-                #ifndef NO_SHA256
-                    Sha256 sha256;
-                    byte hash256[SHA256_DIGEST_SIZE];
-                #endif
-                #ifdef CYASSL_SHA384
-                    Sha384 sha384;
-                    byte hash384[SHA384_DIGEST_SIZE];
-                #endif
+            #endif
+        #ifndef NO_SHA256
+            #ifdef CYASSL_SMALL_STACK
+                Sha256* sha256  = NULL;
+                byte*   hash256 = NULL;
+            #else
+                Sha256  sha256[1];
+                byte    hash256[SHA256_DIGEST_SIZE];
+            #endif
+        #endif
+        #ifdef CYASSL_SHA384
+            #ifdef CYASSL_SMALL_STACK
+                Sha384* sha384  = NULL;
+                byte*   hash384 = NULL;
+            #else
+                Sha384  sha384[1];
+                byte    hash384[SHA384_DIGEST_SIZE];
+            #endif
+        #endif
 
-#ifndef NO_OLD_TLS
+            #ifdef CYASSL_SMALL_STACK
+                hash = (byte*)XMALLOC(FINISHED_SZ, NULL,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+                if (hash == NULL)
+                    ERROR_OUT(MEMORY_E, done_a);
+            #endif
+
+        #ifndef NO_OLD_TLS
                 /* md5 */
-                InitMd5(&md5);
-                Md5Update(&md5, ssl->arrays->clientRandom, RAN_LEN);
-                Md5Update(&md5, ssl->arrays->serverRandom, RAN_LEN);
-                Md5Update(&md5, output + preSigIdx, preSigSz);
-                Md5Final(&md5, hash);
+            #ifdef CYASSL_SMALL_STACK
+                md5 = (Md5*)XMALLOC(sizeof(Md5), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                if (md5 == NULL)
+                    ERROR_OUT(MEMORY_E, done_a2);
+            #endif
+                InitMd5(md5);
+                Md5Update(md5, ssl->arrays->clientRandom, RAN_LEN);
+                Md5Update(md5, ssl->arrays->serverRandom, RAN_LEN);
+                Md5Update(md5, output + preSigIdx, preSigSz);
+                Md5Final(md5, hash);
 
                 /* sha */
-                ret = InitSha(&sha);
+            #ifdef CYASSL_SMALL_STACK
+                sha = (Sha*)XMALLOC(sizeof(Sha), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                if (sha == NULL)
+                    ERROR_OUT(MEMORY_E, done_a2);
+            #endif
+                ret = InitSha(sha);
                 if (ret != 0)
-                    goto done_a;
-                ShaUpdate(&sha, ssl->arrays->clientRandom, RAN_LEN);
-                ShaUpdate(&sha, ssl->arrays->serverRandom, RAN_LEN);
-                ShaUpdate(&sha, output + preSigIdx, preSigSz);
-                ShaFinal(&sha, &hash[MD5_DIGEST_SIZE]);
-#endif
+                    goto done_a2;
+                ShaUpdate(sha, ssl->arrays->clientRandom, RAN_LEN);
+                ShaUpdate(sha, ssl->arrays->serverRandom, RAN_LEN);
+                ShaUpdate(sha, output + preSigIdx, preSigSz);
+                ShaFinal(sha, &hash[MD5_DIGEST_SIZE]);
+        #endif
 
-                #ifndef NO_SHA256
-                    ret = InitSha256(&sha256);
-                    if (ret != 0)
-                        goto done_a;
-                    ret = Sha256Update(&sha256, ssl->arrays->clientRandom, RAN_LEN);
-                    if (ret != 0)
-                        goto done_a;
-                    ret = Sha256Update(&sha256, ssl->arrays->serverRandom, RAN_LEN);
-                    if (ret != 0)
-                        goto done_a;
-                    ret = Sha256Update(&sha256, output + preSigIdx, preSigSz);
-                    if (ret != 0)
-                        goto done_a;
-                    ret = Sha256Final(&sha256, hash256);
-                    if (ret != 0)
-                        goto done_a;
-                #endif
+        #ifndef NO_SHA256
+            #ifdef CYASSL_SMALL_STACK
+                sha256 = (Sha256*)XMALLOC(sizeof(Sha256), NULL,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+                hash256 = (byte*)XMALLOC(SHA256_DIGEST_SIZE, NULL,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+                if (sha256 == NULL || hash256 == NULL)
+                    ERROR_OUT(MEMORY_E, done_a2);
+            #endif
 
-                #ifdef CYASSL_SHA384
-                    ret = InitSha384(&sha384);
-                    if (ret != 0)
-                        goto done_a;
-                    ret = Sha384Update(&sha384, ssl->arrays->clientRandom, RAN_LEN);
-                    if (ret != 0)
-                        goto done_a;
-                    ret = Sha384Update(&sha384, ssl->arrays->serverRandom, RAN_LEN);
-                    if (ret != 0)
-                        goto done_a;
-                    ret = Sha384Update(&sha384, output + preSigIdx, preSigSz);
-                    if (ret != 0)
-                        goto done_a;
-                    ret = Sha384Final(&sha384, hash384);
-                    if (ret != 0)
-                        goto done_a;
-                #endif
-#ifndef NO_RSA
+                if (!(ret = InitSha256(sha256))
+                &&  !(ret = Sha256Update(sha256, ssl->arrays->clientRandom,
+                                                                       RAN_LEN))
+                &&  !(ret = Sha256Update(sha256, ssl->arrays->serverRandom,
+                                                                       RAN_LEN))
+                &&  !(ret = Sha256Update(sha256, output + preSigIdx, preSigSz)))
+                    ret = Sha256Final(sha256, hash256);
+
+                if (ret != 0)
+                    goto done_a2;
+        #endif
+
+        #ifdef CYASSL_SHA384
+            #ifdef CYASSL_SMALL_STACK
+                sha384 = (Sha384*)XMALLOC(sizeof(Sha384), NULL,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+                hash384 = (byte*)XMALLOC(SHA384_DIGEST_SIZE, NULL,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+                if (sha384 == NULL || hash384 == NULL)
+                    ERROR_OUT(MEMORY_E, done_a2);
+            #endif
+
+                if (!(ret = InitSha384(sha384))
+                &&  !(ret = Sha384Update(sha384, ssl->arrays->clientRandom,
+                                                                       RAN_LEN))
+                &&  !(ret = Sha384Update(sha384, ssl->arrays->serverRandom,
+                                                                       RAN_LEN))
+                &&  !(ret = Sha384Update(sha384, output + preSigIdx, preSigSz)))
+                    ret = Sha384Final(sha384, hash384);
+
+                if (ret != 0)
+                    goto done_a2;
+        #endif
+
+            #ifndef NO_RSA
                 if (ssl->suites->sigAlgo == rsa_sa_algo) {
                     byte*  signBuffer = hash;
-                    word32 signSz    = sizeof(hash);
-                    byte   encodedSig[MAX_ENCODED_SIG_SZ];
+                    word32 signSz     = FINISHED_SZ;
                     byte   doUserRsa = 0;
+                #ifdef CYASSL_SMALL_STACK
+                    byte*  encodedSig = NULL;
+                #else
+                    byte   encodedSig[MAX_ENCODED_SIG_SZ];
+                #endif
 
                 #ifdef HAVE_PK_CALLBACKS
                     if (ssl->ctx->RsaSignCb)
                         doUserRsa = 1;
-                #endif /*HAVE_PK_CALLBACKS */
+                #endif
+
+                #ifdef CYASSL_SMALL_STACK
+                    encodedSig = (byte*)XMALLOC(MAX_ENCODED_SIG_SZ, NULL,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+                    if (encodedSig == NULL)
+                        ERROR_OUT(MEMORY_E, done_a2);
+                #endif
 
                     if (IsAtLeastTLSv1_2(ssl)) {
                         byte* digest   = &hash[MD5_DIGEST_SIZE];
@@ -11528,8 +11584,13 @@ int DoSessionTicket(CYASSL* ssl,
 
                     FreeRsaKey(&rsaKey);
                     ecc_free(&dsaKey);
+
+                #ifdef CYASSL_SMALL_STACK
+                    XFREE(encodedSig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                #endif
+
                     if (ret < 0)
-                        goto done_a;
+                        goto done_a2;
                 } else
             #endif
 
@@ -11587,8 +11648,9 @@ int DoSessionTicket(CYASSL* ssl,
                     FreeRsaKey(&rsaKey);
                 #endif
                     ecc_free(&dsaKey);
+
                     if (ret < 0)
-                        goto done_a;
+                        goto done_a2;
 
                     /* Now that we know the real sig size, write it. */
                     c16toa((word16)sz, output + idx);
@@ -11597,6 +11659,26 @@ int DoSessionTicket(CYASSL* ssl,
                     length += sz - sigSz;
                     sendSz += sz - sigSz;
                 }
+
+            done_a2:
+        #ifdef CYASSL_SMALL_STACK
+            #ifndef NO_OLD_TLS
+                XFREE(md5,     NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                XFREE(sha,     NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            #endif
+                XFREE(hash,    NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            #ifndef NO_SHA256
+                XFREE(sha256,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                XFREE(hash256, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            #endif
+            #ifdef CYASSL_SHA384
+                XFREE(sha384,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                XFREE(hash384, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            #endif
+        #endif
+
+                if (ret < 0)
+                    goto done_a;
             }
 
             AddHeaders(output, length, server_key_exchange, ssl);
@@ -11765,83 +11847,142 @@ int DoSessionTicket(CYASSL* ssl,
 
             /* do signature */
             {
-#ifndef NO_OLD_TLS
-                Md5    md5;
-                Sha    sha;
-#endif
+        #ifndef NO_OLD_TLS
+            #ifdef CYASSL_SMALL_STACK
+                Md5*   md5  = NULL;
+                Sha*   sha  = NULL;
+            #else
+                Md5    md5[1];
+                Sha    sha[1];
+            #endif
+        #endif
+            #ifdef CYASSL_SMALL_STACK
+                byte*  hash = NULL;
+            #else
                 byte   hash[FINISHED_SZ];
-                #ifndef NO_SHA256
-                    Sha256 sha256;
-                    byte hash256[SHA256_DIGEST_SIZE];
-                #endif
-                #ifdef CYASSL_SHA384
-                    Sha384 sha384;
-                    byte hash384[SHA384_DIGEST_SIZE];
-                #endif
+            #endif
+        #ifndef NO_SHA256
+            #ifdef CYASSL_SMALL_STACK
+                Sha256* sha256  = NULL;
+                byte*   hash256 = NULL;
+            #else
+                Sha256  sha256[1];
+                byte    hash256[SHA256_DIGEST_SIZE];
+            #endif
+        #endif
+        #ifdef CYASSL_SHA384
+            #ifdef CYASSL_SMALL_STACK
+                Sha384* sha384  = NULL;
+                byte*   hash384 = NULL;
+            #else
+                Sha384  sha384[1];
+                byte    hash384[SHA384_DIGEST_SIZE];
+            #endif
+        #endif
 
-#ifndef NO_OLD_TLS
+            #ifdef CYASSL_SMALL_STACK
+                hash = (byte*)XMALLOC(FINISHED_SZ, NULL,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+                if (hash == NULL)
+                    return MEMORY_E; /* No heap commitment before this point,
+                                        from now on, the resources are freed
+                                        at done_b. */
+            #endif
+
+        #ifndef NO_OLD_TLS
                 /* md5 */
-                InitMd5(&md5);
-                Md5Update(&md5, ssl->arrays->clientRandom, RAN_LEN);
-                Md5Update(&md5, ssl->arrays->serverRandom, RAN_LEN);
-                Md5Update(&md5, output + preSigIdx, preSigSz);
-                Md5Final(&md5, hash);
+            #ifdef CYASSL_SMALL_STACK
+                md5 = (Md5*)XMALLOC(sizeof(Md5), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                if (md5 == NULL)
+                    ERROR_OUT(MEMORY_E, done_b);
+            #endif
+                InitMd5(md5);
+                Md5Update(md5, ssl->arrays->clientRandom, RAN_LEN);
+                Md5Update(md5, ssl->arrays->serverRandom, RAN_LEN);
+                Md5Update(md5, output + preSigIdx, preSigSz);
+                Md5Final(md5, hash);
 
                 /* sha */
-                ret = InitSha(&sha);
+            #ifdef CYASSL_SMALL_STACK
+                sha = (Sha*)XMALLOC(sizeof(Sha), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                if (sha == NULL)
+                    ERROR_OUT(MEMORY_E, done_b);
+            #endif
+
+                if ((ret = InitSha(sha) != 0))
+                    goto done_b;
+
+                ShaUpdate(sha, ssl->arrays->clientRandom, RAN_LEN);
+                ShaUpdate(sha, ssl->arrays->serverRandom, RAN_LEN);
+                ShaUpdate(sha, output + preSigIdx, preSigSz);
+                ShaFinal(sha, &hash[MD5_DIGEST_SIZE]);
+        #endif
+
+        #ifndef NO_SHA256
+            #ifdef CYASSL_SMALL_STACK
+                sha256 = (Sha256*)XMALLOC(sizeof(Sha256), NULL,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+                hash256 = (byte*)XMALLOC(SHA256_DIGEST_SIZE, NULL,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+                if (sha256 == NULL || hash256 == NULL)
+                    ERROR_OUT(MEMORY_E, done_b);
+            #endif
+
+                if (!(ret = InitSha256(sha256))
+                &&  !(ret = Sha256Update(sha256, ssl->arrays->clientRandom,
+                                                                       RAN_LEN))
+                &&  !(ret = Sha256Update(sha256, ssl->arrays->serverRandom,
+                                                                       RAN_LEN))
+                &&  !(ret = Sha256Update(sha256, output + preSigIdx, preSigSz)))
+                    ret = Sha256Final(sha256, hash256);
+
                 if (ret != 0)
-                    return ret;
-                ShaUpdate(&sha, ssl->arrays->clientRandom, RAN_LEN);
-                ShaUpdate(&sha, ssl->arrays->serverRandom, RAN_LEN);
-                ShaUpdate(&sha, output + preSigIdx, preSigSz);
-                ShaFinal(&sha, &hash[MD5_DIGEST_SIZE]);
-#endif
+                    goto done_b;
+            #endif
 
-                #ifndef NO_SHA256
-                    ret = InitSha256(&sha256);
-                    if (ret != 0)
-                        return ret;
-                    ret = Sha256Update(&sha256, ssl->arrays->clientRandom, RAN_LEN);
-                    if (ret != 0)
-                        return ret;
-                    ret = Sha256Update(&sha256, ssl->arrays->serverRandom, RAN_LEN);
-                    if (ret != 0)
-                        return ret;
-                    ret = Sha256Update(&sha256, output + preSigIdx, preSigSz);
-                    if (ret != 0)
-                        return ret;
-                    ret = Sha256Final(&sha256, hash256);
-                    if (ret != 0)
-                        return ret;
-                #endif
+        #ifdef CYASSL_SHA384
+            #ifdef CYASSL_SMALL_STACK
+                sha384 = (Sha384*)XMALLOC(sizeof(Sha384), NULL,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+                hash384 = (byte*)XMALLOC(SHA384_DIGEST_SIZE, NULL,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+                if (sha384 == NULL || hash384 == NULL)
+                    ERROR_OUT(MEMORY_E, done_b);
+            #endif
 
-                #ifdef CYASSL_SHA384
-                    ret = InitSha384(&sha384);
-                    if (ret != 0)
-                        return ret;
-                    ret = Sha384Update(&sha384, ssl->arrays->clientRandom, RAN_LEN);
-                    if (ret != 0)
-                        return ret;
-                    ret = Sha384Update(&sha384, ssl->arrays->serverRandom, RAN_LEN);
-                    if (ret != 0)
-                        return ret;
-                    ret = Sha384Update(&sha384, output + preSigIdx, preSigSz);
-                    if (ret != 0)
-                        return ret;
-                    ret = Sha384Final(&sha384, hash384);
-                    if (ret != 0)
-                        return ret;
-                #endif
+                if (!(ret = InitSha384(sha384))
+                &&  !(ret = Sha384Update(sha384, ssl->arrays->clientRandom,
+                                                                       RAN_LEN))
+                &&  !(ret = Sha384Update(sha384, ssl->arrays->serverRandom,
+                                                                       RAN_LEN))
+                &&  !(ret = Sha384Update(sha384, output + preSigIdx, preSigSz)))
+                    ret = Sha384Final(sha384, hash384);
+
+                if (ret != 0)
+                    goto done_b;
+        #endif
+
             #ifndef NO_RSA
                 if (ssl->suites->sigAlgo == rsa_sa_algo) {
                     byte*  signBuffer = hash;
                     word32 signSz     = FINISHED_SZ;
+                #ifdef CYASSL_SMALL_STACK
+                    byte*  encodedSig = NULL;
+                #else
                     byte   encodedSig[MAX_ENCODED_SIG_SZ];
+                #endif
                     byte   doUserRsa = 0;
 
                 #ifdef HAVE_PK_CALLBACKS
                     if (ssl->ctx->RsaSignCb)
                         doUserRsa = 1;
+                #endif
+
+                #ifdef CYASSL_SMALL_STACK
+                    encodedSig = (byte*)XMALLOC(MAX_ENCODED_SIG_SZ, NULL,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+                    if (encodedSig == NULL)
+                        ERROR_OUT(MEMORY_E, done_b);
                 #endif
 
                     if (IsAtLeastTLSv1_2(ssl)) {
@@ -11883,8 +12024,29 @@ int DoSessionTicket(CYASSL* ssl,
                                           sigSz, &rsaKey, ssl->rng);
 
                     FreeRsaKey(&rsaKey);
+
+                #ifdef CYASSL_SMALL_STACK
+                    XFREE(encodedSig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                #endif
                 }
             #endif
+
+            done_b:
+        #ifdef CYASSL_SMALL_STACK
+            #ifndef NO_OLD_TLS
+                XFREE(md5,     NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                XFREE(sha,     NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            #endif
+                XFREE(hash,    NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            #ifndef NO_SHA256
+                XFREE(sha256,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                XFREE(hash256, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            #endif
+            #ifdef CYASSL_SHA384
+                XFREE(sha384,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                XFREE(hash384, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            #endif
+        #endif
 
                 if (ret < 0)
                     return ret;
