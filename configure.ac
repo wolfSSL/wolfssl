@@ -1113,6 +1113,13 @@ then
         AM_CFLAGS="$AM_CFLAGS -DCYASSL_SHA512 -DCYASSL_SHA384"
         AM_CONDITIONAL([BUILD_SHA512], [test "x$ENABLED_SHA512" = "xyes"])
     fi
+    # requires AESGCM
+    if test "x$ENABLED_AESGCM" != "xyes"
+    then
+        ENABLED_AESGCM="yes"
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_AESGCM"
+        AM_CONDITIONAL([BUILD_SHA512], [test "x$ENABLED_SHA512" = "xyes"])
+    fi
     AM_CFLAGS="$AM_CFLAGS -DHAVE_FIPS"
 fi
 

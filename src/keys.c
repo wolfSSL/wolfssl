@@ -2115,6 +2115,8 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
 
 #ifdef BUILD_AESGCM
     if (specs->bulk_cipher_algorithm == cyassl_aes_gcm) {
+        int gcmRet;
+
         if (enc && enc->aes == NULL)
             enc->aes = (Aes*)XMALLOC(sizeof(Aes), heap, DYNAMIC_TYPE_CIPHER);
         if (enc && enc->aes == NULL)
@@ -2126,24 +2128,32 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
 
         if (side == CYASSL_CLIENT_END) {
             if (enc) {
-                AesGcmSetKey(enc->aes, keys->client_write_key, specs->key_size);
+                gcmRet = AesGcmSetKey(enc->aes, keys->client_write_key,
+                                      specs->key_size);
+                if (gcmRet != 0) return gcmRet;
                 XMEMCPY(keys->aead_enc_imp_IV, keys->client_write_IV,
                         AEAD_IMP_IV_SZ);
             }
             if (dec) {
-                AesGcmSetKey(dec->aes, keys->server_write_key, specs->key_size);
+                gcmRet = AesGcmSetKey(dec->aes, keys->server_write_key,
+                                      specs->key_size);
+                if (gcmRet != 0) return gcmRet;
                 XMEMCPY(keys->aead_dec_imp_IV, keys->server_write_IV,
                         AEAD_IMP_IV_SZ);
             }
         }
         else {
             if (enc) {
-                AesGcmSetKey(enc->aes, keys->server_write_key, specs->key_size);
+                gcmRet = AesGcmSetKey(enc->aes, keys->server_write_key,
+                                      specs->key_size);
+                if (gcmRet != 0) return gcmRet;
                 XMEMCPY(keys->aead_enc_imp_IV, keys->server_write_IV,
                         AEAD_IMP_IV_SZ);
             }
             if (dec) {
-                AesGcmSetKey(dec->aes, keys->client_write_key, specs->key_size);
+                gcmRet = AesGcmSetKey(dec->aes, keys->client_write_key,
+                                      specs->key_size);
+                if (gcmRet != 0) return gcmRet;
                 XMEMCPY(keys->aead_dec_imp_IV, keys->client_write_IV,
                         AEAD_IMP_IV_SZ);
             }

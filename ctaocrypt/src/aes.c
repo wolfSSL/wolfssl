@@ -2617,7 +2617,7 @@ static void GenerateM0(Aes* aes)
 #endif /* GCM_TABLE */
 
 
-void AesGcmSetKey(Aes* aes, const byte* key, word32 len)
+int AesGcmSetKey(Aes* aes, const byte* key, word32 len)
 {
     byte iv[AES_BLOCK_SIZE];
 
@@ -2626,7 +2626,7 @@ void AesGcmSetKey(Aes* aes, const byte* key, word32 len)
     #endif
 
     if (!((len == 16) || (len == 24) || (len == 32)))
-        return;
+        return BAD_FUNC_ARG;
 
     XMEMSET(iv, 0, AES_BLOCK_SIZE);
     AesSetKey(aes, key, len, iv, AES_ENCRYPTION);
@@ -2639,6 +2639,8 @@ void AesGcmSetKey(Aes* aes, const byte* key, word32 len)
 #ifdef GCM_TABLE
     GenerateM0(aes);
 #endif /* GCM_TABLE */
+
+    return 0;
 }
 
 
@@ -3145,7 +3147,7 @@ static void GHASH(Aes* aes, const byte* a, word32 aSz,
 #endif /* end GCM_WORD32 */
 
 
-void AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
+int AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
                    const byte* iv, word32 ivSz,
                    byte* authTag, word32 authTagSz,
                    const byte* authIn, word32 authInSz)
@@ -3215,6 +3217,7 @@ void AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     #endif
     xorbuf(authTag, scratch, authTagSz);
 
+    return 0;
 }
 
 
@@ -3301,17 +3304,17 @@ int  AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 
 
 
-CYASSL_API void GmacSetKey(Gmac* gmac, const byte* key, word32 len)
+CYASSL_API int GmacSetKey(Gmac* gmac, const byte* key, word32 len)
 {
-    AesGcmSetKey(&gmac->aes, key, len);
+    return AesGcmSetKey(&gmac->aes, key, len);
 }
 
 
-CYASSL_API void GmacUpdate(Gmac* gmac, const byte* iv, word32 ivSz,
+CYASSL_API int GmacUpdate(Gmac* gmac, const byte* iv, word32 ivSz,
                               const byte* authIn, word32 authInSz,
                               byte* authTag, word32 authTagSz)
 {
-    AesGcmEncrypt(&gmac->aes, NULL, NULL, 0, iv, ivSz,
+    return AesGcmEncrypt(&gmac->aes, NULL, NULL, 0, iv, ivSz,
                                          authTag, authTagSz, authIn, authInSz);
 }
 

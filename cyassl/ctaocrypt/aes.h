@@ -118,8 +118,8 @@ CYASSL_API void AesDecryptDirect(Aes* aes, byte* out, const byte* in);
 CYASSL_API int  AesSetKeyDirect(Aes* aes, const byte* key, word32 len,
                                 const byte* iv, int dir);
 #ifdef HAVE_AESGCM
-CYASSL_API void AesGcmSetKey(Aes* aes, const byte* key, word32 len);
-CYASSL_API void AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
+CYASSL_API int  AesGcmSetKey(Aes* aes, const byte* key, word32 len);
+CYASSL_API int  AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
                               const byte* iv, word32 ivSz,
                               byte* authTag, word32 authTagSz,
                               const byte* authIn, word32 authInSz);
@@ -131,8 +131,8 @@ CYASSL_API int  AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 typedef struct Gmac {
     Aes aes;
 } Gmac;
-CYASSL_API void GmacSetKey(Gmac* gmac, const byte* key, word32 len);
-CYASSL_API void GmacUpdate(Gmac* gmac, const byte* iv, word32 ivSz,
+CYASSL_API int GmacSetKey(Gmac* gmac, const byte* key, word32 len);
+CYASSL_API int GmacUpdate(Gmac* gmac, const byte* iv, word32 ivSz,
                               const byte* authIn, word32 authInSz,
                               byte* authTag, word32 authTagSz);
 #endif /* HAVE_AESGCM */
@@ -163,12 +163,24 @@ CYASSL_API int  AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
                                        word32 sz);
     CYASSL_API int  AesCbcDecrypt_fips(Aes* aes, byte* out, const byte* in,
                                        word32 sz);
+    CYASSL_API int  AesGcmSetKey_fips(Aes* aes, const byte* key, word32 len);
+    CYASSL_API int  AesGcmEncrypt_fips(Aes* aes, byte* out, const byte* in,
+                              word32 sz, const byte* iv, word32 ivSz,
+                              byte* authTag, word32 authTagSz,
+                              const byte* authIn, word32 authInSz);
+    CYASSL_API int  AesGcmDecrypt_fips(Aes* aes, byte* out, const byte* in,
+                              word32 sz, const byte* iv, word32 ivSz,
+                              const byte* authTag, word32 authTagSz,
+                              const byte* authIn, word32 authInSz);
     #ifndef FIPS_NO_WRAPPERS
         /* if not impl or fips.c impl wrapper force fips calls if fips build */
         #define AesSetKey     AesSetKey_fips
         #define AesSetIV      AesSetIV_fips
         #define AesCbcEncrypt AesCbcEncrypt_fips
         #define AesCbcDecrypt AesCbcDecrypt_fips
+        #define AesGcmSetKey  AesGcmSetKey_fips
+        #define AesGcmEncrypt AesGcmEncrypt_fips
+        #define AesGcmDecrypt AesGcmDecrypt_fips
     #endif /* FIPS_NO_WRAPPERS */
 
 #endif /* HAVE_FIPS */

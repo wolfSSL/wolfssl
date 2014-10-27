@@ -5390,6 +5390,7 @@ static INLINE int Encrypt(CYASSL* ssl, byte* out, const byte* input, word16 sz)
         #ifdef BUILD_AESGCM
             case cyassl_aes_gcm:
                 {
+                    int  gcmRet;
                     byte additional[AEAD_AUTH_DATA_SZ];
                     byte nonce[AEAD_NONCE_SZ];
                     const byte* additionalSrc = input - 5;
@@ -5418,15 +5419,17 @@ static INLINE int Encrypt(CYASSL* ssl, byte* out, const byte* input, word16 sz)
                                  ssl->keys.aead_enc_imp_IV, AEAD_IMP_IV_SZ);
                     XMEMCPY(nonce + AEAD_IMP_IV_SZ,
                                      ssl->keys.aead_exp_IV, AEAD_EXP_IV_SZ);
-                    AesGcmEncrypt(ssl->encrypt.aes,
-                        out + AEAD_EXP_IV_SZ, input + AEAD_EXP_IV_SZ,
-                            sz - AEAD_EXP_IV_SZ - ssl->specs.aead_mac_size,
-                        nonce, AEAD_NONCE_SZ,
-                        out + sz - ssl->specs.aead_mac_size,
-                        ssl->specs.aead_mac_size,
-                        additional, AEAD_AUTH_DATA_SZ);
-                    AeadIncrementExpIV(ssl);
+                    gcmRet = AesGcmEncrypt(ssl->encrypt.aes,
+                                 out + AEAD_EXP_IV_SZ, input + AEAD_EXP_IV_SZ,
+                                 sz - AEAD_EXP_IV_SZ - ssl->specs.aead_mac_size,
+                                 nonce, AEAD_NONCE_SZ,
+                                 out + sz - ssl->specs.aead_mac_size,
+                                 ssl->specs.aead_mac_size,
+                                 additional, AEAD_AUTH_DATA_SZ);
+                    if (gcmRet == 0)
+                        AeadIncrementExpIV(ssl);
                     XMEMSET(nonce, 0, AEAD_NONCE_SZ);
+                    return gcmRet;
                 }
                 break;
         #endif
