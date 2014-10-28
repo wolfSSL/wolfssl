@@ -70,6 +70,9 @@
 #ifdef HAVE_PKCS7
     #include <cyassl/ctaocrypt/pkcs7.h>
 #endif
+#ifdef HAVE_FIPS
+    #include <cyassl/ctaocrypt/fips_test.h>
+#endif
 
 #ifdef _MSC_VER
     /* 4996 warning to use MS extensions e.g., strcpy_s instead of strncpy */
@@ -207,12 +210,26 @@ typedef struct func_args {
 } func_args;
 
 
+#ifdef HAVE_FIPS
+
+static void myFipsCb(int ok, int err, const char* hash)
+{
+    printf("in my Fips callback, ok = %d, err = %d\n", ok, err);
+    printf("hash = %s\n", hash);
+}
+
+#endif /* HAVE_FIPS */
+
 
 int ctaocrypt_test(void* args)
 {
     int ret = 0;
 
     ((func_args*)args)->return_code = -1; /* error state */
+
+#ifdef HAVE_FIPS
+    wolfCrypt_SetCb_fips(myFipsCb);
+#endif
 
 #if !defined(NO_BIG_INT)
     if (CheckCtcSettings() != 1)

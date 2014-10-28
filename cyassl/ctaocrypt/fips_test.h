@@ -32,7 +32,14 @@
 
 /* Known Answer Test string inputs are hex */
 
-CYASSL_LOCAL int DoKnownAnswerTests(void);
+CYASSL_LOCAL int DoKnownAnswerTests(char*);
+
+
+/* Power on self test failure callback */
+typedef void(*wolfCrypt_fips_cb)(int ok, int err, const char* hash);
+
+/* Public set function */
+CYASSL_API int wolfCrypt_SetCb_fips(wolfCrypt_fips_cb cbf);
 
 
 #ifdef __cplusplus
