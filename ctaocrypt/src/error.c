@@ -286,6 +286,24 @@ const char* CTaoCryptGetErrorString(int error)
     case LENGTH_ONLY_E:
         return "Output length only set, not for other use error";
 
+    case IN_CORE_FIPS_E:
+        return "In Core Integrity check FIPS error";
+
+    case AES_KAT_FIPS_E:
+        return "AES Known Answer Test check FIPS error";
+
+    case DES3_KAT_FIPS_E:
+        return "DES3 Known Answer Test check FIPS error";
+
+    case HMAC_KAT_FIPS_E:
+        return "HMAC Known Answer Test check FIPS error";
+
+    case RSA_KAT_FIPS_E:
+        return "RSA Known Answer Test check FIPS error";
+
+    case DRBG_KAT_FIPS_E:
+        return "DRBG Known Answer Test check FIPS error";
+
     default:
         return "unknown error number";
 

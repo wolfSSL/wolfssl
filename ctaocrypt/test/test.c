@@ -58,6 +58,7 @@
 #include <cyassl/ctaocrypt/chacha.h>
 #include <cyassl/ctaocrypt/pwdbased.h>
 #include <cyassl/ctaocrypt/ripemd.h>
+#include <cyassl/ctaocrypt/error-crypt.h>
 #ifdef HAVE_ECC
     #include <cyassl/ctaocrypt/ecc.h>
 #endif
@@ -215,7 +216,13 @@ typedef struct func_args {
 static void myFipsCb(int ok, int err, const char* hash)
 {
     printf("in my Fips callback, ok = %d, err = %d\n", ok, err);
+    printf("message = %s\n", CTaoCryptGetErrorString(err));
     printf("hash = %s\n", hash);
+
+    if (err == IN_CORE_FIPS_E) {
+        printf("In core integrity hash check failure, copy above hash\n");
+        printf("into verifyCore[] in fips_test.c and rebuild\n");
+    }
 }
 
 #endif /* HAVE_FIPS */
