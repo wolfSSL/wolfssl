@@ -1685,6 +1685,7 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
     ssl->options.quietShutdown = ctx->quietShutdown;
     ssl->options.certOnly = 0;
     ssl->options.groupMessages = ctx->groupMessages;
+    ssl->options.gotChangeCipher = 0;
     ssl->options.usingNonblock = 0;
     ssl->options.saveArrays = 0;
 #ifdef HAVE_POLY1305
@@ -4601,6 +4602,11 @@ int DoFinished(CYASSL* ssl, const byte* input, word32* inOutIdx, word32 size,
     if (finishedSz != size)
         return BUFFER_ERROR;
 
+    if (ssl->options.gotChangeCipher == 0) {
+        CYASSL_MSG("Finished received from peer before change cipher");
+        return NO_CHANGE_CIPHER_E;
+    }
+
     /* check against totalSz */
     if (*inOutIdx + size + ssl->keys.padSz > totalSz)
         return BUFFER_E;
@@ -6457,6 +6463,7 @@ int ProcessReply(CYASSL* ssl)
                     break;
 
                 case change_cipher_spec:
+                    ssl->options.gotChangeCipher = 1;
                     CYASSL_MSG("got CHANGE CIPHER SPEC");
                     #ifdef CYASSL_CALLBACKS
                         if (ssl->hsInfoOn)
@@ -7860,6 +7867,9 @@ const char* CyaSSL_ERR_reason_error_string(unsigned long e)
 
     case SESSION_SECRET_CB_E:
         return "Session Secret Callback Error";
+
+    case NO_CHANGE_CIPHER_E:
+        return "Finished received from peer before Change Cipher Error";
 
     default :
         return "unknown error number";

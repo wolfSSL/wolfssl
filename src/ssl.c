@@ -775,6 +775,7 @@ int CyaSSL_Rehandshake(CYASSL* ssl)
     ssl->options.acceptState   = ACCEPT_BEGIN;
     ssl->options.handShakeState = NULL_STATE;
     ssl->options.processReply  = 0;  /* TODO, move states in internal.h */
+    ssl->options.gotChangeCipher = 0;
 
     ssl->secure_renegotiation->cache_status = SCR_CACHE_NEEDED;
 

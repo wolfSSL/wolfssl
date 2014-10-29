@@ -123,6 +123,7 @@ enum CyaSSL_ErrorCodes {
     SESSION_TICKET_EXPECT_E = -390,        /* Session Ticket missing   */
     SCR_DIFFERENT_CERT_E    = -391,        /* SCR Different cert error  */
     SESSION_SECRET_CB_E     = -392,        /* Session secret Cb fcn failure */
+    NO_CHANGE_CIPHER_E      = -393,        /* Finished before change cipher */
 
     /* add strings to SetErrorString !!!!! */
 

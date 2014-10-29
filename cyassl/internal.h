@@ -1788,6 +1788,7 @@ typedef struct Options {
     byte            quietShutdown;      /* don't send close notify */
     byte            certOnly;           /* stop once we get cert */
     byte            groupMessages;      /* group handshake messages */
+    byte            gotChangeCipher;    /* received change cipher from peer */
     byte            usingNonblock;      /* set when using nonblocking socket */
     byte            saveArrays;         /* save array Memory for user get keys
                                            or psk */
