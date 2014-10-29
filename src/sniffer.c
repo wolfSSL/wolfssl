@@ -2677,6 +2677,7 @@ doMessage:
             Trace(GOT_CHANGE_CIPHER_STR);
             ssl->options.handShakeState = HANDSHAKE_DONE;
             ssl->options.handShakeDone  = 1;
+            ssl->options.gotChangeCipher = 1;
             break;
         case application_data:
             Trace(GOT_APP_DATA_STR);
