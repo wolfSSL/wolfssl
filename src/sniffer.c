@@ -1002,8 +1002,6 @@ static int LoadKeyFile(byte** keyBuf, word32* keyBufSz,
         return -1;
     }
 
-    typeKey = (typeKey == FILETYPE_PEM) ? SSL_FILETYPE_PEM : SSL_FILETYPE_ASN1;
-
     file = XFOPEN(keyFile, "rb");
     if (file == XBADFILE) return -1;
     XFSEEK(file, 0, XSEEK_END);
@@ -1042,6 +1040,113 @@ static int LoadKeyFile(byte** keyBuf, word32* keyBufSz,
     return ret;
 }
 
+#endif
+
+
+static int SetNamedPrivateKey(const char* name, const char* address, int port,
+            const char* keyFile, int typeKey, const char* password, char* error)
+{
+    SnifferServer* sniffer;
+    int            ret;
+    int            type = (typeKey == FILETYPE_PEM) ? SSL_FILETYPE_PEM :
+                                                      SSL_FILETYPE_ASN1;
+    int            isNew = 0;
+    word32         serverIp;
+
+#ifdef HAVE_SNI
+    NamedKey* namedKey = NULL;
+#endif
+
+    (void)name;
+#ifdef HAVE_SNI
+    if (name != NULL) {
+        namedKey = (NamedKey*)malloc(sizeof(NamedKey));
+        if (namedKey == NULL) {
+            SetError(MEMORY_STR, error, NULL, 0);
+            return -1;
+        }
+        XMEMSET(namedKey, 0, sizeof(NamedKey));
+
+        namedKey->nameSz = (word32)strnlen(name, sizeof(namedKey->name));
+        strncpy(namedKey->name, name, sizeof(namedKey->name));
+
+        ret = LoadKeyFile(&namedKey->key, &namedKey->keySz,
+                          keyFile, type, password);
+        if (ret < 0) {
+            SetError(KEY_FILE_STR, error, NULL, 0);
+            FreeNamedKey(namedKey);
+            return -1;
+        }
+    }
+#endif
+
+    serverIp = inet_addr(address);
+    sniffer = ServerList;
+    while (sniffer != NULL &&
+           (sniffer->server != serverIp || sniffer->port != port)) {
+        sniffer = sniffer->next;
+    }
+
+    if (sniffer == NULL) {
+        isNew = 1;
+        sniffer = (SnifferServer*)malloc(sizeof(SnifferServer));
+        if (sniffer == NULL) {
+            SetError(MEMORY_STR, error, NULL, 0);
+#ifdef HAVE_SNI
+            FreeNamedKey(namedKey);
+#endif
+            return -1;
+        }
+        InitSnifferServer(sniffer);
+
+        XSTRNCPY(sniffer->address, address, MAX_SERVER_ADDRESS);
+        sniffer->server = serverIp;
+        sniffer->port = port;
+
+        sniffer->ctx = SSL_CTX_new(SSLv3_client_method());
+        if (!sniffer->ctx) {
+            SetError(MEMORY_STR, error, NULL, 0);
+#ifdef HAVE_SNI
+            FreeNamedKey(namedKey);
+#endif
+            FreeSnifferServer(sniffer);
+            return -1;
+        }
+    }
+
+    if (name == NULL) {
+        if (password) {
+            SSL_CTX_set_default_passwd_cb(sniffer->ctx, SetPassword);
+            SSL_CTX_set_default_passwd_cb_userdata(
+                                                 sniffer->ctx, (void*)password);
+        }
+        ret = SSL_CTX_use_PrivateKey_file(sniffer->ctx, keyFile, type);
+        if (ret != SSL_SUCCESS) {
+            SetError(KEY_FILE_STR, error, NULL, 0);
+            if (isNew)
+                FreeSnifferServer(sniffer);
+            return -1;
+        }
+    }
+#ifdef HAVE_SNI
+    else {
+        LockMutex(&sniffer->namedKeysMutex);
+        namedKey->next = sniffer->namedKeys;
+        sniffer->namedKeys = namedKey;
+        UnLockMutex(&sniffer->namedKeysMutex);
+    }
+#endif
+
+    if (isNew) {
+        sniffer->next = ServerList;
+        ServerList = sniffer;
+    }
+
+    return 0;
+}
+
+
+#ifdef HAVE_SNI
 
 /* Sets the private key for a specific name, server and port  */
 /* returns 0 on success, -1 on error */
@@ -1050,73 +1155,20 @@ int ssl_SetNamedPrivateKey(const char* name,
                            const char* keyFile, int typeKey,
                            const char* password, char* error)
 {
-    int            ret;
-    SnifferServer* sniffer;
-    NamedKey*      namedKey;
-    word32         serverIp;
+    int ret;
 
     TraceHeader();
     TraceSetNamedServer(name, address, port, keyFile);
 
-    /* Create the new Name-Key map item. */
-    namedKey = (NamedKey*)malloc(sizeof(NamedKey));
-    if (namedKey == NULL) {
-        SetError(MEMORY_STR, error, NULL, 0);
-        return -1;
-    }
-    XMEMSET(namedKey, 0, sizeof(NamedKey));
-
-    namedKey->nameSz = (word32)strnlen(name, sizeof(namedKey->name));
-    strncpy(namedKey->name, name, sizeof(namedKey->name));
-
-    ret = LoadKeyFile(&namedKey->key, &namedKey->keySz,
-                                                    keyFile, typeKey, password);
-
-    /* Find the server in the list. */
-    serverIp = inet_addr(address);
-
     LockMutex(&ServerListMutex);
-    sniffer = ServerList;
-    while (sniffer != NULL &&
-           (sniffer->server != serverIp || sniffer->port != port)) {
-        sniffer = sniffer->next;
-    }
+    ret = SetNamedPrivateKey(name, address, port, keyFile,
+                             typeKey, password, error);
     UnLockMutex(&ServerListMutex);
 
-    /* if sniffer doesn't exist, create it. */
-    if (sniffer == NULL) {
-        sniffer = (SnifferServer*)malloc(sizeof(SnifferServer));
-        if (sniffer == NULL) {
-            SetError(MEMORY_STR, error, NULL, 0);
-            return -1;
-        }
-        InitSnifferServer(sniffer);
+    if (ret == 0)
+        Trace(NEW_SERVER_STR);
 
-        XSTRNCPY(sniffer->address, address, MAX_SERVER_ADDRESS);
-        sniffer->server = inet_addr(sniffer->address);
-        sniffer->port = port;
-
-        sniffer->ctx = SSL_CTX_new(SSLv3_client_method());
-        if (!sniffer->ctx) {
-            SetError(MEMORY_STR, error, NULL, 0);
-            FreeSnifferServer(sniffer);
-            return -1;
-        }
-
-        LockMutex(&ServerListMutex);
-        sniffer->next = ServerList;
-        ServerList = sniffer;
-        UnLockMutex(&ServerListMutex);
-    }
-
-    LockMutex(&sniffer->namedKeysMutex);
-    namedKey->next = sniffer->namedKeys;
-    sniffer->namedKeys = namedKey;
-    UnLockMutex(&sniffer->namedKeysMutex);
-
-    Trace(NEW_SERVER_STR);
-
-    return 0;
+    return ret;
 }
 
 #endif
@@ -1124,56 +1176,23 @@ int ssl_SetNamedPrivateKey(const char* name,
 
 /* Sets the private key for a specific server and port  */
 /* returns 0 on success, -1 on error */
-int ssl_SetPrivateKey(const char* serverAddress, int port, const char* keyFile,
+int ssl_SetPrivateKey(const char* address, int port, const char* keyFile,
                       int typeKey, const char* password, char* error)
 {
-    int            ret;
-    int            type = (typeKey == FILETYPE_PEM) ? SSL_FILETYPE_PEM :
-                                                      SSL_FILETYPE_ASN1;
-    SnifferServer* sniffer;
-    
+    int ret;
+
     TraceHeader();
-    TraceSetServer(serverAddress, port, keyFile);
+    TraceSetServer(address, port, keyFile);
 
-    sniffer = (SnifferServer*)malloc(sizeof(SnifferServer));
-    if (sniffer == NULL) {
-        SetError(MEMORY_STR, error, NULL, 0);
-        return -1;
-    }
-    InitSnifferServer(sniffer);
-
-    XSTRNCPY(sniffer->address, serverAddress, MAX_SERVER_ADDRESS);
-    sniffer->server = inet_addr(sniffer->address);
-    sniffer->port = port;
-    
-    /* start in client mode since SSL_new needs a cert for server */
-    sniffer->ctx = SSL_CTX_new(SSLv3_client_method());
-    if (!sniffer->ctx) {
-        SetError(MEMORY_STR, error, NULL, 0);
-        FreeSnifferServer(sniffer);
-        return -1;
-    }
-
-    if (password){
-        SSL_CTX_set_default_passwd_cb(sniffer->ctx, SetPassword);
-        SSL_CTX_set_default_passwd_cb_userdata(sniffer->ctx, (void*)password);
-    }
-    ret = SSL_CTX_use_PrivateKey_file(sniffer->ctx, keyFile, type);
-    if (ret != SSL_SUCCESS) {
-        SetError(KEY_FILE_STR, error, NULL, 0);
-        FreeSnifferServer(sniffer);
-        return -1;
-    }
-    Trace(NEW_SERVER_STR);
-    
     LockMutex(&ServerListMutex);
-    
-    sniffer->next = ServerList;
-    ServerList = sniffer;
-    
+    ret = SetNamedPrivateKey(NULL, address, port, keyFile,
+                             typeKey, password, error);
     UnLockMutex(&ServerListMutex);
-    
-    return 0;
+
+    if (ret == 0)
+        Trace(NEW_SERVER_STR);
+
+    return ret;
 }
 
 
@@ -1540,11 +1559,11 @@ static int ProcessClientHello(const byte* input, int* sslBytes,
                              input - HANDSHAKE_HEADER_SZ - RECORD_HEADER_SZ,
                              *sslBytes + HANDSHAKE_HEADER_SZ + RECORD_HEADER_SZ,
                              CYASSL_SNI_HOST_NAME, name, &nameSz);
-        name[nameSz] = 0;
 
         if (ret == SSL_SUCCESS) {
             NamedKey* namedKey;
 
+            name[nameSz] = 0;
             LockMutex(&session->context->namedKeysMutex);
             namedKey = session->context->namedKeys;
             while (namedKey != NULL) {
