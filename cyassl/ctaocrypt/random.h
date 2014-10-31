@@ -122,7 +122,7 @@ CYASSL_API int  RNG_GenerateByte(RNG*, byte*);
     CYASSL_API int RNG_HealthTest(int reseed,
                                         const byte* entropyA, word32 entropyASz,
                                         const byte* entropyB, word32 entropyBSz,
-                                        const byte* output, word32 outputSz);
+                                        byte* output, word32 outputSz);
 #endif /* HAVE_HASHDRBG || NO_RC4 */
 
 
@@ -134,7 +134,7 @@ CYASSL_API int  RNG_GenerateByte(RNG*, byte*);
     CYASSL_API int RNG_HealthTest_fips(int reseed,
                                         const byte* entropyA, word32 entropyASz,
                                         const byte* entropyB, word32 entropyBSz,
-                                        const byte* output, word32 outputSz);
+                                        byte* output, word32 outputSz);
     #ifndef FIPS_NO_WRAPPERS
         /* if not impl or fips.c impl wrapper force fips calls if fips build */
         #define InitRng              InitRng_fips

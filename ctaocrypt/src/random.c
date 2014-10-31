@@ -456,10 +456,18 @@ int FreeRng(RNG* rng)
 
 int RNG_HealthTest(int reseed, const byte* entropyA, word32 entropyASz,
                                const byte* entropyB, word32 entropyBSz,
-                               const byte* output, word32 outputSz)
+                               byte* output, word32 outputSz)
 {
     DRBG drbg;
-    byte check[SHA256_DIGEST_SIZE * 4];
+
+    if (entropyA == NULL || output == NULL)
+        return BAD_FUNC_ARG;
+
+    if (reseed != 0 && entropyB == NULL)
+        return BAD_FUNC_ARG;
+
+    if (outputSz != (SHA256_DIGEST_SIZE * 4))
+        return -1;
 
     if (Hash_DRBG_Instantiate(&drbg, entropyA, entropyASz, NULL, 0) != 0)
         return -1;
@@ -471,17 +479,12 @@ int RNG_HealthTest(int reseed, const byte* entropyA, word32 entropyASz,
         }
     }
 
-    if (Hash_DRBG_Generate(&drbg, check, sizeof(check)) != 0) {
+    if (Hash_DRBG_Generate(&drbg, output, outputSz) != 0) {
         Hash_DRBG_Uninstantiate(&drbg);
         return -1;
     }
 
-    if (Hash_DRBG_Generate(&drbg, check, sizeof(check)) != 0) {
-        Hash_DRBG_Uninstantiate(&drbg);
-        return -1;
-    }
-
-    if (outputSz != sizeof(check) || XMEMCMP(output, check, sizeof(check))) {
+    if (Hash_DRBG_Generate(&drbg, output, outputSz) != 0) {
         Hash_DRBG_Uninstantiate(&drbg);
         return -1;
     }

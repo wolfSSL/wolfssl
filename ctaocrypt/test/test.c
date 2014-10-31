@@ -2884,16 +2884,26 @@ int random_test(void)
         0x82, 0xc9, 0x55, 0xa8, 0x19, 0x69, 0xe0, 0x69, 0xfa, 0x8c, 0xe0, 0x07,
         0xa1, 0x80, 0x18, 0x3a, 0x07, 0xdf, 0xae, 0x17
     };
+
+    byte output[SHA256_DIGEST_SIZE * 4];
     int ret;
 
     ret = RNG_HealthTest(0, test1Entropy, sizeof(test1Entropy), NULL, 0,
-                            test1Output, sizeof(test1Output));
-    if (ret != 0) return -39;
+                            output, sizeof(output));
+    if (ret != 0)
+        return -39;
+
+    if (XMEMCMP(test1Output, output, sizeof(output)) != 0)
+        return -40;
 
     ret = RNG_HealthTest(1, test2EntropyA, sizeof(test2EntropyA),
                             test2EntropyB, sizeof(test2EntropyB),
-                            test2Output, sizeof(test2Output));
-    if (ret != 0) return -40;
+                            output, sizeof(output));
+    if (ret != 0)
+        return -41;
+
+    if (XMEMCMP(test2Output, output, sizeof(output)) != 0)
+        return -42;
 
     return 0;
 }
