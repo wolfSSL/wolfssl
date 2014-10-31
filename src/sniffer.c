@@ -2038,6 +2038,8 @@ static SnifferSession* CreateSession(IpInfo* ipInfo, TcpInfo* tcpInfo,
 }
 
 
+#ifdef OLD_HELLO_ALLOWED
+
 /* Process Old Client Hello Input */
 static int DoOldHello(SnifferSession* session, const byte* sslFrame,
                       int* rhSize, int* sslBytes, char* error)
@@ -2073,6 +2075,8 @@ static int DoOldHello(SnifferSession* session, const byte* sslFrame,
     *sslBytes -= *rhSize;
     return 0;
 }
+
+#endif /* OLD_HELLO_ALLOWED */
 
 
 #if 0
@@ -2510,7 +2514,9 @@ static int CheckPreRecord(IpInfo* ipInfo, TcpInfo* tcpInfo,
         *sslFrame = ssl->buffers.inputBuffer.buffer;
         *end = *sslFrame + *sslBytes;
     }
-    
+
+#ifdef OLD_HELLO_ALLOWED
+
     if ((*session)->flags.clientHello == 0 && **sslFrame != handshake) {
         int rhSize;
         int ret = DoOldHello(*session, *sslFrame, &rhSize, sslBytes, error);
@@ -2519,6 +2525,8 @@ static int CheckPreRecord(IpInfo* ipInfo, TcpInfo* tcpInfo,
         if (*sslBytes <= 0)
             return 1;
     }
+
+#endif
     
     return 0;
 }

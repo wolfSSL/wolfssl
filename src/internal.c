@@ -6230,9 +6230,6 @@ int ProcessReply(CYASSL* ssl)
     int    ret = 0, type, readSz;
     int    atomicUser = 0;
     word32 startIdx = 0;
-#ifndef NO_CYASSL_SERVER
-    byte   b0, b1;
-#endif
 #ifdef CYASSL_DTLS
     int    used;
 #endif
@@ -6276,14 +6273,31 @@ int ProcessReply(CYASSL* ssl)
             #endif
             }
 
-#ifndef NO_CYASSL_SERVER
+#ifdef OLD_HELLO_ALLOWED
 
             /* see if sending SSLv2 client hello */
             if ( ssl->options.side == CYASSL_SERVER_END &&
                  ssl->options.clientState == NULL_STATE &&
                  ssl->buffers.inputBuffer.buffer[ssl->buffers.inputBuffer.idx]
                          != handshake) {
+                byte b0, b1;
+
                 ssl->options.processReply = runProcessOldClientHello;
+
+                /* sanity checks before getting size at front */
+                if (ssl->buffers.inputBuffer.buffer[
+                          ssl->buffers.inputBuffer.idx + 2] != OLD_HELLO_ID) {
+                    CYASSL_MSG("Not a valid old client hello");
+                    return PARSE_ERROR;
+                }
+
+                if (ssl->buffers.inputBuffer.buffer[
+                          ssl->buffers.inputBuffer.idx + 3] != SSLv3_MAJOR &&
+                    ssl->buffers.inputBuffer.buffer[
+                          ssl->buffers.inputBuffer.idx + 3] != DTLS_MAJOR) {
+                    CYASSL_MSG("Not a valid version in old client hello");
+                    return PARSE_ERROR;
+                }
 
                 /* how many bytes need ProcessOldClientHello */
                 b0 =
@@ -6329,7 +6343,7 @@ int ProcessReply(CYASSL* ssl)
                 return 0;
             }
 
-#endif  /* NO_CYASSL_SERVER */
+#endif  /* OLD_HELLO_ALLOWED */
 
         /* get the record layer header */
         case getRecordLayerHeader:
@@ -12252,6 +12266,8 @@ int DoSessionTicket(CYASSL* ssl,
     }
 
 
+#ifdef OLD_HELLO_ALLOWED
+
     /* process old style client hello, deprecate? */
     int ProcessOldClientHello(CYASSL* ssl, const byte* input, word32* inOutIdx,
                               word32 inSz, word16 sz)
@@ -12428,6 +12444,8 @@ int DoSessionTicket(CYASSL* ssl,
 
         return MatchSuite(ssl, &clSuites);
     }
+
+#endif /* OLD_HELLO_ALLOWED */
 
 
     static int DoClientHello(CYASSL* ssl, const byte* input, word32* inOutIdx,
