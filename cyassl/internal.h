@@ -1500,7 +1500,7 @@ enum MACAlgorithm {
     md5_mac,
     sha_mac,
     sha224_mac,
-    sha256_mac,
+    sha256_mac,     /* needs to match external KDF_MacAlgorithm */
     sha384_mac,
     sha512_mac,
     rmd_mac,

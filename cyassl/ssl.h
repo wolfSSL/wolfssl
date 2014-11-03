@@ -1098,6 +1098,14 @@ enum BulkCipherAlgorithm {
 };
 
 
+/* for KDF TLS 1.2 mac types */
+enum KDF_MacAlgorithm {
+    cyassl_sha256 = 4,     /* needs to match internal MACAlgorithm */
+    cyassl_sha384,
+    cyassl_sha512
+};
+
+
 /* Public Key Callback support */
 typedef int (*CallbackEccSign)(CYASSL* ssl, 
        const unsigned char* in, unsigned int inSz,
@@ -1341,6 +1349,20 @@ CYASSL_API int CyaSSL_set_SessionTicket_cb(CYASSL*,
 
 #define CYASSL_CRL_MONITOR   0x01   /* monitor this dir flag */
 #define CYASSL_CRL_START_MON 0x02   /* start monitoring flag */
+
+
+/* External facing KDF */
+CYASSL_API
+int CyaSSL_MakeTlsMasterSecret(unsigned char* ms, unsigned int msLen,
+                               const unsigned char* pms, unsigned int pmsLen,
+                               const unsigned char* cr, const unsigned char* sr,
+                               int tls1_2, int hash_type);
+
+CYASSL_API
+int CyaSSL_DeriveTlsKeys(unsigned char* key_data, unsigned int keyLen,
+                               const unsigned char* ms, unsigned int msLen,
+                               const unsigned char* sr, const unsigned char* cr,
+                               int tls1_2, int hash_type);
 
 #ifdef CYASSL_CALLBACKS
 

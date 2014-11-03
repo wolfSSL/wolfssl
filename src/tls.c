@@ -404,6 +404,22 @@ static const byte master_label[MASTER_LABEL_SZ + 1] = "master secret";
 static const byte key_label   [KEY_LABEL_SZ + 1]    = "key expansion";
 
 
+/* External facing wrapper so user can call as well, 0 on success */
+int CyaSSL_DeriveTlsKeys(byte* key_data, word32 keyLen,
+                         const byte* ms, word32 msLen,
+                         const byte* sr, const byte* cr,
+                         int tls1_2, int hash_type)
+{
+    byte  seed[SEED_LEN];
+
+    XMEMCPY(seed,           sr, RAN_LEN);
+    XMEMCPY(seed + RAN_LEN, cr, RAN_LEN);
+
+    return PRF(key_data, keyLen, ms, msLen, key_label, KEY_LABEL_SZ,
+               seed, SEED_LEN, tls1_2, hash_type);
+}
+
+
 int DeriveTlsKeys(CYASSL* ssl)
 {
     int   ret;
@@ -411,18 +427,12 @@ int DeriveTlsKeys(CYASSL* ssl)
                    2 * ssl->specs.key_size  +
                    2 * ssl->specs.iv_size;
 #ifdef CYASSL_SMALL_STACK
-    byte* seed;
     byte* key_data;
 #else
-    byte  seed[SEED_LEN];
     byte  key_data[MAX_PRF_DIG];
 #endif
 
 #ifdef CYASSL_SMALL_STACK
-    seed = (byte*)XMALLOC(SEED_LEN, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    if (seed == NULL)
-        return MEMORY_E;
-
     key_data = (byte*)XMALLOC(MAX_PRF_DIG, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (key_data == NULL) {
         XFREE(seed, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -430,18 +440,14 @@ int DeriveTlsKeys(CYASSL* ssl)
     }
 #endif
 
-    XMEMCPY(seed,           ssl->arrays->serverRandom, RAN_LEN);
-    XMEMCPY(seed + RAN_LEN, ssl->arrays->clientRandom, RAN_LEN);
-
-    ret = PRF(key_data, length, ssl->arrays->masterSecret, SECRET_LEN, 
-              key_label, KEY_LABEL_SZ, seed, SEED_LEN, IsAtLeastTLSv1_2(ssl),
-              ssl->specs.mac_algorithm);
-
+    ret = CyaSSL_DeriveTlsKeys(key_data, length,
+                           ssl->arrays->masterSecret, SECRET_LEN,
+                           ssl->arrays->serverRandom, ssl->arrays->clientRandom,
+                           IsAtLeastTLSv1_2(ssl), ssl->specs.mac_algorithm);
     if (ret == 0)
         ret = StoreKeys(ssl, key_data);
 
 #ifdef CYASSL_SMALL_STACK
-    XFREE(seed,     NULL, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(key_data, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
 
@@ -449,28 +455,30 @@ int DeriveTlsKeys(CYASSL* ssl)
 }
 
 
+/* External facing wrapper so user can call as well, 0 on success */
+int CyaSSL_MakeTlsMasterSecret(byte* ms, word32 msLen,
+                               const byte* pms, word32 pmsLen,
+                               const byte* cr, const byte* sr,
+                               int tls1_2, int hash_type)
+{
+    byte  seed[SEED_LEN];
+
+    XMEMCPY(seed,           cr, RAN_LEN);
+    XMEMCPY(seed + RAN_LEN, sr, RAN_LEN);
+
+    return PRF(ms, msLen, pms, pmsLen, master_label, MASTER_LABEL_SZ,
+               seed, SEED_LEN, tls1_2, hash_type);
+}
+
+
 int MakeTlsMasterSecret(CYASSL* ssl)
 {
     int   ret;
-#ifdef CYASSL_SMALL_STACK
-    byte* seed;
-#else
-    byte  seed[SEED_LEN];
-#endif
 
-#ifdef CYASSL_SMALL_STACK
-    seed = (byte*)XMALLOC(SEED_LEN, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    if (seed == NULL)
-        return MEMORY_E;
-#endif
-
-    XMEMCPY(seed,           ssl->arrays->clientRandom, RAN_LEN);
-    XMEMCPY(seed + RAN_LEN, ssl->arrays->serverRandom, RAN_LEN);
-
-    ret = PRF(ssl->arrays->masterSecret, SECRET_LEN,
+    ret = CyaSSL_MakeTlsMasterSecret(ssl->arrays->masterSecret, SECRET_LEN,
               ssl->arrays->preMasterSecret, ssl->arrays->preMasterSz,
-              master_label, MASTER_LABEL_SZ, 
-              seed, SEED_LEN, IsAtLeastTLSv1_2(ssl), ssl->specs.mac_algorithm);
+              ssl->arrays->clientRandom, ssl->arrays->serverRandom,
+              IsAtLeastTLSv1_2(ssl), ssl->specs.mac_algorithm);
 
     if (ret == 0) {
     #ifdef SHOW_SECRETS
@@ -484,10 +492,6 @@ int MakeTlsMasterSecret(CYASSL* ssl)
 
         ret = DeriveTlsKeys(ssl);
     }
-
-#ifdef CYASSL_SMALL_STACK
-    XFREE(seed, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
 
     return ret;
 }
