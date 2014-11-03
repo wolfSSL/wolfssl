@@ -1020,6 +1020,7 @@ enum {
     CYASSL_CHAIN_CA = 2           /* added to cache from trusted chain */
 };
 
+CYASSL_API int CyaSSL_SetMinVersion(CYASSL* ssl, int version);
 CYASSL_API int CyaSSL_GetObjectSize(void);  /* object size based on build */
 CYASSL_API int CyaSSL_SetVersion(CYASSL* ssl, int version);
 CYASSL_API int CyaSSL_KeyPemToDer(const unsigned char*, int sz, unsigned char*,

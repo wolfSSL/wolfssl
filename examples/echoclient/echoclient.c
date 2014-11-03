@@ -156,7 +156,6 @@ void echoclient_test(void* args)
     #endif
 
     ssl = SSL_new(ctx);
-        
 
     if (doDTLS) {
         SOCKADDR_IN_T addr;

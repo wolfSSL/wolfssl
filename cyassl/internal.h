@@ -1762,6 +1762,7 @@ typedef struct Options {
     byte            verifyNone;
     byte            failNoCert;
     byte            downgrade;          /* allow downgrade of versions */
+    byte            minDowngrade;       /* minimum downgrade version */
     byte            sendVerify;         /* false = 0, true = 1, sendBlank = 2 */
     byte            resuming;
     byte            haveSessionId;      /* server may not send */

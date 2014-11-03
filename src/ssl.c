@@ -1533,6 +1533,48 @@ int CyaSSL_set_group_messages(CYASSL* ssl)
 }
 
 
+/* Set minimum downgrade version allowed, SSL_SUCCESS on ok */
+int CyaSSL_SetMinVersion(CYASSL* ssl, int version)
+{
+    CYASSL_ENTER("CyaSSL_SetMinVersion");
+
+    if (ssl == NULL) {
+        CYASSL_MSG("Bad function argument");
+        return BAD_FUNC_ARG;
+    }
+
+    switch (version) {
+#ifndef NO_OLD_TLS
+        case CYASSL_SSLV3:
+            ssl->options.minDowngrade = SSLv3_MINOR;
+            break;
+#endif
+
+#ifndef NO_TLS
+    #ifndef NO_OLD_TLS
+        case CYASSL_TLSV1:
+            ssl->options.minDowngrade = TLSv1_MINOR;
+            break;
+
+        case CYASSL_TLSV1_1:
+            ssl->options.minDowngrade = TLSv1_1_MINOR;
+            break;
+    #endif
+        case CYASSL_TLSV1_2:
+            ssl->options.minDowngrade = TLSv1_2_MINOR;
+            break;
+#endif
+
+        default:
+            CYASSL_MSG("Bad function argument");
+            return BAD_FUNC_ARG;
+    }
+
+
+    return SSL_SUCCESS;
+}
+
+
 int CyaSSL_SetVersion(CYASSL* ssl, int version)
 {
     byte haveRSA = 1;

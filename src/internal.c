@@ -1610,7 +1610,8 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
     ssl->verifyCallback    = ctx->verifyCallback;
     ssl->verifyCbCtx       = NULL;
     ssl->options.side      = ctx->method->side;
-    ssl->options.downgrade = ctx->method->downgrade;
+    ssl->options.downgrade    = ctx->method->downgrade;
+    ssl->options.minDowngrade = TLSv1_MINOR;     /* current default */
     ssl->error = 0;
     ssl->options.connReset = 0;
     ssl->options.isClosed  = 0;
@@ -9228,6 +9229,10 @@ static void PickHashSigAlgo(CYASSL* ssl,
                 CYASSL_MSG("    no downgrade allowed, fatal error");
                 return VERSION_ERROR;
             }
+            if (pv.minor < ssl->options.minDowngrade) {
+                CYASSL_MSG("    version below minimum allowed, fatal error");
+                return VERSION_ERROR;
+            }
 
             #ifdef HAVE_SECURE_RENEGOTIATION
                 if (ssl->secure_renegotiation &&
@@ -12321,6 +12326,10 @@ int DoSessionTicket(CYASSL* ssl,
                 CYASSL_MSG("Client trying to connect with lesser version");
                 return VERSION_ERROR;
             }
+            if (pv.minor < ssl->options.minDowngrade) {
+                CYASSL_MSG("    version below minimum allowed, fatal error");
+                return VERSION_ERROR;
+            }
             if (pv.minor == SSLv3_MINOR) {
                 /* turn off tls */
                 CYASSL_MSG("    downgrading to SSLv3");
@@ -12477,6 +12486,10 @@ int DoSessionTicket(CYASSL* ssl,
 
             if (!ssl->options.downgrade) {
                 CYASSL_MSG("Client trying to connect with lesser version");
+                return VERSION_ERROR;
+            }
+            if (pv.minor < ssl->options.minDowngrade) {
+                CYASSL_MSG("    version below minimum allowed, fatal error");
                 return VERSION_ERROR;
             }
 
