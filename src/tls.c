@@ -435,7 +435,6 @@ int DeriveTlsKeys(CYASSL* ssl)
 #ifdef CYASSL_SMALL_STACK
     key_data = (byte*)XMALLOC(MAX_PRF_DIG, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (key_data == NULL) {
-        XFREE(seed, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         return MEMORY_E;
     }
 #endif
