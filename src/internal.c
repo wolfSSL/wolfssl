@@ -1939,6 +1939,9 @@ void SSL_ResourceFree(CYASSL* ssl)
 {
     FreeCiphers(ssl);
     FreeArrays(ssl, 0);
+#if defined(HAVE_HASHDRBG) || defined(NO_RC4)
+    FreeRng(ssl->rng);
+#endif
     XFREE(ssl->rng, ssl->heap, DYNAMIC_TYPE_RNG);
     XFREE(ssl->suites, ssl->heap, DYNAMIC_TYPE_SUITES);
     XFREE(ssl->buffers.domainName.buffer, ssl->heap, DYNAMIC_TYPE_DOMAIN);
@@ -2053,6 +2056,9 @@ void FreeHandshakeResources(CYASSL* ssl)
 
     /* RNG */
     if (ssl->specs.cipher_type == stream || ssl->options.tls1_1 == 0) {
+#if defined(HAVE_HASHDRBG) || defined(NO_RC4)
+        FreeRng(ssl->rng);
+#endif
         XFREE(ssl->rng, ssl->heap, DYNAMIC_TYPE_RNG);
         ssl->rng = NULL;
     }
