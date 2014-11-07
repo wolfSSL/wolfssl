@@ -181,6 +181,10 @@ CYASSL_API int  SetDatesBuffer(Cert*, const byte*, int);
     CYASSL_API int EccKeyToDer(ecc_key*, byte* output, word32 inLen);
 #endif
 
+/* DER encode signature */
+CYASSL_API word32 EncodeSignature(byte* out, const byte* digest, word32 digSz,
+                                  int hashOID);
+CYASSL_API int GetCTC_HashOID(int hashType);
 
 #ifdef __cplusplus
     } /* extern "C" */
