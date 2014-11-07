@@ -1937,6 +1937,12 @@ void FreeArrays(CYASSL* ssl, int keep)
 /* In case holding SSL object in array and don't want to free actual ssl */
 void SSL_ResourceFree(CYASSL* ssl)
 {
+    /* Note: any resources used during the handshake should be released in the
+     * function FreeHandshakeResources(). Be careful with the special cases
+     * like the RNG which may optionally be kept for the whole session. (For
+     * example with the RNG, it isn't used beyond the handshake except when
+     * using stream ciphers where it is retained. */
+
     FreeCiphers(ssl);
     FreeArrays(ssl, 0);
 #if defined(HAVE_HASHDRBG) || defined(NO_RC4)
