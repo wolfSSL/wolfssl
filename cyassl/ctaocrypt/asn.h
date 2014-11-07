@@ -499,9 +499,6 @@ CYASSL_TEST_API int  ParseCert(DecodedCert*, int type, int verify, void* cm);
 CYASSL_LOCAL int ParseCertRelative(DecodedCert*, int type, int verify,void* cm);
 CYASSL_LOCAL int DecodeToKey(DecodedCert*, int verify);
 
-CYASSL_LOCAL word32 EncodeSignature(byte* out, const byte* digest, word32 digSz,
-                                    int hashOID);
-
 CYASSL_LOCAL Signer* MakeSigner(void*);
 CYASSL_LOCAL void    FreeSigner(Signer*, void*);
 CYASSL_LOCAL void    FreeSignerTable(Signer**, int, void*);

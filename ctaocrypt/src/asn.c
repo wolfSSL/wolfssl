@@ -2894,6 +2894,39 @@ word32 EncodeSignature(byte* out, const byte* digest, word32 digSz, int hashOID)
 }
 
 
+int GetCTC_HashOID(int hashType)
+{
+    switch (hashType) {
+#ifdef CYASSL_MD2
+        case MD2:
+            return MD2h;
+#endif
+#ifndef NO_MD5
+        case MD5:
+            return MD5h;
+#endif
+#ifndef NO_SHA
+        case SHA:
+            return SHAh;
+#endif
+#ifndef NO_SHA256
+        case SHA256:
+            return SHA256h;
+#endif
+#ifdef CYASSL_SHA384
+        case SHA384:
+            return SHA384h;
+#endif
+#ifdef CYASSL_SHA512
+        case SHA512:
+            return SHA512h;
+#endif
+        default:
+            return 0;
+    };
+}
+
+
 /* return true (1) or false (0) for Confirmation */
 static int ConfirmSignature(const byte* buf, word32 bufSz,
     const byte* key, word32 keySz, word32 keyOID,
