@@ -85,11 +85,13 @@
 #define DRBG_ERROR        1
 #define DRBG_FAILURE      2
 #define DRBG_NEED_RESEED  3
+#define DRBG_CONT_FAILURE 4
 
 /* RNG health states */
 #define DRBG_NOT_INIT     0
 #define DRBG_OK           1
 #define DRBG_FAILED       2
+#define DRBG_CONT_FAILED  3
 
 
 enum {
@@ -233,7 +235,7 @@ static int Hash_gen(DRBG* drbg, byte* out, word32 outSz, const byte* V)
         checkBlock = *(word32*)drbg->digest;
         if (drbg->reseedCtr > 1 && checkBlock == drbg->lastBlock) {
             if (drbg->matchCount == 1) {
-                return DRBG_FAILURE;
+                return DRBG_CONT_FAILURE;
             }
             else {
                 if (i == len) {
@@ -292,26 +294,28 @@ static int Hash_DRBG_Generate(DRBG* drbg, byte* out, word32 outSz)
         byte type = drbgGenerateH;
         word32 reseedCtr = drbg->reseedCtr;
 
-        if (Hash_gen(drbg, out, outSz, drbg->V) != 0 ||
-            InitSha256(&drbg->sha) != 0 ||
-            Sha256Update(&drbg->sha, &type, sizeof(type)) != 0 ||
-            Sha256Update(&drbg->sha, drbg->V, sizeof(drbg->V)) != 0 ||
-            Sha256Final(&drbg->sha, drbg->digest) != 0) {
+        ret = Hash_gen(drbg, out, outSz, drbg->V);
+        if (ret == DRBG_SUCCESS) {
+            if (InitSha256(&drbg->sha) != 0 ||
+                Sha256Update(&drbg->sha, &type, sizeof(type)) != 0 ||
+                Sha256Update(&drbg->sha, drbg->V, sizeof(drbg->V)) != 0 ||
+                Sha256Final(&drbg->sha, drbg->digest) != 0) {
 
-            ret = DRBG_FAILURE;
-        }
-        else {
-            array_add(drbg->V, sizeof(drbg->V),
+                ret = DRBG_FAILURE;
+            }
+            else {
+                array_add(drbg->V, sizeof(drbg->V),
                                             drbg->digest, sizeof(drbg->digest));
-            array_add(drbg->V, sizeof(drbg->V), drbg->C, sizeof(drbg->C));
-            #ifdef LITTLE_ENDIAN_ORDER
-                reseedCtr = ByteReverseWord32(reseedCtr);
-            #endif
-            array_add(drbg->V, sizeof(drbg->V),
+                array_add(drbg->V, sizeof(drbg->V), drbg->C, sizeof(drbg->C));
+                #ifdef LITTLE_ENDIAN_ORDER
+                    reseedCtr = ByteReverseWord32(reseedCtr);
+                #endif
+                array_add(drbg->V, sizeof(drbg->V),
                                           (byte*)&reseedCtr, sizeof(reseedCtr));
-            ret = DRBG_SUCCESS;
+                ret = DRBG_SUCCESS;
+            }
+            drbg->reseedCtr++;
         }
-        drbg->reseedCtr++;
     }
 
     return ret;
@@ -370,10 +374,20 @@ int InitRng(RNG* rng)
          * size. */
         else if (GenerateSeed(&rng->seed, entropy, ENTROPY_NONCE_SZ) == 0 &&
                  Hash_DRBG_Instantiate(rng->drbg, entropy, ENTROPY_NONCE_SZ,
-                                                     NULL, 0) == DRBG_SUCCESS &&
-                 Hash_DRBG_Generate(rng->drbg, NULL, 0) == DRBG_SUCCESS) {
-            rng->status = DRBG_OK;
-            ret = 0;
+                                                     NULL, 0) == DRBG_SUCCESS) {
+            ret = Hash_DRBG_Generate(rng->drbg, NULL, 0);
+            if (ret == DRBG_SUCCESS) {
+                rng->status = DRBG_OK;
+                ret = 0;
+            }
+            else if (ret == DRBG_CONT_FAILURE) {
+                rng->status = DRBG_CONT_FAILED;
+                ret = DRBG_CONT_FIPS_E;
+            }
+            else {
+                rng->status = DRBG_FAILED;
+                ret = RNG_FAILURE_E;
+            }
         }
         else {
             rng->status = DRBG_FAILED;
@@ -406,12 +420,24 @@ int RNG_GenerateBlock(RNG* rng, byte* output, word32 sz)
         byte entropy[ENTROPY_SZ];
 
         if (GenerateSeed(&rng->seed, entropy, ENTROPY_SZ) == 0 &&
-                Hash_DRBG_Reseed(rng->drbg,
-                                         entropy, ENTROPY_SZ) == DRBG_SUCCESS &&
-                Hash_DRBG_Generate(rng->drbg, NULL, 0) == DRBG_SUCCESS &&
-                Hash_DRBG_Generate(rng->drbg, output, sz) == DRBG_SUCCESS) {
+            Hash_DRBG_Reseed(rng->drbg, entropy, ENTROPY_SZ) == DRBG_SUCCESS) {
 
-            ret = 0;
+            ret = Hash_DRBG_Generate(rng->drbg, NULL, 0);
+            if (ret == DRBG_SUCCESS) {
+                ret = Hash_DRBG_Generate(rng->drbg, output, sz);
+            }
+
+            if (ret == DRBG_SUCCESS) {
+                ret = 0;
+            }
+            else if (ret == DRBG_CONT_FAILURE) {
+                ret = DRBG_CONT_FIPS_E;
+                rng->status = DRBG_CONT_FAILED;
+            }
+            else {
+                ret = RNG_FAILURE_E;
+                rng->status = DRBG_FAILED;
+            }
         }
         else {
             ret = RNG_FAILURE_E;
@@ -419,6 +445,10 @@ int RNG_GenerateBlock(RNG* rng, byte* output, word32 sz)
         }
 
         XMEMSET(entropy, 0, ENTROPY_SZ);
+    }
+    else if (ret == DRBG_CONT_FAILURE) {
+        ret = DRBG_CONT_FIPS_E;
+        rng->status = DRBG_CONT_FAILED;
     }
     else {
         ret = RNG_FAILURE_E;
