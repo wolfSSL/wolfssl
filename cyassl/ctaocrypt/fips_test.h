@@ -31,7 +31,7 @@
 #endif
 
 /* Known Answer Test string inputs are hex, internal */
-CYASSL_LOCAL int DoKnownAnswerTests(char*);
+CYASSL_LOCAL int DoKnownAnswerTests(char*, int);
 
 
 /* FIPS failure callback */
