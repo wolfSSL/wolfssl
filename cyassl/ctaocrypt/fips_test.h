@@ -30,16 +30,19 @@
     extern "C" {
 #endif
 
-/* Known Answer Test string inputs are hex */
+/* Known Answer Test string inputs are hex, internal */
+CYASSL_LOCAL int DoKnownAnswerTests(char*, int);
 
-CYASSL_LOCAL int DoKnownAnswerTests(char*);
 
-
-/* Power on self test failure callback */
+/* FIPS failure callback */
 typedef void(*wolfCrypt_fips_cb)(int ok, int err, const char* hash);
 
 /* Public set function */
 CYASSL_API int wolfCrypt_SetCb_fips(wolfCrypt_fips_cb cbf);
+
+/* Public get status functions */
+CYASSL_API int wolfCrypt_GetStatus_fips(void);
+CYASSL_API const char* wolfCrypt_GetCoreHash_fips(void);
 
 
 #ifdef __cplusplus
