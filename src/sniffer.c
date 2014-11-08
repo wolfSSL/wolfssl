@@ -2536,7 +2536,7 @@ static int CheckPreRecord(IpInfo* ipInfo, TcpInfo* tcpInfo,
 
     if ((*session)->flags.clientHello == 0 && **sslFrame != handshake) {
         /* Sanity check the packet for an old style client hello. */
-        int rhSize = ((*sslFrame)[0] & 0x7f) | ((*sslFrame)[1]);
+        int rhSize = (((*sslFrame)[0] & 0x7f) << 8) | ((*sslFrame)[1]);
 
         if ((rhSize <= (*sslBytes - 2)) &&
             (*sslFrame)[2] == OLD_HELLO_ID && (*sslFrame)[3] == SSLv3_MAJOR) {
