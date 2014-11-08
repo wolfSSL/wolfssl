@@ -2894,9 +2894,9 @@ word32 EncodeSignature(byte* out, const byte* digest, word32 digSz, int hashOID)
 }
 
 
-int GetCTC_HashOID(int hashType)
+int GetCTC_HashOID(int type)
 {
-    switch (hashType) {
+    switch (type) {
 #ifdef CYASSL_MD2
         case MD2:
             return MD2h;
