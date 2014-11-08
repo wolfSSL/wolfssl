@@ -366,7 +366,6 @@ int InitRng(RNG* rng)
 
         rng->drbg = XMALLOC(sizeof(DRBG), NULL, DYNAMIC_TYPE_RNG);
         if (rng->drbg == NULL) {
-            rng->status = DRBG_FAILED;
             ret = MEMORY_E;
         }
         /* This doesn't use a separate nonce. The entropy input will be
@@ -375,26 +374,29 @@ int InitRng(RNG* rng)
         else if (GenerateSeed(&rng->seed, entropy, ENTROPY_NONCE_SZ) == 0 &&
                  Hash_DRBG_Instantiate(rng->drbg, entropy, ENTROPY_NONCE_SZ,
                                                      NULL, 0) == DRBG_SUCCESS) {
+
             ret = Hash_DRBG_Generate(rng->drbg, NULL, 0);
-            if (ret == DRBG_SUCCESS) {
-                rng->status = DRBG_OK;
-                ret = 0;
-            }
-            else if (ret == DRBG_CONT_FAILURE) {
-                rng->status = DRBG_CONT_FAILED;
-                ret = DRBG_CONT_FIPS_E;
-            }
-            else {
-                rng->status = DRBG_FAILED;
-                ret = RNG_FAILURE_E;
-            }
         }
-        else {
+        else
+            ret = DRBG_FAILURE;
+
+        XMEMSET(entropy, 0, ENTROPY_NONCE_SZ);
+
+        if (ret == DRBG_SUCCESS) {
+            rng->status = DRBG_OK;
+            ret = 0;
+        }
+        else if (ret == DRBG_CONT_FAILURE) {
+            rng->status = DRBG_CONT_FAILED;
+            ret = DRBG_CONT_FIPS_E;
+        }
+        else if (ret == DRBG_FAILURE) {
             rng->status = DRBG_FAILED;
             ret = RNG_FAILURE_E;
         }
-
-        XMEMSET(entropy, 0, ENTROPY_NONCE_SZ);
+        else {
+            rng->status = DRBG_FAILED;
+        }
     }
 
     return ret;
@@ -413,38 +415,25 @@ int RNG_GenerateBlock(RNG* rng, byte* output, word32 sz)
         return RNG_FAILURE_E;
 
     ret = Hash_DRBG_Generate(rng->drbg, output, sz);
-    if (ret == DRBG_SUCCESS) {
-        ret = 0;
-    }
-    else if (ret == DRBG_NEED_RESEED) {
+
+    if (ret == DRBG_NEED_RESEED) {
         byte entropy[ENTROPY_SZ];
 
         if (GenerateSeed(&rng->seed, entropy, ENTROPY_SZ) == 0 &&
             Hash_DRBG_Reseed(rng->drbg, entropy, ENTROPY_SZ) == DRBG_SUCCESS) {
 
             ret = Hash_DRBG_Generate(rng->drbg, NULL, 0);
-            if (ret == DRBG_SUCCESS) {
+            if (ret == DRBG_SUCCESS)
                 ret = Hash_DRBG_Generate(rng->drbg, output, sz);
-            }
-
-            if (ret == DRBG_SUCCESS) {
-                ret = 0;
-            }
-            else if (ret == DRBG_CONT_FAILURE) {
-                ret = DRBG_CONT_FIPS_E;
-                rng->status = DRBG_CONT_FAILED;
-            }
-            else {
-                ret = RNG_FAILURE_E;
-                rng->status = DRBG_FAILED;
-            }
         }
-        else {
-            ret = RNG_FAILURE_E;
-            rng->status = DRBG_FAILED;
-        }
+        else
+            ret = DRBG_FAILURE;
 
         XMEMSET(entropy, 0, ENTROPY_SZ);
+    }
+
+    if (ret == DRBG_SUCCESS) {
+        ret = 0;
     }
     else if (ret == DRBG_CONT_FAILURE) {
         ret = DRBG_CONT_FIPS_E;
