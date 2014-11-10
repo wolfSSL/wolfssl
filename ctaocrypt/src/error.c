@@ -307,6 +307,9 @@ const char* CTaoCryptGetErrorString(int error)
     case DRBG_CONT_FIPS_E:
         return "DRBG Continuous Test FIPS error";
 
+    case AESGCM_KAT_FIPS_E:
+        return "AESGCM Known Answer Test check FIPS error";
+
     default:
         return "unknown error number";
 
