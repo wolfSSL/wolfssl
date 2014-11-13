@@ -6,7 +6,7 @@
 #
 #
 
-AC_INIT([cyassl],[3.2.2],[https://github.com/cyassl/cyassl/issues],[cyassl],[http://www.wolfssl.com])
+AC_INIT([cyassl],[3.2.4],[https://github.com/cyassl/cyassl/issues],[cyassl],[http://www.wolfssl.com])
 
 AC_CONFIG_AUX_DIR([build-aux])
 
