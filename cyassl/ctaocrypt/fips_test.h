@@ -44,6 +44,11 @@ CYASSL_API int wolfCrypt_SetCb_fips(wolfCrypt_fips_cb cbf);
 CYASSL_API int wolfCrypt_GetStatus_fips(void);
 CYASSL_API const char* wolfCrypt_GetCoreHash_fips(void);
 
+#ifdef HAVE_FORCE_FIPS_FAILURE
+    /* Public function to force failure mode for operational testing */
+    CYASSL_API int wolfCrypt_SetStatus_fips(int);
+#endif
+
 
 #ifdef __cplusplus
     } /* extern "C" */
