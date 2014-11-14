@@ -279,8 +279,12 @@ static INLINE void array_add(byte* d, word32 dLen, const byte* s, word32 sLen)
             d[dIdx] = carry;
             carry >>= 8;
         }
-        if (dIdx > 0)
-            d[dIdx] += carry;
+
+        for (; carry != 0 && dIdx >= 0; dIdx--) {
+            carry += d[dIdx];
+            d[dIdx] = carry;
+            carry >>= 8;
+        }
     }
 }
 
