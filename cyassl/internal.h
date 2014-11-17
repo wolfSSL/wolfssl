@@ -1956,6 +1956,24 @@ typedef struct DtlsMsg {
 #endif
 
 
+/* Handshake messages recevied from peer (plus change cipher */
+typedef struct MsgsReceived {
+    word16 got_hello_request:1;
+    word16 got_client_hello:1;
+    word16 got_server_hello:1;
+    word16 got_hello_verify_request:1;
+    word16 got_session_ticket:1;
+    word16 got_certificate:1;
+    word16 got_server_key_exchange:1;
+    word16 got_certificate_request:1;
+    word16 got_server_hello_done:1;
+    word16 got_certificate_verify:1;
+    word16 got_client_key_exchange:1;
+    word16 got_finished:1;
+    word16 got_change_cipher:1;
+} MsgsReceived;
+
+
 /* CyaSSL ssl type */
 struct CYASSL {
     CYASSL_CTX*     ctx;
@@ -1970,6 +1988,7 @@ struct CYASSL {
 #endif
     CipherSpecs     specs;
     Keys            keys;
+    MsgsReceived    msgsReceived;       /* peer messages received */
     int             rfd;                /* read  file descriptor */
     int             wfd;                /* write file descriptor */
     int             rflags;             /* user read  flags */

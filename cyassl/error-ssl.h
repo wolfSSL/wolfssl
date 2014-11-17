@@ -124,6 +124,7 @@ enum CyaSSL_ErrorCodes {
     SCR_DIFFERENT_CERT_E    = -391,        /* SCR Different cert error  */
     SESSION_SECRET_CB_E     = -392,        /* Session secret Cb fcn failure */
     NO_CHANGE_CIPHER_E      = -393,        /* Finished before change cipher */
+    SANITY_MSG_E            = -394,        /* Sanity check on msg order error */
 
     /* add strings to SetErrorString !!!!! */
 

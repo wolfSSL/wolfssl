@@ -779,6 +779,8 @@ int CyaSSL_Rehandshake(CYASSL* ssl)
     ssl->options.processReply  = 0;  /* TODO, move states in internal.h */
     ssl->options.gotChangeCipher = 0;
 
+    XMEMSET(&ssl->msgsReceived, 0, sizeof(ssl->msgsReceived));
+
     ssl->secure_renegotiation->cache_status = SCR_CACHE_NEEDED;
 
 #ifndef NO_OLD_TLS
@@ -5313,6 +5315,8 @@ int CyaSSL_dtls_got_timeout(CYASSL* ssl)
             #ifdef CYASSL_DTLS
                 if (ssl->options.dtls) {
                     ssl->options.clientState = NULL_STATE;  /* get again */
+                    /* reset messages received */
+                    XMEMSET(&ssl->msgsReceived, 0, sizeof(ssl->msgsReceived));
                     /* re-init hashes, exclude first hello and verify request */
 #ifndef NO_OLD_TLS
                     InitMd5(&ssl->hashMd5);

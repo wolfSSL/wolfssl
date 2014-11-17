@@ -1580,29 +1580,8 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
     ssl->keys.dtls_state.nextSeq = 0;
 #endif
 
-#ifndef NO_OLD_TLS
-#ifndef NO_MD5
-    InitMd5(&ssl->hashMd5);
-#endif
-#ifndef NO_SHA
-    ret = InitSha(&ssl->hashSha);
-    if (ret != 0) {
-        return ret;
-    }
-#endif
-#endif
-#ifndef NO_SHA256
-    ret = InitSha256(&ssl->hashSha256);
-    if (ret != 0) {
-        return ret;
-    }
-#endif
-#ifdef CYASSL_SHA384
-    ret = InitSha384(&ssl->hashSha384);
-    if (ret != 0) {
-        return ret;
-    }
-#endif
+    XMEMSET(&ssl->msgsReceived, 0, sizeof(ssl->msgsReceived));
+
 #ifndef NO_RSA
     ssl->peerRsaKey = NULL;
     ssl->peerRsaKeyPresent = 0;
@@ -1799,6 +1778,30 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
 #endif /* HAVE_PK_CALLBACKS */
 
     /* all done with init, now can return errors, call other stuff */
+
+#ifndef NO_OLD_TLS
+#ifndef NO_MD5
+    InitMd5(&ssl->hashMd5);
+#endif
+#ifndef NO_SHA
+    ret = InitSha(&ssl->hashSha);
+    if (ret != 0) {
+        return ret;
+    }
+#endif
+#endif
+#ifndef NO_SHA256
+    ret = InitSha256(&ssl->hashSha256);
+    if (ret != 0) {
+        return ret;
+    }
+#endif
+#ifdef CYASSL_SHA384
+    ret = InitSha384(&ssl->hashSha384);
+    if (ret != 0) {
+        return ret;
+    }
+#endif
 
     /* increment CTX reference count */
     if (LockMutex(&ctx->countMutex) != 0) {
@@ -4686,6 +4689,129 @@ int DoFinished(CYASSL* ssl, const byte* input, word32* inOutIdx, word32 size,
 }
 
 
+/* Make sure no duplicates, no fast forward, or other problems; 0 on success */
+static int SanityCheckMsgReceived(CYASSL* ssl, byte type)
+{
+    /* verify not a duplicate, mark received, check state */
+    switch (type) {
+
+        case hello_request:
+            if (ssl->msgsReceived.got_hello_request) {
+                CYASSL_MSG("Duplicate HelloRequest received");
+                return -1;
+            }
+            ssl->msgsReceived.got_hello_request = 1;
+
+            break;
+
+        case client_hello:
+            if (ssl->msgsReceived.got_client_hello) {
+                CYASSL_MSG("Duplicate ClientHello received");
+                return -1;
+            }
+            ssl->msgsReceived.got_client_hello = 1;
+
+            break;
+
+        case server_hello:
+            if (ssl->msgsReceived.got_server_hello) {
+                CYASSL_MSG("Duplicate ServerHello received");
+                return -1;
+            }
+            ssl->msgsReceived.got_server_hello = 1;
+
+            break;
+
+        case hello_verify_request:
+            if (ssl->msgsReceived.got_hello_verify_request) {
+                CYASSL_MSG("Duplicate HelloVerifyRequest received");
+                return -1;
+            }
+            ssl->msgsReceived.got_hello_verify_request = 1;
+
+            break;
+
+        case session_ticket:
+            if (ssl->msgsReceived.got_session_ticket) {
+                CYASSL_MSG("Duplicate SessionTicket received");
+                return -1;
+            }
+            ssl->msgsReceived.got_session_ticket = 1;
+
+            break;
+
+        case certificate:
+            if (ssl->msgsReceived.got_certificate) {
+                CYASSL_MSG("Duplicate Certificate received");
+                return -1;
+            }
+            ssl->msgsReceived.got_certificate = 1;
+
+            break;
+
+        case server_key_exchange:
+            if (ssl->msgsReceived.got_server_key_exchange) {
+                CYASSL_MSG("Duplicate ServerKeyExchange received");
+                return -1;
+            }
+            ssl->msgsReceived.got_server_key_exchange = 1;
+
+            break;
+
+        case certificate_request:
+            if (ssl->msgsReceived.got_certificate_request) {
+                CYASSL_MSG("Duplicate CertificateRequest received");
+                return -1;
+            }
+            ssl->msgsReceived.got_certificate_request = 1;
+
+            break;
+
+        case server_hello_done:
+            if (ssl->msgsReceived.got_server_hello_done) {
+                CYASSL_MSG("Duplicate ServerHelloDone received");
+                return -1;
+            }
+            ssl->msgsReceived.got_server_hello_done = 1;
+
+            break;
+
+        case certificate_verify:
+            if (ssl->msgsReceived.got_certificate_verify) {
+                CYASSL_MSG("Duplicate CertificateVerify received");
+                return -1;
+            }
+            ssl->msgsReceived.got_certificate_verify = 1;
+
+            break;
+
+        case client_key_exchange:
+            if (ssl->msgsReceived.got_client_key_exchange) {
+                CYASSL_MSG("Duplicate ClientKeyExchange received");
+                return -1;
+            }
+            ssl->msgsReceived.got_client_key_exchange = 1;
+
+            break;
+
+        case finished:
+            if (ssl->msgsReceived.got_finished) {
+                CYASSL_MSG("Duplicate Finished received");
+                return -1;
+            }
+            ssl->msgsReceived.got_finished = 1;
+
+            break;
+
+        default:
+            CYASSL_MSG("Unknown message type");
+            return -1;
+    }
+
+    return 0;
+}
+
+
 static int DoHandShakeMsgType(CYASSL* ssl, byte* input, word32* inOutIdx,
                           byte type, word32 size, word32 totalSz)
 {
@@ -4697,6 +4823,12 @@ static int DoHandShakeMsgType(CYASSL* ssl, byte* input, word32* inOutIdx,
     /* make sure can read the message */
     if (*inOutIdx + size > totalSz)
         return INCOMPLETE_DATA;
+
+    /* sanity check msg received */
+    if (SanityCheckMsgReceived(ssl, type) != 0) {
+        CYASSL_MSG("Sanity Check on handshake message type received failed");
+        return SANITY_MSG_E;
+    }
 
     /* hello_request not hashed */
     if (type != hello_request) {
@@ -7897,6 +8029,9 @@ const char* CyaSSL_ERR_reason_error_string(unsigned long e)
 
     case NO_CHANGE_CIPHER_E:
         return "Finished received from peer before Change Cipher Error";
+
+    case SANITY_MSG_E:
+        return "Sanity Check on message order Error";
 
     default :
         return "unknown error number";
