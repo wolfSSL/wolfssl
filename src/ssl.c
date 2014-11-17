@@ -10892,16 +10892,17 @@ int CyaSSL_DH_generate_key(CYASSL_DH* dh)
                 CyaSSL_BN_free(dh->pub_key);
    
             dh->pub_key = CyaSSL_BN_new();
-            if (dh->pub_key == NULL)
+            if (dh->pub_key == NULL) {
                 CYASSL_MSG("Bad DH new pub");
-
+            }
             if (dh->priv_key)
                 CyaSSL_BN_free(dh->priv_key);
 
             dh->priv_key = CyaSSL_BN_new();
 
-            if (dh->priv_key == NULL)
+            if (dh->priv_key == NULL) {
                 CYASSL_MSG("Bad DH new priv");
+            }
 
             if (dh->pub_key && dh->priv_key) {
                if (CyaSSL_BN_bin2bn(pub, pubSz, dh->pub_key) == NULL)
