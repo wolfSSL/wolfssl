@@ -125,6 +125,7 @@ enum CyaSSL_ErrorCodes {
     SESSION_SECRET_CB_E     = -392,        /* Session secret Cb fcn failure */
     NO_CHANGE_CIPHER_E      = -393,        /* Finished before change cipher */
     SANITY_MSG_E            = -394,        /* Sanity check on msg order error */
+    DUPLICATE_MSG_E         = -395,        /* Duplicate message error */
 
     /* add strings to SetErrorString !!!!! */
 
