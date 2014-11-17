@@ -32,5 +32,5 @@ Included Files
 Examples Application
 --------------------
 
-A simple 'TCP echo server with SSL' example application is provided with TI-RTOS
+A simple 'TCP echo server with TLS' example application is provided with TI-RTOS
 product. Look in the TI-RTOS user guide for instructions to build examples.
