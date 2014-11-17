@@ -1665,7 +1665,6 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
     ssl->options.quietShutdown = ctx->quietShutdown;
     ssl->options.certOnly = 0;
     ssl->options.groupMessages = ctx->groupMessages;
-    ssl->options.gotChangeCipher = 0;
     ssl->options.usingNonblock = 0;
     ssl->options.saveArrays = 0;
 #ifdef HAVE_POLY1305
@@ -4618,11 +4617,6 @@ int DoFinished(CYASSL* ssl, const byte* input, word32* inOutIdx, word32 size,
     if (finishedSz != size)
         return BUFFER_ERROR;
 
-    if (ssl->options.gotChangeCipher == 0) {
-        CYASSL_MSG("Finished received from peer before change cipher");
-        return NO_CHANGE_CIPHER_E;
-    }
-
     /* check against totalSz */
     if (*inOutIdx + size + ssl->keys.padSz > totalSz)
         return BUFFER_E;
@@ -4800,6 +4794,20 @@ static int SanityCheckMsgReceived(CYASSL* ssl, byte type)
                 return -1;
             }
             ssl->msgsReceived.got_finished = 1;
+
+            if (ssl->msgsReceived.got_change_cipher == 0) {
+                CYASSL_MSG("Finished received before ChangeCipher");
+                return NO_CHANGE_CIPHER_E;
+            }
+
+            break;
+
+        case change_cipher_hs:
+            if (ssl->msgsReceived.got_change_cipher) {
+                CYASSL_MSG("Duplicate ChangeCipher received");
+                return -1;
+            }
+            ssl->msgsReceived.got_change_cipher = 1;
 
             break;
 
@@ -6622,7 +6630,6 @@ int ProcessReply(CYASSL* ssl)
                     break;
 
                 case change_cipher_spec:
-                    ssl->options.gotChangeCipher = 1;
                     CYASSL_MSG("got CHANGE CIPHER SPEC");
                     #ifdef CYASSL_CALLBACKS
                         if (ssl->hsInfoOn)
@@ -6636,6 +6643,10 @@ int ProcessReply(CYASSL* ssl)
                             AddLateRecordHeader(&ssl->curRL, &ssl->timeoutInfo);
                         }
                     #endif
+
+                    ret = SanityCheckMsgReceived(ssl, change_cipher_hs);
+                    if (ret != 0)
+                        return ret;
 
 #ifdef HAVE_SESSION_TICKET
                     if (ssl->options.side == CYASSL_CLIENT_END &&

@@ -1790,7 +1790,6 @@ typedef struct Options {
     byte            quietShutdown;      /* don't send close notify */
     byte            certOnly;           /* stop once we get cert */
     byte            groupMessages;      /* group handshake messages */
-    byte            gotChangeCipher;    /* received change cipher from peer */
     byte            usingNonblock;      /* set when using nonblocking socket */
     byte            saveArrays;         /* save array Memory for user get keys
                                            or psk */
@@ -2222,7 +2221,10 @@ enum HandShakeType {
     server_hello_done   = 14,
     certificate_verify  = 15, 
     client_key_exchange = 16,
-    finished            = 20
+    finished            = 20,
+    change_cipher_hs    = 55      /* simulate unique handshake type for sanity
+                                     checks.  record layer change_cipher
+                                     conflicts with handshake finished */
 };
 
 
