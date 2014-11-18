@@ -131,7 +131,7 @@ enum CyaSSL_ErrorCodes {
 
     /* begin negotiation parameter errors */
     UNSUPPORTED_SUITE       = -500,        /* unsupported cipher suite */
-    MATCH_SUITE_ERROR       = -501,        /* can't match cipher suite */
+    MATCH_SUITE_ERROR       = -501         /* can't match cipher suite */
     /* end negotiation parameter errors only 10 for now */
     /* add strings to SetErrorString !!!!! */
 
