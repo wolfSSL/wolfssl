@@ -33,6 +33,7 @@ cyassl-config
 cyassl.sublime*
 fips.c
 fips_test.c
+fips
 ctaocrypt/benchmark/benchmark
 ctaocrypt/test/testctaocrypt
 examples/client/client
