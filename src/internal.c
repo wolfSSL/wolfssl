@@ -4759,6 +4759,14 @@ static int SanityCheckMsgReceived(CYASSL* ssl, byte type)
                 }
             }
 #endif
+#ifndef NO_CYASSL_SERVER
+            if (ssl->options.side == CYASSL_SERVER_END) {
+                if ( ssl->msgsReceived.got_client_hello == 0) {
+                    CYASSL_MSG("No ClientHello before Cert");
+                    return OUT_OF_ORDER_E;
+                }
+            }
+#endif
             break;
 
 #ifndef NO_CYASSL_CLIENT
@@ -4825,6 +4833,10 @@ static int SanityCheckMsgReceived(CYASSL* ssl, byte type)
             }
             ssl->msgsReceived.got_certificate_verify = 1;
 
+            if ( ssl->msgsReceived.got_certificate == 0) {
+                CYASSL_MSG("No Cert before CertVerify");
+                return OUT_OF_ORDER_E;
+            }
             break;
 #endif
 
@@ -4836,6 +4848,10 @@ static int SanityCheckMsgReceived(CYASSL* ssl, byte type)
             }
             ssl->msgsReceived.got_client_key_exchange = 1;
 
+            if (ssl->msgsReceived.got_client_hello == 0) {
+                CYASSL_MSG("No ClientHello before ClientKeyExchange");
+                return OUT_OF_ORDER_E;
+            }
             break;
 #endif
 
@@ -4864,7 +4880,16 @@ static int SanityCheckMsgReceived(CYASSL* ssl, byte type)
             if (ssl->options.side == CYASSL_CLIENT_END) {
                 if (!ssl->options.resuming &&
                                  ssl->msgsReceived.got_server_hello_done == 0) {
-                    CYASSL_MSG("No ServerHelloDone before ChangeCipher ");
+                    CYASSL_MSG("No ServerHelloDone before ChangeCipher");
+                    return OUT_OF_ORDER_E;
+                }
+            }
+#endif
+#ifndef NO_CYASSL_SERVER
+            if (ssl->options.side == CYASSL_SERVER_END) {
+                if (!ssl->options.resuming &&
+                               ssl->msgsReceived.got_client_key_exchange == 0) {
+                    CYASSL_MSG("No ClientKeyExchange before ChangeCipher");
                     return OUT_OF_ORDER_E;
                 }
             }
