@@ -45,7 +45,9 @@ make
 [ $? -ne 0 ] && echo -e "\n\nMake failed. Debris left for analysis." && exit 1
 
 NEWHASH=`./ctaocrypt/test/testctaocrypt | sed -n 's/hash = \(.*\)/\1/p'`
-sed -i.bak "s/^\".*\";/\"${NEWHASH}\";/" $WC_SRC_PATH/fips_test.c
+if [ -n "$NEWHASH" ]; then
+    sed -i.bak "s/^\".*\";/\"${NEWHASH}\";/" $WC_SRC_PATH/fips_test.c
+fi
 
 make test
 [ $? -ne 0 ] && echo -e "\n\nTest failed. Debris left for analysis." && exit 1
