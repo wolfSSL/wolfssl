@@ -217,6 +217,7 @@
    #ifndef NO_64BIT
       typedef unsigned int       fp_digit;
       typedef ulong64            fp_word;
+      #define FP_32BIT
    #else
       /* some procs like coldfire prefer not to place multiply into 64bit type
          even though it exists */

@@ -1611,7 +1611,7 @@ void fp_read_unsigned_bin(fp_int *a, unsigned char *b, int c)
 
   /* If we know the endianness of this architecture, and we're using
      32-bit fp_digits, we can optimize this */
-#if (defined(LITTLE_ENDIAN_ORDER) || defined(BIG_ENDIAN_ORDER)) && !defined(FP_64BIT)
+#if (defined(LITTLE_ENDIAN_ORDER) || defined(BIG_ENDIAN_ORDER)) && defined(FP_32BIT)
   /* But not for both simultaneously */
 #if defined(LITTLE_ENDIAN_ORDER) && defined(BIG_ENDIAN_ORDER)
 #error Both LITTLE_ENDIAN_ORDER and BIG_ENDIAN_ORDER defined.
