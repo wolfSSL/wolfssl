@@ -47,6 +47,7 @@ make
 NEWHASH=`./ctaocrypt/test/testctaocrypt | sed -n 's/hash = \(.*\)/\1/p'`
 if [ -n "$NEWHASH" ]; then
     sed -i.bak "s/^\".*\";/\"${NEWHASH}\";/" $WC_SRC_PATH/fips_test.c
+    make clean
 fi
 
 make test
