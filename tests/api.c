@@ -351,7 +351,7 @@ static THREAD_RETURN CYASSL_THREAD test_server_nofail(void* args)
     }
     
     ssl = CyaSSL_new(ctx);
-    tcp_accept(&sockfd, &clientfd, (func_args*)args, port, 0, 0);
+    tcp_accept(&sockfd, &clientfd, (func_args*)args, port, 0, 0, 0);
     CloseSocket(sockfd);
 
     CyaSSL_set_fd(ssl, clientfd);
@@ -551,7 +551,7 @@ static THREAD_RETURN CYASSL_THREAD run_cyassl_server(void* args)
 
     ssl = CyaSSL_new(ctx);
 
-    tcp_accept(&sfd, &cfd, (func_args*)args, port, 0, 0);
+    tcp_accept(&sfd, &cfd, (func_args*)args, port, 0, 0, 0);
     CloseSocket(sfd);
 
     CyaSSL_set_fd(ssl, cfd);

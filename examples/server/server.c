@@ -131,6 +131,7 @@ static void Usage(void)
     printf("-u          Use UDP DTLS,"
            " add -v 2 for DTLSv1 (default), -v 3 for DTLSv1.2\n");
     printf("-f          Fewer packets/group messages\n");
+    printf("-r          Create server ready file, for external monitor\n");
     printf("-N          Use Non-blocking sockets\n");
     printf("-S <str>    Use Host Name Indication\n");
 #ifdef HAVE_OCSP
@@ -166,6 +167,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     int    trackMemory  = 0;
     int    fewerPackets = 0;
     int    pkCallbacks  = 0;
+    int    serverReadyFile = 0;
     char*  cipherList = NULL;
     const char* verifyCert = cliCert;
     const char* ourCert    = svrCert;
@@ -196,7 +198,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     fdOpenSession(Task_self());
 #endif
 
-    while ((ch = mygetopt(argc, argv, "?dbstnNufPp:v:l:A:c:k:S:oO:")) != -1) {
+    while ((ch = mygetopt(argc, argv, "?dbstnNufrPp:v:l:A:c:k:S:oO:")) != -1) {
         switch (ch) {
             case '?' :
                 Usage();
@@ -230,6 +232,10 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 
             case 'f' :
                 fewerPackets = 1;
+                break;
+
+            case 'r' :
+                serverReadyFile = 1;
                 break;
 
             case 'P' :
@@ -482,7 +488,8 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
         SetupPkCallbacks(ctx, ssl);
 #endif
 
-    tcp_accept(&sockfd, &clientfd, (func_args*)args, port, useAnyAddr, doDTLS);
+    tcp_accept(&sockfd, &clientfd, (func_args*)args, port, useAnyAddr, doDTLS,
+               serverReadyFile);
     if (!doDTLS) 
         CloseSocket(sockfd);
 

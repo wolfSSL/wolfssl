@@ -40,6 +40,7 @@ examples/client/client
 examples/echoclient/echoclient
 examples/echoserver/echoserver
 examples/server/server
+server_ready
 snifftest
 output
 mcapi/test

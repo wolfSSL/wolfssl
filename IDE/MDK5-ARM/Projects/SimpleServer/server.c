@@ -475,7 +475,8 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
         SetupPkCallbacks(ctx, ssl);
 #endif
 
-    tcp_accept(&sockfd, &clientfd, (func_args*)args, port, useAnyAddr, doDTLS);
+    tcp_accept(&sockfd, &clientfd, (func_args*)args, port, useAnyAddr, doDTLS,
+               0);
     if (!doDTLS) 
         CloseSocket(sockfd);
 

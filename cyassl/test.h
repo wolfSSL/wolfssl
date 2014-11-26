@@ -698,7 +698,7 @@ static INLINE void udp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
 
 static INLINE void tcp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
                               func_args* args, word16 port, int useAnyAddr,
-                              int udp)
+                              int udp, int ready_file)
 {
     SOCKADDR_IN_T client;
     socklen_t client_len = sizeof(client);
@@ -726,6 +726,17 @@ static INLINE void tcp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
     ready->ready = 1;
     ready->port = port;
 #endif
+
+    if (ready_file) {
+#ifndef NO_FILESYSTEM
+        FILE* srf = fopen("./server_ready", "w+");
+
+        if (srf) {
+            fputs("ready", srf);
+            fclose(srf);
+        }
+#endif
+    }
 
     *clientfd = accept(*sockfd, (struct sockaddr*)&client,
                       (ACCEPT_THIRD_T)&client_len);
