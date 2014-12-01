@@ -7166,6 +7166,9 @@ static int BuildMessage(CYASSL* ssl, byte* output, int outSz,
             ivSz = blockSz;
             sz  += ivSz;
 
+            if (ivSz > (word32)sizeof(iv))
+                return BUFFER_E;
+
             ret = RNG_GenerateBlock(ssl->rng, iv, ivSz);
             if (ret != 0)
                 return ret;
