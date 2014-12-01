@@ -5777,16 +5777,16 @@ int AddSession(CYASSL* ssl)
                                 &error) % SESSION_ROWS;
         if (error != 0) {
             CYASSL_MSG("Hash session failed");
-            return error;
+        } else {
+            clientIdx = ClientCache[clientRow].nextIdx++;
+
+            ClientCache[clientRow].Clients[clientIdx].serverRow = (word16)row;
+            ClientCache[clientRow].Clients[clientIdx].serverIdx = (word16)idx;
+
+            ClientCache[clientRow].totalCount++;
+            if (ClientCache[clientRow].nextIdx == SESSIONS_PER_ROW)
+                ClientCache[clientRow].nextIdx = 0;
         }
-        clientIdx = ClientCache[clientRow].nextIdx++;
-
-        ClientCache[clientRow].Clients[clientIdx].serverRow = (word16)row;
-        ClientCache[clientRow].Clients[clientIdx].serverIdx = (word16)idx;
-
-        ClientCache[clientRow].totalCount++;
-        if (ClientCache[clientRow].nextIdx == SESSIONS_PER_ROW)
-            ClientCache[clientRow].nextIdx = 0;
     }
     else
         SessionCache[row].Sessions[idx].idLen = 0;
@@ -5795,7 +5795,7 @@ int AddSession(CYASSL* ssl)
     if (UnLockMutex(&session_mutex) != 0)
         return BAD_MUTEX_E;
 
-    return 0;
+    return error;
 }
 
 
