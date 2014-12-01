@@ -12980,6 +12980,9 @@ int DoSessionTicket(CYASSL* ssl,
                         XMEMCPY(clSuites.hashSigAlgo, &input[i],
                             min(clSuites.hashSigAlgoSz, HELLO_EXT_SIGALGO_MAX));
                         i += clSuites.hashSigAlgoSz;
+
+                        if (clSuites.hashSigAlgoSz > HELLO_EXT_SIGALGO_MAX)
+                            clSuites.hashSigAlgoSz = HELLO_EXT_SIGALGO_MAX;
                     }
                     else
                         i += extSz;
