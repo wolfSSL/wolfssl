@@ -9019,7 +9019,7 @@ int SetCipherList(Suites* suites, const char* list)
                                          : (word32)(next - current));
 
         XSTRNCPY(name, current, length);
-        name[length] = 0;
+        name[(length == sizeof(name)) ? length - 1 : length] = 0;
 
         for (i = 0; i < suiteSz; i++) {
             if (XSTRNCMP(name, cipher_names[i], sizeof(name)) == 0) {
