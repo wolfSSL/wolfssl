@@ -715,6 +715,11 @@ enum { /* ssl Constants */
 #endif /* NO_PSK */
 
 
+#ifdef HAVE_ANON
+    CYASSL_API int CyaSSL_CTX_allow_anon_cipher(CYASSL_CTX*);
+#endif /* HAVE_ANON */
+
+
 /* extra begins */
 
 enum {  /* ERR Constants */

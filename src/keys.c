@@ -1732,6 +1732,24 @@ int SetCipherSpecs(CYASSL* ssl)
         break;
 #endif
 
+#ifdef BUILD_TLS_DH_anon_WITH_AES_128_CBC_SHA
+    case TLS_DH_anon_WITH_AES_128_CBC_SHA :
+        ssl->specs.bulk_cipher_algorithm = cyassl_aes;
+        ssl->specs.cipher_type           = block;
+        ssl->specs.mac_algorithm         = sha_mac;
+        ssl->specs.kea                   = diffie_hellman_kea;
+        ssl->specs.sig_algo              = anonymous_sa_algo;
+        ssl->specs.hash_size             = SHA_DIGEST_SIZE;
+        ssl->specs.pad_size              = PAD_SHA;
+        ssl->specs.static_ecdh           = 0;
+        ssl->specs.key_size              = AES_128_KEY_SIZE;
+        ssl->specs.block_size            = AES_BLOCK_SIZE;
+        ssl->specs.iv_size               = AES_IV_SIZE;
+
+        ssl->options.usingAnon_cipher    = 1;
+        break;
+#endif
+
     default:
         CYASSL_MSG("Unsupported cipher suite, SetCipherSpecs");
         return UNSUPPORTED_SUITE;

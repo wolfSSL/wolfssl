@@ -368,6 +368,9 @@ int InitSSL_Ctx(CYASSL_CTX* ctx, CYASSL_METHOD* method)
     ctx->client_psk_cb      = 0;
     ctx->server_psk_cb      = 0;
 #endif /* NO_PSK */
+#ifdef HAVE_ANON
+    ctx->haveAnon           = 0;
+#endif /* HAVE_ANON */
 #ifdef HAVE_ECC
     ctx->eccTempKeySz       = ECDHE_SIZE;
 #endif
@@ -626,7 +629,7 @@ void InitCipherSpecs(CipherSpecs* cs)
 }
 
 static void InitSuitesHashSigAlgo(Suites* suites, int haveECDSAsig,
-                                                                 int haveRSAsig)
+                                                  int haveRSAsig, int haveAnon)
 {
     int idx = 0;
 
@@ -657,6 +660,13 @@ static void InitSuitesHashSigAlgo(Suites* suites, int haveECDSAsig,
         #ifndef NO_SHA
             suites->hashSigAlgo[idx++] = sha_mac;
             suites->hashSigAlgo[idx++] = rsa_sa_algo;
+        #endif
+    }
+
+    if (haveAnon) {
+        #ifdef HAVE_ANON
+            suites->hashSigAlgo[idx++] = sha_mac;
+            suites->hashSigAlgo[idx++] = anonymous_sa_algo;
         #endif
     }
 
@@ -1378,7 +1388,7 @@ void InitSuites(Suites* suites, ProtocolVersion pv, byte haveRSA, byte havePSK,
 
     suites->suiteSz = idx;
 
-    InitSuitesHashSigAlgo(suites, haveECDSAsig, haveRSAsig);
+    InitSuitesHashSigAlgo(suites, haveECDSAsig, haveRSAsig, 0);
 }
 
 
@@ -1486,6 +1496,7 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
     int  ret;
     byte haveRSA = 0;
     byte havePSK = 0;
+    byte haveAnon = 0;
 
     ssl->ctx     = ctx; /* only for passing to calls, options could change */
     ssl->version = ctx->method->version;
@@ -1607,6 +1618,7 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
     ssl->options.havePeerCert    = 0;
     ssl->options.havePeerVerify  = 0;
     ssl->options.usingPSK_cipher = 0;
+    ssl->options.usingAnon_cipher = 0;
     ssl->options.sendAlertState = 0;
 #ifndef NO_PSK
     havePSK = ctx->havePSK;
@@ -1614,6 +1626,10 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
     ssl->options.client_psk_cb = ctx->client_psk_cb;
     ssl->options.server_psk_cb = ctx->server_psk_cb;
 #endif /* NO_PSK */
+#ifdef HAVE_ANON
+    haveAnon = ctx->haveAnon;
+    ssl->options.haveAnon = ctx->haveAnon;
+#endif
 
     ssl->options.serverState = NULL_STATE;
     ssl->options.clientState = NULL_STATE;
@@ -1866,8 +1882,8 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
     if (ret != 0) return ret;
 #endif
 #ifndef NO_CERTS
-    /* make sure server has cert and key unless using PSK */
-    if (ssl->options.side == CYASSL_SERVER_END && !havePSK)
+    /* make sure server has cert and key unless using PSK or Anon */
+    if (ssl->options.side == CYASSL_SERVER_END && !havePSK && !haveAnon)
         if (!ssl->buffers.certificate.buffer || !ssl->buffers.key.buffer) {
             CYASSL_MSG("Server missing certificate and/or private key");
             return NO_PRIVATE_KEY;
@@ -3785,6 +3801,12 @@ static int BuildFinished(CYASSL* ssl, Hashes* hashes, const byte* sender)
                 return 1;
             break;
 #endif
+#ifdef HAVE_ANON
+        case TLS_DH_anon_WITH_AES_128_CBC_SHA :
+            if (requirement == REQUIRES_DHE)
+                return 1;
+            break;
+#endif
 
         default:
             CYASSL_MSG("Unsupported cipher suite, CipherRequires");
@@ -4811,7 +4833,8 @@ static int SanityCheckMsgReceived(CYASSL* ssl, byte type)
             ssl->msgsReceived.got_server_hello_done = 1;
 
             if (ssl->msgsReceived.got_certificate == 0) {
-                if (ssl->specs.kea == psk_kea) {
+                if (ssl->specs.kea == psk_kea ||
+                    ssl->options.usingAnon_cipher) {
                     CYASSL_MSG("No Cert required");
                 } else {
                     CYASSL_MSG("No Certificate before ServerHelloDone");
@@ -7377,7 +7400,8 @@ int SendCertificate(CYASSL* ssl)
     word32 certSz, listSz;
     byte*  output = 0;
 
-    if (ssl->options.usingPSK_cipher) return 0;  /* not needed */
+    if (ssl->options.usingPSK_cipher || ssl->options.usingAnon_cipher)
+        return 0;  /* not needed */
 
     if (ssl->options.sendVerify == SEND_BLANK_CERT) {
         certSz = 0;
@@ -7495,7 +7519,8 @@ int SendCertificateRequest(CYASSL* ssl)
     if (IsAtLeastTLSv1_2(ssl))
         reqSz += LENGTH_SZ + ssl->suites->hashSigAlgoSz;
 
-    if (ssl->options.usingPSK_cipher) return 0;  /* not needed */
+    if (ssl->options.usingPSK_cipher || ssl->options.usingAnon_cipher)
+        return 0;  /* not needed */
 
     sendSz = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ + reqSz;
 
@@ -8535,6 +8560,10 @@ static const char* const cipher_names[] =
     "DHE-RSA-CHACHA20-POLY1305",
 #endif
 
+#ifdef BUILD_TLS_DH_anon_WITH_AES_128_CBC_SHA
+    "ADH-AES128-SHA",
+#endif
+
 #ifdef HAVE_RENEGOTIATION_INDICATION
     "RENEGOTIATION-INFO",
 #endif
@@ -8925,6 +8954,10 @@ static int cipher_name_idx[] =
     TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256,
 #endif
 
+#ifdef BUILD_TLS_DH_anon_WITH_AES_128_CBC_SHA
+    TLS_DH_anon_WITH_AES_128_CBC_SHA,
+#endif
+
 #ifdef HAVE_RENEGOTIATION_INDICATION
     TLS_EMPTY_RENEGOTIATION_INFO_SCSV,
 #endif
@@ -8960,6 +8993,7 @@ int SetCipherList(Suites* suites, const char* list)
     int       idx          = 0;
     int       haveRSAsig   = 0;
     int       haveECDSAsig = 0;
+    int       haveAnon     = 0;
     const int suiteSz      = GetCipherNamesSize();
     char*     next         = (char*)list;
 
@@ -8993,10 +9027,12 @@ int SetCipherList(Suites* suites, const char* list)
 
                 suites->suites[idx++] = (byte)cipher_name_idx[i];
 
-                /* The suites are either ECDSA, RSA, or PSK. The RSA suites
-                 * don't necessarily have RSA in the name. */
+                /* The suites are either ECDSA, RSA, PSK, or Anon. The RSA
+                 * suites don't necessarily have RSA in the name. */
                 if ((haveECDSAsig == 0) && XSTRSTR(name, "ECDSA"))
                     haveECDSAsig = 1;
+                else if (XSTRSTR(name, "ADH"))
+                    haveAnon = 1;
                 else if ((haveRSAsig == 0) && (XSTRSTR(name, "PSK") == NULL))
                     haveRSAsig = 1;
 
@@ -9010,7 +9046,7 @@ int SetCipherList(Suites* suites, const char* list)
     if (ret) {
         suites->setSuites = 1;
         suites->suiteSz   = (word16)idx;
-        InitSuitesHashSigAlgo(suites, haveECDSAsig, haveRSAsig);
+        InitSuitesHashSigAlgo(suites, haveECDSAsig, haveRSAsig, haveAnon);
     }
 
     return ret;
@@ -9993,8 +10029,9 @@ static void PickHashSigAlgo(CYASSL* ssl,
     #endif /* !NO_DH || !NO_PSK */
 
     #if !defined(NO_DH) || defined(HAVE_ECC)
-    if (ssl->specs.kea == ecc_diffie_hellman_kea ||
-        ssl->specs.kea == diffie_hellman_kea)
+    if (!ssl->options.usingAnon_cipher &&
+        (ssl->specs.kea == ecc_diffie_hellman_kea ||
+         ssl->specs.kea == diffie_hellman_kea))
     {
 #ifndef NO_OLD_TLS
 #ifdef CYASSL_SMALL_STACK
@@ -12062,18 +12099,19 @@ int DoSessionTicket(CYASSL* ssl,
                                         &ssl->buffers.serverDH_Pub.length);
             FreeDhKey(&dhKey);
 
-            if (ret == 0) {
+            if (ret != 0) return ret;
+
+            length = LENGTH_SZ * 3;  /* p, g, pub */
+            length += ssl->buffers.serverDH_P.length +
+                      ssl->buffers.serverDH_G.length +
+                      ssl->buffers.serverDH_Pub.length;
+
+            preSigIdx = idx;
+            preSigSz  = length;
+
+            if (!ssl->options.usingAnon_cipher) {
                 ret = InitRsaKey(&rsaKey, ssl->heap);
                 if (ret != 0) return ret;
-            }
-            if (ret == 0) {
-                length = LENGTH_SZ * 3;  /* p, g, pub */
-                length += ssl->buffers.serverDH_P.length +
-                          ssl->buffers.serverDH_G.length +
-                          ssl->buffers.serverDH_Pub.length;
-
-                preSigIdx = idx;
-                preSigSz  = length;
 
                 /* sig length */
                 length += LENGTH_SZ;
@@ -12087,14 +12125,14 @@ int DoSessionTicket(CYASSL* ssl,
                     sigSz = RsaEncryptSize(&rsaKey);
                     length += sigSz;
                 }
-            }
-            if (ret != 0) {
-                FreeRsaKey(&rsaKey);
-                return ret;
-            }
+                else {
+                    FreeRsaKey(&rsaKey);
+                    return ret;
+                }
 
-            if (IsAtLeastTLSv1_2(ssl))
-                length += HASH_SIG_SIZE;
+                if (IsAtLeastTLSv1_2(ssl))
+                    length += HASH_SIG_SIZE;
+            }
 
             sendSz = length + HANDSHAKE_HEADER_SZ + RECORD_HEADER_SZ;
 
@@ -12108,7 +12146,8 @@ int DoSessionTicket(CYASSL* ssl,
 
             /* check for available size */
             if ((ret = CheckAvailableSize(ssl, sendSz)) != 0) {
-                FreeRsaKey(&rsaKey);
+                if (!ssl->options.usingAnon_cipher)
+                    FreeRsaKey(&rsaKey);
                 return ret;
             }
 
@@ -12139,23 +12178,14 @@ int DoSessionTicket(CYASSL* ssl,
                                   ssl->buffers.serverDH_Pub.length);
             idx += ssl->buffers.serverDH_Pub.length;
 
-            /* Add signature */
-            if (IsAtLeastTLSv1_2(ssl)) {
-                output[idx++] = ssl->suites->hashAlgo;
-                output[idx++] = ssl->suites->sigAlgo;
-            }
-            /*    size */
-            c16toa((word16)sigSz, output + idx);
-            idx += LENGTH_SZ;
-
         #ifdef HAVE_FUZZER
             if (ssl->fuzzerCb)
                 ssl->fuzzerCb(ssl, output + preSigIdx, preSigSz, FUZZ_SIGNATURE,
                         ssl->fuzzerCtx);
         #endif
 
-            /* do signature */
-            {
+            /* Add signature */
+            if (!ssl->options.usingAnon_cipher) {
         #ifndef NO_OLD_TLS
             #ifdef CYASSL_SMALL_STACK
                 Md5*   md5  = NULL;
@@ -12189,6 +12219,17 @@ int DoSessionTicket(CYASSL* ssl,
             #endif
         #endif
 
+            /* Add hash/signature algo ID */
+            if (IsAtLeastTLSv1_2(ssl)) {
+                output[idx++] = ssl->suites->hashAlgo;
+                output[idx++] = ssl->suites->sigAlgo;
+            }
+
+            /* signature size */
+            c16toa((word16)sigSz, output + idx);
+            idx += LENGTH_SZ;
+
+            /* do signature */
             #ifdef CYASSL_SMALL_STACK
                 hash = (byte*)XMALLOC(FINISHED_SZ, NULL,
                                                        DYNAMIC_TYPE_TMP_BUFFER);
@@ -12357,8 +12398,7 @@ int DoSessionTicket(CYASSL* ssl,
             #endif
         #endif
 
-                if (ret < 0)
-                    return ret;
+                if (ret < 0) return ret;
             }
 
         #ifdef CYASSL_DTLS

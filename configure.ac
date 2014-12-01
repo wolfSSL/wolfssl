@@ -39,7 +39,7 @@ CYASSL_LIBRARY_VERSION=6:0:1
 #               |        |     |
 #               |        |     +- increment if interfaces have been added
 #               |        |        set to zero if interfaces have been removed
-#                        |        or changed
+#               |        |        or changed
 #               |        +- increment if source code has changed
 #               |           set to zero if current is incremented
 #               +- increment if interfaces have been added, removed or changed
@@ -805,6 +805,24 @@ else
 fi
 
 AM_CONDITIONAL([BUILD_DH], [test "x$ENABLED_DH" = "xyes"])
+
+
+# Anonymous
+AC_ARG_ENABLE([anon],
+    [AS_HELP_STRING([--enable-anon],[Enable Anonymous (default: disabled)])],
+    [ ENABLED_ANON=$enableval ],
+    [ ENABLED_ANON=no ]
+    )
+
+
+if test "x$ENABLED_ANON" = "xyes"
+then
+    if test "x$ENABLED_DH" != "xyes"
+    then
+        AC_MSG_ERROR([Anonymous suite requires DH.])
+    fi
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_ANON"
+fi
 
 
 # ASN
@@ -1876,6 +1894,7 @@ echo "   * ECC:                       $ENABLED_ECC"
 echo "   * FPECC:                     $ENABLED_FPECC"
 echo "   * ECC_ENCRYPT:               $ENABLED_ECC_ENCRYPT"
 echo "   * ASN:                       $ENABLED_ASN"
+echo "   * Anonymous cipher:          $ENABLED_ANON"
 echo "   * CODING:                    $ENABLED_CODING"
 echo "   * MEMORY:                    $ENABLED_MEMORY"
 echo "   * I/O POOL:                  $ENABLED_IOPOOL"

@@ -312,6 +312,10 @@ typedef byte word24[3];
     #endif
 #endif
 
+#if defined(HAVE_ANON) && !defined(NO_TLS) && !defined(NO_DH) && \
+    !defined(NO_AES) && !defined(NO_SHA)
+    #define BUILD_TLS_DH_anon_WITH_AES_128_CBC_SHA
+#endif
 
 #if !defined(NO_DH) && !defined(NO_PSK) && !defined(NO_TLS)
     #ifndef NO_SHA256
@@ -493,6 +497,7 @@ typedef byte word24[3];
 enum {
     TLS_DHE_RSA_WITH_AES_256_CBC_SHA  = 0x39,
     TLS_DHE_RSA_WITH_AES_128_CBC_SHA  = 0x33,
+    TLS_DH_anon_WITH_AES_128_CBC_SHA  = 0x34,
     TLS_RSA_WITH_AES_256_CBC_SHA      = 0x35,
     TLS_RSA_WITH_AES_128_CBC_SHA      = 0x2F,
     TLS_RSA_WITH_NULL_SHA             = 0x02,
@@ -1423,6 +1428,9 @@ struct CYASSL_CTX {
     psk_server_callback server_psk_cb;  /* server callback */
     char        server_hint[MAX_PSK_ID_LEN];
 #endif /* NO_PSK */
+#ifdef HAVE_ANON
+    byte        haveAnon;               /* User wants to allow Anon suites */
+#endif /* HAVE_ANON */
 #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
     pem_password_cb passwd_cb;
     void*            userdata;
@@ -1784,6 +1792,7 @@ typedef struct Options {
     byte            havePeerCert;       /* do we have peer's cert */
     byte            havePeerVerify;     /* and peer's cert verify */
     byte            usingPSK_cipher;    /* whether we're using psk as cipher */
+    byte            usingAnon_cipher;   /* whether we're using an anon cipher */
     byte            sendAlertState;     /* nonblocking resume */ 
     byte            processReply;       /* nonblocking resume */
     byte            partialWrite;       /* only one msg per write call */
@@ -1801,6 +1810,9 @@ typedef struct Options {
     psk_client_callback client_psk_cb;
     psk_server_callback server_psk_cb;
 #endif /* NO_PSK */
+#ifdef HAVE_ANON
+    byte            haveAnon;           /* User wants to allow Anon suites */
+#endif /* HAVE_ANON */
 } Options;
 
 typedef struct Arrays {

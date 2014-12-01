@@ -167,6 +167,9 @@ static void Usage(void)
 #ifdef HAVE_PK_CALLBACKS 
     printf("-P          Public Key Callbacks\n");
 #endif
+#ifdef HAVE_ANON
+    printf("-a          Anonymous client\n");
+#endif
 }
 
 THREAD_RETURN CYASSL_THREAD client_test(void* args)
@@ -194,6 +197,7 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
     int    ch;
     int    version = CLIENT_INVALID_VERSION;
     int    usePsk   = 0;
+    int    useAnon  = 0;
     int    sendGET  = 0;
     int    benchmark = 0;
     int    doDTLS    = 0;
@@ -252,7 +256,7 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
     StackTrap();
 
     while ((ch = mygetopt(argc, argv,
-                          "?gdDusmNrRitfxUPh:p:v:l:A:c:k:b:zS:L:ToO:")) != -1) {
+                          "?gdDusmNrRitfxUPh:p:v:l:A:c:k:b:zS:L:ToO:a")) != -1) {
         switch (ch) {
             case '?' :
                 Usage();
@@ -416,6 +420,12 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
                 #endif
                 break;
 
+            case 'a' :
+                #ifdef HAVE_ANON
+                    useAnon = 1;
+                #endif
+                break;
+
             default:
                 Usage();
                 exit(MY_EX_USAGE);
@@ -524,6 +534,17 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
         useClientCert = 0;
     }
 
+    if (useAnon) {
+#ifdef HAVE_ANON
+        if (cipherList == NULL) {
+            CyaSSL_CTX_allow_anon_cipher(ctx);
+            if (CyaSSL_CTX_set_cipher_list(ctx,"ADH-AES128-SHA") != SSL_SUCCESS)
+                err_sys("client can't set cipher list 4");
+        }
+#endif
+        useClientCert = 0;
+    }
+
 #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
     CyaSSL_CTX_set_default_passwd_cb(ctx, PasswordCallBack);
 #endif
@@ -568,15 +589,15 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
                     "from CyaSSL home dir");
     }
 
-    if (!usePsk) {
+    if (!usePsk && !useAnon) {
         if (CyaSSL_CTX_load_verify_locations(ctx, verifyCert, 0) != SSL_SUCCESS)
                 err_sys("can't load ca file, Please run from CyaSSL home dir");
     }
 #endif
 #if !defined(NO_CERTS)
-    if (!usePsk && doPeerCheck == 0)
+    if (!usePsk && !useAnon && doPeerCheck == 0)
         CyaSSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, 0);
-    if (!usePsk && overrideDateErrors == 1)
+    if (!usePsk && !useAnon && overrideDateErrors == 1)
         CyaSSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, myDateCb);
 #endif
 

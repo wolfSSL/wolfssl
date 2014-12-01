@@ -844,10 +844,11 @@ CYASSL_API int CyaSSL_get_SessionTicket(CYASSL* ssl, byte* buf, word32* bufSz)
 
 CYASSL_API int CyaSSL_set_SessionTicket(CYASSL* ssl, byte* buf, word32 bufSz)
 {
-    if (ssl == NULL || buf == NULL || bufSz == 0)
+    if (ssl == NULL || (buf == NULL && bufSz > 0))
         return BAD_FUNC_ARG;
 
-    XMEMCPY(ssl->session.ticket, buf, bufSz);
+    if (bufSz > 0)
+        XMEMCPY(ssl->session.ticket, buf, bufSz);
     ssl->session.ticketLen = bufSz;
 
     return SSL_SUCCESS;
@@ -5235,6 +5236,7 @@ int CyaSSL_dtls_got_timeout(CYASSL* ssl)
     int CyaSSL_accept(CYASSL* ssl)
     {
         byte havePSK = 0;
+        byte haveAnon = 0;
         CYASSL_ENTER("SSL_accept()");
 
         #ifdef HAVE_ERRNO_H
@@ -5246,6 +5248,11 @@ int CyaSSL_dtls_got_timeout(CYASSL* ssl)
         #endif
         (void)havePSK;
 
+        #ifdef HAVE_ANON
+            haveAnon = ssl->options.haveAnon;
+        #endif
+        (void)haveAnon;
+
         if (ssl->options.side != CYASSL_SERVER_END) {
             CYASSL_ERROR(ssl->error = SIDE_ERROR);
             return SSL_FATAL_ERROR;
@@ -5253,7 +5260,8 @@ int CyaSSL_dtls_got_timeout(CYASSL* ssl)
 
         #ifndef NO_CERTS
             /* in case used set_accept_state after init */
-            if (!havePSK && (ssl->buffers.certificate.buffer == NULL ||
+            if (!havePSK && !haveAnon &&
+                            (ssl->buffers.certificate.buffer == NULL ||
                              ssl->buffers.key.buffer == NULL)) {
                 CYASSL_MSG("accept error: don't have server cert and key");
                 ssl->error = NO_PRIVATE_KEY;
@@ -6292,6 +6300,23 @@ int CyaSSL_set_compression(CYASSL* ssl)
     }
 
 #endif /* NO_PSK */
+
+
+#ifdef HAVE_ANON
+
+    int CyaSSL_CTX_allow_anon_cipher(CYASSL_CTX* ctx)
+    {
+        CYASSL_ENTER("CyaSSL_CTX_allow_anon_cipher");
+
+        if (ctx == NULL)
+            return SSL_FAILURE;
+
+        ctx->haveAnon = 1;
+
+        return SSL_SUCCESS;
+    }
+
+#endif /* HAVE_ANON */
 
 
 #ifndef NO_CERTS
@@ -9232,6 +9257,10 @@ const char* CyaSSL_CIPHER_get_name(const CYASSL_CIPHER* cipher)
             case TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA256 :
                 return "TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA256";
 #endif /* NO_RSA */
+#ifdef BUILD_TLS_DH_anon_WITH_AES_128_CBC_SHA
+            case TLS_DH_anon_WITH_AES_128_CBC_SHA :
+                return "TLS_DH_anon_WITH_AES_128_CBC_SHA";
+#endif
             default:
                 return "NONE";
         }  /* switch */

@@ -141,6 +141,9 @@ static void Usage(void)
 #ifdef HAVE_PK_CALLBACKS 
     printf("-P          Public Key Callbacks\n");
 #endif
+#ifdef HAVE_ANON
+    printf("-a          Anonymous server\n");
+#endif
 }
 
 THREAD_RETURN CYASSL_THREAD server_test(void* args)
@@ -161,6 +164,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     int    useAnyAddr = 0;
     word16 port = yasslPort;
     int    usePsk = 0;
+    int    useAnon = 0;
     int    doDTLS = 0;
     int    useNtruKey   = 0;
     int    nonBlocking  = 0;
@@ -198,7 +202,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     fdOpenSession(Task_self());
 #endif
 
-    while ((ch = mygetopt(argc, argv, "?dbstnNufrPp:v:l:A:c:k:S:oO:")) != -1) {
+    while ((ch = mygetopt(argc, argv, "?dbstnNufraPp:v:l:A:c:k:S:oO:")) != -1) {
         switch (ch) {
             case '?' :
                 Usage();
@@ -299,6 +303,12 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
                 #endif
                 break;
 
+            case 'a' :
+                #ifdef HAVE_ANON
+                    useAnon = 1;
+                #endif
+                break;
+
             default:
                 Usage();
                 exit(MY_EX_USAGE);
@@ -394,7 +404,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 #endif
 
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
-    if (!usePsk) {
+    if (!usePsk && !useAnon) {
         if (SSL_CTX_use_certificate_file(ctx, ourCert, SSL_FILETYPE_PEM)
                                          != SSL_SUCCESS)
             err_sys("can't load server cert file, check file and run from"
@@ -412,7 +422,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 #endif
 
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
-    if (!useNtruKey && !usePsk) {
+    if (!useNtruKey && !usePsk && !useAnon) {
         if (SSL_CTX_use_PrivateKey_file(ctx, ourKey, SSL_FILETYPE_PEM)
                                          != SSL_SUCCESS)
             err_sys("can't load server private key file, check file and run "
@@ -437,9 +447,19 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 #endif
     }
 
+    if (useAnon) {
+#ifdef HAVE_ANON
+        CyaSSL_CTX_allow_anon_cipher(ctx);
+        if (cipherList == NULL) {
+            if (SSL_CTX_set_cipher_list(ctx, "ADH-AES128-SHA") != SSL_SUCCESS)
+                err_sys("server can't set cipher list 4");
+        }
+#endif
+    }
+
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
     /* if not using PSK, verify peer with certs */
-    if (doCliCertCheck && usePsk == 0) {
+    if (doCliCertCheck && usePsk == 0 && useAnon == 0) {
         SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER |
                                 SSL_VERIFY_FAIL_IF_NO_PEER_CERT,0);
         if (SSL_CTX_load_verify_locations(ctx, verifyCert, 0) != SSL_SUCCESS)
@@ -494,7 +514,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
         CloseSocket(sockfd);
 
     SSL_set_fd(ssl, clientfd);
-    if (usePsk == 0 || cipherList != NULL) {
+    if (usePsk == 0 || useAnon == 1 || cipherList != NULL) {
         #if !defined(NO_FILESYSTEM) && !defined(NO_DH)
             CyaSSL_SetTmpDH_file(ssl, dhParam, SSL_FILETYPE_PEM);
         #elif !defined(NO_DH)
