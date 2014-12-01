@@ -1128,9 +1128,9 @@ AM_CONDITIONAL([BUILD_FIPS], [test "x$ENABLED_FIPS" = "xyes"])
 
 # Hash DRBG
 AC_ARG_ENABLE([hashdrbg],
-    [  --enable-hashdrbg       Enable Hash DRBG support (default: disabled)],
+    [  --enable-hashdrbg       Enable Hash DRBG support (default: enabled)],
     [ ENABLED_HASHDRBG=$enableval ],
-    [ ENABLED_HASHDRBG=no ]
+    [ ENABLED_HASHDRBG=yes ]
     )
 
 if test "x$ENABLED_HASHDRBG" = "xyes"
