@@ -380,7 +380,7 @@ int InitSSL_Ctx(CYASSL_CTX* ctx, CYASSL_METHOD* method)
     ctx->userdata    = 0;
 #endif /* OPENSSL_EXTRA */
 
-    ctx->timeout = DEFAULT_TIMEOUT;
+    ctx->timeout = CYASSL_SESSION_TIMEOUT;
 
 #ifndef CYASSL_USER_IO
     ctx->CBIORecv = EmbedReceive;

@@ -623,6 +623,12 @@ enum {
 };
 
 
+#ifndef CYASSL_SESSION_TIMEOUT
+    #define CYASSL_SESSION_TIMEOUT 500
+    /* default session resumption cache timeout in seconds */
+#endif
+
+
 enum Misc {
     ECC_BYTE    =  0xC0,           /* ECC first cipher suite byte */
     CHACHA_BYTE = 0xCC,            /* ChaCha first cipher suite */
@@ -771,7 +777,6 @@ enum Misc {
     MAX_CERT_VERIFY_SZ = 1024, /* max   */
     CLIENT_HELLO_FIRST =  35,  /* Protocol + RAN_LEN + sizeof(id_len) */
     MAX_SUITE_NAME     =  48,  /* maximum length of cipher suite string */
-    DEFAULT_TIMEOUT    = 500,  /* default resumption timeout in seconds */
 
     DTLS_TIMEOUT_INIT       =  1, /* default timeout init for DTLS receive  */
     DTLS_TIMEOUT_MAX        = 64, /* default max timeout for DTLS receive */
