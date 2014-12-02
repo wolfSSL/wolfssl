@@ -58,6 +58,10 @@ static INLINE word32 min(word32 a, word32 b)
 
 #endif
 
+#ifndef CYASSL_SNIFFER_TIMEOUT
+    #define CYASSL_SNIFFER_TIMEOUT 900
+    /* Cache unclosed Sessions for 15 minutes since last used */
+#endif
 
 /* Misc constants */
 enum {
@@ -75,7 +79,6 @@ enum {
     HASH_SIZE          = 499, /* Session Hash Table Rows */
     PSEUDO_HDR_SZ      = 12,  /* TCP Pseudo Header size in bytes */
     FATAL_ERROR_STATE  =  1,  /* SnifferSession fatal error state */
-    SNIFFER_TIMEOUT    = 900, /* Cache unclosed Sessions for 15 minutes */
     TICKET_HINT_LEN    = 4,   /* Session Ticket Hint length */
     EXT_TYPE_SZ        = 2,   /* Extension length */
     MAX_INPUT_SZ       = MAX_RECORD_SIZE + COMP_EXTRA + MAX_MSG_EXTRA + 
@@ -1971,7 +1974,7 @@ static void RemoveStaleSessions(void)
         session = SessionTable[i];
         while (session) {
             SnifferSession* next = session->next; 
-            if (time(NULL) >= session->lastUsed + SNIFFER_TIMEOUT) {
+            if (time(NULL) >= session->lastUsed + CYASSL_SNIFFER_TIMEOUT) {
                 TraceStaleSession();
                 RemoveSession(session, NULL, NULL, i);
             }
