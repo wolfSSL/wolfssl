@@ -1903,7 +1903,7 @@ static int Decrypt(SSL* ssl, byte* output, const byte* input, word32 sz)
 
 /* Decrypt input message into output, adjust output steam if needed */
 static const byte* DecryptMessage(SSL* ssl, const byte* input, word32 sz,
-                                  byte* output, int* error)
+                                  byte* output, int* error, int* advance)
 {
     int ivExtra = 0;
 
@@ -1916,6 +1916,7 @@ static const byte* DecryptMessage(SSL* ssl, const byte* input, word32 sz,
     if (ssl->options.tls1_1 && ssl->specs.cipher_type == block) {
         output += ssl->specs.block_size;     /* go past TLSv1.1 IV */
         ivExtra = ssl->specs.block_size;
+        *advance = ssl->specs.block_size;
     }
 
     ssl->keys.padSz = ssl->specs.hash_size;
@@ -2640,6 +2641,7 @@ static int ProcessMessage(const byte* sslFrame, SnifferSession* session,
     int               errCode = 0;
     int               decoded = 0;      /* bytes stored for user in data */
     int               notEnough;        /* notEnough bytes yet flag */
+    int               decrypted = 0;    /* was current msg decrypted */
     SSL*              ssl = (session->flags.side == CYASSL_SERVER_END) ?
                                         session->sslServer : session->sslClient;
 doMessage:
@@ -2685,6 +2687,7 @@ doMessage:
                                                session->flags.serverCipherOn)
      || (session->flags.side == CYASSL_CLIENT_END &&
                                                session->flags.clientCipherOn)) {
+        int ivAdvance = 0;  /* TLSv1.1 advance amount */
         if (ssl->decrypt.setup != 1) {
             SetError(DECRYPT_KEYS_NOT_SETUP, error, session, FATAL_ERROR_STATE);
             return -1;
@@ -2694,7 +2697,11 @@ doMessage:
             return -1;
         }
         sslFrame = DecryptMessage(ssl, sslFrame, rhSize,
-                                  ssl->buffers.outputBuffer.buffer, &errCode);
+                                  ssl->buffers.outputBuffer.buffer, &errCode,
+                                  &ivAdvance);
+        recordEnd = sslFrame - ivAdvance + rhSize;  /* sslFrame moved so
+                                                       should recordEnd */
+        decrypted = 1;
         if (errCode != 0) {
             SetError(BAD_DECRYPT, error, session, FATAL_ERROR_STATE);
             return -1;
@@ -2721,6 +2728,8 @@ doPart:
                 /* DoHandShake now fully decrements sslBytes to remaining */
                 used = startIdx - sslBytes;
                 sslFrame += used;
+                if (decrypted)
+                    sslFrame += ssl->keys.padSz;
             }
             break;
         case change_cipher_spec:
