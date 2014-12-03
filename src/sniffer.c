@@ -2634,7 +2634,8 @@ static int ProcessMessage(const byte* sslFrame, SnifferSession* session,
                           int sslBytes, byte* data, const byte* end,char* error)
 {
     const byte*       sslBegin = sslFrame;
-    const byte*       recordEnd;
+    const byte*       recordEnd;   /* end of record indicator */
+    const byte*       inRecordEnd; /* indictor from input stream not decrypt */
     RecordLayerHeader rh;
     int               rhSize = 0;
     int               ret;
@@ -2681,6 +2682,7 @@ doMessage:
     sslFrame += RECORD_HEADER_SZ;
     sslBytes -= RECORD_HEADER_SZ;
     recordEnd = sslFrame + rhSize;   /* may have more than one record */
+    inRecordEnd = recordEnd;
     
     /* decrypt if needed */
     if ((session->flags.side == CYASSL_SERVER_END &&
@@ -2789,6 +2791,9 @@ doPart:
         Trace(ANOTHER_MSG_STR);
         goto doPart;
     }
+
+    /* back to input stream instead of potential decrypt buffer */
+    recordEnd = inRecordEnd;
 
     /* do we have more records ? */
     if (recordEnd < end) {
