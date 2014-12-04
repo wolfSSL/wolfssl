@@ -10544,7 +10544,7 @@ static void PickHashSigAlgo(CYASSL* ssl,
                     buffer  serverP   = ssl->buffers.serverDH_P;
                     buffer  serverG   = ssl->buffers.serverDH_G;
                     buffer  serverPub = ssl->buffers.serverDH_Pub;
-                #ifdef CYASSSL_SMALL_STACK
+                #ifdef CYASSL_SMALL_STACK
                     byte*   priv = NULL;
                 #else
                     byte    priv[ENCRYPT_LEN];
