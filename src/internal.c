@@ -9806,7 +9806,7 @@ static void PickHashSigAlgo(CYASSL* ssl,
         word16 length = 0;
         word32 begin  = *inOutIdx;
         int    ret    = 0;
-        #define ERROR_OUT(err, exit) do { ret = err; goto exit; } while(0)
+        #define ERROR_OUT(err, eLabel) do { ret = err; goto eLabel; } while(0)
 
         (void)length; /* shut up compiler warnings */
         (void)begin;
@@ -11421,7 +11421,7 @@ int DoSessionTicket(CYASSL* ssl,
     {
         int ret = 0;
         (void)ssl;
-        #define ERROR_OUT(err, exit) do { ret = err; goto exit; } while(0)
+        #define ERROR_OUT(err, eLabel) do { ret = err; goto eLabel; } while(0)
 
     #ifndef NO_PSK
         if (ssl->specs.kea == psk_kea)
