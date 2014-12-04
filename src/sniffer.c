@@ -1285,8 +1285,8 @@ static int ProcessClientKeyExchange(const byte* input, int* sslBytes,
 
     ret = InitRsaKey(&key, 0);
     if (ret == 0) 
-        ret = RsaPrivateKeyDecode(session->context->ctx->privateKey.buffer,
-                          &idx, &key, session->context->ctx->privateKey.length);
+        ret = RsaPrivateKeyDecode(session->sslServer->buffers.key.buffer,
+                          &idx, &key, session->sslServer->buffers.key.length);
     if (ret == 0) {
         int length = RsaEncryptSize(&key);
         
