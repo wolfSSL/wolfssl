@@ -3954,6 +3954,10 @@ int dh_test(void)
     FreeDhKey(&key);
     FreeDhKey(&key2);
 
+#if defined(HAVE_HASHDRBG) || defined(NO_RC4)
+    FreeRng(&rng);
+#endif
+
     return 0;
 }
 
