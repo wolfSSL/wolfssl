@@ -2619,6 +2619,7 @@ static void GenerateM0(Aes* aes)
 
 int AesGcmSetKey(Aes* aes, const byte* key, word32 len)
 {
+    int  ret;
     byte iv[AES_BLOCK_SIZE];
 
     #ifdef FREESCALE_MMCAU
@@ -2629,18 +2630,20 @@ int AesGcmSetKey(Aes* aes, const byte* key, word32 len)
         return BAD_FUNC_ARG;
 
     XMEMSET(iv, 0, AES_BLOCK_SIZE);
-    AesSetKey(aes, key, len, iv, AES_ENCRYPTION);
+    ret = AesSetKey(aes, key, len, iv, AES_ENCRYPTION);
 
+    if (ret == 0) {
     #ifdef FREESCALE_MMCAU
         cau_aes_encrypt(iv, rk, aes->rounds, aes->H);
     #else
         AesEncrypt(aes, iv, aes->H);
     #endif
-#ifdef GCM_TABLE
-    GenerateM0(aes);
-#endif /* GCM_TABLE */
+    #ifdef GCM_TABLE
+        GenerateM0(aes);
+    #endif /* GCM_TABLE */
+    }
 
-    return 0;
+    return ret;
 }
 
 
