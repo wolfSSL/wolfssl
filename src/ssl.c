@@ -8659,9 +8659,15 @@ CYASSL_X509* CyaSSL_X509_d2i_fp(CYASSL_X509** x509, XFILE file)
         sz = XFTELL(file);
         XREWIND(file);
 
+        if (sz < 0) {
+            CYASSL_MSG("Bad tell on FILE");
+            return NULL;
+        }
+
         fileBuffer = (byte*)XMALLOC(sz, NULL, DYNAMIC_TYPE_FILE);
         if (fileBuffer != NULL) {
-            if ((int)XFREAD(fileBuffer, sz, 1, file) > 0) {
+            int ret = (int)XFREAD(fileBuffer, sz, 1, file);
+            if (ret > 0) {
                 newX509 = CyaSSL_X509_d2i(NULL, fileBuffer, (int)sz);
             }
             XFREE(fileBuffer, NULL, DYNAMIC_TYPE_FILE);
@@ -8685,6 +8691,7 @@ CYASSL_X509* CyaSSL_X509_load_certificate_file(const char* fname, int format)
 #endif
     byte* fileBuffer = staticBuffer;
     int   dynamic = 0;
+    int   ret;
     long  sz = 0;
     XFILE file;
 
@@ -8714,8 +8721,13 @@ CYASSL_X509* CyaSSL_X509_load_certificate_file(const char* fname, int format)
         }
         dynamic = 1;
     }
+    else if (sz < 0) {
+        XFCLOSE(file);
+        return NULL;
+    }
 
-    if ((int)XFREAD(fileBuffer, sz, 1, file) < 0) {
+    ret = (int)XFREAD(fileBuffer, sz, 1, file);
+    if (ret < 0) {
         XFCLOSE(file);
         if (dynamic)
             XFREE(fileBuffer, NULL, DYNAMIC_TYPE_FILE);
