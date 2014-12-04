@@ -4834,6 +4834,7 @@ static int SanityCheckMsgReceived(CYASSL* ssl, byte type)
 
             if (ssl->msgsReceived.got_certificate == 0) {
                 if (ssl->specs.kea == psk_kea ||
+                    ssl->specs.kea == dhe_psk_kea ||
                     ssl->options.usingAnon_cipher) {
                     CYASSL_MSG("No Cert required");
                 } else {
