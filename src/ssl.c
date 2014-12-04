@@ -7922,7 +7922,7 @@ int CyaSSL_set_compression(CYASSL* ssl)
         if (XSTRNCMP(evp_md, "MD5", 3) == 0)
             type = MD5;
         else if (XSTRNCMP(evp_md, "SHA", 3) == 0)
-            type = MD5;
+            type = SHA;
         else
             return NULL;
 
