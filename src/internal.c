@@ -11460,6 +11460,12 @@ int DoSessionTicket(CYASSL* ssl,
             idx += HINT_LEN_SZ;
             XMEMCPY(output + idx, ssl->arrays->server_hint,length -HINT_LEN_SZ);
 
+        #ifdef CYASSL_DTLS
+            if (ssl->options.dtls)
+                if ((ret = DtlsPoolSave(ssl, output, sendSz)) != 0)
+                    return ret;
+        #endif
+
             ret = HashOutput(ssl, output, sendSz, 0);
             if (ret != 0)
                 return ret;
@@ -11580,6 +11586,12 @@ int DoSessionTicket(CYASSL* ssl,
                                   ssl->buffers.serverDH_Pub.length);
             idx += ssl->buffers.serverDH_Pub.length;
             (void)idx; /* suppress analyzer warning, and keep idx current */
+
+        #ifdef CYASSL_DTLS
+            if (ssl->options.dtls)
+                if ((ret = DtlsPoolSave(ssl, output, sendSz)) != 0)
+                    return ret;
+        #endif
 
             ret = HashOutput(ssl, output, sendSz, 0);
 
@@ -12032,6 +12044,12 @@ int DoSessionTicket(CYASSL* ssl,
             }
 
             AddHeaders(output, length, server_key_exchange, ssl);
+
+        #ifdef CYASSL_DTLS
+            if (ssl->options.dtls)
+                if ((ret = DtlsPoolSave(ssl, output, sendSz)) != 0)
+                    goto done_a;
+        #endif
 
             if ((ret = HashOutput(ssl, output, sendSz, 0)) != 0)
                 goto done_a;
