@@ -1102,7 +1102,8 @@ static int SetNamedPrivateKey(const char* name, const char* address, int port,
         }
         InitSnifferServer(sniffer);
 
-        XSTRNCPY(sniffer->address, address, MAX_SERVER_ADDRESS);
+        XSTRNCPY(sniffer->address, address, MAX_SERVER_ADDRESS-1);
+        sniffer->address[MAX_SERVER_ADDRESS-1] = '\0';
         sniffer->server = serverIp;
         sniffer->port = port;
 
