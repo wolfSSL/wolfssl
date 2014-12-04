@@ -1442,7 +1442,7 @@ int PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
     XMEMCPY(output + idx, encryptedContent, desOutSz);
     idx += desOutSz;
 
-#ifdef NO_RC4
+#if defined(HAVE_HASHDRBG) || defined(NO_RC4)
     FreeRng(&rng);
 #endif
 

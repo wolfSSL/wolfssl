@@ -10263,6 +10263,7 @@ int CyaSSL_RAND_seed(const void* seed, int len)
 int CyaSSL_RAND_bytes(unsigned char* buf, int num)
 {
     int    ret = 0;
+    int    initTmpRng = 0;
     RNG*   rng = NULL;
 #ifdef CYASSL_SMALL_STACK
     RNG*   tmpRNG = NULL;
@@ -10278,8 +10279,10 @@ int CyaSSL_RAND_bytes(unsigned char* buf, int num)
         return ret;
 #endif
 
-    if (InitRng(tmpRNG) == 0)
+    if (InitRng(tmpRNG) == 0) {
         rng = tmpRNG;
+        initTmpRng = 1;
+    }
     else if (initGlobalRNG)
         rng = &globalRNG;
 
@@ -10288,6 +10291,12 @@ int CyaSSL_RAND_bytes(unsigned char* buf, int num)
             CYASSL_MSG("Bad RNG_GenerateBlock");
         else
             ret = SSL_SUCCESS;
+    }
+
+    if (initTmpRng) {
+        #if defined(HAVE_HASHDRBG) || defined(NO_RC4)
+            FreeRng(tmpRNG);
+        #endif
     }
 
 #ifdef CYASSL_SMALL_STACK
