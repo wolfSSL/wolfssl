@@ -553,6 +553,14 @@ enum cert_enums {
     ECC_KEY         = 12
 };
 
+#ifndef CYASSL_PEMCERT_TODER_DEFINED
+#ifndef NO_FILESYSTEM
+/* forward from CyaSSL */
+CYASSL_API
+int CyaSSL_PemCertToDer(const char* fileName, unsigned char* derBuf, int derSz);
+#define CYASSL_PEMCERT_TODER_DEFINED
+#endif
+#endif
 
 #endif /* CYASSL_CERT_GEN */
 

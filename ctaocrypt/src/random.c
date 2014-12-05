@@ -368,7 +368,7 @@ int InitRng(RNG* rng)
     if (rng != NULL) {
         byte entropy[ENTROPY_NONCE_SZ];
 
-        rng->drbg = XMALLOC(sizeof(DRBG), NULL, DYNAMIC_TYPE_RNG);
+        rng->drbg = (struct DRBG*)XMALLOC(sizeof(DRBG), NULL, DYNAMIC_TYPE_RNG);
         if (rng->drbg == NULL) {
             ret = MEMORY_E;
         }

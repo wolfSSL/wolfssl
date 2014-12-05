@@ -4423,7 +4423,7 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx,
                         #ifdef HAVE_PK_CALLBACKS
                             #ifndef NO_RSA
                                 ssl->buffers.peerRsaKey.buffer =
-                                       XMALLOC(dCert->pubKeySize,
+                                       (byte*)XMALLOC(dCert->pubKeySize,
                                                ssl->heap, DYNAMIC_TYPE_RSA);
                                 if (ssl->buffers.peerRsaKey.buffer == NULL)
                                     ret = MEMORY_ERROR;
@@ -4471,7 +4471,7 @@ static int DoCertificate(CYASSL* ssl, byte* input, word32* inOutIdx,
                         #ifdef HAVE_PK_CALLBACKS
                             #ifdef HAVE_ECC
                                 ssl->buffers.peerEccDsaKey.buffer =
-                                       XMALLOC(dCert->pubKeySize,
+                                       (byte*)XMALLOC(dCert->pubKeySize,
                                                ssl->heap, DYNAMIC_TYPE_ECC);
                                 if (ssl->buffers.peerEccDsaKey.buffer == NULL)
                                     ret = MEMORY_ERROR;

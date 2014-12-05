@@ -1572,8 +1572,8 @@ static INLINE void SetupAtomicUser(CYASSL_CTX* ctx, CYASSL* ssl)
 
 static INLINE void FreeAtomicUser(CYASSL* ssl)
 {
-    AtomicEncCtx* encCtx = CyaSSL_GetMacEncryptCtx(ssl);
-    AtomicDecCtx* decCtx = CyaSSL_GetDecryptVerifyCtx(ssl);
+    AtomicEncCtx* encCtx = (AtomicEncCtx*)CyaSSL_GetMacEncryptCtx(ssl);
+    AtomicDecCtx* decCtx = (AtomicDecCtx*)CyaSSL_GetDecryptVerifyCtx(ssl);
 
     free(decCtx);
     free(encCtx);

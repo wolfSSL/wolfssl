@@ -7936,8 +7936,8 @@ int CyaSSL_set_compression(CYASSL* ssl)
             if (HmacUpdate(hmac, d, n) == 0)
                 if (HmacFinal(hmac, md) == 0) {
                     if (md_len)
-                        *md_len = type == MD5 ? MD5_DIGEST_SIZE
-                                              : SHA_DIGEST_SIZE;
+                        *md_len = (type == MD5) ? (int)MD5_DIGEST_SIZE
+                                                : (int)SHA_DIGEST_SIZE;
                     ret = md;
                 }
 

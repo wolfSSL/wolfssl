@@ -6327,9 +6327,6 @@ static int SetNameFromCert(CertName* cn, const byte* der, int derSz)
 
 #ifndef NO_FILESYSTEM
 
-/* forward from CyaSSL */
-int CyaSSL_PemCertToDer(const char* fileName, unsigned char* derBuf, int derSz);
-
 /* Set cert issuer from issuerFile in PEM */
 int SetIssuer(Cert* cert, const char* issuerFile)
 {

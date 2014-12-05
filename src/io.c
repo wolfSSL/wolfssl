@@ -450,7 +450,8 @@ int EmbedSendTo(CYASSL* ssl, char *buf, int sz, void *ctx)
     CYASSL_ENTER("EmbedSendTo()");
 
     sent = (int)SENDTO_FUNCTION(sd, &buf[sz - len], len, ssl->wflags,
-                                dtlsCtx->peer.sa, dtlsCtx->peer.sz);
+                                (const struct sockaddr*)dtlsCtx->peer.sa,
+                                dtlsCtx->peer.sz);
     if (sent < 0) {
         err = LastError();
         CYASSL_MSG("Embed Send To error");

@@ -593,8 +593,8 @@ typedef struct TcpPseudoHdr {
 static int SetPassword(char* passwd, int sz, int rw, void* userdata)
 {
     (void)rw;
-    XSTRNCPY(passwd, userdata, sz);
-    return (int)XSTRLEN(userdata);
+    XSTRNCPY(passwd, (const char*)userdata, sz);
+    return (int)XSTRLEN((const char*)userdata);
 }
 
 

@@ -1768,11 +1768,11 @@ static int ecc_mul2add(ecc_point* A, mp_int* kA,
 
 
   /* allocate memory */
-  tA = XMALLOC(ECC_BUFSIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+  tA = (unsigned char*)XMALLOC(ECC_BUFSIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
   if (tA == NULL) {
      return GEN_MEM_ERR;
   }
-  tB = XMALLOC(ECC_BUFSIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+  tB = (unsigned char*)XMALLOC(ECC_BUFSIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
   if (tB == NULL) {
      XFREE(tA, NULL, DYNAMIC_TYPE_TMP_BUFFER);
      return GEN_MEM_ERR;
