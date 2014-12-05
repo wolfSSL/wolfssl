@@ -36,6 +36,33 @@ before calling SSL_new();  Though it's not recommended.
 ```
 
 
+# CyaSSL Release 3.3.0 (12/05/2014)
+
+- Countermeasuers for Handshake message duplicates, CHANGE CIPHER without
+  FINISHED, and fast forward attempts.  Thanks to Karthikeyan Bhargavan from
+  the Prosecco team at INRIA Paris-Rocquencourt for the report.
+- FIPS version submitted
+- Removes SSLv2 Client Hello processing, can be enabled with OLD_HELLO_ALLOWED
+- User can set mimimum downgrade version with CyaSSL_SetMinVersion()
+- Small stack improvements at TLS/SSL layer
+- TLS Master Secret generation and Key Expansion are now exposed
+- Adds client side Secure Renegotiation, * not recommended *
+- Client side session ticket support, not fully tested with Secure Renegotiation
+- Allows up to 4096bit DHE at TLS Key Exchange layer
+- Handles non standard SessionID sizes in Hello Messages
+- PicoTCP Support
+- Sniffer now supports SNI Virtual Hosts
+- Sniffer now handles non HTTPS protocols using STARTTLS
+- Sniffer can now parse records with multiple messages
+- TI-RTOS updates
+- Fix for ColdFire optimized fp_digit read only in explicit 32bit case
+- ADH Cipher Suite ADH-AES128-SHA for EAP-FAST
+
+The CyaSSL manual is available at:
+http://www.wolfssl.com/documentation/CyaSSL-Manual.pdf.  For build instructions
+and comments about the new features please check the manual.
+
+
 # CyaSSL Release 3.2.0 (09/10/2014)
 
 #### Release 3.2.0 CyaSSL has bug fixes and new features including:

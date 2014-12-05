@@ -50,7 +50,7 @@ CyaSSL Release 3.3.0 (12/05/2014)
 - Handles non standard SessionID sizes in Hello Messages
 - PicoTCP Support
 - Sniffer now supports SNI Virtual Hosts
-- Sniffer now hanles non HTTPS protocols using STARTTLS
+- Sniffer now handles non HTTPS protocols using STARTTLS
 - Sniffer can now parse records with multiple messages
 - TI-RTOS updates
 - Fix for ColdFire optimized fp_digit read only in explicit 32bit case
