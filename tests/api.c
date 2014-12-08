@@ -921,8 +921,8 @@ static void test_CyaSSL_SNI_GetFromBuffer(void)
                                                            0, result, &length));
     buffer[1] = 0x03;
 
-    AssertIntEQ(BUFFER_ERROR, CyaSSL_SNI_GetFromBuffer(buffer, sizeof(buffer),
-                                                           0, result, &length));
+    AssertIntEQ(SNI_UNSUPPORTED, CyaSSL_SNI_GetFromBuffer(buffer, 
+                                           sizeof(buffer), 0, result, &length));
     buffer[2] = 0x03;
 
     AssertIntEQ(INCOMPLETE_DATA, CyaSSL_SNI_GetFromBuffer(buffer,

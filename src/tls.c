@@ -1108,7 +1108,7 @@ int TLSX_SNI_GetFromBuffer(const byte* clientHello, word32 helloSz,
         return BUFFER_ERROR;
 
     if (clientHello[offset++] < TLSv1_MINOR)
-        return BUFFER_ERROR;
+        return SNI_UNSUPPORTED;
 
     ato16(clientHello + offset, &len16);
     offset += OPAQUE16_LEN;

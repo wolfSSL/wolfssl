@@ -126,6 +126,7 @@ enum CyaSSL_ErrorCodes {
     NO_CHANGE_CIPHER_E      = -393,        /* Finished before change cipher */
     SANITY_MSG_E            = -394,        /* Sanity check on msg order error */
     DUPLICATE_MSG_E         = -395,        /* Duplicate message error */
+    SNI_UNSUPPORTED         = -396,        /* SSL 3.0 does not support SNI */
 
     /* add strings to SetErrorString !!!!! */
 
