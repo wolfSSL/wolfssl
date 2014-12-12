@@ -195,7 +195,7 @@ static int get_digit_count(mp_int* a)
 }
 
 /* helper for either lib */
-static unsigned long get_digit(mp_int* a, int n)
+static mp_digit get_digit(mp_int* a, int n)
 {
     if (a == NULL)
         return 0;
@@ -985,7 +985,7 @@ static int ecc_mulmod(mp_int* k, ecc_point *G, ecc_point *R, mp_int* modulus,
    int           i, j, err;
    mp_int        mu;
    mp_digit      mp;
-   unsigned long buf;
+   mp_digit      buf;
    int           first = 1, bitbuf = 0, bitcpy = 0, bitcnt = 0, mode = 0,
                  digidx = 0;
 
@@ -1200,7 +1200,7 @@ static int ecc_mulmod(mp_int* k, ecc_point *G, ecc_point *R, mp_int* modulus,
    int           i, j, err;
    mp_int        mu;
    mp_digit      mp;
-   unsigned long buf;
+   mp_digit      buf;
    int           first = 1, bitbuf = 0, bitcpy = 0, bitcnt = 0, mode = 0,
                  digidx = 0;
 
