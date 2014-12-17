@@ -337,6 +337,9 @@
  * needs investigation in regards to macros in fips */
 #define WOLFSSL_MAX_16BIT CYASSL_MAX_16BIT
 #define WOLFSSL_MSG(x) CYASSL_MSG(x)
+#define NO_WOLFSSL_ALLOC_ALIGN NO_CYASSL_ALLOC_ALIGN /* @TODO*/
+
+
 
 /* for arc4 reverse compatibility */
 #ifndef NO_RC4
@@ -376,14 +379,13 @@
 
 /* for hc128 reverse compatibility */
 #ifdef HAVE_HC128
-    #define NO_WOLFSSL_ALLOC_ALIGN NO_CYASSL_ALLOC_ALIGN /* @TODO*/
     #define Hc128_Process wc_Hc128_Process
     #define Hc128_SetKey wc_Hc128_SetKey
 #endif
 
 
 /* for md2 reverse compatibility */
-#define CYASSL_MD2 WOLFSSL_MD@ /* @TODO */
+#define CYASSL_MD2 WOLFSSL_MD2 /* @TODO */
 #ifdef WOLFSSL_MD2
 	#define InitMd2 wc_InitMd2
 	#define Md2Update wc_Md2Update
@@ -407,6 +409,49 @@
 	#define Md5Final wc_Md5Final
 	#define Md5Hash wc_Md5Hash
 #endif
+
+
+/* for poly1305 reverse compatibility */
+#ifdef HAVE_POLY1305
+	#define Poly1305SetKey wc_Poly1305SetKey
+	#define Poly1305Update wc_Poly1305Update
+	#define Poly1305Final wc_Poly1305Final
+#endif
+
+
+/* for rabbit reverse compatibility */
+#ifndef NO_RABBIT
+    #define RabbitProcess wc_RabbitProcess
+    #define RabbitSetKey wc_RabbitSetKey
+#endif
+
+
+/* for ripemd reverse compatibility */
+#define CYASSL_RIPEMD WOLFSSL_RIPEMD /* @TODO */
+#ifdef WOLFSSL_RIPEMD
+    #define InitRipeMd wc_InitRipeMd
+    #define RipeMdUpdate wc_RipeMdUpdate
+    #define RipeMdFinal wc_RipeMdFinal
+#endif
+
+
+/* for pkcs7 reverse compatibility */
+#ifdef HAVE_PKCS7
+    #define SetContentType wc_SetContentType
+    #define GetContentType wc_GetContentType
+    #define CreateRecipientInfo wc_CreateRecipientInfo
+    #define PKCS7_InitWithCert wc_PKCS7_InitWithCert
+    #define PKCS7_Free wc_PKCS7_Free
+    #define PKCS7_EncodeData wc_PKCS7_EncodeData
+    #define PKCS7_EncodeSignedData wc_PKCS7_EncodeSignedData
+    #define PKCS7_VerifySignedData wc_PKCS7_VerifySignedData
+    #define PKCS7_EncodeEnvelopedData wc_PKCS7_EncodeEnvelopedData
+    #define PKCS7_DecodeEnvelopedData wc_PKCS7_DecodeEnvelopedData
+#endif
+
+
+/* for pwdbased reverse compatibility */
+
 
 
 
