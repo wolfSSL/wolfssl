@@ -20,8 +20,8 @@
  */
 
 
-#ifndef CTAO_CRYPT_ARC4_H
-#define CTAO_CRYPT_ARC4_H
+#ifndef WOLF_CRYPT_ARC4_H
+#define WOLF_CRYPT_ARC4_H
 
 
 #include <cyassl/ctaocrypt/types.h>
@@ -31,8 +31,14 @@
     extern "C" {
 #endif
 
+/* for reverse compatibility */
+#define CYASSL_ARC4_CAVIUM_MAGIC WOLFSSL_ARC4_CAVIUM_MAGIC
+#define Arc4Process wc_Arc4Process
+#define Arc4SetKey wc_Arc4SetKey
+#define Arc4InitCavium wc_Arc4InitCavium
+#define Arc4FreeCavium wc_Arc4FreeCavium
 
-#define CYASSL_ARC4_CAVIUM_MAGIC 0xBEEF0001
+#define WOLFSSL_ARC4_CAVIUM_MAGIC 0xBEEF0001
 
 enum {
 	ARC4_ENC_TYPE   = 4,    /* cipher unique type */
@@ -51,12 +57,12 @@ typedef struct Arc4 {
 #endif
 } Arc4;
 
-CYASSL_API void Arc4Process(Arc4*, byte*, const byte*, word32);
-CYASSL_API void Arc4SetKey(Arc4*, const byte*, word32);
+CYASSL_API void wc_Arc4Process(Arc4*, byte*, const byte*, word32);
+CYASSL_API void wc_Arc4SetKey(Arc4*, const byte*, word32);
 
 #ifdef HAVE_CAVIUM
-    CYASSL_API int  Arc4InitCavium(Arc4*, int);
-    CYASSL_API void Arc4FreeCavium(Arc4*);
+    CYASSL_API int  wc_Arc4InitCavium(Arc4*, int);
+    CYASSL_API void wc_Arc4FreeCavium(Arc4*);
 #endif
 
 #ifdef __cplusplus
@@ -64,5 +70,5 @@ CYASSL_API void Arc4SetKey(Arc4*, const byte*, word32);
 #endif
 
 
-#endif /* CTAO_CRYPT_ARC4_H */
+#endif /* WOLF_CRYPT_ARC4_H */
 

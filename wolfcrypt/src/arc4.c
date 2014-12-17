@@ -2,14 +2,14 @@
  *
  * Copyright (C) 2006-2014 wolfSSL Inc.
  *
- * This file is part of CyaSSL.
+ * This file is part of wolfSSL. (formerly known as CyaSSL)
  *
- * CyaSSL is free software; you can redistribute it and/or modify
+ * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  *
- * CyaSSL is distributed in the hope that it will be useful,
+ * wolfSSL is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
@@ -27,24 +27,28 @@
 
 #ifndef NO_RC4
 
-#include <cyassl/ctaocrypt/arc4.h>
+#include <wolfssl/wolfcrypt/arc4.h>
+
+/* wrapper around macros until they are changed in cyassl code */
+#define WOLFSSL_MAX_16BIT CYASSL_MAX_16BIT
+#define WOLFSSL_MSG(x) CYASSL_MSG(x)
 
 
 #ifdef HAVE_CAVIUM
-    static void Arc4CaviumSetKey(Arc4* arc4, const byte* key, word32 length);
-    static void Arc4CaviumProcess(Arc4* arc4, byte* out, const byte* in,
+    static void wc_Arc4CaviumSetKey(Arc4* arc4, const byte* key, word32 length);
+    static void wc_Arc4CaviumProcess(Arc4* arc4, byte* out, const byte* in,
                                   word32 length);
 #endif
 
 
-void Arc4SetKey(Arc4* arc4, const byte* key, word32 length)
+void wc_Arc4SetKey(Arc4* arc4, const byte* key, word32 length)
 {
     word32 i;
     word32 keyIndex = 0, stateIndex = 0;
 
 #ifdef HAVE_CAVIUM
-    if (arc4->magic == CYASSL_ARC4_CAVIUM_MAGIC)
-        return Arc4CaviumSetKey(arc4, key, length);
+    if (arc4->magic == WOLFSSL_ARC4_CAVIUM_MAGIC)
+        return wc_Arc4CaviumSetKey(arc4, key, length);
 #endif
 
     arc4->x = 1;
@@ -80,14 +84,14 @@ static INLINE byte MakeByte(word32* x, word32* y, byte* s)
 }
 
 
-void Arc4Process(Arc4* arc4, byte* out, const byte* in, word32 length)
+void wc_Arc4Process(Arc4* arc4, byte* out, const byte* in, word32 length)
 {
     word32 x;
     word32 y;
 
 #ifdef HAVE_CAVIUM
-    if (arc4->magic == CYASSL_ARC4_CAVIUM_MAGIC)
-        return Arc4CaviumProcess(arc4, out, in, length);
+    if (arc4->magic == WOLFSSL_ARC4_CAVIUM_MAGIC)
+        return wc_Arc4CaviumProcess(arc4, out, in, length);
 #endif
 
     x = arc4->x;
@@ -107,7 +111,7 @@ void Arc4Process(Arc4* arc4, byte* out, const byte* in, word32 length)
 #include "cavium_common.h"
 
 /* Initiliaze Arc4 for use with Nitrox device */
-int Arc4InitCavium(Arc4* arc4, int devId)
+int wc_Arc4InitCavium(Arc4* arc4, int devId)
 {
     if (arc4 == NULL)
         return -1;
@@ -116,19 +120,19 @@ int Arc4InitCavium(Arc4* arc4, int devId)
         return -1;
 
     arc4->devId = devId;
-    arc4->magic = CYASSL_ARC4_CAVIUM_MAGIC;
+    arc4->magic = WOLFSSL_ARC4_CAVIUM_MAGIC;
    
     return 0;
 }
 
 
 /* Free Arc4 from use with Nitrox device */
-void Arc4FreeCavium(Arc4* arc4)
+void wc_Arc4FreeCavium(Arc4* arc4)
 {
     if (arc4 == NULL)
         return;
 
-    if (arc4->magic != CYASSL_ARC4_CAVIUM_MAGIC)
+    if (arc4->magic != WOLFSSL_ARC4_CAVIUM_MAGIC)
         return;
 
     CspFreeContext(CONTEXT_SSL, arc4->contextHandle, arc4->devId);
@@ -136,39 +140,39 @@ void Arc4FreeCavium(Arc4* arc4)
 }
 
 
-static void Arc4CaviumSetKey(Arc4* arc4, const byte* key, word32 length)
+static void wc_Arc4CaviumSetKey(Arc4* arc4, const byte* key, word32 length)
 {
     word32 requestId;
 
     if (CspInitializeRc4(CAVIUM_BLOCKING, arc4->contextHandle, length,
                          (byte*)key, &requestId, arc4->devId) != 0) {
-        CYASSL_MSG("Bad Cavium Arc4 Init");
+        WOLFSSL_MSG("Bad Cavium Arc4 Init");
     }
 }
 
 
-static void Arc4CaviumProcess(Arc4* arc4, byte* out, const byte* in,
+static void wc_Arc4CaviumProcess(Arc4* arc4, byte* out, const byte* in,
                               word32 length)
 {
     cyassl_word offset = 0;
     word32 requestId;
 
-    while (length > CYASSL_MAX_16BIT) {
-        word16 slen = (word16)CYASSL_MAX_16BIT;
+    while (length > WOLFSSL_MAX_16BIT) {
+        word16 slen = (word16)WOLFSSL_MAX_16BIT;
         if (CspEncryptRc4(CAVIUM_BLOCKING, arc4->contextHandle,CAVIUM_UPDATE,
                           slen, (byte*)in + offset, out + offset, &requestId,
                           arc4->devId) != 0) {
-            CYASSL_MSG("Bad Cavium Arc4 Encrypt");
+            WOLFSSL_MSG("Bad Cavium Arc4 Encrypt");
         }
-        length -= CYASSL_MAX_16BIT;
-        offset += CYASSL_MAX_16BIT;
+        length -= WOLFSSL_MAX_16BIT;
+        offset += WOLFSSL_MAX_16BIT;
     }
     if (length) {
         word16 slen = (word16)length;
         if (CspEncryptRc4(CAVIUM_BLOCKING, arc4->contextHandle,CAVIUM_UPDATE,
                           slen, (byte*)in + offset, out + offset, &requestId,
                           arc4->devId) != 0) {
-            CYASSL_MSG("Bad Cavium Arc4 Encrypt");
+            WOLFSSL_MSG("Bad Cavium Arc4 Encrypt");
         }
     }
 }

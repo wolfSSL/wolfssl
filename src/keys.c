@@ -1850,15 +1850,15 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
 #endif
         if (side == CYASSL_CLIENT_END) {
             if (enc)
-                Arc4SetKey(enc->arc4, keys->client_write_key, sz);
+                wc_Arc4SetKey(enc->arc4, keys->client_write_key, sz);
             if (dec)
-                Arc4SetKey(dec->arc4, keys->server_write_key, sz);
+                wc_Arc4SetKey(dec->arc4, keys->server_write_key, sz);
         }
         else {
             if (enc)
-                Arc4SetKey(enc->arc4, keys->server_write_key, sz);
+                wc_Arc4SetKey(enc->arc4, keys->server_write_key, sz);
             if (dec)
-                Arc4SetKey(dec->arc4, keys->client_write_key, sz);
+                wc_Arc4SetKey(dec->arc4, keys->client_write_key, sz);
         }
         if (enc)
             enc->setup = 1;

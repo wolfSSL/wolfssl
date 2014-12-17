@@ -26,6 +26,7 @@ endif
 
 if BUILD_AES
 src_libcyassl_la_SOURCES += ctaocrypt/src/aes.c
+src_libcyassl_la_SOURCES += wolfcrypt/src/aes.c
 endif
 
 if BUILD_DES3
@@ -76,7 +77,7 @@ src_libcyassl_la_SOURCES += ctaocrypt/src/poly1305.c
 endif
 
 if BUILD_RC4
-src_libcyassl_la_SOURCES += ctaocrypt/src/arc4.c
+src_libcyassl_la_SOURCES += wolfcrypt/src/arc4.c
 endif
 
 if BUILD_MD4
@@ -112,7 +113,7 @@ src_libcyassl_la_SOURCES += ctaocrypt/src/ripemd.c
 endif
 
 if BUILD_BLAKE2
-src_libcyassl_la_SOURCES += ctaocrypt/src/blake2b.c
+src_libcyassl_la_SOURCES += wolfcrypt/src/blake2b.c
 endif
 
 if BUILD_HC128

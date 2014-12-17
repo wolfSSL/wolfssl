@@ -564,8 +564,8 @@ void FreeCiphers(CYASSL* ssl)
 #ifdef BUILD_ARC4
     #ifdef HAVE_CAVIUM
     if (ssl->devId != NO_CAVIUM_DEVICE) {
-        Arc4FreeCavium(ssl->encrypt.arc4);
-        Arc4FreeCavium(ssl->decrypt.arc4);
+        wc_Arc4FreeCavium(ssl->encrypt.arc4);
+        wc_Arc4FreeCavium(ssl->decrypt.arc4);
     }
     #endif
     XFREE(ssl->encrypt.arc4, ssl->heap, DYNAMIC_TYPE_CIPHER);
@@ -5648,7 +5648,7 @@ static INLINE int Encrypt(CYASSL* ssl, byte* out, const byte* input, word16 sz)
     switch (ssl->specs.bulk_cipher_algorithm) {
         #ifdef BUILD_ARC4
             case cyassl_rc4:
-                Arc4Process(ssl->encrypt.arc4, out, input, sz);
+                wc_Arc4Process(ssl->encrypt.arc4, out, input, sz);
                 break;
         #endif
 
@@ -5807,7 +5807,7 @@ static INLINE int Decrypt(CYASSL* ssl, byte* plain, const byte* input,
     switch (ssl->specs.bulk_cipher_algorithm) {
         #ifdef BUILD_ARC4
             case cyassl_rc4:
-                Arc4Process(ssl->decrypt.arc4, plain, input, sz);
+                wc_Arc4Process(ssl->decrypt.arc4, plain, input, sz);
                 break;
         #endif
 

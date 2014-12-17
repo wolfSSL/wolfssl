@@ -41,7 +41,7 @@
 #include <cyassl/ctaocrypt/logging.h>
 #include <cyassl/ctaocrypt/hmac.h>
 #ifndef NO_RC4
-    #include <cyassl/ctaocrypt/arc4.h>
+    #include <wolfssl/wolfcrypt/arc4.h>
 #endif
 #ifdef HAVE_ECC
     #include <cyassl/ctaocrypt/ecc.h>
