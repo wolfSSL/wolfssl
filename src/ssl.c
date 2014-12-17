@@ -3192,13 +3192,13 @@ static INLINE CYASSL_METHOD* cm_pick_method(void)
         #ifdef NO_OLD_TLS
             return CyaTLSv1_2_client_method();
         #else
-            return CyaSSLv3_client_method();
-        #endif
+            return wolfSSLv3_client_method();
+        #endif      
     #elif !defined(NO_CYASSL_SERVER)
         #ifdef NO_OLD_TLS
             return CyaTLSv1_2_server_method();
         #else
-            return CyaSSLv3_server_method();
+            return wolfSSLv3_server_method();
         #endif
     #else
         return NULL;
@@ -4922,7 +4922,7 @@ int CyaSSL_dtls_got_timeout(CYASSL* ssl)
 #ifndef NO_CYASSL_CLIENT
 
     #ifndef NO_OLD_TLS
-    CYASSL_METHOD* CyaSSLv3_client_method(void)
+    CYASSL_METHOD* wolfSSLv3_client_method(void)
     {
         CYASSL_METHOD* method =
                               (CYASSL_METHOD*) XMALLOC(sizeof(CYASSL_METHOD), 0,
@@ -5189,7 +5189,7 @@ int CyaSSL_dtls_got_timeout(CYASSL* ssl)
 #ifndef NO_CYASSL_SERVER
 
     #ifndef NO_OLD_TLS
-    CYASSL_METHOD* CyaSSLv3_server_method(void)
+    CYASSL_METHOD* wolfSSLv3_server_method(void)
     {
         CYASSL_METHOD* method =
                               (CYASSL_METHOD*) XMALLOC(sizeof(CYASSL_METHOD), 0,

@@ -29,6 +29,7 @@
 #define CYASSL_OPENSSL_H_
 
 #include <cyassl/ssl.h>
+#include <wolfssl/ssl.h>
 
 #ifdef __cplusplus
     extern "C" {
@@ -80,20 +81,20 @@ typedef CYASSL_X509_OBJECT    X509_OBJECT;
 typedef CYASSL_X509_STORE_CTX X509_STORE_CTX;
 
 
-#define SSLv3_server_method CyaSSLv3_server_method
-#define SSLv3_client_method CyaSSLv3_client_method
-#define TLSv1_server_method CyaTLSv1_server_method
-#define TLSv1_client_method CyaTLSv1_client_method
-#define TLSv1_1_server_method CyaTLSv1_1_server_method
-#define TLSv1_1_client_method CyaTLSv1_1_client_method
-#define TLSv1_2_server_method CyaTLSv1_2_server_method
-#define TLSv1_2_client_method CyaTLSv1_2_client_method
+#define SSLv3_server_method wolfSSLv3_server_method
+#define SSLv3_client_method wolfSSLv3_client_method
+#define TLSv1_server_method wolfTLSv1_server_method
+#define TLSv1_client_method wolfTLSv1_client_method
+#define TLSv1_1_server_method wolfTLSv1_1_server_method
+#define TLSv1_1_client_method wolfTLSv1_1_client_method
+#define TLSv1_2_server_method wolfTLSv1_2_server_method
+#define TLSv1_2_client_method wolfTLSv1_2_client_method
 
 #ifdef CYASSL_DTLS
-    #define DTLSv1_client_method CyaDTLSv1_client_method
-    #define DTLSv1_server_method CyaDTLSv1_server_method
-    #define DTLSv1_2_client_method CyaDTLSv1_2_client_method
-    #define DTLSv1_2_server_method CyaDTLSv1_2_server_method
+    #define DTLSv1_client_method wolfDTLSv1_client_method
+    #define DTLSv1_server_method wolfDTLSv1_server_method
+    #define DTLSv1_2_client_method wolfDTLSv1_2_client_method
+    #define DTLSv1_2_server_method wolfDTLSv1_2_server_method
 #endif
 
 
