@@ -22,8 +22,8 @@
 /* submitted by eof */
 
 
-#ifndef CYASSL_MEMORY_H
-#define CYASSL_MEMORY_H
+#ifndef WOLFSSL_MEMORY_H
+#define WOLFSSL_MEMORY_H
 
 #include <stdlib.h>
 
@@ -32,20 +32,20 @@
 #endif
 
 
-typedef void *(*CyaSSL_Malloc_cb)(size_t size);
-typedef void (*CyaSSL_Free_cb)(void *ptr);
-typedef void *(*CyaSSL_Realloc_cb)(void *ptr, size_t size);
+typedef void *(*wolfSSL_Malloc_cb)(size_t size);
+typedef void (*wolfSSL_Free_cb)(void *ptr);
+typedef void *(*wolfSSL_Realloc_cb)(void *ptr, size_t size);
 
 
 /* Public set function */
-CYASSL_API int CyaSSL_SetAllocators(CyaSSL_Malloc_cb  malloc_function,
-                                    CyaSSL_Free_cb    free_function,
-                                    CyaSSL_Realloc_cb realloc_function);
+WOLFSSL_API int CyaSSL_SetAllocators(wolfSSL_Malloc_cb  malloc_function,
+                                    wolfSSL_Free_cb    free_function,
+                                    wolfSSL_Realloc_cb realloc_function);
 
 /* Public in case user app wants to use XMALLOC/XFREE */
-CYASSL_API void* CyaSSL_Malloc(size_t size);
-CYASSL_API void  CyaSSL_Free(void *ptr);
-CYASSL_API void* CyaSSL_Realloc(void *ptr, size_t size);
+WOLFSSL_API void* wolfSSL_Malloc(size_t size);
+WOLFSSL_API void  wolfSSL_Free(void *ptr);
+WOLFSSL_API void* wolfSSL_Realloc(void *ptr, size_t size);
 
 
 #ifdef __cplusplus
