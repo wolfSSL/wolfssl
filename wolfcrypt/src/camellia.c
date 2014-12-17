@@ -29,14 +29,14 @@
  *
  * Copyright (C) 2006-2014 wolfSSL Inc.
  *
- * This file is part of CyaSSL.
+ * This file is part of wolfSSL. (formerly known as CyaSSL)
  *
- * CyaSSL is free software; you can redistribute it and/or modify
+ * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  *
- * CyaSSL is distributed in the hope that it will be useful,
+ * wolfSSL is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
@@ -68,6 +68,8 @@
 #else
     #include <ctaocrypt/src/misc.c>
 #endif
+
+
 
 
 /* u32 must be 32bit word */
@@ -492,7 +494,7 @@ static int camellia_setup128(const unsigned char *key, u32 *subkey)
     u32 il, ir, t0, t1, w0, w1;
     u32 kw4l, kw4r, dw, tl, tr;
 
-#ifdef CYASSL_SMALL_STACK
+#ifdef WOLFSSL_SMALL_STACK
     u32* subL;
     u32* subR;
 
@@ -710,7 +712,7 @@ static int camellia_setup128(const unsigned char *key, u32 *subkey)
     dw = CamelliaSubkeyL(23) ^ CamelliaSubkeyR(23), dw = CAMELLIA_RL8(dw);
     CamelliaSubkeyR(23) = CamelliaSubkeyL(23) ^ dw, CamelliaSubkeyL(23) = dw;
 
-#ifdef CYASSL_SMALL_STACK
+#ifdef WOLFSSL_SMALL_STACK
     XFREE(subL, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(subR, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
@@ -725,7 +727,7 @@ static int camellia_setup256(const unsigned char *key, u32 *subkey)
     u32 il, ir, t0, t1, w0, w1;    /* temporary variables */
     u32 kw4l, kw4r, dw, tl, tr;
 
-#ifdef CYASSL_SMALL_STACK
+#ifdef WOLFSSL_SMALL_STACK
     u32* subL;
     u32* subR;
 
@@ -1017,7 +1019,7 @@ static int camellia_setup256(const unsigned char *key, u32 *subkey)
     dw = CamelliaSubkeyL(31) ^ CamelliaSubkeyR(31), dw = CAMELLIA_RL8(dw);
     CamelliaSubkeyR(31) = CamelliaSubkeyL(31) ^ dw,CamelliaSubkeyL(31) = dw;
     
-#ifdef CYASSL_SMALL_STACK
+#ifdef WOLFSSL_SMALL_STACK
     XFREE(subL, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(subR, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif

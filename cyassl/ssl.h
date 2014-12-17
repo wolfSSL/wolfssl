@@ -283,6 +283,27 @@
 
 /* End wolfssl -> cyassl -> openssl compatibility */
 
+
+/* JRB macro redefinitions and api calls for cryptography for reverse compat. */
+#ifdef WOLFSSL_SMALL_STACK
+    #define CYASSL_SMALL_STACK
+#endif
+
+
+/* wrapper around macros until they are changed in cyassl code  
+ * needs investigation in regards to macros in fips */
+#define WOLFSSL_MAX_16BIT CYASSL_MAX_16BIT
+#define WOLFSSL_MSG(x) CYASSL_MSG(x)
+
+/* for arc4 reverse compatibility */
+#ifndef NO_RC4
+   #define CYASSL_ARC4_CAVIUM_MAGIC WOLFSSL_ARC4_CAVIUM_MAGIC
+    #define Arc4Process wc_Arc4Process
+    #define Arc4SetKey wc_Arc4SetKey
+    #define Arc4InitCavium wc_Arc4InitCavium
+    #define Arc4FreeCavium wc_Arc4FreeCavium
+#endif
+
 #ifdef __cplusplus
     } /* extern "C" */
 #endif

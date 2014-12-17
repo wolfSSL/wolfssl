@@ -48,8 +48,8 @@
 
 #ifdef HAVE_CAMELLIA
 
-#ifndef CTAO_CRYPT_CAMELLIA_H
-#define CTAO_CRYPT_CAMELLIA_H
+#ifndef WOLF_CRYPT_CAMELLIA_H
+#define WOLF_CRYPT_CAMELLIA_H
 
 
 #include <cyassl/ctaocrypt/types.h>
@@ -91,6 +91,6 @@ CYASSL_API void CamelliaCbcDecrypt(Camellia* cam,
     } /* extern "C" */
 #endif
 
-#endif /* CTAO_CRYPT_AES_H */
+#endif /* WOLF_CRYPT_AES_H */
 #endif /* HAVE_CAMELLIA */
 

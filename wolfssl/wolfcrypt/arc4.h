@@ -2,14 +2,14 @@
  *
  * Copyright (C) 2006-2014 wolfSSL Inc.
  *
- * This file is part of CyaSSL.
+ * This file is part of wolfSSL. (formerly known as CyaSSL)
  *
- * CyaSSL is free software; you can redistribute it and/or modify
+ * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  *
- * CyaSSL is distributed in the hope that it will be useful,
+ * wolfSSL is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
@@ -31,12 +31,6 @@
     extern "C" {
 #endif
 
-/* for reverse compatibility */
-#define CYASSL_ARC4_CAVIUM_MAGIC WOLFSSL_ARC4_CAVIUM_MAGIC
-#define Arc4Process wc_Arc4Process
-#define Arc4SetKey wc_Arc4SetKey
-#define Arc4InitCavium wc_Arc4InitCavium
-#define Arc4FreeCavium wc_Arc4FreeCavium
 
 #define WOLFSSL_ARC4_CAVIUM_MAGIC 0xBEEF0001
 

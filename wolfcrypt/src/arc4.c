@@ -29,10 +29,6 @@
 
 #include <wolfssl/wolfcrypt/arc4.h>
 
-/* wrapper around macros until they are changed in cyassl code */
-#define WOLFSSL_MAX_16BIT CYASSL_MAX_16BIT
-#define WOLFSSL_MSG(x) CYASSL_MSG(x)
-
 
 #ifdef HAVE_CAVIUM
     static void wc_Arc4CaviumSetKey(Arc4* arc4, const byte* key, word32 length);
