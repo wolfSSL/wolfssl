@@ -1,4 +1,4 @@
-/* sniffer.h
+/* ocsp.h
  *
  * Copyright (C) 2006-2014 wolfSSL Inc.
  *
@@ -19,5 +19,34 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-#include <wolfssl/sniffer.h>
+
+/* CyaSSL OCSP API */
+
+#ifndef CYASSL_OCSP_H
+#define CYASSL_OCSP_H
+
+#ifdef HAVE_OCSP
+
+#include <cyassl/ssl.h>
+#include <cyassl/ctaocrypt/asn.h>
+
+#ifdef __cplusplus
+    extern "C" {
+#endif
+
+typedef struct CYASSL_OCSP CYASSL_OCSP;
+
+CYASSL_LOCAL int  InitOCSP(CYASSL_OCSP*, CYASSL_CERT_MANAGER*);
+CYASSL_LOCAL void FreeOCSP(CYASSL_OCSP*, int dynamic);
+
+CYASSL_LOCAL int  CheckCertOCSP(CYASSL_OCSP*, DecodedCert*);
+
+#ifdef __cplusplus
+    }  /* extern "C" */
+#endif
+
+
+#endif /* HAVE_OCSP */
+#endif /* CYASSL_OCSP_H */
+
 

@@ -1,4 +1,4 @@
-/* sniffer.h
+/* options.h.in
  *
  * Copyright (C) 2006-2014 wolfSSL Inc.
  *
@@ -19,5 +19,16 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-#include <wolfssl/sniffer.h>
+/* default blank options for autoconf */
+
+#pragma once
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+
+#ifdef __cplusplus
+}
+#endif
 
