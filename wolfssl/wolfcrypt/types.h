@@ -2,14 +2,14 @@
  *
  * Copyright (C) 2006-2014 wolfSSL Inc.
  *
- * This file is part of CyaSSL.
+ * This file is part of wolfSSL.
  *
- * CyaSSL is free software; you can redistribute it and/or modify
+ * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  *
- * CyaSSL is distributed in the hope that it will be useful,
+ * wolfSSL is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
@@ -20,11 +20,14 @@
  */
 
 
-#ifndef CTAO_CRYPT_TYPES_H
-#define CTAO_CRYPT_TYPES_H
+#ifndef WOLF_CRYPT_TYPES_H
+#define WOLF_CRYPT_TYPES_H
 
-#include <cyassl/ctaocrypt/settings.h>
-#include <cyassl/ctaocrypt/wc_port.h>
+#include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/wolfcrypt/wc_port.h>
+ 
+/* wolfssl_cyassl compatibility layer */
+#include <cyassl/ssl.h>
 
 #ifdef __cplusplus
     extern "C" {
@@ -92,18 +95,18 @@
 #else
     typedef word32 cyassl_word;
     #ifdef WORD64_AVAILABLE
-        #define CTAOCRYPT_SLOW_WORD64
+        #define WOLFCRYPT_SLOW_WORD64
     #endif
 #endif
 
 
 enum {
-    CYASSL_WORD_SIZE  = sizeof(cyassl_word),
-    CYASSL_BIT_SIZE   = 8,
-    CYASSL_WORD_BITS  = CYASSL_WORD_SIZE * CYASSL_BIT_SIZE
+    WOLFSSL_WORD_SIZE  = sizeof(cyassl_word),
+    WOLFSSL_BIT_SIZE   = 8,
+    WOLFSSL_WORD_BITS  = WOLFSSL_WORD_SIZE * WOLFSSL_BIT_SIZE
 };
 
-#define CYASSL_MAX_16BIT 0xffffU
+#define WOLFSSL_MAX_16BIT 0xffffU
 
 /* use inlining if compiler allows */
 #ifndef INLINE
@@ -168,20 +171,20 @@ enum {
     extern void *XMALLOC(size_t n, void* heap, int type);
     extern void *XREALLOC(void *p, size_t n, void* heap, int type);
     extern void XFREE(void *p, void* heap, int type);
-#elif defined(NO_CYASSL_MEMORY)
+#elif defined(NO_WOLFSSL_MEMORY)
     /* just use plain C stdlib stuff if desired */
     #include <stdlib.h>
     #define XMALLOC(s, h, t)     ((void)h, (void)t, malloc((s)))
     #define XFREE(p, h, t)       {void* xp = (p); if((xp)) free((xp));}
     #define XREALLOC(p, n, h, t) realloc((p), (n))
 #elif !defined(MICRIUM_MALLOC) && !defined(EBSNET) \
-        && !defined(CYASSL_SAFERTOS) && !defined(FREESCALE_MQX) \
-        && !defined(CYASSL_LEANPSK)
+        && !defined(WOLFSSL_SAFERTOS) && !defined(FREESCALE_MQX) \
+        && !defined(WOLFSSL_LEANPSK)
     /* default C runtime, can install different routines at runtime via cbs */
     #include <cyassl/ctaocrypt/memory.h>
-    #define XMALLOC(s, h, t)     ((void)h, (void)t, CyaSSL_Malloc((s)))
-    #define XFREE(p, h, t)       {void* xp = (p); if((xp)) CyaSSL_Free((xp));}
-    #define XREALLOC(p, n, h, t) CyaSSL_Realloc((p), (n))
+    #define XMALLOC(s, h, t)     ((void)h, (void)t, wolfSSL_Malloc((s)))
+    #define XFREE(p, h, t)       {void* xp = (p); if((xp)) wolfSSL_Free((xp));}
+    #define XREALLOC(p, n, h, t) wolfSSL_Realloc((p), (n))
 #endif
 
 #ifndef STRING_USER
@@ -195,7 +198,7 @@ enum {
 
     #define XSTRLEN(s1)       strlen((s1))
     #define XSTRNCPY(s1,s2,n) strncpy((s1),(s2),(n))
-    /* strstr, strncmp, and strncat only used by CyaSSL proper, not required for
+    /* strstr, strncmp, and strncat only used by wolfSSL proper, not required for
        CTaoCrypt only */
     #define XSTRSTR(s1,s2)    strstr((s1),(s2))
     #define XSTRNSTR(s1,s2,n) mystrnstr((s1),(s2),(n))
@@ -216,7 +219,7 @@ enum {
         #define XTOUPPER(c)     toupper((c))
         #define XISALPHA(c)     isalpha((c))
     #endif
-    /* needed by CyaSSL_check_domain_name() */
+    /* needed by wolfSSL_check_domain_name() */
     #ifdef __CYGWIN__
         /* Cygwin uses a macro version of tolower() by default, use the
          * function version. */
@@ -277,7 +280,7 @@ enum {
 
 /* max error buffer string size */
 enum {
-    CYASSL_MAX_ERROR_SZ = 80
+    WOLFSSL_MAX_ERROR_SZ = 80
 };
 
 /* stack protection */
@@ -311,7 +314,7 @@ enum {
 };
 
 
-CYASSL_API word32 CheckRunTimeSettings(void);
+WOLFSSL_API word32 CheckRunTimeSettings(void);
 
 /* If user uses RSA, DH, DSA, or ECC math lib directly then fast math and long
    types need to match at compile time and run time, CheckCtcSettings will
@@ -324,5 +327,5 @@ CYASSL_API word32 CheckRunTimeSettings(void);
 #endif
 
 
-#endif /* CTAO_CRYPT_TYPES_H */
+#endif /* WOLF_CRYPT_TYPES_H */
 
