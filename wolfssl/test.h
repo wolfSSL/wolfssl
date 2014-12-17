@@ -1,7 +1,7 @@
 /* test.h */
 
-#ifndef CyaSSL_TEST_H
-#define CyaSSL_TEST_H
+#ifndef wolfSSL_TEST_H
+#define wolfSSL_TEST_H
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -33,9 +33,9 @@
     #endif
     #define SOCKET_T SOCKET
     #define SNPRINTF _snprintf
-#elif defined(CYASSL_MDK_ARM)
+#elif defined(WOLFSSL_MDK_ARM)
     #include <string.h>
-#elif defined(CYASSL_TIRTOS)
+#elif defined(WOLFSSL_TIRTOS)
     #include <string.h>
     #include <netdb.h>
     #include <sys/types.h>
@@ -46,7 +46,7 @@
 #else
     #include <string.h>
     #include <sys/types.h>
-#ifndef CYASSL_LEANPSK
+#ifndef WOLFSSL_LEANPSK
     #include <unistd.h>
     #include <netdb.h>
     #include <netinet/in.h>
@@ -90,7 +90,7 @@
 
 /* HPUX doesn't use socklent_t for third parameter to accept, unless
    _XOPEN_SOURCE_EXTENDED is defined */
-#if !defined(__hpux__) && !defined(CYASSL_MDK_ARM) && !defined(CYASSL_IAR_ARM)
+#if !defined(__hpux__) && !defined(WOLFSSL_MDK_ARM) && !defined(WOLFSSL_IAR_ARM)
     typedef socklen_t* ACCEPT_THIRD_T;
 #else
     #if defined _XOPEN_SOURCE_EXTENDED
@@ -104,7 +104,7 @@
 #ifdef USE_WINDOWS_API 
     #define CloseSocket(s) closesocket(s)
     #define StartTCP() { WSADATA wsd; WSAStartup(0x0002, &wsd); }
-#elif defined(CYASSL_MDK_ARM)
+#elif defined(WOLFSSL_MDK_ARM)
     #define CloseSocket(s) closesocket(s)
     #define StartTCP() 
 #else
@@ -116,26 +116,26 @@
 #ifdef SINGLE_THREADED
     typedef unsigned int  THREAD_RETURN;
     typedef void*         THREAD_TYPE;
-    #define CYASSL_THREAD
+    #define WOLFSSL_THREAD
 #else
     #if defined(_POSIX_THREADS) && !defined(__MINGW32__)
         typedef void*         THREAD_RETURN;
         typedef pthread_t     THREAD_TYPE;
-        #define CYASSL_THREAD
+        #define WOLFSSL_THREAD
         #define INFINITE -1
         #define WAIT_OBJECT_0 0L
-    #elif defined(CYASSL_MDK_ARM)
+    #elif defined(WOLFSSL_MDK_ARM)
         typedef unsigned int  THREAD_RETURN;
         typedef int           THREAD_TYPE;
-        #define CYASSL_THREAD
-    #elif defined(CYASSL_TIRTOS)
+        #define WOLFSSL_THREAD
+    #elif defined(WOLFSSL_TIRTOS)
         typedef void          THREAD_RETURN;
         typedef Task_Handle   THREAD_TYPE;
-        #define CYASSL_THREAD
+        #define WOLFSSL_THREAD
     #else
         typedef unsigned int  THREAD_RETURN;
         typedef intptr_t      THREAD_TYPE;
-        #define CYASSL_THREAD __stdcall
+        #define WOLFSSL_THREAD __stdcall
     #endif
 #endif
 
@@ -156,7 +156,7 @@
 #define CLIENT_DTLS_DEFAULT_VERSION (-2)
 #define CLIENT_INVALID_VERSION (-99)
 
-/* all certs relative to CyaSSL home directory now */
+/* all certs relative to wolfSSL home directory now */
 #define caCert     "./certs/ca-cert.pem"
 #define eccCert    "./certs/server-ecc.pem"
 #define eccKey     "./certs/ecc-key.pem"
@@ -184,9 +184,9 @@ typedef struct tcp_ready {
 void InitTcpReady(tcp_ready*);
 void FreeTcpReady(tcp_ready*);
 
-typedef CYASSL_METHOD* (*method_provider)(void);
-typedef void (*ctx_callback)(CYASSL_CTX* ctx);
-typedef void (*ssl_callback)(CYASSL* ssl);
+typedef WOLFSSL_METHOD* (*method_provider)(void);
+typedef void (*ctx_callback)(WOLFSSL_CTX* ctx);
+typedef void (*ssl_callback)(WOLFSSL* ssl);
 
 typedef struct callback_functions {
     method_provider method;
@@ -205,7 +205,7 @@ typedef struct func_args {
 
 void wait_tcp_ready(func_args*);
 
-typedef THREAD_RETURN CYASSL_THREAD THREAD_FUNC(void*);
+typedef THREAD_RETURN WOLFSSL_THREAD THREAD_FUNC(void*);
 
 void start_thread(THREAD_FUNC, func_args*, THREAD_TYPE*);
 void join_thread(THREAD_TYPE);
@@ -310,23 +310,23 @@ static INLINE int PasswordCallBack(char* passwd, int sz, int rw, void* userdata)
 
 #if defined(KEEP_PEER_CERT) || defined(SESSION_CERTS)
 
-static INLINE void ShowX509(CYASSL_X509* x509, const char* hdr)
+static INLINE void ShowX509(WOLFSSL_X509* x509, const char* hdr)
 {
     char* altName;
-    char* issuer  = CyaSSL_X509_NAME_oneline(
-                                       CyaSSL_X509_get_issuer_name(x509), 0, 0);
-    char* subject = CyaSSL_X509_NAME_oneline(
-                                      CyaSSL_X509_get_subject_name(x509), 0, 0);
+    char* issuer  = wolfSSL_X509_NAME_oneline(
+                                       wolfSSL_X509_get_issuer_name(x509), 0, 0);
+    char* subject = wolfSSL_X509_NAME_oneline(
+                                      wolfSSL_X509_get_subject_name(x509), 0, 0);
     byte  serial[32];
     int   ret;
     int   sz = sizeof(serial);
         
     printf("%s\n issuer : %s\n subject: %s\n", hdr, issuer, subject);
 
-    while ( (altName = CyaSSL_X509_get_next_altname(x509)) != NULL)
+    while ( (altName = wolfSSL_X509_get_next_altname(x509)) != NULL)
         printf(" altname = %s\n", altName);
 
-    ret = CyaSSL_X509_get_serial_number(x509, serial, &sz);
+    ret = wolfSSL_X509_get_serial_number(x509, serial, &sz);
     if (ret == SSL_SUCCESS) {
         int  i;
         int  strLen;
@@ -347,43 +347,43 @@ static INLINE void ShowX509(CYASSL_X509* x509, const char* hdr)
 #endif /* KEEP_PEER_CERT || SESSION_CERTS */
 
 
-static INLINE void showPeer(CYASSL* ssl)
+static INLINE void showPeer(WOLFSSL* ssl)
 {
 
-    CYASSL_CIPHER* cipher;
+    WOLFSSL_CIPHER* cipher;
 #ifdef KEEP_PEER_CERT
-    CYASSL_X509* peer = CyaSSL_get_peer_certificate(ssl);
+    WOLFSSL_X509* peer = wolfSSL_get_peer_certificate(ssl);
     if (peer)
         ShowX509(peer, "peer's cert info:");
     else
         printf("peer has no cert!\n");
 #endif
-    printf("SSL version is %s\n", CyaSSL_get_version(ssl));
+    printf("SSL version is %s\n", wolfSSL_get_version(ssl));
 
-    cipher = CyaSSL_get_current_cipher(ssl);
-    printf("SSL cipher suite is %s\n", CyaSSL_CIPHER_get_name(cipher));
+    cipher = wolfSSL_get_current_cipher(ssl);
+    printf("SSL cipher suite is %s\n", wolfSSL_CIPHER_get_name(cipher));
 
 #if defined(SESSION_CERTS) && defined(SHOW_CERTS)
     {
-        CYASSL_X509_CHAIN* chain = CyaSSL_get_peer_chain(ssl);
-        int                count = CyaSSL_get_chain_count(chain);
+        WOLFSSL_X509_CHAIN* chain = wolfSSL_get_peer_chain(ssl);
+        int                count = wolfSSL_get_chain_count(chain);
         int i;
 
         for (i = 0; i < count; i++) {
             int length;
             unsigned char buffer[3072];
-            CYASSL_X509* chainX509;
+            WOLFSSL_X509* chainX509;
 
-            CyaSSL_get_chain_cert_pem(chain,i,buffer, sizeof(buffer), &length);
+            wolfSSL_get_chain_cert_pem(chain,i,buffer, sizeof(buffer), &length);
             buffer[length] = 0;
             printf("cert %d has length %d data = \n%s\n", i, length, buffer);
 
-            chainX509 = CyaSSL_get_chain_X509(chain, i);
+            chainX509 = wolfSSL_get_chain_X509(chain, i);
             if (chainX509)
                 ShowX509(chainX509, "session cert info:");
             else
                 printf("get_chain_X509 failed\n");
-            CyaSSL_FreeX509(chainX509);
+            wolfSSL_FreeX509(chainX509);
         }
     }
 #endif
@@ -403,7 +403,7 @@ static INLINE void build_addr(SOCKADDR_IN_T* addr, const char* peer,
 #ifndef TEST_IPV6
     /* peer could be in human readable form */
     if ( (peer != INADDR_ANY) && isalpha((int)peer[0])) {
-        #ifdef CYASSL_MDK_ARM
+        #ifdef WOLFSSL_MDK_ARM
             int err;
             struct hostent* entry = gethostbyname(peer, &err);
         #else
@@ -422,7 +422,7 @@ static INLINE void build_addr(SOCKADDR_IN_T* addr, const char* peer,
 
 
 #ifndef TEST_IPV6
-    #if defined(CYASSL_MDK_ARM)
+    #if defined(WOLFSSL_MDK_ARM)
         addr->sin_family = PF_INET;
     #else
         addr->sin_family = AF_INET_V;
@@ -480,7 +480,7 @@ static INLINE void tcp_socket(SOCKET_T* sockfd, int udp)
 #ifdef USE_WINDOWS_API
     if (*sockfd == INVALID_SOCKET)
         err_sys("socket failed\n");
-#elif defined(CYASSL_TIRTOS)
+#elif defined(WOLFSSL_TIRTOS)
     if (*sockfd == -1)
         err_sys("socket failed\n");
 #else
@@ -497,7 +497,7 @@ static INLINE void tcp_socket(SOCKET_T* sockfd, int udp)
         if (res < 0)
             err_sys("setsockopt SO_NOSIGPIPE failed\n");
     }
-#elif defined(CYASSL_MDK_ARM) || defined (CYASSL_TIRTOS)
+#elif defined(WOLFSSL_MDK_ARM) || defined (WOLFSSL_TIRTOS)
     /* nothing to define */
 #else  /* no S_NOSIGPIPE */
     signal(SIGPIPE, SIG_IGN);
@@ -545,7 +545,7 @@ enum {
 };
 
 
-#if !defined(CYASSL_MDK_ARM) && !defined(CYASSL_TIRTOS)
+#if !defined(WOLFSSL_MDK_ARM) && !defined(WOLFSSL_TIRTOS)
 static INLINE int tcp_select(SOCKET_T socketfd, int to_sec)
 {
     fd_set recvfds, errfds;
@@ -571,12 +571,12 @@ static INLINE int tcp_select(SOCKET_T socketfd, int to_sec)
 
     return TEST_SELECT_FAIL;
 }
-#elif defined(CYASSL_TIRTOS)
+#elif defined(WOLFSSL_TIRTOS)
 static INLINE int tcp_select(SOCKET_T socketfd, int to_sec)
 {
     return TEST_RECV_READY;
 }
-#endif /* !CYASSL_MDK_ARM */
+#endif /* !WOLFSSL_MDK_ARM */
 
 
 static INLINE void tcp_listen(SOCKET_T* sockfd, word16* port, int useAnyAddr,
@@ -589,7 +589,7 @@ static INLINE void tcp_listen(SOCKET_T* sockfd, word16* port, int useAnyAddr,
     build_addr(&addr, (useAnyAddr ? INADDR_ANY : yasslIP), *port, udp);
     tcp_socket(sockfd, udp);
 
-#if !defined(USE_WINDOWS_API) && !defined(CYASSL_MDK_ARM)
+#if !defined(USE_WINDOWS_API) && !defined(WOLFSSL_MDK_ARM)
     {
         int       res, on  = 1;
         socklen_t len = sizeof(on);
@@ -650,7 +650,7 @@ static INLINE void udp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
     tcp_socket(sockfd, 1);
 
 
-#if !defined(USE_WINDOWS_API) && !defined(CYASSL_MDK_ARM)
+#if !defined(USE_WINDOWS_API) && !defined(WOLFSSL_MDK_ARM)
     {
         int       res, on  = 1;
         socklen_t len = sizeof(on);
@@ -686,7 +686,7 @@ static INLINE void udp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
     pthread_cond_signal(&ready->cond);
     pthread_mutex_unlock(&ready->mutex);
     }
-#elif defined (CYASSL_TIRTOS)
+#elif defined (WOLFSSL_TIRTOS)
     /* Need mutex? */
     tcp_ready* ready = args->signal;
     ready->ready = 1;
@@ -720,7 +720,7 @@ static INLINE void tcp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
     pthread_cond_signal(&ready->cond);
     pthread_mutex_unlock(&ready->mutex);
     }
-#elif defined (CYASSL_TIRTOS)
+#elif defined (WOLFSSL_TIRTOS)
     /* Need mutex? */
     tcp_ready* ready = args->signal;
     ready->ready = 1;
@@ -757,7 +757,7 @@ static INLINE void tcp_set_nonblocking(SOCKET_T* sockfd)
         int ret = ioctlsocket(*sockfd, FIONBIO, &blocking);
         if (ret == SOCKET_ERROR)
             err_sys("ioctlsocket failed");
-    #elif defined(CYASSL_MDK_ARM) || defined (CYASSL_TIRTOS)
+    #elif defined(WOLFSSL_MDK_ARM) || defined (WOLFSSL_TIRTOS)
          /* non blocking not suppported, for now */ 
     #else
         int flags = fcntl(*sockfd, F_GETFL, 0);
@@ -772,7 +772,7 @@ static INLINE void tcp_set_nonblocking(SOCKET_T* sockfd)
 
 #ifndef NO_PSK
 
-static INLINE unsigned int my_psk_client_cb(CYASSL* ssl, const char* hint,
+static INLINE unsigned int my_psk_client_cb(WOLFSSL* ssl, const char* hint,
         char* identity, unsigned int id_max_len, unsigned char* key,
         unsigned int key_max_len)
 {
@@ -795,7 +795,7 @@ static INLINE unsigned int my_psk_client_cb(CYASSL* ssl, const char* hint,
 }
 
 
-static INLINE unsigned int my_psk_server_cb(CYASSL* ssl, const char* identity,
+static INLINE unsigned int my_psk_server_cb(WOLFSSL* ssl, const char* identity,
         unsigned char* key, unsigned int key_max_len)
 {
     (void)ssl;
@@ -840,11 +840,11 @@ static INLINE unsigned int my_psk_server_cb(CYASSL* ssl, const char* identity,
         return (double)count.QuadPart / freq.QuadPart;
     }
 
-#elif defined(CYASSL_TIRTOS)
+#elif defined(WOLFSSL_TIRTOS)
     extern double current_time();
 #else
 
-#if !defined(CYASSL_MDK_ARM)
+#if !defined(WOLFSSL_MDK_ARM)
     #include <sys/time.h>
 
     static INLINE double current_time(void)
@@ -862,12 +862,12 @@ static INLINE unsigned int my_psk_server_cb(CYASSL* ssl, const char* identity,
 #if defined(NO_FILESYSTEM) && !defined(NO_CERTS)
 
     enum {
-        CYASSL_CA   = 1,
-        CYASSL_CERT = 2,
-        CYASSL_KEY  = 3
+        WOLFSSL_CA   = 1,
+        WOLFSSL_CERT = 2,
+        WOLFSSL_KEY  = 3
     };
 
-    static INLINE void load_buffer(CYASSL_CTX* ctx, const char* fname, int type)
+    static INLINE void load_buffer(WOLFSSL_CTX* ctx, const char* fname, int type)
     {
         /* test buffer load */
         long  sz = 0;
@@ -876,24 +876,24 @@ static INLINE unsigned int my_psk_server_cb(CYASSL* ssl, const char* identity,
 
         if (!file)
             err_sys("can't open file for buffer load "
-                    "Please run from CyaSSL home directory if not");
+                    "Please run from wolfSSL home directory if not");
         fseek(file, 0, SEEK_END);
         sz = ftell(file);
         rewind(file);
         fread(buff, sizeof(buff), 1, file);
   
-        if (type == CYASSL_CA) {
-            if (CyaSSL_CTX_load_verify_buffer(ctx, buff, sz, SSL_FILETYPE_PEM)
+        if (type == WOLFSSL_CA) {
+            if (wolfSSL_CTX_load_verify_buffer(ctx, buff, sz, SSL_FILETYPE_PEM)
                                               != SSL_SUCCESS)
                 err_sys("can't load buffer ca file");
         }
-        else if (type == CYASSL_CERT) {
-            if (CyaSSL_CTX_use_certificate_buffer(ctx, buff, sz,
+        else if (type == WOLFSSL_CERT) {
+            if (wolfSSL_CTX_use_certificate_buffer(ctx, buff, sz,
                         SSL_FILETYPE_PEM) != SSL_SUCCESS)
                 err_sys("can't load buffer cert file");
         }
-        else if (type == CYASSL_KEY) {
-            if (CyaSSL_CTX_use_PrivateKey_buffer(ctx, buff, sz,
+        else if (type == WOLFSSL_KEY) {
+            if (wolfSSL_CTX_use_PrivateKey_buffer(ctx, buff, sz,
                         SSL_FILETYPE_PEM) != SSL_SUCCESS)
                 err_sys("can't load buffer key file");
         }
@@ -903,24 +903,24 @@ static INLINE unsigned int my_psk_server_cb(CYASSL* ssl, const char* identity,
 
 #ifdef VERIFY_CALLBACK
 
-static INLINE int myVerify(int preverify, CYASSL_X509_STORE_CTX* store)
+static INLINE int myVerify(int preverify, WOLFSSL_X509_STORE_CTX* store)
 {
     (void)preverify;
-    char buffer[CYASSL_MAX_ERROR_SZ];
+    char buffer[WOLFSSL_MAX_ERROR_SZ];
 
 #ifdef OPENSSL_EXTRA
-    CYASSL_X509* peer;
+    WOLFSSL_X509* peer;
 #endif
 
     printf("In verification callback, error = %d, %s\n", store->error,
-                                 CyaSSL_ERR_error_string(store->error, buffer));
+                                 wolfSSL_ERR_error_string(store->error, buffer));
 #ifdef OPENSSL_EXTRA
     peer = store->current_cert;
     if (peer) {
-        char* issuer  = CyaSSL_X509_NAME_oneline(
-                                       CyaSSL_X509_get_issuer_name(peer), 0, 0);
-        char* subject = CyaSSL_X509_NAME_oneline(
-                                      CyaSSL_X509_get_subject_name(peer), 0, 0);
+        char* issuer  = wolfSSL_X509_NAME_oneline(
+                                       wolfSSL_X509_get_issuer_name(peer), 0, 0);
+        char* subject = wolfSSL_X509_NAME_oneline(
+                                      wolfSSL_X509_get_subject_name(peer), 0, 0);
         printf("peer's cert info:\n issuer : %s\n subject: %s\n", issuer,
                                                                   subject);
         XFREE(subject, 0, DYNAMIC_TYPE_OPENSSL);
@@ -938,13 +938,13 @@ static INLINE int myVerify(int preverify, CYASSL_X509_STORE_CTX* store)
 #endif /* VERIFY_CALLBACK */
 
 
-static INLINE int myDateCb(int preverify, CYASSL_X509_STORE_CTX* store)
+static INLINE int myDateCb(int preverify, WOLFSSL_X509_STORE_CTX* store)
 {
-    char buffer[CYASSL_MAX_ERROR_SZ];
+    char buffer[WOLFSSL_MAX_ERROR_SZ];
     (void)preverify;
 
     printf("In verification callback, error = %d, %s\n", store->error,
-                                 CyaSSL_ERR_error_string(store->error, buffer));
+                                 wolfSSL_ERR_error_string(store->error, buffer));
     printf("Subject's domain name is %s\n", store->domain);
 
     if (store->error == ASN_BEFORE_DATE_E || store->error == ASN_AFTER_DATE_E) {
@@ -976,7 +976,7 @@ static INLINE void CaCb(unsigned char* der, int sz, int type)
 
 
 #ifndef NO_DH
-static INLINE void SetDH(CYASSL* ssl)
+static INLINE void SetDH(WOLFSSL* ssl)
 {
     /* dh1024 p */
     static unsigned char p[] =
@@ -1000,10 +1000,10 @@ static INLINE void SetDH(CYASSL* ssl)
       0x02,
     };
 
-    CyaSSL_SetTmpDH(ssl, p, sizeof(p), g, sizeof(g));
+    wolfSSL_SetTmpDH(ssl, p, sizeof(p), g, sizeof(g));
 }
 
-static INLINE void SetDHCtx(CYASSL_CTX* ctx)
+static INLINE void SetDHCtx(WOLFSSL_CTX* ctx)
 {
     /* dh1024 p */
     static unsigned char p[] =
@@ -1027,7 +1027,7 @@ static INLINE void SetDHCtx(CYASSL_CTX* ctx)
       0x02,
     };
 
-    CyaSSL_CTX_SetTmpDH(ctx, p, sizeof(p), g, sizeof(g));
+    wolfSSL_CTX_SetTmpDH(ctx, p, sizeof(p), g, sizeof(g));
 }
 #endif /* NO_DH */
 #endif /* !NO_CERTS */
@@ -1097,9 +1097,9 @@ static INLINE int CurrentDir(const char* str)
     return 0;
 }
 
-#elif defined(CYASSL_MDK_ARM)
+#elif defined(WOLFSSL_MDK_ARM)
     /* KEIL-RL File System does not support relative directry */
-#elif defined(CYASSL_TIRTOS)
+#elif defined(WOLFSSL_TIRTOS)
 #else
 
 #ifndef MAX_PATH
@@ -1152,7 +1152,7 @@ static INLINE int CurrentDir(const char* str)
 #endif /* USE_WINDOWS_API */
 
 
-#ifdef USE_CYASSL_MEMORY
+#ifdef USE_WOLFSSL_MEMORY
 
     typedef struct memoryStats {
         size_t totalAllocs;     /* number of allocations */
@@ -1173,7 +1173,7 @@ static INLINE int CurrentDir(const char* str)
         } u;
     } memoryTrack;
 
-    #if defined(CYASSL_TRACK_MEMORY)
+    #if defined(WOLFSSL_TRACK_MEMORY)
         #define DO_MEM_STATS
         static memoryStats ourMemStats;
     #endif
@@ -1246,8 +1246,8 @@ static INLINE int CurrentDir(const char* str)
 
     static INLINE void InitMemoryTracker(void) 
     {
-        if (CyaSSL_SetAllocators(TrackMalloc, TrackFree, TrackRealloc) != 0)
-            err_sys("CyaSSL SetAllocators failed for track memory");
+        if (wolfSSL_SetAllocators(TrackMalloc, TrackFree, TrackRealloc) != 0)
+            err_sys("wolfSSL SetAllocators failed for track memory");
 
     #ifdef DO_MEM_STATS
         ourMemStats.totalAllocs  = 0;
@@ -1271,12 +1271,12 @@ static INLINE int CurrentDir(const char* str)
     #endif
     }
 
-#endif /* USE_CYASSL_MEMORY */
+#endif /* USE_WOLFSSL_MEMORY */
 
 
 #ifdef HAVE_STACK_SIZE
 
-typedef THREAD_RETURN CYASSL_THREAD (*thread_func)(void* args);
+typedef THREAD_RETURN WOLFSSL_THREAD (*thread_func)(void* args);
 
 
 static INLINE void StackSizeCheck(func_args* args, thread_func tf)
@@ -1381,33 +1381,33 @@ typedef struct AtomicDecCtx {
 } AtomicDecCtx;
 
 
-static INLINE int myMacEncryptCb(CYASSL* ssl, unsigned char* macOut, 
+static INLINE int myMacEncryptCb(WOLFSSL* ssl, unsigned char* macOut, 
        const unsigned char* macIn, unsigned int macInSz, int macContent, 
        int macVerify, unsigned char* encOut, const unsigned char* encIn,
        unsigned int encSz, void* ctx)
 {
     int  ret;
     Hmac hmac;
-    byte myInner[CYASSL_TLS_HMAC_INNER_SZ];
+    byte myInner[WOLFSSL_TLS_HMAC_INNER_SZ];
     AtomicEncCtx* encCtx = (AtomicEncCtx*)ctx;
     const char* tlsStr = "TLS";
 
     /* example supports (d)tls aes */
-    if (CyaSSL_GetBulkCipher(ssl) != cyassl_aes) {
+    if (wolfSSL_GetBulkCipher(ssl) != cyassl_aes) {
         printf("myMacEncryptCb not using AES\n");
         return -1;
     }
 
-    if (strstr(CyaSSL_get_version(ssl), tlsStr) == NULL) {
+    if (strstr(wolfSSL_get_version(ssl), tlsStr) == NULL) {
         printf("myMacEncryptCb not using (D)TLS\n");
         return -1;
     }
 
     /* hmac, not needed if aead mode */
-    CyaSSL_SetTlsHmacInner(ssl, myInner, macInSz, macContent, macVerify);
+    wolfSSL_SetTlsHmacInner(ssl, myInner, macInSz, macContent, macVerify);
 
-    ret = HmacSetKey(&hmac, CyaSSL_GetHmacType(ssl),
-               CyaSSL_GetMacSecret(ssl, macVerify), CyaSSL_GetHmacSize(ssl));
+    ret = HmacSetKey(&hmac, wolfSSL_GetHmacType(ssl),
+               wolfSSL_GetMacSecret(ssl, macVerify), wolfSSL_GetHmacSize(ssl));
     if (ret != 0)
         return ret;
     ret = HmacUpdate(&hmac, myInner, sizeof(myInner));
@@ -1423,17 +1423,17 @@ static INLINE int myMacEncryptCb(CYASSL* ssl, unsigned char* macOut,
 
     /* encrypt setup on first time */
     if (encCtx->keySetup == 0) {
-        int   keyLen = CyaSSL_GetKeySize(ssl);
+        int   keyLen = wolfSSL_GetKeySize(ssl);
         const byte* key;
         const byte* iv;
 
-        if (CyaSSL_GetSide(ssl) == CYASSL_CLIENT_END) {
-            key = CyaSSL_GetClientWriteKey(ssl);
-            iv  = CyaSSL_GetClientWriteIV(ssl);
+        if (wolfSSL_GetSide(ssl) == WOLFSSL_CLIENT_END) {
+            key = wolfSSL_GetClientWriteKey(ssl);
+            iv  = wolfSSL_GetClientWriteIV(ssl);
         }
         else {
-            key = CyaSSL_GetServerWriteKey(ssl);
-            iv  = CyaSSL_GetServerWriteIV(ssl);
+            key = wolfSSL_GetServerWriteKey(ssl);
+            iv  = wolfSSL_GetServerWriteIV(ssl);
         }
 
         ret = AesSetKey(&encCtx->aes, key, keyLen, iv, AES_ENCRYPTION);
@@ -1449,7 +1449,7 @@ static INLINE int myMacEncryptCb(CYASSL* ssl, unsigned char* macOut,
 }
 
 
-static INLINE int myDecryptVerifyCb(CYASSL* ssl, 
+static INLINE int myDecryptVerifyCb(WOLFSSL* ssl, 
        unsigned char* decOut, const unsigned char* decIn,
        unsigned int decSz, int macContent, int macVerify,
        unsigned int* padSz, void* ctx)
@@ -1458,39 +1458,39 @@ static INLINE int myDecryptVerifyCb(CYASSL* ssl,
     int ret      = 0;
     int macInSz  = 0;
     int ivExtra  = 0;
-    int digestSz = CyaSSL_GetHmacSize(ssl);
+    int digestSz = wolfSSL_GetHmacSize(ssl);
     unsigned int pad     = 0;
     unsigned int padByte = 0;
     Hmac hmac;
-    byte myInner[CYASSL_TLS_HMAC_INNER_SZ];
+    byte myInner[WOLFSSL_TLS_HMAC_INNER_SZ];
     byte verify[MAX_DIGEST_SIZE];
     const char* tlsStr = "TLS";
 
     /* example supports (d)tls aes */
-    if (CyaSSL_GetBulkCipher(ssl) != cyassl_aes) {
+    if (wolfSSL_GetBulkCipher(ssl) != cyassl_aes) {
         printf("myMacEncryptCb not using AES\n");
         return -1;
     }
 
-    if (strstr(CyaSSL_get_version(ssl), tlsStr) == NULL) {
+    if (strstr(wolfSSL_get_version(ssl), tlsStr) == NULL) {
         printf("myMacEncryptCb not using (D)TLS\n");
         return -1;
     }
 
     /*decrypt */
     if (decCtx->keySetup == 0) {
-        int   keyLen = CyaSSL_GetKeySize(ssl);
+        int   keyLen = wolfSSL_GetKeySize(ssl);
         const byte* key;
         const byte* iv;
 
         /* decrypt is from other side (peer) */
-        if (CyaSSL_GetSide(ssl) == CYASSL_SERVER_END) {
-            key = CyaSSL_GetClientWriteKey(ssl);
-            iv  = CyaSSL_GetClientWriteIV(ssl);
+        if (wolfSSL_GetSide(ssl) == WOLFSSL_SERVER_END) {
+            key = wolfSSL_GetClientWriteKey(ssl);
+            iv  = wolfSSL_GetClientWriteIV(ssl);
         }
         else {
-            key = CyaSSL_GetServerWriteKey(ssl);
-            iv  = CyaSSL_GetServerWriteIV(ssl);
+            key = wolfSSL_GetServerWriteKey(ssl);
+            iv  = wolfSSL_GetServerWriteIV(ssl);
         }
 
         ret = AesSetKey(&decCtx->aes, key, keyLen, iv, AES_DECRYPTION);
@@ -1504,25 +1504,25 @@ static INLINE int myDecryptVerifyCb(CYASSL* ssl,
     /* decrypt */
     ret = AesCbcDecrypt(&decCtx->aes, decOut, decIn, decSz);
 
-    if (CyaSSL_GetCipherType(ssl) == CYASSL_AEAD_TYPE) {
-        *padSz = CyaSSL_GetAeadMacSize(ssl);
+    if (wolfSSL_GetCipherType(ssl) == WOLFSSL_AEAD_TYPE) {
+        *padSz = wolfSSL_GetAeadMacSize(ssl);
         return 0; /* hmac, not needed if aead mode */
     }
 
-    if (CyaSSL_GetCipherType(ssl) == CYASSL_BLOCK_TYPE) {
+    if (wolfSSL_GetCipherType(ssl) == WOLFSSL_BLOCK_TYPE) {
         pad     = *(decOut + decSz - 1);
         padByte = 1;
-        if (CyaSSL_IsTLSv1_1(ssl))
-            ivExtra = CyaSSL_GetCipherBlockSize(ssl);
+        if (wolfSSL_IsTLSv1_1(ssl))
+            ivExtra = wolfSSL_GetCipherBlockSize(ssl);
     }
 
-    *padSz  = CyaSSL_GetHmacSize(ssl) + pad + padByte;
+    *padSz  = wolfSSL_GetHmacSize(ssl) + pad + padByte;
     macInSz = decSz - ivExtra - digestSz - pad - padByte;
 
-    CyaSSL_SetTlsHmacInner(ssl, myInner, macInSz, macContent, macVerify);
+    wolfSSL_SetTlsHmacInner(ssl, myInner, macInSz, macContent, macVerify);
 
-    ret = HmacSetKey(&hmac, CyaSSL_GetHmacType(ssl),
-               CyaSSL_GetMacSecret(ssl, macVerify), digestSz);
+    ret = HmacSetKey(&hmac, wolfSSL_GetHmacType(ssl),
+               wolfSSL_GetMacSecret(ssl, macVerify), digestSz);
     if (ret != 0)
         return ret;
     ret = HmacUpdate(&hmac, myInner, sizeof(myInner));
@@ -1545,7 +1545,7 @@ static INLINE int myDecryptVerifyCb(CYASSL* ssl,
 }
 
 
-static INLINE void SetupAtomicUser(CYASSL_CTX* ctx, CYASSL* ssl)
+static INLINE void SetupAtomicUser(WOLFSSL_CTX* ctx, WOLFSSL* ssl)
 {
     AtomicEncCtx* encCtx;
     AtomicDecCtx* decCtx;
@@ -1562,18 +1562,18 @@ static INLINE void SetupAtomicUser(CYASSL_CTX* ctx, CYASSL* ssl)
     }
     memset(decCtx, 0, sizeof(AtomicDecCtx));
 
-    CyaSSL_CTX_SetMacEncryptCb(ctx, myMacEncryptCb);
-    CyaSSL_SetMacEncryptCtx(ssl, encCtx);
+    wolfSSL_CTX_SetMacEncryptCb(ctx, myMacEncryptCb);
+    wolfSSL_SetMacEncryptCtx(ssl, encCtx);
 
-    CyaSSL_CTX_SetDecryptVerifyCb(ctx, myDecryptVerifyCb);
-    CyaSSL_SetDecryptVerifyCtx(ssl, decCtx);
+    wolfSSL_CTX_SetDecryptVerifyCb(ctx, myDecryptVerifyCb);
+    wolfSSL_SetDecryptVerifyCtx(ssl, decCtx);
 }
 
 
-static INLINE void FreeAtomicUser(CYASSL* ssl)
+static INLINE void FreeAtomicUser(WOLFSSL* ssl)
 {
-    AtomicEncCtx* encCtx = (AtomicEncCtx*)CyaSSL_GetMacEncryptCtx(ssl);
-    AtomicDecCtx* decCtx = (AtomicDecCtx*)CyaSSL_GetDecryptVerifyCtx(ssl);
+    AtomicEncCtx* encCtx = (AtomicEncCtx*)wolfSSL_GetMacEncryptCtx(ssl);
+    AtomicDecCtx* decCtx = (AtomicDecCtx*)wolfSSL_GetDecryptVerifyCtx(ssl);
 
     free(decCtx);
     free(encCtx);
@@ -1586,7 +1586,7 @@ static INLINE void FreeAtomicUser(CYASSL* ssl)
 
 #ifdef HAVE_ECC
 
-static INLINE int myEccSign(CYASSL* ssl, const byte* in, word32 inSz,
+static INLINE int myEccSign(WOLFSSL* ssl, const byte* in, word32 inSz,
         byte* out, word32* outSz, const byte* key, word32 keySz, void* ctx)
 {
     RNG     rng;
@@ -1612,7 +1612,7 @@ static INLINE int myEccSign(CYASSL* ssl, const byte* in, word32 inSz,
 }
 
 
-static INLINE int myEccVerify(CYASSL* ssl, const byte* sig, word32 sigSz,
+static INLINE int myEccVerify(WOLFSSL* ssl, const byte* sig, word32 sigSz,
         const byte* hash, word32 hashSz, const byte* key, word32 keySz,
         int* result, void* ctx)
 {
@@ -1636,7 +1636,7 @@ static INLINE int myEccVerify(CYASSL* ssl, const byte* sig, word32 sigSz,
 
 #ifndef NO_RSA
 
-static INLINE int myRsaSign(CYASSL* ssl, const byte* in, word32 inSz,
+static INLINE int myRsaSign(WOLFSSL* ssl, const byte* in, word32 inSz,
         byte* out, word32* outSz, const byte* key, word32 keySz, void* ctx)
 {
     RNG     rng;
@@ -1666,7 +1666,7 @@ static INLINE int myRsaSign(CYASSL* ssl, const byte* in, word32 inSz,
 }
 
 
-static INLINE int myRsaVerify(CYASSL* ssl, byte* sig, word32 sigSz,
+static INLINE int myRsaVerify(WOLFSSL* ssl, byte* sig, word32 sigSz,
         byte** out,
         const byte* key, word32 keySz,
         void* ctx)
@@ -1689,7 +1689,7 @@ static INLINE int myRsaVerify(CYASSL* ssl, byte* sig, word32 sigSz,
 }
 
 
-static INLINE int myRsaEnc(CYASSL* ssl, const byte* in, word32 inSz,
+static INLINE int myRsaEnc(WOLFSSL* ssl, const byte* in, word32 inSz,
                            byte* out, word32* outSz, const byte* key,
                            word32 keySz, void* ctx)
 {
@@ -1720,7 +1720,7 @@ static INLINE int myRsaEnc(CYASSL* ssl, const byte* in, word32 inSz,
     return ret;
 }
 
-static INLINE int myRsaDec(CYASSL* ssl, byte* in, word32 inSz,
+static INLINE int myRsaDec(WOLFSSL* ssl, byte* in, word32 inSz,
                            byte** out,
                            const byte* key, word32 keySz, void* ctx)
 {
@@ -1744,20 +1744,20 @@ static INLINE int myRsaDec(CYASSL* ssl, byte* in, word32 inSz,
 
 #endif /* NO_RSA */
 
-static INLINE void SetupPkCallbacks(CYASSL_CTX* ctx, CYASSL* ssl)
+static INLINE void SetupPkCallbacks(WOLFSSL_CTX* ctx, WOLFSSL* ssl)
 {
     (void)ctx;
     (void)ssl;
 
     #ifdef HAVE_ECC
-        CyaSSL_CTX_SetEccSignCb(ctx, myEccSign);
-        CyaSSL_CTX_SetEccVerifyCb(ctx, myEccVerify);
+        wolfSSL_CTX_SetEccSignCb(ctx, myEccSign);
+        wolfSSL_CTX_SetEccVerifyCb(ctx, myEccVerify);
     #endif /* HAVE_ECC */
     #ifndef NO_RSA 
-        CyaSSL_CTX_SetRsaSignCb(ctx, myRsaSign);
-        CyaSSL_CTX_SetRsaVerifyCb(ctx, myRsaVerify);
-        CyaSSL_CTX_SetRsaEncCb(ctx, myRsaEnc);
-        CyaSSL_CTX_SetRsaDecCb(ctx, myRsaDec);
+        wolfSSL_CTX_SetRsaSignCb(ctx, myRsaSign);
+        wolfSSL_CTX_SetRsaVerifyCb(ctx, myRsaVerify);
+        wolfSSL_CTX_SetRsaEncCb(ctx, myRsaEnc);
+        wolfSSL_CTX_SetRsaDecCb(ctx, myRsaDec);
     #endif /* NO_RSA */
 }
 
@@ -1767,7 +1767,7 @@ static INLINE void SetupPkCallbacks(CYASSL_CTX* ctx, CYASSL* ssl)
 
 
 
-#if defined(__hpux__) || defined(__MINGW32__) || defined (CYASSL_TIRTOS)
+#if defined(__hpux__) || defined(__MINGW32__) || defined (WOLFSSL_TIRTOS)
 
 /* HP/UX doesn't have strsep, needed by test/suites.c */
 static INLINE char* strsep(char **stringp, const char *delim)
@@ -1791,5 +1791,5 @@ static INLINE char* strsep(char **stringp, const char *delim)
 
 #endif /* __hpux__ */
 
-#endif /* CyaSSL_TEST_H */
+#endif /* wolfSSL_TEST_H */
 
