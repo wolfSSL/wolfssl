@@ -368,6 +368,35 @@
     #define Hc128_SetKey wc_Hc128_SetKey
 #endif
 
+
+/* for md2 reverse compatibility */
+#define CYASSL_MD2 WOLFSSL_MD@ /* @TODO */
+#ifdef WOLFSSL_MD2
+	#define InitMd2 wc_InitMd2
+	#define Md2Update wc_Md2Update
+	#define Md2Final wc_Md2Final
+	#define Md2Hash wc_Md2Hash
+#endif
+
+
+/* for md4 reverse compatibility */
+#ifndef NO_MD4
+	#define InitMd4 wc_InitMd4
+	#define Md4Update wc_Md4Update
+	#define Md4Final wc_Md4Final
+#endif
+
+
+/* for md5 reverse compatibility */
+#ifndef NO_MD5
+	#define InitMd5 wc_InitMd5
+	#define Md5Update wc_Md5Update
+	#define Md5Final wc_Md5Final
+	#define Md5Hash wc_Md5Hash
+#endif
+
+
+
 #ifdef __cplusplus
     } /* extern "C" */
 #endif
