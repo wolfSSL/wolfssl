@@ -1,4 +1,4 @@
-/* settings.h
+/* rabbit.h
  *
  * Copyright (C) 2006-2014 wolfSSL Inc.
  *
@@ -19,13 +19,47 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-/* Place OS specific preprocessor flags, defines, includes here, will be
-   included into every file because types.h includes it */
 
+#ifndef NO_RABBIT
 
-#ifndef CTAO_CRYPT_SETTINGS_H
-#define CTAO_CRYPT_SETTINGS_H
+#ifndef CTAO_CRYPT_RABBIT_H
+#define CTAO_CRYPT_RABBIT_H
 
-#include <wolfssl/wolfcrypt/settings.h>
+#include <cyassl/ctaocrypt/types.h>
 
+#ifdef __cplusplus
+    extern "C" {
 #endif
+
+
+enum {
+	RABBIT_ENC_TYPE  = 5     /* cipher unique type */
+};
+
+
+/* Rabbit Context */
+typedef struct RabbitCtx {
+    word32 x[8];
+    word32 c[8];
+    word32 carry;
+} RabbitCtx;
+    
+
+/* Rabbit stream cipher */
+typedef struct Rabbit {
+    RabbitCtx masterCtx;
+    RabbitCtx workCtx;
+} Rabbit;
+
+
+CYASSL_API int RabbitProcess(Rabbit*, byte*, const byte*, word32);
+CYASSL_API int RabbitSetKey(Rabbit*, const byte* key, const byte* iv);
+
+
+#ifdef __cplusplus
+    } /* extern "C" */
+#endif
+
+#endif /* CTAO_CRYPT_RABBIT_H */
+
+#endif /* NO_RABBIT */

@@ -1,4 +1,4 @@
-/* settings.h
+/* compress.h
  *
  * Copyright (C) 2006-2014 wolfSSL Inc.
  *
@@ -19,13 +19,34 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-/* Place OS specific preprocessor flags, defines, includes here, will be
-   included into every file because types.h includes it */
+
+#ifdef HAVE_LIBZ
+
+#ifndef CTAO_CRYPT_COMPRESS_H
+#define CTAO_CRYPT_COMPRESS_H
 
 
-#ifndef CTAO_CRYPT_SETTINGS_H
-#define CTAO_CRYPT_SETTINGS_H
+#include <cyassl/ctaocrypt/types.h>
 
-#include <wolfssl/wolfcrypt/settings.h>
 
+#ifdef __cplusplus
+    extern "C" {
 #endif
+
+
+#define COMPRESS_FIXED 1
+
+
+CYASSL_API int Compress(byte*, word32, const byte*, word32, word32);
+CYASSL_API int DeCompress(byte*, word32, const byte*, word32);
+
+
+#ifdef __cplusplus
+    } /* extern "C" */
+#endif
+
+
+#endif /* CTAO_CRYPT_COMPRESS_H */
+
+#endif /* HAVE_LIBZ */
+

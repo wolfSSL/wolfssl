@@ -1,4 +1,4 @@
-/* settings.h
+/* arc4.h
  *
  * Copyright (C) 2006-2014 wolfSSL Inc.
  *
@@ -19,13 +19,9 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-/* Place OS specific preprocessor flags, defines, includes here, will be
-   included into every file because types.h includes it */
+#ifndef CTAO_CRYPT_ARC4_H
+#define CTAO_CRYPT_ARC4_H
 
-
-#ifndef CTAO_CRYPT_SETTINGS_H
-#define CTAO_CRYPT_SETTINGS_H
-
-#include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/wolfcrypt/arc4.h>
 
 #endif

@@ -1,4 +1,4 @@
-/* settings.h
+/* hc128.h
  *
  * Copyright (C) 2006-2014 wolfSSL Inc.
  *
@@ -19,13 +19,42 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-/* Place OS specific preprocessor flags, defines, includes here, will be
-   included into every file because types.h includes it */
 
+#ifndef NO_HC128
 
-#ifndef CTAO_CRYPT_SETTINGS_H
-#define CTAO_CRYPT_SETTINGS_H
+#ifndef CTAO_CRYPT_HC128_H
+#define CTAO_CRYPT_HC128_H
 
-#include <wolfssl/wolfcrypt/settings.h>
+#include <cyassl/ctaocrypt/types.h>
 
+#ifdef __cplusplus
+    extern "C" {
 #endif
+
+
+enum {
+	HC128_ENC_TYPE    =  6    /* cipher unique type */
+};
+
+/* HC-128 stream cipher */
+typedef struct HC128 {
+    word32 T[1024];             /* P[i] = T[i];  Q[i] = T[1024 + i ]; */
+    word32 X[16];
+    word32 Y[16];
+    word32 counter1024;         /* counter1024 = i mod 1024 at the ith step */
+    word32 key[8];
+    word32 iv[8];
+} HC128;
+
+
+CYASSL_API int Hc128_Process(HC128*, byte*, const byte*, word32);
+CYASSL_API int Hc128_SetKey(HC128*, const byte* key, const byte* iv);
+
+
+#ifdef __cplusplus
+    } /* extern "C" */
+#endif
+
+#endif /* CTAO_CRYPT_HC128_H */
+
+#endif /* HAVE_HC128 */

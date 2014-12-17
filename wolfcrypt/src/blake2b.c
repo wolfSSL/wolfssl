@@ -43,9 +43,6 @@
 #include <wolfssl/wolfcrypt/blake2.h>
 #include <wolfssl/wolfcrypt/blake2-impl.h>
 
-/* refactor but for compatibility */
-#define WOLFSSL_SMALL_STACK CYASSL_SMALL_STACK
-
 
 static const word64 blake2b_IV[8] =
 {
