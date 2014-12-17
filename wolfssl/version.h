@@ -1,4 +1,4 @@
-/* sniffer.h
+/* cyassl_version.h.in
  *
  * Copyright (C) 2006-2014 wolfSSL Inc.
  *
@@ -19,5 +19,17 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-#include <wolfssl/sniffer.h>
+
+#pragma once
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#define LIBCYASSL_VERSION_STRING "3.3.0"
+#define LIBCYASSL_VERSION_HEX 0x03003000
+
+#ifdef __cplusplus
+}
+#endif
 

@@ -421,7 +421,7 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
     switch (version) {
 #ifndef NO_OLD_TLS
         case 0:
-            method = CyaSSLv3_client_method();
+            method = wolfSSLv3_client_method();
             break;
                 
                 

@@ -52,7 +52,7 @@
 // typedef CYASSL_X509_CHAIN WOLFSSL_X509_CHAIN;
 
 
-// /* redeclare guard */
+/* redeclare guard */
 // #define CYASSL_TYPES_DEFINED
 
 
@@ -87,7 +87,7 @@
 // #define CyaSSL_Cleanup      wolfSSL_Cleanup
 // #define CyaSSL_shutdown     wolfSSL_shutdown
 
-// /* Certs and keys */
+/* Certs and keys */
 // #define CyaSSL_CTX_load_verify_buffer wolfSSL_CTX_load_verify_buffer
 // #define CyaSSL_CTX_use_PrivateKey_buffer wolfSSL_CTX_use_PrivateKey_buffer
 // #define CyaSSL_CTX_use_PrivateKey_buffer wolfSSL_CTX_use_PrivateKey_buffer
@@ -140,7 +140,7 @@
 // #define CyaSSL_set_verify wolfSSL_set_verify
 // #define CyaSSL_CTX_set_verify wolfSSL_CTX_set_verify
 
-// /* Callbacks */
+/* Callbacks */
 // #define CyaSSL_SetIOReadCtx wolfSSL_SetIOReadCtx
 // #define CyaSSL_SetIOWriteCtx wolfSSL_SetIOWriteCtx
 // #define CyaSSL_SetIOReadFlags wolfSSL_SetIOReadFlags
@@ -177,7 +177,7 @@
 // #define CyaSSL_SetRsaDecCtx wolfSSL_SetRsaDecCtx
 // #define CyaSSL_GetRsaDecCtx wolfSSL_GetRsaDecCtx
 
-// /* Error Handling and Debugging*/
+/* Error Handling and Debugging*/
 // #define CyaSSL_ERR_error_string wolfSSL_ERR_error_string
 // #define CyaSSL_ERR_error_string_n wolfSSL_ERR_error_string_n
 // #define CyaSSL_ERR_print_errors_fp wolfSSL_ERR_print_errors_fp
@@ -188,11 +188,11 @@
 // #define CyaSSL_Debugging_ON wolfSSL_Debugging_ON
 // #define CyaSSL_Debugging_OFF wolfSSL_Debugging_OFF
 
-// /* OCSP and CRL */
+/* OCSP and CRL */
 // #define CyaSSL_CTX_OCSP_set_options wolfSSL_CTX_OCSP_set_options
 // #define CyaSSL_CTX_OCSP_set_override_url wolfSSL_CTX_OCSP_set_override_url
 
-// /* Informational */
+/* Informational */
 // #define CyaSSL_GetObjectSize wolfSSL_GetObjectSize
 // #define CyaSSL_GetMacSecret wolfSSL_GetMacSecret
 // #define CyaSSL_GetClientWriteKey wolfSSL_GetClientWriteKey
@@ -209,7 +209,7 @@
 // #define CyaSSL_GetHmacType wolfSSL_GetHmacType
 // #define CyaSSL_GetCipherType wolfSSL_GetCipherType
 
-// /* Connection, Session, and I/O */
+/* Connection, Session, and I/O */
 // #define CyaSSL_accept wolfSSL_accept
 // #define CyaSSL_connect wolfSSL_connect
 // #define CyaSSL_connect_cert wolfSSL_connect_cert
@@ -226,20 +226,20 @@
 // #define CyaSSL_write wolfSSL_write
 // #define CyaSSL_writev wolfSSL_writev
 
-// /* DTLS Specific */
+/* DTLS Specific */
 // #define CyaSSL_dtls wolfSSL_dtls
 // #define CyaSSL_dtls_get_current_timeout wolfSSL_dtls_get_current_timeout
 // #define CyaSSL_dtls_get_peer wolfSSL_dtls_get_peer
 // #define CyaSSL_dtls_got_timeout wolfSSL_dtls_got_timeout
 // #define CyaSSL_dtls_set_peer wolfSSL_dtls_set_peer
 
-// /* Memory Abstraction Layer */
+/* Memory Abstraction Layer */
 // #define CyaSSL_Malloc wolfSSL_Malloc
 // #define CyaSSL_Realloc wolfSSL_Realloc
 // #define CyaSSL_Free wolfSSL_Free
 // #define CyaSSL_SetAllocators wolfSSL_SetAllocators
 
-// /* Certificate Manager */
+/* Certificate Manager */
 // #define CyaSSL_CertManagerDisableCRL wolfSSL_CertManagerDisableCRL
 // #define CyaSSL_CertManagerEnableCRL wolfSSL_CertManagerEnableCRL
 // #define CyaSSL_CertManagerFree wolfSSL_CertManagerFree
@@ -248,7 +248,7 @@
 // #define CyaSSL_CertManagerVerify wolfSSL_CertManagerVerify
 // #define CyaSSL_CertManagerVerifyBuffer wolfSSL_CertManagerVerifyBuffer
 
-// /* OpenSSL Compatibility Layer */
+/* OpenSSL Compatibility Layer */
 // #define CyaSSL_X509_get_serial_number wolfSSL_X509_get_serial_number
 // #define CyaSSL_get_sessionID wolfSSL_get_sessionID
 // #define CyaSSL_get_peer_chain wolfSSL_get_peer_chain
@@ -263,7 +263,7 @@
 // #define CyaSSL_use_certificate_chain_file wolfSSL_use_certificate_chain_file
 // #define CyaSSL_use_RSAPrivateKey_file wolfSSL_use_RSAPrivateKey_file
 
-// /*TLS Extensions */
+/* TLS Extensions */
 // #define CyaSSL_CTX_UseSNI wolfSSL_CTX_UseSNI
 // #define CyaSSL_UseSNI wolfSSL_UseSNI
 // #define CyaSSL_CTX_SNI_SetOptions wolfSSL_CTX_SNI_SetOptions
