@@ -60,6 +60,7 @@ EXTRA_DIST+= README.md
 EXTRA_DIST+= LICENSING
 
 include cyassl/include.am
+include wolfssl/include.am
 include certs/include.am
 include certs/1024/include.am
 include certs/crl/include.am

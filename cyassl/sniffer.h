@@ -20,4 +20,3 @@
  */
 
 #include <wolfssl/sniffer.h>
-

@@ -2,24 +2,24 @@
 # All paths should be given relative to the root
 #
 
-include cyassl/ctaocrypt/include.am
-include cyassl/openssl/include.am
+include wolfssl/wolfcrypt/include.am
+include wolfssl/openssl/include.am
 
-EXTRA_DIST+= cyassl/sniffer_error.rc
+EXTRA_DIST+= wolfssl/sniffer_error.rc
 
 nobase_include_HEADERS+= \
-                         cyassl/error-ssl.h \
-                         cyassl/ssl.h \
-                         cyassl/sniffer_error.h \
-                         cyassl/sniffer.h \
-                         cyassl/callbacks.h \
-                         cyassl/certs_test.h \
-                         cyassl/test.h \
-                         cyassl/version.h \
-                         cyassl/options.h \
-                         cyassl/ocsp.h \
-                         cyassl/crl.h
+                         wolfssl/error-ssl.h \
+                         wolfssl/ssl.h \
+                         wolfssl/sniffer_error.h \
+                         wolfssl/sniffer.h \
+                         wolfssl/callbacks.h \
+                         wolfssl/certs_test.h \
+                         wolfssl/test.h \
+                         wolfssl/version.h \
+                         wolfssl/options.h \
+                         wolfssl/ocsp.h \
+                         wolfssl/crl.h
 
 noinst_HEADERS+= \
-                         cyassl/internal.h
+                         wolfssl/internal.h
 

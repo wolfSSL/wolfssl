@@ -21,9 +21,9 @@
 
 /* Visibility control macros */
 
-
-#ifndef CTAO_CRYPT_VISIBILITY_H
-#define CTAO_CRYPT_VISIBILITY_H
+#define CTAO_CRYPT_VISIBILITY_H WOLF_CRYPT_VISIBILITY_H
+#ifndef WOLF_CRYPT_VISIBILITY_H
+#define WOLF_CRYPT_VISIBILITY_H
 
 
 /* CYASSL_API is used for the public API symbols.
@@ -31,41 +31,56 @@
 
    CYASSL_LOCAL is used for non-API symbols (private).
 */
-
-#if defined(BUILDING_CYASSL)
+#define BUILDING_WOLFSSL BUILDING_CYASSL
+#if defined(BUILDING_WOLFSSL)
     #if defined(HAVE_VISIBILITY) && HAVE_VISIBILITY
-        #define CYASSL_API   __attribute__ ((visibility("default")))
-        #define CYASSL_LOCAL __attribute__ ((visibility("hidden")))
+        #define WOLFSSL_API   __attribute__ ((visibility("default")))
+        #define CYASSL_API WOLFSSL_API
+        #define WOLFSSL_LOCAL __attribute__ ((visibility("hidden")))
+        #define CYASSL_LOCAL WOLFSSL_LOCAL
     #elif defined(__SUNPRO_C) && (__SUNPRO_C >= 0x550)
-        #define CYASSL_API   __global  
-        #define CYASSL_LOCAL __hidden
+        #define WOLFSSL_API   __global
+        #define CYASSL_API WOLFSSL_API
+        #define WOLFSSL_LOCAL __hidden
+        #define CYASSL_LOCAL WOLFSSL_LOCAL
     #elif defined(_MSC_VER)
-        #ifdef CYASSL_DLL
-            #define CYASSL_API extern __declspec(dllexport)
+        #define CYASSL_DLL WOLFSSL_DLL
+        #ifdef WOLFSSL_DLL
+            #define WOLFSSL_API extern __declspec(dllexport)
+            #define CYASSL_API WOLFSSL_API
         #else
             //#define CYASSL_API
             #define WOLFSSL_API
             #define CYASSL_API WOLFSSL_API
         #endif
-        #define CYASSL_LOCAL
+        #define WOLFSSL_LOCAL
+        #define CYASSL_LOCAL WOLFSSL_LOCAL
     #else
-        #define CYASSL_API
-        #define CYASSL_LOCAL
+        #define WOLFSSL_API
+        #define CYASSL_API WOLFSSL_API
+        #define WOLFSSL_LOCAL
+        #define CYASSL_LOCAL WOLFSSL_LOCAL
     #endif /* HAVE_VISIBILITY */
 #else /* BUILDING_CYASSL */
     #if defined(_MSC_VER)
-        #ifdef CYASSL_DLL
-            #define CYASSL_API extern __declspec(dllimport)
+        #define CYASSL_DLL WOLFSSL_DLL
+        #ifdef WOLFSSL_DLL
+            #define WOLFSSL_API extern __declspec(dllimport)
+            #define CYASSL_API WOLFSSL_API
         #else
-            #define CYASSL_API
+            #define WOLFSSL_API
+            #define CYASSL_API WOLFSSL_API
         #endif
-        #define CYASSL_LOCAL
+        #define WOLFSSL_LOCAL
+        #define CYASSL_LOCAL WOLFSSL_LOCAL
     #else
-        #define CYASSL_API
-        #define CYASSL_LOCAL
+        #define WOLFSSL_API
+        #define CYASSL_API WOLFSSL_API
+        #define WOLFSSL_LOCAL
+        #define CYASSL_LOCAL WOLFSSL_LOCAL
     #endif
-#endif /* BUILDING_CYASSL */
+#endif /* BUILDING_WOLFSSL */
 
 
-#endif /* CTAO_CRYPT_VISIBILITY_H */
+#endif /* WOLF_CRYPT_VISIBILITY_H */
 

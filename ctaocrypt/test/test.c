@@ -19,6 +19,9 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
+/* wolfssl_cyassl compatibility layer */
+#include <cyassl/ssl.h>
+
 #ifdef HAVE_CONFIG_H
     #include <config.h>
 #endif
