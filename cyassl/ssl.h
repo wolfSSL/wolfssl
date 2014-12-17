@@ -334,7 +334,39 @@
     #define Arc4FreeCavium wc_Arc4FreeCavium
 #endif
 
-/**/
+/* for chacha reverse compatibility */
+#ifdef HAVE_CHACHA
+    #define ChachaProcess wc_ChachaProcess
+    #define ChachaSetKey wc_ChachaSetKey
+    #define Chacha_SetIV wc_Chacha_SetIV
+#endif
+
+
+/* for DH reverse compatibility */
+#ifndef NO_DH
+    #define WOLFSSL_BIT_SIZE CYASSL_BIT_SIZE /* @TODO*/
+	#define InitDhKey wc_InitDhKey
+	#define FreeDhKey wc_FreeDhKey
+	#define DhGenerateKeyPair wc_DhGenerateKeyPair
+#endif
+
+
+/* for DSA reverse compatibility */
+#ifndef NO_DSA
+	#define InitDsaKey wc_InitDsaKey
+	#define FreeDsaKey wc_FreeDsaKey
+	#define DsaSign wc_DsaSign
+	#define DsaVerify wc_DsaVerify
+	#define DsaPublicKeyDecode wc_DsaPublicKeyDecode
+	#define DsaPrivateKeyDecode wc_DsaPrivateKeyDecode
+#endif
+
+/* for hc128 reverse compatibility */
+#ifdef HAVE_HC128
+    #define NO_WOLFSSL_ALLOC_ALIGN NO_CYASSL_ALLOC_ALIGN /* @TODO*/
+    #define Hc128_Process wc_Hc128_Process
+    #define Hc128_SetKey wc_Hc128_SetKey
+#endif
 
 #ifdef __cplusplus
     } /* extern "C" */

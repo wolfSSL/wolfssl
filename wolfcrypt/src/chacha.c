@@ -2,14 +2,14 @@
  *
  * Copyright (C) 2006-2014 wolfSSL Inc.
  *
- * This file is part of CyaSSL.
+ * This file is part of wolfSSL. (formerly known as CyaSSL)
  *
- * CyaSSL is free software; you can redistribute it and/or modify
+ * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  *
- * CyaSSL is distributed in the hope that it will be useful,
+ * wolfSSL is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
@@ -75,7 +75,7 @@
   * Set up iv(nonce). Earlier versions used 64 bits instead of 96, this version
   * uses the typical AEAD 96 bit nonce and can do record sizes of 256 GB.
   */
-int Chacha_SetIV(ChaCha* ctx, const byte* inIv, word32 counter)
+int wc_Chacha_SetIV(ChaCha* ctx, const byte* inIv, word32 counter)
 {
     word32 temp[3];       /* used for alignment of memory */
     XMEMSET(temp, 0, 12);
@@ -110,7 +110,7 @@ static const word32 tau[4] = {0x61707865, 0x3120646e, 0x79622d36, 0x6b206574};
 /**
   * Key setup. 8 word iv (nonce)
   */
-int Chacha_SetKey(ChaCha* ctx, const byte* key, word32 keySz)
+int wc_Chacha_SetKey(ChaCha* ctx, const byte* key, word32 keySz)
 {
     const word32* constants;
     const byte*   k;
@@ -121,7 +121,7 @@ int Chacha_SetKey(ChaCha* ctx, const byte* key, word32 keySz)
 #ifdef XSTREAM_ALIGN
     word32 alignKey[keySz / 4];
     if ((cyassl_word)key % 4) {
-        CYASSL_MSG("ChachaSetKey unaligned key");
+        WOLFSSL_MSG("wc_ChachaSetKey unaligned key");
         XMEMCPY(alignKey, key, sizeof(alignKey));
         k = (byte*)alignKey;
     }
@@ -173,7 +173,7 @@ int Chacha_SetKey(ChaCha* ctx, const byte* key, word32 keySz)
 /**
   * Converts word into bytes with rotations having been done.
   */
-static INLINE void Chacha_wordtobyte(word32 output[16], const word32 input[16])
+static INLINE void wc_Chacha_wordtobyte(word32 output[16], const word32 input[16])
 {
     word32 x[16];
     word32 i;
@@ -205,7 +205,7 @@ static INLINE void Chacha_wordtobyte(word32 output[16], const word32 input[16])
 /**
   * Encrypt a stream of bytes
   */
-static void Chacha_encrypt_bytes(ChaCha* ctx, const byte* m, byte* c,
+static void wc_Chacha_encrypt_bytes(ChaCha* ctx, const byte* m, byte* c,
                                  word32 bytes)
 {
     byte*  output;
@@ -216,7 +216,7 @@ static void Chacha_encrypt_bytes(ChaCha* ctx, const byte* m, byte* c,
 
     if (!bytes) return;
     for (;;) {
-        Chacha_wordtobyte(temp, ctx->X);
+        wc_Chacha_wordtobyte(temp, ctx->X);
         ctx->X[12] = PLUSONE(ctx->X[12]);
         if (bytes <= 64) {
             for (i = 0; i < bytes; ++i) {
@@ -236,12 +236,12 @@ static void Chacha_encrypt_bytes(ChaCha* ctx, const byte* m, byte* c,
 /**
   * API to encrypt/decrypt a message of any size.
   */
-int Chacha_Process(ChaCha* ctx, byte* output, const byte* input, word32 msglen)
+int wc_Chacha_Process(ChaCha* ctx, byte* output, const byte* input, word32 msglen)
 {
     if (ctx == NULL)
         return BAD_FUNC_ARG;
 
-    Chacha_encrypt_bytes(ctx, input, output, msglen);
+    wc_Chacha_encrypt_bytes(ctx, input, output, msglen);
 
     return 0;
 }
