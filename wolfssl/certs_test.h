@@ -1,7 +1,7 @@
 /* certs_test.h */
 
-#ifndef CYASSL_CERTS_TEST_H
-#define CYASSL_CERTS_TEST_H
+#ifndef WOLFSSL_CERTS_TEST_H
+#define WOLFSSL_CERTS_TEST_H
 
 #ifdef USE_CERT_BUFFERS_1024
 
@@ -1174,5 +1174,5 @@ const int sizeof_server_cert_der_2048 = sizeof(server_cert_der_2048);
 
 #endif /* USE_CERT_BUFFERS_1024 */
 
-#endif /* CYASSL_CERTS_TEST_H */
+#endif /* WOLFSSL_CERTS_TEST_H */
 

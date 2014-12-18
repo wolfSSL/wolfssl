@@ -2,14 +2,14 @@
  *
  * Copyright (C) 2006-2014 wolfSSL Inc.
  *
- * This file is part of CyaSSL.
+ * This file is part of wolfSSL. (formerly known as CyaSSL)
  *
- * CyaSSL is free software; you can redistribute it and/or modify
+ * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  *
- * CyaSSL is distributed in the hope that it will be useful,
+ * wolfSSL is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
@@ -20,16 +20,16 @@
  */
 
 
-#ifndef CYASSL_ERROR_H
-#define CYASSL_ERROR_H
+#ifndef WOLFSSL_ERROR_H
+#define WOLFSSL_ERROR_H
 
-#include <cyassl/ctaocrypt/error-crypt.h>   /* pull in CTaoCrypt errors */
+#include <wolfssl/wolfcrypt/error-crypt.h>   /* pull in CTaoCrypt errors */
 
 #ifdef __cplusplus
     extern "C" {
 #endif
 
-enum CyaSSL_ErrorCodes {
+enum wolfSSL_ErrorCodes {
     INPUT_CASE_ERROR        = -301,        /* process input state error */
     PREFIX_ERROR            = -302,        /* bad index to key rounds  */
     MEMORY_ERROR            = -303,        /* out of memory            */
@@ -140,7 +140,7 @@ enum CyaSSL_ErrorCodes {
 };
 
 
-#ifdef CYASSL_CALLBACKS
+#ifdef WOLFSSL_CALLBACKS
     enum {
         MIN_PARAM_ERR = UNSUPPORTED_SUITE,
         MAX_PARAM_ERR = MIN_PARAM_ERR - 10
@@ -148,7 +148,7 @@ enum CyaSSL_ErrorCodes {
 #endif
 
 
-CYASSL_LOCAL
+WOLFSSL_LOCAL
 void SetErrorString(int err, char* buff);
 
 
@@ -157,6 +157,6 @@ void SetErrorString(int err, char* buff);
 #endif
 
 
-#endif /* CyaSSL_ERROR_H */
+#endif /* wolfSSL_ERROR_H */
 
 

@@ -1,9 +1,9 @@
-/* cyassl options.h
+/* wolfssl options.h
  * generated from configure options
  *
  * Copyright (C) 2006-2014 wolfSSL Inc.
  *
- * This file is part of CyaSSL.
+ * This file is part of wolfSSL. (formerly known as CyaSSL)
  *
  */
 
