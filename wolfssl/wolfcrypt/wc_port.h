@@ -2,14 +2,14 @@
  *
  * Copyright (C) 2006-2014 wolfSSL Inc.
  *
- * This file is part of CyaSSL.
+ * This file is part of wolfSSL.
  *
- * CyaSSL is free software; you can redistribute it and/or modify
+ * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  *
- * CyaSSL is distributed in the hope that it will be useful,
+ * wolfSSL is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
@@ -20,8 +20,8 @@
  */
 
 
-#ifndef CTAO_CRYPT_PORT_H
-#define CTAO_CRYPT_PORT_H
+#if !defined(WOLF_CRYPT_PORT_H && CTAO_CRYPT_PORT_H) 
+#define WOLF_CRYPT_PORT_H
 
 
 #ifdef __cplusplus
@@ -30,7 +30,7 @@
 
 
 #ifdef USE_WINDOWS_API 
-    #ifdef CYASSL_GAME_BUILD
+    #ifdef WOLFSSL_GAME_BUILD
         #include "system/xtl.h"
     #else
         #ifndef WIN32_LEAN_AND_MEAN
@@ -48,26 +48,26 @@
     #endif
 #elif defined(MICRIUM)
     /* do nothing, just don't pick Unix */
-#elif defined(FREERTOS) || defined(CYASSL_SAFERTOS)
+#elif defined(FREERTOS) || defined(WOLFSSL_SAFERTOS)
     /* do nothing */
 #elif defined(EBSNET)
     /* do nothing */
 #elif defined(FREESCALE_MQX)
     /* do nothing */
-#elif defined(CYASSL_MDK_ARM)
-    #if defined(CYASSL_MDK5)
+#elif defined(WOLFSSL_MDK_ARM)
+    #if defined(WOLFSSL_MDK5)
          #include "cmsis_os.h"
     #else
         #include <rtl.h>
     #endif
-#elif defined(CYASSL_CMSIS_RTOS)
+#elif defined(WOLFSSL_CMSIS_RTOS)
     #include "cmsis_os.h"    
-#elif defined(CYASSL_TIRTOS)
+#elif defined(WOLFSSL_TIRTOS)
     #include <ti/sysbios/BIOS.h>
     #include <ti/sysbios/knl/Semaphore.h>
 #else
     #ifndef SINGLE_THREADED
-        #define CYASSL_PTHREADS
+        #define WOLFSSL_PTHREADS
         #include <pthread.h>
     #endif
     #if defined(OPENSSL_EXTRA) || defined(GOAHEAD_WS)
@@ -77,47 +77,47 @@
 
 
 #ifdef SINGLE_THREADED
-    typedef int CyaSSL_Mutex;
+    typedef int wolfSSL_Mutex;
 #else /* MULTI_THREADED */
     /* FREERTOS comes first to enable use of FreeRTOS Windows simulator only */
     #ifdef FREERTOS
-        typedef xSemaphoreHandle CyaSSL_Mutex;
-    #elif defined(CYASSL_SAFERTOS)
-        typedef struct CyaSSL_Mutex {
+        typedef xSemaphoreHandle wolfSSL_Mutex;
+    #elif defined(WOLFSSL_SAFERTOS)
+        typedef struct wolfSSL_Mutex {
             signed char mutexBuffer[portQUEUE_OVERHEAD_BYTES];
             xSemaphoreHandle mutex;
-        } CyaSSL_Mutex;
+        } wolfSSL_Mutex;
     #elif defined(USE_WINDOWS_API)
-        typedef CRITICAL_SECTION CyaSSL_Mutex;
-    #elif defined(CYASSL_PTHREADS)
-        typedef pthread_mutex_t CyaSSL_Mutex;
+        typedef CRITICAL_SECTION wolfSSL_Mutex;
+    #elif defined(WOLFSSL_PTHREADS)
+        typedef pthread_mutex_t wolfSSL_Mutex;
     #elif defined(THREADX)
-        typedef TX_MUTEX CyaSSL_Mutex;
+        typedef TX_MUTEX wolfSSL_Mutex;
     #elif defined(MICRIUM)
-        typedef OS_MUTEX CyaSSL_Mutex;
+        typedef OS_MUTEX wolfSSL_Mutex;
     #elif defined(EBSNET)
-        typedef RTP_MUTEX CyaSSL_Mutex;
+        typedef RTP_MUTEX wolfSSL_Mutex;
     #elif defined(FREESCALE_MQX)
-        typedef MUTEX_STRUCT CyaSSL_Mutex;
-    #elif defined(CYASSL_MDK_ARM)
-        #if defined(CYASSL_CMSIS_RTOS)
-            typedef osMutexId CyaSSL_Mutex;
+        typedef MUTEX_STRUCT wolfSSL_Mutex;
+    #elif defined(WOLFSSL_MDK_ARM)
+        #if defined(WOLFSSL_CMSIS_RTOS)
+            typedef osMutexId wolfSSL_Mutex;
         #else
-            typedef OS_MUT CyaSSL_Mutex;
+            typedef OS_MUT wolfSSL_Mutex;
         #endif
-    #elif defined(CYASSL_CMSIS_RTOS)
-        typedef osMutexId CyaSSL_Mutex;
-    #elif defined(CYASSL_TIRTOS)
-        typedef ti_sysbios_knl_Semaphore_Handle CyaSSL_Mutex;
+    #elif defined(WOLFSSL_CMSIS_RTOS)
+        typedef osMutexId wolfSSL_Mutex;
+    #elif defined(WOLFSSL_TIRTOS)
+        typedef ti_sysbios_knl_Semaphore_Handle wolfSSL_Mutex;
     #else
         #error Need a mutex type in multithreaded mode
     #endif /* USE_WINDOWS_API */
 #endif /* SINGLE_THREADED */
 
-CYASSL_LOCAL int InitMutex(CyaSSL_Mutex*);
-CYASSL_LOCAL int FreeMutex(CyaSSL_Mutex*);
-CYASSL_LOCAL int LockMutex(CyaSSL_Mutex*);
-CYASSL_LOCAL int UnLockMutex(CyaSSL_Mutex*);
+WOLFSSL_LOCAL int InitMutex(wolfSSL_Mutex*);
+WOLFSSL_LOCAL int FreeMutex(wolfSSL_Mutex*);
+WOLFSSL_LOCAL int LockMutex(wolfSSL_Mutex*);
+WOLFSSL_LOCAL int UnLockMutex(wolfSSL_Mutex*);
 
 
 /* filesystem abstraction layer, used by ssl.c */
@@ -172,10 +172,10 @@ CYASSL_LOCAL int UnLockMutex(CyaSSL_Mutex*);
 #else
     /* stdio, default case */
     #define XFILE      FILE*
-    #if defined(CYASSL_MDK_ARM)
+    #if defined(WOLFSSL_MDK_ARM)
         #include <stdio.h>
-        extern FILE * CyaSSL_fopen(const char *name, const char *mode) ;
-        #define XFOPEN     CyaSSL_fopen
+        extern FILE * wolfSSL_fopen(const char *name, const char *mode) ;
+        #define XFOPEN     wolfSSL_fopen
     #else
         #define XFOPEN     fopen
     #endif
@@ -196,5 +196,5 @@ CYASSL_LOCAL int UnLockMutex(CyaSSL_Mutex*);
     }  /* extern "C" */
 #endif
 
-#endif /* CTAO_CRYPT_PORT_H */
+#endif /* WOLF_CRYPT_PORT_H */
 

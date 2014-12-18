@@ -2,14 +2,14 @@
  *
  * Copyright (C) 2006-2014 wolfSSL Inc.
  *
- * This file is part of CyaSSL.
+ * This file is part of wolfSSL. (formerly known as CyaSSL)
  *
- * CyaSSL is free software; you can redistribute it and/or modify
+ * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  *
- * CyaSSL is distributed in the hope that it will be useful,
+ * wolfSSL is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
@@ -20,27 +20,27 @@
  */
 
 
-#ifndef CYASSL_CRL_H
-#define CYASSL_CRL_H
+#ifndef WOLFSSL_CRL_H
+#define WOLFSSL_CRL_H
 
 
 #ifdef HAVE_CRL
 
-#include <cyassl/ssl.h>
-#include <cyassl/ctaocrypt/asn.h>
+#include <wolfssl/ssl.h>
+#include <wolfssl/wolfcrypt/asn.h>
 
 #ifdef __cplusplus
     extern "C" {
 #endif
 
-typedef struct CYASSL_CRL CYASSL_CRL;
+typedef struct WOLFSSL_CRL WOLFSSL_CRL;
 
-CYASSL_LOCAL int  InitCRL(CYASSL_CRL*, CYASSL_CERT_MANAGER*);
-CYASSL_LOCAL void FreeCRL(CYASSL_CRL*, int dynamic);
+WOLFSSL_LOCAL int  InitCRL(WOLFSSL_CRL*, WOLFSSL_CERT_MANAGER*);
+WOLFSSL_LOCAL void FreeCRL(WOLFSSL_CRL*, int dynamic);
 
-CYASSL_LOCAL int  LoadCRL(CYASSL_CRL* crl, const char* path, int type, int mon);
-CYASSL_LOCAL int  BufferLoadCRL(CYASSL_CRL*, const byte*, long, int);
-CYASSL_LOCAL int  CheckCertCRL(CYASSL_CRL*, DecodedCert*);
+WOLFSSL_LOCAL int  LoadCRL(WOLFSSL_CRL* crl, const char* path, int type, int mon);
+WOLFSSL_LOCAL int  BufferLoadCRL(WOLFSSL_CRL*, const byte*, long, int);
+WOLFSSL_LOCAL int  CheckCertCRL(WOLFSSL_CRL*, DecodedCert*);
 
 
 #ifdef __cplusplus
@@ -48,4 +48,4 @@ CYASSL_LOCAL int  CheckCertCRL(CYASSL_CRL*, DecodedCert*);
 #endif
 
 #endif /* HAVE_CRL */
-#endif /* CYASSL_CRL_H */
+#endif /* WOLFSSL_CRL_H */

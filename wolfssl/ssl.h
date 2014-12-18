@@ -27,14 +27,14 @@
 
 
 /* for users not using preprocessor flags*/
-#include <cyassl/ctaocrypt/settings.h>
-#include <cyassl/version.h>
+#include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/version.h>
 
 /* 
  * Name Change Include
- * wolfssl -> cyassl compatability layer
+ * wolfssl -> wolfssl compatability layer
  */
-#include <cyassl/ssl.h>
+#include <wolfssl/ssl.h>
 
 #ifndef NO_FILESYSTEM
     #ifdef FREESCALE_MQX
@@ -1095,28 +1095,28 @@ enum {
 
 /* for GetBulkCipher and internal use */
 enum BulkCipherAlgorithm { 
-    cyassl_cipher_null,
-    cyassl_rc4,
-    cyassl_rc2,
-    cyassl_des,
-    cyassl_triple_des,             /* leading 3 (3des) not valid identifier */
-    cyassl_des40,
-    cyassl_idea,
-    cyassl_aes,
-    cyassl_aes_gcm,
-    cyassl_aes_ccm,
-    cyassl_chacha,
-    cyassl_camellia,
-    cyassl_hc128,                  /* wolfSSL extensions */
-    cyassl_rabbit
+    wolfssl_cipher_null,
+    wolfssl_rc4,
+    wolfssl_rc2,
+    wolfssl_des,
+    wolfssl_triple_des,             /* leading 3 (3des) not valid identifier */
+    wolfssl_des40,
+    wolfssl_idea,
+    wolfssl_aes,
+    wolfssl_aes_gcm,
+    wolfssl_aes_ccm,
+    wolfssl_chacha,
+    wolfssl_camellia,
+    wolfssl_hc128,                  /* wolfSSL extensions */
+    wolfssl_rabbit
 };
 
 
 /* for KDF TLS 1.2 mac types */
 enum KDF_MacAlgorithm {
-    cyassl_sha256 = 4,     /* needs to match internal MACAlgorithm */
-    cyassl_sha384,
-    cyassl_sha512
+    wolfssl_sha256 = 4,     /* needs to match internal MACAlgorithm */
+    wolfssl_sha384,
+    wolfssl_sha512
 };
 
 
@@ -1381,7 +1381,7 @@ int wolfSSL_DeriveTlsKeys(unsigned char* key_data, unsigned int keyLen,
 #ifdef WOLFSSL_CALLBACKS
 
 /* used internally by wolfSSL while OpenSSL types aren't */
-#include <cyassl/callbacks.h>
+#include <wolfssl/callbacks.h>
 
 typedef int (*HandShakeCallBack)(HandShakeInfo*);
 typedef int (*TimeoutCallBack)(TimeoutInfo*);

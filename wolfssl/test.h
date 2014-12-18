@@ -7,20 +7,20 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <ctype.h>
-#include <cyassl/ssl.h>
-#include <cyassl/ctaocrypt/types.h>
-#include <cyassl/ctaocrypt/error-crypt.h>
+#include <wolfssl/ssl.h>
+#include <wolfssl/wolfcrypt/types.h>
+#include <wolfssl/wolfcrypt/error-crypt.h>
 
 #ifdef ATOMIC_USER
-    #include <cyassl/ctaocrypt/aes.h>
-    #include <cyassl/ctaocrypt/arc4.h>
-    #include <cyassl/ctaocrypt/hmac.h>
+    #include <wolfssl/wolfcrypt/aes.h>
+    #include <wolfssl/wolfcrypt/arc4.h>
+    #include <wolfssl/wolfcrypt/hmac.h>
 #endif
 #ifdef HAVE_PK_CALLBACKS
-    #include <cyassl/ctaocrypt/random.h>
-    #include <cyassl/ctaocrypt/asn.h>
+    #include <wolfssl/wolfcrypt/random.h>
+    #include <wolfssl/wolfcrypt/asn.h>
     #ifdef HAVE_ECC
-        #include <cyassl/ctaocrypt/ecc.h>
+        #include <wolfssl/wolfcrypt/ecc.h>
     #endif /* HAVE_ECC */
 #endif /*HAVE_PK_CALLBACKS */
 
@@ -1393,7 +1393,7 @@ static INLINE int myMacEncryptCb(WOLFSSL* ssl, unsigned char* macOut,
     const char* tlsStr = "TLS";
 
     /* example supports (d)tls aes */
-    if (wolfSSL_GetBulkCipher(ssl) != cyassl_aes) {
+    if (wolfSSL_GetBulkCipher(ssl) != wolfssl_aes) {
         printf("myMacEncryptCb not using AES\n");
         return -1;
     }
@@ -1467,7 +1467,7 @@ static INLINE int myDecryptVerifyCb(WOLFSSL* ssl,
     const char* tlsStr = "TLS";
 
     /* example supports (d)tls aes */
-    if (wolfSSL_GetBulkCipher(ssl) != cyassl_aes) {
+    if (wolfSSL_GetBulkCipher(ssl) != wolfssl_aes) {
         printf("myMacEncryptCb not using AES\n");
         return -1;
     }
