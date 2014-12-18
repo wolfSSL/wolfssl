@@ -2,7 +2,7 @@
  *
  * Copyright (C) 2006-2014 wolfSSL Inc.
  *
- * This file is part of wolfSSL.
+ * This file is part of wolfSSL. (formerly known as CyaSSL)
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,14 +19,15 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-#if !defined(WOLF_CRYPT_TYPES_H && CTAO_CRYPT_TYPES_H)
+
+#if !defined(WOLF_CRYPT_TYPES_H) && !defined(CTAO_CRYPT_TYPES_H)
+#elif defined(CTAO_CRYPT_TYPES_H)
+ /* do nothing */
+#else
 #define WOLF_CRYPT_TYPES_H
 
 #include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/wolfcrypt/wc_port.h>
- 
-/* wolfssl_wolfssl compatibility layer */
-#include <wolfssl/ssl.h>
 
 #ifdef __cplusplus
     extern "C" {
@@ -129,15 +130,15 @@ enum {
 
 /* set up rotate style */
 #if defined(_MSC_VER) || defined(__BCPLUSPLUS__)
-	#define INTEL_INTRINSICS
-	#define FAST_ROTATE
+    #define INTEL_INTRINSICS
+    #define FAST_ROTATE
 #elif defined(__MWERKS__) && TARGET_CPU_PPC
-	#define PPC_INTRINSICS
-	#define FAST_ROTATE
+    #define PPC_INTRINSICS
+    #define FAST_ROTATE
 #elif defined(__GNUC__) && defined(__i386__)
         /* GCC does peephole optimizations which should result in using rotate
            instructions  */
-	#define FAST_ROTATE
+    #define FAST_ROTATE
 #endif
 
 
@@ -229,7 +230,6 @@ enum {
 
 
 /* memory allocation types for user hints */
-
 enum {
     DYNAMIC_TYPE_CA           = 1,
     DYNAMIC_TYPE_CERT         = 2,
@@ -325,5 +325,6 @@ WOLFSSL_API word32 CheckRunTimeSettings(void);
 #ifdef __cplusplus
     }   /* extern "C" */
 #endif
+
 
 #endif /* WOLF_CRYPT_TYPES_H */

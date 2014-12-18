@@ -19,13 +19,16 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
+  /* Name change compatibility layer */
+#include <cyassl/ssl.h>
+
 #ifdef HAVE_CONFIG_H
     #include <config.h>
 #endif
 
 #include <cyassl/ctaocrypt/settings.h>
 
-#include <cyassl/ssl.h>
+#include <wolfssl/ssl.h>
 #include <cyassl/internal.h>
 #include <cyassl/error-ssl.h>
 #include <cyassl/ctaocrypt/hmac.h>

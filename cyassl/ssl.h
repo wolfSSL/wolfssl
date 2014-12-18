@@ -123,6 +123,7 @@
 #define CYASSL_CBIO_ERR_WANT_READ  WOLFSSL_CBIO_ERR_WANT_READ
 #define CYASSL_CBIO_ERR_WANT_WRITE WOLFSSL_CBIO_ERR_WANT_WRITE
 #define CYASSL_CBIO_ERR_TIMEOUT    WOLFSSL_CBIO_ERR_TIMEOUT
+#define CYASSL_CBIO_ERR_CONN_RST   WOLFSSL_CBIO_ERR_CONN_RST
 
 /* src/tls.c */
 #define CYASSL_SERVER_END          WOLFSSL_SERVER_END
@@ -136,6 +137,10 @@
 #define CYASSL_CHAIN_CA                WOLFSSL_CHAIN_CA
 #define CYASSL_CBIO_ERR_CONN_RST       WOLFSSL_CBIO_ERR_CONN_RST
 #define CYASSL_ALERT_HISTORY           WOLFSSL_ALERT_HISTORY
+#define cyassl_chacha                  wolfssl_chacha
+
+/* keys.c */
+#define cyassl_triple_des wolfssl_triple_des
 
 
 

@@ -19,6 +19,9 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
+/* Name change compatibility layer */
+#include <cyassl/ssl.h>
+
 #ifdef HAVE_CONFIG_H
     #include <config.h>
 #endif
@@ -32,6 +35,7 @@
 
 #include <cyassl/internal.h>
 #include <cyassl/error-ssl.h>
+
 
 /* if user writes own I/O callbacks they can define CYASSL_USER_IO to remove
    automatic setting of default I/O functions EmbedSend() and EmbedReceive()
