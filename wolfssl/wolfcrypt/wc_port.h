@@ -20,7 +20,7 @@
  */
 
 
-#if !defined(WOLF_CRYPT_PORT_H && CTAO_CRYPT_PORT_H) 
+#if !defined(WOLF_CRYPT_PORT_H && CTAO_CRYPT_PORT_H)
 #define WOLF_CRYPT_PORT_H
 
 

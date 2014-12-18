@@ -90,6 +90,7 @@
 #define CYASSL_TLSV1_2                   WOLFSSL_TLSV1_2
 #define CYASSL_SSLV3                     WOLFSSL_SSLV3
 #define MAX_CYASSL_FILE_SIZE             MAX_WOLFSSL_FILE_SIZE
+#define CYASSL_CRL                       WOLFSSL_CRL
 #define CyaSSL_session_reused            wolfSSL_session_reused
 #define CyaSSL_get_version               wolfSSL_get_version
 #define CyaSSL_get_shutdown              wolfSSL_get_shutdown
@@ -137,7 +138,10 @@
 #define CYASSL_CHAIN_CA                WOLFSSL_CHAIN_CA
 #define CYASSL_CBIO_ERR_CONN_RST       WOLFSSL_CBIO_ERR_CONN_RST
 #define CYASSL_ALERT_HISTORY           WOLFSSL_ALERT_HISTORY
+#define CYASSL_SESSION_TIMEOUT         WOLFSSL_SESSION_TIMEOUT
 #define cyassl_chacha                  wolfssl_chacha
+#define cyassl_rc4                     wolfssl_rc4
+#define cyassl_aes                     wolfssl_aes
 
 /* keys.c */
 #define cyassl_triple_des wolfssl_triple_des
