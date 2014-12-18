@@ -62,6 +62,6 @@ CYASSL_API int DsaPrivateKeyDecode(const byte* input, word32* inOutIdx, DsaKey*,
     } /* extern "C" */
 #endif
 
-#endif /* CTAO_CRYPT_DSA_H */
+#endif /* WOLF_CRYPT_DSA_H */
 #endif /* NO_DSA */
 

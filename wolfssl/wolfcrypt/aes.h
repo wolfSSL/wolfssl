@@ -123,6 +123,6 @@
 #endif
 
 
-#endif /* CTAO_CRYPT_AES_H */
+#endif /* WOLF_CRYPT_AES_H */
 #endif /* NO_AES */
 

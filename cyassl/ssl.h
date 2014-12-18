@@ -455,7 +455,11 @@
 
 
 /* for pwdbased reverse compatibility */
-
+#ifndef NO_PWDBASED
+    #define PBKDF1 wc_PBKDF1
+    #define PBKDF2 wc_PBKDF2
+    #define PKCS12_PBKDF wc_PKCS12_PBKDF
+#endif
 
 
 
