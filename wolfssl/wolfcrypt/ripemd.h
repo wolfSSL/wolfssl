@@ -2,14 +2,14 @@
  *
  * Copyright (C) 2006-2014 wolfSSL Inc.
  *
- * This file is part of CyaSSL.
+ * This file is part of wolfSSL. (formerly known as CyaSSL)
  *
- * CyaSSL is free software; you can redistribute it and/or modify
+ * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  *
- * CyaSSL is distributed in the hope that it will be useful,
+ * wolfSSL is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
@@ -20,12 +20,12 @@
  */
 
 
-#ifdef CYASSL_RIPEMD
+#ifdef WOLFSSL_RIPEMD
 
-#ifndef CTAO_CRYPT_RIPEMD_H
-#define CTAO_CRYPT_RIPEME_H
+#ifndef WOLF_CRYPT_RIPEMD_H
+#define WOLF_CRYPT_RIPEME_H
 
-#include <cyassl/ctaocrypt/types.h>
+#include <wolfssl/wolfcrypt/types.h>
 
 #ifdef __cplusplus
     extern "C" {
@@ -51,14 +51,14 @@ typedef struct RipeMd {
 } RipeMd;
 
 
-CYASSL_API void InitRipeMd(RipeMd*);
-CYASSL_API void RipeMdUpdate(RipeMd*, const byte*, word32);
-CYASSL_API void RipeMdFinal(RipeMd*, byte*);
+WOLFSSL_API void wc_InitRipeMd(RipeMd*);
+WOLFSSL_API void wc_RipeMdUpdate(RipeMd*, const byte*, word32);
+WOLFSSL_API void wc_RipeMdFinal(RipeMd*, byte*);
 
 
 #ifdef __cplusplus
     } /* extern "C" */
 #endif
 
-#endif /* CTAO_CRYPT_RIPEMD_H */
-#endif /* CYASSL_RIPEMD */
+#endif /* WOLF_CRYPT_RIPEMD_H */
+#endif /* WOLFSSL_RIPEMD */
