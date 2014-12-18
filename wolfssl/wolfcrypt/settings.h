@@ -23,9 +23,10 @@
    included into every file because types.h includes it */
 
 
-#ifndef CTAO_CRYPT_SETTINGS_H
-#define CTAO_CRYPT_SETTINGS_H
+#ifndef WOLF_CRYPT_SETTINGS_H
+#define WOLF_CRYPT_SETTINGS_H
 
+#include <wolfssl/wolfcrypt/visibility.h>
 #include <wolfssl/wolfcrypt/settings.h>
 
 #endif

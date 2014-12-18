@@ -30,12 +30,6 @@
 #include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/version.h>
 
-/* 
- * Name Change Include
- * wolfssl -> wolfssl compatability layer
- */
-#include <wolfssl/ssl.h>
-
 #ifndef NO_FILESYSTEM
     #ifdef FREESCALE_MQX
         #include <fio.h>
