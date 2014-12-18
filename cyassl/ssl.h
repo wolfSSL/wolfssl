@@ -1,15 +1,15 @@
-/* cyassl.h
+/* ssl.h
  *
  * Copyright (C) 2006-2014 wolfSSL Inc.
  *
- * This file is part of CyaSSL.
+ * This file is part of wolfSSL. (formerly known as CyaSSL)
  *
- * CyaSSL is free software; you can redistribute it and/or modify
+ * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  *
- * CyaSSL is distributed in the hope that it will be useful,
+ * wolfSSL is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
@@ -21,7 +21,7 @@
 
 
 /*  
- * cyassl.h defines cyassl compatibility layer
+ * ssl.h makes wolfssl backwards compatibile with cyassl
  */
 
 
@@ -42,7 +42,8 @@
     /* wincrypt.h clashes */
     #undef X509_NAME
 #endif
-#define CYASSL          WOLFSSL          
+
+#define CYASSL          WOLFSSL
 #define CYASSL_SESSION  WOLFSSL_SESSION
 #define CYASSL_METHOD   WOLFSSL_METHOD
 #define CYASSL_CTX      WOLFSSL_CTX
@@ -54,13 +55,13 @@
 /* redeclare guard */
 #define CYASSL_TYPES_DEFINED WOLFSSL_TYPES_DEFINED
 
-/* structs */
+/* cyassl/ssl.h (structs) */
 #define CYASSL_EVP_PKEY       WOLFSSL_EVP_PKEY
 #define CYASSL_RSA            WOLFSSL_RSA
 #define CYASSL_DSA            WOLFSSL_DSA
 #define CYASSL_BIO            WOLFSSL_BIO
 #define CYASSL_BIO_METHOD     WOLFSSL_BIO_METHOD
-#define CYASSL_CIPHER         WOLFSSL_SSL_CIPHER
+#define CYASSL_CIPHER         WOLFSSL_CIPHER
 #define CYASSL_X509_LOOKUP    WOLFSSL_X509_LOOKUP
 #define CYASSL_X509_CRL       WOLFSSL_X509_CRL
 #define CYASSL_X509_EXTENSION WOLFSSL_X509_EXTENSION
@@ -81,26 +82,36 @@
 #define CYASSL_X509_STORE_CTX WOLFSSL_X509_STORE_CTX
 
 /* src/ssl.c */
-#define CYASSL_CLIENT_END               WOLFSSL_CLIENT_END
-#define CYASSL_CERT_MANAGER             WOLFSSL_CERT_MANAGER
-#define CYASSL_USER_CA                  WOLFSSL_USER_CA
-#define CYASSL_TLSV1                    WOLFSSL_TLSV1
-#define CYASSL_TLSV1_1                  WOLFSSL_TLSV1_1
-#define CYASSL_TLSV1_2                  WOLFSSL_TLSV1_2
-#define CYASSL_SSLV3                    WOLFSSL_SSLV3
-#define CyaSSL_session_reused           wolfSSL_session_reused
-#define CyaSSL_get_version              wolfSSL_get_version
-#define CyaSSL_get_shutdown             wolfSSL_get_shutdown
-#define CyaSSL_is_init_finished         wolfSSL_is_init_finished
-#define CyaSSL_CTX_UnloadCAs            wolfSSL_CTX_UnloadCAs
-#define CyaSSL_UnloadCertsKeys          wolfSSL_UnloadCertsKeys
-#define CyaSSL_SetServerID              wolfSSL_SetServerID
-#define CyaSSL_SetCertCbCtx             wolfSSL_SetCertCbCtx
-#define CyaSSL_CTX_check_private_key    wolfSSL_CTX_check_private_key
-#define CyaSSL_get_current_cipher_suite wolfSSL_get_current_cipher_suite
-#define CyaSSL_get_cipher               wolfSSL_get_cipher
-#define CyaSSL_CIPHER_get_name          wolfSSL_CIPHER_get_name
-#define CyaSSL_get_current_cipher       wolfSSL_get_current_cipher
+#define CYASSL_CLIENT_END                WOLFSSL_CLIENT_END
+#define CYASSL_CERT_MANAGER              WOLFSSL_CERT_MANAGER
+#define CYASSL_USER_CA                   WOLFSSL_USER_CA
+#define CYASSL_TLSV1                     WOLFSSL_TLSV1
+#define CYASSL_TLSV1_1                   WOLFSSL_TLSV1_1
+#define CYASSL_TLSV1_2                   WOLFSSL_TLSV1_2
+#define CYASSL_SSLV3                     WOLFSSL_SSLV3
+#define CyaSSL_session_reused            wolfSSL_session_reused
+#define CyaSSL_get_version               wolfSSL_get_version
+#define CyaSSL_get_shutdown              wolfSSL_get_shutdown
+#define CyaSSL_is_init_finished          wolfSSL_is_init_finished
+#define CyaSSL_CTX_UnloadCAs             wolfSSL_CTX_UnloadCAs
+#define CyaSSL_UnloadCertsKeys           wolfSSL_UnloadCertsKeys
+#define CyaSSL_SetServerID               wolfSSL_SetServerID
+#define CyaSSL_SetCertCbCtx              wolfSSL_SetCertCbCtx
+#define CyaSSL_CTX_check_private_key     wolfSSL_CTX_check_private_key
+#define CyaSSL_get_current_cipher_suite  wolfSSL_get_current_cipher_suite
+#define CyaSSL_get_cipher                wolfSSL_get_cipher
+#define CyaSSL_CIPHER_get_name           wolfSSL_CIPHER_get_name
+#define CyaSSL_get_current_cipher        wolfSSL_get_current_cipher
+#define CyaSSL_CTX_load_verify_locations wolfSSL_CTX_load_verify_locations
+#define CyaSSL_CertManagerDisableOCSP    wolfSSL_CertManagerDisableOCSP
+#define CyaSSL_CertManagerEnableOCSP     wolfSSL_CertManagerEnableOCSP
+#define CyaSSL_SetMinVersion             wolfSSL_SetMinVersion
+#define CyaSSL_KeyPemToDer               wolfSSL_KeyPemToDer
+#define CyaSSL_CertPemToDer              wolfSSL_CertPemToDer
+#define CyaSSL_CertManagerUnloadCAs      wolfSSL_CertManagerUnloadCAs
+#define CyaSSL_get_alert_history         wolfSSL_get_alert_history
+#define CyaSSL_get_ciphers               wolfSSL_get_ciphers
+
 
 /* io.c */
 #define CYASSL_CBIO_ERR_CONN_CLOSE WOLFSSL_CBIO_ERR_CONN_CLOSE
@@ -124,6 +135,7 @@
 #define CYASSL_CHAIN_CA                WOLFSSL_CHAIN_CA
 #define CYASSL_CBIO_ERR_CONN_RST       WOLFSSL_CBIO_ERR_CONN_RST
 #define CYASSL_ALERT_HISTORY           WOLFSSL_ALERT_HISTORY
+
 
 
 

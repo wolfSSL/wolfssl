@@ -2,14 +2,14 @@
  *
  * Copyright (C) 2006-2014 wolfSSL Inc.
  *
- * This file is part of CyaSSL.
+ * This file is part of wolfSSL. (formerly known as wolfSSL)
  *
- * CyaSSL is free software; you can redistribute it and/or modify
+ * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  *
- * CyaSSL is distributed in the hope that it will be useful,
+ * wolfSSL is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
@@ -20,57 +20,57 @@
  */
 
 
-#ifndef CYASSL_INT_H
-#define CYASSL_INT_H
+#ifndef WOLFSSL_INT_H
+#define WOLFSSL_INT_H
 
 
-#include <cyassl/ctaocrypt/types.h>
-#include <cyassl/ssl.h>
-#include <cyassl/crl.h>
-#include <cyassl/ctaocrypt/random.h>
-#include <cyassl/ctaocrypt/des3.h>
-#include <cyassl/ctaocrypt/hc128.h>
-#include <cyassl/ctaocrypt/rabbit.h>
-#include <cyassl/ctaocrypt/chacha.h>
-#include <cyassl/ctaocrypt/asn.h>
-#include <cyassl/ctaocrypt/md5.h>
-#include <cyassl/ctaocrypt/sha.h>
-#include <cyassl/ctaocrypt/aes.h>
-#include <cyassl/ctaocrypt/poly1305.h>
-#include <cyassl/ctaocrypt/camellia.h>
-#include <cyassl/ctaocrypt/logging.h>
-#include <cyassl/ctaocrypt/hmac.h>
+#include <wolfssl/wolfcrypt/types.h>
+#include <wolfssl/ssl.h>
+#include <wolfssl/crl.h>
+#include <wolfssl/wolfcrypt/random.h>
+#include <wolfssl/wolfcrypt/des3.h>
+#include <wolfssl/wolfcrypt/hc128.h>
+#include <wolfssl/wolfcrypt/rabbit.h>
+#include <wolfssl/wolfcrypt/chacha.h>
+#include <wolfssl/wolfcrypt/asn.h>
+#include <wolfssl/wolfcrypt/md5.h>
+#include <wolfssl/wolfcrypt/sha.h>
+#include <wolfssl/wolfcrypt/aes.h>
+#include <wolfssl/wolfcrypt/poly1305.h>
+#include <wolfssl/wolfcrypt/camellia.h>
+#include <wolfssl/wolfcrypt/logging.h>
+#include <wolfssl/wolfcrypt/hmac.h>
 #ifndef NO_RC4
     #include <wolfssl/wolfcrypt/arc4.h>
 #endif
 #ifdef HAVE_ECC
-    #include <cyassl/ctaocrypt/ecc.h>
+    #include <wolfssl/wolfcrypt/ecc.h>
 #endif
 #ifndef NO_SHA256
-    #include <cyassl/ctaocrypt/sha256.h>
+    #include <wolfssl/wolfcrypt/sha256.h>
 #endif
 #ifdef HAVE_OCSP
-    #include <cyassl/ocsp.h>
+    #include <wolfssl/ocsp.h>
 #endif
-#ifdef CYASSL_SHA512
-    #include <cyassl/ctaocrypt/sha512.h>
+#ifdef WOLFSSL_SHA512
+    #include <wolfssl/wolfcrypt/sha512.h>
 #endif
 
 #ifdef HAVE_AESGCM
-    #include <cyassl/ctaocrypt/sha512.h>
+    #include <wolfssl/wolfcrypt/sha512.h>
 #endif
 
-#ifdef CYASSL_RIPEMD
-    #include <cyassl/ctaocrypt/ripemd.h>
+#ifdef WOLFSSL_RIPEMD
+    #include <wolfssl/wolfcrypt/ripemd.h>
 #endif
 
-#ifdef CYASSL_CALLBACKS
-    #include <cyassl/callbacks.h>
+#ifdef WOLFSSL_CALLBACKS
+    #include <wolfssl/callbacks.h>
     #include <signal.h>
 #endif
 
 #ifdef USE_WINDOWS_API 
-    #ifdef CYASSL_GAME_BUILD
+    #ifdef WOLFSSL_GAME_BUILD
         #include "system/xtl.h"
     #else
         #if defined(_WIN32_WCE) || defined(WIN32_LEAN_AND_MEAN)
@@ -85,24 +85,24 @@
     #endif
 #elif defined(MICRIUM)
     /* do nothing, just don't pick Unix */
-#elif defined(FREERTOS) || defined(CYASSL_SAFERTOS)
+#elif defined(FREERTOS) || defined(WOLFSSL_SAFERTOS)
     /* do nothing */
 #elif defined(EBSNET)
     /* do nothing */
 #elif defined(FREESCALE_MQX)
     /* do nothing */
-#elif defined(CYASSL_MDK_ARM)
-    #if defined(CYASSL_MDK5)
+#elif defined(WOLFSSL_MDK_ARM)
+    #if defined(WOLFSSL_MDK5)
          #include "cmsis_os.h"
     #else
         #include <rtl.h>
     #endif
 #elif defined(MBED)
-#elif defined(CYASSL_TIRTOS)
+#elif defined(WOLFSSL_TIRTOS)
     /* do nothing */
 #else
     #ifndef SINGLE_THREADED
-        #define CYASSL_PTHREADS
+        #define WOLFSSL_PTHREADS
         #include <pthread.h>
     #endif
     #if defined(OPENSSL_EXTRA) || defined(GOAHEAD_WS)
@@ -194,7 +194,7 @@ typedef byte word24[3];
     #endif
     #if defined (HAVE_AESGCM)
         #define BUILD_TLS_RSA_WITH_AES_128_GCM_SHA256
-        #if defined (CYASSL_SHA384)
+        #if defined (WOLFSSL_SHA384)
             #define BUILD_TLS_RSA_WITH_AES_256_GCM_SHA384
         #endif
     #endif
@@ -248,7 +248,7 @@ typedef byte word24[3];
             #define BUILD_TLS_PSK_WITH_AES_256_CCM
         #endif
     #endif
-    #ifdef CYASSL_SHA384
+    #ifdef WOLFSSL_SHA384
         #define BUILD_TLS_PSK_WITH_AES_256_CBC_SHA384
         #ifdef HAVE_AESGCM
             #define BUILD_TLS_PSK_WITH_AES_256_GCM_SHA384
@@ -272,7 +272,7 @@ typedef byte word24[3];
         #ifndef NO_SHA256
             #define BUILD_TLS_PSK_WITH_NULL_SHA256
         #endif
-        #ifdef CYASSL_SHA384
+        #ifdef WOLFSSL_SHA384
             #define BUILD_TLS_PSK_WITH_NULL_SHA384
         #endif
     #endif
@@ -305,7 +305,7 @@ typedef byte word24[3];
         #define BUILD_TLS_DHE_RSA_WITH_AES_256_CBC_SHA256
         #if defined (HAVE_AESGCM)
             #define BUILD_TLS_DHE_RSA_WITH_AES_128_GCM_SHA256
-            #if defined (CYASSL_SHA384)
+            #if defined (WOLFSSL_SHA384)
                 #define BUILD_TLS_DHE_RSA_WITH_AES_256_GCM_SHA384
             #endif
         #endif
@@ -331,7 +331,7 @@ typedef byte word24[3];
             #define BUILD_TLS_DHE_PSK_WITH_AES_256_CCM
         #endif
     #endif
-    #ifdef CYASSL_SHA384
+    #ifdef WOLFSSL_SHA384
         #define BUILD_TLS_DHE_PSK_WITH_AES_256_CBC_SHA384
         #ifdef HAVE_NULL_CIPHER
             #define BUILD_TLS_DHE_PSK_WITH_NULL_SHA384
@@ -367,7 +367,7 @@ typedef byte word24[3];
             #define BUILD_TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA256
         #endif
 
-        #ifdef CYASSL_SHA384
+        #ifdef WOLFSSL_SHA384
             #if !defined(NO_RSA)
                 #define BUILD_TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384
                 #define BUILD_TLS_ECDH_RSA_WITH_AES_256_CBC_SHA384
@@ -380,7 +380,7 @@ typedef byte word24[3];
             #if !defined(NO_RSA)
                 #define BUILD_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
                 #define BUILD_TLS_ECDH_RSA_WITH_AES_128_GCM_SHA256
-                #if defined(CYASSL_SHA384)
+                #if defined(WOLFSSL_SHA384)
                     #define BUILD_TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
                     #define BUILD_TLS_ECDH_RSA_WITH_AES_256_GCM_SHA384
                 #endif
@@ -389,7 +389,7 @@ typedef byte word24[3];
             #define BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256
             #define BUILD_TLS_ECDH_ECDSA_WITH_AES_128_GCM_SHA256
             
-            #if defined(CYASSL_SHA384)
+            #if defined(WOLFSSL_SHA384)
                 #define BUILD_TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384
                 #define BUILD_TLS_ECDH_ECDSA_WITH_AES_256_GCM_SHA384
             #endif
@@ -540,17 +540,17 @@ enum {
     TLS_ECDH_RSA_WITH_AES_256_CBC_SHA384   = 0x2A,
     TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA384 = 0x26,
 
-    /* CyaSSL extension - eSTREAM */
+    /* wolfSSL extension - eSTREAM */
     TLS_RSA_WITH_HC_128_MD5       = 0xFB,
     TLS_RSA_WITH_HC_128_SHA       = 0xFC,
     TLS_RSA_WITH_RABBIT_SHA       = 0xFD,
 
-    /* CyaSSL extension - Blake2b 256 */
+    /* wolfSSL extension - Blake2b 256 */
     TLS_RSA_WITH_AES_128_CBC_B2B256   = 0xF8,
     TLS_RSA_WITH_AES_256_CBC_B2B256   = 0xF9,
     TLS_RSA_WITH_HC_128_B2B256        = 0xFA,   /* eSTREAM too */
 
-    /* CyaSSL extension - NTRU */
+    /* wolfSSL extension - NTRU */
     TLS_NTRU_RSA_WITH_RC4_128_SHA      = 0xe5,
     TLS_NTRU_RSA_WITH_3DES_EDE_CBC_SHA = 0xe6,
     TLS_NTRU_RSA_WITH_AES_128_CBC_SHA  = 0xe7,  /* clashes w/official SHA-256 */
@@ -623,8 +623,8 @@ enum {
 };
 
 
-#ifndef CYASSL_SESSION_TIMEOUT
-    #define CYASSL_SESSION_TIMEOUT 500
+#ifndef WOLFSSL_SESSION_TIMEOUT
+    #define WOLFSSL_SESSION_TIMEOUT 500
     /* default session resumption cache timeout in seconds */
 #endif
 
@@ -647,7 +647,7 @@ enum Misc {
     OLD_HELLO_ID    = 0x01,     /* SSLv2 Client Hello Indicator */
     INVALID_BYTE    = 0xff,     /* Used to initialize cipher specs values */
     NO_COMPRESSION  =  0,
-    ZLIB_COMPRESSION = 221,     /* CyaSSL zlib compression */
+    ZLIB_COMPRESSION = 221,     /* wolfSSL zlib compression */
     HELLO_EXT_SIG_ALGO = 13,    /* ID for the sig_algo hello extension */
     SECRET_LEN      = 48,       /* pre RSA and all master */
     ENCRYPT_LEN     = 512,      /* allow 4096 bit static buffer */
@@ -785,7 +785,7 @@ enum Misc {
     MAX_PSK_ID_LEN     = 128,  /* max psk identity/hint supported */
     MAX_PSK_KEY_LEN    =  64,  /* max psk key supported */
 
-    MAX_CYASSL_FILE_SIZE = 1024 * 1024 * 4,  /* 4 mb file size alloc limit */
+    MAX_WOLFSSL_FILE_SIZE = 1024 * 1024 * 4,  /* 4 mb file size alloc limit */
 
 #ifdef FORTRESS
     MAX_EX_DATA        =   3,  /* allow for three items of ex_data */
@@ -856,26 +856,26 @@ enum states {
 
 
 #if defined(__GNUC__)
-    #define CYASSL_PACK __attribute__ ((packed))
+    #define WOLFSSL_PACK __attribute__ ((packed))
 #else
-    #define CYASSL_PACK
+    #define WOLFSSL_PACK
 #endif
 
 /* SSL Version */
 typedef struct ProtocolVersion {
     byte major;
     byte minor;
-} CYASSL_PACK ProtocolVersion;
+} WOLFSSL_PACK ProtocolVersion;
 
 
-CYASSL_LOCAL ProtocolVersion MakeSSLv3(void);
-CYASSL_LOCAL ProtocolVersion MakeTLSv1(void);
-CYASSL_LOCAL ProtocolVersion MakeTLSv1_1(void);
-CYASSL_LOCAL ProtocolVersion MakeTLSv1_2(void);
+WOLFSSL_LOCAL ProtocolVersion MakeSSLv3(void);
+WOLFSSL_LOCAL ProtocolVersion MakeTLSv1(void);
+WOLFSSL_LOCAL ProtocolVersion MakeTLSv1_1(void);
+WOLFSSL_LOCAL ProtocolVersion MakeTLSv1_2(void);
 
-#ifdef CYASSL_DTLS
-    CYASSL_LOCAL ProtocolVersion MakeDTLSv1(void);
-    CYASSL_LOCAL ProtocolVersion MakeDTLSv1_2(void);
+#ifdef WOLFSSL_DTLS
+    WOLFSSL_LOCAL ProtocolVersion MakeDTLSv1(void);
+    WOLFSSL_LOCAL ProtocolVersion MakeDTLSv1_2(void);
 #endif
 
 
@@ -887,28 +887,28 @@ enum BIO_TYPE {
 };
 
 
-/* CyaSSL BIO_METHOD type */
-struct CYASSL_BIO_METHOD {
+/* wolfSSL BIO_METHOD type */
+struct WOLFSSL_BIO_METHOD {
     byte type;               /* method type */
 };
 
 
-/* CyaSSL BIO type */
-struct CYASSL_BIO {
+/* wolfSSL BIO type */
+struct WOLFSSL_BIO {
     byte        type;          /* method type */
     byte        close;         /* close flag */
     byte        eof;           /* eof flag */
-    CYASSL*     ssl;           /* possible associated ssl */
+    WOLFSSL*     ssl;           /* possible associated ssl */
     byte*       mem;           /* memory buffer */
     int         memLen;        /* memory buffer length */
     int         fd;            /* possible file descriptor */
-    CYASSL_BIO* prev;          /* previous in chain */
-    CYASSL_BIO* next;          /* next in chain */
+    WOLFSSL_BIO* prev;          /* previous in chain */
+    WOLFSSL_BIO* next;          /* next in chain */
 };
 
 
-/* CyaSSL method type */
-struct CYASSL_METHOD {
+/* wolfSSL method type */
+struct WOLFSSL_METHOD {
     ProtocolVersion version;
     byte            side;         /* connection side, server or client */
     byte            downgrade;    /* whether to downgrade version, default no */
@@ -916,15 +916,15 @@ struct CYASSL_METHOD {
 
 
 /* defautls to client */
-CYASSL_LOCAL void InitSSL_Method(CYASSL_METHOD*, ProtocolVersion);
+WOLFSSL_LOCAL void InitSSL_Method(WOLFSSL_METHOD*, ProtocolVersion);
 
 /* for sniffer */
-CYASSL_LOCAL int DoFinished(CYASSL* ssl, const byte* input, word32* inOutIdx,
+WOLFSSL_LOCAL int DoFinished(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                             word32 size, word32 totalSz, int sniff);
-CYASSL_LOCAL int DoApplicationData(CYASSL* ssl, byte* input, word32* inOutIdx);
+WOLFSSL_LOCAL int DoApplicationData(WOLFSSL* ssl, byte* input, word32* inOutIdx);
 
 
-/* CyaSSL buffer type */
+/* wolfSSL buffer type */
 typedef struct buffer {
     word32 length;
     byte*  buffer;
@@ -945,7 +945,7 @@ enum {
 #endif
 
 /* only the sniffer needs space in the buffer for extra MTU record(s) */
-#ifdef CYASSL_SNIFFER
+#ifdef WOLFSSL_SNIFFER
     #define MTU_EXTRA MAX_MTU * 3 
 #else
     #define MTU_EXTRA 0
@@ -953,7 +953,7 @@ enum {
 
 
 /* embedded callbacks require large static buffers, make sure on */
-#ifdef CYASSL_CALLBACKS
+#ifdef WOLFSSL_CALLBACKS
     #undef  LARGE_STATIC_BUFFERS
     #define LARGE_STATIC_BUFFERS
 #endif
@@ -963,7 +963,7 @@ enum {
 #if defined(LARGE_STATIC_BUFFERS)
     #define RECORD_SIZE MAX_RECORD_SIZE
 #else
-    #ifdef CYASSL_DTLS
+    #ifdef WOLFSSL_DTLS
         #define RECORD_SIZE MAX_MTU 
     #else
         #define RECORD_SIZE 128 
@@ -981,7 +981,7 @@ enum {
     #define OUTPUT_RECORD_SIZE RECORD_SIZE
 #endif
 
-/* CyaSSL input buffer
+/* wolfSSL input buffer
 
    RFC 2246:
 
@@ -1019,29 +1019,29 @@ typedef struct Suites {
 } Suites;
 
 
-CYASSL_LOCAL
+WOLFSSL_LOCAL
 void InitSuites(Suites*, ProtocolVersion,
                                      byte, byte, byte, byte, byte, byte, int);
-CYASSL_LOCAL
+WOLFSSL_LOCAL
 int  SetCipherList(Suites*, const char* list);
 
 #ifndef PSK_TYPES_DEFINED
-    typedef unsigned int (*psk_client_callback)(CYASSL*, const char*, char*,
+    typedef unsigned int (*psk_client_callback)(WOLFSSL*, const char*, char*,
                           unsigned int, unsigned char*, unsigned int);
-    typedef unsigned int (*psk_server_callback)(CYASSL*, const char*,
+    typedef unsigned int (*psk_server_callback)(WOLFSSL*, const char*,
                           unsigned char*, unsigned int);
 #endif /* PSK_TYPES_DEFINED */
 
 
 #ifdef HAVE_NETX
-    CYASSL_LOCAL int NetX_Receive(CYASSL *ssl, char *buf, int sz, void *ctx);
-    CYASSL_LOCAL int NetX_Send(CYASSL *ssl, char *buf, int sz, void *ctx);
+    WOLFSSL_LOCAL int NetX_Receive(WOLFSSL *ssl, char *buf, int sz, void *ctx);
+    WOLFSSL_LOCAL int NetX_Send(WOLFSSL *ssl, char *buf, int sz, void *ctx);
 #endif /* HAVE_NETX */
 
 
-/* CyaSSL Cipher type just points back to SSL */
-struct CYASSL_CIPHER {
-    CYASSL* ssl;
+/* wolfSSL Cipher type just points back to SSL */
+struct WOLFSSL_CIPHER {
+    WOLFSSL* ssl;
 };
 
 
@@ -1068,14 +1068,14 @@ struct OCSP_Entry {
 
 
 #ifndef HAVE_OCSP
-    typedef struct CYASSL_OCSP CYASSL_OCSP;
+    typedef struct WOLFSSL_OCSP WOLFSSL_OCSP;
 #endif
 
-/* CyaSSL OCSP controller */
-struct CYASSL_OCSP {
-    CYASSL_CERT_MANAGER* cm;            /* pointer back to cert manager */
+/* wolfSSL OCSP controller */
+struct WOLFSSL_OCSP {
+    WOLFSSL_CERT_MANAGER* cm;            /* pointer back to cert manager */
     OCSP_Entry*          ocspList;      /* OCSP response list */
-    CyaSSL_Mutex         ocspLock;      /* OCSP list lock */
+    wolfSSL_Mutex         ocspLock;      /* OCSP list lock */
 };
 
 #ifndef MAX_DATE_SIZE
@@ -1119,14 +1119,14 @@ struct CRL_Monitor {
 
 
 #ifndef HAVE_CRL
-    typedef struct CYASSL_CRL CYASSL_CRL;
+    typedef struct WOLFSSL_CRL WOLFSSL_CRL;
 #endif
 
-/* CyaSSL CRL controller */
-struct CYASSL_CRL {
-    CYASSL_CERT_MANAGER* cm;            /* pointer back to cert manager */
+/* wolfSSL CRL controller */
+struct WOLFSSL_CRL {
+    WOLFSSL_CERT_MANAGER* cm;            /* pointer back to cert manager */
     CRL_Entry*           crlList;       /* our CRL list */
-    CyaSSL_Mutex         crlLock;       /* CRL list lock */
+    wolfSSL_Mutex         crlLock;       /* CRL list lock */
     CRL_Monitor          monitors[2];   /* PEM and DER possible */
 #ifdef HAVE_CRL_MONITOR
     pthread_t            tid;           /* monitoring thread */
@@ -1144,17 +1144,17 @@ struct CYASSL_CRL {
     #define CA_TABLE_SIZE 11
 #endif
 
-/* CyaSSL Certificate Manager */
-struct CYASSL_CERT_MANAGER {
+/* wolfSSL Certificate Manager */
+struct WOLFSSL_CERT_MANAGER {
     Signer*         caTable[CA_TABLE_SIZE]; /* the CA signer table */
-    CyaSSL_Mutex    caLock;             /* CA list lock */
+    wolfSSL_Mutex    caLock;             /* CA list lock */
     CallbackCACache caCacheCallback;    /* CA cache addition callback */
     void*           heap;               /* heap helper */
-    CYASSL_CRL*     crl;                /* CRL checker */
+    WOLFSSL_CRL*     crl;                /* CRL checker */
     byte            crlEnabled;         /* is CRL on ? */
     byte            crlCheckAll;        /* always leaf, but all ? */
     CbMissingCRL    cbMissingCRL;       /* notify through cb of missing crl */
-    CYASSL_OCSP*    ocsp;               /* OCSP checker */
+    WOLFSSL_OCSP*    ocsp;               /* OCSP checker */
     byte            ocspEnabled;        /* is OCSP on ? */
     byte            ocspSendNonce;      /* send the OCSP nonce ? */
     byte            ocspUseOverrideURL; /* ignore cert's responder, override */
@@ -1164,25 +1164,25 @@ struct CYASSL_CERT_MANAGER {
     CbOCSPRespFree  ocspRespFreeCb;     /* Frees OCSP Response from IO Cb */
 };
 
-CYASSL_LOCAL int CM_SaveCertCache(CYASSL_CERT_MANAGER*, const char*);
-CYASSL_LOCAL int CM_RestoreCertCache(CYASSL_CERT_MANAGER*, const char*);
-CYASSL_LOCAL int CM_MemSaveCertCache(CYASSL_CERT_MANAGER*, void*, int, int*);
-CYASSL_LOCAL int CM_MemRestoreCertCache(CYASSL_CERT_MANAGER*, const void*, int);
-CYASSL_LOCAL int CM_GetCertCacheMemSize(CYASSL_CERT_MANAGER*);
+WOLFSSL_LOCAL int CM_SaveCertCache(WOLFSSL_CERT_MANAGER*, const char*);
+WOLFSSL_LOCAL int CM_RestoreCertCache(WOLFSSL_CERT_MANAGER*, const char*);
+WOLFSSL_LOCAL int CM_MemSaveCertCache(WOLFSSL_CERT_MANAGER*, void*, int, int*);
+WOLFSSL_LOCAL int CM_MemRestoreCertCache(WOLFSSL_CERT_MANAGER*, const void*, int);
+WOLFSSL_LOCAL int CM_GetCertCacheMemSize(WOLFSSL_CERT_MANAGER*);
 
-/* CyaSSL Sock Addr */
-struct CYASSL_SOCKADDR {
+/* wolfSSL Sock Addr */
+struct WOLFSSL_SOCKADDR {
     unsigned int sz; /* sockaddr size */
     void*        sa; /* pointer to the sockaddr_in or sockaddr_in6 */
 };
 
-typedef struct CYASSL_DTLS_CTX {
-    CYASSL_SOCKADDR peer;
+typedef struct WOLFSSL_DTLS_CTX {
+    WOLFSSL_SOCKADDR peer;
     int fd;
-} CYASSL_DTLS_CTX;
+} WOLFSSL_DTLS_CTX;
 
 
-#ifdef CYASSL_DTLS
+#ifdef WOLFSSL_DTLS
 
     #ifdef WORD64_AVAILABLE
         typedef word64 DtlsSeq;
@@ -1203,7 +1203,7 @@ typedef struct CYASSL_DTLS_CTX {
         word32 prevSeq;     /* Next sequence in allowed old epoch  */
     } DtlsState;
 
-#endif /* CYASSL_DTLS */
+#endif /* WOLFSSL_DTLS */
 
 
 /* keys and secrets */
@@ -1223,7 +1223,7 @@ typedef struct Keys {
     word32 peer_sequence_number;
     word32 sequence_number;
 
-#ifdef CYASSL_DTLS
+#ifdef WOLFSSL_DTLS
     DtlsState dtls_state;                       /* Peer's state */
     word16 dtls_peer_handshake_number;
     word16 dtls_expected_peer_handshake_number;
@@ -1260,21 +1260,21 @@ typedef struct TLSX {
     struct TLSX* next; /* List Behavior   */
 } TLSX;
 
-CYASSL_LOCAL TLSX*  TLSX_Find(TLSX* list, TLSX_Type type);
-CYASSL_LOCAL void   TLSX_FreeAll(TLSX* list);
-CYASSL_LOCAL int    TLSX_SupportExtensions(CYASSL* ssl);
+WOLFSSL_LOCAL TLSX*  TLSX_Find(TLSX* list, TLSX_Type type);
+WOLFSSL_LOCAL void   TLSX_FreeAll(TLSX* list);
+WOLFSSL_LOCAL int    TLSX_SupportExtensions(WOLFSSL* ssl);
 
-#ifndef NO_CYASSL_CLIENT
-CYASSL_LOCAL word16 TLSX_GetRequestSize(CYASSL* ssl);
-CYASSL_LOCAL word16 TLSX_WriteRequest(CYASSL* ssl, byte* output);
+#ifndef NO_WOLFSSL_CLIENT
+WOLFSSL_LOCAL word16 TLSX_GetRequestSize(WOLFSSL* ssl);
+WOLFSSL_LOCAL word16 TLSX_WriteRequest(WOLFSSL* ssl, byte* output);
 #endif
 
-#ifndef NO_CYASSL_SERVER
-CYASSL_LOCAL word16 TLSX_GetResponseSize(CYASSL* ssl);
-CYASSL_LOCAL word16 TLSX_WriteResponse(CYASSL* ssl, byte* output);
+#ifndef NO_WOLFSSL_SERVER
+WOLFSSL_LOCAL word16 TLSX_GetResponseSize(WOLFSSL* ssl);
+WOLFSSL_LOCAL word16 TLSX_WriteResponse(WOLFSSL* ssl, byte* output);
 #endif
 
-CYASSL_LOCAL int    TLSX_Parse(CYASSL* ssl, byte* input, word16 length,
+WOLFSSL_LOCAL int    TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length,
                                                 byte isRequest, Suites *suites);
                                                 
 #elif defined(HAVE_SNI)                  \
@@ -1295,22 +1295,22 @@ typedef struct SNI {
     byte                       type;    /* SNI Type          */
     union { char* host_name; } data;    /* SNI Data          */
     struct SNI*                next;    /* List Behavior     */
-#ifndef NO_CYASSL_SERVER
+#ifndef NO_WOLFSSL_SERVER
     byte                       options; /* Behaviour options */
     byte                       status;  /* Matching result   */
 #endif
 } SNI;
 
-CYASSL_LOCAL int TLSX_UseSNI(TLSX** extensions, byte type, const void* data,
+WOLFSSL_LOCAL int TLSX_UseSNI(TLSX** extensions, byte type, const void* data,
                                                                    word16 size);
 
-#ifndef NO_CYASSL_SERVER
-CYASSL_LOCAL void   TLSX_SNI_SetOptions(TLSX* extensions, byte type,
+#ifndef NO_WOLFSSL_SERVER
+WOLFSSL_LOCAL void   TLSX_SNI_SetOptions(TLSX* extensions, byte type,
                                                                   byte options);
-CYASSL_LOCAL byte   TLSX_SNI_Status(TLSX* extensions, byte type);
-CYASSL_LOCAL word16 TLSX_SNI_GetRequest(TLSX* extensions, byte type,
+WOLFSSL_LOCAL byte   TLSX_SNI_Status(TLSX* extensions, byte type);
+WOLFSSL_LOCAL word16 TLSX_SNI_GetRequest(TLSX* extensions, byte type,
                                                                    void** data);
-CYASSL_LOCAL int    TLSX_SNI_GetFromBuffer(const byte* buffer, word32 bufferSz,
+WOLFSSL_LOCAL int    TLSX_SNI_GetFromBuffer(const byte* buffer, word32 bufferSz,
                                          byte type, byte* sni, word32* inOutSz);
 #endif
 
@@ -1319,13 +1319,13 @@ CYASSL_LOCAL int    TLSX_SNI_GetFromBuffer(const byte* buffer, word32 bufferSz,
 /* Maximum Fragment Length */
 #ifdef HAVE_MAX_FRAGMENT
 
-CYASSL_LOCAL int TLSX_UseMaxFragment(TLSX** extensions, byte mfl);
+WOLFSSL_LOCAL int TLSX_UseMaxFragment(TLSX** extensions, byte mfl);
 
 #endif /* HAVE_MAX_FRAGMENT */
 
 #ifdef HAVE_TRUNCATED_HMAC
 
-CYASSL_LOCAL int TLSX_UseTruncatedHMAC(TLSX** extensions);
+WOLFSSL_LOCAL int TLSX_UseTruncatedHMAC(TLSX** extensions);
 
 #endif /* HAVE_TRUNCATED_HMAC */
 
@@ -1336,10 +1336,10 @@ typedef struct EllipticCurve {
     struct EllipticCurve* next; /* List Behavior */
 } EllipticCurve;
 
-CYASSL_LOCAL int TLSX_UseSupportedCurve(TLSX** extensions, word16 name);
+WOLFSSL_LOCAL int TLSX_UseSupportedCurve(TLSX** extensions, word16 name);
 
-#ifndef NO_CYASSL_SERVER
-CYASSL_LOCAL int TLSX_ValidateEllipticCurves(CYASSL* ssl, byte first,
+#ifndef NO_WOLFSSL_SERVER
+WOLFSSL_LOCAL int TLSX_ValidateEllipticCurves(WOLFSSL* ssl, byte first,
                                                                    byte second);
 #endif
 
@@ -1367,7 +1367,7 @@ typedef struct SecureRenegotiation {
    Keys                 tmp_keys;  /* can't overwrite real keys yet */
 } SecureRenegotiation;
 
-CYASSL_LOCAL int TLSX_UseSecureRenegotiation(TLSX** extensions);
+WOLFSSL_LOCAL int TLSX_UseSecureRenegotiation(TLSX** extensions);
 
 #endif /* HAVE_SECURE_RENEGOTIATION */
 
@@ -1379,17 +1379,17 @@ typedef struct SessionTicket {
     word16 size;
 } SessionTicket;
 
-CYASSL_LOCAL int  TLSX_UseSessionTicket(TLSX** extensions, 
+WOLFSSL_LOCAL int  TLSX_UseSessionTicket(TLSX** extensions, 
                                                          SessionTicket* ticket);
-CYASSL_LOCAL SessionTicket* TLSX_SessionTicket_Create(word32 lifetime,
+WOLFSSL_LOCAL SessionTicket* TLSX_SessionTicket_Create(word32 lifetime,
                                                        byte* data, word16 size);
-CYASSL_LOCAL void TLSX_SessionTicket_Free(SessionTicket* ticket);
+WOLFSSL_LOCAL void TLSX_SessionTicket_Free(SessionTicket* ticket);
 #endif /* HAVE_SESSION_TICKET */
 
-/* CyaSSL context type */
-struct CYASSL_CTX {
-    CYASSL_METHOD* method;
-    CyaSSL_Mutex   countMutex;    /* reference count mutex */
+/* wolfSSL context type */
+struct WOLFSSL_CTX {
+    WOLFSSL_METHOD* method;
+    wolfSSL_Mutex   countMutex;    /* reference count mutex */
     int         refCount;         /* reference count */
 #ifndef NO_CERTS
     buffer      certificate;
@@ -1398,7 +1398,7 @@ struct CYASSL_CTX {
     buffer      privateKey;
     buffer      serverDH_P;
     buffer      serverDH_G;
-    CYASSL_CERT_MANAGER* cm;      /* our cert manager, ctx owns SSL will use */
+    WOLFSSL_CERT_MANAGER* cm;      /* our cert manager, ctx owns SSL will use */
 #endif
     Suites      suites;
     void*       heap;             /* for user memory overrides */
@@ -1418,7 +1418,7 @@ struct CYASSL_CTX {
     byte        groupMessages;    /* group handshake messages before sending */
     CallbackIORecv CBIORecv;
     CallbackIOSend CBIOSend;
-#ifdef CYASSL_DTLS
+#ifdef WOLFSSL_DTLS
     CallbackGenCookie CBIOCookie;       /* gen cookie callback */
 #endif
     VerifyCallback  verifyCallback;     /* cert verification callback */
@@ -1441,7 +1441,7 @@ struct CYASSL_CTX {
     void*            userdata;
 #endif /* OPENSSL_EXTRA */
 #ifdef HAVE_OCSP
-    CYASSL_OCSP      ocsp;
+    WOLFSSL_OCSP      ocsp;
 #endif
 #ifdef HAVE_CAVIUM
     int              devId;            /* cavium device id to use */
@@ -1468,23 +1468,23 @@ struct CYASSL_CTX {
 };
 
 
-CYASSL_LOCAL
-int InitSSL_Ctx(CYASSL_CTX*, CYASSL_METHOD*);
-CYASSL_LOCAL
-void FreeSSL_Ctx(CYASSL_CTX*);
-CYASSL_LOCAL
-void SSL_CtxResourceFree(CYASSL_CTX*);
+WOLFSSL_LOCAL
+int InitSSL_Ctx(WOLFSSL_CTX*, WOLFSSL_METHOD*);
+WOLFSSL_LOCAL
+void FreeSSL_Ctx(WOLFSSL_CTX*);
+WOLFSSL_LOCAL
+void SSL_CtxResourceFree(WOLFSSL_CTX*);
 
-CYASSL_LOCAL
-int DeriveTlsKeys(CYASSL* ssl);
-CYASSL_LOCAL
-int ProcessOldClientHello(CYASSL* ssl, const byte* input, word32* inOutIdx,
+WOLFSSL_LOCAL
+int DeriveTlsKeys(WOLFSSL* ssl);
+WOLFSSL_LOCAL
+int ProcessOldClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                           word32 inSz, word16 sz);
 #ifndef NO_CERTS
-    CYASSL_LOCAL
-    int AddCA(CYASSL_CERT_MANAGER* ctx, buffer der, int type, int verify);
-    CYASSL_LOCAL
-    int AlreadySigner(CYASSL_CERT_MANAGER* cm, byte* hash);
+    WOLFSSL_LOCAL
+    int AddCA(WOLFSSL_CERT_MANAGER* ctx, buffer der, int type, int verify);
+    WOLFSSL_LOCAL
+    int AlreadySigner(WOLFSSL_CERT_MANAGER* cm, byte* hash);
 #endif
 
 /* All cipher suite related info */
@@ -1623,8 +1623,8 @@ typedef struct OneTimeAuth {
 #endif
 
 
-CYASSL_LOCAL void InitCiphers(CYASSL* ssl);
-CYASSL_LOCAL void FreeCiphers(CYASSL* ssl);
+WOLFSSL_LOCAL void InitCiphers(WOLFSSL* ssl);
+WOLFSSL_LOCAL void FreeCiphers(WOLFSSL* ssl);
 
 
 /* hashes type */
@@ -1636,7 +1636,7 @@ typedef struct Hashes {
     #ifndef NO_SHA256
         byte sha256[SHA256_DIGEST_SIZE];
     #endif
-    #ifdef CYASSL_SHA384
+    #ifdef WOLFSSL_SHA384
         byte sha384[SHA384_DIGEST_SIZE];
     #endif
 } Hashes;
@@ -1649,22 +1649,22 @@ typedef struct x509_buffer {
 } x509_buffer;
 
 
-/* CyaSSL X509_CHAIN, for no dynamic memory SESSION_CACHE */
-struct CYASSL_X509_CHAIN {
+/* wolfSSL X509_CHAIN, for no dynamic memory SESSION_CACHE */
+struct WOLFSSL_X509_CHAIN {
     int         count;                    /* total number in chain */
     x509_buffer certs[MAX_CHAIN_DEPTH];   /* only allow max depth 4 for now */
 };
 
 
-/* CyaSSL session type */
-struct CYASSL_SESSION {
+/* wolfSSL session type */
+struct WOLFSSL_SESSION {
     byte         sessionID[ID_LEN];             /* id for protocol */
     byte         sessionIDSz;
     byte         masterSecret[SECRET_LEN];      /* stored secret */
     word32       bornOn;                        /* create time in seconds   */
     word32       timeout;                       /* timeout in seconds       */
 #ifdef SESSION_CERTS
-    CYASSL_X509_CHAIN chain;                    /* peer cert chain, static  */
+    WOLFSSL_X509_CHAIN chain;                    /* peer cert chain, static  */
     ProtocolVersion version;                    /* which version was used */
     byte            cipherSuite0;               /* first byte, normally 0 */
     byte            cipherSuite;                /* 2nd byte, actual suite */
@@ -1680,15 +1680,15 @@ struct CYASSL_SESSION {
 };
 
 
-CYASSL_LOCAL
-CYASSL_SESSION* GetSession(CYASSL*, byte*);
-CYASSL_LOCAL
-int          SetSession(CYASSL*, CYASSL_SESSION*);
+WOLFSSL_LOCAL
+WOLFSSL_SESSION* GetSession(WOLFSSL*, byte*);
+WOLFSSL_LOCAL
+int          SetSession(WOLFSSL*, WOLFSSL_SESSION*);
 
-typedef int (*hmacfp) (CYASSL*, byte*, const byte*, word32, int, int);
+typedef int (*hmacfp) (WOLFSSL*, byte*, const byte*, word32, int, int);
 
 #ifndef NO_CLIENT_CACHE
-    CYASSL_SESSION* GetSessionClient(CYASSL*, const byte*, int);
+    WOLFSSL_SESSION* GetSessionClient(WOLFSSL*, const byte*, int);
 #endif
 
 /* client connect state for nonblocking restart */
@@ -1727,12 +1727,12 @@ enum AcceptState {
 
 typedef struct Buffers {
 #ifndef NO_CERTS
-    buffer          certificate;            /* CYASSL_CTX owns, unless we own */
-    buffer          key;                    /* CYASSL_CTX owns, unless we own */
-    buffer          certChain;              /* CYASSL_CTX owns, unless we own */
+    buffer          certificate;            /* WOLFSSL_CTX owns, unless we own */
+    buffer          key;                    /* WOLFSSL_CTX owns, unless we own */
+    buffer          certChain;              /* WOLFSSL_CTX owns, unless we own */
                  /* chain after self, in DER, with leading size for each cert */
-    buffer          serverDH_P;             /* CYASSL_CTX owns, unless we own */
-    buffer          serverDH_G;             /* CYASSL_CTX owns, unless we own */
+    buffer          serverDH_P;             /* WOLFSSL_CTX owns, unless we own */
+    buffer          serverDH_G;             /* WOLFSSL_CTX owns, unless we own */
     buffer          serverDH_Pub;
     buffer          serverDH_Priv;
 #endif
@@ -1748,8 +1748,8 @@ typedef struct Buffers {
     byte            weOwnCertChain;        /* SSL own cert chain flag */
     byte            weOwnKey;              /* SSL own key  flag */
     byte            weOwnDH;               /* SSL own dh (p,g)  flag */
-#ifdef CYASSL_DTLS
-    CYASSL_DTLS_CTX dtlsCtx;               /* DTLS connection context */
+#ifdef WOLFSSL_DTLS
+    WOLFSSL_DTLS_CTX dtlsCtx;               /* DTLS connection context */
 #endif
 #ifdef HAVE_PK_CALLBACKS
     #ifdef HAVE_ECC
@@ -1827,7 +1827,7 @@ typedef struct Arrays {
     byte            sessionIDSz;
     byte            preMasterSecret[ENCRYPT_LEN];
     byte            masterSecret[SECRET_LEN];
-#ifdef CYASSL_DTLS
+#ifdef WOLFSSL_DTLS
     byte            cookie[MAX_COOKIE_LEN];
     byte            cookieSz;
 #endif
@@ -1848,7 +1848,7 @@ typedef struct Arrays {
 #define MAX_DATE_SZ 32
 #endif
 
-struct CYASSL_X509_NAME {
+struct WOLFSSL_X509_NAME {
     char  *name;
     char  staticName[ASN_NAME_MAX];
     int   dynamicName;
@@ -1866,14 +1866,14 @@ struct CYASSL_X509_NAME {
     typedef struct DNS_entry DNS_entry;
 #endif
 
-struct CYASSL_X509 {
+struct WOLFSSL_X509 {
     int              version;
-    CYASSL_X509_NAME issuer;
-    CYASSL_X509_NAME subject;
+    WOLFSSL_X509_NAME issuer;
+    WOLFSSL_X509_NAME subject;
     int              serialSz;
     byte             serial[EXTERNAL_SERIAL_SIZE];
     char             subjectCN[ASN_NAME_MAX];        /* common name short cut */
-#ifdef CYASSL_SEP
+#ifdef WOLFSSL_SEP
     int              deviceTypeSz;
     byte             deviceType[EXTERNAL_SERIAL_SIZE];
     int              hwTypeSz;
@@ -1990,9 +1990,9 @@ typedef struct MsgsReceived {
 } MsgsReceived;
 
 
-/* CyaSSL ssl type */
-struct CYASSL {
-    CYASSL_CTX*     ctx;
+/* wolfSSL ssl type */
+struct WOLFSSL {
+    WOLFSSL_CTX*     ctx;
     int             error;
     ProtocolVersion version;            /* negotiated version */
     ProtocolVersion chVersion;          /* client hello version */
@@ -2009,8 +2009,8 @@ struct CYASSL {
     int             wfd;                /* write file descriptor */
     int             rflags;             /* user read  flags */
     int             wflags;             /* user write flags */
-    CYASSL_BIO*     biord;              /* socket bio read  to free/close */
-    CYASSL_BIO*     biowr;              /* socket bio write to free/close */
+    WOLFSSL_BIO*     biord;              /* socket bio read  to free/close */
+    WOLFSSL_BIO*     biowr;              /* socket bio write to free/close */
     void*           IOCB_ReadCtx;
     void*           IOCB_WriteCtx;
     RNG*            rng;
@@ -2025,7 +2025,7 @@ struct CYASSL {
 #ifndef NO_SHA256
     Sha256          hashSha256;         /* sha256 hash of handshake msgs */
 #endif
-#ifdef CYASSL_SHA384
+#ifdef WOLFSSL_SHA384
     Sha384          hashSha384;         /* sha384 hash of handshake msgs */
 #endif
     Hashes          verifyHashes;
@@ -2033,7 +2033,7 @@ struct CYASSL {
     Buffers         buffers;
     Options         options;
     Arrays*         arrays;
-    CYASSL_SESSION  session;
+    WOLFSSL_SESSION  session;
     VerifyCallback  verifyCallback;      /* cert verification callback */
     void*           verifyCbCtx;         /* cert verify callback user ctx*/
 #ifndef NO_RSA
@@ -2062,13 +2062,13 @@ struct CYASSL {
     RecordLayerHeader curRL;
     word16            curSize;
     word32          timeout;            /* session timeout */
-    CYASSL_CIPHER   cipher;
+    WOLFSSL_CIPHER   cipher;
 #ifdef HAVE_LIBZ
     z_stream        c_stream;           /* compression   stream */
     z_stream        d_stream;           /* decompression stream */
     byte            didStreamInit;      /* for stream init and end */
 #endif
-#ifdef CYASSL_DTLS
+#ifdef WOLFSSL_DTLS
     int             dtls_timeout_init;  /* starting timeout vaule */
     int             dtls_timeout_max;   /* maximum timeout value */
     int             dtls_timeout;       /* current timeout value, changes */
@@ -2077,7 +2077,7 @@ struct CYASSL {
     void*           IOCB_CookieCtx;     /* gen cookie ctx */
     word32          dtls_expected_rx;
 #endif
-#ifdef CYASSL_CALLBACKS
+#ifdef WOLFSSL_CALLBACKS
     HandShakeInfo   handShakeInfo;      /* info saved during handshake */
     TimeoutInfo     timeoutInfo;        /* info saved during handshake */
     byte            hsInfoOn;           /* track handshake info        */
@@ -2088,7 +2088,7 @@ struct CYASSL {
     void*           fuzzerCtx;          /* user defined pointer */
 #endif
 #ifdef KEEP_PEER_CERT
-    CYASSL_X509     peerCert;           /* X509 peer cert */
+    WOLFSSL_X509     peerCert;           /* X509 peer cert */
 #endif
 #ifdef FORTRESS
     void*           ex_data[MAX_EX_DATA]; /* external data, for Fortress */
@@ -2107,7 +2107,7 @@ struct CYASSL {
     #ifdef HAVE_SECURE_RENEGOTIATION
         SecureRenegotiation* secure_renegotiation; /* valid pointer indicates */
     #endif                                         /* user turned on */
-    #if !defined(NO_CYASSL_CLIENT) && defined(HAVE_SESSION_TICKET)
+    #if !defined(NO_WOLFSSL_CLIENT) && defined(HAVE_SESSION_TICKET)
         CallbackSessionTicket session_ticket_cb;
         void*                 session_ticket_ctx;
         byte                  expect_session_ticket;
@@ -2119,7 +2119,7 @@ struct CYASSL {
 #ifdef SESSION_INDEX
     int sessionIndex;                  /* Session's location in the cache. */
 #endif
-    CYASSL_ALERT_HISTORY alert_history;
+    WOLFSSL_ALERT_HISTORY alert_history;
 #ifdef ATOMIC_USER
     void*    MacEncryptCtx;    /* Atomic User Mac/Encrypt Callback Context */
     void*    DecryptVerifyCtx; /* Atomic User Decrypt/Verify Callback Context */
@@ -2143,11 +2143,11 @@ struct CYASSL {
 };
 
 
-CYASSL_LOCAL
-int  InitSSL(CYASSL*, CYASSL_CTX*);
-CYASSL_LOCAL
-void FreeSSL(CYASSL*);
-CYASSL_API void SSL_ResourceFree(CYASSL*);   /* Micrium uses */
+WOLFSSL_LOCAL
+int  InitSSL(WOLFSSL*, WOLFSSL_CTX*);
+WOLFSSL_LOCAL
+void FreeSSL(WOLFSSL*);
+WOLFSSL_API void SSL_ResourceFree(WOLFSSL*);   /* Micrium uses */
 
 
 enum {
@@ -2162,38 +2162,38 @@ typedef struct EncryptedInfo {
     word32   ivSz;             /* encrypted IV size */
     long     consumed;         /* tracks PEM bytes consumed */
     byte     set;              /* if encryption set */
-    CYASSL_CTX* ctx;              /* CTX owner */
+    WOLFSSL_CTX* ctx;              /* CTX owner */
 } EncryptedInfo;
 
 
 #ifndef NO_CERTS
-    CYASSL_LOCAL int PemToDer(const unsigned char* buff, long sz, int type,
+    WOLFSSL_LOCAL int PemToDer(const unsigned char* buff, long sz, int type,
                               buffer* der, void* heap, EncryptedInfo* info,
                               int* eccKey);
 
-    CYASSL_LOCAL int ProcessFile(CYASSL_CTX* ctx, const char* fname, int format,
-                                 int type, CYASSL* ssl, int userChain,
-                                CYASSL_CRL* crl);
+    WOLFSSL_LOCAL int ProcessFile(WOLFSSL_CTX* ctx, const char* fname, int format,
+                                 int type, WOLFSSL* ssl, int userChain,
+                                WOLFSSL_CRL* crl);
 #endif
 
 
-#ifdef CYASSL_CALLBACKS
-    CYASSL_LOCAL
+#ifdef WOLFSSL_CALLBACKS
+    WOLFSSL_LOCAL
     void InitHandShakeInfo(HandShakeInfo*);
-    CYASSL_LOCAL 
-    void FinishHandShakeInfo(HandShakeInfo*, const CYASSL*);
-    CYASSL_LOCAL 
+    WOLFSSL_LOCAL 
+    void FinishHandShakeInfo(HandShakeInfo*, const WOLFSSL*);
+    WOLFSSL_LOCAL 
     void AddPacketName(const char*, HandShakeInfo*);
 
-    CYASSL_LOCAL
+    WOLFSSL_LOCAL
     void InitTimeoutInfo(TimeoutInfo*);
-    CYASSL_LOCAL 
+    WOLFSSL_LOCAL 
     void FreeTimeoutInfo(TimeoutInfo*, void*);
-    CYASSL_LOCAL 
+    WOLFSSL_LOCAL 
     void AddPacketInfo(const char*, TimeoutInfo*, const byte*, int, void*);
-    CYASSL_LOCAL 
+    WOLFSSL_LOCAL 
     void AddLateName(const char*, TimeoutInfo*);
-    CYASSL_LOCAL 
+    WOLFSSL_LOCAL 
     void AddLateRecordHeader(const RecordLayerHeader* rl, TimeoutInfo* info);
 #endif
 
@@ -2253,81 +2253,81 @@ static const byte tls_server[FINISHED_LABEL_SZ + 1] = "server finished";
 
 
 /* internal functions */
-CYASSL_LOCAL int SendChangeCipher(CYASSL*);
-CYASSL_LOCAL int SendData(CYASSL*, const void*, int);
-CYASSL_LOCAL int SendCertificate(CYASSL*);
-CYASSL_LOCAL int SendCertificateRequest(CYASSL*);
-CYASSL_LOCAL int SendServerKeyExchange(CYASSL*);
-CYASSL_LOCAL int SendBuffered(CYASSL*);
-CYASSL_LOCAL int ReceiveData(CYASSL*, byte*, int, int);
-CYASSL_LOCAL int SendFinished(CYASSL*);
-CYASSL_LOCAL int SendAlert(CYASSL*, int, int);
-CYASSL_LOCAL int ProcessReply(CYASSL*);
+WOLFSSL_LOCAL int SendChangeCipher(WOLFSSL*);
+WOLFSSL_LOCAL int SendData(WOLFSSL*, const void*, int);
+WOLFSSL_LOCAL int SendCertificate(WOLFSSL*);
+WOLFSSL_LOCAL int SendCertificateRequest(WOLFSSL*);
+WOLFSSL_LOCAL int SendServerKeyExchange(WOLFSSL*);
+WOLFSSL_LOCAL int SendBuffered(WOLFSSL*);
+WOLFSSL_LOCAL int ReceiveData(WOLFSSL*, byte*, int, int);
+WOLFSSL_LOCAL int SendFinished(WOLFSSL*);
+WOLFSSL_LOCAL int SendAlert(WOLFSSL*, int, int);
+WOLFSSL_LOCAL int ProcessReply(WOLFSSL*);
 
-CYASSL_LOCAL int SetCipherSpecs(CYASSL*);
-CYASSL_LOCAL int MakeMasterSecret(CYASSL*);
+WOLFSSL_LOCAL int SetCipherSpecs(WOLFSSL*);
+WOLFSSL_LOCAL int MakeMasterSecret(WOLFSSL*);
 
-CYASSL_LOCAL int  AddSession(CYASSL*);
-CYASSL_LOCAL int  DeriveKeys(CYASSL* ssl);
-CYASSL_LOCAL int  StoreKeys(CYASSL* ssl, const byte* keyData);
+WOLFSSL_LOCAL int  AddSession(WOLFSSL*);
+WOLFSSL_LOCAL int  DeriveKeys(WOLFSSL* ssl);
+WOLFSSL_LOCAL int  StoreKeys(WOLFSSL* ssl, const byte* keyData);
 
-CYASSL_LOCAL int IsTLS(const CYASSL* ssl);
-CYASSL_LOCAL int IsAtLeastTLSv1_2(const CYASSL* ssl);
+WOLFSSL_LOCAL int IsTLS(const WOLFSSL* ssl);
+WOLFSSL_LOCAL int IsAtLeastTLSv1_2(const WOLFSSL* ssl);
 
-CYASSL_LOCAL void FreeHandshakeResources(CYASSL* ssl);
-CYASSL_LOCAL void ShrinkInputBuffer(CYASSL* ssl, int forcedFree);
-CYASSL_LOCAL void ShrinkOutputBuffer(CYASSL* ssl);
+WOLFSSL_LOCAL void FreeHandshakeResources(WOLFSSL* ssl);
+WOLFSSL_LOCAL void ShrinkInputBuffer(WOLFSSL* ssl, int forcedFree);
+WOLFSSL_LOCAL void ShrinkOutputBuffer(WOLFSSL* ssl);
 
-CYASSL_LOCAL int VerifyClientSuite(CYASSL* ssl);
+WOLFSSL_LOCAL int VerifyClientSuite(WOLFSSL* ssl);
 #ifndef NO_CERTS
-    CYASSL_LOCAL Signer* GetCA(void* cm, byte* hash);
+    WOLFSSL_LOCAL Signer* GetCA(void* cm, byte* hash);
     #ifndef NO_SKID
-        CYASSL_LOCAL Signer* GetCAByName(void* cm, byte* hash);
+        WOLFSSL_LOCAL Signer* GetCAByName(void* cm, byte* hash);
     #endif
 #endif
-CYASSL_LOCAL int  BuildTlsFinished(CYASSL* ssl, Hashes* hashes,
+WOLFSSL_LOCAL int  BuildTlsFinished(WOLFSSL* ssl, Hashes* hashes,
                                    const byte* sender);
-CYASSL_LOCAL void FreeArrays(CYASSL* ssl, int keep);
-CYASSL_LOCAL  int CheckAvailableSize(CYASSL *ssl, int size);
-CYASSL_LOCAL  int GrowInputBuffer(CYASSL* ssl, int size, int usedLength);
+WOLFSSL_LOCAL void FreeArrays(WOLFSSL* ssl, int keep);
+WOLFSSL_LOCAL  int CheckAvailableSize(WOLFSSL *ssl, int size);
+WOLFSSL_LOCAL  int GrowInputBuffer(WOLFSSL* ssl, int size, int usedLength);
 
 #ifndef NO_TLS
-    CYASSL_LOCAL int  MakeTlsMasterSecret(CYASSL*);
-    CYASSL_LOCAL int  TLS_hmac(CYASSL* ssl, byte* digest, const byte* in,
+    WOLFSSL_LOCAL int  MakeTlsMasterSecret(WOLFSSL*);
+    WOLFSSL_LOCAL int  TLS_hmac(WOLFSSL* ssl, byte* digest, const byte* in,
                                word32 sz, int content, int verify);
 #endif
 
-#ifndef NO_CYASSL_CLIENT
-    CYASSL_LOCAL int SendClientHello(CYASSL*);
-    CYASSL_LOCAL int SendClientKeyExchange(CYASSL*);
-    CYASSL_LOCAL int SendCertificateVerify(CYASSL*);
-#endif /* NO_CYASSL_CLIENT */
+#ifndef NO_WOLFSSL_CLIENT
+    WOLFSSL_LOCAL int SendClientHello(WOLFSSL*);
+    WOLFSSL_LOCAL int SendClientKeyExchange(WOLFSSL*);
+    WOLFSSL_LOCAL int SendCertificateVerify(WOLFSSL*);
+#endif /* NO_WOLFSSL_CLIENT */
 
-#ifndef NO_CYASSL_SERVER
-    CYASSL_LOCAL int SendServerHello(CYASSL*);
-    CYASSL_LOCAL int SendServerHelloDone(CYASSL*);
-    #ifdef CYASSL_DTLS
-        CYASSL_LOCAL int SendHelloVerifyRequest(CYASSL*);
+#ifndef NO_WOLFSSL_SERVER
+    WOLFSSL_LOCAL int SendServerHello(WOLFSSL*);
+    WOLFSSL_LOCAL int SendServerHelloDone(WOLFSSL*);
+    #ifdef WOLFSSL_DTLS
+        WOLFSSL_LOCAL int SendHelloVerifyRequest(WOLFSSL*);
     #endif
-#endif /* NO_CYASSL_SERVER */
+#endif /* NO_WOLFSSL_SERVER */
 
-#ifdef CYASSL_DTLS
-    CYASSL_LOCAL int  DtlsPoolInit(CYASSL*);
-    CYASSL_LOCAL int  DtlsPoolSave(CYASSL*, const byte*, int);
-    CYASSL_LOCAL int  DtlsPoolTimeout(CYASSL*);
-    CYASSL_LOCAL int  DtlsPoolSend(CYASSL*);
-    CYASSL_LOCAL void DtlsPoolReset(CYASSL*);
+#ifdef WOLFSSL_DTLS
+    WOLFSSL_LOCAL int  DtlsPoolInit(WOLFSSL*);
+    WOLFSSL_LOCAL int  DtlsPoolSave(WOLFSSL*, const byte*, int);
+    WOLFSSL_LOCAL int  DtlsPoolTimeout(WOLFSSL*);
+    WOLFSSL_LOCAL int  DtlsPoolSend(WOLFSSL*);
+    WOLFSSL_LOCAL void DtlsPoolReset(WOLFSSL*);
 
-    CYASSL_LOCAL DtlsMsg* DtlsMsgNew(word32, void*);
-    CYASSL_LOCAL void DtlsMsgDelete(DtlsMsg*, void*);
-    CYASSL_LOCAL void DtlsMsgListDelete(DtlsMsg*, void*);
-    CYASSL_LOCAL void DtlsMsgSet(DtlsMsg*, word32, const byte*, byte,
+    WOLFSSL_LOCAL DtlsMsg* DtlsMsgNew(word32, void*);
+    WOLFSSL_LOCAL void DtlsMsgDelete(DtlsMsg*, void*);
+    WOLFSSL_LOCAL void DtlsMsgListDelete(DtlsMsg*, void*);
+    WOLFSSL_LOCAL void DtlsMsgSet(DtlsMsg*, word32, const byte*, byte,
                                                              word32, word32);
-    CYASSL_LOCAL DtlsMsg* DtlsMsgFind(DtlsMsg*, word32);
-    CYASSL_LOCAL DtlsMsg* DtlsMsgStore(DtlsMsg*, word32, const byte*, word32,
+    WOLFSSL_LOCAL DtlsMsg* DtlsMsgFind(DtlsMsg*, word32);
+    WOLFSSL_LOCAL DtlsMsg* DtlsMsgStore(DtlsMsg*, word32, const byte*, word32,
                                                 byte, word32, word32, void*);
-    CYASSL_LOCAL DtlsMsg* DtlsMsgInsert(DtlsMsg*, DtlsMsg*);
-#endif /* CYASSL_DTLS */
+    WOLFSSL_LOCAL DtlsMsg* DtlsMsgInsert(DtlsMsg*, DtlsMsg*);
+#endif /* WOLFSSL_DTLS */
 
 #ifndef NO_TLS
     
@@ -2335,21 +2335,21 @@ CYASSL_LOCAL  int GrowInputBuffer(CYASSL* ssl, int size, int usedLength);
 #endif /* NO_TLS */
 
 
-CYASSL_LOCAL word32  LowResTimer(void);
+WOLFSSL_LOCAL word32  LowResTimer(void);
 
-CYASSL_LOCAL void InitX509Name(CYASSL_X509_NAME*, int);
-CYASSL_LOCAL void FreeX509Name(CYASSL_X509_NAME* name);
-CYASSL_LOCAL void InitX509(CYASSL_X509*, int);
-CYASSL_LOCAL void FreeX509(CYASSL_X509*);
+WOLFSSL_LOCAL void InitX509Name(WOLFSSL_X509_NAME*, int);
+WOLFSSL_LOCAL void FreeX509Name(WOLFSSL_X509_NAME* name);
+WOLFSSL_LOCAL void InitX509(WOLFSSL_X509*, int);
+WOLFSSL_LOCAL void FreeX509(WOLFSSL_X509*);
 #ifndef NO_CERTS
-    CYASSL_LOCAL int  CopyDecodedToX509(CYASSL_X509*, DecodedCert*);
+    WOLFSSL_LOCAL int  CopyDecodedToX509(WOLFSSL_X509*, DecodedCert*);
 #endif
 
-/* used by ssl.c and cyassl_int.c */
-CYASSL_LOCAL void c32to24(word32 in, word24 out);
+/* used by ssl.c and wolfssl_int.c */
+WOLFSSL_LOCAL void c32to24(word32 in, word24 out);
 
-CYASSL_LOCAL const char* const* GetCipherNames(void);
-CYASSL_LOCAL int GetCipherNamesSize(void);
+WOLFSSL_LOCAL const char* const* GetCipherNames(void);
+WOLFSSL_LOCAL int GetCipherNamesSize(void);
 
 
 enum encrypt_side {
@@ -2358,12 +2358,12 @@ enum encrypt_side {
     ENCRYPT_AND_DECRYPT_SIDE
 };
 
-CYASSL_LOCAL int SetKeysSide(CYASSL*, enum encrypt_side);
+WOLFSSL_LOCAL int SetKeysSide(WOLFSSL*, enum encrypt_side);
 
 
 #ifdef __cplusplus
     }  /* extern "C" */
 #endif
 
-#endif /* CyaSSL_INT_H */
+#endif /* wolfSSL_INT_H */
 

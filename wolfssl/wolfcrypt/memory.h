@@ -2,14 +2,14 @@
  *
  * Copyright (C) 2006-2014 wolfSSL Inc.
  *
- * This file is part of CyaSSL.
+ * This file is part of wolfSSL.
  *
- * CyaSSL is free software; you can redistribute it and/or modify
+ * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  *
- * CyaSSL is distributed in the hope that it will be useful,
+ * wolfSSL is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
@@ -38,7 +38,7 @@ typedef void *(*wolfSSL_Realloc_cb)(void *ptr, size_t size);
 
 
 /* Public set function */
-WOLFSSL_API int CyaSSL_SetAllocators(wolfSSL_Malloc_cb  malloc_function,
+WOLFSSL_API int wolfSSL_SetAllocators(wolfSSL_Malloc_cb  malloc_function,
                                     wolfSSL_Free_cb    free_function,
                                     wolfSSL_Realloc_cb realloc_function);
 
@@ -52,4 +52,4 @@ WOLFSSL_API void* wolfSSL_Realloc(void *ptr, size_t size);
 }
 #endif
 
-#endif /* CYASSL_MEMORY_H */
+#endif /* WOLFSSL_MEMORY_H */
