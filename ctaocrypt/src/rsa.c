@@ -203,7 +203,7 @@ static int RsaUnPad(const byte *pkcsBlock, unsigned int pkcsBlockLen,
 static int RsaFunction(const byte* in, word32 inLen, byte* out, word32* outLen,
                        int type, RsaKey* key)
 {
-    #define ERROR_OUT(x) { ret = x; goto done;}
+    #define ERROR_OUT(x) { ret = (x); goto done;}
 
     mp_int tmp;
     int    ret = 0;
@@ -220,7 +220,7 @@ static int RsaFunction(const byte* in, word32 inLen, byte* out, word32* outLen,
             if (mp_exptmod(&tmp, &key->d, &key->n, &tmp) != MP_OKAY)
                 ERROR_OUT(MP_EXPTMOD_E);
         #else
-            #define INNER_ERROR_OUT(x) { ret = x; goto inner_done; }
+            #define INNER_ERROR_OUT(x) { ret = (x); goto inner_done; }
 
             mp_int tmpa, tmpb;
 
