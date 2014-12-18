@@ -480,6 +480,24 @@
 #endif
 
 
+/* for blake2 reverse compatibility */
+#ifdef HAVE_BLAKE2
+    #define InitBlake2b wc_InitBlake2b
+    #define Blake2bUpdate wc_Blake2bUpdate
+    #define Blake2bFinal wc_Blake2bFinal
+#endif
+
+
+/* for blake2 reverse compatibility */
+#ifdef HAVE_CAMELLIA
+	#define CamelliaSetKey wc_CamelliaSetKey
+	#define CamelliaSetIV wc_CamelliaSetIV
+	#define CamelliaEncryptDirect wc_CamelliaEncryptDirect
+	#define CamelliaDecryptDirect wc_CamelliaDecryptDirect
+	#define CamelliaCbcEncrypt wc_CamelliaCbcEncrypt
+	#define CamelliaCbcDecrypt wc_CamelliaCbcDecrypt
+#endif
+
 
 #ifdef __cplusplus
     } /* extern "C" */

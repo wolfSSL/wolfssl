@@ -1825,7 +1825,7 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
 {
 #ifdef BUILD_ARC4
     word32 sz = specs->key_size;
-    if (specs->bulk_cipher_algorithm == cyassl_rc4) {
+    if (specs->bulk_cipher_algorithm == wolfssl_rc4) {
         if (enc && enc->arc4 == NULL)
             enc->arc4 = (Arc4*)XMALLOC(sizeof(Arc4), heap, DYNAMIC_TYPE_CIPHER);
         if (enc && enc->arc4 == NULL)
@@ -2012,7 +2012,7 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
 #endif
     
 #ifdef BUILD_DES3
-    if (specs->bulk_cipher_algorithm == cyassl_triple_des) {
+    if (specs->bulk_cipher_algorithm == wolfssl_triple_des) {
         int desRet = 0;
 
         if (enc && enc->des3 == NULL)

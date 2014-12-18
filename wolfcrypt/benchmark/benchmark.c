@@ -2,14 +2,14 @@
  *
  * Copyright (C) 2006-2014 wolfSSL Inc.
  *
- * This file is part of CyaSSL.
+ * This file is part of wolfSSL. (formerly known as CyaSSL)
  *
- * CyaSSL is free software; you can redistribute it and/or modify
+ * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  *
- * CyaSSL is distributed in the hope that it will be useful,
+ * wolfSSL is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
@@ -41,24 +41,24 @@
     #include <stdio.h>
 #endif
 
-#include <cyassl/ctaocrypt/des3.h>
-#include <cyassl/ctaocrypt/arc4.h>
-#include <cyassl/ctaocrypt/hc128.h>
-#include <cyassl/ctaocrypt/rabbit.h>
-#include <cyassl/ctaocrypt/chacha.h>
-#include <cyassl/ctaocrypt/aes.h>
-#include <cyassl/ctaocrypt/poly1305.h>
-#include <cyassl/ctaocrypt/camellia.h>
-#include <cyassl/ctaocrypt/md5.h>
-#include <cyassl/ctaocrypt/sha.h>
-#include <cyassl/ctaocrypt/sha256.h>
-#include <cyassl/ctaocrypt/sha512.h>
-#include <cyassl/ctaocrypt/rsa.h>
-#include <cyassl/ctaocrypt/asn.h>
-#include <cyassl/ctaocrypt/ripemd.h>
-#include <cyassl/ctaocrypt/ecc.h>
+#include <wolfssl/wolfcrypt/des3.h>
+#include <wolfssl/wolfcrypt/arc4.h>
+#include <wolfssl/wolfcrypt/hc128.h>
+#include <wolfssl/wolfcrypt/rabbit.h>
+#include <wolfssl/wolfcrypt/chacha.h>
+#include <wolfssl/wolfcrypt/aes.h>
+#include <wolfssl/wolfcrypt/poly1305.h>
+#include <wolfssl/wolfcrypt/camellia.h>
+#include <wolfssl/wolfcrypt/md5.h>
+#include <wolfssl/wolfcrypt/sha.h>
+#include <wolfssl/wolfcrypt/sha256.h>
+#include <wolfssl/wolfcrypt/sha512.h>
+#include <wolfssl/wolfcrypt/rsa.h>
+#include <wolfssl/wolfcrypt/asn.h>
+#include <wolfssl/wolfcrypt/ripemd.h>
+#include <wolfssl/wolfcrypt/ecc.h>
 
-#include <cyassl/ctaocrypt/dh.h>
+#include <wolfssl/wolfcrypt/dh.h>
 #ifdef HAVE_CAVIUM
     #include "cavium_sysdep.h"
     #include "cavium_common.h"
@@ -85,7 +85,7 @@
 
 
 #ifdef HAVE_BLAKE2
-    #include <cyassl/ctaocrypt/blake2.h>
+    #include <wolfssl/wolfcrypt/blake2.h>
     void bench_blake2(void);
 #endif
 
