@@ -19,15 +19,14 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-
-#ifndef WOLF_CRYPT_TYPES_H
+#if !defined(WOLF_CRYPT_TYPES_H && CTAO_CRYPT_TYPES_H)
 #define WOLF_CRYPT_TYPES_H
 
 #include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/wolfcrypt/wc_port.h>
  
-/* wolfssl_cyassl compatibility layer */
-#include <cyassl/ssl.h>
+/* wolfssl_wolfssl compatibility layer */
+#include <wolfssl/ssl.h>
 
 #ifdef __cplusplus
     extern "C" {
@@ -42,7 +41,7 @@
     #define LITTLE_ENDIAN_ORDER
 #endif
 
-#ifndef CYASSL_TYPES
+#ifndef WOLFSSL_TYPES
     #ifndef byte
         typedef unsigned char  byte;
     #endif
@@ -91,9 +90,9 @@
 /* These platforms have 64-bit CPU registers.  */
 #if (defined(__alpha__) || defined(__ia64__) || defined(_ARCH_PPC64) || \
      defined(__mips64)  || defined(__x86_64__) || defined(_M_X64))
-    typedef word64 cyassl_word;
+    typedef word64 wolfssl_word;
 #else
-    typedef word32 cyassl_word;
+    typedef word32 wolfssl_word;
     #ifdef WORD64_AVAILABLE
         #define WOLFCRYPT_SLOW_WORD64
     #endif
@@ -101,7 +100,7 @@
 
 
 enum {
-    WOLFSSL_WORD_SIZE  = sizeof(cyassl_word),
+    WOLFSSL_WORD_SIZE  = sizeof(wolfssl_word),
     WOLFSSL_BIT_SIZE   = 8,
     WOLFSSL_WORD_BITS  = WOLFSSL_WORD_SIZE * WOLFSSL_BIT_SIZE
 };
@@ -181,7 +180,7 @@ enum {
         && !defined(WOLFSSL_SAFERTOS) && !defined(FREESCALE_MQX) \
         && !defined(WOLFSSL_LEANPSK)
     /* default C runtime, can install different routines at runtime via cbs */
-    #include <cyassl/ctaocrypt/memory.h>
+    #include <wolfssl/wolfcrypt/memory.h>
     #define XMALLOC(s, h, t)     ((void)h, (void)t, wolfSSL_Malloc((s)))
     #define XFREE(p, h, t)       {void* xp = (p); if((xp)) wolfSSL_Free((xp));}
     #define XREALLOC(p, n, h, t) wolfSSL_Realloc((p), (n))
@@ -230,6 +229,7 @@ enum {
 
 
 /* memory allocation types for user hints */
+
 enum {
     DYNAMIC_TYPE_CA           = 1,
     DYNAMIC_TYPE_CERT         = 2,
@@ -326,6 +326,4 @@ WOLFSSL_API word32 CheckRunTimeSettings(void);
     }   /* extern "C" */
 #endif
 
-
 #endif /* WOLF_CRYPT_TYPES_H */
-
