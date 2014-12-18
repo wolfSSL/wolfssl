@@ -34,7 +34,7 @@
 #define wc_Md5Final  Md5Final_sw
 #endif
 
-#include <cyassl/ctaocrypt/md5.h>
+#include <wolfssl/wolfcrypt/md5.h>
 #include <cyassl/ctaocrypt/error-crypt.h>
 
 #ifdef NO_INLINE

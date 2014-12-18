@@ -23,6 +23,7 @@
     #include <config.h>
 #endif
 
+#include <cyassl/ssl.h> /* name change portability layer */
 #include <cyassl/ctaocrypt/settings.h>
 #ifdef HAVE_ECC
     #include <cyassl/ctaocrypt/ecc.h>   /* ecc_fp_free */

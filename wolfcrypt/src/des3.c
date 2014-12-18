@@ -32,7 +32,7 @@
     #define FIPS_NO_WRAPPERS
 #endif
 
-#include <cyassl/ctaocrypt/des3.h>
+#include <wolfssl/wolfcrypt/des3.h>
 #include <cyassl/ctaocrypt/error-crypt.h>
 #include <cyassl/ctaocrypt/logging.h>
 
@@ -62,19 +62,6 @@ int wc_Des_SetKey(Des* des, const byte* key, const byte* iv, int dir)
 int wc_Des3_SetKey(Des3* des, const byte* key, const byte* iv, int dir)
 {
     return Des3_SetKey(des, key, iv, dir);
-}
-
-
-int wc_Des_CbcEncrypt(Des* des, byte* out, const byte* in, word32 sz)
-{
-    return Des_CbcEncrypt(des, out, in, sz);
-}
-
-
-void wc_DesCrypt(word32 *key, word32 *iv, byte* out, const byte* in, word32 sz,
-              int dir, int algo, int cryptoalgo)
-{
-    DesCrypt(key, iv, out, in, sz, dir, algo, cryptoalgo);
 }
 
 

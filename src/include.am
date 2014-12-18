@@ -31,6 +31,7 @@ endif
 
 if BUILD_DES3
 src_libcyassl_la_SOURCES += ctaocrypt/src/des3.c
+src_libcyassl_la_SOURCES += wolfcrypt/src/des3.c
 endif
 
 if BUILD_SHA
@@ -58,6 +59,7 @@ src_libcyassl_la_SOURCES += \
 
 if BUILD_MEMORY
 src_libcyassl_la_SOURCES += ctaocrypt/src/memory.c
+src_libcyassl_la_SOURCES += wolfcrypt/src/memory.c
 endif
 
 if BUILD_DH
@@ -82,10 +84,12 @@ endif
 
 if BUILD_MD4
 src_libcyassl_la_SOURCES += ctaocrypt/src/md4.c
+src_libcyassl_la_SOURCES += wolfcrypt/src/md4.c
 endif
 
 if BUILD_MD5
 src_libcyassl_la_SOURCES += ctaocrypt/src/md5.c
+src_libcyassl_la_SOURCES += wolfcrypt/src/md5.c
 endif
 
 if BUILD_PWDBASED

@@ -81,6 +81,9 @@
 #define CYASSL_X509_OBJECT    WOLFSSL_X509_OBJECT
 #define CYASSL_X509_STORE_CTX WOLFSSL_X509_STORE_CTX
 
+/* cyassl/test.h */
+#define CYASSL_THREAD WOLFSSL_THREAD
+
 /* src/ssl.c */
 #define CYASSL_CLIENT_END                WOLFSSL_CLIENT_END
 #define CYASSL_CERT_MANAGER              WOLFSSL_CERT_MANAGER
@@ -453,8 +456,8 @@
 
 
 /* for ripemd reverse compatibility */
-#define CYASSL_RIPEMD WOLFSSL_RIPEMD /* @TODO */
 #ifdef WOLFSSL_RIPEMD
+    #define CYASSL_RIPEMD /* @TODO */
     #define InitRipeMd wc_InitRipeMd
     #define RipeMdUpdate wc_RipeMdUpdate
     #define RipeMdFinal wc_RipeMdFinal
