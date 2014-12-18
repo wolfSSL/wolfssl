@@ -116,8 +116,8 @@ static const word32 K[64] = {
     0x90BEFFFAL, 0xA4506CEBL, 0xBEF9A3F7L, 0xC67178F2L
 };
 
-#define Ch(x,y,z)       (z ^ (x & (y ^ z)))
-#define Maj(x,y,z)      (((x | y) & z) | (x & y))
+#define Ch(x,y,z)       ((z) ^ ((x) & ((y) ^ (z))))
+#define Maj(x,y,z)      ((((x) | (y)) & (z)) | ((x) & (y)))
 #define S(x, n)         rotrFixed(x, n)
 #define R(x, n)         (((x)&0xFFFFFFFFU)>>(n))
 #define Sigma0(x)       (S(x, 2) ^ S(x, 13) ^ S(x, 22))
@@ -126,10 +126,10 @@ static const word32 K[64] = {
 #define Gamma1(x)       (S(x, 17) ^ S(x, 19) ^ R(x, 10))
 
 #define RND(a,b,c,d,e,f,g,h,i) \
-     t0 = h + Sigma1(e) + Ch(e, f, g) + K[i] + W[i]; \
-     t1 = Sigma0(a) + Maj(a, b, c); \
-     d += t0; \
-     h  = t0 + t1;
+     t0 = (h) + Sigma1((e)) + Ch((e), (f), (g)) + K[(i)] + W[(i)]; \
+     t1 = Sigma0((a)) + Maj((a), (b), (c)); \
+     (d) += t0; \
+     (h)  = t0 + t1;
 
 
 static int Transform(Sha256* sha256)
