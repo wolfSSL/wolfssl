@@ -24,7 +24,7 @@
 #define WOLF_CRYPT_ARC4_H
 
 
-#include <cyassl/ctaocrypt/types.h>
+#include <wolfssl/wolfcrypt/types.h>
 
 
 #ifdef __cplusplus
@@ -51,12 +51,12 @@ typedef struct Arc4 {
 #endif
 } Arc4;
 
-CYASSL_API void wc_Arc4Process(Arc4*, byte*, const byte*, word32);
-CYASSL_API void wc_Arc4SetKey(Arc4*, const byte*, word32);
+WOLFSSL_API void wc_Arc4Process(Arc4*, byte*, const byte*, word32);
+WOLFSSL_API void wc_Arc4SetKey(Arc4*, const byte*, word32);
 
 #ifdef HAVE_CAVIUM
-    CYASSL_API int  wc_Arc4InitCavium(Arc4*, int);
-    CYASSL_API void wc_Arc4FreeCavium(Arc4*);
+    WOLFSSL_API int  wc_Arc4InitCavium(Arc4*, int);
+    WOLFSSL_API void wc_Arc4FreeCavium(Arc4*);
 #endif
 
 #ifdef __cplusplus
