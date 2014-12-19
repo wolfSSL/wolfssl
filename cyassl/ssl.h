@@ -85,9 +85,7 @@
 #endif
 
 /* wolfcrypt/src/error.c */
-#ifdef WOLF_CRYPT_ERROR_H
-	#define WOLFSSL_MAX_ERROR_SZ CYASSL_MAX_ERROR_SZ
-#endif
+#define WOLFSSL_MAX_ERROR_SZ CYASSL_MAX_ERROR_SZ
 
 /* src/ssl.c */
 #ifdef CYASSL_SSL_H
