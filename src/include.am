@@ -2,163 +2,190 @@
 # included from Top Level Makefile.am
 # All paths should be given relative to the root
 
-lib_LTLIBRARIES+= src/libcyassl.la
-src_libcyassl_la_SOURCES =
+lib_LTLIBRARIES+= src/libwolfssl.la
+src_libwolfssl_la_SOURCES =
 
-src_libcyassl_la_LDFLAGS = ${AM_LDFLAGS} -no-undefined -version-info ${CYASSL_LIBRARY_VERSION}
-src_libcyassl_la_LIBADD = $(LIBM)
-src_libcyassl_la_CFLAGS = -DBUILDING_CYASSL $(AM_CFLAGS)
-src_libcyassl_la_CPPFLAGS = -DBUILDING_CYASSL $(AM_CPPFLAGS)
+src_libwolfssl_la_LDFLAGS = ${AM_LDFLAGS} -no-undefined -version-info ${CYASSL_LIBRARY_VERSION}
+src_libwolfssl_la_LIBADD = $(LIBM)
+src_libwolfssl_la_CFLAGS = -DBUILDING_CYASSL $(AM_CFLAGS)
+src_libwolfssl_la_CPPFLAGS = -DBUILDING_CYASSL $(AM_CPPFLAGS)
 
 # fips first  file
 if BUILD_FIPS
-src_libcyassl_la_SOURCES += ctaocrypt/src/wolfcrypt_first.c
+src_libwolfssl_la_SOURCES += ctaocrypt/src/wolfcrypt_first.c
 endif
 
-src_libcyassl_la_SOURCES += \
+src_libwolfssl_la_SOURCES += \
                ctaocrypt/src/hmac.c \
                ctaocrypt/src/random.c \
-               ctaocrypt/src/sha256.c
+               ctaocrypt/src/sha256.c \
+               wolfcrypt/src/hmac.c \
+               wolfcrypt/src/random.c \
+               wolfcrypt/src/sha256.c
 
 if BUILD_RSA
-src_libcyassl_la_SOURCES += ctaocrypt/src/rsa.c
+src_libwolfssl_la_SOURCES += ctaocrypt/src/rsa.c \
+                             wolfcrypt/src/rsa.c
 endif
 
 if BUILD_AES
-src_libcyassl_la_SOURCES += ctaocrypt/src/aes.c
-src_libcyassl_la_SOURCES += wolfcrypt/src/aes.c
+src_libwolfssl_la_SOURCES += ctaocrypt/src/aes.c \
+                             wolfcrypt/src/aes.c
 endif
 
 if BUILD_DES3
-src_libcyassl_la_SOURCES += ctaocrypt/src/des3.c
-src_libcyassl_la_SOURCES += wolfcrypt/src/des3.c
+src_libwolfssl_la_SOURCES += ctaocrypt/src/des3.c \
+                             wolfcrypt/src/des3.c
 endif
 
 if BUILD_SHA
-src_libcyassl_la_SOURCES += ctaocrypt/src/sha.c
+src_libwolfssl_la_SOURCES += ctaocrypt/src/sha.c \
+                             wolfcrypt/src/sha.c
 endif
 
 if BUILD_SHA512
-src_libcyassl_la_SOURCES += ctaocrypt/src/sha512.c
+src_libwolfssl_la_SOURCES += ctaocrypt/src/sha512.c \
+                             wolfcrypt/src/sha512.c
 endif
 
 if BUILD_FIPS
-src_libcyassl_la_SOURCES += ctaocrypt/src/fips.c
-src_libcyassl_la_SOURCES += ctaocrypt/src/fips_test.c
+src_libwolfssl_la_SOURCES += ctaocrypt/src/fips.c
+src_libwolfssl_la_SOURCES += ctaocrypt/src/fips_test.c
 endif
 
 # fips last file
 if BUILD_FIPS
-src_libcyassl_la_SOURCES += ctaocrypt/src/wolfcrypt_last.c
+src_libwolfssl_la_SOURCES += ctaocrypt/src/wolfcrypt_last.c
 endif
 
-src_libcyassl_la_SOURCES += \
+src_libwolfssl_la_SOURCES += \
                ctaocrypt/src/logging.c \
                ctaocrypt/src/wc_port.c \
-               ctaocrypt/src/error.c
+               ctaocrypt/src/error.c \
+               wolfcrypt/src/logging.c \
+               wolfcrypt/src/wc_port.c \
+               wolfcrypt/src/error.c
 
 if BUILD_MEMORY
-src_libcyassl_la_SOURCES += ctaocrypt/src/memory.c
-src_libcyassl_la_SOURCES += wolfcrypt/src/memory.c
+src_libwolfssl_la_SOURCES += ctaocrypt/src/memory.c \
+                             wolfcrypt/src/memory.c
 endif
 
 if BUILD_DH
-src_libcyassl_la_SOURCES += ctaocrypt/src/dh.c
+src_libwolfssl_la_SOURCES += ctaocrypt/src/dh.c \
+                             wolfcrypt/src/dh.c
 endif
 
 if BUILD_ASN
-src_libcyassl_la_SOURCES += ctaocrypt/src/asn.c
+src_libwolfssl_la_SOURCES += ctaocrypt/src/asn.c \
+                             wolfcrypt/src/asn.c
 endif
 
 if BUILD_CODING
-src_libcyassl_la_SOURCES += ctaocrypt/src/coding.c
+src_libwolfssl_la_SOURCES += ctaocrypt/src/coding.c \
+                             wolfcrypt/src/coding.c
 endif
 
 if BUILD_POLY1305
-src_libcyassl_la_SOURCES += ctaocrypt/src/poly1305.c
+src_libwolfssl_la_SOURCES += ctaocrypt/src/poly1305.c \
+                             wolfcrypt/src/poly1305.c
 endif
 
 if BUILD_RC4
-src_libcyassl_la_SOURCES += wolfcrypt/src/arc4.c
+src_libwolfssl_la_SOURCES += wolfcrypt/src/arc4.c
 endif
 
 if BUILD_MD4
-src_libcyassl_la_SOURCES += ctaocrypt/src/md4.c
-src_libcyassl_la_SOURCES += wolfcrypt/src/md4.c
+src_libwolfssl_la_SOURCES += ctaocrypt/src/md4.c \
+                             wolfcrypt/src/md4.c
 endif
 
 if BUILD_MD5
-src_libcyassl_la_SOURCES += ctaocrypt/src/md5.c
-src_libcyassl_la_SOURCES += wolfcrypt/src/md5.c
+src_libwolfssl_la_SOURCES += ctaocrypt/src/md5.c \
+                             wolfcrypt/src/md5.c
 endif
 
 if BUILD_PWDBASED
-src_libcyassl_la_SOURCES += ctaocrypt/src/pwdbased.c
+src_libwolfssl_la_SOURCES += ctaocrypt/src/pwdbased.c \
+                             wolfcrypt/src/pwdbased.c
 endif
 
 if BUILD_DSA
-src_libcyassl_la_SOURCES += ctaocrypt/src/dsa.c
+src_libwolfssl_la_SOURCES += ctaocrypt/src/dsa.c \
+                             wolfcrypt/src/dsa.c
 endif
 
 if BUILD_AESNI
-src_libcyassl_la_SOURCES += ctaocrypt/src/aes_asm.s
+src_libwolfssl_la_SOURCES += ctaocrypt/src/aes_asm.s
 endif
 
 if BUILD_CAMELLIA
-src_libcyassl_la_SOURCES += ctaocrypt/src/camellia.c
+src_libwolfssl_la_SOURCES += ctaocrypt/src/camellia.c \
+                             wolfcrypt/src/camellia.c
 endif
 
 if BUILD_MD2
-src_libcyassl_la_SOURCES += ctaocrypt/src/md2.c
+src_libwolfssl_la_SOURCES += ctaocrypt/src/md2.c \
+                             wolfcrypt/src/md2.c
 endif
 
 if BUILD_RIPEMD
-src_libcyassl_la_SOURCES += ctaocrypt/src/ripemd.c
+src_libwolfssl_la_SOURCES += ctaocrypt/src/ripemd.c \
+                             wolfcrypt/src/ripemd.c
 endif
 
 if BUILD_BLAKE2
-src_libcyassl_la_SOURCES += wolfcrypt/src/blake2b.c
+src_libwolfssl_la_SOURCES += wolfcrypt/src/blake2b.c
 endif
 
 if BUILD_HC128
-src_libcyassl_la_SOURCES += ctaocrypt/src/hc128.c
+src_libwolfssl_la_SOURCES += ctaocrypt/src/hc128.c \
+                             ctaocrypt/src/hc128.c
 endif
 
 if BUILD_RABBIT
-src_libcyassl_la_SOURCES += ctaocrypt/src/rabbit.c
+src_libwolfssl_la_SOURCES += ctaocrypt/src/rabbit.c \
+                             wolfcrypt/src/rabbit.c
 endif
 
 if BUILD_CHACHA
-src_libcyassl_la_SOURCES += ctaocrypt/src/chacha.c
+src_libwolfssl_la_SOURCES += ctaocrypt/src/chacha.c \
+                             wolfcrypt/src/chacha.c
 endif
 
 if !BUILD_INLINE
-src_libcyassl_la_SOURCES += ctaocrypt/src/misc.c
+src_libwolfssl_la_SOURCES += ctaocrypt/src/misc.c \
+                             wolfcrypt/src/misc.c
 endif
 
 if BUILD_FASTMATH
-src_libcyassl_la_SOURCES += ctaocrypt/src/tfm.c
+src_libwolfssl_la_SOURCES += ctaocrypt/src/tfm.c \
+                             wolfcrypt/src/tfm.c
 endif
 
 if BUILD_SLOWMATH
-src_libcyassl_la_SOURCES += ctaocrypt/src/integer.c
+src_libwolfssl_la_SOURCES += ctaocrypt/src/integer.c \
+                             wolfcrypt/src/integer.c
 endif
 
 if BUILD_ECC
-src_libcyassl_la_SOURCES += ctaocrypt/src/ecc.c
+src_libwolfssl_la_SOURCES += ctaocrypt/src/ecc.c \
+                             wolfcrypt/src/ecc.c
 endif
 
 if BUILD_LIBZ
-src_libcyassl_la_SOURCES += ctaocrypt/src/compress.c
+src_libwolfssl_la_SOURCES += ctaocrypt/src/compress.c \
+                             wolfcrypt/src/compress.c
 endif
 
 if BUILD_PKCS7
-src_libcyassl_la_SOURCES += ctaocrypt/src/pkcs7.c
+src_libwolfssl_la_SOURCES += ctaocrypt/src/pkcs7.c \
+                             wolfcrypt/src/pkcs7.c
 endif
 
 
 # ssl files
-src_libcyassl_la_SOURCES += \
+src_libwolfssl_la_SOURCES += \
                src/internal.c \
                src/io.c \
                src/keys.c \
@@ -166,14 +193,14 @@ src_libcyassl_la_SOURCES += \
                src/tls.c
 
 if BUILD_OCSP
-src_libcyassl_la_SOURCES += src/ocsp.c
+src_libwolfssl_la_SOURCES += src/ocsp.c
 endif
 
 if BUILD_CRL
-src_libcyassl_la_SOURCES += src/crl.c
+src_libwolfssl_la_SOURCES += src/crl.c
 endif
 
 if BUILD_SNIFFER
-src_libcyassl_la_SOURCES += src/sniffer.c
+src_libwolfssl_la_SOURCES += src/sniffer.c
 endif
 
