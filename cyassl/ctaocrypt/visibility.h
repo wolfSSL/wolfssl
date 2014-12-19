@@ -42,8 +42,7 @@
         #ifdef CYASSL_DLL
             #define CYASSL_API extern __declspec(dllexport)
         #else
-            //#define CYASSL_API
-            #define CYASSL_API:
+            #define CYASSL_API
         #endif
         #define CYASSL_LOCAL
     #else

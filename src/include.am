@@ -179,8 +179,7 @@ src_libwolfssl_la_SOURCES += ctaocrypt/src/integer.c \
 endif
 
 if BUILD_ECC
-src_libwolfssl_la_SOURCES += ctaocrypt/src/ecc.c \
-                             wolfcrypt/src/ecc.c
+src_libwolfssl_la_SOURCES += wolfcrypt/src/ecc.c
 endif
 
 if BUILD_LIBZ

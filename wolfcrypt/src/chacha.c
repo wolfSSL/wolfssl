@@ -29,17 +29,17 @@
     #include <config.h>
 #endif
 
-#include <cyassl/ctaocrypt/settings.h>
+#include <wolfssl/wolfcrypt/settings.h>
 
 #ifdef HAVE_CHACHA
 
-#include <cyassl/ctaocrypt/chacha.h>
-#include <cyassl/ctaocrypt/error-crypt.h>
-#include <cyassl/ctaocrypt/logging.h>
+#include <wolfssl/wolfcrypt/chacha.h>
+#include <wolfssl/wolfcrypt/error-crypt.h>
+#include <wolfssl/wolfcrypt/logging.h>
 #ifdef NO_INLINE
-    #include <cyassl/ctaocrypt/misc.h>
+    #include <wolfssl/wolfcrypt/misc.h>
 #else
-    #include <ctaocrypt/src/misc.c>
+    #include <wolfcrypt/src/misc.c>
 #endif
 
 #ifdef CHACHA_AEAD_TEST

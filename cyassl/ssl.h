@@ -386,8 +386,10 @@
     #define CYASSL_SMALL_STACK
 #endif
 
+/* change visibility to be compatible with CyaSSL visibility */
 #undef WOLFSSL_API
 #define WOLFSSL_API CYASSL_API
+
 #define WOLFSSL_ENTER(x) CYASSL_ENTER(x) /* @TODO*/
 #define WOLFSSL_BIT_SIZE CYASSL_BIT_SIZE /* @TODO*/
 
@@ -532,6 +534,47 @@
 	#define CamelliaDecryptDirect wc_CamelliaDecryptDirect
 	#define CamelliaCbcEncrypt wc_CamelliaCbcEncrypt
 	#define CamelliaCbcDecrypt wc_CamelliaCbcDecrypt
+#endif
+
+
+/* for chacha reverse compatibility */
+#ifdef HAVE_CHACHA
+    #define Chacha_Process wc_Chacha_Process
+    #define Chacha_SetKey wc_Chacha_SetKey
+    #define Chacha_SetIV wc_Chacha_SetIV
+#endif
+
+
+/* for ecc reverse compatibility */
+#ifdef HAVE_ECC
+#define ecc_make_key wc_ecc_make_key
+#define ecc_shared_secret wc_ecc_shared_secret
+#define ecc_sign_hash wc_ecc_sign_hash
+#define ecc_verify_hash wc_ecc_verify_hash
+#define ecc_init wc_ecc_init
+#define ecc_free wc_ecc_free
+#define ecc_fp_free wc_ecc_fp_free
+#define ecc_export_x963 wc_ecc_export_x963
+#define ecc_export_x963_ex wc_ecc_export_x963_ex
+#define ecc_import_x963 wc_ecc_import_x963
+#define ecc_import_private_key wc_ecc_import_private_key
+#define ecc_rs_to_sig wc_ecc_rs_to_sig
+#define ecc_import_raw wc_ecc_import_raw
+#define ecc_export_private_only wc_ecc_export_private_only
+#define ecc_size wc_ecc_size
+#define ecc_sig_size wc_ecc_sig_size
+
+#ifdef HAVE_ECC_ENCRYPT
+/* ecc encrypt */
+//ecEncCtx* wc_ecc_ctx_new(int flags, RNG* rng);
+//void wc_ecc_ctx_free(ecEncCtx*);
+//int wc_ecc_ctx_reset(ecEncCtx*, RNG*);   /* reset for use again w/o alloc/free */
+//const byte* wc_ecc_ctx_get_own_salt(ecEncCtx*);
+//int wc_ecc_ctx_set_peer_salt(ecEncCtx*, const byte* salt);
+//int wc_ecc_ctx_set_info(ecEncCtx*, const byte* info, int sz);
+//int wc_ecc_encrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
+//int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
+#endif /* HAVE_ECC_ENCRYPT */
 #endif
 
 

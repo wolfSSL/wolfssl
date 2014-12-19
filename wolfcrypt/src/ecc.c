@@ -2221,7 +2221,7 @@ int wc_ecc_export_x963(ecc_key* key, byte* out, word32* outLen)
 
 /* export public ECC key in ANSI X9.63 format, extended with
  * compression option */
-int wc_wc_ecc_export_x963_ex(ecc_key* key, byte* out, word32* outLen, int compressed)
+int wc_ecc_export_x963_ex(ecc_key* key, byte* out, word32* outLen, int compressed)
 {
     if (compressed == 0)
         return wc_ecc_export_x963(key, out, outLen);

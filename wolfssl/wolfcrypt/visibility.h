@@ -42,8 +42,7 @@
         #ifdef WOLFSSL_DLL
             #define WOLFSSL_API extern __declspec(dllexport)
         #else
-            //#define WOLFSSL_API
-            #define WOLFSSL_API:
+            #define WOLFSSL_API
         #endif
         #define WOLFSSL_LOCAL
     #else
