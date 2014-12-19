@@ -58,13 +58,17 @@ if BUILD_FIPS
 src_libwolfssl_la_SOURCES += ctaocrypt/src/wolfcrypt_last.c
 endif
 
+if BUILD_FIPS
 src_libwolfssl_la_SOURCES += \
                ctaocrypt/src/logging.c \
                ctaocrypt/src/wc_port.c \
-               ctaocrypt/src/error.c \
+               ctaocrypt/src/error.c
+else
+src_libwolfssl_la_SOURCES += \
                wolfcrypt/src/logging.c \
                wolfcrypt/src/wc_port.c \
                wolfcrypt/src/error.c
+endif
 
 if BUILD_MEMORY
 src_libwolfssl_la_SOURCES += ctaocrypt/src/memory.c \
@@ -77,13 +81,19 @@ src_libwolfssl_la_SOURCES += ctaocrypt/src/dh.c \
 endif
 
 if BUILD_ASN
-src_libwolfssl_la_SOURCES += ctaocrypt/src/asn.c \
-                             wolfcrypt/src/asn.c
+if BUILD_FIPS
+src_libwolfssl_la_SOURCES += ctaocrypt/src/asn.c
+else
+src_libwolfssl_la_SOURCES += wolfcrypt/src/asn.c
+endif
 endif
 
 if BUILD_CODING
-src_libwolfssl_la_SOURCES += ctaocrypt/src/coding.c \
-                             wolfcrypt/src/coding.c
+if BUILD_FIPS
+src_libwolfssl_la_SOURCES += ctaocrypt/src/coding.c
+else
+src_libwolfssl_la_SOURCES += wolfcrypt/src/coding.c
+endif
 endif
 
 if BUILD_POLY1305
