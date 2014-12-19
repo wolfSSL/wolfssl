@@ -24,17 +24,17 @@
     #include <config.h>
 #endif
 
-#include <cyassl/ctaocrypt/settings.h>
+#include <wolfssl/wolfcrypt/settings.h>
 
 #ifdef WOLFSSL_MD2
 
-#include <cyassl/ctaocrypt/md2.h>
-#include <cyassl/ctaocrypt/error-crypt.h>
+#include <wolfssl/wolfcrypt/md2.h>
+#include <wolfssl/wolfcrypt/error-crypt.h>
 
 #ifdef NO_INLINE
-    #include <cyassl/ctaocrypt/misc.h>
+    #include <wolfssl/wolfcrypt/misc.h>
 #else
-    #include <ctaocrypt/src/misc.c>
+    #include <wolfcrypt/src/misc.c>
 #endif
 
 

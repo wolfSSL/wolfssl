@@ -22,6 +22,8 @@
 /* wolfssl_cyassl compatibility layer */
 #include <cyassl/ssl.h>
 
+#include <wolfssl/wolfcrypt/arc4.h>
+
 #ifdef HAVE_CONFIG_H
     #include <config.h>
 #endif

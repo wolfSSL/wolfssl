@@ -1676,18 +1676,18 @@ int arc4_test(void)
             keylen = 4;
 
 #ifdef HAVE_CAVIUM
-        if (Arc4InitCavium(&enc, CAVIUM_DEV_ID) != 0)
+        if (wc_Arc4InitCavium(&enc, CAVIUM_DEV_ID) != 0)
             return -20001;
-        if (Arc4InitCavium(&dec, CAVIUM_DEV_ID) != 0)
+        if (wc_Arc4InitCavium(&dec, CAVIUM_DEV_ID) != 0)
             return -20002;
 #endif
 
-        Arc4SetKey(&enc, (byte*)keys[i], keylen);
-        Arc4SetKey(&dec, (byte*)keys[i], keylen);
+        wc_Arc4SetKey(&enc, (byte*)keys[i], keylen);
+        wc_Arc4SetKey(&dec, (byte*)keys[i], keylen);
 
-        Arc4Process(&enc, cipher, (byte*)test_arc4[i].input,
+        wc_Arc4Process(&enc, cipher, (byte*)test_arc4[i].input,
                     (word32)test_arc4[i].outLen);
-        Arc4Process(&dec, plain,  cipher, (word32)test_arc4[i].outLen);
+        wc_Arc4Process(&dec, plain,  cipher, (word32)test_arc4[i].outLen);
 
         if (memcmp(plain, test_arc4[i].input, test_arc4[i].outLen))
             return -20 - i;
@@ -1696,8 +1696,8 @@ int arc4_test(void)
             return -20 - 5 - i;
 
 #ifdef HAVE_CAVIUM
-        Arc4FreeCavium(&enc);
-        Arc4FreeCavium(&dec);
+        wc_Arc4FreeCavium(&enc);
+        wc_Arc4FreeCavium(&dec);
 #endif
     }
 

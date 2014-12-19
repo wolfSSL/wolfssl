@@ -386,6 +386,8 @@
     #define CYASSL_SMALL_STACK
 #endif
 
+#undef WOLFSSL_API
+#define WOLFSSL_API CYASSL_API
 #define WOLFSSL_ENTER(x) CYASSL_ENTER(x) /* @TODO*/
 #define WOLFSSL_BIT_SIZE CYASSL_BIT_SIZE /* @TODO*/
 
@@ -399,7 +401,8 @@
 
 /* for arc4 reverse compatibility */
 #ifndef NO_RC4
-   #define CYASSL_ARC4_CAVIUM_MAGIC WOLFSSL_ARC4_CAVIUM_MAGIC
+#include <wolfssl/wolfcrypt/arc4.h>
+    #define CYASSL_ARC4_CAVIUM_MAGIC WOLFSSL_ARC4_CAVIUM_MAGIC
     #define Arc4Process wc_Arc4Process
     #define Arc4SetKey wc_Arc4SetKey
     #define Arc4InitCavium wc_Arc4InitCavium

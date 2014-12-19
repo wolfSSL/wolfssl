@@ -24,7 +24,7 @@
 #ifndef WOLF_CRYPT_MD5_H
 #define WOLF_CRYPT_MD5_H
 
-#include <cyassl/ctaocrypt/types.h>
+#include <wolfssl/wolfcrypt/types.h>
 
 #include <cyassl/ctaocrypt/md5.h>
 

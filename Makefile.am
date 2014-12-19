@@ -60,8 +60,8 @@ EXTRA_DIST+= README.md
 EXTRA_DIST+= LICENSING
 
 #-------------------------------------#
-include cyassl/include.am
 include wolfssl/include.am
+include cyassl/include.am
 #-------------------------------------#
 include certs/include.am
 include certs/1024/include.am
@@ -72,14 +72,14 @@ include swig/include.am
 include src/include.am
 include support/include.am
 #-------------------------------------#
-include ctaocrypt/benchmark/include.am
 include wolfcrypt/benchmark/include.am
+include ctaocrypt/benchmark/include.am
 #-------------------------------------#
-include ctaocrypt/src/include.am
 include wolfcrypt/src/include.am
+include ctaocrypt/src/include.am
 #-------------------------------------#
-include ctaocrypt/test/include.am
 include wolfcrypt/test/include.am
+include ctaocrypt/test/include.am
 #-------------------------------------#
 include examples/client/include.am
 include examples/server/include.am

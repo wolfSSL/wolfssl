@@ -24,6 +24,7 @@
 #endif
 
 #include <cyassl/ssl.h> /* name change portability layer */
+
 #if defined(CYASSL_MDK_ARM)
         #include <stdio.h>
         #include <string.h>

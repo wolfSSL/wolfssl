@@ -23,12 +23,14 @@
     #include <config.h>
 #endif
 
-#include <cyassl/ctaocrypt/settings.h>
+#include <wolfssl/wolfcrypt/settings.h>
+//#include <cyassl/ctaocrypt/visibility.h>
+//#undef WOLFSSL_API
+//#define WOLFSSL_API CYASSL_API
 
 #ifndef NO_RC4
 
 #include <wolfssl/wolfcrypt/arc4.h>
-
 
 #ifdef HAVE_CAVIUM
     static void wc_Arc4CaviumSetKey(Arc4* arc4, const byte* key, word32 length);

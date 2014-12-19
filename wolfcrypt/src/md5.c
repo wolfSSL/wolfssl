@@ -24,7 +24,7 @@
     #include <config.h>
 #endif
 
-#include <cyassl/ctaocrypt/settings.h>
+#include <wolfssl/wolfcrypt/settings.h>
 
 #if !defined(NO_MD5)
 
@@ -35,12 +35,12 @@
 #endif
 
 #include <wolfssl/wolfcrypt/md5.h>
-#include <cyassl/ctaocrypt/error-crypt.h>
+#include <wolfssl/wolfcrypt/error-crypt.h>
 
 #ifdef NO_INLINE
-    #include <cyassl/ctaocrypt/misc.h>
+    #include <wolfssl/wolfcrypt/misc.h>
 #else
-    #include <ctaocrypt/src/misc.c>
+    #include <wolfcrypt/src/misc.c>
 #endif
 
 #ifdef FREESCALE_MMCAU

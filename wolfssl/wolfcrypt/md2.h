@@ -20,12 +20,12 @@
  */
 
 
-#ifdef CYASSL_MD2
+#ifdef WOLFSSL_MD2
 
-#ifndef CTAO_CRYPT_MD2_H
-#define CTAO_CRYPT_MD2_H
+#ifndef WOLF_CRYPT_MD2_H
+#define WOLF_CRYPT_MD2_H
 
-#include <cyassl/ctaocrypt/types.h>
+#include <wolfssl/wolfcrypt/types.h>
 
 #ifdef __cplusplus
     extern "C" {
@@ -51,10 +51,10 @@ typedef struct Md2 {
 } Md2;
 
 
-CYASSL_API void InitMd2(Md2*);
-CYASSL_API void Md2Update(Md2*, const byte*, word32);
-CYASSL_API void Md2Final(Md2*, byte*);
-CYASSL_API int  Md2Hash(const byte*, word32, byte*);
+WOLFSSL_API void wc_InitMd2(Md2*);
+WOLFSSL_API void wc_Md2Update(Md2*, const byte*, word32);
+WOLFSSL_API void wc_Md2Final(Md2*, byte*);
+WOLFSSL_API int  wc_Md2Hash(const byte*, word32, byte*);
 
 
 #ifdef __cplusplus
