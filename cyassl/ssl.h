@@ -577,6 +577,12 @@
 #endif /* HAVE_ECC_ENCRYPT */
 #endif
 
+/* examples/client/client.h */
+#define CYASSL_THREAD WOLFSSL_THREAD
+
+/* examples/client/client.c */
+#define LIBCYASSL_VERSION_STRING LIBWOLFSSL_VERSION_STRING
+
 
 #ifdef __cplusplus
     } /* extern "C" */
