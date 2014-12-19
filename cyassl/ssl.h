@@ -444,12 +444,12 @@
 
 /* for md2 reverse compatibility */
 #define CYASSL_MD2 WOLFSSL_MD2 /* @TODO */
-#ifdef WOLFSSL_MD2
+//#ifdef WOLFSSL_MD2
 	#define InitMd2 wc_InitMd2
 	#define Md2Update wc_Md2Update
 	#define Md2Final wc_Md2Final
 	#define Md2Hash wc_Md2Hash
-#endif
+//#endif
 
 
 /* for md4 reverse compatibility */

@@ -26,7 +26,8 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 
-#ifdef WOLFSSL_MD2
+//#ifdef WOLFSSL_MD2
+//@TODO
 
 #include <wolfssl/wolfcrypt/md2.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
@@ -156,4 +157,5 @@ int wc_Md2Hash(const byte* data, word32 len, byte* hash)
 }
 
 
-#endif /* WOLFSSL_MD2 */
+//@TODO
+//#endif /* WOLFSSL_MD2 */

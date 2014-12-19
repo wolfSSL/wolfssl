@@ -20,7 +20,8 @@
  */
 
 
-#ifdef WOLFSSL_MD2
+//#ifdef WOLFSSL_MD2
+//@TODO
 
 #ifndef WOLF_CRYPT_MD2_H
 #define WOLF_CRYPT_MD2_H
@@ -62,4 +63,5 @@ WOLFSSL_API int  wc_Md2Hash(const byte*, word32, byte*);
 #endif
 
 #endif /* CTAO_CRYPT_MD2_H */
-#endif /* CYASSL_MD2 */
+//@TODO
+//#endif /* CYASSL_MD2 */

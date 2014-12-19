@@ -24,9 +24,6 @@
 #endif
 
 #include <wolfssl/wolfcrypt/settings.h>
-//#include <cyassl/ctaocrypt/visibility.h>
-//#undef WOLFSSL_API
-//#define WOLFSSL_API CYASSL_API
 
 #ifndef NO_RC4
 
