@@ -361,6 +361,8 @@
     #define CYASSL_SMALL_STACK
 #endif
 
+#define WOLFSSL_ENTER(x) CYASSL_ENTER(x) /* @TODO*/
+#define WOLFSSL_BIT_SIZE CYASSL_BIT_SIZE /* @TODO*/
 
 /* wrapper around macros until they are changed in cyassl code  
  * needs investigation in regards to macros in fips */
@@ -389,7 +391,6 @@
 
 /* for DH reverse compatibility */
 #ifndef NO_DH
-    #define WOLFSSL_BIT_SIZE CYASSL_BIT_SIZE /* @TODO*/
 	#define InitDhKey wc_InitDhKey
 	#define FreeDhKey wc_FreeDhKey
 	#define DhGenerateKeyPair wc_DhGenerateKeyPair

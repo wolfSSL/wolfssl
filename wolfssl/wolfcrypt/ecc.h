@@ -21,12 +21,12 @@
 
 #ifdef HAVE_ECC
 
-#ifndef CTAO_CRYPT_ECC_H
-#define CTAO_CRYPT_ECC_H
+#ifndef WOLF_CRYPT_ECC_H
+#define WOLF_CRYPT_ECC_H
 
-#include <cyassl/ctaocrypt/types.h>
-#include <cyassl/ctaocrypt/integer.h>
-#include <cyassl/ctaocrypt/random.h>
+#include <wolfssl/wolfcrypt/types.h>
+#include <wolfssl/wolfcrypt/integer.h>
+#include <wolfssl/wolfcrypt/random.h>
 
 #ifdef __cplusplus
     extern "C" {
@@ -83,50 +83,50 @@ typedef struct {
 extern const ecc_set_type ecc_sets[];
 
 
-CYASSL_API
-int ecc_make_key(RNG* rng, int keysize, ecc_key* key);
-CYASSL_API
-int ecc_shared_secret(ecc_key* private_key, ecc_key* public_key, byte* out,
+WOLFSSL_API
+int wc_ecc_make_key(RNG* rng, int keysize, ecc_key* key);
+WOLFSSL_API
+int wc_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key, byte* out,
                       word32* outlen);
-CYASSL_API
-int ecc_sign_hash(const byte* in, word32 inlen, byte* out, word32 *outlen, 
+WOLFSSL_API
+int wc_ecc_sign_hash(const byte* in, word32 inlen, byte* out, word32 *outlen, 
                   RNG* rng, ecc_key* key);
-CYASSL_API
-int ecc_verify_hash(const byte* sig, word32 siglen, const byte* hash,
+WOLFSSL_API
+int wc_ecc_verify_hash(const byte* sig, word32 siglen, const byte* hash,
                     word32 hashlen, int* stat, ecc_key* key);
-CYASSL_API
-void ecc_init(ecc_key* key);
-CYASSL_API
-void ecc_free(ecc_key* key);
-CYASSL_API
-void ecc_fp_free(void);
+WOLFSSL_API
+void wc_ecc_init(ecc_key* key);
+WOLFSSL_API
+void wc_ecc_free(ecc_key* key);
+WOLFSSL_API
+void wc_ecc_fp_free(void);
 
 
 /* ASN key helpers */
-CYASSL_API
-int ecc_export_x963(ecc_key*, byte* out, word32* outLen);
-CYASSL_API
-int ecc_export_x963_ex(ecc_key*, byte* out, word32* outLen, int compressed);
+WOLFSSL_API
+int wc_ecc_export_x963(ecc_key*, byte* out, word32* outLen);
+WOLFSSL_API
+int wc_ecc_export_x963_ex(ecc_key*, byte* out, word32* outLen, int compressed);
     /* extended functionality with compressed option */
-CYASSL_API
-int ecc_import_x963(const byte* in, word32 inLen, ecc_key* key);
-CYASSL_API
-int ecc_import_private_key(const byte* priv, word32 privSz, const byte* pub,
+WOLFSSL_API
+int wc_ecc_import_x963(const byte* in, word32 inLen, ecc_key* key);
+WOLFSSL_API
+int wc_ecc_import_private_key(const byte* priv, word32 privSz, const byte* pub,
                            word32 pubSz, ecc_key* key);
-CYASSL_API
-int ecc_rs_to_sig(const char* r, const char* s, byte* out, word32* outlen);
-CYASSL_API
-int ecc_import_raw(ecc_key* key, const char* qx, const char* qy,
+WOLFSSL_API
+int wc_ecc_rs_to_sig(const char* r, const char* s, byte* out, word32* outlen);
+WOLFSSL_API
+int wc_ecc_import_raw(ecc_key* key, const char* qx, const char* qy,
                    const char* d, const char* curveName);
 
-CYASSL_API
-int ecc_export_private_only(ecc_key* key, byte* out, word32* outLen);
+WOLFSSL_API
+int wc_ecc_export_private_only(ecc_key* key, byte* out, word32* outLen);
 
 /* size helper */
-CYASSL_API
-int ecc_size(ecc_key* key);
-CYASSL_API
-int ecc_sig_size(ecc_key* key);
+WOLFSSL_API
+int wc_ecc_size(ecc_key* key);
+WOLFSSL_API
+int wc_ecc_sig_size(ecc_key* key);
 
 
 #ifdef HAVE_ECC_ENCRYPT
@@ -163,25 +163,25 @@ enum ecFlags {
 
 typedef struct ecEncCtx ecEncCtx;
 
-CYASSL_API
-ecEncCtx* ecc_ctx_new(int flags, RNG* rng);
-CYASSL_API
-void ecc_ctx_free(ecEncCtx*);
-CYASSL_API
-int ecc_ctx_reset(ecEncCtx*, RNG*);   /* reset for use again w/o alloc/free */
+WOLFSSL_API
+ecEncCtx* wc_ecc_ctx_new(int flags, RNG* rng);
+WOLFSSL_API
+void wc_ecc_ctx_free(ecEncCtx*);
+WOLFSSL_API
+int wc_ecc_ctx_reset(ecEncCtx*, RNG*);   /* reset for use again w/o alloc/free */
 
-CYASSL_API
-const byte* ecc_ctx_get_own_salt(ecEncCtx*);
-CYASSL_API
-int ecc_ctx_set_peer_salt(ecEncCtx*, const byte* salt);
-CYASSL_API
-int ecc_ctx_set_info(ecEncCtx*, const byte* info, int sz);
+WOLFSSL_API
+const byte* wc_ecc_ctx_get_own_salt(ecEncCtx*);
+WOLFSSL_API
+int wc_ecc_ctx_set_peer_salt(ecEncCtx*, const byte* salt);
+WOLFSSL_API
+int wc_ecc_ctx_set_info(ecEncCtx*, const byte* info, int sz);
 
-CYASSL_API
-int ecc_encrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
+WOLFSSL_API
+int wc_ecc_encrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
                 word32 msgSz, byte* out, word32* outSz, ecEncCtx* ctx);
-CYASSL_API
-int ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
+WOLFSSL_API
+int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
                 word32 msgSz, byte* out, word32* outSz, ecEncCtx* ctx);
 
 #endif /* HAVE_ECC_ENCRYPT */
@@ -190,5 +190,5 @@ int ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
     }    /* extern "C" */    
 #endif
 
-#endif /* CTAO_CRYPT_ECC_H */
+#endif /* WOLF_CRYPT_ECC_H */
 #endif /* HAVE_ECC */

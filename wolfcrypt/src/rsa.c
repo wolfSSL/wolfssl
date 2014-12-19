@@ -23,9 +23,11 @@
     #include <config.h>
 #endif
 
-#include <cyassl/ctaocrypt/settings.h>
+#include <wolfssl/wolfcrypt/settings.h>
 
 #ifndef NO_RSA
+
+#include <wolfssl/wolfcrypt/rsa.h>
 
 
 #ifdef __cplusplus
@@ -66,7 +68,7 @@ int  wc_RsaPrivateDecrypt(const byte* in, word32 inLen, byte* out,
 
 
 int  wc_RsaSSL_Sign(const byte* in, word32 inLen, byte* out,
-                            word32 outLen, RsaKey* key, RNG* rng);
+                            word32 outLen, RsaKey* key, RNG* rng)
 {
     return RsaSSL_Sign(in, inLen, out, outLen, key, rng);
 }

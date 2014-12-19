@@ -52,7 +52,7 @@ WOLFSSL_API int wc_HmacFinal(Hmac*, byte*);
     WOLFSSL_API void wc_HmacFreeCavium(Hmac*);
 #endif
 
-WOLFSSL_API int wc_WolfSSL_GetHmacMaxSize(void);
+WOLFSSL_API int wc_wolfSSL_GetHmacMaxSize(void);
 
 
 #ifdef HAVE_HKDF

@@ -24,9 +24,11 @@
     #include <config.h>
 #endif
 
-#include <cyassl/ctaocrypt/settings.h>
+#include <wolfssl/wolfcrypt/settings.h>
 
 #ifndef NO_HMAC
+
+#include <wolfssl/wolfcrypt/hmac.h>
 
 #ifdef __cplusplus
     extern "C" {
@@ -67,7 +69,7 @@ int wc_HmacFinal(Hmac* hmac, byte* out)
 
 int wc_wolfSSL_GetHmacMaxSize(void)
 {
-    return CyaSSL_GetHmacMaxSize(void);
+    return CyaSSL_GetHmacMaxSize();
 }
 
 #ifdef HAVE_HKDF

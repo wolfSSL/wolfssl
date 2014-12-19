@@ -35,7 +35,7 @@
     #define FIPS_NO_WRAPPERS
 #endif
 
-#include <cyassl/ctaocrypt/random.h>
+#include <wolfssl/wolfcrypt/random.h>
 #include <cyassl/ctaocrypt/error-crypt.h>
 
 #ifdef __cplusplus
