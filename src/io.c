@@ -20,7 +20,7 @@
  */
 
 /* Name change compatibility layer */
-#include <wolfssl/ssl.h>
+#include <cyassl/ssl.h>
 
 #ifdef HAVE_CONFIG_H
     #include <config.h>

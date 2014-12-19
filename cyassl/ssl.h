@@ -27,7 +27,6 @@
 
 #ifndef WOLFSSL_CYASSL_H_
 #define WOLFSSL_CYASSL_H_
-
 /*
  * Name change
  * include the new ssl.h
@@ -83,6 +82,9 @@
 
 /* cyassl/test.h */
 #define CYASSL_THREAD WOLFSSL_THREAD
+
+/* wolfcrypt/src/error.c */
+#define WOLFSSL_MAX_ERROR_SZ CYASSL_MAX_ERROR_SZ
 
 /* src/ssl.c */
 #define CYASSL_CLIENT_END                WOLFSSL_CLIENT_END
@@ -148,8 +150,6 @@
 
 /* keys.c */
 #define cyassl_triple_des wolfssl_triple_des
-
-
 
 
 
