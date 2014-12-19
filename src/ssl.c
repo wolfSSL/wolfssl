@@ -7568,7 +7568,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             if (ctx->keyLen == 0)  /* user may have already set */
                 ctx->keyLen = 16;  /* default to 128 */
             if (key)
-                Arc4SetKey(&ctx->cipher.arc4, key, ctx->keyLen);
+                wc_Arc4SetKey(&ctx->cipher.arc4, key, ctx->keyLen);
         }
         else if (ctx->cipherType == NULL_CIPHER_TYPE || (type &&
                                      XSTRNCMP(type, "NULL", 4) == 0)) {
