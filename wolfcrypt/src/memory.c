@@ -25,12 +25,13 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 
-#ifdef USE_CYASSL_MEMORY
+//#ifdef USE_WOLFSSL_MEMORY
+//@TODO
 
 #include <wolfssl/wolfcrypt/memory.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 
-#ifdef CYASSL_MALLOC_CHECK
+#ifdef WOLFSSL_MALLOC_CHECK
     #include <stdio.h>
 #endif
 
@@ -39,9 +40,9 @@ static wolfSSL_Malloc_cb  malloc_function = 0;
 static wolfSSL_Free_cb    free_function = 0;
 static wolfSSL_Realloc_cb realloc_function = 0;
 
-int wolfSSL_SetAllocators(CyaSSL_Malloc_cb  mf,
-                         wolfSSL_Free_cb    ff,
-                         wolfSSL_Realloc_cb rf)
+int wolfSSL_SetAllocators(wolfSSL_Malloc_cb  mf,
+                          wolfSSL_Free_cb    ff,
+                          wolfSSL_Realloc_cb rf)
 {
     int res = 0;
 
@@ -101,7 +102,7 @@ void* wolfSSL_Realloc(void *ptr, size_t size)
     return res;
 }
 
-#endif /* USE_CYASSL_MEMORY */
+//#endif /* USE_WOLFSSL_MEMORY */
 
 
 #ifdef HAVE_IO_POOL
@@ -122,7 +123,7 @@ static THREAD_LS_T byte pool_in[17*1024];
 static THREAD_LS_T byte pool_out[17*1024];
 
 
-void* XMALLOC(size_t n, void* heap, int type)
+void* wc_MALLOC(size_t n, void* heap, int type)
 {
     (void)heap;
 
@@ -143,7 +144,7 @@ void* XMALLOC(size_t n, void* heap, int type)
     return malloc(n);
 }
 
-void* XREALLOC(void *p, size_t n, void* heap, int type)
+void* wc_REALLOC(void *p, size_t n, void* heap, int type)
 {
     (void)heap;
 
@@ -166,7 +167,7 @@ void* XREALLOC(void *p, size_t n, void* heap, int type)
 
 
 /* unit api calls, let's make sure visisble with CYASSL_API */
-CYASSL_API void XFREE(void *p, void* heap, int type)
+WOLFSSL_API void wc_FREE(void *p, void* heap, int type)
 {
     (void)heap;
 
