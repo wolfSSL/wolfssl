@@ -2,14 +2,14 @@
  *
  * Copyright (C) 2006-2014 wolfSSL Inc.
  *
- * This file is part of CyaSSL.
+ * This file is part of wolfSSL. (formerly known as CyaSSL)
  *
- * CyaSSL is free software; you can redistribute it and/or modify
+ * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  *
- * CyaSSL is distributed in the hope that it will be useful,
+ * wolfSSL is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
@@ -20,16 +20,16 @@
  */
 
 /* Name change compatibility layer */
-#include <cyassl/ssl.h>
+#include <wolfssl/ssl.h>
 
 #ifdef HAVE_CONFIG_H
     #include <config.h>
 #endif
 
-#include <cyassl/ctaocrypt/settings.h>
+#include <wolfssl/wolfcrypt/settings.h>
 
-#include <cyassl/internal.h>
-#include <cyassl/error-ssl.h>
+#include <wolfssl/internal.h>
+#include <wolfssl/error-ssl.h>
 #if defined(SHOW_SECRETS) || defined(CHACHA_AEAD_TEST)
     #ifdef FREESCALE_MQX
         #include <fio.h>
@@ -39,17 +39,17 @@
 #endif
 
 
-int SetCipherSpecs(CYASSL* ssl)
+int SetCipherSpecs(WOLFSSL* ssl)
 {
-#ifndef NO_CYASSL_CLIENT
-    if (ssl->options.side == CYASSL_CLIENT_END) {
+#ifndef NO_WOLFSSL_CLIENT
+    if (ssl->options.side == WOLFSSL_CLIENT_END) {
         /* server side verified before SetCipherSpecs call */
         if (VerifyClientSuite(ssl) != 1) {
-            CYASSL_MSG("SetCipherSpecs() client has an unusuable suite");
+            WOLFSSL_MSG("SetCipherSpecs() client has an unusuable suite");
             return UNSUPPORTED_SUITE;
         }
     }
-#endif /* NO_CYASSL_CLIENT */
+#endif /* NO_WOLFSSL_CLIENT */
 
     /* Chacha extensions, 0xcc */
     if (ssl->options.cipherSuite0 == CHACHA_BYTE) {
@@ -57,7 +57,7 @@ int SetCipherSpecs(CYASSL* ssl)
     switch (ssl->options.cipherSuite) {
 #ifdef BUILD_TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256
     case TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256:
-        ssl->specs.bulk_cipher_algorithm = cyassl_chacha;
+        ssl->specs.bulk_cipher_algorithm = wolfssl_chacha;
         ssl->specs.cipher_type           = aead;
         ssl->specs.mac_algorithm         = sha256_mac;
         ssl->specs.kea                   = ecc_diffie_hellman_kea;
@@ -75,7 +75,7 @@ int SetCipherSpecs(CYASSL* ssl)
 
 #ifdef BUILD_TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256
     case TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256:
-        ssl->specs.bulk_cipher_algorithm = cyassl_chacha;
+        ssl->specs.bulk_cipher_algorithm = wolfssl_chacha;
         ssl->specs.cipher_type           = aead;
         ssl->specs.mac_algorithm         = sha256_mac;
         ssl->specs.kea                   = ecc_diffie_hellman_kea;
@@ -93,7 +93,7 @@ int SetCipherSpecs(CYASSL* ssl)
 
 #ifdef BUILD_TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256
     case TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256:
-        ssl->specs.bulk_cipher_algorithm = cyassl_chacha;
+        ssl->specs.bulk_cipher_algorithm = wolfssl_chacha;
         ssl->specs.cipher_type           = aead;
         ssl->specs.mac_algorithm         = sha256_mac;
         ssl->specs.kea                   = diffie_hellman_kea;
@@ -109,7 +109,7 @@ int SetCipherSpecs(CYASSL* ssl)
         break;
 #endif
     default:
-        CYASSL_MSG("Unsupported cipher suite, SetCipherSpecs ChaCha");
+        WOLFSSL_MSG("Unsupported cipher suite, SetCipherSpecs ChaCha");
         return UNSUPPORTED_SUITE;
     }
     }
@@ -123,7 +123,7 @@ int SetCipherSpecs(CYASSL* ssl)
 
 #ifdef BUILD_TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256
     case TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256 :
-        ssl->specs.bulk_cipher_algorithm = cyassl_aes;
+        ssl->specs.bulk_cipher_algorithm = wolfssl_aes;
         ssl->specs.cipher_type           = block;
         ssl->specs.mac_algorithm         = sha256_mac;
         ssl->specs.kea                   = ecc_diffie_hellman_kea;
@@ -139,7 +139,7 @@ int SetCipherSpecs(CYASSL* ssl)
 
 #ifdef BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256
     case TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256 :
-        ssl->specs.bulk_cipher_algorithm = cyassl_aes;
+        ssl->specs.bulk_cipher_algorithm = wolfssl_aes;
         ssl->specs.cipher_type           = block;
         ssl->specs.mac_algorithm         = sha256_mac;
         ssl->specs.kea                   = ecc_diffie_hellman_kea;
@@ -155,7 +155,7 @@ int SetCipherSpecs(CYASSL* ssl)
 
 #ifdef BUILD_TLS_ECDH_RSA_WITH_AES_128_CBC_SHA256
     case TLS_ECDH_RSA_WITH_AES_128_CBC_SHA256 :
-        ssl->specs.bulk_cipher_algorithm = cyassl_aes;
+        ssl->specs.bulk_cipher_algorithm = wolfssl_aes;
         ssl->specs.cipher_type           = block;
         ssl->specs.mac_algorithm         = sha256_mac;
         ssl->specs.kea                   = ecc_diffie_hellman_kea;
@@ -171,7 +171,7 @@ int SetCipherSpecs(CYASSL* ssl)
 
 #ifdef BUILD_TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA256
     case TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA256 :
-        ssl->specs.bulk_cipher_algorithm = cyassl_aes;
+        ssl->specs.bulk_cipher_algorithm = wolfssl_aes;
         ssl->specs.cipher_type           = block;
         ssl->specs.mac_algorithm         = sha256_mac;
         ssl->specs.kea                   = ecc_diffie_hellman_kea;
@@ -187,7 +187,7 @@ int SetCipherSpecs(CYASSL* ssl)
 
 #ifdef BUILD_TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384
     case TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384 :
-        ssl->specs.bulk_cipher_algorithm = cyassl_aes;
+        ssl->specs.bulk_cipher_algorithm = wolfssl_aes;
         ssl->specs.cipher_type           = block;
         ssl->specs.mac_algorithm         = sha384_mac;
         ssl->specs.kea                   = ecc_diffie_hellman_kea;
@@ -203,7 +203,7 @@ int SetCipherSpecs(CYASSL* ssl)
 
 #ifdef BUILD_TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384
     case TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384 :
-        ssl->specs.bulk_cipher_algorithm = cyassl_aes;
+        ssl->specs.bulk_cipher_algorithm = wolfssl_aes;
         ssl->specs.cipher_type           = block;
         ssl->specs.mac_algorithm         = sha384_mac;
         ssl->specs.kea                   = ecc_diffie_hellman_kea;
@@ -219,7 +219,7 @@ int SetCipherSpecs(CYASSL* ssl)
 
 #ifdef BUILD_TLS_ECDH_RSA_WITH_AES_256_CBC_SHA384
     case TLS_ECDH_RSA_WITH_AES_256_CBC_SHA384 :
-        ssl->specs.bulk_cipher_algorithm = cyassl_aes;
+        ssl->specs.bulk_cipher_algorithm = wolfssl_aes;
         ssl->specs.cipher_type           = block;
         ssl->specs.mac_algorithm         = sha384_mac;
         ssl->specs.kea                   = ecc_diffie_hellman_kea;
@@ -235,7 +235,7 @@ int SetCipherSpecs(CYASSL* ssl)
 
 #ifdef BUILD_TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA384
     case TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA384 :
-        ssl->specs.bulk_cipher_algorithm = cyassl_aes;
+        ssl->specs.bulk_cipher_algorithm = wolfssl_aes;
         ssl->specs.cipher_type           = block;
         ssl->specs.mac_algorithm         = sha384_mac;
         ssl->specs.kea                   = ecc_diffie_hellman_kea;
@@ -251,7 +251,7 @@ int SetCipherSpecs(CYASSL* ssl)
 
 #ifdef BUILD_TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA
     case TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA :
-        ssl->specs.bulk_cipher_algorithm = cyassl_aes;
+        ssl->specs.bulk_cipher_algorithm = wolfssl_aes;
         ssl->specs.cipher_type           = block;
         ssl->specs.mac_algorithm         = sha_mac;
         ssl->specs.kea                   = ecc_diffie_hellman_kea;
@@ -268,7 +268,7 @@ int SetCipherSpecs(CYASSL* ssl)
 
 #ifdef BUILD_TLS_ECDH_RSA_WITH_AES_128_CBC_SHA
     case TLS_ECDH_RSA_WITH_AES_128_CBC_SHA :
-        ssl->specs.bulk_cipher_algorithm = cyassl_aes;
+        ssl->specs.bulk_cipher_algorithm = wolfssl_aes;
         ssl->specs.cipher_type           = block;
         ssl->specs.mac_algorithm         = sha_mac;
         ssl->specs.kea                   = ecc_diffie_hellman_kea;
@@ -285,7 +285,7 @@ int SetCipherSpecs(CYASSL* ssl)
 
 #ifdef BUILD_TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA
     case TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA :
-        ssl->specs.bulk_cipher_algorithm = cyassl_triple_des;
+        ssl->specs.bulk_cipher_algorithm = wolfssl_triple_des;
         ssl->specs.cipher_type           = block;
         ssl->specs.mac_algorithm         = sha_mac;
         ssl->specs.kea                   = ecc_diffie_hellman_kea;
@@ -302,7 +302,7 @@ int SetCipherSpecs(CYASSL* ssl)
 
 #ifdef BUILD_TLS_ECDH_RSA_WITH_3DES_EDE_CBC_SHA
     case TLS_ECDH_RSA_WITH_3DES_EDE_CBC_SHA :
-        ssl->specs.bulk_cipher_algorithm = cyassl_triple_des;
+        ssl->specs.bulk_cipher_algorithm = wolfssl_triple_des;
         ssl->specs.cipher_type           = block;
         ssl->specs.mac_algorithm         = sha_mac;
         ssl->specs.kea                   = ecc_diffie_hellman_kea;
@@ -319,7 +319,7 @@ int SetCipherSpecs(CYASSL* ssl)
 
 #ifdef BUILD_TLS_ECDHE_RSA_WITH_RC4_128_SHA
     case TLS_ECDHE_RSA_WITH_RC4_128_SHA :
-        ssl->specs.bulk_cipher_algorithm = cyassl_rc4;
+        ssl->specs.bulk_cipher_algorithm = wolfssl_rc4;
         ssl->specs.cipher_type           = stream;
         ssl->specs.mac_algorithm         = sha_mac;
         ssl->specs.kea                   = ecc_diffie_hellman_kea;
@@ -336,7 +336,7 @@ int SetCipherSpecs(CYASSL* ssl)
 
 #ifdef BUILD_TLS_ECDH_RSA_WITH_RC4_128_SHA
     case TLS_ECDH_RSA_WITH_RC4_128_SHA :
-        ssl->specs.bulk_cipher_algorithm = cyassl_rc4;
+        ssl->specs.bulk_cipher_algorithm = wolfssl_rc4;
         ssl->specs.cipher_type           = stream;
         ssl->specs.mac_algorithm         = sha_mac;
         ssl->specs.kea                   = ecc_diffie_hellman_kea;
@@ -353,7 +353,7 @@ int SetCipherSpecs(CYASSL* ssl)
 
 #ifdef BUILD_TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA
     case TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA :
-        ssl->specs.bulk_cipher_algorithm = cyassl_triple_des;
+        ssl->specs.bulk_cipher_algorithm = wolfssl_triple_des;
         ssl->specs.cipher_type           = block;
         ssl->specs.mac_algorithm         = sha_mac;
         ssl->specs.kea                   = ecc_diffie_hellman_kea;
@@ -370,7 +370,7 @@ int SetCipherSpecs(CYASSL* ssl)
 
 #ifdef BUILD_TLS_ECDH_ECDSA_WITH_3DES_EDE_CBC_SHA
     case TLS_ECDH_ECDSA_WITH_3DES_EDE_CBC_SHA :
-        ssl->specs.bulk_cipher_algorithm = cyassl_triple_des;
+        ssl->specs.bulk_cipher_algorithm = wolfssl_triple_des;
         ssl->specs.cipher_type           = block;
         ssl->specs.mac_algorithm         = sha_mac;
         ssl->specs.kea                   = ecc_diffie_hellman_kea;
@@ -387,7 +387,7 @@ int SetCipherSpecs(CYASSL* ssl)
 
 #ifdef BUILD_TLS_ECDHE_ECDSA_WITH_RC4_128_SHA
     case TLS_ECDHE_ECDSA_WITH_RC4_128_SHA :
-        ssl->specs.bulk_cipher_algorithm = cyassl_rc4;
+        ssl->specs.bulk_cipher_algorithm = wolfssl_rc4;
         ssl->specs.cipher_type           = stream;
         ssl->specs.mac_algorithm         = sha_mac;
         ssl->specs.kea                   = ecc_diffie_hellman_kea;
@@ -404,7 +404,7 @@ int SetCipherSpecs(CYASSL* ssl)
 
 #ifdef BUILD_TLS_ECDH_ECDSA_WITH_RC4_128_SHA
     case TLS_ECDH_ECDSA_WITH_RC4_128_SHA :
-        ssl->specs.bulk_cipher_algorithm = cyassl_rc4;
+        ssl->specs.bulk_cipher_algorithm = wolfssl_rc4;
         ssl->specs.cipher_type           = stream;
         ssl->specs.mac_algorithm         = sha_mac;
         ssl->specs.kea                   = ecc_diffie_hellman_kea;
@@ -421,7 +421,7 @@ int SetCipherSpecs(CYASSL* ssl)
 
 #ifdef BUILD_TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA
     case TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA :
-        ssl->specs.bulk_cipher_algorithm = cyassl_aes;
+        ssl->specs.bulk_cipher_algorithm = wolfssl_aes;
         ssl->specs.cipher_type           = block;
         ssl->specs.mac_algorithm         = sha_mac;
         ssl->specs.kea                   = ecc_diffie_hellman_kea;
@@ -438,7 +438,7 @@ int SetCipherSpecs(CYASSL* ssl)
 
 #ifdef BUILD_TLS_ECDH_RSA_WITH_AES_256_CBC_SHA
     case TLS_ECDH_RSA_WITH_AES_256_CBC_SHA :
-        ssl->specs.bulk_cipher_algorithm = cyassl_aes;
+        ssl->specs.bulk_cipher_algorithm = wolfssl_aes;
         ssl->specs.cipher_type           = block;
         ssl->specs.mac_algorithm         = sha_mac;
         ssl->specs.kea                   = ecc_diffie_hellman_kea;
@@ -455,7 +455,7 @@ int SetCipherSpecs(CYASSL* ssl)
 
 #ifdef BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA
     case TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA :
-        ssl->specs.bulk_cipher_algorithm = cyassl_aes;
+        ssl->specs.bulk_cipher_algorithm = wolfssl_aes;
         ssl->specs.cipher_type           = block;
         ssl->specs.mac_algorithm         = sha_mac;
         ssl->specs.kea                   = ecc_diffie_hellman_kea;
@@ -472,7 +472,7 @@ int SetCipherSpecs(CYASSL* ssl)
 
 #ifdef BUILD_TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA
     case TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA :
-        ssl->specs.bulk_cipher_algorithm = cyassl_aes;
+        ssl->specs.bulk_cipher_algorithm = wolfssl_aes;
         ssl->specs.cipher_type           = block;
         ssl->specs.mac_algorithm         = sha_mac;
         ssl->specs.kea                   = ecc_diffie_hellman_kea;
@@ -489,7 +489,7 @@ int SetCipherSpecs(CYASSL* ssl)
 
 #ifdef BUILD_TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA
     case TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA :
-        ssl->specs.bulk_cipher_algorithm = cyassl_aes;
+        ssl->specs.bulk_cipher_algorithm = wolfssl_aes;
         ssl->specs.cipher_type           = block;
         ssl->specs.mac_algorithm         = sha_mac;
         ssl->specs.kea                   = ecc_diffie_hellman_kea;
@@ -506,7 +506,7 @@ int SetCipherSpecs(CYASSL* ssl)
 
 #ifdef BUILD_TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA
     case TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA :
-        ssl->specs.bulk_cipher_algorithm = cyassl_aes;
+        ssl->specs.bulk_cipher_algorithm = wolfssl_aes;
         ssl->specs.cipher_type           = block;
         ssl->specs.mac_algorithm         = sha_mac;
         ssl->specs.kea                   = ecc_diffie_hellman_kea;
@@ -523,7 +523,7 @@ int SetCipherSpecs(CYASSL* ssl)
 
 #ifdef BUILD_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
     case TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256 :
-        ssl->specs.bulk_cipher_algorithm = cyassl_aes_gcm;
+        ssl->specs.bulk_cipher_algorithm = wolfssl_aes_gcm;
         ssl->specs.cipher_type           = aead;
         ssl->specs.mac_algorithm         = sha256_mac;
         ssl->specs.kea                   = ecc_diffie_hellman_kea;
@@ -541,7 +541,7 @@ int SetCipherSpecs(CYASSL* ssl)
 
 #ifdef BUILD_TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
     case TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384 :
-        ssl->specs.bulk_cipher_algorithm = cyassl_aes_gcm;
+        ssl->specs.bulk_cipher_algorithm = wolfssl_aes_gcm;
         ssl->specs.cipher_type           = aead;
         ssl->specs.mac_algorithm         = sha384_mac;
         ssl->specs.kea                   = ecc_diffie_hellman_kea;
@@ -559,7 +559,7 @@ int SetCipherSpecs(CYASSL* ssl)
 
 #ifdef BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256
     case TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256 :
-        ssl->specs.bulk_cipher_algorithm = cyassl_aes_gcm;
+        ssl->specs.bulk_cipher_algorithm = wolfssl_aes_gcm;
         ssl->specs.cipher_type           = aead;
         ssl->specs.mac_algorithm         = sha256_mac;
         ssl->specs.kea                   = ecc_diffie_hellman_kea;
@@ -577,7 +577,7 @@ int SetCipherSpecs(CYASSL* ssl)
 
 #ifdef BUILD_TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384
     case TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384 :
-        ssl->specs.bulk_cipher_algorithm = cyassl_aes_gcm;
+        ssl->specs.bulk_cipher_algorithm = wolfssl_aes_gcm;
         ssl->specs.cipher_type           = aead;
         ssl->specs.mac_algorithm         = sha384_mac;
         ssl->specs.kea                   = ecc_diffie_hellman_kea;
@@ -595,7 +595,7 @@ int SetCipherSpecs(CYASSL* ssl)
 
 #ifdef BUILD_TLS_ECDH_RSA_WITH_AES_128_GCM_SHA256
     case TLS_ECDH_RSA_WITH_AES_128_GCM_SHA256 :
-        ssl->specs.bulk_cipher_algorithm = cyassl_aes_gcm;
+        ssl->specs.bulk_cipher_algorithm = wolfssl_aes_gcm;
         ssl->specs.cipher_type           = aead;
         ssl->specs.mac_algorithm         = sha256_mac;
         ssl->specs.kea                   = ecc_diffie_hellman_kea;
@@ -613,7 +613,7 @@ int SetCipherSpecs(CYASSL* ssl)
 
 #ifdef BUILD_TLS_ECDH_RSA_WITH_AES_256_GCM_SHA384
     case TLS_ECDH_RSA_WITH_AES_256_GCM_SHA384 :
-        ssl->specs.bulk_cipher_algorithm = cyassl_aes_gcm;
+        ssl->specs.bulk_cipher_algorithm = wolfssl_aes_gcm;
         ssl->specs.cipher_type           = aead;
         ssl->specs.mac_algorithm         = sha384_mac;
         ssl->specs.kea                   = ecc_diffie_hellman_kea;
@@ -631,7 +631,7 @@ int SetCipherSpecs(CYASSL* ssl)
 
 #ifdef BUILD_TLS_ECDH_ECDSA_WITH_AES_128_GCM_SHA256
     case TLS_ECDH_ECDSA_WITH_AES_128_GCM_SHA256 :
-        ssl->specs.bulk_cipher_algorithm = cyassl_aes_gcm;
+        ssl->specs.bulk_cipher_algorithm = wolfssl_aes_gcm;
         ssl->specs.cipher_type           = aead;
         ssl->specs.mac_algorithm         = sha256_mac;
         ssl->specs.kea                   = ecc_diffie_hellman_kea;
@@ -649,7 +649,7 @@ int SetCipherSpecs(CYASSL* ssl)
 
 #ifdef BUILD_TLS_ECDH_ECDSA_WITH_AES_256_GCM_SHA384
     case TLS_ECDH_ECDSA_WITH_AES_256_GCM_SHA384 :
-        ssl->specs.bulk_cipher_algorithm = cyassl_aes_gcm;
+        ssl->specs.bulk_cipher_algorithm = wolfssl_aes_gcm;
         ssl->specs.cipher_type           = aead;
         ssl->specs.mac_algorithm         = sha384_mac;
         ssl->specs.kea                   = ecc_diffie_hellman_kea;
@@ -667,7 +667,7 @@ int SetCipherSpecs(CYASSL* ssl)
 
 #ifdef BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8
     case TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8 :
-        ssl->specs.bulk_cipher_algorithm = cyassl_aes_ccm;
+        ssl->specs.bulk_cipher_algorithm = wolfssl_aes_ccm;
         ssl->specs.cipher_type           = aead;
         ssl->specs.mac_algorithm         = sha256_mac;
         ssl->specs.kea                   = ecc_diffie_hellman_kea;
@@ -685,7 +685,7 @@ int SetCipherSpecs(CYASSL* ssl)
 
 #ifdef BUILD_TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8
     case TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8 :
-        ssl->specs.bulk_cipher_algorithm = cyassl_aes_ccm;
+        ssl->specs.bulk_cipher_algorithm = wolfssl_aes_ccm;
         ssl->specs.cipher_type           = aead;
         ssl->specs.mac_algorithm         = sha256_mac;
         ssl->specs.kea                   = ecc_diffie_hellman_kea;
@@ -704,7 +704,7 @@ int SetCipherSpecs(CYASSL* ssl)
 
 #ifdef BUILD_TLS_RSA_WITH_AES_128_CCM_8
     case TLS_RSA_WITH_AES_128_CCM_8 :
-        ssl->specs.bulk_cipher_algorithm = cyassl_aes_ccm;
+        ssl->specs.bulk_cipher_algorithm = wolfssl_aes_ccm;
         ssl->specs.cipher_type           = aead;
         ssl->specs.mac_algorithm         = sha256_mac;
         ssl->specs.kea                   = rsa_kea;
@@ -722,7 +722,7 @@ int SetCipherSpecs(CYASSL* ssl)
 
 #ifdef BUILD_TLS_RSA_WITH_AES_256_CCM_8
     case TLS_RSA_WITH_AES_256_CCM_8 :
-        ssl->specs.bulk_cipher_algorithm = cyassl_aes_ccm;
+        ssl->specs.bulk_cipher_algorithm = wolfssl_aes_ccm;
         ssl->specs.cipher_type           = aead;
         ssl->specs.mac_algorithm         = sha256_mac;
         ssl->specs.kea                   = rsa_kea;
@@ -740,7 +740,7 @@ int SetCipherSpecs(CYASSL* ssl)
 
 #ifdef BUILD_TLS_PSK_WITH_AES_128_CCM_8
     case TLS_PSK_WITH_AES_128_CCM_8 :
-        ssl->specs.bulk_cipher_algorithm = cyassl_aes_ccm;
+        ssl->specs.bulk_cipher_algorithm = wolfssl_aes_ccm;
         ssl->specs.cipher_type           = aead;
         ssl->specs.mac_algorithm         = sha256_mac;
         ssl->specs.kea                   = psk_kea;
@@ -759,7 +759,7 @@ int SetCipherSpecs(CYASSL* ssl)
 
 #ifdef BUILD_TLS_PSK_WITH_AES_256_CCM_8
     case TLS_PSK_WITH_AES_256_CCM_8 :
-        ssl->specs.bulk_cipher_algorithm = cyassl_aes_ccm;
+        ssl->specs.bulk_cipher_algorithm = wolfssl_aes_ccm;
         ssl->specs.cipher_type           = aead;
         ssl->specs.mac_algorithm         = sha256_mac;
         ssl->specs.kea                   = psk_kea;
@@ -778,7 +778,7 @@ int SetCipherSpecs(CYASSL* ssl)
 
 #ifdef BUILD_TLS_PSK_WITH_AES_128_CCM
     case TLS_PSK_WITH_AES_128_CCM :
-        ssl->specs.bulk_cipher_algorithm = cyassl_aes_ccm;
+        ssl->specs.bulk_cipher_algorithm = wolfssl_aes_ccm;
         ssl->specs.cipher_type           = aead;
         ssl->specs.mac_algorithm         = sha256_mac;
         ssl->specs.kea                   = psk_kea;
@@ -797,7 +797,7 @@ int SetCipherSpecs(CYASSL* ssl)
 
 #ifdef BUILD_TLS_PSK_WITH_AES_256_CCM
     case TLS_PSK_WITH_AES_256_CCM :
-        ssl->specs.bulk_cipher_algorithm = cyassl_aes_ccm;
+        ssl->specs.bulk_cipher_algorithm = wolfssl_aes_ccm;
         ssl->specs.cipher_type           = aead;
         ssl->specs.mac_algorithm         = sha256_mac;
         ssl->specs.kea                   = psk_kea;
@@ -816,7 +816,7 @@ int SetCipherSpecs(CYASSL* ssl)
 
 #ifdef BUILD_TLS_DHE_PSK_WITH_AES_128_CCM
     case TLS_DHE_PSK_WITH_AES_128_CCM :
-        ssl->specs.bulk_cipher_algorithm = cyassl_aes_ccm;
+        ssl->specs.bulk_cipher_algorithm = wolfssl_aes_ccm;
         ssl->specs.cipher_type           = aead;
         ssl->specs.mac_algorithm         = sha256_mac;
         ssl->specs.kea                   = dhe_psk_kea;
@@ -835,7 +835,7 @@ int SetCipherSpecs(CYASSL* ssl)
 
 #ifdef BUILD_TLS_DHE_PSK_WITH_AES_256_CCM
     case TLS_DHE_PSK_WITH_AES_256_CCM :
-        ssl->specs.bulk_cipher_algorithm = cyassl_aes_ccm;
+        ssl->specs.bulk_cipher_algorithm = wolfssl_aes_ccm;
         ssl->specs.cipher_type           = aead;
         ssl->specs.mac_algorithm         = sha256_mac;
         ssl->specs.kea                   = dhe_psk_kea;
@@ -853,7 +853,7 @@ int SetCipherSpecs(CYASSL* ssl)
 #endif
 
     default:
-        CYASSL_MSG("Unsupported cipher suite, SetCipherSpecs ECC");
+        WOLFSSL_MSG("Unsupported cipher suite, SetCipherSpecs ECC");
         return UNSUPPORTED_SUITE;
     }   /* switch */
     }   /* if     */
@@ -863,7 +863,7 @@ int SetCipherSpecs(CYASSL* ssl)
 
 #ifdef BUILD_SSL_RSA_WITH_RC4_128_SHA
     case SSL_RSA_WITH_RC4_128_SHA :
-        ssl->specs.bulk_cipher_algorithm = cyassl_rc4;
+        ssl->specs.bulk_cipher_algorithm = wolfssl_rc4;
         ssl->specs.cipher_type           = stream;
         ssl->specs.mac_algorithm         = sha_mac;
         ssl->specs.kea                   = rsa_kea;
@@ -880,7 +880,7 @@ int SetCipherSpecs(CYASSL* ssl)
 
 #ifdef BUILD_TLS_NTRU_RSA_WITH_RC4_128_SHA
     case TLS_NTRU_RSA_WITH_RC4_128_SHA :
-        ssl->specs.bulk_cipher_algorithm = cyassl_rc4;
+        ssl->specs.bulk_cipher_algorithm = wolfssl_rc4;
         ssl->specs.cipher_type           = stream;
         ssl->specs.mac_algorithm         = sha_mac;
         ssl->specs.kea                   = ntru_kea;
@@ -897,7 +897,7 @@ int SetCipherSpecs(CYASSL* ssl)
 
 #ifdef BUILD_SSL_RSA_WITH_RC4_128_MD5
     case SSL_RSA_WITH_RC4_128_MD5 :
-        ssl->specs.bulk_cipher_algorithm = cyassl_rc4;
+        ssl->specs.bulk_cipher_algorithm = wolfssl_rc4;
         ssl->specs.cipher_type           = stream;
         ssl->specs.mac_algorithm         = md5_mac;
         ssl->specs.kea                   = rsa_kea;
@@ -914,7 +914,7 @@ int SetCipherSpecs(CYASSL* ssl)
 
 #ifdef BUILD_SSL_RSA_WITH_3DES_EDE_CBC_SHA
     case SSL_RSA_WITH_3DES_EDE_CBC_SHA :
-        ssl->specs.bulk_cipher_algorithm = cyassl_triple_des;
+        ssl->specs.bulk_cipher_algorithm = wolfssl_triple_des;
         ssl->specs.cipher_type           = block;
         ssl->specs.mac_algorithm         = sha_mac;
         ssl->specs.kea                   = rsa_kea;
@@ -931,7 +931,7 @@ int SetCipherSpecs(CYASSL* ssl)
 
 #ifdef BUILD_TLS_NTRU_RSA_WITH_3DES_EDE_CBC_SHA
     case TLS_NTRU_RSA_WITH_3DES_EDE_CBC_SHA :
-        ssl->specs.bulk_cipher_algorithm = cyassl_triple_des;
+        ssl->specs.bulk_cipher_algorithm = wolfssl_triple_des;
         ssl->specs.cipher_type           = block;
         ssl->specs.mac_algorithm         = sha_mac;
         ssl->specs.kea                   = ntru_kea;
@@ -948,7 +948,7 @@ int SetCipherSpecs(CYASSL* ssl)
 
 #ifdef BUILD_TLS_RSA_WITH_AES_128_CBC_SHA
     case TLS_RSA_WITH_AES_128_CBC_SHA :
-        ssl->specs.bulk_cipher_algorithm = cyassl_aes;
+        ssl->specs.bulk_cipher_algorithm = wolfssl_aes;
         ssl->specs.cipher_type           = block;
         ssl->specs.mac_algorithm         = sha_mac;
         ssl->specs.kea                   = rsa_kea;
@@ -965,7 +965,7 @@ int SetCipherSpecs(CYASSL* ssl)
 
 #ifdef BUILD_TLS_RSA_WITH_AES_128_CBC_SHA256
     case TLS_RSA_WITH_AES_128_CBC_SHA256 :
-        ssl->specs.bulk_cipher_algorithm = cyassl_aes;
+        ssl->specs.bulk_cipher_algorithm = wolfssl_aes;
         ssl->specs.cipher_type           = block;
         ssl->specs.mac_algorithm         = sha256_mac;
         ssl->specs.kea                   = rsa_kea;
@@ -982,7 +982,7 @@ int SetCipherSpecs(CYASSL* ssl)
 
 #ifdef BUILD_TLS_RSA_WITH_NULL_SHA
     case TLS_RSA_WITH_NULL_SHA :
-        ssl->specs.bulk_cipher_algorithm = cyassl_cipher_null;
+        ssl->specs.bulk_cipher_algorithm = wolfssl_cipher_null;
         ssl->specs.cipher_type           = stream;
         ssl->specs.mac_algorithm         = sha_mac;
         ssl->specs.kea                   = rsa_kea;
@@ -999,7 +999,7 @@ int SetCipherSpecs(CYASSL* ssl)
 
 #ifdef BUILD_TLS_RSA_WITH_NULL_SHA256
     case TLS_RSA_WITH_NULL_SHA256 :
-        ssl->specs.bulk_cipher_algorithm = cyassl_cipher_null;
+        ssl->specs.bulk_cipher_algorithm = wolfssl_cipher_null;
         ssl->specs.cipher_type           = stream;
         ssl->specs.mac_algorithm         = sha256_mac;
         ssl->specs.kea                   = rsa_kea;
@@ -1016,7 +1016,7 @@ int SetCipherSpecs(CYASSL* ssl)
 
 #ifdef BUILD_TLS_NTRU_RSA_WITH_AES_128_CBC_SHA
     case TLS_NTRU_RSA_WITH_AES_128_CBC_SHA :
-        ssl->specs.bulk_cipher_algorithm = cyassl_aes;
+        ssl->specs.bulk_cipher_algorithm = wolfssl_aes;
         ssl->specs.cipher_type           = block;
         ssl->specs.mac_algorithm         = sha_mac;
         ssl->specs.kea                   = ntru_kea;
@@ -1033,7 +1033,7 @@ int SetCipherSpecs(CYASSL* ssl)
 
 #ifdef BUILD_TLS_RSA_WITH_AES_256_CBC_SHA
     case TLS_RSA_WITH_AES_256_CBC_SHA :
-        ssl->specs.bulk_cipher_algorithm = cyassl_aes;
+        ssl->specs.bulk_cipher_algorithm = wolfssl_aes;
         ssl->specs.cipher_type           = block;
         ssl->specs.mac_algorithm         = sha_mac;
         ssl->specs.kea                   = rsa_kea;
@@ -1050,7 +1050,7 @@ int SetCipherSpecs(CYASSL* ssl)
 
 #ifdef BUILD_TLS_RSA_WITH_AES_256_CBC_SHA256
     case TLS_RSA_WITH_AES_256_CBC_SHA256 :
-        ssl->specs.bulk_cipher_algorithm = cyassl_aes;
+        ssl->specs.bulk_cipher_algorithm = wolfssl_aes;
         ssl->specs.cipher_type           = block;
         ssl->specs.mac_algorithm         = sha256_mac;
         ssl->specs.kea                   = rsa_kea;
@@ -1067,7 +1067,7 @@ int SetCipherSpecs(CYASSL* ssl)
 
 #ifdef BUILD_TLS_NTRU_RSA_WITH_AES_256_CBC_SHA
     case TLS_NTRU_RSA_WITH_AES_256_CBC_SHA :
-        ssl->specs.bulk_cipher_algorithm = cyassl_aes;
+        ssl->specs.bulk_cipher_algorithm = wolfssl_aes;
         ssl->specs.cipher_type           = block;
         ssl->specs.mac_algorithm         = sha_mac;
         ssl->specs.kea                   = ntru_kea;
@@ -1084,7 +1084,7 @@ int SetCipherSpecs(CYASSL* ssl)
 
 #ifdef BUILD_TLS_PSK_WITH_AES_128_GCM_SHA256
     case TLS_PSK_WITH_AES_128_GCM_SHA256 :
-        ssl->specs.bulk_cipher_algorithm = cyassl_aes_gcm;
+        ssl->specs.bulk_cipher_algorithm = wolfssl_aes_gcm;
         ssl->specs.cipher_type           = aead;
         ssl->specs.mac_algorithm         = sha256_mac;
         ssl->specs.kea                   = psk_kea;
@@ -1103,7 +1103,7 @@ int SetCipherSpecs(CYASSL* ssl)
 
 #ifdef BUILD_TLS_PSK_WITH_AES_256_GCM_SHA384
     case TLS_PSK_WITH_AES_256_GCM_SHA384 :
-        ssl->specs.bulk_cipher_algorithm = cyassl_aes_gcm;
+        ssl->specs.bulk_cipher_algorithm = wolfssl_aes_gcm;
         ssl->specs.cipher_type           = aead;
         ssl->specs.mac_algorithm         = sha384_mac;
         ssl->specs.kea                   = psk_kea;
@@ -1122,7 +1122,7 @@ int SetCipherSpecs(CYASSL* ssl)
 
 #ifdef BUILD_TLS_DHE_PSK_WITH_AES_128_GCM_SHA256
     case TLS_DHE_PSK_WITH_AES_128_GCM_SHA256 :
-        ssl->specs.bulk_cipher_algorithm = cyassl_aes_gcm;
+        ssl->specs.bulk_cipher_algorithm = wolfssl_aes_gcm;
         ssl->specs.cipher_type           = aead;
         ssl->specs.mac_algorithm         = sha256_mac;
         ssl->specs.kea                   = dhe_psk_kea;
@@ -1141,7 +1141,7 @@ int SetCipherSpecs(CYASSL* ssl)
 
 #ifdef BUILD_TLS_DHE_PSK_WITH_AES_256_GCM_SHA384
     case TLS_DHE_PSK_WITH_AES_256_GCM_SHA384 :
-        ssl->specs.bulk_cipher_algorithm = cyassl_aes_gcm;
+        ssl->specs.bulk_cipher_algorithm = wolfssl_aes_gcm;
         ssl->specs.cipher_type           = aead;
         ssl->specs.mac_algorithm         = sha384_mac;
         ssl->specs.kea                   = dhe_psk_kea;
@@ -1160,7 +1160,7 @@ int SetCipherSpecs(CYASSL* ssl)
 
 #ifdef BUILD_TLS_PSK_WITH_AES_128_CBC_SHA256
     case TLS_PSK_WITH_AES_128_CBC_SHA256 :
-        ssl->specs.bulk_cipher_algorithm = cyassl_aes;
+        ssl->specs.bulk_cipher_algorithm = wolfssl_aes;
         ssl->specs.cipher_type           = block;
         ssl->specs.mac_algorithm         = sha256_mac;
         ssl->specs.kea                   = psk_kea;
@@ -1178,7 +1178,7 @@ int SetCipherSpecs(CYASSL* ssl)
 
 #ifdef BUILD_TLS_PSK_WITH_AES_256_CBC_SHA384
     case TLS_PSK_WITH_AES_256_CBC_SHA384 :
-        ssl->specs.bulk_cipher_algorithm = cyassl_aes;
+        ssl->specs.bulk_cipher_algorithm = wolfssl_aes;
         ssl->specs.cipher_type           = block;
         ssl->specs.mac_algorithm         = sha384_mac;
         ssl->specs.kea                   = psk_kea;
@@ -1196,7 +1196,7 @@ int SetCipherSpecs(CYASSL* ssl)
 
 #ifdef BUILD_TLS_DHE_PSK_WITH_AES_128_CBC_SHA256
     case TLS_DHE_PSK_WITH_AES_128_CBC_SHA256 :
-        ssl->specs.bulk_cipher_algorithm = cyassl_aes;
+        ssl->specs.bulk_cipher_algorithm = wolfssl_aes;
         ssl->specs.cipher_type           = block;
         ssl->specs.mac_algorithm         = sha256_mac;
         ssl->specs.kea                   = dhe_psk_kea;
@@ -1214,7 +1214,7 @@ int SetCipherSpecs(CYASSL* ssl)
 
 #ifdef BUILD_TLS_DHE_PSK_WITH_AES_256_CBC_SHA384
     case TLS_DHE_PSK_WITH_AES_256_CBC_SHA384 :
-        ssl->specs.bulk_cipher_algorithm = cyassl_aes;
+        ssl->specs.bulk_cipher_algorithm = wolfssl_aes;
         ssl->specs.cipher_type           = block;
         ssl->specs.mac_algorithm         = sha384_mac;
         ssl->specs.kea                   = dhe_psk_kea;
@@ -1232,7 +1232,7 @@ int SetCipherSpecs(CYASSL* ssl)
 
 #ifdef BUILD_TLS_PSK_WITH_AES_128_CBC_SHA
     case TLS_PSK_WITH_AES_128_CBC_SHA :
-        ssl->specs.bulk_cipher_algorithm = cyassl_aes;
+        ssl->specs.bulk_cipher_algorithm = wolfssl_aes;
         ssl->specs.cipher_type           = block;
         ssl->specs.mac_algorithm         = sha_mac;
         ssl->specs.kea                   = psk_kea;
@@ -1250,7 +1250,7 @@ int SetCipherSpecs(CYASSL* ssl)
 
 #ifdef BUILD_TLS_PSK_WITH_AES_256_CBC_SHA
     case TLS_PSK_WITH_AES_256_CBC_SHA :
-        ssl->specs.bulk_cipher_algorithm = cyassl_aes;
+        ssl->specs.bulk_cipher_algorithm = wolfssl_aes;
         ssl->specs.cipher_type           = block;
         ssl->specs.mac_algorithm         = sha_mac;
         ssl->specs.kea                   = psk_kea;
@@ -1268,7 +1268,7 @@ int SetCipherSpecs(CYASSL* ssl)
 
 #ifdef BUILD_TLS_PSK_WITH_NULL_SHA256
     case TLS_PSK_WITH_NULL_SHA256 :
-        ssl->specs.bulk_cipher_algorithm = cyassl_cipher_null;
+        ssl->specs.bulk_cipher_algorithm = wolfssl_cipher_null;
         ssl->specs.cipher_type           = stream;
         ssl->specs.mac_algorithm         = sha256_mac;
         ssl->specs.kea                   = psk_kea;
@@ -1286,7 +1286,7 @@ int SetCipherSpecs(CYASSL* ssl)
 
 #ifdef BUILD_TLS_PSK_WITH_NULL_SHA384
     case TLS_PSK_WITH_NULL_SHA384 :
-        ssl->specs.bulk_cipher_algorithm = cyassl_cipher_null;
+        ssl->specs.bulk_cipher_algorithm = wolfssl_cipher_null;
         ssl->specs.cipher_type           = stream;
         ssl->specs.mac_algorithm         = sha384_mac;
         ssl->specs.kea                   = psk_kea;
@@ -1304,7 +1304,7 @@ int SetCipherSpecs(CYASSL* ssl)
 
 #ifdef BUILD_TLS_PSK_WITH_NULL_SHA
     case TLS_PSK_WITH_NULL_SHA :
-        ssl->specs.bulk_cipher_algorithm = cyassl_cipher_null;
+        ssl->specs.bulk_cipher_algorithm = wolfssl_cipher_null;
         ssl->specs.cipher_type           = stream;
         ssl->specs.mac_algorithm         = sha_mac;
         ssl->specs.kea                   = psk_kea;
@@ -1322,7 +1322,7 @@ int SetCipherSpecs(CYASSL* ssl)
 
 #ifdef BUILD_TLS_DHE_PSK_WITH_NULL_SHA256
     case TLS_DHE_PSK_WITH_NULL_SHA256 :
-        ssl->specs.bulk_cipher_algorithm = cyassl_cipher_null;
+        ssl->specs.bulk_cipher_algorithm = wolfssl_cipher_null;
         ssl->specs.cipher_type           = stream;
         ssl->specs.mac_algorithm         = sha256_mac;
         ssl->specs.kea                   = dhe_psk_kea;
@@ -1340,7 +1340,7 @@ int SetCipherSpecs(CYASSL* ssl)
 
 #ifdef BUILD_TLS_DHE_PSK_WITH_NULL_SHA384
     case TLS_DHE_PSK_WITH_NULL_SHA384 :
-        ssl->specs.bulk_cipher_algorithm = cyassl_cipher_null;
+        ssl->specs.bulk_cipher_algorithm = wolfssl_cipher_null;
         ssl->specs.cipher_type           = stream;
         ssl->specs.mac_algorithm         = sha384_mac;
         ssl->specs.kea                   = dhe_psk_kea;
@@ -1358,7 +1358,7 @@ int SetCipherSpecs(CYASSL* ssl)
 
 #ifdef BUILD_TLS_DHE_RSA_WITH_AES_128_CBC_SHA256
     case TLS_DHE_RSA_WITH_AES_128_CBC_SHA256 :
-        ssl->specs.bulk_cipher_algorithm = cyassl_aes;
+        ssl->specs.bulk_cipher_algorithm = wolfssl_aes;
         ssl->specs.cipher_type           = block;
         ssl->specs.mac_algorithm         = sha256_mac;
         ssl->specs.kea                   = diffie_hellman_kea;
@@ -1375,7 +1375,7 @@ int SetCipherSpecs(CYASSL* ssl)
 
 #ifdef BUILD_TLS_DHE_RSA_WITH_AES_256_CBC_SHA256
     case TLS_DHE_RSA_WITH_AES_256_CBC_SHA256 :
-        ssl->specs.bulk_cipher_algorithm = cyassl_aes;
+        ssl->specs.bulk_cipher_algorithm = wolfssl_aes;
         ssl->specs.cipher_type           = block;
         ssl->specs.mac_algorithm         = sha256_mac;
         ssl->specs.kea                   = diffie_hellman_kea;
@@ -1392,7 +1392,7 @@ int SetCipherSpecs(CYASSL* ssl)
 
 #ifdef BUILD_TLS_DHE_RSA_WITH_AES_128_CBC_SHA
     case TLS_DHE_RSA_WITH_AES_128_CBC_SHA :
-        ssl->specs.bulk_cipher_algorithm = cyassl_aes;
+        ssl->specs.bulk_cipher_algorithm = wolfssl_aes;
         ssl->specs.cipher_type           = block;
         ssl->specs.mac_algorithm         = sha_mac;
         ssl->specs.kea                   = diffie_hellman_kea;
@@ -1409,7 +1409,7 @@ int SetCipherSpecs(CYASSL* ssl)
 
 #ifdef BUILD_TLS_DHE_RSA_WITH_AES_256_CBC_SHA
     case TLS_DHE_RSA_WITH_AES_256_CBC_SHA :
-        ssl->specs.bulk_cipher_algorithm = cyassl_aes;
+        ssl->specs.bulk_cipher_algorithm = wolfssl_aes;
         ssl->specs.cipher_type           = block;
         ssl->specs.mac_algorithm         = sha_mac;
         ssl->specs.kea                   = diffie_hellman_kea;
@@ -1426,7 +1426,7 @@ int SetCipherSpecs(CYASSL* ssl)
 
 #ifdef BUILD_TLS_RSA_WITH_HC_128_MD5
     case TLS_RSA_WITH_HC_128_MD5 :
-        ssl->specs.bulk_cipher_algorithm = cyassl_hc128;
+        ssl->specs.bulk_cipher_algorithm = wolfssl_hc128;
         ssl->specs.cipher_type           = stream;
         ssl->specs.mac_algorithm         = md5_mac;
         ssl->specs.kea                   = rsa_kea;
@@ -1443,7 +1443,7 @@ int SetCipherSpecs(CYASSL* ssl)
             
 #ifdef BUILD_TLS_RSA_WITH_HC_128_SHA
         case TLS_RSA_WITH_HC_128_SHA :
-            ssl->specs.bulk_cipher_algorithm = cyassl_hc128;
+            ssl->specs.bulk_cipher_algorithm = wolfssl_hc128;
             ssl->specs.cipher_type           = stream;
             ssl->specs.mac_algorithm         = sha_mac;
             ssl->specs.kea                   = rsa_kea;
@@ -1460,7 +1460,7 @@ int SetCipherSpecs(CYASSL* ssl)
 
 #ifdef BUILD_TLS_RSA_WITH_HC_128_B2B256
         case TLS_RSA_WITH_HC_128_B2B256:
-            ssl->specs.bulk_cipher_algorithm = cyassl_hc128;
+            ssl->specs.bulk_cipher_algorithm = wolfssl_hc128;
             ssl->specs.cipher_type           = stream;
             ssl->specs.mac_algorithm         = blake2b_mac;
             ssl->specs.kea                   = rsa_kea;
@@ -1477,7 +1477,7 @@ int SetCipherSpecs(CYASSL* ssl)
 
 #ifdef BUILD_TLS_RSA_WITH_AES_128_CBC_B2B256
         case TLS_RSA_WITH_AES_128_CBC_B2B256:
-            ssl->specs.bulk_cipher_algorithm = cyassl_aes;
+            ssl->specs.bulk_cipher_algorithm = wolfssl_aes;
             ssl->specs.cipher_type           = block;
             ssl->specs.mac_algorithm         = blake2b_mac;
             ssl->specs.kea                   = rsa_kea;
@@ -1494,7 +1494,7 @@ int SetCipherSpecs(CYASSL* ssl)
 
 #ifdef BUILD_TLS_RSA_WITH_AES_256_CBC_B2B256
         case TLS_RSA_WITH_AES_256_CBC_B2B256:
-            ssl->specs.bulk_cipher_algorithm = cyassl_aes;
+            ssl->specs.bulk_cipher_algorithm = wolfssl_aes;
             ssl->specs.cipher_type           = block;
             ssl->specs.mac_algorithm         = blake2b_mac;
             ssl->specs.kea                   = rsa_kea;
@@ -1511,7 +1511,7 @@ int SetCipherSpecs(CYASSL* ssl)
 
 #ifdef BUILD_TLS_RSA_WITH_RABBIT_SHA
     case TLS_RSA_WITH_RABBIT_SHA :
-        ssl->specs.bulk_cipher_algorithm = cyassl_rabbit;
+        ssl->specs.bulk_cipher_algorithm = wolfssl_rabbit;
         ssl->specs.cipher_type           = stream;
         ssl->specs.mac_algorithm         = sha_mac;
         ssl->specs.kea                   = rsa_kea;
@@ -1528,7 +1528,7 @@ int SetCipherSpecs(CYASSL* ssl)
 
 #ifdef BUILD_TLS_RSA_WITH_AES_128_GCM_SHA256
     case TLS_RSA_WITH_AES_128_GCM_SHA256 :
-        ssl->specs.bulk_cipher_algorithm = cyassl_aes_gcm;
+        ssl->specs.bulk_cipher_algorithm = wolfssl_aes_gcm;
         ssl->specs.cipher_type           = aead;
         ssl->specs.mac_algorithm         = sha256_mac;
         ssl->specs.kea                   = rsa_kea;
@@ -1546,7 +1546,7 @@ int SetCipherSpecs(CYASSL* ssl)
 
 #ifdef BUILD_TLS_RSA_WITH_AES_256_GCM_SHA384
     case TLS_RSA_WITH_AES_256_GCM_SHA384 :
-        ssl->specs.bulk_cipher_algorithm = cyassl_aes_gcm;
+        ssl->specs.bulk_cipher_algorithm = wolfssl_aes_gcm;
         ssl->specs.cipher_type           = aead;
         ssl->specs.mac_algorithm         = sha384_mac;
         ssl->specs.kea                   = rsa_kea;
@@ -1564,7 +1564,7 @@ int SetCipherSpecs(CYASSL* ssl)
 
 #ifdef BUILD_TLS_DHE_RSA_WITH_AES_128_GCM_SHA256
     case TLS_DHE_RSA_WITH_AES_128_GCM_SHA256 :
-        ssl->specs.bulk_cipher_algorithm = cyassl_aes_gcm;
+        ssl->specs.bulk_cipher_algorithm = wolfssl_aes_gcm;
         ssl->specs.cipher_type           = aead;
         ssl->specs.mac_algorithm         = sha256_mac;
         ssl->specs.kea                   = diffie_hellman_kea;
@@ -1582,7 +1582,7 @@ int SetCipherSpecs(CYASSL* ssl)
 
 #ifdef BUILD_TLS_DHE_RSA_WITH_AES_256_GCM_SHA384
     case TLS_DHE_RSA_WITH_AES_256_GCM_SHA384 :
-        ssl->specs.bulk_cipher_algorithm = cyassl_aes_gcm;
+        ssl->specs.bulk_cipher_algorithm = wolfssl_aes_gcm;
         ssl->specs.cipher_type           = aead;
         ssl->specs.mac_algorithm         = sha384_mac;
         ssl->specs.kea                   = diffie_hellman_kea;
@@ -1600,7 +1600,7 @@ int SetCipherSpecs(CYASSL* ssl)
 
 #ifdef BUILD_TLS_RSA_WITH_CAMELLIA_128_CBC_SHA
     case TLS_RSA_WITH_CAMELLIA_128_CBC_SHA :
-        ssl->specs.bulk_cipher_algorithm = cyassl_camellia;
+        ssl->specs.bulk_cipher_algorithm = wolfssl_camellia;
         ssl->specs.cipher_type           = block;
         ssl->specs.mac_algorithm         = sha_mac;
         ssl->specs.kea                   = rsa_kea;
@@ -1617,7 +1617,7 @@ int SetCipherSpecs(CYASSL* ssl)
     
 #ifdef BUILD_TLS_RSA_WITH_CAMELLIA_256_CBC_SHA
     case TLS_RSA_WITH_CAMELLIA_256_CBC_SHA :
-        ssl->specs.bulk_cipher_algorithm = cyassl_camellia;
+        ssl->specs.bulk_cipher_algorithm = wolfssl_camellia;
         ssl->specs.cipher_type           = block;
         ssl->specs.mac_algorithm         = sha_mac;
         ssl->specs.kea                   = rsa_kea;
@@ -1634,7 +1634,7 @@ int SetCipherSpecs(CYASSL* ssl)
 
 #ifdef BUILD_TLS_RSA_WITH_CAMELLIA_128_CBC_SHA256
     case TLS_RSA_WITH_CAMELLIA_128_CBC_SHA256 :
-        ssl->specs.bulk_cipher_algorithm = cyassl_camellia;
+        ssl->specs.bulk_cipher_algorithm = wolfssl_camellia;
         ssl->specs.cipher_type           = block;
         ssl->specs.mac_algorithm         = sha256_mac;
         ssl->specs.kea                   = rsa_kea;
@@ -1651,7 +1651,7 @@ int SetCipherSpecs(CYASSL* ssl)
 
 #ifdef BUILD_TLS_RSA_WITH_CAMELLIA_256_CBC_SHA256
     case TLS_RSA_WITH_CAMELLIA_256_CBC_SHA256 :
-        ssl->specs.bulk_cipher_algorithm = cyassl_camellia;
+        ssl->specs.bulk_cipher_algorithm = wolfssl_camellia;
         ssl->specs.cipher_type           = block;
         ssl->specs.mac_algorithm         = sha256_mac;
         ssl->specs.kea                   = rsa_kea;
@@ -1668,7 +1668,7 @@ int SetCipherSpecs(CYASSL* ssl)
 
 #ifdef BUILD_TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA
     case TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA :
-        ssl->specs.bulk_cipher_algorithm = cyassl_camellia;
+        ssl->specs.bulk_cipher_algorithm = wolfssl_camellia;
         ssl->specs.cipher_type           = block;
         ssl->specs.mac_algorithm         = sha_mac;
         ssl->specs.kea                   = diffie_hellman_kea;
@@ -1685,7 +1685,7 @@ int SetCipherSpecs(CYASSL* ssl)
 
 #ifdef BUILD_TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA
     case TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA :
-        ssl->specs.bulk_cipher_algorithm = cyassl_camellia;
+        ssl->specs.bulk_cipher_algorithm = wolfssl_camellia;
         ssl->specs.cipher_type           = block;
         ssl->specs.mac_algorithm         = sha_mac;
         ssl->specs.kea                   = diffie_hellman_kea;
@@ -1702,7 +1702,7 @@ int SetCipherSpecs(CYASSL* ssl)
 
 #ifdef BUILD_TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA256
     case TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA256 :
-        ssl->specs.bulk_cipher_algorithm = cyassl_camellia;
+        ssl->specs.bulk_cipher_algorithm = wolfssl_camellia;
         ssl->specs.cipher_type           = block;
         ssl->specs.mac_algorithm         = sha256_mac;
         ssl->specs.kea                   = diffie_hellman_kea;
@@ -1719,7 +1719,7 @@ int SetCipherSpecs(CYASSL* ssl)
 
 #ifdef BUILD_TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA256
     case TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA256 :
-        ssl->specs.bulk_cipher_algorithm = cyassl_camellia;
+        ssl->specs.bulk_cipher_algorithm = wolfssl_camellia;
         ssl->specs.cipher_type           = block;
         ssl->specs.mac_algorithm         = sha256_mac;
         ssl->specs.kea                   = diffie_hellman_kea;
@@ -1736,7 +1736,7 @@ int SetCipherSpecs(CYASSL* ssl)
 
 #ifdef BUILD_TLS_DH_anon_WITH_AES_128_CBC_SHA
     case TLS_DH_anon_WITH_AES_128_CBC_SHA :
-        ssl->specs.bulk_cipher_algorithm = cyassl_aes;
+        ssl->specs.bulk_cipher_algorithm = wolfssl_aes;
         ssl->specs.cipher_type           = block;
         ssl->specs.mac_algorithm         = sha_mac;
         ssl->specs.kea                   = diffie_hellman_kea;
@@ -1753,7 +1753,7 @@ int SetCipherSpecs(CYASSL* ssl)
 #endif
 
     default:
-        CYASSL_MSG("Unsupported cipher suite, SetCipherSpecs");
+        WOLFSSL_MSG("Unsupported cipher suite, SetCipherSpecs");
         return UNSUPPORTED_SUITE;
     }  /* switch */
     }  /* if ECC / Normal suites else */
@@ -1768,7 +1768,7 @@ int SetCipherSpecs(CYASSL* ssl)
 #endif
     }
 
-#ifdef CYASSL_DTLS
+#ifdef WOLFSSL_DTLS
     if (ssl->options.dtls)
         ssl->hmac = TLS_hmac;
 #endif
@@ -1812,7 +1812,7 @@ static int SetPrefix(byte* sha_input, int idx)
         XMEMCPY(sha_input, "GGGGGGG", 7);
         break;
     default:
-        CYASSL_MSG("Set Prefix error, bad input");
+        WOLFSSL_MSG("Set Prefix error, bad input");
         return 0; 
     }
     return 1;
@@ -1838,19 +1838,19 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
         if (devId != NO_CAVIUM_DEVICE) {
             if (enc) {
                 if (Arc4InitCavium(enc->arc4, devId) != 0) {
-                    CYASSL_MSG("Arc4InitCavium failed in SetKeys");
+                    WOLFSSL_MSG("Arc4InitCavium failed in SetKeys");
                     return CAVIUM_INIT_E;
                 }
             }
             if (dec) {
                 if (Arc4InitCavium(dec->arc4, devId) != 0) {
-                    CYASSL_MSG("Arc4InitCavium failed in SetKeys");
+                    WOLFSSL_MSG("Arc4InitCavium failed in SetKeys");
                     return CAVIUM_INIT_E;
                 }
             }
         }
 #endif
-        if (side == CYASSL_CLIENT_END) {
+        if (side == WOLFSSL_CLIENT_END) {
             if (enc)
                 wc_Arc4SetKey(enc->arc4, keys->client_write_key, sz);
             if (dec)
@@ -1871,7 +1871,7 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
 
     
 #ifdef HAVE_CHACHA
-    if (specs->bulk_cipher_algorithm == cyassl_chacha) {
+    if (specs->bulk_cipher_algorithm == wolfssl_chacha) {
         int chachaRet;
         if (enc && enc->chacha == NULL)
             enc->chacha =
@@ -1883,7 +1883,7 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
                     (ChaCha*)XMALLOC(sizeof(ChaCha), heap, DYNAMIC_TYPE_CIPHER);
         if (dec && dec->chacha == NULL)
             return MEMORY_E;
-        if (side == CYASSL_CLIENT_END) {
+        if (side == WOLFSSL_CLIENT_END) {
             if (enc) {
                 chachaRet = Chacha_SetKey(enc->chacha, keys->client_write_key,
                                           specs->key_size);
@@ -1924,7 +1924,7 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
 #endif
 
 #ifdef HAVE_HC128
-    if (specs->bulk_cipher_algorithm == cyassl_hc128) {
+    if (specs->bulk_cipher_algorithm == wolfssl_hc128) {
         int hcRet;
         if (enc && enc->hc128 == NULL)
             enc->hc128 =
@@ -1936,7 +1936,7 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
                       (HC128*)XMALLOC(sizeof(HC128), heap, DYNAMIC_TYPE_CIPHER);
         if (dec && dec->hc128 == NULL)
             return MEMORY_E;
-        if (side == CYASSL_CLIENT_END) {
+        if (side == WOLFSSL_CLIENT_END) {
             if (enc) {
                 hcRet = Hc128_SetKey(enc->hc128, keys->client_write_key,
                                      keys->client_write_IV);
@@ -1968,7 +1968,7 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
 #endif
     
 #ifdef BUILD_RABBIT
-    if (specs->bulk_cipher_algorithm == cyassl_rabbit) {
+    if (specs->bulk_cipher_algorithm == wolfssl_rabbit) {
         int rabRet;
         if (enc && enc->rabbit == NULL)
             enc->rabbit =
@@ -1980,7 +1980,7 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
                     (Rabbit*)XMALLOC(sizeof(Rabbit), heap, DYNAMIC_TYPE_CIPHER);
         if (dec && dec->rabbit == NULL)
             return MEMORY_E;
-        if (side == CYASSL_CLIENT_END) {
+        if (side == WOLFSSL_CLIENT_END) {
             if (enc) {
                 rabRet = RabbitSetKey(enc->rabbit, keys->client_write_key,
                                       keys->client_write_IV);
@@ -2027,19 +2027,19 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
         if (devId != NO_CAVIUM_DEVICE) {
             if (enc) {
                 if (Des3_InitCavium(enc->des3, devId) != 0) {
-                    CYASSL_MSG("Des3_InitCavium failed in SetKeys");
+                    WOLFSSL_MSG("Des3_InitCavium failed in SetKeys");
                     return CAVIUM_INIT_E;
                 }
             }
             if (dec) {
                 if (Des3_InitCavium(dec->des3, devId) != 0) {
-                    CYASSL_MSG("Des3_InitCavium failed in SetKeys");
+                    WOLFSSL_MSG("Des3_InitCavium failed in SetKeys");
                     return CAVIUM_INIT_E;
                 }
             }
         }
 #endif
-        if (side == CYASSL_CLIENT_END) {
+        if (side == WOLFSSL_CLIENT_END) {
             if (enc) {
                 desRet = Des3_SetKey(enc->des3, keys->client_write_key,
                                      keys->client_write_IV, DES_ENCRYPTION);
@@ -2071,7 +2071,7 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
 #endif
 
 #ifdef BUILD_AES
-    if (specs->bulk_cipher_algorithm == cyassl_aes) {
+    if (specs->bulk_cipher_algorithm == wolfssl_aes) {
         int aesRet = 0;
 
         if (enc && enc->aes == NULL)
@@ -2086,19 +2086,19 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
         if (devId != NO_CAVIUM_DEVICE) {
             if (enc) {
                 if (AesInitCavium(enc->aes, devId) != 0) {
-                    CYASSL_MSG("AesInitCavium failed in SetKeys");
+                    WOLFSSL_MSG("AesInitCavium failed in SetKeys");
                     return CAVIUM_INIT_E;
                 }
             }
             if (dec) {
                 if (AesInitCavium(dec->aes, devId) != 0) {
-                    CYASSL_MSG("AesInitCavium failed in SetKeys");
+                    WOLFSSL_MSG("AesInitCavium failed in SetKeys");
                     return CAVIUM_INIT_E;
                 }
             }
         }
 #endif
-        if (side == CYASSL_CLIENT_END) {
+        if (side == WOLFSSL_CLIENT_END) {
             if (enc) {
                 aesRet = AesSetKey(enc->aes, keys->client_write_key,
                                    specs->key_size, keys->client_write_IV,
@@ -2134,7 +2134,7 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
 #endif
 
 #ifdef BUILD_AESGCM
-    if (specs->bulk_cipher_algorithm == cyassl_aes_gcm) {
+    if (specs->bulk_cipher_algorithm == wolfssl_aes_gcm) {
         int gcmRet;
 
         if (enc && enc->aes == NULL)
@@ -2146,7 +2146,7 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
         if (dec && dec->aes == NULL)
             return MEMORY_E;
 
-        if (side == CYASSL_CLIENT_END) {
+        if (side == WOLFSSL_CLIENT_END) {
             if (enc) {
                 gcmRet = AesGcmSetKey(enc->aes, keys->client_write_key,
                                       specs->key_size);
@@ -2186,7 +2186,7 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
 #endif
 
 #ifdef HAVE_AESCCM
-    if (specs->bulk_cipher_algorithm == cyassl_aes_ccm) {
+    if (specs->bulk_cipher_algorithm == wolfssl_aes_ccm) {
         if (enc && enc->aes == NULL)
             enc->aes = (Aes*)XMALLOC(sizeof(Aes), heap, DYNAMIC_TYPE_CIPHER);
         if (enc && enc->aes == NULL)
@@ -2196,7 +2196,7 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
         if (dec && dec->aes == NULL)
             return MEMORY_E;
 
-        if (side == CYASSL_CLIENT_END) {
+        if (side == WOLFSSL_CLIENT_END) {
             if (enc) {
                 AesCcmSetKey(enc->aes, keys->client_write_key, specs->key_size);
                 XMEMCPY(keys->aead_enc_imp_IV, keys->client_write_IV,
@@ -2228,7 +2228,7 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
 #endif
 
 #ifdef HAVE_CAMELLIA
-    if (specs->bulk_cipher_algorithm == cyassl_camellia) {
+    if (specs->bulk_cipher_algorithm == wolfssl_camellia) {
         int camRet;
 
         if (enc && enc->cam == NULL)
@@ -2243,7 +2243,7 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
         if (dec && dec->cam == NULL)
             return MEMORY_E;
 
-        if (side == CYASSL_CLIENT_END) {
+        if (side == WOLFSSL_CLIENT_END) {
             if (enc) {
                 camRet = CamelliaSetKey(enc->cam, keys->client_write_key,
                                         specs->key_size, keys->client_write_IV);
@@ -2275,7 +2275,7 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
 #endif
 
 #ifdef HAVE_NULL_CIPHER
-    if (specs->bulk_cipher_algorithm == cyassl_cipher_null) {
+    if (specs->bulk_cipher_algorithm == wolfssl_cipher_null) {
         if (enc)
             enc->setup = 1;
         if (dec)
@@ -2324,7 +2324,7 @@ static int SetAuthKeys(OneTimeAuth* authentication, Keys* keys,
 
 
 /* Set encrypt/decrypt or both sides of key setup */
-int SetKeysSide(CYASSL* ssl, enum encrypt_side side)
+int SetKeysSide(WOLFSSL* ssl, enum encrypt_side side)
 {
     int devId = NO_CAVIUM_DEVICE, ret, copy = 0;
     Ciphers* encrypt = NULL;
@@ -2377,9 +2377,9 @@ int SetKeysSide(CYASSL* ssl, enum encrypt_side side)
     if (copy) {
         int clientCopy = 0;
 
-        if (ssl->options.side == CYASSL_CLIENT_END && encrypt)
+        if (ssl->options.side == WOLFSSL_CLIENT_END && encrypt)
             clientCopy = 1;
-        else if (ssl->options.side == CYASSL_SERVER_END && decrypt)
+        else if (ssl->options.side == WOLFSSL_SERVER_END && decrypt)
             clientCopy = 1;
 
         if (clientCopy) {
@@ -2418,7 +2418,7 @@ int SetKeysSide(CYASSL* ssl, enum encrypt_side side)
 
 
 /* TLS can call too */
-int StoreKeys(CYASSL* ssl, const byte* keyData)
+int StoreKeys(WOLFSSL* ssl, const byte* keyData)
 {
     int sz, i = 0;
     Keys* keys = &ssl->keys;
@@ -2460,7 +2460,7 @@ int StoreKeys(CYASSL* ssl, const byte* keyData)
 }
 
 #ifndef NO_OLD_TLS
-int DeriveKeys(CYASSL* ssl)
+int DeriveKeys(WOLFSSL* ssl)
 {
     int    length = 2 * ssl->specs.hash_size + 
                     2 * ssl->specs.key_size  +
@@ -2468,7 +2468,7 @@ int DeriveKeys(CYASSL* ssl)
     int    rounds = (length + MD5_DIGEST_SIZE - 1 ) / MD5_DIGEST_SIZE, i;
     int    ret = 0;
     
-#ifdef CYASSL_SMALL_STACK
+#ifdef WOLFSSL_SMALL_STACK
     byte*  shaOutput;
     byte*  md5Input;
     byte*  shaInput;
@@ -2484,7 +2484,7 @@ int DeriveKeys(CYASSL* ssl)
     Sha    sha[1];
 #endif
     
-#ifdef CYASSL_SMALL_STACK
+#ifdef WOLFSSL_SMALL_STACK
     shaOutput = (byte*)XMALLOC(SHA_DIGEST_SIZE, 
                                             NULL, DYNAMIC_TYPE_TMP_BUFFER);
     md5Input  = (byte*)XMALLOC(SECRET_LEN + SHA_DIGEST_SIZE,
@@ -2544,7 +2544,7 @@ int DeriveKeys(CYASSL* ssl)
             ret = StoreKeys(ssl, keyData);
     }
 
-#ifdef CYASSL_SMALL_STACK
+#ifdef WOLFSSL_SMALL_STACK
     XFREE(shaOutput, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(md5Input,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(shaInput,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -2557,7 +2557,7 @@ int DeriveKeys(CYASSL* ssl)
 }
 
 
-static int CleanPreMaster(CYASSL* ssl)
+static int CleanPreMaster(WOLFSSL* ssl)
 {
     int i, ret, sz = ssl->arrays->preMasterSz;
 
@@ -2576,13 +2576,13 @@ static int CleanPreMaster(CYASSL* ssl)
 
 
 /* Create and store the master secret see page 32, 6.1 */
-static int MakeSslMasterSecret(CYASSL* ssl)
+static int MakeSslMasterSecret(WOLFSSL* ssl)
 {
     int    i, ret;
     word32 idx;
     word32 pmsSz = ssl->arrays->preMasterSz;
 
-#ifdef CYASSL_SMALL_STACK
+#ifdef WOLFSSL_SMALL_STACK
     byte*  shaOutput;
     byte*  md5Input;
     byte*  shaInput;
@@ -2606,7 +2606,7 @@ static int MakeSslMasterSecret(CYASSL* ssl)
     }
 #endif
     
-#ifdef CYASSL_SMALL_STACK
+#ifdef WOLFSSL_SMALL_STACK
     shaOutput = (byte*)XMALLOC(SHA_DIGEST_SIZE, 
                                             NULL, DYNAMIC_TYPE_TMP_BUFFER);
     md5Input  = (byte*)XMALLOC(ENCRYPT_LEN + SHA_DIGEST_SIZE,
@@ -2676,7 +2676,7 @@ static int MakeSslMasterSecret(CYASSL* ssl)
             ret = DeriveKeys(ssl);
     }
 
-#ifdef CYASSL_SMALL_STACK
+#ifdef WOLFSSL_SMALL_STACK
     XFREE(shaOutput, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(md5Input,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(shaInput,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -2695,7 +2695,7 @@ static int MakeSslMasterSecret(CYASSL* ssl)
 
 
 /* Master wrapper, doesn't use SSL stack space in TLS mode */
-int MakeMasterSecret(CYASSL* ssl)
+int MakeMasterSecret(WOLFSSL* ssl)
 {
 #ifdef NO_OLD_TLS
     return MakeTlsMasterSecret(ssl);

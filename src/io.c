@@ -2,14 +2,14 @@
  *
  * Copyright (C) 2006-2014 wolfSSL Inc.
  *
- * This file is part of CyaSSL.
+ * This file is part of wolfSSL. (formerly known as CyaSSL)
  *
- * CyaSSL is free software; you can redistribute it and/or modify
+ * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  *
- * CyaSSL is distributed in the hope that it will be useful,
+ * wolfSSL is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
@@ -20,35 +20,35 @@
  */
 
 /* Name change compatibility layer */
-#include <cyassl/ssl.h>
+#include <wolfssl/ssl.h>
 
 #ifdef HAVE_CONFIG_H
     #include <config.h>
 #endif
 
-#include <cyassl/ctaocrypt/settings.h>
+#include <wolfssl/wolfcrypt/settings.h>
 
 #ifdef _WIN32_WCE
     /* On WinCE winsock2.h must be included before windows.h for socket stuff */
     #include <winsock2.h>
 #endif
 
-#include <cyassl/internal.h>
-#include <cyassl/error-ssl.h>
+#include <wolfssl/internal.h>
+#include <wolfssl/error-ssl.h>
 
 
-/* if user writes own I/O callbacks they can define CYASSL_USER_IO to remove
+/* if user writes own I/O callbacks they can define WOLFSSL_USER_IO to remove
    automatic setting of default I/O functions EmbedSend() and EmbedReceive()
    but they'll still need SetCallback xxx() at end of file 
 */
-#ifndef CYASSL_USER_IO
+#ifndef WOLFSSL_USER_IO
 
 #ifdef HAVE_LIBZ
     #include "zlib.h"
 #endif
 
 #ifndef USE_WINDOWS_API
-    #ifdef CYASSL_LWIP
+    #ifdef WOLFSSL_LWIP
         /* lwIP needs to be configured to use sockets API in this mode */
         /* LWIP_SOCKET 1 in lwip/opt.h or in build */
         #include "lwip/sockets.h"
@@ -59,8 +59,8 @@
     #elif defined(FREESCALE_MQX)
         #include <posix.h>
         #include <rtcs.h>
-    #elif defined(CYASSL_MDK_ARM)
-        #if defined(CYASSL_MDK5)
+    #elif defined(WOLFSSL_MDK_ARM)
+        #if defined(WOLFSSL_MDK5)
             #include "cmsis_os.h"
             #include "rl_fs.h" 
             #include "rl_net.h" 
@@ -68,14 +68,14 @@
             #include <rtl.h>
         #endif
         #undef RNG
-        #include "CYASSL_MDK_ARM.h"
+        #include "WOLFSSL_MDK_ARM.h"
         #undef RNG
-        #define RNG CyaSSL_RNG 
+        #define RNG wolfSSL_RNG 
         /* for avoiding name conflict in "stm32f2xx.h" */
         static int errno;
-    #elif defined(CYASSL_TIRTOS)
+    #elif defined(WOLFSSL_TIRTOS)
         #include <sys/socket.h>
-    #elif defined(CYASSL_IAR_ARM)
+    #elif defined(WOLFSSL_IAR_ARM)
         /* nothing */
     #else
         #include <sys/types.h>
@@ -85,7 +85,7 @@
         #endif
         #include <fcntl.h>
         #if !(defined(DEVKITPRO) || defined(HAVE_RTP_SYS) || defined(EBSNET)) \
-            || defined(CYASSL_PICOTCP)
+            || defined(WOLFSSL_PICOTCP)
             #include <sys/socket.h>
             #include <arpa/inet.h>
             #include <netinet/in.h>
@@ -140,8 +140,8 @@
     #define SOCKET_EPIPE       EPIPE
     #define SOCKET_ECONNREFUSED RTCSERR_TCP_CONN_REFUSED
     #define SOCKET_ECONNABORTED RTCSERR_TCP_CONN_ABORTED
-#elif defined(CYASSL_MDK_ARM)
-    #if defined(CYASSL_MDK5)
+#elif defined(WOLFSSL_MDK_ARM)
+    #if defined(WOLFSSL_MDK5)
         #define SOCKET_EWOULDBLOCK BSD_ERROR_WOULDBLOCK
         #define SOCKET_EAGAIN      BSD_ERROR_LOCKED
         #define SOCKET_ECONNRESET  BSD_ERROR_CLOSED
@@ -158,7 +158,7 @@
         #define SOCKET_ECONNREFUSED SCK_ERROR
         #define SOCKET_ECONNABORTED SCK_ERROR
     #endif
-#elif defined(CYASSL_PICOTCP)
+#elif defined(WOLFSSL_PICOTCP)
     #define SOCKET_EWOULDBLOCK  PICO_ERR_EAGAIN
     #define SOCKET_EAGAIN       PICO_ERR_EAGAIN
     #define SOCKET_ECONNRESET   PICO_ERR_ECONNRESET
@@ -183,10 +183,10 @@
     int net_recv(int, void*, int, unsigned int);
     #define SEND_FUNCTION net_send
     #define RECV_FUNCTION net_recv
-#elif defined(CYASSL_LWIP)
+#elif defined(WOLFSSL_LWIP)
     #define SEND_FUNCTION lwip_send
     #define RECV_FUNCTION lwip_recv
-#elif defined(CYASSL_PICOTCP)
+#elif defined(WOLFSSL_PICOTCP)
     #define SEND_FUNCTION pico_send
     #define RECV_FUNCTION pico_recv
 #else
@@ -232,17 +232,17 @@ static INLINE int LastError(void)
 /* The receive embedded callback
  *  return : nb bytes read, or error
  */
-int EmbedReceive(CYASSL *ssl, char *buf, int sz, void *ctx)
+int EmbedReceive(WOLFSSL *ssl, char *buf, int sz, void *ctx)
 {
     int recvd;
     int err;
     int sd = *(int*)ctx;
 
-#ifdef CYASSL_DTLS
+#ifdef WOLFSSL_DTLS
     {
-        int dtls_timeout = CyaSSL_dtls_get_current_timeout(ssl);
-        if (CyaSSL_dtls(ssl)
-                     && !CyaSSL_get_using_nonblock(ssl)
+        int dtls_timeout = wolfSSL_dtls_get_current_timeout(ssl);
+        if (wolfSSL_dtls(ssl)
+                     && !wolfSSL_get_using_nonblock(ssl)
                      && dtls_timeout != 0) {
             #ifdef USE_WINDOWS_API
                 DWORD timeout = dtls_timeout * 1000;
@@ -253,7 +253,7 @@ int EmbedReceive(CYASSL *ssl, char *buf, int sz, void *ctx)
             #endif
             if (setsockopt(sd, SOL_SOCKET, SO_RCVTIMEO, (char*)&timeout,
                            sizeof(timeout)) != 0) {
-                CYASSL_MSG("setsockopt rcvtimeo failed");
+                WOLFSSL_MSG("setsockopt rcvtimeo failed");
             }
         }
     }
@@ -265,42 +265,42 @@ int EmbedReceive(CYASSL *ssl, char *buf, int sz, void *ctx)
 
     if (recvd < 0) {
         err = LastError();
-        CYASSL_MSG("Embed Receive error");
+        WOLFSSL_MSG("Embed Receive error");
 
         if (err == SOCKET_EWOULDBLOCK || err == SOCKET_EAGAIN) {
-            if (!CyaSSL_dtls(ssl) || CyaSSL_get_using_nonblock(ssl)) {
-                CYASSL_MSG("    Would block");
-                return CYASSL_CBIO_ERR_WANT_READ;
+            if (!wolfSSL_dtls(ssl) || wolfSSL_get_using_nonblock(ssl)) {
+                WOLFSSL_MSG("    Would block");
+                return WOLFSSL_CBIO_ERR_WANT_READ;
             }
             else {
-                CYASSL_MSG("    Socket timeout");
-                return CYASSL_CBIO_ERR_TIMEOUT;
+                WOLFSSL_MSG("    Socket timeout");
+                return WOLFSSL_CBIO_ERR_TIMEOUT;
             }
         }
         else if (err == SOCKET_ECONNRESET) {
-            CYASSL_MSG("    Connection reset");
-            return CYASSL_CBIO_ERR_CONN_RST;
+            WOLFSSL_MSG("    Connection reset");
+            return WOLFSSL_CBIO_ERR_CONN_RST;
         }
         else if (err == SOCKET_EINTR) {
-            CYASSL_MSG("    Socket interrupted");
-            return CYASSL_CBIO_ERR_ISR;
+            WOLFSSL_MSG("    Socket interrupted");
+            return WOLFSSL_CBIO_ERR_ISR;
         }
         else if (err == SOCKET_ECONNREFUSED) {
-            CYASSL_MSG("    Connection refused");
-            return CYASSL_CBIO_ERR_WANT_READ;
+            WOLFSSL_MSG("    Connection refused");
+            return WOLFSSL_CBIO_ERR_WANT_READ;
         }
         else if (err == SOCKET_ECONNABORTED) {
-            CYASSL_MSG("    Connection aborted");
-            return CYASSL_CBIO_ERR_CONN_CLOSE;
+            WOLFSSL_MSG("    Connection aborted");
+            return WOLFSSL_CBIO_ERR_CONN_CLOSE;
         }
         else {
-            CYASSL_MSG("    General error");
-            return CYASSL_CBIO_ERR_GENERAL;
+            WOLFSSL_MSG("    General error");
+            return WOLFSSL_CBIO_ERR_GENERAL;
         }
     }
     else if (recvd == 0) {
-        CYASSL_MSG("Embed receive connection closed");
-        return CYASSL_CBIO_ERR_CONN_CLOSE;
+        WOLFSSL_MSG("Embed receive connection closed");
+        return WOLFSSL_CBIO_ERR_CONN_CLOSE;
     }
 
     return recvd;
@@ -309,7 +309,7 @@ int EmbedReceive(CYASSL *ssl, char *buf, int sz, void *ctx)
 /* The send embedded callback
  *  return : nb bytes sent, or error
  */
-int EmbedSend(CYASSL* ssl, char *buf, int sz, void *ctx)
+int EmbedSend(WOLFSSL* ssl, char *buf, int sz, void *ctx)
 {
     int sd = *(int*)ctx;
     int sent;
@@ -320,27 +320,27 @@ int EmbedSend(CYASSL* ssl, char *buf, int sz, void *ctx)
 
     if (sent < 0) {
         err = LastError();
-        CYASSL_MSG("Embed Send error");
+        WOLFSSL_MSG("Embed Send error");
 
         if (err == SOCKET_EWOULDBLOCK || err == SOCKET_EAGAIN) {
-            CYASSL_MSG("    Would Block");
-            return CYASSL_CBIO_ERR_WANT_WRITE;
+            WOLFSSL_MSG("    Would Block");
+            return WOLFSSL_CBIO_ERR_WANT_WRITE;
         }
         else if (err == SOCKET_ECONNRESET) {
-            CYASSL_MSG("    Connection reset");
-            return CYASSL_CBIO_ERR_CONN_RST;
+            WOLFSSL_MSG("    Connection reset");
+            return WOLFSSL_CBIO_ERR_CONN_RST;
         }
         else if (err == SOCKET_EINTR) {
-            CYASSL_MSG("    Socket interrupted");
-            return CYASSL_CBIO_ERR_ISR;
+            WOLFSSL_MSG("    Socket interrupted");
+            return WOLFSSL_CBIO_ERR_ISR;
         }
         else if (err == SOCKET_EPIPE) {
-            CYASSL_MSG("    Socket EPIPE");
-            return CYASSL_CBIO_ERR_CONN_CLOSE;
+            WOLFSSL_MSG("    Socket EPIPE");
+            return WOLFSSL_CBIO_ERR_CONN_CLOSE;
         }
         else {
-            CYASSL_MSG("    General error");
-            return CYASSL_CBIO_ERR_GENERAL;
+            WOLFSSL_MSG("    General error");
+            return WOLFSSL_CBIO_ERR_GENERAL;
         }
     }
  
@@ -348,9 +348,9 @@ int EmbedSend(CYASSL* ssl, char *buf, int sz, void *ctx)
 }
 
 
-#ifdef CYASSL_DTLS
+#ifdef WOLFSSL_DTLS
 
-#include <cyassl/ctaocrypt/sha.h>
+#include <wolfssl/wolfcrypt/sha.h>
 
 #ifdef USE_WINDOWS_API
    #define XSOCKLENT int
@@ -365,19 +365,19 @@ int EmbedSend(CYASSL* ssl, char *buf, int sz, void *ctx)
 /* The receive embedded callback
  *  return : nb bytes read, or error
  */
-int EmbedReceiveFrom(CYASSL *ssl, char *buf, int sz, void *ctx)
+int EmbedReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *ctx)
 {
-    CYASSL_DTLS_CTX* dtlsCtx = (CYASSL_DTLS_CTX*)ctx;
+    WOLFSSL_DTLS_CTX* dtlsCtx = (WOLFSSL_DTLS_CTX*)ctx;
     int recvd;
     int err;
     int sd = dtlsCtx->fd;
-    int dtls_timeout = CyaSSL_dtls_get_current_timeout(ssl);
+    int dtls_timeout = wolfSSL_dtls_get_current_timeout(ssl);
     struct sockaddr_storage peer;
     XSOCKLENT peerSz = sizeof(peer);
 
-    CYASSL_ENTER("EmbedReceiveFrom()");
+    WOLFSSL_ENTER("EmbedReceiveFrom()");
 
-    if (!CyaSSL_get_using_nonblock(ssl) && dtls_timeout != 0) {
+    if (!wolfSSL_get_using_nonblock(ssl) && dtls_timeout != 0) {
         #ifdef USE_WINDOWS_API
             DWORD timeout = dtls_timeout * 1000;
         #else
@@ -387,7 +387,7 @@ int EmbedReceiveFrom(CYASSL *ssl, char *buf, int sz, void *ctx)
         #endif
         if (setsockopt(sd, SOL_SOCKET, SO_RCVTIMEO, (char*)&timeout,
                        sizeof(timeout)) != 0) {
-                CYASSL_MSG("setsockopt rcvtimeo failed");
+                WOLFSSL_MSG("setsockopt rcvtimeo failed");
         }
     }
 
@@ -398,41 +398,41 @@ int EmbedReceiveFrom(CYASSL *ssl, char *buf, int sz, void *ctx)
 
     if (recvd < 0) {
         err = LastError();
-        CYASSL_MSG("Embed Receive From error");
+        WOLFSSL_MSG("Embed Receive From error");
 
         if (err == SOCKET_EWOULDBLOCK || err == SOCKET_EAGAIN) {
-            if (CyaSSL_get_using_nonblock(ssl)) {
-                CYASSL_MSG("    Would block");
-                return CYASSL_CBIO_ERR_WANT_READ;
+            if (wolfSSL_get_using_nonblock(ssl)) {
+                WOLFSSL_MSG("    Would block");
+                return WOLFSSL_CBIO_ERR_WANT_READ;
             }
             else {
-                CYASSL_MSG("    Socket timeout");
-                return CYASSL_CBIO_ERR_TIMEOUT;
+                WOLFSSL_MSG("    Socket timeout");
+                return WOLFSSL_CBIO_ERR_TIMEOUT;
             }
         }
         else if (err == SOCKET_ECONNRESET) {
-            CYASSL_MSG("    Connection reset");
-            return CYASSL_CBIO_ERR_CONN_RST;
+            WOLFSSL_MSG("    Connection reset");
+            return WOLFSSL_CBIO_ERR_CONN_RST;
         }
         else if (err == SOCKET_EINTR) {
-            CYASSL_MSG("    Socket interrupted");
-            return CYASSL_CBIO_ERR_ISR;
+            WOLFSSL_MSG("    Socket interrupted");
+            return WOLFSSL_CBIO_ERR_ISR;
         }
         else if (err == SOCKET_ECONNREFUSED) {
-            CYASSL_MSG("    Connection refused");
-            return CYASSL_CBIO_ERR_WANT_READ;
+            WOLFSSL_MSG("    Connection refused");
+            return WOLFSSL_CBIO_ERR_WANT_READ;
         }
         else {
-            CYASSL_MSG("    General error");
-            return CYASSL_CBIO_ERR_GENERAL;
+            WOLFSSL_MSG("    General error");
+            return WOLFSSL_CBIO_ERR_GENERAL;
         }
     }
     else {
         if (dtlsCtx->peer.sz > 0
                 && peerSz != (XSOCKLENT)dtlsCtx->peer.sz
                 && memcmp(&peer, dtlsCtx->peer.sa, peerSz) != 0) {
-            CYASSL_MSG("    Ignored packet from invalid peer");
-            return CYASSL_CBIO_ERR_WANT_READ;
+            WOLFSSL_MSG("    Ignored packet from invalid peer");
+            return WOLFSSL_CBIO_ERR_WANT_READ;
         }
     }
 
@@ -443,42 +443,42 @@ int EmbedReceiveFrom(CYASSL *ssl, char *buf, int sz, void *ctx)
 /* The send embedded callback
  *  return : nb bytes sent, or error
  */
-int EmbedSendTo(CYASSL* ssl, char *buf, int sz, void *ctx)
+int EmbedSendTo(WOLFSSL* ssl, char *buf, int sz, void *ctx)
 {
-    CYASSL_DTLS_CTX* dtlsCtx = (CYASSL_DTLS_CTX*)ctx;
+    WOLFSSL_DTLS_CTX* dtlsCtx = (WOLFSSL_DTLS_CTX*)ctx;
     int sd = dtlsCtx->fd;
     int sent;
     int len = sz;
     int err;
 
-    CYASSL_ENTER("EmbedSendTo()");
+    WOLFSSL_ENTER("EmbedSendTo()");
 
     sent = (int)SENDTO_FUNCTION(sd, &buf[sz - len], len, ssl->wflags,
                                 (const struct sockaddr*)dtlsCtx->peer.sa,
                                 dtlsCtx->peer.sz);
     if (sent < 0) {
         err = LastError();
-        CYASSL_MSG("Embed Send To error");
+        WOLFSSL_MSG("Embed Send To error");
 
         if (err == SOCKET_EWOULDBLOCK || err == SOCKET_EAGAIN) {
-            CYASSL_MSG("    Would Block");
-            return CYASSL_CBIO_ERR_WANT_WRITE;
+            WOLFSSL_MSG("    Would Block");
+            return WOLFSSL_CBIO_ERR_WANT_WRITE;
         }
         else if (err == SOCKET_ECONNRESET) {
-            CYASSL_MSG("    Connection reset");
-            return CYASSL_CBIO_ERR_CONN_RST;
+            WOLFSSL_MSG("    Connection reset");
+            return WOLFSSL_CBIO_ERR_CONN_RST;
         }
         else if (err == SOCKET_EINTR) {
-            CYASSL_MSG("    Socket interrupted");
-            return CYASSL_CBIO_ERR_ISR;
+            WOLFSSL_MSG("    Socket interrupted");
+            return WOLFSSL_CBIO_ERR_ISR;
         }
         else if (err == SOCKET_EPIPE) {
-            CYASSL_MSG("    Socket EPIPE");
-            return CYASSL_CBIO_ERR_CONN_CLOSE;
+            WOLFSSL_MSG("    Socket EPIPE");
+            return WOLFSSL_CBIO_ERR_CONN_CLOSE;
         }
         else {
-            CYASSL_MSG("    General error");
-            return CYASSL_CBIO_ERR_GENERAL;
+            WOLFSSL_MSG("    General error");
+            return WOLFSSL_CBIO_ERR_GENERAL;
         }
     }
  
@@ -489,7 +489,7 @@ int EmbedSendTo(CYASSL* ssl, char *buf, int sz, void *ctx)
 /* The DTLS Generate Cookie callback
  *  return : number of bytes copied into buf, or error
  */
-int EmbedGenerateCookie(CYASSL* ssl, byte *buf, int sz, void *ctx)
+int EmbedGenerateCookie(WOLFSSL* ssl, byte *buf, int sz, void *ctx)
 {
     int sd = ssl->wfd;
     struct sockaddr_storage peer;
@@ -501,7 +501,7 @@ int EmbedGenerateCookie(CYASSL* ssl, byte *buf, int sz, void *ctx)
 
     XMEMSET(&peer, 0, sizeof(peer));
     if (getpeername(sd, (struct sockaddr*)&peer, &peerSz) != 0) {
-        CYASSL_MSG("getpeername failed in EmbedGenerateCookie");
+        WOLFSSL_MSG("getpeername failed in EmbedGenerateCookie");
         return GEN_COOKIE_E;
     }
 
@@ -516,7 +516,7 @@ int EmbedGenerateCookie(CYASSL* ssl, byte *buf, int sz, void *ctx)
     return sz;
 }
 
-#endif /* CYASSL_DTLS */
+#endif /* WOLFSSL_DTLS */
 
 #ifdef HAVE_OCSP
 
@@ -571,12 +571,12 @@ static int tcp_connect(SOCKET_T* sockfd, const char* ip, word16 port)
         hints.ai_protocol = IPPROTO_TCP;
 
         if (Word16ToString(strPort, port) == 0) {
-            CYASSL_MSG("invalid port number for OCSP responder");
+            WOLFSSL_MSG("invalid port number for OCSP responder");
             return -1;
         }
 
         if (getaddrinfo(ip, strPort, &hints, &answer) < 0 || answer == NULL) {
-            CYASSL_MSG("no addr info for OCSP responder");
+            WOLFSSL_MSG("no addr info for OCSP responder");
             return -1;
         }
 
@@ -597,7 +597,7 @@ static int tcp_connect(SOCKET_T* sockfd, const char* ip, word16 port)
                                                                entry->h_length);
         }
         else {
-            CYASSL_MSG("no addr info for OCSP responder");
+            WOLFSSL_MSG("no addr info for OCSP responder");
             return -1;
         }
     }
@@ -607,18 +607,18 @@ static int tcp_connect(SOCKET_T* sockfd, const char* ip, word16 port)
 
 #ifdef USE_WINDOWS_API
     if (*sockfd == INVALID_SOCKET) {
-        CYASSL_MSG("bad socket fd, out of fds?");
+        WOLFSSL_MSG("bad socket fd, out of fds?");
         return -1;
     }
 #else
      if (*sockfd < 0) {
-         CYASSL_MSG("bad socket fd, out of fds?");
+         WOLFSSL_MSG("bad socket fd, out of fds?");
          return -1;
      }
 #endif
 
     if (connect(*sockfd, (struct sockaddr *)&addr, sockaddr_len) != 0) {
-        CYASSL_MSG("OCSP responder tcp connect failed");
+        WOLFSSL_MSG("OCSP responder tcp connect failed");
         return -1;
     }
 
@@ -764,7 +764,7 @@ static int process_http_response(int sfd, byte** respBuf,
                 start[len] = 0;
             }
             else {
-                CYASSL_MSG("process_http_response recv http from peer failed");
+                WOLFSSL_MSG("process_http_response recv http from peer failed");
                 return -1;
             }
         }
@@ -782,7 +782,7 @@ static int process_http_response(int sfd, byte** respBuf,
                 start += 2;
              }
              else {
-                CYASSL_MSG("process_http_response header ended early");
+                WOLFSSL_MSG("process_http_response header ended early");
                 return -1;
              }
         }
@@ -795,7 +795,7 @@ static int process_http_response(int sfd, byte** respBuf,
                 start += 9;
                 if (XSTRNCASECMP(start, "200 OK", 6) != 0 ||
                                                            state != phr_init) {
-                    CYASSL_MSG("process_http_response not OK");
+                    WOLFSSL_MSG("process_http_response not OK");
                     return -1;
                 }
                 state = phr_http_start;
@@ -804,14 +804,14 @@ static int process_http_response(int sfd, byte** respBuf,
                 start += 13;
                 while (*start == ' ' && *start != '\0') start++;
                 if (XSTRNCASECMP(start, "application/ocsp-response", 25) != 0) {
-                    CYASSL_MSG("process_http_response not ocsp-response");
+                    WOLFSSL_MSG("process_http_response not ocsp-response");
                     return -1;
                 }
                 
                 if (state == phr_http_start) state = phr_have_type;
                 else if (state == phr_have_length) state = phr_wait_end;
                 else {
-                    CYASSL_MSG("process_http_response type invalid state");
+                    WOLFSSL_MSG("process_http_response type invalid state");
                     return -1;
                 }
             }
@@ -823,7 +823,7 @@ static int process_http_response(int sfd, byte** respBuf,
                 if (state == phr_http_start) state = phr_have_length;
                 else if (state == phr_have_type) state = phr_wait_end;
                 else {
-                    CYASSL_MSG("process_http_response length invalid state");
+                    WOLFSSL_MSG("process_http_response length invalid state");
                     return -1;
                 }
             }
@@ -834,7 +834,7 @@ static int process_http_response(int sfd, byte** respBuf,
 
     recvBuf = (byte*)XMALLOC(recvBufSz, NULL, DYNAMIC_TYPE_IN_BUFFER);
     if (recvBuf == NULL) {
-        CYASSL_MSG("process_http_response couldn't create response buffer");
+        WOLFSSL_MSG("process_http_response couldn't create response buffer");
         return -1;
     }
 
@@ -848,7 +848,7 @@ static int process_http_response(int sfd, byte** respBuf,
         if (result > 0)
             len += result;
         else {
-            CYASSL_MSG("process_http_response recv ocsp from peer failed");
+            WOLFSSL_MSG("process_http_response recv ocsp from peer failed");
             return -1;
         }
     } while (len != recvBufSz);
@@ -866,7 +866,7 @@ int EmbedOcspLookup(void* ctx, const char* url, int urlSz,
     SOCKET_T sfd = 0;
     word16   port;
     int      ret = -1;
-#ifdef CYASSL_SMALL_STACK
+#ifdef WOLFSSL_SMALL_STACK
     char*    path;
     char*    domainName;
 #else
@@ -874,7 +874,7 @@ int EmbedOcspLookup(void* ctx, const char* url, int urlSz,
     char     domainName[80];
 #endif
 
-#ifdef CYASSL_SMALL_STACK
+#ifdef WOLFSSL_SMALL_STACK
     path = (char*)XMALLOC(80, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (path == NULL)
         return -1;
@@ -889,13 +889,13 @@ int EmbedOcspLookup(void* ctx, const char* url, int urlSz,
     (void)ctx;
 
     if (ocspReqBuf == NULL || ocspReqSz == 0) {
-        CYASSL_MSG("OCSP request is required for lookup");
+        WOLFSSL_MSG("OCSP request is required for lookup");
     }
     else if (ocspRespBuf == NULL) {
-        CYASSL_MSG("Cannot save OCSP response");
+        WOLFSSL_MSG("Cannot save OCSP response");
     }
     else if (decode_url(url, urlSz, domainName, path, &port) < 0) {
-        CYASSL_MSG("Unable to decode OCSP URL");
+        WOLFSSL_MSG("Unable to decode OCSP URL");
     }
     else {
         /* Note, the library uses the EmbedOcspRespFree() callback to
@@ -905,22 +905,22 @@ int EmbedOcspLookup(void* ctx, const char* url, int urlSz,
                                                         DYNAMIC_TYPE_IN_BUFFER);
 
         if (httpBuf == NULL) {
-            CYASSL_MSG("Unable to create OCSP response buffer");
+            WOLFSSL_MSG("Unable to create OCSP response buffer");
         }
         else {
             httpBufSz = build_http_request(domainName, path, ocspReqSz,
                                                             httpBuf, httpBufSz);
 
             if ((tcp_connect(&sfd, domainName, port) != 0) || (sfd <= 0)) {
-                CYASSL_MSG("OCSP Responder connection failed");
+                WOLFSSL_MSG("OCSP Responder connection failed");
             }
             else if ((int)send(sfd, (char*)httpBuf, httpBufSz, 0) !=
                                                                     httpBufSz) {
-                CYASSL_MSG("OCSP http request failed");
+                WOLFSSL_MSG("OCSP http request failed");
             }
             else if ((int)send(sfd, (char*)ocspReqBuf, ocspReqSz, 0) !=
                                                                     ocspReqSz) {
-                CYASSL_MSG("OCSP ocsp request failed");
+                WOLFSSL_MSG("OCSP ocsp request failed");
             }
             else {
                 ret = process_http_response(sfd, ocspRespBuf, httpBuf,
@@ -932,7 +932,7 @@ int EmbedOcspLookup(void* ctx, const char* url, int urlSz,
         }
     }
 
-#ifdef CYASSL_SMALL_STACK
+#ifdef WOLFSSL_SMALL_STACK
     XFREE(path,       NULL, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(domainName, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
@@ -952,33 +952,33 @@ void EmbedOcspRespFree(void* ctx, byte *resp)
 
 #endif
 
-#endif /* CYASSL_USER_IO */
+#endif /* WOLFSSL_USER_IO */
 
-CYASSL_API void CyaSSL_SetIORecv(CYASSL_CTX *ctx, CallbackIORecv CBIORecv)
+WOLFSSL_API void wolfSSL_SetIORecv(WOLFSSL_CTX *ctx, CallbackIORecv CBIORecv)
 {
     ctx->CBIORecv = CBIORecv;
 }
 
 
-CYASSL_API void CyaSSL_SetIOSend(CYASSL_CTX *ctx, CallbackIOSend CBIOSend)
+WOLFSSL_API void wolfSSL_SetIOSend(WOLFSSL_CTX *ctx, CallbackIOSend CBIOSend)
 {
     ctx->CBIOSend = CBIOSend;
 }
 
 
-CYASSL_API void CyaSSL_SetIOReadCtx(CYASSL* ssl, void *rctx)
+WOLFSSL_API void wolfSSL_SetIOReadCtx(WOLFSSL* ssl, void *rctx)
 {
 	ssl->IOCB_ReadCtx = rctx;
 }
 
 
-CYASSL_API void CyaSSL_SetIOWriteCtx(CYASSL* ssl, void *wctx)
+WOLFSSL_API void wolfSSL_SetIOWriteCtx(WOLFSSL* ssl, void *wctx)
 {
 	ssl->IOCB_WriteCtx = wctx;
 }
 
 
-CYASSL_API void* CyaSSL_GetIOReadCtx(CYASSL* ssl)
+WOLFSSL_API void* wolfSSL_GetIOReadCtx(WOLFSSL* ssl)
 {
     if (ssl)
         return ssl->IOCB_ReadCtx;
@@ -987,7 +987,7 @@ CYASSL_API void* CyaSSL_GetIOReadCtx(CYASSL* ssl)
 }
 
 
-CYASSL_API void* CyaSSL_GetIOWriteCtx(CYASSL* ssl)
+WOLFSSL_API void* wolfSSL_GetIOWriteCtx(WOLFSSL* ssl)
 {
     if (ssl)
         return ssl->IOCB_WriteCtx;
@@ -996,33 +996,33 @@ CYASSL_API void* CyaSSL_GetIOWriteCtx(CYASSL* ssl)
 }
 
 
-CYASSL_API void CyaSSL_SetIOReadFlags(CYASSL* ssl, int flags)
+WOLFSSL_API void wolfSSL_SetIOReadFlags(WOLFSSL* ssl, int flags)
 {
     ssl->rflags = flags; 
 }
 
 
-CYASSL_API void CyaSSL_SetIOWriteFlags(CYASSL* ssl, int flags)
+WOLFSSL_API void wolfSSL_SetIOWriteFlags(WOLFSSL* ssl, int flags)
 {
     ssl->wflags = flags;
 }
 
 
-#ifdef CYASSL_DTLS
+#ifdef WOLFSSL_DTLS
 
-CYASSL_API void CyaSSL_CTX_SetGenCookie(CYASSL_CTX* ctx, CallbackGenCookie cb)
+WOLFSSL_API void wolfSSL_CTX_SetGenCookie(WOLFSSL_CTX* ctx, CallbackGenCookie cb)
 {
     ctx->CBIOCookie = cb;
 }
 
 
-CYASSL_API void CyaSSL_SetCookieCtx(CYASSL* ssl, void *ctx)
+WOLFSSL_API void wolfSSL_SetCookieCtx(WOLFSSL* ssl, void *ctx)
 {
 	ssl->IOCB_CookieCtx = ctx;
 }
 
 
-CYASSL_API void* CyaSSL_GetCookieCtx(CYASSL* ssl)
+WOLFSSL_API void* wolfSSL_GetCookieCtx(WOLFSSL* ssl)
 {
     if (ssl)
 	    return ssl->IOCB_CookieCtx;
@@ -1030,7 +1030,7 @@ CYASSL_API void* CyaSSL_GetCookieCtx(CYASSL* ssl)
     return NULL;
 }
 
-#endif /* CYASSL_DTLS */
+#endif /* WOLFSSL_DTLS */
 
 
 #ifdef HAVE_NETX
@@ -1038,7 +1038,7 @@ CYASSL_API void* CyaSSL_GetCookieCtx(CYASSL* ssl)
 /* The NetX receive callback
  *  return :  bytes read, or error
  */
-int NetX_Receive(CYASSL *ssl, char *buf, int sz, void *ctx)
+int NetX_Receive(WOLFSSL *ssl, char *buf, int sz, void *ctx)
 {
     NetX_Ctx* nxCtx = (NetX_Ctx*)ctx;
     ULONG left;
@@ -1047,38 +1047,38 @@ int NetX_Receive(CYASSL *ssl, char *buf, int sz, void *ctx)
     UINT  status;
 
     if (nxCtx == NULL || nxCtx->nxSocket == NULL) {
-        CYASSL_MSG("NetX Recv NULL parameters");
-        return CYASSL_CBIO_ERR_GENERAL;
+        WOLFSSL_MSG("NetX Recv NULL parameters");
+        return WOLFSSL_CBIO_ERR_GENERAL;
     }
 
     if (nxCtx->nxPacket == NULL) {
         status = nx_tcp_socket_receive(nxCtx->nxSocket, &nxCtx->nxPacket,
                                        nxCtx->nxWait);
         if (status != NX_SUCCESS) {
-            CYASSL_MSG("NetX Recv receive error");
-            return CYASSL_CBIO_ERR_GENERAL;
+            WOLFSSL_MSG("NetX Recv receive error");
+            return WOLFSSL_CBIO_ERR_GENERAL;
         }
     }
 
     if (nxCtx->nxPacket) {
         status = nx_packet_length_get(nxCtx->nxPacket, &total);
         if (status != NX_SUCCESS) {
-            CYASSL_MSG("NetX Recv length get error");
-            return CYASSL_CBIO_ERR_GENERAL;
+            WOLFSSL_MSG("NetX Recv length get error");
+            return WOLFSSL_CBIO_ERR_GENERAL;
         }
 
         left = total - nxCtx->nxOffset;
         status = nx_packet_data_extract_offset(nxCtx->nxPacket, nxCtx->nxOffset,
                                                buf, sz, &copied);
         if (status != NX_SUCCESS) {
-            CYASSL_MSG("NetX Recv data extract offset error");
-            return CYASSL_CBIO_ERR_GENERAL;
+            WOLFSSL_MSG("NetX Recv data extract offset error");
+            return WOLFSSL_CBIO_ERR_GENERAL;
         }
 
         nxCtx->nxOffset += copied;
 
         if (copied == left) {
-            CYASSL_MSG("NetX Recv Drained packet");
+            WOLFSSL_MSG("NetX Recv Drained packet");
             nx_packet_release(nxCtx->nxPacket);
             nxCtx->nxPacket = NULL;
             nxCtx->nxOffset = 0;
@@ -1092,7 +1092,7 @@ int NetX_Receive(CYASSL *ssl, char *buf, int sz, void *ctx)
 /* The NetX send callback
  *  return : bytes sent, or error
  */
-int NetX_Send(CYASSL* ssl, char *buf, int sz, void *ctx)
+int NetX_Send(WOLFSSL* ssl, char *buf, int sz, void *ctx)
 {
     NetX_Ctx*       nxCtx = (NetX_Ctx*)ctx;
     NX_PACKET*      packet;
@@ -1100,30 +1100,30 @@ int NetX_Send(CYASSL* ssl, char *buf, int sz, void *ctx)
     UINT            status;
 
     if (nxCtx == NULL || nxCtx->nxSocket == NULL) {
-        CYASSL_MSG("NetX Send NULL parameters");
-        return CYASSL_CBIO_ERR_GENERAL;
+        WOLFSSL_MSG("NetX Send NULL parameters");
+        return WOLFSSL_CBIO_ERR_GENERAL;
     }
 
     pool = nxCtx->nxSocket->nx_tcp_socket_ip_ptr->nx_ip_default_packet_pool;
     status = nx_packet_allocate(pool, &packet, NX_TCP_PACKET,
                                 nxCtx->nxWait);
     if (status != NX_SUCCESS) {
-        CYASSL_MSG("NetX Send packet alloc error");
-        return CYASSL_CBIO_ERR_GENERAL;
+        WOLFSSL_MSG("NetX Send packet alloc error");
+        return WOLFSSL_CBIO_ERR_GENERAL;
     }
 
     status = nx_packet_data_append(packet, buf, sz, pool, nxCtx->nxWait);
     if (status != NX_SUCCESS) {
         nx_packet_release(packet);
-        CYASSL_MSG("NetX Send data append error");
-        return CYASSL_CBIO_ERR_GENERAL;
+        WOLFSSL_MSG("NetX Send data append error");
+        return WOLFSSL_CBIO_ERR_GENERAL;
     }
 
     status = nx_tcp_socket_send(nxCtx->nxSocket, packet, nxCtx->nxWait);
     if (status != NX_SUCCESS) {
         nx_packet_release(packet);
-        CYASSL_MSG("NetX Send socket send error");
-        return CYASSL_CBIO_ERR_GENERAL;
+        WOLFSSL_MSG("NetX Send socket send error");
+        return WOLFSSL_CBIO_ERR_GENERAL;
     }
 
     return sz;
@@ -1131,7 +1131,7 @@ int NetX_Send(CYASSL* ssl, char *buf, int sz, void *ctx)
 
 
 /* like set_fd, but for default NetX context */
-void CyaSSL_SetIO_NetX(CYASSL* ssl, NX_TCP_SOCKET* nxSocket, ULONG waitOption)
+void wolfSSL_SetIO_NetX(WOLFSSL* ssl, NX_TCP_SOCKET* nxSocket, ULONG waitOption)
 {
     if (ssl) {
         ssl->nxCtx.nxSocket = nxSocket;

@@ -2,14 +2,14 @@
  *
  * Copyright (C) 2006-2014 wolfSSL Inc.
  *
- * This file is part of CyaSSL.
+ * This file is part of wolfSSL. (formerly known as CyaSSL)
  *
- * CyaSSL is free software; you can redistribute it and/or modify
+ * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  *
- * CyaSSL is distributed in the hope that it will be useful,
+ * wolfSSL is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
@@ -20,24 +20,24 @@
  */
 
   /* Name change compatibility layer */
-#include <cyassl/ssl.h>
+#include <wolfssl/ssl.h>
 
 #ifdef HAVE_CONFIG_H
     #include <config.h>
 #endif
 
-#include <cyassl/ctaocrypt/settings.h>
+#include <wolfssl/wolfcrypt/settings.h>
 
 #ifdef HAVE_OCSP
 
-#include <cyassl/error-ssl.h>
-#include <cyassl/ocsp.h>
-#include <cyassl/internal.h>
+#include <wolfssl/error-ssl.h>
+#include <wolfssl/ocsp.h>
+#include <wolfssl/internal.h>
 
 
-int InitOCSP(CYASSL_OCSP* ocsp, CYASSL_CERT_MANAGER* cm)
+int InitOCSP(WOLFSSL_OCSP* ocsp, WOLFSSL_CERT_MANAGER* cm)
 {
-    CYASSL_ENTER("InitOCSP");
+    WOLFSSL_ENTER("InitOCSP");
     XMEMSET(ocsp, 0, sizeof(*ocsp));
     ocsp->cm = cm;
     if (InitMutex(&ocsp->ocspLock) != 0)
@@ -49,7 +49,7 @@ int InitOCSP(CYASSL_OCSP* ocsp, CYASSL_CERT_MANAGER* cm)
 
 static int InitOCSP_Entry(OCSP_Entry* ocspe, DecodedCert* cert)
 {
-    CYASSL_ENTER("InitOCSP_Entry");
+    WOLFSSL_ENTER("InitOCSP_Entry");
 
     XMEMSET(ocspe, 0, sizeof(*ocspe));
     XMEMCPY(ocspe->issuerHash, cert->issuerHash, SHA_DIGEST_SIZE);
@@ -63,7 +63,7 @@ static void FreeOCSP_Entry(OCSP_Entry* ocspe)
 {
     CertStatus* tmp = ocspe->status;
 
-    CYASSL_ENTER("FreeOCSP_Entry");
+    WOLFSSL_ENTER("FreeOCSP_Entry");
 
     while (tmp) {
         CertStatus* next = tmp->next;
@@ -73,11 +73,11 @@ static void FreeOCSP_Entry(OCSP_Entry* ocspe)
 }
 
 
-void FreeOCSP(CYASSL_OCSP* ocsp, int dynamic)
+void FreeOCSP(WOLFSSL_OCSP* ocsp, int dynamic)
 {
     OCSP_Entry* tmp = ocsp->ocspList;
 
-    CYASSL_ENTER("FreeOCSP");
+    WOLFSSL_ENTER("FreeOCSP");
 
     while (tmp) {
         OCSP_Entry* next = tmp->next;
@@ -105,7 +105,7 @@ static int xstat2err(int stat)
 }
 
 
-int CheckCertOCSP(CYASSL_OCSP* ocsp, DecodedCert* cert)
+int CheckCertOCSP(WOLFSSL_OCSP* ocsp, DecodedCert* cert)
 {
     byte* ocspReqBuf = NULL;
     int ocspReqSz = 2048;
@@ -115,7 +115,7 @@ int CheckCertOCSP(CYASSL_OCSP* ocsp, DecodedCert* cert)
     CertStatus* certStatus = NULL;
     const char *url;
     int urlSz;
-#ifdef CYASSL_SMALL_STACK
+#ifdef WOLFSSL_SMALL_STACK
     CertStatus* newStatus;
     OcspRequest* ocspRequest;
     OcspResponse* ocspResponse;
@@ -125,10 +125,10 @@ int CheckCertOCSP(CYASSL_OCSP* ocsp, DecodedCert* cert)
     OcspResponse ocspResponse[1];
 #endif
 
-    CYASSL_ENTER("CheckCertOCSP");
+    WOLFSSL_ENTER("CheckCertOCSP");
 
     if (LockMutex(&ocsp->ocspLock) != 0) {
-        CYASSL_LEAVE("CheckCertOCSP", BAD_MUTEX_E);
+        WOLFSSL_LEAVE("CheckCertOCSP", BAD_MUTEX_E);
         return BAD_MUTEX_E;
     }
 
@@ -152,7 +152,7 @@ int CheckCertOCSP(CYASSL_OCSP* ocsp, DecodedCert* cert)
         }
         else {
             UnLockMutex(&ocsp->ocspLock);
-            CYASSL_LEAVE("CheckCertOCSP", MEMORY_ERROR);
+            WOLFSSL_LEAVE("CheckCertOCSP", MEMORY_ERROR);
             return MEMORY_ERROR;
         }
     }
@@ -173,12 +173,12 @@ int CheckCertOCSP(CYASSL_OCSP* ocsp, DecodedCert* cert)
             (certStatus->nextDate[0] == 0) ||
             !ValidateDate(certStatus->nextDate,
                                         certStatus->nextDateFormat, AFTER)) {
-            CYASSL_MSG("\tinvalid status date, looking up cert");
+            WOLFSSL_MSG("\tinvalid status date, looking up cert");
         }
         else {
             result = xstat2err(certStatus->status);
             UnLockMutex(&ocsp->ocspLock);
-            CYASSL_LEAVE("CheckCertOCSP", result);
+            WOLFSSL_LEAVE("CheckCertOCSP", result);
             return result;
         }
     }
@@ -203,11 +203,11 @@ int CheckCertOCSP(CYASSL_OCSP* ocsp, DecodedCert* cert)
 
     ocspReqBuf = (byte*)XMALLOC(ocspReqSz, NULL, DYNAMIC_TYPE_IN_BUFFER);
     if (ocspReqBuf == NULL) {
-        CYASSL_LEAVE("CheckCertOCSP", MEMORY_ERROR);
+        WOLFSSL_LEAVE("CheckCertOCSP", MEMORY_ERROR);
         return MEMORY_ERROR;
     }
 
-#ifdef CYASSL_SMALL_STACK
+#ifdef WOLFSSL_SMALL_STACK
     newStatus = (CertStatus*)XMALLOC(sizeof(CertStatus), NULL,
                                                        DYNAMIC_TYPE_TMP_BUFFER);
     ocspRequest = (OcspRequest*)XMALLOC(sizeof(OcspRequest), NULL,
@@ -222,7 +222,7 @@ int CheckCertOCSP(CYASSL_OCSP* ocsp, DecodedCert* cert)
 
         XFREE(ocspReqBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
-        CYASSL_LEAVE("CheckCertOCSP", MEMORY_ERROR);
+        WOLFSSL_LEAVE("CheckCertOCSP", MEMORY_ERROR);
         return MEMORY_E;
     }
 #endif
@@ -277,7 +277,7 @@ int CheckCertOCSP(CYASSL_OCSP* ocsp, DecodedCert* cert)
 
     XFREE(ocspReqBuf, NULL, DYNAMIC_TYPE_IN_BUFFER);
 
-#ifdef CYASSL_SMALL_STACK
+#ifdef WOLFSSL_SMALL_STACK
     XFREE(newStatus,    NULL, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(ocspRequest,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(ocspResponse, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -286,7 +286,7 @@ int CheckCertOCSP(CYASSL_OCSP* ocsp, DecodedCert* cert)
     if (ocspRespBuf != NULL && ocsp->cm->ocspRespFreeCb)
         ocsp->cm->ocspRespFreeCb(ocsp->cm->ocspIOCtx, ocspRespBuf);
 
-    CYASSL_LEAVE("CheckCertOCSP", result);
+    WOLFSSL_LEAVE("CheckCertOCSP", result);
     return result;
 }
 

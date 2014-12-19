@@ -2,14 +2,14 @@
  *
  * Copyright (C) 2006-2014 wolfSSL Inc.
  *
- * This file is part of CyaSSL.
+ * This file is part of wolfSSL.
  *
- * CyaSSL is free software; you can redistribute it and/or modify
+ * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  *
- * CyaSSL is distributed in the hope that it will be useful,
+ * wolfSSL is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
@@ -20,18 +20,18 @@
  */
 
   /* Name change compatibility layer */
-#include <cyassl/ssl.h>
+#include <wolfssl/ssl.h>
 
 #ifdef HAVE_CONFIG_H
     #include <config.h>
 #endif
 
-#include <cyassl/ctaocrypt/settings.h>
+#include <wolfssl/wolfcrypt/settings.h>
 
 #include <wolfssl/ssl.h>
-#include <cyassl/internal.h>
-#include <cyassl/error-ssl.h>
-#include <cyassl/ctaocrypt/hmac.h>
+#include <wolfssl/internal.h>
+#include <wolfssl/error-ssl.h>
+#include <wolfssl/wolfcrypt/hmac.h>
 
 
 
@@ -48,7 +48,7 @@
 #endif /* min */
 
 
-#ifdef CYASSL_SHA384
+#ifdef WOLFSSL_SHA384
     #define P_HASH_MAX_SIZE SHA384_DIGEST_SIZE
 #else
     #define P_HASH_MAX_SIZE SHA256_DIGEST_SIZE
@@ -65,7 +65,7 @@ static int p_hash(byte* result, word32 resLen, const byte* secret,
     word32 i;
     word32 idx = 0;
     int    ret = 0;
-#ifdef CYASSL_SMALL_STACK
+#ifdef WOLFSSL_SMALL_STACK
     byte*  previous;
     byte*  current;
     Hmac*  hmac;    
@@ -75,7 +75,7 @@ static int p_hash(byte* result, word32 resLen, const byte* secret,
     Hmac   hmac[1];
 #endif
 
-#ifdef CYASSL_SMALL_STACK
+#ifdef WOLFSSL_SMALL_STACK
     previous = (byte*)XMALLOC(P_HASH_MAX_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     current  = (byte*)XMALLOC(P_HASH_MAX_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     hmac     = (Hmac*)XMALLOC(sizeof(Hmac),    NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -104,7 +104,7 @@ static int p_hash(byte* result, word32 resLen, const byte* secret,
             break;
         #endif
 
-        #ifdef CYASSL_SHA384
+        #ifdef WOLFSSL_SHA384
             case sha384_mac:
                 hash = SHA384;
                 len  = SHA384_DIGEST_SIZE;
@@ -164,7 +164,7 @@ static int p_hash(byte* result, word32 resLen, const byte* secret,
     XMEMSET(current,  0, P_HASH_MAX_SIZE);
     XMEMSET(hmac,     0, sizeof(Hmac));
 
-#ifdef CYASSL_SMALL_STACK
+#ifdef WOLFSSL_SMALL_STACK
     XFREE(previous, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(current,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(hmac,     NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -196,7 +196,7 @@ static int doPRF(byte* digest, word32 digLen, const byte* secret,word32 secLen,
     int    ret  = 0;
     word32 half = (secLen + 1) / 2;
 
-#ifdef CYASSL_SMALL_STACK
+#ifdef WOLFSSL_SMALL_STACK
     byte* md5_half;
     byte* sha_half;
     byte* labelSeed;
@@ -217,7 +217,7 @@ static int doPRF(byte* digest, word32 digLen, const byte* secret,word32 secLen,
     if (digLen > MAX_PRF_DIG)
         return BUFFER_E;
 
-#ifdef CYASSL_SMALL_STACK
+#ifdef WOLFSSL_SMALL_STACK
     md5_half   = (byte*)XMALLOC(MAX_PRF_HALF,    NULL, DYNAMIC_TYPE_TMP_BUFFER);
     sha_half   = (byte*)XMALLOC(MAX_PRF_HALF,    NULL, DYNAMIC_TYPE_TMP_BUFFER);
     labelSeed  = (byte*)XMALLOC(MAX_PRF_LABSEED, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -253,7 +253,7 @@ static int doPRF(byte* digest, word32 digLen, const byte* secret,word32 secLen,
         }
     }
 
-#ifdef CYASSL_SMALL_STACK
+#ifdef WOLFSSL_SMALL_STACK
     XFREE(md5_half,   NULL, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(sha_half,   NULL, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(labelSeed,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -276,7 +276,7 @@ static int PRF(byte* digest, word32 digLen, const byte* secret, word32 secLen,
     int ret = 0;
 
     if (useAtLeastSha256) {
-#ifdef CYASSL_SMALL_STACK
+#ifdef WOLFSSL_SMALL_STACK
         byte* labelSeed;
 #else
         byte labelSeed[MAX_PRF_LABSEED]; /* labLen + seedLen is real size */
@@ -285,7 +285,7 @@ static int PRF(byte* digest, word32 digLen, const byte* secret, word32 secLen,
         if (labLen + seedLen > MAX_PRF_LABSEED)
             return BUFFER_E;
         
-#ifdef CYASSL_SMALL_STACK
+#ifdef WOLFSSL_SMALL_STACK
         labelSeed = (byte*)XMALLOC(MAX_PRF_LABSEED, NULL,
                                                        DYNAMIC_TYPE_TMP_BUFFER);
         if (labelSeed == NULL)
@@ -302,7 +302,7 @@ static int PRF(byte* digest, word32 digLen, const byte* secret, word32 secLen,
         ret = p_hash(digest, digLen, secret, secLen, labelSeed,
                      labLen + seedLen, hash_type);
 
-#ifdef CYASSL_SMALL_STACK
+#ifdef WOLFSSL_SMALL_STACK
         XFREE(labelSeed, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
     }
@@ -317,14 +317,14 @@ static int PRF(byte* digest, word32 digLen, const byte* secret, word32 secLen,
 }
 
 
-#ifdef CYASSL_SHA384
+#ifdef WOLFSSL_SHA384
     #define HSHASH_SZ SHA384_DIGEST_SIZE
 #else
     #define HSHASH_SZ FINISHED_SZ
 #endif
 
 
-int BuildTlsFinished(CYASSL* ssl, Hashes* hashes, const byte* sender)
+int BuildTlsFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
 {
     const byte* side;
     byte        handshake_hash[HSHASH_SZ];
@@ -346,7 +346,7 @@ int BuildTlsFinished(CYASSL* ssl, Hashes* hashes, const byte* sender)
             hashSz = SHA256_DIGEST_SIZE;
         }
 #endif
-#ifdef CYASSL_SHA384
+#ifdef WOLFSSL_SHA384
         if (ssl->specs.mac_algorithm == sha384_mac) {
             int ret = Sha384Final(&ssl->hashSha384, handshake_hash);
 
@@ -408,7 +408,7 @@ static const byte key_label   [KEY_LABEL_SZ + 1]    = "key expansion";
 
 
 /* External facing wrapper so user can call as well, 0 on success */
-int CyaSSL_DeriveTlsKeys(byte* key_data, word32 keyLen,
+int wolfSSL_DeriveTlsKeys(byte* key_data, word32 keyLen,
                          const byte* ms, word32 msLen,
                          const byte* sr, const byte* cr,
                          int tls1_2, int hash_type)
@@ -423,33 +423,33 @@ int CyaSSL_DeriveTlsKeys(byte* key_data, word32 keyLen,
 }
 
 
-int DeriveTlsKeys(CYASSL* ssl)
+int DeriveTlsKeys(WOLFSSL* ssl)
 {
     int   ret;
     int   length = 2 * ssl->specs.hash_size + 
                    2 * ssl->specs.key_size  +
                    2 * ssl->specs.iv_size;
-#ifdef CYASSL_SMALL_STACK
+#ifdef WOLFSSL_SMALL_STACK
     byte* key_data;
 #else
     byte  key_data[MAX_PRF_DIG];
 #endif
 
-#ifdef CYASSL_SMALL_STACK
+#ifdef WOLFSSL_SMALL_STACK
     key_data = (byte*)XMALLOC(MAX_PRF_DIG, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (key_data == NULL) {
         return MEMORY_E;
     }
 #endif
 
-    ret = CyaSSL_DeriveTlsKeys(key_data, length,
+    ret = wolfSSL_DeriveTlsKeys(key_data, length,
                            ssl->arrays->masterSecret, SECRET_LEN,
                            ssl->arrays->serverRandom, ssl->arrays->clientRandom,
                            IsAtLeastTLSv1_2(ssl), ssl->specs.mac_algorithm);
     if (ret == 0)
         ret = StoreKeys(ssl, key_data);
 
-#ifdef CYASSL_SMALL_STACK
+#ifdef WOLFSSL_SMALL_STACK
     XFREE(key_data, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
 
@@ -458,7 +458,7 @@ int DeriveTlsKeys(CYASSL* ssl)
 
 
 /* External facing wrapper so user can call as well, 0 on success */
-int CyaSSL_MakeTlsMasterSecret(byte* ms, word32 msLen,
+int wolfSSL_MakeTlsMasterSecret(byte* ms, word32 msLen,
                                const byte* pms, word32 pmsLen,
                                const byte* cr, const byte* sr,
                                int tls1_2, int hash_type)
@@ -473,11 +473,11 @@ int CyaSSL_MakeTlsMasterSecret(byte* ms, word32 msLen,
 }
 
 
-int MakeTlsMasterSecret(CYASSL* ssl)
+int MakeTlsMasterSecret(WOLFSSL* ssl)
 {
     int   ret;
 
-    ret = CyaSSL_MakeTlsMasterSecret(ssl->arrays->masterSecret, SECRET_LEN,
+    ret = wolfSSL_MakeTlsMasterSecret(ssl->arrays->masterSecret, SECRET_LEN,
               ssl->arrays->preMasterSecret, ssl->arrays->preMasterSz,
               ssl->arrays->clientRandom, ssl->arrays->serverRandom,
               IsAtLeastTLSv1_2(ssl), ssl->specs.mac_algorithm);
@@ -501,17 +501,17 @@ int MakeTlsMasterSecret(CYASSL* ssl)
 
 /* Used by EAP-TLS and EAP-TTLS to derive keying material from
  * the master_secret. */
-int CyaSSL_make_eap_keys(CYASSL* ssl, void* msk, unsigned int len,
+int wolfSSL_make_eap_keys(WOLFSSL* ssl, void* msk, unsigned int len,
                                                               const char* label)
 {
     int   ret;
-#ifdef CYASSL_SMALL_STACK
+#ifdef WOLFSSL_SMALL_STACK
     byte* seed;
 #else
     byte  seed[SEED_LEN];
 #endif
 
-#ifdef CYASSL_SMALL_STACK
+#ifdef WOLFSSL_SMALL_STACK
     seed = (byte*)XMALLOC(SEED_LEN, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (seed == NULL)
         return MEMORY_E;
@@ -528,7 +528,7 @@ int CyaSSL_make_eap_keys(CYASSL* ssl, void* msk, unsigned int len,
               (const byte *)label, (word32)strlen(label), seed, SEED_LEN,
               IsAtLeastTLSv1_2(ssl), ssl->specs.mac_algorithm);
 
-#ifdef CYASSL_SMALL_STACK
+#ifdef WOLFSSL_SMALL_STACK
     XFREE(seed, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
 
@@ -571,9 +571,9 @@ static INLINE void c32toa(word32 u32, byte* c)
 }
 
 
-static INLINE word32 GetSEQIncrement(CYASSL* ssl, int verify)
+static INLINE word32 GetSEQIncrement(WOLFSSL* ssl, int verify)
 {
-#ifdef CYASSL_DTLS
+#ifdef WOLFSSL_DTLS
     if (ssl->options.dtls) {
         if (verify)
             return ssl->keys.dtls_state.curSeq; /* explicit from peer */
@@ -588,9 +588,9 @@ static INLINE word32 GetSEQIncrement(CYASSL* ssl, int verify)
 }
 
 
-#ifdef CYASSL_DTLS
+#ifdef WOLFSSL_DTLS
 
-static INLINE word32 GetEpoch(CYASSL* ssl, int verify)
+static INLINE word32 GetEpoch(WOLFSSL* ssl, int verify)
 {
     if (verify)
         return ssl->keys.dtls_state.curEpoch;
@@ -598,14 +598,14 @@ static INLINE word32 GetEpoch(CYASSL* ssl, int verify)
         return ssl->keys.dtls_epoch;
 }
 
-#endif /* CYASSL_DTLS */
+#endif /* WOLFSSL_DTLS */
 
 
 /*** end copy ***/
 
 
-/* return HMAC digest type in CyaSSL format */
-int CyaSSL_GetHmacType(CYASSL* ssl)
+/* return HMAC digest type in wolfSSL format */
+int wolfSSL_GetHmacType(WOLFSSL* ssl)
 {
     if (ssl == NULL)
         return BAD_FUNC_ARG;
@@ -623,7 +623,7 @@ int CyaSSL_GetHmacType(CYASSL* ssl)
             return SHA256;
         }
         #endif
-        #ifdef CYASSL_SHA384
+        #ifdef WOLFSSL_SHA384
         case sha384_mac:
         {
             return SHA384;
@@ -650,15 +650,15 @@ int CyaSSL_GetHmacType(CYASSL* ssl)
 }
 
 
-int CyaSSL_SetTlsHmacInner(CYASSL* ssl, byte* inner, word32 sz, int content,
+int wolfSSL_SetTlsHmacInner(WOLFSSL* ssl, byte* inner, word32 sz, int content,
                            int verify)
 {
     if (ssl == NULL || inner == NULL)
         return BAD_FUNC_ARG;
 
-    XMEMSET(inner, 0, CYASSL_TLS_HMAC_INNER_SZ);
+    XMEMSET(inner, 0, WOLFSSL_TLS_HMAC_INNER_SZ);
 
-#ifdef CYASSL_DTLS
+#ifdef WOLFSSL_DTLS
     if (ssl->options.dtls)
         c16toa((word16)GetEpoch(ssl, verify), inner);
 #endif
@@ -673,12 +673,12 @@ int CyaSSL_SetTlsHmacInner(CYASSL* ssl, byte* inner, word32 sz, int content,
 
 
 /* TLS type HMAC */
-int TLS_hmac(CYASSL* ssl, byte* digest, const byte* in, word32 sz,
+int TLS_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz,
               int content, int verify)
 {
     Hmac hmac;
     int  ret;
-    byte myInner[CYASSL_TLS_HMAC_INNER_SZ];
+    byte myInner[WOLFSSL_TLS_HMAC_INNER_SZ];
 
     if (ssl == NULL)
         return BAD_FUNC_ARG;
@@ -688,10 +688,10 @@ int TLS_hmac(CYASSL* ssl, byte* digest, const byte* in, word32 sz,
         ssl->fuzzerCb(ssl, in, sz, FUZZ_HMAC, ssl->fuzzerCtx);
 #endif
 
-    CyaSSL_SetTlsHmacInner(ssl, myInner, sz, content, verify);
+    wolfSSL_SetTlsHmacInner(ssl, myInner, sz, content, verify);
 
-    ret = HmacSetKey(&hmac, CyaSSL_GetHmacType(ssl),
-                     CyaSSL_GetMacSecret(ssl, verify), ssl->specs.hash_size);
+    ret = HmacSetKey(&hmac, wolfSSL_GetHmacType(ssl),
+                     wolfSSL_GetMacSecret(ssl, verify), ssl->specs.hash_size);
     if (ret != 0)
         return ret;
     ret = HmacUpdate(&hmac, myInner, sizeof(myInner));
@@ -728,7 +728,7 @@ static INLINE word16 TLSX_ToSemaphore(word16 type)
                    is assigned to be used by another extension.
                    Use this check value for the new extension and decrement
                    the check value by one. */
-                CYASSL_MSG("### TLSX semaphore colision or overflow detected!");
+                WOLFSSL_MSG("### TLSX semaphore colision or overflow detected!");
             }
     }
     
@@ -778,11 +778,11 @@ static int TLSX_Push(TLSX** list, TLSX_Type type, void* data)
 }
 
 
-#ifndef NO_CYASSL_SERVER
+#ifndef NO_WOLFSSL_SERVER
 
-void TLSX_SetResponse(CYASSL* ssl, TLSX_Type type);
+void TLSX_SetResponse(WOLFSSL* ssl, TLSX_Type type);
 
-void TLSX_SetResponse(CYASSL* ssl, TLSX_Type type)
+void TLSX_SetResponse(WOLFSSL* ssl, TLSX_Type type)
 {
     TLSX *ext = TLSX_Find(ssl->extensions, type);
 
@@ -800,7 +800,7 @@ static void TLSX_SNI_Free(SNI* sni)
 {
     if (sni) {
         switch (sni->type) {
-            case CYASSL_SNI_HOST_NAME:
+            case WOLFSSL_SNI_HOST_NAME:
                 XFREE(sni->data.host_name, 0, DYNAMIC_TYPE_TLSX);
             break;
         }
@@ -830,7 +830,7 @@ static int TLSX_SNI_Append(SNI** list, byte type, const void* data, word16 size)
         return MEMORY_E;
 
     switch (type) {
-        case CYASSL_SNI_HOST_NAME: {
+        case WOLFSSL_SNI_HOST_NAME: {
             sni->data.host_name = XMALLOC(size + 1, 0, DYNAMIC_TYPE_TLSX);
 
             if (sni->data.host_name) {
@@ -851,9 +851,9 @@ static int TLSX_SNI_Append(SNI** list, byte type, const void* data, word16 size)
     sni->type = type;
     sni->next = *list;
 
-#ifndef NO_CYASSL_SERVER
+#ifndef NO_WOLFSSL_SERVER
     sni->options = 0;
-    sni->status  = CYASSL_SNI_NO_MATCH;
+    sni->status  = WOLFSSL_SNI_NO_MATCH;
 #endif
 
     *list = sni;
@@ -872,7 +872,7 @@ static word16 TLSX_SNI_GetSize(SNI* list)
         length += ENUM_LEN + OPAQUE16_LEN; /* sni type + sni length */
 
         switch (sni->type) {
-            case CYASSL_SNI_HOST_NAME:
+            case WOLFSSL_SNI_HOST_NAME:
                 length += XSTRLEN((char*)sni->data.host_name);
             break;
         }
@@ -893,7 +893,7 @@ static word16 TLSX_SNI_Write(SNI* list, byte* output)
         output[offset++] = sni->type; /* sni type */
 
         switch (sni->type) {
-            case CYASSL_SNI_HOST_NAME:
+            case WOLFSSL_SNI_HOST_NAME:
                 length = XSTRLEN((char*)sni->data.host_name);
 
                 c16toa(length, output + offset); /* sni length */
@@ -921,7 +921,7 @@ static SNI* TLSX_SNI_Find(SNI *list, byte type)
     return sni;
 }
 
-#ifndef NO_CYASSL_SERVER
+#ifndef NO_WOLFSSL_SERVER
 static void TLSX_SNI_SetStatus(TLSX* extensions, byte type, byte status)
 {
     TLSX* extension = TLSX_Find(extensions, SERVER_NAME_INDICATION);
@@ -929,7 +929,7 @@ static void TLSX_SNI_SetStatus(TLSX* extensions, byte type, byte status)
 
     if (sni) {
         sni->status = status;
-        CYASSL_MSG("SNI did match!");
+        WOLFSSL_MSG("SNI did match!");
     }
 }
 
@@ -945,10 +945,10 @@ byte TLSX_SNI_Status(TLSX* extensions, byte type)
 }
 #endif
 
-static int TLSX_SNI_Parse(CYASSL* ssl, byte* input, word16 length,
+static int TLSX_SNI_Parse(WOLFSSL* ssl, byte* input, word16 length,
                                                                  byte isRequest)
 {
-#ifndef NO_CYASSL_SERVER
+#ifndef NO_WOLFSSL_SERVER
     word16 size = 0;
     word16 offset = 0;
 #endif
@@ -966,7 +966,7 @@ static int TLSX_SNI_Parse(CYASSL* ssl, byte* input, word16 length,
         return length ? BUFFER_ERROR : 0; /* SNI response must be empty!
                                              Nothing else to do. */
 
-#ifndef NO_CYASSL_SERVER
+#ifndef NO_WOLFSSL_SERVER
 
     if (OPAQUE16_LEN > length)
         return BUFFER_ERROR;
@@ -996,21 +996,21 @@ static int TLSX_SNI_Parse(CYASSL* ssl, byte* input, word16 length,
         }
 
         switch(type) {
-            case CYASSL_SNI_HOST_NAME: {
+            case WOLFSSL_SNI_HOST_NAME: {
                 byte matched = (XSTRLEN(sni->data.host_name) == size)
                             && (XSTRNCMP(sni->data.host_name,
                                        (const char*)input + offset, size) == 0);
 
-                if (matched || sni->options & CYASSL_SNI_ANSWER_ON_MISMATCH) {
+                if (matched || sni->options & WOLFSSL_SNI_ANSWER_ON_MISMATCH) {
                     int r = TLSX_UseSNI(&ssl->extensions,
                                                     type, input + offset, size);
 
                     if (r != SSL_SUCCESS) return r; /* throw error */
 
                     TLSX_SNI_SetStatus(ssl->extensions, type,
-                      matched ? CYASSL_SNI_REAL_MATCH : CYASSL_SNI_FAKE_MATCH);
+                      matched ? WOLFSSL_SNI_REAL_MATCH : WOLFSSL_SNI_FAKE_MATCH);
 
-                } else if (!(sni->options & CYASSL_SNI_CONTINUE_ON_MISMATCH)) {
+                } else if (!(sni->options & WOLFSSL_SNI_CONTINUE_ON_MISMATCH)) {
                     SendAlert(ssl, alert_fatal, unrecognized_name);
 
                     return UNKNOWN_SNI_HOST_NAME_E;
@@ -1067,15 +1067,15 @@ int TLSX_UseSNI(TLSX** extensions, byte type, const void* data, word16 size)
     return SSL_SUCCESS;
 }
 
-#ifndef NO_CYASSL_SERVER
+#ifndef NO_WOLFSSL_SERVER
 word16 TLSX_SNI_GetRequest(TLSX* extensions, byte type, void** data)
 {
     TLSX* extension = TLSX_Find(extensions, SERVER_NAME_INDICATION);
     SNI* sni = TLSX_SNI_Find(extension ? extension->data : NULL, type);
 
-    if (sni && sni->status != CYASSL_SNI_NO_MATCH) {
+    if (sni && sni->status != WOLFSSL_SNI_NO_MATCH) {
         switch (sni->type) {
-            case CYASSL_SNI_HOST_NAME:
+            case WOLFSSL_SNI_HOST_NAME:
                 *data = sni->data.host_name;
                 return XSTRLEN(*data);
         }
@@ -1246,18 +1246,18 @@ static word16 TLSX_MFL_Write(byte* data, byte* output)
     return ENUM_LEN;
 }
 
-static int TLSX_MFL_Parse(CYASSL* ssl, byte* input, word16 length,
+static int TLSX_MFL_Parse(WOLFSSL* ssl, byte* input, word16 length,
                                                                  byte isRequest)
 {
     if (length != ENUM_LEN)
         return BUFFER_ERROR;
 
     switch (*input) {
-        case CYASSL_MFL_2_9 : ssl->max_fragment =  512; break;
-        case CYASSL_MFL_2_10: ssl->max_fragment = 1024; break;
-        case CYASSL_MFL_2_11: ssl->max_fragment = 2048; break;
-        case CYASSL_MFL_2_12: ssl->max_fragment = 4096; break;
-        case CYASSL_MFL_2_13: ssl->max_fragment = 8192; break;
+        case WOLFSSL_MFL_2_9 : ssl->max_fragment =  512; break;
+        case WOLFSSL_MFL_2_10: ssl->max_fragment = 1024; break;
+        case WOLFSSL_MFL_2_11: ssl->max_fragment = 2048; break;
+        case WOLFSSL_MFL_2_12: ssl->max_fragment = 4096; break;
+        case WOLFSSL_MFL_2_13: ssl->max_fragment = 8192; break;
 
         default:
             SendAlert(ssl, alert_fatal, illegal_parameter);
@@ -1265,7 +1265,7 @@ static int TLSX_MFL_Parse(CYASSL* ssl, byte* input, word16 length,
             return UNKNOWN_MAX_FRAG_LEN_E;
     }
 
-#ifndef NO_CYASSL_SERVER
+#ifndef NO_WOLFSSL_SERVER
     if (isRequest) {
         int r = TLSX_UseMaxFragment(&ssl->extensions, *input);
 
@@ -1286,7 +1286,7 @@ int TLSX_UseMaxFragment(TLSX** extensions, byte mfl)
     if (extensions == NULL)
         return BAD_FUNC_ARG;
 
-    if (mfl < CYASSL_MFL_2_9 || CYASSL_MFL_2_13 < mfl)
+    if (mfl < WOLFSSL_MFL_2_9 || WOLFSSL_MFL_2_13 < mfl)
         return BAD_FUNC_ARG;
 
     if ((data = XMALLOC(ENUM_LEN, 0, DYNAMIC_TYPE_TLSX)) == NULL)
@@ -1320,13 +1320,13 @@ int TLSX_UseMaxFragment(TLSX** extensions, byte mfl)
 
 #ifdef HAVE_TRUNCATED_HMAC
 
-static int TLSX_THM_Parse(CYASSL* ssl, byte* input, word16 length,
+static int TLSX_THM_Parse(WOLFSSL* ssl, byte* input, word16 length,
                                                                  byte isRequest)
 {
     if (length != 0 || input == NULL)
         return BUFFER_ERROR;
 
-#ifndef NO_CYASSL_SERVER
+#ifndef NO_WOLFSSL_SERVER
     if (isRequest) {
         int r = TLSX_UseTruncatedHMAC(&ssl->extensions);
 
@@ -1397,9 +1397,9 @@ static int TLSX_EllipticCurve_Append(EllipticCurve** list, word16 name)
     return 0;
 }
 
-#ifndef NO_CYASSL_CLIENT
+#ifndef NO_WOLFSSL_CLIENT
 
-static void TLSX_EllipticCurve_ValidateRequest(CYASSL* ssl, byte* semaphore)
+static void TLSX_EllipticCurve_ValidateRequest(WOLFSSL* ssl, byte* semaphore)
 {
     int i;
 
@@ -1447,10 +1447,10 @@ static word16 TLSX_EllipticCurve_Write(EllipticCurve* list, byte* output)
     return OPAQUE16_LEN + length;
 }
 
-#endif /* NO_CYASSL_CLIENT */
-#ifndef NO_CYASSL_SERVER
+#endif /* NO_WOLFSSL_CLIENT */
+#ifndef NO_WOLFSSL_SERVER
 
-static int TLSX_EllipticCurve_Parse(CYASSL* ssl, byte* input, word16 length,
+static int TLSX_EllipticCurve_Parse(WOLFSSL* ssl, byte* input, word16 length,
                                                                  byte isRequest)
 {
     word16 offset;
@@ -1480,7 +1480,7 @@ static int TLSX_EllipticCurve_Parse(CYASSL* ssl, byte* input, word16 length,
     return 0;
 }
 
-int TLSX_ValidateEllipticCurves(CYASSL* ssl, byte first, byte second) {
+int TLSX_ValidateEllipticCurves(WOLFSSL* ssl, byte first, byte second) {
     TLSX*          extension = (first == ECC_BYTE)
                              ? TLSX_Find(ssl->extensions, ELLIPTIC_CURVES)
                              : NULL;
@@ -1499,12 +1499,12 @@ int TLSX_ValidateEllipticCurves(CYASSL* ssl, byte first, byte second) {
     for (curve = extension->data; curve && !(sig && key); curve = curve->next) {
 
         switch (curve->name) {
-            case CYASSL_ECC_SECP160R1: oid = ECC_160R1; octets = 20; break;
-            case CYASSL_ECC_SECP192R1: oid = ECC_192R1; octets = 24; break;
-            case CYASSL_ECC_SECP224R1: oid = ECC_224R1; octets = 28; break;
-            case CYASSL_ECC_SECP256R1: oid = ECC_256R1; octets = 32; break;
-            case CYASSL_ECC_SECP384R1: oid = ECC_384R1; octets = 48; break;
-            case CYASSL_ECC_SECP521R1: oid = ECC_521R1; octets = 66; break;
+            case WOLFSSL_ECC_SECP160R1: oid = ECC_160R1; octets = 20; break;
+            case WOLFSSL_ECC_SECP192R1: oid = ECC_192R1; octets = 24; break;
+            case WOLFSSL_ECC_SECP224R1: oid = ECC_224R1; octets = 28; break;
+            case WOLFSSL_ECC_SECP256R1: oid = ECC_256R1; octets = 32; break;
+            case WOLFSSL_ECC_SECP384R1: oid = ECC_384R1; octets = 48; break;
+            case WOLFSSL_ECC_SECP521R1: oid = ECC_521R1; octets = 66; break;
             default: continue; /* unsupported curve */
         }
 
@@ -1575,7 +1575,7 @@ int TLSX_ValidateEllipticCurves(CYASSL* ssl, byte first, byte second) {
     return sig && key;
 }
 
-#endif /* NO_CYASSL_SERVER */
+#endif /* NO_WOLFSSL_SERVER */
 
 int TLSX_UseSupportedCurve(TLSX** extensions, word16 name)
 {
@@ -1619,7 +1619,7 @@ int TLSX_UseSupportedCurve(TLSX** extensions, word16 name)
 #define EC_FREE_ALL         TLSX_EllipticCurve_FreeAll
 #define EC_VALIDATE_REQUEST TLSX_EllipticCurve_ValidateRequest
 
-#ifndef NO_CYASSL_CLIENT
+#ifndef NO_WOLFSSL_CLIENT
 #define EC_GET_SIZE TLSX_EllipticCurve_GetSize
 #define EC_WRITE    TLSX_EllipticCurve_Write
 #else
@@ -1627,7 +1627,7 @@ int TLSX_UseSupportedCurve(TLSX** extensions, word16 name)
 #define EC_WRITE(a, b)            0
 #endif
 
-#ifndef NO_CYASSL_SERVER
+#ifndef NO_WOLFSSL_SERVER
 #define EC_PARSE TLSX_EllipticCurve_Parse
 #else
 #define EC_PARSE(a, b, c, d)      0
@@ -1684,21 +1684,21 @@ static word16 TLSX_SecureRenegotiation_Write(SecureRenegotiation* data,
     return offset;
 }   
     
-static int TLSX_SecureRenegotiation_Parse(CYASSL* ssl, byte* input, 
+static int TLSX_SecureRenegotiation_Parse(WOLFSSL* ssl, byte* input, 
                                                   word16 length, byte isRequest)
 {
     int ret = SECURE_RENEGOTIATION_E;
 
     if (length >= OPAQUE8_LEN) {
         if (ssl->secure_renegotiation == NULL) {
-        #ifndef NO_CYASSL_SERVER
+        #ifndef NO_WOLFSSL_SERVER
             if (isRequest && *input == 0) {
                 ret = 0;  /* don't reply, user didn't enable */
             }
         #endif
         }
         else if (isRequest) {
-        #ifndef NO_CYASSL_SERVER
+        #ifndef NO_WOLFSSL_SERVER
             if (*input == TLS_FINISHED_SZ) {
                 /* TODO compare client_verify_data */
                 ret = 0;
@@ -1706,7 +1706,7 @@ static int TLSX_SecureRenegotiation_Parse(CYASSL* ssl, byte* input,
         #endif
         }
         else {
-        #ifndef NO_CYASSL_CLIENT
+        #ifndef NO_WOLFSSL_CLIENT
             if (!ssl->secure_renegotiation->enabled) {
                 if (*input == 0) {
                     ssl->secure_renegotiation->enabled = 1;
@@ -1767,7 +1767,7 @@ int TLSX_UseSecureRenegotiation(TLSX** extensions)
 
 #ifdef HAVE_SESSION_TICKET
 
-static void TLSX_SessionTicket_ValidateRequest(CYASSL* ssl)
+static void TLSX_SessionTicket_ValidateRequest(WOLFSSL* ssl)
 {
     TLSX*          extension = TLSX_Find(ssl->extensions, SESSION_TICKET);
     SessionTicket* ticket    = extension ? extension->data : NULL;
@@ -1801,7 +1801,7 @@ static word16 TLSX_SessionTicket_Write(SessionTicket* ticket, byte* output,
 }
 
 
-static int TLSX_SessionTicket_Parse(CYASSL* ssl, byte* input, word16 length,
+static int TLSX_SessionTicket_Parse(WOLFSSL* ssl, byte* input, word16 length,
                                                                  byte isRequest)
 {
     if (!isRequest) {
@@ -1818,7 +1818,7 @@ static int TLSX_SessionTicket_Parse(CYASSL* ssl, byte* input, word16 length,
     return 0;
 }
 
-CYASSL_LOCAL SessionTicket* TLSX_SessionTicket_Create(word32 lifetime,
+WOLFSSL_LOCAL SessionTicket* TLSX_SessionTicket_Create(word32 lifetime,
                                                        byte* data, word16 size)
 {
     SessionTicket* ticket = (SessionTicket*)XMALLOC(sizeof(SessionTicket),
@@ -1837,7 +1837,7 @@ CYASSL_LOCAL SessionTicket* TLSX_SessionTicket_Create(word32 lifetime,
 
     return ticket;
 }
-CYASSL_LOCAL void TLSX_SessionTicket_Free(SessionTicket* ticket)
+WOLFSSL_LOCAL void TLSX_SessionTicket_Free(SessionTicket* ticket)
 {
     if (ticket) {
         XFREE(ticket->data, NULL, DYNAMIC_TYPE_TLSX);
@@ -1922,7 +1922,7 @@ void TLSX_FreeAll(TLSX* list)
     }
 }
 
-int TLSX_SupportExtensions(CYASSL* ssl) {
+int TLSX_SupportExtensions(WOLFSSL* ssl) {
     return ssl && (IsTLS(ssl) || ssl->version.major == DTLS_MAJOR);
 }
 
@@ -2035,9 +2035,9 @@ static word16 TLSX_Write(TLSX* list, byte* output, byte* semaphore,
     return offset;
 }
 
-#ifndef NO_CYASSL_CLIENT
+#ifndef NO_WOLFSSL_CLIENT
 
-word16 TLSX_GetRequestSize(CYASSL* ssl)
+word16 TLSX_GetRequestSize(WOLFSSL* ssl)
 {
     word16 length = 0;
 
@@ -2063,7 +2063,7 @@ word16 TLSX_GetRequestSize(CYASSL* ssl)
     return length;
 }
 
-word16 TLSX_WriteRequest(CYASSL* ssl, byte* output)
+word16 TLSX_WriteRequest(WOLFSSL* ssl, byte* output)
 {
     word16 offset = 0;
 
@@ -2109,11 +2109,11 @@ word16 TLSX_WriteRequest(CYASSL* ssl, byte* output)
     return offset;
 }
 
-#endif /* NO_CYASSL_CLIENT */
+#endif /* NO_WOLFSSL_CLIENT */
 
-#ifndef NO_CYASSL_SERVER
+#ifndef NO_WOLFSSL_SERVER
 
-word16 TLSX_GetResponseSize(CYASSL* ssl)
+word16 TLSX_GetResponseSize(WOLFSSL* ssl)
 {
     word16 length = 0;
     byte semaphore[SEMAPHORE_SIZE] = {0};
@@ -2129,7 +2129,7 @@ word16 TLSX_GetResponseSize(CYASSL* ssl)
     return length;
 }
 
-word16 TLSX_WriteResponse(CYASSL *ssl, byte* output)
+word16 TLSX_WriteResponse(WOLFSSL *ssl, byte* output)
 {
     word16 offset = 0;
 
@@ -2147,9 +2147,9 @@ word16 TLSX_WriteResponse(CYASSL *ssl, byte* output)
     return offset;
 }
 
-#endif /* NO_CYASSL_SERVER */
+#endif /* NO_WOLFSSL_SERVER */
 
-int TLSX_Parse(CYASSL* ssl, byte* input, word16 length, byte isRequest,
+int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte isRequest,
                                                                  Suites *suites)
 {
     int ret = 0;
@@ -2176,37 +2176,37 @@ int TLSX_Parse(CYASSL* ssl, byte* input, word16 length, byte isRequest,
 
         switch (type) {
             case SERVER_NAME_INDICATION:
-                CYASSL_MSG("SNI extension received");
+                WOLFSSL_MSG("SNI extension received");
 
                 ret = SNI_PARSE(ssl, input + offset, size, isRequest);
                 break;
 
             case MAX_FRAGMENT_LENGTH:
-                CYASSL_MSG("Max Fragment Length extension received");
+                WOLFSSL_MSG("Max Fragment Length extension received");
 
                 ret = MFL_PARSE(ssl, input + offset, size, isRequest);
                 break;
 
             case TRUNCATED_HMAC:
-                CYASSL_MSG("Truncated HMAC extension received");
+                WOLFSSL_MSG("Truncated HMAC extension received");
 
                 ret = THM_PARSE(ssl, input + offset, size, isRequest);
                 break;
 
             case ELLIPTIC_CURVES:
-                CYASSL_MSG("Elliptic Curves extension received");
+                WOLFSSL_MSG("Elliptic Curves extension received");
 
                 ret = EC_PARSE(ssl, input + offset, size, isRequest);
                 break;
 
             case SECURE_RENEGOTIATION:
-                CYASSL_MSG("Secure Renegotiation extension received");
+                WOLFSSL_MSG("Secure Renegotiation extension received");
 
                 ret = SCR_PARSE(ssl, input + offset, size, isRequest);
                 break;
 
             case SESSION_TICKET:
-                CYASSL_MSG("Session Ticket extension received");
+                WOLFSSL_MSG("Session Ticket extension received");
 
                 ret = STK_PARSE(ssl, input + offset, size, isRequest);
                 break;
@@ -2226,7 +2226,7 @@ int TLSX_Parse(CYASSL* ssl, byte* input, word16 length, byte isRequest,
                                                         HELLO_EXT_SIGALGO_MAX));
                     }
                 } else {
-                    CYASSL_MSG("Servers MUST NOT send SIG ALGO extension.");
+                    WOLFSSL_MSG("Servers MUST NOT send SIG ALGO extension.");
                 }
 
                 break;
@@ -2247,14 +2247,14 @@ int TLSX_Parse(CYASSL* ssl, byte* input, word16 length, byte isRequest,
 #endif
 
 
-#ifndef NO_CYASSL_CLIENT
+#ifndef NO_WOLFSSL_CLIENT
 
 #ifndef NO_OLD_TLS
 
-    CYASSL_METHOD* CyaTLSv1_client_method(void)
+    WOLFSSL_METHOD* wolfTLSv1_client_method(void)
     {
-        CYASSL_METHOD* method =
-                             (CYASSL_METHOD*) XMALLOC(sizeof(CYASSL_METHOD), 0,
+        WOLFSSL_METHOD* method =
+                             (WOLFSSL_METHOD*) XMALLOC(sizeof(WOLFSSL_METHOD), 0,
                                                       DYNAMIC_TYPE_METHOD);
         if (method)
             InitSSL_Method(method, MakeTLSv1());
@@ -2262,10 +2262,10 @@ int TLSX_Parse(CYASSL* ssl, byte* input, word16 length, byte isRequest,
     }
 
 
-    CYASSL_METHOD* CyaTLSv1_1_client_method(void)
+    WOLFSSL_METHOD* wolfTLSv1_1_client_method(void)
     {
-        CYASSL_METHOD* method =
-                              (CYASSL_METHOD*) XMALLOC(sizeof(CYASSL_METHOD), 0,
+        WOLFSSL_METHOD* method =
+                              (WOLFSSL_METHOD*) XMALLOC(sizeof(WOLFSSL_METHOD), 0,
                                                        DYNAMIC_TYPE_METHOD);
         if (method)
             InitSSL_Method(method, MakeTLSv1_1());
@@ -2276,10 +2276,10 @@ int TLSX_Parse(CYASSL* ssl, byte* input, word16 length, byte isRequest,
 
 #ifndef NO_SHA256   /* can't use without SHA256 */
 
-    CYASSL_METHOD* CyaTLSv1_2_client_method(void)
+    WOLFSSL_METHOD* wolfTLSv1_2_client_method(void)
     {
-        CYASSL_METHOD* method =
-                              (CYASSL_METHOD*) XMALLOC(sizeof(CYASSL_METHOD), 0,
+        WOLFSSL_METHOD* method =
+                              (WOLFSSL_METHOD*) XMALLOC(sizeof(WOLFSSL_METHOD), 0,
                                                        DYNAMIC_TYPE_METHOD);
         if (method)
             InitSSL_Method(method, MakeTLSv1_2());
@@ -2289,10 +2289,10 @@ int TLSX_Parse(CYASSL* ssl, byte* input, word16 length, byte isRequest,
 #endif
 
 
-    CYASSL_METHOD* CyaSSLv23_client_method(void)
+    WOLFSSL_METHOD* wolfSSLv23_client_method(void)
     {
-        CYASSL_METHOD* method =
-                              (CYASSL_METHOD*) XMALLOC(sizeof(CYASSL_METHOD), 0,
+        WOLFSSL_METHOD* method =
+                              (WOLFSSL_METHOD*) XMALLOC(sizeof(WOLFSSL_METHOD), 0,
                                                        DYNAMIC_TYPE_METHOD);
         if (method) {
 #ifndef NO_SHA256         /* 1.2 requires SHA256 */
@@ -2308,35 +2308,35 @@ int TLSX_Parse(CYASSL* ssl, byte* input, word16 length, byte isRequest,
     }
 
 
-#endif /* NO_CYASSL_CLIENT */
+#endif /* NO_WOLFSSL_CLIENT */
 
 
 
-#ifndef NO_CYASSL_SERVER
+#ifndef NO_WOLFSSL_SERVER
 
 #ifndef NO_OLD_TLS
 
-    CYASSL_METHOD* CyaTLSv1_server_method(void)
+    WOLFSSL_METHOD* wolfTLSv1_server_method(void)
     {
-        CYASSL_METHOD* method =
-                              (CYASSL_METHOD*) XMALLOC(sizeof(CYASSL_METHOD), 0,
+        WOLFSSL_METHOD* method =
+                              (WOLFSSL_METHOD*) XMALLOC(sizeof(WOLFSSL_METHOD), 0,
                                                        DYNAMIC_TYPE_METHOD);
         if (method) {
             InitSSL_Method(method, MakeTLSv1());
-            method->side = CYASSL_SERVER_END;
+            method->side = WOLFSSL_SERVER_END;
         }
         return method;
     }
 
 
-    CYASSL_METHOD* CyaTLSv1_1_server_method(void)
+    WOLFSSL_METHOD* wolfTLSv1_1_server_method(void)
     {
-        CYASSL_METHOD* method =
-                              (CYASSL_METHOD*) XMALLOC(sizeof(CYASSL_METHOD), 0,
+        WOLFSSL_METHOD* method =
+                              (WOLFSSL_METHOD*) XMALLOC(sizeof(WOLFSSL_METHOD), 0,
                                                        DYNAMIC_TYPE_METHOD);
         if (method) {
             InitSSL_Method(method, MakeTLSv1_1());
-            method->side = CYASSL_SERVER_END;
+            method->side = WOLFSSL_SERVER_END;
         }
         return method;
     }
@@ -2345,14 +2345,14 @@ int TLSX_Parse(CYASSL* ssl, byte* input, word16 length, byte isRequest,
 
 #ifndef NO_SHA256   /* can't use without SHA256 */
 
-    CYASSL_METHOD* CyaTLSv1_2_server_method(void)
+    WOLFSSL_METHOD* wolfTLSv1_2_server_method(void)
     {
-        CYASSL_METHOD* method =
-                              (CYASSL_METHOD*) XMALLOC(sizeof(CYASSL_METHOD), 0,
+        WOLFSSL_METHOD* method =
+                              (WOLFSSL_METHOD*) XMALLOC(sizeof(WOLFSSL_METHOD), 0,
                                                        DYNAMIC_TYPE_METHOD);
         if (method) {
             InitSSL_Method(method, MakeTLSv1_2());
-            method->side = CYASSL_SERVER_END;
+            method->side = WOLFSSL_SERVER_END;
         }
         return method;
     }
@@ -2360,10 +2360,10 @@ int TLSX_Parse(CYASSL* ssl, byte* input, word16 length, byte isRequest,
 #endif
 
 
-    CYASSL_METHOD* CyaSSLv23_server_method(void)
+    WOLFSSL_METHOD* wolfSSLv23_server_method(void)
     {
-        CYASSL_METHOD* method =
-                              (CYASSL_METHOD*) XMALLOC(sizeof(CYASSL_METHOD), 0,
+        WOLFSSL_METHOD* method =
+                              (WOLFSSL_METHOD*) XMALLOC(sizeof(WOLFSSL_METHOD), 0,
                                                        DYNAMIC_TYPE_METHOD);
         if (method) {
 #ifndef NO_SHA256         /* 1.2 requires SHA256 */
@@ -2371,7 +2371,7 @@ int TLSX_Parse(CYASSL* ssl, byte* input, word16 length, byte isRequest,
 #else
             InitSSL_Method(method, MakeTLSv1_1());
 #endif
-            method->side      = CYASSL_SERVER_END;
+            method->side      = WOLFSSL_SERVER_END;
 #ifndef NO_OLD_TLS
             method->downgrade = 1;
 #endif /* !NO_OLD_TLS */
@@ -2381,6 +2381,6 @@ int TLSX_Parse(CYASSL* ssl, byte* input, word16 length, byte isRequest,
 
 
 
-#endif /* NO_CYASSL_SERVER */
+#endif /* NO_WOLFSSL_SERVER */
 #endif /* NO_TLS */
 

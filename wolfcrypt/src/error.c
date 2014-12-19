@@ -2,14 +2,14 @@
  *
  * Copyright (C) 2006-2014 wolfSSL Inc.
  *
- * This file is part of CyaSSL.
+ * This file is part of wolfSSL. (formerly known as CyaSSL)
  *
- * CyaSSL is free software; you can redistribute it and/or modify
+ * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  *
- * CyaSSL is distributed in the hope that it will be useful,
+ * wolfSSL is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
@@ -23,16 +23,16 @@
     #include <config.h>
 #endif
 
-#include <cyassl/ctaocrypt/settings.h>
+#include <wolfssl/wolfcrypt/settings.h>
 
-#include <cyassl/ctaocrypt/error-crypt.h>
+#include <wolfssl/wolfcrypt/error-crypt.h>
 
 #ifdef _MSC_VER
     /* 4996 warning to use MS extensions e.g., strcpy_s instead of XSTRNCPY */
     #pragma warning(disable: 4996)
 #endif
 
-const char* CTaoCryptGetErrorString(int error)
+const char* wc_GetErrorString(int error)
 {
 #ifdef NO_ERROR_STRINGS
 
@@ -319,7 +319,7 @@ const char* CTaoCryptGetErrorString(int error)
 
 }
 
-void CTaoCryptErrorString(int error, char* buffer)
+void wc_ErrorString(int error, char* buffer)
 {
-    XSTRNCPY(buffer, CTaoCryptGetErrorString(error), CYASSL_MAX_ERROR_SZ);
+    XSTRNCPY(buffer, wc_GetErrorString(error), WOLFSSL_MAX_ERROR_SZ);
 }

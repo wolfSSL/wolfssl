@@ -20,10 +20,10 @@
  */
 
 
-#ifndef CTAO_CRYPT_ERROR_H
-#define CTAO_CRYPT_ERROR_H
+#ifndef WOLF_CRYPT_ERROR_H
+#define WOLF_CRYPT_ERROR_H
 
-#include <cyassl/ctaocrypt/types.h>
+#include <wolfssl/wolfcrypt/types.h>
 
 
 #ifdef __cplusplus
@@ -143,8 +143,8 @@ enum {
 };
 
 
-CYASSL_API void CTaoCryptErrorString(int err, char* buff);
-CYASSL_API const char* CTaoCryptGetErrorString(int error);
+WOLFSSL_API void wc_ErrorString(int err, char* buff);
+WOLFSSL_API const char* wc_GetErrorString(int error);
 
 
 #ifdef __cplusplus

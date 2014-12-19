@@ -1528,7 +1528,7 @@ static void Camellia_DecryptBlock(const int keyBitLength,
 
 
 
-/* CTaoCrypt wrappers to the Camellia code */
+/* wolfCrypt wrappers to the Camellia code */
 
 int CamelliaSetKey(Camellia* cam, const byte* key, word32 len, const byte* iv)
 {

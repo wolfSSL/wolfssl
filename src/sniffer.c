@@ -2,14 +2,14 @@
  *
  * Copyright (C) 2006-2014 wolfSSL Inc.
  *
- * This file is part of CyaSSL.
+ * This file is part of wolfSSL. (formerly known as CyaSSL)
  *
- * CyaSSL is free software; you can redistribute it and/or modify
+ * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  *
- * CyaSSL is distributed in the hope that it will be useful,
+ * wolfSSL is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
@@ -20,15 +20,15 @@
  */
 
  /* Name change compatibility layer */
-#include <cyassl/ssl.h>
+#include <wolfssl/ssl.h>
 
 #ifdef HAVE_CONFIG_H
     #include <config.h>
 #endif
 
-#include <cyassl/ctaocrypt/settings.h>
+#include <wolfssl/wolfcrypt/settings.h>
 
-#ifdef CYASSL_SNIFFER
+#ifdef WOLFSSL_SNIFFER
 
 #include <assert.h>
 #include <time.h>
@@ -43,11 +43,11 @@
     #define SNPRINTF snprintf
 #endif
 
-#include <cyassl/openssl/ssl.h>
-#include <cyassl/internal.h>
-#include <cyassl/error-ssl.h>
-#include <cyassl/sniffer.h>
-#include <cyassl/sniffer_error.h>
+#include <wolfssl/openssl/ssl.h>
+#include <wolfssl/internal.h>
+#include <wolfssl/error-ssl.h>
+#include <wolfssl/sniffer.h>
+#include <wolfssl/sniffer_error.h>
 
 
 #ifndef min
@@ -59,8 +59,8 @@ static INLINE word32 min(word32 a, word32 b)
 
 #endif
 
-#ifndef CYASSL_SNIFFER_TIMEOUT
-    #define CYASSL_SNIFFER_TIMEOUT 900
+#ifndef WOLFSSL_SNIFFER_TIMEOUT
+    #define WOLFSSL_SNIFFER_TIMEOUT 900
     /* Cache unclosed Sessions for 15 minutes since last used */
 #endif
 
@@ -290,7 +290,7 @@ typedef struct SnifferServer {
     int            port;                         /* server port */
 #ifdef HAVE_SNI
     NamedKey*      namedKeys;                    /* mapping of names and keys */
-    CyaSSL_Mutex   namedKeysMutex;               /* mutex for namedKey list */
+    wolfSSL_Mutex   namedKeysMutex;               /* mutex for namedKey list */
 #endif
     struct SnifferServer* next;                  /* for list */
 } SnifferServer;
@@ -343,19 +343,19 @@ typedef struct SnifferSession {
 
 /* Sniffer Server List and mutex */
 static SnifferServer* ServerList = 0;
-static CyaSSL_Mutex ServerListMutex;
+static wolfSSL_Mutex ServerListMutex;
 
 
 /* Session Hash Table, mutex, and count */
 static SnifferSession* SessionTable[HASH_SIZE];
-static CyaSSL_Mutex SessionMutex;
+static wolfSSL_Mutex SessionMutex;
 static int SessionCount = 0;
 
 
 /* Initialize overall Sniffer */
 void ssl_InitSniffer(void)
 {
-    CyaSSL_Init();
+    wolfSSL_Init();
     InitMutex(&ServerListMutex);
     InitMutex(&SessionMutex);
 }
@@ -488,7 +488,7 @@ void ssl_FreeSniffer(void)
         TraceFile = NULL;
     }
 
-    CyaSSL_Cleanup();
+    wolfSSL_Cleanup();
 }
 
 
@@ -980,9 +980,9 @@ static SnifferSession* GetSnifferSession(IpInfo* ipInfo, TcpInfo* tcpInfo)
     if (session) {
         if (ipInfo->dst == session->context->server &&
             tcpInfo->dstPort == session->context->port)
-            session->flags.side = CYASSL_SERVER_END;
+            session->flags.side = WOLFSSL_SERVER_END;
         else
-            session->flags.side = CYASSL_CLIENT_END;
+            session->flags.side = WOLFSSL_CLIENT_END;
     }    
     
     return session;
@@ -1024,7 +1024,7 @@ static int LoadKeyFile(byte** keyBuf, word32* keyBufSz,
     if (typeKey == SSL_FILETYPE_PEM) {
         saveBuf = (byte*)malloc(fileSz);
 
-        saveBufSz = CyaSSL_KeyPemToDer(loadBuf, (int)fileSz,
+        saveBufSz = wolfSSL_KeyPemToDer(loadBuf, (int)fileSz,
                                                 saveBuf, (int)fileSz, password);
         free(loadBuf);
 
@@ -1560,10 +1560,10 @@ static int ProcessClientHello(const byte* input, int* sslBytes,
         word32 nameSz = sizeof(name);
         int ret;
 
-        ret = CyaSSL_SNI_GetFromBuffer(
+        ret = wolfSSL_SNI_GetFromBuffer(
                              input - HANDSHAKE_HEADER_SZ - RECORD_HEADER_SZ,
                              *sslBytes + HANDSHAKE_HEADER_SZ + RECORD_HEADER_SZ,
-                             CYASSL_SNI_HOST_NAME, name, &nameSz);
+                             WOLFSSL_SNI_HOST_NAME, name, &nameSz);
 
         if (ret == SSL_SUCCESS) {
             NamedKey* namedKey;
@@ -1574,7 +1574,7 @@ static int ProcessClientHello(const byte* input, int* sslBytes,
             while (namedKey != NULL) {
                 if (nameSz == namedKey->nameSz &&
                            XSTRNCMP((char*)name, namedKey->name, nameSz) == 0) {
-                    if (CyaSSL_use_PrivateKey_buffer(session->sslServer,
+                    if (wolfSSL_use_PrivateKey_buffer(session->sslServer,
                                             namedKey->key, namedKey->keySz,
                                             SSL_FILETYPE_ASN1) != SSL_SUCCESS) {
                         UnLockMutex(&session->context->namedKeysMutex);
@@ -1741,7 +1741,7 @@ static int ProcessFinished(const byte* input, int size, int* sslBytes,
     word32 inOutIdx = 0;
     int    ret;
                 
-    if (session->flags.side == CYASSL_SERVER_END)
+    if (session->flags.side == WOLFSSL_SERVER_END)
         ssl = session->sslServer;
     else
         ssl = session->sslClient;
@@ -1757,7 +1757,7 @@ static int ProcessFinished(const byte* input, int size, int* sslBytes,
                 
     if (ret == 0 && session->flags.cached == 0) {
         if (session->sslServer->options.haveSessionId) {
-            CYASSL_SESSION* sess = GetSession(session->sslServer, NULL);
+            WOLFSSL_SESSION* sess = GetSession(session->sslServer, NULL);
             if (sess == NULL)
                 AddSession(session->sslServer);  /* don't re add */
             session->flags.cached = 1;
@@ -1858,37 +1858,37 @@ static int Decrypt(SSL* ssl, byte* output, const byte* input, word32 sz)
 
     switch (ssl->specs.bulk_cipher_algorithm) {
         #ifdef BUILD_ARC4
-        case cyassl_rc4:
+        case wolfssl_rc4:
             Arc4Process(ssl->decrypt.arc4, output, input, sz);
             break;
         #endif
             
         #ifdef BUILD_DES3
-        case cyassl_triple_des:
+        case wolfssl_triple_des:
             ret = Des3_CbcDecrypt(ssl->decrypt.des3, output, input, sz);
             break;
         #endif
             
         #ifdef BUILD_AES
-        case cyassl_aes:
+        case wolfssl_aes:
             ret = AesCbcDecrypt(ssl->decrypt.aes, output, input, sz);
             break;
         #endif
             
         #ifdef HAVE_HC128
-        case cyassl_hc128:
+        case wolfssl_hc128:
             Hc128_Process(ssl->decrypt.hc128, output, input, sz);
             break;
         #endif
             
         #ifdef BUILD_RABBIT
-        case cyassl_rabbit:
+        case wolfssl_rabbit:
             RabbitProcess(ssl->decrypt.rabbit, output, input, sz);
             break;
         #endif
 
         #ifdef HAVE_CAMELLIA 
-        case cyassl_camellia:
+        case wolfssl_camellia:
             CamelliaCbcDecrypt(ssl->decrypt.cam, output, input, sz);
             break;
         #endif
@@ -1981,7 +1981,7 @@ static void RemoveStaleSessions(void)
         session = SessionTable[i];
         while (session) {
             SnifferSession* next = session->next; 
-            if (time(NULL) >= session->lastUsed + CYASSL_SNIFFER_TIMEOUT) {
+            if (time(NULL) >= session->lastUsed + WOLFSSL_SNIFFER_TIMEOUT) {
                 TraceStaleSession();
                 RemoveSession(session, NULL, NULL, i);
             }
@@ -2037,7 +2037,7 @@ static SnifferSession* CreateSession(IpInfo* ipInfo, TcpInfo* tcpInfo,
         return 0;
     }
     /* put server back into server mode */
-    session->sslServer->options.side = CYASSL_SERVER_END;
+    session->sslServer->options.side = WOLFSSL_SERVER_END;
         
     row = SessionHash(ipInfo, tcpInfo);
     
@@ -2059,9 +2059,9 @@ static SnifferSession* CreateSession(IpInfo* ipInfo, TcpInfo* tcpInfo,
     /* determine headed side */
     if (ipInfo->dst == session->context->server &&
         tcpInfo->dstPort == session->context->port)
-        session->flags.side = CYASSL_SERVER_END;
+        session->flags.side = WOLFSSL_SERVER_END;
     else
-        session->flags.side = CYASSL_CLIENT_END;        
+        session->flags.side = WOLFSSL_CLIENT_END;        
     
     return session;
 }
@@ -2276,7 +2276,7 @@ static int AddToReassembly(byte from, word32 seq, const byte* sslFrame,
                            int sslBytes, SnifferSession* session, char* error)
 {
     PacketBuffer*  add;
-    PacketBuffer** front = (from == CYASSL_SERVER_END) ?
+    PacketBuffer** front = (from == WOLFSSL_SERVER_END) ?
                        &session->cliReassemblyList: &session->srvReassemblyList;
     PacketBuffer*  curr = *front;
     PacketBuffer*  prev = curr;
@@ -2356,7 +2356,7 @@ static int AddToReassembly(byte from, word32 seq, const byte* sslFrame,
 /* returns 1 for success (end) */
 static int AddFinCapture(SnifferSession* session, word32 sequence)
 {
-    if (session->flags.side == CYASSL_SERVER_END) {
+    if (session->flags.side == WOLFSSL_SERVER_END) {
         if (session->finCaputre.cliCounted == 0)
             session->finCaputre.cliFinSeq = sequence;
     }
@@ -2373,12 +2373,12 @@ static int AddFinCapture(SnifferSession* session, word32 sequence)
 static int AdjustSequence(TcpInfo* tcpInfo, SnifferSession* session,
                           int* sslBytes, const byte** sslFrame, char* error)
 {
-    word32  seqStart = (session->flags.side == CYASSL_SERVER_END) ? 
+    word32  seqStart = (session->flags.side == WOLFSSL_SERVER_END) ? 
                                      session->cliSeqStart :session->srvSeqStart;
     word32  real     = tcpInfo->sequence - seqStart;
-    word32* expected = (session->flags.side == CYASSL_SERVER_END) ?
+    word32* expected = (session->flags.side == WOLFSSL_SERVER_END) ?
                                   &session->cliExpected : &session->srvExpected;
-    PacketBuffer* reassemblyList = (session->flags.side == CYASSL_SERVER_END) ?
+    PacketBuffer* reassemblyList = (session->flags.side == WOLFSSL_SERVER_END) ?
                         session->cliReassemblyList : session->srvReassemblyList;
     
     /* handle rollover of sequence */
@@ -2442,10 +2442,10 @@ static int AdjustSequence(TcpInfo* tcpInfo, SnifferSession* session,
 static int CheckAck(TcpInfo* tcpInfo, SnifferSession* session)
 {
     if (tcpInfo->ack) {
-        word32  seqStart = (session->flags.side == CYASSL_SERVER_END) ? 
+        word32  seqStart = (session->flags.side == WOLFSSL_SERVER_END) ? 
                                      session->srvSeqStart :session->cliSeqStart;
         word32  real     = tcpInfo->ackNumber - seqStart;
-        word32  expected = (session->flags.side == CYASSL_SERVER_END) ?
+        word32  expected = (session->flags.side == WOLFSSL_SERVER_END) ?
                                   session->srvExpected : session->cliExpected;
     
         /* handle rollover of sequence */
@@ -2500,7 +2500,7 @@ static int CheckPreRecord(IpInfo* ipInfo, TcpInfo* tcpInfo,
                           int* sslBytes, const byte** end, char* error)
 {
     word32 length;
-    SSL*  ssl = ((*session)->flags.side == CYASSL_SERVER_END) ?
+    SSL*  ssl = ((*session)->flags.side == WOLFSSL_SERVER_END) ?
                                   (*session)->sslServer : (*session)->sslClient;
     /* remove SnifferSession on 2nd FIN or RST */
     if (tcpInfo->fin || tcpInfo->rst) {
@@ -2576,21 +2576,21 @@ static int HaveMoreInput(SnifferSession* session, const byte** sslFrame,
 {
     /* sequence and reassembly based on from, not to */
     int            moreInput = 0;
-    PacketBuffer** front = (session->flags.side == CYASSL_SERVER_END) ?
+    PacketBuffer** front = (session->flags.side == WOLFSSL_SERVER_END) ?
                       &session->cliReassemblyList : &session->srvReassemblyList;
-    word32*        expected = (session->flags.side == CYASSL_SERVER_END) ?
+    word32*        expected = (session->flags.side == WOLFSSL_SERVER_END) ?
                                   &session->cliExpected : &session->srvExpected;
     /* buffer is on receiving end */
-    word32*        length = (session->flags.side == CYASSL_SERVER_END) ?
+    word32*        length = (session->flags.side == WOLFSSL_SERVER_END) ?
                                &session->sslServer->buffers.inputBuffer.length :
                                &session->sslClient->buffers.inputBuffer.length;
-    byte*          myBuffer = (session->flags.side == CYASSL_SERVER_END) ?
+    byte*          myBuffer = (session->flags.side == WOLFSSL_SERVER_END) ?
                                 session->sslServer->buffers.inputBuffer.buffer :
                                 session->sslClient->buffers.inputBuffer.buffer;
-    word32       bufferSize = (session->flags.side == CYASSL_SERVER_END) ?
+    word32       bufferSize = (session->flags.side == WOLFSSL_SERVER_END) ?
                             session->sslServer->buffers.inputBuffer.bufferSize :
                             session->sslClient->buffers.inputBuffer.bufferSize;
-    SSL*               ssl  = (session->flags.side == CYASSL_SERVER_END) ?
+    SSL*               ssl  = (session->flags.side == WOLFSSL_SERVER_END) ?
                             session->sslServer : session->sslClient;
     
     while (*front && ((*front)->begin == *expected) ) {
@@ -2645,7 +2645,7 @@ static int ProcessMessage(const byte* sslFrame, SnifferSession* session,
     int               decoded = 0;      /* bytes stored for user in data */
     int               notEnough;        /* notEnough bytes yet flag */
     int               decrypted = 0;    /* was current msg decrypted */
-    SSL*              ssl = (session->flags.side == CYASSL_SERVER_END) ?
+    SSL*              ssl = (session->flags.side == WOLFSSL_SERVER_END) ?
                                         session->sslServer : session->sslClient;
 doMessage:
     notEnough = 0;
@@ -2687,9 +2687,9 @@ doMessage:
     inRecordEnd = recordEnd;
     
     /* decrypt if needed */
-    if ((session->flags.side == CYASSL_SERVER_END &&
+    if ((session->flags.side == WOLFSSL_SERVER_END &&
                                                session->flags.serverCipherOn)
-     || (session->flags.side == CYASSL_CLIENT_END &&
+     || (session->flags.side == WOLFSSL_CLIENT_END &&
                                                session->flags.clientCipherOn)) {
         int ivAdvance = 0;  /* TLSv1.1 advance amount */
         if (ssl->decrypt.setup != 1) {
@@ -2737,7 +2737,7 @@ doPart:
             }
             break;
         case change_cipher_spec:
-            if (session->flags.side == CYASSL_SERVER_END)
+            if (session->flags.side == WOLFSSL_SERVER_END)
                 session->flags.serverCipherOn = 1;
             else
                 session->flags.clientCipherOn = 1;
@@ -2920,4 +2920,4 @@ int ssl_Trace(const char* traceFile, char* error)
 
 
 
-#endif /* CYASSL_SNIFFER */
+#endif /* WOLFSSL_SNIFFER */

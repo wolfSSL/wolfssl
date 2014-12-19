@@ -2,14 +2,14 @@
  *
  * Copyright (C) 2006-2014 wolfSSL Inc.
  *
- * This file is part of CyaSSL.
+ * This file is part of wolfSSL. (formerly known as CyaSSL)
  *
- * CyaSSL is free software; you can redistribute it and/or modify
+ * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  *
- * CyaSSL is distributed in the hope that it will be useful,
+ * wolfSSL is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
@@ -19,14 +19,14 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-/* wolfssl_cyassl compatibility layer */
-#include <cyassl/ssl.h>
+/* wolfssl_wolfssl compatibility layer */
+#include <wolfssl/ssl.h>
 
 #ifdef HAVE_CONFIG_H
     #include <config.h>
 #endif
 
-#include <cyassl/ctaocrypt/settings.h>
+#include <wolfssl/wolfcrypt/settings.h>
 
 #ifdef XMALLOC_USER
     #include <stdlib.h>  /* we're using malloc / free direct here */
@@ -34,48 +34,48 @@
 
 #ifndef NO_CRYPT_TEST
 
-#ifdef CYASSL_TEST_CERT
-    #include <cyassl/ctaocrypt/asn.h>
+#ifdef WOLFSSL_TEST_CERT
+    #include <wolfssl/wolfcrypt/asn.h>
 #else
-    #include <cyassl/ctaocrypt/asn_public.h>
+    #include <wolfssl/wolfcrypt/asn_public.h>
 #endif
-#include <cyassl/ctaocrypt/md2.h>
-#include <cyassl/ctaocrypt/md5.h>
-#include <cyassl/ctaocrypt/md4.h>
-#include <cyassl/ctaocrypt/sha.h>
-#include <cyassl/ctaocrypt/sha256.h>
-#include <cyassl/ctaocrypt/sha512.h>
-#include <cyassl/ctaocrypt/arc4.h>
-#include <cyassl/ctaocrypt/random.h>
-#include <cyassl/ctaocrypt/coding.h>
-#include <cyassl/ctaocrypt/rsa.h>
-#include <cyassl/ctaocrypt/des3.h>
-#include <cyassl/ctaocrypt/aes.h>
-#include <cyassl/ctaocrypt/poly1305.h>
-#include <cyassl/ctaocrypt/camellia.h>
-#include <cyassl/ctaocrypt/hmac.h>
-#include <cyassl/ctaocrypt/dh.h>
-#include <cyassl/ctaocrypt/dsa.h>
-#include <cyassl/ctaocrypt/hc128.h>
-#include <cyassl/ctaocrypt/rabbit.h>
-#include <cyassl/ctaocrypt/chacha.h>
-#include <cyassl/ctaocrypt/pwdbased.h>
-#include <cyassl/ctaocrypt/ripemd.h>
-#include <cyassl/ctaocrypt/error-crypt.h>
+#include <wolfssl/wolfcrypt/md2.h>
+#include <wolfssl/wolfcrypt/md5.h>
+#include <wolfssl/wolfcrypt/md4.h>
+#include <wolfssl/wolfcrypt/sha.h>
+#include <wolfssl/wolfcrypt/sha256.h>
+#include <wolfssl/wolfcrypt/sha512.h>
+#include <wolfssl/wolfcrypt/arc4.h>
+#include <wolfssl/wolfcrypt/random.h>
+#include <wolfssl/wolfcrypt/coding.h>
+#include <wolfssl/wolfcrypt/rsa.h>
+#include <wolfssl/wolfcrypt/des3.h>
+#include <wolfssl/wolfcrypt/aes.h>
+#include <wolfssl/wolfcrypt/poly1305.h>
+#include <wolfssl/wolfcrypt/camellia.h>
+#include <wolfssl/wolfcrypt/hmac.h>
+#include <wolfssl/wolfcrypt/dh.h>
+#include <wolfssl/wolfcrypt/dsa.h>
+#include <wolfssl/wolfcrypt/hc128.h>
+#include <wolfssl/wolfcrypt/rabbit.h>
+#include <wolfssl/wolfcrypt/chacha.h>
+#include <wolfssl/wolfcrypt/pwdbased.h>
+#include <wolfssl/wolfcrypt/ripemd.h>
+#include <wolfssl/wolfcrypt/error-crypt.h>
 #ifdef HAVE_ECC
-    #include <cyassl/ctaocrypt/ecc.h>
+    #include <wolfssl/wolfcrypt/ecc.h>
 #endif
 #ifdef HAVE_BLAKE2
-    #include <cyassl/ctaocrypt/blake2.h>
+    #include <wolfssl/wolfcrypt/blake2.h>
 #endif
 #ifdef HAVE_LIBZ
-    #include <cyassl/ctaocrypt/compress.h>
+    #include <wolfssl/wolfcrypt/compress.h>
 #endif
 #ifdef HAVE_PKCS7
-    #include <cyassl/ctaocrypt/pkcs7.h>
+    #include <wolfssl/wolfcrypt/pkcs7.h>
 #endif
 #ifdef HAVE_FIPS
-    #include <cyassl/ctaocrypt/fips_test.h>
+    #include <wolfssl/wolfcrypt/fips_test.h>
 #endif
 
 #ifdef _MSC_VER
@@ -84,29 +84,29 @@
 #endif
 
 #ifdef OPENSSL_EXTRA
-    #include <cyassl/openssl/evp.h>
-    #include <cyassl/openssl/rand.h>
-    #include <cyassl/openssl/hmac.h>
-    #include <cyassl/openssl/des.h>
+    #include <wolfssl/openssl/evp.h>
+    #include <wolfssl/openssl/rand.h>
+    #include <wolfssl/openssl/hmac.h>
+    #include <wolfssl/openssl/des.h>
 #endif
 
 
 #if defined(USE_CERT_BUFFERS_1024) || defined(USE_CERT_BUFFERS_2048)
     /* include test cert and key buffers for use with NO_FILESYSTEM */
-    #if defined(CYASSL_MDK_ARM)
+    #if defined(WOLFSSL_MDK_ARM)
         #include "cert_data.h"
                         /* use certs_test.c for initial data, so other
                                                commands can share the data. */
     #else
-        #include <cyassl/certs_test.h>
+        #include <wolfssl/certs_test.h>
     #endif
 #endif
 
-#if defined(CYASSL_MDK_ARM)
+#if defined(WOLFSSL_MDK_ARM)
         #include <stdio.h>
         #include <stdlib.h>
-    extern FILE * CyaSSL_fopen(const char *fname, const char *mode) ;
-    #define fopen CyaSSL_fopen
+    extern FILE * wolfSSL_fopen(const char *fname, const char *mode) ;
+    #define fopen wolfSSL_fopen
 #endif
 
 #ifdef HAVE_NTRU
@@ -134,7 +134,7 @@
         #define printf dc_log_printf
 #endif
 
-#include "ctaocrypt/test/test.h"
+#include "wolfcrypt/test/test.h"
 
 
 typedef struct testVector {
@@ -219,7 +219,7 @@ typedef struct func_args {
 static void myFipsCb(int ok, int err, const char* hash)
 {
     printf("in my Fips callback, ok = %d, err = %d\n", ok, err);
-    printf("message = %s\n", CTaoCryptGetErrorString(err));
+    printf("message = %s\n", wc_GetErrorString(err));
     printf("hash = %s\n", hash);
 
     if (err == IN_CORE_FIPS_E) {
@@ -231,7 +231,7 @@ static void myFipsCb(int ok, int err, const char* hash)
 #endif /* HAVE_FIPS */
 
 
-int ctaocrypt_test(void* args)
+int wolfcrypt_test(void* args)
 {
     int ret = 0;
 
@@ -260,7 +260,7 @@ int ctaocrypt_test(void* args)
         printf( "MD5      test passed!\n");
 #endif
 
-#ifdef CYASSL_MD2
+#ifdef WOLFSSL_MD2
     if ( (ret = md2_test()) != 0)
         return err_sys("MD2      test failed!\n", ret);
     else
@@ -288,21 +288,21 @@ int ctaocrypt_test(void* args)
         printf( "SHA-256  test passed!\n");
 #endif
 
-#ifdef CYASSL_SHA384
+#ifdef WOLFSSL_SHA384
     if ( (ret = sha384_test()) != 0)
         return err_sys("SHA-384  test failed!\n", ret);
     else
         printf( "SHA-384  test passed!\n");
 #endif
 
-#ifdef CYASSL_SHA512
+#ifdef WOLFSSL_SHA512
     if ( (ret = sha512_test()) != 0)
         return err_sys("SHA-512  test failed!\n", ret);
     else
         printf( "SHA-512  test passed!\n");
 #endif
 
-#ifdef CYASSL_RIPEMD
+#ifdef WOLFSSL_RIPEMD
     if ( (ret = ripemd_test()) != 0)
         return err_sys("RIPEMD   test failed!\n", ret);
     else
@@ -338,14 +338,14 @@ int ctaocrypt_test(void* args)
             printf( "HMAC-SHA256 test passed!\n");
     #endif
 
-    #ifdef CYASSL_SHA384
+    #ifdef WOLFSSL_SHA384
         if ( (ret = hmac_sha384_test()) != 0)
             return err_sys("HMAC-SHA384 test failed!\n", ret);
         else
             printf( "HMAC-SHA384 test passed!\n");
     #endif
 
-    #ifdef CYASSL_SHA512
+    #ifdef WOLFSSL_SHA512
         if ( (ret = hmac_sha512_test()) != 0)
             return err_sys("HMAC-SHA512 test failed!\n", ret);
         else
@@ -574,7 +574,7 @@ static int OpenNitroxDevice(int dma_mode,int dev_id)
         args.argc = argc;
         args.argv = argv;
 
-        ctaocrypt_test(&args);
+        wolfcrypt_test(&args);
 
 #ifdef HAVE_CAVIUM
         CspShutdown(CAVIUM_DEV_ID);
@@ -586,7 +586,7 @@ static int OpenNitroxDevice(int dma_mode,int dev_id)
 #endif /* NO_MAIN_DRIVER */
 
 
-#ifdef CYASSL_MD2
+#ifdef WOLFSSL_MD2
 int md2_test()
 {
     Md2  md2;
@@ -864,7 +864,7 @@ int sha_test(void)
 
 #endif /* NO_SHA */
 
-#ifdef CYASSL_RIPEMD
+#ifdef WOLFSSL_RIPEMD
 int ripemd_test(void)
 {
     RipeMd  ripemd;
@@ -917,7 +917,7 @@ int ripemd_test(void)
 
     return 0;
 }
-#endif /* CYASSL_RIPEMD */
+#endif /* WOLFSSL_RIPEMD */
 
 
 #ifdef HAVE_BLAKE2
@@ -1043,7 +1043,7 @@ int sha256_test(void)
 #endif
 
 
-#ifdef CYASSL_SHA512
+#ifdef WOLFSSL_SHA512
 int sha512_test(void)
 {
     Sha512 sha;
@@ -1098,7 +1098,7 @@ int sha512_test(void)
 #endif
 
 
-#ifdef CYASSL_SHA384
+#ifdef WOLFSSL_SHA384
 int sha384_test(void)
 {
     Sha384 sha;
@@ -1148,7 +1148,7 @@ int sha384_test(void)
 
     return 0;
 }
-#endif /* CYASSL_SHA384 */
+#endif /* WOLFSSL_SHA384 */
 
 
 #if !defined(NO_HMAC) && !defined(NO_MD5)
@@ -1467,7 +1467,7 @@ int hmac_blake2b_test(void)
 #endif
 
 
-#if !defined(NO_HMAC) && defined(CYASSL_SHA384)
+#if !defined(NO_HMAC) && defined(WOLFSSL_SHA384)
 int hmac_sha384_test(void)
 {
     Hmac hmac;
@@ -1544,7 +1544,7 @@ int hmac_sha384_test(void)
 #endif
 
 
-#if !defined(NO_HMAC) && defined(CYASSL_SHA512)
+#if !defined(NO_HMAC) && defined(WOLFSSL_SHA512)
 int hmac_sha512_test(void)
 {
     Hmac hmac;
@@ -2147,7 +2147,7 @@ int aes_test(void)
         AesFreeCavium(&enc);
         AesFreeCavium(&dec);
 #endif
-#ifdef CYASSL_AES_COUNTER
+#ifdef WOLFSSL_AES_COUNTER
     {
         const byte ctrKey[] =
         {
@@ -2229,9 +2229,9 @@ int aes_test(void)
         if (memcmp(cipher, oddCipher, 9))
             return -71;
     }
-#endif /* CYASSL_AES_COUNTER */
+#endif /* WOLFSSL_AES_COUNTER */
 
-#if defined(CYASSL_AESNI) && defined(CYASSL_AES_DIRECT)
+#if defined(WOLFSSL_AESNI) && defined(WOLFSSL_AES_DIRECT)
     {
         const byte niPlain[] =
         {
@@ -2269,7 +2269,7 @@ int aes_test(void)
         if (XMEMCMP(plain, niPlain, AES_BLOCK_SIZE) != 0)
             return -20007;
     }
-#endif /* CYASSL_AESNI && CYASSL_AES_DIRECT */
+#endif /* WOLFSSL_AESNI && WOLFSSL_AES_DIRECT */
 
     return 0;
 }
@@ -2968,7 +2968,7 @@ byte GetEntropy(ENTROPY_CMD cmd, byte* out)
     #ifdef FREESCALE_MQX
         static const char* clientKey  = "a:\\certs\\client-key.der";
         static const char* clientCert = "a:\\certs\\client-cert.der";
-        #ifdef CYASSL_CERT_GEN
+        #ifdef WOLFSSL_CERT_GEN
             static const char* caKeyFile  = "a:\\certs\\ca-key.der";
             static const char* caCertFile = "a:\\certs\\ca-cert.pem";
             #ifdef HAVE_ECC
@@ -2976,12 +2976,12 @@ byte GetEntropy(ENTROPY_CMD cmd, byte* out)
                 static const char* eccCaCertFile = "a:\\certs\\server-ecc.pem";
             #endif
         #endif
-    #elif defined(CYASSL_MKD_SHELL)
+    #elif defined(WOLFSSL_MKD_SHELL)
         static char* clientKey = "certs/client-key.der";
         static char* clientCert = "certs/client-cert.der";
         void set_clientKey(char *key) {  clientKey = key ; }
         void set_clientCert(char *cert) {  clientCert = cert ; }
-        #ifdef CYASSL_CERT_GEN
+        #ifdef WOLFSSL_CERT_GEN
             static char* caKeyFile  = "certs/ca-key.der";
             static char* caCertFile = "certs/ca-cert.pem";
             void set_caKeyFile (char * key)  { caKeyFile   = key ; }
@@ -2996,7 +2996,7 @@ byte GetEntropy(ENTROPY_CMD cmd, byte* out)
     #else
         static const char* clientKey  = "./certs/client-key.der";
         static const char* clientCert = "./certs/client-cert.der";
-        #ifdef CYASSL_CERT_GEN
+        #ifdef WOLFSSL_CERT_GEN
             static const char* caKeyFile  = "./certs/ca-key.der";
             static const char* caCertFile = "./certs/ca-cert.pem";
             #ifdef HAVE_ECC
@@ -3026,7 +3026,7 @@ int rsa_test(void)
 #if !defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048)
     FILE*  file, * file2;
 #endif
-#ifdef CYASSL_TEST_CERT
+#ifdef WOLFSSL_TEST_CERT
     DecodedCert cert;
 #endif
 
@@ -3045,7 +3045,7 @@ int rsa_test(void)
 
     if (!file) {
         err_sys("can't open ./certs/client-key.der, "
-                "Please run from CyaSSL home dir", -40);
+                "Please run from wolfSSL home dir", -40);
         free(tmp);
         return -40;
     }
@@ -3082,7 +3082,7 @@ int rsa_test(void)
 
     if (memcmp(plain, in, ret)) return -48;
 
-#if defined(CYASSL_MDK_ARM)
+#if defined(WOLFSSL_MDK_ARM)
     #define sizeof(s) strlen((char *)(s))
 #endif
 
@@ -3105,7 +3105,7 @@ int rsa_test(void)
 		#undef sizeof
 #endif
 
-#ifdef CYASSL_TEST_CERT
+#ifdef WOLFSSL_TEST_CERT
     InitDecodedCert(&cert, tmp, (word32)bytes, 0);
 
     ret = ParseCert(&cert, CERT_TYPE, NO_VERIFY, 0);
@@ -3117,7 +3117,7 @@ int rsa_test(void)
 #endif
 
 
-#ifdef CYASSL_KEY_GEN
+#ifdef WOLFSSL_KEY_GEN
     {
         byte*  der;
         byte*  pem;
@@ -3216,10 +3216,10 @@ int rsa_test(void)
         free(pem);
         free(der);
     }
-#endif /* CYASSL_KEY_GEN */
+#endif /* WOLFSSL_KEY_GEN */
 
 
-#ifdef CYASSL_CERT_GEN
+#ifdef WOLFSSL_CERT_GEN
     /* self signed */
     {
         Cert        myCert;
@@ -3229,7 +3229,7 @@ int rsa_test(void)
         FILE*       pemFile;
         int         certSz;
         int         pemSz;
-#ifdef CYASSL_TEST_CERT
+#ifdef WOLFSSL_TEST_CERT
         DecodedCert decode;
 #endif
 
@@ -3261,7 +3261,7 @@ int rsa_test(void)
             return -401;
         }
 
-#ifdef CYASSL_TEST_CERT
+#ifdef WOLFSSL_TEST_CERT
         InitDecodedCert(&decode, derCert, certSz, 0);
         ret = ParseCert(&decode, CERT_TYPE, NO_VERIFY, 0);
         if (ret != 0) {
@@ -3321,7 +3321,7 @@ int rsa_test(void)
         size_t      bytes3;
         word32      idx3 = 0;
         FILE*       file3 ;
-#ifdef CYASSL_TEST_CERT
+#ifdef WOLFSSL_TEST_CERT
         DecodedCert decode;
 #endif
 
@@ -3395,7 +3395,7 @@ int rsa_test(void)
         }
 
 
-#ifdef CYASSL_TEST_CERT
+#ifdef WOLFSSL_TEST_CERT
         InitDecodedCert(&decode, derCert, certSz, 0);
         ret = ParseCert(&decode, CERT_TYPE, NO_VERIFY, 0);
         if (ret != 0) {
@@ -3464,7 +3464,7 @@ int rsa_test(void)
         size_t      bytes3;
         word32      idx3 = 0;
         FILE*       file3;
-#ifdef CYASSL_TEST_CERT
+#ifdef WOLFSSL_TEST_CERT
         DecodedCert decode;
 #endif
 
@@ -3532,7 +3532,7 @@ int rsa_test(void)
             return -5408;
         }
 
-#ifdef CYASSL_TEST_CERT
+#ifdef WOLFSSL_TEST_CERT
         InitDecodedCert(&decode, derCert, certSz, 0);
         ret = ParseCert(&decode, CERT_TYPE, NO_VERIFY, 0);
         if (ret != 0) {
@@ -3601,7 +3601,7 @@ int rsa_test(void)
         int         certSz;
         int         pemSz;
         word32      idx3;
-#ifdef CYASSL_TEST_CERT
+#ifdef WOLFSSL_TEST_CERT
         DecodedCert decode;
 #endif
         derCert = (byte*)malloc(FOURK_BUF);
@@ -3716,7 +3716,7 @@ int rsa_test(void)
         }
 
 
-#ifdef CYASSL_TEST_CERT
+#ifdef WOLFSSL_TEST_CERT
         InitDecodedCert(&decode, derCert, certSz, 0);
         ret = ParseCert(&decode, CERT_TYPE, NO_VERIFY, 0);
         if (ret != 0) {
@@ -3778,7 +3778,7 @@ int rsa_test(void)
         free(derCert);
     }
 #endif /* HAVE_NTRU */
-#ifdef CYASSL_CERT_REQ
+#ifdef WOLFSSL_CERT_REQ
     {
         Cert        req;
         byte*       der;
@@ -3864,8 +3864,8 @@ int rsa_test(void)
         free(pem);
         free(der);
     }
-#endif /* CYASSL_CERT_REQ */
-#endif /* CYASSL_CERT_GEN */
+#endif /* WOLFSSL_CERT_REQ */
+#endif /* WOLFSSL_CERT_GEN */
 
     FreeRsaKey(&key);
 #ifdef HAVE_CAVIUM
@@ -4095,7 +4095,7 @@ int openssl_test(void)
     if (memcmp(hash, d.output, SHA256_DIGEST_SIZE) != 0)
         return -78;
 
-#ifdef CYASSL_SHA384
+#ifdef WOLFSSL_SHA384
 
     e.input  = "abcdefghbcdefghicdefghijdefghijkefghijklfghijklmghijklmnhi"
                "jklmnoijklmnopjklmnopqklmnopqrlmnopqrsmnopqrstnopqrstu";
@@ -4115,10 +4115,10 @@ int openssl_test(void)
     if (memcmp(hash, e.output, SHA384_DIGEST_SIZE) != 0)
         return -79;
 
-#endif /* CYASSL_SHA384 */
+#endif /* WOLFSSL_SHA384 */
 
 
-#ifdef CYASSL_SHA512
+#ifdef WOLFSSL_SHA512
 
     f.input  = "abcdefghbcdefghicdefghijdefghijkefghijklfghijklmghijklmnhi"
                "jklmnoijklmnopjklmnopqklmnopqrlmnopqrsmnopqrstnopqrstu";
@@ -4139,7 +4139,7 @@ int openssl_test(void)
     if (memcmp(hash, f.output, SHA512_DIGEST_SIZE) != 0)
         return -80;
 
-#endif /* CYASSL_SHA512 */
+#endif /* WOLFSSL_SHA512 */
 
 
     if (RAND_bytes(hash, sizeof(hash)) != 1)
@@ -4667,7 +4667,7 @@ int ecc_test(void)
     }
 
 
-#ifdef CYASSL_KEY_GEN
+#ifdef WOLFSSL_KEY_GEN
     {
         int   derSz, pemSz;
         byte  der[FOURK_BUF];
@@ -4705,7 +4705,7 @@ int ecc_test(void)
             return -1029;
         }
     }
-#endif /* CYASSL_KEY_GEN */
+#endif /* WOLFSSL_KEY_GEN */
 
     ecc_free(&pubKey);
     ecc_free(&userB);
@@ -4788,8 +4788,8 @@ int ecc_encrypt_test(void)
         ret  = ecc_ctx_set_peer_salt(cliCtx, srvSalt);
         ret += ecc_ctx_set_peer_salt(srvCtx, cliSalt);
 
-        ret += ecc_ctx_set_info(cliCtx, (byte*)"CyaSSL MSGE", 11);
-        ret += ecc_ctx_set_info(srvCtx, (byte*)"CyaSSL MSGE", 11);
+        ret += ecc_ctx_set_info(cliCtx, (byte*)"wolfSSL MSGE", 11);
+        ret += ecc_ctx_set_info(srvCtx, (byte*)"wolfSSL MSGE", 11);
 
         if (ret != 0)
             return -3008;
@@ -5009,7 +5009,7 @@ int pkcs7enveloped_test(void)
         free(cert);
         free(privKey);
         err_sys("can't open ./certs/client-cert.der, "
-                "Please run from CyaSSL home dir", -42);
+                "Please run from wolfSSL home dir", -42);
         return -42;
     }
 
@@ -5021,7 +5021,7 @@ int pkcs7enveloped_test(void)
         free(cert);
         free(privKey);
         err_sys("can't open ./certs/client-key.der, "
-                "Please run from CyaSSL home dir", -43);
+                "Please run from wolfSSL home dir", -43);
         return -43;
     }
 
@@ -5143,7 +5143,7 @@ int pkcs7signed_test(void)
         free(keyDer);
         free(out);
         err_sys("can't open ./certs/client-cert.der, "
-                "Please run from CyaSSL home dir", -44);
+                "Please run from wolfSSL home dir", -44);
         return -44;
     }
     certDerSz = (word32)fread(certDer, 1, FOURK_BUF, file);
@@ -5155,7 +5155,7 @@ int pkcs7signed_test(void)
         free(keyDer);
         free(out);
         err_sys("can't open ./certs/client-key.der, "
-                "Please run from CyaSSL home dir", -45);
+                "Please run from wolfSSL home dir", -45);
         return -45;
     }
     keyDerSz = (word32)fread(keyDer, 1, FOURK_BUF, file);
