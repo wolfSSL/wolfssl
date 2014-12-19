@@ -147,6 +147,11 @@
 #define cyassl_chacha                  wolfssl_chacha
 #define cyassl_rc4                     wolfssl_rc4
 #define cyassl_aes                     wolfssl_aes
+/* fips defines */
+#define WOLFSSL_GENERAL_ALIGNMENT      CYASSL_GENERAL_ALIGNMENT
+#define WOLFSSL_LEAVE                  CYASSL_LEAVE
+#define WOLFSSL_ERROR                  CYASSL_ERROR
+#define wolfcrypt_test                 ctaocrypt_test
 
 /* keys.c */
 #define cyassl_triple_des wolfssl_triple_des

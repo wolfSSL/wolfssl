@@ -19,8 +19,11 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-#include <cyassl/ctaocrypt/types.h>
+/* Name change compatibility layer */
+#include <cyassl/ssl.h>
 
+
+#include <cyassl/ctaocrypt/types.h>
 // #if !defined(WOLF_CRYPT_TYPES_H) && !defined(CTAO_CRYPT_TYPES_H)
 // #define WOLF_CRYPT_TYPES_H
 
