@@ -12284,7 +12284,7 @@ int DoSessionTicket(WOLFSSL* ssl,
                     ERROR_OUT(MEMORY_E, done_b);
             #endif
 
-                if ((ret = InitSha(sha) != 0))
+                if ((ret = InitSha(sha)) != 0)
                     goto done_b;
 
                 ShaUpdate(sha, ssl->arrays->clientRandom, RAN_LEN);
