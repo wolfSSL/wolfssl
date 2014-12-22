@@ -2026,7 +2026,7 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
 	               header =  BEGIN_ENC_PRIV_KEY;   footer = END_ENC_PRIV_KEY;
 		} else if (header == BEGIN_ENC_PRIV_KEY) {
 			       header =  BEGIN_EC_PRIV;        footer = END_EC_PRIV;
-		} else if (header == BEGIN_ENC_PRIV_KEY) {
+		} else if (header == BEGIN_EC_PRIV) {
 			       header =  BEGIN_DSA_PRIV;       footer = END_DSA_PRIV;
 		} else
 			break;
