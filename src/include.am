@@ -180,8 +180,11 @@ endif
 endif
 
 if BUILD_FASTMATH
+if BUILD_FIPS
 src_libwolfssl_la_SOURCES += ctaocrypt/src/tfm.c
+else
 src_libwolfssl_la_SOURCES += wolfcrypt/src/tfm.c
+endif
 endif
 
 if BUILD_SLOWMATH
