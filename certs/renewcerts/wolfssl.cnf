@@ -1,5 +1,5 @@
 #
-# cyassl configuration file 
+# wolfssl configuration file 
 #
 HOME        = .
 RANDFILE    = $ENV::HOME/.rnd
@@ -20,7 +20,7 @@ default_ca  = CA_default        # The default ca section
 [ CA_default ]
 
 ####################################################################
-# CHANGE THIS LINE TO BE YOUR CYASSL_ROOT DIRECTORY                #
+# CHANGE THIS LINE TO BE YOUR WOLFSSL_ROOT DIRECTORY                #
 #                                                                  #
 dir             = $HOME./..                                        #
 ####################################################################
@@ -115,12 +115,12 @@ unstructuredName                = An optional company name
 # These extensions are added when 'ca' signs a request.
 [ usr_cert ]
 basicConstraints=CA:FALSE
-nsComment            = "cyaSSL Generated Certificate using openSSL command line utility."
+nsComment            = "wolfSSL Generated Certificate using openSSL command line utility."
 subjectKeyIdentifier=hash
 authorityKeyIdentifier=keyid,issuer
 
-#cyassl extensions
-[cyassl_opts]
+#wolfssl extensions
+[wolfssl_opts]
 subjectKeyIdentifier=hash
 authorityKeyIdentifier=keyid:always,issuer:always
 basicConstraints=CA:true
@@ -143,7 +143,7 @@ authorityKeyIdentifier=keyid:always
 # These extensions should be added when creating a proxy certificate
 [ proxy_cert_ext ]
 basicConstraints=CA:FALSE
-nsComment            = "cyaSSL Generated Certificate using openSSL command line utility"
+nsComment            = "wolfSSL Generated Certificate using openSSL command line utility"
 subjectKeyIdentifier=hash
 authorityKeyIdentifier=keyid,issuer
 proxyCertInfo=critical,language:id-ppl-anyLanguage,pathlen:3,policy:foo
