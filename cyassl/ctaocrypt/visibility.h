@@ -24,7 +24,13 @@
 #ifndef CTAO_CRYPT_VISIBILITY_H
 #define CTAO_CRYPT_VISIBILITY_H
 
-
+/* fips compatibility @wc_fips */
+#ifndef HAVE_FIPS
+    #include <wolfssl/wolfcrypt/visibility.h>
+    #define CYASSL_API   WOLFSSL_API
+    #define CYASSL_LOCAL WOLFSSL_LOCAL
+#else
+#define BUILDING_CYASSL
 /* CYASSL_API is used for the public API symbols.
         It either imports or exports (or does nothing for static builds)
 
@@ -64,5 +70,6 @@
 #endif /* BUILDING_CYASSL */
 
 
+#endif /* HAVE_FIPS */
 #endif /* CTAO_CRYPT_VISIBILITY_H */
 

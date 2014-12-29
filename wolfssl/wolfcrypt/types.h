@@ -22,7 +22,6 @@
 /* Name change compatibility layer */
 #include <cyassl/ssl.h>
 
-
 #include <cyassl/ctaocrypt/types.h>
 #ifndef WOLF_CRYPT_TYPES_H
 #define WOLF_CRYPT_TYPES_H

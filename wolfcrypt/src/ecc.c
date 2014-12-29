@@ -1499,7 +1499,7 @@ int wc_ecc_make_key_ex(RNG* rng, ecc_key* key, const ecc_set_type* dp)
    ecc_point*     base;
    mp_int         prime;
    mp_int         order;
-#ifdef CYASSL_SMALL_STACK
+#ifdef WOLFSSL_SMALL_STACK
    byte*          buf;
 #else
    byte           buf[ECC_MAXSIZE];
@@ -1509,7 +1509,7 @@ int wc_ecc_make_key_ex(RNG* rng, ecc_key* key, const ecc_set_type* dp)
    if (key == NULL || rng == NULL || dp == NULL)
        return ECC_BAD_ARG_E;
 
-#ifdef CYASSL_SMALL_STACK
+#ifdef WOLFSSL_SMALL_STACK
    buf = (byte*)XMALLOC(ECC_MAXSIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
    if (buf == NULL)
        return MEMORY_E;
@@ -1582,7 +1582,7 @@ int wc_ecc_make_key_ex(RNG* rng, ecc_key* key, const ecc_set_type* dp)
    XMEMSET(buf, 0, ECC_MAXSIZE);
 #endif
 
-#ifdef CYASSL_SMALL_STACK
+#ifdef WOLFSSL_SMALL_STACK
    XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
 
@@ -1647,13 +1647,13 @@ int wc_ecc_sign_hash(const byte* in, word32 inlen, byte* out, word32 *outlen,
        word32 orderBits = mp_count_bits(&p);
 
        /* truncate down to byte size, may be all that's needed */
-       if ( (CYASSL_BIT_SIZE * inlen) > orderBits)
-           inlen = (orderBits + CYASSL_BIT_SIZE - 1)/CYASSL_BIT_SIZE;
+       if ( (WOLFSSLF_BIT_SIZE * inlen) > orderBits)
+           inlen = (orderBits + WOLFSSLF_BIT_SIZE - 1)/WOLFSSL_BIT_SIZE;
        err = mp_read_unsigned_bin(&e, (byte*)in, inlen);
 
        /* may still need bit truncation too */
-       if (err == MP_OKAY && (CYASSL_BIT_SIZE * inlen) > orderBits)
-           mp_rshb(&e, CYASSL_BIT_SIZE - (orderBits & 0x7));
+       if (err == MP_OKAY && (WOLFSSLF_BIT_SIZE * inlen) > orderBits)
+           mp_rshb(&e, WOLFSSLF_BIT_SIZE - (orderBits & 0x7));
    }
 
    /* make up a key and export the public copy */
@@ -2059,13 +2059,13 @@ int wc_ecc_verify_hash(const byte* sig, word32 siglen, const byte* hash,
        unsigned int orderBits = mp_count_bits(&p);
 
        /* truncate down to byte size, may be all that's needed */
-       if ( (CYASSL_BIT_SIZE * hashlen) > orderBits)
-           hashlen = (orderBits + CYASSL_BIT_SIZE - 1)/CYASSL_BIT_SIZE;
+       if ( (WOLFSSLF_BIT_SIZE * hashlen) > orderBits)
+           hashlen = (orderBits + WOLFSSLF_BIT_SIZE - 1)/WOLFSSL_BIT_SIZE;
        err = mp_read_unsigned_bin(&e, hash, hashlen);
 
        /* may still need bit truncation too */
-       if (err == MP_OKAY && (CYASSL_BIT_SIZE * hashlen) > orderBits)
-           mp_rshb(&e, CYASSL_BIT_SIZE - (orderBits & 0x7));
+       if (err == MP_OKAY && (WOLFSSLF_BIT_SIZE * hashlen) > orderBits)
+           mp_rshb(&e, WOLFSSLF_BIT_SIZE - (orderBits & 0x7));
    }
 
    /*  w  = s^-1 mod n */
@@ -2154,7 +2154,7 @@ int wc_ecc_verify_hash(const byte* sig, word32 siglen, const byte* hash,
 /* export public ECC key in ANSI X9.63 format */
 int wc_ecc_export_x963(ecc_key* key, byte* out, word32* outLen)
 {
-#ifdef CYASSL_SMALL_STACK
+#ifdef WOLFSSL_SMALL_STACK
    byte*  buf;
 #else
    byte   buf[ECC_BUFSIZE];
@@ -2185,7 +2185,7 @@ int wc_ecc_export_x963(ecc_key* key, byte* out, word32* outLen)
    /* store byte 0x04 */
    out[0] = 0x04;
 
-#ifdef CYASSL_SMALL_STACK
+#ifdef WOLFSSL_SMALL_STACK
    buf = (byte*)XMALLOC(ECC_BUFSIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
    if (buf == NULL)
       return MEMORY_E;
@@ -2211,7 +2211,7 @@ int wc_ecc_export_x963(ecc_key* key, byte* out, word32* outLen)
       *outLen = 1 + 2*numlen;
    } while (0);
 
-#ifdef CYASSL_SMALL_STACK
+#ifdef WOLFSSL_SMALL_STACK
    XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
 
@@ -3349,7 +3349,7 @@ static int accel_fp_mul(int idx, mp_int* k, ecc_point *R, mp_int* modulus,
 {
 #define KB_SIZE 128
 
-#ifdef CYASSL_SMALL_STACK
+#ifdef WOLFSSL_SMALL_STACK
    unsigned char* kb;
 #else
    unsigned char kb[128];
@@ -3414,7 +3414,7 @@ static int accel_fp_mul(int idx, mp_int* k, ecc_point *R, mp_int* modulus,
    }
    
    /* store k */
-#ifdef CYASSL_SMALL_STACK
+#ifdef WOLFSSL_SMALL_STACK
    kb = (unsigned char*)XMALLOC(KB_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
    if (kb == NULL)
       return MEMORY_E;
@@ -3484,7 +3484,7 @@ static int accel_fp_mul(int idx, mp_int* k, ecc_point *R, mp_int* modulus,
       }
    }
 
-#ifdef CYASSL_SMALL_STACK
+#ifdef WOLFSSL_SMALL_STACK
    XFREE(kb, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
 
@@ -3501,7 +3501,7 @@ static int accel_fp_mul2add(int idx1, int idx2,
 {
 #define KB_SIZE 128
 
-#ifdef CYASSL_SMALL_STACK
+#ifdef WOLFSSL_SMALL_STACK
    unsigned char* kb[2];
 #else
    unsigned char kb[2][128];
@@ -3610,7 +3610,7 @@ static int accel_fp_mul2add(int idx1, int idx2,
    }
    
    /* store k */
-#ifdef CYASSL_SMALL_STACK
+#ifdef WOLFSSL_SMALL_STACK
    kb[0] = (unsigned char*)XMALLOC(KB_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
    if (kb[0] == NULL)
       return MEMORY_E;
@@ -3634,7 +3634,7 @@ static int accel_fp_mul2add(int idx1, int idx2,
    }      
    
    /* store b */
-#ifdef CYASSL_SMALL_STACK
+#ifdef WOLFSSL_SMALL_STACK
    kb[1] = (unsigned char*)XMALLOC(KB_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
    if (kb[1] == NULL) {
       XFREE(kb[0], NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -3723,7 +3723,7 @@ static int accel_fp_mul2add(int idx1, int idx2,
    XMEMSET(kb[0], 0, KB_SIZE);
    XMEMSET(kb[1], 0, KB_SIZE);
 
-#ifdef CYASSL_SMALL_STACK
+#ifdef WOLFSSL_SMALL_STACK
    XFREE(kb[0], NULL, DYNAMIC_TYPE_TMP_BUFFER);
    XFREE(kb[1], NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
@@ -4233,7 +4233,7 @@ int wc_ecc_encrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
     word32       blockSz;
     word32       digestSz;
     ecEncCtx     localCtx;
-#ifdef CYASSL_SMALL_STACK
+#ifdef WOLFSSL_SMALL_STACK
     byte*        sharedSecret;
     byte*        keys;
 #else
@@ -4288,7 +4288,7 @@ int wc_ecc_encrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
     if (*outSz < (msgSz + digestSz))
         return BUFFER_E;
 
-#ifdef CYASSL_SMALL_STACK
+#ifdef WOLFSSL_SMALL_STACK
     sharedSecret = (byte*)XMALLOC(ECC_MAXSIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (sharedSecret == NULL)
         return MEMORY_E;
@@ -4366,7 +4366,7 @@ int wc_ecc_encrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
     if (ret == 0)
        *outSz = msgSz + digestSz;
 
-#ifdef CYASSL_SMALL_STACK
+#ifdef WOLFSSL_SMALL_STACK
     XFREE(sharedSecret, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(keys, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
@@ -4385,7 +4385,7 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
     word32       blockSz;
     word32       digestSz;
     ecEncCtx     localCtx;
-#ifdef CYASSL_SMALL_STACK
+#ifdef WOLFSSL_SMALL_STACK
     byte*        sharedSecret;
     byte*        keys;
 #else
@@ -4440,7 +4440,7 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
     if (*outSz < (msgSz - digestSz))
         return BUFFER_E;
 
-#ifdef CYASSL_SMALL_STACK
+#ifdef WOLFSSL_SMALL_STACK
     sharedSecret = (byte*)XMALLOC(ECC_MAXSIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (sharedSecret == NULL)
         return MEMORY_E;
@@ -4523,7 +4523,7 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
     if (ret == 0)
        *outSz = msgSz - digestSz;
 
-#ifdef CYASSL_SMALL_STACK
+#ifdef WOLFSSL_SMALL_STACK
     XFREE(sharedSecret, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(keys, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif

@@ -31,7 +31,7 @@
    WOLFSSL_LOCAL is used for non-API symbols (private).
 */
 
-#if defined(BUILDING_WOLFSSL)
+//#if defined(BUILDING_WOLFSSL)
     #if defined(HAVE_VISIBILITY) && HAVE_VISIBILITY
         #define WOLFSSL_API   __attribute__ ((visibility("default")))
         #define WOLFSSL_LOCAL __attribute__ ((visibility("hidden")))
@@ -49,19 +49,19 @@
         #define WOLFSSL_API
         #define WOLFSSL_LOCAL
     #endif /* HAVE_VISIBILITY */
-#else /* BUILDING_WOLFSSL */
-    #if defined(_MSC_VER)
-        #ifdef WOLFSSL_DLL
-            #define WOLFSSL_API extern __declspec(dllimport)
-        #else
-            #define WOLFSSL_API
-        #endif
-        #define WOLFSSL_LOCAL
-    #else
-        #define WOLFSSL_API
-        #define WOLFSSL_LOCAL
-    #endif
-#endif /* BUILDING_WOLFSSL */
+//#else /* BUILDING_WOLFSSL */
+//    #if defined(_MSC_VER)
+//        #ifdef WOLFSSL_DLL
+//            #define WOLFSSL_API extern __declspec(dllimport)
+//        #else
+//            #define WOLFSSL_API
+//        #endif
+//        #define WOLFSSL_LOCAL
+//    #else
+//        #define WOLFSSL_API
+//        #define WOLFSSL_LOCAL
+//    #endif
+//#endif /* BUILDING_WOLFSSL */
 
 
 #endif /* WOLF_CRYPT_VISIBILITY_H */
