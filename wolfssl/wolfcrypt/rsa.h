@@ -24,8 +24,14 @@
 #ifndef WOLF_CRYPT_RSA_H
 #define WOLF_CRYPT_RSA_H
 
-/* for fips */
+#include <wolfssl/wolfcrypt/types.h>
+
+/* for fips @wc_fips */
 #include <cyassl/ctaocrypt/rsa.h>
+#if defined(CYASSL_KEY_GEN) && !defined(WOLFSSL_KEY_GEN)
+    #define WOLFSSL_KEY_GEN
+#endif
+
 
 #ifdef __cplusplus
     extern "C" {
@@ -101,3 +107,4 @@ WOLFSSL_API int  wc_RsaFlattenPublicKey(RsaKey*, byte*, word32*, byte*,
 #endif /* WOLF_CRYPT_RSA_H */
 
 #endif /* NO_RSA */
+

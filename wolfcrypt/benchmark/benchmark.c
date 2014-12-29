@@ -1521,7 +1521,7 @@ void bench_eccKeyAgree(void)
     }
 
 #elif defined MICROCHIP_PIC32
-    #if defined(CYASSL_MICROCHIP_PIC32MZ)
+    #if defined(WOLFSSL_MICROCHIP_PIC32MZ)
         #define CLOCK 80000000.0
     #else
         #include <peripheral/timer.h>
@@ -1543,7 +1543,7 @@ void bench_eccKeyAgree(void)
         return ( ns / CLOCK * 2.0);
     }
 
-#elif defined(CYASSL_IAR_ARM) || defined (CYASSL_MDK_ARM)
+#elif defined(WOLFSSL_IAR_ARM) || defined (WOLFSSL_MDK_ARM)
     #warning "Write your current_time()"
     double current_time(int reset) { return 0.0 ; }
     
@@ -1560,7 +1560,7 @@ void bench_eccKeyAgree(void)
         return (double)tickCount / 1000;
     }
 
-#elif defined (CYASSL_TIRTOS)
+#elif defined (WOLFSSL_TIRTOS)
 
     extern double current_time(int reset);
 

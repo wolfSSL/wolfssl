@@ -75,25 +75,9 @@ include swig/include.am
 
 include src/include.am
 include support/include.am
-#-------------------------------------#
-if BUILD_FIPS
-include ctaocrypt/benchmark/include.am
-else
 include wolfcrypt/benchmark/include.am
-endif
-#-------------------------------------#
-if BUILD_FIPS
-include ctaocrypt/src/include.am
-else
 include wolfcrypt/src/include.am
-endif
-#-------------------------------------#
-if BUILD_FIPS
-include ctaocrypt/test/include.am
-else
 include wolfcrypt/test/include.am
-endif
-#-------------------------------------#
 include examples/client/include.am
 include examples/server/include.am
 include examples/echoclient/include.am

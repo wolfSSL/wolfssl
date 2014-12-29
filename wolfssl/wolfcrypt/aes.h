@@ -28,8 +28,14 @@
 
 #include <wolfssl/wolfcrypt/types.h>
 
-/* included for fips*/
+/* included for fips @wc_fips */
 #include <cyassl/ctaocrypt/aes.h>
+#if defined(CYASSL_AES_COUNTER) && !defined(WOLFSSL_AES_COUNTER)
+    #define WOLFSSL_AES_COUNTER
+#endif
+#if !defined(WOLFSSL_AES_DIRECT) && defined(CYASSL_AES_DIRECT)
+    #define WOLFSSL_AES_DIRECT 
+#endif
 
 #ifdef __cplusplus
     extern "C" {
@@ -44,11 +50,11 @@
                                  const byte* key, word32 keySz, const byte* iv);
  
 /* AES-CTR */
-#ifdef CYASSL_AES_COUNTER
+#ifdef WOLFSSL_AES_COUNTER
  WOLFSSL_API void wc_AesCtrEncrypt(Aes* aes, byte* out, const byte* in, word32 sz);
 #endif
 /* AES-DIRECT */
-#if defined(CYASSL_AES_DIRECT)
+#if defined(WOLFSSL_AES_DIRECT)
  WOLFSSL_API void wc_AesEncryptDirect(Aes* aes, byte* out, const byte* in);
  WOLFSSL_API void wc_AesDecryptDirect(Aes* aes, byte* out, const byte* in);
  WOLFSSL_API int  wc_AesSetKeyDirect(Aes* aes, const byte* key, word32 len,

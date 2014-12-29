@@ -678,7 +678,7 @@
 
 
 #if !defined(XMALLOC_USER) && !defined(MICRIUM_MALLOC) && \
-    !defined(WOLFSSL_LEANPSK) && !defined(NO_CYASSL_MEMORY)
+    !defined(WOLFSSL_LEANPSK) && !defined(NO_WOLFSSL_MEMORY)
     #define USE_WOLFSSL_MEMORY
 #endif
 
@@ -713,7 +713,7 @@
     #elif defined(XSTREAM_ALIGNMENT)
         #define WOLFSSL_GENERAL_ALIGNMENT  4
     #elif defined(FREESCALE_MMCAU)
-        #define WOLFSSL_GENERAL_ALIGNMENT  CYASSL_MMCAU_ALIGNMENT
+        #define WOLFSSL_GENERAL_ALIGNMENT  WOLFSSL_MMCAU_ALIGNMENT
     #else 
         #define WOLFSSL_GENERAL_ALIGNMENT  0 
     #endif
