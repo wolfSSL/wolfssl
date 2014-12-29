@@ -24,8 +24,8 @@
 
 
 #include <cyassl/ctaocrypt/types.h>
-// #if !defined(WOLF_CRYPT_TYPES_H) && !defined(CTAO_CRYPT_TYPES_H)
-// #define WOLF_CRYPT_TYPES_H
+#ifndef WOLF_CRYPT_TYPES_H
+#define WOLF_CRYPT_TYPES_H
 
  #include <wolfssl/wolfcrypt/settings.h>
  #include <wolfssl/wolfcrypt/wc_port.h>
@@ -328,4 +328,4 @@
 // #endif
 
 
-// #endif /* WOLF_CRYPT_TYPES_H */
+#endif /* WOLF_CRYPT_TYPES_H */

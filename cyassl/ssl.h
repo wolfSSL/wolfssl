@@ -153,14 +153,6 @@
 #define cyassl_chacha                  wolfssl_chacha
 #define CyaSSL_ERR_reason_error_string wolfSSL_ERR_reason_error_string
 
-/* fips defines */
-//defined in logging
-//#define WOLFSSL_LEAVE                  CYASSL_LEAVE
-//#define WOLFSSL_ERROR                  CYASSL_ERROR
-
-//defined in settings.h
-//#define WOLFSSL_GENERAL_ALIGNMENT      CYASSL_GENERAL_ALIGNMENT
-
 #define wolfcrypt_test                 ctaocrypt_test
 
 /* src/eys.c */
@@ -228,10 +220,6 @@
 #define CyaSSL_CTX_set_cipher_list        wolfSSL_CTX_set_cipher_list
 #define CyaSSL_CTX_set_group_messages     wolfSSL_CTX_set_group_messages
 #define CyaSSL_CTX_set_session_cache_mode wolfSSL_CTX_set_session_cache_mode
-
-
-
-
 
 /* Callbacks */
 #define CyaSSL_accept_ex              wolfSSL_accept_ex
@@ -302,9 +290,6 @@
 #define CyaSSL_GetServerWriteKey  wolfSSL_GetServerWriteKey
 #define CyaSSL_GetCipherBlockSize wolfSSL_GetCipherBlockSize
 
-
-
-
 /* Connection, Session, and I/O */
 #define CyaSSL_peek               wolfSSL_peek
 #define CyaSSL_read               wolfSSL_read
@@ -328,13 +313,6 @@
 #define CyaSSL_dtls_get_peer            wolfSSL_dtls_get_peer
 #define CyaSSL_dtls_got_timeout         wolfSSL_dtls_got_timeout
 #define CyaSSL_dtls_get_current_timeout wolfSSL_dtls_get_current_timeout
-
-/* Memory Abstraction Layer */
-//#define CyaSSL_Free          wolfSSL_Free
-//#define CyaSSL_Malloc        wolfSSL_Malloc
-//#define CyaSSL_Realloc       wolfSSL_Realloc
-//#define CyaSSL_SetAllocators wolfSSL_SetAllocators
-/* moved to wolfssl/wolfcrypt/memory.h */
 
 /* Certificate Manager */
 #define CyaSSL_CertManagerNew          wolfSSL_CertManagerNew
@@ -375,13 +353,7 @@
 #define CyaSSL_CTX_UseTruncatedHMAC  wolfSSL_CTX_UseTruncatedHMAC
 #define CyaSSL_CTX_UseSupportedCurve wolfSSL_CTX_UseSupportedCurve
 
-
-
-
-/* Carried over from openssl compatibilty layer */ 
-
 /* End wolfssl -> cyassl -> openssl compatibility */
-
 
 /* JRB macro redefinitions and api calls for cryptography for reverse compat. */
 #ifdef WOLFSSL_SMALL_STACK
@@ -389,8 +361,12 @@
 #endif
 
 /* change visibility to be compatible with CyaSSL visibility */
-#undef WOLFSSL_API
-#define WOLFSSL_API CYASSL_API
+#ifndef HAVE_FIPS
+    /* Do Nothing */
+#else
+	#undef WOLFSSL_API
+	#define WOLFSSL_API CYASSL_API
+#endif
 
 #define WOLFSSL_BIT_SIZE CYASSL_BIT_SIZE /* @TODO*/
 
@@ -398,9 +374,6 @@
  * needs investigation in regards to macros in fips */
 #define WOLFSSL_MAX_16BIT CYASSL_MAX_16BIT
 #define NO_WOLFSSL_ALLOC_ALIGN NO_CYASSL_ALLOC_ALIGN /* @TODO*/
-
-
-
 
 /* for pwdbased reverse compatibility */
 #ifndef NO_PWDBASED
@@ -415,11 +388,6 @@
 
 /* examples/client/client.c */
 #define LIBCYASSL_VERSION_STRING LIBWOLFSSL_VERSION_STRING
-
-
-
-
-        
 
 
 #ifdef __cplusplus

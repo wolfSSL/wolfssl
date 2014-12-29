@@ -31,7 +31,7 @@ AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_HEADERS([config.h:config.in])dnl Keep filename to 8.3 for MS-DOS.
 
 #shared library versioning
-CYASSL_LIBRARY_VERSION=6:0:1
+WOLFSSL_LIBRARY_VERSION=6:0:1
 #                      | | |
 #               +------+ | +---+
 #               |        |     |
@@ -43,7 +43,7 @@ CYASSL_LIBRARY_VERSION=6:0:1
 #               |        +- increment if source code has changed
 #               |           set to zero if current is incremented
 #               +- increment if interfaces have been added, removed or changed
-AC_SUBST([CYASSL_LIBRARY_VERSION])
+AC_SUBST([WOLFSSL_LIBRARY_VERSION])
 
 # capture user C_EXTRA_FLAGS from ./configure line, CFLAGS may hold -g -O2 even
 # if user doesn't override, no way to tell

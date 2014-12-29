@@ -101,22 +101,22 @@ static void test_CyaSSL_Method_Allocators(void)
             TEST_METHOD_ALLOCATOR(a, AssertNull)
 
 #ifndef NO_OLD_TLS
-    TEST_VALID_METHOD_ALLOCATOR(wolfSSLv3_server_method);
-    TEST_VALID_METHOD_ALLOCATOR(wolfSSLv3_client_method);
-    TEST_VALID_METHOD_ALLOCATOR(wolfTLSv1_server_method);
-    TEST_VALID_METHOD_ALLOCATOR(wolfTLSv1_client_method);
-    TEST_VALID_METHOD_ALLOCATOR(wolfTLSv1_1_server_method);
-    TEST_VALID_METHOD_ALLOCATOR(wolfTLSv1_1_client_method);
+    TEST_VALID_METHOD_ALLOCATOR(CyaSSLv3_server_method);
+    TEST_VALID_METHOD_ALLOCATOR(CyaSSLv3_client_method);
+    TEST_VALID_METHOD_ALLOCATOR(CyaTLSv1_server_method);
+    TEST_VALID_METHOD_ALLOCATOR(CyaTLSv1_client_method);
+    TEST_VALID_METHOD_ALLOCATOR(CyaTLSv1_1_server_method);
+    TEST_VALID_METHOD_ALLOCATOR(CyaTLSv1_1_client_method);
 #endif
-    TEST_VALID_METHOD_ALLOCATOR(wolfTLSv1_2_server_method);
-    TEST_VALID_METHOD_ALLOCATOR(wolfTLSv1_2_client_method);
+    TEST_VALID_METHOD_ALLOCATOR(CyaTLSv1_2_server_method);
+    TEST_VALID_METHOD_ALLOCATOR(CyaTLSv1_2_client_method);
     TEST_VALID_METHOD_ALLOCATOR(CyaSSLv23_client_method);
 
 #ifdef CYASSL_DTLS
-    TEST_VALID_METHOD_ALLOCATOR(wolfDTLSv1_server_method);
-    TEST_VALID_METHOD_ALLOCATOR(wolfDTLSv1_client_method);
-    TEST_VALID_METHOD_ALLOCATOR(wolfDTLSv1_2_server_method);
-    TEST_VALID_METHOD_ALLOCATOR(wolfDTLSv1_2_client_method);
+    TEST_VALID_METHOD_ALLOCATOR(CyaDTLSv1_server_method);
+    TEST_VALID_METHOD_ALLOCATOR(CyaDTLSv1_client_method);
+    TEST_VALID_METHOD_ALLOCATOR(CyaDTLSv1_2_server_method);
+    TEST_VALID_METHOD_ALLOCATOR(CyaDTLSv1_2_client_method);
 #endif
 
 #ifdef OPENSSL_EXTRA
