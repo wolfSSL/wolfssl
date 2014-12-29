@@ -183,7 +183,7 @@ int wc_RsaFlattenPublicKey(RsaKey* key, byte* a, word32* aSz, byte* b,
     }
 
 
-    int wc_ RsaSSL_Sign_fips(const byte* in, word32 inLen, byte* out,
+    int wc_RsaSSL_Sign_fips(const byte* in, word32 inLen, byte* out,
                             word32 outLen, RsaKey* key, RNG* rng)
     {
         return RsaSSL_Sign_fips(in, inLen, out, outLen, key, rng);

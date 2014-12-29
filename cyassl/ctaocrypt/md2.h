@@ -20,46 +20,53 @@
  */
 
 
+/* check for old macro */
+#if !defined(CYASSL_MD2) && defined(WOLFSSL_MD2)
+    #define CYASSL_MD2
+#endif
+
 #ifdef CYASSL_MD2
 
 #ifndef CTAO_CRYPT_MD2_H
 #define CTAO_CRYPT_MD2_H
 
-#include <cyassl/ctaocrypt/types.h>
+#include <wolfssl/wolfcrypt/md2.h>
 
-#ifdef __cplusplus
-    extern "C" {
-#endif
-
-
-/* in bytes */
-enum {
-    MD2             =  6,    /* hash type unique */
-    MD2_BLOCK_SIZE  = 16,
-    MD2_DIGEST_SIZE = 16,
-    MD2_PAD_SIZE    = 16,
-    MD2_X_SIZE      = 48
-};
-
-
-/* Md2 digest */
-typedef struct Md2 {
-    word32  count;   /* bytes % PAD_SIZE  */
-    byte    X[MD2_X_SIZE];
-    byte    C[MD2_BLOCK_SIZE];
-    byte    buffer[MD2_BLOCK_SIZE];
-} Md2;
-
-
-CYASSL_API void InitMd2(Md2*);
-CYASSL_API void Md2Update(Md2*, const byte*, word32);
-CYASSL_API void Md2Final(Md2*, byte*);
-CYASSL_API int  Md2Hash(const byte*, word32, byte*);
-
-
-#ifdef __cplusplus
-    } /* extern "C" */
-#endif
+//#include <cyassl/ctaocrypt/types.h>
+//
+//#ifdef __cplusplus
+//    extern "C" {
+//#endif
+//
+//
+///* in bytes */
+//enum {
+//    MD2             =  6,    /* hash type unique */
+//    MD2_BLOCK_SIZE  = 16,
+//    MD2_DIGEST_SIZE = 16,
+//    MD2_PAD_SIZE    = 16,
+//    MD2_X_SIZE      = 48
+//};
+//
+//
+///* Md2 digest */
+//typedef struct Md2 {
+//    word32  count;   /* bytes % PAD_SIZE  */
+//    byte    X[MD2_X_SIZE];
+//    byte    C[MD2_BLOCK_SIZE];
+//    byte    buffer[MD2_BLOCK_SIZE];
+//} Md2;
+//
+//
+//CYASSL_API void InitMd2(Md2*);
+//CYASSL_API void Md2Update(Md2*, const byte*, word32);
+//CYASSL_API void Md2Final(Md2*, byte*);
+//CYASSL_API int  Md2Hash(const byte*, word32, byte*);
+//
+//
+//#ifdef __cplusplus
+//    } /* extern "C" */
+//#endif
 
 #endif /* CTAO_CRYPT_MD2_H */
 #endif /* CYASSL_MD2 */

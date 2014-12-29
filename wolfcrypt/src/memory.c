@@ -2,14 +2,14 @@
  *
  * Copyright (C) 2006-2014 wolfSSL Inc.
  *
- * This file is part of CyaSSL.
+ * This file is part of wolfSSL. (formerly known as CyaSSL)
  *
- * CyaSSL is free software; you can redistribute it and/or modify
+ * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  *
- * CyaSSL is distributed in the hope that it will be useful,
+ * wolfSSL is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
@@ -25,8 +25,15 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 
-//#ifdef USE_WOLFSSL_MEMORY
-//@TODO
+/* check old macros @wc_fips */
+#if defined(USE_CYASSL_MEMORY) && !defined(USE_WOLFSSL_MEMORY)
+    #define USE_WOLFSSL_MEMORY
+#endif
+#if defined(CYASSL_MALLOC_CHECK) && !defined(WOLFSSL_MALLOC_CHECK)
+    #define WOLFSSL_MALLOC_CHECK
+#endif
+
+#ifdef USE_WOLFSSL_MEMORY
 
 #include <wolfssl/wolfcrypt/memory.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
@@ -102,7 +109,7 @@ void* wolfSSL_Realloc(void *ptr, size_t size)
     return res;
 }
 
-//#endif /* USE_WOLFSSL_MEMORY */
+#endif /* USE_WOLFSSL_MEMORY */
 
 
 #ifdef HAVE_IO_POOL

@@ -23,12 +23,12 @@
     #include <config.h>
 #endif
 
-#include <cyassl/ctaocrypt/settings.h>
+#include <wolfssl/wolfcrypt/settings.h>
 
 #ifndef NO_DH
 
-#include <cyassl/ctaocrypt/dh.h>
-#include <cyassl/ctaocrypt/error-crypt.h>
+#include <wolfssl/wolfcrypt/dh.h>
+#include <wolfssl/wolfcrypt/error-crypt.h>
 
 #ifndef USER_MATH_LIB
     #include <math.h>
@@ -139,7 +139,7 @@ int wc_DhGenerateKeyPair(DhKey* key, RNG* rng, byte* priv, word32* privSz,
     return (ret != 0) ? ret : GeneratePublic(key, priv, *privSz, pub, pubSz);
 }
 
-int DhAgree(DhKey* key, byte* agree, word32* agreeSz, const byte* priv,
+int wc_DhAgree(DhKey* key, byte* agree, word32* agreeSz, const byte* priv,
             word32 privSz, const byte* otherPub, word32 pubSz)
 {
     int ret = 0;

@@ -2,14 +2,14 @@
  *
  * Copyright (C) 2006-2014 wolfSSL Inc.
  *
- * This file is part of CyaSSL.
+ * This file is part of wolfSSL.
  *
- * CyaSSL is free software; you can redistribute it and/or modify
+ * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  *
- * CyaSSL is distributed in the hope that it will be useful,
+ * wolfSSL is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
@@ -23,15 +23,15 @@
     #include <config.h>
 #endif
 
-#include <cyassl/ctaocrypt/settings.h>
+#include <wolfssl/wolfcrypt/settings.h>
 
-#include <cyassl/test.h>
-#include "ctaocrypt/test/test.h"
+#include <wolfssl/test.h>
+#include "wolfcrypt/test/test.h"
 
 #ifndef SINGLE_THREADED
 
-#include <cyassl/openssl/ssl.h>
-#include <cyassl/ctaocrypt/sha256.h>
+#include <wolfssl/openssl/ssl.h>
+#include <wolfssl/wolfcrypt/sha256.h>
 
 #include "examples/echoclient/echoclient.h"
 #include "examples/echoserver/echoserver.h"
@@ -88,12 +88,12 @@ int testsuite_test(int argc, char** argv)
     server_args.argc = argc;
     server_args.argv = argv;
 
-    CyaSSL_Init();
-#if defined(DEBUG_CYASSL) && !defined(HAVE_VALGRIND)
-    CyaSSL_Debugging_ON();
+    wolfSSL_Init();
+#if defined(DEBUG_WOLFSSL) && !defined(HAVE_VALGRIND)
+    wolfSSL_Debugging_ON();
 #endif
 
-#if !defined(CYASSL_TIRTOS)
+#if !defined(WOLFSSL_TIRTOS)
     if (CurrentDir("testsuite") || CurrentDir("_build"))
         ChangeDirBack(1);
     else if (CurrentDir("Debug") || CurrentDir("Release"))
@@ -103,18 +103,18 @@ int testsuite_test(int argc, char** argv)
                                    /* Debug or Release */
 #endif
 
-#ifdef CYASSL_TIRTOS
+#ifdef WOLFSSL_TIRTOS
     fdOpenSession(Task_self());
 #endif
 
     server_args.signal = &ready;
     InitTcpReady(&ready);
 
-    /* CTaoCrypt test */
-    ctaocrypt_test(&server_args);
+    /* wc_ test */
+    wolfcrypt_test(&server_args);
     if (server_args.return_code != 0) return server_args.return_code;
  
-    /* Simple CyaSSL client server test */
+    /* Simple wolfSSL client server test */
     simple_test(&server_args);
     if (server_args.return_code != 0) return server_args.return_code;
 
@@ -148,7 +148,7 @@ int testsuite_test(int argc, char** argv)
         echoclient_test(&echo_args);
         if (echo_args.return_code != 0) return echo_args.return_code;  
 
-#ifdef CYASSL_DTLS
+#ifdef WOLFSSL_DTLS
         wait_tcp_ready(&server_args);
 #endif
         /* send quit to echoserver */
@@ -165,7 +165,7 @@ int testsuite_test(int argc, char** argv)
     {
         char ciphers[1024];
         XMEMSET(ciphers, 0, sizeof(ciphers));
-        CyaSSL_get_ciphers(ciphers, sizeof(ciphers)-1);
+        wolfSSL_get_ciphers(ciphers, sizeof(ciphers)-1);
         printf("ciphers = %s\n", ciphers);
     }
 
@@ -180,10 +180,10 @@ int testsuite_test(int argc, char** argv)
             return EXIT_FAILURE;
     }
 
-    CyaSSL_Cleanup();
+    wolfSSL_Cleanup();
     FreeTcpReady(&ready);
 
-#ifdef CYASSL_TIRTOS
+#ifdef WOLFSSL_TIRTOS
     fdCloseSession(Task_self());
 #endif
 
@@ -237,8 +237,8 @@ void simple_test(func_args* args)
     cliArgs.return_code = 0;
    
     strcpy(svrArgs.argv[0], "SimpleServer");
-    #if !defined(USE_WINDOWS_API) && !defined(CYASSL_SNIFFER)  && \
-                                     !defined(CYASSL_TIRTOS)
+    #if !defined(USE_WINDOWS_API) && !defined(WOLFSSL_SNIFFER)  && \
+                                     !defined(WOLFSSL_TIRTOS)
         strcpy(svrArgs.argv[svrArgs.argc++], "-p");
         strcpy(svrArgs.argv[svrArgs.argc++], "0");
     #endif
@@ -296,7 +296,7 @@ void start_thread(THREAD_FUNC fun, func_args* args, THREAD_TYPE* thread)
 #if defined(_POSIX_THREADS) && !defined(__MINGW32__)
     pthread_create(thread, 0, fun, args);
     return;
-#elif defined(CYASSL_TIRTOS)
+#elif defined(WOLFSSL_TIRTOS)
     /* Initialize the defaults and set the parameters. */
     Task_Params taskParams;
     Task_Params_init(&taskParams);
@@ -317,7 +317,7 @@ void join_thread(THREAD_TYPE thread)
 {
 #if defined(_POSIX_THREADS) && !defined(__MINGW32__)
     pthread_join(thread, 0);
-#elif defined(CYASSL_TIRTOS)
+#elif defined(WOLFSSL_TIRTOS)
     while(1) {
         if (Task_getMode(thread) == Task_Mode_TERMINATED) {
 		    Task_sleep(5);
@@ -420,7 +420,7 @@ int main(int argc, char** argv)
                                    /* Relative to Workspace, Build/Products */
                                    /* Debug or Release */
 
-    ctaocrypt_test(&server_args);
+    wolfcrypt_test(&server_args);
     if (server_args.return_code != 0) return server_args.return_code;
 
     printf("\nAll tests passed!\n");

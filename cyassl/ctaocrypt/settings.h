@@ -100,7 +100,6 @@
 /* #define CYASSL_PICOTCP_DEMO */
 
 #include <cyassl/ctaocrypt/visibility.h>
-#include <wolfssl/wolfcrypt/settings.h>
 
 #ifdef IPHONE
     #define SIZEOF_LONG_LONG 8

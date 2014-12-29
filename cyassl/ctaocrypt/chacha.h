@@ -22,34 +22,12 @@
 #ifndef CTAO_CRYPT_CHACHA_H
 #define CTAO_CRYPT_CHACHA_H
 
-#include "types.h"
+#include <wolfssl/wolfcrypt/chacha.h>
 
-#ifdef __cplusplus
-    extern "C" {
-#endif
+/* for chacha reverse compatibility */
+#define Chacha_Process wc_Chacha_Process
+#define Chacha_SetKey  wc_Chacha_SetKey
+#define Chacha_SetIV   wc_Chacha_SetIV
 
-
-enum {
-	CHACHA_ENC_TYPE = 7     /* cipher unique type */
-};
-
-typedef struct ChaCha {
-    word32 X[16];           /* state of cipher */
-} ChaCha;
-
-CYASSL_API int Chacha_Process(ChaCha* ctx, byte* cipher, const byte* plain,
-                              word32 msglen);
-CYASSL_API int Chacha_SetKey(ChaCha* ctx, const byte* key, word32 keySz);
-
-/**
-  * IV(nonce) changes with each record 
-  * counter is for what value the block counter should start ... usually 0
-  */
-CYASSL_API int Chacha_SetIV(ChaCha* ctx, const byte* inIv, word32 counter);
-
-#ifdef __cplusplus
-    } /* extern "C" */
-#endif
-
-#endif
+#endif /* CTAO_CRYPT_CHACHA_H */
 

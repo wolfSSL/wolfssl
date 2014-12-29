@@ -1,3 +1,4 @@
+ctaocrypt/src/src/
 *.swp
 *.lo
 *.la
@@ -36,6 +37,8 @@ fips_test.c
 fips
 ctaocrypt/benchmark/benchmark
 ctaocrypt/test/testctaocrypt
+wolfcrypt/benchmark/benchmark
+wolfcrypt/test/testwolfcrypt
 examples/client/client
 examples/echoclient/echoclient
 examples/echoserver/echoserver

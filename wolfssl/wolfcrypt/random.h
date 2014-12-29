@@ -25,16 +25,6 @@
 
 #include <wolfssl/wolfcrypt/types.h>
 
-#if defined(HAVE_HASHDRBG) || defined(NO_RC4)
-    #ifdef NO_SHA256
-        #error "Hash DRBG requires SHA-256."
-    #endif /* NO_SHA256 */
-
-    #include <cyassl/ctaocrypt/sha256.h>
-#else /* HAVE_HASHDRBG || NO_RC4 */
-    #include <cyassl/ctaocrypt/arc4.h>
-#endif /* HAVE_HASHDRBG || NO_RC4 */
-
 /* for fips */
 #include <cyassl/ctaocrypt/random.h>
 

@@ -57,7 +57,7 @@
 
 /* Begin PBXFileReference section */
 		52397C5C17E0E63200517C9A /* port.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = port.c; path = ctaocrypt/src/port.c; sourceTree = SOURCE_ROOT; };
-		52B1344D16F3C9E800C07B32 /* libcyassl-ios.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libcyassl-ios.a"; sourceTree = BUILT_PRODUCTS_DIR; };
+		52B1344D16F3C9E800C07B32 /* libwolfssl-ios.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libwolfssl-ios.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 		52B1347B16F3CCC400C07B32 /* tls.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = tls.c; path = src/tls.c; sourceTree = SOURCE_ROOT; };
 		52B1347C16F3CCC400C07B32 /* ssl.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = ssl.c; path = src/ssl.c; sourceTree = SOURCE_ROOT; };
 		52B1347D16F3CCC400C07B32 /* ocsp.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = ocsp.c; path = src/ocsp.c; sourceTree = SOURCE_ROOT; };
@@ -115,7 +115,7 @@
 		52B1344E16F3C9E800C07B32 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				52B1344D16F3C9E800C07B32 /* libcyassl-ios.a */,
+				52B1344D16F3C9E800C07B32 /* libwolfssl-ios.a */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -195,7 +195,7 @@
 			);
 			name = "cyassl-ios";
 			productName = "cyassl-ios";
-			productReference = 52B1344D16F3C9E800C07B32 /* libcyassl-ios.a */;
+			productReference = 52B1344D16F3C9E800C07B32 /* libwolfssl-ios.a */;
 			productType = "com.apple.product-type.library.static";
 		};
 /* End PBXNativeTarget section */

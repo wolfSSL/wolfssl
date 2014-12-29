@@ -85,7 +85,7 @@
     <ClCompile>
       <Optimization>Disabled</Optimization>
       <AdditionalIncludeDirectories>../;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>NO_MAIN_DRIVER;CYASSL_RIPEMD;CYASSL_SHA512;OPENSSL_EXTRA;NO_PSK;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NO_MAIN_DRIVER;WOLFSSL_RIPEMD;WOLFSSL_SHA512;OPENSSL_EXTRA;NO_PSK;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <MinimalRebuild>true</MinimalRebuild>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
@@ -104,7 +104,7 @@
     <ClCompile>
       <Optimization>Disabled</Optimization>
       <AdditionalIncludeDirectories>../;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>NO_MAIN_DRIVER;CYASSL_RIPEMD;CYASSL_SHA512;OPENSSL_EXTRA;NO_PSK;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NO_MAIN_DRIVER;WOLFSSL_RIPEMD;WOLFSSL_SHA512;OPENSSL_EXTRA;NO_PSK;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
       <PrecompiledHeader>
@@ -123,7 +123,7 @@
       <Optimization>MaxSpeed</Optimization>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <AdditionalIncludeDirectories>../;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>NO_MAIN_DRIVER;CYASSL_RIPEMD;CYASSL_SHA512;OPENSSL_EXTRA;NO_PSK;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NO_MAIN_DRIVER;WOLFSSL_RIPEMD;WOLFSSL_SHA512;OPENSSL_EXTRA;NO_PSK;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <PrecompiledHeader />
@@ -144,7 +144,7 @@
       <Optimization>MaxSpeed</Optimization>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <AdditionalIncludeDirectories>../;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>NO_MAIN_DRIVER;CYASSL_RIPEMD;CYASSL_SHA512;OPENSSL_EXTRA;NO_PSK;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NO_MAIN_DRIVER;WOLFSSL_RIPEMD;WOLFSSL_SHA512;OPENSSL_EXTRA;NO_PSK;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <PrecompiledHeader>
@@ -165,11 +165,11 @@
     <ClCompile Include="..\examples\echoclient\echoclient.c" />
     <ClCompile Include="..\examples\echoserver\echoserver.c" />
     <ClCompile Include="..\examples\server\server.c" />
-    <ClCompile Include="..\ctaocrypt\test\test.c" />
+    <ClCompile Include="..\wolfcrypt\test\test.c" />
     <ClCompile Include="testsuite.c" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\cyassl.vcxproj">
+    <ProjectReference Include="..\wolfssl.vcxproj">
       <Project>{73973223-5ee8-41ca-8e88-1d60e89a237b}</Project>
       <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
     </ProjectReference>

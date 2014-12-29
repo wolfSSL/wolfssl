@@ -24,4 +24,15 @@
 
 #include <wolfssl/wolfcrypt/camellia.h>
 
+/* for blake2 reverse compatibility */
+#ifdef HAVE_CAMELLIA
+	#define CamelliaSetKey        wc_CamelliaSetKey
+	#define CamelliaSetIV         wc_CamelliaSetIV
+	#define CamelliaEncryptDirect wc_CamelliaEncryptDirect
+	#define CamelliaDecryptDirect wc_CamelliaDecryptDirect
+	#define CamelliaCbcEncrypt    wc_CamelliaCbcEncrypt
+	#define CamelliaCbcDecrypt    wc_CamelliaCbcDecrypt
 #endif
+
+#endif /* CTAO_CRYPT_CAMELLIA_H */
+

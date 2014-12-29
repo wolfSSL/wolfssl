@@ -27,5 +27,14 @@
 
 #include <wolfssl/wolfcrypt/ripemd.h>
 
+/* for ripemd reverse compatibility */
+#ifdef WOLFSSL_RIPEMD
+    #define CYASSL_RIPEMD /* @TODO */
+    #define InitRipeMd   wc_InitRipeMd
+    #define RipeMdUpdate wc_RipeMdUpdate
+    #define RipeMdFinal  wc_RipeMdFinal
+#endif
+
 #endif /* CTAO_CRYPT_RIPEMD_H */
 #endif /* CYASSL_RIPEMD */
+

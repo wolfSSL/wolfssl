@@ -23,6 +23,10 @@
 #ifndef CTAO_CRYPT_ERROR_H
 #define CTAO_CRYPT_ERROR_H
 
+/* for name change and fips compatibility @wc_fips */
+#ifndef HAVE_FIPS
+    #include <wolfssl/wolfcrypt/error-crypt.h>
+#else
 #include <cyassl/ctaocrypt/types.h>
 
 
@@ -150,7 +154,7 @@ CYASSL_API const char* CTaoCryptGetErrorString(int error);
 #ifdef __cplusplus
     } /* extern "C" */
 #endif
-
+#endif /* HAVE_FIPS */
 #endif /* CTAO_CRYPT_ERROR_H */
 
 

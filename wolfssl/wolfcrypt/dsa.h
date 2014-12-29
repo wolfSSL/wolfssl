@@ -29,6 +29,14 @@
 #include <wolfssl/wolfcrypt/integer.h>
 #include <wolfssl/wolfcrypt/random.h>
 
+/* for DSA reverse compatibility */
+#define InitDsaKey wc_InitDsaKey
+#define FreeDsaKey wc_FreeDsaKey
+#define DsaSign wc_DsaSign
+#define DsaVerify wc_DsaVerify
+#define DsaPublicKeyDecode wc_DsaPublicKeyDecode
+#define DsaPrivateKeyDecode wc_DsaPrivateKeyDecode
+
 #ifdef __cplusplus
     extern "C" {
 #endif

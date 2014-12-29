@@ -25,27 +25,32 @@
 #ifndef CTAO_CRYPT_COMPRESS_H
 #define CTAO_CRYPT_COMPRESS_H
 
+#include <wolfssl/wolfcrypt/compress.h>
 
-#include <cyassl/ctaocrypt/types.h>
+/* reverse compatibility */
+#define Compress   wc_Compress
+#define DeCompress wc_DeCompress
 
-
-#ifdef __cplusplus
-    extern "C" {
-#endif
-
-
-#define COMPRESS_FIXED 1
-
-
-CYASSL_API int Compress(byte*, word32, const byte*, word32, word32);
-CYASSL_API int DeCompress(byte*, word32, const byte*, word32);
-
-
-#ifdef __cplusplus
-    } /* extern "C" */
-#endif
-
-
+//#include <cyassl/ctaocrypt/types.h>
+//
+//
+//#ifdef __cplusplus
+//    extern "C" {
+//#endif
+//
+//
+//#define COMPRESS_FIXED 1
+//
+//
+//CYASSL_API int Compress(byte*, word32, const byte*, word32, word32);
+//CYASSL_API int DeCompress(byte*, word32, const byte*, word32);
+//
+//
+//#ifdef __cplusplus
+//    } /* extern "C" */
+//#endif
+//
+//
 #endif /* CTAO_CRYPT_COMPRESS_H */
 
 #endif /* HAVE_LIBZ */

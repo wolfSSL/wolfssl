@@ -23,13 +23,13 @@
     #include <config.h>
 #endif
 
-#include <cyassl/ctaocrypt/settings.h>
+#include <wolfssl/wolfcrypt/settings.h>
 
 #ifdef HAVE_PKCS7
 
-#include <cyassl/ctaocrypt/pkcs7.h>
-#include <cyassl/ctaocrypt/error-crypt.h>
-#include <cyassl/ctaocrypt/logging.h>
+#include <wolfssl/wolfcrypt/pkcs7.h>
+#include <wolfssl/wolfcrypt/error-crypt.h>
+#include <wolfssl/wolfcrypt/logging.h>
 
 #ifndef min
     static INLINE word32 min(word32 a, word32 b)
@@ -41,7 +41,7 @@
 
 /* placed ASN.1 contentType OID into *output, return idx on success,
  * 0 upon failure */
-WOLFSSL_LOCAL int wc_setContentType(int pkcs7TypeOID, byte* output)
+WOLFSSL_LOCAL int wc_SetContentType(int pkcs7TypeOID, byte* output)
 {
     /* PKCS#7 content types, RFC 2315, section 14 */
     static const byte pkcs7[]              = { 0x2A, 0x86, 0x48, 0x86, 0xF7,
@@ -147,7 +147,7 @@ int wc_GetContentType(const byte* input, word32* inOutIdx, word32* oid,
 
 
 /* init PKCS7 struct with recipient cert, decode into DecodedCert */
-int wc_PKS7_InitWithCert(PKCS7* pkcs7, byte* cert, word32 certSz)
+int wc_PKCS7_InitWithCert(PKCS7* pkcs7, byte* cert, word32 certSz)
 {
     int ret = 0;
 
@@ -789,7 +789,7 @@ int wc_PKCS7_VerifySignedData(PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz)
                 cert = &pkiMsg[idx];
                 certSz += (certIdx - idx);
             }
-            wc_PKS7_InitWithCert(pkcs7, cert, certSz);
+            wc_PKCS7_InitWithCert(pkcs7, cert, certSz);
         }
         idx += length;
     }
@@ -1222,7 +1222,7 @@ int wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
     };
 
     /* outer content type */
-    outerContentTypeSz = wc_setContentType(ENVELOPED_DATA, outerContentType);
+    outerContentTypeSz = wc_SetContentType(ENVELOPED_DATA, outerContentType);
 
     /* version, defined as 0 in RFC 2315 */
     verSz = SetMyVersion(0, ver, 0);
@@ -1279,7 +1279,7 @@ int wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
     }
 
     /* EncryptedContentInfo */
-    contentTypeSz = wc_setContentType(pkcs7->contentOID, contentType);
+    contentTypeSz = wc_SetContentType(pkcs7->contentOID, contentType);
     if (contentTypeSz == 0) {
 #ifdef WOLFSSL_SMALL_STACK
         XFREE(recip, NULL, DYNAMMIC_TYPE_TMP_BUFFER);

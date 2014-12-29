@@ -106,16 +106,16 @@
                               word32 sz, const byte* iv, word32 ivSz,
                               const byte* authTag, word32 authTagSz,
                               const byte* authIn, word32 authInSz);
-    #ifndef FIPS_NO_WRAPPERS
-        /* if not impl or fips.c impl wrapper force fips calls if fips build */
-        #define AesSetKey     AesSetKey_fips
-        #define AesSetIV      AesSetIV_fips
-        #define AesCbcEncrypt AesCbcEncrypt_fips
-        #define AesCbcDecrypt AesCbcDecrypt_fips
-        #define AesGcmSetKey  AesGcmSetKey_fips
-        #define AesGcmEncrypt AesGcmEncrypt_fips
-        #define AesGcmDecrypt AesGcmDecrypt_fips
-    #endif /* FIPS_NO_WRAPPERS */
+//    #ifndef FIPS_NO_WRAPPERS
+//        /* if not impl or fips.c impl wrapper force fips calls if fips build */
+//        #define AesSetKey     AesSetKey_fips
+//        #define AesSetIV      AesSetIV_fips
+//        #define AesCbcEncrypt AesCbcEncrypt_fips
+//        #define AesCbcDecrypt AesCbcDecrypt_fips
+//        #define AesGcmSetKey  AesGcmSetKey_fips
+//        #define AesGcmEncrypt AesGcmEncrypt_fips
+//        #define AesGcmDecrypt AesGcmDecrypt_fips
+//    #endif /* FIPS_NO_WRAPPERS */
 
 #endif /* HAVE_FIPS */
 

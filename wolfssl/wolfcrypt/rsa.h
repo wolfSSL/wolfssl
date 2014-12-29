@@ -27,11 +27,6 @@
 /* for fips */
 #include <cyassl/ctaocrypt/rsa.h>
 
-
-//#include <cyassl/ctaocrypt/types.h>
-//#include <cyassl/ctaocrypt/integer.h>
-//#include <cyassl/ctaocrypt/random.h>
-
 #ifdef __cplusplus
     extern "C" {
 #endif
@@ -75,41 +70,27 @@ WOLFSSL_API int  wc_RsaFlattenPublicKey(RsaKey*, byte*, word32*, byte*,
 
 #ifdef HAVE_FIPS
     /* fips wrapper calls, user can call direct */
-    WOLFSSL_API int  InitRsaKey_fips(RsaKey* key, void*);
-    WOLFSSL_API int  FreeRsaKey_fips(RsaKey* key);
+    WOLFSSL_API int  wc_InitRsaKey_fips(RsaKey* key, void*);
+    WOLFSSL_API int  wc_FreeRsaKey_fips(RsaKey* key);
 
-    WOLFSSL_API int  RsaPublicEncrypt_fips(const byte* in,word32 inLen,byte* out,
+    WOLFSSL_API int  wc_RsaPublicEncrypt_fips(const byte* in,word32 inLen,byte* out,
                                  word32 outLen, RsaKey* key, RNG* rng);
-    WOLFSSL_API int  RsaPrivateDecryptInline_fips(byte* in, word32 inLen,
+    WOLFSSL_API int  wc_RsaPrivateDecryptInline_fips(byte* in, word32 inLen,
                                                  byte** out, RsaKey* key);
-    WOLFSSL_API int  RsaPrivateDecrypt_fips(const byte* in, word32 inLen,
+    WOLFSSL_API int  wc_RsaPrivateDecrypt_fips(const byte* in, word32 inLen,
                                            byte* out,word32 outLen,RsaKey* key);
-    WOLFSSL_API int  RsaSSL_Sign_fips(const byte* in, word32 inLen, byte* out,
+    WOLFSSL_API int  wc_RsaSSL_Sign_fips(const byte* in, word32 inLen, byte* out,
                             word32 outLen, RsaKey* key, RNG* rng);
-    WOLFSSL_API int  RsaSSL_VerifyInline_fips(byte* in, word32 inLen, byte** out,
+    WOLFSSL_API int  wc_RsaSSL_VerifyInline_fips(byte* in, word32 inLen, byte** out,
                                     RsaKey* key);
-    WOLFSSL_API int  RsaSSL_Verify_fips(const byte* in, word32 inLen, byte* out,
+    WOLFSSL_API int  wc_RsaSSL_Verify_fips(const byte* in, word32 inLen, byte* out,
                               word32 outLen, RsaKey* key);
-    WOLFSSL_API int  RsaEncryptSize_fips(RsaKey* key);
+    WOLFSSL_API int  wc_RsaEncryptSize_fips(RsaKey* key);
 
-    WOLFSSL_API int RsaPrivateKeyDecode_fips(const byte* input, word32* inOutIdx,
+    WOLFSSL_API int wc_RsaPrivateKeyDecode_fips(const byte* input, word32* inOutIdx,
                                             RsaKey*, word32);
-    WOLFSSL_API int RsaPublicKeyDecode_fips(const byte* input, word32* inOutIdx,
+    WOLFSSL_API int wc_RsaPublicKeyDecode_fips(const byte* input, word32* inOutIdx,
                                            RsaKey*, word32);
-    #ifndef FIPS_NO_WRAPPERS
-        /* if not impl or fips.c impl wrapper force fips calls if fips build */
-        #define InitRsaKey              InitRsaKey_fips 
-        #define FreeRsaKey              FreeRsaKey_fips 
-        #define RsaPublicEncrypt        RsaPublicEncrypt_fips 
-        #define RsaPrivateDecryptInline RsaPrivateDecryptInline_fips 
-        #define RsaPrivateDecrypt       RsaPrivateDecrypt_fips 
-        #define RsaSSL_Sign             RsaSSL_Sign_fips
-        #define RsaSSL_VerifyInline     RsaSSL_VerifyInline_fips
-        #define RsaSSL_Verify           RsaSSL_Verify_fips
-        #define RsaEncryptSize          RsaEncryptSize_fips
-        /* no implicit KeyDecodes since in asn.c (not rsa.c) */
-    #endif /* FIPS_NO_WRAPPERS */
-
 #endif /* HAVE_FIPS */
 
 

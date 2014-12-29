@@ -66,10 +66,10 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_docdir}/cyassl/example/echoclient.c
 %{_docdir}/cyassl/example/client.c
 %{_docdir}/cyassl/README.txt
-%{_libdir}/libcyassl.la
-%{_libdir}/libcyassl.so
-%{_libdir}/libcyassl.so.5
-%{_libdir}/libcyassl.so.5.0.5
+%{_libdir}/libwolfssl.la
+%{_libdir}/libwolfssl.so
+%{_libdir}/libwolfssl.so.5
+%{_libdir}/libwolfssl.so.5.0.5
 
 %files devel
 %defattr(-,root,root,-)

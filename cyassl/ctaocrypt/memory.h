@@ -26,7 +26,11 @@
 #define CYASSL_MEMORY_H
 
 #include <stdlib.h>
+
+/* for fips compatibility @wc_fips */
+#ifndef HAVE_FIPS
 #include <wolfssl/wolfcrypt/memory.h>
+#else
 
 #ifdef __cplusplus
     extern "C" {
@@ -53,4 +57,6 @@ CYASSL_API void* CyaSSL_Realloc(void *ptr, size_t size);
 }
 #endif
 
+#endif /* HAVE_FIPS */
 #endif /* CYASSL_MEMORY_H */
+

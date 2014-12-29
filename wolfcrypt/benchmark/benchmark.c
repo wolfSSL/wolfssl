@@ -19,18 +19,14 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-/* CTaoCrypt benchmark */
+/* wolfCrypt benchmark */
 
 
-/* wolfssl_cyassl compatibility layer */
-#include <cyassl/ssl.h>
-
- 
 #ifdef HAVE_CONFIG_H
     #include <config.h>
 #endif
 
-#include <cyassl/ctaocrypt/settings.h>
+#include <wolfssl/wolfcrypt/settings.h>
 
 #include <string.h>
 
@@ -41,6 +37,7 @@
     #include <stdio.h>
 #endif
 
+#include <wolfssl/wolfcrypt/random.h>
 #include <wolfssl/wolfcrypt/des3.h>
 #include <wolfssl/wolfcrypt/arc4.h>
 #include <wolfssl/wolfcrypt/hc128.h>
@@ -68,18 +65,18 @@
     #include "ntru_crypto.h"
 #endif
 
-#if defined(CYASSL_MDK_ARM)
-    extern FILE * CyaSSL_fopen(const char *fname, const char *mode) ;
-    #define fopen CyaSSL_fopen
+#if defined(WOLFSSL_MDK_ARM)
+    extern FILE * wolfSSL_fopen(const char *fname, const char *mode) ;
+    #define fopen wolfSSL_fopen
 #endif
 
 #if defined(USE_CERT_BUFFERS_1024) || defined(USE_CERT_BUFFERS_2048)
     /* include test cert and key buffers for use with NO_FILESYSTEM */
-    #if defined(CYASSL_MDK_ARM)
+    #if defined(WOLFSSL_MDK_ARM)
         #include "cert_data.h" /* use certs_test.c for initial data, 
                                       so other commands can share the data. */
     #else
-        #include <cyassl/certs_test.h>
+        #include <wolfssl/certs_test.h>
     #endif
 #endif
 
@@ -152,8 +149,8 @@ static int OpenNitroxDevice(int dma_mode,int dev_id)
 
 #endif
 
-#if defined(DEBUG_CYASSL) && !defined(HAVE_VALGRIND)
-    CYASSL_API int CyaSSL_Debugging_ON();
+#if defined(DEBUG_WOLfSSL) && !defined(HAVE_VALGRIND)
+    WOLFSSL_API int wolfSSL_Debugging_ON();
 #endif
 
 /* so embedded projects can pull in tests on their own */
@@ -169,8 +166,8 @@ int benchmark_test(void *args)
 {
 #endif
 
-    #if defined(DEBUG_CYASSL) && !defined(HAVE_VALGRIND)
-        CyaSSL_Debugging_ON();
+    #if defined(DEBUG_WOLFSSL) && !defined(HAVE_VALGRIND)
+        wolfSSL_Debugging_ON();
     #endif
 
 	#ifdef HAVE_CAVIUM
@@ -188,7 +185,7 @@ int benchmark_test(void *args)
     bench_aesgcm();
 #endif
 
-#ifdef CYASSL_AES_COUNTER
+#ifdef WOLFSSL_AES_COUNTER
     bench_aesctr();
 #endif
 
@@ -228,13 +225,13 @@ int benchmark_test(void *args)
 #ifndef NO_SHA256
     bench_sha256();
 #endif
-#ifdef CYASSL_SHA384
+#ifdef WOLFSSL_SHA384
     bench_sha384();
 #endif
-#ifdef CYASSL_SHA512
+#ifdef WOLFSSL_SHA512
     bench_sha512();
 #endif
-#ifdef CYASSL_RIPEMD
+#ifdef WOLFSSL_RIPEMD
     bench_ripemd();
 #endif
 #ifdef HAVE_BLAKE2
@@ -255,7 +252,7 @@ int benchmark_test(void *args)
     bench_dh();
 #endif
 
-#if defined(CYASSL_KEY_GEN) && !defined(NO_RSA)
+#if defined(WOLFSSL_KEY_GEN) && !defined(NO_RSA)
     bench_rsaKeyGen();
 #endif
 
@@ -335,13 +332,13 @@ void bench_aes(int show)
     int    ret;
 
 #ifdef HAVE_CAVIUM
-    if (AesInitCavium(&enc, CAVIUM_DEV_ID) != 0) {
+    if (wc_AesInitCavium(&enc, CAVIUM_DEV_ID) != 0) {
         printf("aes init cavium failed\n");
         return;
     }
 #endif
 
-    ret = AesSetKey(&enc, key, 16, iv, AES_ENCRYPTION);
+    ret = wc_AesSetKey(&enc, key, 16, iv, AES_ENCRYPTION);
     if (ret != 0) {
         printf("AesSetKey failed, ret = %d\n", ret);
         return;
@@ -349,7 +346,7 @@ void bench_aes(int show)
     start = current_time(1);
 
     for(i = 0; i < numBlocks; i++)
-        AesCbcEncrypt(&enc, plain, cipher, sizeof(plain));
+        wc_AesCbcEncrypt(&enc, plain, cipher, sizeof(plain));
 
     total = current_time(0) - start;
 
@@ -363,7 +360,7 @@ void bench_aes(int show)
         printf("AES      %d %s took %5.3f seconds, %7.3f MB/s\n", numBlocks,
                                                   blockType, total, persec);
 #ifdef HAVE_CAVIUM
-    AesFreeCavium(&enc);
+    wc_AesFreeCavium(&enc);
 #endif
 }
 #endif
@@ -382,11 +379,11 @@ void bench_aesgcm(void)
     double start, total, persec;
     int    i;
 
-    AesGcmSetKey(&enc, key, 16);
+    wc_AesGcmSetKey(&enc, key, 16);
     start = current_time(1);
 
     for(i = 0; i < numBlocks; i++)
-        AesGcmEncrypt(&enc, cipher, plain, sizeof(plain), iv, 12,
+        wc_AesGcmEncrypt(&enc, cipher, plain, sizeof(plain), iv, 12,
                         tag, 16, additional, 13);
 
     total = current_time(0) - start;
@@ -402,18 +399,18 @@ void bench_aesgcm(void)
 }
 #endif
 
-#ifdef CYASSL_AES_COUNTER
+#ifdef WOLFSSL_AES_COUNTER
 void bench_aesctr(void)
 {
     Aes    enc;
     double start, total, persec;
     int    i;
 
-    AesSetKeyDirect(&enc, key, AES_BLOCK_SIZE, iv, AES_ENCRYPTION);
+    wc_AesSetKeyDirect(&enc, key, AES_BLOCK_SIZE, iv, AES_ENCRYPTION);
     start = current_time(1);
 
     for(i = 0; i < numBlocks; i++)
-        AesCtrEncrypt(&enc, plain, cipher, sizeof(plain));
+        wc_AesCtrEncrypt(&enc, plain, cipher, sizeof(plain));
 
     total = current_time(0) - start;
 
@@ -437,11 +434,11 @@ void bench_aesccm(void)
     double start, total, persec;
     int    i;
 
-    AesCcmSetKey(&enc, key, 16);
+    wc_AesCcmSetKey(&enc, key, 16);
     start = current_time(1);
 
     for(i = 0; i < numBlocks; i++)
-        AesCcmEncrypt(&enc, cipher, plain, sizeof(plain), iv, 12,
+        wc_AesCcmEncrypt(&enc, cipher, plain, sizeof(plain), iv, 12,
                         tag, 16, additional, 13);
 
     total = current_time(0) - start;
@@ -468,7 +465,7 @@ void bench_poly1305()
     int    ret;
 
 
-    ret = Poly1305SetKey(&enc, key, 32);
+    ret = wc_Poly1305SetKey(&enc, key, 32);
     if (ret != 0) {
         printf("Poly1305SetKey failed, ret = %d\n", ret);
         return;
@@ -476,9 +473,9 @@ void bench_poly1305()
     start = current_time(1);
 
     for(i = 0; i < numBlocks; i++)
-        Poly1305Update(&enc, plain, sizeof(plain));
+        wc_Poly1305Update(&enc, plain, sizeof(plain));
 
-    Poly1305Final(&enc, mac);
+    wc_Poly1305Final(&enc, mac);
     total = current_time(0) - start;
 
     persec = 1 / total * numBlocks;
@@ -500,7 +497,7 @@ void bench_camellia(void)
     double start, total, persec;
     int    i, ret;
 
-    ret = CamelliaSetKey(&cam, key, 16, iv);
+    ret = wc_CamelliaSetKey(&cam, key, 16, iv);
     if (ret != 0) {
         printf("CamelliaSetKey failed, ret = %d\n", ret);
         return;
@@ -508,7 +505,7 @@ void bench_camellia(void)
     start = current_time(1);
 
     for(i = 0; i < numBlocks; i++)
-        CamelliaCbcEncrypt(&cam, plain, cipher, sizeof(plain));
+        wc_CamelliaCbcEncrypt(&cam, plain, cipher, sizeof(plain));
 
     total = current_time(0) - start;
 
@@ -532,10 +529,10 @@ void bench_des(void)
     int    i, ret;
 
 #ifdef HAVE_CAVIUM
-    if (Des3_InitCavium(&enc, CAVIUM_DEV_ID) != 0)
+    if (wc_Des3_InitCavium(&enc, CAVIUM_DEV_ID) != 0)
         printf("des3 init cavium failed\n");
 #endif
-    ret = Des3_SetKey(&enc, key, iv, DES_ENCRYPTION);
+    ret = wc_Des3_SetKey(&enc, key, iv, DES_ENCRYPTION);
     if (ret != 0) {
         printf("Des3_SetKey failed, ret = %d\n", ret);
         return;
@@ -543,7 +540,7 @@ void bench_des(void)
     start = current_time(1);
 
     for(i = 0; i < numBlocks; i++)
-        Des3_CbcEncrypt(&enc, plain, cipher, sizeof(plain));
+        wc_Des3_CbcEncrypt(&enc, plain, cipher, sizeof(plain));
 
     total = current_time(0) - start;
 
@@ -556,7 +553,7 @@ void bench_des(void)
     printf("3DES     %d %s took %5.3f seconds, %7.3f MB/s\n", numBlocks,
                                               blockType, total, persec);
 #ifdef HAVE_CAVIUM
-    Des3_FreeCavium(&enc);
+    wc_Des3_FreeCavium(&enc);
 #endif
 }
 #endif
@@ -603,11 +600,11 @@ void bench_hc128(void)
     double start, total, persec;
     int    i;
     
-    Hc128_SetKey(&enc, key, iv);
+    wc_Hc128_SetKey(&enc, key, iv);
     start = current_time(1);
 
     for(i = 0; i < numBlocks; i++)
-        Hc128_Process(&enc, cipher, plain, sizeof(plain));
+        wc_Hc128_Process(&enc, cipher, plain, sizeof(plain));
 
     total = current_time(0) - start;
     persec = 1 / total * numBlocks;
@@ -629,11 +626,11 @@ void bench_rabbit(void)
     double start, total, persec;
     int    i;
     
-    RabbitSetKey(&enc, key, iv);
+    wc_RabbitSetKey(&enc, key, iv);
     start = current_time(1);
 
     for(i = 0; i < numBlocks; i++)
-        RabbitProcess(&enc, cipher, plain, sizeof(plain));
+        wc_RabbitProcess(&enc, cipher, plain, sizeof(plain));
 
     total = current_time(0) - start;
     persec = 1 / total * numBlocks;
@@ -655,12 +652,12 @@ void bench_chacha(void)
     double start, total, persec;
     int    i;
 
-    Chacha_SetKey(&enc, key, 16);
+    wc_Chacha_SetKey(&enc, key, 16);
     start = current_time(1);
 
     for (i = 0; i < numBlocks; i++) {
-        Chacha_SetIV(&enc, iv, 0);
-        Chacha_Process(&enc, cipher, plain, sizeof(plain));
+        wc_Chacha_SetIV(&enc, iv, 0);
+        wc_Chacha_Process(&enc, cipher, plain, sizeof(plain));
     }
     total = current_time(0) - start;
     persec = 1 / total * numBlocks;
@@ -683,13 +680,13 @@ void bench_md5(void)
     double start, total, persec;
     int    i;
 
-    InitMd5(&hash);
+    wc_InitMd5(&hash);
     start = current_time(1);
 
     for(i = 0; i < numBlocks; i++)
-        Md5Update(&hash, plain, sizeof(plain));
+        wc_Md5Update(&hash, plain, sizeof(plain));
    
-    Md5Final(&hash, digest);
+    wc_Md5Final(&hash, digest);
 
     total = current_time(0) - start;
     persec = 1 / total * numBlocks;
@@ -712,7 +709,7 @@ void bench_sha(void)
     double start, total, persec;
     int    i, ret;
         
-    ret = InitSha(&hash);
+    ret = wc_InitSha(&hash);
     if (ret != 0) {
         printf("InitSha failed, ret = %d\n", ret);
         return;
@@ -720,9 +717,9 @@ void bench_sha(void)
     start = current_time(1);
     
     for(i = 0; i < numBlocks; i++)
-        ShaUpdate(&hash, plain, sizeof(plain));
+        wc_ShaUpdate(&hash, plain, sizeof(plain));
    
-    ShaFinal(&hash, digest);
+    wc_ShaFinal(&hash, digest);
 
     total = current_time(0) - start;
     persec = 1 / total * numBlocks;
@@ -745,7 +742,7 @@ void bench_sha256(void)
     double start, total, persec;
     int    i, ret;
         
-    ret = InitSha256(&hash);
+    ret = wc_InitSha256(&hash);
     if (ret != 0) {
         printf("InitSha256 failed, ret = %d\n", ret);
         return;
@@ -753,14 +750,14 @@ void bench_sha256(void)
     start = current_time(1);
     
     for(i = 0; i < numBlocks; i++) {
-        ret = Sha256Update(&hash, plain, sizeof(plain));
+        ret = wc_Sha256Update(&hash, plain, sizeof(plain));
         if (ret != 0) {
             printf("Sha256Update failed, ret = %d\n", ret);
             return;
         }
     }
    
-    ret = Sha256Final(&hash, digest);
+    ret = wc_Sha256Final(&hash, digest);
     if (ret != 0) {
         printf("Sha256Final failed, ret = %d\n", ret);
         return;
@@ -778,7 +775,7 @@ void bench_sha256(void)
 }
 #endif
 
-#ifdef CYASSL_SHA384
+#ifdef WOLFSSL_SHA384
 void bench_sha384(void)
 {
     Sha384 hash;
@@ -786,7 +783,7 @@ void bench_sha384(void)
     double start, total, persec;
     int    i, ret;
 
-    ret = InitSha384(&hash);
+    ret = wc_InitSha384(&hash);
     if (ret != 0) {
         printf("InitSha384 failed, ret = %d\n", ret);
         return;
@@ -794,14 +791,14 @@ void bench_sha384(void)
     start = current_time(1);
 
     for(i = 0; i < numBlocks; i++) {
-        ret = Sha384Update(&hash, plain, sizeof(plain));
+        ret = wc_Sha384Update(&hash, plain, sizeof(plain));
         if (ret != 0) {
             printf("Sha384Update failed, ret = %d\n", ret);
             return;
         }
     }
 
-    ret = Sha384Final(&hash, digest);
+    ret = wc_Sha384Final(&hash, digest);
     if (ret != 0) {
         printf("Sha384Final failed, ret = %d\n", ret);
         return;
@@ -819,7 +816,7 @@ void bench_sha384(void)
 }
 #endif
 
-#ifdef CYASSL_SHA512
+#ifdef WOLFSSL_SHA512
 void bench_sha512(void)
 {
     Sha512 hash;
@@ -827,7 +824,7 @@ void bench_sha512(void)
     double start, total, persec;
     int    i, ret;
         
-    ret = InitSha512(&hash);
+    ret = wc_InitSha512(&hash);
     if (ret != 0) {
         printf("InitSha512 failed, ret = %d\n", ret);
         return;
@@ -835,14 +832,14 @@ void bench_sha512(void)
     start = current_time(1);
     
     for(i = 0; i < numBlocks; i++) {
-        ret = Sha512Update(&hash, plain, sizeof(plain));
+        ret = wc_Sha512Update(&hash, plain, sizeof(plain));
         if (ret != 0) {
             printf("Sha512Update failed, ret = %d\n", ret);
             return;
         }
     }
 
-    ret = Sha512Final(&hash, digest);
+    ret = wc_Sha512Final(&hash, digest);
     if (ret != 0) {
         printf("Sha512Final failed, ret = %d\n", ret);
         return;
@@ -860,7 +857,7 @@ void bench_sha512(void)
 }
 #endif
 
-#ifdef CYASSL_RIPEMD
+#ifdef WOLFSSL_RIPEMD
 void bench_ripemd(void)
 {
     RipeMd hash;
@@ -868,13 +865,13 @@ void bench_ripemd(void)
     double start, total, persec;
     int    i;
         
-    InitRipeMd(&hash);
+    wc_InitRipeMd(&hash);
     start = current_time(1);
     
     for(i = 0; i < numBlocks; i++)
-        RipeMdUpdate(&hash, plain, sizeof(plain));
+        wc_RipeMdUpdate(&hash, plain, sizeof(plain));
    
-    RipeMdFinal(&hash, digest);
+    wc_RipeMdFinal(&hash, digest);
 
     total = current_time(0) - start;
     persec = 1 / total * numBlocks;
@@ -897,7 +894,7 @@ void bench_blake2(void)
     double  start, total, persec;
     int     i, ret;
        
-    ret = InitBlake2b(&b2b, 64);
+    ret = wc_InitBlake2b(&b2b, 64);
     if (ret != 0) {
         printf("InitBlake2b failed, ret = %d\n", ret);
         return;
@@ -905,14 +902,14 @@ void bench_blake2(void)
     start = current_time(1);
     
     for(i = 0; i < numBlocks; i++) {
-        ret = Blake2bUpdate(&b2b, plain, sizeof(plain));
+        ret = wc_Blake2bUpdate(&b2b, plain, sizeof(plain));
         if (ret != 0) {
             printf("Blake2bUpdate failed, ret = %d\n", ret);
             return;
         }
     }
    
-    ret = Blake2bFinal(&b2b, digest, 64);
+    ret = wc_Blake2bFinal(&b2b, digest, 64);
     if (ret != 0) {
         printf("Blake2bFinal failed, ret = %d\n", ret);
         return;
@@ -932,7 +929,7 @@ void bench_blake2(void)
 
 
 #if !defined(NO_RSA) || !defined(NO_DH) \
-                                || defined(CYASSL_KEYGEN) || defined(HAVE_ECC)
+                                || defined(WOLFSSL_KEYGEN) || defined(HAVE_ECC)
 static RNG rng;
 #endif
 
@@ -940,7 +937,7 @@ static RNG rng;
 
 
 #if !defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048)
-    #if defined(CYASSL_MDK_SHELL)
+    #if defined(WOLFSSL_MDK_SHELL)
         static char *certRSAname = "certs/rsa2048.der";
         /* set by shell command */
         static void set_Bench_RSA_File(char * cert) { certRSAname = cert ; }
@@ -988,25 +985,25 @@ void bench_rsa(void)
 
 		
 #ifdef HAVE_CAVIUM
-    if (RsaInitCavium(&rsaKey, CAVIUM_DEV_ID) != 0)
+    if (wc_RsaInitCavium(&rsaKey, CAVIUM_DEV_ID) != 0)
         printf("RSA init cavium failed\n");
 #endif
-    ret = InitRng(&rng);
+    ret = wc_InitRng(&rng);
     if (ret < 0) {
         printf("InitRNG failed\n");
         return;
     }
-    ret = InitRsaKey(&rsaKey, 0);
+    ret = wc_InitRsaKey(&rsaKey, 0);
     if (ret < 0) {
         printf("InitRsaKey failed\n");
         return;
     }
-    ret = RsaPrivateKeyDecode(tmp, &idx, &rsaKey, (word32)bytes);
+    ret = wc_RsaPrivateKeyDecode(tmp, &idx, &rsaKey, (word32)bytes);
     
     start = current_time(1);
 
     for (i = 0; i < ntimes; i++)
-        ret = RsaPublicEncrypt(message,len,enc,sizeof(enc), &rsaKey, &rng);
+        ret = wc_RsaPublicEncrypt(message,len,enc,sizeof(enc), &rsaKey, &rng);
 
     total = current_time(0) - start;
     each  = total / ntimes;   /* per second   */
@@ -1024,7 +1021,7 @@ void bench_rsa(void)
 
     for (i = 0; i < ntimes; i++) {
          byte  out[512];  /* for up to 4096 bit */
-         RsaPrivateDecrypt(enc, (word32)ret, out, sizeof(out), &rsaKey);
+         wc_RsaPrivateDecrypt(enc, (word32)ret, out, sizeof(out), &rsaKey);
     }
 
     total = current_time(0) - start;
@@ -1034,9 +1031,9 @@ void bench_rsa(void)
     printf("RSA %d decryption took %6.3f milliseconds, avg over %d"
            " iterations\n", rsaKeySz, milliEach, ntimes);
 
-    FreeRsaKey(&rsaKey);
+    wc_FreeRsaKey(&rsaKey);
 #ifdef HAVE_CAVIUM
-    RsaFreeCavium(&rsaKey);
+    wc_RsaFreeCavium(&rsaKey);
 #endif
 }
 #endif
@@ -1046,7 +1043,7 @@ void bench_rsa(void)
 
 
 #if !defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048)
-    #if defined(CYASSL_MDK_SHELL)
+    #if defined(WOLFSSL_MDK_SHELL)
         static char *certDHname = "certs/dh2048.der";
         /* set by shell command */
         void set_Bench_DH_File(char * cert) { certDHname = cert ; }
@@ -1093,7 +1090,7 @@ void bench_dh(void)
         return;
     }
 
-    ret = InitRng(&rng);
+    ret = wc_InitRng(&rng);
     if (ret < 0) {
         printf("InitRNG failed\n");
         return;
@@ -1102,8 +1099,8 @@ void bench_dh(void)
 #endif /* USE_CERT_BUFFERS */
 
 		
-    InitDhKey(&dhKey);
-    bytes = DhKeyDecode(tmp, &idx, &dhKey, (word32)bytes);
+    wc_InitDhKey(&dhKey);
+    bytes = wc_DhKeyDecode(tmp, &idx, &dhKey, (word32)bytes);
     if (bytes != 0) {
         printf("dhekydecode failed, can't benchmark\n");
         #if !defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048)
@@ -1115,7 +1112,7 @@ void bench_dh(void)
     start = current_time(1);
 
     for (i = 0; i < ntimes; i++)
-        DhGenerateKeyPair(&dhKey, &rng, priv, &privSz, pub, &pubSz);
+        wc_DhGenerateKeyPair(&dhKey, &rng, priv, &privSz, pub, &pubSz);
 
     total = current_time(0) - start;
     each  = total / ntimes;   /* per second   */
@@ -1124,11 +1121,11 @@ void bench_dh(void)
     printf("DH  %d key generation  %6.3f milliseconds, avg over %d"
            " iterations\n", dhKeySz, milliEach, ntimes);
 
-    DhGenerateKeyPair(&dhKey, &rng, priv2, &privSz2, pub2, &pubSz2);
+    wc_DhGenerateKeyPair(&dhKey, &rng, priv2, &privSz2, pub2, &pubSz2);
     start = current_time(1);
 
     for (i = 0; i < ntimes; i++)
-        DhAgree(&dhKey, agree, &agreeSz, priv, privSz, pub2, pubSz2);
+        wc_DhAgree(&dhKey, agree, &agreeSz, priv, privSz, pub2, pubSz2);
 
     total = current_time(0) - start;
     each  = total / ntimes;   /* per second   */
@@ -1140,11 +1137,11 @@ void bench_dh(void)
 #if !defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048)
     fclose(file);
 #endif
-    FreeDhKey(&dhKey);
+    wc_FreeDhKey(&dhKey);
 }
 #endif
 
-#if defined(CYASSL_KEY_GEN) && !defined(NO_RSA)
+#if defined(WOLFSSL_KEY_GEN) && !defined(NO_RSA)
 void bench_rsaKeyGen(void)
 {
     RsaKey genKey;
@@ -1155,9 +1152,9 @@ void bench_rsaKeyGen(void)
     start = current_time(1);
 
     for(i = 0; i < genTimes; i++) {
-        InitRsaKey(&genKey, 0); 
-        MakeRsaKey(&genKey, 1024, 65537, &rng);
-        FreeRsaKey(&genKey);
+        wc_InitRsaKey(&genKey, 0); 
+        wc_MakeRsaKey(&genKey, 1024, 65537, &rng);
+        wc_FreeRsaKey(&genKey);
     }
 
     total = current_time(0) - start;
@@ -1171,9 +1168,9 @@ void bench_rsaKeyGen(void)
     start = current_time(1);
 
     for(i = 0; i < genTimes; i++) {
-        InitRsaKey(&genKey, 0); 
-        MakeRsaKey(&genKey, 2048, 65537, &rng);
-        FreeRsaKey(&genKey);
+        wc_InitRsaKey(&genKey, 0); 
+        wc_MakeRsaKey(&genKey, 2048, 65537, &rng);
+        wc_FreeRsaKey(&genKey);
     }
 
     total = current_time(0) - start;
@@ -1182,7 +1179,7 @@ void bench_rsaKeyGen(void)
     printf("RSA 2048 key generation  %6.3f milliseconds, avg over %d"
            " iterations\n", milliEach, genTimes);
 }
-#endif /* CYASSL_KEY_GEN */
+#endif /* WOLFSSL_KEY_GEN */
 #ifdef HAVE_NTRU
 byte GetEntropy(ENTROPY_CMD cmd, byte* out);
 
@@ -1385,7 +1382,7 @@ void bench_eccKeyGen(void)
     double start, total, each, milliEach;
     int    i, ret;
   
-    ret = InitRng(&rng);
+    ret = wc_InitRng(&rng);
     if (ret < 0) {
         printf("InitRNG failed\n");
         return;
@@ -1394,8 +1391,8 @@ void bench_eccKeyGen(void)
     start = current_time(1);
 
     for(i = 0; i < genTimes; i++) {
-        ecc_make_key(&rng, 32, &genKey);
-        ecc_free(&genKey);
+        wc_ecc_make_key(&rng, 32, &genKey);
+        wc_ecc_free(&genKey);
     }
 
     total = current_time(0) - start;
@@ -1417,21 +1414,21 @@ void bench_eccKeyAgree(void)
     byte   digest[32];
     word32 x = 0;
  
-    ecc_init(&genKey);
-    ecc_init(&genKey2);
+    wc_ecc_init(&genKey);
+    wc_ecc_init(&genKey2);
 
-    ret = InitRng(&rng);
+    ret = wc_InitRng(&rng);
     if (ret < 0) {
         printf("InitRNG failed\n");
         return;
     }
 
-    ret = ecc_make_key(&rng, 32, &genKey);
+    ret = wc_ecc_make_key(&rng, 32, &genKey);
     if (ret != 0) {
         printf("ecc_make_key failed\n");
         return;
     }
-    ret = ecc_make_key(&rng, 32, &genKey2);
+    ret = wc_ecc_make_key(&rng, 32, &genKey2);
     if (ret != 0) {
         printf("ecc_make_key failed\n");
         return;
@@ -1442,7 +1439,7 @@ void bench_eccKeyAgree(void)
 
     for(i = 0; i < agreeTimes; i++) {
         x = sizeof(shared);
-        ret = ecc_shared_secret(&genKey, &genKey2, shared, &x);
+        ret = wc_ecc_shared_secret(&genKey, &genKey2, shared, &x);
         if (ret != 0) {
             printf("ecc_shared_secret failed\n");
             return; 
@@ -1464,7 +1461,7 @@ void bench_eccKeyAgree(void)
 
     for(i = 0; i < agreeTimes; i++) {
         x = sizeof(sig);
-        ret = ecc_sign_hash(digest, sizeof(digest), sig, &x, &rng, &genKey);
+        ret = wc_ecc_sign_hash(digest, sizeof(digest), sig, &x, &rng, &genKey);
         if (ret != 0) {
             printf("ecc_sign_hash failed\n");
             return; 
@@ -1481,7 +1478,7 @@ void bench_eccKeyAgree(void)
 
     for(i = 0; i < agreeTimes; i++) {
         int verify = 0;
-        ret = ecc_verify_hash(sig, x, digest, sizeof(digest), &verify, &genKey);
+        ret = wc_ecc_verify_hash(sig, x, digest, sizeof(digest), &verify, &genKey);
         if (ret != 0) {
             printf("ecc_verify_hash failed\n");
             return; 
@@ -1494,8 +1491,8 @@ void bench_eccKeyAgree(void)
     printf("EC-DSA   verify time     %6.3f milliseconds, avg over %d"
            " iterations\n", milliEach, agreeTimes);
 
-    ecc_free(&genKey2);
-    ecc_free(&genKey);
+    wc_ecc_free(&genKey2);
+    wc_ecc_free(&genKey);
 }
 #endif /* HAVE_ECC */
 

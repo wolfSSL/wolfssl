@@ -25,41 +25,15 @@
 #ifndef CTAO_CRYPT_RABBIT_H
 #define CTAO_CRYPT_RABBIT_H
 
-#include <cyassl/ctaocrypt/types.h>
+#include <wolfssl/wolfcrypt/rabbit.h>
 
-#ifdef __cplusplus
-    extern "C" {
-#endif
-
-
-enum {
-	RABBIT_ENC_TYPE  = 5     /* cipher unique type */
-};
-
-
-/* Rabbit Context */
-typedef struct RabbitCtx {
-    word32 x[8];
-    word32 c[8];
-    word32 carry;
-} RabbitCtx;
-    
-
-/* Rabbit stream cipher */
-typedef struct Rabbit {
-    RabbitCtx masterCtx;
-    RabbitCtx workCtx;
-} Rabbit;
-
-
-CYASSL_API int RabbitProcess(Rabbit*, byte*, const byte*, word32);
-CYASSL_API int RabbitSetKey(Rabbit*, const byte* key, const byte* iv);
-
-
-#ifdef __cplusplus
-    } /* extern "C" */
+/* for rabbit reverse compatibility */
+#ifndef NO_RABBIT
+    #define RabbitProcess wc_RabbitProcess
+    #define RabbitSetKey wc_RabbitSetKey
 #endif
 
 #endif /* CTAO_CRYPT_RABBIT_H */
 
 #endif /* NO_RABBIT */
+

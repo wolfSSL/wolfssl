@@ -27,9 +27,6 @@
 
 /* for fips */
 #include <cyassl/ctaocrypt/hmac.h>
-#if defined(WOLFSSL_SHA512) && !defined(CYASSL_SHA512)
-    #define CYASSL_SHA512
-#endif
 
 
 #ifdef HAVE_CAVIUM

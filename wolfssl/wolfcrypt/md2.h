@@ -2,14 +2,14 @@
  *
  * Copyright (C) 2006-2014 wolfSSL Inc.
  *
- * This file is part of CyaSSL.
+ * This file is part of wolfSSL. (formerly known as CyaSSL)
  *
- * CyaSSL is free software; you can redistribute it and/or modify
+ * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  *
- * CyaSSL is distributed in the hope that it will be useful,
+ * wolfSSL is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
@@ -19,14 +19,28 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
+/* check for old macro */
+#if defined(CYASSL_MD2) && !defined(WOLFSSL_MD2)
+    #define WOLFSSL_MD2
+#endif
 
-//#ifdef WOLFSSL_MD2
-//@TODO
+#ifdef WOLFSSL_MD2
 
 #ifndef WOLF_CRYPT_MD2_H
 #define WOLF_CRYPT_MD2_H
 
 #include <wolfssl/wolfcrypt/types.h>
+
+
+/* for md2 reverse compatibility */
+#ifdef WOLFSSL_MD2
+	#define InitMd2 wc_InitMd2
+	#define Md2Update wc_Md2Update
+	#define Md2Final wc_Md2Final
+	#define Md2Hash wc_Md2Hash
+#endif
+
+
 
 #ifdef __cplusplus
     extern "C" {
@@ -62,6 +76,6 @@ WOLFSSL_API int  wc_Md2Hash(const byte*, word32, byte*);
     } /* extern "C" */
 #endif
 
-#endif /* CTAO_CRYPT_MD2_H */
-//@TODO
-//#endif /* CYASSL_MD2 */
+#endif /* WOLF_CRYPT_MD2_H */
+#endif /* WOLFSSL_MD2 */
+

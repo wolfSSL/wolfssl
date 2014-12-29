@@ -23,19 +23,19 @@
     #include <config.h>
 #endif
 
-#include <cyassl/ctaocrypt/settings.h>
+#include <wolfssl/wolfcrypt/settings.h>
 
 /* submitted by eof */
 
-#include <cyassl/ctaocrypt/logging.h>
-#include <cyassl/ctaocrypt/error-crypt.h>
+#include <wolfssl/wolfcrypt/logging.h>
+#include <wolfssl/wolfcrypt/error-crypt.h>
 
 
 #ifdef __cplusplus
     extern "C" {
 #endif
-    CYASSL_API int  CyaSSL_Debugging_ON(void);
-    CYASSL_API void CyaSSL_Debugging_OFF(void);
+    WOLFSSL_API int  wolfSSL_Debugging_ON(void);
+    WOLFSSL_API void wolfSSL_Debugging_OFF(void);
 #ifdef __cplusplus
     } 
 #endif
@@ -44,13 +44,13 @@
 #ifdef DEBUG_CYASSL
 
 /* Set these to default values initially. */
-static CyaSSL_Logging_cb log_function = 0;
+static wolfSSL_Logging_cb log_function = 0;
 static int loggingEnabled = 0;
 
 #endif /* DEBUG_CYASSL */
 
 
-int CyaSSL_SetLoggingCb(CyaSSL_Logging_cb f)
+int wolfSSL_SetLoggingCb(wolfSSL_Logging_cb f)
 {
 #ifdef DEBUG_CYASSL
     int res = 0;
@@ -68,7 +68,7 @@ int CyaSSL_SetLoggingCb(CyaSSL_Logging_cb f)
 }
 
 
-int CyaSSL_Debugging_ON(void)
+int wolfSSL_Debugging_ON(void)
 {
 #ifdef DEBUG_CYASSL
     loggingEnabled = 1;
@@ -79,7 +79,7 @@ int CyaSSL_Debugging_ON(void)
 }
 
 
-void CyaSSL_Debugging_OFF(void)
+void wolfSSL_Debugging_OFF(void)
 {
 #ifdef DEBUG_CYASSL
     loggingEnabled = 0;
@@ -123,40 +123,40 @@ static void cyassl_log(const int logLevel, const char *const logMessage)
 }
 
 
-void CYASSL_MSG(const char* msg)
+void WOLFSSL_MSG(const char* msg)
 {
     if (loggingEnabled)
         cyassl_log(INFO_LOG , msg);
 }
 
 
-void CYASSL_ENTER(const char* msg)
+void WOLFSSL_ENTER(const char* msg)
 {
     if (loggingEnabled) {
         char buffer[80];
-        sprintf(buffer, "CyaSSL Entering %s", msg);
+        sprintf(buffer, "wolfSSL Entering %s", msg);
         cyassl_log(ENTER_LOG , buffer);
     }
 }
 
 
-void CYASSL_LEAVE(const char* msg, int ret)
+void WOLFSSL_LEAVE(const char* msg, int ret)
 {
     if (loggingEnabled) {
         char buffer[80];
-        sprintf(buffer, "CyaSSL Leaving %s, return %d", msg, ret);
+        sprintf(buffer, "wolfSSL Leaving %s, return %d", msg, ret);
         cyassl_log(LEAVE_LOG , buffer);
     }
 }
 
 
-void CYASSL_ERROR(int error)
+void WOLFSSL_ERROR(int error)
 {
     if (loggingEnabled) {
         char buffer[80];
-        sprintf(buffer, "CyaSSL error occured, error = %d", error);
+        sprintf(buffer, "wolfSSL error occured, error = %d", error);
         cyassl_log(ERROR_LOG , buffer);
     }
 }
 
-#endif  /* DEBUG_CYASSL */ 
+#endif  /* DEBUG_WOLFSSL */ 

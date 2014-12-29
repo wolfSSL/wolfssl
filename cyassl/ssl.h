@@ -88,7 +88,6 @@
 #define WOLFSSL_MAX_ERROR_SZ CYASSL_MAX_ERROR_SZ
 
 /* src/ssl.c */
-#ifdef CYASSL_SSL_H
 #define CYASSL_CRL                       WOLFSSL_CRL
 #define CYASSL_SSLV3                     WOLFSSL_SSLV3
 #define CYASSL_TLSV1                     WOLFSSL_TLSV1
@@ -121,7 +120,6 @@
 #define CyaSSL_CertManagerDisableOCSP    wolfSSL_CertManagerDisableOCSP
 #define CyaSSL_get_current_cipher_suite  wolfSSL_get_current_cipher_suite
 #define CyaSSL_CTX_load_verify_locations wolfSSL_CTX_load_verify_locations
-#endif /* CYASSL_SSL_H */
 
 /* io.c */
 #define CYASSL_CBIO_ERR_ISR        WOLFSSL_CBIO_ERR_ISR
@@ -156,9 +154,12 @@
 #define CyaSSL_ERR_reason_error_string wolfSSL_ERR_reason_error_string
 
 /* fips defines */
-#define WOLFSSL_LEAVE                  CYASSL_LEAVE
-#define WOLFSSL_ERROR                  CYASSL_ERROR
-#define WOLFSSL_GENERAL_ALIGNMENT      CYASSL_GENERAL_ALIGNMENT
+//defined in logging
+//#define WOLFSSL_LEAVE                  CYASSL_LEAVE
+//#define WOLFSSL_ERROR                  CYASSL_ERROR
+
+//defined in settings.h
+//#define WOLFSSL_GENERAL_ALIGNMENT      CYASSL_GENERAL_ALIGNMENT
 
 #define wolfcrypt_test                 ctaocrypt_test
 
@@ -329,10 +330,11 @@
 #define CyaSSL_dtls_get_current_timeout wolfSSL_dtls_get_current_timeout
 
 /* Memory Abstraction Layer */
-#define CyaSSL_Free          wolfSSL_Free
-#define CyaSSL_Malloc        wolfSSL_Malloc
-#define CyaSSL_Realloc       wolfSSL_Realloc
-#define CyaSSL_SetAllocators wolfSSL_SetAllocators
+//#define CyaSSL_Free          wolfSSL_Free
+//#define CyaSSL_Malloc        wolfSSL_Malloc
+//#define CyaSSL_Realloc       wolfSSL_Realloc
+//#define CyaSSL_SetAllocators wolfSSL_SetAllocators
+/* moved to wolfssl/wolfcrypt/memory.h */
 
 /* Certificate Manager */
 #define CyaSSL_CertManagerNew          wolfSSL_CertManagerNew
@@ -390,124 +392,14 @@
 #undef WOLFSSL_API
 #define WOLFSSL_API CYASSL_API
 
-#define WOLFSSL_ENTER(x) CYASSL_ENTER(x) /* @TODO*/
 #define WOLFSSL_BIT_SIZE CYASSL_BIT_SIZE /* @TODO*/
 
 /* wrapper around macros until they are changed in cyassl code  
  * needs investigation in regards to macros in fips */
 #define WOLFSSL_MAX_16BIT CYASSL_MAX_16BIT
-#define WOLFSSL_MSG(x) CYASSL_MSG(x)
 #define NO_WOLFSSL_ALLOC_ALIGN NO_CYASSL_ALLOC_ALIGN /* @TODO*/
 
 
-
-/* for arc4 reverse compatibility */
-#ifndef NO_RC4
-#include <wolfssl/wolfcrypt/arc4.h>
-    #define CYASSL_ARC4_CAVIUM_MAGIC WOLFSSL_ARC4_CAVIUM_MAGIC
-    #define Arc4Process wc_Arc4Process
-    #define Arc4SetKey wc_Arc4SetKey
-    #define Arc4InitCavium wc_Arc4InitCavium
-    #define Arc4FreeCavium wc_Arc4FreeCavium
-#endif
-
-/* for chacha reverse compatibility */
-#ifdef HAVE_CHACHA
-    #define ChachaProcess wc_ChachaProcess
-    #define ChachaSetKey wc_ChachaSetKey
-    #define Chacha_SetIV wc_Chacha_SetIV
-#endif
-
-
-/* for DH reverse compatibility */
-#ifndef NO_DH
-	#define InitDhKey wc_InitDhKey
-	#define FreeDhKey wc_FreeDhKey
-	#define DhGenerateKeyPair wc_DhGenerateKeyPair
-#endif
-
-
-/* for DSA reverse compatibility */
-#ifndef NO_DSA
-	#define InitDsaKey wc_InitDsaKey
-	#define FreeDsaKey wc_FreeDsaKey
-	#define DsaSign wc_DsaSign
-	#define DsaVerify wc_DsaVerify
-	#define DsaPublicKeyDecode wc_DsaPublicKeyDecode
-	#define DsaPrivateKeyDecode wc_DsaPrivateKeyDecode
-#endif
-
-/* for hc128 reverse compatibility */
-#ifdef HAVE_HC128
-    #define Hc128_Process wc_Hc128_Process
-    #define Hc128_SetKey wc_Hc128_SetKey
-#endif
-
-
-/* for md2 reverse compatibility */
-#define CYASSL_MD2 WOLFSSL_MD2 /* @TODO */
-//#ifdef WOLFSSL_MD2
-	#define InitMd2 wc_InitMd2
-	#define Md2Update wc_Md2Update
-	#define Md2Final wc_Md2Final
-	#define Md2Hash wc_Md2Hash
-//#endif
-
-
-/* for md4 reverse compatibility */
-#ifndef NO_MD4
-	#define InitMd4 wc_InitMd4
-	#define Md4Update wc_Md4Update
-	#define Md4Final wc_Md4Final
-#endif
-
-
-/* for md5 reverse compatibility */
-#ifndef NO_MD5
-	#define InitMd5 wc_InitMd5
-	#define Md5Update wc_Md5Update
-	#define Md5Final wc_Md5Final
-	#define Md5Hash wc_Md5Hash
-#endif
-
-
-/* for poly1305 reverse compatibility */
-#ifdef HAVE_POLY1305
-	#define Poly1305SetKey wc_Poly1305SetKey
-	#define Poly1305Update wc_Poly1305Update
-	#define Poly1305Final wc_Poly1305Final
-#endif
-
-
-/* for rabbit reverse compatibility */
-#ifndef NO_RABBIT
-    #define RabbitProcess wc_RabbitProcess
-    #define RabbitSetKey wc_RabbitSetKey
-#endif
-
-
-/* for ripemd reverse compatibility */
-#ifdef WOLFSSL_RIPEMD
-    #define CYASSL_RIPEMD /* @TODO */
-    #define InitRipeMd wc_InitRipeMd
-    #define RipeMdUpdate wc_RipeMdUpdate
-    #define RipeMdFinal wc_RipeMdFinal
-#endif
-
-
-/* for pkcs7 reverse compatibility */
-#ifdef HAVE_PKCS7
-    #define SetContentType wc_SetContentType
-    #define GetContentType wc_GetContentType
-    #define CreateRecipientInfo wc_CreateRecipientInfo
-    #define PKCS7_InitWithCert wc_PKCS7_InitWithCert
-    #define PKCS7_Free wc_PKCS7_Free
-    #define PKCS7_EncodeData wc_PKCS7_EncodeData
-    #define PKCS7_EncodeSignedData wc_PKCS7_EncodeSignedData
-    #define PKCS7_VerifySignedData wc_PKCS7_VerifySignedData
-    #define PKCS7_EncodeEnvelopedData wc_PKCS7_EncodeEnvelopedData
-    #define PKCS7_DecodeEnvelopedData wc_PKCS7_DecodeEnvelopedData
-#endif
 
 
 /* for pwdbased reverse compatibility */
@@ -518,70 +410,16 @@
 #endif
 
 
-/* for blake2 reverse compatibility */
-#ifdef HAVE_BLAKE2
-    #define InitBlake2b wc_InitBlake2b
-    #define Blake2bUpdate wc_Blake2bUpdate
-    #define Blake2bFinal wc_Blake2bFinal
-#endif
-
-
-/* for blake2 reverse compatibility */
-#ifdef HAVE_CAMELLIA
-	#define CamelliaSetKey wc_CamelliaSetKey
-	#define CamelliaSetIV wc_CamelliaSetIV
-	#define CamelliaEncryptDirect wc_CamelliaEncryptDirect
-	#define CamelliaDecryptDirect wc_CamelliaDecryptDirect
-	#define CamelliaCbcEncrypt wc_CamelliaCbcEncrypt
-	#define CamelliaCbcDecrypt wc_CamelliaCbcDecrypt
-#endif
-
-
-/* for chacha reverse compatibility */
-#ifdef HAVE_CHACHA
-    #define Chacha_Process wc_Chacha_Process
-    #define Chacha_SetKey wc_Chacha_SetKey
-    #define Chacha_SetIV wc_Chacha_SetIV
-#endif
-
-
-/* for ecc reverse compatibility */
-#ifdef HAVE_ECC
-#define ecc_make_key wc_ecc_make_key
-#define ecc_shared_secret wc_ecc_shared_secret
-#define ecc_sign_hash wc_ecc_sign_hash
-#define ecc_verify_hash wc_ecc_verify_hash
-#define ecc_init wc_ecc_init
-#define ecc_free wc_ecc_free
-#define ecc_fp_free wc_ecc_fp_free
-#define ecc_export_x963 wc_ecc_export_x963
-#define ecc_export_x963_ex wc_ecc_export_x963_ex
-#define ecc_import_x963 wc_ecc_import_x963
-#define ecc_import_private_key wc_ecc_import_private_key
-#define ecc_rs_to_sig wc_ecc_rs_to_sig
-#define ecc_import_raw wc_ecc_import_raw
-#define ecc_export_private_only wc_ecc_export_private_only
-#define ecc_size wc_ecc_size
-#define ecc_sig_size wc_ecc_sig_size
-
-#ifdef HAVE_ECC_ENCRYPT
-/* ecc encrypt */
-//ecEncCtx* wc_ecc_ctx_new(int flags, RNG* rng);
-//void wc_ecc_ctx_free(ecEncCtx*);
-//int wc_ecc_ctx_reset(ecEncCtx*, RNG*);   /* reset for use again w/o alloc/free */
-//const byte* wc_ecc_ctx_get_own_salt(ecEncCtx*);
-//int wc_ecc_ctx_set_peer_salt(ecEncCtx*, const byte* salt);
-//int wc_ecc_ctx_set_info(ecEncCtx*, const byte* info, int sz);
-//int wc_ecc_encrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
-//int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
-#endif /* HAVE_ECC_ENCRYPT */
-#endif
-
 /* examples/client/client.h */
 #define CYASSL_THREAD WOLFSSL_THREAD
 
 /* examples/client/client.c */
 #define LIBCYASSL_VERSION_STRING LIBWOLFSSL_VERSION_STRING
+
+
+
+
+        
 
 
 #ifdef __cplusplus

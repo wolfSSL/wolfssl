@@ -181,7 +181,6 @@ void wc_AesFreeCavium(Aes* aes)
 
 
 #ifdef HAVE_FIPS
-    /* fips wrapper calls, user can call direct */
     int  wc_AesSetKey_fips(Aes* aes, const byte* key, word32 len,
                                    const byte* iv, int dir)
     {
@@ -233,17 +232,6 @@ void wc_AesFreeCavium(Aes* aes)
         return AesGcmDecrypt_fips(aes, out, in, sz, iv, ivSz,
                               authTag, authTagSz, authIn, authInSz);
     }
-    #ifndef FIPS_NO_WRAPPERS
-        /* if not impl or fips.c impl wrapper force fips calls if fips build */
-        #define AesSetKey     AesSetKey_fips
-        #define AesSetIV      AesSetIV_fips
-        #define AesCbcEncrypt AesCbcEncrypt_fips
-        #define AesCbcDecrypt AesCbcDecrypt_fips
-        #define AesGcmSetKey  AesGcmSetKey_fips
-        #define AesGcmEncrypt AesGcmEncrypt_fips
-        #define AesGcmDecrypt AesGcmDecrypt_fips
-    #endif /* FIPS_NO_WRAPPERS */
-
 #endif /* HAVE_FIPS */
 
 

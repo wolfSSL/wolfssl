@@ -27,29 +27,47 @@
 
 #include <stdlib.h>
 
-#ifdef __cplusplus
-    extern "C" {
-#endif
+/* compatibility and fips @wc_fips */
+#ifndef HAVE_FIPS
+    #include <wolfssl/wolfcrypt/types.h>
+    #define CyaSSL_Malloc_cb     wolfSSL_Malloc_cb
+    #define CyaSSL_Free_cb       wolfSSL_Free_cb
+    #define CyaSSL_Realloc_cb    wolfSSL_Realloc_cb
+    #define CyaSSL_SetAllocators wolfSSL_SetAllocators
+    
+    /* Public in case user app wants to use XMALLOC/XFREE */
+	#define CyaSSL_Malloc  wolfSSL_Malloc
+	#define CyaSSL_Free    wolfSSL_Free
+	#define CyaSSL_Realloc wolfSSL_Realloc
 
 
-typedef void *(*wolfSSL_Malloc_cb)(size_t size);
-typedef void (*wolfSSL_Free_cb)(void *ptr);
-typedef void *(*wolfSSL_Realloc_cb)(void *ptr, size_t size);
-
-
-/* Public set function */
-WOLFSSL_API int wolfSSL_SetAllocators(wolfSSL_Malloc_cb  malloc_function,
-                                    wolfSSL_Free_cb    free_function,
-                                    wolfSSL_Realloc_cb realloc_function);
-
-/* Public in case user app wants to use XMALLOC/XFREE */
-WOLFSSL_API void* wolfSSL_Malloc(size_t size);
-WOLFSSL_API void  wolfSSL_Free(void *ptr);
-WOLFSSL_API void* wolfSSL_Realloc(void *ptr, size_t size);
-
-
-#ifdef __cplusplus
-}
+	typedef void *(*wolfSSL_Malloc_cb)(size_t size);
+	typedef void (*wolfSSL_Free_cb)(void *ptr);
+	typedef void *(*wolfSSL_Realloc_cb)(void *ptr, size_t size);
+	
+	
+	/* Public set function */
+	WOLFSSL_API int wolfSSL_SetAllocators(wolfSSL_Malloc_cb  malloc_function,
+	                                    wolfSSL_Free_cb    free_function,
+	                                    wolfSSL_Realloc_cb realloc_function);
+	
+	/* Public in case user app wants to use XMALLOC/XFREE */
+	WOLFSSL_API void* wolfSSL_Malloc(size_t size);
+	WOLFSSL_API void  wolfSSL_Free(void *ptr);
+	WOLFSSL_API void* wolfSSL_Realloc(void *ptr, size_t size);
+#else
+    #include <cyassl/ctaocrypt/memory.h>
+    /* when using fips map wolfSSL to CyaSSL*/
+    #define wolfSSL_Malloc_cb     CyaSSL_Malloc_cb
+    #define wolfSSL_Free_cb       CyaSSL_Free_cb
+    #define wolfSSL_Realloc_cb    CyaSSL_Realloc_cb
+    #define wolfSSL_SetAllocators CyaSSL_SetAllocators
+    
+    /* Public in case user app wants to use XMALLOC/XFREE */
+	#define wolfSSL_Malloc  CyaSSL_Malloc
+	#define wolfSSL_Free    CyaSSL_Free
+	#define wolfSSL_Realloc CyaSSL_Realloc
 #endif
 
 #endif /* WOLFSSL_MEMORY_H */
+

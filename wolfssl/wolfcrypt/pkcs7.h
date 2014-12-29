@@ -2,15 +2,15 @@
  *
  * Copyright (C) 2006-2014 wolfSSL Inc.
  *
- * This file is part of CyaSSL.
+ * This file is part of wolfSSL. (formerly known as CyaSSL)
  *
- * CyaSSL is free software; you can redistribute it and/or modify
+ * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  *
- * CyaSSL is distributed in the hope that it will be useful, 
- * * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * wolfSSL is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
@@ -22,14 +22,14 @@
 
 #ifdef HAVE_PKCS7
 
-#ifndef CTAO_CRYPT_PKCS7_H
-#define CTAO_CRYPT_PKCS7_H
+#ifndef WOLF_CRYPT_PKCS7_H
+#define WOLF_CRYPT_PKCS7_H
 
-#include <cyassl/ctaocrypt/types.h>
-#include <cyassl/ctaocrypt/asn.h>
-#include <cyassl/ctaocrypt/asn_public.h>
-#include <cyassl/ctaocrypt/random.h>
-#include <cyassl/ctaocrypt/des3.h>
+#include <wolfssl/wolfcrypt/types.h>
+#include <wolfssl/wolfcrypt/asn.h>
+#include <wolfssl/wolfcrypt/asn_public.h>
+#include <wolfssl/wolfcrypt/random.h>
+#include <wolfssl/wolfcrypt/des3.h>
 
 #ifdef __cplusplus
     extern "C" {
@@ -91,25 +91,25 @@ typedef struct PKCS7 {
 } PKCS7;
 
 
-CYASSL_LOCAL int SetContentType(int pkcs7TypeOID, byte* output);
-CYASSL_LOCAL int GetContentType(const byte* input, word32* inOutIdx,
+WOLFSSL_LOCAL int wc_SetContentType(int pkcs7TypeOID, byte* output);
+WOLFSSL_LOCAL int wc_GetContentType(const byte* input, word32* inOutIdx,
                                 word32* oid, word32 maxIdx);
-CYASSL_LOCAL int CreateRecipientInfo(const byte* cert, word32 certSz,
+WOLFSSL_LOCAL int wc_CreateRecipientInfo(const byte* cert, word32 certSz,
                                      int keyEncAlgo, int blockKeySz,
                                      RNG* rng, byte* contentKeyPlain,
                                      byte* contentKeyEnc,
                                      int* keyEncSz, byte* out, word32 outSz);
 
-CYASSL_API int  PKCS7_InitWithCert(PKCS7* pkcs7, byte* cert, word32 certSz);
-CYASSL_API void PKCS7_Free(PKCS7* pkcs7);
-CYASSL_API int  PKCS7_EncodeData(PKCS7* pkcs7, byte* output, word32 outputSz);
-CYASSL_API int  PKCS7_EncodeSignedData(PKCS7* pkcs7,
+WOLFSSL_API int  wc_PKCS7_InitWithCert(PKCS7* pkcs7, byte* cert, word32 certSz);
+WOLFSSL_API void wc_PKCS7_Free(PKCS7* pkcs7);
+WOLFSSL_API int  wc_PKCS7_EncodeData(PKCS7* pkcs7, byte* output, word32 outputSz);
+WOLFSSL_API int  wc_PKCS7_EncodeSignedData(PKCS7* pkcs7,
                                        byte* output, word32 outputSz);
-CYASSL_API int  PKCS7_VerifySignedData(PKCS7* pkcs7,
+WOLFSSL_API int  wc_PKCS7_VerifySignedData(PKCS7* pkcs7,
                                        byte* pkiMsg, word32 pkiMsgSz);
-CYASSL_API int  PKCS7_EncodeEnvelopedData(PKCS7* pkcs7,
+WOLFSSL_API int  wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7,
                                           byte* output, word32 outputSz);
-CYASSL_API int  PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* pkiMsg,
+WOLFSSL_API int  wc_PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* pkiMsg,
                                           word32 pkiMsgSz, byte* output,
                                           word32 outputSz);
 
@@ -117,7 +117,7 @@ CYASSL_API int  PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* pkiMsg,
     } /* extern "C" */
 #endif
 
-#endif /* CTAO_CRYPT_PKCS7_H */
+#endif /* WOLF_CRYPT_PKCS7_H */
 
 #endif /* HAVE_PKCS7 */
 

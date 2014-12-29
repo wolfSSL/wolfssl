@@ -2,14 +2,14 @@
  *
  * Copyright (C) 2006-2014 wolfSSL Inc.
  *
- * This file is part of CyaSSL.
+ * This file is part of wolfSSL. (formerly known as CyaSSL)
  *
- * CyaSSL is free software; you can redistribute it and/or modify
+ * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  *
- * CyaSSL is distributed in the hope that it will be useful,
+ * wolfSSL is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
@@ -22,10 +22,17 @@
 
 #ifndef NO_MD4
 
-#ifndef CTAO_CRYPT_MD4_H
-#define CTAO_CRYPT_MD4_H
+#ifndef WOLF_CRYPT_MD4_H
+#define WOLF_CRYPT_MD4_H
 
-#include <cyassl/ctaocrypt/types.h>
+#include <wolfssl/wolfcrypt/types.h>
+
+/* for md4 reverse compatibility */
+#ifndef NO_MD4
+	#define InitMd4 wc_InitMd4
+	#define Md4Update wc_Md4Update
+	#define Md4Final wc_Md4Final
+#endif
 
 #ifdef __cplusplus
     extern "C" {
@@ -50,16 +57,16 @@ typedef struct Md4 {
 } Md4;
 
 
-CYASSL_API void InitMd4(Md4*);
-CYASSL_API void Md4Update(Md4*, const byte*, word32);
-CYASSL_API void Md4Final(Md4*, byte*);
+WOLFSSL_API void wc_InitMd4(Md4*);
+WOLFSSL_API void wc_Md4Update(Md4*, const byte*, word32);
+WOLFSSL_API void wc_Md4Final(Md4*, byte*);
 
 
 #ifdef __cplusplus
     } /* extern "C" */
 #endif
 
-#endif /* CTAO_CRYPT_MD4_H */
+#endif /* WOLF_CRYPT_MD4_H */
 
 #endif /* NO_MD4 */
 

@@ -1,3 +1,4 @@
+#include <wolfssl/test.h>
 /* server.c
  *
  * Copyright (C) 2006-2014 wolfSSL Inc.

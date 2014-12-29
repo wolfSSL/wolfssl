@@ -1,15 +1,13 @@
 /* sha256.h
  *
- * Copyright (C) 2006-2014 wolfSSL Inc.
+ * This file is part of wolfSSL. (formerly known as CyaSSL)
  *
- * This file is part of CyaSSL.
- *
- * CyaSSL is free software; you can redistribute it and/or modify
+ * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  *
- * CyaSSL is distributed in the hope that it will be useful,
+ * wolfSSL is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
@@ -25,67 +23,35 @@
 
 #ifndef NO_SHA256
 
-#ifndef CTAO_CRYPT_SHA256_H
-#define CTAO_CRYPT_SHA256_H
+#ifndef WOLF_CRYPT_SHA256_H
+#define WOLF_CRYPT_SHA256_H
 
-#include <cyassl/ctaocrypt/types.h>
 
+/* for fips */
+#include <cyassl/ctaocrypt/sha256.h>
+
+//#ifndef HAVE_FIPS
+#include <wolfssl/wolfcrypt/types.h>
 #ifdef __cplusplus
     extern "C" {
 #endif
 
-#ifdef CYASSL_PIC32MZ_HASH
-#include "port/pic32/pic32mz-crypt.h"
-#endif
-
-
-/* in bytes */
-enum {
-    SHA256              =  2,   /* hash type unique */
-    SHA256_BLOCK_SIZE   = 64,
-    SHA256_DIGEST_SIZE  = 32,
-    SHA256_PAD_SIZE     = 56
-};
-
-
-/* Sha256 digest */
-typedef struct Sha256 {
-    word32  buffLen;   /* in bytes          */
-    word32  loLen;     /* length in bytes   */
-    word32  hiLen;     /* length in bytes   */
-    word32  digest[SHA256_DIGEST_SIZE / sizeof(word32)];
-    word32  buffer[SHA256_BLOCK_SIZE  / sizeof(word32)];
-    #ifdef CYASSL_PIC32MZ_HASH
-        pic32mz_desc desc ; /* Crypt Engine descripter */
-    #endif
-} Sha256;
-
-
-CYASSL_API int InitSha256(Sha256*);
-CYASSL_API int Sha256Update(Sha256*, const byte*, word32);
-CYASSL_API int Sha256Final(Sha256*, byte*);
-CYASSL_API int Sha256Hash(const byte*, word32, byte*);
-
-
-#ifdef HAVE_FIPS
-    /* fips wrapper calls, user can call direct */
-    CYASSL_API int InitSha256_fips(Sha256*);
-    CYASSL_API int Sha256Update_fips(Sha256*, const byte*, word32);
-    CYASSL_API int Sha256Final_fips(Sha256*, byte*);
-    #ifndef FIPS_NO_WRAPPERS
-        /* if not impl or fips.c impl wrapper force fips calls if fips build */
-        #define InitSha256   InitSha256_fips
-        #define Sha256Update Sha256Update_fips
-        #define Sha256Final  Sha256Final_fips
-    #endif /* FIPS_NO_WRAPPERS */
-
-#endif /* HAVE_FIPS */
-
+WOLFSSL_API int wc_InitSha256(Sha256*);
+WOLFSSL_API int wc_Sha256Update(Sha256*, const byte*, word32);
+WOLFSSL_API int wc_Sha256Final(Sha256*, byte*);
+WOLFSSL_API int wc_Sha256Hash(const byte*, word32, byte*);
  
 #ifdef __cplusplus
     } /* extern "C" */
 #endif
+//#else
+//#define wc_InitSha256 wc_InitSha256Sha256*);
+//#define int wc_Sha256Update(Swc_Sha256Updateha256*, const byte*, word32);
+//#define int wc_Sha256Final(wc_Sha256FinalSha256*, byte*);
+//#define int wc_Sha256Hash(wc_Sha256Hashconst byte*, word32, byte*);
+//
+//#endif /* HAVE_FIPS */
 
-#endif /* CTAO_CRYPT_SHA256_H */
+#endif /* WOLF_CRYPT_SHA256_H */
 #endif /* NO_SHA256 */
 
