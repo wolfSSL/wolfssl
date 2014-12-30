@@ -5924,7 +5924,7 @@ static INLINE int Decrypt(WOLFSSL* ssl, byte* plain, const byte* input,
 
         #ifdef HAVE_CHACHA
             case wolfssl_chacha:
-                return wc_ChachaAEADDecrypt(ssl, plain, input, sz);
+                return ChachaAEADDecrypt(ssl, plain, input, sz);
         #endif
 
         #ifdef HAVE_NULL_CIPHER
