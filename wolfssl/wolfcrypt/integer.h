@@ -2,14 +2,14 @@
  *
  * Copyright (C) 2006-2014 wolfSSL Inc.
  *
- * This file is part of CyaSSL.
+ * This file is part of wolfSSL. (formerly known as CyaSSL)
  *
- * CyaSSL is free software; you can redistribute it and/or modify
+ * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  *
- * CyaSSL is distributed in the hope that it will be useful,
+ * wolfSSL is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
@@ -28,19 +28,23 @@
 #ifndef WOLF_CRYPT_INTEGER_H
 #define WOLF_CRYPT_INTEGER_H
 
+/* for fips compatibility @wc_fips */
+#ifdef HAVE_FIPS
+    #include <cyassl/ctaocrypt/integer.h>
+#else
 /* may optionally use fast math instead, not yet supported on all platforms and
    may not be faster on all
 */
-#include <cyassl/ctaocrypt/types.h>       /* will set MP_xxBIT if not default */
+#include <wolfssl/wolfcrypt/types.h>       /* will set MP_xxBIT if not default */
 #ifdef USE_FAST_MATH
-    #include <cyassl/ctaocrypt/tfm.h>
+    #include <wolfssl/wolfcrypt/tfm.h>
 #else
 
 #ifndef CHAR_BIT
     #include <limits.h>
 #endif
 
-#include <cyassl/ctaocrypt/mpi_class.h>
+#include <wolfssl/wolfcrypt/mpi_class.h>
 
 #ifndef MIN
    #define MIN(x,y) ((x)<(y)?(x):(y))
@@ -320,5 +324,6 @@ int mp_mod_d(mp_int* a, mp_digit b, mp_digit* c);
 
 #endif /* USE_FAST_MATH */
 
+#endif  /* HAVE_FIPS */
 #endif  /* WOLF_CRYPT_INTEGER_H */
 

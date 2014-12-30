@@ -28,6 +28,9 @@
 #ifndef CTAO_CRYPT_INTEGER_H
 #define CTAO_CRYPT_INTEGER_H
 
+#ifndef HAVE_FIPS
+    #include <wolfssl/wolfcrypt/integer.h>
+#else
 /* may optionally use fast math instead, not yet supported on all platforms and
    may not be faster on all
 */
@@ -320,5 +323,6 @@ int mp_mod_d(mp_int* a, mp_digit b, mp_digit* c);
 
 #endif /* USE_FAST_MATH */
 
+#endif  /* HAVE_FIPS */
 #endif  /* CTAO_CRYPT_INTEGER_H */
 
