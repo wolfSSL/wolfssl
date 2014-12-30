@@ -72,12 +72,17 @@
 #define CYASSL_ASN1_OBJECT        WOLFSSL_ASN1_OBJECT
 #define CYASSL_ASN1_STRING        WOLFSSL_ASN1_STRING
 #define CYASSL_COMP_METHOD        WOLFSSL_COMP_METHOD
+#define CYASSL_CRL_CHECKALL       WOLFSSL_CRL_CHECKALL
 #define CYASSL_ASN1_INTEGER       WOLFSSL_ASN1_INTEGER
 #define CYASSL_X509_REVOKED       WOLFSSL_X509_REVOKED
 #define CYASSL_dynlock_value      WOLFSSL_dynlock_value
 #define CYASSL_X509_EXTENSION     WOLFSSL_X509_EXTENSION
 #define CYASSL_X509_STORE_CTX     WOLFSSL_X509_STORE_CTX
 #define CYASSL_X509_LOOKUP_METHOD WOLFSSL_X509_LOOKUP_METHOD
+        
+#define CyaSSL_LoadCRL            wolfSSL_LoadCRL
+#define CyaSSL_EnableCRL          wolfSSL_EnableCRL
+#define CyaSSL_SetCRL_Cb          wolfSSL_SetCRL_Cb
 
 /* cyassl/test.h */
 #ifdef CyaSSL_TEST_H
@@ -168,7 +173,7 @@
 #define CyaSSL_SetTmpDH                     wolfSSL_SetTmpDH
 #define CyaSSL_KeepArrays                   wolfSSL_KeepArrays
 #define CyaSSL_FreeArrays                   wolfSSL_FreeArrays
-
+#define CyaSSL_SetTmpDH_file                wolfSSL_SetTmpDH_file
 #define CyaSSL_use_PrivateKey_buffer        wolfSSL_use_PrivateKey_buffer
 #define CyaSSL_use_certificate_buffer       wolfSSL_use_certificate_buffer
 #define CyaSSL_CTX_load_verify_buffer       wolfSSL_CTX_load_verify_buffer
@@ -270,7 +275,12 @@
 #define CyaSSL_ERR_print_errors_fp wolfSSL_ERR_print_errors_fp
 
 /* OCSP and CRL */
-#define CyaSSL_CTX_OCSP_set_options wolfSSL_CTX_OCSP_set_options
+#define CYASSL_OCSP_NO_NONCE             WOLFSSL_OCSP_NO_NONCE
+#define CYASSL_OCSP_URL_OVERRIDE         WOLFSSL_OCSP_URL_OVERRIDE
+
+#define CyaSSL_CTX_EnableOCSP            wolfSSL_CTX_EnableOCSP
+#define CyaSSL_CTX_OCSP_set_options      wolfSSL_CTX_OCSP_set_options
+#define CyaSSL_CTX_SetOCSP_OverrideURL   wolfSSL_CTX_SetOCSP_OverrideURL
 #define CyaSSL_CTX_OCSP_set_override_url wolfSSL_CTX_OCSP_set_override_url
 
 /* Informational */
