@@ -2,14 +2,14 @@
  *
  * Copyright (C) 2006-2014 wolfSSL Inc.
  *
- * This file is part of CyaSSL.
+ * This file is part of wolfSSL. (formerly known as CyaSSL)
  *
- * CyaSSL is free software; you can redistribute it and/or modify
+ * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  *
- * CyaSSL is distributed in the hope that it will be useful,
+ * wolfSSL is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
@@ -27,15 +27,15 @@
     #include <config.h>
 #endif
 
-#include <cyassl/ctaocrypt/settings.h>
+#include <wolfssl/wolfcrypt/settings.h>
 #ifdef HAVE_ECC
-    #include <cyassl/ctaocrypt/ecc.h>   /* ecc_fp_free */
+    #include <wolfssl/wolfcrypt/ecc.h>   /* ecc_fp_free */
 #endif
-#include <cyassl/error-ssl.h>
+#include <wolfssl/error-ssl.h>
 
 #include <stdlib.h>
-#include <cyassl/ssl.h>  /* compatibility layer */
-#include <cyassl/test.h>
+#include <wolfssl/ssl.h>  /* compatibility layer */
+#include <wolfssl/test.h>
 #include <tests/unit.h>
 
 /*----------------------------------------------------------------------------*
@@ -58,24 +58,24 @@ static const char* bogusFile  = "/dev/null";
  | Setup
  *----------------------------------------------------------------------------*/
 
-static int test_CyaSSL_Init(void)
+static int test_wolfSSL_Init(void)
 {
     int result;
 
-    printf(testingFmt, "CyaSSL_Init()");
-    result = CyaSSL_Init();
+    printf(testingFmt, "wolfSSL_Init()");
+    result = wolfSSL_Init();
     printf(resultFmt, result == SSL_SUCCESS ? passed : failed);
 
     return result;
 }
 
 
-static int test_CyaSSL_Cleanup(void)
+static int test_wolfSSL_Cleanup(void)
 {
     int result;
 
-    printf(testingFmt, "CyaSSL_Cleanup()");
-    result = CyaSSL_Cleanup();
+    printf(testingFmt, "wolfSSL_Cleanup()");
+    result = wolfSSL_Cleanup();
     printf(resultFmt, result == SSL_SUCCESS ? passed : failed);
 
     return result;
@@ -85,11 +85,11 @@ static int test_CyaSSL_Cleanup(void)
  | Method Allocators
  *----------------------------------------------------------------------------*/
 
-static void test_CyaSSL_Method_Allocators(void)
+static void test_wolfSSL_Method_Allocators(void)
 {
     #define TEST_METHOD_ALLOCATOR(allocator, condition) \
         do {                                            \
-            CYASSL_METHOD *method;                      \
+            WOLFSSL_METHOD *method;                      \
             condition(method = allocator());            \
             XFREE(method, 0, DYNAMIC_TYPE_METHOD);      \
         } while(0)
@@ -101,27 +101,27 @@ static void test_CyaSSL_Method_Allocators(void)
             TEST_METHOD_ALLOCATOR(a, AssertNull)
 
 #ifndef NO_OLD_TLS
-    TEST_VALID_METHOD_ALLOCATOR(CyaSSLv3_server_method);
-    TEST_VALID_METHOD_ALLOCATOR(CyaSSLv3_client_method);
-    TEST_VALID_METHOD_ALLOCATOR(CyaTLSv1_server_method);
-    TEST_VALID_METHOD_ALLOCATOR(CyaTLSv1_client_method);
-    TEST_VALID_METHOD_ALLOCATOR(CyaTLSv1_1_server_method);
-    TEST_VALID_METHOD_ALLOCATOR(CyaTLSv1_1_client_method);
+    TEST_VALID_METHOD_ALLOCATOR(wolfSSLv3_server_method);
+    TEST_VALID_METHOD_ALLOCATOR(wolfSSLv3_client_method);
+    TEST_VALID_METHOD_ALLOCATOR(wolfTLSv1_server_method);
+    TEST_VALID_METHOD_ALLOCATOR(wolfTLSv1_client_method);
+    TEST_VALID_METHOD_ALLOCATOR(wolfTLSv1_1_server_method);
+    TEST_VALID_METHOD_ALLOCATOR(wolfTLSv1_1_client_method);
 #endif
-    TEST_VALID_METHOD_ALLOCATOR(CyaTLSv1_2_server_method);
-    TEST_VALID_METHOD_ALLOCATOR(CyaTLSv1_2_client_method);
-    TEST_VALID_METHOD_ALLOCATOR(CyaSSLv23_client_method);
+    TEST_VALID_METHOD_ALLOCATOR(wolfTLSv1_2_server_method);
+    TEST_VALID_METHOD_ALLOCATOR(wolfTLSv1_2_client_method);
+    TEST_VALID_METHOD_ALLOCATOR(wolfSSLv23_client_method);
 
-#ifdef CYASSL_DTLS
-    TEST_VALID_METHOD_ALLOCATOR(CyaDTLSv1_server_method);
-    TEST_VALID_METHOD_ALLOCATOR(CyaDTLSv1_client_method);
-    TEST_VALID_METHOD_ALLOCATOR(CyaDTLSv1_2_server_method);
-    TEST_VALID_METHOD_ALLOCATOR(CyaDTLSv1_2_client_method);
+#ifdef WOLFSSL_DTLS
+    TEST_VALID_METHOD_ALLOCATOR(wolfDTLSv1_server_method);
+    TEST_VALID_METHOD_ALLOCATOR(wolfDTLSv1_client_method);
+    TEST_VALID_METHOD_ALLOCATOR(wolfDTLSv1_2_server_method);
+    TEST_VALID_METHOD_ALLOCATOR(wolfDTLSv1_2_client_method);
 #endif
 
 #ifdef OPENSSL_EXTRA
-    TEST_INVALID_METHOD_ALLOCATOR(CyaSSLv2_server_method);
-    TEST_INVALID_METHOD_ALLOCATOR(CyaSSLv2_client_method);
+    TEST_INVALID_METHOD_ALLOCATOR(wolfSSLv2_server_method);
+    TEST_INVALID_METHOD_ALLOCATOR(wolfSSLv2_client_method);
 #endif
 }
 
@@ -129,102 +129,102 @@ static void test_CyaSSL_Method_Allocators(void)
  | Context
  *----------------------------------------------------------------------------*/
 
-static void test_CyaSSL_CTX_new(CYASSL_METHOD *method)
+static void test_wolfSSL_CTX_new(WOLFSSL_METHOD *method)
 {
-    CYASSL_CTX *ctx;
+    WOLFSSL_CTX *ctx;
     
-    AssertNull(ctx = CyaSSL_CTX_new(NULL));
+    AssertNull(ctx = wolfSSL_CTX_new(NULL));
     
     AssertNotNull(method);
-    AssertNotNull(ctx = CyaSSL_CTX_new(method));
+    AssertNotNull(ctx = wolfSSL_CTX_new(method));
 
-    CyaSSL_CTX_free(ctx);
+    wolfSSL_CTX_free(ctx);
 }
 
 
-static void test_CyaSSL_CTX_use_certificate_file(void)
+static void test_wolfSSL_CTX_use_certificate_file(void)
 {
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
-    CYASSL_CTX *ctx;
+    WOLFSSL_CTX *ctx;
 
-    AssertNotNull(ctx = CyaSSL_CTX_new(CyaSSLv23_server_method()));
+    AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
 
     /* invalid context */
-    AssertFalse(CyaSSL_CTX_use_certificate_file(NULL, svrCert, 
+    AssertFalse(wolfSSL_CTX_use_certificate_file(NULL, svrCert, 
                                                              SSL_FILETYPE_PEM));
     /* invalid cert file */
-    AssertFalse(CyaSSL_CTX_use_certificate_file(ctx, bogusFile, 
+    AssertFalse(wolfSSL_CTX_use_certificate_file(ctx, bogusFile, 
                                                              SSL_FILETYPE_PEM));
     /* invalid cert type */
-    AssertFalse(CyaSSL_CTX_use_certificate_file(ctx, svrCert, 9999));
+    AssertFalse(wolfSSL_CTX_use_certificate_file(ctx, svrCert, 9999));
 
 #ifdef NO_RSA
     /* rsa needed */
-    AssertFalse(CyaSSL_CTX_use_certificate_file(ctx, svrCert,SSL_FILETYPE_PEM));
+    AssertFalse(wolfSSL_CTX_use_certificate_file(ctx, svrCert,SSL_FILETYPE_PEM));
 #else
     /* success */
-    AssertTrue(CyaSSL_CTX_use_certificate_file(ctx, svrCert, SSL_FILETYPE_PEM));
+    AssertTrue(wolfSSL_CTX_use_certificate_file(ctx, svrCert, SSL_FILETYPE_PEM));
 #endif
 
-    CyaSSL_CTX_free(ctx);
+    wolfSSL_CTX_free(ctx);
 #endif
 }
 
 
-static void test_CyaSSL_CTX_use_PrivateKey_file(void)
+static void test_wolfSSL_CTX_use_PrivateKey_file(void)
 {
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
-    CYASSL_CTX *ctx;
+    WOLFSSL_CTX *ctx;
 
-    AssertNotNull(ctx = CyaSSL_CTX_new(CyaSSLv23_server_method()));
+    AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
 
     /* invalid context */
-    AssertFalse(CyaSSL_CTX_use_PrivateKey_file(NULL, svrKey, 
+    AssertFalse(wolfSSL_CTX_use_PrivateKey_file(NULL, svrKey, 
                                                              SSL_FILETYPE_PEM));
     /* invalid key file */
-    AssertFalse(CyaSSL_CTX_use_PrivateKey_file(ctx, bogusFile, 
+    AssertFalse(wolfSSL_CTX_use_PrivateKey_file(ctx, bogusFile, 
                                                              SSL_FILETYPE_PEM));
     /* invalid key type */
-    AssertFalse(CyaSSL_CTX_use_PrivateKey_file(ctx, svrKey, 9999));
+    AssertFalse(wolfSSL_CTX_use_PrivateKey_file(ctx, svrKey, 9999));
 
     /* success */
 #ifdef NO_RSA
     /* rsa needed */
-    AssertFalse(CyaSSL_CTX_use_PrivateKey_file(ctx, svrKey, SSL_FILETYPE_PEM));
+    AssertFalse(wolfSSL_CTX_use_PrivateKey_file(ctx, svrKey, SSL_FILETYPE_PEM));
 #else
     /* success */
-    AssertTrue(CyaSSL_CTX_use_PrivateKey_file(ctx, svrKey, SSL_FILETYPE_PEM));
+    AssertTrue(wolfSSL_CTX_use_PrivateKey_file(ctx, svrKey, SSL_FILETYPE_PEM));
 #endif
 
-    CyaSSL_CTX_free(ctx);
+    wolfSSL_CTX_free(ctx);
 #endif
 }
 
 
-static void test_CyaSSL_CTX_load_verify_locations(void)
+static void test_wolfSSL_CTX_load_verify_locations(void)
 {
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
-    CYASSL_CTX *ctx;
+    WOLFSSL_CTX *ctx;
 
-    AssertNotNull(ctx = CyaSSL_CTX_new(CyaSSLv23_client_method()));
+    AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
     
     /* invalid context */
-    AssertFalse(CyaSSL_CTX_load_verify_locations(NULL, caCert, 0));
+    AssertFalse(wolfSSL_CTX_load_verify_locations(NULL, caCert, 0));
 
     /* invalid ca file */
-    AssertFalse(CyaSSL_CTX_load_verify_locations(ctx, NULL,      0));
-    AssertFalse(CyaSSL_CTX_load_verify_locations(ctx, bogusFile, 0));
+    AssertFalse(wolfSSL_CTX_load_verify_locations(ctx, NULL,      0));
+    AssertFalse(wolfSSL_CTX_load_verify_locations(ctx, bogusFile, 0));
 
-#ifndef CYASSL_TIRTOS
+#ifndef WOLFSSL_TIRTOS
     /* invalid path */
     /* not working... investigate! */
-    /* AssertFalse(CyaSSL_CTX_load_verify_locations(ctx, caCert, bogusFile)); */
+    /* AssertFalse(wolfSSL_CTX_load_verify_locations(ctx, caCert, bogusFile)); */
 #endif
 
     /* success */
-    AssertTrue(CyaSSL_CTX_load_verify_locations(ctx, caCert, 0));
+    AssertTrue(wolfSSL_CTX_load_verify_locations(ctx, caCert, 0));
 
-    CyaSSL_CTX_free(ctx);
+    wolfSSL_CTX_free(ctx);
 #endif
 }
 
@@ -232,58 +232,58 @@ static void test_CyaSSL_CTX_load_verify_locations(void)
  | SSL
  *----------------------------------------------------------------------------*/
 
-static void test_server_CyaSSL_new(void)
+static void test_server_wolfSSL_new(void)
 {
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_RSA)
-    CYASSL_CTX *ctx;
-    CYASSL_CTX *ctx_nocert;
-    CYASSL *ssl;
+    WOLFSSL_CTX *ctx;
+    WOLFSSL_CTX *ctx_nocert;
+    WOLFSSL *ssl;
 
-    AssertNotNull(ctx_nocert = CyaSSL_CTX_new(CyaSSLv23_server_method()));
-    AssertNotNull(ctx        = CyaSSL_CTX_new(CyaSSLv23_server_method()));
+    AssertNotNull(ctx_nocert = wolfSSL_CTX_new(wolfSSLv23_server_method()));
+    AssertNotNull(ctx        = wolfSSL_CTX_new(wolfSSLv23_server_method()));
 
-    AssertTrue(CyaSSL_CTX_use_certificate_file(ctx, svrCert, SSL_FILETYPE_PEM));
-    AssertTrue(CyaSSL_CTX_use_PrivateKey_file(ctx, svrKey, SSL_FILETYPE_PEM));
+    AssertTrue(wolfSSL_CTX_use_certificate_file(ctx, svrCert, SSL_FILETYPE_PEM));
+    AssertTrue(wolfSSL_CTX_use_PrivateKey_file(ctx, svrKey, SSL_FILETYPE_PEM));
 
     /* invalid context */
-    AssertNull(ssl = CyaSSL_new(NULL));
-    AssertNull(ssl = CyaSSL_new(ctx_nocert));
+    AssertNull(ssl = wolfSSL_new(NULL));
+    AssertNull(ssl = wolfSSL_new(ctx_nocert));
 
     /* success */
-    AssertNotNull(ssl = CyaSSL_new(ctx));
+    AssertNotNull(ssl = wolfSSL_new(ctx));
 
-    CyaSSL_free(ssl);
-    CyaSSL_CTX_free(ctx);
-    CyaSSL_CTX_free(ctx_nocert);
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+    wolfSSL_CTX_free(ctx_nocert);
 #endif
 }
 
 
-static void test_client_CyaSSL_new(void)
+static void test_client_wolfSSL_new(void)
 {
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_RSA)
-    CYASSL_CTX *ctx;
-    CYASSL_CTX *ctx_nocert;
-    CYASSL *ssl;
+    WOLFSSL_CTX *ctx;
+    WOLFSSL_CTX *ctx_nocert;
+    WOLFSSL *ssl;
 
-    AssertNotNull(ctx_nocert = CyaSSL_CTX_new(CyaSSLv23_client_method()));
-    AssertNotNull(ctx        = CyaSSL_CTX_new(CyaSSLv23_client_method()));
+    AssertNotNull(ctx_nocert = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    AssertNotNull(ctx        = wolfSSL_CTX_new(wolfSSLv23_client_method()));
 
-    AssertTrue(CyaSSL_CTX_load_verify_locations(ctx, caCert, 0));
+    AssertTrue(wolfSSL_CTX_load_verify_locations(ctx, caCert, 0));
     
     /* invalid context */
-    AssertNull(ssl = CyaSSL_new(NULL));
+    AssertNull(ssl = wolfSSL_new(NULL));
 
     /* success */
-    AssertNotNull(ssl = CyaSSL_new(ctx_nocert));
-    CyaSSL_free(ssl);
+    AssertNotNull(ssl = wolfSSL_new(ctx_nocert));
+    wolfSSL_free(ssl);
     
     /* success */
-    AssertNotNull(ssl = CyaSSL_new(ctx));
-    CyaSSL_free(ssl);
+    AssertNotNull(ssl = wolfSSL_new(ctx));
+    wolfSSL_free(ssl);
     
-    CyaSSL_CTX_free(ctx);
-    CyaSSL_CTX_free(ctx_nocert);
+    wolfSSL_CTX_free(ctx);
+    wolfSSL_CTX_free(ctx_nocert);
 #endif
 }
 
@@ -297,113 +297,113 @@ static void test_client_CyaSSL_new(void)
 
 /* helper functions */
 #ifdef HAVE_IO_TESTS_DEPENDENCIES
-static THREAD_RETURN CYASSL_THREAD test_server_nofail(void* args)
+static THREAD_RETURN WOLFSSL_THREAD test_server_nofail(void* args)
 {
     SOCKET_T sockfd = 0;
     SOCKET_T clientfd = 0;
     word16 port = yasslPort;
 
-    CYASSL_METHOD* method = 0;
-    CYASSL_CTX* ctx = 0;
-    CYASSL* ssl = 0;
+    WOLFSSL_METHOD* method = 0;
+    WOLFSSL_CTX* ctx = 0;
+    WOLFSSL* ssl = 0;
 
     char msg[] = "I hear you fa shizzle!";
     char input[1024];
     int idx;
 
-#ifdef CYASSL_TIRTOS
+#ifdef WOLFSSL_TIRTOS
     fdOpenSession(Task_self());
 #endif
 
     ((func_args*)args)->return_code = TEST_FAIL;
-    method = CyaSSLv23_server_method();
-    ctx = CyaSSL_CTX_new(method);
+    method = wolfSSLv23_server_method();
+    ctx = wolfSSL_CTX_new(method);
 
 #if defined(NO_MAIN_DRIVER) && !defined(USE_WINDOWS_API) && \
-   !defined(CYASSL_SNIFFER) && !defined(CYASSL_MDK_SHELL) && \
-   !defined(CYASSL_TIRTOS)
+   !defined(WOLFSSL_SNIFFER) && !defined(WOLFSSL_MDK_SHELL) && \
+   !defined(WOLFSSL_TIRTOS)
     port = 0;
 #endif
 
-    CyaSSL_CTX_set_verify(ctx,
+    wolfSSL_CTX_set_verify(ctx,
                           SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT, 0);
 
 #ifdef OPENSSL_EXTRA
-    CyaSSL_CTX_set_default_passwd_cb(ctx, PasswordCallBack);
+    wolfSSL_CTX_set_default_passwd_cb(ctx, PasswordCallBack);
 #endif
 
-    if (CyaSSL_CTX_load_verify_locations(ctx, cliCert, 0) != SSL_SUCCESS)
+    if (wolfSSL_CTX_load_verify_locations(ctx, cliCert, 0) != SSL_SUCCESS)
     {
-        /*err_sys("can't load ca file, Please run from CyaSSL home dir");*/
+        /*err_sys("can't load ca file, Please run from wolfSSL home dir");*/
         goto done;
     }
-    if (CyaSSL_CTX_use_certificate_file(ctx, svrCert, SSL_FILETYPE_PEM)
+    if (wolfSSL_CTX_use_certificate_file(ctx, svrCert, SSL_FILETYPE_PEM)
             != SSL_SUCCESS)
     {
         /*err_sys("can't load server cert chain file, "
-                "Please run from CyaSSL home dir");*/
+                "Please run from wolfSSL home dir");*/
         goto done;
     }
-    if (CyaSSL_CTX_use_PrivateKey_file(ctx, svrKey, SSL_FILETYPE_PEM)
+    if (wolfSSL_CTX_use_PrivateKey_file(ctx, svrKey, SSL_FILETYPE_PEM)
             != SSL_SUCCESS)
     {
         /*err_sys("can't load server key file, "
-                "Please run from CyaSSL home dir");*/
+                "Please run from wolfSSL home dir");*/
         goto done;
     }
     
-    ssl = CyaSSL_new(ctx);
+    ssl = wolfSSL_new(ctx);
     tcp_accept(&sockfd, &clientfd, (func_args*)args, port, 0, 0, 0);
     CloseSocket(sockfd);
 
-    CyaSSL_set_fd(ssl, clientfd);
+    wolfSSL_set_fd(ssl, clientfd);
 
 #ifdef NO_PSK
     #if !defined(NO_FILESYSTEM) && !defined(NO_DH)
-        CyaSSL_SetTmpDH_file(ssl, dhParam, SSL_FILETYPE_PEM);
+        wolfSSL_SetTmpDH_file(ssl, dhParam, SSL_FILETYPE_PEM);
     #elif !defined(NO_DH)
         SetDH(ssl);  /* will repick suites with DHE, higher priority than PSK */
     #endif
 #endif
 
-    if (CyaSSL_accept(ssl) != SSL_SUCCESS)
+    if (wolfSSL_accept(ssl) != SSL_SUCCESS)
     {
-        int err = CyaSSL_get_error(ssl, 0);
-        char buffer[CYASSL_MAX_ERROR_SZ];
-        printf("error = %d, %s\n", err, CyaSSL_ERR_error_string(err, buffer));
+        int err = wolfSSL_get_error(ssl, 0);
+        char buffer[WOLFSSL_MAX_ERROR_SZ];
+        printf("error = %d, %s\n", err, wolfSSL_ERR_error_string(err, buffer));
         /*err_sys("SSL_accept failed");*/
         goto done;
     }
 
-    idx = CyaSSL_read(ssl, input, sizeof(input)-1);
+    idx = wolfSSL_read(ssl, input, sizeof(input)-1);
     if (idx > 0) {
         input[idx] = 0;
         printf("Client message: %s\n", input);
     }
     
-    if (CyaSSL_write(ssl, msg, sizeof(msg)) != sizeof(msg))
+    if (wolfSSL_write(ssl, msg, sizeof(msg)) != sizeof(msg))
     {
         /*err_sys("SSL_write failed");*/
-#ifdef CYASSL_TIRTOS
+#ifdef WOLFSSL_TIRTOS
         return;
 #else
         return 0;
 #endif
     }
 
-#ifdef CYASSL_TIRTOS
+#ifdef WOLFSSL_TIRTOS
     Task_yield();
 #endif
 
 done:
-    CyaSSL_shutdown(ssl);
-    CyaSSL_free(ssl);
-    CyaSSL_CTX_free(ctx);
+    wolfSSL_shutdown(ssl);
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
     
     CloseSocket(clientfd);
     ((func_args*)args)->return_code = TEST_SUCCESS;
 
-#ifdef CYASSL_TIRTOS
+#ifdef WOLFSSL_TIRTOS
     fdCloseSession(Task_self());
 #endif
 
@@ -412,7 +412,7 @@ done:
     ecc_fp_free();  /* free per thread cache */
 #endif
 
-#ifndef CYASSL_TIRTOS
+#ifndef WOLFSSL_TIRTOS
     return 0;
 #endif
 }
@@ -422,67 +422,67 @@ static void test_client_nofail(void* args)
 {
     SOCKET_T sockfd = 0;
 
-    CYASSL_METHOD*  method  = 0;
-    CYASSL_CTX*     ctx     = 0;
-    CYASSL*         ssl     = 0;
+    WOLFSSL_METHOD*  method  = 0;
+    WOLFSSL_CTX*     ctx     = 0;
+    WOLFSSL*         ssl     = 0;
 
-    char msg[64] = "hello cyassl!";
+    char msg[64] = "hello wolfssl!";
     char reply[1024];
     int  input;
     int  msgSz = (int)strlen(msg);
 
-#ifdef CYASSL_TIRTOS
+#ifdef WOLFSSL_TIRTOS
     fdOpenSession(Task_self());
 #endif
 
     ((func_args*)args)->return_code = TEST_FAIL;
-    method = CyaSSLv23_client_method();
-    ctx = CyaSSL_CTX_new(method);
+    method = wolfSSLv23_client_method();
+    ctx = wolfSSL_CTX_new(method);
 
 #ifdef OPENSSL_EXTRA
-    CyaSSL_CTX_set_default_passwd_cb(ctx, PasswordCallBack);
+    wolfSSL_CTX_set_default_passwd_cb(ctx, PasswordCallBack);
 #endif
 
-    if (CyaSSL_CTX_load_verify_locations(ctx, caCert, 0) != SSL_SUCCESS)
+    if (wolfSSL_CTX_load_verify_locations(ctx, caCert, 0) != SSL_SUCCESS)
     {
-        /* err_sys("can't load ca file, Please run from CyaSSL home dir");*/
+        /* err_sys("can't load ca file, Please run from wolfSSL home dir");*/
         goto done2;
     }
-    if (CyaSSL_CTX_use_certificate_file(ctx, cliCert, SSL_FILETYPE_PEM)
+    if (wolfSSL_CTX_use_certificate_file(ctx, cliCert, SSL_FILETYPE_PEM)
             != SSL_SUCCESS)
     {
         /*err_sys("can't load client cert file, "
-                "Please run from CyaSSL home dir");*/
+                "Please run from wolfSSL home dir");*/
         goto done2;
     }
-    if (CyaSSL_CTX_use_PrivateKey_file(ctx, cliKey, SSL_FILETYPE_PEM)
+    if (wolfSSL_CTX_use_PrivateKey_file(ctx, cliKey, SSL_FILETYPE_PEM)
             != SSL_SUCCESS)
     {
         /*err_sys("can't load client key file, "
-                "Please run from CyaSSL home dir");*/
+                "Please run from wolfSSL home dir");*/
         goto done2;
     }
 
     tcp_connect(&sockfd, yasslIP, ((func_args*)args)->signal->port, 0);
 
-    ssl = CyaSSL_new(ctx);
-    CyaSSL_set_fd(ssl, sockfd);
-    if (CyaSSL_connect(ssl) != SSL_SUCCESS)
+    ssl = wolfSSL_new(ctx);
+    wolfSSL_set_fd(ssl, sockfd);
+    if (wolfSSL_connect(ssl) != SSL_SUCCESS)
     {
-        int  err = CyaSSL_get_error(ssl, 0);
-        char buffer[CYASSL_MAX_ERROR_SZ];
-        printf("err = %d, %s\n", err, CyaSSL_ERR_error_string(err, buffer));
+        int  err = wolfSSL_get_error(ssl, 0);
+        char buffer[WOLFSSL_MAX_ERROR_SZ];
+        printf("err = %d, %s\n", err, wolfSSL_ERR_error_string(err, buffer));
         /*printf("SSL_connect failed");*/
         goto done2;
     }
 
-    if (CyaSSL_write(ssl, msg, msgSz) != msgSz)
+    if (wolfSSL_write(ssl, msg, msgSz) != msgSz)
     {
         /*err_sys("SSL_write failed");*/
         goto done2;
     }
 
-    input = CyaSSL_read(ssl, reply, sizeof(reply)-1);
+    input = wolfSSL_read(ssl, reply, sizeof(reply)-1);
     if (input > 0)
     {
         reply[input] = 0;
@@ -490,13 +490,13 @@ static void test_client_nofail(void* args)
     }
 
 done2:
-    CyaSSL_free(ssl);
-    CyaSSL_CTX_free(ctx);
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
     
     CloseSocket(sockfd);
     ((func_args*)args)->return_code = TEST_SUCCESS;
 
-#ifdef CYASSL_TIRTOS
+#ifdef WOLFSSL_TIRTOS
     fdCloseSession(Task_self());
 #endif
 
@@ -506,12 +506,12 @@ done2:
 /* SNI helper functions */
 #ifdef HAVE_SNI
 
-static THREAD_RETURN CYASSL_THREAD run_cyassl_server(void* args)
+static THREAD_RETURN WOLFSSL_THREAD run_wolfssl_server(void* args)
 {
     callback_functions* callbacks = ((func_args*)args)->callbacks;
 
-    CYASSL_CTX* ctx = CyaSSL_CTX_new(callbacks->method());
-    CYASSL*     ssl = NULL;
+    WOLFSSL_CTX* ctx = wolfSSL_CTX_new(callbacks->method());
+    WOLFSSL*     ssl = NULL;
     SOCKET_T    sfd = 0;
     SOCKET_T    cfd = 0;
     word16      port = yasslPort;
@@ -521,46 +521,46 @@ static THREAD_RETURN CYASSL_THREAD run_cyassl_server(void* args)
     char input[1024];
     int  idx;
 
-#ifdef CYASSL_TIRTOS
+#ifdef WOLFSSL_TIRTOS
     fdOpenSession(Task_self());
 #endif
     ((func_args*)args)->return_code = TEST_FAIL;
 
 #if defined(NO_MAIN_DRIVER) && !defined(USE_WINDOWS_API) && \
-   !defined(CYASSL_SNIFFER) && !defined(CYASSL_MDK_SHELL) && \
-   !defined(CYASSL_TIRTOS)
+   !defined(WOLFSSL_SNIFFER) && !defined(WOLFSSL_MDK_SHELL) && \
+   !defined(WOLFSSL_TIRTOS)
     port = 0;
 #endif
 
-    CyaSSL_CTX_set_verify(ctx,
+    wolfSSL_CTX_set_verify(ctx,
                           SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT, 0);
 
 #ifdef OPENSSL_EXTRA
-    CyaSSL_CTX_set_default_passwd_cb(ctx, PasswordCallBack);
+    wolfSSL_CTX_set_default_passwd_cb(ctx, PasswordCallBack);
 #endif
 
 
-    AssertIntEQ(SSL_SUCCESS, CyaSSL_CTX_load_verify_locations(ctx, cliCert, 0));
+    AssertIntEQ(SSL_SUCCESS, wolfSSL_CTX_load_verify_locations(ctx, cliCert, 0));
 
     AssertIntEQ(SSL_SUCCESS,
-               CyaSSL_CTX_use_certificate_file(ctx, svrCert, SSL_FILETYPE_PEM));
+               wolfSSL_CTX_use_certificate_file(ctx, svrCert, SSL_FILETYPE_PEM));
 
     AssertIntEQ(SSL_SUCCESS,
-                 CyaSSL_CTX_use_PrivateKey_file(ctx, svrKey, SSL_FILETYPE_PEM));
+                 wolfSSL_CTX_use_PrivateKey_file(ctx, svrKey, SSL_FILETYPE_PEM));
 
     if (callbacks->ctx_ready)
         callbacks->ctx_ready(ctx);
 
-    ssl = CyaSSL_new(ctx);
+    ssl = wolfSSL_new(ctx);
 
     tcp_accept(&sfd, &cfd, (func_args*)args, port, 0, 0, 0);
     CloseSocket(sfd);
 
-    CyaSSL_set_fd(ssl, cfd);
+    wolfSSL_set_fd(ssl, cfd);
 
 #ifdef NO_PSK
     #if !defined(NO_FILESYSTEM) && !defined(NO_DH)
-        CyaSSL_SetTmpDH_file(ssl, dhParam, SSL_FILETYPE_PEM);
+        wolfSSL_SetTmpDH_file(ssl, dhParam, SSL_FILETYPE_PEM);
     #elif !defined(NO_DH)
         SetDH(ssl);  /* will repick suites with DHE, higher priority than PSK */
     #endif
@@ -569,35 +569,35 @@ static THREAD_RETURN CYASSL_THREAD run_cyassl_server(void* args)
     if (callbacks->ssl_ready)
         callbacks->ssl_ready(ssl);
 
-    /* AssertIntEQ(SSL_SUCCESS, CyaSSL_accept(ssl)); */
-    if (CyaSSL_accept(ssl) != SSL_SUCCESS) {
-        int err = CyaSSL_get_error(ssl, 0);
-        char buffer[CYASSL_MAX_ERROR_SZ];
-        printf("error = %d, %s\n", err, CyaSSL_ERR_error_string(err, buffer));
+    /* AssertIntEQ(SSL_SUCCESS, wolfSSL_accept(ssl)); */
+    if (wolfSSL_accept(ssl) != SSL_SUCCESS) {
+        int err = wolfSSL_get_error(ssl, 0);
+        char buffer[WOLFSSL_MAX_ERROR_SZ];
+        printf("error = %d, %s\n", err, wolfSSL_ERR_error_string(err, buffer));
 
     } else {
-        if (0 < (idx = CyaSSL_read(ssl, input, sizeof(input)-1))) {
+        if (0 < (idx = wolfSSL_read(ssl, input, sizeof(input)-1))) {
             input[idx] = 0;
             printf("Client message: %s\n", input);
         }
 
-        AssertIntEQ(len, CyaSSL_write(ssl, msg, len));
-#ifdef CYASSL_TIRTOS
+        AssertIntEQ(len, wolfSSL_write(ssl, msg, len));
+#ifdef WOLFSSL_TIRTOS
         Task_yield();
 #endif
-        CyaSSL_shutdown(ssl);
+        wolfSSL_shutdown(ssl);
     }
 
     if (callbacks->on_result)
         callbacks->on_result(ssl);
 
-    CyaSSL_free(ssl);
-    CyaSSL_CTX_free(ctx);
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
     CloseSocket(cfd);
 
     ((func_args*)args)->return_code = TEST_SUCCESS;
 
-#ifdef CYASSL_TIRTOS
+#ifdef WOLFSSL_TIRTOS
     fdCloseSession(Task_self());
 #endif
 
@@ -606,63 +606,63 @@ static THREAD_RETURN CYASSL_THREAD run_cyassl_server(void* args)
     ecc_fp_free();  /* free per thread cache */
 #endif
 
-#ifndef CYASSL_TIRTOS
+#ifndef WOLFSSL_TIRTOS
     return 0;
 #endif
 }
 
 
-static void run_cyassl_client(void* args)
+static void run_wolfssl_client(void* args)
 {
     callback_functions* callbacks = ((func_args*)args)->callbacks;
 
-    CYASSL_CTX* ctx = CyaSSL_CTX_new(callbacks->method());
-    CYASSL*     ssl = NULL;
+    WOLFSSL_CTX* ctx = wolfSSL_CTX_new(callbacks->method());
+    WOLFSSL*     ssl = NULL;
     SOCKET_T    sfd = 0;
 
-    char msg[] = "hello cyassl server!";
+    char msg[] = "hello wolfssl server!";
     int  len   = (int) XSTRLEN(msg);
     char input[1024];
     int  idx;
 
-#ifdef CYASSL_TIRTOS
+#ifdef WOLFSSL_TIRTOS
     fdOpenSession(Task_self());
 #endif
 
     ((func_args*)args)->return_code = TEST_FAIL;
 
 #ifdef OPENSSL_EXTRA
-    CyaSSL_CTX_set_default_passwd_cb(ctx, PasswordCallBack);
+    wolfSSL_CTX_set_default_passwd_cb(ctx, PasswordCallBack);
 #endif
 
-    AssertIntEQ(SSL_SUCCESS, CyaSSL_CTX_load_verify_locations(ctx, caCert, 0));
+    AssertIntEQ(SSL_SUCCESS, wolfSSL_CTX_load_verify_locations(ctx, caCert, 0));
 
     AssertIntEQ(SSL_SUCCESS,
-               CyaSSL_CTX_use_certificate_file(ctx, cliCert, SSL_FILETYPE_PEM));
+               wolfSSL_CTX_use_certificate_file(ctx, cliCert, SSL_FILETYPE_PEM));
 
     AssertIntEQ(SSL_SUCCESS,
-                 CyaSSL_CTX_use_PrivateKey_file(ctx, cliKey, SSL_FILETYPE_PEM));
+                 wolfSSL_CTX_use_PrivateKey_file(ctx, cliKey, SSL_FILETYPE_PEM));
 
     if (callbacks->ctx_ready)
         callbacks->ctx_ready(ctx);
 
     tcp_connect(&sfd, yasslIP, ((func_args*)args)->signal->port, 0);
 
-    ssl = CyaSSL_new(ctx);
-    CyaSSL_set_fd(ssl, sfd);
+    ssl = wolfSSL_new(ctx);
+    wolfSSL_set_fd(ssl, sfd);
 
     if (callbacks->ssl_ready)
         callbacks->ssl_ready(ssl);
 
-    if (CyaSSL_connect(ssl) != SSL_SUCCESS) {
-        int err = CyaSSL_get_error(ssl, 0);
-        char buffer[CYASSL_MAX_ERROR_SZ];
-        printf("error = %d, %s\n", err, CyaSSL_ERR_error_string(err, buffer));
+    if (wolfSSL_connect(ssl) != SSL_SUCCESS) {
+        int err = wolfSSL_get_error(ssl, 0);
+        char buffer[WOLFSSL_MAX_ERROR_SZ];
+        printf("error = %d, %s\n", err, wolfSSL_ERR_error_string(err, buffer));
 
     } else {
-        AssertIntEQ(len, CyaSSL_write(ssl, msg, len));
+        AssertIntEQ(len, wolfSSL_write(ssl, msg, len));
 
-        if (0 < (idx = CyaSSL_read(ssl, input, sizeof(input)-1))) {
+        if (0 < (idx = wolfSSL_read(ssl, input, sizeof(input)-1))) {
             input[idx] = 0;
             printf("Server response: %s\n", input);
         }
@@ -671,12 +671,12 @@ static void run_cyassl_client(void* args)
     if (callbacks->on_result)
         callbacks->on_result(ssl);
 
-    CyaSSL_free(ssl);
-    CyaSSL_CTX_free(ctx);
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
     CloseSocket(sfd);
     ((func_args*)args)->return_code = TEST_SUCCESS;
 
-#ifdef CYASSL_TIRTOS
+#ifdef WOLFSSL_TIRTOS
     fdCloseSession(Task_self());
 #endif
 }
@@ -685,7 +685,7 @@ static void run_cyassl_client(void* args)
 #endif /* io tests dependencies */
 
 
-static void test_CyaSSL_read_write(void)
+static void test_wolfSSL_read_write(void)
 {
 #ifdef HAVE_IO_TESTS_DEPENDENCIES
     /* The unit testing for read and write shall happen simutaneously, since
@@ -712,7 +712,7 @@ static void test_CyaSSL_read_write(void)
     func_args server_args;
     THREAD_TYPE serverThread;
 
-#ifdef CYASSL_TIRTOS
+#ifdef WOLFSSL_TIRTOS
     fdOpenSession(Task_self());
 #endif
 
@@ -732,7 +732,7 @@ static void test_CyaSSL_read_write(void)
 
     FreeTcpReady(&ready);
 
-#ifdef CYASSL_TIRTOS
+#ifdef WOLFSSL_TIRTOS
     fdOpenSession(Task_self());
 #endif
 
@@ -744,102 +744,102 @@ static void test_CyaSSL_read_write(void)
  *----------------------------------------------------------------------------*/
 
 #ifdef HAVE_SNI
-static void use_SNI_at_ctx(CYASSL_CTX* ctx)
+static void use_SNI_at_ctx(WOLFSSL_CTX* ctx)
 {
-    byte type = CYASSL_SNI_HOST_NAME;
+    byte type = WOLFSSL_SNI_HOST_NAME;
     char name[] = "www.yassl.com";
 
     AssertIntEQ(SSL_SUCCESS,
-                    CyaSSL_CTX_UseSNI(ctx, type, (void *) name, XSTRLEN(name)));
+                    wolfSSL_CTX_UseSNI(ctx, type, (void *) name, XSTRLEN(name)));
 }
 
-static void use_SNI_at_ssl(CYASSL* ssl)
+static void use_SNI_at_ssl(WOLFSSL* ssl)
 {
-    byte type = CYASSL_SNI_HOST_NAME;
+    byte type = WOLFSSL_SNI_HOST_NAME;
     char name[] = "www.yassl.com";
 
     AssertIntEQ(SSL_SUCCESS,
-                        CyaSSL_UseSNI(ssl, type, (void *) name, XSTRLEN(name)));
+                        wolfSSL_UseSNI(ssl, type, (void *) name, XSTRLEN(name)));
 }
 
-static void different_SNI_at_ssl(CYASSL* ssl)
+static void different_SNI_at_ssl(WOLFSSL* ssl)
 {
-    byte type = CYASSL_SNI_HOST_NAME;
+    byte type = WOLFSSL_SNI_HOST_NAME;
     char name[] = "ww2.yassl.com";
 
     AssertIntEQ(SSL_SUCCESS,
-                        CyaSSL_UseSNI(ssl, type, (void *) name, XSTRLEN(name)));
+                        wolfSSL_UseSNI(ssl, type, (void *) name, XSTRLEN(name)));
 }
 
-static void use_SNI_WITH_CONTINUE_at_ssl(CYASSL* ssl)
+static void use_SNI_WITH_CONTINUE_at_ssl(WOLFSSL* ssl)
 {
-    byte type = CYASSL_SNI_HOST_NAME;
+    byte type = WOLFSSL_SNI_HOST_NAME;
 
     use_SNI_at_ssl(ssl);
 
-    CyaSSL_SNI_SetOptions(ssl, type, CYASSL_SNI_CONTINUE_ON_MISMATCH);
+    wolfSSL_SNI_SetOptions(ssl, type, WOLFSSL_SNI_CONTINUE_ON_MISMATCH);
 }
 
-static void use_SNI_WITH_FAKE_ANSWER_at_ssl(CYASSL* ssl)
+static void use_SNI_WITH_FAKE_ANSWER_at_ssl(WOLFSSL* ssl)
 {
-    byte type = CYASSL_SNI_HOST_NAME;
+    byte type = WOLFSSL_SNI_HOST_NAME;
 
     use_SNI_at_ssl(ssl);
 
-    CyaSSL_SNI_SetOptions(ssl, type, CYASSL_SNI_ANSWER_ON_MISMATCH);
+    wolfSSL_SNI_SetOptions(ssl, type, WOLFSSL_SNI_ANSWER_ON_MISMATCH);
 }
 
-static void verify_SNI_abort_on_client(CYASSL* ssl)
+static void verify_SNI_abort_on_client(WOLFSSL* ssl)
 {
-    AssertIntEQ(FATAL_ERROR, CyaSSL_get_error(ssl, 0));
+    AssertIntEQ(FATAL_ERROR, wolfSSL_get_error(ssl, 0));
 }
 
-static void verify_SNI_abort_on_server(CYASSL* ssl)
+static void verify_SNI_abort_on_server(WOLFSSL* ssl)
 {
-    AssertIntEQ(UNKNOWN_SNI_HOST_NAME_E, CyaSSL_get_error(ssl, 0));
+    AssertIntEQ(UNKNOWN_SNI_HOST_NAME_E, wolfSSL_get_error(ssl, 0));
 }
 
-static void verify_SNI_no_matching(CYASSL* ssl)
+static void verify_SNI_no_matching(WOLFSSL* ssl)
 {
-    byte  type    = CYASSL_SNI_HOST_NAME;
+    byte  type    = WOLFSSL_SNI_HOST_NAME;
     char* request = (char*) &type; /* to be overwriten */
 
-    AssertIntEQ(CYASSL_SNI_NO_MATCH, CyaSSL_SNI_Status(ssl, type));
+    AssertIntEQ(WOLFSSL_SNI_NO_MATCH, wolfSSL_SNI_Status(ssl, type));
 
     AssertNotNull(request);
-    AssertIntEQ(0, CyaSSL_SNI_GetRequest(ssl, type, (void**) &request));
+    AssertIntEQ(0, wolfSSL_SNI_GetRequest(ssl, type, (void**) &request));
     AssertNull(request);
 }
 
-static void verify_SNI_real_matching(CYASSL* ssl)
+static void verify_SNI_real_matching(WOLFSSL* ssl)
 {
-    byte   type    = CYASSL_SNI_HOST_NAME;
+    byte   type    = WOLFSSL_SNI_HOST_NAME;
     char*  request = NULL;
     char   name[]  = "www.yassl.com";
     word16 length  = XSTRLEN(name);
 
-    AssertIntEQ(CYASSL_SNI_REAL_MATCH, CyaSSL_SNI_Status(ssl, type));
+    AssertIntEQ(WOLFSSL_SNI_REAL_MATCH, wolfSSL_SNI_Status(ssl, type));
 
-    AssertIntEQ(length, CyaSSL_SNI_GetRequest(ssl, type, (void**) &request));
+    AssertIntEQ(length, wolfSSL_SNI_GetRequest(ssl, type, (void**) &request));
     AssertNotNull(request);
     AssertStrEQ(name, request);
 }
 
-static void verify_SNI_fake_matching(CYASSL* ssl)
+static void verify_SNI_fake_matching(WOLFSSL* ssl)
 {
-    byte   type    = CYASSL_SNI_HOST_NAME;
+    byte   type    = WOLFSSL_SNI_HOST_NAME;
     char*  request = NULL;
     char   name[]  = "ww2.yassl.com";
     word16 length  = XSTRLEN(name);
 
-    AssertIntEQ(CYASSL_SNI_FAKE_MATCH, CyaSSL_SNI_Status(ssl, type));
+    AssertIntEQ(WOLFSSL_SNI_FAKE_MATCH, wolfSSL_SNI_Status(ssl, type));
 
-    AssertIntEQ(length, CyaSSL_SNI_GetRequest(ssl, type, (void**) &request));
+    AssertIntEQ(length, wolfSSL_SNI_GetRequest(ssl, type, (void**) &request));
     AssertNotNull(request);
     AssertStrEQ(name, request);
 }
 
-static void test_CyaSSL_SNI_GetFromBuffer(void)
+static void test_wolfSSL_SNI_GetFromBuffer(void)
 {
     byte buffer[] = { /* www.paypal.com */
         0x00, 0x00, 0x00, 0x00, 0xff, 0x01, 0x00, 0x00, 0x60, 0x03, 0x03, 0x5c,
@@ -906,45 +906,45 @@ static void test_CyaSSL_SNI_GetFromBuffer(void)
     byte result[32] = {0};
     word32 length   = 32;
 
-    AssertIntEQ(0, CyaSSL_SNI_GetFromBuffer(buffer4, sizeof(buffer4),
+    AssertIntEQ(0, wolfSSL_SNI_GetFromBuffer(buffer4, sizeof(buffer4),
                                                            0, result, &length));
 
-    AssertIntEQ(0, CyaSSL_SNI_GetFromBuffer(buffer3, sizeof(buffer3),
+    AssertIntEQ(0, wolfSSL_SNI_GetFromBuffer(buffer3, sizeof(buffer3),
                                                            0, result, &length));
 
-    AssertIntEQ(0, CyaSSL_SNI_GetFromBuffer(buffer2, sizeof(buffer2),
+    AssertIntEQ(0, wolfSSL_SNI_GetFromBuffer(buffer2, sizeof(buffer2),
                                                            1, result, &length));
 
-    AssertIntEQ(BUFFER_ERROR, CyaSSL_SNI_GetFromBuffer(buffer, sizeof(buffer),
+    AssertIntEQ(BUFFER_ERROR, wolfSSL_SNI_GetFromBuffer(buffer, sizeof(buffer),
                                                            0, result, &length));
     buffer[0] = 0x16;
 
-    AssertIntEQ(BUFFER_ERROR, CyaSSL_SNI_GetFromBuffer(buffer, sizeof(buffer),
+    AssertIntEQ(BUFFER_ERROR, wolfSSL_SNI_GetFromBuffer(buffer, sizeof(buffer),
                                                            0, result, &length));
     buffer[1] = 0x03;
 
-    AssertIntEQ(SNI_UNSUPPORTED, CyaSSL_SNI_GetFromBuffer(buffer, 
+    AssertIntEQ(SNI_UNSUPPORTED, wolfSSL_SNI_GetFromBuffer(buffer, 
                                            sizeof(buffer), 0, result, &length));
     buffer[2] = 0x03;
 
-    AssertIntEQ(INCOMPLETE_DATA, CyaSSL_SNI_GetFromBuffer(buffer,
+    AssertIntEQ(INCOMPLETE_DATA, wolfSSL_SNI_GetFromBuffer(buffer,
                                            sizeof(buffer), 0, result, &length));
     buffer[4] = 0x64;
 
-    AssertIntEQ(SSL_SUCCESS, CyaSSL_SNI_GetFromBuffer(buffer, sizeof(buffer),
+    AssertIntEQ(SSL_SUCCESS, wolfSSL_SNI_GetFromBuffer(buffer, sizeof(buffer),
                                                            0, result, &length));
     result[length] = 0;
     AssertStrEQ("www.paypal.com", (const char*) result);
 
     length = 32;
 
-    AssertIntEQ(SSL_SUCCESS, CyaSSL_SNI_GetFromBuffer(buffer2, sizeof(buffer2),
+    AssertIntEQ(SSL_SUCCESS, wolfSSL_SNI_GetFromBuffer(buffer2, sizeof(buffer2),
                                                            0, result, &length));
     result[length] = 0;
     AssertStrEQ("api.textmate.org", (const char*) result);
 }
 
-static void test_CyaSSL_client_server(callback_functions* client_callbacks,
+static void test_wolfSSL_client_server(callback_functions* client_callbacks,
                                       callback_functions* server_callbacks)
 {
 #ifdef HAVE_IO_TESTS_DEPENDENCIES
@@ -958,7 +958,7 @@ static void test_CyaSSL_client_server(callback_functions* client_callbacks,
     client_args.callbacks = client_callbacks;
     server_args.callbacks = server_callbacks;
 
-#ifdef CYASSL_TIRTOS
+#ifdef WOLFSSL_TIRTOS
     fdOpenSession(Task_self());
 #endif
 
@@ -966,15 +966,15 @@ static void test_CyaSSL_client_server(callback_functions* client_callbacks,
     InitTcpReady(&ready);
     server_args.signal = &ready;
     client_args.signal = &ready;
-    start_thread(run_cyassl_server, &server_args, &serverThread);
+    start_thread(run_wolfssl_server, &server_args, &serverThread);
     wait_tcp_ready(&server_args);
 
     /* RUN Client side */
-    run_cyassl_client(&client_args);
+    run_wolfssl_client(&client_args);
     join_thread(serverThread);
 
     FreeTcpReady(&ready);
-#ifdef CYASSL_TIRTOS
+#ifdef WOLFSSL_TIRTOS
     fdCloseSession(Task_self());
 #endif
     
@@ -986,59 +986,59 @@ static void test_CyaSSL_client_server(callback_functions* client_callbacks,
 
 #endif /* HAVE_SNI */
 
-static void test_CyaSSL_UseSNI(void)
+static void test_wolfSSL_UseSNI(void)
 {
 #ifdef HAVE_SNI
-    callback_functions client_callbacks = {CyaSSLv23_client_method, 0, 0, 0};
-    callback_functions server_callbacks = {CyaSSLv23_server_method, 0, 0, 0};
+    callback_functions client_callbacks = {wolfSSLv23_client_method, 0, 0, 0};
+    callback_functions server_callbacks = {wolfSSLv23_server_method, 0, 0, 0};
 
-    CYASSL_CTX *ctx = CyaSSL_CTX_new(CyaSSLv23_client_method());
-    CYASSL     *ssl = CyaSSL_new(ctx);
+    WOLFSSL_CTX *ctx = wolfSSL_CTX_new(wolfSSLv23_client_method());
+    WOLFSSL     *ssl = wolfSSL_new(ctx);
 
     AssertNotNull(ctx);
     AssertNotNull(ssl);
 
     /* error cases */
     AssertIntNE(SSL_SUCCESS,
-                    CyaSSL_CTX_UseSNI(NULL, 0, (void *) "ctx", XSTRLEN("ctx")));
+                    wolfSSL_CTX_UseSNI(NULL, 0, (void *) "ctx", XSTRLEN("ctx")));
     AssertIntNE(SSL_SUCCESS,
-                    CyaSSL_UseSNI(    NULL, 0, (void *) "ssl", XSTRLEN("ssl")));
+                    wolfSSL_UseSNI(    NULL, 0, (void *) "ssl", XSTRLEN("ssl")));
     AssertIntNE(SSL_SUCCESS,
-                    CyaSSL_CTX_UseSNI(ctx, -1, (void *) "ctx", XSTRLEN("ctx")));
+                    wolfSSL_CTX_UseSNI(ctx, -1, (void *) "ctx", XSTRLEN("ctx")));
     AssertIntNE(SSL_SUCCESS,
-                    CyaSSL_UseSNI(    ssl, -1, (void *) "ssl", XSTRLEN("ssl")));
+                    wolfSSL_UseSNI(    ssl, -1, (void *) "ssl", XSTRLEN("ssl")));
     AssertIntNE(SSL_SUCCESS,
-                    CyaSSL_CTX_UseSNI(ctx,  0, (void *) NULL,  XSTRLEN("ctx")));
+                    wolfSSL_CTX_UseSNI(ctx,  0, (void *) NULL,  XSTRLEN("ctx")));
     AssertIntNE(SSL_SUCCESS,
-                    CyaSSL_UseSNI(    ssl,  0, (void *) NULL,  XSTRLEN("ssl")));
+                    wolfSSL_UseSNI(    ssl,  0, (void *) NULL,  XSTRLEN("ssl")));
 
     /* success case */
     AssertIntEQ(SSL_SUCCESS,
-                    CyaSSL_CTX_UseSNI(ctx,  0, (void *) "ctx", XSTRLEN("ctx")));
+                    wolfSSL_CTX_UseSNI(ctx,  0, (void *) "ctx", XSTRLEN("ctx")));
     AssertIntEQ(SSL_SUCCESS,
-                    CyaSSL_UseSNI(    ssl,  0, (void *) "ssl", XSTRLEN("ssl")));
+                    wolfSSL_UseSNI(    ssl,  0, (void *) "ssl", XSTRLEN("ssl")));
 
-    CyaSSL_free(ssl);
-    CyaSSL_CTX_free(ctx);
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
 
     /* Testing success case at ctx */
     client_callbacks.ctx_ready = server_callbacks.ctx_ready = use_SNI_at_ctx;
     server_callbacks.on_result = verify_SNI_real_matching;
 
-    test_CyaSSL_client_server(&client_callbacks, &server_callbacks);
+    test_wolfSSL_client_server(&client_callbacks, &server_callbacks);
 
     /* Testing success case at ssl */
     client_callbacks.ctx_ready = server_callbacks.ctx_ready = NULL;
     client_callbacks.ssl_ready = server_callbacks.ssl_ready = use_SNI_at_ssl;
 
-    test_CyaSSL_client_server(&client_callbacks, &server_callbacks);
+    test_wolfSSL_client_server(&client_callbacks, &server_callbacks);
 
     /* Testing default mismatch behaviour */
     client_callbacks.ssl_ready = different_SNI_at_ssl;
     client_callbacks.on_result = verify_SNI_abort_on_client;
     server_callbacks.on_result = verify_SNI_abort_on_server;
 
-    test_CyaSSL_client_server(&client_callbacks, &server_callbacks);
+    test_wolfSSL_client_server(&client_callbacks, &server_callbacks);
     client_callbacks.on_result = NULL;
 
     /* Testing continue on mismatch */
@@ -1046,102 +1046,102 @@ static void test_CyaSSL_UseSNI(void)
     server_callbacks.ssl_ready = use_SNI_WITH_CONTINUE_at_ssl;
     server_callbacks.on_result = verify_SNI_no_matching;
 
-    test_CyaSSL_client_server(&client_callbacks, &server_callbacks);
+    test_wolfSSL_client_server(&client_callbacks, &server_callbacks);
 
     /* Testing fake answer on mismatch */
     server_callbacks.ssl_ready = use_SNI_WITH_FAKE_ANSWER_at_ssl;
     server_callbacks.on_result = verify_SNI_fake_matching;
 
-    test_CyaSSL_client_server(&client_callbacks, &server_callbacks);
+    test_wolfSSL_client_server(&client_callbacks, &server_callbacks);
 
-    test_CyaSSL_SNI_GetFromBuffer();
+    test_wolfSSL_SNI_GetFromBuffer();
 #endif
 }
 
-static void test_CyaSSL_UseMaxFragment(void)
+static void test_wolfSSL_UseMaxFragment(void)
 {
 #ifdef HAVE_MAX_FRAGMENT
-    CYASSL_CTX *ctx = CyaSSL_CTX_new(CyaSSLv23_client_method());
-    CYASSL     *ssl = CyaSSL_new(ctx);
+    WOLFSSL_CTX *ctx = wolfSSL_CTX_new(wolfSSLv23_client_method());
+    WOLFSSL     *ssl = wolfSSL_new(ctx);
 
     AssertNotNull(ctx);
     AssertNotNull(ssl);
 
     /* error cases */
-    AssertIntNE(SSL_SUCCESS, CyaSSL_CTX_UseMaxFragment(NULL, CYASSL_MFL_2_9));
-    AssertIntNE(SSL_SUCCESS, CyaSSL_UseMaxFragment(    NULL, CYASSL_MFL_2_9));
-    AssertIntNE(SSL_SUCCESS, CyaSSL_CTX_UseMaxFragment(ctx, 0));
-    AssertIntNE(SSL_SUCCESS, CyaSSL_CTX_UseMaxFragment(ctx, 6));
-    AssertIntNE(SSL_SUCCESS, CyaSSL_UseMaxFragment(ssl, 0));
-    AssertIntNE(SSL_SUCCESS, CyaSSL_UseMaxFragment(ssl, 6));
+    AssertIntNE(SSL_SUCCESS, wolfSSL_CTX_UseMaxFragment(NULL, WOLFSSL_MFL_2_9));
+    AssertIntNE(SSL_SUCCESS, wolfSSL_UseMaxFragment(    NULL, WOLFSSL_MFL_2_9));
+    AssertIntNE(SSL_SUCCESS, wolfSSL_CTX_UseMaxFragment(ctx, 0));
+    AssertIntNE(SSL_SUCCESS, wolfSSL_CTX_UseMaxFragment(ctx, 6));
+    AssertIntNE(SSL_SUCCESS, wolfSSL_UseMaxFragment(ssl, 0));
+    AssertIntNE(SSL_SUCCESS, wolfSSL_UseMaxFragment(ssl, 6));
 
     /* success case */
-    AssertIntEQ(SSL_SUCCESS, CyaSSL_CTX_UseMaxFragment(ctx,  CYASSL_MFL_2_9));
-    AssertIntEQ(SSL_SUCCESS, CyaSSL_CTX_UseMaxFragment(ctx,  CYASSL_MFL_2_10));
-    AssertIntEQ(SSL_SUCCESS, CyaSSL_CTX_UseMaxFragment(ctx,  CYASSL_MFL_2_11));
-    AssertIntEQ(SSL_SUCCESS, CyaSSL_CTX_UseMaxFragment(ctx,  CYASSL_MFL_2_12));
-    AssertIntEQ(SSL_SUCCESS, CyaSSL_CTX_UseMaxFragment(ctx,  CYASSL_MFL_2_13));
-    AssertIntEQ(SSL_SUCCESS, CyaSSL_UseMaxFragment(    ssl,  CYASSL_MFL_2_9));
-    AssertIntEQ(SSL_SUCCESS, CyaSSL_UseMaxFragment(    ssl,  CYASSL_MFL_2_10));
-    AssertIntEQ(SSL_SUCCESS, CyaSSL_UseMaxFragment(    ssl,  CYASSL_MFL_2_11));
-    AssertIntEQ(SSL_SUCCESS, CyaSSL_UseMaxFragment(    ssl,  CYASSL_MFL_2_12));
-    AssertIntEQ(SSL_SUCCESS, CyaSSL_UseMaxFragment(    ssl,  CYASSL_MFL_2_13));
+    AssertIntEQ(SSL_SUCCESS, wolfSSL_CTX_UseMaxFragment(ctx,  WOLFSSL_MFL_2_9));
+    AssertIntEQ(SSL_SUCCESS, wolfSSL_CTX_UseMaxFragment(ctx,  WOLFSSL_MFL_2_10));
+    AssertIntEQ(SSL_SUCCESS, wolfSSL_CTX_UseMaxFragment(ctx,  WOLFSSL_MFL_2_11));
+    AssertIntEQ(SSL_SUCCESS, wolfSSL_CTX_UseMaxFragment(ctx,  WOLFSSL_MFL_2_12));
+    AssertIntEQ(SSL_SUCCESS, wolfSSL_CTX_UseMaxFragment(ctx,  WOLFSSL_MFL_2_13));
+    AssertIntEQ(SSL_SUCCESS, wolfSSL_UseMaxFragment(    ssl,  WOLFSSL_MFL_2_9));
+    AssertIntEQ(SSL_SUCCESS, wolfSSL_UseMaxFragment(    ssl,  WOLFSSL_MFL_2_10));
+    AssertIntEQ(SSL_SUCCESS, wolfSSL_UseMaxFragment(    ssl,  WOLFSSL_MFL_2_11));
+    AssertIntEQ(SSL_SUCCESS, wolfSSL_UseMaxFragment(    ssl,  WOLFSSL_MFL_2_12));
+    AssertIntEQ(SSL_SUCCESS, wolfSSL_UseMaxFragment(    ssl,  WOLFSSL_MFL_2_13));
 
-    CyaSSL_free(ssl);
-    CyaSSL_CTX_free(ctx);
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
 #endif
 }
 
-static void test_CyaSSL_UseTruncatedHMAC(void)
+static void test_wolfSSL_UseTruncatedHMAC(void)
 {
 #ifdef HAVE_TRUNCATED_HMAC
-    CYASSL_CTX *ctx = CyaSSL_CTX_new(CyaSSLv23_client_method());
-    CYASSL     *ssl = CyaSSL_new(ctx);
+    WOLFSSL_CTX *ctx = wolfSSL_CTX_new(wolfSSLv23_client_method());
+    WOLFSSL     *ssl = wolfSSL_new(ctx);
 
     AssertNotNull(ctx);
     AssertNotNull(ssl);
 
     /* error cases */
-    AssertIntNE(SSL_SUCCESS, CyaSSL_CTX_UseTruncatedHMAC(NULL));
-    AssertIntNE(SSL_SUCCESS, CyaSSL_UseTruncatedHMAC(NULL));
+    AssertIntNE(SSL_SUCCESS, wolfSSL_CTX_UseTruncatedHMAC(NULL));
+    AssertIntNE(SSL_SUCCESS, wolfSSL_UseTruncatedHMAC(NULL));
 
     /* success case */
-    AssertIntEQ(SSL_SUCCESS, CyaSSL_CTX_UseTruncatedHMAC(ctx));
-    AssertIntEQ(SSL_SUCCESS, CyaSSL_UseTruncatedHMAC(ssl));
+    AssertIntEQ(SSL_SUCCESS, wolfSSL_CTX_UseTruncatedHMAC(ctx));
+    AssertIntEQ(SSL_SUCCESS, wolfSSL_UseTruncatedHMAC(ssl));
 
-    CyaSSL_free(ssl);
-    CyaSSL_CTX_free(ctx);
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
 #endif
 }
 
-static void test_CyaSSL_UseSupportedCurve(void)
+static void test_wolfSSL_UseSupportedCurve(void)
 {
 #ifdef HAVE_SUPPORTED_CURVES
-    CYASSL_CTX *ctx = CyaSSL_CTX_new(CyaSSLv23_client_method());
-    CYASSL     *ssl = CyaSSL_new(ctx);
+    WOLFSSL_CTX *ctx = wolfSSL_CTX_new(wolfSSLv23_client_method());
+    WOLFSSL     *ssl = wolfSSL_new(ctx);
 
     AssertNotNull(ctx);
     AssertNotNull(ssl);
 
-#ifndef NO_CYASSL_CLIENT
+#ifndef NO_WOLFSSL_CLIENT
     /* error cases */
     AssertIntNE(SSL_SUCCESS,
-                      CyaSSL_CTX_UseSupportedCurve(NULL, CYASSL_ECC_SECP160R1));
-    AssertIntNE(SSL_SUCCESS, CyaSSL_CTX_UseSupportedCurve(ctx,  0));
+                      wolfSSL_CTX_UseSupportedCurve(NULL, WOLFSSL_ECC_SECP160R1));
+    AssertIntNE(SSL_SUCCESS, wolfSSL_CTX_UseSupportedCurve(ctx,  0));
 
     AssertIntNE(SSL_SUCCESS,
-                          CyaSSL_UseSupportedCurve(NULL, CYASSL_ECC_SECP160R1));
-    AssertIntNE(SSL_SUCCESS, CyaSSL_UseSupportedCurve(ssl,  0));
+                          wolfSSL_UseSupportedCurve(NULL, WOLFSSL_ECC_SECP160R1));
+    AssertIntNE(SSL_SUCCESS, wolfSSL_UseSupportedCurve(ssl,  0));
 
     /* success case */
     AssertIntEQ(SSL_SUCCESS,
-                       CyaSSL_CTX_UseSupportedCurve(ctx, CYASSL_ECC_SECP160R1));
+                       wolfSSL_CTX_UseSupportedCurve(ctx, WOLFSSL_ECC_SECP160R1));
     AssertIntEQ(SSL_SUCCESS,
-                           CyaSSL_UseSupportedCurve(ssl, CYASSL_ECC_SECP160R1));
+                           wolfSSL_UseSupportedCurve(ssl, WOLFSSL_ECC_SECP160R1));
 #endif
 
-    CyaSSL_free(ssl);
-    CyaSSL_CTX_free(ctx);
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
 #endif
 }
 
@@ -1152,23 +1152,23 @@ static void test_CyaSSL_UseSupportedCurve(void)
 void ApiTest(void)
 {
     printf(" Begin API Tests\n");
-    test_CyaSSL_Init();
+    test_wolfSSL_Init();
 
-    test_CyaSSL_Method_Allocators();
-    test_CyaSSL_CTX_new(CyaSSLv23_server_method());
-    test_CyaSSL_CTX_use_certificate_file();
-    test_CyaSSL_CTX_use_PrivateKey_file();
-    test_CyaSSL_CTX_load_verify_locations();
-    test_server_CyaSSL_new();
-    test_client_CyaSSL_new();
-    test_CyaSSL_read_write();
+    test_wolfSSL_Method_Allocators();
+    test_wolfSSL_CTX_new(wolfSSLv23_server_method());
+    test_wolfSSL_CTX_use_certificate_file();
+    test_wolfSSL_CTX_use_PrivateKey_file();
+    test_wolfSSL_CTX_load_verify_locations();
+    test_server_wolfSSL_new();
+    test_client_wolfSSL_new();
+    test_wolfSSL_read_write();
 
     /* TLS extensions tests */
-    test_CyaSSL_UseSNI();
-    test_CyaSSL_UseMaxFragment();
-    test_CyaSSL_UseTruncatedHMAC();
-    test_CyaSSL_UseSupportedCurve();
+    test_wolfSSL_UseSNI();
+    test_wolfSSL_UseMaxFragment();
+    test_wolfSSL_UseTruncatedHMAC();
+    test_wolfSSL_UseSupportedCurve();
 
-    test_CyaSSL_Cleanup();
+    test_wolfSSL_Cleanup();
     printf(" End API Tests\n");
 }
