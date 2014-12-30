@@ -25,9 +25,34 @@
 #ifndef WOLF_CRYPT_TYPES_H
 #define WOLF_CRYPT_TYPES_H
 
+	#include <wolfssl/wolfcrypt/settings.h>
+	#include <wolfssl/wolfcrypt/wc_port.h>
+
 /* for fips compatiblity @wc_fips */
 #ifdef HAVE_FIPS
     #include <cyassl/ctaocrypt/types.h>
+	/* set old macros since this is often called for visibility also */
+	#ifndef WOLFSSL_API
+	    #define WOLFSSL_API CYASSL_API
+	#endif
+	#ifndef WOLFSSL_LOCAL
+	    #define WOLFSSL_LOCAL CYASSL_LOCAL
+	#endif
+    #define WOLFSSL_MAX_ERROR_SZ CYASSL_MAX_ERROR_SZ
+
+/* memory macros */
+    /* when using fips map wolfSSL to CyaSSL*/
+    #define wolfSSL_Malloc_cb     CyaSSL_Malloc_cb
+    #define wolfSSL_Free_cb       CyaSSL_Free_cb
+    #define wolfSSL_Realloc_cb    CyaSSL_Realloc_cb
+    #define wolfSSL_SetAllocators CyaSSL_SetAllocators
+    
+    /* Public in case user app wants to use XMALLOC/XFREE */
+	#define wolfSSL_Malloc  CyaSSL_Malloc
+	#define wolfSSL_Free    CyaSSL_Free
+	#define wolfSSL_Realloc CyaSSL_Realloc
+
+
 #else 
 	/* set old macros since this is often called for visibility also */
 	#ifndef CYASSL_API
@@ -37,8 +62,6 @@
 	    #define CYASSL_LOCAL WOLFSSL_LOCAL
 	#endif
 	
-	#include <wolfssl/wolfcrypt/settings.h>
-	#include <wolfssl/wolfcrypt/wc_port.h>
 	
 	#ifdef __cplusplus
 	    extern "C" {

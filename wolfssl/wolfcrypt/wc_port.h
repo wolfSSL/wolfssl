@@ -20,9 +20,15 @@
  */
 
 
-#if !defined(WOLF_CRYPT_PORT_H) //&& CTAO_CRYPT_PORT_H)
+#ifndef WOLF_CRYPT_PORT_H
 #define WOLF_CRYPT_PORT_H
 
+/* fips compatibility @wc_fips */
+#ifdef HAVE_FIPS
+    #include <cyassl/ctaocrypt/wc_port.h>
+#define wolfSSL_Mutex CyaSSL_Mutex
+
+#else
 
 #ifdef __cplusplus
     extern "C" {
@@ -196,5 +202,6 @@ WOLFSSL_LOCAL int UnLockMutex(wolfSSL_Mutex*);
     }  /* extern "C" */
 #endif
 
+#endif /* HAVE_FIPS */
 #endif /* WOLF_CRYPT_PORT_H */
 

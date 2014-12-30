@@ -84,10 +84,6 @@
 	#define CYASSL_THREAD WOLFSSL_THREAD
 #endif
 
-#ifndef CYASSL_MAX_ERROR_SZ
-    #define CYASSL_MAX_ERROR_SZ WOLFSSL_MAX_ERROR_SZ
-#endif
-
 /* src/ssl.c */
 #define CYASSL_CRL                       WOLFSSL_CRL
 #define CYASSL_SSLV3                     WOLFSSL_SSLV3
@@ -364,12 +360,8 @@
     #define CYASSL_SMALL_STACK
 #endif
 
-/* change visibility to be compatible with CyaSSL visibility */
-#ifndef HAVE_FIPS
-    /* Do Nothing */
-#else
-	#undef WOLFSSL_API
-	#define WOLFSSL_API CYASSL_API
+#if !defined(CYASSL_MAX_ERROR_SZ) && !defined(HAVE_FIPS)
+    #define CYASSL_MAX_ERROR_SZ WOLFSSL_MAX_ERROR_SZ
 #endif
 /* wrapper around macros until they are changed in cyassl code  
  * needs investigation in regards to macros in fips */

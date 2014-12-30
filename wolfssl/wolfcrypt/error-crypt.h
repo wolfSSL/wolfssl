@@ -23,9 +23,10 @@
 #ifndef WOLF_CRYPT_ERROR_H
 #define WOLF_CRYPT_ERROR_H
 
+#include <wolfssl/wolfcrypt/types.h>
+
 /* compatibility and fips @wc_fips */
 #ifndef HAVE_FIPS
-#include <wolfssl/wolfcrypt/types.h>
 #define CTaoCryptErrorString    wc_CryptErrorString
 #define CTaoCryptGetErrorString wc_CryptGetErrorString
 
