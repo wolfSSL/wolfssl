@@ -23,11 +23,11 @@
     #include <config.h>
 #endif
 
-#include <cyassl/ctaocrypt/settings.h>
+#include <wolfssl/wolfcrypt/settings.h>
 
 #ifndef NO_PWDBASED
 
-#ifdef CYASSL_PIC32MZ_HASH
+#ifdef WOLFSSL_PIC32MZ_HASH
 
 #define InitMd5   InitMd5_sw
 #define Md5Update Md5Update_sw
@@ -43,18 +43,18 @@
 
 #endif
 
-#include <cyassl/ctaocrypt/pwdbased.h>
-#include <cyassl/ctaocrypt/hmac.h>
-#include <cyassl/ctaocrypt/integer.h>
-#include <cyassl/ctaocrypt/error-crypt.h>
-#if defined(CYASSL_SHA512) || defined(CYASSL_SHA384)
-    #include <cyassl/ctaocrypt/sha512.h>
+#include <wolfssl/wolfcrypt/pwdbased.h>
+#include <wolfssl/wolfcrypt/hmac.h>
+#include <wolfssl/wolfcrypt/integer.h>
+#include <wolfssl/wolfcrypt/error-crypt.h>
+#if defined(WOLFSSL_SHA512) || defined(WOLFSSL_SHA384)
+    #include <wolfssl/wolfcrypt/sha512.h>
 #endif
 
 #ifdef NO_INLINE
-    #include <cyassl/ctaocrypt/misc.h>
+    #include <wolfssl/wolfcrypt/misc.h>
 #else
-    #include <ctaocrypt/src/misc.c>
+    #include <wolfcrypt/src/misc.c>
 #endif
 
 
@@ -68,7 +68,7 @@
 #endif /* min */
 
 
-int PBKDF1(byte* output, const byte* passwd, int pLen, const byte* salt,
+int wc_PBKDF1(byte* output, const byte* passwd, int pLen, const byte* salt,
            int sLen, int iterations, int kLen, int hashType)
 {
     Md5  md5;
@@ -117,14 +117,14 @@ int PBKDF1(byte* output, const byte* passwd, int pLen, const byte* salt,
 }
 
 
-int PBKDF2(byte* output, const byte* passwd, int pLen, const byte* salt,
+int wc_PBKDF2(byte* output, const byte* passwd, int pLen, const byte* salt,
            int sLen, int iterations, int kLen, int hashType)
 {
     word32 i = 1;
     int    hLen;
     int    j, ret;
     Hmac   hmac;
-#ifdef CYASSL_SMALL_STACK
+#ifdef WOLFSSL_SMALL_STACK
     byte*  buffer;
 #else
     byte   buffer[MAX_DIGEST_SIZE];
@@ -141,7 +141,7 @@ int PBKDF2(byte* output, const byte* passwd, int pLen, const byte* salt,
         hLen = SHA256_DIGEST_SIZE;
     }
 #endif
-#ifdef CYASSL_SHA512
+#ifdef WOLFSSL_SHA512
     else if (hashType == SHA512) {
         hLen = SHA512_DIGEST_SIZE;
     }
@@ -149,7 +149,7 @@ int PBKDF2(byte* output, const byte* passwd, int pLen, const byte* salt,
     else
         return BAD_FUNC_ARG;
 
-#ifdef CYASSL_SMALL_STACK
+#ifdef WOLFSSL_SMALL_STACK
     buffer = (byte*)XMALLOC(MAX_DIGEST_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (buffer == NULL)
         return MEMORY_E;
@@ -205,14 +205,14 @@ int PBKDF2(byte* output, const byte* passwd, int pLen, const byte* salt,
         }
     }
 
-#ifdef CYASSL_SMALL_STACK
+#ifdef WOLFSSL_SMALL_STACK
     XFREE(buffer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
 
     return ret;
 }
 
-#ifdef CYASSL_SHA512
+#ifdef WOLFSSL_SHA512
 #define PBKDF_DIGEST_SIZE SHA512_BLOCK_SIZE
 #elif !defined(NO_SHA256)
 #define PBKDF_DIGEST_SIZE SHA256_BLOCK_SIZE
@@ -220,7 +220,7 @@ int PBKDF2(byte* output, const byte* passwd, int pLen, const byte* salt,
 #define PBKDF_DIGEST_SIZE SHA_DIGEST_SIZE
 #endif
 
-int PKCS12_PBKDF(byte* output, const byte* passwd, int passLen,const byte* salt,
+int wc_PKCS12_PBKDF(byte* output, const byte* passwd, int passLen,const byte* salt,
                  int saltLen, int iterations, int kLen, int hashType, int id)
 {
     /* all in bytes instead of bits */
@@ -229,14 +229,14 @@ int PKCS12_PBKDF(byte* output, const byte* passwd, int passLen,const byte* salt,
     int    ret = 0;
     int    i;
     byte   *D, *S, *P, *I;
-#ifdef CYASSL_SMALL_STACK
+#ifdef WOLFSSL_SMALL_STACK
     byte   staticBuffer[1]; /* force dynamic usage */
 #else
     byte   staticBuffer[1024];
 #endif
     byte*  buffer = staticBuffer;
 
-#ifdef CYASSL_SMALL_STACK
+#ifdef WOLFSSL_SMALL_STACK
     byte*  Ai;
     byte*  B;
 #else
@@ -261,7 +261,7 @@ int PKCS12_PBKDF(byte* output, const byte* passwd, int passLen,const byte* salt,
         u = SHA256_DIGEST_SIZE;
     }
 #endif
-#ifdef CYASSL_SHA512
+#ifdef WOLFSSL_SHA512
     else if (hashType == SHA512) {
         v = SHA512_BLOCK_SIZE;
         u = SHA512_DIGEST_SIZE;
@@ -270,7 +270,7 @@ int PKCS12_PBKDF(byte* output, const byte* passwd, int passLen,const byte* salt,
     else
         return BAD_FUNC_ARG;
 
-#ifdef CYASSL_SMALL_STACK
+#ifdef WOLFSSL_SMALL_STACK
     Ai = (byte*)XMALLOC(PBKDF_DIGEST_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (Ai == NULL)
         return MEMORY_E;
@@ -295,7 +295,7 @@ int PKCS12_PBKDF(byte* output, const byte* passwd, int passLen,const byte* salt,
     if (totalLen > sizeof(staticBuffer)) {
         buffer = (byte*)XMALLOC(totalLen, 0, DYNAMIC_TYPE_KEY);
         if (buffer == NULL) {
-#ifdef CYASSL_SMALL_STACK
+#ifdef WOLFSSL_SMALL_STACK
             XFREE(Ai, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(B,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
@@ -373,7 +373,7 @@ int PKCS12_PBKDF(byte* output, const byte* passwd, int passLen,const byte* salt,
             }
         }
 #endif
-#ifdef CYASSL_SHA512
+#ifdef WOLFSSL_SHA512
         else if (hashType == SHA512) {
             Sha512 sha512;
 
@@ -460,7 +460,7 @@ int PKCS12_PBKDF(byte* output, const byte* passwd, int passLen,const byte* salt,
 
     if (dynamic) XFREE(buffer, 0, DYNAMIC_TYPE_KEY);
 
-#ifdef CYASSL_SMALL_STACK
+#ifdef WOLFSSL_SMALL_STACK
     XFREE(Ai, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(B,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
