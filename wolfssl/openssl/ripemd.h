@@ -1,31 +1,31 @@
 /* ripemd.h for openssl */
 
 
-#ifndef CYASSL_RIPEMD_H_
-#define CYASSL_RIPEMD_H_
+#ifndef WOLFSSL_RIPEMD_H_
+#define WOLFSSL_RIPEMD_H_
 
-#include <cyassl/ctaocrypt/settings.h>
+#include <wolfssl/wolfcrypt/settings.h>
 
 #ifdef __cplusplus
     extern "C" {
 #endif
 
 
-typedef struct CYASSL_RIPEMD_CTX {
+typedef struct WOLFSSL_RIPEMD_CTX {
     int holder[32];   /* big enough to hold ctaocrypt, but check on init */
-} CYASSL_RIPEMD_CTX;
+} WOLFSSL_RIPEMD_CTX;
 
-CYASSL_API void CyaSSL_RIPEMD_Init(CYASSL_RIPEMD_CTX*);
-CYASSL_API void CyaSSL_RIPEMD_Update(CYASSL_RIPEMD_CTX*, const void*,
+WOLFSSL_API void wolfSSL_RIPEMD_Init(WOLFSSL_RIPEMD_CTX*);
+WOLFSSL_API void wolfSSL_RIPEMD_Update(WOLFSSL_RIPEMD_CTX*, const void*,
                                      unsigned long);
-CYASSL_API void CyaSSL_RIPEMD_Final(unsigned char*, CYASSL_RIPEMD_CTX*);
+WOLFSSL_API void wolfSSL_RIPEMD_Final(unsigned char*, WOLFSSL_RIPEMD_CTX*);
 
 
-typedef CYASSL_RIPEMD_CTX RIPEMD_CTX;
+typedef WOLFSSL_RIPEMD_CTX RIPEMD_CTX;
 
-#define RIPEMD_Init   CyaSSL_RIPEMD_Init
-#define RIPEMD_Update CyaSSL_RIPEMD_Update
-#define RIPEMD_Final  CyaSSL_RIPEMD_Final
+#define RIPEMD_Init   wolfSSL_RIPEMD_Init
+#define RIPEMD_Update wolfSSL_RIPEMD_Update
+#define RIPEMD_Final  wolfSSL_RIPEMD_Final
 
 
 #ifdef __cplusplus
@@ -33,5 +33,5 @@ typedef CYASSL_RIPEMD_CTX RIPEMD_CTX;
 #endif
 
 
-#endif /* CYASSL_MD5_H_ */
+#endif /* WOLFSSL_MD5_H_ */
 

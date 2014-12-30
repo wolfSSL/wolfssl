@@ -2,14 +2,14 @@
  *
  * Copyright (C) 2013 wolfSSL Inc.
  *
- * This file is part of CyaSSL.
+ * This file is part of wolfSSL. (formerly known as CyaSSL)
  *
- * CyaSSL is free software; you can redistribute it and/or modify
+ * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  *
- * CyaSSL is distributed in the hope that it will be useful,
+ * wolfSSL is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
@@ -25,52 +25,52 @@
  */
 
 
-#ifndef CYASSL_HMAC_H_
-#define CYASSL_HMAC_H_
+#ifndef WOLFSSL_HMAC_H_
+#define WOLFSSL_HMAC_H_
 
-#include <cyassl/ctaocrypt/settings.h>
+#include <wolfssl/wolfcrypt/settings.h>
 
-#ifdef YASSL_PREFIX
+#ifdef WOLFSSL_PREFIX
 #include "prefix_hmac.h"
 #endif
 
-#include <cyassl/openssl/evp.h>
-#include <cyassl/ctaocrypt/hmac.h>
+#include <wolfssl/openssl/evp.h>
+#include <wolfssl/wolfcrypt/hmac.h>
 
 #ifdef __cplusplus
     extern "C" {
 #endif
 
 
-CYASSL_API unsigned char* CyaSSL_HMAC(const CYASSL_EVP_MD* evp_md,
+WOLFSSL_API unsigned char* wolfSSL_HMAC(const WOLFSSL_EVP_MD* evp_md,
                                const void* key, int key_len,
                                const unsigned char* d, int n, unsigned char* md,
                                unsigned int* md_len);
 
 
-typedef struct CYASSL_HMAC_CTX {
+typedef struct WOLFSSL_HMAC_CTX {
     Hmac hmac;
     int  type;
-} CYASSL_HMAC_CTX;
+} WOLFSSL_HMAC_CTX;
 
 
-CYASSL_API void CyaSSL_HMAC_Init(CYASSL_HMAC_CTX* ctx, const void* key,
+WOLFSSL_API void wolfSSL_HMAC_Init(WOLFSSL_HMAC_CTX* ctx, const void* key,
                                  int keylen, const EVP_MD* type);
-CYASSL_API void CyaSSL_HMAC_Update(CYASSL_HMAC_CTX* ctx,
+WOLFSSL_API void wolfSSL_HMAC_Update(WOLFSSL_HMAC_CTX* ctx,
                                    const unsigned char* data, int len);
-CYASSL_API void CyaSSL_HMAC_Final(CYASSL_HMAC_CTX* ctx, unsigned char* hash,
+WOLFSSL_API void wolfSSL_HMAC_Final(WOLFSSL_HMAC_CTX* ctx, unsigned char* hash,
                                   unsigned int* len);
-CYASSL_API void CyaSSL_HMAC_cleanup(CYASSL_HMAC_CTX* ctx);
+WOLFSSL_API void wolfSSL_HMAC_cleanup(WOLFSSL_HMAC_CTX* ctx);
 
 
-typedef struct CYASSL_HMAC_CTX HMAC_CTX;
+typedef struct WOLFSSL_HMAC_CTX HMAC_CTX;
 
-#define HMAC(a,b,c,d,e,f,g) CyaSSL_HMAC((a),(b),(c),(d),(e),(f),(g))
+#define HMAC(a,b,c,d,e,f,g) wolfSSL_HMAC((a),(b),(c),(d),(e),(f),(g))
 
-#define HMAC_Init    CyaSSL_HMAC_Init
-#define HMAC_Update  CyaSSL_HMAC_Update
-#define HMAC_Final   CyaSSL_HMAC_Final
-#define HMAC_cleanup CyaSSL_HMAC_cleanup
+#define HMAC_Init    wolfSSL_HMAC_Init
+#define HMAC_Update  wolfSSL_HMAC_Update
+#define HMAC_Final   wolfSSL_HMAC_Final
+#define HMAC_cleanup wolfSSL_HMAC_cleanup
 
 
 #ifdef __cplusplus
@@ -78,4 +78,4 @@ typedef struct CYASSL_HMAC_CTX HMAC_CTX;
 #endif
 
 
-#endif /* CYASSL_HMAC_H_ */
+#endif /* WOLFSSL_HMAC_H_ */

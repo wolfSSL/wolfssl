@@ -1,7 +1,7 @@
 /* opensslv.h compatibility */
 
-#ifndef CYASSL_OPENSSLV_H_
-#define CYASSL_OPENSSLV_H_
+#ifndef WOLFSSL_OPENSSLV_H_
+#define WOLFSSL_OPENSSLV_H_
 
 
 /* api version compatibility */

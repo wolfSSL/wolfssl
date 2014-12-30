@@ -65,7 +65,6 @@ include cyassl/include.am
 else
 include wolfssl/include.am
 endif
-
 #-------------------------------------#
 include certs/include.am
 include certs/1024/include.am

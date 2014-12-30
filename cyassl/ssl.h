@@ -121,6 +121,7 @@
 #define CyaSSL_CertManagerDisableOCSP    wolfSSL_CertManagerDisableOCSP
 #define CyaSSL_get_current_cipher_suite  wolfSSL_get_current_cipher_suite
 #define CyaSSL_CTX_load_verify_locations wolfSSL_CTX_load_verify_locations
+#define CyaSSL_CTX_set_default_passwd_cb wolfSSL_CTX_set_default_passwd_cb
 
 #define CyaSSL_use_old_poly        wolfSSL_use_old_poly
 

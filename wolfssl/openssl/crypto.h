@@ -1,21 +1,21 @@
 /* crypto.h for openSSL */
 
-#ifndef CYASSL_CRYPTO_H_
-#define CYASSL_CRYPTO_H_
+#ifndef WOLFSSL_CRYPTO_H_
+#define WOLFSSL_CRYPTO_H_
 
 
-#include <cyassl/ctaocrypt/settings.h>
+#include <wolfssl/wolfcrypt/settings.h>
 
-#ifdef YASSL_PREFIX
+#ifdef WOLFSSL_PREFIX
 #include "prefix_crypto.h"
 #endif
 
 
-CYASSL_API const char*   CyaSSLeay_version(int type);
-CYASSL_API unsigned long CyaSSLeay(void);
+WOLFSSL_API const char*   wolfSSLeay_version(int type);
+WOLFSSL_API unsigned long wolfSSLeay(void);
 
-#define SSLeay_version CyaSSLeay_version
-#define SSLeay CyaSSLeay
+#define SSLeay_version wolfSSLeay_version
+#define SSLeay wolfSSLeay
 
 
 #define SSLEAY_VERSION 0x0090600fL

@@ -2,14 +2,14 @@
  *
  * Copyright (C) 2013 wolfSSL Inc.
  *
- * This file is part of CyaSSL.
+ * This file is part of wolfSSL. (formerly known as wolfSSL)
  *
- * CyaSSL is free software; you can redistribute it and/or modify
+ * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  *
- * CyaSSL is distributed in the hope that it will be useful,
+ * wolfSSL is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
@@ -25,12 +25,12 @@
  */
 
 
-#ifndef CYASSL_DES_H_
-#define CYASSL_DES_H_
+#ifndef WOLFSSL_DES_H_
+#define WOLFSSL_DES_H_
 
-#include <cyassl/ctaocrypt/settings.h>
+#include <wolfssl/wolfcrypt/settings.h>
 
-#ifdef YASSL_PREFIX
+#ifdef WOLFSSL_PREFIX
 #include "prefix_des.h"
 #endif
 
@@ -39,9 +39,9 @@
     extern "C" {
 #endif
 
-typedef unsigned char CYASSL_DES_cblock[8];
-typedef /* const */ CYASSL_DES_cblock CYASSL_const_DES_cblock;
-typedef CYASSL_DES_cblock CYASSL_DES_key_schedule;
+typedef unsigned char WOLFSSL_DES_cblock[8];
+typedef /* const */ WOLFSSL_DES_cblock WOLFSSL_const_DES_cblock;
+typedef WOLFSSL_DES_cblock WOLFSSL_DES_key_schedule;
 
 
 enum {
@@ -50,38 +50,38 @@ enum {
 };
 
 
-CYASSL_API void CyaSSL_DES_set_key_unchecked(CYASSL_const_DES_cblock*,
-                                             CYASSL_DES_key_schedule*);
-CYASSL_API int  CyaSSL_DES_key_sched(CYASSL_const_DES_cblock* key,
-                                     CYASSL_DES_key_schedule* schedule);
-CYASSL_API void CyaSSL_DES_cbc_encrypt(const unsigned char* input,
+WOLFSSL_API void wolfSSL_DES_set_key_unchecked(WOLFSSL_const_DES_cblock*,
+                                             WOLFSSL_DES_key_schedule*);
+WOLFSSL_API int  wolfSSL_DES_key_sched(WOLFSSL_const_DES_cblock* key,
+                                     WOLFSSL_DES_key_schedule* schedule);
+WOLFSSL_API void wolfSSL_DES_cbc_encrypt(const unsigned char* input,
                      unsigned char* output, long length,
-                     CYASSL_DES_key_schedule* schedule, CYASSL_DES_cblock* ivec,
+                     WOLFSSL_DES_key_schedule* schedule, WOLFSSL_DES_cblock* ivec,
                      int enc);
-CYASSL_API void CyaSSL_DES_ncbc_encrypt(const unsigned char* input,
+WOLFSSL_API void wolfSSL_DES_ncbc_encrypt(const unsigned char* input,
                       unsigned char* output, long length,
-                      CYASSL_DES_key_schedule* schedule,
-                      CYASSL_DES_cblock* ivec, int enc);
+                      WOLFSSL_DES_key_schedule* schedule,
+                      WOLFSSL_DES_cblock* ivec, int enc);
 
-CYASSL_API void CyaSSL_DES_set_odd_parity(CYASSL_DES_cblock*);
-CYASSL_API void CyaSSL_DES_ecb_encrypt(CYASSL_DES_cblock*, CYASSL_DES_cblock*,
-                                       CYASSL_DES_key_schedule*, int);
+WOLFSSL_API void wolfSSL_DES_set_odd_parity(WOLFSSL_DES_cblock*);
+WOLFSSL_API void wolfSSL_DES_ecb_encrypt(WOLFSSL_DES_cblock*, WOLFSSL_DES_cblock*,
+                                       WOLFSSL_DES_key_schedule*, int);
 
 
-typedef CYASSL_DES_cblock DES_cblock;
-typedef CYASSL_const_DES_cblock const_DES_cblock;
-typedef CYASSL_DES_key_schedule DES_key_schedule;
+typedef WOLFSSL_DES_cblock DES_cblock;
+typedef WOLFSSL_const_DES_cblock const_DES_cblock;
+typedef WOLFSSL_DES_key_schedule DES_key_schedule;
 
-#define DES_set_key_unchecked CyaSSL_DES_set_key_unchecked
-#define DES_key_sched CyaSSL_DES_key_sched
-#define DES_cbc_encrypt CyaSSL_DES_cbc_encrypt
-#define DES_ncbc_encrypt CyaSSL_DES_ncbc_encrypt
-#define DES_set_odd_parity CyaSSL_DES_set_odd_parity
-#define DES_ecb_encrypt CyaSSL_DES_ecb_encrypt
+#define DES_set_key_unchecked wolfSSL_DES_set_key_unchecked
+#define DES_key_sched wolfSSL_DES_key_sched
+#define DES_cbc_encrypt wolfSSL_DES_cbc_encrypt
+#define DES_ncbc_encrypt wolfSSL_DES_ncbc_encrypt
+#define DES_set_odd_parity wolfSSL_DES_set_odd_parity
+#define DES_ecb_encrypt wolfSSL_DES_ecb_encrypt
 
 #ifdef __cplusplus
     } /* extern "C" */
 #endif
 
 
-#endif /* CYASSL_DES_H_ */
+#endif /* WOLFSSL_DES_H_ */

@@ -1,8 +1,8 @@
 /* bio.h for openssl */
 
 
-#ifndef CYASSL_BIO_H_
-#define CYASSL_BIO_H_
+#ifndef WOLFSSL_BIO_H_
+#define WOLFSSL_BIO_H_
 
 #include <cyassl/openssl/ssl.h>
 
@@ -19,5 +19,5 @@
 #endif
 
 
-#endif /* CYASSL_BIO_H_ */
+#endif /* WOLFSSL_BIO_H_ */
 

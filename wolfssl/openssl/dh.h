@@ -1,12 +1,12 @@
 /* dh.h for openSSL */
 
 
-#ifndef CYASSL_DH_H_
-#define CYASSL_DH_H_
+#ifndef WOLFSSL_DH_H_
+#define WOLFSSL_DH_H_
 
 
-#include <cyassl/openssl/ssl.h>
-#include <cyassl/openssl/bn.h>
+#include <wolfssl/openssl/ssl.h>
+#include <wolfssl/openssl/bn.h>
 
 
 #ifdef __cplusplus
@@ -16,33 +16,33 @@
 
 
 
-typedef struct CYASSL_DH {
-	CYASSL_BIGNUM* p;
-	CYASSL_BIGNUM* g;
-    CYASSL_BIGNUM* pub_key;      /* openssh deference g^x */
-    CYASSL_BIGNUM* priv_key;     /* openssh deference x   */
+typedef struct WOLFSSL_DH {
+	WOLFSSL_BIGNUM* p;
+	WOLFSSL_BIGNUM* g;
+    WOLFSSL_BIGNUM* pub_key;      /* openssh deference g^x */
+    WOLFSSL_BIGNUM* priv_key;     /* openssh deference x   */
     void*          internal;     /* our DH */
     char           inSet;        /* internal set from external ? */
     char           exSet;        /* external set from internal ? */
-} CYASSL_DH;
+} WOLFSSL_DH;
 
 
-CYASSL_API CYASSL_DH* CyaSSL_DH_new(void);
-CYASSL_API void       CyaSSL_DH_free(CYASSL_DH*);
+WOLFSSL_API WOLFSSL_DH* wolfSSL_DH_new(void);
+WOLFSSL_API void       wolfSSL_DH_free(WOLFSSL_DH*);
 
-CYASSL_API int CyaSSL_DH_size(CYASSL_DH*);
-CYASSL_API int CyaSSL_DH_generate_key(CYASSL_DH*);
-CYASSL_API int CyaSSL_DH_compute_key(unsigned char* key, CYASSL_BIGNUM* pub,
-                                     CYASSL_DH*);
+WOLFSSL_API int wolfSSL_DH_size(WOLFSSL_DH*);
+WOLFSSL_API int wolfSSL_DH_generate_key(WOLFSSL_DH*);
+WOLFSSL_API int wolfSSL_DH_compute_key(unsigned char* key, WOLFSSL_BIGNUM* pub,
+                                     WOLFSSL_DH*);
 
-typedef CYASSL_DH DH;
+typedef WOLFSSL_DH DH;
 
-#define DH_new  CyaSSL_DH_new 
-#define DH_free CyaSSL_DH_free
+#define DH_new  wolfSSL_DH_new 
+#define DH_free wolfSSL_DH_free
 
-#define DH_size         CyaSSL_DH_size
-#define DH_generate_key CyaSSL_DH_generate_key
-#define DH_compute_key  CyaSSL_DH_compute_key
+#define DH_size         wolfSSL_DH_size
+#define DH_generate_key wolfSSL_DH_generate_key
+#define DH_compute_key  wolfSSL_DH_compute_key
 
 
 #ifdef __cplusplus
