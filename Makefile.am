@@ -59,13 +59,8 @@ EXTRA_DIST+= IDE
 EXTRA_DIST+= README.md
 EXTRA_DIST+= LICENSING
 
-#-------------------------------------#
-if BUILD_FIPS
 include cyassl/include.am
-else
 include wolfssl/include.am
-endif
-#-------------------------------------#
 include certs/include.am
 include certs/1024/include.am
 include certs/crl/include.am
@@ -77,6 +72,12 @@ include support/include.am
 include wolfcrypt/benchmark/include.am
 include wolfcrypt/src/include.am
 include wolfcrypt/test/include.am
+
+if BUILD_FIPS
+include ctaocrypt/src/include.am
+include ctaocrypt/test/include.am
+endif
+
 include examples/client/include.am
 include examples/server/include.am
 include examples/echoclient/include.am

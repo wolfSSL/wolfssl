@@ -379,7 +379,7 @@ int wc_Md5Hash(const byte* data, word32 len, byte* hash)
 
     wc_InitMd5(md5);
     wc_Md5Update(md5, data, len);
-    Md5Final(md5, hash);
+    wc_Md5Final(md5, hash);
 
 #ifdef CYASSL_SMALL_STACK
     XFREE(md5, NULL, DYNAMIC_TYPE_TMP_BUFFER);

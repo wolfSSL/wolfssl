@@ -26,12 +26,11 @@
 
 #include <wolfssl/wolfcrypt/types.h>
 
-/* for md5 reverse compatibility */
-#ifndef NO_MD5
-	#define InitMd5 wc_InitMd5
-	#define Md5Update wc_Md5Update
-	#define Md5Final wc_Md5Final
-	#define Md5Hash wc_Md5Hash
+#ifdef HAVE_FIPS
+    #define wc_InitMd5   InitMd5
+    #define wc_Md5Update Md5Update
+    #define wc_Md5Final  Md5Final
+    #define wc_Md5Hash   Md5Hash
 #endif
 
 #ifdef __cplusplus
