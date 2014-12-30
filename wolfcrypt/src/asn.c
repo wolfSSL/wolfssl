@@ -911,10 +911,10 @@ static int DecryptKey(const char* password, int passwordSz, byte* salt,
 #endif
 
     if (version == PKCS5v2)
-        ret = PBKDF2(key, (byte*)password, passwordSz, salt, saltSz, iterations,
+        ret = wc_PBKDF2(key, (byte*)password, passwordSz, salt, saltSz, iterations,
                derivedLen, typeH);
     else if (version == PKCS5)
-        ret = PBKDF1(key, (byte*)password, passwordSz, salt, saltSz, iterations,
+        ret = wc_PBKDF1(key, (byte*)password, passwordSz, salt, saltSz, iterations,
                derivedLen, typeH);
     else if (version == PKCS12) {
         int  i, idx = 0;
@@ -935,10 +935,10 @@ static int DecryptKey(const char* password, int passwordSz, byte* salt,
         unicodePasswd[idx++] = 0x00;
         unicodePasswd[idx++] = 0x00;
 
-        ret =  PKCS12_PBKDF(key, unicodePasswd, idx, salt, saltSz,
+        ret =  wc_PKCS12_PBKDF(key, unicodePasswd, idx, salt, saltSz,
                             iterations, derivedLen, typeH, 1);
         if (decryptionType != RC4_TYPE)
-            ret += PKCS12_PBKDF(cbcIv, unicodePasswd, idx, salt, saltSz,
+            ret += wc_PKCS12_PBKDF(cbcIv, unicodePasswd, idx, salt, saltSz,
                                 iterations, 8, typeH, 2);
     }
     else {
@@ -965,7 +965,7 @@ static int DecryptKey(const char* password, int passwordSz, byte* salt,
             if (version == PKCS5v2 || version == PKCS12)
                 desIv = cbcIv;
 
-            ret = Des_SetKey(&dec, key, desIv, DES_DECRYPTION);
+            ret = wc_Des_SetKey(&dec, key, desIv, DES_DECRYPTION);
             if (ret != 0) {
 #ifdef WOLFSSL_SMALL_STACK
                 XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -973,7 +973,7 @@ static int DecryptKey(const char* password, int passwordSz, byte* salt,
                 return ret;
             }
 
-            Des_CbcDecrypt(&dec, input, input, length);
+            wc_Des_CbcDecrypt(&dec, input, input, length);
             break;
         }
 
@@ -984,14 +984,14 @@ static int DecryptKey(const char* password, int passwordSz, byte* salt,
 
             if (version == PKCS5v2 || version == PKCS12)
                 desIv = cbcIv;
-            ret = Des3_SetKey(&dec, key, desIv, DES_DECRYPTION);
+            ret = wc_Des3_SetKey(&dec, key, desIv, DES_DECRYPTION);
             if (ret != 0) {
 #ifdef WOLFSSL_SMALL_STACK
                 XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
                 return ret;
             }
-            ret = Des3_CbcDecrypt(&dec, input, input, length);
+            ret = wc_Des3_CbcDecrypt(&dec, input, input, length);
             if (ret != 0) {
 #ifdef WOLFSSL_SMALL_STACK
                 XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -1006,8 +1006,8 @@ static int DecryptKey(const char* password, int passwordSz, byte* salt,
         {
             Arc4    dec;
 
-            Arc4SetKey(&dec, key, derivedLen);
-            Arc4Process(&dec, input, input, length);
+            wc_Arc4SetKey(&dec, key, derivedLen);
+            wc_Arc4Process(&dec, input, input, length);
             break;
         }
 #endif
@@ -1276,7 +1276,7 @@ int RsaPublicKeyDecodeRaw(const byte* n, word32 nSz, const byte* e, word32 eSz,
 
 #ifndef NO_DH
 
-int DhKeyDecode(const byte* input, word32* inOutIdx, DhKey* key, word32 inSz)
+int wc_DhKeyDecode(const byte* input, word32* inOutIdx, DhKey* key, word32 inSz)
 {
     int    length;
 
@@ -1289,7 +1289,7 @@ int DhKeyDecode(const byte* input, word32* inOutIdx, DhKey* key, word32 inSz)
     return 0;
 }
 
-int DhSetKey(DhKey* key, const byte* p, word32 pSz, const byte* g, word32 gSz)
+int wc_DhSetKey(DhKey* key, const byte* p, word32 pSz, const byte* g, word32 gSz)
 {
     if (key == NULL || p == NULL || g == NULL || pSz == 0 || gSz == 0)
         return BAD_FUNC_ARG;
@@ -1324,7 +1324,7 @@ int DhSetKey(DhKey* key, const byte* p, word32 pSz, const byte* g, word32 gSz)
 }
 
 
-int DhParamsLoad(const byte* input, word32 inSz, byte* p, word32* pInOutSz,
+int wc_DhParamsLoad(const byte* input, word32 inSz, byte* p, word32* pInOutSz,
                  byte* g, word32* gInOutSz)
 {
     word32 i = 0;
@@ -4629,7 +4629,7 @@ static INLINE void FreeTmpRsas(byte** tmps, void* heap)
 
 /* Convert RsaKey key to DER format, write to output (inLen), return bytes
    written */
-int RsaKeyToDer(RsaKey* key, byte* output, word32 inLen)
+int wc_RsaKeyToDer(RsaKey* key, byte* output, word32 inLen)
 {
     word32 seqSz, verSz, rawLen, intTotalLen = 0;
     word32 sizes[RSA_INTS];

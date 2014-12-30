@@ -301,14 +301,14 @@ int mp_sub_d (mp_int * a, mp_digit b, mp_int * c);
 int mp_init_multi(mp_int* a, mp_int* b, mp_int* c, mp_int* d, mp_int* e,
                   mp_int* f);
 
-#if defined(HAVE_ECC) || defined(CYASSL_KEY_GEN)
+#if defined(HAVE_ECC) || defined(WOLFSSL_KEY_GEN)
     int mp_sqrmod(mp_int* a, mp_int* b, mp_int* c);
 #endif
 #ifdef HAVE_ECC
     int mp_read_radix(mp_int* a, const char* str, int radix);
 #endif
 
-#ifdef CYASSL_KEY_GEN
+#ifdef WOLFSSL_KEY_GEN
     int mp_prime_is_prime (mp_int * a, int t, int *result);
     int mp_gcd (mp_int * a, mp_int * b, mp_int * c);
     int mp_lcm (mp_int * a, mp_int * b, mp_int * c);

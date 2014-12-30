@@ -5758,18 +5758,18 @@ static INLINE int Encrypt(WOLFSSL* ssl, byte* out, const byte* input, word16 sz)
 
         #ifdef HAVE_CAMELLIA
             case wolfssl_camellia:
-                CamelliaCbcEncrypt(ssl->encrypt.cam, out, input, sz);
+                wc_CamelliaCbcEncrypt(ssl->encrypt.cam, out, input, sz);
                 break;
         #endif
 
         #ifdef HAVE_HC128
             case wolfssl_hc128:
-                return Hc128_Process(ssl->encrypt.hc128, out, input, sz);
+                return wc_Hc128_Process(ssl->encrypt.hc128, out, input, sz);
         #endif
 
         #ifdef BUILD_RABBIT
             case wolfssl_rabbit:
-                return RabbitProcess(ssl->encrypt.rabbit, out, input, sz);
+                return wc_RabbitProcess(ssl->encrypt.rabbit, out, input, sz);
         #endif
 
         #ifdef HAVE_CHACHA

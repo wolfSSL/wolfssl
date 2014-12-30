@@ -2,14 +2,14 @@
  *
  * Copyright (C) 2006-2014 wolfSSL Inc.
  *
- * This file is part of CyaSSL.
+ * This file is part of wolfSSL. (formerly known as CyaSSL)
  *
- * CyaSSL is free software; you can redistribute it and/or modify
+ * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  *
- * CyaSSL is distributed in the hope that it will be useful,
+ * wolfSSL is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
@@ -22,10 +22,10 @@
 
 #ifndef NO_HC128
 
-#ifndef CTAO_CRYPT_HC128_H
-#define CTAO_CRYPT_HC128_H
+#ifndef WOLF_CRYPT_HC128_H
+#define WOLF_CRYPT_HC128_H
 
-#include <cyassl/ctaocrypt/types.h>
+#include <wolfssl/wolfcrypt/types.h>
 
 #ifdef __cplusplus
     extern "C" {
@@ -47,14 +47,14 @@ typedef struct HC128 {
 } HC128;
 
 
-CYASSL_API int Hc128_Process(HC128*, byte*, const byte*, word32);
-CYASSL_API int Hc128_SetKey(HC128*, const byte* key, const byte* iv);
+WOLFSSL_API int wc_Hc128_Process(HC128*, byte*, const byte*, word32);
+WOLFSSL_API int wc_Hc128_SetKey(HC128*, const byte* key, const byte* iv);
 
 
 #ifdef __cplusplus
     } /* extern "C" */
 #endif
 
-#endif /* CTAO_CRYPT_HC128_H */
+#endif /* WOLF_CRYPT_HC128_H */
 
 #endif /* HAVE_HC128 */

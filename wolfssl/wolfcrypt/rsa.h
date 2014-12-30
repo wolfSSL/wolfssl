@@ -64,13 +64,13 @@ WOLFSSL_API int  wc_RsaFlattenPublicKey(RsaKey*, byte*, word32*, byte*,
                                                                        word32*);
 
 #ifdef WOLFSSL_KEY_GEN
-    WOLFSSL_API int MakeRsaKey(RsaKey* key, int size, long e, RNG* rng);
-    WOLFSSL_API int RsaKeyToDer(RsaKey*, byte* output, word32 inLen);
+    WOLFSSL_API int wc_MakeRsaKey(RsaKey* key, int size, long e, RNG* rng);
+    WOLFSSL_API int wc_RsaKeyToDer(RsaKey*, byte* output, word32 inLen);
 #endif
 
 #ifdef HAVE_CAVIUM
-    WOLFSSL_API int  RsaInitCavium(RsaKey*, int);
-    WOLFSSL_API void RsaFreeCavium(RsaKey*);
+    WOLFSSL_API int  wc_RsaInitCavium(RsaKey*, int);
+    WOLFSSL_API void wc_RsaFreeCavium(RsaKey*);
 #endif
 
 

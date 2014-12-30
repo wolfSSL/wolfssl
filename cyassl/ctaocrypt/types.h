@@ -26,11 +26,11 @@
 #ifndef HAVE_FIPS
     #include <wolfssl/wolfcrypt/types.h>
     /* compatibility macros */
-#define CYASSL_WORD_SIZE WOLFSSL_WORD_SIZE
-#define CYASSL_BIT_SIZE  WOLFSSL_BIT_SIZE
-#define CYASSL_MAX_16BIT WOLFSSL_MAX_16BIT
+#define CYASSL_WORD_SIZE    WOLFSSL_WORD_SIZE
+#define CYASSL_BIT_SIZE     WOLFSSL_BIT_SIZE
+#define CYASSL_MAX_16BIT    WOLFSSL_MAX_16BIT
+#define CYASSL_MAX_ERROR_SZ WOLFSSL_MAX_ERROR_SZ
 #define cyassl_word wolfssl_word
-
 #else
 
 #include <cyassl/ctaocrypt/settings.h>
