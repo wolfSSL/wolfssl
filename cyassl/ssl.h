@@ -356,6 +356,15 @@
 /* End wolfssl -> cyassl -> openssl compatibility */
 
 /* JRB macro redefinitions and api calls for cryptography for reverse compat. */
+
+/* new fips header files since old ones could not be changed for compatibility*/
+#ifndef NO_AES
+    #include <wolfssl/wolfcrytp/aes.h>
+#endif
+
+
+
+
 #ifdef WOLFSSL_SMALL_STACK
     #define CYASSL_SMALL_STACK
 #endif
