@@ -32,7 +32,6 @@
     #include <errno.h>
 #endif
 
-#include <wolfssl/ssl.h>
 #include <wolfssl/internal.h>
 #include <wolfssl/error-ssl.h>
 #include <wolfssl/wolfcrypt/coding.h>

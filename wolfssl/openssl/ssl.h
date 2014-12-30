@@ -31,9 +31,6 @@
 /* wolfssl_cyassl compatibility layer */
 #include <cyassl/ssl.h>
 
- /* wolfssl ssl.h */
-#include <wolfssl/ssl.h>
-
 #ifdef __cplusplus
     extern "C" {
 #endif

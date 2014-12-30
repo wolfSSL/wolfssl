@@ -2,7 +2,7 @@
  *
  * Copyright (C) 2006-2014 wolfSSL Inc.
  *
- * This file is part of wolfSSL.
+ * This file is part of wolfSSL. (formerly known as CyaSSL)
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,8 +19,6 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-  /* Name change compatibility layer */
-#include <cyassl/ssl.h>
 
 #ifdef HAVE_CONFIG_H
     #include <config.h>
@@ -28,7 +26,7 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 
-#include <wolfssl/ssl.h>
+#include <cyassl/ssl.h>
 #include <wolfssl/internal.h>
 #include <wolfssl/error-ssl.h>
 #include <wolfssl/wolfcrypt/hmac.h>

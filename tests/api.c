@@ -34,7 +34,7 @@
 #include <cyassl/error-ssl.h>
 
 #include <stdlib.h>
-#include <cyassl/ssl.h>
+#include <cyassl/ssl.h>  /* compatibility layer */
 #include <cyassl/test.h>
 #include <tests/unit.h>
 
