@@ -11559,7 +11559,7 @@ int wolfSSL_RSA_sign(int type, const unsigned char* m,
     if (rng) {
         type = (type == NID_md5) ? MD5h : SHAh;
 
-        signSz = EncodeSignature(encodedSig, m, mLen, type);
+        signSz = wc_EncodeSignature(encodedSig, m, mLen, type);
         if (signSz == 0) {
             WOLFSSL_MSG("Bad Encode Signature");
         }

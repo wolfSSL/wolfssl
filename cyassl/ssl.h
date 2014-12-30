@@ -359,7 +359,7 @@
 
 /* new fips header files since old ones could not be changed for compatibility*/
 #ifndef NO_AES
-    #include <wolfssl/wolfcrytp/aes.h>
+    #include <wolfssl/wolfcrypt/aes.h>
 #endif
 
 
