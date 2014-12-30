@@ -2880,7 +2880,7 @@ WOLFSSL_LOCAL word32 SetAlgoID(int algoOID, byte* output, int type, int curveSz)
 }
 
 
-word32 EncodeSignature(byte* out, const byte* digest, word32 digSz, int hashOID)
+word32 wc_EncodeSignature(byte* out, const byte* digest, word32 digSz, int hashOID)
 {
     byte digArray[MAX_ENCODED_DIG_SZ];
     byte algoArray[MAX_ALGO_SZ];
@@ -2899,7 +2899,7 @@ word32 EncodeSignature(byte* out, const byte* digest, word32 digSz, int hashOID)
 }
 
 
-int GetCTC_HashOID(int type)
+int wc_GetCTC_HashOID(int type)
 {
     switch (type) {
 #ifdef WOLFSSL_MD2
@@ -3080,7 +3080,7 @@ static int ConfirmSignature(const byte* buf, word32 bufSz,
                 else {
                     /* make sure we're right justified */
                     encodedSigSz =
-                        EncodeSignature(encodedSig, digest, digestSz, typeH);
+                        wc_EncodeSignature(encodedSig, digest, digestSz, typeH);
                     if (encodedSigSz != verifySz ||
                                 XMEMCMP(out, encodedSig, encodedSigSz) != 0) {
                         WOLFSSL_MSG("Rsa SSL verify match encode error");
@@ -3147,11 +3147,11 @@ static int ConfirmSignature(const byte* buf, word32 bufSz,
             }
 #endif
 
-            if (ecc_import_x963(key, keySz, pubKey) < 0) {
+            if (wc_ecc_import_x963(key, keySz, pubKey) < 0) {
                 WOLFSSL_MSG("ASN Key import error ECC");
             }
             else {   
-                if (ecc_verify_hash(sig, sigSz, digest, digestSz, &verify,
+                if (wc_ecc_verify_hash(sig, sigSz, digest, digestSz, &verify,
                                                                 pubKey) != 0) {
                     WOLFSSL_MSG("ECC verify hash error");
                 }
@@ -3160,7 +3160,7 @@ static int ConfirmSignature(const byte* buf, word32 bufSz,
                 } else
                     ret = 1; /* match */
 
-                ecc_free(pubKey);
+                wc_ecc_free(pubKey);
             }
 #ifdef WOLFSSL_SMALL_STACK
             XFREE(pubKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -4469,7 +4469,7 @@ WOLFSSL_LOCAL int SetSerialNumber(const byte* sn, word32 snSz, byte* output)
 
 /* convert der buffer to pem into output, can't do inplace, der and output
    need to be different */
-int DerToPem(const byte* der, word32 derSz, byte* output, word32 outSz,
+int wc_DerToPem(const byte* der, word32 derSz, byte* output, word32 outSz,
              int type)
 {
 #ifdef WOLFSSL_SMALL_STACK
@@ -6500,7 +6500,7 @@ int DecodeECC_DSA_Sig(const byte* sig, word32 sigLen, mp_int* r, mp_int* s)
 }
 
 
-int EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
+int wc_EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
                         word32 inSz)
 {
     word32 oid = 0;
@@ -6619,7 +6619,7 @@ int EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
                     if (pubSz < (ECC_MAXSIZE*2 + 1)) {
                         XMEMCPY(pub, &input[*inOutIdx], pubSz);
                         *inOutIdx += length;
-                        ret = ecc_import_private_key(priv, privSz, pub, pubSz,
+                        ret = wc_ecc_import_private_key(priv, privSz, pub, pubSz,
                                                      key);
                     } else
                         ret = BUFFER_E;
@@ -6640,7 +6640,7 @@ int EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
 #ifdef WOLFSSL_KEY_GEN
 
 /* Write a Private ecc key to DER format, length on success else < 0 */
-int EccKeyToDer(ecc_key* key, byte* output, word32 inLen)
+int wc_EccKeyToDer(ecc_key* key, byte* output, word32 inLen)
 {
     byte   curve[MAX_ALGO_SZ];
     byte   ver[MAX_VERSION_SZ];
@@ -6660,7 +6660,7 @@ int EccKeyToDer(ecc_key* key, byte* output, word32 inLen)
     if (key == NULL || output == NULL || inLen == 0)
         return BAD_FUNC_ARG;
 
-    ret = ecc_export_x963(key, NULL, &pubSz);
+    ret = wc_ecc_export_x963(key, NULL, &pubSz);
     if (ret != LENGTH_ONLY_E) {
         return ret;
     }
@@ -6697,7 +6697,7 @@ int EccKeyToDer(ecc_key* key, byte* output, word32 inLen)
     /* private */
     output[idx++] = ASN_OCTET_STRING;
     output[idx++] = (byte)privSz;
-    ret = ecc_export_private_only(key, output + idx, &privSz);
+    ret = wc_ecc_export_private_only(key, output + idx, &privSz);
     if (ret < 0) {
         return ret;
     }
@@ -6715,7 +6715,7 @@ int EccKeyToDer(ecc_key* key, byte* output, word32 inLen)
     output[idx++] = ASN_BIT_STRING;
     output[idx++] = (byte)pubSz + 1;  /* plus null byte */
     output[idx++] = (byte)0;          /* null byte */
-    ret = ecc_export_x963(key, output + idx, &pubSz);
+    ret = wc_ecc_export_x963(key, output + idx, &pubSz);
     if (ret != 0) {
         return ret;
     }

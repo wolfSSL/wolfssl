@@ -2,14 +2,14 @@
  *
  * Copyright (C) 2006-2014 wolfSSL Inc.
  *
- * This file is part of CyaSSL.
+ * This file is part of wolfSSL. (formerly known as CyaSSL)
  *
- * CyaSSL is free software; you can redistribute it and/or modify
+ * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  *
- * CyaSSL is distributed in the hope that it will be useful,
+ * wolfSSL is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
@@ -20,13 +20,13 @@
  */
 
 
-#ifndef CTAO_CRYPT_ASN_PUBLIC_H
-#define CTAO_CRYPT_ASN_PUBLIC_H
+#ifndef WOLF_CRYPT_ASN_PUBLIC_H
+#define WOLF_CRYPT_ASN_PUBLIC_H
 
-#include <cyassl/ctaocrypt/types.h>
-#include <cyassl/ctaocrypt/ecc.h>
-#ifdef CYASSL_CERT_GEN
-    #include <cyassl/ctaocrypt/rsa.h>
+#include <wolfssl/wolfcrypt/types.h>
+#include <wolfssl/wolfcrypt/ecc.h>
+#ifdef WOLFSSL_CERT_GEN
+    #include <wolfssl/wolfcrypt/rsa.h>
 #endif
 
 
@@ -68,7 +68,7 @@ enum Ctc_Encoding {
 };
 
 
-#ifdef CYASSL_CERT_GEN
+#ifdef WOLFSSL_CERT_GEN
 
 #ifndef HAVE_ECC
     typedef struct ecc_key ecc_key;
@@ -113,7 +113,7 @@ typedef struct Cert {
     /* internal use only */
     int      bodySz;                    /* pre sign total size */
     int      keyType;                   /* public key type of subject */
-#ifdef CYASSL_ALT_NAMES
+#ifdef WOLFSSL_ALT_NAMES
     byte     altNames[CTC_MAX_ALT_SIZE]; /* altNames copy */
     int      altNamesSz;                 /* altNames size in bytes */
     byte     beforeDate[CTC_DATE_SIZE];  /* before date copy */
@@ -121,7 +121,7 @@ typedef struct Cert {
     byte     afterDate[CTC_DATE_SIZE];   /* after date copy */
     int      afterDateSz;                /* size of copy */
 #endif
-#ifdef CYASSL_CERT_REQ
+#ifdef WOLFSSL_CERT_REQ
     char     challengePw[CTC_NAME_SIZE];
 #endif
 } Cert;
@@ -140,55 +140,55 @@ typedef struct Cert {
    isCA       = 0 (false)
    keyType    = RSA_KEY (default)
 */
-CYASSL_API void InitCert(Cert*);
-CYASSL_API int  MakeCert(Cert*, byte* derBuffer, word32 derSz, RsaKey*,
+WOLFSSL_API void wc_InitCert(Cert*);
+WOLFSSL_API int  wc_MakeCert(Cert*, byte* derBuffer, word32 derSz, RsaKey*,
                          ecc_key*, RNG*);
-#ifdef CYASSL_CERT_REQ
-    CYASSL_API int  MakeCertReq(Cert*, byte* derBuffer, word32 derSz, RsaKey*,
+#ifdef WOLFSSL_CERT_REQ
+    WOLFSSL_API int  wc_MakeCertReq(Cert*, byte* derBuffer, word32 derSz, RsaKey*,
                                 ecc_key*);
 #endif
-CYASSL_API int  SignCert(int requestSz, int sigType, byte* derBuffer,
+WOLFSSL_API int  wc_SignCert(int requestSz, int sigType, byte* derBuffer,
                          word32 derSz, RsaKey*, ecc_key*, RNG*);
-CYASSL_API int  MakeSelfCert(Cert*, byte* derBuffer, word32 derSz, RsaKey*,
+WOLFSSL_API int  wc_MakeSelfCert(Cert*, byte* derBuffer, word32 derSz, RsaKey*,
                              RNG*);
-CYASSL_API int  SetIssuer(Cert*, const char*);
-CYASSL_API int  SetSubject(Cert*, const char*);
-#ifdef CYASSL_ALT_NAMES
-    CYASSL_API int  SetAltNames(Cert*, const char*);
+WOLFSSL_API int  wc_SetIssuer(Cert*, const char*);
+WOLFSSL_API int  wc_SetSubject(Cert*, const char*);
+#ifdef WOLFSSL_ALT_NAMES
+    WOLFSSL_API int  wc_SetAltNames(Cert*, const char*);
 #endif
-CYASSL_API int  SetIssuerBuffer(Cert*, const byte*, int);
-CYASSL_API int  SetSubjectBuffer(Cert*, const byte*, int);
-CYASSL_API int  SetAltNamesBuffer(Cert*, const byte*, int);
-CYASSL_API int  SetDatesBuffer(Cert*, const byte*, int);
+WOLFSSL_API int  wc_SetIssuerBuffer(Cert*, const byte*, int);
+WOLFSSL_API int  wc_SetSubjectBuffer(Cert*, const byte*, int);
+WOLFSSL_API int  wc_SetAltNamesBuffer(Cert*, const byte*, int);
+WOLFSSL_API int  wc_SetDatesBuffer(Cert*, const byte*, int);
 
     #ifdef HAVE_NTRU
-        CYASSL_API int  MakeNtruCert(Cert*, byte* derBuffer, word32 derSz,
+        WOLFSSL_API int  wc_MakeNtruCert(Cert*, byte* derBuffer, word32 derSz,
                                      const byte* ntruKey, word16 keySz, RNG*);
     #endif
 
-#endif /* CYASSL_CERT_GEN */
+#endif /* WOLFSSL_CERT_GEN */
 
 
-#if defined(CYASSL_KEY_GEN) || defined(CYASSL_CERT_GEN)
-    CYASSL_API int DerToPem(const byte* der, word32 derSz, byte* output,
+#if defined(WOLFSSL_KEY_GEN) || defined(WOLFSSL_CERT_GEN)
+    WOLFSSL_API int wc_DerToPem(const byte* der, word32 derSz, byte* output,
                             word32 outputSz, int type);
 #endif
 
 #ifdef HAVE_ECC
     /* private key helpers */
-    CYASSL_API int EccPrivateKeyDecode(const byte* input,word32* inOutIdx,
+    WOLFSSL_API int wc_EccPrivateKeyDecode(const byte* input,word32* inOutIdx,
                                          ecc_key*,word32);
-    CYASSL_API int EccKeyToDer(ecc_key*, byte* output, word32 inLen);
+    WOLFSSL_API int wc_EccKeyToDer(ecc_key*, byte* output, word32 inLen);
 #endif
 
 /* DER encode signature */
-CYASSL_API word32 EncodeSignature(byte* out, const byte* digest, word32 digSz,
+WOLFSSL_API word32 wc_EncodeSignature(byte* out, const byte* digest, word32 digSz,
                                   int hashOID);
-CYASSL_API int GetCTC_HashOID(int type);
+WOLFSSL_API int wc_GetCTC_HashOID(int type);
 
 #ifdef __cplusplus
     } /* extern "C" */
 #endif
 
-#endif /* CTAO_CRYPT_ASN_PUBLIC_H */
+#endif /* WOLF_CRYPT_ASN_PUBLIC_H */
 

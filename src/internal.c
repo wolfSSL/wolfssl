@@ -1917,10 +1917,10 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
         WOLFSSL_MSG("EccTempKey Memory error");
         return MEMORY_E;
     }
-    ecc_init(ssl->peerEccKey);
-    ecc_init(ssl->peerEccDsaKey);
-    ecc_init(ssl->eccDsaKey);
-    ecc_init(ssl->eccTempKey);
+    wc_ecc_init(ssl->peerEccKey);
+    wc_ecc_init(ssl->peerEccDsaKey);
+    wc_ecc_init(ssl->eccDsaKey);
+    wc_ecc_init(ssl->eccTempKey);
 #endif
 #ifdef HAVE_SECRET_CALLBACK
     ssl->sessionSecretCb  = NULL;
@@ -2025,22 +2025,22 @@ void SSL_ResourceFree(WOLFSSL* ssl)
 #ifdef HAVE_ECC
     if (ssl->peerEccKey) {
         if (ssl->peerEccKeyPresent)
-            ecc_free(ssl->peerEccKey);
+            wc_ecc_free(ssl->peerEccKey);
         XFREE(ssl->peerEccKey, ssl->heap, DYNAMIC_TYPE_ECC);
     }
     if (ssl->peerEccDsaKey) {
         if (ssl->peerEccDsaKeyPresent)
-            ecc_free(ssl->peerEccDsaKey);
+            wc_ecc_free(ssl->peerEccDsaKey);
         XFREE(ssl->peerEccDsaKey, ssl->heap, DYNAMIC_TYPE_ECC);
     }
     if (ssl->eccTempKey) {
         if (ssl->eccTempKeyPresent)
-            ecc_free(ssl->eccTempKey);
+            wc_ecc_free(ssl->eccTempKey);
         XFREE(ssl->eccTempKey, ssl->heap, DYNAMIC_TYPE_ECC);
     }
     if (ssl->eccDsaKey) {
         if (ssl->eccDsaKeyPresent)
-            ecc_free(ssl->eccDsaKey);
+            wc_ecc_free(ssl->eccDsaKey);
         XFREE(ssl->eccDsaKey, ssl->heap, DYNAMIC_TYPE_ECC);
     }
 #endif
@@ -2116,7 +2116,7 @@ void FreeHandshakeResources(WOLFSSL* ssl)
     if (ssl->peerEccKey)
     {
         if (ssl->peerEccKeyPresent) {
-            ecc_free(ssl->peerEccKey);
+            wc_ecc_free(ssl->peerEccKey);
             ssl->peerEccKeyPresent = 0;
         }
         XFREE(ssl->peerEccKey, ssl->heap, DYNAMIC_TYPE_ECC);
@@ -2125,7 +2125,7 @@ void FreeHandshakeResources(WOLFSSL* ssl)
     if (ssl->peerEccDsaKey)
     {
         if (ssl->peerEccDsaKeyPresent) {
-            ecc_free(ssl->peerEccDsaKey);
+            wc_ecc_free(ssl->peerEccDsaKey);
             ssl->peerEccDsaKeyPresent = 0;
         }
         XFREE(ssl->peerEccDsaKey, ssl->heap, DYNAMIC_TYPE_ECC);
@@ -2134,7 +2134,7 @@ void FreeHandshakeResources(WOLFSSL* ssl)
     if (ssl->eccTempKey)
     {
         if (ssl->eccTempKeyPresent) {
-            ecc_free(ssl->eccTempKey);
+            wc_ecc_free(ssl->eccTempKey);
             ssl->eccTempKeyPresent = 0;
         }
         XFREE(ssl->eccTempKey, ssl->heap, DYNAMIC_TYPE_ECC);
@@ -2143,7 +2143,7 @@ void FreeHandshakeResources(WOLFSSL* ssl)
     if (ssl->eccDsaKey)
     {
         if (ssl->eccDsaKeyPresent) {
-            ecc_free(ssl->eccDsaKey);
+            wc_ecc_free(ssl->eccDsaKey);
             ssl->eccDsaKeyPresent = 0;
         }
         XFREE(ssl->eccDsaKey, ssl->heap, DYNAMIC_TYPE_ECC);
@@ -4461,11 +4461,11 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             case ECDSAk:
                 {
                     if (ssl->peerEccDsaKeyPresent) {  /* don't leak on reuse */
-                        ecc_free(ssl->peerEccDsaKey);
+                        wc_ecc_free(ssl->peerEccDsaKey);
                         ssl->peerEccDsaKeyPresent = 0;
-                        ecc_init(ssl->peerEccDsaKey);
+                        wc_ecc_init(ssl->peerEccDsaKey);
                     }
-                    if (ecc_import_x963(dCert->publicKey, dCert->pubKeySize,
+                    if (wc_ecc_import_x963(dCert->publicKey, dCert->pubKeySize,
                                         ssl->peerEccDsaKey) != 0) {
                         ret = PEER_KEY_ERROR;
                     }
@@ -9940,12 +9940,12 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
             return BUFFER_ERROR;
 
         if (ssl->peerEccKeyPresent) {  /* don't leak on reuse */
-            ecc_free(ssl->peerEccKey);
+            wc_ecc_free(ssl->peerEccKey);
             ssl->peerEccKeyPresent = 0;
-            ecc_init(ssl->peerEccKey);
+            wc_ecc_init(ssl->peerEccKey);
         }
 
-        if (ecc_import_x963(input + *inOutIdx, length, ssl->peerEccKey) != 0)
+        if (wc_ecc_import_x963(input + *inOutIdx, length, ssl->peerEccKey) != 0)
             return ECC_PEERKEY_ERROR;
 
         *inOutIdx += length;
@@ -10258,7 +10258,7 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
                     ERROR_OUT(MEMORY_E, done);
             #endif
 
-                encSigSz = EncodeSignature(encodedSig, digest, digestSz, typeH);
+                encSigSz = wc_EncodeSignature(encodedSig, digest, digestSz, typeH);
 
                 if (encSigSz != verifiedSz || !out || XMEMCMP(out, encodedSig,
                                         min(encSigSz, MAX_ENCODED_SIG_SZ)) != 0)
@@ -10326,7 +10326,7 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
             #endif
             }
             else {
-                ret = ecc_verify_hash(input + *inOutIdx, length,
+                ret = wc_ecc_verify_hash(input + *inOutIdx, length,
                                  digest, digestSz, &verify, ssl->peerEccDsaKey);
             }
             if (ret != 0 || verify == 0)
@@ -10729,8 +10729,8 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
                         return NO_PEER_KEY;
                     }
 
-                    ecc_init(&myKey);
-                    ret = ecc_make_key(ssl->rng, peerKey->dp->size, &myKey);
+                    wc_ecc_init(&myKey);
+                    ret = wc_ecc_make_key(ssl->rng, peerKey->dp->size, &myKey);
                     if (ret != 0) {
                     #ifdef WOLFSSL_SMALL_STACK
                         XFREE(encSecret, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -10739,7 +10739,7 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
                     }
 
                     /* precede export with 1 byte length */
-                    ret = ecc_export_x963(&myKey, encSecret + 1, &size);
+                    ret = wc_ecc_export_x963(&myKey, encSecret + 1, &size);
                     encSecret[0] = (byte)size;
                     encSz = size + 1;
 
@@ -10747,14 +10747,14 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
                         ret = ECC_EXPORT_ERROR;
                     else {
                         size = sizeof(ssl->arrays->preMasterSecret);
-                        ret  = ecc_shared_secret(&myKey, peerKey,
+                        ret  = wc_ecc_shared_secret(&myKey, peerKey,
                                                  ssl->arrays->preMasterSecret, &size);
                         if (ret != 0)
                             ret = ECC_SHARED_ERROR;
                     }
 
                     ssl->arrays->preMasterSz = size;
-                    ecc_free(&myKey);
+                    wc_ecc_free(&myKey);
                 }
                 break;
         #endif /* HAVE_ECC */
@@ -10925,7 +10925,7 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
             return ret;
 
 #ifdef HAVE_ECC
-        ecc_init(&eccKey);
+        wc_ecc_init(&eccKey);
 #endif
 #ifndef NO_RSA
         ret = InitRsaKey(&key, ssl->heap);
@@ -10942,7 +10942,7 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
             WOLFSSL_MSG("Trying ECC client cert, RSA didn't work");
 
             idx = 0;
-            ret = EccPrivateKeyDecode(ssl->buffers.key.buffer, &idx, &eccKey,
+            ret = wc_EccPrivateKeyDecode(ssl->buffers.key.buffer, &idx, &eccKey,
                                       ssl->buffers.key.length);
             if (ret == 0) {
                 WOLFSSL_MSG("Using ECC client cert");
@@ -10979,7 +10979,7 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
                     FreeRsaKey(&key);
             #endif
             #ifdef HAVE_ECC
-                ecc_free(&eccKey);
+                wc_ecc_free(&eccKey);
             #endif
                 return MEMORY_E;
             }
@@ -11056,7 +11056,7 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
                 #endif /*HAVE_PK_CALLBACKS */
                 }
                 else {
-                    ret = ecc_sign_hash(digest, digestSz, encodedSig,
+                    ret = wc_ecc_sign_hash(digest, digestSz, encodedSig,
                                         &localSz, ssl->rng, &eccKey);
                 }
                 if (ret == 0) {
@@ -11108,7 +11108,7 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
                         #endif
                     }
 
-                    signSz = EncodeSignature(encodedSig, digest,digestSz,typeH);
+                    signSz = wc_EncodeSignature(encodedSig, digest,digestSz,typeH);
                     signBuffer = encodedSig;
                 }
 
@@ -11187,7 +11187,7 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
             FreeRsaKey(&key);
 #endif
 #ifdef HAVE_ECC
-        ecc_free(&eccKey);
+        wc_ecc_free(&eccKey);
 #endif
 
         if (ret == 0) {
@@ -11649,7 +11649,7 @@ int DoSessionTicket(WOLFSSL* ssl,
 
             /* need ephemeral key now, create it if missing */
             if (ssl->eccTempKeyPresent == 0) {
-                if (ecc_make_key(ssl->rng, ssl->eccTempKeySz,
+                if (wc_ecc_make_key(ssl->rng, ssl->eccTempKeySz,
                                  ssl->eccTempKey) != 0) {
                     return ECC_MAKEKEY_ERROR;
                 }
@@ -11663,7 +11663,7 @@ int DoSessionTicket(WOLFSSL* ssl,
                 return MEMORY_E;
         #endif
 
-            if (ecc_export_x963(ssl->eccTempKey, exportBuf, &expSz) != 0)
+            if (wc_ecc_export_x963(ssl->eccTempKey, exportBuf, &expSz) != 0)
                 ERROR_OUT(ECC_EXPORT_ERROR, done_a);
             length += expSz;
 
@@ -11676,7 +11676,7 @@ int DoSessionTicket(WOLFSSL* ssl,
                 goto done_a;
         #endif
 
-            ecc_init(&dsaKey);
+            wc_ecc_init(&dsaKey);
 
             /* sig length */
             length += LENGTH_SZ;
@@ -11685,7 +11685,7 @@ int DoSessionTicket(WOLFSSL* ssl,
             #ifndef NO_RSA
                 FreeRsaKey(&rsaKey);
             #endif
-                ecc_free(&dsaKey);
+                wc_ecc_free(&dsaKey);
                 ERROR_OUT(NO_PRIVATE_KEY, done_a);
             }
 
@@ -11704,17 +11704,17 @@ int DoSessionTicket(WOLFSSL* ssl,
             if (ssl->specs.sig_algo == ecc_dsa_sa_algo) {
                 /* ecdsa sig size */
                 word32 i = 0;
-                ret = EccPrivateKeyDecode(ssl->buffers.key.buffer, &i,
+                ret = wc_EccPrivateKeyDecode(ssl->buffers.key.buffer, &i,
                                           &dsaKey, ssl->buffers.key.length);
                 if (ret != 0)
                     goto done_a;
-                sigSz = ecc_sig_size(&dsaKey);  /* worst case estimate */
+                sigSz = wc_ecc_sig_size(&dsaKey);  /* worst case estimate */
             }
             else {
             #ifndef NO_RSA
-                FreeRsaKey(&rsaKey);
+                wc_FreeRsaKey(&rsaKey);
             #endif
-                ecc_free(&dsaKey);
+                wc_ecc_free(&dsaKey);
                 ERROR_OUT(ALGO_ID_E, done_a);  /* unsupported type */
             }
             length += sigSz;
@@ -11734,9 +11734,9 @@ int DoSessionTicket(WOLFSSL* ssl,
             /* check for available size */
             if ((ret = CheckAvailableSize(ssl, sendSz)) != 0) {
             #ifndef NO_RSA
-                FreeRsaKey(&rsaKey);
+                wc_FreeRsaKey(&rsaKey);
             #endif
-                ecc_free(&dsaKey);
+                wc_ecc_free(&dsaKey);
                 goto done_a;
             }
 
@@ -11750,7 +11750,7 @@ int DoSessionTicket(WOLFSSL* ssl,
             /* key exchange data */
             output[idx++] = named_curve;
             output[idx++] = 0x00;          /* leading zero */
-            output[idx++] = SetCurveId(ecc_size(ssl->eccTempKey));
+            output[idx++] = SetCurveId(wc_ecc_size(ssl->eccTempKey));
             output[idx++] = (byte)expSz;
             XMEMCPY(output + idx, exportBuf, expSz);
             idx += expSz;
@@ -11925,7 +11925,7 @@ int DoSessionTicket(WOLFSSL* ssl,
                         #endif
                         }
 
-                        signSz = EncodeSignature(encodedSig, digest, digestSz,
+                        signSz = wc_EncodeSignature(encodedSig, digest, digestSz,
                                                  typeH);
                         signBuffer = encodedSig;
                     }
@@ -11948,7 +11948,7 @@ int DoSessionTicket(WOLFSSL* ssl,
                                           sigSz, &rsaKey, ssl->rng);
 
                     FreeRsaKey(&rsaKey);
-                    ecc_free(&dsaKey);
+                    wc_ecc_free(&dsaKey);
 
                 #ifdef WOLFSSL_SMALL_STACK
                     XFREE(encodedSig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -12006,13 +12006,13 @@ int DoSessionTicket(WOLFSSL* ssl,
                     #endif
                     }
                     else {
-                        ret = ecc_sign_hash(digest, digestSz,
+                        ret = wc_ecc_sign_hash(digest, digestSz,
                               output + LENGTH_SZ + idx, &sz, ssl->rng, &dsaKey);
                     }
                 #ifndef NO_RSA
                     FreeRsaKey(&rsaKey);
                 #endif
-                    ecc_free(&dsaKey);
+                    wc_ecc_free(&dsaKey);
 
                     if (ret < 0)
                         goto done_a2;
@@ -12380,7 +12380,7 @@ int DoSessionTicket(WOLFSSL* ssl,
                         #endif
                         }
 
-                        signSz = EncodeSignature(encodedSig, digest, digestSz,
+                        signSz = wc_EncodeSignature(encodedSig, digest, digestSz,
                                                  typeH);
                         signBuffer = encodedSig;
                     }
@@ -13163,7 +13163,7 @@ int DoSessionTicket(WOLFSSL* ssl,
                     #endif
                 }
 
-                sigSz = EncodeSignature(encodedSig, digest, digestSz, typeH);
+                sigSz = wc_EncodeSignature(encodedSig, digest, digestSz, typeH);
 
                 if (outLen == (int)sigSz && out && XMEMCMP(out, encodedSig,
                                            min(sigSz, MAX_ENCODED_SIG_SZ)) == 0)
@@ -13224,7 +13224,7 @@ int DoSessionTicket(WOLFSSL* ssl,
             #endif
             }
             else {
-                err = ecc_verify_hash(input + *inOutIdx, sz, digest, digestSz,
+                err = wc_ecc_verify_hash(input + *inOutIdx, sz, digest, digestSz,
                                                    &verify, ssl->peerEccDsaKey);
             }
 
@@ -13563,12 +13563,12 @@ int DoSessionTicket(WOLFSSL* ssl,
                     return BUFFER_ERROR;
 
                 if (ssl->peerEccKeyPresent) {  /* don't leak on reuse */
-                    ecc_free(ssl->peerEccKey);
+                    wc_ecc_free(ssl->peerEccKey);
                     ssl->peerEccKeyPresent = 0;
-                    ecc_init(ssl->peerEccKey);
+                    wc_ecc_init(ssl->peerEccKey);
                 }
 
-                if (ecc_import_x963(input + *inOutIdx, length, ssl->peerEccKey))
+                if (wc_ecc_import_x963(input + *inOutIdx, length, ssl->peerEccKey))
                     return ECC_PEERKEY_ERROR;
 
                 *inOutIdx += length;
@@ -13580,22 +13580,22 @@ int DoSessionTicket(WOLFSSL* ssl,
                     ecc_key staticKey;
                     word32 i = 0;
 
-                    ecc_init(&staticKey);
-                    ret = EccPrivateKeyDecode(ssl->buffers.key.buffer, &i,
+                    wc_ecc_init(&staticKey);
+                    ret = wc_EccPrivateKeyDecode(ssl->buffers.key.buffer, &i,
                                            &staticKey, ssl->buffers.key.length);
 
                     if (ret == 0)
-                        ret = ecc_shared_secret(&staticKey, ssl->peerEccKey,
+                        ret = wc_ecc_shared_secret(&staticKey, ssl->peerEccKey,
                                          ssl->arrays->preMasterSecret, &length);
 
-                    ecc_free(&staticKey);
+                    wc_ecc_free(&staticKey);
                 }
                 else {
                     if (ssl->eccTempKeyPresent == 0) {
                         WOLFSSL_MSG("Ecc ephemeral key not made correctly");
                         ret = ECC_MAKEKEY_ERROR;
                     } else {
-                        ret = ecc_shared_secret(ssl->eccTempKey,ssl->peerEccKey,
+                        ret = wc_ecc_shared_secret(ssl->eccTempKey,ssl->peerEccKey,
                                          ssl->arrays->preMasterSecret, &length);
                     }
                 }

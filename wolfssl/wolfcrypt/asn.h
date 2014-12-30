@@ -142,13 +142,13 @@ enum Misc_ASN {
     MAX_RSA_E_SZ        =  16,     /* Max RSA public e size */
     MAX_CA_SZ           =  32,     /* Max encoded CA basic constraint length */
     MAX_SN_SZ           =  35,     /* Max encoded serial number (INT) length */
-#ifdef CYASSL_CERT_GEN
-    #ifdef CYASSL_CERT_REQ
+#ifdef WOLFSSL_CERT_GEN
+    #ifdef WOLFSSL_CERT_REQ
                           /* Max encoded cert req attributes length */
         MAX_ATTRIB_SZ   = MAX_SEQ_SZ * 3 + (11 + MAX_SEQ_SZ) * 2 +
                           MAX_PRSTR_SZ + CTC_NAME_SIZE, /* 11 is the OID size */
     #endif
-    #ifdef CYASSL_ALT_NAMES
+    #ifdef WOLFSSL_ALT_NAMES
         MAX_EXTENSIONS_SZ   = 1 + MAX_LENGTH_SZ + CTC_MAX_ALT_SIZE,
     #else
         MAX_EXTENSIONS_SZ   = 1 + MAX_LENGTH_SZ + MAX_CA_SZ,
@@ -410,7 +410,7 @@ struct DecodedCert {
     byte*   subjectRaw;               /* pointer to subject inside source */
     int     subjectRawLen;
 #endif
-#if defined(CYASSL_CERT_GEN)
+#if defined(WOLFSSL_CERT_GEN)
     /* easy access to subject info for other sign */
     char*   subjectSN;
     int     subjectSNLen;
@@ -432,12 +432,12 @@ struct DecodedCert {
     char    subjectOUEnc;
     char*   subjectEmail;
     int     subjectEmailLen;
-#endif /* CYASSL_CERT_GEN */
+#endif /* WOLFSSL_CERT_GEN */
 #ifdef OPENSSL_EXTRA
     DecodedName issuerName;
     DecodedName subjectName;
 #endif /* OPENSSL_EXTRA */
-#ifdef CYASSL_SEP
+#ifdef WOLFSSL_SEP
     int     deviceTypeSz;
     byte*   deviceType;
     int     hwTypeSz;
@@ -448,7 +448,7 @@ struct DecodedCert {
         byte    extCertPolicySet;
         byte    extCertPolicyCrit;
     #endif /* OPENSSL_EXTRA */
-#endif /* CYASSL_SEP */
+#endif /* WOLFSSL_SEP */
 };
 
 
@@ -482,67 +482,67 @@ struct Signer {
 
 
 /* not for public consumption but may use for testing sometimes */
-#ifdef CYASSL_TEST_CERT
-    #define CYASSL_TEST_API CYASSL_API
+#ifdef WOLFSSL_TEST_CERT
+    #define WOLFSSL_TEST_API WOLFSSL_API
 #else
-    #define CYASSL_TEST_API CYASSL_LOCAL
+    #define WOLFSSL_TEST_API WOLFSSL_LOCAL
 #endif
 
-CYASSL_TEST_API void FreeAltNames(DNS_entry*, void*);
+WOLFSSL_TEST_API void FreeAltNames(DNS_entry*, void*);
 #ifndef IGNORE_NAME_CONSTRAINTS
-    CYASSL_TEST_API void FreeNameSubtrees(Base_entry*, void*);
+    WOLFSSL_TEST_API void FreeNameSubtrees(Base_entry*, void*);
 #endif /* IGNORE_NAME_CONSTRAINTS */
-CYASSL_TEST_API void InitDecodedCert(DecodedCert*, byte*, word32, void*);
-CYASSL_TEST_API void FreeDecodedCert(DecodedCert*);
-CYASSL_TEST_API int  ParseCert(DecodedCert*, int type, int verify, void* cm);
+WOLFSSL_TEST_API void InitDecodedCert(DecodedCert*, byte*, word32, void*);
+WOLFSSL_TEST_API void FreeDecodedCert(DecodedCert*);
+WOLFSSL_TEST_API int  ParseCert(DecodedCert*, int type, int verify, void* cm);
 
-CYASSL_LOCAL int ParseCertRelative(DecodedCert*, int type, int verify,void* cm);
-CYASSL_LOCAL int DecodeToKey(DecodedCert*, int verify);
+WOLFSSL_LOCAL int ParseCertRelative(DecodedCert*, int type, int verify,void* cm);
+WOLFSSL_LOCAL int DecodeToKey(DecodedCert*, int verify);
 
-CYASSL_LOCAL Signer* MakeSigner(void*);
-CYASSL_LOCAL void    FreeSigner(Signer*, void*);
-CYASSL_LOCAL void    FreeSignerTable(Signer**, int, void*);
+WOLFSSL_LOCAL Signer* MakeSigner(void*);
+WOLFSSL_LOCAL void    FreeSigner(Signer*, void*);
+WOLFSSL_LOCAL void    FreeSignerTable(Signer**, int, void*);
 
 
-CYASSL_LOCAL int ToTraditional(byte* buffer, word32 length);
-CYASSL_LOCAL int ToTraditionalEnc(byte* buffer, word32 length,const char*, int);
+WOLFSSL_LOCAL int ToTraditional(byte* buffer, word32 length);
+WOLFSSL_LOCAL int ToTraditionalEnc(byte* buffer, word32 length,const char*, int);
 
-CYASSL_LOCAL int ValidateDate(const byte* date, byte format, int dateType);
+WOLFSSL_LOCAL int ValidateDate(const byte* date, byte format, int dateType);
 
 /* ASN.1 helper functions */
-CYASSL_LOCAL int GetLength(const byte* input, word32* inOutIdx, int* len,
+WOLFSSL_LOCAL int GetLength(const byte* input, word32* inOutIdx, int* len,
                            word32 maxIdx);
-CYASSL_LOCAL int GetSequence(const byte* input, word32* inOutIdx, int* len,
+WOLFSSL_LOCAL int GetSequence(const byte* input, word32* inOutIdx, int* len,
                              word32 maxIdx);
-CYASSL_LOCAL int GetSet(const byte* input, word32* inOutIdx, int* len,
+WOLFSSL_LOCAL int GetSet(const byte* input, word32* inOutIdx, int* len,
                         word32 maxIdx);
-CYASSL_LOCAL int GetMyVersion(const byte* input, word32* inOutIdx,
+WOLFSSL_LOCAL int GetMyVersion(const byte* input, word32* inOutIdx,
                               int* version);
-CYASSL_LOCAL int GetInt(mp_int* mpi, const byte* input, word32* inOutIdx,
+WOLFSSL_LOCAL int GetInt(mp_int* mpi, const byte* input, word32* inOutIdx,
                         word32 maxIdx);
-CYASSL_LOCAL int GetAlgoId(const byte* input, word32* inOutIdx, word32* oid,
+WOLFSSL_LOCAL int GetAlgoId(const byte* input, word32* inOutIdx, word32* oid,
                            word32 maxIdx);
-CYASSL_LOCAL word32 SetLength(word32 length, byte* output);
-CYASSL_LOCAL word32 SetSequence(word32 len, byte* output);
-CYASSL_LOCAL word32 SetOctetString(word32 len, byte* output);
-CYASSL_LOCAL word32 SetImplicit(byte tag, byte number, word32 len,byte* output);
-CYASSL_LOCAL word32 SetExplicit(byte number, word32 len, byte* output);
-CYASSL_LOCAL word32 SetSet(word32 len, byte* output);
-CYASSL_LOCAL word32 SetAlgoID(int algoOID, byte* output, int type, int curveSz);
-CYASSL_LOCAL int SetMyVersion(word32 version, byte* output, int header);
-CYASSL_LOCAL int SetSerialNumber(const byte* sn, word32 snSz, byte* output);
-CYASSL_LOCAL int GetNameHash(const byte* source, word32* idx, byte* hash,
+WOLFSSL_LOCAL word32 SetLength(word32 length, byte* output);
+WOLFSSL_LOCAL word32 SetSequence(word32 len, byte* output);
+WOLFSSL_LOCAL word32 SetOctetString(word32 len, byte* output);
+WOLFSSL_LOCAL word32 SetImplicit(byte tag, byte number, word32 len,byte* output);
+WOLFSSL_LOCAL word32 SetExplicit(byte number, word32 len, byte* output);
+WOLFSSL_LOCAL word32 SetSet(word32 len, byte* output);
+WOLFSSL_LOCAL word32 SetAlgoID(int algoOID, byte* output, int type, int curveSz);
+WOLFSSL_LOCAL int SetMyVersion(word32 version, byte* output, int header);
+WOLFSSL_LOCAL int SetSerialNumber(const byte* sn, word32 snSz, byte* output);
+WOLFSSL_LOCAL int GetNameHash(const byte* source, word32* idx, byte* hash,
                              int maxIdx);
 
 #ifdef HAVE_ECC
     /* ASN sig helpers */
-    CYASSL_LOCAL int StoreECC_DSA_Sig(byte* out, word32* outLen, mp_int* r,
+    WOLFSSL_LOCAL int StoreECC_DSA_Sig(byte* out, word32* outLen, mp_int* r,
                                       mp_int* s);
-    CYASSL_LOCAL int DecodeECC_DSA_Sig(const byte* sig, word32 sigLen,
+    WOLFSSL_LOCAL int DecodeECC_DSA_Sig(const byte* sig, word32 sigLen,
                                        mp_int* r, mp_int* s);
 #endif
 
-#ifdef CYASSL_CERT_GEN
+#ifdef WOLFSSL_CERT_GEN
 
 enum cert_enums {
     NAME_ENTRIES    =  8,
@@ -553,16 +553,16 @@ enum cert_enums {
     ECC_KEY         = 12
 };
 
-#ifndef CYASSL_PEMCERT_TODER_DEFINED
+#ifndef WOLFSSL_PEMCERT_TODER_DEFINED
 #ifndef NO_FILESYSTEM
 /* forward from CyaSSL */
-CYASSL_API
+WOLFSSL_API
 int CyaSSL_PemCertToDer(const char* fileName, unsigned char* derBuf, int derSz);
-#define CYASSL_PEMCERT_TODER_DEFINED
+#define WOLFSSL_PEMCERT_TODER_DEFINED
 #endif
 #endif
 
-#endif /* CYASSL_CERT_GEN */
+#endif /* WOLFSSL_CERT_GEN */
 
 
 
@@ -659,14 +659,14 @@ struct OcspRequest {
 };
 
 
-CYASSL_LOCAL void InitOcspResponse(OcspResponse*, CertStatus*, byte*, word32);
-CYASSL_LOCAL int  OcspResponseDecode(OcspResponse*);
+WOLFSSL_LOCAL void InitOcspResponse(OcspResponse*, CertStatus*, byte*, word32);
+WOLFSSL_LOCAL int  OcspResponseDecode(OcspResponse*);
 
-CYASSL_LOCAL void InitOcspRequest(OcspRequest*, DecodedCert*,
+WOLFSSL_LOCAL void InitOcspRequest(OcspRequest*, DecodedCert*,
                                                           byte, byte*, word32);
-CYASSL_LOCAL int  EncodeOcspRequest(OcspRequest*);
+WOLFSSL_LOCAL int  EncodeOcspRequest(OcspRequest*);
 
-CYASSL_LOCAL int  CompareOcspReqResp(OcspRequest*, OcspResponse*);
+WOLFSSL_LOCAL int  CompareOcspReqResp(OcspRequest*, OcspResponse*);
 
 
 #endif /* HAVE_OCSP */
@@ -701,9 +701,9 @@ struct DecodedCRL {
     int          totalCerts;         /* number on list     */
 };
 
-CYASSL_LOCAL void InitDecodedCRL(DecodedCRL*);
-CYASSL_LOCAL int  ParseCRL(DecodedCRL*, const byte* buff, word32 sz, void* cm);
-CYASSL_LOCAL void FreeDecodedCRL(DecodedCRL*);
+WOLFSSL_LOCAL void InitDecodedCRL(DecodedCRL*);
+WOLFSSL_LOCAL int  ParseCRL(DecodedCRL*, const byte* buff, word32 sz, void* cm);
+WOLFSSL_LOCAL void FreeDecodedCRL(DecodedCRL*);
 
 
 #endif /* HAVE_CRL */
