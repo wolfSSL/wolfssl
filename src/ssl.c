@@ -3640,7 +3640,7 @@ static int wolfSSL_SetTmpDH_buffer_wrapper(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
         }
         
         if (ret == 0) {
-            if (DhParamsLoad(der.buffer, der.length, p, &pSz, g, &gSz) < 0)
+            if (wc_DhParamsLoad(der.buffer, der.length, p, &pSz, g, &gSz) < 0)
                 ret = SSL_BAD_FILETYPE;
             else if (ssl)
                 ret = wolfSSL_SetTmpDH(ssl, p, pSz, g, gSz);
@@ -7661,7 +7661,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
                 break;
 
             case ARC4_TYPE :
-                Arc4Process(&ctx->cipher.arc4, dst, src, len);
+                wc_Arc4Process(&ctx->cipher.arc4, dst, src, len);
                 break;
 
             case NULL_CIPHER_TYPE :
@@ -10794,7 +10794,7 @@ WOLFSSL_DH* wolfSSL_DH_new(void)
     }
 
     InitwolfSSL_DH(external);
-    InitDhKey(key);
+    wc_InitDhKey(key);
     external->internal = key;
 
     return external;
@@ -10807,7 +10807,7 @@ void wolfSSL_DH_free(WOLFSSL_DH* dh)
 
     if (dh) {
         if (dh->internal) {
-            FreeDhKey((DhKey*)dh->internal);
+            wc_FreeDhKey((DhKey*)dh->internal);
             XFREE(dh->internal, NULL, DYNAMIC_TYPE_DH);
             dh->internal = NULL;
         }
@@ -10860,7 +10860,7 @@ static int SetDhInternal(WOLFSSL_DH* dh)
 
         if (pSz <= 0 || gSz <= 0)
             WOLFSSL_MSG("Bad BN2bin set");
-        else if (DhSetKey((DhKey*)dh->internal, p, pSz, g, gSz) < 0)
+        else if (wc_DhSetKey((DhKey*)dh->internal, p, pSz, g, gSz) < 0)
             WOLFSSL_MSG("Bad DH SetKey");
         else {
             dh->inSet = 1;
@@ -10936,9 +10936,9 @@ int wolfSSL_DH_generate_key(WOLFSSL_DH* dh)
     }
 
     if (rng) {
-       if (DhGenerateKeyPair((DhKey*)dh->internal, rng, priv, &privSz,
+       if (wc_DhGenerateKeyPair((DhKey*)dh->internal, rng, priv, &privSz,
                                                                pub, &pubSz) < 0)
-            WOLFSSL_MSG("Bad DhGenerateKeyPair");
+            WOLFSSL_MSG("Bad wc_DhGenerateKeyPair");
        else {
             if (dh->pub_key)
                 wolfSSL_BN_free(dh->pub_key);
@@ -11021,9 +11021,9 @@ int wolfSSL_DH_compute_key(unsigned char* key, WOLFSSL_BIGNUM* otherPub,
 
         if (privSz <= 0 || pubSz <= 0)
             WOLFSSL_MSG("Bad BN2bin set");
-        else if (DhAgree((DhKey*)dh->internal, key, &keySz, priv, privSz, pub,
+        else if (wc_DhAgree((DhKey*)dh->internal, key, &keySz, priv, privSz, pub,
                                                                      pubSz) < 0)
-            WOLFSSL_MSG("DhAgree failed");
+            WOLFSSL_MSG("wc_DhAgree failed");
         else
             ret = (int)keySz;
     }
@@ -11373,8 +11373,8 @@ int wolfSSL_RSA_generate_key_ex(WOLFSSL_RSA* rsa, int bits, WOLFSSL_BIGNUM* bn,
 
         if (InitRng(rng) < 0)
             WOLFSSL_MSG("RNG init failed");
-        else if (MakeRsaKey((RsaKey*)rsa->internal, bits, 65537, rng) < 0)
-            WOLFSSL_MSG("MakeRsaKey failed");
+        else if (wc_MakeRsaKey((RsaKey*)rsa->internal, bits, 65537, rng) < 0)
+            WOLFSSL_MSG("wc_MakeRsaKey failed");
         else if (SetRsaExternal(rsa) < 0)
             WOLFSSL_MSG("SetRsaExternal failed");
         else {

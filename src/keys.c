@@ -1938,24 +1938,24 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
             return MEMORY_E;
         if (side == WOLFSSL_CLIENT_END) {
             if (enc) {
-                hcRet = Hc128_SetKey(enc->hc128, keys->client_write_key,
+                hcRet = wc_Hc128_SetKey(enc->hc128, keys->client_write_key,
                                      keys->client_write_IV);
                 if (hcRet != 0) return hcRet;
             }
             if (dec) {
-                hcRet = Hc128_SetKey(dec->hc128, keys->server_write_key,
+                hcRet = wc_Hc128_SetKey(dec->hc128, keys->server_write_key,
                                      keys->server_write_IV);
                 if (hcRet != 0) return hcRet;
             }
         }
         else {
             if (enc) {
-                hcRet = Hc128_SetKey(enc->hc128, keys->server_write_key,
+                hcRet = wc_Hc128_SetKey(enc->hc128, keys->server_write_key,
                                      keys->server_write_IV);
                 if (hcRet != 0) return hcRet;
             }
             if (dec) {
-                hcRet = Hc128_SetKey(dec->hc128, keys->client_write_key,
+                hcRet = wc_Hc128_SetKey(dec->hc128, keys->client_write_key,
                                      keys->client_write_IV);
                 if (hcRet != 0) return hcRet;
             }
@@ -1982,24 +1982,24 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
             return MEMORY_E;
         if (side == WOLFSSL_CLIENT_END) {
             if (enc) {
-                rabRet = RabbitSetKey(enc->rabbit, keys->client_write_key,
+                rabRet = wc_RabbitSetKey(enc->rabbit, keys->client_write_key,
                                       keys->client_write_IV);
                 if (rabRet != 0) return rabRet;
             }
             if (dec) {
-                rabRet = RabbitSetKey(dec->rabbit, keys->server_write_key,
+                rabRet = wc_RabbitSetKey(dec->rabbit, keys->server_write_key,
                                       keys->server_write_IV);
                 if (rabRet != 0) return rabRet;
             }
         }
         else {
             if (enc) {
-                rabRet = RabbitSetKey(enc->rabbit, keys->server_write_key,
+                rabRet = wc_RabbitSetKey(enc->rabbit, keys->server_write_key,
                                       keys->server_write_IV);
                 if (rabRet != 0) return rabRet;
             }
             if (dec) {
-                rabRet = RabbitSetKey(dec->rabbit, keys->client_write_key,
+                rabRet = wc_RabbitSetKey(dec->rabbit, keys->client_write_key,
                                       keys->client_write_IV);
                 if (rabRet != 0) return rabRet;
             }
@@ -2245,24 +2245,24 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
 
         if (side == WOLFSSL_CLIENT_END) {
             if (enc) {
-                camRet = CamelliaSetKey(enc->cam, keys->client_write_key,
+                camRet = wc_CamelliaSetKey(enc->cam, keys->client_write_key,
                                         specs->key_size, keys->client_write_IV);
                 if (camRet != 0) return camRet;
             }
             if (dec) {
-                camRet = CamelliaSetKey(dec->cam, keys->server_write_key,
+                camRet = wc_CamelliaSetKey(dec->cam, keys->server_write_key,
                                         specs->key_size, keys->server_write_IV);
                 if (camRet != 0) return camRet;
             }
         }
         else {
             if (enc) {
-                camRet = CamelliaSetKey(enc->cam, keys->server_write_key,
+                camRet = wc_CamelliaSetKey(enc->cam, keys->server_write_key,
                                         specs->key_size, keys->server_write_IV);
                 if (camRet != 0) return camRet;
             }
             if (dec) {
-                camRet = CamelliaSetKey(dec->cam, keys->client_write_key,
+                camRet = wc_CamelliaSetKey(dec->cam, keys->client_write_key,
                                         specs->key_size, keys->client_write_IV);
                 if (camRet != 0) return camRet;
             }

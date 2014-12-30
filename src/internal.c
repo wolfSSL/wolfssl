@@ -5908,23 +5908,23 @@ static INLINE int Decrypt(WOLFSSL* ssl, byte* plain, const byte* input,
 
         #ifdef HAVE_CAMELLIA
             case wolfssl_camellia:
-                CamelliaCbcDecrypt(ssl->decrypt.cam, plain, input, sz);
+                wc_CamelliaCbcDecrypt(ssl->decrypt.cam, plain, input, sz);
                 break;
         #endif
 
         #ifdef HAVE_HC128
             case wolfssl_hc128:
-                return Hc128_Process(ssl->decrypt.hc128, plain, input, sz);
+                return wc_Hc128_Process(ssl->decrypt.hc128, plain, input, sz);
         #endif
 
         #ifdef BUILD_RABBIT
             case wolfssl_rabbit:
-                return RabbitProcess(ssl->decrypt.rabbit, plain, input, sz);
+                return wc_RabbitProcess(ssl->decrypt.rabbit, plain, input, sz);
         #endif
 
         #ifdef HAVE_CHACHA
             case wolfssl_chacha:
-                return ChachaAEADDecrypt(ssl, plain, input, sz);
+                return wc_ChachaAEADDecrypt(ssl, plain, input, sz);
         #endif
 
         #ifdef HAVE_NULL_CIPHER
@@ -10482,21 +10482,21 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
                     }
                 #endif
 
-                    InitDhKey(&key);
-                    ret = DhSetKey(&key, serverP.buffer, serverP.length,
+                    wc_InitDhKey(&key);
+                    ret = wc_DhSetKey(&key, serverP.buffer, serverP.length,
                                    serverG.buffer, serverG.length);
                     if (ret == 0)
                         /* for DH, encSecret is Yc, agree is pre-master */
-                        ret = DhGenerateKeyPair(&key, ssl->rng, priv, &privSz,
+                        ret = wc_DhGenerateKeyPair(&key, ssl->rng, priv, &privSz,
                                                 encSecret, &encSz);
                     if (ret == 0)
-                        ret = DhAgree(&key, ssl->arrays->preMasterSecret,
+                        ret = wc_DhAgree(&key, ssl->arrays->preMasterSecret,
                                       &ssl->arrays->preMasterSz, priv, privSz,
                                       serverPub.buffer, serverPub.length);
                 #ifdef WOLFSSL_SMALL_STACK
                     XFREE(priv, NULL, DYNAMIC_TYPE_TMP_BUFFER);
                 #endif
-                    FreeDhKey(&key);
+                    wc_FreeDhKey(&key);
                 }
                 break;
         #endif /* NO_DH */
@@ -10598,18 +10598,18 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
                     es += esSz;
                     encSz = esSz + OPAQUE16_LEN;
 
-                    InitDhKey(&key);
-                    ret = DhSetKey(&key, serverP.buffer, serverP.length,
+                    wc_InitDhKey(&key);
+                    ret = wc_DhSetKey(&key, serverP.buffer, serverP.length,
                                    serverG.buffer, serverG.length);
                     if (ret == 0)
                         /* for DH, encSecret is Yc, agree is pre-master */
-                        ret = DhGenerateKeyPair(&key, ssl->rng, priv, &privSz,
+                        ret = wc_DhGenerateKeyPair(&key, ssl->rng, priv, &privSz,
                                                 es + OPAQUE16_LEN, &pubSz);
                     if (ret == 0)
-                        ret = DhAgree(&key, pms + OPAQUE16_LEN,
+                        ret = wc_DhAgree(&key, pms + OPAQUE16_LEN,
                                       &ssl->arrays->preMasterSz, priv, privSz,
                                       serverPub.buffer, serverPub.length);
-                    FreeDhKey(&key);
+                    wc_FreeDhKey(&key);
                 #ifdef WOLFSSL_SMALL_STACK
                     XFREE(priv, NULL, DYNAMIC_TYPE_TMP_BUFFER);
                 #endif
@@ -11518,18 +11518,18 @@ int DoSessionTicket(WOLFSSL* ssl,
                     return MEMORY_E;
             }
 
-            InitDhKey(&dhKey);
-            ret = DhSetKey(&dhKey, ssl->buffers.serverDH_P.buffer,
+            wc_InitDhKey(&dhKey);
+            ret = wc_DhSetKey(&dhKey, ssl->buffers.serverDH_P.buffer,
                                    ssl->buffers.serverDH_P.length,
                                    ssl->buffers.serverDH_G.buffer,
                                    ssl->buffers.serverDH_G.length);
             if (ret == 0)
-                ret = DhGenerateKeyPair(&dhKey, ssl->rng,
+                ret = wc_DhGenerateKeyPair(&dhKey, ssl->rng,
                                          ssl->buffers.serverDH_Priv.buffer,
                                         &ssl->buffers.serverDH_Priv.length,
                                          ssl->buffers.serverDH_Pub.buffer,
                                         &ssl->buffers.serverDH_Pub.length);
-            FreeDhKey(&dhKey);
+            wc_FreeDhKey(&dhKey);
             if (ret != 0)
                 return ret;
 
@@ -12111,18 +12111,18 @@ int DoSessionTicket(WOLFSSL* ssl,
                     return MEMORY_E;
             }
 
-            InitDhKey(&dhKey);
-            ret = DhSetKey(&dhKey, ssl->buffers.serverDH_P.buffer,
+            wc_InitDhKey(&dhKey);
+            ret = wc_DhSetKey(&dhKey, ssl->buffers.serverDH_P.buffer,
                                    ssl->buffers.serverDH_P.length,
                                    ssl->buffers.serverDH_G.buffer,
                                    ssl->buffers.serverDH_G.length);
             if (ret == 0)
-                ret = DhGenerateKeyPair(&dhKey, ssl->rng,
+                ret = wc_DhGenerateKeyPair(&dhKey, ssl->rng,
                                          ssl->buffers.serverDH_Priv.buffer,
                                         &ssl->buffers.serverDH_Priv.length,
                                          ssl->buffers.serverDH_Pub.buffer,
                                         &ssl->buffers.serverDH_Pub.length);
-            FreeDhKey(&dhKey);
+            wc_FreeDhKey(&dhKey);
 
             if (ret != 0) return ret;
 
@@ -13623,18 +13623,18 @@ int DoSessionTicket(WOLFSSL* ssl,
                 if ((*inOutIdx - begin) + clientPubSz > size)
                     return BUFFER_ERROR;
 
-                InitDhKey(&dhKey);
-                ret = DhSetKey(&dhKey, ssl->buffers.serverDH_P.buffer,
+                wc_InitDhKey(&dhKey);
+                ret = wc_DhSetKey(&dhKey, ssl->buffers.serverDH_P.buffer,
                                        ssl->buffers.serverDH_P.length,
                                        ssl->buffers.serverDH_G.buffer,
                                        ssl->buffers.serverDH_G.length);
                 if (ret == 0)
-                    ret = DhAgree(&dhKey, ssl->arrays->preMasterSecret,
+                    ret = wc_DhAgree(&dhKey, ssl->arrays->preMasterSecret,
                                          &ssl->arrays->preMasterSz,
                                           ssl->buffers.serverDH_Priv.buffer,
                                           ssl->buffers.serverDH_Priv.length,
                                           input + *inOutIdx, clientPubSz);
-                FreeDhKey(&dhKey);
+                wc_FreeDhKey(&dhKey);
 
                 *inOutIdx += clientPubSz;
 
@@ -13678,18 +13678,18 @@ int DoSessionTicket(WOLFSSL* ssl,
                 if ((*inOutIdx - begin) + clientSz > size)
                     return BUFFER_ERROR;
 
-                InitDhKey(&dhKey);
-                ret = DhSetKey(&dhKey, ssl->buffers.serverDH_P.buffer,
+                wc_InitDhKey(&dhKey);
+                ret = wc_DhSetKey(&dhKey, ssl->buffers.serverDH_P.buffer,
                                        ssl->buffers.serverDH_P.length,
                                        ssl->buffers.serverDH_G.buffer,
                                        ssl->buffers.serverDH_G.length);
                 if (ret == 0)
-                    ret = DhAgree(&dhKey, pms + OPAQUE16_LEN,
+                    ret = wc_DhAgree(&dhKey, pms + OPAQUE16_LEN,
                                           &ssl->arrays->preMasterSz,
                                           ssl->buffers.serverDH_Priv.buffer,
                                           ssl->buffers.serverDH_Priv.length,
                                           input + *inOutIdx, clientSz);
-                FreeDhKey(&dhKey);
+                wc_FreeDhKey(&dhKey);
 
                 *inOutIdx += clientSz;
                 c16toa((word16)ssl->arrays->preMasterSz, pms);
