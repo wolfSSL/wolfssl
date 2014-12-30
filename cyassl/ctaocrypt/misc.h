@@ -23,8 +23,11 @@
 #ifndef CTAO_CRYPT_MISC_H
 #define CTAO_CRYPT_MISC_H
 
-
 #include <cyassl/ctaocrypt/types.h>
+
+#ifndef HAVE_FIPS
+    #include <wolfssl/wolfcrypt/misc.h>
+#else
 
 
 #ifdef __cplusplus
@@ -68,5 +71,6 @@ void   ByteReverseWords64(word64*, const word64*, word32);
 #endif
 
 
+#endif /* HAVE_FIPS */
 #endif /* CTAO_CRYPT_MISC_H */
 

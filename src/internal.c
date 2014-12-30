@@ -5318,16 +5318,16 @@ static int Poly1305Tag(WOLFSSL* ssl, byte* additional, const byte* out,
 
     XMEMSET(padding, 0, sizeof(padding));
 
-    if ((ret = Poly1305SetKey(ssl->auth.poly1305, cipher, keySz)) != 0)
+    if ((ret = wc_Poly1305SetKey(ssl->auth.poly1305, cipher, keySz)) != 0)
         return ret;
 
 	/* additional input to poly1305 */
-    if ((ret = Poly1305Update(ssl->auth.poly1305, additional,
+    if ((ret = wc_Poly1305Update(ssl->auth.poly1305, additional,
                    CHACHA20_BLOCK_SIZE)) != 0)
         return ret;
 
     /* cipher input */
-    if ((ret = Poly1305Update(ssl->auth.poly1305, out, msglen)) != 0)
+    if ((ret = wc_Poly1305Update(ssl->auth.poly1305, out, msglen)) != 0)
         return ret;
 
     /* handle padding for cipher input to make it 16 bytes long */
@@ -5336,7 +5336,7 @@ static int Poly1305Tag(WOLFSSL* ssl, byte* additional, const byte* out,
           if (paddingSz < 0)
               return INPUT_CASE_ERROR;
 
-          if ((ret = Poly1305Update(ssl->auth.poly1305, padding, paddingSz))
+          if ((ret = wc_Poly1305Update(ssl->auth.poly1305, padding, paddingSz))
                  != 0)
               return ret;
     }
@@ -5350,12 +5350,12 @@ static int Poly1305Tag(WOLFSSL* ssl, byte* additional, const byte* out,
     padding[9]  = (msglen >> 8) & 0xff;
     padding[10] = (msglen >>16) & 0xff;
     padding[11] = (msglen >>24) & 0xff;
-    if ((ret = Poly1305Update(ssl->auth.poly1305, padding, sizeof(padding)))
+    if ((ret = wc_Poly1305Update(ssl->auth.poly1305, padding, sizeof(padding)))
                 != 0)
         return ret;
 
     /* generate tag */
-    if ((ret = Poly1305Final(ssl->auth.poly1305, tag)) != 0)
+    if ((ret = wc_Poly1305Final(ssl->auth.poly1305, tag)) != 0)
         return ret;
 
     return ret;
@@ -5378,27 +5378,27 @@ static int Poly1305TagOld(WOLFSSL* ssl, byte* additional, const byte* out,
     if (msglen < 0)
         return INPUT_CASE_ERROR;
 
-    if ((ret = Poly1305SetKey(ssl->auth.poly1305, cipher, keySz)) != 0)
+    if ((ret = wc_Poly1305SetKey(ssl->auth.poly1305, cipher, keySz)) != 0)
         return ret;
 
 	/* add TLS compressed length and additional input to poly1305 */
     additional[AEAD_AUTH_DATA_SZ - 2] = (msglen >> 8) & 0xff;
     additional[AEAD_AUTH_DATA_SZ - 1] =  msglen       & 0xff;
-    if ((ret = Poly1305Update(ssl->auth.poly1305, additional,
+    if ((ret = wc_Poly1305Update(ssl->auth.poly1305, additional,
                    AEAD_AUTH_DATA_SZ)) != 0)
         return ret;
 
     /* length of additional input plus padding */
     XMEMSET(padding, 0, sizeof(padding));
     padding[0] = AEAD_AUTH_DATA_SZ;
-    if ((ret = Poly1305Update(ssl->auth.poly1305, padding,
+    if ((ret = wc_Poly1305Update(ssl->auth.poly1305, padding,
                     sizeof(padding))) != 0)
         return ret;
 
 
     /* add cipher info and then its length */
     XMEMSET(padding, 0, sizeof(padding));
-    if ((ret = Poly1305Update(ssl->auth.poly1305, out, msglen)) != 0)
+    if ((ret = wc_Poly1305Update(ssl->auth.poly1305, out, msglen)) != 0)
         return ret;
 
     /* 32 bit size of cipher to 64 bit endian */
@@ -5406,12 +5406,12 @@ static int Poly1305TagOld(WOLFSSL* ssl, byte* additional, const byte* out,
     padding[1] = (msglen >>  8) & 0xff;
     padding[2] = (msglen >> 16) & 0xff;
     padding[3] = (msglen >> 24) & 0xff;
-    if ((ret = Poly1305Update(ssl->auth.poly1305, padding, sizeof(padding)))
+    if ((ret = wc_Poly1305Update(ssl->auth.poly1305, padding, sizeof(padding)))
         != 0)
         return ret;
 
     /* generate tag */
-    if ((ret = Poly1305Final(ssl->auth.poly1305, tag)) != 0)
+    if ((ret = wc_Poly1305Final(ssl->auth.poly1305, tag)) != 0)
         return ret;
 
     return ret;
@@ -5472,15 +5472,15 @@ static int  ChachaAEADEncrypt(WOLFSSL* ssl, byte* out, const byte* input,
 	#endif
 	
 	/* set the nonce for chacha and get poly1305 key */
-	if ((ret = Chacha_SetIV(ssl->encrypt.chacha, nonce, 0)) != 0)
+	if ((ret = wc_Chacha_SetIV(ssl->encrypt.chacha, nonce, 0)) != 0)
 	    return ret;
 	
-		if ((ret = Chacha_Process(ssl->encrypt.chacha, cipher,
+		if ((ret = wc_Chacha_Process(ssl->encrypt.chacha, cipher,
 	                cipher, sizeof(cipher))) != 0)
 	    return ret;
 	
 	/* encrypt the plain text */
-	if ((ret = Chacha_Process(ssl->encrypt.chacha, out, input,
+	if ((ret = wc_Chacha_Process(ssl->encrypt.chacha, out, input,
 	               sz - ssl->specs.aead_mac_size)) != 0)
 	    return ret;
 	
@@ -5576,10 +5576,10 @@ static int ChachaAEADDecrypt(WOLFSSL* ssl, byte* plain, const byte* input,
 	#endif
 	
 	/* set nonce and get poly1305 key */
-	if ((ret = Chacha_SetIV(ssl->decrypt.chacha, nonce, 0)) != 0)
+	if ((ret = wc_Chacha_SetIV(ssl->decrypt.chacha, nonce, 0)) != 0)
 	    return ret;
 	
-	if ((ret = Chacha_Process(ssl->decrypt.chacha, cipher,
+	if ((ret = wc_Chacha_Process(ssl->decrypt.chacha, cipher,
 	                cipher, sizeof(cipher))) != 0)
 	    return ret;
 	
@@ -5612,7 +5612,7 @@ static int ChachaAEADDecrypt(WOLFSSL* ssl, byte* plain, const byte* input,
 	}
 	
 	/* if mac was good decrypt message */
-	if ((ret = Chacha_Process(ssl->decrypt.chacha, plain, input,
+	if ((ret = wc_Chacha_Process(ssl->decrypt.chacha, plain, input,
 	               sz - ssl->specs.aead_mac_size)) != 0)
 	    return ret;
 		

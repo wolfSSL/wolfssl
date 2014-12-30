@@ -100,7 +100,7 @@ int UnLockMutex(wolfSSL_Mutex *m)
             return 0;
         }
 
-    #elif defined(CYASSL_SAFERTOS)
+    #elif defined(WOLFSSL_SAFERTOS)
 
         int InitMutex(wolfSSL_Mutex* m)
         {
@@ -160,7 +160,7 @@ int UnLockMutex(wolfSSL_Mutex *m)
             return 0;
         }
 
-    #elif defined(CYASSL_PTHREADS)
+    #elif defined(WOLFSSL_PTHREADS)
 
         int InitMutex(wolfSSL_Mutex* m)
         {
@@ -292,7 +292,7 @@ int UnLockMutex(wolfSSL_Mutex *m)
 
         int InitMutex(wolfSSL_Mutex* m)
         {
-            if (rtp_sig_mutex_alloc(m, "CyaSSL Mutex") == -1)
+            if (rtp_sig_mutex_alloc(m, "wolfSSL Mutex") == -1)
                 return BAD_MUTEX_E;
             else
                 return 0;
@@ -352,7 +352,7 @@ int UnLockMutex(wolfSSL_Mutex *m)
                 return BAD_MUTEX_E;
         }
 
-    #elif defined (CYASSL_TIRTOS)
+    #elif defined (WOLFSSL_TIRTOS)
 
         int InitMutex(wolfSSL_Mutex* m)
         {
@@ -387,20 +387,20 @@ int UnLockMutex(wolfSSL_Mutex *m)
             return 0;
         }
 
-    #elif defined(CYASSL_MDK_ARM)|| defined(CYASSL_CMSIS_RTOS)
+    #elif defined(WOLFSSL_MDK_ARM)|| defined(WOLFSSL_CMSIS_RTOS)
     
-        #if defined(CYASSL_CMSIS_RTOS)
+        #if defined(WOLFSSL_CMSIS_RTOS)
             #include "cmsis_os.h"
             #define CMSIS_NMUTEX 10
-            osMutexDef(CyaSSL_mt0) ;  osMutexDef(CyaSSL_mt1) ;  osMutexDef(CyaSSL_mt2) ;
-            osMutexDef(CyaSSL_mt3) ;  osMutexDef(CyaSSL_mt4) ;  osMutexDef(CyaSSL_mt5) ;  
-            osMutexDef(CyaSSL_mt6) ;  osMutexDef(CyaSSL_mt7) ;  osMutexDef(CyaSSL_mt8) ;  
-            osMutexDef(CyaSSL_mt9) ;  
+            osMutexDef(wolfSSL_mt0) ;  osMutexDef(wolfSSL_mt1) ;  osMutexDef(wolfSSL_mt2) ;
+            osMutexDef(wolfSSL_mt3) ;  osMutexDef(wolfSSL_mt4) ;  osMutexDef(wolfSSL_mt5) ;  
+            osMutexDef(wolfSSL_mt6) ;  osMutexDef(wolfSSL_mt7) ;  osMutexDef(wolfSSL_mt8) ;  
+            osMutexDef(wolfSSL_mt9) ;  
             
-            static const osMutexDef_t *CMSIS_mutex[] = { osMutex(CyaSSL_mt0),   
-                osMutex(CyaSSL_mt1),    osMutex(CyaSSL_mt2),   osMutex(CyaSSL_mt3),    
-                osMutex(CyaSSL_mt4),    osMutex(CyaSSL_mt5),   osMutex(CyaSSL_mt6),
-                osMutex(CyaSSL_mt7),    osMutex(CyaSSL_mt8),    osMutex(CyaSSL_mt9) } ;                 
+            static const osMutexDef_t *CMSIS_mutex[] = { osMutex(wolfSSL_mt0),   
+                osMutex(wolfSSL_mt1),    osMutex(wolfSSL_mt2),   osMutex(wolfSSL_mt3),    
+                osMutex(wolfSSL_mt4),    osMutex(wolfSSL_mt5),   osMutex(wolfSSL_mt6),
+                osMutex(wolfSSL_mt7),    osMutex(wolfSSL_mt8),    osMutex(wolfSSL_mt9) } ;                 
             
             static osMutexId CMSIS_mutexID[CMSIS_NMUTEX] = {0} ;
 

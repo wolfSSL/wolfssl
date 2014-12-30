@@ -1647,13 +1647,13 @@ int wc_ecc_sign_hash(const byte* in, word32 inlen, byte* out, word32 *outlen,
        word32 orderBits = mp_count_bits(&p);
 
        /* truncate down to byte size, may be all that's needed */
-       if ( (WOLFSSLF_BIT_SIZE * inlen) > orderBits)
-           inlen = (orderBits + WOLFSSLF_BIT_SIZE - 1)/WOLFSSL_BIT_SIZE;
+       if ( (WOLFSSL_BIT_SIZE * inlen) > orderBits)
+           inlen = (orderBits + WOLFSSL_BIT_SIZE - 1)/WOLFSSL_BIT_SIZE;
        err = mp_read_unsigned_bin(&e, (byte*)in, inlen);
 
        /* may still need bit truncation too */
-       if (err == MP_OKAY && (WOLFSSLF_BIT_SIZE * inlen) > orderBits)
-           mp_rshb(&e, WOLFSSLF_BIT_SIZE - (orderBits & 0x7));
+       if (err == MP_OKAY && (WOLFSSL_BIT_SIZE * inlen) > orderBits)
+           mp_rshb(&e, WOLFSSL_BIT_SIZE - (orderBits & 0x7));
    }
 
    /* make up a key and export the public copy */
@@ -2059,13 +2059,13 @@ int wc_ecc_verify_hash(const byte* sig, word32 siglen, const byte* hash,
        unsigned int orderBits = mp_count_bits(&p);
 
        /* truncate down to byte size, may be all that's needed */
-       if ( (WOLFSSLF_BIT_SIZE * hashlen) > orderBits)
-           hashlen = (orderBits + WOLFSSLF_BIT_SIZE - 1)/WOLFSSL_BIT_SIZE;
+       if ( (WOLFSSL_BIT_SIZE * hashlen) > orderBits)
+           hashlen = (orderBits + WOLFSSL_BIT_SIZE - 1)/WOLFSSL_BIT_SIZE;
        err = mp_read_unsigned_bin(&e, hash, hashlen);
 
        /* may still need bit truncation too */
-       if (err == MP_OKAY && (WOLFSSLF_BIT_SIZE * hashlen) > orderBits)
-           mp_rshb(&e, WOLFSSLF_BIT_SIZE - (orderBits & 0x7));
+       if (err == MP_OKAY && (WOLFSSL_BIT_SIZE * hashlen) > orderBits)
+           mp_rshb(&e, WOLFSSL_BIT_SIZE - (orderBits & 0x7));
    }
 
    /*  w  = s^-1 mod n */

@@ -1885,14 +1885,14 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
             return MEMORY_E;
         if (side == WOLFSSL_CLIENT_END) {
             if (enc) {
-                chachaRet = Chacha_SetKey(enc->chacha, keys->client_write_key,
+                chachaRet = wc_Chacha_SetKey(enc->chacha, keys->client_write_key,
                                           specs->key_size);
                 XMEMCPY(keys->aead_enc_imp_IV, keys->client_write_IV,
                         AEAD_IMP_IV_SZ);
                 if (chachaRet != 0) return chachaRet;
             }
             if (dec) {
-                chachaRet = Chacha_SetKey(dec->chacha, keys->server_write_key,
+                chachaRet = wc_Chacha_SetKey(dec->chacha, keys->server_write_key,
                                           specs->key_size);
                 XMEMCPY(keys->aead_dec_imp_IV, keys->server_write_IV,
                         AEAD_IMP_IV_SZ);
@@ -1901,14 +1901,14 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
         }
         else {
             if (enc) {
-                chachaRet = Chacha_SetKey(enc->chacha, keys->server_write_key,
+                chachaRet = wc_Chacha_SetKey(enc->chacha, keys->server_write_key,
                                           specs->key_size);
                 XMEMCPY(keys->aead_enc_imp_IV, keys->server_write_IV,
                         AEAD_IMP_IV_SZ);
                 if (chachaRet != 0) return chachaRet;
             }
             if (dec) {
-                chachaRet = Chacha_SetKey(dec->chacha, keys->client_write_key,
+                chachaRet = wc_Chacha_SetKey(dec->chacha, keys->client_write_key,
                                           specs->key_size);
                 XMEMCPY(keys->aead_dec_imp_IV, keys->client_write_IV,
                         AEAD_IMP_IV_SZ);

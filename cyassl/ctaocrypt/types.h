@@ -23,6 +23,16 @@
 #ifndef CTAO_CRYPT_TYPES_H
 #define CTAO_CRYPT_TYPES_H
 
+#ifndef HAVE_FIPS
+    #include <wolfssl/wolfcrypt/types.h>
+    /* compatibility macros */
+#define CYASSL_WORD_SIZE WOLFSSL_WORD_SIZE
+#define CYASSL_BIT_SIZE  WOLFSSL_BIT_SIZE
+#define CYASSL_MAX_16BIT WOLFSSL_MAX_16BIT
+#define cyassl_word wolfssl_word
+
+#else
+
 #include <cyassl/ctaocrypt/settings.h>
 #include <cyassl/ctaocrypt/wc_port.h>
 
@@ -324,5 +334,6 @@ CYASSL_API word32 CheckRunTimeSettings(void);
 #endif
 
 
+#endif /* HAVE_FIPS */
 #endif /* CTAO_CRYPT_TYPES_H */
 

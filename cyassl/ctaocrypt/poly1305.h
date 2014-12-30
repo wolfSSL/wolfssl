@@ -27,6 +27,11 @@
 
 #include <wolfssl/wolfcrypt/poly1305.h>
 
+/* for poly1305 reverse compatibility */
+#define Poly1305SetKey wc_Poly1305SetKey
+#define Poly1305Update wc_Poly1305Update
+#define Poly1305Final  wc_Poly1305Final
+
 #endif /* CTAO_CRYPT_POLY1305_H */
 
 #endif /* HAVE_POLY1305 */

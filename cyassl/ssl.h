@@ -84,8 +84,9 @@
 	#define CYASSL_THREAD WOLFSSL_THREAD
 #endif
 
-/* wolfcrypt/src/error.c */
-#define WOLFSSL_MAX_ERROR_SZ CYASSL_MAX_ERROR_SZ
+#ifndef CYASSL_MAX_ERROR_SZ
+    #define CYASSL_MAX_ERROR_SZ WOLFSSL_MAX_ERROR_SZ
+#endif
 
 /* src/ssl.c */
 #define CYASSL_CRL                       WOLFSSL_CRL
@@ -121,6 +122,8 @@
 #define CyaSSL_get_current_cipher_suite  wolfSSL_get_current_cipher_suite
 #define CyaSSL_CTX_load_verify_locations wolfSSL_CTX_load_verify_locations
 
+#define CyaSSL_use_old_poly        wolfSSL_use_old_poly
+
 /* io.c */
 #define CYASSL_CBIO_ERR_ISR        WOLFSSL_CBIO_ERR_ISR
 #define CYASSL_CBIO_ERR_TIMEOUT    WOLFSSL_CBIO_ERR_TIMEOUT
@@ -153,7 +156,7 @@
 #define cyassl_chacha                  wolfssl_chacha
 #define CyaSSL_ERR_reason_error_string wolfSSL_ERR_reason_error_string
 
-#define wolfcrypt_test                 ctaocrypt_test
+//#define wolfcrypt_test                 ctaocrypt_test
 
 /* src/eys.c */
 #define cyassl_triple_des wolfssl_triple_des
@@ -367,12 +370,8 @@
 	#undef WOLFSSL_API
 	#define WOLFSSL_API CYASSL_API
 #endif
-
-#define WOLFSSL_BIT_SIZE CYASSL_BIT_SIZE /* @TODO*/
-
 /* wrapper around macros until they are changed in cyassl code  
  * needs investigation in regards to macros in fips */
-#define WOLFSSL_MAX_16BIT CYASSL_MAX_16BIT
 #define NO_WOLFSSL_ALLOC_ALIGN NO_CYASSL_ALLOC_ALIGN /* @TODO*/
 
 /* for pwdbased reverse compatibility */

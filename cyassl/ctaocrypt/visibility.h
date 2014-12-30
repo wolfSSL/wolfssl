@@ -26,9 +26,13 @@
 
 /* fips compatibility @wc_fips */
 #ifndef HAVE_FIPS
+	#ifndef CYASSL_API
+	    #define CYASSL_API WOLFSSL_API
+	#endif
+	#ifndef CYASSL_LOCAL
+	    #define CYASSL_LOCAL WOLFSSL_LOCAL
+	#endif
     #include <wolfssl/wolfcrypt/visibility.h>
-    #define CYASSL_API   WOLFSSL_API
-    #define CYASSL_LOCAL WOLFSSL_LOCAL
 #else
 #define BUILDING_CYASSL
 /* CYASSL_API is used for the public API symbols.
