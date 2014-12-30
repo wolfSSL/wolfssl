@@ -16,7 +16,7 @@
 
 
 typedef struct WOLFSSL_SHA_CTX {
-    int holder[24];   /* big enough to hold ctaocrypt sha, but check on init */
+    int holder[24];   /* big enough to hold wolfcrypt sha, but check on init */
 } WOLFSSL_SHA_CTX;
 
 WOLFSSL_API void wolfSSL_SHA_Init(WOLFSSL_SHA_CTX*);
@@ -45,7 +45,7 @@ typedef WOLFSSL_SHA_CTX SHA_CTX;
 
 
 typedef struct WOLFSSL_SHA256_CTX {
-    int holder[28];   /* big enough to hold ctaocrypt sha, but check on init */
+    int holder[28];   /* big enough to hold wolfcrypt sha, but check on init */
 } WOLFSSL_SHA256_CTX;
 
 WOLFSSL_API void wolfSSL_SHA256_Init(WOLFSSL_SHA256_CTX*);

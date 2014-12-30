@@ -4,7 +4,7 @@
 #ifndef WOLFSSL_BN_H_
 #define WOLFSSL_BN_H_
 
-#include <wolfssl/ctaocrypt/settings.h>
+#include <wolfssl/wolfcrypt/settings.h>
 
 #ifdef __cplusplus
     extern "C" {

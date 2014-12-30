@@ -12,7 +12,7 @@
 
 
 typedef struct WOLFSSL_RIPEMD_CTX {
-    int holder[32];   /* big enough to hold ctaocrypt, but check on init */
+    int holder[32];   /* big enough to hold wolfcrypt, but check on init */
 } WOLFSSL_RIPEMD_CTX;
 
 WOLFSSL_API void wolfSSL_RIPEMD_Init(WOLFSSL_RIPEMD_CTX*);

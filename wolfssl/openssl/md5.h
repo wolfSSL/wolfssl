@@ -16,7 +16,7 @@
 
 
 typedef struct WOLFSSL_MD5_CTX {
-    int holder[24];   /* big enough to hold ctaocrypt md5, but check on init */
+    int holder[24];   /* big enough to hold wolfcrypt md5, but check on init */
 } WOLFSSL_MD5_CTX;
 
 WOLFSSL_API void wolfSSL_MD5_Init(WOLFSSL_MD5_CTX*);
