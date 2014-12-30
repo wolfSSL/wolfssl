@@ -15,14 +15,6 @@ if BUILD_FIPS
 src_libwolfssl_la_SOURCES += ctaocrypt/src/wolfcrypt_first.c
 endif
 
-# ssl files
-src_libwolfssl_la_SOURCES += \
-               src/internal.c \
-               src/io.c \
-               src/keys.c \
-               src/ssl.c \
-               src/tls.c
-
 src_libwolfssl_la_SOURCES += \
                ctaocrypt/src/hmac.c \
                ctaocrypt/src/random.c \
@@ -222,6 +214,14 @@ else
 src_libwolfssl_la_SOURCES += wolfcrypt/src/pkcs7.c
 endif
 endif
+
+# ssl files
+src_libwolfssl_la_SOURCES += \
+               src/internal.c \
+               src/io.c \
+               src/keys.c \
+               src/ssl.c \
+               src/tls.c
 
 if BUILD_OCSP
 src_libwolfssl_la_SOURCES += src/ocsp.c
