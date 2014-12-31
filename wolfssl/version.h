@@ -1,4 +1,4 @@
-/* wolfssl_version.h.in
+/* cyassl_version.h.in
  *
  * Copyright (C) 2006-2014 wolfSSL Inc.
  *

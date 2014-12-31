@@ -22,6 +22,9 @@ extern "C" {
 #undef  NDEBUG
 #define NDEBUG
 
+#undef  _THREAD_SAFE
+#define _THREAD_SAFE
+
 #undef  NO_DSA
 #define NO_DSA
 
@@ -46,8 +49,8 @@ extern "C" {
 #undef  HAVE_HASHDRBG
 #define HAVE_HASHDRBG
 
-#undef  HAVE_PKCS7
-#define HAVE_PKCS7
+#undef  USE_FAST_MATH
+#define USE_FAST_MATH
 
 
 #ifdef __cplusplus

@@ -6,7 +6,7 @@
 #
 #
 
-AC_INIT([cyassl],[3.3.0],[https://github.com/cyassl/cyassl/issues],[cyassl],[http://www.wolfssl.com])
+AC_INIT([wolfssl],[3.3.0],[https://github.com/wolfssl/wolfssl/issues],[wolfssl],[http://www.wolfssl.com])
 
 AC_CONFIG_AUX_DIR([build-aux])
 
@@ -1772,9 +1772,9 @@ AC_SUBST([AM_LDFLAGS])
 # FINAL
 AC_CONFIG_FILES([stamp-h], [echo timestamp > stamp-h])
 AC_CONFIG_FILES([Makefile])
-AC_CONFIG_FILES([cyassl/version.h])
-AC_CONFIG_FILES([cyassl/options.h])
-AC_CONFIG_FILES([support/cyassl.pc])
+AC_CONFIG_FILES([wolfssl/version.h])
+AC_CONFIG_FILES([wolfssl/options.h])
+AC_CONFIG_FILES([support/wolfssl.pc])
 AC_CONFIG_FILES([rpm/spec])
 
 AX_CREATE_GENERIC_CONFIG
@@ -1796,10 +1796,11 @@ echo
 # generate user options header 
 echo "---"
 echo "Generating user options header..."
-OPTION_FILE="cyassl/options.h"
+
+OPTION_FILE="wolfssl/options.h"
 rm -f $OPTION_FILE
 
-echo "/* cyassl options.h" > $OPTION_FILE 
+echo "/* wolfssl options.h" > $OPTION_FILE 
 echo " * generated from configure options" >> $OPTION_FILE
 echo " *" >> $OPTION_FILE
 echo " * Copyright (C) 2006-2014 wolfSSL Inc." >> $OPTION_FILE
