@@ -6,7 +6,7 @@
 #
 #
 
-AC_INIT([wolfssl],[3.3.0],[https://github.com/wolfssl/wolfssl/issues],[wolfssl],[http://www.wolfssl.com])
+AC_INIT([cyassl],[3.3.0],[https://github.com/wolfssl/wolfssl/issues],[cyassl],[http://www.wolfssl.com])
 
 AC_CONFIG_AUX_DIR([build-aux])
 
@@ -1772,8 +1772,8 @@ AC_SUBST([AM_LDFLAGS])
 # FINAL
 AC_CONFIG_FILES([stamp-h], [echo timestamp > stamp-h])
 AC_CONFIG_FILES([Makefile])
-AC_CONFIG_FILES([wolfssl/version.h])
-AC_CONFIG_FILES([wolfssl/options.h])
+AC_CONFIG_FILES([cyassl/version.h])
+AC_CONFIG_FILES([cyassl/options.h])
 AC_CONFIG_FILES([support/wolfssl.pc])
 AC_CONFIG_FILES([rpm/spec])
 
@@ -1797,7 +1797,8 @@ echo
 echo "---"
 echo "Generating user options header..."
 
-OPTION_FILE="wolfssl/options.h"
+OPTION_FILE="cyassl/options.h"
+
 rm -f $OPTION_FILE
 
 echo "/* wolfssl options.h" > $OPTION_FILE 
