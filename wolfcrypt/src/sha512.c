@@ -26,11 +26,7 @@
 #include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/wolfcrypt/sha512.h>
 
-#ifdef WOLFSSL_SHA512
-
-#ifdef __cplusplus
-    extern "C" {
-#endif
+#if defined(WOLFSSL_SHA512) || defined(CYASSL_SHA512)
 
 int wc_InitSha512(Sha512* sha)
 {
@@ -55,7 +51,7 @@ int wc_Sha512Hash(const byte* data, word32 len, byte* out)
     return Sha512Hash(data, len, out);
 }
 
-#if defined(WOLFSSL_SHA384) || defined(HAVE_AESGCM)
+#if defined(CYASSL_SHA384) || defined(WOLFSSL_SHA384) || defined(HAVE_AESGCM)
 
 int wc_InitSha384(Sha384* sha)
 {
@@ -81,10 +77,6 @@ int wc_Sha384Hash(const byte* data, word32 len, byte* out)
 }
 
 #endif /* WOLFSSL_SHA384 */
-
-#ifdef __cplusplus
-    } /* extern "C" */
-#endif
 
 #endif /* WOLFSSL_SHA512 */
 

@@ -26,6 +26,11 @@
 #ifndef CTAO_CRYPT_SETTINGS_H
 #define CTAO_CRYPT_SETTINGS_H
 
+#define CYASSL_SHA512
+//WOLFSSL_SHA512
+#define CYASSL_SHA384
+//WOLFSSL_SHA384
+
 #ifdef __cplusplus
     extern "C" {
 #endif

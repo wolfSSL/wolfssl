@@ -23,11 +23,6 @@
     #include <config.h>
 #endif
 
-
-/* compatability layer temporary */
-#include <cyassl/ssl.h>
-
-
 #include <wolfssl/wolfcrypt/settings.h>
 
 #ifndef NO_ASN
@@ -2996,7 +2991,7 @@ static int ConfirmSignature(const byte* buf, word32 bufSz,
     #ifdef WOLFSSL_SHA512
         case CTC_SHA512wRSA:
         case CTC_SHA512wECDSA:
-        if (wc_Sha512Hash(buf, bufSz, digest) == 0) {    
+        if (Sha512Hash(buf, bufSz, digest) == 0) {    
             typeH    = SHA512h;
             digestSz = SHA512_DIGEST_SIZE;
         }
@@ -3005,7 +3000,7 @@ static int ConfirmSignature(const byte* buf, word32 bufSz,
     #ifdef WOLFSSL_SHA384
         case CTC_SHA384wRSA:
         case CTC_SHA384wECDSA:
-        if (wc_Sha384Hash(buf, bufSz, digest) == 0) {    
+        if (Sha384Hash(buf, bufSz, digest) == 0) {    
             typeH    = SHA384h;
             digestSz = SHA384_DIGEST_SIZE;
         }            
