@@ -4732,7 +4732,7 @@ int wc_RsaKeyToDer(RsaKey* key, byte* output, word32 inLen)
    selfSigned = 1 (true) use subject as issuer
    subject    = blank
 */
-void InitCert(Cert* cert)
+void wc_InitCert(Cert* cert)
 {
     cert->version    = 2;   /* version 3 is hex 2 */
     cert->sigType    = CTC_SHAwRSA;
@@ -4871,7 +4871,7 @@ static int SetEccPublicKey(byte* output, ecc_key* key)
         return MEMORY_E;
 #endif
 
-    int ret = ecc_export_x963(key, pub, &pubSz);
+    int ret = wc_ecc_export_x963(key, pub, &pubSz);
     if (ret != 0) {
 #ifdef WOLFSSL_SMALL_STACK
         XFREE(pub, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -5720,7 +5720,7 @@ static int MakeSignature(const byte* buffer, int sz, byte* sig, int sigSz,
 #ifndef NO_RSA
     if (rsaKey) {
         /* signature */
-        encSigSz = EncodeSignature(encSig, digest, digestSz, typeH);
+        encSigSz = wc_EncodeSignature(encSig, digest, digestSz, typeH);
         ret = RsaSSL_Sign(encSig, encSigSz, sig, sigSz, rsaKey, rng);
     }
 #endif
@@ -5728,7 +5728,7 @@ static int MakeSignature(const byte* buffer, int sz, byte* sig, int sigSz,
 #ifdef HAVE_ECC
     if (!rsaKey && eccKey) {
         word32 outSz = sigSz;
-        ret = ecc_sign_hash(digest, digestSz, sig, &outSz, rng, eccKey);
+        ret = wc_ecc_sign_hash(digest, digestSz, sig, &outSz, rng, eccKey);
 
         if (ret == 0)
             ret = outSz;
@@ -5809,7 +5809,7 @@ static int MakeAnyCert(Cert* cert, byte* derBuffer, word32 derSz,
 
 
 /* Make an x509 Certificate v3 RSA or ECC from cert input, write to buffer */
-int MakeCert(Cert* cert, byte* derBuffer, word32 derSz, RsaKey* rsaKey,
+int wc_MakeCert(Cert* cert, byte* derBuffer, word32 derSz, RsaKey* rsaKey,
              ecc_key* eccKey, RNG* rng)
 {
     return MakeAnyCert(cert, derBuffer, derSz, rsaKey, eccKey, rng, NULL, 0);
@@ -5997,7 +5997,7 @@ static int WriteCertReqBody(DerCert* der, byte* buffer)
 }
 
 
-int MakeCertReq(Cert* cert, byte* derBuffer, word32 derSz,
+int wc_MakeCertReq(Cert* cert, byte* derBuffer, word32 derSz,
                 RsaKey* rsaKey, ecc_key* eccKey)
 {
     int ret;
@@ -6034,7 +6034,7 @@ int MakeCertReq(Cert* cert, byte* derBuffer, word32 derSz,
 #endif /* WOLFSSL_CERT_REQ */
 
 
-int SignCert(int requestSz, int sType, byte* buffer, word32 buffSz,
+int wc_SignCert(int requestSz, int sType, byte* buffer, word32 buffSz,
              RsaKey* rsaKey, ecc_key* eccKey, RNG* rng)
 {
     int sigSz;
@@ -6071,14 +6071,14 @@ int SignCert(int requestSz, int sType, byte* buffer, word32 buffSz,
 }
 
 
-int MakeSelfCert(Cert* cert, byte* buffer, word32 buffSz, RsaKey* key, RNG* rng)
+int wc_MakeSelfCert(Cert* cert, byte* buffer, word32 buffSz, RsaKey* key, RNG* rng)
 {
-    int ret = MakeCert(cert, buffer, buffSz, key, NULL, rng);
+    int ret = wc_MakeCert(cert, buffer, buffSz, key, NULL, rng);
 
     if (ret < 0)
         return ret;
 
-    return SignCert(cert->bodySz, cert->sigType, buffer, buffSz, key, NULL,rng);
+    return wc_SignCert(cert->bodySz, cert->sigType, buffer, buffSz, key, NULL,rng);
 }
 
 
@@ -6333,14 +6333,14 @@ static int SetNameFromCert(CertName* cn, const byte* der, int derSz)
 #ifndef NO_FILESYSTEM
 
 /* Set cert issuer from issuerFile in PEM */
-int SetIssuer(Cert* cert, const char* issuerFile)
+int wc_SetIssuer(Cert* cert, const char* issuerFile)
 {
     int         ret;
     int         derSz;
     byte*       der = (byte*)XMALLOC(EIGHTK_BUF, NULL, DYNAMIC_TYPE_CERT);
 
     if (der == NULL) {
-        WOLFSSL_MSG("SetIssuer OOF Problem");
+        WOLFSSL_MSG("wc_SetIssuer OOF Problem");
         return MEMORY_E;
     }
     derSz = wolfSSL_PemCertToDer(issuerFile, der, EIGHTK_BUF);
@@ -6353,14 +6353,14 @@ int SetIssuer(Cert* cert, const char* issuerFile)
 
 
 /* Set cert subject from subjectFile in PEM */
-int SetSubject(Cert* cert, const char* subjectFile)
+int wc_SetSubject(Cert* cert, const char* subjectFile)
 {
     int         ret;
     int         derSz;
     byte*       der = (byte*)XMALLOC(EIGHTK_BUF, NULL, DYNAMIC_TYPE_CERT);
 
     if (der == NULL) {
-        WOLFSSL_MSG("SetSubject OOF Problem");
+        WOLFSSL_MSG("wc_SetSubject OOF Problem");
         return MEMORY_E;
     }
     derSz = wolfSSL_PemCertToDer(subjectFile, der, EIGHTK_BUF);
@@ -6396,7 +6396,7 @@ int SetAltNames(Cert* cert, const char* file)
 #endif /* NO_FILESYSTEM */
 
 /* Set cert issuer from DER buffer */
-int SetIssuerBuffer(Cert* cert, const byte* der, int derSz)
+int wc_SetIssuerBuffer(Cert* cert, const byte* der, int derSz)
 {
     cert->selfSigned = 0;
     return SetNameFromCert(&cert->issuer, der, derSz);
@@ -6404,7 +6404,7 @@ int SetIssuerBuffer(Cert* cert, const byte* der, int derSz)
 
 
 /* Set cert subject from DER buffer */
-int SetSubjectBuffer(Cert* cert, const byte* der, int derSz)
+int wc_SetSubjectBuffer(Cert* cert, const byte* der, int derSz)
 {
     return SetNameFromCert(&cert->subject, der, derSz);
 }
