@@ -83,11 +83,7 @@ src_libwolfssl_la_SOURCES += wolfcrypt/src/dh.c
 endif
 
 if BUILD_ASN
-if BUILD_FIPS
-src_libwolfssl_la_SOURCES += ctaocrypt/src/asn.c
-else
 src_libwolfssl_la_SOURCES += wolfcrypt/src/asn.c
-endif
 endif
 
 if BUILD_CODING

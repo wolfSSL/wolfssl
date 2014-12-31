@@ -40,6 +40,11 @@
 	#endif
     #define WOLFSSL_MAX_ERROR_SZ CYASSL_MAX_ERROR_SZ
 
+    #define WOLFSSL_WORD_SIZE    CYASSL_WORD_SIZE
+    #define WOLFSSL_BIT_SIZE     CYASSL_BIT_SIZE
+    #define WOLFSSL_MAX_16BIT    CYASSL_MAX_16BIT
+    #define WOLFSSL_MAX_ERROR_SZ CYASSL_MAX_ERROR_SZ
+    #define wolfssl_word cyassl_word
 /* memory macros */
     /* when using fips map wolfSSL to CyaSSL*/
     #define wolfSSL_Malloc_cb     CyaSSL_Malloc_cb
