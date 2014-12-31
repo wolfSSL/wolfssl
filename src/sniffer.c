@@ -1865,31 +1865,31 @@ static int Decrypt(SSL* ssl, byte* output, const byte* input, word32 sz)
             
         #ifdef BUILD_DES3
         case wolfssl_triple_des:
-            ret = Des3_CbcDecrypt(ssl->decrypt.des3, output, input, sz);
+            ret = wc_Des3_CbcDecrypt(ssl->decrypt.des3, output, input, sz);
             break;
         #endif
             
         #ifdef BUILD_AES
         case wolfssl_aes:
-            ret = AesCbcDecrypt(ssl->decrypt.aes, output, input, sz);
+            ret = wc_AesCbcDecrypt(ssl->decrypt.aes, output, input, sz);
             break;
         #endif
             
         #ifdef HAVE_HC128
         case wolfssl_hc128:
-            Hc128_Process(ssl->decrypt.hc128, output, input, sz);
+            wc_Hc128_Process(ssl->decrypt.hc128, output, input, sz);
             break;
         #endif
             
         #ifdef BUILD_RABBIT
         case wolfssl_rabbit:
-            RabbitProcess(ssl->decrypt.rabbit, output, input, sz);
+            wc_RabbitProcess(ssl->decrypt.rabbit, output, input, sz);
             break;
         #endif
 
         #ifdef HAVE_CAMELLIA 
         case wolfssl_camellia:
-            CamelliaCbcDecrypt(ssl->decrypt.cam, output, input, sz);
+            wc_CamelliaCbcDecrypt(ssl->decrypt.cam, output, input, sz);
             break;
         #endif
 

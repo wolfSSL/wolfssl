@@ -221,6 +221,12 @@
 #define CyaSSL_CTX_set_session_cache_mode wolfSSL_CTX_set_session_cache_mode
 
 /* Callbacks */
+
+/* 
+ * Empty commment denotes not listed in CyaSSL Manual
+ * (soon to be wolfSSL Manual) 
+ */
+
 #define CyaSSL_accept_ex              wolfSSL_accept_ex
 #define CyaSSL_SetIORecv              wolfSSL_SetIORecv
 #define CyaSSL_SetIOSend              wolfSSL_SetIOSend
@@ -256,6 +262,11 @@
 #define CyaSSL_SetDecryptVerifyCtx    wolfSSL_SetDecryptVerifyCtx
 #define CyaSSL_GetDecryptVerifyCtx    wolfSSL_GetDecryptVerifyCtx
 #define CyaSSL_CTX_SetDecryptVerifyCb wolfSSL_CTX_SetDecryptVerifyCb
+#define CyaSSL_CTX_use_psk_identity_hint wolfSSL_CTX_use_psk_identity_hint /**/
+#define CyaSSL_CTX_set_psk_client_callback \
+    	                              wolfSSL_CTX_set_psk_client_callback /**/
+#define CyaSSL_CTX_set_psk_server_callback \
+    	                              wolfSSL_CTX_set_psk_server_callback /**/
 
 /* Error Handling and Debugging*/
 #define CyaSSL_get_error           wolfSSL_get_error
@@ -269,6 +280,14 @@
 #define CyaSSL_ERR_print_errors_fp wolfSSL_ERR_print_errors_fp
 
 /* OCSP and CRL */
+
+/* 
+ * Empty commment denotes not listed in CyaSSL Manual
+ * (soon to be wolfSSL Manual) 
+ */
+
+#define CYASSL_CRL_MONITOR               WOLFSSL_CRL_MONITOR /**/
+#define CYASSL_CRL_START_MON             WOLFSSL_CRL_START_MON /**/
 #define CYASSL_OCSP_NO_NONCE             WOLFSSL_OCSP_NO_NONCE /**/
 #define CYASSL_OCSP_URL_OVERRIDE         WOLFSSL_OCSP_URL_OVERRIDE
 
