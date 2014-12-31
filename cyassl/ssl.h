@@ -19,11 +19,9 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-
 /*  
  * ssl.h makes wolfssl backwards compatibile with cyassl
  */
-
 
 #ifndef WOLFSSL_CYASSL_H_
 #define WOLFSSL_CYASSL_H_
@@ -46,8 +44,6 @@
 #define CYASSL_CTX      WOLFSSL_CTX
 #define CYASSL_METHOD   WOLFSSL_METHOD
 #define CYASSL_SESSION  WOLFSSL_SESSION
-
-
 
 #define CYASSL_X509       WOLFSSL_X509
 #define CYASSL_X509_NAME  WOLFSSL_X509_NAME
@@ -86,7 +82,7 @@
 
 /* cyassl/test.h */
 #ifdef CyaSSL_TEST_H
-	#define CYASSL_THREAD WOLFSSL_THREAD
+	#define CYASSL_THREAD         WOLFSSL_THREAD
 #endif
 
 /* src/ssl.c */
@@ -105,6 +101,7 @@
 #define CyaSSL_KeyPemToDer               wolfSSL_KeyPemToDer
 #define CyaSSL_get_version               wolfSSL_get_version
 #define CyaSSL_SetServerID               wolfSSL_SetServerID
+#define CyaSSL_use_old_poly              wolfSSL_use_old_poly
 #define CyaSSL_SetCertCbCtx              wolfSSL_SetCertCbCtx
 #define CyaSSL_CertPemToDer              wolfSSL_CertPemToDer
 #define CyaSSL_get_shutdown              wolfSSL_get_shutdown
@@ -123,8 +120,6 @@
 #define CyaSSL_get_current_cipher_suite  wolfSSL_get_current_cipher_suite
 #define CyaSSL_CTX_load_verify_locations wolfSSL_CTX_load_verify_locations
 #define CyaSSL_CTX_set_default_passwd_cb wolfSSL_CTX_set_default_passwd_cb
-
-#define CyaSSL_use_old_poly        wolfSSL_use_old_poly
 
 /* io.c */
 #define CYASSL_CBIO_ERR_ISR        WOLFSSL_CBIO_ERR_ISR
@@ -145,7 +140,6 @@
 #define CyaSSL_DeriveTlsKeys       wolfSSL_DeriveTlsKeys
 #define CyaSSL_make_eap_keys       wolfSSL_make_eap_keys
 #define CyaSSL_MakeTlsMasterSecret wolfSSL_MakeTlsMasterSecret
-
 
 /* src/internal.c */
 #define CYASSL_CHAIN_CA                WOLFSSL_CHAIN_CA
@@ -275,13 +269,13 @@
 #define CyaSSL_ERR_print_errors_fp wolfSSL_ERR_print_errors_fp
 
 /* OCSP and CRL */
-#define CYASSL_OCSP_NO_NONCE             WOLFSSL_OCSP_NO_NONCE
+#define CYASSL_OCSP_NO_NONCE             WOLFSSL_OCSP_NO_NONCE /**/
 #define CYASSL_OCSP_URL_OVERRIDE         WOLFSSL_OCSP_URL_OVERRIDE
 
 #define CyaSSL_CTX_EnableOCSP            wolfSSL_CTX_EnableOCSP
-#define CyaSSL_CTX_OCSP_set_options      wolfSSL_CTX_OCSP_set_options
-#define CyaSSL_CTX_SetOCSP_OverrideURL   wolfSSL_CTX_SetOCSP_OverrideURL
-#define CyaSSL_CTX_OCSP_set_override_url wolfSSL_CTX_OCSP_set_override_url
+#define CyaSSL_CTX_OCSP_set_options      wolfSSL_CTX_OCSP_set_options /**/
+#define CyaSSL_CTX_SetOCSP_OverrideURL   wolfSSL_CTX_SetOCSP_OverrideURL /**/
+#define CyaSSL_CTX_OCSP_set_override_url wolfSSL_CTX_OCSP_set_override_url /**/
 
 /* Informational */
 #define CyaSSL_GetSide            wolfSSL_GetSide
@@ -348,7 +342,6 @@
 #define CyaSSL_CTX_use_RSAPrivateKey_file wolfSSL_CTX_use_RSAPrivateKey_file
 #define CyaSSL_use_certificate_chain_file wolfSSL_use_certificate_chain_file
 
-
 /* TLS Extensions */
 #define CyaSSL_UseSNI                wolfSSL_UseSNI
 #define CyaSSL_CTX_UseSNI            wolfSSL_CTX_UseSNI
@@ -372,9 +365,6 @@
     #include <wolfssl/wolfcrypt/aes.h>
 #endif
 
-
-
-
 #ifdef WOLFSSL_SMALL_STACK
     #define CYASSL_SMALL_STACK
 #endif
@@ -382,24 +372,25 @@
 #if !defined(CYASSL_MAX_ERROR_SZ) && !defined(HAVE_FIPS)
     #define CYASSL_MAX_ERROR_SZ WOLFSSL_MAX_ERROR_SZ
 #endif
-/* wrapper around macros until they are changed in cyassl code  
- * needs investigation in regards to macros in fips */
-#define NO_WOLFSSL_ALLOC_ALIGN NO_CYASSL_ALLOC_ALIGN /* @TODO*/
+        
+/* 
+ * wrapper around macros until they are changed in cyassl code
+ * needs investigation in regards to macros in fips 
+ */
+#define NO_WOLFSSL_ALLOC_ALIGN NO_CYASSL_ALLOC_ALIGN /* @TODO */
 
 /* for pwdbased reverse compatibility */
 #ifndef NO_PWDBASED
-    #define PBKDF1 wc_PBKDF1
-    #define PBKDF2 wc_PBKDF2
+    #define PBKDF1       wc_PBKDF1
+    #define PBKDF2       wc_PBKDF2
     #define PKCS12_PBKDF wc_PKCS12_PBKDF
 #endif
-
 
 /* examples/client/client.h */
 #define CYASSL_THREAD WOLFSSL_THREAD
 
 /* examples/client/client.c */
 #define LIBCYASSL_VERSION_STRING LIBWOLFSSL_VERSION_STRING
-
 
 #ifdef __cplusplus
     } /* extern "C" */

@@ -317,8 +317,8 @@ fi
 ENABLED_SNIFFTEST=no
 AC_ARG_ENABLE([sniffer],
    [AS_HELP_STRING([--enable-sniffer],[ Enable CyaSSL sniffer support (default: disabled) ])],[
-       ENABLED_SNIFFER=yes 
-       AM_CFLAGS="$AM_CFLAGS -DCYASSL_SNIFFER -DOPENSSL_EXTRA"
+       ENABLED_SNIFFER=yes
+       AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SNIFFER -DOPENSSL_EXTRA"
        AS_IF([ test "x$enableval" = "xyes" ],[ AC_CHECK_HEADERS([pcap/pcap.h],[ 
            ENABLED_SNIFFTEST=yes 
    ],[ AC_MSG_WARN([cannot enable sniffer test without having libpcap available.]) ]) ])
@@ -1446,12 +1446,12 @@ then
     if test "x$ENABLED_CERTGEN" = "xno"
     then
         ENABLED_CERTGEN="yes"
-        AM_CFLAGS="$AM_CFLAGS -DCYASSL_CERT_GEN"
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CERT_GEN"
     fi
     if test "x$ENABLED_CERTREQ" = "xno"
     then
         ENABLED_CERTREQ="yes"
-        AM_CFLAGS="$AM_CFLAGS -DCYASSL_CERT_REQ"
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CERT_REQ"
     fi
     if test "x$ENABLED_PKCS7" = "xno"
     then
@@ -1459,7 +1459,7 @@ then
         AM_CFLAGS="$AM_CFLAGS -DHAVE_PKCS7"
         AM_CONDITIONAL([BUILD_PKCS7], [test "x$ENABLED_PKCS7" = "xyes"])
     fi
-    AM_CFLAGS="$AM_CFLAGS -DCYASSL_HAVE_WOLFSCEP"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HAVE_WOLFSCEP"
 fi
 
 

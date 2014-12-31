@@ -1601,12 +1601,12 @@ static INLINE int myEccSign(WOLFSSL* ssl, const byte* in, word32 inSz,
     if (ret != 0)
         return ret;
 
-    ecc_init(&myKey);
+    wc_ecc_init(&myKey);
     
-    ret = EccPrivateKeyDecode(key, &idx, &myKey, keySz);    
+    ret = wc_EccPrivateKeyDecode(key, &idx, &myKey, keySz);    
     if (ret == 0)
-        ret = ecc_sign_hash(in, inSz, out, outSz, &rng, &myKey);
-    ecc_free(&myKey);
+        ret = wc_ecc_sign_hash(in, inSz, out, outSz, &rng, &myKey);
+    wc_ecc_free(&myKey);
 
     return ret;
 }
@@ -1622,12 +1622,12 @@ static INLINE int myEccVerify(WOLFSSL* ssl, const byte* sig, word32 sigSz,
     (void)ssl;
     (void)ctx;
 
-    ecc_init(&myKey);
+    wc_ecc_init(&myKey);
     
-    ret = ecc_import_x963(key, keySz, &myKey);
+    ret = wc_ecc_import_x963(key, keySz, &myKey);
     if (ret == 0)
-        ret = ecc_verify_hash(sig, sigSz, hash, hashSz, result, &myKey);
-    ecc_free(&myKey);
+        ret = wc_ecc_verify_hash(sig, sigSz, hash, hashSz, result, &myKey);
+    wc_ecc_free(&myKey);
 
     return ret;
 }

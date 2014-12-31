@@ -1859,7 +1859,7 @@ static int Decrypt(SSL* ssl, byte* output, const byte* input, word32 sz)
     switch (ssl->specs.bulk_cipher_algorithm) {
         #ifdef BUILD_ARC4
         case wolfssl_rc4:
-            Arc4Process(ssl->decrypt.arc4, output, input, sz);
+            wc_Arc4Process(ssl->decrypt.arc4, output, input, sz);
             break;
         #endif
             

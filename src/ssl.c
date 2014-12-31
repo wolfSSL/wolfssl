@@ -2548,12 +2548,12 @@ static int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
             word32  idx = 0;
             ecc_key key;
 
-            ecc_init(&key);
-            if (EccPrivateKeyDecode(der.buffer,&idx,&key,der.length) != 0) {
-                ecc_free(&key);
+            wc_ecc_init(&key);
+            if (wc_EccPrivateKeyDecode(der.buffer,&idx,&key,der.length) != 0) {
+                wc_ecc_free(&key);
                 return SSL_BAD_FILE;
             }
-            ecc_free(&key);
+            wc_ecc_free(&key);
             eccKey = 1;
             if (ctx)
                 ctx->haveStaticECC = 1;
