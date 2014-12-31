@@ -38,7 +38,7 @@
     #define wc_Md5Final  Md5Final
     #define wc_Md5Hash   Md5Hash
 #endif
-//
+
 //#ifdef __cplusplus
 //    extern "C" {
 //#endif
