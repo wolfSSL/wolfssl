@@ -3239,7 +3239,7 @@ int rsa_test(void)
             return -310;
         }
 
-        InitCert(&myCert);
+        wc_InitCert(&myCert);
 
         strncpy(myCert.subject.country, "US", CTC_NAME_SIZE);
         strncpy(myCert.subject.state, "OR", CTC_NAME_SIZE);
@@ -3251,7 +3251,7 @@ int rsa_test(void)
         myCert.isCA    = 1;
         myCert.sigType = CTC_SHA256wRSA;
 
-        certSz = MakeSelfCert(&myCert, derCert, FOURK_BUF, &key, &rng);
+        certSz = wc_MakeSelfCert(&myCert, derCert, FOURK_BUF, &key, &rng);
         if (certSz < 0) {
             free(derCert);
             free(pem);
@@ -3356,7 +3356,7 @@ int rsa_test(void)
             return -413;
         }
 
-        InitCert(&myCert);
+        wc_InitCert(&myCert);
 
         strncpy(myCert.subject.country, "US", CTC_NAME_SIZE);
         strncpy(myCert.subject.state, "OR", CTC_NAME_SIZE);
@@ -3366,7 +3366,7 @@ int rsa_test(void)
         strncpy(myCert.subject.commonName, "www.yassl.com", CTC_NAME_SIZE);
         strncpy(myCert.subject.email, "info@yassl.com", CTC_NAME_SIZE);
 
-        ret = SetIssuer(&myCert, caCertFile);
+        ret = wc_SetIssuer(&myCert, caCertFile);
         if (ret < 0) {
             free(derCert);
             free(pem);
@@ -3374,7 +3374,7 @@ int rsa_test(void)
             return -405;
         }
 
-        certSz = MakeCert(&myCert, derCert, FOURK_BUF, &key, NULL, &rng);
+        certSz = wc_MakeCert(&myCert, derCert, FOURK_BUF, &key, NULL, &rng);
         if (certSz < 0) {
             free(derCert);
             free(pem);
@@ -3382,7 +3382,7 @@ int rsa_test(void)
             return -407;
         }
 
-        certSz = SignCert(myCert.bodySz, myCert.sigType, derCert, FOURK_BUF,
+        certSz = wc_SignCert(myCert.bodySz, myCert.sigType, derCert, FOURK_BUF,
                           &caKey, NULL, &rng);
         if (certSz < 0) {
             free(derCert);
@@ -3486,14 +3486,14 @@ int rsa_test(void)
         fclose(file3);
 
         wc_ecc_init(&caKey);
-        ret = EccPrivateKeyDecode(tmp, &idx3, &caKey, (word32)bytes3);
+        ret = wc_EccPrivateKeyDecode(tmp, &idx3, &caKey, (word32)bytes3);
         if (ret != 0) {
             free(derCert);
             free(pem);
             return -5413;
         }
 
-        InitCert(&myCert);
+        wc_InitCert(&myCert);
         myCert.sigType = CTC_SHA256wECDSA;
 
         strncpy(myCert.subject.country, "US", CTC_NAME_SIZE);
@@ -3504,28 +3504,28 @@ int rsa_test(void)
         strncpy(myCert.subject.commonName, "www.wolfssl.com", CTC_NAME_SIZE);
         strncpy(myCert.subject.email, "info@wolfssl.com", CTC_NAME_SIZE);
 
-        ret = SetIssuer(&myCert, eccCaCertFile);
+        ret = wc_SetIssuer(&myCert, eccCaCertFile);
         if (ret < 0) {
             free(pem);
             free(derCert);
-            ecc_free(&caKey);
+            wc_ecc_free(&caKey);
             return -5405;
         }
 
-        certSz = MakeCert(&myCert, derCert, FOURK_BUF, NULL, &caKey, &rng);
+        certSz = wc_MakeCert(&myCert, derCert, FOURK_BUF, NULL, &caKey, &rng);
         if (certSz < 0) {
             free(pem);
             free(derCert);
-            ecc_free(&caKey);
+            wc_ecc_free(&caKey);
             return -5407;
         }
 
-        certSz = SignCert(myCert.bodySz, myCert.sigType, derCert, FOURK_BUF,
+        certSz = wc_SignCert(myCert.bodySz, myCert.sigType, derCert, FOURK_BUF,
                           NULL, &caKey, &rng);
         if (certSz < 0) {
             free(pem);
             free(derCert);
-            ecc_free(&caKey);
+            wc_ecc_free(&caKey);
             return -5408;
         }
 
@@ -3535,7 +3535,7 @@ int rsa_test(void)
         if (ret != 0) {
             free(pem);
             free(derCert);
-            ecc_free(&caKey);
+            wc_ecc_free(&caKey);
             return -5409;
         }
         FreeDecodedCert(&decode);
@@ -3545,7 +3545,7 @@ int rsa_test(void)
         if (!derFile) {
             free(pem);
             free(derCert);
-            ecc_free(&caKey);
+            wc_ecc_free(&caKey);
             return -5410;
         }
         ret = (int)fwrite(derCert, 1, certSz, derFile);
@@ -3553,7 +3553,7 @@ int rsa_test(void)
         if (ret != certSz) {
             free(pem);
             free(derCert);
-            ecc_free(&caKey);
+            wc_ecc_free(&caKey);
             return -5414;
         }
 
@@ -3561,7 +3561,7 @@ int rsa_test(void)
         if (pemSz < 0) {
             free(pem);
             free(derCert);
-            ecc_free(&caKey);
+            wc_ecc_free(&caKey);
             return -5411;
         }
 
@@ -3569,14 +3569,14 @@ int rsa_test(void)
         if (!pemFile) {
             free(pem);
             free(derCert);
-            ecc_free(&caKey);
+            wc_ecc_free(&caKey);
             return -5412;
         }
         ret = (int)fwrite(pem, 1, pemSz, pemFile);
         if (ret != pemSz) {
             free(pem);
             free(derCert);
-            ecc_free(&caKey);
+            wc_ecc_free(&caKey);
             return -5415;
         }
         fclose(pemFile);
@@ -3676,7 +3676,7 @@ int rsa_test(void)
             return -454;
         }
 
-        InitCert(&myCert);
+        wc_InitCert(&myCert);
 
         strncpy(myCert.subject.country, "US", CTC_NAME_SIZE);
         strncpy(myCert.subject.state, "OR", CTC_NAME_SIZE);
@@ -3686,7 +3686,7 @@ int rsa_test(void)
         strncpy(myCert.subject.commonName, "www.yassl.com", CTC_NAME_SIZE);
         strncpy(myCert.subject.email, "info@yassl.com", CTC_NAME_SIZE);
 
-        ret = SetIssuer(&myCert, caCertFile);
+        ret = wc_SetIssuer(&myCert, caCertFile);
         if (ret < 0) {
             free(derCert);
             free(pem);
@@ -3703,7 +3703,7 @@ int rsa_test(void)
             return -456;
         }
 
-        certSz = SignCert(myCert.bodySz, myCert.sigType, derCert, FOURK_BUF,
+        certSz = wc_SignCert(myCert.bodySz, myCert.sigType, derCert, FOURK_BUF,
                           &caKey, NULL, &rng);
         FreeRsaKey(&caKey);
         if (certSz < 0) {
@@ -3793,7 +3793,7 @@ int rsa_test(void)
             return -464;
         }
 
-        InitCert(&req);
+        wc_InitCert(&req);
 
         req.version = 0;
         req.isCA    = 1;
@@ -3807,14 +3807,14 @@ int rsa_test(void)
         strncpy(req.subject.email, "info@yassl.com", CTC_NAME_SIZE);
         req.sigType = CTC_SHA256wRSA;
 
-        derSz = MakeCertReq(&req, der, FOURK_BUF, &key, NULL);
+        derSz = wc_MakeCertReq(&req, der, FOURK_BUF, &key, NULL);
         if (derSz < 0) {
             free(pem);
             free(der);
             return -465;
         }
 
-        derSz = SignCert(req.bodySz, req.sigType, der, FOURK_BUF,
+        derSz = wc_SignCert(req.bodySz, req.sigType, der, FOURK_BUF,
                           &key, NULL, &rng);
         if (derSz < 0) {
             free(pem);
