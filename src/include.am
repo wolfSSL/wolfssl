@@ -13,50 +13,66 @@ src_libwolfssl_la_CPPFLAGS = -DBUILDING_WOLFSSL $(AM_CPPFLAGS)
 # fips first  file
 if BUILD_FIPS
 src_libwolfssl_la_SOURCES += ctaocrypt/src/wolfcrypt_first.c
-endif
 
 src_libwolfssl_la_SOURCES += \
                ctaocrypt/src/hmac.c \
                ctaocrypt/src/random.c \
-               ctaocrypt/src/sha256.c \
-               wolfcrypt/src/hmac.c \
-               wolfcrypt/src/random.c \
-               wolfcrypt/src/sha256.c
+               ctaocrypt/src/sha256.c
 
 if BUILD_RSA
-src_libwolfssl_la_SOURCES += ctaocrypt/src/rsa.c \
-                             wolfcrypt/src/rsa.c
+src_libwolfssl_la_SOURCES += ctaocrypt/src/rsa.c
 endif
 
 if BUILD_AES
-src_libwolfssl_la_SOURCES += ctaocrypt/src/aes.c \
-                             wolfcrypt/src/aes.c
+src_libwolfssl_la_SOURCES += ctaocrypt/src/aes.c
 endif
 
 if BUILD_DES3
-src_libwolfssl_la_SOURCES += ctaocrypt/src/des3.c \
-                             wolfcrypt/src/des3.c
+src_libwolfssl_la_SOURCES += ctaocrypt/src/des3.c
 endif
 
 if BUILD_SHA
-src_libwolfssl_la_SOURCES += ctaocrypt/src/sha.c \
-                             wolfcrypt/src/sha.c
+src_libwolfssl_la_SOURCES += ctaocrypt/src/sha.c
 endif
 
 if BUILD_SHA512
-src_libwolfssl_la_SOURCES += ctaocrypt/src/sha512.c \
-                             wolfcrypt/src/sha512.c
+src_libwolfssl_la_SOURCES += ctaocrypt/src/sha512.c
 endif
 
-if BUILD_FIPS
 src_libwolfssl_la_SOURCES += ctaocrypt/src/fips.c
 src_libwolfssl_la_SOURCES += ctaocrypt/src/fips_test.c
-endif
 
 # fips last file
-if BUILD_FIPS
 src_libwolfssl_la_SOURCES += ctaocrypt/src/wolfcrypt_last.c
+
+else # not BUILD_FIPS
+
+src_libwolfssl_la_SOURCES += \
+               wolfcrypt/src/hmac.c \
+               wolfcrypt/src/random.c \
+               wolfcrypt/src/sha256.c
+if BUILD_RSA
+src_libwolfssl_la_SOURCES += wolfcrypt/src/rsa.c
 endif
+
+if BUILD_AES
+src_libwolfssl_la_SOURCES += wolfcrypt/src/aes.c
+endif
+
+if BUILD_DES3
+src_libwolfssl_la_SOURCES += wolfcrypt/src/des3.c
+endif
+
+if BUILD_SHA
+src_libwolfssl_la_SOURCES += wolfcrypt/src/sha.c
+endif
+
+if BUILD_SHA512
+src_libwolfssl_la_SOURCES += wolfcrypt/src/sha512.c
+endif
+
+endif # BUILD_FIPS
+
 
 if BUILD_FIPS
 src_libwolfssl_la_SOURCES += \
@@ -152,11 +168,9 @@ src_libwolfssl_la_SOURCES += wolfcrypt/src/blake2b.c
 endif
 
 if BUILD_HC128
-if BUILD_FIPS
-src_libwolfssl_la_SOURCES += ctaocrypt/src/hc128.c
-else
+# temporarily removed needs revisited
+#src_libwolfssl_la_SOURCES += ctaocrypt/src/hc128.c
 src_libwolfssl_la_SOURCES += wolfcrypt/src/hc128.c
-endif
 endif
 
 if BUILD_RABBIT
