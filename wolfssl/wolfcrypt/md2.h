@@ -31,17 +31,6 @@
 
 #include <wolfssl/wolfcrypt/types.h>
 
-
-/* for md2 reverse compatibility */
-#ifdef WOLFSSL_MD2
-	#define InitMd2 wc_InitMd2
-	#define Md2Update wc_Md2Update
-	#define Md2Final wc_Md2Final
-	#define Md2Hash wc_Md2Hash
-#endif
-
-
-
 #ifdef __cplusplus
     extern "C" {
 #endif

@@ -2085,13 +2085,13 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
 #ifdef HAVE_CAVIUM
         if (devId != NO_CAVIUM_DEVICE) {
             if (enc) {
-                if (AesInitCavium(enc->aes, devId) != 0) {
+                if (wc_AesInitCavium(enc->aes, devId) != 0) {
                     WOLFSSL_MSG("AesInitCavium failed in SetKeys");
                     return CAVIUM_INIT_E;
                 }
             }
             if (dec) {
-                if (AesInitCavium(dec->aes, devId) != 0) {
+                if (wc_AesInitCavium(dec->aes, devId) != 0) {
                     WOLFSSL_MSG("AesInitCavium failed in SetKeys");
                     return CAVIUM_INIT_E;
                 }
@@ -2100,13 +2100,13 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
 #endif
         if (side == WOLFSSL_CLIENT_END) {
             if (enc) {
-                aesRet = AesSetKey(enc->aes, keys->client_write_key,
+                aesRet = wc_AesSetKey(enc->aes, keys->client_write_key,
                                    specs->key_size, keys->client_write_IV,
                                    AES_ENCRYPTION);
                 if (aesRet != 0) return aesRet;
             }
             if (dec) {
-                aesRet = AesSetKey(dec->aes, keys->server_write_key,
+                aesRet = wc_AesSetKey(dec->aes, keys->server_write_key,
                                    specs->key_size, keys->server_write_IV,
                                    AES_DECRYPTION);
                 if (aesRet != 0) return aesRet;
@@ -2114,13 +2114,13 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
         }
         else {
             if (enc) {
-                aesRet = AesSetKey(enc->aes, keys->server_write_key,
+                aesRet = wc_AesSetKey(enc->aes, keys->server_write_key,
                                    specs->key_size, keys->server_write_IV,
                                    AES_ENCRYPTION);
                 if (aesRet != 0) return aesRet;
             }
             if (dec) {
-                aesRet = AesSetKey(dec->aes, keys->client_write_key,
+                aesRet = wc_AesSetKey(dec->aes, keys->client_write_key,
                                    specs->key_size, keys->client_write_IV,
                                    AES_DECRYPTION);
                 if (aesRet != 0) return aesRet;
@@ -2148,14 +2148,14 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
 
         if (side == WOLFSSL_CLIENT_END) {
             if (enc) {
-                gcmRet = AesGcmSetKey(enc->aes, keys->client_write_key,
+                gcmRet = wc_AesGcmSetKey(enc->aes, keys->client_write_key,
                                       specs->key_size);
                 if (gcmRet != 0) return gcmRet;
                 XMEMCPY(keys->aead_enc_imp_IV, keys->client_write_IV,
                         AEAD_IMP_IV_SZ);
             }
             if (dec) {
-                gcmRet = AesGcmSetKey(dec->aes, keys->server_write_key,
+                gcmRet = wc_AesGcmSetKey(dec->aes, keys->server_write_key,
                                       specs->key_size);
                 if (gcmRet != 0) return gcmRet;
                 XMEMCPY(keys->aead_dec_imp_IV, keys->server_write_IV,
@@ -2164,14 +2164,14 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
         }
         else {
             if (enc) {
-                gcmRet = AesGcmSetKey(enc->aes, keys->server_write_key,
+                gcmRet = wc_AesGcmSetKey(enc->aes, keys->server_write_key,
                                       specs->key_size);
                 if (gcmRet != 0) return gcmRet;
                 XMEMCPY(keys->aead_enc_imp_IV, keys->server_write_IV,
                         AEAD_IMP_IV_SZ);
             }
             if (dec) {
-                gcmRet = AesGcmSetKey(dec->aes, keys->client_write_key,
+                gcmRet = wc_AesGcmSetKey(dec->aes, keys->client_write_key,
                                       specs->key_size);
                 if (gcmRet != 0) return gcmRet;
                 XMEMCPY(keys->aead_dec_imp_IV, keys->client_write_IV,
@@ -2198,24 +2198,24 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
 
         if (side == WOLFSSL_CLIENT_END) {
             if (enc) {
-                AesCcmSetKey(enc->aes, keys->client_write_key, specs->key_size);
+                wc_AesCcmSetKey(enc->aes, keys->client_write_key, specs->key_size);
                 XMEMCPY(keys->aead_enc_imp_IV, keys->client_write_IV,
                         AEAD_IMP_IV_SZ);
             }
             if (dec) {
-                AesCcmSetKey(dec->aes, keys->server_write_key, specs->key_size);
+                wc_AesCcmSetKey(dec->aes, keys->server_write_key, specs->key_size);
                 XMEMCPY(keys->aead_dec_imp_IV, keys->server_write_IV,
                         AEAD_IMP_IV_SZ);
             }
         }
         else {
             if (enc) {
-                AesCcmSetKey(enc->aes, keys->server_write_key, specs->key_size);
+                wc_AesCcmSetKey(enc->aes, keys->server_write_key, specs->key_size);
                 XMEMCPY(keys->aead_enc_imp_IV, keys->server_write_IV,
                         AEAD_IMP_IV_SZ);
             }
             if (dec) {
-                AesCcmSetKey(dec->aes, keys->client_write_key, specs->key_size);
+                wc_AesCcmSetKey(dec->aes, keys->client_write_key, specs->key_size);
                 XMEMCPY(keys->aead_dec_imp_IV, keys->client_write_IV,
                         AEAD_IMP_IV_SZ);
             }

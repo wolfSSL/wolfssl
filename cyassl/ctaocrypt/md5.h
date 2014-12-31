@@ -33,12 +33,14 @@
     #define Md5Final  wc_Md5Final
     #define Md5Hash   wc_Md5Hash
 #else
+    /* redfined name so that hmac is calling same function names with fips */
     #define wc_InitMd5   InitMd5
     #define wc_Md5Update Md5Update
     #define wc_Md5Final  Md5Final
     #define wc_Md5Hash   Md5Hash
 #endif
 
+/* commented out until clarification on 2nd removed fips calls discussed */
 //#ifdef __cplusplus
 //    extern "C" {
 //#endif
