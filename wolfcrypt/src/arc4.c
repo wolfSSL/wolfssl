@@ -102,7 +102,7 @@ void wc_Arc4Process(Arc4* arc4, byte* out, const byte* in, word32 length)
 
 #ifdef HAVE_CAVIUM
 
-#include <cyassl/ctaocrypt/logging.h>
+#include <wolfssl/wolfcrypt/logging.h>
 #include "cavium_common.h"
 
 /* Initiliaze Arc4 for use with Nitrox device */

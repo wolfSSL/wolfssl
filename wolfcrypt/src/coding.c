@@ -23,13 +23,13 @@
     #include <config.h>
 #endif
 
-#include <cyassl/ctaocrypt/settings.h>
+#include <wolfssl/wolfcrypt/settings.h>
 
 #ifndef NO_CODING
 
-#include <cyassl/ctaocrypt/coding.h>
-#include <cyassl/ctaocrypt/error-crypt.h>
-#include <cyassl/ctaocrypt/logging.h>
+#include <wolfssl/wolfcrypt/coding.h>
+#include <wolfssl/wolfcrypt/error-crypt.h>
+#include <wolfssl/wolfcrypt/logging.h>
 
 
 enum {
@@ -81,12 +81,12 @@ int Base64_Decode(const byte* in, word32 inLen, byte* out, word32* outLen)
             pad4 = 1;
 
         if (e1 < 0x2B || e2 < 0x2B || e3 < 0x2B || e4 < 0x2B) {
-            CYASSL_MSG("Bad Base64 Decode data, too small");
+            WOLFSSL_MSG("Bad Base64 Decode data, too small");
             return ASN_INPUT_E;
         }
 
         if (e1 > maxIdx || e2 > maxIdx || e3 > maxIdx || e4 > maxIdx) {
-            CYASSL_MSG("Bad Base64 Decode data, too big");
+            WOLFSSL_MSG("Bad Base64 Decode data, too big");
             return ASN_INPUT_E;
         }
 
@@ -122,7 +122,7 @@ int Base64_Decode(const byte* in, word32 inLen, byte* out, word32* outLen)
                 }
             }
             if (endLine != '\n') {
-                CYASSL_MSG("Bad end of line in Base64 Decode");
+                WOLFSSL_MSG("Bad end of line in Base64 Decode");
                 return ASN_INPUT_E;
             }
         }
@@ -133,7 +133,7 @@ int Base64_Decode(const byte* in, word32 inLen, byte* out, word32* outLen)
 }
 
 
-#if defined(OPENSSL_EXTRA) || defined (SESSION_CERTS) || defined(CYASSL_KEY_GEN) || defined(CYASSL_CERT_GEN) || defined(HAVE_WEBSERVER)
+#if defined(OPENSSL_EXTRA) || defined (SESSION_CERTS) || defined(WOLFSSL_KEY_GEN) || defined(CYASSL_CERT_GEN) || defined(HAVE_WEBSERVER)
 
 static
 const byte base64Encode[] = { 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J',
@@ -192,7 +192,7 @@ static int CEscape(int escaped, byte e, byte* out, word32* i, word32 max,
 
     /* check size */
     if ( (idx+needed) > max) {
-        CYASSL_MSG("Escape buffer max too small");
+        WOLFSSL_MSG("Escape buffer max too small");
         return BUFFER_E;
     }
 
@@ -324,7 +324,7 @@ int Base64_EncodeEsc(const byte* in, word32 inLen, byte* out, word32* outLen)
 }
 
 
-#endif  /* defined(OPENSSL_EXTRA) || defined (SESSION_CERTS) || defined(CYASSL_KEY_GEN) || defined(CYASSL_CERT_GEN) || defined(HAVE_WEBSERVER) */
+#endif  /* defined(OPENSSL_EXTRA) || defined (SESSION_CERTS) || defined(WOLFSSL_KEY_GEN) || defined(WOLFSSL_CERT_GEN) || defined(HAVE_WEBSERVER) */
 
 
 #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) || defined(HAVE_FIPS)
