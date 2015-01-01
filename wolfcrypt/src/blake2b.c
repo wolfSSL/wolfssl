@@ -36,7 +36,7 @@
     #include <config.h>
 #endif
 
-#include <cyassl/ctaocrypt/settings.h>
+#include <wolfssl/wolfcrypt/settings.h>
 
 #ifdef HAVE_BLAKE2
 

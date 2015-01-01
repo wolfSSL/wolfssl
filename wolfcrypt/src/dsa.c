@@ -23,14 +23,14 @@
     #include <config.h>
 #endif
 
-#include <cyassl/ctaocrypt/settings.h>
+#include <wolfssl/wolfcrypt/settings.h>
 
 #ifndef NO_DSA
 
-#include <cyassl/ctaocrypt/dsa.h>
-#include <cyassl/ctaocrypt/sha.h>
-#include <cyassl/ctaocrypt/random.h>
-#include <cyassl/ctaocrypt/error-crypt.h>
+#include <wolfssl/wolfcrypt/dsa.h>
+#include <wolfssl/wolfcrypt/sha.h>
+#include <wolfssl/wolfcrypt/random.h>
+#include <wolfssl/wolfcrypt/error-crypt.h>
 
 
 enum {

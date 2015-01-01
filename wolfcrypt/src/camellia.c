@@ -56,21 +56,18 @@
     #include <config.h>
 #endif
 
-#include <cyassl/ctaocrypt/settings.h>
+#include <wolfssl/wolfcrypt/settings.h>
 
 #ifdef HAVE_CAMELLIA
 
-#include <cyassl/ctaocrypt/camellia.h>
-#include <cyassl/ctaocrypt/error-crypt.h>
-#include <cyassl/ctaocrypt/logging.h>
+#include <wolfssl/wolfcrypt/camellia.h>
+#include <wolfssl/wolfcrypt/error-crypt.h>
+#include <wolfssl/wolfcrypt/logging.h>
 #ifdef NO_INLINE
-    #include <cyassl/ctaocrypt/misc.h>
+    #include <wolfssl/wolfcrypt/misc.h>
 #else
-    #include <ctaocrypt/src/misc.c>
+    #include <wolfcrypt/src/misc.c>
 #endif
-
-
-
 
 /* u32 must be 32bit word */
 typedef unsigned int u32;
