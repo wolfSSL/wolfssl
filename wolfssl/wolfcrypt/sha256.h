@@ -26,15 +26,45 @@
 #ifndef WOLF_CRYPT_SHA256_H
 #define WOLF_CRYPT_SHA256_H
 
-
+#ifdef HAVE_FIPS
 /* for fips */
 #include <cyassl/ctaocrypt/sha256.h>
+#endif
 
-//#ifndef HAVE_FIPS
 #include <wolfssl/wolfcrypt/types.h>
+
 #ifdef __cplusplus
     extern "C" {
 #endif
+
+#ifndef HAVE_FIPS
+#ifdef WOLFSSL_PIC32MZ_HASH
+#include "port/pic32/pic32mz-crypt.h"
+#endif
+
+
+/* in bytes */
+enum {
+    SHA256              =  2,   /* hash type unique */
+    SHA256_BLOCK_SIZE   = 64,
+    SHA256_DIGEST_SIZE  = 32,
+    SHA256_PAD_SIZE     = 56
+};
+
+
+/* Sha256 digest */
+typedef struct Sha256 {
+    word32  buffLen;   /* in bytes          */
+    word32  loLen;     /* length in bytes   */
+    word32  hiLen;     /* length in bytes   */
+    word32  digest[SHA256_DIGEST_SIZE / sizeof(word32)];
+    word32  buffer[SHA256_BLOCK_SIZE  / sizeof(word32)];
+    #ifdef WOLFSSL_PIC32MZ_HASH
+        pic32mz_desc desc ; /* Crypt Engine descripter */
+    #endif
+} Sha256;
+
+#endif /* HAVE_FIPS */
 
 WOLFSSL_API int wc_InitSha256(Sha256*);
 WOLFSSL_API int wc_Sha256Update(Sha256*, const byte*, word32);

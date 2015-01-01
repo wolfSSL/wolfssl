@@ -364,9 +364,9 @@ void file_test(const char* file, byte* check)
     byte  buf[1024];
     byte  shasum[SHA256_DIGEST_SIZE];
    
-    ret = InitSha256(&sha256);
+    ret = wc_InitSha256(&sha256);
     if (ret != 0) {
-        printf("Can't InitSha256 %d\n", ret);
+        printf("Can't wc_InitSha256 %d\n", ret);
         return;
     }
     if( !( f = fopen( file, "rb" ) )) {
@@ -374,16 +374,16 @@ void file_test(const char* file, byte* check)
         return;
     }
     while( ( i = (int)fread(buf, 1, sizeof(buf), f )) > 0 ) {
-        ret = Sha256Update(&sha256, buf, i);
+        ret = wc_Sha256Update(&sha256, buf, i);
         if (ret != 0) {
-            printf("Can't Sha256Update %d\n", ret);
+            printf("Can't wc_Sha256Update %d\n", ret);
             return;
         }
     }
     
-    ret = Sha256Final(&sha256, shasum);
+    ret = wc_Sha256Final(&sha256, shasum);
     if (ret != 0) {
-        printf("Can't Sha256Final %d\n", ret);
+        printf("Can't wc_Sha256Final %d\n", ret);
         return;
     }
 

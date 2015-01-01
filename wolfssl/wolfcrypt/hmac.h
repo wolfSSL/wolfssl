@@ -27,32 +27,32 @@
 
 #include <wolfssl/wolfcrypt/types.h>
 
+#include <wolfssl/wolfcrypt/types.h>
+
+#ifndef NO_MD5
+    #include <wolfssl/wolfcrypt/md5.h>
+#endif
+
+//#ifndef NO_SHA
+    #include <wolfssl/wolfcrypt/sha.h>
+//#endif
+
+//#ifndef NO_SHA256
+    #include <wolfssl/wolfcrypt/sha256.h>
+//#endif
+
+//#ifdef WOLFSSL_SHA512
+    #include <wolfssl/wolfcrypt/sha512.h>
+//#endif
+
+#ifdef HAVE_BLAKE2 
+    #include <wolfssl/wolfcrypt/blake2.h>
+#endif
+
 #ifdef HAVE_FIPS
 /* for fips */
     #include <cyassl/ctaocrypt/hmac.h>
-#else
-	#include <wolfssl/wolfcrypt/types.h>
-	
-	#ifndef NO_MD5
-	    #include <wolfssl/wolfcrypt/md5.h>
-	#endif
-	
-	//#ifndef NO_SHA
-	    #include <wolfssl/wolfcrypt/sha.h>
-	//#endif
-	
-	//#ifndef NO_SHA256
-	    #include <wolfssl/wolfcrypt/sha256.h>
-	//#endif
-	
-	//#ifdef WOLFSSL_SHA512
-	    #include <wolfssl/wolfcrypt/sha512.h>
-	//#endif
-	
-	#ifdef HAVE_BLAKE2 
-	    #include <wolfssl/wolfcrypt/blake2.h>
-	#endif
-#endif /* HAVE_FIPS */
+#endif
 
 #ifdef HAVE_CAVIUM
     #include <wolfssl/wolfcrypt/logging.h>

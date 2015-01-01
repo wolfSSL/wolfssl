@@ -1802,14 +1802,14 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
     wc_InitMd5(&ssl->hashMd5);
 #endif
 #ifndef NO_SHA
-    ret = InitSha(&ssl->hashSha);
+    ret = wc_InitSha(&ssl->hashSha);
     if (ret != 0) {
         return ret;
     }
 #endif
 #endif
 #ifndef NO_SHA256
-    ret = InitSha256(&ssl->hashSha256);
+    ret = wc_InitSha256(&ssl->hashSha256);
     if (ret != 0) {
         return ret;
     }
@@ -1881,7 +1881,7 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
         WOLFSSL_MSG("PeerRsaKey Memory error");
         return MEMORY_E;
     }
-    ret = InitRsaKey(ssl->peerRsaKey, ctx->heap);
+    ret = wc_InitRsaKey(ssl->peerRsaKey, ctx->heap);
     if (ret != 0) return ret;
 #endif
 #ifndef NO_CERTS
@@ -1991,7 +1991,7 @@ void SSL_ResourceFree(WOLFSSL* ssl)
 #endif
 #ifndef NO_RSA
     if (ssl->peerRsaKey) {
-        FreeRsaKey(ssl->peerRsaKey);
+        wc_FreeRsaKey(ssl->peerRsaKey);
         XFREE(ssl->peerRsaKey, ssl->heap, DYNAMIC_TYPE_RSA);
     }
 #endif
@@ -2106,7 +2106,7 @@ void FreeHandshakeResources(WOLFSSL* ssl)
 #ifndef NO_RSA
     /* peerRsaKey */
     if (ssl->peerRsaKey) {
-        FreeRsaKey(ssl->peerRsaKey);
+        wc_FreeRsaKey(ssl->peerRsaKey);
         XFREE(ssl->peerRsaKey, ssl->heap, DYNAMIC_TYPE_RSA);
         ssl->peerRsaKey = NULL;
     }
@@ -2620,7 +2620,7 @@ static int HashOutput(WOLFSSL* ssl, const byte* output, int sz, int ivSz)
 #endif
 #ifndef NO_OLD_TLS
 #ifndef NO_SHA
-    ShaUpdate(&ssl->hashSha, adj, sz);
+    wc_ShaUpdate(&ssl->hashSha, adj, sz);
 #endif
 #ifndef NO_MD5
     wc_Md5Update(&ssl->hashMd5, adj, sz);
@@ -2631,7 +2631,7 @@ static int HashOutput(WOLFSSL* ssl, const byte* output, int sz, int ivSz)
         int ret;
 
 #ifndef NO_SHA256
-        ret = Sha256Update(&ssl->hashSha256, adj, sz);
+        ret = wc_Sha256Update(&ssl->hashSha256, adj, sz);
         if (ret != 0)
             return ret;
 #endif
@@ -2661,7 +2661,7 @@ static int HashInput(WOLFSSL* ssl, const byte* input, int sz)
 
 #ifndef NO_OLD_TLS
 #ifndef NO_SHA
-    ShaUpdate(&ssl->hashSha, adj, sz);
+    wc_ShaUpdate(&ssl->hashSha, adj, sz);
 #endif
 #ifndef NO_MD5
     wc_Md5Update(&ssl->hashMd5, adj, sz);
@@ -2672,7 +2672,7 @@ static int HashInput(WOLFSSL* ssl, const byte* input, int sz)
         int ret;
 
 #ifndef NO_SHA256
-        ret = Sha256Update(&ssl->hashSha256, adj, sz);
+        ret = wc_Sha256Update(&ssl->hashSha256, adj, sz);
         if (ret != 0)
             return ret;
 #endif
@@ -3215,15 +3215,15 @@ static void BuildSHA(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
     byte sha_result[SHA_DIGEST_SIZE];
 
     /* make sha inner */
-    ShaUpdate(&ssl->hashSha, sender, SIZEOF_SENDER);
-    ShaUpdate(&ssl->hashSha, ssl->arrays->masterSecret, SECRET_LEN);
-    ShaUpdate(&ssl->hashSha, PAD1, PAD_SHA);
+    wc_ShaUpdate(&ssl->hashSha, sender, SIZEOF_SENDER);
+    wc_ShaUpdate(&ssl->hashSha, ssl->arrays->masterSecret, SECRET_LEN);
+    wc_ShaUpdate(&ssl->hashSha, PAD1, PAD_SHA);
     ShaFinal(&ssl->hashSha, sha_result);
 
     /* make sha outer */
-    ShaUpdate(&ssl->hashSha, ssl->arrays->masterSecret, SECRET_LEN);
-    ShaUpdate(&ssl->hashSha, PAD2, PAD_SHA);
-    ShaUpdate(&ssl->hashSha, sha_result, SHA_DIGEST_SIZE);
+    wc_ShaUpdate(&ssl->hashSha, ssl->arrays->masterSecret, SECRET_LEN);
+    wc_ShaUpdate(&ssl->hashSha, PAD2, PAD_SHA);
+    wc_ShaUpdate(&ssl->hashSha, sha_result, SHA_DIGEST_SIZE);
 
     ShaFinal(&ssl->hashSha, hashes->sha);
 }
@@ -4412,12 +4412,12 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     int    keyRet = 0;
 
                     if (ssl->peerRsaKeyPresent) {  /* don't leak on reuse */
-                        FreeRsaKey(ssl->peerRsaKey);
+                        wc_FreeRsaKey(ssl->peerRsaKey);
                         ssl->peerRsaKeyPresent = 0;
-                        keyRet = InitRsaKey(ssl->peerRsaKey, ssl->heap);
+                        keyRet = wc_InitRsaKey(ssl->peerRsaKey, ssl->heap);
                     }
 
-                    if (keyRet != 0 || RsaPublicKeyDecode(dCert->publicKey,
+                    if (keyRet != 0 || wc_RsaPublicKeyDecode(dCert->publicKey,
                                &idx, ssl->peerRsaKey, dCert->pubKeySize) != 0) {
                         ret = PEER_KEY_ERROR;
                     }
@@ -6003,10 +6003,10 @@ static INLINE void ShaRounds(int rounds, const byte* data, int sz)
     Sha sha;
     int i;
 
-    InitSha(&sha);  /* no error check on purpose, dummy round */
+    wc_InitSha(&sha);  /* no error check on purpose, dummy round */
 
     for (i = 0; i < rounds; i++)
-        ShaUpdate(&sha, data, sz);
+        wc_ShaUpdate(&sha, data, sz);
 }
 #endif
 
@@ -6018,10 +6018,10 @@ static INLINE void Sha256Rounds(int rounds, const byte* data, int sz)
     Sha256 sha256;
     int i;
 
-    InitSha256(&sha256);  /* no error check on purpose, dummy round */
+    wc_InitSha256(&sha256);  /* no error check on purpose, dummy round */
 
     for (i = 0; i < rounds; i++) {
-        Sha256Update(&sha256, data, sz);
+        wc_Sha256Update(&sha256, data, sz);
         /* no error check on purpose, dummy round */
     }
 
@@ -10137,12 +10137,12 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
         if (sha == NULL)
             ERROR_OUT(MEMORY_E, done);
     #endif
-        ret = InitSha(sha);
+        ret = wc_InitSha(sha);
         if (ret != 0)
             goto done;
-        ShaUpdate(sha, ssl->arrays->clientRandom, RAN_LEN);
-        ShaUpdate(sha, ssl->arrays->serverRandom, RAN_LEN);
-        ShaUpdate(sha, messageVerify, verifySz);
+        wc_ShaUpdate(sha, ssl->arrays->clientRandom, RAN_LEN);
+        wc_ShaUpdate(sha, ssl->arrays->serverRandom, RAN_LEN);
+        wc_ShaUpdate(sha, messageVerify, verifySz);
         ShaFinal(sha, hash + MD5_DIGEST_SIZE);
 #endif
 
@@ -10155,10 +10155,10 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
         if (sha256 == NULL || hash256 == NULL)
             ERROR_OUT(MEMORY_E, done);
     #endif
-        if (!(ret = InitSha256(sha256))
-        &&  !(ret = Sha256Update(sha256, ssl->arrays->clientRandom, RAN_LEN))
-        &&  !(ret = Sha256Update(sha256, ssl->arrays->serverRandom, RAN_LEN))
-        &&  !(ret = Sha256Update(sha256, messageVerify, verifySz)))
+        if (!(ret = wc_InitSha256(sha256))
+        &&  !(ret = wc_Sha256Update(sha256, ssl->arrays->clientRandom, RAN_LEN))
+        &&  !(ret = wc_Sha256Update(sha256, ssl->arrays->serverRandom, RAN_LEN))
+        &&  !(ret = wc_Sha256Update(sha256, messageVerify, verifySz)))
               ret = Sha256Final(sha256, hash256);
         if (ret != 0)
             goto done;
@@ -10209,7 +10209,7 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
             #endif /*HAVE_PK_CALLBACKS */
             }
             else
-                verifiedSz = RsaSSL_VerifyInline((byte *)input + *inOutIdx,
+                verifiedSz = wc_RsaSSL_VerifyInline((byte *)input + *inOutIdx,
                                                  length, &out, ssl->peerRsaKey);
 
             if (IsAtLeastTLSv1_2(ssl)) {
@@ -10441,7 +10441,7 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
                 #endif /*HAVE_PK_CALLBACKS */
                 }
                 else {
-                    ret = RsaPublicEncrypt(ssl->arrays->preMasterSecret,
+                    ret = wc_RsaPublicEncrypt(ssl->arrays->preMasterSecret,
                                  SECRET_LEN, encSecret, MAX_ENCRYPT_SZ,
                                  ssl->peerRsaKey, ssl->rng);
                     if (ret > 0) {
@@ -10928,13 +10928,13 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
         wc_ecc_init(&eccKey);
 #endif
 #ifndef NO_RSA
-        ret = InitRsaKey(&key, ssl->heap);
+        ret = wc_InitRsaKey(&key, ssl->heap);
         if (ret == 0) initRsaKey = 1;
         if (ret == 0)
-            ret = RsaPrivateKeyDecode(ssl->buffers.key.buffer, &idx, &key,
+            ret = wc_RsaPrivateKeyDecode(ssl->buffers.key.buffer, &idx, &key,
                                       ssl->buffers.key.length);
         if (ret == 0)
-            sigOutSz = RsaEncryptSize(&key);
+            sigOutSz = wc_RsaEncryptSize(&key);
         else
 #endif
         {
@@ -10976,7 +10976,7 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
             if (encodedSig == NULL) {
             #ifndef NO_RSA
                 if (initRsaKey)
-                    FreeRsaKey(&key);
+                    wc_FreeRsaKey(&key);
             #endif
             #ifdef HAVE_ECC
                 wc_ecc_free(&eccKey);
@@ -11127,7 +11127,7 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
                 #endif /*HAVE_PK_CALLBACKS */
                 }
                 else {
-                    ret = RsaSSL_Sign(signBuffer, signSz, verify + extraSz +
+                    ret = wc_RsaSSL_Sign(signBuffer, signSz, verify + extraSz +
                                   VERIFY_HEADER, ENCRYPT_LEN, &key, ssl->rng);
                 }
 
@@ -11184,7 +11184,7 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
         }
 #ifndef NO_RSA
         if (initRsaKey)
-            FreeRsaKey(&key);
+            wc_FreeRsaKey(&key);
 #endif
 #ifdef HAVE_ECC
         wc_ecc_free(&eccKey);
@@ -11671,7 +11671,7 @@ int DoSessionTicket(WOLFSSL* ssl,
             preSigIdx = idx;
 
         #ifndef NO_RSA
-            ret = InitRsaKey(&rsaKey, ssl->heap);
+            ret = wc_InitRsaKey(&rsaKey, ssl->heap);
             if (ret != 0)
                 goto done_a;
         #endif
@@ -11683,7 +11683,7 @@ int DoSessionTicket(WOLFSSL* ssl,
 
             if (!ssl->buffers.key.buffer) {
             #ifndef NO_RSA
-                FreeRsaKey(&rsaKey);
+                wc_FreeRsaKey(&rsaKey);
             #endif
                 wc_ecc_free(&dsaKey);
                 ERROR_OUT(NO_PRIVATE_KEY, done_a);
@@ -11693,11 +11693,11 @@ int DoSessionTicket(WOLFSSL* ssl,
             if (ssl->specs.sig_algo == rsa_sa_algo) {
                 /* rsa sig size */
                 word32 i = 0;
-                ret = RsaPrivateKeyDecode(ssl->buffers.key.buffer, &i,
+                ret = wc_RsaPrivateKeyDecode(ssl->buffers.key.buffer, &i,
                                           &rsaKey, ssl->buffers.key.length);
                 if (ret != 0)
                     goto done_a;
-                sigSz = RsaEncryptSize(&rsaKey);
+                sigSz = wc_RsaEncryptSize(&rsaKey);
             } else
         #endif
 
@@ -11829,12 +11829,12 @@ int DoSessionTicket(WOLFSSL* ssl,
                 if (sha == NULL)
                     ERROR_OUT(MEMORY_E, done_a2);
             #endif
-                ret = InitSha(sha);
+                ret = wc_InitSha(sha);
                 if (ret != 0)
                     goto done_a2;
-                ShaUpdate(sha, ssl->arrays->clientRandom, RAN_LEN);
-                ShaUpdate(sha, ssl->arrays->serverRandom, RAN_LEN);
-                ShaUpdate(sha, output + preSigIdx, preSigSz);
+                wc_ShaUpdate(sha, ssl->arrays->clientRandom, RAN_LEN);
+                wc_ShaUpdate(sha, ssl->arrays->serverRandom, RAN_LEN);
+                wc_ShaUpdate(sha, output + preSigIdx, preSigSz);
                 ShaFinal(sha, &hash[MD5_DIGEST_SIZE]);
         #endif
 
@@ -11848,12 +11848,12 @@ int DoSessionTicket(WOLFSSL* ssl,
                     ERROR_OUT(MEMORY_E, done_a2);
             #endif
 
-                if (!(ret = InitSha256(sha256))
-                &&  !(ret = Sha256Update(sha256, ssl->arrays->clientRandom,
+                if (!(ret = wc_InitSha256(sha256))
+                &&  !(ret = wc_Sha256Update(sha256, ssl->arrays->clientRandom,
                                                                        RAN_LEN))
-                &&  !(ret = Sha256Update(sha256, ssl->arrays->serverRandom,
+                &&  !(ret = wc_Sha256Update(sha256, ssl->arrays->serverRandom,
                                                                        RAN_LEN))
-                &&  !(ret = Sha256Update(sha256, output + preSigIdx, preSigSz)))
+                &&  !(ret = wc_Sha256Update(sha256, output + preSigIdx, preSigSz)))
                     ret = Sha256Final(sha256, hash256);
 
                 if (ret != 0)
@@ -11944,10 +11944,10 @@ int DoSessionTicket(WOLFSSL* ssl,
                     #endif /*HAVE_PK_CALLBACKS */
                     }
                     else
-                        ret = RsaSSL_Sign(signBuffer, signSz, output + idx,
+                        ret = wc_RsaSSL_Sign(signBuffer, signSz, output + idx,
                                           sigSz, &rsaKey, ssl->rng);
 
-                    FreeRsaKey(&rsaKey);
+                    wc_FreeRsaKey(&rsaKey);
                     wc_ecc_free(&dsaKey);
 
                 #ifdef WOLFSSL_SMALL_STACK
@@ -12010,7 +12010,7 @@ int DoSessionTicket(WOLFSSL* ssl,
                               output + LENGTH_SZ + idx, &sz, ssl->rng, &dsaKey);
                     }
                 #ifndef NO_RSA
-                    FreeRsaKey(&rsaKey);
+                    wc_FreeRsaKey(&rsaKey);
                 #endif
                     wc_ecc_free(&dsaKey);
 
@@ -12135,7 +12135,7 @@ int DoSessionTicket(WOLFSSL* ssl,
             preSigSz  = length;
 
             if (!ssl->options.usingAnon_cipher) {
-                ret = InitRsaKey(&rsaKey, ssl->heap);
+                ret = wc_InitRsaKey(&rsaKey, ssl->heap);
                 if (ret != 0) return ret;
 
                 /* sig length */
@@ -12144,14 +12144,14 @@ int DoSessionTicket(WOLFSSL* ssl,
                 if (!ssl->buffers.key.buffer)
                     return NO_PRIVATE_KEY;
 
-                ret = RsaPrivateKeyDecode(ssl->buffers.key.buffer, &i, &rsaKey,
+                ret = wc_RsaPrivateKeyDecode(ssl->buffers.key.buffer, &i, &rsaKey,
                                           ssl->buffers.key.length);
                 if (ret == 0) {
-                    sigSz = RsaEncryptSize(&rsaKey);
+                    sigSz = wc_RsaEncryptSize(&rsaKey);
                     length += sigSz;
                 }
                 else {
-                    FreeRsaKey(&rsaKey);
+                    wc_FreeRsaKey(&rsaKey);
                     return ret;
                 }
 
@@ -12172,7 +12172,7 @@ int DoSessionTicket(WOLFSSL* ssl,
             /* check for available size */
             if ((ret = CheckAvailableSize(ssl, sendSz)) != 0) {
                 if (!ssl->options.usingAnon_cipher)
-                    FreeRsaKey(&rsaKey);
+                    wc_FreeRsaKey(&rsaKey);
                 return ret;
             }
 
@@ -12284,12 +12284,12 @@ int DoSessionTicket(WOLFSSL* ssl,
                     ERROR_OUT(MEMORY_E, done_b);
             #endif
 
-                if ((ret = InitSha(sha)) != 0)
+                if ((ret = wc_InitSha(sha)) != 0)
                     goto done_b;
 
-                ShaUpdate(sha, ssl->arrays->clientRandom, RAN_LEN);
-                ShaUpdate(sha, ssl->arrays->serverRandom, RAN_LEN);
-                ShaUpdate(sha, output + preSigIdx, preSigSz);
+                wc_ShaUpdate(sha, ssl->arrays->clientRandom, RAN_LEN);
+                wc_ShaUpdate(sha, ssl->arrays->serverRandom, RAN_LEN);
+                wc_ShaUpdate(sha, output + preSigIdx, preSigSz);
                 ShaFinal(sha, &hash[MD5_DIGEST_SIZE]);
         #endif
 
@@ -12303,12 +12303,12 @@ int DoSessionTicket(WOLFSSL* ssl,
                     ERROR_OUT(MEMORY_E, done_b);
             #endif
 
-                if (!(ret = InitSha256(sha256))
-                &&  !(ret = Sha256Update(sha256, ssl->arrays->clientRandom,
+                if (!(ret = wc_InitSha256(sha256))
+                &&  !(ret = wc_Sha256Update(sha256, ssl->arrays->clientRandom,
                                                                        RAN_LEN))
-                &&  !(ret = Sha256Update(sha256, ssl->arrays->serverRandom,
+                &&  !(ret = wc_Sha256Update(sha256, ssl->arrays->serverRandom,
                                                                        RAN_LEN))
-                &&  !(ret = Sha256Update(sha256, output + preSigIdx, preSigSz)))
+                &&  !(ret = wc_Sha256Update(sha256, output + preSigIdx, preSigSz)))
                     ret = Sha256Final(sha256, hash256);
 
                 if (ret != 0)
@@ -12395,10 +12395,10 @@ int DoSessionTicket(WOLFSSL* ssl,
                     #endif
                     }
                     else
-                        ret = RsaSSL_Sign(signBuffer, signSz, output + idx,
+                        ret = wc_RsaSSL_Sign(signBuffer, signSz, output + idx,
                                           sigSz, &rsaKey, ssl->rng);
 
-                    FreeRsaKey(&rsaKey);
+                    wc_FreeRsaKey(&rsaKey);
 
                 #ifdef WOLFSSL_SMALL_STACK
                     XFREE(encodedSig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -12618,12 +12618,12 @@ int DoSessionTicket(WOLFSSL* ssl,
         wc_Md5Update(&ssl->hashMd5, input + idx, sz);
 #endif
 #ifndef NO_SHA
-        ShaUpdate(&ssl->hashSha, input + idx, sz);
+        wc_ShaUpdate(&ssl->hashSha, input + idx, sz);
 #endif
 #endif
 #ifndef NO_SHA256
         if (IsAtLeastTLSv1_2(ssl)) {
-            int shaRet = Sha256Update(&ssl->hashSha256, input + idx, sz);
+            int shaRet = wc_Sha256Update(&ssl->hashSha256, input + idx, sz);
 
             if (shaRet != 0)
                 return shaRet;
@@ -13122,7 +13122,7 @@ int DoSessionTicket(WOLFSSL* ssl,
             #endif /*HAVE_PK_CALLBACKS */
             }
             else {
-                outLen = RsaSSL_VerifyInline(input + *inOutIdx, sz, &out,
+                outLen = wc_RsaSSL_VerifyInline(input + *inOutIdx, sz, &out,
                                                                ssl->peerRsaKey);
             }
 
@@ -13391,17 +13391,17 @@ int DoSessionTicket(WOLFSSL* ssl,
                         doUserRsa = 1;
                 #endif
 
-                ret = InitRsaKey(&key, ssl->heap);
+                ret = wc_InitRsaKey(&key, ssl->heap);
                 if (ret != 0) return ret;
 
                 if (ssl->buffers.key.buffer)
-                    ret = RsaPrivateKeyDecode(ssl->buffers.key.buffer, &idx,
+                    ret = wc_RsaPrivateKeyDecode(ssl->buffers.key.buffer, &idx,
                                              &key, ssl->buffers.key.length);
                 else
                     return NO_PRIVATE_KEY;
 
                 if (ret == 0) {
-                    length = RsaEncryptSize(&key);
+                    length = wc_RsaEncryptSize(&key);
                     ssl->arrays->preMasterSz = SECRET_LEN;
 
                     if (ssl->options.tls) {
@@ -13415,14 +13415,14 @@ int DoSessionTicket(WOLFSSL* ssl,
 
                         if ((word32) check != length) {
                             WOLFSSL_MSG("RSA explicit size doesn't match");
-                            FreeRsaKey(&key);
+                            wc_FreeRsaKey(&key);
                             return RSA_PRIVATE_ERROR;
                         }
                     }
 
                     if ((*inOutIdx - begin) + length > size) {
                         WOLFSSL_MSG("RSA message too big");
-                        FreeRsaKey(&key);
+                        wc_FreeRsaKey(&key);
                         return BUFFER_ERROR;
                     }
 
@@ -13436,7 +13436,7 @@ int DoSessionTicket(WOLFSSL* ssl,
                         #endif
                     }
                     else {
-                        ret = RsaPrivateDecryptInline(input + *inOutIdx, length,
+                        ret = wc_RsaPrivateDecryptInline(input + *inOutIdx, length,
                                                                     &out, &key);
                     }
 
@@ -13457,7 +13457,7 @@ int DoSessionTicket(WOLFSSL* ssl,
                     }
                 }
 
-                FreeRsaKey(&key);
+                wc_FreeRsaKey(&key);
             }
             break;
         #endif

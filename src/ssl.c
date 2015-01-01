@@ -2516,9 +2516,9 @@ static int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
                 return MEMORY_E;
         #endif
 
-            ret = InitRsaKey(key, 0);
+            ret = wc_InitRsaKey(key, 0);
             if (ret == 0) {
-                if (RsaPrivateKeyDecode(der.buffer, &idx, key, der.length) !=
+                if (wc_RsaPrivateKeyDecode(der.buffer, &idx, key, der.length) !=
                                                                             0) {
                 #ifdef HAVE_ECC
                     /* could have DER ECC (or pkcs8 ecc), no easy way to tell */
@@ -2532,7 +2532,7 @@ static int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
                 }
             }
 
-            FreeRsaKey(key);
+            wc_FreeRsaKey(key);
 
         #ifdef WOLFSSL_SMALL_STACK
             XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -11192,7 +11192,7 @@ void wolfSSL_RSA_free(WOLFSSL_RSA* rsa)
 
     if (rsa) {
         if (rsa->internal) {
-            FreeRsaKey((RsaKey*)rsa->internal);
+            wc_FreeRsaKey((RsaKey*)rsa->internal);
             XFREE(rsa->internal, NULL, DYNAMIC_TYPE_RSA);
             rsa->internal = NULL;
         }

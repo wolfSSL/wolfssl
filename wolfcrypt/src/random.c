@@ -306,9 +306,9 @@ static int Hash_gen(DRBG* drbg, byte* out, word32 outSz, const byte* V)
 
     XMEMCPY(data, V, sizeof(data));
     for (i = 0; i < len; i++) {
-        if (InitSha256(&drbg->sha) != 0 ||
-            Sha256Update(&drbg->sha, data, sizeof(data)) != 0 ||
-            Sha256Final(&drbg->sha, drbg->digest) != 0) {
+        if (wc_InitSha256(&drbg->sha) != 0 ||
+            wc_Sha256Update(&drbg->sha, data, sizeof(data)) != 0 ||
+            wc_Sha256Final(&drbg->sha, drbg->digest) != 0) {
 
             return DRBG_FAILURE;
         }
@@ -381,10 +381,10 @@ static int Hash_DRBG_Generate(DRBG* drbg, byte* out, word32 outSz)
 
         ret = Hash_gen(drbg, out, outSz, drbg->V);
         if (ret == DRBG_SUCCESS) {
-            if (InitSha256(&drbg->sha) != 0 ||
-                Sha256Update(&drbg->sha, &type, sizeof(type)) != 0 ||
-                Sha256Update(&drbg->sha, drbg->V, sizeof(drbg->V)) != 0 ||
-                Sha256Final(&drbg->sha, drbg->digest) != 0) {
+            if (wc_InitSha256(&drbg->sha) != 0 ||
+                wc_Sha256Update(&drbg->sha, &type, sizeof(type)) != 0 ||
+                wc_Sha256Update(&drbg->sha, drbg->V, sizeof(drbg->V)) != 0 ||
+                wc_Sha256Final(&drbg->sha, drbg->digest) != 0) {
 
                 ret = DRBG_FAILURE;
             }

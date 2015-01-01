@@ -84,5 +84,5 @@
 	#define WOLFSSL_ENTER CYASSL_ENTER 
 	#define WOLFSSL_MSG   CYASSL_MSG
 #endif
-#endif /* WOLFSSL_MEMORY_H */
+#endif /* WOLFSSL_LOGGING_H */
 

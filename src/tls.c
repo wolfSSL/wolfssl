@@ -336,7 +336,7 @@ int BuildTlsFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
     if (IsAtLeastTLSv1_2(ssl)) {
 #ifndef NO_SHA256
         if (ssl->specs.mac_algorithm <= sha256_mac) {
-            int ret = Sha256Final(&ssl->hashSha256, handshake_hash);
+            int ret = wc_Sha256Final(&ssl->hashSha256, handshake_hash);
 
             if (ret != 0)
                 return ret;
