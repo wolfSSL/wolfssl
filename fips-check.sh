@@ -44,7 +44,7 @@ done
 make
 [ $? -ne 0 ] && echo -e "\n\nMake failed. Debris left for analysis." && exit 1
 
-NEWHASH=`./ctaocrypt/test/testctaocrypt | sed -n 's/hash = \(.*\)/\1/p'`
+NEWHASH=`./wolfcrypt/test/testwolfcrypt | sed -n 's/hash = \(.*\)/\1/p'`
 if [ -n "$NEWHASH" ]; then
     sed -i.bak "s/^\".*\";/\"${NEWHASH}\";/" $WC_SRC_PATH/fips_test.c
     make clean

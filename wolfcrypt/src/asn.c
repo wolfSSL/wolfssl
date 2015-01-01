@@ -2982,7 +2982,7 @@ static int ConfirmSignature(const byte* buf, word32 bufSz,
     #ifndef NO_SHA256
         case CTC_SHA256wRSA:
         case CTC_SHA256wECDSA:
-        if (Sha256Hash(buf, bufSz, digest) == 0) {    
+        if (wc_Sha256Hash(buf, bufSz, digest) == 0) {    
             typeH    = SHA256h;
             digestSz = SHA256_DIGEST_SIZE;
         }
@@ -2991,7 +2991,7 @@ static int ConfirmSignature(const byte* buf, word32 bufSz,
     #ifdef WOLFSSL_SHA512
         case CTC_SHA512wRSA:
         case CTC_SHA512wECDSA:
-        if (Sha512Hash(buf, bufSz, digest) == 0) {    
+        if (wc_Sha512Hash(buf, bufSz, digest) == 0) {    
             typeH    = SHA512h;
             digestSz = SHA512_DIGEST_SIZE;
         }
@@ -3000,7 +3000,7 @@ static int ConfirmSignature(const byte* buf, word32 bufSz,
     #ifdef WOLFSSL_SHA384
         case CTC_SHA384wRSA:
         case CTC_SHA384wECDSA:
-        if (Sha384Hash(buf, bufSz, digest) == 0) {    
+        if (wc_Sha384Hash(buf, bufSz, digest) == 0) {    
             typeH    = SHA384h;
             digestSz = SHA384_DIGEST_SIZE;
         }            
@@ -4291,11 +4291,11 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
         if (cert->extSubjKeyIdSet == 0
                           && cert->publicKey != NULL && cert->pubKeySize > 0) {
             Sha sha;
-            ret = InitSha(&sha);
+            ret = wc_InitSha(&sha);
             if (ret != 0)
                 return ret;
-            ShaUpdate(&sha, cert->publicKey, cert->pubKeySize);
-            ShaFinal(&sha, cert->extSubjKeyId);
+            wc_ShaUpdate(&sha, cert->publicKey, cert->pubKeySize);
+            wc_ShaFinal(&sha, cert->extSubjKeyId);
         }
     #endif
 
@@ -4316,11 +4316,11 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
             /* Need the ca's public key hash for OCSP */
             {
                 Sha sha;
-                ret = InitSha(&sha);
+                ret = wc_InitSha(&sha);
                 if (ret != 0)
                     return ret;
-                ShaUpdate(&sha, ca->publicKey, ca->pubKeySize);
-                ShaFinal(&sha, cert->issuerKeyHash);
+                wc_ShaUpdate(&sha, ca->publicKey, ca->pubKeySize);
+                wc_ShaFinal(&sha, cert->issuerKeyHash);
             }
 #endif /* HAVE_OCSP */
             /* try to confirm/verify signature */

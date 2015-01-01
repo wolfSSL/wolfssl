@@ -341,7 +341,7 @@ static int wc_RsaPad(const byte* input, word32 inputLen, byte* pkcsBlock,
     else {
         /* pad with non-zero random bytes */
         word32 padLen = pkcsBlockLen - inputLen - 1, i;
-        int    ret    = RNG_GenerateBlock(rng, &pkcsBlock[1], padLen);
+        int    ret    = wc_RNG_GenerateBlock(rng, &pkcsBlock[1], padLen);
 
         if (ret != 0)
             return ret;
@@ -741,7 +741,7 @@ static int rand_prime(mp_int* N, int len, RNG* rng, void* heap)
         fflush(stdout);
 #endif
         /* generate value */
-        err = RNG_GenerateBlock(rng, buf, len);
+        err = wc_RNG_GenerateBlock(rng, buf, len);
         if (err != 0) {
             XFREE(buf, heap, DYNAMIC_TYPE_RSA);
             return err;

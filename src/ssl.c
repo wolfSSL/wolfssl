@@ -5511,7 +5511,7 @@ static INLINE word32 HashSession(const byte* sessionID, word32 len, int* error)
     byte digest[MD5_DIGEST_SIZE];
 
 #ifndef NO_MD5
-    *error =    Md5Hash(sessionID, len, digest);
+    *error =    wc_Md5Hash(sessionID, len, digest);
 #elif !defined(NO_SHA)
     *error =    ShaHash(sessionID, len, digest);
 #elif !defined(NO_SHA256)
@@ -7934,9 +7934,9 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             return NULL;
     #endif
 
-        if (HmacSetKey(hmac, type, (const byte*)key, key_len) == 0)
-            if (HmacUpdate(hmac, d, n) == 0)
-                if (HmacFinal(hmac, md) == 0) {
+        if (wc_HmacSetKey(hmac, type, (const byte*)key, key_len) == 0)
+            if (wc_HmacUpdate(hmac, d, n) == 0)
+                if (wc_HmacFinal(hmac, md) == 0) {
                     if (md_len)
                         *md_len = (type == MD5) ? (int)MD5_DIGEST_SIZE
                                                 : (int)SHA_DIGEST_SIZE;
@@ -11682,7 +11682,7 @@ void wolfSSL_HMAC_Init(WOLFSSL_HMAC_CTX* ctx, const void* key, int keylen,
 
     if (key && keylen) {
         WOLFSSL_MSG("keying hmac");
-        HmacSetKey(&ctx->hmac, ctx->type, (const byte*)key, (word32)keylen);
+        wc_HmacSetKey(&ctx->hmac, ctx->type, (const byte*)key, (word32)keylen);
         /* OpenSSL compat, no error */
     }
 }
@@ -11695,7 +11695,7 @@ void wolfSSL_HMAC_Update(WOLFSSL_HMAC_CTX* ctx, const unsigned char* data,
 
     if (ctx && data) {
         WOLFSSL_MSG("updating hmac");
-        HmacUpdate(&ctx->hmac, data, (word32)len);
+        wc_HmacUpdate(&ctx->hmac, data, (word32)len);
         /* OpenSSL compat, no error */
     }
 }
@@ -11708,7 +11708,7 @@ void wolfSSL_HMAC_Final(WOLFSSL_HMAC_CTX* ctx, unsigned char* hash,
 
     if (ctx && hash) {
         WOLFSSL_MSG("final hmac");
-        HmacFinal(&ctx->hmac, hash);
+        wc_HmacFinal(&ctx->hmac, hash);
         /* OpenSSL compat, no error */
 
         if (len) {

@@ -214,29 +214,29 @@ static int Hash_df(DRBG* drbg, byte* out, word32 outSz, byte type,
 
     for (i = 0, ctr = 1; i < len; i++, ctr++)
     {
-        if (InitSha256(&drbg->sha) != 0)
+        if (wc_InitSha256(&drbg->sha) != 0)
             return DRBG_FAILURE;
 
-        if (Sha256Update(&drbg->sha, &ctr, sizeof(ctr)) != 0)
+        if (wc_Sha256Update(&drbg->sha, &ctr, sizeof(ctr)) != 0)
             return DRBG_FAILURE;
 
-        if (Sha256Update(&drbg->sha, (byte*)&bits, sizeof(bits)) != 0)
+        if (wc_Sha256Update(&drbg->sha, (byte*)&bits, sizeof(bits)) != 0)
             return DRBG_FAILURE;
 
         /* churning V is the only string that doesn't have 
          * the type added */
         if (type != drbgInitV)
-            if (Sha256Update(&drbg->sha, &type, sizeof(type)) != 0)
+            if (wc_Sha256Update(&drbg->sha, &type, sizeof(type)) != 0)
                 return DRBG_FAILURE;
 
-        if (Sha256Update(&drbg->sha, inA, inASz) != 0)
+        if (wc_Sha256Update(&drbg->sha, inA, inASz) != 0)
             return DRBG_FAILURE;
 
         if (inB != NULL && inBSz > 0)
-            if (Sha256Update(&drbg->sha, inB, inBSz) != 0)
+            if (wc_Sha256Update(&drbg->sha, inB, inBSz) != 0)
                 return DRBG_FAILURE;
 
-        if (Sha256Final(&drbg->sha, drbg->digest) != 0)
+        if (wc_Sha256Final(&drbg->sha, drbg->digest) != 0)
             return DRBG_FAILURE;
 
         if (outSz > OUTPUT_BLOCK_LEN) {

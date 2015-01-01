@@ -1799,7 +1799,7 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
 
 #ifndef NO_OLD_TLS
 #ifndef NO_MD5
-    InitMd5(&ssl->hashMd5);
+    wc_InitMd5(&ssl->hashMd5);
 #endif
 #ifndef NO_SHA
     ret = InitSha(&ssl->hashSha);
@@ -1815,7 +1815,7 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
     }
 #endif
 #ifdef WOLFSSL_SHA384
-    ret = InitSha384(&ssl->hashSha384);
+    ret = wc_InitSha384(&ssl->hashSha384);
     if (ret != 0) {
         return ret;
     }
@@ -1859,7 +1859,7 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
         return MEMORY_E;
     }
 
-    if ( (ret = InitRng(ssl->rng)) != 0) {
+    if ( (ret = wc_InitRng(ssl->rng)) != 0) {
         WOLFSSL_MSG("RNG Init error");
         return ret;
     }
@@ -1967,7 +1967,7 @@ void SSL_ResourceFree(WOLFSSL* ssl)
     FreeCiphers(ssl);
     FreeArrays(ssl, 0);
 #if defined(HAVE_HASHDRBG) || defined(NO_RC4)
-    FreeRng(ssl->rng);
+    wc_FreeRng(ssl->rng);
 #endif
     XFREE(ssl->rng, ssl->heap, DYNAMIC_TYPE_RNG);
     XFREE(ssl->suites, ssl->heap, DYNAMIC_TYPE_SUITES);
@@ -2084,7 +2084,7 @@ void FreeHandshakeResources(WOLFSSL* ssl)
     /* RNG */
     if (ssl->specs.cipher_type == stream || ssl->options.tls1_1 == 0) {
 #if defined(HAVE_HASHDRBG) || defined(NO_RC4)
-        FreeRng(ssl->rng);
+        wc_FreeRng(ssl->rng);
 #endif
         XFREE(ssl->rng, ssl->heap, DYNAMIC_TYPE_RNG);
         ssl->rng = NULL;
@@ -2623,7 +2623,7 @@ static int HashOutput(WOLFSSL* ssl, const byte* output, int sz, int ivSz)
     ShaUpdate(&ssl->hashSha, adj, sz);
 #endif
 #ifndef NO_MD5
-    Md5Update(&ssl->hashMd5, adj, sz);
+    wc_Md5Update(&ssl->hashMd5, adj, sz);
 #endif
 #endif
 
@@ -2636,7 +2636,7 @@ static int HashOutput(WOLFSSL* ssl, const byte* output, int sz, int ivSz)
             return ret;
 #endif
 #ifdef WOLFSSL_SHA384
-        ret = Sha384Update(&ssl->hashSha384, adj, sz);
+        ret = wc_Sha384Update(&ssl->hashSha384, adj, sz);
         if (ret != 0)
             return ret;
 #endif
@@ -2664,7 +2664,7 @@ static int HashInput(WOLFSSL* ssl, const byte* input, int sz)
     ShaUpdate(&ssl->hashSha, adj, sz);
 #endif
 #ifndef NO_MD5
-    Md5Update(&ssl->hashMd5, adj, sz);
+    wc_Md5Update(&ssl->hashMd5, adj, sz);
 #endif
 #endif
 
@@ -2677,7 +2677,7 @@ static int HashInput(WOLFSSL* ssl, const byte* input, int sz)
             return ret;
 #endif
 #ifdef WOLFSSL_SHA384
-        ret = Sha384Update(&ssl->hashSha384, adj, sz);
+        ret = wc_Sha384Update(&ssl->hashSha384, adj, sz);
         if (ret != 0)
             return ret;
 #endif
@@ -3195,17 +3195,17 @@ static void BuildMD5(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
     byte md5_result[MD5_DIGEST_SIZE];
 
     /* make md5 inner */
-    Md5Update(&ssl->hashMd5, sender, SIZEOF_SENDER);
-    Md5Update(&ssl->hashMd5, ssl->arrays->masterSecret, SECRET_LEN);
-    Md5Update(&ssl->hashMd5, PAD1, PAD_MD5);
-    Md5Final(&ssl->hashMd5, md5_result);
+    wc_Md5Update(&ssl->hashMd5, sender, SIZEOF_SENDER);
+    wc_Md5Update(&ssl->hashMd5, ssl->arrays->masterSecret, SECRET_LEN);
+    wc_Md5Update(&ssl->hashMd5, PAD1, PAD_MD5);
+    wc_Md5Final(&ssl->hashMd5, md5_result);
 
     /* make md5 outer */
-    Md5Update(&ssl->hashMd5, ssl->arrays->masterSecret, SECRET_LEN);
-    Md5Update(&ssl->hashMd5, PAD2, PAD_MD5);
-    Md5Update(&ssl->hashMd5, md5_result, MD5_DIGEST_SIZE);
+    wc_Md5Update(&ssl->hashMd5, ssl->arrays->masterSecret, SECRET_LEN);
+    wc_Md5Update(&ssl->hashMd5, PAD2, PAD_MD5);
+    wc_Md5Update(&ssl->hashMd5, md5_result, MD5_DIGEST_SIZE);
 
-    Md5Final(&ssl->hashMd5, hashes->md5);
+    wc_Md5Final(&ssl->hashMd5, hashes->md5);
 }
 
 
@@ -5989,10 +5989,10 @@ static INLINE void Md5Rounds(int rounds, const byte* data, int sz)
     Md5 md5;
     int i;
 
-    InitMd5(&md5);
+    wc_InitMd5(&md5);
 
     for (i = 0; i < rounds; i++)
-        Md5Update(&md5, data, sz);
+        wc_Md5Update(&md5, data, sz);
 }
 
 
@@ -6037,10 +6037,10 @@ static INLINE void Sha384Rounds(int rounds, const byte* data, int sz)
     Sha384 sha384;
     int i;
 
-    InitSha384(&sha384);  /* no error check on purpose, dummy round */
+    wc_InitSha384(&sha384);  /* no error check on purpose, dummy round */
 
     for (i = 0; i < rounds; i++) {
-        Sha384Update(&sha384, data, sz);
+        wc_Sha384Update(&sha384, data, sz);
         /* no error check on purpose, dummy round */
     }
 }
@@ -6055,10 +6055,10 @@ static INLINE void Sha512Rounds(int rounds, const byte* data, int sz)
     Sha512 sha512;
     int i;
 
-    InitSha512(&sha512);  /* no error check on purpose, dummy round */
+    wc_InitSha512(&sha512);  /* no error check on purpose, dummy round */
 
     for (i = 0; i < rounds; i++) {
-        Sha512Update(&sha512, data, sz);
+        wc_Sha512Update(&sha512, data, sz);
         /* no error check on purpose, dummy round */
     }
 }
@@ -6996,38 +6996,38 @@ static int SSL_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz,
     c32toa(GetSEQIncrement(ssl, verify), &seq[sizeof(word32)]);
 
     if (ssl->specs.mac_algorithm == md5_mac) {
-        InitMd5(&md5);
+        wc_InitMd5(&md5);
         /* inner */
-        Md5Update(&md5, macSecret, digestSz);
-        Md5Update(&md5, PAD1, padSz);
-        Md5Update(&md5, seq, SEQ_SZ);
-        Md5Update(&md5, conLen, sizeof(conLen));
+        wc_Md5Update(&md5, macSecret, digestSz);
+        wc_Md5Update(&md5, PAD1, padSz);
+        wc_Md5Update(&md5, seq, SEQ_SZ);
+        wc_Md5Update(&md5, conLen, sizeof(conLen));
         /* in buffer */
-        Md5Update(&md5, in, sz);
-        Md5Final(&md5, result);
+        wc_Md5Update(&md5, in, sz);
+        wc_Md5Final(&md5, result);
         /* outer */
-        Md5Update(&md5, macSecret, digestSz);
-        Md5Update(&md5, PAD2, padSz);
-        Md5Update(&md5, result, digestSz);
-        Md5Final(&md5, digest);
+        wc_Md5Update(&md5, macSecret, digestSz);
+        wc_Md5Update(&md5, PAD2, padSz);
+        wc_Md5Update(&md5, result, digestSz);
+        wc_Md5Final(&md5, digest);
     }
     else {
-        ret = InitSha(&sha);
+        ret = wc_InitSha(&sha);
         if (ret != 0)
             return ret;
         /* inner */
-        ShaUpdate(&sha, macSecret, digestSz);
-        ShaUpdate(&sha, PAD1, padSz);
-        ShaUpdate(&sha, seq, SEQ_SZ);
-        ShaUpdate(&sha, conLen, sizeof(conLen));
+        wc_ShaUpdate(&sha, macSecret, digestSz);
+        wc_ShaUpdate(&sha, PAD1, padSz);
+        wc_ShaUpdate(&sha, seq, SEQ_SZ);
+        wc_ShaUpdate(&sha, conLen, sizeof(conLen));
         /* in buffer */
-        ShaUpdate(&sha, in, sz);
-        ShaFinal(&sha, result);
+        wc_ShaUpdate(&sha, in, sz);
+        wc_ShaFinal(&sha, result);
         /* outer */
-        ShaUpdate(&sha, macSecret, digestSz);
-        ShaUpdate(&sha, PAD2, padSz);
-        ShaUpdate(&sha, result, digestSz);
-        ShaFinal(&sha, digest);
+        wc_ShaUpdate(&sha, macSecret, digestSz);
+        wc_ShaUpdate(&sha, PAD2, padSz);
+        wc_ShaUpdate(&sha, result, digestSz);
+        wc_ShaFinal(&sha, digest);
     }
     return 0;
 }
@@ -7038,16 +7038,16 @@ static void BuildMD5_CertVerify(WOLFSSL* ssl, byte* digest)
     byte md5_result[MD5_DIGEST_SIZE];
 
     /* make md5 inner */
-    Md5Update(&ssl->hashMd5, ssl->arrays->masterSecret, SECRET_LEN);
-    Md5Update(&ssl->hashMd5, PAD1, PAD_MD5);
-    Md5Final(&ssl->hashMd5, md5_result);
+    wc_Md5Update(&ssl->hashMd5, ssl->arrays->masterSecret, SECRET_LEN);
+    wc_Md5Update(&ssl->hashMd5, PAD1, PAD_MD5);
+    wc_Md5Final(&ssl->hashMd5, md5_result);
 
     /* make md5 outer */
-    Md5Update(&ssl->hashMd5, ssl->arrays->masterSecret, SECRET_LEN);
-    Md5Update(&ssl->hashMd5, PAD2, PAD_MD5);
-    Md5Update(&ssl->hashMd5, md5_result, MD5_DIGEST_SIZE);
+    wc_Md5Update(&ssl->hashMd5, ssl->arrays->masterSecret, SECRET_LEN);
+    wc_Md5Update(&ssl->hashMd5, PAD2, PAD_MD5);
+    wc_Md5Update(&ssl->hashMd5, md5_result, MD5_DIGEST_SIZE);
 
-    Md5Final(&ssl->hashMd5, digest);
+    wc_Md5Final(&ssl->hashMd5, digest);
 }
 
 
@@ -7056,16 +7056,16 @@ static void BuildSHA_CertVerify(WOLFSSL* ssl, byte* digest)
     byte sha_result[SHA_DIGEST_SIZE];
 
     /* make sha inner */
-    ShaUpdate(&ssl->hashSha, ssl->arrays->masterSecret, SECRET_LEN);
-    ShaUpdate(&ssl->hashSha, PAD1, PAD_SHA);
-    ShaFinal(&ssl->hashSha, sha_result);
+    wc_ShaUpdate(&ssl->hashSha, ssl->arrays->masterSecret, SECRET_LEN);
+    wc_ShaUpdate(&ssl->hashSha, PAD1, PAD_SHA);
+    wc_ShaFinal(&ssl->hashSha, sha_result);
 
     /* make sha outer */
-    ShaUpdate(&ssl->hashSha, ssl->arrays->masterSecret, SECRET_LEN);
-    ShaUpdate(&ssl->hashSha, PAD2, PAD_SHA);
-    ShaUpdate(&ssl->hashSha, sha_result, SHA_DIGEST_SIZE);
+    wc_ShaUpdate(&ssl->hashSha, ssl->arrays->masterSecret, SECRET_LEN);
+    wc_ShaUpdate(&ssl->hashSha, PAD2, PAD_SHA);
+    wc_ShaUpdate(&ssl->hashSha, sha_result, SHA_DIGEST_SIZE);
 
-    ShaFinal(&ssl->hashSha, digest);
+    wc_ShaFinal(&ssl->hashSha, digest);
 }
 #endif /* NO_CERTS */
 #endif /* NO_OLD_TLS */
@@ -7089,19 +7089,19 @@ static int BuildCertHashes(WOLFSSL* ssl, Hashes* hashes)
 
     if (ssl->options.tls) {
 #if ! defined( NO_OLD_TLS )
-        Md5Final(&ssl->hashMd5, hashes->md5);
-        ShaFinal(&ssl->hashSha, hashes->sha);
+        wc_Md5Final(&ssl->hashMd5, hashes->md5);
+        wc_ShaFinal(&ssl->hashSha, hashes->sha);
 #endif
         if (IsAtLeastTLSv1_2(ssl)) {
             int ret;
 
             #ifndef NO_SHA256
-                ret = Sha256Final(&ssl->hashSha256, hashes->sha256);
+                ret = wc_Sha256Final(&ssl->hashSha256, hashes->sha256);
                 if (ret != 0)
                     return ret;
             #endif
             #ifdef WOLFSSL_SHA384
-                ret = Sha384Final(&ssl->hashSha384, hashes->sha384);
+                ret = wc_Sha384Final(&ssl->hashSha384, hashes->sha384);
                 if (ret != 0)
                     return ret;
             #endif
@@ -7173,7 +7173,7 @@ static int BuildMessage(WOLFSSL* ssl, byte* output, int outSz,
             if (ivSz > (word32)sizeof(iv))
                 return BUFFER_E;
 
-            ret = RNG_GenerateBlock(ssl->rng, iv, ivSz);
+            ret = wc_RNG_GenerateBlock(ssl->rng, iv, ivSz);
             if (ret != 0)
                 return ret;
 
@@ -9312,7 +9312,7 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
 
             /* then random */
         if (ssl->options.connectState == CONNECT_BEGIN) {
-            ret = RNG_GenerateBlock(ssl->rng, output + idx, RAN_LEN);
+            ret = wc_RNG_GenerateBlock(ssl->rng, output + idx, RAN_LEN);
             if (ret != 0)
                 return ret;
 
@@ -10125,11 +10125,11 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
         if (md5 == NULL)
             ERROR_OUT(MEMORY_E, done);
     #endif
-        InitMd5(md5);
-        Md5Update(md5, ssl->arrays->clientRandom, RAN_LEN);
-        Md5Update(md5, ssl->arrays->serverRandom, RAN_LEN);
-        Md5Update(md5, messageVerify, verifySz);
-        Md5Final(md5, hash);
+        wc_InitMd5(md5);
+        wc_Md5Update(md5, ssl->arrays->clientRandom, RAN_LEN);
+        wc_Md5Update(md5, ssl->arrays->serverRandom, RAN_LEN);
+        wc_Md5Update(md5, messageVerify, verifySz);
+        wc_Md5Final(md5, hash);
 
         /* sha */
     #ifdef WOLFSSL_SMALL_STACK
@@ -10173,10 +10173,10 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
         if (sha384 == NULL || hash384 == NULL)
             ERROR_OUT(MEMORY_E, done);
     #endif
-        if (!(ret = InitSha384(sha384))
-        &&  !(ret = Sha384Update(sha384, ssl->arrays->clientRandom, RAN_LEN))
-        &&  !(ret = Sha384Update(sha384, ssl->arrays->serverRandom, RAN_LEN))
-        &&  !(ret = Sha384Update(sha384, messageVerify, verifySz)))
+        if (!(ret = wc_InitSha384(sha384))
+        &&  !(ret = wc_Sha384Update(sha384, ssl->arrays->clientRandom, RAN_LEN))
+        &&  !(ret = wc_Sha384Update(sha384, ssl->arrays->serverRandom, RAN_LEN))
+        &&  !(ret = wc_Sha384Update(sha384, messageVerify, verifySz)))
               ret = Sha384Final(sha384, hash384);
         if (ret != 0)
             goto done;
@@ -10406,7 +10406,7 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
         switch (ssl->specs.kea) {
         #ifndef NO_RSA
             case rsa_kea:
-                ret = RNG_GenerateBlock(ssl->rng, ssl->arrays->preMasterSecret,
+                ret = wc_RNG_GenerateBlock(ssl->rng, ssl->arrays->preMasterSecret,
                                                                     SECRET_LEN);
                 if (ret != 0) {
                 #ifdef WOLFSSL_SMALL_STACK
@@ -10648,7 +10648,7 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
                         'C', 'y', 'a', 'S', 'S', 'L', ' ', 'N', 'T', 'R', 'U'
                     };
 
-                    ret = RNG_GenerateBlock(ssl->rng,
+                    ret = wc_RNG_GenerateBlock(ssl->rng,
                                       ssl->arrays->preMasterSecret, SECRET_LEN);
                     if (ret != 0) {
                     #ifdef WOLFSSL_SMALL_STACK
@@ -11321,7 +11321,7 @@ int DoSessionTicket(WOLFSSL* ssl,
 
             /* then random */
         if (!ssl->options.resuming) {
-            ret = RNG_GenerateBlock(ssl->rng, ssl->arrays->serverRandom,
+            ret = wc_RNG_GenerateBlock(ssl->rng, ssl->arrays->serverRandom,
                                                                        RAN_LEN);
             if (ret != 0)
                 return ret;
@@ -11343,7 +11343,7 @@ int DoSessionTicket(WOLFSSL* ssl,
         output[idx++] = ID_LEN;
 
         if (!ssl->options.resuming) {
-            ret = RNG_GenerateBlock(ssl->rng, ssl->arrays->sessionID, ID_LEN);
+            ret = wc_RNG_GenerateBlock(ssl->rng, ssl->arrays->sessionID, ID_LEN);
             if (ret != 0)
                 return ret;
         }
@@ -11817,11 +11817,11 @@ int DoSessionTicket(WOLFSSL* ssl,
                 if (md5 == NULL)
                     ERROR_OUT(MEMORY_E, done_a2);
             #endif
-                InitMd5(md5);
-                Md5Update(md5, ssl->arrays->clientRandom, RAN_LEN);
-                Md5Update(md5, ssl->arrays->serverRandom, RAN_LEN);
-                Md5Update(md5, output + preSigIdx, preSigSz);
-                Md5Final(md5, hash);
+                wc_InitMd5(md5);
+                wc_Md5Update(md5, ssl->arrays->clientRandom, RAN_LEN);
+                wc_Md5Update(md5, ssl->arrays->serverRandom, RAN_LEN);
+                wc_Md5Update(md5, output + preSigIdx, preSigSz);
+                wc_Md5Final(md5, hash);
 
                 /* sha */
             #ifdef WOLFSSL_SMALL_STACK
@@ -11870,12 +11870,12 @@ int DoSessionTicket(WOLFSSL* ssl,
                     ERROR_OUT(MEMORY_E, done_a2);
             #endif
 
-                if (!(ret = InitSha384(sha384))
-                &&  !(ret = Sha384Update(sha384, ssl->arrays->clientRandom,
+                if (!(ret = wc_InitSha384(sha384))
+                &&  !(ret = wc_Sha384Update(sha384, ssl->arrays->clientRandom,
                                                                        RAN_LEN))
-                &&  !(ret = Sha384Update(sha384, ssl->arrays->serverRandom,
+                &&  !(ret = wc_Sha384Update(sha384, ssl->arrays->serverRandom,
                                                                        RAN_LEN))
-                &&  !(ret = Sha384Update(sha384, output + preSigIdx, preSigSz)))
+                &&  !(ret = wc_Sha384Update(sha384, output + preSigIdx, preSigSz)))
                     ret = Sha384Final(sha384, hash384);
 
                 if (ret != 0)
@@ -12271,11 +12271,11 @@ int DoSessionTicket(WOLFSSL* ssl,
                 if (md5 == NULL)
                     ERROR_OUT(MEMORY_E, done_b);
             #endif
-                InitMd5(md5);
-                Md5Update(md5, ssl->arrays->clientRandom, RAN_LEN);
-                Md5Update(md5, ssl->arrays->serverRandom, RAN_LEN);
-                Md5Update(md5, output + preSigIdx, preSigSz);
-                Md5Final(md5, hash);
+                wc_InitMd5(md5);
+                wc_Md5Update(md5, ssl->arrays->clientRandom, RAN_LEN);
+                wc_Md5Update(md5, ssl->arrays->serverRandom, RAN_LEN);
+                wc_Md5Update(md5, output + preSigIdx, preSigSz);
+                wc_Md5Final(md5, hash);
 
                 /* sha */
             #ifdef WOLFSSL_SMALL_STACK
@@ -12325,12 +12325,12 @@ int DoSessionTicket(WOLFSSL* ssl,
                     ERROR_OUT(MEMORY_E, done_b);
             #endif
 
-                if (!(ret = InitSha384(sha384))
-                &&  !(ret = Sha384Update(sha384, ssl->arrays->clientRandom,
+                if (!(ret = wc_InitSha384(sha384))
+                &&  !(ret = wc_Sha384Update(sha384, ssl->arrays->clientRandom,
                                                                        RAN_LEN))
-                &&  !(ret = Sha384Update(sha384, ssl->arrays->serverRandom,
+                &&  !(ret = wc_Sha384Update(sha384, ssl->arrays->serverRandom,
                                                                        RAN_LEN))
-                &&  !(ret = Sha384Update(sha384, output + preSigIdx, preSigSz)))
+                &&  !(ret = wc_Sha384Update(sha384, output + preSigIdx, preSigSz)))
                     ret = Sha384Final(sha384, hash384);
 
                 if (ret != 0)
@@ -12615,7 +12615,7 @@ int DoSessionTicket(WOLFSSL* ssl,
         /* manually hash input since different format */
 #ifndef NO_OLD_TLS
 #ifndef NO_MD5
-        Md5Update(&ssl->hashMd5, input + idx, sz);
+        wc_Md5Update(&ssl->hashMd5, input + idx, sz);
 #endif
 #ifndef NO_SHA
         ShaUpdate(&ssl->hashSha, input + idx, sz);
@@ -12749,7 +12749,7 @@ int DoSessionTicket(WOLFSSL* ssl,
                     ssl->session = *session; /* restore session certs. */
                 #endif
 
-                ret = RNG_GenerateBlock(ssl->rng, ssl->arrays->serverRandom,
+                ret = wc_RNG_GenerateBlock(ssl->rng, ssl->arrays->serverRandom,
                                                                        RAN_LEN);
                 if (ret != 0)
                     return ret;
@@ -13040,7 +13040,7 @@ int DoSessionTicket(WOLFSSL* ssl,
                     ssl->session = *session; /* restore session certs. */
                 #endif
 
-                ret = RNG_GenerateBlock(ssl->rng, ssl->arrays->serverRandom,
+                ret = wc_RNG_GenerateBlock(ssl->rng, ssl->arrays->serverRandom,
                                                                        RAN_LEN);
                 if (ret != 0)
                     return ret;

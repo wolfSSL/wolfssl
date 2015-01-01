@@ -126,17 +126,17 @@ static int p_hash(byte* result, word32 resLen, const byte* secret,
 
     lastTime = times - 1;
 
-    if ((ret = HmacSetKey(hmac, hash, secret, secLen)) == 0) {
-        if ((ret = HmacUpdate(hmac, seed, seedLen)) == 0) { /* A0 = seed */
-            if ((ret = HmacFinal(hmac, previous)) == 0) {   /* A1 */
+    if ((ret = wc_HmacSetKey(hmac, hash, secret, secLen)) == 0) {
+        if ((ret = wc_HmacUpdate(hmac, seed, seedLen)) == 0) { /* A0 = seed */
+            if ((ret = wc_HmacFinal(hmac, previous)) == 0) {   /* A1 */
                 for (i = 0; i < times; i++) {
-                    ret = HmacUpdate(hmac, previous, len);
+                    ret = wc_HmacUpdate(hmac, previous, len);
                     if (ret != 0)
                         break;
-                    ret = HmacUpdate(hmac, seed, seedLen);
+                    ret = wc_HmacUpdate(hmac, seed, seedLen);
                     if (ret != 0)
                         break;
-                    ret = HmacFinal(hmac, current);
+                    ret = wc_HmacFinal(hmac, current);
                     if (ret != 0)
                         break;
 
@@ -146,10 +146,10 @@ static int p_hash(byte* result, word32 resLen, const byte* secret,
                     else {
                         XMEMCPY(&result[idx], current, len);
                         idx += len;
-                        ret = HmacUpdate(hmac, previous, len);
+                        ret = wc_HmacUpdate(hmac, previous, len);
                         if (ret != 0)
                             break;
-                        ret = HmacFinal(hmac, previous);
+                        ret = wc_HmacFinal(hmac, previous);
                         if (ret != 0)
                             break;
                     }
@@ -329,7 +329,7 @@ int BuildTlsFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
     word32      hashSz = FINISHED_SZ;
 
 #ifndef NO_OLD_TLS
-    Md5Final(&ssl->hashMd5, handshake_hash);
+    wc_Md5Final(&ssl->hashMd5, handshake_hash);
     ShaFinal(&ssl->hashSha, &handshake_hash[MD5_DIGEST_SIZE]);
 #endif
     
@@ -346,7 +346,7 @@ int BuildTlsFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
 #endif
 #ifdef WOLFSSL_SHA384
         if (ssl->specs.mac_algorithm == sha384_mac) {
-            int ret = Sha384Final(&ssl->hashSha384, handshake_hash);
+            int ret = wc_Sha384Final(&ssl->hashSha384, handshake_hash);
 
             if (ret != 0)
                 return ret;
@@ -688,17 +688,17 @@ int TLS_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz,
 
     wolfSSL_SetTlsHmacInner(ssl, myInner, sz, content, verify);
 
-    ret = HmacSetKey(&hmac, wolfSSL_GetHmacType(ssl),
+    ret = wc_HmacSetKey(&hmac, wolfSSL_GetHmacType(ssl),
                      wolfSSL_GetMacSecret(ssl, verify), ssl->specs.hash_size);
     if (ret != 0)
         return ret;
-    ret = HmacUpdate(&hmac, myInner, sizeof(myInner));
+    ret = wc_HmacUpdate(&hmac, myInner, sizeof(myInner));
     if (ret != 0)
         return ret;
-    ret = HmacUpdate(&hmac, in, sz);                                /* content */
+    ret = wc_HmacUpdate(&hmac, in, sz);                                /* content */
     if (ret != 0)
         return ret;
-    ret = HmacFinal(&hmac, digest);
+    ret = wc_HmacFinal(&hmac, digest);
     if (ret != 0)
         return ret;
 
