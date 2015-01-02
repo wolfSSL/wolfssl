@@ -577,8 +577,8 @@ void FreeCiphers(WOLFSSL* ssl)
 #ifdef BUILD_DES3
     #ifdef HAVE_CAVIUM
     if (ssl->devId != NO_CAVIUM_DEVICE) {
-        Des3_FreeCavium(ssl->encrypt.des3);
-        Des3_FreeCavium(ssl->decrypt.des3);
+        wc_Des3_FreeCavium(ssl->encrypt.des3);
+        wc_Des3_FreeCavium(ssl->decrypt.des3);
     }
     #endif
     XFREE(ssl->encrypt.des3, ssl->heap, DYNAMIC_TYPE_CIPHER);
@@ -3218,14 +3218,14 @@ static void BuildSHA(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
     wc_ShaUpdate(&ssl->hashSha, sender, SIZEOF_SENDER);
     wc_ShaUpdate(&ssl->hashSha, ssl->arrays->masterSecret, SECRET_LEN);
     wc_ShaUpdate(&ssl->hashSha, PAD1, PAD_SHA);
-    ShaFinal(&ssl->hashSha, sha_result);
+    wc_ShaFinal(&ssl->hashSha, sha_result);
 
     /* make sha outer */
     wc_ShaUpdate(&ssl->hashSha, ssl->arrays->masterSecret, SECRET_LEN);
     wc_ShaUpdate(&ssl->hashSha, PAD2, PAD_SHA);
     wc_ShaUpdate(&ssl->hashSha, sha_result, SHA_DIGEST_SIZE);
 
-    ShaFinal(&ssl->hashSha, hashes->sha);
+    wc_ShaFinal(&ssl->hashSha, hashes->sha);
 }
 #endif
 
@@ -5657,7 +5657,7 @@ static INLINE int Encrypt(WOLFSSL* ssl, byte* out, const byte* input, word16 sz)
 
         #ifdef BUILD_DES3
             case wolfssl_triple_des:
-                return Des3_CbcEncrypt(ssl->encrypt.des3, out, input, sz);
+                return wc_Des3_CbcEncrypt(ssl->encrypt.des3, out, input, sz);
         #endif
 
         #ifdef BUILD_AES
@@ -5816,7 +5816,7 @@ static INLINE int Decrypt(WOLFSSL* ssl, byte* plain, const byte* input,
 
         #ifdef BUILD_DES3
             case wolfssl_triple_des:
-                return Des3_CbcDecrypt(ssl->decrypt.des3, plain, input, sz);
+                return wc_Des3_CbcDecrypt(ssl->decrypt.des3, plain, input, sz);
         #endif
 
         #ifdef BUILD_AES
@@ -10143,7 +10143,7 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
         wc_ShaUpdate(sha, ssl->arrays->clientRandom, RAN_LEN);
         wc_ShaUpdate(sha, ssl->arrays->serverRandom, RAN_LEN);
         wc_ShaUpdate(sha, messageVerify, verifySz);
-        ShaFinal(sha, hash + MD5_DIGEST_SIZE);
+        wc_ShaFinal(sha, hash + MD5_DIGEST_SIZE);
 #endif
 
 #ifndef NO_SHA256
@@ -11835,7 +11835,7 @@ int DoSessionTicket(WOLFSSL* ssl,
                 wc_ShaUpdate(sha, ssl->arrays->clientRandom, RAN_LEN);
                 wc_ShaUpdate(sha, ssl->arrays->serverRandom, RAN_LEN);
                 wc_ShaUpdate(sha, output + preSigIdx, preSigSz);
-                ShaFinal(sha, &hash[MD5_DIGEST_SIZE]);
+                wc_ShaFinal(sha, &hash[MD5_DIGEST_SIZE]);
         #endif
 
         #ifndef NO_SHA256
@@ -12290,7 +12290,7 @@ int DoSessionTicket(WOLFSSL* ssl,
                 wc_ShaUpdate(sha, ssl->arrays->clientRandom, RAN_LEN);
                 wc_ShaUpdate(sha, ssl->arrays->serverRandom, RAN_LEN);
                 wc_ShaUpdate(sha, output + preSigIdx, preSigSz);
-                ShaFinal(sha, &hash[MD5_DIGEST_SIZE]);
+                wc_ShaFinal(sha, &hash[MD5_DIGEST_SIZE]);
         #endif
 
         #ifndef NO_SHA256

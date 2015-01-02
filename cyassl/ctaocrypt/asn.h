@@ -197,12 +197,13 @@ enum Key_Sum {
 
 
 enum Ecc_Sum {
-    ECC_256R1 = 526,
-    ECC_384R1 = 210,
-    ECC_521R1 = 211,
-    ECC_160R1 = 184,
-    ECC_192R1 = 520,
-    ECC_224R1 = 209
+    ECC_256R1      = 526,
+    ECC_384R1      = 210,
+    ECC_521R1      = 211,
+    ECC_160R1      = 184,
+    ECC_192R1      = 520,
+    ECC_224R1      = 209,
+    CURVE25519_OID = 212 //TODO value to be determined
 };
 
 

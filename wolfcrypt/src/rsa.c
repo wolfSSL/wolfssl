@@ -116,14 +116,14 @@ int wc_RsaFlattenPublicKey(RsaKey* key, byte* a, word32* aSz, byte* b,
 {
     return RsaFlattenPublicKey(key, a, aSz, b, bSz);
 }
-#ifdef CYASSL_KEY_GEN
+#ifdef WOLFSSL_KEY_GEN
     int wc_MakeRsaKey(RsaKey* key, int size, long e, RNG* rng)
     {
         return MakeRsaKey(key, size, e, rng);
     }
 
 
-    int RsaKey*ToDer(RsaKey* key, byte* output, word32 inLen)
+    int wc_RsaKeyToDer(RsaKey* key, byte* output, word32 inLen)
     {
         return RsaKeyToDer(key, output, inLen);
     }
@@ -234,7 +234,6 @@ int wc_RsaFlattenPublicKey(RsaKey* key, byte* a, word32* aSz, byte* b,
 
 #endif /* HAVE_FIPS */
 #else
-#include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/wolfcrypt/random.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/logging.h>

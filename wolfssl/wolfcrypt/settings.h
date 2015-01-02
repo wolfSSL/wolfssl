@@ -30,11 +30,6 @@
     extern "C" {
 #endif
 
-#define CYASSL_SHA512
-//WOLFSSL_SHA512
-#define CYASSL_SHA384
-//WOLFSSL_SHA384
-
 /* Uncomment next line if using IPHONE */
 /* #define IPHONE */
 

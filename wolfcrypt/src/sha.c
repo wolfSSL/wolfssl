@@ -45,6 +45,13 @@
 
 #ifndef HAVE_FIPS
 
+#ifdef FREESCALE_MMCAU
+    #include "cau_api.h"
+    #define XTRANSFORM(S,B)  cau_sha1_hash_n((B), 1, ((S))->digest)
+#else
+    #define XTRANSFORM(S,B)  Transform((S))
+#endif
+
 #ifdef STM32F2_HASH
 /*
  * STM32F2 hardware SHA1 support through the STM32F2 standard peripheral

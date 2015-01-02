@@ -27,7 +27,7 @@
     #define WOLFSSL_SHA384
 #endif
 
-//#ifdef WOLFSSL_SHA512
+#ifdef WOLFSSL_SHA512
 
 #ifndef WOLF_CRYPT_SHA512_H
 #define WOLF_CRYPT_SHA512_H
@@ -77,7 +77,7 @@ WOLFSSL_API int wc_Sha512Update(Sha512*, const byte*, word32);
 WOLFSSL_API int wc_Sha512Final(Sha512*, byte*);
 WOLFSSL_API int wc_Sha512Hash(const byte*, word32, byte*);
 
-//#if defined(WOLFSSL_SHA384) || defined(HAVE_AESGCM)
+#if defined(WOLFSSL_SHA384) || defined(HAVE_AESGCM)
 
 #ifndef HAVE_FIPS
 /* in bytes */
@@ -131,12 +131,12 @@ WOLFSSL_API int wc_Sha384Hash(const byte*, word32, byte*);
 #endif /* HAVE_FIPS */
 
 
-//#endif /* WOLFSSL_SHA384 */
+#endif /* WOLFSSL_SHA384 */
 
 #ifdef __cplusplus
     } /* extern "C" */
 #endif
 
 #endif /* WOLF_CRYPT_SHA512_H */
-//#endif /* WOLFSSL_SHA512 */
+#endif /* WOLFSSL_SHA512 */
 

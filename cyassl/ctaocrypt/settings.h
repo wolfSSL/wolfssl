@@ -26,10 +26,31 @@
 #ifndef CTAO_CRYPT_SETTINGS_H
 #define CTAO_CRYPT_SETTINGS_H
 
-#define CYASSL_SHA512
-//WOLFSSL_SHA512
-#define CYASSL_SHA384
-//WOLFSSL_SHA384
+#define CYASSL_SHA512 WOLFSSL_SHA512
+#define CYASSL_SHA384 WOLFSSL_SHA384
+
+/* These are compatibility from fips protected headers 
+ * When using non-fips mode and including old headers this allows for
+ * using old function calls
+ */
+#ifndef HAVE_FIPS
+	#ifndef NO_HMAC
+	    #include <wolfssl/wolfcrypt/hmac.h>
+	    /* does init */
+	    #define HmacSetKey wc_HmacSetKey
+	    #define HmacUpdate wc_HmacUpdate
+	    #define HmacFinal  wc_HmacFinal
+	    #ifdef HAVE_CAVIUM
+	        #define HmacInitCavium wc_HmacInitCavium
+	        #define HmacFreeCavium wc_HmacFreeCavium
+	    #endif
+	    #define CyaSSL_GetHmacMaxSize wc_wolfSSL_GetHmacMaxSize
+	    #ifdef HAVE_HKDF
+	        #define HKDF wc_HKDF
+	    #endif /* HAVE_HKDF */
+	#endif /* NO_HMAC */
+#endif /* HAVE_FIPS */
+
 
 #ifdef __cplusplus
     extern "C" {

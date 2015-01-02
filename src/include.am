@@ -13,7 +13,7 @@ src_libwolfssl_la_CPPFLAGS = -DBUILDING_WOLFSSL $(AM_CPPFLAGS)
 # fips first  file
 if BUILD_FIPS
 src_libwolfssl_la_SOURCES += ctaocrypt/src/wolfcrypt_first.c
-endif
+#endif
 
 src_libwolfssl_la_SOURCES += \
                ctaocrypt/src/hmac.c \
@@ -36,17 +36,18 @@ if BUILD_SHA
 src_libwolfssl_la_SOURCES += ctaocrypt/src/sha.c
 endif
 
-if BUILD_SHA512
+# Issue with flag BUILD_SHA512 @TODO
+#if BUILD_SHA512
 src_libwolfssl_la_SOURCES += ctaocrypt/src/sha512.c
-endif
+#endif
 
-if BUILD_FIPS
+#if BUILD_FIPS
 src_libwolfssl_la_SOURCES += ctaocrypt/src/fips.c
 src_libwolfssl_la_SOURCES += ctaocrypt/src/fips_test.c
-endif
+#endif
 
 # fips last file
-if BUILD_FIPS
+#if BUILD_FIPS
 src_libwolfssl_la_SOURCES += ctaocrypt/src/wolfcrypt_last.c
 endif
 
@@ -71,9 +72,10 @@ if BUILD_SHA
 src_libwolfssl_la_SOURCES += wolfcrypt/src/sha.c
 endif
 
-if BUILD_SHA512
+# Issue with flag BUILD_SHA512 @TODO
+#if BUILD_SHA512
 src_libwolfssl_la_SOURCES += wolfcrypt/src/sha512.c
-endif
+#endif
 
 if BUILD_FIPS
 src_libwolfssl_la_SOURCES += \
@@ -100,7 +102,11 @@ src_libwolfssl_la_SOURCES += wolfcrypt/src/dh.c
 endif
 
 if BUILD_ASN
+if BUILD_FIPS
+src_libwolfssl_la_SOURCES += ctaocrypt/src/asn.c
+else
 src_libwolfssl_la_SOURCES += wolfcrypt/src/asn.c
+endif
 endif
 
 if BUILD_CODING

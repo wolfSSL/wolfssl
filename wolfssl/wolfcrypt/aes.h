@@ -66,12 +66,13 @@
 #if !defined (ALIGN16)
     #define ALIGN16
 #endif
+#endif /* HAVE_FIPS */
 
 #ifdef __cplusplus
     extern "C" {
 #endif
 
-
+#ifndef HAVE_FIPS
 #define WOLFSSL_AES_CAVIUM_MAGIC 0xBEEF0002
 
 enum {

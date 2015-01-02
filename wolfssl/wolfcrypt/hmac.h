@@ -27,8 +27,6 @@
 
 #include <wolfssl/wolfcrypt/types.h>
 
-#include <wolfssl/wolfcrypt/types.h>
-
 #ifndef NO_MD5
     #include <wolfssl/wolfcrypt/md5.h>
 #endif

@@ -330,7 +330,7 @@ int BuildTlsFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
 
 #ifndef NO_OLD_TLS
     wc_Md5Final(&ssl->hashMd5, handshake_hash);
-    ShaFinal(&ssl->hashSha, &handshake_hash[MD5_DIGEST_SIZE]);
+    wc_ShaFinal(&ssl->hashSha, &handshake_hash[MD5_DIGEST_SIZE]);
 #endif
     
     if (IsAtLeastTLSv1_2(ssl)) {

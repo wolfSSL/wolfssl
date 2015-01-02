@@ -24,6 +24,8 @@
 #ifndef WOLF_CRYPT_RSA_H
 #define WOLF_CRYPT_RSA_H
 
+#include <wolfssl/wolfcrypt/types.h>
+
 #ifdef HAVE_FIPS
 /* for fips @wc_fips */
 #include <cyassl/ctaocrypt/rsa.h>
@@ -31,7 +33,6 @@
     #define WOLFSSL_KEY_GEN
 #endif
 #else
-    #include <wolfssl/wolfcrypt/types.h>
     #include <wolfssl/wolfcrypt/integer.h>
     #include <wolfssl/wolfcrypt/random.h>
 #endif

@@ -23,17 +23,17 @@
     #include <config.h>
 #endif
 
-#include <cyassl/ctaocrypt/settings.h>
+#include <wolfssl/wolfcrypt/settings.h>
 
 #include <stdio.h>
 
-#include <cyassl/ctaocrypt/md4.h>
-#include <cyassl/ctaocrypt/md5.h>
-#include <cyassl/ctaocrypt/sha.h>
-#include <cyassl/ctaocrypt/sha256.h>
-#include <cyassl/ctaocrypt/sha512.h>
-#include <cyassl/ctaocrypt/ripemd.h>
-#include <cyassl/ctaocrypt/hmac.h>
+#include <wolfssl/wolfcrypt/md4.h>
+#include <wolfssl/wolfcrypt/md5.h>
+#include <wolfssl/wolfcrypt/sha.h>
+#include <wolfssl/wolfcrypt/sha256.h>
+#include <wolfssl/wolfcrypt/sha512.h>
+#include <wolfssl/wolfcrypt/ripemd.h>
+#include <wolfssl/wolfcrypt/hmac.h>
 
 #include <tests/unit.h>
 
@@ -215,7 +215,7 @@ int md4_test(void)
     test_md4[5] = f;
     test_md4[6] = g;
 
-    InitMd4(&md4);
+    wc_InitMd4(&md4);
 
     for (i = 0; i < times; ++i) {
         Md4Update(&md4, (byte*)test_md4[i].input, (word32)test_md4[i].inLen);
@@ -279,11 +279,11 @@ int md5_test(void)
     test_md5[3] = d;
     test_md5[4] = e;
 
-    InitMd5(&md5);
+    wc_InitMd5(&md5);
 
     for (i = 0; i < times; ++i) {
-        Md5Update(&md5, (byte*)test_md5[i].input, (word32)test_md5[i].inLen);
-        Md5Final(&md5, hash);
+        wc_Md5Update(&md5, (byte*)test_md5[i].input, (word32)test_md5[i].inLen);
+        wc_Md5Final(&md5, hash);
 
         if (memcmp(hash, test_md5[i].output, MD5_DIGEST_SIZE) != 0)
             return -5 - i;
@@ -337,13 +337,13 @@ int sha_test(void)
     test_sha[2] = c;
     test_sha[3] = d;
 
-    ret = InitSha(&sha);
+    ret = wc_InitSha(&sha);
     if (ret != 0)
         return ret;
 
     for (i = 0; i < times; ++i) {
-        ShaUpdate(&sha, (byte*)test_sha[i].input, (word32)test_sha[i].inLen);
-        ShaFinal(&sha, hash);
+        wc_ShaUpdate(&sha, (byte*)test_sha[i].input, (word32)test_sha[i].inLen);
+        wc_ShaFinal(&sha, hash);
 
         if (memcmp(hash, test_sha[i].output, SHA_DIGEST_SIZE) != 0)
             return -10 - i;
@@ -381,16 +381,16 @@ int sha256_test(void)
     test_sha[0] = a;
     test_sha[1] = b;
 
-    ret = InitSha256(&sha);
+    ret = wc_InitSha256(&sha);
     if (ret != 0)
         return ret;
 
     for (i = 0; i < times; ++i) {
-        ret = Sha256Update(&sha, (byte*)test_sha[i].input,(word32)test_sha[i].inLen);
+        ret = wc_Sha256Update(&sha, (byte*)test_sha[i].input,(word32)test_sha[i].inLen);
         if (ret != 0)
             return ret;
 
-        ret = Sha256Final(&sha, hash);
+        ret = wc_Sha256Final(&sha, hash);
         if (ret != 0)
             return ret;
 
@@ -435,7 +435,7 @@ int sha512_test(void)
     test_sha[0] = a;
     test_sha[1] = b;
 
-    ret = InitSha512(&sha);
+    ret = wc_InitSha512(&sha);
     if (ret != 0)
         return ret;
 
@@ -487,7 +487,7 @@ int sha384_test()
     test_sha[0] = a;
     test_sha[1] = b;
 
-    ret = InitSha384(&sha);
+    ret = wc_InitSha384(&sha);
     if (ret != 0)
         return ret;
 
@@ -612,14 +612,14 @@ int hmac_md5_test(void)
         if (i == 1)
             continue; /* fips not allowed */
 #endif
-        ret = HmacSetKey(&hmac, MD5, (byte*)keys[i], (word32)strlen(keys[i]));
+        ret = wc_HmacSetKey(&hmac, MD5, (byte*)keys[i], (word32)strlen(keys[i]));
         if (ret != 0)
             return -4014;
-        ret = HmacUpdate(&hmac, (byte*)test_hmac[i].input,
+        ret = wc_HmacUpdate(&hmac, (byte*)test_hmac[i].input,
                    (word32)test_hmac[i].inLen);
         if (ret != 0)
             return -4015;
-        ret = HmacFinal(&hmac, hash);
+        ret = wc_HmacFinal(&hmac, hash);
         if (ret != 0)
             return -4016;
 
@@ -682,14 +682,14 @@ int hmac_sha_test(void)
         if (i == 1)
             continue; /* fips not allowed */
 #endif
-        ret = HmacSetKey(&hmac, SHA, (byte*)keys[i], (word32)strlen(keys[i]));
+        ret = wc_HmacSetKey(&hmac, SHA, (byte*)keys[i], (word32)strlen(keys[i]));
         if (ret != 0)
             return -4017;
-        ret = HmacUpdate(&hmac, (byte*)test_hmac[i].input,
+        ret = wc_HmacUpdate(&hmac, (byte*)test_hmac[i].input,
                    (word32)test_hmac[i].inLen);
         if (ret != 0)
             return -4018;
-        ret = HmacFinal(&hmac, hash);
+        ret = wc_HmacFinal(&hmac, hash);
         if (ret != 0)
             return -4019;
 
@@ -755,14 +755,14 @@ int hmac_sha256_test(void)
         if (i == 1)
             continue; /* fips not allowed */
 #endif
-        ret = HmacSetKey(&hmac,SHA256, (byte*)keys[i], (word32)strlen(keys[i]));
+        ret = wc_HmacSetKey(&hmac,SHA256, (byte*)keys[i], (word32)strlen(keys[i]));
         if (ret != 0)
             return -4020;
-        ret = HmacUpdate(&hmac, (byte*)test_hmac[i].input,
+        ret = wc_HmacUpdate(&hmac, (byte*)test_hmac[i].input,
                    (word32)test_hmac[i].inLen);
         if (ret != 0)
             return -4021;
-        ret = HmacFinal(&hmac, hash);
+        ret = wc_HmacFinal(&hmac, hash);
         if (ret != 0)
             return -4022;
 
@@ -832,14 +832,14 @@ int hmac_sha384_test(void)
         if (i == 1)
             continue; /* fips not allowed */
 #endif
-        ret = HmacSetKey(&hmac,SHA384, (byte*)keys[i], (word32)strlen(keys[i]));
+        ret = wc_HmacSetKey(&hmac,SHA384, (byte*)keys[i], (word32)strlen(keys[i]));
         if (ret != 0)
             return -4023;
-        ret = HmacUpdate(&hmac, (byte*)test_hmac[i].input,
+        ret = wc_HmacUpdate(&hmac, (byte*)test_hmac[i].input,
                    (word32)test_hmac[i].inLen);
         if (ret != 0)
             return -4024;
-        ret = HmacFinal(&hmac, hash);
+        ret = wc_HmacFinal(&hmac, hash);
         if (ret != 0)
             return -4025;
 
