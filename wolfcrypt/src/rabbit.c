@@ -23,17 +23,17 @@
     #include <config.h>
 #endif
 
-#include <cyassl/ctaocrypt/settings.h>
+#include <wolfssl/wolfcrypt/settings.h>
 
 #ifndef NO_RABBIT
 
-#include <cyassl/ctaocrypt/rabbit.h>
-#include <cyassl/ctaocrypt/error-crypt.h>
-#include <cyassl/ctaocrypt/logging.h>
+#include <wolfssl/wolfcrypt/rabbit.h>
+#include <wolfssl/wolfcrypt/error-crypt.h>
+#include <wolfssl/wolfcrypt/logging.h>
 #ifdef NO_INLINE
-    #include <cyassl/ctaocrypt/misc.h>
+    #include <wolfssl/wolfcrypt/misc.h>
 #else
-    #include <ctaocrypt/src/misc.c>
+    #include <wolfcrypt/src/misc.c>
 #endif
 
 
@@ -104,7 +104,7 @@ static void RABBIT_next_state(RabbitCtx* ctx)
 
 
 /* IV setup */
-static void RabbitSetIV(Rabbit* ctx, const byte* inIv)
+static void wc_RabbitSetIV(Rabbit* ctx, const byte* inIv)
 {
     /* Temporary variables */
     word32 i0, i1, i2, i3, i;
@@ -192,7 +192,7 @@ static INLINE int DoKey(Rabbit* ctx, const byte* key, const byte* iv)
     }
     ctx->workCtx.carry = ctx->masterCtx.carry;
 
-    RabbitSetIV(ctx, iv);
+    wc_RabbitSetIV(ctx, iv);
 
     return 0;
 }

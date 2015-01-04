@@ -43,7 +43,7 @@ typedef struct RabbitCtx {
     word32 c[8];
     word32 carry;
 } RabbitCtx;
-    
+
 
 /* Rabbit stream cipher */
 typedef struct Rabbit {

@@ -2,14 +2,14 @@
  *
  * Copyright (C) 2006-2014 wolfSSL Inc.
  *
- * This file is part of CyaSSL.
+ * This file is part of wolfSSL. (formerly known as CyaSSL)
  *
- * CyaSSL is free software; you can redistribute it and/or modify
+ * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  *
- * CyaSSL is distributed in the hope that it will be useful,
+ * wolfSSL is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
@@ -31,17 +31,17 @@
     #include <wolfssl/wolfcrypt/md5.h>
 #endif
 
-//#ifndef NO_SHA
+#ifndef NO_SHA
     #include <wolfssl/wolfcrypt/sha.h>
-//#endif
+#endif
 
-//#ifndef NO_SHA256
+#ifndef NO_SHA256
     #include <wolfssl/wolfcrypt/sha256.h>
-//#endif
+#endif
 
-//#ifdef WOLFSSL_SHA512
+#ifdef WOLFSSL_SHA512
     #include <wolfssl/wolfcrypt/sha512.h>
-//#endif
+#endif
 
 #ifdef HAVE_BLAKE2 
     #include <wolfssl/wolfcrypt/blake2.h>

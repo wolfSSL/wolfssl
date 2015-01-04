@@ -26,10 +26,14 @@
 #ifndef CTAO_CRYPT_SETTINGS_H
 #define CTAO_CRYPT_SETTINGS_H
 
-#define CYASSL_SHA512 WOLFSSL_SHA512
-#define CYASSL_SHA384 WOLFSSL_SHA384
+#ifdef WOLFSSL_SHA512
+    #define CYASSL_SHA512 WOLFSSL_SHA512
+#endif
+#ifdef WOLFSSL_SHA384
+    #define CYASSL_SHA384 WOLFSSL_SHA384
+#endif
 
-/* These are compatibility from fips protected headers 
+/* These are compatibility from fips protected headers
  * When using non-fips mode and including old headers this allows for
  * using old function calls
  */
@@ -49,6 +53,103 @@
 	        #define HKDF wc_HKDF
 	    #endif /* HAVE_HKDF */
 	#endif /* NO_HMAC */
+
+    #ifndef NO_AES
+        #include <wolfssl/wolfcrypt/aes.h>
+        #define AesSetKey            wc_AesSetKey
+        #define AesSetIV             wc_AesSetIV
+        #define AesCbcEncrypt        wc_AesCbcEncrypt
+        #define AesCbcDecrypt        wc_AesCbcDecrypt
+        #define AesCbcDecryptWithKey wc_AesCbcDecryptWithKey
+
+        /* AES-CTR */
+        #ifdef WOLFSSL_AES_COUNTER
+            #define AesCtrEncrypt wc_AesCtrEncrypt
+        #endif
+        /* AES-DIRECT */
+        #if defined(WOLFSSL_AES_DIRECT)
+            #define AesEncryptDirect wc_AesEncryptDirect
+            #define AesDecryptDirect wc_AesDecryptDirect
+            #define AesSetKeyDirect  wc_AesSetKeyDirect
+        #endif
+        #ifdef HAVE_AESGCM
+            #define AesGcmSetKey  wc_AesGcmSetKey
+            #define AesGcmEncrypt wc_AesGcmEncrypt
+            #define AesGcmDecrypt wc_AesGcmDecrypt
+            #define GmacSetKey    wc_GmacSetKey
+            #define GmacUpdate    wc_GmacUpdate
+        #endif /* HAVE_AESGCM */
+        #ifdef HAVE_AESCCM
+            #define AesCcmSetKey  wc_AesCcmSetKey
+            #define AesCcmEncrypt wc_AesCcmEncrypt
+            #define AesCcmDecrypt wc_AesCcmDecrypt
+        #endif /* HAVE_AESCCM */
+
+        #ifdef HAVE_CAVIUM
+            #define AesInitCavium wc_AesInitCavium
+            #define AesFreeCavium wc_AesFreeCavium
+        #endif
+    #endif /* NO_AES */
+
+	#ifndef NO_RSA
+        #include <wolfssl/wolfcrypt/rsa.h>
+	    #define InitRsaKey              wc_InitRsaKey
+	    #define FreeRsaKey              wc_FreeRsaKey
+	    #define RsaPublicEncrypt        wc_RsaPublicEncrypt
+	    #define RsaPrivateDecryptInline wc_RsaPrivateDecryptInline
+	    #define RsaPrivateDecrypt     wc_RsaPrivateDecrypt
+	    #define RsaSSL_Sign           wc_RsaSSL_Sign
+	    #define RsaSSL_VerifyInline   wc_RsaSSL_VerifyInline
+	    #define RsaSSL_Verify         wc_RsaSSL_Verify
+	    #define RsaEncryptSize        wc_RsaEncryptSize
+	    #define RsaPrivateKeyDecode   wc_RsaPrivateKeyDecode
+	    #define RsaPublicKeyDecode    wc_RsaPublicKeyDecode
+	    #define RsaPublicKeyDecodeRaw wc_RsaPublicKeyDecodeRaw
+	    #define RsaFlattenPublicKey   wc_RsaFlattenPublicKey
+
+		#ifdef WOLFSSL_KEY_GEN
+		    #define MakeRsaKey  wc_MakeRsaKey
+		    #define RsaKeyToDer wc_RsaKeyToDer
+		#endif
+
+		#ifdef HAVE_CAVIUM
+		    #define RsaInitCavium wc_RsaInitCavium
+		    #define RsaFreeCavium wc_RsaFreeCavium
+		#endif
+	#endif /* NO_RSA */
+
+	#ifndef NO_HMAC
+        #include <wolfssl/wolfcrypt/hmac.h>
+	    #define HmacSetKey wc_HmacSetKey
+	    #define HmacUpdate wc_HmacUpdate
+	    #define HmacFinal  wc_HmacFinal
+	    #ifdef HAVE_CAVIUM
+	        #define HmacInitCavium wc_HmacInitCavium
+	        #define HmacFreeCavium wc_HmacFreeCavium
+	    #endif
+	    #define wolfSSL_GetHmacMaxSize wc_wolfSSL_GetHmacMaxSize
+	    #ifdef HAVE_HKDF
+	        #define HKDF wc_HKDF
+	    #endif /* HAVE_HKDF */
+    #endif /* NO_HMAC */
+
+	#ifndef NO_DES3
+	    #define Des_SetKey     wc_Des_SetKey
+	    #define Des_SetIV      wc_Des_SetIV
+	    #define Des_CbcEncrypt wc_Des_CbcEncrypt
+	    #define Des_CbcDecrypt wc_Des_CbcDecrypt
+	    #define Des_EcbEncrypt wc_Des_EcbEncrypt
+	    #define Des_CbcDecryptWithKey  wc_Des_CbcDecryptWithKey
+	    #define Des3_SetKey            wc_Des3_SetKey
+	    #define Des3_SetIV             wc_Des3_SetIV
+	    #define Des3_CbcEncrypt        wc_Des3_CbcEncrypt
+	    #define Des3_CbcDecrypt        wc_Des3_CbcDecrypt
+	    #define Des3_CbcDecryptWithKey wc_Des3_CbcDecryptWithKey
+	    #ifdef HAVE_CAVIUM
+	        #define Des3_InitCavium wc_Des3_InitCavium
+	        #define Des3_FreeCavium wc_Des3_FreeCavium
+	    #endif
+	#endif /* NO_DES3 */
 #endif /* HAVE_FIPS */
 
 

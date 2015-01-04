@@ -182,8 +182,6 @@ endif
 endif
 
 if BUILD_HC128
-# temporarily removed needs revisited
-#src_libwolfssl_la_SOURCES += ctaocrypt/src/hc128.c
 src_libwolfssl_la_SOURCES += wolfcrypt/src/hc128.c
 endif
 

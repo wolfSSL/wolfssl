@@ -30,7 +30,7 @@
 /* for hc128 reverse compatibility */
 #ifdef HAVE_HC128
     #define Hc128_Process wc_Hc128_Process
-    #define Hc128_SetKey wc_Hc128_SetKey
+    #define Hc128_SetKey  wc_Hc128_SetKey
 #endif
 
 #endif /* CTAO_CRYPT_HC128_H */

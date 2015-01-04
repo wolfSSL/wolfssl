@@ -407,7 +407,9 @@
 
 /* examples/client/client.h */
 #define CYASSL_THREAD WOLFSSL_THREAD
-#define CYASSL_DTLS   WOLFSSL_DTLS
+#ifdef WOLFSSL_DTLS
+    #define CYASSL_DTLS   WOLFSSL_DTLS
+#endif
 
 /* examples/client/client.c */
 #define LIBCYASSL_VERSION_STRING LIBWOLFSSL_VERSION_STRING
