@@ -1406,17 +1406,17 @@ static INLINE int myMacEncryptCb(WOLFSSL* ssl, unsigned char* macOut,
     /* hmac, not needed if aead mode */
     wolfSSL_SetTlsHmacInner(ssl, myInner, macInSz, macContent, macVerify);
 
-    ret = HmacSetKey(&hmac, wolfSSL_GetHmacType(ssl),
+    ret = wc_HmacSetKey(&hmac, wolfSSL_GetHmacType(ssl),
                wolfSSL_GetMacSecret(ssl, macVerify), wolfSSL_GetHmacSize(ssl));
     if (ret != 0)
         return ret;
-    ret = HmacUpdate(&hmac, myInner, sizeof(myInner));
+    ret = wc_HmacUpdate(&hmac, myInner, sizeof(myInner));
     if (ret != 0)
         return ret;
-    ret = HmacUpdate(&hmac, macIn, macInSz);
+    ret = wc_HmacUpdate(&hmac, macIn, macInSz);
     if (ret != 0)
         return ret;
-    ret = HmacFinal(&hmac, macOut);
+    ret = wc_HmacFinal(&hmac, macOut);
     if (ret != 0)
         return ret;
 
@@ -1436,7 +1436,7 @@ static INLINE int myMacEncryptCb(WOLFSSL* ssl, unsigned char* macOut,
             iv  = wolfSSL_GetServerWriteIV(ssl);
         }
 
-        ret = AesSetKey(&encCtx->aes, key, keyLen, iv, AES_ENCRYPTION);
+        ret = wc_AesSetKey(&encCtx->aes, key, keyLen, iv, AES_ENCRYPTION);
         if (ret != 0) {
             printf("AesSetKey failed in myMacEncryptCb\n");
             return ret;
@@ -1445,7 +1445,7 @@ static INLINE int myMacEncryptCb(WOLFSSL* ssl, unsigned char* macOut,
     }
 
     /* encrypt */
-    return AesCbcEncrypt(&encCtx->aes, encOut, encIn, encSz);
+    return wc_AesCbcEncrypt(&encCtx->aes, encOut, encIn, encSz);
 }
 
 
@@ -1493,7 +1493,7 @@ static INLINE int myDecryptVerifyCb(WOLFSSL* ssl,
             iv  = wolfSSL_GetServerWriteIV(ssl);
         }
 
-        ret = AesSetKey(&decCtx->aes, key, keyLen, iv, AES_DECRYPTION);
+        ret = wc_AesSetKey(&decCtx->aes, key, keyLen, iv, AES_DECRYPTION);
         if (ret != 0) {
             printf("AesSetKey failed in myDecryptVerifyCb\n");
             return ret;
@@ -1502,7 +1502,7 @@ static INLINE int myDecryptVerifyCb(WOLFSSL* ssl,
     }
 
     /* decrypt */
-    ret = AesCbcDecrypt(&decCtx->aes, decOut, decIn, decSz);
+    ret = wc_AesCbcDecrypt(&decCtx->aes, decOut, decIn, decSz);
 
     if (wolfSSL_GetCipherType(ssl) == WOLFSSL_AEAD_TYPE) {
         *padSz = wolfSSL_GetAeadMacSize(ssl);
@@ -1521,17 +1521,17 @@ static INLINE int myDecryptVerifyCb(WOLFSSL* ssl,
 
     wolfSSL_SetTlsHmacInner(ssl, myInner, macInSz, macContent, macVerify);
 
-    ret = HmacSetKey(&hmac, wolfSSL_GetHmacType(ssl),
+    ret = wc_HmacSetKey(&hmac, wolfSSL_GetHmacType(ssl),
                wolfSSL_GetMacSecret(ssl, macVerify), digestSz);
     if (ret != 0)
         return ret;
-    ret = HmacUpdate(&hmac, myInner, sizeof(myInner));
+    ret = wc_HmacUpdate(&hmac, myInner, sizeof(myInner));
     if (ret != 0)
         return ret;
-    ret = HmacUpdate(&hmac, decOut + ivExtra, macInSz);
+    ret = wc_HmacUpdate(&hmac, decOut + ivExtra, macInSz);
     if (ret != 0)
         return ret;
-    ret = HmacFinal(&hmac, verify);
+    ret = wc_HmacFinal(&hmac, verify);
     if (ret != 0)
         return ret;
 
@@ -1597,7 +1597,7 @@ static INLINE int myEccSign(WOLFSSL* ssl, const byte* in, word32 inSz,
     (void)ssl;
     (void)ctx;
 
-    ret = InitRng(&rng);
+    ret = wc_InitRng(&rng);
     if (ret != 0)
         return ret;
 
@@ -1647,20 +1647,20 @@ static INLINE int myRsaSign(WOLFSSL* ssl, const byte* in, word32 inSz,
     (void)ssl;
     (void)ctx;
 
-    ret = InitRng(&rng);
+    ret = wc_InitRng(&rng);
     if (ret != 0)
         return ret;
 
-    InitRsaKey(&myKey, NULL);
+    wc_InitRsaKey(&myKey, NULL);
     
-    ret = RsaPrivateKeyDecode(key, &idx, &myKey, keySz);    
+    ret = wc_RsaPrivateKeyDecode(key, &idx, &myKey, keySz);    
     if (ret == 0)
-        ret = RsaSSL_Sign(in, inSz, out, *outSz, &myKey, &rng);
+        ret = wc_RsaSSL_Sign(in, inSz, out, *outSz, &myKey, &rng);
     if (ret > 0) {  /* save and convert to 0 success */
         *outSz = ret;
         ret = 0;
     }
-    FreeRsaKey(&myKey);
+    wc_FreeRsaKey(&myKey);
 
     return ret;
 }
@@ -1678,12 +1678,12 @@ static INLINE int myRsaVerify(WOLFSSL* ssl, byte* sig, word32 sigSz,
     (void)ssl;
     (void)ctx;
 
-    InitRsaKey(&myKey, NULL);
-    
-    ret = RsaPublicKeyDecode(key, &idx, &myKey, keySz);
+    wc_InitRsaKey(&myKey, NULL);
+
+    ret = wc_RsaPublicKeyDecode(key, &idx, &myKey, keySz);
     if (ret == 0)
-        ret = RsaSSL_VerifyInline(sig, sigSz, out, &myKey);
-    FreeRsaKey(&myKey);
+        ret = wc_RsaSSL_VerifyInline(sig, sigSz, out, &myKey);
+    wc_FreeRsaKey(&myKey);
 
     return ret;
 }
@@ -1701,21 +1701,21 @@ static INLINE int myRsaEnc(WOLFSSL* ssl, const byte* in, word32 inSz,
     (void)ssl;
     (void)ctx;
 
-    ret = InitRng(&rng);
+    ret = wc_InitRng(&rng);
     if (ret != 0)
         return ret;
 
-    InitRsaKey(&myKey, NULL);
+    wc_InitRsaKey(&myKey, NULL);
     
-    ret = RsaPublicKeyDecode(key, &idx, &myKey, keySz);
+    ret = wc_RsaPublicKeyDecode(key, &idx, &myKey, keySz);
     if (ret == 0) {
-        ret = RsaPublicEncrypt(in, inSz, out, *outSz, &myKey, &rng);
+        ret = wc_RsaPublicEncrypt(in, inSz, out, *outSz, &myKey, &rng);
         if (ret > 0) {
             *outSz = ret;
             ret = 0;  /* reset to success */
         }
     }
-    FreeRsaKey(&myKey);
+    wc_FreeRsaKey(&myKey);
 
     return ret;
 }
@@ -1731,13 +1731,13 @@ static INLINE int myRsaDec(WOLFSSL* ssl, byte* in, word32 inSz,
     (void)ssl;
     (void)ctx;
 
-    InitRsaKey(&myKey, NULL);
-    
-    ret = RsaPrivateKeyDecode(key, &idx, &myKey, keySz);
+    wc_InitRsaKey(&myKey, NULL);
+
+    ret = wc_RsaPrivateKeyDecode(key, &idx, &myKey, keySz);
     if (ret == 0) {
-        ret = RsaPrivateDecryptInline(in, inSz, out, &myKey);
+        ret = wc_RsaPrivateDecryptInline(in, inSz, out, &myKey);
     }
-    FreeRsaKey(&myKey);
+    wc_FreeRsaKey(&myKey);
 
     return ret;
 }

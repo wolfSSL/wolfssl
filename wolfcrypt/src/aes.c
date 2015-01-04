@@ -63,7 +63,7 @@ int wc_AesCbcDecryptWithKey(byte* out, const byte* in, word32 inSz,
 
 
 /* AES-CTR */
-#ifdef CYASSL_AES_COUNTER
+#ifdef WOLFSSL_AES_COUNTER
 void wc_AesCtrEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 {
     AesCtrEncrypt(aes, out, in, sz);
@@ -71,7 +71,7 @@ void wc_AesCtrEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 #endif
 
 /* AES-DIRECT */
-#if defined(CYASSL_AES_DIRECT)
+#if defined(WOLFSSL_AES_DIRECT)
 void wc_AesEncryptDirect(Aes* aes, byte* out, const byte* in)
 {
     AesEncryptDirect(aes, out, in);
@@ -213,9 +213,9 @@ void wc_AesFreeCavium(Aes* aes)
      * Guide (See note in README).
      * NOTE: no support for AES-CTR */
     #include "cau_api.h"
-#elif defined(CYASSL_PIC32MZ_CRYPT)
+#elif defined(WOLFSSL_PIC32MZ_CRYPT)
     /* NOTE: no support for AES-CCM/Direct */
-    #define DEBUG_CYASSL
+    #define DEBUG_WOLFSSL
     #include "wolfssl/wolfcrypt/port/pic32/pic32mz-crypt.h"
 #elif defined(HAVE_CAVIUM)
     #include <wolfssl/wolfcrypt/logging.h>
@@ -914,7 +914,7 @@ static const word32 Td[5][256] = {
 
 #define GETBYTE(x, y) (word32)((byte)((x) >> (8 * (y))))
 
-#ifdef CYASSL_AESNI
+#ifdef WOLFSSL_AESNI
 
 /* Each platform needs to query info type 1 from cpuid to see if aesni is
  * supported. Also, let's setup a macro for proper linkage w/o ABI conflicts
@@ -1055,7 +1055,7 @@ static int AES_set_decrypt_key(const unsigned char* userKey, const int bits,
 
 
 
-#endif /* CYASSL_AESNI */
+#endif /* WOLFSSL_AESNI */
 
 
 static void wc_AesEncrypt(Aes* aes, const byte* inBlock, byte* outBlock)
@@ -1066,10 +1066,10 @@ static void wc_AesEncrypt(Aes* aes, const byte* inBlock, byte* outBlock)
 
     const word32* rk = aes->key;
     if (r > 7 || r == 0) {
-        CYASSL_MSG("AesEncrypt encountered improper key, set it up");
+        WOLFSSL_MSG("AesEncrypt encountered improper key, set it up");
         return;  /* stop instead of segfaulting, set up your keys! */
     }
-#ifdef CYASSL_AESNI
+#ifdef WOLFSSL_AESNI
     if (haveAESNI && aes->use_aesni) {
         #ifdef DEBUG_AESNI
             printf("about to aes encrypt\n");
@@ -1081,8 +1081,8 @@ static void wc_AesEncrypt(Aes* aes, const byte* inBlock, byte* outBlock)
         #endif
 
         /* check alignment, decrypt doesn't need alignment */
-        if ((cyassl_word)inBlock % 16) {
-        #ifndef NO_CYASSL_ALLOC_ALIGN
+        if ((wolfssl_word)inBlock % 16) {
+        #ifndef NO_WOLFSSL_ALLOC_ALIGN
             byte* tmp = (byte*)XMALLOC(AES_BLOCK_SIZE, NULL,
                                                       DYNAMIC_TYPE_TMP_BUFFER);
             if (tmp == NULL) return;
@@ -1094,7 +1094,7 @@ static void wc_AesEncrypt(Aes* aes, const byte* inBlock, byte* outBlock)
             XFREE(tmp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             return;
         #else
-            CYASSL_MSG("AES-ECB encrypt with bad alignment");
+            WOLFSSL_MSG("AES-ECB encrypt with bad alignment");
             return;
         #endif
         }
@@ -1245,10 +1245,10 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
 
     const word32* rk = aes->key;
     if (r > 7 || r == 0) {
-        CYASSL_MSG("AesDecrypt encountered improper key, set it up");
+        WOLFSSL_MSG("AesDecrypt encountered improper key, set it up");
         return;  /* stop instead of segfaulting, set up your keys! */
     }
-#ifdef CYASSL_AESNI
+#ifdef WOLFSSL_AESNI
     if (haveAESNI && aes->use_aesni) {
         #ifdef DEBUG_AESNI
             printf("about to aes decrypt\n");
@@ -1512,12 +1512,12 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
         word32 temp, *rk = aes->key;
         unsigned int i = 0;
 
-        #ifdef CYASSL_AESNI
+        #ifdef WOLFSSL_AESNI
             aes->use_aesni = 0;
-        #endif /* CYASSL_AESNI */
-        #ifdef CYASSL_AES_COUNTER
+        #endif /* WOLFSSL_AESNI */
+        #ifdef WOLFSSL_AES_COUNTER
             aes->left = 0;
-        #endif /* CYASSL_AES_COUNTER */
+        #endif /* WOLFSSL_AES_COUNTER */
 
         aes->rounds = keylen/4 + 6;
 
@@ -1526,7 +1526,7 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
             ByteReverseWords(rk, rk, keylen);
         #endif
 
-        #ifdef CYASSL_PIC32MZ_CRYPT
+        #ifdef WOLFSSL_PIC32MZ_CRYPT
         {
             word32 *akey1 = aes->key_ce;
             word32 *areg = aes->iv_ce ;
@@ -1665,11 +1665,11 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
             return BAD_FUNC_ARG;
 
         #ifdef HAVE_CAVIUM
-        if (aes->magic == CYASSL_AES_CAVIUM_MAGIC)
+        if (aes->magic == WOLFSSL_AES_CAVIUM_MAGIC)
             return wc_AesCaviumSetKey(aes, userKey, keylen, iv);
         #endif
 
-        #ifdef CYASSL_AESNI
+        #ifdef WOLFSSL_AESNI
         if (checkAESNI == 0) {
             haveAESNI  = Check_CPU_support_AES();
             checkAESNI = 1;
@@ -1683,12 +1683,12 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
             else
                 return AES_set_decrypt_key(userKey, keylen * 8, aes);
         }
-        #endif /* CYASSL_AESNI */
+        #endif /* WOLFSSL_AESNI */
 
         return wc_AesSetKeyLocal(aes, userKey, keylen, iv, dir);
     }
 
-    #if defined(CYASSL_AES_DIRECT) || defined(CYASSL_AES_COUNTER)
+    #if defined(WOLFSSL_AES_DIRECT) || defined(CYASSL_AES_COUNTER)
 
     /* AES-CTR and AES-DIRECT need to use this for key setup, no aesni yet */
     int wc_AesSetKeyDirect(Aes* aes, const byte* userKey, word32 keylen,
@@ -1697,7 +1697,7 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
         return wc_AesSetKeyLocal(aes, userKey, keylen, iv, dir);
     }
 
-    #endif /* CYASSL_AES_DIRECT || CYASSL_AES_COUNTER */
+    #endif /* WOLFSSL_AES_DIRECT || CYASSL_AES_COUNTER */
 #endif /* STM32F2_CRYPTO, wc_AesSetKey block */
 
 
@@ -1720,13 +1720,13 @@ int wc_AesCbcDecryptWithKey(byte* out, const byte* in, word32 inSz,
                                   const byte* key, word32 keySz, const byte* iv)
 {
     int  ret = 0;
-#ifdef CYASSL_SMALL_STACK
+#ifdef WOLFSSL_SMALL_STACK
     Aes* aes = NULL;
 #else
     Aes  aes[1];
 #endif
 
-#ifdef CYASSL_SMALL_STACK
+#ifdef WOLFSSL_SMALL_STACK
     aes = (Aes*)XMALLOC(sizeof(Aes), NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (aes == NULL)
         return MEMORY_E;
@@ -1736,7 +1736,7 @@ int wc_AesCbcDecryptWithKey(byte* out, const byte* in, word32 inSz,
     if (ret == 0)
         ret = wc_AesCbcDecrypt(aes, out, in, inSz); 
 
-#ifdef CYASSL_SMALL_STACK
+#ifdef WOLFSSL_SMALL_STACK
     XFREE(aes, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
 
@@ -1745,7 +1745,7 @@ int wc_AesCbcDecryptWithKey(byte* out, const byte* in, word32 inSz,
 
 
 /* AES-DIRECT */
-#if defined(CYASSL_AES_DIRECT)
+#if defined(WOLFSSL_AES_DIRECT)
     #if defined(FREESCALE_MMCAU)
 
         /* Allow direct access to one block encrypt */
@@ -1772,7 +1772,7 @@ int wc_AesCbcDecryptWithKey(byte* out, const byte* in, word32 inSz,
     #elif defined(HAVE_COLDFIRE_SEC)
         #error "Coldfire SEC doesn't yet support AES direct"
 
-    #elif defined(CYASSL_PIC32MZ_CRYPT)
+    #elif defined(WOLFSSL_PIC32MZ_CRYPT)
         #error "PIC32MZ doesn't yet support AES direct"
 
     #else
@@ -1789,7 +1789,7 @@ int wc_AesCbcDecryptWithKey(byte* out, const byte* in, word32 inSz,
         }
 
     #endif /* FREESCALE_MMCAU, AES direct block */
-#endif /* CYASSL_AES_DIRECT */
+#endif /* WOLFSSL_AES_DIRECT */
 
 
 /* AES-CBC */
@@ -2024,7 +2024,7 @@ int wc_AesCbcDecryptWithKey(byte* out, const byte* in, word32 inSz,
     static int wc_AesCbcCrypt(Aes* aes, byte* po, const byte* pi, word32 sz,
                            word32 descHeader)
     {
-        #ifdef DEBUG_CYASSL
+        #ifdef DEBUG_WOLFSSL
             int i; int stat1, stat2; int ret;
 	    #endif
 
@@ -2087,7 +2087,7 @@ int wc_AesCbcDecryptWithKey(byte* out, const byte* in, word32 inSz,
 
             while ((secDesc->header>> 24) != 0xff) v++;
 
-            #ifdef DEBUG_CYASSL
+            #ifdef DEBUG_WOLFSSL
                 ret = MCF_SEC_SISRH;
                 stat1 = MCF_SEC_AESSR;
                 stat2 = MCF_SEC_AESISR;
@@ -2137,8 +2137,8 @@ int wc_AesCbcDecryptWithKey(byte* out, const byte* in, word32 inSz,
         iv      = (byte*)aes->reg;
         enc_key = (byte*)aes->key;
 
-        if ((cyassl_word)out % CYASSL_MMCAU_ALIGNMENT) {
-            CYASSL_MSG("Bad cau_aes_encrypt alignment");
+        if ((wolfssl_word)out % WOLFSSL_MMCAU_ALIGNMENT) {
+            WOLFSSL_MSG("Bad cau_aes_encrypt alignment");
             return BAD_ALIGN_E;
         }
 
@@ -2174,8 +2174,8 @@ int wc_AesCbcDecryptWithKey(byte* out, const byte* in, word32 inSz,
         iv      = (byte*)aes->reg;
         dec_key = (byte*)aes->key;
 
-        if ((cyassl_word)out % CYASSL_MMCAU_ALIGNMENT) {
-            CYASSL_MSG("Bad cau_aes_decrypt alignment");
+        if ((wolfssl_word)out % WOLFSSL_MMCAU_ALIGNMENT) {
+            WOLFSSL_MSG("Bad cau_aes_decrypt alignment");
             return BAD_ALIGN_E;
         }
 
@@ -2199,7 +2199,7 @@ int wc_AesCbcDecryptWithKey(byte* out, const byte* in, word32 inSz,
         return 0;
     }
 
-#elif defined(CYASSL_PIC32MZ_CRYPT)
+#elif defined(WOLFSSL_PIC32MZ_CRYPT)
     /* core hardware crypt engine driver */
     static void wc_AesCrypt(Aes *aes, byte* out, const byte* in, word32 sz,
                                             int dir, int algo, int cryptoalgo)
@@ -2315,11 +2315,11 @@ int wc_AesCbcDecryptWithKey(byte* out, const byte* in, word32 inSz,
         word32 blocks = sz / AES_BLOCK_SIZE;
 
     #ifdef HAVE_CAVIUM
-        if (aes->magic == CYASSL_AES_CAVIUM_MAGIC)
+        if (aes->magic == WOLFSSL_AES_CAVIUM_MAGIC)
             return wc_AesCaviumCbcEncrypt(aes, out, in, sz);
     #endif
 
-    #ifdef CYASSL_AESNI
+    #ifdef WOLFSSL_AESNI
         if (haveAESNI) {
             #ifdef DEBUG_AESNI
                 printf("about to aes cbc encrypt\n");
@@ -2332,10 +2332,10 @@ int wc_AesCbcDecryptWithKey(byte* out, const byte* in, word32 inSz,
             #endif
 
             /* check alignment, decrypt doesn't need alignment */
-            if ((cyassl_word)in % 16) {
-            #ifndef NO_CYASSL_ALLOC_ALIGN
+            if ((wolfssl_word)in % 16) {
+            #ifndef NO_WOLFSSL_ALLOC_ALIGN
                 byte* tmp = (byte*)XMALLOC(sz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-                CYASSL_MSG("AES-CBC encrypt with bad alignment");
+                WOLFSSL_MSG("AES-CBC encrypt with bad alignment");
                 if (tmp == NULL) return MEMORY_E;
 
                 XMEMCPY(tmp, in, sz);
@@ -2378,11 +2378,11 @@ int wc_AesCbcDecryptWithKey(byte* out, const byte* in, word32 inSz,
         word32 blocks = sz / AES_BLOCK_SIZE;
 
     #ifdef HAVE_CAVIUM
-        if (aes->magic == CYASSL_AES_CAVIUM_MAGIC)
+        if (aes->magic == WOLFSSL_AES_CAVIUM_MAGIC)
             return wc_AesCaviumCbcDecrypt(aes, out, in, sz);
     #endif
 
-    #ifdef CYASSL_AESNI
+    #ifdef WOLFSSL_AESNI
         if (haveAESNI) {
             #ifdef DEBUG_AESNI
                 printf("about to aes cbc decrypt\n");
@@ -2420,7 +2420,7 @@ int wc_AesCbcDecryptWithKey(byte* out, const byte* in, word32 inSz,
 #endif /* STM32F2_CRYPTO, AES-CBC block */
 
 /* AES-CTR */
-#ifdef CYASSL_AES_COUNTER
+#ifdef WOLFSSL_AES_COUNTER
 
     #ifdef STM32F2_CRYPTO
         void wc_AesCtrEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
@@ -2526,7 +2526,7 @@ int wc_AesCbcDecryptWithKey(byte* out, const byte* in, word32 inSz,
             CRYP_Cmd(DISABLE);
         }
 
-    #elif defined(CYASSL_PIC32MZ_CRYPT)
+    #elif defined(WOLFSSL_PIC32MZ_CRYPT)
         void wc_AesCtrEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
         {
             int i ;
@@ -2643,7 +2643,7 @@ int wc_AesCbcDecryptWithKey(byte* out, const byte* in, word32 inSz,
 
     #endif /* STM32F2_CRYPTO, AES-CTR block */
 
-#endif /* CYASSL_AES_COUNTER */
+#endif /* WOLFSSL_AES_COUNTER */
 
 #ifdef HAVE_AESGCM
 
@@ -3308,9 +3308,9 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     byte* key = (byte*)aes->key;
 #endif
 
-    CYASSL_ENTER("AesGcmEncrypt");
+    WOLFSSL_ENTER("AesGcmEncrypt");
 
-#ifdef CYASSL_PIC32MZ_CRYPT
+#ifdef WOLFSSL_PIC32MZ_CRYPT
     ctr = (char *)aes->iv_ce ;
 #else
     ctr = counter ;
@@ -3320,14 +3320,14 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     XMEMCPY(ctr, iv, ivSz);
     InitGcmCounter(ctr);
 
-#ifdef CYASSL_PIC32MZ_CRYPT
+#ifdef WOLFSSL_PIC32MZ_CRYPT
     if(blocks)
         wc_AesCrypt(aes, out, in, blocks*AES_BLOCK_SIZE,
              PIC32_ENCRYPTION, PIC32_ALGO_AES, PIC32_CRYPTOALGO_AES_GCM );
 #endif
     while (blocks--) {
         IncrementGcmCounter(ctr);
-        #ifndef CYASSL_PIC32MZ_CRYPT
+        #ifndef WOLFSSL_PIC32MZ_CRYPT
             #ifdef FREESCALE_MMCAU
                 cau_aes_encrypt(ctr, key, aes->rounds, scratch);
             #else
@@ -3382,9 +3382,9 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     byte* key = (byte*)aes->key;
 #endif
 
-    CYASSL_ENTER("AesGcmDecrypt");
+    WOLFSSL_ENTER("AesGcmDecrypt");
 
-#ifdef CYASSL_PIC32MZ_CRYPT
+#ifdef WOLFSSL_PIC32MZ_CRYPT
     ctr = (char *)aes->iv_ce ;
 #else
     ctr = counter ;
@@ -3413,7 +3413,7 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         }
     }
  
-#ifdef CYASSL_PIC32MZ_CRYPT
+#ifdef WOLFSSL_PIC32MZ_CRYPT
     if(blocks)
         wc_AesCrypt(aes, out, in, blocks*AES_BLOCK_SIZE,
              PIC32_DECRYPTION, PIC32_ALGO_AES, PIC32_CRYPTOALGO_AES_GCM );
@@ -3421,7 +3421,7 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 
     while (blocks--) {
         IncrementGcmCounter(ctr);
-        #ifndef CYASSL_PIC32MZ_CRYPT
+        #ifndef WOLFSSL_PIC32MZ_CRYPT
             #ifdef FREESCALE_MMCAU
                 cau_aes_encrypt(ctr, key, aes->rounds, scratch);
             #else
@@ -3448,13 +3448,13 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 
 
 
-CYASSL_API int GmacSetKey(Gmac* gmac, const byte* key, word32 len)
+WOLFSSL_API int wc_GmacSetKey(Gmac* gmac, const byte* key, word32 len)
 {
     return wc_AesGcmSetKey(&gmac->aes, key, len);
 }
 
 
-CYASSL_API int GmacUpdate(Gmac* gmac, const byte* iv, word32 ivSz,
+WOLFSSL_API int wc_GmacUpdate(Gmac* gmac, const byte* iv, word32 ivSz,
                               const byte* authIn, word32 authInSz,
                               byte* authTag, word32 authTagSz)
 {
@@ -3473,7 +3473,7 @@ CYASSL_API int GmacUpdate(Gmac* gmac, const byte* iv, word32 ivSz,
 #elif defined(HAVE_COLDFIRE_SEC)
     #error "Coldfire SEC doesn't currently support AES-CCM mode"
 
-#elif defined(CYASSL_PIC32MZ_CRYPT)
+#elif defined(WOLFSSL_PIC32MZ_CRYPT)
     #error "PIC32MZ doesn't currently support AES-CCM mode"
 
 #endif
@@ -3764,7 +3764,7 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
 
 #ifdef HAVE_CAVIUM
 
-#include <cyassl/ctaocrypt/logging.h>
+#include <wolfssl/ctaocrypt/logging.h>
 #include "cavium_common.h"
 
 /* Initiliaze Aes for use with Nitrox device */
@@ -3777,7 +3777,7 @@ int wc_AesInitCavium(Aes* aes, int devId)
         return -1;
 
     aes->devId = devId;
-    aes->magic = CYASSL_AES_CAVIUM_MAGIC;
+    aes->magic = WOLFSSL_AES_CAVIUM_MAGIC;
    
     return 0;
 }
@@ -3789,7 +3789,7 @@ void wc_AesFreeCavium(Aes* aes)
     if (aes == NULL)
         return;
 
-    if (aes->magic != CYASSL_AES_CAVIUM_MAGIC)
+    if (aes->magic != WOLFSSL_AES_CAVIUM_MAGIC)
         return;
 
     CspFreeContext(CONTEXT_SSL, aes->contextHandle, aes->devId);
@@ -3818,20 +3818,20 @@ static int wc_AesCaviumSetKey(Aes* aes, const byte* key, word32 length,
 static int AesCaviumCbcEncrypt(Aes* aes, byte* out, const byte* in,
                                word32 length)
 {
-    cyassl_word offset = 0;
+    wolfssl_word offset = 0;
     word32 requestId;
 
-    while (length > CYASSL_MAX_16BIT) {
-        word16 slen = (word16)CYASSL_MAX_16BIT;
+    while (length > WOLFSSL_MAX_16BIT) {
+        word16 slen = (word16)WOLFSSL_MAX_16BIT;
         if (CspEncryptAes(CAVIUM_BLOCKING, aes->contextHandle, CAVIUM_NO_UPDATE,
                           aes->type, slen, (byte*)in + offset, out + offset,
                           (byte*)aes->reg, (byte*)aes->key, &requestId,
                           aes->devId) != 0) {
-            CYASSL_MSG("Bad Cavium Aes Encrypt");
+            WOLFSSL_MSG("Bad Cavium Aes Encrypt");
             return -1;
         }
-        length -= CYASSL_MAX_16BIT;
-        offset += CYASSL_MAX_16BIT;
+        length -= WOLFSSL_MAX_16BIT;
+        offset += WOLFSSL_MAX_16BIT;
         XMEMCPY(aes->reg, out + offset - AES_BLOCK_SIZE, AES_BLOCK_SIZE);
     }
     if (length) {
@@ -3840,7 +3840,7 @@ static int AesCaviumCbcEncrypt(Aes* aes, byte* out, const byte* in,
                           aes->type, slen, (byte*)in + offset, out + offset,
                           (byte*)aes->reg, (byte*)aes->key, &requestId,
                           aes->devId) != 0) {
-            CYASSL_MSG("Bad Cavium Aes Encrypt");
+            WOLFSSL_MSG("Bad Cavium Aes Encrypt");
             return -1;
         }
         XMEMCPY(aes->reg, out + offset+length - AES_BLOCK_SIZE, AES_BLOCK_SIZE);
@@ -3852,20 +3852,20 @@ static int AesCaviumCbcDecrypt(Aes* aes, byte* out, const byte* in,
                                word32 length)
 {
     word32 requestId;
-    cyassl_word offset = 0;
+    wolfssl_word offset = 0;
 
-    while (length > CYASSL_MAX_16BIT) {
-        word16 slen = (word16)CYASSL_MAX_16BIT;
+    while (length > WOLFSSL_MAX_16BIT) {
+        word16 slen = (word16)WOLFSSL_MAX_16BIT;
         XMEMCPY(aes->tmp, in + offset + slen - AES_BLOCK_SIZE, AES_BLOCK_SIZE);
         if (CspDecryptAes(CAVIUM_BLOCKING, aes->contextHandle, CAVIUM_NO_UPDATE,
                           aes->type, slen, (byte*)in + offset, out + offset,
                           (byte*)aes->reg, (byte*)aes->key, &requestId,
                           aes->devId) != 0) {
-            CYASSL_MSG("Bad Cavium Aes Decrypt");
+            WOLFSSL_MSG("Bad Cavium Aes Decrypt");
             return -1;
         }
-        length -= CYASSL_MAX_16BIT;
-        offset += CYASSL_MAX_16BIT;
+        length -= WOLFSSL_MAX_16BIT;
+        offset += WOLFSSL_MAX_16BIT;
         XMEMCPY(aes->reg, aes->tmp, AES_BLOCK_SIZE);
     }
     if (length) {
@@ -3875,7 +3875,7 @@ static int AesCaviumCbcDecrypt(Aes* aes, byte* out, const byte* in,
                           aes->type, slen, (byte*)in + offset, out + offset,
                           (byte*)aes->reg, (byte*)aes->key, &requestId,
                           aes->devId) != 0) {
-            CYASSL_MSG("Bad Cavium Aes Decrypt");
+            WOLFSSL_MSG("Bad Cavium Aes Decrypt");
             return -1;
         }
         XMEMCPY(aes->reg, aes->tmp, AES_BLOCK_SIZE);

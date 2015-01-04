@@ -5494,7 +5494,7 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
     der->versionSz = SetMyVersion(cert->version, der->version, TRUE);
 
     /* serial number */
-    ret = RNG_GenerateBlock(rng, cert->serial, CTC_SERIAL_SIZE);
+    ret = wc_RNG_GenerateBlock(rng, cert->serial, CTC_SERIAL_SIZE);
     if (ret != 0)
         return ret;
 
@@ -7279,7 +7279,7 @@ int EncodeOcspRequest(OcspRequest* req)
         if (wc_InitRng(&rng) != 0) {
             WOLFSSL_MSG("\tCannot initialize RNG. Skipping the OSCP Nonce.");
         } else {
-            if (RNG_GenerateBlock(&rng, req->nonce, MAX_OCSP_NONCE_SZ) != 0)
+            if (wc_RNG_GenerateBlock(&rng, req->nonce, MAX_OCSP_NONCE_SZ) != 0)
                 WOLFSSL_MSG("\tCannot run RNG. Skipping the OSCP Nonce.");
             else {
                 req->nonceSz = MAX_OCSP_NONCE_SZ;

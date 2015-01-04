@@ -1527,7 +1527,7 @@ static void Camellia_DecryptBlock(const int keyBitLength,
 
 /* wolfCrypt wrappers to the Camellia code */
 
-int CamelliaSetKey(Camellia* cam, const byte* key, word32 len, const byte* iv)
+int wc_CamelliaSetKey(Camellia* cam, const byte* key, word32 len, const byte* iv)
 {
     int ret = 0;
 
@@ -1554,11 +1554,11 @@ int CamelliaSetKey(Camellia* cam, const byte* key, word32 len, const byte* iv)
 
     cam->keySz = len * 8;
 
-    return CamelliaSetIV(cam, iv);
+    return wc_CamelliaSetIV(cam, iv);
 }
 
 
-int CamelliaSetIV(Camellia* cam, const byte* iv)
+int wc_CamelliaSetIV(Camellia* cam, const byte* iv)
 {
     if (cam == NULL)
         return BAD_FUNC_ARG;
@@ -1572,19 +1572,19 @@ int CamelliaSetIV(Camellia* cam, const byte* iv)
 }
 
 
-void CamelliaEncryptDirect(Camellia* cam, byte* out, const byte* in)
+void wc_CamelliaEncryptDirect(Camellia* cam, byte* out, const byte* in)
 {
     Camellia_EncryptBlock(cam->keySz, in, cam->key, out);
 }
 
 
-void CamelliaDecryptDirect(Camellia* cam, byte* out, const byte* in)
+void wc_CamelliaDecryptDirect(Camellia* cam, byte* out, const byte* in)
 {
     Camellia_DecryptBlock(cam->keySz, in, cam->key, out);
 }
 
 
-void CamelliaCbcEncrypt(Camellia* cam, byte* out, const byte* in, word32 sz)
+void wc_CamelliaCbcEncrypt(Camellia* cam, byte* out, const byte* in, word32 sz)
 {
     word32 blocks = sz / CAMELLIA_BLOCK_SIZE;
 
@@ -1595,12 +1595,12 @@ void CamelliaCbcEncrypt(Camellia* cam, byte* out, const byte* in, word32 sz)
         XMEMCPY(out, cam->reg, CAMELLIA_BLOCK_SIZE);
 
         out += CAMELLIA_BLOCK_SIZE;
-        in  += CAMELLIA_BLOCK_SIZE; 
+        in  += CAMELLIA_BLOCK_SIZE;
     }
 }
 
 
-void CamelliaCbcDecrypt(Camellia* cam, byte* out, const byte* in, word32 sz)
+void wc_CamelliaCbcDecrypt(Camellia* cam, byte* out, const byte* in, word32 sz)
 {
     word32 blocks = sz / CAMELLIA_BLOCK_SIZE;
 
@@ -1611,7 +1611,7 @@ void CamelliaCbcDecrypt(Camellia* cam, byte* out, const byte* in, word32 sz)
         XMEMCPY(cam->reg, cam->tmp, CAMELLIA_BLOCK_SIZE);
 
         out += CAMELLIA_BLOCK_SIZE;
-        in  += CAMELLIA_BLOCK_SIZE; 
+        in  += CAMELLIA_BLOCK_SIZE;
     }
 }
 

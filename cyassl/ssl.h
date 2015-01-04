@@ -391,10 +391,10 @@
 #if !defined(CYASSL_MAX_ERROR_SZ) && !defined(HAVE_FIPS)
     #define CYASSL_MAX_ERROR_SZ WOLFSSL_MAX_ERROR_SZ
 #endif
-        
-/* 
+
+/*
  * wrapper around macros until they are changed in cyassl code
- * needs investigation in regards to macros in fips 
+ * needs investigation in regards to macros in fips
  */
 #define NO_WOLFSSL_ALLOC_ALIGN NO_CYASSL_ALLOC_ALIGN /* @TODO */
 
@@ -407,6 +407,7 @@
 
 /* examples/client/client.h */
 #define CYASSL_THREAD WOLFSSL_THREAD
+#define CYASSL_DTLS   WOLFSSL_DTLS
 
 /* examples/client/client.c */
 #define LIBCYASSL_VERSION_STRING LIBWOLFSSL_VERSION_STRING

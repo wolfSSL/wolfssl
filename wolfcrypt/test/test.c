@@ -1040,7 +1040,7 @@ int sha256_test(void)
 #endif
 
 
-#ifdef CYASSL_SHA512
+#ifdef WOLFSSL_SHA512
 int sha512_test(void)
 {
     Sha512 sha;
@@ -1095,7 +1095,7 @@ int sha512_test(void)
 #endif
 
 
-#ifdef CYASSL_SHA384
+#ifdef WOLFSSL_SHA384
 int sha384_test(void)
 {
     Sha384 sha;
@@ -1541,7 +1541,7 @@ int hmac_sha384_test(void)
 #endif
 
 
-#if !defined(NO_HMAC) && defined(CYASSL_SHA512)
+#if !defined(NO_HMAC) && defined(WOLFSSL_SHA512)
 int hmac_sha512_test(void)
 {
     Hmac hmac;
@@ -3352,7 +3352,7 @@ int rsa_test(void)
         if (ret != 0) {
             free(derCert);
             free(pem);
-            FreeRsaKey(&caKey);
+            wc_FreeRsaKey(&caKey);
             return -413;
         }
 
@@ -3370,7 +3370,7 @@ int rsa_test(void)
         if (ret < 0) {
             free(derCert);
             free(pem);
-            FreeRsaKey(&caKey);
+            wc_FreeRsaKey(&caKey);
             return -405;
         }
 
@@ -3378,7 +3378,7 @@ int rsa_test(void)
         if (certSz < 0) {
             free(derCert);
             free(pem);
-            FreeRsaKey(&caKey);
+            wc_FreeRsaKey(&caKey);
             return -407;
         }
 
@@ -3387,7 +3387,7 @@ int rsa_test(void)
         if (certSz < 0) {
             free(derCert);
             free(pem);
-            FreeRsaKey(&caKey);
+            wc_FreeRsaKey(&caKey);
             return -408;
         }
 
@@ -3398,7 +3398,7 @@ int rsa_test(void)
         if (ret != 0) {
             free(derCert);
             free(pem);
-            FreeRsaKey(&caKey);
+            wc_FreeRsaKey(&caKey);
             return -409;
         }
         FreeDecodedCert(&decode);
@@ -3408,7 +3408,7 @@ int rsa_test(void)
         if (!derFile) {
             free(derCert);
             free(pem);
-            FreeRsaKey(&caKey);
+            wc_FreeRsaKey(&caKey);
             return -410;
         }
         ret = (int)fwrite(derCert, 1, certSz, derFile);
@@ -3416,7 +3416,7 @@ int rsa_test(void)
         if (ret != certSz) {
             free(derCert);
             free(pem);
-            FreeRsaKey(&caKey);
+            wc_FreeRsaKey(&caKey);
             return -416;
         }
 
@@ -3424,7 +3424,7 @@ int rsa_test(void)
         if (pemSz < 0) {
             free(derCert);
             free(pem);
-            FreeRsaKey(&caKey);
+            wc_FreeRsaKey(&caKey);
             return -411;
         }
 
@@ -3432,20 +3432,20 @@ int rsa_test(void)
         if (!pemFile) {
             free(derCert);
             free(pem);
-            FreeRsaKey(&caKey);
+            wc_FreeRsaKey(&caKey);
             return -412;
         }
         ret = (int)fwrite(pem, 1, pemSz, pemFile);
         if (ret != pemSz) {
             free(derCert);
             free(pem);
-            FreeRsaKey(&caKey);
+            wc_FreeRsaKey(&caKey);
             return -415;
         }
         fclose(pemFile);
         free(pem);
         free(derCert);
-        FreeRsaKey(&caKey);
+        wc_FreeRsaKey(&caKey);
     }
 #ifdef HAVE_ECC
     /* ECC CA style */
@@ -3663,7 +3663,7 @@ int rsa_test(void)
         bytes = fread(tmp, 1, FOURK_BUF, caFile);
         fclose(caFile);
 
-        ret = InitRsaKey(&caKey, 0);
+        ret = wc_InitRsaKey(&caKey, 0);
         if (ret != 0) {
             free(derCert);
             free(pem);
@@ -3690,7 +3690,7 @@ int rsa_test(void)
         if (ret < 0) {
             free(derCert);
             free(pem);
-            FreeRsaKey(&caKey);
+            wc_FreeRsaKey(&caKey);
             return -455;
         }
 
@@ -3699,13 +3699,13 @@ int rsa_test(void)
         if (certSz < 0) {
             free(derCert);
             free(pem);
-            FreeRsaKey(&caKey);
+            wc_FreeRsaKey(&caKey);
             return -456;
         }
 
         certSz = wc_SignCert(myCert.bodySz, myCert.sigType, derCert, FOURK_BUF,
                           &caKey, NULL, &rng);
-        FreeRsaKey(&caKey);
+        wc_FreeRsaKey(&caKey);
         if (certSz < 0) {
             free(derCert);
             free(pem);
@@ -4477,7 +4477,7 @@ int ecc_test(void)
     int     i, verify, ret;
     ecc_key userA, userB, pubKey;
 
-    ret = InitRng(&rng);
+    ret = wc_InitRng(&rng);
     if (ret != 0)
         return -1001;
 

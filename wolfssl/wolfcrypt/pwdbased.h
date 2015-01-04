@@ -25,10 +25,9 @@
 #ifndef WOLF_CRYPT_PWDBASED_H
 #define WOLF_CRYPT_PWDBASED_H
 
-#include <cyassl/ctaocrypt/types.h>
-
-/* included for fips @wc_fips */
-#include <cyassl/ctaocrypt/pwdbased.h>
+#include <wolfssl/wolfcrypt/types.h>
+#include <wolfssl/wolfcrypt/md5.h>       /* for hash type */
+#include <wolfssl/wolfcrypt/sha.h>
 
 #ifdef __cplusplus
     extern "C" {

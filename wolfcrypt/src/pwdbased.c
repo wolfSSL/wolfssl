@@ -29,17 +29,17 @@
 
 #ifdef WOLFSSL_PIC32MZ_HASH
 
-#define InitMd5   InitMd5_sw
-#define Md5Update Md5Update_sw
-#define Md5Final  Md5Final_sw
+#define wc_InitMd5   InitMd5_sw
+#define wc_Md5Update Md5Update_sw
+#define wc_Md5Final  Md5Final_sw
 
-#define InitSha   InitSha_sw
-#define ShaUpdate ShaUpdate_sw
-#define ShaFinal  ShaFinal_sw
+#define wc_InitSha   InitSha_sw
+#define wc_ShaUpdate ShaUpdate_sw
+#define wc_ShaFinal  ShaFinal_sw
 
-#define InitSha256   InitSha256_sw
-#define Sha256Update Sha256Update_sw
-#define Sha256Final  Sha256Final_sw
+#define wc_InitSha256   InitSha256_sw
+#define wc_Sha256Update Sha256Update_sw
+#define wc_Sha256Final  Sha256Final_sw
 
 #endif
 
@@ -87,28 +87,28 @@ int wc_PBKDF1(byte* output, const byte* passwd, int pLen, const byte* salt,
         return BAD_FUNC_ARG;
 
     if (hashType == MD5) {
-        InitMd5(&md5);
-        Md5Update(&md5, passwd, pLen);
-        Md5Update(&md5, salt,   sLen);
-        Md5Final(&md5,  buffer);
+        wc_InitMd5(&md5);
+        wc_Md5Update(&md5, passwd, pLen);
+        wc_Md5Update(&md5, salt,   sLen);
+        wc_Md5Final(&md5,  buffer);
     }
     else {
-        ret = InitSha(&sha);
+        ret = wc_InitSha(&sha);
         if (ret != 0)
             return ret;
-        ShaUpdate(&sha, passwd, pLen);
-        ShaUpdate(&sha, salt,   sLen);
-        ShaFinal(&sha,  buffer);
+        wc_ShaUpdate(&sha, passwd, pLen);
+        wc_ShaUpdate(&sha, salt,   sLen);
+        wc_ShaFinal(&sha,  buffer);
     }
 
     for (i = 1; i < iterations; i++) {
         if (hashType == MD5) {
-            Md5Update(&md5, buffer, hLen);
-            Md5Final(&md5,  buffer);
+            wc_Md5Update(&md5, buffer, hLen);
+            wc_Md5Final(&md5,  buffer);
         }
         else {
-            ShaUpdate(&sha, buffer, hLen);
-            ShaFinal(&sha,  buffer);
+            wc_ShaUpdate(&sha, buffer, hLen);
+            wc_ShaFinal(&sha,  buffer);
         }
     }
     XMEMCPY(output, buffer, kLen);
@@ -155,13 +155,13 @@ int wc_PBKDF2(byte* output, const byte* passwd, int pLen, const byte* salt,
         return MEMORY_E;
 #endif
 
-    ret = HmacSetKey(&hmac, hashType, passwd, pLen);
+    ret = wc_HmacSetKey(&hmac, hashType, passwd, pLen);
 
     if (ret == 0) {
         while (kLen) {
             int currentLen;
 
-            ret = HmacUpdate(&hmac, salt, sLen);
+            ret = wc_HmacUpdate(&hmac, salt, sLen);
             if (ret != 0)
                 break;
 
@@ -169,7 +169,7 @@ int wc_PBKDF2(byte* output, const byte* passwd, int pLen, const byte* salt,
             for (j = 0; j < 4; j++) {
                 byte b = (byte)(i >> ((3-j) * 8));
 
-                ret = HmacUpdate(&hmac, &b, 1);
+                ret = wc_HmacUpdate(&hmac, &b, 1);
                 if (ret != 0)
                     break;
             }
@@ -178,7 +178,7 @@ int wc_PBKDF2(byte* output, const byte* passwd, int pLen, const byte* salt,
             if (ret != 0)
                 break;
 
-            ret = HmacFinal(&hmac, buffer);
+            ret = wc_HmacFinal(&hmac, buffer);
             if (ret != 0)
                 break;
 
@@ -186,10 +186,10 @@ int wc_PBKDF2(byte* output, const byte* passwd, int pLen, const byte* salt,
             XMEMCPY(output, buffer, currentLen);
 
             for (j = 1; j < iterations; j++) {
-                ret = HmacUpdate(&hmac, buffer, hLen);
+                ret = wc_HmacUpdate(&hmac, buffer, hLen);
                 if (ret != 0)
                     break;
-                ret = HmacFinal(&hmac, buffer);
+                ret = wc_HmacFinal(&hmac, buffer);
                 if (ret != 0)
                     break;
                 xorbuf(output, buffer, currentLen);
@@ -323,51 +323,51 @@ int wc_PKCS12_PBKDF(byte* output, const byte* passwd, int passLen,const byte* sa
         if (hashType == MD5) {
             Md5 md5;
 
-            InitMd5(&md5);
-            Md5Update(&md5, buffer, totalLen);
-            Md5Final(&md5, Ai);
+            wc_InitMd5(&md5);
+            wc_Md5Update(&md5, buffer, totalLen);
+            wc_Md5Final(&md5, Ai);
 
             for (i = 1; i < iterations; i++) {
-                Md5Update(&md5, Ai, u);
-                Md5Final(&md5, Ai);
+                wc_Md5Update(&md5, Ai, u);
+                wc_Md5Final(&md5, Ai);
             }
         }
         else if (hashType == SHA) {
             Sha sha;
 
-            ret = InitSha(&sha);
+            ret = wc_InitSha(&sha);
             if (ret != 0)
                 break;
-            ShaUpdate(&sha, buffer, totalLen);
-            ShaFinal(&sha, Ai);
+            wc_ShaUpdate(&sha, buffer, totalLen);
+            wc_ShaFinal(&sha, Ai);
 
             for (i = 1; i < iterations; i++) {
-                ShaUpdate(&sha, Ai, u);
-                ShaFinal(&sha, Ai);
+                wc_ShaUpdate(&sha, Ai, u);
+                wc_ShaFinal(&sha, Ai);
             }
         }
 #ifndef NO_SHA256
         else if (hashType == SHA256) {
             Sha256 sha256;
 
-            ret = InitSha256(&sha256);
+            ret = wc_InitSha256(&sha256);
             if (ret != 0)
                 break;
 
-            ret = Sha256Update(&sha256, buffer, totalLen);
+            ret = wc_Sha256Update(&sha256, buffer, totalLen);
             if (ret != 0)
                 break;
 
-            ret = Sha256Final(&sha256, Ai);
+            ret = wc_Sha256Final(&sha256, Ai);
             if (ret != 0)
                 break;
 
             for (i = 1; i < iterations; i++) {
-                ret = Sha256Update(&sha256, Ai, u);
+                ret = wc_Sha256Update(&sha256, Ai, u);
                 if (ret != 0)
                     break;
 
-                ret = Sha256Final(&sha256, Ai);
+                ret = wc_Sha256Final(&sha256, Ai);
                 if (ret != 0)
                     break;
             }
@@ -377,24 +377,24 @@ int wc_PKCS12_PBKDF(byte* output, const byte* passwd, int passLen,const byte* sa
         else if (hashType == SHA512) {
             Sha512 sha512;
 
-            ret = InitSha512(&sha512);
+            ret = wc_InitSha512(&sha512);
             if (ret != 0)
                 break;
 
-            ret = Sha512Update(&sha512, buffer, totalLen);
+            ret = wc_Sha512Update(&sha512, buffer, totalLen);
             if (ret != 0)
                 break;
 
-            ret = Sha512Final(&sha512, Ai);
+            ret = wc_Sha512Final(&sha512, Ai);
             if (ret != 0)
                 break;
 
             for (i = 1; i < iterations; i++) {
-                ret = Sha512Update(&sha512, Ai, u);
+                ret = wc_Sha512Update(&sha512, Ai, u);
                 if (ret != 0)
                     break;
 
-                ret = Sha512Final(&sha512, Ai);
+                ret = wc_Sha512Final(&sha512, Ai);
                 if (ret != 0)
                     break;
             }

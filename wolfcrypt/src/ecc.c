@@ -1523,7 +1523,7 @@ int wc_ecc_make_key_ex(RNG* rng, ecc_key* key, const ecc_set_type* dp)
    base = NULL;
 
    /* make up random string */
-   err = RNG_GenerateBlock(rng, buf, keysize);
+   err = wc_RNG_GenerateBlock(rng, buf, keysize);
    if (err == 0)
        buf[0] |= 0x0c;
 
@@ -4130,7 +4130,7 @@ static int ecc_ctx_set_salt(ecEncCtx* ctx, int flags, RNG* rng)
 
     saltBuffer = (flags == REQ_RESP_CLIENT) ? ctx->clientSalt : ctx->serverSalt;
 
-    return RNG_GenerateBlock(rng, saltBuffer, EXCHANGE_SALT_SZ);
+    return wc_RNG_GenerateBlock(rng, saltBuffer, EXCHANGE_SALT_SZ);
 }
 
 

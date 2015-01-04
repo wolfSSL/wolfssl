@@ -19,14 +19,6 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-/* check for old macro */
-#if defined(CYASSL_SHA512) && !defined(WOLFSSL_SHA512)
-    #define WOLFSSL_SHA512
-#endif
-#if defined(CYASSL_SHA384) && !defined(WOLFSSL_SHA384)
-    #define WOLFSSL_SHA384
-#endif
-
 #ifdef WOLFSSL_SHA512
 
 #ifndef WOLF_CRYPT_SHA512_H
@@ -35,13 +27,6 @@
 #include <wolfssl/wolfcrypt/types.h>
 
 /* since using old code turn on old macros @wc_fips */
-#if !defined(CYASSL_SHA512)
-    #define CYASSL_SHA512
-#endif
-#if !defined(CYASSL_SHA384) && defined(WOLFSSL_SHA384)
-    #define CYASSL_SHA384
-#endif
-
 /* for fips */
 #ifdef HAVE_FIPS
 #include <cyassl/ctaocrypt/sha512.h>

@@ -89,7 +89,7 @@ static int GeneratePrivate(DhKey* key, RNG* rng, byte* priv, word32* privSz)
     sz = min(sz, 2 * DiscreteLogWorkFactor(sz * WOLFSSL_BIT_SIZE) /
                                            WOLFSSL_BIT_SIZE + 1);
 
-    ret = RNG_GenerateBlock(rng, priv, sz);
+    ret = wc_RNG_GenerateBlock(rng, priv, sz);
     if (ret != 0)
         return ret;
 

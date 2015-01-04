@@ -505,7 +505,7 @@ int EmbedGenerateCookie(WOLFSSL* ssl, byte *buf, int sz, void *ctx)
         return GEN_COOKIE_E;
     }
 
-    ret = ShaHash((byte*)&peer, peerSz, digest);
+    ret = wc_ShaHash((byte*)&peer, peerSz, digest);
     if (ret != 0)
         return ret;
 

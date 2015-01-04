@@ -20,7 +20,7 @@
  */
 
  /* Name change compatibility layer */
-#include <cyassl/ssl.h>
+//#include <cyassl/ssl.h>
 
 #ifdef HAVE_CONFIG_H
     #include <config.h>
@@ -82,7 +82,7 @@ enum {
     FATAL_ERROR_STATE  =  1,  /* SnifferSession fatal error state */
     TICKET_HINT_LEN    = 4,   /* Session Ticket Hint length */
     EXT_TYPE_SZ        = 2,   /* Extension length */
-    MAX_INPUT_SZ       = MAX_RECORD_SIZE + COMP_EXTRA + MAX_MSG_EXTRA + 
+    MAX_INPUT_SZ       = MAX_RECORD_SIZE + COMP_EXTRA + MAX_MSG_EXTRA +
                          MTU_EXTRA,  /* Max input sz of reassembly */
     TICKET_EXT_ID      = 0x23 /* Session Ticket Extension ID */
 };
@@ -1284,37 +1284,37 @@ static int ProcessClientKeyExchange(const byte* input, int* sslBytes,
     RsaKey key;
     int    ret;
 
-    ret = InitRsaKey(&key, 0);
-    if (ret == 0) 
-        ret = RsaPrivateKeyDecode(session->sslServer->buffers.key.buffer,
+    ret = wc_InitRsaKey(&key, 0);
+    if (ret == 0)
+        ret = wc_RsaPrivateKeyDecode(session->sslServer->buffers.key.buffer,
                           &idx, &key, session->sslServer->buffers.key.length);
     if (ret == 0) {
-        int length = RsaEncryptSize(&key);
-        
-        if (IsTLS(session->sslServer)) 
+        int length = wc_RsaEncryptSize(&key);
+
+        if (IsTLS(session->sslServer))
             input += 2;     /* tls pre length */
-       
-        if (length > *sslBytes) { 
+
+        if (length > *sslBytes) {
             SetError(PARTIAL_INPUT_STR, error, session, FATAL_ERROR_STATE);
-            FreeRsaKey(&key);
+            wc_FreeRsaKey(&key);
             return -1;
         }
-        ret = RsaPrivateDecrypt(input, length, 
+        ret = wc_RsaPrivateDecrypt(input, length,
                   session->sslServer->arrays->preMasterSecret,SECRET_LEN, &key);
-        
+
         if (ret != SECRET_LEN) {
             SetError(RSA_DECRYPT_STR, error, session, FATAL_ERROR_STATE);
-            FreeRsaKey(&key);
+            wc_FreeRsaKey(&key);
             return -1;
         }
         ret = 0;  /* not in error state */
         session->sslServer->arrays->preMasterSz = SECRET_LEN;
-        
+
         /* store for client side as well */
         XMEMCPY(session->sslClient->arrays->preMasterSecret,
                session->sslServer->arrays->preMasterSecret, SECRET_LEN);
         session->sslClient->arrays->preMasterSz = SECRET_LEN;
-        
+
         #ifdef SHOW_SECRETS
         {
             int i;
@@ -1327,19 +1327,19 @@ static int ProcessClientKeyExchange(const byte* input, int* sslBytes,
     }
     else {
         SetError(RSA_DECODE_STR, error, session, FATAL_ERROR_STATE);
-        FreeRsaKey(&key);
+        wc_FreeRsaKey(&key);
         return -1;
     }
-    
+
     if (SetCipherSpecs(session->sslServer) != 0) {
         SetError(BAD_CIPHER_SPEC_STR, error, session, FATAL_ERROR_STATE);
-        FreeRsaKey(&key);
+        wc_FreeRsaKey(&key);
         return -1;
     }
-   
+
     if (SetCipherSpecs(session->sslClient) != 0) {
         SetError(BAD_CIPHER_SPEC_STR, error, session, FATAL_ERROR_STATE);
-        FreeRsaKey(&key);
+        wc_FreeRsaKey(&key);
         return -1;
     }
 
@@ -1360,7 +1360,7 @@ static int ProcessClientKeyExchange(const byte* input, int* sslBytes,
         for (i = 0; i < SECRET_LEN; i++)
             printf("%02x", session->sslServer->arrays->masterSecret[i]);
         printf("\n");
-        
+
         printf("client master secret: ");
         for (i = 0; i < SECRET_LEN; i++)
             printf("%02x", session->sslClient->arrays->masterSecret[i]);
@@ -1369,9 +1369,9 @@ static int ProcessClientKeyExchange(const byte* input, int* sslBytes,
         printf("server suite = %d\n", session->sslServer->options.cipherSuite);
         printf("client suite = %d\n", session->sslClient->options.cipherSuite);
     }
-#endif   
-    
-    FreeRsaKey(&key);
+#endif
+
+    wc_FreeRsaKey(&key);
     return ret;
 }
 
@@ -1387,7 +1387,7 @@ static int ProcessSessionTicket(const byte* input, int* sslBytes,
         SetError(BAD_INPUT_STR, error, session, FATAL_ERROR_STATE);
         return -1;
     }
-    
+
     input     += TICKET_HINT_LEN;  /* skip over hint */
     *sslBytes -= TICKET_HINT_LEN;
 
@@ -1404,7 +1404,7 @@ static int ProcessSessionTicket(const byte* input, int* sslBytes,
     /* store session with macID as sessionID */
     session->sslServer->options.haveSessionId = 1;
     XMEMCPY(session->sslServer->arrays->sessionID, input + len - ID_LEN,ID_LEN);
-    
+
     return 0;
 }
 
@@ -1417,7 +1417,7 @@ static int ProcessServerHello(const byte* input, int* sslBytes,
     byte            b;
     int             toRead = VERSION_SZ + RAN_LEN + ENUM_LEN;
     int             doResume     = 0;
-    
+
     /* make sure we didn't miss ClientHello */
     if (session->flags.clientHello == 0) {
         SetError(MISSED_CLIENT_HELLO_STR, error, session, FATAL_ERROR_STATE);
@@ -1429,22 +1429,22 @@ static int ProcessServerHello(const byte* input, int* sslBytes,
         SetError(SERVER_HELLO_INPUT_STR, error, session, FATAL_ERROR_STATE);
         return -1;
     }
-    
+
     XMEMCPY(&pv, input, VERSION_SZ);
     input     += VERSION_SZ;
     *sslBytes -= VERSION_SZ;
-           
+
     session->sslServer->version = pv;
     session->sslClient->version = pv;
-           
+
     XMEMCPY(session->sslServer->arrays->serverRandom, input, RAN_LEN);
     XMEMCPY(session->sslClient->arrays->serverRandom, input, RAN_LEN);
     input    += RAN_LEN;
     *sslBytes -= RAN_LEN;
-    
+
     b = *input++;
     *sslBytes -= 1;
-    
+
     /* make sure can read through compression */
     if ( (b + SUITE_LEN + ENUM_LEN) > *sslBytes) {
         SetError(SERVER_HELLO_INPUT_STR, error, session, FATAL_ERROR_STATE);
@@ -1456,8 +1456,8 @@ static int ProcessServerHello(const byte* input, int* sslBytes,
     }
     input     += b;
     *sslBytes -= b;
-   
-    /* cipher suite */ 
+
+    /* cipher suite */
     b = *input++;  /* first byte, ECC or not */
     session->sslServer->options.cipherSuite0 = b;
     session->sslClient->options.cipherSuite0 = b;
@@ -1474,7 +1474,7 @@ static int ProcessServerHello(const byte* input, int* sslBytes,
         SetError(BAD_COMPRESSION_STR, error, session, FATAL_ERROR_STATE);
         return -1;
     }
-   
+
     if (session->sslServer->options.haveSessionId &&
             XMEMCMP(session->sslServer->arrays->sessionID,
                     session->sslClient->arrays->sessionID, ID_LEN) == 0)
@@ -1503,18 +1503,18 @@ static int ProcessServerHello(const byte* input, int* sslBytes,
         XMEMCPY(session->sslClient->arrays->masterSecret,
                session->sslServer->arrays->masterSecret, SECRET_LEN);
         session->flags.resuming = 1;
-        
+
         Trace(SERVER_DID_RESUMPTION_STR);
         if (SetCipherSpecs(session->sslServer) != 0) {
             SetError(BAD_CIPHER_SPEC_STR, error, session, FATAL_ERROR_STATE);
             return -1;
         }
-        
+
         if (SetCipherSpecs(session->sslClient) != 0) {
             SetError(BAD_CIPHER_SPEC_STR, error, session, FATAL_ERROR_STATE);
             return -1;
         }
-        
+
         if (session->sslServer->options.tls) {
             ret =  DeriveTlsKeys(session->sslServer);
             ret += DeriveTlsKeys(session->sslClient);
@@ -1541,19 +1541,19 @@ static int ProcessServerHello(const byte* input, int* sslBytes,
             printf("%02x", session->sslServer->arrays->serverRandom[i]);
         printf("\n");
     }
-#endif   
+#endif
     return 0;
 }
 
 
 /* Process normal Client Hello */
-static int ProcessClientHello(const byte* input, int* sslBytes, 
+static int ProcessClientHello(const byte* input, int* sslBytes,
                               SnifferSession* session, char* error)
 {
     byte   bLen;
     word16 len;
     int    toRead = VERSION_SZ + RAN_LEN + ENUM_LEN;
-    
+
 #ifdef HAVE_SNI
     {
         byte name[MAX_SERVER_NAME];
@@ -1593,23 +1593,23 @@ static int ProcessClientHello(const byte* input, int* sslBytes,
 #endif
 
     session->flags.clientHello = 1;  /* don't process again */
-    
+
     /* make sure can read up to session len */
     if (toRead > *sslBytes) {
         SetError(CLIENT_HELLO_INPUT_STR, error, session, FATAL_ERROR_STATE);
         return -1;
     }
-    
+
     /* skip, get negotiated one from server hello */
     input     += VERSION_SZ;
     *sslBytes -= VERSION_SZ;
-    
+
     XMEMCPY(session->sslServer->arrays->clientRandom, input, RAN_LEN);
     XMEMCPY(session->sslClient->arrays->clientRandom, input, RAN_LEN);
-    
+
     input     += RAN_LEN;
     *sslBytes -= RAN_LEN;
-    
+
     /* store session in case trying to resume */
     bLen = *input++;
     *sslBytes -= ENUM_LEN;

@@ -10159,7 +10159,7 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
         &&  !(ret = wc_Sha256Update(sha256, ssl->arrays->clientRandom, RAN_LEN))
         &&  !(ret = wc_Sha256Update(sha256, ssl->arrays->serverRandom, RAN_LEN))
         &&  !(ret = wc_Sha256Update(sha256, messageVerify, verifySz)))
-              ret = Sha256Final(sha256, hash256);
+              ret = wc_Sha256Final(sha256, hash256);
         if (ret != 0)
             goto done;
 #endif
@@ -10177,7 +10177,7 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
         &&  !(ret = wc_Sha384Update(sha384, ssl->arrays->clientRandom, RAN_LEN))
         &&  !(ret = wc_Sha384Update(sha384, ssl->arrays->serverRandom, RAN_LEN))
         &&  !(ret = wc_Sha384Update(sha384, messageVerify, verifySz)))
-              ret = Sha384Final(sha384, hash384);
+              ret = wc_Sha384Final(sha384, hash384);
         if (ret != 0)
             goto done;
 #endif
@@ -11854,7 +11854,7 @@ int DoSessionTicket(WOLFSSL* ssl,
                 &&  !(ret = wc_Sha256Update(sha256, ssl->arrays->serverRandom,
                                                                        RAN_LEN))
                 &&  !(ret = wc_Sha256Update(sha256, output + preSigIdx, preSigSz)))
-                    ret = Sha256Final(sha256, hash256);
+                    ret = wc_Sha256Final(sha256, hash256);
 
                 if (ret != 0)
                     goto done_a2;
@@ -11876,7 +11876,7 @@ int DoSessionTicket(WOLFSSL* ssl,
                 &&  !(ret = wc_Sha384Update(sha384, ssl->arrays->serverRandom,
                                                                        RAN_LEN))
                 &&  !(ret = wc_Sha384Update(sha384, output + preSigIdx, preSigSz)))
-                    ret = Sha384Final(sha384, hash384);
+                    ret = wc_Sha384Final(sha384, hash384);
 
                 if (ret != 0)
                     goto done_a2;
@@ -12309,7 +12309,7 @@ int DoSessionTicket(WOLFSSL* ssl,
                 &&  !(ret = wc_Sha256Update(sha256, ssl->arrays->serverRandom,
                                                                        RAN_LEN))
                 &&  !(ret = wc_Sha256Update(sha256, output + preSigIdx, preSigSz)))
-                    ret = Sha256Final(sha256, hash256);
+                    ret = wc_Sha256Final(sha256, hash256);
 
                 if (ret != 0)
                     goto done_b;
@@ -12331,7 +12331,7 @@ int DoSessionTicket(WOLFSSL* ssl,
                 &&  !(ret = wc_Sha384Update(sha384, ssl->arrays->serverRandom,
                                                                        RAN_LEN))
                 &&  !(ret = wc_Sha384Update(sha384, output + preSigIdx, preSigSz)))
-                    ret = Sha384Final(sha384, hash384);
+                    ret = wc_Sha384Final(sha384, hash384);
 
                 if (ret != 0)
                     goto done_b;

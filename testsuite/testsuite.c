@@ -135,7 +135,7 @@ int testsuite_test(int argc, char** argv)
 
         echo_args.argc = 3;
         echo_args.argv = myArgv;
-   
+
         strcpy(echo_args.argv[0], "echoclient");
         strcpy(echo_args.argv[1], "input");
         strcpy(echo_args.argv[2], outputName);
@@ -146,7 +146,7 @@ int testsuite_test(int argc, char** argv)
 
         /* make sure OK */
         echoclient_test(&echo_args);
-        if (echo_args.return_code != 0) return echo_args.return_code;  
+        if (echo_args.return_code != 0) return echo_args.return_code;
 
 #ifdef WOLFSSL_DTLS
         wait_tcp_ready(&server_args);
@@ -235,7 +235,7 @@ void simple_test(func_args* args)
     cliArgs.argc = 1;
     cliArgs.argv = cliArgv;
     cliArgs.return_code = 0;
-   
+
     strcpy(svrArgs.argv[0], "SimpleServer");
     #if !defined(USE_WINDOWS_API) && !defined(WOLFSSL_SNIFFER)  && \
                                      !defined(WOLFSSL_TIRTOS)
@@ -256,7 +256,7 @@ void simple_test(func_args* args)
     svrArgs.signal = args->signal;
     start_thread(server_test, &svrArgs, &serverThread);
     wait_tcp_ready(&svrArgs);
-   
+
     /* Setting the actual port number. */
     strcpy(cliArgs.argv[0], "SimpleClient");
     #ifndef USE_WINDOWS_API
@@ -279,7 +279,7 @@ void wait_tcp_ready(func_args* args)
 {
 #if defined(_POSIX_THREADS) && !defined(__MINGW32__)
     pthread_mutex_lock(&args->signal->mutex);
-    
+
     if (!args->signal->ready)
         pthread_cond_wait(&args->signal->cond, &args->signal->mutex);
     args->signal->ready = 0; /* reset */
@@ -363,7 +363,7 @@ void file_test(const char* file, byte* check)
     Sha256   sha256;
     byte  buf[1024];
     byte  shasum[SHA256_DIGEST_SIZE];
-   
+
     ret = wc_InitSha256(&sha256);
     if (ret != 0) {
         printf("Can't wc_InitSha256 %d\n", ret);
@@ -380,7 +380,7 @@ void file_test(const char* file, byte* check)
             return;
         }
     }
-    
+
     ret = wc_Sha256Final(&sha256, shasum);
     if (ret != 0) {
         printf("Can't wc_Sha256Final %d\n", ret);
@@ -389,9 +389,9 @@ void file_test(const char* file, byte* check)
 
     memcpy(check, shasum, sizeof(shasum));
 
-    for(j = 0; j < SHA256_DIGEST_SIZE; ++j ) 
+    for(j = 0; j < SHA256_DIGEST_SIZE; ++j )
         printf( "%02x", shasum[j] );
-   
+
     printf("  %s\n", file);
 
     fclose(f);

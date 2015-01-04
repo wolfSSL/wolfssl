@@ -86,10 +86,10 @@ int wc_DsaSign(const byte* digest, byte* out, DsaKey* key, RNG* rng)
     int    ret, sz;
     byte   buffer[DSA_HALF_SIZE];
 
-    sz = min(sizeof(buffer), mp_unsigned_bin_size(&key->q)); 
+    sz = min(sizeof(buffer), mp_unsigned_bin_size(&key->q));
 
     /* generate k */
-    ret = RNG_GenerateBlock(rng, buffer, sz);
+    ret = wc_RNG_GenerateBlock(rng, buffer, sz);
     if (ret != 0)
         return ret;
 

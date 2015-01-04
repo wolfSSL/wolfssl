@@ -555,9 +555,9 @@ enum cert_enums {
 
 #ifndef WOLFSSL_PEMCERT_TODER_DEFINED
 #ifndef NO_FILESYSTEM
-/* forward from CyaSSL */
+/* forward from wolfSSL */
 WOLFSSL_API
-int CyaSSL_PemCertToDer(const char* fileName, unsigned char* derBuf, int derSz);
+int wolfSSL_PemCertToDer(const char* fileName, unsigned char* derBuf, int derSz);
 #define WOLFSSL_PEMCERT_TODER_DEFINED
 #endif
 #endif
