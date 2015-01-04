@@ -27,6 +27,14 @@
 
 #include <wolfssl/wolfcrypt/blake2-int.h>
 
+/* call old functions if using fips for the sake of hmac @wc_fips */
+#ifdef HAVE_FIPS
+    /* Since hmac can call blake functions provide original calls */
+    #define wc_InitBlake2b   InitBlake2b
+    #define wc_Blake2bUpdate Blake2bUpdate
+    #define wc_Blake2bFinal  Blake2bFinal
+#endif
+
 #ifdef __cplusplus
     extern "C" {
 #endif

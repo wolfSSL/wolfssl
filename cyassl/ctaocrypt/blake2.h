@@ -28,7 +28,7 @@
 #include <wolfssl/wolfcrypt/blake2.h>
 
 /* for blake2 reverse compatibility */
-#ifdef HAVE_BLAKE2
+#ifndef HAVE_FIPS
     #define InitBlake2b   wc_InitBlake2b
     #define Blake2bUpdate wc_Blake2bUpdate
     #define Blake2bFinal  wc_Blake2bFinal

@@ -19,7 +19,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-/*  
+/*
  * ssl.h makes wolfssl backwards compatibile with cyassl
  */
 
@@ -75,7 +75,7 @@
 #define CYASSL_X509_EXTENSION     WOLFSSL_X509_EXTENSION
 #define CYASSL_X509_STORE_CTX     WOLFSSL_X509_STORE_CTX
 #define CYASSL_X509_LOOKUP_METHOD WOLFSSL_X509_LOOKUP_METHOD
-        
+
 #define CyaSSL_LoadCRL            wolfSSL_LoadCRL
 #define CyaSSL_EnableCRL          wolfSSL_EnableCRL
 #define CyaSSL_SetCRL_Cb          wolfSSL_SetCRL_Cb

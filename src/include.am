@@ -134,8 +134,11 @@ endif
 endif
 
 if BUILD_MD5
+if BUILD_FIPS
 src_libwolfssl_la_SOURCES += ctaocrypt/src/md5.c
+else
 src_libwolfssl_la_SOURCES += wolfcrypt/src/md5.c
+endif
 endif
 
 if BUILD_PWDBASED
@@ -171,7 +174,11 @@ src_libwolfssl_la_SOURCES += wolfcrypt/src/ripemd.c
 endif
 
 if BUILD_BLAKE2
+if BUILD_FIPS
+src_libwolfssl_la_SOURCES += ctaocrypt/src/blake2b.c
+else
 src_libwolfssl_la_SOURCES += wolfcrypt/src/blake2b.c
+endif
 endif
 
 if BUILD_HC128
