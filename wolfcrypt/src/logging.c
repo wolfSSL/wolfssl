@@ -2,14 +2,14 @@
  *
  * Copyright (C) 2006-2014 wolfSSL Inc.
  *
- * This file is part of CyaSSL.
+ * This file is part of wolfSSL. (formerly known as CyaSSL)
  *
- * CyaSSL is free software; you can redistribute it and/or modify
+ * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  *
- * CyaSSL is distributed in the hope that it will be useful,
+ * wolfSSL is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
@@ -41,18 +41,18 @@
 #endif
 
 
-#ifdef DEBUG_CYASSL
+#ifdef DEBUG_WOLFSSL
 
 /* Set these to default values initially. */
 static wolfSSL_Logging_cb log_function = 0;
 static int loggingEnabled = 0;
 
-#endif /* DEBUG_CYASSL */
+#endif /* DEBUG_WOLFSSL */
 
 
 int wolfSSL_SetLoggingCb(wolfSSL_Logging_cb f)
 {
-#ifdef DEBUG_CYASSL
+#ifdef DEBUG_WOLFSSL
     int res = 0;
 
     if (f)
@@ -70,7 +70,7 @@ int wolfSSL_SetLoggingCb(wolfSSL_Logging_cb f)
 
 int wolfSSL_Debugging_ON(void)
 {
-#ifdef DEBUG_CYASSL
+#ifdef DEBUG_WOLFSSL
     loggingEnabled = 1;
     return 0;
 #else
@@ -81,13 +81,13 @@ int wolfSSL_Debugging_ON(void)
 
 void wolfSSL_Debugging_OFF(void)
 {
-#ifdef DEBUG_CYASSL
+#ifdef DEBUG_WOLFSSL
     loggingEnabled = 0;
 #endif
 }
 
 
-#ifdef DEBUG_CYASSL
+#ifdef DEBUG_WOLFSSL
 
 #ifdef FREESCALE_MQX
     #include <fio.h>
@@ -99,7 +99,7 @@ void wolfSSL_Debugging_OFF(void)
     int dc_log_printf(char*, ...);
 #endif
 
-static void cyassl_log(const int logLevel, const char *const logMessage)
+static void wolfssl_log(const int logLevel, const char *const logMessage)
 {
     if (log_function)
         log_function(logLevel, logMessage);
@@ -111,7 +111,7 @@ static void cyassl_log(const int logLevel, const char *const logMessage)
         #if (NET_SECURE_MGR_CFG_EN == DEF_ENABLED)
             NetSecure_TraceOut((CPU_CHAR *)logMessage);
         #endif
-#elif defined(CYASSL_MDK_ARM)
+#elif defined(WOLFSSL_MDK_ARM)
             fflush(stdout) ;
             printf("%s\n", logMessage);
             fflush(stdout) ;
@@ -126,7 +126,7 @@ static void cyassl_log(const int logLevel, const char *const logMessage)
 void WOLFSSL_MSG(const char* msg)
 {
     if (loggingEnabled)
-        cyassl_log(INFO_LOG , msg);
+        wolfssl_log(INFO_LOG , msg);
 }
 
 
@@ -135,7 +135,7 @@ void WOLFSSL_ENTER(const char* msg)
     if (loggingEnabled) {
         char buffer[80];
         sprintf(buffer, "wolfSSL Entering %s", msg);
-        cyassl_log(ENTER_LOG , buffer);
+        wolfssl_log(ENTER_LOG , buffer);
     }
 }
 
@@ -145,7 +145,7 @@ void WOLFSSL_LEAVE(const char* msg, int ret)
     if (loggingEnabled) {
         char buffer[80];
         sprintf(buffer, "wolfSSL Leaving %s, return %d", msg, ret);
-        cyassl_log(LEAVE_LOG , buffer);
+        wolfssl_log(LEAVE_LOG , buffer);
     }
 }
 
@@ -155,8 +155,8 @@ void WOLFSSL_ERROR(int error)
     if (loggingEnabled) {
         char buffer[80];
         sprintf(buffer, "wolfSSL error occured, error = %d", error);
-        cyassl_log(ERROR_LOG , buffer);
+        wolfssl_log(ERROR_LOG , buffer);
     }
 }
 
-#endif  /* DEBUG_WOLFSSL */ 
+#endif  /* DEBUG_WOLFSSL */

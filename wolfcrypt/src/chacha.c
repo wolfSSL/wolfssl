@@ -17,13 +17,13 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
- *  
+ *
  *  based from
  *  chacha-ref.c version 20080118
  *  D. J. Bernstein
  *  Public domain.
  */
- 
+
 
 #ifdef HAVE_CONFIG_H
     #include <config.h>
@@ -98,7 +98,7 @@ int wc_Chacha_SetIV(ChaCha* ctx, const byte* inIv, word32 counter)
     ctx->X[13] = temp[0]; /* fixed variable from nonce */
     ctx->X[14] = temp[1]; /* counter from nonce */
     ctx->X[15] = temp[2]; /* counter from nonce */
-    
+
     return 0;
 }
 
@@ -138,7 +138,7 @@ int wc_Chacha_SetKey(ChaCha* ctx, const byte* key, word32 keySz)
     for (i = 0; i < keySz; i++) {
         printf("%02x", key[i]);
         if ((i + 1) % 8 == 0)
-           printf("\n"); 
+           printf("\n");
     }
     printf("\n\n");
 #endif

@@ -116,7 +116,7 @@ int wc_Arc4InitCavium(Arc4* arc4, int devId)
 
     arc4->devId = devId;
     arc4->magic = WOLFSSL_ARC4_CAVIUM_MAGIC;
-   
+
     return 0;
 }
 

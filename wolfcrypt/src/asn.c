@@ -53,13 +53,13 @@
     #include "ntru_crypto.h"
 #endif
 
-//#if defined(WOLFSSL_SHA512) || defined(WOLFSSL_SHA384)
-//    #include <wolfssl/wolfcrypt/sha512.h>
-//#endif
+#if defined(WOLFSSL_SHA512) || defined(WOLFSSL_SHA384)
+    #include <wolfssl/wolfcrypt/sha512.h>
+#endif
 
-//#ifndef NO_SHA256
-//    #include <wolfssl/wolfcrypt/sha256.h>
-//#endif
+#ifndef NO_SHA256
+    #include <wolfssl/wolfcrypt/sha256.h>
+#endif
 
 #ifdef HAVE_ECC
     #include <wolfssl/wolfcrypt/ecc.h>
@@ -87,7 +87,7 @@
 #endif
 
 
-#ifdef HAVE_RTP_SYS 
+#ifdef HAVE_RTP_SYS
     /* uses parital <time.h> structures */
     #define XTIME(tl)  (0)
     #define XGMTIME(c) my_gmtime((c))
@@ -185,7 +185,7 @@ time_t time(time_t* timer)
 
     GetSystemTime(&sysTime);
     SystemTimeToFileTime(&sysTime, &fTime);
-    
+
     XMEMCPY(&intTime, &fTime, sizeof(FILETIME));
     /* subtract EPOCH */
     intTime.QuadPart -= 0x19db1ded53e8000;
@@ -250,7 +250,7 @@ struct tm* gmtime(const time_t* timer)
 #endif /* _WIN32_WCE  || USER_TIME */
 
 
-#ifdef HAVE_RTP_SYS  
+#ifdef HAVE_RTP_SYS
 
 #define YEAR0          1900
 
@@ -293,7 +293,7 @@ time_t pic32_time(time_t* timer)
     if (timer == NULL)
         timer = &localTime;
 
-#ifdef MICROCHIP_MPLAB_HARMONY 
+#ifdef MICROCHIP_MPLAB_HARMONY
     sec = TCPIP_SNTP_UTCSecondsGet();
 #else
     sec = SNTPGetUTCSeconds();
