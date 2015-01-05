@@ -1889,10 +1889,10 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
 #ifndef NO_CERTS
     /* make sure server has cert and key unless using PSK or Anon */
     if (ssl->options.side == WOLFSSL_SERVER_END && !havePSK 
-#ifdef HAVE_ANON
-&& !haveAnon
-#endif
-)
+						#ifdef HAVE_ANON
+						&& !haveAnon
+						#endif
+						)
         if (!ssl->buffers.certificate.buffer || !ssl->buffers.key.buffer) {
             WOLFSSL_MSG("Server missing certificate and/or private key");
             return NO_PRIVATE_KEY;
