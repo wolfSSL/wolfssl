@@ -75,13 +75,6 @@ WOLFSSL_API int wc_Sha256Hash(const byte*, word32, byte*);
 #ifdef __cplusplus
     } /* extern "C" */
 #endif
-//#else
-//#define wc_InitSha256 wc_InitSha256Sha256*);
-//#define int wc_Sha256Update(Swc_Sha256Updateha256*, const byte*, word32);
-//#define int wc_Sha256Final(wc_Sha256FinalSha256*, byte*);
-//#define int wc_Sha256Hash(wc_Sha256Hashconst byte*, word32, byte*);
-//
-//#endif /* HAVE_FIPS */
 
 #endif /* WOLF_CRYPT_SHA256_H */
 #endif /* NO_SHA256 */

@@ -43,7 +43,7 @@
 #ifdef USE_FAST_MATH
 
 #include <wolfssl/wolfcrypt/tfm.h>
-#include <ctaocrypt/src/asm.c>  /* will define asm MACROS or C ones */
+#include <wolfcrypt/src/asm.c>  /* will define asm MACROS or C ones */
 
 
 /* math settings check */

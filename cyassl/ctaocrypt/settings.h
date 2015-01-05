@@ -26,6 +26,7 @@
 #ifndef CTAO_CRYPT_SETTINGS_H
 #define CTAO_CRYPT_SETTINGS_H
 
+/* Macro redefinitions for compatibility */
 #ifdef WOLFSSL_SHA512
     #define CYASSL_SHA512 WOLFSSL_SHA512
 #endif
@@ -38,21 +39,16 @@
  * using old function calls
  */
 #ifndef HAVE_FIPS
-	#ifndef NO_HMAC
-	    #include <wolfssl/wolfcrypt/hmac.h>
-	    /* does init */
-	    #define HmacSetKey wc_HmacSetKey
-	    #define HmacUpdate wc_HmacUpdate
-	    #define HmacFinal  wc_HmacFinal
-	    #ifdef HAVE_CAVIUM
-	        #define HmacInitCavium wc_HmacInitCavium
-	        #define HmacFreeCavium wc_HmacFreeCavium
-	    #endif
-	    #define CyaSSL_GetHmacMaxSize wc_wolfSSL_GetHmacMaxSize
-	    #ifdef HAVE_HKDF
-	        #define HKDF wc_HKDF
-	    #endif /* HAVE_HKDF */
-	#endif /* NO_HMAC */
+    /* for random.h compatibility */
+    #include <wolfssl/wolfcrypt/random.h>
+    #define InitRng           wc_InitRng
+    #define RNG_GenerateBlock wc_RNG_GenerateBlock
+    #define RNG_GenerateByte  wc_RNG_GenerateByte
+
+	#if defined(HAVE_HASHDRBG) || defined(NO_RC4)
+	    #define FreeRng        wc_FreeRng
+	    #define RNG_HealthTest wc_RNG_HealthTest
+	#endif /* HAVE_HASHDRBG || NO_RC4 */
 
     #ifndef NO_AES
         #include <wolfssl/wolfcrypt/aes.h>
@@ -150,6 +146,34 @@
 	        #define Des3_FreeCavium wc_Des3_FreeCavium
 	    #endif
 	#endif /* NO_DES3 */
+
+	#ifndef NO_SHA
+	    #define InitSha   wc_InitSha
+	    #define ShaUpdate wc_ShaUpdate
+	    #define ShaFinal  wc_ShaFinal
+	    #define ShaHash   wc_ShaHash
+	#endif /* NO_SHA */
+
+	#ifndef NO_SHA256
+	    #define InitSha256   wc_InitSha256
+	    #define Sha256Update wc_Sha256Update
+	    #define Sha256Final  wc_Sha256Final
+	    #define Sha256Hash   wc_Sha256Hash
+	#endif /* NO_SHA256 */
+
+	#ifdef WOLFSSL_SHA512
+	    #define InitSha512 wc_InitSha512
+	    #define Sha512Update wc_Sha512Update
+	    #define Sha512Final wc_Sha512Final
+	    #define Sha512Hash wc_Sha512Hash
+
+		#if defined(WOLFSSL_SHA384) || defined(HAVE_AESGCM)
+		    #define InitSha384 wc_InitSha384
+		    #define Sha384Update wc_Sha384Update
+		    #define Sha384Final wc_Sha384Final
+		    #define Sha384Hash wc_Sha384Hash
+		#endif /* WOLFSSL_SHA384 */
+	#endif /* WOLFSSL_SHA512 */
 #endif /* HAVE_FIPS */
 
 
