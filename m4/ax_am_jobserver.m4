@@ -44,8 +44,7 @@ AC_DEFUN([AX_AM_JOBSERVER], [
                         yes: enable one more than CPU count
     ],, [enable_jobserver=m4_ifval([$1],[$1],[yes])])
     if test "x$enable_jobserver" = "xyes"; then
-        enable_jobserver=$CPU_COUNT
-        ((enable_jobserver++))
+        let enable_jobserver=$CPU_COUNT+1
     fi
     m4_pattern_allow(AM_MAKEFLAGS)
     if test "x$enable_jobserver" != "xno"; then
