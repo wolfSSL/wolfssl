@@ -38,6 +38,7 @@
 #endif
 
 #ifndef HAVE_FIPS
+#define CTAO_CRYPT_DES3_H
 #define WOLFSSL_3DES_CAVIUM_MAGIC 0xBEEF0003
 
 enum {

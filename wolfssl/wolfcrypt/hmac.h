@@ -62,6 +62,7 @@
     extern "C" {
 #endif
 #ifndef HAVE_FIPS
+#define CTAO_CRYPT_HMAC_H
 #define WOLFSSL_HMAC_CAVIUM_MAGIC 0xBEEF0005
 
 enum {

@@ -37,6 +37,7 @@
 #endif
 
 #ifndef HAVE_FIPS
+#define CTAO_CRYPT_SHA512_H
 /* in bytes */
 enum {
     SHA512              =   4,   /* hash type unique */
