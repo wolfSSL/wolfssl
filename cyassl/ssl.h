@@ -269,7 +269,7 @@
                                       wolfSSL_CTX_set_psk_server_callback /**/
 
 /* Anonymous */
-#define CyaSSL_CTX_allow_anon_cipher wolfSSL_CTX_allow_anon_cipher
+#define CyaSSL_CTX_allow_anon_cipher wolfSSL_CTX_allow_anon_cipher /**/
 
 /* Error Handling and Debugging*/
 #define CyaSSL_get_error           wolfSSL_get_error
@@ -365,6 +365,8 @@
 #define CyaSSL_use_certificate_chain_file wolfSSL_use_certificate_chain_file
 
 /* TLS Extensions */
+#define CYASSL_SNI_HOST_NAME         WOLFSSL_SNI_HOST_NAME
+
 #define CyaSSL_UseSNI                wolfSSL_UseSNI
 #define CyaSSL_CTX_UseSNI            wolfSSL_CTX_UseSNI
 #define CyaSSL_SNI_SetOptions        wolfSSL_SNI_SetOptions
