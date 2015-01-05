@@ -58,6 +58,8 @@
 #define CYASSL_BIO                WOLFSSL_BIO
 #define CYASSL_CIPHER             WOLFSSL_CIPHER
 #define CYASSL_MD4_CTX            WOLFSSL_MD4_CTX
+#define CYASSL_MFL_2_9            WOLFSSL_MFL_2_9
+#define CYASSL_MFL_2_13           WOLFSSL_MFL_2_13
 #define CYASSL_EVP_PKEY           WOLFSSL_EVP_PKEY
 #define CYASSL_X509_CRL           WOLFSSL_X509_CRL
 #define CYASSL_ASN1_TIME          WOLFSSL_ASN1_TIME
@@ -82,7 +84,7 @@
 
 /* cyassl/test.h */
 #ifdef CyaSSL_TEST_H
-	#define CYASSL_THREAD         WOLFSSL_THREAD
+    #define CYASSL_THREAD         WOLFSSL_THREAD
 #endif
 
 /* src/ssl.c */
@@ -179,11 +181,11 @@
 #define CyaSSL_CTX_use_NTRUPrivateKey_file  wolfSSL_CTX_use_NTRUPrivateKey_file
 #define CyaSSL_use_certificate_chain_buffer wolfSSL_use_certificate_chain_buffer
 #define CyaSSL_CTX_der_load_verify_locations    \
-    	                                wolfSSL_CTX_der_load_verify_locations
+                                            wolfSSL_CTX_der_load_verify_locations
 #define CyaSSL_CTX_use_certificate_chain_file   \
-    	                                wolfSSL_CTX_use_certificate_chain_file
+                                            wolfSSL_CTX_use_certificate_chain_file
 #define CyaSSL_CTX_use_certificate_chain_buffer \
-    	                                wolfSSL_CTX_use_certificate_chain_buffer
+                                            wolfSSL_CTX_use_certificate_chain_buffer
 
 /* Context and Session Setup*/
 #define CyaSSL_new                        wolfSSL_new
@@ -264,9 +266,9 @@
 #define CyaSSL_CTX_SetDecryptVerifyCb wolfSSL_CTX_SetDecryptVerifyCb
 #define CyaSSL_CTX_use_psk_identity_hint wolfSSL_CTX_use_psk_identity_hint /**/
 #define CyaSSL_CTX_set_psk_client_callback \
-    	                              wolfSSL_CTX_set_psk_client_callback /**/
+                                      wolfSSL_CTX_set_psk_client_callback /**/
 #define CyaSSL_CTX_set_psk_server_callback \
-    	                              wolfSSL_CTX_set_psk_server_callback /**/
+                                      wolfSSL_CTX_set_psk_server_callback /**/
 
 /* Error Handling and Debugging*/
 #define CyaSSL_get_error           wolfSSL_get_error

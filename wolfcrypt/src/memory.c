@@ -55,7 +55,7 @@ int wolfSSL_SetAllocators(wolfSSL_Malloc_cb  mf,
 
     if (mf)
         malloc_function = mf;
-	else
+    else
         res = BAD_FUNC_ARG;
 
     if (ff)
@@ -85,7 +85,7 @@ void* wolfSSL_Malloc(size_t size)
         if (res == NULL)
             puts("wolfSSL_malloc failed");
     #endif
-				
+                
     return res;
 }
 
@@ -130,7 +130,7 @@ static THREAD_LS_T byte pool_in[17*1024];
 static THREAD_LS_T byte pool_out[17*1024];
 
 
-void* wc_MALLOC(size_t n, void* heap, int type)
+void* XMALLOC(size_t n, void* heap, int type)
 {
     (void)heap;
 
@@ -151,7 +151,7 @@ void* wc_MALLOC(size_t n, void* heap, int type)
     return malloc(n);
 }
 
-void* wc_REALLOC(void *p, size_t n, void* heap, int type)
+void* XREALLOC(void *p, size_t n, void* heap, int type)
 {
     (void)heap;
 
@@ -173,8 +173,8 @@ void* wc_REALLOC(void *p, size_t n, void* heap, int type)
 }
 
 
-/* unit api calls, let's make sure visisble with CYASSL_API */
-WOLFSSL_API void wc_FREE(void *p, void* heap, int type)
+/* unit api calls, let's make sure visible with CYASSL_API */
+WOLFSSL_API void XFREE(void *p, void* heap, int type)
 {
     (void)heap;
 
