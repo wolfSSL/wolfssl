@@ -58,8 +58,8 @@
 #define CYASSL_BIO                WOLFSSL_BIO
 #define CYASSL_CIPHER             WOLFSSL_CIPHER
 #define CYASSL_MD4_CTX            WOLFSSL_MD4_CTX
-#define CYASSL_MFL_2_9            WOLFSSL_MFL_2_9
-#define CYASSL_MFL_2_13           WOLFSSL_MFL_2_13
+#define CYASSL_MFL_2_9            WOLFSSL_MFL_2_9 /**/
+#define CYASSL_MFL_2_13           WOLFSSL_MFL_2_13 /**/
 #define CYASSL_EVP_PKEY           WOLFSSL_EVP_PKEY
 #define CYASSL_X509_CRL           WOLFSSL_X509_CRL
 #define CYASSL_ASN1_TIME          WOLFSSL_ASN1_TIME
@@ -154,9 +154,7 @@
 #define cyassl_chacha                  wolfssl_chacha
 #define CyaSSL_ERR_reason_error_string wolfSSL_ERR_reason_error_string
 
-//#define wolfcrypt_test                 ctaocrypt_test
-
-/* src/eys.c */
+/* src/keys.c */
 #define cyassl_triple_des wolfssl_triple_des
 
 /* Initialization and Shutdown */
@@ -269,6 +267,9 @@
                                       wolfSSL_CTX_set_psk_client_callback /**/
 #define CyaSSL_CTX_set_psk_server_callback \
                                       wolfSSL_CTX_set_psk_server_callback /**/
+
+/* Anonymous */
+#define CyaSSL_CTX_allow_anon_cipher wolfSSL_CTX_allow_anon_cipher
 
 /* Error Handling and Debugging*/
 #define CyaSSL_get_error           wolfSSL_get_error
