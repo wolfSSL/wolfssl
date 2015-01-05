@@ -473,7 +473,7 @@ typedef byte word24[3];
 #endif
 
 #ifdef HAVE_CHACHA
-    #define CHACHA20_BLOCK_SIZE 16 
+    #define CHACHA20_BLOCK_SIZE 16
     /* ChaCha - Poly AEAD suites */
     #if defined(HAVE_POLY1305) && !defined(NO_SHA256)
         #if defined(HAVE_ECC)

@@ -72,7 +72,7 @@
     extern "C" {
 #endif
 
-#ifndef HAVE_FIPS
+#if !defined(HAVE_FIPS) && !defined(CTAO_CRYPT_AES_H)
 #define WOLFSSL_AES_CAVIUM_MAGIC 0xBEEF0002
 
 enum {

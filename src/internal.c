@@ -5311,6 +5311,7 @@ static int Poly1305Tag(WOLFSSL* ssl, byte* additional, const byte* out,
     int paddingSz = 0;
     int msglen    = (sz - ssl->specs.aead_mac_size);
     word32 keySz  = 32;
+    int blockSz   = 16;
     byte padding[16];
 
     if (msglen < 0)
@@ -5322,8 +5323,7 @@ static int Poly1305Tag(WOLFSSL* ssl, byte* additional, const byte* out,
         return ret;
 
 	/* additional input to poly1305 */
-    if ((ret = wc_Poly1305Update(ssl->auth.poly1305, additional,
-                   CHACHA20_BLOCK_SIZE)) != 0)
+    if ((ret = wc_Poly1305Update(ssl->auth.poly1305, additional, blockSz)) != 0)
         return ret;
 
     /* cipher input */
@@ -5343,7 +5343,7 @@ static int Poly1305Tag(WOLFSSL* ssl, byte* additional, const byte* out,
 
     /* add size of AD and size of cipher to poly input */
     XMEMSET(padding, 0, sizeof(padding));
-    padding[0] = CHACHA20_BLOCK_SIZE;
+    padding[0] = blockSz;
 
     /* 32 bit size of cipher to 64 bit endian */
     padding[8]  =  msglen       & 0xff;

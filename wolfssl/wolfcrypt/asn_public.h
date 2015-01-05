@@ -35,11 +35,11 @@
 	#ifdef WOLFSSL_CERT_GEN
 	    #define wc_InitCert InitCert
 	    #define wc_MakeCert MakeCert
-	
+
     #ifdef WOLFSSL_CERT_REQ
 	    #define wc_MakeCertReq MakeCertReq
 	#endif
-	
+
         #define wc_SignCert     SignCert
 	    #define wc_MakeSelfCert MakeSelfCert
 	    #define wc_SetIssuer    SetIssuer
@@ -48,28 +48,28 @@
     #ifdef WOLFSSL_ALT_NAMES
 	    #define wc_SetAltNames SetAltNames
 	#endif
-	
+
         #define wc_SetIssuerBuffer   SetIssuerBuffer
 	    #define wc_SetSubjectBuffer  SetSubjectBuffer
 	    #define wc_SetAltNamesBuffer SetAltNamesBuffer
 	    #define wc_SetDatesBuffer    SetDatesBuffer
-	
+
 	    #ifdef HAVE_NTRU
 	        #define wc_MakeNtruCert MakeNtruCert
 	    #endif
-	
+
 	#endif /* WOLFSSL_CERT_GEN */
-	
+
     #if defined(WOLFSSL_KEY_GEN) || defined(WOLFSSL_CERT_GEN)
 	    #define wc_DerToPem DerToPem
 	#endif
-	
+
 	#ifdef HAVE_ECC
 	    /* private key helpers */
 	    #define wc_EccPrivateKeyDecode EccPrivateKeyDecode
 	    #define wc_EccKeyToDer         EccKeyToDer
 	#endif
-	
+
 	    /* DER encode signature */
 	    #define wc_EncodeSignature EncodeSignature
 	    #define wc_GetCTC_HashOID  GetCTC_HashOID
@@ -82,7 +82,7 @@
 #ifndef HAVE_FIPS
 /* Certificate file Type */
 enum CertType {
-    CERT_TYPE       = 0, 
+    CERT_TYPE       = 0,
     PRIVATEKEY_TYPE,
     DH_PARAM_TYPE,
     CRL_TYPE,

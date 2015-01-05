@@ -56,6 +56,7 @@
 
     #ifndef NO_AES
         #include <wolfssl/wolfcrypt/aes.h>
+        #define CTAO_CRYPT_AES_H WOLF_CRYPT_AES_H
         #define AesSetKey            wc_AesSetKey
         #define AesSetIV             wc_AesSetIV
         #define AesCbcEncrypt        wc_AesCbcEncrypt

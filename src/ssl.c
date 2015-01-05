@@ -7642,7 +7642,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             case AES_192_CTR_TYPE :
             case AES_256_CTR_TYPE :
                     WOLFSSL_MSG("AES CTR");
-                    AesCtrEncrypt(&ctx->cipher.aes, dst, src, len);
+                    wc_AesCtrEncrypt(&ctx->cipher.aes, dst, src, len);
                 break;
 #endif
 
