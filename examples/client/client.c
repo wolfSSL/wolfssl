@@ -2,14 +2,14 @@
  *
  * Copyright (C) 2006-2014 wolfSSL Inc.
  *
- * This file is part of CyaSSL.
+ * This file is part of wolfSSL. (formerly known as CyaSSL)
  *
- * CyaSSL is free software; you can redistribute it and/or modify
+ * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  *
- * CyaSSL is distributed in the hope that it will be useful,
+ * wolfSSL is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
@@ -23,13 +23,13 @@
         #include <config.h>
 #endif
 
-#include <cyassl/ssl.h> /* name change portability layer */
+#include <wolfssl/ssl.h> /* name change portability layer */
 
-#if defined(CYASSL_MDK_ARM)
+#if defined(WOLFSSL_MDK_ARM)
         #include <stdio.h>
         #include <string.h>
 
-        #if defined(CYASSL_MDK5)
+        #if defined(WOLFSSL_MDK5)
             #include "cmsis_os.h"
             #include "rl_fs.h" 
             #include "rl_net.h" 
@@ -37,43 +37,43 @@
             #include "rtl.h"
         #endif
 
-        #include "cyassl_MDK_ARM.h"
+        #include "wolfssl_MDK_ARM.h"
 #endif
 
-#include <cyassl/ctaocrypt/settings.h>
+#include <wolfssl/wolfcrypt/settings.h>
 
-#if !defined(CYASSL_TRACK_MEMORY) && !defined(NO_MAIN_DRIVER)
+#if !defined(WOLFSSL_TRACK_MEMORY) && !defined(NO_MAIN_DRIVER)
     /* in case memory tracker wants stats */
-    #define CYASSL_TRACK_MEMORY
+    #define WOLFSSL_TRACK_MEMORY
 #endif
 
-#include <cyassl/ssl.h>
+#include <wolfssl/ssl.h>
 
-#include <cyassl/test.h>
+#include <wolfssl/test.h>
 
 #include "examples/client/client.h"
 
 
-#ifdef CYASSL_CALLBACKS
+#ifdef WOLFSSL_CALLBACKS
     int handShakeCB(HandShakeInfo*);
     int timeoutCB(TimeoutInfo*);
     Timeval timeout;
 #endif
 
 #ifdef HAVE_SESSION_TICKET
-    int sessionTicketCB(CYASSL*, const unsigned char*, int, void*);
+    int sessionTicketCB(WOLFSSL*, const unsigned char*, int, void*);
 #endif
 
 
-static void NonBlockingSSL_Connect(CYASSL* ssl)
+static void NonBlockingSSL_Connect(WOLFSSL* ssl)
 {
-#ifndef CYASSL_CALLBACKS
-    int ret = CyaSSL_connect(ssl);
+#ifndef WOLFSSL_CALLBACKS
+    int ret = wolfSSL_connect(ssl);
 #else
-    int ret = CyaSSL_connect_ex(ssl, handShakeCB, timeoutCB, timeout);
+    int ret = wolfSSL_connect_ex(ssl, handShakeCB, timeoutCB, timeout);
 #endif
-    int error = CyaSSL_get_error(ssl, 0);
-    SOCKET_T sockfd = (SOCKET_T)CyaSSL_get_fd(ssl);
+    int error = wolfSSL_get_error(ssl, 0);
+    SOCKET_T sockfd = (SOCKET_T)wolfSSL_get_fd(ssl);
     int select_ret;
 
     while (ret != SSL_SUCCESS && (error == SSL_ERROR_WANT_READ ||
@@ -85,26 +85,26 @@ static void NonBlockingSSL_Connect(CYASSL* ssl)
         else
             printf("... client would write block\n");
 
-#ifdef CYASSL_DTLS
-        currTimeout = CyaSSL_dtls_get_current_timeout(ssl);
+#ifdef WOLFSSL_DTLS
+        currTimeout = wolfSSL_dtls_get_current_timeout(ssl);
 #endif
         select_ret = tcp_select(sockfd, currTimeout);
 
         if ((select_ret == TEST_RECV_READY) ||
                                         (select_ret == TEST_ERROR_READY)) {
-            #ifndef CYASSL_CALLBACKS
-                    ret = CyaSSL_connect(ssl);
+            #ifndef WOLFSSL_CALLBACKS
+                    ret = wolfSSL_connect(ssl);
             #else
-                ret = CyaSSL_connect_ex(ssl,handShakeCB,timeoutCB,timeout);
+                ret = wolfSSL_connect_ex(ssl,handShakeCB,timeoutCB,timeout);
             #endif
-            error = CyaSSL_get_error(ssl, 0);
+            error = wolfSSL_get_error(ssl, 0);
         }
-        else if (select_ret == TEST_TIMEOUT && !CyaSSL_dtls(ssl)) {
+        else if (select_ret == TEST_TIMEOUT && !wolfSSL_dtls(ssl)) {
             error = SSL_ERROR_WANT_READ;
         }
-#ifdef CYASSL_DTLS
-        else if (select_ret == TEST_TIMEOUT && CyaSSL_dtls(ssl) &&
-                                            CyaSSL_dtls_got_timeout(ssl) >= 0) {
+#ifdef WOLFSSL_DTLS
+        else if (select_ret == TEST_TIMEOUT && wolfSSL_dtls(ssl) &&
+                                            wolfSSL_dtls_got_timeout(ssl) >= 0) {
             error = SSL_ERROR_WANT_READ;
         }
 #endif
@@ -119,8 +119,8 @@ static void NonBlockingSSL_Connect(CYASSL* ssl)
 
 static void Usage(void)
 {
-    printf("client "    LIBCYASSL_VERSION_STRING
-           " NOTE: All files relative to CyaSSL home dir\n");
+    printf("client "    LIBWOLFSSL_VERSION_STRING
+           " NOTE: All files relative to wolfSSL home dir\n");
     printf("-?          Help, print this usage\n");
     printf("-h <host>   Host to connect to, default %s\n", yasslIP);
     printf("-p <num>    Port to connect on, not 0, default %d\n", yasslPort);
@@ -132,7 +132,7 @@ static void Usage(void)
     printf("-A <file>   Certificate Authority file, default %s\n", caCert);
     printf("-b <num>    Benchmark <num> connections and print stats\n");
     printf("-s          Use pre Shared keys\n");
-    printf("-t          Track CyaSSL memory use\n");
+    printf("-t          Track wolfSSL memory use\n");
     printf("-d          Disable peer checks\n");
     printf("-D          Override Date Errors example\n");
     printf("-g          Send server HTTP GET\n");
@@ -174,20 +174,20 @@ static void Usage(void)
 #endif
 }
 
-THREAD_RETURN CYASSL_THREAD client_test(void* args)
+THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 {
     SOCKET_T sockfd = 0;
 
-    CYASSL_METHOD*  method  = 0;
-    CYASSL_CTX*     ctx     = 0;
-    CYASSL*         ssl     = 0;
+    WOLFSSL_METHOD*  method  = 0;
+    WOLFSSL_CTX*     ctx     = 0;
+    WOLFSSL*         ssl     = 0;
     
-    CYASSL*         sslResume = 0;
-    CYASSL_SESSION* session = 0;
-    char         resumeMsg[] = "resuming cyassl!";
+    WOLFSSL*         sslResume = 0;
+    WOLFSSL_SESSION* session = 0;
+    char         resumeMsg[] = "resuming wolfssl!";
     int          resumeSz    = sizeof(resumeMsg);
 
-    char msg[32] = "hello cyassl!";   /* GET may make bigger */
+    char msg[32] = "hello wolfssl!";   /* GET may make bigger */
     char reply[80];
     int  input;
     int  msgSz = (int)strlen(msg);
@@ -285,7 +285,7 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
                 break;
 
             case 't' :
-            #ifdef USE_CYASSL_MEMORY
+            #ifdef USE_WOLFSSL_MEMORY
                 trackMemory = 1;
             #endif
                 break;
@@ -381,8 +381,8 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
                 break;
 
             case 'z' :
-                #ifndef CYASSL_LEANPSK
-                    CyaSSL_GetObjectSize();
+                #ifndef WOLFSSL_LEANPSK
+                    wolfSSL_GetObjectSize();
                 #endif
                 break;
 
@@ -395,8 +395,8 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
             case 'L' :
                 #ifdef HAVE_MAX_FRAGMENT
                     maxFragment = atoi(myoptarg);
-                    if (maxFragment < CYASSL_MFL_2_9 ||
-                                                maxFragment > CYASSL_MFL_2_13) {
+                    if (maxFragment < WOLFSSL_MFL_2_9 ||
+                                                maxFragment > WOLFSSL_MFL_2_13) {
                         Usage();
                         exit(MY_EX_USAGE);
                     }
@@ -452,7 +452,7 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
         }
     }
 
-#ifdef USE_CYASSL_MEMORY
+#ifdef USE_WOLFSSL_MEMORY
     if (trackMemory)
         InitMemoryTracker(); 
 #endif
@@ -460,17 +460,17 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
     switch (version) {
 #ifndef NO_OLD_TLS
         case 0:
-            method = CyaSSLv3_client_method();
+            method = wolfSSLv3_client_method();
             break;
                 
                 
     #ifndef NO_TLS
         case 1:
-            method = CyaTLSv1_client_method();
+            method = wolfTLSv1_client_method();
             break;
 
         case 2:
-            method = CyaTLSv1_1_client_method();
+            method = wolfTLSv1_1_client_method();
             break;
     #endif /* NO_TLS */
                 
@@ -478,17 +478,17 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
                 
 #ifndef NO_TLS
         case 3:
-            method = CyaTLSv1_2_client_method();
+            method = wolfTLSv1_2_client_method();
             break;
 #endif
 
-#ifdef CYASSL_DTLS
+#ifdef WOLFSSL_DTLS
         case -1:
-            method = CyaDTLSv1_client_method();
+            method = wolfDTLSv1_client_method();
             break;
 
         case -2:
-            method = CyaDTLSv1_2_client_method();
+            method = wolfDTLSv1_2_client_method();
             break;
 #endif
 
@@ -500,15 +500,15 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
     if (method == NULL)
         err_sys("unable to get method");
 
-    ctx = CyaSSL_CTX_new(method);
+    ctx = wolfSSL_CTX_new(method);
     if (ctx == NULL)
         err_sys("unable to get ctx");
 
     if (cipherList)
-        if (CyaSSL_CTX_set_cipher_list(ctx, cipherList) != SSL_SUCCESS)
+        if (wolfSSL_CTX_set_cipher_list(ctx, cipherList) != SSL_SUCCESS)
             err_sys("client can't set cipher list 1");
 
-#ifdef CYASSL_LEANPSK
+#ifdef WOLFSSL_LEANPSK
     usePsk = 1;
 #endif
 
@@ -517,11 +517,11 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
 #endif
 
     if (fewerPackets)
-        CyaSSL_CTX_set_group_messages(ctx);
+        wolfSSL_CTX_set_group_messages(ctx);
 
     if (usePsk) {
 #ifndef NO_PSK
-        CyaSSL_CTX_set_psk_client_callback(ctx, my_psk_client_cb);
+        wolfSSL_CTX_set_psk_client_callback(ctx, my_psk_client_cb);
         if (cipherList == NULL) {
             const char *defaultCipherList;
             #ifdef HAVE_NULL_CIPHER
@@ -529,7 +529,7 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
             #else
                 defaultCipherList = "PSK-AES128-CBC-SHA256";
             #endif
-            if (CyaSSL_CTX_set_cipher_list(ctx,defaultCipherList) !=SSL_SUCCESS)
+            if (wolfSSL_CTX_set_cipher_list(ctx,defaultCipherList) !=SSL_SUCCESS)
                 err_sys("client can't set cipher list 2");
         }
 #endif
@@ -539,8 +539,8 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
     if (useAnon) {
 #ifdef HAVE_ANON
         if (cipherList == NULL) {
-            CyaSSL_CTX_allow_anon_cipher(ctx);
-            if (CyaSSL_CTX_set_cipher_list(ctx,"ADH-AES128-SHA") != SSL_SUCCESS)
+            wolfSSL_CTX_allow_anon_cipher(ctx);
+            if (wolfSSL_CTX_set_cipher_list(ctx,"ADH-AES128-SHA") != SSL_SUCCESS)
                 err_sys("client can't set cipher list 4");
         }
 #endif
@@ -548,13 +548,13 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
     }
 
 #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
-    CyaSSL_CTX_set_default_passwd_cb(ctx, PasswordCallBack);
+    wolfSSL_CTX_set_default_passwd_cb(ctx, PasswordCallBack);
 #endif
 
-#if defined(CYASSL_SNIFFER) && !defined(HAVE_NTRU) && !defined(HAVE_ECC)
+#if defined(WOLFSSL_SNIFFER) && !defined(HAVE_NTRU) && !defined(HAVE_ECC)
     if (cipherList == NULL) {
         /* don't use EDH, can't sniff tmp keys */
-        if (CyaSSL_CTX_set_cipher_list(ctx, "AES256-SHA256") != SSL_SUCCESS) {
+        if (wolfSSL_CTX_set_cipher_list(ctx, "AES256-SHA256") != SSL_SUCCESS) {
             err_sys("client can't set cipher list 3");
         }
     }
@@ -563,68 +563,68 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
 #ifdef HAVE_OCSP
     if (useOcsp) {
         if (ocspUrl != NULL) {
-            CyaSSL_CTX_SetOCSP_OverrideURL(ctx, ocspUrl);
-            CyaSSL_CTX_EnableOCSP(ctx, CYASSL_OCSP_NO_NONCE
-                                                    | CYASSL_OCSP_URL_OVERRIDE);
+            wolfSSL_CTX_SetOCSP_OverrideURL(ctx, ocspUrl);
+            wolfSSL_CTX_EnableOCSP(ctx, WOLFSSL_OCSP_NO_NONCE
+                                                    | WOLFSSL_OCSP_URL_OVERRIDE);
         }
         else
-            CyaSSL_CTX_EnableOCSP(ctx, CYASSL_OCSP_NO_NONCE);
+            wolfSSL_CTX_EnableOCSP(ctx, WOLFSSL_OCSP_NO_NONCE);
     }
 #endif
 
 #ifdef USER_CA_CB
-    CyaSSL_CTX_SetCACb(ctx, CaCb);
+    wolfSSL_CTX_SetCACb(ctx, CaCb);
 #endif
 
 #ifdef VERIFY_CALLBACK
-    CyaSSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, myVerify);
+    wolfSSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, myVerify);
 #endif
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
     if (useClientCert){
-        if (CyaSSL_CTX_use_certificate_chain_file(ctx, ourCert) != SSL_SUCCESS)
+        if (wolfSSL_CTX_use_certificate_chain_file(ctx, ourCert) != SSL_SUCCESS)
             err_sys("can't load client cert file, check file and run from"
-                    " CyaSSL home dir");
+                    " wolfSSL home dir");
 
-        if (CyaSSL_CTX_use_PrivateKey_file(ctx, ourKey, SSL_FILETYPE_PEM)
+        if (wolfSSL_CTX_use_PrivateKey_file(ctx, ourKey, SSL_FILETYPE_PEM)
                                          != SSL_SUCCESS)
             err_sys("can't load client private key file, check file and run "
-                    "from CyaSSL home dir");
+                    "from wolfSSL home dir");
     }
 
     if (!usePsk && !useAnon) {
-        if (CyaSSL_CTX_load_verify_locations(ctx, verifyCert, 0) != SSL_SUCCESS)
-                err_sys("can't load ca file, Please run from CyaSSL home dir");
+        if (wolfSSL_CTX_load_verify_locations(ctx, verifyCert, 0) != SSL_SUCCESS)
+                err_sys("can't load ca file, Please run from wolfSSL home dir");
     }
 #endif
 #if !defined(NO_CERTS)
     if (!usePsk && !useAnon && doPeerCheck == 0)
-        CyaSSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, 0);
+        wolfSSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, 0);
     if (!usePsk && !useAnon && overrideDateErrors == 1)
-        CyaSSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, myDateCb);
+        wolfSSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, myDateCb);
 #endif
 
 #ifdef HAVE_CAVIUM
-    CyaSSL_CTX_UseCavium(ctx, CAVIUM_DEV_ID);
+    wolfSSL_CTX_UseCavium(ctx, CAVIUM_DEV_ID);
 #endif
 
 #ifdef HAVE_SNI
     if (sniHostName)
-        if (CyaSSL_CTX_UseSNI(ctx, 0, sniHostName, XSTRLEN(sniHostName))
+        if (wolfSSL_CTX_UseSNI(ctx, 0, sniHostName, XSTRLEN(sniHostName))
                                                                  != SSL_SUCCESS)
             err_sys("UseSNI failed");
 #endif
 #ifdef HAVE_MAX_FRAGMENT
     if (maxFragment)
-        if (CyaSSL_CTX_UseMaxFragment(ctx, maxFragment) != SSL_SUCCESS)
+        if (wolfSSL_CTX_UseMaxFragment(ctx, maxFragment) != SSL_SUCCESS)
             err_sys("UseMaxFragment failed");
 #endif
 #ifdef HAVE_TRUNCATED_HMAC
     if (truncatedHMAC)
-        if (CyaSSL_CTX_UseTruncatedHMAC(ctx) != SSL_SUCCESS)
+        if (wolfSSL_CTX_UseTruncatedHMAC(ctx) != SSL_SUCCESS)
             err_sys("UseTruncatedHMAC failed");
 #endif
 #ifdef HAVE_SESSION_TICKET
-    if (CyaSSL_CTX_UseSessionTicket(ctx) != SSL_SUCCESS)
+    if (wolfSSL_CTX_UseSessionTicket(ctx) != SSL_SUCCESS)
         err_sys("UseSessionTicket failed");
 #endif
 
@@ -638,40 +638,40 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
         for (i = 0; i < times; i++) {
             tcp_connect(&sockfd, host, port, doDTLS);
 
-            ssl = CyaSSL_new(ctx);
-            CyaSSL_set_fd(ssl, sockfd);
-            if (CyaSSL_connect(ssl) != SSL_SUCCESS)
+            ssl = wolfSSL_new(ctx);
+            wolfSSL_set_fd(ssl, sockfd);
+            if (wolfSSL_connect(ssl) != SSL_SUCCESS)
                 err_sys("SSL_connect failed");
 
-            CyaSSL_shutdown(ssl);
-            CyaSSL_free(ssl);
+            wolfSSL_shutdown(ssl);
+            wolfSSL_free(ssl);
             CloseSocket(sockfd);
         }
         avg = current_time() - start;
         avg /= times;
         avg *= 1000;   /* milliseconds */
-        printf("CyaSSL_connect avg took: %8.3f milliseconds\n", avg);
+        printf("wolfSSL_connect avg took: %8.3f milliseconds\n", avg);
 
-        CyaSSL_CTX_free(ctx);
+        wolfSSL_CTX_free(ctx);
         ((func_args*)args)->return_code = 0;
 
         exit(EXIT_SUCCESS);
     }
     
-    #if defined(CYASSL_MDK_ARM)
-    CyaSSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, 0);
+    #if defined(WOLFSSL_MDK_ARM)
+    wolfSSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, 0);
     #endif
     
-    ssl = CyaSSL_new(ctx);
+    ssl = wolfSSL_new(ctx);
     if (ssl == NULL)
         err_sys("unable to get SSL object");
     #ifdef HAVE_SESSION_TICKET
-    CyaSSL_set_SessionTicket_cb(ssl, sessionTicketCB, (void*)"initial session");
+    wolfSSL_set_SessionTicket_cb(ssl, sessionTicketCB, (void*)"initial session");
     #endif
     if (doDTLS) {
         SOCKADDR_IN_T addr;
         build_addr(&addr, host, port, 1);
-        CyaSSL_dtls_set_peer(ssl, &addr, sizeof(addr));
+        wolfSSL_dtls_set_peer(ssl, &addr, sizeof(addr));
         tcp_socket(&sockfd, 1);
     }
     else {
@@ -681,23 +681,23 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
 #ifdef HAVE_POLY1305
     /* use old poly to connect with google server */
     if (!XSTRNCMP(domain, "www.google.com", 14)) {
-        if (CyaSSL_use_old_poly(ssl, 1) != 0)
+        if (wolfSSL_use_old_poly(ssl, 1) != 0)
             err_sys("unable to set to old poly");
     }
 #endif
 
-    CyaSSL_set_fd(ssl, sockfd);
+    wolfSSL_set_fd(ssl, sockfd);
 #ifdef HAVE_CRL
-    if (CyaSSL_EnableCRL(ssl, CYASSL_CRL_CHECKALL) != SSL_SUCCESS)
+    if (wolfSSL_EnableCRL(ssl, WOLFSSL_CRL_CHECKALL) != SSL_SUCCESS)
         err_sys("can't enable crl check");
-    if (CyaSSL_LoadCRL(ssl, crlPemDir, SSL_FILETYPE_PEM, 0) != SSL_SUCCESS)
+    if (wolfSSL_LoadCRL(ssl, crlPemDir, SSL_FILETYPE_PEM, 0) != SSL_SUCCESS)
         err_sys("can't load crl, check crlfile and date validity");
-    if (CyaSSL_SetCRL_Cb(ssl, CRL_CallBack) != SSL_SUCCESS)
+    if (wolfSSL_SetCRL_Cb(ssl, CRL_CallBack) != SSL_SUCCESS)
         err_sys("can't set crl callback");
 #endif
 #ifdef HAVE_SECURE_RENEGOTIATION
     if (scr) {
-        if (CyaSSL_UseSecureRenegotiation(ssl) != SSL_SUCCESS)
+        if (wolfSSL_UseSecureRenegotiation(ssl) != SSL_SUCCESS)
             err_sys("can't enable secure renegotiation");
     }
 #endif
@@ -710,19 +710,19 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
         SetupPkCallbacks(ctx, ssl);
 #endif
     if (matchName && doPeerCheck)
-        CyaSSL_check_domain_name(ssl, domain);
-#ifndef CYASSL_CALLBACKS
+        wolfSSL_check_domain_name(ssl, domain);
+#ifndef WOLFSSL_CALLBACKS
     if (nonBlocking) {
-        CyaSSL_set_using_nonblock(ssl, 1);
+        wolfSSL_set_using_nonblock(ssl, 1);
         tcp_set_nonblocking(&sockfd);
         NonBlockingSSL_Connect(ssl);
     }
-    else if (CyaSSL_connect(ssl) != SSL_SUCCESS) {
+    else if (wolfSSL_connect(ssl) != SSL_SUCCESS) {
         /* see note at top of README */
-        int  err = CyaSSL_get_error(ssl, 0);
-        char buffer[CYASSL_MAX_ERROR_SZ];
+        int  err = wolfSSL_get_error(ssl, 0);
+        char buffer[WOLFSSL_MAX_ERROR_SZ];
         printf("err = %d, %s\n", err,
-                                CyaSSL_ERR_error_string(err, buffer));
+                                wolfSSL_ERR_error_string(err, buffer));
         err_sys("SSL_connect failed");
         /* if you're getting an error here  */
     }
@@ -741,17 +741,17 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
         } else {
             #ifndef NO_SESSION_CACHE
                 if (resumeSession) {
-                    session = CyaSSL_get_session(ssl);
-                    CyaSSL_set_session(ssl, session);
+                    session = wolfSSL_get_session(ssl);
+                    wolfSSL_set_session(ssl, session);
                     resumeSession = 0;  /* only resume once */
                 }
             #endif
-            if (CyaSSL_Rehandshake(ssl) != SSL_SUCCESS) {
-                int  err = CyaSSL_get_error(ssl, 0);
-                char buffer[CYASSL_MAX_ERROR_SZ];
+            if (wolfSSL_Rehandshake(ssl) != SSL_SUCCESS) {
+                int  err = wolfSSL_get_error(ssl, 0);
+                char buffer[WOLFSSL_MAX_ERROR_SZ];
                 printf("err = %d, %s\n", err,
-                                CyaSSL_ERR_error_string(err, buffer));
-                err_sys("CyaSSL_Rehandshake failed");
+                                wolfSSL_ERR_error_string(err, buffer));
+                err_sys("wolfSSL_Rehandshake failed");
             }
         }
     }
@@ -763,17 +763,17 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
         strncpy(msg, "GET /index.html HTTP/1.0\r\n\r\n", msgSz);
         msg[msgSz] = '\0';
     }
-    if (CyaSSL_write(ssl, msg, msgSz) != msgSz)
+    if (wolfSSL_write(ssl, msg, msgSz) != msgSz)
         err_sys("SSL_write failed");
 
-    input = CyaSSL_read(ssl, reply, sizeof(reply)-1);
+    input = wolfSSL_read(ssl, reply, sizeof(reply)-1);
     if (input > 0) {
         reply[input] = 0;
         printf("Server response: %s\n", reply);
 
         if (sendGET) {  /* get html */
             while (1) {
-                input = CyaSSL_read(ssl, reply, sizeof(reply)-1);
+                input = wolfSSL_read(ssl, reply, sizeof(reply)-1);
                 if (input > 0) {
                     reply[input] = 0;
                     printf("%s\n", reply);
@@ -784,9 +784,9 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
         }
     }
     else if (input < 0) {
-        int readErr = CyaSSL_get_error(ssl, 0);
+        int readErr = wolfSSL_get_error(ssl, 0);
         if (readErr != SSL_ERROR_WANT_READ)
-            err_sys("CyaSSL_read failed");
+            err_sys("wolfSSL_read failed");
     }
 
 #ifndef NO_SESSION_CACHE
@@ -795,20 +795,20 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
             strncpy(msg, "break", 6);
             msgSz = (int)strlen(msg);
             /* try to send session close */
-            CyaSSL_write(ssl, msg, msgSz);
+            wolfSSL_write(ssl, msg, msgSz);
         }
-        session   = CyaSSL_get_session(ssl);
-        sslResume = CyaSSL_new(ctx);
+        session   = wolfSSL_get_session(ssl);
+        sslResume = wolfSSL_new(ctx);
     }
 #endif
 
     if (doDTLS == 0)            /* don't send alert after "break" command */
-        CyaSSL_shutdown(ssl);  /* echoserver will interpret as new conn */
+        wolfSSL_shutdown(ssl);  /* echoserver will interpret as new conn */
 #ifdef ATOMIC_USER
     if (atomicUser)
         FreeAtomicUser(ssl);
 #endif
-    CyaSSL_free(ssl);
+    wolfSSL_free(ssl);
     CloseSocket(sockfd);
 
 #ifndef NO_SESSION_CACHE
@@ -817,33 +817,33 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
             SOCKADDR_IN_T addr;
             #ifdef USE_WINDOWS_API 
                 Sleep(500);
-            #elif defined(CYASSL_TIRTOS)
+            #elif defined(WOLFSSL_TIRTOS)
                 Task_sleep(1);
             #else
                 sleep(1);
             #endif
             build_addr(&addr, host, port, 1);
-            CyaSSL_dtls_set_peer(sslResume, &addr, sizeof(addr));
+            wolfSSL_dtls_set_peer(sslResume, &addr, sizeof(addr));
             tcp_socket(&sockfd, 1);
         }
         else {
             tcp_connect(&sockfd, host, port, 0);
         }
-        CyaSSL_set_fd(sslResume, sockfd);
-        CyaSSL_set_session(sslResume, session);
+        wolfSSL_set_fd(sslResume, sockfd);
+        wolfSSL_set_session(sslResume, session);
 #ifdef HAVE_SESSION_TICKET
-        CyaSSL_set_SessionTicket_cb(sslResume, sessionTicketCB,
+        wolfSSL_set_SessionTicket_cb(sslResume, sessionTicketCB,
                                     (void*)"resumed session");
 #endif
        
         showPeer(sslResume);
-#ifndef CYASSL_CALLBACKS
+#ifndef WOLFSSL_CALLBACKS
         if (nonBlocking) {
-            CyaSSL_set_using_nonblock(sslResume, 1);
+            wolfSSL_set_using_nonblock(sslResume, 1);
             tcp_set_nonblocking(&sockfd);
             NonBlockingSSL_Connect(sslResume);
         }
-        else if (CyaSSL_connect(sslResume) != SSL_SUCCESS)
+        else if (wolfSSL_connect(sslResume) != SSL_SUCCESS)
             err_sys("SSL resume failed");
 #else
         timeout.tv_sec  = 2;
@@ -851,50 +851,50 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
         NonBlockingSSL_Connect(ssl);  /* will keep retrying on timeout */
 #endif
 
-        if (CyaSSL_session_reused(sslResume))
+        if (wolfSSL_session_reused(sslResume))
             printf("reused session id\n");
         else
             printf("didn't reuse session id!!!\n");
 
-        if (CyaSSL_write(sslResume, resumeMsg, resumeSz) != resumeSz)
+        if (wolfSSL_write(sslResume, resumeMsg, resumeSz) != resumeSz)
             err_sys("SSL_write failed");
 
         if (nonBlocking) {
             /* give server a chance to bounce a message back to client */
             #ifdef USE_WINDOWS_API
                 Sleep(500);
-            #elif defined(CYASSL_TIRTOS)
+            #elif defined(WOLFSSL_TIRTOS)
                 Task_sleep(1);
             #else
                 sleep(1);
             #endif
         }
 
-        input = CyaSSL_read(sslResume, reply, sizeof(reply)-1);
+        input = wolfSSL_read(sslResume, reply, sizeof(reply)-1);
         if (input > 0) {
             reply[input] = 0;
             printf("Server resume response: %s\n", reply);
         }
 
         /* try to send session break */
-        CyaSSL_write(sslResume, msg, msgSz); 
+        wolfSSL_write(sslResume, msg, msgSz); 
 
-        CyaSSL_shutdown(sslResume);
-        CyaSSL_free(sslResume);
+        wolfSSL_shutdown(sslResume);
+        wolfSSL_free(sslResume);
         CloseSocket(sockfd);
     }
 #endif /* NO_SESSION_CACHE */
 
-    CyaSSL_CTX_free(ctx);
+    wolfSSL_CTX_free(ctx);
 
     ((func_args*)args)->return_code = 0;
 
-#ifdef USE_CYASSL_MEMORY
+#ifdef USE_WOLFSSL_MEMORY
     if (trackMemory)
         ShowMemoryTracker();
-#endif /* USE_CYASSL_MEMORY */
+#endif /* USE_WOLFSSL_MEMORY */
 
-#if !defined(CYASSL_TIRTOS)
+#if !defined(WOLFSSL_TIRTOS)
     return 0;
 #endif
 }
@@ -918,9 +918,9 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
         args.argc = argc;
         args.argv = argv;
 
-        CyaSSL_Init();
-#if defined(DEBUG_CYASSL) && !defined(CYASSL_MDK_SHELL) && !defined(STACK_TRAP)
-        CyaSSL_Debugging_ON();
+        wolfSSL_Init();
+#if defined(DEBUG_WOLFSSL) && !defined(WOLFSSL_MDK_SHELL) && !defined(STACK_TRAP)
+        wolfSSL_Debugging_ON();
 #endif
         if (CurrentDir("client"))
             ChangeDirBack(2);
@@ -932,7 +932,7 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
 #else 
         client_test(&args);
 #endif
-        CyaSSL_Cleanup();
+        wolfSSL_Cleanup();
 
 #ifdef HAVE_CAVIUM
         CspShutdown(CAVIUM_DEV_ID);
@@ -947,7 +947,7 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
 
 
 
-#ifdef CYASSL_CALLBACKS
+#ifdef WOLFSSL_CALLBACKS
 
     int handShakeCB(HandShakeInfo* info)
     {
@@ -967,7 +967,7 @@ THREAD_RETURN CYASSL_THREAD client_test(void* args)
 
 #ifdef HAVE_SESSION_TICKET
 
-    int sessionTicketCB(CYASSL* ssl,
+    int sessionTicketCB(WOLFSSL* ssl,
                         const unsigned char* ticket, int ticketSz,
                         void* ctx)
     {
