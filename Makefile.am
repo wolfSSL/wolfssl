@@ -111,6 +111,7 @@ test: check
 tests/unit.log: testsuite/testsuite.log
 
 DISTCLEANFILES+= cyassl-config
+DISTCLEANFILES+= wolfssl-config
 # fips files shouldn't be left after make distclean
 DISTCLEANFILES+= ctaocrypt/src/fips.c
 DISTCLEANFILES+= ctaocrypt/src/fips_test.c
