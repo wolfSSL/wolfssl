@@ -6088,7 +6088,7 @@ int wc_MakeSelfCert(Cert* cert, byte* buffer, word32 buffSz, RsaKey* key, RNG* r
 #ifdef WOLFSSL_ALT_NAMES 
 
 /* Set Alt Names from der cert, return 0 on success */
-static int SetAltNamesFromCert(Cert* cert, const byte* der, int derSz)
+static int wc_SetAltNamesFromCert(Cert* cert, const byte* der, int derSz)
 {
     int ret;
 #ifdef WOLFSSL_SMALL_STACK
@@ -6377,18 +6377,18 @@ int wc_SetSubject(Cert* cert, const char* subjectFile)
 #ifdef WOLFSSL_ALT_NAMES
 
 /* Set atl names from file in PEM */
-int SetAltNames(Cert* cert, const char* file)
+int wc_SetAltNames(Cert* cert, const char* file)
 {
     int         ret;
     int         derSz;
     byte*       der = (byte*)XMALLOC(EIGHTK_BUF, NULL, DYNAMIC_TYPE_CERT);
 
     if (der == NULL) {
-        WOLFSSL_MSG("SetAltNames OOF Problem");
+        WOLFSSL_MSG("wc_SetAltNames OOF Problem");
         return MEMORY_E;
     }
     derSz = wolfSSL_PemCertToDer(file, der, EIGHTK_BUF);
-    ret = SetAltNamesFromCert(cert, der, derSz);
+    ret = wc_SetAltNamesFromCert(cert, der, derSz);
     XFREE(der, NULL, DYNAMIC_TYPE_CERT);
 
     return ret;
@@ -6416,13 +6416,13 @@ int wc_SetSubjectBuffer(Cert* cert, const byte* der, int derSz)
 #ifdef WOLFSSL_ALT_NAMES
 
 /* Set cert alt names from DER buffer */
-int SetAltNamesBuffer(Cert* cert, const byte* der, int derSz)
+int wc_SetAltNamesBuffer(Cert* cert, const byte* der, int derSz)
 {
-    return SetAltNamesFromCert(cert, der, derSz);
+    return wc_SetAltNamesFromCert(cert, der, derSz);
 }
 
 /* Set cert dates from DER buffer */
-int SetDatesBuffer(Cert* cert, const byte* der, int derSz)
+int wc_SetDatesBuffer(Cert* cert, const byte* der, int derSz)
 {
     return SetDatesFromCert(cert, der, derSz);
 }
