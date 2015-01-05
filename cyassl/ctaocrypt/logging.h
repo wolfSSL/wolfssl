@@ -28,6 +28,14 @@
 /* for fips compatibility @wc_fips */
 #ifndef HAVE_FIPS
     #include <wolfssl/wolfcrypt/logging.h>
+	#define CYASSL_LEAVE WOLFSSL_LEAVE
+	#define CYASSL_ERROR WOLFSSL_ERROR
+	#define CYASSL_ENTER WOLFSSL_ENTER
+	#define CYASSL_MSG   WOLFSSL_MSG
+    /* check old macros possibly declared */
+	#if defined(CYASSL_DEBUG) && !defined(DEBUG_WOLFSSL)
+        #define DEBUG_WOLFSSL
+    #endif
 #else
 	#ifdef __cplusplus
 	    extern "C" {

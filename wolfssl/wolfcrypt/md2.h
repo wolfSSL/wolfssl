@@ -19,11 +19,6 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-/* check for old macro */
-#if defined(CYASSL_MD2) && !defined(WOLFSSL_MD2)
-    #define WOLFSSL_MD2
-#endif
-
 #ifdef WOLFSSL_MD2
 
 #ifndef WOLF_CRYPT_MD2_H

@@ -14,14 +14,14 @@
  *
  * Copyright (C) 2006-2014 wolfSSL Inc.
  *
- * This file is part of CyaSSL.
+ * This file is part of wolfSSL. (formerly known as CyaSSL)
  *
- * CyaSSL is free software; you can redistribute it and/or modify
+ * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  *
- * CyaSSL is distributed in the hope that it will be useful,
+ * wolfSSL is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
@@ -32,10 +32,10 @@
  */
 
 
-#ifndef CTAOCRYPT_BLAKE2_IMPL_H
-#define CTAOCRYPT_BLAKE2_IMPL_H
+#ifndef WOLFCRYPT_BLAKE2_IMPL_H
+#define WOLFCRYPT_BLAKE2_IMPL_H
 
-#include <cyassl/ctaocrypt/types.h>
+#include <wolfssl/wolfcrypt/types.h>
 
 static inline word32 load32( const void *src )
 {
@@ -150,5 +150,5 @@ static inline void secure_zero_memory( void *v, word64 n )
   while( n-- ) *p++ = 0;
 }
 
-#endif  /* CTAOCRYPT_BLAKE2_IMPL_H */
+#endif  /* WOLFCRYPT_BLAKE2_IMPL_H */
 

@@ -398,25 +398,25 @@ int wc_ShaHash(const byte* data, word32 len, byte* hash)
 #else
     Sha sha[1];
 #endif
-    
+
 #ifdef WOLFSSL_SMALL_STACK
     sha = (Sha*)XMALLOC(sizeof(Sha), NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (sha == NULL)
         return MEMORY_E;
 #endif
-    
+
     if ((ret = wc_InitSha(sha)) != 0) {
-        CYASSL_MSG("wc_InitSha failed");
+        WOLFSSL_MSG("wc_InitSha failed");
     }
     else {
         wc_ShaUpdate(sha, data, len);
         wc_ShaFinal(sha, hash);
     }
-    
+
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(sha, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
-    
+
     return ret;
 
 }

@@ -2,7 +2,7 @@
  *
  * Copyright (C) 2006-2014 wolfSSL Inc.
  *
- * This file is part of wolfSSL.
+ * This file is part of wolfSSL. (formerly known as CyaSSL)
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,8 +26,7 @@
 /* fips compatibility @wc_fips */
 #ifdef HAVE_FIPS
     #include <cyassl/ctaocrypt/wc_port.h>
-#define wolfSSL_Mutex CyaSSL_Mutex
-
+    #define wolfSSL_Mutex CyaSSL_Mutex
 #else
 
 #ifdef __cplusplus
@@ -35,7 +34,7 @@
 #endif
 
 
-#ifdef USE_WINDOWS_API 
+#ifdef USE_WINDOWS_API
     #ifdef WOLFSSL_GAME_BUILD
         #include "system/xtl.h"
     #else
@@ -67,7 +66,7 @@
         #include <rtl.h>
     #endif
 #elif defined(WOLFSSL_CMSIS_RTOS)
-    #include "cmsis_os.h"    
+    #include "cmsis_os.h"
 #elif defined(WOLFSSL_TIRTOS)
     #include <ti/sysbios/BIOS.h>
     #include <ti/sysbios/knl/Semaphore.h>

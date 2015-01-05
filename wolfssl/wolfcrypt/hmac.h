@@ -43,7 +43,7 @@
     #include <wolfssl/wolfcrypt/sha512.h>
 #endif
 
-#ifdef HAVE_BLAKE2 
+#ifdef HAVE_BLAKE2
     #include <wolfssl/wolfcrypt/blake2.h>
 #endif
 
@@ -86,7 +86,7 @@ enum {
 #ifndef WOLFSSL_SHA384
     SHA384  = 5,
 #endif
-#ifndef HAVE_BLAKE2 
+#ifndef HAVE_BLAKE2
     BLAKE2B_ID = 7,
 #endif
 
@@ -132,7 +132,7 @@ typedef union {
     #ifdef WOLFSSL_SHA512
         Sha512 sha512;
     #endif
-    #ifdef HAVE_BLAKE2 
+    #ifdef HAVE_BLAKE2
         Blake2b blake2b;
     #endif
 } Hash;

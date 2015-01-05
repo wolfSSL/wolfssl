@@ -30,7 +30,7 @@
 /* inlining these functions is a huge speed increase and a small size decrease, 
    because the functions are smaller than function call setup/cleanup, e.g.,
    md5 benchmark is twice as fast with inline.  If you don't want it, then
-   define NO_INLINE and compile this file into cyassl, otherwise it's used as
+   define NO_INLINE and compile this file into wolfssl, otherwise it's used as
    a source header
  */
 
@@ -148,7 +148,7 @@ STATIC INLINE void ByteReverseWords64(word64* out, const word64* in,
 #endif /* WORD64_AVAILABLE */
 
 
-STATIC INLINE void XorWords(cyassl_word* r, const cyassl_word* a, word32 n)
+STATIC INLINE void XorWords(wolfssl_word* r, const wolfssl_word* a, word32 n)
 {
     word32 i;
 
@@ -158,9 +158,9 @@ STATIC INLINE void XorWords(cyassl_word* r, const cyassl_word* a, word32 n)
 
 STATIC INLINE void xorbuf(void* buf, const void* mask, word32 count)
 {
-    if (((cyassl_word)buf | (cyassl_word)mask | count) % CYASSL_WORD_SIZE == 0)
-        XorWords( (cyassl_word*)buf,
-                  (const cyassl_word*)mask, count / CYASSL_WORD_SIZE);
+    if (((wolfssl_word)buf | (wolfssl_word)mask | count) % WOLFSSL_WORD_SIZE == 0)
+        XorWords( (wolfssl_word*)buf,
+                  (const wolfssl_word*)mask, count / WOLFSSL_WORD_SIZE);
     else {
         word32 i;
         byte*       b = (byte*)buf;

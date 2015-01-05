@@ -27,13 +27,6 @@
 
 #include <wolfssl/wolfcrypt/types.h>
 
-/* for md4 reverse compatibility */
-#ifndef NO_MD4
-	#define InitMd4 wc_InitMd4
-	#define Md4Update wc_Md4Update
-	#define Md4Final wc_Md4Final
-#endif
-
 #ifdef __cplusplus
     extern "C" {
 #endif
