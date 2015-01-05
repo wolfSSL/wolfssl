@@ -36,10 +36,9 @@ if BUILD_SHA
 src_libwolfssl_la_SOURCES += ctaocrypt/src/sha.c
 endif
 
-# Issue with flag BUILD_SHA512 @TODO
-#if BUILD_SHA512
+if BUILD_SHA512
 src_libwolfssl_la_SOURCES += ctaocrypt/src/sha512.c
-#endif
+endif
 
 #if BUILD_FIPS
 src_libwolfssl_la_SOURCES += ctaocrypt/src/fips.c
@@ -72,10 +71,9 @@ if BUILD_SHA
 src_libwolfssl_la_SOURCES += wolfcrypt/src/sha.c
 endif
 
-# Issue with flag BUILD_SHA512 @TODO
-#if BUILD_SHA512
+if BUILD_SHA512
 src_libwolfssl_la_SOURCES += wolfcrypt/src/sha512.c
-#endif
+endif
 
 if BUILD_FIPS
 src_libwolfssl_la_SOURCES += \

@@ -197,6 +197,10 @@ WOLFSSL_API WOLFSSL_METHOD *wolfTLSv1_2_client_method(void);
     WOLFSSL_API WOLFSSL_METHOD *wolfDTLSv1_2_server_method(void);
 #endif
 
+#ifdef HAVE_POLY1305
+    WOLFSSL_API int wolfSSL_use_old_poly(WOLFSSL*, int);
+#endif
+
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
 
 WOLFSSL_API int wolfSSL_CTX_use_certificate_file(WOLFSSL_CTX*, const char*, int);
@@ -215,10 +219,6 @@ WOLFSSL_API int wolfSSL_use_RSAPrivateKey_file(WOLFSSL*, const char*, int);
 #ifdef WOLFSSL_DER_LOAD
     WOLFSSL_API int wolfSSL_CTX_der_load_verify_locations(WOLFSSL_CTX*,
                                                     const char*, int);
-#endif
-
-#ifdef HAVE_POLY1305
-    WOLFSSL_API int wolfSSL_use_old_poly(WOLFSSL*, int);
 #endif
 
 #ifdef HAVE_NTRU
