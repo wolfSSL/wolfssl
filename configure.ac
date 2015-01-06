@@ -1774,6 +1774,12 @@ AC_CONFIG_FILES([stamp-h], [echo timestamp > stamp-h])
 AC_CONFIG_FILES([Makefile])
 AC_CONFIG_FILES([wolfssl/version.h])
 AC_CONFIG_FILES([wolfssl/options.h])
+#have options.h and version.h for autoconf fips tag and build
+if test "x$ENABLED_FIPS" = "xyes"
+then
+AC_CONFIG_FILES([cyassl/version.h])
+AC_CONFIG_FILES([cyassl/options.h])
+fi
 AC_CONFIG_FILES([support/wolfssl.pc])
 AC_CONFIG_FILES([rpm/spec])
 
@@ -1798,7 +1804,9 @@ echo "---"
 echo "Generating user options header..."
 
 OPTION_FILE="wolfssl/options.h"
-
+#if
+#OPTION_FILE+="cyassl/options.h"
+#fi
 rm -f $OPTION_FILE
 
 echo "/* wolfssl options.h" > $OPTION_FILE 

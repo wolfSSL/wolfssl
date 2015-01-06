@@ -284,7 +284,7 @@ int blake2b_update( blake2b_state *S, const byte *in, word64 inlen )
 
     if( inlen > fill )
     {
-      XMEMCPY( S->buf + left, in, (cyassl_word)fill ); /* Fill buffer */
+      XMEMCPY( S->buf + left, in, (wolfssl_word)fill ); /* Fill buffer */
       S->buflen += fill;
       blake2b_increment_counter( S, BLAKE2B_BLOCKBYTES );
 
@@ -298,7 +298,7 @@ int blake2b_update( blake2b_state *S, const byte *in, word64 inlen )
     }
     else /* inlen <= fill */
     {
-      XMEMCPY( S->buf + left, in, (cyassl_word)inlen );
+      XMEMCPY( S->buf + left, in, (wolfssl_word)inlen );
       S->buflen += inlen; /* Be lazy, do not compress */
       in += inlen;
       inlen -= inlen;
@@ -321,12 +321,12 @@ int blake2b_final( blake2b_state *S, byte *out, byte outlen )
     if ( blake2b_compress( S, S->buf ) < 0 ) return -1;
 
     S->buflen -= BLAKE2B_BLOCKBYTES;
-    XMEMCPY( S->buf, S->buf + BLAKE2B_BLOCKBYTES, (cyassl_word)S->buflen );
+    XMEMCPY( S->buf, S->buf + BLAKE2B_BLOCKBYTES, (wolfssl_word)S->buflen );
   }
 
   blake2b_increment_counter( S, S->buflen );
   blake2b_set_lastblock( S );
-  XMEMSET( S->buf + S->buflen, 0, (cyassl_word)(2 * BLAKE2B_BLOCKBYTES - S->buflen) );
+  XMEMSET( S->buf + S->buflen, 0, (wolfssl_word)(2 * BLAKE2B_BLOCKBYTES - S->buflen) );
          /* Padding */
   if ( blake2b_compress( S, S->buf ) < 0 ) return -1;
 
