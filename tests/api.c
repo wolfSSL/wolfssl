@@ -29,7 +29,7 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 #ifdef HAVE_ECC
-    #include <wolfssl/wolfcrypt/ecc.h>   /* ecc_fp_free */
+    #include <wolfssl/wolfcrypt/ecc.h>   /* wc_ecc_fp_free */
 #endif
 #include <wolfssl/error-ssl.h>
 
@@ -409,7 +409,7 @@ done:
 
 #if defined(NO_MAIN_DRIVER) && defined(HAVE_ECC) && defined(FP_ECC) \
                             && defined(HAVE_THREAD_LS)
-    ecc_fp_free();  /* free per thread cache */
+    wc_ecc_fp_free();  /* free per thread cache */
 #endif
 
 #ifndef WOLFSSL_TIRTOS
@@ -603,7 +603,7 @@ static THREAD_RETURN WOLFSSL_THREAD run_wolfssl_server(void* args)
 
 #if defined(NO_MAIN_DRIVER) && defined(HAVE_ECC) && defined(FP_ECC) \
                             && defined(HAVE_THREAD_LS)
-    ecc_fp_free();  /* free per thread cache */
+    wc_ecc_fp_free();  /* free per thread cache */
 #endif
 
 #ifndef WOLFSSL_TIRTOS

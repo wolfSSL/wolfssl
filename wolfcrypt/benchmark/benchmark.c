@@ -264,7 +264,7 @@ int benchmark_test(void *args)
     bench_eccKeyGen();
     bench_eccKeyAgree();
     #if defined(FP_ECC)
-        ecc_fp_free();
+        wc_ecc_fp_free();
     #endif
 #endif
 

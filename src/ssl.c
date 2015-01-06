@@ -5495,7 +5495,7 @@ int wolfSSL_Cleanup(void)
         ret = BAD_MUTEX_E;
 
 #if defined(HAVE_ECC) && defined(FP_ECC)
-    ecc_fp_free();
+    wc_ecc_fp_free();
 #endif
 
     return ret;
