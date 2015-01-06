@@ -28,6 +28,12 @@
 
 /* for reverse compatibility after name change */
 #include <cyassl/ctaocrypt/settings_comp.h>
+#if defined(WOLFSSL_LEANPSK) && !defined(CYASSL_LEANPSK)
+    #define CYASSL_LEANPSK
+#endif
+#if defined(NO_WOLFSSL_MEMORY) && !defined(NO_CYASSL_MEMORY)
+    #define NO_CYASSL_MEMORY
+#endif
 
 #ifdef __cplusplus
     extern "C" {
@@ -680,8 +686,9 @@
 #endif /* CYASSL_QL */
 
 
-#if !defined(USE_CYASSL_MEMORY) && defined(USE_WOLFSSL_MEMORY)
-    #define USE_CYASSL_MEMORY USE_WOLFSSL_MEMORY
+#if !defined(XMALLOC_USER) && !defined(MICRIUM_MALLOC) && \
+    !defined(CYASSL_LEANPSK) && !defined(NO_CYASSL_MEMORY)
+    #define USE_CYASSL_MEMORY
 #endif
 
 
