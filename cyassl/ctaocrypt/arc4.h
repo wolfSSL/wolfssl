@@ -22,8 +22,6 @@
 #ifndef CTAO_CRYPT_ARC4_H
 #define CTAO_CRYPT_ARC4_H
 
-#include <wolfssl/wolfcrypt/arc4.h>
-
 /* for arc4 reverse compatibility */
 #ifndef NO_RC4
 #include <wolfssl/wolfcrypt/arc4.h>

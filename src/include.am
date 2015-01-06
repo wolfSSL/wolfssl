@@ -124,11 +124,7 @@ src_libwolfssl_la_SOURCES += wolfcrypt/src/arc4.c
 endif
 
 if BUILD_MD4
-if BUILD_FIPS
-src_libwolfssl_la_SOURCES += ctaocrypt/src/md4.c
-else
 src_libwolfssl_la_SOURCES += wolfcrypt/src/md4.c
-endif
 endif
 
 if BUILD_MD5
@@ -152,7 +148,11 @@ src_libwolfssl_la_SOURCES += wolfcrypt/src/dsa.c
 endif
 
 if BUILD_AESNI
+if BUILD_FIPS
 src_libwolfssl_la_SOURCES += ctaocrypt/src/aes_asm.s
+else
+src_libwolfssl_la_SOURCES += wolfcrypt/src/aes_asm.s
+endif
 endif
 
 if BUILD_CAMELLIA
@@ -160,11 +160,7 @@ src_libwolfssl_la_SOURCES += wolfcrypt/src/camellia.c
 endif
 
 if BUILD_MD2
-if BUILD_FIPS
-src_libwolfssl_la_SOURCES += ctaocrypt/src/md2.c
-else
 src_libwolfssl_la_SOURCES += wolfcrypt/src/md2.c
-endif
 endif
 
 if BUILD_RIPEMD

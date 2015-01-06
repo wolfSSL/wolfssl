@@ -22,10 +22,10 @@
 #ifndef CTAO_CRYPT_CAMELLIA_H
 #define CTAO_CRYPT_CAMELLIA_H
 
-#include <wolfssl/wolfcrypt/camellia.h>
 
 /* for blake2 reverse compatibility */
 #ifdef HAVE_CAMELLIA
+    #include <wolfssl/wolfcrypt/camellia.h>
 	#define CamelliaSetKey        wc_CamelliaSetKey
 	#define CamelliaSetIV         wc_CamelliaSetIV
 	#define CamelliaEncryptDirect wc_CamelliaEncryptDirect

@@ -42,6 +42,7 @@
 #endif
 
 #ifndef HAVE_FIPS
+#define CTAO_CRYPT_RSA_H
 #define WOLFSSL_RSA_CAVIUM_MAGIC 0xBEEF0006
 
 enum {

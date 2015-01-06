@@ -22,12 +22,14 @@
 #ifndef CTAO_CRYPT_CHACHA_H
 #define CTAO_CRYPT_CHACHA_H
 
-#include <wolfssl/wolfcrypt/chacha.h>
 
 /* for chacha reverse compatibility */
-#define Chacha_Process wc_Chacha_Process
-#define Chacha_SetKey  wc_Chacha_SetKey
-#define Chacha_SetIV   wc_Chacha_SetIV
+#ifdef HAVE_CHACHA
+    #include <wolfssl/wolfcrypt/chacha.h>
+    #define Chacha_Process wc_Chacha_Process
+    #define Chacha_SetKey  wc_Chacha_SetKey
+    #define Chacha_SetIV   wc_Chacha_SetIV
+#endif
 
 #endif /* CTAO_CRYPT_CHACHA_H */
 
