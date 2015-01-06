@@ -44,8 +44,8 @@ int main(void)
 /* do a full build */
 
 #ifdef _MSC_VER
-	/* builds on *nix too, for scanf device and port */
-	#define _CRT_SECURE_NO_WARNINGS
+    /* builds on *nix too, for scanf device and port */
+    #define _CRT_SECURE_NO_WARNINGS
 #endif
 
 #include <pcap/pcap.h>     /* pcap stuff */
@@ -53,6 +53,7 @@ int main(void)
 #include <stdlib.h>        /* EXIT_SUCCESS */
 #include <string.h>        /* strcmp */
 #include <signal.h>        /* signal */
+#include <sys/socket.h>    /* AF_INET */
 
 #include <cyassl/sniffer.h>
 
@@ -95,44 +96,44 @@ static void sig_handler(const int sig)
 
 static void err_sys(const char* msg)
 {
-	fprintf(stderr, "%s\n", msg);
+    fprintf(stderr, "%s\n", msg);
     if (msg)
-	    exit(EXIT_FAILURE);
+        exit(EXIT_FAILURE);
 }
 
 
 #ifdef _WIN32
-	#define SNPRINTF _snprintf
+    #define SNPRINTF _snprintf
 #else
-	#define SNPRINTF snprintf
+    #define SNPRINTF snprintf
 #endif
 
 
 static char* iptos(unsigned int addr)
 {
-	static char    output[32];
-	byte *p = (byte*)&addr;
+    static char    output[32];
+    byte *p = (byte*)&addr;
 
-	SNPRINTF(output, sizeof(output), "%d.%d.%d.%d", p[0], p[1], p[2], p[3]);
+    SNPRINTF(output, sizeof(output), "%d.%d.%d.%d", p[0], p[1], p[2], p[3]);
 
-	return output;
+    return output;
 }
 
 
 int main(int argc, char** argv)
 {
     int          ret = 0;
-	int		     inum;
-	int		     port;
+    int             inum;
+    int             port;
     int          saveFile = 0;
-	int		     i = 0;
+    int             i = 0;
     int          frame = ETHER_IF_FRAME_LEN; 
     char         err[PCAP_ERRBUF_SIZE];
-	char         filter[32];
-	const char  *server = NULL;
-	struct       bpf_program fp;
-	pcap_if_t   *d;
-	pcap_addr_t *a;
+    char         filter[32];
+    const char  *server = NULL;
+    struct       bpf_program fp;
+    pcap_if_t   *d;
+    pcap_addr_t *a;
 
     signal(SIGINT, sig_handler);
 
@@ -144,52 +145,52 @@ int main(int argc, char** argv)
     if (argc == 1) {
         /* normal case, user chooses device and port */
 
-	    if (pcap_findalldevs(&alldevs, err) == -1)
-		    err_sys("Error in pcap_findalldevs");
+        if (pcap_findalldevs(&alldevs, err) == -1)
+            err_sys("Error in pcap_findalldevs");
 
-	    for (d = alldevs; d; d=d->next) {
-		    printf("%d. %s", ++i, d->name);
-		    if (d->description)
-			    printf(" (%s)\n", d->description);
-		    else
-			    printf(" (No description available)\n");
-	    }
+        for (d = alldevs; d; d=d->next) {
+            printf("%d. %s", ++i, d->name);
+            if (d->description)
+                printf(" (%s)\n", d->description);
+            else
+                printf(" (No description available)\n");
+        }
 
-	    if (i == 0)
-		    err_sys("No interfaces found! Make sure pcap or WinPcap is"
+        if (i == 0)
+            err_sys("No interfaces found! Make sure pcap or WinPcap is"
                     " installed correctly and you have sufficient permissions");
 
-	    printf("Enter the interface number (1-%d): ", i);
-	    ret = scanf("%d", &inum);
+        printf("Enter the interface number (1-%d): ", i);
+        ret = scanf("%d", &inum);
         if (ret != 1)
             printf("scanf port failed\n");
 
-	    if (inum < 1 || inum > i)
-		    err_sys("Interface number out of range");
+        if (inum < 1 || inum > i)
+            err_sys("Interface number out of range");
 
-	    /* Jump to the selected adapter */
-	    for (d = alldevs, i = 0; i < inum - 1; d = d->next, i++);
+        /* Jump to the selected adapter */
+        for (d = alldevs, i = 0; i < inum - 1; d = d->next, i++);
 
-	    pcap = pcap_create(d->name, err);
+        pcap = pcap_create(d->name, err);
 
         if (pcap == NULL) printf("pcap_create failed %s\n", err);
 
-	    /* get an IPv4 address */
-	    for (a = d->addresses; a; a = a->next) {
-		    switch(a->addr->sa_family)
-		    {
-			    case AF_INET:
-				    server = 
+        /* get an IPv4 address */
+        for (a = d->addresses; a; a = a->next) {
+            switch(a->addr->sa_family)
+            {
+                case AF_INET:
+                    server =
                         iptos(((struct sockaddr_in *)a->addr)->sin_addr.s_addr);
-				    printf("server = %s\n", server);
-				    break;
+                    printf("server = %s\n", server);
+                    break;
 
                 default:
                     break;
-		    }
-	    }
-	    if (server == NULL)
-		    err_sys("Unable to get device IPv4 address");
+            }
+        }
+        if (server == NULL)
+            err_sys("Unable to get device IPv4 address");
 
         ret = pcap_set_snaplen(pcap, 65536);
         if (ret != 0) printf("pcap_set_snaplen failed %s\n", pcap_geterr(pcap));
@@ -199,7 +200,7 @@ int main(int argc, char** argv)
 
         ret = pcap_set_buffer_size(pcap, 1000000); 
         if (ret != 0)
-		    printf("pcap_set_buffer_size failed %s\n", pcap_geterr(pcap));
+            printf("pcap_set_buffer_size failed %s\n", pcap_geterr(pcap));
 
         ret = pcap_set_promisc(pcap, 1); 
         if (ret != 0) printf("pcap_set_promisc failed %s\n", pcap_geterr(pcap));
@@ -208,14 +209,14 @@ int main(int argc, char** argv)
         ret = pcap_activate(pcap);
         if (ret != 0) printf("pcap_activate failed %s\n", pcap_geterr(pcap));
 
-	    printf("Enter the port to scan: ");
-	    ret = scanf("%d", &port);
+        printf("Enter the port to scan: ");
+        ret = scanf("%d", &port);
         if (ret != 1)
             printf("scanf port failed\n");
 
-	    SNPRINTF(filter, sizeof(filter), "tcp and port %d", port);
+        SNPRINTF(filter, sizeof(filter), "tcp and port %d", port);
 
-	    ret = pcap_compile(pcap, &fp, filter, 0, 0);
+        ret = pcap_compile(pcap, &fp, filter, 0, 0);
         if (ret != 0) printf("pcap_compile failed %s\n", pcap_geterr(pcap));
 
         ret = pcap_setfilter(pcap, &fp);
@@ -295,8 +296,8 @@ int main(int argc, char** argv)
             byte data[65535+16384];  /* may have a partial 16k record cached */
 
             if (header.caplen > 40)  { /* min ip(20) + min tcp(20) */
-				packet        += frame;
-				header.caplen -= frame;					
+                packet        += frame;
+                header.caplen -= frame;
             }
             else
                 continue;
@@ -306,7 +307,7 @@ int main(int argc, char** argv)
                 printf("ssl_Decode ret = %d, %s\n", ret, err);
             if (ret > 0) {
                 data[ret] = 0;
-				printf("SSL App Data(%d:%d):%s\n", packetNumber, ret, data);
+                printf("SSL App Data(%d:%d):%s\n", packetNumber, ret, data);
             }
         }
         else if (saveFile)
