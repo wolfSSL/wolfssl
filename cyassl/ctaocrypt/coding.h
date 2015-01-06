@@ -23,6 +23,10 @@
 #ifndef CTAO_CRYPT_CODING_H
 #define CTAO_CRYPT_CODING_H
 
+#ifndef HAVE_FIPS
+    #include <wolfssl/wolfcrypt/coding.h>
+#else
+
 #include <cyassl/ctaocrypt/types.h>
 
 #ifdef __cplusplus
@@ -54,5 +58,6 @@ CYASSL_LOCAL int Base64_Decode(const byte* in, word32 inLen, byte* out,
     } /* extern "C" */
 #endif
 
+#endif /* HAVE_FIPS */
 #endif /* CTAO_CRYPT_CODING_H */
 
