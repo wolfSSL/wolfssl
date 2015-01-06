@@ -680,9 +680,8 @@
 #endif /* CYASSL_QL */
 
 
-#if !defined(XMALLOC_USER) && !defined(MICRIUM_MALLOC) && \
-    !defined(CYASSL_LEANPSK) && !defined(NO_CYASSL_MEMORY)
-    #define USE_CYASSL_MEMORY
+#if !defined(USE_CYASSL_MEMORY) && defined(USE_WOLFSSL_MEMORY)
+    #define USE_CYASSL_MEMORY USE_WOLFSSL_MEMORY
 #endif
 
 

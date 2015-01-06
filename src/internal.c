@@ -1499,9 +1499,9 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
     int  ret;
     byte haveRSA = 0;
     byte havePSK = 0;
-#ifdef HAVE_ANON 
     byte haveAnon = 0;
-#endif
+
+    (void) haveAnon;
 
     ssl->ctx     = ctx; /* only for passing to calls, options could change */
     ssl->version = ctx->method->version;
@@ -1888,11 +1888,7 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
 #endif
 #ifndef NO_CERTS
     /* make sure server has cert and key unless using PSK or Anon */
-    if (ssl->options.side == WOLFSSL_SERVER_END && !havePSK 
-						#ifdef HAVE_ANON
-						&& !haveAnon
-						#endif
-						)
+    if (ssl->options.side == WOLFSSL_SERVER_END && !havePSK && !haveAnon)
         if (!ssl->buffers.certificate.buffer || !ssl->buffers.key.buffer) {
             WOLFSSL_MSG("Server missing certificate and/or private key");
             return NO_PRIVATE_KEY;

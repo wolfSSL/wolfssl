@@ -4409,7 +4409,7 @@ int hkdf_test(void)
     (void)info1;
 
 #ifndef NO_SHA
-    ret = HKDF(SHA, ikm1, 22, NULL, 0, NULL, 0, okm1, L);
+    ret = wc_HKDF(SHA, ikm1, 22, NULL, 0, NULL, 0, okm1, L);
     if (ret != 0)
         return -2001;
 
@@ -4418,7 +4418,7 @@ int hkdf_test(void)
 
 #ifndef HAVE_FIPS
     /* fips can't have key size under 14 bytes, salt is key too */
-    ret = HKDF(SHA, ikm1, 11, salt1, 13, info1, 10, okm1, L);
+    ret = wc_HKDF(SHA, ikm1, 11, salt1, 13, info1, 10, okm1, L);
     if (ret != 0)
         return -2003;
 
@@ -4428,7 +4428,7 @@ int hkdf_test(void)
 #endif /* NO_SHA */
 
 #ifndef NO_SHA256
-    ret = HKDF(SHA256, ikm1, 22, NULL, 0, NULL, 0, okm1, L);
+    ret = wc_HKDF(SHA256, ikm1, 22, NULL, 0, NULL, 0, okm1, L);
     if (ret != 0)
         return -2005;
 
@@ -4437,7 +4437,7 @@ int hkdf_test(void)
 
 #ifndef HAVE_FIPS
     /* fips can't have key size under 14 bytes, salt is key too */
-    ret = HKDF(SHA256, ikm1, 22, salt1, 13, info1, 10, okm1, L);
+    ret = wc_HKDF(SHA256, ikm1, 22, salt1, 13, info1, 10, okm1, L);
     if (ret != 0)
         return -2007;
 

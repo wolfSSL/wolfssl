@@ -218,8 +218,8 @@ int md4_test(void)
     wc_InitMd4(&md4);
 
     for (i = 0; i < times; ++i) {
-        Md4Update(&md4, (byte*)test_md4[i].input, (word32)test_md4[i].inLen);
-        Md4Final(&md4, hash);
+        wc_Md4Update(&md4, (byte*)test_md4[i].input, (word32)test_md4[i].inLen);
+        wc_Md4Final(&md4, hash);
 
         if (memcmp(hash, test_md4[i].output, MD4_DIGEST_SIZE) != 0)
             return -205 - i;
