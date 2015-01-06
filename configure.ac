@@ -1777,8 +1777,8 @@ AC_CONFIG_FILES([wolfssl/options.h])
 #have options.h and version.h for autoconf fips tag and build
 if test "x$ENABLED_FIPS" = "xyes"
 then
-AC_CONFIG_FILES([cyassl/version.h])
-AC_CONFIG_FILES([cyassl/options.h])
+    AC_CONFIG_FILES([cyassl/version.h])
+    AC_CONFIG_FILES([cyassl/options.h])
 fi
 AC_CONFIG_FILES([support/wolfssl.pc])
 AC_CONFIG_FILES([rpm/spec])
