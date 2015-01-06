@@ -79,7 +79,7 @@ if BUILD_FIPS
 src_libwolfssl_la_SOURCES += \
                ctaocrypt/src/logging.c \
                ctaocrypt/src/wc_port.c \
-               ctaocrypt/src/error.c
+               wolfcrypt/src/error.c
 else
 src_libwolfssl_la_SOURCES += \
                wolfcrypt/src/logging.c \
