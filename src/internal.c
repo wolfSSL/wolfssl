@@ -6079,10 +6079,10 @@ static INLINE void RmdRounds(int rounds, const byte* data, int sz)
     RipeMd ripemd;
     int i;
 
-    InitRipeMd(&ripemd);
+    wc_InitRipeMd(&ripemd);
 
     for (i = 0; i < rounds; i++)
-        RipeMdUpdate(&ripemd, data, sz);
+        wc_RipeMdUpdate(&ripemd, data, sz);
 }
 
 #endif

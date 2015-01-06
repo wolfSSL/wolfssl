@@ -24,15 +24,15 @@
     #include <config.h>
 #endif
 
-#include <cyassl/ctaocrypt/settings.h>
+#include <wolfssl/wolfcrypt/settings.h>
 
 #ifdef WOLFSSL_RIPEMD
 
-#include <cyassl/ctaocrypt/ripemd.h>
+#include <wolfssl/wolfcrypt/ripemd.h>
 #ifdef NO_INLINE
-    #include <cyassl/ctaocrypt/misc.h>
+    #include <wolfssl/wolfcrypt/misc.h>
 #else
-    #include <ctaocrypt/src/misc.c>
+    #include <wolfcrypt/src/misc.c>
 #endif
 
 
