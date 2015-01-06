@@ -2325,8 +2325,8 @@ static int SetAuthKeys(OneTimeAuth* authentication, Keys* keys,
 int SetKeysSide(CYASSL* ssl, enum encrypt_side side)
 {
     int devId = NO_CAVIUM_DEVICE, ret, copy = 0;
-    Ciphers* encrypt = NULL;
-    Ciphers* decrypt = NULL;
+    Ciphers* enc = NULL;
+    Ciphers* dec = NULL;
     Keys*    keys    = &ssl->keys;
 
     (void)copy;
@@ -2344,16 +2344,16 @@ int SetKeysSide(CYASSL* ssl, enum encrypt_side side)
 
     switch (side) {
         case ENCRYPT_SIDE_ONLY:
-            encrypt = &ssl->encrypt;
+            enc = &ssl->encrypt;
             break;
 
         case DECRYPT_SIDE_ONLY:
-            decrypt = &ssl->decrypt;
+            dec = &ssl->decrypt;
             break;
 
         case ENCRYPT_AND_DECRYPT_SIDE:
-            encrypt = &ssl->encrypt;
-            decrypt = &ssl->decrypt;
+            enc = &ssl->encrypt;
+            dec = &ssl->decrypt;
             break;
 
         default:
@@ -2368,16 +2368,16 @@ int SetKeysSide(CYASSL* ssl, enum encrypt_side side)
     }
 #endif
 
-    ret = SetKeys(encrypt, decrypt, keys, &ssl->specs, ssl->options.side,
+    ret = SetKeys(enc, dec, keys, &ssl->specs, ssl->options.side,
                   ssl->heap, devId);
 
 #ifdef HAVE_SECURE_RENEGOTIATION
     if (copy) {
         int clientCopy = 0;
 
-        if (ssl->options.side == CYASSL_CLIENT_END && encrypt)
+        if (ssl->options.side == CYASSL_CLIENT_END && enc)
             clientCopy = 1;
-        else if (ssl->options.side == CYASSL_SERVER_END && decrypt)
+        else if (ssl->options.side == CYASSL_SERVER_END && dec)
             clientCopy = 1;
 
         if (clientCopy) {
@@ -2395,7 +2395,7 @@ int SetKeysSide(CYASSL* ssl, enum encrypt_side side)
             XMEMCPY(ssl->keys.server_write_IV,
                     keys->server_write_IV, AES_IV_SIZE);
         }
-        if (encrypt) {
+        if (enc) {
             ssl->keys.sequence_number = keys->sequence_number;
             #ifdef HAVE_AEAD
                 if (ssl->specs.cipher_type == aead) {
@@ -2405,7 +2405,7 @@ int SetKeysSide(CYASSL* ssl, enum encrypt_side side)
                 }
             #endif
         }
-        if (decrypt)
+        if (dec)
             ssl->keys.peer_sequence_number = keys->peer_sequence_number;
         ssl->secure_renegotiation->cache_status++;
     }
