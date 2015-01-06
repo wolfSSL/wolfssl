@@ -32,6 +32,7 @@ nobase_include_HEADERS+= \
                          cyassl/ctaocrypt/ripemd.h \
                          cyassl/ctaocrypt/rsa.h \
                          cyassl/ctaocrypt/settings.h \
+                         cyassl/ctaocrypt/settings_comp.h \
                          cyassl/ctaocrypt/sha256.h \
                          cyassl/ctaocrypt/sha512.h \
                          cyassl/ctaocrypt/sha.h \

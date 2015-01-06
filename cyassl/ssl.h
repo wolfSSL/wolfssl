@@ -30,6 +30,7 @@
  * include the new ssl.h
  */
 #include <wolfssl/ssl.h>
+#include <cyassl/ctaocrypt/settings.h>
 
 #ifdef __cplusplus
     extern "C" {
