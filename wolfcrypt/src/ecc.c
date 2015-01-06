@@ -4305,7 +4305,7 @@ int wc_ecc_encrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
     if (ret == 0) {
        switch (ctx->kdfAlgo) {
            case ecHKDF_SHA256 :
-               ret = HKDF(SHA256, sharedSecret, sharedSz, ctx->kdfSalt,
+               ret = wc_HKDF(SHA256, sharedSecret, sharedSz, ctx->kdfSalt,
                           ctx->kdfSaltSz, ctx->kdfInfo, ctx->kdfInfoSz,
                           keys, keysLen);
                break;
@@ -4325,11 +4325,11 @@ int wc_ecc_encrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
            case ecAES_128_CBC:
                {
                    Aes aes;
-                   ret = AesSetKey(&aes, encKey, KEY_SIZE_128, encIv,
+                   ret = wc_AesSetKey(&aes, encKey, KEY_SIZE_128, encIv,
                                                                 AES_ENCRYPTION);
                    if (ret != 0)
                        break;
-                   ret = AesCbcEncrypt(&aes, out, msg, msgSz);
+                   ret = wc_AesCbcEncrypt(&aes, out, msg, msgSz);
                }
                break;
 
@@ -4344,16 +4344,16 @@ int wc_ecc_encrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
            case ecHMAC_SHA256:
                {
                    Hmac hmac;
-                   ret = HmacSetKey(&hmac, SHA256, macKey, SHA256_DIGEST_SIZE);
+                   ret = wc_HmacSetKey(&hmac, SHA256, macKey, SHA256_DIGEST_SIZE);
                    if (ret != 0)
                        break;
-                   ret = HmacUpdate(&hmac, out, msgSz);
+                   ret = wc_HmacUpdate(&hmac, out, msgSz);
                    if (ret != 0)
                        break;
-                   ret = HmacUpdate(&hmac, ctx->macSalt, ctx->macSaltSz);
+                   ret = wc_HmacUpdate(&hmac, ctx->macSalt, ctx->macSaltSz);
                    if (ret != 0)
                        break;
-                   ret = HmacFinal(&hmac, out+msgSz);
+                   ret = wc_HmacFinal(&hmac, out+msgSz);
                }
                break;
 
@@ -4457,7 +4457,7 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
     if (ret == 0) {
        switch (ctx->kdfAlgo) {
            case ecHKDF_SHA256 :
-               ret = HKDF(SHA256, sharedSecret, sharedSz, ctx->kdfSalt,
+               ret = wc_HKDF(SHA256, sharedSecret, sharedSz, ctx->kdfSalt,
                           ctx->kdfSaltSz, ctx->kdfInfo, ctx->kdfInfoSz,
                           keys, keysLen);
                break;
@@ -4478,16 +4478,16 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
                {
                    byte verify[SHA256_DIGEST_SIZE];
                    Hmac hmac;
-                   ret = HmacSetKey(&hmac, SHA256, macKey, SHA256_DIGEST_SIZE);
+                   ret = wc_HmacSetKey(&hmac, SHA256, macKey, SHA256_DIGEST_SIZE);
                    if (ret != 0)
                        break;
-                   ret = HmacUpdate(&hmac, msg, msgSz-digestSz);
+                   ret = wc_HmacUpdate(&hmac, msg, msgSz-digestSz);
                    if (ret != 0)
                        break;
-                   ret = HmacUpdate(&hmac, ctx->macSalt, ctx->macSaltSz);
+                   ret = wc_HmacUpdate(&hmac, ctx->macSalt, ctx->macSaltSz);
                    if (ret != 0)
                        break;
-                   ret = HmacFinal(&hmac, verify);
+                   ret = wc_HmacFinal(&hmac, verify);
                    if (ret != 0)
                        break;
                    if (memcmp(verify, msg + msgSz - digestSz, digestSz) != 0)
@@ -4506,11 +4506,11 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
            case ecAES_128_CBC:
                {
                    Aes aes;
-                   ret = AesSetKey(&aes, encKey, KEY_SIZE_128, encIv,
+                   ret = wc_AesSetKey(&aes, encKey, KEY_SIZE_128, encIv,
                                                                 AES_DECRYPTION);
                    if (ret != 0)
                        break;
-                   ret = AesCbcDecrypt(&aes, out, msg, msgSz-digestSz);
+                   ret = wc_AesCbcDecrypt(&aes, out, msg, msgSz-digestSz);
                }
                break;
 
