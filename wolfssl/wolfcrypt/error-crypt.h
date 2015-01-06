@@ -25,10 +25,11 @@
 
 #include <wolfssl/wolfcrypt/types.h>
 
-/* compatibility and fips @wc_fips */
-#ifndef HAVE_FIPS
-#define CTaoCryptErrorString    wc_CryptErrorString
-#define CTaoCryptGetErrorString wc_CryptGetErrorString
+#ifdef HAVE_FIPS
+	#include <cyassl/ctaocrypt/error-crypt.h>
+	#define wc_ErrorString    CTaoCryptErrorString
+	#define wc_GetErrorString CTaoCryptGetErrorString
+#endif /* HAVE_FIPS */
 
 #ifdef __cplusplus
     extern "C" {
@@ -154,11 +155,6 @@ WOLFSSL_API const char* wc_GetErrorString(int error);
 #ifdef __cplusplus
     } /* extern "C" */
 #endif
-#else
-	#include <cyassl/ctaocrypt/error-crypt.h>
-	#define wc_ErrorString CTaoCryptErrorString
-	#define wc_GetErrorString CTaoCryptGetErrorString
-#endif /* HAVE_FIPS */
 #endif /* WOLF_CRYPT_ERROR_H */
 
 
