@@ -775,7 +775,7 @@ int ToTraditional(byte* input, word32 sz)
 
     if (GetMyVersion(input, &inOutIdx, &version) < 0)
         return ASN_PARSE_E;
-    
+
     if (GetAlgoId(input, &inOutIdx, &oid, sz) < 0)
         return ASN_PARSE_E;
 
@@ -786,13 +786,13 @@ int ToTraditional(byte* input, word32 sz)
             return ASN_PARSE_E;
         inOutIdx += length;  /* over sub id, key input will verify */
     }
-    
+
     if (input[inOutIdx++] != ASN_OCTET_STRING)
         return ASN_PARSE_E;
-    
+
     if (GetLength(input, &inOutIdx, &length, sz) < 0)
         return ASN_PARSE_E;
-    
+
     XMEMMOVE(input, input + inOutIdx, length);
 
     return length;

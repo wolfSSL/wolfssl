@@ -29,7 +29,11 @@
 /* since using old code turn on old macros @wc_fips */
 /* for fips */
 #ifdef HAVE_FIPS
-#include <cyassl/ctaocrypt/sha512.h>
+    #define CYASSL_SHA512
+    #if defined(WOLFSSL_SHA384)
+        #define CYASSL_SHA384
+    #endif
+    #include <cyassl/ctaocrypt/sha512.h>
 #endif
 
 #ifdef __cplusplus
@@ -71,7 +75,7 @@ enum {
     SHA384              =   5,   /* hash type unique */
     SHA384_BLOCK_SIZE   = 128,
     SHA384_DIGEST_SIZE  =  48,
-    SHA384_PAD_SIZE     = 112 
+    SHA384_PAD_SIZE     = 112
 };
 
 
@@ -98,9 +102,9 @@ WOLFSSL_API int wc_Sha384Hash(const byte*, word32, byte*);
     WOLFSSL_API int wc_Sha512Final_fips(Sha512*, byte*);
     #ifndef FIPS_NO_WRAPPERS
         /* if not impl or fips.c impl wrapper force fips calls if fips build */
-        #define InitSha512   InitSha512_fips
-        #define Sha512Update Sha512Update_fips
-        #define Sha512Final  Sha512Final_fips
+        #define wc_InitSha512   wc_InitSha512_fips
+        #define wc_Sha512Update wc_Sha512Update_fips
+        #define wc_Sha512Final  wc_Sha512Final_fips
     #endif /* FIPS_NO_WRAPPERS */
 
     /* fips wrapper calls, user can call direct */
@@ -109,9 +113,9 @@ WOLFSSL_API int wc_Sha384Hash(const byte*, word32, byte*);
     WOLFSSL_API int wc_Sha384Final_fips(Sha384*, byte*);
     #ifndef FIPS_NO_WRAPPERS
         /* if not impl or fips.c impl wrapper force fips calls if fips build */
-        #define InitSha384   InitSha384_fips
-        #define Sha384Update Sha384Update_fips
-        #define Sha384Final  Sha384Final_fips
+        #define wc_InitSha384   wc_InitSha384_fips
+        #define wc_Sha384Update wc_Sha384Update_fips
+        #define wc_Sha384Final  wc_Sha384Final_fips
     #endif /* FIPS_NO_WRAPPERS */
 
 #endif /* HAVE_FIPS */

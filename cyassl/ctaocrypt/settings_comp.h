@@ -23,12 +23,23 @@
 #define CTAO_CRYPT_SETTINGS_C_H
 
 /* Macro redefinitions for compatibility */
-#ifdef WOLFSSL_SHA512
-    #define CYASSL_SHA512 WOLFSSL_SHA512
+#if defined(WOLFSSL_SHA512) && !defined(CYASSL_SHA512)
+    #define CYASSL_SHA512
 #endif
-#ifdef WOLFSSL_SHA384
-    #define CYASSL_SHA384 WOLFSSL_SHA384
+#if defined(WOLFSSL_SHA384) && !defined(CYASSL_SHA384)
+    #define CYASSL_SHA384
 #endif
+#if defined(WOLFSSL_LEANPSK) && !defined(CYASSL_LEANPSK)
+    #define CYASSL_LEANPSK
+#endif
+#if defined(NO_WOLFSSL_MEMORY) && !defined(NO_CYASSL_MEMORY)
+    #define NO_CYASSL_MEMORY
+#endif
+
+/* asn.c compatibility */
+#define RsaPrivateKeyDecode   wc_RsaPrivateKeyDecode
+#define RsaPublicKeyDecode    wc_RsaPublicKeyDecode
+#define RsaPublicKeyDecodeRaw wc_RsaPublicKeyDecodeRaw
 
 /* These are compatibility from fips protected headers
  * When using non-fips mode and including old headers this allows for
@@ -94,10 +105,7 @@
 	    #define RsaSSL_VerifyInline   wc_RsaSSL_VerifyInline
 	    #define RsaSSL_Verify         wc_RsaSSL_Verify
 	    #define RsaEncryptSize        wc_RsaEncryptSize
-	    #define RsaPrivateKeyDecode   wc_RsaPrivateKeyDecode
-	    #define RsaPublicKeyDecode    wc_RsaPublicKeyDecode
-	    #define RsaPublicKeyDecodeRaw wc_RsaPublicKeyDecodeRaw
-	    #define RsaFlattenPublicKey   wc_RsaFlattenPublicKey
+        #define RsaFlattenPublicKey   wc_RsaFlattenPublicKey
 
 		#ifdef WOLFSSL_KEY_GEN
 		    #define MakeRsaKey  wc_MakeRsaKey

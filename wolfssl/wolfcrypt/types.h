@@ -28,37 +28,6 @@
 	#include <wolfssl/wolfcrypt/settings.h>
 	#include <wolfssl/wolfcrypt/wc_port.h>
 
-/* for fips compatiblity @wc_fips */
-#ifdef HAVE_FIPS
-    #include <cyassl/ctaocrypt/types.h>
-	/* set old macros since this is often called for visibility also */
-	#ifndef WOLFSSL_API
-	    #define WOLFSSL_API CYASSL_API
-	#endif
-	#ifndef WOLFSSL_LOCAL
-	    #define WOLFSSL_LOCAL CYASSL_LOCAL
-	#endif
-    #define WOLFSSL_MAX_ERROR_SZ CYASSL_MAX_ERROR_SZ
-
-    #define WOLFSSL_WORD_SIZE    CYASSL_WORD_SIZE
-    #define WOLFSSL_BIT_SIZE     CYASSL_BIT_SIZE
-    #define WOLFSSL_MAX_16BIT    CYASSL_MAX_16BIT
-    #define WOLFSSL_MAX_ERROR_SZ CYASSL_MAX_ERROR_SZ
-    #define wolfssl_word cyassl_word
-/* memory macros */
-    /* when using fips map wolfSSL to CyaSSL*/
-    #define wolfSSL_Malloc_cb     CyaSSL_Malloc_cb
-    #define wolfSSL_Free_cb       CyaSSL_Free_cb
-    #define wolfSSL_Realloc_cb    CyaSSL_Realloc_cb
-    #define wolfSSL_SetAllocators CyaSSL_SetAllocators
-    
-    /* Public in case user app wants to use XMALLOC/XFREE */
-	#define wolfSSL_Malloc  CyaSSL_Malloc
-	#define wolfSSL_Free    CyaSSL_Free
-	#define wolfSSL_Realloc CyaSSL_Realloc
-
-
-#else 
 	/* set old macros since this is often called for visibility also */
 	#ifndef CYASSL_API
 	    #define CYASSL_API WOLFSSL_API
@@ -66,21 +35,21 @@
 	#ifndef CYASSL_LOCAL
 	    #define CYASSL_LOCAL WOLFSSL_LOCAL
 	#endif
-	
-	
+
+
 	#ifdef __cplusplus
 	    extern "C" {
 	#endif
-	
-	
+
+
 	#if defined(WORDS_BIGENDIAN)
 	    #define BIG_ENDIAN_ORDER
 	#endif
-	
+
 	#ifndef BIG_ENDIAN_ORDER
 	    #define LITTLE_ENDIAN_ORDER
 	#endif
-	
+
 	#ifndef WOLFSSL_TYPES
 	    #ifndef byte
 	        typedef unsigned char  byte;
@@ -88,8 +57,8 @@
 	    typedef unsigned short word16;
 	    typedef unsigned int   word32;
 	#endif
-	
-	
+
+
 	/* try to set SIZEOF_LONG or LONG_LONG if user didn't */
 	#if !defined(_MSC_VER) && !defined(__BCPLUSPLUS__)
 	    #if !defined(SIZEOF_LONG_LONG) && !defined(SIZEOF_LONG)
@@ -103,8 +72,8 @@
 	        #endif
 	    #endif
 	#endif
-	
-	
+
+
 	#if defined(_MSC_VER) || defined(__BCPLUSPLUS__)
 	    #define WORD64_AVAILABLE
 	    #define W64LIT(x) x##ui64
@@ -125,8 +94,8 @@
 	    #define MP_16BIT  /* for mp_int, mp_word needs to be twice as big as
 	                         mp_digit, no 64 bit type so make mp_digit 16 bit */
 	#endif
-	
-	
+
+
 	/* These platforms have 64-bit CPU registers.  */
 	#if (defined(__alpha__) || defined(__ia64__) || defined(_ARCH_PPC64) || \
 	     defined(__mips64)  || defined(__x86_64__) || defined(_M_X64))
@@ -137,16 +106,16 @@
 	        #define WOLFCRYPT_SLOW_WORD64
 	    #endif
 	#endif
-	
-	
+
+
 	enum {
 	    WOLFSSL_WORD_SIZE  = sizeof(wolfssl_word),
 	    WOLFSSL_BIT_SIZE   = 8,
 	    WOLFSSL_WORD_BITS  = WOLFSSL_WORD_SIZE * WOLFSSL_BIT_SIZE
 	};
-	
+
 	#define WOLFSSL_MAX_16BIT 0xffffU
-	
+
 	/* use inlining if compiler allows */
 	#ifndef INLINE
 	#ifndef NO_INLINE
@@ -165,8 +134,8 @@
 	    #define INLINE
 	#endif
 	#endif
-	
-	
+
+
 	/* set up rotate style */
 	#if defined(_MSC_VER) || defined(__BCPLUSPLUS__)
 	    #define INTEL_INTRINSICS
@@ -179,8 +148,8 @@
 	           instructions  */
 	    #define FAST_ROTATE
 	#endif
-	
-	
+
+
 	/* set up thread local storage if available */
 	#ifdef HAVE_THREAD_LS
 	    #if defined(_MSC_VER)
@@ -191,15 +160,15 @@
 	#else
 	    #define THREAD_LS_T
 	#endif
-	
-	
+
+
 	/* Micrium will use Visual Studio for compilation but not the Win32 API */
 	#if defined(_WIN32) && !defined(MICRIUM) && !defined(FREERTOS) \
 	        && !defined(EBSNET)
 	    #define USE_WINDOWS_API
 	#endif
-	
-	
+
+
 	/* idea to add global alloc override by Moisés Guimarães  */
 	/* default to libc stuff */
 	/* XREALLOC is used once in normal math lib, not in fast math lib */
@@ -225,16 +194,16 @@
 	    #define XFREE(p, h, t)       {void* xp = (p); if((xp)) wolfSSL_Free((xp));}
 	    #define XREALLOC(p, n, h, t) wolfSSL_Realloc((p), (n))
 	#endif
-	
+
 	#ifndef STRING_USER
 	    #include <string.h>
 	    char* mystrnstr(const char* s1, const char* s2, unsigned int n);
-	
+
 	    #define XMEMCPY(d,s,l)    memcpy((d),(s),(l))
 	    #define XMEMSET(b,c,l)    memset((b),(c),(l))
 	    #define XMEMCMP(s1,s2,n)  memcmp((s1),(s2),(n))
 	    #define XMEMMOVE(d,s,l)   memmove((d),(s),(l))
-	
+
 	    #define XSTRLEN(s1)       strlen((s1))
 	    #define XSTRNCPY(s1,s2,n) strncpy((s1),(s2),(n))
 	    /* strstr, strncmp, and strncat only used by wolfSSL proper, not required for
@@ -251,7 +220,7 @@
 	        #define XSNPRINTF _snprintf
 	    #endif
 	#endif
-	
+
 	#ifndef CTYPE_USER
 	    #include <ctype.h>
 	    #if defined(HAVE_ECC) || defined(HAVE_OCSP)
@@ -266,8 +235,8 @@
 	    #endif
 	    #define XTOLOWER(c)      tolower((c))
 	#endif
-	
-	
+
+
 	/* memory allocation types for user hints */
 	enum {
 	    DYNAMIC_TYPE_CA           = 1,
@@ -316,19 +285,19 @@
 	    DYNAMIC_TYPE_OCSP         = 44,
 	    DYNAMIC_TYPE_SIGNATURE    = 45
 	};
-	
+
 	/* max error buffer string size */
 	enum {
 	    WOLFSSL_MAX_ERROR_SZ = 80
 	};
-	
+
 	/* stack protection */
 	enum {
 	    MIN_STACK_BUFFER = 8
 	};
-	
-	
-	
+
+
+
 	/* settings detection for compile vs runtime math incombatibilities */
 	enum {
 	#if !defined(USE_FAST_MATH) && !defined(SIZEOF_LONG) && !defined(SIZEOF_LONG_LONG)
@@ -351,19 +320,18 @@
 	    #error "bad math long / long long settings"
 	#endif
 	};
-	
-	
+
+
 	WOLFSSL_API word32 CheckRunTimeSettings(void);
-	
+
 	/* If user uses RSA, DH, DSA, or ECC math lib directly then fast math and long
 	   types need to match at compile time and run time, CheckCtcSettings will
 	   return 1 if a match otherwise 0 */
 	#define CheckCtcSettings() (CTC_SETTINGS == CheckRunTimeSettings())
-	
-	
+
+
 	#ifdef __cplusplus
 	    }   /* extern "C" */
 	#endif
-	
-#endif /* HAVE_FIPS */
+
 #endif /* WOLF_CRYPT_TYPES_H */

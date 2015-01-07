@@ -404,12 +404,6 @@
  */
 #define NO_WOLFSSL_ALLOC_ALIGN NO_CYASSL_ALLOC_ALIGN /* @TODO */
 
-/* for pwdbased reverse compatibility */
-#ifndef NO_PWDBASED
-    #define PBKDF1       wc_PBKDF1
-    #define PBKDF2       wc_PBKDF2
-    #define PKCS12_PBKDF wc_PKCS12_PBKDF
-#endif
 
 /* examples/client/client.h */
 #define CYASSL_THREAD WOLFSSL_THREAD

@@ -72,11 +72,6 @@ include support/include.am
 include wolfcrypt/benchmark/include.am
 include wolfcrypt/src/include.am
 include wolfcrypt/test/include.am
-
-if BUILD_FIPS
-include ctaocrypt/src/include.am
-endif
-
 include examples/client/include.am
 include examples/server/include.am
 include examples/echoclient/include.am

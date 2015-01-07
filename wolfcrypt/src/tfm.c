@@ -34,9 +34,6 @@
     #include <config.h>
 #endif
 
-/* if using fips than the tfm.c from ctaocrypt is used @wc_fips */
-#ifndef HAVE_FIPS
-
 /* in case user set USE_FAST_MATH there */
 #include <wolfssl/wolfcrypt/settings.h>
 
@@ -2539,6 +2536,4 @@ int mp_div_2d(fp_int* a, int b, fp_int* c, fp_int* d)
 #endif /* HAVE_ECC */
 
 #endif /* USE_FAST_MATH */
-
-#endif /* HAVE_FIPS */
 

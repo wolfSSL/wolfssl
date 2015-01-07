@@ -43,7 +43,47 @@
     #include <wolfcrypt/src/misc.c>
 #endif
 
-#ifndef HAVE_FIPS
+/* fips wrapper calls, user can call direct */
+#ifdef HAVE_FIPS
+	int wc_InitSha(Sha* sha)
+	{
+	    return InitSha_fips(sha);
+	}
+
+
+	int wc_ShaUpdate(Sha* sha, const byte* data, word32 len)
+	{
+	    return ShaUpdate_fips(sha, data, len);
+	}
+
+
+	int wc_ShaFinal(Sha* sha, byte* out)
+	{
+	    return ShaFinal_fips(sha,out);
+    }
+
+    int wc_ShaHash(const byte* data, word32 sz, byte* out)
+    {
+        return ShaHash(data, sz, out);
+    }
+
+
+    int wc_InitSha_fips(Sha* sha)
+    {
+        return InitSha_fips(sha);
+    }
+
+    int wc_ShaUpdate_fips(Sha* sha, const byte* data, word32 sz)
+    {
+        return ShaUpdate_fips(sha, data, sz);
+    }
+
+    int wc_ShaFinal_fips(Sha* sha, byte* out)
+    {
+        return ShaFinal_fips(sha, out);
+    }
+
+#else
 
 #ifdef FREESCALE_MMCAU
     #include "cau_api.h"
@@ -370,20 +410,20 @@ int wc_ShaFinal(Sha* sha, byte* hash)
     /* ! length ordering dependent on digest endian type ! */
     XMEMCPY(&local[SHA_PAD_SIZE], &sha->hiLen, sizeof(word32));
     XMEMCPY(&local[SHA_PAD_SIZE + sizeof(word32)], &sha->loLen, sizeof(word32));
-    
+
 #ifdef FREESCALE_MMCAU
     /* Kinetis requires only these bytes reversed */
     ByteReverseWords(&sha->buffer[SHA_PAD_SIZE/sizeof(word32)],
                      &sha->buffer[SHA_PAD_SIZE/sizeof(word32)],
                      2 * sizeof(word32));
 #endif
-    
+
     XTRANSFORM(sha, local);
 #ifdef LITTLE_ENDIAN_ORDER
     ByteReverseWords(sha->digest, sha->digest, SHA_DIGEST_SIZE);
 #endif
     XMEMCPY(hash, sha->digest, SHA_DIGEST_SIZE);
-    
+
     return wc_InitSha(sha);  /* reset state */
 }
 
@@ -420,26 +460,6 @@ int wc_ShaHash(const byte* data, word32 len, byte* hash)
     return ret;
 
 }
-#endif /* not defined HAVE_FIPS */
-
-/* fips wrapper calls, user can call direct */
-#ifdef HAVE_FIPS
-	int wc_InitSha_fips(Sha* sha)
-	{
-	    return InitSha_fips(sha);
-	}
-	
-	
-	int wc_ShaUpdate_fips(Sha* sha, const byte* data, word32 len)
-	{
-	    return ShaUpdate_fips(sha, data, len);
-	}
-	
-	
-	int wc_ShaFinal_fips(Sha* sha, byte* out)
-	{
-	    return ShaFinal_fips(sha,out);
-	}
 #endif /* HAVE_FIPS */
 #endif /* NO_SHA */
 

@@ -35,11 +35,6 @@
 #ifndef WOLF_CRYPT_TFM_H
 #define WOLF_CRYPT_TFM_H
 
-/* for fips compatibility @wc_fips */
-#ifdef HAVE_FIPS
-    #include <cyassl/ctaocrypt/tfm.h>
-#else
-
 #include <wolfssl/wolfcrypt/types.h>
 #ifndef CHAR_BIT
     #include <limits.h>
@@ -624,7 +619,7 @@ void fp_sqr_comba64(fp_int *a, fp_int *b);
 
 
 /**
- * Used by CyaSSL 
+ * Used by wolfSSL
  */
 
 /* Types */
@@ -708,5 +703,5 @@ WOLFSSL_API word32 CheckRunTimeFastMath(void);
    }
 #endif
 
-#endif  /* HAVE_FIPS */
 #endif  /* WOLF_CRYPT_TFM_H */
+

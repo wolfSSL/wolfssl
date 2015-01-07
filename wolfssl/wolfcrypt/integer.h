@@ -28,10 +28,6 @@
 #ifndef WOLF_CRYPT_INTEGER_H
 #define WOLF_CRYPT_INTEGER_H
 
-/* for fips compatibility @wc_fips */
-#ifdef HAVE_FIPS
-    #include <cyassl/ctaocrypt/integer.h>
-#else
 /* may optionally use fast math instead, not yet supported on all platforms and
    may not be faster on all
 */
@@ -324,6 +320,5 @@ int mp_mod_d(mp_int* a, mp_digit b, mp_digit* c);
 
 #endif /* USE_FAST_MATH */
 
-#endif  /* HAVE_FIPS */
 #endif  /* WOLF_CRYPT_INTEGER_H */
 
