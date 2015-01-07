@@ -511,7 +511,7 @@ int sha384_test()
 #ifdef WOLFSSL_RIPEMD
 int ripemd_test(void)
 {
-    RipeMd  ripemd;
+    wc_RipeMd  ripemd;
     byte hash[RIPEMD_DIGEST_SIZE];
 
     testVector a, b, c, d;
@@ -548,12 +548,12 @@ int ripemd_test(void)
     test_ripemd[2] = c;
     test_ripemd[3] = d;
 
-    InitRipeMd(&ripemd);
+    wc_InitRipeMd(&ripemd);
 
     for (i = 0; i < times; ++i) {
-        RipeMdUpdate(&ripemd, (byte*)test_ripemd[i].input,
+        wc_RipeMdUpdate(&ripemd, (byte*)test_ripemd[i].input,
                      (word32)test_ripemd[i].inLen);
-        RipeMdFinal(&ripemd, hash);
+        wc_RipeMdFinal(&ripemd, hash);
 
         if (memcmp(hash, test_ripemd[i].output, RIPEMD_DIGEST_SIZE) != 0)
             return -10 - i;
