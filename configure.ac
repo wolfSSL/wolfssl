@@ -1775,11 +1775,11 @@ AC_CONFIG_FILES([Makefile])
 AC_CONFIG_FILES([wolfssl/version.h])
 AC_CONFIG_FILES([wolfssl/options.h])
 #have options.h and version.h for autoconf fips tag and build
-if test "x$ENABLED_FIPS" = "xyes"
-then
-    AC_CONFIG_FILES([cyassl/version.h])
-    AC_CONFIG_FILES([cyassl/options.h])
-fi
+#if test "x$ENABLED_FIPS" = "xyes"
+#then
+#    AC_CONFIG_FILES([cyassl/version.h])
+#    AC_CONFIG_FILES([cyassl/options.h])
+#fi
 AC_CONFIG_FILES([support/wolfssl.pc])
 AC_CONFIG_FILES([rpm/spec])
 
@@ -1845,6 +1845,26 @@ echo "}" >> $OPTION_FILE
 echo "#endif" >> $OPTION_FILE 
 echo "" >> $OPTION_FILE 
 echo
+
+#backwards compatability for those who have included options or version
+touch cyassl/options.h
+touch cyassl/version.h
+echo "/* cyassl options.h" > cyassl/options.h
+echo " * generated from wolfssl/options.h" >> cyassl/options.h
+echo " */\n" >> cyassl/options.h
+while read -r line
+do
+    echo "$line" >> cyassl/options.h
+done < $OPTION_FILE
+
+echo "/* cyassl version.h" > cyassl/version.h
+echo " * generated from wolfssl version.h" >> cyassl/version.h
+echo " */\n" >> cyassl/version.h
+while read -r line
+do
+    echo "$line" >> cyassl/version.h
+done < wolfssl/version.h
+#end backwards compatibility
 
 # output config summary
 echo "---"
