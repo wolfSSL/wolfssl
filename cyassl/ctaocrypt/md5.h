@@ -25,7 +25,6 @@
 #define CTAO_CRYPT_MD5_H
 
 #include <wolfssl/wolfcrypt/md5.h>
-#include <cyassl/ctaocrypt/types.h>
 
 #ifndef HAVE_FIPS
     #define InitMd5   wc_InitMd5

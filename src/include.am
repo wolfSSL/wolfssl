@@ -13,7 +13,6 @@ src_libwolfssl_la_CPPFLAGS = -DBUILDING_WOLFSSL $(AM_CPPFLAGS)
 # fips first  file
 if BUILD_FIPS
 src_libwolfssl_la_SOURCES += ctaocrypt/src/wolfcrypt_first.c
-#endif
 
 src_libwolfssl_la_SOURCES += \
                ctaocrypt/src/hmac.c \
@@ -40,13 +39,10 @@ if BUILD_SHA512
 src_libwolfssl_la_SOURCES += ctaocrypt/src/sha512.c
 endif
 
-#if BUILD_FIPS
 src_libwolfssl_la_SOURCES += ctaocrypt/src/fips.c
 src_libwolfssl_la_SOURCES += ctaocrypt/src/fips_test.c
-#endif
 
 # fips last file
-#if BUILD_FIPS
 src_libwolfssl_la_SOURCES += ctaocrypt/src/wolfcrypt_last.c
 endif
 
@@ -75,24 +71,13 @@ if BUILD_SHA512
 src_libwolfssl_la_SOURCES += wolfcrypt/src/sha512.c
 endif
 
-if BUILD_FIPS
-src_libwolfssl_la_SOURCES += \
-               ctaocrypt/src/logging.c \
-               ctaocrypt/src/wc_port.c \
-               wolfcrypt/src/error.c
-else
 src_libwolfssl_la_SOURCES += \
                wolfcrypt/src/logging.c \
                wolfcrypt/src/wc_port.c \
                wolfcrypt/src/error.c
-endif
 
 if BUILD_MEMORY
-if BUILD_FIPS
-src_libwolfssl_la_SOURCES += ctaocrypt/src/memory.c
-else
 src_libwolfssl_la_SOURCES += wolfcrypt/src/memory.c
-endif
 endif
 
 if BUILD_DH
@@ -100,19 +85,11 @@ src_libwolfssl_la_SOURCES += wolfcrypt/src/dh.c
 endif
 
 if BUILD_ASN
-if BUILD_FIPS
-src_libwolfssl_la_SOURCES += ctaocrypt/src/asn.c
-else
 src_libwolfssl_la_SOURCES += wolfcrypt/src/asn.c
-endif
 endif
 
 if BUILD_CODING
-if BUILD_FIPS
-src_libwolfssl_la_SOURCES += ctaocrypt/src/coding.c
-else
 src_libwolfssl_la_SOURCES += wolfcrypt/src/coding.c
-endif
 endif
 
 if BUILD_POLY1305
@@ -128,19 +105,11 @@ src_libwolfssl_la_SOURCES += wolfcrypt/src/md4.c
 endif
 
 if BUILD_MD5
-if BUILD_FIPS
-src_libwolfssl_la_SOURCES += ctaocrypt/src/md5.c
-else
 src_libwolfssl_la_SOURCES += wolfcrypt/src/md5.c
-endif
 endif
 
 if BUILD_PWDBASED
-if BUILD_FIPS
-src_libwolfssl_la_SOURCES += ctaocrypt/src/pwdbased.c
-else
 src_libwolfssl_la_SOURCES += wolfcrypt/src/pwdbased.c
-endif
 endif
 
 if BUILD_DSA
@@ -148,11 +117,7 @@ src_libwolfssl_la_SOURCES += wolfcrypt/src/dsa.c
 endif
 
 if BUILD_AESNI
-if BUILD_FIPS
-src_libwolfssl_la_SOURCES += ctaocrypt/src/aes_asm.s
-else
 src_libwolfssl_la_SOURCES += wolfcrypt/src/aes_asm.s
-endif
 endif
 
 if BUILD_CAMELLIA
@@ -168,11 +133,7 @@ src_libwolfssl_la_SOURCES += wolfcrypt/src/ripemd.c
 endif
 
 if BUILD_BLAKE2
-if BUILD_FIPS
-src_libwolfssl_la_SOURCES += ctaocrypt/src/blake2b.c
-else
 src_libwolfssl_la_SOURCES += wolfcrypt/src/blake2b.c
-endif
 endif
 
 if BUILD_HC128
@@ -188,27 +149,15 @@ src_libwolfssl_la_SOURCES += wolfcrypt/src/chacha.c
 endif
 
 if !BUILD_INLINE
-if BUILD_FIPS
-src_libwolfssl_la_SOURCES += ctaocrypt/src/misc.c
-else
 src_libwolfssl_la_SOURCES += wolfcrypt/src/misc.c
-endif
 endif
 
 if BUILD_FASTMATH
-if BUILD_FIPS
-src_libwolfssl_la_SOURCES += ctaocrypt/src/tfm.c
-else
 src_libwolfssl_la_SOURCES += wolfcrypt/src/tfm.c
-endif
 endif
 
 if BUILD_SLOWMATH
-if BUILD_FIPS
-src_libwolfssl_la_SOURCES += ctaocrypt/src/integer.c
-else
 src_libwolfssl_la_SOURCES += wolfcrypt/src/integer.c
-endif
 endif
 
 if BUILD_ECC
@@ -216,19 +165,11 @@ src_libwolfssl_la_SOURCES += wolfcrypt/src/ecc.c
 endif
 
 if BUILD_LIBZ
-if BUILD_FIPS
-src_libwolfssl_la_SOURCES += ctaocrypt/src/compress.c
-else
 src_libwolfssl_la_SOURCES += wolfcrypt/src/compress.c
-endif
 endif
 
 if BUILD_PKCS7
-if BUILD_FIPS
-src_libwolfssl_la_SOURCES += ctaocrypt/src/pkcs7.c
-else
 src_libwolfssl_la_SOURCES += wolfcrypt/src/pkcs7.c
-endif
 endif
 
 # ssl files

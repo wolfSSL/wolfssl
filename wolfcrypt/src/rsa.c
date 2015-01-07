@@ -89,28 +89,6 @@ int  wc_RsaEncryptSize(RsaKey* key)
 }
 
 
-int wc_RsaPrivateKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
-                                   word32 sz)
-{
-    return RsaPrivateKeyDecode(input, inOutIdx, key, sz);
-}
-
-
-int wc_RsaPublicKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
-                                  word32 sz)
-{
-    return RsaPublicKeyDecode(input, inOutIdx, key, sz);
-}
-
-
-
-int wc_RsaPublicKeyDecodeRaw(const byte* n, word32 nSz, const byte* e,
-                                     word32 eSz, RsaKey* key)
-{
-    return RsaPublicKeyDecodeRaw(n, nSz, e, eSz, key);
-}
-
-
 int wc_RsaFlattenPublicKey(RsaKey* key, byte* a, word32* aSz, byte* b,
                            word32* bSz)
 {

@@ -25,29 +25,11 @@
 #ifndef CTAO_CRYPT_PWDBASED_H
 #define CTAO_CRYPT_PWDBASED_H
 
-#include <cyassl/ctaocrypt/types.h>
-#include <cyassl/ctaocrypt/md5.h>       /* for hash type */
-#include <cyassl/ctaocrypt/sha.h>
-
-#ifdef __cplusplus
-    extern "C" {
-#endif
-
-
-CYASSL_API int PBKDF1(byte* output, const byte* passwd, int pLen,
-                      const byte* salt, int sLen, int iterations, int kLen,
-                      int hashType);
-CYASSL_API int PBKDF2(byte* output, const byte* passwd, int pLen,
-                      const byte* salt, int sLen, int iterations, int kLen,
-                      int hashType);
-CYASSL_API int PKCS12_PBKDF(byte* output, const byte* passwd, int pLen,
-                            const byte* salt, int sLen, int iterations,
-                            int kLen, int hashType, int purpose);
-
-
-#ifdef __cplusplus
-    } /* extern "C" */
-#endif
+/* for pwdbased reverse compatibility */
+#include <wolfssl/wolfcrypt/pwdbased.h>
+#define PBKDF1       wc_PBKDF1
+#define PBKDF2       wc_PBKDF2
+#define PKCS12_PBKDF wc_PKCS12_PBKDF
 
 #endif /* CTAO_CRYPT_PWDBASED_H */
 #endif /* NO_PWDBASED */

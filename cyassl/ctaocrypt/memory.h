@@ -25,38 +25,17 @@
 #ifndef CYASSL_MEMORY_H
 #define CYASSL_MEMORY_H
 
-#include <stdlib.h>
 
-/* for fips compatibility @wc_fips */
-#ifndef HAVE_FIPS
 #include <wolfssl/wolfcrypt/memory.h>
-#else
-
-#ifdef __cplusplus
-    extern "C" {
-#endif
-
-
-typedef void *(*CyaSSL_Malloc_cb)(size_t size);
-typedef void (*CyaSSL_Free_cb)(void *ptr);
-typedef void *(*CyaSSL_Realloc_cb)(void *ptr, size_t size);
-
-
-/* Public set function */
-CYASSL_API int CyaSSL_SetAllocators(CyaSSL_Malloc_cb  malloc_function,
-                                    CyaSSL_Free_cb    free_function,
-                                    CyaSSL_Realloc_cb realloc_function);
+#define CyaSSL_Malloc_cb     wolfSSL_Malloc_cb
+#define CyaSSL_Free_cb       wolfSSL_Free_cb
+#define CyaSSL_Realloc_cb    wolfSSL_Realloc_cb
+#define CyaSSL_SetAllocators wolfSSL_SetAllocators
 
 /* Public in case user app wants to use XMALLOC/XFREE */
-CYASSL_API void* CyaSSL_Malloc(size_t size);
-CYASSL_API void  CyaSSL_Free(void *ptr);
-CYASSL_API void* CyaSSL_Realloc(void *ptr, size_t size);
+#define CyaSSL_Malloc  wolfSSL_Malloc
+#define CyaSSL_Free    wolfSSL_Free
+#define CyaSSL_Realloc wolfSSL_Realloc
 
-
-#ifdef __cplusplus
-}
-#endif
-
-#endif /* HAVE_FIPS */
 #endif /* CYASSL_MEMORY_H */
 

@@ -26,6 +26,12 @@
 
 #include <wolfssl/wolfcrypt/types.h>
 #include <wolfssl/wolfcrypt/rsa.h>
+
+/* fips declare of RsaPrivateKeyDecode @wc_fips */
+#ifdef HAVE_FIPS
+    #include <cyassl/ctaocrypt/rsa.h>
+#endif
+
 #include <wolfssl/wolfcrypt/dh.h>
 #include <wolfssl/wolfcrypt/dsa.h>
 #include <wolfssl/wolfcrypt/sha.h>
