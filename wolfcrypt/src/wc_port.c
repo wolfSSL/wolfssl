@@ -201,7 +201,7 @@ int UnLockMutex(wolfSSL_Mutex *m)
 
         int InitMutex(wolfSSL_Mutex* m)
         {
-            if (tx_mutex_create(m, "CyaSSL Mutex", TX_NO_INHERIT) == 0)
+            if (tx_mutex_create(m, "wolfSSL Mutex", TX_NO_INHERIT) == 0)
                 return 0;
             else
                 return BAD_MUTEX_E;

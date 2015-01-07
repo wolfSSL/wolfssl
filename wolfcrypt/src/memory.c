@@ -81,7 +81,7 @@ void* wolfSSL_Malloc(size_t size)
     else
         res = malloc(size);
 
-    #ifdef CYASSL_MALLOC_CHECK
+    #ifdef WOLFSSL_MALLOC_CHECK
         if (res == NULL)
             puts("wolfSSL_malloc failed");
     #endif
@@ -173,7 +173,7 @@ void* XREALLOC(void *p, size_t n, void* heap, int type)
 }
 
 
-/* unit api calls, let's make sure visible with CYASSL_API */
+/* unit api calls, let's make sure visible with WOLFSSL_API */
 WOLFSSL_API void XFREE(void *p, void* heap, int type)
 {
     (void)heap;

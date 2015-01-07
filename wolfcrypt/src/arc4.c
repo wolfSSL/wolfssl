@@ -149,7 +149,7 @@ static void wc_Arc4CaviumSetKey(Arc4* arc4, const byte* key, word32 length)
 static void wc_Arc4CaviumProcess(Arc4* arc4, byte* out, const byte* in,
                               word32 length)
 {
-    cyassl_word offset = 0;
+    wolfssl_word offset = 0;
     word32 requestId;
 
     while (length > WOLFSSL_MAX_16BIT) {

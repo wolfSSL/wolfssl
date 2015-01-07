@@ -672,7 +672,7 @@ int wc_RNG_GenerateByte(RNG* rng, byte* b)
 
 #ifdef HAVE_CAVIUM
 
-#include <cyassl/ctaocrypt/logging.h>
+#include <wolfssl/ctaocrypt/logging.h>
 #include "cavium_common.h"
 
 /* Initiliaze RNG for use with Nitrox device */
@@ -690,7 +690,7 @@ int wc_InitRngCavium(RNG* rng, int devId)
 
 static void CaviumRNG_GenerateBlock(RNG* rng, byte* output, word32 sz)
 {
-    cyassl_word offset = 0;
+    wolfssl_word offset = 0;
     word32      requestId;
 
     while (sz > WOLFSSL_MAX_16BIT) {

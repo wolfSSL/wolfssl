@@ -116,7 +116,7 @@
         #include <rtl.h>
     #endif
     #undef RNG
-    #include "cyassl_MDK_ARM.h"
+    #include "wolfssl_MDK_ARM.h"
     #undef RNG
     #define RNG wolfSSL_RNG /*for avoiding name conflict in "stm32f2xx.h" */
     #define XTIME(tl)  (0)
@@ -3094,34 +3094,34 @@ static int ConfirmSignature(const byte* buf, word32 bufSz,
                     #ifdef WOLFSSL_DEBUG_ENCODING
                     {
                         int x;
-                        
-                        printf("cyassl encodedSig:\n");
-                        
+
+                        printf("wolfssl encodedSig:\n");
+
                         for (x = 0; x < encodedSigSz; x++) {
                             printf("%02x ", encodedSig[x]);
                             if ( (x % 16) == 15)
                                 printf("\n");
                         }
-                        
+
                         printf("\n");
                         printf("actual digest:\n");
-                        
+
                         for (x = 0; x < verifySz; x++) {
                             printf("%02x ", out[x]);
                             if ( (x % 16) == 15)
                                 printf("\n");
                         }
-                        
+
                         printf("\n");
                     }
                     #endif /* WOLFSSL_DEBUG_ENCODING */
-                    
+
                 }
-                
+
             }
-            
+
             wc_FreeRsaKey(pubKey);
-            
+
 #ifdef WOLFSSL_SMALL_STACK
             XFREE(pubKey,     NULL, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(plain,      NULL, DYNAMIC_TYPE_TMP_BUFFER);

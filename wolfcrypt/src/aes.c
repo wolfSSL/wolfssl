@@ -3201,7 +3201,7 @@ static void GHASH(Aes* aes, const byte* a, word32 aSz,
 
     XMEMCPY(bigH, aes->H, AES_BLOCK_SIZE);
     #ifdef LITTLE_ENDIAN_ORDER
-        ByteReverseWords(bigH, bigH, AES_BLOCK_SIZE); 
+        ByteReverseWords(bigH, bigH, AES_BLOCK_SIZE);
     #endif
 
     /* Hash in A, the Additional Authentication Data */
@@ -3412,7 +3412,7 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
             return AES_GCM_AUTH_E;
         }
     }
- 
+
 #ifdef WOLFSSL_PIC32MZ_CRYPT
     if(blocks)
         wc_AesCrypt(aes, out, in, blocks*AES_BLOCK_SIZE,
@@ -3682,7 +3682,7 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
     for (i = 0; i < lenSz; i++)
         B[AES_BLOCK_SIZE - 1 - i] = 0;
     B[15] = 1;
-    
+
     while (oSz >= AES_BLOCK_SIZE) {
         #ifdef FREESCALE_MMCAU
             cau_aes_encrypt(B, key, aes->rounds, A);
@@ -3778,7 +3778,7 @@ int wc_AesInitCavium(Aes* aes, int devId)
 
     aes->devId = devId;
     aes->magic = WOLFSSL_AES_CAVIUM_MAGIC;
-   
+
     return 0;
 }
 

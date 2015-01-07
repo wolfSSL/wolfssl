@@ -120,7 +120,7 @@ int wc_Chacha_SetKey(ChaCha* ctx, const byte* key, word32 keySz)
 
 #ifdef XSTREAM_ALIGN
     word32 alignKey[keySz / 4];
-    if ((cyassl_word)key % 4) {
+    if ((wolfssl_word)key % 4) {
         WOLFSSL_MSG("wc_ChachaSetKey unaligned key");
         XMEMCPY(alignKey, key, sizeof(alignKey));
         k = (byte*)alignKey;

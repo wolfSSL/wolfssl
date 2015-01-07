@@ -108,7 +108,7 @@ int wc_HmacFinal_fips(Hmac* hmac, byte* out)
 
 #endif /* HAVE_FIPS */
 #else
-#ifdef CYASSL_PIC32MZ_HASH
+#ifdef WOLFSSL_PIC32MZ_HASH
 
 #define wc_InitMd5   wc_InitMd5_sw
 #define wc_Md5Update wc_Md5Update_sw
@@ -203,7 +203,7 @@ int wc_HmacSetKey(Hmac* hmac, int type, const byte* key, word32 length)
     int    ret;
 
 #ifdef HAVE_CAVIUM
-    if (hmac->magic == CYASSL_HMAC_CAVIUM_MAGIC)
+    if (hmac->magic == WOLFSSL_HMAC_CAVIUM_MAGIC)
         return HmacCaviumSetKey(hmac, type, key, length);
 #endif
 
@@ -419,7 +419,7 @@ int wc_HmacUpdate(Hmac* hmac, const byte* msg, word32 length)
     int ret;
 
 #ifdef HAVE_CAVIUM
-    if (hmac->magic == CYASSL_HMAC_CAVIUM_MAGIC)
+    if (hmac->magic == WOLFSSL_HMAC_CAVIUM_MAGIC)
         return HmacCaviumUpdate(hmac, msg, length);
 #endif
 
@@ -487,7 +487,7 @@ int wc_HmacFinal(Hmac* hmac, byte* hash)
     int ret;
 
 #ifdef HAVE_CAVIUM
-    if (hmac->magic == CYASSL_HMAC_CAVIUM_MAGIC)
+    if (hmac->magic == WOLFSSL_HMAC_CAVIUM_MAGIC)
         return HmacCaviumFinal(hmac, hash);
 #endif
 
@@ -648,7 +648,7 @@ int wc_HmacInitCavium(Hmac* hmac, int devId)
     hmac->dataLen = 0;
     hmac->type    = 0;
     hmac->devId   = devId;
-    hmac->magic   = CYASSL_HMAC_CAVIUM_MAGIC;
+    hmac->magic   = WOLFSSL_HMAC_CAVIUM_MAGIC;
     hmac->data    = NULL;        /* buffered input data */
    
     hmac->innerHashKeyed = 0;
@@ -677,7 +677,7 @@ static void HmacCaviumFinal(Hmac* hmac, byte* hash)
     if (CspHmac(CAVIUM_BLOCKING, hmac->type, NULL, hmac->keyLen,
                 (byte*)hmac->ipad, hmac->dataLen, hmac->data, hash, &requestId,
                 hmac->devId) != 0) {
-        CYASSL_MSG("Cavium Hmac failed");
+        WOLFSSL_MSG("Cavium Hmac failed");
     } 
     hmac->innerHashKeyed = 0;  /* tell update to start over if used again */
 }
@@ -689,8 +689,8 @@ static void HmacCaviumUpdate(Hmac* hmac, const byte* msg, word32 length)
     word32 total;
     byte*  tmp;
 
-    if (length > CYASSL_MAX_16BIT) {
-        CYASSL_MSG("Too big msg for cavium hmac");
+    if (length > WOLFSSL_MAX_16BIT) {
+        WOLFSSL_MSG("Too big msg for cavium hmac");
         return;
     }
 
@@ -700,14 +700,14 @@ static void HmacCaviumUpdate(Hmac* hmac, const byte* msg, word32 length)
     }
 
     total = add + hmac->dataLen;
-    if (total > CYASSL_MAX_16BIT) {
-        CYASSL_MSG("Too big msg for cavium hmac");
+    if (total > WOLFSSL_MAX_16BIT) {
+        WOLFSSL_MSG("Too big msg for cavium hmac");
         return;
     }
 
     tmp = XMALLOC(hmac->dataLen + add, NULL,DYNAMIC_TYPE_CAVIUM_TMP);
     if (tmp == NULL) {
-        CYASSL_MSG("Out of memory for cavium update");
+        WOLFSSL_MSG("Out of memory for cavium update");
         return;
     }
     if (hmac->dataLen)
@@ -731,7 +731,7 @@ static void HmacCaviumSetKey(Hmac* hmac, int type, const byte* key,
     else if (type == SHA256)
         hmac->type = SHA256_TYPE;
     else  {
-        CYASSL_MSG("unsupported cavium hmac type");
+        WOLFSSL_MSG("unsupported cavium hmac type");
     }
 
     hmac->innerHashKeyed = 0;  /* should we key Startup flag */
@@ -785,13 +785,13 @@ static INLINE int GetHashSizeByType(int type)
         break;
         #endif
         
-        #ifdef CYASSL_SHA384
+        #ifdef WOLFSSL_SHA384
         case SHA384:
             return SHA384_DIGEST_SIZE;
         break;
         #endif
         
-        #ifdef CYASSL_SHA512
+        #ifdef WOLFSSL_SHA512
         case SHA512:
             return SHA512_DIGEST_SIZE;
         break;
@@ -817,7 +817,7 @@ int wc_HKDF(int type, const byte* inKey, word32 inKeySz,
                    byte* out,         word32 outSz)
 {
     Hmac   myHmac;
-#ifdef CYASSL_SMALL_STACK
+#ifdef WOLFSSL_SMALL_STACK
     byte* tmp;
     byte* prk;
 #else
@@ -833,7 +833,7 @@ int wc_HKDF(int type, const byte* inKey, word32 inKeySz,
     if (hashSz < 0)
         return BAD_FUNC_ARG;
 
-#ifdef CYASSL_SMALL_STACK
+#ifdef WOLFSSL_SMALL_STACK
     tmp = (byte*)XMALLOC(MAX_DIGEST_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (tmp == NULL)
         return MEMORY_E;
@@ -891,7 +891,7 @@ int wc_HKDF(int type, const byte* inKey, word32 inKeySz,
         }
     }
 
-#ifdef CYASSL_SMALL_STACK
+#ifdef WOLFSSL_SMALL_STACK
     XFREE(tmp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(prk, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif

@@ -28,7 +28,7 @@
 
 #if !defined(NO_MD5)
 
-#ifdef CYASSL_PIC32MZ_HASH
+#ifdef WOLFSSL_PIC32MZ_HASH
 #define wc_InitMd5   InitMd5_sw
 #define wc_Md5Update Md5Update_sw
 #define wc_Md5Final  Md5Final_sw
@@ -365,13 +365,13 @@ void wc_Md5Final(Md5* md5, byte* hash)
 
 int wc_Md5Hash(const byte* data, word32 len, byte* hash)
 {
-#ifdef CYASSL_SMALL_STACK
+#ifdef WOLFSSL_SMALL_STACK
     Md5* md5;
 #else
     Md5 md5[1];
 #endif
 
-#ifdef CYASSL_SMALL_STACK
+#ifdef WOLFSSL_SMALL_STACK
     md5 = (Md5*)XMALLOC(sizeof(Md5), NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (md5 == NULL)
         return MEMORY_E;
@@ -381,7 +381,7 @@ int wc_Md5Hash(const byte* data, word32 len, byte* hash)
     wc_Md5Update(md5, data, len);
     wc_Md5Final(md5, hash);
 
-#ifdef CYASSL_SMALL_STACK
+#ifdef WOLFSSL_SMALL_STACK
     XFREE(md5, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
 
