@@ -76,5 +76,5 @@ typedef struct timeoutInfo_st {
 #endif
 
 
-#endif /* CYASSL_CALLBACKS_H */
+#endif /* WOLFSSL_CALLBACKS_H */
 

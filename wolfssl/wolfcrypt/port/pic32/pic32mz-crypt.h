@@ -22,7 +22,7 @@
 #ifndef PIC32MZ_CRYPT_H
 #define PIC32MZ_CRYPT_H
 
-#ifdef  CYASSL_PIC32MZ_CRYPT
+#if defined(CYASSL_PIC32MZ_CRYPT) || defined(WOLFSSL_PIC32MZ_CRYPT)
 
 #define MICROCHIP_PIC32
 #include <xc.h>
@@ -74,7 +74,7 @@ typedef struct {      /* Crypt Engine descripter */
 #define WAIT_ENGINE \
     { volatile int v ; while (CESTATbits.ACTIVE) ; for(v=0; v<100; v++) ; }
 
-#ifdef DEBUG_CYASSL
+#if defined(DEBUG_CYASSL) || defined(DEBUG_WOLFSSL)
 static void print_mem(const unsigned char *p, int size) {
     for(; size>0; size--, p++) {
         if(size%4 == 0)printf(" ") ;
