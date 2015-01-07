@@ -94,7 +94,7 @@ int HashTest(void)
         printf( "   SHA-256  test passed!\n");
 #endif
 
-#ifdef CYASSL_SHA512
+#ifdef WOLFSSL_SHA512
     if ( (ret = sha512_test()) ) {
         printf( "   SHA-512  test failed!\n");
         return ret; 
@@ -102,7 +102,7 @@ int HashTest(void)
         printf( "   SHA-512  test passed!\n");
 #endif
 
-#ifdef CYASSL_SHA384
+#ifdef WOLFSSL_SHA384
     if ( (ret = sha384_test()) ) {
         printf( "   SHA-384  test failed!\n");
         return ret; 
@@ -110,7 +110,7 @@ int HashTest(void)
         printf( "   SHA-384  test passed!\n");
 #endif
 
-#ifdef CYASSL_RIPEMD
+#ifdef WOLFSSL_RIPEMD
     if ( (ret = ripemd_test()) ) {
         printf( "   RIPEMD   test failed!\n");
         return ret; 
@@ -139,7 +139,7 @@ int HashTest(void)
             printf( "   HMAC-SHA256 test passed!\n");
     #endif
 
-    #ifdef CYASSL_SHA384
+    #ifdef WOLFSSL_SHA384
         if ( (ret = hmac_sha384_test()) ) 
             printf( "   HMAC-SHA384 test failed!\n");
         else
@@ -402,7 +402,7 @@ int sha256_test(void)
 }
 #endif
 
-#ifdef CYASSL_SHA512
+#ifdef WOLFSSL_SHA512
 int sha512_test(void)
 {
     Sha512 sha;
@@ -456,7 +456,7 @@ int sha512_test(void)
 }
 #endif
 
-#ifdef CYASSL_SHA384
+#ifdef WOLFSSL_SHA384
 int sha384_test()
 {
     Sha384 sha;
@@ -508,7 +508,7 @@ int sha384_test()
 }
 #endif
 
-#ifdef CYASSL_RIPEMD
+#ifdef WOLFSSL_RIPEMD
 int ripemd_test(void)
 {
     RipeMd  ripemd;
@@ -561,7 +561,7 @@ int ripemd_test(void)
 
     return 0;
 }
-#endif /* CYASSL_RIPEMD */
+#endif /* WOLFSSL_RIPEMD */
 
 #if !defined(NO_HMAC) && !defined(NO_MD5)
 int hmac_md5_test(void)
@@ -775,7 +775,7 @@ int hmac_sha256_test(void)
 #endif
 
 
-#if !defined(NO_HMAC) && defined(CYASSL_SHA384)
+#if !defined(NO_HMAC) && defined(WOLFSSL_SHA384)
 int hmac_sha384_test(void)
 {
     Hmac hmac;

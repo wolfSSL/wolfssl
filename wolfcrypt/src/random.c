@@ -927,8 +927,8 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         }
 	#endif /* FREESCALE_K70_RNGA */
 
-#elif defined(WOLFSSL_SAFERTOS) || defined(CYASSL_LEANPSK) \
-   || defined(WOLFSSL_IAR_ARM)  || defined(CYASSL_MDK_ARM)
+#elif defined(WOLFSSL_SAFERTOS) || defined(WOLFSSL_LEANPSK) \
+   || defined(WOLFSSL_IAR_ARM)  || defined(WOLFSSL_MDK_ARM)
 
 #warning "write a real random seed!!!!, just for testing now"
 
@@ -972,7 +972,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 
         return 0;
     }
-#elif defined(WOLFSSL_LPC43xx) || defined(CYASSL_STM32F2xx)
+#elif defined(WOLFSSL_LPC43xx) || defined(WOLFSSL_STM32F2xx)
 
     #warning "write a real random seed!!!!, just for testing now"
 

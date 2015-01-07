@@ -1688,7 +1688,7 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
         return wc_AesSetKeyLocal(aes, userKey, keylen, iv, dir);
     }
 
-    #if defined(WOLFSSL_AES_DIRECT) || defined(CYASSL_AES_COUNTER)
+    #if defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER)
 
     /* AES-CTR and AES-DIRECT need to use this for key setup, no aesni yet */
     int wc_AesSetKeyDirect(Aes* aes, const byte* userKey, word32 keylen,
@@ -1697,7 +1697,7 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
         return wc_AesSetKeyLocal(aes, userKey, keylen, iv, dir);
     }
 
-    #endif /* WOLFSSL_AES_DIRECT || CYASSL_AES_COUNTER */
+    #endif /* WOLFSSL_AES_DIRECT || WOLFSSL_AES_COUNTER */
 #endif /* STM32F2_CRYPTO, wc_AesSetKey block */
 
 

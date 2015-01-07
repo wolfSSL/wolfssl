@@ -74,7 +74,7 @@ int wc_Des3_CbcDecrypt(Des3* des, byte* out, const byte* in, word32 sz)
 }
 
 
-#ifdef CYASSL_DES_ECB
+#ifdef WOLFSSL_DES_ECB
 
 /* One block, compatibility only */
 int wc_Des_EcbEncrypt(Des* des, byte* out, const byte* in, word32 sz)
@@ -82,7 +82,7 @@ int wc_Des_EcbEncrypt(Des* des, byte* out, const byte* in, word32 sz)
     return Des_EcbEncrypt(des, out, in, sz);
 }
 
-#endif /* CYASSL_DES_ECB */
+#endif /* WOLFSSL_DES_ECB */
 
 
 void wc_Des_SetIV(Des* des, const byte* iv)
