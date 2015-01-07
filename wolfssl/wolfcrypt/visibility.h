@@ -24,6 +24,14 @@
 #ifndef WOLF_CRYPT_VISIBILITY_H
 #define WOLF_CRYPT_VISIBILITY_H
 
+
+/* for compatibility and so that fips is using same name of macro @wc_fips */
+#ifdef HAVE_FIPS
+    #include <cyassl/ctaocrypt/visibility.h>
+    #define WOLFSSL_API   CYASSL_API
+	#define WOLFSSL_LOCAL CYASSL_LOCAL
+#else
+
 /* WOLFSSL_API is used for the public API symbols.
         It either imports or exports (or does nothing for static builds)
 
@@ -62,6 +70,6 @@
     #endif
 #endif /* BUILDING_WOLFSSL */
 
-
+#endif /* HAVE_FIPS */
 #endif /* WOLF_CRYPT_VISIBILITY_H */
 
