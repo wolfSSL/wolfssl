@@ -19,23 +19,12 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-/* Name change compatibility layer */
-//#include <cyassl/ssl.h>
 
 #ifndef WOLF_CRYPT_TYPES_H
 #define WOLF_CRYPT_TYPES_H
 
 	#include <wolfssl/wolfcrypt/settings.h>
 	#include <wolfssl/wolfcrypt/wc_port.h>
-
-	/* set old macros since this is often called for visibility also */
-	#ifndef CYASSL_API
-	    #define CYASSL_API WOLFSSL_API
-	#endif
-	#ifndef CYASSL_LOCAL
-	    #define CYASSL_LOCAL WOLFSSL_LOCAL
-	#endif
-
 
 	#ifdef __cplusplus
 	    extern "C" {

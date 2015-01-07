@@ -23,6 +23,7 @@
 #ifndef CTAO_CRYPT_PORT_H
 #define CTAO_CRYPT_PORT_H
 
+#include <cyassl/ctaocrypt/visibility.h>
 #include <wolfssl/wolfcrypt/wc_port.h>
 #define CyaSSL_Mutex wolfSSL_Mutex
 
