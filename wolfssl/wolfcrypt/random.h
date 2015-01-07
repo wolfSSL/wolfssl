@@ -35,7 +35,6 @@
 #endif
 
 #ifndef HAVE_FIPS
-#define CTAO_CRYPT_RANDOM_H
 #if defined(HAVE_HASHDRBG) || defined(NO_RC4)
     #ifdef NO_SHA256
         #error "Hash DRBG requires SHA-256."

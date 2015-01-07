@@ -37,7 +37,6 @@
     extern "C" {
 #endif
 #ifndef HAVE_FIPS
-#define CTAO_CRYPT_SHA_H
 
 /* in bytes */
 enum {

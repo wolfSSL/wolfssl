@@ -40,7 +40,6 @@
 #endif
 
 #ifndef HAVE_FIPS
-#define CTAO_CRYPT_AES_H
 #ifdef HAVE_CAVIUM
     #include <wolfssl/ctaocrypt/logging.h>
     #include "cavium_common.h"

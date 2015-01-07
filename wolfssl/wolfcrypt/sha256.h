@@ -38,7 +38,6 @@
 #endif
 
 #ifndef HAVE_FIPS
-#define CTAO_CRYPT_SHA256_H
 #ifdef WOLFSSL_PIC32MZ_HASH
 #include "port/pic32/pic32mz-crypt.h"
 #endif
