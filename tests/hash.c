@@ -511,7 +511,7 @@ int sha384_test()
 #ifdef WOLFSSL_RIPEMD
 int ripemd_test(void)
 {
-    wc_RipeMd  ripemd;
+    RipeMd  ripemd;
     byte hash[RIPEMD_DIGEST_SIZE];
 
     testVector a, b, c, d;
