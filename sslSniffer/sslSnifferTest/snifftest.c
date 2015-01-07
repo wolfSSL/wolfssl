@@ -23,13 +23,13 @@
     #include <config.h>
 #endif
 
-#include <cyassl/ctaocrypt/settings.h>
+#include <wolfssl/wolfcrypt/settings.h>
 
 #ifdef _WIN32
-    #define CYASSL_SNIFFER
+    #define WOLFSSL_SNIFFER
 #endif
 
-#ifndef CYASSL_SNIFFER
+#ifndef WOLFSSL_SNIFFER
 
 /* blank build */
 #include <stdio.h>

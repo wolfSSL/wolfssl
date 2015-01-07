@@ -25,20 +25,16 @@
 
 #include <cyassl/ctaocrypt/wc_port.h>
 #include <cyassl/ctaocrypt/settings.h>
-    #include <wolfssl/wolfcrypt/types.h>
-    /* compatibility macros */
-    #define CYASSL_WORD_SIZE    WOLFSSL_WORD_SIZE
-    #define CYASSL_BIT_SIZE     WOLFSSL_BIT_SIZE
-    #define CYASSL_MAX_16BIT    WOLFSSL_MAX_16BIT
-    #define CYASSL_MAX_ERROR_SZ WOLFSSL_MAX_ERROR_SZ
-    #define cyassl_word wolfssl_word
-//	/* set old macros since this is often called for visibility also */
-//	#ifndef WOLFSSL_API
-//	    #define WOLFSSL_API CYASSL_API
-//	#endif
-//	#ifndef WOLFSSL_LOCAL
-//	    #define WOLFSSL_LOCAL CYASSL_LOCAL
-//	#endif
+#include <wolfssl/wolfcrypt/types.h>
+
+/* compatibility macros */
+#define CYASSL_WORD_SIZE    WOLFSSL_WORD_SIZE
+#define CYASSL_BIT_SIZE     WOLFSSL_BIT_SIZE
+#define CYASSL_MAX_16BIT    WOLFSSL_MAX_16BIT
+#define CYASSL_MAX_ERROR_SZ WOLFSSL_MAX_ERROR_SZ
+#define cyassl_word wolfssl_word
+
+/* if macros need to be reverted back to previous name for fips */
 //    #define WOLFSSL_MAX_ERROR_SZ CYASSL_MAX_ERROR_SZ
 //
 //    #define WOLFSSL_WORD_SIZE    CYASSL_WORD_SIZE
@@ -52,10 +48,11 @@
 //    #define wolfSSL_Free_cb       CyaSSL_Free_cb
 //    #define wolfSSL_Realloc_cb    CyaSSL_Realloc_cb
 //    #define wolfSSL_SetAllocators CyaSSL_SetAllocators
-//    
+//
 //    /* Public in case user app wants to use XMALLOC/XFREE */
 //	#define wolfSSL_Malloc  CyaSSL_Malloc
 //	#define wolfSSL_Free    CyaSSL_Free
 //	#define wolfSSL_Realloc CyaSSL_Realloc
+
 #endif /* CTAO_CRYPT_TYPES_H */
 
