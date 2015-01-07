@@ -25,15 +25,15 @@
 #ifndef CTAO_CRYPT_DH_H
 #define CTAO_CRYPT_DH_H
 
-    /* for dh reverse compatibility */
-    #include <wolfssl/wolfcrypt/dh.h>
-	#define InitDhKey         wc_InitDhKey
-	#define FreeDhKey         wc_FreeDhKey
-	#define DhGenerateKeyPair wc_DhGenerateKeyPair
-	#define DhAgree           wc_DhAgree
-	#define DhKeyDecode       wc_DhKeyDecode
-	#define DhSetKey          wc_DhSetKey
-	#define DhParamsLoad      wc_DhParamsLoad
+/* for dh reverse compatibility */
+#include <wolfssl/wolfcrypt/dh.h>
+#define InitDhKey         wc_InitDhKey
+#define FreeDhKey         wc_FreeDhKey
+#define DhGenerateKeyPair wc_DhGenerateKeyPair
+#define DhAgree           wc_DhAgree
+#define DhKeyDecode       wc_DhKeyDecode
+#define DhSetKey          wc_DhSetKey
+#define DhParamsLoad      wc_DhParamsLoad
 
 #endif /* CTAO_CRYPT_DH_H */
 

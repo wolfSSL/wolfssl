@@ -22,6 +22,11 @@
 #ifndef CTAO_CRYPT_SETTINGS_C_H
 #define CTAO_CRYPT_SETTINGS_C_H
 
+/* asn.c compatibility */
+#define RsaPrivateKeyDecode   wc_RsaPrivateKeyDecode
+#define RsaPublicKeyDecode    wc_RsaPublicKeyDecode
+#define RsaPublicKeyDecodeRaw wc_RsaPublicKeyDecodeRaw
+
 /* Macro redefinitions for compatibility */
 #if defined(WOLFSSL_SHA512) && !defined(CYASSL_SHA512)
     #define CYASSL_SHA512
@@ -35,11 +40,6 @@
 #if defined(NO_WOLFSSL_MEMORY) && !defined(NO_CYASSL_MEMORY)
     #define NO_CYASSL_MEMORY
 #endif
-
-/* asn.c compatibility */
-#define RsaPrivateKeyDecode   wc_RsaPrivateKeyDecode
-#define RsaPublicKeyDecode    wc_RsaPublicKeyDecode
-#define RsaPublicKeyDecodeRaw wc_RsaPublicKeyDecodeRaw
 
 /* These are compatibility from fips protected headers
  * When using non-fips mode and including old headers this allows for
