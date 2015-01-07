@@ -29,6 +29,10 @@
 #define CTAO_CRYPT_SHA256_H
 
 #include <wolfssl/wolfcrypt/sha256.h>
+#define InitSha256   wc_InitSha256
+#define Sha256Update wc_Sha256Update
+#define Sha256Final  wc_Sha256Final
+#define Sha256Hash   wc_Sha256Hash
 
 #endif /* CTAO_CRYPT_SHA256_H */
 #endif /* NO_SHA256 */

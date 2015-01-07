@@ -26,6 +26,10 @@
 #define CTAO_CRYPT_SHA_H
 
 #include <wolfssl/wolfcrypt/sha.h>
+#define InitSha   wc_InitSha
+#define ShaUpdate wc_ShaUpdate
+#define ShaFinal  wc_ShaFinal
+#define ShaHash   wc_ShaHash
 
 #endif /* CTAO_CRYPT_SHA_H */
 #endif /* NO_SHA */

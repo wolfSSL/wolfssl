@@ -26,6 +26,17 @@
 #define CTAO_CRYPT_HMAC_H
 
 #include <wolfssl/wolfcrypt/hmac.h>
+#define HmacSetKey wc_HmacSetKey
+#define HmacUpdate wc_HmacUpdate
+#define HmacFinal  wc_HmacFinal
+#ifdef HAVE_CAVIUM
+    #define HmacInitCavium wc_HmacInitCavium
+    #define HmacFreeCavium wc_HmacFreeCavium
+#endif
+#define wolfSSL_GetHmacMaxSize wc_wolfSSL_GetHmacMaxSize
+#ifdef HAVE_HKDF
+    #define HKDF wc_HKDF
+#endif /* HAVE_HKDF */
 
 #endif /* CTAO_CRYPT_HMAC_H */
 

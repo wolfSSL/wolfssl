@@ -440,11 +440,11 @@ int sha512_test(void)
         return ret;
 
     for (i = 0; i < times; ++i) {
-        ret = Sha512Update(&sha, (byte*)test_sha[i].input,(word32)test_sha[i].inLen);
+        ret = wc_Sha512Update(&sha, (byte*)test_sha[i].input,(word32)test_sha[i].inLen);
         if (ret != 0)
             return ret;
 
-        ret = Sha512Final(&sha, hash);
+        ret = wc_Sha512Final(&sha, hash);
         if (ret != 0)
             return ret;
 
@@ -492,11 +492,11 @@ int sha384_test()
         return ret;
 
     for (i = 0; i < times; ++i) {
-        ret = Sha384Update(&sha, (byte*)test_sha[i].input,(word32)test_sha[i].inLen);
+        ret = wc_Sha384Update(&sha, (byte*)test_sha[i].input,(word32)test_sha[i].inLen);
         if (ret != 0)
             return ret;
 
-        ret = Sha384Final(&sha, hash);
+        ret = wc_Sha384Final(&sha, hash);
         if (ret != 0)
             return ret;
 
