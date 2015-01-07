@@ -46,17 +46,6 @@
  * using old function calls
  */
 #ifndef HAVE_FIPS
-    /* for random.h compatibility */
-    #include <wolfssl/wolfcrypt/random.h>
-    #define InitRng           wc_InitRng
-    #define RNG_GenerateBlock wc_RNG_GenerateBlock
-    #define RNG_GenerateByte  wc_RNG_GenerateByte
-
-	#if defined(HAVE_HASHDRBG) || defined(NO_RC4)
-	    #define FreeRng        wc_FreeRng
-	    #define RNG_HealthTest wc_RNG_HealthTest
-	#endif /* HAVE_HASHDRBG || NO_RC4 */
-
     #ifndef NO_AES
         #include <wolfssl/wolfcrypt/aes.h>
         #define AesSetKey            wc_AesSetKey
