@@ -2,9 +2,9 @@
 <VisualStudioProject
 	ProjectType="Visual C++"
 	Version="9.00"
-	Name="cyassl"
+	Name="wolfssl"
 	ProjectGUID="{73973223-5EE8-41CA-8E88-1D60E89A237B}"
-	RootNamespace="cyassl"
+	RootNamespace="wolfssl"
 	Keyword="Win32Proj"
 	TargetFrameworkVersion="196613"
 	>
@@ -41,15 +41,14 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
-				AdditionalIncludeDirectories="./"
-				PreprocessorDefinitions="OPENSSL_EXTRA;CYASSL_RIPEMD;CYASSL_SHA512;NO_PSK"
+				AdditionalIncludeDirectories="./;NTRU/include"
+				PreprocessorDefinitions="OPENSSL_EXTRA;WOLFSSL_RIPEMD;WOLFSSL_SHA512;HAVE_NTRU;NO_PSK;WIN32"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="3"
 				UsePrecompiledHeader="0"
-				WarningLevel="4"
+				WarningLevel="3"
 				DebugInformationFormat="4"
-				DisableSpecificWarnings="4206"
 			/>
 			<Tool
 				Name="VCManagedResourceCompilerTool"
@@ -106,8 +105,8 @@
 				Name="VCCLCompilerTool"
 				Optimization="2"
 				EnableIntrinsicFunctions="true"
-				AdditionalIncludeDirectories="./"
-				PreprocessorDefinitions="OPENSSL_EXTRA;CYASSL_RIPEMD;CYASSL_SHA512;NO_PSK"
+				AdditionalIncludeDirectories="./;NTRU/include"
+				PreprocessorDefinitions="OPENSSL_EXTRA;WOLFSSL_RIPEMD;WOLFSSL_SHA512;HAVE_NTRU;NO_PSK;WIN32"
 				RuntimeLibrary="2"
 				EnableFunctionLevelLinking="true"
 				UsePrecompiledHeader="0"
@@ -152,27 +151,31 @@
 			UniqueIdentifier="{4FC737F1-C7A5-4376-A066-2A32D752A2FF}"
 			>
 			<File
-				RelativePath=".\ctaocrypt\src\aes.c"
+				RelativePath=".\wolfcrypt\src\aes.c"
 				>
 			</File>
 			<File
-				RelativePath=".\ctaocrypt\src\arc4.c"
+				RelativePath=".\wolfcrypt\src\arc4.c"
 				>
 			</File>
 			<File
-				RelativePath=".\ctaocrypt\src\asn.c"
+				RelativePath=".\wolfcrypt\src\asm.c"
 				>
 			</File>
 			<File
-				RelativePath=".\ctaocrypt\src\blake2b.c"
+				RelativePath=".\wolfcrypt\src\asn.c"
 				>
 			</File>
 			<File
-				RelativePath=".\ctaocrypt\src\camellia.c"
+				RelativePath=".\wolfcrypt\src\blake2b.c"
 				>
 			</File>
 			<File
-				RelativePath=".\ctaocrypt\src\coding.c"
+				RelativePath=".\wolfcrypt\src\camellia.c"
+				>
+			</File>
+			<File
+				RelativePath=".\wolfcrypt\src\coding.c"
 				>
 			</File>
 			<File
@@ -180,35 +183,35 @@
 				>
 			</File>
 			<File
-				RelativePath=".\ctaocrypt\src\des3.c"
+				RelativePath=".\wolfcrypt\src\des3.c"
 				>
 			</File>
 			<File
-				RelativePath=".\ctaocrypt\src\dh.c"
+				RelativePath=".\wolfcrypt\src\dh.c"
 				>
 			</File>
 			<File
-				RelativePath=".\ctaocrypt\src\dsa.c"
+				RelativePath=".\wolfcrypt\src\dsa.c"
 				>
 			</File>
 			<File
-				RelativePath=".\ctaocrypt\src\ecc.c"
+				RelativePath=".\wolfcrypt\src\ecc.c"
 				>
 			</File>
 			<File
-				RelativePath=".\ctaocrypt\src\error.c"
+				RelativePath=".\wolfcrypt\src\error.c"
 				>
 			</File>
 			<File
-				RelativePath=".\ctaocrypt\src\hc128.c"
+				RelativePath=".\wolfcrypt\src\hc128.c"
 				>
 			</File>
 			<File
-				RelativePath=".\ctaocrypt\src\hmac.c"
+				RelativePath=".\wolfcrypt\src\hmac.c"
 				>
 			</File>
 			<File
-				RelativePath=".\ctaocrypt\src\integer.c"
+				RelativePath=".\wolfcrypt\src\integer.c"
 				>
 			</File>
 			<File
@@ -224,19 +227,23 @@
 				>
 			</File>
 			<File
-				RelativePath=".\ctaocrypt\src\logging.c"
+				RelativePath=".\wolfcrypt\src\logging.c"
 				>
 			</File>
 			<File
-				RelativePath=".\ctaocrypt\src\md4.c"
+				RelativePath=".\wolfcrypt\src\md4.c"
 				>
 			</File>
 			<File
-				RelativePath=".\ctaocrypt\src\md5.c"
+				RelativePath=".\wolfcrypt\src\md5.c"
 				>
 			</File>
 			<File
-				RelativePath=".\ctaocrypt\src\memory.c"
+				RelativePath=".\wolfcrypt\src\memory.c"
+				>
+			</File>
+			<File
+				RelativePath=".\wolfcrypt\src\misc.c"
 				>
 			</File>
 			<File
@@ -244,39 +251,39 @@
 				>
 			</File>
 			<File
-				RelativePath=".\ctaocrypt\src\wc_port.c"
+				RelativePath=".\wolfcrypt\src\wc_port.c"
 				>
 			</File>
 			<File
-				RelativePath=".\ctaocrypt\src\pwdbased.c"
+				RelativePath=".\wolfcrypt\src\pwdbased.c"
 				>
 			</File>
 			<File
-				RelativePath=".\ctaocrypt\src\rabbit.c"
+				RelativePath=".\wolfcrypt\src\rabbit.c"
 				>
 			</File>
 			<File
-				RelativePath=".\ctaocrypt\src\random.c"
+				RelativePath=".\wolfcrypt\src\random.c"
 				>
 			</File>
 			<File
-				RelativePath=".\ctaocrypt\src\ripemd.c"
+				RelativePath=".\wolfcrypt\src\ripemd.c"
 				>
 			</File>
 			<File
-				RelativePath=".\ctaocrypt\src\rsa.c"
+				RelativePath=".\wolfcrypt\src\rsa.c"
 				>
 			</File>
 			<File
-				RelativePath=".\ctaocrypt\src\sha.c"
+				RelativePath=".\wolfcrypt\src\sha.c"
 				>
 			</File>
 			<File
-				RelativePath=".\ctaocrypt\src\sha256.c"
+				RelativePath=".\wolfcrypt\src\sha256.c"
 				>
 			</File>
 			<File
-				RelativePath=".\ctaocrypt\src\sha512.c"
+				RelativePath=".\wolfcrypt\src\sha512.c"
 				>
 			</File>
 			<File

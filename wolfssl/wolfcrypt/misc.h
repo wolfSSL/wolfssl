@@ -44,7 +44,7 @@ WOLFSSL_LOCAL
 void   ByteReverseWords(word32*, const word32*, word32);
 
 WOLFSSL_LOCAL
-void XorWords(word*, const word*, word32);
+void XorWords(wolfssl_word*, const wolfssl_word*, word32);
 WOLFSSL_LOCAL
 void xorbuf(void*, const void*, word32);
 

@@ -68,36 +68,36 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		4368F6E40E9EA1140002A123 /* test.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; lineEnding = 2; name = test.c; path = ctaocrypt/test/test.c; sourceTree = "<group>"; };
-		43809E9A0FB7AD1C0050922E /* md4.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = md4.c; path = ctaocrypt/src/md4.c; sourceTree = "<group>"; };
-		439B381F136B391E004C965E /* logging.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = logging.c; path = ctaocrypt/src/logging.c; sourceTree = "<group>"; };
+		4368F6E40E9EA1140002A123 /* test.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; lineEnding = 2; name = test.c; path = wolfcrypt/test/test.c; sourceTree = "<group>"; };
+		43809E9A0FB7AD1C0050922E /* md4.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = md4.c; path = wolfcrypt/src/md4.c; sourceTree = "<group>"; };
+		439B381F136B391E004C965E /* logging.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = logging.c; path = wolfcrypt/src/logging.c; sourceTree = "<group>"; };
 		43B89CBC142FEB5E00284CC6 /* internal.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = internal.c; path = src/internal.c; sourceTree = "<group>"; };
 		43B89CBE142FEB6C00284CC6 /* io.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = io.c; path = src/io.c; sourceTree = "<group>"; };
-		43B89CC0142FEBBD00284CC6 /* memory.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = memory.c; path = ctaocrypt/src/memory.c; sourceTree = "<group>"; };
-		43B89CC1142FEBBD00284CC6 /* tfm.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = tfm.c; path = ctaocrypt/src/tfm.c; sourceTree = "<group>"; };
-		43B89CC2142FEBBD00284CC6 /* ripemd.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = ripemd.c; path = ctaocrypt/src/ripemd.c; sourceTree = "<group>"; };
-		43B89CC3142FEBBD00284CC6 /* sha512.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = sha512.c; path = ctaocrypt/src/sha512.c; sourceTree = "<group>"; };
-		43B89CC4142FEBBD00284CC6 /* pwdbased.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = pwdbased.c; path = ctaocrypt/src/pwdbased.c; sourceTree = "<group>"; };
+		43B89CC0142FEBBD00284CC6 /* memory.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = memory.c; path = wolfcrypt/src/memory.c; sourceTree = "<group>"; };
+		43B89CC1142FEBBD00284CC6 /* tfm.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = tfm.c; path = wolfcrypt/src/tfm.c; sourceTree = "<group>"; };
+		43B89CC2142FEBBD00284CC6 /* ripemd.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = ripemd.c; path = wolfcrypt/src/ripemd.c; sourceTree = "<group>"; };
+		43B89CC3142FEBBD00284CC6 /* sha512.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = sha512.c; path = wolfcrypt/src/sha512.c; sourceTree = "<group>"; };
+		43B89CC4142FEBBD00284CC6 /* pwdbased.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = pwdbased.c; path = wolfcrypt/src/pwdbased.c; sourceTree = "<group>"; };
 		43C6C2780DDF984100F2D488 /* keys.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; lineEnding = 2; name = keys.c; path = src/keys.c; sourceTree = "<group>"; };
 		43C6C2790DDF984100F2D488 /* ssl.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; lineEnding = 0; name = ssl.c; path = src/ssl.c; sourceTree = "<group>"; };
 		43C6C27A0DDF984100F2D488 /* tls.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; lineEnding = 2; name = tls.c; path = src/tls.c; sourceTree = "<group>"; };
-		43C6C2830DDF98D400F2D488 /* aes.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; lineEnding = 2; name = aes.c; path = ctaocrypt/src/aes.c; sourceTree = "<group>"; };
-		43C6C2840DDF98D400F2D488 /* arc4.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; lineEnding = 2; name = arc4.c; path = ctaocrypt/src/arc4.c; sourceTree = "<group>"; };
-		43C6C2850DDF98D400F2D488 /* asn.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; lineEnding = 2; name = asn.c; path = ctaocrypt/src/asn.c; sourceTree = "<group>"; };
-		43C6C2860DDF98D400F2D488 /* coding.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; lineEnding = 2; name = coding.c; path = ctaocrypt/src/coding.c; sourceTree = "<group>"; };
-		43C6C2870DDF98D400F2D488 /* des3.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; lineEnding = 2; name = des3.c; path = ctaocrypt/src/des3.c; sourceTree = "<group>"; };
-		43C6C2880DDF98D400F2D488 /* dh.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; lineEnding = 2; name = dh.c; path = ctaocrypt/src/dh.c; sourceTree = "<group>"; };
-		43C6C2890DDF98D400F2D488 /* dsa.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; lineEnding = 2; name = dsa.c; path = ctaocrypt/src/dsa.c; sourceTree = "<group>"; };
-		43C6C28A0DDF98D400F2D488 /* hmac.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; lineEnding = 0; name = hmac.c; path = ctaocrypt/src/hmac.c; sourceTree = "<group>"; };
-		43C6C28B0DDF98D400F2D488 /* integer.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; lineEnding = 2; name = integer.c; path = ctaocrypt/src/integer.c; sourceTree = "<group>"; };
-		43C6C28C0DDF98D400F2D488 /* md5.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; lineEnding = 2; name = md5.c; path = ctaocrypt/src/md5.c; sourceTree = "<group>"; };
-		43C6C28E0DDF98D400F2D488 /* random.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; lineEnding = 2; name = random.c; path = ctaocrypt/src/random.c; sourceTree = "<group>"; };
-		43C6C28F0DDF98D400F2D488 /* rsa.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; lineEnding = 2; name = rsa.c; path = ctaocrypt/src/rsa.c; sourceTree = "<group>"; };
-		43C6C2900DDF98D400F2D488 /* sha.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; lineEnding = 2; name = sha.c; path = ctaocrypt/src/sha.c; sourceTree = "<group>"; };
-		43C6C2910DDF98D400F2D488 /* sha256.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; lineEnding = 0; name = sha256.c; path = ctaocrypt/src/sha256.c; sourceTree = "<group>"; };
+		43C6C2830DDF98D400F2D488 /* aes.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; lineEnding = 2; name = aes.c; path = wolfcrypt/src/aes.c; sourceTree = "<group>"; };
+		43C6C2840DDF98D400F2D488 /* arc4.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; lineEnding = 2; name = arc4.c; path = wolfcrypt/src/arc4.c; sourceTree = "<group>"; };
+		43C6C2850DDF98D400F2D488 /* asn.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; lineEnding = 2; name = asn.c; path = wolfcrypt/src/asn.c; sourceTree = "<group>"; };
+		43C6C2860DDF98D400F2D488 /* coding.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; lineEnding = 2; name = coding.c; path = wolfcrypt/src/coding.c; sourceTree = "<group>"; };
+		43C6C2870DDF98D400F2D488 /* des3.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; lineEnding = 2; name = des3.c; path = wolfcrypt/src/des3.c; sourceTree = "<group>"; };
+		43C6C2880DDF98D400F2D488 /* dh.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; lineEnding = 2; name = dh.c; path = wolfcrypt/src/dh.c; sourceTree = "<group>"; };
+		43C6C2890DDF98D400F2D488 /* dsa.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; lineEnding = 2; name = dsa.c; path = wolfcrypt/src/dsa.c; sourceTree = "<group>"; };
+		43C6C28A0DDF98D400F2D488 /* hmac.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; lineEnding = 0; name = hmac.c; path = wolfcrypt/src/hmac.c; sourceTree = "<group>"; };
+		43C6C28B0DDF98D400F2D488 /* integer.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; lineEnding = 2; name = integer.c; path = wolfcrypt/src/integer.c; sourceTree = "<group>"; };
+		43C6C28C0DDF98D400F2D488 /* md5.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; lineEnding = 2; name = md5.c; path = wolfcrypt/src/md5.c; sourceTree = "<group>"; };
+		43C6C28E0DDF98D400F2D488 /* random.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; lineEnding = 2; name = random.c; path = wolfcrypt/src/random.c; sourceTree = "<group>"; };
+		43C6C28F0DDF98D400F2D488 /* rsa.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; lineEnding = 2; name = rsa.c; path = wolfcrypt/src/rsa.c; sourceTree = "<group>"; };
+		43C6C2900DDF98D400F2D488 /* sha.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; lineEnding = 2; name = sha.c; path = wolfcrypt/src/sha.c; sourceTree = "<group>"; };
+		43C6C2910DDF98D400F2D488 /* sha256.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; lineEnding = 0; name = sha256.c; path = wolfcrypt/src/sha256.c; sourceTree = "<group>"; };
 		43CB530D116E9FD5000A264B /* iphone-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "iphone-Info.plist"; sourceTree = "<group>"; };
-		43D565640F1EC9A600550C88 /* hc128.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; lineEnding = 2; name = hc128.c; path = ctaocrypt/src/hc128.c; sourceTree = "<group>"; };
-		43D565660F1EC9CC00550C88 /* rabbit.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; lineEnding = 2; name = rabbit.c; path = ctaocrypt/src/rabbit.c; sourceTree = "<group>"; };
+		43D565640F1EC9A600550C88 /* hc128.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; lineEnding = 2; name = hc128.c; path = wolfcrypt/src/hc128.c; sourceTree = "<group>"; };
+		43D565660F1EC9CC00550C88 /* rabbit.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; lineEnding = 2; name = rabbit.c; path = wolfcrypt/src/rabbit.c; sourceTree = "<group>"; };
 		D2AAC046055464E500DB518D /* libwolfssl.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libwolfssl.a; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -112,7 +112,7 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		08FB7794FE84155DC02AAC07 /* cyassl */ = {
+		08FB7794FE84155DC02AAC07 /* wolfssl */ = {
 			isa = PBXGroup;
 			children = (
 				08FB7795FE84155DC02AAC07 /* Source */,
@@ -120,7 +120,7 @@
 				1AB674ADFE9D54B511CA2CBB /* Products */,
 				43CB530D116E9FD5000A264B /* iphone-Info.plist */,
 			);
-			name = cyassl;
+			name = wolfssl;
 			sourceTree = "<group>";
 		};
 		08FB7795FE84155DC02AAC07 /* Source */ = {
@@ -203,9 +203,9 @@
 /* End PBXHeadersBuildPhase section */
 
 /* Begin PBXNativeTarget section */
-		D2AAC045055464E500DB518D /* cyassl */ = {
+		D2AAC045055464E500DB518D /* wolfssl */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 1DEB91EB08733DB70010E9CD /* Build configuration list for PBXNativeTarget "cyassl" */;
+			buildConfigurationList = 1DEB91EB08733DB70010E9CD /* Build configuration list for PBXNativeTarget "wolfssl" */;
 			buildPhases = (
 				D2AAC043055464E500DB518D /* Headers */,
 				D2AAC044055464E500DB518D /* Sources */,
@@ -218,8 +218,8 @@
 			);
 			dependencies = (
 			);
-			name = cyassl;
-			productName = cyassl;
+			name = wolfssl;
+			productName = wolfssl;
 			productReference = D2AAC046055464E500DB518D /* libwolfssl.a */;
 			productType = "com.apple.product-type.library.static";
 		};
@@ -231,7 +231,7 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
 			};
-			buildConfigurationList = 1DEB91EF08733DB70010E9CD /* Build configuration list for PBXProject "cyassl-iphone" */;
+			buildConfigurationList = 1DEB91EF08733DB70010E9CD /* Build configuration list for PBXProject "wolfssl-iphone" */;
 			compatibilityVersion = "Xcode 3.1";
 			developmentRegion = English;
 			hasScannedForEncodings = 1;
@@ -241,11 +241,11 @@
 				French,
 				German,
 			);
-			mainGroup = 08FB7794FE84155DC02AAC07 /* cyassl */;
+			mainGroup = 08FB7794FE84155DC02AAC07 /* wolfssl */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				D2AAC045055464E500DB518D /* cyassl */,
+				D2AAC045055464E500DB518D /* wolfssl */,
 			);
 		};
 /* End PBXProject section */
@@ -301,7 +301,7 @@
 				GCC_PREPROCESSOR_DEFINITIONS = IPHONE;
 				HEADER_SEARCH_PATHS = $SRCROOT;
 				INSTALL_PATH = /usr/local/lib;
-				PRODUCT_NAME = cyassl;
+				PRODUCT_NAME = wolfssl;
 				SDKROOT = iphoneos;
 				USER_HEADER_SEARCH_PATHS = "";
 				WARNING_CFLAGS = "-Wall";
@@ -318,7 +318,7 @@
 				GCC_PREPROCESSOR_DEFINITIONS = IPHONE;
 				HEADER_SEARCH_PATHS = $SRCROOT;
 				INSTALL_PATH = /usr/local/lib;
-				PRODUCT_NAME = cyassl;
+				PRODUCT_NAME = wolfssl;
 				USER_HEADER_SEARCH_PATHS = "";
 				WARNING_CFLAGS = "-Wall";
 			};
@@ -334,7 +334,7 @@
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				PREBINDING = NO;
 				SDKROOT = iphoneos;
-				USER_HEADER_SEARCH_PATHS = "include ctaocrypt/include";
+				USER_HEADER_SEARCH_PATHS = "include wolfcrypt/include";
 			};
 			name = Debug;
 		};
@@ -348,14 +348,14 @@
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				PREBINDING = NO;
 				SDKROOT = iphonesimulator2.2;
-				USER_HEADER_SEARCH_PATHS = "include ctaocrypt/include";
+				USER_HEADER_SEARCH_PATHS = "include wolfcrypt/include";
 			};
 			name = Release;
 		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		1DEB91EB08733DB70010E9CD /* Build configuration list for PBXNativeTarget "cyassl" */ = {
+		1DEB91EB08733DB70010E9CD /* Build configuration list for PBXNativeTarget "wolfssl" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				1DEB91EC08733DB70010E9CD /* Debug */,
@@ -364,7 +364,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		1DEB91EF08733DB70010E9CD /* Build configuration list for PBXProject "cyassl-iphone" */ = {
+		1DEB91EF08733DB70010E9CD /* Build configuration list for PBXProject "wolfssl-iphone" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				1DEB91F008733DB70010E9CD /* Debug */,

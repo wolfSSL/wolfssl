@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Express 2012 for Windows Desktop
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "cyassl", "cyassl.vcxproj", "{73973223-5EE8-41CA-8E88-1D60E89A237B}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "wolfssl", "wolfssl.vcxproj", "{73973223-5EE8-41CA-8E88-1D60E89A237B}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "testsuite", "testsuite\testsuite.vcxproj", "{611E8971-46E0-4D0A-B5A1-632C3B00CB80}"
 EndProject
