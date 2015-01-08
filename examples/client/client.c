@@ -23,7 +23,7 @@
         #include <config.h>
 #endif
 
-#include <wolfssl/ssl.h> /* name change portability layer */
+#include <wolfssl/ssl.h>
 
 #if defined(WOLFSSL_MDK_ARM)
         #include <stdio.h>
