@@ -44,7 +44,7 @@ CYASSL_LOCAL
 void   ByteReverseWords(word32*, const word32*, word32);
 
 CYASSL_LOCAL
-void XorWords(word*, const word*, word32);
+void XorWords(cyassl_word*, const cyassl_word*, word32);
 CYASSL_LOCAL
 void xorbuf(void*, const void*, word32);
 
