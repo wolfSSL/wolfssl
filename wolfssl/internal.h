@@ -1598,7 +1598,7 @@ typedef struct Ciphers {
 #ifdef HAVE_CAMELLIA
     Camellia* cam;
 #endif
-#ifdef HAVE_CHACHA 
+#ifdef HAVE_CHACHA
     ChaCha*   chacha;
 #endif
 #ifdef HAVE_HC128
@@ -1614,7 +1614,7 @@ typedef struct Ciphers {
 #ifdef HAVE_ONE_TIME_AUTH
 /* Ciphers for one time authentication such as poly1305 */
 typedef struct OneTimeAuth {
-#ifdef HAVE_POLY1305 
+#ifdef HAVE_POLY1305
     Poly1305* poly1305;
 #endif
     byte    setup;      /* flag for if a cipher has been set */

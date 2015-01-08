@@ -2311,7 +2311,8 @@ static int SetAuthKeys(OneTimeAuth* authentication, Keys* keys,
                 (Poly1305*)XMALLOC(sizeof(Poly1305), heap, DYNAMIC_TYPE_CIPHER);
         if (authentication && authentication->poly1305 == NULL)
             return MEMORY_E;
-        authentication->setup = 1;
+        if (authentication)
+            authentication->setup = 1;
 #endif
         (void)heap;
         (void)keys;
