@@ -34,19 +34,19 @@
 
 int wc_InitSha256(Sha256* sha)
 {
-    return InitSha256(sha);
+    return InitSha256_fips(sha);
 }
 
 
 int wc_Sha256Update(Sha256* sha, const byte* data, word32 len)
 {
-    return Sha256Update(sha, data, len);    
+    return Sha256Update_fips(sha, data, len);
 }
 
 
 int wc_Sha256Final(Sha256* sha, byte* out)
 {
-    return Sha256Final(sha, out);
+    return Sha256Final_fips(sha, out);
 }
 
 
@@ -54,7 +54,7 @@ int wc_Sha256Hash(const byte* data, word32 len, byte* out)
 {
     return Sha256Hash(data, len, out);
 }
-#else
+#else /* else build without fips */
 #ifdef WOLFSSL_PIC32MZ_HASH
 #define wc_InitSha256   InitSha256_sw
 #define wc_Sha256Update Sha256Update_sw

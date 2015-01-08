@@ -31,19 +31,19 @@
 #ifdef HAVE_FIPS
 int wc_InitSha512(Sha512* sha)
 {
-    return InitSha512(sha);
+    return InitSha512_fips(sha);
 }
 
 
 int wc_Sha512Update(Sha512* sha, const byte* data, word32 len)
 {
-    return Sha512Update(sha, data, len);
+    return Sha512Update_fips(sha, data, len);
 }
 
 
 int wc_Sha512Final(Sha512* sha, byte* out)
 {
-    return Sha512Final(sha, out);
+    return Sha512Final_fips(sha, out);
 }
 
 
@@ -56,19 +56,19 @@ int wc_Sha512Hash(const byte* data, word32 len, byte* out)
 
 int wc_InitSha384(Sha384* sha)
 {
-    return InitSha384(sha);
+    return InitSha384_fips(sha);
 }
 
 
 int wc_Sha384Update(Sha384* sha, const byte* data, word32 len)
 {
-    return Sha384Update(sha, data, len);
+    return Sha384Update_fips(sha, data, len);
 }
 
 
 int wc_Sha384Final(Sha384* sha, byte* out)
 {
-    return Sha384Final(sha, out);
+    return Sha384Final_fips(sha, out);
 }
 
 
@@ -77,7 +77,7 @@ int wc_Sha384Hash(const byte* data, word32 len, byte* out)
     return Sha384Hash(data, len, out);
 }
 #endif /* WOLFSSL_SHA384 */
-#else
+#else /* else build without using fips */
 #include <wolfssl/wolfcrypt/logging.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 

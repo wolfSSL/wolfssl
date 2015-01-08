@@ -33,7 +33,7 @@
     #define HmacInitCavium wc_HmacInitCavium
     #define HmacFreeCavium wc_HmacFreeCavium
 #endif
-#define wolfSSL_GetHmacMaxSize wc_wolfSSL_GetHmacMaxSize
+#define CyaSSL_GetHmacMaxSize wolfSSL_GetHmacMaxSize
 #ifdef HAVE_HKDF
     #define HKDF wc_HKDF
 #endif /* HAVE_HKDF */

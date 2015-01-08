@@ -74,7 +74,7 @@ typedef struct {
                            curve in dp */
     const ecc_set_type* dp;     /* domain parameters, either points to NIST
                                    curves (idx >= 0) or user supplied */
-    ecc_point pubkey;   /* public key */  
+    ecc_point pubkey;   /* public key */
     mp_int    k;        /* private key */
 } ecc_key;
 
@@ -148,11 +148,11 @@ enum ecMacAlgo {
 };
 
 enum {
-    KEY_SIZE_128     = 16,   
-    KEY_SIZE_256     = 32,   
+    KEY_SIZE_128     = 16,
+    KEY_SIZE_256     = 32,
     IV_SIZE_64       =  8,
-    EXCHANGE_SALT_SZ = 16,  
-    EXCHANGE_INFO_SZ = 23  
+    EXCHANGE_SALT_SZ = 16,
+    EXCHANGE_INFO_SZ = 23
 };
 
 enum ecFlags {
@@ -187,7 +187,7 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
 #endif /* HAVE_ECC_ENCRYPT */
 
 #ifdef __cplusplus
-    }    /* extern "C" */    
+    }    /* extern "C" */
 #endif
 
 #endif /* WOLF_CRYPT_ECC_H */

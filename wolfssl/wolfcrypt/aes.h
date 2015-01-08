@@ -39,7 +39,7 @@
 #endif
 #endif
 
-#ifndef HAVE_FIPS
+#ifndef HAVE_FIPS /* to avoid redefinition of macros */
 #ifdef HAVE_CAVIUM
     #include <wolfssl/ctaocrypt/logging.h>
     #include "cavium_common.h"
@@ -72,7 +72,7 @@
     extern "C" {
 #endif
 
-#ifndef HAVE_FIPS
+#ifndef HAVE_FIPS /* to avoid redefinition of structures */
 #define WOLFSSL_AES_CAVIUM_MAGIC 0xBEEF0002
 
 enum {
@@ -176,39 +176,6 @@ typedef struct Gmac {
      WOLFSSL_API int  wc_AesInitCavium(Aes*, int);
      WOLFSSL_API void wc_AesFreeCavium(Aes*);
 #endif
-
-
-#ifdef HAVE_FIPS
-    /* fips wrapper calls, user can call direct */
-     WOLFSSL_API int  wc_AesSetKey_fips(Aes* aes, const byte* key, word32 len,
-                                   const byte* iv, int dir);
-     WOLFSSL_API int  wc_AesSetIV_fips(Aes* aes, const byte* iv);
-     WOLFSSL_API int  wc_AesCbcEncrypt_fips(Aes* aes, byte* out, const byte* in,
-                                       word32 sz);
-     WOLFSSL_API int  wc_AesCbcDecrypt_fips(Aes* aes, byte* out, const byte* in,
-                                       word32 sz);
-     WOLFSSL_API int  wc_AesGcmSetKey_fips(Aes* aes, const byte* key, word32 len);
-     WOLFSSL_API int  wc_AesGcmEncrypt_fips(Aes* aes, byte* out, const byte* in,
-                              word32 sz, const byte* iv, word32 ivSz,
-                              byte* authTag, word32 authTagSz,
-                              const byte* authIn, word32 authInSz);
-     WOLFSSL_API int  wc_AesGcmDecrypt_fips(Aes* aes, byte* out, const byte* in,
-                              word32 sz, const byte* iv, word32 ivSz,
-                              const byte* authTag, word32 authTagSz,
-                              const byte* authIn, word32 authInSz);
-//    #ifndef FIPS_NO_WRAPPERS
-//        /* if not impl or fips.c impl wrapper force fips calls if fips build */
-//        #define AesSetKey     AesSetKey_fips
-//        #define AesSetIV      AesSetIV_fips
-//        #define AesCbcEncrypt AesCbcEncrypt_fips
-//        #define AesCbcDecrypt AesCbcDecrypt_fips
-//        #define AesGcmSetKey  AesGcmSetKey_fips
-//        #define AesGcmEncrypt AesGcmEncrypt_fips
-//        #define AesGcmDecrypt AesGcmDecrypt_fips
-//    #endif /* FIPS_NO_WRAPPERS */
-
-#endif /* HAVE_FIPS */
-
 
 #ifdef __cplusplus
     } /* extern "C" */

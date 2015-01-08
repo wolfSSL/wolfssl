@@ -46,7 +46,7 @@ int wc_Des_SetKey(Des* des, const byte* key, const byte* iv, int dir)
 
 int wc_Des3_SetKey(Des3* des, const byte* key, const byte* iv, int dir)
 {
-    return Des3_SetKey(des, key, iv, dir);
+    return Des3_SetKey_fips(des, key, iv, dir);
 }
 
 
@@ -64,13 +64,13 @@ int wc_Des_CbcDecrypt(Des* des, byte* out, const byte* in, word32 sz)
 
 int wc_Des3_CbcEncrypt(Des3* des, byte* out, const byte* in, word32 sz)
 {
-    return Des3_CbcEncrypt(des, out, in, sz);
+    return Des3_CbcEncrypt_fips(des, out, in, sz);
 }
 
 
 int wc_Des3_CbcDecrypt(Des3* des, byte* out, const byte* in, word32 sz)
 {
-    return Des3_CbcDecrypt(des, out, in, sz);
+    return Des3_CbcDecrypt_fips(des, out, in, sz);
 }
 
 
@@ -100,7 +100,7 @@ int wc_Des_CbcDecryptWithKey(byte* out, const byte* in, word32 sz,
 
 int wc_Des3_SetIV(Des3* des, const byte* iv)
 {
-    return Des3_SetIV(des, iv);
+    return Des3_SetIV_fips(des, iv);
 }
 
 
@@ -128,7 +128,7 @@ void wc_Des3_FreeCavium(Des3* des3)
 
 
 #endif /* HAVE_CAVIUM */
-#else
+#else /* build without fips */
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/logging.h>
 

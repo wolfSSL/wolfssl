@@ -33,19 +33,19 @@
 /* does init */
 int wc_HmacSetKey(Hmac* hmac, int type, const byte* key, word32 keySz)
 {
-    return HmacSetKey(hmac, type, key, keySz);
+    return HmacSetKey_fips(hmac, type, key, keySz);
 }
 
 
 int wc_HmacUpdate(Hmac* hmac, const byte* in, word32 sz)
 {
-    return HmacUpdate(hmac, in, sz);
+    return HmacUpdate_fips(hmac, in, sz);
 }
 
 
 int wc_HmacFinal(Hmac* hmac, byte* out)
 {
-    return HmacFinal(hmac, out);
+    return HmacFinal_fips(hmac, out);
 }
 
 
@@ -62,7 +62,7 @@ int wc_HmacFinal(Hmac* hmac, byte* out)
     }
 #endif
 
-int wc_wolfSSL_GetHmacMaxSize(void)
+int wolfSSL_GetHmacMaxSize(void)
 {
     return CyaSSL_GetHmacMaxSize();
 }
@@ -79,35 +79,7 @@ int wc_HKDF(int type, const byte* inKey, word32 inKeySz,
 
 
 #endif /* HAVE_HKDF */
-
-
-#ifdef HAVE_FIPS
-    /* fips wrapper calls, user can call direct */
-int wc_HmacSetKey_fips(Hmac* hmac, int type, const byte* key,
-                                   word32 keySz)
-{
-    return HmacSetKey_fips(hmac, type, key, keySz);
-}
-
-int wc_HmacUpdate_fips(Hmac* hmac, const byte* in , word32 sz)
-{
-    return HmacUpdate_fips(hmac, in, sz);
-}
-
-
-int wc_HmacFinal_fips(Hmac* hmac, byte* out)
-{
-    return HmacFinal_fips(hmac, out);
-}
-#ifndef FIPS_NO_WRAPPERS
-        /* if not impl or fips.c impl wrapper force fips calls if fips build */
-        #define HmacSetKey HmacSetKey_fips
-        #define HmacUpdate HmacUpdate_fips
-        #define HmacFinal  HmacFinal_fips
-    #endif /* FIPS_NO_WRAPPERS */
-
-#endif /* HAVE_FIPS */
-#else
+#else /* else build without fips */
 #ifdef WOLFSSL_PIC32MZ_HASH
 
 #define wc_InitMd5   wc_InitMd5_sw
@@ -743,7 +715,7 @@ static void HmacCaviumSetKey(Hmac* hmac, int type, const byte* key,
 
 #endif /* HAVE_CAVIUM */
 
-int wc_wolfSSL_GetHmacMaxSize(void)
+int wolfSSL_GetHmacMaxSize(void)
 {
     return MAX_DIGEST_SIZE;
 }

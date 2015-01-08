@@ -167,7 +167,7 @@ int benchmark_test(void *args)
 #endif
 
     #if defined(DEBUG_WOLFSSL) && !defined(HAVE_VALGRIND)
-        wolfSSL_Debugging_ON();
+        WOLFSSL_API int wolfSSL_Debugging_ON();
     #endif
 
 	#ifdef HAVE_CAVIUM

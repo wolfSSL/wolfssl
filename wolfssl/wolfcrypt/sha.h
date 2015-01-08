@@ -29,15 +29,15 @@
 #include <wolfssl/wolfcrypt/types.h>
 
 #ifdef HAVE_FIPS
-/* for fips */
+/* for fips @wc_fips */
 #include <cyassl/ctaocrypt/sha.h>
 #endif
 
 #ifdef __cplusplus
     extern "C" {
 #endif
-#ifndef HAVE_FIPS
 
+#ifndef HAVE_FIPS /* avoid redefining structs */
 /* in bytes */
 enum {
 #ifdef STM32F2_HASH
@@ -73,22 +73,6 @@ WOLFSSL_API int wc_ShaUpdate(Sha*, const byte*, word32);
 WOLFSSL_API int wc_ShaFinal(Sha*, byte*);
 WOLFSSL_API int wc_ShaHash(const byte*, word32, byte*);
 
-
-#ifdef HAVE_FIPS
-    /* fips wrapper calls, user can call direct */
-    WOLFSSL_API int wc_InitSha_fips(Sha*);
-    WOLFSSL_API int wc_ShaUpdate_fips(Sha*, const byte*, word32);
-    WOLFSSL_API int wc_ShaFinal_fips(Sha*, byte*);
-    #ifndef FIPS_NO_WRAPPERS
-        /* if not impl or fips.c impl wrapper force fips calls if fips build */
-        #define wc_InitSha   wc_InitSha_fips
-        #define wc_ShaUpdate wc_ShaUpdate_fips
-        #define wc_ShaFinal  wc_ShaFinal_fips
-    #endif /* FIPS_NO_WRAPPERS */
-
-#endif /* HAVE_FIPS */
-
- 
 #ifdef __cplusplus
     } /* extern "C" */
 #endif

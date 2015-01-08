@@ -48,13 +48,13 @@ int wc_GenerateSeed(OS_Seed* os, byte* seed, word32 sz)
 
 int  wc_InitRng(RNG* rng)
 {
-    return InitRng(rng);
+    return InitRng_fips(rng);
 }
 
 
 int  wc_RNG_GenerateBlock(RNG* rng, byte* b, word32 sz)
 {
-    return RNG_GenerateBlock(rng, b, sz);
+    return RNG_GenerateBlock_fips(rng, b, sz);
 }
 
 
@@ -66,7 +66,7 @@ int  wc_RNG_GenerateByte(RNG* rng, byte* b)
 #if defined(HAVE_HASHDRBG) || defined(NO_RC4)
     int wc_FreeRng(RNG* rng)
     {
-        return FreeRng(rng);
+        return FreeRng_fips(rng);
     }
 
 
@@ -75,48 +75,11 @@ int  wc_RNG_GenerateByte(RNG* rng, byte* b)
                                         const byte* entropyB, word32 entropyBSz,
                                         byte* output, word32 outputSz)
     {
-        return RNG_HealthTest(reseed, entropyA, entropyASz,
+        return RNG_HealthTest_fips(reseed, entropyA, entropyASz,
                               entropyB, entropyBSz, output, outputSz);
     }
 #endif /* HAVE_HASHDRBG || NO_RC4 */
-
-
-#ifdef HAVE_FIPS
-    /* fips wrapper calls, user can call direct */
-    int wc_InitRng_fips(RNG* rng)
-    {
-        return InitRng_fips(rng);
-    }
-
-
-    int wc_FreeRng_fips(RNG* rng)
-    {
-        return FreeRng_fips(rng);
-    }
-
-
-    int wc_RNG_GenerateBlock_fips(RNG* rng, byte* buf, word32 bufSz)
-    {
-        return RNG_GenerateBlock_fips(rng, buf, bufSz);
-    }
-
-    int wc_RNG_HealthTest_fips(int reseed,
-                                        const byte* entropyA, word32 entropyASz,
-                                        const byte* entropyB, word32 entropyBSz,
-                                        byte* output, word32 outputSz)
-    {
-        return RNG_HealthTest_fips(reseed, entropyA, entropyASz,
-                                   entropyB, entropyBSz, output, outputSz);
-    }
-    #ifndef FIPS_NO_WRAPPERS
-        /* if not impl or fips.c impl wrapper force fips calls if fips build */
-        #define InitRng              InitRng_fips
-        #define FreeRng              FreeRng_fips
-        #define RNG_GenerateBlock    RNG_GenerateBlock_fips
-        #define RNG_HealthTest       RNG_HealthTest_fips
-    #endif /* FIPS_NO_WRAPPERS */
-#endif /* HAVE_FIPS */
-#else
+#else /* else build without fips */
 #include <wolfssl/wolfcrypt/error-crypt.h>
 
 #if defined(HAVE_HASHDRBG) || defined(NO_RC4)

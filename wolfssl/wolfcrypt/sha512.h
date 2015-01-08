@@ -26,8 +26,7 @@
 
 #include <wolfssl/wolfcrypt/types.h>
 
-/* since using old code turn on old macros @wc_fips */
-/* for fips */
+/* for fips @wc_fips */
 #ifdef HAVE_FIPS
     #define CYASSL_SHA512
     #if defined(WOLFSSL_SHA384)
@@ -40,7 +39,7 @@
     extern "C" {
 #endif
 
-#ifndef HAVE_FIPS
+#ifndef HAVE_FIPS /* avoid redefinition of structs */
 
 /* in bytes */
 enum {
@@ -69,7 +68,7 @@ WOLFSSL_API int wc_Sha512Hash(const byte*, word32, byte*);
 
 #if defined(WOLFSSL_SHA384) || defined(HAVE_AESGCM)
 
-#ifndef HAVE_FIPS
+#ifndef HAVE_FIPS /* avoid redefinition of structs */
 /* in bytes */
 enum {
     SHA384              =   5,   /* hash type unique */
@@ -93,33 +92,6 @@ WOLFSSL_API int wc_InitSha384(Sha384*);
 WOLFSSL_API int wc_Sha384Update(Sha384*, const byte*, word32);
 WOLFSSL_API int wc_Sha384Final(Sha384*, byte*);
 WOLFSSL_API int wc_Sha384Hash(const byte*, word32, byte*);
-
-
-#ifdef HAVE_FIPS
-    /* fips wrapper calls, user can call direct */
-    WOLFSSL_API int wc_InitSha512_fips(Sha512*);
-    WOLFSSL_API int wc_Sha512Update_fips(Sha512*, const byte*, word32);
-    WOLFSSL_API int wc_Sha512Final_fips(Sha512*, byte*);
-    #ifndef FIPS_NO_WRAPPERS
-        /* if not impl or fips.c impl wrapper force fips calls if fips build */
-        #define wc_InitSha512   wc_InitSha512_fips
-        #define wc_Sha512Update wc_Sha512Update_fips
-        #define wc_Sha512Final  wc_Sha512Final_fips
-    #endif /* FIPS_NO_WRAPPERS */
-
-    /* fips wrapper calls, user can call direct */
-    WOLFSSL_API int wc_InitSha384_fips(Sha384*);
-    WOLFSSL_API int wc_Sha384Update_fips(Sha384*, const byte*, word32);
-    WOLFSSL_API int wc_Sha384Final_fips(Sha384*, byte*);
-    #ifndef FIPS_NO_WRAPPERS
-        /* if not impl or fips.c impl wrapper force fips calls if fips build */
-        #define wc_InitSha384   wc_InitSha384_fips
-        #define wc_Sha384Update wc_Sha384Update_fips
-        #define wc_Sha384Final  wc_Sha384Final_fips
-    #endif /* FIPS_NO_WRAPPERS */
-
-#endif /* HAVE_FIPS */
-
 
 #endif /* WOLFSSL_SHA384 */
 

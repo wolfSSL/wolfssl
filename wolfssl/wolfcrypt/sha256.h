@@ -27,7 +27,7 @@
 #define WOLF_CRYPT_SHA256_H
 
 #ifdef HAVE_FIPS
-/* for fips */
+/* for fips @wc_fips */
 #include <cyassl/ctaocrypt/sha256.h>
 #endif
 
@@ -37,11 +37,10 @@
     extern "C" {
 #endif
 
-#ifndef HAVE_FIPS
+#ifndef HAVE_FIPS /* avoid redefinition of structs */
 #ifdef WOLFSSL_PIC32MZ_HASH
 #include "port/pic32/pic32mz-crypt.h"
 #endif
-
 
 /* in bytes */
 enum {
@@ -70,7 +69,7 @@ WOLFSSL_API int wc_InitSha256(Sha256*);
 WOLFSSL_API int wc_Sha256Update(Sha256*, const byte*, word32);
 WOLFSSL_API int wc_Sha256Final(Sha256*, byte*);
 WOLFSSL_API int wc_Sha256Hash(const byte*, word32, byte*);
- 
+
 #ifdef __cplusplus
     } /* extern "C" */
 #endif

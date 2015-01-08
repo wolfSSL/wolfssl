@@ -23,7 +23,7 @@
 #define CTAO_CRYPT_CAMELLIA_H
 
 
-/* for blake2 reverse compatibility */
+/* for camellia reverse compatibility */
 #ifdef HAVE_CAMELLIA
     #include <wolfssl/wolfcrypt/camellia.h>
 	#define CamelliaSetKey        wc_CamelliaSetKey

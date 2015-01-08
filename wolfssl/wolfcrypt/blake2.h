@@ -60,7 +60,7 @@ WOLFSSL_API int wc_Blake2bFinal(Blake2b*, byte*, word32);
 
 
 #ifdef __cplusplus
-    } 
+    }
 #endif
 
 #endif  /* WOLF_CRYPT_BLAKE2_H */

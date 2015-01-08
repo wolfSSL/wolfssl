@@ -168,7 +168,7 @@ WOLFSSL_API int wc_HmacFinal(Hmac*, byte*);
     WOLFSSL_API void wc_HmacFreeCavium(Hmac*);
 #endif
 
-WOLFSSL_API int wc_wolfSSL_GetHmacMaxSize(void);
+WOLFSSL_API int wolfSSL_GetHmacMaxSize(void);
 
 
 #ifdef HAVE_HKDF
@@ -179,16 +179,6 @@ WOLFSSL_API int wc_HKDF(int type, const byte* inKey, word32 inKeySz,
                     byte* out, word32 outSz);
 
 #endif /* HAVE_HKDF */
-
-
-#ifdef HAVE_FIPS
-    /* fips wrapper calls, user can call direct */
-    WOLFSSL_API int wc_HmacSetKey_fips(Hmac*, int type, const byte* key,
-                                   word32 keySz);
-    WOLFSSL_API int wc_HmacUpdate_fips(Hmac*, const byte*, word32);
-    WOLFSSL_API int wc_HmacFinal_fips(Hmac*, byte*);
-#endif /* HAVE_FIPS */
-
 
 #ifdef __cplusplus
     } /* extern "C" */

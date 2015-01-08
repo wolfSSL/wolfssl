@@ -28,11 +28,6 @@
 
 #if !defined(NO_SHA)
 
-#ifdef HAVE_FIPS
-    /* set NO_WRAPPERS before headers, use direct internal f()s not wrappers */
-    #define FIPS_NO_WRAPPERS
-#endif
-
 #include <wolfssl/wolfcrypt/sha.h>
 #include <wolfssl/wolfcrypt/logging.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
@@ -67,23 +62,7 @@
         return ShaHash(data, sz, out);
     }
 
-
-    int wc_InitSha_fips(Sha* sha)
-    {
-        return InitSha_fips(sha);
-    }
-
-    int wc_ShaUpdate_fips(Sha* sha, const byte* data, word32 sz)
-    {
-        return ShaUpdate_fips(sha, data, sz);
-    }
-
-    int wc_ShaFinal_fips(Sha* sha, byte* out)
-    {
-        return ShaFinal_fips(sha, out);
-    }
-
-#else
+#else /* else build without fips */
 
 #ifdef FREESCALE_MMCAU
     #include "cau_api.h"
@@ -111,18 +90,18 @@ int wc_InitSha(Sha* sha)
     XMEMSET(sha->buffer, 0, SHA_REG_SIZE);
     sha->buffLen = 0;
     sha->loLen = 0;
-    
+
     /* initialize HASH peripheral */
     HASH_DeInit();
-    
+
     /* configure algo used, algo mode, datatype */
     HASH->CR &= ~ (HASH_CR_ALGO | HASH_CR_DATATYPE | HASH_CR_MODE);
     HASH->CR |= (HASH_AlgoSelection_SHA1 | HASH_AlgoMode_HASH
                  | HASH_DataType_8b);
-    
+
     /* reset HASH processor */
     HASH->CR |= HASH_CR_INIT;
-    
+
     return 0;
 }
 
@@ -131,16 +110,16 @@ int wc_ShaUpdate(Sha* sha, const byte* data, word32 len)
     word32 i = 0;
     word32 fill = 0;
     word32 diff = 0;
-    
+
     /* if saved partial block is available */
     if (sha->buffLen) {
         fill = 4 - sha->buffLen;
-        
+
         /* if enough data to fill, fill and push to FIFO */
         if (fill <= len) {
             XMEMCPY((byte*)sha->buffer + sha->buffLen, data, fill);
             HASH_DataIn(*(uint32_t*)sha->buffer);
-            
+
             data += fill;
             len -= fill;
             sha->loLen += 4;
@@ -152,7 +131,7 @@ int wc_ShaUpdate(Sha* sha, const byte* data, word32 len)
             return;
         }
     }
-    
+
     /* write input block in the IN FIFO */
     for(i = 0; i < len; i += 4)
     {
@@ -167,46 +146,46 @@ int wc_ShaUpdate(Sha* sha, const byte* data, word32 len)
             data+=4;
         }
     }
-    
+
     /* keep track of total data length thus far */
     sha->loLen += (len - sha->buffLen);
-    
+
     return 0;
 }
 
 int wc_ShaFinal(Sha* sha, byte* hash)
 {
     __IO uint16_t nbvalidbitsdata = 0;
-    
+
     /* finish reading any trailing bytes into FIFO */
     if (sha->buffLen) {
         HASH_DataIn(*(uint32_t*)sha->buffer);
         sha->loLen += sha->buffLen;
     }
-    
+
     /* calculate number of valid bits in last word of input data */
     nbvalidbitsdata = 8 * (sha->loLen % SHA_REG_SIZE);
-    
+
     /* configure number of valid bits in last word of the data */
     HASH_SetLastWordValidBitsNbr(nbvalidbitsdata);
-    
+
     /* start HASH processor */
     HASH_StartDigest();
-    
+
     /* wait until Busy flag == RESET */
     while (HASH_GetFlagStatus(HASH_FLAG_BUSY) != RESET) {}
-    
+
     /* read message digest */
     sha->digest[0] = HASH->HR[0];
     sha->digest[1] = HASH->HR[1];
     sha->digest[2] = HASH->HR[2];
     sha->digest[3] = HASH->HR[3];
     sha->digest[4] = HASH->HR[4];
-    
+
     ByteReverseWords(sha->digest, sha->digest, SHA_DIGEST_SIZE);
-    
+
     XMEMCPY(hash, sha->digest, SHA_DIGEST_SIZE);
-    
+
     return wc_InitSha(sha);  /* reset state */
 }
 
@@ -233,11 +212,11 @@ int wc_InitSha(Sha* sha)
     sha->digest[3] = 0x10325476L;
     sha->digest[4] = 0xC3D2E1F0L;
 #endif
-    
+
     sha->buffLen = 0;
     sha->loLen   = 0;
     sha->hiLen   = 0;
-    
+
     return 0;
 }
 
@@ -267,37 +246,37 @@ rotlFixed((v),5); (w) = rotlFixed((w),30);
 static void Transform(Sha* sha)
 {
     word32 W[SHA_BLOCK_SIZE / sizeof(word32)];
-    
+
     /* Copy context->state[] to working vars */
     word32 a = sha->digest[0];
     word32 b = sha->digest[1];
     word32 c = sha->digest[2];
     word32 d = sha->digest[3];
     word32 e = sha->digest[4];
-    
+
 #ifdef USE_SLOW_SHA
     word32 t, i;
-    
+
     for (i = 0; i < 16; i++) {
         R0(a, b, c, d, e, i);
         t = e; e = d; d = c; c = b; b = a; a = t;
     }
-    
+
     for (; i < 20; i++) {
         R1(a, b, c, d, e, i);
         t = e; e = d; d = c; c = b; b = a; a = t;
     }
-    
+
     for (; i < 40; i++) {
         R2(a, b, c, d, e, i);
         t = e; e = d; d = c; c = b; b = a; a = t;
     }
-    
+
     for (; i < 60; i++) {
         R3(a, b, c, d, e, i);
         t = e; e = d; d = c; c = b; b = a; a = t;
     }
-    
+
     for (; i < 80; i++) {
         R4(a, b, c, d, e, i);
         t = e; e = d; d = c; c = b; b = a; a = t;
@@ -309,28 +288,28 @@ static void Transform(Sha* sha)
     R0(b,c,d,e,a, 4); R0(a,b,c,d,e, 5); R0(e,a,b,c,d, 6); R0(d,e,a,b,c, 7);
     R0(c,d,e,a,b, 8); R0(b,c,d,e,a, 9); R0(a,b,c,d,e,10); R0(e,a,b,c,d,11);
     R0(d,e,a,b,c,12); R0(c,d,e,a,b,13); R0(b,c,d,e,a,14); R0(a,b,c,d,e,15);
-    
+
     R1(e,a,b,c,d,16); R1(d,e,a,b,c,17); R1(c,d,e,a,b,18); R1(b,c,d,e,a,19);
-    
+
     R2(a,b,c,d,e,20); R2(e,a,b,c,d,21); R2(d,e,a,b,c,22); R2(c,d,e,a,b,23);
     R2(b,c,d,e,a,24); R2(a,b,c,d,e,25); R2(e,a,b,c,d,26); R2(d,e,a,b,c,27);
     R2(c,d,e,a,b,28); R2(b,c,d,e,a,29); R2(a,b,c,d,e,30); R2(e,a,b,c,d,31);
     R2(d,e,a,b,c,32); R2(c,d,e,a,b,33); R2(b,c,d,e,a,34); R2(a,b,c,d,e,35);
     R2(e,a,b,c,d,36); R2(d,e,a,b,c,37); R2(c,d,e,a,b,38); R2(b,c,d,e,a,39);
-    
+
     R3(a,b,c,d,e,40); R3(e,a,b,c,d,41); R3(d,e,a,b,c,42); R3(c,d,e,a,b,43);
     R3(b,c,d,e,a,44); R3(a,b,c,d,e,45); R3(e,a,b,c,d,46); R3(d,e,a,b,c,47);
     R3(c,d,e,a,b,48); R3(b,c,d,e,a,49); R3(a,b,c,d,e,50); R3(e,a,b,c,d,51);
     R3(d,e,a,b,c,52); R3(c,d,e,a,b,53); R3(b,c,d,e,a,54); R3(a,b,c,d,e,55);
     R3(e,a,b,c,d,56); R3(d,e,a,b,c,57); R3(c,d,e,a,b,58); R3(b,c,d,e,a,59);
-    
+
     R4(a,b,c,d,e,60); R4(e,a,b,c,d,61); R4(d,e,a,b,c,62); R4(c,d,e,a,b,63);
     R4(b,c,d,e,a,64); R4(a,b,c,d,e,65); R4(e,a,b,c,d,66); R4(d,e,a,b,c,67);
     R4(c,d,e,a,b,68); R4(b,c,d,e,a,69); R4(a,b,c,d,e,70); R4(e,a,b,c,d,71);
     R4(d,e,a,b,c,72); R4(c,d,e,a,b,73); R4(b,c,d,e,a,74); R4(a,b,c,d,e,75);
     R4(e,a,b,c,d,76); R4(d,e,a,b,c,77); R4(c,d,e,a,b,78); R4(b,c,d,e,a,79);
 #endif
-    
+
     /* Add the working vars back into digest state[] */
     sha->digest[0] += a;
     sha->digest[1] += b;
@@ -354,15 +333,15 @@ int wc_ShaUpdate(Sha* sha, const byte* data, word32 len)
 {
     /* do block size increments */
     byte* local = (byte*)sha->buffer;
-    
+
     while (len) {
         word32 add = min(len, SHA_BLOCK_SIZE - sha->buffLen);
         XMEMCPY(&local[sha->buffLen], data, add);
-        
+
         sha->buffLen += add;
         data         += add;
         len          -= add;
-        
+
         if (sha->buffLen == SHA_BLOCK_SIZE) {
 #if defined(LITTLE_ENDIAN_ORDER) && !defined(FREESCALE_MMCAU)
             ByteReverseWords(sha->buffer, sha->buffer, SHA_BLOCK_SIZE);
@@ -372,7 +351,7 @@ int wc_ShaUpdate(Sha* sha, const byte* data, word32 len)
             sha->buffLen = 0;
         }
     }
-    
+
     return 0;
 }
 
@@ -380,16 +359,16 @@ int wc_ShaUpdate(Sha* sha, const byte* data, word32 len)
 int wc_ShaFinal(Sha* sha, byte* hash)
 {
     byte* local = (byte*)sha->buffer;
-    
+
     AddLength(sha, sha->buffLen);  /* before adding pads */
-    
+
     local[sha->buffLen++] = 0x80;  /* add 1 */
-    
+
     /* pad with zeros */
     if (sha->buffLen > SHA_PAD_SIZE) {
         XMEMSET(&local[sha->buffLen], 0, SHA_BLOCK_SIZE - sha->buffLen);
         sha->buffLen += SHA_BLOCK_SIZE - sha->buffLen;
-        
+
 #if defined(LITTLE_ENDIAN_ORDER) && !defined(FREESCALE_MMCAU)
         ByteReverseWords(sha->buffer, sha->buffer, SHA_BLOCK_SIZE);
 #endif
@@ -397,12 +376,12 @@ int wc_ShaFinal(Sha* sha, byte* hash)
         sha->buffLen = 0;
     }
     XMEMSET(&local[sha->buffLen], 0, SHA_PAD_SIZE - sha->buffLen);
-    
+
     /* put lengths in bits */
     sha->hiLen = (sha->loLen >> (8*sizeof(sha->loLen) - 3)) +
     (sha->hiLen << 3);
     sha->loLen = sha->loLen << 3;
-    
+
     /* store lengths */
 #if defined(LITTLE_ENDIAN_ORDER) && !defined(FREESCALE_MMCAU)
     ByteReverseWords(sha->buffer, sha->buffer, SHA_BLOCK_SIZE);

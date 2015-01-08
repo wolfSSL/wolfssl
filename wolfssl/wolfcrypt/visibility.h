@@ -43,7 +43,7 @@
         #define WOLFSSL_API   __attribute__ ((visibility("default")))
         #define WOLFSSL_LOCAL __attribute__ ((visibility("hidden")))
     #elif defined(__SUNPRO_C) && (__SUNPRO_C >= 0x550)
-        #define WOLFSSL_API   __global  
+        #define WOLFSSL_API   __global
         #define WOLFSSL_LOCAL __hidden
     #elif defined(_MSC_VER)
         #ifdef WOLFSSL_DLL

@@ -65,7 +65,7 @@ extern "C" {
 
 
 /* detect 64-bit mode if possible */
-#if defined(__x86_64__) 
+#if defined(__x86_64__)
    #if !(defined(MP_64BIT) && defined(MP_16BIT) && defined(MP_8BIT))
       #define MP_64BIT
    #endif
@@ -97,8 +97,8 @@ extern "C" {
    #define DIGIT_BIT          60
 #else
    /* this is the default case, 28-bit digits */
-   
-   #if defined(_MSC_VER) || defined(__BORLANDC__) 
+
+   #if defined(_MSC_VER) || defined(__BORLANDC__)
       typedef unsigned __int64   ulong64;
    #else
       typedef unsigned long long ulong64;
@@ -107,14 +107,14 @@ extern "C" {
    typedef unsigned int       mp_digit;  /* long could be 64 now, changed TAO */
    typedef ulong64            mp_word;
 
-#ifdef MP_31BIT   
+#ifdef MP_31BIT
    /* this is an extension that uses 31-bit digits */
    #define DIGIT_BIT          31
 #else
    /* default case is 28-bit digits, defines MP_28BIT as a handy test macro */
    #define DIGIT_BIT          28
    #define MP_28BIT
-#endif   
+#endif
 #endif
 
 
@@ -161,10 +161,10 @@ typedef int           mp_err;
       #define MP_PREC                 32     /* default digits of precision */
    #else
       #define MP_PREC                 1      /* default digits of precision */
-   #endif   
+   #endif
 #endif
 
-/* size of comba arrays, should be at least 2 * 2**(BITS_PER_WORD - 
+/* size of comba arrays, should be at least 2 * 2**(BITS_PER_WORD -
    BITS_PER_DIGIT*2) */
 #define MP_WARRAY  (1 << (sizeof(mp_word) * CHAR_BIT - 2 * DIGIT_BIT + 1))
 

@@ -85,7 +85,7 @@ typedef struct PKCS7 {
     word32 publicKeySz;
     byte*  privateKey;            /* private key, DER, not owner          */
     word32 privateKeySz;          /* size of private key buffer, bytes    */
-    
+
     PKCS7Attrib* signedAttribs;
     word32 signedAttribsSz;
 } PKCS7;

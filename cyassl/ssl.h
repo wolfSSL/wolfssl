@@ -30,6 +30,7 @@
  * include the new ssl.h
  */
 #include <wolfssl/ssl.h>
+#include <cyassl/ctaocrypt/types.h>
 #include <cyassl/ctaocrypt/settings.h>
 
 #ifdef __cplusplus
@@ -385,18 +386,10 @@
 
 /* JRB macro redefinitions and api calls for cryptography for reverse compat. */
 
-/* new fips header files since old ones could not be changed for compatibility*/
-#ifndef NO_AES
-    #include <wolfssl/wolfcrypt/aes.h>
-#endif
-
 #ifdef WOLFSSL_SMALL_STACK
     #define CYASSL_SMALL_STACK
 #endif
 
-#if !defined(CYASSL_MAX_ERROR_SZ) && !defined(HAVE_FIPS)
-    #define CYASSL_MAX_ERROR_SZ WOLFSSL_MAX_ERROR_SZ
-#endif
 
 /*
  * wrapper around macros until they are changed in cyassl code

@@ -52,7 +52,7 @@ enum {
 #if defined(CYASSL_PIC32MZ_HASH) || defined(WOLFSSL_PIC32MZ_HASH)
 #include "port/pic32/pic32mz-crypt.h"
 #endif
-        
+
 /* MD5 digest */
 typedef struct Md5 {
     word32  buffLen;   /* in bytes          */

@@ -57,7 +57,7 @@ enum {
 };
 
 /* ASN Tags   */
-enum ASN_Tags {        
+enum ASN_Tags {
     ASN_BOOLEAN           = 0x01,
     ASN_INTEGER           = 0x02,
     ASN_BIT_STRING        = 0x03,
@@ -114,7 +114,7 @@ enum ECC_TYPES {
     ECC_PREFIX_1 = 161
 };
 
-enum Misc_ASN { 
+enum Misc_ASN {
     ASN_NAME_MAX        = 256,
     MAX_SALT_SIZE       =  64,     /* MAX PKCS Salt length */
     MAX_IV_SIZE         =  64,     /* MAX PKCS Iv length */
@@ -134,8 +134,8 @@ enum Misc_ASN {
     MAX_ENCODED_SIG_SZ  = 512,
     MAX_SIG_SZ          = 256,
     MAX_ALGO_SZ         =  20,
-    MAX_SEQ_SZ          =   5,     /* enum(seq | con) + length(4) */  
-    MAX_SET_SZ          =   5,     /* enum(set | con) + length(4) */  
+    MAX_SEQ_SZ          =   5,     /* enum(seq | con) + length(4) */
+    MAX_SET_SZ          =   5,     /* enum(set | con) + length(4) */
     MAX_OCTET_STR_SZ    =   5,     /* enum(set | con) + length(4) */
     MAX_EXP_SZ          =   5,     /* enum(contextspec|con|exp) + length(4) */
     MAX_PRSTR_SZ        =   5,     /* enum(prstr) + length(4) */
@@ -461,7 +461,7 @@ struct DecodedCert {
 #ifdef SHA_DIGEST_SIZE
     #define SIGNER_DIGEST_SIZE SHA_DIGEST_SIZE
 #else
-    #define SIGNER_DIGEST_SIZE 20 
+    #define SIGNER_DIGEST_SIZE 20
 #endif
 
 /* CA Signers */
@@ -697,8 +697,8 @@ struct DecodedCRL {
     word32  sigLength;               /* length of signature              */
     word32  signatureOID;            /* sum of algorithm object id       */
     byte*   signature;               /* pointer into raw source, not owned */
-    byte    issuerHash[SHA_DIGEST_SIZE];  /* issuer hash                 */ 
-    byte    crlHash[SHA_DIGEST_SIZE];     /* raw crl data hash           */ 
+    byte    issuerHash[SHA_DIGEST_SIZE];  /* issuer hash                 */
+    byte    crlHash[SHA_DIGEST_SIZE];     /* raw crl data hash           */
     byte    lastDate[MAX_DATE_SIZE]; /* last date updated  */
     byte    nextDate[MAX_DATE_SIZE]; /* next update date   */
     byte    lastDateFormat;          /* format of last date */

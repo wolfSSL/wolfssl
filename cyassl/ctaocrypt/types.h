@@ -32,7 +32,8 @@
 #define CYASSL_BIT_SIZE     WOLFSSL_BIT_SIZE
 #define CYASSL_MAX_16BIT    WOLFSSL_MAX_16BIT
 #define CYASSL_MAX_ERROR_SZ WOLFSSL_MAX_ERROR_SZ
-#define cyassl_word wolfssl_word
+#define cyassl_word         wolfssl_word
+#define CYASSL_MAX_ERROR_SZ WOLFSSL_MAX_ERROR_SZ
 
 /* if macros need to be reverted back to previous name for fips */
 //    #define WOLFSSL_MAX_ERROR_SZ CYASSL_MAX_ERROR_SZ

@@ -33,25 +33,25 @@
 int wc_AesSetKey(Aes* aes, const byte* key, word32 len, const byte* iv,
                           int dir)
 {
-    return AesSetKey(aes, key, len, iv, dir);
+    return AesSetKey_fips(aes, key, len, iv, dir);
 }
 
 
 int wc_AesSetIV(Aes* aes, const byte* iv)
 {
-    return AesSetIV(aes, iv);
+    return AesSetIV_fips(aes, iv);
 }
 
 
 int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 {
-    return AesCbcEncrypt(aes, out, in, sz);
+    return AesCbcEncrypt_fips(aes, out, in, sz);
 }
 
 
 int wc_AesCbcDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 {
-    return AesCbcDecrypt(aes, out, in, sz);
+    return AesCbcDecrypt_fips(aes, out, in, sz);
 }
 
 
@@ -95,7 +95,7 @@ int wc_AesSetKeyDirect(Aes* aes, const byte* key, word32 len,
 #ifdef HAVE_AESGCM
 int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
 {
-    return AesGcmSetKey(aes, key, len);
+    return AesGcmSetKey_fips(aes, key, len);
 }
 
 
@@ -104,7 +104,7 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
                               byte* authTag, word32 authTagSz,
                               const byte* authIn, word32 authInSz)
 {
-    return AesGcmEncrypt(aes, out, in, sz, iv, ivSz, authTag, authTagSz,
+    return AesGcmEncrypt_fips(aes, out, in, sz, iv, ivSz, authTag, authTagSz,
                               authIn, authInSz);
 }
 
@@ -114,7 +114,7 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
                               const byte* authTag, word32 authTagSz,
                               const byte* authIn, word32 authInSz)
 {
-    return AesGcmDecrypt(aes, out, in, sz, iv, ivSz, authTag, authTagSz,
+    return AesGcmDecrypt_fips(aes, out, in, sz, iv, ivSz, authTag, authTagSz,
                               authIn, authInSz);
 }
 

@@ -62,7 +62,7 @@ enum {
     MEMORY_E           = -125,  /* out of memory error */
 
     RSA_WRONG_TYPE_E   = -130,  /* RSA wrong block type for RSA function */
-    RSA_BUFFER_E       = -131,  /* RSA buffer error, output too small or 
+    RSA_BUFFER_E       = -131,  /* RSA buffer error, output too small or
                                    input too large */
     BUFFER_E           = -132,  /* output buffer too small or input too large */
     ALGO_ID_E          = -133,  /* setting algo id error */

@@ -35,13 +35,13 @@
 #else
     #include <wolfssl/wolfcrypt/integer.h>
     #include <wolfssl/wolfcrypt/random.h>
-#endif
+#endif /* HAVE_FIPS */
 
 #ifdef __cplusplus
     extern "C" {
 #endif
 
-#ifndef HAVE_FIPS
+#ifndef HAVE_FIPS /* avoid redefinition of structs */
 #define WOLFSSL_RSA_CAVIUM_MAGIC 0xBEEF0006
 
 enum {
@@ -109,33 +109,6 @@ WOLFSSL_API int  wc_RsaFlattenPublicKey(RsaKey*, byte*, word32*, byte*,
     WOLFSSL_API int  wc_RsaInitCavium(RsaKey*, int);
     WOLFSSL_API void wc_RsaFreeCavium(RsaKey*);
 #endif
-
-
-#ifdef HAVE_FIPS
-    /* fips wrapper calls, user can call direct */
-    WOLFSSL_API int  wc_InitRsaKey_fips(RsaKey* key, void*);
-    WOLFSSL_API int  wc_FreeRsaKey_fips(RsaKey* key);
-
-    WOLFSSL_API int  wc_RsaPublicEncrypt_fips(const byte* in,word32 inLen,byte* out,
-                                 word32 outLen, RsaKey* key, RNG* rng);
-    WOLFSSL_API int  wc_RsaPrivateDecryptInline_fips(byte* in, word32 inLen,
-                                                 byte** out, RsaKey* key);
-    WOLFSSL_API int  wc_RsaPrivateDecrypt_fips(const byte* in, word32 inLen,
-                                           byte* out,word32 outLen,RsaKey* key);
-    WOLFSSL_API int  wc_RsaSSL_Sign_fips(const byte* in, word32 inLen, byte* out,
-                            word32 outLen, RsaKey* key, RNG* rng);
-    WOLFSSL_API int  wc_RsaSSL_VerifyInline_fips(byte* in, word32 inLen, byte** out,
-                                    RsaKey* key);
-    WOLFSSL_API int  wc_RsaSSL_Verify_fips(const byte* in, word32 inLen, byte* out,
-                              word32 outLen, RsaKey* key);
-    WOLFSSL_API int  wc_RsaEncryptSize_fips(RsaKey* key);
-
-    WOLFSSL_API int wc_RsaPrivateKeyDecode_fips(const byte* input, word32* inOutIdx,
-                                            RsaKey*, word32);
-    WOLFSSL_API int wc_RsaPublicKeyDecode_fips(const byte* input, word32* inOutIdx,
-                                           RsaKey*, word32);
-#endif /* HAVE_FIPS */
-
 
 #ifdef __cplusplus
     } /* extern "C" */
