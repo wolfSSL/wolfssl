@@ -2674,7 +2674,7 @@ doMessage:
                     return -1;
                 }
             }
-            XMEMCPY(ssl->buffers.inputBuffer.buffer, sslFrame, sslBytes);
+            XMEMMOVE(ssl->buffers.inputBuffer.buffer, sslFrame, sslBytes);
             ssl->buffers.inputBuffer.length = sslBytes;
         }
         if (HaveMoreInput(session, &sslFrame, &sslBytes, &end, error))
