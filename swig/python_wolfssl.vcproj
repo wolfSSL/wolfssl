@@ -2,9 +2,9 @@
 <VisualStudioProject
 	ProjectType="Visual C++"
 	Version="9.00"
-	Name="python_cyassl"
+	Name="python_wolfssl"
 	ProjectGUID="{47A3ABA9-EC54-4788-BC7E-370595B2011A}"
-	RootNamespace="python_cyassl"
+	RootNamespace="python_wolfssl"
 	Keyword="Win32Proj"
 	TargetFrameworkVersion="196613"
 	>
@@ -41,8 +41,8 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
-				AdditionalIncludeDirectories="../include;../ctaocrypt/include;&quot;$(PYTHON_INCLUDE)&quot;"
-				PreprocessorDefinitions="WIN32;_DEBUG;_WINDOWS;_USRDLL;PYTHON_CYASSL_EXPORTS"
+				AdditionalIncludeDirectories="../include;../wolfcrypt/include;&quot;$(PYTHON_INCLUDE)&quot;"
+				PreprocessorDefinitions="WIN32;_DEBUG;_WINDOWS;_USRDLL;PYTHON_WOLFSSL_EXPORTS"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="3"
@@ -62,7 +62,7 @@
 			<Tool
 				Name="VCLinkerTool"
 				AdditionalDependencies="$(PYTHON_LIB) Ws2_32.lib"
-				OutputFile="_cyassl.pyd"
+				OutputFile="_wolfssl.pyd"
 				LinkIncremental="2"
 				GenerateDebugInformation="true"
 				SubSystem="2"
@@ -117,8 +117,8 @@
 				Name="VCCLCompilerTool"
 				Optimization="2"
 				EnableIntrinsicFunctions="true"
-				AdditionalIncludeDirectories="../include;../ctaocrypt/include;&quot;$(PYTHON_INCLUDE)&quot;"
-				PreprocessorDefinitions="WIN32;NDEBUG;_WINDOWS;_USRDLL;PYTHON_CYASSL_EXPORTS"
+				AdditionalIncludeDirectories="../include;../wolfcrypt/include;&quot;$(PYTHON_INCLUDE)&quot;"
+				PreprocessorDefinitions="WIN32;NDEBUG;_WINDOWS;_USRDLL;PYTHON_WOLFSSL_EXPORTS"
 				RuntimeLibrary="2"
 				EnableFunctionLevelLinking="true"
 				UsePrecompiledHeader="0"
@@ -137,7 +137,7 @@
 			<Tool
 				Name="VCLinkerTool"
 				AdditionalDependencies="$(PYTHON_LIB) Ws2_32.lib"
-				OutputFile="_cyassl.pyd"
+				OutputFile="_wolfssl.pyd"
 				LinkIncremental="1"
 				GenerateDebugInformation="true"
 				SubSystem="2"
@@ -177,11 +177,11 @@
 			UniqueIdentifier="{4FC737F1-C7A5-4376-A066-2A32D752A2FF}"
 			>
 			<File
-				RelativePath=".\cyassl_adds.c"
+				RelativePath=".\wolfssl_adds.c"
 				>
 			</File>
 			<File
-				RelativePath=".\cyassl_wrap.c"
+				RelativePath=".\wolfssl_wrap.c"
 				>
 			</File>
 		</Filter>
@@ -198,7 +198,7 @@
 			>
 		</Filter>
 		<File
-			RelativePath=".\cyassl.i"
+			RelativePath=".\wolfssl.i"
 			>
 			<FileConfiguration
 				Name="Debug|Win32"

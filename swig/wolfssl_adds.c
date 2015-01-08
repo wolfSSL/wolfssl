@@ -1,4 +1,4 @@
-/* cyassl_adds.c
+/* wolfssl_adds.c
  *
  * Copyright (C) 2006-2015 wolfSSL Inc.
  *
@@ -23,15 +23,15 @@
     #include <config.h>
 #endif
 
-#include <cyassl/ctaocrypt/settings.h>
+#include <wolfssl/wolfcrypt/settings.h>
 
 #ifndef _WIN32
     #define HAVE_CONFIG_H
 #endif
 
-#include <cyassl/ssl.h>
-#include <cyassl/ctaocrypt/rsa.h>
-#include <cyassl/ctaocrypt/asn.h>
+#include <wolfssl/ssl.h>
+#include <wolfssl/wolfcrypt/rsa.h>
+#include <wolfssl/wolfcrypt/asn.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -92,7 +92,7 @@
     #define StartTCP() { WSADATA wsd; WSAStartup(0x0002, &wsd); }
 #else
     #define CloseSocket(s) close(s)
-    #define StartTCP() 
+    #define StartTCP()
 #endif
 
 
@@ -103,7 +103,7 @@
     typedef struct sockaddr_in  SOCKADDR_IN_T;
     #define AF_INET_V    AF_INET
 #endif
-   
+
 
 enum {
     SSL_BLOCKING    = 2,
@@ -127,7 +127,7 @@ static int tcp_socket(SOCKET_T* sockfd, SOCKADDR_IN_T* addr, const char* peer,
             host = inet_ntoa(tmp.sin_addr);
         }
         else
-            return -1;   /* no entry for host */ 
+            return -1;   /* no entry for host */
     }
 
     *sockfd = socket(AF_INET, SOCK_STREAM, 0);
@@ -160,25 +160,25 @@ static int tcp_connect(SOCKET_T* sockfd, const char* ip, short port)
 
     return 0;
 }
-    
 
-int CyaSSL_swig_connect(CYASSL* ssl, const char* server, int port)
+
+int wolfSSL_swig_connect(WOLFSSL* ssl, const char* server, int port)
 {
     SOCKET_T sockfd;
     int ret = tcp_connect(&sockfd, server, port);
     if (ret != 0) return ret;
-    
-    CyaSSL_set_fd(ssl, sockfd);
 
-    return CyaSSL_connect(ssl);
+    wolfSSL_set_fd(ssl, sockfd);
+
+    return wolfSSL_connect(ssl);
 }
 
 
-char* CyaSSL_error_string(int err)
+char* wolfSSL_error_string(int err)
 {
-    static char buffer[CYASSL_MAX_ERROR_SZ];
+    static char buffer[WOLFSSL_MAX_ERROR_SZ];
 
-    return CyaSSL_ERR_error_string(err, buffer);
+    return wolfSSL_ERR_error_string(err, buffer);
 }
 
 
@@ -187,7 +187,7 @@ RNG* GetRng(void)
     RNG* rng = (RNG*)malloc(sizeof(RNG));
 
     if (rng)
-        if (InitRng(rng) != 0) {
+        if (wc_InitRng(rng) != 0) {
             free(rng);
             rng = 0;
         }
@@ -214,11 +214,11 @@ RsaKey* GetRsaPrivateKey(const char* keyFile)
 
         bytes = fread(tmp, 1, sizeof(tmp), file);
         fclose(file);
-        InitRsaKey(key, 0);
+        wc_InitRsaKey(key, 0);
 
-        ret = RsaPrivateKeyDecode(tmp, &idx, key, (word32)bytes);
+        ret = wc_RsaPrivateKeyDecode(tmp, &idx, key, (word32)bytes);
         if (ret != 0) {
-            FreeRsaKey(key);
+            wc_FreeRsaKey(key);
             free(key);
             return 0;
         }

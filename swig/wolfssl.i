@@ -1,4 +1,4 @@
-/* cyassl.i
+/* wolfssl.i
  *
  * Copyright (C) 2006-2015 wolfSSL Inc.
  *
@@ -19,34 +19,34 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-%module cyassl
+%module wolfssl
 %{
-    #include <cyassl/ssl.h>
-    #include <cyassl/ctaocrypt/rsa.h>
+    #include <wolfssl/ssl.h>
+    #include <wolfssl/wolfcrypt/rsa.h>
 
     /* defn adds */
-    char* CyaSSL_error_string(int err);
-    int   CyaSSL_swig_connect(CYASSL*, const char* server, int port);
+    char* wolfSSL_error_string(int err);
+    int   wolfSSL_swig_connect(WOLFSSL*, const char* server, int port);
     RNG*  GetRng(void);
     RsaKey* GetRsaPrivateKey(const char* file);
     void    FillSignStr(unsigned char*, const char*, int);
 %}
 
 
-CYASSL_METHOD* CyaTLSv1_client_method(void);
-CYASSL_CTX*    CyaSSL_CTX_new(CYASSL_METHOD*);
-int            CyaSSL_CTX_load_verify_locations(CYASSL_CTX*, const char*, const char*);
-CYASSL*        CyaSSL_new(CYASSL_CTX*);
-int            CyaSSL_get_error(CYASSL*, int);
-int            CyaSSL_write(CYASSL*, const char*, int);
-int            CyaSSL_Debugging_ON(void);
-int            CyaSSL_Init(void);
-char*          CyaSSL_error_string(int);
-int            CyaSSL_swig_connect(CYASSL*, const char* server, int port);
+WOLFSSL_METHOD* wolfTLSv1_client_method(void);
+WOLFSSL_CTX*    wolfSSL_CTX_new(WOLFSSL_METHOD*);
+int             wolfSSL_CTX_load_verify_locations(WOLFSSL_CTX*, const char*, const char*);
+WOLFSSL*        wolfSSL_new(WOLFSSL_CTX*);
+int             wolfSSL_get_error(WOLFSSL*, int);
+int             wolfSSL_write(WOLFSSL*, const char*, int);
+int             wolfSSL_Debugging_ON(void);
+int             wolfSSL_Init(void);
+char*           wolfSSL_error_string(int);
+int             wolfSSL_swig_connect(WOLFSSL*, const char* server, int port);
 
-int         RsaSSL_Sign(const unsigned char* in, int inLen, unsigned char* out, int outLen, RsaKey* key, RNG* rng);
+int         wc_RsaSSL_Sign(const unsigned char* in, int inLen, unsigned char* out, int outLen, RsaKey* key, RNG* rng);
 
-int         RsaSSL_Verify(const unsigned char* in, int inLen, unsigned char* out, int outLen, RsaKey* key);
+int         wc_RsaSSL_Verify(const unsigned char* in, int inLen, unsigned char* out, int outLen, RsaKey* key);
 
 RNG* GetRng(void);
 RsaKey* GetRsaPrivateKey(const char* file);
@@ -55,7 +55,7 @@ void    FillSignStr(unsigned char*, const char*, int);
 %include carrays.i
 %include cdata.i
 %array_class(unsigned char, byteArray);
-int         CyaSSL_read(CYASSL*, unsigned char*, int);
+int         wolfSSL_read(WOLFSSL*, unsigned char*, int);
 
 
 #define    SSL_FAILURE      0
