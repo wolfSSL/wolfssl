@@ -36,6 +36,15 @@ before calling SSL_new();  Though it's not recommended.
 ```
 
 
+# CyaSSL Release 3.3.2 (01/07/2015)
+
+## Release 3.3.2 CyaSSL has bug fixes and new features including:
+
+- Improvements in the build configuration under AIX.
+- Various compile warnings.
+- Changed a memcpy to memmove in the sniffer.
+
+
 # CyaSSL Release 3.3.0 (12/05/2014)
 
 - Countermeasuers for Handshake message duplicates, CHANGE CIPHER without
