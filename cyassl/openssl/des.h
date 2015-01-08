@@ -1,6 +1,6 @@
 /* des.h
  *
- * Copyright (C) 2013 wolfSSL Inc.
+ * Copyright (C) 2015 wolfSSL Inc.
  *
  * This file is part of wolfSSL. (formerly known as CyaSSL)
  *
