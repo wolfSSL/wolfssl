@@ -23,8 +23,15 @@
 #ifndef CTAO_CRYPT_ASN_PUBLIC_H
 #define CTAO_CRYPT_ASN_PUBLIC_H
 
+/* pull in compatibility for each of the includes */
 #include <cyassl/ctaocrypt/types.h>
-#include <wolfssl/wolfrypt/asn_public.h>
+#include <cyassl/ctaocrypt/types.h>
+#include <cyassl/ctaocrypt/ecc.h>
+#ifdef WOLFSSL_CERT_GEN
+    #include <cyassl/ctaocrypt/rsa.h>
+#endif
+
+#include <wolfssl/wolfcrypt/asn_public.h>
 #ifdef WOLFSSL_CERT_GEN
     #define InitCert wc_InitCert
     #define MakeCert wc_MakeCert

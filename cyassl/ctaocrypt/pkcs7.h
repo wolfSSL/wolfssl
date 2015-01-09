@@ -25,6 +25,13 @@
 #ifndef CTAO_CRYPT_PKCS7_H
 #define CTAO_CRYPT_PKCS7_H
 
+/* pull in compatibility for old includes */
+#include <cyassl/ctaocrypt/types.h>
+#include <cyassl/ctaocrypt/asn.h>
+#include <cyassl/ctaocrypt/asn_public.h>
+#include <cyassl/ctaocrypt/random.h>
+#include <cyassl/ctaocrypt/des3.h>
+
 #include <wolfssl/wolfcrypt/pkcs7.h>
 
 /* for pkcs7 reverse compatibility */
