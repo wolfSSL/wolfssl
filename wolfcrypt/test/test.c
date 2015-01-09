@@ -159,6 +159,7 @@ int  arc4_test(void);
 int  hc128_test(void);
 int  rabbit_test(void);
 int  chacha_test(void);
+int  chacha_poly_test(void);
 int  des_test(void);
 int  des3_test(void);
 int  aes_test(void);
@@ -405,6 +406,13 @@ int wolfcrypt_test(void* args)
         return err_sys("POLY1305 test failed!\n", ret);
     else
         printf( "POLY1305 test passed!\n");
+#endif
+
+#if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
+    if ( (ret = chacha_poly_test()) != 0)
+        return err_sys("CHACHA-POLY AEAD test failed!\n", ret);
+    else
+        printf( "ChachaAEAD test passed!\n");
 #endif
 
 #ifndef NO_DES3
@@ -2050,6 +2058,121 @@ int poly1305_test(void)
     return 0;
 }
 #endif /* HAVE_POLY1305 */
+
+
+#if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
+int chacha_poly_test(void)
+{
+
+    const byte key[] = {
+        0x42,0x90,0xbc,0xb1,0x54,0x17,0x35,0x31,
+        0xf3,0x14,0xaf,0x57,0xf3,0xbe,0x3b,0x50,
+        0x06,0xda,0x37,0x1e,0xce,0x27,0x2a,0xfa,
+        0x1b,0x5d,0xbd,0xd1,0x10,0x0a,0x10,0x07
+    };
+
+    const byte input[] = {
+        0x86,0xd0,0x99,0x74,0x84,0x0b,0xde,0xd2,
+        0xa5,0xca
+    };
+
+    const byte nonce[] = {
+        0x00,0x00,0x00,0x00,0xcd,0x7c,0xf6,0x7b,
+        0xe3,0x9c,0x79,0x4a
+    };
+
+    const byte ad[] = { /* aditional data */
+        0x87,0xe2,0x29,0xd4,0x50,0x08,0x45,0xa0,
+        0x79,0xc0,0x0a,0x00,0x00,0x00,0x00,0x00,
+        0x00,0x00
+    };
+
+    const byte test[] = { /* expected output from operation */
+        0xe3,0xe4,0x46,0xf7,0xed,0xe9,0xa1,0x9b,
+        0x62,0xa4,0x98,0xa5,0x9a,0x87,0xf9,0x82,
+        0xa1,0xfe,0xcb,0xac,0xd3,0xff,0xe8,0x29,
+        0x31,0x04
+    };
+
+
+    byte polyKey[64];
+    byte cipher[32];
+    byte tag[16]; /* tag made from Poly1305 MAC algorithm */
+    byte out[48]; /* cipher (32) + tag size of (16) */
+    byte msg[10]; /* message after decryption */
+    word32 keySz = 32;
+    int ret = 0;
+
+    ChaCha   chaEnc,  chaDec;
+    Poly1305 polyEnc, polyDec;
+
+    XMEMSET(polyKey, 0, sizeof(polyKey));
+    XMEMSET(cipher, 0, sizeof(cipher));
+    XMEMSET(tag, 0, sizeof(tag));
+    XMEMSET(out, 0, sizeof(out));
+    XMEMSET(msg, 0, sizeof(msg));
+
+    /***** ENCRYPTION ******/
+
+    /* Initialise chacha / poly and get poly key */
+    ret += wc_Chacha_SetKey(&chaEnc, key, keySz);
+    ret += wc_Chacha_SetIV(&chaEnc, nonce, 0); /* start with counter at 0 */
+    /* AEAD poly key is created by first run of ChaCha */
+    ret += wc_Chacha_Process(&chaEnc, polyKey, polyKey, 64);
+    ret += wc_Poly1305SetKey(&polyEnc, polyKey, 32);
+
+    /* encrypt the plain text then append tag */
+    ret += wc_Chacha_SetIV(&chaEnc, nonce, 1);
+    ret += wc_Chacha_Process(&chaEnc, cipher, input, sizeof(input));
+    /* tag is created with using ad and cipher (SSL/TLS uses padding as well) */
+    ret += wc_Poly1305Update(&polyEnc, ad, sizeof(ad));
+    ret += wc_Poly1305Update(&polyEnc, cipher, sizeof(input));
+    ret += wc_Poly1305Final(&polyEnc, tag);
+    XMEMCPY(out, cipher, sizeof(input)); /* copy cipher to first of out */
+    XMEMCPY(out + sizeof(input), tag, sizeof(tag)); /* append tag to out   */
+
+
+    /****** TEST *****/
+
+    /* encrypted AEAD msg is now in out[] it's length is sizeof input + tag size
+       to test correctness we will compare the out[] to the expected output */
+    if (memcmp(out, test, sizeof(test)))
+        return -1062;
+
+
+    /****** DECRYPTION ******/
+
+    XMEMSET(polyKey, 0, sizeof(polyKey));
+    XMEMSET(tag, 0, sizeof(tag));
+
+    /* Initialise chacha / poly and get poly key */
+    ret += wc_Chacha_SetKey(&chaDec, key, keySz);
+    ret += wc_Chacha_SetIV(&chaDec, nonce, 0); /* start with counter at 0 */
+    /* AEAD poly key is created by first run of ChaCha */
+    ret += wc_Chacha_Process(&chaDec, polyKey, polyKey, 64);
+    ret += wc_Poly1305SetKey(&polyDec, polyKey, 32);
+
+    /* compare generated tag to what was sent */
+    ret += wc_Poly1305Update(&polyDec, ad, sizeof(ad));
+    ret += wc_Poly1305Update(&polyDec, out, sizeof(input)); /* cipher sent */
+    ret += wc_Poly1305Final(&polyDec, tag);
+    /* comparison of tags should be in constant time when implemented */
+    if (memcmp(tag, out + sizeof(input), sizeof(tag))) /* compare tags */
+        return -1063;
+
+    /* decrypt the cipher text */
+    ret += wc_Chacha_Process(&chaDec, msg, out, sizeof(input));
+
+
+    /****** TEST *****/
+
+    /* plain text msg has been recieved compare it to expected for test */
+    if (memcmp(msg, input, sizeof(input)))
+        return -1064;
+
+    return ret;
+}
+#endif /* HAVE_CHACHA && HAVE_POLY1305 */
 
 
 #ifndef NO_DES3
