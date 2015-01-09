@@ -4,7 +4,7 @@
 
 /*
  *  ======== getLibs ========
- *  Contribute CyaSSL library.
+ *  Contribute wolfSSL library.
  */
 function getLibs(prog) 
 {

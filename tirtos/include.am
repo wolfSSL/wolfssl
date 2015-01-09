@@ -4,19 +4,19 @@
 
 EXTRA_DIST += \
          tirtos/README \
-         tirtos/cyassl.bld \
-         tirtos/cyassl.mak \
-         tirtos/packages/ti/net/cyassl/package.bld \
-         tirtos/packages/ti/net/cyassl/package.xdc \
-         tirtos/packages/ti/net/cyassl/package.xs \
-         tirtos/packages/ti/net/cyassl/tests/ctaocrypt/test/package.bld \
-         tirtos/packages/ti/net/cyassl/tests/ctaocrypt/test/package.xdc \
-         tirtos/packages/ti/net/cyassl/tests/ctaocrypt/test/test.cfg \
-         tirtos/packages/ti/net/cyassl/tests/ctaocrypt/test/TM4C1294NC.icf \
-         tirtos/packages/ti/net/cyassl/tests/ctaocrypt/test/main.c \
-         tirtos/packages/ti/net/cyassl/tests/ctaocrypt/benchmark/package.bld \
-         tirtos/packages/ti/net/cyassl/tests/ctaocrypt/benchmark/package.xdc \
-         tirtos/packages/ti/net/cyassl/tests/ctaocrypt/benchmark/benchmark.cfg \
-        tirtos/packages/ti/net/cyassl/tests/ctaocrypt/benchmark/TM4C1294NC.icf \
-         tirtos/packages/ti/net/cyassl/tests/ctaocrypt/benchmark/main.c
+         tirtos/wolfssl.bld \
+         tirtos/wolfssl.mak \
+         tirtos/packages/ti/net/wolfssl/package.bld \
+         tirtos/packages/ti/net/wolfssl/package.xdc \
+         tirtos/packages/ti/net/wolfssl/package.xs \
+         tirtos/packages/ti/net/wolfssl/tests/wolfcrypt/test/package.bld \
+         tirtos/packages/ti/net/wolfssl/tests/wolfcrypt/test/package.xdc \
+         tirtos/packages/ti/net/wolfssl/tests/wolfcrypt/test/test.cfg \
+         tirtos/packages/ti/net/wolfssl/tests/wolfcrypt/test/TM4C1294NC.icf \
+         tirtos/packages/ti/net/wolfssl/tests/wolfcrypt/test/main.c \
+         tirtos/packages/ti/net/wolfssl/tests/wolfcrypt/benchmark/package.bld \
+         tirtos/packages/ti/net/wolfssl/tests/wolfcrypt/benchmark/package.xdc \
+         tirtos/packages/ti/net/wolfssl/tests/wolfcrypt/benchmark/benchmark.cfg \
+        tirtos/packages/ti/net/wolfssl/tests/wolfcrypt/benchmark/TM4C1294NC.icf \
+         tirtos/packages/ti/net/wolfssl/tests/wolfcrypt/benchmark/main.c
 

@@ -7,12 +7,12 @@
  * The contents of this file usually don't change, but having it in your
  * ownership allows you to tweak your compiler options.  If you do change
  * this file, however, on the next upgrade of the product we recommend
- * that you take "cyassl.bld" file as supplied by the upgrade and then merge
+ * that you take "wolfssl.bld" file as supplied by the upgrade and then merge
  * your changes with it.
  */
 
 /*
- *  ======== cyassl.bld ========
+ *  ======== wolfssl.bld ========
  *  This script is run prior to all build scripts. It sets host-system-
  *  independent values for targets and platforms, then it attempts to
  *  find the host-system-specific user.bld script that sets rootDirs.
@@ -78,7 +78,7 @@ for (arg = 0; arg < arguments.length; arg++) {
 
 /* Include Path (needed to find NDK headers) */
 var ndkPath = "$(NDK_INSTALL_DIR)/packages/ti/ndk/";
-var cyasslPathInclude = " -I" + ndkPath + "/inc/bsd -DCYASSL_TIRTOS ";
+var wolfsslPathInclude = " -I" + ndkPath + "/inc/bsd -DWOLFSSL_TIRTOS ";
 
 /* lib/ is a generated directory that 'xdc clean' should remove */
 var Pkg = xdc.useModule('xdc.bld.PackageContents'); 

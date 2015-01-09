@@ -1,6 +1,6 @@
 /*
  *  ======== main.c ========
- *  Entry point to Ctaocrypt Test Application   
+ *  Entry point to wolfcrypt Test Application   
  */
 
 /* XDCtools Header files */
@@ -15,17 +15,17 @@ typedef struct func_args {
     int    return_code;
 } func_args;
 
-extern int ctaocrypt_test(void* args);
+extern int wolfcrypt_test(void* args);
 
 /*
- *  ======== testCtaocrypt ========
- *  Run the Ctaocrypt test
+ *  ======== testwolfcrypt ========
+ *  Run the wolfcrypt test
  */
-void testCtaocrypt(UArg arg0, UArg arg1)
+void testwolfcrypt(UArg arg0, UArg arg1)
 {
-    System_printf("Running ctaocrypt tests...\n");
+    System_printf("Running wolfcrypt tests...\n");
     System_flush();
-    ctaocrypt_test((void *)arg0);
+    wolfcrypt_test((void *)arg0);
     System_printf("Tests completed.\n");
 
     BIOS_exit(0);
@@ -45,7 +45,7 @@ int main(int argc, char** argv)
     Task_Params_init(&taskParams);
     taskParams.arg0 = (UArg)&args;
     taskParams.stackSize = 65535;
-    handle =Task_create(testCtaocrypt, &taskParams, NULL);
+    handle =Task_create(testwolfcrypt, &taskParams, NULL);
     if (handle == NULL) {
         System_printf("main: Failed to create new Task.\n");
         return (-1);

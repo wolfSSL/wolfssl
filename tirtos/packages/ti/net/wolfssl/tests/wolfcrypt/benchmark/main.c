@@ -21,7 +21,7 @@ extern int benchmark_test(void* args);
 
 /*
  *  ======== runBenchmarks ========
- *  Run the CyaSSL benchmark application
+ *  Run the wolfSSL benchmark application
  */
 void runBenchmarks(UArg arg0, UArg arg1)
 {

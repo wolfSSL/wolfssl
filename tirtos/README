@@ -1,33 +1,33 @@
-CyaSSL library for TI-RTOS
+wolfSSL library for TI-RTOS
 
-This directory contains the files that build CyaSSL library for TI-RTOS. 
+This directory contains the files that build wolfSSL library for TI-RTOS. 
 Please follow the instructions in TI-RTOS user guide (www.ti.com/tool/ti-rtos) 
-to build the CyaSSL library and the example applications.
+to build the wolfSSL library and the example applications.
 
 Included Files
 ---------------
 
-1. CyaSSL library build files (packages/ti/net/cyassl)
+1. wolfSSL library build files (packages/ti/net/wolfssl)
 
     Build instructions provided in TI-RTOS user guide (www.ti.com/tool/ti-rtos)
 
-2. CTaoCrypt test application (packages/ti/net/cyassl/tests/ctaocrypt/test)
+2. wc_ test application (packages/ti/net/wolfssl/tests/wolfcrypt/test)
 
-    This application is the standard CTaoCrypt test application provided with
-    CyaSSL.
+    This application is the standard wc_ test application provided with
+    wolfSSL.
    
-    It will be built along with the CyaSSL library. Load the built executable
-    on the target and make sure the CyaSSL library works as expected.
+    It will be built along with the wolfSSL library. Load the built executable
+    on the target and make sure the wolfSSL library works as expected.
 
-3. CTaoCrypt benchmark application 
-   (packages/ti/net/cyassl/tests/ctaocrypt/benchmark)
+3. wc_ benchmark application 
+   (packages/ti/net/wolfssl/tests/wolfcrypt/benchmark)
 
-    This application is the standard CTaoCrypt benchmark application provided
-    with CyaSSL.
+    This application is the standard wc_ benchmark application provided
+    with wolfSSL.
 
-    It will be built along with the CyaSSL library. Load the built executable
+    It will be built along with the wolfSSL library. Load the built executable
     on the target and run to get the benchmark results for the configured 
-    CyaSSL library.
+    wolfSSL library.
 
 Examples Application
 --------------------
