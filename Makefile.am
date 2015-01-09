@@ -45,14 +45,14 @@ ACLOCAL_AMFLAGS= -I m4
 
 EXTRA_DIST+= lib/dummy
 
-EXTRA_DIST+= cyassl-ntru.vcproj
-EXTRA_DIST+= cyassl.vcproj
-EXTRA_DIST+= cyassl.vcxproj
-EXTRA_DIST+= cyassl-iphone.xcodeproj/project.pbxproj
-EXTRA_DIST+= cyassl-ios.xcodeproj/project.pbxproj
-EXTRA_DIST+= cyassl-ntru.sln
-EXTRA_DIST+= cyassl.sln
-EXTRA_DIST+= cyassl64.sln
+EXTRA_DIST+= wolfssl-ntru.vcproj
+EXTRA_DIST+= wolfssl.vcproj
+EXTRA_DIST+= wolfssl.vcxproj
+EXTRA_DIST+= wolfssl-iphone.xcodeproj/project.pbxproj
+EXTRA_DIST+= wolfssl-ios.xcodeproj/project.pbxproj
+EXTRA_DIST+= wolfssl-ntru.sln
+EXTRA_DIST+= wolfssl.sln
+EXTRA_DIST+= wolfssl64.sln
 EXTRA_DIST+= valgrind-error.sh
 EXTRA_DIST+= gencertbuf.pl
 EXTRA_DIST+= IDE 
