@@ -596,7 +596,7 @@ int wc_InitRng(RNG* rng)
     ret = wc_GenerateSeed(&rng->seed, key, 32);
 
     if (ret == 0) {
-        Arc4SetKey(&rng->cipher, key, sizeof(key));
+        wc_Arc4SetKey(&rng->cipher, key, sizeof(key));
 
         ret = wc_RNG_GenerateBlock(rng, junk, 256); /*rid initial state*/
     }
@@ -621,7 +621,7 @@ int wc_RNG_GenerateBlock(RNG* rng, byte* output, word32 sz)
         return CaviumRNG_GenerateBlock(rng, output, sz);
 #endif
     XMEMSET(output, 0, sz);
-    Arc4Process(&rng->cipher, output, output, sz);
+    wc_Arc4Process(&rng->cipher, output, output, sz);
 
     return 0;
 }
