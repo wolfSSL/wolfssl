@@ -25,6 +25,10 @@
 #define CTAO_CRYPT_RSA_H
 
 #include <wolfssl/wolfcrypt/rsa.h>
+/* includes for their compatibility */
+#include <cyassl/ctaocrypt/integer.h>
+#include <cyassl/ctaocrypt/random.h>
+
 #define InitRsaKey       wc_InitRsaKey
 #define FreeRsaKey       wc_FreeRsaKey
 #define RsaPublicEncrypt wc_RsaPublicEncrypt
@@ -45,6 +49,10 @@
     #define RsaInitCavium wc_RsaInitCavium
     #define RsaFreeCavium wc_RsaFreeCavium
 #endif
+
+    #define RsaPrivateKeyDecode wc_RsaPrivateKeyDecode
+    #define RsaPublicKeyDecode wc_RsaPublicKeyDecode
+    #define RsaPublicKeyDecodeRaw wc_RsaPublicKeyDecodeRaw
 
 #endif /* CTAO_CRYPT_RSA_H */
 

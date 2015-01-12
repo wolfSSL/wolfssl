@@ -126,6 +126,93 @@
 #define CyaSSL_CTX_load_verify_locations wolfSSL_CTX_load_verify_locations
 #define CyaSSL_CTX_set_default_passwd_cb wolfSSL_CTX_set_default_passwd_cb
 
+#define CyaSSL_save_session_cache        wolfSSL_save_session_cache
+#define CyaSSL_restore_session_cache     wolfSSL_restore_session_cache
+#define CyaSSL_memsave_session_cache     wolfSSL_memsave_session_cache
+#define CyaSSL_memrestore_session_cache  wolfSSL_memrestore_session_cache
+#define CyaSSL_get_session_cache_memsize wolfSSL_get_session_cache_memsize
+
+/* certificate cache persistence, uses ctx since certs are per ctx */
+#define CyaSSL_CTX_save_cert_cache        wolfSSL_CTX_save_cert_cache
+#define CyaSSL_CTX_restore_cert_cache     wolfSSL_CTX_restore_cert_cache
+#define CyaSSL_CTX_memsave_cert_cache     wolfSSL_CTX_memsave_cert_cache
+#define CyaSSL_CTX_memrestore_cert_cache  wolfSSL_CTX_memrestore_cert_cache
+#define CyaSSL_CTX_get_cert_cache_memsize wolfSSL_CTX_get_cert_cache_memsize
+
+/* wolfSSL extensions */
+/* get wolfSSL peer X509_CHAIN */
+#define CyaSSL_get_chain_count wolfSSL_get_chain_count
+/* index cert length */
+#define CyaSSL_get_chain_length wolfSSL_get_chain_length
+/* index cert in X509 */
+#define CyaSSL_get_chain_X509 wolfSSL_get_chain_X509
+/* free X509 */
+#define CyaSSL_FreeX509 wolfSSL_FreeX509
+/* get index cert in PEM */
+#define CyaSSL_X509_get_subjectCN wolfSSL_X509_get_subjectCN
+#define CyaSSL_X509_get_der       wolfSSL_X509_get_der
+#define CyaSSL_X509_notBefore     wolfSSL_X509_notBefore
+#define CyaSSL_X509_notAfter      wolfSSL_X509_notAfter
+#define CyaSSL_X509_version       wolfSSL_X509_version
+
+#define CyaSSL_cmp_peer_cert_to_file wolfSSL_cmp_peer_cert_to_file
+
+#define CyaSSL_X509_get_next_altname wolfSSL_X509_get_next_altname
+
+#define CyaSSL_X509_d2i wolfSSL_X509_d2i
+#ifndef NO_FILESYSTEM
+    #ifndef NO_STDIO_FILESYSTEM
+        #define CyaSSL_X509_d2i_fp wolfSSL_X509_d2i_fp
+    #endif
+#define CyaSSL_X509_load_certificate_file wolfSSL_X509_load_certificate_file
+#endif
+
+#ifdef WOLFSSL_SEP
+#define CyaSSL_X509_get_device_type      wolfSSL_X509_get_device_type
+#define CyaSSL_X509_get_hw_type          wolfSSL_X509_get_hw_type
+#define CyaSSL_X509_get_hw_serial_number wolfSSL_X509_get_hw_serial_number
+#endif
+
+#define CyaSSL_CTX_SetGenCookie wolfSSL_CTX_SetGenCookie
+#define CyaSSL_SetCookieCtx     wolfSSL_SetCookieCtx
+#define CyaSSL_GetCookieCtx     wolfSSL_GetCookieCtx
+#define CyaSSL_ERR_get_error_line_data wolfSSL_ERR_get_error_line_data
+#define CyaSSL_ERR_get_error           wolfSSL_ERR_get_error
+#define CyaSSL_ERR_clear_error         wolfSSL_ERR_clear_error
+#define CyaSSL_RAND_status             wolfSSL_RAND_status
+#define CyaSSL_RAND_bytes              wolfSSL_RAND_bytes
+#define CyaSSL_CTX_set_options         wolfSSL_CTX_set_options
+#define CyaSSL_ERR_free_strings        wolfSSL_ERR_free_strings
+#define CyaSSL_ERR_remove_state        wolfSSL_ERR_remove_state
+#define CyaSSL_EVP_cleanup             wolfSSL_EVP_cleanup
+#define CyaSSL_cleanup_all_ex_data     wolfSSL_cleanup_all_ex_data
+#define CyaSSL_CTX_set_mode            wolfSSL_CTX_set_mode
+#define CyaSSL_CTX_get_mode            wolfSSL_CTX_get_mode
+#define CyaSSL_CTX_set_default_read_ahead   wolfSSL_CTX_set_default_read_ahead
+#define CyaSSL_CTX_sess_set_cache_size      wolfSSL_CTX_sess_set_cache_size
+#define CyaSSL_CTX_set_default_verify_paths wolfSSL_CTX_set_default_verify_paths
+#define CyaSSL_CTX_set_session_id_context   wolfSSL_CTX_set_session_id_context
+#define CyaSSL_get_peer_certificate         wolfSSL_get_peer_certificate
+#define CyaSSL_BIO_printf                   wolfSSL_BIO_printf
+#define CyaSSL_ASN1_UTCTIME_print           wolfSSL_ASN1_UTCTIME_print
+#define CyaSSL_sk_num                       wolfSSL_sk_num
+#define CyaSSL_sk_value                     wolfSSL_sk_value
+
+/* stunnel 4.28 needs */
+#define CyaSSL_CTX_get_ex_data        wolfSSL_CTX_get_ex_data
+#define CyaSSL_CTX_set_ex_data        wolfSSL_CTX_set_ex_data
+#define CyaSSL_CTX_sess_set_get_cb    wolfSSL_CTX_sess_set_get_cb
+#define CyaSSL_CTX_sess_set_new_cb    wolfSSL_CTX_sess_set_new_cb
+#define CyaSSL_CTX_sess_set_remove_cb wolfSSL_CTX_sess_set_remove_cb
+
+#define CyaSSL_i2d_SSL_SESSION wolfSSL_i2d_SSL_SESSION
+#define CyaSSL_d2i_SSL_SESSION wolfSSL_d2i_SSL_SESSION
+
+#define CyaSSL_SESSION_get_timeout  wolfSSL_SESSION_get_timeout
+#define CyaSSL_SESSION_get_time     wolfSSL_SESSION_get_time
+#define CyaSSL_CTX_get_ex_new_index wolfSSL_CTX_get_ex_new_index
+
+
 /* io.c */
 #define CYASSL_CBIO_ERR_ISR        WOLFSSL_CBIO_ERR_ISR
 #define CYASSL_CBIO_ERR_TIMEOUT    WOLFSSL_CBIO_ERR_TIMEOUT
@@ -156,6 +243,174 @@
 #define cyassl_aes                     wolfssl_aes
 #define cyassl_chacha                  wolfssl_chacha
 #define CyaSSL_ERR_reason_error_string wolfSSL_ERR_reason_error_string
+
+#define CyaSSL_set_ex_data  wolfSSL_set_ex_data
+#define CyaSSL_get_shutdown wolfSSL_get_shutdown
+#define CyaSSL_set_rfd      wolfSSL_set_rfd
+#define CyaSSL_set_wfd      wolfSSL_set_wfd
+#define CyaSSL_set_shutdown wolfSSL_set_shutdown
+#define CyaSSL_set_session_id_context wolfSSL_set_session_id_context
+#define CyaSSL_set_connect_state      wolfSSL_set_connect_state
+#define CyaSSL_set_accept_state       wolfSSL_set_accept_state
+#define CyaSSL_session_reused         wolfSSL_session_reused
+#define CyaSSL_SESSION_free           wolfSSL_SESSION_free
+#define CyaSSL_is_init_finished       wolfSSL_is_init_finished
+
+#define CyaSSL_get_version              wolfSSL_get_version
+#define CyaSSL_get_current_cipher_suite wolfSSL_get_current_cipher_suite
+#define CyaSSL_get_current_cipher       wolfSSL_get_current_cipher
+#define CyaSSL_CIPHER_description       wolfSSL_CIPHER_description
+#define CyaSSL_CIPHER_get_name          wolfSSL_CIPHER_get_name
+#define CyaSSL_get_cipher               wolfSSL_get_cipher
+#define CyaSSL_get1_session             wolfSSL_get1_session
+
+#define CyaSSL_X509_free      wolfSSL_X509_free
+#define CyaSSL_OPENSSL_free   wolfSSL_OPENSSL_free
+#define CyaSSL_OCSP_parse_url wolfSSL_OCSP_parse_url
+
+#define CyaSSLv23_client_method wolfSSLv23_client_method
+#define CyaSSLv2_client_method  wolfSSLv2_client_method
+#define CyaSSLv2_server_method  wolfSSLv2_server_method
+
+#define CyaSSL_MD4_Init     wolfSSL_MD4_Init
+#define CyaSSL_MD4_Update   wolfSSL_MD4_Update
+#define CyaSSL_MD4_Final    wolfSSL_MD4_Final
+
+
+#define CyaSSL_BIO_new      wolfSSL_BIO_new
+#define CyaSSL_BIO_free     wolfSSL_BIO_free
+#define CyaSSL_BIO_free_all wolfSSL_BIO_free_all
+#define CyaSSL_BIO_read     wolfSSL_BIO_read
+#define CyaSSL_BIO_write    wolfSSL_BIO_write
+#define CyaSSL_BIO_push     wolfSSL_BIO_push
+#define CyaSSL_BIO_pop      wolfSSL_BIO_pop
+#define CyaSSL_BIO_flush    wolfSSL_BIO_flush
+#define CyaSSL_BIO_pending  wolfSSL_BIO_pending
+
+#define CyaSSL_BIO_f_buffer              wolfSSL_BIO_f_buffer
+#define CyaSSL_BIO_set_write_buffer_size wolfSSL_BIO_set_write_buffer_size
+#define CyaSSL_BIO_f_ssl                 wolfSSL_BIO_f_ssl
+#define CyaSSL_BIO_new_socket            wolfSSL_BIO_new_socket
+#define CyaSSL_BIO_eof                   wolfSSL_BIO_eof
+
+#define CyaSSL_BIO_s_mem        wolfSSL_BIO_s_mem
+#define CyaSSL_BIO_f_base64     wolfSSL_BIO_f_base64
+#define CyaSSL_BIO_set_flags    wolfSSL_BIO_set_flags
+#define CyaSSL_BIO_get_mem_data wolfSSL_BIO_get_mem_data
+#define CyaSSL_BIO_new_mem_buf  wolfSSL_BIO_new_mem_buf
+
+
+#define CyaSSL_BIO_set_ssl wolfSSL_BIO_set_ssl
+#define CyaSSL_set_bio     wolfSSL_set_bio
+
+#define CyaSSL_add_all_algorithms wolfSSL_add_all_algorithms
+#define CyaSSL_RAND_screen        wolfSSL_RAND_screen
+#define CyaSSL_RAND_file_name     wolfSSL_RAND_file_name
+#define CyaSSL_RAND_write_file    wolfSSL_RAND_write_file
+#define CyaSSL_RAND_load_file     wolfSSL_RAND_load_file
+#define CyaSSL_RAND_egd           wolfSSL_RAND_egd
+#define CyaSSL_RAND_seed          wolfSSL_RAND_seed
+#define CyaSSL_RAND_add           wolfSSL_RAND_add
+
+#define CyaSSL_COMP_zlib wolfSSL_COMP_zlib
+#define CyaSSL_COMP_rle  wolfSSL_COMP_rle
+#define CyaSSL_COMP_add_compression_method  wolfSSL_COMP_add_compression_method
+#define CyaSSL_set_dynlock_create_callback  wolfSSL_set_dynlock_create_callback
+#define CyaSSL_set_dynlock_lock_callback    wolfSSL_set_dynlock_lock_callback
+#define CyaSSL_set_dynlock_destroy_callback wolfSSL_set_dynlock_destroy_callback
+#define CyaSSL_get_ex_new_index     wolfSSL_get_ex_new_index
+#define CyaSSL_set_id_callback      wolfSSL_set_id_callback
+#define CyaSSL_set_locking_callback wolfSSL_set_locking_callback
+#define CyaSSL_num_locks            wolfSSL_num_locks
+
+#define CyaSSL_X509_STORE_CTX_get_current_cert wolfSSL_X509_STORE_CTX_get_current_cert
+#define CyaSSL_X509_STORE_CTX_get_error        wolfSSL_X509_STORE_CTX_get_error
+#define CyaSSL_X509_STORE_CTX_get_error_depth  wolfSSL_X509_STORE_CTX_get_error_depth
+
+#define CyaSSL_X509_NAME_oneline            wolfSSL_X509_NAME_oneline
+#define CyaSSL_X509_get_issuer_name         wolfSSL_X509_get_issuer_name
+#define CyaSSL_X509_get_subject_name        wolfSSL_X509_get_subject_name
+#define CyaSSL_X509_ext_isSet_by_NID        wolfSSL_X509_ext_isSet_by_NID
+#define CyaSSL_X509_ext_get_critical_by_NID wolfSSL_X509_ext_get_critical_by_NID
+#define CyaSSL_X509_get_isCA                wolfSSL_X509_get_isCA
+#define CyaSSL_X509_get_isSet_pathLength    wolfSSL_X509_get_isSet_pathLength
+#define CyaSSL_X509_get_pathLength          wolfSSL_X509_get_pathLength
+#define CyaSSL_X509_get_keyUsage            wolfSSL_X509_get_keyUsage
+#define CyaSSL_X509_get_authorityKeyID      wolfSSL_X509_get_authorityKeyID
+#define CyaSSL_X509_get_subjectKeyID        wolfSSL_X509_get_subjectKeyID
+#define CyaSSL_X509_NAME_entry_count        wolfSSL_X509_NAME_entry_count
+#define CyaSSL_X509_NAME_get_text_by_NID    wolfSSL_X509_NAME_get_text_by_NID
+#define CyaSSL_X509_verify_cert             wolfSSL_X509_verify_cert
+#define CyaSSL_X509_verify_cert_error_string wolfSSL_X509_verify_cert_error_string
+#define CyaSSL_X509_get_signature_type      wolfSSL_X509_get_signature_type
+#define CyaSSL_X509_get_signature           wolfSSL_X509_get_signature
+
+#define CyaSSL_X509_LOOKUP_add_dir   wolfSSL_X509_LOOKUP_add_dir
+#define CyaSSL_X509_LOOKUP_load_file wolfSSL_X509_LOOKUP_load_file
+#define CyaSSL_X509_LOOKUP_hash_dir  wolfSSL_X509_LOOKUP_hash_dir
+#define CyaSSL_X509_LOOKUP_file      wolfSSL_X509_LOOKUP_file
+
+#define CyaSSL_X509_STORE_add_lookup wolfSSL_X509_STORE_add_lookup
+#define CyaSSL_X509_STORE_new        wolfSSL_X509_STORE_new
+#define CyaSSL_X509_STORE_free       wolfSSL_X509_STORE_free
+#define CyaSSL_X509_STORE_add_cert   wolfSSL_X509_STORE_add_cert
+#define CyaSSL_X509_STORE_set_default_paths wolfSSL_X509_STORE_set_default_paths
+#define CyaSSL_X509_STORE_get_by_subject    wolfSSL_X509_STORE_get_by_subject
+#define CyaSSL_X509_STORE_CTX_new           wolfSSL_X509_STORE_CTX_new
+#define CyaSSL_X509_STORE_CTX_init          wolfSSL_X509_STORE_CTX_init
+#define CyaSSL_X509_STORE_CTX_free          wolfSSL_X509_STORE_CTX_free
+#define CyaSSL_X509_STORE_CTX_cleanup       wolfSSL_X509_STORE_CTX_cleanup
+
+#define CyaSSL_X509_CRL_get_lastUpdate wolfSSL_X509_CRL_get_lastUpdate
+#define CyaSSL_X509_CRL_get_nextUpdate wolfSSL_X509_CRL_get_nextUpdate
+
+#define CyaSSL_X509_get_pubkey wolfSSL_X509_get_pubkey
+#define CyaSSL_X509_CRL_verify wolfSSL_X509_CRL_verify
+#define CyaSSL_X509_STORE_CTX_set_error  wolfSSL_X509_STORE_CTX_set_error
+#define CyaSSL_X509_OBJECT_free_contents wolfSSL_X509_OBJECT_free_contents
+#define CyaSSL_EVP_PKEY_free             wolfSSL_EVP_PKEY_free
+#define CyaSSL_X509_cmp_current_time     wolfSSL_X509_cmp_current_time
+#define CyaSSL_sk_X509_REVOKED_num       wolfSSL_sk_X509_REVOKED_num
+
+#define CyaSSL_X509_CRL_get_REVOKED     wolfSSL_X509_CRL_get_REVOKED
+#define CyaSSL_sk_X509_REVOKED_value    wolfSSL_sk_X509_REVOKED_value
+#define CyaSSL_X509_get_serialNumber    wolfSSL_X509_get_serialNumber
+#define CyaSSL_ASN1_TIME_print          wolfSSL_ASN1_TIME_print
+#define CyaSSL_ASN1_INTEGER_cmp         wolfSSL_ASN1_INTEGER_cmp
+#define CyaSSL_ASN1_INTEGER_get         wolfSSL_ASN1_INTEGER_get
+#define CyaSSL_load_client_CA_file      wolfSSL_load_client_CA_file
+#define CyaSSL_CTX_set_client_CA_list   wolfSSL_CTX_set_client_CA_list
+#define CyaSSL_X509_STORE_CTX_get_ex_data     wolfSSL_X509_STORE_CTX_get_ex_data
+#define CyaSSL_get_ex_data_X509_STORE_CTX_idx wolfSSL_get_ex_data_X509_STORE_CTX_idx
+#define CyaSSL_get_ex_data                    wolfSSL_get_ex_data
+
+#define CyaSSL_CTX_set_default_passwd_cb_userdata wolfSSL_CTX_set_default_passwd_cb_userdata
+#define CyaSSL_CTX_set_default_passwd_cb          wolfSSL_CTX_set_default_passwd_cb
+#define CyaSSL_CTX_set_info_callback  wolfSSL_CTX_set_info_callback
+#define CyaSSL_ERR_peek_error         wolfSSL_ERR_peek_error
+#define CyaSSL_GET_REASON             wolfSSL_GET_REASON
+#define CyaSSL_alert_type_string_long wolfSSL_alert_type_string_long
+#define CyaSSL_alert_desc_string_long wolfSSL_alert_desc_string_long
+#define CyaSSL_state_string_long      wolfSSL_state_string_long
+
+#define CyaSSL_RSA_generate_key         wolfSSL_RSA_generate_key
+#define CyaSSL_CTX_set_tmp_rsa_callback wolfSSL_CTX_set_tmp_rsa_callback
+#define CyaSSL_PEM_def_callback         wolfSSL_PEM_def_callback
+#define CyaSSL_CTX_sess_accept          wolfSSL_CTX_sess_accept
+#define CyaSSL_CTX_sess_connect         wolfSSL_CTX_sess_connect
+#define CyaSSL_CTX_sess_accept_good     wolfSSL_CTX_sess_accept_good
+#define CyaSSL_CTX_sess_connect_good    wolfSSL_CTX_sess_connect_good
+#define CyaSSL_CTX_sess_accept_renegotiate  wolfSSL_CTX_sess_accept_renegotiate
+#define CyaSSL_CTX_sess_connect_renegotiate wolfSSL_CTX_sess_connect_renegotiate
+#define CyaSSL_CTX_sess_hits                wolfSSL_CTX_sess_hits
+#define CyaSSL_CTX_sess_cb_hits             wolfSSL_CTX_sess_cb_hits
+#define CyaSSL_CTX_sess_cache_full          wolfSSL_CTX_sess_cache_full
+#define CyaSSL_CTX_sess_misses              wolfSSL_CTX_sess_misses
+#define CyaSSL_CTX_sess_timeouts            wolfSSL_CTX_sess_timeouts
+#define CyaSSL_CTX_sess_number              wolfSSL_CTX_sess_number
+#define CyaSSL_CTX_sess_get_cache_size      wolfSSL_CTX_sess_get_cache_size
+
+
 
 /* src/keys.c */
 #define cyassl_triple_des wolfssl_triple_des
@@ -351,6 +606,28 @@
 #define CyaSSL_CertManagerEnableCRL    wolfSSL_CertManagerEnableCRL
 #define CyaSSL_CertManagerDisableCRL   wolfSSL_CertManagerDisableCRL
 #define CyaSSL_CertManagerVerifyBuffer wolfSSL_CertManagerVerifyBuffer
+#ifndef NO_CERTS
+	#define CyaSSL_CertManagerCheckCRL   wolfSSL_CertManagerCheckCRL
+	#define CyaSSL_CertManagerLoadCRL    wolfSSL_CertManagerLoadCRL
+	#define CyaSSL_CertManagerSetCRL_Cb  wolfSSL_CertManagerSetCRL_Cb
+	#define CyaSSL_CertManagerCheckOCSP  wolfSSL_CertManagerCheckOCSP
+	#define CyaSSL_CertManagerSetOCSP_Cb wolfSSL_CertManagerSetOCSP_Cb
+	#define CyaSSL_CertManagerSetOCSPOverrideURL wolfSSL_CertManagerSetOCSPOverrideURL
+
+	#define CyaSSL_DisableCRL          wolfSSL_DisableCRL
+	#define CyaSSL_EnableOCSP          wolfSSL_EnableOCSP
+	#define CyaSSL_DisableOCSP         wolfSSL_DisableOCSP
+	#define CyaSSL_SetOCSP_OverrideURL wolfSSL_SetOCSP_OverrideURL
+	#define CyaSSL_SetOCSP_Cb          wolfSSL_SetOCSP_Cb
+
+	#define CyaSSL_CTX_EnableCRL   wolfSSL_CTX_EnableCRL
+	#define CyaSSL_CTX_DisableCRL  wolfSSL_CTX_DisableCRL
+	#define CyaSSL_CTX_LoadCRL     wolfSSL_CTX_LoadCRL
+	#define CyaSSL_CTX_SetCRL_Cb   wolfSSL_CTX_SetCRL_Cb
+	#define CyaSSL_CTX_DisableOCSP wolfSSL_CTX_DisableOCSP
+	#define CyaSSL_CTX_SetOCSP_Cb  wolfSSL_CTX_SetOCSP_Cb
+#endif /* !NO_CERTS */
+
 
 /* OpenSSL Compatibility Layer */
 #define CyaSSL_PemCertToDer               wolfSSL_PemCertToDer

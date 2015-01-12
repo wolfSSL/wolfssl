@@ -26,6 +26,11 @@
 
 #include <wolfssl/wolfcrypt/ecc.h>
 
+/* includes for compatibility */
+#include <cyassl/ctaocrypt/types.h>
+#include <cyassl/ctaocrypt/integer.h>
+#include <cyassl/ctaocrypt/random.h>
+
 /* for ecc reverse compatibility */
 #ifdef HAVE_ECC
 	#define ecc_make_key      wc_ecc_make_key
