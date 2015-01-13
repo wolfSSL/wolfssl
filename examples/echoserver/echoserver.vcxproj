@@ -164,7 +164,7 @@
     <ClCompile Include="echoserver.c" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\cyassl.vcxproj">
+    <ProjectReference Include="..\..\wolfssl.vcxproj">
       <Project>{73973223-5ee8-41ca-8e88-1d60e89a237b}</Project>
       <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
     </ProjectReference>
