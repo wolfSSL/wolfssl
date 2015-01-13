@@ -9364,14 +9364,14 @@ void wolfSSL_MD4_Update(WOLFSSL_MD4_CTX* md4, const void* data,
                        unsigned long len)
 {
     WOLFSSL_ENTER("MD4_Update");
-    Md4Update((Md4*)md4, (const byte*)data, (word32)len);
+    wc_Md4Update((Md4*)md4, (const byte*)data, (word32)len);
 }
 
 
 void wolfSSL_MD4_Final(unsigned char* digest, WOLFSSL_MD4_CTX* md4)
 {
     WOLFSSL_ENTER("MD4_Final");
-    Md4Final((Md4*)md4, digest);
+    wc_Md4Final((Md4*)md4, digest);
 }
 
 #endif /* NO_MD4 */
