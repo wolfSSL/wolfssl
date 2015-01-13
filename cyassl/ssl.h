@@ -55,6 +55,10 @@
 /* redeclare guard */
 #define CYASSL_TYPES_DEFINED WOLFSSL_TYPES_DEFINED
 
+/* legacy defines */
+#define yasslIP          wolfSSLIP /**/
+#define yasslPort        wolfSSLPort /**/
+
 /* cyassl/ssl.h (structs) */
 #define CYASSL_RSA                WOLFSSL_RSA
 #define CYASSL_DSA                WOLFSSL_DSA

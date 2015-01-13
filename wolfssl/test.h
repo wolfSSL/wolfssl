@@ -210,17 +210,17 @@ typedef THREAD_RETURN WOLFSSL_THREAD THREAD_FUNC(void*);
 void start_thread(THREAD_FUNC, func_args*, THREAD_TYPE*);
 void join_thread(THREAD_TYPE);
 
-/* yaSSL */
+/* wolfSSL */
 #ifndef TEST_IPV6
-    static const char* const yasslIP   = "127.0.0.1";
+    static const char* const wolfSSLIP   = "127.0.0.1";
 #else
-    static const char* const yasslIP   = "::1";
+    static const char* const wolfSSLIP   = "::1";
 #endif
-static const word16      yasslPort = 11111;
+static const word16      wolfSSLPort = 11111;
 
 static INLINE void err_sys(const char* msg)
 {
-    printf("yassl error: %s\n", msg);
+    printf("wolfSSL error: %s\n", msg);
     if (msg)
         exit(EXIT_FAILURE);
 }
@@ -301,7 +301,7 @@ static INLINE int PasswordCallBack(char* passwd, int sz, int rw, void* userdata)
 {
     (void)rw;
     (void)userdata;
-    strncpy(passwd, "yassl123", sz);
+    strncpy(passwd, "wolfSSL123", sz);
     return 8;
 }
 
@@ -586,7 +586,7 @@ static INLINE void tcp_listen(SOCKET_T* sockfd, word16* port, int useAnyAddr,
 
     /* don't use INADDR_ANY by default, firewall may block, make user switch
        on */
-    build_addr(&addr, (useAnyAddr ? INADDR_ANY : yasslIP), *port, udp);
+    build_addr(&addr, (useAnyAddr ? INADDR_ANY : wolfSSLIP), *port, udp);
     tcp_socket(sockfd, udp);
 
 #if !defined(USE_WINDOWS_API) && !defined(WOLFSSL_MDK_ARM)
@@ -646,7 +646,7 @@ static INLINE void udp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
     SOCKADDR_IN_T addr;
 
     (void)args;
-    build_addr(&addr, (useAnyAddr ? INADDR_ANY : yasslIP), port, 1);
+    build_addr(&addr, (useAnyAddr ? INADDR_ANY : wolfSSLIP), port, 1);
     tcp_socket(sockfd, 1);
 
 
