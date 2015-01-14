@@ -118,7 +118,7 @@ int testsuite_test(int argc, char** argv)
     simple_test(&server_args);
     if (server_args.return_code != 0) return server_args.return_code;
 
-    /* Echo input yaSSL client server test */
+    /* Echo input wolfSSL client server test */
     start_thread(echoserver_test, &server_args, &serverThread);
     wait_tcp_ready(&server_args);
     {

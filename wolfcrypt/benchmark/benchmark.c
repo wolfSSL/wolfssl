@@ -1186,13 +1186,13 @@ byte GetEntropy(ENTROPY_CMD cmd, byte* out);
 byte GetEntropy(ENTROPY_CMD cmd, byte* out)
 {
     if (cmd == INIT)
-        return (InitRng(&rng) == 0) ? 1 : 0;
+        return (wc_InitRng(&rng) == 0) ? 1 : 0;
 
     if (out == NULL)
         return 0;
 
     if (cmd == GET_BYTE_OF_ENTROPY)
-        return (RNG_GenerateBlock(&rng, out, 1) == 0) ? 1 : 0;
+        return (wc_RNG_GenerateBlock(&rng, out, 1) == 0) ? 1 : 0;
 
     if (cmd == GET_NUM_BYTES_PER_BYTE_OF_ENTROPY) {
         *out = 1;
