@@ -270,9 +270,12 @@
 
 /* a FP type */
 typedef struct {
-    fp_digit dp[FP_SIZE];
-    int      used, 
+    int      used,
              sign;
+#ifdef ALT_ECC_SIZE
+    int      size;
+#endif
+    fp_digit dp[FP_SIZE];
 } fp_int;
 
 /* externally define this symbol to ignore the default settings, useful for changing the build from the make process */
@@ -353,8 +356,13 @@ typedef struct {
 /*const char *fp_ident(void);*/
 
 /* initialize [or zero] an fp int */
-#define fp_init(a)  (void)XMEMSET((a), 0, sizeof(fp_int))
-#define fp_zero(a)  fp_init(a)
+#ifdef ALT_ECC_SIZE
+    void fp_init(fp_int *a);
+    void fp_zero(fp_int *a);
+#else
+    #define fp_init(a)  (void)XMEMSET((a), 0, sizeof(fp_int))
+    #define fp_zero(a)  fp_init(a)
+#endif
 
 /* zero/even/odd ? */
 #define fp_iszero(a) (((a)->used == 0) ? FP_YES : FP_NO)
@@ -365,7 +373,11 @@ typedef struct {
 void fp_set(fp_int *a, fp_digit b);
 
 /* copy from a to b */
-#define fp_copy(a, b)  (void)(((a) != (b)) ? ((void)XMEMCPY((b), (a), sizeof(fp_int))) : (void)0)
+#ifndef ALT_ECC_SIZE
+    #define fp_copy(a, b)  (void)(((a) != (b)) ? ((void)XMEMCPY((b), (a), sizeof(fp_int))) : (void)0)
+#else
+    void fp_copy(fp_int *a, fp_int *b);
+#endif
 #define fp_init_copy(a, b) fp_copy(b, a)
 
 /* clamp digits */

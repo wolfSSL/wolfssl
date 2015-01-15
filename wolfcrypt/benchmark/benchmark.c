@@ -1391,6 +1391,7 @@ void bench_eccKeyGen(void)
     start = current_time(1);
 
     for(i = 0; i < genTimes; i++) {
+        wc_ecc_init(&genKey);
         wc_ecc_make_key(&rng, 32, &genKey);
         wc_ecc_free(&genKey);
     }

@@ -57,12 +57,37 @@ typedef struct {
 } ecc_set_type;
 
 
+#ifdef ALT_ECC_SIZE
+#ifndef FP_MAX_BITS_ECC
+    #define FP_MAX_BITS_ECC           512
+#endif
+#define FP_MAX_SIZE_ECC           (FP_MAX_BITS_ECC+(8*DIGIT_BIT))
+#if FP_MAX_BITS_ECC % CHAR_BIT
+   #error FP_MAX_BITS_ECC must be a multiple of CHAR_BIT
+#endif
+#define FP_SIZE_ECC    (FP_MAX_SIZE_ECC/DIGIT_BIT)
+
+/* This needs to match the size of the fp_int struct, except the
+ * fp_digit array will be shorter. */
+typedef struct alt_fp_int {
+    int used, sign, size;
+    fp_digit dp[FP_SIZE_ECC];
+} alt_fp_int;
+#endif
+
 /* A point on an ECC curve, stored in Jacbobian format such that (x,y,z) =>
    (x/z^2, y/z^3, 1) when interpreted as affine */
 typedef struct {
-    mp_int x;        /* The x coordinate */
-    mp_int y;        /* The y coordinate */
-    mp_int z;        /* The z coordinate */
+#ifndef ALT_ECC_SIZE
+    mp_int x[1];        /* The x coordinate */
+    mp_int y[1];        /* The y coordinate */
+    mp_int z[1];        /* The z coordinate */
+#else
+    mp_int* x;        /* The x coordinate */
+    mp_int* y;        /* The y coordinate */
+    mp_int* z;        /* The z coordinate */
+    alt_fp_int xyz[3];
+#endif
 } ecc_point;
 
 
@@ -95,7 +120,7 @@ WOLFSSL_API
 int wc_ecc_verify_hash(const byte* sig, word32 siglen, const byte* hash,
                     word32 hashlen, int* stat, ecc_key* key);
 WOLFSSL_API
-void wc_ecc_init(ecc_key* key);
+int wc_ecc_init(ecc_key* key);
 WOLFSSL_API
 void wc_ecc_free(ecc_key* key);
 WOLFSSL_API

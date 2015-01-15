@@ -417,7 +417,7 @@ void fp_mul_comba(fp_int *A, fp_int *B, fp_int *C)
    }
 
    if (A == C || B == C) {
-      fp_zero(&tmp);
+      fp_init(&tmp);
       dst = &tmp;
    } else {
       fp_zero(C);
@@ -685,7 +685,7 @@ int fp_mod(fp_int *a, fp_int *b, fp_int *c)
    fp_int t;
    int    err;
 
-   fp_zero(&t);
+   fp_init(&t);
    if ((err = fp_div(a, b, NULL, &t)) != FP_OKAY) {
       return err;
    }
@@ -922,7 +922,7 @@ top:
 int fp_mulmod(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
 {
   fp_int tmp;
-  fp_zero(&tmp);
+  fp_init(&tmp);
   fp_mul(a, b, &tmp);
   return fp_mod(&tmp, c, d);
 }
@@ -1339,7 +1339,7 @@ void fp_sqr_comba(fp_int *A, fp_int *B)
   COMBA_CLEAR;
 
   if (A == B) {
-     fp_zero(&tmp);
+     fp_init(&tmp);
      dst = &tmp;
   } else {
      fp_zero(B);
@@ -1844,6 +1844,22 @@ int mp_init (mp_int * a)
   return MP_OKAY;
 }
 
+#ifdef ALT_ECC_SIZE
+void fp_init(fp_int *a)
+{
+    a->size = FP_SIZE;
+    fp_zero(a);
+}
+
+void fp_zero(fp_int *a)
+{
+    a->used = 0;
+    a->sign = FP_ZPOS;
+    XMEMSET(a->dp, 0, a->size * sizeof(fp_digit));
+}
+#endif
+
+
 /* clear one (frees)  */
 void mp_clear (mp_int * a)
 {
@@ -1958,6 +1974,17 @@ int mp_sub_d(fp_int *a, fp_digit b, fp_int *c)
 }
 
 
+#ifdef ALT_ECC_SIZE
+void fp_copy(fp_int *a, fp_int* b)
+{
+    if (a != b) {
+        b->used = a->used;
+        b->sign = a->sign;
+        XMEMCPY(b->dp, a->dp, a->used * sizeof(fp_digit));
+    }
+}
+#endif
+
 /* fast math conversion */
 int mp_copy(fp_int* a, fp_int* b)
 {
@@ -2014,7 +2041,7 @@ int mp_set_int(fp_int *a, fp_digit b)
 int fp_sqrmod(fp_int *a, fp_int *b, fp_int *c)
 {
   fp_int tmp;
-  fp_zero(&tmp);
+  fp_init(&tmp);
   fp_sqr(a, &tmp);
   return fp_mod(&tmp, b, c);
 }
@@ -2376,7 +2403,7 @@ void fp_gcd(fp_int *a, fp_int *b, fp_int *c)
       fp_init_copy(&v, a);
    }
  
-   fp_zero(&r);
+   fp_init(&r);
    while (fp_iszero(&v) == FP_NO) {
       fp_mod(&u, &v, &r);
       fp_copy(&v, &u);
@@ -2393,6 +2420,7 @@ void fp_gcd(fp_int *a, fp_int *b, fp_int *c)
 void fp_add_d(fp_int *a, fp_digit b, fp_int *c)
 {
    fp_int tmp;
+   fp_init(&tmp);
    fp_set(&tmp, b);
    fp_add(a,&tmp,c);
 }

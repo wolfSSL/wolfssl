@@ -3150,6 +3150,10 @@ static int ConfirmSignature(const byte* buf, word32 bufSz,
             }
 #endif
 
+            if (wc_ecc_init(pubKey) < 0) {
+                WOLFSSL_MSG("Failed to initialize key");
+                break; /* not confirmed */
+            }
             if (wc_ecc_import_x963(key, keySz, pubKey) < 0) {
                 WOLFSSL_MSG("ASN Key import error ECC");
             }
@@ -3163,8 +3167,9 @@ static int ConfirmSignature(const byte* buf, word32 bufSz,
                 } else
                     ret = 1; /* match */
 
-                wc_ecc_free(pubKey);
             }
+            wc_ecc_free(pubKey);
+
 #ifdef WOLFSSL_SMALL_STACK
             XFREE(pubKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
