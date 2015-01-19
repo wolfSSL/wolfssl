@@ -149,7 +149,7 @@ static int OpenNitroxDevice(int dma_mode,int dev_id)
 
 #endif
 
-#if defined(DEBUG_WOLfSSL) && !defined(HAVE_VALGRIND)
+#if defined(DEBUG_WOLFSSL) && !defined(HAVE_VALGRIND)
     WOLFSSL_API int wolfSSL_Debugging_ON();
 #endif
 
@@ -167,7 +167,7 @@ int benchmark_test(void *args)
 #endif
 
     #if defined(DEBUG_WOLFSSL) && !defined(HAVE_VALGRIND)
-        WOLFSSL_API int wolfSSL_Debugging_ON();
+        wolfSSL_Debugging_ON();
     #endif
 
 	#ifdef HAVE_CAVIUM
