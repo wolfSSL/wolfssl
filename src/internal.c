@@ -3837,18 +3837,19 @@ static int MatchDomainName(const char* pattern, int len, const char* str)
 
     while (len > 0) {
 
-        p = (char)XTOLOWER(*pattern++);
+        p = (char)XTOLOWER((unsigned char)*pattern++);
         if (p == 0)
             break;
 
         if (p == '*') {
-            while (--len > 0 && (p = (char)XTOLOWER(*pattern++)) == '*')
+            while (--len > 0 && 
+                         (p = (char)XTOLOWER((unsigned char)*pattern++)) == '*')
                 ;
 
             if (len == 0)
                 p = '\0';
 
-            while ( (s = (char)XTOLOWER(*str)) != '\0') {
+            while ( (s = (char)XTOLOWER((unsigned char) *str)) != '\0') {
                 if (s == p)
                     break;
                 if (s == '.')
@@ -3857,7 +3858,7 @@ static int MatchDomainName(const char* pattern, int len, const char* str)
             }
         }
         else {
-            if (p != (char)XTOLOWER(*str))
+            if (p != (char)XTOLOWER((unsigned char) *str))
                 return 0;
         }
 

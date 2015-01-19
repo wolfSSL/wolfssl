@@ -217,11 +217,6 @@
 	        #define XISALPHA(c)     isalpha((c))
 	    #endif
 	    /* needed by wolfSSL_check_domain_name() */
-	    #ifdef __CYGWIN__
-	        /* Cygwin uses a macro version of tolower() by default, use the
-	         * function version. */
-	        #undef tolower
-	    #endif
 	    #define XTOLOWER(c)      tolower((c))
 	#endif
 

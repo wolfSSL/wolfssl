@@ -3238,7 +3238,8 @@ static int MatchBaseName(int type, const char* name, int nameSz,
     }
 
     while (nameSz > 0) {
-        if (XTOLOWER(*name++) != XTOLOWER(*base++))
+        if (XTOLOWER((unsigned char)*name++) != 
+                                               XTOLOWER((unsigned char)*base++))
             return 0;
         nameSz--;
     }
