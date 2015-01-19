@@ -42,6 +42,11 @@
     #undef X509_NAME
 #endif
 
+#ifdef CYASSL_TIRTOS
+    #undef CYASSL_TIRTOS
+    #define CYASSL_TIRTOS WOLFSSL_TIRTOS
+#endif
+
 #define CYASSL          WOLFSSL
 #define CYASSL_CTX      WOLFSSL_CTX
 #define CYASSL_METHOD   WOLFSSL_METHOD
