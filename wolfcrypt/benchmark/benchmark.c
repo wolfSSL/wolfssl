@@ -975,7 +975,7 @@ void bench_rsa(void)
     FILE*  file = fopen(certRSAname, "rb");
 
     if (!file) {
-        printf("can't find %s, Please run from CyaSSL home dir\n", certRSAname);
+        printf("can't find %s, Please run from wolfSSL home dir\n", certRSAname);
         return;
     }
     
@@ -1086,7 +1086,7 @@ void bench_dh(void)
     FILE*  file = fopen(certDHname, "rb");
 
     if (!file) {
-        printf("can't find %s,  Please run from CyaSSL home dir\n", certDHname);
+        printf("can't find %s,  Please run from wolfSSL home dir\n", certDHname);
         return;
     }
 

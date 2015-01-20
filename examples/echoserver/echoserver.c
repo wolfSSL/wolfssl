@@ -154,23 +154,23 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
         if (CyaSSL_CTX_use_certificate_file(ctx, ntruCert, SSL_FILETYPE_PEM)
                 != SSL_SUCCESS)
             err_sys("can't load ntru cert file, "
-                    "Please run from CyaSSL home dir");
+                    "Please run from wolfSSL home dir");
 
         if (CyaSSL_CTX_use_NTRUPrivateKey_file(ctx, ntruKey)
                 != SSL_SUCCESS)
             err_sys("can't load ntru key file, "
-                    "Please run from CyaSSL home dir");
+                    "Please run from wolfSSL home dir");
     #elif defined(HAVE_ECC)
         /* ecc */
         if (CyaSSL_CTX_use_certificate_file(ctx, eccCert, SSL_FILETYPE_PEM)
                 != SSL_SUCCESS)
             err_sys("can't load server cert file, "
-                    "Please run from CyaSSL home dir");
+                    "Please run from wolfSSL home dir");
 
         if (CyaSSL_CTX_use_PrivateKey_file(ctx, eccKey, SSL_FILETYPE_PEM)
                 != SSL_SUCCESS)
             err_sys("can't load server key file, "
-                    "Please run from CyaSSL home dir");
+                    "Please run from wolfSSL home dir");
     #elif defined(NO_CERTS)
         /* do nothing, just don't load cert files */
     #else
@@ -178,12 +178,12 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
         if (CyaSSL_CTX_use_certificate_file(ctx, svrCert, SSL_FILETYPE_PEM)
                 != SSL_SUCCESS)
             err_sys("can't load server cert file, "
-                    "Please run from CyaSSL home dir");
+                    "Please run from wolfSSL home dir");
 
         if (CyaSSL_CTX_use_PrivateKey_file(ctx, svrKey, SSL_FILETYPE_PEM)
                 != SSL_SUCCESS)
             err_sys("can't load server key file, "
-                    "Please run from CyaSSL home dir");
+                    "Please run from wolfSSL home dir");
     #endif
     } /* doPSK */
 #elif !defined(NO_CERTS)
@@ -285,7 +285,7 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
                 char type[]   = "HTTP/1.0 200 ok\r\nContent-type:"
                                 " text/html\r\n\r\n";
                 char header[] = "<html><body BGCOLOR=\"#ffffff\">\n<pre>\n";
-                char body[]   = "greetings from CyaSSL\n";
+                char body[]   = "greetings from wolfSSL\n";
                 char footer[] = "</body></html>\r\n\r\n";
             
                 strncpy(command, type, sizeof(type));

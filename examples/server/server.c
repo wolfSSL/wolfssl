@@ -116,7 +116,7 @@ static void NonBlockingSSL_Accept(SSL* ssl)
 static void Usage(void)
 {
     printf("server "    LIBCYASSL_VERSION_STRING
-           " NOTE: All files relative to CyaSSL home dir\n");
+           " NOTE: All files relative to wolfSSL home dir\n");
     printf("-?          Help, print this usage\n");
     printf("-p <num>    Port to listen on, not 0, default %d\n", yasslPort);
     printf("-v <num>    SSL version [0-3], SSLv3(0) - TLS1.2(3)), default %d\n",
@@ -128,7 +128,7 @@ static void Usage(void)
     printf("-d          Disable client cert check\n");
     printf("-b          Bind to any interface instead of localhost only\n");
     printf("-s          Use pre Shared keys\n");
-    printf("-t          Track CyaSSL memory use\n");
+    printf("-t          Track wolfSSL memory use\n");
     printf("-u          Use UDP DTLS,"
            " add -v 2 for DTLSv1 (default), -v 3 for DTLSv1.2\n");
     printf("-f          Fewer packets/group messages\n");
@@ -409,7 +409,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
         if (SSL_CTX_use_certificate_file(ctx, ourCert, SSL_FILETYPE_PEM)
                                          != SSL_SUCCESS)
             err_sys("can't load server cert file, check file and run from"
-                    " CyaSSL home dir");
+                    " wolfSSL home dir");
     }
 #endif
 
@@ -418,7 +418,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
         if (CyaSSL_CTX_use_NTRUPrivateKey_file(ctx, ourKey)
                                                != SSL_SUCCESS)
             err_sys("can't load ntru key file, "
-                    "Please run from CyaSSL home dir");
+                    "Please run from wolfSSL home dir");
     }
 #endif
 
@@ -427,7 +427,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
         if (SSL_CTX_use_PrivateKey_file(ctx, ourKey, SSL_FILETYPE_PEM)
                                          != SSL_SUCCESS)
             err_sys("can't load server private key file, check file and run "
-                "from CyaSSL home dir");
+                "from wolfSSL home dir");
     }
 #endif
 
@@ -464,7 +464,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
         SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER |
                                 SSL_VERIFY_FAIL_IF_NO_PEER_CERT,0);
         if (SSL_CTX_load_verify_locations(ctx, verifyCert, 0) != SSL_SUCCESS)
-            err_sys("can't load ca file, Please run from CyaSSL home dir");
+            err_sys("can't load ca file, Please run from wolfSSL home dir");
     }
 #endif
 
