@@ -2697,7 +2697,7 @@ mp_div_3 (mp_int * a, mp_int *c, mp_digit * d)
   int      res, ix;
   
   /* b = 2**DIGIT_BIT / 3 */
-  b = (((mp_word)1) << ((mp_word)DIGIT_BIT)) / ((mp_word)3);
+  b = (mp_digit) ( (((mp_word)1) << ((mp_word)DIGIT_BIT)) / ((mp_word)3) );
 
   if ((res = mp_init_size(&q, a->used)) != MP_OKAY) {
      return res;
