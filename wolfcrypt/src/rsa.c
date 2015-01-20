@@ -100,12 +100,6 @@ int wc_RsaFlattenPublicKey(RsaKey* key, byte* a, word32* aSz, byte* b,
     {
         return MakeRsaKey(key, size, e, rng);
     }
-
-
-    int wc_RsaKeyToDer(RsaKey* key, byte* output, word32 inLen)
-    {
-        return RsaKeyToDer(key, output, inLen);
-    }
 #endif
 
 
