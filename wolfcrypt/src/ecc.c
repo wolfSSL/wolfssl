@@ -3897,7 +3897,7 @@ int ecc_mulmod(mp_int* k, ecc_point *G, ecc_point *R, mp_int* modulus,
          if (idx >= 0)
             err = add_entry(idx, G);
       }
-      if (err == MP_OKAY && idx != -1) {
+      if (err == MP_OKAY && idx >= 0) {
          /* increment LRU */
          ++(fp_cache[idx].lru_count);
       }
