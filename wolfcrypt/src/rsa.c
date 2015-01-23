@@ -180,6 +180,15 @@ int wc_InitRsaKey(RsaKey* key, void* heap)
     key->d.dp = key->p.dp  = 0;  /* private alloc parts */
     key->q.dp = key->dP.dp = 0;  
     key->u.dp = key->dQ.dp = 0;
+#else
+    mp_init(&key->n);
+    mp_init(&key->e);
+    mp_init(&key->d);
+    mp_init(&key->p);
+    mp_init(&key->q);
+    mp_init(&key->dP);
+    mp_init(&key->dQ);
+    mp_init(&key->u);
 #endif
 
     return 0;
