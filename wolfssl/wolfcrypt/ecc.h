@@ -58,6 +58,30 @@ typedef struct {
 
 
 #ifdef ALT_ECC_SIZE
+
+/* Note on ALT_ECC_SIZE:
+ * The fast math code uses an array of a fixed size to store the big integers.
+ * By default, the array is big enough for RSA keys. There is a size,
+ * FP_MAX_BITS which can be used to make the array smaller when one wants ECC
+ * but not RSA. Some people want fast math sized for both RSA and ECC, where
+ * ECC won't use as much as RSA. The flag ALT_ECC_SIZE switches in an alternate
+ * ecc_point structure that uses an alternate fp_int that has a shorter array
+ * of fp_digits.
+ *
+ * Now, without ALT_ECC_SIZE, the ecc_point has three single item arrays of
+ * mp_ints for the components of the point. With ALT_ECC_SIZE, the components
+ * of the point are pointers that are set to each of a three item array of
+ * alt_fp_ints. While an mp_int will have 4096 bits of digit inside the
+ * structure, the alt_fp_int will only have 512 bits. A size value was added
+ * in the ALT case, as well, and is set by mp_init() and alt_fp_init(). The
+ * functions fp_zero() and fp_copy() use the size parameter. An int needs to
+ * be initialized before using it instead of just fp_zeroing it, the init will
+ * call zero. FP_MAX_BITS_ECC defaults to 512, but can be set to change the
+ * number of bits used in the alternate FP_INT.
+ *
+ * Do not enable ALT_ECC_SIZE and disable fast math in the configuration.
+ */
+
 #ifndef FP_MAX_BITS_ECC
     #define FP_MAX_BITS_ECC           512
 #endif
