@@ -3539,7 +3539,7 @@ static int accel_fp_mul(int idx, mp_int* k, ecc_point *R, mp_int* modulus,
           } else if (z) {
              if ((mp_copy(fp_cache[idx].LUT[z]->x, R->x) != MP_OKAY) ||
                  (mp_copy(fp_cache[idx].LUT[z]->y, R->y) != MP_OKAY) ||
-                 (mp_copy(fp_cache[idx].mu,        R->z) != MP_OKAY)) {
+                 (mp_copy(&fp_cache[idx].mu,       R->z) != MP_OKAY)) {
                  err = GEN_MEM_ERR;
                  break;
              }
@@ -3769,7 +3769,7 @@ static int accel_fp_mul2add(int idx1, int idx2,
              if (zA) {
                  if ((mp_copy(fp_cache[idx1].LUT[zA]->x, R->x) != MP_OKAY) ||
                     (mp_copy(fp_cache[idx1].LUT[zA]->y,  R->y) != MP_OKAY) ||
-                    (mp_copy(fp_cache[idx1].mu,          R->z) != MP_OKAY)) {
+                    (mp_copy(&fp_cache[idx1].mu,         R->z) != MP_OKAY)) {
                      err = GEN_MEM_ERR;
                      break;
                  }
@@ -3785,7 +3785,7 @@ static int accel_fp_mul2add(int idx1, int idx2,
              } else if (zB && first == 1) {
                  if ((mp_copy(fp_cache[idx2].LUT[zB]->x, R->x) != MP_OKAY) ||
                     (mp_copy(fp_cache[idx2].LUT[zB]->y, R->y) != MP_OKAY) ||
-                    (mp_copy(fp_cache[idx2].mu,        R->z) != MP_OKAY)) {
+                    (mp_copy(&fp_cache[idx2].mu,        R->z) != MP_OKAY)) {
                      err = GEN_MEM_ERR;
                      break;
                  }
