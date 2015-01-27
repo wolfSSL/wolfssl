@@ -70,6 +70,20 @@
     #define fopen wolfSSL_fopen
 #endif
 
+#if defined(__GNUC__) && defined(__x86_64__) && !defined(NO_ASM)
+    #define HAVE_GET_CYCLES
+    static INLINE word64 get_intel_cycles();
+    static word64 total_cycles;
+    #define BEGIN_INTEL_CYCLES total_cycles = get_intel_cycles();
+    #define END_INTEL_CYCLES   total_cycles = get_intel_cycles() - total_cycles;
+    #define SHOW_INTEL_CYCLES  printf(" Cycles per byte = %5.2f", \
+                               (float)total_cycles / (numBlocks*sizeof(plain)));
+#else
+    #define BEGIN_INTEL_CYCLES
+    #define END_INTEL_CYCLES
+    #define SHOW_INTEL_CYCLES
+#endif
+
 #if defined(USE_CERT_BUFFERS_1024) || defined(USE_CERT_BUFFERS_2048)
     /* include test cert and key buffers for use with NO_FILESYSTEM */
     #if defined(WOLFSSL_MDK_ARM)
@@ -282,7 +296,7 @@ enum BenchmarkBounds {
 static const char blockType[] = "kB";   /* used in printf output */
 #else
 enum BenchmarkBounds {
-    numBlocks  = 5,  /* how many megs to test (en/de)cryption */
+    numBlocks  = 50,  /* how many megs to test (en/de)cryption */
     ntimes     = 100,
     genTimes   = 100,
     agreeTimes = 100
@@ -344,10 +358,12 @@ void bench_aes(int show)
         return;
     }
     start = current_time(1);
+    BEGIN_INTEL_CYCLES
 
     for(i = 0; i < numBlocks; i++)
         wc_AesCbcEncrypt(&enc, plain, cipher, sizeof(plain));
 
+    END_INTEL_CYCLES
     total = current_time(0) - start;
 
     persec = 1 / total * numBlocks;
@@ -356,9 +372,12 @@ void bench_aes(int show)
     persec = persec / 1024;
 #endif
 
-    if (show)
-        printf("AES      %d %s took %5.3f seconds, %7.3f MB/s\n", numBlocks,
+    if (show) {
+        printf("AES      %d %s took %5.3f seconds, %7.3f MB/s", numBlocks,
                                                   blockType, total, persec);
+        SHOW_INTEL_CYCLES
+        printf("\n");
+    }
 #ifdef HAVE_CAVIUM
     wc_AesFreeCavium(&enc);
 #endif
@@ -381,11 +400,13 @@ void bench_aesgcm(void)
 
     wc_AesGcmSetKey(&enc, key, 16);
     start = current_time(1);
+    BEGIN_INTEL_CYCLES
 
     for(i = 0; i < numBlocks; i++)
         wc_AesGcmEncrypt(&enc, cipher, plain, sizeof(plain), iv, 12,
                         tag, 16, additional, 13);
 
+    END_INTEL_CYCLES
     total = current_time(0) - start;
 
     persec = 1 / total * numBlocks;
@@ -394,8 +415,10 @@ void bench_aesgcm(void)
     persec = persec / 1024;
 #endif
 
-    printf("AES-GCM  %d %s took %5.3f seconds, %7.3f MB/s\n", numBlocks,
+    printf("AES-GCM  %d %s took %5.3f seconds, %7.3f MB/s", numBlocks,
                                               blockType, total, persec);
+    SHOW_INTEL_CYCLES
+    printf("\n");
 }
 #endif
 
@@ -408,10 +431,12 @@ void bench_aesctr(void)
 
     wc_AesSetKeyDirect(&enc, key, AES_BLOCK_SIZE, iv, AES_ENCRYPTION);
     start = current_time(1);
+    BEGIN_INTEL_CYCLES
 
     for(i = 0; i < numBlocks; i++)
         wc_AesCtrEncrypt(&enc, plain, cipher, sizeof(plain));
 
+    END_INTEL_CYCLES
     total = current_time(0) - start;
 
     persec = 1 / total * numBlocks;
@@ -420,8 +445,10 @@ void bench_aesctr(void)
     persec = persec / 1024;
 #endif
 
-    printf("AES-CTR  %d %s took %5.3f seconds, %7.3f MB/s\n", numBlocks,
+    printf("AES-CTR  %d %s took %5.3f seconds, %7.3f MB/s", numBlocks,
                                               blockType, total, persec);
+    SHOW_INTEL_CYCLES
+    printf("\n");
 }
 #endif
 
@@ -436,11 +463,13 @@ void bench_aesccm(void)
 
     wc_AesCcmSetKey(&enc, key, 16);
     start = current_time(1);
+    BEGIN_INTEL_CYCLES
 
     for(i = 0; i < numBlocks; i++)
         wc_AesCcmEncrypt(&enc, cipher, plain, sizeof(plain), iv, 12,
                         tag, 16, additional, 13);
 
+    END_INTEL_CYCLES
     total = current_time(0) - start;
 
     persec = 1 / total * numBlocks;
@@ -449,8 +478,10 @@ void bench_aesccm(void)
     persec = persec / 1024;
 #endif
 
-    printf("AES-CCM  %d %s took %5.3f seconds, %7.3f MB/s\n", numBlocks,
+    printf("AES-CCM  %d %s took %5.3f seconds, %7.3f MB/s", numBlocks,
                                               blockType, total, persec);
+    SHOW_INTEL_CYCLES
+    printf("\n");
 }
 #endif
 
@@ -471,11 +502,13 @@ void bench_poly1305()
         return;
     }
     start = current_time(1);
+    BEGIN_INTEL_CYCLES
 
     for(i = 0; i < numBlocks; i++)
         wc_Poly1305Update(&enc, plain, sizeof(plain));
 
     wc_Poly1305Final(&enc, mac);
+    END_INTEL_CYCLES
     total = current_time(0) - start;
 
     persec = 1 / total * numBlocks;
@@ -484,8 +517,10 @@ void bench_poly1305()
     persec = persec / 1024;
 #endif
 
-        printf("POLY1305 %d %s took %5.3f seconds, %7.3f MB/s\n", numBlocks,
+    printf("POLY1305 %d %s took %5.3f seconds, %7.3f MB/s", numBlocks,
                                                   blockType, total, persec);
+    SHOW_INTEL_CYCLES
+    printf("\n");
 }
 #endif /* HAVE_POLY1305 */
 
@@ -503,10 +538,12 @@ void bench_camellia(void)
         return;
     }
     start = current_time(1);
+    BEGIN_INTEL_CYCLES
 
     for(i = 0; i < numBlocks; i++)
         wc_CamelliaCbcEncrypt(&cam, plain, cipher, sizeof(plain));
 
+    END_INTEL_CYCLES
     total = current_time(0) - start;
 
     persec = 1 / total * numBlocks;
@@ -515,8 +552,10 @@ void bench_camellia(void)
     persec = persec / 1024;
 #endif
 
-    printf("Camellia %d %s took %5.3f seconds, %7.3f MB/s\n", numBlocks,
+    printf("Camellia %d %s took %5.3f seconds, %7.3f MB/s", numBlocks,
                                               blockType, total, persec);
+    SHOW_INTEL_CYCLES
+    printf("\n");
 }
 #endif
 
@@ -538,10 +577,12 @@ void bench_des(void)
         return;
     }
     start = current_time(1);
+    BEGIN_INTEL_CYCLES
 
     for(i = 0; i < numBlocks; i++)
         wc_Des3_CbcEncrypt(&enc, plain, cipher, sizeof(plain));
 
+    END_INTEL_CYCLES
     total = current_time(0) - start;
 
     persec = 1 / total * numBlocks;
@@ -550,8 +591,10 @@ void bench_des(void)
     persec = persec / 1024;
 #endif
 
-    printf("3DES     %d %s took %5.3f seconds, %7.3f MB/s\n", numBlocks,
+    printf("3DES     %d %s took %5.3f seconds, %7.3f MB/s", numBlocks,
                                               blockType, total, persec);
+    SHOW_INTEL_CYCLES
+    printf("\n");
 #ifdef HAVE_CAVIUM
     wc_Des3_FreeCavium(&enc);
 #endif
@@ -573,10 +616,12 @@ void bench_arc4(void)
 
     wc_Arc4SetKey(&enc, key, 16);
     start = current_time(1);
+    BEGIN_INTEL_CYCLES
 
     for(i = 0; i < numBlocks; i++)
         wc_Arc4Process(&enc, cipher, plain, sizeof(plain));
 
+    END_INTEL_CYCLES
     total = current_time(0) - start;
     persec = 1 / total * numBlocks;
 #ifdef BENCH_EMBEDDED
@@ -584,8 +629,10 @@ void bench_arc4(void)
     persec = persec / 1024;
 #endif
 
-    printf("ARC4     %d %s took %5.3f seconds, %7.3f MB/s\n", numBlocks,
+    printf("ARC4     %d %s took %5.3f seconds, %7.3f MB/s", numBlocks,
                                               blockType, total, persec);
+    SHOW_INTEL_CYCLES
+    printf("\n");
 #ifdef HAVE_CAVIUM
     wc_Arc4FreeCavium(&enc);
 #endif
@@ -602,10 +649,12 @@ void bench_hc128(void)
     
     wc_Hc128_SetKey(&enc, key, iv);
     start = current_time(1);
+    BEGIN_INTEL_CYCLES
 
     for(i = 0; i < numBlocks; i++)
         wc_Hc128_Process(&enc, cipher, plain, sizeof(plain));
 
+    END_INTEL_CYCLES
     total = current_time(0) - start;
     persec = 1 / total * numBlocks;
 #ifdef BENCH_EMBEDDED
@@ -613,8 +662,10 @@ void bench_hc128(void)
     persec = persec / 1024;
 #endif
 
-    printf("HC128    %d %s took %5.3f seconds, %7.3f MB/s\n", numBlocks,
+    printf("HC128    %d %s took %5.3f seconds, %7.3f MB/s", numBlocks,
                                               blockType, total, persec);
+    SHOW_INTEL_CYCLES
+    printf("\n");
 }
 #endif /* HAVE_HC128 */
 
@@ -628,10 +679,12 @@ void bench_rabbit(void)
     
     wc_RabbitSetKey(&enc, key, iv);
     start = current_time(1);
+    BEGIN_INTEL_CYCLES
 
     for(i = 0; i < numBlocks; i++)
         wc_RabbitProcess(&enc, cipher, plain, sizeof(plain));
 
+    END_INTEL_CYCLES
     total = current_time(0) - start;
     persec = 1 / total * numBlocks;
 #ifdef BENCH_EMBEDDED
@@ -639,8 +692,10 @@ void bench_rabbit(void)
     persec = persec / 1024;
 #endif
 
-    printf("RABBIT   %d %s took %5.3f seconds, %7.3f MB/s\n", numBlocks,
+    printf("RABBIT   %d %s took %5.3f seconds, %7.3f MB/s", numBlocks,
                                               blockType, total, persec);
+    SHOW_INTEL_CYCLES
+    printf("\n");
 }
 #endif /* NO_RABBIT */
 
@@ -654,11 +709,14 @@ void bench_chacha(void)
 
     wc_Chacha_SetKey(&enc, key, 16);
     start = current_time(1);
+    BEGIN_INTEL_CYCLES
 
     for (i = 0; i < numBlocks; i++) {
         wc_Chacha_SetIV(&enc, iv, 0);
         wc_Chacha_Process(&enc, cipher, plain, sizeof(plain));
     }
+
+    END_INTEL_CYCLES
     total = current_time(0) - start;
     persec = 1 / total * numBlocks;
 #ifdef BENCH_EMBEDDED
@@ -666,7 +724,9 @@ void bench_chacha(void)
     persec = persec / 1024;
 #endif
 
-    printf("CHACHA   %d %s took %5.3f seconds, %7.3f MB/s\n", numBlocks, blockType, total, persec);
+    printf("CHACHA   %d %s took %5.3f seconds, %7.3f MB/s", numBlocks, blockType, total, persec);
+    SHOW_INTEL_CYCLES
+    printf("\n");
 
 }
 #endif /* HAVE_CHACHA*/
@@ -682,12 +742,14 @@ void bench_md5(void)
 
     wc_InitMd5(&hash);
     start = current_time(1);
+    BEGIN_INTEL_CYCLES
 
     for(i = 0; i < numBlocks; i++)
         wc_Md5Update(&hash, plain, sizeof(plain));
    
     wc_Md5Final(&hash, digest);
 
+    END_INTEL_CYCLES
     total = current_time(0) - start;
     persec = 1 / total * numBlocks;
 #ifdef BENCH_EMBEDDED
@@ -695,8 +757,10 @@ void bench_md5(void)
     persec = persec / 1024;
 #endif
 
-    printf("MD5      %d %s took %5.3f seconds, %7.3f MB/s\n", numBlocks,
+    printf("MD5      %d %s took %5.3f seconds, %7.3f MB/s", numBlocks,
                                               blockType, total, persec);
+    SHOW_INTEL_CYCLES
+    printf("\n");
 }
 #endif /* NO_MD5 */
 
@@ -715,12 +779,14 @@ void bench_sha(void)
         return;
     }
     start = current_time(1);
+    BEGIN_INTEL_CYCLES
     
     for(i = 0; i < numBlocks; i++)
         wc_ShaUpdate(&hash, plain, sizeof(plain));
    
     wc_ShaFinal(&hash, digest);
 
+    END_INTEL_CYCLES
     total = current_time(0) - start;
     persec = 1 / total * numBlocks;
 #ifdef BENCH_EMBEDDED
@@ -728,8 +794,10 @@ void bench_sha(void)
     persec = persec / 1024;
 #endif
 
-    printf("SHA      %d %s took %5.3f seconds, %7.3f MB/s\n", numBlocks,
+    printf("SHA      %d %s took %5.3f seconds, %7.3f MB/s", numBlocks,
                                               blockType, total, persec);
+    SHOW_INTEL_CYCLES
+    printf("\n");
 }
 #endif /* NO_SHA */
 
@@ -741,14 +809,15 @@ void bench_sha256(void)
     byte   digest[SHA256_DIGEST_SIZE];
     double start, total, persec;
     int    i, ret;
-        
+
     ret = wc_InitSha256(&hash);
     if (ret != 0) {
         printf("InitSha256 failed, ret = %d\n", ret);
         return;
     }
     start = current_time(1);
-    
+    BEGIN_INTEL_CYCLES
+
     for(i = 0; i < numBlocks; i++) {
         ret = wc_Sha256Update(&hash, plain, sizeof(plain));
         if (ret != 0) {
@@ -756,13 +825,14 @@ void bench_sha256(void)
             return;
         }
     }
-   
+
     ret = wc_Sha256Final(&hash, digest);
     if (ret != 0) {
         printf("Sha256Final failed, ret = %d\n", ret);
         return;
     }
 
+    END_INTEL_CYCLES
     total = current_time(0) - start;
     persec = 1 / total * numBlocks;
 #ifdef BENCH_EMBEDDED
@@ -770,8 +840,10 @@ void bench_sha256(void)
     persec = persec / 1024;
 #endif
 
-    printf("SHA-256  %d %s took %5.3f seconds, %7.3f MB/s\n", numBlocks,
+    printf("SHA-256  %d %s took %5.3f seconds, %7.3f MB/s", numBlocks,
                                               blockType, total, persec);
+    SHOW_INTEL_CYCLES
+    printf("\n");
 }
 #endif
 
@@ -789,6 +861,7 @@ void bench_sha384(void)
         return;
     }
     start = current_time(1);
+    BEGIN_INTEL_CYCLES
 
     for(i = 0; i < numBlocks; i++) {
         ret = wc_Sha384Update(&hash, plain, sizeof(plain));
@@ -804,6 +877,7 @@ void bench_sha384(void)
         return;
     }
 
+    END_INTEL_CYCLES
     total = current_time(0) - start;
     persec = 1 / total * numBlocks;
 #ifdef BENCH_EMBEDDED
@@ -811,8 +885,10 @@ void bench_sha384(void)
     persec = persec / 1024;
 #endif
 
-    printf("SHA-384  %d %s took %5.3f seconds, %7.3f MB/s\n", numBlocks,
+    printf("SHA-384  %d %s took %5.3f seconds, %7.3f MB/s", numBlocks,
                                               blockType, total, persec);
+    SHOW_INTEL_CYCLES
+    printf("\n");
 }
 #endif
 
@@ -830,6 +906,7 @@ void bench_sha512(void)
         return;
     }
     start = current_time(1);
+    BEGIN_INTEL_CYCLES
     
     for(i = 0; i < numBlocks; i++) {
         ret = wc_Sha512Update(&hash, plain, sizeof(plain));
@@ -845,6 +922,7 @@ void bench_sha512(void)
         return;
     }
 
+    END_INTEL_CYCLES
     total = current_time(0) - start;
     persec = 1 / total * numBlocks;
 #ifdef BENCH_EMBEDDED
@@ -852,8 +930,10 @@ void bench_sha512(void)
     persec = persec / 1024;
 #endif
 
-    printf("SHA-512  %d %s took %5.3f seconds, %7.3f MB/s\n", numBlocks,
+    printf("SHA-512  %d %s took %5.3f seconds, %7.3f MB/s", numBlocks,
                                               blockType, total, persec);
+    SHOW_INTEL_CYCLES
+    printf("\n");
 }
 #endif
 
@@ -867,12 +947,14 @@ void bench_ripemd(void)
         
     wc_InitRipeMd(&hash);
     start = current_time(1);
+    BEGIN_INTEL_CYCLES
     
     for(i = 0; i < numBlocks; i++)
         wc_RipeMdUpdate(&hash, plain, sizeof(plain));
    
     wc_RipeMdFinal(&hash, digest);
 
+    END_INTEL_CYCLES
     total = current_time(0) - start;
     persec = 1 / total * numBlocks;
 #ifdef BENCH_EMBEDDED
@@ -880,8 +962,10 @@ void bench_ripemd(void)
     persec = persec / 1024;
 #endif
 
-    printf("RIPEMD   %d %s took %5.3f seconds, %7.3f MB/s\n", numBlocks,
+    printf("RIPEMD   %d %s took %5.3f seconds, %7.3f MB/s", numBlocks,
                                               blockType, total, persec);
+    SHOW_INTEL_CYCLES
+    printf("\n");
 }
 #endif
 
@@ -900,6 +984,7 @@ void bench_blake2(void)
         return;
     }
     start = current_time(1);
+    BEGIN_INTEL_CYCLES
     
     for(i = 0; i < numBlocks; i++) {
         ret = wc_Blake2bUpdate(&b2b, plain, sizeof(plain));
@@ -915,6 +1000,7 @@ void bench_blake2(void)
         return;
     }
 
+    END_INTEL_CYCLES
     total = current_time(0) - start;
     persec = 1 / total * numBlocks;
 #ifdef BENCH_EMBEDDED
@@ -922,8 +1008,10 @@ void bench_blake2(void)
     persec = persec / 1024;
 #endif
 
-    printf("BLAKE2b  %d %s took %5.3f seconds, %7.3f MB/s\n", numBlocks,
+    printf("BLAKE2b  %d %s took %5.3f seconds, %7.3f MB/s", numBlocks,
                                               blockType, total, persec);
+    SHOW_INTEL_CYCLES
+    printf("\n");
 }
 #endif
 
@@ -1591,3 +1679,19 @@ void bench_eccKeyAgree(void)
     }
 
 #endif /* _WIN32 */
+
+#ifdef HAVE_GET_CYCLES
+
+static INLINE word64 get_intel_cycles()
+{
+    unsigned int lo_c, hi_c;
+    __asm__ __volatile__ (
+        "cpuid\n\t"
+        "rdtsc"
+            : "=a"(lo_c), "=d"(hi_c)   /* out */
+            : "a"(0)                   /* in */
+            : "%ebx", "%ecx");         /* clobber */
+    return ((word64)lo_c) | (((word64)hi_c) << 32);
+}
+
+#endif /* HAVE_GET_CYCLES */
