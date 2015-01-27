@@ -1848,7 +1848,6 @@ echo
 
 #backwards compatability for those who have included options or version
 touch cyassl/options.h
-touch cyassl/version.h
 echo "/* cyassl options.h" > cyassl/options.h
 echo " * generated from wolfssl/options.h" >> cyassl/options.h
 echo " */\n" >> cyassl/options.h
@@ -1856,15 +1855,6 @@ while read -r line
 do
     echo "$line" >> cyassl/options.h
 done < $OPTION_FILE
-
-echo "/* cyassl version.h" > cyassl/version.h
-echo " * generated from wolfssl version.h" >> cyassl/version.h
-echo " */\n" >> cyassl/version.h
-while read -r line
-do
-    echo "$line" >> cyassl/version.h
-done < wolfssl/version.h
-#end backwards compatibility
 
 # output config summary
 echo "---"
