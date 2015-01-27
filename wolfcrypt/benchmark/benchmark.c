@@ -72,7 +72,7 @@
 
 #if defined(__GNUC__) && defined(__x86_64__) && !defined(NO_ASM)
     #define HAVE_GET_CYCLES
-    static INLINE word64 get_intel_cycles();
+    static INLINE word64 get_intel_cycles(void);
     static word64 total_cycles;
     #define BEGIN_INTEL_CYCLES total_cycles = get_intel_cycles();
     #define END_INTEL_CYCLES   total_cycles = get_intel_cycles() - total_cycles;
@@ -1682,7 +1682,7 @@ void bench_eccKeyAgree(void)
 
 #ifdef HAVE_GET_CYCLES
 
-static INLINE word64 get_intel_cycles()
+static INLINE word64 get_intel_cycles(void)
 {
     unsigned int lo_c, hi_c;
     __asm__ __volatile__ (
