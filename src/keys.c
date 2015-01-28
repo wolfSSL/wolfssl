@@ -2324,12 +2324,15 @@ static int SetAuthKeys(OneTimeAuth* authentication, Keys* keys,
 #endif /* HAVE_ONE_TIME_AUTH */
 
 
-/* Set encrypt/decrypt or both sides of key setup */
+/* Set wc_encrypt/wc_decrypt or both sides of key setup
+ * note: use wc_encrypt to avoid shadowing global encrypt
+ * declared in unistd.h
+ */
 int SetKeysSide(WOLFSSL* ssl, enum encrypt_side side)
 {
     int devId = NO_CAVIUM_DEVICE, ret, copy = 0;
-    Ciphers* encrypt = NULL;
-    Ciphers* decrypt = NULL;
+    Ciphers* wc_encrypt = NULL;
+    Ciphers* wc_decrypt = NULL;
     Keys*    keys    = &ssl->keys;
 
     (void)copy;
@@ -2347,16 +2350,16 @@ int SetKeysSide(WOLFSSL* ssl, enum encrypt_side side)
 
     switch (side) {
         case ENCRYPT_SIDE_ONLY:
-            encrypt = &ssl->encrypt;
+            wc_encrypt = &ssl->encrypt;
             break;
 
         case DECRYPT_SIDE_ONLY:
-            decrypt = &ssl->decrypt;
+            wc_decrypt = &ssl->decrypt;
             break;
 
         case ENCRYPT_AND_DECRYPT_SIDE:
-            encrypt = &ssl->encrypt;
-            decrypt = &ssl->decrypt;
+            wc_encrypt = &ssl->encrypt;
+            wc_decrypt = &ssl->decrypt;
             break;
 
         default:
@@ -2371,16 +2374,16 @@ int SetKeysSide(WOLFSSL* ssl, enum encrypt_side side)
     }
 #endif
 
-    ret = SetKeys(encrypt, decrypt, keys, &ssl->specs, ssl->options.side,
+    ret = SetKeys(wc_encrypt, wc_decrypt, keys, &ssl->specs, ssl->options.side,
                   ssl->heap, devId);
 
 #ifdef HAVE_SECURE_RENEGOTIATION
     if (copy) {
         int clientCopy = 0;
 
-        if (ssl->options.side == WOLFSSL_CLIENT_END && encrypt)
+        if (ssl->options.side == WOLFSSL_CLIENT_END && wc_encrypt)
             clientCopy = 1;
-        else if (ssl->options.side == WOLFSSL_SERVER_END && decrypt)
+        else if (ssl->options.side == WOLFSSL_SERVER_END && wc_decrypt)
             clientCopy = 1;
 
         if (clientCopy) {
@@ -2398,7 +2401,7 @@ int SetKeysSide(WOLFSSL* ssl, enum encrypt_side side)
             XMEMCPY(ssl->keys.server_write_IV,
                     keys->server_write_IV, AES_IV_SIZE);
         }
-        if (encrypt) {
+        if (wc_encrypt) {
             ssl->keys.sequence_number = keys->sequence_number;
             #ifdef HAVE_AEAD
                 if (ssl->specs.cipher_type == aead) {
@@ -2408,7 +2411,7 @@ int SetKeysSide(WOLFSSL* ssl, enum encrypt_side side)
                 }
             #endif
         }
-        if (decrypt)
+        if (wc_decrypt)
             ssl->keys.peer_sequence_number = keys->peer_sequence_number;
         ssl->secure_renegotiation->cache_status++;
     }
