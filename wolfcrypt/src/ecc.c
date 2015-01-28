@@ -1201,8 +1201,7 @@ static int ecc_mulmod(mp_int* k, ecc_point *G, ecc_point *R, mp_int* modulus,
    mp_int        mu;
    mp_digit      mp;
    mp_digit      buf;
-   int           first = 1, bitbuf = 0, bitcpy = 0, bitcnt = 0, mode = 0,
-                 digidx = 0;
+   int           bitcnt = 0, mode = 0, digidx = 0;
 
    if (k == NULL || G == NULL || R == NULL || modulus == NULL)
        return ECC_BAD_ARG_E;
@@ -1264,8 +1263,6 @@ static int ecc_mulmod(mp_int* k, ecc_point *G, ecc_point *R, mp_int* modulus,
    bitcnt = 1;
    buf    = 0;
    digidx = get_digit_count(k) - 1;
-   bitcpy = bitbuf = 0;
-   first  = 1;
 
    /* perform ops */
    if (err == MP_OKAY) {
