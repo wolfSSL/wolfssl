@@ -46,3 +46,7 @@ nobase_include_HEADERS+= \
                          cyassl/ctaocrypt/memory.h \
                          cyassl/ctaocrypt/mpi_class.h \
                          cyassl/ctaocrypt/mpi_superclass.h
+
+noinst_HEADERS+= \
+                         cyassl/ctaocrypt/port/pic32/pic32mz-crypt.h
+

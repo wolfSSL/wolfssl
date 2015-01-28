@@ -45,3 +45,7 @@ nobase_include_HEADERS+= \
                          wolfssl/wolfcrypt/memory.h \
                          wolfssl/wolfcrypt/mpi_class.h \
                          wolfssl/wolfcrypt/mpi_superclass.h
+
+noinst_HEADERS+= \
+                         wolfssl/wolfcrypt/port/pic32/pic32mz-crypt.h
+
