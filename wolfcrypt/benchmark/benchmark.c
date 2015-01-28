@@ -167,6 +167,13 @@ static int OpenNitroxDevice(int dma_mode,int dev_id)
     WOLFSSL_API int wolfSSL_Debugging_ON();
 #endif
 
+#if !defined(NO_RSA) || !defined(NO_DH) \
+                                || defined(WOLFSSL_KEYGEN) || defined(HAVE_ECC)
+    #define HAVE_LOCAL_RNG
+    static RNG rng;
+#endif
+
+
 /* so embedded projects can pull in tests on their own */
 #if !defined(NO_MAIN_DRIVER)
 
@@ -191,6 +198,17 @@ int benchmark_test(void *args)
         exit(-1);
     }
 #endif /* HAVE_CAVIUM */
+
+#if defined(HAVE_LOCAL_RNG)
+    {
+        int rngRet = wc_InitRng(&rng);
+        if (rngRet < 0) {
+            printf("InitRNG failed\n");
+            return rngRet;
+        }
+    }
+#endif
+
 #ifndef NO_AES
     bench_aes(0);
     bench_aes(1);
@@ -280,6 +298,10 @@ int benchmark_test(void *args)
     #if defined(FP_ECC)
         wc_ecc_fp_free();
     #endif
+#endif
+
+#if defined(HAVE_LOCAL_RNG) && (defined(HAVE_HASHDRBG) || defined(NO_RC4))
+    wc_FreeRng(&rng);
 #endif
 
     return 0;
@@ -1016,11 +1038,6 @@ void bench_blake2(void)
 #endif
 
 
-#if !defined(NO_RSA) || !defined(NO_DH) \
-                                || defined(WOLFSSL_KEYGEN) || defined(HAVE_ECC)
-static RNG rng;
-#endif
-
 #ifndef NO_RSA
 
 
@@ -1076,11 +1093,6 @@ void bench_rsa(void)
     if (wc_RsaInitCavium(&rsaKey, CAVIUM_DEV_ID) != 0)
         printf("RSA init cavium failed\n");
 #endif
-    ret = wc_InitRng(&rng);
-    if (ret < 0) {
-        printf("InitRNG failed\n");
-        return;
-    }
     ret = wc_InitRsaKey(&rsaKey, 0);
     if (ret < 0) {
         printf("InitRsaKey failed\n");
@@ -1144,9 +1156,6 @@ void bench_rsa(void)
 
 void bench_dh(void)
 {
-#if !defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048)
-    int    ret;
-#endif
     int    i ;
     byte   tmp[1024];
     size_t bytes;
@@ -1178,11 +1187,6 @@ void bench_dh(void)
         return;
     }
 
-    ret = wc_InitRng(&rng);
-    if (ret < 0) {
-        printf("InitRNG failed\n");
-        return;
-    }
     bytes = fread(tmp, 1, sizeof(tmp), file);
 #endif /* USE_CERT_BUFFERS */
 
@@ -1468,13 +1472,8 @@ void bench_eccKeyGen(void)
 {
     ecc_key genKey;
     double start, total, each, milliEach;
-    int    i, ret;
+    int    i;
   
-    ret = wc_InitRng(&rng);
-    if (ret < 0) {
-        printf("InitRNG failed\n");
-        return;
-    }
     /* 256 bit */ 
     start = current_time(1);
 
@@ -1505,12 +1504,6 @@ void bench_eccKeyAgree(void)
  
     wc_ecc_init(&genKey);
     wc_ecc_init(&genKey2);
-
-    ret = wc_InitRng(&rng);
-    if (ret < 0) {
-        printf("InitRNG failed\n");
-        return;
-    }
 
     ret = wc_ecc_make_key(&rng, 32, &genKey);
     if (ret != 0) {
