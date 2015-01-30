@@ -1829,6 +1829,7 @@ void fp_reverse (unsigned char *s, int len)
 void fp_sub_d(fp_int *a, fp_digit b, fp_int *c)
 {
    fp_int tmp;
+   fp_init(&tmp);
    fp_set(&tmp, b);
    fp_sub(a, &tmp, c);
 }
@@ -1981,6 +1982,14 @@ void fp_copy(fp_int *a, fp_int* b)
         b->used = a->used;
         b->sign = a->sign;
         XMEMCPY(b->dp, a->dp, a->used * sizeof(fp_digit));
+    }
+}
+
+void fp_init_copy(fp_int *a, fp_int* b)
+{
+    if (a != b) {
+        fp_init(a);
+        fp_copy(b, a);
     }
 }
 #endif

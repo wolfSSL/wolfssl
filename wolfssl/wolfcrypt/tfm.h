@@ -375,10 +375,11 @@ void fp_set(fp_int *a, fp_digit b);
 /* copy from a to b */
 #ifndef ALT_ECC_SIZE
     #define fp_copy(a, b)  (void)(((a) != (b)) ? ((void)XMEMCPY((b), (a), sizeof(fp_int))) : (void)0)
+    #define fp_init_copy(a, b) fp_copy(b, a)
 #else
     void fp_copy(fp_int *a, fp_int *b);
+    void fp_init_copy(fp_int *a, fp_int *b);
 #endif
-#define fp_init_copy(a, b) fp_copy(b, a)
 
 /* clamp digits */
 #define fp_clamp(a)   { while ((a)->used && (a)->dp[(a)->used-1] == 0) --((a)->used); (a)->sign = (a)->used ? (a)->sign : FP_ZPOS; }
