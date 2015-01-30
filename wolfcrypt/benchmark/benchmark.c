@@ -173,6 +173,36 @@ static int OpenNitroxDevice(int dma_mode,int dev_id)
     static RNG rng;
 #endif
 
+/* use kB instead of mB for embedded benchmarking */
+#ifdef BENCH_EMBEDDED
+    static byte plain [1024];
+#else
+    static byte plain [1024*1024];
+#endif
+
+
+/* use kB instead of mB for embedded benchmarking */
+#ifdef BENCH_EMBEDDED
+    static byte cipher[1024];
+#else
+    static byte cipher[1024*1024];
+#endif
+
+
+static const byte key[] =
+{
+    0x01,0x23,0x45,0x67,0x89,0xab,0xcd,0xef,
+    0xfe,0xde,0xba,0x98,0x76,0x54,0x32,0x10,
+    0x89,0xab,0xcd,0xef,0x01,0x23,0x45,0x67
+};
+
+static const byte iv[] =
+{
+    0x12,0x34,0x56,0x78,0x90,0xab,0xcd,0xef,
+    0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,
+    0x11,0x21,0x31,0x41,0x51,0x61,0x71,0x81
+};
+
 
 /* so embedded projects can pull in tests on their own */
 #if !defined(NO_MAIN_DRIVER)
@@ -190,6 +220,11 @@ int benchmark_test(void *args)
     #if defined(DEBUG_WOLFSSL) && !defined(HAVE_VALGRIND)
         wolfSSL_Debugging_ON();
     #endif
+
+    (void)plain;
+    (void)cipher;
+    (void)key;
+    (void)iv;
 
 	#ifdef HAVE_CAVIUM
     int ret = OpenNitroxDevice(CAVIUM_DIRECT, CAVIUM_DEV_ID);
@@ -324,37 +359,6 @@ enum BenchmarkBounds {
     agreeTimes = 100
 };
 static const char blockType[] = "megs"; /* used in printf output */
-#endif
-
-
-/* use kB instead of mB for embedded benchmarking */
-#ifdef BENCH_EMBEDDED
-static byte plain [1024];
-#else
-static byte plain [1024*1024];
-#endif
-
-
-static const byte key[] = 
-{
-    0x01,0x23,0x45,0x67,0x89,0xab,0xcd,0xef,
-    0xfe,0xde,0xba,0x98,0x76,0x54,0x32,0x10,
-    0x89,0xab,0xcd,0xef,0x01,0x23,0x45,0x67
-};
-
-static const byte iv[] = 
-{
-    0x12,0x34,0x56,0x78,0x90,0xab,0xcd,0xef,
-    0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,
-    0x11,0x21,0x31,0x41,0x51,0x61,0x71,0x81
-    
-};
-
-/* use kB instead of mB for embedded benchmarking */
-#ifdef BENCH_EMBEDDED
-static byte cipher[1024];
-#else
-static byte cipher[1024*1024];
 #endif
 
 
