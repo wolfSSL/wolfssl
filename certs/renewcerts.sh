@@ -1,4 +1,23 @@
 #!/bin/bash
+# renewcerts.sh
+#
+# renews the following:
+#                      client-cert.pem
+#                      client-cert.der
+#                      client-ecc-cert.pem
+#                      ca-cert.pem
+#                      ca-cert.der
+#                      server-cert.pem
+#                      server-cert.der
+#                      server-ecc-rsa.pem
+#                      crl/cliCrl.pem
+#                      crl/crl.pem
+#                      crl/crl.revoked
+#                      crl/eccCliCRL.pem
+#                      crl/eccSrvCRL.pem
+# if HAVE_NTRU
+#                      ntru-cert.pem
+#                      ntru-key.raw
 ###############################################################################
 ######################## FUNCTIONS SECTION ####################################
 ###############################################################################
@@ -70,6 +89,20 @@ function run_renewcerts(){
 
     openssl x509 -in server-ecc-rsa.pem -text > tmp.pem
     mv tmp.pem server-ecc-rsa.pem
+    ############################################################
+    ####### update the self-signed client-ecc-cert.pem #########
+    ############################################################
+    echo "Updating client-ecc-cert.pem"
+    echo ""
+    #pipe the following arguments to openssl req...
+    echo -e "US\nMontana\nBozeman\nwolfSSL\nProgramming\nwww.wolfssl.com\ninfo@wolfssl.com\n.\n.\n" | openssl req -new -key ecc-client-key.pem -nodes -out client-ecc-cert.csr
+
+
+    openssl x509 -req -in client-ecc-cert.csr -days 1000 -extfile wolfssl.cnf -extensions wolfssl_opts -signkey ecc-client-key.pem -out client-ecc-cert.pem
+    rm client-ecc-cert.csr
+
+    openssl x509 -in client-ecc-cert.pem -text > tmp.pem
+    mv tmp.pem client-ecc-cert.pem
 
     ############################################################
     ########## make .der files from .pem files #################
@@ -225,7 +258,7 @@ else
         echo ""
 
         move_ntru
-             
+
         echo "ntru-certs, and ntru-key.raw have been updated"
         echo ""
 

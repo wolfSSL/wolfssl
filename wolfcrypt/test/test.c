@@ -3793,7 +3793,7 @@ int rsa_test(void)
             free(pem);
             return -453;
         }
-        ret = RsaPrivateKeyDecode(tmp, &idx3, &caKey, (word32)bytes);
+        ret = wc_RsaPrivateKeyDecode(tmp, &idx3, &caKey, (word32)bytes);
         if (ret != 0) {
             free(derCert);
             free(pem);
@@ -3818,7 +3818,7 @@ int rsa_test(void)
             return -455;
         }
 
-        certSz = MakeNtruCert(&myCert, derCert, FOURK_BUF, public_key,
+        certSz = wc_MakeNtruCert(&myCert, derCert, FOURK_BUF, public_key,
                               public_key_len, &rng);
         if (certSz < 0) {
             free(derCert);

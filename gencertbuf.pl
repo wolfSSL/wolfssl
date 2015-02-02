@@ -13,7 +13,7 @@ use warnings;
 # ---- SCRIPT SETTINGS -------------------------------------------------------
 
 # output C header file to write cert/key buffers to
-my $outputFile = "./cyassl/certs_test.h";
+my $outputFile = "./wolfssl/certs_test.h";
 
 # 1024-bit certs/keys to be converted
 # Used with USE_CERT_BUFFERS_1024 define.
@@ -49,8 +49,8 @@ my $num_2048 = @fileList_2048;
 open OUT_FILE, "+>", $outputFile  or die $!;
 
 print OUT_FILE "/* certs_test.h */\n\n";
-print OUT_FILE "#ifndef CYASSL_CERTS_TEST_H\n";
-print OUT_FILE "#define CYASSL_CERTS_TEST_H\n\n";
+print OUT_FILE "#ifndef WOLFSSL_CERTS_TEST_H\n";
+print OUT_FILE "#define WOLFSSL_CERTS_TEST_H\n\n";
 
 # convert and print 1024-bit cert/keys
 print OUT_FILE "#ifdef USE_CERT_BUFFERS_1024\n\n";

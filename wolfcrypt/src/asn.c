@@ -5827,7 +5827,7 @@ int wc_MakeCert(Cert* cert, byte* derBuffer, word32 derSz, RsaKey* rsaKey,
 
 #ifdef HAVE_NTRU
 
-int  MakeNtruCert(Cert* cert, byte* derBuffer, word32 derSz,
+int wc_MakeNtruCert(Cert* cert, byte* derBuffer, word32 derSz,
                   const byte* ntruKey, word16 keySz, RNG* rng)
 {
     return MakeAnyCert(cert, derBuffer, derSz, NULL, NULL, rng, ntruKey, keySz);
