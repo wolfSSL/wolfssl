@@ -3032,20 +3032,36 @@ static void GMULT(word64* X, word64* Y)
         word64 y = Y[i];
         for (j = 0; j < 64; j++)
         {
+#ifdef BIG_ENDIAN_ORDER
+            if (y & 0x8000000000000000ULL) {
+#else
             if (y & 0x8000000000000000) {
+#endif
                 Z[0] ^= V[0];
                 Z[1] ^= V[1];
             }
 
             if (V[1] & 0x0000000000000001) {
                 V[1] >>= 1;
+#ifdef BIG_ENDIAN_ORDER
+             V[1] |= ((V[0] & 0x0000000000000001) ? 0x8000000000000000ULL : 0);
+#else
                 V[1] |= ((V[0] & 0x0000000000000001) ? 0x8000000000000000 : 0);
+#endif
                 V[0] >>= 1;
+#ifdef BIG_ENDIAN_ORDER
+                V[0] ^= 0xE100000000000000ULL;
+#else
                 V[0] ^= 0xE100000000000000;
+#endif
             }
             else {
                 V[1] >>= 1;
+#ifdef BIG_ENDIAN_ORDER
+             V[1] |= ((V[0] & 0x0000000000000001) ? 0x8000000000000000ULL : 0);
+#else
                 V[1] |= ((V[0] & 0x0000000000000001) ? 0x8000000000000000 : 0);
+#endif
                 V[0] >>= 1;
             }
             y <<= 1;
