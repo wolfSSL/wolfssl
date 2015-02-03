@@ -7,7 +7,6 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		52397C5D17E0E63200517C9A /* port.c in Sources */ = {isa = PBXBuildFile; fileRef = 52397C5C17E0E63200517C9A /* port.c */; };
 		52B1348216F3CCC400C07B32 /* tls.c in Sources */ = {isa = PBXBuildFile; fileRef = 52B1347B16F3CCC400C07B32 /* tls.c */; };
 		52B1348316F3CCC400C07B32 /* ssl.c in Sources */ = {isa = PBXBuildFile; fileRef = 52B1347C16F3CCC400C07B32 /* ssl.c */; };
 		52B1348416F3CCC400C07B32 /* ocsp.c in Sources */ = {isa = PBXBuildFile; fileRef = 52B1347D16F3CCC400C07B32 /* ocsp.c */; };
@@ -41,6 +40,7 @@
 		52B134BA16F3CDF300C07B32 /* asn.c in Sources */ = {isa = PBXBuildFile; fileRef = 52B134A016F3CDF300C07B32 /* asn.c */; };
 		52B134BB16F3CDF300C07B32 /* arc4.c in Sources */ = {isa = PBXBuildFile; fileRef = 52B134A116F3CDF300C07B32 /* arc4.c */; };
 		52B134BC16F3CDF300C07B32 /* aes.c in Sources */ = {isa = PBXBuildFile; fileRef = 52B134A216F3CDF300C07B32 /* aes.c */; };
+		52F8CACA1A813C990085CA8C /* wc_port.c in Sources */ = {isa = PBXBuildFile; fileRef = 52F8CAC91A813C990085CA8C /* wc_port.c */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -56,7 +56,6 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		52397C5C17E0E63200517C9A /* port.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = port.c; path = wolfcrypt/src/port.c; sourceTree = SOURCE_ROOT; };
 		52B1344D16F3C9E800C07B32 /* libwolfssl-ios.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libwolfssl-ios.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 		52B1347B16F3CCC400C07B32 /* tls.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = tls.c; path = src/tls.c; sourceTree = SOURCE_ROOT; };
 		52B1347C16F3CCC400C07B32 /* ssl.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = ssl.c; path = src/ssl.c; sourceTree = SOURCE_ROOT; };
@@ -91,6 +90,7 @@
 		52B134A016F3CDF300C07B32 /* asn.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = asn.c; path = wolfcrypt/src/asn.c; sourceTree = SOURCE_ROOT; };
 		52B134A116F3CDF300C07B32 /* arc4.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = arc4.c; path = wolfcrypt/src/arc4.c; sourceTree = SOURCE_ROOT; };
 		52B134A216F3CDF300C07B32 /* aes.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = aes.c; path = wolfcrypt/src/aes.c; sourceTree = SOURCE_ROOT; };
+		52F8CAC91A813C990085CA8C /* wc_port.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = wc_port.c; path = wolfcrypt/src/wc_port.c; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -147,7 +147,7 @@
 		52B1347A16F3CC9A00C07B32 /* wolfCrypt */ = {
 			isa = PBXGroup;
 			children = (
-				52397C5C17E0E63200517C9A /* port.c */,
+				52F8CAC91A813C990085CA8C /* wc_port.c */,
 				52B1348916F3CDF300C07B32 /* tfm.c */,
 				52B1348A16F3CDF300C07B32 /* sha256.c */,
 				52B1348B16F3CDF300C07B32 /* sha.c */,
@@ -262,7 +262,7 @@
 				52B134BA16F3CDF300C07B32 /* asn.c in Sources */,
 				52B134BB16F3CDF300C07B32 /* arc4.c in Sources */,
 				52B134BC16F3CDF300C07B32 /* aes.c in Sources */,
-				52397C5D17E0E63200517C9A /* port.c in Sources */,
+				52F8CACA1A813C990085CA8C /* wc_port.c in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
