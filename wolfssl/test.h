@@ -10,6 +10,7 @@
 #include <cyassl/ssl.h> /* portability layer */
 #include <wolfssl/wolfcrypt/types.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
+#include <wolfssl/wolfcrypt/random.h>
 
 #ifdef ATOMIC_USER
     #include <wolfssl/wolfcrypt/aes.h>
@@ -17,7 +18,6 @@
     #include <wolfssl/wolfcrypt/hmac.h>
 #endif
 #ifdef HAVE_PK_CALLBACKS
-    #include <wolfssl/wolfcrypt/random.h>
     #include <wolfssl/wolfcrypt/asn.h>
     #ifdef HAVE_ECC
         #include <wolfssl/wolfcrypt/ecc.h>
@@ -1790,6 +1790,45 @@ static INLINE char* strsep(char **stringp, const char *delim)
 }
 
 #endif /* __hpux__ */
+
+/* Create unique filename, len is length of tempfn name, assuming
+   len does not include null terminating character,
+   num is number of characters in tempfn name to randomize */
+static INLINE const char* mymktemp(char *tempfn, int len, int num)
+{
+    int x, size;
+    static const char alphanum[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+                                   "abcdefghijklmnopqrstuvwxyz";
+    RNG rng;
+    int out;
+
+    if (tempfn == NULL || len < 1 || num < 1 || len <= num) {
+        printf("Bad input\n");
+        return NULL;
+    }
+
+    size = len - 1;
+
+    if (wc_InitRng(&rng) != 0) {
+        printf("InitRng failed\n");
+        return NULL;
+    }
+
+    for (x = size; x > size - num; x--) {
+        if (wc_RNG_GenerateBlock(&rng,(byte*)&out, sizeof(out)) != 0) {
+            printf("RNG_GenerateBlock failed\n");
+            return NULL;
+        }
+        tempfn[x] = alphanum[out % (sizeof(alphanum) - 1)];
+    }
+    tempfn[len] = '\0';
+
+#if defined(HAVE_HASHDRBG)
+    wc_FreeRng(&rng);
+#endif
+
+    return tempfn;
+}
 
 #endif /* wolfSSL_TEST_H */
 

@@ -936,6 +936,17 @@ int wolfSSL_shutdown(WOLFSSL* ssl)
             return SSL_FATAL_ERROR;
         }
         ssl->options.sentNotify = 1;  /* don't send close_notify twice */
+        WOLFSSL_LEAVE("SSL_shutdown()", ssl->error);
+        return 0;
+    }
+
+    /* call wolfSSL_shutdown again for bidirectional shudown */
+    if (ssl->options.sentNotify && !ssl->options.closeNotify) {
+        ssl->error = ReceiveData(ssl, 0, 0, 0);
+        if (ssl->error < 0) {
+            WOLFSSL_ERROR(ssl->error);
+            return SSL_FATAL_ERROR;
+        }
     }
 
     WOLFSSL_LEAVE("SSL_shutdown()", ssl->error);
