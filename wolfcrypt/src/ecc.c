@@ -2401,10 +2401,10 @@ int wc_ecc_import_x963(const byte* in, word32 inLen, ecc_key* key)
         if (err == MP_OKAY) {
             if ((mp_isodd(&t2) && in[0] == 0x03) ||
                (!mp_isodd(&t2) && in[0] == 0x02)) {
-                err = mp_mod(&t2, &prime, &key->pubkey.y);
+                err = mp_mod(&t2, &prime, key->pubkey.y);
             }
             else {
-                err = mp_submod(&prime, &t2, &prime, &key->pubkey.y);
+                err = mp_submod(&prime, &t2, &prime, key->pubkey.y);
             }
         }
 
