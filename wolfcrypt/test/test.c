@@ -3179,30 +3179,49 @@ int rsa_test(void)
     wc_RsaInitCavium(&key, CAVIUM_DEV_ID);
 #endif
     ret = wc_InitRsaKey(&key, 0);
-    if (ret != 0) return -39;
+    if (ret != 0) {
+        free(tmp);
+        return -39;
+    }
     ret = wc_RsaPrivateKeyDecode(tmp, &idx, &key, (word32)bytes);
-    if (ret != 0) return -41;
-
+    if (ret != 0) {
+        free(tmp);
+        return -41;
+    }
     ret = wc_InitRng(&rng);
-    if (ret != 0) return -42;
-
+    if (ret != 0) {
+        free(tmp);
+        return -42;
+    }
     ret = wc_RsaPublicEncrypt(in, inLen, out, sizeof(out), &key, &rng);
-    if (ret < 0) return -43;
-
+    if (ret < 0) {
+        free(tmp);
+        return -43;
+    }
     ret = wc_RsaPrivateDecrypt(out, ret, plain, sizeof(plain), &key);
-    if (ret < 0) return -44;
-
-    if (memcmp(plain, in, inLen)) return -45;
-
+    if (ret < 0) {
+        free(tmp);
+        return -44;
+    }
+    if (memcmp(plain, in, inLen)) {
+        free(tmp);
+        return -45;
+    }
     ret = wc_RsaSSL_Sign(in, inLen, out, sizeof(out), &key, &rng);
-    if (ret < 0) return -46;
-
+    if (ret < 0) {
+        free(tmp);
+        return -46;
+    }
     memset(plain, 0, sizeof(plain));
     ret = wc_RsaSSL_Verify(out, ret, plain, sizeof(plain), &key);
-    if (ret < 0) return -47;
-
-    if (memcmp(plain, in, ret)) return -48;
-
+    if (ret < 0) {
+        free(tmp);
+        return -47;
+    }
+    if (memcmp(plain, in, ret)) {
+        free(tmp);
+        return -48;
+    }
 #if defined(WOLFSSL_MDK_ARM)
     #define sizeof(s) strlen((char *)(s))
 #endif
@@ -3215,8 +3234,10 @@ int rsa_test(void)
     bytes = sizeof_client_cert_der_2048;
 #else
     file2 = fopen(clientCert, "rb");
-    if (!file2)
+    if (!file2) {
+        free(tmp);
         return -49;
+    }
 
     bytes = fread(tmp, 1, FOURK_BUF, file2);
     fclose(file2);
