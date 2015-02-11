@@ -6351,9 +6351,7 @@ static int DoAlert(WOLFSSL* ssl, byte* input, word32* inOutIdx, int* type,
         WOLFSSL_MSG("    close notify");
         ssl->options.closeNotify = 1;
     }
-    if (!ssl->options.sentNotify) {
-        WOLFSSL_ERROR(*type);
-    }
+    WOLFSSL_ERROR(*type);
     if (ssl->keys.encryptionOn) {
         if (*inOutIdx + ssl->keys.padSz > totalSz)
             return BUFFER_E;
@@ -7751,9 +7749,7 @@ startScr:
 
     while (ssl->buffers.clearOutputBuffer.length == 0) {
         if ( (ssl->error = ProcessReply(ssl)) < 0) {
-            if (!ssl->options.sentNotify) {
-                WOLFSSL_ERROR(ssl->error);
-            }
+            WOLFSSL_ERROR(ssl->error);
             if (ssl->error == ZERO_RETURN) {
                 WOLFSSL_MSG("Zero return, no more data coming");
                 return 0;         /* no more data coming */

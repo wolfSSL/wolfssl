@@ -1800,7 +1800,7 @@ static INLINE const char* mymktemp(char *tempfn, int len, int num)
     static const char alphanum[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
                                    "abcdefghijklmnopqrstuvwxyz";
     RNG rng;
-    int out;
+    byte out;
 
     if (tempfn == NULL || len < 1 || num < 1 || len <= num) {
         printf("Bad input\n");
