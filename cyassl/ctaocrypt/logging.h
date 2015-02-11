@@ -32,7 +32,7 @@
 #define CYASSL_ENTER WOLFSSL_ENTER
 #define CYASSL_MSG   WOLFSSL_MSG
 /* check old macros possibly declared */
-#if defined(CYASSL_DEBUG) && !defined(DEBUG_WOLFSSL)
+#if defined(DEBUG_CYASSL) && !defined(DEBUG_WOLFSSL)
     #define DEBUG_WOLFSSL
 #endif
 

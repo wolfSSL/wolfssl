@@ -3887,10 +3887,4 @@ static int AesCaviumCbcDecrypt(Aes* aes, byte* out, const byte* in,
 
 #endif /* HAVE_FIPS */
 
-#ifdef __cplusplus
-    } /* extern "C" */
-#endif
-
-
 #endif /* NO_AES */
-

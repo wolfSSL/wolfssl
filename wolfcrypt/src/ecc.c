@@ -2088,8 +2088,8 @@ int wc_ecc_verify_hash(const byte* sig, word32 siglen, const byte* hash,
     * If either of those don't allocate correctly, none of
     * the rest of this function will execute, and everything
     * gets cleaned up at the end. */
-   XMEMSET(&r, 0, sizeof(r));
-   XMEMSET(&s, 0, sizeof(s));
+   mp_init(&r);
+   mp_init(&s);
    if (err == MP_OKAY) 
        err = DecodeECC_DSA_Sig(sig, siglen, &r, &s);
 
@@ -2401,10 +2401,10 @@ int wc_ecc_import_x963(const byte* in, word32 inLen, ecc_key* key)
         if (err == MP_OKAY) {
             if ((mp_isodd(&t2) && in[0] == 0x03) ||
                (!mp_isodd(&t2) && in[0] == 0x02)) {
-                err = mp_mod(&t2, &prime, &key->pubkey.y);
+                err = mp_mod(&t2, &prime, key->pubkey.y);
             }
             else {
-                err = mp_submod(&prime, &t2, &prime, &key->pubkey.y);
+                err = mp_submod(&prime, &t2, &prime, key->pubkey.y);
             }
         }
 
