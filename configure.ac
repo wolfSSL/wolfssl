@@ -1850,7 +1850,8 @@ echo
 touch cyassl/options.h
 echo "/* cyassl options.h" > cyassl/options.h
 echo " * generated from wolfssl/options.h" >> cyassl/options.h
-echo " */\n" >> cyassl/options.h
+echo " */" >> cyassl/options.h
+echo ""
 while read -r line
 do
     echo "$line" >> cyassl/options.h
