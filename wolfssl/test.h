@@ -301,7 +301,7 @@ static INLINE int PasswordCallBack(char* passwd, int sz, int rw, void* userdata)
 {
     (void)rw;
     (void)userdata;
-    strncpy(passwd, "wolfSSL123", sz);
+    strncpy(passwd, "yassl123", sz);
     return 8;
 }
 
