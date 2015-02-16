@@ -141,6 +141,7 @@ static void Usage(void)
     printf("-m          Match domain name in cert\n");
     printf("-N          Use Non-blocking sockets\n");
     printf("-r          Resume session\n");
+    printf("-w          Wait for bidirectional shutdown\n");
 #ifdef HAVE_SECURE_RENEGOTIATION
     printf("-R          Allow Secure Renegotiation\n");
     printf("-i          Force client Initiated Secure Renegotiation\n");
@@ -207,6 +208,8 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     int    doPeerCheck = 1;
     int    nonBlocking = 0;
     int    resumeSession = 0;
+    int    shutdown      = 0;
+    int    ret;
     int    scr           = 0;    /* allow secure renegotiation */
     int    forceScr      = 0;    /* force client initiaed scr */
     int    trackMemory   = 0;
@@ -258,7 +261,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     StackTrap();
 
     while ((ch = mygetopt(argc, argv,
-                          "?gdDusmNrRitfxUPh:p:v:l:A:c:k:b:zS:L:ToO:a")) != -1) {
+                          "?gdDusmNrwRitfxUPh:p:v:l:A:c:k:b:zS:L:ToO:a")) != -1) {
         switch (ch) {
             case '?' :
                 Usage();
@@ -365,6 +368,10 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
             case 'r' :
                 resumeSession = 1;
+                break;
+
+            case 'w' :
+                shutdown = 1;
                 break;
 
             case 'R' :
@@ -802,8 +809,11 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     }
 #endif
 
-    if (doDTLS == 0)            /* don't send alert after "break" command */
-        wolfSSL_shutdown(ssl);  /* echoserver will interpret as new conn */
+    if (doDTLS == 0) {           /* don't send alert after "break" command */
+        ret = wolfSSL_shutdown(ssl);
+        if (shutdown && ret == SSL_SHUTDOWN_NOT_DONE)
+            wolfSSL_shutdown(ssl);    /* bidirectional shutdown */
+    }
 #ifdef ATOMIC_USER
     if (atomicUser)
         FreeAtomicUser(ssl);
@@ -879,7 +889,10 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         /* try to send session break */
         wolfSSL_write(sslResume, msg, msgSz); 
 
-        wolfSSL_shutdown(sslResume);
+        ret = wolfSSL_shutdown(sslResume);
+        if (shutdown && ret == SSL_SHUTDOWN_NOT_DONE)
+            wolfSSL_shutdown(sslResume);    /* bidirectional shutdown */
+
         wolfSSL_free(sslResume);
         CloseSocket(sockfd);
     }

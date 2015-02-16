@@ -47,12 +47,7 @@ enum {
     NUMARGS = 3
 };
 
-#ifndef USE_WINDOWS_API
-    static const char outputName[] = "/tmp/output";
-#else
-    static const char outputName[] = "output";
-#endif
-
+static const char *outputName;
 
 int myoptind = 0;
 char* myoptarg = NULL;
@@ -76,6 +71,16 @@ int testsuite_test(int argc, char** argv)
 
     tcp_ready ready;
     THREAD_TYPE serverThread;
+
+#ifndef USE_WINDOWS_API
+    char tempName[] = "/tmp/output-XXXXXX";
+    int len = 18;
+    int num = 6;
+#else
+    char tempName[] = "fnXXXXXX";
+    int len = 8;
+    int num = 6;
+#endif
 
 #ifdef HAVE_CAVIUM
         int ret = OpenNitroxDevice(CAVIUM_DIRECT, CAVIUM_DEV_ID);
@@ -135,6 +140,13 @@ int testsuite_test(int argc, char** argv)
 
         echo_args.argc = 3;
         echo_args.argv = myArgv;
+
+        /* Create unique file name */
+        outputName = mymktemp(tempName, len, num);
+        if (outputName == NULL) {
+            printf("Could not create unique file name");
+            return EXIT_FAILURE;
+        }
 
         strcpy(echo_args.argv[0], "echoclient");
         strcpy(echo_args.argv[1], "input");

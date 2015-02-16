@@ -135,6 +135,7 @@ static void Usage(void)
     printf("-r          Create server ready file, for external monitor\n");
     printf("-N          Use Non-blocking sockets\n");
     printf("-S <str>    Use Host Name Indication\n");
+    printf("-w          Wait for bidirectional shutdown\n");
 #ifdef HAVE_OCSP
     printf("-o          Perform OCSP lookup on peer certificate\n");
     printf("-O <url>    Perform OCSP lookup using <url> as responder\n");
@@ -173,6 +174,8 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     int    fewerPackets = 0;
     int    pkCallbacks  = 0;
     int    serverReadyFile = 0;
+    int    shutdown        = 0;
+    int    ret;
     char*  cipherList = NULL;
     const char* verifyCert = cliCert;
     const char* ourCert    = svrCert;
@@ -203,7 +206,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     fdOpenSession(Task_self());
 #endif
 
-    while ((ch = mygetopt(argc, argv, "?dbstnNufraPp:v:l:A:c:k:S:oO:")) != -1) {
+    while ((ch = mygetopt(argc, argv, "?dbstnNufrawPp:v:l:A:c:k:S:oO:")) != -1) {
         switch (ch) {
             case '?' :
                 Usage();
@@ -255,6 +258,10 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
                     if (port == 0)
                         err_sys("port number cannot be 0");
                 #endif
+                break;
+
+            case 'w' :
+                shutdown = 1;
                 break;
 
             case 'v' :
@@ -560,7 +567,9 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
         Task_yield();
     #endif
 
-    SSL_shutdown(ssl);
+    ret = SSL_shutdown(ssl);
+    if (shutdown && ret == SSL_SHUTDOWN_NOT_DONE)
+        SSL_shutdown(ssl);    /* bidirectional shutdown */
     SSL_free(ssl);
     SSL_CTX_free(ctx);
     
