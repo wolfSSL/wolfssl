@@ -1040,26 +1040,6 @@ then
 fi
 
 
-# PWDBASED
-AC_ARG_ENABLE([pwdbased],
-    [  --enable-pwdbased       Enable PWDBASED (default: disabled)],
-    [ ENABLED_PWDBASED=$enableval ],
-    [ ENABLED_PWDBASED=no ]
-    )
-
-if test "$ENABLED_PWDBASED" = "no"
-then
-    if test "$ENABLED_OPENSSLEXTRA" = "yes" || test "$ENABLED_WEBSERVER" = "yes"
-    then
-        # opensslextra and webserver needs pwdbased 
-        ENABLED_PWDBASED=yes
-    else
-        AM_CFLAGS="$AM_CFLAGS -DNO_PWDBASED"
-    fi
-fi
-
-AM_CONDITIONAL([BUILD_PWDBASED], [test "x$ENABLED_PWDBASED" = "xyes"])
-
 
 # HC128 
 AC_ARG_ENABLE([hc128],
@@ -1557,6 +1537,28 @@ then
     fi
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HAVE_CERT_SERVICE"
 fi
+
+
+# PWDBASED has to come after certservice since we want it on w/o explicit on
+# PWDBASED
+AC_ARG_ENABLE([pwdbased],
+    [  --enable-pwdbased       Enable PWDBASED (default: disabled)],
+    [ ENABLED_PWDBASED=$enableval ],
+    [ ENABLED_PWDBASED=no ]
+    )
+
+if test "$ENABLED_PWDBASED" = "no"
+then
+    if test "$ENABLED_OPENSSLEXTRA" = "yes" || test "$ENABLED_WEBSERVER" = "yes"
+    then
+        # opensslextra and webserver needs pwdbased
+        ENABLED_PWDBASED=yes
+    else
+        AM_CFLAGS="$AM_CFLAGS -DNO_PWDBASED"
+    fi
+fi
+
+AM_CONDITIONAL([BUILD_PWDBASED], [test "x$ENABLED_PWDBASED" = "xyes"])
 
 
 # set fastmath default
