@@ -310,6 +310,12 @@ const char* wc_GetErrorString(int error)
     case AESGCM_KAT_FIPS_E:
         return "AESGCM Known Answer Test check FIPS error";
 
+    case THREAD_STORE_KEY_E:
+        return "Thread Storage Key Create error";
+
+    case THREAD_STORE_SET_E:
+        return "Thread Storage Set error";
+
     default:
         return "unknown error number";
 

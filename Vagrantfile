@@ -3,8 +3,19 @@
 
 $setup = <<SCRIPT
 
+
 apt-get update
 apt-get install -y git autoconf libtool make valgrind libpq-dev
+
+
+URL=https://sourceforge.net/projects/levent/files/libevent
+LIB=libevent-2.0
+VER=22-stable
+
+wget -q $URL/$LIB/$LIB.$VER.tar.gz && tar -zxf $LIB.$VER.tar.gz
+cd $LIB.$VER/ && ./autogen.sh && ./configure -q && make -s
+sudo make install && cd .. && rm -rf $LIB.$VER*
+
 
 SRC=vagrant
 DST=wolfssl

@@ -143,6 +143,8 @@ enum {
     DRBG_KAT_FIPS_E     = -208,  /* HASH DRBG KAT failure */
     DRBG_CONT_FIPS_E    = -209,  /* HASH DRBG Continious test failure */
     AESGCM_KAT_FIPS_E   = -210,  /* AESGCM KAT failure */
+    THREAD_STORE_KEY_E  = -211,  /* Thread local storage key create failure */
+    THREAD_STORE_SET_E  = -212,  /* Thread local storage key set failure */
 
     MIN_CODE_E          = -300   /* errors -101 - -299 */
 };
