@@ -135,7 +135,7 @@ static void Usage(void)
     printf("-r          Create server ready file, for external monitor\n");
     printf("-N          Use Non-blocking sockets\n");
     printf("-S <str>    Use Host Name Indication\n");
-    printf("-w           Wait for bidirectional shutdown\n");
+    printf("-w          Wait for bidirectional shutdown\n");
 #ifdef HAVE_OCSP
     printf("-o          Perform OCSP lookup on peer certificate\n");
     printf("-O <url>    Perform OCSP lookup using <url> as responder\n");
@@ -175,6 +175,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     int    pkCallbacks  = 0;
     int    serverReadyFile = 0;
     int    shutdown        = 0;
+    int    ret;
     char*  cipherList = NULL;
     const char* verifyCert = cliCert;
     const char* ourCert    = svrCert;
@@ -566,13 +567,9 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
         Task_yield();
     #endif
 
-    if (shutdown) {                /* bidirectional shutdown if true */
-        if (!SSL_shutdown(ssl))
-            SSL_shutdown(ssl);
-    }
-    else {
-        SSL_shutdown(ssl);
-    }
+    ret = SSL_shutdown(ssl);
+    if (shutdown && ret == SSL_SHUTDOWN_NOT_DONE)
+        SSL_shutdown(ssl);    /* bidirectional shutdown */
     SSL_free(ssl);
     SSL_CTX_free(ctx);
     

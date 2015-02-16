@@ -209,6 +209,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     int    nonBlocking = 0;
     int    resumeSession = 0;
     int    shutdown      = 0;
+    int    ret;
     int    scr           = 0;    /* allow secure renegotiation */
     int    forceScr      = 0;    /* force client initiaed scr */
     int    trackMemory   = 0;
@@ -649,13 +650,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             if (wolfSSL_connect(ssl) != SSL_SUCCESS)
                 err_sys("SSL_connect failed");
 
-            if (shutdown) {     /* bidirectional shutdown if true */
-                if (!wolfSSL_shutdown(ssl))
-                    wolfSSL_shutdown(ssl);
-            }
-            else {
-                wolfSSL_shutdown(ssl);
-            }
+            wolfSSL_shutdown(ssl);
             wolfSSL_free(ssl);
             CloseSocket(sockfd);
         }
@@ -815,13 +810,9 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 #endif
 
     if (doDTLS == 0) {           /* don't send alert after "break" command */
-        if (shutdown) {     /* bidirectional shutdown if true */
-            if (!wolfSSL_shutdown(ssl))  /* echoserver interprets as new conn */
-                wolfSSL_shutdown(ssl);
-        }
-        else {
-            wolfSSL_shutdown(ssl);
-        }
+        ret = wolfSSL_shutdown(ssl);
+        if (shutdown && ret == SSL_SHUTDOWN_NOT_DONE)
+            wolfSSL_shutdown(ssl);    /* bidirectional shutdown */
     }
 #ifdef ATOMIC_USER
     if (atomicUser)
@@ -898,13 +889,10 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         /* try to send session break */
         wolfSSL_write(sslResume, msg, msgSz); 
 
-        if (shutdown) {     /* bidirectional shutdown if true */
-            if (!wolfSSL_shutdown(sslResume))
-                wolfSSL_shutdown(sslResume);
-        }
-        else {
-            wolfSSL_shutdown(sslResume);
-        }
+        ret = wolfSSL_shutdown(sslResume);
+        if (shutdown && ret == SSL_SHUTDOWN_NOT_DONE)
+            wolfSSL_shutdown(sslResume);    /* bidirectional shutdown */
+
         wolfSSL_free(sslResume);
         CloseSocket(sockfd);
     }

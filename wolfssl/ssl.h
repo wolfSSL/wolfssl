@@ -644,6 +644,7 @@ enum { /* ssl Constants */
     SSL_ERROR_NONE      =  0,   /* for most functions */
     SSL_FAILURE         =  0,   /* for some functions */
     SSL_SUCCESS         =  1,
+    SSL_SHUTDOWN_NOT_DONE =  2,  /* call wolfSSL_shutdown again to complete */
 
     SSL_BAD_CERTTYPE    = -8,
     SSL_BAD_STAT        = -7,
