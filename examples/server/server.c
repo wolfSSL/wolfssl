@@ -174,7 +174,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     int    fewerPackets = 0;
     int    pkCallbacks  = 0;
     int    serverReadyFile = 0;
-    int    shutdown        = 0;
+    int    wc_shutdown        = 0;
     int    ret;
     char*  cipherList = NULL;
     const char* verifyCert = cliCert;
@@ -261,7 +261,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
                 break;
 
             case 'w' :
-                shutdown = 1;
+                wc_shutdown = 1;
                 break;
 
             case 'v' :
@@ -568,7 +568,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     #endif
 
     ret = SSL_shutdown(ssl);
-    if (shutdown && ret == SSL_SHUTDOWN_NOT_DONE)
+    if (wc_shutdown && ret == SSL_SHUTDOWN_NOT_DONE)
         SSL_shutdown(ssl);    /* bidirectional shutdown */
     SSL_free(ssl);
     SSL_CTX_free(ctx);
