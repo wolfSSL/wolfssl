@@ -64,6 +64,13 @@
 
 #else /* else build without fips */
 
+#ifdef WOLFSSL_PIC32MZ_HASH
+#define wc_InitSha   wc_InitSha_sw
+#define wc_ShaUpdate wc_ShaUpdate_sw
+#define wc_ShaFinal  wc_ShaFinal_sw
+#endif
+
+
 #ifdef FREESCALE_MMCAU
     #include "cau_api.h"
     #define XTRANSFORM(S,B)  cau_sha1_hash_n((B), 1, ((S))->digest)

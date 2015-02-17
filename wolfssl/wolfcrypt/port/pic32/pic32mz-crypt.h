@@ -22,13 +22,63 @@
 #ifndef PIC32MZ_CRYPT_H
 #define PIC32MZ_CRYPT_H
 
-#if defined(CYASSL_PIC32MZ_CRYPT) || defined(WOLFSSL_PIC32MZ_CRYPT)
+#ifdef  WOLFSSL_MICROCHIP_PIC32MZ
 
 #define MICROCHIP_PIC32
 #include <xc.h>
 #include <sys/endian.h>
 #include <sys/kmem.h>
-#include "../../../../mplabx/crypto.h"
+
+typedef struct saCtrl {
+    unsigned int CRYPTOALGO : 4;
+    unsigned int MULTITASK : 3;
+    unsigned int KEYSIZE : 2;
+    unsigned int ENCTYPE : 1;
+    unsigned int ALGO : 7;
+    unsigned int : 3;
+    unsigned int FLAGS : 1;
+    unsigned int FB : 1;
+    unsigned int LOADIV : 1;
+    unsigned int LNC : 1;
+    unsigned int IRFLAG : 1;
+    unsigned int ICVONLY : 1;
+    unsigned int OR_EN : 1;
+    unsigned int NO_RX : 1;
+    unsigned int : 1;
+    unsigned int VERIFY : 1;
+    unsigned int : 2;
+} saCtrl;
+
+typedef struct securityAssociation {
+    saCtrl SA_CTRL;
+    unsigned int SA_AUTHKEY[8];
+    unsigned int SA_ENCKEY[8];
+    unsigned int SA_AUTHIV[8];
+    unsigned int SA_ENCIV[4];
+} securityAssociation;
+
+typedef struct bdCtrl {
+    unsigned int BUFLEN : 16;
+    unsigned int CBD_INT_EN : 1;
+    unsigned int PKT_INT_EN : 1;
+    unsigned int LIFM : 1;
+    unsigned int LAST_BD: 1;
+    unsigned int : 2;
+    unsigned int SA_FETCH_EN : 1;
+    unsigned int : 8;
+    unsigned int DESC_EN : 1;
+} bdCtrl;
+
+typedef struct bufferDescriptor {
+    bdCtrl BD_CTRL;
+    unsigned int SA_ADDR;
+    unsigned int SRCADDR;
+    unsigned int DSTADDR;
+    unsigned int NXTPTR;
+    unsigned int UPDPTR;
+    unsigned int MSGLEN;
+    unsigned int ENCOFF;
+} bufferDescriptor;
 
 
 #define PIC32_ENCRYPTION      0b1
@@ -74,7 +124,7 @@ typedef struct {      /* Crypt Engine descripter */
 #define WAIT_ENGINE \
     { volatile int v ; while (CESTATbits.ACTIVE) ; for(v=0; v<100; v++) ; }
 
-#if defined(DEBUG_CYASSL) || defined(DEBUG_WOLFSSL)
+#ifdef DEBUG_CYASSL
 static void print_mem(const unsigned char *p, int size) {
     for(; size>0; size--, p++) {
         if(size%4 == 0)printf(" ") ;

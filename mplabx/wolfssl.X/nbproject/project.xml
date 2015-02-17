@@ -3,7 +3,7 @@
     <type>com.microchip.mplab.nbide.embedded.makeproject</type>
     <configuration>
         <data xmlns="http://www.netbeans.org/ns/make-project/1">
-            <name>cyassl</name>
+            <name>wolfssl</name>
             <creation-uuid>93bbfc3a-a0fa-4d48-bbc8-6cd47a2bd05b</creation-uuid>
             <make-project-type>0</make-project-type>
             <c-extensions>c</c-extensions>

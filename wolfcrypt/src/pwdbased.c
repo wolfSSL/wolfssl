@@ -29,17 +29,17 @@
 
 #ifdef WOLFSSL_PIC32MZ_HASH
 
-#define wc_InitMd5   InitMd5_sw
-#define wc_Md5Update Md5Update_sw
-#define wc_Md5Final  Md5Final_sw
+#define wc_InitMd5   wc_InitMd5_sw
+#define wc_Md5Update wc_Md5Update_sw
+#define wc_Md5Final  wc_Md5Final_sw
 
-#define wc_InitSha   InitSha_sw
-#define wc_ShaUpdate ShaUpdate_sw
-#define wc_ShaFinal  ShaFinal_sw
+#define wc_InitSha   wc_InitSha_sw
+#define wc_ShaUpdate wc_ShaUpdate_sw
+#define wc_ShaFinal  wc_ShaFinal_sw
 
-#define wc_InitSha256   InitSha256_sw
-#define wc_Sha256Update Sha256Update_sw
-#define wc_Sha256Final  Sha256Final_sw
+#define wc_InitSha256   wc_InitSha256_sw
+#define wc_Sha256Update wc_Sha256Update_sw
+#define wc_Sha256Final  wc_Sha256Final_sw
 
 #endif
 

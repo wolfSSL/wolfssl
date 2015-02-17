@@ -807,7 +807,7 @@ int wc_Des3_SetKey(Des3* des3, const byte* key, const byte* iv, int dir)
 
 #elif defined(WOLFSSL_PIC32MZ_CRYPT)
 
-    #include "wolfssl/ctaocrypt/port/pic32/pic32mz-crypt.h"
+    #include "wolfssl/wolfcrypt/port/pic32/pic32mz-crypt.h"
 
 void wc_Des_SetIV(Des* des, const byte* iv);
 int  wc_Des3_SetIV(Des3* des, const byte* iv);
