@@ -917,6 +917,8 @@ int wolfSSL_recv(WOLFSSL* ssl, void* data, int sz, int flags)
 /* SSL_SUCCESS on ok */
 int wolfSSL_shutdown(WOLFSSL* ssl)
 {
+    int  ret = SSL_FATAL_ERROR;
+    byte tmp;
     WOLFSSL_ENTER("SSL_shutdown()");
 
     if (ssl == NULL)
@@ -936,13 +938,30 @@ int wolfSSL_shutdown(WOLFSSL* ssl)
             return SSL_FATAL_ERROR;
         }
         ssl->options.sentNotify = 1;  /* don't send close_notify twice */
+        if (ssl->options.closeNotify)
+            ret = SSL_SUCCESS;
+        else
+            ret = SSL_SHUTDOWN_NOT_DONE;
+
+        WOLFSSL_LEAVE("SSL_shutdown()", ret);
+        return ret;
     }
 
-    WOLFSSL_LEAVE("SSL_shutdown()", ssl->error);
+    /* call wolfSSL_shutdown again for bidirectional shudown */
+    if (ssl->options.sentNotify && !ssl->options.closeNotify) {
+        ret = wolfSSL_read(ssl, &tmp, 0);
+        if (ret < 0) {
+            WOLFSSL_ERROR(ssl->error);
+            ret = SSL_FATAL_ERROR;
+        } else if (ssl->options.closeNotify) {
+            ssl->error = SSL_ERROR_SYSCALL;   /* simulate OpenSSL behavior */
+            ret = SSL_SUCCESS;
+        }
+    }
 
-    ssl->error = SSL_ERROR_SYSCALL;   /* simulate OpenSSL behavior */
+    WOLFSSL_LEAVE("SSL_shutdown()", ret);
 
-    return SSL_SUCCESS;
+    return ret;
 }
 
 

@@ -6352,7 +6352,6 @@ static int DoAlert(WOLFSSL* ssl, byte* input, word32* inOutIdx, int* type,
         ssl->options.closeNotify = 1;
     }
     WOLFSSL_ERROR(*type);
-
     if (ssl->keys.encryptionOn) {
         if (*inOutIdx + ssl->keys.padSz > totalSz)
             return BUFFER_E;
