@@ -122,7 +122,7 @@ STATIC INLINE word64 rotrFixed64(word64 x, word64 y)
 
 STATIC INLINE word64 ByteReverseWord64(word64 value)
 {
-#ifdef CTAOCRYPT_SLOW_WORD64
+#ifdef WOLFCRYPT_SLOW_WORD64
 	return (word64)(ByteReverseWord32((word32)value)) << 32 | 
                     ByteReverseWord32((word32)(value>>32));
 #else
