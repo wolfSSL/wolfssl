@@ -5304,7 +5304,7 @@ static INLINE void AeadIncrementExpIV(WOLFSSL* ssl)
 
 #ifdef HAVE_POLY1305
 /*more recent rfc's concatonate input for poly1305 differently*/
-static int Poly1305Tag(WOLFSSL* ssl, byte* additional, const byte* out,
+static INLINE int Poly1305Tag(WOLFSSL* ssl, byte* additional, const byte* out,
                        byte* cipher, word16 sz, byte* tag)
 {
     int ret       = 0;
@@ -5363,7 +5363,7 @@ static int Poly1305Tag(WOLFSSL* ssl, byte* additional, const byte* out,
 
 
 /* Used for the older version of creating AEAD tags with Poly1305 */
-static int Poly1305TagOld(WOLFSSL* ssl, byte* additional, const byte* out,
+static INLINE int Poly1305TagOld(WOLFSSL* ssl, byte* additional, const byte* out,
                        byte* cipher, word16 sz, byte* tag)
 {
     int ret       = 0;
