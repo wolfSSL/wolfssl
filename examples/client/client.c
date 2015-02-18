@@ -208,7 +208,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     int    doPeerCheck = 1;
     int    nonBlocking = 0;
     int    resumeSession = 0;
-    int    shutdown      = 0;
+    int    wc_shutdown      = 0;
     int    ret;
     int    scr           = 0;    /* allow secure renegotiation */
     int    forceScr      = 0;    /* force client initiaed scr */
@@ -371,7 +371,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                 break;
 
             case 'w' :
-                shutdown = 1;
+                wc_shutdown = 1;
                 break;
 
             case 'R' :
@@ -811,7 +811,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
     if (doDTLS == 0) {           /* don't send alert after "break" command */
         ret = wolfSSL_shutdown(ssl);
-        if (shutdown && ret == SSL_SHUTDOWN_NOT_DONE)
+        if (wc_shutdown && ret == SSL_SHUTDOWN_NOT_DONE)
             wolfSSL_shutdown(ssl);    /* bidirectional shutdown */
     }
 #ifdef ATOMIC_USER
@@ -890,7 +890,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         wolfSSL_write(sslResume, msg, msgSz); 
 
         ret = wolfSSL_shutdown(sslResume);
-        if (shutdown && ret == SSL_SHUTDOWN_NOT_DONE)
+        if (wc_shutdown && ret == SSL_SHUTDOWN_NOT_DONE)
             wolfSSL_shutdown(sslResume);    /* bidirectional shutdown */
 
         wolfSSL_free(sslResume);
