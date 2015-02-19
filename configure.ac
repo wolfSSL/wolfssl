@@ -630,6 +630,22 @@ then
 fi
 
 
+# ECC25519
+AC_ARG_ENABLE([ecc25519],
+    [  --enable-ecc25519            Enable ECC25519 (default: disabled)],
+    [ ENABLED_ECC25519=$enableval ],
+    [ ENABLED_ECC25519=no ]
+    )
+
+if test "$ENABLED_ECC25519" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_ECC25519"
+fi
+
+
+AM_CONDITIONAL([BUILD_ECC25519], [test "x$ENABLED_ECC25519" = "xyes"])
+
+
 # FP ECC, Fixed Point cache ECC 
 AC_ARG_ENABLE([fpecc],
     [  --enable-fpecc          Enable Fixed Point cache ECC (default: disabled)],
