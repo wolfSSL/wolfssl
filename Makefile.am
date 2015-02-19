@@ -86,13 +86,13 @@ include mqx/cyassl/include.am
 #include mqx/cyassl_client/Sources/include.am
 include mqx/util_lib/Sources/include.am
 include mplabx/include.am
-include mplabx/ctaocrypt_benchmark.X/nbproject/include.am
-include mplabx/ctaocrypt_test.X/nbproject/include.am
-include mplabx/cyassl.X/nbproject/include.am
+include mplabx/wolfcrypt_benchmark.X/nbproject/include.am
+include mplabx/wolfcrypt_test.X/nbproject/include.am
+include mplabx/wolfssl.X/nbproject/include.am
 include mcapi/include.am
-include mcapi/ctaocrypt_mcapi.X/nbproject/include.am
-include mcapi/ctaocrypt_test.X/nbproject/include.am
-include mcapi/cyassl.X/nbproject/include.am
+include mcapi/wolfcrypt_mcapi.X/nbproject/include.am
+include mcapi/wolfcrypt_test.X/nbproject/include.am
+include mcapi/wolfssl.X/nbproject/include.am
 include mcapi/zlib.X/nbproject/include.am
 include tirtos/include.am
 
