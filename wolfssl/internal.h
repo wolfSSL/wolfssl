@@ -512,7 +512,8 @@ typedef byte word24[3];
     #endif /* end of ChaCha - Poly AEAD suites */
 #endif
 
-#if defined(BUILD_AESGCM) || defined(HAVE_AESCCM) || defined(HAVE_CHACHA)
+#if defined(BUILD_AESGCM) || defined(HAVE_AESCCM) || \
+                             (defined(HAVE_CHACHA) && defined(HAVE_POLY1305))
     #define HAVE_AEAD
 #endif
 

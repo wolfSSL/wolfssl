@@ -5302,7 +5302,7 @@ static INLINE void AeadIncrementExpIV(WOLFSSL* ssl)
 }
 
 
-#ifdef HAVE_POLY1305
+#if defined(HAVE_POLY1305) && defined(HAVE_CHACHA)
 /*more recent rfc's concatonate input for poly1305 differently*/
 static int Poly1305Tag(WOLFSSL* ssl, byte* additional, const byte* out,
                        byte* cipher, word16 sz, byte* tag)
@@ -5416,10 +5416,8 @@ static int Poly1305TagOld(WOLFSSL* ssl, byte* additional, const byte* out,
 
     return ret;
 }
-#endif /*HAVE_POLY1305*/
 
 
-#ifdef HAVE_CHACHA
 static int  ChachaAEADEncrypt(WOLFSSL* ssl, byte* out, const byte* input,
                               word16 sz)
 {
@@ -5484,19 +5482,17 @@ static int  ChachaAEADEncrypt(WOLFSSL* ssl, byte* out, const byte* input,
 	               sz - ssl->specs.aead_mac_size)) != 0)
 	    return ret;
 	
-	#ifdef HAVE_POLY1305
-		/* get the tag : future use of hmac could go here*/
-		if (ssl->options.oldPoly == 1) {
-		    if ((ret = Poly1305TagOld(ssl, additional, (const byte* )out,
-		                cipher, sz, tag)) != 0)
-		        return ret;
-		}
-		else {
-		    if ((ret = Poly1305Tag(ssl, additional, (const byte* )out,
-		                cipher, sz, tag)) != 0)
-		        return ret;
-		}
-	#endif
+	/* get the tag : future use of hmac could go here*/
+	if (ssl->options.oldPoly == 1) {
+	    if ((ret = Poly1305TagOld(ssl, additional, (const byte* )out,
+	                cipher, sz, tag)) != 0)
+	        return ret;
+	}
+	else {
+	    if ((ret = Poly1305Tag(ssl, additional, (const byte* )out,
+	                cipher, sz, tag)) != 0)
+	        return ret;
+	}
 	
 	/* append tag to ciphertext */
 	XMEMCPY(out + sz - ssl->specs.aead_mac_size, tag, sizeof(tag));
@@ -5583,19 +5579,17 @@ static int ChachaAEADDecrypt(WOLFSSL* ssl, byte* plain, const byte* input,
 	                cipher, sizeof(cipher))) != 0)
 	    return ret;
 	
-	#ifdef HAVE_POLY1305
-		/* get the tag : future use of hmac could go here*/
-		if (ssl->options.oldPoly == 1) {
-		    if ((ret = Poly1305TagOld(ssl, additional, input, cipher,
-		                    sz, tag)) != 0)
-		        return ret;
-		}
-		else {
-		    if ((ret = Poly1305Tag(ssl, additional, input, cipher,
-		                    sz, tag)) != 0)
-		        return ret;
-		}
-	#endif
+	/* get the tag : future use of hmac could go here*/
+	if (ssl->options.oldPoly == 1) {
+	    if ((ret = Poly1305TagOld(ssl, additional, input, cipher,
+	                    sz, tag)) != 0)
+	        return ret;
+	}
+	else {
+	    if ((ret = Poly1305Tag(ssl, additional, input, cipher,
+	                    sz, tag)) != 0)
+	        return ret;
+	}
 	
 	/* check mac sent along with packet */
 	ret = 0;
@@ -5628,8 +5622,8 @@ static int ChachaAEADDecrypt(WOLFSSL* ssl, byte* plain, const byte* input,
 	
 	return ret;
 }
-#endif /* HAVE_CHACHA */
-#endif
+#endif /* HAVE_CHACHA && HAVE_POLY1305 */
+#endif /* HAVE_AEAD */
 
 
 static INLINE int Encrypt(WOLFSSL* ssl, byte* out, const byte* input, word16 sz)
@@ -5772,7 +5766,7 @@ static INLINE int Encrypt(WOLFSSL* ssl, byte* out, const byte* input, word16 sz)
                 return wc_RabbitProcess(ssl->encrypt.rabbit, out, input, sz);
         #endif
 
-        #ifdef HAVE_CHACHA
+        #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
             case wolfssl_chacha:
                 return ChachaAEADEncrypt(ssl, out, input, sz);
         #endif
@@ -5922,7 +5916,7 @@ static INLINE int Decrypt(WOLFSSL* ssl, byte* plain, const byte* input,
                 return wc_RabbitProcess(ssl->decrypt.rabbit, plain, input, sz);
         #endif
 
-        #ifdef HAVE_CHACHA
+        #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
             case wolfssl_chacha:
                 return ChachaAEADDecrypt(ssl, plain, input, sz);
         #endif

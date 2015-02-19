@@ -1870,7 +1870,7 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
 #endif
 
     
-#ifdef HAVE_CHACHA
+#if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
     if (specs->bulk_cipher_algorithm == wolfssl_chacha) {
         int chachaRet;
         if (enc && enc->chacha == NULL)
