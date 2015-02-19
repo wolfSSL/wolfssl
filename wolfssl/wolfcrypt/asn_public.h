@@ -24,8 +24,10 @@
 #define WOLF_CRYPT_ASN_PUBLIC_H
 
 #include <wolfssl/wolfcrypt/types.h>
-#include <wolfssl/wolfcrypt/ecc.h>
-#ifdef WOLFSSL_CERT_GEN
+#ifdef HAVE_ECC
+    #include <wolfssl/wolfcrypt/ecc.h>
+#endif
+#if defined(WOLFSSL_CERT_GEN) && !defined(NO_RSA)
     #include <wolfssl/wolfcrypt/rsa.h>
 #endif
 

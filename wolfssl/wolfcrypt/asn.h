@@ -25,17 +25,27 @@
 #define WOLF_CRYPT_ASN_H
 
 #include <wolfssl/wolfcrypt/types.h>
-#include <wolfssl/wolfcrypt/rsa.h>
+#ifndef NO_RSA
+    #include <wolfssl/wolfcrypt/rsa.h>
+#endif
 
 /* fips declare of RsaPrivateKeyDecode @wc_fips */
-#ifdef HAVE_FIPS
+#if defined(HAVE_FIPS) && !defined(NO_RSA)
     #include <cyassl/ctaocrypt/rsa.h>
 #endif
 
-#include <wolfssl/wolfcrypt/dh.h>
-#include <wolfssl/wolfcrypt/dsa.h>
-#include <wolfssl/wolfcrypt/sha.h>
-#include <wolfssl/wolfcrypt/md5.h>
+#ifndef NO_DH
+    #include <wolfssl/wolfcrypt/dh.h>
+#endif
+#ifndef NO_DSA
+    #include <wolfssl/wolfcrypt/dsa.h>
+#endif
+#ifndef NO_SHA
+    #include <wolfssl/wolfcrypt/sha.h>
+#endif
+#ifndef NO_MD5
+    #include <wolfssl/wolfcrypt/md5.h>
+#endif
 #include <wolfssl/wolfcrypt/asn_public.h>   /* public interface */
 #ifdef HAVE_ECC
     #include <wolfssl/wolfcrypt/ecc.h>

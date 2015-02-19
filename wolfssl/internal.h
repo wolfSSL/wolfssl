@@ -26,20 +26,44 @@
 
 #include <wolfssl/wolfcrypt/types.h>
 #include <wolfssl/ssl.h>
-#include <wolfssl/crl.h>
+#ifdef HAVE_CRL
+    #include <wolfssl/crl.h>
+#endif
 #include <wolfssl/wolfcrypt/random.h>
-#include <wolfssl/wolfcrypt/des3.h>
-#include <wolfssl/wolfcrypt/hc128.h>
-#include <wolfssl/wolfcrypt/rabbit.h>
-#include <wolfssl/wolfcrypt/chacha.h>
-#include <wolfssl/wolfcrypt/asn.h>
-#include <wolfssl/wolfcrypt/md5.h>
-#include <wolfssl/wolfcrypt/sha.h>
-#include <wolfssl/wolfcrypt/aes.h>
-#include <wolfssl/wolfcrypt/poly1305.h>
-#include <wolfssl/wolfcrypt/camellia.h>
+#ifndef NO_DES3
+    #include <wolfssl/wolfcrypt/des3.h>
+#endif
+#ifndef NO_HC128
+    #include <wolfssl/wolfcrypt/hc128.h>
+#endif
+#ifndef NO_RABBIT
+    #include <wolfssl/wolfcrypt/rabbit.h>
+#endif
+#ifdef HAVE_CHACHA
+    #include <wolfssl/wolfcrypt/chacha.h>
+#endif
+#ifndef NO_ASN
+    #include <wolfssl/wolfcrypt/asn.h>
+#endif
+#ifndef NO_MD5
+    #include <wolfssl/wolfcrypt/md5.h>
+#endif
+#ifndef NO_SHA
+    #include <wolfssl/wolfcrypt/sha.h>
+#endif
+#ifndef NO_AES
+    #include <wolfssl/wolfcrypt/aes.h>
+#endif
+#ifdef HAVE_POLY1305
+    #include <wolfssl/wolfcrypt/poly1305.h>
+#endif
+#ifdef HAVE_CAMELLIA
+    #include <wolfssl/wolfcrypt/camellia.h>
+#endif
 #include <wolfssl/wolfcrypt/logging.h>
-#include <wolfssl/wolfcrypt/hmac.h>
+#ifndef NO_HMAC
+    #include <wolfssl/wolfcrypt/hmac.h>
+#endif
 #ifndef NO_RC4
     #include <wolfssl/wolfcrypt/arc4.h>
 #endif
@@ -69,7 +93,7 @@
     #include <signal.h>
 #endif
 
-#ifdef USE_WINDOWS_API 
+#ifdef USE_WINDOWS_API
     #ifdef WOLFSSL_GAME_BUILD
         #include "system/xtl.h"
     #else
@@ -144,7 +168,7 @@
 #endif
 
 
-#ifdef USE_WINDOWS_API 
+#ifdef USE_WINDOWS_API
     typedef unsigned int SOCKET_T;
 #else
     typedef int SOCKET_T;

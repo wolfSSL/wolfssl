@@ -26,10 +26,14 @@
 #define WOLF_CRYPT_PKCS7_H
 
 #include <wolfssl/wolfcrypt/types.h>
-#include <wolfssl/wolfcrypt/asn.h>
+#ifndef NO_ASN
+    #include <wolfssl/wolfcrypt/asn.h>
+#endif
 #include <wolfssl/wolfcrypt/asn_public.h>
 #include <wolfssl/wolfcrypt/random.h>
-#include <wolfssl/wolfcrypt/des3.h>
+#ifndef NO_DES3
+    #include <wolfssl/wolfcrypt/des3.h>
+#endif
 
 #ifdef __cplusplus
     extern "C" {
