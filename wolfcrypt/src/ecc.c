@@ -38,6 +38,11 @@
     #include <wolfssl/wolfcrypt/aes.h>
 #endif
 
+#ifdef NO_INLINE
+    #include <wolfssl/wolfcrypt/misc.h>
+#else
+    #include <wolfcrypt/src/misc.c>
+#endif
 
 /* map
 
@@ -1614,10 +1619,7 @@ int wc_ecc_make_key_ex(RNG* rng, ecc_key* key, const ecc_set_type* dp)
    mp_clear(&prime);
    mp_clear(&order);
 
-#ifdef ECC_CLEAN_STACK
-   XMEMSET(buf, 0, ECC_MAXSIZE);
-#endif
-
+   ForceZero(buf, ECC_MAXSIZE);
 #ifdef WOLFSSL_SMALL_STACK
    XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
@@ -2002,10 +2004,8 @@ static int ecc_mul2add(ecc_point* A, mp_int* kA,
        ecc_del_point(precomp[x]);
     }
   }
-#ifdef ECC_CLEAN_STACK
-   XMEMSET(tA, 0, ECC_BUFSIZE);
-   XMEMSET(tB, 0, ECC_BUFSIZE);
-#endif
+   ForceZero(tA, ECC_BUFSIZE);
+   ForceZero(tB, ECC_BUFSIZE);
    XFREE(tA, NULL, DYNAMIC_TYPE_TMP_BUFFER);
    XFREE(tB, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 

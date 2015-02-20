@@ -125,6 +125,11 @@ int wc_RsaFlattenPublicKey(RsaKey* key, byte* a, word32* aSz, byte* b,
 #include <wolfssl/wolfcrypt/random.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/logging.h>
+#ifdef NO_INLINE
+    #include <wolfssl/wolfcrypt/misc.h>
+#else
+    #include <wolfcrypt/src/misc.c>
+#endif
 
 #ifdef SHOW_GEN
     #ifdef FREESCALE_MQX
@@ -467,9 +472,10 @@ int wc_RsaPrivateDecrypt(const byte* in, word32 inLen, byte* out, word32 outLen,
         plainLen = BAD_FUNC_ARG;
     else
         XMEMCPY(out, pad, plainLen);
-    XMEMSET(tmp, 0x00, inLen); 
 
+    ForceZero(tmp, inLen);
     XFREE(tmp, key->heap, DYNAMIC_TYPE_RSA);
+
     return plainLen;
 }
 
@@ -523,11 +529,12 @@ int wc_RsaSSL_Verify(const byte* in, word32 inLen, byte* out, word32 outLen,
 
     if (plainLen > (int)outLen)
         plainLen = BAD_FUNC_ARG;
-    else 
+    else
         XMEMCPY(out, pad, plainLen);
-    XMEMSET(tmp, 0x00, inLen); 
 
+    ForceZero(tmp, inLen);
     XFREE(tmp, key->heap, DYNAMIC_TYPE_RSA);
+
     return plainLen;
 }
 
@@ -660,11 +667,9 @@ static int rand_prime(mp_int* N, int len, RNG* rng, void* heap)
         }
     } while (res == MP_NO);
 
-#ifdef LTC_CLEAN_STACK
-    XMEMSET(buf, 0, len);
-#endif
-
+    ForceZero(buf, len);
     XFREE(buf, heap, DYNAMIC_TYPE_RSA);
+
     return 0;
 }
 

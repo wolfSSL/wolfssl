@@ -48,6 +48,9 @@ void XorWords(wolfssl_word*, const wolfssl_word*, word32);
 WOLFSSL_LOCAL
 void xorbuf(void*, const void*, word32);
 
+WOLFSSL_LOCAL
+void ForceZero(const void*, word32);
+
 #ifdef WORD64_AVAILABLE
 WOLFSSL_LOCAL
 word64 rotlFixed64(word64, word64);

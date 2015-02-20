@@ -45,6 +45,11 @@
 #include <wolfssl/error-ssl.h>
 #include <wolfssl/sniffer.h>
 #include <wolfssl/sniffer_error.h>
+#ifdef NO_INLINE
+    #include <wolfssl/wolfcrypt/misc.h>
+#else
+    #include <wolfcrypt/src/misc.c>
+#endif
 
 
 #ifndef min
@@ -365,7 +370,7 @@ static void FreeNamedKey(NamedKey* in)
 {
     if (in) {
         if (in->key) {
-            XMEMSET(in->key, 0, in->keySz);
+            ForceZero(in->key, in->keySz);
             free(in->key);
         }
         free(in);

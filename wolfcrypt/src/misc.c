@@ -169,5 +169,14 @@ STATIC INLINE void xorbuf(void* buf, const void* mask, word32 count)
         for (i = 0; i < count; i++) b[i] ^= m[i];
     }
 }
-#undef STATIC
 
+
+/* Make sure compiler doesn't skip */
+STATIC INLINE void ForceZero(const void* mem, word32 len)
+{
+    volatile byte* z = (volatile byte*)mem;
+
+    while (len--) *z++ = 0;
+}
+
+#undef STATIC

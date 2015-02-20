@@ -30,6 +30,11 @@
 #include <wolfssl/internal.h>
 #include <wolfssl/error-ssl.h>
 #include <wolfssl/wolfcrypt/hmac.h>
+#ifdef NO_INLINE
+    #include <wolfssl/wolfcrypt/misc.h>
+#else
+    #include <wolfcrypt/src/misc.c>
+#endif
 
 
 
@@ -158,9 +163,9 @@ static int p_hash(byte* result, word32 resLen, const byte* secret,
         }
     }
 
-    XMEMSET(previous, 0, P_HASH_MAX_SIZE);
-    XMEMSET(current,  0, P_HASH_MAX_SIZE);
-    XMEMSET(hmac,     0, sizeof(Hmac));
+    ForceZero(previous,  P_HASH_MAX_SIZE);
+    ForceZero(current,   P_HASH_MAX_SIZE);
+    ForceZero(hmac,      sizeof(Hmac));
 
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(previous, NULL, DYNAMIC_TYPE_TMP_BUFFER);

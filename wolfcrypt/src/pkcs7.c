@@ -30,6 +30,11 @@
 #include <wolfssl/wolfcrypt/pkcs7.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/logging.h>
+#ifdef NO_INLINE
+    #include <wolfssl/wolfcrypt/misc.h>
+#else
+    #include <wolfcrypt/src/misc.c>
+#endif
 
 #ifndef min
     static INLINE word32 min(word32 a, word32 b)
@@ -1254,7 +1259,7 @@ int wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
                                   contentKeyEnc, &contentKeyEncSz, recip,
                                   MAX_RECIP_SZ);
                                                                       
-    XMEMSET(contentKeyEnc,   0, MAX_ENCRYPTED_KEY_SZ);
+    ForceZero(contentKeyEnc, MAX_ENCRYPTED_KEY_SZ);
     
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(contentKeyEnc, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -1446,7 +1451,7 @@ int wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
     wc_FreeRng(&rng);
 #endif
 
-    XMEMSET(contentKeyPlain, 0, MAX_CONTENT_KEY_LEN);
+    ForceZero(contentKeyPlain, MAX_CONTENT_KEY_LEN);
 
     if (dynamicFlag)
         XFREE(plain, NULL, DYNAMMIC_TYPE_TMP_BUFFER);
@@ -1825,8 +1830,8 @@ WOLFSSL_API int wc_PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* pkiMsg,
     XMEMCPY(output, encryptedContent, encryptedContentSz - padLen);
 
     /* free memory, zero out keys */
-    XMEMSET(encryptedKey, 0, MAX_ENCRYPTED_KEY_SZ);
-    XMEMSET(encryptedContent, 0, encryptedContentSz);
+    ForceZero(encryptedKey, MAX_ENCRYPTED_KEY_SZ);
+    ForceZero(encryptedContent, encryptedContentSz);
     XFREE(encryptedContent, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(encryptedKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);

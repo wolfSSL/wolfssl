@@ -29,6 +29,11 @@
 #include <wolfssl/internal.h>
 #include <wolfssl/error-ssl.h>
 #include <wolfssl/wolfcrypt/asn.h>
+#ifdef NO_INLINE
+    #include <wolfssl/wolfcrypt/misc.h>
+#else
+    #include <wolfcrypt/src/misc.c>
+#endif
 
 #ifdef HAVE_LIBZ
     #include "zlib.h"
@@ -5498,7 +5503,7 @@ static int  ChachaAEADEncrypt(WOLFSSL* ssl, byte* out, const byte* input,
 	XMEMCPY(out + sz - ssl->specs.aead_mac_size, tag, sizeof(tag));
 	
 	AeadIncrementExpIV(ssl);
-	XMEMSET(nonce, 0, AEAD_NONCE_SZ);
+	ForceZero(nonce, AEAD_NONCE_SZ);
 	
 	#ifdef CHACHA_AEAD_TEST
 	   printf("mac tag :\n");
@@ -5601,7 +5606,7 @@ static int ChachaAEADDecrypt(WOLFSSL* ssl, byte* plain, const byte* input,
 	if (ret == 1) {
 	    WOLFSSL_MSG("Mac did not match");
 	    SendAlert(ssl, alert_fatal, bad_record_mac);
-	    XMEMSET(nonce, 0, AEAD_NONCE_SZ);
+	    ForceZero(nonce, AEAD_NONCE_SZ);
 	    return VERIFY_MAC_ERROR;
 	}
 	
@@ -5700,7 +5705,7 @@ static INLINE int Encrypt(WOLFSSL* ssl, byte* out, const byte* input, word16 sz)
                                  additional, AEAD_AUTH_DATA_SZ);
                     if (gcmRet == 0)
                         AeadIncrementExpIV(ssl);
-                    XMEMSET(nonce, 0, AEAD_NONCE_SZ);
+                    ForceZero(nonce, AEAD_NONCE_SZ);
                     return gcmRet;
                 }
                 break;
@@ -5745,7 +5750,7 @@ static INLINE int Encrypt(WOLFSSL* ssl, byte* out, const byte* input, word16 sz)
                         ssl->specs.aead_mac_size,
                         additional, AEAD_AUTH_DATA_SZ);
                     AeadIncrementExpIV(ssl);
-                    XMEMSET(nonce, 0, AEAD_NONCE_SZ);
+                    ForceZero(nonce, AEAD_NONCE_SZ);
                 }
                 break;
         #endif
@@ -5851,10 +5856,10 @@ static INLINE int Decrypt(WOLFSSL* ssl, byte* plain, const byte* input,
                             ssl->specs.aead_mac_size,
                             additional, AEAD_AUTH_DATA_SZ) < 0) {
                     SendAlert(ssl, alert_fatal, bad_record_mac);
-                    XMEMSET(nonce, 0, AEAD_NONCE_SZ);
+                    ForceZero(nonce, AEAD_NONCE_SZ);
                     return VERIFY_MAC_ERROR;
                 }
-                XMEMSET(nonce, 0, AEAD_NONCE_SZ);
+                ForceZero(nonce, AEAD_NONCE_SZ);
             }
             break;
         #endif
@@ -5892,10 +5897,10 @@ static INLINE int Decrypt(WOLFSSL* ssl, byte* plain, const byte* input,
                             ssl->specs.aead_mac_size,
                             additional, AEAD_AUTH_DATA_SZ) < 0) {
                     SendAlert(ssl, alert_fatal, bad_record_mac);
-                    XMEMSET(nonce, 0, AEAD_NONCE_SZ);
+                    ForceZero(nonce, AEAD_NONCE_SZ);
                     return VERIFY_MAC_ERROR;
                 }
-                XMEMSET(nonce, 0, AEAD_NONCE_SZ);
+                ForceZero(nonce, AEAD_NONCE_SZ);
             }
             break;
         #endif
@@ -6141,20 +6146,13 @@ static INLINE void CompressRounds(WOLFSSL* ssl, int rounds, const byte* dummy)
 static int ConstantCompare(const byte* a, const byte* b, int length)
 {
     int i;
-    int good = 0;
-    int bad  = 0;
+    int compareSum = 0;
 
     for (i = 0; i < length; i++) {
-        if (a[i] == b[i])
-            good++;
-        else
-            bad++;
+        compareSum |= a[i] ^ b[i];
     }
 
-    if (good == length)
-        return 0;
-    else
-        return 0 - bad;  /* compare failed */
+    return compareSum;
 }
 
 
@@ -10527,7 +10525,7 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
                     pms += 2;
                     XMEMCPY(pms, ssl->arrays->psk_key, ssl->arrays->psk_keySz);
                     ssl->arrays->preMasterSz = ssl->arrays->psk_keySz * 2 + 4;
-                    XMEMSET(ssl->arrays->psk_key, 0, ssl->arrays->psk_keySz);
+                    ForceZero(ssl->arrays->psk_key, ssl->arrays->psk_keySz);
                     ssl->arrays->psk_keySz = 0; /* No further need */
                 }
                 break;
@@ -10626,7 +10624,7 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
                     XMEMCPY(pms, ssl->arrays->psk_key, ssl->arrays->psk_keySz);
                     ssl->arrays->preMasterSz +=
                                           ssl->arrays->psk_keySz + OPAQUE16_LEN;
-                    XMEMSET(ssl->arrays->psk_key, 0, ssl->arrays->psk_keySz);
+                    ForceZero(ssl->arrays->psk_key, ssl->arrays->psk_keySz);
                     ssl->arrays->psk_keySz = 0; /* No further need */
                 }
                 break;
@@ -10875,7 +10873,7 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
             ssl->options.clientState = CLIENT_KEYEXCHANGE_COMPLETE;
         }
         /* No further need for PMS */
-        XMEMSET(ssl->arrays->preMasterSecret, 0, ssl->arrays->preMasterSz);
+        ForceZero(ssl->arrays->preMasterSecret, ssl->arrays->preMasterSz);
         ssl->arrays->preMasterSz = 0;
 
         return ret;
@@ -13512,7 +13510,7 @@ int DoSessionTicket(WOLFSSL* ssl,
                 ret = MakeMasterSecret(ssl);
 
                 /* No further need for PSK */
-                XMEMSET(ssl->arrays->psk_key, 0, ssl->arrays->psk_keySz);
+                ForceZero(ssl->arrays->psk_key, ssl->arrays->psk_keySz);
                 ssl->arrays->psk_keySz = 0;
             }
             break;
@@ -13720,7 +13718,7 @@ int DoSessionTicket(WOLFSSL* ssl,
                     ret = MakeMasterSecret(ssl);
 
                 /* No further need for PSK */
-                XMEMSET(ssl->arrays->psk_key, 0, ssl->arrays->psk_keySz);
+                ForceZero(ssl->arrays->psk_key, ssl->arrays->psk_keySz);
                 ssl->arrays->psk_keySz = 0;
             }
             break;
@@ -13734,7 +13732,7 @@ int DoSessionTicket(WOLFSSL* ssl,
         }
 
         /* No further need for PMS */
-        XMEMSET(ssl->arrays->preMasterSecret, 0, ssl->arrays->preMasterSz);
+        ForceZero(ssl->arrays->preMasterSecret, ssl->arrays->preMasterSz);
         ssl->arrays->preMasterSz = 0;
 
         if (ret == 0) {

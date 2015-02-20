@@ -3652,8 +3652,8 @@ void wc_AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
         XMEMCPY(out, A, inSz);
     }
 
-    XMEMSET(A, 0, AES_BLOCK_SIZE);
-    XMEMSET(B, 0, AES_BLOCK_SIZE);
+    ForceZero(A, AES_BLOCK_SIZE);
+    ForceZero(B, AES_BLOCK_SIZE);
 }
 
 
@@ -3752,8 +3752,8 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
         result = AES_CCM_AUTH_E;
     }
 
-    XMEMSET(A, 0, AES_BLOCK_SIZE);
-    XMEMSET(B, 0, AES_BLOCK_SIZE);
+    ForceZero(A, AES_BLOCK_SIZE);
+    ForceZero(B, AES_BLOCK_SIZE);
     o = NULL;
 
     return result;

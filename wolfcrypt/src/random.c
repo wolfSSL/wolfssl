@@ -227,7 +227,7 @@ static int Hash_DRBG_Reseed(DRBG* drbg, const byte* entropy, word32 entropySz)
     }
 
     XMEMCPY(drbg->V, seed, sizeof(drbg->V));
-    XMEMSET(seed, 0, sizeof(seed));
+    ForceZero(seed, sizeof(seed));
 
     if (Hash_df(drbg, drbg->C, sizeof(drbg->C), drbgInitC, drbg->V,
                                     sizeof(drbg->V), NULL, 0) != DRBG_SUCCESS) {
@@ -304,7 +304,7 @@ static int Hash_gen(DRBG* drbg, byte* out, word32 outSz, const byte* V)
             outSz = 0;
         }
     }
-    XMEMSET(data, 0, sizeof(data));
+    ForceZero(data, sizeof(data));
 
     return DRBG_SUCCESS;
 }
@@ -396,7 +396,7 @@ static int Hash_DRBG_Instantiate(DRBG* drbg, const byte* seed, word32 seedSz,
 /* Returns: DRBG_SUCCESS */
 static int Hash_DRBG_Uninstantiate(DRBG* drbg)
 {
-    XMEMSET(drbg, 0, sizeof(DRBG));
+    ForceZero(drbg, sizeof(DRBG));
 
     return DRBG_SUCCESS;
 }
@@ -428,7 +428,7 @@ int wc_InitRng(RNG* rng)
         else
             ret = DRBG_FAILURE;
 
-        XMEMSET(entropy, 0, ENTROPY_NONCE_SZ);
+        ForceZero(entropy, ENTROPY_NONCE_SZ);
 
         if (ret == DRBG_SUCCESS) {
             rng->status = DRBG_OK;
@@ -477,7 +477,7 @@ int wc_RNG_GenerateBlock(RNG* rng, byte* output, word32 sz)
         else
             ret = DRBG_FAILURE;
 
-        XMEMSET(entropy, 0, ENTROPY_SZ);
+        ForceZero(entropy, ENTROPY_SZ);
     }
 
     if (ret == DRBG_SUCCESS) {

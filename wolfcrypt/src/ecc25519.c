@@ -32,6 +32,11 @@
 
 #include <wolfssl/wolfcrypt/ecc25519.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
+#ifdef NO_INLINE
+    #include <wolfssl/wolfcrypt/misc.h>
+#else
+    #include <wolfcrypt/src/misc.c>
+#endif
 
 #define MONTGOMERY_X_LE 65
 
@@ -126,7 +131,7 @@ int wc_ecc25519_make_key(RNG* rng, int keysize, ecc25519_key* key)
       key->k.point[keysize - i - 1] = n[i];
   }
 
-  XMEMSET(n, 0, keysize);
+  ForceZero(n, keysize);
 
   return err;
 }
@@ -167,8 +172,8 @@ int wc_ecc25519_shared_secret(ecc25519_key* private_key, ecc25519_key* public_ke
     err     = curve25519(out , k, p);
     *outlen = ECC25519_KEYSIZE;
 
-    XMEMSET(p, 0, sizeof(p));
-    XMEMSET(k, 0, sizeof(k));
+    ForceZero(p, sizeof(p));
+    ForceZero(k, sizeof(k));
 
     return err;
 }
@@ -301,8 +306,8 @@ void wc_ecc25519_free(ecc25519_key* key)
        return;
 
    key->dp = NULL;
-   XMEMSET(key->p.point, 0, sizeof(key->p.point));
-   XMEMSET(key->k.point, 0, sizeof(key->k.point));
+   ForceZero(key->p.point, sizeof(key->p.point));
+   ForceZero(key->k.point, sizeof(key->k.point));
 }
 
 

@@ -241,8 +241,8 @@ static int Transform(Sha512* sha512)
     sha512->digest[7] += h(0);
 
     /* Wipe variables */
-    XMEMSET(W, 0, sizeof(word64) * 16);
-    XMEMSET(T, 0, sizeof(T));
+    ForceZero(W, sizeof(word64) * 16);
+    ForceZero(T, sizeof(T));
 
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(W, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -448,8 +448,8 @@ static int Transform384(Sha384* sha384)
     sha384->digest[7] += h(0);
 
     /* Wipe variables */
-    XMEMSET(W, 0, sizeof(word64) * 16);
-    XMEMSET(T, 0, sizeof(T));
+    ForceZero(W, sizeof(word64) * 16);
+    ForceZero(T, sizeof(T));
 
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(W, NULL, DYNAMIC_TYPE_TMP_BUFFER);
