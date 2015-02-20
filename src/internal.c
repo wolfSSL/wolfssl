@@ -9501,7 +9501,7 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
 #endif
 
         /* protocol version, random and session id length check */
-        if ((i - begin) + OPAQUE16_LEN + RAN_LEN + OPAQUE8_LEN > helloSz)
+        if (OPAQUE16_LEN + RAN_LEN + OPAQUE8_LEN > helloSz)
             return BUFFER_ERROR;
 
         /* protocol version */
@@ -11069,35 +11069,46 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
                 #endif /*HAVE_PK_CALLBACKS */
 
                 if (IsAtLeastTLSv1_2(ssl)) {
-#ifndef NO_OLD_TLS
-                    byte* digest = ssl->certHashes.sha;
-                    int   digestSz = SHA_DIGEST_SIZE;
-                    int   typeH = SHAh;
-#else
-                    byte* digest = ssl->certHashes.sha256;
-                    int   digestSz = SHA256_DIGEST_SIZE;
-                    int   typeH = SHA256h;
-#endif
+                    byte* digest;
+                    int   digestSz;
+                    int   typeH;
+                    int   didSet = 0;
 
                     if (ssl->suites->hashAlgo == sha_mac) {
                         #ifndef NO_SHA
-                            digest = ssl->certHashes.sha;
+                            digest   = ssl->certHashes.sha;
                             typeH    = SHAh;
                             digestSz = SHA_DIGEST_SIZE;
+                            didSet   = 1;
                         #endif
                     }
                     else if (ssl->suites->hashAlgo == sha256_mac) {
                         #ifndef NO_SHA256
-                            digest = ssl->certHashes.sha256;
+                            digest   = ssl->certHashes.sha256;
                             typeH    = SHA256h;
                             digestSz = SHA256_DIGEST_SIZE;
+                            didSet   = 1;
                         #endif
                     }
                     else if (ssl->suites->hashAlgo == sha384_mac) {
                         #ifdef WOLFSSL_SHA384
-                            digest = ssl->certHashes.sha384;
+                            digest   = ssl->certHashes.sha384;
                             typeH    = SHA384h;
                             digestSz = SHA384_DIGEST_SIZE;
+                            didSet   = 1;
+                        #endif
+                    }
+
+                    if (didSet == 0) {
+                        /* defaults */
+                        #ifndef NO_OLD_TLS
+                            digest = ssl->certHashes.sha;
+                            digestSz = SHA_DIGEST_SIZE;
+                            typeH = SHAh;
+                        #else
+                            digest = ssl->certHashes.sha256;
+                            digestSz = SHA256_DIGEST_SIZE;
+                            typeH = SHA256h;
                         #endif
                     }
 
