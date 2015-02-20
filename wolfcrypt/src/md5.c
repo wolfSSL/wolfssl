@@ -29,9 +29,9 @@
 #if !defined(NO_MD5)
 
 #ifdef WOLFSSL_PIC32MZ_HASH
-#define wc_InitMd5   InitMd5_sw
-#define wc_Md5Update Md5Update_sw
-#define wc_Md5Final  Md5Final_sw
+#define wc_InitMd5   wc_InitMd5_sw
+#define wc_Md5Update wc_Md5Update_sw
+#define wc_Md5Final  wc_Md5Final_sw
 #endif
 
 #include <wolfssl/wolfcrypt/md5.h>

@@ -27,24 +27,24 @@
 /* mc api header */
 #include "crypto.h"
 
-#include <cyassl/ctaocrypt/settings.h>
+#include <wolfssl/wolfcrypt/settings.h>
 
-/* sanity test against our default implementation, cyassl headers  */
-#include <cyassl/ctaocrypt/md5.h>
-#include <cyassl/ctaocrypt/sha.h>
-#include <cyassl/ctaocrypt/sha256.h>
-#include <cyassl/ctaocrypt/sha512.h>
-#include <cyassl/ctaocrypt/hmac.h>
-#include <cyassl/ctaocrypt/compress.h>
-#include <cyassl/ctaocrypt/random.h>
-#include <cyassl/ctaocrypt/des3.h>
-#include <cyassl/ctaocrypt/aes.h>
-#include <cyassl/ctaocrypt/ecc.h>
-#include <cyassl/ctaocrypt/rsa.h>
+/* sanity test against our default implementation, wolfssl headers  */
+#include <wolfssl/wolfcrypt/md5.h>
+#include <wolfssl/wolfcrypt/sha.h>
+#include <wolfssl/wolfcrypt/sha256.h>
+#include <wolfssl/wolfcrypt/sha512.h>
+#include <wolfssl/wolfcrypt/hmac.h>
+#include <wolfssl/wolfcrypt/compress.h>
+#include <wolfssl/wolfcrypt/random.h>
+#include <wolfssl/wolfcrypt/des3.h>
+#include <wolfssl/wolfcrypt/aes.h>
+#include <wolfssl/wolfcrypt/ecc.h>
+#include <wolfssl/wolfcrypt/rsa.h>
 #define USE_CERT_BUFFERS_1024
-#include <cyassl/certs_test.h>
+#include <wolfssl/certs_test.h>
 
-#if defined(CYASSL_MICROCHIP_PIC32MZ)
+#if defined(WOLFSSL_MICROCHIP_PIC32MZ)
     #define MICROCHIP_PIC32
     #include <xc.h>
     #pragma config ICESEL = ICS_PGx2
@@ -217,13 +217,13 @@ static int check_md5(void)
     byte          defDigest[MD5_DIGEST_SIZE];
 
     CRYPT_MD5_Initialize(&mcMd5);
-    InitMd5(&defMd5);
+    wc_InitMd5(&defMd5);
 
     CRYPT_MD5_DataAdd(&mcMd5, ourData, OUR_DATA_SIZE);
-    Md5Update(&defMd5, ourData, OUR_DATA_SIZE);
+    wc_Md5Update(&defMd5, ourData, OUR_DATA_SIZE);
 
     CRYPT_MD5_Finalize(&mcMd5, mcDigest);
-    Md5Final(&defMd5, defDigest);
+    wc_Md5Final(&defMd5, defDigest);
 
     if (memcmp(mcDigest, defDigest, CRYPT_MD5_DIGEST_SIZE) != 0) {
         printf("md5 final memcmp fialed\n");
@@ -245,17 +245,17 @@ static int check_sha(void)
     byte          defDigest[SHA_DIGEST_SIZE];
 
     CRYPT_SHA_Initialize(&mcSha);
-    ret = InitSha(&defSha);
+    ret = wc_InitSha(&defSha);
     if (ret != 0) {
         printf("sha init default failed\n");
         return -1;
     }
 
     CRYPT_SHA_DataAdd(&mcSha, ourData, OUR_DATA_SIZE);
-    ShaUpdate(&defSha, ourData, OUR_DATA_SIZE);
+    wc_ShaUpdate(&defSha, ourData, OUR_DATA_SIZE);
 
     CRYPT_SHA_Finalize(&mcSha, mcDigest);
-    ShaFinal(&defSha, defDigest);
+    wc_ShaFinal(&defSha, defDigest);
 
     if (memcmp(mcDigest, defDigest, CRYPT_SHA_DIGEST_SIZE) != 0) {
         printf("sha final memcmp failed\n");
@@ -277,21 +277,21 @@ static int check_sha256(void)
     byte             defDigest[SHA256_DIGEST_SIZE];
 
     CRYPT_SHA256_Initialize(&mcSha256);
-    ret = InitSha256(&defSha256);
+    ret = wc_InitSha256(&defSha256);
     if (ret != 0) {
         printf("sha256 init default failed\n");
         return -1;
     }
 
     CRYPT_SHA256_DataAdd(&mcSha256, ourData, OUR_DATA_SIZE);
-    ret = Sha256Update(&defSha256, ourData, OUR_DATA_SIZE);
+    ret = wc_Sha256Update(&defSha256, ourData, OUR_DATA_SIZE);
     if (ret != 0) {
         printf("sha256 update default failed\n");
         return -1;
     }
 
     CRYPT_SHA256_Finalize(&mcSha256, mcDigest);
-    ret = Sha256Final(&defSha256, defDigest);
+    ret = wc_Sha256Final(&defSha256, defDigest);
     if (ret != 0) {
         printf("sha256 final default failed\n");
         return -1;
@@ -317,21 +317,21 @@ static int check_sha384(void)
     byte             defDigest[SHA384_DIGEST_SIZE];
 
     CRYPT_SHA384_Initialize(&mcSha384);
-    ret = InitSha384(&defSha384);
+    ret = wc_InitSha384(&defSha384);
     if (ret != 0) {
         printf("sha384 init default failed\n");
         return -1;
     }
 
     CRYPT_SHA384_DataAdd(&mcSha384, ourData, OUR_DATA_SIZE);
-    ret = Sha384Update(&defSha384, ourData, OUR_DATA_SIZE);
+    ret = wc_Sha384Update(&defSha384, ourData, OUR_DATA_SIZE);
     if (ret != 0) {
         printf("sha384 update default failed\n");
         return -1;
     }
 
     CRYPT_SHA384_Finalize(&mcSha384, mcDigest);
-    ret = Sha384Final(&defSha384, defDigest);
+    ret = wc_Sha384Final(&defSha384, defDigest);
     if (ret != 0) {
         printf("sha384 final default failed\n");
         return -1;
@@ -357,21 +357,21 @@ static int check_sha512(void)
     byte             defDigest[SHA512_DIGEST_SIZE];
 
     CRYPT_SHA512_Initialize(&mcSha512);
-    ret = InitSha512(&defSha512);
+    ret = wc_InitSha512(&defSha512);
     if (ret != 0) {
         printf("sha512 init default failed\n");
         return -1;
     }
 
     CRYPT_SHA512_DataAdd(&mcSha512, ourData, OUR_DATA_SIZE);
-    ret = Sha512Update(&defSha512, ourData, OUR_DATA_SIZE);
+    ret = wc_Sha512Update(&defSha512, ourData, OUR_DATA_SIZE);
     if (ret != 0) {
         printf("sha512 update default failed\n");
         return -1;
     }
 
     CRYPT_SHA512_Finalize(&mcSha512, mcDigest);
-    ret = Sha512Final(&defSha512, defDigest);
+    ret = wc_Sha512Final(&defSha512, defDigest);
     if (ret != 0) {
         printf("sha512 final default failed\n");
         return -1;
@@ -400,21 +400,21 @@ static int check_hmac(void)
 
     /* SHA1 */
     CRYPT_HMAC_SetKey(&mcHmac, CRYPT_HMAC_SHA, key, 4);
-    ret = HmacSetKey(&defHmac, SHA, key, 4);
+    ret = wc_HmacSetKey(&defHmac, SHA, key, 4);
     if (ret != 0) {
         printf("hmac sha setkey default failed\n");
         return -1;
     }
 
     CRYPT_HMAC_DataAdd(&mcHmac, ourData, OUR_DATA_SIZE);
-    ret = HmacUpdate(&defHmac, ourData, OUR_DATA_SIZE);
+    ret = wc_HmacUpdate(&defHmac, ourData, OUR_DATA_SIZE);
     if (ret != 0) {
         printf("hmac sha update default failed\n");
         return -1;
     }
 
     CRYPT_HMAC_Finalize(&mcHmac, mcDigest);
-    ret = HmacFinal(&defHmac, defDigest);
+    ret = wc_HmacFinal(&defHmac, defDigest);
     if (ret != 0) {
         printf("hmac sha final default failed\n");
         return -1;
@@ -428,21 +428,21 @@ static int check_hmac(void)
 
     /* SHA-256 */
     CRYPT_HMAC_SetKey(&mcHmac, CRYPT_HMAC_SHA256, key, 4);
-    ret = HmacSetKey(&defHmac, SHA256, key, 4);
+    ret = wc_HmacSetKey(&defHmac, SHA256, key, 4);
     if (ret != 0) {
         printf("hmac sha256 setkey default failed\n");
         return -1;
     }
 
     CRYPT_HMAC_DataAdd(&mcHmac, ourData, OUR_DATA_SIZE);
-    ret = HmacUpdate(&defHmac, ourData, OUR_DATA_SIZE);
+    ret = wc_HmacUpdate(&defHmac, ourData, OUR_DATA_SIZE);
     if (ret != 0) {
         printf("hmac sha256 update default failed\n");
         return -1;
     }
 
     CRYPT_HMAC_Finalize(&mcHmac, mcDigest);
-    ret = HmacFinal(&defHmac, defDigest);
+    ret = wc_HmacFinal(&defHmac, defDigest);
     if (ret != 0) {
         printf("hmac sha256 final default failed\n");
         return -1;
@@ -456,21 +456,21 @@ static int check_hmac(void)
 
     /* SHA-384 */
     CRYPT_HMAC_SetKey(&mcHmac, CRYPT_HMAC_SHA384, key, 4);
-    ret = HmacSetKey(&defHmac, SHA384, key, 4);
+    ret = wc_HmacSetKey(&defHmac, SHA384, key, 4);
     if (ret != 0) {
         printf("hmac sha384 setkey default failed\n");
         return -1;
     }
 
     CRYPT_HMAC_DataAdd(&mcHmac, ourData, OUR_DATA_SIZE);
-    ret = HmacUpdate(&defHmac, ourData, OUR_DATA_SIZE);
+    ret = wc_HmacUpdate(&defHmac, ourData, OUR_DATA_SIZE);
     if (ret != 0) {
         printf("hmac sha384 update default failed\n");
         return -1;
     }
 
     CRYPT_HMAC_Finalize(&mcHmac, mcDigest);
-    ret = HmacFinal(&defHmac, defDigest);
+    ret = wc_HmacFinal(&defHmac, defDigest);
     if (ret != 0) {
         printf("hmac sha384 final default failed\n");
         return -1;
@@ -484,21 +484,21 @@ static int check_hmac(void)
 
     /* SHA-512 */
     CRYPT_HMAC_SetKey(&mcHmac, CRYPT_HMAC_SHA512, key, 4);
-    ret = HmacSetKey(&defHmac, SHA512, key, 4);
+    ret = wc_HmacSetKey(&defHmac, SHA512, key, 4);
     if (ret != 0) {
         printf("hmac sha512 setkey default failed\n");
         return -1;
     }
 
     CRYPT_HMAC_DataAdd(&mcHmac, ourData, OUR_DATA_SIZE);
-    ret = HmacUpdate(&defHmac, ourData, OUR_DATA_SIZE);
+    ret = wc_HmacUpdate(&defHmac, ourData, OUR_DATA_SIZE);
     if (ret != 0) {
         printf("hmac sha512 update default failed\n");
         return -1;
     }
 
     CRYPT_HMAC_Finalize(&mcHmac, mcDigest);
-    ret = HmacFinal(&defHmac, defDigest);
+    ret = wc_HmacFinal(&defHmac, defDigest);
     if (ret != 0) {
         printf("hmac sha512 final default failed\n");
         return -1;
@@ -543,7 +543,7 @@ static int check_compress(void)
 
     /* dynamic */
     ret1 = CRYPT_HUFFMAN_Compress(cBuffer, sizeof(cBuffer), text, inSz, 0);
-    ret2 = Compress(dBuffer, sizeof(dBuffer), text, inSz, 0);
+    ret2 = wc_Compress(dBuffer, sizeof(dBuffer), text, inSz, 0);
 
     if (ret1 != ret2 || ret1 < 0) {
         printf("compress dynamic ret failed\n");
@@ -566,7 +566,7 @@ static int check_compress(void)
 
     memset(dBuffer, 0, sizeof(dBuffer));
 
-    ret1 = DeCompress(dBuffer, sizeof(dBuffer), cBuffer, outSz);
+    ret1 = wc_DeCompress(dBuffer, sizeof(dBuffer), cBuffer, outSz);
 
     if (memcmp(dBuffer, text, inSz) != 0) {
         printf("decompress dynamic cmp failed\n");
@@ -578,7 +578,7 @@ static int check_compress(void)
 
     /* static */
     ret1 = CRYPT_HUFFMAN_Compress(cBuffer, sizeof(cBuffer), text, inSz, 1);
-    ret2 = Compress(dBuffer, sizeof(dBuffer), text, inSz, 1);
+    ret2 = wc_Compress(dBuffer, sizeof(dBuffer), text, inSz, 1);
 
     if (ret1 != ret2 || ret1 < 0) {
         printf("compress static ret failed\n");
@@ -601,7 +601,7 @@ static int check_compress(void)
 
     memset(dBuffer, 0, sizeof(dBuffer));
 
-    ret1 = DeCompress(dBuffer, sizeof(dBuffer), cBuffer, outSz);
+    ret1 = wc_DeCompress(dBuffer, sizeof(dBuffer), cBuffer, outSz);
 
     if (memcmp(dBuffer, text, inSz) != 0) {
         printf("decompress static cmp failed\n");
@@ -630,7 +630,7 @@ static int check_rng(void)
     for (i = 0; i < RANDOM_BYTE_SZ; i++)
         out[i] = (byte)i;
 
-    ret = InitRng(&defRng);
+    ret = wc_InitRng(&defRng);
     if (ret != 0) {
         printf("default rng init failed\n");
         return -1;
@@ -685,7 +685,7 @@ static int check_des3(void)
         printf("mcapi tdes key set failed\n");
         return -1;
     }
-    ret = Des3_SetKey(&defDes3, key, iv, DES_ENCRYPTION);
+    ret = wc_Des3_SetKey(&defDes3, key, iv, DES_ENCRYPTION);
     if (ret != 0) {
         printf("default des3 key set failed\n");
         return -1;
@@ -696,7 +696,7 @@ static int check_des3(void)
         printf("mcapi tdes cbc encrypt failed\n");
         return -1;
     }
-    ret = Des3_CbcEncrypt(&defDes3, out2, ourData, TDES_TEST_SIZE);
+    ret = wc_Des3_CbcEncrypt(&defDes3, out2, ourData, TDES_TEST_SIZE);
     if (ret != 0) {
         printf("mcapi default tdes cbc encrypt failed\n");
         return -1;
@@ -713,7 +713,7 @@ static int check_des3(void)
         printf("mcapi tdes key set failed\n");
         return -1;
     }
-    ret = Des3_SetKey(&defDes3, key, iv, DES_DECRYPTION);
+    ret = wc_Des3_SetKey(&defDes3, key, iv, DES_DECRYPTION);
     if (ret != 0) {
         printf("default des3 key set failed\n");
         return -1;
@@ -724,7 +724,7 @@ static int check_des3(void)
         printf("mcapi tdes cbc decrypt failed\n");
         return -1;
     }
-    ret = Des3_CbcDecrypt(&defDes3, out1, out1, TDES_TEST_SIZE);
+    ret = wc_Des3_CbcDecrypt(&defDes3, out1, out1, TDES_TEST_SIZE);
     if (ret != 0) {
         printf("mcapi default tdes cbc decrypt failed\n");
         return -1;
@@ -766,7 +766,7 @@ static int check_aescbc(void)
         printf("mcapi aes-128 key set failed\n");
         return -1;
     }
-    ret = AesSetKey(&defAes, key, 16, iv, AES_ENCRYPTION);
+    ret = wc_AesSetKey(&defAes, key, 16, iv, AES_ENCRYPTION);
     if (ret != 0) {
         printf("default aes-128 key set failed\n");
         return -1;
@@ -777,7 +777,7 @@ static int check_aescbc(void)
         printf("mcapi aes-128 cbc encrypt failed\n");
         return -1;
     }
-    AesCbcEncrypt(&defAes, out2, ourData, AES_TEST_SIZE);
+    wc_AesCbcEncrypt(&defAes, out2, ourData, AES_TEST_SIZE);
 
     if (memcmp(out1, out2, AES_TEST_SIZE) != 0) {
         printf("mcapi aes-128 cbc encrypt cmp failed\n");
@@ -790,7 +790,7 @@ static int check_aescbc(void)
         printf("mcapi aes-128 key set failed\n");
         return -1;
     }
-    ret = AesSetKey(&defAes, key, 16, iv, DES_DECRYPTION);
+    ret = wc_AesSetKey(&defAes, key, 16, iv, DES_DECRYPTION);
     if (ret != 0) {
         printf("default aes-128 key set failed\n");
         return -1;
@@ -801,7 +801,7 @@ static int check_aescbc(void)
         printf("mcapi aes-128 cbc decrypt failed\n");
         return -1;
     }
-    AesCbcDecrypt(&defAes, out1, out1, AES_TEST_SIZE);
+    wc_AesCbcDecrypt(&defAes, out1, out1, AES_TEST_SIZE);
 
     if (memcmp(out1, out2, AES_TEST_SIZE) != 0) {
         printf("mcapi aes-128 cbc decrypt cmp failed\n");
@@ -819,7 +819,7 @@ static int check_aescbc(void)
         printf("mcapi aes-192 key set failed\n");
         return -1;
     }
-    ret = AesSetKey(&defAes, key, 24, iv, AES_ENCRYPTION);
+    ret = wc_AesSetKey(&defAes, key, 24, iv, AES_ENCRYPTION);
     if (ret != 0) {
         printf("default aes-192 key set failed\n");
         return -1;
@@ -830,7 +830,7 @@ static int check_aescbc(void)
         printf("mcapi aes-192 cbc encrypt failed\n");
         return -1;
     }
-    AesCbcEncrypt(&defAes, out2, ourData, AES_TEST_SIZE);
+    wc_AesCbcEncrypt(&defAes, out2, ourData, AES_TEST_SIZE);
 
     if (memcmp(out1, out2, AES_TEST_SIZE) != 0) {
         printf("mcapi aes-192 cbc encrypt cmp failed\n");
@@ -843,7 +843,7 @@ static int check_aescbc(void)
         printf("mcapi aes-192 key set failed\n");
         return -1;
     }
-    ret = AesSetKey(&defAes, key, 24, iv, AES_DECRYPTION);
+    ret = wc_AesSetKey(&defAes, key, 24, iv, AES_DECRYPTION);
     if (ret != 0) {
         printf("default aes-192 key set failed\n");
         return -1;
@@ -854,7 +854,7 @@ static int check_aescbc(void)
         printf("mcapi aes-192 cbc decrypt failed\n");
         return -1;
     }
-    AesCbcDecrypt(&defAes, out1, out1, AES_TEST_SIZE);
+    wc_AesCbcDecrypt(&defAes, out1, out1, AES_TEST_SIZE);
 
     if (memcmp(out1, out2, AES_TEST_SIZE) != 0) {
         printf("mcapi aes-192 cbc decrypt cmp failed\n");
@@ -872,7 +872,7 @@ static int check_aescbc(void)
         printf("mcapi aes-256 key set failed\n");
         return -1;
     }
-    ret = AesSetKey(&defAes, key, 32, iv, AES_ENCRYPTION);
+    ret = wc_AesSetKey(&defAes, key, 32, iv, AES_ENCRYPTION);
     if (ret != 0) {
         printf("default aes-256 key set failed\n");
         return -1;
@@ -883,7 +883,7 @@ static int check_aescbc(void)
         printf("mcapi aes-256 cbc encrypt failed\n");
         return -1;
     }
-    AesCbcEncrypt(&defAes, out2, ourData, AES_TEST_SIZE);
+    wc_AesCbcEncrypt(&defAes, out2, ourData, AES_TEST_SIZE);
 
     if (memcmp(out1, out2, AES_TEST_SIZE) != 0) {
         printf("mcapi aes-256 cbc encrypt cmp failed\n");
@@ -896,7 +896,7 @@ static int check_aescbc(void)
         printf("mcapi aes-256 key set failed\n");
         return -1;
     }
-    ret = AesSetKey(&defAes, key, 32, iv, AES_DECRYPTION);
+    ret = wc_AesSetKey(&defAes, key, 32, iv, AES_DECRYPTION);
     if (ret != 0) {
         printf("default aes-256 key set failed\n");
         return -1;
@@ -907,7 +907,7 @@ static int check_aescbc(void)
         printf("mcapi aes-256 cbc decrypt failed\n");
         return -1;
     }
-    AesCbcDecrypt(&defAes, out1, out1, AES_TEST_SIZE);
+    wc_AesCbcDecrypt(&defAes, out1, out1, AES_TEST_SIZE);
 
     if (memcmp(out1, out2, AES_TEST_SIZE) != 0) {
         printf("mcapi aes-256 cbc decrypt cmp failed\n");
@@ -943,7 +943,7 @@ static int check_aesctr(void)
         printf("mcapi aes-128 key set failed\n");
         return -1;
     }
-    ret = AesSetKey(&defAes, key, 16, iv, AES_ENCRYPTION);
+    ret = wc_AesSetKey(&defAes, key, 16, iv, AES_ENCRYPTION);
     if (ret != 0) {
         printf("default aes-128 key set failed\n");
         return -1;
@@ -954,7 +954,7 @@ static int check_aesctr(void)
         printf("mcapi aes-128 ctr encrypt failed\n");
         return -1;
     }
-    AesCtrEncrypt(&defAes, out2, ourData, AES_TEST_SIZE);
+    wc_AesCtrEncrypt(&defAes, out2, ourData, AES_TEST_SIZE);
 
     if (memcmp(out1, out2, AES_TEST_SIZE) != 0) {
         printf("mcapi aes-128 ctr encrypt cmp failed\n");
@@ -967,7 +967,7 @@ static int check_aesctr(void)
         printf("mcapi aes-128 key set failed\n");
         return -1;
     }
-    ret = AesSetKey(&defAes, key, 16, iv, AES_ENCRYPTION);
+    ret = wc_AesSetKey(&defAes, key, 16, iv, AES_ENCRYPTION);
     if (ret != 0) {
         printf("default aes-128 key set failed\n");
         return -1;
@@ -990,7 +990,7 @@ static int check_aesctr(void)
         printf("mcapi aes-192 key set failed\n");
         return -1;
     }
-    ret = AesSetKey(&defAes, key, 24, iv, AES_ENCRYPTION);
+    ret = wc_AesSetKey(&defAes, key, 24, iv, AES_ENCRYPTION);
     if (ret != 0) {
         printf("default aes-192 key set failed\n");
         return -1;
@@ -1001,7 +1001,7 @@ static int check_aesctr(void)
         printf("mcapi aes-192 ctr encrypt failed\n");
         return -1;
     }
-    AesCtrEncrypt(&defAes, out2, ourData, AES_TEST_SIZE);
+    wc_AesCtrEncrypt(&defAes, out2, ourData, AES_TEST_SIZE);
 
     if (memcmp(out1, out2, AES_TEST_SIZE) != 0) {
         printf("mcapi aes-192 ctr encrypt cmp failed\n");
@@ -1014,7 +1014,7 @@ static int check_aesctr(void)
         printf("mcapi aes-192 key set failed\n");
         return -1;
     }
-    ret = AesSetKey(&defAes, key, 24, iv, AES_DECRYPTION);
+    ret = wc_AesSetKey(&defAes, key, 24, iv, AES_DECRYPTION);
     if (ret != 0) {
         printf("default aes-192 key set failed\n");
         return -1;
@@ -1037,7 +1037,7 @@ static int check_aesctr(void)
         printf("mcapi aes-256 key set failed\n");
         return -1;
     }
-    ret = AesSetKey(&defAes, key, 32, iv, AES_ENCRYPTION);
+    ret = wc_AesSetKey(&defAes, key, 32, iv, AES_ENCRYPTION);
     if (ret != 0) {
         printf("default aes-256 key set failed\n");
         return -1;
@@ -1048,7 +1048,7 @@ static int check_aesctr(void)
         printf("mcapi aes-256 ctr encrypt failed\n");
         return -1;
     }
-    AesCtrEncrypt(&defAes, out2, ourData, AES_TEST_SIZE);
+    wc_AesCtrEncrypt(&defAes, out2, ourData, AES_TEST_SIZE);
 
     if (memcmp(out1, out2, AES_TEST_SIZE) != 0) {
         printf("mcapi aes-256 ctr encrypt cmp failed\n");
@@ -1061,7 +1061,7 @@ static int check_aesctr(void)
         printf("mcapi aes-256 key set failed\n");
         return -1;
     }
-    ret = AesSetKey(&defAes, key, 32, iv, AES_ENCRYPTION);
+    ret = wc_AesSetKey(&defAes, key, 32, iv, AES_ENCRYPTION);
     if (ret != 0) {
         printf("default aes-256 key set failed\n");
         return -1;
@@ -1102,7 +1102,7 @@ static int check_aesdirect(void)
         printf("mcapi aes-128 key set failed\n");
         return -1;
     }
-    ret = AesSetKey(&defAes, key, 16, iv, AES_ENCRYPTION);
+    ret = wc_AesSetKey(&defAes, key, 16, iv, AES_ENCRYPTION);
     if (ret != 0) {
         printf("default aes-128 key set failed\n");
         return -1;
@@ -1113,7 +1113,7 @@ static int check_aesdirect(void)
         printf("mcapi aes-128 direct encrypt failed\n");
         return -1;
     }
-    AesEncryptDirect(&defAes, out2, ourData);
+    wc_AesEncryptDirect(&defAes, out2, ourData);
 
     if (memcmp(out1, out2, CRYPT_AES_BLOCK_SIZE) != 0) {
         printf("mcapi aes-128 direct encrypt cmp failed\n");
@@ -1126,7 +1126,7 @@ static int check_aesdirect(void)
         printf("mcapi aes-128 key set failed\n");
         return -1;
     }
-    ret = AesSetKey(&defAes, key, 16, iv, DES_DECRYPTION);
+    ret = wc_AesSetKey(&defAes, key, 16, iv, DES_DECRYPTION);
     if (ret != 0) {
         printf("default aes-128 key set failed\n");
         return -1;
@@ -1137,7 +1137,7 @@ static int check_aesdirect(void)
         printf("mcapi aes-128 direct decrypt failed\n");
         return -1;
     }
-    AesDecryptDirect(&defAes, out1, out1);
+    wc_AesDecryptDirect(&defAes, out1, out1);
 
     if (memcmp(out1, out2, CRYPT_AES_BLOCK_SIZE) != 0) {
         printf("mcapi aes-128 direct decrypt cmp failed\n");
@@ -1155,7 +1155,7 @@ static int check_aesdirect(void)
         printf("mcapi aes-192 key set failed\n");
         return -1;
     }
-    ret = AesSetKey(&defAes, key, 24, iv, AES_ENCRYPTION);
+    ret = wc_AesSetKey(&defAes, key, 24, iv, AES_ENCRYPTION);
     if (ret != 0) {
         printf("default aes-192 key set failed\n");
         return -1;
@@ -1166,7 +1166,7 @@ static int check_aesdirect(void)
         printf("mcapi aes-192 direct encrypt failed\n");
         return -1;
     }
-    AesEncryptDirect(&defAes, out2, ourData);
+    wc_AesEncryptDirect(&defAes, out2, ourData);
 
     if (memcmp(out1, out2, CRYPT_AES_BLOCK_SIZE) != 0) {
         printf("mcapi aes-192 direct encrypt cmp failed\n");
@@ -1179,7 +1179,7 @@ static int check_aesdirect(void)
         printf("mcapi aes-192 key set failed\n");
         return -1;
     }
-    ret = AesSetKey(&defAes, key, 24, iv, AES_DECRYPTION);
+    ret = wc_AesSetKey(&defAes, key, 24, iv, AES_DECRYPTION);
     if (ret != 0) {
         printf("default aes-192 key set failed\n");
         return -1;
@@ -1190,7 +1190,7 @@ static int check_aesdirect(void)
         printf("mcapi aes-192 direct decrypt failed\n");
         return -1;
     }
-    AesDecryptDirect(&defAes, out1, out1);
+    wc_AesDecryptDirect(&defAes, out1, out1);
 
     if (memcmp(out1, out2, CRYPT_AES_BLOCK_SIZE) != 0) {
         printf("mcapi aes-192 direct decrypt cmp failed\n");
@@ -1208,7 +1208,7 @@ static int check_aesdirect(void)
         printf("mcapi aes-256 key set failed\n");
         return -1;
     }
-    ret = AesSetKey(&defAes, key, 32, iv, AES_ENCRYPTION);
+    ret = wc_AesSetKey(&defAes, key, 32, iv, AES_ENCRYPTION);
     if (ret != 0) {
         printf("default aes-256 key set failed\n");
         return -1;
@@ -1219,7 +1219,7 @@ static int check_aesdirect(void)
         printf("mcapi aes-256 direct encrypt failed\n");
         return -1;
     }
-    AesEncryptDirect(&defAes, out2, ourData);
+    wc_AesEncryptDirect(&defAes, out2, ourData);
 
     if (memcmp(out1, out2, CRYPT_AES_BLOCK_SIZE) != 0) {
         printf("mcapi aes-256 direct encrypt cmp failed\n");
@@ -1232,7 +1232,7 @@ static int check_aesdirect(void)
         printf("mcapi aes-256 key set failed\n");
         return -1;
     }
-    ret = AesSetKey(&defAes, key, 32, iv, AES_DECRYPTION);
+    ret = wc_AesSetKey(&defAes, key, 32, iv, AES_DECRYPTION);
     if (ret != 0) {
         printf("default aes-256 key set failed\n");
         return -1;
@@ -1243,7 +1243,7 @@ static int check_aesdirect(void)
         printf("mcapi aes-256 direct decrypt failed\n");
         return -1;
     }
-    AesDecryptDirect(&defAes, out1, out1);
+    wc_AesDecryptDirect(&defAes, out1, out1);
 
     if (memcmp(out1, out2, CRYPT_AES_BLOCK_SIZE) != 0) {
         printf("mcapi aes-256 direct decrypt cmp failed\n");
@@ -1275,7 +1275,7 @@ static int check_rsa(void)
     byte          out1[256];
     byte          out2[256];
 
-    ret = InitRsaKey(&defRsa, NULL);
+    ret = wc_InitRsaKey(&defRsa, NULL);
     if (ret == 0)
         ret = CRYPT_RSA_Initialize(&mcRsa);
     if (ret != 0) {
@@ -1289,7 +1289,7 @@ static int check_rsa(void)
         return -1;
     }
 
-    ret = RsaPrivateKeyDecode(client_key_der_1024, &idx, &defRsa, keySz);
+    ret = wc_RsaPrivateKeyDecode(client_key_der_1024, &idx, &defRsa, keySz);
     if (ret != 0) {
         printf("default rsa private key decode failed\n");
         return -1;
@@ -1302,7 +1302,7 @@ static int check_rsa(void)
         return -1;
     }
 
-    ret2 = RsaPublicEncrypt(ourData, RSA_TEST_SIZE, out2, sizeof(out2),
+    ret2 = wc_RsaPublicEncrypt(ourData, RSA_TEST_SIZE, out2, sizeof(out2),
                             &defRsa, &defRng);
     if (ret2 < 0) {
         printf("default rsa public encrypt failed\n");
@@ -1335,7 +1335,7 @@ static int check_rsa(void)
         return -1;
     }
 
-    FreeRsaKey(&defRsa);
+    wc_FreeRsaKey(&defRsa);
     ret = CRYPT_RSA_Free(&mcRsa);
     if (ret != 0) {
         printf("mcapi rsa free failed\n");

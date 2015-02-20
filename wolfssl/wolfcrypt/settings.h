@@ -165,6 +165,7 @@
     #define NO_FILESYSTEM
     #define USE_FAST_MATH
     #define TFM_TIMING_RESISTANT
+    #define NEED_AES_TABLES
 #endif
 
 #ifdef WOLFSSL_MICROCHIP_PIC32MZ
@@ -176,7 +177,6 @@
     #define WOLFSSL_AES_COUNTER
     #define HAVE_AESGCM
     #define NO_BIG_INT
-
 #endif
 
 #ifdef MICROCHIP_TCPIP_V5

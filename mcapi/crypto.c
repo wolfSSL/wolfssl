@@ -51,7 +51,7 @@ int CRYPT_MD5_Initialize(CRYPT_MD5_CTX* md5)
     if (md5 == NULL)
         return BAD_FUNC_ARG;
 
-    InitMd5((Md5*)md5);
+    wc_InitMd5((Md5*)md5);
 
     return 0;
 }
@@ -64,7 +64,7 @@ int CRYPT_MD5_DataAdd(CRYPT_MD5_CTX* md5, const unsigned char* input,
     if (md5 == NULL || input == NULL)
         return BAD_FUNC_ARG;
 
-    Md5Update((Md5*)md5, input, sz);
+    wc_Md5Update((Md5*)md5, input, sz);
 
     return 0;
 }
@@ -76,7 +76,7 @@ int CRYPT_MD5_Finalize(CRYPT_MD5_CTX* md5, unsigned char* digest)
     if (md5 == NULL || digest == NULL)
         return BAD_FUNC_ARG;
 
-    Md5Final((Md5*)md5, digest);
+    wc_Md5Final((Md5*)md5, digest);
 
     return 0;
 }
@@ -91,7 +91,7 @@ int CRYPT_SHA_Initialize(CRYPT_SHA_CTX* sha)
     if (sha == NULL)
         return BAD_FUNC_ARG;
 
-    return InitSha((Sha*)sha);
+    return wc_InitSha((Sha*)sha);
 }
 
 
@@ -102,7 +102,7 @@ int CRYPT_SHA_DataAdd(CRYPT_SHA_CTX* sha, const unsigned char* input,
     if (sha == NULL || input == NULL)
         return BAD_FUNC_ARG;
 
-    return ShaUpdate((Sha*)sha, input, sz);
+    return wc_ShaUpdate((Sha*)sha, input, sz);
 }
 
 
@@ -112,7 +112,7 @@ int CRYPT_SHA_Finalize(CRYPT_SHA_CTX* sha, unsigned char* digest)
     if (sha == NULL || digest == NULL)
         return BAD_FUNC_ARG;
 
-    return ShaFinal((Sha*)sha, digest);
+    return wc_ShaFinal((Sha*)sha, digest);
 }
 
 
@@ -125,7 +125,7 @@ int CRYPT_SHA256_Initialize(CRYPT_SHA256_CTX* sha256)
     if (sha256 == NULL)
         return BAD_FUNC_ARG;
 
-    return InitSha256((Sha256*)sha256);
+    return wc_InitSha256((Sha256*)sha256);
 }
 
 
@@ -136,7 +136,7 @@ int CRYPT_SHA256_DataAdd(CRYPT_SHA256_CTX* sha256, const unsigned char* input,
     if (sha256 == NULL || input == NULL)
         return BAD_FUNC_ARG;
 
-    return Sha256Update((Sha256*)sha256, input, sz);
+    return wc_Sha256Update((Sha256*)sha256, input, sz);
 }
 
 
@@ -146,7 +146,7 @@ int CRYPT_SHA256_Finalize(CRYPT_SHA256_CTX* sha256, unsigned char* digest)
     if (sha256 == NULL || digest == NULL)
         return BAD_FUNC_ARG;
 
-    return Sha256Final((Sha256*)sha256, digest);
+    return wc_Sha256Final((Sha256*)sha256, digest);
 }
 
 
@@ -159,7 +159,7 @@ int CRYPT_SHA384_Initialize(CRYPT_SHA384_CTX* sha384)
     if (sha384 == NULL)
         return BAD_FUNC_ARG;
 
-    return InitSha384((Sha384*)sha384);
+    return wc_InitSha384((Sha384*)sha384);
 }
 
 
@@ -170,7 +170,7 @@ int CRYPT_SHA384_DataAdd(CRYPT_SHA384_CTX* sha384, const unsigned char* input,
     if (sha384 == NULL || input == NULL)
         return BAD_FUNC_ARG;
 
-    return Sha384Update((Sha384*)sha384, input, sz);
+    return wc_Sha384Update((Sha384*)sha384, input, sz);
 }
 
 
@@ -180,7 +180,7 @@ int CRYPT_SHA384_Finalize(CRYPT_SHA384_CTX* sha384, unsigned char* digest)
     if (sha384 == NULL || digest == NULL)
         return BAD_FUNC_ARG;
 
-    return Sha384Final((Sha384*)sha384, digest);
+    return wc_Sha384Final((Sha384*)sha384, digest);
 }
 
 
@@ -193,7 +193,7 @@ int CRYPT_SHA512_Initialize(CRYPT_SHA512_CTX* sha512)
     if (sha512 == NULL)
         return BAD_FUNC_ARG;
 
-    return InitSha512((Sha512*)sha512);
+    return wc_InitSha512((Sha512*)sha512);
 }
 
 
@@ -204,7 +204,7 @@ int CRYPT_SHA512_DataAdd(CRYPT_SHA512_CTX* sha512, const unsigned char* input,
     if (sha512 == NULL || input == NULL)
         return BAD_FUNC_ARG;
 
-    return Sha512Update((Sha512*)sha512, input, sz);
+    return wc_Sha512Update((Sha512*)sha512, input, sz);
 }
 
 
@@ -214,7 +214,7 @@ int CRYPT_SHA512_Finalize(CRYPT_SHA512_CTX* sha512, unsigned char* digest)
     if (sha512 == NULL || digest == NULL)
         return BAD_FUNC_ARG;
 
-    return Sha512Final((Sha512*)sha512, digest);
+    return wc_Sha512Final((Sha512*)sha512, digest);
 }
 
 
@@ -233,7 +233,7 @@ int CRYPT_HMAC_SetKey(CRYPT_HMAC_CTX* hmac, int type, const unsigned char* key,
         return BAD_FUNC_ARG;  /* bad hmac type */
     }
 
-    return HmacSetKey((Hmac*)hmac, type, key, sz);
+    return wc_HmacSetKey((Hmac*)hmac, type, key, sz);
 }
 
 
@@ -243,7 +243,7 @@ int CRYPT_HMAC_DataAdd(CRYPT_HMAC_CTX* hmac, const unsigned char* input,
     if (hmac == NULL || input == NULL)
         return BAD_FUNC_ARG;
 
-    return HmacUpdate((Hmac*)hmac, input, sz);
+    return wc_HmacUpdate((Hmac*)hmac, input, sz);
 }
 
 
@@ -253,7 +253,7 @@ int CRYPT_HMAC_Finalize(CRYPT_HMAC_CTX* hmac, unsigned char* digest)
     if (hmac == NULL || digest == NULL)
         return BAD_FUNC_ARG;
 
-    return HmacFinal((Hmac*)hmac, digest);
+    return wc_HmacFinal((Hmac*)hmac, digest);
 }
 
 
@@ -336,7 +336,7 @@ int CRYPT_TDES_IvSet(CRYPT_TDES_CTX* tdes, const unsigned char* iv)
     if (tdes == NULL || iv == NULL)
         return BAD_FUNC_ARG;
 
-    return Des3_SetIV((Des3*)tdes, iv);
+    return wc_Des3_SetIV((Des3*)tdes, iv);
 }
 
 
@@ -347,7 +347,7 @@ int CRYPT_TDES_CBC_Encrypt(CRYPT_TDES_CTX* tdes, unsigned char* out,
     if (tdes == NULL || out == NULL || in == NULL)
         return BAD_FUNC_ARG;
 
-    return Des3_CbcEncrypt((Des3*)tdes, out, in, inSz);
+    return wc_Des3_CbcEncrypt((Des3*)tdes, out, in, inSz);
 }
 
 
@@ -372,7 +372,7 @@ int CRYPT_AES_KeySet(CRYPT_AES_CTX* aes, const unsigned char* key,
     if (aes == NULL || key == NULL)
         return BAD_FUNC_ARG;
 
-    return AesSetKey((Aes*)aes, key, keyLen, iv, dir);
+    return wc_AesSetKey((Aes*)aes, key, keyLen, iv, dir);
 }
 
 
@@ -382,7 +382,7 @@ int CRYPT_AES_IvSet(CRYPT_AES_CTX* aes, const unsigned char* iv)
     if (aes == NULL || iv == NULL)
         return BAD_FUNC_ARG;
 
-    return AesSetIV((Aes*)aes, iv);
+    return wc_AesSetIV((Aes*)aes, iv);
 }
 
 
@@ -393,7 +393,7 @@ int CRYPT_AES_CBC_Encrypt(CRYPT_AES_CTX* aes, unsigned char* out,
     if (aes == NULL || out == NULL || in == NULL)
         return BAD_FUNC_ARG;
 
-    return AesCbcEncrypt((Aes*)aes, out, in, inSz);
+    return wc_AesCbcEncrypt((Aes*)aes, out, in, inSz);
 }
 
 
@@ -415,7 +415,7 @@ int CRYPT_AES_CTR_Encrypt(CRYPT_AES_CTX* aes, unsigned char* out,
     if (aes == NULL || out == NULL || in == NULL)
         return BAD_FUNC_ARG;
 
-    AesCtrEncrypt((Aes*)aes, out, in, inSz);
+    wc_AesCtrEncrypt((Aes*)aes, out, in, inSz);
 
     return 0;
 }
@@ -428,7 +428,7 @@ int CRYPT_AES_DIRECT_Encrypt(CRYPT_AES_CTX* aes, unsigned char* out,
     if (aes == NULL || out == NULL || in == NULL)
         return BAD_FUNC_ARG;
 
-    AesEncryptDirect((Aes*)aes, out, in);
+    wc_AesEncryptDirect((Aes*)aes, out, in);
 
     return 0;
 }
@@ -441,7 +441,7 @@ int CRYPT_AES_DIRECT_Decrypt(CRYPT_AES_CTX* aes, unsigned char* out,
     if (aes == NULL || out == NULL || in == NULL)
         return BAD_FUNC_ARG;
 
-    AesDecryptDirect((Aes*)aes, out, in);
+    wc_AesDecryptDirect((Aes*)aes, out, in);
 
     return 0;
 }
@@ -548,7 +548,7 @@ int CRYPT_ECC_Initialize(CRYPT_ECC_CTX* ecc)
     if (ecc->holder == NULL)
         return -1;
 
-    ecc_init((ecc_key*)ecc->holder);
+    wc_ecc_init((ecc_key*)ecc->holder);
 
     return 0;
 }
@@ -560,7 +560,7 @@ int CRYPT_ECC_Free(CRYPT_ECC_CTX* ecc)
     if (ecc == NULL)
         return BAD_FUNC_ARG;
 
-    ecc_free((ecc_key*)ecc->holder);
+    wc_ecc_free((ecc_key*)ecc->holder);
     XFREE(ecc->holder, NULL, DYNAMIC_TYPE_ECC);
     ecc->holder = NULL;
 
@@ -578,7 +578,7 @@ int CRYPT_ECC_PublicExport(CRYPT_ECC_CTX* ecc, unsigned char* out,
     if (ecc == NULL || out == NULL)
         return BAD_FUNC_ARG;
 
-    ret = ecc_export_x963((ecc_key*)ecc->holder, out, &inOut);
+    ret = wc_ecc_export_x963((ecc_key*)ecc->holder, out, &inOut);
     *usedSz = inOut;
 
     return ret;
@@ -592,7 +592,7 @@ int CRYPT_ECC_PublicImport(CRYPT_ECC_CTX* ecc, const unsigned char* in,
     if (ecc == NULL || in == NULL)
         return BAD_FUNC_ARG;
 
-    return ecc_import_x963(in, inSz, (ecc_key*)ecc->holder);
+    return wc_ecc_import_x963(in, inSz, (ecc_key*)ecc->holder);
 }
 
 
@@ -603,7 +603,7 @@ int CRYPT_ECC_PrivateImport(CRYPT_ECC_CTX* ecc, const unsigned char* priv,
     if (ecc == NULL || priv == NULL || pub == NULL)
         return BAD_FUNC_ARG;
 
-    return ecc_import_private_key(priv, privSz, pub, pubSz,
+    return wc_ecc_import_private_key(priv, privSz, pub, pubSz,
                                  (ecc_key*)ecc->holder);
 }
 
@@ -614,7 +614,7 @@ int CRYPT_ECC_DHE_KeyMake(CRYPT_ECC_CTX* ecc, CRYPT_RNG_CTX* rng, int keySz)
     if (ecc == NULL || rng == NULL)
         return BAD_FUNC_ARG;
 
-    return ecc_make_key((RNG*)rng, keySz, (ecc_key*)ecc->holder);
+    return wc_ecc_make_key((RNG*)rng, keySz, (ecc_key*)ecc->holder);
 }
 
 
@@ -628,7 +628,7 @@ int CRYPT_ECC_DHE_SharedSecretMake(CRYPT_ECC_CTX* priv, CRYPT_ECC_CTX* pub,
     if (priv == NULL || pub == NULL || out == NULL || usedSz == NULL)
         return BAD_FUNC_ARG;
 
-    ret = ecc_shared_secret((ecc_key*)priv->holder, (ecc_key*)pub->holder,
+    ret = wc_ecc_shared_secret((ecc_key*)priv->holder, (ecc_key*)pub->holder,
                             out, &inOut);
     *usedSz = inOut;
 
@@ -649,7 +649,7 @@ int CRYPT_ECC_DSA_HashSign(CRYPT_ECC_CTX* ecc, CRYPT_RNG_CTX* rng,
                                                                 in == NULL)
         return BAD_FUNC_ARG;
 
-    ret = ecc_sign_hash(in, inSz, sig, &inOut, (RNG*)rng,
+    ret = wc_ecc_sign_hash(in, inSz, sig, &inOut, (RNG*)rng,
                        (ecc_key*)ecc->holder);
     *usedSz = inOut;
 
@@ -665,7 +665,7 @@ int CRYPT_ECC_DSA_HashVerify(CRYPT_ECC_CTX* ecc, const unsigned char* sig,
     if (ecc == NULL || sig == NULL || hash == NULL || status == NULL)
         return BAD_FUNC_ARG;
 
-    return ecc_verify_hash(sig, sigSz, hash, hashSz, status,
+    return wc_ecc_verify_hash(sig, sigSz, hash, hashSz, status,
                           (ecc_key*)ecc->holder);
 }
 
@@ -676,7 +676,7 @@ int CRYPT_ECC_KeySizeGet(CRYPT_ECC_CTX* ecc)
     if (ecc == NULL)
         return BAD_FUNC_ARG;
 
-    return ecc_size((ecc_key*)ecc->holder);
+    return wc_ecc_size((ecc_key*)ecc->holder);
 }
 
 
@@ -686,7 +686,7 @@ int CRYPT_ECC_SignatureSizeGet(CRYPT_ECC_CTX* ecc)
     if (ecc == NULL)
         return BAD_FUNC_ARG;
 
-    return ecc_sig_size((ecc_key*)ecc->holder);
+    return wc_ecc_sig_size((ecc_key*)ecc->holder);
 }
 
 

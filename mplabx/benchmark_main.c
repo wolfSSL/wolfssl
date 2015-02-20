@@ -22,16 +22,17 @@
     #include <config.h>
 #endif
 
-#include <cyassl/ctaocrypt/settings.h>
+#include <wolfssl/wolfcrypt/settings.h>
 
-#if defined(CYASSL_MICROCHIP_PIC32MZ)
+#if defined(WOLFSSL_MICROCHIP_PIC32MZ)
     #define MICROCHIP_PIC32
     #include <xc.h>
-
-    #include "MZ-configBits.h"
-
+    #pragma config ICESEL = ICS_PGx2
+            /* ICE/ICD Comm Channel Select (Communicate on PGEC2/PGED2) */
+    #include <stdio.h>
+    #include <stdlib.h>
     #include "PIC32MZ-serial.h"
-    #define SYSTEMConfigPerformance /* void out SYSTEMConfigPerformance(); */
+    #define  SYSTEMConfigPerformance /* void out SYSTEMConfigPerformance(); */
 #else
     #define PIC32_STARTER_KIT
     #include <p32xxxx.h>
@@ -62,7 +63,7 @@ void bench_eccKeyAgree(void);
 #endif
 
 /*
- * Main driver for CTaoCrypt benchmarks.
+ * Main driver for wolfCrypt benchmarks.
  */
 int main(int argc, char** argv) {
     volatile int i ;
@@ -74,11 +75,6 @@ int main(int argc, char** argv) {
     init_serial() ;  /* initialize PIC32MZ serial I/O */
     SYSTEMConfigPerformance(80000000);
     DBINIT();
-
-    for(j=0; j<100; j++) {
-        for(i=0; i<10000000; i++);
-        printf("time=%f\n", current_time(0)) ;
-    }  
     printf("wolfCrypt Benchmark:\n");
 
 #ifndef NO_AES
@@ -110,7 +106,7 @@ int main(int argc, char** argv) {
 #ifndef NO_SHA256
     bench_sha256();
 #endif
-#ifdef CYASSL_SHA512
+#ifdef WOLFSSL_SHA512
     bench_sha512();
 #endif
 #ifdef CYASSL_RIPEMD
@@ -127,7 +123,7 @@ int main(int argc, char** argv) {
     bench_dh();
 #endif
 
-#if defined(CYASSL_KEY_GEN) && !defined(NO_RSA)
+#if defined(WOLFSSL_KEY_GEN) && !defined(NO_RSA)
     bench_rsaKeyGen();
 #endif
 
