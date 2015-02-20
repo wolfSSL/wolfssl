@@ -5068,6 +5068,10 @@ int ecc25519_test(void)
     wc_ecc25519_free(&userB);
     wc_ecc25519_free(&userA);
 
+#if defined(HAVE_HASHDRBG) || defined(NO_RC4)
+    wc_FreeRng(&rng);
+#endif
+
     return 0;
 }
 #endif /* HAVE_ECC25519 */

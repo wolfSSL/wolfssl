@@ -16,6 +16,8 @@ nobase_include_HEADERS+= \
                          wolfssl/wolfcrypt/ecc.h \
                          wolfssl/wolfcrypt/ecc25519.h \
                          wolfssl/wolfcrypt/ecc25519_fe.h \
+                         wolfssl/wolfcrypt/ecc25519_pow225521.h \
+                         wolfssl/wolfcrypt/ecc25519_montgomery.h \
                          wolfssl/wolfcrypt/error-crypt.h \
                          wolfssl/wolfcrypt/fips_test.h \
                          wolfssl/wolfcrypt/hc128.h \

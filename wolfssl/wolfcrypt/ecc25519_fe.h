@@ -19,6 +19,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
+ /* Based On Daniel J Bernstein's curve25519 Public Domain ref10 work. */
+
 #ifdef HAVE_ECC25519
 #ifndef WOLF_CRYPT_ECC25519_FE_H
 #define WOLF_CRYPT_ECC25519_FE_H

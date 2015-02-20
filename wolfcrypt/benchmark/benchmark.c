@@ -1601,13 +1601,8 @@ void bench_ecc25519KeyGen(void)
 {
     ecc25519_key genKey;
     double start, total, each, milliEach;
-    int    i, ret;
+    int    i;
 
-    ret = wc_InitRng(&rng);
-    if (ret < 0) {
-        printf("InitRNG failed\n");
-        return;
-    }
     /* 256 bit */
     start = current_time(1);
 
@@ -1635,12 +1630,6 @@ void bench_ecc25519KeyAgree(void)
 
     wc_ecc25519_init(&genKey);
     wc_ecc25519_init(&genKey2);
-
-    ret = wc_InitRng(&rng);
-    if (ret < 0) {
-        printf("InitRNG failed\n");
-        return;
-    }
 
     ret = wc_ecc25519_make_key(&rng, 32, &genKey);
     if (ret != 0) {
