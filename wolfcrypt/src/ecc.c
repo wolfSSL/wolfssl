@@ -2088,8 +2088,6 @@ int wc_ecc_verify_hash(const byte* sig, word32 siglen, const byte* hash,
     * If either of those don't allocate correctly, none of
     * the rest of this function will execute, and everything
     * gets cleaned up at the end. */
-   mp_init(&r);
-   mp_init(&s);
    if (err == MP_OKAY) 
        err = DecodeECC_DSA_Sig(sig, siglen, &r, &s);
 
