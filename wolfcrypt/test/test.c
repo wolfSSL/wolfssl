@@ -62,6 +62,9 @@
 #ifdef HAVE_ECC
     #include <wolfssl/wolfcrypt/ecc.h>
 #endif
+#ifdef HAVE_ECC25519
+    #include <wolfssl/wolfcrypt/ecc25519.h>
+#endif
 #ifdef HAVE_BLAKE2
     #include <wolfssl/wolfcrypt/blake2.h>
 #endif
@@ -183,6 +186,9 @@ int pbkdf2_test(void);
     #ifdef HAVE_ECC_ENCRYPT
         int  ecc_encrypt_test(void);
     #endif
+#endif
+#ifdef HAVE_ECC25519
+    int  ecc25519_test(void);
 #endif
 #ifdef HAVE_BLAKE2
     int  blake2b_test(void);
@@ -508,6 +514,13 @@ int wolfcrypt_test(void* args)
         else
             printf( "ECC Enc  test passed!\n");
     #endif
+#endif
+
+#ifdef HAVE_ECC25519
+    if ( (ret = ecc25519_test()) != 0)
+        return err_sys("ECC25519 test failed!\n", ret);
+    else
+        printf( "ECC25519 test passed!\n");
 #endif
 
 #ifdef HAVE_LIBZ
@@ -4991,6 +5004,78 @@ int ecc_encrypt_test(void)
 
 #endif /* HAVE_ECC_ENCRYPT */
 #endif /* HAVE_ECC */
+
+
+#ifdef HAVE_ECC25519
+
+int ecc25519_test(void)
+{
+    RNG     rng;
+    byte    sharedA[1024];
+    byte    sharedB[1024];
+    word32  x, y;
+    byte    exportBuf[1024];
+    ecc25519_key userA, userB, pubKey;
+
+    if (wc_InitRng(&rng) != 0)
+        return -1001;
+
+    wc_ecc25519_init(&userA);
+    wc_ecc25519_init(&userB);
+    wc_ecc25519_init(&pubKey);
+
+    /* make curve25519 keys */
+    if (wc_ecc25519_make_key(&rng, 32, &userA) != 0)
+        return -1014;
+
+    if (wc_ecc25519_make_key(&rng, 32, &userB) != 0)
+        return -1002;
+
+    /* find shared secret key */
+    x = sizeof(sharedA);
+    if (wc_ecc25519_shared_secret(&userA, &userB, sharedA, &x) != 0)
+        return -1015;
+
+    y = sizeof(sharedB);
+    if (wc_ecc25519_shared_secret(&userB, &userA, sharedB, &y) != 0)
+        return -1003;
+
+    /* compare shared secret keys to test they are the same */
+    if (y != x)
+        return -1004;
+
+    if (memcmp(sharedA, sharedB, x))
+        return -1005;
+
+    /* export a public key and import it for another user */
+    x = sizeof(exportBuf);
+    if (wc_ecc25519_export_public(&userA, exportBuf, &x) != 0)
+        return -1006;
+
+    if (wc_ecc25519_import_public(exportBuf, x, &pubKey) != 0)
+        return -1007;
+
+    /* test shared key after importing a public key */
+    y = sizeof(sharedB);
+    if (wc_ecc25519_shared_secret(&userB, &pubKey, sharedB, &y) != 0)
+        return -1008;
+
+    if (memcmp(sharedA, sharedB, y))
+        return -1010;
+
+    /* clean up keys when done */
+    wc_ecc25519_free(&pubKey);
+    wc_ecc25519_free(&userB);
+    wc_ecc25519_free(&userA);
+
+#if defined(HAVE_HASHDRBG) || defined(NO_RC4)
+    wc_FreeRng(&rng);
+#endif
+
+    return 0;
+}
+#endif /* HAVE_ECC25519 */
+
 
 #ifdef HAVE_LIBZ
 

@@ -53,7 +53,12 @@
 #include <wolfssl/wolfcrypt/rsa.h>
 #include <wolfssl/wolfcrypt/asn.h>
 #include <wolfssl/wolfcrypt/ripemd.h>
-#include <wolfssl/wolfcrypt/ecc.h>
+#ifdef HAVE_ECC
+    #include <wolfssl/wolfcrypt/ecc.h>
+#endif
+#ifdef HAVE_ECC25519
+    #include <wolfssl/wolfcrypt/ecc25519.h>
+#endif
 
 #include <wolfssl/wolfcrypt/dh.h>
 #ifdef HAVE_CAVIUM
@@ -131,6 +136,10 @@ void bench_dh(void);
 #ifdef HAVE_ECC
 void bench_eccKeyGen(void);
 void bench_eccKeyAgree(void);
+#endif
+#ifdef HAVE_ECC25519
+void bench_ecc25519KeyGen(void);
+void bench_ecc25519KeyAgree(void);
 #endif
 #ifdef HAVE_NTRU
 void bench_ntru(void);
@@ -327,12 +336,17 @@ int benchmark_test(void *args)
     bench_ntruKeyGen();
 #endif
 
-#ifdef HAVE_ECC 
+#ifdef HAVE_ECC
     bench_eccKeyGen();
     bench_eccKeyAgree();
     #if defined(FP_ECC)
         wc_ecc_fp_free();
     #endif
+#endif
+
+#ifdef HAVE_ECC25519
+    bench_ecc25519KeyGen();
+    bench_ecc25519KeyAgree();
 #endif
 
 #if defined(HAVE_LOCAL_RNG) && (defined(HAVE_HASHDRBG) || defined(NO_RC4))
@@ -1581,6 +1595,76 @@ void bench_eccKeyAgree(void)
     wc_ecc_free(&genKey);
 }
 #endif /* HAVE_ECC */
+
+#ifdef HAVE_ECC25519
+void bench_ecc25519KeyGen(void)
+{
+    ecc25519_key genKey;
+    double start, total, each, milliEach;
+    int    i;
+
+    /* 256 bit */
+    start = current_time(1);
+
+    for(i = 0; i < genTimes; i++) {
+        wc_ecc25519_make_key(&rng, 32, &genKey);
+        wc_ecc25519_free(&genKey);
+    }
+
+    total = current_time(0) - start;
+    each  = total / genTimes;  /* per second  */
+    milliEach = each * 1000;   /* millisconds */
+    printf("\n");
+    printf("ECC25519 256 key generation %6.3f milliseconds, avg over %d"
+           " iterations\n", milliEach, genTimes);
+}
+
+
+void bench_ecc25519KeyAgree(void)
+{
+    ecc25519_key genKey, genKey2;
+    double start, total, each, milliEach;
+    int    i, ret;
+    byte   shared[1024];
+    word32 x = 0;
+
+    wc_ecc25519_init(&genKey);
+    wc_ecc25519_init(&genKey2);
+
+    ret = wc_ecc25519_make_key(&rng, 32, &genKey);
+    if (ret != 0) {
+        printf("ecc25519_make_key failed\n");
+        return;
+    }
+    ret = wc_ecc25519_make_key(&rng, 32, &genKey2);
+    if (ret != 0) {
+        printf("ecc25519_make_key failed\n");
+        return;
+    }
+
+    /* 256 bit */
+    start = current_time(1);
+
+    for(i = 0; i < agreeTimes; i++) {
+        x = sizeof(shared);
+        ret = wc_ecc25519_shared_secret(&genKey, &genKey2, shared, &x);
+        if (ret != 0) {
+            printf("ecc25519_shared_secret failed\n");
+            return;
+        }
+    }
+
+    total = current_time(0) - start;
+    each  = total / agreeTimes;  /* per second  */
+    milliEach = each * 1000;   /* millisconds */
+    printf("ECC25519 key agreement      %6.3f milliseconds, avg over %d"
+           " iterations\n", milliEach, agreeTimes);
+
+    wc_ecc25519_free(&genKey2);
+    wc_ecc25519_free(&genKey);
+}
+#endif /* HAVE_ECC25519 */
+
 
 #ifdef _WIN32
 
