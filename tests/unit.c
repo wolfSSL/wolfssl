@@ -1,7 +1,6 @@
 /* unit.c unit tests driver */
 
-/* Name change compatibility layer */
-#include <cyassl/ssl.h>
+/* Name change compatibility layer no longer need to be included here */
 
 #ifdef HAVE_CONFIG_H
     #include <config.h>

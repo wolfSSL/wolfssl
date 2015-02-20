@@ -23,12 +23,12 @@
     #include <config.h>
 #endif
 
-#include <cyassl/ctaocrypt/settings.h>
+#include <wolfssl/wolfcrypt/settings.h>
 
-#if defined(CYASSL_MICROCHIP_PIC32MZ)
+#if defined(WOLFSSL_MICROCHIP_PIC32MZ)
     #define MICROCHIP_PIC32
     #include <xc.h>
-    #pragma config ICESEL = ICS_PGx2        
+    #pragma config ICESEL = ICS_PGx2
             /* ICE/ICD Comm Channel Select (Communicate on PGEC2/PGED2) */
     #include <stdio.h>
     #include <stdlib.h>
@@ -52,7 +52,7 @@ typedef struct func_args {
 } func_args;
 
 /*
- * Main driver for CTaoCrypt tests.
+ * Main driver for WolfCrypt tests.
  */
 int main(int argc, char** argv) {
     int i ;
@@ -60,13 +60,13 @@ int main(int argc, char** argv) {
     init_serial() ;  /* initialize PIC32MZ serial I/O */
     SYSTEMConfigPerformance(80000000);
     DBINIT();
-    printf("CTaoCrypt Test:\n");
+    printf("WolfCrypt Test:\n");
     func_args args;
 
     args.argc = argc;
     args.argv = argv;
 
-    ctaocrypt_test(&args);
+    wolfcrypt_test(&args);
 
     if (args.return_code == 0) {
         printf("All tests passed!\n");

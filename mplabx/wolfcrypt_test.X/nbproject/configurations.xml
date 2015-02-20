@@ -12,21 +12,8 @@
     <logicalFolder name="SourceFiles"
                    displayName="Source Files"
                    projectFiles="true">
-      <itemPath>../../zlib-1.2.8/adler32.c</itemPath>
-      <itemPath>../../zlib-1.2.8/compress.c</itemPath>
-      <itemPath>../../zlib-1.2.8/crc32.c</itemPath>
-      <itemPath>../../zlib-1.2.8/deflate.c</itemPath>
-      <itemPath>../../zlib-1.2.8/gzclose.c</itemPath>
-      <itemPath>../../zlib-1.2.8/gzlib.c</itemPath>
-      <itemPath>../../zlib-1.2.8/gzread.c</itemPath>
-      <itemPath>../../zlib-1.2.8/gzwrite.c</itemPath>
-      <itemPath>../../zlib-1.2.8/infback.c</itemPath>
-      <itemPath>../../zlib-1.2.8/inffast.c</itemPath>
-      <itemPath>../../zlib-1.2.8/inflate.c</itemPath>
-      <itemPath>../../zlib-1.2.8/inftrees.c</itemPath>
-      <itemPath>../../zlib-1.2.8/trees.c</itemPath>
-      <itemPath>../../zlib-1.2.8/uncompr.c</itemPath>
-      <itemPath>../../zlib-1.2.8/zutil.c</itemPath>
+      <itemPath>../test_main.c</itemPath>
+      <itemPath>../../wolfcrypt/test/test.c</itemPath>
     </logicalFolder>
     <logicalFolder name="ExternalFiles"
                    displayName="Important Files"
@@ -34,9 +21,13 @@
       <itemPath>Makefile</itemPath>
     </logicalFolder>
   </logicalFolder>
+  <sourceRootList>
+    <Elem>..</Elem>
+    <Elem>../../wolfcrypt/test</Elem>
+  </sourceRootList>
   <projectmakefile>Makefile</projectmakefile>
   <confs>
-    <conf name="default" type="3">
+    <conf name="default" type="2">
       <toolsSet>
         <developmentServer>localhost</developmentServer>
         <targetDevice>PIC32MX795F512L</targetDevice>
@@ -44,12 +35,29 @@
         <targetPluginBoard></targetPluginBoard>
         <platformTool>PKOBSKDEPlatformTool</platformTool>
         <languageToolchain>XC32</languageToolchain>
-        <languageToolchainVersion>1.34</languageToolchainVersion>
+        <languageToolchainVersion></languageToolchainVersion>
         <platform>4</platform>
       </toolsSet>
       <compileType>
         <linkerTool>
           <linkerLibItems>
+            <linkerLibProjectItem>
+              <makeArtifact PL="../wolfssl.X"
+                            CT="3"
+                            CN="default"
+                            AC="true"
+                            BL="true"
+                            WD="../wolfssl.X"
+                            BC="${MAKE}  -f Makefile CONF=default"
+                            DBC="${MAKE}  -f Makefile CONF=default TYPE_IMAGE=DEBUG_RUN"
+                            CC="rm -rf &quot;build/default&quot; &quot;dist/default&quot;"
+                            OP="dist/default/production/wolfssl.X.a"
+                            DOP="dist/default/debug/wolfssl.X.a"
+                            FL="dist/default/production/wolfssl.X.a"
+                            PD="dist/default/production/wolfssl.X."
+                            DD="dist/default/debug/wolfssl.X.">
+              </makeArtifact>
+            </linkerLibProjectItem>
           </linkerLibItems>
         </linkerTool>
         <archiverTool>
@@ -73,20 +81,20 @@
         <property key="additional-warnings" value="false"/>
         <property key="enable-app-io" value="false"/>
         <property key="enable-omit-frame-pointer" value="false"/>
-        <property key="enable-symbols" value="true"/>
+        <property key="enable-symbols" value="false"/>
         <property key="enable-unroll-loops" value="false"/>
         <property key="exclude-floating-point" value="false"/>
-        <property key="extra-include-directories" value="../../zlib-1.2.8"/>
+        <property key="extra-include-directories" value="../../"/>
         <property key="generate-16-bit-code" value="false"/>
         <property key="generate-micro-compressed-code" value="false"/>
         <property key="isolate-each-function" value="false"/>
         <property key="make-warnings-into-errors" value="false"/>
-        <property key="optimization-level" value="-Os"/>
+        <property key="optimization-level" value="-O3"/>
         <property key="place-data-into-section" value="false"/>
         <property key="post-instruction-scheduling" value="default"/>
         <property key="pre-instruction-scheduling" value="default"/>
         <property key="preprocessor-macros"
-                  value="HAVE_HIDDEN;MAX_MEM_LEVEL=1;MAX_WBITS=11"/>
+                  value="NO_MAIN_DRIVER;USE_CERT_BUFFERS_1024;WOLFSSL_SHA384;WOLFSSL_SHA512;HAVE_ECC"/>
         <property key="strict-ansi" value="false"/>
         <property key="support-ansi" value="false"/>
         <property key="use-cci" value="false"/>
@@ -130,15 +138,15 @@
         <property key="generate-16-bit-code" value="false"/>
         <property key="generate-cross-reference-file" value="false"/>
         <property key="generate-micro-compressed-code" value="false"/>
-        <property key="heap-size" value=""/>
+        <property key="heap-size" value="20480"/>
         <property key="input-libraries" value=""/>
         <property key="linker-symbols" value=""/>
         <property key="map-file" value=""/>
         <property key="no-startup-files" value="false"/>
         <property key="oXC32ld-extra-opts" value=""/>
-        <property key="optimization-level" value=""/>
+        <property key="optimization-level" value="-Os"/>
         <property key="preprocessor-macros" value=""/>
-        <property key="remove-unused-sections" value="false"/>
+        <property key="remove-unused-sections" value="true"/>
         <property key="report-memory-usage" value="false"/>
         <property key="stack-size" value=""/>
         <property key="symbol-stripping" value=""/>

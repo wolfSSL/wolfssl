@@ -8,4 +8,3 @@ EXTRA_DIST += \
 EXTRA_DIST += \
          mcapi/zlib.X/nbproject/configurations.xml \
          mcapi/zlib.X/nbproject/project.xml
-

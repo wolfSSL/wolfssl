@@ -49,7 +49,7 @@ enum {
     MD5_PAD_SIZE    = 56
 };
 
-#if defined(CYASSL_PIC32MZ_HASH) || defined(WOLFSSL_PIC32MZ_HASH)
+#if defined(WOLFSSL_PIC32MZ_HASH)
 #include "port/pic32/pic32mz-crypt.h"
 #endif
 
@@ -59,7 +59,7 @@ typedef struct Md5 {
     word32  loLen;     /* length in bytes   */
     word32  hiLen;     /* length in bytes   */
     word32  buffer[MD5_BLOCK_SIZE  / sizeof(word32)];
-    #if !defined(CYASSL_PIC32MZ_HASH) || !defined(WOLFSSL_PIC32MZ_HASH)
+    #if !defined(WOLFSSL_PIC32MZ_HASH)
     word32  digest[MD5_DIGEST_SIZE / sizeof(word32)];
     #else
     word32  digest[PIC32_HASH_SIZE / sizeof(word32)];
