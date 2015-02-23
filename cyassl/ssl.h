@@ -64,8 +64,8 @@
 #define CYASSL_TYPES_DEFINED WOLFSSL_TYPES_DEFINED
 
 /* legacy defines */
-#define yasslIP          wolfSSLIP /**/
-#define yasslPort        wolfSSLPort /**/
+#define yasslIP          wolfSSLIP                                         /**/
+#define yasslPort        wolfSSLPort                                       /**/
 
 /* cyassl/ssl.h (structs) */
 #define CYASSL_RSA                WOLFSSL_RSA
@@ -73,8 +73,8 @@
 #define CYASSL_BIO                WOLFSSL_BIO
 #define CYASSL_CIPHER             WOLFSSL_CIPHER
 #define CYASSL_MD4_CTX            WOLFSSL_MD4_CTX
-#define CYASSL_MFL_2_9            WOLFSSL_MFL_2_9 /**/
-#define CYASSL_MFL_2_13           WOLFSSL_MFL_2_13 /**/
+#define CYASSL_MFL_2_9            WOLFSSL_MFL_2_9                          /**/
+#define CYASSL_MFL_2_13           WOLFSSL_MFL_2_13                         /**/
 #define CYASSL_EVP_PKEY           WOLFSSL_EVP_PKEY
 #define CYASSL_X509_CRL           WOLFSSL_X509_CRL
 #define CYASSL_ASN1_TIME          WOLFSSL_ASN1_TIME
@@ -532,14 +532,26 @@
 #define CyaSSL_SetDecryptVerifyCtx    wolfSSL_SetDecryptVerifyCtx
 #define CyaSSL_GetDecryptVerifyCtx    wolfSSL_GetDecryptVerifyCtx
 #define CyaSSL_CTX_SetDecryptVerifyCb wolfSSL_CTX_SetDecryptVerifyCb
+
+/* psk specific */
+#ifndef NO_PSK
+
+#define CyaSSL_get_psk_identity          wolfSSL_get_psk_identity          /**/
+#define CyaSSL_get_psk_identity_hint     wolfSSL_get_psk_identity_hint     /**/
+#define CyaSSL_use_psk_identity_hint     wolfSSL_use_psk_identity_hint     /**/
+#define CyaSSL_set_psk_client_callback   wolfSSL_set_psk_client_callback   /**/
+#define CyaSSL_set_psk_server_callback   wolfSSL_set_psk_server_callback   /**/
 #define CyaSSL_CTX_use_psk_identity_hint wolfSSL_CTX_use_psk_identity_hint /**/
 #define CyaSSL_CTX_set_psk_client_callback \
-                                      wolfSSL_CTX_set_psk_client_callback /**/
+                                      wolfSSL_CTX_set_psk_client_callback  /**/
 #define CyaSSL_CTX_set_psk_server_callback \
-                                      wolfSSL_CTX_set_psk_server_callback /**/
+                                      wolfSSL_CTX_set_psk_server_callback  /**/
+
+#endif
+/* end psk specific */
 
 /* Anonymous */
-#define CyaSSL_CTX_allow_anon_cipher wolfSSL_CTX_allow_anon_cipher /**/
+#define CyaSSL_CTX_allow_anon_cipher wolfSSL_CTX_allow_anon_cipher         /**/
 
 /* Error Handling and Debugging*/
 #define CyaSSL_get_error           wolfSSL_get_error
@@ -559,14 +571,14 @@
  * (soon to be wolfSSL Manual) 
  */
 
-#define CYASSL_CRL_MONITOR               WOLFSSL_CRL_MONITOR /**/
-#define CYASSL_CRL_START_MON             WOLFSSL_CRL_START_MON /**/
-#define CYASSL_OCSP_NO_NONCE             WOLFSSL_OCSP_NO_NONCE /**/
+#define CYASSL_CRL_MONITOR               WOLFSSL_CRL_MONITOR               /**/
+#define CYASSL_CRL_START_MON             WOLFSSL_CRL_START_MON             /**/
+#define CYASSL_OCSP_NO_NONCE             WOLFSSL_OCSP_NO_NONCE             /**/
 #define CYASSL_OCSP_URL_OVERRIDE         WOLFSSL_OCSP_URL_OVERRIDE
 
 #define CyaSSL_CTX_EnableOCSP            wolfSSL_CTX_EnableOCSP
-#define CyaSSL_CTX_OCSP_set_options      wolfSSL_CTX_OCSP_set_options /**/
-#define CyaSSL_CTX_SetOCSP_OverrideURL   wolfSSL_CTX_SetOCSP_OverrideURL /**/
+#define CyaSSL_CTX_OCSP_set_options      wolfSSL_CTX_OCSP_set_options      /**/
+#define CyaSSL_CTX_SetOCSP_OverrideURL   wolfSSL_CTX_SetOCSP_OverrideURL   /**/
 #define CyaSSL_CTX_OCSP_set_override_url wolfSSL_CTX_OCSP_set_override_url /**/
 
 /* Informational */
@@ -624,7 +636,8 @@
 	#define CyaSSL_CertManagerSetCRL_Cb  wolfSSL_CertManagerSetCRL_Cb
 	#define CyaSSL_CertManagerCheckOCSP  wolfSSL_CertManagerCheckOCSP
 	#define CyaSSL_CertManagerSetOCSP_Cb wolfSSL_CertManagerSetOCSP_Cb
-	#define CyaSSL_CertManagerSetOCSPOverrideURL wolfSSL_CertManagerSetOCSPOverrideURL
+	#define CyaSSL_CertManagerSetOCSPOverrideURL \
+                                          wolfSSL_CertManagerSetOCSPOverrideURL
 
 	#define CyaSSL_DisableCRL          wolfSSL_DisableCRL
 	#define CyaSSL_EnableOCSP          wolfSSL_EnableOCSP
