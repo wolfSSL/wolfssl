@@ -144,9 +144,9 @@ egs:
 	$(MAKE) examples/server/server; \
 	$(MAKE) examples/echoserver/echoserver;
 
-ctc:
-	$(MAKE) ctaocrypt/test/testctaocrypt; \
-	$(MAKE) ctaocrypt/benchmark/benchmark; 
+wc_egs:
+	$(MAKE) wolfcrypt/test/testwolfcrypt; \
+	$(MAKE) wolfcrypt/benchmark/benchmark;
 
 install-exec-local:	install-generic-config
 
