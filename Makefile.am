@@ -148,6 +148,10 @@ ctc:
 	$(MAKE) ctaocrypt/test/testctaocrypt; \
 	$(MAKE) ctaocrypt/benchmark/benchmark; 
 
+wolfc:
+	$(MAKE) wolfcrypt/test/testwolfcrypt; \
+	$(MAKE) wolfcrypt/benchmark/benchmark;
+
 install-exec-local:	install-generic-config
 
 install-generic-config:
