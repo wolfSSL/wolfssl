@@ -32,7 +32,6 @@
     #include "dc_rtc_api.h"   /* to get current time */
 #endif
 
-#include <wolfssl/wolfcrypt/integer.h>
 #include <wolfssl/wolfcrypt/asn.h>
 #include <wolfssl/wolfcrypt/coding.h>
 #include <wolfssl/wolfcrypt/md2.h>

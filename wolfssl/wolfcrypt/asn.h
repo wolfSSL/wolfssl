@@ -25,6 +25,7 @@
 #define WOLF_CRYPT_ASN_H
 
 #include <wolfssl/wolfcrypt/types.h>
+#include <wolfssl/wolfcrypt/integer.h>
 #ifndef NO_RSA
     #include <wolfssl/wolfcrypt/rsa.h>
 #endif

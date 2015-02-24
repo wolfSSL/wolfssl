@@ -146,6 +146,9 @@ endif
 
 if BUILD_CHACHA
 src_libwolfssl_la_SOURCES += wolfcrypt/src/chacha.c
+if BUILD_POLY1305
+src_libwolfssl_la_SOURCES += wolfcrypt/src/chacha20_poly1305.c
+endif
 endif
 
 if !BUILD_INLINE
