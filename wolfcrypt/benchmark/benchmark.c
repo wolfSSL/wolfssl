@@ -285,6 +285,9 @@ int benchmark_test(void *args)
 #ifdef HAVE_CHACHA
     bench_chacha();
 #endif
+#if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
+    bench_chacha20_poly1305_aead();
+#endif
 #ifndef NO_DES3
     bench_des();
 #endif
@@ -296,9 +299,6 @@ int benchmark_test(void *args)
 #endif
 #ifdef HAVE_POLY1305
     bench_poly1305();
-#endif
-#if( defined( HAVE_CHACHA ) && defined( HAVE_POLY1305 ) )
-    bench_chacha20_poly1305_aead();
 #endif
 #ifndef NO_SHA
     bench_sha();
@@ -775,24 +775,25 @@ void bench_chacha(void)
 
 }
 #endif /* HAVE_CHACHA*/
-    
+
 #if( defined( HAVE_CHACHA ) && defined( HAVE_POLY1305 ) )
 void bench_chacha20_poly1305_aead(void)
 {
     double start, total, persec;
     int    i;
-    
+
     byte authTag[CHACHA20_POLY1305_AEAD_AUTHTAG_SIZE];
     XMEMSET( authTag, 0, sizeof( authTag ) );
-    
+
     start = current_time(1);
     BEGIN_INTEL_CYCLES
-    
+
     for (i = 0; i < numBlocks; i++)
     {
-        wc_ChaCha20Poly1305_Encrypt( key, iv, NULL, 0, plain, sizeof( plain ), cipher, authTag );
+        wc_ChaCha20Poly1305_Encrypt(key, iv, NULL, 0, plain, sizeof(plain),
+                                    cipher, authTag );
     }
-    
+
     END_INTEL_CYCLES
     total = current_time(0) - start;
     persec = 1 / total * numBlocks;
@@ -800,11 +801,12 @@ void bench_chacha20_poly1305_aead(void)
     /* since using kB, convert to MB/s */
     persec = persec / 1024;
 #endif
-    
-    printf("ChaCha20-Poly1305 AEAD   %d %s took %5.3f seconds, %7.3f MB/s", numBlocks, blockType, total, persec);
+
+    printf("ChaCha-Poly %d %s took %5.3f seconds, %7.3f MB/s",
+           numBlocks, blockType, total, persec);
     SHOW_INTEL_CYCLES
     printf("\n");
-    
+
 }
 #endif /* HAVE_CHACHA && HAVE_POLY1305 */
 

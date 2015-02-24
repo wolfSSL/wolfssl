@@ -316,6 +316,9 @@ const char* wc_GetErrorString(int error)
     case THREAD_STORE_SET_E:
         return "Thread Storage Set error";
 
+    case MAC_CMP_FAILED_E:
+        return "MAC comparison failed";
+
     default:
         return "unknown error number";
 

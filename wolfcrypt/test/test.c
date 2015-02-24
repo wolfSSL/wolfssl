@@ -2074,12 +2074,12 @@ int poly1305_test(void)
 #endif /* HAVE_POLY1305 */
 
 
-#if(defined(HAVE_CHACHA) && defined(HAVE_POLY1305))
+#if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
 int chacha20_poly1305_aead_test(void)
 {
-    // Test #1 from Section 2.8.2 of draft-irtf-cfrg-chacha20-poly1305-10
-    // https://tools.ietf.org/html/draft-irtf-cfrg-chacha20-poly1305-10
-    
+    /* Test #1 from Section 2.8.2 of draft-irtf-cfrg-chacha20-poly1305-10 */
+    /* https://tools.ietf.org/html/draft-irtf-cfrg-chacha20-poly1305-10  */
+
     const byte key1[] = {
         0x80, 0x81, 0x82, 0x83, 0x84, 0x85, 0x86, 0x87,
         0x88, 0x89, 0x8a, 0x8b, 0x8c, 0x8d, 0x8e, 0x8f,
@@ -2132,22 +2132,22 @@ int chacha20_poly1305_aead_test(void)
         0xe5, 0x76, 0xd2, 0x65, 0x86, 0xce, 0xc6, 0x4b,
         0x61, 0x16
     };
-    
+
     const byte authTag1[] = { /* expected output from operation */
         0x1a, 0xe1, 0x0b, 0x59, 0x4f, 0x09, 0xe2, 0x6a,
         0x7e, 0x90, 0x2e, 0xcb, 0xd0, 0x60, 0x06, 0x91
     };
-    
-    // Test #2 from Appendix A.2 in draft-irtf-cfrg-chacha20-poly1305-10
-    // https://tools.ietf.org/html/draft-irtf-cfrg-chacha20-poly1305-10
-    
+
+    /* Test #2 from Appendix A.2 in draft-irtf-cfrg-chacha20-poly1305-10 */
+    /* https://tools.ietf.org/html/draft-irtf-cfrg-chacha20-poly1305-10  */
+
     const byte key2[] = {
         0x1c, 0x92, 0x40, 0xa5, 0xeb, 0x55, 0xd3, 0x8a,
         0xf3, 0x33, 0x88, 0x86, 0x04, 0xf6, 0xb5, 0xf0,
         0x47, 0x39, 0x17, 0xc1, 0x40, 0x2b, 0x80, 0x09,
         0x9d, 0xca, 0x5c, 0xbc, 0x20, 0x70, 0x75, 0xc0
     };
-    
+
     const byte plaintext2[] = {
         0x49, 0x6e, 0x74, 0x65, 0x72, 0x6e, 0x65, 0x74,
         0x2d, 0x44, 0x72, 0x61, 0x66, 0x74, 0x73, 0x20,
@@ -2178,23 +2178,23 @@ int chacha20_poly1305_aead_test(void)
         0x6c, 0x20, 0x6f, 0x72, 0x20, 0x74, 0x6f, 0x20,
         0x63, 0x69, 0x74, 0x65, 0x20, 0x74, 0x68, 0x65,
         0x6d, 0x20, 0x6f, 0x74, 0x68, 0x65, 0x72, 0x20,
-        0x74, 0x68, 0x61, 0x6e, 0x20, 0x61, 0x73, 0x20, 
+        0x74, 0x68, 0x61, 0x6e, 0x20, 0x61, 0x73, 0x20,
         0x2f, 0xe2, 0x80, 0x9c, 0x77, 0x6f, 0x72, 0x6b,
-        0x20, 0x69, 0x6e, 0x20, 0x70, 0x72, 0x6f, 0x67, 
+        0x20, 0x69, 0x6e, 0x20, 0x70, 0x72, 0x6f, 0x67,
         0x72, 0x65, 0x73, 0x73, 0x2e, 0x2f, 0xe2, 0x80,
         0x9d
     };
-    
+
     const byte iv2[] = {
         0x00, 0x00, 0x00, 0x00, 0x01, 0x02, 0x03, 0x04,
         0x05, 0x06, 0x07, 0x08
     };
-    
+
     const byte aad2[] = { /* additional data */
         0xf3, 0x33, 0x88, 0x86, 0x00, 0x00, 0x00, 0x00,
         0x00, 0x00, 0x4e, 0x91
     };
-    
+
     const byte cipher2[] = { /* expected output from operation */
         0x64, 0xa0, 0x86, 0x15, 0x75, 0x86, 0x1a, 0xf4,
         0x60, 0xf0, 0x62, 0xc7, 0x9b, 0xe6, 0x43, 0xbd,
@@ -2231,103 +2231,103 @@ int chacha20_poly1305_aead_test(void)
         0xa6, 0xad, 0x5c, 0xb4, 0x02, 0x2b, 0x02, 0x70,
         0x9b
     };
-    
+
     const byte authTag2[] = { /* expected output from operation */
         0xee, 0xad, 0x9d, 0x67, 0x89, 0x0c, 0xbb, 0x22,
         0x39, 0x23, 0x36, 0xfe, 0xa1, 0x85, 0x1f, 0x38
     };
-    
+
     byte generatedCiphertext[272];
     byte generatedPlaintext[272];
     byte generatedAuthTag[CHACHA20_POLY1305_AEAD_AUTHTAG_SIZE];
     int err;
-    
-    XMEMSET( generatedCiphertext, 0, sizeof( generatedCiphertext ) );
-    XMEMSET( generatedAuthTag, 0, sizeof( generatedAuthTag ) );
-    XMEMSET( generatedPlaintext, 0, sizeof( generatedPlaintext ) );
-    
-    // Test #1
-    
-    err = wc_ChaCha20Poly1305_Encrypt( key1, iv1,
-                                       aad1, sizeof( aad1 ),
-                                       plaintext1, sizeof( plaintext1 ),
-                                       generatedCiphertext, generatedAuthTag );
-    if( err )
+
+    XMEMSET(generatedCiphertext, 0, sizeof(generatedCiphertext));
+    XMEMSET(generatedAuthTag, 0, sizeof(generatedAuthTag));
+    XMEMSET(generatedPlaintext, 0, sizeof(generatedPlaintext));
+
+    /* Test #1 */
+
+    err = wc_ChaCha20Poly1305_Encrypt(key1, iv1,
+                                       aad1, sizeof(aad1),
+                                       plaintext1, sizeof(plaintext1),
+                                       generatedCiphertext, generatedAuthTag);
+    if (err)
     {
         return err;
     }
-    
-    // -- Check the ciphertext and authtag
-    
-    if( XMEMCMP( generatedCiphertext, cipher1, sizeof( cipher1 ) ) )
+
+    /* -- Check the ciphertext and authtag */
+
+    if (XMEMCMP(generatedCiphertext, cipher1, sizeof(cipher1)))
     {
         return -1064;
     }
-    
-    if( XMEMCMP( generatedAuthTag, authTag1, sizeof( authTag1 ) ) )
+
+    if (XMEMCMP(generatedAuthTag, authTag1, sizeof(authTag1)))
     {
         return -1065;
     }
-    
-    // -- Verify decryption works
-    
-    err = wc_ChaCha20Poly1305_Decrypt( key1, iv1,
-                                       aad1, sizeof( aad1 ),
-                                       cipher1, sizeof( cipher1 ),
-                                       authTag1, generatedPlaintext );
-    if( err )
+
+    /* -- Verify decryption works */
+
+    err = wc_ChaCha20Poly1305_Decrypt(key1, iv1,
+                                       aad1, sizeof(aad1),
+                                       cipher1, sizeof(cipher1),
+                                       authTag1, generatedPlaintext);
+    if (err)
     {
         return err;
     }
-    
-    if( XMEMCMP( generatedPlaintext, plaintext1, sizeof( plaintext1 ) ) )
+
+    if (XMEMCMP(generatedPlaintext, plaintext1, sizeof( plaintext1)))
     {
         return -1066;
     }
-    
-    XMEMSET( generatedCiphertext, 0, sizeof( generatedCiphertext ) );
-    XMEMSET( generatedAuthTag, 0, sizeof( generatedAuthTag ) );
-    XMEMSET( generatedPlaintext, 0, sizeof( generatedPlaintext ) );
-    
-    // Test #2
-    
-    err = wc_ChaCha20Poly1305_Encrypt( key2, iv2,
-                                       aad2, sizeof( aad2 ),
-                                       plaintext2, sizeof( plaintext2 ),
-                                       generatedCiphertext, generatedAuthTag );
-    if( err )
+
+    XMEMSET(generatedCiphertext, 0, sizeof(generatedCiphertext));
+    XMEMSET(generatedAuthTag, 0, sizeof(generatedAuthTag));
+    XMEMSET(generatedPlaintext, 0, sizeof(generatedPlaintext));
+
+    /* Test #2 */
+
+    err = wc_ChaCha20Poly1305_Encrypt(key2, iv2,
+                                       aad2, sizeof(aad2),
+                                       plaintext2, sizeof(plaintext2),
+                                       generatedCiphertext, generatedAuthTag);
+    if (err)
     {
         return err;
     }
-    
-    // -- Check the ciphertext and authtag
-    
-    if( XMEMCMP( generatedCiphertext, cipher2, sizeof( cipher2 ) ) )
+
+    /* -- Check the ciphertext and authtag */
+
+    if (XMEMCMP(generatedCiphertext, cipher2, sizeof(cipher2)))
     {
         return -1067;
     }
-    
-    if( XMEMCMP( generatedAuthTag, authTag2, sizeof( authTag2 ) ) )
+
+    if (XMEMCMP(generatedAuthTag, authTag2, sizeof(authTag2)))
     {
         return -1068;
     }
-    
-    // -- Verify decryption works
-    
-    err = wc_ChaCha20Poly1305_Decrypt( key2, iv2,
-                                       aad2, sizeof( aad2 ),
-                                       cipher2, sizeof( cipher2 ),
-                                       authTag2, generatedPlaintext );
-    if( err )
+
+    /* -- Verify decryption works */
+
+    err = wc_ChaCha20Poly1305_Decrypt(key2, iv2,
+                                      aad2, sizeof(aad2),
+                                      cipher2, sizeof(cipher2),
+                                      authTag2, generatedPlaintext);
+    if (err)
     {
         return err;
     }
-    
-    if( XMEMCMP( generatedPlaintext, plaintext2, sizeof( plaintext2 ) ) )
+
+    if (XMEMCMP(generatedPlaintext, plaintext2, sizeof(plaintext2)))
     {
         return -1069;
     }
-    
+
     return err;
 }
 #endif /* HAVE_CHACHA && HAVE_POLY1305 */

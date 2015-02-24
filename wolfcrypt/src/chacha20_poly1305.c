@@ -21,12 +21,12 @@
 
 
 #ifdef HAVE_CONFIG_H
-#include <config.h>
+    #include <config.h>
 #endif
 
 #include <wolfssl/wolfcrypt/settings.h>
 
-#if( defined( HAVE_CHACHA ) && defined( HAVE_POLY1305 ) )
+#if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
 
 #include <wolfssl/wolfcrypt/chacha20_poly1305.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
@@ -47,235 +47,242 @@
 #define CHACHA20_POLY1305_AEAD_INITIAL_COUNTER  0
 #define CHACHA20_POLY1305_MAC_PADDING_ALIGNMENT 16
 
-static void _word32ToLittle64( const word32 inLittle32, byte outLittle64[8] );
-static int _calculateAuthTag( const byte inAuthKey[CHACHA20_POLY1305_AEAD_KEYSIZE],
-                              const byte* inAAD, const word32 inAADLen,
-                              const byte *inCiphertext, const word32 inCiphertextLen,
-                              byte outAuthTag[CHACHA20_POLY1305_AEAD_AUTHTAG_SIZE] );
-static int constantTimeCompare( const byte *a, const byte *b, word32 len );
+static void word32ToLittle64(const word32 inLittle32, byte outLittle64[8]);
+static int calculateAuthTag(
+                  const byte inAuthKey[CHACHA20_POLY1305_AEAD_KEYSIZE],
+                  const byte* inAAD, const word32 inAADLen,
+                  const byte *inCiphertext, const word32 inCiphertextLen,
+                  byte outAuthTag[CHACHA20_POLY1305_AEAD_AUTHTAG_SIZE]);
+static int constantTimeCompare(const byte *a, const byte *b, word32 len);
 
-WOLFSSL_API int wc_ChaCha20Poly1305_Encrypt( const byte inKey[CHACHA20_POLY1305_AEAD_KEYSIZE],
-                                             const byte inIV[CHACHA20_POLY1305_AEAD_IV_SIZE],
-                                             const byte *inAAD, const word32 inAADLen,
-                                             const byte *inPlaintext, const word32 inPlaintextLen,
-                                             byte *outCiphertext,
-                                             byte outAuthTag[CHACHA20_POLY1305_AEAD_AUTHTAG_SIZE] )
+int wc_ChaCha20Poly1305_Encrypt(
+                const byte inKey[CHACHA20_POLY1305_AEAD_KEYSIZE],
+                const byte inIV[CHACHA20_POLY1305_AEAD_IV_SIZE],
+                const byte* inAAD, const word32 inAADLen,
+                const byte* inPlaintext, const word32 inPlaintextLen,
+                byte* outCiphertext,
+                byte outAuthTag[CHACHA20_POLY1305_AEAD_AUTHTAG_SIZE])
 {
     int err;
     byte poly1305Key[CHACHA20_POLY1305_AEAD_KEYSIZE];
     ChaCha chaChaCtx;
-    
-    // Validate function arguments
-    
-    if( !inKey || !inIV ||
+
+    /* Validate function arguments */
+
+    if (!inKey || !inIV ||
         !inPlaintext || !inPlaintextLen ||
         !outCiphertext ||
-        !outAuthTag )
+        !outAuthTag)
     {
         return BAD_FUNC_ARG;
     }
-    
-    ForceZero( poly1305Key, sizeof( poly1305Key ) );
-    
-    err = 0;
-    
-    // Create the Poly1305 key
-    
-    err += wc_Chacha_SetKey( &chaChaCtx, inKey, CHACHA20_POLY1305_AEAD_KEYSIZE );
-    err += wc_Chacha_SetIV( &chaChaCtx, inIV, CHACHA20_POLY1305_AEAD_INITIAL_COUNTER );
-    err += wc_Chacha_Process( &chaChaCtx, poly1305Key, poly1305Key, CHACHA20_POLY1305_AEAD_KEYSIZE );
-    if( err )
-    {
-        return err;
-    }
-    
-    // Encrypt the plaintext using ChaCha20
-    
-    err = wc_Chacha_Process( &chaChaCtx, outCiphertext, inPlaintext, inPlaintextLen );
-    if( err )
-    {
-        return err;
-    }
-    
-    // Calculate the Poly1305 auth tag
-    
-    err = _calculateAuthTag( poly1305Key,
-                             inAAD, inAADLen,
-                             outCiphertext, inPlaintextLen,
-                             outAuthTag );
-    
+
+    XMEMSET(poly1305Key, 0, sizeof(poly1305Key));
+
+    /* Create the Poly1305 key */
+    err = wc_Chacha_SetKey(&chaChaCtx, inKey, CHACHA20_POLY1305_AEAD_KEYSIZE);
+    if (err != 0) return err;
+
+    err = wc_Chacha_SetIV(&chaChaCtx, inIV,
+                           CHACHA20_POLY1305_AEAD_INITIAL_COUNTER);
+    if (err != 0) return err;
+
+    err = wc_Chacha_Process(&chaChaCtx, poly1305Key, poly1305Key,
+                             CHACHA20_POLY1305_AEAD_KEYSIZE);
+    if (err != 0) return err;
+
+    /* Encrypt the plaintext using ChaCha20 */
+    err = wc_Chacha_Process(&chaChaCtx, outCiphertext, inPlaintext,
+                            inPlaintextLen);
+    /* Calculate the Poly1305 auth tag */
+    if (err == 0)
+        err = calculateAuthTag(poly1305Key,
+                               inAAD, inAADLen,
+                               outCiphertext, inPlaintextLen,
+                               outAuthTag);
+    ForceZero(poly1305Key, sizeof(poly1305Key));
+
     return err;
 }
 
-WOLFSSL_API int wc_ChaCha20Poly1305_Decrypt( const byte inKey[CHACHA20_POLY1305_AEAD_KEYSIZE],
-                                             const byte inIV[CHACHA20_POLY1305_AEAD_IV_SIZE],
-                                             const byte *inAAD, const word32 inAADLen,
-                                             const byte *inCiphertext, const word32 inCiphertextLen,
-                                             const byte inAuthTag[CHACHA20_POLY1305_AEAD_AUTHTAG_SIZE],
-                                             byte* outPlaintext )
+
+int wc_ChaCha20Poly1305_Decrypt(
+                const byte inKey[CHACHA20_POLY1305_AEAD_KEYSIZE],
+                const byte inIV[CHACHA20_POLY1305_AEAD_IV_SIZE],
+                const byte* inAAD, const word32 inAADLen,
+                const byte* inCiphertext, const word32 inCiphertextLen,
+                const byte inAuthTag[CHACHA20_POLY1305_AEAD_AUTHTAG_SIZE],
+                byte* outPlaintext)
 {
     int err;
     byte poly1305Key[CHACHA20_POLY1305_AEAD_KEYSIZE];
     ChaCha chaChaCtx;
     byte calculatedAuthTag[CHACHA20_POLY1305_AEAD_AUTHTAG_SIZE];
-    
-    // Validate function arguments
-    
-    if( !inKey || !inIV ||
+
+    /* Validate function arguments */
+
+    if (!inKey || !inIV ||
         !inCiphertext || !inCiphertextLen ||
         !inAuthTag ||
-        !outPlaintext )
+        !outPlaintext)
     {
         return BAD_FUNC_ARG;
     }
-    
-    ForceZero( calculatedAuthTag, sizeof( calculatedAuthTag ) );
-    ForceZero( poly1305Key, sizeof( poly1305Key ) );
-    
-    err = 0;
-    
-    // Create the Poly1305 key
-    
-    err += wc_Chacha_SetKey( &chaChaCtx, inKey, CHACHA20_POLY1305_AEAD_KEYSIZE );
-    err += wc_Chacha_SetIV( &chaChaCtx, inIV, CHACHA20_POLY1305_AEAD_INITIAL_COUNTER );
-    err += wc_Chacha_Process( &chaChaCtx, poly1305Key, poly1305Key, CHACHA20_POLY1305_AEAD_KEYSIZE );
-    if( err )
+
+    XMEMSET(calculatedAuthTag, 0, sizeof(calculatedAuthTag));
+    XMEMSET(poly1305Key, 0, sizeof(poly1305Key));
+
+    /* Create the Poly1305 key */
+    err = wc_Chacha_SetKey(&chaChaCtx, inKey, CHACHA20_POLY1305_AEAD_KEYSIZE);
+    if (err != 0) return err;
+
+    err = wc_Chacha_SetIV(&chaChaCtx, inIV,
+                           CHACHA20_POLY1305_AEAD_INITIAL_COUNTER);
+    if (err != 0) return err;
+
+    err = wc_Chacha_Process(&chaChaCtx, poly1305Key, poly1305Key,
+                             CHACHA20_POLY1305_AEAD_KEYSIZE);
+    if (err != 0) return err;
+
+    /* Calculate the Poly1305 auth tag */
+    err = calculateAuthTag(poly1305Key,
+                           inAAD, inAADLen,
+                           inCiphertext, inCiphertextLen,
+                           calculatedAuthTag);
+
+    /* Compare the calculated auth tag with the received one */
+    if (err == 0 && constantTimeCompare(inAuthTag, calculatedAuthTag,
+                            CHACHA20_POLY1305_AEAD_AUTHTAG_SIZE) != 0)
     {
-        return err;
+        err = MAC_CMP_FAILED_E;
     }
-    
-    // Calculate the Poly1305 auth tag
-    
-    err = _calculateAuthTag( poly1305Key,
-                             inAAD, inAADLen,
-                             inCiphertext, inCiphertextLen,
-                             calculatedAuthTag );
-    
-    // Compare the calculated auth tag with the received one
-    
-    if( constantTimeCompare( inAuthTag, calculatedAuthTag, CHACHA20_POLY1305_AEAD_AUTHTAG_SIZE ) )
-    {
-        return MAC_CMP_FAILED_E;
-    }
-    
-    // Decrypt the received ciphertext
-    
-    err = wc_Chacha_Process( &chaChaCtx, outPlaintext, inCiphertext, inCiphertextLen );
-    
+
+    /* Decrypt the received ciphertext */
+    if (err == 0)
+        err = wc_Chacha_Process(&chaChaCtx, outPlaintext, inCiphertext,
+                                inCiphertextLen);
+    ForceZero(poly1305Key, sizeof(poly1305Key));
+
     return err;
 }
 
-static int _calculateAuthTag( const byte inAuthKey[CHACHA20_POLY1305_AEAD_KEYSIZE],
-                              const byte *inAAD, const word32 inAADLen,
-                              const byte *inCiphertext, const word32 inCiphertextLen,
-                              byte outAuthTag[CHACHA20_POLY1305_AEAD_AUTHTAG_SIZE] )
+
+static int calculateAuthTag(
+                const byte inAuthKey[CHACHA20_POLY1305_AEAD_KEYSIZE],
+                const byte *inAAD, const word32 inAADLen,
+                const byte *inCiphertext, const word32 inCiphertextLen,
+                 byte outAuthTag[CHACHA20_POLY1305_AEAD_AUTHTAG_SIZE])
 {
     int err;
     Poly1305 poly1305Ctx;
     byte padding[CHACHA20_POLY1305_MAC_PADDING_ALIGNMENT - 1];
     word32 paddingLen;
     byte little64[8];
-    
-    ForceZero( padding, sizeof( padding ) );
+
+    XMEMSET(padding, 0, sizeof(padding));
     paddingLen = 0;
-    
-    // Initialize Poly1305
-    
-    err = wc_Poly1305SetKey( &poly1305Ctx, inAuthKey, CHACHA20_POLY1305_AEAD_KEYSIZE );
-    if( err )
+
+    /* Initialize Poly1305 */
+
+    err = wc_Poly1305SetKey(&poly1305Ctx, inAuthKey,
+                            CHACHA20_POLY1305_AEAD_KEYSIZE);
+    if (err)
     {
         return err;
     }
-    
-    // Create the authTag by MAC'ing the following items:
-    
-    // -- AAD
-    
-    if( inAAD && inAADLen )
+
+    /* Create the authTag by MAC'ing the following items: */
+
+    /* -- AAD */
+
+    if (inAAD && inAADLen)
     {
-        err = wc_Poly1305Update( &poly1305Ctx, inAAD, inAADLen );
-        
-        // -- padding1: pad the AAD to 16 bytes
-        
-        paddingLen = -inAADLen & ( CHACHA20_POLY1305_MAC_PADDING_ALIGNMENT - 1 );
-        if( paddingLen )
+        err = wc_Poly1305Update(&poly1305Ctx, inAAD, inAADLen);
+
+        /* -- padding1: pad the AAD to 16 bytes */
+
+        paddingLen = -inAADLen & (CHACHA20_POLY1305_MAC_PADDING_ALIGNMENT - 1);
+        if (paddingLen)
         {
-            err += wc_Poly1305Update( &poly1305Ctx, padding, paddingLen );
+            err += wc_Poly1305Update(&poly1305Ctx, padding, paddingLen);
         }
-        
-        if( err )
-        {
-            return err;
-        }
-    }
-    
-    // -- Ciphertext
-    
-    err = wc_Poly1305Update( &poly1305Ctx, inCiphertext, inCiphertextLen );
-    if( err )
-    {
-        return err;
-    }
-    
-    // -- padding2: pad the ciphertext to 16 bytes
-    
-    paddingLen = -inCiphertextLen & ( CHACHA20_POLY1305_MAC_PADDING_ALIGNMENT - 1 );
-    if( paddingLen )
-    {
-        err = wc_Poly1305Update( &poly1305Ctx, padding, paddingLen );
-        if( err )
+
+        if (err)
         {
             return err;
         }
     }
-    
-    // -- AAD length as a 64-bit little endian integer
-    
-    _word32ToLittle64( inAADLen, little64 );
-    
-    err = wc_Poly1305Update( &poly1305Ctx, little64, sizeof( little64 ) );
-    if( err )
+
+    /* -- Ciphertext */
+
+    err = wc_Poly1305Update(&poly1305Ctx, inCiphertext, inCiphertextLen);
+    if (err)
     {
         return err;
     }
-    
-    // -- Ciphertext length as a 64-bit little endian integer
-    
-    _word32ToLittle64( inCiphertextLen, little64 );
-    
-    err = wc_Poly1305Update( &poly1305Ctx, little64, sizeof( little64 ) );
-    if( err )
+
+    /* -- padding2: pad the ciphertext to 16 bytes */
+
+    paddingLen = -inCiphertextLen &
+                                  (CHACHA20_POLY1305_MAC_PADDING_ALIGNMENT - 1);
+    if (paddingLen)
+    {
+        err = wc_Poly1305Update(&poly1305Ctx, padding, paddingLen);
+        if (err)
+        {
+            return err;
+        }
+    }
+
+    /* -- AAD length as a 64-bit little endian integer */
+
+    word32ToLittle64(inAADLen, little64);
+
+    err = wc_Poly1305Update(&poly1305Ctx, little64, sizeof(little64));
+    if (err)
     {
         return err;
     }
-    
-    // Finalize the auth tag
-    
-    err = wc_Poly1305Final( &poly1305Ctx, outAuthTag );
-    
+
+    /* -- Ciphertext length as a 64-bit little endian integer */
+
+    word32ToLittle64(inCiphertextLen, little64);
+
+    err = wc_Poly1305Update(&poly1305Ctx, little64, sizeof(little64));
+    if (err)
+    {
+        return err;
+    }
+
+    /* Finalize the auth tag */
+
+    err = wc_Poly1305Final(&poly1305Ctx, outAuthTag);
+
     return err;
 }
 
-static void _word32ToLittle64( const word32 inLittle32, byte outLittle64[8] )
+
+static void word32ToLittle64(const word32 inLittle32, byte outLittle64[8])
 {
-    ForceZero( outLittle64, 8 );
-    
-    outLittle64[0] = ( inLittle32 & 0x000000FF );
-    outLittle64[1] = ( inLittle32 & 0x0000FF00 ) >> 8;
-    outLittle64[2] = ( inLittle32 & 0x00FF0000 ) >> 16;
-    outLittle64[3] = ( inLittle32 & 0xFF000000 ) >> 24;
+    XMEMSET(outLittle64, 0, 8);
+
+    outLittle64[0] = (inLittle32 & 0x000000FF);
+    outLittle64[1] = (inLittle32 & 0x0000FF00) >> 8;
+    outLittle64[2] = (inLittle32 & 0x00FF0000) >> 16;
+    outLittle64[3] = (inLittle32 & 0xFF000000) >> 24;
 }
 
-static int constantTimeCompare( const byte *a, const byte *b, word32 len )
+
+static int constantTimeCompare(const byte *a, const byte *b, word32 len)
 {
     word32 i;
     byte result = 0;
-    
-    for( i = 0; i < len; i++ )
+
+    for (i = 0; i < len; i++)
     {
         result |= a[i] ^ b[i];
     }
-    
+
     return (int)result;
 }
 

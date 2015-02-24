@@ -145,9 +145,9 @@ enum {
     AESGCM_KAT_FIPS_E   = -210,  /* AESGCM KAT failure */
     THREAD_STORE_KEY_E  = -211,  /* Thread local storage key create failure */
     THREAD_STORE_SET_E  = -212,  /* Thread local storage key set failure */
-    
+
     MAC_CMP_FAILED_E    = -213,  /* MAC comparison failed */
-    
+
     MIN_CODE_E          = -300   /* errors -101 - -299 */
 };
 
