@@ -17,6 +17,10 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
+ *
+ * This implementation of the ChaCha20-Poly1305 AEAD is based on "ChaCha20 
+ * and Poly1305 for IETF protocols" (draft-irtf-cfrg-chacha20-poly1305-10):
+ * https://tools.ietf.org/html/draft-irtf-cfrg-chacha20-poly1305-10
  */
 
 #if( defined( HAVE_CHACHA ) && defined( HAVE_POLY1305 ) )
@@ -37,6 +41,16 @@ extern "C" {
     enum {
         CHACHA20_POLY_1305_ENC_TYPE = 8    /* cipher unique type */
     };
+    
+    /* 
+     * The IV for this implementation is 96 bits to give the most flexibility.
+     *
+     * Some protocols may have unique per-invocation inputs that are not
+     * 96-bit in length. For example, IPsec may specify a 64-bit nonce. In
+     * such a case, it is up to the protocol document to define how to
+     * transform the protocol nonce into a 96-bit nonce, for example by
+     * concatenating a constant value.
+     */
     
     WOLFSSL_API int wc_ChaCha20Poly1305_Encrypt(const byte inKey[CHACHA20_POLY1305_AEAD_KEYSIZE],
                                                 const byte inIV[CHACHA20_POLY1305_AEAD_IV_SIZE],

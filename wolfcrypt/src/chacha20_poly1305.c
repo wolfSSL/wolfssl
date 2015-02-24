@@ -223,11 +223,10 @@ static int _calculateAuthTag( const byte inAuthKey[CHACHA20_POLY1305_AEAD_KEYSIZ
     if( paddingLen )
     {
         err = wc_Poly1305Update( &poly1305Ctx, padding, paddingLen );
-    }
-    
-    if( err )
-    {
-        return err;
+        if( err )
+        {
+            return err;
+        }
     }
     
     // -- AAD length as a 64-bit little endian integer

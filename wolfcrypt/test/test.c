@@ -163,7 +163,7 @@ int  arc4_test(void);
 int  hc128_test(void);
 int  rabbit_test(void);
 int  chacha_test(void);
-int  chacha_poly_test(void);
+int  chacha20_poly1305_aead_test(void);
 int  des_test(void);
 int  des3_test(void);
 int  aes_test(void);
@@ -416,10 +416,10 @@ int wolfcrypt_test(void* args)
 #endif
 
 #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
-    if ( (ret = chacha_poly_test()) != 0)
-        return err_sys("CHACHA-POLY AEAD test failed!\n", ret);
+    if ( (ret = chacha20_poly1305_aead_test()) != 0)
+        return err_sys("ChaCha20-Poly1305 AEAD test failed!\n", ret);
     else
-        printf( "ChachaAEAD test passed!\n");
+        printf( "ChaCha20-Poly1305 AEAD test passed!\n");
 #endif
 
 #ifndef NO_DES3
@@ -2074,11 +2074,11 @@ int poly1305_test(void)
 #endif /* HAVE_POLY1305 */
 
 
-#if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
-int chacha_poly_test(void)
+#if(defined(HAVE_CHACHA) && defined(HAVE_POLY1305))
+int chacha20_poly1305_aead_test(void)
 {
-    // Test #1 from Section 2.8.2 of
-    // https://tools.ietf.org/html/draft-irtf-cfrg-chacha20-poly1305
+    // Test #1 from Section 2.8.2 of draft-irtf-cfrg-chacha20-poly1305-10
+    // https://tools.ietf.org/html/draft-irtf-cfrg-chacha20-poly1305-10
     
     const byte key1[] = {
         0x80, 0x81, 0x82, 0x83, 0x84, 0x85, 0x86, 0x87,
@@ -2138,8 +2138,8 @@ int chacha_poly_test(void)
         0x7e, 0x90, 0x2e, 0xcb, 0xd0, 0x60, 0x06, 0x91
     };
     
-    // Test #2 from Appendix A.2 in
-    // https://tools.ietf.org/html/draft-irtf-cfrg-chacha20-poly1305
+    // Test #2 from Appendix A.2 in draft-irtf-cfrg-chacha20-poly1305-10
+    // https://tools.ietf.org/html/draft-irtf-cfrg-chacha20-poly1305-10
     
     const byte key2[] = {
         0x1c, 0x92, 0x40, 0xa5, 0xeb, 0x55, 0xd3, 0x8a,
