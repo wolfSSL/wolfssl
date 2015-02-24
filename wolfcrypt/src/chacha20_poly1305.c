@@ -180,7 +180,6 @@ static int calculateAuthTag(
     byte little64[8];
 
     XMEMSET(padding, 0, sizeof(padding));
-    paddingLen = 0;
 
     /* Initialize Poly1305 */
 
