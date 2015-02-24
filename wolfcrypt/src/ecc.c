@@ -2650,7 +2650,7 @@ static THREAD_LS_T fp_cache_t fp_cache[FP_ENTRIES];
 
 #ifndef HAVE_THREAD_LS
     static volatile int initMutex = 0;  /* prevent multiple mutex inits */
-    static CyaSSL_Mutex ecc_fp_lock;
+    static wolfSSL_Mutex ecc_fp_lock;
 #endif /* HAVE_THREAD_LS */
 
 /* simple table to help direct the generation of the LUT */

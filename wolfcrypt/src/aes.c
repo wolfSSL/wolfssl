@@ -1435,7 +1435,7 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
     static byte *secKey;
     static volatile SECdescriptorType *secDesc;
 
-    static CyaSSL_Mutex Mutex_AesSEC;
+    static wolfSSL_Mutex Mutex_AesSEC;
 
     #define SEC_DESC_AES_CBC_ENCRYPT 0x60300010
     #define SEC_DESC_AES_CBC_DECRYPT 0x60200010
