@@ -4,7 +4,7 @@
 #ifndef WOLFSSL_BIO_H_
 #define WOLFSSL_BIO_H_
 
-#include <cyassl/openssl/ssl.h>
+#include <wolfssl/openssl/ssl.h>
 
 
 #ifdef __cplusplus
