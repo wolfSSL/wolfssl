@@ -28,8 +28,8 @@
 #ifndef WOLFSSL_OPENSSL_H_
 #define WOLFSSL_OPENSSL_H_
 
-/* wolfssl_cyassl compatibility layer */
-#include <cyassl/ssl.h>
+/* wolfssl_openssl compatibility layer */
+#include <wolfssl/ssl.h>
 
 #ifdef __cplusplus
     extern "C" {
