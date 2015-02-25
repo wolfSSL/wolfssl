@@ -1760,9 +1760,9 @@ void bench_ecc25519KeyAgree(void)
 
     double current_time(int reset)
     {
-        (void) reset;
-
         portTickType tickCount;
+
+        (void) reset;
 
         /* tick count == ms, if configTICK_RATE_HZ is set to 1000 */
         tickCount = xTaskGetTickCount();
