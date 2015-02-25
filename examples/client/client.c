@@ -122,8 +122,8 @@ static void Usage(void)
     printf("client "    LIBWOLFSSL_VERSION_STRING
            " NOTE: All files relative to wolfSSL home dir\n");
     printf("-?          Help, print this usage\n");
-    printf("-h <host>   Host to connect to, default %s\n", yasslIP);
-    printf("-p <num>    Port to connect on, not 0, default %d\n", yasslPort);
+    printf("-h <host>   Host to connect to, default %s\n", wolfSSLIP);
+    printf("-p <num>    Port to connect on, not 0, default %d\n", wolfSSLPort);
     printf("-v <num>    SSL version [0-3], SSLv3(0) - TLS1.2(3)), default %d\n",
                                  CLIENT_DEFAULT_VERSION);
     printf("-l <str>    Cipher list\n");
@@ -193,9 +193,9 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     int  input;
     int  msgSz = (int)strlen(msg);
 
-    word16 port   = yasslPort;
-    char* host   = (char*)yasslIP;
-    const char* domain = "www.yassl.com";
+    word16 port   = wolfSSLPort;
+    char* host   = (char*)wolfSSLIP;
+    const char* domain = "www.wolfssl.com";
 
     int    ch;
     int    version = CLIENT_INVALID_VERSION;

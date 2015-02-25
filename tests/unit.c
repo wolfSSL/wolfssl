@@ -6,7 +6,7 @@
     #include <config.h>
 #endif
 
-#include <cyassl/ctaocrypt/settings.h>
+#include <wolfssl/wolfcrypt/settings.h>
 
 #include <stdio.h>
 #include <tests/unit.h>

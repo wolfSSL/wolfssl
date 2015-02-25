@@ -25,6 +25,7 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 
+#include <wolfssl/ssl.h>
 #include <wolfssl/test.h>
 #include "wolfcrypt/test/test.h"
 

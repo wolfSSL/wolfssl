@@ -301,7 +301,7 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_nofail(void* args)
 {
     SOCKET_T sockfd = 0;
     SOCKET_T clientfd = 0;
-    word16 port = yasslPort;
+    word16 port = wolfSSLPort;
 
     WOLFSSL_METHOD* method = 0;
     WOLFSSL_CTX* ctx = 0;
@@ -463,7 +463,7 @@ static void test_client_nofail(void* args)
         goto done2;
     }
 
-    tcp_connect(&sockfd, yasslIP, ((func_args*)args)->signal->port, 0);
+    tcp_connect(&sockfd, wolfSSLIP, ((func_args*)args)->signal->port, 0);
 
     ssl = wolfSSL_new(ctx);
     wolfSSL_set_fd(ssl, sockfd);
@@ -514,7 +514,7 @@ static THREAD_RETURN WOLFSSL_THREAD run_wolfssl_server(void* args)
     WOLFSSL*     ssl = NULL;
     SOCKET_T    sfd = 0;
     SOCKET_T    cfd = 0;
-    word16      port = yasslPort;
+    word16      port = wolfSSLPort;
 
     char msg[] = "I hear you fa shizzle!";
     int  len   = (int) XSTRLEN(msg);

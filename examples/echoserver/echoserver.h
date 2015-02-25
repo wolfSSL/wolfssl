@@ -21,4 +21,4 @@
 
 #pragma once
 
-THREAD_RETURN CYASSL_THREAD echoserver_test(void* args);
+THREAD_RETURN WOLFSSL_THREAD echoserver_test(void* args);

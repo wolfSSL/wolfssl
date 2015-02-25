@@ -25,6 +25,8 @@
 
 #include <cyassl/ctaocrypt/settings.h>
 
+/* let's use cyassl layer AND cyassl openssl layer */
+#include <cyassl/ssl.h>
 #include <cyassl/openssl/ssl.h>
 
 #if defined(CYASSL_MDK_ARM)

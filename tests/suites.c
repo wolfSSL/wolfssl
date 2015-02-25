@@ -23,12 +23,12 @@
     #include <config.h>
 #endif
 
-#include <cyassl/ctaocrypt/settings.h>
+#include <wolfssl/wolfcrypt/settings.h>
 
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <cyassl/ssl.h>
+#include <wolfssl/ssl.h>
 #include <tests/unit.h>
 
 
@@ -109,7 +109,7 @@ static int IsValidCipherSuite(const char* line, char* suite)
     }
 
     if (found) {
-        if (CyaSSL_CTX_set_cipher_list(cipherSuiteCtx, suite) == SSL_SUCCESS)
+        if (wolfSSL_CTX_set_cipher_list(cipherSuiteCtx, suite) == SSL_SUCCESS)
             valid = 1;
     }
 
@@ -428,7 +428,7 @@ int SuiteTest(void)
 
     (void)test_harness;
 
-    cipherSuiteCtx = CyaSSL_CTX_new(CyaTLSv1_2_client_method());
+    cipherSuiteCtx = wolfSSL_CTX_new(wolfTLSv1_2_client_method());
     if (cipherSuiteCtx == NULL) {
         printf("can't get cipher suite ctx\n");
         exit(EXIT_FAILURE);  
@@ -459,8 +459,8 @@ int SuiteTest(void)
 
     printf(" End Cipher Suite Tests\n");
 
-    CyaSSL_CTX_free(cipherSuiteCtx);
-    CyaSSL_Cleanup();
+    wolfSSL_CTX_free(cipherSuiteCtx);
+    wolfSSL_Cleanup();
 
     return args.return_code;
 }

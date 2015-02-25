@@ -7,7 +7,6 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <ctype.h>
-#include <cyassl/ssl.h> /* portability layer */
 #include <wolfssl/wolfcrypt/types.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/random.h>
