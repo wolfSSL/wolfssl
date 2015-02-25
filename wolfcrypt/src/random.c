@@ -276,7 +276,7 @@ static int Hash_gen(DRBG* drbg, byte* out, word32 outSz, const byte* V)
             return DRBG_FAILURE;
         }
 
-        checkBlock = *(word32*)drbg->digest;
+        XMEMCPY(&checkBlock, drbg->digest, sizeof(word32));
         if (drbg->reseedCtr > 1 && checkBlock == drbg->lastBlock) {
             if (drbg->matchCount == 1) {
                 return DRBG_CONT_FAILURE;
