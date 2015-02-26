@@ -1,8 +1,8 @@
-# Notes - Please read 
+# Notes - Please read
 
 ## Note 1
 ```
-CyaSSL now needs all examples and tests to be run from the CyaSSL home
+wolfSSL now needs all examples and tests to be run from the wolfSSL home
 directory.  This is because it finds certs and keys from ./certs/.  Trying to
 maintain the ability to run each program from its own directory, the testsuite
 directory, the main directory (for make check/test), and for the various
@@ -16,32 +16,50 @@ or
 make check    (when using autoconf)
 
 On *nix or Windows the examples and testsuite will check to see if the current
-directory is the source directory and if so, attempt to change to the CyaSSL
+directory is the source directory and if so, attempt to change to the wolfSSL
 home directory.  This should work in most setup cases, if not, just follow the
 beginning of the note and specify the full path.
 ```
 
 ## Note 2
 ```
-CyaSSL takes a different approach to certificate verification than OpenSSL does.
-The default policy for the client is to verify the server, this means that if
-you don't load CAs to verify the server you'll get a connect error, no signer
-error to confirm failure (-188).  If you want to mimic OpenSSL behavior of
-having SSL_connect succeed even if verifying the server fails and reducing
-security you can do this by calling:
+wolfSSL takes a different approach to certificate verification than OpenSSL
+does.  The default policy for the client is to verify the server, this means
+that if you don't load CAs to verify the server you'll get a connect error,
+no signer error to confirm failure (-188).  If you want to mimic OpenSSL
+behavior of having SSL_connect succeed even if verifying the server fails and
+reducing security you can do this by calling:
 
-SSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, 0);
+wolfSSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, 0);
 
-before calling SSL_new();  Though it's not recommended.
+before calling wolfSSL_new();  Though it's not recommended.
 ```
 
-# CyaSSL Release 3.3.2 (01/07/2015)
+#wolfSSL (Formerly CyaSSL) Release 3.4.0 (02/23/2015)
 
-## Release 3.3.2 CyaSSL has bug fixes and new features including:
+## Release 3.4.0 wolfSSL has bug fixes and new features including:
 
-- Improvements in the build configuration under AIX.
-- Various compile warnings.
-- Changed a memcpy to memmove in the sniffer
+- wolfSSL API and wolfCrypt API, you can still include the cyassl and ctaocrypt
+  headers which will enable the compatibility APIs for the foreseeable future
+- Example use of the wolfCrypt API can be found in wolfcrypt/test/test.c
+- Example use of the wolfSSL API can be found in examples/client/client.c
+- Curve25519 now supported at the wolfCrypt level, wolfSSL layer coming soon
+- Improvements in the build configuration under AIX
+- Microchip Pic32 MZ updates
+- TIRTOS updates
+- PowerPC updates
+- Xcode project update
+- Bidirectional shutdown examples in client/server with -w (wait for full
+  shutdown) option
+- Cycle counts on benchmarks for x86_64, more coming soon
+- ALT_ECC_SIZE for reducing ecc heap use with fastmath when also using large RSA
+  keys
+- Various compile warnings
+- Scan-build warning fixes
+- Changed a memcpy to memmove in the sniffer (if using sniffer please update)
+- No high level security fixes that requires an update though we always
+  recommend updating to the latest
+
 
 # CyaSSL Release 3.3.0 (12/05/2014)
 
