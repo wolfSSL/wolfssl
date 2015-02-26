@@ -13,7 +13,7 @@
 typedef struct WOLFSSL_BIGNUM {
     int   neg;              /* openssh deference */
     void* internal;         /* our big num */
-} WOLFSSL_BIGNUM;        
+} WOLFSSL_BIGNUM;
 
 
 typedef struct WOLFSSL_BN_CTX WOLFSSL_BN_CTX;

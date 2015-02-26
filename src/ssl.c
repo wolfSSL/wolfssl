@@ -225,6 +225,21 @@ int wolfSSL_set_fd(WOLFSSL* ssl, int fd)
 }
 
 
+/**
+  * Get the name of cipher at priotity level passed in.
+  */
+char* wolfSSL_get_cipher_list(int priority)
+{
+    const char* const* ciphers = GetCipherNames();
+
+    if (priority >= GetCipherNamesSize() || priority < 0) {
+        return 0;
+    }
+
+    return (char*)ciphers[priority];
+}
+
+
 int wolfSSL_get_ciphers(char* buf, int len)
 {
     const char* const* ciphers = GetCipherNames();
@@ -3598,6 +3613,26 @@ int wolfSSL_CTX_use_PrivateKey_file(WOLFSSL_CTX* ctx, const char* file,int forma
         return SSL_SUCCESS;
 
     return SSL_FAILURE;
+}
+
+
+/* get cert chaining depth using ssl struct */
+long wolfSSL_get_verify_depth(WOLFSSL* ssl)
+{
+    if(ssl == NULL) {
+        return BAD_FUNC_ARG;
+    }
+    return MAX_CHAIN_DEPTH;
+}
+
+
+/* get cert chaining depth using ctx struct */
+long wolfSSL_CTX_get_verify_depth(WOLFSSL_CTX* ctx)
+{
+    if(ctx == NULL) {
+        return BAD_FUNC_ARG;
+    }
+    return MAX_CHAIN_DEPTH;
 }
 
 
@@ -8066,6 +8101,35 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
     }
 
 
+    int wolfSSL_clear(WOLFSSL* ssl)
+    {
+        (void)ssl;
+        /* TODO: GetErrors().Remove(); */
+        return SSL_SUCCESS;
+    }
+
+
+    long wolfSSL_SSL_SESSION_set_timeout(WOLFSSL_SESSION* ses, long t)
+    {
+        word32 time;
+        if (!ses || t < 0)
+            return BAD_FUNC_ARG;
+
+        /* for cross library compatibility accept a long but convert it to a
+           word32 (unsigned 32 bit) for wolfSSL sessions */
+        if ( (t >> 32) > 0) {
+            WOLFSSL_MSG("Session time is to large");
+            return BAD_FUNC_ARG;
+        } else {
+            time = t & 0xFFFFFFFF;
+        }
+
+        ses->timeout = time;
+
+        return SSL_SUCCESS;
+    }
+
+
     long wolfSSL_CTX_set_mode(WOLFSSL_CTX* ctx, long mode)
     {
         /* SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER is wolfSSL default mode */
@@ -8075,6 +8139,14 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             ctx->partialWrite = 1;
 
         return mode;
+    }
+
+
+    long wolfSSL_SSL_get_mode(WOLFSSL* ssl)
+    {
+        /* TODO: */
+        (void)ssl;
+        return 0;
     }
 
 
