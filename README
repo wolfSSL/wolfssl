@@ -1,7 +1,7 @@
 *** Notes, Please read ***
 
 Note 1)
-CyaSSL now needs all examples and tests to be run from the CyaSSL home
+wolfSSL now needs all examples and tests to be run from the wolfSSL home
 directory.  This is because it finds certs and keys from ./certs/.  Trying to
 maintain the ability to run each program from its own directory, the testsuite
 directory, the main directory (for make check/test), and for the various
@@ -15,22 +15,22 @@ or
 make check    (when using autoconf)
 
 On *nix or Windows the examples and testsuite will check to see if the current
-directory is the source directory and if so, attempt to change to the CyaSSL
+directory is the source directory and if so, attempt to change to the wolfSSL 
 home directory.  This should work in most setup cases, if not, just follow the
 beginning of the note and specify the full path.
 
 
 Note 2)
-CyaSSL takes a different approach to certificate verification than OpenSSL does.
-The default policy for the client is to verify the server, this means that if
-you don't load CAs to verify the server you'll get a connect error, no signer
-error to confirm failure (-188).  If you want to mimic OpenSSL behavior of
-having SSL_connect succeed even if verifying the server fails and reducing
-security you can do this by calling:
+wolfSSL takes a different approach to certificate verification than OpenSSL
+does.  The default policy for the client is to verify the server, this means
+that if you don't load CAs to verify the server you'll get a connect error,
+no signer error to confirm failure (-188).
+If you want to mimic OpenSSL behavior of having SSL_connect succeed even if
+verifying the server fails and reducing security you can do this by calling:
 
-SSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, 0);
+wolfSSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, 0);
 
-before calling SSL_new();  Though it's not recommended.
+before calling wolfSSL_new();  Though it's not recommended.
 
 *** end Notes ***
 
