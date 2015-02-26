@@ -725,6 +725,11 @@
     #define NO_SKID
 #endif
 
+/* Poly1305 ONE_TIME_AUTH enabled for SSL connections */
+#if defined(HAVE_POLY1305)
+    #define HAVE_ONE_TIME_AUTH
+#endif
+
 
 #ifdef __INTEL_COMPILER
     #pragma warning(disable:2259) /* explicit casts to smaller sizes, disable */
