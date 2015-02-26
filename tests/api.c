@@ -646,7 +646,7 @@ static void run_wolfssl_client(void* args)
     if (callbacks->ctx_ready)
         callbacks->ctx_ready(ctx);
 
-    tcp_connect(&sfd, yasslIP, ((func_args*)args)->signal->port, 0);
+    tcp_connect(&sfd, wolfSSLIP, ((func_args*)args)->signal->port, 0);
 
     ssl = wolfSSL_new(ctx);
     wolfSSL_set_fd(ssl, sfd);
