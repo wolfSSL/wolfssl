@@ -19,12 +19,12 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-#ifndef NO_MD5
-
 #ifndef WOLF_CRYPT_MD5_H
 #define WOLF_CRYPT_MD5_H
 
 #include <wolfssl/wolfcrypt/types.h>
+
+#ifndef NO_MD5
 
 #ifdef HAVE_FIPS
     #define wc_InitMd5   InitMd5
@@ -77,5 +77,5 @@ WOLFSSL_API int  wc_Md5Hash(const byte*, word32, byte*);
     } /* extern "C" */
 #endif
 
-#endif /* WOLF_CRYPT_MD5_H */
 #endif /* NO_MD5 */
+#endif /* WOLF_CRYPT_MD5_H */

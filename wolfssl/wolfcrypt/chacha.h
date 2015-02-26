@@ -19,17 +19,16 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-#ifdef HAVE_CHACHA
-
 #ifndef WOLF_CRYPT_CHACHA_H
 #define WOLF_CRYPT_CHACHA_H
 
 #include <wolfssl/wolfcrypt/types.h>
 
+#ifdef HAVE_CHACHA
+
 #ifdef __cplusplus
     extern "C" {
 #endif
-
 
 enum {
 	CHACHA_ENC_TYPE = 7     /* cipher unique type */
@@ -53,6 +52,6 @@ WOLFSSL_API int wc_Chacha_SetKey(ChaCha* ctx, const byte* key, word32 keySz);
     } /* extern "C" */
 #endif
 
-#endif /* WOLF_CRYPT_CHACHA_H */
 #endif /* HAVE_CHACHA */
+#endif /* WOLF_CRYPT_CHACHA_H */
 

@@ -19,13 +19,13 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-
-#ifdef HAVE_PKCS7
-
 #ifndef WOLF_CRYPT_PKCS7_H
 #define WOLF_CRYPT_PKCS7_H
 
 #include <wolfssl/wolfcrypt/types.h>
+
+#ifdef HAVE_PKCS7
+
 #ifndef NO_ASN
     #include <wolfssl/wolfcrypt/asn.h>
 #endif
@@ -121,7 +121,6 @@ WOLFSSL_API int  wc_PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* pkiMsg,
     } /* extern "C" */
 #endif
 
-#endif /* WOLF_CRYPT_PKCS7_H */
-
 #endif /* HAVE_PKCS7 */
+#endif /* WOLF_CRYPT_PKCS7_H */
 

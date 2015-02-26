@@ -19,13 +19,13 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-
-#ifndef NO_DSA
-
 #ifndef WOLF_CRYPT_DSA_H
 #define WOLF_CRYPT_DSA_H
 
 #include <wolfssl/wolfcrypt/types.h>
+
+#ifndef NO_DSA
+
 #include <wolfssl/wolfcrypt/integer.h>
 #include <wolfssl/wolfcrypt/random.h>
 
@@ -70,6 +70,6 @@ WOLFSSL_API int wc_DsaPrivateKeyDecode(const byte* input, word32* inOutIdx, DsaK
     } /* extern "C" */
 #endif
 
-#endif /* WOLF_CRYPT_DSA_H */
 #endif /* NO_DSA */
+#endif /* WOLF_CRYPT_DSA_H */
 

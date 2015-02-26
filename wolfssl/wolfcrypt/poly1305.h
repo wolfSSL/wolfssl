@@ -19,13 +19,12 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-
-#ifdef HAVE_POLY1305
-
 #ifndef WOLF_CRYPT_POLY1305_H
 #define WOLF_CRYPT_POLY1305_H
 
 #include <wolfssl/wolfcrypt/types.h>
+
+#ifdef HAVE_POLY1305
 
 #ifdef __cplusplus
     extern "C" {
@@ -77,7 +76,6 @@ WOLFSSL_API int wc_Poly1305Final(Poly1305* poly1305, byte* tag);
     } /* extern "C" */
 #endif
 
-#endif /* WOLF_CRYPT_POLY1305_H */
-
 #endif /* HAVE_POLY1305 */
+#endif /* WOLF_CRYPT_POLY1305_H */
 

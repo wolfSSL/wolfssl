@@ -19,13 +19,13 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-
-#ifndef NO_PWDBASED
-
 #ifndef WOLF_CRYPT_PWDBASED_H
 #define WOLF_CRYPT_PWDBASED_H
 
 #include <wolfssl/wolfcrypt/types.h>
+
+#ifndef NO_PWDBASED
+
 #include <wolfssl/wolfcrypt/md5.h>       /* for hash type */
 #include <wolfssl/wolfcrypt/sha.h>
 
@@ -52,5 +52,5 @@ WOLFSSL_API int wc_PKCS12_PBKDF(byte* output, const byte* passwd, int pLen,
     } /* extern "C" */
 #endif
 
-#endif /* WOLF_CRYPT_PWDBASED_H */
 #endif /* NO_PWDBASED */
+#endif /* WOLF_CRYPT_PWDBASED_H */

@@ -19,15 +19,12 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-
-#ifdef HAVE_LIBZ
-
 #ifndef WOLF_CRYPT_COMPRESS_H
 #define WOLF_CRYPT_COMPRESS_H
 
-
 #include <wolfssl/wolfcrypt/types.h>
 
+#ifdef HAVE_LIBZ
 
 #ifdef __cplusplus
     extern "C" {
@@ -46,7 +43,6 @@ WOLFSSL_API int wc_DeCompress(byte*, word32, const byte*, word32);
 #endif
 
 
-#endif /* WOLF_CRYPT_COMPRESS_H */
-
 #endif /* HAVE_LIBZ */
+#endif /* WOLF_CRYPT_COMPRESS_H */
 

@@ -20,8 +20,8 @@
  */
 
 
-#ifndef CTAO_CRYPT_FIPS_TEST_H
-#define CTAO_CRYPT_FIPS_TEST_H
+#ifndef WOLF_CRYPT_FIPS_TEST_H
+#define WOLF_CRYPT_FIPS_TEST_H
 
 #include <cyassl/ctaocrypt/types.h>
 
@@ -54,5 +54,5 @@ CYASSL_API const char* wolfCrypt_GetCoreHash_fips(void);
     } /* extern "C" */
 #endif
 
-#endif /* CTAO_CRYPT_FIPS_TEST_H */
+#endif /* WOLF_CRYPT_FIPS_TEST_H */
 

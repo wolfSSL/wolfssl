@@ -19,14 +19,12 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-
-#ifndef NO_AES
-
 #ifndef WOLF_CRYPT_AES_H
 #define WOLF_CRYPT_AES_H
 
-
 #include <wolfssl/wolfcrypt/types.h>
+
+#ifndef NO_AES
 
 /* included for fips @wc_fips */
 #ifdef HAVE_FIPS
@@ -182,6 +180,6 @@ typedef struct Gmac {
 #endif
 
 
-#endif /* WOLF_CRYPT_AES_H */
 #endif /* NO_AES */
+#endif /* WOLF_CRYPT_AES_H */
 

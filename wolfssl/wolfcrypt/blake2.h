@@ -20,10 +20,13 @@
  */
 
 
-#ifdef HAVE_BLAKE2
 
 #ifndef WOLF_CRYPT_BLAKE2_H
 #define WOLF_CRYPT_BLAKE2_H
+
+#include <wolfssl/wolfcrypt/settings.h>
+
+#ifdef HAVE_BLAKE2
 
 #include <wolfssl/wolfcrypt/blake2-int.h>
 
@@ -63,6 +66,6 @@ WOLFSSL_API int wc_Blake2bFinal(Blake2b*, byte*, word32);
     }
 #endif
 
-#endif  /* WOLF_CRYPT_BLAKE2_H */
 #endif  /* HAVE_BLAKE2 */
+#endif  /* WOLF_CRYPT_BLAKE2_H */
 

@@ -23,7 +23,7 @@
 #ifndef WOLFSSL_ERROR_H
 #define WOLFSSL_ERROR_H
 
-#include <wolfssl/wolfcrypt/error-crypt.h>   /* pull in CTaoCrypt errors */
+#include <wolfssl/wolfcrypt/error-crypt.h>   /* pull in wolfCrypt errors */
 
 #ifdef __cplusplus
     extern "C" {

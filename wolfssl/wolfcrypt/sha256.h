@@ -17,21 +17,20 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-
 /* code submitted by raphael.huck@efixo.com */
-
-
-#ifndef NO_SHA256
 
 #ifndef WOLF_CRYPT_SHA256_H
 #define WOLF_CRYPT_SHA256_H
 
+#include <wolfssl/wolfcrypt/types.h>
+
+#ifndef NO_SHA256
+
 #ifdef HAVE_FIPS
-/* for fips @wc_fips */
-#include <cyassl/ctaocrypt/sha256.h>
+    /* for fips @wc_fips */
+    #include <cyassl/ctaocrypt/sha256.h>
 #endif
 
-#include <wolfssl/wolfcrypt/types.h>
 
 #ifdef __cplusplus
     extern "C" {
@@ -39,7 +38,7 @@
 
 #ifndef HAVE_FIPS /* avoid redefinition of structs */
 #ifdef WOLFSSL_PIC32MZ_HASH
-#include "port/pic32/pic32mz-crypt.h"
+    #include "port/pic32/pic32mz-crypt.h"
 #endif
 
 /* in bytes */
@@ -74,6 +73,6 @@ WOLFSSL_API int wc_Sha256Hash(const byte*, word32, byte*);
     } /* extern "C" */
 #endif
 
-#endif /* WOLF_CRYPT_SHA256_H */
 #endif /* NO_SHA256 */
+#endif /* WOLF_CRYPT_SHA256_H */
 

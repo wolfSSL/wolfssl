@@ -19,12 +19,13 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-#ifndef NO_ASN
-
 #ifndef WOLF_CRYPT_ASN_H
 #define WOLF_CRYPT_ASN_H
 
 #include <wolfssl/wolfcrypt/types.h>
+
+#ifndef NO_ASN
+
 #include <wolfssl/wolfcrypt/integer.h>
 #ifndef NO_RSA
     #include <wolfssl/wolfcrypt/rsa.h>
@@ -730,6 +731,6 @@ WOLFSSL_LOCAL void FreeDecodedCRL(DecodedCRL*);
     } /* extern "C" */
 #endif
 
-#endif /* CTAO_CRYPT_ASN_H */
-
 #endif /* !NO_ASN */
+#endif /* WOLF_CRYPT_ASN_H */
+

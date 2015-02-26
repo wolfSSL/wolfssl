@@ -19,13 +19,12 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-
-#ifndef NO_RABBIT
-
 #ifndef WOLF_CRYPT_RABBIT_H
 #define WOLF_CRYPT_RABBIT_H
 
 #include <wolfssl/wolfcrypt/types.h>
+
+#ifndef NO_RABBIT
 
 #ifdef __cplusplus
     extern "C" {
@@ -60,6 +59,6 @@ WOLFSSL_API int wc_RabbitSetKey(Rabbit*, const byte* key, const byte* iv);
     } /* extern "C" */
 #endif
 
+#endif /* NO_RABBIT */
 #endif /* WOLF_CRYPT_RABBIT_H */
 
-#endif /* NO_RABBIT */

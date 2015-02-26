@@ -19,14 +19,12 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-
-#ifndef NO_DES3
-
 #ifndef WOLF_CRYPT_DES3_H
 #define WOLF_CRYPT_DES3_H
 
-
 #include <wolfssl/wolfcrypt/types.h>
+
+#ifndef NO_DES3
 
 #ifdef HAVE_FIPS
 /* included for fips @wc_fips */
@@ -111,5 +109,5 @@ WOLFSSL_API int  wc_Des3_CbcDecryptWithKey(byte* out, const byte* in, word32 sz,
 #endif
 
 #endif /* NO_DES3 */
-#endif /* CTAO_CRYPT_DES3_H */
+#endif /* WOLF_CRYPT_DES3_H */
 

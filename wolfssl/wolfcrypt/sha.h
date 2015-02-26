@@ -19,14 +19,12 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-
-#ifndef NO_SHA
-
 #ifndef WOLF_CRYPT_SHA_H
 #define WOLF_CRYPT_SHA_H
 
-
 #include <wolfssl/wolfcrypt/types.h>
+
+#ifndef NO_SHA
 
 #ifdef HAVE_FIPS
 /* for fips @wc_fips */
@@ -77,6 +75,6 @@ WOLFSSL_API int wc_ShaHash(const byte*, word32, byte*);
     } /* extern "C" */
 #endif
 
-#endif /* CTAO_CRYPT_SHA_H */
 #endif /* NO_SHA */
+#endif /* WOLF_CRYPT_SHA_H */
 

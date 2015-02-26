@@ -19,18 +19,16 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-
-#ifndef NO_MD4
-
 #ifndef WOLF_CRYPT_MD4_H
 #define WOLF_CRYPT_MD4_H
 
 #include <wolfssl/wolfcrypt/types.h>
 
+#ifndef NO_MD4
+
 #ifdef __cplusplus
     extern "C" {
 #endif
-
 
 /* in bytes */
 enum {
@@ -59,7 +57,6 @@ WOLFSSL_API void wc_Md4Final(Md4*, byte*);
     } /* extern "C" */
 #endif
 
-#endif /* WOLF_CRYPT_MD4_H */
-
 #endif /* NO_MD4 */
+#endif /* WOLF_CRYPT_MD4_H */
 

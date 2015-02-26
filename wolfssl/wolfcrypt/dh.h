@@ -19,13 +19,13 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-
-#ifndef NO_DH
-
 #ifndef WOLF_CRYPT_DH_H
 #define WOLF_CRYPT_DH_H
 
 #include <wolfssl/wolfcrypt/types.h>
+
+#ifndef NO_DH
+
 #include <wolfssl/wolfcrypt/integer.h>
 #include <wolfssl/wolfcrypt/random.h>
 
@@ -61,7 +61,6 @@ WOLFSSL_API int wc_DhParamsLoad(const byte* input, word32 inSz, byte* p,
     } /* extern "C" */
 #endif
 
-#endif /* WOLF_CRYPT_DH_H */
-
 #endif /* NO_DH */
+#endif /* WOLF_CRYPT_DH_H */
 

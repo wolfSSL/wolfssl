@@ -19,13 +19,12 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-
-#ifdef WOLFSSL_RIPEMD
-
 #ifndef WOLF_CRYPT_RIPEMD_H
-#define WOLF_CRYPT_RIPEME_H
+#define WOLF_CRYPT_RIPEMD_H
 
 #include <wolfssl/wolfcrypt/types.h>
+
+#ifdef WOLFSSL_RIPEMD
 
 #ifdef __cplusplus
     extern "C" {
@@ -60,5 +59,5 @@ WOLFSSL_API void wc_RipeMdFinal(RipeMd*, byte*);
     } /* extern "C" */
 #endif
 
-#endif /* WOLF_CRYPT_RIPEMD_H */
 #endif /* WOLFSSL_RIPEMD */
+#endif /* WOLF_CRYPT_RIPEMD_H */

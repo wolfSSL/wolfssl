@@ -19,17 +19,16 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-#ifdef WOLFSSL_MD2
-
 #ifndef WOLF_CRYPT_MD2_H
 #define WOLF_CRYPT_MD2_H
 
 #include <wolfssl/wolfcrypt/types.h>
 
+#ifdef WOLFSSL_MD2
+
 #ifdef __cplusplus
     extern "C" {
 #endif
-
 
 /* in bytes */
 enum {
@@ -60,6 +59,6 @@ WOLFSSL_API int  wc_Md2Hash(const byte*, word32, byte*);
     } /* extern "C" */
 #endif
 
-#endif /* WOLF_CRYPT_MD2_H */
 #endif /* WOLFSSL_MD2 */
+#endif /* WOLF_CRYPT_MD2_H */
 

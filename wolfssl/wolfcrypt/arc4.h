@@ -23,14 +23,11 @@
 #ifndef WOLF_CRYPT_ARC4_H
 #define WOLF_CRYPT_ARC4_H
 
-
 #include <wolfssl/wolfcrypt/types.h>
-
 
 #ifdef __cplusplus
     extern "C" {
 #endif
-
 
 #define WOLFSSL_ARC4_CAVIUM_MAGIC 0xBEEF0001
 

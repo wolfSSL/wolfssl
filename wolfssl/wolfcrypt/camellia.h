@@ -46,18 +46,16 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-#ifdef HAVE_CAMELLIA
-
 #ifndef WOLF_CRYPT_CAMELLIA_H
 #define WOLF_CRYPT_CAMELLIA_H
 
-
 #include <wolfssl/wolfcrypt/types.h>
+
+#ifdef HAVE_CAMELLIA
 
 #ifdef __cplusplus
     extern "C" {
 #endif
-
 
 enum {
     CAMELLIA_BLOCK_SIZE = 16
@@ -93,6 +91,6 @@ WOLFSSL_API void wc_CamelliaCbcDecrypt(Camellia* cam,
     } /* extern "C" */
 #endif
 
-#endif /* WOLF_CRYPT_CAMELLIA_H */
 #endif /* HAVE_CAMELLIA */
+#endif /* WOLF_CRYPT_CAMELLIA_H */
 

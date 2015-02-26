@@ -19,19 +19,19 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-#ifdef HAVE_ECC
-
 #ifndef WOLF_CRYPT_ECC_H
 #define WOLF_CRYPT_ECC_H
 
 #include <wolfssl/wolfcrypt/types.h>
+
+#ifdef HAVE_ECC
+
 #include <wolfssl/wolfcrypt/integer.h>
 #include <wolfssl/wolfcrypt/random.h>
 
 #ifdef __cplusplus
     extern "C" {
 #endif
-
 
 enum {
     ECC_PUBLICKEY  = 1,
@@ -239,5 +239,5 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
     }    /* extern "C" */
 #endif
 
-#endif /* WOLF_CRYPT_ECC_H */
 #endif /* HAVE_ECC */
+#endif /* WOLF_CRYPT_ECC_H */

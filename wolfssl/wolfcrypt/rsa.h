@@ -19,12 +19,12 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-#ifndef NO_RSA
-
 #ifndef WOLF_CRYPT_RSA_H
 #define WOLF_CRYPT_RSA_H
 
 #include <wolfssl/wolfcrypt/types.h>
+
+#ifndef NO_RSA
 
 #ifdef HAVE_FIPS
 /* for fips @wc_fips */
@@ -114,7 +114,6 @@ WOLFSSL_API int  wc_RsaFlattenPublicKey(RsaKey*, byte*, word32*, byte*,
     } /* extern "C" */
 #endif
 
-#endif /* WOLF_CRYPT_RSA_H */
-
 #endif /* NO_RSA */
+#endif /* WOLF_CRYPT_RSA_H */
 

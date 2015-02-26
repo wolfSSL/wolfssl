@@ -24,12 +24,12 @@
  * https://tools.ietf.org/html/draft-irtf-cfrg-chacha20-poly1305-10
  */
 
-#if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
-
 #ifndef WOLF_CRYPT_CHACHA20_POLY1305_H
 #define WOLF_CRYPT_CHACHA20_POLY1305_H
 
 #include <wolfssl/wolfcrypt/types.h>
+
+#if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
 
 #ifdef __cplusplus
     extern "C" {
@@ -75,5 +75,5 @@ int wc_ChaCha20Poly1305_Decrypt(
     } /* extern "C" */
 #endif
 
-#endif /* WOLF_CRYPT_CHACHA20_POLY1305_H */
 #endif /* HAVE_CHACHA && HAVE_POLY1305 */
+#endif /* WOLF_CRYPT_CHACHA20_POLY1305_H */

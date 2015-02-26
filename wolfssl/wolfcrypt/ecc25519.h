@@ -19,14 +19,14 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-#ifdef HAVE_ECC25519
-
 #ifndef WOLF_CRYPT_ECC25519_H
 #define WOLF_CRYPT_ECC25519_H
 
-#include <wolfssl/wolfcrypt/ecc25519_fe.h>
 #include <wolfssl/wolfcrypt/types.h>
-#include <wolfssl/wolfcrypt/settings.h>
+
+#ifdef HAVE_ECC25519
+
+#include <wolfssl/wolfcrypt/ecc25519_fe.h>
 #include <wolfssl/wolfcrypt/random.h>
 
 #ifdef __cplusplus
@@ -96,6 +96,6 @@ int wc_ecc25519_size(ecc25519_key* key);
     }    /* extern "C" */
 #endif
 
-#endif /* WOLF_CRYPT_ECC25519_H */
 #endif /* HAVE_ECC25519 */
+#endif /* WOLF_CRYPT_ECC25519_H */
 
