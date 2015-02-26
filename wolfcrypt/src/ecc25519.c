@@ -150,9 +150,6 @@ int wc_ecc25519_shared_secret(ecc25519_key* private_key, ecc25519_key* public_ke
             outlen == NULL)
         return BAD_FUNC_ARG;
 
-    if (private_key->k.point == NULL || public_key->p.point == NULL)
-        return BAD_FUNC_ARG;
-
     /* avoid implementation fingerprinting */
     if (public_key->p.point[0] > 0x7F)
         return ECC_BAD_ARG_E;

@@ -217,6 +217,7 @@ static INLINE void c16toa(word16 u16, byte* c)
     c[1] =  u16 & 0xff;
 }
 
+static int ConstantCompare(const byte* a, const byte* b, int length);
 
 #if !defined(NO_OLD_TLS) || defined(HAVE_CHACHA) || defined(HAVE_AESCCM) \
     || defined(HAVE_AESGCM)
@@ -5440,14 +5441,14 @@ static int  ChachaAEADEncrypt(WOLFSSL* ssl, byte* out, const byte* input,
 	XMEMSET(nonce, 0, AEAD_NONCE_SZ);
 	XMEMSET(cipher, 0, sizeof(cipher));
 	XMEMSET(additional, 0, CHACHA20_BLOCK_SIZE);
-	
+
 	/* get nonce */
 	c32toa(ssl->keys.sequence_number, nonce + AEAD_IMP_IV_SZ
 	       + AEAD_SEQ_OFFSET);
-	
+
 	/* opaque SEQ number stored for AD */
 	c32toa(GetSEQIncrement(ssl, 0), additional + AEAD_SEQ_OFFSET);
-	
+
 	/* Store the type, version. Unfortunately, they are in
 	 * the input buffer ahead of the plaintext. */
 	#ifdef WOLFSSL_DTLS
@@ -5456,9 +5457,9 @@ static int  ChachaAEADEncrypt(WOLFSSL* ssl, byte* out, const byte* input,
 	        additionalSrc -= DTLS_HANDSHAKE_EXTRA;
 	    }
 	#endif
-	
+
 	XMEMCPY(additional + AEAD_TYPE_OFFSET, additionalSrc, 3);
-	
+
 	#ifdef CHACHA_AEAD_TEST
 		printf("Encrypt Additional : ");
 		for (i = 0; i < CHACHA20_BLOCK_SIZE; i++) {
@@ -5473,20 +5474,20 @@ static int  ChachaAEADEncrypt(WOLFSSL* ssl, byte* out, const byte* input,
 		}
 		printf("\n");
 	#endif
-	
+
 	/* set the nonce for chacha and get poly1305 key */
 	if ((ret = wc_Chacha_SetIV(ssl->encrypt.chacha, nonce, 0)) != 0)
 	    return ret;
-	
+
 		if ((ret = wc_Chacha_Process(ssl->encrypt.chacha, cipher,
 	                cipher, sizeof(cipher))) != 0)
 	    return ret;
-	
+
 	/* encrypt the plain text */
 	if ((ret = wc_Chacha_Process(ssl->encrypt.chacha, out, input,
 	               sz - ssl->specs.aead_mac_size)) != 0)
 	    return ret;
-	
+
 	/* get the tag : future use of hmac could go here*/
 	if (ssl->options.oldPoly == 1) {
 	    if ((ret = Poly1305TagOld(ssl, additional, (const byte* )out,
@@ -5498,13 +5499,13 @@ static int  ChachaAEADEncrypt(WOLFSSL* ssl, byte* out, const byte* input,
 	                cipher, sz, tag)) != 0)
 	        return ret;
 	}
-	
+
 	/* append tag to ciphertext */
 	XMEMCPY(out + sz - ssl->specs.aead_mac_size, tag, sizeof(tag));
-	
+
 	AeadIncrementExpIV(ssl);
 	ForceZero(nonce, AEAD_NONCE_SZ);
-	
+
 	#ifdef CHACHA_AEAD_TEST
 	   printf("mac tag :\n");
 	    for (i = 0; i < 16; i++) {
@@ -5520,7 +5521,7 @@ static int  ChachaAEADEncrypt(WOLFSSL* ssl, byte* out, const byte* input,
 	    }
 	    printf("\n");
 	#endif
-	
+
 	return ret;
 }
 
@@ -5532,15 +5533,15 @@ static int ChachaAEADDecrypt(WOLFSSL* ssl, byte* plain, const byte* input,
 	byte nonce[AEAD_NONCE_SZ];
 	byte tag[POLY1305_AUTH_SZ];
 	byte cipher[CHACHA20_256_KEY_SIZE]; /* generated key for mac */
-    int i;
 	int ret = 0;
-	
+
 	XMEMSET(tag, 0, sizeof(tag));
 	XMEMSET(cipher, 0, sizeof(cipher));
 	XMEMSET(nonce, 0, AEAD_NONCE_SZ);
 	XMEMSET(additional, 0, CHACHA20_BLOCK_SIZE);
-	
+
     #ifdef CHACHA_AEAD_TEST
+       int i;
 	   printf("input before decrypt :\n");
 	    for (i = 0; i < sz; i++) {
 	       printf("%02x", input[i]);
@@ -5549,25 +5550,25 @@ static int ChachaAEADDecrypt(WOLFSSL* ssl, byte* plain, const byte* input,
 	    }
 	    printf("\n");
 	#endif
-	
+
 	/* get nonce */
 	c32toa(ssl->keys.peer_sequence_number, nonce + AEAD_IMP_IV_SZ
 	        + AEAD_SEQ_OFFSET);
-	
+
 	/* sequence number field is 64-bits, we only use 32-bits */
 	c32toa(GetSEQIncrement(ssl, 1), additional + AEAD_SEQ_OFFSET);
-	
+
 	/* get AD info */
 	additional[AEAD_TYPE_OFFSET] = ssl->curRL.type;
 	additional[AEAD_VMAJ_OFFSET] = ssl->curRL.pvMajor;
 	additional[AEAD_VMIN_OFFSET] = ssl->curRL.pvMinor;
-	
+
 	/* Store the type, version. */
 	#ifdef WOLFSSL_DTLS
 	    if (ssl->options.dtls)
 	        c16toa(ssl->keys.dtls_state.curEpoch, additional);
 	#endif
-		
+
 	#ifdef CHACHA_AEAD_TEST
 		printf("Decrypt Additional : ");
 		for (i = 0; i < CHACHA20_BLOCK_SIZE; i++) {
@@ -5575,15 +5576,15 @@ static int ChachaAEADDecrypt(WOLFSSL* ssl, byte* plain, const byte* input,
 		}
 		printf("\n\n");
 	#endif
-	
+
 	/* set nonce and get poly1305 key */
 	if ((ret = wc_Chacha_SetIV(ssl->decrypt.chacha, nonce, 0)) != 0)
 	    return ret;
-	
+
 	if ((ret = wc_Chacha_Process(ssl->decrypt.chacha, cipher,
 	                cipher, sizeof(cipher))) != 0)
 	    return ret;
-	
+
 	/* get the tag : future use of hmac could go here*/
 	if (ssl->options.oldPoly == 1) {
 	    if ((ret = Poly1305TagOld(ssl, additional, input, cipher,
@@ -5595,26 +5596,21 @@ static int ChachaAEADDecrypt(WOLFSSL* ssl, byte* plain, const byte* input,
 	                    sz, tag)) != 0)
 	        return ret;
 	}
-	
+
 	/* check mac sent along with packet */
-	ret = 0;
-	for (i = 0; i <  ssl->specs.aead_mac_size; i++) {
-	    if ((input + sz - ssl->specs.aead_mac_size)[i] != tag[i])
-	        ret = 1;
-	}
-	
-	if (ret == 1) {
+    if (ConstantCompare(input + sz - ssl->specs.aead_mac_size, tag,
+                ssl->specs.aead_mac_size) != 0) {
 	    WOLFSSL_MSG("Mac did not match");
 	    SendAlert(ssl, alert_fatal, bad_record_mac);
 	    ForceZero(nonce, AEAD_NONCE_SZ);
 	    return VERIFY_MAC_ERROR;
 	}
-	
+
 	/* if mac was good decrypt message */
 	if ((ret = wc_Chacha_Process(ssl->decrypt.chacha, plain, input,
 	               sz - ssl->specs.aead_mac_size)) != 0)
 	    return ret;
-		
+
 	#ifdef CHACHA_AEAD_TEST
 	   printf("plain after decrypt :\n");
 	    for (i = 0; i < sz; i++) {
@@ -5624,7 +5620,7 @@ static int ChachaAEADDecrypt(WOLFSSL* ssl, byte* plain, const byte* input,
 	    }
 	    printf("\n");
 	#endif
-	
+
 	return ret;
 }
 #endif /* HAVE_CHACHA && HAVE_POLY1305 */
