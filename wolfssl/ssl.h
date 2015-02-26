@@ -38,7 +38,7 @@
     #endif
 #endif
 
-#ifdef YASSL_PREFIX
+#ifdef WOLFSSL_PREFIX
     #include "prefix_ssl.h"
 #endif
 
@@ -169,7 +169,12 @@ enum AlertDescription {
     certificate_unknown     = 46,
     illegal_parameter       = 47,
     decrypt_error           = 51,
+    #ifdef WOLFSSL_MYSQL_COMPATIBLE
+    /* catch name conflict for enum protocol with MYSQL build */
+    wc_protocol_version     = 70,
+    #else
     protocol_version        = 70,
+    #endif
     no_renegotiation        = 100,
     unrecognized_name       = 112
 };
@@ -211,6 +216,8 @@ WOLFSSL_API int wolfSSL_CTX_use_certificate_chain_file(WOLFSSL_CTX *,
                                                      const char *file);
 WOLFSSL_API int wolfSSL_CTX_use_RSAPrivateKey_file(WOLFSSL_CTX*, const char*, int);
 
+WOLFSSL_API long wolfSSL_get_verify_depth(WOLFSSL* ssl);
+WOLFSSL_API long wolfSSL_CTX_get_verify_depth(WOLFSSL_CTX* ctx);
 WOLFSSL_API int wolfSSL_use_certificate_file(WOLFSSL*, const char*, int);
 WOLFSSL_API int wolfSSL_use_PrivateKey_file(WOLFSSL*, const char*, int);
 WOLFSSL_API int wolfSSL_use_certificate_chain_file(WOLFSSL*, const char *file);
@@ -236,6 +243,7 @@ WOLFSSL_API int wolfSSL_use_RSAPrivateKey_file(WOLFSSL*, const char*, int);
 WOLFSSL_API WOLFSSL_CTX* wolfSSL_CTX_new(WOLFSSL_METHOD*);
 WOLFSSL_API WOLFSSL* wolfSSL_new(WOLFSSL_CTX*);
 WOLFSSL_API int  wolfSSL_set_fd (WOLFSSL*, int);
+WOLFSSL_API char* wolfSSL_get_cipher_list(int priority);
 WOLFSSL_API int  wolfSSL_get_ciphers(char*, int);
 WOLFSSL_API int  wolfSSL_get_fd(const WOLFSSL*);
 WOLFSSL_API void wolfSSL_set_using_nonblock(WOLFSSL*, int);
@@ -259,6 +267,7 @@ WOLFSSL_API int  wolfSSL_get_error(WOLFSSL*, int);
 WOLFSSL_API int  wolfSSL_get_alert_history(WOLFSSL*, WOLFSSL_ALERT_HISTORY *);
 
 WOLFSSL_API int        wolfSSL_set_session(WOLFSSL* ssl,WOLFSSL_SESSION* session);
+WOLFSSL_API long       wolfSSL_SSL_SESSION_set_timeout(WOLFSSL_SESSION* session, long time);
 WOLFSSL_API WOLFSSL_SESSION* wolfSSL_get_session(WOLFSSL* ssl);
 WOLFSSL_API void       wolfSSL_flush_sessions(WOLFSSL_CTX *ctx, long tm);
 WOLFSSL_API int        wolfSSL_SetServerID(WOLFSSL* ssl, const unsigned char*,
@@ -747,11 +756,13 @@ WOLFSSL_API long wolfSSL_CTX_set_options(WOLFSSL_CTX*, long);
 WOLFSSL_API void wolfSSL_ERR_free_strings(void);
 WOLFSSL_API void wolfSSL_ERR_remove_state(unsigned long);
 WOLFSSL_API void wolfSSL_EVP_cleanup(void);
+WOLFSSL_API int  wolfSSL_clear(WOLFSSL* ssl);
 
 WOLFSSL_API void wolfSSL_cleanup_all_ex_data(void);
 WOLFSSL_API long wolfSSL_CTX_set_mode(WOLFSSL_CTX* ctx, long mode);
 WOLFSSL_API long wolfSSL_CTX_get_mode(WOLFSSL_CTX* ctx);
 WOLFSSL_API void wolfSSL_CTX_set_default_read_ahead(WOLFSSL_CTX* ctx, int m);
+WOLFSSL_API long wolfSSL_SSL_get_mode(WOLFSSL* ssl);
 
 WOLFSSL_API long wolfSSL_CTX_sess_set_cache_size(WOLFSSL_CTX*, long);
 
