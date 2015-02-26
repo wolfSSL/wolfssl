@@ -58,6 +58,7 @@ EXTRA_DIST+= gencertbuf.pl
 EXTRA_DIST+= IDE 
 EXTRA_DIST+= README.md
 EXTRA_DIST+= LICENSING
+EXTRA_DIST+= INSTALL
 
 include cyassl/include.am
 include wolfssl/include.am
