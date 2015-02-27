@@ -53,7 +53,6 @@ static int calculateAuthTag(
                   const byte* inAAD, const word32 inAADLen,
                   const byte *inCiphertext, const word32 inCiphertextLen,
                   byte outAuthTag[CHACHA20_POLY1305_AEAD_AUTHTAG_SIZE]);
-static int constantTimeCompare(const byte *a, const byte *b, word32 len);
 
 int wc_ChaCha20Poly1305_Encrypt(
                 const byte inKey[CHACHA20_POLY1305_AEAD_KEYSIZE],
@@ -151,8 +150,8 @@ int wc_ChaCha20Poly1305_Decrypt(
                            calculatedAuthTag);
 
     /* Compare the calculated auth tag with the received one */
-    if (err == 0 && constantTimeCompare(inAuthTag, calculatedAuthTag,
-                            CHACHA20_POLY1305_AEAD_AUTHTAG_SIZE) != 0)
+    if (err == 0 && ConstantCompare(inAuthTag, calculatedAuthTag,
+                                    CHACHA20_POLY1305_AEAD_AUTHTAG_SIZE) != 0)
     {
         err = MAC_CMP_FAILED_E;
     }
@@ -271,18 +270,5 @@ static void word32ToLittle64(const word32 inLittle32, byte outLittle64[8])
     outLittle64[3] = (inLittle32 & 0xFF000000) >> 24;
 }
 
-
-static int constantTimeCompare(const byte *a, const byte *b, word32 len)
-{
-    word32 i;
-    byte result = 0;
-
-    for (i = 0; i < len; i++)
-    {
-        result |= a[i] ^ b[i];
-    }
-
-    return (int)result;
-}
 
 #endif /* HAVE_CHACHA && HAVE_POLY1305 */

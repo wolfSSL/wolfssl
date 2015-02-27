@@ -217,7 +217,6 @@ static INLINE void c16toa(word16 u16, byte* c)
     c[1] =  u16 & 0xff;
 }
 
-static int ConstantCompare(const byte* a, const byte* b, int length);
 
 #if !defined(NO_OLD_TLS) || defined(HAVE_CHACHA) || defined(HAVE_AESCCM) \
     || defined(HAVE_AESGCM)
@@ -6135,20 +6134,6 @@ static INLINE void CompressRounds(WOLFSSL* ssl, int rounds, const byte* dummy)
 {
     if (rounds)
         DoRounds(ssl->specs.mac_algorithm, rounds, dummy, COMPRESS_LOWER);
-}
-
-
-/* check all length bytes for equality, return 0 on success */
-static int ConstantCompare(const byte* a, const byte* b, int length)
-{
-    int i;
-    int compareSum = 0;
-
-    for (i = 0; i < length; i++) {
-        compareSum |= a[i] ^ b[i];
-    }
-
-    return compareSum;
 }
 
 

@@ -3408,7 +3408,7 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         #endif
         xorbuf(Tprime, EKY0, sizeof(Tprime));
 
-        if (XMEMCMP(authTag, Tprime, authTagSz) != 0) {
+        if (ConstantCompare(authTag, Tprime, authTagSz) != 0) {
             return AES_GCM_AUTH_E;
         }
     }
@@ -3744,7 +3744,7 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
     #endif
     xorbuf(A, B, authTagSz);
 
-    if (XMEMCMP(A, authTag, authTagSz) != 0) {
+    if (ConstantCompare(A, authTag, authTagSz) != 0) {
         /* If the authTag check fails, don't keep the decrypted data.
          * Unfortunately, you need the decrypted data to calculate the
          * check value. */
