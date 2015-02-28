@@ -387,6 +387,187 @@ int UnLockMutex(wolfSSL_Mutex *m)
             return 0;
         }
 
+    #elif defined(WOLFSSL_uITRON4)
+        #include "kernel.h"
+        int InitMutex(wolfSSL_Mutex* m)
+        {
+            int iReturn;
+            m->sem.sematr  = TA_TFIFO ;
+            m->sem.isemcnt = 1 ;
+            m->sem.maxsem  = 1 ;
+            m->sem.name    = NULL ;
+            
+            m->id = acre_sem(&m->sem);
+            if( m->id != NULL )
+                iReturn = 0;
+            else
+                iReturn = BAD_MUTEX_E;
+
+            return iReturn;
+        }
+
+        int FreeMutex(wolfSSL_Mutex* m)
+        {
+            del_sem( m->id );
+            return 0;
+        }
+
+        int LockMutex(wolfSSL_Mutex* m)
+        {
+            wai_sem(m->id);
+            return 0;
+        }
+
+        int UnLockMutex(wolfSSL_Mutex* m)
+        {
+            sig_sem(m->id);
+            return 0;
+        }
+
+        /****  uITRON malloc/free ***/
+        static ID ID_wolfssl_MPOOL = 0 ;
+        static T_CMPL wolfssl_MPOOL = {TA_TFIFO, 0, NULL, "wolfSSL_MPOOL"};
+        
+        int uITRON4_minit(size_t poolsz) {
+            ER ercd;
+            wolfssl_MPOOL.mplsz = poolsz ;
+            ercd = acre_mpl(&wolfssl_MPOOL);
+            if (ercd > 0) {
+                ID_wolfssl_MPOOL = ercd;
+                return 0;
+            } else {
+                return -1;
+            }
+        }
+        
+        void *uITRON4_malloc(size_t sz) {
+            ER ercd;
+            void *p ;
+            ercd = get_mpl(ID_wolfssl_MPOOL, sz, (VP)&p);
+            if (ercd == E_OK) {
+                return p;
+            } else {
+                return 0 ;
+            }            
+        }
+        
+        void *uITRON4_realloc(void *p, size_t sz) {
+          ER ercd;
+          void *newp ;
+          if(p) {
+              ercd = get_mpl(ID_wolfssl_MPOOL, sz, (VP)&newp);
+              if (ercd == E_OK) {
+                  memcpy(newp, p, sz) ;
+                  ercd = rel_mpl(ID_wolfssl_MPOOL, (VP)p);
+                  if (ercd == E_OK) {                      
+                      return newp;
+                  } 
+              }
+          }
+          return 0 ;
+        }
+                
+        void uITRON4_free(void *p) {
+            ER ercd;
+            ercd = rel_mpl(ID_wolfssl_MPOOL, (VP)p);
+            if (ercd == E_OK) {
+                return ;
+            } else {
+                return ;
+            }   
+        }
+
+#elif defined(WOLFSSL_uTKERNEL2)
+        #include "tk/tkernel.h"
+        int InitMutex(wolfSSL_Mutex* m)
+        {
+            int iReturn;
+            m->sem.sematr  = TA_TFIFO ;
+            m->sem.isemcnt = 1 ;
+            m->sem.maxsem  = 1 ;
+            
+            m->id = tk_cre_sem(&m->sem);
+            if( m->id != NULL )
+                iReturn = 0;
+            else
+                iReturn = BAD_MUTEX_E;
+
+            return iReturn;
+        }
+
+        int FreeMutex(wolfSSL_Mutex* m)
+        {
+            tk_del_sem( m->id );
+            return 0;
+        }
+
+        int LockMutex(wolfSSL_Mutex* m)
+        {
+            tk_wai_sem(m->id, 1, TMO_FEVR);
+            return 0;
+        }
+
+        int UnLockMutex(wolfSSL_Mutex* m)
+        {
+            tk_sig_sem(m->id, 1);
+            return 0;
+        }
+
+        /****  uT-Kernel malloc/free ***/
+        static ID ID_wolfssl_MPOOL = 0 ;
+        static T_CMPL wolfssl_MPOOL =
+                     {(void *)NULL, 
+        TA_TFIFO , 0,   "wolfSSL_MPOOL"};
+        
+        int uTKernel_init_mpool(unsigned int sz) {
+            ER ercd;
+            wolfssl_MPOOL.mplsz = sz ;
+            ercd = tk_cre_mpl(&wolfssl_MPOOL);
+            if (ercd > 0) {
+                ID_wolfssl_MPOOL = ercd;
+                return 0;
+            } else {
+                return -1;
+            }
+        }
+        
+        void *uTKernel_malloc(unsigned int sz) {
+            ER ercd;
+            void *p ;
+            ercd = tk_get_mpl(ID_wolfssl_MPOOL, sz, (VP)&p, TMO_FEVR);
+            if (ercd == E_OK) {
+                return p;
+            } else {
+                return 0 ;
+            }            
+        }
+        
+        void *uTKernel_realloc(void *p, unsigned int sz) {
+          ER ercd;
+          void *newp ;
+          if(p) {
+              ercd = tk_get_mpl(ID_wolfssl_MPOOL, sz, (VP)&newp, TMO_FEVR);
+              if (ercd == E_OK) {
+                  memcpy(newp, p, sz) ;
+                  ercd = tk_rel_mpl(ID_wolfssl_MPOOL, (VP)p);
+                  if (ercd == E_OK) {  
+                      return newp;
+                  }
+              }
+          }
+          return 0 ;
+        }
+                
+        void uTKernel_free(void *p) {
+            ER ercd;
+            ercd = tk_rel_mpl(ID_wolfssl_MPOOL, (VP)p);
+            if (ercd == E_OK) {
+                return ;
+            } else {
+                return ;
+            }   
+        }
+
     #elif defined(WOLFSSL_MDK_ARM)|| defined(WOLFSSL_CMSIS_RTOS)
     
         #if defined(WOLFSSL_CMSIS_RTOS)
@@ -442,7 +623,6 @@ int UnLockMutex(wolfSSL_Mutex *m)
                 return 0;
             }
         #else
-
         int InitMutex(wolfSSL_Mutex* m)
         {
             os_mut_init (m); 
@@ -467,5 +647,6 @@ int UnLockMutex(wolfSSL_Mutex *m)
         }
         #endif
     #endif /* USE_WINDOWS_API */
+
 #endif /* SINGLE_THREADED */
 
