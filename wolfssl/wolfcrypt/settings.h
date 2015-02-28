@@ -101,7 +101,7 @@
 
 /* Uncomment next line if building for uITRON4  */
 /* #define WOLFSSL_uITRON4 */
-		
+
 /* Uncomment next line if building for uT-Kernel */
 /* #define WOLFSSL_uTKERNEL2 */
 
@@ -650,7 +650,7 @@
     #endif
 
 #endif /* MICRIUM */
-												
+
 
 #ifdef WOLFSSL_QL
     #ifndef WOLFSSL_SEP

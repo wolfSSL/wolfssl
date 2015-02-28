@@ -893,7 +893,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 #elif defined(WOLFSSL_SAFERTOS) || defined(WOLFSSL_LEANPSK) \
    || defined(WOLFSSL_IAR_ARM)  || defined(WOLFSSL_MDK_ARM) \
    || defined(WOLFSSL_uITRON4)  || defined(WOLFSSL_uTKERNEL2)
-   
+
 #warning "write a real random seed!!!!, just for testing now"
 
 int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
