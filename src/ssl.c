@@ -9401,7 +9401,7 @@ WOLFSSL_SESSION* wolfSSL_get1_session(WOLFSSL* ssl)  /* what's ref count */
 
 void wolfSSL_X509_free(WOLFSSL_X509* buf)
 {
-    (void)buf;
+    FreeX509(buf);
 }
 
 
