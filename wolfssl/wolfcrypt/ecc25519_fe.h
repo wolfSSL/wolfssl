@@ -21,11 +21,13 @@
 
  /* Based On Daniel J Bernstein's curve25519 Public Domain ref10 work. */
 
-#ifdef HAVE_ECC25519
 #ifndef WOLF_CRYPT_ECC25519_FE_H
 #define WOLF_CRYPT_ECC25519_FE_H
 
 #include <wolfssl/wolfcrypt/settings.h>
+
+#ifdef HAVE_ECC25519
+
 #include <stdint.h>
 
 typedef int32_t fe[10];
@@ -53,7 +55,7 @@ void fe_sq(fe,fe);
 void fe_mul121666(fe,fe);
 void fe_invert(fe,fe);
 
-#endif
 
-#endif /*HAVE_ECC25519*/
+#endif /* HAVE_ECC25519 */
+#endif /* include guard */
 
