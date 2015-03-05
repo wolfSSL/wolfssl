@@ -38,8 +38,6 @@
     #include <wolfcrypt/src/misc.c>
 #endif
 
-#define MONTGOMERY_X_LE 65
-
 const ecc25519_set_type ecc25519_sets[] = {
 {
         32,
@@ -102,7 +100,7 @@ int wc_ecc25519_make_key(RNG* rng, int keysize, ecc25519_key* key)
   unsigned char n[ECC25519_KEYSIZE];
   unsigned char p[ECC25519_KEYSIZE];
   int  i;
-  int err;
+  int  ret;
 
   if (key == NULL || rng == NULL)
       return ECC_BAD_ARG_E;
@@ -112,9 +110,9 @@ int wc_ecc25519_make_key(RNG* rng, int keysize, ecc25519_key* key)
       return ECC_BAD_ARG_E;
 
   /* get random number from RNG */
-  err = wc_RNG_GenerateBlock(rng, n, keysize);
-  if (err != 0)
-      return err;
+  ret = wc_RNG_GenerateBlock(rng, n, keysize);
+  if (ret != 0)
+      return ret;
 
   for (i = 0; i < keysize; ++i) key->k.point[i] = n[i];
   key->k.point[ 0] &= 248;
@@ -122,7 +120,7 @@ int wc_ecc25519_make_key(RNG* rng, int keysize, ecc25519_key* key)
   key->k.point[31] |= 64;
 
   /*compute public key*/
-  err = curve25519(p, key->k.point, basepoint);
+  ret = curve25519(p, key->k.point, basepoint);
 
   /* store keys in big endian format */
   for (i = 0; i < keysize; ++i) n[i] = key->k.point[i];
@@ -132,8 +130,9 @@ int wc_ecc25519_make_key(RNG* rng, int keysize, ecc25519_key* key)
   }
 
   ForceZero(n, keysize);
+  ForceZero(p, keysize);
 
-  return err;
+  return ret;
 }
 
 
@@ -142,7 +141,8 @@ int wc_ecc25519_shared_secret(ecc25519_key* private_key, ecc25519_key* public_ke
 {
     unsigned char k[ECC25519_KEYSIZE];
     unsigned char p[ECC25519_KEYSIZE];
-    int err = 0;
+    unsigned char o[ECC25519_KEYSIZE];
+    int ret = 0;
     int i;
 
     /* sanity check */
@@ -154,9 +154,6 @@ int wc_ecc25519_shared_secret(ecc25519_key* private_key, ecc25519_key* public_ke
     if (public_key->p.point[0] > 0x7F)
         return ECC_BAD_ARG_E;
 
-    if (*outlen < ECC25519_KEYSIZE)
-        return BUFFER_E;
-
     XMEMSET(p,   0, sizeof(p));
     XMEMSET(k,   0, sizeof(k));
     XMEMSET(out, 0, ECC25519_KEYSIZE);
@@ -166,37 +163,35 @@ int wc_ecc25519_shared_secret(ecc25519_key* private_key, ecc25519_key* public_ke
         k[i] = private_key->k.point[ECC25519_KEYSIZE - i - 1];
     }
 
-    err     = curve25519(out , k, p);
+    ret     = curve25519(o , k, p);
     *outlen = ECC25519_KEYSIZE;
+
+    for (i = 0; i < ECC25519_KEYSIZE; ++i) {
+        out[i] = o[ECC25519_KEYSIZE - i -1];
+    }
 
     ForceZero(p, sizeof(p));
     ForceZero(k, sizeof(k));
+    ForceZero(o, sizeof(o));
 
-    return err;
+    return ret;
 }
-
 
 
 /* curve25519 uses a serialized string for key representation */
 int wc_ecc25519_export_public(ecc25519_key* key, byte* out, word32* outLen)
 {
     word32 keySz;
-    byte   offset;
 
-    if (key == NULL || out == NULL)
+    if (key == NULL || out == NULL || outLen == NULL)
         return BAD_FUNC_ARG;
 
     /* check size of outgoing key */
     keySz  = wc_ecc25519_size(key);
-    offset = 2;
 
-    /* copy in public key and leave room for length and type byte */
-    XMEMCPY(out + offset, key->p.point, keySz);
-    *outLen = keySz + offset;
-
-    /* length and type */
-    out[0] = *outLen;
-    out[1] = key->f;
+    /* copy in public key */
+    XMEMCPY(out, key->p.point, keySz);
+    *outLen = keySz;
 
     return 0;
 }
@@ -206,21 +201,17 @@ int wc_ecc25519_export_public(ecc25519_key* key, byte* out, word32* outLen)
 int wc_ecc25519_import_public(const byte* in, word32 inLen, ecc25519_key* key)
 {
     word32 keySz;
-    byte   offset;
 
     /* sanity check */
     if (key == NULL || in == NULL)
         return ECC_BAD_ARG_E;
 
     /* check size of incoming keys */
-    keySz  = wc_ecc25519_size(key);
-    offset = 2;
+    keySz = wc_ecc25519_size(key);
+    if (inLen != keySz)
+       return ECC_BAD_ARG_E;
 
-    /* check that it is correct size plus length and type */
-    if ((inLen != keySz + offset) || (in[1] != MONTGOMERY_X_LE))
-        return ECC_BAD_ARG_E;
-
-    XMEMCPY(key->p.point, in + offset, inLen);
+    XMEMCPY(key->p.point, in, inLen);
 
     key->dp = &ecc25519_sets[0];
 
@@ -239,20 +230,16 @@ int wc_ecc25519_export_private_raw(ecc25519_key* key, byte* out, word32* outLen)
         return ECC_BAD_ARG_E;
 
     keySz = wc_ecc25519_size(key);
-
-    if (*outLen < keySz) {
-        *outLen = keySz;
-        return BUFFER_E;
-    }
     *outLen = keySz;
-    XMEMSET(out, 0, *outLen);
-    XMEMCPY(out, key->k.point, *outLen);
+    XMEMSET(out, 0, keySz);
+    XMEMCPY(out, key->k.point, keySz);
 
     return 0;
 }
 
 
-/* curve25519 private key import,public key in serialized format, private raw */
+/* curve25519 private key import.
+   Public key to match private key needs to be imported too */
 int wc_ecc25519_import_private_raw(const byte* priv, word32 privSz,
                                const byte* pub, word32 pubSz, ecc25519_key* key)
 {
@@ -260,7 +247,7 @@ int wc_ecc25519_import_private_raw(const byte* priv, word32 privSz,
     word32 keySz;
 
     /* sanity check */
-    if (key == NULL || priv == NULL || pub ==NULL)
+    if (key == NULL || priv == NULL || pub == NULL)
         return ECC_BAD_ARG_E;
 
     /* check size of incoming keys */
@@ -283,7 +270,6 @@ int wc_ecc25519_init(ecc25519_key* key)
        return ECC_BAD_ARG_E;
 
     /* currently the format for curve25519 */
-    key->f  = MONTGOMERY_X_LE;
     key->dp = &ecc25519_sets[0];
     keySz   = key->dp->size;
 
@@ -294,9 +280,7 @@ int wc_ecc25519_init(ecc25519_key* key)
 }
 
 
-/**
-  Clean the memory of a key
-*/
+/* Clean the memory of a key */
 void wc_ecc25519_free(ecc25519_key* key)
 {
    if (key == NULL)
@@ -308,7 +292,7 @@ void wc_ecc25519_free(ecc25519_key* key)
 }
 
 
-/* key size */
+/* get key size */
 int wc_ecc25519_size(ecc25519_key* key)
 {
     if (key == NULL) return 0;

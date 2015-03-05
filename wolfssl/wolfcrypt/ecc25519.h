@@ -49,13 +49,11 @@ typedef struct {
 
 /* An ECC25519 Key */
 typedef struct {
-    int type;           /* Public or Private */
     int idx;            /* Index into the ecc_sets[] for the parameters of
                            this curve if -1, this key is using user supplied
                            curve in dp */
     const ecc25519_set_type* dp;   /* domain parameters, either points to
                                    curves (idx >= 0) or user supplied */
-    byte      f;        /* format of key */
     ECPoint   p;        /* public key  */
     ECPoint   k;        /* private key */
 } ecc25519_key;

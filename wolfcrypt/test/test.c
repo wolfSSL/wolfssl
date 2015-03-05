@@ -5162,6 +5162,50 @@ int ecc25519_test(void)
     byte    exportBuf[1024];
     ecc25519_key userA, userB, pubKey;
 
+    /* test vectors from
+       https://tools.ietf.org/html/draft-josefsson-tls-curve25519-03
+     */
+
+    /* secret key for party a */
+    byte sa[] = {
+        0x5A,0xC9,0x9F,0x33,0x63,0x2E,0x5A,0x76,
+        0x8D,0xE7,0xE8,0x1B,0xF8,0x54,0xC2,0x7C,
+        0x46,0xE3,0xFB,0xF2,0xAB,0xBA,0xCD,0x29,
+        0xEC,0x4A,0xFF,0x51,0x73,0x69,0xC6,0x60
+    };
+
+    /* public key for party a */
+    byte pa[] = {
+        0x05,0x7E,0x23,0xEA,0x9F,0x1C,0xBE,0x8A,
+        0x27,0x16,0x8F,0x6E,0x69,0x6A,0x79,0x1D,
+        0xE6,0x1D,0xD3,0xAF,0x7A,0xCD,0x4E,0xEA,
+        0xCC,0x6E,0x7B,0xA5,0x14,0xFD,0xA8,0x63
+    };
+
+    /* secret key for party b */
+    byte sb[] = {
+        0x47,0xDC,0x3D,0x21,0x41,0x74,0x82,0x0E,
+        0x11,0x54,0xB4,0x9B,0xC6,0xCD,0xB2,0xAB,
+        0xD4,0x5E,0xE9,0x58,0x17,0x05,0x5D,0x25,
+        0x5A,0xA3,0x58,0x31,0xB7,0x0D,0x32,0x60
+    };
+
+    /* public key for party b */
+    byte pb[] = {
+        0x6E,0xB8,0x9D,0xA9,0x19,0x89,0xAE,0x37,
+        0xC7,0xEA,0xC7,0x61,0x8D,0x9E,0x5C,0x49,
+        0x51,0xDB,0xA1,0xD7,0x3C,0x28,0x5A,0xE1,
+        0xCD,0x26,0xA8,0x55,0x02,0x0E,0xEF,0x04
+    };
+
+    /* expected shared key */
+    byte ss[] = {
+        0x61,0x45,0x0C,0xD9,0x8E,0x36,0x01,0x6B,
+        0x58,0x77,0x6A,0x89,0x7A,0x9F,0x0A,0xEF,
+        0x73,0x8B,0x99,0xF0,0x94,0x68,0xB8,0xD6,
+        0xB8,0x51,0x11,0x84,0xD5,0x34,0x94,0xAB
+    };
+
     if (wc_InitRng(&rng) != 0)
         return -1001;
 
@@ -5171,42 +5215,64 @@ int ecc25519_test(void)
 
     /* make curve25519 keys */
     if (wc_ecc25519_make_key(&rng, 32, &userA) != 0)
-        return -1014;
-
-    if (wc_ecc25519_make_key(&rng, 32, &userB) != 0)
         return -1002;
 
-    /* find shared secret key */
-    x = sizeof(sharedA);
-    if (wc_ecc25519_shared_secret(&userA, &userB, sharedA, &x) != 0)
-        return -1015;
-
-    y = sizeof(sharedB);
-    if (wc_ecc25519_shared_secret(&userB, &userA, sharedB, &y) != 0)
+    if (wc_ecc25519_make_key(&rng, 32, &userB) != 0)
         return -1003;
+
+    /* find shared secret key */
+    if (wc_ecc25519_shared_secret(&userA, &userB, sharedA, &x) != 0)
+        return -1004;
+
+    if (wc_ecc25519_shared_secret(&userB, &userA, sharedB, &y) != 0)
+        return -1005;
 
     /* compare shared secret keys to test they are the same */
     if (y != x)
-        return -1004;
-
-    if (memcmp(sharedA, sharedB, x))
-        return -1005;
-
-    /* export a public key and import it for another user */
-    x = sizeof(exportBuf);
-    if (wc_ecc25519_export_public(&userA, exportBuf, &x) != 0)
         return -1006;
 
-    if (wc_ecc25519_import_public(exportBuf, x, &pubKey) != 0)
+    if (memcmp(sharedA, sharedB, x))
         return -1007;
 
-    /* test shared key after importing a public key */
-    y = sizeof(sharedB);
-    if (wc_ecc25519_shared_secret(&userB, &pubKey, sharedB, &y) != 0)
+    /* export a public key and import it for another user */
+    if (wc_ecc25519_export_public(&userA, exportBuf, &x) != 0)
         return -1008;
 
-    if (memcmp(sharedA, sharedB, y))
+    if (wc_ecc25519_import_public(exportBuf, x, &pubKey) != 0)
+        return -1009;
+
+    /* test shared key after importing a public key */
+    XMEMSET(sharedB, 0, sizeof(sharedB));
+    if (wc_ecc25519_shared_secret(&userB, &pubKey, sharedB, &y) != 0)
         return -1010;
+
+    if (memcmp(sharedA, sharedB, y))
+        return -1011;
+
+    /* import RFC test vectors and compare shared key */
+    if (wc_ecc25519_import_private_raw(sa, sizeof(sa), pa, sizeof(pa), &userA)
+            != 0)
+        return -1012;
+
+    if (wc_ecc25519_import_private_raw(sb, sizeof(sb), pb, sizeof(pb), &userB)
+            != 0)
+        return -1013;
+
+    /* test against known test vector */
+    XMEMSET(sharedB, 0, sizeof(sharedB));
+    if (wc_ecc25519_shared_secret(&userA, &userB, sharedB, &y) != 0)
+        return -1014;
+
+    if (memcmp(ss, sharedB, y))
+        return -1015;
+
+    /* test swaping roles of keys and generating same shared key */
+    XMEMSET(sharedB, 0, sizeof(sharedB));
+    if (wc_ecc25519_shared_secret(&userB, &userA, sharedB, &y) != 0)
+        return -1016;
+
+    if (memcmp(ss, sharedB, y))
+        return -1017;
 
     /* clean up keys when done */
     wc_ecc25519_free(&pubKey);
