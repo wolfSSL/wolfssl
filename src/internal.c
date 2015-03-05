@@ -1564,11 +1564,9 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
     ssl->pkCurveOID = ctx->pkCurveOID;
     ssl->peerEccKeyPresent = 0;
     ssl->peerEccDsaKeyPresent = 0;
-    ssl->eccDsaKeyPresent = 0;
     ssl->eccTempKeyPresent = 0;
     ssl->peerEccKey = NULL;
     ssl->peerEccDsaKey = NULL;
-    ssl->eccDsaKey = NULL;
     ssl->eccTempKey = NULL;
 #endif
 
@@ -1896,36 +1894,6 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
             return NO_PRIVATE_KEY;
         }
 #endif
-#ifdef HAVE_ECC
-    ssl->peerEccKey = (ecc_key*)XMALLOC(sizeof(ecc_key),
-                                                   ctx->heap, DYNAMIC_TYPE_ECC);
-    if (ssl->peerEccKey == NULL) {
-        WOLFSSL_MSG("PeerEccKey Memory error");
-        return MEMORY_E;
-    }
-    ssl->peerEccDsaKey = (ecc_key*)XMALLOC(sizeof(ecc_key),
-                                                   ctx->heap, DYNAMIC_TYPE_ECC);
-    if (ssl->peerEccDsaKey == NULL) {
-        WOLFSSL_MSG("PeerEccDsaKey Memory error");
-        return MEMORY_E;
-    }
-    ssl->eccDsaKey = (ecc_key*)XMALLOC(sizeof(ecc_key),
-                                                   ctx->heap, DYNAMIC_TYPE_ECC);
-    if (ssl->eccDsaKey == NULL) {
-        WOLFSSL_MSG("EccDsaKey Memory error");
-        return MEMORY_E;
-    }
-    ssl->eccTempKey = (ecc_key*)XMALLOC(sizeof(ecc_key),
-                                                   ctx->heap, DYNAMIC_TYPE_ECC);
-    if (ssl->eccTempKey == NULL) {
-        WOLFSSL_MSG("EccTempKey Memory error");
-        return MEMORY_E;
-    }
-    wc_ecc_init(ssl->peerEccKey);
-    wc_ecc_init(ssl->peerEccDsaKey);
-    wc_ecc_init(ssl->eccDsaKey);
-    wc_ecc_init(ssl->eccTempKey);
-#endif
 #ifdef HAVE_SECRET_CALLBACK
     ssl->sessionSecretCb  = NULL;
     ssl->sessionSecretCtx = NULL;
@@ -2042,11 +2010,6 @@ void SSL_ResourceFree(WOLFSSL* ssl)
             wc_ecc_free(ssl->eccTempKey);
         XFREE(ssl->eccTempKey, ssl->heap, DYNAMIC_TYPE_ECC);
     }
-    if (ssl->eccDsaKey) {
-        if (ssl->eccDsaKeyPresent)
-            wc_ecc_free(ssl->eccDsaKey);
-        XFREE(ssl->eccDsaKey, ssl->heap, DYNAMIC_TYPE_ECC);
-    }
 #endif
 #ifdef HAVE_PK_CALLBACKS
     #ifdef HAVE_ECC
@@ -2143,15 +2106,6 @@ void FreeHandshakeResources(WOLFSSL* ssl)
         }
         XFREE(ssl->eccTempKey, ssl->heap, DYNAMIC_TYPE_ECC);
         ssl->eccTempKey = NULL;
-    }
-    if (ssl->eccDsaKey)
-    {
-        if (ssl->eccDsaKeyPresent) {
-            wc_ecc_free(ssl->eccDsaKey);
-            ssl->eccDsaKeyPresent = 0;
-        }
-        XFREE(ssl->eccDsaKey, ssl->heap, DYNAMIC_TYPE_ECC);
-        ssl->eccDsaKey = NULL;
     }
 #endif
 #ifdef HAVE_PK_CALLBACKS
@@ -4465,7 +4419,17 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         #ifdef HAVE_ECC
             case ECDSAk:
                 {
-                    if (ssl->peerEccDsaKeyPresent) {  /* don't leak on reuse */
+                    if (ssl->peerEccDsaKey == NULL) {
+                        /* alloc/init on demand */
+                        ssl->peerEccDsaKey = (ecc_key*)XMALLOC(sizeof(ecc_key),
+                                              ssl->ctx->heap, DYNAMIC_TYPE_ECC);
+                        if (ssl->peerEccDsaKey == NULL) {
+                            WOLFSSL_MSG("PeerEccDsaKey Memory error");
+                            return MEMORY_E;
+                        }
+                        wc_ecc_init(ssl->peerEccDsaKey);
+                    } else if (ssl->peerEccDsaKeyPresent) {
+                        /* don't leak on reuse */
                         wc_ecc_free(ssl->peerEccDsaKey);
                         ssl->peerEccDsaKeyPresent = 0;
                         wc_ecc_init(ssl->peerEccDsaKey);
@@ -9911,7 +9875,16 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
         if ((*inOutIdx - begin) + length > size)
             return BUFFER_ERROR;
 
-        if (ssl->peerEccKeyPresent) {  /* don't leak on reuse */
+        if (ssl->peerEccKey == NULL) {
+            /* alloc/init on demand */
+            ssl->peerEccKey = (ecc_key*)XMALLOC(sizeof(ecc_key),
+                                              ssl->ctx->heap, DYNAMIC_TYPE_ECC);
+            if (ssl->peerEccKey == NULL) {
+                WOLFSSL_MSG("PeerEccKey Memory error");
+                return MEMORY_E;
+            }
+            wc_ecc_init(ssl->peerEccKey);
+        } else if (ssl->peerEccKeyPresent) {  /* don't leak on reuse */
             wc_ecc_free(ssl->peerEccKey);
             ssl->peerEccKeyPresent = 0;
             wc_ecc_init(ssl->peerEccKey);
@@ -10675,8 +10648,8 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
 
                     if (ssl->specs.static_ecdh) {
                         /* TODO: EccDsa is really fixed Ecc change naming */
-                        if (!ssl->peerEccDsaKeyPresent ||
-                                                      !ssl->peerEccDsaKey->dp) {
+                        if (!ssl->peerEccDsaKey || !ssl->peerEccDsaKeyPresent ||
+                                                   !ssl->peerEccDsaKey->dp) {
                         #ifdef WOLFSSL_SMALL_STACK
                             XFREE(encSecret, NULL, DYNAMIC_TYPE_TMP_BUFFER);
                         #endif
@@ -10685,7 +10658,8 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
                         peerKey = ssl->peerEccDsaKey;
                     }
                     else {
-                        if (!ssl->peerEccKeyPresent || !ssl->peerEccKey->dp) {
+                        if (!ssl->peerEccKey || !ssl->peerEccKeyPresent ||
+                                                !ssl->peerEccKey->dp) {
                         #ifdef WOLFSSL_SMALL_STACK
                             XFREE(encSecret, NULL, DYNAMIC_TYPE_TMP_BUFFER);
                         #endif
@@ -11631,6 +11605,16 @@ int DoSessionTicket(WOLFSSL* ssl,
             WOLFSSL_MSG("Using ephemeral ECDH");
 
             /* need ephemeral key now, create it if missing */
+            if (ssl->eccTempKey == NULL) {
+                /* alloc/init on demand */
+                ssl->eccTempKey = (ecc_key*)XMALLOC(sizeof(ecc_key),
+                                              ssl->ctx->heap, DYNAMIC_TYPE_ECC);
+                if (ssl->eccTempKey == NULL) {
+                    WOLFSSL_MSG("EccTempKey Memory error");
+                    return MEMORY_E;
+                }
+                wc_ecc_init(ssl->eccTempKey);
+            }
             if (ssl->eccTempKeyPresent == 0) {
                 if (wc_ecc_make_key(ssl->rng, ssl->eccTempKeySz,
                                  ssl->eccTempKey) != 0) {
@@ -13207,8 +13191,8 @@ int DoSessionTicket(WOLFSSL* ssl,
             #endif
             }
             else {
-                err = wc_ecc_verify_hash(input + *inOutIdx, sz, digest, digestSz,
-                                                   &verify, ssl->peerEccDsaKey);
+                err = wc_ecc_verify_hash(input + *inOutIdx, sz, digest,
+                                         digestSz, &verify, ssl->peerEccDsaKey);
             }
 
             if (err == 0 && verify == 1)
@@ -13545,7 +13529,16 @@ int DoSessionTicket(WOLFSSL* ssl,
                 if ((*inOutIdx - begin) + length > size)
                     return BUFFER_ERROR;
 
-                if (ssl->peerEccKeyPresent) {  /* don't leak on reuse */
+                if (ssl->peerEccKey == NULL) {
+                    /* alloc/init on demand */
+                    ssl->peerEccKey = (ecc_key*)XMALLOC(sizeof(ecc_key),
+                                              ssl->ctx->heap, DYNAMIC_TYPE_ECC);
+                    if (ssl->peerEccKey == NULL) {
+                        WOLFSSL_MSG("PeerEccKey Memory error");
+                        return MEMORY_E;
+                    }
+                    wc_ecc_init(ssl->peerEccKey);
+                } else if (ssl->peerEccKeyPresent) {  /* don't leak on reuse */
                     wc_ecc_free(ssl->peerEccKey);
                     ssl->peerEccKeyPresent = 0;
                     wc_ecc_init(ssl->peerEccKey);

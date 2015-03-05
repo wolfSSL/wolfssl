@@ -2074,13 +2074,11 @@ struct WOLFSSL {
     ecc_key*        peerEccKey;              /* peer's  ECDHE key */
     ecc_key*        peerEccDsaKey;           /* peer's  ECDSA key */
     ecc_key*        eccTempKey;              /* private ECDHE key */
-    ecc_key*        eccDsaKey;               /* private ECDSA key */
     word16          eccTempKeySz;            /* in octets 20 - 66 */
     word32          pkCurveOID;              /* curve Ecc_Sum     */
     byte            peerEccKeyPresent;
     byte            peerEccDsaKeyPresent;
     byte            eccTempKeyPresent;
-    byte            eccDsaKeyPresent;
 #endif
     hmacfp          hmac;
     void*           heap;               /* for user overrides */
