@@ -1875,17 +1875,6 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
     }
     *ssl->suites = ctx->suites;
 
-    /* peer key */
-#ifndef NO_RSA
-    ssl->peerRsaKey = (RsaKey*)XMALLOC(sizeof(RsaKey), ssl->heap,
-                                       DYNAMIC_TYPE_RSA);
-    if (ssl->peerRsaKey == NULL) {
-        WOLFSSL_MSG("PeerRsaKey Memory error");
-        return MEMORY_E;
-    }
-    ret = wc_InitRsaKey(ssl->peerRsaKey, ctx->heap);
-    if (ret != 0) return ret;
-#endif
 #ifndef NO_CERTS
     /* make sure server has cert and key unless using PSK or Anon */
     if (ssl->options.side == WOLFSSL_SERVER_END && !havePSK && !haveAnon)
@@ -4370,7 +4359,18 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     word32 idx = 0;
                     int    keyRet = 0;
 
-                    if (ssl->peerRsaKeyPresent) {  /* don't leak on reuse */
+                    if (ssl->peerRsaKey == NULL) {
+                        ssl->peerRsaKey = (RsaKey*)XMALLOC(sizeof(RsaKey),
+                                                   ssl->heap, DYNAMIC_TYPE_RSA);
+                        if (ssl->peerRsaKey == NULL) {
+                            WOLFSSL_MSG("PeerRsaKey Memory error");
+                            keyRet = MEMORY_E;
+                        } else {
+                            keyRet = wc_InitRsaKey(ssl->peerRsaKey,
+                                                   ssl->ctx->heap);
+                        }
+                    } else if (ssl->peerRsaKeyPresent) {
+                        /* don't leak on reuse */
                         wc_FreeRsaKey(ssl->peerRsaKey);
                         ssl->peerRsaKeyPresent = 0;
                         keyRet = wc_InitRsaKey(ssl->peerRsaKey, ssl->heap);
@@ -10140,7 +10140,7 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
                     doUserRsa = 1;
             #endif /*HAVE_PK_CALLBACKS */
 
-            if (!ssl->peerRsaKeyPresent)
+            if (ssl->peerRsaKey == NULL || !ssl->peerRsaKeyPresent)
                 ERROR_OUT(NO_PEER_KEY, done);
 
             if (doUserRsa) {
@@ -10364,7 +10364,7 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
                 ssl->arrays->preMasterSecret[1] = ssl->chVersion.minor;
                 ssl->arrays->preMasterSz = SECRET_LEN;
 
-                if (ssl->peerRsaKeyPresent == 0) {
+                if (ssl->peerRsaKey == NULL || ssl->peerRsaKeyPresent == 0) {
                 #ifdef WOLFSSL_SMALL_STACK
                     XFREE(encSecret, NULL, DYNAMIC_TYPE_TMP_BUFFER);
                 #endif
@@ -13067,7 +13067,7 @@ int DoSessionTicket(WOLFSSL* ssl,
 
         /* RSA */
 #ifndef NO_RSA
-        if (ssl->peerRsaKeyPresent != 0) {
+        if (ssl->peerRsaKey != NULL && ssl->peerRsaKeyPresent != 0) {
             byte* out       = NULL;
             int   outLen    = 0;
             byte  doUserRsa = 0;
