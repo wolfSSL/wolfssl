@@ -507,13 +507,16 @@ int wc_FreeRng(RNG* rng)
     int ret = BAD_FUNC_ARG;
 
     if (rng != NULL) {
-        if (Hash_DRBG_Uninstantiate(rng->drbg) == DRBG_SUCCESS)
-            ret = 0;
-        else
-            ret = RNG_FAILURE_E;
+        if (rng->drbg != NULL) {
+            if (Hash_DRBG_Uninstantiate(rng->drbg) == DRBG_SUCCESS)
+                ret = 0;
+            else
+                ret = RNG_FAILURE_E;
 
-        XFREE(rng->drbg, NULL, DYNAMIC_TYPE_RNG);
-        rng->drbg = NULL;
+            XFREE(rng->drbg, NULL, DYNAMIC_TYPE_RNG);
+            rng->drbg = NULL;
+        }
+
         rng->status = DRBG_NOT_INIT;
     }
 
