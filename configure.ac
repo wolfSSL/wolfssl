@@ -1106,9 +1106,9 @@ fi
 AM_CONDITIONAL([BUILD_CHACHA], [test "x$ENABLED_CHACHA" = "xyes"])
 
 
-# FIPS 
+# FIPS
 AC_ARG_ENABLE([fips],
-    [  --enable-fips           Enable FIPS 140-2 (default: disabled)],
+    [  --enable-fips           Enable FIPS 140-2, Will NOT work w/o FIPS license                               (default: disabled)],
     [ ENABLED_FIPS=$enableval ],
     [ ENABLED_FIPS=no ]
     )
