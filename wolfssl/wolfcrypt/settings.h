@@ -295,11 +295,15 @@
     #ifndef NO_WRITEV
         #define NO_WRITEV
     #endif
-    #ifndef NO_SHA512
-        #define NO_SHA512
+    #ifndef HAVE_SHA512
+        #ifndef NO_SHA512
+            #define NO_SHA512
+        #endif
     #endif
-    #ifndef NO_DH
-        #define NO_DH
+    #ifndef HAVE_DH
+        #ifndef NO_DH
+            #define NO_DH
+        #endif
     #endif
     #ifndef NO_DSA
         #define NO_DSA
