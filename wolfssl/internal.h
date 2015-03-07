@@ -1514,6 +1514,10 @@ int ProcessOldClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
 /* All cipher suite related info */
 typedef struct CipherSpecs {
+    word16 key_size;
+    word16 iv_size;
+    word16 block_size;
+    word16 aead_mac_size;
     byte bulk_cipher_algorithm;
     byte cipher_type;               /* block, stream, or aead */
     byte mac_algorithm;
@@ -1522,10 +1526,6 @@ typedef struct CipherSpecs {
     byte hash_size;
     byte pad_size;
     byte static_ecdh;
-    word16 key_size;
-    word16 iv_size;
-    word16 block_size;
-    word16 aead_mac_size;
 } CipherSpecs;
 
 
