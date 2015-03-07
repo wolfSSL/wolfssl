@@ -951,8 +951,8 @@ WOLFSSL_LOCAL int DoApplicationData(WOLFSSL* ssl, byte* input, word32* inOutIdx)
 
 /* wolfSSL buffer type */
 typedef struct buffer {
-    word32 length;
     byte*  buffer;
+    word32 length;
 } buffer;
 
 
