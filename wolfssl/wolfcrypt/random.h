@@ -82,8 +82,8 @@ struct DRBG; /* Private DRBG state */
 
 /* Hash-based Deterministic Random Bit Generator */
 typedef struct RNG {
-    OS_Seed seed;
     struct DRBG* drbg;
+    OS_Seed seed;
     byte status;
 } RNG;
 

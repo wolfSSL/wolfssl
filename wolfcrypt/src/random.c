@@ -149,11 +149,11 @@ enum {
 
 typedef struct DRBG {
     Sha256 sha;
+    word32 reseedCtr;
+    word32 lastBlock;
     byte digest[SHA256_DIGEST_SIZE];
     byte V[DRBG_SEED_LEN];
     byte C[DRBG_SEED_LEN];
-    word32 reseedCtr;
-    word32 lastBlock;
     byte   matchCount;
 } DRBG;
 
