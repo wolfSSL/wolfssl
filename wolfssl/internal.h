@@ -1023,11 +1023,11 @@ enum {
 #endif
 
 typedef struct {
+    ALIGN16 byte staticBuffer[STATIC_BUFFER_LEN];
+    byte*  buffer;       /* place holder for static or dynamic buffer */
     word32 length;       /* total buffer length used */
     word32 idx;          /* idx to part of length already consumed */
-    byte*  buffer;       /* place holder for static or dynamic buffer */
     word32 bufferSize;   /* current buffer size */
-    ALIGN16 byte staticBuffer[STATIC_BUFFER_LEN];
     byte   dynamicFlag;  /* dynamic memory currently in use */
     byte   offset;       /* alignment offset attempt */
 } bufferStatic;
