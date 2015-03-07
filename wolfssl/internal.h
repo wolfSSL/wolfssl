@@ -1787,62 +1787,67 @@ typedef struct Buffers {
 } Buffers;
 
 typedef struct Options {
-    byte            sessionCacheOff;
-    byte            sessionCacheFlushOff;
+#ifndef NO_PSK
+    psk_client_callback client_psk_cb;
+    psk_server_callback server_psk_cb;
+    word16            havePSK:1;            /* psk key set by user */
+#endif /* NO_PSK */
+
+    /* on/off or small bit flags, optimize layout */
+    word16            sendVerify:2;     /* false = 0, true = 1, sendBlank = 2 */
+    word16            sessionCacheOff:1;
+    word16            sessionCacheFlushOff:1;
+    word16            side:1;             /* client or server end */
+    word16            verifyPeer:1;
+    word16            verifyNone:1;
+    word16            failNoCert:1;
+    word16            downgrade:1;        /* allow downgrade of versions */
+    word16            resuming:1;
+    word16            haveSessionId:1;    /* server may not send */
+    word16            tls:1;              /* using TLS ? */
+    word16            tls1_1:1;           /* using TLSv1.1+ ? */
+    word16            dtls:1;             /* using datagrams ? */
+    word16            connReset:1;        /* has the peer reset */
+    word16            isClosed:1;         /* if we consider conn closed */
+    word16            closeNotify:1;      /* we've recieved a close notify */
+    word16            sentNotify:1;       /* we've sent a close notify */
+    word16            usingCompression:1; /* are we using compression */
+    word16            haveRSA:1;          /* RSA available */
+    word16            haveDH:1;           /* server DH parms set by user */
+    word16            haveNTRU:1;         /* server NTRU  private key loaded */
+    word16            haveECDSAsig:1;     /* server ECDSA signed cert */
+    word16            haveStaticECC:1;    /* static server ECC private key */
+    word16            havePeerCert:1;     /* do we have peer's cert */
+    word16            havePeerVerify:1;   /* and peer's cert verify */
+    word16            usingPSK_cipher:1;  /* are using psk as cipher */
+    word16            usingAnon_cipher:1; /* are we using an anon cipher */
+    word16            sendAlertState:1;   /* nonblocking resume */
+    word16            partialWrite:1;     /* only one msg per write call */
+    word16            quietShutdown:1;    /* don't send close notify */
+    word16            certOnly:1;         /* stop once we get cert */
+    word16            groupMessages:1;    /* group handshake messages */
+    word16            usingNonblock:1;    /* are we using nonblocking socket */
+    word16            saveArrays:1;       /* save array Memory for user get keys
+                                           or psk */
+#ifdef HAVE_POLY1305
+    word16            oldPoly:1;        /* set when to use old rfc way of poly*/
+#endif
+#ifdef HAVE_ANON
+    word16            haveAnon:1;       /* User wants to allow Anon suites */
+#endif /* HAVE_ANON */
+
+    /* need full byte values for this section */
+    byte            processReply;           /* nonblocking resume */
     byte            cipherSuite0;           /* first byte, normally 0 */
     byte            cipherSuite;            /* second byte, actual suite */
     byte            serverState;
     byte            clientState;
     byte            handShakeState;
     byte            handShakeDone;      /* at least one handshake complete */
-    byte            side;               /* client or server end */
-    byte            verifyPeer;
-    byte            verifyNone;
-    byte            failNoCert;
-    byte            downgrade;          /* allow downgrade of versions */
     byte            minDowngrade;       /* minimum downgrade version */
-    byte            sendVerify;         /* false = 0, true = 1, sendBlank = 2 */
-    byte            resuming;
-    byte            haveSessionId;      /* server may not send */
-    byte            tls;                /* using TLS ? */
-    byte            tls1_1;             /* using TLSv1.1+ ? */
-    byte            dtls;               /* using datagrams ? */
-    byte            connReset;          /* has the peer reset */
-    byte            isClosed;           /* if we consider conn closed */
-    byte            closeNotify;        /* we've recieved a close notify */
-    byte            sentNotify;         /* we've sent a close notify */
     byte            connectState;       /* nonblocking resume */
     byte            acceptState;        /* nonblocking resume */
-    byte            usingCompression;   /* are we using compression */
-    byte            haveRSA;            /* RSA available */
-    byte            haveDH;             /* server DH parms set by user */
-    byte            haveNTRU;           /* server NTRU  private key loaded */
-    byte            haveECDSAsig;       /* server ECDSA signed cert */
-    byte            haveStaticECC;      /* static server ECC private key */
-    byte            havePeerCert;       /* do we have peer's cert */
-    byte            havePeerVerify;     /* and peer's cert verify */
-    byte            usingPSK_cipher;    /* whether we're using psk as cipher */
-    byte            usingAnon_cipher;   /* whether we're using an anon cipher */
-    byte            sendAlertState;     /* nonblocking resume */ 
-    byte            processReply;       /* nonblocking resume */
-    byte            partialWrite;       /* only one msg per write call */
-    byte            quietShutdown;      /* don't send close notify */
-    byte            certOnly;           /* stop once we get cert */
-    byte            groupMessages;      /* group handshake messages */
-    byte            usingNonblock;      /* set when using nonblocking socket */
-    byte            saveArrays;         /* save array Memory for user get keys
-                                           or psk */
-#ifdef HAVE_POLY1305
-    byte            oldPoly;            /* set when to use old rfc way of poly*/
-#endif
-#ifndef NO_PSK
-    byte            havePSK;            /* psk key set by user */
-    psk_client_callback client_psk_cb;
-    psk_server_callback server_psk_cb;
-#endif /* NO_PSK */
-#ifdef HAVE_ANON
-    byte            haveAnon;           /* User wants to allow Anon suites */
-#endif /* HAVE_ANON */
+
 } Options;
 
 typedef struct Arrays {
