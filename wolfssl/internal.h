@@ -1846,6 +1846,13 @@ typedef struct Options {
 } Options;
 
 typedef struct Arrays {
+    word32          preMasterSz;        /* differs for DH, actual size */
+#ifndef NO_PSK
+    word32          psk_keySz;          /* acutal size */
+    char            client_identity[MAX_PSK_ID_LEN];
+    char            server_hint[MAX_PSK_ID_LEN];
+    byte            psk_key[MAX_PSK_KEY_LEN];
+#endif
     byte            clientRandom[RAN_LEN];
     byte            serverRandom[RAN_LEN];
     byte            sessionID[ID_LEN];
@@ -1856,13 +1863,6 @@ typedef struct Arrays {
     byte            cookie[MAX_COOKIE_LEN];
     byte            cookieSz;
 #endif
-#ifndef NO_PSK
-    char            client_identity[MAX_PSK_ID_LEN];
-    char            server_hint[MAX_PSK_ID_LEN];
-    byte            psk_key[MAX_PSK_KEY_LEN];
-    word32          psk_keySz;          /* acutal size */
-#endif
-    word32          preMasterSz;        /* differs for DH, actual size */
 } Arrays;
 
 #ifndef ASN_NAME_MAX
