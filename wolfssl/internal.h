@@ -2017,30 +2017,42 @@ typedef struct MsgsReceived {
 
 /* wolfSSL ssl type */
 struct WOLFSSL {
-    WOLFSSL_CTX*     ctx;
-    int             error;
-    ProtocolVersion version;            /* negotiated version */
-    ProtocolVersion chVersion;          /* client hello version */
+    WOLFSSL_CTX*    ctx;
     Suites*         suites;             /* only need during handshake */
+    Arrays*         arrays;
+    void*           IOCB_ReadCtx;
+    void*           IOCB_WriteCtx;
+    RNG*            rng;
+    void*           verifyCbCtx;        /* cert verify callback user ctx*/
+    VerifyCallback  verifyCallback;     /* cert verification callback */
+    void*           heap;               /* for user overrides */
+    WOLFSSL_CIPHER  cipher;
+    hmacfp          hmac;
     Ciphers         encrypt;
     Ciphers         decrypt;
-#ifdef HAVE_ONE_TIME_AUTH
-    OneTimeAuth     auth;
-#endif
-    CipherSpecs     specs;
-    Keys            keys;
-    MsgsReceived    msgsReceived;       /* peer messages received */
+    Buffers         buffers;
+    WOLFSSL_SESSION session;
+    WOLFSSL_ALERT_HISTORY alert_history;
+    int             error;
     int             rfd;                /* read  file descriptor */
     int             wfd;                /* write file descriptor */
     int             rflags;             /* user read  flags */
     int             wflags;             /* user write flags */
+    word32          timeout;            /* session timeout */
+    word16          curSize;
+    RecordLayerHeader curRL;
+    MsgsReceived    msgsReceived;       /* peer messages received */
+    ProtocolVersion version;            /* negotiated version */
+    ProtocolVersion chVersion;          /* client hello version */
+    CipherSpecs     specs;
+    Keys            keys;
+    Hashes          verifyHashes;
+    Hashes          certHashes;         /* for cert verify */
+    Options         options;
 #ifdef OPENSSL_EXTRA
     WOLFSSL_BIO*     biord;              /* socket bio read  to free/close */
     WOLFSSL_BIO*     biowr;              /* socket bio write to free/close */
 #endif
-    void*           IOCB_ReadCtx;
-    void*           IOCB_WriteCtx;
-    RNG*            rng;
 #ifndef NO_OLD_TLS
 #ifndef NO_SHA
     Sha             hashSha;            /* sha hash of handshake msgs */
@@ -2048,21 +2060,13 @@ struct WOLFSSL {
 #ifndef NO_MD5
     Md5             hashMd5;            /* md5 hash of handshake msgs */
 #endif
-#endif
+#endif /* NO_OLD_TLS */
 #ifndef NO_SHA256
     Sha256          hashSha256;         /* sha256 hash of handshake msgs */
 #endif
 #ifdef WOLFSSL_SHA384
     Sha384          hashSha384;         /* sha384 hash of handshake msgs */
 #endif
-    Hashes          verifyHashes;
-    Hashes          certHashes;         /* for cert verify */
-    Buffers         buffers;
-    Options         options;
-    Arrays*         arrays;
-    WOLFSSL_SESSION  session;
-    VerifyCallback  verifyCallback;      /* cert verification callback */
-    void*           verifyCbCtx;         /* cert verify callback user ctx*/
 #ifndef NO_RSA
     RsaKey*         peerRsaKey;
     byte            peerRsaKeyPresent;
@@ -2076,18 +2080,12 @@ struct WOLFSSL {
     ecc_key*        peerEccKey;              /* peer's  ECDHE key */
     ecc_key*        peerEccDsaKey;           /* peer's  ECDSA key */
     ecc_key*        eccTempKey;              /* private ECDHE key */
-    word16          eccTempKeySz;            /* in octets 20 - 66 */
     word32          pkCurveOID;              /* curve Ecc_Sum     */
+    word16          eccTempKeySz;            /* in octets 20 - 66 */
     byte            peerEccKeyPresent;
     byte            peerEccDsaKeyPresent;
     byte            eccTempKeyPresent;
 #endif
-    hmacfp          hmac;
-    void*           heap;               /* for user overrides */
-    RecordLayerHeader curRL;
-    word16            curSize;
-    word32          timeout;            /* session timeout */
-    WOLFSSL_CIPHER   cipher;
 #ifdef HAVE_LIBZ
     z_stream        c_stream;           /* compression   stream */
     z_stream        d_stream;           /* decompression stream */
@@ -2121,6 +2119,9 @@ struct WOLFSSL {
 #ifdef HAVE_CAVIUM
     int              devId;            /* cavium device id to use */
 #endif
+#ifdef HAVE_ONE_TIME_AUTH
+    OneTimeAuth     auth;
+#endif
 #ifdef HAVE_TLS_EXTENSIONS
     TLSX* extensions;                  /* RFC 6066 TLS Extensions data */
     #ifdef HAVE_MAX_FRAGMENT
@@ -2144,7 +2145,6 @@ struct WOLFSSL {
 #ifdef SESSION_INDEX
     int sessionIndex;                  /* Session's location in the cache. */
 #endif
-    WOLFSSL_ALERT_HISTORY alert_history;
 #ifdef ATOMIC_USER
     void*    MacEncryptCtx;    /* Atomic User Mac/Encrypt Callback Context */
     void*    DecryptVerifyCtx; /* Atomic User Decrypt/Verify Callback Context */
