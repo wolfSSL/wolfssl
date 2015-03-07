@@ -1575,8 +1575,10 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
     ssl->wfd = -1;
     ssl->rflags = 0;    /* no user flags yet */
     ssl->wflags = 0;    /* no user flags yet */
+#ifdef OPENSSL_EXTRA
     ssl->biord = 0;
     ssl->biowr = 0;
+#endif
 
     ssl->IOCB_ReadCtx  = &ssl->rfd;  /* prevent invalid pointer access if not */
     ssl->IOCB_WriteCtx = &ssl->wfd;  /* correctly set */
