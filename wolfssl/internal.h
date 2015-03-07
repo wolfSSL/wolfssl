@@ -1034,11 +1034,11 @@ typedef struct {
 
 /* Cipher Suites holder */
 typedef struct Suites {
-    int    setSuites;               /* user set suites from default */
-    byte   suites[MAX_SUITE_SZ];  
     word16 suiteSz;                 /* suite length in bytes        */
-    byte   hashSigAlgo[HELLO_EXT_SIGALGO_MAX]; /* sig/algo to offer */
     word16 hashSigAlgoSz;           /* SigAlgo extension length in bytes */
+    byte   suites[MAX_SUITE_SZ];
+    byte   hashSigAlgo[HELLO_EXT_SIGALGO_MAX]; /* sig/algo to offer */
+    byte   setSuites;               /* user set suites from default */
     byte   hashAlgo;                /* selected hash algorithm */
     byte   sigAlgo;                 /* selected sig algorithm */
 } Suites;
