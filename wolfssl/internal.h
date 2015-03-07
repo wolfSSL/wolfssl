@@ -1751,6 +1751,18 @@ enum AcceptState {
 
 
 typedef struct Buffers {
+    bufferStatic    inputBuffer;
+    bufferStatic    outputBuffer;
+    buffer          domainName;             /* for client check */
+    buffer          clearOutputBuffer;
+    int             prevSent;              /* previous plain text bytes sent
+                                              when got WANT_WRITE            */
+    int             plainSz;               /* plain text bytes in buffer to send
+                                              when got WANT_WRITE            */
+    byte            weOwnCert;             /* SSL own cert flag */
+    byte            weOwnCertChain;        /* SSL own cert chain flag */
+    byte            weOwnKey;              /* SSL own key  flag */
+    byte            weOwnDH;               /* SSL own dh (p,g)  flag */
 #ifndef NO_CERTS
     buffer          certificate;            /* WOLFSSL_CTX owns, unless we own */
     buffer          key;                    /* WOLFSSL_CTX owns, unless we own */
@@ -1761,18 +1773,6 @@ typedef struct Buffers {
     buffer          serverDH_Pub;
     buffer          serverDH_Priv;
 #endif
-    buffer          domainName;             /* for client check */
-    bufferStatic    inputBuffer;
-    bufferStatic    outputBuffer;
-    buffer          clearOutputBuffer;
-    int             prevSent;              /* previous plain text bytes sent
-                                              when got WANT_WRITE            */
-    int             plainSz;               /* plain text bytes in buffer to send
-                                              when got WANT_WRITE            */
-    byte            weOwnCert;             /* SSL own cert flag */
-    byte            weOwnCertChain;        /* SSL own cert chain flag */
-    byte            weOwnKey;              /* SSL own key  flag */
-    byte            weOwnDH;               /* SSL own dh (p,g)  flag */
 #ifdef WOLFSSL_DTLS
     WOLFSSL_DTLS_CTX dtlsCtx;               /* DTLS connection context */
 #endif
