@@ -29,9 +29,9 @@
     #include <cyassl/ctaocrypt/ecc.h>   /* ecc_fp_free */
 #endif
 
-#if !defined(CYASSL_TRACK_MEMORY) && !defined(NO_MAIN_DRIVER)
+#if !defined(WOLFSSL_TRACK_MEMORY) && !defined(NO_MAIN_DRIVER)
     /* in case memory tracker wants stats */
-    #define CYASSL_TRACK_MEMORY
+    #define WOLFSSL_TRACK_MEMORY
 #endif
 
 #if defined(CYASSL_MDK_ARM)
@@ -225,7 +225,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
                 break;
 
             case 't' :
-            #ifdef USE_CYASSL_MEMORY
+            #ifdef USE_WOLFSSL_MEMORY
                 trackMemory = 1;
             #endif
                 break;
@@ -582,7 +582,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     ecc_fp_free();  /* free per thread cache */
 #endif
 
-#ifdef USE_CYASSL_MEMORY
+#ifdef USE_WOLFSSL_MEMORY
     if (trackMemory)
         ShowMemoryTracker();
 #endif
