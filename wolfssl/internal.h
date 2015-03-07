@@ -1683,11 +1683,11 @@ struct WOLFSSL_X509_CHAIN {
 
 /* wolfSSL session type */
 struct WOLFSSL_SESSION {
+    word32       bornOn;                        /* create time in seconds   */
+    word32       timeout;                       /* timeout in seconds       */
     byte         sessionID[ID_LEN];             /* id for protocol */
     byte         sessionIDSz;
     byte         masterSecret[SECRET_LEN];      /* stored secret */
-    word32       bornOn;                        /* create time in seconds   */
-    word32       timeout;                       /* timeout in seconds       */
 #ifdef SESSION_CERTS
     WOLFSSL_X509_CHAIN chain;                    /* peer cert chain, static  */
     ProtocolVersion version;                    /* which version was used */
@@ -1695,12 +1695,12 @@ struct WOLFSSL_SESSION {
     byte            cipherSuite;                /* 2nd byte, actual suite */
 #endif
 #ifndef NO_CLIENT_CACHE
-    byte         serverID[SERVER_ID_LEN];       /* for easier client lookup */
     word16       idLen;                         /* serverID length */
+    byte         serverID[SERVER_ID_LEN];       /* for easier client lookup */
 #endif
 #ifdef HAVE_SESSION_TICKET
-    byte         ticket[SESSION_TICKET_LEN];
     word16       ticketLen;
+    byte         ticket[SESSION_TICKET_LEN];
 #endif
 };
 
