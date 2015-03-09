@@ -1847,7 +1847,7 @@ void FreeHandshakeResources(WOLFSSL* ssl)
 #endif
 
     /* arrays */
-    if (ssl->options.saveArrays)
+    if (ssl->options.saveArrays == 0)
         FreeArrays(ssl, 1);
 
 #ifndef NO_RSA
