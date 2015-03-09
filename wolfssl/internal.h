@@ -1172,21 +1172,21 @@ struct WOLFSSL_CRL {
 /* wolfSSL Certificate Manager */
 struct WOLFSSL_CERT_MANAGER {
     Signer*         caTable[CA_TABLE_SIZE]; /* the CA signer table */
-    wolfSSL_Mutex    caLock;             /* CA list lock */
-    CallbackCACache caCacheCallback;    /* CA cache addition callback */
     void*           heap;               /* heap helper */
-    WOLFSSL_CRL*     crl;                /* CRL checker */
+    WOLFSSL_CRL*    crl;                /* CRL checker */
+    WOLFSSL_OCSP*   ocsp;               /* OCSP checker */
+    char*           ocspOverrideURL;    /* use this responder */
+    void*           ocspIOCtx;          /* I/O callback CTX */
+    CallbackCACache caCacheCallback;    /* CA cache addition callback */
+    CbMissingCRL    cbMissingCRL;       /* notify through cb of missing crl */
+    CbOCSPIO        ocspIOCb;           /* I/O callback for OCSP lookup */
+    CbOCSPRespFree  ocspRespFreeCb;     /* Frees OCSP Response from IO Cb */
+    wolfSSL_Mutex   caLock;             /* CA list lock */
     byte            crlEnabled;         /* is CRL on ? */
     byte            crlCheckAll;        /* always leaf, but all ? */
-    CbMissingCRL    cbMissingCRL;       /* notify through cb of missing crl */
-    WOLFSSL_OCSP*    ocsp;               /* OCSP checker */
     byte            ocspEnabled;        /* is OCSP on ? */
     byte            ocspSendNonce;      /* send the OCSP nonce ? */
     byte            ocspUseOverrideURL; /* ignore cert's responder, override */
-    char*           ocspOverrideURL;    /* use this responder */
-    void*           ocspIOCtx;          /* I/O callback CTX */
-    CbOCSPIO        ocspIOCb;           /* I/O callback for OCSP lookup */
-    CbOCSPRespFree  ocspRespFreeCb;     /* Frees OCSP Response from IO Cb */
 };
 
 WOLFSSL_LOCAL int CM_SaveCertCache(WOLFSSL_CERT_MANAGER*, const char*);
