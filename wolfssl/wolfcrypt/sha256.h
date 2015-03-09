@@ -1,5 +1,7 @@
 /* sha256.h
  *
+ * Copyright (C) 2006-2015 wolfSSL Inc.
+ *
  * This file is part of wolfSSL. (formerly known as CyaSSL)
  *
  * wolfSSL is free software; you can redistribute it and/or modify
