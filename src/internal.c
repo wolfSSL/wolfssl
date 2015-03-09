@@ -1451,55 +1451,20 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
 
     (void) haveAnon;
 
+    XMEMSET(ssl, 0, sizeof(WOLFSSL));
+
     ssl->ctx     = ctx; /* only for passing to calls, options could change */
     ssl->version = ctx->method->version;
-    ssl->suites  = NULL;
 
-#ifdef HAVE_LIBZ
-    ssl->didStreamInit = 0;
-#endif
 #ifndef NO_RSA
     haveRSA = 1;
 #endif
 
-#ifndef NO_CERTS
-    ssl->buffers.certificate.buffer   = 0;
-    ssl->buffers.key.buffer           = 0;
-    ssl->buffers.certChain.buffer     = 0;
-#endif
-    ssl->buffers.inputBuffer.length   = 0;
-    ssl->buffers.inputBuffer.idx      = 0;
     ssl->buffers.inputBuffer.buffer = ssl->buffers.inputBuffer.staticBuffer;
     ssl->buffers.inputBuffer.bufferSize  = STATIC_BUFFER_LEN;
-    ssl->buffers.inputBuffer.dynamicFlag = 0;
-    ssl->buffers.inputBuffer.offset   = 0;
-    ssl->buffers.outputBuffer.length  = 0;
-    ssl->buffers.outputBuffer.idx     = 0;
+
     ssl->buffers.outputBuffer.buffer = ssl->buffers.outputBuffer.staticBuffer;
     ssl->buffers.outputBuffer.bufferSize  = STATIC_BUFFER_LEN;
-    ssl->buffers.outputBuffer.dynamicFlag = 0;
-    ssl->buffers.outputBuffer.offset      = 0;
-    ssl->buffers.domainName.buffer    = 0;
-#ifndef NO_CERTS
-    ssl->buffers.serverDH_P.buffer    = 0;
-    ssl->buffers.serverDH_G.buffer    = 0;
-    ssl->buffers.serverDH_Pub.buffer  = 0;
-    ssl->buffers.serverDH_Priv.buffer = 0;
-#endif
-    ssl->buffers.clearOutputBuffer.buffer  = 0;
-    ssl->buffers.clearOutputBuffer.length  = 0;
-    ssl->buffers.prevSent                  = 0;
-    ssl->buffers.plainSz                   = 0;
-#ifdef HAVE_PK_CALLBACKS
-    #ifdef HAVE_ECC
-        ssl->buffers.peerEccDsaKey.buffer = 0;
-        ssl->buffers.peerEccDsaKey.length = 0;
-    #endif /* HAVE_ECC */
-    #ifndef NO_RSA
-        ssl->buffers.peerRsaKey.buffer = 0;
-        ssl->buffers.peerRsaKey.length = 0;
-    #endif /* NO_RSA */
-#endif /* HAVE_PK_CALLBACKS */
 
 #ifdef KEEP_PEER_CERT
     InitX509(&ssl->peerCert, 0);
@@ -1508,77 +1473,42 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
 #ifdef HAVE_ECC
     ssl->eccTempKeySz = ctx->eccTempKeySz;
     ssl->pkCurveOID = ctx->pkCurveOID;
-    ssl->peerEccKeyPresent = 0;
-    ssl->peerEccDsaKeyPresent = 0;
-    ssl->eccTempKeyPresent = 0;
-    ssl->peerEccKey = NULL;
-    ssl->peerEccDsaKey = NULL;
-    ssl->eccTempKey = NULL;
 #endif
 
     ssl->timeout = ctx->timeout;
     ssl->rfd = -1;   /* set to invalid descriptor */
     ssl->wfd = -1;
-    ssl->rflags = 0;    /* no user flags yet */
-    ssl->wflags = 0;    /* no user flags yet */
-#ifdef OPENSSL_EXTRA
-    ssl->biord = 0;
-    ssl->biowr = 0;
-#endif
 
     ssl->IOCB_ReadCtx  = &ssl->rfd;  /* prevent invalid pointer access if not */
     ssl->IOCB_WriteCtx = &ssl->wfd;  /* correctly set */
+
 #ifdef HAVE_NETX
-    ssl->nxCtx.nxSocket = NULL;
-    ssl->nxCtx.nxPacket = NULL;
-    ssl->nxCtx.nxOffset = 0;
-    ssl->nxCtx.nxWait   = 0;
     ssl->IOCB_ReadCtx  = &ssl->nxCtx;  /* default NetX IO ctx, same for read */
     ssl->IOCB_WriteCtx = &ssl->nxCtx;  /* and write */
 #endif
 #ifdef WOLFSSL_DTLS
-    ssl->IOCB_CookieCtx = NULL;      /* we don't use for default cb */
     ssl->dtls_expected_rx = MAX_MTU;
-    ssl->keys.dtls_state.window = 0;
-    ssl->keys.dtls_state.nextEpoch = 0;
-    ssl->keys.dtls_state.nextSeq = 0;
 #endif
 
-    XMEMSET(&ssl->msgsReceived, 0, sizeof(ssl->msgsReceived));
-
-#ifndef NO_RSA
-    ssl->peerRsaKey = NULL;
-    ssl->peerRsaKeyPresent = 0;
-#endif
     ssl->verifyCallback    = ctx->verifyCallback;
-    ssl->verifyCbCtx       = NULL;
     ssl->options.side      = ctx->method->side;
     ssl->options.downgrade    = ctx->method->downgrade;
     ssl->options.minDowngrade = TLSv1_MINOR;     /* current default */
-    ssl->error = 0;
-    ssl->options.connReset = 0;
-    ssl->options.isClosed  = 0;
-    ssl->options.closeNotify  = 0;
-    ssl->options.sentNotify   = 0;
-    ssl->options.usingCompression = 0;
+
     if (ssl->options.side == WOLFSSL_SERVER_END)
         ssl->options.haveDH = ctx->haveDH;
-    else
-        ssl->options.haveDH = 0;
+
     ssl->options.haveNTRU      = ctx->haveNTRU;
     ssl->options.haveECDSAsig  = ctx->haveECDSAsig;
     ssl->options.haveStaticECC = ctx->haveStaticECC;
-    ssl->options.havePeerCert    = 0;
-    ssl->options.havePeerVerify  = 0;
-    ssl->options.usingPSK_cipher = 0;
-    ssl->options.usingAnon_cipher = 0;
-    ssl->options.sendAlertState = 0;
+
 #ifndef NO_PSK
     havePSK = ctx->havePSK;
     ssl->options.havePSK   = ctx->havePSK;
     ssl->options.client_psk_cb = ctx->client_psk_cb;
     ssl->options.server_psk_cb = ctx->server_psk_cb;
 #endif /* NO_PSK */
+
 #ifdef HAVE_ANON
     haveAnon = ctx->haveAnon;
     ssl->options.haveAnon = ctx->haveAnon;
@@ -1589,28 +1519,14 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
     ssl->options.connectState = CONNECT_BEGIN;
     ssl->options.acceptState  = ACCEPT_BEGIN;
     ssl->options.handShakeState  = NULL_STATE;
-    ssl->options.handShakeDone   = 0;
     ssl->options.processReply = doProcessInit;
 
 #ifdef WOLFSSL_DTLS
-    ssl->keys.dtls_sequence_number      = 0;
-    ssl->keys.dtls_state.curSeq         = 0;
-    ssl->keys.dtls_state.nextSeq        = 0;
-    ssl->keys.dtls_handshake_number     = 0;
-    ssl->keys.dtls_expected_peer_handshake_number = 0;
-    ssl->keys.dtls_epoch                = 0;
-    ssl->keys.dtls_state.curEpoch       = 0;
-    ssl->keys.dtls_state.nextEpoch      = 0;
     ssl->dtls_timeout_init              = DTLS_TIMEOUT_INIT;
     ssl->dtls_timeout_max               = DTLS_TIMEOUT_MAX;
     ssl->dtls_timeout                   = ssl->dtls_timeout_init;
-    ssl->dtls_pool                      = NULL;
-    ssl->dtls_msg_list                  = NULL;
 #endif
-    ssl->keys.encryptSz    = 0;
-    ssl->keys.padSz        = 0;
-    ssl->keys.encryptionOn = 0;     /* initially off */
-    ssl->keys.decryptedCur = 0;     /* initially off */
+
     ssl->options.sessionCacheOff      = ctx->sessionCacheOff;
     ssl->options.sessionCacheFlushOff = ctx->sessionCacheFlushOff;
 
@@ -1619,26 +1535,18 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
     ssl->options.failNoCert = ctx->failNoCert;
     ssl->options.sendVerify = ctx->sendVerify;
 
-    ssl->options.resuming = 0;
-    ssl->options.haveSessionId = 0;
     #ifndef NO_OLD_TLS
         ssl->hmac = SSL_hmac; /* default to SSLv3 */
     #else
         ssl->hmac = TLS_hmac;
     #endif
+
     ssl->heap = ctx->heap;    /* defaults to self */
-    ssl->options.tls    = 0;
-    ssl->options.tls1_1 = 0;
+
     ssl->options.dtls = ssl->version.major == DTLS_MAJOR;
     ssl->options.partialWrite  = ctx->partialWrite;
     ssl->options.quietShutdown = ctx->quietShutdown;
-    ssl->options.certOnly = 0;
     ssl->options.groupMessages = ctx->groupMessages;
-    ssl->options.usingNonblock = 0;
-    ssl->options.saveArrays = 0;
-#ifdef HAVE_POLY1305
-    ssl->options.oldPoly = 0;
-#endif
 
 #ifndef NO_CERTS
     /* ctx still owns certificate, certChain, key, dh, and cm */
@@ -1650,72 +1558,22 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
         ssl->buffers.serverDH_G = ctx->serverDH_G;
     }
 #endif
-    ssl->buffers.weOwnCert      = 0;
-    ssl->buffers.weOwnCertChain = 0;
-    ssl->buffers.weOwnKey       = 0;
-    ssl->buffers.weOwnDH        = 0;
 
 #ifdef WOLFSSL_DTLS
     ssl->buffers.dtlsCtx.fd = -1;
-    ssl->buffers.dtlsCtx.peer.sa = NULL;
-    ssl->buffers.dtlsCtx.peer.sz = 0;
-#endif
-
-#ifdef KEEP_PEER_CERT
-    ssl->peerCert.issuer.sz    = 0;
-    ssl->peerCert.subject.sz   = 0;
-#endif
-
-#ifdef SESSION_CERTS
-    ssl->session.chain.count = 0;
-#endif
-
-#ifndef NO_CLIENT_CACHE
-    ssl->session.idLen = 0;
-#endif
-
-#ifdef HAVE_SESSION_TICKET
-    ssl->session.ticketLen = 0;
 #endif
 
     ssl->cipher.ssl = ssl;
-
-#ifdef FORTRESS
-    ssl->ex_data[0] = 0;
-    ssl->ex_data[1] = 0;
-    ssl->ex_data[2] = 0;
-#endif
-
-#ifdef WOLFSSL_CALLBACKS
-    ssl->hsInfoOn = 0;
-    ssl->toInfoOn = 0;
-#endif
 
 #ifdef HAVE_CAVIUM
     ssl->devId = ctx->devId;
 #endif
 
 #ifdef HAVE_TLS_EXTENSIONS
-    ssl->extensions = NULL;
 #ifdef HAVE_MAX_FRAGMENT
     ssl->max_fragment = MAX_RECORD_SIZE;
 #endif
-#ifdef HAVE_TRUNCATED_HMAC
-    ssl->truncated_hmac = 0;
 #endif
-#ifdef HAVE_SECURE_RENEGOTIATION
-    ssl->secure_renegotiation = NULL;
-#endif
-#if !defined(NO_WOLFSSL_CLIENT) && defined(HAVE_SESSION_TICKET)
-    ssl->session_ticket_cb = NULL;
-    ssl->session_ticket_ctx = NULL;
-    ssl->expect_session_ticket = 0;
-#endif
-#endif
-
-    ssl->rng    = NULL;
-    ssl->arrays = NULL;
-    ssl->hsHashes = NULL;
 
     /* default alert state (none) */
     ssl->alert_history.last_rx.code  = -1;
@@ -1725,26 +1583,6 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
 
     InitCiphers(ssl);
     InitCipherSpecs(&ssl->specs);
-#ifdef ATOMIC_USER
-    ssl->MacEncryptCtx    = NULL;
-    ssl->DecryptVerifyCtx = NULL;
-#endif
-#ifdef HAVE_FUZZER
-    ssl->fuzzerCb         = NULL;
-    ssl->fuzzerCtx        = NULL;
-#endif
-#ifdef HAVE_PK_CALLBACKS
-    #ifdef HAVE_ECC
-        ssl->EccSignCtx   = NULL;
-        ssl->EccVerifyCtx = NULL;
-    #endif /* HAVE_ECC */
-    #ifndef NO_RSA
-        ssl->RsaSignCtx   = NULL;
-        ssl->RsaVerifyCtx = NULL;
-        ssl->RsaEncCtx    = NULL;
-        ssl->RsaDecCtx    = NULL;
-    #endif /* NO_RSA */
-#endif /* HAVE_PK_CALLBACKS */
 
     /* all done with init, now can return errors, call other stuff */
 
@@ -1798,18 +1636,11 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
     XMEMSET(ssl->arrays, 0, sizeof(Arrays));
 
 #ifndef NO_PSK
-    ssl->arrays->client_identity[0] = 0;
     if (ctx->server_hint[0]) {   /* set in CTX */
         XSTRNCPY(ssl->arrays->server_hint, ctx->server_hint, MAX_PSK_ID_LEN);
         ssl->arrays->server_hint[MAX_PSK_ID_LEN - 1] = '\0';
     }
-    else
-        ssl->arrays->server_hint[0] = 0;
 #endif /* NO_PSK */
-
-#ifdef WOLFSSL_DTLS
-    ssl->arrays->cookieSz = 0;
-#endif
 
     /* RNG */
     ssl->rng = (RNG*)XMALLOC(sizeof(RNG), ssl->heap, DYNAMIC_TYPE_RNG);
