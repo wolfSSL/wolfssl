@@ -360,16 +360,13 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method)
     ctx->heap     = ctx;        /* defaults to self */
     ctx->timeout  = WOLFSSL_SESSION_TIMEOUT;
 
-    ctx->partialWrite   = 0;
-    ctx->verifyCallback = 0;
-
     if (InitMutex(&ctx->countMutex) < 0) {
         WOLFSSL_MSG("Mutex error on CTX init");
         return BAD_MUTEX_E;
     }
 
 #ifdef HAVE_ECC
-    ctx->eccTempKeySz   = ECDHE_SIZE;
+    ctx->eccTempKeySz = ECDHE_SIZE;
 #endif
 
 #ifndef WOLFSSL_USER_IO
