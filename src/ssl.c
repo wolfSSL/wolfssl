@@ -798,21 +798,21 @@ int wolfSSL_Rehandshake(WOLFSSL* ssl)
 
 #ifndef NO_OLD_TLS
 #ifndef NO_MD5
-    wc_InitMd5(&ssl->hashMd5);
+    wc_InitMd5(&ssl->hsHashes->hashMd5);
 #endif
 #ifndef NO_SHA
-    ret = wc_InitSha(&ssl->hashSha);
+    ret = wc_InitSha(&ssl->hsHashes->hashSha);
     if (ret !=0)
         return ret;
 #endif
 #endif /* NO_OLD_TLS */
 #ifndef NO_SHA256
-    ret = wc_InitSha256(&ssl->hashSha256);
+    ret = wc_InitSha256(&ssl->hsHashes->hashSha256);
     if (ret !=0)
         return ret;
 #endif
 #ifdef WOLFSSL_SHA384
-    ret = wc_InitSha384(&ssl->hashSha384);
+    ret = wc_InitSha384(&ssl->hsHashes->hashSha384);
     if (ret !=0)
         return ret;
 #endif
@@ -5101,23 +5101,24 @@ int wolfSSL_dtls_got_timeout(WOLFSSL* ssl)
                 if (ssl->options.dtls) {
                     /* re-init hashes, exclude first hello and verify request */
 #ifndef NO_OLD_TLS
-                    wc_InitMd5(&ssl->hashMd5);
-                    if ( (ssl->error = wc_InitSha(&ssl->hashSha)) != 0) {
+                    wc_InitMd5(&ssl->hsHashes->hashMd5);
+                    if ( (ssl->error = wc_InitSha(&ssl->hsHashes->hashSha))
+                                                                         != 0) {
                         WOLFSSL_ERROR(ssl->error);
                         return SSL_FATAL_ERROR;
                     }
 #endif
                     if (IsAtLeastTLSv1_2(ssl)) {
                         #ifndef NO_SHA256
-                            if ( (ssl->error =
-                                           wc_InitSha256(&ssl->hashSha256)) != 0) {
+                            if ( (ssl->error = wc_InitSha256(
+                                            &ssl->hsHashes->hashSha256)) != 0) {
                                 WOLFSSL_ERROR(ssl->error);
                                 return SSL_FATAL_ERROR;
                             }
                         #endif
                         #ifdef WOLFSSL_SHA384
-                            if ( (ssl->error =
-                                           wc_InitSha384(&ssl->hashSha384)) != 0) {
+                            if ( (ssl->error = wc_InitSha384(
+                                            &ssl->hsHashes->hashSha384)) != 0) {
                                 WOLFSSL_ERROR(ssl->error);
                                 return SSL_FATAL_ERROR;
                             }
@@ -5379,23 +5380,24 @@ int wolfSSL_dtls_got_timeout(WOLFSSL* ssl)
                     XMEMSET(&ssl->msgsReceived, 0, sizeof(ssl->msgsReceived));
                     /* re-init hashes, exclude first hello and verify request */
 #ifndef NO_OLD_TLS
-                    wc_InitMd5(&ssl->hashMd5);
-                    if ( (ssl->error = wc_InitSha(&ssl->hashSha)) != 0) {
+                    wc_InitMd5(&ssl->hsHashes->hashMd5);
+                    if ( (ssl->error = wc_InitSha(&ssl->hsHashes->hashSha))
+                                                                         != 0) {
                         WOLFSSL_ERROR(ssl->error);
                         return SSL_FATAL_ERROR;
                     }
 #endif
                     if (IsAtLeastTLSv1_2(ssl)) {
                         #ifndef NO_SHA256
-                            if ( (ssl->error =
-                                           wc_InitSha256(&ssl->hashSha256)) != 0) {
+                            if ( (ssl->error = wc_InitSha256(
+                                            &ssl->hsHashes->hashSha256)) != 0) {
                                WOLFSSL_ERROR(ssl->error);
                                return SSL_FATAL_ERROR;
                             }
                         #endif
                         #ifdef WOLFSSL_SHA384
-                            if ( (ssl->error =
-                                           wc_InitSha384(&ssl->hashSha384)) != 0) {
+                            if ( (ssl->error = wc_InitSha384(
+                                            &ssl->hsHashes->hashSha384)) != 0) {
                                WOLFSSL_ERROR(ssl->error);
                                return SSL_FATAL_ERROR;
                             }

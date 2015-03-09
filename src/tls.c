@@ -334,14 +334,14 @@ int BuildTlsFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
     word32      hashSz = FINISHED_SZ;
 
 #ifndef NO_OLD_TLS
-    wc_Md5Final(&ssl->hashMd5, handshake_hash);
-    wc_ShaFinal(&ssl->hashSha, &handshake_hash[MD5_DIGEST_SIZE]);
+    wc_Md5Final(&ssl->hsHashes->hashMd5, handshake_hash);
+    wc_ShaFinal(&ssl->hsHashes->hashSha, &handshake_hash[MD5_DIGEST_SIZE]);
 #endif
-    
+
     if (IsAtLeastTLSv1_2(ssl)) {
 #ifndef NO_SHA256
         if (ssl->specs.mac_algorithm <= sha256_mac) {
-            int ret = wc_Sha256Final(&ssl->hashSha256, handshake_hash);
+            int ret = wc_Sha256Final(&ssl->hsHashes->hashSha256,handshake_hash);
 
             if (ret != 0)
                 return ret;
@@ -351,7 +351,7 @@ int BuildTlsFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
 #endif
 #ifdef WOLFSSL_SHA384
         if (ssl->specs.mac_algorithm == sha384_mac) {
-            int ret = wc_Sha384Final(&ssl->hashSha384, handshake_hash);
+            int ret = wc_Sha384Final(&ssl->hsHashes->hashSha384,handshake_hash);
 
             if (ret != 0)
                 return ret;
@@ -360,7 +360,7 @@ int BuildTlsFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
         }
 #endif
     }
-   
+
     if ( XSTRNCMP((const char*)sender, (const char*)client, SIZEOF_SENDER) == 0)
         side = tls_client;
     else

@@ -1769,6 +1769,7 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
 
     ssl->rng    = NULL;
     ssl->arrays = NULL;
+    ssl->hsHashes = NULL;
 
     /* default alert state (none) */
     ssl->alert_history.last_rx.code  = -1;
@@ -1801,25 +1802,33 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
 
     /* all done with init, now can return errors, call other stuff */
 
+    /* hsHashes */
+    ssl->hsHashes = (HS_Hashes*)XMALLOC(sizeof(HS_Hashes), ssl->heap,
+                                                           DYNAMIC_TYPE_HASHES);
+    if (ssl->hsHashes == NULL) {
+        WOLFSSL_MSG("HS_Hashes Memory error");
+        return MEMORY_E;
+    }
+
 #ifndef NO_OLD_TLS
 #ifndef NO_MD5
-    wc_InitMd5(&ssl->hashMd5);
+    wc_InitMd5(&ssl->hsHashes->hashMd5);
 #endif
 #ifndef NO_SHA
-    ret = wc_InitSha(&ssl->hashSha);
+    ret = wc_InitSha(&ssl->hsHashes->hashSha);
     if (ret != 0) {
         return ret;
     }
 #endif
 #endif
 #ifndef NO_SHA256
-    ret = wc_InitSha256(&ssl->hashSha256);
+    ret = wc_InitSha256(&ssl->hsHashes->hashSha256);
     if (ret != 0) {
         return ret;
     }
 #endif
 #ifdef WOLFSSL_SHA384
-    ret = wc_InitSha384(&ssl->hashSha384);
+    ret = wc_InitSha384(&ssl->hsHashes->hashSha384);
     if (ret != 0) {
         return ret;
     }
@@ -1876,6 +1885,7 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
         return MEMORY_E;
     }
     *ssl->suites = ctx->suites;
+
 
 #ifndef NO_CERTS
     /* make sure server has cert and key unless using PSK or Anon */
@@ -1934,6 +1944,7 @@ void SSL_ResourceFree(WOLFSSL* ssl)
 #endif
     XFREE(ssl->rng, ssl->heap, DYNAMIC_TYPE_RNG);
     XFREE(ssl->suites, ssl->heap, DYNAMIC_TYPE_SUITES);
+    XFREE(ssl->hsHashes, ssl->heap, DYNAMIC_TYPE_HASHES);
     XFREE(ssl->buffers.domainName.buffer, ssl->heap, DYNAMIC_TYPE_DOMAIN);
 
 #ifndef NO_CERTS
@@ -2038,6 +2049,10 @@ void FreeHandshakeResources(WOLFSSL* ssl)
     /* suites */
     XFREE(ssl->suites, ssl->heap, DYNAMIC_TYPE_SUITES);
     ssl->suites = NULL;
+
+    /* hsHashes */
+    XFREE(ssl->hsHashes, ssl->heap, DYNAMIC_TYPE_HASHES);
+    ssl->hsHashes = NULL;
 
     /* RNG */
     if (ssl->specs.cipher_type == stream || ssl->options.tls1_1 == 0) {
@@ -2569,10 +2584,10 @@ static int HashOutput(WOLFSSL* ssl, const byte* output, int sz, int ivSz)
 #endif
 #ifndef NO_OLD_TLS
 #ifndef NO_SHA
-    wc_ShaUpdate(&ssl->hashSha, adj, sz);
+    wc_ShaUpdate(&ssl->hsHashes->hashSha, adj, sz);
 #endif
 #ifndef NO_MD5
-    wc_Md5Update(&ssl->hashMd5, adj, sz);
+    wc_Md5Update(&ssl->hsHashes->hashMd5, adj, sz);
 #endif
 #endif
 
@@ -2580,12 +2595,12 @@ static int HashOutput(WOLFSSL* ssl, const byte* output, int sz, int ivSz)
         int ret;
 
 #ifndef NO_SHA256
-        ret = wc_Sha256Update(&ssl->hashSha256, adj, sz);
+        ret = wc_Sha256Update(&ssl->hsHashes->hashSha256, adj, sz);
         if (ret != 0)
             return ret;
 #endif
 #ifdef WOLFSSL_SHA384
-        ret = wc_Sha384Update(&ssl->hashSha384, adj, sz);
+        ret = wc_Sha384Update(&ssl->hsHashes->hashSha384, adj, sz);
         if (ret != 0)
             return ret;
 #endif
@@ -2610,10 +2625,10 @@ static int HashInput(WOLFSSL* ssl, const byte* input, int sz)
 
 #ifndef NO_OLD_TLS
 #ifndef NO_SHA
-    wc_ShaUpdate(&ssl->hashSha, adj, sz);
+    wc_ShaUpdate(&ssl->hsHashes->hashSha, adj, sz);
 #endif
 #ifndef NO_MD5
-    wc_Md5Update(&ssl->hashMd5, adj, sz);
+    wc_Md5Update(&ssl->hsHashes->hashMd5, adj, sz);
 #endif
 #endif
 
@@ -2621,12 +2636,12 @@ static int HashInput(WOLFSSL* ssl, const byte* input, int sz)
         int ret;
 
 #ifndef NO_SHA256
-        ret = wc_Sha256Update(&ssl->hashSha256, adj, sz);
+        ret = wc_Sha256Update(&ssl->hsHashes->hashSha256, adj, sz);
         if (ret != 0)
             return ret;
 #endif
 #ifdef WOLFSSL_SHA384
-        ret = wc_Sha384Update(&ssl->hashSha384, adj, sz);
+        ret = wc_Sha384Update(&ssl->hsHashes->hashSha384, adj, sz);
         if (ret != 0)
             return ret;
 #endif
@@ -3144,17 +3159,17 @@ static void BuildMD5(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
     byte md5_result[MD5_DIGEST_SIZE];
 
     /* make md5 inner */
-    wc_Md5Update(&ssl->hashMd5, sender, SIZEOF_SENDER);
-    wc_Md5Update(&ssl->hashMd5, ssl->arrays->masterSecret, SECRET_LEN);
-    wc_Md5Update(&ssl->hashMd5, PAD1, PAD_MD5);
-    wc_Md5Final(&ssl->hashMd5, md5_result);
+    wc_Md5Update(&ssl->hsHashes->hashMd5, sender, SIZEOF_SENDER);
+    wc_Md5Update(&ssl->hsHashes->hashMd5, ssl->arrays->masterSecret,SECRET_LEN);
+    wc_Md5Update(&ssl->hsHashes->hashMd5, PAD1, PAD_MD5);
+    wc_Md5Final(&ssl->hsHashes->hashMd5, md5_result);
 
     /* make md5 outer */
-    wc_Md5Update(&ssl->hashMd5, ssl->arrays->masterSecret, SECRET_LEN);
-    wc_Md5Update(&ssl->hashMd5, PAD2, PAD_MD5);
-    wc_Md5Update(&ssl->hashMd5, md5_result, MD5_DIGEST_SIZE);
+    wc_Md5Update(&ssl->hsHashes->hashMd5, ssl->arrays->masterSecret,SECRET_LEN);
+    wc_Md5Update(&ssl->hsHashes->hashMd5, PAD2, PAD_MD5);
+    wc_Md5Update(&ssl->hsHashes->hashMd5, md5_result, MD5_DIGEST_SIZE);
 
-    wc_Md5Final(&ssl->hashMd5, hashes->md5);
+    wc_Md5Final(&ssl->hsHashes->hashMd5, hashes->md5);
 }
 
 
@@ -3164,17 +3179,17 @@ static void BuildSHA(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
     byte sha_result[SHA_DIGEST_SIZE];
 
     /* make sha inner */
-    wc_ShaUpdate(&ssl->hashSha, sender, SIZEOF_SENDER);
-    wc_ShaUpdate(&ssl->hashSha, ssl->arrays->masterSecret, SECRET_LEN);
-    wc_ShaUpdate(&ssl->hashSha, PAD1, PAD_SHA);
-    wc_ShaFinal(&ssl->hashSha, sha_result);
+    wc_ShaUpdate(&ssl->hsHashes->hashSha, sender, SIZEOF_SENDER);
+    wc_ShaUpdate(&ssl->hsHashes->hashSha, ssl->arrays->masterSecret,SECRET_LEN);
+    wc_ShaUpdate(&ssl->hsHashes->hashSha, PAD1, PAD_SHA);
+    wc_ShaFinal(&ssl->hsHashes->hashSha, sha_result);
 
     /* make sha outer */
-    wc_ShaUpdate(&ssl->hashSha, ssl->arrays->masterSecret, SECRET_LEN);
-    wc_ShaUpdate(&ssl->hashSha, PAD2, PAD_SHA);
-    wc_ShaUpdate(&ssl->hashSha, sha_result, SHA_DIGEST_SIZE);
+    wc_ShaUpdate(&ssl->hsHashes->hashSha, ssl->arrays->masterSecret,SECRET_LEN);
+    wc_ShaUpdate(&ssl->hsHashes->hashSha, PAD2, PAD_SHA);
+    wc_ShaUpdate(&ssl->hsHashes->hashSha, sha_result, SHA_DIGEST_SIZE);
 
-    wc_ShaFinal(&ssl->hashSha, hashes->sha);
+    wc_ShaFinal(&ssl->hsHashes->hashSha, hashes->sha);
 }
 #endif
 
@@ -3253,17 +3268,17 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
     /* store current states, building requires get_digest which resets state */
 #ifndef NO_OLD_TLS
 #ifndef NO_MD5
-    md5[0] = ssl->hashMd5;
+    md5[0] = ssl->hsHashes->hashMd5;
 #endif
 #ifndef NO_SHA
-    sha[0] = ssl->hashSha;
+    sha[0] = ssl->hsHashes->hashSha;
     #endif
 #endif
 #ifndef NO_SHA256
-    sha256[0] = ssl->hashSha256;
+    sha256[0] = ssl->hsHashes->hashSha256;
 #endif
 #ifdef WOLFSSL_SHA384
-    sha384[0] = ssl->hashSha384;
+    sha384[0] = ssl->hsHashes->hashSha384;
 #endif
 
 #ifndef NO_TLS
@@ -3281,18 +3296,18 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
     /* restore */
 #ifndef NO_OLD_TLS
     #ifndef NO_MD5
-        ssl->hashMd5 = md5[0];
+        ssl->hsHashes->hashMd5 = md5[0];
     #endif
     #ifndef NO_SHA
-    ssl->hashSha = sha[0];
+    ssl->hsHashes->hashSha = sha[0];
     #endif
 #endif
     if (IsAtLeastTLSv1_2(ssl)) {
     #ifndef NO_SHA256
-        ssl->hashSha256 = sha256[0];
+        ssl->hsHashes->hashSha256 = sha256[0];
     #endif
     #ifdef WOLFSSL_SHA384
-        ssl->hashSha384 = sha384[0];
+        ssl->hsHashes->hashSha384 = sha384[0];
     #endif
     }
 
@@ -4629,7 +4644,7 @@ int DoFinished(WOLFSSL* ssl, const byte* input, word32* inOutIdx, word32 size,
     #endif
 
     if (sniff == NO_SNIFF) {
-        if (XMEMCMP(input + *inOutIdx, &ssl->verifyHashes, size) != 0) {
+        if (XMEMCMP(input + *inOutIdx, &ssl->hsHashes->verifyHashes,size) != 0){
             WOLFSSL_MSG("Verify finished error on hashes");
             return VERIFY_FINISHED_ERROR;
         }
@@ -4928,12 +4943,6 @@ static int DoHandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         return ret;
     }
 
-    /* hello_request not hashed */
-    if (type != hello_request) {
-        ret = HashInput(ssl, input + *inOutIdx, size);
-        if (ret != 0) return ret;
-    }
-
 #ifdef WOLFSSL_CALLBACKS
     /* add name later, add on record and handshake header part back on */
     if (ssl->toInfoOn) {
@@ -4972,6 +4981,12 @@ static int DoHandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         return OUT_OF_ORDER_E;
     }
 
+    /* above checks handshake state */
+    /* hello_request not hashed */
+    if (type != hello_request) {
+        ret = HashInput(ssl, input + *inOutIdx, size);
+        if (ret != 0) return ret;
+    }
 
     switch (type) {
 
@@ -6753,12 +6768,16 @@ int ProcessReply(WOLFSSL* ssl)
                             if ( (ret = InitStreams(ssl)) != 0)
                                 return ret;
                     #endif
-                    if (ssl->options.resuming && ssl->options.side ==
-                                                              WOLFSSL_CLIENT_END)
-                        ret = BuildFinished(ssl, &ssl->verifyHashes, server);
-                    else if (!ssl->options.resuming && ssl->options.side ==
-                                                              WOLFSSL_SERVER_END)
-                        ret = BuildFinished(ssl, &ssl->verifyHashes, client);
+                    if (ssl->options.resuming &&
+                                      ssl->options.side == WOLFSSL_CLIENT_END) {
+                        ret = BuildFinished(ssl, &ssl->hsHashes->verifyHashes,
+                                            server);
+                    }
+                    else if (!ssl->options.resuming &&
+                                      ssl->options.side == WOLFSSL_SERVER_END) {
+                        ret = BuildFinished(ssl, &ssl->hsHashes->verifyHashes,
+                                            client);
+                    }
                     if (ret != 0)
                         return ret;
                     break;
@@ -6976,16 +6995,16 @@ static void BuildMD5_CertVerify(WOLFSSL* ssl, byte* digest)
     byte md5_result[MD5_DIGEST_SIZE];
 
     /* make md5 inner */
-    wc_Md5Update(&ssl->hashMd5, ssl->arrays->masterSecret, SECRET_LEN);
-    wc_Md5Update(&ssl->hashMd5, PAD1, PAD_MD5);
-    wc_Md5Final(&ssl->hashMd5, md5_result);
+    wc_Md5Update(&ssl->hsHashes->hashMd5, ssl->arrays->masterSecret,SECRET_LEN);
+    wc_Md5Update(&ssl->hsHashes->hashMd5, PAD1, PAD_MD5);
+    wc_Md5Final(&ssl->hsHashes->hashMd5, md5_result);
 
     /* make md5 outer */
-    wc_Md5Update(&ssl->hashMd5, ssl->arrays->masterSecret, SECRET_LEN);
-    wc_Md5Update(&ssl->hashMd5, PAD2, PAD_MD5);
-    wc_Md5Update(&ssl->hashMd5, md5_result, MD5_DIGEST_SIZE);
+    wc_Md5Update(&ssl->hsHashes->hashMd5, ssl->arrays->masterSecret, SECRET_LEN);
+    wc_Md5Update(&ssl->hsHashes->hashMd5, PAD2, PAD_MD5);
+    wc_Md5Update(&ssl->hsHashes->hashMd5, md5_result, MD5_DIGEST_SIZE);
 
-    wc_Md5Final(&ssl->hashMd5, digest);
+    wc_Md5Final(&ssl->hsHashes->hashMd5, digest);
 }
 
 
@@ -6994,16 +7013,16 @@ static void BuildSHA_CertVerify(WOLFSSL* ssl, byte* digest)
     byte sha_result[SHA_DIGEST_SIZE];
 
     /* make sha inner */
-    wc_ShaUpdate(&ssl->hashSha, ssl->arrays->masterSecret, SECRET_LEN);
-    wc_ShaUpdate(&ssl->hashSha, PAD1, PAD_SHA);
-    wc_ShaFinal(&ssl->hashSha, sha_result);
+    wc_ShaUpdate(&ssl->hsHashes->hashSha, ssl->arrays->masterSecret,SECRET_LEN);
+    wc_ShaUpdate(&ssl->hsHashes->hashSha, PAD1, PAD_SHA);
+    wc_ShaFinal(&ssl->hsHashes->hashSha, sha_result);
 
     /* make sha outer */
-    wc_ShaUpdate(&ssl->hashSha, ssl->arrays->masterSecret, SECRET_LEN);
-    wc_ShaUpdate(&ssl->hashSha, PAD2, PAD_SHA);
-    wc_ShaUpdate(&ssl->hashSha, sha_result, SHA_DIGEST_SIZE);
+    wc_ShaUpdate(&ssl->hsHashes->hashSha, ssl->arrays->masterSecret,SECRET_LEN);
+    wc_ShaUpdate(&ssl->hsHashes->hashSha, PAD2, PAD_SHA);
+    wc_ShaUpdate(&ssl->hsHashes->hashSha, sha_result, SHA_DIGEST_SIZE);
 
-    wc_ShaFinal(&ssl->hashSha, digest);
+    wc_ShaFinal(&ssl->hsHashes->hashSha, digest);
 }
 #endif /* NO_CERTS */
 #endif /* NO_OLD_TLS */
@@ -7015,31 +7034,31 @@ static int BuildCertHashes(WOLFSSL* ssl, Hashes* hashes)
 {
     /* store current states, building requires get_digest which resets state */
     #ifndef NO_OLD_TLS
-    Md5 md5 = ssl->hashMd5;
-    Sha sha = ssl->hashSha;
+    Md5 md5 = ssl->hsHashes->hashMd5;
+    Sha sha = ssl->hsHashes->hashSha;
     #endif
     #ifndef NO_SHA256
-        Sha256 sha256 = ssl->hashSha256;
+        Sha256 sha256 = ssl->hsHashes->hashSha256;
     #endif
     #ifdef WOLFSSL_SHA384
-        Sha384 sha384 = ssl->hashSha384;
+        Sha384 sha384 = ssl->hsHashes->hashSha384;
     #endif
 
     if (ssl->options.tls) {
 #if ! defined( NO_OLD_TLS )
-        wc_Md5Final(&ssl->hashMd5, hashes->md5);
-        wc_ShaFinal(&ssl->hashSha, hashes->sha);
+        wc_Md5Final(&ssl->hsHashes->hashMd5, hashes->md5);
+        wc_ShaFinal(&ssl->hsHashes->hashSha, hashes->sha);
 #endif
         if (IsAtLeastTLSv1_2(ssl)) {
             int ret;
 
             #ifndef NO_SHA256
-                ret = wc_Sha256Final(&ssl->hashSha256, hashes->sha256);
+                ret = wc_Sha256Final(&ssl->hsHashes->hashSha256,hashes->sha256);
                 if (ret != 0)
                     return ret;
             #endif
             #ifdef WOLFSSL_SHA384
-                ret = wc_Sha384Final(&ssl->hashSha384, hashes->sha384);
+                ret = wc_Sha384Final(&ssl->hsHashes->hashSha384,hashes->sha384);
                 if (ret != 0)
                     return ret;
             #endif
@@ -7052,15 +7071,15 @@ static int BuildCertHashes(WOLFSSL* ssl, Hashes* hashes)
     }
 
     /* restore */
-    ssl->hashMd5 = md5;
-    ssl->hashSha = sha;
+    ssl->hsHashes->hashMd5 = md5;
+    ssl->hsHashes->hashSha = sha;
 #endif
     if (IsAtLeastTLSv1_2(ssl)) {
         #ifndef NO_SHA256
-            ssl->hashSha256 = sha256;
+            ssl->hsHashes->hashSha256 = sha256;
         #endif
         #ifdef WOLFSSL_SHA384
-            ssl->hashSha384 = sha384;
+            ssl->hsHashes->hashSha384 = sha384;
         #endif
     }
 
@@ -7284,7 +7303,7 @@ int SendFinished(WOLFSSL* ssl)
         AddSession(ssl);    /* just try */
 #endif
         if (ssl->options.side == WOLFSSL_CLIENT_END) {
-            ret = BuildFinished(ssl, &ssl->verifyHashes, server);
+            ret = BuildFinished(ssl, &ssl->hsHashes->verifyHashes, server);
             if (ret != 0) return ret;
         }
         else {
@@ -7314,7 +7333,7 @@ int SendFinished(WOLFSSL* ssl)
             #endif
         }
         else {
-            ret = BuildFinished(ssl, &ssl->verifyHashes, client);
+            ret = BuildFinished(ssl, &ssl->hsHashes->verifyHashes, client);
             if (ret != 0) return ret;
         }
     }
@@ -10868,7 +10887,7 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
         output = ssl->buffers.outputBuffer.buffer +
                  ssl->buffers.outputBuffer.length;
 
-        ret = BuildCertHashes(ssl, &ssl->certHashes);
+        ret = BuildCertHashes(ssl, &ssl->hsHashes->certHashes);
         if (ret != 0)
             return ret;
 
@@ -10906,7 +10925,7 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
             byte*  verify = (byte*)&output[RECORD_HEADER_SZ +
                                            HANDSHAKE_HEADER_SZ];
 #ifndef NO_OLD_TLS
-            byte*  signBuffer = ssl->certHashes.md5;
+            byte*  signBuffer = ssl->hsHashes->certHashes.md5;
 #else
             byte*  signBuffer = NULL;
 #endif
@@ -10957,11 +10976,11 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
 #ifndef NO_OLD_TLS
                 /* old tls default */
                 digestSz = SHA_DIGEST_SIZE;
-                digest   = ssl->certHashes.sha;
+                digest   = ssl->hsHashes->certHashes.sha;
 #else
                 /* new tls default */
                 digestSz = SHA256_DIGEST_SIZE;
-                digest   = ssl->certHashes.sha256;
+                digest   = ssl->hsHashes->certHashes.sha256;
 #endif
 
                 #ifdef HAVE_PK_CALLBACKS
@@ -10974,19 +10993,19 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
                 if (IsAtLeastTLSv1_2(ssl)) {
                     if (ssl->suites->hashAlgo == sha_mac) {
                         #ifndef NO_SHA
-                            digest = ssl->certHashes.sha;
+                            digest = ssl->hsHashes->certHashes.sha;
                             digestSz = SHA_DIGEST_SIZE;
                         #endif
                     }
                     else if (ssl->suites->hashAlgo == sha256_mac) {
                         #ifndef NO_SHA256
-                            digest = ssl->certHashes.sha256;
+                            digest = ssl->hsHashes->certHashes.sha256;
                             digestSz = SHA256_DIGEST_SIZE;
                         #endif
                     }
                     else if (ssl->suites->hashAlgo == sha384_mac) {
                         #ifdef WOLFSSL_SHA384
-                            digest = ssl->certHashes.sha384;
+                            digest = ssl->hsHashes->certHashes.sha384;
                             digestSz = SHA384_DIGEST_SIZE;
                         #endif
                     }
@@ -11031,7 +11050,7 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
 
                     if (ssl->suites->hashAlgo == sha_mac) {
                         #ifndef NO_SHA
-                            digest   = ssl->certHashes.sha;
+                            digest   = ssl->hsHashes->certHashes.sha;
                             typeH    = SHAh;
                             digestSz = SHA_DIGEST_SIZE;
                             didSet   = 1;
@@ -11039,7 +11058,7 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
                     }
                     else if (ssl->suites->hashAlgo == sha256_mac) {
                         #ifndef NO_SHA256
-                            digest   = ssl->certHashes.sha256;
+                            digest   = ssl->hsHashes->certHashes.sha256;
                             typeH    = SHA256h;
                             digestSz = SHA256_DIGEST_SIZE;
                             didSet   = 1;
@@ -11047,7 +11066,7 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
                     }
                     else if (ssl->suites->hashAlgo == sha384_mac) {
                         #ifdef WOLFSSL_SHA384
-                            digest   = ssl->certHashes.sha384;
+                            digest   = ssl->hsHashes->certHashes.sha384;
                             typeH    = SHA384h;
                             digestSz = SHA384_DIGEST_SIZE;
                             didSet   = 1;
@@ -11057,11 +11076,11 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
                     if (didSet == 0) {
                         /* defaults */
                         #ifndef NO_OLD_TLS
-                            digest = ssl->certHashes.sha;
+                            digest = ssl->hsHashes->certHashes.sha;
                             digestSz = SHA_DIGEST_SIZE;
                             typeH = SHAh;
                         #else
-                            digest = ssl->certHashes.sha256;
+                            digest = ssl->hsHashes->certHashes.sha256;
                             digestSz = SHA256_DIGEST_SIZE;
                             typeH = SHA256h;
                         #endif
@@ -11231,7 +11250,7 @@ int DoSessionTicket(WOLFSSL* ssl,
 
     ssl->expect_session_ticket = 0;
 
-    return BuildFinished(ssl, &ssl->verifyHashes, server);
+    return BuildFinished(ssl, &ssl->hsHashes->verifyHashes, server);
 }
 #endif /* HAVE_SESSION_TICKET */
 
@@ -12584,16 +12603,16 @@ int DoSessionTicket(WOLFSSL* ssl,
         /* manually hash input since different format */
 #ifndef NO_OLD_TLS
 #ifndef NO_MD5
-        wc_Md5Update(&ssl->hashMd5, input + idx, sz);
+        wc_Md5Update(&ssl->hsHashes->hashMd5, input + idx, sz);
 #endif
 #ifndef NO_SHA
-        wc_ShaUpdate(&ssl->hashSha, input + idx, sz);
+        wc_ShaUpdate(&ssl->hsHashes->hashSha, input + idx, sz);
 #endif
 #endif
 #ifndef NO_SHA256
         if (IsAtLeastTLSv1_2(ssl)) {
-            int shaRet = wc_Sha256Update(&ssl->hashSha256, input + idx, sz);
-
+            int shaRet = wc_Sha256Update(&ssl->hsHashes->hashSha256,
+                                         input + idx, sz);
             if (shaRet != 0)
                 return shaRet;
         }
@@ -13102,7 +13121,7 @@ int DoSessionTicket(WOLFSSL* ssl,
                 byte   encodedSig[MAX_ENCODED_SIG_SZ];
 #endif
                 word32 sigSz;
-                byte*  digest = ssl->certHashes.sha;
+                byte*  digest = ssl->hsHashes->certHashes.sha;
                 int    typeH = SHAh;
                 int    digestSz = SHA_DIGEST_SIZE;
 
@@ -13119,14 +13138,14 @@ int DoSessionTicket(WOLFSSL* ssl,
 
                 if (hashAlgo == sha256_mac) {
                     #ifndef NO_SHA256
-                        digest = ssl->certHashes.sha256;
+                        digest = ssl->hsHashes->certHashes.sha256;
                         typeH    = SHA256h;
                         digestSz = SHA256_DIGEST_SIZE;
                     #endif
                 }
                 else if (hashAlgo == sha384_mac) {
                     #ifdef WOLFSSL_SHA384
-                        digest = ssl->certHashes.sha384;
+                        digest = ssl->hsHashes->certHashes.sha384;
                         typeH    = SHA384h;
                         digestSz = SHA384_DIGEST_SIZE;
                     #endif
@@ -13144,8 +13163,10 @@ int DoSessionTicket(WOLFSSL* ssl,
             }
             else {
                 if (outLen == FINISHED_SZ && out && XMEMCMP(out,
-                                            &ssl->certHashes, FINISHED_SZ) == 0)
+                                            &ssl->hsHashes->certHashes,
+                                            FINISHED_SZ) == 0) {
                     ret = 0; /* verified */
+                }
             }
         }
 #endif
@@ -13153,7 +13174,7 @@ int DoSessionTicket(WOLFSSL* ssl,
         if (ssl->peerEccDsaKeyPresent) {
             int verify =  0;
             int err    = -1;
-            byte* digest = ssl->certHashes.sha;
+            byte* digest = ssl->hsHashes->certHashes.sha;
             word32 digestSz = SHA_DIGEST_SIZE;
             byte doUserEcc = 0;
 
@@ -13171,13 +13192,13 @@ int DoSessionTicket(WOLFSSL* ssl,
 
                 if (hashAlgo == sha256_mac) {
                     #ifndef NO_SHA256
-                        digest = ssl->certHashes.sha256;
+                        digest = ssl->hsHashes->certHashes.sha256;
                         digestSz = SHA256_DIGEST_SIZE;
                     #endif
                 }
                 else if (hashAlgo == sha384_mac) {
                     #ifdef WOLFSSL_SHA384
-                        digest = ssl->certHashes.sha384;
+                        digest = ssl->hsHashes->certHashes.sha384;
                         digestSz = SHA384_DIGEST_SIZE;
                     #endif
                 }
@@ -13715,7 +13736,7 @@ int DoSessionTicket(WOLFSSL* ssl,
             ssl->options.clientState = CLIENT_KEYEXCHANGE_COMPLETE;
             #ifndef NO_CERTS
                 if (ssl->options.verifyPeer)
-                    ret = BuildCertHashes(ssl, &ssl->certHashes);
+                    ret = BuildCertHashes(ssl, &ssl->hsHashes->certHashes);
             #endif
         }
 

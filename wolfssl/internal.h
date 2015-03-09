@@ -2020,11 +2020,33 @@ typedef struct MsgsReceived {
 } MsgsReceived;
 
 
+/* Handshake hashes */
+typedef struct HS_Hashes {
+    Hashes          verifyHashes;
+    Hashes          certHashes;         /* for cert verify */
+#ifndef NO_OLD_TLS
+#ifndef NO_SHA
+    Sha             hashSha;            /* sha hash of handshake msgs */
+#endif
+#ifndef NO_MD5
+    Md5             hashMd5;            /* md5 hash of handshake msgs */
+#endif
+#endif /* NO_OLD_TLS */
+#ifndef NO_SHA256
+    Sha256          hashSha256;         /* sha256 hash of handshake msgs */
+#endif
+#ifdef WOLFSSL_SHA384
+    Sha384          hashSha384;         /* sha384 hash of handshake msgs */
+#endif
+} HS_Hashes;
+
+
 /* wolfSSL ssl type */
 struct WOLFSSL {
     WOLFSSL_CTX*    ctx;
     Suites*         suites;             /* only need during handshake */
     Arrays*         arrays;
+    HS_Hashes*      hsHashes;
     void*           IOCB_ReadCtx;
     void*           IOCB_WriteCtx;
     RNG*            rng;
@@ -2051,26 +2073,10 @@ struct WOLFSSL {
     ProtocolVersion chVersion;          /* client hello version */
     CipherSpecs     specs;
     Keys            keys;
-    Hashes          verifyHashes;
-    Hashes          certHashes;         /* for cert verify */
     Options         options;
 #ifdef OPENSSL_EXTRA
     WOLFSSL_BIO*     biord;              /* socket bio read  to free/close */
     WOLFSSL_BIO*     biowr;              /* socket bio write to free/close */
-#endif
-#ifndef NO_OLD_TLS
-#ifndef NO_SHA
-    Sha             hashSha;            /* sha hash of handshake msgs */
-#endif
-#ifndef NO_MD5
-    Md5             hashMd5;            /* md5 hash of handshake msgs */
-#endif
-#endif /* NO_OLD_TLS */
-#ifndef NO_SHA256
-    Sha256          hashSha256;         /* sha256 hash of handshake msgs */
-#endif
-#ifdef WOLFSSL_SHA384
-    Sha384          hashSha384;         /* sha384 hash of handshake msgs */
 #endif
 #ifndef NO_RSA
     RsaKey*         peerRsaKey;
