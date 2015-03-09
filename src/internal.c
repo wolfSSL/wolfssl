@@ -353,39 +353,24 @@ void InitSSL_Method(WOLFSSL_METHOD* method, ProtocolVersion pv)
 /* Initialze SSL context, return 0 on success */
 int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method)
 {
-    ctx->method = method;
+    XMEMSET(ctx, 0, sizeof(WOLFSSL_CTX));
+
+    ctx->method   = method;
     ctx->refCount = 1;          /* so either CTX_free or SSL_free can release */
-#ifndef NO_CERTS
-    ctx->certificate.buffer = 0;
-    ctx->certChain.buffer   = 0;
-    ctx->privateKey.buffer  = 0;
-    ctx->serverDH_P.buffer  = 0;
-    ctx->serverDH_G.buffer  = 0;
-#endif
-    ctx->haveDH             = 0;
-    ctx->haveNTRU           = 0;    /* start off */
-    ctx->haveECDSAsig       = 0;    /* start off */
-    ctx->haveStaticECC      = 0;    /* start off */
-    ctx->heap               = ctx;  /* defaults to self */
-#ifndef NO_PSK
-    ctx->havePSK            = 0;
-    ctx->server_hint[0]     = 0;
-    ctx->client_psk_cb      = 0;
-    ctx->server_psk_cb      = 0;
-#endif /* NO_PSK */
-#ifdef HAVE_ANON
-    ctx->haveAnon           = 0;
-#endif /* HAVE_ANON */
+    ctx->heap     = ctx;        /* defaults to self */
+    ctx->timeout  = WOLFSSL_SESSION_TIMEOUT;
+
+    ctx->partialWrite   = 0;
+    ctx->verifyCallback = 0;
+
+    if (InitMutex(&ctx->countMutex) < 0) {
+        WOLFSSL_MSG("Mutex error on CTX init");
+        return BAD_MUTEX_E;
+    }
+
 #ifdef HAVE_ECC
-    ctx->eccTempKeySz       = ECDHE_SIZE;
+    ctx->eccTempKeySz   = ECDHE_SIZE;
 #endif
-
-#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
-    ctx->passwd_cb   = 0;
-    ctx->userdata    = 0;
-#endif /* OPENSSL_EXTRA */
-
-    ctx->timeout = WOLFSSL_SESSION_TIMEOUT;
 
 #ifndef WOLFSSL_USER_IO
     ctx->CBIORecv = EmbedReceive;
@@ -397,24 +382,13 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method)
             ctx->CBIOCookie = EmbedGenerateCookie;
         }
     #endif
-#else
-    /* user will set */
-    ctx->CBIORecv   = NULL;
-    ctx->CBIOSend   = NULL;
-    #ifdef WOLFSSL_DTLS
-        ctx->CBIOCookie = NULL;
-    #endif
 #endif /* WOLFSSL_USER_IO */
+
 #ifdef HAVE_NETX
     ctx->CBIORecv = NetX_Receive;
     ctx->CBIOSend = NetX_Send;
 #endif
-    ctx->partialWrite   = 0;
-    ctx->verifyCallback = 0;
 
-#ifndef NO_CERTS
-    ctx->cm = wolfSSL_CertManagerNew();
-#endif
 #ifdef HAVE_NTRU
     if (method->side == WOLFSSL_CLIENT_END)
         ctx->haveNTRU = 1;           /* always on cliet side */
@@ -426,51 +400,23 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method)
         ctx->haveStaticECC = 1;        /* server can turn on by loading key */
     }
 #endif
-    ctx->suites.setSuites = 0;  /* user hasn't set yet */
-    /* remove DH later if server didn't set, add psk later */
-    InitSuites(&ctx->suites, method->version, TRUE, FALSE, TRUE, ctx->haveNTRU,
-               ctx->haveECDSAsig, ctx->haveStaticECC, method->side);
-    ctx->verifyPeer = 0;
-    ctx->verifyNone = 0;
-    ctx->failNoCert = 0;
-    ctx->sessionCacheOff      = 0;  /* initially on */
-    ctx->sessionCacheFlushOff = 0;  /* initially on */
-    ctx->sendVerify = 0;
-    ctx->quietShutdown = 0;
-    ctx->groupMessages = 0;
+
 #ifdef HAVE_CAVIUM
     ctx->devId = NO_CAVIUM_DEVICE;
 #endif
-#ifdef HAVE_TLS_EXTENSIONS
-    ctx->extensions = NULL;
-#endif
-#ifdef ATOMIC_USER
-    ctx->MacEncryptCb    = NULL;
-    ctx->DecryptVerifyCb = NULL;
-#endif
-#ifdef HAVE_PK_CALLBACKS
-    #ifdef HAVE_ECC
-        ctx->EccSignCb   = NULL;
-        ctx->EccVerifyCb = NULL;
-    #endif /* HAVE_ECC */
-    #ifndef NO_RSA
-        ctx->RsaSignCb   = NULL;
-        ctx->RsaVerifyCb = NULL;
-        ctx->RsaEncCb    = NULL;
-        ctx->RsaDecCb    = NULL;
-    #endif /* NO_RSA */
-#endif /* HAVE_PK_CALLBACKS */
 
-    if (InitMutex(&ctx->countMutex) < 0) {
-        WOLFSSL_MSG("Mutex error on CTX init");
-        return BAD_MUTEX_E;
-    }
 #ifndef NO_CERTS
+    ctx->cm = wolfSSL_CertManagerNew();
     if (ctx->cm == NULL) {
         WOLFSSL_MSG("Bad Cert Manager New");
         return BAD_CERT_MANAGER_ERROR;
     }
 #endif
+
+    /* remove DH later if server didn't set, add psk later */
+    InitSuites(&ctx->suites, method->version, TRUE, FALSE, TRUE, ctx->haveNTRU,
+               ctx->haveECDSAsig, ctx->haveStaticECC, method->side);
+
     return 0;
 }
 
