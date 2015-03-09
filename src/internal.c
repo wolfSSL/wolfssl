@@ -6768,7 +6768,7 @@ int ProcessReply(WOLFSSL* ssl)
 
                     if (ssl->keys.encryptionOn && ssl->options.handShakeDone) {
                         ssl->buffers.inputBuffer.idx += ssl->keys.padSz;
-                        ssl->curSize -= ssl->buffers.inputBuffer.idx;
+                        ssl->curSize -= (word16) ssl->buffers.inputBuffer.idx;
                     }
 
                     if (ssl->curSize != 1) {
@@ -9800,7 +9800,19 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
         word16 length = 0;
         word32 begin  = *inOutIdx;
         int    ret    = 0;
-        #define ERROR_OUT(err, eLabel) do { ret = err; goto eLabel; } while(0)
+
+#if defined(_MSC_VER) && !defined(MSVS1) && !defined(MSVS2)
+    #define MSVS1 __pragma(warning(push)) __pragma(warning(disable:4127))
+    #define MSVS2 } while(0); __pragma(warning(pop))
+#else
+    #define MSVS1 }
+    #define MSVS2 while(0);
+#endif
+        /*
+         * MSVS1 and MSVS2 handle constant type warnings in Visual Studio
+         * designed to capture cases such as while(1==1)
+         */
+        #define ERROR_OUT(err, eLabel) do {ret = err; goto eLabel; MSVS1 MSVS2
 
         (void)length; /* shut up compiler warnings */
         (void)begin;
@@ -11067,10 +11079,16 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
                 #endif /*HAVE_PK_CALLBACKS */
 
                 if (IsAtLeastTLSv1_2(ssl)) {
-                    byte* digest;
-                    int   digestSz;
-                    int   typeH;
-                    int   didSet = 0;
+                    /*
+                     * Initialize values to avoid uninitialized compiler
+                     * warnings. Compiler complains because it can not
+                     * guarantee any of the conditionals will succeed in
+                     * assigning a value before wc_EncodeSignature executes.
+                     */
+                    byte* digest    = 0;
+                    int   digestSz  = 0;
+                    int   typeH     = 0;
+                    int   didSet    = 0;
 
                     if (ssl->suites->hashAlgo == sha_mac) {
                         #ifndef NO_SHA
@@ -11426,7 +11444,24 @@ int DoSessionTicket(WOLFSSL* ssl,
     {
         int ret = 0;
         (void)ssl;
-        #define ERROR_OUT(err, eLabel) do { ret = err; goto eLabel; } while(0)
+
+        /*
+         * Macros MSVS1 and MSVS2 are defined above as follows:
+         *
+         *  MSVS1 __pragma(warning(push)) __pragma(warning(disable:4127))
+         *  MSVS2 } while(0); __praga(warning(pop))
+         *  if building in microsoft visual studio
+         *
+         * or
+         *
+         *  MSVS1 }
+         *  MSVS2 while(0);
+         *  for all other cases
+         *
+         * MSVS1 and MSVS2 handle constant type warnings in Visual Studio
+         * designed to capture cases such as while(1==1)
+         */
+        #define ERROR_OUT(err, eLabel) do {ret = err; goto eLabel; MSVS1 MSVS2
 
     #ifndef NO_PSK
         if (ssl->specs.kea == psk_kea)
