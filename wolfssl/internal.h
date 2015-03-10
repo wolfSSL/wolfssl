@@ -1425,7 +1425,7 @@ struct WOLFSSL_CTX {
     buffer      serverDH_G;
     WOLFSSL_CERT_MANAGER* cm;      /* our cert manager, ctx owns SSL will use */
 #endif
-    Suites      suites;
+    Suites*     suites;           /* make dynamic, user may not need/set */
     void*       heap;             /* for user memory overrides */
     byte        verifyPeer;
     byte        verifyNone;

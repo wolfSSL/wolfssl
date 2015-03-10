@@ -410,10 +410,6 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method)
     }
 #endif
 
-    /* remove DH later if server didn't set, add psk later */
-    InitSuites(&ctx->suites, method->version, TRUE, FALSE, TRUE, ctx->haveNTRU,
-               ctx->haveECDSAsig, ctx->haveStaticECC, method->side);
-
     return 0;
 }
 
@@ -422,6 +418,8 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method)
 void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
 {
     XFREE(ctx->method, ctx->heap, DYNAMIC_TYPE_METHOD);
+    if (ctx->suites)
+        XFREE(ctx->suites, ctx->heap, DYNAMIC_TYPE_SUITES);
 
 #ifndef NO_CERTS
     XFREE(ctx->serverDH_G.buffer, ctx->heap, DYNAMIC_TYPE_DH);
@@ -1658,7 +1656,10 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
         WOLFSSL_MSG("Suites Memory error");
         return MEMORY_E;
     }
-    *ssl->suites = ctx->suites;
+    if (ctx->suites)
+        *ssl->suites = *ctx->suites;
+    else
+        XMEMSET(ssl->suites, 0, sizeof(Suites));
 
 
 #ifndef NO_CERTS
