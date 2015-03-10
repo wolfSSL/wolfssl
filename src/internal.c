@@ -1888,6 +1888,32 @@ void FreeHandshakeResources(WOLFSSL* ssl)
         ssl->eccTempKey = NULL;
     }
 #endif
+#ifndef NO_CERTS
+    XFREE(ssl->buffers.serverDH_Priv.buffer, ssl->heap, DYNAMIC_TYPE_DH);
+    ssl->buffers.serverDH_Priv.buffer = NULL;
+    XFREE(ssl->buffers.serverDH_Pub.buffer, ssl->heap, DYNAMIC_TYPE_DH);
+    ssl->buffers.serverDH_Pub.buffer = NULL;
+    /* parameters (p,g) may be owned by ctx */
+    if (ssl->buffers.weOwnDH || ssl->options.side == WOLFSSL_CLIENT_END) {
+        XFREE(ssl->buffers.serverDH_G.buffer, ssl->heap, DYNAMIC_TYPE_DH);
+        ssl->buffers.serverDH_G.buffer = NULL;
+        XFREE(ssl->buffers.serverDH_P.buffer, ssl->heap, DYNAMIC_TYPE_DH);
+        ssl->buffers.serverDH_P.buffer = NULL;
+    }
+
+    if (ssl->buffers.weOwnCert) {
+        XFREE(ssl->buffers.certificate.buffer, ssl->heap, DYNAMIC_TYPE_CERT);
+        ssl->buffers.certificate.buffer = NULL;
+    }
+    if (ssl->buffers.weOwnCertChain) {
+        XFREE(ssl->buffers.certChain.buffer, ssl->heap, DYNAMIC_TYPE_CERT);
+        ssl->buffers.certChain.buffer = NULL;
+    }
+    if (ssl->buffers.weOwnKey) {
+        XFREE(ssl->buffers.key.buffer, ssl->heap, DYNAMIC_TYPE_KEY);
+        ssl->buffers.key.buffer = NULL;
+    }
+#endif
 #ifdef HAVE_PK_CALLBACKS
     #ifdef HAVE_ECC
         XFREE(ssl->buffers.peerEccDsaKey.buffer, ssl->heap, DYNAMIC_TYPE_ECC);
