@@ -7292,6 +7292,7 @@ int EncodeOcspRequest(OcspRequest* req)
                                                       req->nonce, req->nonceSz);
             }
         }
+		wc_FreeRng(&rng);
     }
 
     totalSz = algoSz + issuerSz + issuerKeySz + snSz;
