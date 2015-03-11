@@ -148,10 +148,8 @@ enum {
 
 
 typedef struct DRBG {
-    Sha256 sha;
     word32 reseedCtr;
     word32 lastBlock;
-    byte digest[SHA256_DIGEST_SIZE];
     byte V[DRBG_SEED_LEN];
     byte C[DRBG_SEED_LEN];
     byte   matchCount;
@@ -168,7 +166,10 @@ static int Hash_df(DRBG* drbg, byte* out, word32 outSz, byte type,
     int i;
     int len;
     word32 bits = (outSz * 8); /* reverse byte order */
+    Sha256 sha;
+    byte digest[SHA256_DIGEST_SIZE];
 
+    (void)drbg;
     #ifdef LITTLE_ENDIAN_ORDER
         bits = ByteReverseWord32(bits);
     #endif
@@ -177,40 +178,41 @@ static int Hash_df(DRBG* drbg, byte* out, word32 outSz, byte type,
 
     for (i = 0, ctr = 1; i < len; i++, ctr++)
     {
-        if (wc_InitSha256(&drbg->sha) != 0)
+        if (wc_InitSha256(&sha) != 0)
             return DRBG_FAILURE;
 
-        if (wc_Sha256Update(&drbg->sha, &ctr, sizeof(ctr)) != 0)
+        if (wc_Sha256Update(&sha, &ctr, sizeof(ctr)) != 0)
             return DRBG_FAILURE;
 
-        if (wc_Sha256Update(&drbg->sha, (byte*)&bits, sizeof(bits)) != 0)
+        if (wc_Sha256Update(&sha, (byte*)&bits, sizeof(bits)) != 0)
             return DRBG_FAILURE;
 
         /* churning V is the only string that doesn't have 
          * the type added */
         if (type != drbgInitV)
-            if (wc_Sha256Update(&drbg->sha, &type, sizeof(type)) != 0)
+            if (wc_Sha256Update(&sha, &type, sizeof(type)) != 0)
                 return DRBG_FAILURE;
 
-        if (wc_Sha256Update(&drbg->sha, inA, inASz) != 0)
+        if (wc_Sha256Update(&sha, inA, inASz) != 0)
             return DRBG_FAILURE;
 
         if (inB != NULL && inBSz > 0)
-            if (wc_Sha256Update(&drbg->sha, inB, inBSz) != 0)
+            if (wc_Sha256Update(&sha, inB, inBSz) != 0)
                 return DRBG_FAILURE;
 
-        if (wc_Sha256Final(&drbg->sha, drbg->digest) != 0)
+        if (wc_Sha256Final(&sha, digest) != 0)
             return DRBG_FAILURE;
 
         if (outSz > OUTPUT_BLOCK_LEN) {
-            XMEMCPY(out, drbg->digest, OUTPUT_BLOCK_LEN);
+            XMEMCPY(out, digest, OUTPUT_BLOCK_LEN);
             outSz -= OUTPUT_BLOCK_LEN;
             out += OUTPUT_BLOCK_LEN;
         }
         else {
-            XMEMCPY(out, drbg->digest, outSz);
+            XMEMCPY(out, digest, outSz);
         }
     }
+    ForceZero(digest, sizeof(digest));
 
     return DRBG_SUCCESS;
 }
@@ -259,6 +261,8 @@ static int Hash_gen(DRBG* drbg, byte* out, word32 outSz, const byte* V)
     int i;
     int len;
     word32 checkBlock;
+    Sha256 sha;
+    byte digest[SHA256_DIGEST_SIZE];
 
     /* Special case: outSz is 0 and out is NULL. wc_Generate a block to save for
      * the continuous test. */
@@ -269,14 +273,14 @@ static int Hash_gen(DRBG* drbg, byte* out, word32 outSz, const byte* V)
 
     XMEMCPY(data, V, sizeof(data));
     for (i = 0; i < len; i++) {
-        if (wc_InitSha256(&drbg->sha) != 0 ||
-            wc_Sha256Update(&drbg->sha, data, sizeof(data)) != 0 ||
-            wc_Sha256Final(&drbg->sha, drbg->digest) != 0) {
+        if (wc_InitSha256(&sha) != 0 ||
+            wc_Sha256Update(&sha, data, sizeof(data)) != 0 ||
+            wc_Sha256Final(&sha, digest) != 0) {
 
             return DRBG_FAILURE;
         }
 
-        XMEMCPY(&checkBlock, drbg->digest, sizeof(word32));
+        XMEMCPY(&checkBlock, digest, sizeof(word32));
         if (drbg->reseedCtr > 1 && checkBlock == drbg->lastBlock) {
             if (drbg->matchCount == 1) {
                 return DRBG_CONT_FAILURE;
@@ -294,13 +298,13 @@ static int Hash_gen(DRBG* drbg, byte* out, word32 outSz, const byte* V)
         }
 
         if (outSz >= OUTPUT_BLOCK_LEN) {
-            XMEMCPY(out, drbg->digest, OUTPUT_BLOCK_LEN);
+            XMEMCPY(out, digest, OUTPUT_BLOCK_LEN);
             outSz -= OUTPUT_BLOCK_LEN;
             out += OUTPUT_BLOCK_LEN;
             array_add_one(data, DRBG_SEED_LEN);
         }
         else if (out != NULL && outSz != 0) {
-            XMEMCPY(out, drbg->digest, outSz);
+            XMEMCPY(out, digest, outSz);
             outSz = 0;
         }
     }
@@ -337,6 +341,8 @@ static INLINE void array_add(byte* d, word32 dLen, const byte* s, word32 sLen)
 static int Hash_DRBG_Generate(DRBG* drbg, byte* out, word32 outSz)
 {
     int ret = DRBG_NEED_RESEED;
+    Sha256 sha;
+    byte digest[SHA256_DIGEST_SIZE];
 
     if (drbg->reseedCtr != RESEED_INTERVAL) {
         byte type = drbgGenerateH;
@@ -344,16 +350,15 @@ static int Hash_DRBG_Generate(DRBG* drbg, byte* out, word32 outSz)
 
         ret = Hash_gen(drbg, out, outSz, drbg->V);
         if (ret == DRBG_SUCCESS) {
-            if (wc_InitSha256(&drbg->sha) != 0 ||
-                wc_Sha256Update(&drbg->sha, &type, sizeof(type)) != 0 ||
-                wc_Sha256Update(&drbg->sha, drbg->V, sizeof(drbg->V)) != 0 ||
-                wc_Sha256Final(&drbg->sha, drbg->digest) != 0) {
+            if (wc_InitSha256(&sha) != 0 ||
+                wc_Sha256Update(&sha, &type, sizeof(type)) != 0 ||
+                wc_Sha256Update(&sha, drbg->V, sizeof(drbg->V)) != 0 ||
+                wc_Sha256Final(&sha, digest) != 0) {
 
                 ret = DRBG_FAILURE;
             }
             else {
-                array_add(drbg->V, sizeof(drbg->V),
-                                            drbg->digest, sizeof(drbg->digest));
+                array_add(drbg->V, sizeof(drbg->V), digest, sizeof(digest));
                 array_add(drbg->V, sizeof(drbg->V), drbg->C, sizeof(drbg->C));
                 #ifdef LITTLE_ENDIAN_ORDER
                     reseedCtr = ByteReverseWord32(reseedCtr);
@@ -365,6 +370,7 @@ static int Hash_DRBG_Generate(DRBG* drbg, byte* out, word32 outSz)
             drbg->reseedCtr++;
         }
     }
+    ForceZero(digest, sizeof(digest));
 
     return ret;
 }
