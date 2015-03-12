@@ -407,7 +407,7 @@ AM_CONDITIONAL([BUILD_AESNI], [test "x$ENABLED_AESNI" = "xyes"])
 
 # POLY1305
 AC_ARG_ENABLE([poly1305],
-    [  --enable-poly1305         Enable wolfSSL POLY1305 support (default: disabled)],
+    [AS_HELP_STRING([--enable-poly1305],[Enable wolfSSL POLY1305 support (default: disabled)])],
     [ ENABLED_POLY1305=$enableval ],
     [ ENABLED_POLY1305=no ]
     )
@@ -636,7 +636,7 @@ fi
 
 # ECC25519
 AC_ARG_ENABLE([ecc25519],
-    [  --enable-ecc25519            Enable ECC25519 (default: disabled)],
+    [AS_HELP_STRING([--enable-ecc25519],[Enable ECC25519 (default: disabled)])],
     [ ENABLED_ECC25519=$enableval ],
     [ ENABLED_ECC25519=no ]
     )
@@ -1112,7 +1112,7 @@ AM_CONDITIONAL([BUILD_CHACHA], [test "x$ENABLED_CHACHA" = "xyes"])
 
 # FIPS
 AC_ARG_ENABLE([fips],
-    [  --enable-fips           Enable FIPS 140-2, Will NOT work w/o FIPS license                               (default: disabled)],
+    [AS_HELP_STRING([--enable-fips],[Enable FIPS 140-2, Will NOT work w/o FIPS license (default: disabled)])],
     [ ENABLED_FIPS=$enableval ],
     [ ENABLED_FIPS=no ]
     )
@@ -1348,7 +1348,7 @@ fi
 
 # Renegotiation Indication - (FAKE Secure Renegotiation)
 AC_ARG_ENABLE([renegotiation-indication],
-    [  --enable-renegotiation-indication  Enable Renegotiation Indication (default: disabled)],
+    [AS_HELP_STRING([--enable-renegotiation-indication],[Enable Renegotiation Indication (default: disabled)])],
     [ ENABLED_RENEGOTIATION_INDICATION=$enableval ],
     [ ENABLED_RENEGOTIATION_INDICATION=no ]
     )
@@ -1360,7 +1360,7 @@ fi
 
 # Secure Renegotiation
 AC_ARG_ENABLE([secure-renegotiation],
-    [  --enable-secure-renegotiation Enable Secure Renegotiation (default: disabled)],
+    [AS_HELP_STRING([--enable-secure-renegotiation],[Enable Secure Renegotiation (default: disabled)])],
     [ ENABLED_SECURE_RENEGOTIATION=$enableval ],
     [ ENABLED_SECURE_RENEGOTIATION=no ]
     )
@@ -1376,7 +1376,7 @@ fi
 
 # Supported Elliptic Curves Extensions
 AC_ARG_ENABLE([supportedcurves],
-    [  --enable-supportedcurves Enable Supported Elliptic Curves (default: disabled)],
+    [AS_HELP_STRING([--enable-supportedcurves],[Enable Supported Elliptic Curves (default: disabled)])],
     [ ENABLED_SUPPORTED_CURVES=$enableval ],
     [ ENABLED_SUPPORTED_CURVES=no ]
     )
@@ -1388,7 +1388,7 @@ fi
 
 # Session Ticket Extension
 AC_ARG_ENABLE([session-ticket],
-    [  --enable-session-ticket  Enable Session Ticket (default: disabled)],
+    [AS_HELP_STRING([--enable-session-ticket],[Enable Session Ticket (default: disabled)])],
     [ ENABLED_SESSION_TICKET=$enableval ],
     [ ENABLED_SESSION_TICKET=no ]
     )
