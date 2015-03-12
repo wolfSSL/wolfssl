@@ -4454,7 +4454,7 @@ int mp_read_radix (mp_int * a, const char *str, int radix)
      * this allows numbers like 1AB and 1ab to represent the same  value
      * [e.g. in hex]
      */
-    ch = (char) ((radix < 36) ? XTOUPPER(*str) : *str);
+    ch = (char) ((radix < 36) ? XTOUPPER((unsigned char)*str) : *str);
     for (y = 0; y < 64; y++) {
       if (ch == mp_s_rmap[y]) {
          break;
