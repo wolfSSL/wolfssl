@@ -1441,6 +1441,7 @@ struct WOLFSSL_CTX {
     byte        partialWrite;     /* only one msg per write call */
     byte        quietShutdown;    /* don't send close notify */
     byte        groupMessages;    /* group handshake messages before sending */
+    byte        minDowngrade;     /* minimum downgrade version */
     CallbackIORecv CBIORecv;
     CallbackIOSend CBIOSend;
 #ifdef WOLFSSL_DTLS

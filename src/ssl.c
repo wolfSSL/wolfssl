@@ -1568,6 +1568,54 @@ int wolfSSL_set_group_messages(WOLFSSL* ssl)
 }
 
 
+/* make minVersion the internal equivilant SSL version */
+static int SetMinVersionHelper(byte* minVersion, int version)
+{
+    switch (version) {
+#ifndef NO_OLD_TLS
+        case WOLFSSL_SSLV3:
+            *minVersion = SSLv3_MINOR;
+            break;
+#endif
+
+#ifndef NO_TLS
+    #ifndef NO_OLD_TLS
+        case WOLFSSL_TLSV1:
+            *minVersion = TLSv1_MINOR;
+            break;
+
+        case WOLFSSL_TLSV1_1:
+            *minVersion = TLSv1_1_MINOR;
+            break;
+    #endif
+        case WOLFSSL_TLSV1_2:
+            *minVersion = TLSv1_2_MINOR;
+            break;
+#endif
+
+        default:
+            WOLFSSL_MSG("Bad function argument");
+            return BAD_FUNC_ARG;
+    }
+
+    return SSL_SUCCESS;
+}
+
+
+/* Set minimum downgrade version allowed, SSL_SUCCESS on ok */
+int wolfSSL_CTX_SetMinVersion(WOLFSSL_CTX* ctx, int version)
+{
+    WOLFSSL_ENTER("wolfSSL_CTX_SetMinVersion");
+
+    if (ctx == NULL) {
+        WOLFSSL_MSG("Bad function argument");
+        return BAD_FUNC_ARG;
+    }
+
+    return SetMinVersionHelper(&ctx->minDowngrade, version);
+}
+
+
 /* Set minimum downgrade version allowed, SSL_SUCCESS on ok */
 int wolfSSL_SetMinVersion(WOLFSSL* ssl, int version)
 {
@@ -1578,35 +1626,7 @@ int wolfSSL_SetMinVersion(WOLFSSL* ssl, int version)
         return BAD_FUNC_ARG;
     }
 
-    switch (version) {
-#ifndef NO_OLD_TLS
-        case WOLFSSL_SSLV3:
-            ssl->options.minDowngrade = SSLv3_MINOR;
-            break;
-#endif
-
-#ifndef NO_TLS
-    #ifndef NO_OLD_TLS
-        case WOLFSSL_TLSV1:
-            ssl->options.minDowngrade = TLSv1_MINOR;
-            break;
-
-        case WOLFSSL_TLSV1_1:
-            ssl->options.minDowngrade = TLSv1_1_MINOR;
-            break;
-    #endif
-        case WOLFSSL_TLSV1_2:
-            ssl->options.minDowngrade = TLSv1_2_MINOR;
-            break;
-#endif
-
-        default:
-            WOLFSSL_MSG("Bad function argument");
-            return BAD_FUNC_ARG;
-    }
-
-
-    return SSL_SUCCESS;
+    return SetMinVersionHelper(&ssl->options.minDowngrade, version);
 }
 
 

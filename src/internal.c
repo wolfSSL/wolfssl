@@ -359,6 +359,7 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method)
     ctx->refCount = 1;          /* so either CTX_free or SSL_free can release */
     ctx->heap     = ctx;        /* defaults to self */
     ctx->timeout  = WOLFSSL_SESSION_TIMEOUT;
+    ctx->minDowngrade = TLSv1_MINOR;     /* current default */
 
     if (InitMutex(&ctx->countMutex) < 0) {
         WOLFSSL_MSG("Mutex error on CTX init");
@@ -1488,7 +1489,7 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
     ssl->verifyCallback    = ctx->verifyCallback;
     ssl->options.side      = ctx->method->side;
     ssl->options.downgrade    = ctx->method->downgrade;
-    ssl->options.minDowngrade = TLSv1_MINOR;     /* current default */
+    ssl->options.minDowngrade = ctx->minDowngrade;
 
     if (ssl->options.side == WOLFSSL_SERVER_END)
         ssl->options.haveDH = ctx->haveDH;
