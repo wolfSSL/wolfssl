@@ -236,7 +236,8 @@ static const char* const msgTable[] =
 
     /* 71 */
     "Decrypt Keys Not Set Up",
-    "Late Key Load Error"
+    "Late Key Load Error",
+    "Got Certificate Status msg"
 };
 
 
@@ -1841,6 +1842,9 @@ static int DoHandShake(const byte* input, int* sslBytes,
             break;
         case certificate_verify:
             Trace(GOT_CERT_VER_STR);
+            break;
+        case certificate_status:
+            Trace(GOT_CERT_STATUS_STR);
             break;
         default:
             SetError(GOT_UNKNOWN_HANDSHAKE_STR, error, session, 0);

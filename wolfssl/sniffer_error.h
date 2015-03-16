@@ -105,6 +105,7 @@
 
 #define DECRYPT_KEYS_NOT_SETUP 71
 #define CLIENT_HELLO_LATE_KEY_STR 72
+#define GOT_CERT_STATUS_STR 73
 /* !!!! also add to msgTable in sniffer.c and .rc file !!!! */
 
 
