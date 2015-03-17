@@ -237,7 +237,8 @@ static const char* const msgTable[] =
     /* 71 */
     "Decrypt Keys Not Set Up",
     "Late Key Load Error",
-    "Got Certificate Status msg"
+    "Got Certificate Status msg",
+    "RSA Key Missing Error"
 };
 
 
@@ -1287,6 +1288,12 @@ static int ProcessClientKeyExchange(const byte* input, int* sslBytes,
     RsaKey key;
     int    ret;
 
+    if (session->sslServer->buffers.key.buffer == NULL ||
+        session->sslServer->buffers.key.length == 0) {
+
+        SetError(RSA_KEY_MISSING_STR, error, session, FATAL_ERROR_STATE);
+        return -1;
+    }
     ret = wc_InitRsaKey(&key, 0);
     if (ret == 0)
         ret = wc_RsaPrivateKeyDecode(session->sslServer->buffers.key.buffer,
