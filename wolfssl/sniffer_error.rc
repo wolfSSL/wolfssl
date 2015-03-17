@@ -87,5 +87,7 @@ STRINGTABLE
 
     71, "Decrypt Keys Not Set Up"
     72, "Late Key Load Error"
+    73, "Got Certificate Status msg"
+    74, "RSA Key Missing Error"
 }
 

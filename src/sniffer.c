@@ -236,7 +236,9 @@ static const char* const msgTable[] =
 
     /* 71 */
     "Decrypt Keys Not Set Up",
-    "Late Key Load Error"
+    "Late Key Load Error",
+    "Got Certificate Status msg",
+    "RSA Key Missing Error"
 };
 
 
@@ -1286,6 +1288,12 @@ static int ProcessClientKeyExchange(const byte* input, int* sslBytes,
     RsaKey key;
     int    ret;
 
+    if (session->sslServer->buffers.key.buffer == NULL ||
+        session->sslServer->buffers.key.length == 0) {
+
+        SetError(RSA_KEY_MISSING_STR, error, session, FATAL_ERROR_STATE);
+        return -1;
+    }
     ret = wc_InitRsaKey(&key, 0);
     if (ret == 0)
         ret = wc_RsaPrivateKeyDecode(session->sslServer->buffers.key.buffer,
@@ -1841,6 +1849,9 @@ static int DoHandShake(const byte* input, int* sslBytes,
             break;
         case certificate_verify:
             Trace(GOT_CERT_VER_STR);
+            break;
+        case certificate_status:
+            Trace(GOT_CERT_STATUS_STR);
             break;
         default:
             SetError(GOT_UNKNOWN_HANDSHAKE_STR, error, session, 0);
