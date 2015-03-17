@@ -330,7 +330,6 @@ static INLINE ROTR(rotrFixed_7,   7, x)
 static INLINE ROTR(rotrFixed_18, 18, x)
 static INLINE ROTR(rotrFixed_17, 17, x)
 static INLINE ROTR(rotrFixed_19, 19, x)
-//static INLINE ROTR(rotrFixed_10, 10, x)
 #endif
 
 #if defined(FREESCALE_MMCAU)
