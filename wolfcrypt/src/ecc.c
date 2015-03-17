@@ -2088,7 +2088,9 @@ int wc_ecc_verify_hash(const byte* sig, word32 siglen, const byte* hash,
     * If either of those don't allocate correctly, none of
     * the rest of this function will execute, and everything
     * gets cleaned up at the end. */
-   if (err == MP_OKAY) 
+   XMEMSET(&r, 0, sizeof(r));
+   XMEMSET(&s, 0, sizeof(s));
+   if (err == MP_OKAY)
        err = DecodeECC_DSA_Sig(sig, siglen, &r, &s);
 
    /* get the order */
