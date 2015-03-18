@@ -10886,12 +10886,11 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
 
                 if (IsAtLeastTLSv1_2(ssl)) {
                     /*
-                     * Initialize values to avoid uninitialized compiler
-                     * warnings. Compiler complains because it can not
+                     * MSVC Compiler complains because it can not
                      * guarantee any of the conditionals will succeed in
                      * assigning a value before wc_EncodeSignature executes.
                      */
-                    byte* digest    = 0;
+                    byte* digest    = NULL;
                     int   digestSz  = 0;
                     int   typeH     = 0;
                     int   didSet    = 0;
