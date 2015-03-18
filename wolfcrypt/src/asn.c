@@ -1272,8 +1272,9 @@ int wc_RsaPublicKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
     return 0;
 }
 
-int wc_RsaPublicKeyDecodeRaw(const byte* n, word32 nSz, const byte* e, word32 eSz,
-                          RsaKey* key)
+/* import RSA public key elements (n, e) into RsaKey structure (key) */
+int wc_RsaPublicKeyDecodeRaw(const byte* n, word32 nSz, const byte* e,
+                             word32 eSz, RsaKey* key)
 {
     if (n == NULL || e == NULL || key == NULL)
         return BAD_FUNC_ARG;
