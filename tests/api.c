@@ -1126,18 +1126,18 @@ static void test_wolfSSL_UseSupportedCurve(void)
 #ifndef NO_WOLFSSL_CLIENT
     /* error cases */
     AssertIntNE(SSL_SUCCESS,
-                      wolfSSL_CTX_UseSupportedCurve(NULL, WOLFSSL_ECC_SECP160R1));
+                      wolfSSL_CTX_UseSupportedCurve(NULL, WOLFSSL_ECC_SECP256R1));
     AssertIntNE(SSL_SUCCESS, wolfSSL_CTX_UseSupportedCurve(ctx,  0));
 
     AssertIntNE(SSL_SUCCESS,
-                          wolfSSL_UseSupportedCurve(NULL, WOLFSSL_ECC_SECP160R1));
+                          wolfSSL_UseSupportedCurve(NULL, WOLFSSL_ECC_SECP256R1));
     AssertIntNE(SSL_SUCCESS, wolfSSL_UseSupportedCurve(ssl,  0));
 
     /* success case */
     AssertIntEQ(SSL_SUCCESS,
-                       wolfSSL_CTX_UseSupportedCurve(ctx, WOLFSSL_ECC_SECP160R1));
+                       wolfSSL_CTX_UseSupportedCurve(ctx, WOLFSSL_ECC_SECP256R1));
     AssertIntEQ(SSL_SUCCESS,
-                           wolfSSL_UseSupportedCurve(ssl, WOLFSSL_ECC_SECP160R1));
+                           wolfSSL_UseSupportedCurve(ssl, WOLFSSL_ECC_SECP256R1));
 #endif
 
     wolfSSL_free(ssl);

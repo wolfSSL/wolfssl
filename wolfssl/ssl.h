@@ -1324,8 +1324,6 @@ WOLFSSL_API int wolfSSL_CTX_UseTruncatedHMAC(WOLFSSL_CTX* ctx);
 #endif
 
 /* Elliptic Curves */
-#ifdef HAVE_SUPPORTED_CURVES
-
 enum {
     WOLFSSL_ECC_SECP160R1 = 0x10,
     WOLFSSL_ECC_SECP192R1 = 0x13,
@@ -1335,6 +1333,7 @@ enum {
     WOLFSSL_ECC_SECP521R1 = 0x19
 };
 
+#ifdef HAVE_SUPPORTED_CURVES
 #ifndef NO_WOLFSSL_CLIENT
 
 WOLFSSL_API int wolfSSL_UseSupportedCurve(WOLFSSL* ssl, unsigned short name);

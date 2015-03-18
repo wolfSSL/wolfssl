@@ -1502,12 +1502,24 @@ int TLSX_ValidateEllipticCurves(WOLFSSL* ssl, byte first, byte second) {
     for (curve = extension->data; curve && !(sig && key); curve = curve->next) {
 
         switch (curve->name) {
+#if defined(HAVE_ALL_CURVES) || defined(HAVE_ECC160)
             case WOLFSSL_ECC_SECP160R1: oid = ECC_160R1; octets = 20; break;
+#endif
+#if defined(HAVE_ALL_CURVES) || defined(HAVE_ECC192)
             case WOLFSSL_ECC_SECP192R1: oid = ECC_192R1; octets = 24; break;
+#endif
+#if defined(HAVE_ALL_CURVES) || defined(HAVE_ECC224)
             case WOLFSSL_ECC_SECP224R1: oid = ECC_224R1; octets = 28; break;
+#endif
+#if defined(HAVE_ALL_CURVES) || !defined(NO_ECC256)
             case WOLFSSL_ECC_SECP256R1: oid = ECC_256R1; octets = 32; break;
+#endif
+#if defined(HAVE_ALL_CURVES) || defined(HAVE_ECC384)
             case WOLFSSL_ECC_SECP384R1: oid = ECC_384R1; octets = 48; break;
+#endif
+#if defined(HAVE_ALL_CURVES) || defined(HAVE_ECC521)
             case WOLFSSL_ECC_SECP521R1: oid = ECC_521R1; octets = 66; break;
+#endif
             default: continue; /* unsupported curve */
         }
 

@@ -9562,6 +9562,42 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
 #endif /* !NO_CERTS */
 
 
+#ifdef HAVE_ECC
+
+    static int CheckCurveId(int oid)
+    {
+        int ret = 0;
+
+        switch (oid) {
+#if defined(HAVE_ALL_CURVES) || defined(HAVE_ECC160)
+            case WOLFSSL_ECC_SECP160R1:
+#endif
+#if defined(HAVE_ALL_CURVES) || defined(HAVE_ECC192)
+            case WOLFSSL_ECC_SECP192R1:
+#endif
+#if defined(HAVE_ALL_CURVES) || defined(HAVE_ECC224)
+            case WOLFSSL_ECC_SECP224R1:
+#endif
+#if defined(HAVE_ALL_CURVES) || !defined(NO_ECC256)
+            case WOLFSSL_ECC_SECP256R1:
+#endif
+#if defined(HAVE_ALL_CURVES) || defined(HAVE_ECC384)
+            case WOLFSSL_ECC_SECP384R1:
+#endif
+#if defined(HAVE_ALL_CURVES) || defined(HAVE_ECC521)
+            case WOLFSSL_ECC_SECP521R1:
+#endif
+                break;
+
+            default:
+                ret = -1;
+        }
+
+        return ret;
+    }
+
+#endif /* HAVE_ECC */
+
     static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                                    word32* inOutIdx, word32 size)
     {
@@ -9689,9 +9725,9 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
         *inOutIdx += 1;   /* curve type, eat leading 0 */
         b = input[(*inOutIdx)++];
 
-        if (b != secp256r1 && b != secp384r1 && b != secp521r1 && b !=
-                 secp160r1 && b != secp192r1 && b != secp224r1)
+        if (CheckCurveId(b) != 0) {
             return ECC_CURVE_ERROR;
+        }
 
         length = input[(*inOutIdx)++];
 
@@ -11180,18 +11216,30 @@ int DoSessionTicket(WOLFSSL* ssl,
     static byte SetCurveId(int size)
     {
         switch(size) {
+#if defined(HAVE_ALL_CURVES) || defined(HAVE_ECC160)
             case 20:
-                return secp160r1;
+                return WOLFSSL_ECC_SECP160R1;
+#endif
+#if defined(HAVE_ALL_CURVES) || defined(HAVE_ECC192)
             case 24:
-                return secp192r1;
+                return WOLFSSL_ECC_SECP192R1;
+#endif
+#if defined(HAVE_ALL_CURVES) || defined(HAVE_ECC224)
             case 28:
-                return secp224r1;
+                return WOLFSSL_ECC_SECP224R1;
+#endif
+#if defined(HAVE_ALL_CURVES) || !defined(NO_ECC256)
             case 32:
-                return secp256r1;
+                return WOLFSSL_ECC_SECP256R1;
+#endif
+#if defined(HAVE_ALL_CURVES) || defined(HAVE_ECC384)
             case 48:
-                return secp384r1;
+                return WOLFSSL_ECC_SECP384R1;
+#endif
+#if defined(HAVE_ALL_CURVES) || defined(HAVE_ECC521)
             case 66:
-                return secp521r1;
+                return WOLFSSL_ECC_SECP521R1;
+#endif
             default:
                 return 0;
         }
