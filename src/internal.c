@@ -62,6 +62,10 @@
     #define FALSE 0
 #endif
 
+#ifdef _MSC_VER
+    /* disable for while(0) cases at the .c level for now */
+    #pragma warning(disable:4127)
+#endif
 
 #if defined(WOLFSSL_CALLBACKS) && !defined(LARGE_STATIC_BUFFERS)
     #error \
@@ -6768,7 +6772,7 @@ int ProcessReply(WOLFSSL* ssl)
 
                     if (ssl->keys.encryptionOn && ssl->options.handShakeDone) {
                         ssl->buffers.inputBuffer.idx += ssl->keys.padSz;
-                        ssl->curSize -= ssl->buffers.inputBuffer.idx;
+                        ssl->curSize -= (word16) ssl->buffers.inputBuffer.idx;
                     }
 
                     if (ssl->curSize != 1) {
@@ -11067,10 +11071,16 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
                 #endif /*HAVE_PK_CALLBACKS */
 
                 if (IsAtLeastTLSv1_2(ssl)) {
-                    byte* digest;
-                    int   digestSz;
-                    int   typeH;
-                    int   didSet = 0;
+                    /*
+                     * Initialize values to avoid uninitialized compiler
+                     * warnings. Compiler complains because it can not
+                     * guarantee any of the conditionals will succeed in
+                     * assigning a value before wc_EncodeSignature executes.
+                     */
+                    byte* digest    = 0;
+                    int   digestSz  = 0;
+                    int   typeH     = 0;
+                    int   didSet    = 0;
 
                     if (ssl->suites->hashAlgo == sha_mac) {
                         #ifndef NO_SHA
