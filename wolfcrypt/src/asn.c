@@ -1705,11 +1705,34 @@ static int StoreRsaKey(DecodedCert* cert)
     /* return 0 on sucess if the ECC curve oid sum is supported */
     static int CheckCurve(word32 oid)
     {
-        if (oid != ECC_256R1 && oid != ECC_384R1 && oid != ECC_521R1 && oid !=
-                   ECC_160R1 && oid != ECC_192R1 && oid != ECC_224R1)
-            return ALGO_ID_E; 
+        int ret = 0;
 
-        return 0;
+        switch (oid) {
+#if defined(HAVE_ALL_CURVES) || defined(HAVE_ECC160)
+            case ECC_160R1:
+#endif
+#if defined(HAVE_ALL_CURVES) || defined(HAVE_ECC192)
+            case ECC_192R1:
+#endif
+#if defined(HAVE_ALL_CURVES) || defined(HAVE_ECC224)
+            case ECC_224R1:
+#endif
+#if defined(HAVE_ALL_CURVES) || !defined(NO_ECC256)
+            case ECC_256R1:
+#endif
+#if defined(HAVE_ALL_CURVES) || defined(HAVE_ECC384)
+            case ECC_384R1:
+#endif
+#if defined(HAVE_ALL_CURVES) || defined(HAVE_ECC521)
+            case ECC_521R1:
+#endif
+                break;
+
+            default:
+                ret = ALGO_ID_E;
+        }
+
+        return ret;
     }
 
 #endif /* HAVE_ECC */
@@ -2628,18 +2651,30 @@ static word32 SetCurve(ecc_key* key, byte* output)
 {
 
     /* curve types */
+#if defined(HAVE_ALL_CURVES) || defined(HAVE_ECC192)
     static const byte ECC_192v1_AlgoID[] = { 0x2a, 0x86, 0x48, 0xCE, 0x3d,
                                              0x03, 0x01, 0x01};
+#endif
+#if defined(HAVE_ALL_CURVES) || !defined(NO_ECC256)
     static const byte ECC_256v1_AlgoID[] = { 0x2a, 0x86, 0x48, 0xCE, 0x3d,
                                             0x03, 0x01, 0x07};
+#endif
+#if defined(HAVE_ALL_CURVES) || defined(HAVE_ECC160)
     static const byte ECC_160r1_AlgoID[] = { 0x2b, 0x81, 0x04, 0x00,
                                              0x02};
+#endif
+#if defined(HAVE_ALL_CURVES) || defined(HAVE_ECC224)
     static const byte ECC_224r1_AlgoID[] = { 0x2b, 0x81, 0x04, 0x00,
                                              0x21};
+#endif
+#if defined(HAVE_ALL_CURVES) || defined(HAVE_ECC384)
     static const byte ECC_384r1_AlgoID[] = { 0x2b, 0x81, 0x04, 0x00,
                                              0x22};
+#endif
+#if defined(HAVE_ALL_CURVES) || defined(HAVE_ECC521)
     static const byte ECC_521r1_AlgoID[] = { 0x2b, 0x81, 0x04, 0x00,
                                              0x23};
+#endif
 
     int    oidSz = 0;
     int    idx = 0;
@@ -2650,35 +2685,47 @@ static word32 SetCurve(ecc_key* key, byte* output)
     idx++;
 
     switch (key->dp->size) {
+#if defined(HAVE_ALL_CURVES) || defined(HAVE_ECC160)
         case 20:
             oidSz = sizeof(ECC_160r1_AlgoID);
             oid   =        ECC_160r1_AlgoID;
             break;
+#endif
 
+#if defined(HAVE_ALL_CURVES) || defined(HAVE_ECC192)
         case 24:
             oidSz = sizeof(ECC_192v1_AlgoID);
             oid   =        ECC_192v1_AlgoID;
             break;
+#endif
 
+#if defined(HAVE_ALL_CURVES) || defined(HAVE_ECC224)
         case 28:
             oidSz = sizeof(ECC_224r1_AlgoID);
             oid   =        ECC_224r1_AlgoID;
             break;
+#endif
 
+#if defined(HAVE_ALL_CURVES) || !defined(NO_ECC256)
         case 32:
             oidSz = sizeof(ECC_256v1_AlgoID);
             oid   =        ECC_256v1_AlgoID;
             break;
+#endif
 
+#if defined(HAVE_ALL_CURVES) || defined(HAVE_ECC384)
         case 48:
             oidSz = sizeof(ECC_384r1_AlgoID);
             oid   =        ECC_384r1_AlgoID;
             break;
+#endif
 
+#if defined(HAVE_ALL_CURVES) || defined(HAVE_ECC521)
         case 66:
             oidSz = sizeof(ECC_521r1_AlgoID);
             oid   =        ECC_521r1_AlgoID;
             break;
+#endif
 
         default:
             return ASN_UNKNOWN_OID_E;
