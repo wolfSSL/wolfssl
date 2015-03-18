@@ -50,14 +50,32 @@
 
 */
 
-#define ECC112
-#define ECC128
-#define ECC160
-#define ECC192
-#define ECC224
-#define ECC256
-#define ECC384
-#define ECC521
+
+/* p256 curve on by default whether user curves or not */
+#if defined(HAVE_ECC112) || defined(HAVE_ALL_CURVES)
+    #define ECC112
+#endif
+#if defined(HAVE_ECC128) || defined(HAVE_ALL_CURVES)
+    #define ECC128
+#endif
+#if defined(HAVE_ECC160) || defined(HAVE_ALL_CURVES)
+    #define ECC160
+#endif
+#if defined(HAVE_ECC192) || defined(HAVE_ALL_CURVES)
+    #define ECC192
+#endif
+#if defined(HAVE_ECC224) || defined(HAVE_ALL_CURVES)
+    #define ECC224
+#endif
+#if !defined(NO_ECC256)  || defined(HAVE_ALL_CURVES)
+    #define ECC256
+#endif
+#if defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)
+    #define ECC384
+#endif
+#if defined(HAVE_ECC521) || defined(HAVE_ALL_CURVES)
+    #define ECC521
+#endif
 
 
 

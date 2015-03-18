@@ -740,6 +740,14 @@
     #pragma warning(disable:2259) /* explicit casts to smaller sizes, disable */
 #endif
 
+/* user can specify what curves they want with ECC_USER_CURVES otherwise
+ * all curves are on by default for now */
+#ifndef ECC_USER_CURVES
+    #ifndef HAVE_ALL_CURVES
+        #define HAVE_ALL_CURVES
+    #endif
+#endif
+
 
 /* Place any other flags or defines here */
 

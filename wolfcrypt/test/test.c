@@ -4882,6 +4882,7 @@ int ecc_test(void)
     if (ret != 0)
         return -1017;
 
+#if (defined(HAVE_ECC192) && defined(HAVE_ECC224)) || defined(HAVE_ALL_CURVES)
     {
         /* test raw ECC key import */
         Sha sha;
@@ -4964,6 +4965,7 @@ int ecc_test(void)
                 return -1023 - i;
         }
     }
+#endif /* defined(HAVE_ECC192) && defined(HAVE_ECC256) */
 
 
 #ifdef WOLFSSL_KEY_GEN
