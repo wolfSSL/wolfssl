@@ -90,7 +90,7 @@
 									<listOptionValue builtIn="false" value="&quot;c++&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;supc++&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;c&quot;"/>
-									<listOptionValue builtIn="false" value="cyassl"/>
+									<listOptionValue builtIn="false" value="wolfssl"/>
 									<listOptionValue builtIn="false" value="util_lib"/>
 								</option>
 								<option id="org.eclipse.cdt.cross.arm.gnu.c.link.option.paths.1799569542" name="Library search path (-L)" superClass="org.eclipse.cdt.cross.arm.gnu.c.link.option.paths" valueType="libPaths">
@@ -99,7 +99,7 @@
 									<listOptionValue builtIn="false" value="&quot;${MCU_TOOLS_HOME}/../Cross_Tools/arm-none-eabi-gcc-4_7_3/arm-none-eabi/lib/armv7e-m/softfp&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${MCUToolsBaseDir}/ARM_GCC_Support/ewl/lib/armv7e-m&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}\..\util_lib\twrk70f120m_Int_Flash_SramData_Debug&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}\..\cyassl\twrk70f120m_Int_Flash_SramData_Debug&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}\..\wolfssl\twrk70f120m_Int_Flash_SramData_Debug&quot;"/>
 								</option>
 								<option id="org.eclipse.cdt.cross.arm.gnu.c.link.option.otherobjs.1678404828" name="Other objects" superClass="org.eclipse.cdt.cross.arm.gnu.c.link.option.otherobjs" valueType="userObjs">
 									<listOptionValue builtIn="false" value="&quot;${MQX_ROOT_DIR}/lib/twrk70f120m.cw10gcc/debug/psp/psp.a&quot;"/>
@@ -250,7 +250,7 @@
 									<listOptionValue builtIn="false" value="&quot;c++&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;supc++&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;c&quot;"/>
-									<listOptionValue builtIn="false" value="cyassl"/>
+									<listOptionValue builtIn="false" value="wolfssl"/>
 									<listOptionValue builtIn="false" value="util_lib"/>
 								</option>
 								<option id="org.eclipse.cdt.cross.arm.gnu.c.link.option.paths.940903300" name="Library search path (-L)" superClass="org.eclipse.cdt.cross.arm.gnu.c.link.option.paths" valueType="libPaths">
@@ -259,7 +259,7 @@
 									<listOptionValue builtIn="false" value="&quot;${MCU_TOOLS_HOME}/../Cross_Tools/arm-none-eabi-gcc-4_7_3/arm-none-eabi/lib/armv7e-m/softfp&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${MCUToolsBaseDir}/ARM_GCC_Support/ewl/lib/armv7e-m&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}\..\util_lib\twrk70f120m_Int_Flash_SramData_Debug&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}\..\cyassl\twrk70f120m_Int_Flash_SramData_Debug&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}\..\wolfssl\twrk70f120m_Int_Flash_SramData_Debug&quot;"/>
 								</option>
 								<option id="org.eclipse.cdt.cross.arm.gnu.c.link.option.otherobjs.1389344626" name="Other objects" superClass="org.eclipse.cdt.cross.arm.gnu.c.link.option.otherobjs" valueType="userObjs">
 									<listOptionValue builtIn="false" value="&quot;${MQX_ROOT_DIR}/lib/twrk70f120m.cw10gcc/debug/psp/psp.a&quot;"/>
@@ -411,14 +411,14 @@
 									<listOptionValue builtIn="false" value="stdc++"/>
 									<listOptionValue builtIn="false" value="gcc"/>
 									<listOptionValue builtIn="false" value="supc++"/>
-									<listOptionValue builtIn="false" value="cyassl"/>
+									<listOptionValue builtIn="false" value="wolfssl"/>
 									<listOptionValue builtIn="false" value="util_lib"/>
 								</option>
 								<option id="org.eclipse.cdt.cross.arm.gnu.c.link.option.paths.330763302" name="Library search path (-L)" superClass="org.eclipse.cdt.cross.arm.gnu.c.link.option.paths" valueType="libPaths">
 									<listOptionValue builtIn="false" value="&quot;${MCU_TOOLS_HOME}/../MCU/ARM_GCC_Support/ewl/lib/armv7e-m/softfp&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${MCU_TOOLS_HOME}/../Cross_Tools/arm-none-eabi-gcc-4_7_3/lib/gcc/arm-none-eabi/4.7.3/armv7e-m/softfp&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${MCU_TOOLS_HOME}/../Cross_Tools/arm-none-eabi-gcc-4_7_3/arm-none-eabi/lib/armv7e-m/softfp&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}\..\cyassl\twrk70f120m_Int_Flash_SramData_Debug&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}\..\wolfssl\twrk70f120m_Int_Flash_SramData_Debug&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}\..\util_lib\twrk70f120m_Int_Flash_SramData_Debug&quot;"/>
 								</option>
 								<option id="org.eclipse.cdt.cross.arm.gnu.c.link.option.otherobjs.1069836785" name="Other objects" superClass="org.eclipse.cdt.cross.arm.gnu.c.link.option.otherobjs" valueType="userObjs">
@@ -483,7 +483,7 @@
 				</configuration>
 			</storageModule>
 			<storageModule moduleId="org.eclipse.cdt.core.externalSettings">
-				<externalSettings containerId="cyassl" factoryId="org.eclipse.cdt.core.cfg.export.settings.sipplier"/>
+				<externalSettings containerId="wolfssl" factoryId="org.eclipse.cdt.core.cfg.export.settings.sipplier"/>
 				<externalSettings containerId="util_lib" factoryId="org.eclipse.cdt.core.cfg.export.settings.sipplier"/>
 			</storageModule>
 		</cconfiguration>
@@ -574,7 +574,7 @@
 									<listOptionValue builtIn="false" value="&quot;c++&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;supc++&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;c&quot;"/>
-									<listOptionValue builtIn="false" value="cyassl"/>
+									<listOptionValue builtIn="false" value="wolfssl"/>
 									<listOptionValue builtIn="false" value="util_lib"/>
 								</option>
 								<option id="org.eclipse.cdt.cross.arm.gnu.c.link.option.paths.2028362740" name="Library search path (-L)" superClass="org.eclipse.cdt.cross.arm.gnu.c.link.option.paths" valueType="libPaths">
@@ -583,7 +583,7 @@
 									<listOptionValue builtIn="false" value="&quot;${MCU_TOOLS_HOME}/../Cross_Tools/arm-none-eabi-gcc-4_7_3/arm-none-eabi/lib/armv7e-m/softfp&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${MCUToolsBaseDir}/ARM_GCC_Support/ewl/lib/armv7e-m&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}\..\util_lib\twrk70f120m_Int_Flash_SramData_Debug&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}\..\cyassl\twrk70f120m_Int_Flash_SramData_Debug&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}\..\wolfssl\twrk70f120m_Int_Flash_SramData_Debug&quot;"/>
 								</option>
 								<option id="org.eclipse.cdt.cross.arm.gnu.c.link.option.otherobjs.253845966" name="Other objects" superClass="org.eclipse.cdt.cross.arm.gnu.c.link.option.otherobjs" valueType="userObjs">
 									<listOptionValue builtIn="false" value="&quot;${MQX_ROOT_DIR}/lib/twrk70f120m.cw10gcc/debug/psp/psp.a&quot;"/>

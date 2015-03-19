@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <projectDescription>
-	<name>cyassl</name>
+	<name>wolfssl</name>
 	<comment></comment>
 	<projects>
 	</projects>
@@ -26,15 +26,15 @@
 		<link>
 			<name>twrk70f120m_Int_Flash_DDRData_Debug</name>
 			<type>2</type>
-			<locationURI>PARENT-5-PROJECT_LOC/Documents/GitHub/cyassl/mqx/cyassl/twrk70f120m_Int_Flash_DDRData_Debug/build-cyassl-twrk70f120m_Int_Flash_DDRData_Debug</locationURI>
+			<locationURI>PARENT-5-PROJECT_LOC/Documents/GitHub/wolfssl/mqx/wolfssl/twrk70f120m_Int_Flash_DDRData_Debug/build-wolfssl-twrk70f120m_Int_Flash_DDRData_Debug</locationURI>
 		</link>
 		<link>
-			<name>Sources/ctaocrypt_src</name>
+			<name>Sources/wolfcrypt_src</name>
 			<type>2</type>
-			<locationURI>PARENT-2-PROJECT_LOC/ctaocrypt/src</locationURI>
+			<locationURI>PARENT-2-PROJECT_LOC/wolfcrypt/src</locationURI>
 		</link>
 		<link>
-			<name>Sources/cyassl_src</name>
+			<name>Sources/wolfssl_src</name>
 			<type>2</type>
 			<locationURI>PARENT-2-PROJECT_LOC/src</locationURI>
 		</link>

@@ -14,7 +14,7 @@
 #define MAIN_TASK   1
 
 extern void Main_task (uint32_t);
-void ctaocrypt_test(void* args);
+void wolfcrypt_test(void* args);
 
 #endif /* __main_h_ */
 
