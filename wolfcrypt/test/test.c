@@ -5691,7 +5691,7 @@ int ed25519_test(void)
                 pKeySz[i], &key) != 0)
             return -1021;
 
-        if (wc_ed25519_sign_hash(msgs[i], msgSz[i], out, &outlen, &key)
+        if (wc_ed25519_sign_msg(msgs[i], msgSz[i], out, &outlen, &key)
                 != 0)
             return -1022;
 
@@ -5699,13 +5699,13 @@ int ed25519_test(void)
             return -1023;
 
         /* test verify on good msg */
-        if (wc_ed25519_verify_hash(out, outlen, msgs[i], msgSz[i], &verify,
+        if (wc_ed25519_verify_msg(out, outlen, msgs[i], msgSz[i], &verify,
                     &key) != 0 || verify != 1)
             return -1024;
 
         /* test verify on bad msg */
         out[outlen-1] = out[outlen-1] + 1;
-        if (wc_ed25519_verify_hash(out, outlen, msgs[i], msgSz[i], &verify,
+        if (wc_ed25519_verify_msg(out, outlen, msgs[i], msgSz[i], &verify,
                     &key) == 0 || verify == 1)
             return -1025;
 
@@ -5728,12 +5728,11 @@ int ed25519_test(void)
         /* clear "out" buffer and test sign with imported keys */
         outlen = sizeof(out);
         XMEMSET(out, 0, sizeof(out));
-        if (wc_ed25519_sign_hash(msgs[i], msgSz[i], out, &outlen, &key2)
-                != 0)
+        if (wc_ed25519_sign_msg(msgs[i], msgSz[i], out, &outlen, &key2) != 0)
             return -1030;
 
-        if (wc_ed25519_verify_hash(out, outlen, msgs[i], msgSz[i], &verify,
-                    &key2) != 0 || verify != 1)
+        if (wc_ed25519_verify_msg(out, outlen, msgs[i], msgSz[i], &verify,
+                                  &key2) != 0 || verify != 1)
             return -1031;
 
         if (XMEMCMP(out, sigs[i], 64))

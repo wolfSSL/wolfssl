@@ -710,8 +710,8 @@ int wc_ed25519_make_key(RNG* rng, int keySz, ed25519_key* key)
     key    is the ed25519 key to use when signing
     return 0 on success
  */
-int wc_ed25519_sign_hash(const byte* in, word32 inlen, byte* out,
-                         word32 *outlen, ed25519_key* key)
+int wc_ed25519_sign_msg(const byte* in, word32 inlen, byte* out,
+                        word32 *outlen, ed25519_key* key)
 {
     int    ret = 0;
     byte   nonce[64];
@@ -761,12 +761,12 @@ int wc_ed25519_sign_hash(const byte* in, word32 inlen, byte* out,
 /*
    sig     is array of bytes containing the signature
    siglen  is the length of sig byte array
-   hash    the array of bytes containing the message
-   hashlen length of hash array
+   msg     the array of bytes containing the message
+   msglen  length of msg array
    stat    will be 1 on successful verify and 0 on unsuccessful
 */
-int wc_ed25519_verify_hash(byte* sig, word32 siglen, const byte* hash,
-                           word32 hashlen, int* stat, ed25519_key* key)
+int wc_ed25519_verify_msg(byte* sig, word32 siglen, const byte* msg,
+                          word32 msglen, int* stat, ed25519_key* key)
 {
     int    ret;
     word32 sigSz;
@@ -777,7 +777,7 @@ int wc_ed25519_verify_hash(byte* sig, word32 siglen, const byte* hash,
     ge_p2  R;
 
     /* sanity check on arguments */
-    if (sig == NULL || hash == NULL || stat == NULL || key == NULL)
+    if (sig == NULL || msg == NULL || stat == NULL || key == NULL)
         return BAD_FUNC_ARG;
 
     ret   = 0;
@@ -796,7 +796,7 @@ int wc_ed25519_verify_hash(byte* sig, word32 siglen, const byte* hash,
     ret |= wc_InitSha512(&sha);
     ret |= wc_Sha512Update(&sha, sig,    32);
     ret |= wc_Sha512Update(&sha, key->p, 32);
-    ret |= wc_Sha512Update(&sha, hash,   hashlen);
+    ret |= wc_Sha512Update(&sha, msg,    msglen);
     ret |= wc_Sha512Final(&sha,  h);
     sc_reduce(h);
 
@@ -818,7 +818,7 @@ int wc_ed25519_init(ed25519_key* key)
     if (key == NULL)
         return BAD_FUNC_ARG;
 
-    ForceZero(key, sizeof(ed25519_key));
+    XMEMSET(key, 0, sizeof(ed25519_key));
 
     return 0;
 }

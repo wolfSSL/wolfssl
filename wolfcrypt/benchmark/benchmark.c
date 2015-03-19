@@ -1773,7 +1773,7 @@ void bench_ed25519KeySign(void)
 
     for(i = 0; i < agreeTimes; i++) {
         x = sizeof(sig);
-        ret = wc_ed25519_sign_hash(digest, sizeof(digest), sig, &x, &genKey);
+        ret = wc_ed25519_sign_msg(digest, sizeof(digest), sig, &x, &genKey);
         if (ret != 0) {
             printf("ed25519_sign_hash failed\n");
             return;
@@ -1790,7 +1790,8 @@ void bench_ed25519KeySign(void)
 
     for(i = 0; i < agreeTimes; i++) {
         int verify = 0;
-        ret = wc_ed25519_verify_hash(sig, x, digest, sizeof(digest),  &verify, &genKey);
+        ret = wc_ed25519_verify_msg(sig, x, digest, sizeof(digest), &verify,
+                                    &genKey);
         if (ret != 0 || verify != 1) {
             printf("ed25519_verify_hash failed\n");
             return;

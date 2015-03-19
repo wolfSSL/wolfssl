@@ -60,11 +60,11 @@ typedef struct {
 WOLFSSL_API
 int wc_ed25519_make_key(RNG* rng, int keysize, ed25519_key* key);
 WOLFSSL_API
-int wc_ed25519_sign_hash(const byte* in, word32 inlen, byte* out,
-                                              word32 *outlen, ed25519_key* key);
+int wc_ed25519_sign_msg(const byte* in, word32 inlen, byte* out,
+                        word32 *outlen, ed25519_key* key);
 WOLFSSL_API
-int wc_ed25519_verify_hash(byte* sig, word32 siglen, const byte* hash,
-                                   word32 hashlen, int* stat, ed25519_key* key);
+int wc_ed25519_verify_msg(byte* sig, word32 siglen, const byte* msg,
+                          word32 msglen, int* stat, ed25519_key* key);
 WOLFSSL_API
 int wc_ed25519_init(ed25519_key* key);
 WOLFSSL_API

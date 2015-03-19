@@ -653,7 +653,7 @@ AM_CONDITIONAL([BUILD_ECC25519], [test "x$ENABLED_ECC25519" = "xyes"])
 
 # ED25519
 AC_ARG_ENABLE([ed25519],
-    [ AS_HELP_STRING(--enable-ed25519            Enable ED25519 (default: disabled))],
+    [AS_HELP_STRING([--enable-ed25519],[Enable ED25519 (default: disabled)])],
     [ ENABLED_ED25519=$enableval ],
     [ ENABLED_ED25519=no ]
     )
