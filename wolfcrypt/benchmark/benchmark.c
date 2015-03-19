@@ -1743,39 +1743,32 @@ void bench_ed25519KeyGen(void)
 
 void bench_ed25519KeySign(void)
 {
-    ed25519_key genKey, genKey2;
+    ed25519_key genKey;
     double start, total, each, milliEach;
     int    i, ret;
     byte   sig[ED25519_SIG_SIZE];
-    byte   digest[32];
+    byte   msg[512];
     word32 x = 0;
 
     wc_ed25519_init(&genKey);
-    wc_ed25519_init(&genKey2);
 
     ret = wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, &genKey);
     if (ret != 0) {
         printf("ed25519_make_key failed\n");
         return;
     }
-    ret = wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, &genKey2);
-    if (ret != 0) {
-        printf("ed25519_make_key failed\n");
-        return;
-    }
-
-    /* make dummy digest */
-    for (i = 0; i < (int)sizeof(digest); i++)
-        digest[i] = (byte)i;
+    /* make dummy msg */
+    for (i = 0; i < (int)sizeof(msg); i++)
+        msg[i] = (byte)i;
 
 
     start = current_time(1);
 
     for(i = 0; i < agreeTimes; i++) {
         x = sizeof(sig);
-        ret = wc_ed25519_sign_msg(digest, sizeof(digest), sig, &x, &genKey);
+        ret = wc_ed25519_sign_msg(msg, sizeof(msg), sig, &x, &genKey);
         if (ret != 0) {
-            printf("ed25519_sign_hash failed\n");
+            printf("ed25519_sign_msg failed\n");
             return;
         }
     }
@@ -1790,10 +1783,10 @@ void bench_ed25519KeySign(void)
 
     for(i = 0; i < agreeTimes; i++) {
         int verify = 0;
-        ret = wc_ed25519_verify_msg(sig, x, digest, sizeof(digest), &verify,
+        ret = wc_ed25519_verify_msg(sig, x, msg, sizeof(msg), &verify,
                                     &genKey);
         if (ret != 0 || verify != 1) {
-            printf("ed25519_verify_hash failed\n");
+            printf("ed25519_verify_msg failed\n");
             return;
         }
     }
@@ -1804,7 +1797,6 @@ void bench_ed25519KeySign(void)
     printf("ED25519  verify time     %6.3f milliseconds, avg over %d"
            " iterations\n", milliEach, agreeTimes);
 
-    wc_ed25519_free(&genKey2);
     wc_ed25519_free(&genKey);
 }
 #endif /* HAVE_ED25519 */
