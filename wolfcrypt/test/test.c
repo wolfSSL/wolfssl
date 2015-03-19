@@ -3454,7 +3454,11 @@ int rsa_test(void)
             return -302;
         }
 
+#ifdef FREESCALE_MQX
+        keyFile = fopen("a:\\certs\\key.der", "wb");
+#else
         keyFile = fopen("./key.der", "wb");
+#endif
         if (!keyFile) {
             free(der);
             free(pem);
@@ -3478,7 +3482,11 @@ int rsa_test(void)
             return -304;
         }
 
+#ifdef FREESCALE_MQX
+        pemFile = fopen("a:\\certs\\key.pem", "wb");
+#else
         pemFile = fopen("./key.pem", "wb");
+#endif
         if (!pemFile) {
             free(der);
             free(pem);
@@ -3571,7 +3579,12 @@ int rsa_test(void)
         }
         FreeDecodedCert(&decode);
 #endif
+
+#ifdef FREESCALE_MQX
+        derFile = fopen("a:\\certs\\cert.der", "wb");
+#else
         derFile = fopen("./cert.der", "wb");
+#endif
         if (!derFile) {
             free(derCert);
             free(pem);
@@ -3592,7 +3605,11 @@ int rsa_test(void)
             return -404;
         }
 
+#ifdef FREESCALE_MQX
+        pemFile = fopen("a:\\certs\\cert.pem", "wb");
+#else
         pemFile = fopen("./cert.pem", "wb");
+#endif
         if (!pemFile) {
             free(derCert);
             free(pem);
@@ -3707,7 +3724,11 @@ int rsa_test(void)
         FreeDecodedCert(&decode);
 #endif
 
+#ifdef FREESCALE_MQX
+        derFile = fopen("a:\\certs\\othercert.der", "wb");
+#else
         derFile = fopen("./othercert.der", "wb");
+#endif
         if (!derFile) {
             free(derCert);
             free(pem);
@@ -3731,7 +3752,11 @@ int rsa_test(void)
             return -411;
         }
 
+#ifdef FREESCALE_MQX
+        pemFile = fopen("a:\\certs\\othercert.pem", "wb");
+#else
         pemFile = fopen("./othercert.pem", "wb");
+#endif
         if (!pemFile) {
             free(derCert);
             free(pem);
@@ -3844,7 +3869,11 @@ int rsa_test(void)
         FreeDecodedCert(&decode);
 #endif
 
+#ifdef FREESCALE_MQX
+        derFile = fopen("a:\\certs\\certecc.der", "wb");
+#else
         derFile = fopen("./certecc.der", "wb");
+#endif
         if (!derFile) {
             free(pem);
             free(derCert);
@@ -3868,7 +3897,11 @@ int rsa_test(void)
             return -5411;
         }
 
+#ifdef FREESCALE_MQX
+        pemFile = fopen("a:\\certs\\certecc.pem", "wb");
+#else
         pemFile = fopen("./certecc.pem", "wb");
+#endif
         if (!pemFile) {
             free(pem);
             free(derCert);
@@ -4132,7 +4165,11 @@ int rsa_test(void)
             return -467;
         }
 
+#ifdef FREESCALE_MQX
+        reqFile = fopen("a:\\certs\\certreq.der", "wb");
+#else
         reqFile = fopen("./certreq.der", "wb");
+#endif
         if (!reqFile) {
             free(pem);
             free(der);
@@ -4147,7 +4184,11 @@ int rsa_test(void)
             return -471;
         }
 
+#ifdef FREESCALE_MQX
+        reqFile = fopen("a:\\certs\\certreq.pem", "wb");
+#else
         reqFile = fopen("./certreq.pem", "wb");
+#endif
         if (!reqFile) {
             free(pem);
             free(der);
