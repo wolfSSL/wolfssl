@@ -26,7 +26,7 @@
 
 #ifdef HAVE_ECC25519
 
-#include <wolfssl/wolfcrypt/ecc25519_fe.h>
+#include <wolfssl/wolfcrypt/fe_operations.h>
 #include <wolfssl/wolfcrypt/random.h>
 
 #ifdef __cplusplus

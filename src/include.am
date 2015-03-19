@@ -169,7 +169,18 @@ endif
 
 if BUILD_ECC25519
 src_libwolfssl_la_SOURCES += wolfcrypt/src/ecc25519.c
-src_libwolfssl_la_SOURCES += wolfcrypt/src/ecc25519_fe.c
+endif
+
+if BUILD_ED25519
+src_libwolfssl_la_SOURCES += wolfcrypt/src/ed25519.c
+endif
+
+if BUILD_FEMATH
+src_libwolfssl_la_SOURCES += wolfcrypt/src/fe_operations.c
+endif
+
+if BUILD_GEMATH
+src_libwolfssl_la_SOURCES += wolfcrypt/src/ge_operations.c
 endif
 
 if BUILD_LIBZ
