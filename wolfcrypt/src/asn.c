@@ -7397,6 +7397,7 @@ int EncodeOcspRequest(OcspRequest* req)
                 extSz = SetOcspReqExtensions(MAX_OCSP_EXT_SZ, extArray,
                                                       req->nonce, req->nonceSz);
             }
+            wc_FreeRng(&rng);
         }
     }
 

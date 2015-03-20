@@ -366,7 +366,7 @@ int benchmark_test(void *args)
     bench_ed25519KeySign();
 #endif
 
-#if defined(HAVE_LOCAL_RNG) && (defined(HAVE_HASHDRBG) || defined(NO_RC4))
+#if defined(HAVE_LOCAL_RNG)
     wc_FreeRng(&rng);
 #endif
 

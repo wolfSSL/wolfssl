@@ -642,6 +642,13 @@ int wc_RNG_GenerateByte(RNG* rng, byte* b)
 }
 
 
+int wc_FreeRng(RNG* rng)
+{
+    (void)rng;
+    return 0;
+}
+
+
 #ifdef HAVE_CAVIUM
 
 #include <wolfssl/ctaocrypt/logging.h>

@@ -3221,6 +3221,8 @@ int random_test(void)
     ret = wc_RNG_GenerateBlock(&rng, block, sizeof(block));
     if (ret != 0) return -40;
 
+    wc_FreeRng(&rng);
+
     return 0;
 }
 
@@ -4226,10 +4228,7 @@ int rsa_test(void)
     wc_RsaFreeCavium(&key);
 #endif
     free(tmp);
-
-#if defined(HAVE_HASHDRBG) || defined(NO_RC4)
     wc_FreeRng(&rng);
-#endif
 
     return 0;
 }
@@ -4310,10 +4309,7 @@ int dh_test(void)
 
     wc_FreeDhKey(&key);
     wc_FreeDhKey(&key2);
-
-#if defined(HAVE_HASHDRBG) || defined(NO_RC4)
     wc_FreeRng(&rng);
-#endif
 
     return 0;
 }
@@ -4381,6 +4377,7 @@ int dsa_test(void)
     if (answer != 1) return -65;
 
     wc_FreeDsaKey(&key);
+    wc_FreeRng(&rng);
 
     return 0;
 }
@@ -5072,10 +5069,7 @@ int ecc_test(void)
     wc_ecc_free(&pubKey);
     wc_ecc_free(&userB);
     wc_ecc_free(&userA);
-
-#if defined(HAVE_HASHDRBG) || defined(NO_RC4)
     wc_FreeRng(&rng);
-#endif
 
     return 0;
 }
@@ -5206,6 +5200,7 @@ int ecc_encrypt_test(void)
     /* cleanup */
     wc_ecc_free(&userB);
     wc_ecc_free(&userA);
+    wc_FreeRng(&rng);
 
     return 0;
 }
@@ -5342,9 +5337,7 @@ int ecc25519_test(void)
     wc_ecc25519_free(&userB);
     wc_ecc25519_free(&userA);
 
-#if defined(HAVE_HASHDRBG) || defined(NO_RC4)
     wc_FreeRng(&rng);
-#endif
 
     return 0;
 }
@@ -6190,9 +6183,7 @@ int pkcs7signed_test(void)
     free(out);
     wc_PKCS7_Free(&msg);
 
-#if defined(HAVE_HASHDRBG) || defined(NO_RC4)
     wc_FreeRng(&rng);
-#endif
 
     if (ret > 0)
         return 0;

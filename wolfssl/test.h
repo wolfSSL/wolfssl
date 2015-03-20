@@ -1606,6 +1606,7 @@ static INLINE int myEccSign(WOLFSSL* ssl, const byte* in, word32 inSz,
     if (ret == 0)
         ret = wc_ecc_sign_hash(in, inSz, out, outSz, &rng, &myKey);
     wc_ecc_free(&myKey);
+    wc_FreeRng(&rng);
 
     return ret;
 }
@@ -1660,6 +1661,7 @@ static INLINE int myRsaSign(WOLFSSL* ssl, const byte* in, word32 inSz,
         ret = 0;
     }
     wc_FreeRsaKey(&myKey);
+    wc_FreeRng(&rng);
 
     return ret;
 }
@@ -1715,6 +1717,7 @@ static INLINE int myRsaEnc(WOLFSSL* ssl, const byte* in, word32 inSz,
         }
     }
     wc_FreeRsaKey(&myKey);
+    wc_FreeRng(&rng);
 
     return ret;
 }
@@ -1822,9 +1825,7 @@ static INLINE const char* mymktemp(char *tempfn, int len, int num)
     }
     tempfn[len] = '\0';
 
-#if defined(HAVE_HASHDRBG)
     wc_FreeRng(&rng);
-#endif
 
     return tempfn;
 }

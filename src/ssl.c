@@ -10451,11 +10451,8 @@ int wolfSSL_RAND_bytes(unsigned char* buf, int num)
             ret = SSL_SUCCESS;
     }
 
-    if (initTmpRng) {
-        #if defined(HAVE_HASHDRBG) || defined(NO_RC4)
-            wc_FreeRng(tmpRNG);
-        #endif
-    }
+    if (initTmpRng)
+        wc_FreeRng(tmpRNG);
 
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(tmpRNG, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -10730,6 +10727,7 @@ int wolfSSL_BN_rand(WOLFSSL_BIGNUM* bn, int bits, int top, int bottom)
 {
     int           ret    = 0;
     int           len    = bits / 8;
+    int           initTmpRng = 0;
     RNG*          rng    = NULL;
 #ifdef WOLFSSL_SMALL_STACK
     RNG*          tmpRNG = NULL;
@@ -10758,8 +10756,10 @@ int wolfSSL_BN_rand(WOLFSSL_BIGNUM* bn, int bits, int top, int bottom)
 
     if (bn == NULL || bn->internal == NULL)
         WOLFSSL_MSG("Bad function arguments");
-    else if (wc_InitRng(tmpRNG) == 0)
+    else if (wc_InitRng(tmpRNG) == 0) {
         rng = tmpRNG;
+        initTmpRng = 1;
+    }
     else if (initGlobalRNG)
         rng = &globalRNG;
 
@@ -10776,6 +10776,9 @@ int wolfSSL_BN_rand(WOLFSSL_BIGNUM* bn, int bits, int top, int bottom)
                 ret = SSL_SUCCESS;
         }
     }
+
+    if (initTmpRng)
+        wc_FreeRng(tmpRNG);
 
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(buff,   NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -11051,6 +11054,7 @@ int wolfSSL_DH_generate_key(WOLFSSL_DH* dh)
     int            ret    = 0;
     word32         pubSz  = 768;
     word32         privSz = 768;
+    int            initTmpRng = 0;
     RNG*           rng    = NULL;
 #ifdef WOLFSSL_SMALL_STACK
     unsigned char* pub    = NULL;
@@ -11081,8 +11085,10 @@ int wolfSSL_DH_generate_key(WOLFSSL_DH* dh)
         WOLFSSL_MSG("Bad function arguments");
     else if (dh->inSet == 0 && SetDhInternal(dh) < 0)
             WOLFSSL_MSG("Bad DH set internal");
-    else if (wc_InitRng(tmpRNG) == 0)
+    else if (wc_InitRng(tmpRNG) == 0) {
         rng = tmpRNG;
+        initTmpRng = 1;
+    }
     else {
         WOLFSSL_MSG("Bad RNG Init, trying global");
         if (initGlobalRNG == 0)
@@ -11122,6 +11128,9 @@ int wolfSSL_DH_generate_key(WOLFSSL_DH* dh)
             }
         }
     }
+
+    if (initTmpRng)
+        wc_FreeRng(tmpRNG);
 
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(tmpRNG, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -11538,6 +11547,7 @@ int wolfSSL_RSA_generate_key_ex(WOLFSSL_RSA* rsa, int bits, WOLFSSL_BIGNUM* bn,
             ret = SSL_SUCCESS;
         }
 
+        wc_FreeRng(rng);
     #ifdef WOLFSSL_SMALL_STACK
         XFREE(rng, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     #endif
@@ -11609,6 +11619,7 @@ int wolfSSL_DSA_do_sign(const unsigned char* d, unsigned char* sigRet,
                        WOLFSSL_DSA* dsa)
 {
     int    ret = SSL_FATAL_ERROR;
+    int    initTmpRng = 0;
     RNG*   rng = NULL;
 #ifdef WOLFSSL_SMALL_STACK
     RNG*   tmpRNG = NULL;
@@ -11629,8 +11640,10 @@ int wolfSSL_DSA_do_sign(const unsigned char* d, unsigned char* sigRet,
             return SSL_FATAL_ERROR;
     #endif
 
-        if (wc_InitRng(tmpRNG) == 0)
+        if (wc_InitRng(tmpRNG) == 0) {
             rng = tmpRNG;
+            initTmpRng = 1;
+        }
         else {
             WOLFSSL_MSG("Bad RNG Init, trying global");
             if (initGlobalRNG == 0)
@@ -11646,8 +11659,10 @@ int wolfSSL_DSA_do_sign(const unsigned char* d, unsigned char* sigRet,
                 ret = SSL_SUCCESS;
         }
 
+        if (initTmpRng)
+            wc_FreeRng(tmpRNG);
     #ifdef WOLFSSL_SMALL_STACK
-        XFREE(RNG, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(tmpRNG, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     #endif
     }
 
@@ -11664,6 +11679,7 @@ int wolfSSL_RSA_sign(int type, const unsigned char* m,
 {
     word32 outLen;    
     word32 signSz;
+    int    initTmpRng = 0;
     RNG*   rng        = NULL;
     int    ret        = 0;
 #ifdef WOLFSSL_SMALL_STACK
@@ -11700,8 +11716,10 @@ int wolfSSL_RSA_sign(int type, const unsigned char* m,
 
         if (outLen == 0)
             WOLFSSL_MSG("Bad RSA size");
-        else if (wc_InitRng(tmpRNG) == 0)
+        else if (wc_InitRng(tmpRNG) == 0) {
             rng = tmpRNG;
+            initTmpRng = 1;
+        }
         else {
             WOLFSSL_MSG("Bad RNG Init, trying global");
 
@@ -11729,6 +11747,9 @@ int wolfSSL_RSA_sign(int type, const unsigned char* m,
         }
 
     }
+
+    if (initTmpRng)
+        wc_FreeRng(tmpRNG);
 
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(tmpRNG,     NULL, DYNAMIC_TYPE_TMP_BUFFER);
