@@ -4510,6 +4510,7 @@ int openssl_test(void)
     if (memcmp(hash, c.output, MD5_DIGEST_SIZE) != 0)
         return -74;
 
+#ifndef NO_DES3
     { /* des test */
     const byte vector[] = { /* "now is the time for all " w/o trailing 0 */
         0x6e,0x6f,0x77,0x20,0x69,0x73,0x20,0x74,
@@ -4558,6 +4559,8 @@ int openssl_test(void)
         return -77;
 
     }  /* end des test */
+
+#endif /* NO_DES3 */
 
     {  /* evp_cipher test */
         EVP_CIPHER_CTX ctx;

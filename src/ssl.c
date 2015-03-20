@@ -2464,6 +2464,7 @@ static int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
                            (byte*)password, passwordSz, 1, key, iv)) <= 0) {
                 /* empty */
             }
+#ifndef NO_DES3
             else if (XSTRNCMP(info->name, "DES-CBC", 7) == 0) {
                 ret = wc_Des_CbcDecryptWithKey(der.buffer, der.buffer, der.length,
                                                                  key, info->iv);
@@ -2472,6 +2473,7 @@ static int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
                 ret = wc_Des3_CbcDecryptWithKey(der.buffer, der.buffer, der.length,
                                                                  key, info->iv);
             }
+#endif
             else if (XSTRNCMP(info->name, "AES-128-CBC", 13) == 0) {
                 ret = wc_AesCbcDecryptWithKey(der.buffer, der.buffer, der.length,
                                                key, AES_128_KEY_SIZE, info->iv);
@@ -7608,6 +7610,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             }
         }
 #endif /* WOLFSSL_AES_CTR */
+#ifndef NO_DES3
         else if (ctx->cipherType == DES_CBC_TYPE || (type &&
                                        XSTRNCMP(type, "DES-CBC", 7) == 0)) {
             WOLFSSL_MSG("DES-CBC");
@@ -7645,6 +7648,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
                     return ret;
             }
         }
+#endif /* NO_DES3 */
         else if (ctx->cipherType == ARC4_TYPE || (type &&
                                      XSTRNCMP(type, "ARC4", 4) == 0)) {
             WOLFSSL_MSG("ARC4");
@@ -7731,6 +7735,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
                 break;
 #endif
 
+#ifndef NO_DES3
             case DES_CBC_TYPE :
                 if (ctx->enc)
                     wc_Des_CbcEncrypt(&ctx->cipher.des, dst, src, len);
@@ -7744,6 +7749,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
                 else
                     ret = wc_Des3_CbcDecrypt(&ctx->cipher.des3, dst, src, len);
                 break;
+#endif
 
             case ARC4_TYPE :
                 wc_Arc4Process(&ctx->cipher.arc4, dst, src, len);
@@ -7797,6 +7803,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
                 break;
 #endif
 
+#ifndef NO_DES3
             case DES_CBC_TYPE :
                 WOLFSSL_MSG("DES CBC");
                 memcpy(ctx->iv, &ctx->cipher.des.reg, DES_BLOCK_SIZE);
@@ -7806,6 +7813,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
                 WOLFSSL_MSG("DES EDE3 CBC");
                 memcpy(ctx->iv, &ctx->cipher.des.reg, DES_BLOCK_SIZE);
                 break;
+#endif
 
             case ARC4_TYPE :
                 WOLFSSL_MSG("ARC4");
@@ -7853,6 +7861,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
                 break;
 #endif
 
+#ifndef NO_DES3
             case DES_CBC_TYPE :
                 WOLFSSL_MSG("DES CBC");
                 memcpy(&ctx->cipher.des.reg, ctx->iv, DES_BLOCK_SIZE);
@@ -7862,6 +7871,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
                 WOLFSSL_MSG("DES EDE3 CBC");
                 memcpy(&ctx->cipher.des.reg, ctx->iv, DES_BLOCK_SIZE);
                 break;
+#endif
 
             case ARC4_TYPE :
                 WOLFSSL_MSG("ARC4");
@@ -8059,6 +8069,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
     }
 
 
+#ifndef NO_DES3
     /* SSL_SUCCESS on ok */
     int wolfSSL_DES_key_sched(WOLFSSL_const_DES_cblock* key,
                              WOLFSSL_DES_key_schedule* schedule)
@@ -8108,6 +8119,8 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
         XMEMCPY(ivec, output + length - sizeof(DES_cblock), sizeof(DES_cblock));
     }
+
+#endif /* NO_DES3 */
 
 
     void wolfSSL_ERR_free_strings(void)
@@ -10122,6 +10135,7 @@ long wolfSSL_CTX_sess_number(WOLFSSL_CTX* ctx)
     return 0;
 }
 
+#ifndef NO_DES3
 
 void wolfSSL_DES_set_key_unchecked(WOLFSSL_const_DES_cblock* myDes,
                                                WOLFSSL_DES_key_schedule* key)
@@ -10145,6 +10159,8 @@ void wolfSSL_DES_ecb_encrypt(WOLFSSL_DES_cblock* desa,
     (void)key;
     (void)len;
 }
+
+#endif /* NO_DES3 */
 
 int wolfSSL_BIO_printf(WOLFSSL_BIO* bio, const char* format, ...)
 {
@@ -11941,6 +11957,8 @@ int wolfSSL_EVP_X_STATE_LEN(const WOLFSSL_EVP_CIPHER_CTX* ctx)
 }
 
 
+#ifndef NO_DES3
+
 void wolfSSL_3des_iv(WOLFSSL_EVP_CIPHER_CTX* ctx, int doset,
                             unsigned char* iv, int len)
 {
@@ -11958,6 +11976,8 @@ void wolfSSL_3des_iv(WOLFSSL_EVP_CIPHER_CTX* ctx, int doset,
     else
         memcpy(iv, &ctx->cipher.des3.reg, DES_BLOCK_SIZE);
 }
+
+#endif /* NO_DES3 */
 
 
 void wolfSSL_aes_ctr_iv(WOLFSSL_EVP_CIPHER_CTX* ctx, int doset,
