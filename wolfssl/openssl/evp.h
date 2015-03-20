@@ -94,7 +94,9 @@ typedef struct WOLFSSL_EVP_MD_CTX {
 
 
 typedef union {
+#ifndef NO_AES
     Aes  aes;
+#endif
 #ifndef NO_DES3
     Des  des;
     Des3 des3;
@@ -125,7 +127,11 @@ typedef struct WOLFSSL_EVP_CIPHER_CTX {
     int            keyLen;         /* user may set for variable */
     unsigned char  enc;            /* if encrypt side, then true */
     unsigned char  cipherType;
+#ifndef NO_AES
     unsigned char  iv[AES_BLOCK_SIZE];    /* working iv pointer into cipher */
+#elif !defined(NO_DES3)
+    unsigned char  iv[DES_BLOCK_SIZE];    /* working iv pointer into cipher */
+#endif
     WOLFSSL_Cipher  cipher;
 } WOLFSSL_EVP_CIPHER_CTX;
 

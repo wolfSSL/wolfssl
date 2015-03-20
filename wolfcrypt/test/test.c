@@ -4562,6 +4562,8 @@ int openssl_test(void)
 
 #endif /* NO_DES3 */
 
+#ifndef NO_AES
+
     {  /* evp_cipher test */
         EVP_CIPHER_CTX ctx;
 
@@ -4606,6 +4608,8 @@ int openssl_test(void)
 
 
     }  /* end evp_cipher test */
+
+#endif /* NO_AES */
 
     return 0;
 }

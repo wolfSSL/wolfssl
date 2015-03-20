@@ -2474,6 +2474,7 @@ static int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
                                                                  key, info->iv);
             }
 #endif
+#ifndef NO_AES
             else if (XSTRNCMP(info->name, "AES-128-CBC", 13) == 0) {
                 ret = wc_AesCbcDecryptWithKey(der.buffer, der.buffer, der.length,
                                                key, AES_128_KEY_SIZE, info->iv);
@@ -2486,6 +2487,7 @@ static int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
                 ret = wc_AesCbcDecryptWithKey(der.buffer, der.buffer, der.length,
                                                key, AES_256_KEY_SIZE, info->iv);
             }
+#endif
             else {
                 ret = SSL_BAD_FILE;
             }
@@ -7481,7 +7483,12 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
                                const WOLFSSL_EVP_CIPHER* type, byte* key,
                                byte* iv, int enc)
     {
+#if defined(NO_AES) && defined(NO_DES3)
+        (void)iv;
+        (void)enc;
+#else
         int ret = 0;
+#endif
 
         WOLFSSL_ENTER("wolfSSL_EVP_CipherInit");
         if (ctx == NULL) {
@@ -7494,6 +7501,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             return 0;   /* failure */
         }
 
+#ifndef NO_AES
         if (ctx->cipherType == AES_128_CBC_TYPE || (type &&
                                        XSTRNCMP(type, "AES128-CBC", 10) == 0)) {
             WOLFSSL_MSG("AES-128-CBC");
@@ -7610,6 +7618,8 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             }
         }
 #endif /* WOLFSSL_AES_CTR */
+#endif /* NO_AES */
+
 #ifndef NO_DES3
         else if (ctx->cipherType == DES_CBC_TYPE || (type &&
                                        XSTRNCMP(type, "DES-CBC", 7) == 0)) {
@@ -7716,6 +7726,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
         switch (ctx->cipherType) {
 
+#ifndef NO_AES
             case AES_128_CBC_TYPE :
             case AES_192_CBC_TYPE :
             case AES_256_CBC_TYPE :
@@ -7734,6 +7745,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
                     wc_AesCtrEncrypt(&ctx->cipher.aes, dst, src, len);
                 break;
 #endif
+#endif /* NO_AES */
 
 #ifndef NO_DES3
             case DES_CBC_TYPE :
@@ -7787,6 +7799,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
         switch (ctx->cipherType) {
 
+#ifndef NO_AES
             case AES_128_CBC_TYPE :
             case AES_192_CBC_TYPE :
             case AES_256_CBC_TYPE :
@@ -7801,7 +7814,9 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
                 WOLFSSL_MSG("AES CTR");
                 memcpy(ctx->iv, &ctx->cipher.aes.reg, AES_BLOCK_SIZE);
                 break;
-#endif
+#endif /* WOLFSSL_AES_COUNTER */
+
+#endif /* NO_AES */
 
 #ifndef NO_DES3
             case DES_CBC_TYPE :
@@ -7845,6 +7860,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
         switch (ctx->cipherType) {
 
+#ifndef NO_AES
             case AES_128_CBC_TYPE :
             case AES_192_CBC_TYPE :
             case AES_256_CBC_TYPE :
@@ -7860,6 +7876,8 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
                 memcpy(&ctx->cipher.aes.reg, ctx->iv, AES_BLOCK_SIZE);
                 break;
 #endif
+
+#endif /* NO_AES */
 
 #ifndef NO_DES3
             case DES_CBC_TYPE :
@@ -11980,6 +11998,8 @@ void wolfSSL_3des_iv(WOLFSSL_EVP_CIPHER_CTX* ctx, int doset,
 #endif /* NO_DES3 */
 
 
+#ifndef NO_AES
+
 void wolfSSL_aes_ctr_iv(WOLFSSL_EVP_CIPHER_CTX* ctx, int doset,
                       unsigned char* iv, int len)
 {
@@ -11997,6 +12017,8 @@ void wolfSSL_aes_ctr_iv(WOLFSSL_EVP_CIPHER_CTX* ctx, int doset,
     else
         memcpy(iv, &ctx->cipher.aes.reg, AES_BLOCK_SIZE);
 }
+
+#endif /* NO_AES */
 
 
 const WOLFSSL_EVP_MD* wolfSSL_EVP_ripemd160(void)
