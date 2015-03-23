@@ -3565,7 +3565,7 @@ static int accel_fp_mul(int idx, mp_int* k, ecc_point *R, mp_int* modulus,
 
    if (err == MP_OKAY) {
       z = 0;
-      XMEMSET(kb, 0, KB_SIZE);
+      ForceZero(kb, KB_SIZE);
       /* map R back from projective space */
       if (map) {
          err = ecc_map(R, modulus, mp);
@@ -3810,8 +3810,8 @@ static int accel_fp_mul2add(int idx1, int idx2,
       }
    }
 
-   XMEMSET(kb[0], 0, KB_SIZE);
-   XMEMSET(kb[1], 0, KB_SIZE);
+   ForceZero(kb[0], KB_SIZE);
+   ForceZero(kb[1], KB_SIZE);
 
 #ifdef WOLFSSL_SMALL_STACK
    XFREE(kb[0], NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -4276,7 +4276,7 @@ ecEncCtx* wc_ecc_ctx_new(int flags, RNG* rng)
 void wc_ecc_ctx_free(ecEncCtx* ctx)
 {
     if (ctx) {
-        XMEMSET(ctx, 0, sizeof(ecEncCtx));
+        ForceZero(ctx, sizeof(ecEncCtx));
         XFREE(ctx, 0, DYNAMIC_TYPE_ECC);
     }
 }
