@@ -121,11 +121,11 @@
 <booleanAttribute key="org.eclipse.cdt.launch.ENABLE_REGISTER_BOOKKEEPING" value="false"/>
 <booleanAttribute key="org.eclipse.cdt.launch.ENABLE_RESTORE_WATCHPOINTS" value="true"/>
 <booleanAttribute key="org.eclipse.cdt.launch.ENABLE_VARIABLE_BOOKKEEPING" value="false"/>
-<stringAttribute key="org.eclipse.cdt.launch.PROGRAM_NAME" value="twrk70f120m_Int_Flash_DDRData_Release/cyassl_client.elf"/>
-<stringAttribute key="org.eclipse.cdt.launch.PROJECT_ATTR" value="cyassl_client"/>
+<stringAttribute key="org.eclipse.cdt.launch.PROGRAM_NAME" value="twrk70f120m_Int_Flash_DDRData_Release/wolfssl_client.elf"/>
+<stringAttribute key="org.eclipse.cdt.launch.PROJECT_ATTR" value="wolfssl_client"/>
 <stringAttribute key="org.eclipse.cdt.launch.PROJECT_BUILD_CONFIG_ID_ATTR" value="org.eclipse.cdt.cross.arm.gnu.sourcery.windows.elf.debug.14851640"/>
 <listAttribute key="org.eclipse.debug.core.MAPPED_RESOURCE_PATHS">
-<listEntry value="/cyassl_client"/>
+<listEntry value="/wolfssl_client"/>
 </listAttribute>
 <listAttribute key="org.eclipse.debug.core.MAPPED_RESOURCE_TYPES">
 <listEntry value="4"/>

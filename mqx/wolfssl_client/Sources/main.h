@@ -13,7 +13,7 @@
 #include <spi.h>
 #include <part_mgr.h>
 
-#include <cyassl/ssl.h>
+#include <wolfssl/ssl.h>
 
 #define MAIN_TASK 	1
 
@@ -29,7 +29,7 @@ static const char* clientKey = "a:\\certs\\client-key.pem";
 
 static inline void err_sys(const char* msg)
 {
-    printf("yassl error: %s\n", msg);
+    printf("wolfssl error: %s\n", msg);
     if (msg)
         _mqx_exit(1);
 }

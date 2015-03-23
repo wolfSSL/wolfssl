@@ -60,6 +60,9 @@
 #ifdef HAVE_ECC25519
     #include <wolfssl/wolfcrypt/ecc25519.h>
 #endif
+#ifdef HAVE_ED25519
+    #include <wolfssl/wolfcrypt/ed25519.h>
+#endif
 
 #include <wolfssl/wolfcrypt/dh.h>
 #ifdef HAVE_CAVIUM
@@ -142,6 +145,10 @@ void bench_eccKeyAgree(void);
 #ifdef HAVE_ECC25519
 void bench_ecc25519KeyGen(void);
 void bench_ecc25519KeyAgree(void);
+#endif
+#ifdef HAVE_ED25519
+void bench_ed25519KeyGen(void);
+void bench_ed25519KeySign(void);
 #endif
 #ifdef HAVE_NTRU
 void bench_ntru(void);
@@ -354,7 +361,12 @@ int benchmark_test(void *args)
     bench_ecc25519KeyAgree();
 #endif
 
-#if defined(HAVE_LOCAL_RNG) && (defined(HAVE_HASHDRBG) || defined(NO_RC4))
+#ifdef HAVE_ED25519
+    bench_ed25519KeyGen();
+    bench_ed25519KeySign();
+#endif
+
+#if defined(HAVE_LOCAL_RNG)
     wc_FreeRng(&rng);
 #endif
 
@@ -1703,6 +1715,91 @@ void bench_ecc25519KeyAgree(void)
     wc_ecc25519_free(&genKey);
 }
 #endif /* HAVE_ECC25519 */
+
+#ifdef HAVE_ED25519
+void bench_ed25519KeyGen(void)
+{
+    ed25519_key genKey;
+    double start, total, each, milliEach;
+    int    i;
+
+    /* 256 bit */
+    start = current_time(1);
+
+    for(i = 0; i < genTimes; i++) {
+        wc_ed25519_init(&genKey);
+        wc_ed25519_make_key(&rng, 32, &genKey);
+        wc_ed25519_free(&genKey);
+    }
+
+    total = current_time(0) - start;
+    each  = total / genTimes;  /* per second  */
+    milliEach = each * 1000;   /* millisconds */
+    printf("\n");
+    printf("ED25519  key generation  %6.3f milliseconds, avg over %d"
+           " iterations\n", milliEach, genTimes);
+}
+
+
+void bench_ed25519KeySign(void)
+{
+    ed25519_key genKey;
+    double start, total, each, milliEach;
+    int    i, ret;
+    byte   sig[ED25519_SIG_SIZE];
+    byte   msg[512];
+    word32 x = 0;
+
+    wc_ed25519_init(&genKey);
+
+    ret = wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, &genKey);
+    if (ret != 0) {
+        printf("ed25519_make_key failed\n");
+        return;
+    }
+    /* make dummy msg */
+    for (i = 0; i < (int)sizeof(msg); i++)
+        msg[i] = (byte)i;
+
+
+    start = current_time(1);
+
+    for(i = 0; i < agreeTimes; i++) {
+        x = sizeof(sig);
+        ret = wc_ed25519_sign_msg(msg, sizeof(msg), sig, &x, &genKey);
+        if (ret != 0) {
+            printf("ed25519_sign_msg failed\n");
+            return;
+        }
+    }
+
+    total = current_time(0) - start;
+    each  = total / agreeTimes;  /* per second  */
+    milliEach = each * 1000;   /* millisconds */
+    printf("ED25519  sign   time     %6.3f milliseconds, avg over %d"
+           " iterations\n", milliEach, agreeTimes);
+
+    start = current_time(1);
+
+    for(i = 0; i < agreeTimes; i++) {
+        int verify = 0;
+        ret = wc_ed25519_verify_msg(sig, x, msg, sizeof(msg), &verify,
+                                    &genKey);
+        if (ret != 0 || verify != 1) {
+            printf("ed25519_verify_msg failed\n");
+            return;
+        }
+    }
+
+    total = current_time(0) - start;
+    each  = total / agreeTimes;  /* per second  */
+    milliEach = each * 1000;     /* millisconds */
+    printf("ED25519  verify time     %6.3f milliseconds, avg over %d"
+           " iterations\n", milliEach, agreeTimes);
+
+    wc_ed25519_free(&genKey);
+}
+#endif /* HAVE_ED25519 */
 
 
 #ifdef _WIN32

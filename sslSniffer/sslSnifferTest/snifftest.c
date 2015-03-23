@@ -53,6 +53,7 @@ int main(void)
 #include <stdlib.h>        /* EXIT_SUCCESS */
 #include <string.h>        /* strcmp */
 #include <signal.h>        /* signal */
+#include <sys/socket.h>    /* AF_INET */
 
 #include <cyassl/sniffer.h>
 

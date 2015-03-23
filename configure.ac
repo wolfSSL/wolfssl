@@ -6,7 +6,7 @@
 #
 #
 
-AC_INIT([wolfssl],[3.4.2],[https://github.com/wolfssl/wolfssl/issues],[wolfssl],[http://www.wolfssl.com])
+AC_INIT([wolfssl],[3.4.3],[https://github.com/wolfssl/wolfssl/issues],[wolfssl],[http://www.wolfssl.com])
 
 AC_CONFIG_AUX_DIR([build-aux])
 
@@ -643,6 +643,7 @@ AC_ARG_ENABLE([ecc25519],
 
 if test "$ENABLED_ECC25519" = "yes"
 then
+    ENABLED_FEMATH=yes
     AM_CFLAGS="$AM_CFLAGS -DHAVE_ECC25519"
 fi
 
@@ -650,7 +651,31 @@ fi
 AM_CONDITIONAL([BUILD_ECC25519], [test "x$ENABLED_ECC25519" = "xyes"])
 
 
-# FP ECC, Fixed Point cache ECC 
+# ED25519
+AC_ARG_ENABLE([ed25519],
+    [AS_HELP_STRING([--enable-ed25519],[Enable ED25519 (default: disabled)])],
+    [ ENABLED_ED25519=$enableval ],
+    [ ENABLED_ED25519=no ]
+    )
+
+
+if test "$ENABLED_ED25519" = "yes"
+then
+    if test "$ENABLED_SHA512" = "no"
+    then
+        AC_MSG_ERROR([cannot enable ed25519 without enabling sha512.])
+    fi
+    ENABLED_FEMATH=yes
+    ENABLED_GEMATH=yes
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_ED25519"
+fi
+
+
+AM_CONDITIONAL([BUILD_ED25519], [test "x$ENABLED_ED25519" = "xyes"])
+AM_CONDITIONAL([BUILD_FEMATH],  [test "x$ENABLED_FEMATH" = "xyes"])
+AM_CONDITIONAL([BUILD_GEMATH],  [test "x$ENABLED_GEMATH" = "xyes"])
+
+# FP ECC, Fixed Point cache ECC
 AC_ARG_ENABLE([fpecc],
     [  --enable-fpecc          Enable Fixed Point cache ECC (default: disabled)],
     [ ENABLED_FPECC=$enableval ],
@@ -1934,6 +1959,8 @@ echo "   * RSA:                       $ENABLED_RSA"
 echo "   * DSA:                       $ENABLED_DSA"
 echo "   * DH:                        $ENABLED_DH"
 echo "   * ECC:                       $ENABLED_ECC"
+echo "   * CURVE25519:                $ENABLED_ECC25519"
+echo "   * ED25519:                   $ENABLED_ED25519"
 echo "   * FPECC:                     $ENABLED_FPECC"
 echo "   * ECC_ENCRYPT:               $ENABLED_ECC_ENCRYPT"
 echo "   * ASN:                       $ENABLED_ASN"

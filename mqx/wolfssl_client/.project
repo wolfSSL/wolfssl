@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <projectDescription>
-	<name>cyassl_client</name>
+	<name>wolfssl_client</name>
 	<comment></comment>
 	<projects>
-		<project location="PARENT-1-PROJECT_LOC/cyassl">
-cyassl		</project>
+		<project location="PARENT-1-PROJECT_LOC/wolfssl">
+wolfssl		</project>
 		<project location="PARENT-1-PROJECT_LOC/util_lib">
 util_lib		</project>
 	</projects>

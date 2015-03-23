@@ -1576,18 +1576,6 @@ enum EccCurves {
 };
 
 
-/* Supprted ECC Named Curves */
-enum EccNamedCurves {
-    secp256r1 = 0x17,         /* default, OpenSSL also calls it prime256v1 */
-    secp384r1 = 0x18,
-    secp521r1 = 0x19,
-
-    secp160r1 = 0x10,
-    secp192r1 = 0x13,        /*           Openssl also call it prime192v1 */
-    secp224r1 = 0x15
-};
-
-
 /* Valid client certificate request types from page 27 */
 enum ClientCertificateType {    
     rsa_sign            = 1, 

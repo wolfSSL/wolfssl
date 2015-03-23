@@ -3,8 +3,8 @@
 	<name>wolfcrypt_test</name>
 	<comment></comment>
 	<projects>
-		<project location="PARENT-1-PROJECT_LOC/cyassl">
-cyassl		</project>
+		<project location="PARENT-1-PROJECT_LOC/wolfssl">
+wolfssl		</project>
 		<project location="PARENT-1-PROJECT_LOC/util_lib">
 util_lib		</project>
 	</projects>
@@ -30,7 +30,7 @@ util_lib		</project>
 		<link>
 			<name>Sources/test</name>
 			<type>2</type>
-			<locationURI>PARENT-2-PROJECT_LOC/ctaocrypt/test</locationURI>
+			<locationURI>PARENT-2-PROJECT_LOC/wolfcrypt/test</locationURI>
 		</link>
 	</linkedResources>
 	<variableList>

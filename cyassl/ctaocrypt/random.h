@@ -28,9 +28,9 @@
     #define InitRng           wc_InitRng
     #define RNG_GenerateBlock wc_RNG_GenerateBlock
     #define RNG_GenerateByte  wc_RNG_GenerateByte
+    #define FreeRng        wc_FreeRng
 
 	#if defined(HAVE_HASHDRBG) || defined(NO_RC4)
-	    #define FreeRng        wc_FreeRng
 	    #define RNG_HealthTest wc_RNG_HealthTest
 	#endif /* HAVE_HASHDRBG || NO_RC4 */
 

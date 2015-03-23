@@ -66,7 +66,7 @@ WOLFSSL_API int wc_Sha512Update(Sha512*, const byte*, word32);
 WOLFSSL_API int wc_Sha512Final(Sha512*, byte*);
 WOLFSSL_API int wc_Sha512Hash(const byte*, word32, byte*);
 
-#if defined(WOLFSSL_SHA384) || defined(HAVE_AESGCM)
+#if defined(WOLFSSL_SHA384)
 
 #ifndef HAVE_FIPS /* avoid redefinition of structs */
 /* in bytes */

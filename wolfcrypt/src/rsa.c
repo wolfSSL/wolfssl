@@ -302,8 +302,8 @@ static int RsaUnPad(const byte *pkcsBlock, unsigned int pkcsBlockLen,
 }
 
 
-static int wc_RsaFunction(const byte* in, word32 inLen, byte* out, word32* outLen,
-                       int type, RsaKey* key)
+static int wc_RsaFunction(const byte* in, word32 inLen, byte* out,
+                          word32* outLen, int type, RsaKey* key)
 {
     #define ERROR_OUT(x) { ret = (x); goto done;}
 
@@ -416,7 +416,8 @@ int wc_RsaPublicEncrypt(const byte* in, word32 inLen, byte* out, word32 outLen,
     if (ret != 0)
         return ret;
 
-    if ((ret = wc_RsaFunction(out, sz, out, &outLen, RSA_PUBLIC_ENCRYPT, key)) < 0)
+    if ((ret = wc_RsaFunction(out, sz, out, &outLen,
+                              RSA_PUBLIC_ENCRYPT, key)) < 0)
         sz = ret;
 
     return sz;
@@ -561,7 +562,8 @@ int wc_RsaSSL_Sign(const byte* in, word32 inLen, byte* out, word32 outLen,
     if (ret != 0)
         return ret;
 
-    if ((ret = wc_RsaFunction(out, sz, out, &outLen, RSA_PRIVATE_ENCRYPT,key)) < 0)
+    if ((ret = wc_RsaFunction(out, sz, out, &outLen,
+                              RSA_PRIVATE_ENCRYPT,key)) < 0)
         sz = ret;
     
     return sz;
@@ -577,8 +579,9 @@ int wc_RsaEncryptSize(RsaKey* key)
     return mp_unsigned_bin_size(&key->n);
 }
 
-
-int wc_RsaFlattenPublicKey(RsaKey* key, byte* e, word32* eSz, byte* n, word32* nSz)
+/* flatten RsaKey structure into individual elements (e, n) */
+int wc_RsaFlattenPublicKey(RsaKey* key, byte* e, word32* eSz, byte* n,
+                           word32* nSz)
 {
     int sz, ret;
 

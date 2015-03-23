@@ -59,7 +59,7 @@ typedef struct func_args {
  * Function Name  : Main_task
  * Comments       :
  *    This task opens the SD card device and runs the
- *    CTaoCrypt test functions located in test.c.
+ *    wolfCrypt benchmark functions located in benchmark.c.
  *END------------------------------------------------------------------*/
 
 void Main_task(uint32_t initial_data)

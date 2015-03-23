@@ -2464,6 +2464,7 @@ static int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
                            (byte*)password, passwordSz, 1, key, iv)) <= 0) {
                 /* empty */
             }
+#ifndef NO_DES3
             else if (XSTRNCMP(info->name, "DES-CBC", 7) == 0) {
                 ret = wc_Des_CbcDecryptWithKey(der.buffer, der.buffer, der.length,
                                                                  key, info->iv);
@@ -2472,6 +2473,8 @@ static int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
                 ret = wc_Des3_CbcDecryptWithKey(der.buffer, der.buffer, der.length,
                                                                  key, info->iv);
             }
+#endif
+#ifndef NO_AES
             else if (XSTRNCMP(info->name, "AES-128-CBC", 13) == 0) {
                 ret = wc_AesCbcDecryptWithKey(der.buffer, der.buffer, der.length,
                                                key, AES_128_KEY_SIZE, info->iv);
@@ -2484,6 +2487,7 @@ static int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
                 ret = wc_AesCbcDecryptWithKey(der.buffer, der.buffer, der.length,
                                                key, AES_256_KEY_SIZE, info->iv);
             }
+#endif
             else {
                 ret = SSL_BAD_FILE;
             }
@@ -7479,7 +7483,12 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
                                const WOLFSSL_EVP_CIPHER* type, byte* key,
                                byte* iv, int enc)
     {
+#if defined(NO_AES) && defined(NO_DES3)
+        (void)iv;
+        (void)enc;
+#else
         int ret = 0;
+#endif
 
         WOLFSSL_ENTER("wolfSSL_EVP_CipherInit");
         if (ctx == NULL) {
@@ -7492,6 +7501,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             return 0;   /* failure */
         }
 
+#ifndef NO_AES
         if (ctx->cipherType == AES_128_CBC_TYPE || (type &&
                                        XSTRNCMP(type, "AES128-CBC", 10) == 0)) {
             WOLFSSL_MSG("AES-128-CBC");
@@ -7608,6 +7618,9 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             }
         }
 #endif /* WOLFSSL_AES_CTR */
+#endif /* NO_AES */
+
+#ifndef NO_DES3
         else if (ctx->cipherType == DES_CBC_TYPE || (type &&
                                        XSTRNCMP(type, "DES-CBC", 7) == 0)) {
             WOLFSSL_MSG("DES-CBC");
@@ -7645,6 +7658,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
                     return ret;
             }
         }
+#endif /* NO_DES3 */
         else if (ctx->cipherType == ARC4_TYPE || (type &&
                                      XSTRNCMP(type, "ARC4", 4) == 0)) {
             WOLFSSL_MSG("ARC4");
@@ -7712,6 +7726,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
         switch (ctx->cipherType) {
 
+#ifndef NO_AES
             case AES_128_CBC_TYPE :
             case AES_192_CBC_TYPE :
             case AES_256_CBC_TYPE :
@@ -7730,7 +7745,9 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
                     wc_AesCtrEncrypt(&ctx->cipher.aes, dst, src, len);
                 break;
 #endif
+#endif /* NO_AES */
 
+#ifndef NO_DES3
             case DES_CBC_TYPE :
                 if (ctx->enc)
                     wc_Des_CbcEncrypt(&ctx->cipher.des, dst, src, len);
@@ -7744,6 +7761,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
                 else
                     ret = wc_Des3_CbcDecrypt(&ctx->cipher.des3, dst, src, len);
                 break;
+#endif
 
             case ARC4_TYPE :
                 wc_Arc4Process(&ctx->cipher.arc4, dst, src, len);
@@ -7781,6 +7799,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
         switch (ctx->cipherType) {
 
+#ifndef NO_AES
             case AES_128_CBC_TYPE :
             case AES_192_CBC_TYPE :
             case AES_256_CBC_TYPE :
@@ -7795,8 +7814,11 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
                 WOLFSSL_MSG("AES CTR");
                 memcpy(ctx->iv, &ctx->cipher.aes.reg, AES_BLOCK_SIZE);
                 break;
-#endif
+#endif /* WOLFSSL_AES_COUNTER */
 
+#endif /* NO_AES */
+
+#ifndef NO_DES3
             case DES_CBC_TYPE :
                 WOLFSSL_MSG("DES CBC");
                 memcpy(ctx->iv, &ctx->cipher.des.reg, DES_BLOCK_SIZE);
@@ -7806,6 +7828,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
                 WOLFSSL_MSG("DES EDE3 CBC");
                 memcpy(ctx->iv, &ctx->cipher.des.reg, DES_BLOCK_SIZE);
                 break;
+#endif
 
             case ARC4_TYPE :
                 WOLFSSL_MSG("ARC4");
@@ -7837,6 +7860,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
         switch (ctx->cipherType) {
 
+#ifndef NO_AES
             case AES_128_CBC_TYPE :
             case AES_192_CBC_TYPE :
             case AES_256_CBC_TYPE :
@@ -7853,6 +7877,9 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
                 break;
 #endif
 
+#endif /* NO_AES */
+
+#ifndef NO_DES3
             case DES_CBC_TYPE :
                 WOLFSSL_MSG("DES CBC");
                 memcpy(&ctx->cipher.des.reg, ctx->iv, DES_BLOCK_SIZE);
@@ -7862,6 +7889,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
                 WOLFSSL_MSG("DES EDE3 CBC");
                 memcpy(&ctx->cipher.des.reg, ctx->iv, DES_BLOCK_SIZE);
                 break;
+#endif
 
             case ARC4_TYPE :
                 WOLFSSL_MSG("ARC4");
@@ -8059,6 +8087,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
     }
 
 
+#ifndef NO_DES3
     /* SSL_SUCCESS on ok */
     int wolfSSL_DES_key_sched(WOLFSSL_const_DES_cblock* key,
                              WOLFSSL_DES_key_schedule* schedule)
@@ -8108,6 +8137,8 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
         XMEMCPY(ivec, output + length - sizeof(DES_cblock), sizeof(DES_cblock));
     }
+
+#endif /* NO_DES3 */
 
 
     void wolfSSL_ERR_free_strings(void)
@@ -10122,6 +10153,7 @@ long wolfSSL_CTX_sess_number(WOLFSSL_CTX* ctx)
     return 0;
 }
 
+#ifndef NO_DES3
 
 void wolfSSL_DES_set_key_unchecked(WOLFSSL_const_DES_cblock* myDes,
                                                WOLFSSL_DES_key_schedule* key)
@@ -10145,6 +10177,8 @@ void wolfSSL_DES_ecb_encrypt(WOLFSSL_DES_cblock* desa,
     (void)key;
     (void)len;
 }
+
+#endif /* NO_DES3 */
 
 int wolfSSL_BIO_printf(WOLFSSL_BIO* bio, const char* format, ...)
 {
@@ -10417,11 +10451,8 @@ int wolfSSL_RAND_bytes(unsigned char* buf, int num)
             ret = SSL_SUCCESS;
     }
 
-    if (initTmpRng) {
-        #if defined(HAVE_HASHDRBG) || defined(NO_RC4)
-            wc_FreeRng(tmpRNG);
-        #endif
-    }
+    if (initTmpRng)
+        wc_FreeRng(tmpRNG);
 
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(tmpRNG, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -10696,6 +10727,7 @@ int wolfSSL_BN_rand(WOLFSSL_BIGNUM* bn, int bits, int top, int bottom)
 {
     int           ret    = 0;
     int           len    = bits / 8;
+    int           initTmpRng = 0;
     RNG*          rng    = NULL;
 #ifdef WOLFSSL_SMALL_STACK
     RNG*          tmpRNG = NULL;
@@ -10724,8 +10756,10 @@ int wolfSSL_BN_rand(WOLFSSL_BIGNUM* bn, int bits, int top, int bottom)
 
     if (bn == NULL || bn->internal == NULL)
         WOLFSSL_MSG("Bad function arguments");
-    else if (wc_InitRng(tmpRNG) == 0)
+    else if (wc_InitRng(tmpRNG) == 0) {
         rng = tmpRNG;
+        initTmpRng = 1;
+    }
     else if (initGlobalRNG)
         rng = &globalRNG;
 
@@ -10742,6 +10776,9 @@ int wolfSSL_BN_rand(WOLFSSL_BIGNUM* bn, int bits, int top, int bottom)
                 ret = SSL_SUCCESS;
         }
     }
+
+    if (initTmpRng)
+        wc_FreeRng(tmpRNG);
 
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(buff,   NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -11017,6 +11054,7 @@ int wolfSSL_DH_generate_key(WOLFSSL_DH* dh)
     int            ret    = 0;
     word32         pubSz  = 768;
     word32         privSz = 768;
+    int            initTmpRng = 0;
     RNG*           rng    = NULL;
 #ifdef WOLFSSL_SMALL_STACK
     unsigned char* pub    = NULL;
@@ -11047,8 +11085,10 @@ int wolfSSL_DH_generate_key(WOLFSSL_DH* dh)
         WOLFSSL_MSG("Bad function arguments");
     else if (dh->inSet == 0 && SetDhInternal(dh) < 0)
             WOLFSSL_MSG("Bad DH set internal");
-    else if (wc_InitRng(tmpRNG) == 0)
+    else if (wc_InitRng(tmpRNG) == 0) {
         rng = tmpRNG;
+        initTmpRng = 1;
+    }
     else {
         WOLFSSL_MSG("Bad RNG Init, trying global");
         if (initGlobalRNG == 0)
@@ -11088,6 +11128,9 @@ int wolfSSL_DH_generate_key(WOLFSSL_DH* dh)
             }
         }
     }
+
+    if (initTmpRng)
+        wc_FreeRng(tmpRNG);
 
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(tmpRNG, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -11504,6 +11547,7 @@ int wolfSSL_RSA_generate_key_ex(WOLFSSL_RSA* rsa, int bits, WOLFSSL_BIGNUM* bn,
             ret = SSL_SUCCESS;
         }
 
+        wc_FreeRng(rng);
     #ifdef WOLFSSL_SMALL_STACK
         XFREE(rng, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     #endif
@@ -11575,6 +11619,7 @@ int wolfSSL_DSA_do_sign(const unsigned char* d, unsigned char* sigRet,
                        WOLFSSL_DSA* dsa)
 {
     int    ret = SSL_FATAL_ERROR;
+    int    initTmpRng = 0;
     RNG*   rng = NULL;
 #ifdef WOLFSSL_SMALL_STACK
     RNG*   tmpRNG = NULL;
@@ -11595,8 +11640,10 @@ int wolfSSL_DSA_do_sign(const unsigned char* d, unsigned char* sigRet,
             return SSL_FATAL_ERROR;
     #endif
 
-        if (wc_InitRng(tmpRNG) == 0)
+        if (wc_InitRng(tmpRNG) == 0) {
             rng = tmpRNG;
+            initTmpRng = 1;
+        }
         else {
             WOLFSSL_MSG("Bad RNG Init, trying global");
             if (initGlobalRNG == 0)
@@ -11612,8 +11659,10 @@ int wolfSSL_DSA_do_sign(const unsigned char* d, unsigned char* sigRet,
                 ret = SSL_SUCCESS;
         }
 
+        if (initTmpRng)
+            wc_FreeRng(tmpRNG);
     #ifdef WOLFSSL_SMALL_STACK
-        XFREE(RNG, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(tmpRNG, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     #endif
     }
 
@@ -11630,6 +11679,7 @@ int wolfSSL_RSA_sign(int type, const unsigned char* m,
 {
     word32 outLen;    
     word32 signSz;
+    int    initTmpRng = 0;
     RNG*   rng        = NULL;
     int    ret        = 0;
 #ifdef WOLFSSL_SMALL_STACK
@@ -11666,8 +11716,10 @@ int wolfSSL_RSA_sign(int type, const unsigned char* m,
 
         if (outLen == 0)
             WOLFSSL_MSG("Bad RSA size");
-        else if (wc_InitRng(tmpRNG) == 0)
+        else if (wc_InitRng(tmpRNG) == 0) {
             rng = tmpRNG;
+            initTmpRng = 1;
+        }
         else {
             WOLFSSL_MSG("Bad RNG Init, trying global");
 
@@ -11695,6 +11747,9 @@ int wolfSSL_RSA_sign(int type, const unsigned char* m,
         }
 
     }
+
+    if (initTmpRng)
+        wc_FreeRng(tmpRNG);
 
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(tmpRNG,     NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -11941,6 +11996,8 @@ int wolfSSL_EVP_X_STATE_LEN(const WOLFSSL_EVP_CIPHER_CTX* ctx)
 }
 
 
+#ifndef NO_DES3
+
 void wolfSSL_3des_iv(WOLFSSL_EVP_CIPHER_CTX* ctx, int doset,
                             unsigned char* iv, int len)
 {
@@ -11959,6 +12016,10 @@ void wolfSSL_3des_iv(WOLFSSL_EVP_CIPHER_CTX* ctx, int doset,
         memcpy(iv, &ctx->cipher.des3.reg, DES_BLOCK_SIZE);
 }
 
+#endif /* NO_DES3 */
+
+
+#ifndef NO_AES
 
 void wolfSSL_aes_ctr_iv(WOLFSSL_EVP_CIPHER_CTX* ctx, int doset,
                       unsigned char* iv, int len)
@@ -11977,6 +12038,8 @@ void wolfSSL_aes_ctr_iv(WOLFSSL_EVP_CIPHER_CTX* ctx, int doset,
     else
         memcpy(iv, &ctx->cipher.aes.reg, AES_BLOCK_SIZE);
 }
+
+#endif /* NO_AES */
 
 
 const WOLFSSL_EVP_MD* wolfSSL_EVP_ripemd160(void)

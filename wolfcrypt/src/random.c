@@ -648,6 +648,13 @@ int wc_RNG_GenerateByte(RNG* rng, byte* b)
     return wc_GenerateSeed(NULL, b, 1) ;
 }
 
+
+int wc_FreeRng(RNG* rng)
+{
+    (void)rng;
+    return 0;
+}
+
 #else /* HAVE_HASHDRBG || NO_RC4 */
 
 /* Get seed and key cipher */
@@ -716,6 +723,13 @@ int wc_RNG_GenerateBlock(RNG* rng, byte* output, word32 sz)
 int wc_RNG_GenerateByte(RNG* rng, byte* b)
 {
     return wc_RNG_GenerateBlock(rng, b, 1);
+}
+
+
+int wc_FreeRng(RNG* rng)
+{
+    (void)rng;
+    return 0;
 }
 
 

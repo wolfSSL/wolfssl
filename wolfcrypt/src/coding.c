@@ -133,7 +133,7 @@ int Base64_Decode(const byte* in, word32 inLen, byte* out, word32* outLen)
 }
 
 
-#if defined(OPENSSL_EXTRA) || defined (SESSION_CERTS) || defined(WOLFSSL_KEY_GEN) || defined(WOLFSSL_CERT_GEN) || defined(HAVE_WEBSERVER)
+#if defined(WOLFSSL_BASE64_ENCODE)
 
 static
 const byte base64Encode[] = { 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J',
@@ -324,7 +324,7 @@ int Base64_EncodeEsc(const byte* in, word32 inLen, byte* out, word32* outLen)
 }
 
 
-#endif  /* defined(OPENSSL_EXTRA) || defined (SESSION_CERTS) || defined(WOLFSSL_KEY_GEN) || defined(WOLFSSL_CERT_GEN) || defined(HAVE_WEBSERVER) */
+#endif  /* defined(WOLFSSL_BASE64_ENCODE) */
 
 
 #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) || defined(HAVE_FIPS)

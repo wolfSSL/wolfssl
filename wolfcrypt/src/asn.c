@@ -89,7 +89,7 @@
 #ifdef HAVE_RTP_SYS
     /* uses parital <time.h> structures */
     #define XTIME(tl)  (0)
-    #define XGMTIME(c) my_gmtime((c))
+    #define XGMTIME(c, t) my_gmtime((c))
     #define XVALIDATE_DATE(d, f, t) ValidateDate((d), (f), (t))
 #elif defined(MICRIUM)
     #if (NET_SECURE_MGR_CFG_EN == DEF_ENABLED)
@@ -102,11 +102,11 @@
 #elif defined(MICROCHIP_TCPIP_V5) || defined(MICROCHIP_TCPIP)
     #include <time.h>
     #define XTIME(t1) pic32_time((t1))
-    #define XGMTIME(c) gmtime((c))
+    #define XGMTIME(c, t) gmtime((c))
     #define XVALIDATE_DATE(d, f, t) ValidateDate((d), (f), (t))
 #elif defined(FREESCALE_MQX)
     #define XTIME(t1)  mqx_time((t1))
-    #define XGMTIME(c) mqx_gmtime((c))
+    #define XGMTIME(c, t) mqx_gmtime((c), (t))
     #define XVALIDATE_DATE(d, f, t) ValidateDate((d), (f), (t))
 #elif defined(WOLFSSL_MDK_ARM)
     #if defined(WOLFSSL_MDK5)
@@ -119,7 +119,7 @@
     #undef RNG
     #define RNG wolfSSL_RNG /*for avoiding name conflict in "stm32f2xx.h" */
     #define XTIME(tl)  (0)
-    #define XGMTIME(c) wolfssl_MDK_gmtime((c))
+    #define XGMTIME(c, t) wolfssl_MDK_gmtime((c))
     #define XVALIDATE_DATE(d, f, t)  ValidateDate((d), (f), (t))
 #elif defined(USER_TIME)
     /* user time, and gmtime compatible functions, there is a gmtime 
@@ -146,7 +146,7 @@
     struct tm* gmtime(const time_t* timer);
     extern time_t XTIME(time_t * timer);
 
-    #define XGMTIME(c) gmtime((c))
+    #define XGMTIME(c, t) gmtime((c))
     #define XVALIDATE_DATE(d, f, t) ValidateDate((d), (f), (t))
 
     #ifdef STACK_TRAP
@@ -179,7 +179,7 @@
             char *tm_zone;   /* timezone abbreviation */
         };
     #endif
-    extern struct tm* XGMTIME(const time_t* timer);
+    extern struct tm* XGMTIME(const time_t* timer, struct tm* tmp);
 
     #ifndef HAVE_VALIDATE_DATE
         #define XVALIDATE_DATE(d, f, t) ValidateDate((d), (f), (t))
@@ -188,8 +188,8 @@
     /* default */
     /* uses complete <time.h> facility */
     #include <time.h>
-    #define XTIME(tl)  time((tl))
-    #define XGMTIME(c) gmtime((c))
+    #define XTIME(tl)     time((tl))
+    #define XGMTIME(c, t) gmtime((c))
     #define XVALIDATE_DATE(d, f, t) ValidateDate((d), (f), (t))
 #endif
 
@@ -350,11 +350,9 @@ time_t mqx_time(time_t* timer)
 }
 
 /* CodeWarrior GCC toolchain only has gmtime_r(), no gmtime() */
-struct tm* mqx_gmtime(const time_t* clock)
+struct tm* mqx_gmtime(const time_t* clock, struct tm* tmpTime)
 {
-    struct tm tmpTime;
-
-    return gmtime_r(clock, &tmpTime);
+    return gmtime_r(clock, tmpTime);
 }
 
 #endif /* FREESCALE_MQX */
@@ -1272,8 +1270,9 @@ int wc_RsaPublicKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
     return 0;
 }
 
-int wc_RsaPublicKeyDecodeRaw(const byte* n, word32 nSz, const byte* e, word32 eSz,
-                          RsaKey* key)
+/* import RSA public key elements (n, e) into RsaKey structure (key) */
+int wc_RsaPublicKeyDecodeRaw(const byte* n, word32 nSz, const byte* e,
+                             word32 eSz, RsaKey* key)
 {
     if (n == NULL || e == NULL || key == NULL)
         return BAD_FUNC_ARG;
@@ -1704,11 +1703,34 @@ static int StoreRsaKey(DecodedCert* cert)
     /* return 0 on sucess if the ECC curve oid sum is supported */
     static int CheckCurve(word32 oid)
     {
-        if (oid != ECC_256R1 && oid != ECC_384R1 && oid != ECC_521R1 && oid !=
-                   ECC_160R1 && oid != ECC_192R1 && oid != ECC_224R1)
-            return ALGO_ID_E; 
+        int ret = 0;
 
-        return 0;
+        switch (oid) {
+#if defined(HAVE_ALL_CURVES) || defined(HAVE_ECC160)
+            case ECC_160R1:
+#endif
+#if defined(HAVE_ALL_CURVES) || defined(HAVE_ECC192)
+            case ECC_192R1:
+#endif
+#if defined(HAVE_ALL_CURVES) || defined(HAVE_ECC224)
+            case ECC_224R1:
+#endif
+#if defined(HAVE_ALL_CURVES) || !defined(NO_ECC256)
+            case ECC_256R1:
+#endif
+#if defined(HAVE_ALL_CURVES) || defined(HAVE_ECC384)
+            case ECC_384R1:
+#endif
+#if defined(HAVE_ALL_CURVES) || defined(HAVE_ECC521)
+            case ECC_521R1:
+#endif
+                break;
+
+            default:
+                ret = ALGO_ID_E;
+        }
+
+        return ret;
     }
 
 #endif /* HAVE_ECC */
@@ -2375,7 +2397,15 @@ int ValidateDate(const byte* date, byte format, int dateType)
     time_t ltime;
     struct tm  certTime;
     struct tm* localTime;
+    struct tm* tmpTime;
     int    i = 0;
+
+#ifdef FREESCALE_MQX
+    struct tm  mqxTime;
+    tmpTime = &mqxTime;
+#else
+    (void)tmpTime;
+#endif
 
     ltime = XTIME(0);
     XMEMSET(&certTime, 0, sizeof(certTime));
@@ -2404,7 +2434,7 @@ int ValidateDate(const byte* date, byte format, int dateType)
         return 0;
     }
 
-    localTime = XGMTIME(&ltime);
+    localTime = XGMTIME(&ltime, tmpTime);
 
     if (dateType == BEFORE) {
         if (DateLessThan(localTime, &certTime))
@@ -2627,18 +2657,30 @@ static word32 SetCurve(ecc_key* key, byte* output)
 {
 
     /* curve types */
+#if defined(HAVE_ALL_CURVES) || defined(HAVE_ECC192)
     static const byte ECC_192v1_AlgoID[] = { 0x2a, 0x86, 0x48, 0xCE, 0x3d,
                                              0x03, 0x01, 0x01};
+#endif
+#if defined(HAVE_ALL_CURVES) || !defined(NO_ECC256)
     static const byte ECC_256v1_AlgoID[] = { 0x2a, 0x86, 0x48, 0xCE, 0x3d,
                                             0x03, 0x01, 0x07};
+#endif
+#if defined(HAVE_ALL_CURVES) || defined(HAVE_ECC160)
     static const byte ECC_160r1_AlgoID[] = { 0x2b, 0x81, 0x04, 0x00,
                                              0x02};
+#endif
+#if defined(HAVE_ALL_CURVES) || defined(HAVE_ECC224)
     static const byte ECC_224r1_AlgoID[] = { 0x2b, 0x81, 0x04, 0x00,
                                              0x21};
+#endif
+#if defined(HAVE_ALL_CURVES) || defined(HAVE_ECC384)
     static const byte ECC_384r1_AlgoID[] = { 0x2b, 0x81, 0x04, 0x00,
                                              0x22};
+#endif
+#if defined(HAVE_ALL_CURVES) || defined(HAVE_ECC521)
     static const byte ECC_521r1_AlgoID[] = { 0x2b, 0x81, 0x04, 0x00,
                                              0x23};
+#endif
 
     int    oidSz = 0;
     int    idx = 0;
@@ -2649,35 +2691,47 @@ static word32 SetCurve(ecc_key* key, byte* output)
     idx++;
 
     switch (key->dp->size) {
+#if defined(HAVE_ALL_CURVES) || defined(HAVE_ECC160)
         case 20:
             oidSz = sizeof(ECC_160r1_AlgoID);
             oid   =        ECC_160r1_AlgoID;
             break;
+#endif
 
+#if defined(HAVE_ALL_CURVES) || defined(HAVE_ECC192)
         case 24:
             oidSz = sizeof(ECC_192v1_AlgoID);
             oid   =        ECC_192v1_AlgoID;
             break;
+#endif
 
+#if defined(HAVE_ALL_CURVES) || defined(HAVE_ECC224)
         case 28:
             oidSz = sizeof(ECC_224r1_AlgoID);
             oid   =        ECC_224r1_AlgoID;
             break;
+#endif
 
+#if defined(HAVE_ALL_CURVES) || !defined(NO_ECC256)
         case 32:
             oidSz = sizeof(ECC_256v1_AlgoID);
             oid   =        ECC_256v1_AlgoID;
             break;
+#endif
 
+#if defined(HAVE_ALL_CURVES) || defined(HAVE_ECC384)
         case 48:
             oidSz = sizeof(ECC_384r1_AlgoID);
             oid   =        ECC_384r1_AlgoID;
             break;
+#endif
 
+#if defined(HAVE_ALL_CURVES) || defined(HAVE_ECC521)
         case 66:
             oidSz = sizeof(ECC_521r1_AlgoID);
             oid   =        ECC_521r1_AlgoID;
             break;
+#endif
 
         default:
             return ASN_UNKNOWN_OID_E;
@@ -5172,6 +5226,18 @@ static int CopyValidity(byte* output, Cert* cert)
 #endif
 
 
+/* for systems where mktime() doesn't normalize fully */
+static void RebuildTime(time_t* in, struct tm* out)
+{
+    #ifdef FREESCALE_MQX
+        out = localtime_r(in, out);
+    #else
+        (void)in;
+        (void)out;
+    #endif
+}
+
+
 /* Set Date validity from now until now + daysValid */
 static int SetValidity(byte* output, int daysValid)
 {
@@ -5183,11 +5249,21 @@ static int SetValidity(byte* output, int daysValid)
     int seqSz;
 
     time_t     ticks;
+    time_t     normalTime;
     struct tm* now;
+    struct tm* tmpTime;
     struct tm  local;
 
+#ifdef FREESCALE_MQX
+    /* for use with MQX gmtime_r */
+    struct tm mqxTime;
+    tmpTime = &mqxTime;
+#else
+    (void)tmpTime;
+#endif
+
     ticks = XTIME(0);
-    now   = XGMTIME(&ticks);
+    now   = XGMTIME(&ticks, tmpTime);
 
     /* before now */
     local = *now;
@@ -5196,7 +5272,8 @@ static int SetValidity(byte* output, int daysValid)
 
     /* subtract 1 day for more compliance */
     local.tm_mday -= 1;
-    mktime(&local);
+    normalTime = mktime(&local);
+    RebuildTime(&normalTime, &local);
 
     /* adjust */
     local.tm_year += 1900;
@@ -5204,7 +5281,7 @@ static int SetValidity(byte* output, int daysValid)
 
     SetTime(&local, before + beforeSz);
     beforeSz += ASN_GEN_TIME_SZ;
-    
+
     /* after now + daysValid */
     local = *now;
     after[0] = ASN_GENERALIZED_TIME;
@@ -5212,7 +5289,8 @@ static int SetValidity(byte* output, int daysValid)
 
     /* add daysValid */
     local.tm_mday += daysValid;
-    mktime(&local);
+    normalTime = mktime(&local);
+    RebuildTime(&normalTime, &local);
 
     /* adjust */
     local.tm_year += 1900;
@@ -7319,6 +7397,7 @@ int EncodeOcspRequest(OcspRequest* req)
                 extSz = SetOcspReqExtensions(MAX_OCSP_EXT_SZ, extArray,
                                                       req->nonce, req->nonceSz);
             }
+            wc_FreeRng(&rng);
         }
     }
 
