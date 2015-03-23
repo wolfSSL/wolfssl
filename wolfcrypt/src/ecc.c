@@ -1379,7 +1379,7 @@ ecc_point* ecc_new_point(void)
 {
    ecc_point* p;
 
-   p = (ecc_point*)XMALLOC(sizeof(ecc_point), 0, DYNAMIC_TYPE_BIGINT);
+   p = (ecc_point*)XMALLOC(sizeof(ecc_point), 0, DYNAMIC_TYPE_ECC);
    if (p == NULL) {
       return NULL;
    }
@@ -1393,7 +1393,7 @@ ecc_point* ecc_new_point(void)
 
 #ifndef ALT_ECC_SIZE
    if (mp_init_multi(p->x, p->y, p->z, NULL, NULL, NULL) != MP_OKAY) {
-      XFREE(p, 0, DYNAMIC_TYPE_BIGINT);
+      XFREE(p, 0, DYNAMIC_TYPE_ECC);
       return NULL;
    }
 #else
@@ -1418,7 +1418,7 @@ void ecc_del_point(ecc_point* p)
       mp_clear(p->x);
       mp_clear(p->y);
       mp_clear(p->z);
-      XFREE(p, 0, DYNAMIC_TYPE_BIGINT);
+      XFREE(p, 0, DYNAMIC_TYPE_ECC);
    }
 }
 
