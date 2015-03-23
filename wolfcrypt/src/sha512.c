@@ -214,6 +214,7 @@ int InitSha512(Sha512* sha512) {
 #define IS_INTEL_RDRAND     (cpuid_flags&CPUID_RDRAND)
 #define IS_INTEL_RDSEED     (cpuid_flags&CPUID_RDSEED)
 
+static word32 cpuid_check = 0 ;
 static word32 cpuid_flags = 0 ;
 
 static word32 cpuid_flag(word32 leaf, word32 sub, word32 num, word32 bit) {
@@ -235,10 +236,13 @@ static word32 cpuid_flag(word32 leaf, word32 sub, word32 num, word32 bit) {
 }
 
 static void set_cpuid_flags(void) {  
-    if(cpuid_flag(1, 0, ECX, 28)){ cpuid_flags |= CPUID_AVX1 ;}
-    if(cpuid_flag(7, 0, EBX, 5)){  cpuid_flags |= CPUID_AVX2 ; }
-    if(cpuid_flag(1, 0, ECX, 30)){ cpuid_flags |= CPUID_RDRAND ;  } 
-    if(cpuid_flag(7, 0, EBX, 18)){ cpuid_flags |= CPUID_RDSEED ;  }
+    if(cpuid_check==0) {
+        if(cpuid_flag(1, 0, ECX, 28)){ cpuid_flags |= CPUID_AVX1 ;}
+        if(cpuid_flag(7, 0, EBX, 5)){  cpuid_flags |= CPUID_AVX2 ; }
+        if(cpuid_flag(1, 0, ECX, 30)){ cpuid_flags |= CPUID_RDRAND ;  } 
+        if(cpuid_flag(7, 0, EBX, 18)){ cpuid_flags |= CPUID_RDSEED ;  }
+        cpuid_check = 1 ;
+    }
 }
 
 
