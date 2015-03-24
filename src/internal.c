@@ -3989,6 +3989,7 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 #if defined(HAVE_OCSP) || defined(HAVE_CRL)
         if (ret == 0) {
             int doCrlLookup = 1;
+            (void)doCrlLookup;
 #ifdef HAVE_OCSP
             if (ssl->ctx->cm->ocspEnabled && ssl->ctx->cm->ocspCheckAll) {
                 WOLFSSL_MSG("Doing Non Leaf OCSP check");
@@ -4078,6 +4079,7 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 #if defined(HAVE_OCSP) || defined(HAVE_CRL)
         if (fatal == 0) {
             int doCrlLookup = 1;
+            (void)doCrlLookup;
 #ifdef HAVE_OCSP
             if (ssl->ctx->cm->ocspEnabled) {
                 ret = CheckCertOCSP(ssl->ctx->cm->ocsp, dCert);
