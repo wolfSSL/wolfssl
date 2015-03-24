@@ -110,12 +110,13 @@ int  wc_RNG_GenerateByte(RNG* rng, byte* b)
         /* include headers that may be needed to get good seed */
     #endif
 #endif /* USE_WINDOWS_API */
-
+    
 #ifdef HAVE_INTEL_RDGEN
-    static int wc_InitRng_IntelRD() ;
+    static int wc_InitRng_IntelRD(void) ;
     static int wc_GenerateSeed_IntelRD(OS_Seed* os, byte* output, word32 sz) ;
-	static word32 cpuid_check = 0 ;
-	static word32 cpuid_flags = 0 ;
+    static int wc_GenerateRand_IntelRD(OS_Seed* os, byte* output, word32 sz) ;
+    static word32 cpuid_check = 0 ;
+    static word32 cpuid_flags = 0 ;
     #define CPUID_RDRAND 0x4
     #define CPUID_RDSEED 0x8
     #define IS_INTEL_RDRAND     (cpuid_flags&CPUID_RDRAND)
@@ -427,6 +428,8 @@ int wc_InitRng(RNG* rng)
 
 #ifdef HAVE_INTEL_RDGEN
     wc_InitRng_IntelRD() ;
+	rng->drbg = NULL ;
+    if(IS_INTEL_RDRAND)return 0 ;
 #endif
 
     if (rng != NULL) {
@@ -480,10 +483,10 @@ int wc_RNG_GenerateBlock(RNG* rng, byte* output, word32 sz)
         return BAD_FUNC_ARG;
 
 #ifdef HAVE_INTEL_RDGEN
-    if(IS_INTEL_RDSEED||IS_INTEL_RDRAND)
-        return wc_GenerateSeed_IntelRD(NULL, output, sz) ;
+    if(IS_INTEL_RDRAND)
+        return wc_GenerateRand_IntelRD(NULL, output, sz) ;
 #endif
-	
+    
     if (rng->status != DRBG_OK)
         return RNG_FAILURE_E;
 
@@ -605,6 +608,7 @@ int wc_InitRng(RNG* rng)
 
 #ifdef HAVE_INTEL_RDGEN
     wc_InitRng_IntelRD() ;
+    if(IS_INTEL_RDRAND)return 0 ;
 #endif
 #ifdef HAVE_CAVIUM
     if (rng->magic == WOLFSSL_RNG_CAVIUM_MAGIC)
@@ -647,8 +651,8 @@ int wc_InitRng(RNG* rng)
 int wc_RNG_GenerateBlock(RNG* rng, byte* output, word32 sz)
 {
 #ifdef HAVE_INTEL_RDGEN
-    if(IS_INTEL_RDSEED||IS_INTEL_RDRAND)
-        return wc_GenerateSeed_IntelRD(NULL, output, sz) ;
+    if(IS_INTEL_RDRAND)
+        return wc_GenerateRand_IntelRD(NULL, output, sz) ;
 #endif
 #ifdef HAVE_CAVIUM
     if (rng->magic == WOLFSSL_RNG_CAVIUM_MAGIC)
@@ -766,32 +770,46 @@ static int wc_InitRng_IntelRD()
     if(cpuid_check==0) {
         if(cpuid_flag(1, 0, ECX, 30)){ cpuid_flags |= CPUID_RDRAND ;} 
         if(cpuid_flag(7, 0, EBX, 18)){ cpuid_flags |= CPUID_RDSEED ;}
-		cpuid_check = 1 ;
-	} 
-	return 1 ;
+       cpuid_check = 1 ;
+    }
+    return 1 ;
 }
 
 static inline int IntelRDrand32(unsigned int *rnd)  
 {  
-	int rdrand;  
-    __asm__ volatile("rdrand %0":"=r"(rdrand));  
-	if(rdrand){
-		*rnd = rdrand ;
-		return 0 ;
-	} else
-		return 1;  
+    int rdrand; unsigned char ok ;  
+    __asm__ volatile("rdrand %0; setc %1":"=r"(rdrand), "=qm"(ok));  
+        *rnd = rdrand ;
+        return ok ;
 }
 
 static inline int IntelRDseed32(unsigned int *seed)  
 {  
-	int rdseed;  
+    int rdseed;  unsigned char ok ;
 
-    __asm__ volatile("rdseed %0":"=r"(rdseed));  
-	if(rdseed){
-		*seed = rdseed ;
-		return 0 ;
-	} else
-		return 1;
+    __asm__ volatile("rdseed %0; setc %1":"=r"(rdseed), "=qm"(ok));  
+    if(ok){
+        *seed = rdseed ;
+        return 0 ;
+    } else
+        return 1;
+}
+
+#define INTELRD_RETRY 10
+static inline int IntelRDrand32_r(unsigned int *rnd)  
+{  
+    int i ;
+    for(i=0; i<INTELRD_RETRY;i++)
+       if(IntelRDrand32(rnd))return 0 ;
+    return 1 ;
+}
+
+static inline int IntelRDseed32_r(unsigned int *rnd)  
+{  
+    int i ;
+    for(i=0; i<INTELRD_RETRY;i++)
+       if(IntelRDseed32(rnd))return 0 ;
+    return 1 ;
 }
 
 static int wc_GenerateSeed_IntelRD(OS_Seed* os, byte* output, word32 sz)
@@ -800,16 +818,35 @@ static int wc_GenerateSeed_IntelRD(OS_Seed* os, byte* output, word32 sz)
     int ret ; byte buff[4] ;
 
     for(  ; sz/4 > 0; sz-=4, output+=4) {
-        if     (IS_INTEL_RDSEED)ret = IntelRDseed32((word32 *)output) ;
-        else if(IS_INTEL_RDRAND)ret = IntelRDrand32((word32 *)output);
+        if(IS_INTEL_RDSEED)ret = IntelRDseed32_r((word32 *)output) ;
         else return 1 ;
         if(ret)
              return 1 ;
     }
     if(sz == 0)return 0 ;
 
-    if     (IS_INTEL_RDSEED)ret = IntelRDseed32((word32 *)buff) ;
-    else if(IS_INTEL_RDRAND)ret = IntelRDrand32((word32 *)buff);
+    if(IS_INTEL_RDSEED)ret = IntelRDseed32_r((word32 *)buff) ;
+    else return 1 ;
+    if(ret)
+         return 1 ;
+    XMEMCPY(output, buff, sz) ;
+    return 0;
+}
+
+static int wc_GenerateRand_IntelRD(OS_Seed* os, byte* output, word32 sz)
+{
+    (void) os ;
+    int ret ; byte buff[4] ;
+
+    for(  ; sz/4 > 0; sz-=4, output+=4) {
+        if(IS_INTEL_RDRAND)ret = IntelRDrand32_r((word32 *)output);
+        else return 1 ;
+        if(ret)
+             return 1 ;
+    }
+    if(sz == 0)return 0 ;
+
+    if(IS_INTEL_RDRAND)ret = IntelRDrand32_r((word32 *)buff);
     else return 1 ;
     if(ret)
          return 1 ;
@@ -1017,7 +1054,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
             return 0;
         }
 
-	#else
+    #else
         #warning "write a real random seed!!!!, just for testing now"
 
         int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
@@ -1028,7 +1065,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 
             return 0;
         }
-	#endif /* FREESCALE_K70_RNGA */
+    #endif /* FREESCALE_K70_RNGA */
 
 #elif defined(WOLFSSL_SAFERTOS) || defined(WOLFSSL_LEANPSK) \
    || defined(WOLFSSL_IAR_ARM)  || defined(WOLFSSL_MDK_ARM) \
@@ -1109,6 +1146,17 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         return 0;
     }
 
+#elif defined(HAVE_INTEL_RDGEN)
+
+int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+{
+    (void) os ;
+
+    if(IS_INTEL_RDSEED)
+         return wc_GenerateSeed_IntelRD(NULL, output, sz) ;
+    else return 1 ;
+}
+
 #elif defined(CUSTOM_RAND_GENERATE)
 
    /* Implement your own random generation function
@@ -1138,7 +1186,6 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 
 
 #else /* !USE_WINDOWS_API && !HAVE_RPT_SYS && !MICRIUM && !NO_DEV_RANDOM */
-
 
 /* may block */
 int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)

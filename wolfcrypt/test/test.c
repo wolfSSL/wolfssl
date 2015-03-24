@@ -3220,8 +3220,7 @@ int random_test(void)
 
     ret = wc_RNG_GenerateBlock(&rng, block, sizeof(block));
     if (ret != 0) return -40;
-#include "stdio.h"
-	printf("%016lx,%016lx,%016lx,%016lx,\n", ((word64 *)block)[0],((word64 *)block)[1],((word64 *)block)[2],((word64 *)block)[3]) ;
+
     return 0;
     wc_FreeRng(&rng);
 
