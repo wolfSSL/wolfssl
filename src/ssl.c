@@ -2815,6 +2815,8 @@ int wolfSSL_CertManagerEnableOCSP(WOLFSSL_CERT_MANAGER* cm, int options)
             cm->ocspSendNonce = 0;
         else
             cm->ocspSendNonce = 1;
+        if (options & WOLFSSL_OCSP_CHECKALL)
+            cm->ocspCheckAll = 1;
         #ifndef WOLFSSL_USER_IO
             cm->ocspIOCb = EmbedOcspLookup;
             cm->ocspRespFreeCb = EmbedOcspRespFree;

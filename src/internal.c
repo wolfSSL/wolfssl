@@ -3986,16 +3986,34 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             WOLFSSL_MSG("Verified CA from chain and already had it");
         }
 
-#ifdef HAVE_CRL
-        if (ret == 0 && ssl->ctx->cm->crlEnabled && ssl->ctx->cm->crlCheckAll) {
-            WOLFSSL_MSG("Doing Non Leaf CRL check");
-            ret = CheckCertCRL(ssl->ctx->cm->crl, dCert);
-
-            if (ret != 0) {
-                WOLFSSL_MSG("\tCRL check not ok");
+#if defined(HAVE_OCSP) || defined(HAVE_CRL)
+        if (ret == 0) {
+            int doCrlLookup = 1;
+#ifdef HAVE_OCSP
+            if (ssl->ctx->cm->ocspEnabled && ssl->ctx->cm->ocspCheckAll) {
+                WOLFSSL_MSG("Doing Non Leaf OCSP check");
+                ret = CheckCertOCSP(ssl->ctx->cm->ocsp, dCert);
+                doCrlLookup = (ret == OCSP_CERT_UNKNOWN);
+                if (ret != 0) {
+                    doCrlLookup = 0;
+                    WOLFSSL_MSG("\tOCSP Lookup not ok");
+                }
             }
-        }
+#endif /* HAVE_OCSP */
+
+#ifdef HAVE_CRL
+            if (doCrlLookup && ssl->ctx->cm->crlEnabled
+                                                 && ssl->ctx->cm->crlCheckAll) {
+                WOLFSSL_MSG("Doing Non Leaf CRL check");
+                ret = CheckCertCRL(ssl->ctx->cm->crl, dCert);
+
+                if (ret != 0) {
+                    WOLFSSL_MSG("\tCRL check not ok");
+                }
+            }
 #endif /* HAVE_CRL */
+        }
+#endif /* HAVE_OCSP || HAVE_CRL */
 
         if (ret != 0 && anyError == 0)
             anyError = ret;   /* save error from last time */
@@ -4057,38 +4075,32 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         }
 #endif
 
+#if defined(HAVE_OCSP) || defined(HAVE_CRL)
+        if (fatal == 0) {
+            int doCrlLookup = 1;
 #ifdef HAVE_OCSP
-        if (fatal == 0 && ssl->ctx->cm->ocspEnabled) {
-            ret = CheckCertOCSP(ssl->ctx->cm->ocsp, dCert);
-            if (ret != 0) {
-                WOLFSSL_MSG("\tOCSP Lookup not ok");
-                fatal = 0;
+            if (ssl->ctx->cm->ocspEnabled) {
+                ret = CheckCertOCSP(ssl->ctx->cm->ocsp, dCert);
+                doCrlLookup = (ret == OCSP_CERT_UNKNOWN);
+                if (ret != 0) {
+                    WOLFSSL_MSG("\tOCSP Lookup not ok");
+                    fatal = 0;
+                }
             }
-        }
-#endif
+#endif /* HAVE_OCSP */
 
 #ifdef HAVE_CRL
-        if (fatal == 0 && ssl->ctx->cm->crlEnabled) {
-            int doCrlLookup = 1;
-
-            #ifdef HAVE_OCSP
-            if (ssl->ctx->cm->ocspEnabled) {
-                doCrlLookup = (ret == OCSP_CERT_UNKNOWN);
-            }
-            #endif /* HAVE_OCSP */
-
-            if (doCrlLookup) {
+            if (doCrlLookup && ssl->ctx->cm->crlEnabled) {
                 WOLFSSL_MSG("Doing Leaf CRL check");
                 ret = CheckCertCRL(ssl->ctx->cm->crl, dCert);
-
                 if (ret != 0) {
                     WOLFSSL_MSG("\tCRL check not ok");
                     fatal = 0;
                 }
             }
-        }
-
 #endif /* HAVE_CRL */
+        }
+#endif /* HAVE_OCSP || HAVE_CRL */
 
 #ifdef KEEP_PEER_CERT
         {

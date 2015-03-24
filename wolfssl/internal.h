@@ -1185,6 +1185,7 @@ struct WOLFSSL_CERT_MANAGER {
     byte            crlEnabled;         /* is CRL on ? */
     byte            crlCheckAll;        /* always leaf, but all ? */
     byte            ocspEnabled;        /* is OCSP on ? */
+    byte            ocspCheckAll;       /* always leaf, but all ? */
     byte            ocspSendNonce;      /* send the OCSP nonce ? */
     byte            ocspUseOverrideURL; /* ignore cert's responder, override */
 };

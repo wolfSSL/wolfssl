@@ -575,6 +575,7 @@
 #define CYASSL_CRL_START_MON             WOLFSSL_CRL_START_MON             /**/
 #define CYASSL_OCSP_NO_NONCE             WOLFSSL_OCSP_NO_NONCE             /**/
 #define CYASSL_OCSP_URL_OVERRIDE         WOLFSSL_OCSP_URL_OVERRIDE
+#define CYASSL_OCSP_CHECKALL             WOLFSSL_OCSP_CHECKALL
 
 #define CyaSSL_CTX_EnableOCSP            wolfSSL_CTX_EnableOCSP
 #define CyaSSL_CTX_OCSP_set_options      wolfSSL_CTX_OCSP_set_options      /**/
