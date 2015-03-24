@@ -27,7 +27,7 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 
-#if defined(HAVE_ECC25519) || defined(HAVE_ED25519)
+#if defined(HAVE_CURVE25519) || defined(HAVE_ED25519)
 
 #include <stdint.h>
 
@@ -62,6 +62,6 @@ WOLFSSL_LOCAL void fe_pow22523(fe,const fe);
 WOLFSSL_LOCAL uint64_t load_3(const unsigned char *in);
 WOLFSSL_LOCAL uint64_t load_4(const unsigned char *in);
 
-#endif /* HAVE_ECC25519 or HAVE_ED25519 */
+#endif /* HAVE_CURVE25519 or HAVE_ED25519 */
 #endif /* WOLF_CRYPT_FE_OPERATIONS_H */
 

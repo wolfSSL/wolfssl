@@ -57,8 +57,8 @@
 #ifdef HAVE_ECC
     #include <wolfssl/wolfcrypt/ecc.h>
 #endif
-#ifdef HAVE_ECC25519
-    #include <wolfssl/wolfcrypt/ecc25519.h>
+#ifdef HAVE_CURVE25519
+    #include <wolfssl/wolfcrypt/curve25519.h>
 #endif
 #ifdef HAVE_ED25519
     #include <wolfssl/wolfcrypt/ed25519.h>
@@ -142,9 +142,9 @@ void bench_dh(void);
 void bench_eccKeyGen(void);
 void bench_eccKeyAgree(void);
 #endif
-#ifdef HAVE_ECC25519
-void bench_ecc25519KeyGen(void);
-void bench_ecc25519KeyAgree(void);
+#ifdef HAVE_CURVE25519
+void bench_curve25519KeyGen(void);
+void bench_curve25519KeyAgree(void);
 #endif
 #ifdef HAVE_ED25519
 void bench_ed25519KeyGen(void);
@@ -356,9 +356,9 @@ int benchmark_test(void *args)
     #endif
 #endif
 
-#ifdef HAVE_ECC25519
-    bench_ecc25519KeyGen();
-    bench_ecc25519KeyAgree();
+#ifdef HAVE_CURVE25519
+    bench_curve25519KeyGen();
+    bench_curve25519KeyAgree();
 #endif
 
 #ifdef HAVE_ED25519
@@ -1647,10 +1647,10 @@ void bench_eccKeyAgree(void)
 }
 #endif /* HAVE_ECC */
 
-#ifdef HAVE_ECC25519
-void bench_ecc25519KeyGen(void)
+#ifdef HAVE_CURVE25519
+void bench_curve25519KeyGen(void)
 {
-    ecc25519_key genKey;
+    curve25519_key genKey;
     double start, total, each, milliEach;
     int    i;
 
@@ -1658,38 +1658,38 @@ void bench_ecc25519KeyGen(void)
     start = current_time(1);
 
     for(i = 0; i < genTimes; i++) {
-        wc_ecc25519_make_key(&rng, 32, &genKey);
-        wc_ecc25519_free(&genKey);
+        wc_curve25519_make_key(&rng, 32, &genKey);
+        wc_curve25519_free(&genKey);
     }
 
     total = current_time(0) - start;
     each  = total / genTimes;  /* per second  */
     milliEach = each * 1000;   /* millisconds */
     printf("\n");
-    printf("ECC25519 256 key generation %6.3f milliseconds, avg over %d"
+    printf("CURVE25519 256 key generation %6.3f milliseconds, avg over %d"
            " iterations\n", milliEach, genTimes);
 }
 
 
-void bench_ecc25519KeyAgree(void)
+void bench_curve25519KeyAgree(void)
 {
-    ecc25519_key genKey, genKey2;
+    curve25519_key genKey, genKey2;
     double start, total, each, milliEach;
     int    i, ret;
     byte   shared[1024];
     word32 x = 0;
 
-    wc_ecc25519_init(&genKey);
-    wc_ecc25519_init(&genKey2);
+    wc_curve25519_init(&genKey);
+    wc_curve25519_init(&genKey2);
 
-    ret = wc_ecc25519_make_key(&rng, 32, &genKey);
+    ret = wc_curve25519_make_key(&rng, 32, &genKey);
     if (ret != 0) {
-        printf("ecc25519_make_key failed\n");
+        printf("curve25519_make_key failed\n");
         return;
     }
-    ret = wc_ecc25519_make_key(&rng, 32, &genKey2);
+    ret = wc_curve25519_make_key(&rng, 32, &genKey2);
     if (ret != 0) {
-        printf("ecc25519_make_key failed\n");
+        printf("curve25519_make_key failed\n");
         return;
     }
 
@@ -1698,9 +1698,9 @@ void bench_ecc25519KeyAgree(void)
 
     for(i = 0; i < agreeTimes; i++) {
         x = sizeof(shared);
-        ret = wc_ecc25519_shared_secret(&genKey, &genKey2, shared, &x);
+        ret = wc_curve25519_shared_secret(&genKey, &genKey2, shared, &x);
         if (ret != 0) {
-            printf("ecc25519_shared_secret failed\n");
+            printf("curve25519_shared_secret failed\n");
             return;
         }
     }
@@ -1708,13 +1708,13 @@ void bench_ecc25519KeyAgree(void)
     total = current_time(0) - start;
     each  = total / agreeTimes;  /* per second  */
     milliEach = each * 1000;   /* millisconds */
-    printf("ECC25519 key agreement      %6.3f milliseconds, avg over %d"
+    printf("CURVE25519 key agreement      %6.3f milliseconds, avg over %d"
            " iterations\n", milliEach, agreeTimes);
 
-    wc_ecc25519_free(&genKey2);
-    wc_ecc25519_free(&genKey);
+    wc_curve25519_free(&genKey2);
+    wc_curve25519_free(&genKey);
 }
-#endif /* HAVE_ECC25519 */
+#endif /* HAVE_CURVE25519 */
 
 #ifdef HAVE_ED25519
 void bench_ed25519KeyGen(void)

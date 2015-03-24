@@ -63,8 +63,8 @@
 #ifdef HAVE_ECC
     #include <wolfssl/wolfcrypt/ecc.h>
 #endif
-#ifdef HAVE_ECC25519
-    #include <wolfssl/wolfcrypt/ecc25519.h>
+#ifdef HAVE_CURVE25519
+    #include <wolfssl/wolfcrypt/curve25519.h>
 #endif
 #ifdef HAVE_ED25519
     #include <wolfssl/wolfcrypt/ed25519.h>
@@ -191,8 +191,8 @@ int pbkdf2_test(void);
         int  ecc_encrypt_test(void);
     #endif
 #endif
-#ifdef HAVE_ECC25519
-    int  ecc25519_test(void);
+#ifdef HAVE_CURVE25519
+    int  curve25519_test(void);
 #endif
 #ifdef HAVE_ED25519
     int  ed25519_test(void);
@@ -523,11 +523,11 @@ int wolfcrypt_test(void* args)
     #endif
 #endif
 
-#ifdef HAVE_ECC25519
-    if ( (ret = ecc25519_test()) != 0)
-        return err_sys("ECC25519 test failed!\n", ret);
+#ifdef HAVE_CURVE25519
+    if ( (ret = curve25519_test()) != 0)
+        return err_sys("CURVE25519 test failed!\n", ret);
     else
-        printf( "ECC25519 test passed!\n");
+        printf( "CURVE25519 test passed!\n");
 #endif
 
 #ifdef HAVE_ED25519
@@ -5209,16 +5209,16 @@ int ecc_encrypt_test(void)
 #endif /* HAVE_ECC */
 
 
-#ifdef HAVE_ECC25519
+#ifdef HAVE_CURVE25519
 
-int ecc25519_test(void)
+int curve25519_test(void)
 {
     RNG     rng;
     byte    sharedA[1024];
     byte    sharedB[1024];
     word32  x, y;
     byte    exportBuf[1024];
-    ecc25519_key userA, userB, pubKey;
+    curve25519_key userA, userB, pubKey;
 
     /* test vectors from
        https://tools.ietf.org/html/draft-josefsson-tls-curve25519-03
@@ -5267,22 +5267,22 @@ int ecc25519_test(void)
     if (wc_InitRng(&rng) != 0)
         return -1001;
 
-    wc_ecc25519_init(&userA);
-    wc_ecc25519_init(&userB);
-    wc_ecc25519_init(&pubKey);
+    wc_curve25519_init(&userA);
+    wc_curve25519_init(&userB);
+    wc_curve25519_init(&pubKey);
 
     /* make curve25519 keys */
-    if (wc_ecc25519_make_key(&rng, 32, &userA) != 0)
+    if (wc_curve25519_make_key(&rng, 32, &userA) != 0)
         return -1002;
 
-    if (wc_ecc25519_make_key(&rng, 32, &userB) != 0)
+    if (wc_curve25519_make_key(&rng, 32, &userB) != 0)
         return -1003;
 
     /* find shared secret key */
-    if (wc_ecc25519_shared_secret(&userA, &userB, sharedA, &x) != 0)
+    if (wc_curve25519_shared_secret(&userA, &userB, sharedA, &x) != 0)
         return -1004;
 
-    if (wc_ecc25519_shared_secret(&userB, &userA, sharedB, &y) != 0)
+    if (wc_curve25519_shared_secret(&userB, &userA, sharedB, &y) != 0)
         return -1005;
 
     /* compare shared secret keys to test they are the same */
@@ -5293,32 +5293,32 @@ int ecc25519_test(void)
         return -1007;
 
     /* export a public key and import it for another user */
-    if (wc_ecc25519_export_public(&userA, exportBuf, &x) != 0)
+    if (wc_curve25519_export_public(&userA, exportBuf, &x) != 0)
         return -1008;
 
-    if (wc_ecc25519_import_public(exportBuf, x, &pubKey) != 0)
+    if (wc_curve25519_import_public(exportBuf, x, &pubKey) != 0)
         return -1009;
 
     /* test shared key after importing a public key */
     XMEMSET(sharedB, 0, sizeof(sharedB));
-    if (wc_ecc25519_shared_secret(&userB, &pubKey, sharedB, &y) != 0)
+    if (wc_curve25519_shared_secret(&userB, &pubKey, sharedB, &y) != 0)
         return -1010;
 
     if (XMEMCMP(sharedA, sharedB, y))
         return -1011;
 
     /* import RFC test vectors and compare shared key */
-    if (wc_ecc25519_import_private_raw(sa, sizeof(sa), pa, sizeof(pa), &userA)
+    if (wc_curve25519_import_private_raw(sa, sizeof(sa), pa, sizeof(pa), &userA)
             != 0)
         return -1012;
 
-    if (wc_ecc25519_import_private_raw(sb, sizeof(sb), pb, sizeof(pb), &userB)
+    if (wc_curve25519_import_private_raw(sb, sizeof(sb), pb, sizeof(pb), &userB)
             != 0)
         return -1013;
 
     /* test against known test vector */
     XMEMSET(sharedB, 0, sizeof(sharedB));
-    if (wc_ecc25519_shared_secret(&userA, &userB, sharedB, &y) != 0)
+    if (wc_curve25519_shared_secret(&userA, &userB, sharedB, &y) != 0)
         return -1014;
 
     if (XMEMCMP(ss, sharedB, y))
@@ -5326,22 +5326,22 @@ int ecc25519_test(void)
 
     /* test swaping roles of keys and generating same shared key */
     XMEMSET(sharedB, 0, sizeof(sharedB));
-    if (wc_ecc25519_shared_secret(&userB, &userA, sharedB, &y) != 0)
+    if (wc_curve25519_shared_secret(&userB, &userA, sharedB, &y) != 0)
         return -1016;
 
     if (XMEMCMP(ss, sharedB, y))
         return -1017;
 
     /* clean up keys when done */
-    wc_ecc25519_free(&pubKey);
-    wc_ecc25519_free(&userB);
-    wc_ecc25519_free(&userA);
+    wc_curve25519_free(&pubKey);
+    wc_curve25519_free(&userB);
+    wc_curve25519_free(&userA);
 
     wc_FreeRng(&rng);
 
     return 0;
 }
-#endif /* HAVE_ECC25519 */
+#endif /* HAVE_CURVE25519 */
 
 
 #ifdef HAVE_ED25519

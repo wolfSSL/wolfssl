@@ -6,7 +6,7 @@
 #
 #
 
-AC_INIT([wolfssl],[3.4.3],[https://github.com/wolfssl/wolfssl/issues],[wolfssl],[http://www.wolfssl.com])
+AC_INIT([wolfssl],[3.4.4],[https://github.com/wolfssl/wolfssl/issues],[wolfssl],[http://www.wolfssl.com])
 
 AC_CONFIG_AUX_DIR([build-aux])
 
@@ -634,21 +634,21 @@ then
 fi
 
 
-# ECC25519
-AC_ARG_ENABLE([ecc25519],
-    [AS_HELP_STRING([--enable-ecc25519],[Enable ECC25519 (default: disabled)])],
-    [ ENABLED_ECC25519=$enableval ],
-    [ ENABLED_ECC25519=no ]
+# CURVE25519
+AC_ARG_ENABLE([curve25519],
+    [AS_HELP_STRING([--enable-curve25519],[Enable Curve25519 (default: disabled)])],
+    [ ENABLED_CURVE25519=$enableval ],
+    [ ENABLED_CURVE25519=no ]
     )
 
-if test "$ENABLED_ECC25519" = "yes"
+if test "$ENABLED_CURVE25519" = "yes"
 then
     ENABLED_FEMATH=yes
-    AM_CFLAGS="$AM_CFLAGS -DHAVE_ECC25519"
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_CURVE25519"
 fi
 
 
-AM_CONDITIONAL([BUILD_ECC25519], [test "x$ENABLED_ECC25519" = "xyes"])
+AM_CONDITIONAL([BUILD_CURVE25519], [test "x$ENABLED_CURVE25519" = "xyes"])
 
 
 # ED25519
@@ -1959,7 +1959,7 @@ echo "   * RSA:                       $ENABLED_RSA"
 echo "   * DSA:                       $ENABLED_DSA"
 echo "   * DH:                        $ENABLED_DH"
 echo "   * ECC:                       $ENABLED_ECC"
-echo "   * CURVE25519:                $ENABLED_ECC25519"
+echo "   * CURVE25519:                $ENABLED_CURVE25519"
 echo "   * ED25519:                   $ENABLED_ED25519"
 echo "   * FPECC:                     $ENABLED_FPECC"
 echo "   * ECC_ENCRYPT:               $ENABLED_ECC_ENCRYPT"
