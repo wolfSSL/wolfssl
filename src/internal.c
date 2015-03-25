@@ -1719,9 +1719,7 @@ void SSL_ResourceFree(WOLFSSL* ssl)
 
     FreeCiphers(ssl);
     FreeArrays(ssl, 0);
-#if defined(HAVE_HASHDRBG) || defined(NO_RC4)
     wc_FreeRng(ssl->rng);
-#endif
     XFREE(ssl->rng, ssl->heap, DYNAMIC_TYPE_RNG);
     XFREE(ssl->suites, ssl->heap, DYNAMIC_TYPE_SUITES);
     XFREE(ssl->hsHashes, ssl->heap, DYNAMIC_TYPE_HASHES);
@@ -1836,9 +1834,7 @@ void FreeHandshakeResources(WOLFSSL* ssl)
 
     /* RNG */
     if (ssl->specs.cipher_type == stream || ssl->options.tls1_1 == 0) {
-#if defined(HAVE_HASHDRBG) || defined(NO_RC4)
         wc_FreeRng(ssl->rng);
-#endif
         XFREE(ssl->rng, ssl->heap, DYNAMIC_TYPE_RNG);
         ssl->rng = NULL;
     }

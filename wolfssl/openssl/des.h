@@ -30,6 +30,8 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 
+#ifndef NO_DES3
+
 #ifdef WOLFSSL_PREFIX
 #include "prefix_des.h"
 #endif
@@ -99,5 +101,6 @@ do {                                                         \
     } /* extern "C" */
 #endif
 
+#endif /* NO_DES3 */
 
 #endif /* WOLFSSL_DES_H_ */

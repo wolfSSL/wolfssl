@@ -125,10 +125,10 @@ int wc_GenerateSeed(OS_Seed* os, byte* seed, word32 sz);
 WOLFSSL_API int  wc_InitRng(RNG*);
 WOLFSSL_API int  wc_RNG_GenerateBlock(RNG*, byte*, word32 sz);
 WOLFSSL_API int  wc_RNG_GenerateByte(RNG*, byte*);
+WOLFSSL_API int  wc_FreeRng(RNG*);
 
 
 #if defined(HAVE_HASHDRBG) || defined(NO_RC4)
-    WOLFSSL_API int wc_FreeRng(RNG*);
     WOLFSSL_API int wc_RNG_HealthTest(int reseed,
                                         const byte* entropyA, word32 entropyASz,
                                         const byte* entropyB, word32 entropyBSz,

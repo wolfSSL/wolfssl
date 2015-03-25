@@ -1238,9 +1238,11 @@ int wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
         return ret;
 
     ret = wc_RNG_GenerateBlock(&rng, contentKeyPlain, blockKeySz);
-    if (ret != 0)
+    if (ret != 0) {
+        wc_FreeRng(&rng);
         return ret;
-    
+    }
+
 #ifdef WOLFSSL_SMALL_STACK
     recip         = (byte*)XMALLOC(MAX_RECIP_SZ, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     contentKeyEnc = (byte*)XMALLOC(MAX_ENCRYPTED_KEY_SZ, NULL, 
@@ -1248,6 +1250,7 @@ int wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
     if (contentKeyEnc == NULL || recip == NULL) {
         if (recip)         XFREE(recip,         NULL, DYNAMIC_TYPE_TMP_BUFFER);
         if (contentKeyEnc) XFREE(contentKeyEnc, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        wc_FreeRng(&rng);
         return MEMORY_E;
     }
     
@@ -1267,6 +1270,7 @@ int wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
 
     if (recipSz < 0) {
         WOLFSSL_MSG("Failed to create RecipientInfo");
+        wc_FreeRng(&rng);
 #ifdef WOLFSSL_SMALL_STACK
         XFREE(recip, NULL, DYNAMMIC_TYPE_TMP_BUFFER);
 #endif
@@ -1276,6 +1280,7 @@ int wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
 
     /* generate IV for block cipher */
     ret = wc_RNG_GenerateBlock(&rng, tmpIv, DES_BLOCK_SIZE);
+    wc_FreeRng(&rng);
     if (ret != 0) {
 #ifdef WOLFSSL_SMALL_STACK
         XFREE(recip, NULL, DYNAMMIC_TYPE_TMP_BUFFER);
@@ -1446,10 +1451,6 @@ int wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
     idx += encContentOctetSz;
     XMEMCPY(output + idx, encryptedContent, desOutSz);
     idx += desOutSz;
-
-#if defined(HAVE_HASHDRBG) || defined(NO_RC4)
-    wc_FreeRng(&rng);
-#endif
 
     ForceZero(contentKeyPlain, MAX_CONTENT_KEY_LEN);
 

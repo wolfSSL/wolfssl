@@ -59,7 +59,7 @@ typedef struct func_args {
  * Function Name  : Main_task
  * Comments       :
  *    This task opens the SD card device and runs the 
- *    CTaoCrypt test functions located in test.c.
+ *    wolfCrypt test functions located in test.c.
  *END------------------------------------------------------------------*/
 
 void Main_task(uint32_t initial_data)
@@ -78,7 +78,7 @@ void Main_task(uint32_t initial_data)
     }
     printf("SD card installed to %s\n", filesystem_name);
     
-    ctaocrypt_test(&args);
+    wolfcrypt_test(&args);
     
     ret = sdcard_close(&sdcard_handle, &partman_handle,
                        &filesystem_handle, partman_name, filesystem_name);

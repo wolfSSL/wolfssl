@@ -53,14 +53,14 @@ TASK_TEMPLATE_STRUCT MQX_template_list[] =
  * Task Name    : Main_task
  * Comments     :
  *    This task sets up the SD card and Ethernet devices,
- *    then starts the example CyaSSL client.  The example
- *    CyaSSL client connects to a server over SSL and sends
+ *    then starts the example wolfSSL client.  The example
+ *    wolfSSL client connects to a server over TLS and sends
  *    a simple HTTP GET message, then prints out the reply
  *    from the server.
  *
  *    To change the IP address and port of the server,
- *    change the yasslIP and yasslPort variables in
- *    client_test(). Note that yasslIP needs to be given
+ *    change the wolfsslIP and wolfsslPort variables in
+ *    client_test(). Note that wolfsslIP needs to be given
  *    in hexadecimal.
  *
  *END*-----------------------------------------------------*/
@@ -178,13 +178,13 @@ void setup_clock(void)
     return;
 }
 
-int myVerify(int preverify, CYASSL_X509_STORE_CTX* store)
+int myVerify(int preverify, WOLFSSL_X509_STORE_CTX* store)
 {
     (void)preverify;
     char buffer[80];
 
     printf("In verification callback, error = %d, %s\n",
-            store->error, CyaSSL_ERR_error_string(store->error, buffer));
+            store->error, wolfSSL_ERR_error_string(store->error, buffer));
 
     return 0;
 }
@@ -196,32 +196,32 @@ void client_test(void)
     int sockfd, input;
     int ret = 0, msgSz = 0;
     struct sockaddr_in	servaddr;
-    CYASSL_CTX*			ctx;
-    CYASSL*				ssl;
+    WOLFSSL_CTX*		ctx;
+    WOLFSSL*			ssl;
 
-    long yasslIP = IPADDR(192,168,1,125);
-    long yasslPort = 11111;
+    long wolfsslIP = IPADDR(192,168,1,125);
+    long wolfsslPort = 11111;
 
-    /* for debug, compile CyaSSL with DEBUG_CYASSL defined */
-    CyaSSL_Debugging_ON();
+    /* for debug, compile wolfSSL with DEBUG_WOLFSSL defined */
+    wolfSSL_Debugging_ON();
 
-    CyaSSL_Init();
+    wolfSSL_Init();
 
-    ctx = CyaSSL_CTX_new(CyaTLSv1_2_client_method());
+    ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method());
     if (ctx == 0)
         err_sys("setting up ctx");
 
-    CyaSSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, myVerify);
+    wolfSSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, myVerify);
 
-    ret = CyaSSL_CTX_use_certificate_file(ctx, clientCert, SSL_FILETYPE_PEM);
+    ret = wolfSSL_CTX_use_certificate_file(ctx, clientCert, SSL_FILETYPE_PEM);
     if (ret != SSL_SUCCESS)
         err_sys("can't load client cert file, check file");
 
-    ret = CyaSSL_CTX_use_PrivateKey_file(ctx, clientKey, SSL_FILETYPE_PEM);
+    ret = wolfSSL_CTX_use_PrivateKey_file(ctx, clientKey, SSL_FILETYPE_PEM);
     if (ret != SSL_SUCCESS)
         err_sys("can't load client key file, check file");
 
-    ret = CyaSSL_CTX_load_verify_locations(ctx, caCert, 0);
+    ret = wolfSSL_CTX_load_verify_locations(ctx, caCert, 0);
     if (ret != SSL_SUCCESS)
         err_sys("can't load CA cert file, check file");
 
@@ -240,8 +240,8 @@ void client_test(void)
      */
     memset((char*)&servaddr, 0, sizeof(servaddr));
     servaddr.sin_family = AF_INET;
-    servaddr.sin_port = yasslPort;
-    servaddr.sin_addr.s_addr = yasslIP;
+    servaddr.sin_port = wolfsslPort;
+    servaddr.sin_addr.s_addr = wolfsslIP;
 
     ret = connect(sockfd, &servaddr, sizeof(servaddr));
     if (ret != RTCS_OK) {
@@ -251,28 +251,28 @@ void client_test(void)
                 servaddr.sin_port);
     }
 
-    if ( (ssl = CyaSSL_new(ctx)) == NULL)
-        err_sys("CyaSSL_new failed");
+    if ( (ssl = wolfSSL_new(ctx)) == NULL)
+        err_sys("wolfSSL_new failed");
 
-    CyaSSL_set_fd(ssl, sockfd);
+    wolfSSL_set_fd(ssl, sockfd);
 
-    ret = CyaSSL_connect(ssl);
+    ret = wolfSSL_connect(ssl);
     if (ret != SSL_SUCCESS)
-        err_sys("CyaSSL_connect failed");
+        err_sys("wolfSSL_connect failed");
 
-    printf("CyaSSL_connect() ok, sending GET...\n");
+    printf("wolfSSL_connect() ok, sending GET...\n");
     msgSz = 28;
     strncpy(msg, "GET /index.html HTTP/1.0\r\n\r\n", msgSz);
-    if (CyaSSL_write(ssl, msg, msgSz) != msgSz)
-        err_sys("CyaSSL_write() failed");
+    if (wolfSSL_write(ssl, msg, msgSz) != msgSz)
+        err_sys("wolfSSL_write() failed");
 
-    input = CyaSSL_read(ssl, reply, sizeof(reply)-1);
+    input = wolfSSL_read(ssl, reply, sizeof(reply)-1);
     if (input > 0) {
         reply[input] = 0;
         printf("Server response: %s\n", reply);
 
         while (1) {
-            input = CyaSSL_read(ssl, reply, sizeof(reply)-1);
+            input = wolfSSL_read(ssl, reply, sizeof(reply)-1);
             if (input > 0) {
                 reply[input] = 0;
                 printf("%s\n", reply);
@@ -282,10 +282,10 @@ void client_test(void)
         }
     }
 
-    CyaSSL_shutdown(ssl);
-    CyaSSL_free(ssl);
-    CyaSSL_CTX_free(ctx);
-    CyaSSL_Cleanup();
+    wolfSSL_shutdown(ssl);
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+    wolfSSL_Cleanup();
 }
 
 /* EOF */

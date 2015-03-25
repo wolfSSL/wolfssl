@@ -68,6 +68,11 @@ int wc_Sha256Hash(const byte* data, word32 len, byte* out)
 #if defined(USE_INTEL_SPEEDUP)
 #define HAVE_INTEL_AVX1
 #define HAVE_INTEL_AVX2
+
+#if defined(DEBUG_XMM)
+#include "stdio.h"
+#endif
+
 #endif
 
 #if defined(HAVE_INTEL_AVX2)
@@ -163,6 +168,7 @@ int InitSha256(Sha256* sha256) {
 #define IS_INTEL_RDRAND     (cpuid_flags&CPUID_RDRAND)
 #define IS_INTEL_RDSEED     (cpuid_flags&CPUID_RDSEED)
 
+static word32 cpuid_check = 0 ;
 static word32 cpuid_flags = 0 ;
 
 static word32 cpuid_flag(word32 leaf, word32 sub, word32 num, word32 bit) {
@@ -184,10 +190,13 @@ static word32 cpuid_flag(word32 leaf, word32 sub, word32 num, word32 bit) {
 }
 
 static void set_cpuid_flags(void) {  
-    if(cpuid_flag(1, 0, ECX, 28)){ cpuid_flags |= CPUID_AVX1 ;  }
-    if(cpuid_flag(7, 0, EBX, 5)){  cpuid_flags |= CPUID_AVX2 ;  }
-    if(cpuid_flag(1, 0, ECX, 30)){ cpuid_flags |= CPUID_RDRAND ;} 
-    if(cpuid_flag(7, 0, EBX, 18)){ cpuid_flags |= CPUID_RDSEED ;}
+    if(cpuid_check==0) {
+        if(cpuid_flag(1, 0, ECX, 28)){ cpuid_flags |= CPUID_AVX1 ;  }
+        if(cpuid_flag(7, 0, EBX, 5)){  cpuid_flags |= CPUID_AVX2 ;  }
+        if(cpuid_flag(1, 0, ECX, 30)){ cpuid_flags |= CPUID_RDRAND ;} 
+        if(cpuid_flag(7, 0, EBX, 18)){ cpuid_flags |= CPUID_RDSEED ;}
+        cpuid_check = 1 ;
+	}
 }
 
 /* #if defined(HAVE_INTEL_AVX1/2) at the tail of sha512 */
@@ -626,12 +635,10 @@ __asm__ volatile("rorx  $25, %"#e", %%edx\n\t":::"%edx",SSE_REGs);   /* edx = e>
 __asm__ volatile("movl  %"#f", %%esi\n\t":::"%esi",SSE_REGs);  /* esi = f   */\
 __asm__ volatile("xorl  %"#g", %%esi\n\t":::"%esi",SSE_REGs);  /* esi = f ^ g  */\
 __asm__ volatile("xorl  %%edi, %%edx\n\t":::"%edi","%edx",SSE_REGs);  /* edx = Sigma1(e)  */\
-/*__asm__ volatile("movl    %%edx, %0\n\t":"=m"(s1)::SSE_REGs);  DEBUG */ \
 __asm__ volatile("andl  %"#e", %%esi\n\t":::"%esi",SSE_REGs);  /* esi = (f ^ g) & e       */\
 __asm__ volatile("xorl  %"#g", %%esi\n\t":::"%esi",SSE_REGs);  /* esi = Ch(e,f,g)         */\
 
 #define RND_STEP_RORX_4(a,b,c,d,e,f,g,h,i)\
-/*__asm__ volatile("movl    %%esi, %0\n\t":"=m"(Ch));   DEBUG*/ \
 /*__asm__ volatile("movl    %0, %%edx\n\t"::"m"(w_k):"%edx");*/\
 __asm__ volatile("addl  %0, %"#h"\n\t"::"r"(W_K[i]):SSE_REGs);    /* h += w_k  */\
 __asm__ volatile("addl  %%edx, %"#h"\n\t":::"%edx",SSE_REGs);     /* h = h + w_k + Sigma1(e) */\
@@ -642,32 +649,23 @@ __asm__ volatile("rorx  $13, %"#a", %%edi\n\t":::"%edi",SSE_REGs);/* edi = a>>13
 __asm__ volatile("rorx  $22, %"#a", %%edx\n\t":::"%edx",SSE_REGs); /* edx = a>>22 */\
 __asm__ volatile("xorl  %%r8d, %%edi\n\t":::"%edi","%r8",SSE_REGs);/* edi = (a>>2) ^ (a>>13)  */\
 __asm__ volatile("xorl  %%edi, %%edx\n\t":::"%edi","%edx",SSE_REGs);  /* edx = Sigma0(a)      */\
-/*__asm__ volatile("movl    %%edx, %0\n\t":"=m"(s0));  DEBUG */\
  
 #define RND_STEP_RORX_6(a,b,c,d,e,f,g,h,i)\
 __asm__ volatile("movl  %"#b", %%edi\n\t":::"%edi",SSE_REGs);  /* edi = b          */\
 __asm__ volatile("orl   %"#a", %%edi\n\t":::"%edi",SSE_REGs);  /* edi = a | b      */\
 __asm__ volatile("andl  %"#c", %%edi\n\t":::"%edi",SSE_REGs);  /* edi = (a | b) & c*/\
 __asm__ volatile("movl  %"#b", %%r8d\n\t":::"%r8",SSE_REGs);  /* r8d = b           */\
-/*__asm__ volatile("movl    %%esi, %0\n\t":"=m"(esi));  DEBUG */\
 
 #define RND_STEP_RORX_7(a,b,c,d,e,f,g,h,i)\
 __asm__ volatile("addl  %%esi, %"#h"\n\t":::"%esi",SSE_REGs);  /* h += Ch(e,f,g)   */\
 __asm__ volatile("andl  %"#a", %%r8d\n\t":::"%r8",SSE_REGs);  /* r8d = b & a       */\
 __asm__ volatile("orl   %%edi, %%r8d\n\t":::"%edi","%r8",SSE_REGs); /* r8d = Maj(a,b,c) */\
-/*__asm__ volatile("movl    %%r8d, %0\n\t":"=m"(Maj)); DEBUG */\
-/*__asm__ volatile("movl    %0, %%esi\n\t"::"m"(esi)); DEBUG */\
-/*__asm__ volatile("movl    %"#h", %0\n\t":"=m"(t0)); DEBUG */\
 
 #define RND_STEP_RORX_8(a,b,c,d,e,f,g,h,i)\
 __asm__ volatile("addl  "#h", "#d"\n\t");  /* d += h + w_k + Sigma1(e) + Ch(e,f,g) */\
-/*__asm__ volatile("movl    %"#d", %0\n\t":"=m"(h1));  DEBUG(h1)*/          \
 __asm__ volatile("addl  %"#h", %%r8d\n\t":::"%r8",SSE_REGs); \
-              /* r8b = h + w_k + Sigma1(e) + Ch(e,f,g) + Maj(a,b,c) */\
 __asm__ volatile("addl  %%edx, %%r8d\n\t":::"%edx","%r8",SSE_REGs); \
-              /* r8b = h + w_k + Sigma1(e) Sigma0(a) + Ch(e,f,g) + Maj(a,b,c)*/\
 __asm__ volatile("movl  %r8d, "#h"\n\t");   
-              /* h = h + w_k + Sigma1(e) + Sigma0(a) + Ch(e,f,g) + Maj(a,b,c) */ \
 
 #endif
 
@@ -686,13 +684,10 @@ __asm__ volatile("roll  $7, %%edx\n\t":::"%edx",SSE_REGs);      /* edx = e>>25  
 __asm__ volatile("movl  %"#f", %%esi\n\t":::"%esi",SSE_REGs);  /* esi = f       */\
 __asm__ volatile("xorl  %"#g", %%esi\n\t":::"%esi",SSE_REGs);  /* esi = f ^ g   */\
 __asm__ volatile("xorl  %%edi, %%edx\n\t":::"%edi","%edx",SSE_REGs); /* edx = Sigma1(e) */\
-/*__asm__ volatile("movl    %%edx, %0\n\t":"=m"(s1)::SSE_REGs);  DEBUG */ \
 __asm__ volatile("andl  %"#e", %%esi\n\t":::"%esi",SSE_REGs);  /* esi = (f ^ g) & e  */\
 __asm__ volatile("xorl  %"#g", %%esi\n\t":::"%esi",SSE_REGs);  /* esi = Ch(e,f,g)    */\
 
 #define RND_STEP_4(a,b,c,d,e,f,g,h,i)\
-/*__asm__ volatile("movl    %%esi, %0\n\t":"=m"(Ch));   DEBUG*/ \
-/*__asm__ volatile("movl    %0, %%edx\n\t"::"m"(w_k):"%edx");*/\
 __asm__ volatile("addl  %0, %"#h"\n\t"::"r"(W_K[i]):SSE_REGs); /* h += w_k  */\
 __asm__ volatile("addl  %%edx, %"#h"\n\t":::"%edx",SSE_REGs); /* h = h + w_k + Sigma1(e) */\
 __asm__ volatile("movl  %"#a", %%r8d\n\t":::"%r8",SSE_REGs);  /* r8d = a    */\
