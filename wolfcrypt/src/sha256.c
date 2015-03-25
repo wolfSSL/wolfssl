@@ -238,7 +238,7 @@ static void set_Transform(void) {
 /* Dummy for saving MM_REGs on behalf of Transform */
 #if defined(HAVE_INTEL_AVX2)&& !defined(HAVE_INTEL_AVX1)
 #define  SAVE_XMM_YMM   __asm__ volatile("vpxor %%ymm7, %%ymm7, %%ymm7":::\
-   "%ymm7","%ymm8","%ymm9","%ymm10","%ymm11","%ymm12","%ymm13","%ymm14","%ymm15")
+   "%ymm4","%ymm5","%ymm6","%ymm7","%ymm8","%ymm9","%ymm10","%ymm11","%ymm12","%ymm13","%ymm14","%ymm15")
 #elif defined(HAVE_INTEL_AVX1)
 #define  SAVE_XMM_YMM   __asm__ volatile("vpxor %%xmm7, %%xmm7, %%xmm7":::\
     "xmm0","xmm1","xmm2","xmm3","xmm4","xmm5","xmm6","xmm7","xmm8","xmm9","xmm10",\
@@ -956,29 +956,28 @@ __asm__ volatile("movl  %r8d, "#h"\n\t"); \
 
 
 #define W_K_from_buff\
-     {/* X0..3(xmm4..7) = sha256->buffer[0.15];  */\
-        static word64 buff[16] ;\
-        buff[0] = *(word64*)&sha256->buffer[0] ;\
-        buff[1] = *(word64*)&sha256->buffer[2] ;\
-         __asm__ volatile("vmovaps %1, %%xmm4\n\t"\
-                          "vpshufb %0, %%xmm4, %%xmm4\n\t"\
-                          : "=m"(mBYTE_FLIP_MASK[0]),"=m"(buff) :) ;\
-        buff[2] = *(word64*)&sha256->buffer[4] ;\
-        buff[3] = *(word64*)&sha256->buffer[6] ;\
-         __asm__ volatile("\n\tvmovaps %1, %%xmm5\n\t"\
-                          "vpshufb %0, %%xmm5, %%xmm5\n\t"\
-                          : "=m"(mBYTE_FLIP_MASK[0]),"=m"(buff[2]) :) ;\
-        buff[4] = *(word64*)&sha256->buffer[8] ;\
-        buff[5] = *(word64*)&sha256->buffer[10] ;\
-         __asm__ volatile("vmovaps %1, %%xmm6\n\t"\
-                          "vpshufb %0, %%xmm6, %%xmm6\n\t"\
-                          : "=m"(mBYTE_FLIP_MASK[0]),"=m"(buff[4]) :) ;\
-        buff[6] = *(word64*)&sha256->buffer[12] ;\
-        buff[7] = *(word64*)&sha256->buffer[14] ;\
-         __asm__ volatile("vmovaps %1, %%xmm7\n\t"\
-                          "vpshufb %0, %%xmm7, %%xmm7\n\t"\
-                          : "=m"(mBYTE_FLIP_MASK[0]),"=m"(buff[6]) :) ;\
-    }
+     { word64 _buff[2] ;/* X0..3(xmm4..7) = sha256->buffer[0.15];  */\
+        _buff[0] = *(word64*)&sha256->buffer[0] ;\
+        _buff[1] = *(word64*)&sha256->buffer[2] ;\
+         __asm__ volatile("vmovaps %0, %%xmm4\n\t"\
+                          "vpshufb %%xmm13, %%xmm4, %%xmm4\n\t"\
+                          :: "m"(_buff[0]):"%xmm4") ;\
+        _buff[0] = *(word64*)&sha256->buffer[4] ;\
+        _buff[1] = *(word64*)&sha256->buffer[6] ;\
+         __asm__ volatile("vmovaps %0, %%xmm5\n\t"\
+                          "vpshufb %%xmm13, %%xmm5, %%xmm5\n\t"\
+                          ::"m"(_buff[0]):"%xmm5") ;\
+        _buff[0] = *(word64*)&sha256->buffer[8] ;\
+        _buff[1] = *(word64*)&sha256->buffer[10] ;\
+         __asm__ volatile("vmovaps %0, %%xmm6\n\t"\
+                          "vpshufb %%xmm13, %%xmm6, %%xmm6\n\t"\
+                          ::"m"(_buff[0]):"%xmm6") ;\
+        _buff[0] = *(word64*)&sha256->buffer[12] ;\
+        _buff[1] = *(word64*)&sha256->buffer[14] ;\
+         __asm__ volatile("vmovaps %0, %%xmm7\n\t"\
+                          "vpshufb %%xmm13, %%xmm7, %%xmm7\n\t"\
+                          ::"m"(_buff[0]):"%xmm7") ;\
+    }\
 
 #define _SET_W_K_XFER(reg, i)\
     __asm__ volatile("vpaddd %0, %"#reg", %%xmm9"::"m"(K[i]):XMM_REGs) ;\
@@ -992,9 +991,9 @@ static word64 mBYTE_FLIP_MASK[] =  { 0x0405060700010203, 0x0c0d0e0f08090a0b } ;
 
 
 #define _Init_Masks(mask1, mask2, mask3)\
-__asm__ volatile("vmovaps %0, %"#mask1 :"=m"(mBYTE_FLIP_MASK)) ;\
-__asm__ volatile("vmovaps %0, %"#mask2 :"=m"(mSHUF_00BA)) ;\
-__asm__ volatile("vmovaps %0, %"#mask3 :"=m"(mSHUF_DC00)) ;
+__asm__ volatile("vmovaps %0, %"#mask1 ::"m"(mBYTE_FLIP_MASK[0]):) ;\
+__asm__ volatile("vmovaps %0, %"#mask2 ::"m"(mSHUF_00BA[0]):) ;\
+__asm__ volatile("vmovaps %0, %"#mask3 ::"m"(mSHUF_DC00[0]):) ;
 
 #define Init_Masks(BYTE_FLIP_MASK, SHUF_00BA, SHUF_DC00)\
     _Init_Masks(BYTE_FLIP_MASK, SHUF_00BA, SHUF_DC00)
@@ -1022,6 +1021,7 @@ __asm__ volatile("vmovaps %0, %"#mask3 :"=m"(mSHUF_DC00)) ;
 
 static int Transform_AVX1(Sha256* sha256)
 {
+
     word32 W_K[64] ;  /* temp for W+K */
 
     #if defined(DEBUG_XMM)
@@ -1030,10 +1030,10 @@ static int Transform_AVX1(Sha256* sha256)
     #endif
 
     Init_Masks(BYTE_FLIP_MASK, SHUF_00BA, SHUF_DC00) ;
-        W_K_from_buff ; /* X0, X1, X2, X3 = W[0..15] ; */
+    W_K_from_buff ; /* X0, X1, X2, X3 = W[0..15] ; */
 
     DigestToReg(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7) ;
-        
+  
     SET_W_K_XFER(X0, 0) ;
     MessageSched(X0, X1, X2, X3, XTMP0, XTMP1, XTMP2, XTMP3, XTMP4, XTMP5, XFER, 
             SHUF_00BA, SHUF_DC00, S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,0) ;
@@ -1115,6 +1115,7 @@ static int Transform_AVX1(Sha256* sha256)
 #if defined(HAVE_INTEL_RORX)
 static int Transform_AVX1_RORX(Sha256* sha256)
 {
+
     word32 W_K[64] ;  /* temp for W+K */
 
     #if defined(DEBUG_XMM)
@@ -1123,10 +1124,9 @@ static int Transform_AVX1_RORX(Sha256* sha256)
     #endif
 
     Init_Masks(BYTE_FLIP_MASK, SHUF_00BA, SHUF_DC00) ;
-        W_K_from_buff ; /* X0, X1, X2, X3 = W[0..15] ; */
+    W_K_from_buff ; /* X0, X1, X2, X3 = W[0..15] ; */
 
     DigestToReg(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7) ;
-        
     SET_W_K_XFER(X0, 0) ;
     MessageSched_RORX(X0, X1, X2, X3, XTMP0, XTMP1, XTMP2, XTMP3, XTMP4, XTMP5, 
             XFER, SHUF_00BA, SHUF_DC00, S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,0) ;
@@ -1250,7 +1250,7 @@ static int Transform_AVX1_RORX(Sha256* sha256)
 #define DUMP_ALL DUMP_REG(W_I_16) ; DUMP_REG(W_I_15) ; DUMP_REG(W_I_7) ; DUMP_REG(W_I_2) ; DUMP_REG(W_I) ;
    
 #define _MOVE_to_REG(ymm, mem)       __asm__ volatile("vmovdqu %0, %%"#ymm" ":: "m"(mem):YMM_REGs) ;
-#define _MOVE_to_MEM(mem, ymm)       __asm__ volatile("vmovdqu %%"#ymm", %0" :: "m"(mem):YMM_REGs) ;
+#define _MOVE_to_MEM(mem, ymm)       __asm__ volatile("vmovdqu %%"#ymm", %0" : "=m"(mem)::YMM_REGs) ;
 #define _BYTE_SWAP(ymm, map)              __asm__ volatile("vpshufb %0, %%"#ymm", %%"#ymm"\n\t"\
                                                        :: "m"(map):YMM_REGs) ;
 #define _MOVE_128(ymm0, ymm1, ymm2, map)   __asm__ volatile("vperm2i128  $"#map", %%"\
@@ -1448,16 +1448,14 @@ static int Transform_AVX2(Sha256* sha256)
         if (W_K == NULL)
             return MEMORY_E;
     #else
-        static word32 W_K[64];
+        word32 W_K[64]  ;
     #endif
 
-    MOVE_to_REG(W_I_16, sha256->buffer[0]); BYTE_SWAP(W_I_16, mBYTE_FLIP_MASK_16[0]) ;
-    MOVE_to_REG(W_I_15, sha256->buffer[1]); BYTE_SWAP(W_I_15, mBYTE_FLIP_MASK_15[0]) ;
-    MOVE_to_REG(W_I,  sha256->buffer[8]) ;  BYTE_SWAP(W_I, mBYTE_FLIP_MASK_16[0]) ;
+    MOVE_to_REG(W_I_16, sha256->buffer[0]);     BYTE_SWAP(W_I_16, mBYTE_FLIP_MASK_16[0]) ;
+    MOVE_to_REG(W_I_15, sha256->buffer[1]);     BYTE_SWAP(W_I_15, mBYTE_FLIP_MASK_15[0]) ;
+    MOVE_to_REG(W_I,    sha256->buffer[8]) ;    BYTE_SWAP(W_I,    mBYTE_FLIP_MASK_16[0]) ;
     MOVE_to_REG(W_I_7,  sha256->buffer[16-7]) ; BYTE_SWAP(W_I_7,  mBYTE_FLIP_MASK_7[0])  ;
     MOVE_to_REG(W_I_2,  sha256->buffer[16-2]) ; BYTE_SWAP(W_I_2,  mBYTE_FLIP_MASK_2[0])  ;
-    
-
 
     DigestToReg(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7) ;
 

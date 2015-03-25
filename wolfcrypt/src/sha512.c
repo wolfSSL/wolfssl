@@ -97,6 +97,7 @@ int wc_Sha384Hash(const byte* data, word32 len, byte* out)
 
 #endif /* min */
 
+	//#undef USE_INTEL_SPEEDUP
 #if defined(USE_INTEL_SPEEDUP)
   #define HAVE_INTEL_AVX1
   #define HAVE_INTEL_AVX2
@@ -235,14 +236,15 @@ static word32 cpuid_flag(word32 leaf, word32 sub, word32 num, word32 bit) {
     return 0 ;
 }
 
-static void set_cpuid_flags(void) {  
+static int set_cpuid_flags(void) {  
     if(cpuid_check==0) {
         if(cpuid_flag(1, 0, ECX, 28)){ cpuid_flags |= CPUID_AVX1 ;}
         if(cpuid_flag(7, 0, EBX, 5)){  cpuid_flags |= CPUID_AVX2 ; }
         if(cpuid_flag(1, 0, ECX, 30)){ cpuid_flags |= CPUID_RDRAND ;  } 
         if(cpuid_flag(7, 0, EBX, 18)){ cpuid_flags |= CPUID_RDSEED ;  }
-        cpuid_check = 1 ;
+		return 0 ;
     }
+    return 1 ;
 }
 
 
@@ -268,7 +270,7 @@ static int (*Transform_p)(Sha512* sha512) = _Transform ;
 #define Transform(sha512) (*Transform_p)(sha512)
 
 static void set_Transform(void) {
-     set_cpuid_flags() ;
+     if(set_cpuid_flags()) return ;
 
 #if defined(HAVE_INTEL_AVX1) && !defined(HAVE_INTEL_AVX2)
      Transform_p = ((IS_INTEL_AVX1) ? Transform_AVX1 : _Transform) ;
@@ -290,13 +292,13 @@ static void set_Transform(void) {
 #endif
 
 /* Dummy for saving MM_REGs on behalf of Transform */
-#if defined(HAVE_INTEL_AVX2)
-#define  SAVE_XMM_YMM   __asm__ volatile("orq %%r8, %%r8":::\
-   "%ymm4","%ymm5","%ymm6","%ymm7","%ymm8","%ymm9","%ymm10","%ymm11",\
-   "%ymm12","%ymm13","%ymm14","%ymm15")
-#elif defined(HAVE_INTEL_AVX1)
+//#if defined(HAVE_INTEL_AVX2)
+//#define  SAVE_XMM_YMM   __asm__ volatile("orq %%r8, %%r8":::\
+//   "%ymm0","%ymm1","%ymm2","%ymm3","%ymm4","%ymm5","%ymm6","%ymm7","%ymm8","%ymm9","%ymm10","%ymm11",\
+//   "%ymm12","%ymm13","%ymm14","%ymm15")
+#if defined(HAVE_INTEL_AVX1)
    #define  SAVE_XMM_YMM   __asm__ volatile("orq %%r8, %%r8":::\
-    "xmm4","xmm5","xmm6","xmm7","xmm8","xmm9","xmm10","xmm11","xmm12","xmm13")
+    "xmm0","xmm1","xmm2","xmm3","xmm4","xmm5","xmm6","xmm7","xmm8","xmm9","xmm10","xmm11","xmm12","xmm13","xmm14","xmm15")
 #else
 #define  SAVE_XMM_YMM
 #endif
@@ -769,7 +771,7 @@ static word64 mBYTE_FLIP_MASK[] =  { 0x0001020304050607, 0x08090a0b0c0d0e0f } ;
 #define s0_(dest, src)       s0_1(dest, src) ; s0_2(dest, src) ; s0_3(dest, src)
 #define s1_(dest, src)       s1_1(dest, src) ; s1_2(dest, src) ; s1_3(dest, src)
         
-static word64 W_X[16+4];
+//static word64 W_X[16+4];
 #define Block_xx_1(i) \
     MOVE_to_REG(W_I_15, W_X[(i-15)&15]) ;\
     MOVE_to_REG(W_I_7,  W_X[(i- 7)&15]) ;\
@@ -818,57 +820,57 @@ static word64 W_X[16+4];
     if((i)==0)\
         MOVE_to_MEM(W_X,16, W_I) ;\
 
-static inline void Block_0_1(void) { Block_xx_1(0) ; }
-static inline void Block_0_2(void) { Block_xx_2(0) ; }
+static inline void Block_0_1(word64 *W_X) { Block_xx_1(0) ; }
+static inline void Block_0_2(word64 *W_X) { Block_xx_2(0) ; }
 static inline void Block_0_3(void) { Block_xx_3(0) ; }
 static inline void Block_0_4(void) { Block_xx_4(0) ; }
 static inline void Block_0_5(void) { Block_xx_5(0) ; }
-static inline void Block_0_6(void) { Block_xx_6(0) ; }
-static inline void Block_0_7(void) { Block_xx_7(2) ; }
-static inline void Block_0_8(void) { Block_xx_8(2) ; }
+static inline void Block_0_6(word64 *W_X) { Block_xx_6(0) ; }
+static inline void Block_0_7(word64 *W_X) { Block_xx_7(2) ; }
+static inline void Block_0_8(word64 *W_X) { Block_xx_8(2) ; }
 static inline void Block_0_9(void) { Block_xx_9(2) ; }
 static inline void Block_0_10(void){ Block_xx_10(2) ; }
 static inline void Block_0_11(void){ Block_xx_11(2) ; }
-static inline void Block_0_12(void){ Block_xx_12(2) ; }
+static inline void Block_0_12(word64 *W_X){ Block_xx_12(2) ; }
 
-static inline void Block_4_1(void) { Block_xx_1(4) ; }
-static inline void Block_4_2(void) { Block_xx_2(4) ; }
+static inline void Block_4_1(word64 *W_X) { Block_xx_1(4) ; }
+static inline void Block_4_2(word64 *W_X) { Block_xx_2(4) ; }
 static inline void Block_4_3(void) { Block_xx_3(4) ; }
 static inline void Block_4_4(void) { Block_xx_4(4) ; }
 static inline void Block_4_5(void) { Block_xx_5(4) ; }
-static inline void Block_4_6(void) { Block_xx_6(4) ; }
-static inline void Block_4_7(void) { Block_xx_7(6) ; }
-static inline void Block_4_8(void) { Block_xx_8(6) ; }
+static inline void Block_4_6(word64 *W_X) { Block_xx_6(4) ; }
+static inline void Block_4_7(word64 *W_X) { Block_xx_7(6) ; }
+static inline void Block_4_8(word64 *W_X) { Block_xx_8(6) ; }
 static inline void Block_4_9(void) { Block_xx_9(6) ; }
 static inline void Block_4_10(void){ Block_xx_10(6) ; }
 static inline void Block_4_11(void){ Block_xx_11(6) ; }
-static inline void Block_4_12(void){ Block_xx_12(6) ; }
+static inline void Block_4_12(word64 *W_X){ Block_xx_12(6) ; }
 
-static inline void Block_8_1(void) { Block_xx_1(8) ; }
-static inline void Block_8_2(void) { Block_xx_2(8) ; }
+static inline void Block_8_1(word64 *W_X) { Block_xx_1(8) ; }
+static inline void Block_8_2(word64 *W_X) { Block_xx_2(8) ; }
 static inline void Block_8_3(void) { Block_xx_3(8) ; }
 static inline void Block_8_4(void) { Block_xx_4(8) ; }
 static inline void Block_8_5(void) { Block_xx_5(8) ; }
-static inline void Block_8_6(void) { Block_xx_6(8) ; }
-static inline void Block_8_7(void) { Block_xx_7(10) ; }
-static inline void Block_8_8(void) { Block_xx_8(10) ; }
+static inline void Block_8_6(word64 *W_X) { Block_xx_6(8) ; }
+static inline void Block_8_7(word64 *W_X) { Block_xx_7(10) ; }
+static inline void Block_8_8(word64 *W_X) { Block_xx_8(10) ; }
 static inline void Block_8_9(void) { Block_xx_9(10) ; }
 static inline void Block_8_10(void){ Block_xx_10(10) ; }
 static inline void Block_8_11(void){ Block_xx_11(10) ; }
-static inline void Block_8_12(void){ Block_xx_12(10) ; }
+static inline void Block_8_12(word64 *W_X){ Block_xx_12(10) ; }
 
-static inline void Block_12_1(void) { Block_xx_1(12) ; }
-static inline void Block_12_2(void) { Block_xx_2(12) ; }
+static inline void Block_12_1(word64 *W_X) { Block_xx_1(12) ; }
+static inline void Block_12_2(word64 *W_X) { Block_xx_2(12) ; }
 static inline void Block_12_3(void) { Block_xx_3(12) ; }
 static inline void Block_12_4(void) { Block_xx_4(12) ; }
 static inline void Block_12_5(void) { Block_xx_5(12) ; }
-static inline void Block_12_6(void) { Block_xx_6(12) ; }
-static inline void Block_12_7(void) { Block_xx_7(14) ; }
-static inline void Block_12_8(void) { Block_xx_8(14) ; }
+static inline void Block_12_6(word64 *W_X) { Block_xx_6(12) ; }
+static inline void Block_12_7(word64 *W_X) { Block_xx_7(14) ; }
+static inline void Block_12_8(word64 *W_X) { Block_xx_8(14) ; }
 static inline void Block_12_9(void) { Block_xx_9(14) ; }
 static inline void Block_12_10(void){ Block_xx_10(14) ; }
 static inline void Block_12_11(void){ Block_xx_11(14) ; }
-static inline void Block_12_12(void){ Block_xx_12(14) ; }
+static inline void Block_12_12(word64 *W_X){ Block_xx_12(14) ; }
 
 #endif
 
@@ -1011,13 +1013,14 @@ static unsigned long mBYTE_FLIP_MASK_Y[] =
 
 #endif
 
+
 /***  Transform Body ***/
 #if defined(HAVE_INTEL_AVX1)
 
 static int Transform_AVX1(Sha512* sha512)
 {
     const word64* K = K512;
-
+    word64 W_X[16+4];
     word32 j;
     word64 T[8];
     /* Copy digest to working vars */
@@ -1025,25 +1028,25 @@ static int Transform_AVX1(Sha512* sha512)
 
     W_from_buff(W_X, sha512->buffer) ;
     for (j = 0; j < 80; j += 16) {
-        Rx_1( 0); Block_0_1(); Rx_2( 0); Block_0_2(); Rx_3( 0); Block_0_3(); 
-        Rx_1( 1); Block_0_4(); Rx_2( 1); Block_0_5(); Rx_3( 1); Block_0_6(); 
-        Rx_1( 2); Block_0_7(); Rx_2( 2); Block_0_8(); Rx_3( 2); Block_0_9();
-        Rx_1( 3); Block_0_10();Rx_2( 3); Block_0_11();Rx_3( 3); Block_0_12();   
+        Rx_1( 0); Block_0_1(W_X); Rx_2( 0); Block_0_2(W_X); Rx_3( 0); Block_0_3(); 
+        Rx_1( 1); Block_0_4(); Rx_2( 1); Block_0_5(); Rx_3( 1); Block_0_6(W_X); 
+        Rx_1( 2); Block_0_7(W_X); Rx_2( 2); Block_0_8(W_X); Rx_3( 2); Block_0_9();
+        Rx_1( 3); Block_0_10();Rx_2( 3); Block_0_11();Rx_3( 3); Block_0_12(W_X);   
         
-        Rx_1( 4); Block_4_1(); Rx_2( 4); Block_4_2(); Rx_3( 4); Block_4_3(); 
-        Rx_1( 5); Block_4_4(); Rx_2( 5); Block_4_5(); Rx_3( 5); Block_4_6(); 
-        Rx_1( 6); Block_4_7(); Rx_2( 6); Block_4_8(); Rx_3( 6); Block_4_9();
-        Rx_1( 7); Block_4_10();Rx_2( 7); Block_4_11();Rx_3( 7); Block_4_12();   
+        Rx_1( 4); Block_4_1(W_X); Rx_2( 4); Block_4_2(W_X); Rx_3( 4); Block_4_3(); 
+        Rx_1( 5); Block_4_4(); Rx_2( 5); Block_4_5(); Rx_3( 5); Block_4_6(W_X); 
+        Rx_1( 6); Block_4_7(W_X); Rx_2( 6); Block_4_8(W_X); Rx_3( 6); Block_4_9();
+        Rx_1( 7); Block_4_10();Rx_2( 7); Block_4_11();Rx_3( 7); Block_4_12(W_X);   
         
-        Rx_1( 8); Block_8_1(); Rx_2( 8); Block_8_2(); Rx_3( 8); Block_8_3(); 
-        Rx_1( 9); Block_8_4(); Rx_2( 9); Block_8_5(); Rx_3( 9); Block_8_6(); 
-        Rx_1(10); Block_8_7(); Rx_2(10); Block_8_8(); Rx_3(10); Block_8_9();
-        Rx_1(11); Block_8_10();Rx_2(11); Block_8_11();Rx_3(11); Block_8_12();   
+        Rx_1( 8); Block_8_1(W_X); Rx_2( 8); Block_8_2(W_X); Rx_3( 8); Block_8_3(); 
+        Rx_1( 9); Block_8_4(); Rx_2( 9); Block_8_5(); Rx_3( 9); Block_8_6(W_X); 
+        Rx_1(10); Block_8_7(W_X); Rx_2(10); Block_8_8(W_X); Rx_3(10); Block_8_9();
+        Rx_1(11); Block_8_10();Rx_2(11); Block_8_11();Rx_3(11); Block_8_12(W_X);   
         
-        Rx_1(12); Block_12_1(); Rx_2(12); Block_12_2(); Rx_3(12); Block_12_3(); 
-        Rx_1(13); Block_12_4(); Rx_2(13); Block_12_5(); Rx_3(13); Block_12_6(); 
-        Rx_1(14); Block_12_7(); Rx_2(14); Block_12_8(); Rx_3(14); Block_12_9();
-        Rx_1(15); Block_12_10();Rx_2(15); Block_12_11();Rx_3(15); Block_12_12();     
+        Rx_1(12); Block_12_1(W_X); Rx_2(12); Block_12_2(W_X); Rx_3(12); Block_12_3(); 
+        Rx_1(13); Block_12_4(); Rx_2(13); Block_12_5(); Rx_3(13); Block_12_6(W_X); 
+        Rx_1(14); Block_12_7(W_X); Rx_2(14); Block_12_8(W_X); Rx_3(14); Block_12_9();
+        Rx_1(15); Block_12_10();Rx_2(15); Block_12_11();Rx_3(15); Block_12_12(W_X);     
     }
 
     /* Add the working vars back into digest */
@@ -1073,7 +1076,7 @@ static int Transform_AVX1(Sha512* sha512)
 static int Transform_AVX1_RORX(Sha512* sha512)
 {
     const word64* K = K512;
-
+    word64 W_X[16+4];
     word32 j;
     word64 T[8];
     /* Copy digest to working vars */
@@ -1081,41 +1084,41 @@ static int Transform_AVX1_RORX(Sha512* sha512)
 
     W_from_buff(W_X, sha512->buffer) ;
     for (j = 0; j < 80; j += 16) {
-        Rx_RORX_1( 0); Block_0_1(); Rx_RORX_2( 0); Block_0_2(); 
+        Rx_RORX_1( 0); Block_0_1(W_X); Rx_RORX_2( 0); Block_0_2(W_X); 
                                     Rx_RORX_3( 0); Block_0_3(); 
         Rx_RORX_1( 1); Block_0_4(); Rx_RORX_2( 1); Block_0_5(); 
-                                    Rx_RORX_3( 1); Block_0_6(); 
-        Rx_RORX_1( 2); Block_0_7(); Rx_RORX_2( 2); Block_0_8(); 
+                                    Rx_RORX_3( 1); Block_0_6(W_X); 
+        Rx_RORX_1( 2); Block_0_7(W_X); Rx_RORX_2( 2); Block_0_8(W_X); 
                                     Rx_RORX_3( 2); Block_0_9();
         Rx_RORX_1( 3); Block_0_10();Rx_RORX_2( 3); Block_0_11();
-                                    Rx_RORX_3( 3); Block_0_12();   
+                                    Rx_RORX_3( 3); Block_0_12(W_X);   
         
-        Rx_RORX_1( 4); Block_4_1(); Rx_RORX_2( 4); Block_4_2(); 
+        Rx_RORX_1( 4); Block_4_1(W_X); Rx_RORX_2( 4); Block_4_2(W_X); 
                                     Rx_RORX_3( 4); Block_4_3(); 
         Rx_RORX_1( 5); Block_4_4(); Rx_RORX_2( 5); Block_4_5(); 
-                                    Rx_RORX_3( 5); Block_4_6(); 
-        Rx_RORX_1( 6); Block_4_7(); Rx_RORX_2( 6); Block_4_8(); 
+                                    Rx_RORX_3( 5); Block_4_6(W_X); 
+        Rx_RORX_1( 6); Block_4_7(W_X); Rx_RORX_2( 6); Block_4_8(W_X); 
                                     Rx_RORX_3( 6); Block_4_9();
         Rx_RORX_1( 7); Block_4_10();Rx_RORX_2( 7); Block_4_11();
-                                    Rx_RORX_3( 7); Block_4_12();   
+                                    Rx_RORX_3( 7); Block_4_12(W_X);   
         
-        Rx_RORX_1( 8); Block_8_1(); Rx_RORX_2( 8); Block_8_2(); 
+        Rx_RORX_1( 8); Block_8_1(W_X); Rx_RORX_2( 8); Block_8_2(W_X); 
                                     Rx_RORX_3( 8); Block_8_3(); 
         Rx_RORX_1( 9); Block_8_4(); Rx_RORX_2( 9); Block_8_5(); 
-                                    Rx_RORX_3( 9); Block_8_6(); 
-        Rx_RORX_1(10); Block_8_7(); Rx_RORX_2(10); Block_8_8(); 
+                                    Rx_RORX_3( 9); Block_8_6(W_X); 
+        Rx_RORX_1(10); Block_8_7(W_X); Rx_RORX_2(10); Block_8_8(W_X); 
                                     Rx_RORX_3(10); Block_8_9();
         Rx_RORX_1(11); Block_8_10();Rx_RORX_2(11); Block_8_11();
-                                    Rx_RORX_3(11); Block_8_12();   
+                                    Rx_RORX_3(11); Block_8_12(W_X);   
         
-        Rx_RORX_1(12); Block_12_1(); Rx_RORX_2(12); Block_12_2(); 
+        Rx_RORX_1(12); Block_12_1(W_X); Rx_RORX_2(12); Block_12_2(W_X); 
                                      Rx_RORX_3(12); Block_12_3(); 
         Rx_RORX_1(13); Block_12_4(); Rx_RORX_2(13); Block_12_5(); 
-                                     Rx_RORX_3(13); Block_12_6(); 
-        Rx_RORX_1(14); Block_12_7(); Rx_RORX_2(14); Block_12_8(); 
+                                     Rx_RORX_3(13); Block_12_6(W_X); 
+        Rx_RORX_1(14); Block_12_7(W_X); Rx_RORX_2(14); Block_12_8(W_X); 
                                      Rx_RORX_3(14); Block_12_9();
         Rx_RORX_1(15); Block_12_10();Rx_RORX_2(15); Block_12_11();
-                                     Rx_RORX_3(15); Block_12_12();     
+                                     Rx_RORX_3(15); Block_12_12(W_X);     
     }
     /* Add the working vars back into digest */
 
@@ -1153,7 +1156,6 @@ static int Transform_AVX1_RORX(Sha512* sha512)
 
 #define blk384(i) (W[i] = sha384->buffer[i])
 
-static word64  w[4] ;
 
 #define Block_Y_xx_1(i, w_0, w_4, w_8, w_12)\
     MOVE_W_to_W_I_15(W_I_15y, w_0, w_4) ;\
@@ -1209,7 +1211,7 @@ static inline void Block_Y_0_8(void) { Block_Y_xx_8(0, W_0y, W_4y, W_8y, W_12y) 
 static inline void Block_Y_0_9(void) { Block_Y_xx_9(0, W_0y, W_4y, W_8y, W_12y) ; }
 static inline void Block_Y_0_10(void){ Block_Y_xx_10(0, W_0y, W_4y, W_8y, W_12y) ; }
 static inline void Block_Y_0_11(void){ Block_Y_xx_11(0, W_0y, W_4y, W_8y, W_12y) ; }
-static inline void Block_Y_0_12(void){ Block_Y_xx_12(0, W_0y, W_4y, W_8y, W_12y) ; }
+static inline void Block_Y_0_12(word64 *w){ Block_Y_xx_12(0, W_0y, W_4y, W_8y, W_12y) ; }
 
 static inline void Block_Y_4_1(void) { Block_Y_xx_1(4, W_4y, W_8y, W_12y, W_0y) ; }
 static inline void Block_Y_4_2(void) { Block_Y_xx_2(4, W_4y, W_8y, W_12y, W_0y) ; }
@@ -1222,7 +1224,7 @@ static inline void Block_Y_4_8(void) { Block_Y_xx_8(4, W_4y, W_8y, W_12y, W_0y) 
 static inline void Block_Y_4_9(void) { Block_Y_xx_9(4, W_4y, W_8y, W_12y, W_0y) ; }
 static inline void Block_Y_4_10(void) { Block_Y_xx_10(4, W_4y, W_8y, W_12y, W_0y) ; }
 static inline void Block_Y_4_11(void) { Block_Y_xx_11(4, W_4y, W_8y, W_12y, W_0y) ; }
-static inline void Block_Y_4_12(void) { Block_Y_xx_12(4, W_4y, W_8y, W_12y, W_0y) ; }
+static inline void Block_Y_4_12(word64 *w) { Block_Y_xx_12(4, W_4y, W_8y, W_12y, W_0y) ; }
 
 static inline void Block_Y_8_1(void) { Block_Y_xx_1(8, W_8y, W_12y, W_0y, W_4y) ; }
 static inline void Block_Y_8_2(void) { Block_Y_xx_2(8, W_8y, W_12y, W_0y, W_4y) ; }
@@ -1235,7 +1237,7 @@ static inline void Block_Y_8_8(void) { Block_Y_xx_8(8, W_8y, W_12y, W_0y, W_4y) 
 static inline void Block_Y_8_9(void) { Block_Y_xx_9(8, W_8y, W_12y, W_0y, W_4y) ; }
 static inline void Block_Y_8_10(void) { Block_Y_xx_10(8, W_8y, W_12y, W_0y, W_4y) ; }
 static inline void Block_Y_8_11(void) { Block_Y_xx_11(8, W_8y, W_12y, W_0y, W_4y) ; }
-static inline void Block_Y_8_12(void) { Block_Y_xx_12(8, W_8y, W_12y, W_0y, W_4y) ; }
+static inline void Block_Y_8_12(word64 *w) { Block_Y_xx_12(8, W_8y, W_12y, W_0y, W_4y) ; }
 
 static inline void Block_Y_12_1(void) { Block_Y_xx_1(12, W_12y, W_0y, W_4y, W_8y) ; }
 static inline void Block_Y_12_2(void) { Block_Y_xx_2(12, W_12y, W_0y, W_4y, W_8y) ; }
@@ -1248,13 +1250,13 @@ static inline void Block_Y_12_8(void) { Block_Y_xx_8(12, W_12y, W_0y, W_4y, W_8y
 static inline void Block_Y_12_9(void) { Block_Y_xx_9(12, W_12y, W_0y, W_4y, W_8y) ; }
 static inline void Block_Y_12_10(void) { Block_Y_xx_10(12, W_12y, W_0y, W_4y, W_8y) ; }
 static inline void Block_Y_12_11(void) { Block_Y_xx_11(12, W_12y, W_0y, W_4y, W_8y) ; }
-static inline void Block_Y_12_12(void) { Block_Y_xx_12(12, W_12y, W_0y, W_4y, W_8y) ; }
+static inline void Block_Y_12_12(word64 *w) { Block_Y_xx_12(12, W_12y, W_0y, W_4y, W_8y) ; }
 
 
 static int Transform_AVX2(Sha512* sha512)
 {
     const word64* K = K512;
-
+    word64 w[4] ;
     word32 j /*, k*/;
     word64 T[8];
     /* Copy digest to working vars */
@@ -1270,7 +1272,7 @@ static int Transform_AVX2(Sha512* sha512)
         Ry_1( 2, w[2]); Block_Y_0_7(); Ry_2( 2, w[2]); Block_Y_0_8(); 
                                        Ry_3( 2, w[2]); Block_Y_0_9();
         Ry_1( 3, w[3]); Block_Y_0_10();Ry_2( 3, w[3]); Block_Y_0_11();
-                                       Ry_3( 3, w[3]); Block_Y_0_12();
+                                       Ry_3( 3, w[3]); Block_Y_0_12(w);
         
         Ry_1( 4, w[0]); Block_Y_4_1(); Ry_2( 4, w[0]); Block_Y_4_2(); 
                                        Ry_3( 4, w[0]); Block_Y_4_3(); 
@@ -1279,7 +1281,7 @@ static int Transform_AVX2(Sha512* sha512)
         Ry_1( 6, w[2]); Block_Y_4_7(); Ry_2( 6, w[2]); Block_Y_4_8(); 
                                        Ry_3( 6, w[2]); Block_Y_4_9();
         Ry_1( 7, w[3]); Block_Y_4_10(); Ry_2( 7, w[3]);Block_Y_4_11(); 
-                                        Ry_3( 7, w[3]);Block_Y_4_12();  
+                                        Ry_3( 7, w[3]);Block_Y_4_12(w);  
         
         Ry_1( 8, w[0]); Block_Y_8_1(); Ry_2( 8, w[0]); Block_Y_8_2(); 
                                        Ry_3( 8, w[0]); Block_Y_8_3();
@@ -1288,7 +1290,7 @@ static int Transform_AVX2(Sha512* sha512)
         Ry_1(10, w[2]); Block_Y_8_7(); Ry_2(10, w[2]); Block_Y_8_8(); 
                                        Ry_3(10, w[2]); Block_Y_8_9(); 
         Ry_1(11, w[3]); Block_Y_8_10();Ry_2(11, w[3]); Block_Y_8_11();
-                                       Ry_3(11, w[3]); Block_Y_8_12();
+                                       Ry_3(11, w[3]); Block_Y_8_12(w);
                  
         Ry_1(12, w[0]); Block_Y_12_1(); Ry_2(12, w[0]); Block_Y_12_2(); 
                                         Ry_3(12, w[0]); Block_Y_12_3();
@@ -1297,7 +1299,7 @@ static int Transform_AVX2(Sha512* sha512)
         Ry_1(14, w[2]); Block_Y_12_7(); Ry_2(14, w[2]); Block_Y_12_8(); 
                                         Ry_3(14, w[2]); Block_Y_12_9();
         Ry_1(15, w[3]); Block_Y_12_10();Ry_2(15, w[3]); Block_Y_12_11();
-                                        Ry_3(15, w[3]);Block_Y_12_12();
+                                        Ry_3(15, w[3]);Block_Y_12_12(w);
     }
  
     /* Add the working vars back into digest */
@@ -1343,7 +1345,7 @@ static int (*Transform384_p)(Sha384* sha384) = _Transform384 ;
 
 #define Transform384(sha384) (*Transform384_p)(sha384)
 static void set_Transform384(void) {
-     set_cpuid_flags() ;
+     if(set_cpuid_flags())return ;
 
 #if defined(HAVE_INTEL_AVX1) && !defined(HAVE_INTEL_AVX2)
      Transform384_p = ((IS_INTEL_AVX1) ? Transform384_AVX1 : _Transform384) ;
@@ -1458,7 +1460,7 @@ int wc_Sha384Update(Sha384* sha384, const byte* data, word32 len)
 {
     /* do block size increments */
     byte* local = (byte*)sha384->buffer;
-    
+	
     SAVE_XMM_YMM ; /* for Intel AVX */
     
     while (len) {
@@ -1593,7 +1595,7 @@ int wc_Sha384Hash(const byte* data, word32 len, byte* hash)
 static int Transform384_AVX1(Sha384* sha384)
 {
     const word64* K = K512;
-
+    word64 W_X[16+4];
     word32 j;
     word64 T[8];
 
@@ -1601,25 +1603,25 @@ static int Transform384_AVX1(Sha384* sha384)
     XMEMCPY(T, sha384->digest, sizeof(T));
     W_from_buff(W_X, sha384->buffer) ;
     for (j = 0; j < 80; j += 16) {
-        Rx_1( 0); Block_0_1(); Rx_2( 0); Block_0_2(); Rx_3( 0); Block_0_3(); 
-        Rx_1( 1); Block_0_4(); Rx_2( 1); Block_0_5(); Rx_3( 1); Block_0_6(); 
-        Rx_1( 2); Block_0_7(); Rx_2( 2); Block_0_8(); Rx_3( 2); Block_0_9();
-        Rx_1( 3); Block_0_10();Rx_2( 3); Block_0_11();Rx_3( 3); Block_0_12();   
+        Rx_1( 0); Block_0_1(W_X); Rx_2( 0); Block_0_2(W_X); Rx_3( 0); Block_0_3(); 
+        Rx_1( 1); Block_0_4(); Rx_2( 1); Block_0_5(); Rx_3( 1); Block_0_6(W_X); 
+        Rx_1( 2); Block_0_7(W_X); Rx_2( 2); Block_0_8(W_X); Rx_3( 2); Block_0_9();
+        Rx_1( 3); Block_0_10();Rx_2( 3); Block_0_11();Rx_3( 3); Block_0_12(W_X);   
         
-        Rx_1( 4); Block_4_1(); Rx_2( 4); Block_4_2(); Rx_3( 4); Block_4_3(); 
-        Rx_1( 5); Block_4_4(); Rx_2( 5); Block_4_5(); Rx_3( 5); Block_4_6(); 
-        Rx_1( 6); Block_4_7(); Rx_2( 6); Block_4_8(); Rx_3( 6); Block_4_9();
-        Rx_1( 7); Block_4_10();Rx_2( 7); Block_4_11();Rx_3( 7); Block_4_12();   
+        Rx_1( 4); Block_4_1(W_X); Rx_2( 4); Block_4_2(W_X); Rx_3( 4); Block_4_3(); 
+        Rx_1( 5); Block_4_4(); Rx_2( 5); Block_4_5(); Rx_3( 5); Block_4_6(W_X); 
+        Rx_1( 6); Block_4_7(W_X); Rx_2( 6); Block_4_8(W_X); Rx_3( 6); Block_4_9();
+        Rx_1( 7); Block_4_10();Rx_2( 7); Block_4_11();Rx_3( 7); Block_4_12(W_X);   
         
-        Rx_1( 8); Block_8_1(); Rx_2( 8); Block_8_2(); Rx_3( 8); Block_8_3(); 
-        Rx_1( 9); Block_8_4(); Rx_2( 9); Block_8_5(); Rx_3( 9); Block_8_6(); 
-        Rx_1(10); Block_8_7(); Rx_2(10); Block_8_8(); Rx_3(10); Block_8_9();
-        Rx_1(11); Block_8_10();Rx_2(11); Block_8_11();Rx_3(11); Block_8_12();   
+        Rx_1( 8); Block_8_1(W_X); Rx_2( 8); Block_8_2(W_X); Rx_3( 8); Block_8_3(); 
+        Rx_1( 9); Block_8_4(); Rx_2( 9); Block_8_5(); Rx_3( 9); Block_8_6(W_X); 
+        Rx_1(10); Block_8_7(W_X); Rx_2(10); Block_8_8(W_X); Rx_3(10); Block_8_9();
+        Rx_1(11); Block_8_10();Rx_2(11); Block_8_11();Rx_3(11); Block_8_12(W_X);   
         
-        Rx_1(12); Block_12_1(); Rx_2(12); Block_12_2(); Rx_3(12); Block_12_3(); 
-        Rx_1(13); Block_12_4(); Rx_2(13); Block_12_5(); Rx_3(13); Block_12_6(); 
-        Rx_1(14); Block_12_7(); Rx_2(14); Block_12_8(); Rx_3(14); Block_12_9();
-        Rx_1(15); Block_12_10();Rx_2(15); Block_12_11();Rx_3(15); Block_12_12();     
+        Rx_1(12); Block_12_1(W_X); Rx_2(12); Block_12_2(W_X); Rx_3(12); Block_12_3(); 
+        Rx_1(13); Block_12_4(); Rx_2(13); Block_12_5(); Rx_3(13); Block_12_6(W_X); 
+        Rx_1(14); Block_12_7(W_X); Rx_2(14); Block_12_8(W_X); Rx_3(14); Block_12_9();
+        Rx_1(15); Block_12_10();Rx_2(15); Block_12_11();Rx_3(15); Block_12_12(W_X);     
     }
 
     /* Add the working vars back into digest */
@@ -1648,7 +1650,7 @@ static int Transform384_AVX1(Sha384* sha384)
 static int Transform384_AVX1_RORX(Sha384* sha384)
 {
     const word64* K = K512;
-
+    word64 W_X[16+4];
     word32 j;
     word64 T[8];
 
@@ -1657,41 +1659,41 @@ static int Transform384_AVX1_RORX(Sha384* sha384)
 
     W_from_buff(W_X, sha384->buffer) ;
     for (j = 0; j < 80; j += 16) {
-        Rx_RORX_1( 0); Block_0_1(); Rx_RORX_2( 0); 
-            Block_0_2(); Rx_RORX_3( 0); Block_0_3(); 
+        Rx_RORX_1( 0); Block_0_1(W_X); Rx_RORX_2( 0); 
+            Block_0_2(W_X); Rx_RORX_3( 0); Block_0_3(); 
         Rx_RORX_1( 1); Block_0_4(); Rx_RORX_2( 1); 
-            Block_0_5(); Rx_RORX_3( 1); Block_0_6(); 
-        Rx_RORX_1( 2); Block_0_7(); Rx_RORX_2( 2); 
-            Block_0_8(); Rx_RORX_3( 2); Block_0_9();
+            Block_0_5(); Rx_RORX_3( 1); Block_0_6(W_X); 
+        Rx_RORX_1( 2); Block_0_7(W_X); Rx_RORX_2( 2); 
+            Block_0_8(W_X); Rx_RORX_3( 2); Block_0_9();
         Rx_RORX_1( 3); Block_0_10();Rx_RORX_2( 3); 
-            Block_0_11();Rx_RORX_3( 3); Block_0_12();   
+            Block_0_11();Rx_RORX_3( 3); Block_0_12(W_X);   
         
-        Rx_RORX_1( 4); Block_4_1(); Rx_RORX_2( 4); 
-            Block_4_2(); Rx_RORX_3( 4); Block_4_3(); 
+        Rx_RORX_1( 4); Block_4_1(W_X); Rx_RORX_2( 4); 
+            Block_4_2(W_X); Rx_RORX_3( 4); Block_4_3(); 
         Rx_RORX_1( 5); Block_4_4(); Rx_RORX_2( 5); 
-            Block_4_5(); Rx_RORX_3( 5); Block_4_6(); 
-        Rx_RORX_1( 6); Block_4_7(); Rx_RORX_2( 6); 
-            Block_4_8(); Rx_RORX_3( 6); Block_4_9();
+            Block_4_5(); Rx_RORX_3( 5); Block_4_6(W_X); 
+        Rx_RORX_1( 6); Block_4_7(W_X); Rx_RORX_2( 6); 
+            Block_4_8(W_X); Rx_RORX_3( 6); Block_4_9();
         Rx_RORX_1( 7); Block_4_10();Rx_RORX_2( 7); 
-            Block_4_11();Rx_RORX_3( 7); Block_4_12();   
+            Block_4_11();Rx_RORX_3( 7); Block_4_12(W_X);   
         
-        Rx_RORX_1( 8); Block_8_1(); Rx_RORX_2( 8); 
-            Block_8_2(); Rx_RORX_3( 8); Block_8_3(); 
+        Rx_RORX_1( 8); Block_8_1(W_X); Rx_RORX_2( 8); 
+            Block_8_2(W_X); Rx_RORX_3( 8); Block_8_3(); 
         Rx_RORX_1( 9); Block_8_4(); Rx_RORX_2( 9); 
-            Block_8_5(); Rx_RORX_3( 9); Block_8_6(); 
-        Rx_RORX_1(10); Block_8_7(); Rx_RORX_2(10); 
-            Block_8_8(); Rx_RORX_3(10); Block_8_9();
+            Block_8_5(); Rx_RORX_3( 9); Block_8_6(W_X); 
+        Rx_RORX_1(10); Block_8_7(W_X); Rx_RORX_2(10); 
+            Block_8_8(W_X); Rx_RORX_3(10); Block_8_9();
         Rx_RORX_1(11); Block_8_10();Rx_RORX_2(11); 
-            Block_8_11();Rx_RORX_3(11); Block_8_12();   
+            Block_8_11();Rx_RORX_3(11); Block_8_12(W_X);   
         
-        Rx_RORX_1(12); Block_12_1(); Rx_RORX_2(12);
-            Block_12_2(); Rx_RORX_3(12); Block_12_3(); 
+        Rx_RORX_1(12); Block_12_1(W_X); Rx_RORX_2(12);
+            Block_12_2(W_X); Rx_RORX_3(12); Block_12_3(); 
         Rx_RORX_1(13); Block_12_4(); Rx_RORX_2(13); 
-            Block_12_5(); Rx_RORX_3(13); Block_12_6(); 
-        Rx_RORX_1(14); Block_12_7(); Rx_RORX_2(14); 
-            Block_12_8(); Rx_RORX_3(14); Block_12_9();
+            Block_12_5(); Rx_RORX_3(13); Block_12_6(W_X); 
+        Rx_RORX_1(14); Block_12_7(W_X); Rx_RORX_2(14); 
+            Block_12_8(W_X); Rx_RORX_3(14); Block_12_9();
         Rx_RORX_1(15); Block_12_10();Rx_RORX_2(15); 
-            Block_12_11();Rx_RORX_3(15); Block_12_12();     
+            Block_12_11();Rx_RORX_3(15); Block_12_12(W_X);     
     }
 
     /* Add the working vars back into digest */
@@ -1720,7 +1722,7 @@ static int Transform384_AVX1_RORX(Sha384* sha384)
 static int Transform384_AVX2(Sha384* sha384)
 {
     const word64* K = K512;
-
+    word64 w[4] ;
     word32 j;
     word64 T[8];
 
@@ -1741,7 +1743,7 @@ static int Transform384_AVX2(Sha384* sha384)
         Ry_1( 2, w[2]); Block_Y_0_7(); Ry_2( 2, w[2]); 
             Block_Y_0_8(); Ry_3( 2, w[2]); Block_Y_0_9();
         Ry_1( 3, w[3]); Block_Y_0_10();Ry_2( 3, w[3]); 
-            Block_Y_0_11();Ry_3( 3, w[3]); Block_Y_0_12();
+            Block_Y_0_11();Ry_3( 3, w[3]); Block_Y_0_12(w);
         
         Ry_1( 4, w[0]); Block_Y_4_1(); Ry_2( 4, w[0]); 
             Block_Y_4_2(); Ry_3( 4, w[0]); Block_Y_4_3(); 
@@ -1750,7 +1752,7 @@ static int Transform384_AVX2(Sha384* sha384)
         Ry_1( 6, w[2]); Block_Y_4_7(); Ry_2( 6, w[2]); 
             Block_Y_4_8(); Ry_3( 6, w[2]); Block_Y_4_9();
         Ry_1( 7, w[3]); Block_Y_4_10(); Ry_2( 7, w[3]);
-            Block_Y_4_11(); Ry_3( 7, w[3]);Block_Y_4_12();  
+            Block_Y_4_11(); Ry_3( 7, w[3]);Block_Y_4_12(w);  
         
         Ry_1( 8, w[0]); Block_Y_8_1(); Ry_2( 8, w[0]); 
             Block_Y_8_2(); Ry_3( 8, w[0]); Block_Y_8_3();
@@ -1759,7 +1761,7 @@ static int Transform384_AVX2(Sha384* sha384)
         Ry_1(10, w[2]); Block_Y_8_7(); Ry_2(10, w[2]); 
             Block_Y_8_8(); Ry_3(10, w[2]); Block_Y_8_9(); 
         Ry_1(11, w[3]); Block_Y_8_10();Ry_2(11, w[3]); 
-           Block_Y_8_11();Ry_3(11, w[3]); Block_Y_8_12();
+           Block_Y_8_11();Ry_3(11, w[3]); Block_Y_8_12(w);
                  
         Ry_1(12, w[0]); Block_Y_12_1(); Ry_2(12, w[0]); 
             Block_Y_12_2(); Ry_3(12, w[0]); Block_Y_12_3();
@@ -1768,7 +1770,7 @@ static int Transform384_AVX2(Sha384* sha384)
         Ry_1(14, w[2]); Block_Y_12_7(); Ry_2(14, w[2]); 
             Block_Y_12_8(); Ry_3(14, w[2]); Block_Y_12_9();
         Ry_1(15, w[3]); Block_Y_12_10();Ry_2(15, w[3]); 
-            Block_Y_12_11();Ry_3(15, w[3]); Block_Y_12_12();
+            Block_Y_12_11();Ry_3(15, w[3]); Block_Y_12_12(w);
     }
 
     /* Add the working vars back into digest */
