@@ -426,12 +426,6 @@ int wc_InitRng(RNG* rng)
 {
     int ret = BAD_FUNC_ARG;
 
-#ifdef HAVE_INTEL_RDGEN
-    wc_InitRng_IntelRD() ;
-	rng->drbg = NULL ;
-    if(IS_INTEL_RDRAND)return 0 ;
-#endif
-
     if (rng != NULL) {
         byte entropy[ENTROPY_NONCE_SZ];
 
@@ -482,11 +476,6 @@ int wc_RNG_GenerateBlock(RNG* rng, byte* output, word32 sz)
     if (rng == NULL || output == NULL || sz > MAX_REQUEST_LEN)
         return BAD_FUNC_ARG;
 
-#ifdef HAVE_INTEL_RDGEN
-    if(IS_INTEL_RDRAND)
-        return wc_GenerateRand_IntelRD(NULL, output, sz) ;
-#endif
-    
     if (rng->status != DRBG_OK)
         return RNG_FAILURE_E;
 
