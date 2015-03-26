@@ -34,7 +34,9 @@
 #include "prefix_evp.h"
 #endif
 
-#include <wolfssl/openssl/md5.h>
+#ifndef NO_MD5
+    #include <wolfssl/openssl/md5.h>
+#endif
 #include <wolfssl/openssl/sha.h>
 #include <wolfssl/openssl/ripemd.h>
 #include <wolfssl/openssl/rsa.h>
@@ -52,7 +54,9 @@
 typedef char WOLFSSL_EVP_MD;
 typedef char WOLFSSL_EVP_CIPHER;
 
-WOLFSSL_API const WOLFSSL_EVP_MD* wolfSSL_EVP_md5(void);
+#ifndef NO_MD5
+    WOLFSSL_API const WOLFSSL_EVP_MD* wolfSSL_EVP_md5(void);
+#endif
 WOLFSSL_API const WOLFSSL_EVP_MD* wolfSSL_EVP_sha1(void);
 WOLFSSL_API const WOLFSSL_EVP_MD* wolfSSL_EVP_sha256(void);
 WOLFSSL_API const WOLFSSL_EVP_MD* wolfSSL_EVP_sha384(void);
@@ -72,7 +76,9 @@ WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_enc_null(void);
 
 
 typedef union {
-    WOLFSSL_MD5_CTX    md5;
+    #ifndef NO_MD5
+        WOLFSSL_MD5_CTX    md5;
+    #endif
     WOLFSSL_SHA_CTX    sha;
     WOLFSSL_SHA256_CTX sha256;
     #ifdef WOLFSSL_SHA384
@@ -148,10 +154,12 @@ WOLFSSL_API int wolfSSL_EVP_DigestFinal(WOLFSSL_EVP_MD_CTX* ctx, unsigned char* 
                                       unsigned int* s);
 WOLFSSL_API int wolfSSL_EVP_DigestFinal_ex(WOLFSSL_EVP_MD_CTX* ctx,
                                             unsigned char* md, unsigned int* s);
+#ifndef NO_MD5
 WOLFSSL_API int wolfSSL_EVP_BytesToKey(const WOLFSSL_EVP_CIPHER*,
                               const WOLFSSL_EVP_MD*, const unsigned char*,
                               const unsigned char*, int, int, unsigned char*,
                               unsigned char*);
+#endif
 
 WOLFSSL_API void wolfSSL_EVP_CIPHER_CTX_init(WOLFSSL_EVP_CIPHER_CTX* ctx);
 WOLFSSL_API int  wolfSSL_EVP_CIPHER_CTX_cleanup(WOLFSSL_EVP_CIPHER_CTX* ctx);
@@ -195,7 +203,9 @@ typedef WOLFSSL_EVP_CIPHER     EVP_CIPHER;
 typedef WOLFSSL_EVP_MD_CTX     EVP_MD_CTX;
 typedef WOLFSSL_EVP_CIPHER_CTX EVP_CIPHER_CTX;
 
-#define EVP_md5       wolfSSL_EVP_md5
+#ifndef NO_MD5
+    #define EVP_md5       wolfSSL_EVP_md5
+#endif
 #define EVP_sha1      wolfSSL_EVP_sha1
 #define EVP_sha256    wolfSSL_EVP_sha256
 #define EVP_sha384    wolfSSL_EVP_sha384
