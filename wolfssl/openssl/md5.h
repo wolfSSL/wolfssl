@@ -6,6 +6,8 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 
+#ifndef NO_MD5
+
 #ifdef WOLFSSL_PREFIX
 #include "prefix_md5.h"
 #endif
@@ -34,6 +36,7 @@ typedef WOLFSSL_MD5_CTX MD5_CTX;
     }  /* extern "C" */ 
 #endif
 
+#endif /* NO_MD5 */
 
 #endif /* WOLFSSL_MD5_H_ */
 

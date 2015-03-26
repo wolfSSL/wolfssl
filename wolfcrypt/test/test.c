@@ -4393,8 +4393,12 @@ int openssl_test(void)
     testVector a, b, c, d, e, f;
     byte       hash[SHA_DIGEST_SIZE*4];  /* max size */
 
+    (void)a;
+    (void)c;
     (void)e;
     (void)f;
+
+#ifndef NO_MD5
 
     a.input  = "1234567890123456789012345678901234567890123456789012345678"
                "9012345678901234567890";
@@ -4411,6 +4415,8 @@ int openssl_test(void)
 
     if (memcmp(hash, a.output, MD5_DIGEST_SIZE) != 0)
         return -71;
+
+#endif /* NO_MD5 */
 
     b.input  = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
                "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
@@ -4493,6 +4499,7 @@ int openssl_test(void)
 #endif /* WOLFSSL_SHA512 */
 
 
+#ifndef NO_MD5
     if (RAND_bytes(hash, sizeof(hash)) != 1)
         return -73;
 
@@ -4506,6 +4513,8 @@ int openssl_test(void)
 
     if (memcmp(hash, c.output, MD5_DIGEST_SIZE) != 0)
         return -74;
+
+#endif /* NO_MD5 */
 
 #ifndef NO_DES3
     { /* des test */
