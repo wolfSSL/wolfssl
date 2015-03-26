@@ -771,6 +771,7 @@ static int wc_InitRng_IntelRD()
 
 #if defined(HAVE_HASHDRBG) || defined(NO_RC4)
 
+/* return 0 on success */
 static inline int IntelRDseed32(unsigned int *seed)  
 {  
     int rdseed;  unsigned char ok ;
@@ -783,18 +784,22 @@ static inline int IntelRDseed32(unsigned int *seed)
         return 1;
 }
 
+/* return 0 on success */
 static inline int IntelRDseed32_r(unsigned int *rnd)  
 {  
     int i ;
-    for(i=0; i<INTELRD_RETRY;i++)
-       if(IntelRDseed32(rnd))return 0 ;
+    for(i=0; i<INTELRD_RETRY;i++) {
+       if(IntelRDseed32(rnd) == 0) return 0 ;
+    }
     return 1 ;
 }
 
+/* return 0 on success */
 static int wc_GenerateSeed_IntelRD(OS_Seed* os, byte* output, word32 sz)
 {
     (void) os ;
-    int ret ; byte buff[4] ;
+    int ret ;
+    unsigned int rndTmp ;
 
     for(  ; sz/4 > 0; sz-=4, output+=4) {
         if(IS_INTEL_RDSEED)ret = IntelRDseed32_r((word32 *)output) ;
@@ -804,36 +809,44 @@ static int wc_GenerateSeed_IntelRD(OS_Seed* os, byte* output, word32 sz)
     }
     if(sz == 0)return 0 ;
 
-    if(IS_INTEL_RDSEED)ret = IntelRDseed32_r((word32 *)buff) ;
+    if(IS_INTEL_RDSEED)ret = IntelRDseed32_r(&rndTmp) ;
     else return 1 ;
     if(ret)
          return 1 ;
-    XMEMCPY(output, buff, sz) ;
+    XMEMCPY(output, &rndTmp, sz) ;
     return 0;
 }
 
 #else
 
+/* return 0 on success */
 static inline int IntelRDrand32(unsigned int *rnd)  
 {  
     int rdrand; unsigned char ok ;  
     __asm__ volatile("rdrand %0; setc %1":"=r"(rdrand), "=qm"(ok));  
-        *rnd = rdrand ;
-        return ok ;
+    if(ok){
+        *rnd = rdrand;
+        return 0 ;
+    } else
+        return 1;
 }
 
+/* return 0 on success */
 static inline int IntelRDrand32_r(unsigned int *rnd)  
 {  
     int i ;
-    for(i=0; i<INTELRD_RETRY;i++)
-       if(IntelRDrand32(rnd))return 0 ;
+    for(i=0; i<INTELRD_RETRY;i++) {
+       if(IntelRDrand32(rnd) == 0) return 0 ;
+    }
     return 1 ;
 }
 
+/* return 0 on success */
 static int wc_GenerateRand_IntelRD(OS_Seed* os, byte* output, word32 sz)
 {
     (void) os ;
-    int ret ; byte buff[4] ;
+    int ret ;
+    unsigned int rndTmp;
 
     for(  ; sz/4 > 0; sz-=4, output+=4) {
         if(IS_INTEL_RDRAND)ret = IntelRDrand32_r((word32 *)output);
@@ -843,11 +856,11 @@ static int wc_GenerateRand_IntelRD(OS_Seed* os, byte* output, word32 sz)
     }
     if(sz == 0)return 0 ;
 
-    if(IS_INTEL_RDRAND)ret = IntelRDrand32_r((word32 *)buff);
+    if(IS_INTEL_RDRAND)ret = IntelRDrand32_r(&rndTmp);
     else return 1 ;
     if(ret)
          return 1 ;
-    XMEMCPY(output, buff, sz) ;
+    XMEMCPY(output, &rndTmp, sz) ;
     return 0;
 }
 #endif /* defined(HAVE_HASHDRBG) || defined(NO_RC4) */
@@ -1145,18 +1158,6 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         return 0;
     }
 
-#elif defined(HAVE_INTEL_RDGEN) && (defined(HAVE_HASHDRBG) || defined(NO_RC4))
-
-int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
-{
-    (void) os ;
-    
-	wc_InitRng_IntelRD() ; /* set cpuid_flags if not yet */
-    if(IS_INTEL_RDSEED)
-         return wc_GenerateSeed_IntelRD(NULL, output, sz) ;
-    else return 1 ;
-}
-
 #elif defined(CUSTOM_RAND_GENERATE)
 
    /* Implement your own random generation function
@@ -1191,6 +1192,13 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 {
     int ret = 0;
+
+
+#if defined(HAVE_INTEL_RDGEN) && (defined(HAVE_HASHDRBG) || defined(NO_RC4))
+    wc_InitRng_IntelRD() ; /* set cpuid_flags if not yet */
+    if(IS_INTEL_RDSEED)
+         return wc_GenerateSeed_IntelRD(NULL, output, sz) ;
+#endif
 
     os->fd = open("/dev/urandom",O_RDONLY);
     if (os->fd == -1) {

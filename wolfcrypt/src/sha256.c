@@ -956,7 +956,8 @@ __asm__ volatile("movl  %r8d, "#h"\n\t"); \
 
 
 #define W_K_from_buff\
-     { word64 _buff[2] ;/* X0..3(xmm4..7) = sha256->buffer[0.15];  */\
+     { __attribute__ ((aligned (32))) word64 _buff[2] ; \
+         /* X0..3(xmm4..7) = sha256->buffer[0.15];  */\
         _buff[0] = *(word64*)&sha256->buffer[0] ;\
         _buff[1] = *(word64*)&sha256->buffer[2] ;\
          __asm__ volatile("vmovaps %0, %%xmm4\n\t"\
@@ -1233,7 +1234,7 @@ static int Transform_AVX1_RORX(Sha256* sha256)
     __asm__ volatile("vmovdqu %0, %%ymm11 \n\t"::"m"(reg[7][0]):YMM_REGs);\
 }
 
-#if DEBUG
+#ifdef DEBUG_XMM
 
 #define DUMP_REG(REG) _DUMP_REG(REG, #REG) 
 #define DUMP_REG2(REG) _DUMP_REG(REG, #REG) 

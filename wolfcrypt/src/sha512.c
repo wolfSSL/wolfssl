@@ -97,7 +97,6 @@ int wc_Sha384Hash(const byte* data, word32 len, byte* out)
 
 #endif /* min */
 
-	//#undef USE_INTEL_SPEEDUP
 #if defined(USE_INTEL_SPEEDUP)
   #define HAVE_INTEL_AVX1
   #define HAVE_INTEL_AVX2
@@ -292,10 +291,11 @@ static void set_Transform(void) {
 #endif
 
 /* Dummy for saving MM_REGs on behalf of Transform */
-//#if defined(HAVE_INTEL_AVX2)
-//#define  SAVE_XMM_YMM   __asm__ volatile("orq %%r8, %%r8":::\
-//   "%ymm0","%ymm1","%ymm2","%ymm3","%ymm4","%ymm5","%ymm6","%ymm7","%ymm8","%ymm9","%ymm10","%ymm11",\
-//   "%ymm12","%ymm13","%ymm14","%ymm15")
+/* #if defined(HAVE_INTEL_AVX2)
+ #define  SAVE_XMM_YMM   __asm__ volatile("orq %%r8, %%r8":::\
+   "%ymm0","%ymm1","%ymm2","%ymm3","%ymm4","%ymm5","%ymm6","%ymm7","%ymm8","%ymm9","%ymm10","%ymm11",\
+   "%ymm12","%ymm13","%ymm14","%ymm15")
+*/
 #if defined(HAVE_INTEL_AVX1)
    #define  SAVE_XMM_YMM   __asm__ volatile("orq %%r8, %%r8":::\
     "xmm0","xmm1","xmm2","xmm3","xmm4","xmm5","xmm6","xmm7","xmm8","xmm9","xmm10","xmm11","xmm12","xmm13","xmm14","xmm15")
@@ -771,7 +771,6 @@ static word64 mBYTE_FLIP_MASK[] =  { 0x0001020304050607, 0x08090a0b0c0d0e0f } ;
 #define s0_(dest, src)       s0_1(dest, src) ; s0_2(dest, src) ; s0_3(dest, src)
 #define s1_(dest, src)       s1_1(dest, src) ; s1_2(dest, src) ; s1_3(dest, src)
         
-//static word64 W_X[16+4];
 #define Block_xx_1(i) \
     MOVE_to_REG(W_I_15, W_X[(i-15)&15]) ;\
     MOVE_to_REG(W_I_7,  W_X[(i- 7)&15]) ;\
