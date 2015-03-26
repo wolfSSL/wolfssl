@@ -7828,7 +7828,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
             case DES_EDE3_CBC_TYPE :
                 WOLFSSL_MSG("DES EDE3 CBC");
-                memcpy(ctx->iv, &ctx->cipher.des.reg, DES_BLOCK_SIZE);
+                memcpy(ctx->iv, &ctx->cipher.des3.reg, DES_BLOCK_SIZE);
                 break;
 #endif
 
@@ -7889,7 +7889,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
             case DES_EDE3_CBC_TYPE :
                 WOLFSSL_MSG("DES EDE3 CBC");
-                memcpy(&ctx->cipher.des.reg, ctx->iv, DES_BLOCK_SIZE);
+                memcpy(&ctx->cipher.des3.reg, ctx->iv, DES_BLOCK_SIZE);
                 break;
 #endif
 
