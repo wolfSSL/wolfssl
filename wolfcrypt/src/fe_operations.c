@@ -1250,8 +1250,6 @@ int fe_isnonzero(const fe f)
   unsigned char s[32];
   fe_tobytes(s,f);
   return ConstantCompare(s,zero,32);
-  // @TODO see if constant compare is what is inteded
-  //return crypto_verify_32(s,zero);
 }
 
 
