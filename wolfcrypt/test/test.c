@@ -3221,7 +3221,6 @@ int random_test(void)
     ret = wc_RNG_GenerateBlock(&rng, block, sizeof(block));
     if (ret != 0) return -40;
 
-    return 0;
     wc_FreeRng(&rng);
 
     return 0;
