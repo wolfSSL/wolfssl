@@ -1193,7 +1193,7 @@ const int sizeof_server_cert_der_2048 = sizeof(server_cert_der_2048);
 #endif /* USE_CERT_BUFFERS_1024 */
 
 /* dh1024 p */
-static unsigned char dh_p[] =
+static const unsigned char dh_p[] =
 {
     0xE6, 0x96, 0x9D, 0x3D, 0x49, 0x5B, 0xE3, 0x2C, 0x7C, 0xF1, 0x80, 0xC3,
     0xBD, 0xD4, 0x79, 0x8E, 0x91, 0xB7, 0x81, 0x82, 0x51, 0xBB, 0x05, 0x5E,
@@ -1209,7 +1209,7 @@ static unsigned char dh_p[] =
 };
 
 /* dh1024 g */
-static unsigned char dh_g[] =
+static const unsigned char dh_g[] =
 {
   0x02,
 };
