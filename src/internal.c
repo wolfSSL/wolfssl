@@ -812,6 +812,27 @@ void InitSuites(Suites* suites, ProtocolVersion pv, byte haveRSA, byte havePSK,
     }
 #endif
 
+#ifdef BUILD_TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256
+    if (tls1_2 && haveECDSAsig) {
+        suites->suites[idx++] = CHACHA_BYTE;
+        suites->suites[idx++] = TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256;
+    }
+#endif
+
+#ifdef BUILD_TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256
+    if (tls && haveRSA) {
+        suites->suites[idx++] = CHACHA_BYTE;
+        suites->suites[idx++] = TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256;
+    }
+#endif
+
+#ifdef BUILD_TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256
+    if (tls && haveRSA) {
+        suites->suites[idx++] = CHACHA_BYTE;
+        suites->suites[idx++] = TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256;
+    }
+#endif
+
 #ifdef BUILD_TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256
     if (tls1_2 && haveRSAsig) {
         suites->suites[idx++] = ECC_BYTE;
@@ -970,27 +991,6 @@ void InitSuites(Suites* suites, ProtocolVersion pv, byte haveRSA, byte havePSK,
     if (tls && haveRSA) {
         suites->suites[idx++] = ECC_BYTE;
         suites->suites[idx++] = TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA;
-    }
-#endif
-
-#ifdef BUILD_TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256
-    if (tls && haveRSA) {
-        suites->suites[idx++] = CHACHA_BYTE;
-        suites->suites[idx++] = TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256;
-    }
-#endif
-
-#ifdef BUILD_TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256
-    if (tls1_2 && haveECDSAsig) {
-        suites->suites[idx++] = CHACHA_BYTE;
-        suites->suites[idx++] = TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256;
-    }
-#endif
-
-#ifdef BUILD_TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256
-    if (tls && haveRSA) {
-        suites->suites[idx++] = CHACHA_BYTE;
-        suites->suites[idx++] = TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256;
     }
 #endif
 

@@ -409,7 +409,7 @@ AM_CONDITIONAL([BUILD_AESNI], [test "x$ENABLED_AESNI" = "xyes"])
 AC_ARG_ENABLE([poly1305],
     [AS_HELP_STRING([--enable-poly1305],[Enable wolfSSL POLY1305 support (default: disabled)])],
     [ ENABLED_POLY1305=$enableval ],
-    [ ENABLED_POLY1305=no ]
+    [ ENABLED_POLY1305=yes ]
     )
 
 if test "$ENABLED_POLY1305" = "yes"
@@ -1124,7 +1124,7 @@ AM_CONDITIONAL([BUILD_RABBIT], [test "x$ENABLED_RABBIT" = "xyes"])
 AC_ARG_ENABLE([chacha],
     [  --enable-chacha         Enable CHACHA (default: disabled)],
     [ ENABLED_CHACHA=$enableval ],
-    [ ENABLED_CHACHA=no ]
+    [ ENABLED_CHACHA=yes ]
     )
 
 if test "$ENABLED_CHACHA" = "yes"
