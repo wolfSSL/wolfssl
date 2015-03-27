@@ -804,7 +804,6 @@ __asm__ volatile("movl  %r8d, "#h"\n\t"); \
 
 #if defined(HAVE_INTEL_AVX1) /* inline Assember for Intel AVX1 instructions */
 
-#define voitle
 #define VPALIGNR(op1,op2,op3,op4) __asm__ volatile("vpalignr $"#op4", %"#op3", %"#op2", %"#op1:::XMM_REGs) 
 #define VPADDD(op1,op2,op3)       __asm__ volatile("vpaddd %"#op3", %"#op2", %"#op1:::XMM_REGs)
 #define VPSRLD(op1,op2,op3)       __asm__ volatile("vpsrld $"#op3", %"#op2", %"#op1:::XMM_REGs)
@@ -814,7 +813,6 @@ __asm__ volatile("movl  %r8d, "#h"\n\t"); \
 #define VPXOR(op1,op2,op3)        __asm__ volatile("vpxor  %"#op3", %"#op2", %"#op1:::XMM_REGs)
 #define VPSHUFD(op1,op2,op3)      __asm__ volatile("vpshufd $"#op3", %"#op2", %"#op1:::XMM_REGs)
 #define VPSHUFB(op1,op2,op3)      __asm__ volatile("vpshufb %"#op3", %"#op2", %"#op1:::XMM_REGs)
-#undef voitle
 
 #define MessageSched(X0, X1, X2, X3, XTMP0, XTMP1, XTMP2, XTMP3, XTMP4, XTMP5, XFER, SHUF_00BA, SHUF_DC00,\
      a,b,c,d,e,f,g,h,_i)\
@@ -986,9 +984,9 @@ __asm__ volatile("movl  %r8d, "#h"\n\t"); \
 
 #define SET_W_K_XFER(reg, i) _SET_W_K_XFER(reg, i)
 
-static word64 mSHUF_00BA[] = { 0x0b0a090803020100, 0xFFFFFFFFFFFFFFFF } ; /* shuffle xBxA -> 00BA */
-static word64 mSHUF_DC00[] = { 0xFFFFFFFFFFFFFFFF, 0x0b0a090803020100 } ; /* shuffle xDxC -> DC00 */
-static word64 mBYTE_FLIP_MASK[] =  { 0x0405060700010203, 0x0c0d0e0f08090a0b } ;
+static const __attribute__((aligned(32))) word64 mSHUF_00BA[] = { 0x0b0a090803020100, 0xFFFFFFFFFFFFFFFF } ; /* shuffle xBxA -> 00BA */
+static const __attribute__((aligned(32))) word64 mSHUF_DC00[] = { 0xFFFFFFFFFFFFFFFF, 0x0b0a090803020100 } ; /* shuffle xDxC -> DC00 */
+static const __attribute__((aligned(32))) word64 mBYTE_FLIP_MASK[] =  { 0x0405060700010203, 0x0c0d0e0f08090a0b } ;
 
 
 #define _Init_Masks(mask1, mask2, mask3)\
@@ -1212,44 +1210,6 @@ static int Transform_AVX1_RORX(Sha256* sha256)
 
 #if defined(HAVE_INTEL_AVX2)
 
-#define _DUMP_REG(REG, name)\
-    { unsigned int buf[16] ;unsigned int reg[8][8];int k ;\
-    __asm__ volatile("vmovdqu %%ymm4, %0 \n\t":"=m"(reg[0][0])::YMM_REGs);\
-    __asm__ volatile("vmovdqu %%ymm5, %0 \n\t":"=m"(reg[1][0])::YMM_REGs);\
-    __asm__ volatile("vmovdqu %%ymm6, %0 \n\t":"=m"(reg[2][0])::YMM_REGs);\
-    __asm__ volatile("vmovdqu %%ymm7, %0 \n\t":"=m"(reg[3][0])::YMM_REGs);\
-    __asm__ volatile("vmovdqu %%ymm8, %0 \n\t":"=m"(reg[4][0])::YMM_REGs);\
-    __asm__ volatile("vmovdqu %%ymm9, %0 \n\t":"=m"(reg[5][0])::YMM_REGs);\
-    __asm__ volatile("vmovdqu %%ymm10, %0 \n\t":"=m"(reg[6][0])::YMM_REGs);\
-    __asm__ volatile("vmovdqu %%ymm11, %0 \n\t":"=m"(reg[7][0])::YMM_REGs);\
-    __asm__ volatile("vmovdqu %%"#REG", %0 \n\t":"=m"(buf[0])::YMM_REGs);\
-    printf(" "#name":\t") ; for(k=0; k<8; k++) printf("%08x.", buf[k]) ; printf("\n") ; \
-    __asm__ volatile("vmovdqu %0, %%ymm4 \n\t"::"m"(reg[0][0]):YMM_REGs);\
-    __asm__ volatile("vmovdqu %0, %%ymm5 \n\t"::"m"(reg[1][0]):YMM_REGs);\
-    __asm__ volatile("vmovdqu %0, %%ymm6 \n\t"::"m"(reg[2][0]):YMM_REGs);\
-    __asm__ volatile("vmovdqu %0, %%ymm7 \n\t"::"m"(reg[3][0]):YMM_REGs);\
-    __asm__ volatile("vmovdqu %0, %%ymm8 \n\t"::"m"(reg[4][0]):YMM_REGs);\
-    __asm__ volatile("vmovdqu %0, %%ymm9 \n\t"::"m"(reg[5][0]):YMM_REGs);\
-    __asm__ volatile("vmovdqu %0, %%ymm10 \n\t"::"m"(reg[6][0]):YMM_REGs);\
-    __asm__ volatile("vmovdqu %0, %%ymm11 \n\t"::"m"(reg[7][0]):YMM_REGs);\
-}
-
-#ifdef DEBUG_XMM
-
-#define DUMP_REG(REG) _DUMP_REG(REG, #REG) 
-#define DUMP_REG2(REG) _DUMP_REG(REG, #REG) 
-#define PRINTF(fmt, ...) 
-
-#else
-
-#define DUMP_REG(REG) 
-#define DUMP_REG2(REG)
-#define PRINTF(fmt, ...) 
-
-#endif
-
-#define DUMP_ALL DUMP_REG(W_I_16) ; DUMP_REG(W_I_15) ; DUMP_REG(W_I_7) ; DUMP_REG(W_I_2) ; DUMP_REG(W_I) ;
-   
 #define _MOVE_to_REG(ymm, mem)       __asm__ volatile("vmovdqu %0, %%"#ymm" ":: "m"(mem):YMM_REGs) ;
 #define _MOVE_to_MEM(mem, ymm)       __asm__ volatile("vmovdqu %%"#ymm", %0" : "=m"(mem)::YMM_REGs) ;
 #define _BYTE_SWAP(ymm, map)              __asm__ volatile("vpshufb %0, %%"#ymm", %%"#ymm"\n\t"\
@@ -1317,7 +1277,7 @@ static int Transform_AVX1_RORX(Sha256* sha256)
 
 #define    FEEDBACK1_to_W_I_2    MOVE_BYTE(YMM_TEMP0, W_I, mMAP1toW_I_2[0]) ; \
     BLEND(0x0c, W_I_2, YMM_TEMP0, W_I_2) ;
-#define    FEEDBACK2_to_W_I_2    MOVE_128(YMM_TEMP0, W_I, W_I, 0x08) ; DUMP_REG(YMM_TEMP0) ; \
+#define    FEEDBACK2_to_W_I_2    MOVE_128(YMM_TEMP0, W_I, W_I, 0x08) ;  \
     MOVE_BYTE(YMM_TEMP0, YMM_TEMP0, mMAP2toW_I_2[0]) ; BLEND(0x30, W_I_2, YMM_TEMP0, W_I_2) ; 
 #define    FEEDBACK3_to_W_I_2    MOVE_BYTE(YMM_TEMP0, W_I, mMAP3toW_I_2[0]) ; \
     BLEND(0xc0, W_I_2, YMM_TEMP0, W_I_2) ; 
@@ -1518,7 +1478,7 @@ static int Transform_AVX2(Sha256* sha256)
                 RND_2_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,14) ;
         ADD(W_I, W_I_TEMP, YMM_TEMP0) ; /* now W[16..23] are completed */
                 RND_1_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,15) ;
-        DUMP_ALL ;  
+
         MOVE_to_REG(YMM_TEMP0, K[16]) ;    
                 RND_1_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,15) ;
         ROTATE_W(W_I_16, W_I_15, W_I_7, W_I_2, W_I) ;
@@ -1570,7 +1530,7 @@ static int Transform_AVX2(Sha256* sha256)
                 RND_2_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,22) ;
         ADD(W_I, W_I_TEMP, YMM_TEMP0) ; /* now W[16..23] are completed */
                 RND_1_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,23) ;
-        DUMP_ALL ;  
+
         MOVE_to_REG(YMM_TEMP0, K[24]) ;    
                 RND_1_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,23) ;
         ROTATE_W(W_I_16, W_I_15, W_I_7, W_I_2, W_I) ;
@@ -1621,7 +1581,7 @@ static int Transform_AVX2(Sha256* sha256)
                 RND_2_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,30) ;
         ADD(W_I, W_I_TEMP, YMM_TEMP0) ; /* now W[16..23] are completed */
                 RND_1_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,31) ;
-        DUMP_ALL ;  
+
         MOVE_to_REG(YMM_TEMP0, K[32]) ;    
                 RND_1_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,31) ;
         ROTATE_W(W_I_16, W_I_15, W_I_7, W_I_2, W_I) ;
@@ -1674,7 +1634,7 @@ static int Transform_AVX2(Sha256* sha256)
                 RND_2_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,38) ;
         ADD(W_I, W_I_TEMP, YMM_TEMP0) ; /* now W[16..23] are completed */
                 RND_1_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,39) ;
-        DUMP_ALL ;  
+
         MOVE_to_REG(YMM_TEMP0, K[40]) ;    
                 RND_1_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,39) ;
         ROTATE_W(W_I_16, W_I_15, W_I_7, W_I_2, W_I) ;
@@ -1726,7 +1686,7 @@ static int Transform_AVX2(Sha256* sha256)
                 RND_2_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,46) ;
         ADD(W_I, W_I_TEMP, YMM_TEMP0) ; /* now W[16..23] are completed */
                 RND_1_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,47) ;
-        DUMP_ALL ;  
+
         MOVE_to_REG(YMM_TEMP0, K[48]) ;    
                 RND_1_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,47) ;
         ROTATE_W(W_I_16, W_I_15, W_I_7, W_I_2, W_I) ;
@@ -1778,7 +1738,7 @@ static int Transform_AVX2(Sha256* sha256)
                 RND_2_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,54) ;
         ADD(W_I, W_I_TEMP, YMM_TEMP0) ; /* now W[16..23] are completed */
                 RND_1_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,55) ;
-        DUMP_ALL ;  
+
         MOVE_to_REG(YMM_TEMP0, K[56]) ;    
                 RND_1_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,55) ;
         ROTATE_W(W_I_16, W_I_15, W_I_7, W_I_2, W_I) ;
