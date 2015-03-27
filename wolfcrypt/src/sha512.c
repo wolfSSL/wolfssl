@@ -874,22 +874,22 @@ static inline void Block_12_12(word64 *W_X){ Block_xx_12(14) ; }
 #endif
 
 #if defined(HAVE_INTEL_AVX2)
-static unsigned long mBYTE_FLIP_MASK_Y[] =
+static const unsigned long mBYTE_FLIP_MASK_Y[] =
    { 0x0001020304050607, 0x08090a0b0c0d0e0f, 0x0001020304050607, 0x08090a0b0c0d0e0f } ;
 
 #define W_from_buff_Y(buff)\
     { /* X0..3(ymm9..12), W_X[0..15] = sha512->buffer[0.15];  */\
-     __asm__ volatile("vmovdqu %0, %%ymm8\n\t"::"m"(mBYTE_FLIP_MASK_Y[0]):"%ymm1") ;\
+     __asm__ volatile("vmovdqu %0, %%ymm8\n\t"::"m"(mBYTE_FLIP_MASK_Y[0]):YMM_REGs) ;\
      __asm__ volatile("vmovdqu %0, %%ymm12\n\t"\
                       "vmovdqu %1, %%ymm4\n\t"\
                       "vpshufb %%ymm8, %%ymm12, %%ymm12\n\t"\
                       "vpshufb %%ymm8, %%ymm4, %%ymm4\n\t"\
-                      :: "m"(buff[0]),  "m"(buff[4]):"%ymm8","%ymm9","%ymm10") ;\
+                      :: "m"(buff[0]),  "m"(buff[4]):YMM_REGs) ;\
      __asm__ volatile("vmovdqu %0, %%ymm5\n\t"\
                       "vmovdqu %1, %%ymm6\n\t"\
                       "vpshufb %%ymm8, %%ymm5, %%ymm5\n\t"\
                       "vpshufb %%ymm8, %%ymm6, %%ymm6\n\t"\
-                      :: "m"(buff[8]),  "m"(buff[12]):"%ymm8","%ymm9","%ymm10") ;\
+                      :: "m"(buff[8]),  "m"(buff[12]):YMM_REGs) ;\
     }
 
 #if defined(DEBUG_YMM)
