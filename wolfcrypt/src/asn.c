@@ -1318,40 +1318,6 @@ int wc_DhKeyDecode(const byte* input, word32* inOutIdx, DhKey* key, word32 inSz)
     return 0;
 }
 
-int wc_DhSetKey(DhKey* key, const byte* p, word32 pSz, const byte* g, word32 gSz)
-{
-    if (key == NULL || p == NULL || g == NULL || pSz == 0 || gSz == 0)
-        return BAD_FUNC_ARG;
-
-    /* may have leading 0 */
-    if (p[0] == 0) {
-        pSz--; p++;
-    }
-
-    if (g[0] == 0) {
-        gSz--; g++;
-    }
-
-    if (mp_init(&key->p) != MP_OKAY)
-        return MP_INIT_E;
-    if (mp_read_unsigned_bin(&key->p, p, pSz) != 0) {
-        mp_clear(&key->p);
-        return ASN_DH_KEY_E;
-    }
-
-    if (mp_init(&key->g) != MP_OKAY) {
-        mp_clear(&key->p);
-        return MP_INIT_E;
-    }
-    if (mp_read_unsigned_bin(&key->g, g, gSz) != 0) {
-        mp_clear(&key->g);
-        mp_clear(&key->p);
-        return ASN_DH_KEY_E;
-    }
-
-    return 0;
-}
-
 
 int wc_DhParamsLoad(const byte* input, word32 inSz, byte* p, word32* pInOutSz,
                  byte* g, word32* gInOutSz)

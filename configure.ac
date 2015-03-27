@@ -871,8 +871,8 @@ fi
 
 
 # ASN
-# turn off asn, which means no certs, no rsa, no dh, no dsa, no ecc,
-# and no big int, use this to disable all public key stuff
+# turn off asn, which means no certs, no rsa, no dsa, no ecc,
+# and no big int (unless dh is on)
 AC_ARG_ENABLE([asn],
     [  --enable-asn            Enable ASN (default: enabled)],
     [ ENABLED_ASN=$enableval ],
@@ -881,7 +881,12 @@ AC_ARG_ENABLE([asn],
 
 if test "$ENABLED_ASN" = "no"
 then
-    AM_CFLAGS="$AM_CFLAGS -DNO_ASN -DNO_CERTS -DNO_BIG_INT"
+    AM_CFLAGS="$AM_CFLAGS -DNO_ASN -DNO_CERTS"
+    if test "$ENABLED_DH" = "no"
+    then
+        # DH needs bigint
+        AM_CFLAGS="$AM_CFLAGS -DNO_BIG_INT"
+    fi
 else
     # turn off ASN if leanpsk on
     if test "$ENABLED_LEANPSK" = "yes"
@@ -901,11 +906,6 @@ then
     AC_MSG_ERROR([please disable dsa if disabling asn.])
 fi
 
-if test "$ENABLED_DH" = "yes" && test "$ENABLED_ASN" = "no"
-then
-    AC_MSG_ERROR([please disable dh if disabling asn.])
-fi
-
 if test "$ENABLED_ECC" = "yes" && test "$ENABLED_ASN" = "no"
 then
     AC_MSG_ERROR([please disable ecc if disabling asn.])
@@ -916,7 +916,8 @@ then
     AC_MSG_ERROR([please enable psk if disabling asn.])
 fi
 
-if test "$ENABLED_ASN" = "no"
+# DH needs bigint
+if test "$ENABLED_ASN" = "no" && test "$ENABLED_DH" = "no"
 then
     ENABLED_FASTMATH=no
     ENABLED_SLOWMATH=no
@@ -1623,10 +1624,16 @@ AC_ARG_ENABLE([fastmath],
 
 if test "x$ENABLED_FASTMATH" = "xyes"
 then
-    # turn off fastmth if leanpsk on or asn off
+    # turn off fastmth if leanpsk on or asn off (w/o dh)
     if test "$ENABLED_LEANPSK" = "yes" || test "$ENABLED_ASN" = "no"
     then
-        ENABLED_FASTMATH=no
+        if test "$ENABLED_DH" = "no"
+        then
+            ENABLED_FASTMATH=no
+        else
+            AM_CFLAGS="$AM_CFLAGS -DUSE_FAST_MATH"
+            ENABLED_SLOWMATH="no"
+        fi
     else
         AM_CFLAGS="$AM_CFLAGS -DUSE_FAST_MATH"
         ENABLED_SLOWMATH="no"

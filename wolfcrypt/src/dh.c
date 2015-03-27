@@ -174,5 +174,42 @@ int wc_DhAgree(DhKey* key, byte* agree, word32* agreeSz, const byte* priv,
 }
 
 
+/* not in asn anymore since no actual asn types used */
+int wc_DhSetKey(DhKey* key, const byte* p, word32 pSz, const byte* g,
+                word32 gSz)
+{
+    if (key == NULL || p == NULL || g == NULL || pSz == 0 || gSz == 0)
+        return BAD_FUNC_ARG;
+
+    /* may have leading 0 */
+    if (p[0] == 0) {
+        pSz--; p++;
+    }
+
+    if (g[0] == 0) {
+        gSz--; g++;
+    }
+
+    if (mp_init(&key->p) != MP_OKAY)
+        return MP_INIT_E;
+    if (mp_read_unsigned_bin(&key->p, p, pSz) != 0) {
+        mp_clear(&key->p);
+        return ASN_DH_KEY_E;
+    }
+
+    if (mp_init(&key->g) != MP_OKAY) {
+        mp_clear(&key->p);
+        return MP_INIT_E;
+    }
+    if (mp_read_unsigned_bin(&key->g, g, gSz) != 0) {
+        mp_clear(&key->g);
+        mp_clear(&key->p);
+        return ASN_DH_KEY_E;
+    }
+
+    return 0;
+}
+
+
 #endif /* NO_DH */
 

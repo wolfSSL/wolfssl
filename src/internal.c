@@ -29,6 +29,7 @@
 #include <wolfssl/internal.h>
 #include <wolfssl/error-ssl.h>
 #include <wolfssl/wolfcrypt/asn.h>
+#include <wolfssl/wolfcrypt/dh.h>
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
 #else
@@ -426,9 +427,11 @@ void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
     if (ctx->suites)
         XFREE(ctx->suites, ctx->heap, DYNAMIC_TYPE_SUITES);
 
-#ifndef NO_CERTS
+#ifndef NO_DH
     XFREE(ctx->serverDH_G.buffer, ctx->heap, DYNAMIC_TYPE_DH);
     XFREE(ctx->serverDH_P.buffer, ctx->heap, DYNAMIC_TYPE_DH);
+#endif
+#ifndef NO_CERTS
     XFREE(ctx->privateKey.buffer, ctx->heap, DYNAMIC_TYPE_KEY);
     XFREE(ctx->certificate.buffer, ctx->heap, DYNAMIC_TYPE_CERT);
     XFREE(ctx->certChain.buffer, ctx->heap, DYNAMIC_TYPE_CERT);
@@ -1548,15 +1551,17 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
     ssl->options.quietShutdown = ctx->quietShutdown;
     ssl->options.groupMessages = ctx->groupMessages;
 
+#ifndef NO_DH
+    if (ssl->options.side == WOLFSSL_SERVER_END) {
+        ssl->buffers.serverDH_P = ctx->serverDH_P;
+        ssl->buffers.serverDH_G = ctx->serverDH_G;
+    }
+#endif
 #ifndef NO_CERTS
     /* ctx still owns certificate, certChain, key, dh, and cm */
     ssl->buffers.certificate = ctx->certificate;
     ssl->buffers.certChain = ctx->certChain;
     ssl->buffers.key = ctx->privateKey;
-    if (ssl->options.side == WOLFSSL_SERVER_END) {
-        ssl->buffers.serverDH_P = ctx->serverDH_P;
-        ssl->buffers.serverDH_G = ctx->serverDH_G;
-    }
 #endif
 
 #ifdef WOLFSSL_DTLS
@@ -1725,7 +1730,7 @@ void SSL_ResourceFree(WOLFSSL* ssl)
     XFREE(ssl->hsHashes, ssl->heap, DYNAMIC_TYPE_HASHES);
     XFREE(ssl->buffers.domainName.buffer, ssl->heap, DYNAMIC_TYPE_DOMAIN);
 
-#ifndef NO_CERTS
+#ifndef NO_DH
     XFREE(ssl->buffers.serverDH_Priv.buffer, ssl->heap, DYNAMIC_TYPE_DH);
     XFREE(ssl->buffers.serverDH_Pub.buffer, ssl->heap, DYNAMIC_TYPE_DH);
     /* parameters (p,g) may be owned by ctx */
@@ -1733,7 +1738,8 @@ void SSL_ResourceFree(WOLFSSL* ssl)
         XFREE(ssl->buffers.serverDH_G.buffer, ssl->heap, DYNAMIC_TYPE_DH);
         XFREE(ssl->buffers.serverDH_P.buffer, ssl->heap, DYNAMIC_TYPE_DH);
     }
-
+#endif
+#ifndef NO_CERTS
     if (ssl->buffers.weOwnCert)
         XFREE(ssl->buffers.certificate.buffer, ssl->heap, DYNAMIC_TYPE_CERT);
     if (ssl->buffers.weOwnCertChain)
@@ -1890,7 +1896,7 @@ void FreeHandshakeResources(WOLFSSL* ssl)
         ssl->eccTempKey = NULL;
     }
 #endif
-#ifndef NO_CERTS
+#ifndef NO_DH
     XFREE(ssl->buffers.serverDH_Priv.buffer, ssl->heap, DYNAMIC_TYPE_DH);
     ssl->buffers.serverDH_Priv.buffer = NULL;
     XFREE(ssl->buffers.serverDH_Pub.buffer, ssl->heap, DYNAMIC_TYPE_DH);
@@ -1902,7 +1908,8 @@ void FreeHandshakeResources(WOLFSSL* ssl)
         XFREE(ssl->buffers.serverDH_P.buffer, ssl->heap, DYNAMIC_TYPE_DH);
         ssl->buffers.serverDH_P.buffer = NULL;
     }
-
+#endif
+#ifndef NO_CERTS
     if (ssl->buffers.weOwnCert) {
         XFREE(ssl->buffers.certificate.buffer, ssl->heap, DYNAMIC_TYPE_CERT);
         ssl->buffers.certificate.buffer = NULL;
@@ -9895,6 +9902,8 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
         byte    hashAlgo = sha_mac;
         byte    sigAlgo  = ssl->specs.sig_algo;
         word16  verifySz = (word16) (*inOutIdx - begin);
+
+        (void)hash;
 
         /* save message for hash verify */
         if (verifySz > MAX_DH_SZ)

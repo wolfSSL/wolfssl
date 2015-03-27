@@ -93,7 +93,8 @@
     #define SHOW_INTEL_CYCLES
 #endif
 
-#if defined(USE_CERT_BUFFERS_1024) || defined(USE_CERT_BUFFERS_2048)
+#if defined(USE_CERT_BUFFERS_1024) || defined(USE_CERT_BUFFERS_2048) \
+                                   || !defined(NO_DH)
     /* include test cert and key buffers for use with NO_FILESYSTEM */
     #if defined(WOLFSSL_MDK_ARM)
         #include "cert_data.h" /* use certs_test.c for initial data, 
@@ -1218,6 +1219,8 @@ void bench_rsa(void)
         void set_Bench_DH_File(char * cert) { certDHname = cert ; }
     #elif defined(FREESCALE_MQX)
         static char *certDHname = "a:\\certs\\dh2048.der";
+    #elif defined(NO_ASN)
+        /* do nothing, but don't need a file */
     #else
         static const char *certDHname = "certs/dh2048.der";
     #endif
@@ -1240,6 +1243,9 @@ void bench_dh(void)
     DhKey  dhKey;
     int    dhKeySz = 2048; /* used in printf */
 
+    (void)idx;
+    (void)tmp;
+
 	
 #ifdef USE_CERT_BUFFERS_1024
     XMEMCPY(tmp, dh_key_der_1024, sizeof_dh_key_der_1024);
@@ -1248,6 +1254,9 @@ void bench_dh(void)
 #elif defined(USE_CERT_BUFFERS_2048)
     XMEMCPY(tmp, dh_key_der_2048, sizeof_dh_key_der_2048);
     bytes = sizeof_dh_key_der_2048;
+#elif defined(NO_ASN)
+    dhKeySz = 1024;
+    /* do nothing, but don't use default FILE */
 #else
     FILE*  file = fopen(certDHname, "rb");
 
@@ -1261,12 +1270,16 @@ void bench_dh(void)
 
 		
     wc_InitDhKey(&dhKey);
+#ifdef NO_ASN
+    bytes = wc_DhSetKey(&dhKey, dh_p, sizeof(dh_p), dh_g, sizeof(dh_g));
+#else
     bytes = wc_DhKeyDecode(tmp, &idx, &dhKey, (word32)bytes);
+    #if !defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048)
+        fclose(file);
+    #endif
+#endif
     if (bytes != 0) {
         printf("dhekydecode failed, can't benchmark\n");
-        #if !defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048)
-            fclose(file);
-        #endif
         return;
     }
 
@@ -1295,9 +1308,6 @@ void bench_dh(void)
     printf("DH  %d key agreement   %6.3f milliseconds, avg over %d"
            " iterations\n", dhKeySz, milliEach, ntimes);
 
-#if !defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048)
-    fclose(file);
-#endif
     wc_FreeDhKey(&dhKey);
 }
 #endif

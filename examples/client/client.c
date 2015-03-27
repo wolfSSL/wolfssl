@@ -531,12 +531,15 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         wolfSSL_CTX_set_psk_client_callback(ctx, my_psk_client_cb);
         if (cipherList == NULL) {
             const char *defaultCipherList;
-            #ifdef HAVE_NULL_CIPHER
+            #if defined(HAVE_AESGCM) && !defined(NO_DH)
+                defaultCipherList = "DHE-PSK-AES128-GCM-SHA256";
+            #elif defined(HAVE_NULL_CIPHER)
                 defaultCipherList = "PSK-NULL-SHA256";
             #else
                 defaultCipherList = "PSK-AES128-CBC-SHA256";
             #endif
-            if (wolfSSL_CTX_set_cipher_list(ctx,defaultCipherList) !=SSL_SUCCESS)
+            if (wolfSSL_CTX_set_cipher_list(ctx,defaultCipherList)
+                                                                  !=SSL_SUCCESS)
                 err_sys("client can't set cipher list 2");
         }
 #endif

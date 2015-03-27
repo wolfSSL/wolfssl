@@ -5606,11 +5606,11 @@ static INLINE word32 HashSession(const byte* sessionID, word32 len, int* error)
     byte digest[MAX_DIGEST_SIZE];
 
 #ifndef NO_MD5
-    *error =    wc_Md5Hash(sessionID, len, digest);
+    *error =  wc_Md5Hash(sessionID, len, digest);
 #elif !defined(NO_SHA)
-    *error =    wc_ShaHash(sessionID, len, digest);
+    *error =  wc_ShaHash(sessionID, len, digest);
 #elif !defined(NO_SHA256)
-    *error = Sha256Hash(sessionID, len, digest);
+    *error =  wc_Sha256Hash(sessionID, len, digest);
 #else
     #error "We need a digest to hash the session IDs"
 #endif

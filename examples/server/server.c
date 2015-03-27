@@ -168,6 +168,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     int    usePsk = 0;
     int    useAnon = 0;
     int    doDTLS = 0;
+    int    needDH = 0;
     int    useNtruKey   = 0;
     int    nonBlocking  = 0;
     int    trackMemory  = 0;
@@ -201,6 +202,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 #endif
     (void)trackMemory;
     (void)pkCallbacks;
+    (void)needDH;
 
 #ifdef CYASSL_TIRTOS
     fdOpenSession(Task_self());
@@ -444,7 +446,10 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
         SSL_CTX_use_psk_identity_hint(ctx, "cyassl server");
         if (cipherList == NULL) {
             const char *defaultCipherList;
-            #ifdef HAVE_NULL_CIPHER
+            #if defined(HAVE_AESGCM) && !defined(NO_DH)
+                defaultCipherList = "DHE-PSK-AES128-GCM-SHA256";
+                needDH = 1;
+            #elif defined(HAVE_NULL_CIPHER)
                 defaultCipherList = "PSK-NULL-SHA256";
             #else
                 defaultCipherList = "PSK-AES128-CBC-SHA256";
@@ -522,8 +527,8 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
         CloseSocket(sockfd);
 
     SSL_set_fd(ssl, clientfd);
-    if (usePsk == 0 || useAnon == 1 || cipherList != NULL) {
-        #if !defined(NO_FILESYSTEM) && !defined(NO_DH)
+    if (usePsk == 0 || useAnon == 1 || cipherList != NULL || needDH == 1) {
+        #if !defined(NO_FILESYSTEM) && !defined(NO_DH) && !defined(NO_ASN)
             CyaSSL_SetTmpDH_file(ssl, dhParam, SSL_FILETYPE_PEM);
         #elif !defined(NO_DH)
             SetDH(ssl);  /* repick suites with DHE, higher priority than PSK */

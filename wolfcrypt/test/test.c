@@ -95,7 +95,8 @@
 #endif
 
 
-#if defined(USE_CERT_BUFFERS_1024) || defined(USE_CERT_BUFFERS_2048)
+#if defined(USE_CERT_BUFFERS_1024) || defined(USE_CERT_BUFFERS_2048) \
+                                   || !defined(NO_DH)
     /* include test cert and key buffers for use with NO_FILESYSTEM */
     #if defined(WOLFSSL_MDK_ARM)
         #include "cert_data.h"
@@ -4241,6 +4242,8 @@ int rsa_test(void)
 #if !defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048)
     #ifdef FREESCALE_MQX
         static const char* dhKey = "a:\\certs\\dh2048.der";
+    #elif defined(NO_ASN)
+        /* don't use file, no DER parsing */
     #else
         static const char* dhKey = "./certs/dh2048.der";
     #endif
@@ -4262,6 +4265,9 @@ int dh_test(void)
     DhKey  key2;
     RNG    rng;
 
+    (void)idx;
+    (void)tmp;
+    (void)bytes;
 
 #ifdef USE_CERT_BUFFERS_1024
     XMEMCPY(tmp, dh_key_der_1024, sizeof_dh_key_der_1024);
@@ -4269,6 +4275,8 @@ int dh_test(void)
 #elif defined(USE_CERT_BUFFERS_2048)
     XMEMCPY(tmp, dh_key_der_2048, sizeof_dh_key_der_2048);
     bytes = sizeof_dh_key_der_2048;
+#elif defined(NO_ASN)
+    /* don't use file, no DER parsing */
 #else
     FILE*  file = fopen(dhKey, "rb");
 
@@ -4281,6 +4289,15 @@ int dh_test(void)
 
     wc_InitDhKey(&key);
     wc_InitDhKey(&key2);
+#ifdef NO_ASN
+    ret = wc_DhSetKey(&key, dh_p, sizeof(dh_p), dh_g, sizeof(dh_g));
+    if (ret != 0)
+        return -51;
+
+    ret = wc_DhSetKey(&key2, dh_p, sizeof(dh_p), dh_g, sizeof(dh_g));
+    if (ret != 0)
+        return -51;
+#else
     ret = wc_DhKeyDecode(tmp, &idx, &key, bytes);
     if (ret != 0)
         return -51;
@@ -4289,6 +4306,7 @@ int dh_test(void)
     ret = wc_DhKeyDecode(tmp, &idx, &key2, bytes);
     if (ret != 0)
         return -52;
+#endif
 
     ret = wc_InitRng(&rng);
     if (ret != 0)

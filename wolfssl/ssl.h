@@ -876,8 +876,7 @@ WOLFSSL_API WOLFSSL_X509*
 /* connect enough to get peer cert */
 WOLFSSL_API int  wolfSSL_connect_cert(WOLFSSL* ssl);
 
-/* XXX This should be #ifndef NO_DH */
-#ifndef NO_CERTS
+#ifndef NO_DH
 /* server Diffie-Hellman parameters */
 WOLFSSL_API int  wolfSSL_SetTmpDH(WOLFSSL*, const unsigned char* p, int pSz,
                                 const unsigned char* g, int gSz);
@@ -899,7 +898,7 @@ WOLFSSL_API int  wolfSSL_CTX_SetTmpEC_DHE_Sz(WOLFSSL_CTX*, unsigned short);
     WOLFSSL_API int  wolfSSL_CTX_SetTmpDH_file(WOLFSSL_CTX*, const char* f,
                                              int format);
 #endif
-#endif
+#endif /* NO_DH */
 
 /* keyblock size in bytes or -1 */
 /* need to call wolfSSL_KeepArrays before handshake to save keys */

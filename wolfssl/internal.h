@@ -463,7 +463,8 @@ typedef byte word24[3];
 #endif
 
 #if defined(BUILD_TLS_RSA_WITH_AES_128_GCM_SHA256) || \
-    defined(BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256)
+    defined(BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256) || \
+    defined(BUILD_TLS_PSK_WITH_AES_128_GCM_SHA256)
     #define BUILD_AESGCM
 #endif
 
@@ -1417,13 +1418,15 @@ struct WOLFSSL_CTX {
     WOLFSSL_METHOD* method;
     wolfSSL_Mutex   countMutex;    /* reference count mutex */
     int         refCount;         /* reference count */
+#ifndef NO_DH
+    buffer      serverDH_P;
+    buffer      serverDH_G;
+#endif
 #ifndef NO_CERTS
     buffer      certificate;
     buffer      certChain;
                  /* chain after self, in DER, with leading size for each cert */
     buffer      privateKey;
-    buffer      serverDH_P;
-    buffer      serverDH_G;
     WOLFSSL_CERT_MANAGER* cm;      /* our cert manager, ctx owns SSL will use */
 #endif
     Suites*     suites;           /* make dynamic, user may not need/set */
@@ -1753,15 +1756,17 @@ typedef struct Buffers {
     byte            weOwnCertChain;        /* SSL own cert chain flag */
     byte            weOwnKey;              /* SSL own key  flag */
     byte            weOwnDH;               /* SSL own dh (p,g)  flag */
-#ifndef NO_CERTS
-    buffer          certificate;            /* WOLFSSL_CTX owns, unless we own */
-    buffer          key;                    /* WOLFSSL_CTX owns, unless we own */
-    buffer          certChain;              /* WOLFSSL_CTX owns, unless we own */
-                 /* chain after self, in DER, with leading size for each cert */
-    buffer          serverDH_P;             /* WOLFSSL_CTX owns, unless we own */
-    buffer          serverDH_G;             /* WOLFSSL_CTX owns, unless we own */
+#ifndef NO_DH
+    buffer          serverDH_P;            /* WOLFSSL_CTX owns, unless we own */
+    buffer          serverDH_G;            /* WOLFSSL_CTX owns, unless we own */
     buffer          serverDH_Pub;
     buffer          serverDH_Priv;
+#endif
+#ifndef NO_CERTS
+    buffer          certificate;           /* WOLFSSL_CTX owns, unless we own */
+    buffer          key;                   /* WOLFSSL_CTX owns, unless we own */
+    buffer          certChain;             /* WOLFSSL_CTX owns, unless we own */
+                 /* chain after self, in DER, with leading size for each cert */
 #endif
 #ifdef WOLFSSL_DTLS
     WOLFSSL_DTLS_CTX dtlsCtx;               /* DTLS connection context */
