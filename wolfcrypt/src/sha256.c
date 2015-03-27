@@ -53,7 +53,21 @@ int wc_Sha256Hash(const byte* data, word32 len, byte* out)
 {
     return Sha256Hash(data, len, out);
 }
+
 #else /* else build without fips */
+
+#if !defined (ALIGN32)
+    #if defined (__GNUC__)
+        #define ALIGN32 __attribute__ ( (aligned (32)))
+    #elif defined(_MSC_VER)
+        /* disable align warning, we want alignment ! */
+        #pragma warning(disable: 4324)
+        #define ALIGN32 __declspec (align (32))
+    #else
+        #define ALIGN32
+    #endif
+#endif
+
 #ifdef WOLFSSL_PIC32MZ_HASH
 #define wc_InitSha256   wc_InitSha256_sw
 #define wc_Sha256Update wc_Sha256Update_sw
@@ -304,7 +318,7 @@ int wc_InitSha256(Sha256* sha256)
 
 
 #if !defined(FREESCALE_MMCAU)
-static const  __attribute__((aligned(32))) word32 K[64] = {
+static const ALIGN32 word32 K[64] = {
     0x428A2F98L, 0x71374491L, 0xB5C0FBCFL, 0xE9B5DBA5L, 0x3956C25BL,
     0x59F111F1L, 0x923F82A4L, 0xAB1C5ED5L, 0xD807AA98L, 0x12835B01L,
     0x243185BEL, 0x550C7DC3L, 0x72BE5D74L, 0x80DEB1FEL, 0x9BDC06A7L,
@@ -956,7 +970,7 @@ __asm__ volatile("movl  %r8d, "#h"\n\t"); \
 
 
 #define W_K_from_buff\
-     { __attribute__ ((aligned (32))) word64 _buff[2] ; \
+     { ALIGN32 word64 _buff[2] ; \
          /* X0..3(xmm4..7) = sha256->buffer[0.15];  */\
         _buff[0] = *(word64*)&sha256->buffer[0] ;\
         _buff[1] = *(word64*)&sha256->buffer[2] ;\
