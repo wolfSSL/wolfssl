@@ -7675,6 +7675,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             }
         }
 #endif /* NO_DES3 */
+#ifndef NO_RC4
         else if (ctx->cipherType == ARC4_TYPE || (type &&
                                      XSTRNCMP(type, "ARC4", 4) == 0)) {
             WOLFSSL_MSG("ARC4");
@@ -7684,6 +7685,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             if (key)
                 wc_Arc4SetKey(&ctx->cipher.arc4, key, ctx->keyLen);
         }
+#endif /* NO_RC4 */
         else if (ctx->cipherType == NULL_CIPHER_TYPE || (type &&
                                      XSTRNCMP(type, "NULL", 4) == 0)) {
             WOLFSSL_MSG("NULL cipher");
@@ -7779,9 +7781,11 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
                 break;
 #endif
 
+#ifndef NO_RC4
             case ARC4_TYPE :
                 wc_Arc4Process(&ctx->cipher.arc4, dst, src, len);
                 break;
+#endif
 
             case NULL_CIPHER_TYPE :
                 XMEMCPY(dst, src, len);

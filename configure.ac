@@ -995,7 +995,7 @@ AM_CONDITIONAL([BUILD_DES3], [test "x$ENABLED_DES3" = "xyes"])
 AC_ARG_ENABLE([arc4],
     [  --enable-arc4           Enable ARC4 (default: enabled)],
     [ ENABLED_ARC4=$enableval ],
-    [ ENABLED_ARC4=yes ]
+    [ ENABLED_ARC4=no ]
     )
 
 if test "$ENABLED_ARC4" = "no"

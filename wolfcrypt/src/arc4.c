@@ -174,5 +174,5 @@ static void wc_Arc4CaviumProcess(Arc4* arc4, byte* out, const byte* in,
 
 #endif /* HAVE_CAVIUM */
 
-#endif /* NO_ARC4 */
+#endif /* NO_RC4 */
 
