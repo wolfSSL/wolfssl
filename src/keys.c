@@ -2366,7 +2366,7 @@ int SetKeysSide(WOLFSSL* ssl, enum encrypt_side side)
     }
 
 #ifdef HAVE_ONE_TIME_AUTH
-    if (!ssl->auth.setup) {
+    if (!ssl->auth.setup && ssl->specs.bulk_cipher_algorithm == wolfssl_chacha){
         ret = SetAuthKeys(&ssl->auth, keys, &ssl->specs, ssl->heap, devId);
         if (ret != 0)
            return ret;
