@@ -337,7 +337,7 @@ AM_CONDITIONAL([BUILD_SNIFFTEST], [ test "x$ENABLED_SNIFFTEST" = "xyes" ])
 AC_ARG_ENABLE([aesgcm],
     [  --enable-aesgcm         Enable wolfSSL AES-GCM support (default: disabled)],
     [ ENABLED_AESGCM=$enableval ],
-    [ ENABLED_AESGCM=no ]
+    [ ENABLED_AESGCM=yes ]
     )
 
 if test "$ENABLED_AESGCM" = "word32"
