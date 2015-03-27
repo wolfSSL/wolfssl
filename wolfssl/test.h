@@ -1769,7 +1769,8 @@ static INLINE void SetupPkCallbacks(WOLFSSL_CTX* ctx, WOLFSSL* ssl)
 
 
 
-#if defined(__hpux__) || defined(__MINGW32__) || defined (WOLFSSL_TIRTOS)
+#if defined(__hpux__) || defined(__MINGW32__) || defined (WOLFSSL_TIRTOS) \
+                      || defined(_MSC_VER)
 
 /* HP/UX doesn't have strsep, needed by test/suites.c */
 static INLINE char* strsep(char **stringp, const char *delim)
@@ -1791,7 +1792,7 @@ static INLINE char* strsep(char **stringp, const char *delim)
     return start;
 }
 
-#endif /* __hpux__ */
+#endif /* __hpux__ and others */
 
 /* Create unique filename, len is length of tempfn name, assuming
    len does not include null terminating character,
