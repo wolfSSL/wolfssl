@@ -203,6 +203,11 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     (void)trackMemory;
     (void)pkCallbacks;
     (void)needDH;
+    (void)ourKey;
+    (void)ourCert;
+    (void)verifyCert;
+    (void)useNtruKey;
+    (void)doCliCertCheck;
 
 #ifdef CYASSL_TIRTOS
     fdOpenSession(Task_self());

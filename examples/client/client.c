@@ -257,6 +257,11 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     (void)pkCallbacks;
     (void)scr;
     (void)forceScr;
+    (void)ourKey;
+    (void)ourCert;
+    (void)verifyCert;
+    (void)useClientCert;
+    (void)overrideDateErrors;
 
     StackTrap();
 

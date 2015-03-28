@@ -9904,6 +9904,8 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
         word16  verifySz = (word16) (*inOutIdx - begin);
 
         (void)hash;
+        (void)sigAlgo;
+        (void)hashAlgo;
 
         /* save message for hash verify */
         if (verifySz > MAX_DH_SZ)
