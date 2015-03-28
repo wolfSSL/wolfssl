@@ -85,7 +85,7 @@
     static word64 total_cycles;
     #define BEGIN_INTEL_CYCLES total_cycles = get_intel_cycles();
     #define END_INTEL_CYCLES   total_cycles = get_intel_cycles() - total_cycles;
-    #define SHOW_INTEL_CYCLES  printf(" Cycles per byte = %5.2f", \
+    #define SHOW_INTEL_CYCLES  printf(" Cycles per byte = %6.2f", \
                                (float)total_cycles / (numBlocks*sizeof(plain)));
 #else
     #define BEGIN_INTEL_CYCLES
