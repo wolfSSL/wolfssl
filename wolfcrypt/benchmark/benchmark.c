@@ -431,7 +431,7 @@ void bench_aes(int show)
 #endif
 
     if (show) {
-        printf("AES      %d %s took %5.3f seconds, %7.3f MB/s", numBlocks,
+        printf("AES      %d %s took %5.3f seconds, %8.3f MB/s", numBlocks,
                                                   blockType, total, persec);
         SHOW_INTEL_CYCLES
         printf("\n");
@@ -473,7 +473,7 @@ void bench_aesgcm(void)
     persec = persec / 1024;
 #endif
 
-    printf("AES-GCM  %d %s took %5.3f seconds, %7.3f MB/s", numBlocks,
+    printf("AES-GCM  %d %s took %5.3f seconds, %8.3f MB/s", numBlocks,
                                               blockType, total, persec);
     SHOW_INTEL_CYCLES
     printf("\n");
@@ -503,7 +503,7 @@ void bench_aesctr(void)
     persec = persec / 1024;
 #endif
 
-    printf("AES-CTR  %d %s took %5.3f seconds, %7.3f MB/s", numBlocks,
+    printf("AES-CTR  %d %s took %5.3f seconds, %8.3f MB/s", numBlocks,
                                               blockType, total, persec);
     SHOW_INTEL_CYCLES
     printf("\n");
@@ -536,7 +536,7 @@ void bench_aesccm(void)
     persec = persec / 1024;
 #endif
 
-    printf("AES-CCM  %d %s took %5.3f seconds, %7.3f MB/s", numBlocks,
+    printf("AES-CCM  %d %s took %5.3f seconds, %8.3f MB/s", numBlocks,
                                               blockType, total, persec);
     SHOW_INTEL_CYCLES
     printf("\n");
@@ -575,7 +575,7 @@ void bench_poly1305()
     persec = persec / 1024;
 #endif
 
-    printf("POLY1305 %d %s took %5.3f seconds, %7.3f MB/s", numBlocks,
+    printf("POLY1305 %d %s took %5.3f seconds, %8.3f MB/s", numBlocks,
                                                   blockType, total, persec);
     SHOW_INTEL_CYCLES
     printf("\n");
@@ -610,7 +610,7 @@ void bench_camellia(void)
     persec = persec / 1024;
 #endif
 
-    printf("Camellia %d %s took %5.3f seconds, %7.3f MB/s", numBlocks,
+    printf("Camellia %d %s took %5.3f seconds, %8.3f MB/s", numBlocks,
                                               blockType, total, persec);
     SHOW_INTEL_CYCLES
     printf("\n");
@@ -649,7 +649,7 @@ void bench_des(void)
     persec = persec / 1024;
 #endif
 
-    printf("3DES     %d %s took %5.3f seconds, %7.3f MB/s", numBlocks,
+    printf("3DES     %d %s took %5.3f seconds, %8.3f MB/s", numBlocks,
                                               blockType, total, persec);
     SHOW_INTEL_CYCLES
     printf("\n");
@@ -687,7 +687,7 @@ void bench_arc4(void)
     persec = persec / 1024;
 #endif
 
-    printf("ARC4     %d %s took %5.3f seconds, %7.3f MB/s", numBlocks,
+    printf("ARC4     %d %s took %5.3f seconds, %8.3f MB/s", numBlocks,
                                               blockType, total, persec);
     SHOW_INTEL_CYCLES
     printf("\n");
@@ -720,7 +720,7 @@ void bench_hc128(void)
     persec = persec / 1024;
 #endif
 
-    printf("HC128    %d %s took %5.3f seconds, %7.3f MB/s", numBlocks,
+    printf("HC128    %d %s took %5.3f seconds, %8.3f MB/s", numBlocks,
                                               blockType, total, persec);
     SHOW_INTEL_CYCLES
     printf("\n");
@@ -750,7 +750,7 @@ void bench_rabbit(void)
     persec = persec / 1024;
 #endif
 
-    printf("RABBIT   %d %s took %5.3f seconds, %7.3f MB/s", numBlocks,
+    printf("RABBIT   %d %s took %5.3f seconds, %8.3f MB/s", numBlocks,
                                               blockType, total, persec);
     SHOW_INTEL_CYCLES
     printf("\n");
@@ -782,7 +782,7 @@ void bench_chacha(void)
     persec = persec / 1024;
 #endif
 
-    printf("CHACHA   %d %s took %5.3f seconds, %7.3f MB/s", numBlocks, blockType, total, persec);
+    printf("CHACHA   %d %s took %5.3f seconds, %8.3f MB/s", numBlocks, blockType, total, persec);
     SHOW_INTEL_CYCLES
     printf("\n");
 
@@ -815,7 +815,7 @@ void bench_chacha20_poly1305_aead(void)
     persec = persec / 1024;
 #endif
 
-    printf("ChaCha-Poly %d %s took %5.3f seconds, %7.3f MB/s",
+    printf("CHA-POLY %d %s took %5.3f seconds, %8.3f MB/s",
            numBlocks, blockType, total, persec);
     SHOW_INTEL_CYCLES
     printf("\n");
@@ -849,7 +849,7 @@ void bench_md5(void)
     persec = persec / 1024;
 #endif
 
-    printf("MD5      %d %s took %5.3f seconds, %7.3f MB/s", numBlocks,
+    printf("MD5      %d %s took %5.3f seconds, %8.3f MB/s", numBlocks,
                                               blockType, total, persec);
     SHOW_INTEL_CYCLES
     printf("\n");
@@ -886,7 +886,7 @@ void bench_sha(void)
     persec = persec / 1024;
 #endif
 
-    printf("SHA      %d %s took %5.3f seconds, %7.3f MB/s", numBlocks,
+    printf("SHA      %d %s took %5.3f seconds, %8.3f MB/s", numBlocks,
                                               blockType, total, persec);
     SHOW_INTEL_CYCLES
     printf("\n");
@@ -932,7 +932,7 @@ void bench_sha256(void)
     persec = persec / 1024;
 #endif
 
-    printf("SHA-256  %d %s took %5.3f seconds, %7.3f MB/s", numBlocks,
+    printf("SHA-256  %d %s took %5.3f seconds, %8.3f MB/s", numBlocks,
                                               blockType, total, persec);
     SHOW_INTEL_CYCLES
     printf("\n");
@@ -977,7 +977,7 @@ void bench_sha384(void)
     persec = persec / 1024;
 #endif
 
-    printf("SHA-384  %d %s took %5.3f seconds, %7.3f MB/s", numBlocks,
+    printf("SHA-384  %d %s took %5.3f seconds, %8.3f MB/s", numBlocks,
                                               blockType, total, persec);
     SHOW_INTEL_CYCLES
     printf("\n");
@@ -1022,7 +1022,7 @@ void bench_sha512(void)
     persec = persec / 1024;
 #endif
 
-    printf("SHA-512  %d %s took %5.3f seconds, %7.3f MB/s", numBlocks,
+    printf("SHA-512  %d %s took %5.3f seconds, %8.3f MB/s", numBlocks,
                                               blockType, total, persec);
     SHOW_INTEL_CYCLES
     printf("\n");
@@ -1054,7 +1054,7 @@ void bench_ripemd(void)
     persec = persec / 1024;
 #endif
 
-    printf("RIPEMD   %d %s took %5.3f seconds, %7.3f MB/s", numBlocks,
+    printf("RIPEMD   %d %s took %5.3f seconds, %8.3f MB/s", numBlocks,
                                               blockType, total, persec);
     SHOW_INTEL_CYCLES
     printf("\n");
@@ -1100,7 +1100,7 @@ void bench_blake2(void)
     persec = persec / 1024;
 #endif
 
-    printf("BLAKE2b  %d %s took %5.3f seconds, %7.3f MB/s", numBlocks,
+    printf("BLAKE2b  %d %s took %5.3f seconds, %8.3f MB/s", numBlocks,
                                               blockType, total, persec);
     SHOW_INTEL_CYCLES
     printf("\n");
