@@ -936,6 +936,14 @@ AC_ARG_ENABLE([aes],
 if test "$ENABLED_AES" = "no"
 then
     AM_CFLAGS="$AM_CFLAGS -DNO_AES"
+    if test "$ENABLED_AESGCM" = "yes"
+    then
+        AC_MSG_ERROR([AESGCM requires AES.])
+    fi
+    if test "$ENABLED_AESCCM" = "yes"
+    then
+        AC_MSG_ERROR([AESCCM requires AES.])
+    fi
 else
     # turn off AES if leanpsk on
     if test "$ENABLED_LEANPSK" = "yes"
