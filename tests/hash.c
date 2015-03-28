@@ -127,10 +127,12 @@ int HashTest(void)
             printf( "   HMAC-MD5 test passed!\n");
     #endif
 
+    #ifndef NO_SHA
     if ( (ret = hmac_sha_test()) ) 
         printf( "   HMAC-SHA test failed!\n");
     else
         printf( "   HMAC-SHA test passed!\n");
+    #endif
 
     #ifndef NO_SHA256
         if ( (ret = hmac_sha256_test()) ) 
@@ -631,7 +633,7 @@ int hmac_md5_test(void)
 }
 #endif
 
-#ifndef NO_HMAC
+#if !defined(NO_HMAC) && !defined(NO_SHA)
 int hmac_sha_test(void)
 {
     Hmac hmac;

@@ -1695,7 +1695,7 @@ AC_ARG_ENABLE([examples],
 AS_IF([test "x$ENABLED_FILESYSTEM" = "xno"], [ENABLED_EXAMPLES="no"])
 AS_IF([test "x$ENABLED_INLINE" = "xno"], [ENABLED_EXAMPLES="no"])
 # certs still have sha signatures for now 
-AS_IF([test "x$ENABLED_SHA" = "xno"], [ENABLED_EXAMPLES="no"])
+AS_IF([test "x$ENABLED_SHA" = "xno" && test"x$ENABLED_PSK" = "xno"], [ENABLED_EXAMPLES="no"])
 AM_CONDITIONAL([BUILD_EXAMPLES], [test "x$ENABLED_EXAMPLES" = "xyes"])
 
 
