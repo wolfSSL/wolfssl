@@ -383,12 +383,19 @@ AM_CONDITIONAL([BUILD_AESCCM], [test "x$ENABLED_AESCCM" = "xyes"])
 
 # AES-NI
 AC_ARG_ENABLE([aesni],
-    [  --enable-aesni          Enable wolfSSL AES-NI support (default: disabled)],
+    [AS_HELP_STRING([--enable-aesni],[Enable wolfSSL AES-NI support (default: disabled)])],
     [ ENABLED_AESNI=$enableval ],
     [ ENABLED_AESNI=no ]
     )
 
-if test "$ENABLED_AESNI" = "yes"
+# INTEL ASM
+AC_ARG_ENABLE([intelasm],
+    [AS_HELP_STRING([--enable-intelasm],[Enable All Intel ASM speedups (default: disabled)])],
+    [ ENABLED_INTELASM=$enableval ],
+    [ ENABLED_INTELASM=no ]
+    )
+
+if test "$ENABLED_AESNI" = "yes" || test "$ENABLED_INTELASM" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AESNI"
     if test "$GCC" = "yes"
@@ -400,6 +407,12 @@ then
             AM_CFLAGS="$AM_CFLAGS -maes -msse4"
         fi
     fi
+fi
+
+if test "$ENABLED_INTELASM" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_INTEL_RDGEN -DUSE_INTEL_SPEEDUP"
+    ENABLED_AESNI=yes
 fi
 
 AM_CONDITIONAL([BUILD_AESNI], [test "x$ENABLED_AESNI" = "xyes"])
