@@ -340,6 +340,12 @@ AC_ARG_ENABLE([aesgcm],
     [ ENABLED_AESGCM=yes ]
     )
 
+# lean pks does't need gcm
+if test "$ENABLED_LEANPSK" = "yes"
+then
+    ENABLED_AESGCM=no
+fi
+
 if test "$ENABLED_AESGCM" = "word32"
 then
     AM_CFLAGS="$AM_CFLAGS -DGCM_WORD32"
@@ -424,6 +430,12 @@ AC_ARG_ENABLE([poly1305],
     [ ENABLED_POLY1305=$enableval ],
     [ ENABLED_POLY1305=yes ]
     )
+
+# lean pks does't need poly1305
+if test "$ENABLED_LEANPSK" = "yes"
+then
+    ENABLED_POLY1305=no
+fi
 
 if test "$ENABLED_POLY1305" = "yes"
 then
@@ -1149,6 +1161,12 @@ AC_ARG_ENABLE([chacha],
     [ ENABLED_CHACHA=yes ]
     )
 
+# lean pks does't need chacha
+if test "$ENABLED_LEANPSK" = "yes"
+then
+    ENABLED_CHACHA=no
+fi
+
 if test "$ENABLED_CHACHA" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_CHACHA"
@@ -1694,8 +1712,8 @@ AC_ARG_ENABLE([examples],
 
 AS_IF([test "x$ENABLED_FILESYSTEM" = "xno"], [ENABLED_EXAMPLES="no"])
 AS_IF([test "x$ENABLED_INLINE" = "xno"], [ENABLED_EXAMPLES="no"])
-# certs still have sha signatures for now 
-AS_IF([test "x$ENABLED_SHA" = "xno" && test"x$ENABLED_PSK" = "xno"], [ENABLED_EXAMPLES="no"])
+# certs still have sha signatures for now
+AS_IF([test "x$ENABLED_SHA" = "xno" && test "x$ENABLED_PSK" = "xno"], [ENABLED_EXAMPLES="no"])
 AM_CONDITIONAL([BUILD_EXAMPLES], [test "x$ENABLED_EXAMPLES" = "xyes"])
 
 
