@@ -4283,7 +4283,7 @@ int dh_test(void)
     fclose(file);
 #endif /* USE_CERT_BUFFERS */
 
-	(void)idx;
+    (void)idx;
     (void)tmp;
     (void)bytes;
 

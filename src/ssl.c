@@ -8226,14 +8226,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         if (!ses || t < 0)
             return BAD_FUNC_ARG;
 
-        /* for cross library compatibility accept a long but convert it to a
-           word32 (unsigned 32 bit) for wolfSSL sessions */
-        if ( (t >> 32) > 0) {
-            WOLFSSL_MSG("Session time is to large");
-            return BAD_FUNC_ARG;
-        } else {
-            time = t & 0xFFFFFFFF;
-        }
+        time = t & 0xFFFFFFFF;
 
         ses->timeout = time;
 
