@@ -235,12 +235,16 @@ static word32 cpuid_flag(word32 leaf, word32 sub, word32 num, word32 bit) {
     return 0 ;
 }
 
-static int set_cpuid_flags(void) {  
-    if(cpuid_check==0) {
+#define CHECK_SHA512 0x1
+#define CHECK_SHA384 0x2
+
+static int set_cpuid_flags(int sha) {  
+    if((cpuid_check & sha) ==0) {
         if(cpuid_flag(1, 0, ECX, 28)){ cpuid_flags |= CPUID_AVX1 ;}
         if(cpuid_flag(7, 0, EBX, 5)){  cpuid_flags |= CPUID_AVX2 ; }
         if(cpuid_flag(1, 0, ECX, 30)){ cpuid_flags |= CPUID_RDRAND ;  } 
         if(cpuid_flag(7, 0, EBX, 18)){ cpuid_flags |= CPUID_RDSEED ;  }
+		cpuid_check |= sha ;
 		return 0 ;
     }
     return 1 ;
@@ -269,21 +273,19 @@ static int (*Transform_p)(Sha512* sha512) = _Transform ;
 #define Transform(sha512) (*Transform_p)(sha512)
 
 static void set_Transform(void) {
-     if(set_cpuid_flags()) return ;
+     if(set_cpuid_flags(CHECK_SHA512)) return ;
 
-#if defined(HAVE_INTEL_AVX1) && !defined(HAVE_INTEL_AVX2)
-     Transform_p = ((IS_INTEL_AVX1) ? Transform_AVX1 : _Transform) ;
-#elif defined(HAVE_INTEL_AVX2)
-     #if defined(HAVE_INTEL_AVX1) && defined(HAVE_INTEL_RORX)
-     if(IS_INTEL_AVX2) { Transform_p = Transform_AVX1_RORX ; return ; }
-     #endif
-     if(IS_INTEL_AVX2) { Transform_p = Transform_AVX2 ; return ; }
-     #if defined(HAVE_INTEL_AVX1)
-     Transform_p = ((IS_INTEL_AVX1) ? Transform_AVX1 : _Transform) ;
-     #endif
-#else
-     Transform_p = ((IS_INTEL_AVX1) ? Transform_AVX1 : _Transform) ;
+#if defined(HAVE_INTEL_AVX2)
+     if(IS_INTEL_AVX2){ 
+         Transform_p = Transform_AVX1_RORX; return ; 
+         Transform_p = Transform_AVX2      ; 
+                  /* for avoiding warning,"not used" */
+     }
 #endif
+#if defined(HAVE_INTEL_AVX1)
+     Transform_p = ((IS_INTEL_AVX1) ? Transform_AVX1 : _Transform) ; return ;
+#endif
+     Transform_p = _Transform ; return ;
 }
 
 #else
@@ -1344,7 +1346,7 @@ static int (*Transform384_p)(Sha384* sha384) = _Transform384 ;
 
 #define Transform384(sha384) (*Transform384_p)(sha384)
 static void set_Transform384(void) {
-     if(set_cpuid_flags())return ;
+     if(set_cpuid_flags(CHECK_SHA384))return ;
 
 #if defined(HAVE_INTEL_AVX1) && !defined(HAVE_INTEL_AVX2)
      Transform384_p = ((IS_INTEL_AVX1) ? Transform384_AVX1 : _Transform384) ;

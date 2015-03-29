@@ -401,6 +401,36 @@ void fp_mul_2d(fp_int *a, int b, fp_int *c)
 }
 
 /* generic PxQ multiplier */
+#if defined(HAVE_INTEL_MULX)
+void fp_mul_comba(fp_int *A, fp_int *B, fp_int *C)
+
+{     
+   int       ix, iy, iz, pa;
+   fp_int    tmp, *dst;
+
+   /* get size of output and trim */
+   pa = A->used + B->used;
+   if (pa >= FP_SIZE) {
+      pa = FP_SIZE-1;
+   }
+ 
+   if (A == C || B == C) {
+      fp_init(&tmp);
+      dst = &tmp;
+   } else {
+      fp_zero(C);
+      dst = C;
+   }
+
+   TFM_INTEL_MUL_COMBA(A, B, dst) ;
+
+  dst->used = pa;
+  dst->sign = A->sign ^ B->sign;
+  fp_clamp(dst);
+  fp_copy(dst, C);  
+}
+
+#else
 void fp_mul_comba(fp_int *A, fp_int *B, fp_int *C)
 {
    int       ix, iy, iz, tx, ty, pa;
@@ -455,6 +485,7 @@ void fp_mul_comba(fp_int *A, fp_int *B, fp_int *C)
   fp_clamp(dst);
   fp_copy(dst, C);
 }
+#endif
 
 /* a/b => cb + d == a */
 int fp_div(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
@@ -1525,6 +1556,19 @@ void fp_montgomery_calc_normalization(fp_int *a, fp_int *b)
     #include "fp_mont_small.i"
 #endif
 
+#ifdef HAVE_INTEL_MULX
+static inline void innermul8_mulx(fp_digit *c_mulx, fp_digit *cy_mulx, fp_digit *tmpm, fp_digit mu) 
+{
+    fp_digit _c0, _c1, _c2, _c3, _c4, _c5, _c6, _c7, cy ;
+
+    cy = *cy_mulx ;
+    _c0=c_mulx[0]; _c1=c_mulx[1]; _c2=c_mulx[2]; _c3=c_mulx[3]; _c4=c_mulx[4]; _c5=c_mulx[5]; _c6=c_mulx[6]; _c7=c_mulx[7];    
+    INNERMUL8_MULX ;
+    c_mulx[0]=_c0; c_mulx[1]=_c1; c_mulx[2]=_c2; c_mulx[3]=_c3; c_mulx[4]=_c4; c_mulx[5]=_c5; c_mulx[6]=_c6; c_mulx[7]=_c7; 
+    *cy_mulx = cy ;
+}
+#endif
+
 /* computes x/R == x (mod N) via Montgomery Reduction */
 void fp_montgomery_reduce(fp_int *a, fp_int *m, fp_digit mp)
 {
@@ -1565,12 +1609,15 @@ void fp_montgomery_reduce(fp_int *a, fp_int *m, fp_digit mp)
        y = 0;
        #if (defined(TFM_SSE2) || defined(TFM_X86_64))
         for (; y < (pa & ~7); y += 8) {
-              INNERMUL8;
+              #ifdef HAVE_INTEL_MULX
+              innermul8_mulx(_c, &cy, tmpm, mu) ;
+              #else
+              INNERMUL8 ;
+              #endif
               _c   += 8;
               tmpm += 8;
            }
        #endif
-
        for (; y < pa; y++) {
           INNERMUL;
           ++_c;
