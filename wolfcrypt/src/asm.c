@@ -72,7 +72,7 @@ __asm__(                                        \
 #define MONT_FINI
 #define LOOP_END
 #define LOOP_START \
-   mu = c[x] * mp
+   mu = c[x] * mp;
 
 #define INNERMUL                                          \
 __asm__(                                                      \
@@ -86,6 +86,73 @@ __asm__(                                                      \
 :"=g"(_c[LO]), "=r"(cy)                                   \
 :"0"(_c[LO]), "1"(cy), "r"(mu), "r"(*tmpm++)              \
 : "%rax", "%rdx", "cc")
+
+#ifdef HAVE_INTEL_MULX
+#define MULX_INIT(a0, c0, cy)\
+    __asm__ volatile(                                     \
+             "xorq  %%r10, %%r10\n\t"                     \
+             "movq  %1,%%rdx\n\t"                         \
+             "addq  %2, %0\n\t"       /* c0+=cy; Set CF, OF */ \
+             "adoxq %%r10, %%r10\n\t" /* Reset   OF */    \
+             :"+m"(c0):"r"(a0),"r"(cy):"%r8","%r10","%r11","%r12","%rdx") ; \
+
+#define MULX_INNERMUL_R1(c0, c1, pre)\
+   {                                                      \
+    __asm__  volatile (                                   \
+         "mulx  %%r11,%%r9, %%r8 \n\t"                       \
+         "movq  %2, %%r12\n\t"                            \
+         "adoxq  %%r9,%0     \n\t"                        \
+         "adcxq  %%r8,%1     \n\t"                        \
+         :"+r"(c0),"+r"(c1):"m"(pre):"%r8","%r9","%r11","%r12","%rdx"    \
+    ); }
+    
+
+#define MULX_INNERMUL_R2(c0, c1, pre)\
+   {                                                      \
+    __asm__  volatile (                                   \
+         "mulx  %%r12,%%r9, %%r8 \n\t"                       \
+         "movq  %2, %%r11\n\t"                            \
+         "adoxq  %%r9,%0     \n\t"                        \
+         "adcxq  %%r8,%1     \n\t"                        \
+         :"+r"(c0),"+r"(c1):"m"(pre):"%r8","%r9","%r11","%r12","%rdx"    \
+    ); }
+
+#define MULX_LOAD_R1(val)\
+    __asm__  volatile (                                   \
+        "movq %0, %%r11\n\t"\
+        ::"m"(val):"%r11"\
+) ;
+
+#define MULX_INNERMUL_LAST(c0, c1)\
+   {                                                      \
+    __asm__  volatile (                                   \
+         "mulx   %%r12,%%r9, %%r8 \n\t"                   \
+         "movq   $0, %%r10      \n\t"                      \
+         "adoxq  %%r10, %%r9   \n\t"                      \
+         "adcq   $0,%%r8       \n\t"                      \
+         "addq   %%r9,%0       \n\t"                      \
+         "adcq   $0,%%r8       \n\t"                      \
+         "movq   %%r8,%1       \n\t"                      \
+         :"+m"(c0),"=m"(c1)::"%r8","%r9","%r10","%r12","%rdx"\
+    ); }
+
+#define MULX_INNERMUL8(x,y,z,cy)\
+        MULX_LOAD_R1(x[0]) ;\
+        MULX_INIT(y, _c0, cy) ; /* rdx=y; z0+=cy; */ \
+        MULX_INNERMUL_R1(_c0, _c1, x[1]) ;\
+        MULX_INNERMUL_R2(_c1, _c2, x[2]) ;\
+        MULX_INNERMUL_R1(_c2, _c3, x[3]) ;\
+        MULX_INNERMUL_R2(_c3, _c4, x[4]) ;\
+        MULX_INNERMUL_R1(_c4, _c5, x[5]) ;\
+        MULX_INNERMUL_R2(_c5, _c6, x[6]) ;\
+        MULX_INNERMUL_R1(_c6, _c7, x[7]) ;\
+        MULX_INNERMUL_LAST(_c7, cy) ;\
+
+#define INNERMUL8_MULX \
+{\
+    MULX_INNERMUL8(tmpm, mu, _c, cy);\
+}
+#endif
 
 #define INNERMUL8 \
  __asm__(                  \
@@ -1137,6 +1204,80 @@ __asm__(                                                      \
      "adcl  %%edx,%1     \n\t"                            \
      "adcl  $0,%2        \n\t"                            \
      :"=r"(c0), "=r"(c1), "=r"(c2): "0"(c0), "1"(c1), "2"(c2), "m"(i), "m"(j)  :"%eax","%edx","cc");
+
+#elif defined(HAVE_INTEL_MULX)
+
+/* anything you need at the start */
+#define COMBA_START
+
+/* clear the chaining variables */
+#define COMBA_CLEAR \
+   c0 = c1 = c2 = 0;
+
+/* forward the carry to the next digit */
+#define COMBA_FORWARD \
+   do { c0 = c1; c1 = c2; c2 = 0; } while (0);
+
+/* store the first sum */
+#define COMBA_STORE(x) \
+   x = c0;
+
+/* store the second sum [carry] */
+#define COMBA_STORE2(x) \
+   x = c1;
+
+/* anything you need at the end */
+#define COMBA_FINI
+
+#define MULADD_MULX(b0, c0, c1)\
+    __asm__  volatile (                                           \
+         "mulx  %2,%%r9, %%r8 \n\t"                       \
+         "adoxq  %%r9,%0     \n\t"                        \
+         "adcxq  %%r8,%1     \n\t"                        \
+         :"+r"(c0),"+r"(c1):"r"(b0):"%r8","%r9","%rdx"\
+    )
+
+
+#define MULADD_MULX_ADD_CARRY(c0, c1)\
+    __asm__ volatile(\
+    "mov $0, %%r10\n\t"\
+    "movq %1, %%r8\n\t"                           \
+    "adox %%r10, %0\n\t"\
+    "adcx %%r10, %1\n\t"\
+    :"+r"(c0),"+r"(c1)::"%r8","%r9","%r10") ;
+
+#define MULADD_SET_A(a0)\
+    __asm__ volatile("add $0, %%r8\n\t"                     \
+             "movq  %0,%%rdx\n\t"::"r"(a0):"%r8","%rdx") ;          \
+
+#define MULADD_BODY(a,b,c)\
+        cp = &(c->dp[iz]) ;\
+        c0 = cp[0] ; c1 = cp[1];\
+        MULADD_SET_A(a->dp[ix]) ;\
+        MULADD_MULX(b0, c0, c1) ;\
+        cp[0]=c0; c0=cp[2]; cp++ ;\
+        MULADD_MULX(b1, c1, c0) ;\
+        cp[0]=c1; c1=cp[2]; cp++ ; \
+        MULADD_MULX(b2, c0, c1) ;\
+        cp[0]=c0; c0=cp[2]; cp++ ; \
+        MULADD_MULX(b3, c1, c0) ;\
+        cp[0]=c1; c1=cp[2]; cp++ ; \
+        MULADD_MULX_ADD_CARRY(c0, c1) ;\
+        cp[0]=c0; cp[1]=c1;
+
+#define TFM_INTEL_MUL_COMBA(a, b, c)\
+  for(ix=0; ix<pa; ix++)c->dp[ix]=0 ;\
+  for(iy=0; (iy<b->used); iy+=4) {\
+    fp_digit *bp ;\
+    bp = &(b->dp[iy+0]) ; \
+    fp_digit b0 = bp[0] , b1= bp[1], b2= bp[2], b3= bp[3];\
+    ix=0, iz=iy;\
+    while(ix<a->used) {\
+        fp_digit c0, c1; \
+        fp_digit *cp ;\
+        MULADD_BODY(a,b,c);  ix++ ; iz++ ; \
+    }\
+};
 
 #elif defined(TFM_X86_64)
 /* x86-64 optimized */
