@@ -245,8 +245,7 @@ __asm__(                                                      \
  \
 :"=r"(_c), "=r"(cy)                    \
 : "0"(_c),  "1"(cy), "g"(mu), "r"(tmpm)\
-: "%rax", "%rdx", "%r10", "%r11", "cc")
-
+: "%rax", "%rdx", "%r10", "%r11", "cc")\
 
 #define PROPCARRY                           \
 __asm__(                                        \
@@ -1244,11 +1243,11 @@ __asm__(                                                      \
     "movq %1, %%r8\n\t"                           \
     "adox %%r10, %0\n\t"\
     "adcx %%r10, %1\n\t"\
-    :"+r"(c0),"+r"(c1)::"%r8","%r9","%r10") ;
+    :"+r"(c0),"+r"(c1)::"%r8","%r9","%r10","%rdx") ;
 
 #define MULADD_SET_A(a0)\
     __asm__ volatile("add $0, %%r8\n\t"                     \
-             "movq  %0,%%rdx\n\t"::"r"(a0):"%r8","%rdx") ;          \
+             "movq  %0,%%rdx\n\t"::"r"(a0):"%r8","%r9","%r10","%rdx") ;          \
 
 #define MULADD_BODY(a,b,c)\
         cp = &(c->dp[iz]) ;\
