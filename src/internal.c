@@ -627,9 +627,9 @@ static void InitSuitesHashSigAlgo(Suites* suites, int haveECDSAsig,
     suites->hashSigAlgoSz = (word16)idx;
 }
 
-void InitSuites(Suites* suites, ProtocolVersion pv, byte haveRSA, byte havePSK,
-                byte haveDH, byte haveNTRU, byte haveECDSAsig,
-                byte haveStaticECC, int side)
+void InitSuites(Suites* suites, ProtocolVersion pv, word16 haveRSA,
+                word16 havePSK, word16 haveDH, word16 haveNTRU,
+                word16 haveECDSAsig, word16 haveStaticECC, int side)
 {
     word16 idx = 0;
     int    tls    = pv.major == SSLv3_MAJOR && pv.minor >= TLSv1_MINOR;

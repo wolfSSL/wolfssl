@@ -1046,8 +1046,8 @@ typedef struct Suites {
 
 
 WOLFSSL_LOCAL
-void InitSuites(Suites*, ProtocolVersion,
-                                     byte, byte, byte, byte, byte, byte, int);
+void InitSuites(Suites*, ProtocolVersion, word16, word16, word16, word16,
+                word16, word16, int);
 WOLFSSL_LOCAL
 int  SetCipherList(Suites*, const char* list);
 
