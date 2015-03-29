@@ -53,7 +53,21 @@ int wc_Sha256Hash(const byte* data, word32 len, byte* out)
 {
     return Sha256Hash(data, len, out);
 }
+
 #else /* else build without fips */
+
+#if !defined (ALIGN32)
+    #if defined (__GNUC__)
+        #define ALIGN32 __attribute__ ( (aligned (32)))
+    #elif defined(_MSC_VER)
+        /* disable align warning, we want alignment ! */
+        #pragma warning(disable: 4324)
+        #define ALIGN32 __declspec (align (32))
+    #else
+        #define ALIGN32
+    #endif
+#endif
+
 #ifdef WOLFSSL_PIC32MZ_HASH
 #define wc_InitSha256   wc_InitSha256_sw
 #define wc_Sha256Update wc_Sha256Update_sw
@@ -189,14 +203,16 @@ static word32 cpuid_flag(word32 leaf, word32 sub, word32 num, word32 bit) {
     return 0 ;
 }
 
-static void set_cpuid_flags(void) {  
+static int set_cpuid_flags(void) {  
     if(cpuid_check==0) {
-        if(cpuid_flag(1, 0, ECX, 28)){ cpuid_flags |= CPUID_AVX1 ;  }
-        if(cpuid_flag(7, 0, EBX, 5)){  cpuid_flags |= CPUID_AVX2 ;  }
-        if(cpuid_flag(1, 0, ECX, 30)){ cpuid_flags |= CPUID_RDRAND ;} 
-        if(cpuid_flag(7, 0, EBX, 18)){ cpuid_flags |= CPUID_RDSEED ;}
-        cpuid_check = 1 ;
-	}
+        if(cpuid_flag(1, 0, ECX, 28)){ cpuid_flags |= CPUID_AVX1 ;}
+        if(cpuid_flag(7, 0, EBX, 5)){  cpuid_flags |= CPUID_AVX2 ; }
+        if(cpuid_flag(1, 0, ECX, 30)){ cpuid_flags |= CPUID_RDRAND ;  } 
+        if(cpuid_flag(7, 0, EBX, 18)){ cpuid_flags |= CPUID_RDSEED ;  }
+	cpuid_check = 1 ;
+        return 0 ;
+    }
+    return 1 ;
 }
 
 /* #if defined(HAVE_INTEL_AVX1/2) at the tail of sha512 */
@@ -215,16 +231,19 @@ static int (*Transform_p)(Sha256* sha256) /* = _Transform */;
 #define XTRANSFORM(sha256, B)  (*Transform_p)(sha256)
 
 static void set_Transform(void) {
-     set_cpuid_flags() ;
+     if(set_cpuid_flags())return ;
 
 #if defined(HAVE_INTEL_AVX2)
-     if(IS_INTEL_AVX2){ Transform_p = Transform_AVX1_RORX; return ; }
-     Transform_p = Transform_AVX2      ; /* for avoiding warning,"not used" */
+     if(IS_INTEL_AVX2){ 
+         Transform_p = Transform_AVX1_RORX; return ; 
+         Transform_p = Transform_AVX2      ; 
+                  /* for avoiding warning,"not used" */
+     }
 #endif
 #if defined(HAVE_INTEL_AVX1)
      Transform_p = ((IS_INTEL_AVX1) ? Transform_AVX1 : Transform) ; return ;
 #endif
-     Transform_p = Transform ;
+     Transform_p = Transform ; return ;
 }
 
 #else
@@ -237,10 +256,10 @@ static void set_Transform(void) {
 
 /* Dummy for saving MM_REGs on behalf of Transform */
 #if defined(HAVE_INTEL_AVX2)&& !defined(HAVE_INTEL_AVX1)
-#define  SAVE_XMM_YMM   __asm__ volatile("vpxor %%ymm7, %%ymm7, %%ymm7":::\
+#define  SAVE_XMM_YMM   __asm__ volatile("or %%r8, %%r8":::\
    "%ymm4","%ymm5","%ymm6","%ymm7","%ymm8","%ymm9","%ymm10","%ymm11","%ymm12","%ymm13","%ymm14","%ymm15")
 #elif defined(HAVE_INTEL_AVX1)
-#define  SAVE_XMM_YMM   __asm__ volatile("vpxor %%xmm7, %%xmm7, %%xmm7":::\
+#define  SAVE_XMM_YMM   __asm__ volatile("or %%r8, %%r8":::\
     "xmm0","xmm1","xmm2","xmm3","xmm4","xmm5","xmm6","xmm7","xmm8","xmm9","xmm10",\
     "xmm11","xmm12","xmm13","xmm14","xmm15")
 #else
@@ -304,7 +323,7 @@ int wc_InitSha256(Sha256* sha256)
 
 
 #if !defined(FREESCALE_MMCAU)
-static const  __attribute__((aligned(32))) word32 K[64] = {
+static const ALIGN32 word32 K[64] = {
     0x428A2F98L, 0x71374491L, 0xB5C0FBCFL, 0xE9B5DBA5L, 0x3956C25BL,
     0x59F111F1L, 0x923F82A4L, 0xAB1C5ED5L, 0xD807AA98L, 0x12835B01L,
     0x243185BEL, 0x550C7DC3L, 0x72BE5D74L, 0x80DEB1FEL, 0x9BDC06A7L,
@@ -322,25 +341,6 @@ static const  __attribute__((aligned(32))) word32 K[64] = {
 
 #endif
 
-#if defined(HAVE_INTEL_RORX)
-#define ROTR(func, bits, x) \
-word32 func(word32 x) {  word32 ret ;\
-    __asm__ ("rorx $"#bits", %1, %0\n\t":"=r"(ret):"r"(x):) ;\
-    return ret ;\
-}
-
-static INLINE ROTR(rotrFixed_2,   2, x)
-static INLINE ROTR(rotrFixed_13, 13, x)
-static INLINE ROTR(rotrFixed_22, 22, x)
-static INLINE ROTR(rotrFixed_6,   6, x)
-static INLINE ROTR(rotrFixed_11, 11, x)
-static INLINE ROTR(rotrFixed_25, 25, x)
-static INLINE ROTR(rotrFixed_7,   7, x)
-static INLINE ROTR(rotrFixed_18, 18, x)
-static INLINE ROTR(rotrFixed_17, 17, x)
-static INLINE ROTR(rotrFixed_19, 19, x)
-#endif
-
 #if defined(FREESCALE_MMCAU)
 
 static int Transform(Sha256* sha256, byte* buf)
@@ -356,18 +356,11 @@ static int Transform(Sha256* sha256, byte* buf)
 #define Maj(x,y,z)      ((((x) | (y)) & (z)) | ((x) & (y)))
 #define R(x, n)         (((x)&0xFFFFFFFFU)>>(n))
 
-#if !defined(HAVE_INTEL_RORX)
 #define S(x, n)         rotrFixed(x, n)
 #define Sigma0(x)       (S(x, 2) ^ S(x, 13) ^ S(x, 22))
 #define Sigma1(x)       (S(x, 6) ^ S(x, 11) ^ S(x, 25))
 #define Gamma0(x)       (S(x, 7) ^ S(x, 18) ^ R(x, 3))
 #define Gamma1(x)       (S(x, 17) ^ S(x, 19) ^ R(x, 10))
-#else
-#define Sigma0(x)       (rotrFixed_2(x) ^ rotrFixed_13(x) ^ rotrFixed_22(x))
-#define Sigma1(x)       (rotrFixed_6(x) ^ rotrFixed_11(x) ^ rotrFixed_25(x))
-#define Gamma0(x)       (rotrFixed_7(x) ^ rotrFixed_18(x) ^ R(x, 3))
-#define Gamma1(x)       (rotrFixed_17(x) ^ rotrFixed_19(x) ^ R(x, 10))
-#endif
 
 #define RND(a,b,c,d,e,f,g,h,i) \
      t0 = (h) + Sigma1((e)) + Ch((e), (f), (g)) + K[(i)] + W[(i)]; \
@@ -620,7 +613,7 @@ int wc_Sha256Hash(const byte* data, word32 len, byte* hash)
 #define S_6 %ebx
 #define S_7 %r9d
 
-#define SSE_REGs "%esi", "%r8", "%edx", "%ebx","%r9","%r10","%r11","%r12","%r13","%r14","%r15"
+#define SSE_REGs "%edi", "%ecx", "%esi", "%edx", "%ebx","%r8","%r9","%r10","%r11","%r12","%r13","%r14","%r15"
 
 #if defined(HAVE_INTEL_RORX)
 #define RND_STEP_RORX_1(a,b,c,d,e,f,g,h,i)\
@@ -718,7 +711,7 @@ __asm__ volatile("addl  %"#h", %%r8d\n\t":::"%r8",SSE_REGs); \
                  /* r8b = h + w_k + Sigma1(e) + Ch(e,f,g) + Maj(a,b,c) */\
 __asm__ volatile("addl  %%edx, %%r8d\n\t":::"%edx","%r8",SSE_REGs);\
                  /* r8b = h + w_k + Sigma1(e) Sigma0(a) + Ch(e,f,g) + Maj(a,b,c)     */\
-__asm__ volatile("movl  %r8d, "#h"\n\t"); \
+__asm__ volatile("movl  %%r8d, %"#h"\n\t":::"%r8", SSE_REGs); \
                  /* h = h + w_k + Sigma1(e) + Sigma0(a) + Ch(e,f,g) + Maj(a,b,c) */ \
 
 #define RND_X(a,b,c,d,e,f,g,h,i) \
@@ -954,7 +947,7 @@ __asm__ volatile("movl  %r8d, "#h"\n\t"); \
 
 
 #define W_K_from_buff\
-     { __attribute__ ((aligned (32))) word64 _buff[2] ; \
+     { ALIGN32 word64 _buff[2] ; \
          /* X0..3(xmm4..7) = sha256->buffer[0.15];  */\
         _buff[0] = *(word64*)&sha256->buffer[0] ;\
         _buff[1] = *(word64*)&sha256->buffer[2] ;\
