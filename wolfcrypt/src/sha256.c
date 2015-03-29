@@ -209,11 +209,12 @@ static int set_cpuid_flags(void) {
         if(cpuid_flag(7, 0, EBX, 5)){  cpuid_flags |= CPUID_AVX2 ; }
         if(cpuid_flag(1, 0, ECX, 30)){ cpuid_flags |= CPUID_RDRAND ;  } 
         if(cpuid_flag(7, 0, EBX, 18)){ cpuid_flags |= CPUID_RDSEED ;  }
-	cpuid_check = 1 ;
+        cpuid_check = 1 ;
         return 0 ;
     }
     return 1 ;
 }
+
 
 /* #if defined(HAVE_INTEL_AVX1/2) at the tail of sha512 */
 static int Transform(Sha256* sha256);
@@ -256,10 +257,10 @@ static void set_Transform(void) {
 
 /* Dummy for saving MM_REGs on behalf of Transform */
 #if defined(HAVE_INTEL_AVX2)&& !defined(HAVE_INTEL_AVX1)
-#define  SAVE_XMM_YMM   __asm__ volatile("or %%r8, %%r8":::\
-   "%ymm4","%ymm5","%ymm6","%ymm7","%ymm8","%ymm9","%ymm10","%ymm11","%ymm12","%ymm13","%ymm14","%ymm15")
+#define  SAVE_XMM_YMM   __asm__ volatile("or %%r8d, %%r8d":::\
+  "%ymm4","%ymm5","%ymm6","%ymm7","%ymm8","%ymm9","%ymm10","%ymm11","%ymm12","%ymm13","%ymm14","%ymm15")
 #elif defined(HAVE_INTEL_AVX1)
-#define  SAVE_XMM_YMM   __asm__ volatile("or %%r8, %%r8":::\
+#define  SAVE_XMM_YMM   __asm__ volatile("or %%r8d, %%r8d":::\
     "xmm0","xmm1","xmm2","xmm3","xmm4","xmm5","xmm6","xmm7","xmm8","xmm9","xmm10",\
     "xmm11","xmm12","xmm13","xmm14","xmm15")
 #else
@@ -947,29 +948,18 @@ __asm__ volatile("movl  %%r8d, %"#h"\n\t":::"%r8", SSE_REGs); \
 
 
 #define W_K_from_buff\
-     { ALIGN32 word64 _buff[2] ; \
-         /* X0..3(xmm4..7) = sha256->buffer[0.15];  */\
-        _buff[0] = *(word64*)&sha256->buffer[0] ;\
-        _buff[1] = *(word64*)&sha256->buffer[2] ;\
-         __asm__ volatile("vmovaps %0, %%xmm4\n\t"\
+         __asm__ volatile("vmovdqu %0, %%xmm4\n\t"\
                           "vpshufb %%xmm13, %%xmm4, %%xmm4\n\t"\
-                          :: "m"(_buff[0]):"%xmm4") ;\
-        _buff[0] = *(word64*)&sha256->buffer[4] ;\
-        _buff[1] = *(word64*)&sha256->buffer[6] ;\
-         __asm__ volatile("vmovaps %0, %%xmm5\n\t"\
+                          :: "m"(sha256->buffer[0]):"%xmm4") ;\
+         __asm__ volatile("vmovdqu %0, %%xmm5\n\t"\
                           "vpshufb %%xmm13, %%xmm5, %%xmm5\n\t"\
-                          ::"m"(_buff[0]):"%xmm5") ;\
-        _buff[0] = *(word64*)&sha256->buffer[8] ;\
-        _buff[1] = *(word64*)&sha256->buffer[10] ;\
-         __asm__ volatile("vmovaps %0, %%xmm6\n\t"\
+                          ::"m"(sha256->buffer[4]):"%xmm5") ;\
+         __asm__ volatile("vmovdqu %0, %%xmm6\n\t"\
                           "vpshufb %%xmm13, %%xmm6, %%xmm6\n\t"\
-                          ::"m"(_buff[0]):"%xmm6") ;\
-        _buff[0] = *(word64*)&sha256->buffer[12] ;\
-        _buff[1] = *(word64*)&sha256->buffer[14] ;\
-         __asm__ volatile("vmovaps %0, %%xmm7\n\t"\
+                          ::"m"(sha256->buffer[8]):"%xmm6") ;\
+         __asm__ volatile("vmovdqu %0, %%xmm7\n\t"\
                           "vpshufb %%xmm13, %%xmm7, %%xmm7\n\t"\
-                          ::"m"(_buff[0]):"%xmm7") ;\
-    }\
+                          ::"m"(sha256->buffer[12]):"%xmm7") ;\
 
 #define _SET_W_K_XFER(reg, i)\
     __asm__ volatile("vpaddd %0, %"#reg", %%xmm9"::"m"(K[i]):XMM_REGs) ;\
@@ -977,15 +967,15 @@ __asm__ volatile("movl  %%r8d, %"#h"\n\t":::"%r8", SSE_REGs); \
 
 #define SET_W_K_XFER(reg, i) _SET_W_K_XFER(reg, i)
 
-static const __attribute__((aligned(32))) word64 mSHUF_00BA[] = { 0x0b0a090803020100, 0xFFFFFFFFFFFFFFFF } ; /* shuffle xBxA -> 00BA */
-static const __attribute__((aligned(32))) word64 mSHUF_DC00[] = { 0xFFFFFFFFFFFFFFFF, 0x0b0a090803020100 } ; /* shuffle xDxC -> DC00 */
-static const __attribute__((aligned(32))) word64 mBYTE_FLIP_MASK[] =  { 0x0405060700010203, 0x0c0d0e0f08090a0b } ;
+static const ALIGN32 word64 mSHUF_00BA[] = { 0x0b0a090803020100, 0xFFFFFFFFFFFFFFFF } ; /* shuffle xBxA -> 00BA */
+static const ALIGN32 word64 mSHUF_DC00[] = { 0xFFFFFFFFFFFFFFFF, 0x0b0a090803020100 } ; /* shuffle xDxC -> DC00 */
+static const ALIGN32 word64 mBYTE_FLIP_MASK[] =  { 0x0405060700010203, 0x0c0d0e0f08090a0b } ;
 
 
 #define _Init_Masks(mask1, mask2, mask3)\
-__asm__ volatile("vmovaps %0, %"#mask1 ::"m"(mBYTE_FLIP_MASK[0]):) ;\
-__asm__ volatile("vmovaps %0, %"#mask2 ::"m"(mSHUF_00BA[0]):) ;\
-__asm__ volatile("vmovaps %0, %"#mask3 ::"m"(mSHUF_DC00[0]):) ;
+__asm__ volatile("vmovdqu %0, %"#mask1 ::"m"(mBYTE_FLIP_MASK[0])) ;\
+__asm__ volatile("vmovdqu %0, %"#mask2 ::"m"(mSHUF_00BA[0])) ;\
+__asm__ volatile("vmovdqu %0, %"#mask3 ::"m"(mSHUF_DC00[0])) ;
 
 #define Init_Masks(BYTE_FLIP_MASK, SHUF_00BA, SHUF_DC00)\
     _Init_Masks(BYTE_FLIP_MASK, SHUF_00BA, SHUF_DC00)
