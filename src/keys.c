@@ -1820,7 +1820,7 @@ static int SetPrefix(byte* sha_input, int idx)
 
 
 static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
-                   byte side, void* heap, int devId)
+                   int side, void* heap, int devId)
 {
 #ifdef BUILD_ARC4
     word32 sz = specs->key_size;
