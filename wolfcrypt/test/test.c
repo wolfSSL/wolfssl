@@ -4265,10 +4265,6 @@ int dh_test(void)
     DhKey  key2;
     RNG    rng;
 
-    (void)idx;
-    (void)tmp;
-    (void)bytes;
-
 #ifdef USE_CERT_BUFFERS_1024
     XMEMCPY(tmp, dh_key_der_1024, sizeof_dh_key_der_1024);
     bytes = sizeof_dh_key_der_1024;
@@ -4286,6 +4282,10 @@ int dh_test(void)
     bytes = (word32) fread(tmp, 1, sizeof(tmp), file);
     fclose(file);
 #endif /* USE_CERT_BUFFERS */
+
+	(void)idx;
+    (void)tmp;
+    (void)bytes;
 
     wc_InitDhKey(&key);
     wc_InitDhKey(&key2);
