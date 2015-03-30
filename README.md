@@ -67,7 +67,7 @@ before calling wolfSSL_new();  Though it's not recommended.
 - RNG failure resource cleanup fix
 
 - No high level security fixes that requires an update though we always
-  recommend updating to the latest (except note 6 use case of ecc/nomral math)
+  recommend updating to the latest (except note 6 use case of ecc/normal math)
 
 See INSTALL file for build instructions.
 More info can be found on-line at //http://wolfssl.com/yaSSL/Docs.html
