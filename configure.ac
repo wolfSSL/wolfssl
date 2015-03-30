@@ -31,7 +31,7 @@ AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_HEADERS([config.h:config.in])dnl Keep filename to 8.3 for MS-DOS.
 
 #shared library versioning
-WOLFSSL_LIBRARY_VERSION=0:0:0
+WOLFSSL_LIBRARY_VERSION=0:1:0
 #                       | | |
 #                +------+ | +---+
 #                |        |     |
