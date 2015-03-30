@@ -94,60 +94,64 @@ __asm__(                                                      \
              "movq  %1,%%rdx\n\t"                         \
              "addq  %2, %0\n\t"       /* c0+=cy; Set CF, OF */ \
              "adoxq %%r10, %%r10\n\t" /* Reset   OF */    \
-             :"+m"(c0):"r"(a0),"r"(cy):"%r8","%r10","%r11","%r12","%rdx") ; \
+             :"+m"(c0):"r"(a0),"r"(cy):"%r8","%r9", "%r10","%r11","%r12","%rdx") ; \
 
-#define MULX_INNERMUL_R1(c0, c1, pre)\
+#define MULX_INNERMUL_R1(c0, c1, pre, rdx)\
    {                                                      \
     __asm__  volatile (                                   \
-         "mulx  %%r11,%%r9, %%r8 \n\t"                       \
+         "movq  %3, %%rdx\n\t"                            \
+         "mulx  %%r11,%%r9, %%r8 \n\t"                    \
          "movq  %2, %%r12\n\t"                            \
          "adoxq  %%r9,%0     \n\t"                        \
          "adcxq  %%r8,%1     \n\t"                        \
-         :"+r"(c0),"+r"(c1):"m"(pre):"%r8","%r9","%r11","%r12","%rdx"    \
+         :"+r"(c0),"+r"(c1):"m"(pre),"r"(rdx):"%r8","%r9", "%r10", "%r11","%r12","%rdx"    \
     ); }
     
 
-#define MULX_INNERMUL_R2(c0, c1, pre)\
+#define MULX_INNERMUL_R2(c0, c1, pre, rdx)\
    {                                                      \
     __asm__  volatile (                                   \
-         "mulx  %%r12,%%r9, %%r8 \n\t"                       \
+         "movq  %3, %%rdx\n\t"                            \
+         "mulx  %%r12,%%r9, %%r8 \n\t"                    \
          "movq  %2, %%r11\n\t"                            \
          "adoxq  %%r9,%0     \n\t"                        \
          "adcxq  %%r8,%1     \n\t"                        \
-         :"+r"(c0),"+r"(c1):"m"(pre):"%r8","%r9","%r11","%r12","%rdx"    \
+         :"+r"(c0),"+r"(c1):"m"(pre),"r"(rdx):"%r8","%r9", "%r10", "%r11","%r12","%rdx"    \
     ); }
 
 #define MULX_LOAD_R1(val)\
     __asm__  volatile (                                   \
         "movq %0, %%r11\n\t"\
-        ::"m"(val):"%r11"\
+        ::"m"(val):"%r8","%r9", "%r10", "%r11","%r12","%rdx"\
 ) ;
 
-#define MULX_INNERMUL_LAST(c0, c1)\
+#define MULX_INNERMUL_LAST(c0, c1, rdx)\
    {                                                      \
     __asm__  volatile (                                   \
+         "movq   %2, %%rdx\n\t"                           \
          "mulx   %%r12,%%r9, %%r8 \n\t"                   \
-         "movq   $0, %%r10      \n\t"                      \
+         "movq   $0, %%r10      \n\t"                     \
          "adoxq  %%r10, %%r9   \n\t"                      \
          "adcq   $0,%%r8       \n\t"                      \
          "addq   %%r9,%0       \n\t"                      \
          "adcq   $0,%%r8       \n\t"                      \
          "movq   %%r8,%1       \n\t"                      \
-         :"+m"(c0),"=m"(c1)::"%r8","%r9","%r10","%r12","%rdx"\
+         :"+m"(c0),"=m"(c1):"r"(rdx):"%r8","%r9","%r10", "%r11", "%r12","%rdx"\
     ); }
 
 #define MULX_INNERMUL8(x,y,z,cy)\
+{       word64 rdx = y ;\
         MULX_LOAD_R1(x[0]) ;\
         MULX_INIT(y, _c0, cy) ; /* rdx=y; z0+=cy; */ \
-        MULX_INNERMUL_R1(_c0, _c1, x[1]) ;\
-        MULX_INNERMUL_R2(_c1, _c2, x[2]) ;\
-        MULX_INNERMUL_R1(_c2, _c3, x[3]) ;\
-        MULX_INNERMUL_R2(_c3, _c4, x[4]) ;\
-        MULX_INNERMUL_R1(_c4, _c5, x[5]) ;\
-        MULX_INNERMUL_R2(_c5, _c6, x[6]) ;\
-        MULX_INNERMUL_R1(_c6, _c7, x[7]) ;\
-        MULX_INNERMUL_LAST(_c7, cy) ;\
-
+        MULX_INNERMUL_R1(_c0, _c1, x[1], rdx) ;\
+        MULX_INNERMUL_R2(_c1, _c2, x[2], rdx) ;\
+        MULX_INNERMUL_R1(_c2, _c3, x[3], rdx) ;\
+        MULX_INNERMUL_R2(_c3, _c4, x[4], rdx) ;\
+        MULX_INNERMUL_R1(_c4, _c5, x[5], rdx) ;\
+        MULX_INNERMUL_R2(_c5, _c6, x[6], rdx) ;\
+        MULX_INNERMUL_R1(_c6, _c7, x[7], rdx) ;\
+        MULX_INNERMUL_LAST(_c7, cy, rdx) ;\
+}
 #define INNERMUL8_MULX \
 {\
     MULX_INNERMUL8(tmpm, mu, _c, cy);\
@@ -1233,7 +1237,7 @@ __asm__(                                                      \
          "mulx  %2,%%r9, %%r8 \n\t"                       \
          "adoxq  %%r9,%0     \n\t"                        \
          "adcxq  %%r8,%1     \n\t"                        \
-         :"+r"(c0),"+r"(c1):"r"(b0):"%r8","%r9","%rdx"\
+         :"+r"(c0),"+r"(c1):"r"(b0):"%r8","%r9","%r10","%rdx"\
     )
 
 
