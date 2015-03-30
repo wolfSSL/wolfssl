@@ -35,6 +35,44 @@ wolfSSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, 0);
 before calling wolfSSL_new();  Though it's not recommended.
 ```
 
+#wolfSSL (Formerly CyaSSL) Release 3.4.6 (03/30/2015)
+
+##Release 3.4.6 of wolfSSL has bug fixes and new features including:
+
+- Intel Assembly Speedups using instructions rdrand, rdseed, aesni, avx1/2,
+  rorx, mulx, adox, adcx .  They can be enabled with --enable-intelasm.
+  These speedup the use of RNG, SHA2, and public key algorithms.
+- Ed25519 support at the crypto level. Turn on with --enable-ed25519.  Examples
+  in wolcrypt/test/test.c ed25519_test().
+- Post Handshake Memory reductions.  wolfSSL can now hold less than 1,000 bytes
+  of memory per secure connection including cipher state.
+- wolfSSL API and wolfCrypt API fixes, you can still include the cyassl and
+  ctaocrypt headers which will enable the compatibility APIs for the
+  foreseeable future
+- INSTALL file to help direct users to build instructions for their environment
+- For ECC users with the normal math library a fix that prevents a crash when
+  verify signature fails.  Users of 3.4.0 with ECC and the normal math library
+  must update
+- RC4 is now disabled by default in autoconf mode
+- AES-GCM and ChaCha20/Poly1305 are now enabled by default to make AEAD ciphers
+  available without a switch
+- External ChaCha-Poly AEAD API, thanks to Andrew Burks for the contribution
+- DHE-PSK cipher suites can now be built without ASN or Cert support
+- Fix some NO MD5 build issues with optional features
+- Freescale CodeWarrior project updates
+- ECC curves can be individually turned on/off at build time.
+- Sniffer handles Cert Status message and other minor fixes
+- SetMinVersion() at the wolfSSL Context level instead of just SSL session level
+  to allow minimum protocol version allowed at runtime
+- RNG failure resource cleanup fix
+
+- No high level security fixes that requires an update though we always
+  recommend updating to the latest (except note 6 use case of ecc/nomral math)
+
+See INSTALL file for build instructions.
+More info can be found on-line at //http://wolfssl.com/yaSSL/Docs.html
+
+
 #wolfSSL (Formerly CyaSSL) Release 3.4.0 (02/23/2015)
 
 ## Release 3.4.0 wolfSSL has bug fixes and new features including:
