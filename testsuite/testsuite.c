@@ -152,7 +152,6 @@ int testsuite_test(int argc, char** argv)
         strcpy(echo_args.argv[0], "echoclient");
         strcpy(echo_args.argv[1], "input");
         strcpy(echo_args.argv[2], outputName);
-        remove(outputName);
 
         /* Share the signal, it has the new port number in it. */
         echo_args.signal = server_args.signal;
@@ -189,6 +188,7 @@ int testsuite_test(int argc, char** argv)
 
         file_test("input",  input);
         file_test(outputName, output);
+        remove(outputName);
         if (memcmp(input, output, sizeof(input)) != 0)
             return EXIT_FAILURE;
     }
