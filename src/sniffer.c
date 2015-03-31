@@ -1075,8 +1075,12 @@ static int SetNamedPrivateKey(const char* name, const char* address, int port,
         }
         XMEMSET(namedKey, 0, sizeof(NamedKey));
 
-        namedKey->nameSz = (word32)strnlen(name, sizeof(namedKey->name));
-        strncpy(namedKey->name, name, sizeof(namedKey->name));
+        namedKey->nameSz = (word32)XSTRLEN(name);
+        XSTRNCPY(namedKey->name, name, sizeof(namedKey->name));
+        if (namedKey->nameSz >= sizeof(namedKey->name)) {
+            namedKey->nameSz = sizeof(namedKey->name) - 1;
+            namedKey->name[namedKey->nameSz] = '\0';
+        }
 
         ret = LoadKeyFile(&namedKey->key, &namedKey->keySz,
                           keyFile, type, password);
@@ -1578,6 +1582,8 @@ static int ProcessClientHello(const byte* input, int* sslBytes,
         if (ret == SSL_SUCCESS) {
             NamedKey* namedKey;
 
+            if (nameSz >= sizeof(name))
+                nameSz = sizeof(name) - 1;
             name[nameSz] = 0;
             LockMutex(&session->context->namedKeysMutex);
             namedKey = session->context->namedKeys;
