@@ -2362,6 +2362,21 @@ ProtocolVersion MakeDTLSv1_2(void)
         */
     }
 #endif
+
+#elif defined(TIME_OVERRIDES)
+
+    /* use same asn time overrides unless user wants tick override above */
+
+    #ifndef HAVE_TIME_T_TYPE
+        typedef long time_t;
+    #endif
+    extern time_t XTIME(time_t * timer);
+
+    word32 LowResTimer(void)
+    {
+        return (word32) XTIME(0);
+    }
+
 #else /* !USE_WINDOWS_API && !HAVE_RTP_SYS && !MICRIUM && !USER_TICKS */
 
     #include <time.h>
