@@ -522,11 +522,18 @@ fi
 AM_CONDITIONAL([BUILD_BLAKE2], [test "x$ENABLED_BLAKE2" = "xyes"])
 
 
+# set sha512 default
+SHA512_DEFAULT=no
+if test "$host_cpu" = "x86_64"
+then
+SHA512_DEFAULT=yes
+fi
+
 # SHA512
 AC_ARG_ENABLE([sha512],
-    [  --enable-sha512         Enable wolfSSL SHA-512 support (default: disabled)],
+    [AS_HELP_STRING([--enable-sha512],[Enable wolfSSL SHA-512 support (default: enabled on x86_64)])],
     [ ENABLED_SHA512=$enableval ],
-    [ ENABLED_SHA512=no ]
+    [ ENABLED_SHA512=$SHA512_DEFAULT ]
     )
 
 if test "$ENABLED_SHA512" = "yes"
@@ -638,11 +645,19 @@ fi
 AM_CONDITIONAL([BUILD_DSA], [test "x$ENABLED_DSA" = "xyes"])
 
 
-# ECC 
+# set ecc default
+ECC_DEFAULT=no
+
+if test "$host_cpu" = "x86_64"
+then
+ECC_DEFAULT=yes
+fi
+
+# ECC
 AC_ARG_ENABLE([ecc],
-    [  --enable-ecc            Enable ECC (default: disabled)],
+    [AS_HELP_STRING([--enable-ecc],[Enable ECC (default: enabled on x86_64)])],
     [ ENABLED_ECC=$enableval ],
-    [ ENABLED_ECC=no ]
+    [ ENABLED_ECC=$ECC_DEFAULT ]
     )
 
 if test "$ENABLED_ECC" = "yes"
@@ -655,7 +670,7 @@ AM_CONDITIONAL([BUILD_ECC], [test "x$ENABLED_ECC" = "xyes"])
 
 if test "$ENABLED_ECC" = "yes" && test "$ENABLED_SMALL" = "yes"
 then
-    AC_MSG_ERROR([cannot enable ecc and small, ecc requires TLS which small turns off.]) 
+    AC_MSG_ERROR([cannot enable ecc and small, ecc requires TLS which small turns off.])
 fi
 
 
@@ -1676,6 +1691,11 @@ then
     else
         AM_CFLAGS="$AM_CFLAGS -DUSE_FAST_MATH"
         ENABLED_SLOWMATH="no"
+    fi
+    if test "$host_cpu" = "x86_64"
+    then
+        # Have settings.h set FP_MAX_BITS higher if user didn't set directly
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_X86_64_BUILD"
     fi
 fi
 

@@ -748,6 +748,14 @@
     #endif
 #endif
 
+/* if desktop type system and fastmath increase default max bits */
+#ifdef WOLFSSL_X86_64_BUILD
+    #ifdef USE_FAST_MATH
+        #ifndef FP_MAX_BITS
+            #define FP_MAX_BITS 8192
+        #endif
+    #endif
+#endif
 
 /* Place any other flags or defines here */
 
