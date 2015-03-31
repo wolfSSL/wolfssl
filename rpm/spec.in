@@ -69,7 +69,7 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_libdir}/libwolfssl.la
 %{_libdir}/libwolfssl.so
 %{_libdir}/libwolfssl.so.0
-%{_libdir}/libwolfssl.so.0.0.0
+%{_libdir}/libwolfssl.so.0.0.1
 
 %files devel
 %defattr(-,root,root,-)
@@ -174,14 +174,19 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_includedir}/wolfssl/wolfcrypt/blake2.h
 %{_includedir}/wolfssl/wolfcrypt/camellia.h
 %{_includedir}/wolfssl/wolfcrypt/chacha.h
+%{_includedir}/wolfssl/wolfcrypt/chacha20_poly1305.h
 %{_includedir}/wolfssl/wolfcrypt/coding.h
 %{_includedir}/wolfssl/wolfcrypt/compress.h
+%{_includedir}/wolfssl/wolfcrypt/curve25519.h
 %{_includedir}/wolfssl/wolfcrypt/des3.h
 %{_includedir}/wolfssl/wolfcrypt/dh.h
 %{_includedir}/wolfssl/wolfcrypt/dsa.h
 %{_includedir}/wolfssl/wolfcrypt/ecc.h
+%{_includedir}/wolfssl/wolfcrypt/ed25519.h
 %{_includedir}/wolfssl/wolfcrypt/error-crypt.h
+%{_includedir}/wolfssl/wolfcrypt/fe_operations.h
 %{_includedir}/wolfssl/wolfcrypt/fips_test.h
+%{_includedir}/wolfssl/wolfcrypt/ge_operations.h
 %{_includedir}/wolfssl/wolfcrypt/hc128.h
 %{_includedir}/wolfssl/wolfcrypt/hmac.h
 %{_includedir}/wolfssl/wolfcrypt/integer.h
@@ -251,6 +256,8 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_libdir}/pkgconfig/wolfssl.pc
 
 %changelog
+* Tue Mar 31 2015 John Safranek <john@wolfssl.com>
+- Added recent new wolfcrypt headers for curve25519
 * Fri Jan 09 2015 John Safranek <john@wolfssl.com>
 - Update for cyassl->wolfssl name change
 * Fri Oct 20 2012 Brian Aker <brian@tangent.org>
