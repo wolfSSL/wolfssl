@@ -3802,8 +3802,34 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
         x509->derCert.length = dCert->maxIdx;
     }
 
-    x509->altNames     = dCert->altNames;
-    dCert->altNames    = NULL;     /* takes ownership */
+    x509->altNames = NULL;
+    if (dCert->altNames != NULL) {
+        DNS_entry* l = NULL;
+        DNS_entry* r = dCert->altNames;
+        while (r) {
+            size_t len = XSTRLEN(r->name);
+            DNS_entry* lprev = l;
+            l = (DNS_entry*)XMALLOC(sizeof(*l), NULL, DYNAMIC_TYPE_ALTNAME);
+            if (l == NULL) {
+                ret = MEMORY_E;
+                break;
+            }
+            if (lprev != NULL) {
+                lprev->next = l;
+            }
+            else {
+                x509->altNames = l;
+            }
+            l->next = NULL;
+            l->name = (char*)XMALLOC(len + 1, NULL, DYNAMIC_TYPE_ALTNAME);
+            if (l->name == NULL) {
+                ret = MEMORY_E;
+                break;
+            }
+            XMEMCPY(l->name, r->name, len + 1);
+            r = r->next;
+        }
+    }
     x509->altNamesNext = x509->altNames;  /* index hint */
 
     x509->isCa = dCert->isCA;
