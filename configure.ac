@@ -536,6 +536,12 @@ AC_ARG_ENABLE([sha512],
     [ ENABLED_SHA512=$SHA512_DEFAULT ]
     )
 
+# lean pks does't need sha512
+if test "$ENABLED_SHA512" = "yes"
+then
+    ENABLED_SHA512=no
+fi
+
 if test "$ENABLED_SHA512" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SHA512 -DWOLFSSL_SHA384"
@@ -659,6 +665,12 @@ AC_ARG_ENABLE([ecc],
     [ ENABLED_ECC=$enableval ],
     [ ENABLED_ECC=$ECC_DEFAULT ]
     )
+
+# lean pks does't need ecc
+if test "$ENABLED_ECC" = "yes"
+then
+    ENABLED_ECC=no
+fi
 
 if test "$ENABLED_ECC" = "yes"
 then
