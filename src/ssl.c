@@ -8222,13 +8222,13 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
     long wolfSSL_SSL_SESSION_set_timeout(WOLFSSL_SESSION* ses, long t)
     {
-        word32 time;
+        word32 tmptime;
         if (!ses || t < 0)
             return BAD_FUNC_ARG;
 
-        time = t & 0xFFFFFFFF;
+        tmptime = t & 0xFFFFFFFF;
 
-        ses->timeout = time;
+        ses->timeout = tmptime;
 
         return SSL_SUCCESS;
     }
