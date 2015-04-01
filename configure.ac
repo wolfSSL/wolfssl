@@ -340,7 +340,7 @@ AC_ARG_ENABLE([aesgcm],
     [ ENABLED_AESGCM=yes ]
     )
 
-# lean pks does't need gcm
+# lean psk does't need gcm
 if test "$ENABLED_LEANPSK" = "yes"
 then
     ENABLED_AESGCM=no
@@ -431,7 +431,7 @@ AC_ARG_ENABLE([poly1305],
     [ ENABLED_POLY1305=yes ]
     )
 
-# lean pks does't need poly1305
+# lean psk does't need poly1305
 if test "$ENABLED_LEANPSK" = "yes"
 then
     ENABLED_POLY1305=no
@@ -536,8 +536,8 @@ AC_ARG_ENABLE([sha512],
     [ ENABLED_SHA512=$SHA512_DEFAULT ]
     )
 
-# lean pks does't need sha512
-if test "$ENABLED_SHA512" = "yes"
+# lean psk does't need sha512
+if test "$ENABLED_LEANPSK" = "yes"
 then
     ENABLED_SHA512=no
 fi
@@ -666,8 +666,8 @@ AC_ARG_ENABLE([ecc],
     [ ENABLED_ECC=$ECC_DEFAULT ]
     )
 
-# lean pks does't need ecc
-if test "$ENABLED_ECC" = "yes"
+# lean psk does't need ecc
+if test "$ENABLED_LEANPSK" = "yes"
 then
     ENABLED_ECC=no
 fi
@@ -1188,7 +1188,7 @@ AC_ARG_ENABLE([chacha],
     [ ENABLED_CHACHA=yes ]
     )
 
-# lean pks does't need chacha
+# lean psk does't need chacha
 if test "$ENABLED_LEANPSK" = "yes"
 then
     ENABLED_CHACHA=no
