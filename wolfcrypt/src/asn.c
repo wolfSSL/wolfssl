@@ -1425,6 +1425,7 @@ void InitDecodedCert(DecodedCert* cert, byte* source, word32 inSz, void* heap)
     cert->subjectCNLen    = 0;
     cert->subjectCNEnc    = CTC_UTF8;
     cert->subjectCNStored = 0;
+    cert->weOwnAltNames   = 0;
     cert->altNames        = NULL;
 #ifndef IGNORE_NAME_CONSTRAINTS
     cert->altEmailNames   = NULL;
@@ -1563,7 +1564,7 @@ void FreeDecodedCert(DecodedCert* cert)
         XFREE(cert->subjectCN, cert->heap, DYNAMIC_TYPE_SUBJECT_CN);
     if (cert->pubKeyStored == 1)
         XFREE(cert->publicKey, cert->heap, DYNAMIC_TYPE_PUBLIC_KEY);
-    if (cert->altNames)
+    if (cert->weOwnAltNames && cert->altNames)
         FreeAltNames(cert->altNames, cert->heap);
 #ifndef IGNORE_NAME_CONSTRAINTS
     if (cert->altEmailNames)
@@ -3415,6 +3416,8 @@ static int DecodeAltNames(byte* input, int sz, DecodedCert* cert)
         WOLFSSL_MSG("\tBad Sequence");
         return ASN_PARSE_E;
     }
+
+    cert->weOwnAltNames = 1;
 
     while (length > 0) {
         byte       b = input[idx++];

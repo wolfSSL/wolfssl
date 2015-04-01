@@ -387,6 +387,7 @@ struct DecodedCert {
     byte    extNameConstraintSet;
 #endif /* IGNORE_NAME_CONSTRAINTS */
     byte    isCA;                    /* CA basic constraint true         */
+    byte    weOwnAltNames;           /* altNames haven't been given to copy */
     byte    extKeyUsageSet;
     word16  extKeyUsage;             /* Key usage bitfield               */
     byte    extExtKeyUsageSet;       /* Extended Key Usage               */

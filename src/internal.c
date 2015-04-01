@@ -3817,9 +3817,9 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
         x509->derCert.length = dCert->maxIdx;
     }
 
-    x509->altNames     = dCert->altNames;
-    dCert->altNames    = NULL;     /* takes ownership */
-    x509->altNamesNext = x509->altNames;  /* index hint */
+    x509->altNames       = dCert->altNames;
+    dCert->weOwnAltNames = 0;
+    x509->altNamesNext   = x509->altNames;  /* index hint */
 
     x509->isCa = dCert->isCA;
 #ifdef OPENSSL_EXTRA
