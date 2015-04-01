@@ -1232,54 +1232,60 @@ __asm__(                                                      \
 /* anything you need at the end */
 #define COMBA_FINI
 
-#define MULADD_MULX(b0, c0, c1)\
-    __asm__  volatile (                                           \
+#define MULADD_MULX(b0, c0, c1, rdx)\
+    __asm__  volatile (                                   \
+         "movq   %3, %%rdx\n\t"                           \
          "mulx  %2,%%r9, %%r8 \n\t"                       \
          "adoxq  %%r9,%0     \n\t"                        \
          "adcxq  %%r8,%1     \n\t"                        \
-         :"+r"(c0),"+r"(c1):"r"(b0):"%r8","%r9","%r10","%rdx"\
+         :"+r"(c0),"+r"(c1):"r"(b0), "r"(rdx):"%r8","%r9","%r10","%rdx"\
     )
 
 
 #define MULADD_MULX_ADD_CARRY(c0, c1)\
     __asm__ volatile(\
     "mov $0, %%r10\n\t"\
-    "movq %1, %%r8\n\t"                           \
+    "movq %1, %%r8\n\t"\
     "adox %%r10, %0\n\t"\
     "adcx %%r10, %1\n\t"\
     :"+r"(c0),"+r"(c1)::"%r8","%r9","%r10","%rdx") ;
 
 #define MULADD_SET_A(a0)\
-    __asm__ volatile("add $0, %%r8\n\t"                     \
-             "movq  %0,%%rdx\n\t"::"r"(a0):"%r8","%r9","%r10","%rdx") ;          \
+    __asm__ volatile("add $0, %%r8\n\t"                   \
+             "movq  %0,%%rdx\n\t"                         \
+             ::"r"(a0):"%r8","%r9","%r10","%rdx") ;
 
 #define MULADD_BODY(a,b,c)\
-        cp = &(c->dp[iz]) ;\
-        c0 = cp[0] ; c1 = cp[1];\
-        MULADD_SET_A(a->dp[ix]) ;\
-        MULADD_MULX(b0, c0, c1) ;\
-        cp[0]=c0; c0=cp[2]; cp++ ;\
-        MULADD_MULX(b1, c1, c0) ;\
-        cp[0]=c1; c1=cp[2]; cp++ ; \
-        MULADD_MULX(b2, c0, c1) ;\
-        cp[0]=c0; c0=cp[2]; cp++ ; \
-        MULADD_MULX(b3, c1, c0) ;\
-        cp[0]=c1; c1=cp[2]; cp++ ; \
-        MULADD_MULX_ADD_CARRY(c0, c1) ;\
-        cp[0]=c0; cp[1]=c1;
+    {   word64 rdx = a->dp[ix] ;      \
+        cp = &(c->dp[iz]) ;           \
+        c0 = cp[0] ; c1 = cp[1];      \
+        MULADD_SET_A(rdx) ;           \
+        MULADD_MULX(b0, c0, c1, rdx) ;\
+        cp[0]=c0; c0=cp[2];           \
+        MULADD_MULX(b1, c1, c0, rdx) ;\
+        cp[1]=c1; c1=cp[3];           \
+        MULADD_MULX(b2, c0, c1, rdx) ;\
+        cp[2]=c0; c0=cp[4];           \
+        MULADD_MULX(b3, c1, c0, rdx) ;\
+        cp[3]=c1; c1=cp[5];           \
+        MULADD_MULX_ADD_CARRY(c0, c1);\
+        cp[4]=c0; cp[5]=c1;           \
+    }
 
 #define TFM_INTEL_MUL_COMBA(a, b, c)\
-  for(ix=0; ix<pa; ix++)c->dp[ix]=0 ;\
-  for(iy=0; (iy<b->used); iy+=4) {\
-    fp_digit *bp ;\
-    bp = &(b->dp[iy+0]) ; \
-    fp_digit b0 = bp[0] , b1= bp[1], b2= bp[2], b3= bp[3];\
-    ix=0, iz=iy;\
-    while(ix<a->used) {\
-        fp_digit c0, c1; \
-        fp_digit *cp ;\
-        MULADD_BODY(a,b,c);  ix++ ; iz++ ; \
-    }\
+  for(ix=0; ix<pa; ix++)c->dp[ix]=0 ; \
+  for(iy=0; (iy<b->used); iy+=4) {    \
+    fp_digit *bp ;                    \
+    bp = &(b->dp[iy+0]) ;             \
+    fp_digit b0 = bp[0] , b1= bp[1],  \
+             b2= bp[2], b3= bp[3];    \
+    ix=0, iz=iy;                      \
+    while(ix<a->used) {               \
+        fp_digit c0, c1;              \
+        fp_digit *cp ;                \
+        MULADD_BODY(a,b,c);           \
+        ix++ ; iz++ ;                 \
+    }                                 \
 };
 
 #elif defined(TFM_X86_64)
