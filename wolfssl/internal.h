@@ -510,6 +510,7 @@ typedef byte word24[3];
 #endif
 
 #if defined(BUILD_TLS_RSA_WITH_AES_128_GCM_SHA256) || \
+    defined(BUILD_TLS_DHE_RSA_WITH_AES_128_GCM_SHA256) || \
     defined(BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256) || \
     defined(BUILD_TLS_PSK_WITH_AES_128_GCM_SHA256)
     #define BUILD_AESGCM
