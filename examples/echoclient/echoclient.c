@@ -130,7 +130,7 @@ void echoclient_test(void* args)
         load_buffer(ctx, caCert, CYASSL_CA);
 #endif
 
-#if defined(CYASSL_SNIFFER) && !defined(HAVE_NTRU) && !defined(HAVE_ECC)
+#if defined(CYASSL_SNIFFER)
     /* don't use EDH, can't sniff tmp keys */
     SSL_CTX_set_cipher_list(ctx, "AES256-SHA");
 #endif
