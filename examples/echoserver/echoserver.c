@@ -160,7 +160,7 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
                 != SSL_SUCCESS)
             err_sys("can't load ntru key file, "
                     "Please run from wolfSSL home dir");
-    #elif defined(HAVE_ECC)
+    #elif defined(HAVE_ECC) && !defined(CYASSL_SNIFFER)
         /* ecc */
         if (CyaSSL_CTX_use_certificate_file(ctx, eccCert, SSL_FILETYPE_PEM)
                 != SSL_SUCCESS)
@@ -193,7 +193,7 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
     }
 #endif
 
-#if defined(CYASSL_SNIFFER) && !defined(HAVE_NTRU) && !defined(HAVE_ECC)
+#if defined(CYASSL_SNIFFER)
     /* don't use EDH, can't sniff tmp keys */
     CyaSSL_CTX_set_cipher_list(ctx, "AES256-SHA");
 #endif
