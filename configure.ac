@@ -335,7 +335,7 @@ AM_CONDITIONAL([BUILD_SNIFFTEST], [ test "x$ENABLED_SNIFFTEST" = "xyes" ])
 
 # AES-GCM
 AC_ARG_ENABLE([aesgcm],
-    [  --enable-aesgcm         Enable wolfSSL AES-GCM support (default: disabled)],
+    [AS_HELP_STRING([--enable-aesgcm],[Enable wolfSSL AES-GCM support (default: enabled)])],
     [ ENABLED_AESGCM=$enableval ],
     [ ENABLED_AESGCM=yes ]
     )
@@ -884,7 +884,7 @@ AM_CONDITIONAL([BUILD_RSA], [test "x$ENABLED_RSA" = "xyes"])
 
 # DH
 AC_ARG_ENABLE([dh],
-    [  --enable-dh             Enable DH (default: disabled)],
+    [AS_HELP_STRING([--enable-dh],[Enable DH (default: enabled)])],
     [ ENABLED_DH=$enableval ],
     [ ENABLED_DH=yes ]
     )

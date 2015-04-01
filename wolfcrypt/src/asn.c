@@ -2363,12 +2363,12 @@ int ValidateDate(const byte* date, byte format, int dateType)
     time_t ltime;
     struct tm  certTime;
     struct tm* localTime;
-    struct tm* tmpTime;
+    struct tm* tmpTime = NULL;
     int    i = 0;
 
-#ifdef FREESCALE_MQX
-    struct tm  mqxTime;
-    tmpTime = &mqxTime;
+#if defined(FREESCALE_MQX) || defined(TIME_OVERRIDES)
+    struct tm tmpTimeStorage;
+    tmpTime = &tmpTimeStorage;
 #else
     (void)tmpTime;
 #endif
@@ -2394,9 +2394,9 @@ int ValidateDate(const byte* date, byte format, int dateType)
     GetTime((int*)&certTime.tm_hour, date, &i);
     GetTime((int*)&certTime.tm_min,  date, &i);
     GetTime((int*)&certTime.tm_sec,  date, &i);
-        
+
         if (date[i] != 'Z') {     /* only Zulu supported for this profile */
-        WOLFSSL_MSG("Only Zulu time supported for this profile"); 
+        WOLFSSL_MSG("Only Zulu time supported for this profile");
         return 0;
     }
 
@@ -5217,13 +5217,13 @@ static int SetValidity(byte* output, int daysValid)
     time_t     ticks;
     time_t     normalTime;
     struct tm* now;
-    struct tm* tmpTime;
+    struct tm* tmpTime = NULL;
     struct tm  local;
 
-#ifdef FREESCALE_MQX
-    /* for use with MQX gmtime_r */
-    struct tm mqxTime;
-    tmpTime = &mqxTime;
+#if defined(FREESCALE_MQX) || defined(TIME_OVERRIDES)
+    /* for use with gmtime_r */
+    struct tm tmpTimeStorage;
+    tmpTime = &tmpTimeStorage;
 #else
     (void)tmpTime;
 #endif
