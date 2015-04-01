@@ -363,7 +363,7 @@ time_t XTIME(time_t * timer)
 {
     time_t sec = 0;
 
-    sec = (time_t) MYTIME_gettime();
+    sec = (time_t) Seconds_get();
 
     if (timer != NULL)
         *timer = sec;
