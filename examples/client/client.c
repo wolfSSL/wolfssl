@@ -607,10 +607,15 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     }
 
     if (!usePsk && !useAnon) {
-        if (wolfSSL_CTX_load_verify_locations(ctx, verifyCert, 0) != SSL_SUCCESS)
-                err_sys("can't load ca file, Please run from wolfSSL home dir");
+        if (wolfSSL_CTX_load_verify_locations(ctx, verifyCert,0) != SSL_SUCCESS)
+            err_sys("can't load ca file, Please run from wolfSSL home dir");
+#ifdef HAVE_ECC
+        /* load ecc verify too, echoserver uses it by default w/ ecc */
+        if (wolfSSL_CTX_load_verify_locations(ctx, eccCert, 0) != SSL_SUCCESS)
+            err_sys("can't load ecc ca file, Please run from wolfSSL home dir");
+#endif /* HAVE_ECC */
     }
-#endif
+#endif /* !NO_FILESYSTEM && !NO_CERTS */
 #if !defined(NO_CERTS)
     if (!usePsk && !useAnon && doPeerCheck == 0)
         wolfSSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, 0);
