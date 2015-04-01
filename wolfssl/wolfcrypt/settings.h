@@ -30,6 +30,9 @@
     extern "C" {
 #endif
 
+/* Uncomment next line if using Max Strength build */
+/* #define WOLFSSL_MAX_STRENGTH */
+
 /* Uncomment next line if using IPHONE */
 /* #define IPHONE */
 
@@ -106,6 +109,11 @@
 /* #define WOLFSSL_uTKERNEL2 */
 
 #include <wolfssl/wolfcrypt/visibility.h>
+
+#ifdef WOLFSSL_MAX_STRENGTH
+    #undef NO_OLD_TLS
+    #define NO_OLD_TLS
+#endif
 
 #ifdef IPHONE
     #define SIZEOF_LONG_LONG 8

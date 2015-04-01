@@ -1866,17 +1866,6 @@ AS_IF([test "x$ENABLED_MAXSTRENGTH" = "xyes" && \
 AS_IF([test "x$ENABLED_MAXSTRENGTH" = "xyes"],
       [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_MAX_STRENGTH"])
 
-AS_IF([test "x$ENABLED_MAXSTRENGTH" = "xyes" || \
-       test "x$ENABLED_AESGCM" = "xyes" || \
-       test "x$ENABLED_AESCCM" = "xyes" || \
-       test "x$ENABLED_CHACHA" = "xyes" || \
-       test "x$ENABLED_POLY1305" = "xyes"],
-      [AM_CFLAGS="$AM_CFLAGS -DHAVE_AEAD"])
-
-AS_IF([test "x$ENABLED_MAXSTRENGTH" = "xyes" || \
-       test "x$ENABLED_DH" = "xyes"],
-      [AM_CFLAGS="$AM_CFLAGS -DHAVE_PFS"])
-
 AS_IF([test "x$ENABLED_MAXSTRENGTH" = "xyes" && \
        test "x$ENABLED_OLD_TLS" = "xyes"],
       [AM_CFLAGS="$AM_CFLAGS -DNO_OLD_TLS"

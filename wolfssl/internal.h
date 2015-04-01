@@ -459,7 +459,7 @@ typedef byte word24[3];
     #endif
 #endif
 
-#if defined(HAVE_ECC) && !defined(NO_DH) && !defined(NO_TLS) && !defined(NO_AES)
+#if defined(HAVE_ECC) && !defined(NO_TLS) && !defined(NO_AES)
     #ifdef HAVE_AESGCM
         #ifndef NO_SHA256
             #define BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256
@@ -480,16 +480,14 @@ typedef byte word24[3];
     #endif
 #endif
 
-#if defined(HAVE_CHACHA) && defined(HAVE_POLY1305) && !defined(NO_SHA256) && \
-    !defined(NO_DH)
-
+#if defined(HAVE_CHACHA) && defined(HAVE_POLY1305) && !defined(NO_SHA256)
     #ifdef HAVE_ECC
         #define BUILD_TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256
         #ifndef NO_RSA
             #define BUILD_TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256
         #endif
     #endif
-    #ifndef NO_RSA
+    #if !defined(NO_DH) && !defined(NO_RSA)
         #define BUILD_TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256
     #endif
 #endif
@@ -548,6 +546,19 @@ typedef byte word24[3];
 
 #ifdef HAVE_CHACHA
     #define CHACHA20_BLOCK_SIZE 16
+#endif
+
+#if defined(WOLFSSL_MAX_STRENGTH) || \
+    defined(HAVE_AESGCM) || defined(HAVE_AESCCM) || \
+    (defined(HAVE_CHACHA) && defined(HAVE_POLY1305))
+
+    #define HAVE_AEAD
+#endif
+
+#if defined(WOLFSSL_MAX_STRENGTH) || \
+    defined(HAVE_ECC) || !defined(NO_DH)
+
+    #define HAVE_PFS
 #endif
 
 
