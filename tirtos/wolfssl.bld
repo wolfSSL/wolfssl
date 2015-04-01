@@ -32,21 +32,24 @@
  */
 
 var armOpts = " -ms ";
-var gnuOpts = "";
+var gnuOpts = " -D_POSIX_SOURCE ";
 var iarOpts = "";
 
 /* Uncomment the following lines to build libraries for debug mode: */
 // Pkg.attrs.profile = "debug";
 // armOpts += " -g -o0 ";
-// gnuOpts += " -g ";
+// gnuOpts += " -g -D_POSIX_SOURCE ";
 // iarOpts += " --debug ";
 
 var ccOpts = {
-    "ti.targets.arm.elf.M4F"        : armOpts,
+    "ti.targets.arm.elf.M4"        : armOpts,
+    "ti.targets.arm.elf.M4F"       : armOpts,
 
-    "gnu.targets.arm.M4F"           : gnuOpts,
+    "gnu.targets.arm.M4"           : gnuOpts,
+    "gnu.targets.arm.M4F"          : gnuOpts,
 
-    "iar.targets.arm.M4F"           : iarOpts,
+    "iar.targets.arm.M4"           : iarOpts,
+    "iar.targets.arm.M4F"          : iarOpts,
 };
 
 /* initialize local vars with those set in xdcpaths.mak (via XDCARGS) */

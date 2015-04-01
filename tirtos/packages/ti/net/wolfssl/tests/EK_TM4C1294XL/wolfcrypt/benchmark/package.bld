@@ -1,6 +1,6 @@
 /*
  *  ======== package.bld ========
- *  Build script for wolfcrypt Test
+ *  Build script for benchmark application
  */
 
 if ((typeof(TivaWareDir) == undefined) || (TivaWareDir == "")) {
@@ -10,12 +10,12 @@ if ((typeof(TivaWareDir) == undefined) || (TivaWareDir == "")) {
 var Build = xdc.useModule('xdc.bld.BuildEnvironment');
 var Pkg = xdc.useModule('xdc.bld.PackageContents');
 
-/* make command to search for the srcs */ 
+/* make command to search for the srcs */
 Pkg.makePrologue = "vpath %.c $(subst ;,  ,$(XPKGPATH))";
 
 var srcs = [
     "main.c",
-    "wolfcrypt/test/test.c",
+    "wolfcrypt/benchmark/benchmark.c",
     "examples/boards/EK_TM4C1294XL/EK_TM4C1294XL.c",
 ];
 
@@ -31,19 +31,23 @@ for each (var targ in Build.targets) {
         lnkOpts = TivaWareDir + "/driverlib/ewarm/Exe/driverlib.a"
                 + " --config TM4C1294NC.icf";
         platform = "ti.platforms.tiva:TM4C1294NCPDT";
+
+        /* Floating point print support */
+        var suffix = targ.$orig.lnkOpts.suffix;
+        targ.$orig.lnkOpts.suffix = suffix.replace(/PrintfSmall/, "PrintfFull");
     }
     else if (targ.$name.match(/^gnu/)) {
-        targ.$orig.lnkOpts.suffix += " -L" + TivaWareDir + "/driverlib/gcc " 
+        targ.$orig.lnkOpts.suffix += " -L" + TivaWareDir + "/driverlib/gcc "
                 + " -Wl,--start-group -ldriver -Wl,--end-group ";
         targ.$orig.bspLib = "rdimon";
     }
- 
-    var exeOptions = { incs: wolfsslPathInclude 
+
+    var exeOptions = { incs: wolfsslPathInclude
             + " -DNO_MAIN_DRIVER -D_INCLUDE_NIMU_CODE -DBENCH_EMBEDDED "
             + " -DTIVAWARE -DPART_TM4C1294NCPDT",
-            lopts: lnkOpts,
-    };   
+            lopts: lnkOpts
+    };
 
-    var exe = Pkg.addExecutable("test", targ, platform, exeOptions);
+    var exe = Pkg.addExecutable("benchmark", targ, platform, exeOptions);
     exe.addObjects(srcs);
 }
