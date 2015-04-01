@@ -165,6 +165,13 @@ then
 fi
 
 
+# High Strength Build
+AC_ARG_ENABLE([maxstrength],
+    [AS_HELP_STRING([--enable-maxstrength],[Enable Max Strengh build, allows TLSv1.2-AEAD-PFS ciphers only (default: disabled)])],
+    [ENABLED_MAXSTRENGTH=$enableval],
+    [ENABLED_MAXSTRENGTH=no])
+
+
 # IPv6 Test Apps
 AC_ARG_ENABLE([ipv6],
     [  --enable-ipv6           Enable testing of IPV6 (default: disabled)],
@@ -1849,6 +1856,32 @@ fi
 AM_CONDITIONAL([BUILD_MCAPI], [test "x$ENABLED_MCAPI" = "xyes"])
 
 
+# Check for build-type conflicts
+AS_IF([test "x$ENABLED_MAXSTRENGTH" = "xyes" && \
+       test "x$ENABLED_LEANPSK" = "xyes"],
+      [AC_MSG_ERROR([Cannot use Max Strength and Lean PSK at the same time.])])
+
+
+# Update CFLAGS based on options
+AS_IF([test "x$ENABLED_MAXSTRENGTH" = "xyes"],
+      [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_MAX_STRENGTH"])
+
+AS_IF([test "x$ENABLED_MAXSTRENGTH" = "xyes" || \
+       test "x$ENABLED_AESGCM" = "xyes" || \
+       test "x$ENABLED_AESCCM" = "xyes" || \
+       test "x$ENABLED_CHACHA" = "xyes" || \
+       test "x$ENABLED_POLY1305" = "xyes"],
+      [AM_CFLAGS="$AM_CFLAGS -DHAVE_AEAD"])
+
+AS_IF([test "x$ENABLED_MAXSTRENGTH" = "xyes" || \
+       test "x$ENABLED_DH" = "xyes"],
+      [AM_CFLAGS="$AM_CFLAGS -DHAVE_PFS"])
+
+AS_IF([test "x$ENABLED_MAXSTRENGTH" = "xyes" && \
+       test "x$ENABLED_OLD_TLS" = "xyes"],
+      [AM_CFLAGS="$AM_CFLAGS -DNO_OLD_TLS"
+       ENABLED_OLD_TLS=no])
+
 
 # OPTIMIZE FLAGS
 if test "$GCC" = "yes"
@@ -2004,6 +2037,7 @@ echo "   Features "
 echo "   * Single threaded:           $ENABLED_SINGLETHREADED"
 echo "   * Filesystem:                $ENABLED_FILESYSTEM"
 echo "   * OpenSSL Extra API:         $ENABLED_OPENSSLEXTRA"
+echo "   * Max Strength Build:        $ENABLED_MAXSTRENGTH"
 echo "   * fastmath:                  $ENABLED_FASTMATH"
 echo "   * sniffer:                   $ENABLED_SNIFFER"
 echo "   * snifftest:                 $ENABLED_SNIFFTEST"
