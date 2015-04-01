@@ -327,6 +327,12 @@ AC_ARG_ENABLE([sniffer],
    [ ENABLED_SNIFFER=no ]
    )
 
+# sniffer does't work in maxstrength mode
+if test "$ENABLED_SNIFFER" = "yes" && test "$ENABLED_MAXSTRENGTH" = "yes"
+then
+    AC_MSG_ERROR([cannot enable maxstrength in sniffer mode.])
+fi
+
 ENABLED_SNIFFTEST=no
 AS_IF([ test "x$ENABLED_SNIFFER" = "xyes" ],
       [
