@@ -1,6 +1,6 @@
 /*
  *  ======== main.c ========
- *  Entry point for Benchmark application 
+ *  Entry point for Benchmark application
  */
 /* BIOS Header files */
 #include <ti/sysbios/BIOS.h>
@@ -27,7 +27,7 @@ void runBenchmarks(UArg arg0, UArg arg1)
 {
     void *args = NULL;
     msTimer_init();
-    
+
     System_printf("Running benchmarks...\n");
     System_flush();
     benchmark_test(args);

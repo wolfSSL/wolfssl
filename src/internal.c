@@ -2349,7 +2349,7 @@ ProtocolVersion MakeDTLSv1_2(void)
 
     word32 LowResTimer(void)
     {
-        return (word32) MYTIME_gettime();
+        return (word32) Seconds_get();
     }
 
 #elif defined(USER_TICKS)

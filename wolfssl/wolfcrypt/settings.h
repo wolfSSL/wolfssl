@@ -340,7 +340,7 @@
         #pragma diag_suppress=11
     #endif
 
-    #include <ti/ndk/nettools/mytime/mytime.h>
+    #include <ti/sysbios/hal/Seconds.h>
 #endif
 
 #ifdef EBSNET

@@ -1,6 +1,6 @@
 /*
  *  ======== main.c ========
- *  Entry point to wolfcrypt Test Application   
+ *  Entry point to wolfcrypt Test Application
  */
 
 /* XDCtools Header files */
@@ -53,4 +53,3 @@ int main(int argc, char** argv)
 
     BIOS_start();
 }
-
