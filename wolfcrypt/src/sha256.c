@@ -446,9 +446,9 @@ int wc_Sha256Update(Sha256* sha256, const byte* data, word32 len)
         if (sha256->buffLen == SHA256_BLOCK_SIZE) {
             int ret;
 
-            #if defined(LITTLE_ENDIAN_ORDER)
+            #if defined(LITTLE_ENDIAN_ORDER) && !defined(FREESCALE_MMCAU)
                 #if defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2)
-                if(!IS_INTEL_AVX1 && !IS_INTEL_AVX2) 
+                if(!IS_INTEL_AVX1 && !IS_INTEL_AVX2)
                 #endif
                 ByteReverseWords(sha256->buffer, sha256->buffer,
                                  SHA256_BLOCK_SIZE);
@@ -481,7 +481,7 @@ int wc_Sha256Final(Sha256* sha256, byte* hash)
         XMEMSET(&local[sha256->buffLen], 0, SHA256_BLOCK_SIZE - sha256->buffLen);
         sha256->buffLen += SHA256_BLOCK_SIZE - sha256->buffLen;
 
-        #if defined(LITTLE_ENDIAN_ORDER) 
+        #if defined(LITTLE_ENDIAN_ORDER) && !defined(FREESCALE_MMCAU)
             #if defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2)
             if(!IS_INTEL_AVX1 && !IS_INTEL_AVX2)
             #endif
@@ -502,7 +502,7 @@ int wc_Sha256Final(Sha256* sha256, byte* hash)
     sha256->loLen = sha256->loLen << 3;
 
     /* store lengths */
-    #if defined(LITTLE_ENDIAN_ORDER)
+    #if defined(LITTLE_ENDIAN_ORDER) && !defined(FREESCALE_MMCAU)
         #if defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2)
         if(!IS_INTEL_AVX1 && !IS_INTEL_AVX2)
         #endif
@@ -512,7 +512,7 @@ int wc_Sha256Final(Sha256* sha256, byte* hash)
     XMEMCPY(&local[SHA256_PAD_SIZE], &sha256->hiLen, sizeof(word32));
     XMEMCPY(&local[SHA256_PAD_SIZE + sizeof(word32)], &sha256->loLen,
             sizeof(word32));
-            
+
     #if defined(FREESCALE_MMCAU) || defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2)
         /* Kinetis requires only these bytes reversed */
         #if defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2)
