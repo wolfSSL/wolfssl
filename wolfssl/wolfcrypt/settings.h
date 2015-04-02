@@ -703,11 +703,11 @@
 
 
 /* stream ciphers except arc4 need 32bit alignment, intel ok without */
-#ifndef XSTREAM_ALIGNMENT
+#ifndef XSTREAM_ALIGN
     #if defined(__x86_64__) || defined(__ia64__) || defined(__i386__)
-        #define NO_XSTREAM_ALIGNMENT
+        #define NO_XSTREAM_ALIGN
     #else
-        #define XSTREAM_ALIGNMENT
+        #define XSTREAM_ALIGN
     #endif
 #endif
 
