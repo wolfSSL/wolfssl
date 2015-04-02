@@ -6,7 +6,7 @@
 #
 #
 
-AC_INIT([wolfssl],[3.4.6],[https://github.com/wolfssl/wolfssl/issues],[wolfssl],[http://www.wolfssl.com])
+AC_INIT([wolfssl],[3.4.7],[https://github.com/wolfssl/wolfssl/issues],[wolfssl],[http://www.wolfssl.com])
 
 AC_CONFIG_AUX_DIR([build-aux])
 
@@ -1200,6 +1200,12 @@ AC_ARG_ENABLE([chacha],
     [ ENABLED_CHACHA=$enableval ],
     [ ENABLED_CHACHA=yes ]
     )
+
+# not ready for big endian yet
+if test "x$ac_cv_c_bigendian" = "xyes"
+then
+    ENABLED_CHACHA=no
+fi
 
 # lean psk does't need chacha
 if test "$ENABLED_LEANPSK" = "yes"

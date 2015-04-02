@@ -48,6 +48,7 @@
 
 #ifdef BIG_ENDIAN_ORDER
     #define LITTLE32(x) ByteReverseWord32(x)
+    #error "CHACHA Not ready for Big Endian yet"
 #else
     #define LITTLE32(x) (x)
 #endif
