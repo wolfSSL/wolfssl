@@ -188,6 +188,19 @@ typedef byte word24[3];
    need to be switched off. Allowed suites use (EC)DHE, AES-GCM|CCM, or
    CHACHA-POLY.
 */
+
+/* Check that if WOLFSSL_MAX_STRENGTH is set that all the required options are
+ * not turned off. */
+#if defined(WOLFSSL_MAX_STRENGTH) && \
+    ((!defined(HAVE_ECC) && (defined(NO_DH) || defined(NO_RSA))) || \
+     (!defined(HAVE_AESGCM) && !defined(HAVE_AESCCM) && \
+      (!defined(HAVE_POLY1305) || !defined(HAVE_CHACHA))) || \
+     (defined(NO_SHA256) && !defined(WOLFSSL_SHA384)) || \
+     !defined(NO_OLD_TLS))
+
+    #error "You are trying to build max strength with requirements disabled."
+#endif
+
 #ifndef WOLFSSL_MAX_STRENGTH
 
     #if !defined(NO_RSA) && !defined(NO_RC4)
