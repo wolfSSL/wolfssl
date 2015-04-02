@@ -87,7 +87,7 @@ __asm__(                                                      \
 :"0"(_c[LO]), "1"(cy), "r"(mu), "r"(*tmpm++)              \
 : "%rax", "%rdx", "cc")
 
-#ifdef HAVE_INTEL_MULX
+#if defined(HAVE_INTEL_MULX)
 #define MULX_INIT(a0, c0, cy)\
     __asm__ volatile(                                     \
              "xorq  %%r10, %%r10\n\t"                     \
@@ -1208,7 +1208,8 @@ __asm__(                                                      \
      "adcl  $0,%2        \n\t"                            \
      :"=r"(c0), "=r"(c1), "=r"(c2): "0"(c0), "1"(c1), "2"(c2), "m"(i), "m"(j)  :"%eax","%edx","cc");
 
-#elif defined(HAVE_INTEL_MULX)
+#elif defined(TFM_X86_64)
+/* x86-64 optimized */
 
 /* anything you need at the start */
 #define COMBA_START
@@ -1232,6 +1233,18 @@ __asm__(                                                      \
 /* anything you need at the end */
 #define COMBA_FINI
 
+/* this should multiply i and j  */
+#define MULADD(i, j)                                      \
+__asm__  (                                                    \
+     "movq  %6,%%rax     \n\t"                            \
+     "mulq  %7           \n\t"                            \
+     "addq  %%rax,%0     \n\t"                            \
+     "adcq  %%rdx,%1     \n\t"                            \
+     "adcq  $0,%2        \n\t"                            \
+     :"=r"(c0), "=r"(c1), "=r"(c2): "0"(c0), "1"(c1), "2"(c2), "g"(i), "g"(j)  :"%rax","%rdx","cc");
+
+
+#if defined(HAVE_INTEL_MULX)
 #define MULADD_MULX(b0, c0, c1, rdx)\
     __asm__  volatile (                                   \
          "movq   %3, %%rdx\n\t"                           \
@@ -1287,41 +1300,7 @@ __asm__(                                                      \
         ix++ ; iz++ ;                 \
     }                                 \
 };
-
-#elif defined(TFM_X86_64)
-/* x86-64 optimized */
-
-/* anything you need at the start */
-#define COMBA_START
-
-/* clear the chaining variables */
-#define COMBA_CLEAR \
-   c0 = c1 = c2 = 0;
-
-/* forward the carry to the next digit */
-#define COMBA_FORWARD \
-   do { c0 = c1; c1 = c2; c2 = 0; } while (0);
-
-/* store the first sum */
-#define COMBA_STORE(x) \
-   x = c0;
-
-/* store the second sum [carry] */
-#define COMBA_STORE2(x) \
-   x = c1;
-
-/* anything you need at the end */
-#define COMBA_FINI
-
-/* this should multiply i and j  */
-#define MULADD(i, j)                                      \
-__asm__  (                                                    \
-     "movq  %6,%%rax     \n\t"                            \
-     "mulq  %7           \n\t"                            \
-     "addq  %%rax,%0     \n\t"                            \
-     "adcq  %%rdx,%1     \n\t"                            \
-     "adcq  $0,%2        \n\t"                            \
-     :"=r"(c0), "=r"(c1), "=r"(c2): "0"(c0), "1"(c1), "2"(c2), "g"(i), "g"(j)  :"%rax","%rdx","cc");
+#endif
 
 #elif defined(TFM_SSE2)
 /* use SSE2 optimizations */
