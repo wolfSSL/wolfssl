@@ -475,6 +475,39 @@ int wolfSSL_SetTmpDH(WOLFSSL* ssl, const unsigned char* p, int pSz,
     WOLFSSL_LEAVE("wolfSSL_SetTmpDH", 0);
     return SSL_SUCCESS;
 }
+
+/* server ctx Diffie-Hellman parameters, SSL_SUCCESS on ok */
+int wolfSSL_CTX_SetTmpDH(WOLFSSL_CTX* ctx, const unsigned char* p, int pSz,
+                         const unsigned char* g, int gSz)
+{
+    WOLFSSL_ENTER("wolfSSL_CTX_SetTmpDH");
+    if (ctx == NULL || p == NULL || g == NULL) return BAD_FUNC_ARG;
+
+    XFREE(ctx->serverDH_P.buffer, ctx->heap, DYNAMIC_TYPE_DH);
+    XFREE(ctx->serverDH_G.buffer, ctx->heap, DYNAMIC_TYPE_DH);
+
+    ctx->serverDH_P.buffer = (byte*)XMALLOC(pSz, ctx->heap,DYNAMIC_TYPE_DH);
+    if (ctx->serverDH_P.buffer == NULL)
+       return MEMORY_E;
+
+    ctx->serverDH_G.buffer = (byte*)XMALLOC(gSz, ctx->heap,DYNAMIC_TYPE_DH);
+    if (ctx->serverDH_G.buffer == NULL) {
+        XFREE(ctx->serverDH_P.buffer, ctx->heap, DYNAMIC_TYPE_DH);
+        return MEMORY_E;
+    }
+
+    ctx->serverDH_P.length = pSz;
+    ctx->serverDH_G.length = gSz;
+
+    XMEMCPY(ctx->serverDH_P.buffer, p, pSz);
+    XMEMCPY(ctx->serverDH_G.buffer, g, gSz);
+
+    ctx->haveDH = 1;
+
+    WOLFSSL_LEAVE("wolfSSL_CTX_SetTmpDH", 0);
+    return SSL_SUCCESS;
+}
+
 #endif /* !NO_DH */
 
 
@@ -3822,37 +3855,6 @@ int wolfSSL_CTX_SetTmpDH_file(WOLFSSL_CTX* ctx, const char* fname, int format)
 }
 
 
-    /* server ctx Diffie-Hellman parameters, SSL_SUCCESS on ok */
-    int wolfSSL_CTX_SetTmpDH(WOLFSSL_CTX* ctx, const unsigned char* p, int pSz,
-                            const unsigned char* g, int gSz)
-    {
-        WOLFSSL_ENTER("wolfSSL_CTX_SetTmpDH");
-        if (ctx == NULL || p == NULL || g == NULL) return BAD_FUNC_ARG;
-
-        XFREE(ctx->serverDH_P.buffer, ctx->heap, DYNAMIC_TYPE_DH);
-        XFREE(ctx->serverDH_G.buffer, ctx->heap, DYNAMIC_TYPE_DH);
-
-        ctx->serverDH_P.buffer = (byte*)XMALLOC(pSz, ctx->heap,DYNAMIC_TYPE_DH);
-        if (ctx->serverDH_P.buffer == NULL)
-            return MEMORY_E;
-
-        ctx->serverDH_G.buffer = (byte*)XMALLOC(gSz, ctx->heap,DYNAMIC_TYPE_DH);
-        if (ctx->serverDH_G.buffer == NULL) {
-            XFREE(ctx->serverDH_P.buffer, ctx->heap, DYNAMIC_TYPE_DH);
-            return MEMORY_E;
-        }
-
-        ctx->serverDH_P.length = pSz;
-        ctx->serverDH_G.length = gSz;
-
-        XMEMCPY(ctx->serverDH_P.buffer, p, pSz);
-        XMEMCPY(ctx->serverDH_G.buffer, g, gSz);
-
-        ctx->haveDH = 1;
-
-        WOLFSSL_LEAVE("wolfSSL_CTX_SetTmpDH", 0);
-        return SSL_SUCCESS;
-    }
 #endif /* NO_DH */
 
 
