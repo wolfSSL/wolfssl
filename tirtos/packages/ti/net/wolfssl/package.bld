@@ -50,7 +50,7 @@ var wolfSSLObjList = [
 
 for each (var targ in Build.targets) {
     var libOptions = {incs: wolfsslPathInclude};
-    var lib = Pkg.addLibrary("lib/" + Pkg.name, targ, libOptions);
+    var lib = Pkg.addLibrary("lib/wolfssl", targ, libOptions);
     lib.addObjects(wolfSSLObjList);
 }
 
