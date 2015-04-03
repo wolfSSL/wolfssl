@@ -1201,12 +1201,6 @@ AC_ARG_ENABLE([chacha],
     [ ENABLED_CHACHA=yes ]
     )
 
-# not ready for big endian yet
-if test "x$ac_cv_c_bigendian" = "xyes"
-then
-    ENABLED_CHACHA=no
-fi
-
 # lean psk does't need chacha
 if test "$ENABLED_LEANPSK" = "yes"
 then

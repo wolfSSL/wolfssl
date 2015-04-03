@@ -48,7 +48,6 @@
 
 #ifdef BIG_ENDIAN_ORDER
     #define LITTLE32(x) ByteReverseWord32(x)
-    #error "CHACHA Not ready for Big Endian yet"
 #else
     #define LITTLE32(x) (x)
 #endif
@@ -164,10 +163,10 @@ int wc_Chacha_SetKey(ChaCha* ctx, const byte* key, word32 keySz)
     ctx->X[ 9] = U8TO32_LITTLE(k +  4);
     ctx->X[10] = U8TO32_LITTLE(k +  8);
     ctx->X[11] = U8TO32_LITTLE(k + 12);
-    ctx->X[ 0] = U8TO32_LITTLE(constants + 0);
-    ctx->X[ 1] = U8TO32_LITTLE(constants + 1);
-    ctx->X[ 2] = U8TO32_LITTLE(constants + 2);
-    ctx->X[ 3] = U8TO32_LITTLE(constants + 3);
+    ctx->X[ 0] = constants[0];
+    ctx->X[ 1] = constants[1];
+    ctx->X[ 2] = constants[2];
+    ctx->X[ 3] = constants[3];
 
     return 0;
 }
