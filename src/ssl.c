@@ -849,6 +849,11 @@ int wolfSSL_Rehandshake(WOLFSSL* ssl)
     if (ret !=0)
         return ret;
 #endif
+#ifdef WOLFSSL_SHA512
+    ret = wc_InitSha512(&ssl->hsHashes->hashSha512);
+    if (ret !=0)
+        return ret;
+#endif
 
     ret = wolfSSL_negotiate(ssl);
     return ret;
@@ -5167,6 +5172,13 @@ int wolfSSL_dtls_got_timeout(WOLFSSL* ssl)
                                 return SSL_FATAL_ERROR;
                             }
                         #endif
+                        #ifdef WOLFSSL_SHA512
+                            if ( (ssl->error = wc_InitSha512(
+                                            &ssl->hsHashes->hashSha512)) != 0) {
+                                WOLFSSL_ERROR(ssl->error);
+                                return SSL_FATAL_ERROR;
+                            }
+                        #endif
                     }
                     if ( (ssl->error = SendClientHello(ssl)) != 0) {
                         WOLFSSL_ERROR(ssl->error);
@@ -5442,6 +5454,13 @@ int wolfSSL_dtls_got_timeout(WOLFSSL* ssl)
                         #ifdef WOLFSSL_SHA384
                             if ( (ssl->error = wc_InitSha384(
                                             &ssl->hsHashes->hashSha384)) != 0) {
+                               WOLFSSL_ERROR(ssl->error);
+                               return SSL_FATAL_ERROR;
+                            }
+                        #endif
+                        #ifdef WOLFSSL_SHA512
+                            if ( (ssl->error = wc_InitSha512(
+                                            &ssl->hsHashes->hashSha512)) != 0) {
                                WOLFSSL_ERROR(ssl->error);
                                return SSL_FATAL_ERROR;
                             }

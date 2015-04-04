@@ -1714,6 +1714,9 @@ typedef struct Hashes {
     #ifdef WOLFSSL_SHA384
         byte sha384[SHA384_DIGEST_SIZE];
     #endif
+    #ifdef WOLFSSL_SHA512
+        byte sha512[SHA512_DIGEST_SIZE];
+    #endif
 } Hashes;
 
 
@@ -2089,6 +2092,9 @@ typedef struct HS_Hashes {
 #endif
 #ifdef WOLFSSL_SHA384
     Sha384          hashSha384;         /* sha384 hash of handshake msgs */
+#endif
+#ifdef WOLFSSL_SHA512
+    Sha512          hashSha512;         /* sha512 hash of handshake msgs */
 #endif
 } HS_Hashes;
 
