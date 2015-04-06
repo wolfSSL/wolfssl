@@ -33,6 +33,84 @@
 
 /******************************************************************/
 /* fp_montgomery_reduce.c asm or generic */
+
+
+/* Each platform needs to query info type 1 from cpuid to see if aesni is
+ * supported. Also, let's setup a macro for proper linkage w/o ABI conflicts
+ */
+
+#if defined(HAVE_INTEL_MULX)
+#ifndef _MSC_VER
+    #define cpuid(reg, leaf, sub)\
+            __asm__ __volatile__ ("cpuid":\
+             "=a" (reg[0]), "=b" (reg[1]), "=c" (reg[2]), "=d" (reg[3]) :\
+             "a" (leaf), "c"(sub));
+
+    #define XASM_LINK(f) asm(f)
+#else
+
+    #include <intrin.h>
+    #define cpuid(a,b) __cpuid((int*)a,b)
+
+    #define XASM_LINK(f)
+
+#endif /* _MSC_VER */
+
+#define EAX 0
+#define EBX 1
+#define ECX 2 
+#define EDX 3
+    
+#define CPUID_AVX1   0x1
+#define CPUID_AVX2   0x2
+#define CPUID_RDRAND 0x4
+#define CPUID_RDSEED 0x8
+
+#define IS_INTEL_AVX1       (cpuid_flags&CPUID_AVX1)
+#define IS_INTEL_AVX2       (cpuid_flags&CPUID_AVX2)
+#define IS_INTEL_RDRAND     (cpuid_flags&CPUID_RDRAND)
+#define IS_INTEL_RDSEED     (cpuid_flags&CPUID_RDSEED)
+#define SET_FLAGS         
+
+static word32 cpuid_check = 0 ;
+static word32 cpuid_flags = 0 ;
+
+static word32 cpuid_flag(word32 leaf, word32 sub, word32 num, word32 bit) {
+    int got_intel_cpu=0;
+    unsigned int reg[5]; 
+    
+    reg[4] = '\0' ;
+    cpuid(reg, 0, 0);  
+    if(memcmp((char *)&(reg[EBX]), "Genu", 4) == 0 &&  
+                memcmp((char *)&(reg[EDX]), "ineI", 4) == 0 &&  
+                memcmp((char *)&(reg[ECX]), "ntel", 4) == 0) {  
+        got_intel_cpu = 1;  
+    }    
+    if (got_intel_cpu) {
+        cpuid(reg, leaf, sub);
+        return((reg[num]>>bit)&0x1) ;
+    }
+    return 0 ;
+}
+
+INLINE static int set_cpuid_flags(void) {  
+    if(cpuid_check == 0) {
+        if(cpuid_flag(7, 0, EBX, 5)){  cpuid_flags |= CPUID_AVX2 ; }
+		cpuid_check = 1 ;
+		return 0 ;
+    }
+    return 1 ;
+}
+
+#define RETURN return
+#define IF_HAVE_INTEL_MULX(func, ret)    \
+   if(cpuid_check==0)set_cpuid_flags() ; \
+   if(IS_INTEL_AVX2){  func;  ret ;  }
+
+#else
+    #define IF_HAVE_INTEL_MULX(func, ret)
+#endif
+
 #if defined(TFM_X86) && !defined(TFM_SSE2) 
 /* x86-32 code */
 
@@ -87,7 +165,7 @@ __asm__(                                                      \
 :"0"(_c[LO]), "1"(cy), "r"(mu), "r"(*tmpm++)              \
 : "%rax", "%rdx", "cc")
 
-#ifdef HAVE_INTEL_MULX
+#if defined(HAVE_INTEL_MULX)
 #define MULX_INIT(a0, c0, cy)\
     __asm__ volatile(                                     \
              "xorq  %%r10, %%r10\n\t"                     \
@@ -1208,80 +1286,6 @@ __asm__(                                                      \
      "adcl  $0,%2        \n\t"                            \
      :"=r"(c0), "=r"(c1), "=r"(c2): "0"(c0), "1"(c1), "2"(c2), "m"(i), "m"(j)  :"%eax","%edx","cc");
 
-#elif defined(HAVE_INTEL_MULX)
-
-/* anything you need at the start */
-#define COMBA_START
-
-/* clear the chaining variables */
-#define COMBA_CLEAR \
-   c0 = c1 = c2 = 0;
-
-/* forward the carry to the next digit */
-#define COMBA_FORWARD \
-   do { c0 = c1; c1 = c2; c2 = 0; } while (0);
-
-/* store the first sum */
-#define COMBA_STORE(x) \
-   x = c0;
-
-/* store the second sum [carry] */
-#define COMBA_STORE2(x) \
-   x = c1;
-
-/* anything you need at the end */
-#define COMBA_FINI
-
-#define MULADD_MULX(b0, c0, c1)\
-    __asm__  volatile (                                           \
-         "mulx  %2,%%r9, %%r8 \n\t"                       \
-         "adoxq  %%r9,%0     \n\t"                        \
-         "adcxq  %%r8,%1     \n\t"                        \
-         :"+r"(c0),"+r"(c1):"r"(b0):"%r8","%r9","%r10","%rdx"\
-    )
-
-
-#define MULADD_MULX_ADD_CARRY(c0, c1)\
-    __asm__ volatile(\
-    "mov $0, %%r10\n\t"\
-    "movq %1, %%r8\n\t"                           \
-    "adox %%r10, %0\n\t"\
-    "adcx %%r10, %1\n\t"\
-    :"+r"(c0),"+r"(c1)::"%r8","%r9","%r10","%rdx") ;
-
-#define MULADD_SET_A(a0)\
-    __asm__ volatile("add $0, %%r8\n\t"                     \
-             "movq  %0,%%rdx\n\t"::"r"(a0):"%r8","%r9","%r10","%rdx") ;          \
-
-#define MULADD_BODY(a,b,c)\
-        cp = &(c->dp[iz]) ;\
-        c0 = cp[0] ; c1 = cp[1];\
-        MULADD_SET_A(a->dp[ix]) ;\
-        MULADD_MULX(b0, c0, c1) ;\
-        cp[0]=c0; c0=cp[2]; cp++ ;\
-        MULADD_MULX(b1, c1, c0) ;\
-        cp[0]=c1; c1=cp[2]; cp++ ; \
-        MULADD_MULX(b2, c0, c1) ;\
-        cp[0]=c0; c0=cp[2]; cp++ ; \
-        MULADD_MULX(b3, c1, c0) ;\
-        cp[0]=c1; c1=cp[2]; cp++ ; \
-        MULADD_MULX_ADD_CARRY(c0, c1) ;\
-        cp[0]=c0; cp[1]=c1;
-
-#define TFM_INTEL_MUL_COMBA(a, b, c)\
-  for(ix=0; ix<pa; ix++)c->dp[ix]=0 ;\
-  for(iy=0; (iy<b->used); iy+=4) {\
-    fp_digit *bp ;\
-    bp = &(b->dp[iy+0]) ; \
-    fp_digit b0 = bp[0] , b1= bp[1], b2= bp[2], b3= bp[3];\
-    ix=0, iz=iy;\
-    while(ix<a->used) {\
-        fp_digit c0, c1; \
-        fp_digit *cp ;\
-        MULADD_BODY(a,b,c);  ix++ ; iz++ ; \
-    }\
-};
-
 #elif defined(TFM_X86_64)
 /* x86-64 optimized */
 
@@ -1316,6 +1320,65 @@ __asm__  (                                                    \
      "adcq  %%rdx,%1     \n\t"                            \
      "adcq  $0,%2        \n\t"                            \
      :"=r"(c0), "=r"(c1), "=r"(c2): "0"(c0), "1"(c1), "2"(c2), "g"(i), "g"(j)  :"%rax","%rdx","cc");
+
+
+#if defined(HAVE_INTEL_MULX)
+#define MULADD_MULX(b0, c0, c1, rdx)\
+    __asm__  volatile (                                   \
+         "movq   %3, %%rdx\n\t"                           \
+         "mulx  %2,%%r9, %%r8 \n\t"                       \
+         "adoxq  %%r9,%0     \n\t"                        \
+         "adcxq  %%r8,%1     \n\t"                        \
+         :"+r"(c0),"+r"(c1):"r"(b0), "r"(rdx):"%r8","%r9","%r10","%rdx"\
+    )
+
+
+#define MULADD_MULX_ADD_CARRY(c0, c1)\
+    __asm__ volatile(\
+    "mov $0, %%r10\n\t"\
+    "movq %1, %%r8\n\t"\
+    "adox %%r10, %0\n\t"\
+    "adcx %%r10, %1\n\t"\
+    :"+r"(c0),"+r"(c1)::"%r8","%r9","%r10","%rdx") ;
+
+#define MULADD_SET_A(a0)\
+    __asm__ volatile("add $0, %%r8\n\t"                   \
+             "movq  %0,%%rdx\n\t"                         \
+             ::"r"(a0):"%r8","%r9","%r10","%rdx") ;
+
+#define MULADD_BODY(a,b,c)\
+    {   word64 rdx = a->dp[ix] ;      \
+        cp = &(c->dp[iz]) ;           \
+        c0 = cp[0] ; c1 = cp[1];      \
+        MULADD_SET_A(rdx) ;           \
+        MULADD_MULX(b0, c0, c1, rdx) ;\
+        cp[0]=c0; c0=cp[2];           \
+        MULADD_MULX(b1, c1, c0, rdx) ;\
+        cp[1]=c1; c1=cp[3];           \
+        MULADD_MULX(b2, c0, c1, rdx) ;\
+        cp[2]=c0; c0=cp[4];           \
+        MULADD_MULX(b3, c1, c0, rdx) ;\
+        cp[3]=c1; c1=cp[5];           \
+        MULADD_MULX_ADD_CARRY(c0, c1);\
+        cp[4]=c0; cp[5]=c1;           \
+    }
+
+#define TFM_INTEL_MUL_COMBA(a, b, c)\
+  for(ix=0; ix<pa; ix++)c->dp[ix]=0 ; \
+  for(iy=0; (iy<b->used); iy+=4) {    \
+    fp_digit *bp ;                    \
+    bp = &(b->dp[iy+0]) ;             \
+    fp_digit b0 = bp[0] , b1= bp[1],  \
+             b2= bp[2], b3= bp[3];    \
+    ix=0, iz=iy;                      \
+    while(ix<a->used) {               \
+        fp_digit c0, c1;              \
+        fp_digit *cp ;                \
+        MULADD_BODY(a,b,c);           \
+        ix++ ; iz++ ;                 \
+    }                                 \
+};
+#endif
 
 #elif defined(TFM_SSE2)
 /* use SSE2 optimizations */
