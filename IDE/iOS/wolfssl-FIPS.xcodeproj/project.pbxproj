@@ -917,6 +917,7 @@
 					$SRCROOT,
 					$PROJECT_DIR/../..,
 				);
+				IPHONEOS_DEPLOYMENT_TARGET = 8.1;
 				OTHER_CFLAGS = "";
 				OTHER_LDFLAGS = "";
 				PRODUCT_NAME = wolfssl;
@@ -947,6 +948,7 @@
 					$SRCROOT,
 					$PROJECT_DIR/../..,
 				);
+				IPHONEOS_DEPLOYMENT_TARGET = 8.1;
 				OTHER_CFLAGS = "";
 				OTHER_LDFLAGS = "";
 				PRODUCT_NAME = wolfssl;

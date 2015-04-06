@@ -67,6 +67,9 @@ for "Preprocessor Macros" and add the following under both `Release` and
 * `WOLFSSL_SHA512`
 * `WOLFSSL_SHA384`
 
+The approved FIPS source files are from the CyaSSL project v3.4.8.fips. The FIPS
+and FIPS-TEST files are from our FIPS project v3.4.8.fips. For the wolfCAVP test
+the wolfSSL version used is v3.4.8.
 
 # Using the FIPS library
 
