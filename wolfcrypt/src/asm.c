@@ -33,6 +33,84 @@
 
 /******************************************************************/
 /* fp_montgomery_reduce.c asm or generic */
+
+
+/* Each platform needs to query info type 1 from cpuid to see if aesni is
+ * supported. Also, let's setup a macro for proper linkage w/o ABI conflicts
+ */
+
+#if defined(HAVE_INTEL_MULX)
+#ifndef _MSC_VER
+    #define cpuid(reg, leaf, sub)\
+            __asm__ __volatile__ ("cpuid":\
+             "=a" (reg[0]), "=b" (reg[1]), "=c" (reg[2]), "=d" (reg[3]) :\
+             "a" (leaf), "c"(sub));
+
+    #define XASM_LINK(f) asm(f)
+#else
+
+    #include <intrin.h>
+    #define cpuid(a,b) __cpuid((int*)a,b)
+
+    #define XASM_LINK(f)
+
+#endif /* _MSC_VER */
+
+#define EAX 0
+#define EBX 1
+#define ECX 2 
+#define EDX 3
+    
+#define CPUID_AVX1   0x1
+#define CPUID_AVX2   0x2
+#define CPUID_RDRAND 0x4
+#define CPUID_RDSEED 0x8
+
+#define IS_INTEL_AVX1       (cpuid_flags&CPUID_AVX1)
+#define IS_INTEL_AVX2       (cpuid_flags&CPUID_AVX2)
+#define IS_INTEL_RDRAND     (cpuid_flags&CPUID_RDRAND)
+#define IS_INTEL_RDSEED     (cpuid_flags&CPUID_RDSEED)
+#define SET_FLAGS         
+
+static word32 cpuid_check = 0 ;
+static word32 cpuid_flags = 0 ;
+
+static word32 cpuid_flag(word32 leaf, word32 sub, word32 num, word32 bit) {
+    int got_intel_cpu=0;
+    unsigned int reg[5]; 
+    
+    reg[4] = '\0' ;
+    cpuid(reg, 0, 0);  
+    if(memcmp((char *)&(reg[EBX]), "Genu", 4) == 0 &&  
+                memcmp((char *)&(reg[EDX]), "ineI", 4) == 0 &&  
+                memcmp((char *)&(reg[ECX]), "ntel", 4) == 0) {  
+        got_intel_cpu = 1;  
+    }    
+    if (got_intel_cpu) {
+        cpuid(reg, leaf, sub);
+        return((reg[num]>>bit)&0x1) ;
+    }
+    return 0 ;
+}
+
+INLINE static int set_cpuid_flags(void) {  
+    if(cpuid_check == 0) {
+        if(cpuid_flag(7, 0, EBX, 5)){  cpuid_flags |= CPUID_AVX2 ; }
+		cpuid_check = 1 ;
+		return 0 ;
+    }
+    return 1 ;
+}
+
+#define RETURN return
+#define IF_HAVE_INTEL_MULX(func, ret)    \
+   if(cpuid_check==0)set_cpuid_flags() ; \
+   if(IS_INTEL_AVX2){  func;  ret ;  }
+
+#else
+    #define IF_HAVE_INTEL_MULX(func, ret)
+#endif
+
 #if defined(TFM_X86) && !defined(TFM_SSE2) 
 /* x86-32 code */
 
