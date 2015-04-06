@@ -402,7 +402,74 @@ void fp_mul_2d(fp_int *a, int b, fp_int *c)
 
 /* generic PxQ multiplier */
 #if defined(HAVE_INTEL_MULX)
-void fp_mul_comba(fp_int *A, fp_int *B, fp_int *C)
+
+/* Each platform needs to query info type 1 from cpuid to see if aesni is
+ * supported. Also, let's setup a macro for proper linkage w/o ABI conflicts
+ */
+
+#ifndef _MSC_VER
+    #define cpuid(reg, leaf, sub)\
+            __asm__ __volatile__ ("cpuid":\
+             "=a" (reg[0]), "=b" (reg[1]), "=c" (reg[2]), "=d" (reg[3]) :\
+             "a" (leaf), "c"(sub));
+
+    #define XASM_LINK(f) asm(f)
+#else
+
+    #include <intrin.h>
+    #define cpuid(a,b) __cpuid((int*)a,b)
+
+    #define XASM_LINK(f)
+
+#endif /* _MSC_VER */
+
+#define EAX 0
+#define EBX 1
+#define ECX 2 
+#define EDX 3
+    
+#define CPUID_AVX1   0x1
+#define CPUID_AVX2   0x2
+#define CPUID_RDRAND 0x4
+#define CPUID_RDSEED 0x8
+
+#define IS_INTEL_AVX1       (cpuid_flags&CPUID_AVX1)
+#define IS_INTEL_AVX2       (cpuid_flags&CPUID_AVX2)
+#define IS_INTEL_RDRAND     (cpuid_flags&CPUID_RDRAND)
+#define IS_INTEL_RDSEED     (cpuid_flags&CPUID_RDSEED)
+#define SET_FLAGS         if(cpuid_check==0)set_cpuid_flags()
+
+static word32 cpuid_check = 0 ;
+static word32 cpuid_flags = 0 ;
+
+static word32 cpuid_flag(word32 leaf, word32 sub, word32 num, word32 bit) {
+    int got_intel_cpu=0;
+    unsigned int reg[5]; 
+    
+    reg[4] = '\0' ;
+    cpuid(reg, 0, 0);  
+    if(memcmp((char *)&(reg[EBX]), "Genu", 4) == 0 &&  
+                memcmp((char *)&(reg[EDX]), "ineI", 4) == 0 &&  
+                memcmp((char *)&(reg[ECX]), "ntel", 4) == 0) {  
+        got_intel_cpu = 1;  
+    }    
+    if (got_intel_cpu) {
+        cpuid(reg, leaf, sub);
+        return((reg[num]>>bit)&0x1) ;
+    }
+    return 0 ;
+}
+
+INLINE static int set_cpuid_flags(void) {  
+    if(cpuid_check == 0) {
+        if(cpuid_flag(7, 0, EBX, 5)){  cpuid_flags |= CPUID_AVX2 ; }
+		cpuid_check = 1 ;
+		return 0 ;
+    }
+    return 1 ;
+}
+
+INLINE static void fp_mul_comba_mulx(fp_int *A, fp_int *B, fp_int *C)
 
 {     
    int       ix, iy, iz, pa;
@@ -430,12 +497,21 @@ void fp_mul_comba(fp_int *A, fp_int *B, fp_int *C)
   fp_copy(dst, C);  
 }
 
-#else
+#endif
+
 void fp_mul_comba(fp_int *A, fp_int *B, fp_int *C)
 {
    int       ix, iy, iz, tx, ty, pa;
    fp_digit  c0, c1, c2, *tmpx, *tmpy;
    fp_int    tmp, *dst;
+
+   #if defined(HAVE_INTEL_MULX)
+   SET_FLAGS ;
+   if(IS_INTEL_AVX2) {
+       fp_mul_comba_mulx(A, B, C) ;
+       return ;
+   }
+   #endif
 
    COMBA_START;
    COMBA_CLEAR;
@@ -485,7 +561,6 @@ void fp_mul_comba(fp_int *A, fp_int *B, fp_int *C)
   fp_clamp(dst);
   fp_copy(dst, C);
 }
-#endif
 
 /* a/b => cb + d == a */
 int fp_div(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
@@ -1567,10 +1642,9 @@ static inline void innermul8_mulx(fp_digit *c_mulx, fp_digit *cy_mulx, fp_digit 
     c_mulx[0]=_c0; c_mulx[1]=_c1; c_mulx[2]=_c2; c_mulx[3]=_c3; c_mulx[4]=_c4; c_mulx[5]=_c5; c_mulx[6]=_c6; c_mulx[7]=_c7; 
     *cy_mulx = cy ;
 }
-#endif
 
 /* computes x/R == x (mod N) via Montgomery Reduction */
-void fp_montgomery_reduce(fp_int *a, fp_int *m, fp_digit mp)
+static void fp_montgomery_reduce_mulx(fp_int *a, fp_int *m, fp_digit mp)
 {
    fp_digit c[FP_SIZE], *_c, *tmpm, mu = 0;
    int      oldused, x, y, pa;
@@ -1607,13 +1681,94 @@ void fp_montgomery_reduce(fp_int *a, fp_int *m, fp_digit mp)
        _c   = c + x;
        tmpm = m->dp;
        y = 0;
+        for (; y < (pa & ~7); y += 8) {
+              innermul8_mulx(_c, &cy, tmpm, mu) ;
+              _c   += 8;
+              tmpm += 8;
+           }
+       for (; y < pa; y++) {
+          INNERMUL;
+          ++_c;
+       }
+       LOOP_END;
+       while (cy) {
+           PROPCARRY;
+           ++_c;
+       }
+  }         
+
+  /* now copy out */
+  _c   = c + pa;
+  tmpm = a->dp;
+  for (x = 0; x < pa+1; x++) {
+     *tmpm++ = *_c++;
+  }
+
+  for (; x < oldused; x++)   {
+     *tmpm++ = 0;
+  }
+
+  MONT_FINI;
+
+  a->used = pa+1;
+  fp_clamp(a);
+  
+  /* if A >= m then A = A - m */
+  if (fp_cmp_mag (a, m) != FP_LT) {
+    s_fp_sub (a, m, a);
+  }
+}
+#endif
+
+/* computes x/R == x (mod N) via Montgomery Reduction */
+void fp_montgomery_reduce(fp_int *a, fp_int *m, fp_digit mp)
+{
+   fp_digit c[FP_SIZE], *_c, *tmpm, mu = 0;
+   int      oldused, x, y, pa;
+   
+   #ifdef HAVE_INTEL_MULX
+   SET_FLAGS ;
+   if(IS_INTEL_AVX2) {
+       fp_montgomery_reduce_mulx(a, m, mp) ;
+       return ;
+   }
+   #endif
+   
+   /* bail if too large */
+   if (m->used > (FP_SIZE/2)) {
+      (void)mu;                     /* shut up compiler */
+      return;
+   }
+
+#ifdef TFM_SMALL_MONT_SET
+   if (m->used <= 16) {
+      fp_montgomery_reduce_small(a, m, mp);
+      return;
+   }
+#endif
+
+
+   /* now zero the buff */
+   XMEMSET(c, 0, sizeof c);
+   pa = m->used;
+
+   /* copy the input */
+   oldused = a->used;
+   for (x = 0; x < oldused; x++) {
+       c[x] = a->dp[x];
+   }
+   MONT_START;
+
+   for (x = 0; x < pa; x++) {
+       fp_digit cy = 0;
+       /* get Mu for this round */
+       LOOP_START;
+       _c   = c + x;
+       tmpm = m->dp;
+       y = 0;
        #if (defined(TFM_SSE2) || defined(TFM_X86_64))
         for (; y < (pa & ~7); y += 8) {
-              #ifdef HAVE_INTEL_MULX
-              innermul8_mulx(_c, &cy, tmpm, mu) ;
-              #else
               INNERMUL8 ;
-              #endif
               _c   += 8;
               tmpm += 8;
            }
