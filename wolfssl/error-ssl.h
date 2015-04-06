@@ -127,6 +127,7 @@ enum wolfSSL_ErrorCodes {
     SANITY_MSG_E            = -394,        /* Sanity check on msg order error */
     DUPLICATE_MSG_E         = -395,        /* Duplicate message error */
     SNI_UNSUPPORTED         = -396,        /* SSL 3.0 does not support SNI */
+    SOCKET_PEER_CLOSED_E    = -397,        /* Underlying transport closed */
 
     /* add strings to SetErrorString !!!!! */
 
