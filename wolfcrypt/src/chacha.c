@@ -78,10 +78,6 @@
 int wc_Chacha_SetIV(ChaCha* ctx, const byte* inIv, word32 counter)
 {
     word32 temp[3];       /* used for alignment of memory */
-    XMEMSET(temp, 0, 12);
-
-    if (ctx == NULL)
-        return BAD_FUNC_ARG;
 
 #ifdef CHACHA_AEAD_TEST
     word32 i;
@@ -92,12 +88,15 @@ int wc_Chacha_SetIV(ChaCha* ctx, const byte* inIv, word32 counter)
     printf("\n\n");
 #endif
 
+    if (ctx == NULL)
+        return BAD_FUNC_ARG;
+
     XMEMCPY(temp, inIv, 12);
 
-    ctx->X[12] = counter; /* block counter */
-    ctx->X[13] = temp[0]; /* fixed variable from nonce */
-    ctx->X[14] = temp[1]; /* counter from nonce */
-    ctx->X[15] = temp[2]; /* counter from nonce */
+    ctx->X[12] = LITTLE32(counter); /* block counter */
+    ctx->X[13] = LITTLE32(temp[0]); /* fixed variable from nonce */
+    ctx->X[14] = LITTLE32(temp[1]); /* counter from nonce */
+    ctx->X[15] = LITTLE32(temp[2]); /* counter from nonce */
 
     return 0;
 }
@@ -115,14 +114,20 @@ int wc_Chacha_SetKey(ChaCha* ctx, const byte* key, word32 keySz)
     const word32* constants;
     const byte*   k;
 
+#ifdef XSTREAM_ALIGN
+    word32 alignKey[8];
+#endif
+
     if (ctx == NULL)
         return BAD_FUNC_ARG;
 
+    if (keySz != 16 && keySz != 32)
+        return BAD_FUNC_ARG;
+
 #ifdef XSTREAM_ALIGN
-    word32 alignKey[keySz / 4];
     if ((wolfssl_word)key % 4) {
         WOLFSSL_MSG("wc_ChachaSetKey unaligned key");
-        XMEMCPY(alignKey, key, sizeof(alignKey));
+        XMEMCPY(alignKey, key, keySz);
         k = (byte*)alignKey;
     }
     else {
@@ -152,20 +157,16 @@ int wc_Chacha_SetKey(ChaCha* ctx, const byte* key, word32 keySz)
         constants = sigma;
     }
     else {
-        /* key size of 128 */
-        if (keySz != 16)
-            return BAD_FUNC_ARG;
-
         constants = tau;
     }
     ctx->X[ 8] = U8TO32_LITTLE(k +  0);
     ctx->X[ 9] = U8TO32_LITTLE(k +  4);
     ctx->X[10] = U8TO32_LITTLE(k +  8);
     ctx->X[11] = U8TO32_LITTLE(k + 12);
-    ctx->X[ 0] = U8TO32_LITTLE(constants + 0);
-    ctx->X[ 1] = U8TO32_LITTLE(constants + 1);
-    ctx->X[ 2] = U8TO32_LITTLE(constants + 2);
-    ctx->X[ 3] = U8TO32_LITTLE(constants + 3);
+    ctx->X[ 0] = constants[0];
+    ctx->X[ 1] = constants[1];
+    ctx->X[ 2] = constants[2];
+    ctx->X[ 3] = constants[3];
 
     return 0;
 }

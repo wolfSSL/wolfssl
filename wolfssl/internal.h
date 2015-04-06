@@ -181,172 +181,284 @@ typedef byte word24[3];
    make sure to use at least one BUILD_SSL_xxx or BUILD_TLS_xxx is defined
 
    When adding cipher suites, add name to cipher_names, idx to cipher_name_idx
+
+   Now that there is a maximum strength crypto build, the following BUILD_XXX
+   flags need to be divided into two groups selected by WOLFSSL_MAX_STRENGTH.
+   Those that do not use Perfect Forward Security and do not use AEAD ciphers
+   need to be switched off. Allowed suites use (EC)DHE, AES-GCM|CCM, or
+   CHACHA-POLY.
 */
-#if !defined(NO_RSA) && !defined(NO_RC4)
-  #if !defined(NO_SHA)
-    #define BUILD_SSL_RSA_WITH_RC4_128_SHA
-  #endif
-    #if !defined(NO_MD5)
-        #define BUILD_SSL_RSA_WITH_RC4_128_MD5
-    #endif
-    #if !defined(NO_TLS) && defined(HAVE_NTRU) && !defined(NO_SHA)
-        #define BUILD_TLS_NTRU_RSA_WITH_RC4_128_SHA
-    #endif
+
+/* Check that if WOLFSSL_MAX_STRENGTH is set that all the required options are
+ * not turned off. */
+#if defined(WOLFSSL_MAX_STRENGTH) && \
+    ((!defined(HAVE_ECC) && (defined(NO_DH) || defined(NO_RSA))) || \
+     (!defined(HAVE_AESGCM) && !defined(HAVE_AESCCM) && \
+      (!defined(HAVE_POLY1305) || !defined(HAVE_CHACHA))) || \
+     (defined(NO_SHA256) && !defined(WOLFSSL_SHA384)) || \
+     !defined(NO_OLD_TLS))
+
+    #error "You are trying to build max strength with requirements disabled."
 #endif
 
-#if !defined(NO_RSA) && !defined(NO_DES3)
-  #if !defined(NO_SHA)
-    #define BUILD_SSL_RSA_WITH_3DES_EDE_CBC_SHA
-    #if !defined(NO_TLS) && defined(HAVE_NTRU)
-        #define BUILD_TLS_NTRU_RSA_WITH_3DES_EDE_CBC_SHA
-    #endif
-  #endif
-#endif
+#ifndef WOLFSSL_MAX_STRENGTH
 
-#if !defined(NO_RSA) && !defined(NO_AES) && !defined(NO_TLS)
-  #if !defined(NO_SHA)
-    #define BUILD_TLS_RSA_WITH_AES_128_CBC_SHA
-    #define BUILD_TLS_RSA_WITH_AES_256_CBC_SHA
-    #if defined(HAVE_NTRU)
-        #define BUILD_TLS_NTRU_RSA_WITH_AES_128_CBC_SHA
-        #define BUILD_TLS_NTRU_RSA_WITH_AES_256_CBC_SHA
-    #endif
-  #endif
-    #if !defined (NO_SHA256)
-        #define BUILD_TLS_RSA_WITH_AES_128_CBC_SHA256
-        #define BUILD_TLS_RSA_WITH_AES_256_CBC_SHA256
-    #endif
-    #if defined (HAVE_AESGCM)
-        #define BUILD_TLS_RSA_WITH_AES_128_GCM_SHA256
-        #if defined (WOLFSSL_SHA384)
-            #define BUILD_TLS_RSA_WITH_AES_256_GCM_SHA384
+    #if !defined(NO_RSA) && !defined(NO_RC4)
+        #if !defined(NO_SHA)
+            #define BUILD_SSL_RSA_WITH_RC4_128_SHA
+        #endif
+        #if !defined(NO_MD5)
+            #define BUILD_SSL_RSA_WITH_RC4_128_MD5
+        #endif
+        #if !defined(NO_TLS) && defined(HAVE_NTRU) && !defined(NO_SHA)
+            #define BUILD_TLS_NTRU_RSA_WITH_RC4_128_SHA
         #endif
     #endif
-    #if defined (HAVE_AESCCM)
-        #define BUILD_TLS_RSA_WITH_AES_128_CCM_8
-        #define BUILD_TLS_RSA_WITH_AES_256_CCM_8
-    #endif
-    #if defined(HAVE_BLAKE2)
-        #define BUILD_TLS_RSA_WITH_AES_128_CBC_B2B256
-        #define BUILD_TLS_RSA_WITH_AES_256_CBC_B2B256
-    #endif
-#endif
 
-#if defined(HAVE_CAMELLIA) && !defined(NO_TLS)
-    #ifndef NO_RSA
-      #if !defined(NO_SHA)
-        #define BUILD_TLS_RSA_WITH_CAMELLIA_128_CBC_SHA
-        #define BUILD_TLS_RSA_WITH_CAMELLIA_256_CBC_SHA
-      #endif
-        #ifndef NO_SHA256
-            #define BUILD_TLS_RSA_WITH_CAMELLIA_128_CBC_SHA256
-            #define BUILD_TLS_RSA_WITH_CAMELLIA_256_CBC_SHA256
+    #if !defined(NO_RSA) && !defined(NO_DES3)
+        #if !defined(NO_SHA)
+            #define BUILD_SSL_RSA_WITH_3DES_EDE_CBC_SHA
+            #if !defined(NO_TLS) && defined(HAVE_NTRU)
+                    #define BUILD_TLS_NTRU_RSA_WITH_3DES_EDE_CBC_SHA
+            #endif
         #endif
-        #if !defined(NO_DH)
+    #endif
+
+    #if !defined(NO_RSA) && !defined(NO_AES) && !defined(NO_TLS)
+        #if !defined(NO_SHA)
+            #define BUILD_TLS_RSA_WITH_AES_128_CBC_SHA
+            #define BUILD_TLS_RSA_WITH_AES_256_CBC_SHA
+            #if defined(HAVE_NTRU)
+                    #define BUILD_TLS_NTRU_RSA_WITH_AES_128_CBC_SHA
+                    #define BUILD_TLS_NTRU_RSA_WITH_AES_256_CBC_SHA
+            #endif
+        #endif
+        #if !defined (NO_SHA256)
+            #define BUILD_TLS_RSA_WITH_AES_128_CBC_SHA256
+            #define BUILD_TLS_RSA_WITH_AES_256_CBC_SHA256
+        #endif
+        #if defined (HAVE_AESGCM)
+            #define BUILD_TLS_RSA_WITH_AES_128_GCM_SHA256
+            #if defined (WOLFSSL_SHA384)
+                #define BUILD_TLS_RSA_WITH_AES_256_GCM_SHA384
+            #endif
+        #endif
+        #if defined (HAVE_AESCCM)
+            #define BUILD_TLS_RSA_WITH_AES_128_CCM_8
+            #define BUILD_TLS_RSA_WITH_AES_256_CCM_8
+        #endif
+        #if defined(HAVE_BLAKE2)
+            #define BUILD_TLS_RSA_WITH_AES_128_CBC_B2B256
+            #define BUILD_TLS_RSA_WITH_AES_256_CBC_B2B256
+        #endif
+    #endif
+
+    #if defined(HAVE_CAMELLIA) && !defined(NO_TLS)
+        #ifndef NO_RSA
           #if !defined(NO_SHA)
-            #define BUILD_TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA
-            #define BUILD_TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA
+            #define BUILD_TLS_RSA_WITH_CAMELLIA_128_CBC_SHA
+            #define BUILD_TLS_RSA_WITH_CAMELLIA_256_CBC_SHA
           #endif
             #ifndef NO_SHA256
-                #define BUILD_TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA256
-                #define BUILD_TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA256
+                #define BUILD_TLS_RSA_WITH_CAMELLIA_128_CBC_SHA256
+                #define BUILD_TLS_RSA_WITH_CAMELLIA_256_CBC_SHA256
+            #endif
+            #if !defined(NO_DH)
+              #if !defined(NO_SHA)
+                #define BUILD_TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA
+                #define BUILD_TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA
+              #endif
+                #ifndef NO_SHA256
+                    #define BUILD_TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA256
+                    #define BUILD_TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA256
+                #endif
             #endif
         #endif
     #endif
-#endif
 
-#if !defined(NO_PSK) && !defined(NO_AES) && !defined(NO_TLS)
-  #if !defined(NO_SHA)
-    #define BUILD_TLS_PSK_WITH_AES_128_CBC_SHA
-    #define BUILD_TLS_PSK_WITH_AES_256_CBC_SHA
-  #endif
-    #ifndef NO_SHA256
-        #define BUILD_TLS_PSK_WITH_AES_128_CBC_SHA256
-        #ifdef HAVE_AESGCM
-            #define BUILD_TLS_PSK_WITH_AES_128_GCM_SHA256
+    #if !defined(NO_PSK) && !defined(NO_AES) && !defined(NO_TLS)
+        #if !defined(NO_SHA)
+            #define BUILD_TLS_PSK_WITH_AES_128_CBC_SHA
+            #define BUILD_TLS_PSK_WITH_AES_256_CBC_SHA
         #endif
-        #ifdef HAVE_AESCCM
-            #define BUILD_TLS_PSK_WITH_AES_128_CCM_8
-            #define BUILD_TLS_PSK_WITH_AES_256_CCM_8
-            #define BUILD_TLS_PSK_WITH_AES_128_CCM
-            #define BUILD_TLS_PSK_WITH_AES_256_CCM
-        #endif
-    #endif
-    #ifdef WOLFSSL_SHA384
-        #define BUILD_TLS_PSK_WITH_AES_256_CBC_SHA384
-        #ifdef HAVE_AESGCM
-            #define BUILD_TLS_PSK_WITH_AES_256_GCM_SHA384
-        #endif
-    #endif
-#endif
-
-#if !defined(NO_TLS) && defined(HAVE_NULL_CIPHER)
-    #if !defined(NO_RSA)
-      #if !defined(NO_SHA)
-        #define BUILD_TLS_RSA_WITH_NULL_SHA
-      #endif
-      #ifndef NO_SHA256
-        #define BUILD_TLS_RSA_WITH_NULL_SHA256
-      #endif
-    #endif
-    #if !defined(NO_PSK)
-      #if !defined(NO_SHA)
-        #define BUILD_TLS_PSK_WITH_NULL_SHA
-      #endif
         #ifndef NO_SHA256
-            #define BUILD_TLS_PSK_WITH_NULL_SHA256
+            #define BUILD_TLS_PSK_WITH_AES_128_CBC_SHA256
+            #ifdef HAVE_AESGCM
+                #define BUILD_TLS_PSK_WITH_AES_128_GCM_SHA256
+            #endif
+            #ifdef HAVE_AESCCM
+                #define BUILD_TLS_PSK_WITH_AES_128_CCM_8
+                #define BUILD_TLS_PSK_WITH_AES_256_CCM_8
+                #define BUILD_TLS_PSK_WITH_AES_128_CCM
+                #define BUILD_TLS_PSK_WITH_AES_256_CCM
+            #endif
         #endif
         #ifdef WOLFSSL_SHA384
-            #define BUILD_TLS_PSK_WITH_NULL_SHA384
-        #endif
-    #endif
-#endif
-
-#if !defined(NO_HC128) && !defined(NO_RSA) && !defined(NO_TLS)
-    #define BUILD_TLS_RSA_WITH_HC_128_MD5
-  #if !defined(NO_SHA)
-    #define BUILD_TLS_RSA_WITH_HC_128_SHA
-  #endif
-  #if defined(HAVE_BLAKE2)
-    #define BUILD_TLS_RSA_WITH_HC_128_B2B256
-  #endif
-#endif
-
-#if !defined(NO_RABBIT) && !defined(NO_TLS) && !defined(NO_RSA)
-  #if !defined(NO_SHA)
-    #define BUILD_TLS_RSA_WITH_RABBIT_SHA
-  #endif
-#endif
-
-#if !defined(NO_DH) && !defined(NO_AES) && !defined(NO_TLS) && \
-    !defined(NO_RSA)
-  #if !defined(NO_SHA)
-    #define BUILD_TLS_DHE_RSA_WITH_AES_128_CBC_SHA
-    #define BUILD_TLS_DHE_RSA_WITH_AES_256_CBC_SHA
-  #endif
-    #if !defined (NO_SHA256)
-        #define BUILD_TLS_DHE_RSA_WITH_AES_128_CBC_SHA256
-        #define BUILD_TLS_DHE_RSA_WITH_AES_256_CBC_SHA256
-        #if defined (HAVE_AESGCM)
-            #define BUILD_TLS_DHE_RSA_WITH_AES_128_GCM_SHA256
-            #if defined (WOLFSSL_SHA384)
-                #define BUILD_TLS_DHE_RSA_WITH_AES_256_GCM_SHA384
+            #define BUILD_TLS_PSK_WITH_AES_256_CBC_SHA384
+            #ifdef HAVE_AESGCM
+                #define BUILD_TLS_PSK_WITH_AES_256_GCM_SHA384
             #endif
         #endif
     #endif
-#endif
 
-#if defined(HAVE_ANON) && !defined(NO_TLS) && !defined(NO_DH) && \
-    !defined(NO_AES) && !defined(NO_SHA)
-    #define BUILD_TLS_DH_anon_WITH_AES_128_CBC_SHA
+    #if !defined(NO_TLS) && defined(HAVE_NULL_CIPHER)
+        #if !defined(NO_RSA)
+            #if !defined(NO_SHA)
+                #define BUILD_TLS_RSA_WITH_NULL_SHA
+            #endif
+            #ifndef NO_SHA256
+                #define BUILD_TLS_RSA_WITH_NULL_SHA256
+            #endif
+        #endif
+        #if !defined(NO_PSK)
+            #if !defined(NO_SHA)
+                #define BUILD_TLS_PSK_WITH_NULL_SHA
+            #endif
+            #ifndef NO_SHA256
+                #define BUILD_TLS_PSK_WITH_NULL_SHA256
+            #endif
+            #ifdef WOLFSSL_SHA384
+                #define BUILD_TLS_PSK_WITH_NULL_SHA384
+            #endif
+        #endif
+    #endif
+
+    #if !defined(NO_HC128) && !defined(NO_RSA) && !defined(NO_TLS)
+        #define BUILD_TLS_RSA_WITH_HC_128_MD5
+        #if !defined(NO_SHA)
+            #define BUILD_TLS_RSA_WITH_HC_128_SHA
+        #endif
+        #if defined(HAVE_BLAKE2)
+            #define BUILD_TLS_RSA_WITH_HC_128_B2B256
+        #endif
+    #endif
+
+    #if !defined(NO_RABBIT) && !defined(NO_TLS) && !defined(NO_RSA)
+        #if !defined(NO_SHA)
+            #define BUILD_TLS_RSA_WITH_RABBIT_SHA
+        #endif
+    #endif
+
+    #if !defined(NO_DH) && !defined(NO_AES) && !defined(NO_TLS) && \
+        !defined(NO_RSA)
+
+        #if !defined(NO_SHA)
+            #define BUILD_TLS_DHE_RSA_WITH_AES_128_CBC_SHA
+            #define BUILD_TLS_DHE_RSA_WITH_AES_256_CBC_SHA
+        #endif
+        #if !defined(NO_SHA256)
+            #define BUILD_TLS_DHE_RSA_WITH_AES_128_CBC_SHA256
+            #define BUILD_TLS_DHE_RSA_WITH_AES_256_CBC_SHA256
+        #endif
+    #endif
+
+    #if defined(HAVE_ANON) && !defined(NO_TLS) && !defined(NO_DH) && \
+        !defined(NO_AES) && !defined(NO_SHA)
+        #define BUILD_TLS_DH_anon_WITH_AES_128_CBC_SHA
+    #endif
+
+    #if !defined(NO_DH) && !defined(NO_PSK) && !defined(NO_TLS)
+        #ifndef NO_SHA256
+            #define BUILD_TLS_DHE_PSK_WITH_AES_128_CBC_SHA256
+            #ifdef HAVE_NULL_CIPHER
+                #define BUILD_TLS_DHE_PSK_WITH_NULL_SHA256
+            #endif
+        #endif
+        #ifdef WOLFSSL_SHA384
+            #define BUILD_TLS_DHE_PSK_WITH_AES_256_CBC_SHA384
+            #ifdef HAVE_NULL_CIPHER
+                #define BUILD_TLS_DHE_PSK_WITH_NULL_SHA384
+            #endif
+        #endif
+    #endif
+
+    #if defined(HAVE_ECC) && !defined(NO_TLS)
+        #if !defined(NO_AES)
+            #if !defined(NO_SHA)
+                #if !defined(NO_RSA)
+                    #define BUILD_TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA
+                    #define BUILD_TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA
+                    #define BUILD_TLS_ECDH_RSA_WITH_AES_128_CBC_SHA
+                    #define BUILD_TLS_ECDH_RSA_WITH_AES_256_CBC_SHA
+                #endif
+
+                #define BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA
+                #define BUILD_TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA
+
+                #define BUILD_TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA
+                #define BUILD_TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA
+            #endif /* NO_SHA */
+            #ifndef NO_SHA256
+                #if !defined(NO_RSA)
+                    #define BUILD_TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256
+                    #define BUILD_TLS_ECDH_RSA_WITH_AES_128_CBC_SHA256
+                #endif
+                #define BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256
+                #define BUILD_TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA256
+            #endif
+
+            #ifdef WOLFSSL_SHA384
+                #if !defined(NO_RSA)
+                    #define BUILD_TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384
+                    #define BUILD_TLS_ECDH_RSA_WITH_AES_256_CBC_SHA384
+                #endif
+                #define BUILD_TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384
+                #define BUILD_TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA384
+            #endif
+
+            #if defined (HAVE_AESGCM)
+                #if !defined(NO_RSA)
+                    #define BUILD_TLS_ECDH_RSA_WITH_AES_128_GCM_SHA256
+                    #if defined(WOLFSSL_SHA384)
+                        #define BUILD_TLS_ECDH_RSA_WITH_AES_256_GCM_SHA384
+                    #endif
+                #endif
+
+                #define BUILD_TLS_ECDH_ECDSA_WITH_AES_128_GCM_SHA256
+
+                #if defined(WOLFSSL_SHA384)
+                    #define BUILD_TLS_ECDH_ECDSA_WITH_AES_256_GCM_SHA384
+                #endif
+            #endif
+        #endif /* NO_AES */
+        #if !defined(NO_RC4)
+            #if !defined(NO_SHA)
+                #if !defined(NO_RSA)
+                    #define BUILD_TLS_ECDHE_RSA_WITH_RC4_128_SHA
+                    #define BUILD_TLS_ECDH_RSA_WITH_RC4_128_SHA
+                #endif
+
+                #define BUILD_TLS_ECDHE_ECDSA_WITH_RC4_128_SHA
+                #define BUILD_TLS_ECDH_ECDSA_WITH_RC4_128_SHA
+            #endif
+        #endif
+        #if !defined(NO_DES3)
+            #if !defined(NO_RSA)
+                #define BUILD_TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA
+                #define BUILD_TLS_ECDH_RSA_WITH_3DES_EDE_CBC_SHA
+            #endif
+
+            #define BUILD_TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA
+            #define BUILD_TLS_ECDH_ECDSA_WITH_3DES_EDE_CBC_SHA
+        #endif
+    #endif
+
+#endif /* !WOLFSSL_MAX_STRENGTH */
+
+#if !defined(NO_DH) && !defined(NO_AES) && !defined(NO_TLS) && \
+    !defined(NO_RSA) && defined(HAVE_AESGCM)
+
+    #ifndef NO_SHA256
+        #define BUILD_TLS_DHE_RSA_WITH_AES_128_GCM_SHA256
+    #endif
+
+    #ifdef WOLFSSL_SHA384
+        #define BUILD_TLS_DHE_RSA_WITH_AES_256_GCM_SHA384
+    #endif
 #endif
 
 #if !defined(NO_DH) && !defined(NO_PSK) && !defined(NO_TLS)
     #ifndef NO_SHA256
-        #define BUILD_TLS_DHE_PSK_WITH_AES_128_CBC_SHA256
-        #ifdef HAVE_NULL_CIPHER
-            #define BUILD_TLS_DHE_PSK_WITH_NULL_SHA256
-        #endif
         #ifdef HAVE_AESGCM
             #define BUILD_TLS_DHE_PSK_WITH_AES_128_GCM_SHA256
         #endif
@@ -355,93 +467,41 @@ typedef byte word24[3];
             #define BUILD_TLS_DHE_PSK_WITH_AES_256_CCM
         #endif
     #endif
-    #ifdef WOLFSSL_SHA384
-        #define BUILD_TLS_DHE_PSK_WITH_AES_256_CBC_SHA384
-        #ifdef HAVE_NULL_CIPHER
-            #define BUILD_TLS_DHE_PSK_WITH_NULL_SHA384
-        #endif
-        #ifdef HAVE_AESGCM
-            #define BUILD_TLS_DHE_PSK_WITH_AES_256_GCM_SHA384
-        #endif
+    #if defined(WOLFSSL_SHA384) && defined(HAVE_AESGCM)
+        #define BUILD_TLS_DHE_PSK_WITH_AES_256_GCM_SHA384
     #endif
 #endif
 
-#if defined(HAVE_ECC) && !defined(NO_TLS)
-    #if !defined(NO_AES)
-        #if !defined(NO_SHA)
-            #if !defined(NO_RSA)
-                #define BUILD_TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA
-                #define BUILD_TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA
-                #define BUILD_TLS_ECDH_RSA_WITH_AES_128_CBC_SHA
-                #define BUILD_TLS_ECDH_RSA_WITH_AES_256_CBC_SHA
-            #endif
-    
-            #define BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA
-            #define BUILD_TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA
-    
-            #define BUILD_TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA
-            #define BUILD_TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA
-        #endif /* NO_SHA */
+#if defined(HAVE_ECC) && !defined(NO_TLS) && !defined(NO_AES)
+    #ifdef HAVE_AESGCM
         #ifndef NO_SHA256
-            #if !defined(NO_RSA)
-                #define BUILD_TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256
-                #define BUILD_TLS_ECDH_RSA_WITH_AES_128_CBC_SHA256
-            #endif
-            #define BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256
-            #define BUILD_TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA256
-        #endif
-
-        #ifdef WOLFSSL_SHA384
-            #if !defined(NO_RSA)
-                #define BUILD_TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384
-                #define BUILD_TLS_ECDH_RSA_WITH_AES_256_CBC_SHA384
-            #endif
-            #define BUILD_TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384
-            #define BUILD_TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA384
-        #endif
-
-        #if defined (HAVE_AESGCM)
-            #if !defined(NO_RSA)
-                #define BUILD_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
-                #define BUILD_TLS_ECDH_RSA_WITH_AES_128_GCM_SHA256
-                #if defined(WOLFSSL_SHA384)
-                    #define BUILD_TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
-                    #define BUILD_TLS_ECDH_RSA_WITH_AES_256_GCM_SHA384
-                #endif
-            #endif
-
             #define BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256
-            #define BUILD_TLS_ECDH_ECDSA_WITH_AES_128_GCM_SHA256
-            
-            #if defined(WOLFSSL_SHA384)
-                #define BUILD_TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384
-                #define BUILD_TLS_ECDH_ECDSA_WITH_AES_256_GCM_SHA384
+            #ifndef NO_RSA
+                #define BUILD_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
             #endif
         #endif
-        #if defined (HAVE_AESCCM)
-            #define BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8
-            #define BUILD_TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8
-        #endif
-    #endif /* NO_AES */
-    #if !defined(NO_RC4)
-        #if !defined(NO_SHA)
-            #if !defined(NO_RSA)
-                #define BUILD_TLS_ECDHE_RSA_WITH_RC4_128_SHA
-                #define BUILD_TLS_ECDH_RSA_WITH_RC4_128_SHA
+        #ifdef WOLFSSL_SHA384
+            #define BUILD_TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384
+            #ifndef NO_RSA
+                #define BUILD_TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
             #endif
-
-            #define BUILD_TLS_ECDHE_ECDSA_WITH_RC4_128_SHA
-            #define BUILD_TLS_ECDH_ECDSA_WITH_RC4_128_SHA
         #endif
     #endif
-    #if !defined(NO_DES3)
-        #if !defined(NO_RSA)
-            #define BUILD_TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA
-            #define BUILD_TLS_ECDH_RSA_WITH_3DES_EDE_CBC_SHA
-        #endif
+    #if defined(HAVE_AESCCM) && !defined(NO_SHA256)
+        #define BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8
+        #define BUILD_TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8
+    #endif
+#endif
 
-        #define BUILD_TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA
-        #define BUILD_TLS_ECDH_ECDSA_WITH_3DES_EDE_CBC_SHA
+#if defined(HAVE_CHACHA) && defined(HAVE_POLY1305) && !defined(NO_SHA256)
+    #ifdef HAVE_ECC
+        #define BUILD_TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256
+        #ifndef NO_RSA
+            #define BUILD_TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256
+        #endif
+    #endif
+    #if !defined(NO_DH) && !defined(NO_RSA)
+        #define BUILD_TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256
     #endif
 #endif
 
@@ -463,6 +523,7 @@ typedef byte word24[3];
 #endif
 
 #if defined(BUILD_TLS_RSA_WITH_AES_128_GCM_SHA256) || \
+    defined(BUILD_TLS_DHE_RSA_WITH_AES_128_GCM_SHA256) || \
     defined(BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256) || \
     defined(BUILD_TLS_PSK_WITH_AES_128_GCM_SHA256)
     #define BUILD_AESGCM
@@ -499,23 +560,19 @@ typedef byte word24[3];
 
 #ifdef HAVE_CHACHA
     #define CHACHA20_BLOCK_SIZE 16
-    /* ChaCha - Poly AEAD suites */
-    #if defined(HAVE_POLY1305) && !defined(NO_SHA256)
-        #if defined(HAVE_ECC)
-            #if !defined(NO_RSA)
-                #define BUILD_TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256
-            #endif
-            #define BUILD_TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256
-        #endif
-        #if !defined(NO_DH) && !defined(NO_RSA)
-            #define BUILD_TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256
-        #endif
-    #endif /* end of ChaCha - Poly AEAD suites */
 #endif
 
-#if defined(BUILD_AESGCM) || defined(HAVE_AESCCM) || \
-                             (defined(HAVE_CHACHA) && defined(HAVE_POLY1305))
+#if defined(WOLFSSL_MAX_STRENGTH) || \
+    defined(HAVE_AESGCM) || defined(HAVE_AESCCM) || \
+    (defined(HAVE_CHACHA) && defined(HAVE_POLY1305))
+
     #define HAVE_AEAD
+#endif
+
+#if defined(WOLFSSL_MAX_STRENGTH) || \
+    defined(HAVE_ECC) || !defined(NO_DH)
+
+    #define HAVE_PFS
 #endif
 
 
@@ -1657,6 +1714,9 @@ typedef struct Hashes {
     #ifdef WOLFSSL_SHA384
         byte sha384[SHA384_DIGEST_SIZE];
     #endif
+    #ifdef WOLFSSL_SHA512
+        byte sha512[SHA512_DIGEST_SIZE];
+    #endif
 } Hashes;
 
 
@@ -2032,6 +2092,9 @@ typedef struct HS_Hashes {
 #endif
 #ifdef WOLFSSL_SHA384
     Sha384          hashSha384;         /* sha384 hash of handshake msgs */
+#endif
+#ifdef WOLFSSL_SHA512
+    Sha512          hashSha512;         /* sha512 hash of handshake msgs */
 #endif
 } HS_Hashes;
 

@@ -588,6 +588,10 @@ static void InitSuitesHashSigAlgo(Suites* suites, int haveECDSAsig,
     int idx = 0;
 
     if (haveECDSAsig) {
+        #ifdef WOLFSSL_SHA512
+            suites->hashSigAlgo[idx++] = sha512_mac;
+            suites->hashSigAlgo[idx++] = ecc_dsa_sa_algo;
+        #endif
         #ifdef WOLFSSL_SHA384
             suites->hashSigAlgo[idx++] = sha384_mac;
             suites->hashSigAlgo[idx++] = ecc_dsa_sa_algo;
@@ -603,6 +607,10 @@ static void InitSuitesHashSigAlgo(Suites* suites, int haveECDSAsig,
     }
 
     if (haveRSAsig) {
+        #ifdef WOLFSSL_SHA512
+            suites->hashSigAlgo[idx++] = sha512_mac;
+            suites->hashSigAlgo[idx++] = rsa_sa_algo;
+        #endif
         #ifdef WOLFSSL_SHA384
             suites->hashSigAlgo[idx++] = sha384_mac;
             suites->hashSigAlgo[idx++] = rsa_sa_algo;
@@ -1622,6 +1630,12 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
         return ret;
     }
 #endif
+#ifdef WOLFSSL_SHA512
+    ret = wc_InitSha512(&ssl->hsHashes->hashSha512);
+    if (ret != 0) {
+        return ret;
+    }
+#endif
 
     /* increment CTX reference count */
     if (LockMutex(&ctx->countMutex) != 0) {
@@ -2349,7 +2363,7 @@ ProtocolVersion MakeDTLSv1_2(void)
 
     word32 LowResTimer(void)
     {
-        return (word32) MYTIME_gettime();
+        return (word32) Seconds_get();
     }
 
 #elif defined(USER_TICKS)
@@ -2362,6 +2376,21 @@ ProtocolVersion MakeDTLSv1_2(void)
         */
     }
 #endif
+
+#elif defined(TIME_OVERRIDES)
+
+    /* use same asn time overrides unless user wants tick override above */
+
+    #ifndef HAVE_TIME_T_TYPE
+        typedef long time_t;
+    #endif
+    extern time_t XTIME(time_t * timer);
+
+    word32 LowResTimer(void)
+    {
+        return (word32) XTIME(0);
+    }
+
 #else /* !USE_WINDOWS_API && !HAVE_RTP_SYS && !MICRIUM && !USER_TICKS */
 
     #include <time.h>
@@ -2413,6 +2442,11 @@ static int HashOutput(WOLFSSL* ssl, const byte* output, int sz, int ivSz)
         if (ret != 0)
             return ret;
 #endif
+#ifdef WOLFSSL_SHA512
+        ret = wc_Sha512Update(&ssl->hsHashes->hashSha512, adj, sz);
+        if (ret != 0)
+            return ret;
+#endif
     }
 
     return 0;
@@ -2451,6 +2485,11 @@ static int HashInput(WOLFSSL* ssl, const byte* input, int sz)
 #endif
 #ifdef WOLFSSL_SHA384
         ret = wc_Sha384Update(&ssl->hsHashes->hashSha384, adj, sz);
+        if (ret != 0)
+            return ret;
+#endif
+#ifdef WOLFSSL_SHA512
+        ret = wc_Sha512Update(&ssl->hsHashes->hashSha512, adj, sz);
         if (ret != 0)
             return ret;
 #endif
@@ -3003,6 +3042,7 @@ static void BuildSHA(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
 #endif
 
 
+/* Finished doesn't support SHA512, not SHA512 cipher suites yet */
 static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
 {
     int ret = 0;
@@ -3802,9 +3842,9 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
         x509->derCert.length = dCert->maxIdx;
     }
 
-    x509->altNames     = dCert->altNames;
-    dCert->altNames    = NULL;     /* takes ownership */
-    x509->altNamesNext = x509->altNames;  /* index hint */
+    x509->altNames       = dCert->altNames;
+    dCert->weOwnAltNames = 0;
+    x509->altNamesNext   = x509->altNames;  /* index hint */
 
     x509->isCa = dCert->isCA;
 #ifdef OPENSSL_EXTRA
@@ -6866,6 +6906,9 @@ static int BuildCertHashes(WOLFSSL* ssl, Hashes* hashes)
     #ifdef WOLFSSL_SHA384
         Sha384 sha384 = ssl->hsHashes->hashSha384;
     #endif
+    #ifdef WOLFSSL_SHA512
+        Sha512 sha512 = ssl->hsHashes->hashSha512;
+    #endif
 
     if (ssl->options.tls) {
 #if ! defined( NO_OLD_TLS )
@@ -6882,6 +6925,11 @@ static int BuildCertHashes(WOLFSSL* ssl, Hashes* hashes)
             #endif
             #ifdef WOLFSSL_SHA384
                 ret = wc_Sha384Final(&ssl->hsHashes->hashSha384,hashes->sha384);
+                if (ret != 0)
+                    return ret;
+            #endif
+            #ifdef WOLFSSL_SHA512
+                ret = wc_Sha512Final(&ssl->hsHashes->hashSha512,hashes->sha512);
                 if (ret != 0)
                     return ret;
             #endif
@@ -6903,6 +6951,9 @@ static int BuildCertHashes(WOLFSSL* ssl, Hashes* hashes)
         #endif
         #ifdef WOLFSSL_SHA384
             ssl->hsHashes->hashSha384 = sha384;
+        #endif
+        #ifdef WOLFSSL_SHA512
+            ssl->hsHashes->hashSha512 = sha512;
         #endif
     }
 
@@ -8866,6 +8917,12 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
                 break;
             }
             #endif
+            #ifdef WOLFSSL_SHA512
+            else if (hashSigAlgo[i] == sha512_mac) {
+                ssl->suites->hashAlgo = sha512_mac;
+                break;
+            }
+            #endif
         }
     }
 }
@@ -9892,6 +9949,15 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
         byte    hash384[SHA384_DIGEST_SIZE];
 #endif
 #endif
+#ifdef WOLFSSL_SHA512
+#ifdef WOLFSSL_SMALL_STACK
+        Sha512* sha512  = NULL;
+        byte*   hash512 = NULL;
+#else
+        Sha512  sha512[1];
+        byte    hash512[SHA512_DIGEST_SIZE];
+#endif
+#endif
 #ifdef WOLFSSL_SMALL_STACK
         byte*   hash          = NULL;
         byte*   messageVerify = NULL;
@@ -10011,6 +10077,24 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
             goto done;
 #endif
 
+#ifdef WOLFSSL_SHA512
+    #ifdef WOLFSSL_SMALL_STACK
+        sha512 = (Sha512*)XMALLOC(sizeof(Sha512), NULL,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+        hash512 = (byte*)XMALLOC(SHA512_DIGEST_SIZE, NULL,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+        if (sha512 == NULL || hash512 == NULL)
+            ERROR_OUT(MEMORY_E, done);
+    #endif
+        if (!(ret = wc_InitSha512(sha512))
+        &&  !(ret = wc_Sha512Update(sha512, ssl->arrays->clientRandom, RAN_LEN))
+        &&  !(ret = wc_Sha512Update(sha512, ssl->arrays->serverRandom, RAN_LEN))
+        &&  !(ret = wc_Sha512Update(sha512, messageVerify, verifySz)))
+              ret = wc_Sha512Final(sha512, hash512);
+        if (ret != 0)
+            goto done;
+#endif
+
 #ifndef NO_RSA
         /* rsa */
         if (sigAlgo == rsa_sa_algo)
@@ -10079,6 +10163,13 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
                         digestSz = SHA384_DIGEST_SIZE;
                     #endif
                 }
+                else if (hashAlgo == sha512_mac) {
+                    #ifdef WOLFSSL_SHA512
+                        digest   = hash512;
+                        typeH    = SHA512h;
+                        digestSz = SHA512_DIGEST_SIZE;
+                    #endif
+                }
 
             #ifdef WOLFSSL_SMALL_STACK
                 encodedSig = (byte*)XMALLOC(MAX_ENCODED_SIG_SZ, NULL,
@@ -10144,6 +10235,12 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
                         digestSz = SHA384_DIGEST_SIZE;
                     #endif
                 }
+                else if (hashAlgo == sha512_mac) {
+                    #ifdef WOLFSSL_SHA512
+                        digest   = hash512;
+                        digestSz = SHA512_DIGEST_SIZE;
+                    #endif
+                }
             }
             if (doUserEcc) {
             #ifdef HAVE_PK_CALLBACKS
@@ -10183,6 +10280,10 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
     #ifdef WOLFSSL_SHA384
         XFREE(sha384,        NULL, DYNAMIC_TYPE_TMP_BUFFER);
         XFREE(hash384,       NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
+    #ifdef WOLFSSL_SHA512
+        XFREE(sha512,        NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(hash512,       NULL, DYNAMIC_TYPE_TMP_BUFFER);
     #endif
         XFREE(hash,          NULL, DYNAMIC_TYPE_TMP_BUFFER);
         XFREE(messageVerify, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -10872,6 +10973,12 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
                             digestSz = SHA384_DIGEST_SIZE;
                         #endif
                     }
+                    else if (ssl->suites->hashAlgo == sha512_mac) {
+                        #ifdef WOLFSSL_SHA512
+                            digest = ssl->hsHashes->certHashes.sha512;
+                            digestSz = SHA512_DIGEST_SIZE;
+                        #endif
+                    }
                 }
 
                 if (doUserEcc) {
@@ -10937,6 +11044,14 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
                             digest   = ssl->hsHashes->certHashes.sha384;
                             typeH    = SHA384h;
                             digestSz = SHA384_DIGEST_SIZE;
+                            didSet   = 1;
+                        #endif
+                    }
+                    else if (ssl->suites->hashAlgo == sha512_mac) {
+                        #ifdef WOLFSSL_SHA512
+                            digest   = ssl->hsHashes->certHashes.sha512;
+                            typeH    = SHA512h;
+                            digestSz = SHA512_DIGEST_SIZE;
                             didSet   = 1;
                         #endif
                     }
@@ -11670,6 +11785,15 @@ int DoSessionTicket(WOLFSSL* ssl,
                 byte    hash384[SHA384_DIGEST_SIZE];
             #endif
         #endif
+        #ifdef WOLFSSL_SHA512
+            #ifdef WOLFSSL_SMALL_STACK
+                Sha512* sha512  = NULL;
+                byte*   hash512 = NULL;
+            #else
+                Sha512  sha512[1];
+                byte    hash512[SHA512_DIGEST_SIZE];
+            #endif
+        #endif
 
             #ifdef WOLFSSL_SMALL_STACK
                 hash = (byte*)XMALLOC(FINISHED_SZ, NULL,
@@ -11750,6 +11874,28 @@ int DoSessionTicket(WOLFSSL* ssl,
                     goto done_a2;
         #endif
 
+        #ifdef WOLFSSL_SHA512
+            #ifdef WOLFSSL_SMALL_STACK
+                sha512 = (Sha512*)XMALLOC(sizeof(Sha512), NULL,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+                hash512 = (byte*)XMALLOC(SHA512_DIGEST_SIZE, NULL,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+                if (sha512 == NULL || hash512 == NULL)
+                    ERROR_OUT(MEMORY_E, done_a2);
+            #endif
+
+                if (!(ret = wc_InitSha512(sha512))
+                &&  !(ret = wc_Sha512Update(sha512, ssl->arrays->clientRandom,
+                                                                       RAN_LEN))
+                &&  !(ret = wc_Sha512Update(sha512, ssl->arrays->serverRandom,
+                                                                       RAN_LEN))
+                &&  !(ret = wc_Sha512Update(sha512, output + preSigIdx, preSigSz)))
+                    ret = wc_Sha512Final(sha512, hash512);
+
+                if (ret != 0)
+                    goto done_a2;
+        #endif
+
             #ifndef NO_RSA
                 if (ssl->suites->sigAlgo == rsa_sa_algo) {
                     byte*  signBuffer = hash;
@@ -11790,6 +11936,13 @@ int DoSessionTicket(WOLFSSL* ssl,
                             digest   = hash384;
                             typeH    = SHA384h;
                             digestSz = SHA384_DIGEST_SIZE;
+                        #endif
+                        }
+                        else if (ssl->suites->hashAlgo == sha512_mac) {
+                        #ifdef WOLFSSL_SHA512
+                            digest   = hash512;
+                            typeH    = SHA512h;
+                            digestSz = SHA512_DIGEST_SIZE;
                         #endif
                         }
 
@@ -11862,6 +12015,12 @@ int DoSessionTicket(WOLFSSL* ssl,
                             digestSz = SHA384_DIGEST_SIZE;
                         #endif
                         }
+                        else if (ssl->suites->hashAlgo == sha512_mac) {
+                        #ifdef WOLFSSL_SHA512
+                            digest   = hash512;
+                            digestSz = SHA512_DIGEST_SIZE;
+                        #endif
+                        }
                     }
 
                     if (doUserEcc) {
@@ -11907,6 +12066,10 @@ int DoSessionTicket(WOLFSSL* ssl,
             #ifdef WOLFSSL_SHA384
                 XFREE(sha384,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
                 XFREE(hash384, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            #endif
+            #ifdef WOLFSSL_SHA512
+                XFREE(sha512,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                XFREE(hash512, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             #endif
         #endif
 
@@ -12111,6 +12274,15 @@ int DoSessionTicket(WOLFSSL* ssl,
                 byte    hash384[SHA384_DIGEST_SIZE];
             #endif
         #endif
+        #ifdef WOLFSSL_SHA512
+            #ifdef WOLFSSL_SMALL_STACK
+                Sha512* sha512  = NULL;
+                byte*   hash512 = NULL;
+            #else
+                Sha512  sha512[1];
+                byte    hash512[SHA512_DIGEST_SIZE];
+            #endif
+        #endif
 
             /* Add hash/signature algo ID */
             if (IsAtLeastTLSv1_2(ssl)) {
@@ -12205,6 +12377,28 @@ int DoSessionTicket(WOLFSSL* ssl,
                     goto done_b;
         #endif
 
+        #ifdef WOLFSSL_SHA512
+            #ifdef WOLFSSL_SMALL_STACK
+                sha512 = (Sha512*)XMALLOC(sizeof(Sha512), NULL,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+                hash512 = (byte*)XMALLOC(SHA512_DIGEST_SIZE, NULL,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+                if (sha512 == NULL || hash512 == NULL)
+                    ERROR_OUT(MEMORY_E, done_b);
+            #endif
+
+                if (!(ret = wc_InitSha512(sha512))
+                &&  !(ret = wc_Sha512Update(sha512, ssl->arrays->clientRandom,
+                                                                       RAN_LEN))
+                &&  !(ret = wc_Sha512Update(sha512, ssl->arrays->serverRandom,
+                                                                       RAN_LEN))
+                &&  !(ret = wc_Sha512Update(sha512, output + preSigIdx, preSigSz)))
+                    ret = wc_Sha512Final(sha512, hash512);
+
+                if (ret != 0)
+                    goto done_b;
+        #endif
+
             #ifndef NO_RSA
                 if (ssl->suites->sigAlgo == rsa_sa_algo) {
                     byte*  signBuffer = hash;
@@ -12245,6 +12439,13 @@ int DoSessionTicket(WOLFSSL* ssl,
                             digest   = hash384;
                             typeH    = SHA384h;
                             digestSz = SHA384_DIGEST_SIZE;
+                        #endif
+                        }
+                        else if (ssl->suites->hashAlgo == sha512_mac) {
+                        #ifdef WOLFSSL_SHA512
+                            digest   = hash512;
+                            typeH    = SHA512h;
+                            digestSz = SHA512_DIGEST_SIZE;
                         #endif
                         }
 
@@ -12288,6 +12489,10 @@ int DoSessionTicket(WOLFSSL* ssl,
             #ifdef WOLFSSL_SHA384
                 XFREE(sha384,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
                 XFREE(hash384, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            #endif
+            #ifdef WOLFSSL_SHA512
+                XFREE(sha512,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                XFREE(hash512, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             #endif
         #endif
 
@@ -13030,6 +13235,13 @@ int DoSessionTicket(WOLFSSL* ssl,
                         digestSz = SHA384_DIGEST_SIZE;
                     #endif
                 }
+                else if (hashAlgo == sha512_mac) {
+                    #ifdef WOLFSSL_SHA512
+                        digest = ssl->hsHashes->certHashes.sha512;
+                        typeH    = SHA512h;
+                        digestSz = SHA512_DIGEST_SIZE;
+                    #endif
+                }
 
                 sigSz = wc_EncodeSignature(encodedSig, digest, digestSz, typeH);
 
@@ -13080,6 +13292,12 @@ int DoSessionTicket(WOLFSSL* ssl,
                     #ifdef WOLFSSL_SHA384
                         digest = ssl->hsHashes->certHashes.sha384;
                         digestSz = SHA384_DIGEST_SIZE;
+                    #endif
+                }
+                else if (hashAlgo == sha512_mac) {
+                    #ifdef WOLFSSL_SHA512
+                        digest = ssl->hsHashes->certHashes.sha512;
+                        digestSz = SHA512_DIGEST_SIZE;
                     #endif
                 }
             }

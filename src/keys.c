@@ -2407,11 +2407,33 @@ int SetKeysSide(WOLFSSL* ssl, enum encrypt_side side)
                     /* Initialize the AES-GCM/CCM explicit IV to a zero. */
                     XMEMCPY(ssl->keys.aead_exp_IV, keys->aead_exp_IV,
                             AEAD_EXP_IV_SZ);
+
+                    /* Initialize encrypt implicit IV by encrypt side */
+                    if (ssl->options.side == WOLFSSL_CLIENT_END) {
+                        XMEMCPY(ssl->keys.aead_enc_imp_IV,
+                                keys->client_write_IV, AEAD_IMP_IV_SZ);
+                    } else {
+                        XMEMCPY(ssl->keys.aead_enc_imp_IV,
+                                keys->server_write_IV, AEAD_IMP_IV_SZ);
+                    }
                 }
             #endif
         }
-        if (wc_decrypt)
+        if (wc_decrypt) {
             ssl->keys.peer_sequence_number = keys->peer_sequence_number;
+            #ifdef HAVE_AEAD
+                if (ssl->specs.cipher_type == aead) {
+                    /* Initialize decrypt implicit IV by decrypt side */
+                    if (ssl->options.side == WOLFSSL_SERVER_END) {
+                        XMEMCPY(ssl->keys.aead_dec_imp_IV,
+                                keys->client_write_IV, AEAD_IMP_IV_SZ);
+                    } else {
+                        XMEMCPY(ssl->keys.aead_dec_imp_IV,
+                                keys->server_write_IV, AEAD_IMP_IV_SZ);
+                    }
+                }
+            #endif
+        }
         ssl->secure_renegotiation->cache_status++;
     }
 #endif /* HAVE_SECURE_RENEGOTIATION */

@@ -66,7 +66,6 @@ for "Preprocessor Macros" and add the following under both `Release` and
 * `HAVE_AESGCM`
 * `WOLFSSL_SHA512`
 * `WOLFSSL_SHA384`
-* `NO_PWDBASED` -- for now, can drop later
 
 
 # Using the FIPS library
@@ -79,4 +78,9 @@ fixed, and the verify checksum becomes unusable. iOS does not allow dynamic
 libraries like this, so static builds are required. This creates a problem.
 Every time the application is changed, the FIPS checksum will change, because
 the FIPS library's position in the executable may change.
+
+You need to add something to your application that will output the verifyCore
+value to be used. The verifyCore in fips_test.c will need to be updated with this
+value, the library rebuilt, and relinked into your application. The application
+should not be changed during this process or the verifyCore check will fail again.
 

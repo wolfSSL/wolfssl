@@ -35,6 +35,9 @@ wolfSSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, 0);
 before calling wolfSSL_new();  Though it's not recommended.
 ```
 
+- GNU Binutils 2.24 ld has problems with some debug builds, to fix an ld error
+  add -fdebug-types-section to C_EXTRA_FLAGS
+
 #wolfSSL (Formerly CyaSSL) Release 3.4.6 (03/30/2015)
 
 ##Release 3.4.6 of wolfSSL has bug fixes and new features including:
