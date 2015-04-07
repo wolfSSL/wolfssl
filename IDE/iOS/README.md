@@ -63,10 +63,15 @@ for "Preprocessor Macros" and add the following under both `Release` and
 * `HAVE_AESGCM`
 * `WOLFSSL_SHA512`
 * `WOLFSSL_SHA384`
+* `NO_MD4`
+* `NO_HC128`
+* `NO_RABBIT`
+* `NO_DSA`
+* `NO_PWDBASED`
 
-The approved FIPS source files are from the CyaSSL project v3.4.8.fips. The FIPS
-and FIPS-TEST files are from our FIPS project v3.4.8. For the wolfCAVP test
-the wolfSSL version used is v3.4.8.
+The approved FIPS source files are from the CyaSSL project tag v3.4.8.fips. The
+files fips.c and fips_test.c, and the wolfCAVP test app are from the FIPS
+project tag v3.4.8a. The wolfSSL/wolfCrypt files are from tag v3.4.8.
 
 # Using the FIPS library
 
@@ -80,7 +85,7 @@ Every time the application is changed, the FIPS checksum will change, because
 the FIPS library's position in the executable may change.
 
 You need to add something to your application that will output the verifyCore
-value to be used. The verifyCore in fips_test.c will need to be updated with this
-value, the library rebuilt, and relinked into your application. The application
-should not be changed during this process or the verifyCore check will fail again.
-
+value to be used. The verifyCore in fips_test.c will need to be updated with
+this value, the library rebuilt, and relinked into your application. The
+application should not be changed during this process or the verifyCore check
+will fail again.
