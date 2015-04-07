@@ -2931,12 +2931,13 @@ WOLFSSL_LOCAL word32 SetAlgoID(int algoOID, byte* output, int type, int curveSz)
 }
 
 
-word32 wc_EncodeSignature(byte* out, const byte* digest, word32 digSz, int hashOID)
+word32 wc_EncodeSignature(byte* out, const byte* digest, word32 digSz,
+                          int hashOID)
 {
     byte digArray[MAX_ENCODED_DIG_SZ];
     byte algoArray[MAX_ALGO_SZ];
     byte seqArray[MAX_SEQ_SZ];
-    word32 encDigSz, algoSz, seqSz; 
+    word32 encDigSz, algoSz, seqSz;
 
     encDigSz = SetDigest(digest, digSz, digArray);
     algoSz   = SetAlgoID(hashOID, algoArray, hashType, 0);
