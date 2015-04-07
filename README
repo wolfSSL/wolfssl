@@ -37,7 +37,20 @@ before calling wolfSSL_new();  Though it's not recommended.
 - GNU Binutils 2.24 ld has problems with some debug builds, to fix an ld error
   add -fdebug-types-section to C_EXTRA_FLAGS
 
-wolfSSL (Formerly CyaSSL) Release 3.4.6 (03/30/2015)
+wolfSSL (Formerly CyaSSL) Release 3.4.8 (04/06/2015)
+
+Release 3.4.8 of wolfSSL has bug fixes and new features including:
+
+- FIPS version submitted for iOS.
+- Max Strength build that only allows TLSv1.2, AEAD ciphers, and PFS.
+- Improvements to usage of time code.
+- Improvements to VS solution files.
+
+See INSTALL file for build instructions.
+More info can be found on-line at //http://wolfssl.com/yaSSL/Docs.html
+
+
+ *****************wolfSSL (Formerly CyaSSL) Release 3.4.6 (03/30/2015)
 
 Release 3.4.6 of wolfSSL has bug fixes and new features including:
 
