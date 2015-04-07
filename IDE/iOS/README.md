@@ -28,13 +28,10 @@ order.
 
 # Building libwolfssl.a
 
-## Debug build
+There are several options of builds. You can make a simulator build, or a
+device build. Both are debug builds.
 
-## Release build
-
-A release build requires an Apple Developer account, as far as I can tell. I
-have not tried this yet.
-
+You can make an archive for a device, as well. That is a release build.
 
 # Installing libwolfssl.a
 
@@ -67,6 +64,9 @@ for "Preprocessor Macros" and add the following under both `Release` and
 * `WOLFSSL_SHA512`
 * `WOLFSSL_SHA384`
 
+The approved FIPS source files are from the CyaSSL project v3.4.8.fips. The FIPS
+and FIPS-TEST files are from our FIPS project v3.4.8. For the wolfCAVP test
+the wolfSSL version used is v3.4.8.
 
 # Using the FIPS library
 

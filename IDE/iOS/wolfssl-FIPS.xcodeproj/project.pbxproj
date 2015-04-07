@@ -295,7 +295,7 @@
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
 			dstPath = include/wolfssl;
-			dstSubfolderSpec = 16;
+			dstSubfolderSpec = 7;
 			files = (
 				521646C41A8A7FE10062516A /* callbacks.h in CopyFiles */,
 				521646C51A8A7FE10062516A /* certs_test.h in CopyFiles */,
@@ -917,6 +917,7 @@
 					$SRCROOT,
 					$PROJECT_DIR/../..,
 				);
+				IPHONEOS_DEPLOYMENT_TARGET = 8.1;
 				OTHER_CFLAGS = "";
 				OTHER_LDFLAGS = "";
 				PRODUCT_NAME = wolfssl;
@@ -947,6 +948,7 @@
 					$SRCROOT,
 					$PROJECT_DIR/../..,
 				);
+				IPHONEOS_DEPLOYMENT_TARGET = 8.1;
 				OTHER_CFLAGS = "";
 				OTHER_LDFLAGS = "";
 				PRODUCT_NAME = wolfssl;
