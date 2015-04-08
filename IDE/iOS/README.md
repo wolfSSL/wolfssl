@@ -28,13 +28,10 @@ order.
 
 # Building libwolfssl.a
 
-## Debug build
+There are several options of builds. You can make a simulator build, or a
+device build. Both are debug builds.
 
-## Release build
-
-A release build requires an Apple Developer account, as far as I can tell. I
-have not tried this yet.
-
+You can make an archive for a device, as well. That is a release build.
 
 # Installing libwolfssl.a
 
@@ -66,7 +63,15 @@ for "Preprocessor Macros" and add the following under both `Release` and
 * `HAVE_AESGCM`
 * `WOLFSSL_SHA512`
 * `WOLFSSL_SHA384`
+* `NO_MD4`
+* `NO_HC128`
+* `NO_RABBIT`
+* `NO_DSA`
+* `NO_PWDBASED`
 
+The approved FIPS source files are from the CyaSSL project tag v3.4.8.fips. The
+files fips.c and fips_test.c, and the wolfCAVP test app are from the FIPS
+project tag v3.4.8a. The wolfSSL/wolfCrypt files are from tag v3.4.8.
 
 # Using the FIPS library
 
@@ -80,7 +85,7 @@ Every time the application is changed, the FIPS checksum will change, because
 the FIPS library's position in the executable may change.
 
 You need to add something to your application that will output the verifyCore
-value to be used. The verifyCore in fips_test.c will need to be updated with this
-value, the library rebuilt, and relinked into your application. The application
-should not be changed during this process or the verifyCore check will fail again.
-
+value to be used. The verifyCore in fips_test.c will need to be updated with
+this value, the library rebuilt, and relinked into your application. The
+application should not be changed during this process or the verifyCore check
+will fail again.
