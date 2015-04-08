@@ -176,9 +176,11 @@ int InitSha256(Sha256* sha256) {
 #define CPUID_AVX2   0x2
 #define CPUID_RDRAND 0x4
 #define CPUID_RDSEED 0x8
+#define CPUID_BMI2   0x10   /* MULX, RORX */
 
 #define IS_INTEL_AVX1       (cpuid_flags&CPUID_AVX1)
 #define IS_INTEL_AVX2       (cpuid_flags&CPUID_AVX2)
+#define IS_INTEL_BMI2       (cpuid_flags&CPUID_BMI2)
 #define IS_INTEL_RDRAND     (cpuid_flags&CPUID_RDRAND)
 #define IS_INTEL_RDSEED     (cpuid_flags&CPUID_RDSEED)
 
@@ -207,6 +209,7 @@ static int set_cpuid_flags(void) {
     if(cpuid_check==0) {
         if(cpuid_flag(1, 0, ECX, 28)){ cpuid_flags |= CPUID_AVX1 ;}
         if(cpuid_flag(7, 0, EBX, 5)){  cpuid_flags |= CPUID_AVX2 ; }
+        if(cpuid_flag(7, 0, EBX, 8)) { cpuid_flags |= CPUID_BMI2 ; }
         if(cpuid_flag(1, 0, ECX, 30)){ cpuid_flags |= CPUID_RDRAND ;  } 
         if(cpuid_flag(7, 0, EBX, 18)){ cpuid_flags |= CPUID_RDSEED ;  }
         cpuid_check = 1 ;
@@ -235,7 +238,7 @@ static void set_Transform(void) {
      if(set_cpuid_flags())return ;
 
 #if defined(HAVE_INTEL_AVX2)
-     if(IS_INTEL_AVX2){ 
+     if(IS_INTEL_AVX2 && IS_INTEL_BMI2){ 
          Transform_p = Transform_AVX1_RORX; return ; 
          Transform_p = Transform_AVX2      ; 
                   /* for avoiding warning,"not used" */

@@ -402,7 +402,8 @@ void fp_mul_2d(fp_int *a, int b, fp_int *c)
 
 /* generic PxQ multiplier */
 #if defined(HAVE_INTEL_MULX)
-void fp_mul_comba(fp_int *A, fp_int *B, fp_int *C)
+
+INLINE static void fp_mul_comba_mulx(fp_int *A, fp_int *B, fp_int *C)
 
 {     
    int       ix, iy, iz, pa;
@@ -429,13 +430,15 @@ void fp_mul_comba(fp_int *A, fp_int *B, fp_int *C)
   fp_clamp(dst);
   fp_copy(dst, C);  
 }
+#endif
 
-#else
 void fp_mul_comba(fp_int *A, fp_int *B, fp_int *C)
 {
    int       ix, iy, iz, tx, ty, pa;
    fp_digit  c0, c1, c2, *tmpx, *tmpy;
    fp_int    tmp, *dst;
+
+   IF_HAVE_INTEL_MULX(fp_mul_comba_mulx(A, B, C), return) ;
 
    COMBA_START;
    COMBA_CLEAR;
@@ -485,7 +488,6 @@ void fp_mul_comba(fp_int *A, fp_int *B, fp_int *C)
   fp_clamp(dst);
   fp_copy(dst, C);
 }
-#endif
 
 /* a/b => cb + d == a */
 int fp_div(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
@@ -1567,10 +1569,9 @@ static inline void innermul8_mulx(fp_digit *c_mulx, fp_digit *cy_mulx, fp_digit 
     c_mulx[0]=_c0; c_mulx[1]=_c1; c_mulx[2]=_c2; c_mulx[3]=_c3; c_mulx[4]=_c4; c_mulx[5]=_c5; c_mulx[6]=_c6; c_mulx[7]=_c7; 
     *cy_mulx = cy ;
 }
-#endif
 
 /* computes x/R == x (mod N) via Montgomery Reduction */
-void fp_montgomery_reduce(fp_int *a, fp_int *m, fp_digit mp)
+static void fp_montgomery_reduce_mulx(fp_int *a, fp_int *m, fp_digit mp)
 {
    fp_digit c[FP_SIZE], *_c, *tmpm, mu = 0;
    int      oldused, x, y, pa;
@@ -1607,13 +1608,88 @@ void fp_montgomery_reduce(fp_int *a, fp_int *m, fp_digit mp)
        _c   = c + x;
        tmpm = m->dp;
        y = 0;
+        for (; y < (pa & ~7); y += 8) {
+              innermul8_mulx(_c, &cy, tmpm, mu) ;
+              _c   += 8;
+              tmpm += 8;
+           }
+       for (; y < pa; y++) {
+          INNERMUL;
+          ++_c;
+       }
+       LOOP_END;
+       while (cy) {
+           PROPCARRY;
+           ++_c;
+       }
+  }         
+
+  /* now copy out */
+  _c   = c + pa;
+  tmpm = a->dp;
+  for (x = 0; x < pa+1; x++) {
+     *tmpm++ = *_c++;
+  }
+
+  for (; x < oldused; x++)   {
+     *tmpm++ = 0;
+  }
+
+  MONT_FINI;
+
+  a->used = pa+1;
+  fp_clamp(a);
+  
+  /* if A >= m then A = A - m */
+  if (fp_cmp_mag (a, m) != FP_LT) {
+    s_fp_sub (a, m, a);
+  }
+}
+#endif
+
+/* computes x/R == x (mod N) via Montgomery Reduction */
+void fp_montgomery_reduce(fp_int *a, fp_int *m, fp_digit mp)
+{
+   fp_digit c[FP_SIZE], *_c, *tmpm, mu = 0;
+   int      oldused, x, y, pa;
+
+   IF_HAVE_INTEL_MULX(fp_montgomery_reduce_mulx(a, m, mp), return) ;
+
+   /* bail if too large */
+   if (m->used > (FP_SIZE/2)) {
+      (void)mu;                     /* shut up compiler */
+      return;
+   }
+
+#ifdef TFM_SMALL_MONT_SET
+   if (m->used <= 16) {
+      fp_montgomery_reduce_small(a, m, mp);
+      return;
+   }
+#endif
+
+
+   /* now zero the buff */
+   XMEMSET(c, 0, sizeof c);
+   pa = m->used;
+
+   /* copy the input */
+   oldused = a->used;
+   for (x = 0; x < oldused; x++) {
+       c[x] = a->dp[x];
+   }
+   MONT_START;
+
+   for (x = 0; x < pa; x++) {
+       fp_digit cy = 0;
+       /* get Mu for this round */
+       LOOP_START;
+       _c   = c + x;
+       tmpm = m->dp;
+       y = 0;
        #if (defined(TFM_SSE2) || defined(TFM_X86_64))
         for (; y < (pa & ~7); y += 8) {
-              #ifdef HAVE_INTEL_MULX
-              innermul8_mulx(_c, &cy, tmpm, mu) ;
-              #else
               INNERMUL8 ;
-              #endif
               _c   += 8;
               tmpm += 8;
            }
