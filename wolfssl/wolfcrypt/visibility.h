@@ -47,7 +47,7 @@
         #define WOLFSSL_LOCAL __hidden
     #elif defined(_MSC_VER)
         #ifdef WOLFSSL_DLL
-            #define WOLFSSL_API __declspec(dllexport)
+            #define WOLFSSL_API extern __declspec(dllexport)
         #else
             #define WOLFSSL_API
         #endif
@@ -59,7 +59,7 @@
 #else /* BUILDING_WOLFSSL */
     #if defined(_MSC_VER)
         #ifdef WOLFSSL_DLL
-            #define WOLFSSL_API __declspec(dllimport)
+            #define WOLFSSL_API extern __declspec(dllimport)
         #else
             #define WOLFSSL_API
         #endif

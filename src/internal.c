@@ -7589,8 +7589,6 @@ startScr:
             if (ssl->error == SOCKET_ERROR_E) {
                 if (ssl->options.connReset || ssl->options.isClosed) {
                     WOLFSSL_MSG("Peer reset or closed, connection done");
-                    ssl->error = SOCKET_PEER_CLOSED_E;
-                    WOLFSSL_ERROR(ssl->error);
                     return 0;     /* peer reset or closed */
                 }
             }
@@ -8003,12 +8001,6 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
 
     case DUPLICATE_MSG_E:
         return "Duplicate HandShake message Error";
-
-    case SNI_UNSUPPORTED:
-        return "Protocol version does not support SNI Error";
-
-    case SOCKET_PEER_CLOSED_E:
-        return "Peer closed underlying transport Error";
 
     default :
         return "unknown error number";
