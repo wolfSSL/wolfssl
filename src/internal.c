@@ -9977,6 +9977,20 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
         byte    sigAlgo  = ssl->specs.sig_algo;
         word16  verifySz = (word16) (*inOutIdx - begin);
 
+#ifndef NO_OLD_TLS
+        byte doMd5 = 0;
+        byte doSha = 0;
+#endif
+#ifndef NO_SHA256
+        byte doSha256 = 0;
+#endif
+#ifdef WOLFSSL_SHA384
+        byte doSha384 = 0;
+#endif
+#ifdef WOLFSSL_SHA512
+        byte doSha512 = 0;
+#endif
+
         (void)hash;
         (void)sigAlgo;
         (void)hashAlgo;
@@ -9995,11 +10009,60 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
         XMEMCPY(messageVerify, input + begin, verifySz);
 
         if (IsAtLeastTLSv1_2(ssl)) {
+            byte setHash = 0;
             if ((*inOutIdx - begin) + ENUM_LEN + ENUM_LEN > size)
                 ERROR_OUT(BUFFER_ERROR, done);
 
             hashAlgo = input[(*inOutIdx)++];
             sigAlgo  = input[(*inOutIdx)++];
+
+            switch (hashAlgo) {
+                case sha512_mac:
+                    #ifdef WOLFSSL_SHA512
+                        doSha512 = 1;
+                        setHash  = 1;
+                    #endif
+                    break;
+
+                case sha384_mac:
+                    #ifdef WOLFSSL_SHA384
+                        doSha384 = 1;
+                        setHash  = 1;
+                    #endif
+                    break;
+
+                case sha256_mac:
+                    #ifndef NO_SHA256
+                        doSha256 = 1;
+                        setHash  = 1;
+                    #endif
+                    break;
+
+                case sha_mac:
+                    #ifndef NO_OLD_TLS
+                        doSha = 1;
+                        setHash  = 1;
+                    #endif
+                    break;
+
+                default:
+                    ERROR_OUT(ALGO_ID_E, done);
+            }
+
+            if (setHash == 0) {
+                ERROR_OUT(ALGO_ID_E, done);
+            }
+
+        } else {
+            /* only using sha and md5 for rsa */
+            #ifndef NO_OLD_TLS
+                doSha = 1;
+                if (sigAlgo == rsa_sa_algo) {
+                    doMd5 = 1;
+                }
+            #else
+                ERROR_OUT(ALGO_ID_E, done);
+            #endif
         }
 
         /* signature */
@@ -10024,83 +10087,104 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
 #ifndef NO_OLD_TLS
         /* md5 */
     #ifdef WOLFSSL_SMALL_STACK
-        md5 = (Md5*)XMALLOC(sizeof(Md5), NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        if (md5 == NULL)
-            ERROR_OUT(MEMORY_E, done);
+        if (doMd5) {
+            md5 = (Md5*)XMALLOC(sizeof(Md5), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            if (md5 == NULL)
+                ERROR_OUT(MEMORY_E, done);
+        }
     #endif
-        wc_InitMd5(md5);
-        wc_Md5Update(md5, ssl->arrays->clientRandom, RAN_LEN);
-        wc_Md5Update(md5, ssl->arrays->serverRandom, RAN_LEN);
-        wc_Md5Update(md5, messageVerify, verifySz);
-        wc_Md5Final(md5, hash);
-
+        if (doMd5) {
+            wc_InitMd5(md5);
+            wc_Md5Update(md5, ssl->arrays->clientRandom, RAN_LEN);
+            wc_Md5Update(md5, ssl->arrays->serverRandom, RAN_LEN);
+            wc_Md5Update(md5, messageVerify, verifySz);
+            wc_Md5Final(md5, hash);
+        }
         /* sha */
     #ifdef WOLFSSL_SMALL_STACK
-        sha = (Sha*)XMALLOC(sizeof(Sha), NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        if (sha == NULL)
-            ERROR_OUT(MEMORY_E, done);
+        if (doSha) {
+            sha = (Sha*)XMALLOC(sizeof(Sha), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            if (sha == NULL)
+                ERROR_OUT(MEMORY_E, done);
+        }
     #endif
-        ret = wc_InitSha(sha);
-        if (ret != 0)
-            goto done;
-        wc_ShaUpdate(sha, ssl->arrays->clientRandom, RAN_LEN);
-        wc_ShaUpdate(sha, ssl->arrays->serverRandom, RAN_LEN);
-        wc_ShaUpdate(sha, messageVerify, verifySz);
-        wc_ShaFinal(sha, hash + MD5_DIGEST_SIZE);
+        if (doSha) {
+            ret = wc_InitSha(sha);
+            if (ret != 0) goto done;
+            wc_ShaUpdate(sha, ssl->arrays->clientRandom, RAN_LEN);
+            wc_ShaUpdate(sha, ssl->arrays->serverRandom, RAN_LEN);
+            wc_ShaUpdate(sha, messageVerify, verifySz);
+            wc_ShaFinal(sha, hash + MD5_DIGEST_SIZE);
+        }
 #endif
 
 #ifndef NO_SHA256
     #ifdef WOLFSSL_SMALL_STACK
-        sha256 = (Sha256*)XMALLOC(sizeof(Sha256), NULL,
+        if (doSha256) {
+            sha256 = (Sha256*)XMALLOC(sizeof(Sha256), NULL,
                                                        DYNAMIC_TYPE_TMP_BUFFER);
-        hash256 = (byte*)XMALLOC(SHA256_DIGEST_SIZE, NULL,
+            hash256 = (byte*)XMALLOC(SHA256_DIGEST_SIZE, NULL,
                                                        DYNAMIC_TYPE_TMP_BUFFER);
-        if (sha256 == NULL || hash256 == NULL)
-            ERROR_OUT(MEMORY_E, done);
+            if (sha256 == NULL || hash256 == NULL)
+                ERROR_OUT(MEMORY_E, done);
+        }
     #endif
-        if (!(ret = wc_InitSha256(sha256))
-        &&  !(ret = wc_Sha256Update(sha256, ssl->arrays->clientRandom, RAN_LEN))
-        &&  !(ret = wc_Sha256Update(sha256, ssl->arrays->serverRandom, RAN_LEN))
-        &&  !(ret = wc_Sha256Update(sha256, messageVerify, verifySz)))
-              ret = wc_Sha256Final(sha256, hash256);
-        if (ret != 0)
-            goto done;
+        if (doSha256) {
+            if (!(ret = wc_InitSha256(sha256))
+            &&  !(ret = wc_Sha256Update(sha256, ssl->arrays->clientRandom,
+                                        RAN_LEN))
+            &&  !(ret = wc_Sha256Update(sha256, ssl->arrays->serverRandom,
+                                        RAN_LEN))
+            &&  !(ret = wc_Sha256Update(sha256, messageVerify, verifySz)))
+                  ret = wc_Sha256Final(sha256, hash256);
+            if (ret != 0) goto done;
+        }
 #endif
 
 #ifdef WOLFSSL_SHA384
     #ifdef WOLFSSL_SMALL_STACK
-        sha384 = (Sha384*)XMALLOC(sizeof(Sha384), NULL,
+        if (doSha384) {
+            sha384 = (Sha384*)XMALLOC(sizeof(Sha384), NULL,
                                                        DYNAMIC_TYPE_TMP_BUFFER);
-        hash384 = (byte*)XMALLOC(SHA384_DIGEST_SIZE, NULL,
+            hash384 = (byte*)XMALLOC(SHA384_DIGEST_SIZE, NULL,
                                                        DYNAMIC_TYPE_TMP_BUFFER);
-        if (sha384 == NULL || hash384 == NULL)
-            ERROR_OUT(MEMORY_E, done);
+            if (sha384 == NULL || hash384 == NULL)
+                ERROR_OUT(MEMORY_E, done);
+        }
     #endif
-        if (!(ret = wc_InitSha384(sha384))
-        &&  !(ret = wc_Sha384Update(sha384, ssl->arrays->clientRandom, RAN_LEN))
-        &&  !(ret = wc_Sha384Update(sha384, ssl->arrays->serverRandom, RAN_LEN))
-        &&  !(ret = wc_Sha384Update(sha384, messageVerify, verifySz)))
-              ret = wc_Sha384Final(sha384, hash384);
-        if (ret != 0)
-            goto done;
+        if (doSha384) {
+            if (!(ret = wc_InitSha384(sha384))
+            &&  !(ret = wc_Sha384Update(sha384, ssl->arrays->clientRandom,
+                                        RAN_LEN))
+            &&  !(ret = wc_Sha384Update(sha384, ssl->arrays->serverRandom,
+                                        RAN_LEN))
+            &&  !(ret = wc_Sha384Update(sha384, messageVerify, verifySz)))
+                  ret = wc_Sha384Final(sha384, hash384);
+            if (ret != 0) goto done;
+        }
 #endif
 
 #ifdef WOLFSSL_SHA512
     #ifdef WOLFSSL_SMALL_STACK
-        sha512 = (Sha512*)XMALLOC(sizeof(Sha512), NULL,
+        if (doSha512) {
+            sha512 = (Sha512*)XMALLOC(sizeof(Sha512), NULL,
                                                        DYNAMIC_TYPE_TMP_BUFFER);
-        hash512 = (byte*)XMALLOC(SHA512_DIGEST_SIZE, NULL,
+            hash512 = (byte*)XMALLOC(SHA512_DIGEST_SIZE, NULL,
                                                        DYNAMIC_TYPE_TMP_BUFFER);
-        if (sha512 == NULL || hash512 == NULL)
-            ERROR_OUT(MEMORY_E, done);
+            if (sha512 == NULL || hash512 == NULL)
+                ERROR_OUT(MEMORY_E, done);
+        }
     #endif
-        if (!(ret = wc_InitSha512(sha512))
-        &&  !(ret = wc_Sha512Update(sha512, ssl->arrays->clientRandom, RAN_LEN))
-        &&  !(ret = wc_Sha512Update(sha512, ssl->arrays->serverRandom, RAN_LEN))
-        &&  !(ret = wc_Sha512Update(sha512, messageVerify, verifySz)))
-              ret = wc_Sha512Final(sha512, hash512);
-        if (ret != 0)
-            goto done;
+        if (doSha512) {
+            if (!(ret = wc_InitSha512(sha512))
+            &&  !(ret = wc_Sha512Update(sha512, ssl->arrays->clientRandom,
+                                        RAN_LEN))
+            &&  !(ret = wc_Sha512Update(sha512, ssl->arrays->serverRandom,
+                                        RAN_LEN))
+            &&  !(ret = wc_Sha512Update(sha512, messageVerify, verifySz)))
+                  ret = wc_Sha512Final(sha512, hash512);
+            if (ret != 0) goto done;
+        }
 #endif
 
 #ifndef NO_RSA
@@ -10186,8 +10270,10 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
                     ERROR_OUT(MEMORY_E, done);
             #endif
 
-                encSigSz = wc_EncodeSignature(encodedSig, digest, digestSz, typeH);
-
+                if (digest == NULL)
+                    ERROR_OUT(ALGO_ID_E, done);
+                encSigSz = wc_EncodeSignature(encodedSig, digest, digestSz,
+                                              typeH);
                 if (encSigSz != verifiedSz || !out || XMEMCMP(out, encodedSig,
                                         min(encSigSz, MAX_ENCODED_SIG_SZ)) != 0)
                     ret = VERIFY_SIGN_ERROR;
