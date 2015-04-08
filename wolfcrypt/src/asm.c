@@ -65,11 +65,13 @@
 #define CPUID_AVX2   0x2
 #define CPUID_RDRAND 0x4
 #define CPUID_RDSEED 0x8
-#define CPUID_BMI2   0x10
+#define CPUID_BMI2   0x10   /* MULX, RORX */
+#define CPUID_ADX    0x20   /* ADCX, ADOX */
 
 #define IS_INTEL_AVX1       (cpuid_flags&CPUID_AVX1)
 #define IS_INTEL_AVX2       (cpuid_flags&CPUID_AVX2)
 #define IS_INTEL_BMI2       (cpuid_flags&CPUID_BMI2)
+#define IS_INTEL_ADX        (cpuid_flags&CPUID_ADX)
 #define IS_INTEL_RDRAND     (cpuid_flags&CPUID_RDRAND)
 #define IS_INTEL_RDSEED     (cpuid_flags&CPUID_RDSEED)
 #define SET_FLAGS         
@@ -98,6 +100,7 @@ static word32 cpuid_flag(word32 leaf, word32 sub, word32 num, word32 bit) {
 INLINE static int set_cpuid_flags(void) {  
     if(cpuid_check == 0) {
         if(cpuid_flag(7, 0, EBX, 8)){  cpuid_flags |= CPUID_BMI2 ; }
+        if(cpuid_flag(7, 0, EBX,19)){  cpuid_flags |= CPUID_ADX  ; }
 		cpuid_check = 1 ;
 		return 0 ;
     }
@@ -107,7 +110,7 @@ INLINE static int set_cpuid_flags(void) {
 #define RETURN return
 #define IF_HAVE_INTEL_MULX(func, ret)    \
    if(cpuid_check==0)set_cpuid_flags() ; \
-   if(IS_INTEL_BMI2){  func;  ret ;  }
+   if(IS_INTEL_BMI2 && IS_INTEL_ADX){  func;  ret ;  }
 
 #else
     #define IF_HAVE_INTEL_MULX(func, ret)
