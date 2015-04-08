@@ -5037,6 +5037,8 @@ int wolfSSL_dtls_got_timeout(WOLFSSL* ssl)
     #endif
 
     #ifdef WOLFSSL_DTLS
+
+        #ifndef NO_OLD_TLS
         WOLFSSL_METHOD* wolfDTLSv1_client_method(void)
         {
             WOLFSSL_METHOD* method =
@@ -5047,6 +5049,7 @@ int wolfSSL_dtls_got_timeout(WOLFSSL* ssl)
                 InitSSL_Method(method, MakeDTLSv1());
             return method;
         }
+        #endif  /* NO_OLD_TLS */
 
         WOLFSSL_METHOD* wolfDTLSv1_2_client_method(void)
         {
@@ -5315,11 +5318,13 @@ int wolfSSL_dtls_got_timeout(WOLFSSL* ssl)
 
 
     #ifdef WOLFSSL_DTLS
+
+        #ifndef NO_OLD_TLS
         WOLFSSL_METHOD* wolfDTLSv1_server_method(void)
         {
             WOLFSSL_METHOD* method =
-                              (WOLFSSL_METHOD*) XMALLOC(sizeof(WOLFSSL_METHOD), 0,
-                                                       DYNAMIC_TYPE_METHOD);
+                              (WOLFSSL_METHOD*) XMALLOC(sizeof(WOLFSSL_METHOD),
+                                                        0, DYNAMIC_TYPE_METHOD);
             WOLFSSL_ENTER("DTLSv1_server_method");
             if (method) {
                 InitSSL_Method(method, MakeDTLSv1());
@@ -5327,12 +5332,13 @@ int wolfSSL_dtls_got_timeout(WOLFSSL* ssl)
             }
             return method;
         }
+        #endif /* NO_OLD_TLS */
 
         WOLFSSL_METHOD* wolfDTLSv1_2_server_method(void)
         {
             WOLFSSL_METHOD* method =
-                              (WOLFSSL_METHOD*) XMALLOC(sizeof(WOLFSSL_METHOD), 0,
-                                                       DYNAMIC_TYPE_METHOD);
+                              (WOLFSSL_METHOD*) XMALLOC(sizeof(WOLFSSL_METHOD),
+                                                        0, DYNAMIC_TYPE_METHOD);
             WOLFSSL_ENTER("DTLSv1_2_server_method");
             if (method) {
                 InitSSL_Method(method, MakeDTLSv1_2());

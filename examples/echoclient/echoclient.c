@@ -108,7 +108,7 @@ void echoclient_test(void* args)
 #endif
 
 #if defined(CYASSL_DTLS)
-    method  = DTLSv1_client_method();
+    method  = DTLSv1_2_client_method();
 #elif  !defined(NO_TLS)
     method = CyaSSLv23_client_method();
 #else

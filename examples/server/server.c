@@ -379,9 +379,11 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 #endif
                 
 #ifdef CYASSL_DTLS
+    #ifndef NO_OLD_TLS
         case -1:
             method = DTLSv1_server_method();
             break;
+    #endif
 
         case -2:
             method = DTLSv1_2_server_method();

@@ -113,8 +113,10 @@ static void test_wolfSSL_Method_Allocators(void)
     TEST_VALID_METHOD_ALLOCATOR(wolfSSLv23_client_method);
 
 #ifdef WOLFSSL_DTLS
-    TEST_VALID_METHOD_ALLOCATOR(wolfDTLSv1_server_method);
-    TEST_VALID_METHOD_ALLOCATOR(wolfDTLSv1_client_method);
+    #ifndef NO_OLD_TLS
+        TEST_VALID_METHOD_ALLOCATOR(wolfDTLSv1_server_method);
+        TEST_VALID_METHOD_ALLOCATOR(wolfDTLSv1_client_method);
+    #endif
     TEST_VALID_METHOD_ALLOCATOR(wolfDTLSv1_2_server_method);
     TEST_VALID_METHOD_ALLOCATOR(wolfDTLSv1_2_client_method);
 #endif

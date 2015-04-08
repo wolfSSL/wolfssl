@@ -495,9 +495,11 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 #endif
 
 #ifdef WOLFSSL_DTLS
+        #ifndef NO_OLD_TLS
         case -1:
             method = wolfDTLSv1_client_method();
             break;
+        #endif
 
         case -2:
             method = wolfDTLSv1_2_client_method();

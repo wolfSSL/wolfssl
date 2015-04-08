@@ -134,7 +134,7 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
     tcp_listen(&sockfd, &port, useAnyAddr, doDTLS);
 
 #if defined(CYASSL_DTLS)
-    method  = CyaDTLSv1_server_method();
+    method  = CyaDTLSv1_2_server_method();
 #elif  !defined(NO_TLS)
     method = CyaSSLv23_server_method();
 #else
