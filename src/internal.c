@@ -12477,10 +12477,76 @@ int DoSessionTicket(WOLFSSL* ssl,
             #endif
         #endif
 
+        #ifndef NO_OLD_TLS
+            byte doMd5 = 0;
+            byte doSha = 0;
+        #endif
+        #ifndef NO_SHA256
+            byte doSha256 = 0;
+        #endif
+        #ifdef WOLFSSL_SHA384
+            byte doSha384 = 0;
+        #endif
+        #ifdef WOLFSSL_SHA512
+            byte doSha512 = 0;
+        #endif
+
             /* Add hash/signature algo ID */
             if (IsAtLeastTLSv1_2(ssl)) {
+                byte setHash = 0;
+
                 output[idx++] = ssl->suites->hashAlgo;
                 output[idx++] = ssl->suites->sigAlgo;
+
+                switch (ssl->suites->hashAlgo) {
+                    case sha512_mac:
+                        #ifdef WOLFSSL_SHA512
+                            doSha512 = 1;
+                            setHash  = 1;
+                        #endif
+                        break;
+
+                    case sha384_mac:
+                        #ifdef WOLFSSL_SHA384
+                            doSha384 = 1;
+                            setHash  = 1;
+                        #endif
+                        break;
+
+                    case sha256_mac:
+                        #ifndef NO_SHA256
+                            doSha256 = 1;
+                            setHash  = 1;
+                        #endif
+                        break;
+
+                    case sha_mac:
+                        #ifndef NO_OLD_TLS
+                            doSha = 1;
+                            setHash  = 1;
+                        #endif
+                        break;
+
+                    default:
+                        WOLFSSL_MSG("Bad hash sig algo");
+                        break;
+                }
+
+                if (setHash == 0) {
+                    wc_FreeRsaKey(&rsaKey);
+                    return ALGO_ID_E;
+                }
+            } else {
+                /* only using sha and md5 for rsa */
+                #ifndef NO_OLD_TLS
+                    doSha = 1;
+                    if (ssl->suites->sigAlgo == rsa_sa_algo) {
+                        doMd5 = 1;
+                    }
+                #else
+                    wc_FreeRsaKey(&rsaKey);
+                    return ALGO_ID_E;
+                #endif
             }
 
             /* signature size */
@@ -12500,96 +12566,117 @@ int DoSessionTicket(WOLFSSL* ssl,
         #ifndef NO_OLD_TLS
                 /* md5 */
             #ifdef WOLFSSL_SMALL_STACK
-                md5 = (Md5*)XMALLOC(sizeof(Md5), NULL, DYNAMIC_TYPE_TMP_BUFFER);
-                if (md5 == NULL)
-                    ERROR_OUT(MEMORY_E, done_b);
+                if (doMd5) {
+                    md5 = (Md5*)XMALLOC(sizeof(Md5), NULL,
+                                        DYNAMIC_TYPE_TMP_BUFFER);
+                    if (md5 == NULL)
+                        ERROR_OUT(MEMORY_E, done_b);
+                }
             #endif
-                wc_InitMd5(md5);
-                wc_Md5Update(md5, ssl->arrays->clientRandom, RAN_LEN);
-                wc_Md5Update(md5, ssl->arrays->serverRandom, RAN_LEN);
-                wc_Md5Update(md5, output + preSigIdx, preSigSz);
-                wc_Md5Final(md5, hash);
+                if (doMd5) {
+                    wc_InitMd5(md5);
+                    wc_Md5Update(md5, ssl->arrays->clientRandom, RAN_LEN);
+                    wc_Md5Update(md5, ssl->arrays->serverRandom, RAN_LEN);
+                    wc_Md5Update(md5, output + preSigIdx, preSigSz);
+                    wc_Md5Final(md5, hash);
+                }
 
                 /* sha */
             #ifdef WOLFSSL_SMALL_STACK
-                sha = (Sha*)XMALLOC(sizeof(Sha), NULL, DYNAMIC_TYPE_TMP_BUFFER);
-                if (sha == NULL)
-                    ERROR_OUT(MEMORY_E, done_b);
+                if (doSha) {
+                    sha = (Sha*)XMALLOC(sizeof(Sha), NULL,
+                                        DYNAMIC_TYPE_TMP_BUFFER);
+                    if (sha == NULL)
+                        ERROR_OUT(MEMORY_E, done_b);
+                }
             #endif
 
-                if ((ret = wc_InitSha(sha)) != 0)
-                    goto done_b;
-
-                wc_ShaUpdate(sha, ssl->arrays->clientRandom, RAN_LEN);
-                wc_ShaUpdate(sha, ssl->arrays->serverRandom, RAN_LEN);
-                wc_ShaUpdate(sha, output + preSigIdx, preSigSz);
-                wc_ShaFinal(sha, &hash[MD5_DIGEST_SIZE]);
+                if (doSha) {
+                    if ((ret = wc_InitSha(sha)) != 0)
+                        goto done_b;
+                    wc_ShaUpdate(sha, ssl->arrays->clientRandom, RAN_LEN);
+                    wc_ShaUpdate(sha, ssl->arrays->serverRandom, RAN_LEN);
+                    wc_ShaUpdate(sha, output + preSigIdx, preSigSz);
+                    wc_ShaFinal(sha, &hash[MD5_DIGEST_SIZE]);
+                }
         #endif
 
         #ifndef NO_SHA256
             #ifdef WOLFSSL_SMALL_STACK
-                sha256 = (Sha256*)XMALLOC(sizeof(Sha256), NULL,
-                                                       DYNAMIC_TYPE_TMP_BUFFER);
-                hash256 = (byte*)XMALLOC(SHA256_DIGEST_SIZE, NULL,
-                                                       DYNAMIC_TYPE_TMP_BUFFER);
-                if (sha256 == NULL || hash256 == NULL)
-                    ERROR_OUT(MEMORY_E, done_b);
+                if (doSha256) {
+                    sha256 = (Sha256*)XMALLOC(sizeof(Sha256), NULL,
+                                              DYNAMIC_TYPE_TMP_BUFFER);
+                    hash256 = (byte*)XMALLOC(SHA256_DIGEST_SIZE, NULL,
+                                             DYNAMIC_TYPE_TMP_BUFFER);
+                    if (sha256 == NULL || hash256 == NULL)
+                        ERROR_OUT(MEMORY_E, done_b);
+                }
             #endif
 
-                if (!(ret = wc_InitSha256(sha256))
-                &&  !(ret = wc_Sha256Update(sha256, ssl->arrays->clientRandom,
-                                                                       RAN_LEN))
-                &&  !(ret = wc_Sha256Update(sha256, ssl->arrays->serverRandom,
-                                                                       RAN_LEN))
-                &&  !(ret = wc_Sha256Update(sha256, output + preSigIdx, preSigSz)))
-                    ret = wc_Sha256Final(sha256, hash256);
+                if (doSha256) {
+                    if (!(ret = wc_InitSha256(sha256))
+                    &&  !(ret = wc_Sha256Update(sha256,
+                                            ssl->arrays->clientRandom, RAN_LEN))
+                    &&  !(ret = wc_Sha256Update(sha256,
+                                            ssl->arrays->serverRandom, RAN_LEN))
+                    &&  !(ret = wc_Sha256Update(sha256,
+                                            output + preSigIdx, preSigSz)))
+                        ret = wc_Sha256Final(sha256, hash256);
 
-                if (ret != 0)
-                    goto done_b;
+                    if (ret != 0) goto done_b;
+                }
             #endif
 
         #ifdef WOLFSSL_SHA384
             #ifdef WOLFSSL_SMALL_STACK
-                sha384 = (Sha384*)XMALLOC(sizeof(Sha384), NULL,
-                                                       DYNAMIC_TYPE_TMP_BUFFER);
-                hash384 = (byte*)XMALLOC(SHA384_DIGEST_SIZE, NULL,
-                                                       DYNAMIC_TYPE_TMP_BUFFER);
-                if (sha384 == NULL || hash384 == NULL)
-                    ERROR_OUT(MEMORY_E, done_b);
+                if (doSha384) {
+                    sha384 = (Sha384*)XMALLOC(sizeof(Sha384), NULL,
+                                              DYNAMIC_TYPE_TMP_BUFFER);
+                    hash384 = (byte*)XMALLOC(SHA384_DIGEST_SIZE, NULL,
+                                             DYNAMIC_TYPE_TMP_BUFFER);
+                    if (sha384 == NULL || hash384 == NULL)
+                        ERROR_OUT(MEMORY_E, done_b);
+                }
             #endif
 
-                if (!(ret = wc_InitSha384(sha384))
-                &&  !(ret = wc_Sha384Update(sha384, ssl->arrays->clientRandom,
-                                                                       RAN_LEN))
-                &&  !(ret = wc_Sha384Update(sha384, ssl->arrays->serverRandom,
-                                                                       RAN_LEN))
-                &&  !(ret = wc_Sha384Update(sha384, output + preSigIdx, preSigSz)))
-                    ret = wc_Sha384Final(sha384, hash384);
+                if (doSha384) {
+                    if (!(ret = wc_InitSha384(sha384))
+                    &&  !(ret = wc_Sha384Update(sha384,
+                                            ssl->arrays->clientRandom, RAN_LEN))
+                    &&  !(ret = wc_Sha384Update(sha384,
+                                            ssl->arrays->serverRandom, RAN_LEN))
+                    &&  !(ret = wc_Sha384Update(sha384,
+                                            output + preSigIdx, preSigSz)))
+                        ret = wc_Sha384Final(sha384, hash384);
 
-                if (ret != 0)
-                    goto done_b;
+                    if (ret != 0) goto done_b;
+                }
         #endif
 
         #ifdef WOLFSSL_SHA512
             #ifdef WOLFSSL_SMALL_STACK
-                sha512 = (Sha512*)XMALLOC(sizeof(Sha512), NULL,
-                                                       DYNAMIC_TYPE_TMP_BUFFER);
-                hash512 = (byte*)XMALLOC(SHA512_DIGEST_SIZE, NULL,
-                                                       DYNAMIC_TYPE_TMP_BUFFER);
-                if (sha512 == NULL || hash512 == NULL)
-                    ERROR_OUT(MEMORY_E, done_b);
+                if (doSha512) {
+                    sha512 = (Sha512*)XMALLOC(sizeof(Sha512), NULL,
+                                              DYNAMIC_TYPE_TMP_BUFFER);
+                    hash512 = (byte*)XMALLOC(SHA512_DIGEST_SIZE, NULL,
+                                             DYNAMIC_TYPE_TMP_BUFFER);
+                    if (sha512 == NULL || hash512 == NULL)
+                        ERROR_OUT(MEMORY_E, done_b);
+                }
             #endif
 
-                if (!(ret = wc_InitSha512(sha512))
-                &&  !(ret = wc_Sha512Update(sha512, ssl->arrays->clientRandom,
-                                                                       RAN_LEN))
-                &&  !(ret = wc_Sha512Update(sha512, ssl->arrays->serverRandom,
-                                                                       RAN_LEN))
-                &&  !(ret = wc_Sha512Update(sha512, output + preSigIdx, preSigSz)))
-                    ret = wc_Sha512Final(sha512, hash512);
+                if (doSha512) {
+                    if (!(ret = wc_InitSha512(sha512))
+                    &&  !(ret = wc_Sha512Update(sha512,
+                                            ssl->arrays->clientRandom, RAN_LEN))
+                    &&  !(ret = wc_Sha512Update(sha512,
+                                            ssl->arrays->serverRandom, RAN_LEN))
+                    &&  !(ret = wc_Sha512Update(sha512,
+                                            output + preSigIdx, preSigSz)))
+                        ret = wc_Sha512Final(sha512, hash512);
 
-                if (ret != 0)
-                    goto done_b;
+                    if (ret != 0) goto done_b;
+                }
         #endif
 
             #ifndef NO_RSA
@@ -12642,11 +12729,15 @@ int DoSessionTicket(WOLFSSL* ssl,
                         #endif
                         }
 
-                        signSz = wc_EncodeSignature(encodedSig, digest, digestSz,
-                                                 typeH);
-                        signBuffer = encodedSig;
+                        if (digest == NULL) {
+                            ret = ALGO_ID_E;
+                        } else {
+                            signSz = wc_EncodeSignature(encodedSig, digest,
+                                                        digestSz, typeH);
+                            signBuffer = encodedSig;
+                        }
                     }
-                    if (doUserRsa) {
+                    if (doUserRsa && ret == 0) {
                     #ifdef HAVE_PK_CALLBACKS
                         word32 ioLen = sigSz;
                         ret = ssl->ctx->RsaSignCb(ssl, signBuffer, signSz,
@@ -12655,10 +12746,10 @@ int DoSessionTicket(WOLFSSL* ssl,
                                                   ssl->buffers.key.length,
                                                   ssl->RsaSignCtx);
                     #endif
-                    }
-                    else
+                    } else if (ret == 0) {
                         ret = wc_RsaSSL_Sign(signBuffer, signSz, output + idx,
                                           sigSz, &rsaKey, ssl->rng);
+                    }
 
                     wc_FreeRsaKey(&rsaKey);
 
