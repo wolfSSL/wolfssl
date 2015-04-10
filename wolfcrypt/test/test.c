@@ -210,6 +210,9 @@ int pbkdf2_test(void);
 #endif
 
 
+/* General big buffer size for many tests. */ 
+#define FOURK_BUF 4096
+
 
 static int err_sys(const char* msg, int es)
 
@@ -3302,9 +3305,6 @@ byte GetEntropy(ENTROPY_CMD cmd, byte* out)
     #endif
 #endif
 
-
-
-#define FOURK_BUF 4096
 
 int rsa_test(void)
 {
