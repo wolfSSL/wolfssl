@@ -813,6 +813,11 @@ WOLFSSL_API int wolfSSL_Init(void);
 /* call when done to cleanup/free session cache mutex / resources  */
 WOLFSSL_API int wolfSSL_Cleanup(void);
 
+/* which library version do we have */
+WOLFSSL_API const char* wolfSSL_lib_version(void);
+/* which library version do we have in hex */
+WOLFSSL_API unsigned int wolfSSL_lib_version_hex(void);
+
 /* turn logging on, only if compiled in */
 WOLFSSL_API int  wolfSSL_Debugging_ON(void);
 /* turn logging off */

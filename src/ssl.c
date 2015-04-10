@@ -9139,6 +9139,21 @@ const char* wolfSSL_get_version(WOLFSSL* ssl)
     return "unknown";
 }
 
+
+/* current library version */
+const char* wolfSSL_lib_version(void)
+{
+    return LIBWOLFSSL_VERSION_STRING;
+}
+
+
+/* current library version in hex */
+word32 wolfSSL_lib_version_hex(void)
+{
+    return LIBWOLFSSL_VERSION_HEX;
+}
+
+
 int wolfSSL_get_current_cipher_suite(WOLFSSL* ssl)
 {
     WOLFSSL_ENTER("SSL_get_current_cipher_suite");
