@@ -1016,7 +1016,7 @@ WOLFSSL_LOCAL int wc_CreateRecipientInfo(const byte* cert, word32 certSz,
     issuerSz    = decoded->issuerRawLen;
     issuerSeqSz = SetSequence(issuerSz, issuerSeq);
 
-    if (decoded->serial == NULL || decoded->serialSz == 0) {
+    if (decoded->serialSz == 0) {
         WOLFSSL_MSG("DecodedCert missing serial number");
         FreeDecodedCert(decoded);
 #ifdef WOLFSSL_SMALL_STACK
