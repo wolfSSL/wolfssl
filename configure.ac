@@ -437,27 +437,6 @@ fi
 AM_CONDITIONAL([BUILD_AESNI], [test "x$ENABLED_AESNI" = "xyes"])
 
 
-# POLY1305
-AC_ARG_ENABLE([poly1305],
-    [AS_HELP_STRING([--enable-poly1305],[Enable wolfSSL POLY1305 support (default: enabled)])],
-    [ ENABLED_POLY1305=$enableval ],
-    [ ENABLED_POLY1305=yes ]
-    )
-
-# lean psk does't need poly1305
-if test "$ENABLED_LEANPSK" = "yes"
-then
-    ENABLED_POLY1305=no
-fi
-
-if test "$ENABLED_POLY1305" = "yes"
-then
-    AM_CFLAGS="$AM_CFLAGS -DHAVE_POLY1305 -DHAVE_ONE_TIME_AUTH"
-fi
-
-AM_CONDITIONAL([BUILD_POLY1305], [test "x$ENABLED_POLY1305" = "xyes"])
-
-
 # Camellia
 AC_ARG_ENABLE([camellia],
     [  --enable-camellia       Enable wolfSSL Camellia support (default: disabled)],
@@ -1194,27 +1173,6 @@ fi
 AM_CONDITIONAL([BUILD_RABBIT], [test "x$ENABLED_RABBIT" = "xyes"])
 
 
-# CHACHA
-AC_ARG_ENABLE([chacha],
-    [  --enable-chacha         Enable CHACHA (default: enabled)],
-    [ ENABLED_CHACHA=$enableval ],
-    [ ENABLED_CHACHA=yes ]
-    )
-
-# lean psk does't need chacha
-if test "$ENABLED_LEANPSK" = "yes"
-then
-    ENABLED_CHACHA=no
-fi
-
-if test "$ENABLED_CHACHA" = "yes"
-then
-    AM_CFLAGS="$AM_CFLAGS -DHAVE_CHACHA"
-fi
-
-AM_CONDITIONAL([BUILD_CHACHA], [test "x$ENABLED_CHACHA" = "xyes"])
-
-
 # FIPS
 AC_ARG_ENABLE([fips],
     [AS_HELP_STRING([--enable-fips],[Enable FIPS 140-2, Will NOT work w/o FIPS license (default: disabled)])],
@@ -1247,6 +1205,64 @@ then
 fi
 
 AM_CONDITIONAL([BUILD_FIPS], [test "x$ENABLED_FIPS" = "xyes"])
+
+
+# set POLY1305 default
+POLY1305_DEFAULT=yes
+
+if test "x$ENABLED_FIPS" = "xyes"
+then
+POLY1305_DEFAULT=no
+fi
+
+# POLY1305
+AC_ARG_ENABLE([poly1305],
+    [AS_HELP_STRING([--enable-poly1305],[Enable wolfSSL POLY1305 support (default: enabled)])],
+    [ ENABLED_POLY1305=$enableval ],
+    [ ENABLED_POLY1305=$POLY1305_DEFAULT]
+    )
+
+# lean psk does't need poly1305
+if test "$ENABLED_LEANPSK" = "yes"
+then
+    ENABLED_POLY1305=no
+fi
+
+if test "$ENABLED_POLY1305" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_POLY1305 -DHAVE_ONE_TIME_AUTH"
+fi
+
+AM_CONDITIONAL([BUILD_POLY1305], [test "x$ENABLED_POLY1305" = "xyes"])
+
+
+# set CHACHA default
+CHACHA_DEFAULT=yes
+
+if test "x$ENABLED_FIPS" = "xyes"
+then
+CHACHA_DEFAULT=no
+fi
+
+# CHACHA
+AC_ARG_ENABLE([chacha],
+    [  --enable-chacha         Enable CHACHA (default: enabled)],
+    [ ENABLED_CHACHA=$enableval ],
+    [ ENABLED_CHACHA=$CHACHA_DEFAULT]
+    )
+
+# lean psk does't need chacha
+if test "$ENABLED_LEANPSK" = "yes"
+then
+    ENABLED_CHACHA=no
+fi
+
+if test "$ENABLED_CHACHA" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_CHACHA"
+fi
+
+AM_CONDITIONAL([BUILD_CHACHA], [test "x$ENABLED_CHACHA" = "xyes"])
 
 
 # Hash DRBG
