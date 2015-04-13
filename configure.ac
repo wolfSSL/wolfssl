@@ -2000,6 +2000,12 @@ for option in $OPTION_FLAGS; do
     if test "$defonly" != "$option"
     then
         noequalsign=`echo $defonly | sed 's/=/ /'`
+        if test "$noequalsign" = "NDEBUG" || test "$noequalsign" = "DEBUG"
+        then
+            echo "not outputing (N)DEBUG to $OPTION_FILE"
+            continue
+        fi
+
         echo "#undef  $noequalsign" >> $OPTION_FILE 
         echo "#define $noequalsign" >> $OPTION_FILE 
         echo "" >> $OPTION_FILE 
