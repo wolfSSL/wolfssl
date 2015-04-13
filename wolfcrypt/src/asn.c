@@ -1893,7 +1893,6 @@ static int GetName(DecodedCert* cert, int nameType)
 
     length += cert->srcIdx;
     idx = 0;
-
 #ifdef HAVE_PKCS7
     /* store pointer to raw issuer */
     if (nameType == ISSUER) {
@@ -1901,12 +1900,10 @@ static int GetName(DecodedCert* cert, int nameType)
         cert->issuerRawLen = length - cert->srcIdx;
     }
 #endif
-#ifndef IGNORE_NAME_CONSTRAINTS
     if (nameType == SUBJECT) {
         cert->subjectRaw = &cert->source[cert->srcIdx];
         cert->subjectRawLen = length - cert->srcIdx;
     }
-#endif
 
     while (cert->srcIdx < (word32)length) {
         byte   b;
@@ -5650,8 +5647,16 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
         return SUBJECT_E;
 
     /* issuer name */
-    der->issuerSz = SetName(der->issuer, cert->selfSigned ?
-             &cert->subject : &cert->issuer);
+    if (cert->selfSigned)
+        der->issuerSz = SetName(der->issuer, &cert->subject);
+    else {
+        if (cert->issuer.rawLen > ASN_NAME_MAX) {
+            WOLFSSL_MSG("rawLen too big");
+            return ISSUER_E;
+        }
+        XMEMCPY(der->issuer, cert->issuer.raw, cert->issuer.rawLen);
+        der->issuerSz = cert->issuer.rawLen;
+    }
     if (der->issuerSz == 0)
         return ISSUER_E;
 
@@ -6401,6 +6406,20 @@ static int SetNameFromCert(CertName* cn, const byte* der, int derSz)
                ?  decoded->subjectEmailLen : CTC_NAME_SIZE - 1;
             strncpy(cn->email, decoded->subjectEmail, CTC_NAME_SIZE);
             cn->email[sz] = 0;
+        }
+        if (decoded->subjectRawLen) {
+            byte seq[MAX_SEQ_SZ];
+            word32 seqSz = SetSequence(decoded->subjectRawLen, seq);
+            cn->rawLen = decoded->subjectRawLen + seqSz;
+
+            if (cn->rawLen > CTC_MAX_RAW_SIZE || cn->rawLen < decoded->subjectRawLen) {
+                WOLFSSL_MSG("subjectRaw too big");
+                ret = ALT_NAME_E;
+            }
+            else {
+                XMEMCPY(cn->raw, seq, seqSz);
+                XMEMCPY(cn->raw + seqSz, decoded->subjectRaw, decoded->subjectRawLen);
+            }
         }
     }
 

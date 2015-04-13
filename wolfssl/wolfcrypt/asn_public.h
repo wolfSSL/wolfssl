@@ -78,6 +78,7 @@ enum Ctc_Misc {
     CTC_NAME_SIZE    =    64,
     CTC_DATE_SIZE    =    32,
     CTC_MAX_ALT_SIZE = 16384,   /* may be huge */
+    CTC_MAX_RAW_SIZE =   587,   /* SEQ + 8*(SET + SEQ + OID + CTC_NAME_SIZE) */
     CTC_SERIAL_SIZE  =     8
 };
 
@@ -97,6 +98,8 @@ typedef struct CertName {
     char commonName[CTC_NAME_SIZE];
     char commonNameEnc;
     char email[CTC_NAME_SIZE];  /* !!!! email has to be last !!!! */
+    byte raw[CTC_MAX_RAW_SIZE]; /* raw ASN.1 sequence */
+    int  rawLen;
 } CertName;
 
 
