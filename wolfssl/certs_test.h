@@ -1215,5 +1215,5 @@ static const unsigned char dh_g[] =
 };
 
 
-#endif /* CYASSL_CERTS_TEST_H */
+#endif /* WOLFSSL_CERTS_TEST_H */
 
