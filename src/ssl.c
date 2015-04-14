@@ -5979,10 +5979,10 @@ WOLFSSL_X509_CHAIN* wolfSSL_SESSION_get_peer_chain(WOLFSSL_SESSION* session)
 #endif /* SESSION_INDEX && SESSION_CERTS */
 
 
-    #ifdef SESSION_STATS
+    #ifdef PRINT_SESSION_STATS
 
     WOLFSSL_API
-    void PrintSessionStats(void)
+    void wolfSSL_PrintSessionStats(void)
     {
         word32 totalSessionsSeen = 0;
         word32 totalSessionsNow = 0;

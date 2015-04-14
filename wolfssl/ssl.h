@@ -1375,6 +1375,8 @@ WOLFSSL_API int wolfSSL_set_SessionTicket_cb(WOLFSSL*,
 #define WOLFSSL_CRL_MONITOR   0x01   /* monitor this dir flag */
 #define WOLFSSL_CRL_START_MON 0x02   /* start monitoring flag */
 
+WOLFSSL_API
+void wolfSSL_PrintSessionStats(void);
 
 /* External facing KDF */
 WOLFSSL_API

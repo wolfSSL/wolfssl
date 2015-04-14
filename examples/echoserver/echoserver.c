@@ -54,10 +54,6 @@
 #include "examples/echoserver/echoserver.h"
 
 
-#ifdef SESSION_STATS
-    CYASSL_API void PrintSessionStats(void);
-#endif
-
 #define SVR_COMMAND_SIZE 256
 
 static void SignalReady(void* args, word16 port)
@@ -275,9 +271,9 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
                 printf("client sent break command: closing session!\n");
                 break;
             }
-#ifdef SESSION_STATS
+#ifdef PRINT_SESSION_STATS
             if ( strncmp(command, "printstats", 10) == 0) {
-                PrintSessionStats();
+                CyaSSL_PrintSessionStats();
                 break;
             }
 #endif
