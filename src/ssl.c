@@ -2003,6 +2003,10 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, buffer der, int type, int verify)
 
     static SessionRow SessionCache[SESSION_ROWS];
 
+    #if defined(WOLFSSL_SESSION_STATS) && defined(WOLFSSL_PEAK_SESSIONS)
+        static word32 PeakSessions;
+    #endif
+
     static wolfSSL_Mutex session_mutex;   /* SessionCache mutex */
 
     #ifndef NO_CLIENT_CACHE
@@ -5833,6 +5837,11 @@ int SetSession(WOLFSSL* ssl, WOLFSSL_SESSION* session)
 }
 
 
+#ifdef WOLFSSL_SESSION_STATS
+static int get_locked_session_stats(word32* active, word32* total,
+                                    word32* peak);
+#endif
+
 int AddSession(WOLFSSL* ssl)
 {
     word32 row, idx;
@@ -5916,6 +5925,20 @@ int AddSession(WOLFSSL* ssl)
         SessionCache[row].Sessions[idx].idLen = 0;
 #endif /* NO_CLIENT_CACHE */
 
+#if defined(WOLFSSL_SESSION_STATS) && defined(WOLFSSL_PEAK_SESSIONS)
+    if (error == 0) {
+        word32 active = 0;
+
+        error = get_locked_session_stats(&active, NULL, NULL);
+        if (error == SSL_SUCCESS) {
+            error = 0;  /* back to this function ok */
+
+            if (active > PeakSessions)
+                PeakSessions = active;
+        }
+    }
+#endif /* defined(WOLFSSL_SESSION_STATS) && defined(WOLFSSL_PEAK_SESSIONS) */
+
     if (UnLockMutex(&session_mutex) != 0)
         return BAD_MUTEX_E;
 
@@ -5979,33 +6002,124 @@ WOLFSSL_X509_CHAIN* wolfSSL_SESSION_get_peer_chain(WOLFSSL_SESSION* session)
 #endif /* SESSION_INDEX && SESSION_CERTS */
 
 
+#ifdef WOLFSSL_SESSION_STATS
+
+/* requires session_mutex lock held, SSL_SUCCESS on ok */
+static int get_locked_session_stats(word32* active, word32* total, word32* peak){
+    int result = SSL_SUCCESS;
+    int i;
+    int count;
+    int idx;
+    word32 now   = 0;
+    word32 seen  = 0;
+    word32 ticks = LowResTimer();
+
+    (void)peak;
+
+    WOLFSSL_ENTER("get_locked_session_stats");
+
+    for (i = 0; i < SESSION_ROWS; i++) {
+        seen += SessionCache[i].totalCount;
+
+        if (active == NULL)
+            continue;  /* no need to calculate what we can't set */
+
+        count = min((word32)SessionCache[i].totalCount, SESSIONS_PER_ROW);
+        idx   = SessionCache[i].nextIdx - 1;
+        if (idx < 0)
+            idx = SESSIONS_PER_ROW - 1; /* if back to front previous was end */
+
+        for(; count > 0; --count, idx = idx ? idx - 1 : SESSIONS_PER_ROW - 1) {
+            if (idx >= SESSIONS_PER_ROW || idx < 0) {  /* sanity check */
+                WOLFSSL_MSG("Bad idx");
+                break;
+            }
+
+            /* if not expried then good */
+            if (ticks < (SessionCache[i].Sessions[idx].bornOn +
+                         SessionCache[i].Sessions[idx].timeout) ) {
+                now++;
+            }
+        }
+    }
+
+    if (active)
+        *active = now;
+
+    if (total)
+        *total = seen;
+
+#ifdef WOLFSSL_PEAK_SESSIONS
+    if (peak)
+        *peak = PeakSessions;
+#endif
+
+    WOLFSSL_LEAVE("get_locked_session_stats", result);
+
+    return result;
+}
+
+
+/* return SSL_SUCCESS on ok */
+int wolfSSL_get_session_stats(word32* active, word32* total, word32* peak,
+                              word32* maxSessions)
+{
+    int result = SSL_SUCCESS;
+
+    WOLFSSL_ENTER("wolfSSL_get_session_stats");
+
+    if (maxSessions) {
+        *maxSessions = SESSIONS_PER_ROW * SESSION_ROWS;
+
+        if (active == NULL && total == NULL && peak == NULL)
+            return result;  /* we're done */
+    }
+
+    /* user must provide at least one query value */
+    if (active == NULL && total == NULL && peak == NULL)
+        return BAD_FUNC_ARG;
+
+    if (LockMutex(&session_mutex) != 0) {
+        return BAD_MUTEX_E;
+    }
+
+    result = get_locked_session_stats(active, total, peak);
+
+    if (UnLockMutex(&session_mutex) != 0)
+        result = BAD_MUTEX_E;
+
+    WOLFSSL_LEAVE("wolfSSL_get_session_stats", result);
+
+    return result;
+}
+
+#endif /* WOLFSSL_SESSION_STATS */
+
+
     #ifdef PRINT_SESSION_STATS
 
-    WOLFSSL_API
-    void wolfSSL_PrintSessionStats(void)
+    /* SSL_SUCCESS on ok */
+    int wolfSSL_PrintSessionStats(void)
     {
         word32 totalSessionsSeen = 0;
         word32 totalSessionsNow = 0;
-        word32 rowNow;
+        word32 peak = 0;
+        word32 maxSessions = 0;
         int    i;
+        int    ret;
         double E;               /* expected freq */
         double chiSquare = 0;
 
-        for (i = 0; i < SESSION_ROWS; i++) {
-            totalSessionsSeen += SessionCache[i].totalCount;
-
-            if (SessionCache[i].totalCount >= SESSIONS_PER_ROW)
-                rowNow = SESSIONS_PER_ROW;
-            else if (SessionCache[i].nextIdx == 0)
-                rowNow = 0;
-            else
-                rowNow = SessionCache[i].nextIdx;
-
-            totalSessionsNow += rowNow;
-        }
-
+        ret = wolfSSL_get_session_stats(&totalSessionsNow, &totalSessionsSeen,
+                                        &peak, &maxSessions);
+        if (ret != SSL_SUCCESS)
+            return ret;
         printf("Total Sessions Seen = %d\n", totalSessionsSeen);
         printf("Total Sessions Now  = %d\n", totalSessionsNow);
+#ifdef WOLFSSL_PEAK_SESSIONS
+        printf("Peak  Sessions      = %d\n", peak);
+#endif
+        printf("Max   Sessions      = %d\n", maxSessions);
 
         E = (double)totalSessionsSeen / SESSION_ROWS;
 
@@ -6029,6 +6143,8 @@ WOLFSSL_X509_CHAIN* wolfSSL_SESSION_get_peer_chain(WOLFSSL_SESSION* session)
         else if (SESSION_ROWS == 2861)
             printf(".05 p value  = 2985.5, chi-square should be less\n");
         printf("\n");
+
+        return ret;
     }
 
     #endif /* SESSION_STATS */
