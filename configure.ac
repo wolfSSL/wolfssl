@@ -2006,7 +2006,8 @@ for option in $OPTION_FLAGS; do
             continue
         fi
 
-        echo "#undef  $noequalsign" >> $OPTION_FILE 
+        noarg=`echo $defonly | sed 's/=.*//'`
+        echo "#undef  $noarg" >> $OPTION_FILE 
         echo "#define $noequalsign" >> $OPTION_FILE 
         echo "" >> $OPTION_FILE 
     else

@@ -6005,7 +6005,8 @@ WOLFSSL_X509_CHAIN* wolfSSL_SESSION_get_peer_chain(WOLFSSL_SESSION* session)
 #ifdef WOLFSSL_SESSION_STATS
 
 /* requires session_mutex lock held, SSL_SUCCESS on ok */
-static int get_locked_session_stats(word32* active, word32* total, word32* peak){
+static int get_locked_session_stats(word32* active, word32* total, word32* peak)
+{
     int result = SSL_SUCCESS;
     int i;
     int count;
@@ -6029,7 +6030,7 @@ static int get_locked_session_stats(word32* active, word32* total, word32* peak)
         if (idx < 0)
             idx = SESSIONS_PER_ROW - 1; /* if back to front previous was end */
 
-        for(; count > 0; --count, idx = idx ? idx - 1 : SESSIONS_PER_ROW - 1) {
+        for (; count > 0; --count, idx = idx ? idx - 1 : SESSIONS_PER_ROW - 1) {
             if (idx >= SESSIONS_PER_ROW || idx < 0) {  /* sanity check */
                 WOLFSSL_MSG("Bad idx");
                 break;
