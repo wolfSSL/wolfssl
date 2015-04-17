@@ -1780,7 +1780,12 @@ static int ProcessFinished(const byte* input, int size, int* sslBytes,
          }
     }
 
-    FreeHandshakeResources(ssl);
+    /* If receiving a finished message from one side, free the resources
+     * from the other side's tracker. */
+    if (session->flags.side == WOLFSSL_SERVER_END)
+        FreeHandshakeResources(session->sslClient);
+    else
+        FreeHandshakeResources(session->sslServer);
 
     return ret;
 }
