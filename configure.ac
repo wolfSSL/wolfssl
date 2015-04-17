@@ -2006,10 +2006,24 @@ for option in $OPTION_FLAGS; do
             continue
         fi
 
+        # allow user to igonore system options
+        ignoresys=no
+        if [[[ $noequalsign == _* ]]] ;
+        then
+            ignoresys=yes
+            echo "#ifndef WOLFSSL_OPTIONS_IGNORE_SYS" >> $OPTION_FILE
+        fi
+
         noarg=`echo $defonly | sed 's/=.*//'`
-        echo "#undef  $noarg" >> $OPTION_FILE 
-        echo "#define $noequalsign" >> $OPTION_FILE 
-        echo "" >> $OPTION_FILE 
+        echo "#undef  $noarg" >> $OPTION_FILE
+        echo "#define $noequalsign" >> $OPTION_FILE
+
+        if test "$ignoresys" = "yes"
+        then
+            echo "#endif" >> $OPTION_FILE
+        fi
+
+        echo "" >> $OPTION_FILE
     else
         echo "option w/o begin -D is $option, not saving to $OPTION_FILE"
     fi
