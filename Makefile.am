@@ -16,6 +16,8 @@ EXTRA_HEADERS =
 BUILT_SOURCES=
 EXTRA_DIST=
 dist_doc_DATA=
+dist_noinst_SCRIPTS =
+check_SCRIPTS =
 
 #includes additional rules from aminclude.am
 @INC_AMINCLUDE@
@@ -94,6 +96,7 @@ include mcapi/wolfcrypt_test.X/nbproject/include.am
 include mcapi/wolfssl.X/nbproject/include.am
 include mcapi/zlib.X/nbproject/include.am
 include tirtos/include.am
+include scripts/include.am
 
 if USE_VALGRIND
 TESTS_ENVIRONMENT=./valgrind-error.sh
@@ -101,6 +104,10 @@ endif
 
 TEST_EXTENSIONS=.test
 TESTS += $(check_PROGRAMS)
+
+check_SCRIPTS+= $(dist_noinst_SCRIPTS)
+TESTS += $(check_SCRIPTS)
+
 test: check
 tests/unit.log: testsuite/testsuite.log
 

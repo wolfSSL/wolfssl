@@ -123,6 +123,7 @@ static char* iptos(unsigned int addr)
 int main(int argc, char** argv)
 {
     int          ret = 0;
+    int          hadBadPacket = 0;
 	int		     inum;
 	int		     port;
     int          saveFile = 0;
@@ -303,8 +304,10 @@ int main(int argc, char** argv)
                 continue;
 
             ret = ssl_DecodePacket(packet, header.caplen, data, err);
-            if (ret < 0)
+            if (ret < 0) {
                 printf("ssl_Decode ret = %d, %s\n", ret, err);
+                hadBadPacket = 1;
+            }
             if (ret > 0) {
                 data[ret] = 0;
 				printf("SSL App Data(%d:%d):%s\n", packetNumber, ret, data);
@@ -315,7 +318,7 @@ int main(int argc, char** argv)
     }
     FreeAll();
 
-    return EXIT_SUCCESS;
+    return hadBadPacket ? EXIT_FAILURE : EXIT_SUCCESS;
 }
 
 #endif /* full build */
