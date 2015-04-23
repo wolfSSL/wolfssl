@@ -83,7 +83,7 @@
         #endif
         #include <fcntl.h>
         #if !(defined(DEVKITPRO) || defined(HAVE_RTP_SYS) || defined(EBSNET)) \
-            || defined(WOLFSSL_PICOTCP)
+            && !(defined(WOLFSSL_PICOTCP))
             #include <sys/socket.h>
             #include <arpa/inet.h>
             #include <netinet/in.h>

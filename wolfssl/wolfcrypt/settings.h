@@ -244,10 +244,13 @@
 #endif
 
 #ifdef WOLFSSL_PICOTCP
-    #define errno pico_err
+    #ifndef errno
+        #define errno pico_err
+    #endif
     #include "pico_defines.h"
     #include "pico_stack.h"
     #include "pico_constants.h"
+    #include "pico_protocol.h"
     #define CUSTOM_RAND_GENERATE pico_rand
 #endif
 
