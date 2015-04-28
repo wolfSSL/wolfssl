@@ -60,6 +60,7 @@
     Timeval srvTo;
 #endif
 
+
 static void NonBlockingSSL_Accept(SSL* ssl)
 {
 #ifndef CYASSL_CALLBACKS
@@ -132,7 +133,8 @@ static void Usage(void)
     printf("-u          Use UDP DTLS,"
            " add -v 2 for DTLSv1 (default), -v 3 for DTLSv1.2\n");
     printf("-f          Fewer packets/group messages\n");
-    printf("-r          Create server ready file, for external monitor\n");
+    printf("-R          Create server ready file, for external monitor\n");
+    printf("-r          Allow one client Resumption\n");
     printf("-N          Use Non-blocking sockets\n");
     printf("-S <str>    Use Host Name Indication\n");
     printf("-w          Wait for bidirectional shutdown\n");
@@ -175,7 +177,8 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     int    fewerPackets = 0;
     int    pkCallbacks  = 0;
     int    serverReadyFile = 0;
-    int    wc_shutdown        = 0;
+    int    wc_shutdown     = 0;
+    int    resume = 0;            /* do resume, and resume count */
     int    ret;
     char*  cipherList = NULL;
     const char* verifyCert = cliCert;
@@ -213,7 +216,8 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     fdOpenSession(Task_self());
 #endif
 
-    while ((ch = mygetopt(argc, argv, "?dbstnNufrawPp:v:l:A:c:k:S:oO:")) != -1) {
+    while ((ch = mygetopt(argc, argv, "?dbstnNufrRawPp:v:l:A:c:k:S:oO:"))
+                         != -1) {
         switch (ch) {
             case '?' :
                 Usage();
@@ -249,8 +253,14 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
                 fewerPackets = 1;
                 break;
 
-            case 'r' :
+            case 'R' :
                 serverReadyFile = 1;
+                break;
+
+            case 'r' :
+                #ifndef NO_SESSION_CACHE
+                    resume = 1;
+                #endif
                 break;
 
             case 'P' :
@@ -502,6 +512,24 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
             err_sys("UseSNI failed");
 #endif
 
+while (1) {  /* allow resume option */
+    if (resume > 1) {  /* already did listen, just do accept */
+        if (doDTLS == 0) {
+            SOCKADDR_IN_T client;
+            socklen_t client_len = sizeof(client);
+            clientfd = accept(sockfd, (struct sockaddr*)&client,
+                             (ACCEPT_THIRD_T)&client_len);
+        } else {
+            tcp_listen(&sockfd, &port, useAnyAddr, doDTLS);
+            clientfd = udp_read_connect(sockfd);
+        }
+        #ifdef USE_WINDOWS_API
+            if (clientfd == INVALID_SOCKET) err_sys("tcp accept failed");
+        #else
+            if (clientfd == -1) err_sys("tcp accept failed");
+        #endif
+    }
+
     ssl = SSL_new(ctx);
     if (ssl == NULL)
         err_sys("unable to get SSL");
@@ -528,10 +556,10 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
         SetupPkCallbacks(ctx, ssl);
 #endif
 
-    tcp_accept(&sockfd, &clientfd, (func_args*)args, port, useAnyAddr, doDTLS,
-               serverReadyFile);
-    if (!doDTLS) 
-        CloseSocket(sockfd);
+    if (resume < 2) {  /* do listen and accept */
+        tcp_accept(&sockfd, &clientfd, (func_args*)args, port, useAnyAddr,
+                   doDTLS, serverReadyFile);
+    }
 
     SSL_set_fd(ssl, clientfd);
     if (usePsk == 0 || useAnon == 1 || cipherList != NULL || needDH == 1) {
@@ -579,13 +607,23 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
         Task_yield();
     #endif
 
-    ret = SSL_shutdown(ssl);
-    if (wc_shutdown && ret == SSL_SHUTDOWN_NOT_DONE)
-        SSL_shutdown(ssl);    /* bidirectional shutdown */
+    if (doDTLS == 0) {
+        ret = SSL_shutdown(ssl);
+        if (wc_shutdown && ret == SSL_SHUTDOWN_NOT_DONE)
+            SSL_shutdown(ssl);    /* bidirectional shutdown */
+    }
     SSL_free(ssl);
+    if (resume == 1) {
+        CloseSocket(clientfd);
+        resume++;           /* only do one resume for testing */
+        continue;
+    }
+    break;  /* out of while loop, done with normal and resume option */
+}
     SSL_CTX_free(ctx);
-    
+
     CloseSocket(clientfd);
+    CloseSocket(sockfd);
     ((func_args*)args)->return_code = 0;
 
 
@@ -631,7 +669,9 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 #if defined(DEBUG_CYASSL) && !defined(CYASSL_MDK_SHELL)
         CyaSSL_Debugging_ON();
 #endif
-        if (CurrentDir("server"))
+        if (CurrentDir("_build"))
+            ChangeDirBack(1);
+        else if (CurrentDir("server"))
             ChangeDirBack(2);
         else if (CurrentDir("Debug") || CurrentDir("Release"))
             ChangeDirBack(3);

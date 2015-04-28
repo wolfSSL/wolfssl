@@ -728,7 +728,11 @@ static INLINE void tcp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
 
     if (ready_file) {
 #ifndef NO_FILESYSTEM
-        FILE* srf = fopen("./server_ready", "w+");
+    #ifndef USE_WINDOWS_API
+        FILE* srf = fopen("/tmp/wolfssl_server_ready", "w");
+    #else
+        FILE* srf = fopen("wolfssl_server_ready", "w");
+    #endif
 
         if (srf) {
             fputs("ready", srf);

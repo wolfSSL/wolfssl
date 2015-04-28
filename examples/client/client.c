@@ -813,12 +813,6 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
 #ifndef NO_SESSION_CACHE
     if (resumeSession) {
-        if (doDTLS) {
-            strncpy(msg, "break", 6);
-            msgSz = (int)strlen(msg);
-            /* try to send session close */
-            wolfSSL_write(ssl, msg, msgSz);
-        }
         session   = wolfSSL_get_session(ssl);
         sslResume = wolfSSL_new(ctx);
     }
@@ -950,7 +944,9 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 #if defined(DEBUG_WOLFSSL) && !defined(WOLFSSL_MDK_SHELL) && !defined(STACK_TRAP)
         wolfSSL_Debugging_ON();
 #endif
-        if (CurrentDir("client"))
+        if (CurrentDir("_build"))
+            ChangeDirBack(1);
+        else if (CurrentDir("client"))
             ChangeDirBack(2);
         else if (CurrentDir("Debug") || CurrentDir("Release"))
             ChangeDirBack(3);

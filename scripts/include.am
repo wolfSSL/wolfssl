@@ -3,7 +3,13 @@
 # All paths should be given relative to the root
 
 
+
 if BUILD_SNIFFTEST
 dist_noinst_SCRIPTS+= scripts/sniffer-testsuite.test
 endif
+
+if BUILD_EXAMPLES
+dist_noinst_SCRIPTS+= scripts/resume.test
+endif
+
 EXTRA_DIST +=  scripts/testsuite.pcap

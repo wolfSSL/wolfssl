@@ -1,0 +1,63 @@
+#!/bin/bash
+
+#reusme.test
+
+# need a unique resume port since may run the same time as testsuite
+resume_port=11112
+no_pid=-1
+server_pid=$no_pid
+
+do_cleanup() {
+    echo "in cleanup"
+
+    if  [[ $server_pid != $no_pid ]]
+    then
+        echo "killing server"
+        kill -9 $server_pid
+    fi
+}
+
+do_trap() {
+    echo "got trap"
+    do_cleanup
+    exit -1
+}
+
+trap do_trap INT TERM
+
+echo -e "\nStarting example server for resume test...\n"
+
+if test -e /tmp/wolfssl_server_ready; then
+    echo -e "removing exisitng server_ready file"
+    rm /tmp/wolfssl_server_ready
+fi
+./examples/server/server -r -R -p $resume_port &
+server_pid=$!
+
+while [ ! -s /tmp/wolfssl_server_ready ]; do
+    echo -e "waiting for server_ready file..."
+    sleep 0.1
+done
+
+./examples/client/client -r -p $resume_port
+client_result=$?
+
+if [[ $client_result != 0 ]] ;
+then
+    echo -e "client failed!"
+    do_cleanup
+    exit 1
+fi
+
+wait $server_pid
+server_result=$?
+
+if [[ $server_result != 0 ]] ;
+then
+    echo -e "client failed!"
+    exit 1
+fi
+
+echo -e "\nSuccess!\n"
+
+exit 0
