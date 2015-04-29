@@ -653,26 +653,39 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     if (benchmark) {
         /* time passed in number of connects give average */
         int times = benchmark;
+        int loops = resumeSession ? 2 : 1;
         int i = 0;
+        WOLFSSL_SESSION* benchSession = NULL;
 
-        double start = current_time(), avg;
+        while (loops--) {
+            int benchResume = resumeSession && loops == 0;
+            double start = current_time(), avg;
 
-        for (i = 0; i < times; i++) {
-            tcp_connect(&sockfd, host, port, doDTLS);
+            for (i = 0; i < times; i++) {
+                tcp_connect(&sockfd, host, port, doDTLS);
 
-            ssl = wolfSSL_new(ctx);
-            wolfSSL_set_fd(ssl, sockfd);
-            if (wolfSSL_connect(ssl) != SSL_SUCCESS)
-                err_sys("SSL_connect failed");
+                ssl = wolfSSL_new(ctx);
+                if (benchResume)
+                    wolfSSL_set_session(ssl, benchSession);
+                wolfSSL_set_fd(ssl, sockfd);
+                if (wolfSSL_connect(ssl) != SSL_SUCCESS)
+                    err_sys("SSL_connect failed");
 
-            wolfSSL_shutdown(ssl);
-            wolfSSL_free(ssl);
-            CloseSocket(sockfd);
+                wolfSSL_shutdown(ssl);
+                if (i == (times-1) && resumeSession) {
+                    benchSession = wolfSSL_get_session(ssl);
+                }
+                wolfSSL_free(ssl);
+                CloseSocket(sockfd);
+            }
+            avg = current_time() - start;
+            avg /= times;
+            avg *= 1000;   /* milliseconds */
+            if (benchResume)
+                printf("wolfSSL_resume  avg took: %8.3f milliseconds\n", avg);
+            else
+                printf("wolfSSL_connect avg took: %8.3f milliseconds\n", avg);
         }
-        avg = current_time() - start;
-        avg /= times;
-        avg *= 1000;   /* milliseconds */
-        printf("wolfSSL_connect avg took: %8.3f milliseconds\n", avg);
 
         wolfSSL_CTX_free(ctx);
         ((func_args*)args)->return_code = 0;
