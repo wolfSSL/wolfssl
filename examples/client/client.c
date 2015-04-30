@@ -774,13 +774,6 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             printf("not doing secure renegotiation on example with"
                    " nonblocking yet");
         } else {
-            #ifndef NO_SESSION_CACHE
-                if (resumeSession) {
-                    session = wolfSSL_get_session(ssl);
-                    wolfSSL_set_session(ssl, session);
-                    resumeSession = 0;  /* only resume once */
-                }
-            #endif
             if (wolfSSL_Rehandshake(ssl) != SSL_SUCCESS) {
                 int  err = wolfSSL_get_error(ssl, 0);
                 char buffer[WOLFSSL_MAX_ERROR_SZ];
@@ -862,6 +855,12 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             tcp_connect(&sockfd, host, port, 0);
         }
         wolfSSL_set_fd(sslResume, sockfd);
+#ifdef HAVE_SECURE_RENEGOTIATION
+        if (scr) {
+            if (wolfSSL_UseSecureRenegotiation(sslResume) != SSL_SUCCESS)
+                err_sys("can't enable secure renegotiation");
+        }
+#endif
         wolfSSL_set_session(sslResume, session);
 #ifdef HAVE_SESSION_TICKET
         wolfSSL_set_SessionTicket_cb(sslResume, sessionTicketCB,
