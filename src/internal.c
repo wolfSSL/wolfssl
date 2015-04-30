@@ -6631,16 +6631,9 @@ int ProcessReply(WOLFSSL* ssl)
                             if ( (ret = InitStreams(ssl)) != 0)
                                 return ret;
                     #endif
-                    if (ssl->options.resuming &&
-                                      ssl->options.side == WOLFSSL_CLIENT_END) {
-                        ret = BuildFinished(ssl, &ssl->hsHashes->verifyHashes,
-                                            server);
-                    }
-                    else if (!ssl->options.resuming &&
-                                      ssl->options.side == WOLFSSL_SERVER_END) {
-                        ret = BuildFinished(ssl, &ssl->hsHashes->verifyHashes,
-                                            client);
-                    }
+                    ret = BuildFinished(ssl, &ssl->hsHashes->verifyHashes,
+                                       ssl->options.side == WOLFSSL_CLIENT_END ?
+                                       server : client);
                     if (ret != 0)
                         return ret;
                     break;
@@ -7146,7 +7139,7 @@ int SendFinished(WOLFSSL* ssl)
     /* make finished hashes */
     hashes = (Hashes*)&input[headerSz];
     ret = BuildFinished(ssl, hashes,
-                      ssl->options.side == WOLFSSL_CLIENT_END ? client : server);
+                     ssl->options.side == WOLFSSL_CLIENT_END ? client : server);
     if (ret != 0) return ret;
 
 #ifdef HAVE_SECURE_RENEGOTIATION
@@ -7176,11 +7169,7 @@ int SendFinished(WOLFSSL* ssl)
 #ifndef NO_SESSION_CACHE
         AddSession(ssl);    /* just try */
 #endif
-        if (ssl->options.side == WOLFSSL_CLIENT_END) {
-            ret = BuildFinished(ssl, &ssl->hsHashes->verifyHashes, server);
-            if (ret != 0) return ret;
-        }
-        else {
+        if (ssl->options.side == WOLFSSL_SERVER_END) {
             ssl->options.handShakeState = HANDSHAKE_DONE;
             ssl->options.handShakeDone  = 1;
             #ifdef WOLFSSL_DTLS
@@ -7205,10 +7194,6 @@ int SendFinished(WOLFSSL* ssl)
                     ssl->keys.dtls_sequence_number = 1;
                 }
             #endif
-        }
-        else {
-            ret = BuildFinished(ssl, &ssl->hsHashes->verifyHashes, client);
-            if (ret != 0) return ret;
         }
     }
     #ifdef WOLFSSL_DTLS
@@ -11327,7 +11312,7 @@ int DoSessionTicket(WOLFSSL* ssl,
 
     ssl->expect_session_ticket = 0;
 
-    return BuildFinished(ssl, &ssl->hsHashes->verifyHashes, server);
+    return 0;
 }
 #endif /* HAVE_SESSION_TICKET */
 
