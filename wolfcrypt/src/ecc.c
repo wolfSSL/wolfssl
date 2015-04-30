@@ -1554,6 +1554,7 @@ int wc_ecc_make_key_ex(RNG* rng, ecc_key* key, const ecc_set_type* dp)
    byte           buf[ECC_MAXSIZE];
 #endif
    int            keysize;
+   int            po_init = 0;  /* prime order Init flag for clear */
 
    if (key == NULL || rng == NULL || dp == NULL)
        return ECC_BAD_ARG_E;
@@ -1592,6 +1593,8 @@ int wc_ecc_make_key_ex(RNG* rng, ecc_key* key, const ecc_set_type* dp)
 #endif
        if (err != MP_OKAY)
            err = MEMORY_E;
+       else
+           po_init = 1;
    }
 
    if (err == MP_OKAY) {
@@ -1634,8 +1637,10 @@ int wc_ecc_make_key_ex(RNG* rng, ecc_key* key, const ecc_set_type* dp)
        mp_clear(&key->k);
    }
    ecc_del_point(base);
-   mp_clear(&prime);
-   mp_clear(&order);
+   if (po_init) {
+       mp_clear(&prime);
+       mp_clear(&order);
+   }
 
    ForceZero(buf, ECC_MAXSIZE);
 #ifdef WOLFSSL_SMALL_STACK
