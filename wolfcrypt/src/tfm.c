@@ -863,11 +863,12 @@ top:
   return FP_OKAY;
 }
 
+
 /* c = 1/a (mod b) for odd b only */
 int fp_invmod(fp_int *a, fp_int *b, fp_int *c)
 {
   fp_int  x, y, u, v, B, D;
-  int     neg;
+  int     neg, loop_check = 0;
 
   /* 2. [modified] b must be odd   */
   if (fp_iseven (b) == FP_YES) {
@@ -931,6 +932,8 @@ top:
 
   /* if not zero goto step 4 */
   if (fp_iszero (&u) == FP_NO) {
+    if (++loop_check > 1024) /* bad input */
+      return FP_VAL;
     goto top;
   }
 

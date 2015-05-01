@@ -147,6 +147,7 @@ enum {
     THREAD_STORE_SET_E  = -212,  /* Thread local storage key set failure */
 
     MAC_CMP_FAILED_E    = -213,  /* MAC comparison failed */
+    IS_POINT_E          = -214,  /* ECC is point on curve failed */
 
     MIN_CODE_E          = -300   /* errors -101 - -299 */
 };

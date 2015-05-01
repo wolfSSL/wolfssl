@@ -319,6 +319,9 @@ const char* wc_GetErrorString(int error)
     case MAC_CMP_FAILED_E:
         return "MAC comparison failed";
 
+    case IS_POINT_E:
+        return "ECC is point on curve failed";
+
     default:
         return "unknown error number";
 

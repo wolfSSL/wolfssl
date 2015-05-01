@@ -1734,9 +1734,14 @@ int wc_ecc_sign_hash(const byte* in, word32 inlen, byte* out, word32 *outlen,
 
    /* make up a key and export the public copy */
    if (err == MP_OKAY) {
+       int loop_check = 0;
        ecc_key pubkey;
        wc_ecc_init(&pubkey);
        for (;;) {
+           if (++loop_check > 64) {
+                err = RNG_FAILURE_E;
+                break;
+           }
            err = wc_ecc_make_key_ex(rng, &pubkey, key->dp);
            if (err != MP_OKAY) break;
 
@@ -2311,6 +2316,72 @@ int wc_ecc_export_x963_ex(ecc_key* key, byte* out, word32* outLen, int compresse
 }
 
 
+/* is pubkey point on curve ? */
+static int ecc_is_point(ecc_key* key)
+{
+   mp_int prime, b, t1, t2;
+   int err;
+
+   if ((err = mp_init_multi(&prime, &b, &t1, &t2, NULL, NULL)) != MP_OKAY) {
+      return err;
+   }
+
+   /* load prime and b */
+   err = mp_read_radix(&prime, key->dp->prime, 16);
+   if (err == MP_OKAY)
+       err = mp_read_radix(&b, key->dp->Bf, 16);
+
+   /* compute y^2 */
+   if (err == MP_OKAY)
+       err = mp_sqr(key->pubkey.y, &t1);
+
+   /* compute x^3 */
+   if (err == MP_OKAY)
+       err = mp_sqr(key->pubkey.x, &t2);
+   if (err == MP_OKAY)
+       err = mp_mod(&t2, &prime, &t2);
+   if (err == MP_OKAY)
+       err = mp_mul(key->pubkey.x, &t2, &t2);
+
+   /* compute y^2 - x^3 */
+   if (err == MP_OKAY)
+       err = mp_sub(&t1, &t2, &t1);
+
+   /* compute y^2 - x^3 + 3x */
+   if (err == MP_OKAY)
+       err = mp_add(&t1, key->pubkey.x, &t1);
+   if (err == MP_OKAY)
+       err = mp_add(&t1, key->pubkey.x, &t1);
+   if (err == MP_OKAY)
+       err = mp_add(&t1, key->pubkey.x, &t1);
+   if (err == MP_OKAY)
+       err = mp_mod(&t1, &prime, &t1);
+
+   while (err == MP_OKAY && mp_cmp_d(&t1, 0) == MP_LT) {
+      err = mp_add(&t1, &prime, &t1);
+   }
+   while (err == MP_OKAY && mp_cmp(&t1, &prime) != MP_LT) {
+      err = mp_sub(&t1, &prime, &t1);
+   }
+
+   /* compare to b */
+   if (err == MP_OKAY) {
+       if (mp_cmp(&t1, &b) != MP_EQ) {
+          err = MP_VAL;
+       } else {
+          err = MP_OKAY;
+       }
+   }
+
+   mp_clear(&prime);
+   mp_clear(&b);
+   mp_clear(&t1);
+   mp_clear(&t2);
+
+   return err;
+}
+
+
 /* import public ECC key in ANSI X9.63 format */
 int wc_ecc_import_x963(const byte* in, word32 inLen, ecc_key* key)
 {
@@ -2444,6 +2515,12 @@ int wc_ecc_import_x963(const byte* in, word32 inLen, ecc_key* key)
                                   (inLen-1)>>1);
    if (err == MP_OKAY)
        mp_set(key->pubkey.z, 1);
+
+   if (err == MP_OKAY) {
+       err = ecc_is_point(key);
+       if (err != MP_OKAY)
+           err = IS_POINT_E;
+   }
 
    if (err != MP_OKAY) {
        mp_clear(key->pubkey.x);

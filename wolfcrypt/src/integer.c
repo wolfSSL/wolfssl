@@ -866,7 +866,7 @@ int mp_invmod (mp_int * a, mp_int * b, mp_int * c)
 int fast_mp_invmod (mp_int * a, mp_int * b, mp_int * c)
 {
   mp_int  x, y, u, v, B, D;
-  int     res, neg;
+  int     res, neg, loop_check = 0;
 
   /* 2. [modified] b must be odd   */
   if (mp_iseven (b) == 1) {
@@ -958,6 +958,10 @@ top:
 
   /* if not zero goto step 4 */
   if (mp_iszero (&u) == 0) {
+    if (++loop_check > 1024) {
+        res = MP_VAL;
+        goto LBL_ERR;
+    }
     goto top;
   }
 
