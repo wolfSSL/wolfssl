@@ -732,6 +732,18 @@
     #endif
 #endif
 
+#if defined(WOLFSSL_GENERAL_ALIGNMENT) && (WOLFSSL_GENERAL_ALIGNMENT > 0)
+    #if defined(_MSC_VER)
+        #define XGEN_ALIGN __declspec(align(WOLFSSL_GENERAL_ALIGNMENT))
+    #elif defined(__GNUC__)
+        #define XGEN_ALIGN __attribute__((aligned(WOLFSSL_GENERAL_ALIGNMENT)))
+    #else
+        #define XGEN_ALIGN
+    #endif
+#else
+    #define XGEN_ALIGN
+#endif
+
 #ifdef HAVE_CRL
     /* not widely supported yet */
     #undef NO_SKID
