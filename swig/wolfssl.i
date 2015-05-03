@@ -33,7 +33,7 @@
 %}
 
 
-WOLFSSL_METHOD* wolfTLSv1_client_method(void);
+WOLFSSL_METHOD* wolfTLSv1_2_client_method(void);
 WOLFSSL_CTX*    wolfSSL_CTX_new(WOLFSSL_METHOD*);
 int             wolfSSL_CTX_load_verify_locations(WOLFSSL_CTX*, const char*, const char*);
 WOLFSSL*        wolfSSL_new(WOLFSSL_CTX*);
