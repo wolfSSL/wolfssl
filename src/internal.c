@@ -5472,6 +5472,8 @@ static int ChachaAEADDecrypt(WOLFSSL* ssl, byte* plain, const byte* input,
 
 static INLINE int Encrypt(WOLFSSL* ssl, byte* out, const byte* input, word16 sz)
 {
+    int ret = 0;
+
     (void)out;
     (void)input;
     (void)sz;
@@ -5495,18 +5497,19 @@ static INLINE int Encrypt(WOLFSSL* ssl, byte* out, const byte* input, word16 sz)
 
         #ifdef BUILD_DES3
             case wolfssl_triple_des:
-                return wc_Des3_CbcEncrypt(ssl->encrypt.des3, out, input, sz);
+                ret = wc_Des3_CbcEncrypt(ssl->encrypt.des3, out, input, sz);
+                break;
         #endif
 
         #ifdef BUILD_AES
             case wolfssl_aes:
-                return wc_AesCbcEncrypt(ssl->encrypt.aes, out, input, sz);
+                ret = wc_AesCbcEncrypt(ssl->encrypt.aes, out, input, sz);
+                break;
         #endif
 
         #ifdef BUILD_AESGCM
             case wolfssl_aes_gcm:
                 {
-                    int  gcmRet;
                     byte additional[AEAD_AUTH_DATA_SZ];
                     byte nonce[AEAD_NONCE_SZ];
                     const byte* additionalSrc = input - 5;
@@ -5535,17 +5538,16 @@ static INLINE int Encrypt(WOLFSSL* ssl, byte* out, const byte* input, word16 sz)
                                  ssl->keys.aead_enc_imp_IV, AEAD_IMP_IV_SZ);
                     XMEMCPY(nonce + AEAD_IMP_IV_SZ,
                                      ssl->keys.aead_exp_IV, AEAD_EXP_IV_SZ);
-                    gcmRet = wc_AesGcmEncrypt(ssl->encrypt.aes,
+                    ret = wc_AesGcmEncrypt(ssl->encrypt.aes,
                                  out + AEAD_EXP_IV_SZ, input + AEAD_EXP_IV_SZ,
                                  sz - AEAD_EXP_IV_SZ - ssl->specs.aead_mac_size,
                                  nonce, AEAD_NONCE_SZ,
                                  out + sz - ssl->specs.aead_mac_size,
                                  ssl->specs.aead_mac_size,
                                  additional, AEAD_AUTH_DATA_SZ);
-                    if (gcmRet == 0)
+                    if (ret == 0)
                         AeadIncrementExpIV(ssl);
                     ForceZero(nonce, AEAD_NONCE_SZ);
-                    return gcmRet;
                 }
                 break;
         #endif
@@ -5602,17 +5604,20 @@ static INLINE int Encrypt(WOLFSSL* ssl, byte* out, const byte* input, word16 sz)
 
         #ifdef HAVE_HC128
             case wolfssl_hc128:
-                return wc_Hc128_Process(ssl->encrypt.hc128, out, input, sz);
+                ret = wc_Hc128_Process(ssl->encrypt.hc128, out, input, sz);
+                break;
         #endif
 
         #ifdef BUILD_RABBIT
             case wolfssl_rabbit:
-                return wc_RabbitProcess(ssl->encrypt.rabbit, out, input, sz);
+                ret = wc_RabbitProcess(ssl->encrypt.rabbit, out, input, sz);
+                break;
         #endif
 
         #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
             case wolfssl_chacha:
-                return ChachaAEADEncrypt(ssl, out, input, sz);
+                ret = ChachaAEADEncrypt(ssl, out, input, sz);
+                break;
         #endif
 
         #ifdef HAVE_NULL_CIPHER
@@ -5625,10 +5630,10 @@ static INLINE int Encrypt(WOLFSSL* ssl, byte* out, const byte* input, word16 sz)
 
             default:
                 WOLFSSL_MSG("wolfSSL Encrypt programming error");
-                return ENCRYPT_ERROR;
+                ret = ENCRYPT_ERROR;
     }
 
-    return 0;
+    return ret;
 }
 
 
@@ -5636,6 +5641,8 @@ static INLINE int Encrypt(WOLFSSL* ssl, byte* out, const byte* input, word16 sz)
 static INLINE int Decrypt(WOLFSSL* ssl, byte* plain, const byte* input,
                            word16 sz)
 {
+    int ret = 0;
+
     (void)plain;
     (void)input;
     (void)sz;
@@ -5654,12 +5661,14 @@ static INLINE int Decrypt(WOLFSSL* ssl, byte* plain, const byte* input,
 
         #ifdef BUILD_DES3
             case wolfssl_triple_des:
-                return wc_Des3_CbcDecrypt(ssl->decrypt.des3, plain, input, sz);
+                ret = wc_Des3_CbcDecrypt(ssl->decrypt.des3, plain, input, sz);
+                break;
         #endif
 
         #ifdef BUILD_AES
             case wolfssl_aes:
-                return wc_AesCbcDecrypt(ssl->decrypt.aes, plain, input, sz);
+                ret = wc_AesCbcDecrypt(ssl->decrypt.aes, plain, input, sz);
+                break;
         #endif
 
         #ifdef BUILD_AESGCM
@@ -5695,8 +5704,7 @@ static INLINE int Decrypt(WOLFSSL* ssl, byte* plain, const byte* input,
                             ssl->specs.aead_mac_size,
                             additional, AEAD_AUTH_DATA_SZ) < 0) {
                     SendAlert(ssl, alert_fatal, bad_record_mac);
-                    ForceZero(nonce, AEAD_NONCE_SZ);
-                    return VERIFY_MAC_ERROR;
+                    ret = VERIFY_MAC_ERROR;
                 }
                 ForceZero(nonce, AEAD_NONCE_SZ);
             }
@@ -5736,8 +5744,7 @@ static INLINE int Decrypt(WOLFSSL* ssl, byte* plain, const byte* input,
                             ssl->specs.aead_mac_size,
                             additional, AEAD_AUTH_DATA_SZ) < 0) {
                     SendAlert(ssl, alert_fatal, bad_record_mac);
-                    ForceZero(nonce, AEAD_NONCE_SZ);
-                    return VERIFY_MAC_ERROR;
+                    ret = VERIFY_MAC_ERROR;
                 }
                 ForceZero(nonce, AEAD_NONCE_SZ);
             }
@@ -5752,17 +5759,20 @@ static INLINE int Decrypt(WOLFSSL* ssl, byte* plain, const byte* input,
 
         #ifdef HAVE_HC128
             case wolfssl_hc128:
-                return wc_Hc128_Process(ssl->decrypt.hc128, plain, input, sz);
+                ret = wc_Hc128_Process(ssl->decrypt.hc128, plain, input, sz);
+                break;
         #endif
 
         #ifdef BUILD_RABBIT
             case wolfssl_rabbit:
-                return wc_RabbitProcess(ssl->decrypt.rabbit, plain, input, sz);
+                ret = wc_RabbitProcess(ssl->decrypt.rabbit, plain, input, sz);
+                break;
         #endif
 
         #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
             case wolfssl_chacha:
-                return ChachaAEADDecrypt(ssl, plain, input, sz);
+                ret = ChachaAEADDecrypt(ssl, plain, input, sz);
+                break;
         #endif
 
         #ifdef HAVE_NULL_CIPHER
@@ -5775,9 +5785,10 @@ static INLINE int Decrypt(WOLFSSL* ssl, byte* plain, const byte* input,
 
             default:
                 WOLFSSL_MSG("wolfSSL Decrypt programming error");
-                return DECRYPT_ERROR;
+                ret = DECRYPT_ERROR;
     }
-    return 0;
+
+    return ret;
 }
 
 
