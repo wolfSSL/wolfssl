@@ -46,7 +46,7 @@ function run_renewcerts(){
     echo "Updating 2048-bit client-cert.pem"
     echo ""
     #pipe the following arguments to openssl req...
-    echo -e "US\nMontana\nBozeman\nwolfSSL\nProgramming\nwww.wolfssl.com\ninfo@wolfssl.com\n.\n.\n" | openssl req -new -key client-key.pem -nodes -out client-cert.csr
+    echo -e "US\nMontana\nBozeman\nwolfSSL_2048\nProgramming-2048\nwww.wolfssl.com\ninfo@wolfssl.com\n.\n.\n" | openssl req -new -key client-key.pem -nodes -out client-cert.csr
 
 
     openssl x509 -req -in client-cert.csr -days 1000 -extfile wolfssl.cnf -extensions wolfssl_opts -signkey client-key.pem -out client-cert.pem
@@ -60,7 +60,7 @@ function run_renewcerts(){
     echo "Updating 1024-bit client-cert.pem"
     echo ""
     #pipe the following arguments to openssl req...
-    echo -e "US\nMontana\nBozeman\nwolfSSL\nProgramming\nwww.wolfssl.com\ninfo@wolfssl.com\n.\n.\n" | openssl req -new -key \1024/client-key.pem -nodes -out \1024/client-cert.csr
+    echo -e "US\nMontana\nBozeman\nwolfSSL_1024\nProgramming-1024\nwww.wolfssl.com\ninfo@wolfssl.com\n.\n.\n" | openssl req -new -key \1024/client-key.pem -nodes -out \1024/client-cert.csr
 
 
     openssl x509 -req -in \1024/client-cert.csr -days 1000 -extfile wolfssl.cnf -extensions wolfssl_opts -signkey \1024/client-key.pem -out \1024/client-cert.pem
@@ -117,7 +117,7 @@ function run_renewcerts(){
     echo "Updating client-ecc-cert.pem"
     echo ""
     #pipe the following arguments to openssl req...
-    echo -e "US\nMontana\nBozeman\nwolfSSL\nProgramming\nwww.wolfssl.com\ninfo@wolfssl.com\n.\n.\n" | openssl req -new -key ecc-client-key.pem -nodes -out client-ecc-cert.csr
+    echo -e "US\nOregon\nSalem\nClient ECC\nFast\nwww.wolfssl.com\ninfo@wolfssl.com\n.\n.\n" | openssl req -new -key ecc-client-key.pem -nodes -out client-ecc-cert.csr
 
 
     openssl x509 -req -in client-ecc-cert.csr -days 1000 -extfile wolfssl.cnf -extensions wolfssl_opts -signkey ecc-client-key.pem -out client-ecc-cert.pem
@@ -132,7 +132,7 @@ function run_renewcerts(){
     echo "Updating server-ecc.pem"
     echo ""
     #pipe the following arguments to openssl req...
-    echo -e "US\nOregon\nPortland\nEliptic\nECC\nwww.wolfssl.com\ninfo@wolfssl.com\n.\n.\n" | openssl req -new -key ecc-key.pem -nodes -out server-ecc.csr
+    echo -e "US\nWashington\nSeattle\nEliptic\nECC\nwww.wolfssl.com\ninfo@wolfssl.com\n.\n.\n" | openssl req -new -key ecc-key.pem -nodes -out server-ecc.csr
 
 
     openssl x509 -req -in server-ecc.csr -days 1000 -extfile wolfssl.cnf -extensions wolfssl_opts -signkey ecc-key.pem -out server-ecc.pem
@@ -146,7 +146,7 @@ function run_renewcerts(){
     echo "Updating server-ecc-comp.pem"
     echo ""
     #pipe the following arguments to openssl req...
-    echo -e "US\nMontana\nBozeman\nwolfSSL\nProgramming\nwww.wolfssl.com\ninfo@wolfssl.com\n.\n.\n" | openssl req -new -key ecc-key-comp.pem -nodes -out server-ecc-comp.csr
+    echo -e "US\nMontana\nBozeman\nElliptic - comp\nServer ECC-comp\nwww.wolfssl.com\ninfo@wolfssl.com\n.\n.\n" | openssl req -new -key ecc-key-comp.pem -nodes -out server-ecc-comp.csr
 
 
     openssl x509 -req -in server-ecc-comp.csr -days 1000 -extfile wolfssl.cnf -extensions wolfssl_opts -signkey ecc-key-comp.pem -out server-ecc-comp.pem
