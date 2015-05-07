@@ -174,7 +174,12 @@ int wc_DsaVerify(const byte* digest, const byte* sig, DsaKey* key, int* answer)
         ret = MP_READ_E;
 
     /* sanity checks */
-
+    if (ret == 0) {
+        if (mp_iszero(&r) == MP_YES || mp_iszero(&s) == MP_YES ||
+                mp_cmp(&r, &key->q) != MP_LT || mp_cmp(&s, &key->q) != MP_LT) {
+            ret = MP_ZERO_E;
+        }
+    }
 
     /* put H into u1 from sha digest */
     if (ret == 0 && mp_read_unsigned_bin(&u1,digest,SHA_DIGEST_SIZE) != MP_OKAY)
