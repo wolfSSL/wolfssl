@@ -388,9 +388,12 @@ static int wc_RsaFunction(const byte* in, word32 inLen, byte* out,
     /* convert */
     if (mp_to_unsigned_bin(&tmp, out) != MP_OKAY)
         ERROR_OUT(MP_TO_E);
-   
-done: 
+
+done:
     mp_clear(&tmp);
+    if (ret == MP_EXPTMOD_E) {
+        WOLFSSL_MSG("RSA_FUNCTION MP_EXPTMOD_E: memory/config problem");
+    }
     return ret;
 }
 
