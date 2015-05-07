@@ -93,6 +93,11 @@
     #define SHOW_INTEL_CYCLES
 #endif
 
+/* let's use buffers, we have them */
+#if !defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048)
+    #define USE_CERT_BUFFERS_2048
+#endif
+
 #if defined(USE_CERT_BUFFERS_1024) || defined(USE_CERT_BUFFERS_2048) \
                                    || !defined(NO_DH)
     /* include test cert and key buffers for use with NO_FILESYSTEM */
@@ -1127,38 +1132,30 @@ void bench_rsa(void)
 {
     int    i;
     int    ret;
-    byte   tmp[3072];
     size_t bytes;
     word32 idx = 0;
+    const byte* tmp;
 
     byte      message[] = "Everyone gets Friday off.";
-    byte      enc[512];  /* for up to 4096 bit */
+    byte      enc[256];  /* for up to 2048 bit */
     const int len = (int)strlen((char*)message);
     double    start, total, each, milliEach;
-    
+
     RsaKey rsaKey;
     int    rsaKeySz = 2048; /* used in printf */
 
 #ifdef USE_CERT_BUFFERS_1024
-    XMEMCPY(tmp, rsa_key_der_1024, sizeof_rsa_key_der_1024);
+    tmp = rsa_key_der_1024;
     bytes = sizeof_rsa_key_der_1024;
     rsaKeySz = 1024;
 #elif defined(USE_CERT_BUFFERS_2048)
-    XMEMCPY(tmp, rsa_key_der_2048, sizeof_rsa_key_der_2048);
+    tmp = rsa_key_der_2048;
     bytes = sizeof_rsa_key_der_2048;
 #else
-    FILE*  file = fopen(certRSAname, "rb");
-
-    if (!file) {
-        printf("can't find %s, Please run from wolfSSL home dir\n", certRSAname);
-        return;
-    }
-    
-    bytes = fread(tmp, 1, sizeof(tmp), file);
-    fclose(file);
+    #error "need a cert buffer size"
 #endif /* USE_CERT_BUFFERS */
 
-		
+
 #ifdef HAVE_CAVIUM
     if (wc_RsaInitCavium(&rsaKey, CAVIUM_DEV_ID) != 0)
         printf("RSA init cavium failed\n");
@@ -1169,7 +1166,7 @@ void bench_rsa(void)
         return;
     }
     ret = wc_RsaPrivateKeyDecode(tmp, &idx, &rsaKey, (word32)bytes);
-    
+
     start = current_time(1);
 
     for (i = 0; i < ntimes; i++)
@@ -1190,7 +1187,7 @@ void bench_rsa(void)
     start = current_time(1);
 
     for (i = 0; i < ntimes; i++) {
-         byte  out[512];  /* for up to 4096 bit */
+         byte  out[256];  /* for up to 2048 bit */
          wc_RsaPrivateDecrypt(enc, (word32)ret, out, sizeof(out), &rsaKey);
     }
 
@@ -1229,16 +1226,16 @@ void bench_rsa(void)
 void bench_dh(void)
 {
     int    i ;
-    byte   tmp[1024];
     size_t bytes;
     word32 idx = 0, pubSz, privSz = 0, pubSz2, privSz2, agreeSz;
+    const byte* tmp;
 
     byte   pub[256];    /* for 2048 bit */
-    byte   priv[256];   /* for 2048 bit */
     byte   pub2[256];   /* for 2048 bit */
-    byte   priv2[256];  /* for 2048 bit */
     byte   agree[256];  /* for 2048 bit */
-    
+    byte   priv[32];    /* for 2048 bit */
+    byte   priv2[32];   /* for 2048 bit */
+
     double start, total, each, milliEach;
     DhKey  dhKey;
     int    dhKeySz = 2048; /* used in printf */
@@ -1246,26 +1243,19 @@ void bench_dh(void)
     (void)idx;
     (void)tmp;
 
-	
+
 #ifdef USE_CERT_BUFFERS_1024
-    XMEMCPY(tmp, dh_key_der_1024, sizeof_dh_key_der_1024);
+    tmp = dh_key_der_1024;
     bytes = sizeof_dh_key_der_1024;
     dhKeySz = 1024;
 #elif defined(USE_CERT_BUFFERS_2048)
-    XMEMCPY(tmp, dh_key_der_2048, sizeof_dh_key_der_2048);
+    tmp = dh_key_der_2048;
     bytes = sizeof_dh_key_der_2048;
 #elif defined(NO_ASN)
     dhKeySz = 1024;
     /* do nothing, but don't use default FILE */
 #else
-    FILE*  file = fopen(certDHname, "rb");
-
-    if (!file) {
-        printf("can't find %s,  Please run from wolfSSL home dir\n", certDHname);
-        return;
-    }
-
-    bytes = fread(tmp, 1, sizeof(tmp), file);
+    #error "need to define a cert buffer size"
 #endif /* USE_CERT_BUFFERS */
 
 		
@@ -1274,9 +1264,6 @@ void bench_dh(void)
     bytes = wc_DhSetKey(&dhKey, dh_p, sizeof(dh_p), dh_g, sizeof(dh_g));
 #else
     bytes = wc_DhKeyDecode(tmp, &idx, &dhKey, (word32)bytes);
-    #if !defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048)
-        fclose(file);
-    #endif
 #endif
     if (bytes != 0) {
         printf("dhekydecode failed, can't benchmark\n");
@@ -1576,11 +1563,11 @@ void bench_eccKeyAgree(void)
     ecc_key genKey, genKey2;
     double start, total, each, milliEach;
     int    i, ret;
-    byte   shared[1024];
-    byte   sig[1024];
+    byte   shared[32];
+    byte   sig[64+16];  /* der encoding too */
     byte   digest[32];
     word32 x = 0;
- 
+
     wc_ecc_init(&genKey);
     wc_ecc_init(&genKey2);
 
@@ -1595,7 +1582,7 @@ void bench_eccKeyAgree(void)
         return;
     }
 
-    /* 256 bit */ 
+    /* 256 bit */
     start = current_time(1);
 
     for(i = 0; i < agreeTimes; i++) {
@@ -1603,7 +1590,7 @@ void bench_eccKeyAgree(void)
         ret = wc_ecc_shared_secret(&genKey, &genKey2, shared, &x);
         if (ret != 0) {
             printf("ecc_shared_secret failed\n");
-            return; 
+            return;
         }
     }
 
@@ -1686,7 +1673,7 @@ void bench_curve25519KeyAgree(void)
     curve25519_key genKey, genKey2;
     double start, total, each, milliEach;
     int    i, ret;
-    byte   shared[1024];
+    byte   shared[32];
     word32 x = 0;
 
     wc_curve25519_init(&genKey);
