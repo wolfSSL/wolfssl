@@ -148,6 +148,7 @@ static void Usage(void)
 #endif
     printf("-f          Fewer packets/group messages\n");
     printf("-x          Disable client cert/key loading\n");
+    printf("-X          Driven by eXternal test case\n");
 #ifdef SHOW_SIZES
     printf("-z          Print structure sizes\n");
 #endif
@@ -213,6 +214,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     int    resumeSession = 0;
     int    wc_shutdown   = 0;
     int    disableCRL    = 0;
+    int    externalTest  = 0;
     int    ret;
     int    scr           = 0;    /* allow secure renegotiation */
     int    forceScr      = 0;    /* force client initiaed scr */
@@ -271,7 +273,8 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     StackTrap();
 
     while ((ch = mygetopt(argc, argv,
-                          "?gdDusmNrwRitfxUPCh:p:v:l:A:c:k:b:zS:L:ToO:a")) != -1) {
+                          "?gdDusmNrwRitfxXUPCh:p:v:l:A:c:k:b:zS:L:ToO:a"))
+                                                                        != -1) {
         switch (ch) {
             case '?' :
                 Usage();
@@ -313,6 +316,10 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
             case 'x' :
                 useClientCert = 0;
+                break;
+
+            case 'X' :
+                externalTest = 1;
                 break;
 
             case 'f' :
@@ -456,6 +463,27 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     }
 
     myoptind = 0;      /* reset for test cases */
+
+    if (externalTest) {
+        /* detect build cases that wouldn't allow test against wolfssl.com */
+        int done = 0;
+        (void)done;
+
+        #ifdef NO_RSA
+            done = 1;
+        #endif
+
+        #ifndef NO_PSK
+            done = 1;
+        #endif
+
+        if (done) {
+            printf("external test can't be run in this mode");
+
+            ((func_args*)args)->return_code = 0;
+            exit(EXIT_SUCCESS);
+        }
+    }
 
     /* sort out DTLS versus TLS versions */
     if (version == CLIENT_INVALID_VERSION) {
