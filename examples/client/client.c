@@ -173,6 +173,9 @@ static void Usage(void)
 #ifdef HAVE_ANON
     printf("-a          Anonymous client\n");
 #endif
+#ifdef HAVE_CRL
+    printf("-C          Disable CRL\n");
+#endif
 }
 
 THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
@@ -208,7 +211,8 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     int    doPeerCheck = 1;
     int    nonBlocking = 0;
     int    resumeSession = 0;
-    int    wc_shutdown      = 0;
+    int    wc_shutdown   = 0;
+    int    disableCRL    = 0;
     int    ret;
     int    scr           = 0;    /* allow secure renegotiation */
     int    forceScr      = 0;    /* force client initiaed scr */
@@ -262,11 +266,12 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     (void)verifyCert;
     (void)useClientCert;
     (void)overrideDateErrors;
+    (void)disableCRL;
 
     StackTrap();
 
     while ((ch = mygetopt(argc, argv,
-                          "?gdDusmNrwRitfxUPh:p:v:l:A:c:k:b:zS:L:ToO:a")) != -1) {
+                          "?gdDusmNrwRitfxUPCh:p:v:l:A:c:k:b:zS:L:ToO:a")) != -1) {
         switch (ch) {
             case '?' :
                 Usage();
@@ -282,6 +287,10 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
             case 'D' :
                 overrideDateErrors = 1;
+                break;
+
+            case 'C' :
+                disableCRL = 1;
                 break;
 
             case 'u' :
@@ -723,12 +732,14 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
     wolfSSL_set_fd(ssl, sockfd);
 #ifdef HAVE_CRL
-    if (wolfSSL_EnableCRL(ssl, WOLFSSL_CRL_CHECKALL) != SSL_SUCCESS)
-        err_sys("can't enable crl check");
-    if (wolfSSL_LoadCRL(ssl, crlPemDir, SSL_FILETYPE_PEM, 0) != SSL_SUCCESS)
-        err_sys("can't load crl, check crlfile and date validity");
-    if (wolfSSL_SetCRL_Cb(ssl, CRL_CallBack) != SSL_SUCCESS)
-        err_sys("can't set crl callback");
+    if (disableCRL == 0) {
+        if (wolfSSL_EnableCRL(ssl, WOLFSSL_CRL_CHECKALL) != SSL_SUCCESS)
+            err_sys("can't enable crl check");
+        if (wolfSSL_LoadCRL(ssl, crlPemDir, SSL_FILETYPE_PEM, 0) != SSL_SUCCESS)
+            err_sys("can't load crl, check crlfile and date validity");
+        if (wolfSSL_SetCRL_Cb(ssl, CRL_CallBack) != SSL_SUCCESS)
+            err_sys("can't set crl callback");
+    }
 #endif
 #ifdef HAVE_SECURE_RENEGOTIATION
     if (scr) {

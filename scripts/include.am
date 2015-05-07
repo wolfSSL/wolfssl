@@ -10,6 +10,7 @@ endif
 
 if BUILD_EXAMPLES
 dist_noinst_SCRIPTS+= scripts/resume.test
+dist_noinst_SCRIPTS+= scripts/external.test
 endif
 
 EXTRA_DIST +=  scripts/testsuite.pcap
