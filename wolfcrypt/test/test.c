@@ -5241,10 +5241,10 @@ int ecc_encrypt_test(void)
 int curve25519_test(void)
 {
     RNG     rng;
-    byte    sharedA[1024];
-    byte    sharedB[1024];
+    byte    sharedA[32];
+    byte    sharedB[32];
+    byte    exportBuf[32];
     word32  x, y;
-    byte    exportBuf[1024];
     curve25519_key userA, userB, pubKey;
 
     /* test vectors from
