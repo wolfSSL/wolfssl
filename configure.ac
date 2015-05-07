@@ -184,6 +184,8 @@ then
     AM_CFLAGS="$AM_CFLAGS -DTEST_IPV6"
 fi
 
+AM_CONDITIONAL([BUILD_IPV6], [test "x$ENABLED_IPV6" = "xyes"])
+
 
 # Fortress build 
 AC_ARG_ENABLE([fortress],
