@@ -60,11 +60,11 @@ for (my $i = 0; $i < $num_1024; $i++) {
     my $sname = $fileList_1024[$i][1];
 
     print OUT_FILE "/* $fname, 1024-bit */\n";
-    print OUT_FILE "const unsigned char $sname\[] =\n";
+    print OUT_FILE "static const unsigned char $sname\[] =\n";
     print OUT_FILE "{\n";
     file_to_hex($fname);
     print OUT_FILE "};\n";
-    print OUT_FILE "const int sizeof_$sname = sizeof($sname);\n\n";
+    print OUT_FILE "static const int sizeof_$sname = sizeof($sname);\n\n";
 }
 
 # convert and print 2048-bit certs/keys
@@ -75,15 +75,15 @@ for (my $i = 0; $i < $num_2048; $i++) {
     my $sname = $fileList_2048[$i][1];
 
     print OUT_FILE "/* $fname, 2048-bit */\n";
-    print OUT_FILE "const unsigned char $sname\[] =\n";
+    print OUT_FILE "static const unsigned char $sname\[] =\n";
     print OUT_FILE "{\n";
     file_to_hex($fname);
     print OUT_FILE "};\n";
-    print OUT_FILE "const int sizeof_$sname = sizeof($sname);\n\n";
+    print OUT_FILE "static const int sizeof_$sname = sizeof($sname);\n\n";
 }
 
 print OUT_FILE "#endif /* USE_CERT_BUFFERS_1024 */\n\n";
-print OUT_FILE "#endif /* CYASSL_CERTS_TEST_H */\n\n";
+print OUT_FILE "#endif /* WOLFSSL_CERTS_TEST_H */\n\n";
 
 # close certs_test.h file
 close OUT_FILE or die $!;
