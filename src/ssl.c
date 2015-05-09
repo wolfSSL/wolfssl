@@ -5289,6 +5289,16 @@ int wolfSSL_dtls_got_timeout(WOLFSSL* ssl)
             WOLFSSL_MSG("connect state: SECOND_REPLY_DONE");
 
         case SECOND_REPLY_DONE:
+#ifndef NO_HANDSHAKE_DONE_CB
+            if (ssl->hsDoneCb) {
+                int cbret = ssl->hsDoneCb(ssl, ssl->hsDoneCtx);
+                if (cbret < 0) {
+                    ssl->error = cbret;
+                    WOLFSSL_MSG("HandShake Done Cb don't continue error");
+                    return SSL_FATAL_ERROR;
+                }
+            }
+#endif /* NO_HANDSHAKE_DONE_CB */
             FreeHandshakeResources(ssl);
             WOLFSSL_LEAVE("SSL_connect()", SSL_SUCCESS);
             return SSL_SUCCESS;
@@ -5576,6 +5586,16 @@ int wolfSSL_dtls_got_timeout(WOLFSSL* ssl)
             WOLFSSL_MSG("accept state ACCEPT_THIRD_REPLY_DONE");
 
         case ACCEPT_THIRD_REPLY_DONE :
+#ifndef NO_HANDSHAKE_DONE_CB
+            if (ssl->hsDoneCb) {
+                int cbret = ssl->hsDoneCb(ssl, ssl->hsDoneCtx);
+                if (cbret < 0) {
+                    ssl->error = cbret;
+                    WOLFSSL_MSG("HandShake Done Cb don't continue error");
+                    return SSL_FATAL_ERROR;
+                }
+            }
+#endif /* NO_HANDSHAKE_DONE_CB */
             FreeHandshakeResources(ssl);
             WOLFSSL_LEAVE("SSL_accept()", SSL_SUCCESS);
             return SSL_SUCCESS;
@@ -5587,6 +5607,25 @@ int wolfSSL_dtls_got_timeout(WOLFSSL* ssl)
     }
 
 #endif /* NO_WOLFSSL_SERVER */
+
+
+#ifndef NO_HANDSHAKE_DONE_CB
+
+int wolfSSL_SetHsDoneCb(WOLFSSL* ssl, HandShakeDoneCb cb, void* user_ctx)
+{
+    WOLFSSL_ENTER("wolfSSL_SetHsDoneCb");
+
+    if (ssl == NULL)
+        return BAD_FUNC_ARG;
+
+    ssl->hsDoneCb  = cb;
+    ssl->hsDoneCtx = user_ctx;
+
+
+    return SSL_SUCCESS;
+}
+
+#endif /* NO_HANDSHAKE_DONE_CB */
 
 
 int wolfSSL_Cleanup(void)

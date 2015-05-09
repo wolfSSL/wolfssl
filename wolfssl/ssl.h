@@ -1375,6 +1375,12 @@ WOLFSSL_API int wolfSSL_set_SessionTicket_cb(WOLFSSL*,
 #define WOLFSSL_CRL_MONITOR   0x01   /* monitor this dir flag */
 #define WOLFSSL_CRL_START_MON 0x02   /* start monitoring flag */
 
+
+/* notify user the hanshake is done */
+typedef int (*HandShakeDoneCb)(WOLFSSL*, void*);
+WOLFSSL_API int wolfSSL_SetHsDoneCb(WOLFSSL*, HandShakeDoneCb, void*);
+
+
 WOLFSSL_API int wolfSSL_PrintSessionStats(void);
 WOLFSSL_API int wolfSSL_get_session_stats(unsigned int* active,
                                           unsigned int* total,

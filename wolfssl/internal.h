@@ -2111,6 +2111,10 @@ struct WOLFSSL {
     void*           verifyCbCtx;        /* cert verify callback user ctx*/
     VerifyCallback  verifyCallback;     /* cert verification callback */
     void*           heap;               /* for user overrides */
+#ifndef NO_HANDSHAKE_DONE_CB
+    HandShakeDoneCb hsDoneCb;          /*  notify user handshake done */
+    void*           hsDoneCtx;         /*  user handshake cb context  */
+#endif
     WOLFSSL_CIPHER  cipher;
     hmacfp          hmac;
     Ciphers         encrypt;

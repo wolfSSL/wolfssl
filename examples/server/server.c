@@ -60,6 +60,10 @@
     Timeval srvTo;
 #endif
 
+#ifndef NO_HANDSHAKE_DONE_CB
+    int myHsDoneCb(WOLFSSL* ssl, void* user_ctx);
+#endif
+
 
 static void NonBlockingSSL_Accept(SSL* ssl)
 {
@@ -534,6 +538,9 @@ while (1) {  /* allow resume option */
     if (ssl == NULL)
         err_sys("unable to get SSL");
 
+#ifndef NO_HANDSHAKE_DONE_CB
+    wolfSSL_SetHsDoneCb(ssl, myHsDoneCb, NULL);
+#endif
 #ifdef HAVE_CRL
     CyaSSL_EnableCRL(ssl, 0);
     CyaSSL_LoadCRL(ssl, crlPemDir, SSL_FILETYPE_PEM, CYASSL_CRL_MONITOR |
@@ -710,5 +717,18 @@ while (1) {  /* allow resume option */
         return 0;
     }
 
+#endif
+
+#ifndef NO_HANDSHAKE_DONE_CB
+    int myHsDoneCb(WOLFSSL* ssl, void* user_ctx)
+    {
+        (void)user_ctx;
+        (void)ssl;
+
+        /* printf("Notified HandShake done\n"); */
+
+        /* return negative number to end TLS connection now */
+        return 0;
+    }
 #endif
 
