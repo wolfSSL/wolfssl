@@ -100,8 +100,8 @@ int  wc_RNG_GenerateByte(RNG* rng, byte* b)
     #include <windows.h>
     #include <wincrypt.h>
 #else
-    #if !defined(NO_DEV_RANDOM) && !defined(WOLFSSL_MDK_ARM) \
-                                && !defined(WOLFSSL_IAR_ARM)
+    #if !defined(NO_DEV_RANDOM) && !defined(CUSTOM_RAND_GENERATE) && \
+                          !defined(WOLFSSL_MDK_ARM) && !defined(WOLFSSL_IAR_ARM)
             #include <fcntl.h>
         #ifndef EBSNET
             #include <unistd.h>
@@ -1164,15 +1164,17 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     * word32 rand_gen(void);
     * #define CUSTOM_RAND_GENERATE  rand_gen  */
 
-   int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
-   {
-     int i;
+    int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+    {
+        word32 i;
 
-     for (i = 0; i < sz; i++ )
-         output[i] = CUSTOM_RAND_GENERATE();
+        (void)os;
 
-     return 0;
-   }
+        for (i = 0; i < sz; i++ )
+            output[i] = CUSTOM_RAND_GENERATE();
+
+        return 0;
+    }
 
 #elif defined(NO_DEV_RANDOM)
 
