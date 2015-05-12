@@ -4484,7 +4484,7 @@ int openssl_test(void)
     EVP_MD_CTX_init(&md_ctx);
     EVP_DigestInit(&md_ctx, EVP_sha384());
 
-    EVP_DigestUpdate(&md_ctx, e.input, e.inLen);
+    EVP_DigestUpdate(&md_ctx, e.input, (unsigned long)e.inLen);
     EVP_DigestFinal(&md_ctx, hash, 0);
 
     if (memcmp(hash, e.output, SHA384_DIGEST_SIZE) != 0)

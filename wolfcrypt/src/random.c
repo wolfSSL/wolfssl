@@ -338,13 +338,13 @@ static INLINE void array_add(byte* d, word32 dLen, const byte* s, word32 sLen)
         for (sIdx = sLen - 1, dIdx = dLen - 1; sIdx >= 0; dIdx--, sIdx--)
         {
             carry += d[dIdx] + s[sIdx];
-            d[dIdx] = carry;
+            d[dIdx] = (byte)carry;
             carry >>= 8;
         }
 
         for (; carry != 0 && dIdx >= 0; dIdx--) {
             carry += d[dIdx];
-            d[dIdx] = carry;
+            d[dIdx] = (byte)carry;
             carry >>= 8;
         }
     }
