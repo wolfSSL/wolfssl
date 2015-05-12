@@ -4522,12 +4522,13 @@ int openssl_test(void)
         return -73;
 
     c.input  = "what do ya want for nothing?";
-    c.output = "\x75\x0c\x78\x3e\x6a\xb0\xb5\x03\xea\xa8\x6e\x31\x0a\x5d\xb7"
-               "\x38";
+    c.output = "\x55\x78\xe8\x48\x4b\xcc\x93\x80\x93\xec\x53\xaf\x22\xd6\x14"
+               "\x76";
     c.inLen  = strlen(c.input);
     c.outLen = MD5_DIGEST_SIZE;
 
-    HMAC(EVP_md5(), "Jefe", 4, (byte*)c.input, (int)c.inLen, hash, 0);
+    HMAC(EVP_md5(),
+                 "JefeJefeJefeJefe", 16, (byte*)c.input, (int)c.inLen, hash, 0);
 
     if (memcmp(hash, c.output, MD5_DIGEST_SIZE) != 0)
         return -74;
