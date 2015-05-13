@@ -25,6 +25,9 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 
+#ifndef WOLF_CRYPT_MISC_C
+#define WOLF_CRYPT_MISC_C
+
 #include <wolfssl/wolfcrypt/misc.h>
 
 /* inlining these functions is a huge speed increase and a small size decrease, 
@@ -194,3 +197,5 @@ STATIC INLINE int ConstantCompare(const byte* a, const byte* b, int length)
 }
 
 #undef STATIC
+
+#endif /* WOLF_CRYPT_MISC_C */
