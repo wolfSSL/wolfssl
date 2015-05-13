@@ -36,12 +36,15 @@
     #include <wolfcrypt/src/misc.c>
 #endif
 
-#ifndef min
+#ifndef WOLFSSL_HAVE_MIN
+#define WOLFSSL_HAVE_MIN
+
     static INLINE word32 min(word32 a, word32 b)
     {
         return a > b ? b : a;
     }
-#endif
+
+#endif /* WOLFSSL_HAVE_MIN */
 
 
 /* placed ASN.1 contentType OID into *output, return idx on success,

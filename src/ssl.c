@@ -77,23 +77,27 @@
     #define FALSE 0
 #endif
 
-#ifndef min
+#ifndef WOLFSSL_HAVE_MIN
+#define WOLFSSL_HAVE_MIN
 
     static INLINE word32 min(word32 a, word32 b)
     {
         return a > b ? b : a;
     }
 
-#endif /* min */
+#endif /* WOLFSSSL_HAVE_MIN */
 
-#ifndef max
+#ifndef WOLFSSL_HAVE_MAX
+#define WOLFSSL_HAVE_MAX
+
 #ifdef WOLFSSL_DTLS
     static INLINE word32 max(word32 a, word32 b)
     {
         return a > b ? a : b;
     }
-#endif
-#endif /* min */
+#endif /* WOLFSSL_DTLS */
+
+#endif /* WOLFSSL_HAVE_MAX */
 
 
 #ifndef WOLFSSL_LEANPSK

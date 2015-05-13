@@ -88,14 +88,15 @@ int wc_Sha384Hash(const byte* data, word32 len, byte* out)
 #endif
 
 
-#ifndef min
+#ifndef WOLFSSL_HAVE_MIN
+#define WOLFSSL_HAVE_MIN
 
     static INLINE word32 min(word32 a, word32 b)
     {
         return a > b ? b : a;
     }
 
-#endif /* min */
+#endif /* WOLFSSL_HAVE_MIN */
 
 #if defined(USE_INTEL_SPEEDUP)
   #define HAVE_INTEL_AVX1

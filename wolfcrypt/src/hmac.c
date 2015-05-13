@@ -722,14 +722,15 @@ int wolfSSL_GetHmacMaxSize(void)
 
 #ifdef HAVE_HKDF
 
-#ifndef min
+#ifndef WOLFSSL_HAVE_MIN
+#define WOLFSSL_HAVE_MIN
 
     static INLINE word32 min(word32 a, word32 b)
     {
         return a > b ? b : a;
     }
 
-#endif /* min */
+#endif /* WOLFSSL_HAVE_MIN */
 
 
 static INLINE int GetHashSizeByType(int type)

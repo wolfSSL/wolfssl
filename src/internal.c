@@ -135,14 +135,15 @@ static int BuildCertHashes(WOLFSSL* ssl, Hashes* hashes);
 static void PickHashSigAlgo(WOLFSSL* ssl,
                                 const byte* hashSigAlgo, word32 hashSigAlgoSz);
 
-#ifndef min
+#ifndef WOLFSSL_HAVE_MIN
+#define WOLFSSL_HAVE_MIN
 
     static INLINE word32 min(word32 a, word32 b)
     {
         return a > b ? b : a;
     }
 
-#endif /* min */
+#endif /* WOLFSSL_HAVE_MIN */
 
 
 int IsTLS(const WOLFSSL* ssl)
