@@ -1807,7 +1807,7 @@ static word16 TLSX_SessionTicket_GetSize(SessionTicket* ticket, int isRequest)
 static word16 TLSX_SessionTicket_Write(SessionTicket* ticket, byte* output,
                                                                   int isRequest)
 {
-    int offset = 0; /* empty ticket */
+    word16 offset = 0; /* empty ticket */
 
     if (isRequest && ticket) {
         XMEMCPY(output + offset, ticket->data, ticket->size);

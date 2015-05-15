@@ -13753,7 +13753,7 @@ int DoSessionTicket(WOLFSSL* ssl,
                 WOLFSSL_MSG("Bad user ticket encrypt size");
                 return BAD_TICKET_KEY_CB_SZ;
             }
-            c16toa(encLen, et->enc_len);
+            c16toa((word16)encLen, et->enc_len);
             ssl->session.ticketLen = (word16)(encLen + WOLFSSL_TICKET_FIXED_SZ);
             if (encLen < WOLFSSL_TICKET_ENC_SZ) {
                 /* move mac up since whole enc buffer not used */

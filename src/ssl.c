@@ -920,7 +920,7 @@ WOLFSSL_API int wolfSSL_set_SessionTicket(WOLFSSL* ssl, byte* buf, word32 bufSz)
 
     if (bufSz > 0)
         XMEMCPY(ssl->session.ticket, buf, bufSz);
-    ssl->session.ticketLen = bufSz;
+    ssl->session.ticketLen = (word16)bufSz;
 
     return SSL_SUCCESS;
 }
