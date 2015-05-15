@@ -764,6 +764,7 @@ enum Misc {
     VERIFY_HEADER  =  2,       /* always use 2 bytes      */
     EXT_ID_SZ      =  2,       /* always use 2 bytes      */
     MAX_DH_SIZE    = 513,      /* 4096 bit plus possible leading 0 */
+    SESSION_HINT_SZ = 4,       /* session timeout hint */
 
     MAX_SUITE_SZ = 200,        /* 100 suites for now! */
     RAN_LEN      = 32,         /* random length           */
@@ -908,6 +909,10 @@ enum Misc {
 
 #ifndef SESSION_TICKET_LEN
     #define SESSION_TICKET_LEN 256
+#endif
+
+#ifndef SESSION_TICKET_HINT_DEFAULT
+    #define SESSION_TICKET_HINT_DEFAULT 300
 #endif
 
 
@@ -1535,6 +1540,10 @@ struct WOLFSSL_CTX {
 #endif
 #ifdef HAVE_TLS_EXTENSIONS
     TLSX* extensions;                  /* RFC 6066 TLS Extensions data */
+    #if defined(HAVE_SESSION_TICKET) && !defined(NO_WOLFSSL_SEVER)
+        SessionTicketEncCb ticketEncCb;   /* enc/dec session ticket Cb */
+        int                ticketHint;    /* ticket hint in seconds */
+    #endif
 #endif
 #ifdef ATOMIC_USER
     CallbackMacEncrypt    MacEncryptCb;    /* Atomic User Mac/Encrypt Cb */
@@ -1797,6 +1806,7 @@ enum AcceptState {
     CERT_REQ_SENT,
     SERVER_HELLO_DONE,
     ACCEPT_SECOND_REPLY_DONE,
+    TICKET_SENT,
     CHANGE_CIPHER_SENT,
     ACCEPT_FINISHED_DONE,
     ACCEPT_THIRD_REPLY_DONE
@@ -1889,7 +1899,11 @@ typedef struct Options {
 #endif
 #ifdef HAVE_ANON
     word16            haveAnon:1;       /* User wants to allow Anon suites */
-#endif /* HAVE_ANON */
+#endif
+#ifdef HAVE_SESSION_TICKET
+    word16            createTicket:1;     /* Server to create new Ticket */
+    word16            useTicket:1;        /* Use Ticket not session cache */
+#endif
 
     /* need full byte values for this section */
     byte            processReply;           /* nonblocking resume */
@@ -2353,6 +2367,8 @@ static const byte tls_server[FINISHED_LABEL_SZ + 1] = "server finished";
 
 /* internal functions */
 WOLFSSL_LOCAL int SendChangeCipher(WOLFSSL*);
+WOLFSSL_LOCAL int SendTicket(WOLFSSL*);
+WOLFSSL_LOCAL int DoClientTicket(WOLFSSL*, const byte*, word32);
 WOLFSSL_LOCAL int SendData(WOLFSSL*, const void*, int);
 WOLFSSL_LOCAL int SendCertificate(WOLFSSL*);
 WOLFSSL_LOCAL int SendCertificateRequest(WOLFSSL*);

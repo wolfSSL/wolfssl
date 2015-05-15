@@ -866,6 +866,21 @@ int wolfSSL_Rehandshake(WOLFSSL* ssl)
 #endif /* HAVE_SECURE_RENEGOTIATION */
 
 /* Session Ticket */
+#if !defined(NO_WOLFSSL_SERVER) && defined(HAVE_SESSION_TICKET)
+/* SSL_SUCCESS on ok */
+int wolfSSL_CTX_set_TicketEncCb(WOLFSSL_CTX* ctx, SessionTicketEncCb cb)
+{
+    if (ctx == NULL)
+        return BAD_FUNC_ARG;
+
+    ctx->ticketEncCb = cb;
+
+    return SSL_SUCCESS;
+}
+
+#endif /* !defined(NO_WOLFSSL_CLIENT) && defined(HAVE_SESSION_TICKET) */
+
+/* Session Ticket */
 #if !defined(NO_WOLFSSL_CLIENT) && defined(HAVE_SESSION_TICKET)
 int wolfSSL_UseSessionTicket(WOLFSSL* ssl)
 {
@@ -5562,6 +5577,18 @@ int wolfSSL_dtls_got_timeout(WOLFSSL* ssl)
             WOLFSSL_MSG("accept state  ACCEPT_SECOND_REPLY_DONE");
 
         case ACCEPT_SECOND_REPLY_DONE :
+#ifdef HAVE_SESSION_TICKET
+            if (ssl->options.createTicket) {
+                if ( (ssl->error = SendTicket(ssl)) != 0) {
+                    WOLFSSL_ERROR(ssl->error);
+                    return SSL_FATAL_ERROR;
+                }
+            }
+#endif /* HAVE_SESSION_TICKET */
+            ssl->options.acceptState = TICKET_SENT;
+            WOLFSSL_MSG("accept state  TICKET_SENT");
+
+        case TICKET_SENT:
             if ( (ssl->error = SendChangeCipher(ssl)) != 0) {
                 WOLFSSL_ERROR(ssl->error);
                 return SSL_FATAL_ERROR;
@@ -5808,6 +5835,11 @@ WOLFSSL_SESSION* GetSession(WOLFSSL* ssl, byte* masterSecret)
     if (ssl->options.haveSessionId == 0)
         return NULL;
 
+#ifdef HAVE_SESSION_TICKET
+    if (ssl->options.side == WOLFSSL_SERVER_END && ssl->options.useTicket == 1)
+        return NULL;
+#endif
+
     if (ssl->arrays)
         id = ssl->arrays->sessionID;
     else
@@ -5895,6 +5927,11 @@ int AddSession(WOLFSSL* ssl)
 
     if (ssl->options.haveSessionId == 0)
         return 0;
+
+#ifdef HAVE_SESSION_TICKET
+    if (ssl->options.side == WOLFSSL_SERVER_END && ssl->options.useTicket == 1)
+        return 0;
+#endif
 
     row = HashSession(ssl->arrays->sessionID, ID_LEN, &error) % SESSION_ROWS;
     if (error != 0) {

@@ -129,6 +129,9 @@ enum wolfSSL_ErrorCodes {
     SNI_UNSUPPORTED         = -396,        /* SSL 3.0 does not support SNI */
     SOCKET_PEER_CLOSED_E    = -397,        /* Underlying transport closed */
 
+    BAD_TICKET_KEY_CB_SZ    = -398,        /* Bad session ticket key cb size */
+    BAD_TICKET_MSG_SZ       = -399,        /* Bad session ticket msg size    */
+
     /* add strings to SetErrorString !!!!! */
 
     /* begin negotiation parameter errors */
