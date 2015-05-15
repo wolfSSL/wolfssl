@@ -1359,8 +1359,8 @@ WOLFSSL_API int wolfSSL_Rehandshake(WOLFSSL* ssl);
 
 /* Session Ticket */
 #ifdef HAVE_SESSION_TICKET
-#ifndef NO_WOLFSSL_CLIENT
 
+#ifndef NO_WOLFSSL_CLIENT
 WOLFSSL_API int wolfSSL_UseSessionTicket(WOLFSSL* ssl);
 WOLFSSL_API int wolfSSL_CTX_UseSessionTicket(WOLFSSL_CTX* ctx);
 WOLFSSL_API int wolfSSL_get_SessionTicket(WOLFSSL*, unsigned char*, unsigned int*);
@@ -1368,9 +1368,32 @@ WOLFSSL_API int wolfSSL_set_SessionTicket(WOLFSSL*, unsigned char*, unsigned int
 typedef int (*CallbackSessionTicket)(WOLFSSL*, const unsigned char*, int, void*);
 WOLFSSL_API int wolfSSL_set_SessionTicket_cb(WOLFSSL*,
                                                   CallbackSessionTicket, void*);
+#endif /* NO_WOLFSSL_CLIENT */
 
-#endif
-#endif
+#ifndef NO_WOLFSSL_SERVER
+
+#define WOLFSSL_TICKET_NAME_SZ 16
+#define WOLFSSL_TICKET_IV_SZ   16
+#define WOLFSSL_TICKET_MAC_SZ  32
+
+enum TicketEncRet {
+    WOLFSSL_TICKET_RET_FATAL  = -1,  /* fatal error, don't use ticket */
+    WOLFSSL_TICKET_RET_OK     =  0,  /* ok, use ticket */
+    WOLFSSL_TICKET_RET_REJECT,       /* don't use ticket, but not fatal */
+    WOLFSSL_TICKET_RET_CREATE        /* existing ticket ok and create new one */
+};
+
+typedef int (*SessionTicketEncCb)(WOLFSSL*,
+                                 unsigned char key_name[WOLFSSL_TICKET_NAME_SZ],
+                                 unsigned char iv[WOLFSSL_TICKET_IV_SZ],
+                                 unsigned char mac[WOLFSSL_TICKET_MAC_SZ],
+                                 int enc, unsigned char*, int, int*);
+WOLFSSL_API int wolfSSL_CTX_set_TicketEncCb(WOLFSSL_CTX* ctx,
+                                            SessionTicketEncCb);
+
+#endif /* NO_WOLFSSL_SERVER */
+
+#endif /* HAVE_SESSION_TICKET */
 
 #define WOLFSSL_CRL_MONITOR   0x01   /* monitor this dir flag */
 #define WOLFSSL_CRL_START_MON 0x02   /* start monitoring flag */

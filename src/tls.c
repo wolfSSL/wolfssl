@@ -1800,14 +1800,15 @@ static void TLSX_SessionTicket_ValidateRequest(WOLFSSL* ssl)
 
 static word16 TLSX_SessionTicket_GetSize(SessionTicket* ticket, int isRequest)
 {
-    return isRequest && ticket ? ticket->size : 0;
+    (void)isRequest;
+    return ticket ? ticket->size : 0;
 }
 
 static word16 TLSX_SessionTicket_Write(SessionTicket* ticket, byte* output,
                                                                   int isRequest)
 {
-    int offset = 0; /* empty ticket */
-    
+    word16 offset = 0; /* empty ticket */
+
     if (isRequest && ticket) {
         XMEMCPY(output + offset, ticket->data, ticket->size);
         offset += ticket->size;
@@ -1820,18 +1821,61 @@ static word16 TLSX_SessionTicket_Write(SessionTicket* ticket, byte* output,
 static int TLSX_SessionTicket_Parse(WOLFSSL* ssl, byte* input, word16 length,
                                                                  byte isRequest)
 {
+    int ret = 0;
+
     if (!isRequest) {
+        /* client side */
         if (length != 0)
             return BUFFER_ERROR;
-        
+
         ssl->expect_session_ticket = 1;
     }
+#ifndef NO_WOLFSSL_SERVER
     else {
-        /* TODO server side */
-        (void)input;        
-    }
+        /* server side */
+        if (ssl->ctx->ticketEncCb == NULL) {
+            WOLFSSL_MSG("Client sent session ticket, server has no callback");
+            return 0;
+        }
 
-    return 0;
+        if (length == 0) {
+            /* blank ticket */
+            ret = TLSX_UseSessionTicket(&ssl->extensions, NULL);
+            if (ret == SSL_SUCCESS) {
+                ret = 0;
+                TLSX_SetResponse(ssl, SESSION_TICKET);  /* send blank ticket */
+                ssl->options.createTicket = 1;  /* will send ticket msg */
+                ssl->options.useTicket    = 1;
+            }
+        } else {
+            /* got actual ticket from client */
+            ret = DoClientTicket(ssl, input, length);
+            if (ret == WOLFSSL_TICKET_RET_OK) {    /* use ticket to resume */
+                WOLFSSL_MSG("Using exisitng client ticket");
+                ssl->options.useTicket = 1;
+                ssl->options.resuming  = 1;
+            } else if (ret == WOLFSSL_TICKET_RET_CREATE) {
+                WOLFSSL_MSG("Using existing client ticket, creating new one");
+                ret = TLSX_UseSessionTicket(&ssl->extensions, NULL);
+                if (ret == SSL_SUCCESS) {
+                    ret = 0;
+                    TLSX_SetResponse(ssl, SESSION_TICKET);
+                                                    /* send blank ticket */
+                    ssl->options.createTicket = 1;  /* will send ticket msg */
+                    ssl->options.useTicket    = 1;
+                    ssl->options.resuming     = 1;
+                }
+            } else if (ret == WOLFSSL_TICKET_RET_REJECT) {
+                WOLFSSL_MSG("Process client ticket rejected, not using");
+                ret = 0;  /* not fatal */
+            } else if (ret == WOLFSSL_TICKET_RET_FATAL || ret < 0) {
+                WOLFSSL_MSG("Process client ticket fatal error, not using");
+            }
+        }
+    }
+#endif /* NO_WOLFSSL_SERVER */
+
+    return ret;
 }
 
 WOLFSSL_LOCAL SessionTicket* TLSX_SessionTicket_Create(word32 lifetime,
