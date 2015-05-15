@@ -67,8 +67,9 @@
 #if defined(HAVE_SESSION_TICKET) && defined(HAVE_CHACHA) && \
                                     defined(HAVE_POLY1305)
     #include <wolfssl/wolfcrypt/chacha20_poly1305.h>
-    static int TicketInit(void);
-    static int myTicketEncCb(WOLFSSL* ssl, byte key_name[16], byte iv[16],
+    static int  TicketInit(void);
+    static void TicketCleanup(void);
+    static int  myTicketEncCb(WOLFSSL* ssl, byte key_name[16], byte iv[16],
                       byte mac[32], int enc, byte* ticket, int inLen,
                       int* outLen);
 #endif
@@ -664,6 +665,11 @@ while (1) {  /* allow resume option */
     fdCloseSession(Task_self());
 #endif
 
+#if defined(HAVE_SESSION_TICKET) && defined(HAVE_CHACHA) && \
+                                    defined(HAVE_POLY1305)
+    TicketCleanup();
+#endif
+
 #ifndef CYASSL_TIRTOS
     return 0;
 #endif
@@ -771,6 +777,11 @@ while (1) {  /* allow resume option */
         if (ret != 0) return ret;
 
         return 0;
+    }
+
+    static void TicketCleanup(void)
+    {
+        wc_FreeRng(&rng);
     }
 
     static int myTicketEncCb(WOLFSSL* ssl,
